@@ -28,11 +28,11 @@ func Parse(sql string) (*nodes.List, error) {
 			p.advance()
 			continue
 		}
-		// TODO: implement statement dispatch in batch 21
-		return nil, &ParseError{
-			Message:  "mysql parser not yet implemented",
-			Position: p.cur.Loc,
+		stmt, err := p.parseStmt()
+		if err != nil {
+			return nil, err
 		}
+		stmts = append(stmts, stmt)
 	}
 
 	if len(stmts) == 0 {

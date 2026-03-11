@@ -49,7 +49,7 @@ func (p *Parser) parseCreateViewStmt(orReplace bool) (*nodes.CreateViewStmt, err
 		}
 		definer := name
 		// Handle 'user'@'host' format
-		if p.cur.Type == '@' {
+		if p.cur.Type == tokIDENT && p.cur.Str == "@" {
 			p.advance()
 			host, _, err := p.parseIdentifier()
 			if err != nil {

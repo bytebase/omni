@@ -4151,3 +4151,161 @@ func TestParseDo(t *testing.T) {
 		t.Fatalf("Exprs count = %d, want 2", len(stmt.Exprs))
 	}
 }
+
+// ─── Batch 21: stmt_dispatch integration tests ────────────────────────────
+
+func TestParseEmptyInput(t *testing.T) {
+	result := ParseAndCheck(t, "")
+	if len(result.Items) != 0 {
+		t.Fatalf("expected 0 items for empty input, got %d", len(result.Items))
+	}
+
+	result = ParseAndCheck(t, "   ")
+	if len(result.Items) != 0 {
+		t.Fatalf("expected 0 items for whitespace input, got %d", len(result.Items))
+	}
+
+	result = ParseAndCheck(t, ";;;")
+	if len(result.Items) != 0 {
+		t.Fatalf("expected 0 items for semicolons only, got %d", len(result.Items))
+	}
+}
+
+func TestParseMultipleStatements(t *testing.T) {
+	tests := []struct {
+		name  string
+		sql   string
+		count int
+	}{
+		{
+			name:  "two selects",
+			sql:   "SELECT 1; SELECT 2",
+			count: 2,
+		},
+		{
+			name:  "three statements",
+			sql:   "SELECT 1; INSERT INTO t VALUES (1); UPDATE t SET a = 1",
+			count: 3,
+		},
+		{
+			name:  "mixed DDL and DML",
+			sql:   "CREATE TABLE t (id INT); INSERT INTO t VALUES (1); SELECT * FROM t; DROP TABLE t",
+			count: 4,
+		},
+		{
+			name:  "trailing semicolons",
+			sql:   "SELECT 1;;;SELECT 2;;;",
+			count: 2,
+		},
+		{
+			name:  "all statement types via Parse()",
+			sql: `SELECT 1;
+INSERT INTO t VALUES (1);
+REPLACE INTO t VALUES (2);
+UPDATE t SET a = 1;
+DELETE FROM t;
+CREATE TABLE t2 (id INT);
+ALTER TABLE t2 ADD COLUMN name VARCHAR(100);
+DROP TABLE t2;
+TRUNCATE TABLE t;
+RENAME TABLE t TO t3;
+SET @a = 1;
+SHOW TABLES;
+USE mydb;
+EXPLAIN SELECT 1;
+BEGIN;
+COMMIT;
+ROLLBACK;
+SAVEPOINT sp1;
+RELEASE SAVEPOINT sp1;
+LOCK TABLES t READ;
+UNLOCK TABLES;
+GRANT SELECT ON *.* TO 'user'@'localhost';
+REVOKE SELECT ON *.* FROM 'user'@'localhost';
+LOAD DATA INFILE 'file.csv' INTO TABLE t;
+PREPARE stmt FROM 'SELECT 1';
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+ANALYZE TABLE t;
+OPTIMIZE TABLE t;
+CHECK TABLE t;
+REPAIR TABLE t;
+FLUSH TABLES;
+RESET MASTER;
+KILL 42;
+DO 1`,
+			count: 35,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if len(result.Items) != tt.count {
+				t.Fatalf("expected %d statements, got %d", tt.count, len(result.Items))
+			}
+		})
+	}
+}
+
+func TestParseStmtDispatchCreateVariants(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE t (id INT)",
+		"CREATE TEMPORARY TABLE t (id INT)",
+		"CREATE INDEX idx ON t (col)",
+		"CREATE UNIQUE INDEX idx ON t (col)",
+		"CREATE FULLTEXT INDEX idx ON t (col)",
+		"CREATE SPATIAL INDEX idx ON t (col)",
+		"CREATE VIEW v AS SELECT 1",
+		"CREATE OR REPLACE VIEW v AS SELECT 1",
+		"CREATE DATABASE mydb",
+		"CREATE SCHEMA mydb",
+		"CREATE FUNCTION f() RETURNS INT BEGIN RETURN 1; END",
+		"CREATE PROCEDURE p() BEGIN SELECT 1; END",
+		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET @a = 1",
+		"CREATE EVENT ev ON SCHEDULE AT CURRENT_TIMESTAMP DO SELECT 1",
+		"CREATE USER 'user'@'localhost'",
+	}
+
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseStmtDispatchDropVariants(t *testing.T) {
+	tests := []string{
+		"DROP TABLE t",
+		"DROP TABLE IF EXISTS t",
+		"DROP TEMPORARY TABLE t",
+		"DROP INDEX idx ON t",
+		"DROP VIEW v",
+		"DROP DATABASE mydb",
+		"DROP USER 'user'@'localhost'",
+		"DROP FUNCTION IF EXISTS f",
+		"DROP PROCEDURE IF EXISTS p",
+		"DROP TRIGGER IF EXISTS tr",
+		"DROP EVENT IF EXISTS ev",
+	}
+
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseStmtDispatchAlterVariants(t *testing.T) {
+	tests := []string{
+		"ALTER TABLE t ADD COLUMN c INT",
+		"ALTER DATABASE mydb CHARACTER SET utf8mb4",
+		"ALTER USER 'user'@'localhost' IDENTIFIED BY 'newpass'",
+	}
+
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}

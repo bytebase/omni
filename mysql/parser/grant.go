@@ -448,8 +448,8 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 		}
 	}
 
-	// Optional @host
-	if p.cur.Type == '@' {
+	// Optional @host — the lexer scans @ as tokIDENT with Str="@"
+	if p.cur.Type == tokIDENT && p.cur.Str == "@" {
 		p.advance()
 		if p.cur.Type == tokSCONST {
 			spec.Host = p.cur.Str
