@@ -63,7 +63,7 @@
       "id": 4,
       "name": "select",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "SELECT with all clauses including MySQL-specific: SQL_CALC_FOUND_ROWS, INTO, HIGH_PRIORITY, STRAIGHT_JOIN, UNION/INTERSECT/EXCEPT",
       "rules": [
         "select_stmt", "select_options", "select_expr_list", "select_expr",

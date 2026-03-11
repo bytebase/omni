@@ -654,11 +654,16 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 
 	// Check for subquery
 	if p.cur.Type == kwSELECT {
-		// TODO: parse subquery in batch 4
-		return nil, &ParseError{
-			Message:  "subquery not yet implemented",
-			Position: p.cur.Loc,
+		sub, err := p.parseSubqueryExpr()
+		if err != nil {
+			return nil, err
 		}
+		if _, errP := p.expect(')'); errP != nil {
+			return nil, errP
+		}
+		sub.Loc.Start = start
+		sub.Loc.End = p.pos()
+		return sub, nil
 	}
 
 	expr, err := p.parseExpr()
@@ -882,11 +887,16 @@ func (p *Parser) parseInExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 
 	// Check for subquery
 	if p.cur.Type == kwSELECT {
-		// TODO: parse subquery in batch 4
-		return nil, &ParseError{
-			Message:  "subquery not yet implemented",
-			Position: p.cur.Loc,
+		sub, err := p.parseSubqueryExpr()
+		if err != nil {
+			return nil, err
 		}
+		if _, errP := p.expect(')'); errP != nil {
+			return nil, errP
+		}
+		inExpr.Select = sub.Select
+		inExpr.Loc.End = p.pos()
+		return inExpr, nil
 	}
 
 	// Value list
@@ -1041,17 +1051,26 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 
 // parseExistsExpr parses EXISTS (subquery).
 func (p *Parser) parseExistsExpr() (nodes.ExprNode, error) {
+	start := p.pos()
 	p.advance() // consume EXISTS
 
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
 
-	// TODO: parse subquery in batch 4
-	return nil, &ParseError{
-		Message:  "subquery not yet implemented",
-		Position: p.cur.Loc,
+	sub, err := p.parseSubqueryExpr()
+	if err != nil {
+		return nil, err
 	}
+
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+
+	return &nodes.ExistsExpr{
+		Loc:    nodes.Loc{Start: start, End: p.pos()},
+		Select: sub.Select,
+	}, nil
 }
 
 // parseIntervalExpr parses INTERVAL value unit.

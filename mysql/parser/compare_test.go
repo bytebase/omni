@@ -957,6 +957,224 @@ func TestParseConvert(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Batch 4: select
+// ---------------------------------------------------------------------------
+
+// helper to parse a SELECT statement directly
+func parseSelect(t *testing.T, input string) *ast.SelectStmt {
+	t.Helper()
+	p := &Parser{lexer: NewLexer(input)}
+	p.advance()
+	sel, err := p.parseSelectStmt()
+	if err != nil {
+		t.Fatalf("parseSelectStmt(%q) error: %v", input, err)
+	}
+	return sel
+}
+
+// TestParseSimpleSelect tests simple SELECT statements.
+func TestParseSimpleSelect(t *testing.T) {
+	cases := []struct {
+		input     string
+		targetLen int
+		hasFrom   bool
+		hasWhere  bool
+	}{
+		{"SELECT 1", 1, false, false},
+		{"SELECT 1, 2, 3", 3, false, false},
+		{"SELECT *", 1, false, false},
+		{"SELECT a, b FROM t", 2, true, false},
+		{"SELECT a FROM t WHERE a > 1", 1, true, true},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.input, func(t *testing.T) {
+			sel := parseSelect(t, tt.input)
+			if len(sel.TargetList) != tt.targetLen {
+				t.Errorf("target count = %d, want %d", len(sel.TargetList), tt.targetLen)
+			}
+			if (len(sel.From) > 0) != tt.hasFrom {
+				t.Errorf("hasFrom = %v, want %v", len(sel.From) > 0, tt.hasFrom)
+			}
+			if (sel.Where != nil) != tt.hasWhere {
+				t.Errorf("hasWhere = %v, want %v", sel.Where != nil, tt.hasWhere)
+			}
+		})
+	}
+}
+
+// TestParseSelectFrom tests SELECT with FROM clause.
+func TestParseSelectFrom(t *testing.T) {
+	sel := parseSelect(t, "SELECT a, b FROM users AS u")
+	if len(sel.From) != 1 {
+		t.Fatalf("from count = %d, want 1", len(sel.From))
+	}
+	tr, ok := sel.From[0].(*ast.TableRef)
+	if !ok {
+		t.Fatalf("expected *ast.TableRef, got %T", sel.From[0])
+	}
+	if tr.Name != "users" {
+		t.Errorf("table name = %s, want users", tr.Name)
+	}
+	if tr.Alias != "u" {
+		t.Errorf("alias = %s, want u", tr.Alias)
+	}
+}
+
+// TestParseSelectJoin tests SELECT with JOIN clauses.
+func TestParseSelectJoin(t *testing.T) {
+	cases := []struct {
+		input    string
+		joinType ast.JoinType
+	}{
+		{"SELECT * FROM a JOIN b ON a.id = b.id", ast.JoinInner},
+		{"SELECT * FROM a LEFT JOIN b ON a.id = b.id", ast.JoinLeft},
+		{"SELECT * FROM a RIGHT JOIN b ON a.id = b.id", ast.JoinRight},
+		{"SELECT * FROM a CROSS JOIN b", ast.JoinCross},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.input, func(t *testing.T) {
+			sel := parseSelect(t, tt.input)
+			if len(sel.From) != 1 {
+				t.Fatalf("from count = %d, want 1", len(sel.From))
+			}
+			jc, ok := sel.From[0].(*ast.JoinClause)
+			if !ok {
+				t.Fatalf("expected *ast.JoinClause, got %T", sel.From[0])
+			}
+			if jc.Type != tt.joinType {
+				t.Errorf("join type = %d, want %d", jc.Type, tt.joinType)
+			}
+		})
+	}
+}
+
+// TestParseSelectGroupBy tests SELECT with GROUP BY clause.
+func TestParseSelectGroupBy(t *testing.T) {
+	sel := parseSelect(t, "SELECT dept, COUNT(*) FROM emp GROUP BY dept HAVING COUNT(*) > 1")
+	if len(sel.GroupBy) != 1 {
+		t.Errorf("group_by count = %d, want 1", len(sel.GroupBy))
+	}
+	if sel.Having == nil {
+		t.Error("expected HAVING clause")
+	}
+}
+
+// TestParseSelectOrderBy tests SELECT with ORDER BY clause.
+func TestParseSelectOrderBy(t *testing.T) {
+	sel := parseSelect(t, "SELECT * FROM t ORDER BY a ASC, b DESC")
+	if len(sel.OrderBy) != 2 {
+		t.Fatalf("order_by count = %d, want 2", len(sel.OrderBy))
+	}
+	if sel.OrderBy[0].Desc {
+		t.Error("first ORDER BY item should be ASC")
+	}
+	if !sel.OrderBy[1].Desc {
+		t.Error("second ORDER BY item should be DESC")
+	}
+}
+
+// TestParseSelectLimit tests SELECT with LIMIT clause.
+func TestParseSelectLimit(t *testing.T) {
+	cases := []struct {
+		input     string
+		hasOffset bool
+	}{
+		{"SELECT * FROM t LIMIT 10", false},
+		{"SELECT * FROM t LIMIT 10 OFFSET 5", true},
+		{"SELECT * FROM t LIMIT 5, 10", true},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.input, func(t *testing.T) {
+			sel := parseSelect(t, tt.input)
+			if sel.Limit == nil {
+				t.Fatal("expected LIMIT clause")
+			}
+			if (sel.Limit.Offset != nil) != tt.hasOffset {
+				t.Errorf("hasOffset = %v, want %v", sel.Limit.Offset != nil, tt.hasOffset)
+			}
+		})
+	}
+}
+
+// TestParseSelectUnion tests SELECT with UNION.
+func TestParseSelectUnion(t *testing.T) {
+	sel := parseSelect(t, "SELECT 1 UNION SELECT 2")
+	if sel.SetOp != ast.SetOpUnion {
+		t.Errorf("SetOp = %d, want SetOpUnion", sel.SetOp)
+	}
+	if sel.Left == nil || sel.Right == nil {
+		t.Error("expected Left and Right in UNION")
+	}
+}
+
+// TestParseSelectForUpdate tests SELECT with FOR UPDATE.
+func TestParseSelectForUpdate(t *testing.T) {
+	sel := parseSelect(t, "SELECT * FROM t FOR UPDATE")
+	if sel.ForUpdate == nil {
+		t.Fatal("expected FOR UPDATE clause")
+	}
+	if sel.ForUpdate.Share {
+		t.Error("expected FOR UPDATE, not FOR SHARE")
+	}
+
+	sel2 := parseSelect(t, "SELECT * FROM t FOR SHARE")
+	if sel2.ForUpdate == nil {
+		t.Fatal("expected FOR SHARE clause")
+	}
+	if !sel2.ForUpdate.Share {
+		t.Error("expected FOR SHARE")
+	}
+}
+
+// TestParseSelectDistinct tests SELECT DISTINCT.
+func TestParseSelectDistinct(t *testing.T) {
+	sel := parseSelect(t, "SELECT DISTINCT a, b FROM t")
+	if sel.DistinctKind != ast.DistinctOn {
+		t.Errorf("DistinctKind = %d, want DistinctOn", sel.DistinctKind)
+	}
+}
+
+// TestParseSelectAlias tests SELECT with column aliases.
+func TestParseSelectAlias(t *testing.T) {
+	sel := parseSelect(t, "SELECT a AS col1, b col2 FROM t")
+	if len(sel.TargetList) != 2 {
+		t.Fatalf("target count = %d, want 2", len(sel.TargetList))
+	}
+	rt1, ok := sel.TargetList[0].(*ast.ResTarget)
+	if !ok {
+		t.Fatalf("expected *ast.ResTarget, got %T", sel.TargetList[0])
+	}
+	if rt1.Name != "col1" {
+		t.Errorf("alias = %s, want col1", rt1.Name)
+	}
+	rt2, ok := sel.TargetList[1].(*ast.ResTarget)
+	if !ok {
+		t.Fatalf("expected *ast.ResTarget, got %T", sel.TargetList[1])
+	}
+	if rt2.Name != "col2" {
+		t.Errorf("alias = %s, want col2", rt2.Name)
+	}
+}
+
+// TestParseSelectSubquery tests SELECT with subquery.
+func TestParseSelectSubquery(t *testing.T) {
+	sel := parseSelect(t, "SELECT * FROM t WHERE id IN (SELECT id FROM t2)")
+	if sel.Where == nil {
+		t.Fatal("expected WHERE clause")
+	}
+	inExpr, ok := sel.Where.(*ast.InExpr)
+	if !ok {
+		t.Fatalf("expected *ast.InExpr, got %T", sel.Where)
+	}
+	if inExpr.Select == nil {
+		t.Error("expected subquery in IN")
+	}
+}
+
 // TestParseEmpty tests parsing empty input.
 func TestParseEmpty(t *testing.T) {
 	result, err := Parse("")
