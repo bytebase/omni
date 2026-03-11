@@ -763,6 +763,10 @@ var oracleKeywords = map[string]int{
 	"SYS_CONNECT_BY_PATH": kwSYS_CONNECT_BY_PATH,
 	"UNDER":               kwUNDER,
 
+	// SAMPLE / FLASHBACK query keywords
+	"BLOCK":    kwBLOCK,
+	"VERSIONS": kwVERSIONS,
+
 	// MODEL clause keywords
 	"AUTOMATIC": kwAUTOMATIC,
 	"DECREMENT": kwDECREMENT,
@@ -1056,6 +1060,10 @@ const (
 	kwWORK
 	kwWRITE
 	kwZONE
+
+	// SAMPLE / FLASHBACK query keywords
+	kwBLOCK
+	kwVERSIONS
 
 	// MODEL clause keywords
 	kwAUTOMATIC

@@ -618,10 +618,11 @@ func (n *JoinClause) tableExpr() {}
 
 // TableRef represents a table reference in a FROM clause.
 type TableRef struct {
-	Name   *ObjectName   // table name
-	Alias  *Alias        // optional alias
-	Sample *SampleClause // SAMPLE clause
-	Loc    Loc           // start location
+	Name      *ObjectName      // table name
+	Alias     *Alias           // optional alias
+	Sample    *SampleClause    // SAMPLE clause
+	Flashback *FlashbackClause // AS OF / VERSIONS BETWEEN
+	Loc       Loc              // start location
 }
 
 func (n *TableRef) nodeTag()   {}
@@ -905,11 +906,21 @@ type ModelForLoop struct {
 func (n *ModelForLoop) nodeTag()  {}
 func (n *ModelForLoop) exprNode() {}
 
-// FlashbackClause represents a flashback query (AS OF).
+// FlashbackClause represents a flashback query (AS OF / VERSIONS BETWEEN).
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/SELECT.html
+//
+//	flashback_query_clause ::=
+//	    { VERSIONS BETWEEN { SCN | TIMESTAMP } expr AND expr
+//	    | AS OF { SCN | TIMESTAMP } expr
+//	    }
 type FlashbackClause struct {
-	Type string   // "SCN" or "TIMESTAMP"
-	Expr ExprNode // SCN or timestamp expression
-	Loc  Loc
+	Type        string   // "SCN" or "TIMESTAMP"
+	Expr        ExprNode // AS OF expression
+	IsVersions  bool     // VERSIONS BETWEEN (vs AS OF)
+	VersionsLow ExprNode // VERSIONS BETWEEN low expr
+	VersionsHigh ExprNode // VERSIONS BETWEEN high expr (AND expr)
+	Loc         Loc
 }
 
 func (n *FlashbackClause) nodeTag() {}

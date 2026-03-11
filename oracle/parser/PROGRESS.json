@@ -353,7 +353,7 @@
       "id": 26,
       "name": "select_sample_flashback",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 4 gap: SAMPLE clause and FLASHBACK query (AS OF SCN/TIMESTAMP, VERSIONS BETWEEN) are listed in batch 4 rules but not implemented. SAMPLE returns a random sample of rows. FLASHBACK queries retrieve historical data.",
       "rules": [
         "sample_clause", "flashback_query_clause",

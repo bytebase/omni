@@ -763,6 +763,10 @@ func writeTableRef(sb *strings.Builder, n *TableRef) {
 		sb.WriteString(" :sample ")
 		writeNode(sb, n.Sample)
 	}
+	if n.Flashback != nil {
+		sb.WriteString(" :flashback ")
+		writeNode(sb, n.Flashback)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -1116,9 +1120,20 @@ func writeFlashbackClause(sb *strings.Builder, n *FlashbackClause) {
 	if n.Type != "" {
 		sb.WriteString(fmt.Sprintf(" :type %q", n.Type))
 	}
+	if n.IsVersions {
+		sb.WriteString(" :isVersions true")
+	}
 	if n.Expr != nil {
 		sb.WriteString(" :expr ")
 		writeNode(sb, n.Expr)
+	}
+	if n.VersionsLow != nil {
+		sb.WriteString(" :versionsLow ")
+		writeNode(sb, n.VersionsLow)
+	}
+	if n.VersionsHigh != nil {
+		sb.WriteString(" :versionsHigh ")
+		writeNode(sb, n.VersionsHigh)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

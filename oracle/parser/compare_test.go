@@ -433,6 +433,68 @@ func TestParseSelectModel(t *testing.T) {
 	}
 }
 
+// TestParseSelectSample tests SAMPLE clause parsing.
+func TestParseSelectSample(t *testing.T) {
+	tests := []string{
+		// Basic SAMPLE
+		`SELECT * FROM employees SAMPLE (10)`,
+		// SAMPLE with SEED
+		`SELECT * FROM employees SAMPLE (10) SEED (42)`,
+		// SAMPLE BLOCK
+		`SELECT * FROM employees SAMPLE BLOCK (5)`,
+		// SAMPLE BLOCK with SEED
+		`SELECT * FROM employees SAMPLE BLOCK (25) SEED (1234)`,
+		// SAMPLE in subquery
+		`SELECT * FROM (SELECT * FROM employees SAMPLE (50))`,
+		// SAMPLE with alias
+		`SELECT * FROM employees SAMPLE (10) e`,
+	}
+	for _, sql := range tests {
+		name := sql
+		if len(name) > 60 {
+			name = name[:60]
+		}
+		t.Run(name, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+		})
+	}
+}
+
+// TestParseSelectFlashbackQuery tests flashback query clause parsing.
+func TestParseSelectFlashbackQuery(t *testing.T) {
+	tests := []string{
+		// AS OF SCN
+		`SELECT * FROM employees AS OF SCN 12345`,
+		// AS OF TIMESTAMP with function call
+		`SELECT * FROM employees AS OF TIMESTAMP TO_TIMESTAMP('2024-01-01', 'YYYY-MM-DD')`,
+		// AS OF TIMESTAMP with simple expression
+		`SELECT * FROM employees AS OF TIMESTAMP SYSTIMESTAMP`,
+		// VERSIONS BETWEEN SCN
+		`SELECT * FROM employees VERSIONS BETWEEN SCN 1000 AND 2000`,
+		// VERSIONS BETWEEN TIMESTAMP with simple expressions
+		`SELECT * FROM employees VERSIONS BETWEEN TIMESTAMP TO_TIMESTAMP('2024-01-01', 'YYYY-MM-DD') AND SYSTIMESTAMP`,
+		// Flashback with alias
+		`SELECT * FROM employees AS OF SCN 12345 e`,
+		// Flashback with WHERE
+		`SELECT * FROM employees AS OF SCN 12345 WHERE department_id = 10`,
+	}
+	for _, sql := range tests {
+		name := sql
+		if len(name) > 60 {
+			name = name[:60]
+		}
+		t.Run(name, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+		})
+	}
+}
+
 func TestNodeToString(t *testing.T) {
 	n := &ast.NumberLiteral{Val: "42", Ival: 42, Loc: ast.Loc{Start: 0, End: -1}}
 	s := ast.NodeToString(n)

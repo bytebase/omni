@@ -281,8 +281,19 @@ func (p *Parser) parseTableRef() nodes.TableExpr {
 		Loc:  nodes.Loc{Start: start},
 	}
 
+	// Flashback query: VERSIONS BETWEEN ... AND ... or AS OF SCN/TIMESTAMP
+	if p.cur.Type == kwVERSIONS || (p.cur.Type == kwAS && p.peekNext().Type == kwOF) {
+		tr.Flashback = p.parseFlashbackClause()
+	}
+
+	// SAMPLE [BLOCK] (percent) [SEED (value)]
+	if p.cur.Type == kwSAMPLE {
+		tr.Sample = p.parseSampleClause()
+	}
+
 	// Optional alias
 	if p.cur.Type == kwAS {
+		// Only consume AS as alias intro if next is not OF (flashback already handled)
 		p.advance()
 		tr.Alias = &nodes.Alias{Name: p.parseIdentifier()}
 	} else if p.isTableAliasCandidate() {
@@ -1452,4 +1463,117 @@ func (p *Parser) parseModelCellRef() nodes.ExprNode {
 		Args:     args,
 		Loc:      nodes.Loc{Start: start, End: p.pos()},
 	}
+}
+
+// parseSampleClause parses a SAMPLE clause on a table reference.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/SELECT.html
+//
+//	sample_clause ::=
+//	    SAMPLE [ BLOCK ] ( sample_percent )
+//	    [ SEED ( seed_value ) ]
+func (p *Parser) parseSampleClause() *nodes.SampleClause {
+	start := p.pos()
+	p.advance() // consume SAMPLE
+
+	sc := &nodes.SampleClause{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// [ BLOCK ]
+	if p.cur.Type == kwBLOCK {
+		sc.Block = true
+		p.advance()
+	}
+
+	// ( percent )
+	if p.cur.Type == '(' {
+		p.advance()
+		sc.Percent = p.parseExpr()
+		if p.cur.Type == ')' {
+			p.advance()
+		}
+	}
+
+	// [ SEED ( value ) ]
+	if p.cur.Type == kwSEED {
+		p.advance()
+		if p.cur.Type == '(' {
+			p.advance()
+			sc.Seed = p.parseExpr()
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		}
+	}
+
+	sc.Loc.End = p.pos()
+	return sc
+}
+
+// parseFlashbackClause parses a flashback query clause on a table reference.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/SELECT.html
+//
+//	flashback_query_clause ::=
+//	    { VERSIONS BETWEEN { SCN | TIMESTAMP } expr AND expr
+//	    | AS OF { SCN | TIMESTAMP } expr
+//	    }
+func (p *Parser) parseFlashbackClause() *nodes.FlashbackClause {
+	start := p.pos()
+	fc := &nodes.FlashbackClause{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	if p.cur.Type == kwVERSIONS {
+		// VERSIONS BETWEEN { SCN | TIMESTAMP } expr AND expr
+		fc.IsVersions = true
+		p.advance() // consume VERSIONS
+
+		if p.cur.Type == kwBETWEEN {
+			p.advance() // consume BETWEEN
+		}
+
+		// SCN | TIMESTAMP
+		if p.cur.Type == kwSCN {
+			fc.Type = "SCN"
+			p.advance()
+		} else if p.cur.Type == kwTIMESTAMP {
+			fc.Type = "TIMESTAMP"
+			p.advance()
+		}
+
+		// low expr — parse above AND precedence to not consume the BETWEEN...AND
+		fc.VersionsLow = p.parseExprPrec(precNot)
+
+		// AND
+		if p.cur.Type == kwAND {
+			p.advance()
+		}
+
+		// high expr
+		fc.VersionsHigh = p.parseExpr()
+
+	} else if p.cur.Type == kwAS {
+		// AS OF { SCN | TIMESTAMP } expr
+		p.advance() // consume AS
+		if p.cur.Type == kwOF {
+			p.advance() // consume OF
+		}
+
+		// SCN | TIMESTAMP
+		if p.cur.Type == kwSCN {
+			fc.Type = "SCN"
+			p.advance()
+		} else if p.cur.Type == kwTIMESTAMP {
+			fc.Type = "TIMESTAMP"
+			p.advance()
+		}
+
+		// expr
+		fc.Expr = p.parseExpr()
+	}
+
+	fc.Loc.End = p.pos()
+	return fc
 }
