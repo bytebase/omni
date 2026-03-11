@@ -300,6 +300,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeFlashbackTableStmt(sb, n)
 	case *PurgeStmt:
 		writePurgeStmt(sb, n)
+	case *LockTableStmt:
+		writeLockTableStmt(sb, n)
+	case *CallStmt:
+		writeCallStmt(sb, n)
+	case *RenameStmt:
+		writeRenameStmt(sb, n)
 
 	// PL/SQL nodes
 	case *PLSQLBlock:
@@ -2604,6 +2610,58 @@ func writePurgeStmt(sb *strings.Builder, n *PurgeStmt) {
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeLockTableStmt(sb *strings.Builder, n *LockTableStmt) {
+	sb.WriteString("{LOCK_TABLE")
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.LockMode != "" {
+		sb.WriteString(fmt.Sprintf(" :lockMode %q", n.LockMode))
+	}
+	if n.Nowait {
+		sb.WriteString(" :nowait true")
+	}
+	if n.Wait != nil {
+		sb.WriteString(" :wait ")
+		writeNode(sb, n.Wait)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCallStmt(sb *strings.Builder, n *CallStmt) {
+	sb.WriteString("{CALL")
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Args != nil {
+		sb.WriteString(" :args ")
+		writeNode(sb, n.Args)
+	}
+	if n.Into != nil {
+		sb.WriteString(" :into ")
+		writeNode(sb, n.Into)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeRenameStmt(sb *strings.Builder, n *RenameStmt) {
+	sb.WriteString("{RENAME")
+	if n.OldName != nil {
+		sb.WriteString(" :oldName ")
+		writeNode(sb, n.OldName)
+	}
+	if n.NewName != nil {
+		sb.WriteString(" :newName ")
+		writeNode(sb, n.NewName)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

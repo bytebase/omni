@@ -4,6 +4,138 @@ import (
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
+// parseLockTableStmt parses a LOCK TABLE statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/LOCK-TABLE.html
+//
+//	LOCK TABLE [schema.]table IN lock_mode MODE [NOWAIT | WAIT integer]
+//	lock_mode ::= ROW SHARE | ROW EXCLUSIVE | SHARE | SHARE UPDATE |
+//	              SHARE ROW EXCLUSIVE | EXCLUSIVE
+func (p *Parser) parseLockTableStmt() nodes.StmtNode {
+	start := p.pos()
+	p.advance() // consume LOCK
+
+	if p.cur.Type == kwTABLE {
+		p.advance()
+	}
+
+	stmt := &nodes.LockTableStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	stmt.Table = p.parseObjectName()
+
+	// IN
+	if p.cur.Type == kwIN {
+		p.advance()
+	}
+
+	// Lock mode: collect words until MODE
+	mode := ""
+	for p.cur.Type != kwMODE && p.cur.Type != tokEOF && p.cur.Type != ';' {
+		if mode != "" {
+			mode += " "
+		}
+		if p.cur.Type == kwSHARE {
+			mode += "SHARE"
+		} else if p.cur.Type == kwROW {
+			mode += "ROW"
+		} else if p.cur.Type == kwEXCLUSIVE {
+			mode += "EXCLUSIVE"
+		} else if p.isIdentLike() {
+			mode += p.cur.Str
+		}
+		p.advance()
+	}
+	stmt.LockMode = mode
+
+	// MODE
+	if p.cur.Type == kwMODE {
+		p.advance()
+	}
+
+	// NOWAIT or WAIT n
+	if p.cur.Type == kwNOWAIT {
+		stmt.Nowait = true
+		p.advance()
+	} else if p.cur.Type == kwWAIT {
+		p.advance()
+		stmt.Wait = p.parseExpr()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseCallStmt parses a CALL statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CALL.html
+//
+//	CALL [schema.]routine_name ( [args] ) [INTO :bind_variable]
+func (p *Parser) parseCallStmt() nodes.StmtNode {
+	start := p.pos()
+	p.advance() // consume CALL
+
+	stmt := &nodes.CallStmt{
+		Args: &nodes.List{},
+		Loc:  nodes.Loc{Start: start},
+	}
+
+	stmt.Name = p.parseObjectName()
+
+	// Arguments
+	if p.cur.Type == '(' {
+		p.advance()
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			arg := p.parseExpr()
+			if arg != nil {
+				stmt.Args.Items = append(stmt.Args.Items, arg)
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if p.cur.Type == ')' {
+			p.advance()
+		}
+	}
+
+	// INTO :bind_variable
+	if p.cur.Type == kwINTO {
+		p.advance()
+		stmt.Into = p.parseExpr()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseRenameStmt parses a RENAME statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/RENAME.html
+//
+//	RENAME old_name TO new_name
+func (p *Parser) parseRenameStmt() nodes.StmtNode {
+	start := p.pos()
+	p.advance() // consume RENAME
+
+	stmt := &nodes.RenameStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	stmt.OldName = p.parseObjectName()
+
+	if p.cur.Type == kwTO {
+		p.advance()
+	}
+
+	stmt.NewName = p.parseObjectName()
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
 // parseTruncateStmt parses a TRUNCATE TABLE statement.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/TRUNCATE-TABLE.html

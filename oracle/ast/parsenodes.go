@@ -1937,6 +1937,45 @@ type PurgeStmt struct {
 func (n *PurgeStmt) nodeTag()  {}
 func (n *PurgeStmt) stmtNode() {}
 
+// LockTableStmt represents a LOCK TABLE statement.
+//
+//	LOCK TABLE [schema.]table IN lock_mode MODE [NOWAIT | WAIT n]
+type LockTableStmt struct {
+	Table    *ObjectName // table name
+	LockMode string      // ROW SHARE, ROW EXCLUSIVE, SHARE, etc.
+	Nowait   bool        // NOWAIT
+	Wait     ExprNode    // WAIT n
+	Loc      Loc
+}
+
+func (n *LockTableStmt) nodeTag()  {}
+func (n *LockTableStmt) stmtNode() {}
+
+// CallStmt represents a CALL statement.
+//
+//	CALL [schema.]routine_name ( [args] ) [INTO :bind_variable]
+type CallStmt struct {
+	Name *ObjectName // routine name
+	Args *List       // argument list
+	Into ExprNode    // INTO bind variable
+	Loc  Loc
+}
+
+func (n *CallStmt) nodeTag()  {}
+func (n *CallStmt) stmtNode() {}
+
+// RenameStmt represents a RENAME statement.
+//
+//	RENAME old_name TO new_name
+type RenameStmt struct {
+	OldName *ObjectName // old name
+	NewName *ObjectName // new name
+	Loc     Loc
+}
+
+func (n *RenameStmt) nodeTag()  {}
+func (n *RenameStmt) stmtNode() {}
+
 // ---------------------------------------------------------------------------
 // Star expression (SELECT *)
 // ---------------------------------------------------------------------------

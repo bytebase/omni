@@ -456,7 +456,7 @@
       "id": 34,
       "name": "lock_table",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "LOCK TABLE statement: LOCK TABLE table IN {ROW SHARE|ROW EXCLUSIVE|SHARE|SHARE ROW EXCLUSIVE|EXCLUSIVE} MODE [NOWAIT|WAIT n].",
       "rules": [
         "lock_table_stmt", "lock_mode"
@@ -468,7 +468,7 @@
       "id": 35,
       "name": "call_stmt",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "CALL statement for invoking stored procedures/functions: CALL [schema.]routine_name([args]) [INTO :bind_variable].",
       "rules": [
         "call_stmt"
@@ -480,7 +480,7 @@
       "id": 36,
       "name": "rename_stmt",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "RENAME statement: RENAME old_name TO new_name. Top-level DDL statement for renaming tables, views, sequences, and synonyms.",
       "rules": [
         "rename_stmt"

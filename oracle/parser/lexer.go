@@ -819,6 +819,10 @@ var oracleKeywords = map[string]int{
 	"XMLROOT":      kwXMLROOT,
 	"XMLSERIALIZE": kwXMLSERIALIZE,
 
+	// Utility statement keywords
+	"CALL":  kwCALL,
+	"SHARE": kwSHARE,
+
 	// JSON expression keywords
 	"FORMAT":         kwFORMAT,
 	"JSON":           kwJSON,
@@ -1163,6 +1167,10 @@ const (
 	kwXMLPARSE
 	kwXMLROOT
 	kwXMLSERIALIZE
+
+	// Utility statement keywords
+	kwCALL
+	kwSHARE
 
 	// JSON expression keywords
 	kwFORMAT

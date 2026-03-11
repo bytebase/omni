@@ -742,3 +742,52 @@ func TestParseJsonExpressions(t *testing.T) {
 		})
 	}
 }
+
+func TestParseLockTable(t *testing.T) {
+	tests := []string{
+		"LOCK TABLE employees IN ROW SHARE MODE",
+		"LOCK TABLE employees IN EXCLUSIVE MODE NOWAIT",
+		"LOCK TABLE hr.employees IN SHARE MODE WAIT 10",
+		"LOCK TABLE t IN ROW EXCLUSIVE MODE",
+		"LOCK TABLE t IN SHARE ROW EXCLUSIVE MODE",
+	}
+	for _, sql := range tests {
+		name := sql
+		if len(name) > 60 {
+			name = name[:60]
+		}
+		t.Run(name, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseCallStmt(t *testing.T) {
+	tests := []string{
+		"CALL my_proc()",
+		"CALL my_proc(1, 'hello')",
+		"CALL hr.my_func(42) INTO :result",
+		"CALL dbms_output.put_line('test')",
+	}
+	for _, sql := range tests {
+		name := sql
+		if len(name) > 60 {
+			name = name[:60]
+		}
+		t.Run(name, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseRenameStmt(t *testing.T) {
+	tests := []string{
+		"RENAME old_table TO new_table",
+		"RENAME emp TO employees",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}

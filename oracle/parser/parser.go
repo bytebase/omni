@@ -106,6 +106,12 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 		return p.parseFlashbackTableStmt()
 	case kwPURGE:
 		return p.parsePurgeStmt()
+	case kwLOCK:
+		return p.parseLockTableStmt()
+	case kwCALL:
+		return p.parseCallStmt()
+	case kwRENAME:
+		return p.parseRenameStmt()
 	case kwALTER:
 		return p.parseAlterStmt()
 	case kwGRANT:
