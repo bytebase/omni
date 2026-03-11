@@ -1,0 +1,2501 @@
+package ast
+
+import (
+	"fmt"
+	"strings"
+)
+
+// NodeToString converts a Node to its string representation.
+func NodeToString(node Node) string {
+	if node == nil {
+		return "<>"
+	}
+	var sb strings.Builder
+	writeNode(&sb, node)
+	return sb.String()
+}
+
+func writeNode(sb *strings.Builder, node Node) {
+	if node == nil {
+		sb.WriteString("<>")
+		return
+	}
+
+	switch n := node.(type) {
+	case *List:
+		writeList(sb, n)
+	case *Integer:
+		sb.WriteString(fmt.Sprintf("%d", n.Ival))
+	case *Float:
+		sb.WriteString(n.Fval)
+	case *Boolean:
+		if n.Boolval {
+			sb.WriteString("true")
+		} else {
+			sb.WriteString("false")
+		}
+	case *String:
+		sb.WriteString("\"")
+		sb.WriteString(escapeString(n.Str))
+		sb.WriteString("\"")
+
+	// Literal nodes
+	case *NullLiteral:
+		sb.WriteString("{NULL")
+		sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+		sb.WriteString("}")
+	case *StringLiteral:
+		sb.WriteString("{STRLIT")
+		sb.WriteString(fmt.Sprintf(" :val %q", n.Val))
+		if n.IsNChar {
+			sb.WriteString(" :isnchar true")
+		}
+		sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+		sb.WriteString("}")
+	case *NumberLiteral:
+		sb.WriteString("{NUMLIT")
+		sb.WriteString(fmt.Sprintf(" :val %q", n.Val))
+		if n.IsFloat {
+			sb.WriteString(" :isfloat true")
+		}
+		sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+		sb.WriteString("}")
+
+	// Name/reference nodes
+	case *ColumnRef:
+		writeColumnRef(sb, n)
+	case *ObjectName:
+		writeObjectName(sb, n)
+	case *Alias:
+		writeAlias(sb, n)
+	case *TypeName:
+		writeTypeName(sb, n)
+	case *BindVariable:
+		sb.WriteString(fmt.Sprintf("{BINDVAR :name %q :loc_start %d :loc_end %d}", n.Name, n.Loc.Start, n.Loc.End))
+	case *PseudoColumn:
+		sb.WriteString(fmt.Sprintf("{PSEUDOCOL :type %d :loc_start %d :loc_end %d}", n.Type, n.Loc.Start, n.Loc.End))
+	case *Hint:
+		writeHint(sb, n)
+	case *Star:
+		sb.WriteString("{STAR")
+		sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+		sb.WriteString("}")
+
+	// Expression nodes
+	case *BinaryExpr:
+		writeBinaryExpr(sb, n)
+	case *UnaryExpr:
+		writeUnaryExpr(sb, n)
+	case *BoolExpr:
+		writeBoolExpr(sb, n)
+	case *FuncCallExpr:
+		writeFuncCallExpr(sb, n)
+	case *CaseExpr:
+		writeCaseExpr(sb, n)
+	case *CaseWhen:
+		writeCaseWhen(sb, n)
+	case *DecodeExpr:
+		writeDecodeExpr(sb, n)
+	case *DecodePair:
+		writeDecodePair(sb, n)
+	case *CastExpr:
+		writeCastExpr(sb, n)
+	case *MultisetExpr:
+		writeMultisetExpr(sb, n)
+	case *IntervalExpr:
+		writeIntervalExpr(sb, n)
+	case *BetweenExpr:
+		writeBetweenExpr(sb, n)
+	case *InExpr:
+		writeInExpr(sb, n)
+	case *LikeExpr:
+		writeLikeExpr(sb, n)
+	case *IsExpr:
+		writeIsExpr(sb, n)
+	case *ExistsExpr:
+		writeExistsExpr(sb, n)
+	case *SubqueryExpr:
+		writeSubqueryExpr(sb, n)
+	case *ParenExpr:
+		writeParenExpr(sb, n)
+
+	// Window nodes
+	case *WindowSpec:
+		writeWindowSpec(sb, n)
+	case *WindowFrame:
+		writeWindowFrame(sb, n)
+	case *WindowBound:
+		writeWindowBound(sb, n)
+	case *KeepClause:
+		writeKeepClause(sb, n)
+
+	// Table nodes
+	case *JoinClause:
+		writeJoinClause(sb, n)
+	case *TableRef:
+		writeTableRef(sb, n)
+	case *SubqueryRef:
+		writeSubqueryRef(sb, n)
+	case *SampleClause:
+		writeSampleClause(sb, n)
+	case *PivotClause:
+		writePivotClause(sb, n)
+	case *UnpivotClause:
+		writeUnpivotClause(sb, n)
+
+	// Clause nodes
+	case *HierarchicalClause:
+		writeHierarchicalClause(sb, n)
+	case *WithClause:
+		writeWithClause(sb, n)
+	case *CTE:
+		writeCTE(sb, n)
+	case *ForUpdateClause:
+		writeForUpdateClause(sb, n)
+	case *FetchFirstClause:
+		writeFetchFirstClause(sb, n)
+	case *ModelClause:
+		writeModelClause(sb, n)
+	case *FlashbackClause:
+		writeFlashbackClause(sb, n)
+	case *SortBy:
+		writeSortBy(sb, n)
+	case *ResTarget:
+		writeResTarget(sb, n)
+
+	// DML helpers
+	case *InsertIntoClause:
+		writeInsertIntoClause(sb, n)
+	case *ErrorLogClause:
+		writeErrorLogClause(sb, n)
+	case *SetClause:
+		writeSetClause(sb, n)
+	case *MergeClause:
+		writeMergeClause(sb, n)
+
+	// DDL nodes
+	case *ColumnDef:
+		writeColumnDef(sb, n)
+	case *ColumnConstraint:
+		writeColumnConstraint(sb, n)
+	case *TableConstraint:
+		writeTableConstraint(sb, n)
+	case *IdentityClause:
+		writeIdentityClause(sb, n)
+	case *StorageClause:
+		writeStorageClause(sb, n)
+	case *PartitionClause:
+		writePartitionClause(sb, n)
+	case *PartitionDef:
+		writePartitionDef(sb, n)
+	case *AlterTableCmd:
+		writeAlterTableCmd(sb, n)
+	case *IndexColumn:
+		writeIndexColumn(sb, n)
+
+	// Statements
+	case *RawStmt:
+		writeRawStmt(sb, n)
+	case *SelectStmt:
+		writeSelectStmt(sb, n)
+	case *InsertStmt:
+		writeInsertStmt(sb, n)
+	case *UpdateStmt:
+		writeUpdateStmt(sb, n)
+	case *DeleteStmt:
+		writeDeleteStmt(sb, n)
+	case *MergeStmt:
+		writeMergeStmt(sb, n)
+	case *CreateTableStmt:
+		writeCreateTableStmt(sb, n)
+	case *AlterTableStmt:
+		writeAlterTableStmt(sb, n)
+	case *DropStmt:
+		writeDropStmt(sb, n)
+	case *CreateIndexStmt:
+		writeCreateIndexStmt(sb, n)
+	case *CreateViewStmt:
+		writeCreateViewStmt(sb, n)
+	case *CreateSequenceStmt:
+		writeCreateSequenceStmt(sb, n)
+	case *CreateSynonymStmt:
+		writeCreateSynonymStmt(sb, n)
+	case *CreateDatabaseLinkStmt:
+		writeCreateDatabaseLinkStmt(sb, n)
+	case *CreateTypeStmt:
+		writeCreateTypeStmt(sb, n)
+	case *CreatePackageStmt:
+		writeCreatePackageStmt(sb, n)
+	case *CreateProcedureStmt:
+		writeCreateProcedureStmt(sb, n)
+	case *CreateFunctionStmt:
+		writeCreateFunctionStmt(sb, n)
+	case *Parameter:
+		writeParameter(sb, n)
+	case *CreateTriggerStmt:
+		writeCreateTriggerStmt(sb, n)
+	case *TruncateStmt:
+		writeTruncateStmt(sb, n)
+	case *GrantStmt:
+		writeGrantStmt(sb, n)
+	case *RevokeStmt:
+		writeRevokeStmt(sb, n)
+	case *CommentStmt:
+		writeCommentStmt(sb, n)
+	case *AlterSessionStmt:
+		writeAlterSessionStmt(sb, n)
+	case *AlterSystemStmt:
+		writeAlterSystemStmt(sb, n)
+	case *SetParam:
+		writeSetParam(sb, n)
+	case *CommitStmt:
+		writeCommitStmt(sb, n)
+	case *RollbackStmt:
+		writeRollbackStmt(sb, n)
+	case *SavepointStmt:
+		writeSavepointStmt(sb, n)
+	case *SetTransactionStmt:
+		writeSetTransactionStmt(sb, n)
+	case *AnalyzeStmt:
+		writeAnalyzeStmt(sb, n)
+	case *ExplainPlanStmt:
+		writeExplainPlanStmt(sb, n)
+	case *FlashbackTableStmt:
+		writeFlashbackTableStmt(sb, n)
+	case *PurgeStmt:
+		writePurgeStmt(sb, n)
+
+	// PL/SQL nodes
+	case *PLSQLBlock:
+		writePLSQLBlock(sb, n)
+	case *ExceptionHandler:
+		writeExceptionHandler(sb, n)
+	case *PLSQLIf:
+		writePLSQLIf(sb, n)
+	case *PLSQLElsIf:
+		writePLSQLElsIf(sb, n)
+	case *PLSQLLoop:
+		writePLSQLLoop(sb, n)
+	case *PLSQLReturn:
+		writePLSQLReturn(sb, n)
+	case *PLSQLGoto:
+		writePLSQLGoto(sb, n)
+	case *PLSQLAssign:
+		writePLSQLAssign(sb, n)
+	case *PLSQLRaise:
+		writePLSQLRaise(sb, n)
+	case *PLSQLNull:
+		writePLSQLNull(sb, n)
+	case *PLSQLVarDecl:
+		writePLSQLVarDecl(sb, n)
+	case *PLSQLCursorDecl:
+		writePLSQLCursorDecl(sb, n)
+	case *PLSQLExecImmediate:
+		writePLSQLExecImmediate(sb, n)
+	case *PLSQLOpen:
+		writePLSQLOpen(sb, n)
+	case *PLSQLFetch:
+		writePLSQLFetch(sb, n)
+	case *PLSQLClose:
+		writePLSQLClose(sb, n)
+
+	default:
+		sb.WriteString("{UNKNOWN_NODE}")
+	}
+}
+
+func writeList(sb *strings.Builder, n *List) {
+	sb.WriteString("(")
+	for i, item := range n.Items {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		writeNode(sb, item)
+	}
+	sb.WriteString(")")
+}
+
+func writeColumnRef(sb *strings.Builder, n *ColumnRef) {
+	sb.WriteString("{COLUMNREF")
+	if n.Schema != "" {
+		sb.WriteString(fmt.Sprintf(" :schema %q", n.Schema))
+	}
+	if n.Table != "" {
+		sb.WriteString(fmt.Sprintf(" :table %q", n.Table))
+	}
+	sb.WriteString(fmt.Sprintf(" :column %q", n.Column))
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeObjectName(sb *strings.Builder, n *ObjectName) {
+	sb.WriteString("{OBJNAME")
+	if n.Schema != "" {
+		sb.WriteString(fmt.Sprintf(" :schema %q", n.Schema))
+	}
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.DBLink != "" {
+		sb.WriteString(fmt.Sprintf(" :dblink %q", n.DBLink))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlias(sb *strings.Builder, n *Alias) {
+	sb.WriteString("{ALIAS")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.Cols != nil {
+		sb.WriteString(" :cols ")
+		writeNode(sb, n.Cols)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeTypeName(sb *strings.Builder, n *TypeName) {
+	sb.WriteString("{TYPENAME")
+	if n.Names != nil {
+		sb.WriteString(" :names ")
+		writeNode(sb, n.Names)
+	}
+	if n.TypeMods != nil {
+		sb.WriteString(" :typeMods ")
+		writeNode(sb, n.TypeMods)
+	}
+	if n.IsPercType {
+		sb.WriteString(" :pctType true")
+	}
+	if n.IsPercRowtype {
+		sb.WriteString(" :pctRowtype true")
+	}
+	if n.ArrayBounds != nil {
+		sb.WriteString(" :arrayBounds ")
+		writeNode(sb, n.ArrayBounds)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeHint(sb *strings.Builder, n *Hint) {
+	sb.WriteString("{HINT")
+	sb.WriteString(fmt.Sprintf(" :text %q", n.Text))
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+// ---------------------------------------------------------------------------
+// Expression nodes
+// ---------------------------------------------------------------------------
+
+func writeBinaryExpr(sb *strings.Builder, n *BinaryExpr) {
+	sb.WriteString("{BINEXPR")
+	sb.WriteString(fmt.Sprintf(" :op %q", n.Op))
+	sb.WriteString(" :left ")
+	writeNode(sb, n.Left)
+	sb.WriteString(" :right ")
+	writeNode(sb, n.Right)
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeUnaryExpr(sb *strings.Builder, n *UnaryExpr) {
+	sb.WriteString("{UNARYEXPR")
+	sb.WriteString(fmt.Sprintf(" :op %q", n.Op))
+	sb.WriteString(" :operand ")
+	writeNode(sb, n.Operand)
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeBoolExpr(sb *strings.Builder, n *BoolExpr) {
+	sb.WriteString("{BOOLEXPR")
+	sb.WriteString(fmt.Sprintf(" :boolop %d", n.Boolop))
+	if n.Args != nil {
+		sb.WriteString(" :args ")
+		writeNode(sb, n.Args)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
+	sb.WriteString("{FUNCCALL")
+	if n.FuncName != nil {
+		sb.WriteString(" :funcname ")
+		writeNode(sb, n.FuncName)
+	}
+	if n.Args != nil {
+		sb.WriteString(" :args ")
+		writeNode(sb, n.Args)
+	}
+	if n.Star {
+		sb.WriteString(" :star true")
+	}
+	if n.Distinct {
+		sb.WriteString(" :distinct true")
+	}
+	if n.OrderBy != nil {
+		sb.WriteString(" :orderBy ")
+		writeNode(sb, n.OrderBy)
+	}
+	if n.KeepClause != nil {
+		sb.WriteString(" :keepClause ")
+		writeNode(sb, n.KeepClause)
+	}
+	if n.Over != nil {
+		sb.WriteString(" :over ")
+		writeNode(sb, n.Over)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCaseExpr(sb *strings.Builder, n *CaseExpr) {
+	sb.WriteString("{CASE")
+	if n.Arg != nil {
+		sb.WriteString(" :arg ")
+		writeNode(sb, n.Arg)
+	}
+	if n.Whens != nil {
+		sb.WriteString(" :whens ")
+		writeNode(sb, n.Whens)
+	}
+	if n.Default != nil {
+		sb.WriteString(" :default ")
+		writeNode(sb, n.Default)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCaseWhen(sb *strings.Builder, n *CaseWhen) {
+	sb.WriteString("{CASEWHEN")
+	if n.Condition != nil {
+		sb.WriteString(" :condition ")
+		writeNode(sb, n.Condition)
+	}
+	if n.Result != nil {
+		sb.WriteString(" :result ")
+		writeNode(sb, n.Result)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeDecodeExpr(sb *strings.Builder, n *DecodeExpr) {
+	sb.WriteString("{DECODE")
+	if n.Arg != nil {
+		sb.WriteString(" :arg ")
+		writeNode(sb, n.Arg)
+	}
+	if n.Pairs != nil {
+		sb.WriteString(" :pairs ")
+		writeNode(sb, n.Pairs)
+	}
+	if n.Default != nil {
+		sb.WriteString(" :default ")
+		writeNode(sb, n.Default)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeDecodePair(sb *strings.Builder, n *DecodePair) {
+	sb.WriteString("{DECODEPAIR")
+	if n.Search != nil {
+		sb.WriteString(" :search ")
+		writeNode(sb, n.Search)
+	}
+	if n.Result != nil {
+		sb.WriteString(" :result ")
+		writeNode(sb, n.Result)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCastExpr(sb *strings.Builder, n *CastExpr) {
+	sb.WriteString("{CAST")
+	sb.WriteString(" :arg ")
+	writeNode(sb, n.Arg)
+	if n.TypeName != nil {
+		sb.WriteString(" :typeName ")
+		writeNode(sb, n.TypeName)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeMultisetExpr(sb *strings.Builder, n *MultisetExpr) {
+	sb.WriteString("{MULTISET")
+	sb.WriteString(fmt.Sprintf(" :op %q", n.Op))
+	sb.WriteString(" :left ")
+	writeNode(sb, n.Left)
+	sb.WriteString(" :right ")
+	writeNode(sb, n.Right)
+	if n.All {
+		sb.WriteString(" :all true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeIntervalExpr(sb *strings.Builder, n *IntervalExpr) {
+	sb.WriteString("{INTERVAL")
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
+	if n.From != "" {
+		sb.WriteString(fmt.Sprintf(" :from %q", n.From))
+	}
+	if n.To != "" {
+		sb.WriteString(fmt.Sprintf(" :to %q", n.To))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeBetweenExpr(sb *strings.Builder, n *BetweenExpr) {
+	sb.WriteString("{BETWEEN")
+	if n.Not {
+		sb.WriteString(" :not true")
+	}
+	sb.WriteString(" :expr ")
+	writeNode(sb, n.Expr)
+	sb.WriteString(" :low ")
+	writeNode(sb, n.Low)
+	sb.WriteString(" :high ")
+	writeNode(sb, n.High)
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeInExpr(sb *strings.Builder, n *InExpr) {
+	sb.WriteString("{IN")
+	if n.Not {
+		sb.WriteString(" :not true")
+	}
+	sb.WriteString(" :expr ")
+	writeNode(sb, n.Expr)
+	if n.List != nil {
+		sb.WriteString(" :list ")
+		writeNode(sb, n.List)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeLikeExpr(sb *strings.Builder, n *LikeExpr) {
+	sb.WriteString("{LIKE")
+	if n.Not {
+		sb.WriteString(" :not true")
+	}
+	sb.WriteString(fmt.Sprintf(" :type %d", n.Type))
+	sb.WriteString(" :expr ")
+	writeNode(sb, n.Expr)
+	sb.WriteString(" :pattern ")
+	writeNode(sb, n.Pattern)
+	if n.Escape != nil {
+		sb.WriteString(" :escape ")
+		writeNode(sb, n.Escape)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeIsExpr(sb *strings.Builder, n *IsExpr) {
+	sb.WriteString("{IS")
+	if n.Not {
+		sb.WriteString(" :not true")
+	}
+	sb.WriteString(fmt.Sprintf(" :test %q", n.Test))
+	sb.WriteString(" :expr ")
+	writeNode(sb, n.Expr)
+	if n.TypeList != nil {
+		sb.WriteString(" :typeList ")
+		writeNode(sb, n.TypeList)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeExistsExpr(sb *strings.Builder, n *ExistsExpr) {
+	sb.WriteString("{EXISTS :subquery ")
+	writeNode(sb, n.Subquery)
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeSubqueryExpr(sb *strings.Builder, n *SubqueryExpr) {
+	sb.WriteString("{SUBQUERY :query ")
+	writeNode(sb, n.Subquery)
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeParenExpr(sb *strings.Builder, n *ParenExpr) {
+	sb.WriteString("{PAREN :expr ")
+	writeNode(sb, n.Expr)
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+// ---------------------------------------------------------------------------
+// Window nodes
+// ---------------------------------------------------------------------------
+
+func writeWindowSpec(sb *strings.Builder, n *WindowSpec) {
+	sb.WriteString("{WINDOWSPEC")
+	if n.WindowName != "" {
+		sb.WriteString(fmt.Sprintf(" :windowName %q", n.WindowName))
+	}
+	if n.PartitionBy != nil {
+		sb.WriteString(" :partitionBy ")
+		writeNode(sb, n.PartitionBy)
+	}
+	if n.OrderBy != nil {
+		sb.WriteString(" :orderBy ")
+		writeNode(sb, n.OrderBy)
+	}
+	if n.Frame != nil {
+		sb.WriteString(" :frame ")
+		writeNode(sb, n.Frame)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeWindowFrame(sb *strings.Builder, n *WindowFrame) {
+	sb.WriteString("{WINDOWFRAME")
+	sb.WriteString(fmt.Sprintf(" :type %d", n.Type))
+	if n.Start != nil {
+		sb.WriteString(" :start ")
+		writeNode(sb, n.Start)
+	}
+	if n.End != nil {
+		sb.WriteString(" :end ")
+		writeNode(sb, n.End)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeWindowBound(sb *strings.Builder, n *WindowBound) {
+	sb.WriteString("{WINDOWBOUND")
+	sb.WriteString(fmt.Sprintf(" :type %d", n.Type))
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeKeepClause(sb *strings.Builder, n *KeepClause) {
+	sb.WriteString("{KEEP")
+	if n.IsFirst {
+		sb.WriteString(" :isFirst true")
+	}
+	if n.OrderBy != nil {
+		sb.WriteString(" :orderBy ")
+		writeNode(sb, n.OrderBy)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+// ---------------------------------------------------------------------------
+// Table nodes
+// ---------------------------------------------------------------------------
+
+func writeJoinClause(sb *strings.Builder, n *JoinClause) {
+	sb.WriteString("{JOIN")
+	sb.WriteString(fmt.Sprintf(" :type %d", n.Type))
+	if n.Left != nil {
+		sb.WriteString(" :left ")
+		writeNode(sb, n.Left)
+	}
+	if n.Right != nil {
+		sb.WriteString(" :right ")
+		writeNode(sb, n.Right)
+	}
+	if n.On != nil {
+		sb.WriteString(" :on ")
+		writeNode(sb, n.On)
+	}
+	if n.Using != nil {
+		sb.WriteString(" :using ")
+		writeNode(sb, n.Using)
+	}
+	if n.OracleJoin {
+		sb.WriteString(" :oracleJoin true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeTableRef(sb *strings.Builder, n *TableRef) {
+	sb.WriteString("{TABLEREF")
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Alias != nil {
+		sb.WriteString(" :alias ")
+		writeNode(sb, n.Alias)
+	}
+	if n.Sample != nil {
+		sb.WriteString(" :sample ")
+		writeNode(sb, n.Sample)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeSubqueryRef(sb *strings.Builder, n *SubqueryRef) {
+	sb.WriteString("{SUBQUERYREF")
+	if n.Subquery != nil {
+		sb.WriteString(" :subquery ")
+		writeNode(sb, n.Subquery)
+	}
+	if n.Alias != nil {
+		sb.WriteString(" :alias ")
+		writeNode(sb, n.Alias)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeSampleClause(sb *strings.Builder, n *SampleClause) {
+	sb.WriteString("{SAMPLE")
+	if n.Percent != nil {
+		sb.WriteString(" :percent ")
+		writeNode(sb, n.Percent)
+	}
+	if n.Seed != nil {
+		sb.WriteString(" :seed ")
+		writeNode(sb, n.Seed)
+	}
+	if n.Block {
+		sb.WriteString(" :block true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePivotClause(sb *strings.Builder, n *PivotClause) {
+	sb.WriteString("{PIVOT")
+	if n.AggFuncs != nil {
+		sb.WriteString(" :aggFuncs ")
+		writeNode(sb, n.AggFuncs)
+	}
+	if n.ForCol != nil {
+		sb.WriteString(" :forCol ")
+		writeNode(sb, n.ForCol)
+	}
+	if n.InList != nil {
+		sb.WriteString(" :inList ")
+		writeNode(sb, n.InList)
+	}
+	if n.Alias != nil {
+		sb.WriteString(" :alias ")
+		writeNode(sb, n.Alias)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeUnpivotClause(sb *strings.Builder, n *UnpivotClause) {
+	sb.WriteString("{UNPIVOT")
+	if n.ValueCol != nil {
+		sb.WriteString(" :valueCol ")
+		writeNode(sb, n.ValueCol)
+	}
+	if n.PivotCol != nil {
+		sb.WriteString(" :pivotCol ")
+		writeNode(sb, n.PivotCol)
+	}
+	if n.InList != nil {
+		sb.WriteString(" :inList ")
+		writeNode(sb, n.InList)
+	}
+	if n.IncludeNulls {
+		sb.WriteString(" :includeNulls true")
+	}
+	if n.Alias != nil {
+		sb.WriteString(" :alias ")
+		writeNode(sb, n.Alias)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+// ---------------------------------------------------------------------------
+// Clause nodes
+// ---------------------------------------------------------------------------
+
+func writeHierarchicalClause(sb *strings.Builder, n *HierarchicalClause) {
+	sb.WriteString("{HIERARCHICAL")
+	if n.ConnectBy != nil {
+		sb.WriteString(" :connectBy ")
+		writeNode(sb, n.ConnectBy)
+	}
+	if n.StartWith != nil {
+		sb.WriteString(" :startWith ")
+		writeNode(sb, n.StartWith)
+	}
+	if n.IsNocycle {
+		sb.WriteString(" :nocycle true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeWithClause(sb *strings.Builder, n *WithClause) {
+	sb.WriteString("{WITH")
+	if n.Recursive {
+		sb.WriteString(" :recursive true")
+	}
+	if n.CTEs != nil {
+		sb.WriteString(" :ctes ")
+		writeNode(sb, n.CTEs)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCTE(sb *strings.Builder, n *CTE) {
+	sb.WriteString("{CTE")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.Query != nil {
+		sb.WriteString(" :query ")
+		writeNode(sb, n.Query)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeForUpdateClause(sb *strings.Builder, n *ForUpdateClause) {
+	sb.WriteString("{FORUPDATE")
+	if n.Tables != nil {
+		sb.WriteString(" :tables ")
+		writeNode(sb, n.Tables)
+	}
+	if n.NoWait {
+		sb.WriteString(" :nowait true")
+	}
+	if n.Wait != nil {
+		sb.WriteString(" :wait ")
+		writeNode(sb, n.Wait)
+	}
+	if n.SkipLocked {
+		sb.WriteString(" :skipLocked true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeFetchFirstClause(sb *strings.Builder, n *FetchFirstClause) {
+	sb.WriteString("{FETCHFIRST")
+	if n.Offset != nil {
+		sb.WriteString(" :offset ")
+		writeNode(sb, n.Offset)
+	}
+	if n.Count != nil {
+		sb.WriteString(" :count ")
+		writeNode(sb, n.Count)
+	}
+	if n.Percent {
+		sb.WriteString(" :percent true")
+	}
+	if n.WithTies {
+		sb.WriteString(" :withTies true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeModelClause(sb *strings.Builder, n *ModelClause) {
+	sb.WriteString("{MODEL")
+	if n.Text != "" {
+		sb.WriteString(fmt.Sprintf(" :text %q", n.Text))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeFlashbackClause(sb *strings.Builder, n *FlashbackClause) {
+	sb.WriteString("{FLASHBACK")
+	if n.Type != "" {
+		sb.WriteString(fmt.Sprintf(" :type %q", n.Type))
+	}
+	if n.Expr != nil {
+		sb.WriteString(" :expr ")
+		writeNode(sb, n.Expr)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeSortBy(sb *strings.Builder, n *SortBy) {
+	sb.WriteString("{SORTBY")
+	if n.Expr != nil {
+		sb.WriteString(" :node ")
+		writeNode(sb, n.Expr)
+	}
+	sb.WriteString(fmt.Sprintf(" :dir %d", n.Dir))
+	sb.WriteString(fmt.Sprintf(" :nulls %d", n.NullOrder))
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeResTarget(sb *strings.Builder, n *ResTarget) {
+	sb.WriteString("{RESTARGET")
+	if n.Name != "" {
+		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	}
+	if n.Expr != nil {
+		sb.WriteString(" :val ")
+		writeNode(sb, n.Expr)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+// ---------------------------------------------------------------------------
+// DML helper nodes
+// ---------------------------------------------------------------------------
+
+func writeInsertIntoClause(sb *strings.Builder, n *InsertIntoClause) {
+	sb.WriteString("{INSERTINTO")
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.Values != nil {
+		sb.WriteString(" :values ")
+		writeNode(sb, n.Values)
+	}
+	if n.When != nil {
+		sb.WriteString(" :when ")
+		writeNode(sb, n.When)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeErrorLogClause(sb *strings.Builder, n *ErrorLogClause) {
+	sb.WriteString("{ERRORLOG")
+	if n.Into != nil {
+		sb.WriteString(" :into ")
+		writeNode(sb, n.Into)
+	}
+	if n.Tag != nil {
+		sb.WriteString(" :tag ")
+		writeNode(sb, n.Tag)
+	}
+	if n.Reject != nil {
+		sb.WriteString(" :reject ")
+		writeNode(sb, n.Reject)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeSetClause(sb *strings.Builder, n *SetClause) {
+	sb.WriteString("{SETCLAUSE")
+	if n.Column != nil {
+		sb.WriteString(" :column ")
+		writeNode(sb, n.Column)
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeMergeClause(sb *strings.Builder, n *MergeClause) {
+	sb.WriteString("{MERGECLAUSE")
+	if n.Matched {
+		sb.WriteString(" :matched true")
+	}
+	if n.Condition != nil {
+		sb.WriteString(" :condition ")
+		writeNode(sb, n.Condition)
+	}
+	if n.UpdateSet != nil {
+		sb.WriteString(" :updateSet ")
+		writeNode(sb, n.UpdateSet)
+	}
+	if n.InsertCols != nil {
+		sb.WriteString(" :insertCols ")
+		writeNode(sb, n.InsertCols)
+	}
+	if n.InsertVals != nil {
+		sb.WriteString(" :insertVals ")
+		writeNode(sb, n.InsertVals)
+	}
+	if n.IsDelete {
+		sb.WriteString(" :isDelete true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+// ---------------------------------------------------------------------------
+// DDL nodes
+// ---------------------------------------------------------------------------
+
+func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
+	sb.WriteString("{COLUMNDEF")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.TypeName != nil {
+		sb.WriteString(" :typeName ")
+		writeNode(sb, n.TypeName)
+	}
+	if n.Default != nil {
+		sb.WriteString(" :default ")
+		writeNode(sb, n.Default)
+	}
+	if n.Identity != nil {
+		sb.WriteString(" :identity ")
+		writeNode(sb, n.Identity)
+	}
+	if n.Virtual != nil {
+		sb.WriteString(" :virtual ")
+		writeNode(sb, n.Virtual)
+	}
+	if n.Invisible {
+		sb.WriteString(" :invisible true")
+	}
+	if n.NotNull {
+		sb.WriteString(" :notNull true")
+	}
+	if n.Null {
+		sb.WriteString(" :null true")
+	}
+	if n.Constraints != nil {
+		sb.WriteString(" :constraints ")
+		writeNode(sb, n.Constraints)
+	}
+	if n.Collation != "" {
+		sb.WriteString(fmt.Sprintf(" :collation %q", n.Collation))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeColumnConstraint(sb *strings.Builder, n *ColumnConstraint) {
+	sb.WriteString("{COLCONSTRAINT")
+	if n.Name != "" {
+		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	}
+	sb.WriteString(fmt.Sprintf(" :type %d", n.Type))
+	if n.Expr != nil {
+		sb.WriteString(" :expr ")
+		writeNode(sb, n.Expr)
+	}
+	if n.RefTable != nil {
+		sb.WriteString(" :refTable ")
+		writeNode(sb, n.RefTable)
+	}
+	if n.RefColumns != nil {
+		sb.WriteString(" :refColumns ")
+		writeNode(sb, n.RefColumns)
+	}
+	if n.OnDelete != "" {
+		sb.WriteString(fmt.Sprintf(" :onDelete %q", n.OnDelete))
+	}
+	if n.Deferrable {
+		sb.WriteString(" :deferrable true")
+	}
+	if n.Initially != "" {
+		sb.WriteString(fmt.Sprintf(" :initially %q", n.Initially))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeTableConstraint(sb *strings.Builder, n *TableConstraint) {
+	sb.WriteString("{TBLCONSTRAINT")
+	if n.Name != "" {
+		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	}
+	sb.WriteString(fmt.Sprintf(" :type %d", n.Type))
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.Expr != nil {
+		sb.WriteString(" :expr ")
+		writeNode(sb, n.Expr)
+	}
+	if n.RefTable != nil {
+		sb.WriteString(" :refTable ")
+		writeNode(sb, n.RefTable)
+	}
+	if n.RefColumns != nil {
+		sb.WriteString(" :refColumns ")
+		writeNode(sb, n.RefColumns)
+	}
+	if n.OnDelete != "" {
+		sb.WriteString(fmt.Sprintf(" :onDelete %q", n.OnDelete))
+	}
+	if n.Deferrable {
+		sb.WriteString(" :deferrable true")
+	}
+	if n.Initially != "" {
+		sb.WriteString(fmt.Sprintf(" :initially %q", n.Initially))
+	}
+	if n.Tablespace != "" {
+		sb.WriteString(fmt.Sprintf(" :tablespace %q", n.Tablespace))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeIdentityClause(sb *strings.Builder, n *IdentityClause) {
+	sb.WriteString("{IDENTITY")
+	if n.Always {
+		sb.WriteString(" :always true")
+	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeStorageClause(sb *strings.Builder, n *StorageClause) {
+	sb.WriteString("{STORAGE")
+	if n.Initial != "" {
+		sb.WriteString(fmt.Sprintf(" :initial %q", n.Initial))
+	}
+	if n.Next != "" {
+		sb.WriteString(fmt.Sprintf(" :next %q", n.Next))
+	}
+	if n.PctIncrease != "" {
+		sb.WriteString(fmt.Sprintf(" :pctIncrease %q", n.PctIncrease))
+	}
+	if n.MinExtents != "" {
+		sb.WriteString(fmt.Sprintf(" :minExtents %q", n.MinExtents))
+	}
+	if n.MaxExtents != "" {
+		sb.WriteString(fmt.Sprintf(" :maxExtents %q", n.MaxExtents))
+	}
+	if n.PctFree != "" {
+		sb.WriteString(fmt.Sprintf(" :pctFree %q", n.PctFree))
+	}
+	if n.PctUsed != "" {
+		sb.WriteString(fmt.Sprintf(" :pctUsed %q", n.PctUsed))
+	}
+	if n.Logging {
+		sb.WriteString(" :logging true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePartitionClause(sb *strings.Builder, n *PartitionClause) {
+	sb.WriteString("{PARTITION")
+	sb.WriteString(fmt.Sprintf(" :type %d", n.Type))
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.Partitions != nil {
+		sb.WriteString(" :partitions ")
+		writeNode(sb, n.Partitions)
+	}
+	if n.Subpartition != nil {
+		sb.WriteString(" :subpartition ")
+		writeNode(sb, n.Subpartition)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePartitionDef(sb *strings.Builder, n *PartitionDef) {
+	sb.WriteString("{PARTITIONDEF")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.Values != nil {
+		sb.WriteString(" :values ")
+		writeNode(sb, n.Values)
+	}
+	if n.Tablespace != "" {
+		sb.WriteString(fmt.Sprintf(" :tablespace %q", n.Tablespace))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
+	sb.WriteString("{ALTERTABLECMD")
+	sb.WriteString(fmt.Sprintf(" :action %d", n.Action))
+	if n.ColumnDef != nil {
+		sb.WriteString(" :columnDef ")
+		writeNode(sb, n.ColumnDef)
+	}
+	if n.ColumnName != "" {
+		sb.WriteString(fmt.Sprintf(" :columnName %q", n.ColumnName))
+	}
+	if n.NewName != "" {
+		sb.WriteString(fmt.Sprintf(" :newName %q", n.NewName))
+	}
+	if n.Constraint != nil {
+		sb.WriteString(" :constraint ")
+		writeNode(sb, n.Constraint)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeIndexColumn(sb *strings.Builder, n *IndexColumn) {
+	sb.WriteString("{INDEXCOL")
+	if n.Expr != nil {
+		sb.WriteString(" :expr ")
+		writeNode(sb, n.Expr)
+	}
+	sb.WriteString(fmt.Sprintf(" :dir %d", n.Dir))
+	sb.WriteString(fmt.Sprintf(" :nulls %d", n.NullOrder))
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+// ---------------------------------------------------------------------------
+// Statement nodes
+// ---------------------------------------------------------------------------
+
+func writeRawStmt(sb *strings.Builder, n *RawStmt) {
+	sb.WriteString("{RAWSTMT")
+	if n.Stmt != nil {
+		sb.WriteString(" :stmt ")
+		writeNode(sb, n.Stmt)
+	}
+	sb.WriteString(fmt.Sprintf(" :stmt_location %d", n.StmtLocation))
+	sb.WriteString(fmt.Sprintf(" :stmt_len %d", n.StmtLen))
+	sb.WriteString("}")
+}
+
+func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
+	sb.WriteString("{SELECT")
+	if n.WithClause != nil {
+		sb.WriteString(" :withClause ")
+		writeNode(sb, n.WithClause)
+	}
+	if n.Distinct {
+		sb.WriteString(" :distinct true")
+	}
+	if n.UniqueKw {
+		sb.WriteString(" :unique true")
+	}
+	if n.All {
+		sb.WriteString(" :all true")
+	}
+	if n.Hints != nil {
+		sb.WriteString(" :hints ")
+		writeNode(sb, n.Hints)
+	}
+	if n.TargetList != nil {
+		sb.WriteString(" :targetList ")
+		writeNode(sb, n.TargetList)
+	}
+	if n.Into != nil {
+		sb.WriteString(" :into ")
+		writeNode(sb, n.Into)
+	}
+	if n.FromClause != nil {
+		sb.WriteString(" :fromClause ")
+		writeNode(sb, n.FromClause)
+	}
+	if n.WhereClause != nil {
+		sb.WriteString(" :whereClause ")
+		writeNode(sb, n.WhereClause)
+	}
+	if n.Hierarchical != nil {
+		sb.WriteString(" :hierarchical ")
+		writeNode(sb, n.Hierarchical)
+	}
+	if n.GroupClause != nil {
+		sb.WriteString(" :groupClause ")
+		writeNode(sb, n.GroupClause)
+	}
+	if n.HavingClause != nil {
+		sb.WriteString(" :havingClause ")
+		writeNode(sb, n.HavingClause)
+	}
+	if n.ModelClause != nil {
+		sb.WriteString(" :modelClause ")
+		writeNode(sb, n.ModelClause)
+	}
+	if n.OrderBy != nil {
+		sb.WriteString(" :orderBy ")
+		writeNode(sb, n.OrderBy)
+	}
+	if n.ForUpdate != nil {
+		sb.WriteString(" :forUpdate ")
+		writeNode(sb, n.ForUpdate)
+	}
+	if n.FetchFirst != nil {
+		sb.WriteString(" :fetchFirst ")
+		writeNode(sb, n.FetchFirst)
+	}
+	if n.Pivot != nil {
+		sb.WriteString(" :pivot ")
+		writeNode(sb, n.Pivot)
+	}
+	if n.Unpivot != nil {
+		sb.WriteString(" :unpivot ")
+		writeNode(sb, n.Unpivot)
+	}
+	if n.Op != SETOP_NONE {
+		sb.WriteString(fmt.Sprintf(" :op %d", n.Op))
+	}
+	if n.SetAll {
+		sb.WriteString(" :setAll true")
+	}
+	if n.Larg != nil {
+		sb.WriteString(" :larg ")
+		writeNode(sb, n.Larg)
+	}
+	if n.Rarg != nil {
+		sb.WriteString(" :rarg ")
+		writeNode(sb, n.Rarg)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
+	sb.WriteString("{INSERT")
+	sb.WriteString(fmt.Sprintf(" :insertType %d", n.InsertType))
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.Alias != nil {
+		sb.WriteString(" :alias ")
+		writeNode(sb, n.Alias)
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.Values != nil {
+		sb.WriteString(" :values ")
+		writeNode(sb, n.Values)
+	}
+	if n.Select != nil {
+		sb.WriteString(" :select ")
+		writeNode(sb, n.Select)
+	}
+	if n.MultiTable != nil {
+		sb.WriteString(" :multiTable ")
+		writeNode(sb, n.MultiTable)
+	}
+	if n.Subquery != nil {
+		sb.WriteString(" :subquery ")
+		writeNode(sb, n.Subquery)
+	}
+	if n.Returning != nil {
+		sb.WriteString(" :returning ")
+		writeNode(sb, n.Returning)
+	}
+	if n.ErrorLog != nil {
+		sb.WriteString(" :errorLog ")
+		writeNode(sb, n.ErrorLog)
+	}
+	if n.Hints != nil {
+		sb.WriteString(" :hints ")
+		writeNode(sb, n.Hints)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeUpdateStmt(sb *strings.Builder, n *UpdateStmt) {
+	sb.WriteString("{UPDATE")
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.Alias != nil {
+		sb.WriteString(" :alias ")
+		writeNode(sb, n.Alias)
+	}
+	if n.SetClauses != nil {
+		sb.WriteString(" :setClauses ")
+		writeNode(sb, n.SetClauses)
+	}
+	if n.WhereClause != nil {
+		sb.WriteString(" :whereClause ")
+		writeNode(sb, n.WhereClause)
+	}
+	if n.Returning != nil {
+		sb.WriteString(" :returning ")
+		writeNode(sb, n.Returning)
+	}
+	if n.ErrorLog != nil {
+		sb.WriteString(" :errorLog ")
+		writeNode(sb, n.ErrorLog)
+	}
+	if n.Hints != nil {
+		sb.WriteString(" :hints ")
+		writeNode(sb, n.Hints)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeDeleteStmt(sb *strings.Builder, n *DeleteStmt) {
+	sb.WriteString("{DELETE")
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.Alias != nil {
+		sb.WriteString(" :alias ")
+		writeNode(sb, n.Alias)
+	}
+	if n.WhereClause != nil {
+		sb.WriteString(" :whereClause ")
+		writeNode(sb, n.WhereClause)
+	}
+	if n.Returning != nil {
+		sb.WriteString(" :returning ")
+		writeNode(sb, n.Returning)
+	}
+	if n.ErrorLog != nil {
+		sb.WriteString(" :errorLog ")
+		writeNode(sb, n.ErrorLog)
+	}
+	if n.Hints != nil {
+		sb.WriteString(" :hints ")
+		writeNode(sb, n.Hints)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeMergeStmt(sb *strings.Builder, n *MergeStmt) {
+	sb.WriteString("{MERGE")
+	if n.Target != nil {
+		sb.WriteString(" :target ")
+		writeNode(sb, n.Target)
+	}
+	if n.TargetAlias != nil {
+		sb.WriteString(" :targetAlias ")
+		writeNode(sb, n.TargetAlias)
+	}
+	if n.Source != nil {
+		sb.WriteString(" :source ")
+		writeNode(sb, n.Source)
+	}
+	if n.SourceAlias != nil {
+		sb.WriteString(" :sourceAlias ")
+		writeNode(sb, n.SourceAlias)
+	}
+	if n.On != nil {
+		sb.WriteString(" :on ")
+		writeNode(sb, n.On)
+	}
+	if n.Clauses != nil {
+		sb.WriteString(" :clauses ")
+		writeNode(sb, n.Clauses)
+	}
+	if n.ErrorLog != nil {
+		sb.WriteString(" :errorLog ")
+		writeNode(sb, n.ErrorLog)
+	}
+	if n.Hints != nil {
+		sb.WriteString(" :hints ")
+		writeNode(sb, n.Hints)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
+	sb.WriteString("{CREATETABLE")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.Global {
+		sb.WriteString(" :global true")
+	}
+	if n.Private {
+		sb.WriteString(" :private true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.Constraints != nil {
+		sb.WriteString(" :constraints ")
+		writeNode(sb, n.Constraints)
+	}
+	if n.AsQuery != nil {
+		sb.WriteString(" :asQuery ")
+		writeNode(sb, n.AsQuery)
+	}
+	if n.Tablespace != "" {
+		sb.WriteString(fmt.Sprintf(" :tablespace %q", n.Tablespace))
+	}
+	if n.Storage != nil {
+		sb.WriteString(" :storage ")
+		writeNode(sb, n.Storage)
+	}
+	if n.Partition != nil {
+		sb.WriteString(" :partition ")
+		writeNode(sb, n.Partition)
+	}
+	if n.OnCommit != "" {
+		sb.WriteString(fmt.Sprintf(" :onCommit %q", n.OnCommit))
+	}
+	if n.Parallel != "" {
+		sb.WriteString(fmt.Sprintf(" :parallel %q", n.Parallel))
+	}
+	if n.Compress != "" {
+		sb.WriteString(fmt.Sprintf(" :compress %q", n.Compress))
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	if n.Hints != nil {
+		sb.WriteString(" :hints ")
+		writeNode(sb, n.Hints)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterTableStmt(sb *strings.Builder, n *AlterTableStmt) {
+	sb.WriteString("{ALTERTABLE")
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Actions != nil {
+		sb.WriteString(" :actions ")
+		writeNode(sb, n.Actions)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeDropStmt(sb *strings.Builder, n *DropStmt) {
+	sb.WriteString("{DROP")
+	sb.WriteString(fmt.Sprintf(" :objectType %d", n.ObjectType))
+	if n.Names != nil {
+		sb.WriteString(" :names ")
+		writeNode(sb, n.Names)
+	}
+	if n.IfExists {
+		sb.WriteString(" :ifExists true")
+	}
+	if n.Cascade {
+		sb.WriteString(" :cascade true")
+	}
+	if n.Purge {
+		sb.WriteString(" :purge true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateIndexStmt(sb *strings.Builder, n *CreateIndexStmt) {
+	sb.WriteString("{CREATEINDEX")
+	if n.Unique {
+		sb.WriteString(" :unique true")
+	}
+	if n.Bitmap {
+		sb.WriteString(" :bitmap true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.FunctionBased {
+		sb.WriteString(" :functionBased true")
+	}
+	if n.Reverse {
+		sb.WriteString(" :reverse true")
+	}
+	if n.Local {
+		sb.WriteString(" :local true")
+	}
+	if n.Global {
+		sb.WriteString(" :global true")
+	}
+	if n.Tablespace != "" {
+		sb.WriteString(fmt.Sprintf(" :tablespace %q", n.Tablespace))
+	}
+	if n.Parallel != "" {
+		sb.WriteString(fmt.Sprintf(" :parallel %q", n.Parallel))
+	}
+	if n.Compress != "" {
+		sb.WriteString(fmt.Sprintf(" :compress %q", n.Compress))
+	}
+	if n.Online {
+		sb.WriteString(" :online true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateViewStmt(sb *strings.Builder, n *CreateViewStmt) {
+	sb.WriteString("{CREATEVIEW")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.Force {
+		sb.WriteString(" :force true")
+	}
+	if n.NoForce {
+		sb.WriteString(" :noForce true")
+	}
+	if n.Materialized {
+		sb.WriteString(" :materialized true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.Query != nil {
+		sb.WriteString(" :query ")
+		writeNode(sb, n.Query)
+	}
+	if n.WithCheckOpt {
+		sb.WriteString(" :withCheckOpt true")
+	}
+	if n.WithReadOnly {
+		sb.WriteString(" :withReadOnly true")
+	}
+	if n.BuildMode != "" {
+		sb.WriteString(fmt.Sprintf(" :buildMode %q", n.BuildMode))
+	}
+	if n.RefreshMode != "" {
+		sb.WriteString(fmt.Sprintf(" :refreshMode %q", n.RefreshMode))
+	}
+	if n.EnableQuery {
+		sb.WriteString(" :enableQuery true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateSequenceStmt(sb *strings.Builder, n *CreateSequenceStmt) {
+	sb.WriteString("{CREATESEQUENCE")
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.IncrementBy != nil {
+		sb.WriteString(" :incrementBy ")
+		writeNode(sb, n.IncrementBy)
+	}
+	if n.StartWith != nil {
+		sb.WriteString(" :startWith ")
+		writeNode(sb, n.StartWith)
+	}
+	if n.MaxValue != nil {
+		sb.WriteString(" :maxValue ")
+		writeNode(sb, n.MaxValue)
+	}
+	if n.MinValue != nil {
+		sb.WriteString(" :minValue ")
+		writeNode(sb, n.MinValue)
+	}
+	if n.NoMaxValue {
+		sb.WriteString(" :noMaxValue true")
+	}
+	if n.NoMinValue {
+		sb.WriteString(" :noMinValue true")
+	}
+	if n.Cycle {
+		sb.WriteString(" :cycle true")
+	}
+	if n.NoCycle {
+		sb.WriteString(" :noCycle true")
+	}
+	if n.Cache != nil {
+		sb.WriteString(" :cache ")
+		writeNode(sb, n.Cache)
+	}
+	if n.NoCache {
+		sb.WriteString(" :noCache true")
+	}
+	if n.Order {
+		sb.WriteString(" :order true")
+	}
+	if n.NoOrder {
+		sb.WriteString(" :noOrder true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateSynonymStmt(sb *strings.Builder, n *CreateSynonymStmt) {
+	sb.WriteString("{CREATESYNONYM")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.Public {
+		sb.WriteString(" :public true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Target != nil {
+		sb.WriteString(" :target ")
+		writeNode(sb, n.Target)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateDatabaseLinkStmt(sb *strings.Builder, n *CreateDatabaseLinkStmt) {
+	sb.WriteString("{CREATEDBLINK")
+	if n.Public {
+		sb.WriteString(" :public true")
+	}
+	if n.Name != "" {
+		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	}
+	if n.ConnectTo != "" {
+		sb.WriteString(fmt.Sprintf(" :connectTo %q", n.ConnectTo))
+	}
+	if n.Identified != "" {
+		sb.WriteString(fmt.Sprintf(" :identified %q", n.Identified))
+	}
+	if n.Using != "" {
+		sb.WriteString(fmt.Sprintf(" :using %q", n.Using))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateTypeStmt(sb *strings.Builder, n *CreateTypeStmt) {
+	sb.WriteString("{CREATETYPE")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Attributes != nil {
+		sb.WriteString(" :attributes ")
+		writeNode(sb, n.Attributes)
+	}
+	if n.AsTable != nil {
+		sb.WriteString(" :asTable ")
+		writeNode(sb, n.AsTable)
+	}
+	if n.AsVarray != nil {
+		sb.WriteString(" :asVarray ")
+		writeNode(sb, n.AsVarray)
+	}
+	if n.VarraySize != nil {
+		sb.WriteString(" :varraySize ")
+		writeNode(sb, n.VarraySize)
+	}
+	if n.IsBody {
+		sb.WriteString(" :isBody true")
+	}
+	if n.Body != nil {
+		sb.WriteString(" :body ")
+		writeNode(sb, n.Body)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreatePackageStmt(sb *strings.Builder, n *CreatePackageStmt) {
+	sb.WriteString("{CREATEPACKAGE")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.IsBody {
+		sb.WriteString(" :isBody true")
+	}
+	if n.Body != nil {
+		sb.WriteString(" :body ")
+		writeNode(sb, n.Body)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateProcedureStmt(sb *strings.Builder, n *CreateProcedureStmt) {
+	sb.WriteString("{CREATEPROCEDURE")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Parameters != nil {
+		sb.WriteString(" :parameters ")
+		writeNode(sb, n.Parameters)
+	}
+	if n.Body != nil {
+		sb.WriteString(" :body ")
+		writeNode(sb, n.Body)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateFunctionStmt(sb *strings.Builder, n *CreateFunctionStmt) {
+	sb.WriteString("{CREATEFUNCTION")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Parameters != nil {
+		sb.WriteString(" :parameters ")
+		writeNode(sb, n.Parameters)
+	}
+	if n.ReturnType != nil {
+		sb.WriteString(" :returnType ")
+		writeNode(sb, n.ReturnType)
+	}
+	if n.Deterministic {
+		sb.WriteString(" :deterministic true")
+	}
+	if n.Pipelined {
+		sb.WriteString(" :pipelined true")
+	}
+	if n.Parallel {
+		sb.WriteString(" :parallel true")
+	}
+	if n.ResultCache {
+		sb.WriteString(" :resultCache true")
+	}
+	if n.Body != nil {
+		sb.WriteString(" :body ")
+		writeNode(sb, n.Body)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeParameter(sb *strings.Builder, n *Parameter) {
+	sb.WriteString("{PARAM")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.Mode != "" {
+		sb.WriteString(fmt.Sprintf(" :mode %q", n.Mode))
+	}
+	if n.TypeName != nil {
+		sb.WriteString(" :typeName ")
+		writeNode(sb, n.TypeName)
+	}
+	if n.Default != nil {
+		sb.WriteString(" :default ")
+		writeNode(sb, n.Default)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateTriggerStmt(sb *strings.Builder, n *CreateTriggerStmt) {
+	sb.WriteString("{CREATETRIGGER")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	sb.WriteString(fmt.Sprintf(" :timing %d", n.Timing))
+	if n.Events != nil {
+		sb.WriteString(" :events ")
+		writeNode(sb, n.Events)
+	}
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.ForEachRow {
+		sb.WriteString(" :forEachRow true")
+	}
+	if n.When != nil {
+		sb.WriteString(" :when ")
+		writeNode(sb, n.When)
+	}
+	if n.Body != nil {
+		sb.WriteString(" :body ")
+		writeNode(sb, n.Body)
+	}
+	if n.Compound {
+		sb.WriteString(" :compound true")
+	}
+	if n.Enable {
+		sb.WriteString(" :enable true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeTruncateStmt(sb *strings.Builder, n *TruncateStmt) {
+	sb.WriteString("{TRUNCATE")
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.Cluster {
+		sb.WriteString(" :cluster true")
+	}
+	if n.PurgeMVLog {
+		sb.WriteString(" :purgeMVLog true")
+	}
+	if n.Cascade {
+		sb.WriteString(" :cascade true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeGrantStmt(sb *strings.Builder, n *GrantStmt) {
+	sb.WriteString("{GRANT")
+	if n.AllPriv {
+		sb.WriteString(" :allPriv true")
+	}
+	if n.Privileges != nil {
+		sb.WriteString(" :privileges ")
+		writeNode(sb, n.Privileges)
+	}
+	if n.OnObject != nil {
+		sb.WriteString(" :onObject ")
+		writeNode(sb, n.OnObject)
+	}
+	sb.WriteString(fmt.Sprintf(" :onType %d", n.OnType))
+	if n.Grantees != nil {
+		sb.WriteString(" :grantees ")
+		writeNode(sb, n.Grantees)
+	}
+	if n.WithAdmin {
+		sb.WriteString(" :withAdmin true")
+	}
+	if n.WithGrant {
+		sb.WriteString(" :withGrant true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeRevokeStmt(sb *strings.Builder, n *RevokeStmt) {
+	sb.WriteString("{REVOKE")
+	if n.AllPriv {
+		sb.WriteString(" :allPriv true")
+	}
+	if n.Privileges != nil {
+		sb.WriteString(" :privileges ")
+		writeNode(sb, n.Privileges)
+	}
+	if n.OnObject != nil {
+		sb.WriteString(" :onObject ")
+		writeNode(sb, n.OnObject)
+	}
+	sb.WriteString(fmt.Sprintf(" :onType %d", n.OnType))
+	if n.Grantees != nil {
+		sb.WriteString(" :grantees ")
+		writeNode(sb, n.Grantees)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCommentStmt(sb *strings.Builder, n *CommentStmt) {
+	sb.WriteString("{COMMENT")
+	sb.WriteString(fmt.Sprintf(" :objectType %d", n.ObjectType))
+	if n.Object != nil {
+		sb.WriteString(" :object ")
+		writeNode(sb, n.Object)
+	}
+	if n.Column != "" {
+		sb.WriteString(fmt.Sprintf(" :column %q", n.Column))
+	}
+	sb.WriteString(fmt.Sprintf(" :comment %q", n.Comment))
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterSessionStmt(sb *strings.Builder, n *AlterSessionStmt) {
+	sb.WriteString("{ALTERSESSION")
+	if n.SetParams != nil {
+		sb.WriteString(" :setParams ")
+		writeNode(sb, n.SetParams)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterSystemStmt(sb *strings.Builder, n *AlterSystemStmt) {
+	sb.WriteString("{ALTERSYSTEM")
+	if n.SetParams != nil {
+		sb.WriteString(" :setParams ")
+		writeNode(sb, n.SetParams)
+	}
+	if n.Kill != "" {
+		sb.WriteString(fmt.Sprintf(" :kill %q", n.Kill))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeSetParam(sb *strings.Builder, n *SetParam) {
+	sb.WriteString("{SETPARAM")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCommitStmt(sb *strings.Builder, n *CommitStmt) {
+	sb.WriteString("{COMMIT")
+	if n.Work {
+		sb.WriteString(" :work true")
+	}
+	if n.Comment != "" {
+		sb.WriteString(fmt.Sprintf(" :comment %q", n.Comment))
+	}
+	if n.Force != "" {
+		sb.WriteString(fmt.Sprintf(" :force %q", n.Force))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeRollbackStmt(sb *strings.Builder, n *RollbackStmt) {
+	sb.WriteString("{ROLLBACK")
+	if n.Work {
+		sb.WriteString(" :work true")
+	}
+	if n.ToSavepoint != "" {
+		sb.WriteString(fmt.Sprintf(" :toSavepoint %q", n.ToSavepoint))
+	}
+	if n.Force != "" {
+		sb.WriteString(fmt.Sprintf(" :force %q", n.Force))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeSavepointStmt(sb *strings.Builder, n *SavepointStmt) {
+	sb.WriteString("{SAVEPOINT")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeSetTransactionStmt(sb *strings.Builder, n *SetTransactionStmt) {
+	sb.WriteString("{SETTRANSACTION")
+	if n.ReadOnly {
+		sb.WriteString(" :readOnly true")
+	}
+	if n.ReadWrite {
+		sb.WriteString(" :readWrite true")
+	}
+	if n.IsolLevel != "" {
+		sb.WriteString(fmt.Sprintf(" :isolLevel %q", n.IsolLevel))
+	}
+	if n.Name != "" {
+		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAnalyzeStmt(sb *strings.Builder, n *AnalyzeStmt) {
+	sb.WriteString("{ANALYZE")
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	sb.WriteString(fmt.Sprintf(" :objectType %d", n.ObjectType))
+	if n.Action != "" {
+		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeExplainPlanStmt(sb *strings.Builder, n *ExplainPlanStmt) {
+	sb.WriteString("{EXPLAINPLAN")
+	if n.StatementID != "" {
+		sb.WriteString(fmt.Sprintf(" :statementID %q", n.StatementID))
+	}
+	if n.Into != nil {
+		sb.WriteString(" :into ")
+		writeNode(sb, n.Into)
+	}
+	if n.Statement != nil {
+		sb.WriteString(" :statement ")
+		writeNode(sb, n.Statement)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeFlashbackTableStmt(sb *strings.Builder, n *FlashbackTableStmt) {
+	sb.WriteString("{FLASHBACKTABLE")
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.ToSCN != nil {
+		sb.WriteString(" :toSCN ")
+		writeNode(sb, n.ToSCN)
+	}
+	if n.ToTimestamp != nil {
+		sb.WriteString(" :toTimestamp ")
+		writeNode(sb, n.ToTimestamp)
+	}
+	if n.ToBeforeDrop {
+		sb.WriteString(" :toBeforeDrop true")
+	}
+	if n.Rename != "" {
+		sb.WriteString(fmt.Sprintf(" :rename %q", n.Rename))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePurgeStmt(sb *strings.Builder, n *PurgeStmt) {
+	sb.WriteString("{PURGE")
+	sb.WriteString(fmt.Sprintf(" :objectType %d", n.ObjectType))
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+// ---------------------------------------------------------------------------
+// PL/SQL nodes
+// ---------------------------------------------------------------------------
+
+func writePLSQLBlock(sb *strings.Builder, n *PLSQLBlock) {
+	sb.WriteString("{PLSQLBLOCK")
+	if n.Label != "" {
+		sb.WriteString(fmt.Sprintf(" :label %q", n.Label))
+	}
+	if n.Declarations != nil {
+		sb.WriteString(" :declarations ")
+		writeNode(sb, n.Declarations)
+	}
+	if n.Statements != nil {
+		sb.WriteString(" :statements ")
+		writeNode(sb, n.Statements)
+	}
+	if n.Exceptions != nil {
+		sb.WriteString(" :exceptions ")
+		writeNode(sb, n.Exceptions)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeExceptionHandler(sb *strings.Builder, n *ExceptionHandler) {
+	sb.WriteString("{EXCEPTIONHANDLER")
+	if n.Exceptions != nil {
+		sb.WriteString(" :exceptions ")
+		writeNode(sb, n.Exceptions)
+	}
+	if n.Statements != nil {
+		sb.WriteString(" :statements ")
+		writeNode(sb, n.Statements)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLIf(sb *strings.Builder, n *PLSQLIf) {
+	sb.WriteString("{PLSQLIF")
+	if n.Condition != nil {
+		sb.WriteString(" :condition ")
+		writeNode(sb, n.Condition)
+	}
+	if n.Then != nil {
+		sb.WriteString(" :then ")
+		writeNode(sb, n.Then)
+	}
+	if n.ElsIfs != nil {
+		sb.WriteString(" :elsifs ")
+		writeNode(sb, n.ElsIfs)
+	}
+	if n.Else != nil {
+		sb.WriteString(" :else ")
+		writeNode(sb, n.Else)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLElsIf(sb *strings.Builder, n *PLSQLElsIf) {
+	sb.WriteString("{PLSQLELSIF")
+	if n.Condition != nil {
+		sb.WriteString(" :condition ")
+		writeNode(sb, n.Condition)
+	}
+	if n.Then != nil {
+		sb.WriteString(" :then ")
+		writeNode(sb, n.Then)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLLoop(sb *strings.Builder, n *PLSQLLoop) {
+	sb.WriteString("{PLSQLLOOP")
+	sb.WriteString(fmt.Sprintf(" :type %d", n.Type))
+	if n.Label != "" {
+		sb.WriteString(fmt.Sprintf(" :label %q", n.Label))
+	}
+	if n.Condition != nil {
+		sb.WriteString(" :condition ")
+		writeNode(sb, n.Condition)
+	}
+	if n.Iterator != "" {
+		sb.WriteString(fmt.Sprintf(" :iterator %q", n.Iterator))
+	}
+	if n.LowerBound != nil {
+		sb.WriteString(" :lowerBound ")
+		writeNode(sb, n.LowerBound)
+	}
+	if n.UpperBound != nil {
+		sb.WriteString(" :upperBound ")
+		writeNode(sb, n.UpperBound)
+	}
+	if n.Reverse {
+		sb.WriteString(" :reverse true")
+	}
+	if n.CursorName != "" {
+		sb.WriteString(fmt.Sprintf(" :cursorName %q", n.CursorName))
+	}
+	if n.CursorArgs != nil {
+		sb.WriteString(" :cursorArgs ")
+		writeNode(sb, n.CursorArgs)
+	}
+	if n.Statements != nil {
+		sb.WriteString(" :statements ")
+		writeNode(sb, n.Statements)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLReturn(sb *strings.Builder, n *PLSQLReturn) {
+	sb.WriteString("{PLSQLRETURN")
+	if n.Expr != nil {
+		sb.WriteString(" :expr ")
+		writeNode(sb, n.Expr)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLGoto(sb *strings.Builder, n *PLSQLGoto) {
+	sb.WriteString("{PLSQLGOTO")
+	sb.WriteString(fmt.Sprintf(" :label %q", n.Label))
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLAssign(sb *strings.Builder, n *PLSQLAssign) {
+	sb.WriteString("{PLSQLASSIGN")
+	if n.Target != nil {
+		sb.WriteString(" :target ")
+		writeNode(sb, n.Target)
+	}
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLRaise(sb *strings.Builder, n *PLSQLRaise) {
+	sb.WriteString("{PLSQLRAISE")
+	if n.Exception != "" {
+		sb.WriteString(fmt.Sprintf(" :exception %q", n.Exception))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLNull(sb *strings.Builder, n *PLSQLNull) {
+	sb.WriteString("{PLSQLNULL")
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLVarDecl(sb *strings.Builder, n *PLSQLVarDecl) {
+	sb.WriteString("{PLSQLVARDECL")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.TypeName != nil {
+		sb.WriteString(" :typeName ")
+		writeNode(sb, n.TypeName)
+	}
+	if n.Constant {
+		sb.WriteString(" :constant true")
+	}
+	if n.NotNull {
+		sb.WriteString(" :notNull true")
+	}
+	if n.Default != nil {
+		sb.WriteString(" :default ")
+		writeNode(sb, n.Default)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLCursorDecl(sb *strings.Builder, n *PLSQLCursorDecl) {
+	sb.WriteString("{PLSQLCURSORDECL")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.Parameters != nil {
+		sb.WriteString(" :parameters ")
+		writeNode(sb, n.Parameters)
+	}
+	if n.Query != nil {
+		sb.WriteString(" :query ")
+		writeNode(sb, n.Query)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLExecImmediate(sb *strings.Builder, n *PLSQLExecImmediate) {
+	sb.WriteString("{PLSQLEXECIMMEDIATE")
+	if n.SQL != nil {
+		sb.WriteString(" :sql ")
+		writeNode(sb, n.SQL)
+	}
+	if n.Into != nil {
+		sb.WriteString(" :into ")
+		writeNode(sb, n.Into)
+	}
+	if n.Using != nil {
+		sb.WriteString(" :using ")
+		writeNode(sb, n.Using)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLOpen(sb *strings.Builder, n *PLSQLOpen) {
+	sb.WriteString("{PLSQLOPEN")
+	sb.WriteString(fmt.Sprintf(" :cursor %q", n.Cursor))
+	if n.Args != nil {
+		sb.WriteString(" :args ")
+		writeNode(sb, n.Args)
+	}
+	if n.ForQuery != nil {
+		sb.WriteString(" :forQuery ")
+		writeNode(sb, n.ForQuery)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLFetch(sb *strings.Builder, n *PLSQLFetch) {
+	sb.WriteString("{PLSQLFETCH")
+	sb.WriteString(fmt.Sprintf(" :cursor %q", n.Cursor))
+	if n.Into != nil {
+		sb.WriteString(" :into ")
+		writeNode(sb, n.Into)
+	}
+	if n.Bulk {
+		sb.WriteString(" :bulk true")
+	}
+	if n.Limit != nil {
+		sb.WriteString(" :limit ")
+		writeNode(sb, n.Limit)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLClose(sb *strings.Builder, n *PLSQLClose) {
+	sb.WriteString("{PLSQLCLOSE")
+	sb.WriteString(fmt.Sprintf(" :cursor %q", n.Cursor))
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+// escapeString escapes special characters in a string for output.
+func escapeString(s string) string {
+	var sb strings.Builder
+	for _, c := range s {
+		switch c {
+		case '\\':
+			sb.WriteString("\\\\")
+		case '"':
+			sb.WriteString("\\\"")
+		case '\n':
+			sb.WriteString("\\n")
+		case '\r':
+			sb.WriteString("\\r")
+		case '\t':
+			sb.WriteString("\\t")
+		default:
+			sb.WriteRune(c)
+		}
+	}
+	return sb.String()
+}

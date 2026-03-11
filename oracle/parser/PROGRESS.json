@@ -1,0 +1,327 @@
+{
+  "version": 1,
+  "target": "Oracle PL/SQL recursive descent parser",
+  "status": "in_progress",
+  "batches": [
+    {
+      "id": 0,
+      "name": "infrastructure",
+      "file": "parser.go",
+      "status": "done",
+      "description": "Parser struct, advance/peek/match/expect/pos helpers, lexer, AST node definitions",
+      "rules": [],
+      "depends_on": [],
+      "tests": []
+    },
+    {
+      "id": 1,
+      "name": "names",
+      "file": "name.go",
+      "status": "done",
+      "description": "Identifiers, \"quoted\" identifiers, qualified names schema.object@dblink, bind variables :param",
+      "rules": [
+        "identifier", "quoted_identifier", "qualified_name", "schema_object",
+        "dblink_name", "bind_variable", "column_ref", "object_name"
+      ],
+      "depends_on": [0],
+      "tests": []
+    },
+    {
+      "id": 2,
+      "name": "types",
+      "file": "type.go",
+      "status": "pending",
+      "description": "NUMBER, VARCHAR2, CLOB, BLOB, DATE, TIMESTAMP, INTERVAL, user-defined object types, %TYPE, %ROWTYPE",
+      "rules": [
+        "datatype", "number_type", "char_type", "lob_type", "datetime_type",
+        "interval_type", "rowid_type", "pct_type", "pct_rowtype", "user_defined_type"
+      ],
+      "depends_on": [1],
+      "tests": []
+    },
+    {
+      "id": 3,
+      "name": "expressions",
+      "file": "expr.go",
+      "status": "pending",
+      "description": "Operators, CASE, DECODE, BETWEEN, IN, LIKE/LIKEC, IS, NVL, NVL2, COALESCE, NULLIF, CAST, MULTISET",
+      "rules": [
+        "expression", "or_expr", "and_expr", "not_expr", "comparison_expr",
+        "addition_expr", "multiplication_expr", "unary_expr", "primary_expr",
+        "case_expr", "decode_expr", "between_expr", "in_expr", "like_expr",
+        "is_expr", "cast_expr", "exists_expr", "multiset_expr", "function_call"
+      ],
+      "depends_on": [1, 2],
+      "tests": ["case", "cast", "between", "in", "like", "is"]
+    },
+    {
+      "id": 4,
+      "name": "select",
+      "file": "select.go",
+      "status": "pending",
+      "description": "SELECT with CONNECT BY, START WITH, PIVOT/UNPIVOT, FLASHBACK, SAMPLE, FOR UPDATE, FETCH FIRST",
+      "rules": [
+        "select_stmt", "select_list", "from_clause", "where_clause",
+        "connect_by_clause", "start_with_clause", "group_by_clause",
+        "having_clause", "order_by_clause", "for_update_clause",
+        "fetch_first_clause", "pivot_clause", "unpivot_clause",
+        "sample_clause", "with_clause", "set_operation",
+        "hierarchical_query", "model_clause"
+      ],
+      "depends_on": [3],
+      "tests": ["select", "join", "connect_by", "set_ops"]
+    },
+    {
+      "id": 5,
+      "name": "insert",
+      "file": "insert.go",
+      "status": "pending",
+      "description": "INSERT, INSERT ALL/FIRST, multi-table insert, RETURNING",
+      "rules": [
+        "insert_stmt", "insert_single", "insert_all", "insert_first",
+        "multi_table_insert", "values_clause", "returning_clause"
+      ],
+      "depends_on": [4],
+      "tests": ["insert", "insert_all"]
+    },
+    {
+      "id": 6,
+      "name": "update_delete",
+      "file": "update_delete.go",
+      "status": "pending",
+      "description": "UPDATE, DELETE, RETURNING INTO",
+      "rules": [
+        "update_stmt", "set_clause", "delete_stmt", "returning_into"
+      ],
+      "depends_on": [4],
+      "tests": ["update", "delete"]
+    },
+    {
+      "id": 7,
+      "name": "merge",
+      "file": "merge.go",
+      "status": "pending",
+      "description": "MERGE INTO",
+      "rules": [
+        "merge_stmt", "merge_when_matched", "merge_when_not_matched",
+        "merge_update", "merge_insert", "merge_delete"
+      ],
+      "depends_on": [4],
+      "tests": ["merge"]
+    },
+    {
+      "id": 8,
+      "name": "create_table",
+      "file": "create_table.go",
+      "status": "pending",
+      "description": "CREATE TABLE, partitioning, storage, LOB storage, virtual columns, invisible columns",
+      "rules": [
+        "create_table_stmt", "column_def", "column_constraint",
+        "table_constraint", "storage_clause", "partition_clause",
+        "partition_def", "tablespace_clause", "lob_storage",
+        "virtual_column", "invisible_column"
+      ],
+      "depends_on": [2, 3],
+      "tests": ["create_table", "partition"]
+    },
+    {
+      "id": 9,
+      "name": "alter_table",
+      "file": "alter_table.go",
+      "status": "pending",
+      "description": "ALTER TABLE, ADD/MODIFY/DROP/RENAME COLUMN, constraints, partitions",
+      "rules": [
+        "alter_table_stmt", "alter_table_action",
+        "add_column", "modify_column", "drop_column", "rename_column",
+        "add_constraint", "drop_constraint", "modify_constraint"
+      ],
+      "depends_on": [8],
+      "tests": ["alter_table"]
+    },
+    {
+      "id": 10,
+      "name": "create_index",
+      "file": "create_index.go",
+      "status": "pending",
+      "description": "CREATE INDEX, BITMAP, FUNCTION-BASED, LOCAL/GLOBAL, REVERSE",
+      "rules": [
+        "create_index_stmt", "index_column", "bitmap_index",
+        "function_based_index", "local_index", "global_index", "reverse_index"
+      ],
+      "depends_on": [3],
+      "tests": ["create_index"]
+    },
+    {
+      "id": 11,
+      "name": "create_view",
+      "file": "create_view.go",
+      "status": "pending",
+      "description": "CREATE VIEW, MATERIALIZED VIEW, FORCE/NO FORCE",
+      "rules": [
+        "create_view_stmt", "materialized_view", "view_options",
+        "refresh_clause", "build_clause", "query_rewrite"
+      ],
+      "depends_on": [4],
+      "tests": ["create_view", "materialized_view"]
+    },
+    {
+      "id": 12,
+      "name": "sequence_synonym",
+      "file": "sequence_synonym.go",
+      "status": "pending",
+      "description": "CREATE SEQUENCE, CREATE SYNONYM, CREATE DATABASE LINK",
+      "rules": [
+        "create_sequence_stmt", "sequence_option",
+        "create_synonym_stmt", "create_dblink_stmt"
+      ],
+      "depends_on": [1],
+      "tests": ["sequence", "synonym", "dblink"]
+    },
+    {
+      "id": 13,
+      "name": "create_proc",
+      "file": "create_proc.go",
+      "status": "pending",
+      "description": "CREATE PROCEDURE/FUNCTION, packages: CREATE PACKAGE / PACKAGE BODY",
+      "rules": [
+        "create_procedure_stmt", "create_function_stmt",
+        "create_package_stmt", "create_package_body_stmt",
+        "parameter_list", "parameter", "return_type",
+        "function_options"
+      ],
+      "depends_on": [2, 21],
+      "tests": ["create_proc", "create_function", "create_package"]
+    },
+    {
+      "id": 14,
+      "name": "create_trigger",
+      "file": "create_trigger.go",
+      "status": "pending",
+      "description": "CREATE TRIGGER: DML, DDL, system, compound, INSTEAD OF",
+      "rules": [
+        "create_trigger_stmt", "trigger_timing", "trigger_event",
+        "trigger_body", "compound_trigger"
+      ],
+      "depends_on": [21],
+      "tests": ["create_trigger"]
+    },
+    {
+      "id": 15,
+      "name": "create_type",
+      "file": "create_type.go",
+      "status": "pending",
+      "description": "CREATE TYPE: object types, nested tables, varrays",
+      "rules": [
+        "create_type_stmt", "object_type", "nested_table_type",
+        "varray_type", "type_body"
+      ],
+      "depends_on": [2],
+      "tests": ["create_type"]
+    },
+    {
+      "id": 16,
+      "name": "drop",
+      "file": "drop.go",
+      "status": "pending",
+      "description": "DROP TABLE/INDEX/VIEW/SEQUENCE/SYNONYM/PACKAGE/PROCEDURE/FUNCTION/TRIGGER/TYPE, PURGE",
+      "rules": [
+        "drop_stmt", "drop_table", "drop_index", "drop_view",
+        "drop_sequence", "drop_synonym", "drop_package",
+        "drop_procedure", "drop_function", "drop_trigger", "drop_type"
+      ],
+      "depends_on": [1],
+      "tests": ["drop"]
+    },
+    {
+      "id": 17,
+      "name": "alter_misc",
+      "file": "alter_misc.go",
+      "status": "pending",
+      "description": "ALTER INDEX, ALTER VIEW, ALTER SEQUENCE, ALTER SESSION, ALTER SYSTEM",
+      "rules": [
+        "alter_index_stmt", "alter_view_stmt", "alter_sequence_stmt",
+        "alter_session_stmt", "alter_system_stmt"
+      ],
+      "depends_on": [1],
+      "tests": ["alter_misc"]
+    },
+    {
+      "id": 18,
+      "name": "grant",
+      "file": "grant.go",
+      "status": "pending",
+      "description": "GRANT, REVOKE, CREATE/ALTER/DROP USER/ROLE",
+      "rules": [
+        "grant_stmt", "revoke_stmt", "privilege_list", "grantee_list",
+        "create_user", "alter_user", "drop_user",
+        "create_role", "alter_role", "drop_role"
+      ],
+      "depends_on": [1],
+      "tests": ["grant", "revoke"]
+    },
+    {
+      "id": 19,
+      "name": "transaction",
+      "file": "transaction.go",
+      "status": "pending",
+      "description": "COMMIT, ROLLBACK, SAVEPOINT, SET TRANSACTION",
+      "rules": [
+        "commit_stmt", "rollback_stmt", "savepoint_stmt", "set_transaction_stmt"
+      ],
+      "depends_on": [0],
+      "tests": ["transaction"]
+    },
+    {
+      "id": 20,
+      "name": "comment",
+      "file": "comment.go",
+      "status": "pending",
+      "description": "COMMENT ON, hints parsing",
+      "rules": [
+        "comment_stmt", "hint_clause"
+      ],
+      "depends_on": [1],
+      "tests": ["comment"]
+    },
+    {
+      "id": 21,
+      "name": "plsql_block",
+      "file": "plsql_block.go",
+      "status": "pending",
+      "description": "DECLARE, BEGIN/END, IF/ELSIF/ELSE, LOOP/WHILE/FOR, EXCEPTION, RETURN, GOTO",
+      "rules": [
+        "plsql_block", "declare_section", "variable_declaration",
+        "cursor_declaration", "exception_handler",
+        "if_statement", "loop_statement", "while_statement", "for_statement",
+        "return_statement", "goto_statement", "raise_statement",
+        "null_statement", "assignment_statement",
+        "execute_immediate", "open_statement", "fetch_statement", "close_statement"
+      ],
+      "depends_on": [3],
+      "tests": ["plsql_block", "plsql_if", "plsql_loop"]
+    },
+    {
+      "id": 22,
+      "name": "utility",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "ANALYZE, TRUNCATE, EXPLAIN PLAN, FLASHBACK TABLE, PURGE",
+      "rules": [
+        "analyze_stmt", "truncate_stmt", "explain_plan_stmt",
+        "flashback_table_stmt", "purge_stmt"
+      ],
+      "depends_on": [1],
+      "tests": ["utility"]
+    },
+    {
+      "id": 23,
+      "name": "stmt_dispatch",
+      "file": "stmt.go",
+      "status": "pending",
+      "description": "Wire up all statements in the parseStmt dispatcher",
+      "rules": ["stmt_dispatch"],
+      "depends_on": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22],
+      "tests": ["integration"]
+    }
+  ]
+}
