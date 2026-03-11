@@ -123,7 +123,7 @@
       "id": 8,
       "name": "alter_table",
       "file": "alter_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "ALTER TABLE with all MySQL-specific operations: ADD/DROP/MODIFY/CHANGE COLUMN, ADD/DROP INDEX, RENAME, etc.",
       "rules": [
         "alter_table_stmt", "alter_table_action",

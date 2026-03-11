@@ -2994,3 +2994,362 @@ func TestParseCreateTableLike(t *testing.T) {
 		}
 	})
 }
+
+// ============================================================================
+// Batch 8: ALTER TABLE
+// ============================================================================
+
+func parseAlterTable(t *testing.T, input string) *ast.AlterTableStmt {
+	t.Helper()
+	p := &Parser{lexer: NewLexer(input)}
+	p.advance() // prime lexer
+	p.advance() // skip ALTER
+	stmt, err := p.parseAlterTableStmt()
+	if err != nil {
+		t.Fatalf("parseAlterTableStmt(%q) error: %v", input, err)
+	}
+	return stmt
+}
+
+func TestParseAlterTableAddColumn(t *testing.T) {
+	t.Run("add column", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD COLUMN name VARCHAR(100)")
+		if len(stmt.Commands) != 1 {
+			t.Fatalf("Commands count = %d, want 1", len(stmt.Commands))
+		}
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAddColumn {
+			t.Errorf("Type = %d, want ATAddColumn", cmd.Type)
+		}
+		if cmd.Column == nil || cmd.Column.Name != "name" {
+			t.Errorf("Column = %v, want name", cmd.Column)
+		}
+	})
+
+	t.Run("add column without column keyword", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD name VARCHAR(100)")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAddColumn {
+			t.Errorf("Type = %d, want ATAddColumn", cmd.Type)
+		}
+	})
+
+	t.Run("add column first", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD COLUMN id INT FIRST")
+		cmd := stmt.Commands[0]
+		if !cmd.First {
+			t.Errorf("First = false, want true")
+		}
+	})
+
+	t.Run("add column after", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD COLUMN email VARCHAR(255) AFTER name")
+		cmd := stmt.Commands[0]
+		if cmd.After != "name" {
+			t.Errorf("After = %s, want name", cmd.After)
+		}
+	})
+
+	t.Run("add constraint primary key", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD PRIMARY KEY (id)")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAddConstraint {
+			t.Errorf("Type = %d, want ATAddConstraint", cmd.Type)
+		}
+		if cmd.Constraint == nil || cmd.Constraint.Type != ast.ConstrPrimaryKey {
+			t.Errorf("Constraint type = %v, want ConstrPrimaryKey", cmd.Constraint)
+		}
+	})
+
+	t.Run("add constraint unique", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD UNIQUE KEY idx_email (email)")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAddConstraint {
+			t.Errorf("Type = %d, want ATAddConstraint", cmd.Type)
+		}
+		if cmd.Constraint.Type != ast.ConstrUnique {
+			t.Errorf("Constraint type = %d, want ConstrUnique", cmd.Constraint.Type)
+		}
+	})
+
+	t.Run("add index", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD INDEX idx_name (name)")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAddConstraint {
+			t.Errorf("Type = %d, want ATAddConstraint", cmd.Type)
+		}
+		if cmd.Constraint.Type != ast.ConstrIndex {
+			t.Errorf("Constraint type = %d, want ConstrIndex", cmd.Constraint.Type)
+		}
+	})
+
+	t.Run("add foreign key", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id)")
+		cmd := stmt.Commands[0]
+		if cmd.Constraint.Name != "fk_user" {
+			t.Errorf("Name = %s, want fk_user", cmd.Constraint.Name)
+		}
+		if cmd.Constraint.Type != ast.ConstrForeignKey {
+			t.Errorf("Type = %d, want ConstrForeignKey", cmd.Constraint.Type)
+		}
+	})
+
+	t.Run("add check", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD CHECK (age >= 0)")
+		cmd := stmt.Commands[0]
+		if cmd.Constraint.Type != ast.ConstrCheck {
+			t.Errorf("Type = %d, want ConstrCheck", cmd.Constraint.Type)
+		}
+	})
+}
+
+func TestParseAlterTableDropColumn(t *testing.T) {
+	t.Run("drop column", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t DROP COLUMN name")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATDropColumn {
+			t.Errorf("Type = %d, want ATDropColumn", cmd.Type)
+		}
+		if cmd.Name != "name" {
+			t.Errorf("Name = %s, want name", cmd.Name)
+		}
+	})
+
+	t.Run("drop column without keyword", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t DROP name")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATDropColumn {
+			t.Errorf("Type = %d, want ATDropColumn", cmd.Type)
+		}
+	})
+
+	t.Run("drop primary key", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t DROP PRIMARY KEY")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATDropConstraint {
+			t.Errorf("Type = %d, want ATDropConstraint", cmd.Type)
+		}
+		if cmd.Name != "PRIMARY" {
+			t.Errorf("Name = %s, want PRIMARY", cmd.Name)
+		}
+	})
+
+	t.Run("drop index", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t DROP INDEX idx_name")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATDropIndex {
+			t.Errorf("Type = %d, want ATDropIndex", cmd.Type)
+		}
+		if cmd.Name != "idx_name" {
+			t.Errorf("Name = %s, want idx_name", cmd.Name)
+		}
+	})
+
+	t.Run("drop foreign key", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t DROP FOREIGN KEY fk_user")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATDropConstraint {
+			t.Errorf("Type = %d, want ATDropConstraint", cmd.Type)
+		}
+		if cmd.Name != "fk_user" {
+			t.Errorf("Name = %s, want fk_user", cmd.Name)
+		}
+	})
+}
+
+func TestParseAlterTableModifyColumn(t *testing.T) {
+	t.Run("modify column", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t MODIFY COLUMN name VARCHAR(200)")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATModifyColumn {
+			t.Errorf("Type = %d, want ATModifyColumn", cmd.Type)
+		}
+		if cmd.Name != "name" {
+			t.Errorf("Name = %s, want name", cmd.Name)
+		}
+	})
+
+	t.Run("modify without column keyword", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t MODIFY name VARCHAR(200)")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATModifyColumn {
+			t.Errorf("Type = %d, want ATModifyColumn", cmd.Type)
+		}
+	})
+
+	t.Run("modify with first", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t MODIFY COLUMN id INT FIRST")
+		cmd := stmt.Commands[0]
+		if !cmd.First {
+			t.Errorf("First = false, want true")
+		}
+	})
+
+	t.Run("modify with after", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t MODIFY COLUMN email VARCHAR(255) AFTER name")
+		cmd := stmt.Commands[0]
+		if cmd.After != "name" {
+			t.Errorf("After = %s, want name", cmd.After)
+		}
+	})
+
+	t.Run("change column", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t CHANGE COLUMN old_name new_name VARCHAR(200)")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATChangeColumn {
+			t.Errorf("Type = %d, want ATChangeColumn", cmd.Type)
+		}
+		if cmd.Name != "old_name" {
+			t.Errorf("Name = %s, want old_name", cmd.Name)
+		}
+		if cmd.NewName != "new_name" {
+			t.Errorf("NewName = %s, want new_name", cmd.NewName)
+		}
+	})
+}
+
+func TestParseAlterTableAddIndex(t *testing.T) {
+	t.Run("add fulltext index", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD FULLTEXT INDEX ft_content (content)")
+		cmd := stmt.Commands[0]
+		if cmd.Constraint.Type != ast.ConstrFulltextIndex {
+			t.Errorf("Type = %d, want ConstrFulltextIndex", cmd.Constraint.Type)
+		}
+	})
+
+	t.Run("add spatial index", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD SPATIAL INDEX sp_geo (geo)")
+		cmd := stmt.Commands[0]
+		if cmd.Constraint.Type != ast.ConstrSpatialIndex {
+			t.Errorf("Type = %d, want ConstrSpatialIndex", cmd.Constraint.Type)
+		}
+	})
+
+	t.Run("multiple commands", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD COLUMN a INT, ADD COLUMN b INT, DROP COLUMN c")
+		if len(stmt.Commands) != 3 {
+			t.Fatalf("Commands count = %d, want 3", len(stmt.Commands))
+		}
+		if stmt.Commands[0].Type != ast.ATAddColumn {
+			t.Errorf("cmd[0] = %d, want ATAddColumn", stmt.Commands[0].Type)
+		}
+		if stmt.Commands[1].Type != ast.ATAddColumn {
+			t.Errorf("cmd[1] = %d, want ATAddColumn", stmt.Commands[1].Type)
+		}
+		if stmt.Commands[2].Type != ast.ATDropColumn {
+			t.Errorf("cmd[2] = %d, want ATDropColumn", stmt.Commands[2].Type)
+		}
+	})
+}
+
+func TestParseAlterTableRename(t *testing.T) {
+	t.Run("rename table", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t RENAME TO new_t")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATRenameTable {
+			t.Errorf("Type = %d, want ATRenameTable", cmd.Type)
+		}
+		if cmd.NewName != "new_t" {
+			t.Errorf("NewName = %s, want new_t", cmd.NewName)
+		}
+	})
+
+	t.Run("rename table as", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t RENAME AS new_t")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATRenameTable {
+			t.Errorf("Type = %d, want ATRenameTable", cmd.Type)
+		}
+	})
+
+	t.Run("rename column", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t RENAME COLUMN old_col TO new_col")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATRenameColumn {
+			t.Errorf("Type = %d, want ATRenameColumn", cmd.Type)
+		}
+		if cmd.Name != "old_col" {
+			t.Errorf("Name = %s, want old_col", cmd.Name)
+		}
+		if cmd.NewName != "new_col" {
+			t.Errorf("NewName = %s, want new_col", cmd.NewName)
+		}
+	})
+
+	t.Run("rename index", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t RENAME INDEX old_idx TO new_idx")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATRenameIndex {
+			t.Errorf("Type = %d, want ATRenameIndex", cmd.Type)
+		}
+		if cmd.Name != "old_idx" {
+			t.Errorf("Name = %s, want old_idx", cmd.Name)
+		}
+		if cmd.NewName != "new_idx" {
+			t.Errorf("NewName = %s, want new_idx", cmd.NewName)
+		}
+	})
+
+	t.Run("convert charset", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATConvertCharset {
+			t.Errorf("Type = %d, want ATConvertCharset", cmd.Type)
+		}
+		if cmd.Name != "utf8mb4" {
+			t.Errorf("Name = %s, want utf8mb4", cmd.Name)
+		}
+		if cmd.NewName != "utf8mb4_unicode_ci" {
+			t.Errorf("NewName = %s, want utf8mb4_unicode_ci", cmd.NewName)
+		}
+	})
+
+	t.Run("algorithm option", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD COLUMN a INT, ALGORITHM=INPLACE")
+		if len(stmt.Commands) != 2 {
+			t.Fatalf("Commands count = %d, want 2", len(stmt.Commands))
+		}
+		cmd := stmt.Commands[1]
+		if cmd.Type != ast.ATAlgorithm {
+			t.Errorf("Type = %d, want ATAlgorithm", cmd.Type)
+		}
+	})
+
+	t.Run("lock option", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD COLUMN a INT, LOCK=NONE")
+		cmd := stmt.Commands[1]
+		if cmd.Type != ast.ATLock {
+			t.Errorf("Type = %d, want ATLock", cmd.Type)
+		}
+	})
+
+	t.Run("alter column set default", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN status SET DEFAULT 0")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAlterColumnDefault {
+			t.Errorf("Type = %d, want ATAlterColumnDefault", cmd.Type)
+		}
+		if cmd.Name != "status" {
+			t.Errorf("Name = %s, want status", cmd.Name)
+		}
+	})
+
+	t.Run("alter column drop default", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN status DROP DEFAULT")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAlterColumnDefault {
+			t.Errorf("Type = %d, want ATAlterColumnDefault", cmd.Type)
+		}
+	})
+
+	t.Run("table option engine", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ENGINE=InnoDB")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATTableOption {
+			t.Errorf("Type = %d, want ATTableOption", cmd.Type)
+		}
+		if cmd.Option == nil || cmd.Option.Name != "ENGINE" {
+			t.Errorf("Option = %v, want ENGINE", cmd.Option)
+		}
+	})
+}
