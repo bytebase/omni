@@ -393,7 +393,7 @@
       "id": 29,
       "name": "lateral_xmltable_jsontable",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "LATERAL inline views, XMLTABLE, and JSON_TABLE as table sources in FROM clause. LATERAL allows correlated subqueries in FROM. XMLTABLE/JSON_TABLE convert XML/JSON data to relational rows.",
       "rules": [
         "lateral_clause", "xmltable_clause", "xmltable_column",

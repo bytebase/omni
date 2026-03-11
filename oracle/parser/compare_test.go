@@ -549,6 +549,58 @@ func TestParseGroupingExtensions(t *testing.T) {
 	}
 }
 
+func TestParseLateralView(t *testing.T) {
+	tests := []string{
+		"SELECT * FROM employees e, LATERAL (SELECT * FROM departments d WHERE d.dept_id = e.dept_id) ld",
+		"SELECT * FROM t1, LATERAL (SELECT * FROM t2 WHERE t2.id = t1.id)",
+	}
+
+	for _, sql := range tests {
+		name := sql
+		if len(name) > 60 {
+			name = name[:60]
+		}
+		t.Run(name, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseXmlTable(t *testing.T) {
+	tests := []string{
+		"SELECT x.* FROM xml_data, XMLTABLE('/root/row' PASSING xml_col COLUMNS id NUMBER PATH 'id', name VARCHAR2(100) PATH 'name') x",
+		"SELECT x.* FROM xml_data, XMLTABLE('/root/row' PASSING xml_col COLUMNS seq_no FOR ORDINALITY, val VARCHAR2(100) PATH 'val') x",
+	}
+
+	for _, sql := range tests {
+		name := sql
+		if len(name) > 60 {
+			name = name[:60]
+		}
+		t.Run(name, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseJsonTable(t *testing.T) {
+	tests := []string{
+		"SELECT jt.* FROM json_data, JSON_TABLE(json_col, '$.rows[*]' COLUMNS (id NUMBER PATH '$.id', name VARCHAR2(100) PATH '$.name')) jt",
+		"SELECT jt.* FROM json_data, JSON_TABLE(json_col, '$.rows[*]' COLUMNS (seq_no FOR ORDINALITY, val VARCHAR2(100) PATH '$.val')) jt",
+		"SELECT jt.* FROM json_data, JSON_TABLE(json_col, '$' COLUMNS (NESTED PATH '$.items[*]' COLUMNS (item_id NUMBER PATH '$.id'))) jt",
+	}
+
+	for _, sql := range tests {
+		name := sql
+		if len(name) > 60 {
+			name = name[:60]
+		}
+		t.Run(name, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
 func TestNodeToString(t *testing.T) {
 	n := &ast.NumberLiteral{Val: "42", Ival: 42, Loc: ast.Loc{Start: 0, End: -1}}
 	s := ast.NodeToString(n)

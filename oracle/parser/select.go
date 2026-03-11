@@ -357,6 +357,21 @@ func (p *Parser) parseFromClause() *nodes.List {
 func (p *Parser) parseTableRef() nodes.TableExpr {
 	start := p.pos()
 
+	// LATERAL ( subquery )
+	if p.cur.Type == kwLATERAL {
+		return p.parseLateralRef(start)
+	}
+
+	// XMLTABLE(...)
+	if p.cur.Type == kwXMLTABLE {
+		return p.parseXmlTableRef(start)
+	}
+
+	// JSON_TABLE(...)
+	if p.cur.Type == kwJSON_TABLE {
+		return p.parseJsonTableRef(start)
+	}
+
 	// Subquery: ( SELECT ... )
 	if p.cur.Type == '(' {
 		return p.parseSubqueryRef(start)
@@ -429,6 +444,278 @@ func (p *Parser) parseSubqueryRef(start int) nodes.TableExpr {
 
 	ref.Loc.End = p.pos()
 	return ref
+}
+
+// parseLateralRef parses a LATERAL inline view.
+//
+//	LATERAL ( subquery ) [ alias ]
+func (p *Parser) parseLateralRef(start int) nodes.TableExpr {
+	p.advance() // consume LATERAL
+
+	if p.cur.Type != '(' {
+		return nil
+	}
+	p.advance() // consume '('
+
+	subSel := p.parseSelectStmt()
+
+	if p.cur.Type == ')' {
+		p.advance()
+	}
+
+	ref := &nodes.LateralRef{
+		Subquery: subSel,
+		Loc:      nodes.Loc{Start: start},
+	}
+
+	if p.cur.Type == kwAS {
+		p.advance()
+		ref.Alias = &nodes.Alias{Name: p.parseIdentifier()}
+	} else if p.isTableAliasCandidate() {
+		ref.Alias = &nodes.Alias{Name: p.parseIdentifier()}
+	}
+
+	ref.Loc.End = p.pos()
+	return ref
+}
+
+// parseXmlTableRef parses an XMLTABLE expression in FROM.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/XMLTABLE.html
+//
+//	XMLTABLE ( xpath_string PASSING xml_expr COLUMNS column_def [, ...] )
+func (p *Parser) parseXmlTableRef(start int) nodes.TableExpr {
+	p.advance() // consume XMLTABLE
+
+	ref := &nodes.XmlTableRef{Loc: nodes.Loc{Start: start}}
+
+	if p.cur.Type != '(' {
+		return ref
+	}
+	p.advance() // consume '('
+
+	// XPath expression (usually a string literal)
+	ref.XPath = p.parseExpr()
+
+	// PASSING xml_expr
+	if p.cur.Type == kwPASSING {
+		p.advance()
+		ref.Passing = p.parseExpr()
+	}
+
+	// COLUMNS column_def [, ...]
+	if p.cur.Type == kwCOLUMNS {
+		p.advance()
+		ref.Columns = p.parseXmlTableColumns()
+	}
+
+	if p.cur.Type == ')' {
+		p.advance()
+	}
+
+	// Optional alias
+	if p.cur.Type == kwAS {
+		p.advance()
+		ref.Alias = &nodes.Alias{Name: p.parseIdentifier()}
+	} else if p.isTableAliasCandidate() {
+		ref.Alias = &nodes.Alias{Name: p.parseIdentifier()}
+	}
+
+	ref.Loc.End = p.pos()
+	return ref
+}
+
+// parseXmlTableColumns parses column definitions in XMLTABLE.
+func (p *Parser) parseXmlTableColumns() *nodes.List {
+	list := &nodes.List{}
+	for {
+		col := p.parseXmlTableColumn()
+		if col == nil {
+			break
+		}
+		list.Items = append(list.Items, col)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return list
+}
+
+// parseXmlTableColumn parses a single XMLTABLE column definition.
+//
+//	name { datatype [PATH path] [DEFAULT default] | FOR ORDINALITY }
+func (p *Parser) parseXmlTableColumn() *nodes.XmlTableColumn {
+	if !p.isIdentLike() {
+		return nil
+	}
+	start := p.pos()
+	col := &nodes.XmlTableColumn{Loc: nodes.Loc{Start: start}}
+	col.Name = p.parseIdentifier()
+
+	// FOR ORDINALITY
+	if p.cur.Type == kwFOR && p.peekNext().Type == kwORDINALITY {
+		p.advance() // consume FOR
+		p.advance() // consume ORDINALITY
+		col.ForOrdinality = true
+		col.Loc.End = p.pos()
+		return col
+	}
+
+	// Data type
+	col.TypeName = p.parseTypeName()
+
+	// PATH
+	if p.cur.Type == kwPATH {
+		p.advance()
+		col.Path = p.parseExpr()
+	}
+
+	// DEFAULT
+	if p.cur.Type == kwDEFAULT {
+		p.advance()
+		col.Default = p.parseExpr()
+	}
+
+	col.Loc.End = p.pos()
+	return col
+}
+
+// parseJsonTableRef parses a JSON_TABLE expression in FROM.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/JSON_TABLE.html
+//
+//	JSON_TABLE ( expr, path_string COLUMNS ( column_def [, ...] ) )
+func (p *Parser) parseJsonTableRef(start int) nodes.TableExpr {
+	p.advance() // consume JSON_TABLE
+
+	ref := &nodes.JsonTableRef{Loc: nodes.Loc{Start: start}}
+
+	if p.cur.Type != '(' {
+		return ref
+	}
+	p.advance() // consume '('
+
+	// JSON expression
+	ref.Expr = p.parseExpr()
+
+	// Comma separator
+	if p.cur.Type == ',' {
+		p.advance()
+	}
+
+	// Path expression (string literal)
+	ref.Path = p.parseExpr()
+
+	// COLUMNS ( column_def [, ...] )
+	if p.cur.Type == kwCOLUMNS {
+		p.advance()
+		if p.cur.Type == '(' {
+			p.advance()
+			ref.Columns = p.parseJsonTableColumns()
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		}
+	}
+
+	if p.cur.Type == ')' {
+		p.advance()
+	}
+
+	// Optional alias
+	if p.cur.Type == kwAS {
+		p.advance()
+		ref.Alias = &nodes.Alias{Name: p.parseIdentifier()}
+	} else if p.isTableAliasCandidate() {
+		ref.Alias = &nodes.Alias{Name: p.parseIdentifier()}
+	}
+
+	ref.Loc.End = p.pos()
+	return ref
+}
+
+// parseJsonTableColumns parses column definitions in JSON_TABLE.
+func (p *Parser) parseJsonTableColumns() *nodes.List {
+	list := &nodes.List{}
+	for {
+		col := p.parseJsonTableColumn()
+		if col == nil {
+			break
+		}
+		list.Items = append(list.Items, col)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return list
+}
+
+// parseJsonTableColumn parses a single JSON_TABLE column definition.
+//
+//	name datatype [PATH path] | name FOR ORDINALITY | NESTED [PATH] path COLUMNS ( ... )
+func (p *Parser) parseJsonTableColumn() *nodes.JsonTableColumn {
+	start := p.pos()
+
+	// NESTED [PATH] path COLUMNS (...)
+	if p.cur.Type == kwNESTED {
+		p.advance() // consume NESTED
+		col := &nodes.JsonTableColumn{Loc: nodes.Loc{Start: start}}
+		if p.cur.Type == kwPATH {
+			p.advance() // consume PATH
+		}
+		nested := &nodes.JsonTableRef{Loc: nodes.Loc{Start: start}}
+		nested.Path = p.parseExpr()
+		if p.cur.Type == kwCOLUMNS {
+			p.advance()
+			if p.cur.Type == '(' {
+				p.advance()
+				nested.Columns = p.parseJsonTableColumns()
+				if p.cur.Type == ')' {
+					p.advance()
+				}
+			}
+		}
+		nested.Loc.End = p.pos()
+		col.Nested = nested
+		col.Loc.End = p.pos()
+		return col
+	}
+
+	if !p.isIdentLike() {
+		return nil
+	}
+
+	col := &nodes.JsonTableColumn{Loc: nodes.Loc{Start: start}}
+	col.Name = p.parseIdentifier()
+
+	// FOR ORDINALITY
+	if p.cur.Type == kwFOR && p.peekNext().Type == kwORDINALITY {
+		p.advance() // consume FOR
+		p.advance() // consume ORDINALITY
+		col.ForOrdinality = true
+		col.Loc.End = p.pos()
+		return col
+	}
+
+	// Data type
+	col.TypeName = p.parseTypeName()
+
+	// EXISTS
+	if p.cur.Type == kwEXISTS {
+		col.Exists = true
+		p.advance()
+	}
+
+	// PATH
+	if p.cur.Type == kwPATH {
+		p.advance()
+		col.Path = p.parseExpr()
+	}
+
+	col.Loc.End = p.pos()
+	return col
 }
 
 // parseJoinContinuation parses any JOIN clauses that follow a table reference.

@@ -794,6 +794,16 @@ var oracleKeywords = map[string]int{
 	"GROUPING": kwGROUPING,
 	"ROLLUP":   kwROLLUP,
 	"SETS":     kwSETS,
+
+	// LATERAL / XMLTABLE / JSON_TABLE keywords
+	"COLUMNS":    kwCOLUMNS,
+	"JSON_TABLE": kwJSON_TABLE,
+	"LATERAL":    kwLATERAL,
+	"NESTED":     kwNESTED,
+	"ORDINALITY": kwORDINALITY,
+	"PASSING":    kwPASSING,
+	"PATH":       kwPATH,
+	"XMLTABLE":   kwXMLTABLE,
 }
 
 // Keyword token constants.
@@ -1105,4 +1115,14 @@ const (
 	kwGROUPING
 	kwROLLUP
 	kwSETS
+
+	// LATERAL / XMLTABLE / JSON_TABLE keywords
+	kwCOLUMNS
+	kwJSON_TABLE
+	kwLATERAL
+	kwNESTED
+	kwORDINALITY
+	kwPASSING
+	kwPATH
+	kwXMLTABLE
 )

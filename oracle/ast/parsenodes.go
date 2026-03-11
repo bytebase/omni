@@ -638,6 +638,71 @@ type SubqueryRef struct {
 func (n *SubqueryRef) nodeTag()   {}
 func (n *SubqueryRef) tableExpr() {}
 
+// LateralRef represents a LATERAL inline view in FROM.
+//
+//	LATERAL ( subquery ) [ alias ]
+type LateralRef struct {
+	Subquery StmtNode // the subquery
+	Alias    *Alias   // alias
+	Loc      Loc
+}
+
+func (n *LateralRef) nodeTag()   {}
+func (n *LateralRef) tableExpr() {}
+
+// XmlTableRef represents an XMLTABLE expression in FROM.
+//
+//	XMLTABLE ( xpath_expr PASSING xml_expr COLUMNS column_def [, ...] ) [ alias ]
+type XmlTableRef struct {
+	XPath   ExprNode // XPath string expression
+	Passing ExprNode // PASSING xml expression
+	Columns *List    // list of *XmlTableColumn
+	Alias   *Alias   // alias
+	Loc     Loc
+}
+
+func (n *XmlTableRef) nodeTag()   {}
+func (n *XmlTableRef) tableExpr() {}
+
+// XmlTableColumn represents a column definition in XMLTABLE.
+type XmlTableColumn struct {
+	Name     string    // column name
+	TypeName *TypeName // data type
+	Path     ExprNode  // PATH string (nil if default)
+	Default  ExprNode  // DEFAULT value
+	ForOrdinality bool // FOR ORDINALITY
+	Loc      Loc
+}
+
+func (n *XmlTableColumn) nodeTag() {}
+
+// JsonTableRef represents a JSON_TABLE expression in FROM.
+//
+//	JSON_TABLE ( expr, path_expr COLUMNS ( column_def [, ...] ) ) [ alias ]
+type JsonTableRef struct {
+	Expr    ExprNode // JSON expression
+	Path    ExprNode // JSON path string
+	Columns *List    // list of *JsonTableColumn
+	Alias   *Alias   // alias
+	Loc     Loc
+}
+
+func (n *JsonTableRef) nodeTag()   {}
+func (n *JsonTableRef) tableExpr() {}
+
+// JsonTableColumn represents a column definition in JSON_TABLE.
+type JsonTableColumn struct {
+	Name     string    // column name
+	TypeName *TypeName // data type
+	Path     ExprNode  // PATH string
+	ForOrdinality bool // FOR ORDINALITY
+	Exists   bool      // EXISTS
+	Nested   *JsonTableRef // NESTED [PATH] for nested columns
+	Loc      Loc
+}
+
+func (n *JsonTableColumn) nodeTag() {}
+
 // SampleClause represents a SAMPLE clause.
 type SampleClause struct {
 	Percent ExprNode // sample percentage

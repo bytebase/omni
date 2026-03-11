@@ -144,6 +144,16 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeTableRef(sb, n)
 	case *SubqueryRef:
 		writeSubqueryRef(sb, n)
+	case *LateralRef:
+		writeLateralRef(sb, n)
+	case *XmlTableRef:
+		writeXmlTableRef(sb, n)
+	case *XmlTableColumn:
+		writeXmlTableColumn(sb, n)
+	case *JsonTableRef:
+		writeJsonTableRef(sb, n)
+	case *JsonTableColumn:
+		writeJsonTableColumn(sb, n)
 	case *SampleClause:
 		writeSampleClause(sb, n)
 	case *PivotClause:
@@ -822,6 +832,111 @@ func writeSubqueryRef(sb *strings.Builder, n *SubqueryRef) {
 	if n.Alias != nil {
 		sb.WriteString(" :alias ")
 		writeNode(sb, n.Alias)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeLateralRef(sb *strings.Builder, n *LateralRef) {
+	sb.WriteString("{LATERAL")
+	if n.Subquery != nil {
+		sb.WriteString(" :subquery ")
+		writeNode(sb, n.Subquery)
+	}
+	if n.Alias != nil {
+		sb.WriteString(" :alias ")
+		writeNode(sb, n.Alias)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeXmlTableRef(sb *strings.Builder, n *XmlTableRef) {
+	sb.WriteString("{XMLTABLE")
+	if n.XPath != nil {
+		sb.WriteString(" :xpath ")
+		writeNode(sb, n.XPath)
+	}
+	if n.Passing != nil {
+		sb.WriteString(" :passing ")
+		writeNode(sb, n.Passing)
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.Alias != nil {
+		sb.WriteString(" :alias ")
+		writeNode(sb, n.Alias)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeXmlTableColumn(sb *strings.Builder, n *XmlTableColumn) {
+	sb.WriteString("{XMLTABLECOL")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.ForOrdinality {
+		sb.WriteString(" :forOrdinality true")
+	}
+	if n.TypeName != nil {
+		sb.WriteString(" :typeName ")
+		writeNode(sb, n.TypeName)
+	}
+	if n.Path != nil {
+		sb.WriteString(" :path ")
+		writeNode(sb, n.Path)
+	}
+	if n.Default != nil {
+		sb.WriteString(" :default ")
+		writeNode(sb, n.Default)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeJsonTableRef(sb *strings.Builder, n *JsonTableRef) {
+	sb.WriteString("{JSON_TABLE")
+	if n.Expr != nil {
+		sb.WriteString(" :expr ")
+		writeNode(sb, n.Expr)
+	}
+	if n.Path != nil {
+		sb.WriteString(" :path ")
+		writeNode(sb, n.Path)
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.Alias != nil {
+		sb.WriteString(" :alias ")
+		writeNode(sb, n.Alias)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeJsonTableColumn(sb *strings.Builder, n *JsonTableColumn) {
+	sb.WriteString("{JSON_TABLE_COL")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.ForOrdinality {
+		sb.WriteString(" :forOrdinality true")
+	}
+	if n.Exists {
+		sb.WriteString(" :exists true")
+	}
+	if n.TypeName != nil {
+		sb.WriteString(" :typeName ")
+		writeNode(sb, n.TypeName)
+	}
+	if n.Path != nil {
+		sb.WriteString(" :path ")
+		writeNode(sb, n.Path)
+	}
+	if n.Nested != nil {
+		sb.WriteString(" :nested ")
+		writeNode(sb, n.Nested)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
