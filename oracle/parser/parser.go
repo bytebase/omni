@@ -74,6 +74,50 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 		return p.parseDeleteStmt()
 	case kwMERGE:
 		return p.parseMergeStmt()
+	case kwDROP:
+		return p.parseDropStmt()
+	case kwCOMMIT:
+		return p.parseCommitStmt()
+	case kwROLLBACK:
+		return p.parseRollbackStmt()
+	case kwSAVEPOINT:
+		return p.parseSavepointStmt()
+	case kwSET:
+		// SET TRANSACTION
+		next := p.peekNext()
+		if next.Type == kwTRANSACTION {
+			start := p.pos()
+			p.advance() // consume SET
+			p.advance() // consume TRANSACTION
+			stmt := p.parseSetTransactionStmt()
+			stmt.(*nodes.SetTransactionStmt).Loc.Start = start
+			return stmt
+		}
+		return nil
+	case kwCOMMENT:
+		return p.parseCommentStmt()
+	case kwTRUNCATE:
+		return p.parseTruncateStmt()
+	case kwANALYZE:
+		return p.parseAnalyzeStmt()
+	case kwEXPLAIN:
+		return p.parseExplainPlanStmt()
+	case kwFLASHBACK:
+		return p.parseFlashbackTableStmt()
+	case kwPURGE:
+		return p.parsePurgeStmt()
+	case kwALTER:
+		return p.parseAlterStmt()
+	case kwGRANT:
+		return p.parseGrantStmt()
+	case kwREVOKE:
+		return p.parseRevokeStmt()
+	case kwCREATE:
+		return p.parseCreateStmt()
+	case kwDECLARE, kwBEGIN:
+		return p.parsePLSQLBlock()
+	case tokLABELOPEN:
+		return p.parsePLSQLBlock()
 	default:
 		return nil
 	}

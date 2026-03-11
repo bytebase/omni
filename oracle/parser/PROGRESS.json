@@ -113,7 +113,7 @@
       "id": 8,
       "name": "create_table",
       "file": "create_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE TABLE, partitioning, storage, LOB storage, virtual columns, invisible columns",
       "rules": [
         "create_table_stmt", "column_def", "column_constraint",
@@ -142,7 +142,7 @@
       "id": 10,
       "name": "create_index",
       "file": "create_index.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE INDEX, BITMAP, FUNCTION-BASED, LOCAL/GLOBAL, REVERSE",
       "rules": [
         "create_index_stmt", "index_column", "bitmap_index",
@@ -155,7 +155,7 @@
       "id": 11,
       "name": "create_view",
       "file": "create_view.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE VIEW, MATERIALIZED VIEW, FORCE/NO FORCE",
       "rules": [
         "create_view_stmt", "materialized_view", "view_options",
@@ -168,7 +168,7 @@
       "id": 12,
       "name": "sequence_synonym",
       "file": "sequence_synonym.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE SEQUENCE, CREATE SYNONYM, CREATE DATABASE LINK",
       "rules": [
         "create_sequence_stmt", "sequence_option",
@@ -209,7 +209,7 @@
       "id": 15,
       "name": "create_type",
       "file": "create_type.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE TYPE: object types, nested tables, varrays",
       "rules": [
         "create_type_stmt", "object_type", "nested_table_type",
@@ -222,7 +222,7 @@
       "id": 16,
       "name": "drop",
       "file": "drop.go",
-      "status": "pending",
+      "status": "done",
       "description": "DROP TABLE/INDEX/VIEW/SEQUENCE/SYNONYM/PACKAGE/PROCEDURE/FUNCTION/TRIGGER/TYPE, PURGE",
       "rules": [
         "drop_stmt", "drop_table", "drop_index", "drop_view",
@@ -236,7 +236,7 @@
       "id": 17,
       "name": "alter_misc",
       "file": "alter_misc.go",
-      "status": "pending",
+      "status": "done",
       "description": "ALTER INDEX, ALTER VIEW, ALTER SEQUENCE, ALTER SESSION, ALTER SYSTEM",
       "rules": [
         "alter_index_stmt", "alter_view_stmt", "alter_sequence_stmt",
@@ -249,7 +249,7 @@
       "id": 18,
       "name": "grant",
       "file": "grant.go",
-      "status": "pending",
+      "status": "done",
       "description": "GRANT, REVOKE, CREATE/ALTER/DROP USER/ROLE",
       "rules": [
         "grant_stmt", "revoke_stmt", "privilege_list", "grantee_list",
@@ -263,7 +263,7 @@
       "id": 19,
       "name": "transaction",
       "file": "transaction.go",
-      "status": "pending",
+      "status": "done",
       "description": "COMMIT, ROLLBACK, SAVEPOINT, SET TRANSACTION",
       "rules": [
         "commit_stmt", "rollback_stmt", "savepoint_stmt", "set_transaction_stmt"
@@ -275,7 +275,7 @@
       "id": 20,
       "name": "comment",
       "file": "comment.go",
-      "status": "pending",
+      "status": "done",
       "description": "COMMENT ON, hints parsing",
       "rules": [
         "comment_stmt", "hint_clause"
@@ -287,7 +287,7 @@
       "id": 21,
       "name": "plsql_block",
       "file": "plsql_block.go",
-      "status": "pending",
+      "status": "done",
       "description": "DECLARE, BEGIN/END, IF/ELSIF/ELSE, LOOP/WHILE/FOR, EXCEPTION, RETURN, GOTO",
       "rules": [
         "plsql_block", "declare_section", "variable_declaration",
@@ -304,7 +304,7 @@
       "id": 22,
       "name": "utility",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "ANALYZE, TRUNCATE, EXPLAIN PLAN, FLASHBACK TABLE, PURGE",
       "rules": [
         "analyze_stmt", "truncate_stmt", "explain_plan_stmt",
