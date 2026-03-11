@@ -75,7 +75,7 @@
       "id": 5,
       "name": "insert",
       "file": "insert.go",
-      "status": "pending",
+      "status": "done",
       "description": "INSERT, INSERT ALL/FIRST, multi-table insert, RETURNING",
       "rules": [
         "insert_stmt", "insert_single", "insert_all", "insert_first",
@@ -88,7 +88,7 @@
       "id": 6,
       "name": "update_delete",
       "file": "update_delete.go",
-      "status": "pending",
+      "status": "done",
       "description": "UPDATE, DELETE, RETURNING INTO",
       "rules": [
         "update_stmt", "set_clause", "delete_stmt", "returning_into"

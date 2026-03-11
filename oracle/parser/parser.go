@@ -66,6 +66,14 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 	switch p.cur.Type {
 	case kwSELECT, kwWITH:
 		return p.parseSelectStmt()
+	case kwINSERT:
+		return p.parseInsertStmt()
+	case kwUPDATE:
+		return p.parseUpdateStmt()
+	case kwDELETE:
+		return p.parseDeleteStmt()
+	case kwMERGE:
+		return p.parseMergeStmt()
 	default:
 		return nil
 	}
