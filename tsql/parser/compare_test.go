@@ -858,6 +858,232 @@ func TestParseExpressions(t *testing.T) {
 	})
 }
 
+// TestParseSelect tests SELECT statement parsing (batch 4).
+func TestParseSelect(t *testing.T) {
+	t.Run("basic select", func(t *testing.T) {
+		tests := []string{
+			"SELECT 1",
+			"SELECT col1, col2, col3",
+			"SELECT DISTINCT col1",
+			"SELECT ALL col1",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				ParseAndCheck(t, sql)
+			})
+		}
+	})
+
+	t.Run("top", func(t *testing.T) {
+		tests := []string{
+			"SELECT TOP (10) col1 FROM t",
+			"SELECT TOP 10 col1 FROM t",
+			"SELECT TOP (50) PERCENT col1 FROM t",
+			"SELECT TOP (10) WITH TIES col1 FROM t ORDER BY col1",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				if stmt.Top == nil {
+					t.Error("expected non-nil Top")
+				}
+			})
+		}
+	})
+
+	t.Run("into", func(t *testing.T) {
+		sql := "SELECT col1 INTO #temp FROM t"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.IntoTable == nil {
+			t.Error("expected non-nil IntoTable")
+		}
+	})
+
+	t.Run("from", func(t *testing.T) {
+		tests := []string{
+			"SELECT * FROM t",
+			"SELECT * FROM dbo.t",
+			"SELECT * FROM t1, t2",
+			"SELECT * FROM t AS alias",
+			"SELECT * FROM t alias",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				if stmt.FromClause == nil || stmt.FromClause.Len() == 0 {
+					t.Error("expected non-empty FromClause")
+				}
+			})
+		}
+	})
+
+	t.Run("where", func(t *testing.T) {
+		sql := "SELECT col1 FROM t WHERE col1 > 10"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.WhereClause == nil {
+			t.Error("expected non-nil WhereClause")
+		}
+	})
+
+	t.Run("group by having", func(t *testing.T) {
+		sql := "SELECT col1, COUNT(*) FROM t GROUP BY col1 HAVING COUNT(*) > 1"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.GroupByClause == nil {
+			t.Error("expected non-nil GroupByClause")
+		}
+		if stmt.HavingClause == nil {
+			t.Error("expected non-nil HavingClause")
+		}
+	})
+
+	t.Run("order by", func(t *testing.T) {
+		tests := []string{
+			"SELECT col1 FROM t ORDER BY col1",
+			"SELECT col1 FROM t ORDER BY col1 ASC",
+			"SELECT col1 FROM t ORDER BY col1 DESC",
+			"SELECT col1 FROM t ORDER BY col1, col2 DESC",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				if stmt.OrderByClause == nil {
+					t.Error("expected non-nil OrderByClause")
+				}
+			})
+		}
+	})
+
+	t.Run("offset fetch", func(t *testing.T) {
+		sql := "SELECT col1 FROM t ORDER BY col1 OFFSET 10 ROWS FETCH NEXT 20 ROWS ONLY"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.OffsetClause == nil {
+			t.Error("expected non-nil OffsetClause")
+		}
+		if stmt.FetchClause == nil {
+			t.Error("expected non-nil FetchClause")
+		}
+	})
+
+	t.Run("join", func(t *testing.T) {
+		tests := []string{
+			"SELECT * FROM t1 INNER JOIN t2 ON t1.id = t2.id",
+			"SELECT * FROM t1 LEFT JOIN t2 ON t1.id = t2.id",
+			"SELECT * FROM t1 LEFT OUTER JOIN t2 ON t1.id = t2.id",
+			"SELECT * FROM t1 RIGHT JOIN t2 ON t1.id = t2.id",
+			"SELECT * FROM t1 FULL OUTER JOIN t2 ON t1.id = t2.id",
+			"SELECT * FROM t1 CROSS JOIN t2",
+			"SELECT * FROM t1 JOIN t2 ON t1.id = t2.id",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				if stmt.FromClause == nil {
+					t.Error("expected non-nil FromClause")
+				}
+			})
+		}
+	})
+
+	t.Run("apply", func(t *testing.T) {
+		tests := []string{
+			"SELECT * FROM t1 CROSS APPLY dbo.MyFunc(t1.id) AS f",
+			"SELECT * FROM t1 OUTER APPLY dbo.MyFunc(t1.id) AS f",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				ParseAndCheck(t, sql)
+			})
+		}
+	})
+
+	t.Run("cte", func(t *testing.T) {
+		tests := []string{
+			"WITH cte AS (SELECT 1 AS x) SELECT * FROM cte",
+			"WITH cte1 AS (SELECT 1 AS x), cte2 AS (SELECT 2 AS y) SELECT * FROM cte1, cte2",
+			"WITH cte(a, b) AS (SELECT 1, 2) SELECT * FROM cte",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				if stmt.WithClause == nil {
+					t.Error("expected non-nil WithClause")
+				}
+			})
+		}
+	})
+
+	t.Run("union", func(t *testing.T) {
+		tests := []string{
+			"SELECT 1 UNION SELECT 2",
+			"SELECT 1 UNION ALL SELECT 2",
+			"SELECT 1 INTERSECT SELECT 2",
+			"SELECT 1 EXCEPT SELECT 2",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				if stmt.Op == ast.SetOpNone {
+					t.Error("expected set operation")
+				}
+			})
+		}
+	})
+
+	t.Run("subquery in from", func(t *testing.T) {
+		sql := "SELECT * FROM (SELECT 1 AS x) AS sub"
+		ParseAndCheck(t, sql)
+	})
+
+	t.Run("for xml", func(t *testing.T) {
+		tests := []string{
+			"SELECT col1 FROM t FOR XML RAW",
+			"SELECT col1 FROM t FOR XML PATH('row')",
+			"SELECT col1 FROM t FOR XML AUTO",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				if stmt.ForClause == nil {
+					t.Error("expected non-nil ForClause")
+				}
+				if stmt.ForClause.Mode != ast.ForXML {
+					t.Error("expected ForXML mode")
+				}
+			})
+		}
+	})
+
+	t.Run("for json", func(t *testing.T) {
+		tests := []string{
+			"SELECT col1 FROM t FOR JSON PATH",
+			"SELECT col1 FROM t FOR JSON AUTO",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				if stmt.ForClause == nil {
+					t.Error("expected non-nil ForClause")
+				}
+				if stmt.ForClause.Mode != ast.ForJSON {
+					t.Error("expected ForJSON mode")
+				}
+			})
+		}
+	})
+}
+
 // TestParseLexerBracketed tests bracketed identifier lexing.
 func TestParseLexerBracketed(t *testing.T) {
 	l := NewLexer("[my column]")

@@ -852,8 +852,9 @@ type FuncCallExpr struct {
 	Loc      Loc
 }
 
-func (n *FuncCallExpr) nodeTag()  {}
-func (n *FuncCallExpr) exprNode() {}
+func (n *FuncCallExpr) nodeTag()   {}
+func (n *FuncCallExpr) exprNode()  {}
+func (n *FuncCallExpr) tableExpr() {} // table-valued functions can appear in FROM
 
 // CaseExpr represents a CASE expression.
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/case-transact-sql

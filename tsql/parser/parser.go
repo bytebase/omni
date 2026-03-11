@@ -53,54 +53,16 @@ func Parse(sql string) (*nodes.List, error) {
 }
 
 // parseStmt dispatches to statement-specific parsers.
-// Minimal implementation for batch 0 - only SELECT is supported initially.
 // Full dispatch will be implemented in batch 22.
 func (p *Parser) parseStmt() nodes.StmtNode {
 	switch p.cur.Type {
 	case kwSELECT:
-		return p.parseSimpleSelectForExpr()
+		return p.parseSelectStmt()
+	case kwWITH:
+		// WITH can precede SELECT (CTE)
+		return p.parseSelectStmt()
 	default:
 		return nil
-	}
-}
-
-// parseSimpleSelectForExpr is a minimal SELECT parser for expression testing.
-// It parses: SELECT expr [, expr]...
-// Full SELECT support will come in batch 4.
-func (p *Parser) parseSimpleSelectForExpr() *nodes.SelectStmt {
-	loc := p.pos()
-	p.advance() // consume SELECT
-
-	var targets []nodes.Node
-	for {
-		targetLoc := p.pos() // capture BEFORE parsing expression
-		expr := p.parseExpr()
-		if expr == nil {
-			break
-		}
-		target := &nodes.ResTarget{
-			Val: expr,
-			Loc: nodes.Loc{Start: targetLoc},
-		}
-		// Check for alias: AS name or just name
-		if _, ok := p.match(kwAS); ok {
-			if p.isIdentLike() {
-				target.Name = p.cur.Str
-				p.advance()
-			}
-		} else if p.cur.Type == tokIDENT {
-			target.Name = p.cur.Str
-			p.advance()
-		}
-		targets = append(targets, target)
-		if _, ok := p.match(','); !ok {
-			break
-		}
-	}
-
-	return &nodes.SelectStmt{
-		TargetList: &nodes.List{Items: targets},
-		Loc:        nodes.Loc{Start: loc},
 	}
 }
 

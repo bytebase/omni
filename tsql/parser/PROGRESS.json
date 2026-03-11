@@ -59,7 +59,7 @@
       "id": 4,
       "name": "select",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "SELECT with TOP, INTO, FOR XML/JSON, OPTION, CROSS/OUTER APPLY, CTE",
       "rules": [
         "select_stmt", "top_clause", "into_clause", "from_clause", "where_clause",
