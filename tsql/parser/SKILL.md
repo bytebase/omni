@@ -25,37 +25,74 @@ If all batches are `"done"`, output `ALL_BATCHES_COMPLETE` and stop.
 
 ## Implementation Steps for Each Batch
 
-### Step 1: Read References
+### Step 1: Fetch Complete BNF from Official Documentation (MANDATORY)
 
-- Read the T-SQL documentation for the grammar rules listed in the batch
-- URL pattern: `https://learn.microsoft.com/en-us/sql/t-sql/statements/{statement}`
-  - e.g., `select-transact-sql`, `create-table-transact-sql`, `merge-transact-sql`
+**This is the most critical step. Do NOT skip it. Do NOT write BNF from memory.**
+
+For every grammar rule in the batch, you MUST:
+
+1. **Fetch the official Microsoft T-SQL documentation page** using the WebFetch tool
+   - URL pattern: `https://learn.microsoft.com/en-us/sql/t-sql/statements/{statement}-transact-sql`
+   - e.g., `alter-table-transact-sql`, `create-trigger-transact-sql`, `merge-transact-sql`
+   - For queries: `https://learn.microsoft.com/en-us/sql/t-sql/queries/{query}-transact-sql`
+2. **Extract the COMPLETE BNF/syntax diagram** from the page — every branch, every option, every sub-clause
+3. **Do NOT abbreviate** — write `...` or truncate the BNF. If a statement has 50 lines of BNF, write all 50 lines
+4. **For sub-clauses that have their own doc page**, fetch those too (e.g., ALTER TABLE's `column_definition` links to a separate page)
+
+If WebFetch fails, use WebSearch to find the correct URL, then fetch it.
+
+### Step 2: Read AST and Existing Code
+
 - Read the AST node definitions from `tsql/ast/parsenodes.go` (and `node.go`)
 - Read the existing parser code in `tsql/parser/` to understand available helpers and already-implemented parse functions
+- If the existing AST types don't cover all BNF branches, add new node types / fields to `parsenodes.go`
 
-### Step 2: Write Tests FIRST (Test-Driven Development)
+### Step 3: Write Tests FIRST (Test-Driven Development)
 
-**TEST-DRIVEN**: Write tests FIRST, then implement. Every BNF branch must have a test.
+**TEST-DRIVEN**: Write tests FIRST, then implement.
+
+**Every branch of the BNF must have at least one test case.** For example, if ALTER TABLE has ADD COLUMN, DROP COLUMN, ALTER COLUMN, ADD CONSTRAINT, DROP CONSTRAINT, ENABLE TRIGGER, DISABLE TRIGGER, SWITCH PARTITION, REBUILD, SET — then you need at least 10 test cases, one per branch.
 
 Add test cases to `compare_test.go` using SQL strings relevant to the batch's grammar rules.
 Add a new `TestParse{BatchName}` function.
 
-### Step 3: Write Parse Functions
+### Step 4: Write Parse Functions
 
 Create or update the target file (e.g., `tsql/parser/select.go`).
 
-**Every parse function MUST have this comment format:**
+**Every parse function MUST have the COMPLETE BNF in its comment. This is a hard requirement.**
 
 ```go
-// parseSelectStmt parses a SELECT statement.
+// parseAlterTableStmt parses an ALTER TABLE statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-table-transact-sql
 //
-//	SELECT [ ALL | DISTINCT ]
-//	    [ TOP ( expression ) [ PERCENT ] [ WITH TIES ] ]
-//	    ...
-func (p *Parser) parseSelectStmt() *ast.SelectStmt {
+//  ALTER TABLE [ database_name . [ schema_name ] . | schema_name . ] table_name
+//  {
+//      ALTER COLUMN column_name
+//      {
+//          [ new_data_type [ ( precision [ , scale ] ) ] ]
+//          [ COLLATE collation_name ]
+//          [ NULL | NOT NULL ]
+//          | { ADD | DROP } { ROWGUIDCOL | PERSISTED | NOT FOR REPLICATION | SPARSE | HIDDEN }
+//          | { ADD | DROP } MASKED [ WITH ( FUNCTION = 'mask_function' ) ]
+//      }
+//      | [ WITH { CHECK | NOCHECK } ] ADD
+//          { column_definition | computed_column_definition | table_constraint } [ ,...n ]
+//      | DROP { [ CONSTRAINT ] [ IF EXISTS ] constraint_name [ ,...n ] | COLUMN [ IF EXISTS ] column_name [ ,...n ] }
+//      | [ WITH { CHECK | NOCHECK } ] { CHECK | NOCHECK } CONSTRAINT { ALL | constraint_name [ ,...n ] }
+//      | { ENABLE | DISABLE } TRIGGER { ALL | trigger_name [ ,...n ] }
+//      | SWITCH [ PARTITION source_partition_number_expression ] TO target_table
+//          [ PARTITION target_partition_number_expression ] [ WITH ( ... ) ]
+//      | SET ( FILESTREAM_ON = { partition_scheme_name | filegroup | "default" | "NULL" } )
+//      | REBUILD [ [PARTITION = ALL] [ WITH ( rebuild_index_option [ ,...n ] ) ]
+//               | [ PARTITION = partition_number [ WITH ( single_partition_rebuild_index_option [ ,...n ] ) ] ] ]
+//      | <table_option>
+//  }
+func (p *Parser) parseAlterTableStmt() *nodes.AlterTableStmt {
 ```
+
+**The comment BNF must match the official docs exactly. No abbreviation, no `...` for omitted branches. Every branch in the BNF must have a corresponding code path in the function.**
 
 **Return type conventions:**
 - Expression parsers return `ExprNode` (not `Node`)
@@ -66,6 +103,8 @@ func (p *Parser) parseSelectStmt() *ast.SelectStmt {
 
 1. **Use the existing AST types** from `tsql/ast/` -- do NOT create new node types without updating both parsenodes.go and outfuncs.go
 1a. **When implementing a new batch, you MUST also add serialization to `outfuncs.go` for any new node types used.** Every node type in parsenodes.go must have a corresponding case in `writeNode` and a `writeXxx` function in outfuncs.go.
+1b. **Every branch in the BNF comment MUST have a corresponding implementation.** If the BNF says `{ ADD | DROP | ALTER COLUMN | ENABLE TRIGGER | DISABLE TRIGGER | SWITCH | REBUILD | SET }`, you must handle ALL of them, not just a subset. If a branch requires a new AST node type or field, add it.
+1c. **Sub-clauses must be recursively complete.** If a statement's BNF references `column_definition`, and `column_definition` itself has a full BNF (with DEFAULT, IDENTITY, CONSTRAINT, COLLATE, GENERATED, MASKED, etc.), you must fetch that sub-clause's BNF and implement it completely too.
 2. **Record positions** on EVERY AST node that has a `Loc` field.
    Set `Loc: nodes.Loc{Start: p.pos()}` at the beginning of parsing a node.
    Set `node.Loc.End = p.pos()` at the end of parsing a node.
@@ -135,3 +174,89 @@ Edit `PROGRESS.json`:
 - **TRY...CATCH**: Error handling blocks
 - **IIF**: T-SQL specific inline IF function
 - **CONVERT**: T-SQL specific type conversion with optional style
+
+## New AST Node Types Required for Phase 2 Batches (23+)
+
+When implementing new batches, you will need to add new AST node types to `tsql/ast/parsenodes.go` and corresponding serialization in `tsql/ast/outfuncs.go`. Below is a guide for each batch area:
+
+### Cursor Operations (batch 23)
+- `OpenCursorStmt` -- OPEN cursor_name
+- `FetchCursorStmt` -- FETCH [NEXT|PRIOR|FIRST|LAST|ABSOLUTE n|RELATIVE n] FROM cursor INTO @vars
+- `CloseCursorStmt` -- CLOSE cursor_name
+- `DeallocateCursorStmt` -- DEALLOCATE cursor_name
+- Extend `VariableDecl.IsCursor` to support full cursor options (SCROLL, STATIC, KEYSET, DYNAMIC, FAST_FORWARD, etc.)
+
+### CREATE TRIGGER (batch 24)
+- `CreateTriggerStmt` -- with OrAlter, Name, Table, TriggerType (AFTER/INSTEAD OF/FOR), Events (INSERT/UPDATE/DELETE), Body
+- For DDL triggers: Events are DDL event types (CREATE_TABLE, ALTER_TABLE, etc.), scope is DATABASE or ALL SERVER
+
+### CREATE SCHEMA (batch 25)
+- `CreateSchemaStmt` -- Name, Authorization, optional contained CREATE TABLE/VIEW/GRANT statements
+- `AlterSchemaStmt` -- TRANSFER entity
+
+### CREATE TYPE (batch 26)
+- `CreateTypeStmt` -- for alias types (FROM base_type), table types (AS TABLE (...)), CLR types (EXTERNAL NAME)
+
+### CREATE SEQUENCE (batch 27)
+- `CreateSequenceStmt` / `AlterSequenceStmt` -- with DataType, StartWith, IncrementBy, MinValue, MaxValue, Cycle, Cache options
+
+### CREATE SYNONYM (batch 28)
+- `CreateSynonymStmt` -- Name, ForName (target object)
+
+### ALTER Objects (batch 29)
+- Extend `parseAlterStmt` dispatcher for DATABASE, INDEX, VIEW, PROCEDURE, FUNCTION
+- `AlterDatabaseStmt` -- SET options, MODIFY NAME/FILE, ADD FILE, etc.
+- `AlterIndexStmt` -- REBUILD, REORGANIZE, DISABLE, SET options
+
+### Security Principals (batch 30)
+- `CreateUserStmt`, `AlterUserStmt` -- WITH PASSWORD, DEFAULT_SCHEMA, LOGIN, etc.
+- `CreateLoginStmt`, `AlterLoginStmt` -- WITH PASSWORD, DEFAULT_DATABASE, CHECK_POLICY, etc.
+- `CreateRoleStmt`, `AlterRoleStmt` -- ADD/DROP MEMBER
+- `CreateAppRoleStmt`
+
+### Security Keys/Certs (batch 31)
+- `CreateMasterKeyStmt`, `CreateSymmetricKeyStmt`, `CreateAsymmetricKeyStmt`, `CreateCertificateStmt`, `CreateCredentialStmt`
+- `OpenSymmetricKeyStmt`, `CloseSymmetricKeyStmt`
+- `BackupCertificateStmt`
+
+### DBCC (batch 32)
+- `DbccStmt` -- Command (string), Args (list of expr), WithOptions
+
+### BULK INSERT (batch 33)
+- `BulkInsertStmt` -- Table, FromFile, WithOptions
+
+### BACKUP/RESTORE (batch 34)
+- `BackupStmt` -- Type (DATABASE/LOG), Database, ToDevices, WithOptions
+- `RestoreStmt` -- Type (DATABASE/LOG/HEADERONLY/FILELISTONLY/etc.), Database, FromDevices, WithOptions
+
+### PIVOT/UNPIVOT (batch 35)
+- `PivotClause` -- AggFunc, ForColumn, InValues, Alias
+- `UnpivotClause` -- ValueColumn, ForColumn, InColumns, Alias
+- These are table sources, so they should implement `tableExpr()`
+
+### Rowset Functions (batch 37)
+- `OpenRowsetExpr`, `OpenQueryExpr`, `OpenJsonExpr`, `OpenDataSourceExpr`, `OpenXmlExpr`
+- These should implement both `tableExpr()` (for FROM) and possibly `exprNode()`
+- OPENJSON and OPENXML support WITH clause for column definitions
+
+### Grouping Sets (batch 38)
+- `GroupingSetsClause`, `CubeClause`, `RollupClause` -- as expression nodes in GROUP BY
+
+### Partition (batch 42)
+- `CreatePartitionFunctionStmt`, `CreatePartitionSchemeStmt`
+- `AlterPartitionFunctionStmt`, `AlterPartitionSchemeStmt`
+
+### Fulltext (batch 43)
+- `CreateFulltextIndexStmt`, `CreateFulltextCatalogStmt`
+- `ContainsPredicate`, `FreetextPredicate` -- as expression nodes in WHERE
+
+### Service Broker (batch 46)
+- `CreateMessageTypeStmt`, `CreateContractStmt`, `CreateQueueStmt`, `CreateServiceStmt`
+- `SendStmt`, `ReceiveStmt`, `BeginConversationStmt`, `EndConversationStmt`
+
+### SET Options (batch 41)
+- Extend existing `SetStmt` or add `SetOptionStmt` for ON/OFF options and special SET forms like SET TRANSACTION ISOLATION LEVEL
+
+### Dispatcher (batch 49)
+- Wire all new keywords into `parseStmt`, `parseCreateStmt`, `parseAlterStmt`
+- Add new keyword constants to `lexer.go` if needed (check existing keywords first -- many are already defined)

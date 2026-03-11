@@ -226,6 +226,16 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeWindowFrame(sb, n)
 	case *WindowBound:
 		writeWindowBound(sb, n)
+	case *DeclareCursorStmt:
+		writeDeclareCursorStmt(sb, n)
+	case *OpenCursorStmt:
+		writeOpenCursorStmt(sb, n)
+	case *FetchCursorStmt:
+		writeFetchCursorStmt(sb, n)
+	case *CloseCursorStmt:
+		writeCloseCursorStmt(sb, n)
+	case *DeallocateCursorStmt:
+		writeDeallocateCursorStmt(sb, n)
 	default:
 		sb.WriteString("{UNKNOWN}")
 	}
@@ -1731,6 +1741,96 @@ func writeWindowBound(sb *strings.Builder, n *WindowBound) {
 	if n.Offset != nil {
 		sb.WriteString(" :offset ")
 		writeNode(sb, n.Offset)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeDeclareCursorStmt(sb *strings.Builder, n *DeclareCursorStmt) {
+	sb.WriteString("{DECLARECURSOR")
+	sb.WriteString(fmt.Sprintf(" :name \"%s\"", escapeString(n.Name)))
+	if n.Insensitive {
+		sb.WriteString(" :insensitive true")
+	}
+	if n.Scroll {
+		sb.WriteString(" :scroll true")
+	}
+	if n.Scope != "" {
+		sb.WriteString(fmt.Sprintf(" :scope \"%s\"", n.Scope))
+	}
+	if n.ForwardOnly {
+		sb.WriteString(" :forwardOnly true")
+	}
+	if n.CursorType != "" {
+		sb.WriteString(fmt.Sprintf(" :cursorType \"%s\"", n.CursorType))
+	}
+	if n.Concurrency != "" {
+		sb.WriteString(fmt.Sprintf(" :concurrency \"%s\"", n.Concurrency))
+	}
+	if n.TypeWarning {
+		sb.WriteString(" :typeWarning true")
+	}
+	if n.Query != nil {
+		sb.WriteString(" :query ")
+		writeNode(sb, n.Query)
+	}
+	if n.ForUpdate {
+		sb.WriteString(" :forUpdate true")
+	}
+	if n.UpdateCols != nil {
+		sb.WriteString(" :updateCols ")
+		writeNode(sb, n.UpdateCols)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeOpenCursorStmt(sb *strings.Builder, n *OpenCursorStmt) {
+	sb.WriteString("{OPENCURSOR")
+	sb.WriteString(fmt.Sprintf(" :name \"%s\"", escapeString(n.Name)))
+	if n.Global {
+		sb.WriteString(" :global true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeFetchCursorStmt(sb *strings.Builder, n *FetchCursorStmt) {
+	sb.WriteString("{FETCHCURSOR")
+	if n.Orientation != "" {
+		sb.WriteString(fmt.Sprintf(" :orientation \"%s\"", n.Orientation))
+	}
+	if n.FetchOffset != nil {
+		sb.WriteString(" :fetchOffset ")
+		writeNode(sb, n.FetchOffset)
+	}
+	sb.WriteString(fmt.Sprintf(" :name \"%s\"", escapeString(n.Name)))
+	if n.Global {
+		sb.WriteString(" :global true")
+	}
+	if n.IntoVars != nil {
+		sb.WriteString(" :into ")
+		writeNode(sb, n.IntoVars)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCloseCursorStmt(sb *strings.Builder, n *CloseCursorStmt) {
+	sb.WriteString("{CLOSECURSOR")
+	sb.WriteString(fmt.Sprintf(" :name \"%s\"", escapeString(n.Name)))
+	if n.Global {
+		sb.WriteString(" :global true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeDeallocateCursorStmt(sb *strings.Builder, n *DeallocateCursorStmt) {
+	sb.WriteString("{DEALLOCATECURSOR")
+	sb.WriteString(fmt.Sprintf(" :name \"%s\"", escapeString(n.Name)))
+	if n.Global {
+		sb.WriteString(" :global true")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

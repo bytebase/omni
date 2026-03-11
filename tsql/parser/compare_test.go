@@ -2021,3 +2021,245 @@ func TestNodeToString(t *testing.T) {
 		t.Errorf("NodeToString not deterministic:\n  first:  %s\n  second: %s", s, s2)
 	}
 }
+
+// ---------- Batch 23: Cursor Operations ----------
+
+func TestParseCursorOperations(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		// DECLARE CURSOR - ISO syntax (basic)
+		{
+			name: "declare_cursor_basic",
+			sql:  "DECLARE my_cursor CURSOR FOR SELECT * FROM employees",
+		},
+		// DECLARE CURSOR - ISO syntax with INSENSITIVE
+		{
+			name: "declare_cursor_insensitive",
+			sql:  "DECLARE my_cursor INSENSITIVE CURSOR FOR SELECT id, name FROM employees",
+		},
+		// DECLARE CURSOR - ISO syntax with SCROLL
+		{
+			name: "declare_cursor_scroll_iso",
+			sql:  "DECLARE my_cursor SCROLL CURSOR FOR SELECT * FROM employees",
+		},
+		// DECLARE CURSOR - ISO syntax with INSENSITIVE SCROLL
+		{
+			name: "declare_cursor_insensitive_scroll",
+			sql:  "DECLARE my_cursor INSENSITIVE SCROLL CURSOR FOR SELECT * FROM employees",
+		},
+		// DECLARE CURSOR - ISO syntax with FOR READ_ONLY
+		{
+			name: "declare_cursor_for_read_only",
+			sql:  "DECLARE my_cursor CURSOR FOR SELECT * FROM employees FOR READ_ONLY",
+		},
+		// DECLARE CURSOR - ISO syntax with FOR UPDATE
+		{
+			name: "declare_cursor_for_update",
+			sql:  "DECLARE my_cursor CURSOR FOR SELECT * FROM employees FOR UPDATE",
+		},
+		// DECLARE CURSOR - ISO syntax with FOR UPDATE OF columns
+		{
+			name: "declare_cursor_for_update_of",
+			sql:  "DECLARE my_cursor CURSOR FOR SELECT * FROM employees FOR UPDATE OF name, salary",
+		},
+		// DECLARE CURSOR - T-SQL extended: LOCAL
+		{
+			name: "declare_cursor_local",
+			sql:  "DECLARE my_cursor CURSOR LOCAL FOR SELECT id FROM t",
+		},
+		// DECLARE CURSOR - T-SQL extended: GLOBAL
+		{
+			name: "declare_cursor_global",
+			sql:  "DECLARE my_cursor CURSOR GLOBAL FOR SELECT id FROM t",
+		},
+		// DECLARE CURSOR - T-SQL extended: FORWARD_ONLY
+		{
+			name: "declare_cursor_forward_only",
+			sql:  "DECLARE my_cursor CURSOR LOCAL FORWARD_ONLY FOR SELECT id FROM t",
+		},
+		// DECLARE CURSOR - T-SQL extended: SCROLL
+		{
+			name: "declare_cursor_scroll_tsql",
+			sql:  "DECLARE my_cursor CURSOR LOCAL SCROLL FOR SELECT id FROM t",
+		},
+		// DECLARE CURSOR - T-SQL extended: STATIC
+		{
+			name: "declare_cursor_static",
+			sql:  "DECLARE my_cursor CURSOR LOCAL FORWARD_ONLY STATIC FOR SELECT id FROM t",
+		},
+		// DECLARE CURSOR - T-SQL extended: KEYSET
+		{
+			name: "declare_cursor_keyset",
+			sql:  "DECLARE my_cursor CURSOR SCROLL KEYSET FOR SELECT id FROM t",
+		},
+		// DECLARE CURSOR - T-SQL extended: DYNAMIC
+		{
+			name: "declare_cursor_dynamic",
+			sql:  "DECLARE my_cursor CURSOR SCROLL DYNAMIC FOR SELECT id FROM t",
+		},
+		// DECLARE CURSOR - T-SQL extended: FAST_FORWARD
+		{
+			name: "declare_cursor_fast_forward",
+			sql:  "DECLARE my_cursor CURSOR FAST_FORWARD FOR SELECT id FROM t",
+		},
+		// DECLARE CURSOR - T-SQL extended: READ_ONLY concurrency
+		{
+			name: "declare_cursor_read_only",
+			sql:  "DECLARE my_cursor CURSOR SCROLL STATIC READ_ONLY FOR SELECT id FROM t",
+		},
+		// DECLARE CURSOR - T-SQL extended: SCROLL_LOCKS concurrency
+		{
+			name: "declare_cursor_scroll_locks",
+			sql:  "DECLARE my_cursor CURSOR SCROLL KEYSET SCROLL_LOCKS FOR SELECT id FROM t",
+		},
+		// DECLARE CURSOR - T-SQL extended: OPTIMISTIC concurrency
+		{
+			name: "declare_cursor_optimistic",
+			sql:  "DECLARE my_cursor CURSOR SCROLL DYNAMIC OPTIMISTIC FOR SELECT id FROM t",
+		},
+		// DECLARE CURSOR - T-SQL extended: TYPE_WARNING
+		{
+			name: "declare_cursor_type_warning",
+			sql:  "DECLARE my_cursor CURSOR SCROLL DYNAMIC OPTIMISTIC TYPE_WARNING FOR SELECT id FROM t",
+		},
+		// DECLARE CURSOR - T-SQL extended: full options
+		{
+			name: "declare_cursor_full_options",
+			sql:  "DECLARE my_cursor CURSOR GLOBAL SCROLL KEYSET SCROLL_LOCKS TYPE_WARNING FOR SELECT * FROM employees FOR UPDATE OF name, salary",
+		},
+		// OPEN cursor - basic
+		{
+			name: "open_cursor_basic",
+			sql:  "OPEN my_cursor",
+		},
+		// OPEN cursor - GLOBAL
+		{
+			name: "open_cursor_global",
+			sql:  "OPEN GLOBAL my_cursor",
+		},
+		// OPEN cursor - @variable
+		{
+			name: "open_cursor_variable",
+			sql:  "OPEN @my_cursor_var",
+		},
+		// FETCH NEXT - basic
+		{
+			name: "fetch_next_basic",
+			sql:  "FETCH NEXT FROM my_cursor",
+		},
+		// FETCH NEXT INTO variables
+		{
+			name: "fetch_next_into",
+			sql:  "FETCH NEXT FROM my_cursor INTO @id, @name, @salary",
+		},
+		// FETCH PRIOR
+		{
+			name: "fetch_prior",
+			sql:  "FETCH PRIOR FROM my_cursor",
+		},
+		// FETCH FIRST
+		{
+			name: "fetch_first",
+			sql:  "FETCH FIRST FROM my_cursor",
+		},
+		// FETCH LAST
+		{
+			name: "fetch_last",
+			sql:  "FETCH LAST FROM my_cursor",
+		},
+		// FETCH ABSOLUTE n
+		{
+			name: "fetch_absolute",
+			sql:  "FETCH ABSOLUTE 5 FROM my_cursor",
+		},
+		// FETCH ABSOLUTE @nvar
+		{
+			name: "fetch_absolute_var",
+			sql:  "FETCH ABSOLUTE @pos FROM my_cursor INTO @id",
+		},
+		// FETCH RELATIVE n
+		{
+			name: "fetch_relative",
+			sql:  "FETCH RELATIVE 3 FROM my_cursor",
+		},
+		// FETCH RELATIVE negative
+		{
+			name: "fetch_relative_negative",
+			sql:  "FETCH RELATIVE -2 FROM my_cursor INTO @id, @name",
+		},
+		// FETCH with GLOBAL cursor
+		{
+			name: "fetch_global_cursor",
+			sql:  "FETCH NEXT FROM GLOBAL my_cursor INTO @val",
+		},
+		// FETCH from @cursor_variable
+		{
+			name: "fetch_cursor_variable",
+			sql:  "FETCH NEXT FROM @my_cursor_var INTO @id",
+		},
+		// FETCH without orientation (default NEXT)
+		{
+			name: "fetch_default",
+			sql:  "FETCH FROM my_cursor",
+		},
+		// CLOSE cursor - basic
+		{
+			name: "close_cursor_basic",
+			sql:  "CLOSE my_cursor",
+		},
+		// CLOSE cursor - GLOBAL
+		{
+			name: "close_cursor_global",
+			sql:  "CLOSE GLOBAL my_cursor",
+		},
+		// CLOSE cursor - @variable
+		{
+			name: "close_cursor_variable",
+			sql:  "CLOSE @my_cursor_var",
+		},
+		// DEALLOCATE cursor - basic
+		{
+			name: "deallocate_cursor_basic",
+			sql:  "DEALLOCATE my_cursor",
+		},
+		// DEALLOCATE cursor - GLOBAL
+		{
+			name: "deallocate_cursor_global",
+			sql:  "DEALLOCATE GLOBAL my_cursor",
+		},
+		// DEALLOCATE cursor - @variable
+		{
+			name: "deallocate_cursor_variable",
+			sql:  "DEALLOCATE @my_cursor_var",
+		},
+		// Full cursor lifecycle
+		{
+			name: "cursor_full_lifecycle",
+			sql: `DECLARE emp_cursor CURSOR LOCAL FAST_FORWARD FOR
+				SELECT id, name FROM employees WHERE active = 1;
+				OPEN emp_cursor;
+				FETCH NEXT FROM emp_cursor INTO @id, @name;
+				CLOSE emp_cursor;
+				DEALLOCATE emp_cursor`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() == 0 {
+				t.Fatalf("Parse(%q): no statements returned", tt.sql)
+			}
+			// Verify deterministic serialization
+			for i, item := range result.Items {
+				s1 := ast.NodeToString(item)
+				s2 := ast.NodeToString(item)
+				if s1 != s2 {
+					t.Errorf("stmt[%d] serialization not deterministic:\n  s1: %s\n  s2: %s", i, s1, s2)
+				}
+			}
+		})
+	}
+}

@@ -92,6 +92,12 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 	case kwWAITFOR:
 		return p.parseWaitForStmt()
 	case kwDECLARE:
+		// Check if this is DECLARE cursor_name CURSOR (named cursor declaration).
+		// Named cursors use a plain identifier (not @variable) after DECLARE.
+		next := p.peekNext()
+		if next.Type != tokVARIABLE {
+			return p.parseDeclareCursorStmt()
+		}
 		return p.parseDeclareStmt()
 	case kwSET:
 		return p.parseSetStmt()
@@ -117,6 +123,14 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 		return p.parseRaiseErrorStmt()
 	case kwTHROW:
 		return p.parseThrowStmt()
+	case kwOPEN:
+		return p.parseOpenCursorStmt()
+	case kwFETCH:
+		return p.parseFetchCursorStmt()
+	case kwCLOSE:
+		return p.parseCloseCursorStmt()
+	case kwDEALLOCATE:
+		return p.parseDeallocateCursorStmt()
 	case kwGO:
 		return p.parseGoStmt()
 	default:

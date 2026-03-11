@@ -1275,6 +1275,112 @@ type SelectAssign struct {
 func (n *SelectAssign) nodeTag()  {}
 func (n *SelectAssign) exprNode() {}
 
+// ---------- Cursor statements ----------
+
+// DeclareCursorStmt represents a DECLARE cursor_name CURSOR statement.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/declare-cursor-transact-sql
+//
+// ISO syntax:
+//
+//	DECLARE cursor_name [ INSENSITIVE ] [ SCROLL ] CURSOR
+//	    FOR select_statement
+//	    [ FOR { READ_ONLY | UPDATE [ OF column_name [ , ...n ] ] } ]
+//
+// Transact-SQL extended syntax:
+//
+//	DECLARE cursor_name CURSOR [ LOCAL | GLOBAL ]
+//	    [ FORWARD_ONLY | SCROLL ]
+//	    [ STATIC | KEYSET | DYNAMIC | FAST_FORWARD ]
+//	    [ READ_ONLY | SCROLL_LOCKS | OPTIMISTIC ]
+//	    [ TYPE_WARNING ]
+//	    FOR select_statement
+//	    [ FOR UPDATE [ OF column_name [ , ...n ] ] ]
+type DeclareCursorStmt struct {
+	Name        string   // cursor name
+	Insensitive bool     // INSENSITIVE (ISO)
+	Scroll      bool     // SCROLL
+	Scope       string   // "LOCAL" or "GLOBAL" (T-SQL extended, empty = default)
+	ForwardOnly bool     // FORWARD_ONLY (T-SQL extended)
+	CursorType  string   // "STATIC", "KEYSET", "DYNAMIC", "FAST_FORWARD" (empty = default)
+	Concurrency string   // "READ_ONLY", "SCROLL_LOCKS", "OPTIMISTIC" (empty = default)
+	TypeWarning bool     // TYPE_WARNING
+	Query       StmtNode // SELECT statement
+	ForUpdate   bool     // FOR UPDATE
+	UpdateCols  *List    // OF column_name [,...n] (nil if no column list)
+	Loc         Loc
+}
+
+func (n *DeclareCursorStmt) nodeTag()  {}
+func (n *DeclareCursorStmt) stmtNode() {}
+
+// OpenCursorStmt represents an OPEN cursor statement.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/open-transact-sql
+//
+//	OPEN { { [ GLOBAL ] cursor_name } | cursor_variable_name }
+type OpenCursorStmt struct {
+	Name   string // cursor name or @cursor_variable
+	Global bool   // GLOBAL keyword specified
+	Loc    Loc
+}
+
+func (n *OpenCursorStmt) nodeTag()  {}
+func (n *OpenCursorStmt) stmtNode() {}
+
+// FetchCursorStmt represents a FETCH cursor statement.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/fetch-transact-sql
+//
+//	FETCH
+//	    [ [ NEXT | PRIOR | FIRST | LAST
+//	            | ABSOLUTE { n | @nvar }
+//	            | RELATIVE { n | @nvar }
+//	       ]
+//	       FROM
+//	    ]
+//	{ { [ GLOBAL ] cursor_name } | @cursor_variable_name }
+//	[ INTO @variable_name [ ,...n ] ]
+type FetchCursorStmt struct {
+	Orientation string   // "NEXT", "PRIOR", "FIRST", "LAST", "ABSOLUTE", "RELATIVE" (empty = default NEXT)
+	FetchOffset ExprNode // offset expression for ABSOLUTE/RELATIVE
+	Name        string   // cursor name or @cursor_variable
+	Global      bool     // GLOBAL keyword specified
+	IntoVars    *List    // INTO @var1, @var2, ... (list of String nodes)
+	Loc         Loc
+}
+
+func (n *FetchCursorStmt) nodeTag()  {}
+func (n *FetchCursorStmt) stmtNode() {}
+
+// CloseCursorStmt represents a CLOSE cursor statement.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/close-transact-sql
+//
+//	CLOSE { { [ GLOBAL ] cursor_name } | cursor_variable_name }
+type CloseCursorStmt struct {
+	Name   string // cursor name or @cursor_variable
+	Global bool   // GLOBAL keyword specified
+	Loc    Loc
+}
+
+func (n *CloseCursorStmt) nodeTag()  {}
+func (n *CloseCursorStmt) stmtNode() {}
+
+// DeallocateCursorStmt represents a DEALLOCATE cursor statement.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/deallocate-transact-sql
+//
+//	DEALLOCATE { { [ GLOBAL ] cursor_name } | @cursor_variable_name }
+type DeallocateCursorStmt struct {
+	Name   string // cursor name or @cursor_variable
+	Global bool   // GLOBAL keyword specified
+	Loc    Loc
+}
+
+func (n *DeallocateCursorStmt) nodeTag()  {}
+func (n *DeallocateCursorStmt) stmtNode() {}
+
 // ---------- Method call ----------
 
 // MethodCallExpr represents a :: static method call.

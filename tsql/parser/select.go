@@ -126,9 +126,12 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 		}
 	}
 
-	// FOR XML / FOR JSON
+	// FOR XML / FOR JSON (only if followed by XML or JSON, not FOR UPDATE/READ_ONLY)
 	if p.cur.Type == kwFOR {
-		stmt.ForClause = p.parseForClause()
+		next := p.peekNext()
+		if next.Type == kwXML || next.Type == kwJSON {
+			stmt.ForClause = p.parseForClause()
+		}
 	}
 
 	// OPTION clause

@@ -298,6 +298,383 @@
       "rules": ["stmt_dispatch"],
       "depends_on": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
       "tests": ["integration"]
+    },
+    {
+      "id": 23,
+      "name": "cursor_operations",
+      "file": "cursor.go",
+      "status": "done",
+      "description": "DECLARE CURSOR (full syntax), OPEN, FETCH, CLOSE, DEALLOCATE cursor statements",
+      "rules": [
+        "declare_cursor_stmt", "open_cursor_stmt", "fetch_cursor_stmt",
+        "close_cursor_stmt", "deallocate_cursor_stmt",
+        "cursor_definition", "cursor_scroll_option", "cursor_type_option",
+        "fetch_orientation"
+      ],
+      "depends_on": [3, 16],
+      "tests": ["cursor_declare", "cursor_open", "cursor_fetch", "cursor_close", "cursor_deallocate"]
+    },
+    {
+      "id": 24,
+      "name": "create_trigger",
+      "file": "create_trigger.go",
+      "status": "pending",
+      "description": "CREATE/ALTER TRIGGER for DML triggers (AFTER/INSTEAD OF INSERT/UPDATE/DELETE) and DDL triggers",
+      "rules": [
+        "create_trigger_stmt", "trigger_type", "trigger_action",
+        "trigger_event_list", "dml_trigger", "ddl_trigger"
+      ],
+      "depends_on": [4, 12, 15],
+      "tests": ["create_trigger_dml", "create_trigger_ddl", "create_trigger_instead_of"]
+    },
+    {
+      "id": 25,
+      "name": "create_schema",
+      "file": "create_schema.go",
+      "status": "pending",
+      "description": "CREATE/ALTER SCHEMA, AUTHORIZATION clause, TRANSFER",
+      "rules": [
+        "create_schema_stmt", "alter_schema_stmt",
+        "schema_authorization", "schema_transfer"
+      ],
+      "depends_on": [1],
+      "tests": ["create_schema", "alter_schema"]
+    },
+    {
+      "id": 26,
+      "name": "create_type",
+      "file": "create_type.go",
+      "status": "pending",
+      "description": "CREATE TYPE (alias types, table types, CLR types)",
+      "rules": [
+        "create_type_stmt", "type_alias_def", "type_table_def", "type_clr_def"
+      ],
+      "depends_on": [2, 8],
+      "tests": ["create_type_alias", "create_type_table"]
+    },
+    {
+      "id": 27,
+      "name": "create_sequence",
+      "file": "create_sequence.go",
+      "status": "pending",
+      "description": "CREATE/ALTER SEQUENCE with START WITH, INCREMENT BY, MINVALUE, MAXVALUE, CYCLE, CACHE options",
+      "rules": [
+        "create_sequence_stmt", "alter_sequence_stmt",
+        "sequence_option_start", "sequence_option_increment",
+        "sequence_option_minvalue", "sequence_option_maxvalue",
+        "sequence_option_cycle", "sequence_option_cache"
+      ],
+      "depends_on": [2],
+      "tests": ["create_sequence", "alter_sequence"]
+    },
+    {
+      "id": 28,
+      "name": "create_synonym",
+      "file": "create_synonym.go",
+      "status": "pending",
+      "description": "CREATE/DROP SYNONYM FOR target_object",
+      "rules": [
+        "create_synonym_stmt"
+      ],
+      "depends_on": [1],
+      "tests": ["create_synonym"]
+    },
+    {
+      "id": 29,
+      "name": "alter_objects",
+      "file": "alter_objects.go",
+      "status": "pending",
+      "description": "ALTER DATABASE (SET options, MODIFY FILE, etc.), ALTER INDEX (REBUILD, REORGANIZE, DISABLE), ALTER VIEW, ALTER PROCEDURE, ALTER FUNCTION",
+      "rules": [
+        "alter_database_stmt", "alter_database_set_option",
+        "alter_index_stmt", "alter_index_rebuild", "alter_index_reorganize",
+        "alter_view_stmt", "alter_procedure_stmt", "alter_function_stmt"
+      ],
+      "depends_on": [9, 10, 11, 12, 13],
+      "tests": ["alter_database", "alter_index", "alter_view", "alter_proc", "alter_func"]
+    },
+    {
+      "id": 30,
+      "name": "security_principals",
+      "file": "security_principals.go",
+      "status": "pending",
+      "description": "CREATE/ALTER/DROP USER, LOGIN, ROLE, APPLICATION ROLE. Batch 19 description claimed these but only GRANT/REVOKE/DENY were implemented",
+      "rules": [
+        "create_user_stmt", "alter_user_stmt", "drop_user_stmt",
+        "create_login_stmt", "alter_login_stmt", "drop_login_stmt",
+        "create_role_stmt", "alter_role_stmt", "drop_role_stmt",
+        "create_app_role_stmt",
+        "add_role_member", "drop_role_member"
+      ],
+      "depends_on": [1, 19],
+      "tests": ["create_user", "alter_user", "create_login", "alter_login", "create_role", "alter_role", "app_role"]
+    },
+    {
+      "id": 31,
+      "name": "security_keys_certs",
+      "file": "security_keys.go",
+      "status": "pending",
+      "description": "CREATE/ALTER/DROP CREDENTIAL, CERTIFICATE, SYMMETRIC KEY, ASYMMETRIC KEY, MASTER KEY",
+      "rules": [
+        "create_credential_stmt", "create_certificate_stmt",
+        "create_symmetric_key_stmt", "create_asymmetric_key_stmt",
+        "create_master_key_stmt", "alter_master_key_stmt",
+        "drop_symmetric_key_stmt", "drop_asymmetric_key_stmt",
+        "drop_certificate_stmt", "drop_credential_stmt",
+        "open_symmetric_key_stmt", "close_symmetric_key_stmt",
+        "backup_certificate_stmt"
+      ],
+      "depends_on": [1, 3],
+      "tests": ["master_key", "symmetric_key", "asymmetric_key", "certificate", "credential"]
+    },
+    {
+      "id": 32,
+      "name": "dbcc",
+      "file": "dbcc.go",
+      "status": "pending",
+      "description": "DBCC commands: CHECKDB, CHECKTABLE, SHRINKDATABASE, SHRINKFILE, FREEPROCCACHE, DROPCLEANBUFFERS, SHOW_STATISTICS, INPUTBUFFER, OPENTRAN, etc.",
+      "rules": [
+        "dbcc_stmt", "dbcc_command_name", "dbcc_arg_list", "dbcc_with_options"
+      ],
+      "depends_on": [3],
+      "tests": ["dbcc_checkdb", "dbcc_shrink", "dbcc_freeproccache", "dbcc_show_statistics"]
+    },
+    {
+      "id": 33,
+      "name": "bulk_insert",
+      "file": "bulk_insert.go",
+      "status": "pending",
+      "description": "BULK INSERT table FROM file WITH options",
+      "rules": [
+        "bulk_insert_stmt", "bulk_insert_options"
+      ],
+      "depends_on": [1, 3],
+      "tests": ["bulk_insert"]
+    },
+    {
+      "id": 34,
+      "name": "backup_restore",
+      "file": "backup_restore.go",
+      "status": "pending",
+      "description": "BACKUP DATABASE/LOG, RESTORE DATABASE/LOG/HEADERONLY/FILELISTONLY with TO DISK/URL, WITH options",
+      "rules": [
+        "backup_database_stmt", "backup_log_stmt",
+        "restore_database_stmt", "restore_log_stmt",
+        "restore_headeronly_stmt", "restore_filelistonly_stmt",
+        "backup_to_clause", "restore_from_clause",
+        "backup_with_options", "restore_with_options"
+      ],
+      "depends_on": [1, 3],
+      "tests": ["backup_database", "backup_log", "restore_database", "restore_log", "restore_headeronly"]
+    },
+    {
+      "id": 35,
+      "name": "pivot_unpivot",
+      "file": "select.go",
+      "status": "pending",
+      "description": "PIVOT and UNPIVOT operators in FROM clause table sources",
+      "rules": [
+        "pivot_clause", "unpivot_clause",
+        "pivot_aggregate", "pivot_in_list",
+        "unpivot_column", "unpivot_in_list"
+      ],
+      "depends_on": [4],
+      "tests": ["pivot", "unpivot"]
+    },
+    {
+      "id": 36,
+      "name": "tablesample",
+      "file": "select.go",
+      "status": "pending",
+      "description": "TABLESAMPLE clause on table references in FROM",
+      "rules": [
+        "tablesample_clause", "tablesample_percent", "tablesample_rows",
+        "tablesample_repeatable"
+      ],
+      "depends_on": [4],
+      "tests": ["tablesample"]
+    },
+    {
+      "id": 37,
+      "name": "rowset_functions",
+      "file": "rowset_functions.go",
+      "status": "pending",
+      "description": "OPENROWSET, OPENQUERY, OPENJSON, OPENDATASOURCE, OPENXML as table sources in FROM clause",
+      "rules": [
+        "openrowset_expr", "openquery_expr", "openjson_expr",
+        "opendatasource_expr", "openxml_expr",
+        "openjson_with_clause", "openxml_with_clause"
+      ],
+      "depends_on": [4],
+      "tests": ["openrowset", "openquery", "openjson", "opendatasource", "openxml"]
+    },
+    {
+      "id": 38,
+      "name": "grouping_sets",
+      "file": "select.go",
+      "status": "pending",
+      "description": "GROUPING SETS, CUBE, ROLLUP in GROUP BY clause, GROUPING() function",
+      "rules": [
+        "grouping_sets_clause", "cube_clause", "rollup_clause",
+        "grouping_function"
+      ],
+      "depends_on": [4],
+      "tests": ["grouping_sets", "cube", "rollup"]
+    },
+    {
+      "id": 39,
+      "name": "begin_distributed_transaction",
+      "file": "transaction.go",
+      "status": "pending",
+      "description": "BEGIN DISTRIBUTED TRANSACTION statement",
+      "rules": [
+        "begin_distributed_trans_stmt"
+      ],
+      "depends_on": [17],
+      "tests": ["distributed_transaction"]
+    },
+    {
+      "id": 40,
+      "name": "create_statistics",
+      "file": "create_statistics.go",
+      "status": "pending",
+      "description": "CREATE/UPDATE/DROP STATISTICS on table columns with options (FULLSCAN, SAMPLE, NORECOMPUTE, INCREMENTAL)",
+      "rules": [
+        "create_statistics_stmt", "update_statistics_stmt", "drop_statistics_stmt",
+        "statistics_column_list", "statistics_with_options"
+      ],
+      "depends_on": [1, 3],
+      "tests": ["create_statistics", "update_statistics", "drop_statistics"]
+    },
+    {
+      "id": 41,
+      "name": "set_options",
+      "file": "declare_set.go",
+      "status": "pending",
+      "description": "SET session options: SET NOCOUNT ON/OFF, SET ANSI_NULLS ON/OFF, SET QUOTED_IDENTIFIER ON/OFF, SET XACT_ABORT ON/OFF, SET IDENTITY_INSERT table ON/OFF, SET TRANSACTION ISOLATION LEVEL, SET LANGUAGE, SET DATEFORMAT, SET DATEFIRST, SET LOCK_TIMEOUT, SET ROWCOUNT, SET TEXTSIZE, SET ARITHABORT",
+      "rules": [
+        "set_option_onoff_stmt", "set_option_value_stmt",
+        "set_isolation_level_stmt", "set_identity_insert_stmt",
+        "set_language_stmt", "set_dateformat_stmt"
+      ],
+      "depends_on": [16],
+      "tests": ["set_nocount", "set_ansi_nulls", "set_quoted_identifier", "set_xact_abort", "set_identity_insert", "set_isolation_level"]
+    },
+    {
+      "id": 42,
+      "name": "partition",
+      "file": "partition.go",
+      "status": "pending",
+      "description": "CREATE/ALTER/DROP PARTITION FUNCTION, CREATE/ALTER/DROP PARTITION SCHEME",
+      "rules": [
+        "create_partition_function_stmt", "alter_partition_function_stmt",
+        "drop_partition_function_stmt",
+        "create_partition_scheme_stmt", "alter_partition_scheme_stmt",
+        "drop_partition_scheme_stmt",
+        "partition_range", "partition_values"
+      ],
+      "depends_on": [2],
+      "tests": ["create_partition_function", "create_partition_scheme", "alter_partition_function"]
+    },
+    {
+      "id": 43,
+      "name": "fulltext",
+      "file": "fulltext.go",
+      "status": "pending",
+      "description": "CREATE/ALTER/DROP FULLTEXT INDEX, CREATE/ALTER/DROP FULLTEXT CATALOG, CONTAINS/FREETEXT predicates in WHERE",
+      "rules": [
+        "create_fulltext_index_stmt", "alter_fulltext_index_stmt",
+        "drop_fulltext_index_stmt",
+        "create_fulltext_catalog_stmt", "alter_fulltext_catalog_stmt",
+        "drop_fulltext_catalog_stmt",
+        "contains_predicate", "freetext_predicate"
+      ],
+      "depends_on": [1, 3, 10],
+      "tests": ["fulltext_index", "fulltext_catalog", "contains_predicate", "freetext_predicate"]
+    },
+    {
+      "id": 44,
+      "name": "xml_schema_collection",
+      "file": "xml_schema.go",
+      "status": "pending",
+      "description": "CREATE/ALTER/DROP XML SCHEMA COLLECTION",
+      "rules": [
+        "create_xml_schema_collection_stmt",
+        "alter_xml_schema_collection_stmt",
+        "drop_xml_schema_collection_stmt"
+      ],
+      "depends_on": [1],
+      "tests": ["xml_schema_collection"]
+    },
+    {
+      "id": 45,
+      "name": "assembly",
+      "file": "assembly.go",
+      "status": "pending",
+      "description": "CREATE/ALTER/DROP ASSEMBLY for CLR integration",
+      "rules": [
+        "create_assembly_stmt", "alter_assembly_stmt", "drop_assembly_stmt",
+        "assembly_permission_set"
+      ],
+      "depends_on": [1],
+      "tests": ["create_assembly", "alter_assembly"]
+    },
+    {
+      "id": 46,
+      "name": "service_broker",
+      "file": "service_broker.go",
+      "status": "pending",
+      "description": "Service Broker: CREATE/ALTER/DROP MESSAGE TYPE, CONTRACT, QUEUE, SERVICE, ROUTE, REMOTE SERVICE BINDING; SEND, RECEIVE, BEGIN/END CONVERSATION, GET CONVERSATION GROUP",
+      "rules": [
+        "create_message_type_stmt", "create_contract_stmt",
+        "create_queue_stmt", "create_service_stmt",
+        "create_route_stmt", "create_remote_service_binding_stmt",
+        "send_stmt", "receive_stmt",
+        "begin_conversation_stmt", "end_conversation_stmt",
+        "get_conversation_group_stmt"
+      ],
+      "depends_on": [1, 3],
+      "tests": ["message_type", "contract", "queue", "service", "send_receive", "conversation"]
+    },
+    {
+      "id": 47,
+      "name": "misc_utility",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "CHECKPOINT, RECONFIGURE, SHUTDOWN, KILL, READTEXT, WRITETEXT, UPDATETEXT (filling gaps in batch 20 description)",
+      "rules": [
+        "checkpoint_stmt", "reconfigure_stmt", "shutdown_stmt",
+        "kill_stmt",
+        "readtext_stmt", "writetext_stmt", "updatetext_stmt"
+      ],
+      "depends_on": [20],
+      "tests": ["checkpoint", "reconfigure", "shutdown", "kill", "readtext", "writetext", "updatetext"]
+    },
+    {
+      "id": 48,
+      "name": "drop_extended",
+      "file": "drop.go",
+      "status": "pending",
+      "description": "Extend DROP to support: DROP SEQUENCE, DROP SYNONYM, DROP LOGIN, DROP USER, DROP ROLE, DROP ASSEMBLY, DROP PARTITION FUNCTION, DROP PARTITION SCHEME, DROP STATISTICS, DROP DEFAULT, DROP RULE, DROP XML SCHEMA COLLECTION, DROP FULLTEXT INDEX, DROP FULLTEXT CATALOG",
+      "rules": [
+        "drop_sequence", "drop_synonym", "drop_login", "drop_user",
+        "drop_role", "drop_assembly", "drop_partition_function",
+        "drop_partition_scheme", "drop_statistics_type",
+        "drop_default", "drop_rule",
+        "drop_xml_schema_collection", "drop_fulltext_index", "drop_fulltext_catalog"
+      ],
+      "depends_on": [14],
+      "tests": ["drop_sequence", "drop_synonym", "drop_login", "drop_user", "drop_role", "drop_assembly"]
+    },
+    {
+      "id": 49,
+      "name": "stmt_dispatch_phase2",
+      "file": "parser.go",
+      "status": "pending",
+      "description": "Wire up all new statement parsers (batches 23-48) into parseStmt and parseCreateStmt/parseAlterStmt dispatchers",
+      "rules": ["stmt_dispatch_phase2"],
+      "depends_on": [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48],
+      "tests": ["integration_phase2"]
     }
   ]
 }
