@@ -1196,3 +1196,318 @@ func TestParseSemicolons(t *testing.T) {
 		t.Errorf("Parse(\";;;\") returned %d items, want 0", result.Len())
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Batch 5: insert
+// ---------------------------------------------------------------------------
+
+// helper to parse an INSERT statement directly
+func parseInsert(t *testing.T, input string) *ast.InsertStmt {
+	t.Helper()
+	p := &Parser{lexer: NewLexer(input)}
+	p.advance()
+	stmt, err := p.parseInsertStmt()
+	if err != nil {
+		t.Fatalf("parseInsertStmt(%q) error: %v", input, err)
+	}
+	return stmt
+}
+
+// helper to parse a REPLACE statement directly
+func parseReplace(t *testing.T, input string) *ast.InsertStmt {
+	t.Helper()
+	p := &Parser{lexer: NewLexer(input)}
+	p.advance()
+	stmt, err := p.parseReplaceStmt()
+	if err != nil {
+		t.Fatalf("parseReplaceStmt(%q) error: %v", input, err)
+	}
+	return stmt
+}
+
+// TestParseInsertValues tests INSERT ... VALUES parsing.
+func TestParseInsertValues(t *testing.T) {
+	cases := []struct {
+		input    string
+		table    string
+		colCount int
+		rowCount int
+		ignore   bool
+		priority ast.InsertPriority
+	}{
+		{
+			input:    "INSERT INTO users (id, name) VALUES (1, 'alice')",
+			table:    "users",
+			colCount: 2,
+			rowCount: 1,
+		},
+		{
+			input:    "INSERT INTO users VALUES (1, 'alice'), (2, 'bob')",
+			table:    "users",
+			colCount: 0,
+			rowCount: 2,
+		},
+		{
+			input:    "INSERT users (id) VALUES (1)",
+			table:    "users",
+			colCount: 1,
+			rowCount: 1,
+		},
+		{
+			input:    "INSERT LOW_PRIORITY INTO users (id) VALUES (1)",
+			table:    "users",
+			colCount: 1,
+			rowCount: 1,
+			priority: ast.InsertPriorityLow,
+		},
+		{
+			input:    "INSERT HIGH_PRIORITY IGNORE INTO users (id) VALUES (1)",
+			table:    "users",
+			colCount: 1,
+			rowCount: 1,
+			ignore:   true,
+			priority: ast.InsertPriorityHigh,
+		},
+		{
+			input:    "INSERT DELAYED INTO users (id) VALUES (1)",
+			table:    "users",
+			colCount: 1,
+			rowCount: 1,
+			priority: ast.InsertPriorityDelayed,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.input, func(t *testing.T) {
+			stmt := parseInsert(t, tt.input)
+			if stmt.IsReplace {
+				t.Error("IsReplace should be false for INSERT")
+			}
+			if stmt.Table.Name != tt.table {
+				t.Errorf("Table.Name = %s, want %s", stmt.Table.Name, tt.table)
+			}
+			if len(stmt.Columns) != tt.colCount {
+				t.Errorf("column count = %d, want %d", len(stmt.Columns), tt.colCount)
+			}
+			if len(stmt.Values) != tt.rowCount {
+				t.Errorf("row count = %d, want %d", len(stmt.Values), tt.rowCount)
+			}
+			if stmt.Ignore != tt.ignore {
+				t.Errorf("Ignore = %v, want %v", stmt.Ignore, tt.ignore)
+			}
+			if stmt.Priority != tt.priority {
+				t.Errorf("Priority = %d, want %d", stmt.Priority, tt.priority)
+			}
+			if stmt.Select != nil {
+				t.Error("Select should be nil for VALUES insert")
+			}
+			if len(stmt.SetList) != 0 {
+				t.Error("SetList should be empty for VALUES insert")
+			}
+			if stmt.Loc.Start < 0 {
+				t.Error("Loc.Start should be >= 0")
+			}
+		})
+	}
+}
+
+// TestParseInsertSelect tests INSERT ... SELECT parsing.
+func TestParseInsertSelect(t *testing.T) {
+	cases := []struct {
+		input    string
+		table    string
+		colCount int
+	}{
+		{
+			input:    "INSERT INTO users (id, name) SELECT id, name FROM tmp_users",
+			table:    "users",
+			colCount: 2,
+		},
+		{
+			input:    "INSERT INTO users SELECT * FROM tmp_users",
+			table:    "users",
+			colCount: 0,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.input, func(t *testing.T) {
+			stmt := parseInsert(t, tt.input)
+			if stmt.Table.Name != tt.table {
+				t.Errorf("Table.Name = %s, want %s", stmt.Table.Name, tt.table)
+			}
+			if len(stmt.Columns) != tt.colCount {
+				t.Errorf("column count = %d, want %d", len(stmt.Columns), tt.colCount)
+			}
+			if stmt.Select == nil {
+				t.Fatal("Select should not be nil for INSERT ... SELECT")
+			}
+			if len(stmt.Values) != 0 {
+				t.Error("Values should be empty for INSERT ... SELECT")
+			}
+			if len(stmt.Select.TargetList) == 0 {
+				t.Error("Select.TargetList should not be empty")
+			}
+		})
+	}
+}
+
+// TestParseInsertSet tests INSERT ... SET parsing.
+func TestParseInsertSet(t *testing.T) {
+	cases := []struct {
+		input    string
+		table    string
+		setCount int
+	}{
+		{
+			input:    "INSERT INTO users SET id = 1, name = 'alice'",
+			table:    "users",
+			setCount: 2,
+		},
+		{
+			input:    "INSERT INTO users SET id = 1",
+			table:    "users",
+			setCount: 1,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.input, func(t *testing.T) {
+			stmt := parseInsert(t, tt.input)
+			if stmt.Table.Name != tt.table {
+				t.Errorf("Table.Name = %s, want %s", stmt.Table.Name, tt.table)
+			}
+			if len(stmt.SetList) != tt.setCount {
+				t.Errorf("SetList count = %d, want %d", len(stmt.SetList), tt.setCount)
+			}
+			if len(stmt.Values) != 0 {
+				t.Error("Values should be empty for SET insert")
+			}
+			if stmt.Select != nil {
+				t.Error("Select should be nil for SET insert")
+			}
+			// Verify assignment structure
+			for i, a := range stmt.SetList {
+				if a.Column == nil {
+					t.Errorf("SetList[%d].Column is nil", i)
+				}
+				if a.Value == nil {
+					t.Errorf("SetList[%d].Value is nil", i)
+				}
+			}
+		})
+	}
+}
+
+// TestParseReplace tests REPLACE statement parsing.
+func TestParseReplace(t *testing.T) {
+	cases := []struct {
+		input    string
+		table    string
+		colCount int
+		rowCount int
+		priority ast.InsertPriority
+	}{
+		{
+			input:    "REPLACE INTO users (id, name) VALUES (1, 'alice')",
+			table:    "users",
+			colCount: 2,
+			rowCount: 1,
+		},
+		{
+			input:    "REPLACE users VALUES (1, 'alice')",
+			table:    "users",
+			colCount: 0,
+			rowCount: 1,
+		},
+		{
+			input:    "REPLACE LOW_PRIORITY INTO users (id) VALUES (1)",
+			table:    "users",
+			colCount: 1,
+			rowCount: 1,
+			priority: ast.InsertPriorityLow,
+		},
+		{
+			input:    "REPLACE DELAYED INTO users (id) VALUES (1)",
+			table:    "users",
+			colCount: 1,
+			rowCount: 1,
+			priority: ast.InsertPriorityDelayed,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.input, func(t *testing.T) {
+			stmt := parseReplace(t, tt.input)
+			if !stmt.IsReplace {
+				t.Error("IsReplace should be true for REPLACE")
+			}
+			if stmt.Table.Name != tt.table {
+				t.Errorf("Table.Name = %s, want %s", stmt.Table.Name, tt.table)
+			}
+			if len(stmt.Columns) != tt.colCount {
+				t.Errorf("column count = %d, want %d", len(stmt.Columns), tt.colCount)
+			}
+			if len(stmt.Values) != tt.rowCount {
+				t.Errorf("row count = %d, want %d", len(stmt.Values), tt.rowCount)
+			}
+			if stmt.Priority != tt.priority {
+				t.Errorf("Priority = %d, want %d", stmt.Priority, tt.priority)
+			}
+			// REPLACE should never have ON DUPLICATE KEY UPDATE
+			if len(stmt.OnDuplicateKey) != 0 {
+				t.Error("OnDuplicateKey should be empty for REPLACE")
+			}
+		})
+	}
+}
+
+// TestParseInsertOnDupKey tests INSERT ... ON DUPLICATE KEY UPDATE parsing.
+func TestParseInsertOnDupKey(t *testing.T) {
+	cases := []struct {
+		input    string
+		table    string
+		rowCount int
+		dupCount int
+	}{
+		{
+			input:    "INSERT INTO users (id, name) VALUES (1, 'alice') ON DUPLICATE KEY UPDATE name = 'alice'",
+			table:    "users",
+			rowCount: 1,
+			dupCount: 1,
+		},
+		{
+			input:    "INSERT INTO counters (id, cnt) VALUES (1, 1) ON DUPLICATE KEY UPDATE cnt = cnt + 1, updated_at = NOW()",
+			table:    "counters",
+			rowCount: 1,
+			dupCount: 2,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.input, func(t *testing.T) {
+			stmt := parseInsert(t, tt.input)
+			if stmt.Table.Name != tt.table {
+				t.Errorf("Table.Name = %s, want %s", stmt.Table.Name, tt.table)
+			}
+			if len(stmt.Values) != tt.rowCount {
+				t.Errorf("row count = %d, want %d", len(stmt.Values), tt.rowCount)
+			}
+			if len(stmt.OnDuplicateKey) != tt.dupCount {
+				t.Fatalf("OnDuplicateKey count = %d, want %d", len(stmt.OnDuplicateKey), tt.dupCount)
+			}
+			// Verify assignment structure
+			for i, a := range stmt.OnDuplicateKey {
+				if a.Column == nil {
+					t.Errorf("OnDuplicateKey[%d].Column is nil", i)
+				}
+				if a.Value == nil {
+					t.Errorf("OnDuplicateKey[%d].Value is nil", i)
+				}
+				if a.Loc.Start < 0 {
+					t.Errorf("OnDuplicateKey[%d].Loc.Start should be >= 0", i)
+				}
+			}
+		})
+	}
+}

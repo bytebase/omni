@@ -81,7 +81,7 @@
       "id": 5,
       "name": "insert",
       "file": "insert.go",
-      "status": "pending",
+      "status": "done",
       "description": "INSERT, REPLACE, ON DUPLICATE KEY UPDATE",
       "rules": [
         "insert_stmt", "replace_stmt", "insert_values", "insert_set",
@@ -95,7 +95,7 @@
       "id": 6,
       "name": "update_delete",
       "file": "update_delete.go",
-      "status": "pending",
+      "status": "in_progress",
       "description": "UPDATE (single and multi-table), DELETE (single and multi-table)",
       "rules": [
         "update_stmt", "single_table_update", "multi_table_update",
