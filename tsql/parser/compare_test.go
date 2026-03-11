@@ -429,6 +429,148 @@ func TestParseNames(t *testing.T) {
 	})
 }
 
+// TestParseTypes tests data type parsing (batch 2).
+func TestParseTypes(t *testing.T) {
+	t.Run("simple types", func(t *testing.T) {
+		tests := []string{
+			"SELECT CAST(1 AS int)",
+			"SELECT CAST(1 AS bigint)",
+			"SELECT CAST(1 AS smallint)",
+			"SELECT CAST(1 AS tinyint)",
+			"SELECT CAST(1 AS bit)",
+			"SELECT CAST(1 AS float)",
+			"SELECT CAST(1 AS real)",
+			"SELECT CAST(1 AS money)",
+			"SELECT CAST(1 AS smallmoney)",
+			"SELECT CAST('x' AS text)",
+			"SELECT CAST('x' AS ntext)",
+			"SELECT CAST(1 AS uniqueidentifier)",
+			"SELECT CAST('x' AS xml)",
+			"SELECT CAST('x' AS date)",
+			"SELECT CAST('x' AS datetime)",
+			"SELECT CAST('x' AS datetime2)",
+			"SELECT CAST('x' AS smalldatetime)",
+			"SELECT CAST('x' AS datetimeoffset)",
+			"SELECT CAST('x' AS time)",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				target := stmt.TargetList.Items[0].(*ast.ResTarget)
+				cast, ok := target.Val.(*ast.CastExpr)
+				if !ok {
+					t.Fatalf("expected *CastExpr, got %T", target.Val)
+				}
+				if cast.DataType == nil {
+					t.Fatal("expected non-nil DataType")
+				}
+				if cast.DataType.Name == "" {
+					t.Error("expected non-empty DataType.Name")
+				}
+			})
+		}
+	})
+
+	t.Run("types with length", func(t *testing.T) {
+		tests := []struct {
+			sql  string
+			name string
+		}{
+			{"SELECT CAST('x' AS varchar(100))", "varchar"},
+			{"SELECT CAST('x' AS nvarchar(50))", "nvarchar"},
+			{"SELECT CAST('x' AS char(10))", "char"},
+			{"SELECT CAST('x' AS nchar(20))", "nchar"},
+			{"SELECT CAST('x' AS binary(16))", "binary"},
+			{"SELECT CAST('x' AS varbinary(256))", "varbinary"},
+		}
+		for _, tc := range tests {
+			t.Run(tc.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tc.sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				target := stmt.TargetList.Items[0].(*ast.ResTarget)
+				cast := target.Val.(*ast.CastExpr)
+				if cast.DataType.Name != tc.name {
+					t.Errorf("expected Name=%q, got %q", tc.name, cast.DataType.Name)
+				}
+				if cast.DataType.Length == nil {
+					t.Error("expected non-nil Length")
+				}
+			})
+		}
+	})
+
+	t.Run("types with MAX", func(t *testing.T) {
+		tests := []string{
+			"SELECT CAST('x' AS varchar(MAX))",
+			"SELECT CAST('x' AS nvarchar(MAX))",
+			"SELECT CAST('x' AS varbinary(MAX))",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				target := stmt.TargetList.Items[0].(*ast.ResTarget)
+				cast := target.Val.(*ast.CastExpr)
+				if !cast.DataType.MaxLength {
+					t.Error("expected MaxLength=true")
+				}
+			})
+		}
+	})
+
+	t.Run("types with precision and scale", func(t *testing.T) {
+		tests := []string{
+			"SELECT CAST(1 AS decimal(10, 2))",
+			"SELECT CAST(1 AS numeric(18, 4))",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				target := stmt.TargetList.Items[0].(*ast.ResTarget)
+				cast := target.Val.(*ast.CastExpr)
+				if cast.DataType.Precision == nil {
+					t.Error("expected non-nil Precision")
+				}
+				if cast.DataType.Scale == nil {
+					t.Error("expected non-nil Scale")
+				}
+			})
+		}
+	})
+
+	t.Run("types with precision only", func(t *testing.T) {
+		tests := []string{
+			"SELECT CAST('x' AS datetime2(3))",
+			"SELECT CAST('x' AS datetimeoffset(7))",
+			"SELECT CAST('x' AS float(53))",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				target := stmt.TargetList.Items[0].(*ast.ResTarget)
+				cast := target.Val.(*ast.CastExpr)
+				if cast.DataType.Length == nil {
+					t.Error("expected non-nil Length")
+				}
+			})
+		}
+	})
+
+	t.Run("schema qualified type", func(t *testing.T) {
+		sql := "SELECT CAST(1 AS dbo.MyType)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		target := stmt.TargetList.Items[0].(*ast.ResTarget)
+		cast := target.Val.(*ast.CastExpr)
+		if cast.DataType.Schema == "" {
+			t.Error("expected non-empty Schema")
+		}
+	})
+}
+
 // TestParseLexerBracketed tests bracketed identifier lexing.
 func TestParseLexerBracketed(t *testing.T) {
 	l := NewLexer("[my column]")

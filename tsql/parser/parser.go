@@ -791,46 +791,6 @@ func (p *Parser) parseOverClause() *nodes.OverClause {
 	return over
 }
 
-// parseDataType parses a T-SQL data type reference.
-func (p *Parser) parseDataType() *nodes.DataType {
-	loc := p.pos()
-
-	// Get type name - could be keyword (INT, VARCHAR, etc.) or identifier
-	var name string
-	if p.cur.Type == tokIDENT {
-		name = p.cur.Str
-		p.advance()
-	} else {
-		// Many type names are keywords in T-SQL
-		name = p.cur.Str
-		p.advance()
-	}
-
-	dt := &nodes.DataType{
-		Name: name,
-		Loc:  nodes.Loc{Start: loc},
-	}
-
-	// Check for (precision[, scale]) or (MAX)
-	if p.cur.Type == '(' {
-		p.advance()
-		if p.cur.Type == kwMAX {
-			dt.MaxLength = true
-			p.advance()
-		} else {
-			dt.Length = p.parseExpr()
-			if _, ok := p.match(','); ok {
-				dt.Scale = p.parseExpr()
-				dt.Precision = dt.Length
-				dt.Length = nil
-			}
-		}
-		_, _ = p.expect(')')
-	}
-
-	return dt
-}
-
 // advance consumes the current token and moves to the next one.
 func (p *Parser) advance() Token {
 	p.prev = p.cur

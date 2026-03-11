@@ -31,7 +31,7 @@
       "id": 2,
       "name": "types",
       "file": "type.go",
-      "status": "pending",
+      "status": "done",
       "description": "Data types: INT, BIGINT, VARCHAR, NVARCHAR, DECIMAL, DATETIME2, UNIQUEIDENTIFIER, XML, etc.",
       "rules": [
         "data_type", "type_length", "type_precision_scale", "type_max"
