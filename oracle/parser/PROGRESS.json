@@ -1,7 +1,7 @@
 {
   "version": 1,
   "target": "Oracle PL/SQL recursive descent parser",
-  "status": "in_progress",
+  "status": "done",
   "batches": [
     {
       "id": 0,
@@ -677,7 +677,7 @@
       "id": 51,
       "name": "create_table_partitioning",
       "file": "create_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 8 gap: partitioning (PARTITION BY RANGE/LIST/HASH), storage clause, LOB storage are listed in batch 8 rules but implemented only as stubs. Full RANGE/LIST/HASH/COMPOSITE partitioning syntax with VALUES LESS THAN, VALUES, subpartitions.",
       "rules": [
         "partition_by_range", "partition_by_list", "partition_by_hash",
@@ -691,7 +691,7 @@
       "id": 52,
       "name": "alter_index_view_sequence_full",
       "file": "alter_misc.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 17 gap: ALTER INDEX, ALTER VIEW, ALTER SEQUENCE currently use parseAlterGeneric which skips to semicolon and returns a placeholder AlterSessionStmt. Need proper AST nodes and parsing for ALTER INDEX REBUILD/RENAME/MONITORING, ALTER VIEW COMPILE, ALTER SEQUENCE options.",
       "rules": [
         "alter_index_rebuild", "alter_index_rename", "alter_index_monitoring",
@@ -705,7 +705,7 @@
       "id": 53,
       "name": "create_schema",
       "file": "create_admin.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE SCHEMA statement which allows creating multiple tables, views, and grants in a single transaction.",
       "rules": [
         "create_schema_stmt"
@@ -717,7 +717,7 @@
       "id": 54,
       "name": "flashback_database",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "FLASHBACK DATABASE statement: FLASHBACK DATABASE TO {SCN|TIMESTAMP|RESTORE POINT}. Distinct from FLASHBACK TABLE (batch 22).",
       "rules": [
         "flashback_database_stmt"
@@ -729,7 +729,7 @@
       "id": 55,
       "name": "exists_subquery_fix",
       "file": "expr.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 3 gap: EXISTS expression currently skips parenthesized content with a depth counter instead of properly parsing the subquery. Need to parse the inner SELECT statement and store it in ExistsExpr.Subquery. Also fix parseParenExpr to detect and delegate subquery expressions to parseSelectStmt.",
       "rules": [
         "exists_subquery_parse", "paren_subquery_detect"
@@ -741,7 +741,7 @@
       "id": 56,
       "name": "compound_trigger",
       "file": "create_trigger.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 14 gap: compound triggers (BEFORE STATEMENT, BEFORE EACH ROW, AFTER EACH ROW, AFTER STATEMENT sections) and DDL/database event triggers (ON DATABASE/SCHEMA) are listed in batch 14 description but not implemented.",
       "rules": [
         "compound_trigger_body", "compound_trigger_section",
@@ -754,7 +754,7 @@
       "id": 57,
       "name": "stmt_dispatch_extended",
       "file": "parser.go",
-      "status": "pending",
+      "status": "done",
       "description": "Wire up new statement types in parseStmt dispatcher: LOCK TABLE, CALL, RENAME, SET ROLE, SET CONSTRAINTS, AUDIT, NOAUDIT.",
       "rules": ["stmt_dispatch_extended"],
       "depends_on": [34, 35, 36, 37, 38],

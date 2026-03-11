@@ -836,6 +836,7 @@ var oracleKeywords = map[string]int{
 	"JAVA":      kwJAVA,
 	"LIBRARY":   kwLIBRARY,
 	"PROFILE":   kwPROFILE,
+	"SCHEMA":    kwSCHEMA,
 
 	// PL/SQL additional keywords
 	"PIPE": kwPIPE,
@@ -1205,6 +1206,7 @@ const (
 	kwJAVA
 	kwLIBRARY
 	kwPROFILE
+	kwSCHEMA
 
 	// JSON expression keywords
 	kwFORMAT

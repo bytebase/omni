@@ -173,19 +173,32 @@ func (p *Parser) parseSetParam() *nodes.SetParam {
 // object name and skipping the rest (simplified). Returns an AlterSessionStmt
 // as a placeholder — in practice these would have their own AST types, but for
 // now we skip the body to avoid blocking other work.
-func (p *Parser) parseAlterGeneric(start int, _ nodes.ObjectType) nodes.StmtNode {
-	p.advance() // consume INDEX/VIEW/SEQUENCE/TABLE
+func (p *Parser) parseAlterGeneric(start int, objType nodes.ObjectType) nodes.StmtNode {
+	p.advance() // consume INDEX/VIEW/SEQUENCE/etc.
+
+	// For MATERIALIZED VIEW, consume VIEW too
+	if objType == nodes.OBJECT_MATERIALIZED_VIEW && p.cur.Type == kwVIEW {
+		p.advance()
+	}
+	// For DATABASE LINK, consume LINK too
+	if objType == nodes.OBJECT_DATABASE_LINK && p.cur.Type == kwLINK {
+		p.advance()
+	}
+
+	stmt := &nodes.AdminDDLStmt{
+		Action:     "ALTER",
+		ObjectType: objType,
+		Loc:        nodes.Loc{Start: start},
+	}
 
 	// Parse the object name.
-	_ = p.parseObjectName()
+	stmt.Name = p.parseObjectName()
 
 	// Skip remainder of the statement (clauses vary greatly by object type).
 	p.skipToSemicolon()
 
-	// Return a minimal AlterSessionStmt as placeholder.
-	return &nodes.AlterSessionStmt{
-		Loc: nodes.Loc{Start: start, End: p.pos()},
-	}
+	stmt.Loc.End = p.pos()
+	return stmt
 }
 
 // skipToSemicolon advances until a semicolon or EOF is found.

@@ -2036,6 +2036,19 @@ type FlashbackTableStmt struct {
 func (n *FlashbackTableStmt) nodeTag()  {}
 func (n *FlashbackTableStmt) stmtNode() {}
 
+// FlashbackDatabaseStmt represents a FLASHBACK DATABASE statement.
+//
+//	FLASHBACK DATABASE TO { SCN expr | TIMESTAMP expr | RESTORE POINT name }
+type FlashbackDatabaseStmt struct {
+	ToSCN          ExprNode // SCN expression
+	ToTimestamp    ExprNode // TIMESTAMP expression
+	ToRestorePoint string   // RESTORE POINT name
+	Loc            Loc
+}
+
+func (n *FlashbackDatabaseStmt) nodeTag()  {}
+func (n *FlashbackDatabaseStmt) stmtNode() {}
+
 // PurgeStmt represents a PURGE statement.
 type PurgeStmt struct {
 	ObjectType ObjectType  // TABLE, INDEX, RECYCLEBIN, DBA_RECYCLEBIN

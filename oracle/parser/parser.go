@@ -116,6 +116,10 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 	case kwEXPLAIN:
 		return p.parseExplainPlanStmt()
 	case kwFLASHBACK:
+		next := p.peekNext()
+		if next.Type == kwDATABASE {
+			return p.parseFlashbackDatabaseStmt()
+		}
 		return p.parseFlashbackTableStmt()
 	case kwPURGE:
 		return p.parsePurgeStmt()

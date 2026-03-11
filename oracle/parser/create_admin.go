@@ -87,6 +87,9 @@ func (p *Parser) parseCreateAdminObject(start int) nodes.StmtNode {
 	case kwLIBRARY:
 		p.advance()
 		return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_LIBRARY, start)
+	case kwSCHEMA:
+		p.advance()
+		return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_TABLE, start) // reuse TABLE type for SCHEMA
 	default:
 		// DIMENSION, FLASHBACK ARCHIVE handled via identifiers
 		if p.isIdentLike() {

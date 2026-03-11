@@ -80,7 +80,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		return p.parseCreateTriggerStmt(start, orReplace)
 	case kwUSER, kwROLE, kwPROFILE,
 		kwTABLESPACE, kwDIRECTORY, kwCONTEXT,
-		kwCLUSTER, kwJAVA, kwLIBRARY:
+		kwCLUSTER, kwJAVA, kwLIBRARY, kwSCHEMA:
 		return p.parseCreateAdminObject(start)
 	default:
 		// Check for "NO FORCE VIEW"
@@ -618,10 +618,174 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 			p.advance()
 			stmt.Compress = "NOCOMPRESS"
 
+		case kwPARTITION:
+			stmt.Partition = p.parsePartitionClause()
+
 		default:
-			return
+			// Handle LOGGING, NOLOGGING, CACHE, NOCACHE, etc. as identifiers
+			if p.isIdentLike() {
+				switch p.cur.Str {
+				case "LOGGING", "NOLOGGING", "CACHE", "NOCACHE", "MONITORING", "NOMONITORING":
+					p.advance()
+				default:
+					return
+				}
+			} else {
+				return
+			}
 		}
 	}
+}
+
+// parsePartitionClause parses a PARTITION BY clause.
+//
+//	PARTITION BY { RANGE | LIST | HASH } (columns)
+//	    ( partition_def [,...] )
+func (p *Parser) parsePartitionClause() *nodes.PartitionClause {
+	start := p.pos()
+	p.advance() // consume PARTITION
+
+	clause := &nodes.PartitionClause{
+		Columns:    &nodes.List{},
+		Partitions: &nodes.List{},
+		Loc:        nodes.Loc{Start: start},
+	}
+
+	// BY
+	if p.cur.Type == kwBY {
+		p.advance()
+	}
+
+	// RANGE / LIST / HASH
+	switch {
+	case p.isIdentLike() && p.cur.Str == "RANGE":
+		clause.Type = nodes.PARTITION_RANGE
+		p.advance()
+	case p.isIdentLike() && p.cur.Str == "LIST":
+		clause.Type = nodes.PARTITION_LIST
+		p.advance()
+	case p.isIdentLike() && p.cur.Str == "HASH":
+		clause.Type = nodes.PARTITION_HASH
+		p.advance()
+	}
+
+	// (columns)
+	if p.cur.Type == '(' {
+		p.advance()
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			col := p.parseExpr()
+			if col != nil {
+				clause.Columns.Items = append(clause.Columns.Items, col)
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if p.cur.Type == ')' {
+			p.advance()
+		}
+	}
+
+	// Optional SUBPARTITION BY
+	if p.isIdentLike() && p.cur.Str == "SUBPARTITION" {
+		p.advance()
+		if p.cur.Type == kwBY {
+			p.advance()
+		}
+		clause.Subpartition = p.parsePartitionClause()
+	}
+
+	// Partition definitions: ( partition p1 ... [,...] )
+	if p.cur.Type == '(' {
+		p.advance()
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			pDef := p.parsePartitionDef()
+			if pDef != nil {
+				clause.Partitions.Items = append(clause.Partitions.Items, pDef)
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if p.cur.Type == ')' {
+			p.advance()
+		}
+	}
+
+	clause.Loc.End = p.pos()
+	return clause
+}
+
+// parsePartitionDef parses a single partition definition.
+//
+//	PARTITION name VALUES LESS THAN (expr) [TABLESPACE ts]
+//	PARTITION name VALUES (expr [,...]) [TABLESPACE ts]
+func (p *Parser) parsePartitionDef() *nodes.PartitionDef {
+	start := p.pos()
+
+	if p.cur.Type != kwPARTITION {
+		// Skip unknown tokens until , or )
+		for p.cur.Type != ',' && p.cur.Type != ')' && p.cur.Type != tokEOF {
+			p.advance()
+		}
+		return nil
+	}
+	p.advance() // consume PARTITION
+
+	def := &nodes.PartitionDef{
+		Values: &nodes.List{},
+		Loc:    nodes.Loc{Start: start},
+	}
+
+	// Partition name
+	if p.isIdentLike() {
+		def.Name = p.cur.Str
+		p.advance()
+	}
+
+	// VALUES LESS THAN (expr) or VALUES (expr,...)
+	if p.isIdentLike() && p.cur.Str == "VALUES" {
+		p.advance()
+		if p.isIdentLike() && p.cur.Str == "LESS" {
+			p.advance()
+			if p.isIdentLike() && p.cur.Str == "THAN" {
+				p.advance()
+			}
+		}
+		// (expr [,...])
+		if p.cur.Type == '(' {
+			p.advance()
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				val := p.parseExpr()
+				if val != nil {
+					def.Values.Items = append(def.Values.Items, val)
+				}
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+			}
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		}
+	}
+
+	// TABLESPACE
+	if p.cur.Type == kwTABLESPACE {
+		p.advance()
+		def.Tablespace = p.parseIdentifier()
+	}
+
+	// Skip any remaining options (LOGGING, etc.) until , or )
+	for p.cur.Type != ',' && p.cur.Type != ')' && p.cur.Type != tokEOF {
+		p.advance()
+	}
+
+	def.Loc.End = p.pos()
+	return def
 }
 
 // parseOnCommitAction parses the action after ON COMMIT.

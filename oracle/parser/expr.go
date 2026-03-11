@@ -777,7 +777,18 @@ func (p *Parser) parseParenExpr() nodes.ExprNode {
 	start := p.pos()
 	p.advance() // consume '('
 
-	// For now, parse as expression (subquery handling will come in batch 4)
+	// Detect scalar subquery: (SELECT ...)
+	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+		sub := p.parseSelectStmt()
+		if p.cur.Type == ')' {
+			p.advance()
+		}
+		return &nodes.SubqueryExpr{
+			Subquery: sub,
+			Loc:      nodes.Loc{Start: start, End: p.pos()},
+		}
+	}
+
 	inner := p.parseExpr()
 
 	if p.cur.Type == ')' {
@@ -932,31 +943,23 @@ func (p *Parser) parseExistsExpr() nodes.ExprNode {
 	start := p.pos()
 	p.advance() // consume EXISTS
 
-	// For now, just consume the parenthesized content
-	// Full subquery parsing comes in batch 4
+	expr := &nodes.ExistsExpr{
+		Loc: nodes.Loc{Start: start},
+	}
+
 	if p.cur.Type == '(' {
 		p.advance()
-		// Skip to closing paren (placeholder until SELECT is implemented)
-		depth := 1
-		for depth > 0 && p.cur.Type != tokEOF {
-			if p.cur.Type == '(' {
-				depth++
-			} else if p.cur.Type == ')' {
-				depth--
-				if depth == 0 {
-					break
-				}
-			}
-			p.advance()
+		// Parse the inner SELECT statement
+		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+			expr.Subquery = p.parseSelectStmt()
 		}
 		if p.cur.Type == ')' {
 			p.advance()
 		}
 	}
 
-	return &nodes.ExistsExpr{
-		Loc: nodes.Loc{Start: start, End: p.pos()},
-	}
+	expr.Loc.End = p.pos()
+	return expr
 }
 
 // parsePostfix parses postfix expression operators: IS, BETWEEN, IN, LIKE, NOT BETWEEN/IN/LIKE.

@@ -377,6 +377,50 @@ func (p *Parser) parseFlashbackTableStmt() nodes.StmtNode {
 	return stmt
 }
 
+// parseFlashbackDatabaseStmt parses a FLASHBACK DATABASE statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/FLASHBACK-DATABASE.html
+//
+//	FLASHBACK DATABASE TO { SCN expr | TIMESTAMP expr | RESTORE POINT name }
+func (p *Parser) parseFlashbackDatabaseStmt() nodes.StmtNode {
+	start := p.pos()
+	p.advance() // consume FLASHBACK
+	p.advance() // consume DATABASE
+
+	stmt := &nodes.FlashbackDatabaseStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// TO
+	if p.cur.Type == kwTO {
+		p.advance()
+	}
+
+	switch p.cur.Type {
+	case kwSCN:
+		p.advance()
+		stmt.ToSCN = p.parseExpr()
+	case kwTIMESTAMP:
+		p.advance()
+		stmt.ToTimestamp = p.parseExpr()
+	default:
+		// RESTORE POINT name
+		if p.isIdentLike() && p.cur.Str == "RESTORE" {
+			p.advance()
+			if p.isIdentLike() && p.cur.Str == "POINT" {
+				p.advance()
+			}
+			if p.isIdentLike() {
+				stmt.ToRestorePoint = p.cur.Str
+				p.advance()
+			}
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
 // parsePurgeStmt parses a PURGE statement.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/PURGE.html

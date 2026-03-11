@@ -109,9 +109,9 @@ func TestParseAlterIndex(t *testing.T) {
 		t.Fatalf("expected 1 statement, got %d", result.Len())
 	}
 	raw := result.Items[0].(*ast.RawStmt)
-	_, ok := raw.Stmt.(*ast.AlterSessionStmt)
+	_, ok := raw.Stmt.(*ast.AdminDDLStmt)
 	if !ok {
-		t.Fatalf("expected AlterSessionStmt (placeholder), got %T", raw.Stmt)
+		t.Fatalf("expected AdminDDLStmt, got %T", raw.Stmt)
 	}
 }
 

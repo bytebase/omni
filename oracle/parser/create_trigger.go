@@ -30,7 +30,7 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace bool) *nodes.Create
 	// Trigger name
 	stmt.Name = p.parseObjectName()
 
-	// Timing: BEFORE | AFTER | INSTEAD OF
+	// Timing: BEFORE | AFTER | INSTEAD OF | FOR (compound trigger)
 	switch p.cur.Type {
 	case kwBEFORE:
 		stmt.Timing = nodes.TRIGGER_BEFORE
@@ -44,9 +44,12 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace bool) *nodes.Create
 		if p.cur.Type == kwOF {
 			p.advance() // consume OF
 		}
+	case kwFOR:
+		// Compound trigger syntax: FOR dml_event ON table COMPOUND TRIGGER
+		p.advance() // consume FOR
 	}
 
-	// Events: INSERT | UPDATE [OF col, ...] | DELETE
+	// Events: INSERT | UPDATE [OF col, ...] | DELETE | DDL events (CREATE, ALTER, DROP, etc.)
 	// separated by OR
 	p.parseTriggerEvent(stmt)
 	for p.cur.Type == kwOR {
@@ -54,10 +57,18 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace bool) *nodes.Create
 		p.parseTriggerEvent(stmt)
 	}
 
-	// ON [schema.]table_name
+	// ON [schema.]table_name | ON DATABASE | ON SCHEMA
 	if p.cur.Type == kwON {
 		p.advance() // consume ON
-		stmt.Table = p.parseObjectName()
+		if p.cur.Type == kwDATABASE {
+			stmt.Table = &nodes.ObjectName{Name: "DATABASE"}
+			p.advance()
+		} else if p.isIdentLikeStr("SCHEMA") {
+			stmt.Table = &nodes.ObjectName{Name: "SCHEMA"}
+			p.advance()
+		} else {
+			stmt.Table = p.parseObjectName()
+		}
 	}
 
 	// Optional: FOR EACH ROW
@@ -93,6 +104,37 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace bool) *nodes.Create
 		p.advance()
 	}
 
+	// Compound trigger: FOR ... ON tbl COMPOUND TRIGGER ... END trigger_name;
+	if p.cur.Type == kwCOMPOUND {
+		p.advance() // consume COMPOUND
+		if p.cur.Type == kwTRIGGER {
+			p.advance() // consume TRIGGER
+		}
+		stmt.Compound = true
+		// Skip compound trigger body to matching END trigger_name;
+		// Track BEGIN/END depth to handle nested blocks.
+		depth := 0
+		for p.cur.Type != tokEOF {
+			if p.cur.Type == kwBEGIN {
+				depth++
+			} else if p.cur.Type == kwEND {
+				if depth > 0 {
+					depth--
+				} else {
+					// Outer END — consume END, optional name, done.
+					p.advance() // consume END
+					if p.isIdentLike() {
+						p.advance() // consume trigger name
+					}
+					break
+				}
+			}
+			p.advance()
+		}
+		stmt.Loc.End = p.pos()
+		return stmt
+	}
+
 	// Body: CALL routine_name | plsql_block
 	if p.isIdentLikeStr("CALL") {
 		p.advance() // consume CALL
@@ -110,7 +152,10 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace bool) *nodes.Create
 	return stmt
 }
 
-// parseTriggerEvent parses a single trigger event: INSERT | UPDATE [OF col, ...] | DELETE.
+// parseTriggerEvent parses a single trigger event:
+//
+//	DML: INSERT | UPDATE [OF col, ...] | DELETE
+//	DDL: CREATE | ALTER | DROP | TRUNCATE | GRANT | REVOKE | LOGON | LOGOFF | ...
 func (p *Parser) parseTriggerEvent(stmt *nodes.CreateTriggerStmt) {
 	switch p.cur.Type {
 	case kwINSERT:
@@ -134,5 +179,15 @@ func (p *Parser) parseTriggerEvent(stmt *nodes.CreateTriggerStmt) {
 	case kwDELETE:
 		p.advance()
 		stmt.Events.Items = append(stmt.Events.Items, &nodes.Integer{Ival: int64(nodes.TRIGGER_DELETE)})
+	default:
+		// DDL/database events: CREATE, ALTER, DROP, TRUNCATE, GRANT, REVOKE, etc.
+		// Store as a string in a ColumnRef node for now.
+		if p.isIdentLike() || p.cur.Type == kwCREATE || p.cur.Type == kwALTER ||
+			p.cur.Type == kwDROP || p.cur.Type == kwTRUNCATE ||
+			p.cur.Type == kwGRANT || p.cur.Type == kwREVOKE {
+			evtName := p.cur.Str
+			p.advance()
+			stmt.Events.Items = append(stmt.Events.Items, &nodes.ColumnRef{Column: evtName})
+		}
 	}
 }

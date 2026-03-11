@@ -298,6 +298,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeExplainPlanStmt(sb, n)
 	case *FlashbackTableStmt:
 		writeFlashbackTableStmt(sb, n)
+	case *FlashbackDatabaseStmt:
+		writeFlashbackDatabaseStmt(sb, n)
 	case *PurgeStmt:
 		writePurgeStmt(sb, n)
 	case *LockTableStmt:
@@ -2639,6 +2641,23 @@ func writeFlashbackTableStmt(sb *strings.Builder, n *FlashbackTableStmt) {
 	}
 	if n.Rename != "" {
 		sb.WriteString(fmt.Sprintf(" :rename %q", n.Rename))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeFlashbackDatabaseStmt(sb *strings.Builder, n *FlashbackDatabaseStmt) {
+	sb.WriteString("{FLASHBACKDATABASE")
+	if n.ToSCN != nil {
+		sb.WriteString(" :toSCN ")
+		writeNode(sb, n.ToSCN)
+	}
+	if n.ToTimestamp != nil {
+		sb.WriteString(" :toTimestamp ")
+		writeNode(sb, n.ToTimestamp)
+	}
+	if n.ToRestorePoint != "" {
+		sb.WriteString(fmt.Sprintf(" :toRestorePoint %q", n.ToRestorePoint))
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

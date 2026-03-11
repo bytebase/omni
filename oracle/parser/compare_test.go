@@ -1162,3 +1162,154 @@ func TestParsePLSQLCall(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Batch 51: CREATE TABLE partitioning
+// ---------------------------------------------------------------------------
+
+func TestParseCreateTablePartition(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE sales (id NUMBER, sale_date DATE) PARTITION BY RANGE (sale_date) (PARTITION p1 VALUES LESS THAN (1000), PARTITION p2 VALUES LESS THAN (MAXVALUE));",
+		"CREATE TABLE regions (id NUMBER, region VARCHAR2(50)) PARTITION BY LIST (region) (PARTITION p_east VALUES ('East'), PARTITION p_west VALUES ('West'));",
+		"CREATE TABLE logs (id NUMBER) PARTITION BY HASH (id) (PARTITION p1, PARTITION p2, PARTITION p3);",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Batch 52: ALTER INDEX/VIEW/SEQUENCE full
+// ---------------------------------------------------------------------------
+
+func TestParseAlterIndexFull(t *testing.T) {
+	tests := []string{
+		"ALTER INDEX idx_emp REBUILD;",
+		"ALTER INDEX hr.idx_emp RENAME TO idx_emp_new;",
+		"ALTER INDEX idx_emp MONITORING USAGE;",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseAlterViewFull(t *testing.T) {
+	tests := []string{
+		"ALTER VIEW emp_view COMPILE;",
+		"ALTER VIEW hr.emp_view ADD CONSTRAINT pk_view PRIMARY KEY (id) DISABLE NOVALIDATE;",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseAlterSequenceFull(t *testing.T) {
+	tests := []string{
+		"ALTER SEQUENCE emp_seq INCREMENT BY 5 MAXVALUE 10000;",
+		"ALTER SEQUENCE hr.emp_seq NOCACHE NOCYCLE;",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Batch 53: CREATE SCHEMA
+// ---------------------------------------------------------------------------
+
+func TestParseCreateSchema(t *testing.T) {
+	tests := []string{
+		"CREATE SCHEMA AUTHORIZATION hr;",
+		"CREATE SCHEMA AUTHORIZATION hr CREATE TABLE t1 (id NUMBER); CREATE VIEW v1 AS SELECT 1 FROM dual;",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Batch 54: FLASHBACK DATABASE
+// ---------------------------------------------------------------------------
+
+func TestParseFlashbackDatabase(t *testing.T) {
+	tests := []string{
+		"FLASHBACK DATABASE TO SCN 12345;",
+		"FLASHBACK DATABASE TO TIMESTAMP SYSTIMESTAMP - 1;",
+		"FLASHBACK DATABASE TO RESTORE POINT before_upgrade;",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Batch 55: EXISTS subquery + scalar subquery in parens
+// ---------------------------------------------------------------------------
+
+func TestParseExistsSubquery(t *testing.T) {
+	tests := []string{
+		"SELECT 1 FROM dual WHERE EXISTS (SELECT 1 FROM emp);",
+		"SELECT 1 FROM dual WHERE NOT EXISTS (SELECT id FROM dept WHERE dept.id = 1);",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseScalarSubquery(t *testing.T) {
+	tests := []string{
+		"SELECT (SELECT MAX(salary) FROM emp) AS max_sal FROM dual;",
+		"SELECT e.name, (SELECT d.name FROM dept d WHERE d.id = e.dept_id) FROM emp e;",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Batch 56: Compound trigger + DDL trigger
+// ---------------------------------------------------------------------------
+
+func TestParseCompoundTrigger(t *testing.T) {
+	tests := []string{
+		`CREATE OR REPLACE TRIGGER trg_audit
+  FOR INSERT OR UPDATE ON employees
+  COMPOUND TRIGGER
+  BEFORE STATEMENT IS BEGIN NULL; END BEFORE STATEMENT;
+  AFTER EACH ROW IS BEGIN NULL; END AFTER EACH ROW;
+  END trg_audit;`,
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseDDLTrigger(t *testing.T) {
+	tests := []string{
+		"CREATE OR REPLACE TRIGGER trg_ddl AFTER CREATE ON DATABASE BEGIN NULL; END;",
+		"CREATE TRIGGER trg_logon AFTER LOGON ON DATABASE BEGIN NULL; END;",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
