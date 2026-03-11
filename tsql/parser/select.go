@@ -77,7 +77,7 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 	if p.cur.Type == kwGROUP {
 		p.advance()
 		if _, err := p.expect(kwBY); err == nil {
-			stmt.GroupByClause = p.parseExprList()
+			stmt.GroupByClause = p.parseGroupByList()
 		}
 	}
 
@@ -398,13 +398,20 @@ func (p *Parser) parsePrimaryTableSource() nodes.TableExpr {
 		// Alias
 		alias := p.parseOptionalAlias()
 		if alias != "" {
-			return &nodes.AliasedTableRef{
+			result := &nodes.AliasedTableRef{
 				Table: subExpr,
 				Alias: alias,
 				Loc:   nodes.Loc{Start: loc},
 			}
+			return p.parsePivotUnpivot(result)
 		}
-		return subExpr
+		return p.parsePivotUnpivot(subExpr)
+	}
+
+	// Rowset functions: OPENROWSET, OPENQUERY, OPENJSON, OPENDATASOURCE, OPENXML
+	if p.cur.Type == kwOPENROWSET || p.cur.Type == kwOPENQUERY || p.cur.Type == kwOPENJSON ||
+		p.cur.Type == kwOPENDATASOURCE || p.cur.Type == kwOPENXML {
+		return p.parseRowsetFunction()
 	}
 
 	// Table reference
@@ -415,7 +422,23 @@ func (p *Parser) parsePrimaryTableSource() nodes.TableExpr {
 
 	// Check if this is a function call (table-valued function)
 	if p.cur.Type == '(' {
-		return p.parseTableValuedFunction(ref)
+		return p.parsePivotUnpivot(p.parseTableValuedFunction(ref))
+	}
+
+	// TABLESAMPLE
+	if p.cur.Type == kwTABLESAMPLE {
+		ts := p.parseTableSampleClause()
+		alias := p.parseOptionalAlias()
+		if alias != "" {
+			ref.Alias = alias
+		}
+		result := &nodes.AliasedTableRef{
+			Table:       ref,
+			Alias:       ref.Alias,
+			TableSample: ts,
+			Loc:         ref.Loc,
+		}
+		return p.parsePivotUnpivot(result)
 	}
 
 	// Alias
@@ -424,7 +447,158 @@ func (p *Parser) parsePrimaryTableSource() nodes.TableExpr {
 		ref.Alias = alias
 	}
 
-	return ref
+	return p.parsePivotUnpivot(ref)
+}
+
+// parsePivotUnpivot checks for and parses PIVOT or UNPIVOT after a table source.
+func (p *Parser) parsePivotUnpivot(source nodes.TableExpr) nodes.TableExpr {
+	if p.cur.Type == kwPIVOT {
+		return p.parsePivotExpr(source)
+	}
+	if p.cur.Type == kwUNPIVOT {
+		return p.parseUnpivotExpr(source)
+	}
+	return source
+}
+
+// parsePivotExpr parses PIVOT (agg_func(col) FOR pivot_col IN ([v1],[v2],...)) AS alias.
+func (p *Parser) parsePivotExpr(source nodes.TableExpr) *nodes.PivotExpr {
+	loc := p.pos()
+	p.advance() // consume PIVOT
+
+	pivot := &nodes.PivotExpr{
+		Source: source,
+		Loc:    nodes.Loc{Start: loc},
+	}
+
+	if _, err := p.expect('('); err != nil {
+		return pivot
+	}
+
+	// Parse aggregate function call
+	pivot.AggFunc = p.parseExpr()
+
+	// FOR column
+	if _, ok := p.match(kwFOR); ok {
+		if name, ok := p.parseIdentifier(); ok {
+			pivot.ForCol = name
+		}
+	}
+
+	// IN ([v1], [v2], ...)
+	if _, ok := p.match(kwIN); ok {
+		if _, err := p.expect('('); err == nil {
+			var vals []nodes.Node
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				if name, ok := p.parseIdentifier(); ok {
+					vals = append(vals, &nodes.String{Str: name})
+				}
+				if _, ok := p.match(','); !ok {
+					break
+				}
+			}
+			_, _ = p.expect(')')
+			pivot.InValues = &nodes.List{Items: vals}
+		}
+	}
+
+	_, _ = p.expect(')') // closing paren of PIVOT(...)
+
+	// AS alias
+	alias := p.parseOptionalAlias()
+	pivot.Alias = alias
+
+	pivot.Loc.End = p.pos()
+	return pivot
+}
+
+// parseUnpivotExpr parses UNPIVOT (value_col FOR pivot_col IN ([c1],[c2],...)) AS alias.
+func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) *nodes.UnpivotExpr {
+	loc := p.pos()
+	p.advance() // consume UNPIVOT
+
+	unpivot := &nodes.UnpivotExpr{
+		Source: source,
+		Loc:    nodes.Loc{Start: loc},
+	}
+
+	if _, err := p.expect('('); err != nil {
+		return unpivot
+	}
+
+	// value column name
+	if name, ok := p.parseIdentifier(); ok {
+		unpivot.ValueCol = name
+	}
+
+	// FOR column
+	if _, ok := p.match(kwFOR); ok {
+		if name, ok := p.parseIdentifier(); ok {
+			unpivot.ForCol = name
+		}
+	}
+
+	// IN ([c1], [c2], ...)
+	if _, ok := p.match(kwIN); ok {
+		if _, err := p.expect('('); err == nil {
+			var cols []nodes.Node
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				if name, ok := p.parseIdentifier(); ok {
+					cols = append(cols, &nodes.String{Str: name})
+				}
+				if _, ok := p.match(','); !ok {
+					break
+				}
+			}
+			_, _ = p.expect(')')
+			unpivot.InCols = &nodes.List{Items: cols}
+		}
+	}
+
+	_, _ = p.expect(')') // closing paren of UNPIVOT(...)
+
+	// AS alias
+	alias := p.parseOptionalAlias()
+	unpivot.Alias = alias
+
+	unpivot.Loc.End = p.pos()
+	return unpivot
+}
+
+// parseTableSampleClause parses TABLESAMPLE (size PERCENT|ROWS) [REPEATABLE (seed)].
+func (p *Parser) parseTableSampleClause() *nodes.TableSampleClause {
+	loc := p.pos()
+	p.advance() // consume TABLESAMPLE
+
+	ts := &nodes.TableSampleClause{
+		Loc: nodes.Loc{Start: loc},
+	}
+
+	if _, err := p.expect('('); err != nil {
+		return ts
+	}
+
+	ts.Size = p.parseExpr()
+
+	// PERCENT or ROWS
+	if _, ok := p.match(kwPERCENT); ok {
+		ts.Unit = "PERCENT"
+	} else if _, ok := p.match(kwROWS); ok {
+		ts.Unit = "ROWS"
+	}
+
+	_, _ = p.expect(')')
+
+	// REPEATABLE (seed)
+	if p.matchIdentCI("REPEATABLE") {
+		if _, err := p.expect('('); err == nil {
+			ts.Repeatable = p.parseExpr()
+			_, _ = p.expect(')')
+		}
+	}
+
+	ts.Loc.End = p.pos()
+	return ts
 }
 
 // parseTableValuedFunction parses a table-valued function call after the name.
@@ -584,6 +758,115 @@ func (p *Parser) parseExprList() *nodes.List {
 		}
 	}
 	return &nodes.List{Items: items}
+}
+
+// parseGroupByList parses a GROUP BY list which may contain GROUPING SETS, ROLLUP, CUBE.
+func (p *Parser) parseGroupByList() *nodes.List {
+	var items []nodes.Node
+	for {
+		// GROUPING SETS (...)
+		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "GROUPING") {
+			next := p.peekNext()
+			if next.Type == tokIDENT && strings.EqualFold(next.Str, "SETS") {
+				loc := p.pos()
+				p.advance() // consume GROUPING
+				p.advance() // consume SETS
+				if _, err := p.expect('('); err == nil {
+					var sets []nodes.Node
+					for p.cur.Type != ')' && p.cur.Type != tokEOF {
+						set := p.parseGroupingSet()
+						sets = append(sets, set)
+						if _, ok := p.match(','); !ok {
+							break
+						}
+					}
+					_, _ = p.expect(')')
+					items = append(items, &nodes.GroupingSetsExpr{
+						Sets: &nodes.List{Items: sets},
+						Loc:  nodes.Loc{Start: loc, End: p.pos()},
+					})
+				}
+				if _, ok := p.match(','); !ok {
+					break
+				}
+				continue
+			}
+		}
+		// ROLLUP (...)
+		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "ROLLUP") {
+			loc := p.pos()
+			p.advance() // consume ROLLUP
+			if _, err := p.expect('('); err == nil {
+				args := p.parseExprList()
+				_, _ = p.expect(')')
+				items = append(items, &nodes.RollupExpr{
+					Args: args,
+					Loc:  nodes.Loc{Start: loc, End: p.pos()},
+				})
+			}
+			if _, ok := p.match(','); !ok {
+				break
+			}
+			continue
+		}
+		// CUBE (...)
+		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "CUBE") {
+			loc := p.pos()
+			p.advance() // consume CUBE
+			if _, err := p.expect('('); err == nil {
+				args := p.parseExprList()
+				_, _ = p.expect(')')
+				items = append(items, &nodes.CubeExpr{
+					Args: args,
+					Loc:  nodes.Loc{Start: loc, End: p.pos()},
+				})
+			}
+			if _, ok := p.match(','); !ok {
+				break
+			}
+			continue
+		}
+		// Regular expression
+		expr := p.parseExpr()
+		if expr == nil {
+			break
+		}
+		items = append(items, expr)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	return &nodes.List{Items: items}
+}
+
+// parseGroupingSet parses a single grouping set: () or (expr, expr, ...) or just expr.
+func (p *Parser) parseGroupingSet() *nodes.List {
+	if p.cur.Type == '(' {
+		p.advance()
+		if p.cur.Type == ')' {
+			// Empty set ()
+			p.advance()
+			return &nodes.List{Items: nil}
+		}
+		var items []nodes.Node
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			expr := p.parseExpr()
+			if expr != nil {
+				items = append(items, expr)
+			}
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+		_, _ = p.expect(')')
+		return &nodes.List{Items: items}
+	}
+	// Single expression as a set
+	expr := p.parseExpr()
+	if expr != nil {
+		return &nodes.List{Items: []nodes.Node{expr}}
+	}
+	return &nodes.List{Items: nil}
 }
 
 // parseOrderByList parses ORDER BY items.

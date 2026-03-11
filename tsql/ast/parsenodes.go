@@ -1367,10 +1367,11 @@ const (
 
 // AliasedTableRef represents a table reference with optional alias.
 type AliasedTableRef struct {
-	Table   TableExpr // TableRef, SubqueryExpr, etc.
-	Alias   string
-	Columns *List // alias column list
-	Loc     Loc
+	Table       TableExpr           // TableRef, SubqueryExpr, etc.
+	Alias       string
+	Columns     *List               // alias column list
+	TableSample *TableSampleClause  // optional TABLESAMPLE clause
+	Loc         Loc
 }
 
 func (n *AliasedTableRef) nodeTag()   {}
@@ -2023,3 +2024,72 @@ type MethodCallExpr struct {
 
 func (n *MethodCallExpr) nodeTag()  {}
 func (n *MethodCallExpr) exprNode() {}
+
+// ---------- Batch 35: PIVOT/UNPIVOT ----------
+
+// PivotExpr represents a PIVOT operation.
+type PivotExpr struct {
+	Source   TableExpr // source table
+	AggFunc  ExprNode  // aggregate function call (e.g., SUM(Amount))
+	ForCol   string    // FOR column name
+	InValues *List     // IN list of column values (as String nodes)
+	Alias    string
+	Loc      Loc
+}
+
+func (n *PivotExpr) nodeTag()   {}
+func (n *PivotExpr) tableExpr() {}
+
+// UnpivotExpr represents an UNPIVOT operation.
+type UnpivotExpr struct {
+	Source   TableExpr // source table
+	ValueCol string    // value column name
+	ForCol   string    // FOR column name
+	InCols   *List     // IN list of column names (as String nodes)
+	Alias    string
+	Loc      Loc
+}
+
+func (n *UnpivotExpr) nodeTag()   {}
+func (n *UnpivotExpr) tableExpr() {}
+
+// ---------- Batch 36: TABLESAMPLE ----------
+
+// TableSampleClause represents TABLESAMPLE on a table reference.
+type TableSampleClause struct {
+	Size       ExprNode // sample size expression
+	Unit       string   // "PERCENT" or "ROWS"
+	Repeatable ExprNode // REPEATABLE seed (optional)
+	Loc        Loc
+}
+
+func (n *TableSampleClause) nodeTag() {}
+
+// ---------- Batch 38: GROUPING SETS/CUBE/ROLLUP ----------
+
+// GroupingSetsExpr represents GROUPING SETS (...) in GROUP BY.
+type GroupingSetsExpr struct {
+	Sets *List // list of *List (each set is a list of expressions)
+	Loc  Loc
+}
+
+func (n *GroupingSetsExpr) nodeTag()  {}
+func (n *GroupingSetsExpr) exprNode() {}
+
+// RollupExpr represents ROLLUP (...) in GROUP BY.
+type RollupExpr struct {
+	Args *List
+	Loc  Loc
+}
+
+func (n *RollupExpr) nodeTag()  {}
+func (n *RollupExpr) exprNode() {}
+
+// CubeExpr represents CUBE (...) in GROUP BY.
+type CubeExpr struct {
+	Args *List
+	Loc  Loc
+}
+
+func (n *CubeExpr) nodeTag()  {}
+func (n *CubeExpr) exprNode() {}

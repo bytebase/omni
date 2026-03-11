@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/bytebase/omni/tsql/ast"
@@ -1080,6 +1081,164 @@ func TestParseSelect(t *testing.T) {
 					t.Error("expected ForJSON mode")
 				}
 			})
+		}
+	})
+
+	t.Run("pivot", func(t *testing.T) {
+		tests := []string{
+			"SELECT * FROM Sales PIVOT (SUM(Amount) FOR Month IN ([Jan],[Feb],[Mar])) AS pvt",
+			"SELECT * FROM t PIVOT (COUNT(val) FOR category IN ([A],[B])) AS p",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				if stmt.FromClause == nil || stmt.FromClause.Len() == 0 {
+					t.Error("expected non-empty FromClause")
+				}
+				_, ok := stmt.FromClause.Items[0].(*ast.PivotExpr)
+				if !ok {
+					t.Errorf("expected *PivotExpr in FROM, got %T", stmt.FromClause.Items[0])
+				}
+			})
+		}
+	})
+
+	t.Run("unpivot", func(t *testing.T) {
+		sql := "SELECT * FROM t UNPIVOT (val FOR col IN ([Jan],[Feb],[Mar])) AS unpvt"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.FromClause == nil || stmt.FromClause.Len() == 0 {
+			t.Error("expected non-empty FromClause")
+		}
+		unpvt, ok := stmt.FromClause.Items[0].(*ast.UnpivotExpr)
+		if !ok {
+			t.Errorf("expected *UnpivotExpr in FROM, got %T", stmt.FromClause.Items[0])
+		}
+		if unpvt.ValueCol != "val" {
+			t.Errorf("expected ValueCol=val, got %s", unpvt.ValueCol)
+		}
+		if unpvt.ForCol != "col" {
+			t.Errorf("expected ForCol=col, got %s", unpvt.ForCol)
+		}
+		if unpvt.Alias != "unpvt" {
+			t.Errorf("expected Alias=unpvt, got %s", unpvt.Alias)
+		}
+	})
+
+	t.Run("tablesample", func(t *testing.T) {
+		tests := []string{
+			"SELECT * FROM t TABLESAMPLE (10 PERCENT)",
+			"SELECT * FROM t TABLESAMPLE (100 ROWS)",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				if stmt.FromClause == nil || stmt.FromClause.Len() == 0 {
+					t.Error("expected non-empty FromClause")
+				}
+				atr, ok := stmt.FromClause.Items[0].(*ast.AliasedTableRef)
+				if !ok {
+					t.Errorf("expected *AliasedTableRef in FROM, got %T", stmt.FromClause.Items[0])
+					return
+				}
+				if atr.TableSample == nil {
+					t.Error("expected non-nil TableSample")
+				}
+			})
+		}
+	})
+
+	t.Run("tablesample repeatable", func(t *testing.T) {
+		sql := "SELECT * FROM t TABLESAMPLE (100 ROWS) REPEATABLE (42)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		atr, ok := stmt.FromClause.Items[0].(*ast.AliasedTableRef)
+		if !ok {
+			t.Fatalf("expected *AliasedTableRef, got %T", stmt.FromClause.Items[0])
+		}
+		if atr.TableSample == nil {
+			t.Fatal("expected non-nil TableSample")
+		}
+		if atr.TableSample.Repeatable == nil {
+			t.Error("expected non-nil Repeatable")
+		}
+		if atr.TableSample.Unit != "ROWS" {
+			t.Errorf("expected Unit=ROWS, got %s", atr.TableSample.Unit)
+		}
+	})
+
+	t.Run("rowset functions", func(t *testing.T) {
+		tests := []string{
+			"SELECT * FROM OPENROWSET('SQLNCLI', 'server=srv', 'SELECT 1') AS t",
+			"SELECT * FROM OPENQUERY(LinkedServer, 'SELECT 1') AS t",
+			"SELECT * FROM OPENJSON(@json) AS t",
+			"SELECT * FROM OPENXML(@hdoc, '/root/row') AS t",
+			"SELECT * FROM OPENDATASOURCE('SQLNCLI', 'Data Source=srv') AS t",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				if stmt.FromClause == nil || stmt.FromClause.Len() == 0 {
+					t.Error("expected non-empty FromClause")
+				}
+			})
+		}
+	})
+
+	t.Run("openjson with", func(t *testing.T) {
+		sql := "SELECT * FROM OPENJSON(@json) WITH (name NVARCHAR(100), age INT) AS t"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.FromClause == nil || stmt.FromClause.Len() == 0 {
+			t.Error("expected non-empty FromClause")
+		}
+	})
+
+	t.Run("grouping sets", func(t *testing.T) {
+		sql := "SELECT col1, col2, SUM(val) FROM t GROUP BY GROUPING SETS ((col1), (col1, col2), ())"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.GroupByClause == nil {
+			t.Fatal("expected non-nil GroupByClause")
+		}
+		if stmt.GroupByClause.Len() != 1 {
+			t.Fatalf("expected 1 group by item, got %d", stmt.GroupByClause.Len())
+		}
+		gs, ok := stmt.GroupByClause.Items[0].(*ast.GroupingSetsExpr)
+		if !ok {
+			t.Fatalf("expected *GroupingSetsExpr, got %T", stmt.GroupByClause.Items[0])
+		}
+		if gs.Sets == nil || gs.Sets.Len() != 3 {
+			t.Errorf("expected 3 sets, got %v", gs.Sets)
+		}
+	})
+
+	t.Run("rollup", func(t *testing.T) {
+		sql := "SELECT col1, col2, SUM(val) FROM t GROUP BY ROLLUP (col1, col2)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.GroupByClause == nil {
+			t.Fatal("expected non-nil GroupByClause")
+		}
+		_, ok := stmt.GroupByClause.Items[0].(*ast.RollupExpr)
+		if !ok {
+			t.Fatalf("expected *RollupExpr, got %T", stmt.GroupByClause.Items[0])
+		}
+	})
+
+	t.Run("cube", func(t *testing.T) {
+		sql := "SELECT col1, col2, SUM(val) FROM t GROUP BY CUBE (col1, col2)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.GroupByClause == nil {
+			t.Fatal("expected non-nil GroupByClause")
+		}
+		_, ok := stmt.GroupByClause.Items[0].(*ast.CubeExpr)
+		if !ok {
+			t.Fatalf("expected *CubeExpr, got %T", stmt.GroupByClause.Items[0])
 		}
 	})
 }
@@ -3644,6 +3803,130 @@ func TestParseDropExtended(t *testing.T) {
 				t.Errorf("Parse(%q): ObjectType = %v, want %v", tt.sql, stmt.ObjectType, tt.dropType)
 			}
 			checkLocation(t, tt.sql, "DropStmt", stmt.Loc)
+		})
+	}
+}
+
+// TestParseStmtDispatchPhase2 is the integration test for batch 49.
+// It parses multi-statement T-SQL scripts combining statements from all batches
+// and verifies that each statement is parsed to the correct AST node type.
+func TestParseStmtDispatchPhase2(t *testing.T) {
+	tests := []struct {
+		name      string
+		sql       string
+		stmtCount int
+		stmtTypes []string // expected type names
+	}{
+		{
+			name: "multi_statement_ddl",
+			sql: `CREATE TABLE dbo.Orders (id INT PRIMARY KEY, amount DECIMAL(10,2));
+CREATE INDEX IX_Orders ON dbo.Orders (amount);
+CREATE VIEW dbo.vOrders AS SELECT * FROM dbo.Orders;
+ALTER TABLE dbo.Orders ADD status INT;
+DROP INDEX IX_Orders ON dbo.Orders;`,
+			stmtCount: 5,
+			stmtTypes: []string{
+				"*ast.CreateTableStmt",
+				"*ast.CreateIndexStmt",
+				"*ast.CreateViewStmt",
+				"*ast.AlterTableStmt",
+				"*ast.DropStmt",
+			},
+		},
+		{
+			name: "multi_statement_dml",
+			sql: `INSERT INTO dbo.Orders (id, amount) VALUES (1, 100.00);
+UPDATE dbo.Orders SET amount = 200.00 WHERE id = 1;
+DELETE FROM dbo.Orders WHERE id = 1;
+MERGE dbo.Orders AS t USING dbo.Staging AS s ON t.id = s.id WHEN MATCHED THEN UPDATE SET amount = s.amount;`,
+			stmtCount: 4,
+			stmtTypes: []string{
+				"*ast.InsertStmt",
+				"*ast.UpdateStmt",
+				"*ast.DeleteStmt",
+				"*ast.MergeStmt",
+			},
+		},
+		{
+			name: "control_flow_and_variables",
+			sql: `DECLARE @x INT = 10;
+SET @x = 20;
+IF @x > 0 SELECT @x;
+WHILE @x > 0 SET @x = @x - 1;
+BEGIN TRY SELECT 1 END TRY BEGIN CATCH SELECT 0 END CATCH;`,
+			stmtCount: 5,
+			stmtTypes: []string{
+				"*ast.DeclareStmt",
+				"*ast.SetStmt",
+				"*ast.IfStmt",
+				"*ast.WhileStmt",
+				"*ast.TryCatchStmt",
+			},
+		},
+		{
+			name: "security_and_admin",
+			sql: `CREATE USER testUser FOR LOGIN testLogin;
+GRANT SELECT ON dbo.Orders TO testUser;
+DBCC CHECKDB;
+BACKUP DATABASE myDB TO DISK = 'backup.bak';
+BULK INSERT dbo.Orders FROM 'data.csv';`,
+			stmtCount: 5,
+			stmtTypes: []string{
+				"*ast.SecurityStmt",
+				"*ast.GrantStmt",
+				"*ast.DbccStmt",
+				"*ast.BackupStmt",
+				"*ast.BulkInsertStmt",
+			},
+		},
+		{
+			name: "batches_35_48_mix",
+			sql: `CREATE STATISTICS stat1 ON dbo.Orders (amount);
+SET NOCOUNT ON;
+CHECKPOINT;
+KILL 55;`,
+			stmtCount: 4,
+			stmtTypes: []string{
+				"*ast.CreateStatisticsStmt",
+				"*ast.SetOptionStmt",
+				"*ast.CheckpointStmt",
+				"*ast.KillStmt",
+			},
+		},
+		{
+			name: "transaction_and_cursor",
+			sql: `BEGIN TRANSACTION;
+DECLARE emp_cursor CURSOR FOR SELECT id FROM dbo.Emp;
+OPEN emp_cursor;
+FETCH NEXT FROM emp_cursor;
+CLOSE emp_cursor;
+DEALLOCATE emp_cursor;
+COMMIT;`,
+			stmtCount: 7,
+			stmtTypes: []string{
+				"*ast.BeginTransStmt",
+				"*ast.DeclareCursorStmt",
+				"*ast.OpenCursorStmt",
+				"*ast.FetchCursorStmt",
+				"*ast.CloseCursorStmt",
+				"*ast.DeallocateCursorStmt",
+				"*ast.CommitTransStmt",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != tt.stmtCount {
+				t.Fatalf("Parse(%q): got %d statements, want %d", tt.name, result.Len(), tt.stmtCount)
+			}
+			for i, item := range result.Items {
+				gotType := fmt.Sprintf("%T", item)
+				if i < len(tt.stmtTypes) && gotType != tt.stmtTypes[i] {
+					t.Errorf("stmt[%d] type = %s, want %s", i, gotType, tt.stmtTypes[i])
+				}
+			}
 		})
 	}
 }

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "target": "Complete T-SQL recursive descent parser",
-  "status": "in_progress",
+  "status": "complete",
   "batches": [
     {
       "id": 0,
@@ -829,7 +829,7 @@
       "id": 35,
       "name": "pivot_unpivot",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "PIVOT and UNPIVOT operators in FROM clause table sources",
       "rules": [
         "pivot_clause",
@@ -851,7 +851,7 @@
       "id": 36,
       "name": "tablesample",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "TABLESAMPLE clause on table references in FROM",
       "rules": [
         "tablesample_clause",
@@ -870,7 +870,7 @@
       "id": 37,
       "name": "rowset_functions",
       "file": "rowset_functions.go",
-      "status": "pending",
+      "status": "done",
       "description": "OPENROWSET, OPENQUERY, OPENJSON, OPENDATASOURCE, OPENXML as table sources in FROM clause",
       "rules": [
         "openrowset_expr",
@@ -896,7 +896,7 @@
       "id": 38,
       "name": "grouping_sets",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "GROUPING SETS, CUBE, ROLLUP in GROUP BY clause, GROUPING() function",
       "rules": [
         "grouping_sets_clause",
@@ -1167,7 +1167,7 @@
       "id": 49,
       "name": "stmt_dispatch_phase2",
       "file": "parser.go",
-      "status": "pending",
+      "status": "done",
       "description": "Wire up all new statement parsers (batches 23-48) into parseStmt and parseCreateStmt/parseAlterStmt dispatchers",
       "rules": [
         "stmt_dispatch_phase2"

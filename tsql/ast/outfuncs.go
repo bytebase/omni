@@ -316,6 +316,18 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeWritetextStmt(sb, n)
 	case *UpdatetextStmt:
 		writeUpdatetextStmt(sb, n)
+	case *PivotExpr:
+		writePivotExpr(sb, n)
+	case *UnpivotExpr:
+		writeUnpivotExpr(sb, n)
+	case *TableSampleClause:
+		writeTableSampleClause(sb, n)
+	case *GroupingSetsExpr:
+		writeGroupingSetsExpr(sb, n)
+	case *RollupExpr:
+		writeRollupExpr(sb, n)
+	case *CubeExpr:
+		writeCubeExpr(sb, n)
 	default:
 		sb.WriteString("{UNKNOWN}")
 	}
@@ -1566,6 +1578,10 @@ func writeAliasedTableRef(sb *strings.Builder, n *AliasedTableRef) {
 		sb.WriteString(" :columns ")
 		writeNode(sb, n.Columns)
 	}
+	if n.TableSample != nil {
+		sb.WriteString(" :tablesample ")
+		writeNode(sb, n.TableSample)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -2499,6 +2515,94 @@ func writeUpdatetextStmt(sb *strings.Builder, n *UpdatetextStmt) {
 		writeNode(sb, n.InsertedData)
 	}
 	fmt.Fprintf(sb, " :withLog %v :loc %d %d}", n.WithLog, n.Loc.Start, n.Loc.End)
+}
+
+func writePivotExpr(sb *strings.Builder, n *PivotExpr) {
+	sb.WriteString("{PIVOT")
+	if n.Source != nil {
+		sb.WriteString(" :source ")
+		writeNode(sb, n.Source)
+	}
+	if n.AggFunc != nil {
+		sb.WriteString(" :aggFunc ")
+		writeNode(sb, n.AggFunc)
+	}
+	if n.ForCol != "" {
+		fmt.Fprintf(sb, " :forCol \"%s\"", escapeString(n.ForCol))
+	}
+	if n.InValues != nil {
+		sb.WriteString(" :inValues ")
+		writeNode(sb, n.InValues)
+	}
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias \"%s\"", escapeString(n.Alias))
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeUnpivotExpr(sb *strings.Builder, n *UnpivotExpr) {
+	sb.WriteString("{UNPIVOT")
+	if n.Source != nil {
+		sb.WriteString(" :source ")
+		writeNode(sb, n.Source)
+	}
+	if n.ValueCol != "" {
+		fmt.Fprintf(sb, " :valueCol \"%s\"", escapeString(n.ValueCol))
+	}
+	if n.ForCol != "" {
+		fmt.Fprintf(sb, " :forCol \"%s\"", escapeString(n.ForCol))
+	}
+	if n.InCols != nil {
+		sb.WriteString(" :inCols ")
+		writeNode(sb, n.InCols)
+	}
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias \"%s\"", escapeString(n.Alias))
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeTableSampleClause(sb *strings.Builder, n *TableSampleClause) {
+	sb.WriteString("{TABLESAMPLE")
+	if n.Size != nil {
+		sb.WriteString(" :size ")
+		writeNode(sb, n.Size)
+	}
+	if n.Unit != "" {
+		fmt.Fprintf(sb, " :unit \"%s\"", escapeString(n.Unit))
+	}
+	if n.Repeatable != nil {
+		sb.WriteString(" :repeatable ")
+		writeNode(sb, n.Repeatable)
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeGroupingSetsExpr(sb *strings.Builder, n *GroupingSetsExpr) {
+	sb.WriteString("{GROUPINGSETS")
+	if n.Sets != nil {
+		sb.WriteString(" :sets ")
+		writeNode(sb, n.Sets)
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeRollupExpr(sb *strings.Builder, n *RollupExpr) {
+	sb.WriteString("{ROLLUP")
+	if n.Args != nil {
+		sb.WriteString(" :args ")
+		writeNode(sb, n.Args)
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeCubeExpr(sb *strings.Builder, n *CubeExpr) {
+	sb.WriteString("{CUBE")
+	if n.Args != nil {
+		sb.WriteString(" :args ")
+		writeNode(sb, n.Args)
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
 
 func escapeString(s string) string {
