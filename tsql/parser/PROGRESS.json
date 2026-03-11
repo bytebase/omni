@@ -75,7 +75,7 @@
       "id": 5,
       "name": "insert",
       "file": "insert.go",
-      "status": "pending",
+      "status": "done",
       "description": "INSERT, OUTPUT clause, INSERT...EXEC",
       "rules": [
         "insert_stmt", "insert_values", "insert_select", "insert_exec",
@@ -88,7 +88,7 @@
       "id": 6,
       "name": "update_delete",
       "file": "update_delete.go",
-      "status": "pending",
+      "status": "done",
       "description": "UPDATE with FROM, DELETE with FROM, OUTPUT, TOP",
       "rules": [
         "update_stmt", "delete_stmt", "set_clause", "set_clause_list"
@@ -100,7 +100,7 @@
       "id": 7,
       "name": "merge",
       "file": "merge.go",
-      "status": "pending",
+      "status": "done",
       "description": "MERGE statement with WHEN MATCHED/NOT MATCHED",
       "rules": [
         "merge_stmt", "merge_when_clause", "merge_matched", "merge_not_matched",
@@ -113,7 +113,7 @@
       "id": 8,
       "name": "create_table",
       "file": "create_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE TABLE, constraints, IDENTITY, computed columns, temporal tables",
       "rules": [
         "create_table_stmt", "column_def", "column_constraint", "table_constraint",
@@ -127,7 +127,7 @@
       "id": 9,
       "name": "alter_table",
       "file": "alter_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "ALTER TABLE, ADD/DROP/ALTER COLUMN",
       "rules": [
         "alter_table_stmt", "alter_table_action",
@@ -141,7 +141,7 @@
       "id": 10,
       "name": "create_index",
       "file": "create_index.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE INDEX, CLUSTERED/NONCLUSTERED, INCLUDE, WHERE, COLUMNSTORE",
       "rules": [
         "create_index_stmt", "index_column_list", "include_clause",
@@ -154,7 +154,7 @@
       "id": 11,
       "name": "create_view",
       "file": "create_view.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE/ALTER VIEW, WITH SCHEMABINDING",
       "rules": [
         "create_view_stmt", "view_options"
@@ -166,7 +166,7 @@
       "id": 12,
       "name": "create_proc",
       "file": "create_proc.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE PROCEDURE/FUNCTION, parameters, RETURNS",
       "rules": [
         "create_procedure_stmt", "create_function_stmt",
@@ -180,7 +180,7 @@
       "id": 13,
       "name": "create_database",
       "file": "create_database.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE/ALTER/DROP DATABASE",
       "rules": [
         "create_database_stmt", "alter_database_stmt", "drop_database_stmt"
@@ -192,7 +192,7 @@
       "id": 14,
       "name": "drop",
       "file": "drop.go",
-      "status": "pending",
+      "status": "done",
       "description": "DROP TABLE/INDEX/VIEW/PROC/FUNCTION/DATABASE",
       "rules": [
         "drop_stmt", "drop_object_type", "if_exists"
@@ -204,7 +204,7 @@
       "id": 15,
       "name": "control_flow",
       "file": "control_flow.go",
-      "status": "pending",
+      "status": "done",
       "description": "IF/ELSE, WHILE, BEGIN/END, TRY/CATCH, GOTO, RETURN, BREAK, CONTINUE, WAITFOR",
       "rules": [
         "if_stmt", "while_stmt", "begin_end_stmt", "try_catch_stmt",
@@ -218,7 +218,7 @@
       "id": 16,
       "name": "declare_set",
       "file": "declare_set.go",
-      "status": "pending",
+      "status": "done",
       "description": "DECLARE, SET, SELECT @var = expr",
       "rules": [
         "declare_stmt", "variable_decl", "set_stmt", "select_assign"
@@ -230,7 +230,7 @@
       "id": 17,
       "name": "transaction",
       "file": "transaction.go",
-      "status": "pending",
+      "status": "done",
       "description": "BEGIN TRAN, COMMIT, ROLLBACK, SAVE, @@TRANCOUNT",
       "rules": [
         "begin_trans_stmt", "commit_trans_stmt", "rollback_trans_stmt",
@@ -243,7 +243,7 @@
       "id": 18,
       "name": "execute",
       "file": "execute.go",
-      "status": "pending",
+      "status": "done",
       "description": "EXEC/EXECUTE, sp_executesql",
       "rules": [
         "exec_stmt", "exec_arg_list", "exec_arg"
@@ -255,7 +255,7 @@
       "id": 19,
       "name": "grant",
       "file": "grant.go",
-      "status": "pending",
+      "status": "done",
       "description": "GRANT, REVOKE, DENY, CREATE/ALTER/DROP USER/LOGIN/ROLE",
       "rules": [
         "grant_stmt", "revoke_stmt", "deny_stmt",
@@ -268,7 +268,7 @@
       "id": 20,
       "name": "utility",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "USE, PRINT, RAISERROR, THROW, DBCC, BULK INSERT, BACKUP/RESTORE",
       "rules": [
         "use_stmt", "print_stmt", "raiserror_stmt", "throw_stmt",
@@ -281,7 +281,7 @@
       "id": 21,
       "name": "go_batch",
       "file": "go_batch.go",
-      "status": "pending",
+      "status": "done",
       "description": "GO batch separator handling",
       "rules": [
         "go_stmt", "batch_separator"
@@ -292,8 +292,8 @@
     {
       "id": 22,
       "name": "stmt_dispatch",
-      "file": "stmt.go",
-      "status": "pending",
+      "file": "parser.go",
+      "status": "done",
       "description": "Wire up all statements in parseStmt dispatcher",
       "rules": ["stmt_dispatch"],
       "depends_on": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],

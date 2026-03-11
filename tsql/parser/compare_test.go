@@ -1159,6 +1159,851 @@ func TestParseLexerOperators(t *testing.T) {
 	}
 }
 
+// TestParseInsert tests INSERT statement parsing (batch 5).
+func TestParseInsert(t *testing.T) {
+	t.Run("basic insert values", func(t *testing.T) {
+		tests := []string{
+			"INSERT INTO t (col1, col2) VALUES (1, 2)",
+			"INSERT INTO t VALUES (1, 2)",
+			"INSERT t VALUES (1, 2)",
+			"INSERT INTO dbo.t (col1) VALUES ('hello')",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt, ok := result.Items[0].(*ast.InsertStmt)
+				if !ok {
+					t.Fatalf("expected *InsertStmt, got %T", result.Items[0])
+				}
+				if stmt.Relation == nil {
+					t.Error("expected non-nil Relation")
+				}
+			})
+		}
+	})
+
+	t.Run("insert multiple rows", func(t *testing.T) {
+		sql := "INSERT INTO t (col1, col2) VALUES (1, 2), (3, 4), (5, 6)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.InsertStmt)
+		vc, ok := stmt.Source.(*ast.ValuesClause)
+		if !ok {
+			t.Fatalf("expected *ValuesClause, got %T", stmt.Source)
+		}
+		if vc.Rows.Len() != 3 {
+			t.Errorf("expected 3 rows, got %d", vc.Rows.Len())
+		}
+	})
+
+	t.Run("insert select", func(t *testing.T) {
+		sql := "INSERT INTO t (col1) SELECT col1 FROM t2"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.InsertStmt)
+		_, ok := stmt.Source.(*ast.SelectStmt)
+		if !ok {
+			t.Fatalf("expected *SelectStmt source, got %T", stmt.Source)
+		}
+	})
+
+	t.Run("insert default values", func(t *testing.T) {
+		sql := "INSERT INTO t DEFAULT VALUES"
+		ParseAndCheck(t, sql)
+	})
+
+	t.Run("insert with output", func(t *testing.T) {
+		sql := "INSERT INTO t (col1) OUTPUT inserted.col1 VALUES (1)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.InsertStmt)
+		if stmt.OutputClause == nil {
+			t.Error("expected non-nil OutputClause")
+		}
+	})
+
+	t.Run("insert exec", func(t *testing.T) {
+		sql := "INSERT INTO t EXEC sp_myproc @param1 = 1"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.InsertStmt)
+		_, ok := stmt.Source.(*ast.ExecStmt)
+		if !ok {
+			t.Fatalf("expected *ExecStmt source, got %T", stmt.Source)
+		}
+	})
+}
+
+// TestParseUpdateDelete tests UPDATE and DELETE statement parsing (batch 6).
+func TestParseUpdateDelete(t *testing.T) {
+	t.Run("basic update", func(t *testing.T) {
+		tests := []string{
+			"UPDATE t SET col1 = 1",
+			"UPDATE t SET col1 = 1, col2 = 'hello'",
+			"UPDATE dbo.t SET col1 = col1 + 1 WHERE id = 1",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt, ok := result.Items[0].(*ast.UpdateStmt)
+				if !ok {
+					t.Fatalf("expected *UpdateStmt, got %T", result.Items[0])
+				}
+				if stmt.SetClause == nil || stmt.SetClause.Len() == 0 {
+					t.Error("expected non-empty SetClause")
+				}
+			})
+		}
+	})
+
+	t.Run("update with from", func(t *testing.T) {
+		sql := "UPDATE t SET t.col1 = s.col1 FROM t INNER JOIN s ON t.id = s.id"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.UpdateStmt)
+		if stmt.FromClause == nil {
+			t.Error("expected non-nil FromClause")
+		}
+	})
+
+	t.Run("update with top", func(t *testing.T) {
+		sql := "UPDATE TOP (10) t SET col1 = 1"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.UpdateStmt)
+		if stmt.Top == nil {
+			t.Error("expected non-nil Top")
+		}
+	})
+
+	t.Run("basic delete", func(t *testing.T) {
+		tests := []string{
+			"DELETE FROM t",
+			"DELETE FROM t WHERE id = 1",
+			"DELETE t WHERE id = 1",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				_, ok := result.Items[0].(*ast.DeleteStmt)
+				if !ok {
+					t.Fatalf("expected *DeleteStmt, got %T", result.Items[0])
+				}
+			})
+		}
+	})
+
+	t.Run("delete with top", func(t *testing.T) {
+		sql := "DELETE TOP (10) FROM t"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.DeleteStmt)
+		if stmt.Top == nil {
+			t.Error("expected non-nil Top")
+		}
+	})
+
+	t.Run("delete with from join", func(t *testing.T) {
+		sql := "DELETE t FROM t INNER JOIN t2 ON t.id = t2.id WHERE t2.status = 0"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.DeleteStmt)
+		if stmt.FromClause == nil {
+			t.Error("expected non-nil FromClause")
+		}
+	})
+}
+
+// TestParseMerge tests MERGE statement parsing (batch 7).
+func TestParseMerge(t *testing.T) {
+	t.Run("basic merge", func(t *testing.T) {
+		sql := `MERGE INTO target AS t
+			USING source AS s ON t.id = s.id
+			WHEN MATCHED THEN UPDATE SET t.col1 = s.col1
+			WHEN NOT MATCHED THEN INSERT (col1) VALUES (s.col1);`
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.MergeStmt)
+		if !ok {
+			t.Fatalf("expected *MergeStmt, got %T", result.Items[0])
+		}
+		if stmt.WhenClauses == nil || stmt.WhenClauses.Len() < 2 {
+			t.Errorf("expected at least 2 WHEN clauses, got %d", stmt.WhenClauses.Len())
+		}
+	})
+
+	t.Run("merge with delete", func(t *testing.T) {
+		sql := `MERGE target AS t
+			USING source AS s ON t.id = s.id
+			WHEN MATCHED AND s.deleted = 1 THEN DELETE
+			WHEN MATCHED THEN UPDATE SET t.col1 = s.col1
+			WHEN NOT MATCHED BY TARGET THEN INSERT (col1) VALUES (s.col1);`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.MergeStmt)
+		if stmt.WhenClauses.Len() != 3 {
+			t.Errorf("expected 3 WHEN clauses, got %d", stmt.WhenClauses.Len())
+		}
+	})
+}
+
+// TestParseCreateTable tests CREATE TABLE statement parsing (batch 8).
+func TestParseCreateTable(t *testing.T) {
+	t.Run("basic create table", func(t *testing.T) {
+		sql := "CREATE TABLE t (col1 int, col2 varchar(100))"
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.CreateTableStmt)
+		if !ok {
+			t.Fatalf("expected *CreateTableStmt, got %T", result.Items[0])
+		}
+		if stmt.Columns == nil || stmt.Columns.Len() != 2 {
+			t.Errorf("expected 2 columns, got %d", stmt.Columns.Len())
+		}
+	})
+
+	t.Run("create table with constraints", func(t *testing.T) {
+		sql := `CREATE TABLE t (
+			id int NOT NULL IDENTITY(1, 1),
+			name nvarchar(100) NULL,
+			email varchar(255) NOT NULL,
+			CONSTRAINT PK_t PRIMARY KEY CLUSTERED (id),
+			CONSTRAINT UQ_email UNIQUE (email)
+		)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		if stmt.Columns == nil {
+			t.Error("expected non-nil Columns")
+		}
+	})
+
+	t.Run("create table with default and check", func(t *testing.T) {
+		sql := `CREATE TABLE t (
+			id int NOT NULL,
+			status int DEFAULT 0,
+			CONSTRAINT CHK_status CHECK (status >= 0)
+		)`
+		ParseAndCheck(t, sql)
+	})
+
+	t.Run("create table with foreign key", func(t *testing.T) {
+		sql := `CREATE TABLE orders (
+			id int NOT NULL,
+			customer_id int NOT NULL,
+			CONSTRAINT FK_customer FOREIGN KEY (customer_id) REFERENCES customers (id) ON DELETE CASCADE
+		)`
+		ParseAndCheck(t, sql)
+	})
+
+	t.Run("create table with identity", func(t *testing.T) {
+		sql := "CREATE TABLE t (id int IDENTITY(1,1) NOT NULL)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		col := stmt.Columns.Items[0].(*ast.ColumnDef)
+		if col.Identity == nil {
+			t.Error("expected non-nil Identity")
+		}
+	})
+
+	t.Run("create table with collate", func(t *testing.T) {
+		sql := "CREATE TABLE t (name nvarchar(100) COLLATE Latin1_General_CI_AS)"
+		ParseAndCheck(t, sql)
+	})
+}
+
+// TestParseAlterTable tests ALTER TABLE statement parsing (batch 9).
+func TestParseAlterTable(t *testing.T) {
+	t.Run("add column", func(t *testing.T) {
+		sql := "ALTER TABLE t ADD col1 int NULL"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.AlterTableStmt)
+		if !ok {
+			t.Fatalf("expected *AlterTableStmt, got %T", result.Items[0])
+		}
+	})
+
+	t.Run("drop column", func(t *testing.T) {
+		sql := "ALTER TABLE t DROP COLUMN col1"
+		ParseAndCheck(t, sql)
+	})
+
+	t.Run("alter column", func(t *testing.T) {
+		sql := "ALTER TABLE t ALTER COLUMN col1 varchar(200) NOT NULL"
+		ParseAndCheck(t, sql)
+	})
+
+	t.Run("add constraint", func(t *testing.T) {
+		sql := "ALTER TABLE t ADD CONSTRAINT PK_t PRIMARY KEY (id)"
+		ParseAndCheck(t, sql)
+	})
+
+	t.Run("drop constraint", func(t *testing.T) {
+		sql := "ALTER TABLE t DROP CONSTRAINT PK_t"
+		ParseAndCheck(t, sql)
+	})
+}
+
+// TestParseCreateIndex tests CREATE INDEX statement parsing (batch 10).
+func TestParseCreateIndex(t *testing.T) {
+	t.Run("basic index", func(t *testing.T) {
+		sql := "CREATE INDEX IX_t_col1 ON t (col1)"
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.CreateIndexStmt)
+		if !ok {
+			t.Fatalf("expected *CreateIndexStmt, got %T", result.Items[0])
+		}
+		if stmt.Name != "IX_t_col1" {
+			t.Errorf("expected name IX_t_col1, got %s", stmt.Name)
+		}
+	})
+
+	t.Run("unique clustered index", func(t *testing.T) {
+		sql := "CREATE UNIQUE CLUSTERED INDEX IX_t_id ON dbo.t (id ASC)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateIndexStmt)
+		if !stmt.Unique {
+			t.Error("expected Unique=true")
+		}
+	})
+
+	t.Run("index with include", func(t *testing.T) {
+		sql := "CREATE NONCLUSTERED INDEX IX_t_col1 ON t (col1) INCLUDE (col2, col3)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateIndexStmt)
+		if stmt.IncludeCols == nil {
+			t.Error("expected non-nil IncludeCols")
+		}
+	})
+
+	t.Run("filtered index", func(t *testing.T) {
+		sql := "CREATE INDEX IX_t_col1 ON t (col1) WHERE col1 IS NOT NULL"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateIndexStmt)
+		if stmt.WhereClause == nil {
+			t.Error("expected non-nil WhereClause")
+		}
+	})
+}
+
+// TestParseCreateView tests CREATE VIEW statement parsing (batch 11).
+func TestParseCreateView(t *testing.T) {
+	t.Run("basic view", func(t *testing.T) {
+		sql := "CREATE VIEW v AS SELECT col1 FROM t"
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.CreateViewStmt)
+		if !ok {
+			t.Fatalf("expected *CreateViewStmt, got %T", result.Items[0])
+		}
+		if stmt.Query == nil {
+			t.Error("expected non-nil Query")
+		}
+	})
+
+	t.Run("create or alter view", func(t *testing.T) {
+		sql := "CREATE OR ALTER VIEW dbo.v AS SELECT col1 FROM t"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateViewStmt)
+		if !stmt.OrAlter {
+			t.Error("expected OrAlter=true")
+		}
+	})
+
+	t.Run("view with schemabinding", func(t *testing.T) {
+		sql := "CREATE VIEW v WITH SCHEMABINDING AS SELECT col1 FROM dbo.t"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateViewStmt)
+		if !stmt.SchemaBinding {
+			t.Error("expected SchemaBinding=true")
+		}
+	})
+
+	t.Run("view with columns", func(t *testing.T) {
+		sql := "CREATE VIEW v (a, b) AS SELECT col1, col2 FROM t"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateViewStmt)
+		if stmt.Columns == nil || stmt.Columns.Len() != 2 {
+			t.Errorf("expected 2 columns, got %d", stmt.Columns.Len())
+		}
+	})
+}
+
+// TestParseCreateProc tests CREATE PROCEDURE and FUNCTION parsing (batch 12).
+func TestParseCreateProc(t *testing.T) {
+	t.Run("basic procedure", func(t *testing.T) {
+		sql := `CREATE PROCEDURE sp_test @param1 int, @param2 varchar(100) AS BEGIN SELECT 1 END`
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.CreateProcedureStmt)
+		if !ok {
+			t.Fatalf("expected *CreateProcedureStmt, got %T", result.Items[0])
+		}
+	})
+
+	t.Run("proc with defaults", func(t *testing.T) {
+		sql := `CREATE PROC sp_test @param1 int = 0 AS BEGIN SELECT @param1 END`
+		ParseAndCheck(t, sql)
+	})
+
+	t.Run("proc with output param", func(t *testing.T) {
+		sql := `CREATE PROCEDURE sp_test @param1 int, @result int OUTPUT AS BEGIN SET @result = @param1 END`
+		ParseAndCheck(t, sql)
+	})
+
+	t.Run("basic function", func(t *testing.T) {
+		sql := `CREATE FUNCTION fn_test (@param1 int) RETURNS int AS BEGIN RETURN @param1 + 1 END`
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.CreateFunctionStmt)
+		if !ok {
+			t.Fatalf("expected *CreateFunctionStmt, got %T", result.Items[0])
+		}
+	})
+
+	t.Run("table valued function", func(t *testing.T) {
+		sql := `CREATE FUNCTION fn_test (@id int) RETURNS TABLE AS RETURN SELECT * FROM t WHERE id = @id`
+		ParseAndCheck(t, sql)
+	})
+}
+
+// TestParseCreateDatabase tests CREATE DATABASE parsing (batch 13).
+func TestParseCreateDatabase(t *testing.T) {
+	t.Run("basic create database", func(t *testing.T) {
+		sql := "CREATE DATABASE mydb"
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+		if !ok {
+			t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+		}
+		if stmt.Name != "mydb" {
+			t.Errorf("expected name mydb, got %s", stmt.Name)
+		}
+	})
+}
+
+// TestParseDrop tests DROP statement parsing (batch 14).
+func TestParseDrop(t *testing.T) {
+	t.Run("drop table", func(t *testing.T) {
+		tests := []string{
+			"DROP TABLE t",
+			"DROP TABLE IF EXISTS t",
+			"DROP TABLE dbo.t1, dbo.t2",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				_, ok := result.Items[0].(*ast.DropStmt)
+				if !ok {
+					t.Fatalf("expected *DropStmt, got %T", result.Items[0])
+				}
+			})
+		}
+	})
+
+	t.Run("drop various objects", func(t *testing.T) {
+		tests := []string{
+			"DROP VIEW v",
+			"DROP PROCEDURE sp_test",
+			"DROP FUNCTION fn_test",
+			"DROP INDEX IX_t_col1 ON t",
+			"DROP DATABASE mydb",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				ParseAndCheck(t, sql)
+			})
+		}
+	})
+
+	t.Run("drop if exists", func(t *testing.T) {
+		sql := "DROP TABLE IF EXISTS dbo.t"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.DropStmt)
+		if !stmt.IfExists {
+			t.Error("expected IfExists=true")
+		}
+	})
+}
+
+// TestParseControlFlow tests control flow statement parsing (batch 15).
+func TestParseControlFlow(t *testing.T) {
+	t.Run("if else", func(t *testing.T) {
+		sql := "IF 1 = 1 SELECT 1 ELSE SELECT 2"
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.IfStmt)
+		if !ok {
+			t.Fatalf("expected *IfStmt, got %T", result.Items[0])
+		}
+		if stmt.Else == nil {
+			t.Error("expected non-nil Else")
+		}
+	})
+
+	t.Run("if begin end", func(t *testing.T) {
+		sql := "IF 1 = 1 BEGIN SELECT 1 END"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.IfStmt)
+		if !ok {
+			t.Fatalf("expected *IfStmt, got %T", result.Items[0])
+		}
+	})
+
+	t.Run("while", func(t *testing.T) {
+		sql := "WHILE @i < 10 SET @i = @i + 1"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.WhileStmt)
+		if !ok {
+			t.Fatalf("expected *WhileStmt, got %T", result.Items[0])
+		}
+	})
+
+	t.Run("begin end", func(t *testing.T) {
+		sql := "BEGIN SELECT 1; SELECT 2 END"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.BeginEndStmt)
+		if !ok {
+			t.Fatalf("expected *BeginEndStmt, got %T", result.Items[0])
+		}
+	})
+
+	t.Run("try catch", func(t *testing.T) {
+		sql := "BEGIN TRY SELECT 1 END TRY BEGIN CATCH SELECT ERROR_MESSAGE() END CATCH"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.TryCatchStmt)
+		if !ok {
+			t.Fatalf("expected *TryCatchStmt, got %T", result.Items[0])
+		}
+	})
+
+	t.Run("return", func(t *testing.T) {
+		sql := "RETURN 0"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.ReturnStmt)
+		if !ok {
+			t.Fatalf("expected *ReturnStmt, got %T", result.Items[0])
+		}
+	})
+
+	t.Run("break continue", func(t *testing.T) {
+		// These need to be in a context where they're valid statements
+		sql := "BREAK"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.BreakStmt)
+		if !ok {
+			t.Fatalf("expected *BreakStmt, got %T", result.Items[0])
+		}
+
+		sql = "CONTINUE"
+		result = ParseAndCheck(t, sql)
+		_, ok2 := result.Items[0].(*ast.ContinueStmt)
+		if !ok2 {
+			t.Fatalf("expected *ContinueStmt, got %T", result.Items[0])
+		}
+	})
+
+	t.Run("goto", func(t *testing.T) {
+		sql := "GOTO my_label"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.GotoStmt)
+		if !ok {
+			t.Fatalf("expected *GotoStmt, got %T", result.Items[0])
+		}
+	})
+
+	t.Run("waitfor", func(t *testing.T) {
+		sql := "WAITFOR DELAY '00:00:05'"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.WaitForStmt)
+		if !ok {
+			t.Fatalf("expected *WaitForStmt, got %T", result.Items[0])
+		}
+	})
+}
+
+// TestParseDeclareSet tests DECLARE and SET parsing (batch 16).
+func TestParseDeclareSet(t *testing.T) {
+	t.Run("declare variable", func(t *testing.T) {
+		tests := []string{
+			"DECLARE @x int",
+			"DECLARE @x int = 0",
+			"DECLARE @x int, @y varchar(100)",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				_, ok := result.Items[0].(*ast.DeclareStmt)
+				if !ok {
+					t.Fatalf("expected *DeclareStmt, got %T", result.Items[0])
+				}
+			})
+		}
+	})
+
+	t.Run("declare table", func(t *testing.T) {
+		sql := "DECLARE @t TABLE (id int, name varchar(100))"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.DeclareStmt)
+		decl := stmt.Variables.Items[0].(*ast.VariableDecl)
+		if !decl.IsTable {
+			t.Error("expected IsTable=true")
+		}
+	})
+
+	t.Run("set variable", func(t *testing.T) {
+		tests := []string{
+			"SET @x = 1",
+			"SET @x = @x + 1",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				_, ok := result.Items[0].(*ast.SetStmt)
+				if !ok {
+					t.Fatalf("expected *SetStmt, got %T", result.Items[0])
+				}
+			})
+		}
+	})
+
+	t.Run("set option", func(t *testing.T) {
+		tests := []string{
+			"SET NOCOUNT ON",
+			"SET NOCOUNT OFF",
+			"SET XACT_ABORT ON",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				_, ok := result.Items[0].(*ast.SetStmt)
+				if !ok {
+					t.Fatalf("expected *SetStmt, got %T", result.Items[0])
+				}
+			})
+		}
+	})
+}
+
+// TestParseTransaction tests transaction statement parsing (batch 17).
+func TestParseTransaction(t *testing.T) {
+	t.Run("begin transaction", func(t *testing.T) {
+		tests := []string{
+			"BEGIN TRANSACTION",
+			"BEGIN TRAN",
+			"BEGIN TRAN MyTran",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				_, ok := result.Items[0].(*ast.BeginTransStmt)
+				if !ok {
+					t.Fatalf("expected *BeginTransStmt, got %T", result.Items[0])
+				}
+			})
+		}
+	})
+
+	t.Run("commit", func(t *testing.T) {
+		tests := []string{
+			"COMMIT",
+			"COMMIT TRANSACTION",
+			"COMMIT TRAN",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				_, ok := result.Items[0].(*ast.CommitTransStmt)
+				if !ok {
+					t.Fatalf("expected *CommitTransStmt, got %T", result.Items[0])
+				}
+			})
+		}
+	})
+
+	t.Run("rollback", func(t *testing.T) {
+		tests := []string{
+			"ROLLBACK",
+			"ROLLBACK TRANSACTION",
+			"ROLLBACK TRAN",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				_, ok := result.Items[0].(*ast.RollbackTransStmt)
+				if !ok {
+					t.Fatalf("expected *RollbackTransStmt, got %T", result.Items[0])
+				}
+			})
+		}
+	})
+
+	t.Run("save transaction", func(t *testing.T) {
+		sql := "SAVE TRAN MySavepoint"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.SaveTransStmt)
+		if !ok {
+			t.Fatalf("expected *SaveTransStmt, got %T", result.Items[0])
+		}
+	})
+}
+
+// TestParseExecute tests EXEC/EXECUTE parsing (batch 18).
+func TestParseExecute(t *testing.T) {
+	t.Run("basic exec", func(t *testing.T) {
+		tests := []string{
+			"EXEC sp_test",
+			"EXECUTE sp_test",
+			"EXEC dbo.sp_test",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				_, ok := result.Items[0].(*ast.ExecStmt)
+				if !ok {
+					t.Fatalf("expected *ExecStmt, got %T", result.Items[0])
+				}
+			})
+		}
+	})
+
+	t.Run("exec with args", func(t *testing.T) {
+		sql := "EXEC sp_test @param1 = 1, @param2 = 'hello'"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.ExecStmt)
+		if stmt.Args == nil || stmt.Args.Len() < 2 {
+			t.Error("expected at least 2 args")
+		}
+	})
+
+	t.Run("exec with return var", func(t *testing.T) {
+		sql := "EXEC @result = sp_test 1, 2"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.ExecStmt)
+		if stmt.ReturnVar != "@result" {
+			t.Errorf("expected ReturnVar=@result, got %s", stmt.ReturnVar)
+		}
+	})
+
+	t.Run("exec with output param", func(t *testing.T) {
+		sql := "EXEC sp_test @param1 = 1, @param2 OUTPUT"
+		ParseAndCheck(t, sql)
+	})
+}
+
+// TestParseGrant tests GRANT/REVOKE/DENY parsing (batch 19).
+func TestParseGrant(t *testing.T) {
+	t.Run("grant", func(t *testing.T) {
+		tests := []string{
+			"GRANT SELECT ON dbo.t TO myuser",
+			"GRANT SELECT, INSERT ON dbo.t TO myuser",
+			"GRANT EXECUTE ON dbo.sp_test TO myuser",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt, ok := result.Items[0].(*ast.GrantStmt)
+				if !ok {
+					t.Fatalf("expected *GrantStmt, got %T", result.Items[0])
+				}
+				if stmt.StmtType != ast.GrantTypeGrant {
+					t.Error("expected GrantTypeGrant")
+				}
+			})
+		}
+	})
+
+	t.Run("revoke", func(t *testing.T) {
+		sql := "REVOKE SELECT ON dbo.t FROM myuser"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.GrantStmt)
+		if stmt.StmtType != ast.GrantTypeRevoke {
+			t.Error("expected GrantTypeRevoke")
+		}
+	})
+
+	t.Run("deny", func(t *testing.T) {
+		sql := "DENY SELECT ON dbo.t TO myuser"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.GrantStmt)
+		if stmt.StmtType != ast.GrantTypeDeny {
+			t.Error("expected GrantTypeDeny")
+		}
+	})
+}
+
+// TestParseUtility tests utility statement parsing (batch 20).
+func TestParseUtility(t *testing.T) {
+	t.Run("use", func(t *testing.T) {
+		sql := "USE mydb"
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.UseStmt)
+		if !ok {
+			t.Fatalf("expected *UseStmt, got %T", result.Items[0])
+		}
+		if stmt.Database != "mydb" {
+			t.Errorf("expected database mydb, got %s", stmt.Database)
+		}
+	})
+
+	t.Run("print", func(t *testing.T) {
+		sql := "PRINT 'hello world'"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.PrintStmt)
+		if !ok {
+			t.Fatalf("expected *PrintStmt, got %T", result.Items[0])
+		}
+	})
+
+	t.Run("raiserror", func(t *testing.T) {
+		sql := "RAISERROR('Error occurred', 16, 1)"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.RaiseErrorStmt)
+		if !ok {
+			t.Fatalf("expected *RaiseErrorStmt, got %T", result.Items[0])
+		}
+	})
+
+	t.Run("throw", func(t *testing.T) {
+		sql := "THROW 50000, 'Error', 1"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.ThrowStmt)
+		if !ok {
+			t.Fatalf("expected *ThrowStmt, got %T", result.Items[0])
+		}
+	})
+
+	t.Run("throw rethrow", func(t *testing.T) {
+		sql := "THROW"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.ThrowStmt)
+		if !ok {
+			t.Fatalf("expected *ThrowStmt, got %T", result.Items[0])
+		}
+	})
+
+	t.Run("truncate", func(t *testing.T) {
+		sql := "TRUNCATE TABLE dbo.t"
+		result := ParseAndCheck(t, sql)
+		_, ok := result.Items[0].(*ast.TruncateStmt)
+		if !ok {
+			t.Fatalf("expected *TruncateStmt, got %T", result.Items[0])
+		}
+	})
+}
+
+// TestParseGoBatch tests GO batch separator parsing (batch 21).
+func TestParseGoBatch(t *testing.T) {
+	t.Run("simple go", func(t *testing.T) {
+		sql := "SELECT 1\nGO"
+		result := ParseAndCheck(t, sql)
+		if result.Len() < 2 {
+			t.Errorf("expected at least 2 items, got %d", result.Len())
+		}
+	})
+
+	t.Run("go with count", func(t *testing.T) {
+		sql := "SELECT 1\nGO 5"
+		result := ParseAndCheck(t, sql)
+		found := false
+		for _, item := range result.Items {
+			if gs, ok := item.(*ast.GoStmt); ok {
+				found = true
+				if gs.Count != 5 {
+					t.Errorf("expected Count=5, got %d", gs.Count)
+				}
+			}
+		}
+		if !found {
+			t.Error("expected GoStmt in result")
+		}
+	})
+}
+
 // TestNodeToString tests deterministic AST serialization.
 func TestNodeToString(t *testing.T) {
 	// Parse and serialize, verify non-empty

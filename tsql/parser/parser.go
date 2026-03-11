@@ -53,16 +53,167 @@ func Parse(sql string) (*nodes.List, error) {
 }
 
 // parseStmt dispatches to statement-specific parsers.
-// Full dispatch will be implemented in batch 22.
 func (p *Parser) parseStmt() nodes.StmtNode {
 	switch p.cur.Type {
 	case kwSELECT:
 		return p.parseSelectStmt()
 	case kwWITH:
-		// WITH can precede SELECT (CTE)
 		return p.parseSelectStmt()
+	case kwINSERT:
+		return p.parseInsertStmt()
+	case kwUPDATE:
+		return p.parseUpdateStmt()
+	case kwDELETE:
+		return p.parseDeleteStmt()
+	case kwMERGE:
+		return p.parseMergeStmt()
+	case kwCREATE:
+		return p.parseCreateStmt()
+	case kwALTER:
+		return p.parseAlterStmt()
+	case kwDROP:
+		return p.parseDropStmt()
+	case kwTRUNCATE:
+		return p.parseTruncateStmt()
+	case kwIF:
+		return p.parseIfStmt()
+	case kwWHILE:
+		return p.parseWhileStmt()
+	case kwBEGIN:
+		return p.parseBeginStmt()
+	case kwRETURN:
+		return p.parseReturnStmt()
+	case kwBREAK:
+		return p.parseBreakStmt()
+	case kwCONTINUE:
+		return p.parseContinueStmt()
+	case kwGOTO:
+		return p.parseGotoStmt()
+	case kwWAITFOR:
+		return p.parseWaitForStmt()
+	case kwDECLARE:
+		return p.parseDeclareStmt()
+	case kwSET:
+		return p.parseSetStmt()
+	case kwCOMMIT:
+		return p.parseCommitStmt()
+	case kwROLLBACK:
+		return p.parseRollbackStmt()
+	case kwSAVE:
+		return p.parseSaveTransStmt()
+	case kwEXEC, kwEXECUTE:
+		return p.parseExecStmt()
+	case kwGRANT:
+		return p.parseGrantStmt()
+	case kwREVOKE:
+		return p.parseRevokeStmt()
+	case kwDENY:
+		return p.parseDenyStmt()
+	case kwUSE:
+		return p.parseUseStmt()
+	case kwPRINT:
+		return p.parsePrintStmt()
+	case kwRAISERROR:
+		return p.parseRaiseErrorStmt()
+	case kwTHROW:
+		return p.parseThrowStmt()
+	case kwGO:
+		return p.parseGoStmt()
+	default:
+		// Check for label: identifier followed by ':'
+		if p.isIdentLike() {
+			next := p.peekNext()
+			if next.Type == ':' {
+				return p.parseLabelStmt()
+			}
+		}
+		return nil
+	}
+}
+
+// parseCreateStmt dispatches CREATE to the appropriate sub-parser.
+func (p *Parser) parseCreateStmt() nodes.StmtNode {
+	loc := p.pos()
+	p.advance() // consume CREATE
+
+	// OR ALTER
+	orAlter := false
+	if p.cur.Type == kwOR {
+		next := p.peekNext()
+		if next.Type == kwALTER {
+			p.advance() // OR
+			p.advance() // ALTER
+			orAlter = true
+		}
+	}
+
+	// UNIQUE for CREATE UNIQUE INDEX
+	unique := false
+	if p.cur.Type == kwUNIQUE {
+		unique = true
+		p.advance()
+	}
+
+	switch p.cur.Type {
+	case kwTABLE:
+		p.advance() // consume TABLE
+		stmt := p.parseCreateTableStmt()
+		stmt.Loc.Start = loc
+		return stmt
+	case kwINDEX, kwCLUSTERED, kwNONCLUSTERED, kwCOLUMNSTORE:
+		stmt := p.parseCreateIndexStmt(unique)
+		stmt.Loc.Start = loc
+		return stmt
+	case kwVIEW:
+		p.advance() // consume VIEW
+		stmt := p.parseCreateViewStmt(orAlter)
+		stmt.Loc.Start = loc
+		return stmt
+	case kwPROCEDURE, kwPROC:
+		p.advance() // consume PROCEDURE/PROC
+		stmt := p.parseCreateProcedureStmt(orAlter)
+		stmt.Loc.Start = loc
+		return stmt
+	case kwFUNCTION:
+		p.advance() // consume FUNCTION
+		stmt := p.parseCreateFunctionStmt(orAlter)
+		stmt.Loc.Start = loc
+		return stmt
+	case kwDATABASE:
+		p.advance() // consume DATABASE
+		stmt := p.parseCreateDatabaseStmt()
+		stmt.Loc.Start = loc
+		return stmt
 	default:
 		return nil
+	}
+}
+
+// parseAlterStmt dispatches ALTER to the appropriate sub-parser.
+func (p *Parser) parseAlterStmt() nodes.StmtNode {
+	loc := p.pos()
+	p.advance() // consume ALTER
+
+	switch p.cur.Type {
+	case kwTABLE:
+		p.advance() // consume TABLE
+		stmt := p.parseAlterTableStmt()
+		stmt.Loc.Start = loc
+		return stmt
+	default:
+		return nil
+	}
+}
+
+// parseLabelStmt parses a label: statement.
+func (p *Parser) parseLabelStmt() *nodes.LabelStmt {
+	loc := p.pos()
+	label := p.cur.Str
+	p.advance() // consume identifier
+	p.advance() // consume :
+	return &nodes.LabelStmt{
+		Label: label,
+		Loc:   nodes.Loc{Start: loc, End: p.pos()},
 	}
 }
 
