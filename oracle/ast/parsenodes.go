@@ -925,6 +925,39 @@ type FlashbackClause struct {
 
 func (n *FlashbackClause) nodeTag() {}
 
+// GroupingSetsClause represents a GROUPING SETS clause in GROUP BY.
+//
+//	GROUPING SETS ( grouping_set [, ...] )
+type GroupingSetsClause struct {
+	Sets *List // list of ExprNode or *List (composite grouping sets)
+	Loc  Loc
+}
+
+func (n *GroupingSetsClause) nodeTag()  {}
+func (n *GroupingSetsClause) exprNode() {}
+
+// CubeClause represents a CUBE clause in GROUP BY.
+//
+//	CUBE ( expr [, ...] )
+type CubeClause struct {
+	Args *List // list of ExprNode
+	Loc  Loc
+}
+
+func (n *CubeClause) nodeTag()  {}
+func (n *CubeClause) exprNode() {}
+
+// RollupClause represents a ROLLUP clause in GROUP BY.
+//
+//	ROLLUP ( expr [, ...] )
+type RollupClause struct {
+	Args *List // list of ExprNode
+	Loc  Loc
+}
+
+func (n *RollupClause) nodeTag()  {}
+func (n *RollupClause) exprNode() {}
+
 // ---------------------------------------------------------------------------
 // INSERT statement
 // ---------------------------------------------------------------------------

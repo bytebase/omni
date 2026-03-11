@@ -526,6 +526,29 @@ func TestParseAnalyticFunctions(t *testing.T) {
 	}
 }
 
+func TestParseGroupingExtensions(t *testing.T) {
+	tests := []string{
+		"SELECT dept_id, SUM(salary) FROM employees GROUP BY ROLLUP(dept_id)",
+		"SELECT dept_id, job_id, SUM(salary) FROM employees GROUP BY ROLLUP(dept_id, job_id)",
+		"SELECT dept_id, SUM(salary) FROM employees GROUP BY CUBE(dept_id, job_id)",
+		"SELECT dept_id, SUM(salary) FROM employees GROUP BY GROUPING SETS(dept_id, job_id)",
+		"SELECT dept_id, SUM(salary) FROM employees GROUP BY GROUPING SETS(ROLLUP(dept_id), CUBE(job_id))",
+		"SELECT dept_id, SUM(salary) FROM employees GROUP BY dept_id, ROLLUP(job_id)",
+		"SELECT dept_id, SUM(salary) FROM employees GROUP BY CUBE(dept_id, job_id, mgr_id)",
+		"SELECT dept_id, GROUPING(dept_id), SUM(salary) FROM employees GROUP BY ROLLUP(dept_id)",
+	}
+
+	for _, sql := range tests {
+		name := sql
+		if len(name) > 60 {
+			name = name[:60]
+		}
+		t.Run(name, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
 func TestNodeToString(t *testing.T) {
 	n := &ast.NumberLiteral{Val: "42", Ival: 42, Loc: ast.Loc{Start: 0, End: -1}}
 	s := ast.NodeToString(n)

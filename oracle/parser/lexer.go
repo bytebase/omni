@@ -788,6 +788,12 @@ var oracleKeywords = map[string]int{
 	"PRECEDING":  kwPRECEDING,
 	"UNBOUNDED":  kwUNBOUNDED,
 	"WITHIN":     kwWITHIN,
+
+	// Grouping extension keywords
+	"CUBE":     kwCUBE,
+	"GROUPING": kwGROUPING,
+	"ROLLUP":   kwROLLUP,
+	"SETS":     kwSETS,
 }
 
 // Keyword token constants.
@@ -1093,4 +1099,10 @@ const (
 	kwPRECEDING
 	kwUNBOUNDED
 	kwWITHIN
+
+	// Grouping extension keywords
+	kwCUBE
+	kwGROUPING
+	kwROLLUP
+	kwSETS
 )

@@ -96,7 +96,7 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 		if p.cur.Type == kwBY {
 			p.advance()
 		}
-		sel.GroupClause = p.parseExprList()
+		sel.GroupClause = p.parseGroupByList()
 	}
 
 	// HAVING
@@ -235,6 +235,98 @@ func (p *Parser) parseExprList() *nodes.List {
 		p.advance()
 	}
 	return list
+}
+
+// parseGroupByList parses a comma-separated GROUP BY list, handling
+// GROUPING SETS, CUBE, and ROLLUP extensions.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/SELECT.html
+//
+//	group_by_clause ::=
+//	    GROUP BY { expr | rollup_cube | grouping_sets } [, ...]
+//	rollup_cube ::= { ROLLUP | CUBE } ( expr [, ...] )
+//	grouping_sets ::= GROUPING SETS ( { rollup_cube | expr } [, ...] )
+func (p *Parser) parseGroupByList() *nodes.List {
+	list := &nodes.List{}
+	for {
+		item := p.parseGroupByItem()
+		if item == nil {
+			break
+		}
+		list.Items = append(list.Items, item)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return list
+}
+
+// parseGroupByItem parses a single GROUP BY item: expression, ROLLUP(...), CUBE(...),
+// or GROUPING SETS(...).
+func (p *Parser) parseGroupByItem() nodes.Node {
+	start := p.pos()
+
+	switch p.cur.Type {
+	case kwROLLUP:
+		p.advance() // consume ROLLUP
+		rc := &nodes.RollupClause{Loc: nodes.Loc{Start: start}}
+		if p.cur.Type == '(' {
+			p.advance()
+			rc.Args = p.parseExprList()
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		}
+		rc.Loc.End = p.pos()
+		return rc
+
+	case kwCUBE:
+		p.advance() // consume CUBE
+		cc := &nodes.CubeClause{Loc: nodes.Loc{Start: start}}
+		if p.cur.Type == '(' {
+			p.advance()
+			cc.Args = p.parseExprList()
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		}
+		cc.Loc.End = p.pos()
+		return cc
+
+	case kwGROUPING:
+		// GROUPING SETS(...)
+		if p.peekNext().Type == kwSETS {
+			p.advance() // consume GROUPING
+			p.advance() // consume SETS
+			gs := &nodes.GroupingSetsClause{Loc: nodes.Loc{Start: start}}
+			if p.cur.Type == '(' {
+				p.advance()
+				gs.Sets = &nodes.List{}
+				for {
+					item := p.parseGroupByItem()
+					if item == nil {
+						break
+					}
+					gs.Sets.Items = append(gs.Sets.Items, item)
+					if p.cur.Type != ',' {
+						break
+					}
+					p.advance()
+				}
+				if p.cur.Type == ')' {
+					p.advance()
+				}
+			}
+			gs.Loc.End = p.pos()
+			return gs
+		}
+		// GROUPING(expr) is a function call, fall through to parseExpr
+		return p.parseExpr()
+
+	default:
+		return p.parseExpr()
+	}
 }
 
 // parseFromClause parses a FROM clause (comma-separated table references).

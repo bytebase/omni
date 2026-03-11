@@ -129,6 +129,14 @@ func writeNode(sb *strings.Builder, node Node) {
 	case *KeepClause:
 		writeKeepClause(sb, n)
 
+	// Grouping extension nodes
+	case *GroupingSetsClause:
+		writeGroupingSetsClause(sb, n)
+	case *CubeClause:
+		writeCubeClause(sb, n)
+	case *RollupClause:
+		writeRollupClause(sb, n)
+
 	// Table nodes
 	case *JoinClause:
 		writeJoinClause(sb, n)
@@ -714,6 +722,40 @@ func writeKeepClause(sb *strings.Builder, n *KeepClause) {
 	if n.OrderBy != nil {
 		sb.WriteString(" :orderBy ")
 		writeNode(sb, n.OrderBy)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+// ---------------------------------------------------------------------------
+// Grouping extension nodes
+// ---------------------------------------------------------------------------
+
+func writeGroupingSetsClause(sb *strings.Builder, n *GroupingSetsClause) {
+	sb.WriteString("{GROUPING_SETS")
+	if n.Sets != nil {
+		sb.WriteString(" :sets ")
+		writeNode(sb, n.Sets)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCubeClause(sb *strings.Builder, n *CubeClause) {
+	sb.WriteString("{CUBE")
+	if n.Args != nil {
+		sb.WriteString(" :args ")
+		writeNode(sb, n.Args)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeRollupClause(sb *strings.Builder, n *RollupClause) {
+	sb.WriteString("{ROLLUP")
+	if n.Args != nil {
+		sb.WriteString(" :args ")
+		writeNode(sb, n.Args)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

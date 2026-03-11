@@ -380,7 +380,7 @@
       "id": 28,
       "name": "grouping_extensions",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "GROUP BY extensions: GROUPING SETS, CUBE, ROLLUP. These are Oracle extensions for multi-dimensional aggregation within the GROUP BY clause.",
       "rules": [
         "grouping_sets_clause", "cube_clause", "rollup_clause",
