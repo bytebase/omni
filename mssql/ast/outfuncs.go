@@ -332,6 +332,18 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCubeExpr(sb, n)
 	case *AlterServerConfigurationStmt:
 		writeAlterServerConfigurationStmt(sb, n)
+	case *CreateFulltextStoplistStmt:
+		writeCreateFulltextStoplistStmt(sb, n)
+	case *AlterFulltextStoplistStmt:
+		writeAlterFulltextStoplistStmt(sb, n)
+	case *DropFulltextStoplistStmt:
+		fmt.Fprintf(sb, "{DROPFULLTEXTSTOPLIST :name \"%s\" :loc %d %d}", escapeString(n.Name), n.Loc.Start, n.Loc.End)
+	case *CreateSearchPropertyListStmt:
+		writeCreateSearchPropertyListStmt(sb, n)
+	case *AlterSearchPropertyListStmt:
+		writeAlterSearchPropertyListStmt(sb, n)
+	case *DropSearchPropertyListStmt:
+		fmt.Fprintf(sb, "{DROPSEARCHPROPERTYLIST :name \"%s\" :loc %d %d}", escapeString(n.Name), n.Loc.Start, n.Loc.End)
 	default:
 		sb.WriteString("{UNKNOWN}")
 	}
@@ -2644,6 +2656,77 @@ func writeAlterServerConfigurationStmt(sb *strings.Builder, n *AlterServerConfig
 	}
 	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")
+}
+
+func writeCreateFulltextStoplistStmt(sb *strings.Builder, n *CreateFulltextStoplistStmt) {
+	sb.WriteString("{CREATEFULLTEXTSTOPLIST")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	if n.SourceDB != "" {
+		fmt.Fprintf(sb, " :sourceDb \"%s\"", escapeString(n.SourceDB))
+	}
+	if n.SourceList != "" {
+		fmt.Fprintf(sb, " :sourceList \"%s\"", escapeString(n.SourceList))
+	}
+	if n.SystemStoplist {
+		sb.WriteString(" :systemStoplist true")
+	}
+	if n.Authorization != "" {
+		fmt.Fprintf(sb, " :authorization \"%s\"", escapeString(n.Authorization))
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeAlterFulltextStoplistStmt(sb *strings.Builder, n *AlterFulltextStoplistStmt) {
+	sb.WriteString("{ALTERFULLTEXTSTOPLIST")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	fmt.Fprintf(sb, " :action \"%s\"", escapeString(n.Action))
+	if n.Stopword != "" {
+		fmt.Fprintf(sb, " :stopword \"%s\"", escapeString(n.Stopword))
+	}
+	if n.IsNStr {
+		sb.WriteString(" :nstr true")
+	}
+	if n.Language != "" {
+		fmt.Fprintf(sb, " :language \"%s\"", escapeString(n.Language))
+	}
+	if n.DropAll {
+		sb.WriteString(" :dropAll true")
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeCreateSearchPropertyListStmt(sb *strings.Builder, n *CreateSearchPropertyListStmt) {
+	sb.WriteString("{CREATESEARCHPROPERTYLIST")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	if n.SourceDB != "" {
+		fmt.Fprintf(sb, " :sourceDb \"%s\"", escapeString(n.SourceDB))
+	}
+	if n.SourceList != "" {
+		fmt.Fprintf(sb, " :sourceList \"%s\"", escapeString(n.SourceList))
+	}
+	if n.Authorization != "" {
+		fmt.Fprintf(sb, " :authorization \"%s\"", escapeString(n.Authorization))
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeAlterSearchPropertyListStmt(sb *strings.Builder, n *AlterSearchPropertyListStmt) {
+	sb.WriteString("{ALTERSEARCHPROPERTYLIST")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	fmt.Fprintf(sb, " :action \"%s\"", escapeString(n.Action))
+	if n.PropertyName != "" {
+		fmt.Fprintf(sb, " :propertyName \"%s\"", escapeString(n.PropertyName))
+	}
+	if n.PropertySetGUID != "" {
+		fmt.Fprintf(sb, " :propertySetGuid \"%s\"", escapeString(n.PropertySetGUID))
+	}
+	if n.PropertyIntID != "" {
+		fmt.Fprintf(sb, " :propertyIntId \"%s\"", escapeString(n.PropertyIntID))
+	}
+	if n.PropertyDesc != "" {
+		fmt.Fprintf(sb, " :propertyDesc \"%s\"", escapeString(n.PropertyDesc))
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
 
 func escapeString(s string) string {

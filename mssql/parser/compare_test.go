@@ -5255,3 +5255,176 @@ func TestParseServerLevelObjects(t *testing.T) {
 		}
 	})
 }
+
+// TestParseFulltextStoplistSearch tests batch 61: FULLTEXT STOPLIST and SEARCH PROPERTY LIST.
+func TestParseFulltextStoplistSearch(t *testing.T) {
+	t.Run("fulltext_stoplist", func(t *testing.T) {
+		tests := []struct {
+			sql  string
+			name string
+		}{
+			// CREATE FULLTEXT STOPLIST - empty
+			{`CREATE FULLTEXT STOPLIST myStoplist`, "myStoplist"},
+			// CREATE FULLTEXT STOPLIST FROM existing
+			{`CREATE FULLTEXT STOPLIST myStoplist2 FROM AdventureWorks.otherStoplist`, "myStoplist2"},
+			// CREATE FULLTEXT STOPLIST FROM SYSTEM STOPLIST
+			{`CREATE FULLTEXT STOPLIST myStoplist3 FROM SYSTEM STOPLIST`, "myStoplist3"},
+			// CREATE FULLTEXT STOPLIST with AUTHORIZATION
+			{`CREATE FULLTEXT STOPLIST myStoplist AUTHORIZATION dbo`, "myStoplist"},
+			// CREATE FULLTEXT STOPLIST FROM source with AUTHORIZATION
+			{`CREATE FULLTEXT STOPLIST sl1 FROM db1.sl2 AUTHORIZATION admin1`, "sl1"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.CreateFulltextStoplistStmt)
+				if !ok {
+					t.Fatalf("Parse(%q): expected *CreateFulltextStoplistStmt, got %T", tt.sql, result.Items[0])
+				}
+				if stmt.Name != tt.name {
+					t.Errorf("Parse(%q): name = %q, want %q", tt.sql, stmt.Name, tt.name)
+				}
+				checkLocation(t, tt.sql, "CreateFulltextStoplistStmt", stmt.Loc)
+			})
+		}
+	})
+
+	t.Run("alter_fulltext_stoplist", func(t *testing.T) {
+		tests := []struct {
+			sql    string
+			name   string
+			action string
+		}{
+			// ADD stopword
+			{`ALTER FULLTEXT STOPLIST CombinedList ADD 'en' LANGUAGE 'Spanish'`, "CombinedList", "ADD"},
+			// ADD with N prefix
+			{`ALTER FULLTEXT STOPLIST sl1 ADD N'the' LANGUAGE 1033`, "sl1", "ADD"},
+			// DROP single stopword
+			{`ALTER FULLTEXT STOPLIST sl1 DROP 'en' LANGUAGE 'French'`, "sl1", "DROP"},
+			// DROP ALL LANGUAGE
+			{`ALTER FULLTEXT STOPLIST sl1 DROP ALL LANGUAGE 'English'`, "sl1", "DROP"},
+			// DROP ALL
+			{`ALTER FULLTEXT STOPLIST sl1 DROP ALL`, "sl1", "DROP"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.AlterFulltextStoplistStmt)
+				if !ok {
+					t.Fatalf("Parse(%q): expected *AlterFulltextStoplistStmt, got %T", tt.sql, result.Items[0])
+				}
+				if stmt.Name != tt.name {
+					t.Errorf("Parse(%q): name = %q, want %q", tt.sql, stmt.Name, tt.name)
+				}
+				if stmt.Action != tt.action {
+					t.Errorf("Parse(%q): action = %q, want %q", tt.sql, stmt.Action, tt.action)
+				}
+				checkLocation(t, tt.sql, "AlterFulltextStoplistStmt", stmt.Loc)
+			})
+		}
+	})
+
+	t.Run("drop_fulltext_stoplist", func(t *testing.T) {
+		sql := `DROP FULLTEXT STOPLIST myStoplist`
+		result := ParseAndCheck(t, sql)
+		if result.Len() != 1 {
+			t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+		}
+		stmt, ok := result.Items[0].(*ast.DropFulltextStoplistStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): expected *DropFulltextStoplistStmt, got %T", sql, result.Items[0])
+		}
+		if stmt.Name != "myStoplist" {
+			t.Errorf("Parse(%q): name = %q, want %q", sql, stmt.Name, "myStoplist")
+		}
+		checkLocation(t, sql, "DropFulltextStoplistStmt", stmt.Loc)
+	})
+
+	t.Run("search_property_list", func(t *testing.T) {
+		tests := []struct {
+			sql  string
+			name string
+		}{
+			// CREATE SEARCH PROPERTY LIST - empty
+			{`CREATE SEARCH PROPERTY LIST DocumentPropertyList`, "DocumentPropertyList"},
+			// CREATE SEARCH PROPERTY LIST FROM existing
+			{`CREATE SEARCH PROPERTY LIST JobCandidateProperties FROM AdventureWorks2022.DocumentPropertyList`, "JobCandidateProperties"},
+			// CREATE SEARCH PROPERTY LIST FROM same db
+			{`CREATE SEARCH PROPERTY LIST spl2 FROM spl1`, "spl2"},
+			// CREATE SEARCH PROPERTY LIST with AUTHORIZATION
+			{`CREATE SEARCH PROPERTY LIST spl1 AUTHORIZATION dbo`, "spl1"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.CreateSearchPropertyListStmt)
+				if !ok {
+					t.Fatalf("Parse(%q): expected *CreateSearchPropertyListStmt, got %T", tt.sql, result.Items[0])
+				}
+				if stmt.Name != tt.name {
+					t.Errorf("Parse(%q): name = %q, want %q", tt.sql, stmt.Name, tt.name)
+				}
+				checkLocation(t, tt.sql, "CreateSearchPropertyListStmt", stmt.Loc)
+			})
+		}
+	})
+
+	t.Run("alter_search_property_list", func(t *testing.T) {
+		tests := []struct {
+			sql    string
+			name   string
+			action string
+		}{
+			// ADD property with all options
+			{`ALTER SEARCH PROPERTY LIST DocumentPropertyList ADD 'Title' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 2, PROPERTY_DESCRIPTION = 'Title of the item.')`, "DocumentPropertyList", "ADD"},
+			// ADD property without description
+			{`ALTER SEARCH PROPERTY LIST spl1 ADD 'Author' WITH (PROPERTY_SET_GUID = 'F29F85E0-4FF9-1068-AB91-08002B27B3D9', PROPERTY_INT_ID = 4)`, "spl1", "ADD"},
+			// DROP property
+			{`ALTER SEARCH PROPERTY LIST DocumentPropertyList DROP 'Comments'`, "DocumentPropertyList", "DROP"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.AlterSearchPropertyListStmt)
+				if !ok {
+					t.Fatalf("Parse(%q): expected *AlterSearchPropertyListStmt, got %T", tt.sql, result.Items[0])
+				}
+				if stmt.Name != tt.name {
+					t.Errorf("Parse(%q): name = %q, want %q", tt.sql, stmt.Name, tt.name)
+				}
+				if stmt.Action != tt.action {
+					t.Errorf("Parse(%q): action = %q, want %q", tt.sql, stmt.Action, tt.action)
+				}
+				checkLocation(t, tt.sql, "AlterSearchPropertyListStmt", stmt.Loc)
+			})
+		}
+	})
+
+	t.Run("drop_search_property_list", func(t *testing.T) {
+		sql := `DROP SEARCH PROPERTY LIST JobCandidateProperties`
+		result := ParseAndCheck(t, sql)
+		if result.Len() != 1 {
+			t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+		}
+		stmt, ok := result.Items[0].(*ast.DropSearchPropertyListStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): expected *DropSearchPropertyListStmt, got %T", sql, result.Items[0])
+		}
+		if stmt.Name != "JobCandidateProperties" {
+			t.Errorf("Parse(%q): name = %q, want %q", sql, stmt.Name, "JobCandidateProperties")
+		}
+		checkLocation(t, sql, "DropSearchPropertyListStmt", stmt.Loc)
+	})
+}

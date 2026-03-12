@@ -2127,3 +2127,88 @@ type AlterServerConfigurationStmt struct {
 
 func (n *AlterServerConfigurationStmt) nodeTag()  {}
 func (n *AlterServerConfigurationStmt) stmtNode() {}
+
+// ---------- Batch 61: FULLTEXT STOPLIST / SEARCH PROPERTY LIST ----------
+
+// CreateFulltextStoplistStmt represents CREATE FULLTEXT STOPLIST.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-fulltext-stoplist-transact-sql
+type CreateFulltextStoplistStmt struct {
+	Name          string // stoplist name
+	SourceDB      string // optional source database name
+	SourceList    string // optional source stoplist name
+	SystemStoplist bool  // FROM SYSTEM STOPLIST
+	Authorization string // AUTHORIZATION owner_name
+	Loc           Loc
+}
+
+func (n *CreateFulltextStoplistStmt) nodeTag()  {}
+func (n *CreateFulltextStoplistStmt) stmtNode() {}
+
+// AlterFulltextStoplistStmt represents ALTER FULLTEXT STOPLIST.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-fulltext-stoplist-transact-sql
+type AlterFulltextStoplistStmt struct {
+	Name     string // stoplist name
+	Action   string // ADD or DROP
+	Stopword string // the stopword (for ADD/DROP single)
+	IsNStr   bool   // N prefix on stopword string
+	Language string // LANGUAGE term
+	DropAll  bool   // DROP ALL (all stopwords) or DROP ALL LANGUAGE
+	Loc      Loc
+}
+
+func (n *AlterFulltextStoplistStmt) nodeTag()  {}
+func (n *AlterFulltextStoplistStmt) stmtNode() {}
+
+// DropFulltextStoplistStmt represents DROP FULLTEXT STOPLIST.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-fulltext-stoplist-transact-sql
+type DropFulltextStoplistStmt struct {
+	Name string
+	Loc  Loc
+}
+
+func (n *DropFulltextStoplistStmt) nodeTag()  {}
+func (n *DropFulltextStoplistStmt) stmtNode() {}
+
+// CreateSearchPropertyListStmt represents CREATE SEARCH PROPERTY LIST.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-search-property-list-transact-sql
+type CreateSearchPropertyListStmt struct {
+	Name          string // property list name
+	SourceDB      string // optional source database name
+	SourceList    string // optional source property list name
+	Authorization string // AUTHORIZATION owner_name
+	Loc           Loc
+}
+
+func (n *CreateSearchPropertyListStmt) nodeTag()  {}
+func (n *CreateSearchPropertyListStmt) stmtNode() {}
+
+// AlterSearchPropertyListStmt represents ALTER SEARCH PROPERTY LIST.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-search-property-list-transact-sql
+type AlterSearchPropertyListStmt struct {
+	Name            string // property list name
+	Action          string // ADD or DROP
+	PropertyName    string // the search property name
+	PropertySetGUID string // PROPERTY_SET_GUID (for ADD)
+	PropertyIntID   string // PROPERTY_INT_ID (for ADD)
+	PropertyDesc    string // PROPERTY_DESCRIPTION (for ADD, optional)
+	Loc             Loc
+}
+
+func (n *AlterSearchPropertyListStmt) nodeTag()  {}
+func (n *AlterSearchPropertyListStmt) stmtNode() {}
+
+// DropSearchPropertyListStmt represents DROP SEARCH PROPERTY LIST.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-search-property-list-transact-sql
+type DropSearchPropertyListStmt struct {
+	Name string
+	Loc  Loc
+}
+
+func (n *DropSearchPropertyListStmt) nodeTag()  {}
+func (n *DropSearchPropertyListStmt) stmtNode() {}

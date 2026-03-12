@@ -442,7 +442,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			}
 			return nil
 		}
-		// CREATE FULLTEXT INDEX / FULLTEXT CATALOG
+		// CREATE FULLTEXT INDEX / FULLTEXT CATALOG / FULLTEXT STOPLIST
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FULLTEXT") {
 			p.advance() // consume FULLTEXT
 			if p.cur.Type == kwINDEX {
@@ -457,6 +457,12 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				stmt.Loc.Start = loc
 				return stmt
 			}
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STOPLIST") {
+				p.advance() // consume STOPLIST
+				stmt := p.parseCreateFulltextStoplistStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
 			return nil
 		}
 		// CREATE XML SCHEMA COLLECTION
@@ -467,6 +473,20 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "COLLECTION") {
 					p.advance() // consume COLLECTION
 					stmt := p.parseCreateXmlSchemaCollectionStmt()
+					stmt.Loc.Start = loc
+					return stmt
+				}
+			}
+			return nil
+		}
+		// CREATE SEARCH PROPERTY LIST
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SEARCH") {
+			p.advance() // consume SEARCH
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PROPERTY") {
+				p.advance() // consume PROPERTY
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LIST") {
+					p.advance() // consume LIST
+					stmt := p.parseCreateSearchPropertyListStmt()
 					stmt.Loc.Start = loc
 					return stmt
 				}
@@ -781,7 +801,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			}
 			return nil
 		}
-		// ALTER FULLTEXT INDEX / FULLTEXT CATALOG
+		// ALTER FULLTEXT INDEX / FULLTEXT CATALOG / FULLTEXT STOPLIST
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FULLTEXT") {
 			p.advance() // consume FULLTEXT
 			if p.cur.Type == kwINDEX {
@@ -795,6 +815,26 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 				stmt := p.parseAlterFulltextCatalogStmt()
 				stmt.Loc.Start = loc
 				return stmt
+			}
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STOPLIST") {
+				p.advance() // consume STOPLIST
+				stmt := p.parseAlterFulltextStoplistStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
+			return nil
+		}
+		// ALTER SEARCH PROPERTY LIST
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SEARCH") {
+			p.advance() // consume SEARCH
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PROPERTY") {
+				p.advance() // consume PROPERTY
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LIST") {
+					p.advance() // consume LIST
+					stmt := p.parseAlterSearchPropertyListStmt()
+					stmt.Loc.Start = loc
+					return stmt
+				}
 			}
 			return nil
 		}
@@ -1263,6 +1303,76 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 				stmt := p.parseDropResourcePoolStmt()
 				stmt.Loc.Start = loc
 				return stmt
+			}
+			return nil
+		}
+		// DROP FULLTEXT STOPLIST
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "FULLTEXT") {
+			// Peek further: need to distinguish FULLTEXT STOPLIST from FULLTEXT INDEX/CATALOG
+			// FULLTEXT INDEX/CATALOG are handled in parseDropStmt, but STOPLIST is a separate stmt type
+			p.advance() // consume DROP
+			p.advance() // consume FULLTEXT
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STOPLIST") {
+				p.advance() // consume STOPLIST
+				stmt := p.parseDropFulltextStoplistStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
+			// Not STOPLIST — must be INDEX or CATALOG, handled by parseDropStmt.
+			// We've already consumed DROP + FULLTEXT, so we need to handle inline.
+			// Re-enter the generic drop logic for FULLTEXT INDEX/CATALOG
+			dropStmt := &nodes.DropStmt{
+				Loc: nodes.Loc{Start: loc},
+			}
+			if p.cur.Type == kwINDEX {
+				dropStmt.ObjectType = nodes.DropFulltextIndex
+				p.advance()
+			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CATALOG") {
+				dropStmt.ObjectType = nodes.DropFulltextCatalog
+				p.advance()
+			}
+			if p.cur.Type == kwIF {
+				p.advance()
+				p.match(kwEXISTS)
+				dropStmt.IfExists = true
+			}
+			var nameItems []nodes.Node
+			if dropStmt.ObjectType == nodes.DropFulltextIndex {
+				// DROP FULLTEXT INDEX ON table_name
+				if _, ok := p.match(kwON); ok {
+					if ref := p.parseTableRef(); ref != nil {
+						nameItems = append(nameItems, ref)
+					}
+				}
+			} else {
+				for {
+					ref := p.parseTableRef()
+					if ref != nil {
+						nameItems = append(nameItems, ref)
+					}
+					if _, ok := p.match(','); !ok {
+						break
+					}
+				}
+			}
+			if len(nameItems) > 0 {
+				dropStmt.Names = &nodes.List{Items: nameItems}
+			}
+			dropStmt.Loc.End = p.pos()
+			return dropStmt
+		}
+		// DROP SEARCH PROPERTY LIST
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "SEARCH") {
+			p.advance() // consume DROP
+			p.advance() // consume SEARCH
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PROPERTY") {
+				p.advance() // consume PROPERTY
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LIST") {
+					p.advance() // consume LIST
+					stmt := p.parseDropSearchPropertyListStmt()
+					stmt.Loc.Start = loc
+					return stmt
+				}
 			}
 			return nil
 		}

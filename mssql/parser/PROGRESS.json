@@ -1319,7 +1319,7 @@
       "id": 61,
       "name": "fulltext_stoplist_search",
       "file": "fulltext.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE/ALTER/DROP FULLTEXT STOPLIST, CREATE/ALTER/DROP SEARCH PROPERTY LIST",
       "rules": ["parseCreateFulltextStoplistStmt", "parseAlterFulltextStoplistStmt", "parseDropFulltextStoplistStmt", "parseCreateSearchPropertyListStmt", "parseAlterSearchPropertyListStmt", "parseDropSearchPropertyListStmt"],
       "depends_on": [43],
