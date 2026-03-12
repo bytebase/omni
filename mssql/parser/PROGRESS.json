@@ -1219,7 +1219,7 @@
       "id": 51,
       "name": "alter_trigger_enable_disable",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 24 gap: Wire up ALTER TRIGGER in parseAlterStmt dispatcher + implement DISABLE TRIGGER and ENABLE TRIGGER statements",
       "rules": ["parseDisableTriggerStmt", "parseEnableTriggerStmt", "alter_trigger_dispatch"],
       "depends_on": [24, 49],

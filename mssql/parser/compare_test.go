@@ -3931,6 +3931,73 @@ COMMIT;`,
 	}
 }
 
+// TestParseAlterTriggerEnableDisable tests batch 51: ALTER TRIGGER, ENABLE TRIGGER, DISABLE TRIGGER.
+func TestParseAlterTriggerEnableDisable(t *testing.T) {
+	// ALTER TRIGGER tests
+	alterTests := []string{
+		"ALTER TRIGGER dbo.MyTrigger ON dbo.MyTable AFTER INSERT AS SELECT 1",
+		"ALTER TRIGGER MyTrigger ON DATABASE AFTER CREATE_TABLE AS SELECT 1",
+		"ALTER TRIGGER MyTrigger ON ALL SERVER AFTER LOGON AS SELECT 1",
+	}
+	for _, sql := range alterTests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.CreateTriggerStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *CreateTriggerStmt, got %T", sql, result.Items[0])
+			}
+			if !stmt.OrAlter {
+				t.Errorf("Parse(%q): expected OrAlter=true", sql)
+			}
+			checkLocation(t, sql, "CreateTriggerStmt", stmt.Loc)
+		})
+	}
+
+	// ENABLE/DISABLE TRIGGER tests
+	edTests := []struct {
+		sql    string
+		enable bool
+	}{
+		// ENABLE single trigger on table
+		{"ENABLE TRIGGER MyTrigger ON dbo.MyTable", true},
+		// DISABLE single trigger on table
+		{"DISABLE TRIGGER MyTrigger ON dbo.MyTable", false},
+		// ENABLE ALL triggers on table
+		{"ENABLE TRIGGER ALL ON dbo.MyTable", true},
+		// DISABLE ALL triggers on table
+		{"DISABLE TRIGGER ALL ON dbo.MyTable", false},
+		// ENABLE trigger on DATABASE
+		{"ENABLE TRIGGER MyTrigger ON DATABASE", true},
+		// DISABLE trigger on DATABASE
+		{"DISABLE TRIGGER MyTrigger ON DATABASE", false},
+		// ENABLE trigger on ALL SERVER
+		{"ENABLE TRIGGER MyTrigger ON ALL SERVER", true},
+		// DISABLE trigger on ALL SERVER
+		{"DISABLE TRIGGER MyTrigger ON ALL SERVER", false},
+		// Multiple triggers
+		{"DISABLE TRIGGER Trig1, Trig2, Trig3 ON dbo.MyTable", false},
+	}
+	for _, tt := range edTests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.EnableDisableTriggerStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *EnableDisableTriggerStmt, got %T", tt.sql, result.Items[0])
+			}
+			if stmt.Enable != tt.enable {
+				t.Errorf("Parse(%q): expected Enable=%v, got %v", tt.sql, tt.enable, stmt.Enable)
+			}
+			checkLocation(t, tt.sql, "EnableDisableTriggerStmt", stmt.Loc)
+		})
+	}
+}
+
 // TestParseServiceBrokerMissing tests batch 50: CREATE ROUTE, CREATE REMOTE SERVICE BINDING, GET CONVERSATION GROUP.
 func TestParseServiceBrokerMissing(t *testing.T) {
 	tests := []string{

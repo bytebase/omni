@@ -60,6 +60,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateViewStmt(sb, n)
 	case *CreateTriggerStmt:
 		writeCreateTriggerStmt(sb, n)
+	case *EnableDisableTriggerStmt:
+		writeEnableDisableTriggerStmt(sb, n)
 	case *CreateFunctionStmt:
 		writeCreateFunctionStmt(sb, n)
 	case *CreateProcedureStmt:
@@ -691,6 +693,32 @@ func writeCreateTriggerStmt(sb *strings.Builder, n *CreateTriggerStmt) {
 	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
+}
+
+func writeEnableDisableTriggerStmt(sb *strings.Builder, n *EnableDisableTriggerStmt) {
+	if n.Enable {
+		sb.WriteString("{ENABLETRIGGER")
+	} else {
+		sb.WriteString("{DISABLETRIGGER")
+	}
+	if n.TriggerAll {
+		sb.WriteString(" :all true")
+	}
+	if n.Triggers != nil {
+		sb.WriteString(" :triggers ")
+		writeNode(sb, n.Triggers)
+	}
+	if n.OnObject != nil {
+		sb.WriteString(" :onObject ")
+		writeNode(sb, n.OnObject)
+	}
+	if n.OnDatabase {
+		sb.WriteString(" :onDatabase true")
+	}
+	if n.OnAllServer {
+		sb.WriteString(" :onAllServer true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d}", n.Loc.Start, n.Loc.End))
 }
 
 func writeCreateFunctionStmt(sb *strings.Builder, n *CreateFunctionStmt) {

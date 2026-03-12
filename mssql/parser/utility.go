@@ -454,3 +454,70 @@ func (p *Parser) parseTruncateStmt() *nodes.TruncateStmt {
 	stmt.Loc.End = p.pos()
 	return stmt
 }
+
+// parseEnableDisableTriggerStmt parses ENABLE TRIGGER or DISABLE TRIGGER.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/enable-trigger-transact-sql
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/disable-trigger-transact-sql
+//
+//	{ ENABLE | DISABLE } TRIGGER { [ schema_name . ] trigger_name [ , ...n ] | ALL }
+//	    ON { object_name | DATABASE | ALL SERVER }
+func (p *Parser) parseEnableDisableTriggerStmt(enable bool) *nodes.EnableDisableTriggerStmt {
+	loc := p.pos()
+	p.advance() // consume ENABLE or DISABLE
+	p.advance() // consume TRIGGER
+
+	stmt := &nodes.EnableDisableTriggerStmt{
+		Enable: enable,
+		Loc:    nodes.Loc{Start: loc},
+	}
+
+	// { trigger_name [ , ...n ] | ALL }
+	if p.cur.Type == kwALL {
+		stmt.TriggerAll = true
+		p.advance()
+	} else {
+		var triggers []nodes.Node
+		for {
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
+				// Possibly schema-qualified: schema.trigger_name
+				name := p.cur.Str
+				p.advance()
+				if p.cur.Type == '.' {
+					p.advance()
+					if p.isIdentLike() {
+						name = name + "." + p.cur.Str
+						p.advance()
+					}
+				}
+				triggers = append(triggers, &nodes.String{Str: name})
+			} else {
+				break
+			}
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+		if len(triggers) > 0 {
+			stmt.Triggers = &nodes.List{Items: triggers}
+		}
+	}
+
+	// ON { object_name | DATABASE | ALL SERVER }
+	if _, ok := p.match(kwON); ok {
+		if p.cur.Type == kwDATABASE {
+			stmt.OnDatabase = true
+			p.advance()
+		} else if p.cur.Type == kwALL {
+			p.advance()
+			if p.matchIdentCI("SERVER") {
+				stmt.OnAllServer = true
+			}
+		} else {
+			stmt.OnObject = p.parseTableRef()
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}

@@ -496,6 +496,26 @@ type CreateTriggerStmt struct {
 func (n *CreateTriggerStmt) nodeTag()  {}
 func (n *CreateTriggerStmt) stmtNode() {}
 
+// EnableDisableTriggerStmt represents ENABLE TRIGGER or DISABLE TRIGGER.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/enable-trigger-transact-sql
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/disable-trigger-transact-sql
+//
+//	{ ENABLE | DISABLE } TRIGGER { [ schema_name . ] trigger_name [ , ...n ] | ALL }
+//	    ON { object_name | DATABASE | ALL SERVER }
+type EnableDisableTriggerStmt struct {
+	Enable      bool      // true for ENABLE, false for DISABLE
+	TriggerAll  bool      // ALL triggers
+	Triggers    *List     // list of trigger names (as String nodes)
+	OnObject    *TableRef // ON table/view name (nil for DATABASE/ALL SERVER)
+	OnDatabase  bool      // ON DATABASE
+	OnAllServer bool      // ON ALL SERVER
+	Loc         Loc
+}
+
+func (n *EnableDisableTriggerStmt) nodeTag()  {}
+func (n *EnableDisableTriggerStmt) stmtNode() {}
+
 // BulkInsertStmt represents a BULK INSERT statement.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/bulk-insert-transact-sql

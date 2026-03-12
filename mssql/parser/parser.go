@@ -207,6 +207,16 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 				next.Str != "" && matchesKeywordCI(next.Str, "CONVERSATION") {
 				return p.parseGetConversationGroupStmt()
 			}
+			// ENABLE TRIGGER
+			if matchesKeywordCI(p.cur.Str, "ENABLE") &&
+				next.Type == kwTRIGGER {
+				return p.parseEnableDisableTriggerStmt(true)
+			}
+			// DISABLE TRIGGER
+			if matchesKeywordCI(p.cur.Str, "DISABLE") &&
+				next.Type == kwTRIGGER {
+				return p.parseEnableDisableTriggerStmt(false)
+			}
 		}
 		return nil
 	}
@@ -479,6 +489,11 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 	case kwFUNCTION:
 		p.advance() // consume FUNCTION
 		stmt := p.parseCreateFunctionStmt(true /* orAlter */)
+		stmt.Loc.Start = loc
+		return stmt
+	case kwTRIGGER:
+		p.advance() // consume TRIGGER
+		stmt := p.parseCreateTriggerStmt(true /* orAlter */)
 		stmt.Loc.Start = loc
 		return stmt
 	case kwSCHEMA:
