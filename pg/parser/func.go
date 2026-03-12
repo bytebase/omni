@@ -60,10 +60,11 @@ func (p *Parser) parseWindowDefinitionList() *nodes.List {
 //	window_definition:
 //	    ColId AS window_specification
 func (p *Parser) parseWindowDefinition() *nodes.WindowDef {
+	loc := p.pos()
 	name, _ := p.parseColId()
 	p.expect(AS)
 	wd := p.parseWindowSpecification().(*nodes.WindowDef)
 	wd.Name = name
-	wd.Loc = nodes.NoLoc()
+	wd.Loc = nodes.Loc{Start: loc, End: p.pos()}
 	return wd
 }

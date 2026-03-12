@@ -1911,6 +1911,7 @@ func (p *Parser) parseSortByList() *nodes.List {
 
 // parseSortBy parses a single sortby item: a_expr [ASC|DESC] [NULLS FIRST|LAST].
 func (p *Parser) parseSortBy() nodes.Node {
+	loc := p.pos()
 	expr := p.parseAExpr(0)
 	dir := nodes.SORTBY_DEFAULT
 	if p.cur.Type == ASC {
@@ -1942,6 +1943,7 @@ func (p *Parser) parseSortBy() nodes.Node {
 		Node:        expr,
 		SortbyDir:   dir,
 		SortbyNulls: nullsOrder,
+		Loc:         nodes.Loc{Start: loc, End: p.pos()},
 	}
 }
 
@@ -1957,18 +1959,20 @@ func (p *Parser) parseOverClause() nodes.Node {
 		return p.parseWindowSpecification()
 	}
 	// OVER ColId - references an existing window by name
+	loc := p.pos()
 	name, _ := p.parseColId()
 	return &nodes.WindowDef{
 		Name:         name,
 		FrameOptions: nodes.FRAMEOPTION_DEFAULTS,
-		Loc: nodes.NoLoc(),
+		Loc:          nodes.Loc{Start: loc, End: p.pos()},
 	}
 }
 
 // parseWindowSpecification parses a window specification: ( [name] [PARTITION BY ...] [ORDER BY ...] [frame] ).
 func (p *Parser) parseWindowSpecification() nodes.Node {
+	loc := p.pos()
 	p.advance() // consume '('
-	wd := &nodes.WindowDef{Loc: nodes.NoLoc()}
+	wd := &nodes.WindowDef{Loc: nodes.Loc{Start: loc, End: -1}}
 
 	// Optional existing window name
 	if p.isColId() && p.cur.Type != PARTITION && p.cur.Type != ORDER && p.cur.Type != RANGE && p.cur.Type != ROWS && p.cur.Type != GROUPS {
@@ -1998,6 +2002,7 @@ func (p *Parser) parseWindowSpecification() nodes.Node {
 	}
 
 	p.expect(')')
+	wd.Loc.End = p.pos()
 	return wd
 }
 
@@ -2281,10 +2286,12 @@ func (p *Parser) parseTargetList() *nodes.List {
 
 // parseTargetEl parses a single target list element.
 func (p *Parser) parseTargetEl() nodes.Node {
+	loc := p.pos()
 	if p.cur.Type == '*' {
 		p.advance()
 		return &nodes.ResTarget{
 			Val: &nodes.ColumnRef{Fields: &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}}},
+			Loc: nodes.Loc{Start: loc, End: p.pos()},
 		}
 	}
 
@@ -2295,6 +2302,7 @@ func (p *Parser) parseTargetEl() nodes.Node {
 
 	rt := &nodes.ResTarget{
 		Val: expr,
+		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
 	// Optional alias: AS ColLabel | ColId (without AS)
@@ -2311,6 +2319,7 @@ func (p *Parser) parseTargetEl() nodes.Node {
 		}
 	}
 
+	rt.Loc.End = p.pos()
 	return rt
 }
 

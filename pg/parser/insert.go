@@ -25,6 +25,7 @@ func (p *Parser) parseInsertStmt(withClause *nodes.WithClause) *nodes.InsertStmt
 	p.expect(INTO)
 
 	// insert_target: qualified_name [AS ColId]
+	rvLoc := p.pos()
 	names, _ := p.parseQualifiedName()
 	rv := makeRangeVarFromNames(names)
 	if p.cur.Type == AS {
@@ -32,6 +33,7 @@ func (p *Parser) parseInsertStmt(withClause *nodes.WithClause) *nodes.InsertStmt
 		alias, _ := p.parseColId()
 		rv.Alias = &nodes.Alias{Aliasname: alias}
 	}
+	rv.Loc = nodes.Loc{Start: rvLoc, End: p.pos()}
 
 	// insert_rest
 	stmt := p.parseInsertRest()
@@ -143,11 +145,13 @@ func (p *Parser) parseInsertColumnList() *nodes.List {
 //	insert_column_item:
 //	    ColId opt_indirection
 func (p *Parser) parseInsertColumnItem() *nodes.ResTarget {
+	loc := p.pos()
 	name, _ := p.parseColId()
 	ind := p.parseOptIndirection()
 	return &nodes.ResTarget{
 		Name:        name,
 		Indirection: ind,
+		Loc:         nodes.Loc{Start: loc, End: p.pos()},
 	}
 }
 
@@ -159,24 +163,26 @@ func (p *Parser) parseInsertColumnItem() *nodes.ResTarget {
 //	    | ON CONFLICT '(' index_params ')' [WHERE a_expr] DO {NOTHING | UPDATE SET ...}
 //	    | ON CONFLICT ON CONSTRAINT name DO {NOTHING | UPDATE SET ...}
 func (p *Parser) parseOnConflict() *nodes.OnConflictClause {
+	loc := p.pos()
 	p.advance() // consume ON
 	p.advance() // consume CONFLICT
 
 	occ := &nodes.OnConflictClause{
-		Loc: nodes.NoLoc(),
+		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
 	// Determine which form we have
 	switch p.cur.Type {
 	case '(':
 		// '(' index_params ')' [WHERE a_expr] DO ...
+		inferLoc := p.pos()
 		p.advance() // consume '('
 		indexElems := p.parseIndexParams()
 		p.expect(')')
 
 		infer := &nodes.InferClause{
 			IndexElems: indexElems,
-			Loc: nodes.NoLoc(),
+			Loc:        nodes.Loc{Start: inferLoc, End: -1},
 		}
 
 		// Optional WHERE clause for partial index predicate
@@ -185,16 +191,18 @@ func (p *Parser) parseOnConflict() *nodes.OnConflictClause {
 			infer.WhereClause = p.parseAExpr(0)
 		}
 
+		infer.Loc.End = p.pos()
 		occ.Infer = infer
 
 	case ON:
 		// ON CONSTRAINT name
+		inferLoc := p.pos()
 		p.advance() // consume ON (second one)
 		p.expect(CONSTRAINT)
 		name, _ := p.parseName()
 		occ.Infer = &nodes.InferClause{
-			Conname:  name,
-			Loc: nodes.NoLoc(),
+			Conname: name,
+			Loc:     nodes.Loc{Start: inferLoc, End: p.pos()},
 		}
 
 	default:
@@ -214,6 +222,7 @@ func (p *Parser) parseOnConflict() *nodes.OnConflictClause {
 		occ.WhereClause = p.parseWhereClause()
 	}
 
+	occ.Loc.End = p.pos()
 	return occ
 }
 
@@ -286,11 +295,13 @@ func (p *Parser) parseSetClause() []nodes.Node {
 //	set_target:
 //	    ColId opt_indirection
 func (p *Parser) parseSetTarget() *nodes.ResTarget {
+	loc := p.pos()
 	name, _ := p.parseColId()
 	ind := p.parseOptIndirection()
 	return &nodes.ResTarget{
 		Name:        name,
 		Indirection: ind,
+		Loc:         nodes.Loc{Start: loc, End: p.pos()},
 	}
 }
 

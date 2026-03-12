@@ -512,6 +512,7 @@ func (p *Parser) parseWithClause() *nodes.WithClause {
 	}
 
 	wc.Ctes = p.parseCTEList()
+	wc.Loc.End = p.pos()
 	return wc
 }
 
@@ -563,6 +564,7 @@ func (p *Parser) parseCommonTableExpr() *nodes.CommonTableExpr {
 	// opt_cycle_clause
 	cte.CycleClause = p.parseOptCycleClause()
 
+	cte.Loc.End = p.pos()
 	return cte
 }
 
@@ -695,6 +697,7 @@ func (p *Parser) parseIntoClause() *nodes.IntoClause {
 //	    | TABLE qualified_name
 //	    | qualified_name
 func (p *Parser) parseOptTempTableName() *nodes.RangeVar {
+	loc := p.pos()
 	persistence := byte('p')
 
 	switch p.cur.Type {
@@ -720,6 +723,7 @@ func (p *Parser) parseOptTempTableName() *nodes.RangeVar {
 	names, _ := p.parseQualifiedName()
 	rv := makeRangeVarFromNames(names)
 	rv.Relpersistence = persistence
+	rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
 	return rv
 }
 
@@ -1025,14 +1029,18 @@ func (p *Parser) parseRelationOrFuncTable() nodes.Node {
 			names := &nodes.List{Items: []nodes.Node{
 				&nodes.String{Str: name}, &nodes.String{Str: attr}, &nodes.String{Str: attr2},
 			}}
-			return p.finishRelationTable(makeRangeVarFromNames(names))
+			rv3 := makeRangeVarFromNames(names)
+			rv3.Loc = nodes.Loc{Start: loc, End: p.pos()}
+			return p.finishRelationTable(rv3)
 		}
 
 		// 2-part qualified relation name
 		names := &nodes.List{Items: []nodes.Node{
 			&nodes.String{Str: name}, &nodes.String{Str: attr},
 		}}
-		return p.finishRelationTable(makeRangeVarFromNames(names))
+		rv2 := makeRangeVarFromNames(names)
+		rv2.Loc = nodes.Loc{Start: loc, End: p.pos()}
+		return p.finishRelationTable(rv2)
 	}
 
 	// Simple relation name
@@ -1045,6 +1053,7 @@ func (p *Parser) parseRelationOrFuncTable() nodes.Node {
 		rv.Inh = true
 	}
 
+	rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
 	return p.finishRelationTable(rv)
 }
 
@@ -1108,6 +1117,7 @@ func (p *Parser) parseRelationExprWithAlias() nodes.Node {
 //	    | ONLY qualified_name
 //	    | ONLY '(' qualified_name ')'
 func (p *Parser) parseRelationExpr() *nodes.RangeVar {
+	loc := p.pos()
 	if p.cur.Type == ONLY {
 		p.advance()
 		if p.cur.Type == '(' {
@@ -1116,11 +1126,13 @@ func (p *Parser) parseRelationExpr() *nodes.RangeVar {
 			p.expect(')')
 			rv := makeRangeVarFromNames(names)
 			rv.Inh = false
+			rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
 			return rv
 		}
 		names, _ := p.parseQualifiedName()
 		rv := makeRangeVarFromNames(names)
 		rv.Inh = false
+		rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
 		return rv
 	}
 
@@ -1136,6 +1148,7 @@ func (p *Parser) parseRelationExpr() *nodes.RangeVar {
 		rv.Inh = true
 	}
 
+	rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
 	return rv
 }
 
@@ -1441,6 +1454,7 @@ func (p *Parser) parseTableSampleClause() *nodes.RangeTableSample {
 		p.expect(')')
 	}
 
+	ts.Loc.End = p.pos()
 	return ts
 }
 

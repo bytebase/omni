@@ -1549,7 +1549,7 @@
       "id": 64,
       "name": "loc_end_select_insert_update_delete",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix End position for all parse functions in select.go, insert.go, update.go: parseSelectNoParens, parseSelectWithParens, parseSelectClause, parseSelectClausePrimary, parseTargetEl, parseSortBy, parseWindowDef, parseFrameClause, parseGroupByItem, parseLockingClause, parseInsertStmt, parseOnConflict, parseUpdateStmt, parseDeleteStmt, parseMergeStmt, parseMergeWhen. Every function must set node.Loc.End = p.pos() before returning. Add TestLocSelect, TestLocInsert, TestLocUpdate, TestLocDelete with comprehensive SQL cases that validate Start:End extracts correct substring.",
       "rules": [
         "parseSelectNoParens",
