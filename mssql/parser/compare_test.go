@@ -3931,6 +3931,51 @@ COMMIT;`,
 	}
 }
 
+// TestParseSecurityContext tests batch 53: EXECUTE AS, REVERT, ALTER AUTHORIZATION.
+func TestParseSecurityContext(t *testing.T) {
+	tests := []string{
+		// EXECUTE AS LOGIN
+		"EXECUTE AS LOGIN = 'TestLogin'",
+		// EXECUTE AS USER
+		"EXECUTE AS USER = 'TestUser'",
+		// EXECUTE AS CALLER
+		"EXECUTE AS CALLER",
+		// EXECUTE AS SELF
+		"EXECUTE AS SELF",
+		// EXECUTE AS OWNER
+		"EXECUTE AS OWNER",
+		// EXECUTE AS with NO REVERT
+		"EXECUTE AS USER = 'TestUser' WITH NO REVERT",
+		// EXECUTE AS with COOKIE
+		"EXECUTE AS USER = 'TestUser' WITH COOKIE INTO @cookie",
+		// REVERT basic
+		"REVERT",
+		// REVERT with COOKIE
+		"REVERT WITH COOKIE = @cookie",
+		// ALTER AUTHORIZATION basic
+		"ALTER AUTHORIZATION ON dbo.MyTable TO NewOwner",
+		// ALTER AUTHORIZATION with class type
+		"ALTER AUTHORIZATION ON OBJECT::dbo.MyTable TO NewOwner",
+		// ALTER AUTHORIZATION to SCHEMA OWNER
+		"ALTER AUTHORIZATION ON SCHEMA::Sales TO SCHEMA OWNER",
+		// ALTER AUTHORIZATION on DATABASE
+		"ALTER AUTHORIZATION ON DATABASE::MyDB TO sa",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.SecurityStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", sql, result.Items[0])
+			}
+			checkLocation(t, sql, "SecurityStmt", stmt.Loc)
+		})
+	}
+}
+
 // TestParseServiceBrokerAlterDrop tests batch 52: ALTER/DROP Service Broker objects, BROKER PRIORITY, MOVE CONVERSATION.
 func TestParseServiceBrokerAlterDrop(t *testing.T) {
 	tests := []string{

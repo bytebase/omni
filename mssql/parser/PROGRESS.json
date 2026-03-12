@@ -1239,7 +1239,7 @@
       "id": 53,
       "name": "security_context",
       "file": "security_principals.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: EXECUTE AS (impersonation context switching), REVERT, ALTER AUTHORIZATION (ownership transfer)",
       "rules": ["parseExecuteAsStmt", "parseRevertStmt", "parseAlterAuthorizationStmt"],
       "depends_on": [19, 30],

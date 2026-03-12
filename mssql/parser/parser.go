@@ -118,6 +118,13 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 	case kwSAVE:
 		return p.parseSaveTransStmt()
 	case kwEXEC, kwEXECUTE:
+		// Check for EXECUTE AS (context switching) vs EXEC proc
+		if p.cur.Type == kwEXECUTE {
+			next := p.peekNext()
+			if next.Type == kwAS {
+				return p.parseExecuteAsStmt()
+			}
+		}
 		return p.parseExecStmt()
 	case kwGRANT:
 		return p.parseGrantStmt()
@@ -221,6 +228,10 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 			if matchesKeywordCI(p.cur.Str, "MOVE") &&
 				next.Str != "" && matchesKeywordCI(next.Str, "CONVERSATION") {
 				return p.parseMoveConversationStmt()
+			}
+			// REVERT (security context)
+			if matchesKeywordCI(p.cur.Str, "REVERT") {
+				return p.parseRevertStmt()
 			}
 		}
 		return nil
@@ -594,6 +605,13 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 				return stmt
 			}
 			return nil
+		}
+		// ALTER AUTHORIZATION
+		if p.cur.Type == kwAUTHORIZATION {
+			p.advance() // consume AUTHORIZATION
+			stmt := p.parseAlterAuthorizationStmt()
+			stmt.Loc.Start = loc
+			return stmt
 		}
 		// ALTER QUEUE (service broker)
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "QUEUE") {
