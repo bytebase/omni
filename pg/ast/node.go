@@ -10,7 +10,20 @@ type Node interface {
 
 // ParseLoc represents a location in the source text (byte offset).
 // -1 means "unknown".
+// Deprecated: Use Loc instead for range-based location tracking.
 type ParseLoc int
+
+// Loc represents a source location range (byte offsets).
+// -1 means "unknown" for either field.
+type Loc struct {
+	Start int // inclusive start byte offset (-1 if unknown)
+	End   int // exclusive end byte offset (-1 if unknown)
+}
+
+// NoLoc returns a Loc with both Start and End set to -1 (unknown).
+func NoLoc() Loc {
+	return Loc{Start: -1, End: -1}
+}
 
 // Oid represents a PostgreSQL object identifier.
 type Oid uint32

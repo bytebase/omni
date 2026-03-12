@@ -603,12 +603,12 @@ func makeRangeVarFromNames(names *nodes.List) *nodes.RangeVar {
 	return rv
 }
 
-// makeRangeVarFromAnyName creates a RangeVar from an any_name list with Location = -1.
+// makeRangeVarFromAnyName creates a RangeVar from an any_name list with Loc = NoLoc().
 func makeRangeVarFromAnyName(names *nodes.List) *nodes.RangeVar {
 	rv := &nodes.RangeVar{
 		Inh:            true,
 		Relpersistence: 'p',
-		Location:       -1,
+		Loc: nodes.NoLoc(),
 	}
 	if names == nil {
 		return rv

@@ -5,9 +5,8 @@ package ast
 
 // RawStmt wraps a raw (unparsed) statement.
 type RawStmt struct {
-	Stmt         Node     // raw statement
-	StmtLocation ParseLoc // start location, or -1 if unknown
-	StmtLen      ParseLoc // length in bytes; 0 means "rest of string"
+	Stmt Node // raw statement
+	Loc  Loc // source location range (Start = start offset, End = start + length)
 }
 
 func (n *RawStmt) Tag() NodeTag { return T_RawStmt }
@@ -205,7 +204,7 @@ type RangeVar struct {
 	Inh         bool     // expand rel by inheritance? recursively act on children?
 	Relpersistence byte  // see RELPERSISTENCE_* in pg_class.h
 	Alias       *Alias   // table alias & optional column aliases
-	Location    ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *RangeVar) Tag() NodeTag { return T_RangeVar }
@@ -235,7 +234,7 @@ func (n *IntoClause) Tag() NodeTag { return T_IntoClause }
 // ColumnRef represents a column reference (foo.bar.baz).
 type ColumnRef struct {
 	Fields   *List    // field names (String nodes) or A_Star
-	Location ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *ColumnRef) Tag() NodeTag { return T_ColumnRef }
@@ -246,7 +245,7 @@ type ResTarget struct {
 	Name        string   // column name or NULL
 	Indirection *List    // subscripts, field names, and '*'
 	Val         Node     // the value expression to compute or assign
-	Location    ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *ResTarget) Tag() NodeTag { return T_ResTarget }
@@ -266,7 +265,7 @@ type A_Expr struct {
 	Name     *List       // possibly-qualified name of operator
 	Lexpr    Node        // left argument, or NULL if none
 	Rexpr    Node        // right argument, or NULL if none
-	Location ParseLoc    // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *A_Expr) Tag() NodeTag { return T_A_Expr }
@@ -275,7 +274,7 @@ func (n *A_Expr) Tag() NodeTag { return T_A_Expr }
 type A_Const struct {
 	Isnull   bool     // if true, value is NULL
 	Val      Node     // value (Integer, Float, Boolean, String, or BitString node; or NULL if isnull)
-	Location ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *A_Const) Tag() NodeTag { return T_A_Const }
@@ -284,7 +283,7 @@ func (n *A_Const) Tag() NodeTag { return T_A_Const }
 type TypeCast struct {
 	Arg      Node      // the expression being casted
 	TypeName *TypeName // the target type
-	Location ParseLoc  // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *TypeCast) Tag() NodeTag { return T_TypeCast }
@@ -301,7 +300,7 @@ type FuncCall struct {
 	AggDistinct    bool     // arguments were labeled DISTINCT
 	FuncVariadic   bool     // last argument was labeled VARIADIC
 	FuncFormat     int      // how to display function call (CoercionForm)
-	Location       ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *FuncCall) Tag() NodeTag { return T_FuncCall }
@@ -311,7 +310,7 @@ type NamedArgExpr struct {
 	Arg       Node     // the argument expression
 	Name      string   // the name
 	Argnumber int      // argument's number in positional notation
-	Location  ParseLoc // argument name location, or -1 if unknown
+	Loc  Loc // argument name location, or -1 if unknown
 }
 
 func (n *NamedArgExpr) Tag() NodeTag { return T_NamedArgExpr }
@@ -325,7 +324,7 @@ type TypeName struct {
 	Typmods     *List    // type modifier expression(s)
 	Typemod     int32    // prespecified type modifier
 	ArrayBounds *List    // array bounds
-	Location    ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *TypeName) Tag() NodeTag { return T_TypeName }
@@ -350,7 +349,7 @@ type ColumnDef struct {
 	CollOid       Oid       // collation OID
 	Constraints   *List     // other constraints on column
 	Fdwoptions    *List     // per-column FDW options
-	Location      ParseLoc  // parse location, or -1 if none/unknown
+	Loc  Loc // parse location, or -1 if none/unknown
 }
 
 func (n *ColumnDef) Tag() NodeTag { return T_ColumnDef }
@@ -361,7 +360,7 @@ type Constraint struct {
 	Conname         string     // constraint name, or NULL if unnamed
 	Deferrable      bool       // DEFERRABLE?
 	Initdeferred    bool       // INITIALLY DEFERRED?
-	Location        ParseLoc   // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 	IsNoInherit     bool       // NO INHERIT?
 	RawExpr         Node       // CHECK expression (raw parse tree)
 	CookedExpr      string     // CHECK expression (cooked)
@@ -397,7 +396,7 @@ type SortBy struct {
 	SortbyDir   SortByDir   // ASC/DESC/USING/default
 	SortbyNulls SortByNulls // NULLS FIRST/LAST
 	UseOp       *List       // name of op to use, if SORTBY_USING
-	Location    ParseLoc    // operator location, or -1 if none/unknown
+	Loc  Loc // operator location, or -1 if none/unknown
 }
 
 func (n *SortBy) Tag() NodeTag { return T_SortBy }
@@ -406,7 +405,7 @@ func (n *SortBy) Tag() NodeTag { return T_SortBy }
 type WithClause struct {
 	Ctes      *List // list of CommonTableExprs
 	Recursive bool  // true = WITH RECURSIVE
-	Location  ParseLoc
+	Loc  Loc 
 }
 
 func (n *WithClause) Tag() NodeTag { return T_WithClause }
@@ -419,7 +418,7 @@ type CommonTableExpr struct {
 	Ctequery         Node     // the CTE's subquery
 	SearchClause     Node     // SEARCH clause
 	CycleClause      Node     // CYCLE clause
-	Location         ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 	Cterecursive     bool     // is this CTE actually recursive?
 	Cterefcount      int      // number of RTEs referencing this CTE
 	Ctecolnames      *List    // list of output column names
@@ -435,7 +434,7 @@ type CTESearchClause struct {
 	SearchColList    *List    // list of column names to search by
 	SearchBreadthFirst bool  // true = BREADTH FIRST, false = DEPTH FIRST
 	SearchSeqColumn  string  // name of the output ordering column
-	Location         ParseLoc
+	Loc  Loc 
 }
 
 func (n *CTESearchClause) Tag() NodeTag { return T_CTESearchClause }
@@ -451,7 +450,7 @@ type CTECycleClause struct {
 	CycleMarkTypmod  int32
 	CycleMarkCollation Oid
 	CycleMarkNeop    Oid
-	Location         ParseLoc
+	Loc  Loc 
 }
 
 func (n *CTECycleClause) Tag() NodeTag { return T_CTECycleClause }
@@ -460,7 +459,7 @@ func (n *CTECycleClause) Tag() NodeTag { return T_CTECycleClause }
 type RoleSpec struct {
 	Roletype int      // type of role (RoleSpecType)
 	Rolename string   // filled only for ROLESPEC_CSTRING
-	Location ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *RoleSpec) Tag() NodeTag { return T_RoleSpec }
@@ -469,7 +468,7 @@ func (n *RoleSpec) Tag() NodeTag { return T_RoleSpec }
 type CollateClause struct {
 	Arg      Node     // input expression
 	Collname *List    // possibly-qualified collation name
-	Location ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *CollateClause) Tag() NodeTag { return T_CollateClause }
@@ -478,7 +477,7 @@ func (n *CollateClause) Tag() NodeTag { return T_CollateClause }
 type PartitionSpec struct {
 	Strategy   string   // partitioning strategy (PARTITION_STRATEGY_*)
 	PartParams *List    // partition key list
-	Location   ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *PartitionSpec) Tag() NodeTag { return T_PartitionSpec }
@@ -489,7 +488,7 @@ type PartitionElem struct {
 	Expr      Node     // expression to partition on, or nil
 	Collation *List    // name of collation; nil = default
 	Opclass   *List    // name of desired opclass; nil = default
-	Location  ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *PartitionElem) Tag() NodeTag { return T_PartitionElem }
@@ -503,7 +502,7 @@ type PartitionBoundSpec struct {
 	Listdatums  *List // list of Consts (or Exprs) for LIST
 	Lowerdatums *List // list of Consts (or Exprs) for RANGE lower
 	Upperdatums *List // list of Consts (or Exprs) for RANGE upper
-	Location    ParseLoc
+	Loc  Loc 
 }
 
 func (n *PartitionBoundSpec) Tag() NodeTag { return T_PartitionBoundSpec }
@@ -523,7 +522,7 @@ type OnConflictClause struct {
 	Infer       *InferClause
 	TargetList  *List    // SET clause for DO UPDATE
 	WhereClause Node     // WHERE clause for DO UPDATE
-	Location    ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *OnConflictClause) Tag() NodeTag { return T_OnConflictClause }
@@ -533,7 +532,7 @@ type InferClause struct {
 	IndexElems  *List    // IndexElems to infer unique index
 	WhereClause Node     // qualification (partial-index predicate)
 	Conname     string   // constraint name
-	Location    ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *InferClause) Tag() NodeTag { return T_InferClause }
@@ -544,7 +543,7 @@ type DefElem struct {
 	Defname      string   // option name
 	Arg          Node     // option value (can be integer, string, TypeName, etc)
 	Defaction    int      // unspecified action, or SET/ADD/DROP (DefElemAction)
-	Location     ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *DefElem) Tag() NodeTag { return T_DefElem }
@@ -589,7 +588,7 @@ type WindowDef struct {
 	FrameOptions    int      // frame_clause options, see WindowDef comments
 	StartOffset     Node     // expression for starting bound, if any
 	EndOffset       Node     // expression for ending bound, if any
-	Location        ParseLoc // parse location, or -1 if none/unknown
+	Loc  Loc // parse location, or -1 if none/unknown
 }
 
 func (n *WindowDef) Tag() NodeTag { return T_WindowDef }
@@ -634,7 +633,7 @@ func (n *IndexElem) Tag() NodeTag { return T_IndexElem }
 // ParamRef represents $n parameter reference.
 type ParamRef struct {
 	Number   int      // number of the parameter
-	Location ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *ParamRef) Tag() NodeTag { return T_ParamRef }
@@ -655,7 +654,7 @@ type SubLink struct {
 	Testexpr    Node     // outer-query test for ANY/ALL/ROWCOMPARE
 	OperName    *List    // originally specified operator name
 	Subselect   Node     // subselect as Query* or raw parsetree
-	Location    ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *SubLink) Tag() NodeTag { return T_SubLink }
@@ -664,7 +663,7 @@ func (n *SubLink) Tag() NodeTag { return T_SubLink }
 type BoolExpr struct {
 	Boolop   BoolExprType // AND/OR/NOT
 	Args     *List        // arguments to this expression
-	Location ParseLoc     // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *BoolExpr) Tag() NodeTag { return T_BoolExpr }
@@ -682,7 +681,7 @@ type NullTest struct {
 	Arg          Node         // input expression
 	Nulltesttype NullTestType // IS NULL, IS NOT NULL
 	Argisrow     bool         // T to perform field-by-field null checks
-	Location     ParseLoc     // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *NullTest) Tag() NodeTag { return T_NullTest }
@@ -703,7 +702,7 @@ const (
 type BooleanTest struct {
 	Arg          Node         // input expression
 	Booltesttype BoolTestType // test type
-	Location     ParseLoc     // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *BooleanTest) Tag() NodeTag { return T_BooleanTest }
@@ -735,7 +734,7 @@ type RangeTableSample struct {
 	Method     *List    // sampling method name (possibly schema qualified)
 	Args       *List    // argument(s) for sampling method
 	Repeatable Node     // REPEATABLE expression, or NULL if none
-	Location   ParseLoc // method name location, or -1 if unknown
+	Loc  Loc // method name location, or -1 if unknown
 }
 
 func (n *RangeTableSample) Tag() NodeTag { return T_RangeTableSample }
@@ -758,7 +757,7 @@ type CaseExpr struct {
 	Arg        Node     // implicit equality comparison argument
 	Args       *List    // the arguments (list of CaseWhen)
 	Defresult  Node     // the default result (ELSE clause)
-	Location   ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *CaseExpr) Tag() NodeTag { return T_CaseExpr }
@@ -767,7 +766,7 @@ func (n *CaseExpr) Tag() NodeTag { return T_CaseExpr }
 type CaseWhen struct {
 	Expr     Node     // condition expression
 	Result   Node     // substitution result
-	Location ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *CaseWhen) Tag() NodeTag { return T_CaseWhen }
@@ -777,7 +776,7 @@ type CoalesceExpr struct {
 	Coalescetype   Oid      // type of expression result
 	Coalescecollid Oid      // OID of collation, or InvalidOid if none
 	Args           *List    // the arguments
-	Location       ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *CoalesceExpr) Tag() NodeTag { return T_CoalesceExpr }
@@ -788,7 +787,7 @@ type MinMaxExpr struct {
 	Minmaxcollid Oid          // OID of collation of result
 	Op           MinMaxOp     // GREATEST or LEAST
 	Args         *List        // the arguments
-	Location     ParseLoc     // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 // MinMaxOp represents GREATEST vs LEAST.
@@ -811,7 +810,7 @@ type NullIfExpr struct {
 	Opcollid     Oid      // OID of collation of result
 	Inputcollid  Oid      // OID of collation that operator should use
 	Args         *List    // arguments to the operator (min 2)
-	Location     ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *NullIfExpr) Tag() NodeTag { return T_NullIfExpr }
@@ -822,7 +821,7 @@ type RowExpr struct {
 	RowTypeid  Oid         // RECORDOID or a composite type's ID
 	RowFormat  CoercionForm // how to display this node
 	Colnames   *List       // list of String, or NIL
-	Location   ParseLoc    // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *RowExpr) Tag() NodeTag { return T_RowExpr }
@@ -834,7 +833,7 @@ type ArrayExpr struct {
 	ElementTypeid Oid     // common type of array elements
 	Elements     *List    // list of Array elements
 	Multidims    bool     // true if elements are sub-arrays
-	Location     ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *ArrayExpr) Tag() NodeTag { return T_ArrayExpr }
@@ -842,7 +841,7 @@ func (n *ArrayExpr) Tag() NodeTag { return T_ArrayExpr }
 // A_ArrayExpr represents an ARRAY[] construct in raw parse tree.
 type A_ArrayExpr struct {
 	Elements *List    // array element expressions
-	Location ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *A_ArrayExpr) Tag() NodeTag { return T_A_ArrayExpr }
@@ -852,7 +851,7 @@ type GroupingFunc struct {
 	Args       *List    // arguments, not evaluated but kept for benefit of EXPLAIN etc.
 	Refs       *List    // ressortgrouprefs of arguments
 	Agglevelsup uint32  // same as Aggref.agglevelsup
-	Location   ParseLoc // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 func (n *GroupingFunc) Tag() NodeTag { return T_GroupingFunc }
@@ -861,7 +860,7 @@ func (n *GroupingFunc) Tag() NodeTag { return T_GroupingFunc }
 type GroupingSet struct {
 	Kind     GroupingSetKind // GROUPING SETS, CUBE, ROLLUP
 	Content  *List           // content of the set
-	Location ParseLoc        // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 // GroupingSetKind represents the kind of grouping set.
@@ -1180,7 +1179,7 @@ type TransactionStmt struct {
 	Savepoint string              // for SAVEPOINT, ROLLBACK TO, RELEASE
 	Gid       string              // for two-phase commit
 	Chain     bool                // AND CHAIN option
-	Location  ParseLoc            // token location, or -1 if unknown
+	Loc  Loc // token location, or -1 if unknown
 }
 
 // TransactionStmtKind represents the kind of transaction statement.
@@ -1222,7 +1221,7 @@ func (n *ExecuteStmt) Tag() NodeTag { return T_ExecuteStmt }
 type DeallocateStmt struct {
 	Name    string // name of plan to deallocate, or NULL for all
 	IsAll   bool   // true if DEALLOCATE ALL
-	Location ParseLoc // token location
+	Loc  Loc // token location
 }
 
 func (n *DeallocateStmt) Tag() NodeTag { return T_DeallocateStmt }
@@ -1832,7 +1831,7 @@ type PublicationObjSpec struct {
 	Pubobjtype PublicationObjSpecType // object type
 	Name       string                 // schema name for TABLES IN SCHEMA
 	Pubtable   *PublicationTable      // table specification
-	Location   ParseLoc               // token location
+	Loc  Loc // token location
 }
 
 func (n *PublicationObjSpec) Tag() NodeTag { return T_PublicationObjSpec }
@@ -2057,7 +2056,7 @@ func (n *ReassignOwnedStmt) Tag() NodeTag { return T_ReassignOwnedStmt }
 type SQLValueFunction struct {
 	Op       SVFOp    // which function this is
 	Typmod   int32    // typmod to apply, or -1
-	Location ParseLoc // token location, or -1
+	Loc  Loc // token location, or -1
 }
 
 func (n *SQLValueFunction) Tag() NodeTag { return T_SQLValueFunction }
@@ -2067,7 +2066,7 @@ type SetToDefault struct {
 	TypeId   Oid      // type for substituted value
 	Typmod   int32    // typemod for substituted value
 	Collation Oid     // collation for the datatype
-	Location ParseLoc // token location, or -1
+	Loc  Loc // token location, or -1
 }
 
 func (n *SetToDefault) Tag() NodeTag { return T_SetToDefault }
@@ -2113,7 +2112,7 @@ type XmlExpr struct {
 	Indent    bool          // INDENT option for XMLSERIALIZE
 	Type      Oid           // target type for XMLSERIALIZE
 	Typmod    int32         // target typmod for XMLSERIALIZE
-	Location  ParseLoc      // token location, or -1
+	Loc  Loc // token location, or -1
 }
 
 func (n *XmlExpr) Tag() NodeTag { return T_XmlExpr }
@@ -2124,7 +2123,7 @@ type XmlSerialize struct {
 	Expr      Node          // the XML expression
 	TypeName  *TypeName     // target type name
 	Indent    bool          // INDENT option
-	Location  ParseLoc      // token location, or -1
+	Loc  Loc // token location, or -1
 }
 
 func (n *XmlSerialize) Tag() NodeTag { return T_XmlSerialize }
@@ -2137,7 +2136,7 @@ type RangeTableFunc struct {
 	Namespaces *List    // list of namespaces as ResTarget
 	Columns    *List    // list of RangeTableFuncCol
 	Alias      *Alias   // table alias & optional column aliases
-	Location   ParseLoc // token location, or -1
+	Loc  Loc // token location, or -1
 }
 
 func (n *RangeTableFunc) Tag() NodeTag { return T_RangeTableFunc }
@@ -2150,7 +2149,7 @@ type RangeTableFuncCol struct {
 	IsNotNull     bool      // does it have NOT NULL?
 	Colexpr       Node      // column filter expression (PATH)
 	Coldefexpr    Node      // column default value expression
-	Location      ParseLoc  // token location, or -1
+	Loc  Loc // token location, or -1
 }
 
 func (n *RangeTableFuncCol) Tag() NodeTag { return T_RangeTableFuncCol }
@@ -2180,7 +2179,7 @@ const (
 type JsonFormat struct {
 	FormatType JsonFormatType
 	Encoding   JsonEncoding
-	Location   ParseLoc
+	Loc  Loc 
 }
 
 func (n *JsonFormat) Tag() NodeTag { return T_JsonFormat }
@@ -2258,7 +2257,7 @@ type JsonBehavior struct {
 	Btype    JsonBehaviorType
 	Expr     Node
 	Coerce   Node
-	Location ParseLoc
+	Loc  Loc 
 }
 
 func (n *JsonBehavior) Tag() NodeTag { return T_JsonBehavior }
@@ -2285,7 +2284,7 @@ type JsonFuncExpr struct {
 	OnError     *JsonBehavior
 	Wrapper     JsonWrapper
 	Quotes      JsonQuotes
-	Location    ParseLoc
+	Loc  Loc 
 }
 
 func (n *JsonFuncExpr) Tag() NodeTag { return T_JsonFuncExpr }
@@ -2294,8 +2293,8 @@ func (n *JsonFuncExpr) Tag() NodeTag { return T_JsonFuncExpr }
 type JsonTablePathSpec struct {
 	String       Node
 	Name         string
-	NameLocation ParseLoc
-	Location     ParseLoc
+	NameLoc  Loc 
+	Loc  Loc 
 }
 
 func (n *JsonTablePathSpec) Tag() NodeTag { return T_JsonTablePathSpec }
@@ -2323,7 +2322,7 @@ type JsonTableColumn struct {
 	Columns  *List
 	OnEmpty  *JsonBehavior
 	OnError  *JsonBehavior
-	Location ParseLoc
+	Loc  Loc 
 }
 
 func (n *JsonTableColumn) Tag() NodeTag { return T_JsonTableColumn }
@@ -2337,7 +2336,7 @@ type JsonTable struct {
 	OnError     *JsonBehavior
 	Alias       *Alias
 	Lateral     bool
-	Location    ParseLoc
+	Loc  Loc 
 }
 
 func (n *JsonTable) Tag() NodeTag { return T_JsonTable }
@@ -2355,7 +2354,7 @@ type JsonParseExpr struct {
 	Expr       *JsonValueExpr
 	Output     *JsonOutput
 	UniqueKeys bool
-	Location   ParseLoc
+	Loc  Loc 
 }
 
 func (n *JsonParseExpr) Tag() NodeTag { return T_JsonParseExpr }
@@ -2364,7 +2363,7 @@ func (n *JsonParseExpr) Tag() NodeTag { return T_JsonParseExpr }
 type JsonScalarExpr struct {
 	Expr     Node
 	Output   *JsonOutput
-	Location ParseLoc
+	Loc  Loc 
 }
 
 func (n *JsonScalarExpr) Tag() NodeTag { return T_JsonScalarExpr }
@@ -2373,7 +2372,7 @@ func (n *JsonScalarExpr) Tag() NodeTag { return T_JsonScalarExpr }
 type JsonSerializeExpr struct {
 	Expr     *JsonValueExpr
 	Output   *JsonOutput
-	Location ParseLoc
+	Loc  Loc 
 }
 
 func (n *JsonSerializeExpr) Tag() NodeTag { return T_JsonSerializeExpr }
@@ -2384,7 +2383,7 @@ type JsonObjectConstructor struct {
 	Output       *JsonOutput
 	AbsentOnNull bool
 	UniqueKeys   bool
-	Location     ParseLoc
+	Loc  Loc 
 }
 
 func (n *JsonObjectConstructor) Tag() NodeTag { return T_JsonObjectConstructor }
@@ -2394,7 +2393,7 @@ type JsonArrayConstructor struct {
 	Exprs        *List // list of JsonValueExpr
 	Output       *JsonOutput
 	AbsentOnNull bool
-	Location     ParseLoc
+	Loc  Loc 
 }
 
 func (n *JsonArrayConstructor) Tag() NodeTag { return T_JsonArrayConstructor }
@@ -2405,7 +2404,7 @@ type JsonArrayQueryConstructor struct {
 	Output       *JsonOutput
 	Format       *JsonFormat
 	AbsentOnNull bool
-	Location     ParseLoc
+	Loc  Loc 
 }
 
 func (n *JsonArrayQueryConstructor) Tag() NodeTag { return T_JsonArrayQueryConstructor }
@@ -2416,7 +2415,7 @@ type JsonAggConstructor struct {
 	Agg_filter Node
 	Agg_order *List
 	Over     *WindowDef
-	Location ParseLoc
+	Loc  Loc 
 }
 
 func (n *JsonAggConstructor) Tag() NodeTag { return T_JsonAggConstructor }
@@ -2456,7 +2455,7 @@ type JsonIsPredicate struct {
 	Format     *JsonFormat
 	ItemType   JsonValueType
 	UniqueKeys bool
-	Location   ParseLoc
+	Loc  Loc 
 }
 
 func (n *JsonIsPredicate) Tag() NodeTag { return T_JsonIsPredicate }

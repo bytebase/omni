@@ -34,7 +34,7 @@ func (p *Parser) parseJsonFormatClause() *nodes.JsonFormat {
 	p.expect(JSON)
 	f := &nodes.JsonFormat{
 		FormatType: nodes.JS_FORMAT_JSON,
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 	if p.cur.Type == ENCODING {
 		p.advance()
@@ -83,7 +83,7 @@ func (p *Parser) parseJsonBehavior() *nodes.JsonBehavior {
 		return &nodes.JsonBehavior{
 			Btype:    nodes.JSON_BEHAVIOR_DEFAULT,
 			Expr:     expr,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 	bt, ok := p.parseJsonBehaviorType()
@@ -92,7 +92,7 @@ func (p *Parser) parseJsonBehavior() *nodes.JsonBehavior {
 	}
 	return &nodes.JsonBehavior{
 		Btype:    bt,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -498,14 +498,14 @@ func (p *Parser) parseJsonObjectExpr() nodes.Node {
 	// Empty: JSON_OBJECT() or JSON_OBJECT(RETURNING ...)
 	if p.cur.Type == ')' {
 		p.advance()
-		return &nodes.JsonObjectConstructor{Location: -1}
+		return &nodes.JsonObjectConstructor{Loc: nodes.NoLoc()}
 	}
 	if p.cur.Type == RETURNING {
 		output := p.parseJsonReturningClauseOpt()
 		p.expect(')')
 		return &nodes.JsonObjectConstructor{
 			Output:   output,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -540,7 +540,7 @@ func (p *Parser) parseJsonObjectExpr() nodes.Node {
 			Output:       output,
 			AbsentOnNull: absentOnNull,
 			UniqueKeys:   uniqueKeys,
-			Location:     -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -564,7 +564,7 @@ func (p *Parser) parseJsonObjectExpr() nodes.Node {
 			Output:       output,
 			AbsentOnNull: absentOnNull,
 			UniqueKeys:   uniqueKeys,
-			Location:     -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -580,7 +580,7 @@ func (p *Parser) parseJsonObjectExpr() nodes.Node {
 		Funcname:   makeFuncName("pg_catalog", "json_object"),
 		Args:       &nodes.List{Items: args},
 		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -598,14 +598,14 @@ func (p *Parser) parseJsonArrayExpr() nodes.Node {
 	// Empty: JSON_ARRAY() or JSON_ARRAY(RETURNING ...)
 	if p.cur.Type == ')' {
 		p.advance()
-		return &nodes.JsonArrayConstructor{Location: -1}
+		return &nodes.JsonArrayConstructor{Loc: nodes.NoLoc()}
 	}
 	if p.cur.Type == RETURNING {
 		output := p.parseJsonReturningClauseOpt()
 		p.expect(')')
 		return &nodes.JsonArrayConstructor{
 			Output:   output,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -618,7 +618,7 @@ func (p *Parser) parseJsonArrayExpr() nodes.Node {
 		return &nodes.JsonArrayQueryConstructor{
 			Query:    query,
 			Output:   output,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -631,7 +631,7 @@ func (p *Parser) parseJsonArrayExpr() nodes.Node {
 		Exprs:        exprs,
 		AbsentOnNull: absentOnNull,
 		Output:       output,
-		Location:     -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -649,7 +649,7 @@ func (p *Parser) parseJsonParseExpr() nodes.Node {
 	return &nodes.JsonParseExpr{
 		Expr:       val,
 		UniqueKeys: uniqueKeys,
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -663,7 +663,7 @@ func (p *Parser) parseJsonScalarExpr() nodes.Node {
 	p.expect(')')
 	return &nodes.JsonScalarExpr{
 		Expr:     expr,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -679,7 +679,7 @@ func (p *Parser) parseJsonSerializeExpr() nodes.Node {
 	return &nodes.JsonSerializeExpr{
 		Expr:     val,
 		Output:   output,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -713,7 +713,7 @@ func (p *Parser) parseJsonQueryExpr() nodes.Node {
 		Quotes:      quotes,
 		OnEmpty:     onEmpty,
 		OnError:     onError,
-		Location:    -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -736,7 +736,7 @@ func (p *Parser) parseJsonExistsExpr() nodes.Node {
 		Pathspec:    pathspec,
 		Passing:     passing,
 		OnError:     onError,
-		Location:    -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -763,7 +763,7 @@ func (p *Parser) parseJsonValueFuncExpr() nodes.Node {
 		Output:      output,
 		OnEmpty:     onEmpty,
 		OnError:     onError,
-		Location:    -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -791,7 +791,7 @@ func (p *Parser) parseJsonObjectAgg() nodes.Node {
 	agg := &nodes.JsonObjectAgg{
 		Constructor: &nodes.JsonAggConstructor{
 			Output:   output,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		},
 		Arg:          kv,
 		AbsentOnNull: absentOnNull,
@@ -823,7 +823,7 @@ func (p *Parser) parseJsonArrayAgg() nodes.Node {
 		Constructor: &nodes.JsonAggConstructor{
 			Output:    output,
 			Agg_order: aggOrder,
-			Location:  -1,
+			Loc: nodes.NoLoc(),
 		},
 		Arg:          val,
 		AbsentOnNull: absentOnNull,
@@ -900,12 +900,12 @@ func (p *Parser) parseJsonTable() *nodes.JsonTable {
 		Pathspec: &nodes.JsonTablePathSpec{
 			String:   pathExpr,
 			Name:     pathName,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		},
 		Passing:  passing,
 		Columns:  columns,
 		OnError:  onError,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -954,10 +954,10 @@ func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
 			Pathspec: &nodes.JsonTablePathSpec{
 				String:   &nodes.A_Const{Val: &nodes.String{Str: pathStr}},
 				Name:     pathName,
-				Location: -1,
+				Loc: nodes.NoLoc(),
 			},
 			Columns:  columns,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -971,7 +971,7 @@ func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
 		return &nodes.JsonTableColumn{
 			Coltype:  nodes.JTC_FOR_ORDINALITY,
 			Name:     colName,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -980,7 +980,7 @@ func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
 	if err != nil {
 		return &nodes.JsonTableColumn{
 			Name:     colName,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1007,7 +1007,7 @@ func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
 			TypeName: tn,
 			Pathspec: pathspec,
 			OnError:  onError,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1027,7 +1027,7 @@ func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
 			Quotes:   quotes,
 			OnEmpty:  onEmpty,
 			OnError:  onError,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1045,7 +1045,7 @@ func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
 		Quotes:   quotes,
 		OnEmpty:  onEmpty,
 		OnError:  onError,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1062,7 +1062,7 @@ func (p *Parser) parseJsonTableColumnPathClauseOpt() *nodes.JsonTablePathSpec {
 	p.expect(SCONST)
 	return &nodes.JsonTablePathSpec{
 		String:   &nodes.A_Const{Val: &nodes.String{Str: pathStr}},
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1075,13 +1075,13 @@ func (p *Parser) parseJsonIsPredicate(left nodes.Node, negated bool) nodes.Node 
 		Expr:       left,
 		ItemType:   itemType,
 		UniqueKeys: uniqueKeys,
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 	if negated {
 		return &nodes.BoolExpr{
 			Boolop:   nodes.NOT_EXPR,
 			Args:     &nodes.List{Items: []nodes.Node{pred}},
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 	return pred

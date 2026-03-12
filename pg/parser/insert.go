@@ -163,7 +163,7 @@ func (p *Parser) parseOnConflict() *nodes.OnConflictClause {
 	p.advance() // consume CONFLICT
 
 	occ := &nodes.OnConflictClause{
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 
 	// Determine which form we have
@@ -176,7 +176,7 @@ func (p *Parser) parseOnConflict() *nodes.OnConflictClause {
 
 		infer := &nodes.InferClause{
 			IndexElems: indexElems,
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 
 		// Optional WHERE clause for partial index predicate
@@ -194,7 +194,7 @@ func (p *Parser) parseOnConflict() *nodes.OnConflictClause {
 		name, _ := p.parseName()
 		occ.Infer = &nodes.InferClause{
 			Conname:  name,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 
 	default:

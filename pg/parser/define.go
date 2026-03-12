@@ -629,14 +629,14 @@ func (p *Parser) parseTableFuncElement() *nodes.ColumnDef {
 		Colname:  colname,
 		TypeName: typename,
 		IsLocal:  true,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 	if p.cur.Type == COLLATE {
 		p.advance()
 		collname, _ := p.parseAnyName()
 		coldef.CollClause = &nodes.CollateClause{
 			Collname: collname,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 	return coldef
@@ -727,14 +727,14 @@ func (p *Parser) parseAlterDefaultPrivilegesStmt() nodes.Node {
 			p.advance()
 			p.expect(SCHEMA)
 			names, _ := p.parseNameList()
-			optItems = append(optItems, &nodes.DefElem{Defname: "schemas", Arg: names, Location: -1})
+			optItems = append(optItems, &nodes.DefElem{Defname: "schemas", Arg: names, Loc: nodes.NoLoc()})
 		} else if p.cur.Type == FOR {
 			p.advance()
 			if p.cur.Type == ROLE || p.cur.Type == USER {
 				p.advance()
 			}
 			roles := p.parseRoleList()
-			optItems = append(optItems, &nodes.DefElem{Defname: "roles", Arg: roles, Location: -1})
+			optItems = append(optItems, &nodes.DefElem{Defname: "roles", Arg: roles, Loc: nodes.NoLoc()})
 		} else {
 			break
 		}
@@ -994,12 +994,12 @@ func (p *Parser) parseOperatorDefElem() *nodes.DefElem {
 		p.advance()
 		if p.cur.Type == NONE {
 			p.advance()
-			return &nodes.DefElem{Defname: label, Location: -1}
+			return &nodes.DefElem{Defname: label, Loc: nodes.NoLoc()}
 		}
 		arg := p.parseDefArg()
-		return &nodes.DefElem{Defname: label, Arg: arg, Location: -1}
+		return &nodes.DefElem{Defname: label, Arg: arg, Loc: nodes.NoLoc()}
 	}
-	return &nodes.DefElem{Defname: label, Location: -1}
+	return &nodes.DefElem{Defname: label, Loc: nodes.NoLoc()}
 }
 
 // parseCreateConversionStmt parses CREATE [DEFAULT] CONVERSION.

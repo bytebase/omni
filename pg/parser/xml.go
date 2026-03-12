@@ -17,7 +17,7 @@ func (p *Parser) parseXmlConcat() nodes.Node {
 	return &nodes.XmlExpr{
 		Op:       nodes.IS_XMLCONCAT,
 		Args:     args,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -35,7 +35,7 @@ func (p *Parser) parseXmlElement() nodes.Node {
 	result := &nodes.XmlExpr{
 		Op:       nodes.IS_XMLELEMENT,
 		Name:     name,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 
 	if p.cur.Type == ',' {
@@ -77,7 +77,7 @@ func (p *Parser) parseXmlExists() nodes.Node {
 		Funcname:   makeFuncName("pg_catalog", "xmlexists"),
 		Args:       &nodes.List{Items: []nodes.Node{xpath, arg}},
 		FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -94,7 +94,7 @@ func (p *Parser) parseXmlForest() nodes.Node {
 	return &nodes.XmlExpr{
 		Op:        nodes.IS_XMLFOREST,
 		NamedArgs: attrs,
-		Location:  -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -114,7 +114,7 @@ func (p *Parser) parseXmlParse() nodes.Node {
 		Op:        nodes.IS_XMLPARSE,
 		Args:      &nodes.List{Items: []nodes.Node{expr, makeBoolAConst(ws)}},
 		Xmloption: nodes.XmlOptionType(xmloption),
-		Location:  -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -132,7 +132,7 @@ func (p *Parser) parseXmlPI() nodes.Node {
 	result := &nodes.XmlExpr{
 		Op:       nodes.IS_XMLPI,
 		Name:     name,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 
 	if p.cur.Type == ',' {
@@ -161,7 +161,7 @@ func (p *Parser) parseXmlRoot() nodes.Node {
 	return &nodes.XmlExpr{
 		Op:       nodes.IS_XMLROOT,
 		Args:     &nodes.List{Items: []nodes.Node{xmlExpr, version, standalone}},
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -184,7 +184,7 @@ func (p *Parser) parseXmlSerialize() nodes.Node {
 		Expr:      expr,
 		TypeName:  typeName,
 		Indent:    indent != 0,
-		Location:  -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -247,7 +247,7 @@ func (p *Parser) parseXmlAttributeEl() nodes.Node {
 	expr := p.parseAExpr(0)
 	rt := &nodes.ResTarget{
 		Val:      expr,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 	if p.cur.Type == AS {
 		p.advance()
@@ -354,7 +354,7 @@ func (p *Parser) parseXmlTable() nodes.Node {
 		Docexpr:    docExpr,
 		Columns:    columns,
 		Namespaces: namespaces,
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -382,7 +382,7 @@ func (p *Parser) parseXmlTableColumnEl() nodes.Node {
 		return &nodes.RangeTableFuncCol{
 			Colname:       colname,
 			ForOrdinality: true,
-			Location:      -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -391,7 +391,7 @@ func (p *Parser) parseXmlTableColumnEl() nodes.Node {
 	fc := &nodes.RangeTableFuncCol{
 		Colname:  colname,
 		TypeName: typeName,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 
 	// Parse optional column options (PATH, DEFAULT, NOT NULL, NULL)
@@ -425,24 +425,24 @@ func (p *Parser) parseXmlTableColumnOptionEl() nodes.Node {
 	case DEFAULT:
 		p.advance()
 		expr := p.parseBExpr(0)
-		return &nodes.DefElem{Defname: "default", Arg: expr, Location: -1}
+		return &nodes.DefElem{Defname: "default", Arg: expr, Loc: nodes.NoLoc()}
 	case NOT:
 		p.advance()
 		p.expect(NULL_P)
-		return &nodes.DefElem{Defname: "__pg__is_not_null", Arg: &nodes.Boolean{Boolval: true}, Location: -1}
+		return &nodes.DefElem{Defname: "__pg__is_not_null", Arg: &nodes.Boolean{Boolval: true}, Loc: nodes.NoLoc()}
 	case NULL_P:
 		p.advance()
-		return &nodes.DefElem{Defname: "__pg__is_not_null", Arg: &nodes.Boolean{Boolval: false}, Location: -1}
+		return &nodes.DefElem{Defname: "__pg__is_not_null", Arg: &nodes.Boolean{Boolval: false}, Loc: nodes.NoLoc()}
 	case PATH:
 		p.advance()
 		expr := p.parseBExpr(0)
-		return &nodes.DefElem{Defname: "path", Arg: expr, Location: -1}
+		return &nodes.DefElem{Defname: "path", Arg: expr, Loc: nodes.NoLoc()}
 	case IDENT:
 		// Generic IDENT option (rare, but grammar supports it)
 		name := p.cur.Str
 		p.advance()
 		expr := p.parseBExpr(0)
-		return &nodes.DefElem{Defname: name, Arg: expr, Location: -1}
+		return &nodes.DefElem{Defname: name, Arg: expr, Loc: nodes.NoLoc()}
 	default:
 		return nil
 	}
@@ -466,7 +466,7 @@ func (p *Parser) parseXmlNamespaceEl() nodes.Node {
 		expr := p.parseBExpr(0)
 		return &nodes.ResTarget{
 			Val:      expr,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 	expr := p.parseBExpr(0)
@@ -475,7 +475,7 @@ func (p *Parser) parseXmlNamespaceEl() nodes.Node {
 	return &nodes.ResTarget{
 		Name:     name,
 		Val:      expr,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 

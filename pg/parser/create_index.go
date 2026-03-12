@@ -197,7 +197,7 @@ func (p *Parser) parseIndexElemFuncCall(name string) nodes.Node {
 
 	funcCall := &nodes.FuncCall{
 		Funcname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}},
-		Location: nodes.ParseLoc(-1),
+		Loc: nodes.NoLoc(),
 	}
 	if len(args) > 0 {
 		funcCall.Args = &nodes.List{Items: args}

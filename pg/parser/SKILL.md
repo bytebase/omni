@@ -67,9 +67,11 @@ func (p *Parser) parseSelectStmt() *ast.SelectStmt {
 **Rules for parse function implementation:**
 
 1. **Use the existing AST types** from `pg/ast/` — do NOT create new node types
-2. **Record positions** on EVERY AST node that has a `Location` field.
-   Set it at the start of parsing that node: `Location: nodes.ParseLoc(p.pos())`.
-   Check `pg/ast/parsenodes.go` — most statement and expression nodes have `Location ParseLoc`.
+2. **Record positions** on EVERY AST node that has a `Loc` field.
+   Set Start at the beginning: `Loc: nodes.Loc{Start: p.pos(), End: -1}`.
+   Set End at the end of parsing that node: `stmt.Loc.End = p.pos()`.
+   For unknown locations use `nodes.NoLoc()` which returns `Loc{Start: -1, End: -1}`.
+   Check `pg/ast/parsenodes.go` — most statement and expression nodes have `Loc Loc`.
    **This is a hard requirement.** Missing locations will cause bytebase features (SQL rewriting,
    backup/restore, error reporting) to break. The comparison tests verify locations are non-negative.
 3. **Token constants** are in `pg/parser/tokens.go` (exported from yacc) and `pg/yacc/parser.go`

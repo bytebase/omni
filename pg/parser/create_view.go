@@ -76,9 +76,9 @@ func (p *Parser) parseViewStmt(replace bool) *nodes.ViewStmt {
 		}
 		cr := &nodes.ColumnRef{
 			Fields:   &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}},
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
-		rt := &nodes.ResTarget{Val: cr, Location: -1}
+		rt := &nodes.ResTarget{Val: cr, Loc: nodes.NoLoc()}
 		fromRv := &nodes.RangeVar{Relname: rv.Relname, Inh: true, Relpersistence: 'p'}
 		sel := &nodes.SelectStmt{
 			TargetList: &nodes.List{Items: []nodes.Node{rt}},
@@ -210,7 +210,7 @@ func (p *Parser) parseCreateTableAsStmt(relpersistence byte, ifNotExists bool) *
 func (p *Parser) parseCreateAsTarget() *nodes.IntoClause {
 	names, err := p.parseQualifiedName()
 	if err != nil {
-		return &nodes.IntoClause{Rel: &nodes.RangeVar{Inh: true, Relpersistence: 'p', Location: -1}}
+		return &nodes.IntoClause{Rel: &nodes.RangeVar{Inh: true, Relpersistence: 'p', Loc: nodes.NoLoc()}}
 	}
 	rv := makeRangeVarFromAnyName(names)
 
@@ -280,7 +280,7 @@ func (p *Parser) parseCreateMatViewStmt(relpersistence byte) *nodes.CreateTableA
 func (p *Parser) parseCreateMvTarget() *nodes.IntoClause {
 	names, err := p.parseQualifiedName()
 	if err != nil {
-		return &nodes.IntoClause{Rel: &nodes.RangeVar{Inh: true, Relpersistence: 'p', Location: -1}}
+		return &nodes.IntoClause{Rel: &nodes.RangeVar{Inh: true, Relpersistence: 'p', Loc: nodes.NoLoc()}}
 	}
 	rv := makeRangeVarFromAnyName(names)
 

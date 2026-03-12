@@ -286,7 +286,7 @@ func writeRangeVar(sb *strings.Builder, n *RangeVar) {
 		sb.WriteString(" :alias ")
 		writeNode(sb, n.Alias)
 	}
-	sb.WriteString(fmt.Sprintf(" :location %d", n.Location))
+	sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
 
@@ -296,7 +296,7 @@ func writeColumnRef(sb *strings.Builder, n *ColumnRef) {
 		sb.WriteString(" :fields ")
 		writeNode(sb, n.Fields)
 	}
-	sb.WriteString(fmt.Sprintf(" :location %d", n.Location))
+	sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
 
@@ -308,7 +308,7 @@ func writeAConst(sb *strings.Builder, n *A_Const) {
 		sb.WriteString(" :val ")
 		writeNode(sb, n.Val)
 	}
-	sb.WriteString(fmt.Sprintf(" :location %d", n.Location))
+	sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
 
@@ -327,7 +327,7 @@ func writeAExpr(sb *strings.Builder, n *A_Expr) {
 		sb.WriteString(" :rexpr ")
 		writeNode(sb, n.Rexpr)
 	}
-	sb.WriteString(fmt.Sprintf(" :location %d", n.Location))
+	sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
 
@@ -341,7 +341,7 @@ func writeTypeCast(sb *strings.Builder, n *TypeCast) {
 		sb.WriteString(" :typeName ")
 		writeNode(sb, n.TypeName)
 	}
-	sb.WriteString(fmt.Sprintf(" :location %d", n.Location))
+	sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
 
@@ -363,7 +363,7 @@ func writeTypeName(sb *strings.Builder, n *TypeName) {
 		sb.WriteString(" :arrayBounds ")
 		writeNode(sb, n.ArrayBounds)
 	}
-	sb.WriteString(fmt.Sprintf(" :location %d", n.Location))
+	sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
 
@@ -394,7 +394,7 @@ func writeFuncCall(sb *strings.Builder, n *FuncCall) {
 	sb.WriteString(fmt.Sprintf(" :agg_distinct %t", n.AggDistinct))
 	sb.WriteString(fmt.Sprintf(" :func_variadic %t", n.FuncVariadic))
 	sb.WriteString(fmt.Sprintf(" :funcformat %d", n.FuncFormat))
-	sb.WriteString(fmt.Sprintf(" :location %d", n.Location))
+	sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
 
@@ -414,7 +414,7 @@ func writeResTarget(sb *strings.Builder, n *ResTarget) {
 		sb.WriteString(" :val ")
 		writeNode(sb, n.Val)
 	}
-	sb.WriteString(fmt.Sprintf(" :location %d", n.Location))
+	sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
 
@@ -430,7 +430,7 @@ func writeSortBy(sb *strings.Builder, n *SortBy) {
 		sb.WriteString(" :useOp ")
 		writeNode(sb, n.UseOp)
 	}
-	sb.WriteString(fmt.Sprintf(" :location %d", n.Location))
+	sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
 
@@ -460,7 +460,7 @@ func writeBoolExpr(sb *strings.Builder, n *BoolExpr) {
 		sb.WriteString(" :args ")
 		writeNode(sb, n.Args)
 	}
-	sb.WriteString(fmt.Sprintf(" :location %d", n.Location))
+	sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
 
@@ -472,7 +472,7 @@ func writeNullTest(sb *strings.Builder, n *NullTest) {
 	}
 	sb.WriteString(fmt.Sprintf(" :nulltesttype %d", n.Nulltesttype))
 	sb.WriteString(fmt.Sprintf(" :argisrow %t", n.Argisrow))
-	sb.WriteString(fmt.Sprintf(" :location %d", n.Location))
+	sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
 
@@ -492,7 +492,7 @@ func writeSubLink(sb *strings.Builder, n *SubLink) {
 		sb.WriteString(" :subselect ")
 		writeNode(sb, n.Subselect)
 	}
-	sb.WriteString(fmt.Sprintf(" :location %d", n.Location))
+	sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
 
@@ -591,7 +591,7 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 		sb.WriteString(" :constraints ")
 		writeNode(sb, n.Constraints)
 	}
-	sb.WriteString(fmt.Sprintf(" :location %d", n.Location))
+	sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
 
@@ -606,7 +606,7 @@ func writeConstraint(sb *strings.Builder, n *Constraint) {
 	}
 	sb.WriteString(fmt.Sprintf(" :deferrable %t", n.Deferrable))
 	sb.WriteString(fmt.Sprintf(" :initdeferred %t", n.Initdeferred))
-	sb.WriteString(fmt.Sprintf(" :location %d", n.Location))
+	sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString(fmt.Sprintf(" :is_no_inherit %t", n.IsNoInherit))
 	if n.RawExpr != nil {
 		sb.WriteString(" :raw_expr ")
@@ -708,8 +708,7 @@ func writeRawStmt(sb *strings.Builder, n *RawStmt) {
 		sb.WriteString(" :stmt ")
 		writeNode(sb, n.Stmt)
 	}
-	sb.WriteString(fmt.Sprintf(" :stmt_location %d", n.StmtLocation))
-	sb.WriteString(fmt.Sprintf(" :stmt_len %d", n.StmtLen))
+	sb.WriteString(fmt.Sprintf(" :stmt_location %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
 

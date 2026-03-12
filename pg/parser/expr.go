@@ -255,7 +255,7 @@ func (p *Parser) parseAExprInfix(left nodes.Node, prec int) nodes.Node {
 		if err != nil {
 			return nil
 		}
-		return &nodes.TypeCast{Arg: left, TypeName: tn, Location: -1}
+		return &nodes.TypeCast{Arg: left, TypeName: tn, Loc: nodes.NoLoc()}
 
 	// --- Array subscript ---
 	case '[':
@@ -318,13 +318,13 @@ func (p *Parser) parseIsPostfix(left nodes.Node) nodes.Node {
 		xmlExpr := &nodes.XmlExpr{
 			Op:       nodes.IS_DOCUMENT,
 			Args:     &nodes.List{Items: []nodes.Node{left}},
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 		if negated {
 			return &nodes.BoolExpr{
 				Boolop:   nodes.NOT_EXPR,
 				Args:     &nodes.List{Items: []nodes.Node{xmlExpr}},
-				Location: -1,
+				Loc: nodes.NoLoc(),
 			}
 		}
 		return xmlExpr
@@ -338,13 +338,13 @@ func (p *Parser) parseIsPostfix(left nodes.Node) nodes.Node {
 			Funcname:   makeFuncName("pg_catalog", "is_normalized"),
 			Args:       &nodes.List{Items: []nodes.Node{left, makeStringConst("NFC")}},
 			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 		if negated {
 			return &nodes.BoolExpr{
 				Boolop:   nodes.NOT_EXPR,
 				Args:     &nodes.List{Items: []nodes.Node{fc}},
-				Location: -1,
+				Loc: nodes.NoLoc(),
 			}
 		}
 		return fc
@@ -356,13 +356,13 @@ func (p *Parser) parseIsPostfix(left nodes.Node) nodes.Node {
 			Funcname:   makeFuncName("pg_catalog", "is_normalized"),
 			Args:       &nodes.List{Items: []nodes.Node{left, makeStringConst(form)}},
 			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 		if negated {
 			return &nodes.BoolExpr{
 				Boolop:   nodes.NOT_EXPR,
 				Args:     &nodes.List{Items: []nodes.Node{fc}},
-				Location: -1,
+				Loc: nodes.NoLoc(),
 			}
 		}
 		return fc
@@ -443,7 +443,7 @@ func (p *Parser) parseInExpr(left nodes.Node, negated bool) nodes.Node {
 			SubLinkType: int(nodes.ANY_SUBLINK),
 			Testexpr:    left,
 			Subselect:   subquery,
-			Location:    -1,
+			Loc: nodes.NoLoc(),
 		}
 		if negated {
 			return &nodes.BoolExpr{
@@ -482,7 +482,7 @@ func (p *Parser) parseLikeExpr(left nodes.Node, negated bool) nodes.Node {
 			Funcname:   makeFuncName("pg_catalog", "like_escape"),
 			Args:       &nodes.List{Items: []nodes.Node{right, escapeExpr}},
 			FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 		return &nodes.A_Expr{
 			Kind:     nodes.AEXPR_LIKE,
@@ -517,7 +517,7 @@ func (p *Parser) parseIlikeExpr(left nodes.Node, negated bool) nodes.Node {
 			Funcname:   makeFuncName("pg_catalog", "iclike_escape"),
 			Args:       &nodes.List{Items: []nodes.Node{right, escapeExpr}},
 			FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 		return &nodes.A_Expr{
 			Kind:     nodes.AEXPR_ILIKE,
@@ -550,7 +550,7 @@ func (p *Parser) parseSimilarExpr(left nodes.Node, negated bool) nodes.Node {
 				Funcname:   makeFuncName("pg_catalog", "similar_to_escape"),
 				Args:       &nodes.List{Items: []nodes.Node{right, escapeExpr}},
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.NoLoc(),
 			}
 			return &nodes.A_Expr{
 				Kind:     nodes.AEXPR_SIMILAR,
@@ -564,7 +564,7 @@ func (p *Parser) parseSimilarExpr(left nodes.Node, negated bool) nodes.Node {
 			Funcname:   makeFuncName("pg_catalog", "similar_to_escape"),
 			Args:       &nodes.List{Items: []nodes.Node{right}},
 			FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 		return &nodes.A_Expr{
 			Kind:     nodes.AEXPR_SIMILAR,
@@ -581,7 +581,7 @@ func (p *Parser) parseSimilarExpr(left nodes.Node, negated bool) nodes.Node {
 			Funcname:   makeFuncName("pg_catalog", "similar_to_escape"),
 			Args:       &nodes.List{Items: []nodes.Node{right, escapeExpr}},
 			FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 		return &nodes.A_Expr{
 			Kind:     nodes.AEXPR_SIMILAR,
@@ -595,7 +595,7 @@ func (p *Parser) parseSimilarExpr(left nodes.Node, negated bool) nodes.Node {
 		Funcname:   makeFuncName("pg_catalog", "similar_to_escape"),
 		Args:       &nodes.List{Items: []nodes.Node{right}},
 		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 	return &nodes.A_Expr{
 		Kind:     nodes.AEXPR_SIMILAR,
@@ -626,7 +626,7 @@ func (p *Parser) parseSubqueryOp(left nodes.Node, opName *nodes.List) nodes.Node
 			Testexpr:    left,
 			OperName:    opName,
 			Subselect:   subquery,
-			Location:    -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -657,7 +657,7 @@ func (p *Parser) parseAtTimeZone(left nodes.Node) nodes.Node {
 			Funcname:   makeFuncName("pg_catalog", "timezone"),
 			Args:       &nodes.List{Items: []nodes.Node{&nodes.A_Const{Val: &nodes.String{Str: "DEFAULT"}}, left}},
 			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -668,7 +668,7 @@ func (p *Parser) parseAtTimeZone(left nodes.Node) nodes.Node {
 		Funcname:   makeFuncName("pg_catalog", "timezone"),
 		Args:       &nodes.List{Items: []nodes.Node{tz, left}},
 		FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -803,7 +803,7 @@ func (p *Parser) parseBExprInfix(left nodes.Node, prec int) nodes.Node {
 			xmlExpr := &nodes.XmlExpr{
 				Op:       nodes.IS_DOCUMENT,
 				Args:     &nodes.List{Items: []nodes.Node{left}},
-				Location: -1,
+				Loc: nodes.NoLoc(),
 			}
 			if negated {
 				return &nodes.BoolExpr{
@@ -845,7 +845,7 @@ func (p *Parser) parseBExprInfix(left nodes.Node, prec int) nodes.Node {
 		if err != nil {
 			return nil
 		}
-		return &nodes.TypeCast{Arg: left, TypeName: tn, Location: -1}
+		return &nodes.TypeCast{Arg: left, TypeName: tn, Loc: nodes.NoLoc()}
 	}
 	return left
 }
@@ -923,7 +923,7 @@ func (p *Parser) parseCExpr() nodes.Node {
 	// --- DEFAULT ---
 	case DEFAULT:
 		p.advance()
-		return &nodes.SetToDefault{Location: -1}
+		return &nodes.SetToDefault{Loc: nodes.NoLoc()}
 
 	// --- func_expr_common_subexpr keywords ---
 	case CAST:
@@ -998,7 +998,7 @@ func (p *Parser) parseCExpr() nodes.Node {
 	// --- SQL value functions (no parens) ---
 	case CURRENT_DATE:
 		p.advance()
-		return &nodes.SQLValueFunction{Op: nodes.SVFOP_CURRENT_DATE, Typmod: -1, Location: -1}
+		return &nodes.SQLValueFunction{Op: nodes.SVFOP_CURRENT_DATE, Typmod: -1, Loc: nodes.NoLoc()}
 	case CURRENT_TIME:
 		return p.parseSVFWithOptionalPrecision(nodes.SVFOP_CURRENT_TIME, nodes.SVFOP_CURRENT_TIME_N)
 	case CURRENT_TIMESTAMP:
@@ -1009,28 +1009,28 @@ func (p *Parser) parseCExpr() nodes.Node {
 		return p.parseSVFWithOptionalPrecision(nodes.SVFOP_LOCALTIMESTAMP, nodes.SVFOP_LOCALTIMESTAMP_N)
 	case CURRENT_ROLE:
 		p.advance()
-		return &nodes.SQLValueFunction{Op: nodes.SVFOP_CURRENT_ROLE, Typmod: -1, Location: -1}
+		return &nodes.SQLValueFunction{Op: nodes.SVFOP_CURRENT_ROLE, Typmod: -1, Loc: nodes.NoLoc()}
 	case CURRENT_USER:
 		p.advance()
-		return &nodes.SQLValueFunction{Op: nodes.SVFOP_CURRENT_USER, Typmod: -1, Location: -1}
+		return &nodes.SQLValueFunction{Op: nodes.SVFOP_CURRENT_USER, Typmod: -1, Loc: nodes.NoLoc()}
 	case SESSION_USER:
 		p.advance()
-		return &nodes.SQLValueFunction{Op: nodes.SVFOP_SESSION_USER, Typmod: -1, Location: -1}
+		return &nodes.SQLValueFunction{Op: nodes.SVFOP_SESSION_USER, Typmod: -1, Loc: nodes.NoLoc()}
 	case USER:
 		p.advance()
-		return &nodes.SQLValueFunction{Op: nodes.SVFOP_USER, Typmod: -1, Location: -1}
+		return &nodes.SQLValueFunction{Op: nodes.SVFOP_USER, Typmod: -1, Loc: nodes.NoLoc()}
 	case CURRENT_CATALOG:
 		p.advance()
-		return &nodes.SQLValueFunction{Op: nodes.SVFOP_CURRENT_CATALOG, Typmod: -1, Location: -1}
+		return &nodes.SQLValueFunction{Op: nodes.SVFOP_CURRENT_CATALOG, Typmod: -1, Loc: nodes.NoLoc()}
 	case CURRENT_SCHEMA:
 		p.advance()
-		return &nodes.SQLValueFunction{Op: nodes.SVFOP_CURRENT_SCHEMA, Typmod: -1, Location: -1}
+		return &nodes.SQLValueFunction{Op: nodes.SVFOP_CURRENT_SCHEMA, Typmod: -1, Loc: nodes.NoLoc()}
 	case SYSTEM_USER:
 		p.advance()
 		return &nodes.FuncCall{
 			Funcname:   makeFuncName("pg_catalog", "system_user"),
 			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 
 	default:
@@ -1065,7 +1065,7 @@ func (p *Parser) parseParenExprOrRow() nodes.Node {
 				sub := &nodes.SubLink{
 					SubLinkType: int(nodes.EXPR_SUBLINK),
 					Subselect:   subquery,
-					Location:    -1,
+					Loc: nodes.NoLoc(),
 				}
 				return &nodes.A_Indirection{Arg: sub, Indirection: indir}
 			}
@@ -1073,7 +1073,7 @@ func (p *Parser) parseParenExprOrRow() nodes.Node {
 		return &nodes.SubLink{
 			SubLinkType: int(nodes.EXPR_SUBLINK),
 			Subselect:   subquery,
-			Location:    -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1096,7 +1096,7 @@ func (p *Parser) parseParenExprOrRow() nodes.Node {
 		return &nodes.RowExpr{
 			Args:      &nodes.List{Items: items},
 			RowFormat: nodes.COERCE_IMPLICIT_CAST,
-			Location:  -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1119,7 +1119,7 @@ func (p *Parser) parseExistsExpr() nodes.Node {
 	return &nodes.SubLink{
 		SubLinkType: int(nodes.EXISTS_SUBLINK),
 		Subselect:   subquery,
-		Location:    -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1131,7 +1131,7 @@ func (p *Parser) parseArrayCExpr() nodes.Node {
 		arr := p.parseArrayExpr()
 		if arr != nil {
 			if a, ok := arr.(*nodes.A_ArrayExpr); ok {
-				a.Location = -1
+				a.Loc = nodes.NoLoc()
 			}
 		}
 		return arr
@@ -1144,7 +1144,7 @@ func (p *Parser) parseArrayCExpr() nodes.Node {
 		return &nodes.SubLink{
 			SubLinkType: int(nodes.ARRAY_SUBLINK),
 			Subselect:   subquery,
-			Location:    -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1162,7 +1162,7 @@ func (p *Parser) parseArrayExpr() nodes.Node {
 
 	if p.cur.Type == ']' {
 		p.advance()
-		return &nodes.A_ArrayExpr{Location: -1}
+		return &nodes.A_ArrayExpr{Loc: nodes.NoLoc()}
 	}
 
 	// Check if first element is a nested array
@@ -1208,7 +1208,7 @@ func (p *Parser) parseCaseExpr() nodes.Node {
 		whens = append(whens, &nodes.CaseWhen{
 			Expr:     expr,
 			Result:   result,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		})
 	}
 
@@ -1225,7 +1225,7 @@ func (p *Parser) parseCaseExpr() nodes.Node {
 		Arg:       caseArg,
 		Args:      &nodes.List{Items: whens},
 		Defresult: defResult,
-		Location:  -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1240,7 +1240,7 @@ func (p *Parser) parseExplicitRow() nodes.Node {
 		p.advance()
 		return &nodes.RowExpr{
 			RowFormat: nodes.COERCE_EXPLICIT_CALL,
-			Location:  -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1249,7 +1249,7 @@ func (p *Parser) parseExplicitRow() nodes.Node {
 	return &nodes.RowExpr{
 		Args:      exprs,
 		RowFormat: nodes.COERCE_EXPLICIT_CALL,
-		Location:  -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1267,7 +1267,7 @@ func (p *Parser) parseCastExpr() nodes.Node {
 		return nil
 	}
 	p.expect(')')
-	return &nodes.TypeCast{Arg: arg, TypeName: tn, Location: -1}
+	return &nodes.TypeCast{Arg: arg, TypeName: tn, Loc: nodes.NoLoc()}
 }
 
 // parseCoalesceExpr parses COALESCE(expr_list).
@@ -1315,7 +1315,7 @@ func (p *Parser) parseExtractExpr() nodes.Node {
 		return &nodes.FuncCall{
 			Funcname:   makeFuncName("pg_catalog", "extract"),
 			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1328,7 +1328,7 @@ func (p *Parser) parseExtractExpr() nodes.Node {
 		Funcname:   makeFuncName("pg_catalog", "extract"),
 		Args:       &nodes.List{Items: []nodes.Node{&nodes.A_Const{Val: &nodes.String{Str: field}}, expr}},
 		FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1377,7 +1377,7 @@ func (p *Parser) parseNormalizeExpr() nodes.Node {
 			Funcname:   makeFuncName("pg_catalog", "normalize"),
 			Args:       &nodes.List{Items: []nodes.Node{expr, &nodes.A_Const{Val: &nodes.String{Str: form}}}},
 			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1386,7 +1386,7 @@ func (p *Parser) parseNormalizeExpr() nodes.Node {
 		Funcname:   makeFuncName("pg_catalog", "normalize"),
 		Args:       &nodes.List{Items: []nodes.Node{expr}},
 		FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1434,7 +1434,7 @@ func (p *Parser) parseOverlayExpr() nodes.Node {
 			Funcname:   makeFuncName("pg_catalog", "overlay"),
 			Args:       &nodes.List{Items: args},
 			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1449,7 +1449,7 @@ func (p *Parser) parseOverlayExpr() nodes.Node {
 		Funcname:   makeFuncName("overlay"),
 		Args:       &nodes.List{Items: args},
 		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1463,7 +1463,7 @@ func (p *Parser) parsePositionExpr() nodes.Node {
 		return &nodes.FuncCall{
 			Funcname:   makeFuncName("pg_catalog", "position"),
 			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1477,7 +1477,7 @@ func (p *Parser) parsePositionExpr() nodes.Node {
 			Funcname:   makeFuncName("pg_catalog", "position"),
 			Args:       &nodes.List{Items: []nodes.Node{second, first}},
 			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1492,7 +1492,7 @@ func (p *Parser) parsePositionExpr() nodes.Node {
 		Funcname:   makeFuncName("position"),
 		Args:       &nodes.List{Items: args},
 		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1506,7 +1506,7 @@ func (p *Parser) parseSubstringExpr() nodes.Node {
 		return &nodes.FuncCall{
 			Funcname:   makeFuncName("pg_catalog", "substring"),
 			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1524,7 +1524,7 @@ func (p *Parser) parseSubstringExpr() nodes.Node {
 				Funcname:   makeFuncName("pg_catalog", "substring"),
 				Args:       &nodes.List{Items: []nodes.Node{first, second, third}},
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.NoLoc(),
 			}
 		}
 		p.expect(')')
@@ -1532,7 +1532,7 @@ func (p *Parser) parseSubstringExpr() nodes.Node {
 			Funcname:   makeFuncName("pg_catalog", "substring"),
 			Args:       &nodes.List{Items: []nodes.Node{first, second}},
 			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1547,7 +1547,7 @@ func (p *Parser) parseSubstringExpr() nodes.Node {
 				Funcname:   makeFuncName("pg_catalog", "substring"),
 				Args:       &nodes.List{Items: []nodes.Node{first, third, second}},
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.NoLoc(),
 			}
 		}
 		p.expect(')')
@@ -1555,7 +1555,7 @@ func (p *Parser) parseSubstringExpr() nodes.Node {
 			Funcname:   makeFuncName("pg_catalog", "substring"),
 			Args:       &nodes.List{Items: []nodes.Node{first, makeIntConst(1), second}},
 			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1569,7 +1569,7 @@ func (p *Parser) parseSubstringExpr() nodes.Node {
 			Funcname:   makeFuncName("pg_catalog", "substring"),
 			Args:       &nodes.List{Items: []nodes.Node{first, second, third}},
 			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -1587,14 +1587,14 @@ func (p *Parser) parseSubstringExpr() nodes.Node {
 			Funcname:   makeFuncName("substring"),
 			Args:       &nodes.List{Items: args},
 			FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-			Location:   -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 	return &nodes.FuncCall{
 		Funcname:   makeFuncName("pg_catalog", "substring"),
 		Args:       &nodes.List{Items: args},
 		FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1624,7 +1624,7 @@ func (p *Parser) parseTrimExpr() nodes.Node {
 		Funcname:   makeFuncName("pg_catalog", funcName),
 		Args:       args,
 		FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1680,7 +1680,7 @@ func (p *Parser) parseCollationForExpr() nodes.Node {
 		Funcname:   makeFuncName("pg_catalog", "pg_collation_for"),
 		Args:       &nodes.List{Items: []nodes.Node{expr}},
 		FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1705,7 +1705,7 @@ func (p *Parser) parseTreatExpr() nodes.Node {
 		Funcname:   makeFuncName("pg_catalog", funcNameStr),
 		Args:       &nodes.List{Items: []nodes.Node{expr}},
 		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-		Location:   -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1718,11 +1718,11 @@ func (p *Parser) parseSVFWithOptionalPrecision(noArgOp, withArgOp nodes.SVFOp) n
 			prec := p.cur.Ival
 			p.advance()
 			p.expect(')')
-			return &nodes.SQLValueFunction{Op: withArgOp, Typmod: int32(prec), Location: -1}
+			return &nodes.SQLValueFunction{Op: withArgOp, Typmod: int32(prec), Loc: nodes.NoLoc()}
 		}
 		p.expect(')')
 	}
-	return &nodes.SQLValueFunction{Op: noArgOp, Typmod: -1, Location: -1}
+	return &nodes.SQLValueFunction{Op: noArgOp, Typmod: -1, Loc: nodes.NoLoc()}
 }
 
 // ---------------------------------------------------------------------------
@@ -1961,14 +1961,14 @@ func (p *Parser) parseOverClause() nodes.Node {
 	return &nodes.WindowDef{
 		Name:         name,
 		FrameOptions: nodes.FRAMEOPTION_DEFAULTS,
-		Location:     -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
 // parseWindowSpecification parses a window specification: ( [name] [PARTITION BY ...] [ORDER BY ...] [frame] ).
 func (p *Parser) parseWindowSpecification() nodes.Node {
 	p.advance() // consume '('
-	wd := &nodes.WindowDef{Location: -1}
+	wd := &nodes.WindowDef{Loc: nodes.NoLoc()}
 
 	// Optional existing window name
 	if p.isColId() && p.cur.Type != PARTITION && p.cur.Type != ORDER && p.cur.Type != RANGE && p.cur.Type != ROWS && p.cur.Type != GROUPS {
@@ -2140,7 +2140,7 @@ func (p *Parser) parseTypeCastedConst() nodes.Node {
 		return &nodes.TypeCast{
 			Arg:      &nodes.A_Const{Val: &nodes.String{Str: tok.Str}},
 			TypeName: tn,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -2165,7 +2165,7 @@ func (p *Parser) parseIntervalConst() nodes.Node {
 		return &nodes.TypeCast{
 			Arg:      &nodes.A_Const{Val: &nodes.String{Str: tok.Str}},
 			TypeName: tn,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -2213,7 +2213,7 @@ func (p *Parser) parseFuncArgExpr() nodes.Node {
 				Name:      nameTok.Str,
 				Arg:       arg,
 				Argnumber: -1,
-				Location:  nodes.ParseLoc(nameTok.Loc),
+				Loc: nodes.Loc{Start: nameTok.Loc, End: -1},
 			}
 		}
 	}
@@ -2343,7 +2343,7 @@ func (p *Parser) isJoinKeyword() bool {
 // Helper functions
 
 // makeSimpleAExpr creates an A_Expr with a simple string operator name.
-// Location defaults to 0 to match yacc grammar behavior.
+// Loc defaults to zero value to match yacc grammar behavior.
 func makeSimpleAExpr(kind nodes.A_Expr_Kind, op string, lexpr, rexpr nodes.Node) nodes.Node {
 	return &nodes.A_Expr{
 		Kind:  kind,

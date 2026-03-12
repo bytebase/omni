@@ -250,11 +250,11 @@ func (p *Parser) parseTableCmd() *nodes.SelectStmt {
 	rel := p.parseRelationExpr()
 	cr := &nodes.ColumnRef{
 		Fields:   &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}},
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 	rt := &nodes.ResTarget{
 		Val:      cr,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 	return &nodes.SelectStmt{
 		TargetList: &nodes.List{Items: []nodes.Node{rt}},
@@ -503,7 +503,7 @@ func (p *Parser) parseWithClause() *nodes.WithClause {
 	p.advance() // consume WITH or WITH_LA
 
 	wc := &nodes.WithClause{
-		Location: nodes.ParseLoc(loc),
+		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
 	if p.cur.Type == RECURSIVE {
@@ -537,7 +537,7 @@ func (p *Parser) parseCommonTableExpr() *nodes.CommonTableExpr {
 
 	cte := &nodes.CommonTableExpr{
 		Ctename:  name,
-		Location: nodes.ParseLoc(loc),
+		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
 	// Check for name '(' name_list ')' form
@@ -616,7 +616,7 @@ func (p *Parser) parseOptSearchClause() nodes.Node {
 		SearchColList:      colList,
 		SearchBreadthFirst: breadthFirst,
 		SearchSeqColumn:    seqCol,
-		Location:           -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -661,7 +661,7 @@ func (p *Parser) parseOptCycleClause() nodes.Node {
 		CycleMarkValue:   markValue,
 		CycleMarkDefault: markDefault,
 		CyclePathColumn:  pathCol,
-		Location:         -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1430,7 +1430,7 @@ func (p *Parser) parseTableSampleClause() *nodes.RangeTableSample {
 	ts := &nodes.RangeTableSample{
 		Method:   method,
 		Args:     args,
-		Location: nodes.ParseLoc(loc),
+		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
 	// opt_repeatable_clause
@@ -1477,7 +1477,7 @@ func (p *Parser) parseGroupByItem() nodes.Node {
 		if next.Type == ')' {
 			p.advance() // (
 			p.advance() // )
-			return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_EMPTY, Location: -1}
+			return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_EMPTY, Loc: nodes.NoLoc()}
 		}
 		return p.parseAExpr(0)
 
@@ -1486,14 +1486,14 @@ func (p *Parser) parseGroupByItem() nodes.Node {
 		p.expect('(')
 		content := p.parseExprListFull()
 		p.expect(')')
-		return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_CUBE, Content: content, Location: -1}
+		return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_CUBE, Content: content, Loc: nodes.NoLoc()}
 
 	case ROLLUP:
 		p.advance()
 		p.expect('(')
 		content := p.parseExprListFull()
 		p.expect(')')
-		return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_ROLLUP, Content: content, Location: -1}
+		return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_ROLLUP, Content: content, Loc: nodes.NoLoc()}
 
 	case GROUPING:
 		// Check for GROUPING SETS
@@ -1504,7 +1504,7 @@ func (p *Parser) parseGroupByItem() nodes.Node {
 			p.expect('(')
 			content := p.parseGroupByList()
 			p.expect(')')
-			return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_SETS, Content: content, Location: -1}
+			return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_SETS, Content: content, Loc: nodes.NoLoc()}
 		}
 		// Not GROUPING SETS; parse as expression (could be GROUPING(...) function)
 		return p.parseAExpr(0)

@@ -79,7 +79,7 @@ func (p *Parser) parseCreateFunctionStmt(isReplace bool) *nodes.CreateFunctionSt
 					&nodes.String{Str: "pg_catalog"},
 					&nodes.String{Str: "record"},
 				}},
-				Location: -1,
+				Loc: nodes.NoLoc(),
 			}
 		} else {
 			// RETURNS func_return

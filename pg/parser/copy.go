@@ -154,76 +154,76 @@ func (p *Parser) parseCopyOptItem() *nodes.DefElem {
 	switch p.cur.Type {
 	case BINARY:
 		p.advance()
-		return &nodes.DefElem{Defname: "format", Arg: &nodes.String{Str: "binary"}, Location: -1}
+		return &nodes.DefElem{Defname: "format", Arg: &nodes.String{Str: "binary"}, Loc: nodes.NoLoc()}
 	case FREEZE:
 		p.advance()
-		return &nodes.DefElem{Defname: "freeze", Arg: &nodes.Boolean{Boolval: true}, Location: -1}
+		return &nodes.DefElem{Defname: "freeze", Arg: &nodes.Boolean{Boolval: true}, Loc: nodes.NoLoc()}
 	case DELIMITER:
 		p.advance()
 		p.parseOptAs()
 		s := p.cur.Str
 		p.expect(SCONST)
-		return &nodes.DefElem{Defname: "delimiter", Arg: &nodes.String{Str: s}, Location: -1}
+		return &nodes.DefElem{Defname: "delimiter", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}
 	case NULL_P:
 		p.advance()
 		p.parseOptAs()
 		s := p.cur.Str
 		p.expect(SCONST)
-		return &nodes.DefElem{Defname: "null", Arg: &nodes.String{Str: s}, Location: -1}
+		return &nodes.DefElem{Defname: "null", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}
 	case CSV:
 		p.advance()
-		return &nodes.DefElem{Defname: "format", Arg: &nodes.String{Str: "csv"}, Location: -1}
+		return &nodes.DefElem{Defname: "format", Arg: &nodes.String{Str: "csv"}, Loc: nodes.NoLoc()}
 	case HEADER_P:
 		p.advance()
-		return &nodes.DefElem{Defname: "header", Arg: &nodes.Boolean{Boolval: true}, Location: -1}
+		return &nodes.DefElem{Defname: "header", Arg: &nodes.Boolean{Boolval: true}, Loc: nodes.NoLoc()}
 	case QUOTE:
 		p.advance()
 		p.parseOptAs()
 		s := p.cur.Str
 		p.expect(SCONST)
-		return &nodes.DefElem{Defname: "quote", Arg: &nodes.String{Str: s}, Location: -1}
+		return &nodes.DefElem{Defname: "quote", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}
 	case ESCAPE:
 		p.advance()
 		p.parseOptAs()
 		s := p.cur.Str
 		p.expect(SCONST)
-		return &nodes.DefElem{Defname: "escape", Arg: &nodes.String{Str: s}, Location: -1}
+		return &nodes.DefElem{Defname: "escape", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}
 	case FORCE:
 		p.advance()
 		if p.cur.Type == QUOTE {
 			p.advance()
 			if p.cur.Type == '*' {
 				p.advance()
-				return &nodes.DefElem{Defname: "force_quote", Arg: &nodes.A_Star{}, Location: -1}
+				return &nodes.DefElem{Defname: "force_quote", Arg: &nodes.A_Star{}, Loc: nodes.NoLoc()}
 			}
 			cols := p.parseColumnList()
-			return &nodes.DefElem{Defname: "force_quote", Arg: cols, Location: -1}
+			return &nodes.DefElem{Defname: "force_quote", Arg: cols, Loc: nodes.NoLoc()}
 		}
 		if p.cur.Type == NOT {
 			p.advance()
 			p.expect(NULL_P)
 			if p.cur.Type == '*' {
 				p.advance()
-				return &nodes.DefElem{Defname: "force_not_null", Arg: &nodes.A_Star{}, Location: -1}
+				return &nodes.DefElem{Defname: "force_not_null", Arg: &nodes.A_Star{}, Loc: nodes.NoLoc()}
 			}
 			cols := p.parseColumnList()
-			return &nodes.DefElem{Defname: "force_not_null", Arg: cols, Location: -1}
+			return &nodes.DefElem{Defname: "force_not_null", Arg: cols, Loc: nodes.NoLoc()}
 		}
 		if p.cur.Type == NULL_P {
 			p.advance()
 			if p.cur.Type == '*' {
 				p.advance()
-				return &nodes.DefElem{Defname: "force_null", Arg: &nodes.A_Star{}, Location: -1}
+				return &nodes.DefElem{Defname: "force_null", Arg: &nodes.A_Star{}, Loc: nodes.NoLoc()}
 			}
 			cols := p.parseColumnList()
-			return &nodes.DefElem{Defname: "force_null", Arg: cols, Location: -1}
+			return &nodes.DefElem{Defname: "force_null", Arg: cols, Loc: nodes.NoLoc()}
 		}
 		return nil
 	case ENCODING:
 		p.advance()
 		s := p.cur.Str
 		p.expect(SCONST)
-		return &nodes.DefElem{Defname: "encoding", Arg: &nodes.String{Str: s}, Location: -1}
+		return &nodes.DefElem{Defname: "encoding", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}
 	default:
 		return nil
 	}
@@ -233,7 +233,7 @@ func (p *Parser) parseCopyOptItem() *nodes.DefElem {
 func (p *Parser) parseCopyOptBinary() *nodes.DefElem {
 	if p.cur.Type == BINARY {
 		p.advance()
-		return &nodes.DefElem{Defname: "format", Arg: &nodes.String{Str: "binary"}, Location: -1}
+		return &nodes.DefElem{Defname: "format", Arg: &nodes.String{Str: "binary"}, Loc: nodes.NoLoc()}
 	}
 	return nil
 }
@@ -247,7 +247,7 @@ func (p *Parser) parseCopyDelimiter() *nodes.DefElem {
 		p.advance()
 		s := p.cur.Str
 		p.expect(SCONST)
-		return &nodes.DefElem{Defname: "delimiter", Arg: &nodes.String{Str: s}, Location: -1}
+		return &nodes.DefElem{Defname: "delimiter", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}
 	}
 	return nil
 }

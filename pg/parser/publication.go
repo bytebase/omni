@@ -179,7 +179,7 @@ func (p *Parser) parsePublicationObjSpec() *nodes.PublicationObjSpec {
 		return &nodes.PublicationObjSpec{
 			Pubobjtype: nodes.PUBLICATIONOBJ_TABLE,
 			Pubtable:   pt,
-			Location:   nodes.ParseLoc(loc),
+			Loc: nodes.Loc{Start: loc, End: -1},
 		}
 	}
 
@@ -191,14 +191,14 @@ func (p *Parser) parsePublicationObjSpec() *nodes.PublicationObjSpec {
 			p.advance()
 			return &nodes.PublicationObjSpec{
 				Pubobjtype: nodes.PUBLICATIONOBJ_TABLES_IN_CUR_SCHEMA,
-				Location:   nodes.ParseLoc(loc),
+				Loc: nodes.Loc{Start: loc, End: -1},
 			}
 		}
 		schemaName, _ := p.parseColId()
 		return &nodes.PublicationObjSpec{
 			Pubobjtype: nodes.PUBLICATIONOBJ_TABLES_IN_SCHEMA,
 			Name:       schemaName,
-			Location:   nodes.ParseLoc(loc),
+			Loc: nodes.Loc{Start: loc, End: -1},
 		}
 	}
 
@@ -206,7 +206,7 @@ func (p *Parser) parsePublicationObjSpec() *nodes.PublicationObjSpec {
 		p.advance()
 		return &nodes.PublicationObjSpec{
 			Pubobjtype: nodes.PUBLICATIONOBJ_CONTINUATION,
-			Location:   nodes.ParseLoc(loc),
+			Loc: nodes.Loc{Start: loc, End: -1},
 		}
 	}
 
@@ -224,7 +224,7 @@ func (p *Parser) parsePublicationObjSpec() *nodes.PublicationObjSpec {
 	return &nodes.PublicationObjSpec{
 		Pubobjtype: nodes.PUBLICATIONOBJ_CONTINUATION,
 		Pubtable:   pt,
-		Location:   nodes.ParseLoc(loc),
+		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 }
 

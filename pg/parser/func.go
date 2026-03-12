@@ -64,6 +64,6 @@ func (p *Parser) parseWindowDefinition() *nodes.WindowDef {
 	p.expect(AS)
 	wd := p.parseWindowSpecification().(*nodes.WindowDef)
 	wd.Name = name
-	wd.Location = -1
+	wd.Loc = nodes.NoLoc()
 	return wd
 }

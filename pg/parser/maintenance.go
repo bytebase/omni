@@ -371,7 +371,7 @@ func (p *Parser) parseUtilityOptionList() *nodes.List {
 func (p *Parser) parseUtilityOptionElem() *nodes.DefElem {
 	name := p.parseUtilityOptionName()
 	arg := p.parseUtilityOptionArg()
-	return &nodes.DefElem{Defname: name, Arg: arg, Location: -1}
+	return &nodes.DefElem{Defname: name, Arg: arg, Loc: nodes.NoLoc()}
 }
 
 // parseUtilityOptionName parses utility_option_name.

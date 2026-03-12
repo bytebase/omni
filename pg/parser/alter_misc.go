@@ -283,7 +283,7 @@ func (p *Parser) parseAlterCompositeTypeRename(names *nodes.List) *nodes.RenameS
 func makeRangeVarFromCompositeType(names *nodes.List) *nodes.RangeVar {
 	rv := &nodes.RangeVar{
 		Inh:      true,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 	if names != nil && len(names.Items) > 0 {
 		switch len(names.Items) {
@@ -357,7 +357,7 @@ func (p *Parser) parseAlterTypeCmd() *nodes.AlterTableCmd {
 		if p.cur.Type == COLLATE {
 			p.advance()
 			collname, _ := p.parseAnyName()
-			collClause = &nodes.CollateClause{Collname: collname, Location: -1}
+			collClause = &nodes.CollateClause{Collname: collname, Loc: nodes.NoLoc()}
 		}
 		behavior := p.parseOptDropBehavior()
 		coldef := &nodes.ColumnDef{
@@ -526,7 +526,7 @@ func (p *Parser) parseDomainConstraintForAlter(typname *nodes.List) *nodes.Alter
 		Contype:  nodes.CONSTR_CHECK,
 		Conname:  conname,
 		RawExpr:  expr,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 	attrs := p.parseConstraintAttributeSpec()
 	applyConstraintAttrs(constraint, attrs)

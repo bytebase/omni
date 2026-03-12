@@ -25,7 +25,7 @@ func (p *Parser) parseTypename() (*nodes.TypeName, error) {
 	if err != nil {
 		return nil, err
 	}
-	tn.Location = -1
+	tn.Loc = nodes.NoLoc()
 	tn.Setof = setof
 
 	// Check for ARRAY '[' Iconst ']' or ARRAY (without bounds)
@@ -192,7 +192,7 @@ func (p *Parser) parseGenericType() (*nodes.TypeName, error) {
 				&nodes.String{Str: attr},
 			}},
 			Typmods:  typmods,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}, nil
 	}
 
@@ -200,7 +200,7 @@ func (p *Parser) parseGenericType() (*nodes.TypeName, error) {
 	return &nodes.TypeName{
 		Names:    &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}},
 		Typmods:  typmods,
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}, nil
 }
 
@@ -249,21 +249,21 @@ func (p *Parser) parseAExprForTypmod() nodes.Node {
 		tok := p.advance()
 		return &nodes.A_Const{
 			Val:      &nodes.Integer{Ival: tok.Ival},
-			Location: nodes.ParseLoc(tok.Loc),
+			Loc: nodes.Loc{Start: tok.Loc, End: -1},
 		}
 	}
 	if p.cur.Type == FCONST {
 		tok := p.advance()
 		return &nodes.A_Const{
 			Val:      &nodes.Float{Fval: tok.Str},
-			Location: nodes.ParseLoc(tok.Loc),
+			Loc: nodes.Loc{Start: tok.Loc, End: -1},
 		}
 	}
 	if p.cur.Type == SCONST {
 		tok := p.advance()
 		return &nodes.A_Const{
 			Val:      &nodes.String{Str: tok.Str},
-			Location: nodes.ParseLoc(tok.Loc),
+			Loc: nodes.Loc{Start: tok.Loc, End: -1},
 		}
 	}
 	// Fall back to full a_expr for complex expressions
@@ -729,7 +729,7 @@ func (p *Parser) parseFuncType() (*nodes.TypeName, error) {
 						return &nodes.TypeName{
 							Names:   &nodes.List{Items: nameItems},
 							PctType: true,
-							Location: -1,
+							Loc: nodes.NoLoc(),
 						}, nil
 					}
 				}
@@ -764,7 +764,7 @@ func makeTypeName(typName string) *nodes.TypeName {
 			&nodes.String{Str: "pg_catalog"},
 			&nodes.String{Str: typName},
 		}},
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 

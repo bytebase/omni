@@ -927,7 +927,7 @@ func (p *Parser) parseAlterColumnTypeInner(colname string) *nodes.AlterTableCmd 
 		collname, _ := p.parseAnyName()
 		coldef.CollClause = &nodes.CollateClause{
 			Collname: collname,
-			Location: -1,
+			Loc: nodes.NoLoc(),
 		}
 	}
 
@@ -956,7 +956,7 @@ func (p *Parser) parseAlterColumnAddGenerated(colname string) *nodes.AlterTableC
 		Contype:       nodes.CONSTR_IDENTITY,
 		GeneratedWhen: byte(gw),
 		Options:       opts,
-		Location:      -1,
+		Loc: nodes.NoLoc(),
 	}
 	return &nodes.AlterTableCmd{
 		Subtype: int(nodes.AT_AddIdentity),
@@ -1510,7 +1510,7 @@ func (p *Parser) parseAlterGenericOptionElem() *nodes.DefElem {
 		return &nodes.DefElem{
 			Defname:   name,
 			Defaction: int(nodes.DEFELEM_DROP),
-			Location:  -1,
+			Loc: nodes.NoLoc(),
 		}
 	default:
 		return p.parseGenericOptionElem()
@@ -1526,7 +1526,7 @@ func (p *Parser) parseGenericOptionElem() *nodes.DefElem {
 	return &nodes.DefElem{
 		Defname:  name,
 		Arg:      &nodes.String{Str: arg},
-		Location: -1,
+		Loc: nodes.NoLoc(),
 	}
 }
 
@@ -1538,5 +1538,5 @@ func (p *Parser) parseOneSeqOptElem() *nodes.DefElem {
 			return de
 		}
 	}
-	return &nodes.DefElem{Location: -1}
+	return &nodes.DefElem{Loc: nodes.NoLoc()}
 }
