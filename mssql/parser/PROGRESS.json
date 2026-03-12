@@ -1678,7 +1678,7 @@
       "id": 70,
       "name": "alter_table_depth",
       "file": "alter_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 9 gap: support comma-separated multiple ALTER TABLE actions, add missing action types (SWITCH PARTITION, CHECK/NOCHECK CONSTRAINT, ENABLE/DISABLE CHANGE_TRACKING, REBUILD PARTITION, SET FILESTREAM_ON/LOCK_ESCALATION), ALTER COLUMN depth (COLLATE, ADD/DROP MASKED, ADD/DROP ROWGUIDCOL, ADD/DROP PERSISTED)",
       "rules": [
         "parseAlterTableMultipleActions",

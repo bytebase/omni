@@ -6377,3 +6377,230 @@ func TestParseCreateTableDepth(t *testing.T) {
 		}
 	})
 }
+
+// TestParseAlterTableDepth tests ALTER TABLE extended features (batch 70).
+func TestParseAlterTableDepth(t *testing.T) {
+	// Multiple comma-separated ADD actions
+	t.Run("alter_table_multiple_actions", func(t *testing.T) {
+		tests := []string{
+			"ALTER TABLE t ADD col1 int, col2 varchar(50)",
+			"ALTER TABLE t ADD col1 int NULL, CONSTRAINT PK_t PRIMARY KEY (id)",
+			"ALTER TABLE t ADD col1 int, col2 nvarchar(100) NOT NULL, col3 datetime DEFAULT GETDATE()",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.AlterTableStmt)
+				if stmt.Actions == nil || stmt.Actions.Len() < 2 {
+					t.Fatalf("expected multiple actions, got %v", stmt.Actions)
+				}
+			})
+		}
+	})
+
+	// SWITCH PARTITION
+	t.Run("alter_table_switch_partition", func(t *testing.T) {
+		tests := []string{
+			"ALTER TABLE t SWITCH TO t2",
+			"ALTER TABLE t SWITCH PARTITION 1 TO t2",
+			"ALTER TABLE t SWITCH PARTITION 1 TO t2 PARTITION 2",
+			"ALTER TABLE dbo.source SWITCH PARTITION 5 TO dbo.target PARTITION 5",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.AlterTableStmt)
+				action := stmt.Actions.Items[0].(*ast.AlterTableAction)
+				if action.Type != ast.ATSwitchPartition {
+					t.Errorf("expected ATSwitchPartition, got %d", action.Type)
+				}
+				if action.TargetName == nil {
+					t.Fatal("expected target table name")
+				}
+			})
+		}
+	})
+
+	// CHECK/NOCHECK CONSTRAINT
+	t.Run("alter_table_check_nocheck", func(t *testing.T) {
+		tests := []struct {
+			sql     string
+			actType ast.AlterTableActionType
+		}{
+			{"ALTER TABLE t CHECK CONSTRAINT ALL", ast.ATCheckConstraint},
+			{"ALTER TABLE t NOCHECK CONSTRAINT ALL", ast.ATNocheckConstraint},
+			{"ALTER TABLE t CHECK CONSTRAINT FK_t_col", ast.ATCheckConstraint},
+			{"ALTER TABLE t NOCHECK CONSTRAINT FK_t_col", ast.ATNocheckConstraint},
+			{"ALTER TABLE t WITH CHECK CHECK CONSTRAINT ALL", ast.ATCheckConstraint},
+			{"ALTER TABLE t WITH NOCHECK NOCHECK CONSTRAINT FK_t_col", ast.ATNocheckConstraint},
+			{"ALTER TABLE t CHECK CONSTRAINT ck1, ck2", ast.ATCheckConstraint},
+		}
+		for _, tc := range tests {
+			t.Run(tc.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tc.sql)
+				stmt := result.Items[0].(*ast.AlterTableStmt)
+				action := stmt.Actions.Items[0].(*ast.AlterTableAction)
+				if action.Type != tc.actType {
+					t.Errorf("expected action type %d, got %d", tc.actType, action.Type)
+				}
+			})
+		}
+	})
+
+	// ENABLE/DISABLE TRIGGER (at ALTER TABLE level)
+	t.Run("alter_table_enable_disable_trigger", func(t *testing.T) {
+		tests := []struct {
+			sql     string
+			actType ast.AlterTableActionType
+		}{
+			{"ALTER TABLE t ENABLE TRIGGER ALL", ast.ATEnableTrigger},
+			{"ALTER TABLE t DISABLE TRIGGER ALL", ast.ATDisableTrigger},
+			{"ALTER TABLE t ENABLE TRIGGER trg1", ast.ATEnableTrigger},
+			{"ALTER TABLE t DISABLE TRIGGER trg1, trg2", ast.ATDisableTrigger},
+		}
+		for _, tc := range tests {
+			t.Run(tc.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tc.sql)
+				stmt := result.Items[0].(*ast.AlterTableStmt)
+				action := stmt.Actions.Items[0].(*ast.AlterTableAction)
+				if action.Type != tc.actType {
+					t.Errorf("expected action type %d, got %d", tc.actType, action.Type)
+				}
+			})
+		}
+	})
+
+	// ENABLE/DISABLE CHANGE_TRACKING
+	t.Run("alter_table_change_tracking", func(t *testing.T) {
+		tests := []struct {
+			sql     string
+			actType ast.AlterTableActionType
+		}{
+			{"ALTER TABLE t ENABLE CHANGE_TRACKING", ast.ATEnableChangeTracking},
+			{"ALTER TABLE t DISABLE CHANGE_TRACKING", ast.ATDisableChangeTracking},
+			{"ALTER TABLE t ENABLE CHANGE_TRACKING WITH (TRACK_COLUMNS_UPDATED = ON)", ast.ATEnableChangeTracking},
+		}
+		for _, tc := range tests {
+			t.Run(tc.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tc.sql)
+				stmt := result.Items[0].(*ast.AlterTableStmt)
+				action := stmt.Actions.Items[0].(*ast.AlterTableAction)
+				if action.Type != tc.actType {
+					t.Errorf("expected action type %d, got %d", tc.actType, action.Type)
+				}
+			})
+		}
+	})
+
+	// REBUILD
+	t.Run("alter_table_rebuild", func(t *testing.T) {
+		tests := []string{
+			"ALTER TABLE t REBUILD",
+			"ALTER TABLE t REBUILD PARTITION = ALL",
+			"ALTER TABLE t REBUILD PARTITION = 1",
+			"ALTER TABLE t REBUILD WITH (DATA_COMPRESSION = PAGE)",
+			"ALTER TABLE t REBUILD PARTITION = ALL WITH (DATA_COMPRESSION = ROW)",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.AlterTableStmt)
+				action := stmt.Actions.Items[0].(*ast.AlterTableAction)
+				if action.Type != ast.ATRebuild {
+					t.Errorf("expected ATRebuild, got %d", action.Type)
+				}
+			})
+		}
+	})
+
+	// SET options
+	t.Run("alter_table_set", func(t *testing.T) {
+		tests := []string{
+			"ALTER TABLE t SET (LOCK_ESCALATION = TABLE)",
+			"ALTER TABLE t SET (LOCK_ESCALATION = AUTO)",
+			"ALTER TABLE t SET (LOCK_ESCALATION = DISABLE)",
+			"ALTER TABLE t SET (FILESTREAM_ON = myFilegroup)",
+			"ALTER TABLE t SET (SYSTEM_VERSIONING = ON)",
+			"ALTER TABLE t SET (SYSTEM_VERSIONING = OFF)",
+			"ALTER TABLE t SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = dbo.history))",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.AlterTableStmt)
+				action := stmt.Actions.Items[0].(*ast.AlterTableAction)
+				if action.Type != ast.ATSet {
+					t.Errorf("expected ATSet, got %d", action.Type)
+				}
+			})
+		}
+	})
+
+	// ALTER COLUMN with COLLATE
+	t.Run("alter_column_collate", func(t *testing.T) {
+		sql := "ALTER TABLE t ALTER COLUMN col1 varchar(100) COLLATE Latin1_General_CI_AS NOT NULL"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterTableStmt)
+		action := stmt.Actions.Items[0].(*ast.AlterTableAction)
+		if action.Type != ast.ATAlterColumn {
+			t.Errorf("expected ATAlterColumn, got %d", action.Type)
+		}
+		if action.Collation != "Latin1_General_CI_AS" {
+			t.Errorf("expected collation Latin1_General_CI_AS, got %s", action.Collation)
+		}
+	})
+
+	// ALTER COLUMN ADD/DROP ROWGUIDCOL, PERSISTED, SPARSE, HIDDEN, MASKED
+	t.Run("alter_column_add_drop", func(t *testing.T) {
+		tests := []string{
+			"ALTER TABLE t ALTER COLUMN col1 ADD ROWGUIDCOL",
+			"ALTER TABLE t ALTER COLUMN col1 DROP ROWGUIDCOL",
+			"ALTER TABLE t ALTER COLUMN col1 ADD PERSISTED",
+			"ALTER TABLE t ALTER COLUMN col1 DROP PERSISTED",
+			"ALTER TABLE t ALTER COLUMN col1 ADD SPARSE",
+			"ALTER TABLE t ALTER COLUMN col1 DROP SPARSE",
+			"ALTER TABLE t ALTER COLUMN col1 ADD HIDDEN",
+			"ALTER TABLE t ALTER COLUMN col1 DROP HIDDEN",
+			"ALTER TABLE t ALTER COLUMN col1 ADD MASKED WITH (FUNCTION = 'default()')",
+			"ALTER TABLE t ALTER COLUMN col1 DROP MASKED",
+			"ALTER TABLE t ALTER COLUMN col1 ADD NOT FOR REPLICATION",
+			"ALTER TABLE t ALTER COLUMN col1 DROP NOT FOR REPLICATION",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.AlterTableStmt)
+				action := stmt.Actions.Items[0].(*ast.AlterTableAction)
+				if action.Type != ast.ATAlterColumnAddDrop {
+					t.Errorf("expected ATAlterColumnAddDrop, got %d", action.Type)
+				}
+			})
+		}
+	})
+
+	// DROP with IF EXISTS
+	t.Run("alter_table_drop_if_exists", func(t *testing.T) {
+		tests := []string{
+			"ALTER TABLE t DROP CONSTRAINT IF EXISTS ck1",
+			"ALTER TABLE t DROP COLUMN IF EXISTS col1",
+			"ALTER TABLE t DROP COLUMN IF EXISTS col1, col2",
+			"ALTER TABLE t DROP CONSTRAINT IF EXISTS ck1, ck2",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				ParseAndCheck(t, sql)
+			})
+		}
+	})
+
+	// Multiple DROP items
+	t.Run("alter_table_drop_multiple", func(t *testing.T) {
+		sql := "ALTER TABLE t DROP COLUMN col1, col2, col3"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterTableStmt)
+		// Multiple drops should produce multiple actions
+		if stmt.Actions == nil || stmt.Actions.Len() < 2 {
+			t.Fatalf("expected multiple drop actions, got %v", stmt.Actions)
+		}
+	})
+}

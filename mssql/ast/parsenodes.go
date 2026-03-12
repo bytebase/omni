@@ -408,6 +408,13 @@ type AlterTableAction struct {
 	ColName    string
 	Constraint *ConstraintDef
 	DataType   *DataType
+	Collation  string   // ALTER COLUMN ... COLLATE collation_name
+	Options    *List    // generic options list (e.g., SET options, REBUILD options, WITH options)
+	TargetName *TableRef // SWITCH ... TO target_table
+	Names      *List    // constraint/trigger name list for CHECK/NOCHECK/ENABLE/DISABLE
+	Partition  ExprNode // SWITCH PARTITION n / REBUILD PARTITION = n
+	TargetPart ExprNode // SWITCH TO ... PARTITION n
+	WithCheck  string   // "CHECK" or "NOCHECK" prefix for WITH { CHECK | NOCHECK }
 	Loc        Loc
 }
 
@@ -422,6 +429,16 @@ const (
 	ATAlterColumn
 	ATAddConstraint
 	ATDropConstraint
+	ATCheckConstraint       // [WITH CHECK|NOCHECK] CHECK CONSTRAINT { ALL | name [,...n] }
+	ATNocheckConstraint     // [WITH CHECK|NOCHECK] NOCHECK CONSTRAINT { ALL | name [,...n] }
+	ATEnableTrigger         // ENABLE TRIGGER { ALL | name [,...n] }
+	ATDisableTrigger        // DISABLE TRIGGER { ALL | name [,...n] }
+	ATEnableChangeTracking  // ENABLE CHANGE_TRACKING [WITH (...)]
+	ATDisableChangeTracking // DISABLE CHANGE_TRACKING
+	ATSwitchPartition       // SWITCH [PARTITION n] TO target [PARTITION n]
+	ATRebuild               // REBUILD [PARTITION = ALL|n] [WITH (...)]
+	ATSet                   // SET (LOCK_ESCALATION = ..., FILESTREAM_ON = ..., SYSTEM_VERSIONING = ...)
+	ATAlterColumnAddDrop    // ALTER COLUMN col {ADD|DROP} {ROWGUIDCOL|PERSISTED|...}
 )
 
 // DropStmt represents a DROP statement.

@@ -2107,6 +2107,32 @@ func writeAlterTableAction(sb *strings.Builder, n *AlterTableAction) {
 		sb.WriteString(" :dataType ")
 		writeNode(sb, n.DataType)
 	}
+	if n.Collation != "" {
+		sb.WriteString(fmt.Sprintf(" :collation \"%s\"", escapeString(n.Collation)))
+	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
+	if n.TargetName != nil {
+		sb.WriteString(" :targetName ")
+		writeNode(sb, n.TargetName)
+	}
+	if n.Names != nil {
+		sb.WriteString(" :names ")
+		writeNode(sb, n.Names)
+	}
+	if n.Partition != nil {
+		sb.WriteString(" :partition ")
+		writeNode(sb, n.Partition)
+	}
+	if n.TargetPart != nil {
+		sb.WriteString(" :targetPart ")
+		writeNode(sb, n.TargetPart)
+	}
+	if n.WithCheck != "" {
+		sb.WriteString(fmt.Sprintf(" :withCheck \"%s\"", escapeString(n.WithCheck)))
+	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
