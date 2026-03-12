@@ -1718,7 +1718,193 @@
         "create_func_with_options",
         "create_view_with_options"
       ]
+    },
+    {
+      "id": 72,
+      "name": "service_broker_depth",
+      "file": "service_broker.go",
+      "status": "done",
+      "description": "Fix batch 46 gap: structurally parse BEGIN CONVERSATION (FROM SERVICE, TO SERVICE, ON CONTRACT, WITH options), RECEIVE column list and INTO clause, contract message type definitions (SENT BY INITIATOR/TARGET/ANY), queue ACTIVATION options, END CONVERSATION WITH options (ERROR/DESCRIPTION)",
+      "rules": [
+        "parseBeginConversationFull",
+        "parseReceiveColumnList",
+        "parseContractMessageTypes",
+        "parseQueueActivationOptions",
+        "parseEndConversationOptions"
+      ],
+      "depends_on": [
+        46,
+        50,
+        52
+      ],
+      "tests": [
+        "begin_conversation_full",
+        "receive_columns",
+        "contract_message_types",
+        "queue_activation",
+        "end_conversation_options"
+      ]
+    },
+    {
+      "id": 73,
+      "name": "window_frame",
+      "file": "expr.go",
+      "status": "pending",
+      "description": "Fix batch 3 gap: parse ROWS/RANGE/GROUPS window frame specification in OVER clause (BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW, N PRECEDING/FOLLOWING, etc.)",
+      "rules": [
+        "parseWindowFrame",
+        "parseWindowFrameBound"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "window_frame_rows",
+        "window_frame_range",
+        "window_frame_groups"
+      ]
+    },
+    {
+      "id": 74,
+      "name": "for_xml_json_options",
+      "file": "select.go",
+      "status": "pending",
+      "description": "Fix batch 4 gap: parse FOR XML options (TYPE, ROOT('name'), ELEMENTS XSINIL/ABSENT, XMLDATA, XMLSCHEMA), FOR JSON options (ROOT('name'), INCLUDE_NULL_VALUES, WITHOUT_ARRAY_WRAPPER)",
+      "rules": [
+        "parseForXmlOptions",
+        "parseForJsonOptions"
+      ],
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "for_xml_type_root",
+        "for_xml_elements",
+        "for_json_root",
+        "for_json_options"
+      ]
+    },
+    {
+      "id": 75,
+      "name": "compound_assignment",
+      "file": "update_delete.go",
+      "status": "pending",
+      "description": "Fix batch 6/16 gap: support compound assignment operators (+=, -=, *=, /=, %=, &=, ^=, |=) in UPDATE SET clause and SET @variable statements",
+      "rules": [
+        "parseCompoundAssignment",
+        "parseSetVarCompoundAssignment"
+      ],
+      "depends_on": [
+        6,
+        16
+      ],
+      "tests": [
+        "update_compound_assignment",
+        "set_var_compound_assignment"
+      ]
+    },
+    {
+      "id": 76,
+      "name": "create_database_depth",
+      "file": "create_database.go",
+      "status": "pending",
+      "description": "Fix batch 13 gap: parse CREATE DATABASE full options (ON PRIMARY filegroup specs, LOG ON, COLLATE, WITH options, FOR ATTACH, AS SNAPSHOT OF, CONTAINMENT)",
+      "rules": [
+        "parseDatabaseFileSpec",
+        "parseDatabaseLogOn",
+        "parseDatabaseCollate",
+        "parseDatabaseWithOptions",
+        "parseDatabaseForAttach",
+        "parseDatabaseAsSnapshot"
+      ],
+      "depends_on": [
+        13
+      ],
+      "tests": [
+        "create_database_filespec",
+        "create_database_log_on",
+        "create_database_collate",
+        "create_database_for_attach",
+        "create_database_snapshot"
+      ]
+    },
+    {
+      "id": 77,
+      "name": "alter_database_depth",
+      "file": "alter_objects.go",
+      "status": "pending",
+      "description": "Fix batch 29 gap: replace ALTER DATABASE skip-loop with structured parsing of SET options, MODIFY FILE, ADD FILE/FILEGROUP, COLLATE, MODIFY NAME",
+      "rules": [
+        "parseAlterDatabaseSetOptions",
+        "parseAlterDatabaseModifyFile",
+        "parseAlterDatabaseAddFile"
+      ],
+      "depends_on": [
+        29
+      ],
+      "tests": [
+        "alter_database_set_options",
+        "alter_database_modify_file",
+        "alter_database_add_file"
+      ]
+    },
+    {
+      "id": 78,
+      "name": "grant_depth",
+      "file": "grant.go",
+      "status": "pending",
+      "description": "Fix batch 19 gap: parse ON securable_class::name scope resolution syntax (e.g., GRANT SELECT ON SCHEMA::dbo), support REVOKE GRANT OPTION FOR",
+      "rules": [
+        "parseGrantOnSecurableClass",
+        "parseRevokeGrantOptionFor"
+      ],
+      "depends_on": [
+        19
+      ],
+      "tests": [
+        "grant_on_schema",
+        "grant_on_object_type",
+        "revoke_grant_option_for"
+      ]
+    },
+    {
+      "id": 79,
+      "name": "subquery_comparison",
+      "file": "expr.go",
+      "status": "pending",
+      "description": "Fix batch 3 gap: parse ANY/SOME/ALL subquery comparison operators (e.g., WHERE x > ALL (SELECT ...))",
+      "rules": [
+        "parseAnySomeAll"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "any_subquery",
+        "some_subquery",
+        "all_subquery"
+      ]
+    },
+    {
+      "id": 80,
+      "name": "workload_classifier",
+      "file": "resource_governor.go",
+      "status": "pending",
+      "description": "New: CREATE/ALTER/DROP WORKLOAD CLASSIFIER (SQL Server 2019+) with WITH options (MEMBERNAME, WORKLOAD_GROUP, IMPORTANCE, etc.)",
+      "rules": [
+        "parseCreateWorkloadClassifierStmt",
+        "parseAlterWorkloadClassifierStmt",
+        "parseDropWorkloadClassifierStmt"
+      ],
+      "depends_on": [
+        59
+      ],
+      "tests": [
+        "create_workload_classifier",
+        "alter_workload_classifier",
+        "drop_workload_classifier"
+      ]
     }
   ],
-  "audit_round": 2
+  "audit_round": 3
 }

@@ -6688,3 +6688,188 @@ func TestParseRoutineOptionsDepth(t *testing.T) {
 		_ = result.Items[0].(*ast.CreateViewStmt)
 	})
 }
+
+// TestParseServiceBrokerDepth tests batch 72: structural parsing of Service Broker statements.
+func TestParseServiceBrokerDepth(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		// BEGIN DIALOG CONVERSATION - full form
+		{
+			name: "begin_dialog_full",
+			sql:  "BEGIN DIALOG CONVERSATION @dialog_handle FROM SERVICE [//MyApp/Initiator] TO SERVICE '//MyApp/Target' ON CONTRACT [//MyApp/Contract]",
+		},
+		{
+			name: "begin_dialog_with_broker_guid",
+			sql:  "BEGIN DIALOG CONVERSATION @dialog_handle FROM SERVICE [//MyApp/Initiator] TO SERVICE '//MyApp/Target', 'a326e034-d4cf-4e8b-8d98-4d7e1926c904' ON CONTRACT [//MyApp/Contract]",
+		},
+		{
+			name: "begin_dialog_with_current_database",
+			sql:  "BEGIN DIALOG CONVERSATION @dialog_handle FROM SERVICE [//MyApp/Initiator] TO SERVICE '//MyApp/Target', 'CURRENT DATABASE' ON CONTRACT [//MyApp/Contract]",
+		},
+		{
+			name: "begin_dialog_with_lifetime",
+			sql:  "BEGIN DIALOG CONVERSATION @dialog_handle FROM SERVICE [//MyApp/Initiator] TO SERVICE '//MyApp/Target' ON CONTRACT [//MyApp/Contract] WITH LIFETIME = 60",
+		},
+		{
+			name: "begin_dialog_with_encryption",
+			sql:  "BEGIN DIALOG CONVERSATION @dialog_handle FROM SERVICE [//MyApp/Initiator] TO SERVICE '//MyApp/Target' ON CONTRACT [//MyApp/Contract] WITH ENCRYPTION = OFF",
+		},
+		{
+			name: "begin_dialog_with_related_conversation",
+			sql:  "BEGIN DIALOG CONVERSATION @dialog_handle FROM SERVICE [//MyApp/Initiator] TO SERVICE '//MyApp/Target' ON CONTRACT [//MyApp/Contract] WITH RELATED_CONVERSATION = @existing_handle",
+		},
+		{
+			name: "begin_dialog_with_related_group",
+			sql:  "BEGIN DIALOG CONVERSATION @dialog_handle FROM SERVICE [//MyApp/Initiator] TO SERVICE '//MyApp/Target' ON CONTRACT [//MyApp/Contract] WITH RELATED_CONVERSATION_GROUP = @group_id",
+		},
+		{
+			name: "begin_dialog_with_multiple_options",
+			sql:  "BEGIN DIALOG CONVERSATION @dialog_handle FROM SERVICE [//MyApp/Initiator] TO SERVICE '//MyApp/Target' ON CONTRACT [//MyApp/Contract] WITH RELATED_CONVERSATION = @existing_handle, LIFETIME = 600, ENCRYPTION = ON",
+		},
+		{
+			name: "begin_dialog_no_contract",
+			sql:  "BEGIN DIALOG CONVERSATION @dialog_handle FROM SERVICE [//MyApp/Initiator] TO SERVICE '//MyApp/Target'",
+		},
+		{
+			name: "begin_dialog_minimal",
+			sql:  "BEGIN DIALOG @dialog_handle FROM SERVICE [//MyApp/Initiator] TO SERVICE '//MyApp/Target'",
+		},
+		// RECEIVE - column list and INTO
+		{
+			name: "receive_star",
+			sql:  "RECEIVE * FROM ExpenseQueue",
+		},
+		{
+			name: "receive_columns",
+			sql:  "RECEIVE conversation_handle, message_type_name, message_body FROM ExpenseQueue",
+		},
+		{
+			name: "receive_top",
+			sql:  "RECEIVE TOP (1) * FROM ExpenseQueue",
+		},
+		{
+			name: "receive_into",
+			sql:  "RECEIVE TOP (1) conversation_handle, message_body FROM ExpenseQueue INTO @tableVar",
+		},
+		{
+			name: "receive_where_handle",
+			sql:  "RECEIVE * FROM ExpenseQueue WHERE conversation_handle = @handle",
+		},
+		{
+			name: "receive_where_group",
+			sql:  "RECEIVE * FROM ExpenseQueue WHERE conversation_group_id = @group_id",
+		},
+		{
+			name: "receive_with_alias",
+			sql:  "RECEIVE message_type_name AS MsgType, message_body AS Body FROM ExpenseQueue",
+		},
+		// CREATE CONTRACT - message type definitions
+		{
+			name: "contract_single_initiator",
+			sql:  "CREATE CONTRACT [//MyApp/Contract] ([//MyApp/Request] SENT BY INITIATOR)",
+		},
+		{
+			name: "contract_single_target",
+			sql:  "CREATE CONTRACT [//MyApp/Contract] ([//MyApp/Reply] SENT BY TARGET)",
+		},
+		{
+			name: "contract_single_any",
+			sql:  "CREATE CONTRACT [//MyApp/Contract] ([//MyApp/Msg] SENT BY ANY)",
+		},
+		{
+			name: "contract_multiple_types",
+			sql:  "CREATE CONTRACT [//MyApp/Contract] ([//MyApp/Request] SENT BY INITIATOR, [//MyApp/Reply] SENT BY TARGET, [//MyApp/Status] SENT BY ANY)",
+		},
+		{
+			name: "contract_with_default",
+			sql:  "CREATE CONTRACT [//MyApp/Contract] ([DEFAULT] SENT BY ANY)",
+		},
+		{
+			name: "contract_with_authorization",
+			sql:  "CREATE CONTRACT [//MyApp/Contract] AUTHORIZATION dbo ([//MyApp/Request] SENT BY INITIATOR)",
+		},
+		// CREATE/ALTER QUEUE - ACTIVATION options
+		{
+			name: "queue_with_status",
+			sql:  "CREATE QUEUE ExpenseQueue WITH STATUS = ON",
+		},
+		{
+			name: "queue_with_retention",
+			sql:  "CREATE QUEUE ExpenseQueue WITH RETENTION = ON",
+		},
+		{
+			name: "queue_with_activation",
+			sql:  "CREATE QUEUE ExpenseQueue WITH ACTIVATION (STATUS = ON, PROCEDURE_NAME = dbo.expense_proc, MAX_QUEUE_READERS = 5, EXECUTE AS SELF)",
+		},
+		{
+			name: "queue_activation_execute_as_user",
+			sql:  "CREATE QUEUE ExpenseQueue WITH ACTIVATION (PROCEDURE_NAME = expense_proc, MAX_QUEUE_READERS = 3, EXECUTE AS 'ExpenseUser')",
+		},
+		{
+			name: "queue_activation_execute_as_owner",
+			sql:  "CREATE QUEUE ExpenseQueue WITH ACTIVATION (PROCEDURE_NAME = expense_proc, MAX_QUEUE_READERS = 1, EXECUTE AS OWNER)",
+		},
+		{
+			name: "queue_with_poison_message",
+			sql:  "CREATE QUEUE ExpenseQueue WITH POISON_MESSAGE_HANDLING (STATUS = OFF)",
+		},
+		{
+			name: "queue_full_options",
+			sql:  "CREATE QUEUE ExpenseQueue WITH STATUS = ON, RETENTION = OFF, ACTIVATION (STATUS = ON, PROCEDURE_NAME = dbo.expense_proc, MAX_QUEUE_READERS = 10, EXECUTE AS SELF), POISON_MESSAGE_HANDLING (STATUS = ON)",
+		},
+		{
+			name: "queue_on_filegroup",
+			sql:  "CREATE QUEUE ExpenseQueue ON ExpenseFileGroup",
+		},
+		{
+			name: "alter_queue_activation",
+			sql:  "ALTER QUEUE ExpenseQueue WITH ACTIVATION (STATUS = ON, PROCEDURE_NAME = dbo.expense_proc, MAX_QUEUE_READERS = 5, EXECUTE AS SELF)",
+		},
+		{
+			name: "alter_queue_poison",
+			sql:  "ALTER QUEUE ExpenseQueue WITH POISON_MESSAGE_HANDLING (STATUS = OFF)",
+		},
+		// END CONVERSATION - WITH options
+		{
+			name: "end_conversation_simple",
+			sql:  "END CONVERSATION @handle",
+		},
+		{
+			name: "end_conversation_with_error",
+			sql:  "END CONVERSATION @handle WITH ERROR = 100 DESCRIPTION = 'An error occurred'",
+		},
+		{
+			name: "end_conversation_with_cleanup",
+			sql:  "END CONVERSATION @handle WITH CLEANUP",
+		},
+		{
+			name: "end_conversation_error_variable",
+			sql:  "END CONVERSATION @handle WITH ERROR = @errorCode DESCRIPTION = @errorDesc",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() == 0 {
+				t.Fatalf("Parse(%q): no statements returned", tt.sql)
+			}
+			stmt, ok := result.Items[0].(*ast.ServiceBrokerStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *ast.ServiceBrokerStmt, got %T", tt.sql, result.Items[0])
+			}
+			checkLocation(t, tt.sql, "ServiceBrokerStmt", stmt.Loc)
+
+			s1 := ast.NodeToString(result.Items[0])
+			s2 := ast.NodeToString(result.Items[0])
+			if s1 != s2 {
+				t.Errorf("Parse(%q): serialization not deterministic:\n  s1=%s\n  s2=%s", tt.sql, s1, s2)
+			}
+			if s1 == "" {
+				t.Errorf("Parse(%q): empty serialization", tt.sql)
+			}
+		})
+	}
+}

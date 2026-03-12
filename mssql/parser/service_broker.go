@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
@@ -90,27 +91,52 @@ func (p *Parser) parseCreateContractStmt() *nodes.ServiceBrokerStmt {
 		p.advance()
 	}
 
-	// skip authorization and message type list
+	// Optional: AUTHORIZATION owner
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
 		if p.isIdentLike() {
 			p.advance()
 		}
 	}
+
+	// Parse message type definitions: ( message_type_name SENT BY { INITIATOR | TARGET | ANY } [,...n] )
 	if p.cur.Type == '(' {
 		p.advance()
-		depth := 1
-		for depth > 0 && p.cur.Type != tokEOF {
-			if p.cur.Type == '(' {
-				depth++
-			} else if p.cur.Type == ')' {
-				depth--
-			}
-			if depth > 0 {
+		var opts []nodes.Node
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			// message_type_name or [DEFAULT]
+			var msgTypeName string
+			if p.cur.Type == kwDEFAULT {
+				msgTypeName = "DEFAULT"
 				p.advance()
+			} else if p.isIdentLike() || p.cur.Type == tokSCONST {
+				msgTypeName = p.cur.Str
+				p.advance()
+			}
+			// SENT BY { INITIATOR | TARGET | ANY }
+			sentBy := ""
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SENT") {
+				p.advance()
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "BY") {
+					p.advance()
+				}
+				if p.isIdentLike() || p.cur.Type == kwANY {
+					sentBy = strings.ToUpper(p.cur.Str)
+					p.advance()
+				}
+			}
+			if msgTypeName != "" {
+				entry := msgTypeName + " SENT BY " + sentBy
+				opts = append(opts, &nodes.String{Str: entry})
+			}
+			if _, ok := p.match(','); !ok {
+				break
 			}
 		}
 		p.match(')')
+		if len(opts) > 0 {
+			stmt.Options = &nodes.List{Items: opts}
+		}
 	}
 
 	stmt.Loc.End = p.pos()
@@ -144,14 +170,164 @@ func (p *Parser) parseCreateQueueStmt() *nodes.ServiceBrokerStmt {
 		Loc:        nodes.Loc{Start: loc},
 	}
 
-	if p.isIdentLike() {
-		stmt.Name = p.cur.Str
-		p.advance()
+	// Parse possibly schema-qualified queue name
+	ref := p.parseTableRef()
+	if ref != nil {
+		if ref.Schema != "" {
+			stmt.Name = ref.Schema + "." + ref.Object
+		} else {
+			stmt.Name = ref.Object
+		}
 	}
 
-	stmt.Options = p.parseServiceBrokerOptions()
+	var opts []nodes.Node
+	opts = p.parseQueueWithClause(opts)
+
+	// ON { filegroup | [DEFAULT] }
+	if p.cur.Type == kwON {
+		p.advance()
+		if p.isIdentLike() || p.cur.Type == kwDEFAULT {
+			opts = append(opts, &nodes.String{Str: "ON=" + strings.ToUpper(p.cur.Str)})
+			p.advance()
+		}
+	}
+
+	if len(opts) > 0 {
+		stmt.Options = &nodes.List{Items: opts}
+	}
 	stmt.Loc.End = p.pos()
 	return stmt
+}
+
+// parseQueueWithClause parses the WITH clause options for CREATE/ALTER QUEUE.
+func (p *Parser) parseQueueWithClause(opts []nodes.Node) []nodes.Node {
+	if p.cur.Type != kwWITH {
+		return opts
+	}
+	p.advance()
+
+	for {
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STATUS") {
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			if p.cur.Type == kwON || p.cur.Type == kwOFF {
+				opts = append(opts, &nodes.String{Str: "STATUS=" + strings.ToUpper(p.cur.Str)})
+				p.advance()
+			}
+		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "RETENTION") {
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			if p.cur.Type == kwON || p.cur.Type == kwOFF {
+				opts = append(opts, &nodes.String{Str: "RETENTION=" + strings.ToUpper(p.cur.Str)})
+				p.advance()
+			}
+		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ACTIVATION") {
+			p.advance()
+			opts = p.parseQueueActivationClause(opts)
+		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POISON_MESSAGE_HANDLING") {
+			p.advance()
+			if p.cur.Type == '(' {
+				p.advance()
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STATUS") {
+					p.advance()
+					if p.cur.Type == '=' {
+						p.advance()
+					}
+					if p.cur.Type == kwON || p.cur.Type == kwOFF {
+						opts = append(opts, &nodes.String{Str: "POISON_MESSAGE_HANDLING=" + strings.ToUpper(p.cur.Str)})
+						p.advance()
+					}
+				}
+				p.match(')')
+			}
+		} else {
+			break
+		}
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	return opts
+}
+
+// parseQueueActivationClause parses ACTIVATION ( ... ) options.
+func (p *Parser) parseQueueActivationClause(opts []nodes.Node) []nodes.Node {
+	if p.cur.Type != '(' {
+		return opts
+	}
+	p.advance()
+
+	// Collect activation options
+	var activationOpts []string
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STATUS") {
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			if p.cur.Type == kwON || p.cur.Type == kwOFF {
+				activationOpts = append(activationOpts, "STATUS="+strings.ToUpper(p.cur.Str))
+				p.advance()
+			}
+		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PROCEDURE_NAME") {
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			// Parse possibly schema-qualified procedure name
+			ref := p.parseTableRef()
+			if ref != nil {
+				name := ref.Object
+				if ref.Schema != "" {
+					name = ref.Schema + "." + name
+				}
+				if ref.Database != "" {
+					name = ref.Database + "." + name
+				}
+				activationOpts = append(activationOpts, "PROCEDURE_NAME="+name)
+			}
+		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MAX_QUEUE_READERS") {
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			if p.cur.Type == tokICONST {
+				activationOpts = append(activationOpts, "MAX_QUEUE_READERS="+p.cur.Str)
+				p.advance()
+			}
+		} else if p.cur.Type == kwEXECUTE || (p.isIdentLike() && matchesKeywordCI(p.cur.Str, "EXECUTE")) {
+			p.advance()
+			if p.cur.Type == kwAS {
+				p.advance()
+			}
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SELF") {
+				activationOpts = append(activationOpts, "EXECUTE AS=SELF")
+				p.advance()
+			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "OWNER") {
+				activationOpts = append(activationOpts, "EXECUTE AS=OWNER")
+				p.advance()
+			} else if p.cur.Type == tokSCONST {
+				activationOpts = append(activationOpts, "EXECUTE AS="+p.cur.Str)
+				p.advance()
+			}
+		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "DROP") {
+			activationOpts = append(activationOpts, "DROP")
+			p.advance()
+		} else {
+			break
+		}
+		p.match(',')
+	}
+	p.match(')')
+
+	for _, ao := range activationOpts {
+		opts = append(opts, &nodes.String{Str: "ACTIVATION:" + ao})
+	}
+	return opts
 }
 
 // parseCreateServiceStmt parses CREATE SERVICE.
@@ -245,6 +421,14 @@ func (p *Parser) parseSendStmt() *nodes.ServiceBrokerStmt {
 //	    [ INTO table_variable ]
 //	    [ WHERE { conversation_handle = @conversation_handle | conversation_group_id = @conversation_group_id } ]
 //	[ ) ] [ , TIMEOUT timeout ]
+//
+//	<column_specifier> ::=
+//	{    *
+//	  |  { column_name | [ ] expression } [ [ AS ] column_alias ]
+//	}     [ ,...n ]
+//
+//	<queue> ::=
+//	{ database_name.schema_name.queue_name | schema_name.queue_name | queue_name }
 func (p *Parser) parseReceiveStmt() *nodes.ServiceBrokerStmt {
 	loc := p.pos()
 	p.advance() // consume RECEIVE
@@ -255,40 +439,143 @@ func (p *Parser) parseReceiveStmt() *nodes.ServiceBrokerStmt {
 		Loc:        nodes.Loc{Start: loc},
 	}
 
+	var opts []nodes.Node
+
 	// TOP (n)
 	if p.cur.Type == kwTOP {
 		p.advance()
 		if p.cur.Type == '(' {
 			p.advance()
-			p.parseExpr()
+			topExpr := p.parseExpr()
+			if topExpr != nil {
+				opts = append(opts, &nodes.String{Str: "TOP=" + exprToString(topExpr)})
+			}
 			p.match(')')
 		}
 	}
 
-	// column list until FROM
-	for p.cur.Type != kwFROM && p.cur.Type != tokEOF && p.cur.Type != ';' {
+	// column list: * or column_name [AS alias] [,...n]
+	if p.cur.Type == '*' {
+		opts = append(opts, &nodes.String{Str: "COLUMNS=*"})
 		p.advance()
+	} else {
+		var cols []string
+		for p.cur.Type != kwFROM && p.cur.Type != tokEOF && p.cur.Type != ';' {
+			// Parse column expression (simple: column_name or expression)
+			colStr := ""
+			if p.isIdentLike() || p.cur.Type == tokVARIABLE {
+				colStr = p.cur.Str
+				p.advance()
+			} else {
+				// complex expression, skip until comma or AS or FROM
+				expr := p.parseExpr()
+				if expr != nil {
+					colStr = exprToString(expr)
+				}
+			}
+			// optional alias: [AS] alias
+			if p.cur.Type == kwAS {
+				p.advance()
+				if p.isIdentLike() {
+					colStr += " AS " + p.cur.Str
+					p.advance()
+				}
+			} else if p.isIdentLike() && p.cur.Type != kwFROM && p.cur.Type != kwINTO && p.cur.Type != kwWHERE {
+				// alias without AS - be careful not to consume FROM/INTO/WHERE
+				colStr += " AS " + p.cur.Str
+				p.advance()
+			}
+			if colStr != "" {
+				cols = append(cols, colStr)
+			}
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+		if len(cols) > 0 {
+			opts = append(opts, &nodes.String{Str: "COLUMNS=" + strings.Join(cols, ",")})
+		}
 	}
 
 	// FROM queue
 	if _, ok := p.match(kwFROM); ok {
 		ref := p.parseTableRef()
 		if ref != nil {
+			queueName := ref.Object
+			if ref.Schema != "" {
+				queueName = ref.Schema + "." + queueName
+			}
+			if ref.Database != "" {
+				queueName = ref.Database + "." + queueName
+			}
 			stmt.Name = ref.Object
+			opts = append(opts, &nodes.String{Str: "FROM=" + queueName})
+		}
+	}
+
+	// INTO table_variable
+	if p.cur.Type == kwINTO {
+		p.advance()
+		if p.cur.Type == tokVARIABLE {
+			opts = append(opts, &nodes.String{Str: "INTO=" + p.cur.Str})
+			p.advance()
+		} else if p.isIdentLike() {
+			opts = append(opts, &nodes.String{Str: "INTO=" + p.cur.Str})
+			p.advance()
 		}
 	}
 
 	// WHERE clause
 	if p.cur.Type == kwWHERE {
 		p.advance()
-		p.parseExpr()
+		whereExpr := p.parseExpr()
+		if whereExpr != nil {
+			opts = append(opts, &nodes.String{Str: "WHERE"})
+		}
 	}
 
+	if len(opts) > 0 {
+		stmt.Options = &nodes.List{Items: opts}
+	}
 	stmt.Loc.End = p.pos()
 	return stmt
 }
 
-// parseBeginConversationStmt parses BEGIN CONVERSATION TIMER or BEGIN DIALOG CONVERSATION.
+// exprToString returns a simple string representation of an expression node.
+func exprToString(n nodes.Node) string {
+	if n == nil {
+		return ""
+	}
+	switch v := n.(type) {
+	case *nodes.String:
+		return v.Str
+	case *nodes.Integer:
+		return fmt.Sprintf("%d", v.Ival)
+	case *nodes.ColumnRef:
+		var parts []string
+		if v.Server != "" {
+			parts = append(parts, v.Server)
+		}
+		if v.Database != "" {
+			parts = append(parts, v.Database)
+		}
+		if v.Schema != "" {
+			parts = append(parts, v.Schema)
+		}
+		if v.Table != "" {
+			parts = append(parts, v.Table)
+		}
+		if v.Column != "" {
+			parts = append(parts, v.Column)
+		}
+		return strings.Join(parts, ".")
+	case *nodes.VariableRef:
+		return v.Name
+	}
+	return "expr"
+}
+
+// parseBeginConversationStmt parses BEGIN DIALOG CONVERSATION.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/begin-dialog-conversation-transact-sql
 //
@@ -299,13 +586,13 @@ func (p *Parser) parseReceiveStmt() *nodes.ServiceBrokerStmt {
 //	    [ ON CONTRACT contract_name ]
 //	    [ WITH
 //	        [ { RELATED_CONVERSATION = related_conversation_handle
-//	          | RELATED_CONVERSATION_GROUP = related_conversation_group_id } , ]
-//	        [ LIFETIME = dialog_lifetime , ]
-//	        [ ENCRYPTION = { ON | OFF } ]
+//	          | RELATED_CONVERSATION_GROUP = related_conversation_group_id } ]
+//	        [ [ , ] LIFETIME = dialog_lifetime ]
+//	        [ [ , ] ENCRYPTION = { ON | OFF } ]
 //	    ]
 func (p *Parser) parseBeginConversationStmt() *nodes.ServiceBrokerStmt {
 	loc := p.pos()
-	// already consumed BEGIN (or DIALOG)
+	// already consumed BEGIN, and DIALOG has been consumed by caller
 
 	stmt := &nodes.ServiceBrokerStmt{
 		Action:     "BEGIN",
@@ -313,16 +600,114 @@ func (p *Parser) parseBeginConversationStmt() *nodes.ServiceBrokerStmt {
 		Loc:        nodes.Loc{Start: loc},
 	}
 
-	// consume rest of line until end
-	for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
-		if p.isIdentLike() || p.cur.Type == tokVARIABLE || p.cur.Type == tokSCONST {
-			if stmt.Name == "" && p.cur.Type == tokVARIABLE {
-				stmt.Name = p.cur.Str
-			}
-		}
+	// optional CONVERSATION keyword
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CONVERSATION") {
 		p.advance()
 	}
 
+	// @dialog_handle
+	if p.cur.Type == tokVARIABLE {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	var opts []nodes.Node
+
+	// FROM SERVICE initiator_service_name
+	if p.cur.Type == kwFROM {
+		p.advance()
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVICE") {
+			p.advance()
+		}
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
+			opts = append(opts, &nodes.String{Str: "FROM SERVICE=" + p.cur.Str})
+			p.advance()
+		}
+	}
+
+	// TO SERVICE 'target_service_name' [, { 'service_broker_guid' | 'CURRENT DATABASE' }]
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TO") {
+		p.advance()
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVICE") {
+			p.advance()
+		}
+		if p.cur.Type == tokSCONST || p.isIdentLike() {
+			opts = append(opts, &nodes.String{Str: "TO SERVICE=" + p.cur.Str})
+			p.advance()
+		}
+		// optional broker guid
+		if _, ok := p.match(','); ok {
+			if p.cur.Type == tokSCONST || p.isIdentLike() {
+				opts = append(opts, &nodes.String{Str: "BROKER_INSTANCE=" + p.cur.Str})
+				p.advance()
+			}
+		}
+	}
+
+	// ON CONTRACT contract_name
+	if p.cur.Type == kwON {
+		p.advance()
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CONTRACT") {
+			p.advance()
+		}
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
+			opts = append(opts, &nodes.String{Str: "ON CONTRACT=" + p.cur.Str})
+			p.advance()
+		}
+	}
+
+	// WITH options
+	if p.cur.Type == kwWITH {
+		p.advance()
+		for {
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "RELATED_CONVERSATION_GROUP") {
+				p.advance()
+				if p.cur.Type == '=' {
+					p.advance()
+				}
+				if p.cur.Type == tokVARIABLE || p.isIdentLike() || p.cur.Type == tokSCONST {
+					opts = append(opts, &nodes.String{Str: "RELATED_CONVERSATION_GROUP=" + p.cur.Str})
+					p.advance()
+				}
+			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "RELATED_CONVERSATION") {
+				p.advance()
+				if p.cur.Type == '=' {
+					p.advance()
+				}
+				if p.cur.Type == tokVARIABLE || p.isIdentLike() || p.cur.Type == tokSCONST {
+					opts = append(opts, &nodes.String{Str: "RELATED_CONVERSATION=" + p.cur.Str})
+					p.advance()
+				}
+			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LIFETIME") {
+				p.advance()
+				if p.cur.Type == '=' {
+					p.advance()
+				}
+				if p.cur.Type == tokICONST || p.cur.Type == tokVARIABLE || p.isIdentLike() {
+					opts = append(opts, &nodes.String{Str: "LIFETIME=" + p.cur.Str})
+					p.advance()
+				}
+			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ENCRYPTION") {
+				p.advance()
+				if p.cur.Type == '=' {
+					p.advance()
+				}
+				if p.cur.Type == kwON || p.cur.Type == kwOFF {
+					opts = append(opts, &nodes.String{Str: "ENCRYPTION=" + strings.ToUpper(p.cur.Str)})
+					p.advance()
+				}
+			} else {
+				break
+			}
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+	}
+
+	if len(opts) > 0 {
+		stmt.Options = &nodes.List{Items: opts}
+	}
 	stmt.Loc.End = p.pos()
 	return stmt
 }
@@ -332,8 +717,9 @@ func (p *Parser) parseBeginConversationStmt() *nodes.ServiceBrokerStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/end-conversation-transact-sql
 //
 //	END CONVERSATION conversation_handle
-//	    [ WITH ERROR = failure_code DESCRIPTION = failure_text ]
-//	    [ WITH CLEANUP ]
+//	    [   [ WITH ERROR = failure_code DESCRIPTION = 'failure_text' ]
+//	      | [ WITH CLEANUP ]
+//	    ]
 func (p *Parser) parseEndConversationStmt() *nodes.ServiceBrokerStmt {
 	loc := p.pos()
 	p.advance() // consume END
@@ -354,14 +740,39 @@ func (p *Parser) parseEndConversationStmt() *nodes.ServiceBrokerStmt {
 		p.advance()
 	}
 
-	// WITH ERROR/CLEANUP
+	// WITH ERROR = failure_code DESCRIPTION = 'failure_text'
+	// WITH CLEANUP
 	if p.cur.Type == kwWITH {
 		p.advance()
 		var opts []nodes.Node
-		for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
-			if p.isIdentLike() || p.cur.Type == kwNOT {
-				opts = append(opts, &nodes.String{Str: strings.ToUpper(p.cur.Str)})
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ERROR") {
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
 			}
+			// failure_code: integer or variable
+			errorCode := ""
+			if p.cur.Type == tokICONST || p.cur.Type == tokVARIABLE || p.isIdentLike() {
+				errorCode = p.cur.Str
+				p.advance()
+			}
+			opts = append(opts, &nodes.String{Str: "ERROR=" + errorCode})
+
+			// DESCRIPTION = 'failure_text'
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "DESCRIPTION") {
+				p.advance()
+				if p.cur.Type == '=' {
+					p.advance()
+				}
+				descVal := ""
+				if p.cur.Type == tokSCONST || p.cur.Type == tokVARIABLE || p.isIdentLike() {
+					descVal = p.cur.Str
+					p.advance()
+				}
+				opts = append(opts, &nodes.String{Str: "DESCRIPTION=" + descVal})
+			}
+		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CLEANUP") {
+			opts = append(opts, &nodes.String{Str: "CLEANUP"})
 			p.advance()
 		}
 		if len(opts) > 0 {
@@ -705,45 +1116,11 @@ func (p *Parser) parseAlterQueueStmt() *nodes.ServiceBrokerStmt {
 		}
 	}
 
-	// WITH clause for ALTER QUEUE can have sub-clauses like ACTIVATION (...), POISON_MESSAGE_HANDLING (...)
-	if p.cur.Type == kwWITH {
-		p.advance()
-		var opts []nodes.Node
-		for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
-			if p.cur.Type == '(' {
-				// Skip parenthesized sub-clause
-				p.advance()
-				depth := 1
-				for depth > 0 && p.cur.Type != tokEOF {
-					if p.cur.Type == '(' {
-						depth++
-					} else if p.cur.Type == ')' {
-						depth--
-					}
-					if depth > 0 {
-						p.advance()
-					}
-				}
-				p.match(')')
-			} else if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
-				optName := strings.ToUpper(p.cur.Str)
-				p.advance()
-				if p.cur.Type == '=' {
-					p.advance()
-					if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
-						optName += "=" + strings.ToUpper(p.cur.Str)
-						p.advance()
-					}
-				}
-				opts = append(opts, &nodes.String{Str: optName})
-			} else {
-				break
-			}
-			p.match(',')
-		}
-		if len(opts) > 0 {
-			stmt.Options = &nodes.List{Items: opts}
-		}
+	var opts []nodes.Node
+	opts = p.parseQueueWithClause(opts)
+
+	if len(opts) > 0 {
+		stmt.Options = &nodes.List{Items: opts}
 	}
 
 	stmt.Loc.End = p.pos()
