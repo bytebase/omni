@@ -8320,6 +8320,19 @@ func TestParseShowIndex(t *testing.T) {
 	}
 }
 
+func TestParseSelectDistinctrow(t *testing.T) {
+	tests := []string{
+		"SELECT DISTINCTROW a FROM t",
+		"SELECT DISTINCTROW a, b, c FROM t WHERE a > 1",
+		"SELECT DISTINCTROW * FROM t ORDER BY a",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
 func TestParseShowProcesslist(t *testing.T) {
 	tests := []string{
 		"SHOW PROCESSLIST",

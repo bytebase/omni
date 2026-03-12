@@ -93,6 +93,7 @@ const (
 	kwEXCEPT
 	kwALL
 	kwDISTINCT
+	kwDISTINCTROW
 	kwASC
 	kwDESC
 	kwNULLS
@@ -502,6 +503,7 @@ var keywords = map[string]int{
 	"except":              kwEXCEPT,
 	"all":                 kwALL,
 	"distinct":            kwDISTINCT,
+	"distinctrow":         kwDISTINCTROW,
 	"asc":                 kwASC,
 	"desc":                kwDESC,
 	"nulls":               kwNULLS,

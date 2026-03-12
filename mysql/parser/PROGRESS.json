@@ -1600,7 +1600,23 @@
         "TestParseAlterUserComment",
         "TestParseAlterUserRequireSSL"
       ]
+    },
+    {
+      "id": 62,
+      "name": "depth_fix_select_distinctrow",
+      "file": "select.go",
+      "status": "done",
+      "description": "Fix batch 4 gap: add DISTINCTROW keyword as alias for DISTINCT in SELECT option parsing",
+      "rules": [
+        "parseSelectStmt"
+      ],
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseSelectDistinctrow"
+      ]
     }
   ],
-  "audit_round": 4
+  "audit_round": 5
 }

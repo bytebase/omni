@@ -164,7 +164,7 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 			stmt.DistinctKind = nodes.DistinctAll
 			p.advance()
 			continue
-		case kwDISTINCT:
+		case kwDISTINCT, kwDISTINCTROW:
 			stmt.DistinctKind = nodes.DistinctOn
 			p.advance()
 			continue
