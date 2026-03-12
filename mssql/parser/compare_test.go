@@ -8206,3 +8206,189 @@ func TestParseAlterDatabaseDepth(t *testing.T) {
 		}
 	})
 }
+
+// TestParseCreateTypeIndex tests CREATE TYPE with INDEX in table type (batch 81).
+func TestParseCreateTypeIndex(t *testing.T) {
+	t.Run("create_type_alias", func(t *testing.T) {
+		sql := "CREATE TYPE dbo.PhoneNumber FROM varchar(20) NOT NULL"
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.CreateTypeStmt)
+		if !ok {
+			t.Fatalf("expected *CreateTypeStmt, got %T", result.Items[0])
+		}
+		if stmt.BaseType == nil {
+			t.Error("expected non-nil BaseType for alias type")
+		}
+		if stmt.Nullable == nil || *stmt.Nullable != false {
+			t.Error("expected Nullable=false for NOT NULL")
+		}
+	})
+
+	t.Run("create_type_alias_nullable", func(t *testing.T) {
+		sql := "CREATE TYPE dbo.Flag FROM bit NULL"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTypeStmt)
+		if stmt.Nullable == nil || *stmt.Nullable != true {
+			t.Error("expected Nullable=true for NULL")
+		}
+	})
+
+	t.Run("create_type_external", func(t *testing.T) {
+		sql := "CREATE TYPE dbo.Utf8String EXTERNAL NAME MyAssembly.Utf8String"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTypeStmt)
+		if stmt.ExternalName != "MyAssembly.Utf8String" {
+			t.Errorf("expected ExternalName MyAssembly.Utf8String, got %s", stmt.ExternalName)
+		}
+	})
+
+	t.Run("create_type_table", func(t *testing.T) {
+		sql := `CREATE TYPE dbo.LocationTableType AS TABLE (
+			LocationName VARCHAR(50),
+			CostRate INT
+		)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTypeStmt)
+		if stmt.TableDef == nil {
+			t.Fatal("expected non-nil TableDef")
+		}
+		if stmt.TableDef.Len() != 2 {
+			t.Errorf("expected 2 elements, got %d", stmt.TableDef.Len())
+		}
+	})
+
+	t.Run("create_type_table_index", func(t *testing.T) {
+		sql := `CREATE TYPE dbo.MyTableType AS TABLE (
+			id INT NOT NULL,
+			name NVARCHAR(100),
+			INDEX IX_id CLUSTERED (id ASC)
+		)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTypeStmt)
+		if stmt.TableDef == nil {
+			t.Fatal("expected non-nil TableDef")
+		}
+		// Should have 2 columns + 1 index = 3 elements
+		if stmt.TableDef.Len() != 3 {
+			t.Errorf("expected 3 elements, got %d", stmt.TableDef.Len())
+		}
+		// The 3rd element should be a TableTypeIndex
+		idx, ok := stmt.TableDef.Items[2].(*ast.TableTypeIndex)
+		if !ok {
+			t.Fatalf("expected *TableTypeIndex, got %T", stmt.TableDef.Items[2])
+		}
+		if idx.Name != "IX_id" {
+			t.Errorf("expected index name IX_id, got %s", idx.Name)
+		}
+		if idx.Clustered == nil || *idx.Clustered != true {
+			t.Error("expected Clustered=true")
+		}
+		if idx.Columns == nil || idx.Columns.Len() != 1 {
+			t.Error("expected 1 index column")
+		}
+	})
+
+	t.Run("create_type_table_nonclustered_index", func(t *testing.T) {
+		sql := `CREATE TYPE dbo.MyTableType AS TABLE (
+			id INT NOT NULL,
+			col1 INT,
+			col2 INT,
+			INDEX IX_cols NONCLUSTERED (col1, col2 DESC)
+		)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTypeStmt)
+		if stmt.TableDef == nil {
+			t.Fatal("expected non-nil TableDef")
+		}
+		// Find the index
+		var idx *ast.TableTypeIndex
+		for _, item := range stmt.TableDef.Items {
+			if i, ok := item.(*ast.TableTypeIndex); ok {
+				idx = i
+				break
+			}
+		}
+		if idx == nil {
+			t.Fatal("expected a TableTypeIndex element")
+		}
+		if idx.Clustered == nil || *idx.Clustered != false {
+			t.Error("expected Clustered=false (NONCLUSTERED)")
+		}
+		if idx.Columns == nil || idx.Columns.Len() != 2 {
+			t.Errorf("expected 2 index columns, got %d", idx.Columns.Len())
+		}
+	})
+
+	t.Run("create_type_table_hash_index", func(t *testing.T) {
+		sql := `CREATE TYPE dbo.MemOptType AS TABLE (
+			id INT NOT NULL,
+			INDEX IX_id NONCLUSTERED HASH WITH (BUCKET_COUNT = 1024) (id)
+		)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTypeStmt)
+		var idx *ast.TableTypeIndex
+		for _, item := range stmt.TableDef.Items {
+			if i, ok := item.(*ast.TableTypeIndex); ok {
+				idx = i
+				break
+			}
+		}
+		if idx == nil {
+			t.Fatal("expected a TableTypeIndex element")
+		}
+		if !idx.Hash {
+			t.Error("expected Hash=true")
+		}
+		if idx.BucketCount == nil {
+			t.Error("expected non-nil BucketCount")
+		}
+	})
+
+	t.Run("create_type_table_index_include", func(t *testing.T) {
+		sql := `CREATE TYPE dbo.MyType AS TABLE (
+			id INT NOT NULL,
+			name NVARCHAR(100),
+			email NVARCHAR(200),
+			INDEX IX_name NONCLUSTERED (name) INCLUDE (email)
+		)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTypeStmt)
+		var idx *ast.TableTypeIndex
+		for _, item := range stmt.TableDef.Items {
+			if i, ok := item.(*ast.TableTypeIndex); ok {
+				idx = i
+				break
+			}
+		}
+		if idx == nil {
+			t.Fatal("expected a TableTypeIndex element")
+		}
+		if idx.IncludeCols == nil || idx.IncludeCols.Len() != 1 {
+			t.Errorf("expected 1 include column, got %d", idx.IncludeCols.Len())
+		}
+	})
+
+	t.Run("create_type_table_multiple_indexes", func(t *testing.T) {
+		sql := `CREATE TYPE dbo.MyType AS TABLE (
+			id INT NOT NULL,
+			col1 INT,
+			col2 INT,
+			INDEX IX_id CLUSTERED (id),
+			INDEX IX_col1 NONCLUSTERED (col1)
+		)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTypeStmt)
+		if stmt.TableDef == nil {
+			t.Fatal("expected non-nil TableDef")
+		}
+		indexCount := 0
+		for _, item := range stmt.TableDef.Items {
+			if _, ok := item.(*ast.TableTypeIndex); ok {
+				indexCount++
+			}
+		}
+		if indexCount != 2 {
+			t.Errorf("expected 2 indexes, got %d", indexCount)
+		}
+	})
+}

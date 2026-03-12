@@ -1111,6 +1111,26 @@ type CreateTypeStmt struct {
 func (n *CreateTypeStmt) nodeTag()  {}
 func (n *CreateTypeStmt) stmtNode() {}
 
+// TableTypeIndex represents an INDEX clause within CREATE TYPE AS TABLE.
+//
+// BNF:
+//
+//	INDEX index_name [ CLUSTERED | NONCLUSTERED ]
+//	    [ HASH WITH ( BUCKET_COUNT = count ) ]
+//	    ( column_name [ ASC | DESC ] [ ,...n ] )
+//	    [ INCLUDE ( column_name [ ,...n ] ) ]
+type TableTypeIndex struct {
+	Name        string // index name
+	Clustered   *bool  // true=CLUSTERED, false=NONCLUSTERED, nil=unspecified
+	Hash        bool   // HASH index (memory-optimized)
+	BucketCount ExprNode // BUCKET_COUNT for hash index
+	Columns     *List  // IndexColumn list
+	IncludeCols *List  // INCLUDE columns (string names)
+	Loc         Loc
+}
+
+func (n *TableTypeIndex) nodeTag() {}
+
 // CreateSequenceStmt represents CREATE SEQUENCE.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-sequence-transact-sql

@@ -1904,7 +1904,45 @@
         "alter_workload_classifier",
         "drop_workload_classifier"
       ]
+    },
+    {
+      "id": 81,
+      "name": "create_type_index",
+      "file": "create_type.go",
+      "status": "done",
+      "description": "Fix batch 26 gap: parse INDEX clause in CREATE TYPE AS TABLE instead of skipping via skipToNextCommaOrParen(). BNF: INDEX index_name [CLUSTERED|NONCLUSTERED] (column [ASC|DESC] [,...n]) [INCLUDE (column,...n)]. Also add test coverage for CREATE TYPE (alias, CLR, table type with INDEX).",
+      "rules": [
+        "parseCreateTypeStmt",
+        "parseTableTypeIndex"
+      ],
+      "depends_on": [
+        26
+      ],
+      "tests": [
+        "create_type_alias",
+        "create_type_external",
+        "create_type_table",
+        "create_type_table_index"
+      ]
+    },
+    {
+      "id": 82,
+      "name": "alter_table_filetable",
+      "file": "alter_table.go",
+      "status": "pending",
+      "description": "Fix batch 70 gap: remove parseAlterTableActionLegacy stub, add ENABLE/DISABLE FILETABLE_NAMESPACE and SET FILETABLE_DIRECTORY support in ALTER TABLE ENABLE/DISABLE and SET handlers.",
+      "rules": [
+        "parseAlterTableEnableDisable",
+        "parseAlterTableSet"
+      ],
+      "depends_on": [
+        70
+      ],
+      "tests": [
+        "alter_table_filetable_namespace",
+        "alter_table_set_filetable_directory"
+      ]
     }
   ],
-  "audit_round": 3
+  "audit_round": 4
 }

@@ -15,8 +15,14 @@ import (
 //	{
 //	    FROM base_type [ ( precision [ , scale ] ) ] [ NULL | NOT NULL ]
 //	  | EXTERNAL NAME assembly_name [ .class_name ]
-//	  | AS TABLE ( <column_definition> [ , ...n ] [ <table_constraint> ] [ , ...n ] )
+//	  | AS TABLE ( { <column_definition> | <table_constraint> | <table_index> } [ ,...n ] )
 //	}
+//
+//	<table_index> ::=
+//	    INDEX index_name [ CLUSTERED | NONCLUSTERED ] [ HASH ]
+//	        [ WITH ( BUCKET_COUNT = count ) ]
+//	        ( column_name [ ASC | DESC ] [ ,...n ] )
+//	        [ INCLUDE ( column_name [ ,...n ] ) ]
 func (p *Parser) parseCreateTypeStmt() *nodes.CreateTypeStmt {
 	stmt := &nodes.CreateTypeStmt{}
 
@@ -66,7 +72,10 @@ func (p *Parser) parseCreateTypeStmt() *nodes.CreateTypeStmt {
 						elements = append(elements, constraint)
 					}
 				} else if p.cur.Type == kwINDEX {
-					p.skipToNextCommaOrParen()
+					idx := p.parseTableTypeIndex()
+					if idx != nil {
+						elements = append(elements, idx)
+					}
 				} else {
 					col := p.parseColumnDef()
 					if col != nil {
@@ -88,20 +97,94 @@ func (p *Parser) parseCreateTypeStmt() *nodes.CreateTypeStmt {
 	return stmt
 }
 
-// skipToNextCommaOrParen consumes tokens until a comma, closing paren, or EOF.
-func (p *Parser) skipToNextCommaOrParen() {
-	depth := 0
-	for p.cur.Type != tokEOF {
-		if p.cur.Type == '(' {
-			depth++
-		} else if p.cur.Type == ')' {
-			if depth == 0 {
-				return
-			}
-			depth--
-		} else if p.cur.Type == ',' && depth == 0 {
-			return
-		}
+// parseTableTypeIndex parses an INDEX clause within CREATE TYPE AS TABLE.
+//
+// BNF:
+//
+//	INDEX index_name [ CLUSTERED | NONCLUSTERED ] [ HASH ]
+//	    [ WITH ( BUCKET_COUNT = count ) ]
+//	    ( column_name [ ASC | DESC ] [ ,...n ] )
+//	    [ INCLUDE ( column_name [ ,...n ] ) ]
+func (p *Parser) parseTableTypeIndex() *nodes.TableTypeIndex {
+	idx := &nodes.TableTypeIndex{Loc: nodes.Loc{Start: p.pos()}}
+
+	p.match(kwINDEX) // consume INDEX keyword
+
+	// index_name
+	idx.Name, _ = p.parseIdentifier()
+
+	// [ CLUSTERED | NONCLUSTERED ]
+	if p.cur.Type == kwCLUSTERED {
+		b := true
+		idx.Clustered = &b
+		p.advance()
+	} else if p.cur.Type == kwNONCLUSTERED {
+		b := false
+		idx.Clustered = &b
 		p.advance()
 	}
+
+	// [ HASH ]
+	if p.matchIdentCI("HASH") {
+		idx.Hash = true
+	}
+
+	// [ WITH ( BUCKET_COUNT = count ) ]
+	if p.cur.Type == kwWITH {
+		p.advance()
+		if _, err := p.expect('('); err == nil {
+			if p.matchIdentCI("BUCKET_COUNT") {
+				p.match('=')
+				idx.BucketCount = p.parseExpr()
+			}
+			p.match(')')
+		}
+	}
+
+	// ( column_name [ ASC | DESC ] [ ,...n ] )
+	if _, err := p.expect('('); err == nil {
+		var cols []nodes.Node
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			col := &nodes.IndexColumn{Loc: nodes.Loc{Start: p.pos()}}
+			col.Name, _ = p.parseIdentifier()
+			if p.cur.Type == kwASC {
+				col.SortDir = nodes.SortAsc
+				p.advance()
+			} else if p.cur.Type == kwDESC {
+				col.SortDir = nodes.SortDesc
+				p.advance()
+			}
+			col.Loc.End = p.pos()
+			cols = append(cols, col)
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+		p.match(')')
+		if len(cols) > 0 {
+			idx.Columns = &nodes.List{Items: cols}
+		}
+	}
+
+	// [ INCLUDE ( column_name [ ,...n ] ) ]
+	if p.cur.Type == kwINCLUDE {
+		p.advance()
+		if _, err := p.expect('('); err == nil {
+			var incCols []nodes.Node
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				name, _ := p.parseIdentifier()
+				incCols = append(incCols, &nodes.String{Str: name})
+				if _, ok := p.match(','); !ok {
+					break
+				}
+			}
+			p.match(')')
+			if len(incCols) > 0 {
+				idx.IncludeCols = &nodes.List{Items: incCols}
+			}
+		}
+	}
+
+	idx.Loc.End = p.pos()
+	return idx
 }

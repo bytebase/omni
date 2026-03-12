@@ -130,6 +130,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterSchemaStmt(sb, n)
 	case *CreateTypeStmt:
 		writeCreateTypeStmt(sb, n)
+	case *TableTypeIndex:
+		writeTableTypeIndex(sb, n)
 	case *CreateSequenceStmt:
 		writeCreateSequenceStmt(sb, n)
 	case *AlterSequenceStmt:
@@ -1190,6 +1192,37 @@ func writeCreateTypeStmt(sb *strings.Builder, n *CreateTypeStmt) {
 	if n.TableDef != nil && len(n.TableDef.Items) > 0 {
 		sb.WriteString(" :tableDef ")
 		writeNode(sb, n.TableDef)
+	}
+	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
+	sb.WriteString("}")
+}
+
+func writeTableTypeIndex(sb *strings.Builder, n *TableTypeIndex) {
+	sb.WriteString("{TABLETYPEINDEX")
+	if n.Name != "" {
+		fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	}
+	if n.Clustered != nil {
+		if *n.Clustered {
+			sb.WriteString(" :clustered true")
+		} else {
+			sb.WriteString(" :clustered false")
+		}
+	}
+	if n.Hash {
+		sb.WriteString(" :hash true")
+	}
+	if n.BucketCount != nil {
+		sb.WriteString(" :bucketCount ")
+		writeNode(sb, n.BucketCount)
+	}
+	if n.Columns != nil && len(n.Columns.Items) > 0 {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.IncludeCols != nil && len(n.IncludeCols.Items) > 0 {
+		sb.WriteString(" :includeCols ")
+		writeNode(sb, n.IncludeCols)
 	}
 	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")
