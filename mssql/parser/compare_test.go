@@ -9388,3 +9388,67 @@ func TestParseSecurityKeyOptionsDepth(t *testing.T) {
 		}
 	})
 }
+
+// TestParseChooseStringAgg tests CHOOSE function and STRING_AGG WITHIN GROUP (batch 91).
+func TestParseChooseStringAgg(t *testing.T) {
+	// CHOOSE function
+	t.Run("choose_function", func(t *testing.T) {
+		sql := "SELECT CHOOSE(2, 'a', 'b', 'c')"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		rt := stmt.TargetList.Items[0].(*ast.ResTarget)
+		fc, ok := rt.Val.(*ast.FuncCallExpr)
+		if !ok {
+			t.Fatalf("expected FuncCallExpr, got %T", rt.Val)
+		}
+		if !strings.EqualFold(fc.Name.Object, "CHOOSE") {
+			t.Errorf("expected function name CHOOSE, got %q", fc.Name.Object)
+		}
+		if fc.Args == nil || fc.Args.Len() != 4 {
+			t.Errorf("expected 4 args, got %d", fc.Args.Len())
+		}
+	})
+
+	// STRING_AGG with WITHIN GROUP
+	t.Run("string_agg_within_group", func(t *testing.T) {
+		sql := "SELECT STRING_AGG(Name, ', ') WITHIN GROUP (ORDER BY Name ASC) FROM employees"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		rt := stmt.TargetList.Items[0].(*ast.ResTarget)
+		fc, ok := rt.Val.(*ast.FuncCallExpr)
+		if !ok {
+			t.Fatalf("expected FuncCallExpr, got %T", rt.Val)
+		}
+		if !strings.EqualFold(fc.Name.Object, "STRING_AGG") {
+			t.Errorf("expected STRING_AGG, got %q", fc.Name.Object)
+		}
+		if fc.Within == nil {
+			t.Fatal("expected WITHIN GROUP clause")
+		}
+		if fc.Within.Len() != 1 {
+			t.Fatalf("expected 1 order item, got %d", fc.Within.Len())
+		}
+		orderItem := fc.Within.Items[0].(*ast.OrderByItem)
+		if orderItem.SortDir != ast.SortAsc {
+			t.Errorf("expected ASC sort, got %d", orderItem.SortDir)
+		}
+	})
+
+	// STRING_AGG with multiple ORDER BY columns
+	t.Run("string_agg_multiple_order", func(t *testing.T) {
+		sql := "SELECT STRING_AGG(col, ';') WITHIN GROUP (ORDER BY col1 ASC, col2 DESC) FROM t"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		rt := stmt.TargetList.Items[0].(*ast.ResTarget)
+		fc := rt.Val.(*ast.FuncCallExpr)
+		if fc.Within == nil || fc.Within.Len() != 2 {
+			t.Fatalf("expected 2 order items")
+		}
+	})
+
+	// CHOOSE in WHERE clause
+	t.Run("choose_in_where", func(t *testing.T) {
+		sql := "SELECT * FROM t WHERE CHOOSE(status, 'a', 'b') = 'a'"
+		ParseAndCheck(t, sql)
+	})
+}

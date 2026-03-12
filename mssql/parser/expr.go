@@ -813,12 +813,67 @@ func (p *Parser) parseFuncCall(name string, loc int) nodes.ExprNode {
 
 	_, _ = p.expect(')')
 
+	// Check for WITHIN GROUP (ORDER BY ...) clause
+	//
+	// Ref: https://learn.microsoft.com/en-us/sql/t-sql/functions/string-agg-transact-sql
+	//
+	//  STRING_AGG ( expression, separator ) WITHIN GROUP ( ORDER BY order_by_expression [ ASC | DESC ] )
+	if p.cur.Type == kwWITHIN {
+		fc.Within = p.parseWithinGroupClause()
+	}
+
 	// Check for OVER clause
 	if p.cur.Type == kwOVER {
 		fc.Over = p.parseOverClause()
 	}
 
 	return fc
+}
+
+// parseWithinGroupClause parses WITHIN GROUP (ORDER BY ...).
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/functions/string-agg-transact-sql
+//
+//	WITHIN GROUP ( ORDER BY order_by_expression [ ASC | DESC ] [ ,...n ] )
+func (p *Parser) parseWithinGroupClause() *nodes.List {
+	p.advance() // consume WITHIN
+	// Expect GROUP keyword (it's not a reserved keyword, so use matchIdentCI)
+	if !p.matchIdentCI("GROUP") {
+		return nil
+	}
+	if _, err := p.expect('('); err != nil {
+		return nil
+	}
+	// Expect ORDER BY
+	if _, err := p.expect(kwORDER); err != nil {
+		p.expect(')')
+		return nil
+	}
+	if _, err := p.expect(kwBY); err != nil {
+		p.expect(')')
+		return nil
+	}
+
+	var orders []nodes.Node
+	for {
+		expr := p.parseExpr()
+		dir := nodes.SortDefault
+		if _, ok := p.match(kwASC); ok {
+			dir = nodes.SortAsc
+		} else if _, ok := p.match(kwDESC); ok {
+			dir = nodes.SortDesc
+		}
+		orders = append(orders, &nodes.OrderByItem{
+			Expr:    expr,
+			SortDir: dir,
+			Loc:     nodes.Loc{Start: p.pos()},
+		})
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	_, _ = p.expect(')')
+	return &nodes.List{Items: orders}
 }
 
 // parseOverClause parses an OVER clause for window functions.

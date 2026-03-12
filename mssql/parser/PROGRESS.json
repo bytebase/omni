@@ -2093,7 +2093,7 @@
       "id": 91,
       "name": "choose_string_agg",
       "file": "expr.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 3 gap: parse CHOOSE(index, val1, val2, ...) function and STRING_AGG(expr, separator) WITHIN GROUP (ORDER BY ...) clause. WITHIN GROUP is a postfix clause on aggregate functions.",
       "rules": [
         "parseChooseExpr",
