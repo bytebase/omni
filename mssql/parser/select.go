@@ -136,21 +136,7 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 
 	// OPTION clause
 	if p.cur.Type == kwOPTION {
-		p.advance()
-		if _, err := p.expect('('); err == nil {
-			var hints []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				hint := p.parseExpr()
-				if hint != nil {
-					hints = append(hints, hint)
-				}
-				if _, ok := p.match(','); !ok {
-					break
-				}
-			}
-			_, _ = p.expect(')')
-			stmt.OptionClause = &nodes.List{Items: hints}
-		}
+		stmt.OptionClause = p.parseOptionClause()
 	}
 
 	// UNION / INTERSECT / EXCEPT
@@ -1218,4 +1204,327 @@ func (p *Parser) parseIndexValue() nodes.Node {
 		return &nodes.String{Str: name}
 	}
 	return &nodes.String{Str: ""}
+}
+
+// parseOptionClause parses OPTION ( query_hint [,...n] ).
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/option-clause-transact-sql
+//
+//	OPTION ( query_hint [ ,...n ] )
+//
+//	query_hint ::=
+//	    { HASH | ORDER } GROUP
+//	  | { CONCAT | HASH | MERGE } UNION
+//	  | { LOOP | MERGE | HASH } JOIN
+//	  | EXPAND VIEWS
+//	  | FAST number_rows
+//	  | FORCE ORDER
+//	  | { FORCE | DISABLE } EXTERNALPUSHDOWN
+//	  | { FORCE | DISABLE } SCALEOUTEXECUTION
+//	  | IGNORE_NONCLUSTERED_COLUMNSTORE_INDEX
+//	  | KEEP PLAN
+//	  | KEEPFIXED PLAN
+//	  | MAX_GRANT_PERCENT = percent
+//	  | MIN_GRANT_PERCENT = percent
+//	  | MAXDOP number_of_processors
+//	  | MAXRECURSION number
+//	  | NO_PERFORMANCE_SPOOL
+//	  | OPTIMIZE FOR ( @variable_name { UNKNOWN | = literal } [ , ...n ] )
+//	  | OPTIMIZE FOR UNKNOWN
+//	  | PARAMETERIZATION { SIMPLE | FORCED }
+//	  | QUERYTRACEON trace_flag
+//	  | RECOMPILE
+//	  | ROBUST PLAN
+//	  | USE HINT ( 'hint_name' [ , ...n ] )
+//	  | USE PLAN N'xml_plan'
+//	  | TABLE HINT ( exposed_object_name [ , hint [ , ...n ] ] )
+func (p *Parser) parseOptionClause() *nodes.List {
+	p.advance() // consume OPTION
+	if _, err := p.expect('('); err != nil {
+		return nil
+	}
+
+	var hints []nodes.Node
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		hint := p.parseQueryHint()
+		if hint != nil {
+			hints = append(hints, hint)
+		}
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	_, _ = p.expect(')')
+
+	if len(hints) == 0 {
+		return nil
+	}
+	return &nodes.List{Items: hints}
+}
+
+// parseQueryHint parses a single query hint within an OPTION clause.
+// Returns a String node with the structured hint text.
+func (p *Parser) parseQueryHint() nodes.Node {
+	var buf strings.Builder
+
+	// Handle keyword-based hints
+	switch {
+	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "RECOMPILE"):
+		buf.WriteString("RECOMPILE")
+		p.advance()
+
+	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "OPTIMIZE"):
+		buf.WriteString("OPTIMIZE")
+		p.advance()
+		if p.cur.Type == kwFOR {
+			buf.WriteString(" FOR")
+			p.advance()
+			// OPTIMIZE FOR UNKNOWN
+			if p.isIdentLike() && strings.EqualFold(p.cur.Str, "UNKNOWN") {
+				buf.WriteString(" UNKNOWN")
+				p.advance()
+			} else if p.cur.Type == '(' {
+				// OPTIMIZE FOR ( @var = val | UNKNOWN [,...n] )
+				buf.WriteString(" (")
+				p.advance()
+				first := true
+				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					if !first {
+						buf.WriteString(", ")
+					}
+					first = false
+					if p.cur.Type == tokVARIABLE {
+						buf.WriteString(p.cur.Str)
+						p.advance()
+						if p.cur.Type == '=' {
+							buf.WriteString(" = ")
+							p.advance()
+							// literal value
+							if p.cur.Str != "" {
+								buf.WriteString(p.cur.Str)
+							}
+							p.advance()
+						} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "UNKNOWN") {
+							buf.WriteString(" UNKNOWN")
+							p.advance()
+						}
+					}
+					if _, ok := p.match(','); !ok {
+						break
+					}
+				}
+				p.expect(')')
+				buf.WriteString(")")
+			}
+		}
+
+	case p.isIdentLike() && (strings.EqualFold(p.cur.Str, "LOOP") ||
+		strings.EqualFold(p.cur.Str, "HASH") ||
+		strings.EqualFold(p.cur.Str, "MERGE")):
+		buf.WriteString(strings.ToUpper(p.cur.Str))
+		p.advance()
+		// JOIN | UNION | GROUP
+		if p.cur.Type == kwJOIN {
+			buf.WriteString(" JOIN")
+			p.advance()
+		} else if p.cur.Type == kwUNION {
+			buf.WriteString(" UNION")
+			p.advance()
+		} else if p.cur.Type == kwGROUP {
+			buf.WriteString(" GROUP")
+			p.advance()
+		}
+
+	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "CONCAT"):
+		buf.WriteString("CONCAT")
+		p.advance()
+		if p.cur.Type == kwUNION {
+			buf.WriteString(" UNION")
+			p.advance()
+		}
+
+	case p.cur.Type == kwORDER:
+		buf.WriteString("ORDER")
+		p.advance()
+		if p.cur.Type == kwGROUP {
+			buf.WriteString(" GROUP")
+			p.advance()
+		}
+
+	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "FORCE"):
+		buf.WriteString("FORCE")
+		p.advance()
+		if p.cur.Type == kwORDER {
+			buf.WriteString(" ORDER")
+			p.advance()
+		} else if p.isIdentLike() {
+			buf.WriteString(" ")
+			buf.WriteString(strings.ToUpper(p.cur.Str))
+			p.advance()
+		}
+
+	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "MAXDOP"):
+		buf.WriteString("MAXDOP")
+		p.advance()
+		if p.cur.Type == tokICONST {
+			buf.WriteString(" ")
+			buf.WriteString(p.cur.Str)
+			p.advance()
+		}
+
+	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "MAXRECURSION"):
+		buf.WriteString("MAXRECURSION")
+		p.advance()
+		if p.cur.Type == tokICONST {
+			buf.WriteString(" ")
+			buf.WriteString(p.cur.Str)
+			p.advance()
+		}
+
+	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "FAST"):
+		buf.WriteString("FAST")
+		p.advance()
+		if p.cur.Type == tokICONST {
+			buf.WriteString(" ")
+			buf.WriteString(p.cur.Str)
+			p.advance()
+		}
+
+	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "EXPAND"):
+		buf.WriteString("EXPAND")
+		p.advance()
+		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "VIEWS") {
+			buf.WriteString(" VIEWS")
+			p.advance()
+		}
+
+	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "KEEP"):
+		buf.WriteString("KEEP")
+		p.advance()
+		if p.cur.Type == kwPLAN {
+			buf.WriteString(" PLAN")
+			p.advance()
+		}
+
+	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "KEEPFIXED"):
+		buf.WriteString("KEEPFIXED")
+		p.advance()
+		if p.cur.Type == kwPLAN {
+			buf.WriteString(" PLAN")
+			p.advance()
+		}
+
+	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "ROBUST"):
+		buf.WriteString("ROBUST")
+		p.advance()
+		if p.cur.Type == kwPLAN {
+			buf.WriteString(" PLAN")
+			p.advance()
+		}
+
+	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "PARAMETERIZATION"):
+		buf.WriteString("PARAMETERIZATION")
+		p.advance()
+		if p.isIdentLike() {
+			buf.WriteString(" ")
+			buf.WriteString(strings.ToUpper(p.cur.Str))
+			p.advance()
+		}
+
+	case p.cur.Type == kwUSE:
+		buf.WriteString("USE")
+		p.advance()
+		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "HINT") {
+			buf.WriteString(" HINT")
+			p.advance()
+			if p.cur.Type == '(' {
+				p.advance()
+				first := true
+				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					if !first {
+						buf.WriteString(", ")
+					}
+					first = false
+					if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
+						buf.WriteString("'")
+						buf.WriteString(p.cur.Str)
+						buf.WriteString("'")
+						p.advance()
+					}
+					p.match(',')
+				}
+				p.expect(')')
+			}
+		} else if p.cur.Type == kwPLAN {
+			buf.WriteString(" PLAN")
+			p.advance()
+			// N'xml_plan'
+			if p.cur.Type == tokNSCONST || p.cur.Type == tokSCONST {
+				buf.WriteString(" ")
+				buf.WriteString(p.cur.Str)
+				p.advance()
+			}
+		}
+
+	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "DISABLE"):
+		buf.WriteString("DISABLE")
+		p.advance()
+		if p.isIdentLike() {
+			buf.WriteString(" ")
+			buf.WriteString(strings.ToUpper(p.cur.Str))
+			p.advance()
+		}
+
+	case p.cur.Type == kwTABLE:
+		buf.WriteString("TABLE")
+		p.advance()
+		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "HINT") {
+			buf.WriteString(" HINT")
+			p.advance()
+			// Skip (exposed_object_name, ...) for now
+			if p.cur.Type == '(' {
+				depth := 1
+				p.advance()
+				for depth > 0 && p.cur.Type != tokEOF {
+					if p.cur.Type == '(' {
+						depth++
+					} else if p.cur.Type == ')' {
+						depth--
+					}
+					if depth > 0 {
+						p.advance()
+					}
+				}
+				p.advance() // consume final )
+			}
+		}
+
+	default:
+		// Unknown or keyword-based hint: try to parse as expression
+		if p.isIdentLike() {
+			buf.WriteString(strings.ToUpper(p.cur.Str))
+			p.advance()
+			// Handle optional value after hint name (e.g., MAX_GRANT_PERCENT = 10)
+			if p.cur.Type == '=' {
+				p.advance()
+				buf.WriteString(" = ")
+				if p.cur.Str != "" {
+					buf.WriteString(p.cur.Str)
+				}
+				p.advance()
+			}
+		} else {
+			// Fallback: parse as expression
+			expr := p.parseExpr()
+			if expr != nil {
+				return expr
+			}
+			return nil
+		}
+	}
+
+	if buf.Len() == 0 {
+		return nil
+	}
+	return &nodes.String{Str: buf.String()}
 }

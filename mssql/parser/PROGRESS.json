@@ -2111,7 +2111,7 @@
       "id": 92,
       "name": "option_query_hints",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 4 gap: structurally parse OPTION clause query hints instead of generic expressions. Supported hints: RECOMPILE, OPTIMIZE FOR (@var = val | UNKNOWN), LOOP/HASH/MERGE JOIN, FORCE ORDER, MAXDOP n, MAXRECURSION n, USE PLAN N'xml', EXPAND VIEWS, FAST n, KEEP PLAN, KEEPFIXED PLAN, PARAMETERIZATION SIMPLE/FORCED, ROBUST PLAN.",
       "rules": [
         "parseQueryHint"

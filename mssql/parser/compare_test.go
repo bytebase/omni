@@ -9452,3 +9452,99 @@ func TestParseChooseStringAgg(t *testing.T) {
 		ParseAndCheck(t, sql)
 	})
 }
+
+// TestParseOptionQueryHints tests OPTION clause query hints (batch 92).
+func TestParseOptionQueryHints(t *testing.T) {
+	// OPTION (RECOMPILE)
+	t.Run("option_recompile", func(t *testing.T) {
+		sql := "SELECT * FROM t OPTION (RECOMPILE)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.OptionClause == nil || stmt.OptionClause.Len() != 1 {
+			t.Fatalf("expected 1 hint")
+		}
+		hint := stmt.OptionClause.Items[0].(*ast.String).Str
+		if hint != "RECOMPILE" {
+			t.Errorf("expected RECOMPILE, got %q", hint)
+		}
+	})
+
+	// OPTION (OPTIMIZE FOR (@id = 1))
+	t.Run("option_optimize_for", func(t *testing.T) {
+		sql := "SELECT * FROM t WHERE id = @id OPTION (OPTIMIZE FOR (@id = 1))"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.OptionClause == nil || stmt.OptionClause.Len() != 1 {
+			t.Fatalf("expected 1 hint")
+		}
+		hint := stmt.OptionClause.Items[0].(*ast.String).Str
+		if !strings.Contains(hint, "OPTIMIZE FOR") {
+			t.Errorf("expected OPTIMIZE FOR hint, got %q", hint)
+		}
+	})
+
+	// OPTION (OPTIMIZE FOR UNKNOWN)
+	t.Run("option_optimize_for_unknown", func(t *testing.T) {
+		sql := "SELECT * FROM t OPTION (OPTIMIZE FOR UNKNOWN)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		hint := stmt.OptionClause.Items[0].(*ast.String).Str
+		if hint != "OPTIMIZE FOR UNKNOWN" {
+			t.Errorf("expected 'OPTIMIZE FOR UNKNOWN', got %q", hint)
+		}
+	})
+
+	// OPTION (HASH JOIN)
+	t.Run("option_join_hints", func(t *testing.T) {
+		sql := "SELECT * FROM t1 JOIN t2 ON t1.id = t2.id OPTION (HASH JOIN)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		hint := stmt.OptionClause.Items[0].(*ast.String).Str
+		if hint != "HASH JOIN" {
+			t.Errorf("expected 'HASH JOIN', got %q", hint)
+		}
+	})
+
+	// OPTION (MAXDOP 4)
+	t.Run("option_maxdop", func(t *testing.T) {
+		sql := "SELECT * FROM t OPTION (MAXDOP 4)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		hint := stmt.OptionClause.Items[0].(*ast.String).Str
+		if hint != "MAXDOP 4" {
+			t.Errorf("expected 'MAXDOP 4', got %q", hint)
+		}
+	})
+
+	// Multiple hints
+	t.Run("option_multiple_hints", func(t *testing.T) {
+		sql := "SELECT * FROM t OPTION (RECOMPILE, MAXDOP 2, FORCE ORDER)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.OptionClause == nil || stmt.OptionClause.Len() != 3 {
+			t.Fatalf("expected 3 hints, got %d", stmt.OptionClause.Len())
+		}
+	})
+
+	// OPTION (KEEP PLAN)
+	t.Run("option_keep_plan", func(t *testing.T) {
+		sql := "SELECT * FROM t OPTION (KEEP PLAN)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		hint := stmt.OptionClause.Items[0].(*ast.String).Str
+		if hint != "KEEP PLAN" {
+			t.Errorf("expected 'KEEP PLAN', got %q", hint)
+		}
+	})
+
+	// OPTION (ROBUST PLAN)
+	t.Run("option_robust_plan", func(t *testing.T) {
+		sql := "SELECT * FROM t OPTION (ROBUST PLAN)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		hint := stmt.OptionClause.Items[0].(*ast.String).Str
+		if hint != "ROBUST PLAN" {
+			t.Errorf("expected 'ROBUST PLAN', got %q", hint)
+		}
+	})
+}
