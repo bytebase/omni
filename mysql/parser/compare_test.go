@@ -6920,6 +6920,13 @@ func TestParsePhase2Dispatch(t *testing.T) {
 		// Replication (batch 43)
 		"CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1'",
 		"CHANGE REPLICATION FILTER REPLICATE_DO_DB = (db1)",
+
+		// Replication control (batch 44)
+		"START REPLICA",
+		"STOP REPLICA",
+		"RESET REPLICA",
+		"PURGE BINARY LOGS TO 'mysql-bin.010'",
+		"RESET MASTER",
 	}
 
 	for _, sql := range tests {
@@ -7028,6 +7035,86 @@ func TestParseChangeReplicationFilter(t *testing.T) {
 		"CHANGE REPLICATION FILTER REPLICATE_DO_DB = ()",
 		// FOR CHANNEL
 		"CHANGE REPLICATION FILTER REPLICATE_DO_DB = (db1) FOR CHANNEL ch1",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// ---------- Batch 44: Replication Control ----------
+
+func TestParseStartReplica(t *testing.T) {
+	tests := []string{
+		"START REPLICA",
+		"START SLAVE",
+		"START REPLICA IO_THREAD",
+		"START REPLICA SQL_THREAD",
+		"START REPLICA IO_THREAD, SQL_THREAD",
+		"START REPLICA FOR CHANNEL ch1",
+		"START REPLICA IO_THREAD FOR CHANNEL ch1",
+		"START REPLICA UNTIL SOURCE_LOG_FILE = 'binlog.000002', SOURCE_LOG_POS = 1234",
+		"START REPLICA UNTIL SQL_BEFORE_GTIDS = '3E11FA47-71CA-11E1-9E33-C80AA9429562:1-5'",
+		"START REPLICA UNTIL SQL_AFTER_MTS_GAPS",
+		"START REPLICA USER = 'repl' PASSWORD = 'secret'",
+		"START REPLICA USER = 'repl' PASSWORD = 'secret' DEFAULT_AUTH = 'mysql_native_password'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseStopReplica(t *testing.T) {
+	tests := []string{
+		"STOP REPLICA",
+		"STOP SLAVE",
+		"STOP REPLICA IO_THREAD",
+		"STOP REPLICA SQL_THREAD",
+		"STOP REPLICA IO_THREAD, SQL_THREAD",
+		"STOP REPLICA FOR CHANNEL ch1",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseResetReplica(t *testing.T) {
+	tests := []string{
+		"RESET REPLICA",
+		"RESET SLAVE",
+		"RESET REPLICA ALL",
+		"RESET REPLICA FOR CHANNEL ch1",
+		"RESET REPLICA ALL FOR CHANNEL ch1",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParsePurgeBinaryLogs(t *testing.T) {
+	tests := []string{
+		"PURGE BINARY LOGS TO 'mysql-bin.010'",
+		"PURGE BINARY LOGS BEFORE '2019-04-02 22:46:26'",
+		"PURGE MASTER LOGS TO 'mysql-bin.010'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseResetMaster(t *testing.T) {
+	tests := []string{
+		"RESET MASTER",
+		"RESET MASTER TO 1234",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {

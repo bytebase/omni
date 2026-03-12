@@ -1208,7 +1208,7 @@
       "id": 44,
       "name": "replication_control",
       "file": "replication.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: START/STOP REPLICA, RESET REPLICA, PURGE BINARY LOGS, RESET MASTER",
       "rules": [
         "parseStartReplicaStmt",

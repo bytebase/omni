@@ -2214,6 +2214,84 @@ type ReplicationFilter struct {
 
 func (f *ReplicationFilter) nodeTag() {}
 
+// StartReplicaStmt represents a START REPLICA or START SLAVE statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/start-replica.html
+//
+//	START REPLICA [thread_types] [until_option] [connection_options] [channel_option]
+type StartReplicaStmt struct {
+	Loc         Loc
+	IOThread    bool   // IO_THREAD specified
+	SQLThread   bool   // SQL_THREAD specified
+	UntilType   string // SQL_BEFORE_GTIDS, SQL_AFTER_GTIDS, SOURCE_LOG_FILE, RELAY_LOG_FILE, SQL_AFTER_MTS_GAPS
+	UntilValue  string // gtid_set or log file name
+	UntilPos    int64  // log position (for log file modes)
+	User        string // USER = 'user'
+	Password    string // PASSWORD = 'pass'
+	DefaultAuth string // DEFAULT_AUTH = 'plugin'
+	PluginDir   string // PLUGIN_DIR = 'dir'
+	Channel     string // FOR CHANNEL channel
+}
+
+func (s *StartReplicaStmt) nodeTag()  {}
+func (s *StartReplicaStmt) stmtNode() {}
+
+// StopReplicaStmt represents a STOP REPLICA or STOP SLAVE statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/stop-replica.html
+//
+//	STOP REPLICA [thread_types] [channel_option]
+type StopReplicaStmt struct {
+	Loc       Loc
+	IOThread  bool   // IO_THREAD specified
+	SQLThread bool   // SQL_THREAD specified
+	Channel   string // FOR CHANNEL channel
+}
+
+func (s *StopReplicaStmt) nodeTag()  {}
+func (s *StopReplicaStmt) stmtNode() {}
+
+// ResetReplicaStmt represents a RESET REPLICA or RESET SLAVE statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/reset-replica.html
+//
+//	RESET REPLICA [ALL] [channel_option]
+type ResetReplicaStmt struct {
+	Loc     Loc
+	All     bool   // ALL modifier
+	Channel string // FOR CHANNEL channel
+}
+
+func (s *ResetReplicaStmt) nodeTag()  {}
+func (s *ResetReplicaStmt) stmtNode() {}
+
+// PurgeBinaryLogsStmt represents a PURGE BINARY LOGS statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/purge-binary-logs.html
+//
+//	PURGE { BINARY | MASTER } LOGS { TO 'log_name' | BEFORE datetime_expr }
+type PurgeBinaryLogsStmt struct {
+	Loc    Loc
+	To     string // TO 'log_name'
+	Before string // BEFORE datetime_expr
+}
+
+func (s *PurgeBinaryLogsStmt) nodeTag()  {}
+func (s *PurgeBinaryLogsStmt) stmtNode() {}
+
+// ResetMasterStmt represents a RESET MASTER statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/reset-master.html
+//
+//	RESET MASTER [TO binary_log_file_index_number]
+type ResetMasterStmt struct {
+	Loc Loc
+	To  int64 // TO index number; 0 = not specified
+}
+
+func (s *ResetMasterStmt) nodeTag()  {}
+func (s *ResetMasterStmt) stmtNode() {}
+
 // RawStmt wraps a statement node with its location span.
 type RawStmt struct {
 	Loc     Loc

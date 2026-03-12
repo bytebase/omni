@@ -59,8 +59,11 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case kwDESCRIBE, kwEXPLAIN:
 		return p.parseExplainStmt()
 
-	case kwBEGIN, kwSTART:
+	case kwBEGIN:
 		return p.parseBeginStmt()
+
+	case kwSTART:
+		return p.parseStartDispatch()
 
 	case kwCOMMIT:
 		return p.parseCommitStmt()
@@ -116,7 +119,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseFlushStmt()
 
 	case kwRESET:
-		return p.parseResetStmt()
+		return p.parseResetDispatch()
 
 	case kwKILL:
 		return p.parseKillStmt()
@@ -144,6 +147,12 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 
 	case kwCHANGE:
 		return p.parseChangeDispatch()
+
+	case kwSTOP:
+		return p.parseStopReplicaStmt()
+
+	case kwPURGE:
+		return p.parsePurgeBinaryLogsStmt()
 
 	case kwCHECKSUM:
 		return p.parseChecksumTableStmt()
@@ -197,6 +206,80 @@ func (p *Parser) parseChangeDispatch() (nodes.Node, error) {
 	}
 
 	return nil, &ParseError{Message: "unexpected token after CHANGE", Position: p.cur.Loc}
+}
+
+// parseStartDispatch dispatches START statements.
+// START REPLICA/SLAVE -> replication; START TRANSACTION -> transaction.
+func (p *Parser) parseStartDispatch() (nodes.Node, error) {
+	start := p.pos()
+	p.advance() // consume START
+
+	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
+		p.advance() // consume REPLICA or SLAVE
+		return p.parseStartReplicaStmt(start)
+	}
+
+	// Fall through to START TRANSACTION (parseBeginStmt expects p.cur is START or BEGIN)
+	// We already consumed START, so we need to handle TRANSACTION here
+	p.match(kwTRANSACTION)
+	stmt := &nodes.BeginStmt{Loc: nodes.Loc{Start: start}}
+	for {
+		if p.cur.Type == kwWITH {
+			p.advance()
+			p.match(kwCONSISTENT)
+			p.match(kwSNAPSHOT)
+			stmt.WithConsistentSnapshot = true
+		} else if p.cur.Type == kwREAD {
+			p.advance()
+			if _, ok := p.match(kwONLY); ok {
+				stmt.ReadOnly = true
+			} else if _, ok := p.match(kwWRITE); ok {
+				stmt.ReadWrite = true
+			}
+		} else {
+			break
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseResetDispatch dispatches RESET statements.
+// RESET REPLICA/SLAVE -> replication; RESET MASTER -> replication; else -> generic RESET.
+func (p *Parser) parseResetDispatch() (nodes.Node, error) {
+	start := p.pos()
+	p.advance() // consume RESET
+
+	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
+		return p.parseResetReplicaStmt(start)
+	}
+	if p.cur.Type == kwMASTER {
+		return p.parseResetMasterStmt(start)
+	}
+
+	// Fall through to generic RESET (re-assemble the FlushStmt from utility.go)
+	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}}
+	for {
+		if p.cur.Type == tokEOF || p.cur.Type == ';' {
+			break
+		}
+		if p.isIdentToken() {
+			name, _, _ := p.parseIdentifier()
+			stmt.Options = append(stmt.Options, name)
+		} else {
+			break
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	stmt.Loc.End = p.pos()
+	return stmt, nil
 }
 
 // parseCreateDispatch dispatches CREATE statements to the appropriate parser.

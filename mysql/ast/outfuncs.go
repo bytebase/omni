@@ -393,6 +393,16 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeChangeReplicationFilterStmt(sb, n)
 	case *ReplicationFilter:
 		writeReplicationFilter(sb, n)
+	case *StartReplicaStmt:
+		writeStartReplicaStmt(sb, n)
+	case *StopReplicaStmt:
+		writeStopReplicaStmt(sb, n)
+	case *ResetReplicaStmt:
+		writeResetReplicaStmt(sb, n)
+	case *PurgeBinaryLogsStmt:
+		writePurgeBinaryLogsStmt(sb, n)
+	case *ResetMasterStmt:
+		writeResetMasterStmt(sb, n)
 
 	default:
 		fmt.Fprintf(sb, "{UNKNOWN %T}", node)
@@ -3697,6 +3707,90 @@ func writeReplicationFilter(sb *strings.Builder, n *ReplicationFilter) {
 			fmt.Fprintf(sb, "%q", v)
 		}
 		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeStartReplicaStmt(sb *strings.Builder, n *StartReplicaStmt) {
+	sb.WriteString("{START_REPLICA")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IOThread {
+		sb.WriteString(" :io_thread true")
+	}
+	if n.SQLThread {
+		sb.WriteString(" :sql_thread true")
+	}
+	if n.UntilType != "" {
+		fmt.Fprintf(sb, " :until_type %s", n.UntilType)
+		if n.UntilValue != "" {
+			fmt.Fprintf(sb, " :until_value %s", n.UntilValue)
+		}
+		if n.UntilPos != 0 {
+			fmt.Fprintf(sb, " :until_pos %d", n.UntilPos)
+		}
+	}
+	if n.User != "" {
+		fmt.Fprintf(sb, " :user %s", n.User)
+	}
+	if n.Password != "" {
+		sb.WriteString(" :password ***")
+	}
+	if n.DefaultAuth != "" {
+		fmt.Fprintf(sb, " :default_auth %s", n.DefaultAuth)
+	}
+	if n.PluginDir != "" {
+		fmt.Fprintf(sb, " :plugin_dir %s", n.PluginDir)
+	}
+	if n.Channel != "" {
+		fmt.Fprintf(sb, " :channel %s", n.Channel)
+	}
+	sb.WriteString("}")
+}
+
+func writeStopReplicaStmt(sb *strings.Builder, n *StopReplicaStmt) {
+	sb.WriteString("{STOP_REPLICA")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IOThread {
+		sb.WriteString(" :io_thread true")
+	}
+	if n.SQLThread {
+		sb.WriteString(" :sql_thread true")
+	}
+	if n.Channel != "" {
+		fmt.Fprintf(sb, " :channel %s", n.Channel)
+	}
+	sb.WriteString("}")
+}
+
+func writeResetReplicaStmt(sb *strings.Builder, n *ResetReplicaStmt) {
+	sb.WriteString("{RESET_REPLICA")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.All {
+		sb.WriteString(" :all true")
+	}
+	if n.Channel != "" {
+		fmt.Fprintf(sb, " :channel %s", n.Channel)
+	}
+	sb.WriteString("}")
+}
+
+func writePurgeBinaryLogsStmt(sb *strings.Builder, n *PurgeBinaryLogsStmt) {
+	sb.WriteString("{PURGE_BINARY_LOGS")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.To != "" {
+		fmt.Fprintf(sb, " :to %s", n.To)
+	}
+	if n.Before != "" {
+		fmt.Fprintf(sb, " :before %s", n.Before)
+	}
+	sb.WriteString("}")
+}
+
+func writeResetMasterStmt(sb *strings.Builder, n *ResetMasterStmt) {
+	sb.WriteString("{RESET_MASTER")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.To != 0 {
+		fmt.Fprintf(sb, " :to %d", n.To)
 	}
 	sb.WriteString("}")
 }

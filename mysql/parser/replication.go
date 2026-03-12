@@ -308,3 +308,289 @@ func (p *Parser) parseReplicationFilter() (*nodes.ReplicationFilter, error) {
 	f.Loc.End = p.pos()
 	return f, nil
 }
+
+// parseStartReplicaStmt parses a START REPLICA or START SLAVE statement.
+// p.cur is START.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/start-replica.html
+//
+//	START REPLICA [thread_types] [until_option] [connection_options] [channel_option]
+//
+//	thread_types:
+//	    [thread_type [, thread_type] ... ]
+//
+//	thread_type:
+//	    IO_THREAD | SQL_THREAD
+//
+//	until_option:
+//	    UNTIL {   {SQL_BEFORE_GTIDS | SQL_AFTER_GTIDS} = gtid_set
+//	          |   MASTER_LOG_FILE = 'log_name', MASTER_LOG_POS = log_pos
+//	          |   SOURCE_LOG_FILE = 'log_name', SOURCE_LOG_POS = log_pos
+//	          |   RELAY_LOG_FILE = 'log_name', RELAY_LOG_POS = log_pos
+//	          |   SQL_AFTER_MTS_GAPS  }
+//
+//	connection_options:
+//	    [USER='user_name'] [PASSWORD='user_pass'] [DEFAULT_AUTH='plugin_name'] [PLUGIN_DIR='plugin_dir']
+//
+//	channel_option:
+//	    FOR CHANNEL channel
+func (p *Parser) parseStartReplicaStmt(start int) (*nodes.StartReplicaStmt, error) {
+	// REPLICA or SLAVE already consumed
+	stmt := &nodes.StartReplicaStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Optional thread types
+	p.parseThreadTypes(stmt)
+
+	// Optional UNTIL
+	if p.isIdentToken() && eqFold(p.cur.Str, "UNTIL") {
+		p.advance() // consume UNTIL
+		untilName, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.UntilType = untilName
+
+		if eqFold(untilName, "SQL_AFTER_MTS_GAPS") {
+			// no value needed
+		} else {
+			// consume '='
+			p.match('=')
+			// value is a string literal or gtid set
+			if p.cur.Type == tokSCONST {
+				stmt.UntilValue = p.cur.Str
+				p.advance()
+			} else {
+				val, _, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				stmt.UntilValue = val
+			}
+			// For log file modes, also consume the POS part
+			if eqFold(untilName, "SOURCE_LOG_FILE") || eqFold(untilName, "MASTER_LOG_FILE") || eqFold(untilName, "RELAY_LOG_FILE") {
+				if p.cur.Type == ',' {
+					p.advance() // consume ','
+					posName, _, _ := p.parseIdentifier()
+					_ = posName // SOURCE_LOG_POS, MASTER_LOG_POS, RELAY_LOG_POS
+					p.match('=')
+					if p.cur.Type == tokICONST {
+						pos, _ := strconv.ParseInt(p.cur.Str, 10, 64)
+						stmt.UntilPos = pos
+						p.advance()
+					}
+				}
+			}
+		}
+	}
+
+	// Optional connection options
+	for p.isIdentToken() {
+		switch {
+		case eqFold(p.cur.Str, "USER"):
+			p.advance()
+			p.match('=')
+			stmt.User = p.cur.Str
+			p.advance()
+		case eqFold(p.cur.Str, "PASSWORD"):
+			p.advance()
+			p.match('=')
+			stmt.Password = p.cur.Str
+			p.advance()
+		case eqFold(p.cur.Str, "DEFAULT_AUTH"):
+			p.advance()
+			p.match('=')
+			stmt.DefaultAuth = p.cur.Str
+			p.advance()
+		case eqFold(p.cur.Str, "PLUGIN_DIR"):
+			p.advance()
+			p.match('=')
+			stmt.PluginDir = p.cur.Str
+			p.advance()
+		default:
+			goto doneConnOpts
+		}
+	}
+doneConnOpts:
+
+	// Optional FOR CHANNEL
+	if p.cur.Type == kwFOR {
+		p.advance() // consume FOR
+		p.advance() // consume CHANNEL
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Channel = name
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseThreadTypes parses optional IO_THREAD, SQL_THREAD for START/STOP REPLICA.
+func (p *Parser) parseThreadTypes(stmt interface{}) {
+	for p.isIdentToken() {
+		if eqFold(p.cur.Str, "IO_THREAD") {
+			switch s := stmt.(type) {
+			case *nodes.StartReplicaStmt:
+				s.IOThread = true
+			case *nodes.StopReplicaStmt:
+				s.IOThread = true
+			}
+			p.advance()
+			if p.cur.Type == ',' {
+				p.advance()
+			}
+		} else if eqFold(p.cur.Str, "SQL_THREAD") {
+			switch s := stmt.(type) {
+			case *nodes.StartReplicaStmt:
+				s.SQLThread = true
+			case *nodes.StopReplicaStmt:
+				s.SQLThread = true
+			}
+			p.advance()
+			if p.cur.Type == ',' {
+				p.advance()
+			}
+		} else {
+			break
+		}
+	}
+}
+
+// parseStopReplicaStmt parses a STOP REPLICA or STOP SLAVE statement.
+// p.cur is STOP.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/stop-replica.html
+//
+//	STOP REPLICA [thread_types] [channel_option]
+//
+//	thread_types:
+//	    [thread_type [, thread_type] ... ]
+//
+//	thread_type:
+//	    IO_THREAD | SQL_THREAD
+//
+//	channel_option:
+//	    FOR CHANNEL channel
+func (p *Parser) parseStopReplicaStmt() (*nodes.StopReplicaStmt, error) {
+	start := p.pos()
+	p.advance() // consume STOP
+	p.advance() // consume REPLICA or SLAVE
+
+	stmt := &nodes.StopReplicaStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Optional thread types
+	p.parseThreadTypes(stmt)
+
+	// Optional FOR CHANNEL
+	if p.cur.Type == kwFOR {
+		p.advance() // consume FOR
+		p.advance() // consume CHANNEL
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Channel = name
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseResetReplicaStmt parses a RESET REPLICA or RESET SLAVE statement.
+// RESET already consumed by caller. p.cur is REPLICA or SLAVE.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/reset-replica.html
+//
+//	RESET REPLICA [ALL] [channel_option]
+//
+//	channel_option:
+//	    FOR CHANNEL channel
+func (p *Parser) parseResetReplicaStmt(start int) (*nodes.ResetReplicaStmt, error) {
+	p.advance() // consume REPLICA or SLAVE
+
+	stmt := &nodes.ResetReplicaStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Optional ALL
+	if p.cur.Type == kwALL {
+		stmt.All = true
+		p.advance()
+	}
+
+	// Optional FOR CHANNEL
+	if p.cur.Type == kwFOR {
+		p.advance() // consume FOR
+		p.advance() // consume CHANNEL
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Channel = name
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parsePurgeBinaryLogsStmt parses a PURGE BINARY LOGS or PURGE MASTER LOGS statement.
+// p.cur is PURGE.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/purge-binary-logs.html
+//
+//	PURGE { BINARY | MASTER } LOGS { TO 'log_name' | BEFORE datetime_expr }
+func (p *Parser) parsePurgeBinaryLogsStmt() (*nodes.PurgeBinaryLogsStmt, error) {
+	start := p.pos()
+	p.advance() // consume PURGE
+	p.advance() // consume BINARY or MASTER
+	p.advance() // consume LOGS
+
+	stmt := &nodes.PurgeBinaryLogsStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	if p.cur.Type == kwTO {
+		p.advance() // consume TO
+		stmt.To = p.cur.Str
+		p.advance()
+	} else if p.cur.Type == kwBEFORE {
+		p.advance() // consume BEFORE
+		stmt.Before = p.cur.Str
+		p.advance()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseResetMasterStmt parses a RESET MASTER statement.
+// RESET already consumed. p.cur is MASTER.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/reset-master.html
+//
+//	RESET MASTER [TO binary_log_file_index_number]
+func (p *Parser) parseResetMasterStmt(start int) (*nodes.ResetMasterStmt, error) {
+	p.advance() // consume MASTER
+
+	stmt := &nodes.ResetMasterStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	if p.cur.Type == kwTO {
+		p.advance() // consume TO
+		if p.cur.Type == tokICONST {
+			val, _ := strconv.ParseInt(p.cur.Str, 10, 64)
+			stmt.To = val
+			p.advance()
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
