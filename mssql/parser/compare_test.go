@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/mssql/ast"
@@ -6172,4 +6173,207 @@ func TestParseIntegrationPhase3(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestParseCreateTableDepth tests batch 69: temporal table support, advanced column options, table storage.
+func TestParseCreateTableDepth(t *testing.T) {
+	t.Run("temporal table with system versioning", func(t *testing.T) {
+		sql := `CREATE TABLE dbo.Employee (
+			EmployeeID int PRIMARY KEY,
+			Name nvarchar(100),
+			Salary decimal(10,2),
+			ValidFrom datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
+			ValidTo datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
+			PERIOD FOR SYSTEM_TIME (ValidFrom, ValidTo)
+		)
+		WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = dbo.EmployeeHistory))`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		if stmt.PeriodStartCol == "" {
+			t.Error("expected PeriodStartCol to be set")
+		}
+		if stmt.TableOptions == nil {
+			t.Error("expected TableOptions to be set")
+		}
+	})
+
+	t.Run("sparse column", func(t *testing.T) {
+		sql := `CREATE TABLE t (
+			id int NOT NULL,
+			optional_data varchar(100) SPARSE NULL
+		)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		col := stmt.Columns.Items[1].(*ast.ColumnDef)
+		if !col.Sparse {
+			t.Error("expected Sparse to be true")
+		}
+	})
+
+	t.Run("masked column", func(t *testing.T) {
+		sql := `CREATE TABLE t (
+			id int NOT NULL,
+			email varchar(100) MASKED WITH (FUNCTION = 'email()') NULL,
+			ssn varchar(11) MASKED WITH (FUNCTION = 'partial(0,"XXX-XX-",4)') NULL
+		)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		col := stmt.Columns.Items[1].(*ast.ColumnDef)
+		if col.MaskFunction != "email()" {
+			t.Errorf("expected MaskFunction 'email()', got %q", col.MaskFunction)
+		}
+	})
+
+	t.Run("encrypted column", func(t *testing.T) {
+		sql := `CREATE TABLE t (
+			id int NOT NULL,
+			ssn varchar(11) ENCRYPTED WITH (
+				COLUMN_ENCRYPTION_KEY = MyCEK,
+				ENCRYPTION_TYPE = DETERMINISTIC,
+				ALGORITHM = 'AEAD_AES_256_CBC_HMAC_SHA_256'
+			)
+		)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		col := stmt.Columns.Items[1].(*ast.ColumnDef)
+		if col.EncryptedWith == nil {
+			t.Error("expected EncryptedWith to be set")
+		} else {
+			if col.EncryptedWith.EncryptionType != "DETERMINISTIC" {
+				t.Errorf("expected DETERMINISTIC, got %q", col.EncryptedWith.EncryptionType)
+			}
+		}
+	})
+
+	t.Run("memory optimized table", func(t *testing.T) {
+		sql := `CREATE TABLE dbo.MemTable (
+			Id int NOT NULL PRIMARY KEY NONCLUSTERED,
+			Name nvarchar(100) NOT NULL
+		) WITH (MEMORY_OPTIMIZED = ON, DURABILITY = SCHEMA_AND_DATA)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		if stmt.TableOptions == nil || stmt.TableOptions.Len() != 2 {
+			t.Errorf("expected 2 table options, got %v", stmt.TableOptions)
+		}
+	})
+
+	t.Run("filestream column", func(t *testing.T) {
+		sql := `CREATE TABLE t (
+			id uniqueidentifier ROWGUIDCOL NOT NULL,
+			doc varbinary(max) FILESTREAM NULL
+		)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		col0 := stmt.Columns.Items[0].(*ast.ColumnDef)
+		if !col0.Rowguidcol {
+			t.Error("expected Rowguidcol to be true")
+		}
+		col1 := stmt.Columns.Items[1].(*ast.ColumnDef)
+		if !col1.Filestream {
+			t.Error("expected Filestream to be true")
+		}
+	})
+
+	t.Run("on filegroup", func(t *testing.T) {
+		sql := `CREATE TABLE t (id int NOT NULL) ON MyFilegroup`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		if stmt.OnFilegroup != "MyFilegroup" {
+			t.Errorf("expected OnFilegroup 'MyFilegroup', got %q", stmt.OnFilegroup)
+		}
+	})
+
+	t.Run("textimage_on", func(t *testing.T) {
+		sql := `CREATE TABLE t (id int NOT NULL, doc text) ON PRIMARY TEXTIMAGE_ON LobGroup`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		if !strings.EqualFold(stmt.OnFilegroup, "PRIMARY") {
+			t.Errorf("expected OnFilegroup 'PRIMARY', got %q", stmt.OnFilegroup)
+		}
+		if !strings.EqualFold(stmt.TextImageOn, "LobGroup") {
+			t.Errorf("expected TextImageOn 'LobGroup', got %q", stmt.TextImageOn)
+		}
+	})
+
+	t.Run("generated always as row start end", func(t *testing.T) {
+		sql := `CREATE TABLE t (
+			id int NOT NULL,
+			start_time datetime2 GENERATED ALWAYS AS ROW START NOT NULL,
+			end_time datetime2 GENERATED ALWAYS AS ROW END NOT NULL,
+			PERIOD FOR SYSTEM_TIME (start_time, end_time)
+		)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		col1 := stmt.Columns.Items[1].(*ast.ColumnDef)
+		if col1.GeneratedAlways == nil {
+			t.Fatal("expected GeneratedAlways to be set")
+		}
+		if col1.GeneratedAlways.Kind != "ROW" || col1.GeneratedAlways.StartEnd != "START" {
+			t.Errorf("expected ROW START, got %s %s", col1.GeneratedAlways.Kind, col1.GeneratedAlways.StartEnd)
+		}
+		if stmt.PeriodStartCol != "start_time" || stmt.PeriodEndCol != "end_time" {
+			t.Errorf("expected period(start_time, end_time), got (%s, %s)", stmt.PeriodStartCol, stmt.PeriodEndCol)
+		}
+	})
+
+	t.Run("hidden column", func(t *testing.T) {
+		sql := `CREATE TABLE t (
+			id int NOT NULL,
+			ts datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
+			te datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
+			PERIOD FOR SYSTEM_TIME (ts, te)
+		)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		col1 := stmt.Columns.Items[1].(*ast.ColumnDef)
+		if !col1.Hidden {
+			t.Error("expected Hidden to be true")
+		}
+	})
+
+	t.Run("not for replication", func(t *testing.T) {
+		sql := `CREATE TABLE t (
+			id int IDENTITY(1,1) NOT FOR REPLICATION NOT NULL
+		)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		col := stmt.Columns.Items[0].(*ast.ColumnDef)
+		if !col.NotForReplication {
+			t.Error("expected NotForReplication to be true")
+		}
+	})
+
+	t.Run("system versioning with options", func(t *testing.T) {
+		sql := `CREATE TABLE t (
+			id int NOT NULL,
+			s datetime2 GENERATED ALWAYS AS ROW START NOT NULL,
+			e datetime2 GENERATED ALWAYS AS ROW END NOT NULL,
+			PERIOD FOR SYSTEM_TIME (s, e)
+		) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = dbo.tHistory, DATA_CONSISTENCY_CHECK = ON))`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		if stmt.TableOptions == nil {
+			t.Fatal("expected TableOptions")
+		}
+		opt := stmt.TableOptions.Items[0].(*ast.TableOption)
+		if opt.HistoryTable != "dbo.tHistory" {
+			t.Errorf("expected dbo.tHistory, got %q", opt.HistoryTable)
+		}
+		if opt.DataConsistencyCheck != "ON" {
+			t.Errorf("expected ON, got %q", opt.DataConsistencyCheck)
+		}
+	})
+
+	t.Run("data compression", func(t *testing.T) {
+		sql := `CREATE TABLE t (id int NOT NULL) WITH (DATA_COMPRESSION = PAGE)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		if stmt.TableOptions == nil {
+			t.Fatal("expected TableOptions")
+		}
+		opt := stmt.TableOptions.Items[0].(*ast.TableOption)
+		if opt.Name != "DATA_COMPRESSION" || opt.Value != "PAGE" {
+			t.Errorf("expected DATA_COMPRESSION=PAGE, got %s=%s", opt.Name, opt.Value)
+		}
+	})
 }

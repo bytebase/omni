@@ -208,6 +208,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeOutputClause(sb, n)
 	case *ColumnDef:
 		writeColumnDef(sb, n)
+	case *EncryptedWithSpec:
+		writeEncryptedWithSpec(sb, n)
+	case *GeneratedAlwaysSpec:
+		writeGeneratedAlwaysSpec(sb, n)
+	case *TableOption:
+		writeTableOption(sb, n)
 	case *ConstraintDef:
 		writeConstraintDef(sb, n)
 	case *MergeWhenClause:
@@ -595,6 +601,23 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 		writeNode(sb, n.Constraints)
 	}
 	sb.WriteString(fmt.Sprintf(" :ifNotExists %t", n.IfNotExists))
+	if n.PeriodStartCol != "" {
+		sb.WriteString(fmt.Sprintf(" :periodStart \"%s\"", escapeString(n.PeriodStartCol)))
+		sb.WriteString(fmt.Sprintf(" :periodEnd \"%s\"", escapeString(n.PeriodEndCol)))
+	}
+	if n.OnFilegroup != "" {
+		sb.WriteString(fmt.Sprintf(" :onFilegroup \"%s\"", escapeString(n.OnFilegroup)))
+	}
+	if n.TextImageOn != "" {
+		sb.WriteString(fmt.Sprintf(" :textImageOn \"%s\"", escapeString(n.TextImageOn)))
+	}
+	if n.FilestreamOn != "" {
+		sb.WriteString(fmt.Sprintf(" :filestreamOn \"%s\"", escapeString(n.FilestreamOn)))
+	}
+	if n.TableOptions != nil {
+		sb.WriteString(" :tableOptions ")
+		writeNode(sb, n.TableOptions)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -1808,6 +1831,68 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 	if n.Nullable != nil {
 		sb.WriteString(" :nullable ")
 		writeNode(sb, n.Nullable)
+	}
+	if n.Sparse {
+		sb.WriteString(" :sparse true")
+	}
+	if n.Filestream {
+		sb.WriteString(" :filestream true")
+	}
+	if n.Rowguidcol {
+		sb.WriteString(" :rowguidcol true")
+	}
+	if n.Hidden {
+		sb.WriteString(" :hidden true")
+	}
+	if n.MaskFunction != "" {
+		sb.WriteString(fmt.Sprintf(" :maskFunction \"%s\"", escapeString(n.MaskFunction)))
+	}
+	if n.EncryptedWith != nil {
+		sb.WriteString(" :encryptedWith ")
+		writeNode(sb, n.EncryptedWith)
+	}
+	if n.GeneratedAlways != nil {
+		sb.WriteString(" :generatedAlways ")
+		writeNode(sb, n.GeneratedAlways)
+	}
+	if n.NotForReplication {
+		sb.WriteString(" :notForReplication true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeEncryptedWithSpec(sb *strings.Builder, n *EncryptedWithSpec) {
+	sb.WriteString("{ENCRYPTEDWITH")
+	sb.WriteString(fmt.Sprintf(" :key \"%s\"", escapeString(n.ColumnEncryptionKey)))
+	sb.WriteString(fmt.Sprintf(" :type \"%s\"", escapeString(n.EncryptionType)))
+	sb.WriteString(fmt.Sprintf(" :algorithm \"%s\"", escapeString(n.Algorithm)))
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeGeneratedAlwaysSpec(sb *strings.Builder, n *GeneratedAlwaysSpec) {
+	sb.WriteString("{GENERATEDALWAYS")
+	sb.WriteString(fmt.Sprintf(" :kind \"%s\"", escapeString(n.Kind)))
+	sb.WriteString(fmt.Sprintf(" :startEnd \"%s\"", escapeString(n.StartEnd)))
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeTableOption(sb *strings.Builder, n *TableOption) {
+	sb.WriteString("{TABLEOPTION")
+	sb.WriteString(fmt.Sprintf(" :name \"%s\"", escapeString(n.Name)))
+	if n.Value != "" {
+		sb.WriteString(fmt.Sprintf(" :value \"%s\"", escapeString(n.Value)))
+	}
+	if n.HistoryTable != "" {
+		sb.WriteString(fmt.Sprintf(" :historyTable \"%s\"", escapeString(n.HistoryTable)))
+	}
+	if n.DataConsistencyCheck != "" {
+		sb.WriteString(fmt.Sprintf(" :dataConsistencyCheck \"%s\"", escapeString(n.DataConsistencyCheck)))
+	}
+	if n.HistoryRetentionPeriod != "" {
+		sb.WriteString(fmt.Sprintf(" :historyRetention \"%s\"", escapeString(n.HistoryRetentionPeriod)))
 	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

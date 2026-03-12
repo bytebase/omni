@@ -11,7 +11,24 @@ import (
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-table-transact-sql
 //
-//	CREATE TABLE name ( col_def | constraint [, ...] )
+//	CREATE TABLE
+//	    { database_name.schema_name.table_name | schema_name.table_name | table_name }
+//	    [ AS FileTable ]
+//	    ( { <column_definition>
+//	        | <computed_column_definition>
+//	        | <column_set_definition>
+//	        | [ <table_constraint> ] [ ,...n ]
+//	        | [ <table_index> ] }
+//	          [ ,...n ]
+//	          [ PERIOD FOR SYSTEM_TIME ( system_start_time_column_name
+//	             , system_end_time_column_name ) ]
+//	      )
+//	    [ ON { partition_scheme_name ( partition_column_name )
+//	           | filegroup
+//	           | "default" } ]
+//	    [ TEXTIMAGE_ON { filegroup | "default" } ]
+//	    [ FILESTREAM_ON { partition_scheme_name | filegroup | "default" } ]
+//	    [ WITH ( <table_option> [ ,...n ] ) ]
 func (p *Parser) parseCreateTableStmt() *nodes.CreateTableStmt {
 	loc := p.pos()
 
@@ -32,6 +49,32 @@ func (p *Parser) parseCreateTableStmt() *nodes.CreateTableStmt {
 	var constraints []nodes.Node
 
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		// Check for PERIOD FOR SYSTEM_TIME
+		if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "period") {
+			if p.peekNext().Type == kwFOR {
+				p.advance() // PERIOD
+				p.advance() // FOR
+				// SYSTEM_TIME
+				if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "system_time") {
+					p.advance()
+				}
+				// ( start_col , end_col )
+				if p.cur.Type == '(' {
+					p.advance()
+					startCol, _ := p.parseIdentifier()
+					stmt.PeriodStartCol = startCol
+					p.match(',')
+					endCol, _ := p.parseIdentifier()
+					stmt.PeriodEndCol = endCol
+					p.expect(')')
+				}
+				if _, ok := p.match(','); !ok {
+					break
+				}
+				continue
+			}
+		}
+
 		// Check if this is a table-level constraint
 		if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwPRIMARY ||
 			p.cur.Type == kwUNIQUE || p.cur.Type == kwCHECK ||
@@ -59,14 +102,196 @@ func (p *Parser) parseCreateTableStmt() *nodes.CreateTableStmt {
 		stmt.Constraints = &nodes.List{Items: constraints}
 	}
 
+	// ON filegroup
+	if p.cur.Type == kwON {
+		p.advance()
+		if p.isIdentLike() {
+			stmt.OnFilegroup = p.cur.Str
+			p.advance()
+		}
+	}
+
+	// TEXTIMAGE_ON filegroup
+	if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "textimage_on") {
+		p.advance()
+		if p.isIdentLike() {
+			stmt.TextImageOn = p.cur.Str
+			p.advance()
+		}
+	}
+
+	// FILESTREAM_ON filegroup
+	if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "filestream_on") {
+		p.advance()
+		if p.isIdentLike() {
+			stmt.FilestreamOn = p.cur.Str
+			p.advance()
+		}
+	}
+
+	// WITH ( table_options )
+	if p.cur.Type == kwWITH {
+		p.advance()
+		stmt.TableOptions = p.parseTableOptions()
+	}
+
 	stmt.Loc.End = p.pos()
 	return stmt
 }
 
+// parseTableOptions parses ( option = value [, ...] ) for CREATE TABLE WITH clause.
+//
+//	<table_option> ::=
+//	    DATA_COMPRESSION = { NONE | ROW | PAGE }
+//	  | XML_COMPRESSION = { ON | OFF }
+//	  | MEMORY_OPTIMIZED = ON
+//	  | DURABILITY = { SCHEMA_ONLY | SCHEMA_AND_DATA }
+//	  | SYSTEM_VERSIONING = ON [ ( HISTORY_TABLE = schema.table [, DATA_CONSISTENCY_CHECK = { ON | OFF } ] ) ]
+//	  | LEDGER = ON | OFF
+func (p *Parser) parseTableOptions() *nodes.List {
+	if p.cur.Type != '(' {
+		return nil
+	}
+	p.advance()
+
+	var items []nodes.Node
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		opt := p.parseOneTableOption()
+		if opt != nil {
+			items = append(items, opt)
+		}
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	p.expect(')')
+
+	if len(items) == 0 {
+		return nil
+	}
+	return &nodes.List{Items: items}
+}
+
+// parseOneTableOption parses a single NAME = VALUE table option.
+func (p *Parser) parseOneTableOption() *nodes.TableOption {
+	loc := p.pos()
+	if !p.isIdentLike() {
+		return nil
+	}
+	name := strings.ToUpper(p.cur.Str)
+	p.advance()
+
+	opt := &nodes.TableOption{
+		Name: name,
+		Loc:  nodes.Loc{Start: loc},
+	}
+
+	// Expect '='
+	if p.cur.Type != '=' {
+		opt.Loc.End = p.pos()
+		return opt
+	}
+	p.advance()
+
+	// SYSTEM_VERSIONING = ON [ ( ... ) ]
+	if name == "SYSTEM_VERSIONING" {
+		if p.isIdentLike() {
+			opt.Value = strings.ToUpper(p.cur.Str)
+			p.advance()
+		}
+		// Optional sub-options
+		if opt.Value == "ON" && p.cur.Type == '(' {
+			p.advance()
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				if p.isIdentLike() {
+					subName := strings.ToUpper(p.cur.Str)
+					p.advance()
+					if p.cur.Type == '=' {
+						p.advance()
+					}
+					switch subName {
+					case "HISTORY_TABLE":
+						// schema.table - collect dotted name
+						var parts []string
+						if p.isIdentLike() {
+							parts = append(parts, p.cur.Str)
+							p.advance()
+						}
+						for p.cur.Type == '.' {
+							p.advance()
+							if p.isIdentLike() {
+								parts = append(parts, p.cur.Str)
+								p.advance()
+							}
+						}
+						opt.HistoryTable = strings.Join(parts, ".")
+					case "DATA_CONSISTENCY_CHECK":
+						if p.isIdentLike() {
+							opt.DataConsistencyCheck = strings.ToUpper(p.cur.Str)
+							p.advance()
+						}
+					case "HISTORY_RETENTION_PERIOD":
+						// Collect value tokens until comma or paren
+						var valParts []string
+						for p.cur.Type != ',' && p.cur.Type != ')' && p.cur.Type != tokEOF {
+							valParts = append(valParts, p.cur.Str)
+							p.advance()
+						}
+						opt.HistoryRetentionPeriod = strings.Join(valParts, " ")
+					default:
+						// Skip unknown sub-option value
+						if p.isIdentLike() {
+							p.advance()
+						}
+					}
+				}
+				if _, ok := p.match(','); !ok {
+					break
+				}
+			}
+			p.expect(')')
+		}
+	} else {
+		// Simple NAME = VALUE
+		if p.isIdentLike() {
+			opt.Value = strings.ToUpper(p.cur.Str)
+			p.advance()
+		} else if p.cur.Type == kwON {
+			opt.Value = "ON"
+			p.advance()
+		} else if p.cur.Type == kwOFF {
+			opt.Value = "OFF"
+			p.advance()
+		}
+	}
+
+	opt.Loc.End = p.pos()
+	return opt
+}
+
 // parseColumnDef parses a column definition.
 //
-//	col_def = name type [IDENTITY(seed,incr)] [NULL|NOT NULL] [DEFAULT expr]
-//	          [CONSTRAINT name ...] [COLLATE name]
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-table-transact-sql
+//
+//	<column_definition> ::=
+//	column_name <data_type>
+//	    [ FILESTREAM ]
+//	    [ COLLATE collation_name ]
+//	    [ SPARSE ]
+//	    [ MASKED WITH ( FUNCTION = 'mask_function' ) ]
+//	    [ [ CONSTRAINT constraint_name ] DEFAULT constant_expression ]
+//	    [ IDENTITY [ ( seed , increment ) ] ]
+//	    [ NOT FOR REPLICATION ]
+//	    [ GENERATED ALWAYS AS { ROW | TRANSACTION_ID | SEQUENCE_NUMBER }
+//	      { START | END } [ HIDDEN ] ]
+//	    [ [ CONSTRAINT constraint_name ] { NULL | NOT NULL } ]
+//	    [ ROWGUIDCOL ]
+//	    [ ENCRYPTED WITH
+//	        ( COLUMN_ENCRYPTION_KEY = key_name ,
+//	          ENCRYPTION_TYPE = { DETERMINISTIC | RANDOMIZED } ,
+//	          ALGORITHM = 'AEAD_AES_256_CBC_HMAC_SHA_256'
+//	        ) ]
+//	    [ <column_constraint> [ ,...n ] ]
 func (p *Parser) parseColumnDef() *nodes.ColumnDef {
 	loc := p.pos()
 
@@ -106,25 +331,105 @@ func (p *Parser) parseColumnDef() *nodes.ColumnDef {
 	for {
 		consumed := false
 
+		// FILESTREAM
+		if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "filestream") {
+			col.Filestream = true
+			p.advance()
+			consumed = true
+		}
+
+		// SPARSE
+		if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "sparse") {
+			col.Sparse = true
+			p.advance()
+			consumed = true
+		}
+
+		// ROWGUIDCOL
+		if p.cur.Type == kwROWGUIDCOL {
+			col.Rowguidcol = true
+			p.advance()
+			consumed = true
+		}
+
+		// HIDDEN (standalone, not after GENERATED ALWAYS)
+		if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "hidden") {
+			col.Hidden = true
+			p.advance()
+			consumed = true
+		}
+
+		// MASKED WITH (FUNCTION = 'mask_function')
+		if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "masked") {
+			p.advance() // MASKED
+			if p.cur.Type == kwWITH {
+				p.advance() // WITH
+				if p.cur.Type == '(' {
+					p.advance()
+					// FUNCTION = 'value'
+					if p.isIdentLike() && strings.EqualFold(p.cur.Str, "function") {
+						p.advance()
+						if p.cur.Type == '=' {
+							p.advance()
+						}
+						if p.cur.Type == tokSCONST {
+							col.MaskFunction = p.cur.Str
+							p.advance()
+						}
+					}
+					p.expect(')')
+				}
+			}
+			consumed = true
+		}
+
+		// ENCRYPTED WITH (...)
+		if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "encrypted") {
+			col.EncryptedWith = p.parseEncryptedWith()
+			consumed = true
+		}
+
+		// GENERATED ALWAYS AS { ROW | TRANSACTION_ID | SEQUENCE_NUMBER } { START | END } [ HIDDEN ]
+		if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "generated") {
+			col.GeneratedAlways = p.parseGeneratedAlways()
+			// GENERATED ALWAYS ... HIDDEN
+			if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "hidden") {
+				col.Hidden = true
+				p.advance()
+			}
+			consumed = true
+		}
+
 		// IDENTITY
 		if p.cur.Type == kwIDENTITY {
 			col.Identity = p.parseIdentitySpec()
 			consumed = true
 		}
 
-		// NULL / NOT NULL
-		if p.cur.Type == kwNULL {
-			p.advance()
-			col.Nullable = &nodes.NullableSpec{NotNull: false, Loc: nodes.Loc{Start: p.pos()}}
-			consumed = true
-		} else if p.cur.Type == kwNOT {
+		// NOT FOR REPLICATION / NOT NULL
+		if p.cur.Type == kwNOT {
 			next := p.peekNext()
 			if next.Type == kwNULL {
 				p.advance() // NOT
 				p.advance() // NULL
 				col.Nullable = &nodes.NullableSpec{NotNull: true, Loc: nodes.Loc{Start: p.pos()}}
 				consumed = true
+			} else if next.Type == kwFOR {
+				p.advance() // NOT
+				p.advance() // FOR
+				if p.cur.Type == kwREPLICATION {
+					p.advance()
+				}
+				col.NotForReplication = true
+				consumed = true
 			}
+		}
+
+		// NULL
+		if p.cur.Type == kwNULL {
+			p.advance()
+			col.Nullable = &nodes.NullableSpec{NotNull: false, Loc: nodes.Loc{Start: p.pos()}}
+			consumed = true
 		}
 
 		// DEFAULT
@@ -199,6 +504,118 @@ func (p *Parser) parseColumnDef() *nodes.ColumnDef {
 
 	col.Loc.End = p.pos()
 	return col
+}
+
+// parseEncryptedWith parses ENCRYPTED WITH (...).
+//
+//	ENCRYPTED WITH
+//	    ( COLUMN_ENCRYPTION_KEY = key_name ,
+//	      ENCRYPTION_TYPE = { DETERMINISTIC | RANDOMIZED } ,
+//	      ALGORITHM = 'AEAD_AES_256_CBC_HMAC_SHA_256'
+//	    )
+func (p *Parser) parseEncryptedWith() *nodes.EncryptedWithSpec {
+	loc := p.pos()
+	p.advance() // ENCRYPTED
+
+	spec := &nodes.EncryptedWithSpec{
+		Loc: nodes.Loc{Start: loc},
+	}
+
+	if p.cur.Type != kwWITH {
+		spec.Loc.End = p.pos()
+		return spec
+	}
+	p.advance() // WITH
+
+	if p.cur.Type != '(' {
+		spec.Loc.End = p.pos()
+		return spec
+	}
+	p.advance()
+
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		if p.isIdentLike() {
+			optName := strings.ToUpper(p.cur.Str)
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			switch optName {
+			case "COLUMN_ENCRYPTION_KEY":
+				if p.isIdentLike() {
+					spec.ColumnEncryptionKey = p.cur.Str
+					p.advance()
+				}
+			case "ENCRYPTION_TYPE":
+				if p.isIdentLike() {
+					spec.EncryptionType = strings.ToUpper(p.cur.Str)
+					p.advance()
+				}
+			case "ALGORITHM":
+				if p.cur.Type == tokSCONST {
+					spec.Algorithm = p.cur.Str
+					p.advance()
+				}
+			default:
+				if p.isIdentLike() || p.cur.Type == tokSCONST {
+					p.advance()
+				}
+			}
+		}
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	p.expect(')')
+
+	spec.Loc.End = p.pos()
+	return spec
+}
+
+// parseGeneratedAlways parses GENERATED ALWAYS AS { ROW | TRANSACTION_ID | SEQUENCE_NUMBER } { START | END }.
+//
+//	GENERATED ALWAYS AS { ROW | TRANSACTION_ID | SEQUENCE_NUMBER } { START | END } [ HIDDEN ]
+func (p *Parser) parseGeneratedAlways() *nodes.GeneratedAlwaysSpec {
+	loc := p.pos()
+	p.advance() // GENERATED
+
+	spec := &nodes.GeneratedAlwaysSpec{
+		Loc: nodes.Loc{Start: loc},
+	}
+
+	// ALWAYS
+	if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "always") {
+		p.advance()
+	}
+
+	// AS
+	if p.cur.Type == kwAS {
+		p.advance()
+	}
+
+	// ROW | TRANSACTION_ID | SEQUENCE_NUMBER
+	if p.isIdentLike() {
+		kind := strings.ToUpper(p.cur.Str)
+		p.advance()
+		spec.Kind = kind
+	}
+
+	// START | END
+	if p.isIdentLike() {
+		startEnd := strings.ToUpper(p.cur.Str)
+		if startEnd == "START" || startEnd == "END" {
+			spec.StartEnd = startEnd
+			p.advance()
+		}
+	}
+	// Handle END keyword (it's a reserved keyword kwEND)
+	if p.cur.Type == kwEND {
+		spec.StartEnd = "END"
+		p.advance()
+	}
+
+	spec.Loc.End = p.pos()
+	return spec
 }
 
 // parseIdentitySpec parses IDENTITY(seed, increment).

@@ -1211,9 +1211,19 @@
       "file": "service_broker.go",
       "status": "done",
       "description": "Fix batch 46 gap: Implement missing CREATE ROUTE, CREATE REMOTE SERVICE BINDING, GET CONVERSATION GROUP parsers (rules listed but no functions exist)",
-      "rules": ["parseCreateRouteStmt", "parseCreateRemoteServiceBindingStmt", "parseGetConversationGroupStmt"],
-      "depends_on": [46],
-      "tests": ["create_route", "create_remote_service_binding", "get_conversation_group"]
+      "rules": [
+        "parseCreateRouteStmt",
+        "parseCreateRemoteServiceBindingStmt",
+        "parseGetConversationGroupStmt"
+      ],
+      "depends_on": [
+        46
+      ],
+      "tests": [
+        "create_route",
+        "create_remote_service_binding",
+        "get_conversation_group"
+      ]
     },
     {
       "id": 51,
@@ -1221,9 +1231,20 @@
       "file": "utility.go",
       "status": "done",
       "description": "Fix batch 24 gap: Wire up ALTER TRIGGER in parseAlterStmt dispatcher + implement DISABLE TRIGGER and ENABLE TRIGGER statements",
-      "rules": ["parseDisableTriggerStmt", "parseEnableTriggerStmt", "alter_trigger_dispatch"],
-      "depends_on": [24, 49],
-      "tests": ["alter_trigger", "disable_trigger", "enable_trigger"]
+      "rules": [
+        "parseDisableTriggerStmt",
+        "parseEnableTriggerStmt",
+        "alter_trigger_dispatch"
+      ],
+      "depends_on": [
+        24,
+        49
+      ],
+      "tests": [
+        "alter_trigger",
+        "disable_trigger",
+        "enable_trigger"
+      ]
     },
     {
       "id": 52,
@@ -1231,9 +1252,26 @@
       "file": "service_broker.go",
       "status": "done",
       "description": "New: ALTER/DROP for Service Broker objects (MESSAGE TYPE, CONTRACT, QUEUE, SERVICE, ROUTE, REMOTE SERVICE BINDING), CREATE/ALTER/DROP BROKER PRIORITY, MOVE CONVERSATION",
-      "rules": ["parseAlterQueueStmt", "parseAlterServiceStmt", "parseAlterRouteStmt", "parseAlterRemoteServiceBindingStmt", "parseDropServiceBrokerStmt", "parseCreateBrokerPriorityStmt", "parseMoveConversationStmt"],
-      "depends_on": [50],
-      "tests": ["alter_queue", "alter_service", "alter_route", "drop_service_broker", "broker_priority", "move_conversation"]
+      "rules": [
+        "parseAlterQueueStmt",
+        "parseAlterServiceStmt",
+        "parseAlterRouteStmt",
+        "parseAlterRemoteServiceBindingStmt",
+        "parseDropServiceBrokerStmt",
+        "parseCreateBrokerPriorityStmt",
+        "parseMoveConversationStmt"
+      ],
+      "depends_on": [
+        50
+      ],
+      "tests": [
+        "alter_queue",
+        "alter_service",
+        "alter_route",
+        "drop_service_broker",
+        "broker_priority",
+        "move_conversation"
+      ]
     },
     {
       "id": 53,
@@ -1241,9 +1279,20 @@
       "file": "security_principals.go",
       "status": "done",
       "description": "New: EXECUTE AS (impersonation context switching), REVERT, ALTER AUTHORIZATION (ownership transfer)",
-      "rules": ["parseExecuteAsStmt", "parseRevertStmt", "parseAlterAuthorizationStmt"],
-      "depends_on": [19, 30],
-      "tests": ["execute_as", "revert", "alter_authorization"]
+      "rules": [
+        "parseExecuteAsStmt",
+        "parseRevertStmt",
+        "parseAlterAuthorizationStmt"
+      ],
+      "depends_on": [
+        19,
+        30
+      ],
+      "tests": [
+        "execute_as",
+        "revert",
+        "alter_authorization"
+      ]
     },
     {
       "id": 54,
@@ -1251,9 +1300,22 @@
       "file": "security_audit.go",
       "status": "done",
       "description": "New: CREATE/ALTER/DROP SERVER AUDIT, SERVER AUDIT SPECIFICATION, DATABASE AUDIT SPECIFICATION",
-      "rules": ["parseCreateServerAuditStmt", "parseAlterServerAuditStmt", "parseDropServerAuditStmt", "parseCreateServerAuditSpecStmt", "parseCreateDatabaseAuditSpecStmt"],
-      "depends_on": [1, 3],
-      "tests": ["server_audit", "server_audit_spec", "database_audit_spec"]
+      "rules": [
+        "parseCreateServerAuditStmt",
+        "parseAlterServerAuditStmt",
+        "parseDropServerAuditStmt",
+        "parseCreateServerAuditSpecStmt",
+        "parseCreateDatabaseAuditSpecStmt"
+      ],
+      "depends_on": [
+        1,
+        3
+      ],
+      "tests": [
+        "server_audit",
+        "server_audit_spec",
+        "database_audit_spec"
+      ]
     },
     {
       "id": 55,
@@ -1261,9 +1323,19 @@
       "file": "endpoint.go",
       "status": "done",
       "description": "New: CREATE/ALTER/DROP ENDPOINT with TCP/HTTP protocol options, SOAP/TSQL/SERVICE_BROKER/DATABASE_MIRRORING payloads",
-      "rules": ["parseCreateEndpointStmt", "parseAlterEndpointStmt", "parseDropEndpointStmt"],
-      "depends_on": [1],
-      "tests": ["create_endpoint", "alter_endpoint", "drop_endpoint"]
+      "rules": [
+        "parseCreateEndpointStmt",
+        "parseAlterEndpointStmt",
+        "parseDropEndpointStmt"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "create_endpoint",
+        "alter_endpoint",
+        "drop_endpoint"
+      ]
     },
     {
       "id": 56,
@@ -1271,9 +1343,21 @@
       "file": "event.go",
       "status": "done",
       "description": "New: CREATE/ALTER/DROP EVENT NOTIFICATION, CREATE/ALTER/DROP EVENT SESSION (Extended Events)",
-      "rules": ["parseCreateEventNotificationStmt", "parseDropEventNotificationStmt", "parseCreateEventSessionStmt", "parseAlterEventSessionStmt", "parseDropEventSessionStmt"],
-      "depends_on": [1, 3],
-      "tests": ["event_notification", "event_session"]
+      "rules": [
+        "parseCreateEventNotificationStmt",
+        "parseDropEventNotificationStmt",
+        "parseCreateEventSessionStmt",
+        "parseAlterEventSessionStmt",
+        "parseDropEventSessionStmt"
+      ],
+      "depends_on": [
+        1,
+        3
+      ],
+      "tests": [
+        "event_notification",
+        "event_session"
+      ]
     },
     {
       "id": 57,
@@ -1281,9 +1365,22 @@
       "file": "external.go",
       "status": "done",
       "description": "New: CREATE/ALTER/DROP EXTERNAL DATA SOURCE, EXTERNAL TABLE, EXTERNAL FILE FORMAT for PolyBase",
-      "rules": ["parseCreateExternalDataSourceStmt", "parseCreateExternalTableStmt", "parseCreateExternalFileFormatStmt", "parseAlterExternalDataSourceStmt", "parseDropExternalStmt"],
-      "depends_on": [1, 2],
-      "tests": ["external_data_source", "external_table", "external_file_format"]
+      "rules": [
+        "parseCreateExternalDataSourceStmt",
+        "parseCreateExternalTableStmt",
+        "parseCreateExternalFileFormatStmt",
+        "parseAlterExternalDataSourceStmt",
+        "parseDropExternalStmt"
+      ],
+      "depends_on": [
+        1,
+        2
+      ],
+      "tests": [
+        "external_data_source",
+        "external_table",
+        "external_file_format"
+      ]
     },
     {
       "id": 58,
@@ -1291,9 +1388,23 @@
       "file": "security_keys.go",
       "status": "done",
       "description": "New: CREATE/ALTER/DROP COLUMN ENCRYPTION KEY, COLUMN MASTER KEY, DATABASE ENCRYPTION KEY, DATABASE SCOPED CREDENTIAL, CRYPTOGRAPHIC PROVIDER",
-      "rules": ["parseCreateColumnEncryptionKeyStmt", "parseCreateColumnMasterKeyStmt", "parseCreateDatabaseEncryptionKeyStmt", "parseCreateDatabaseScopedCredentialStmt", "parseCreateCryptographicProviderStmt"],
-      "depends_on": [31],
-      "tests": ["column_encryption_key", "column_master_key", "database_encryption_key", "database_scoped_credential", "cryptographic_provider"]
+      "rules": [
+        "parseCreateColumnEncryptionKeyStmt",
+        "parseCreateColumnMasterKeyStmt",
+        "parseCreateDatabaseEncryptionKeyStmt",
+        "parseCreateDatabaseScopedCredentialStmt",
+        "parseCreateCryptographicProviderStmt"
+      ],
+      "depends_on": [
+        31
+      ],
+      "tests": [
+        "column_encryption_key",
+        "column_master_key",
+        "database_encryption_key",
+        "database_scoped_credential",
+        "cryptographic_provider"
+      ]
     },
     {
       "id": 59,
@@ -1301,9 +1412,21 @@
       "file": "resource_governor.go",
       "status": "done",
       "description": "New: CREATE/ALTER/DROP WORKLOAD GROUP, RESOURCE POOL, EXTERNAL RESOURCE POOL, ALTER RESOURCE GOVERNOR",
-      "rules": ["parseCreateWorkloadGroupStmt", "parseCreateResourcePoolStmt", "parseCreateExternalResourcePoolStmt", "parseAlterResourceGovernorStmt"],
-      "depends_on": [1, 3],
-      "tests": ["workload_group", "resource_pool", "alter_resource_governor"]
+      "rules": [
+        "parseCreateWorkloadGroupStmt",
+        "parseCreateResourcePoolStmt",
+        "parseCreateExternalResourcePoolStmt",
+        "parseAlterResourceGovernorStmt"
+      ],
+      "depends_on": [
+        1,
+        3
+      ],
+      "tests": [
+        "workload_group",
+        "resource_pool",
+        "alter_resource_governor"
+      ]
     },
     {
       "id": 60,
@@ -1311,9 +1434,24 @@
       "file": "server.go",
       "status": "done",
       "description": "New: CREATE/ALTER/DROP SERVER ROLE, ALTER SERVER CONFIGURATION, ALTER/BACKUP/RESTORE SERVICE MASTER KEY",
-      "rules": ["parseCreateServerRoleStmt", "parseAlterServerRoleStmt", "parseDropServerRoleStmt", "parseAlterServerConfigurationStmt", "parseAlterServiceMasterKeyStmt", "parseBackupServiceMasterKeyStmt", "parseRestoreServiceMasterKeyStmt"],
-      "depends_on": [1, 30],
-      "tests": ["server_role", "alter_server_configuration", "service_master_key"]
+      "rules": [
+        "parseCreateServerRoleStmt",
+        "parseAlterServerRoleStmt",
+        "parseDropServerRoleStmt",
+        "parseAlterServerConfigurationStmt",
+        "parseAlterServiceMasterKeyStmt",
+        "parseBackupServiceMasterKeyStmt",
+        "parseRestoreServiceMasterKeyStmt"
+      ],
+      "depends_on": [
+        1,
+        30
+      ],
+      "tests": [
+        "server_role",
+        "alter_server_configuration",
+        "service_master_key"
+      ]
     },
     {
       "id": 61,
@@ -1321,9 +1459,21 @@
       "file": "fulltext.go",
       "status": "done",
       "description": "New: CREATE/ALTER/DROP FULLTEXT STOPLIST, CREATE/ALTER/DROP SEARCH PROPERTY LIST",
-      "rules": ["parseCreateFulltextStoplistStmt", "parseAlterFulltextStoplistStmt", "parseDropFulltextStoplistStmt", "parseCreateSearchPropertyListStmt", "parseAlterSearchPropertyListStmt", "parseDropSearchPropertyListStmt"],
-      "depends_on": [43],
-      "tests": ["fulltext_stoplist", "search_property_list"]
+      "rules": [
+        "parseCreateFulltextStoplistStmt",
+        "parseAlterFulltextStoplistStmt",
+        "parseDropFulltextStoplistStmt",
+        "parseCreateSearchPropertyListStmt",
+        "parseAlterSearchPropertyListStmt",
+        "parseDropSearchPropertyListStmt"
+      ],
+      "depends_on": [
+        43
+      ],
+      "tests": [
+        "fulltext_stoplist",
+        "search_property_list"
+      ]
     },
     {
       "id": 62,
@@ -1331,9 +1481,24 @@
       "file": "security_misc.go",
       "status": "done",
       "description": "New: CREATE/ALTER/DROP SECURITY POLICY (row-level security), ADD/DROP SENSITIVITY CLASSIFICATION, ADD/DROP SIGNATURE",
-      "rules": ["parseCreateSecurityPolicyStmt", "parseAlterSecurityPolicyStmt", "parseDropSecurityPolicyStmt", "parseAddSensitivityClassificationStmt", "parseDropSensitivityClassificationStmt", "parseAddSignatureStmt", "parseDropSignatureStmt"],
-      "depends_on": [1, 3],
-      "tests": ["security_policy", "sensitivity_classification", "signature"]
+      "rules": [
+        "parseCreateSecurityPolicyStmt",
+        "parseAlterSecurityPolicyStmt",
+        "parseDropSecurityPolicyStmt",
+        "parseAddSensitivityClassificationStmt",
+        "parseDropSensitivityClassificationStmt",
+        "parseAddSignatureStmt",
+        "parseDropSignatureStmt"
+      ],
+      "depends_on": [
+        1,
+        3
+      ],
+      "tests": [
+        "security_policy",
+        "sensitivity_classification",
+        "signature"
+      ]
     },
     {
       "id": 63,
@@ -1341,9 +1506,22 @@
       "file": "create_index.go",
       "status": "done",
       "description": "New: CREATE/ALTER/DROP XML INDEX, SELECTIVE XML INDEX, SPATIAL INDEX; CREATE/ALTER/DROP AGGREGATE (CLR)",
-      "rules": ["parseCreateXmlIndexStmt", "parseCreateSelectiveXmlIndexStmt", "parseCreateSpatialIndexStmt", "parseCreateAggregateStmt", "parseDropAggregateStmt"],
-      "depends_on": [10],
-      "tests": ["xml_index", "selective_xml_index", "spatial_index", "aggregate"]
+      "rules": [
+        "parseCreateXmlIndexStmt",
+        "parseCreateSelectiveXmlIndexStmt",
+        "parseCreateSpatialIndexStmt",
+        "parseCreateAggregateStmt",
+        "parseDropAggregateStmt"
+      ],
+      "depends_on": [
+        10
+      ],
+      "tests": [
+        "xml_index",
+        "selective_xml_index",
+        "spatial_index",
+        "aggregate"
+      ]
     },
     {
       "id": 64,
@@ -1351,9 +1529,26 @@
       "file": "backup_restore.go",
       "status": "done",
       "description": "New: RESTORE VERIFYONLY, RESTORE LABELONLY, RESTORE REWINDONLY; OPEN/CLOSE MASTER KEY; BACKUP/RESTORE MASTER KEY",
-      "rules": ["parseRestoreVerifyonlyStmt", "parseRestoreLabelonlyStmt", "parseRestoreRewindonlyStmt", "parseOpenMasterKeyStmt", "parseCloseMasterKeyStmt", "parseBackupMasterKeyStmt", "parseRestoreMasterKeyStmt"],
-      "depends_on": [34, 31],
-      "tests": ["restore_verifyonly", "restore_labelonly", "open_master_key", "close_master_key", "backup_master_key"]
+      "rules": [
+        "parseRestoreVerifyonlyStmt",
+        "parseRestoreLabelonlyStmt",
+        "parseRestoreRewindonlyStmt",
+        "parseOpenMasterKeyStmt",
+        "parseCloseMasterKeyStmt",
+        "parseBackupMasterKeyStmt",
+        "parseRestoreMasterKeyStmt"
+      ],
+      "depends_on": [
+        34,
+        31
+      ],
+      "tests": [
+        "restore_verifyonly",
+        "restore_labelonly",
+        "open_master_key",
+        "close_master_key",
+        "backup_master_key"
+      ]
     },
     {
       "id": 65,
@@ -1361,9 +1556,21 @@
       "file": "external.go",
       "status": "done",
       "description": "New: CREATE/ALTER/DROP EXTERNAL LIBRARY, CREATE/ALTER/DROP EXTERNAL LANGUAGE",
-      "rules": ["parseCreateExternalLibraryStmt", "parseAlterExternalLibraryStmt", "parseDropExternalLibraryStmt", "parseCreateExternalLanguageStmt", "parseAlterExternalLanguageStmt", "parseDropExternalLanguageStmt"],
-      "depends_on": [57],
-      "tests": ["external_library", "external_language"]
+      "rules": [
+        "parseCreateExternalLibraryStmt",
+        "parseAlterExternalLibraryStmt",
+        "parseDropExternalLibraryStmt",
+        "parseCreateExternalLanguageStmt",
+        "parseAlterExternalLanguageStmt",
+        "parseDropExternalLanguageStmt"
+      ],
+      "depends_on": [
+        57
+      ],
+      "tests": [
+        "external_library",
+        "external_language"
+      ]
     },
     {
       "id": 66,
@@ -1371,9 +1578,18 @@
       "file": "availability.go",
       "status": "done",
       "description": "New: CREATE/ALTER/DROP AVAILABILITY GROUP for Always On high availability",
-      "rules": ["parseCreateAvailabilityGroupStmt", "parseAlterAvailabilityGroupStmt", "parseDropAvailabilityGroupStmt"],
-      "depends_on": [1],
-      "tests": ["create_availability_group", "alter_availability_group"]
+      "rules": [
+        "parseCreateAvailabilityGroupStmt",
+        "parseAlterAvailabilityGroupStmt",
+        "parseDropAvailabilityGroupStmt"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "create_availability_group",
+        "alter_availability_group"
+      ]
     },
     {
       "id": 67,
@@ -1381,9 +1597,20 @@
       "file": "utility.go",
       "status": "done",
       "description": "New: CREATE DEFAULT, CREATE RULE (deprecated but still valid T-SQL), ALTER DATABASE SCOPED CONFIGURATION",
-      "rules": ["parseCreateDefaultStmt", "parseCreateRuleStmt", "parseAlterDatabaseScopedConfigStmt"],
-      "depends_on": [1, 3],
-      "tests": ["create_default", "create_rule", "alter_database_scoped_config"]
+      "rules": [
+        "parseCreateDefaultStmt",
+        "parseCreateRuleStmt",
+        "parseAlterDatabaseScopedConfigStmt"
+      ],
+      "depends_on": [
+        1,
+        3
+      ],
+      "tests": [
+        "create_default",
+        "create_rule",
+        "alter_database_scoped_config"
+      ]
     },
     {
       "id": 68,
@@ -1391,10 +1618,107 @@
       "file": "parser.go",
       "status": "done",
       "description": "Wire up all new statement parsers (batches 50-67) into parseStmt, parseCreateStmt, parseAlterStmt, and parseDropOrSecurityStmt dispatchers",
-      "rules": ["stmt_dispatch_phase3"],
-      "depends_on": [49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67],
-      "tests": ["integration_phase3"]
+      "rules": [
+        "stmt_dispatch_phase3"
+      ],
+      "depends_on": [
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67
+      ],
+      "tests": [
+        "integration_phase3"
+      ]
+    },
+    {
+      "id": 69,
+      "name": "create_table_depth",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "Fix batch 8 gap: add temporal table support (PERIOD FOR SYSTEM_TIME, SYSTEM_VERSIONING), advanced column options (SPARSE, FILESTREAM, ROWGUIDCOL, ENCRYPTED WITH, MASKED WITH, HIDDEN, GENERATED ALWAYS AS ROW START/END), table-level storage (ON filegroup, TEXTIMAGE_ON, MEMORY_OPTIMIZED, DURABILITY)",
+      "rules": [
+        "parseTemporalPeriod",
+        "parseColumnOptionSparse",
+        "parseColumnOptionFilestream",
+        "parseColumnOptionRowguidcol",
+        "parseColumnOptionEncrypted",
+        "parseColumnOptionMasked",
+        "parseColumnOptionHidden",
+        "parseColumnOptionGenerated",
+        "parseTableStorageOptions"
+      ],
+      "depends_on": [
+        8
+      ],
+      "tests": [
+        "create_table_temporal",
+        "create_table_sparse",
+        "create_table_masked",
+        "create_table_encrypted",
+        "create_table_memory_optimized"
+      ]
+    },
+    {
+      "id": 70,
+      "name": "alter_table_depth",
+      "file": "alter_table.go",
+      "status": "pending",
+      "description": "Fix batch 9 gap: support comma-separated multiple ALTER TABLE actions, add missing action types (SWITCH PARTITION, CHECK/NOCHECK CONSTRAINT, ENABLE/DISABLE CHANGE_TRACKING, REBUILD PARTITION, SET FILESTREAM_ON/LOCK_ESCALATION), ALTER COLUMN depth (COLLATE, ADD/DROP MASKED, ADD/DROP ROWGUIDCOL, ADD/DROP PERSISTED)",
+      "rules": [
+        "parseAlterTableMultipleActions",
+        "parseAlterTableSwitch",
+        "parseAlterTableCheckConstraint",
+        "parseAlterTableRebuild",
+        "parseAlterColumnExtended"
+      ],
+      "depends_on": [
+        9
+      ],
+      "tests": [
+        "alter_table_multiple_actions",
+        "alter_table_switch_partition",
+        "alter_table_check_nocheck",
+        "alter_table_rebuild",
+        "alter_column_collate"
+      ]
+    },
+    {
+      "id": 71,
+      "name": "routine_options_depth",
+      "file": "create_proc.go",
+      "status": "pending",
+      "description": "Fix batch 12 gap: parse WITH options for CREATE/ALTER PROCEDURE (RECOMPILE, ENCRYPTION, EXECUTE AS) and CREATE/ALTER FUNCTION (SCHEMABINDING, RETURNS NULL ON NULL INPUT, CALLED ON NULL INPUT, EXECUTE AS, INLINE, NATIVE_COMPILATION). Fix batch 11 gap: parse CREATE VIEW WITH options (SCHEMABINDING, VIEW_METADATA, ENCRYPTION)",
+      "rules": [
+        "parseProcedureWithOptions",
+        "parseFunctionWithOptions",
+        "parseViewWithOptions"
+      ],
+      "depends_on": [
+        11,
+        12
+      ],
+      "tests": [
+        "create_proc_with_options",
+        "create_func_with_options",
+        "create_view_with_options"
+      ]
     }
   ],
-  "audit_round": 1
+  "audit_round": 2
 }

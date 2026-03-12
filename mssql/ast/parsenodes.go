@@ -238,7 +238,20 @@ type CreateTableStmt struct {
 	Columns     *List // list of ColumnDef
 	Constraints *List // table-level constraints
 	IfNotExists bool
-	Loc         Loc
+
+	// PERIOD FOR SYSTEM_TIME (start_col, end_col)
+	PeriodStartCol string
+	PeriodEndCol   string
+
+	// Table storage options: ON filegroup, TEXTIMAGE_ON, FILESTREAM_ON
+	OnFilegroup        string
+	TextImageOn        string
+	FilestreamOn       string
+
+	// WITH table options
+	TableOptions *List // list of *TableOption
+
+	Loc Loc
 }
 
 func (n *CreateTableStmt) nodeTag()  {}
@@ -254,7 +267,26 @@ type ColumnDef struct {
 	Collation   string
 	Constraints *List // column-level constraints
 	Nullable    *NullableSpec
-	Loc         Loc
+
+	// Advanced column options
+	Sparse     bool // SPARSE
+	Filestream bool // FILESTREAM
+	Rowguidcol bool // ROWGUIDCOL
+	Hidden     bool // HIDDEN
+
+	// MASKED WITH (FUNCTION = 'mask_function')
+	MaskFunction string
+
+	// ENCRYPTED WITH (COLUMN_ENCRYPTION_KEY = key, ENCRYPTION_TYPE = type, ALGORITHM = alg)
+	EncryptedWith *EncryptedWithSpec
+
+	// GENERATED ALWAYS AS { ROW | TRANSACTION_ID | SEQUENCE_NUMBER } { START | END } [ HIDDEN ]
+	GeneratedAlways *GeneratedAlwaysSpec
+
+	// NOT FOR REPLICATION
+	NotForReplication bool
+
+	Loc Loc
 }
 
 func (n *ColumnDef) nodeTag() {}
@@ -284,6 +316,40 @@ type ComputedColumnDef struct {
 }
 
 func (n *ComputedColumnDef) nodeTag() {}
+
+// EncryptedWithSpec represents ENCRYPTED WITH options for Always Encrypted.
+type EncryptedWithSpec struct {
+	ColumnEncryptionKey string // COLUMN_ENCRYPTION_KEY = key_name
+	EncryptionType      string // DETERMINISTIC | RANDOMIZED
+	Algorithm           string // AEAD_AES_256_CBC_HMAC_SHA_256
+	Loc                 Loc
+}
+
+func (n *EncryptedWithSpec) nodeTag() {}
+
+// GeneratedAlwaysSpec represents GENERATED ALWAYS AS { ROW | TRANSACTION_ID | SEQUENCE_NUMBER } { START | END }.
+type GeneratedAlwaysSpec struct {
+	Kind    string // "ROW", "TRANSACTION_ID", "SEQUENCE_NUMBER"
+	StartEnd string // "START" or "END"
+	Loc     Loc
+}
+
+func (n *GeneratedAlwaysSpec) nodeTag() {}
+
+// TableOption represents a single option in WITH (...) for CREATE TABLE.
+type TableOption struct {
+	Name  string // e.g. MEMORY_OPTIMIZED, DURABILITY, SYSTEM_VERSIONING, DATA_COMPRESSION
+	Value string // e.g. ON, OFF, SCHEMA_ONLY, ROW, PAGE
+
+	// For SYSTEM_VERSIONING = ON (HISTORY_TABLE = schema.table, ...)
+	HistoryTable          string
+	DataConsistencyCheck  string // ON or OFF
+	HistoryRetentionPeriod string
+
+	Loc Loc
+}
+
+func (n *TableOption) nodeTag() {}
 
 // ConstraintDef represents a table or column constraint.
 type ConstraintDef struct {
