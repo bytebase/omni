@@ -1,0 +1,310 @@
+package parser
+
+import (
+	"strconv"
+
+	nodes "github.com/bytebase/omni/mysql/ast"
+)
+
+// parseChangeReplicationSourceStmtInner parses a CHANGE REPLICATION SOURCE TO statement.
+// CHANGE REPLICATION have already been consumed; p.cur is SOURCE.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/change-replication-source-to.html
+//
+//	CHANGE REPLICATION SOURCE TO option [, option] ... [ channel_option ]
+//
+//	option: {
+//	    SOURCE_BIND = 'interface_name'
+//	  | SOURCE_HOST = 'host_name'
+//	  | SOURCE_USER = 'user_name'
+//	  | SOURCE_PASSWORD = 'password'
+//	  | SOURCE_PORT = port_num
+//	  | PRIVILEGE_CHECKS_USER = {NULL | 'account'}
+//	  | REQUIRE_ROW_FORMAT = {0|1}
+//	  | REQUIRE_TABLE_PRIMARY_KEY_CHECK = {STREAM | ON | OFF | GENERATE}
+//	  | ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = {OFF | LOCAL | uuid}
+//	  | SOURCE_LOG_FILE = 'source_log_name'
+//	  | SOURCE_LOG_POS = source_log_pos
+//	  | SOURCE_AUTO_POSITION = {0|1}
+//	  | RELAY_LOG_FILE = 'relay_log_name'
+//	  | RELAY_LOG_POS = relay_log_pos
+//	  | SOURCE_HEARTBEAT_PERIOD = interval
+//	  | SOURCE_CONNECT_RETRY = interval
+//	  | SOURCE_RETRY_COUNT = count
+//	  | SOURCE_CONNECTION_AUTO_FAILOVER = {0|1}
+//	  | SOURCE_DELAY = interval
+//	  | SOURCE_COMPRESSION_ALGORITHMS = 'algorithm[,algorithm][,algorithm]'
+//	  | SOURCE_ZSTD_COMPRESSION_LEVEL = level
+//	  | SOURCE_SSL = {0|1}
+//	  | SOURCE_SSL_CA = 'ca_file_name'
+//	  | SOURCE_SSL_CAPATH = 'ca_directory_name'
+//	  | SOURCE_SSL_CERT = 'cert_file_name'
+//	  | SOURCE_SSL_CRL = 'crl_file_name'
+//	  | SOURCE_SSL_CRLPATH = 'crl_directory_name'
+//	  | SOURCE_SSL_KEY = 'key_file_name'
+//	  | SOURCE_SSL_CIPHER = 'cipher_list'
+//	  | SOURCE_SSL_VERIFY_SERVER_CERT = {0|1}
+//	  | SOURCE_TLS_VERSION = 'protocol_list'
+//	  | SOURCE_TLS_CIPHERSUITES = 'ciphersuite_list'
+//	  | SOURCE_PUBLIC_KEY_PATH = 'key_file_name'
+//	  | GET_SOURCE_PUBLIC_KEY = {0|1}
+//	  | NETWORK_NAMESPACE = 'namespace'
+//	  | IGNORE_SERVER_IDS = (server_id_list)
+//	  | GTID_ONLY = {0|1}
+//	}
+//
+//	channel_option:
+//	    FOR CHANNEL channel
+//
+//	server_id_list:
+//	    [server_id [, server_id] ... ]
+func (p *Parser) parseChangeReplicationSourceStmtInner(start int) (*nodes.ChangeReplicationSourceStmt, error) {
+	// consume SOURCE
+	p.advance()
+	// consume TO
+	p.match(kwTO)
+
+	stmt := &nodes.ChangeReplicationSourceStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Parse options: option [, option] ...
+	for {
+		opt, err := p.parseReplicationSourceOption()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = append(stmt.Options, opt)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+
+	// Optional: FOR CHANNEL channel
+	if p.cur.Type == kwFOR {
+		p.advance() // consume FOR
+		p.advance() // consume CHANNEL (keyword token)
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Channel = name
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseReplicationSourceOption parses a single option in CHANGE REPLICATION SOURCE TO.
+func (p *Parser) parseReplicationSourceOption() (*nodes.ReplicationOption, error) {
+	start := p.pos()
+	opt := &nodes.ReplicationOption{Loc: nodes.Loc{Start: start}}
+
+	// The option name is an identifier (e.g., SOURCE_HOST, SOURCE_PORT, etc.)
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	opt.Name = name
+
+	// consume '='
+	p.match('=')
+
+	// Special case: IGNORE_SERVER_IDS = (id_list)
+	if eqFold(name, "IGNORE_SERVER_IDS") {
+		p.match('(')
+		if p.cur.Type != ')' {
+			for {
+				if p.cur.Type != tokICONST {
+					return nil, &ParseError{Message: "expected integer in server ID list", Position: p.cur.Loc}
+				}
+				id, err := strconv.ParseInt(p.cur.Str, 10, 64)
+				if err != nil {
+					return nil, &ParseError{Message: "invalid integer in server ID list", Position: p.cur.Loc}
+				}
+				opt.IDs = append(opt.IDs, id)
+				p.advance() // consume the number
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance() // consume ','
+			}
+		}
+		p.match(')')
+		opt.Loc.End = p.pos()
+		return opt, nil
+	}
+
+	// For all other options, consume the value token (string, number, identifier, or NULL)
+	switch p.cur.Type {
+	case tokSCONST:
+		opt.Value = p.cur.Str
+		p.advance()
+	case tokICONST, tokFCONST:
+		opt.Value = p.cur.Str
+		p.advance()
+	case kwNULL:
+		opt.Value = "NULL"
+		p.advance()
+	default:
+		// Identifier value (e.g., STREAM, ON, OFF, GENERATE, LOCAL)
+		val, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		opt.Value = val
+	}
+
+	opt.Loc.End = p.pos()
+	return opt, nil
+}
+
+// parseChangeReplicationFilterStmtInner parses a CHANGE REPLICATION FILTER statement.
+// CHANGE REPLICATION have already been consumed; p.cur is FILTER.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/change-replication-filter.html
+//
+//	CHANGE REPLICATION FILTER filter[, filter] [FOR CHANNEL channel]
+//
+//	filter: {
+//	    REPLICATE_DO_DB = (db_list)
+//	  | REPLICATE_IGNORE_DB = (db_list)
+//	  | REPLICATE_DO_TABLE = (tbl_list)
+//	  | REPLICATE_IGNORE_TABLE = (tbl_list)
+//	  | REPLICATE_WILD_DO_TABLE = (wild_tbl_list)
+//	  | REPLICATE_WILD_IGNORE_TABLE = (wild_tbl_list)
+//	  | REPLICATE_REWRITE_DB = (db_pair_list)
+//	}
+//
+//	db_list:
+//	    db_name[, db_name][, ...]
+//
+//	tbl_list:
+//	    db_name.table_name[, db_name.table_name][, ...]
+//
+//	wild_tbl_list:
+//	    'db_pattern.table_pattern'[, 'db_pattern.table_pattern'][, ...]
+//
+//	db_pair_list:
+//	    (db_pair)[, (db_pair)][, ...]
+//
+//	db_pair:
+//	    from_db, to_db
+func (p *Parser) parseChangeReplicationFilterStmtInner(start int) (*nodes.ChangeReplicationFilterStmt, error) {
+	// consume FILTER
+	p.advance()
+
+	stmt := &nodes.ChangeReplicationFilterStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Parse filters: filter[, filter]
+	for {
+		f, err := p.parseReplicationFilter()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Filters = append(stmt.Filters, f)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+
+	// Optional: FOR CHANNEL channel
+	if p.cur.Type == kwFOR {
+		p.advance() // consume FOR
+		p.advance() // consume CHANNEL (keyword token)
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Channel = name
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseReplicationFilter parses a single filter in CHANGE REPLICATION FILTER.
+func (p *Parser) parseReplicationFilter() (*nodes.ReplicationFilter, error) {
+	start := p.pos()
+	f := &nodes.ReplicationFilter{Loc: nodes.Loc{Start: start}}
+
+	// Filter type is an identifier like REPLICATE_DO_DB
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	f.Type = name
+
+	// consume '='
+	p.match('=')
+
+	// consume '('
+	p.match('(')
+
+	// Special case for REPLICATE_REWRITE_DB: (from_db, to_db)[, ...]
+	if eqFold(f.Type, "REPLICATE_REWRITE_DB") {
+		if p.cur.Type != ')' {
+			for {
+				p.match('(') // inner paren
+				fromDB, _, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				p.match(',')
+				toDB, _, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				p.match(')') // close inner paren
+				f.Values = append(f.Values, "("+fromDB+", "+toDB+")")
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance() // consume ','
+			}
+		}
+	} else {
+		// db_list, tbl_list, or wild_tbl_list
+		if p.cur.Type != ')' {
+			for {
+				var val string
+				if p.cur.Type == tokSCONST {
+					// wild pattern like 'db%.tbl%'
+					val = p.cur.Str
+					p.advance()
+				} else {
+					// db_name or db_name.table_name
+					ident, _, err := p.parseIdentifier()
+					if err != nil {
+						return nil, err
+					}
+					val = ident
+					if p.cur.Type == '.' {
+						p.advance() // consume '.'
+						ident2, _, err := p.parseIdentifier()
+						if err != nil {
+							return nil, err
+						}
+						val += "." + ident2
+					}
+				}
+				f.Values = append(f.Values, val)
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance() // consume ','
+			}
+		}
+	}
+
+	p.match(')') // close outer paren
+
+	f.Loc.End = p.pos()
+	return f, nil
+}

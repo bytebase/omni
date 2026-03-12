@@ -224,7 +224,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		// WITH ROLLUP
 		if p.cur.Type == kwWITH {
 			p.advance()
-			p.match(kwROLLUP)
+			if _, ok := p.match(kwROLLUP); ok {
+				stmt.WithRollup = true
+			}
 		}
 	}
 
@@ -478,8 +480,51 @@ func (p *Parser) matchJoinType() (nodes.JoinType, bool) {
 	return 0, false
 }
 
-// parseTableFactor parses a table factor: table_ref, subquery, or parenthesized table_references.
+// parseTableFactor parses a table factor: table_ref, subquery, LATERAL subquery, or parenthesized table_references.
 func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
+	// LATERAL (SELECT ...) — LATERAL derived table
+	if p.cur.Type == kwLATERAL {
+		latStart := p.pos()
+		p.advance() // consume LATERAL
+
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+
+		if p.cur.Type != kwSELECT {
+			return nil, &ParseError{
+				Message:  "expected SELECT after LATERAL (",
+				Position: p.cur.Loc,
+			}
+		}
+
+		sel, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+
+		sub := &nodes.SubqueryExpr{
+			Loc:     nodes.Loc{Start: latStart},
+			Select:  sel,
+			Lateral: true,
+		}
+
+		// Optional alias: [AS] alias
+		if _, ok := p.match(kwAS); ok {
+			alias, _, _ := p.parseIdentifier()
+			sub.Alias = alias
+		} else if p.isIdentToken() && !p.isSelectTerminator() {
+			alias, _, _ := p.parseIdentifier()
+			sub.Alias = alias
+		}
+
+		sub.Loc.End = p.pos()
+		return sub, nil
+	}
+
 	if p.cur.Type == '(' {
 		p.advance()
 
@@ -926,7 +971,7 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, e
 		p.match(kwDISTINCT) // UNION DISTINCT is the default
 	}
 
-	if p.cur.Type != kwSELECT {
+	if p.cur.Type != kwSELECT && p.cur.Type != '(' {
 		return nil, &ParseError{
 			Message:  "expected SELECT after set operation",
 			Position: p.cur.Loc,
@@ -1058,6 +1103,120 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 		p.advance()
 	}
 	return defs, nil
+}
+
+// parseTableStmt parses a TABLE statement (MySQL 8.0.19+).
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/table.html
+//
+//	TABLE table_name [ORDER BY column_name] [LIMIT number [OFFSET number]]
+func (p *Parser) parseTableStmt() (*nodes.TableStmt, error) {
+	start := p.pos()
+	p.advance() // consume TABLE
+
+	ref, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &nodes.TableStmt{
+		Loc:   nodes.Loc{Start: start},
+		Table: ref,
+	}
+
+	// ORDER BY clause
+	if p.cur.Type == kwORDER {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		orderBy, err := p.parseOrderByList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.OrderBy = orderBy
+	}
+
+	// LIMIT clause
+	if _, ok := p.match(kwLIMIT); ok {
+		limit, err := p.parseLimitClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Limit = limit
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseValuesStmt parses a VALUES statement (MySQL 8.0.19+).
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/values.html
+//
+//	VALUES ROW(value_list) [, ROW(value_list)] ...
+//	    [ORDER BY column_designator] [LIMIT number [OFFSET number]]
+func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
+	start := p.pos()
+	p.advance() // consume VALUES
+
+	stmt := &nodes.ValuesStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Parse ROW(...) list
+	for {
+		if _, err := p.expect(kwROW); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+
+		var row []nodes.ExprNode
+		if p.cur.Type != ')' {
+			exprs, err := p.parseExprList()
+			if err != nil {
+				return nil, err
+			}
+			row = exprs
+		}
+
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		stmt.Rows = append(stmt.Rows, row)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	// ORDER BY clause
+	if p.cur.Type == kwORDER {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		orderBy, err := p.parseOrderByList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.OrderBy = orderBy
+	}
+
+	// LIMIT clause
+	if _, ok := p.match(kwLIMIT); ok {
+		limit, err := p.parseLimitClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Limit = limit
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
 }
 
 // parseSubqueryExpr parses a subquery expression: (SELECT ...)

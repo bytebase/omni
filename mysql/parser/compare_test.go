@@ -3664,6 +3664,273 @@ func TestParseShow(t *testing.T) {
 			t.Errorf("Type = %s, want INDEX", stmt.Type)
 		}
 	})
+
+	// Batch 32: Extended SHOW variants
+	t.Run("engines", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW ENGINES")
+		if stmt.Type != "ENGINES" {
+			t.Errorf("Type = %s, want ENGINES", stmt.Type)
+		}
+	})
+
+	t.Run("plugins", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW PLUGINS")
+		if stmt.Type != "PLUGINS" {
+			t.Errorf("Type = %s, want PLUGINS", stmt.Type)
+		}
+	})
+
+	t.Run("master status", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW MASTER STATUS")
+		if stmt.Type != "MASTER STATUS" {
+			t.Errorf("Type = %s, want MASTER STATUS", stmt.Type)
+		}
+	})
+
+	t.Run("slave status", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW SLAVE STATUS")
+		if stmt.Type != "SLAVE STATUS" {
+			t.Errorf("Type = %s, want SLAVE STATUS", stmt.Type)
+		}
+	})
+
+	t.Run("replica status", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW REPLICA STATUS")
+		if stmt.Type != "REPLICA STATUS" {
+			t.Errorf("Type = %s, want REPLICA STATUS", stmt.Type)
+		}
+	})
+
+	t.Run("binary logs", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW BINARY LOGS")
+		if stmt.Type != "BINARY LOGS" {
+			t.Errorf("Type = %s, want BINARY LOGS", stmt.Type)
+		}
+	})
+
+	t.Run("binlog events", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW BINLOG EVENTS")
+		if stmt.Type != "BINLOG EVENTS" {
+			t.Errorf("Type = %s, want BINLOG EVENTS", stmt.Type)
+		}
+	})
+
+	t.Run("binlog events in", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW BINLOG EVENTS IN 'mysql-bin.000001'")
+		if stmt.Type != "BINLOG EVENTS" {
+			t.Errorf("Type = %s, want BINLOG EVENTS", stmt.Type)
+		}
+		if stmt.Like == nil {
+			t.Fatal("Like is nil, expected log name")
+		}
+	})
+
+	t.Run("binlog events limit", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW BINLOG EVENTS LIMIT 10")
+		if stmt.Type != "BINLOG EVENTS" {
+			t.Errorf("Type = %s, want BINLOG EVENTS", stmt.Type)
+		}
+	})
+
+	t.Run("table status", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW TABLE STATUS")
+		if stmt.Type != "TABLE STATUS" {
+			t.Errorf("Type = %s, want TABLE STATUS", stmt.Type)
+		}
+	})
+
+	t.Run("table status from db", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW TABLE STATUS FROM mydb")
+		if stmt.Type != "TABLE STATUS" {
+			t.Errorf("Type = %s, want TABLE STATUS", stmt.Type)
+		}
+		if stmt.From == nil || stmt.From.Name != "mydb" {
+			t.Errorf("From = %v, want mydb", stmt.From)
+		}
+	})
+
+	t.Run("table status like", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW TABLE STATUS LIKE 'user%'")
+		if stmt.Type != "TABLE STATUS" {
+			t.Errorf("Type = %s, want TABLE STATUS", stmt.Type)
+		}
+		if stmt.Like == nil {
+			t.Fatal("Like is nil")
+		}
+	})
+
+	t.Run("triggers", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW TRIGGERS")
+		if stmt.Type != "TRIGGERS" {
+			t.Errorf("Type = %s, want TRIGGERS", stmt.Type)
+		}
+	})
+
+	t.Run("triggers from db", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW TRIGGERS FROM mydb")
+		if stmt.Type != "TRIGGERS" {
+			t.Errorf("Type = %s, want TRIGGERS", stmt.Type)
+		}
+		if stmt.From == nil || stmt.From.Name != "mydb" {
+			t.Errorf("From = %v, want mydb", stmt.From)
+		}
+	})
+
+	t.Run("events", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW EVENTS")
+		if stmt.Type != "EVENTS" {
+			t.Errorf("Type = %s, want EVENTS", stmt.Type)
+		}
+	})
+
+	t.Run("events from db like", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW EVENTS FROM mydb LIKE 'ev%'")
+		if stmt.Type != "EVENTS" {
+			t.Errorf("Type = %s, want EVENTS", stmt.Type)
+		}
+		if stmt.From == nil || stmt.From.Name != "mydb" {
+			t.Errorf("From = %v, want mydb", stmt.From)
+		}
+		if stmt.Like == nil {
+			t.Fatal("Like is nil")
+		}
+	})
+
+	t.Run("procedure status", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW PROCEDURE STATUS")
+		if stmt.Type != "PROCEDURE STATUS" {
+			t.Errorf("Type = %s, want PROCEDURE STATUS", stmt.Type)
+		}
+	})
+
+	t.Run("procedure status like", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW PROCEDURE STATUS LIKE 'proc%'")
+		if stmt.Type != "PROCEDURE STATUS" {
+			t.Errorf("Type = %s, want PROCEDURE STATUS", stmt.Type)
+		}
+		if stmt.Like == nil {
+			t.Fatal("Like is nil")
+		}
+	})
+
+	t.Run("function status", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW FUNCTION STATUS")
+		if stmt.Type != "FUNCTION STATUS" {
+			t.Errorf("Type = %s, want FUNCTION STATUS", stmt.Type)
+		}
+	})
+
+	t.Run("create procedure", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW CREATE PROCEDURE myproc")
+		if stmt.Type != "CREATE PROCEDURE" {
+			t.Errorf("Type = %s, want CREATE PROCEDURE", stmt.Type)
+		}
+		if stmt.From == nil || stmt.From.Name != "myproc" {
+			t.Errorf("From = %v, want myproc", stmt.From)
+		}
+	})
+
+	t.Run("create function", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW CREATE FUNCTION myfunc")
+		if stmt.Type != "CREATE FUNCTION" {
+			t.Errorf("Type = %s, want CREATE FUNCTION", stmt.Type)
+		}
+		if stmt.From == nil || stmt.From.Name != "myfunc" {
+			t.Errorf("From = %v, want myfunc", stmt.From)
+		}
+	})
+
+	t.Run("create trigger", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW CREATE TRIGGER mytrigger")
+		if stmt.Type != "CREATE TRIGGER" {
+			t.Errorf("Type = %s, want CREATE TRIGGER", stmt.Type)
+		}
+		if stmt.From == nil || stmt.From.Name != "mytrigger" {
+			t.Errorf("From = %v, want mytrigger", stmt.From)
+		}
+	})
+
+	t.Run("create event", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW CREATE EVENT myevent")
+		if stmt.Type != "CREATE EVENT" {
+			t.Errorf("Type = %s, want CREATE EVENT", stmt.Type)
+		}
+		if stmt.From == nil || stmt.From.Name != "myevent" {
+			t.Errorf("From = %v, want myevent", stmt.From)
+		}
+	})
+
+	t.Run("open tables", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW OPEN TABLES")
+		if stmt.Type != "OPEN TABLES" {
+			t.Errorf("Type = %s, want OPEN TABLES", stmt.Type)
+		}
+	})
+
+	t.Run("open tables from db", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW OPEN TABLES FROM mydb")
+		if stmt.Type != "OPEN TABLES" {
+			t.Errorf("Type = %s, want OPEN TABLES", stmt.Type)
+		}
+		if stmt.From == nil || stmt.From.Name != "mydb" {
+			t.Errorf("From = %v, want mydb", stmt.From)
+		}
+	})
+
+	t.Run("privileges", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW PRIVILEGES")
+		if stmt.Type != "PRIVILEGES" {
+			t.Errorf("Type = %s, want PRIVILEGES", stmt.Type)
+		}
+	})
+
+	t.Run("profiles", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW PROFILES")
+		if stmt.Type != "PROFILES" {
+			t.Errorf("Type = %s, want PROFILES", stmt.Type)
+		}
+	})
+
+	t.Run("relaylog events", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW RELAYLOG EVENTS")
+		if stmt.Type != "RELAYLOG EVENTS" {
+			t.Errorf("Type = %s, want RELAYLOG EVENTS", stmt.Type)
+		}
+	})
+
+	t.Run("character set", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW CHARACTER SET")
+		if stmt.Type != "CHARACTER SET" {
+			t.Errorf("Type = %s, want CHARACTER SET", stmt.Type)
+		}
+	})
+
+	t.Run("character set like", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW CHARACTER SET LIKE 'utf8%'")
+		if stmt.Type != "CHARACTER SET" {
+			t.Errorf("Type = %s, want CHARACTER SET", stmt.Type)
+		}
+		if stmt.Like == nil {
+			t.Fatal("Like is nil")
+		}
+	})
+
+	t.Run("collation", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW COLLATION")
+		if stmt.Type != "COLLATION" {
+			t.Errorf("Type = %s, want COLLATION", stmt.Type)
+		}
+	})
+
+	t.Run("collation where", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW COLLATION WHERE Charset = 'utf8mb4'")
+		if stmt.Type != "COLLATION" {
+			t.Errorf("Type = %s, want COLLATION", stmt.Type)
+		}
+		if stmt.Where == nil {
+			t.Fatal("Where is nil")
+		}
+	})
 }
 
 func TestParseUse(t *testing.T) {
@@ -3717,6 +3984,151 @@ func TestParseExplain(t *testing.T) {
 			t.Fatal("Stmt is nil")
 		}
 	})
+
+	t.Run("describe table with column", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("DESCRIBE users name")}
+		p.advance()
+		stmt, err := p.parseExplainStmt()
+		if err != nil {
+			t.Fatalf("parseExplainStmt error: %v", err)
+		}
+		if stmt.Stmt == nil {
+			t.Fatal("Stmt is nil")
+		}
+		show, ok := stmt.Stmt.(*ast.ShowStmt)
+		if !ok {
+			t.Fatalf("Stmt type = %T, want *ast.ShowStmt", stmt.Stmt)
+		}
+		if show.Like == nil {
+			t.Error("Like is nil, want column filter")
+		}
+	})
+
+	t.Run("explain analyze select", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("EXPLAIN ANALYZE SELECT * FROM t1")}
+		p.advance()
+		stmt, err := p.parseExplainStmt()
+		if err != nil {
+			t.Fatalf("parseExplainStmt error: %v", err)
+		}
+		if !stmt.Analyze {
+			t.Error("Analyze = false, want true")
+		}
+		if _, ok := stmt.Stmt.(*ast.SelectStmt); !ok {
+			t.Errorf("Stmt type = %T, want *ast.SelectStmt", stmt.Stmt)
+		}
+	})
+
+	t.Run("explain extended select", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("EXPLAIN EXTENDED SELECT * FROM t1")}
+		p.advance()
+		stmt, err := p.parseExplainStmt()
+		if err != nil {
+			t.Fatalf("parseExplainStmt error: %v", err)
+		}
+		if !stmt.Extended {
+			t.Error("Extended = false, want true")
+		}
+	})
+
+	t.Run("explain partitions select", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("EXPLAIN PARTITIONS SELECT * FROM t1")}
+		p.advance()
+		stmt, err := p.parseExplainStmt()
+		if err != nil {
+			t.Fatalf("parseExplainStmt error: %v", err)
+		}
+		if !stmt.Partitions {
+			t.Error("Partitions = false, want true")
+		}
+	})
+
+	t.Run("explain format tree select", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("EXPLAIN FORMAT=TREE SELECT * FROM t1")}
+		p.advance()
+		stmt, err := p.parseExplainStmt()
+		if err != nil {
+			t.Fatalf("parseExplainStmt error: %v", err)
+		}
+		if stmt.Format != "TREE" {
+			t.Errorf("Format = %s, want TREE", stmt.Format)
+		}
+	})
+
+	t.Run("explain insert", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("EXPLAIN INSERT INTO t1 (a) VALUES (1)")}
+		p.advance()
+		stmt, err := p.parseExplainStmt()
+		if err != nil {
+			t.Fatalf("parseExplainStmt error: %v", err)
+		}
+		if _, ok := stmt.Stmt.(*ast.InsertStmt); !ok {
+			t.Errorf("Stmt type = %T, want *ast.InsertStmt", stmt.Stmt)
+		}
+	})
+
+	t.Run("explain update", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("EXPLAIN UPDATE t1 SET a = 1 WHERE id = 2")}
+		p.advance()
+		stmt, err := p.parseExplainStmt()
+		if err != nil {
+			t.Fatalf("parseExplainStmt error: %v", err)
+		}
+		if _, ok := stmt.Stmt.(*ast.UpdateStmt); !ok {
+			t.Errorf("Stmt type = %T, want *ast.UpdateStmt", stmt.Stmt)
+		}
+	})
+
+	t.Run("explain delete", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("EXPLAIN DELETE FROM t1 WHERE id = 1")}
+		p.advance()
+		stmt, err := p.parseExplainStmt()
+		if err != nil {
+			t.Fatalf("parseExplainStmt error: %v", err)
+		}
+		if _, ok := stmt.Stmt.(*ast.DeleteStmt); !ok {
+			t.Errorf("Stmt type = %T, want *ast.DeleteStmt", stmt.Stmt)
+		}
+	})
+
+	t.Run("explain replace", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("EXPLAIN REPLACE INTO t1 (a) VALUES (1)")}
+		p.advance()
+		stmt, err := p.parseExplainStmt()
+		if err != nil {
+			t.Fatalf("parseExplainStmt error: %v", err)
+		}
+		if _, ok := stmt.Stmt.(*ast.InsertStmt); !ok {
+			t.Errorf("Stmt type = %T, want *ast.InsertStmt", stmt.Stmt)
+		}
+	})
+
+	t.Run("explain format json insert", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("EXPLAIN FORMAT=JSON INSERT INTO t1 (a) VALUES (1)")}
+		p.advance()
+		stmt, err := p.parseExplainStmt()
+		if err != nil {
+			t.Fatalf("parseExplainStmt error: %v", err)
+		}
+		if stmt.Format != "JSON" {
+			t.Errorf("Format = %s, want JSON", stmt.Format)
+		}
+		if _, ok := stmt.Stmt.(*ast.InsertStmt); !ok {
+			t.Errorf("Stmt type = %T, want *ast.InsertStmt", stmt.Stmt)
+		}
+	})
+
+	t.Run("explain table name", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("EXPLAIN t1")}
+		p.advance()
+		stmt, err := p.parseExplainStmt()
+		if err != nil {
+			t.Fatalf("parseExplainStmt error: %v", err)
+		}
+		if _, ok := stmt.Stmt.(*ast.ShowStmt); !ok {
+			t.Errorf("Stmt type = %T, want *ast.ShowStmt", stmt.Stmt)
+		}
+	})
 }
 
 // ============================================================================
@@ -3727,10 +4139,11 @@ func TestParseGrant(t *testing.T) {
 	t.Run("all privileges", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("GRANT ALL PRIVILEGES ON *.* TO root")}
 		p.advance()
-		stmt, err := p.parseGrantStmt()
+		node, err := p.parseGrantStmt()
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
+		stmt := node.(*ast.GrantStmt)
 		if !stmt.AllPriv {
 			t.Errorf("AllPriv = false, want true")
 		}
@@ -3742,10 +4155,11 @@ func TestParseGrant(t *testing.T) {
 	t.Run("specific privileges", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("GRANT SELECT, INSERT ON mydb.* TO app_user")}
 		p.advance()
-		stmt, err := p.parseGrantStmt()
+		node, err := p.parseGrantStmt()
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
+		stmt := node.(*ast.GrantStmt)
 		if len(stmt.Privileges) != 2 {
 			t.Fatalf("Privileges count = %d, want 2", len(stmt.Privileges))
 		}
@@ -3754,10 +4168,11 @@ func TestParseGrant(t *testing.T) {
 	t.Run("with grant option", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("GRANT ALL ON *.* TO admin WITH GRANT OPTION")}
 		p.advance()
-		stmt, err := p.parseGrantStmt()
+		node, err := p.parseGrantStmt()
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
+		stmt := node.(*ast.GrantStmt)
 		if !stmt.WithGrant {
 			t.Errorf("WithGrant = false, want true")
 		}
@@ -3767,10 +4182,11 @@ func TestParseGrant(t *testing.T) {
 func TestParseRevoke(t *testing.T) {
 	p := &Parser{lexer: NewLexer("REVOKE SELECT ON mydb.* FROM app_user")}
 	p.advance()
-	stmt, err := p.parseRevokeStmt()
+	node, err := p.parseRevokeStmt()
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
+	stmt := node.(*ast.RevokeStmt)
 	if len(stmt.Privileges) != 1 {
 		t.Fatalf("Privileges count = %d, want 1", len(stmt.Privileges))
 	}
@@ -4202,7 +4618,7 @@ func TestParseMultipleStatements(t *testing.T) {
 			count: 2,
 		},
 		{
-			name:  "all statement types via Parse()",
+			name: "all statement types via Parse()",
 			sql: `SELECT 1;
 INSERT INTO t VALUES (1);
 REPLACE INTO t VALUES (2);
@@ -4237,8 +4653,11 @@ REPAIR TABLE t;
 FLUSH TABLES;
 RESET MASTER;
 KILL 42;
-DO 1`,
-			count: 35,
+DO 1;
+CHECKSUM TABLE t1;
+SHUTDOWN;
+RESTART`,
+			count: 38,
 		},
 	}
 
@@ -4892,6 +5311,1724 @@ func TestParseStmtDispatchAlterVariants(t *testing.T) {
 		"ALTER USER 'user'@'localhost' IDENTIFIED BY 'newpass'",
 	}
 
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// -----------------------------------------------------------------------
+// Batch 29: Compound Statements
+// -----------------------------------------------------------------------
+
+func TestParseBeginEndBlock(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "BEGIN END",
+			want: "{BEGIN_END :loc 0}",
+		},
+		{
+			sql:  "BEGIN SELECT 1; END",
+			want: "{BEGIN_END :loc 0 :stmts {SELECT :loc 6 :targets ({INT_LIT :val 1 :loc 13})}}",
+		},
+		{
+			sql:  "BEGIN SELECT 1; SELECT 2; END",
+			want: "{BEGIN_END :loc 0 :stmts {SELECT :loc 6 :targets ({INT_LIT :val 1 :loc 13})} {SELECT :loc 16 :targets ({INT_LIT :val 2 :loc 23})}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseBeginEndBlock("", 0)
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseBeginEndBlockLabeled(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "myblock: BEGIN END myblock",
+			want: "{BEGIN_END :loc 0 :label myblock}",
+		},
+		{
+			sql:  "lbl: BEGIN SELECT 1; END lbl",
+			want: "{BEGIN_END :loc 0 :label lbl :stmts {SELECT :loc 11 :targets ({INT_LIT :val 1 :loc 18})}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseCompoundStmtOrStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseDeclareVar(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "DECLARE x INT",
+			want: "{DECLARE_VAR :loc 0 :names x :type {DATATYPE :loc 10 :name INT}}",
+		},
+		{
+			sql:  "DECLARE a, b, c VARCHAR(100)",
+			want: "{DECLARE_VAR :loc 0 :names a b c :type {DATATYPE :loc 16 :name VARCHAR :len 100}}",
+		},
+		{
+			sql:  "DECLARE x INT DEFAULT 0",
+			want: "{DECLARE_VAR :loc 0 :names x :type {DATATYPE :loc 10 :name INT} :default {INT_LIT :val 0 :loc 22}}",
+		},
+		{
+			sql:  "DECLARE msg VARCHAR(255) DEFAULT 'hello'",
+			want: "{DECLARE_VAR :loc 0 :names msg :type {DATATYPE :loc 12 :name VARCHAR :len 255} :default {STRING_LIT :val \"hello\" :loc 33}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseDeclareStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseDeclareCondition(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "DECLARE my_error CONDITION FOR SQLSTATE '45000'",
+			want: "{DECLARE_CONDITION :loc 0 :name my_error :value 45000}",
+		},
+		{
+			sql:  "DECLARE my_error CONDITION FOR SQLSTATE VALUE '45000'",
+			want: "{DECLARE_CONDITION :loc 0 :name my_error :value 45000}",
+		},
+		{
+			sql:  "DECLARE my_error CONDITION FOR 1051",
+			want: "{DECLARE_CONDITION :loc 0 :name my_error :value 1051}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseDeclareStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseDeclareHandler(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SELECT 1",
+			want: "{DECLARE_HANDLER :loc 0 :action CONTINUE :conditions SQLEXCEPTION :stmt {SELECT :loc 42 :targets ({INT_LIT :val 1 :loc 49})}}",
+		},
+		{
+			sql:  "DECLARE EXIT HANDLER FOR NOT FOUND SELECT 1",
+			want: "{DECLARE_HANDLER :loc 0 :action EXIT :conditions NOT FOUND :stmt {SELECT :loc 35 :targets ({INT_LIT :val 1 :loc 42})}}",
+		},
+		{
+			sql:  "DECLARE CONTINUE HANDLER FOR SQLSTATE '23000' SELECT 1",
+			want: "{DECLARE_HANDLER :loc 0 :action CONTINUE :conditions 23000 :stmt {SELECT :loc 46 :targets ({INT_LIT :val 1 :loc 53})}}",
+		},
+		{
+			sql:  "DECLARE CONTINUE HANDLER FOR SQLWARNING, SQLEXCEPTION SELECT 1",
+			want: "{DECLARE_HANDLER :loc 0 :action CONTINUE :conditions SQLWARNING SQLEXCEPTION :stmt {SELECT :loc 54 :targets ({INT_LIT :val 1 :loc 61})}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseDeclareStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseDeclareCursor(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "DECLARE cur1 CURSOR FOR SELECT id FROM t1",
+			want: "{DECLARE_CURSOR :loc 0 :name cur1 :select {SELECT :loc 24 :targets ({COLREF :loc 31 :col id}) :from ({TABLEREF :loc 39 :name t1})}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseDeclareStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseBeginEndWithDeclare(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "BEGIN DECLARE x INT DEFAULT 0; SELECT x; END",
+			want: "{BEGIN_END :loc 0 :stmts {DECLARE_VAR :loc 6 :names x :type {DATATYPE :loc 16 :name INT} :default {INT_LIT :val 0 :loc 28}} {SELECT :loc 31 :targets ({COLREF :loc 38 :col x})}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseBeginEndBlock("", 0)
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Batch 31: Role Management
+// ============================================================================
+
+func TestParseCreateRole(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "CREATE ROLE myrole",
+			want: "{CREATE_ROLE :loc 7 :roles myrole}",
+		},
+		{
+			sql:  "CREATE ROLE IF NOT EXISTS myrole",
+			want: "{CREATE_ROLE :loc 7 :if_not_exists true :roles myrole}",
+		},
+		{
+			sql:  "CREATE ROLE role1, role2, role3",
+			want: "{CREATE_ROLE :loc 7 :roles role1, role2, role3}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			got := ast.NodeToString(result.Items[0])
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseDropRole(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "DROP ROLE myrole",
+			want: "{DROP_ROLE :loc 5 :roles myrole}",
+		},
+		{
+			sql:  "DROP ROLE IF EXISTS myrole",
+			want: "{DROP_ROLE :loc 5 :if_exists true :roles myrole}",
+		},
+		{
+			sql:  "DROP ROLE role1, role2",
+			want: "{DROP_ROLE :loc 5 :roles role1, role2}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			got := ast.NodeToString(result.Items[0])
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseSetDefaultRole(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "SET DEFAULT ROLE NONE TO root",
+			want: "{SET_DEFAULT_ROLE :loc 0 :none true :to root}",
+		},
+		{
+			sql:  "SET DEFAULT ROLE ALL TO root",
+			want: "{SET_DEFAULT_ROLE :loc 0 :all true :to root}",
+		},
+		{
+			sql:  "SET DEFAULT ROLE myrole TO root",
+			want: "{SET_DEFAULT_ROLE :loc 0 :roles myrole :to root}",
+		},
+		{
+			sql:  "SET DEFAULT ROLE role1, role2 TO user1, user2",
+			want: "{SET_DEFAULT_ROLE :loc 0 :roles role1, role2 :to user1, user2}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			got := ast.NodeToString(result.Items[0])
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseSetRole(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "SET ROLE DEFAULT",
+			want: "{SET_ROLE :loc 0 :default true}",
+		},
+		{
+			sql:  "SET ROLE NONE",
+			want: "{SET_ROLE :loc 0 :none true}",
+		},
+		{
+			sql:  "SET ROLE ALL",
+			want: "{SET_ROLE :loc 0 :all true}",
+		},
+		{
+			sql:  "SET ROLE ALL EXCEPT role1, role2",
+			want: "{SET_ROLE :loc 0 :all true :all_except role1, role2}",
+		},
+		{
+			sql:  "SET ROLE myrole",
+			want: "{SET_ROLE :loc 0 :roles myrole}",
+		},
+		{
+			sql:  "SET ROLE role1, role2",
+			want: "{SET_ROLE :loc 0 :roles role1, role2}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			got := ast.NodeToString(result.Items[0])
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseGrantRole(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "GRANT myrole TO myuser",
+			want: "{GRANT_ROLE :loc 0 :roles MYROLE :to myuser}",
+		},
+		{
+			sql:  "GRANT role1, role2 TO user1, user2",
+			want: "{GRANT_ROLE :loc 0 :roles ROLE1, ROLE2 :to user1, user2}",
+		},
+		{
+			sql:  "GRANT myrole TO myuser WITH ADMIN OPTION",
+			want: "{GRANT_ROLE :loc 0 :roles MYROLE :to myuser :with_admin true}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			got := ast.NodeToString(result.Items[0])
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseRevokeRole(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "REVOKE myrole FROM myuser",
+			want: "{REVOKE_ROLE :loc 0 :roles MYROLE :from myuser}",
+		},
+		{
+			sql:  "REVOKE role1, role2 FROM user1, user2",
+			want: "{REVOKE_ROLE :loc 0 :roles ROLE1, ROLE2 :from user1, user2}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			got := ast.NodeToString(result.Items[0])
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseChecksumTable(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "CHECKSUM TABLE t1",
+			want: "{CHECKSUM_TABLE :loc 0 :tables {TABLEREF :loc 15 :name t1}}",
+		},
+		{
+			sql:  "CHECKSUM TABLE t1, t2",
+			want: "{CHECKSUM_TABLE :loc 0 :tables {TABLEREF :loc 15 :name t1} {TABLEREF :loc 19 :name t2}}",
+		},
+		{
+			sql:  "CHECKSUM TABLE t1 QUICK",
+			want: "{CHECKSUM_TABLE :loc 0 :tables {TABLEREF :loc 15 :name t1} :quick true}",
+		},
+		{
+			sql:  "CHECKSUM TABLE t1 EXTENDED",
+			want: "{CHECKSUM_TABLE :loc 0 :tables {TABLEREF :loc 15 :name t1}}",
+		},
+		{
+			sql:  "CHECKSUM TABLE db.t1, db.t2 QUICK",
+			want: "{CHECKSUM_TABLE :loc 0 :tables {TABLEREF :loc 15 :schema db :name t1} {TABLEREF :loc 22 :schema db :name t2} :quick true}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseShutdown(t *testing.T) {
+	ParseAndCompare(t, "SHUTDOWN", "{SHUTDOWN :loc 0}")
+}
+
+func TestParseRestart(t *testing.T) {
+	ParseAndCompare(t, "RESTART", "{RESTART :loc 0}")
+}
+
+// ============================================================================
+// Batch 36: CLONE
+// ============================================================================
+
+func TestParseCloneStmt(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "CLONE LOCAL DATA DIRECTORY '/tmp/clone'",
+			want: `{CLONE :loc 0 :local true :directory "/tmp/clone"}`,
+		},
+		{
+			sql:  "CLONE LOCAL DATA DIRECTORY = '/tmp/clone'",
+			want: `{CLONE :loc 0 :local true :directory "/tmp/clone"}`,
+		},
+		{
+			sql:  "CLONE INSTANCE FROM 'root'@'10.0.0.1':3306 IDENTIFIED BY 'secret'",
+			want: `{CLONE :loc 0 :user "root" :host "10.0.0.1" :port 3306 :password "secret"}`,
+		},
+		{
+			sql:  "CLONE INSTANCE FROM 'admin'@'db.example.com':3307 IDENTIFIED BY 'pass' DATA DIRECTORY '/backup/clone'",
+			want: `{CLONE :loc 0 :directory "/backup/clone" :user "admin" :host "db.example.com" :port 3307 :password "pass"}`,
+		},
+		{
+			sql:  "CLONE INSTANCE FROM 'admin'@'db.example.com':3307 IDENTIFIED BY 'pass' DATA DIRECTORY = '/backup/clone'",
+			want: `{CLONE :loc 0 :directory "/backup/clone" :user "admin" :host "db.example.com" :port 3307 :password "pass"}`,
+		},
+		{
+			sql:  "CLONE INSTANCE FROM 'root'@'10.0.0.1':3306 IDENTIFIED BY 'secret' REQUIRE SSL",
+			want: `{CLONE :loc 0 :user "root" :host "10.0.0.1" :port 3306 :password "secret" :require_ssl true}`,
+		},
+		{
+			sql:  "CLONE INSTANCE FROM 'root'@'10.0.0.1':3306 IDENTIFIED BY 'secret' REQUIRE NO SSL",
+			want: `{CLONE :loc 0 :user "root" :host "10.0.0.1" :port 3306 :password "secret" :require_ssl false}`,
+		},
+		{
+			sql:  "CLONE INSTANCE FROM 'root'@'10.0.0.1':3306 IDENTIFIED BY 'secret' DATA DIRECTORY '/data' REQUIRE SSL",
+			want: `{CLONE :loc 0 :directory "/data" :user "root" :host "10.0.0.1" :port 3306 :password "secret" :require_ssl true}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			got := ast.NodeToString(result.Items[0])
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseInstallPlugin(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "INSTALL PLUGIN myplugin SONAME 'ha_example.so'",
+			want: `{INSTALL_PLUGIN :loc 0 :name myplugin :soname "ha_example.so"}`,
+		},
+		{
+			sql:  "INSTALL PLUGIN validate_password SONAME 'validate_password.so'",
+			want: `{INSTALL_PLUGIN :loc 0 :name validate_password :soname "validate_password.so"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseUninstallPlugin(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "UNINSTALL PLUGIN myplugin",
+			want: "{UNINSTALL_PLUGIN :loc 0 :name myplugin}",
+		},
+		{
+			sql:  "UNINSTALL PLUGIN validate_password",
+			want: "{UNINSTALL_PLUGIN :loc 0 :name validate_password}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseInstallComponent(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "INSTALL COMPONENT 'file://component_validate_password'",
+			want: `{INSTALL_COMPONENT :loc 0 :components "file://component_validate_password"}`,
+		},
+		{
+			sql:  "INSTALL COMPONENT 'file://component1', 'file://component2'",
+			want: `{INSTALL_COMPONENT :loc 0 :components "file://component1" "file://component2"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseUninstallComponent(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "UNINSTALL COMPONENT 'file://component_validate_password'",
+			want: `{UNINSTALL_COMPONENT :loc 0 :components "file://component_validate_password"}`,
+		},
+		{
+			sql:  "UNINSTALL COMPONENT 'file://component1', 'file://component2'",
+			want: `{UNINSTALL_COMPONENT :loc 0 :components "file://component1" "file://component2"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+// ============================================================================
+// Batch 30: Flow Control
+// ============================================================================
+
+func TestParseIfElse(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "IF x > 0 THEN SELECT 1; END IF",
+			want: "{IF_STMT :loc 0 :cond {BINEXPR :op > :left {COLREF :loc 3 :col x} :right {INT_LIT :val 0 :loc 7}} :then ({SELECT :loc 14 :targets ({INT_LIT :val 1 :loc 21})})}",
+		},
+		{
+			sql:  "IF x > 0 THEN SELECT 1; ELSE SELECT 2; END IF",
+			want: "{IF_STMT :loc 0 :cond {BINEXPR :op > :left {COLREF :loc 3 :col x} :right {INT_LIT :val 0 :loc 7}} :then ({SELECT :loc 14 :targets ({INT_LIT :val 1 :loc 21})}) :else ({SELECT :loc 29 :targets ({INT_LIT :val 2 :loc 36})})}",
+		},
+		{
+			sql:  "IF x > 0 THEN SELECT 1; ELSEIF x > 1 THEN SELECT 2; END IF",
+			want: "{IF_STMT :loc 0 :cond {BINEXPR :op > :left {COLREF :loc 3 :col x} :right {INT_LIT :val 0 :loc 7}} :then ({SELECT :loc 14 :targets ({INT_LIT :val 1 :loc 21})}) :elseifs ({ELSEIF :loc 24 :cond {BINEXPR :op > :left {COLREF :loc 31 :col x} :right {INT_LIT :val 1 :loc 35}} :then ({SELECT :loc 42 :targets ({INT_LIT :val 2 :loc 49})})})}",
+		},
+		{
+			sql:  "IF x > 0 THEN SELECT 1; ELSEIF x > 1 THEN SELECT 2; ELSE SELECT 3; END IF",
+			want: "{IF_STMT :loc 0 :cond {BINEXPR :op > :left {COLREF :loc 3 :col x} :right {INT_LIT :val 0 :loc 7}} :then ({SELECT :loc 14 :targets ({INT_LIT :val 1 :loc 21})}) :elseifs ({ELSEIF :loc 24 :cond {BINEXPR :op > :left {COLREF :loc 31 :col x} :right {INT_LIT :val 1 :loc 35}} :then ({SELECT :loc 42 :targets ({INT_LIT :val 2 :loc 49})})}) :else ({SELECT :loc 57 :targets ({INT_LIT :val 3 :loc 64})})}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseIfStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseCaseStmt(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "CASE x WHEN 1 THEN SELECT 1; END CASE",
+			want: "{CASE_STMT :loc 0 :operand {COLREF :loc 5 :col x} :whens ({WHEN :loc 7 :cond {INT_LIT :val 1 :loc 12} :then ({SELECT :loc 19 :targets ({INT_LIT :val 1 :loc 26})})})}",
+		},
+		{
+			sql:  "CASE WHEN x > 0 THEN SELECT 1; WHEN x > 1 THEN SELECT 2; END CASE",
+			want: "{CASE_STMT :loc 0 :whens ({WHEN :loc 5 :cond {BINEXPR :op > :left {COLREF :loc 10 :col x} :right {INT_LIT :val 0 :loc 14}} :then ({SELECT :loc 21 :targets ({INT_LIT :val 1 :loc 28})})} {WHEN :loc 31 :cond {BINEXPR :op > :left {COLREF :loc 36 :col x} :right {INT_LIT :val 1 :loc 40}} :then ({SELECT :loc 47 :targets ({INT_LIT :val 2 :loc 54})})})}",
+		},
+		{
+			sql:  "CASE WHEN x > 0 THEN SELECT 1; ELSE SELECT 2; END CASE",
+			want: "{CASE_STMT :loc 0 :whens ({WHEN :loc 5 :cond {BINEXPR :op > :left {COLREF :loc 10 :col x} :right {INT_LIT :val 0 :loc 14}} :then ({SELECT :loc 21 :targets ({INT_LIT :val 1 :loc 28})})}) :else ({SELECT :loc 36 :targets ({INT_LIT :val 2 :loc 43})})}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseCaseStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseWhile(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "WHILE x > 0 DO SELECT 1; END WHILE",
+			want: "{WHILE :loc 0 :cond {BINEXPR :op > :left {COLREF :loc 6 :col x} :right {INT_LIT :val 0 :loc 10}} :stmts ({SELECT :loc 15 :targets ({INT_LIT :val 1 :loc 22})})}",
+		},
+		{
+			sql:  "lbl: WHILE x > 0 DO SELECT 1; END WHILE lbl",
+			want: "{WHILE :loc 0 :label lbl :cond {BINEXPR :op > :left {COLREF :loc 11 :col x} :right {INT_LIT :val 0 :loc 15}} :stmts ({SELECT :loc 20 :targets ({INT_LIT :val 1 :loc 27})})}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseCompoundStmtOrStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseRepeat(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "REPEAT SELECT 1; UNTIL x > 0 END REPEAT",
+			want: "{REPEAT :loc 0 :stmts ({SELECT :loc 7 :targets ({INT_LIT :val 1 :loc 14})}) :until {BINEXPR :op > :left {COLREF :loc 23 :col x} :right {INT_LIT :val 0 :loc 27}}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseCompoundStmtOrStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseLoop(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "LOOP SELECT 1; END LOOP",
+			want: "{LOOP :loc 0 :stmts ({SELECT :loc 5 :targets ({INT_LIT :val 1 :loc 12})})}",
+		},
+		{
+			sql:  "lbl: LOOP SELECT 1; END LOOP lbl",
+			want: "{LOOP :loc 0 :label lbl :stmts ({SELECT :loc 10 :targets ({INT_LIT :val 1 :loc 17})})}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseCompoundStmtOrStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseLeave(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "LEAVE myloop",
+			want: "{LEAVE :loc 0 :label myloop}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseLeaveStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseIterate(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "ITERATE myloop",
+			want: "{ITERATE :loc 0 :label myloop}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseIterateStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseReturn(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "RETURN 42",
+			want: "{RETURN :loc 0 :expr {INT_LIT :val 42 :loc 7}}",
+		},
+		{
+			sql:  "RETURN x + 1",
+			want: "{RETURN :loc 0 :expr {BINEXPR :op + :left {COLREF :loc 7 :col x} :right {INT_LIT :val 1 :loc 11}}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseReturnStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseOpenCursor(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "OPEN cur1",
+			want: "{OPEN_CURSOR :loc 0 :name cur1}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseOpenCursorStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseFetchCursor(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "FETCH cur1 INTO a",
+			want: "{FETCH_CURSOR :loc 0 :name cur1 :into a}",
+		},
+		{
+			sql:  "FETCH cur1 INTO a, b, c",
+			want: "{FETCH_CURSOR :loc 0 :name cur1 :into a b c}",
+		},
+		{
+			sql:  "FETCH NEXT FROM cur1 INTO a",
+			want: "{FETCH_CURSOR :loc 0 :name cur1 :into a}",
+		},
+		{
+			sql:  "FETCH FROM cur1 INTO a",
+			want: "{FETCH_CURSOR :loc 0 :name cur1 :into a}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseFetchCursorStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseCloseCursor(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "CLOSE cur1",
+			want: "{CLOSE_CURSOR :loc 0 :name cur1}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseCloseCursorStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Batch 33: TABLE and VALUES statements
+// ============================================================================
+
+func TestParseTableStmt(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "TABLE t1",
+			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1}}",
+		},
+		{
+			sql:  "TABLE mydb.t1",
+			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :schema mydb :name t1}}",
+		},
+		{
+			sql:  "TABLE t1 ORDER BY id",
+			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :order_by ({ORDER_BY :loc 18 :expr {COLREF :loc 18 :col id}})}",
+		},
+		{
+			sql:  "TABLE t1 LIMIT 10",
+			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :limit {LIMIT :loc 15 :count {INT_LIT :val 10 :loc 15}}}",
+		},
+		{
+			sql:  "TABLE t1 ORDER BY name LIMIT 5 OFFSET 10",
+			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :order_by ({ORDER_BY :loc 18 :expr {COLREF :loc 18 :col name}}) :limit {LIMIT :loc 29 :count {INT_LIT :val 5 :loc 29} :offset {INT_LIT :val 10 :loc 38}}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			got := ast.NodeToString(result.Items[0])
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseValuesStmt(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "VALUES ROW(1, 2, 3)",
+			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14} {INT_LIT :val 3 :loc 17}))}",
+		},
+		{
+			sql:  "VALUES ROW(1, 2), ROW(3, 4)",
+			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14}) ({INT_LIT :val 3 :loc 22} {INT_LIT :val 4 :loc 25}))}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			got := ast.NodeToString(result.Items[0])
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseValuesRow(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "VALUES ROW('a', 'b')",
+			want: `{VALUES_STMT :loc 0 :rows (({STRING_LIT :val "a" :loc 11} {STRING_LIT :val "b" :loc 16}))}`,
+		},
+		{
+			sql:  "VALUES ROW(1, 'hello', NULL)",
+			want: `{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {STRING_LIT :val "hello" :loc 14} {NULL_LIT :loc 23}))}`,
+		},
+		{
+			sql:  "VALUES ROW(1) LIMIT 1",
+			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11})) :limit {LIMIT :loc 20 :count {INT_LIT :val 1 :loc 20}}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			got := ast.NodeToString(result.Items[0])
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseTableUnion(t *testing.T) {
+	// TABLE statement can be parsed standalone
+	ParseAndCheck(t, "TABLE t1")
+	// VALUES statement can be parsed standalone
+	ParseAndCheck(t, "VALUES ROW(1, 2)")
+	// TABLE with ORDER BY and LIMIT
+	ParseAndCheck(t, "TABLE t1 ORDER BY id LIMIT 10")
+	// VALUES with multiple rows
+	ParseAndCheck(t, "VALUES ROW(1, 2), ROW(3, 4), ROW(5, 6)")
+	// VALUES with ORDER BY
+	ParseAndCheck(t, "VALUES ROW(1, 'a'), ROW(2, 'b') ORDER BY column_0")
+}
+
+func TestParseCreateTablespace(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "CREATE TABLESPACE ts1",
+			want: "{CREATE_TABLESPACE :loc 0 :name ts1}",
+		},
+		{
+			sql:  "CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd'",
+			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :datafile "ts1.ibd"}`,
+		},
+		{
+			sql:  "CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE = InnoDB",
+			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :datafile "ts1.ibd" :engine InnoDB}`,
+		},
+		{
+			sql:  "CREATE UNDO TABLESPACE ts1 ADD DATAFILE 'undo_ts1.ibu'",
+			want: `{CREATE_TABLESPACE :loc 0 :undo true :name ts1 :datafile "undo_ts1.ibu"}`,
+		},
+		{
+			sql:  "CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' FILE_BLOCK_SIZE = 16384 ENCRYPTION = 'Y' ENGINE InnoDB",
+			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :datafile "ts1.ibd" :file_block_size 16384 :encryption "Y" :engine InnoDB}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseAlterTablespace(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "ALTER TABLESPACE ts1 ADD DATAFILE 'ts1_2.ibd'",
+			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :add_datafile "ts1_2.ibd"}`,
+		},
+		{
+			sql:  "ALTER TABLESPACE ts1 DROP DATAFILE 'ts1_2.ibd'",
+			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :drop_datafile "ts1_2.ibd"}`,
+		},
+		{
+			sql:  "ALTER TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE = NDB",
+			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :add_datafile "ts1.ibd" :engine NDB}`,
+		},
+		{
+			sql:  "ALTER UNDO TABLESPACE ts1 ADD DATAFILE 'undo.ibu'",
+			want: `{ALTER_TABLESPACE :loc 0 :undo true :name ts1 :add_datafile "undo.ibu"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseDropTablespace(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "DROP TABLESPACE ts1",
+			want: "{DROP_TABLESPACE :loc 0 :name ts1}",
+		},
+		{
+			sql:  "DROP TABLESPACE ts1 ENGINE = InnoDB",
+			want: "{DROP_TABLESPACE :loc 0 :name ts1 :engine InnoDB}",
+		},
+		{
+			sql:  "DROP UNDO TABLESPACE ts1",
+			want: "{DROP_TABLESPACE :loc 0 :undo true :name ts1}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseCreateServer(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "CREATE SERVER s1 FOREIGN DATA WRAPPER mysql OPTIONS (HOST 'remote_host', DATABASE 'test', USER 'remote_user')",
+			want: `{CREATE_SERVER :loc 0 :name s1 :wrapper mysql :options ("HOST remote_host" "DATABASE test" "USER remote_user")}`,
+		},
+		{
+			sql:  "CREATE SERVER s1 FOREIGN DATA WRAPPER mysql OPTIONS (USER 'root')",
+			want: `{CREATE_SERVER :loc 0 :name s1 :wrapper mysql :options ("USER root")}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseDropServer(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "DROP SERVER s1",
+			want: "{DROP_SERVER :loc 0 :name s1}",
+		},
+		{
+			sql:  "DROP SERVER IF EXISTS s1",
+			want: "{DROP_SERVER :loc 0 :if_exists true :name s1}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseCreateSpatialRefSys(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "CREATE SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek' DEFINITION 'GEOGCS[\"Greek\",DATUM[\"Greek\"]]'",
+			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :srid 4120 :name "Greek" :definition "GEOGCS[\"Greek\",DATUM[\"Greek\"]]"}`,
+		},
+		{
+			sql:  "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek'",
+			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :or_replace true :srid 4120 :name "Greek"}`,
+		},
+		{
+			sql:  "CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 4120 NAME 'Greek'",
+			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :if_not_exists true :srid 4120 :name "Greek"}`,
+		},
+		{
+			sql:  "CREATE SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek' ORGANIZATION 'EPSG' IDENTIFIED BY 4120 DESCRIPTION 'Greek coordinate system'",
+			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :srid 4120 :name "Greek" :organization "EPSG" :org_srid 4120 :description "Greek coordinate system"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseDropSpatialRefSys(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "DROP SPATIAL REFERENCE SYSTEM 4120",
+			want: "{DROP_SPATIAL_REF_SYS :loc 0 :srid 4120}",
+		},
+		{
+			sql:  "DROP SPATIAL REFERENCE SYSTEM IF EXISTS 4120",
+			want: "{DROP_SPATIAL_REF_SYS :loc 0 :if_exists true :srid 4120}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseCreateResourceGroup(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "CREATE RESOURCE GROUP rg1 TYPE = USER",
+			want: "{CREATE_RESOURCE_GROUP :loc 0 :name rg1 :type USER}",
+		},
+		{
+			sql:  "CREATE RESOURCE GROUP rg1 TYPE = SYSTEM VCPU = 0-3 THREAD_PRIORITY = 0 ENABLE",
+			want: "{CREATE_RESOURCE_GROUP :loc 0 :name rg1 :type SYSTEM :vcpus (0-3) :thread_priority 0 :enable true}",
+		},
+		{
+			sql:  "CREATE RESOURCE GROUP rg1 TYPE = USER VCPU = 0, 2, 4-7 DISABLE",
+			want: "{CREATE_RESOURCE_GROUP :loc 0 :name rg1 :type USER :vcpus (0 2 4-7) :enable false}",
+		},
+		{
+			sql:  "CREATE RESOURCE GROUP rg1 TYPE = SYSTEM THREAD_PRIORITY = -10",
+			want: "{CREATE_RESOURCE_GROUP :loc 0 :name rg1 :type SYSTEM :thread_priority -10}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseAlterResourceGroup(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "ALTER RESOURCE GROUP rg1 VCPU = 0-3",
+			want: "{ALTER_RESOURCE_GROUP :loc 0 :name rg1 :vcpus (0-3)}",
+		},
+		{
+			sql:  "ALTER RESOURCE GROUP rg1 THREAD_PRIORITY = 5 ENABLE",
+			want: "{ALTER_RESOURCE_GROUP :loc 0 :name rg1 :thread_priority 5 :enable true}",
+		},
+		{
+			sql:  "ALTER RESOURCE GROUP rg1 DISABLE FORCE",
+			want: "{ALTER_RESOURCE_GROUP :loc 0 :name rg1 :enable false :force true}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseDropResourceGroup(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "DROP RESOURCE GROUP rg1",
+			want: "{DROP_RESOURCE_GROUP :loc 0 :name rg1}",
+		},
+		{
+			sql:  "DROP RESOURCE GROUP rg1 FORCE",
+			want: "{DROP_RESOURCE_GROUP :loc 0 :name rg1 :force true}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Batch 39: ALTER VIEW/EVENT/FUNCTION/PROCEDURE, DROP FUNCTION/PROCEDURE/TRIGGER/EVENT
+// ---------------------------------------------------------------------------
+
+func TestParseAlterView(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "ALTER VIEW v AS SELECT 1",
+			want: "{ALTER_VIEW :loc 6 :name {TABLEREF :loc 11 :name v} :select {SELECT :loc 16 :targets ({INT_LIT :val 1 :loc 23})}}",
+		},
+		{
+			sql:  "ALTER ALGORITHM = MERGE VIEW v AS SELECT 1",
+			want: "{ALTER_VIEW :loc 6 :algorithm MERGE :name {TABLEREF :loc 29 :name v} :select {SELECT :loc 34 :targets ({INT_LIT :val 1 :loc 41})}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseAlterViewParseAndCheck(t *testing.T) {
+	tests := []string{
+		"ALTER VIEW v AS SELECT 1",
+		"ALTER ALGORITHM = MERGE VIEW v AS SELECT 1",
+		"ALTER VIEW v (a, b) AS SELECT 1, 2",
+		// "ALTER VIEW v AS SELECT 1 WITH CASCADED CHECK OPTION", // TODO: WITH CHECK OPTION after SELECT needs special handling
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseAlterEvent(t *testing.T) {
+	tests := []string{
+		"ALTER EVENT ev1 ENABLE",
+		"ALTER EVENT ev1 DISABLE",
+		"ALTER EVENT ev1 RENAME TO ev2",
+		"ALTER EVENT ev1 COMMENT 'test'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseAlterRoutine(t *testing.T) {
+	tests := []string{
+		"ALTER FUNCTION f1 COMMENT 'test'",
+		"ALTER PROCEDURE p1 COMMENT 'test'",
+		"ALTER FUNCTION f1 SQL SECURITY INVOKER",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseDropRoutineStmt(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "DROP FUNCTION f1",
+			want: "{DROP_ROUTINE :loc 5 :name {TABLEREF :loc 14 :name f1}}",
+		},
+		{
+			sql:  "DROP FUNCTION IF EXISTS f1",
+			want: "{DROP_ROUTINE :loc 5 :if_exists true :name {TABLEREF :loc 24 :name f1}}",
+		},
+		{
+			sql:  "DROP PROCEDURE p1",
+			want: "{DROP_ROUTINE :loc 5 :is_procedure true :name {TABLEREF :loc 15 :name p1}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseDropTriggerStmtBatch39(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "DROP TRIGGER tr1",
+			want: "{DROP_TRIGGER :loc 5 :name {TABLEREF :loc 13 :name tr1}}",
+		},
+		{
+			sql:  "DROP TRIGGER IF EXISTS mydb.tr1",
+			want: "{DROP_TRIGGER :loc 5 :if_exists true :name {TABLEREF :loc 23 :schema mydb :name tr1}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseDropEventStmtBatch39(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "DROP EVENT ev1",
+			want: "{DROP_EVENT :loc 5 :name ev1}",
+		},
+		{
+			sql:  "DROP EVENT IF EXISTS ev1",
+			want: "{DROP_EVENT :loc 5 :if_exists true :name ev1}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Batch 41: GROUP BY WITH ROLLUP, LATERAL derived tables, GROUPING()
+// ---------------------------------------------------------------------------
+
+// TestParseGroupByWithRollup tests GROUP BY ... WITH ROLLUP.
+func TestParseGroupByWithRollup(t *testing.T) {
+	// Verify the WithRollup flag via parseSelect
+	sel := parseSelect(t, "SELECT dept, SUM(salary) FROM emp GROUP BY dept WITH ROLLUP")
+	if !sel.WithRollup {
+		t.Error("expected WithRollup = true")
+	}
+	if len(sel.GroupBy) != 1 {
+		t.Errorf("group_by count = %d, want 1", len(sel.GroupBy))
+	}
+
+	// Multi-column GROUP BY WITH ROLLUP
+	sel2 := parseSelect(t, "SELECT col1, col2, COUNT(*) FROM t GROUP BY col1, col2 WITH ROLLUP")
+	if !sel2.WithRollup {
+		t.Error("expected WithRollup = true for multi-column")
+	}
+	if len(sel2.GroupBy) != 2 {
+		t.Errorf("group_by count = %d, want 2", len(sel2.GroupBy))
+	}
+
+	// Without ROLLUP, flag should be false
+	sel3 := parseSelect(t, "SELECT dept FROM emp GROUP BY dept")
+	if sel3.WithRollup {
+		t.Error("expected WithRollup = false for plain GROUP BY")
+	}
+
+	// WITH ROLLUP followed by HAVING
+	sel4 := parseSelect(t, "SELECT dept, SUM(salary) FROM emp GROUP BY dept WITH ROLLUP HAVING SUM(salary) > 1000")
+	if !sel4.WithRollup {
+		t.Error("expected WithRollup = true before HAVING")
+	}
+	if sel4.Having == nil {
+		t.Error("expected HAVING clause after WITH ROLLUP")
+	}
+}
+
+// TestParseGroupingSets tests GROUPING() function (parsed as regular function call).
+func TestParseGroupingSets(t *testing.T) {
+	// GROUPING() is a regular function call — parsed by parseFuncCall
+	ParseAndCheck(t, "SELECT col1, GROUPING(col1) FROM t GROUP BY col1 WITH ROLLUP")
+	ParseAndCheck(t, "SELECT col1, col2, GROUPING(col1, col2) FROM t GROUP BY col1, col2 WITH ROLLUP")
+
+	// GROUPING() in HAVING clause
+	ParseAndCheck(t, "SELECT col1, SUM(col2) FROM t GROUP BY col1 WITH ROLLUP HAVING GROUPING(col1) = 1")
+}
+
+// TestParseCube is a placeholder — MySQL 8.0 does not support CUBE syntax directly.
+// GROUP BY ... WITH ROLLUP is the MySQL equivalent.
+func TestParseCube(t *testing.T) {
+	// MySQL does not support CUBE; WITH ROLLUP is the supported syntax.
+	// Just verify WITH ROLLUP parses correctly.
+	ParseAndCheck(t, "SELECT a, SUM(b) FROM t GROUP BY a WITH ROLLUP")
+}
+
+// TestParseRollup tests GROUP BY WITH ROLLUP (same as TestParseGroupByWithRollup).
+func TestParseRollup(t *testing.T) {
+	sel := parseSelect(t, "SELECT year, SUM(amount) FROM sales GROUP BY year WITH ROLLUP")
+	if !sel.WithRollup {
+		t.Error("expected WithRollup = true")
+	}
+}
+
+// TestParseLateralDerivedTable tests LATERAL derived tables in FROM clause.
+func TestParseLateralDerivedTable(t *testing.T) {
+	// LATERAL with AS alias
+	ParseAndCheck(t, "SELECT * FROM t1, LATERAL (SELECT * FROM t2 WHERE t2.id = t1.id) AS lat")
+
+	// LATERAL with implicit alias
+	ParseAndCheck(t, "SELECT * FROM t1, LATERAL (SELECT * FROM t2) lat")
+
+	// LATERAL without alias
+	ParseAndCheck(t, "SELECT * FROM t1, LATERAL (SELECT 1)")
+
+	// LATERAL in JOIN
+	ParseAndCheck(t, "SELECT * FROM t1 JOIN LATERAL (SELECT * FROM t2 WHERE t2.a = t1.a) AS sub ON 1=1")
+
+	// LATERAL with correlated subquery
+	ParseAndCheck(t, "SELECT * FROM t1 LEFT JOIN LATERAL (SELECT * FROM t2 WHERE t2.fk = t1.pk LIMIT 3) AS top3 ON TRUE")
+
+	// Verify SubqueryExpr has Lateral flag set
+	result := ParseAndCheck(t, "SELECT * FROM t1, LATERAL (SELECT * FROM t2 WHERE t2.id = t1.id) AS lat")
+	sel := result.Items[0].(*ast.SelectStmt)
+	if len(sel.From) != 2 {
+		t.Fatalf("from count = %d, want 2", len(sel.From))
+	}
+	sub, ok := sel.From[1].(*ast.SubqueryExpr)
+	if !ok {
+		t.Fatalf("from[1] type = %T, want *SubqueryExpr", sel.From[1])
+	}
+	if !sub.Lateral {
+		t.Error("expected Lateral = true")
+	}
+	if sub.Alias != "lat" {
+		t.Errorf("alias = %q, want %q", sub.Alias, "lat")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Batch 42: Phase 2 Statement Dispatch — comprehensive test
+// ---------------------------------------------------------------------------
+
+func TestParsePhase2Dispatch(t *testing.T) {
+	tests := []string{
+		// Signal/Resignal/Get Diagnostics (batch 28)
+		"SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'error'",
+		"RESIGNAL",
+		"GET DIAGNOSTICS @p1 = ROW_COUNT",
+
+		// Compound statements (batches 29, 30) tested separately with delimiter-aware parsing
+
+		// Role management (batch 31)
+		"CREATE ROLE r1",
+		"DROP ROLE r1",
+		"SET ROLE DEFAULT",
+		"GRANT r1 TO u1",
+
+		// TABLE / VALUES (batch 33)
+		"TABLE t1",
+		"VALUES ROW(1, 2), ROW(3, 4)",
+
+		// Utility (batch 34)
+		"CHECKSUM TABLE t1",
+		"SHUTDOWN",
+		"RESTART",
+
+		// Plugin/Component (batch 35)
+		"INSTALL PLUGIN p SONAME 'p.so'",
+		"UNINSTALL PLUGIN p",
+		"INSTALL COMPONENT 'file://c1'",
+		"UNINSTALL COMPONENT 'file://c1'",
+
+		// Clone (batch 36)
+		"CLONE LOCAL DATA DIRECTORY = '/tmp/clone'",
+
+		// Tablespace/Server (batch 37)
+		"CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd'",
+		"DROP TABLESPACE ts1",
+		"CREATE SERVER s1 FOREIGN DATA WRAPPER mysql OPTIONS (HOST '127.0.0.1')",
+		"DROP SERVER s1",
+
+		// SRS/Resource Group (batch 38)
+		"DROP SPATIAL REFERENCE SYSTEM 4326",
+		"CREATE RESOURCE GROUP rg1 TYPE = USER",
+		"DROP RESOURCE GROUP rg1",
+
+		// ALTER/DROP misc (batch 39)
+		"ALTER VIEW v AS SELECT 1",
+		"ALTER EVENT ev1 ENABLE",
+		"ALTER FUNCTION f1 COMMENT 'test'",
+		"ALTER PROCEDURE p1 COMMENT 'test'",
+		"DROP FUNCTION f1",
+		"DROP PROCEDURE p1",
+		"DROP TRIGGER tr1",
+		"DROP EVENT ev1",
+
+		// EXPLAIN (batch 40)
+		"EXPLAIN SELECT 1",
+		"EXPLAIN FORMAT=JSON SELECT 1",
+
+		// GROUP BY WITH ROLLUP, LATERAL (batch 41)
+		"SELECT a, SUM(b) FROM t GROUP BY a WITH ROLLUP",
+		"SELECT * FROM t1, LATERAL (SELECT * FROM t2) AS sub",
+
+		// XA, CALL, HANDLER
+		"XA START 'xid1'",
+		"CALL my_proc(1, 2)",
+		"HANDLER t1 OPEN",
+
+		// Replication (batch 43)
+		"CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1'",
+		"CHANGE REPLICATION FILTER REPLICATE_DO_DB = (db1)",
+	}
+
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// ---------- Batch 43: Replication ----------
+
+func TestParseChangeReplicationSource(t *testing.T) {
+	tests := []string{
+		// Basic single option
+		"CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1'",
+		// Multiple options
+		"CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1', SOURCE_PORT = 3306",
+		// String options
+		"CHANGE REPLICATION SOURCE TO SOURCE_USER = 'repl', SOURCE_PASSWORD = 'secret'",
+		// Numeric options
+		"CHANGE REPLICATION SOURCE TO SOURCE_PORT = 3306, SOURCE_LOG_POS = 1234",
+		// Boolean-like options (0/1)
+		"CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1",
+		"CHANGE REPLICATION SOURCE TO SOURCE_SSL = 0",
+		// NULL value
+		"CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL",
+		// Identifier value options
+		"CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM",
+		"CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON",
+		"CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF",
+		// IGNORE_SERVER_IDS
+		"CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = (1, 2, 3)",
+		"CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = ()",
+		// FOR CHANNEL
+		"CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1' FOR CHANNEL ch1",
+		// SSL options
+		"CHANGE REPLICATION SOURCE TO SOURCE_SSL = 1, SOURCE_SSL_CA = '/etc/ssl/ca.pem', SOURCE_SSL_CERT = '/etc/ssl/cert.pem'",
+		// Many options combined
+		"CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1', SOURCE_PORT = 3306, SOURCE_USER = 'repl', SOURCE_PASSWORD = 'secret', SOURCE_AUTO_POSITION = 1",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseChangeReplicationSourceOptions(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1'",
+			want: "{CHANGE_REPLICATION_SOURCE :loc 0 :options ({REPL_OPT :loc 29 :name SOURCE_HOST :val host1})}",
+		},
+		{
+			sql:  "CHANGE REPLICATION SOURCE TO SOURCE_PORT = 3306",
+			want: "{CHANGE_REPLICATION_SOURCE :loc 0 :options ({REPL_OPT :loc 29 :name SOURCE_PORT :val 3306})}",
+		},
+		{
+			sql:  "CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL",
+			want: "{CHANGE_REPLICATION_SOURCE :loc 0 :options ({REPL_OPT :loc 29 :name PRIVILEGE_CHECKS_USER :val NULL})}",
+		},
+		{
+			sql:  "CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS = (1, 2)",
+			want: "{CHANGE_REPLICATION_SOURCE :loc 0 :options ({REPL_OPT :loc 29 :name IGNORE_SERVER_IDS :ids (1 2)})}",
+		},
+		{
+			sql:  "CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'host1' FOR CHANNEL ch1",
+			want: "{CHANGE_REPLICATION_SOURCE :loc 0 :options ({REPL_OPT :loc 29 :name SOURCE_HOST :val host1}) :channel ch1}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseChangeReplicationFilter(t *testing.T) {
+	tests := []string{
+		// Single filter
+		"CHANGE REPLICATION FILTER REPLICATE_DO_DB = (db1)",
+		// Multiple databases
+		"CHANGE REPLICATION FILTER REPLICATE_DO_DB = (db1, db2, db3)",
+		// Ignore DB
+		"CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB = (db1)",
+		// Table filter
+		"CHANGE REPLICATION FILTER REPLICATE_DO_TABLE = (db1.t1)",
+		// Multiple tables
+		"CHANGE REPLICATION FILTER REPLICATE_DO_TABLE = (db1.t1, db2.t2)",
+		// Ignore table
+		"CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE = (db1.t1)",
+		// Wild do table
+		"CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE = ('db%.t%')",
+		// Wild ignore table
+		"CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE = ('db%.t%')",
+		// Rewrite DB
+		"CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB = ((db1, db2))",
+		// Multiple rewrite pairs
+		"CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB = ((db1, db2), (db3, db4))",
+		// Multiple filters
+		"CHANGE REPLICATION FILTER REPLICATE_DO_DB = (db1), REPLICATE_IGNORE_DB = (db2)",
+		// Empty filter list
+		"CHANGE REPLICATION FILTER REPLICATE_DO_DB = ()",
+		// FOR CHANNEL
+		"CHANGE REPLICATION FILTER REPLICATE_DO_DB = (db1) FOR CHANNEL ch1",
+	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)

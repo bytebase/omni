@@ -1,7 +1,7 @@
 {
   "version": 1,
   "target": "100% MySQL 8.0 grammar coverage with recursive descent parser",
-  "status": "in_progress",
+  "status": "done",
   "batches": [
     {
       "id": 0,
@@ -773,7 +773,7 @@
       "id": 29,
       "name": "compound_stmt",
       "file": "compound.go",
-      "status": "pending",
+      "status": "done",
       "description": "Stored program compound statements: BEGIN...END blocks, DECLARE (variables, conditions, handlers, cursors), labels",
       "rules": [
         "compound_stmt",
@@ -791,19 +791,20 @@
         3
       ],
       "tests": [
-        "TestParseBeginEnd",
-        "TestParseDeclareVariable",
+        "TestParseBeginEndBlock",
+        "TestParseBeginEndBlockLabeled",
+        "TestParseDeclareVar",
         "TestParseDeclareCondition",
         "TestParseDeclareHandler",
         "TestParseDeclareCursor",
-        "TestParseLabeledBlock"
+        "TestParseBeginEndWithDeclare"
       ]
     },
     {
       "id": 30,
       "name": "flow_control",
       "file": "compound.go",
-      "status": "pending",
+      "status": "done",
       "description": "Stored program flow control: IF/ELSEIF/ELSE, CASE statement, WHILE, REPEAT, LOOP, LEAVE, ITERATE, RETURN, OPEN/FETCH/CLOSE cursor",
       "rules": [
         "if_stmt",
@@ -840,7 +841,7 @@
       "id": 31,
       "name": "role_management",
       "file": "grant.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE ROLE, DROP ROLE, SET DEFAULT ROLE, SET ROLE, GRANT role TO user, REVOKE role FROM user",
       "rules": [
         "create_role_stmt",
@@ -866,7 +867,7 @@
       "id": 32,
       "name": "show_extended",
       "file": "set_show.go",
-      "status": "pending",
+      "status": "done",
       "description": "Extended SHOW variants: SHOW ENGINES, SHOW PLUGINS, SHOW MASTER STATUS, SHOW SLAVE/REPLICA STATUS, SHOW BINARY LOGS, SHOW BINLOG EVENTS, SHOW TABLE STATUS, SHOW TRIGGERS, SHOW EVENTS, SHOW PROCEDURE/FUNCTION STATUS, SHOW CREATE PROCEDURE/FUNCTION/TRIGGER/EVENT, SHOW OPEN TABLES, SHOW PRIVILEGES, SHOW PROFILES, SHOW RELAYLOG EVENTS, SHOW CHARACTER SET, SHOW COLLATION",
       "rules": [
         "show_engines",
@@ -911,7 +912,7 @@
       "id": 33,
       "name": "table_values_stmt",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "MySQL 8.0 TABLE statement (TABLE t is equivalent to SELECT * FROM t) and VALUES statement (VALUES ROW(1,2), ROW(3,4))",
       "rules": [
         "table_stmt",
@@ -932,7 +933,7 @@
       "id": 34,
       "name": "checksum_shutdown",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "CHECKSUM TABLE, SHUTDOWN, RESTART statements",
       "rules": [
         "checksum_table_stmt",
@@ -952,7 +953,7 @@
       "id": 35,
       "name": "plugin_component",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "INSTALL PLUGIN, UNINSTALL PLUGIN, INSTALL COMPONENT, UNINSTALL COMPONENT",
       "rules": [
         "install_plugin_stmt",
@@ -974,7 +975,7 @@
       "id": 36,
       "name": "clone",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "CLONE LOCAL/REMOTE instance statement (MySQL 8.0.17+)",
       "rules": [
         "clone_stmt",
@@ -993,7 +994,7 @@
       "id": 37,
       "name": "create_tablespace",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE/ALTER/DROP TABLESPACE, CREATE/ALTER/DROP LOGFILE GROUP, CREATE/ALTER/DROP SERVER",
       "rules": [
         "create_tablespace_stmt",
@@ -1021,7 +1022,7 @@
       "id": 38,
       "name": "create_srs_resource",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE/DROP SPATIAL REFERENCE SYSTEM, CREATE/ALTER/DROP RESOURCE GROUP",
       "rules": [
         "create_spatial_ref_sys_stmt",
@@ -1044,7 +1045,7 @@
       "id": 39,
       "name": "alter_misc",
       "file": "stmt.go",
-      "status": "pending",
+      "status": "done",
       "description": "ALTER dispatches for VIEW, EVENT, FUNCTION, PROCEDURE. Also proper DROP FUNCTION/PROCEDURE/TRIGGER/EVENT with AST nodes (replace current RawStmt stubs).",
       "rules": [
         "alter_view_stmt",
@@ -1076,7 +1077,7 @@
       "id": 40,
       "name": "explain_extended",
       "file": "set_show.go",
-      "status": "pending",
+      "status": "done",
       "description": "EXPLAIN for all DML (INSERT, UPDATE, DELETE, REPLACE), EXPLAIN ANALYZE, EXPLAIN FORMAT=TREE/JSON for all statements, EXPLAIN FOR CONNECTION",
       "rules": [
         "explain_insert",
@@ -1103,7 +1104,7 @@
       "id": 41,
       "name": "grouping_lateral",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "GROUP BY WITH ROLLUP, GROUP BY grouping_sets (MySQL 8.0.25+: GROUPING SETS, CUBE, ROLLUP), LATERAL derived tables",
       "rules": [
         "group_by_with_rollup",
@@ -1128,7 +1129,7 @@
       "id": 42,
       "name": "stmt_dispatch_phase2",
       "file": "stmt.go",
-      "status": "pending",
+      "status": "done",
       "description": "Wire all Phase 2 statement parsers into parseStmt and parseCreateDispatch/parseAlterDispatch/parseDropDispatch. Add missing keyword constants to lexer.",
       "rules": [
         "stmt_dispatch_xa",
@@ -1183,6 +1184,157 @@
       "tests": [
         "TestParsePhase2Dispatch"
       ]
+    },
+    {
+      "id": 43,
+      "name": "replication_source",
+      "file": "replication.go",
+      "status": "done",
+      "description": "New: CHANGE REPLICATION SOURCE TO with all source options, CHANGE REPLICATION FILTER with filter types",
+      "rules": [
+        "parseChangeReplicationSourceStmt",
+        "parseChangeReplicationFilterStmt",
+        "parseReplicationSourceOption",
+        "parseReplicationFilter"
+      ],
+      "depends_on": [3],
+      "tests": [
+        "TestParseChangeReplicationSource",
+        "TestParseChangeReplicationSourceOptions",
+        "TestParseChangeReplicationFilter"
+      ]
+    },
+    {
+      "id": 44,
+      "name": "replication_control",
+      "file": "replication.go",
+      "status": "pending",
+      "description": "New: START/STOP REPLICA, RESET REPLICA, PURGE BINARY LOGS, RESET MASTER",
+      "rules": [
+        "parseStartReplicaStmt",
+        "parseStopReplicaStmt",
+        "parseResetReplicaStmt",
+        "parsePurgeBinaryLogsStmt",
+        "parseResetMasterStmt"
+      ],
+      "depends_on": [3],
+      "tests": [
+        "TestParseStartReplica",
+        "TestParseStopReplica",
+        "TestParseResetReplica",
+        "TestParsePurgeBinaryLogs",
+        "TestParseResetMaster"
+      ]
+    },
+    {
+      "id": 45,
+      "name": "group_replication",
+      "file": "replication.go",
+      "status": "pending",
+      "description": "New: START GROUP_REPLICATION with USER/PASSWORD/DEFAULT_AUTH, STOP GROUP_REPLICATION",
+      "rules": [
+        "parseStartGroupReplicationStmt",
+        "parseStopGroupReplicationStmt"
+      ],
+      "depends_on": [3],
+      "tests": [
+        "TestParseStartGroupReplication",
+        "TestParseStopGroupReplication"
+      ]
+    },
+    {
+      "id": 46,
+      "name": "instance_admin",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "New: ALTER INSTANCE (ROTATE keys, ENABLE/DISABLE REDO_LOG, RELOAD TLS/KEYRING), LOCK/UNLOCK INSTANCE FOR BACKUP, IMPORT TABLE",
+      "rules": [
+        "parseAlterInstanceStmt",
+        "parseLockInstanceStmt",
+        "parseUnlockInstanceStmt",
+        "parseImportTableStmt"
+      ],
+      "depends_on": [1],
+      "tests": [
+        "TestParseAlterInstanceRotateKey",
+        "TestParseAlterInstanceRedoLog",
+        "TestParseAlterInstanceReloadTLS",
+        "TestParseLockInstance",
+        "TestParseUnlockInstance",
+        "TestParseImportTable"
+      ]
+    },
+    {
+      "id": 47,
+      "name": "cache_binlog",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "New: BINLOG 'str', CACHE INDEX tbl IN cache_name, LOAD INDEX INTO CACHE tbl, RESET PERSIST [var]",
+      "rules": [
+        "parseBinlogStmt",
+        "parseCacheIndexStmt",
+        "parseLoadIndexIntoCacheStmt",
+        "parseResetPersistStmt"
+      ],
+      "depends_on": [1],
+      "tests": [
+        "TestParseBinlog",
+        "TestParseCacheIndex",
+        "TestParseLoadIndexIntoCache",
+        "TestParseResetPersist"
+      ]
+    },
+    {
+      "id": 48,
+      "name": "account_misc",
+      "file": "grant.go",
+      "status": "pending",
+      "description": "New: RENAME USER old TO new, SET RESOURCE GROUP name [FOR thread_id], HELP 'topic'",
+      "rules": [
+        "parseRenameUserStmt",
+        "parseSetResourceGroupStmt",
+        "parseHelpStmt"
+      ],
+      "depends_on": [15],
+      "tests": [
+        "TestParseRenameUser",
+        "TestParseSetResourceGroup",
+        "TestParseHelp"
+      ]
+    },
+    {
+      "id": 49,
+      "name": "depth_fix_outfuncs_vcpu",
+      "file": "../ast/outfuncs.go",
+      "status": "pending",
+      "description": "Fix batch 38 gap: VCPUSpec struct missing writeNode case in outfuncs.go",
+      "rules": [
+        "writeVCPUSpec"
+      ],
+      "depends_on": [38],
+      "tests": [
+        "TestDeparseCreateResourceGroup"
+      ]
+    },
+    {
+      "id": 50,
+      "name": "stmt_dispatch_phase3",
+      "file": "stmt.go",
+      "status": "pending",
+      "description": "Wire Phase 3 parsers into parseStmt: replication, instance admin, cache/binlog, account misc, HELP, IMPORT",
+      "rules": [
+        "stmt_dispatch_replication",
+        "stmt_dispatch_instance",
+        "stmt_dispatch_cache_binlog",
+        "stmt_dispatch_rename_user",
+        "stmt_dispatch_help",
+        "stmt_dispatch_import"
+      ],
+      "depends_on": [42, 43, 44, 45, 46, 47, 48],
+      "tests": [
+        "TestParsePhase3Dispatch"
+      ]
     }
-  ]
+  ],
+  "audit_round": 1
 }

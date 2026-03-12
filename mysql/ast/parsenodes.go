@@ -16,6 +16,7 @@ type SelectStmt struct {
 	From          []TableExpr        // FROM clause (TableRef / JoinClause)
 	Where         ExprNode           // WHERE condition
 	GroupBy       []ExprNode         // GROUP BY expressions
+	WithRollup    bool               // GROUP BY ... WITH ROLLUP
 	Having        ExprNode           // HAVING condition
 	OrderBy       []*OrderByItem     // ORDER BY clause
 	Limit         *Limit             // LIMIT / OFFSET
@@ -489,10 +490,10 @@ const (
 	BinOpDivInt // DIV
 	BinOpRegexp
 	BinOpLikeEscape
-	BinOpNullSafeEq // <=>
-	BinOpAssign        // :=
-	BinOpJsonExtract   // ->
-	BinOpJsonUnquote   // ->>
+	BinOpNullSafeEq  // <=>
+	BinOpAssign      // :=
+	BinOpJsonExtract // ->
+	BinOpJsonUnquote // ->>
 )
 
 // BinaryExpr represents a binary expression (a op b).
@@ -543,9 +544,11 @@ func (e *FuncCallExpr) exprNode() {}
 
 // SubqueryExpr represents a subquery expression.
 type SubqueryExpr struct {
-	Loc    Loc
-	Select *SelectStmt
-	Exists bool // EXISTS (SELECT ...)
+	Loc     Loc
+	Select  *SelectStmt
+	Exists  bool   // EXISTS (SELECT ...)
+	Lateral bool   // LATERAL derived table
+	Alias   string // AS alias (for derived tables)
 }
 
 func (e *SubqueryExpr) nodeTag()   {}
@@ -970,9 +973,12 @@ func (s *UseStmt) stmtNode() {}
 
 // ExplainStmt represents an EXPLAIN/DESCRIBE statement.
 type ExplainStmt struct {
-	Loc    Loc
-	Format string // TRADITIONAL, JSON, TREE
-	Stmt   StmtNode
+	Loc        Loc
+	Format     string // TRADITIONAL, JSON, TREE
+	Analyze    bool   // EXPLAIN ANALYZE
+	Extended   bool   // EXPLAIN EXTENDED (deprecated but still parsed)
+	Partitions bool   // EXPLAIN PARTITIONS (deprecated but still parsed)
+	Stmt       StmtNode
 }
 
 func (s *ExplainStmt) nodeTag()  {}
@@ -1118,6 +1124,72 @@ type UserSpec struct {
 }
 
 func (u *UserSpec) nodeTag() {}
+
+// CreateRoleStmt represents a CREATE ROLE statement.
+type CreateRoleStmt struct {
+	Loc         Loc
+	IfNotExists bool
+	Roles       []string
+}
+
+func (s *CreateRoleStmt) nodeTag()  {}
+func (s *CreateRoleStmt) stmtNode() {}
+
+// DropRoleStmt represents a DROP ROLE statement.
+type DropRoleStmt struct {
+	Loc      Loc
+	IfExists bool
+	Roles    []string
+}
+
+func (s *DropRoleStmt) nodeTag()  {}
+func (s *DropRoleStmt) stmtNode() {}
+
+// SetDefaultRoleStmt represents a SET DEFAULT ROLE statement.
+type SetDefaultRoleStmt struct {
+	Loc   Loc
+	None  bool     // NONE
+	All   bool     // ALL
+	Roles []string // specific roles
+	To    []string // target users
+}
+
+func (s *SetDefaultRoleStmt) nodeTag()  {}
+func (s *SetDefaultRoleStmt) stmtNode() {}
+
+// SetRoleStmt represents a SET ROLE statement.
+type SetRoleStmt struct {
+	Loc       Loc
+	Default   bool     // DEFAULT
+	None      bool     // NONE
+	All       bool     // ALL
+	AllExcept []string // ALL EXCEPT roles
+	Roles     []string // specific roles
+}
+
+func (s *SetRoleStmt) nodeTag()  {}
+func (s *SetRoleStmt) stmtNode() {}
+
+// GrantRoleStmt represents a GRANT role TO user statement.
+type GrantRoleStmt struct {
+	Loc       Loc
+	Roles     []string
+	To        []string
+	WithAdmin bool
+}
+
+func (s *GrantRoleStmt) nodeTag()  {}
+func (s *GrantRoleStmt) stmtNode() {}
+
+// RevokeRoleStmt represents a REVOKE role FROM user statement.
+type RevokeRoleStmt struct {
+	Loc   Loc
+	Roles []string
+	From  []string
+}
+
+func (s *RevokeRoleStmt) nodeTag()  {}
+func (s *RevokeRoleStmt) stmtNode() {}
 
 // CreateFunctionStmt represents a CREATE FUNCTION or CREATE PROCEDURE.
 type CreateFunctionStmt struct {
@@ -1321,6 +1393,32 @@ type DoStmt struct {
 func (s *DoStmt) nodeTag()  {}
 func (s *DoStmt) stmtNode() {}
 
+// ChecksumTableStmt represents a CHECKSUM TABLE statement.
+type ChecksumTableStmt struct {
+	Loc    Loc
+	Tables []*TableRef
+	Quick  bool
+}
+
+func (s *ChecksumTableStmt) nodeTag()  {}
+func (s *ChecksumTableStmt) stmtNode() {}
+
+// ShutdownStmt represents a SHUTDOWN statement.
+type ShutdownStmt struct {
+	Loc Loc
+}
+
+func (s *ShutdownStmt) nodeTag()  {}
+func (s *ShutdownStmt) stmtNode() {}
+
+// RestartStmt represents a RESTART statement.
+type RestartStmt struct {
+	Loc Loc
+}
+
+func (s *RestartStmt) nodeTag()  {}
+func (s *RestartStmt) stmtNode() {}
+
 // AlterDatabaseStmt represents an ALTER DATABASE statement.
 type AlterDatabaseStmt struct {
 	Loc     Loc
@@ -1456,17 +1554,17 @@ func (e *JsonTableExpr) tableExpr() {}
 
 // JsonTableColumn represents a column definition in JSON_TABLE.
 type JsonTableColumn struct {
-	Loc          Loc
-	Name         string
-	TypeName     *DataType
-	Path         string
-	Exists       bool   // FOR ORDINALITY or EXISTS PATH
-	ErrorOption  string // ERROR ON ERROR, NULL ON ERROR, DEFAULT val ON ERROR
-	EmptyOption  string // ERROR ON EMPTY, NULL ON EMPTY, DEFAULT val ON EMPTY
-	Ordinality   bool   // FOR ORDINALITY
-	Nested       bool   // NESTED PATH
-	NestedPath   string
-	NestedCols   []*JsonTableColumn
+	Loc         Loc
+	Name        string
+	TypeName    *DataType
+	Path        string
+	Exists      bool   // FOR ORDINALITY or EXISTS PATH
+	ErrorOption string // ERROR ON ERROR, NULL ON ERROR, DEFAULT val ON ERROR
+	EmptyOption string // ERROR ON EMPTY, NULL ON EMPTY, DEFAULT val ON EMPTY
+	Ordinality  bool   // FOR ORDINALITY
+	Nested      bool   // NESTED PATH
+	NestedPath  string
+	NestedCols  []*JsonTableColumn
 }
 
 func (c *JsonTableColumn) nodeTag() {}
@@ -1601,6 +1699,520 @@ type DiagnosticsItem struct {
 }
 
 func (d *DiagnosticsItem) nodeTag() {}
+
+// BeginEndBlock represents a BEGIN...END compound statement block.
+type BeginEndBlock struct {
+	Loc   Loc
+	Label string // optional label name
+	Stmts []Node // statements inside the block
+}
+
+func (s *BeginEndBlock) nodeTag()  {}
+func (s *BeginEndBlock) stmtNode() {}
+
+// DeclareVarStmt represents a DECLARE variable statement inside a compound block.
+type DeclareVarStmt struct {
+	Loc      Loc
+	Names    []string  // variable names
+	TypeName *DataType // data type
+	Default  ExprNode  // DEFAULT value (may be nil)
+}
+
+func (s *DeclareVarStmt) nodeTag()  {}
+func (s *DeclareVarStmt) stmtNode() {}
+
+// DeclareConditionStmt represents a DECLARE ... CONDITION FOR statement.
+type DeclareConditionStmt struct {
+	Loc            Loc
+	Name           string // condition name
+	ConditionValue string // SQLSTATE value or mysql_error_code
+}
+
+func (s *DeclareConditionStmt) nodeTag()  {}
+func (s *DeclareConditionStmt) stmtNode() {}
+
+// DeclareHandlerStmt represents a DECLARE ... HANDLER FOR statement.
+type DeclareHandlerStmt struct {
+	Loc        Loc
+	Action     string   // CONTINUE, EXIT, or UNDO
+	Conditions []string // condition values
+	Stmt       Node     // handler statement body
+}
+
+func (s *DeclareHandlerStmt) nodeTag()  {}
+func (s *DeclareHandlerStmt) stmtNode() {}
+
+// DeclareCursorStmt represents a DECLARE ... CURSOR FOR statement.
+type DeclareCursorStmt struct {
+	Loc    Loc
+	Name   string      // cursor name
+	Select *SelectStmt // select statement
+}
+
+func (s *DeclareCursorStmt) nodeTag()  {}
+func (s *DeclareCursorStmt) stmtNode() {}
+
+// TableStmt represents a TABLE statement (MySQL 8.0.19+).
+// TABLE t is equivalent to SELECT * FROM t.
+type TableStmt struct {
+	Loc     Loc
+	Table   *TableRef      // table name
+	OrderBy []*OrderByItem // optional ORDER BY
+	Limit   *Limit         // optional LIMIT/OFFSET
+}
+
+func (s *TableStmt) nodeTag()  {}
+func (s *TableStmt) stmtNode() {}
+
+// ValuesStmt represents a VALUES statement (MySQL 8.0.19+).
+// VALUES ROW(1,2), ROW(3,4) returns rows of literal values.
+type ValuesStmt struct {
+	Loc     Loc
+	Rows    [][]ExprNode   // list of ROW(...) value lists
+	OrderBy []*OrderByItem // optional ORDER BY
+	Limit   *Limit         // optional LIMIT/OFFSET
+}
+
+func (s *ValuesStmt) nodeTag()  {}
+func (s *ValuesStmt) stmtNode() {}
+
+// IfStmt represents an IF/ELSEIF/ELSE compound statement.
+type IfStmt struct {
+	Loc      Loc
+	Cond     ExprNode  // IF condition
+	ThenList []Node    // THEN statement list
+	ElseIfs  []*ElseIf // ELSEIF clauses
+	ElseList []Node    // ELSE statement list (may be nil)
+}
+
+func (s *IfStmt) nodeTag()  {}
+func (s *IfStmt) stmtNode() {}
+
+// ElseIf represents an ELSEIF clause within an IF statement.
+type ElseIf struct {
+	Loc      Loc
+	Cond     ExprNode // ELSEIF condition
+	ThenList []Node   // THEN statement list
+}
+
+func (e *ElseIf) nodeTag() {}
+
+// CaseStmtNode represents a CASE statement (not expression) in stored programs.
+type CaseStmtNode struct {
+	Loc      Loc
+	Operand  ExprNode        // simple CASE operand (nil for searched CASE)
+	Whens    []*CaseStmtWhen // WHEN clauses
+	ElseList []Node          // ELSE statement list (may be nil)
+}
+
+func (s *CaseStmtNode) nodeTag()  {}
+func (s *CaseStmtNode) stmtNode() {}
+
+// CaseStmtWhen represents a WHEN clause in a CASE statement.
+type CaseStmtWhen struct {
+	Loc      Loc
+	Cond     ExprNode // WHEN condition/value
+	ThenList []Node   // THEN statement list
+}
+
+func (w *CaseStmtWhen) nodeTag() {}
+
+// WhileStmt represents a WHILE loop compound statement.
+type WhileStmt struct {
+	Loc   Loc
+	Label string   // optional label
+	Cond  ExprNode // loop condition
+	Stmts []Node   // statement list
+}
+
+func (s *WhileStmt) nodeTag()  {}
+func (s *WhileStmt) stmtNode() {}
+
+// RepeatStmt represents a REPEAT loop compound statement.
+type RepeatStmt struct {
+	Loc   Loc
+	Label string   // optional label
+	Stmts []Node   // statement list
+	Cond  ExprNode // UNTIL condition
+}
+
+func (s *RepeatStmt) nodeTag()  {}
+func (s *RepeatStmt) stmtNode() {}
+
+// LoopStmt represents a LOOP compound statement.
+type LoopStmt struct {
+	Loc   Loc
+	Label string // optional label
+	Stmts []Node // statement list
+}
+
+func (s *LoopStmt) nodeTag()  {}
+func (s *LoopStmt) stmtNode() {}
+
+// LeaveStmt represents a LEAVE statement.
+type LeaveStmt struct {
+	Loc   Loc
+	Label string
+}
+
+func (s *LeaveStmt) nodeTag()  {}
+func (s *LeaveStmt) stmtNode() {}
+
+// IterateStmt represents an ITERATE statement.
+type IterateStmt struct {
+	Loc   Loc
+	Label string
+}
+
+func (s *IterateStmt) nodeTag()  {}
+func (s *IterateStmt) stmtNode() {}
+
+// ReturnStmt represents a RETURN statement in stored functions.
+type ReturnStmt struct {
+	Loc  Loc
+	Expr ExprNode
+}
+
+func (s *ReturnStmt) nodeTag()  {}
+func (s *ReturnStmt) stmtNode() {}
+
+// OpenCursorStmt represents an OPEN cursor_name statement.
+type OpenCursorStmt struct {
+	Loc  Loc
+	Name string
+}
+
+func (s *OpenCursorStmt) nodeTag()  {}
+func (s *OpenCursorStmt) stmtNode() {}
+
+// FetchCursorStmt represents a FETCH cursor_name INTO var_name [, var_name] ... statement.
+type FetchCursorStmt struct {
+	Loc  Loc
+	Name string   // cursor name
+	Into []string // variable names
+}
+
+func (s *FetchCursorStmt) nodeTag()  {}
+func (s *FetchCursorStmt) stmtNode() {}
+
+// CloseCursorStmt represents a CLOSE cursor_name statement.
+type CloseCursorStmt struct {
+	Loc  Loc
+	Name string
+}
+
+func (s *CloseCursorStmt) nodeTag()  {}
+func (s *CloseCursorStmt) stmtNode() {}
+
+// CloneStmt represents a CLONE statement (MySQL 8.0.17+).
+type CloneStmt struct {
+	Loc        Loc
+	Local      bool   // true = CLONE LOCAL, false = CLONE INSTANCE FROM
+	Directory  string // DATA DIRECTORY path
+	User       string // remote user (CLONE INSTANCE only)
+	Host       string // remote host (CLONE INSTANCE only)
+	Port       int64  // remote port (CLONE INSTANCE only)
+	Password   string // IDENTIFIED BY password (CLONE INSTANCE only)
+	RequireSSL *bool  // nil = not specified, true = REQUIRE SSL, false = REQUIRE NO SSL
+}
+
+func (s *CloneStmt) nodeTag()  {}
+func (s *CloneStmt) stmtNode() {}
+
+// InstallPluginStmt represents an INSTALL PLUGIN statement.
+type InstallPluginStmt struct {
+	Loc        Loc
+	PluginName string // plugin name
+	Soname     string // shared library name
+}
+
+func (s *InstallPluginStmt) nodeTag()  {}
+func (s *InstallPluginStmt) stmtNode() {}
+
+// UninstallPluginStmt represents an UNINSTALL PLUGIN statement.
+type UninstallPluginStmt struct {
+	Loc        Loc
+	PluginName string // plugin name
+}
+
+func (s *UninstallPluginStmt) nodeTag()  {}
+func (s *UninstallPluginStmt) stmtNode() {}
+
+// InstallComponentStmt represents an INSTALL COMPONENT statement.
+type InstallComponentStmt struct {
+	Loc        Loc
+	Components []string // component names (string literals)
+}
+
+func (s *InstallComponentStmt) nodeTag()  {}
+func (s *InstallComponentStmt) stmtNode() {}
+
+// UninstallComponentStmt represents an UNINSTALL COMPONENT statement.
+type UninstallComponentStmt struct {
+	Loc        Loc
+	Components []string // component names (string literals)
+}
+
+func (s *UninstallComponentStmt) nodeTag()  {}
+func (s *UninstallComponentStmt) stmtNode() {}
+
+// CreateTablespaceStmt represents a CREATE TABLESPACE statement.
+type CreateTablespaceStmt struct {
+	Loc           Loc
+	Undo          bool   // UNDO tablespace
+	Name          string // tablespace name
+	DataFile      string // ADD DATAFILE 'file_name'
+	FileBlockSize string // FILE_BLOCK_SIZE value
+	Encryption    string // ENCRYPTION value ('Y' or 'N')
+	Engine        string // ENGINE name
+}
+
+func (s *CreateTablespaceStmt) nodeTag()  {}
+func (s *CreateTablespaceStmt) stmtNode() {}
+
+// AlterTablespaceStmt represents an ALTER TABLESPACE statement.
+type AlterTablespaceStmt struct {
+	Loc          Loc
+	Undo         bool   // UNDO tablespace
+	Name         string // tablespace name
+	AddDataFile  string // ADD DATAFILE 'file_name'
+	DropDataFile string // DROP DATAFILE 'file_name'
+	InitialSize  string // INITIAL_SIZE value
+	Engine       string // ENGINE name
+}
+
+func (s *AlterTablespaceStmt) nodeTag()  {}
+func (s *AlterTablespaceStmt) stmtNode() {}
+
+// DropTablespaceStmt represents a DROP TABLESPACE statement.
+type DropTablespaceStmt struct {
+	Loc    Loc
+	Undo   bool   // UNDO tablespace
+	Name   string // tablespace name
+	Engine string // ENGINE name
+}
+
+func (s *DropTablespaceStmt) nodeTag()  {}
+func (s *DropTablespaceStmt) stmtNode() {}
+
+// CreateServerStmt represents a CREATE SERVER statement.
+type CreateServerStmt struct {
+	Loc         Loc
+	Name        string   // server name
+	WrapperName string   // FOREIGN DATA WRAPPER name
+	Options     []string // OPTIONS values
+}
+
+func (s *CreateServerStmt) nodeTag()  {}
+func (s *CreateServerStmt) stmtNode() {}
+
+// AlterServerStmt represents an ALTER SERVER statement.
+type AlterServerStmt struct {
+	Loc     Loc
+	Name    string   // server name
+	Options []string // OPTIONS values
+}
+
+func (s *AlterServerStmt) nodeTag()  {}
+func (s *AlterServerStmt) stmtNode() {}
+
+// DropServerStmt represents a DROP SERVER statement.
+type DropServerStmt struct {
+	Loc      Loc
+	IfExists bool
+	Name     string // server name
+}
+
+func (s *DropServerStmt) nodeTag()  {}
+func (s *DropServerStmt) stmtNode() {}
+
+// CreateSpatialRefSysStmt represents a CREATE SPATIAL REFERENCE SYSTEM statement.
+type CreateSpatialRefSysStmt struct {
+	Loc          Loc
+	OrReplace    bool   // OR REPLACE
+	IfNotExists  bool   // IF NOT EXISTS
+	SRID         int64  // spatial reference system ID
+	Name         string // NAME 'srs_name'
+	Definition   string // DEFINITION 'definition'
+	Organization string // ORGANIZATION 'org_name'
+	OrgSRID      int64  // IDENTIFIED BY srid (under ORGANIZATION)
+	Description  string // DESCRIPTION 'description'
+}
+
+func (s *CreateSpatialRefSysStmt) nodeTag()  {}
+func (s *CreateSpatialRefSysStmt) stmtNode() {}
+
+// DropSpatialRefSysStmt represents a DROP SPATIAL REFERENCE SYSTEM statement.
+type DropSpatialRefSysStmt struct {
+	Loc      Loc
+	IfExists bool
+	SRID     int64
+}
+
+func (s *DropSpatialRefSysStmt) nodeTag()  {}
+func (s *DropSpatialRefSysStmt) stmtNode() {}
+
+// VCPUSpec represents a VCPU specification in a resource group (e.g., 0-3 or 5).
+type VCPUSpec struct {
+	Start int64
+	End   int64 // -1 means single CPU (no range)
+}
+
+// CreateResourceGroupStmt represents a CREATE RESOURCE GROUP statement.
+type CreateResourceGroupStmt struct {
+	Loc            Loc
+	Name           string     // group name
+	Type           string     // SYSTEM or USER
+	VCPUs          []VCPUSpec // VCPU specs
+	ThreadPriority *int64     // THREAD_PRIORITY value
+	Enable         *bool      // ENABLE or DISABLE (nil = not specified)
+}
+
+func (s *CreateResourceGroupStmt) nodeTag()  {}
+func (s *CreateResourceGroupStmt) stmtNode() {}
+
+// AlterResourceGroupStmt represents an ALTER RESOURCE GROUP statement.
+type AlterResourceGroupStmt struct {
+	Loc            Loc
+	Name           string     // group name
+	VCPUs          []VCPUSpec // VCPU specs
+	ThreadPriority *int64     // THREAD_PRIORITY value
+	Enable         *bool      // ENABLE or DISABLE (nil = not specified)
+	Force          bool       // FORCE
+}
+
+func (s *AlterResourceGroupStmt) nodeTag()  {}
+func (s *AlterResourceGroupStmt) stmtNode() {}
+
+// DropResourceGroupStmt represents a DROP RESOURCE GROUP statement.
+type DropResourceGroupStmt struct {
+	Loc   Loc
+	Name  string // group name
+	Force bool   // FORCE
+}
+
+func (s *DropResourceGroupStmt) nodeTag()  {}
+func (s *DropResourceGroupStmt) stmtNode() {}
+
+// AlterViewStmt represents an ALTER VIEW statement.
+type AlterViewStmt struct {
+	Loc         Loc
+	Algorithm   string // UNDEFINED, MERGE, TEMPTABLE
+	Definer     string
+	SqlSecurity string // DEFINER, INVOKER
+	Name        *TableRef
+	Columns     []string
+	Select      *SelectStmt
+	CheckOption string // CASCADED, LOCAL
+}
+
+func (s *AlterViewStmt) nodeTag()  {}
+func (s *AlterViewStmt) stmtNode() {}
+
+// AlterEventStmt represents an ALTER EVENT statement.
+type AlterEventStmt struct {
+	Loc          Loc
+	Definer      string
+	Name         string
+	Schedule     *EventSchedule
+	OnCompletion string // PRESERVE, NOT PRESERVE
+	RenameTo     string
+	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE
+	Comment      string
+	Body         string
+}
+
+func (s *AlterEventStmt) nodeTag()  {}
+func (s *AlterEventStmt) stmtNode() {}
+
+// AlterRoutineStmt represents an ALTER FUNCTION or ALTER PROCEDURE statement.
+type AlterRoutineStmt struct {
+	Loc             Loc
+	IsProcedure     bool
+	Name            *TableRef
+	Characteristics []*RoutineCharacteristic
+}
+
+func (s *AlterRoutineStmt) nodeTag()  {}
+func (s *AlterRoutineStmt) stmtNode() {}
+
+// DropRoutineStmt represents a DROP FUNCTION or DROP PROCEDURE statement.
+type DropRoutineStmt struct {
+	Loc         Loc
+	IsProcedure bool
+	IfExists    bool
+	Name        *TableRef
+}
+
+func (s *DropRoutineStmt) nodeTag()  {}
+func (s *DropRoutineStmt) stmtNode() {}
+
+// DropTriggerStmt represents a DROP TRIGGER statement.
+type DropTriggerStmt struct {
+	Loc      Loc
+	IfExists bool
+	Name     *TableRef
+}
+
+func (s *DropTriggerStmt) nodeTag()  {}
+func (s *DropTriggerStmt) stmtNode() {}
+
+// DropEventStmt represents a DROP EVENT statement.
+type DropEventStmt struct {
+	Loc      Loc
+	IfExists bool
+	Name     string
+}
+
+func (s *DropEventStmt) nodeTag()  {}
+func (s *DropEventStmt) stmtNode() {}
+
+// ChangeReplicationSourceStmt represents a CHANGE REPLICATION SOURCE TO statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/change-replication-source-to.html
+//
+//	CHANGE REPLICATION SOURCE TO option [, option] ... [ channel_option ]
+type ChangeReplicationSourceStmt struct {
+	Loc     Loc
+	Options []*ReplicationOption // SOURCE_HOST = '...', etc.
+	Channel string               // FOR CHANNEL channel
+}
+
+func (s *ChangeReplicationSourceStmt) nodeTag()  {}
+func (s *ChangeReplicationSourceStmt) stmtNode() {}
+
+// ReplicationOption represents a single key = value option in CHANGE REPLICATION SOURCE TO.
+type ReplicationOption struct {
+	Loc   Loc
+	Name  string  // e.g. SOURCE_HOST, SOURCE_PORT, SOURCE_LOG_FILE, etc.
+	Value string  // the value as string (number, string literal, or identifier)
+	IDs   []int64 // for IGNORE_SERVER_IDS = (id, id, ...)
+}
+
+func (o *ReplicationOption) nodeTag() {}
+
+// ChangeReplicationFilterStmt represents a CHANGE REPLICATION FILTER statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/change-replication-filter.html
+//
+//	CHANGE REPLICATION FILTER filter[, filter] [FOR CHANNEL channel]
+type ChangeReplicationFilterStmt struct {
+	Loc     Loc
+	Filters []*ReplicationFilter
+	Channel string // FOR CHANNEL channel
+}
+
+func (s *ChangeReplicationFilterStmt) nodeTag()  {}
+func (s *ChangeReplicationFilterStmt) stmtNode() {}
+
+// ReplicationFilter represents a single filter in CHANGE REPLICATION FILTER.
+type ReplicationFilter struct {
+	Loc    Loc
+	Type   string   // REPLICATE_DO_DB, REPLICATE_IGNORE_DB, etc.
+	Values []string // database or table names, or patterns
+}
+
+func (f *ReplicationFilter) nodeTag() {}
 
 // RawStmt wraps a statement node with its location span.
 type RawStmt struct {

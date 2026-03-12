@@ -520,3 +520,1056 @@ func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 	stmt.Loc.End = p.pos()
 	return stmt, nil
 }
+
+// parseChecksumTableStmt parses a CHECKSUM TABLE statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/checksum-table.html
+//
+//	CHECKSUM TABLE tbl_name [, tbl_name] ... [QUICK | EXTENDED]
+func (p *Parser) parseChecksumTableStmt() (*nodes.ChecksumTableStmt, error) {
+	start := p.pos()
+	p.advance() // consume CHECKSUM
+
+	p.match(kwTABLE)
+
+	stmt := &nodes.ChecksumTableStmt{Loc: nodes.Loc{Start: start}}
+
+	for {
+		ref, err := p.parseTableRef()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Tables = append(stmt.Tables, ref)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	// Optional QUICK | EXTENDED
+	if p.cur.Type == kwQUICK {
+		stmt.Quick = true
+		p.advance()
+	} else if p.cur.Type == kwEXTENDED {
+		p.advance()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseShutdownStmt parses a SHUTDOWN statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/shutdown.html
+//
+//	SHUTDOWN
+func (p *Parser) parseShutdownStmt() (*nodes.ShutdownStmt, error) {
+	start := p.pos()
+	p.advance() // consume SHUTDOWN
+
+	stmt := &nodes.ShutdownStmt{Loc: nodes.Loc{Start: start}}
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseRestartStmt parses a RESTART statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/restart.html
+//
+//	RESTART
+func (p *Parser) parseRestartStmt() (*nodes.RestartStmt, error) {
+	start := p.pos()
+	p.advance() // consume RESTART
+
+	stmt := &nodes.RestartStmt{Loc: nodes.Loc{Start: start}}
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseCloneStmt parses a CLONE statement (MySQL 8.0.17+).
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/clone.html
+//
+//	CLONE LOCAL DATA DIRECTORY [=] 'clone_dir'
+//	CLONE INSTANCE FROM 'user'@'host':port
+//	  IDENTIFIED BY 'password'
+//	  [DATA DIRECTORY [=] 'clone_dir']
+//	  [REQUIRE [NO] SSL]
+func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
+	start := p.pos()
+	p.advance() // consume CLONE
+
+	stmt := &nodes.CloneStmt{Loc: nodes.Loc{Start: start}}
+
+	if p.cur.Type == kwLOCAL {
+		// CLONE LOCAL DATA DIRECTORY [=] 'clone_dir'
+		stmt.Local = true
+		p.advance() // consume LOCAL
+		p.match(kwDATA)
+		p.match(kwDIRECTORY)
+
+		// Optional '='
+		if p.cur.Type == '=' {
+			p.advance()
+		}
+
+		// clone_dir string
+		if p.cur.Type != tokSCONST {
+			return nil, &ParseError{
+				Message:  "expected string literal for DATA DIRECTORY",
+				Position: p.cur.Loc,
+			}
+		}
+		stmt.Directory = p.cur.Str
+		p.advance()
+	} else if p.cur.Type == kwINSTANCE {
+		// CLONE INSTANCE FROM 'user'@'host':port IDENTIFIED BY 'password' ...
+		p.advance() // consume INSTANCE
+		p.match(kwFROM)
+
+		// 'user'
+		if p.cur.Type != tokSCONST {
+			return nil, &ParseError{
+				Message:  "expected string literal for user",
+				Position: p.cur.Loc,
+			}
+		}
+		stmt.User = p.cur.Str
+		p.advance()
+
+		// @ - lexer scans @ as tokIDENT with Str="@"
+		if p.cur.Type == tokIDENT && p.cur.Str == "@" {
+			p.advance()
+		} else {
+			return nil, &ParseError{
+				Message:  "expected @ after user",
+				Position: p.cur.Loc,
+			}
+		}
+
+		// 'host'
+		if p.cur.Type != tokSCONST {
+			return nil, &ParseError{
+				Message:  "expected string literal for host",
+				Position: p.cur.Loc,
+			}
+		}
+		stmt.Host = p.cur.Str
+		p.advance()
+
+		// :port
+		p.expect(':')
+		if p.cur.Type != tokICONST {
+			return nil, &ParseError{
+				Message:  "expected integer for port",
+				Position: p.cur.Loc,
+			}
+		}
+		stmt.Port = p.cur.Ival
+		p.advance()
+
+		// IDENTIFIED BY 'password'
+		p.match(kwIDENTIFIED)
+		p.match(kwBY)
+		if p.cur.Type != tokSCONST {
+			return nil, &ParseError{
+				Message:  "expected string literal for password",
+				Position: p.cur.Loc,
+			}
+		}
+		stmt.Password = p.cur.Str
+		p.advance()
+
+		// Optional DATA DIRECTORY [=] 'clone_dir'
+		if p.cur.Type == kwDATA {
+			p.advance() // consume DATA
+			p.match(kwDIRECTORY)
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			if p.cur.Type != tokSCONST {
+				return nil, &ParseError{
+					Message:  "expected string literal for DATA DIRECTORY",
+					Position: p.cur.Loc,
+				}
+			}
+			stmt.Directory = p.cur.Str
+			p.advance()
+		}
+
+		// Optional REQUIRE [NO] SSL
+		if p.cur.Type == kwREQUIRE {
+			p.advance() // consume REQUIRE
+			if p.cur.Type == kwNO {
+				p.advance() // consume NO
+				p.match(kwSSL)
+				f := false
+				stmt.RequireSSL = &f
+			} else {
+				p.match(kwSSL)
+				t := true
+				stmt.RequireSSL = &t
+			}
+		}
+	} else {
+		return nil, &ParseError{
+			Message:  "expected LOCAL or INSTANCE after CLONE",
+			Position: p.cur.Loc,
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseInstallStmt parses INSTALL PLUGIN or INSTALL COMPONENT.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/install-plugin.html
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/install-component.html
+//
+//	INSTALL PLUGIN plugin_name SONAME 'shared_library_name'
+//	INSTALL COMPONENT component_name [, component_name] ...
+func (p *Parser) parseInstallStmt() (nodes.StmtNode, error) {
+	start := p.pos()
+	p.advance() // consume INSTALL
+
+	switch p.cur.Type {
+	case kwPLUGIN:
+		return p.parseInstallPluginStmt(start)
+	case kwCOMPONENT:
+		return p.parseInstallComponentStmt(start)
+	default:
+		return nil, &ParseError{
+			Message:  "expected PLUGIN or COMPONENT after INSTALL",
+			Position: p.cur.Loc,
+		}
+	}
+}
+
+// parseInstallPluginStmt parses an INSTALL PLUGIN statement.
+//
+//	INSTALL PLUGIN plugin_name SONAME 'shared_library_name'
+func (p *Parser) parseInstallPluginStmt(start int) (*nodes.InstallPluginStmt, error) {
+	p.advance() // consume PLUGIN
+
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	p.match(kwSONAME)
+
+	soname := p.cur.Str
+	p.expect(tokSCONST)
+
+	stmt := &nodes.InstallPluginStmt{
+		Loc:        nodes.Loc{Start: start},
+		PluginName: name,
+		Soname:     soname,
+	}
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseInstallComponentStmt parses an INSTALL COMPONENT statement.
+//
+//	INSTALL COMPONENT component_name [, component_name] ...
+func (p *Parser) parseInstallComponentStmt(start int) (*nodes.InstallComponentStmt, error) {
+	p.advance() // consume COMPONENT
+
+	stmt := &nodes.InstallComponentStmt{Loc: nodes.Loc{Start: start}}
+
+	for {
+		comp := p.cur.Str
+		p.expect(tokSCONST)
+		stmt.Components = append(stmt.Components, comp)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseUninstallStmt parses UNINSTALL PLUGIN or UNINSTALL COMPONENT.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/uninstall-plugin.html
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/uninstall-component.html
+//
+//	UNINSTALL PLUGIN plugin_name
+//	UNINSTALL COMPONENT component_name [, component_name] ...
+func (p *Parser) parseUninstallStmt() (nodes.StmtNode, error) {
+	start := p.pos()
+	p.advance() // consume UNINSTALL
+
+	switch p.cur.Type {
+	case kwPLUGIN:
+		return p.parseUninstallPluginStmt(start)
+	case kwCOMPONENT:
+		return p.parseUninstallComponentStmt(start)
+	default:
+		return nil, &ParseError{
+			Message:  "expected PLUGIN or COMPONENT after UNINSTALL",
+			Position: p.cur.Loc,
+		}
+	}
+}
+
+// parseUninstallPluginStmt parses an UNINSTALL PLUGIN statement.
+//
+//	UNINSTALL PLUGIN plugin_name
+func (p *Parser) parseUninstallPluginStmt(start int) (*nodes.UninstallPluginStmt, error) {
+	p.advance() // consume PLUGIN
+
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &nodes.UninstallPluginStmt{
+		Loc:        nodes.Loc{Start: start},
+		PluginName: name,
+	}
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseUninstallComponentStmt parses an UNINSTALL COMPONENT statement.
+//
+//	UNINSTALL COMPONENT component_name [, component_name] ...
+func (p *Parser) parseUninstallComponentStmt(start int) (*nodes.UninstallComponentStmt, error) {
+	p.advance() // consume COMPONENT
+
+	stmt := &nodes.UninstallComponentStmt{Loc: nodes.Loc{Start: start}}
+
+	for {
+		comp := p.cur.Str
+		p.expect(tokSCONST)
+		stmt.Components = append(stmt.Components, comp)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseCreateTablespaceStmt parses a CREATE [UNDO] TABLESPACE statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-tablespace.html
+//
+//	CREATE [UNDO] TABLESPACE tablespace_name
+//	  [ADD DATAFILE 'file_name']
+//	  [FILE_BLOCK_SIZE [=] value]
+//	  [ENCRYPTION [=] {'Y' | 'N'}]
+//	  [ENGINE [=] engine_name]
+func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateTablespaceStmt, error) {
+	p.advance() // consume TABLESPACE
+
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &nodes.CreateTablespaceStmt{
+		Loc:  nodes.Loc{Start: start},
+		Undo: undo,
+		Name: name,
+	}
+
+	// Parse optional clauses
+	for p.cur.Type != tokEOF && p.cur.Type != ';' {
+		switch {
+		case p.cur.Type == kwADD:
+			p.advance() // consume ADD
+			p.match(kwDATAFILE)
+			if p.cur.Type != tokSCONST {
+				return nil, &ParseError{
+					Message:  "expected string literal for DATAFILE",
+					Position: p.cur.Loc,
+				}
+			}
+			stmt.DataFile = p.cur.Str
+			p.advance()
+		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "file_block_size"):
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			stmt.FileBlockSize = p.cur.Str
+			p.advance()
+		case p.cur.Type == kwENCRYPTION:
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			if p.cur.Type == tokSCONST {
+				stmt.Encryption = p.cur.Str
+				p.advance()
+			}
+		case p.cur.Type == kwENGINE:
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			ename, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Engine = ename
+		default:
+			// Unknown option, stop parsing
+			goto done
+		}
+	}
+done:
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseAlterTablespaceStmt parses an ALTER [UNDO] TABLESPACE statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-tablespace.html
+//
+//	ALTER [UNDO] TABLESPACE tablespace_name
+//	  {ADD | DROP} DATAFILE 'file_name'
+//	  [INITIAL_SIZE [=] size]
+//	  [ENGINE [=] engine_name]
+func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTablespaceStmt, error) {
+	p.advance() // consume TABLESPACE
+
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &nodes.AlterTablespaceStmt{
+		Loc:  nodes.Loc{Start: start},
+		Undo: undo,
+		Name: name,
+	}
+
+	// Parse optional clauses
+	for p.cur.Type != tokEOF && p.cur.Type != ';' {
+		switch {
+		case p.cur.Type == kwADD:
+			p.advance() // consume ADD
+			p.match(kwDATAFILE)
+			if p.cur.Type != tokSCONST {
+				return nil, &ParseError{
+					Message:  "expected string literal for DATAFILE",
+					Position: p.cur.Loc,
+				}
+			}
+			stmt.AddDataFile = p.cur.Str
+			p.advance()
+		case p.cur.Type == kwDROP:
+			p.advance() // consume DROP
+			p.match(kwDATAFILE)
+			if p.cur.Type != tokSCONST {
+				return nil, &ParseError{
+					Message:  "expected string literal for DATAFILE",
+					Position: p.cur.Loc,
+				}
+			}
+			stmt.DropDataFile = p.cur.Str
+			p.advance()
+		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "initial_size"):
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			stmt.InitialSize = p.cur.Str
+			p.advance()
+		case p.cur.Type == kwENGINE:
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			ename, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Engine = ename
+		default:
+			goto done
+		}
+	}
+done:
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseDropTablespaceStmt parses a DROP [UNDO] TABLESPACE statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-tablespace.html
+//
+//	DROP [UNDO] TABLESPACE tablespace_name [ENGINE [=] engine_name]
+func (p *Parser) parseDropTablespaceStmt(start int, undo bool) (*nodes.DropTablespaceStmt, error) {
+	p.advance() // consume TABLESPACE
+
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &nodes.DropTablespaceStmt{
+		Loc:  nodes.Loc{Start: start},
+		Undo: undo,
+		Name: name,
+	}
+
+	// Optional ENGINE [=] engine_name
+	if p.cur.Type == kwENGINE {
+		p.advance()
+		if p.cur.Type == '=' {
+			p.advance()
+		}
+		ename, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Engine = ename
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseServerOptions parses the OPTIONS (...) clause for SERVER statements.
+// It consumes everything inside the parentheses as raw option strings.
+func (p *Parser) parseServerOptions() ([]string, error) {
+	p.match(kwOPTIONS)
+	p.expect('(')
+
+	var opts []string
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		// Each option is: keyword value
+		// e.g., HOST 'host_name', DATABASE 'db_name', USER 'user_name', etc.
+		var optStr string
+		if p.isIdentToken() {
+			optName, _, _ := p.parseIdentifier()
+			optStr = optName
+		} else {
+			optStr = p.cur.Str
+			p.advance()
+		}
+		// value
+		if p.cur.Type == tokSCONST {
+			optStr += " " + p.cur.Str
+			p.advance()
+		} else if p.cur.Type == tokICONST {
+			optStr += " " + p.cur.Str
+			p.advance()
+		}
+		opts = append(opts, optStr)
+		if p.cur.Type == ',' {
+			p.advance()
+		}
+	}
+	p.expect(')')
+	return opts, nil
+}
+
+// parseCreateServerStmt parses a CREATE SERVER statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-server.html
+//
+//	CREATE SERVER server_name
+//	  FOREIGN DATA WRAPPER wrapper_name
+//	  OPTIONS (option [, option] ...)
+func (p *Parser) parseCreateServerStmt(start int) (*nodes.CreateServerStmt, error) {
+	p.advance() // consume SERVER
+
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	// FOREIGN DATA WRAPPER wrapper_name
+	p.match(kwFOREIGN)
+	p.match(kwDATA)
+	p.match(kwWRAPPER)
+
+	wrapperName, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &nodes.CreateServerStmt{
+		Loc:         nodes.Loc{Start: start},
+		Name:        name,
+		WrapperName: wrapperName,
+	}
+
+	// OPTIONS (...)
+	if p.cur.Type == kwOPTIONS {
+		opts, err := p.parseServerOptions()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseAlterServerStmt parses an ALTER SERVER statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-server.html
+//
+//	ALTER SERVER server_name OPTIONS (option [, option] ...)
+func (p *Parser) parseAlterServerStmt(start int) (*nodes.AlterServerStmt, error) {
+	p.advance() // consume SERVER
+
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &nodes.AlterServerStmt{
+		Loc:  nodes.Loc{Start: start},
+		Name: name,
+	}
+
+	// OPTIONS (...)
+	if p.cur.Type == kwOPTIONS {
+		opts, err := p.parseServerOptions()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseDropServerStmt parses a DROP SERVER statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-server.html
+//
+//	DROP SERVER [IF EXISTS] server_name
+func (p *Parser) parseDropServerStmt(start int) (*nodes.DropServerStmt, error) {
+	p.advance() // consume SERVER
+
+	stmt := &nodes.DropServerStmt{Loc: nodes.Loc{Start: start}}
+
+	// Optional IF EXISTS
+	if p.cur.Type == kwIF {
+		p.advance()
+		p.match(kwEXISTS_KW)
+		stmt.IfExists = true
+	}
+
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseCreateSpatialRefSysStmt parses a CREATE SPATIAL REFERENCE SYSTEM statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-spatial-reference-system.html
+//
+//	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM srid srs_attribute ...
+//	CREATE SPATIAL REFERENCE SYSTEM [IF NOT EXISTS] srid srs_attribute ...
+//
+//	srs_attribute: {
+//	  NAME 'srs_name'
+//	| DEFINITION 'definition'
+//	| ORGANIZATION 'org_name' IDENTIFIED BY srid
+//	| DESCRIPTION 'description'
+//	}
+func (p *Parser) parseCreateSpatialRefSysStmt(start int, orReplace bool) (*nodes.CreateSpatialRefSysStmt, error) {
+	// SPATIAL already consumed; consume REFERENCE SYSTEM
+	// Current token should be REFERENCE (as ident)
+	if !p.isIdentToken() || !eqFold(p.cur.Str, "reference") {
+		return nil, &ParseError{
+			Message:  "expected REFERENCE after SPATIAL",
+			Position: p.cur.Loc,
+		}
+	}
+	p.advance() // consume REFERENCE
+
+	if !p.isIdentToken() || !eqFold(p.cur.Str, "system") {
+		return nil, &ParseError{
+			Message:  "expected SYSTEM after REFERENCE",
+			Position: p.cur.Loc,
+		}
+	}
+	p.advance() // consume SYSTEM
+
+	stmt := &nodes.CreateSpatialRefSysStmt{
+		Loc:       nodes.Loc{Start: start},
+		OrReplace: orReplace,
+	}
+
+	// Optional IF NOT EXISTS (only when not OR REPLACE)
+	if !orReplace && p.cur.Type == kwIF {
+		p.advance()
+		p.match(kwNOT)
+		p.match(kwEXISTS_KW)
+		stmt.IfNotExists = true
+	}
+
+	// SRID (integer)
+	if p.cur.Type != tokICONST {
+		return nil, &ParseError{
+			Message:  "expected integer SRID",
+			Position: p.cur.Loc,
+		}
+	}
+	stmt.SRID = p.cur.Ival
+	p.advance()
+
+	// SRS attributes
+	for p.cur.Type != tokEOF && p.cur.Type != ';' {
+		if !p.isIdentToken() {
+			break
+		}
+		switch {
+		case eqFold(p.cur.Str, "name"):
+			p.advance()
+			if p.cur.Type != tokSCONST {
+				return nil, &ParseError{
+					Message:  "expected string literal for NAME",
+					Position: p.cur.Loc,
+				}
+			}
+			stmt.Name = p.cur.Str
+			p.advance()
+		case eqFold(p.cur.Str, "definition"):
+			p.advance()
+			if p.cur.Type != tokSCONST {
+				return nil, &ParseError{
+					Message:  "expected string literal for DEFINITION",
+					Position: p.cur.Loc,
+				}
+			}
+			stmt.Definition = p.cur.Str
+			p.advance()
+		case eqFold(p.cur.Str, "organization"):
+			p.advance()
+			if p.cur.Type != tokSCONST {
+				return nil, &ParseError{
+					Message:  "expected string literal for ORGANIZATION",
+					Position: p.cur.Loc,
+				}
+			}
+			stmt.Organization = p.cur.Str
+			p.advance()
+			// IDENTIFIED BY srid
+			p.match(kwIDENTIFIED)
+			p.match(kwBY)
+			if p.cur.Type != tokICONST {
+				return nil, &ParseError{
+					Message:  "expected integer for ORGANIZATION IDENTIFIED BY srid",
+					Position: p.cur.Loc,
+				}
+			}
+			stmt.OrgSRID = p.cur.Ival
+			p.advance()
+		case eqFold(p.cur.Str, "description"):
+			p.advance()
+			if p.cur.Type != tokSCONST {
+				return nil, &ParseError{
+					Message:  "expected string literal for DESCRIPTION",
+					Position: p.cur.Loc,
+				}
+			}
+			stmt.Description = p.cur.Str
+			p.advance()
+		default:
+			goto done_srs
+		}
+	}
+done_srs:
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseDropSpatialRefSysStmt parses a DROP SPATIAL REFERENCE SYSTEM statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-spatial-reference-system.html
+//
+//	DROP SPATIAL REFERENCE SYSTEM [IF EXISTS] srid
+func (p *Parser) parseDropSpatialRefSysStmt(start int) (*nodes.DropSpatialRefSysStmt, error) {
+	// SPATIAL already consumed; consume REFERENCE SYSTEM
+	if !p.isIdentToken() || !eqFold(p.cur.Str, "reference") {
+		return nil, &ParseError{
+			Message:  "expected REFERENCE after SPATIAL",
+			Position: p.cur.Loc,
+		}
+	}
+	p.advance() // consume REFERENCE
+
+	if !p.isIdentToken() || !eqFold(p.cur.Str, "system") {
+		return nil, &ParseError{
+			Message:  "expected SYSTEM after REFERENCE",
+			Position: p.cur.Loc,
+		}
+	}
+	p.advance() // consume SYSTEM
+
+	stmt := &nodes.DropSpatialRefSysStmt{Loc: nodes.Loc{Start: start}}
+
+	// Optional IF EXISTS
+	if p.cur.Type == kwIF {
+		p.advance()
+		p.match(kwEXISTS_KW)
+		stmt.IfExists = true
+	}
+
+	// SRID (integer)
+	if p.cur.Type != tokICONST {
+		return nil, &ParseError{
+			Message:  "expected integer SRID",
+			Position: p.cur.Loc,
+		}
+	}
+	stmt.SRID = p.cur.Ival
+	p.advance()
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseVCPUSpecs parses VCPU [=] vcpu_spec [, vcpu_spec] ...
+// where vcpu_spec is N or N-M.
+func (p *Parser) parseVCPUSpecs() ([]nodes.VCPUSpec, error) {
+	// consume VCPU keyword (as ident)
+	p.advance()
+
+	// Optional '='
+	if p.cur.Type == '=' {
+		p.advance()
+	}
+
+	var specs []nodes.VCPUSpec
+	for {
+		if p.cur.Type != tokICONST {
+			break
+		}
+		start := p.cur.Ival
+		p.advance()
+
+		spec := nodes.VCPUSpec{Start: start, End: -1}
+
+		// Check for range: N-M (the '-' is parsed as a minus operator)
+		if p.cur.Type == '-' {
+			p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, &ParseError{
+					Message:  "expected integer after '-' in VCPU range",
+					Position: p.cur.Loc,
+				}
+			}
+			spec.End = p.cur.Ival
+			p.advance()
+		}
+
+		specs = append(specs, spec)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		// Peek ahead: if after comma we don't see a number, it's not a VCPU continuation
+		// but could be a comma in some other context. For safety, always continue.
+		p.advance()
+	}
+
+	return specs, nil
+}
+
+// parseResourceGroupOptions parses options common to CREATE/ALTER RESOURCE GROUP.
+// It sets VCPU, THREAD_PRIORITY, ENABLE/DISABLE on the provided pointers.
+func (p *Parser) parseResourceGroupOptions(vcpus *[]nodes.VCPUSpec, threadPriority **int64, enable **bool) error {
+	for p.cur.Type != tokEOF && p.cur.Type != ';' {
+		switch {
+		case p.isIdentToken() && eqFold(p.cur.Str, "vcpu"):
+			specs, err := p.parseVCPUSpecs()
+			if err != nil {
+				return err
+			}
+			*vcpus = specs
+		case p.isIdentToken() && eqFold(p.cur.Str, "thread_priority"):
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			// Thread priority can be negative
+			neg := false
+			if p.cur.Type == '-' {
+				neg = true
+				p.advance()
+			}
+			if p.cur.Type != tokICONST {
+				return &ParseError{
+					Message:  "expected integer for THREAD_PRIORITY",
+					Position: p.cur.Loc,
+				}
+			}
+			val := p.cur.Ival
+			if neg {
+				val = -val
+			}
+			p.advance()
+			*threadPriority = &val
+		case p.cur.Type == kwENABLE:
+			p.advance()
+			t := true
+			*enable = &t
+		case p.cur.Type == kwDISABLE:
+			p.advance()
+			f := false
+			*enable = &f
+		default:
+			return nil
+		}
+	}
+	return nil
+}
+
+// parseCreateResourceGroupStmt parses a CREATE RESOURCE GROUP statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-resource-group.html
+//
+//	CREATE RESOURCE GROUP group_name
+//	  TYPE = {SYSTEM | USER}
+//	  [VCPU [=] vcpu_spec [, vcpu_spec] ...]
+//	  [THREAD_PRIORITY [=] N]
+//	  [ENABLE | DISABLE]
+func (p *Parser) parseCreateResourceGroupStmt(start int) (*nodes.CreateResourceGroupStmt, error) {
+	// RESOURCE already consumed by dispatch
+	// Consume GROUP
+	if !p.isIdentToken() || !eqFold(p.cur.Str, "group") {
+		return nil, &ParseError{
+			Message:  "expected GROUP after RESOURCE",
+			Position: p.cur.Loc,
+		}
+	}
+	p.advance() // consume GROUP
+
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &nodes.CreateResourceGroupStmt{
+		Loc:  nodes.Loc{Start: start},
+		Name: name,
+	}
+
+	// TYPE = {SYSTEM | USER}
+	if p.cur.Type == kwTYPE {
+		p.advance()
+		if p.cur.Type == '=' {
+			p.advance()
+		}
+		if p.isIdentToken() {
+			typeName, _, _ := p.parseIdentifier()
+			stmt.Type = typeName
+		}
+	}
+
+	// Optional VCPU, THREAD_PRIORITY, ENABLE/DISABLE
+	err = p.parseResourceGroupOptions(&stmt.VCPUs, &stmt.ThreadPriority, &stmt.Enable)
+	if err != nil {
+		return nil, err
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseAlterResourceGroupStmt parses an ALTER RESOURCE GROUP statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-resource-group.html
+//
+//	ALTER RESOURCE GROUP group_name
+//	  [VCPU [=] vcpu_spec [, vcpu_spec] ...]
+//	  [THREAD_PRIORITY [=] N]
+//	  [ENABLE | DISABLE]
+//	  [FORCE]
+func (p *Parser) parseAlterResourceGroupStmt(start int) (*nodes.AlterResourceGroupStmt, error) {
+	// RESOURCE already consumed by dispatch
+	// Consume GROUP
+	if !p.isIdentToken() || !eqFold(p.cur.Str, "group") {
+		return nil, &ParseError{
+			Message:  "expected GROUP after RESOURCE",
+			Position: p.cur.Loc,
+		}
+	}
+	p.advance() // consume GROUP
+
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &nodes.AlterResourceGroupStmt{
+		Loc:  nodes.Loc{Start: start},
+		Name: name,
+	}
+
+	// Optional VCPU, THREAD_PRIORITY, ENABLE/DISABLE
+	err = p.parseResourceGroupOptions(&stmt.VCPUs, &stmt.ThreadPriority, &stmt.Enable)
+	if err != nil {
+		return nil, err
+	}
+
+	// Optional FORCE
+	if p.cur.Type == kwFORCE {
+		p.advance()
+		stmt.Force = true
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseDropResourceGroupStmt parses a DROP RESOURCE GROUP statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-resource-group.html
+//
+//	DROP RESOURCE GROUP group_name [FORCE]
+func (p *Parser) parseDropResourceGroupStmt(start int) (*nodes.DropResourceGroupStmt, error) {
+	// RESOURCE already consumed by dispatch
+	// Consume GROUP
+	if !p.isIdentToken() || !eqFold(p.cur.Str, "group") {
+		return nil, &ParseError{
+			Message:  "expected GROUP after RESOURCE",
+			Position: p.cur.Loc,
+		}
+	}
+	p.advance() // consume GROUP
+
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &nodes.DropResourceGroupStmt{
+		Loc:  nodes.Loc{Start: start},
+		Name: name,
+	}
+
+	// Optional FORCE
+	if p.cur.Type == kwFORCE {
+		p.advance()
+		stmt.Force = true
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}

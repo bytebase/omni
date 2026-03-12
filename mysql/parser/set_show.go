@@ -65,6 +65,22 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		}
 	}
 
+	// Check for SET DEFAULT ROLE
+	if p.cur.Type == kwDEFAULT {
+		p.advance() // consume DEFAULT
+		if p.cur.Type == kwROLE {
+			p.advance() // consume ROLE
+			return p.parseSetDefaultRoleStmt(start)
+		}
+		return nil, &ParseError{Message: "expected ROLE after SET DEFAULT", Position: p.cur.Loc}
+	}
+
+	// Check for SET ROLE
+	if p.cur.Type == kwROLE {
+		p.advance() // consume ROLE
+		return p.parseSetRoleStmt(start)
+	}
+
 	// Check for GLOBAL / SESSION / LOCAL scope
 	scope := ""
 	switch p.cur.Type {
@@ -265,6 +281,38 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				return nil, err
 			}
 			stmt.From = ref
+		case kwPROCEDURE:
+			stmt.Type = "CREATE PROCEDURE"
+			p.advance()
+			ref, err := p.parseTableRef()
+			if err != nil {
+				return nil, err
+			}
+			stmt.From = ref
+		case kwFUNCTION:
+			stmt.Type = "CREATE FUNCTION"
+			p.advance()
+			ref, err := p.parseTableRef()
+			if err != nil {
+				return nil, err
+			}
+			stmt.From = ref
+		case kwTRIGGER:
+			stmt.Type = "CREATE TRIGGER"
+			p.advance()
+			ref, err := p.parseTableRef()
+			if err != nil {
+				return nil, err
+			}
+			stmt.From = ref
+		case kwEVENT:
+			stmt.Type = "CREATE EVENT"
+			p.advance()
+			ref, err := p.parseTableRef()
+			if err != nil {
+				return nil, err
+			}
+			stmt.From = ref
 		}
 
 	case kwINDEX:
@@ -336,6 +384,182 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			p.advance()
 		}
 
+	case kwENGINES:
+		stmt.Type = "ENGINES"
+		p.advance()
+
+	case kwPLUGINS:
+		stmt.Type = "PLUGINS"
+		p.advance()
+
+	case kwMASTER:
+		p.advance() // consume MASTER
+		if p.cur.Type == kwSTATUS {
+			stmt.Type = "MASTER STATUS"
+			p.advance()
+		}
+
+	case kwSLAVE:
+		p.advance() // consume SLAVE
+		if p.cur.Type == kwSTATUS {
+			stmt.Type = "SLAVE STATUS"
+			p.advance()
+		}
+
+	case kwREPLICA:
+		p.advance() // consume REPLICA
+		if p.cur.Type == kwSTATUS {
+			stmt.Type = "REPLICA STATUS"
+			p.advance()
+		}
+
+	case kwBINARY:
+		p.advance() // consume BINARY
+		if p.cur.Type == kwLOGS {
+			stmt.Type = "BINARY LOGS"
+			p.advance()
+		}
+
+	case kwBINLOG:
+		p.advance() // consume BINLOG
+		stmt.Type = "BINLOG EVENTS"
+		// Expect EVENTS (as identifier since it may not be a keyword)
+		if p.cur.Type == kwEVENT || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "events")) {
+			p.advance()
+		}
+		// Optional IN 'log_name'
+		if p.cur.Type == kwIN {
+			p.advance()
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Like = expr
+		}
+		// Optional FROM pos
+		if _, ok := p.match(kwFROM); ok {
+			// skip the position value
+			p.advance()
+		}
+		// Optional LIMIT [offset,] count
+		if _, ok := p.match(kwLIMIT); ok {
+			// skip limit value(s)
+			p.advance()
+			if p.cur.Type == ',' {
+				p.advance() // consume ','
+				p.advance() // consume count
+			}
+		}
+
+	case kwTABLE:
+		p.advance() // consume TABLE
+		if p.cur.Type == kwSTATUS {
+			stmt.Type = "TABLE STATUS"
+			p.advance()
+			if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
+		}
+
+	case kwTRIGGER:
+		// SHOW TRIGGERS (kwTRIGGER won't match plural; handled in default)
+		stmt.Type = "TRIGGERS"
+		p.advance()
+		if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
+			return nil, err
+		}
+
+	case kwEVENT:
+		// SHOW EVENTS (kwEVENT won't match plural; handled in default)
+		stmt.Type = "EVENTS"
+		p.advance()
+		if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
+			return nil, err
+		}
+
+	case kwPROCEDURE:
+		p.advance() // consume PROCEDURE
+		if p.cur.Type == kwSTATUS {
+			stmt.Type = "PROCEDURE STATUS"
+			p.advance()
+			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
+		}
+
+	case kwFUNCTION:
+		p.advance() // consume FUNCTION
+		if p.cur.Type == kwSTATUS {
+			stmt.Type = "FUNCTION STATUS"
+			p.advance()
+			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
+		}
+
+	case kwOPEN:
+		p.advance() // consume OPEN
+		if p.cur.Type == kwTABLES {
+			stmt.Type = "OPEN TABLES"
+			p.advance()
+			if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
+		}
+
+	case kwPRIVILEGES:
+		stmt.Type = "PRIVILEGES"
+		p.advance()
+
+	case kwPROFILES:
+		stmt.Type = "PROFILES"
+		p.advance()
+
+	case kwRELAYLOG:
+		p.advance() // consume RELAYLOG
+		stmt.Type = "RELAYLOG EVENTS"
+		if p.cur.Type == kwEVENT || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "events")) {
+			p.advance()
+		}
+		// Optional IN 'log_name'
+		if p.cur.Type == kwIN {
+			p.advance()
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Like = expr
+		}
+		// Optional FROM pos
+		if _, ok := p.match(kwFROM); ok {
+			p.advance()
+		}
+		// Optional LIMIT [offset,] count
+		if _, ok := p.match(kwLIMIT); ok {
+			p.advance()
+			if p.cur.Type == ',' {
+				p.advance()
+				p.advance()
+			}
+		}
+
+	case kwCHARACTER:
+		p.advance() // consume CHARACTER
+		if p.cur.Type == kwSET {
+			stmt.Type = "CHARACTER SET"
+			p.advance()
+			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
+		}
+
+	case kwCOLLATION:
+		stmt.Type = "COLLATION"
+		p.advance()
+		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			return nil, err
+		}
+
 	default:
 		// Handle GRANTS and PROCESSLIST as identifier-based keywords
 		if p.cur.Type == kwGRANT || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "grants")) {
@@ -356,6 +580,18 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		} else if p.cur.Type == kwPROCESSLIST || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "processlist")) {
 			stmt.Type = "PROCESSLIST"
 			p.advance()
+		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "triggers") {
+			stmt.Type = "TRIGGERS"
+			p.advance()
+			if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
+		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "events") {
+			stmt.Type = "EVENTS"
+			p.advance()
+			if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -383,6 +619,18 @@ func (p *Parser) parseShowLikeOrWhere(stmt *nodes.ShowStmt) error {
 	return nil
 }
 
+// parseShowFromLikeOrWhere parses optional FROM db, LIKE, or WHERE for SHOW statements.
+func (p *Parser) parseShowFromLikeOrWhere(stmt *nodes.ShowStmt) error {
+	if _, ok := p.match(kwFROM); ok {
+		ref, err := p.parseTableRef()
+		if err != nil {
+			return err
+		}
+		stmt.From = ref
+	}
+	return p.parseShowLikeOrWhere(stmt)
+}
+
 // parseUseStmt parses a USE statement.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/use.html
@@ -407,8 +655,10 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/explain.html
 //
-//	EXPLAIN [FORMAT = {TRADITIONAL|JSON|TREE}] stmt
-//	DESCRIBE tbl_name [col_name]
+//	EXPLAIN [EXTENDED | PARTITIONS] {SELECT|INSERT|UPDATE|DELETE|REPLACE} ...
+//	EXPLAIN ANALYZE SELECT ...
+//	EXPLAIN FORMAT = {TRADITIONAL|JSON|TREE} {SELECT|INSERT|UPDATE|DELETE|REPLACE} ...
+//	DESCRIBE tbl_name [col_name | wild]
 func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	start := p.pos()
 	isDescribe := p.cur.Type == kwDESCRIBE
@@ -442,7 +692,26 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		return stmt, nil
 	}
 
-	// EXPLAIN [FORMAT = value] stmt
+	// EXPLAIN [ANALYZE] [EXTENDED] [PARTITIONS] [FORMAT = value] stmt
+
+	// Check for ANALYZE
+	if p.cur.Type == kwANALYZE {
+		stmt.Analyze = true
+		p.advance()
+	}
+
+	// Check for EXTENDED (deprecated in 8.0 but still parsed)
+	if p.cur.Type == kwEXTENDED {
+		stmt.Extended = true
+		p.advance()
+	}
+
+	// Check for PARTITIONS (deprecated in 8.0 but still parsed)
+	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "partitions") {
+		stmt.Partitions = true
+		p.advance()
+	}
+
 	// Check for FORMAT = value
 	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "format") {
 		p.advance() // consume FORMAT
@@ -457,15 +726,40 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		stmt.Format = formatName
 	}
 
-	// Parse the statement (for now, only SELECT)
-	if p.cur.Type == kwSELECT {
+	// Parse the explainable statement
+	switch p.cur.Type {
+	case kwSELECT:
 		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Stmt = sel
-	} else {
-		// For other statements, try to parse as a table ref (EXPLAIN table_name)
+	case kwINSERT:
+		ins, err := p.parseInsertStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Stmt = ins
+	case kwUPDATE:
+		upd, err := p.parseUpdateStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Stmt = upd
+	case kwDELETE:
+		del, err := p.parseDeleteStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Stmt = del
+	case kwREPLACE:
+		rep, err := p.parseReplaceStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Stmt = rep
+	default:
+		// For other tokens, try to parse as a table ref (EXPLAIN table_name)
 		ref, err := p.parseTableRef()
 		if err != nil {
 			return nil, err

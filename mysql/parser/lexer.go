@@ -21,16 +21,16 @@ const (
 	tokIDENT
 
 	// Operators
-	tokLessEq     // <=
-	tokGreaterEq  // >=
-	tokNotEq      // != or <>
-	tokNullSafeEq // <=>
-	tokShiftLeft  // <<
-	tokShiftRight // >>
-	tokAssign       // :=
-	tokColonColon   // :: (not MySQL, but for compat)
-	tokJsonExtract  // ->
-	tokJsonUnquote  // ->>
+	tokLessEq      // <=
+	tokGreaterEq   // >=
+	tokNotEq       // != or <>
+	tokNullSafeEq  // <=>
+	tokShiftLeft   // <<
+	tokShiftRight  // >>
+	tokAssign      // :=
+	tokColonColon  // :: (not MySQL, but for compat)
+	tokJsonExtract // ->
+	tokJsonUnquote // ->>
 )
 
 // Keyword token constants. Values start at 700.
@@ -371,6 +371,57 @@ const (
 	kwRESUME
 	kwONE
 	kwCALL
+	kwDECLARE
+	kwCURSOR
+	kwCONTINUE
+	kwEXIT
+	kwUNDO
+	kwFOUND
+	kwENGINES
+	kwPLUGINS
+	kwREPLICA
+	kwPRIVILEGES
+	kwPROFILES
+	kwRELAYLOG
+	kwCOLLATION
+	kwLOGS
+	kwELSEIF
+	kwWHILE
+	kwREPEAT
+	kwUNTIL
+	kwLOOP
+	kwLEAVE
+	kwITERATE
+	kwRETURN
+	kwFETCH
+	kwCHECKSUM
+	kwSHUTDOWN
+	kwRESTART
+	kwCLONE
+	kwINSTANCE
+	kwDIRECTORY
+	kwREQUIRE
+	kwSSL
+	kwINSTALL
+	kwUNINSTALL
+	kwPLUGIN
+	kwCOMPONENT
+	kwSONAME
+	kwTABLESPACE
+	kwSERVER
+	kwDATAFILE
+	kwWRAPPER
+	kwOPTIONS
+	kwENCRYPTION
+	kwLOGFILE
+	kwRESOURCE
+	kwENABLE
+	kwDISABLE
+	kwLATERAL
+	kwREPLICATION
+	kwSOURCE
+	kwFILTER
+	kwCHANNEL
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -631,6 +682,11 @@ var keywords = map[string]int{
 	"reads":               kwREADS,
 	"returns":             kwRETURNS,
 	"language":            kwLANGUAGE,
+	"lateral":             kwLATERAL,
+	"replication":         kwREPLICATION,
+	"source":              kwSOURCE,
+	"filter":              kwFILTER,
+	"channel":             kwCHANNEL,
 	"out":                 kwOUT,
 	"inout":               kwINOUT,
 	"at":                  kwAT,
@@ -703,6 +759,52 @@ var keywords = map[string]int{
 	"resume":              kwRESUME,
 	"one":                 kwONE,
 	"call":                kwCALL,
+	"declare":             kwDECLARE,
+	"cursor":              kwCURSOR,
+	"continue":            kwCONTINUE,
+	"exit":                kwEXIT,
+	"undo":                kwUNDO,
+	"found":               kwFOUND,
+	"engines":             kwENGINES,
+	"plugins":             kwPLUGINS,
+	"replica":             kwREPLICA,
+	"privileges":          kwPRIVILEGES,
+	"profiles":            kwPROFILES,
+	"relaylog":            kwRELAYLOG,
+	"collation":           kwCOLLATION,
+	"logs":                kwLOGS,
+	"elseif":              kwELSEIF,
+	"while":               kwWHILE,
+	"repeat":              kwREPEAT,
+	"until":               kwUNTIL,
+	"loop":                kwLOOP,
+	"leave":               kwLEAVE,
+	"iterate":             kwITERATE,
+	"return":              kwRETURN,
+	"fetch":               kwFETCH,
+	"clone":               kwCLONE,
+	"instance":            kwINSTANCE,
+	"directory":           kwDIRECTORY,
+	"require":             kwREQUIRE,
+	"ssl":                 kwSSL,
+	"install":             kwINSTALL,
+	"uninstall":           kwUNINSTALL,
+	"plugin":              kwPLUGIN,
+	"component":           kwCOMPONENT,
+	"soname":              kwSONAME,
+	"checksum":            kwCHECKSUM,
+	"shutdown":            kwSHUTDOWN,
+	"restart":             kwRESTART,
+	"tablespace":          kwTABLESPACE,
+	"server":              kwSERVER,
+	"datafile":            kwDATAFILE,
+	"wrapper":             kwWRAPPER,
+	"options":             kwOPTIONS,
+	"encryption":          kwENCRYPTION,
+	"logfile":             kwLOGFILE,
+	"resource":            kwRESOURCE,
+	"enable":              kwENABLE,
+	"disable":             kwDISABLE,
 }
 
 // Token represents a lexical token.

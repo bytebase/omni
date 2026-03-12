@@ -12,17 +12,48 @@ import (
 //
 //	GRANT priv_type [, priv_type] ... ON [object_type] priv_level TO user [, user] ... [WITH GRANT OPTION]
 //	GRANT ALL [PRIVILEGES] ON [object_type] priv_level TO user [, user] ... [WITH GRANT OPTION]
-func (p *Parser) parseGrantStmt() (*nodes.GrantStmt, error) {
+//	GRANT role [, role] ... TO user [, user] ... [WITH ADMIN OPTION]
+func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume GRANT
 
-	stmt := &nodes.GrantStmt{Loc: nodes.Loc{Start: start}}
-
-	// Parse privileges
+	// Parse the names (could be privileges or roles).
+	// We distinguish by looking for ON (privilege grant) vs TO (role grant).
 	privs, allPriv, err := p.parsePrivilegeList()
 	if err != nil {
 		return nil, err
 	}
+
+	// If we see ON, it's a privilege grant; if TO, it's a role grant.
+	if p.cur.Type == kwTO {
+		// Role grant: GRANT role [, role] ... TO user [, user] ... [WITH ADMIN OPTION]
+		p.advance() // consume TO
+		users, err := p.parseUserList()
+		if err != nil {
+			return nil, err
+		}
+		stmt := &nodes.GrantRoleStmt{
+			Loc:   nodes.Loc{Start: start},
+			Roles: privs,
+			To:    users,
+		}
+		// [WITH ADMIN OPTION]
+		if p.cur.Type == kwWITH {
+			p.advance()
+			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "admin") {
+				p.advance()
+				if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "option") {
+					p.advance()
+				}
+				stmt.WithAdmin = true
+			}
+		}
+		stmt.Loc.End = p.pos()
+		return stmt, nil
+	}
+
+	// Privilege grant
+	stmt := &nodes.GrantStmt{Loc: nodes.Loc{Start: start}}
 	stmt.Privileges = privs
 	stmt.AllPriv = allPriv
 
@@ -69,17 +100,36 @@ func (p *Parser) parseGrantStmt() (*nodes.GrantStmt, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/revoke.html
 //
 //	REVOKE priv_type [, priv_type] ... ON [object_type] priv_level FROM user [, user] ...
-func (p *Parser) parseRevokeStmt() (*nodes.RevokeStmt, error) {
+//	REVOKE role [, role] ... FROM user [, user] ...
+func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume REVOKE
 
-	stmt := &nodes.RevokeStmt{Loc: nodes.Loc{Start: start}}
-
-	// Parse privileges
+	// Parse the names (could be privileges or roles).
 	privs, allPriv, err := p.parsePrivilegeList()
 	if err != nil {
 		return nil, err
 	}
+
+	// If we see FROM, it's a role revoke; if ON, it's a privilege revoke.
+	if p.cur.Type == kwFROM {
+		// Role revoke: REVOKE role [, role] ... FROM user [, user] ...
+		p.advance() // consume FROM
+		users, err := p.parseUserList()
+		if err != nil {
+			return nil, err
+		}
+		stmt := &nodes.RevokeRoleStmt{
+			Loc:   nodes.Loc{Start: start},
+			Roles: privs,
+			From:  users,
+		}
+		stmt.Loc.End = p.pos()
+		return stmt, nil
+	}
+
+	// Privilege revoke
+	stmt := &nodes.RevokeStmt{Loc: nodes.Loc{Start: start}}
 	stmt.Privileges = privs
 	stmt.AllPriv = allPriv
 
@@ -115,7 +165,7 @@ func (p *Parser) parsePrivilegeList() ([]string, bool, error) {
 	if p.cur.Type == kwALL {
 		p.advance()
 		// Optional PRIVILEGES keyword
-		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "privileges") {
+		if p.cur.Type == kwPRIVILEGES || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "privileges")) {
 			p.advance()
 		}
 		return nil, true, nil
@@ -496,4 +546,134 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 
 	spec.Loc.End = p.pos()
 	return spec, nil
+}
+
+// parseCreateRoleStmt parses a CREATE ROLE statement.
+//
+//	CREATE ROLE [IF NOT EXISTS] role [, role] ...
+func (p *Parser) parseCreateRoleStmt() (*nodes.CreateRoleStmt, error) {
+	start := p.pos()
+	p.advance() // consume ROLE
+
+	stmt := &nodes.CreateRoleStmt{Loc: nodes.Loc{Start: start}}
+
+	// [IF NOT EXISTS]
+	if p.cur.Type == kwIF {
+		p.advance()
+		p.match(kwNOT)
+		p.match(kwEXISTS_KW)
+		stmt.IfNotExists = true
+	}
+
+	// role [, role] ...
+	roles, err := p.parseUserList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Roles = roles
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseDropRoleStmt parses a DROP ROLE statement.
+//
+//	DROP ROLE [IF EXISTS] role [, role] ...
+func (p *Parser) parseDropRoleStmt() (*nodes.DropRoleStmt, error) {
+	start := p.pos()
+	p.advance() // consume ROLE
+
+	stmt := &nodes.DropRoleStmt{Loc: nodes.Loc{Start: start}}
+
+	// [IF EXISTS]
+	if p.cur.Type == kwIF {
+		p.advance()
+		p.match(kwEXISTS_KW)
+		stmt.IfExists = true
+	}
+
+	// role [, role] ...
+	roles, err := p.parseUserList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Roles = roles
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseSetDefaultRoleStmt parses a SET DEFAULT ROLE statement.
+//
+//	SET DEFAULT ROLE {NONE | ALL | role [, role] ...} TO user [, user] ...
+func (p *Parser) parseSetDefaultRoleStmt(start int) (*nodes.SetDefaultRoleStmt, error) {
+	// DEFAULT and ROLE already consumed
+	stmt := &nodes.SetDefaultRoleStmt{Loc: nodes.Loc{Start: start}}
+
+	switch {
+	case p.cur.Type == kwNONE:
+		stmt.None = true
+		p.advance()
+	case p.cur.Type == kwALL:
+		stmt.All = true
+		p.advance()
+	default:
+		roles, err := p.parseUserList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Roles = roles
+	}
+
+	// TO user [, user] ...
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
+	}
+
+	users, err := p.parseUserList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.To = users
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseSetRoleStmt parses a SET ROLE statement.
+//
+//	SET ROLE {DEFAULT | NONE | ALL | ALL EXCEPT role [, role] ... | role [, role] ...}
+func (p *Parser) parseSetRoleStmt(start int) (*nodes.SetRoleStmt, error) {
+	// ROLE already consumed
+	stmt := &nodes.SetRoleStmt{Loc: nodes.Loc{Start: start}}
+
+	switch {
+	case p.cur.Type == kwDEFAULT:
+		stmt.Default = true
+		p.advance()
+	case p.cur.Type == kwNONE:
+		stmt.None = true
+		p.advance()
+	case p.cur.Type == kwALL:
+		stmt.All = true
+		p.advance()
+		// ALL EXCEPT role [, role] ...
+		if p.cur.Type == kwEXCEPT {
+			p.advance()
+			roles, err := p.parseUserList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.AllExcept = roles
+		}
+	default:
+		roles, err := p.parseUserList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Roles = roles
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
 }

@@ -85,6 +85,18 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeDropUserStmt(sb, n)
 	case *AlterUserStmt:
 		writeAlterUserStmt(sb, n)
+	case *CreateRoleStmt:
+		writeCreateRoleStmt(sb, n)
+	case *DropRoleStmt:
+		writeDropRoleStmt(sb, n)
+	case *SetDefaultRoleStmt:
+		writeSetDefaultRoleStmt(sb, n)
+	case *SetRoleStmt:
+		writeSetRoleStmt(sb, n)
+	case *GrantRoleStmt:
+		writeGrantRoleStmt(sb, n)
+	case *RevokeRoleStmt:
+		writeRevokeRoleStmt(sb, n)
 	case *CreateFunctionStmt:
 		writeCreateFunctionStmt(sb, n)
 	case *CreateTriggerStmt:
@@ -113,6 +125,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeKillStmt(sb, n)
 	case *DoStmt:
 		writeDoStmt(sb, n)
+	case *ChecksumTableStmt:
+		writeChecksumTableStmt(sb, n)
+	case *ShutdownStmt:
+		writeShutdownStmt(sb, n)
+	case *RestartStmt:
+		writeRestartStmt(sb, n)
 	case *AlterDatabaseStmt:
 		writeAlterDatabaseStmt(sb, n)
 	case *DropDatabaseStmt:
@@ -123,6 +141,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeDropViewStmt(sb, n)
 	case *RawStmt:
 		writeRawStmt(sb, n)
+	case *TableStmt:
+		writeTableStmt(sb, n)
+	case *ValuesStmt:
+		writeValuesStmt(sb, n)
 
 	// Expressions
 	case *BinaryExpr:
@@ -283,6 +305,94 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeGetDiagnosticsStmt(sb, n)
 	case *DiagnosticsItem:
 		writeDiagnosticsItem(sb, n)
+	case *BeginEndBlock:
+		writeBeginEndBlock(sb, n)
+	case *DeclareVarStmt:
+		writeDeclareVarStmt(sb, n)
+	case *DeclareConditionStmt:
+		writeDeclareConditionStmt(sb, n)
+	case *DeclareHandlerStmt:
+		writeDeclareHandlerStmt(sb, n)
+	case *DeclareCursorStmt:
+		writeDeclareCursorStmt(sb, n)
+	case *IfStmt:
+		writeIfStmt(sb, n)
+	case *ElseIf:
+		writeElseIf(sb, n)
+	case *CaseStmtNode:
+		writeCaseStmtNode(sb, n)
+	case *CaseStmtWhen:
+		writeCaseStmtWhen(sb, n)
+	case *WhileStmt:
+		writeWhileStmt(sb, n)
+	case *RepeatStmt:
+		writeRepeatStmt(sb, n)
+	case *LoopStmt:
+		writeLoopStmt(sb, n)
+	case *LeaveStmt:
+		writeLeaveStmt(sb, n)
+	case *IterateStmt:
+		writeIterateStmt(sb, n)
+	case *ReturnStmt:
+		writeReturnStmt(sb, n)
+	case *OpenCursorStmt:
+		writeOpenCursorStmt(sb, n)
+	case *FetchCursorStmt:
+		writeFetchCursorStmt(sb, n)
+	case *CloseCursorStmt:
+		writeCloseCursorStmt(sb, n)
+	case *CloneStmt:
+		writeCloneStmt(sb, n)
+	case *InstallPluginStmt:
+		writeInstallPluginStmt(sb, n)
+	case *UninstallPluginStmt:
+		writeUninstallPluginStmt(sb, n)
+	case *InstallComponentStmt:
+		writeInstallComponentStmt(sb, n)
+	case *UninstallComponentStmt:
+		writeUninstallComponentStmt(sb, n)
+	case *CreateTablespaceStmt:
+		writeCreateTablespaceStmt(sb, n)
+	case *AlterTablespaceStmt:
+		writeAlterTablespaceStmt(sb, n)
+	case *DropTablespaceStmt:
+		writeDropTablespaceStmt(sb, n)
+	case *CreateServerStmt:
+		writeCreateServerStmt(sb, n)
+	case *AlterServerStmt:
+		writeAlterServerStmt(sb, n)
+	case *DropServerStmt:
+		writeDropServerStmt(sb, n)
+	case *CreateSpatialRefSysStmt:
+		writeCreateSpatialRefSysStmt(sb, n)
+	case *DropSpatialRefSysStmt:
+		writeDropSpatialRefSysStmt(sb, n)
+	case *CreateResourceGroupStmt:
+		writeCreateResourceGroupStmt(sb, n)
+	case *AlterResourceGroupStmt:
+		writeAlterResourceGroupStmt(sb, n)
+	case *DropResourceGroupStmt:
+		writeDropResourceGroupStmt(sb, n)
+	case *AlterViewStmt:
+		writeAlterViewStmt(sb, n)
+	case *AlterEventStmt:
+		writeAlterEventStmt(sb, n)
+	case *AlterRoutineStmt:
+		writeAlterRoutineStmt(sb, n)
+	case *DropRoutineStmt:
+		writeDropRoutineStmt(sb, n)
+	case *DropTriggerStmt:
+		writeDropTriggerStmt(sb, n)
+	case *DropEventStmt:
+		writeDropEventStmt(sb, n)
+	case *ChangeReplicationSourceStmt:
+		writeChangeReplicationSourceStmt(sb, n)
+	case *ReplicationOption:
+		writeReplicationOption(sb, n)
+	case *ChangeReplicationFilterStmt:
+		writeChangeReplicationFilterStmt(sb, n)
+	case *ReplicationFilter:
+		writeReplicationFilter(sb, n)
 
 	default:
 		fmt.Fprintf(sb, "{UNKNOWN %T}", node)
@@ -348,6 +458,9 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 	if len(n.GroupBy) > 0 {
 		sb.WriteString(" :group_by ")
 		writeExprNodeList(sb, n.GroupBy)
+		if n.WithRollup {
+			sb.WriteString(" :with_rollup true")
+		}
 	}
 	if n.Having != nil {
 		sb.WriteString(" :having ")
@@ -822,6 +935,15 @@ func writeUseStmt(sb *strings.Builder, n *UseStmt) {
 func writeExplainStmt(sb *strings.Builder, n *ExplainStmt) {
 	sb.WriteString("{EXPLAIN")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Analyze {
+		sb.WriteString(" :analyze true")
+	}
+	if n.Extended {
+		sb.WriteString(" :extended true")
+	}
+	if n.Partitions {
+		sb.WriteString(" :partitions true")
+	}
 	if n.Format != "" {
 		fmt.Fprintf(sb, " :format %s", n.Format)
 	}
@@ -983,6 +1105,96 @@ func writeAlterUserStmt(sb *strings.Builder, n *AlterUserStmt) {
 			}
 			writeNode(sb, u)
 		}
+	}
+	sb.WriteString("}")
+}
+
+func writeCreateRoleStmt(sb *strings.Builder, n *CreateRoleStmt) {
+	sb.WriteString("{CREATE_ROLE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
+	if len(n.Roles) > 0 {
+		fmt.Fprintf(sb, " :roles %s", strings.Join(n.Roles, ", "))
+	}
+	sb.WriteString("}")
+}
+
+func writeDropRoleStmt(sb *strings.Builder, n *DropRoleStmt) {
+	sb.WriteString("{DROP_ROLE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	if len(n.Roles) > 0 {
+		fmt.Fprintf(sb, " :roles %s", strings.Join(n.Roles, ", "))
+	}
+	sb.WriteString("}")
+}
+
+func writeSetDefaultRoleStmt(sb *strings.Builder, n *SetDefaultRoleStmt) {
+	sb.WriteString("{SET_DEFAULT_ROLE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.None {
+		sb.WriteString(" :none true")
+	}
+	if n.All {
+		sb.WriteString(" :all true")
+	}
+	if len(n.Roles) > 0 {
+		fmt.Fprintf(sb, " :roles %s", strings.Join(n.Roles, ", "))
+	}
+	if len(n.To) > 0 {
+		fmt.Fprintf(sb, " :to %s", strings.Join(n.To, ", "))
+	}
+	sb.WriteString("}")
+}
+
+func writeSetRoleStmt(sb *strings.Builder, n *SetRoleStmt) {
+	sb.WriteString("{SET_ROLE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Default {
+		sb.WriteString(" :default true")
+	}
+	if n.None {
+		sb.WriteString(" :none true")
+	}
+	if n.All {
+		sb.WriteString(" :all true")
+	}
+	if len(n.AllExcept) > 0 {
+		fmt.Fprintf(sb, " :all_except %s", strings.Join(n.AllExcept, ", "))
+	}
+	if len(n.Roles) > 0 {
+		fmt.Fprintf(sb, " :roles %s", strings.Join(n.Roles, ", "))
+	}
+	sb.WriteString("}")
+}
+
+func writeGrantRoleStmt(sb *strings.Builder, n *GrantRoleStmt) {
+	sb.WriteString("{GRANT_ROLE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Roles) > 0 {
+		fmt.Fprintf(sb, " :roles %s", strings.Join(n.Roles, ", "))
+	}
+	if len(n.To) > 0 {
+		fmt.Fprintf(sb, " :to %s", strings.Join(n.To, ", "))
+	}
+	if n.WithAdmin {
+		sb.WriteString(" :with_admin true")
+	}
+	sb.WriteString("}")
+}
+
+func writeRevokeRoleStmt(sb *strings.Builder, n *RevokeRoleStmt) {
+	sb.WriteString("{REVOKE_ROLE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Roles) > 0 {
+		fmt.Fprintf(sb, " :roles %s", strings.Join(n.Roles, ", "))
+	}
+	if len(n.From) > 0 {
+		fmt.Fprintf(sb, " :from %s", strings.Join(n.From, ", "))
 	}
 	sb.WriteString("}")
 }
@@ -1269,6 +1481,36 @@ func writeDoStmt(sb *strings.Builder, n *DoStmt) {
 	sb.WriteString("}")
 }
 
+func writeChecksumTableStmt(sb *strings.Builder, n *ChecksumTableStmt) {
+	sb.WriteString("{CHECKSUM_TABLE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Tables) > 0 {
+		sb.WriteString(" :tables ")
+		for i, t := range n.Tables {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, t)
+		}
+	}
+	if n.Quick {
+		sb.WriteString(" :quick true")
+	}
+	sb.WriteString("}")
+}
+
+func writeShutdownStmt(sb *strings.Builder, n *ShutdownStmt) {
+	sb.WriteString("{SHUTDOWN")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	sb.WriteString("}")
+}
+
+func writeRestartStmt(sb *strings.Builder, n *RestartStmt) {
+	sb.WriteString("{RESTART")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	sb.WriteString("}")
+}
+
 func writeAlterDatabaseStmt(sb *strings.Builder, n *AlterDatabaseStmt) {
 	sb.WriteString("{ALTER_DATABASE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
@@ -1486,6 +1728,12 @@ func writeSubqueryExpr(sb *strings.Builder, n *SubqueryExpr) {
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.Exists {
 		sb.WriteString(" :exists true")
+	}
+	if n.Lateral {
+		sb.WriteString(" :lateral true")
+	}
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias %s", n.Alias)
 	}
 	if n.Select != nil {
 		sb.WriteString(" :select ")
@@ -2605,5 +2853,850 @@ func writeDiagnosticsItem(sb *strings.Builder, n *DiagnosticsItem) {
 		writeNode(sb, n.Target)
 	}
 	fmt.Fprintf(sb, " :name %s", n.Name)
+	sb.WriteString("}")
+}
+
+func writeBeginEndBlock(sb *strings.Builder, n *BeginEndBlock) {
+	sb.WriteString("{BEGIN_END")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Label != "" {
+		fmt.Fprintf(sb, " :label %s", n.Label)
+	}
+	if len(n.Stmts) > 0 {
+		sb.WriteString(" :stmts")
+		for _, s := range n.Stmts {
+			sb.WriteString(" ")
+			writeNode(sb, s)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeDeclareVarStmt(sb *strings.Builder, n *DeclareVarStmt) {
+	sb.WriteString("{DECLARE_VAR")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Names) > 0 {
+		sb.WriteString(" :names")
+		for _, name := range n.Names {
+			fmt.Fprintf(sb, " %s", name)
+		}
+	}
+	if n.TypeName != nil {
+		sb.WriteString(" :type ")
+		writeNode(sb, n.TypeName)
+	}
+	if n.Default != nil {
+		sb.WriteString(" :default ")
+		writeNode(sb, n.Default)
+	}
+	sb.WriteString("}")
+}
+
+func writeDeclareConditionStmt(sb *strings.Builder, n *DeclareConditionStmt) {
+	sb.WriteString("{DECLARE_CONDITION")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	fmt.Fprintf(sb, " :value %s", n.ConditionValue)
+	sb.WriteString("}")
+}
+
+func writeDeclareHandlerStmt(sb *strings.Builder, n *DeclareHandlerStmt) {
+	sb.WriteString("{DECLARE_HANDLER")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :action %s", n.Action)
+	if len(n.Conditions) > 0 {
+		sb.WriteString(" :conditions")
+		for _, c := range n.Conditions {
+			fmt.Fprintf(sb, " %s", c)
+		}
+	}
+	if n.Stmt != nil {
+		sb.WriteString(" :stmt ")
+		writeNode(sb, n.Stmt)
+	}
+	sb.WriteString("}")
+}
+
+func writeDeclareCursorStmt(sb *strings.Builder, n *DeclareCursorStmt) {
+	sb.WriteString("{DECLARE_CURSOR")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if n.Select != nil {
+		sb.WriteString(" :select ")
+		writeNode(sb, n.Select)
+	}
+	sb.WriteString("}")
+}
+
+func writeIfStmt(sb *strings.Builder, n *IfStmt) {
+	sb.WriteString("{IF_STMT")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Cond != nil {
+		sb.WriteString(" :cond ")
+		writeNode(sb, n.Cond)
+	}
+	if len(n.ThenList) > 0 {
+		sb.WriteString(" :then (")
+		for i, s := range n.ThenList {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, s)
+		}
+		sb.WriteString(")")
+	}
+	if len(n.ElseIfs) > 0 {
+		sb.WriteString(" :elseifs (")
+		for i, ei := range n.ElseIfs {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, ei)
+		}
+		sb.WriteString(")")
+	}
+	if len(n.ElseList) > 0 {
+		sb.WriteString(" :else (")
+		for i, s := range n.ElseList {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, s)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeElseIf(sb *strings.Builder, n *ElseIf) {
+	sb.WriteString("{ELSEIF")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Cond != nil {
+		sb.WriteString(" :cond ")
+		writeNode(sb, n.Cond)
+	}
+	if len(n.ThenList) > 0 {
+		sb.WriteString(" :then (")
+		for i, s := range n.ThenList {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, s)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeCaseStmtNode(sb *strings.Builder, n *CaseStmtNode) {
+	sb.WriteString("{CASE_STMT")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Operand != nil {
+		sb.WriteString(" :operand ")
+		writeNode(sb, n.Operand)
+	}
+	if len(n.Whens) > 0 {
+		sb.WriteString(" :whens (")
+		for i, w := range n.Whens {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, w)
+		}
+		sb.WriteString(")")
+	}
+	if len(n.ElseList) > 0 {
+		sb.WriteString(" :else (")
+		for i, s := range n.ElseList {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, s)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeCaseStmtWhen(sb *strings.Builder, n *CaseStmtWhen) {
+	sb.WriteString("{WHEN")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Cond != nil {
+		sb.WriteString(" :cond ")
+		writeNode(sb, n.Cond)
+	}
+	if len(n.ThenList) > 0 {
+		sb.WriteString(" :then (")
+		for i, s := range n.ThenList {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, s)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeWhileStmt(sb *strings.Builder, n *WhileStmt) {
+	sb.WriteString("{WHILE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Label != "" {
+		fmt.Fprintf(sb, " :label %s", n.Label)
+	}
+	if n.Cond != nil {
+		sb.WriteString(" :cond ")
+		writeNode(sb, n.Cond)
+	}
+	if len(n.Stmts) > 0 {
+		sb.WriteString(" :stmts (")
+		for i, s := range n.Stmts {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, s)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeRepeatStmt(sb *strings.Builder, n *RepeatStmt) {
+	sb.WriteString("{REPEAT")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Label != "" {
+		fmt.Fprintf(sb, " :label %s", n.Label)
+	}
+	if len(n.Stmts) > 0 {
+		sb.WriteString(" :stmts (")
+		for i, s := range n.Stmts {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, s)
+		}
+		sb.WriteString(")")
+	}
+	if n.Cond != nil {
+		sb.WriteString(" :until ")
+		writeNode(sb, n.Cond)
+	}
+	sb.WriteString("}")
+}
+
+func writeLoopStmt(sb *strings.Builder, n *LoopStmt) {
+	sb.WriteString("{LOOP")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Label != "" {
+		fmt.Fprintf(sb, " :label %s", n.Label)
+	}
+	if len(n.Stmts) > 0 {
+		sb.WriteString(" :stmts (")
+		for i, s := range n.Stmts {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, s)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeLeaveStmt(sb *strings.Builder, n *LeaveStmt) {
+	sb.WriteString("{LEAVE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :label %s", n.Label)
+	sb.WriteString("}")
+}
+
+func writeIterateStmt(sb *strings.Builder, n *IterateStmt) {
+	sb.WriteString("{ITERATE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :label %s", n.Label)
+	sb.WriteString("}")
+}
+
+func writeReturnStmt(sb *strings.Builder, n *ReturnStmt) {
+	sb.WriteString("{RETURN")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Expr != nil {
+		sb.WriteString(" :expr ")
+		writeNode(sb, n.Expr)
+	}
+	sb.WriteString("}")
+}
+
+func writeOpenCursorStmt(sb *strings.Builder, n *OpenCursorStmt) {
+	sb.WriteString("{OPEN_CURSOR")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	sb.WriteString("}")
+}
+
+func writeFetchCursorStmt(sb *strings.Builder, n *FetchCursorStmt) {
+	sb.WriteString("{FETCH_CURSOR")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if len(n.Into) > 0 {
+		sb.WriteString(" :into")
+		for _, v := range n.Into {
+			fmt.Fprintf(sb, " %s", v)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeCloseCursorStmt(sb *strings.Builder, n *CloseCursorStmt) {
+	sb.WriteString("{CLOSE_CURSOR")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	sb.WriteString("}")
+}
+
+func writeInstallPluginStmt(sb *strings.Builder, n *InstallPluginStmt) {
+	sb.WriteString("{INSTALL_PLUGIN")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :name %s", n.PluginName)
+	if n.Soname != "" {
+		fmt.Fprintf(sb, " :soname %q", n.Soname)
+	}
+	sb.WriteString("}")
+}
+
+func writeUninstallPluginStmt(sb *strings.Builder, n *UninstallPluginStmt) {
+	sb.WriteString("{UNINSTALL_PLUGIN")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :name %s", n.PluginName)
+	sb.WriteString("}")
+}
+
+func writeInstallComponentStmt(sb *strings.Builder, n *InstallComponentStmt) {
+	sb.WriteString("{INSTALL_COMPONENT")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Components) > 0 {
+		sb.WriteString(" :components")
+		for _, c := range n.Components {
+			fmt.Fprintf(sb, " %q", c)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeUninstallComponentStmt(sb *strings.Builder, n *UninstallComponentStmt) {
+	sb.WriteString("{UNINSTALL_COMPONENT")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Components) > 0 {
+		sb.WriteString(" :components")
+		for _, c := range n.Components {
+			fmt.Fprintf(sb, " %q", c)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeTableStmt(sb *strings.Builder, n *TableStmt) {
+	sb.WriteString("{TABLE_STMT")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if len(n.OrderBy) > 0 {
+		sb.WriteString(" :order_by (")
+		for i, item := range n.OrderBy {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, item)
+		}
+		sb.WriteString(")")
+	}
+	if n.Limit != nil {
+		sb.WriteString(" :limit ")
+		writeNode(sb, n.Limit)
+	}
+	sb.WriteString("}")
+}
+
+func writeValuesStmt(sb *strings.Builder, n *ValuesStmt) {
+	sb.WriteString("{VALUES_STMT")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Rows) > 0 {
+		sb.WriteString(" :rows (")
+		for i, row := range n.Rows {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString("(")
+			for j, expr := range row {
+				if j > 0 {
+					sb.WriteString(" ")
+				}
+				writeNode(sb, expr)
+			}
+			sb.WriteString(")")
+		}
+		sb.WriteString(")")
+	}
+	if len(n.OrderBy) > 0 {
+		sb.WriteString(" :order_by (")
+		for i, item := range n.OrderBy {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, item)
+		}
+		sb.WriteString(")")
+	}
+	if n.Limit != nil {
+		sb.WriteString(" :limit ")
+		writeNode(sb, n.Limit)
+	}
+	sb.WriteString("}")
+}
+
+func writeCloneStmt(sb *strings.Builder, n *CloneStmt) {
+	sb.WriteString("{CLONE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Local {
+		sb.WriteString(" :local true")
+	}
+	if n.Directory != "" {
+		fmt.Fprintf(sb, " :directory %q", n.Directory)
+	}
+	if n.User != "" {
+		fmt.Fprintf(sb, " :user %q", n.User)
+	}
+	if n.Host != "" {
+		fmt.Fprintf(sb, " :host %q", n.Host)
+	}
+	if n.Port != 0 {
+		fmt.Fprintf(sb, " :port %d", n.Port)
+	}
+	if n.Password != "" {
+		fmt.Fprintf(sb, " :password %q", n.Password)
+	}
+	if n.RequireSSL != nil {
+		if *n.RequireSSL {
+			sb.WriteString(" :require_ssl true")
+		} else {
+			sb.WriteString(" :require_ssl false")
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeCreateTablespaceStmt(sb *strings.Builder, n *CreateTablespaceStmt) {
+	sb.WriteString("{CREATE_TABLESPACE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Undo {
+		sb.WriteString(" :undo true")
+	}
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if n.DataFile != "" {
+		fmt.Fprintf(sb, " :datafile %q", n.DataFile)
+	}
+	if n.FileBlockSize != "" {
+		fmt.Fprintf(sb, " :file_block_size %s", n.FileBlockSize)
+	}
+	if n.Encryption != "" {
+		fmt.Fprintf(sb, " :encryption %q", n.Encryption)
+	}
+	if n.Engine != "" {
+		fmt.Fprintf(sb, " :engine %s", n.Engine)
+	}
+	sb.WriteString("}")
+}
+
+func writeAlterTablespaceStmt(sb *strings.Builder, n *AlterTablespaceStmt) {
+	sb.WriteString("{ALTER_TABLESPACE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Undo {
+		sb.WriteString(" :undo true")
+	}
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if n.AddDataFile != "" {
+		fmt.Fprintf(sb, " :add_datafile %q", n.AddDataFile)
+	}
+	if n.DropDataFile != "" {
+		fmt.Fprintf(sb, " :drop_datafile %q", n.DropDataFile)
+	}
+	if n.InitialSize != "" {
+		fmt.Fprintf(sb, " :initial_size %s", n.InitialSize)
+	}
+	if n.Engine != "" {
+		fmt.Fprintf(sb, " :engine %s", n.Engine)
+	}
+	sb.WriteString("}")
+}
+
+func writeDropTablespaceStmt(sb *strings.Builder, n *DropTablespaceStmt) {
+	sb.WriteString("{DROP_TABLESPACE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Undo {
+		sb.WriteString(" :undo true")
+	}
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if n.Engine != "" {
+		fmt.Fprintf(sb, " :engine %s", n.Engine)
+	}
+	sb.WriteString("}")
+}
+
+func writeCreateServerStmt(sb *strings.Builder, n *CreateServerStmt) {
+	sb.WriteString("{CREATE_SERVER")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if n.WrapperName != "" {
+		fmt.Fprintf(sb, " :wrapper %s", n.WrapperName)
+	}
+	if len(n.Options) > 0 {
+		sb.WriteString(" :options (")
+		for i, opt := range n.Options {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			fmt.Fprintf(sb, "%q", opt)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeAlterServerStmt(sb *strings.Builder, n *AlterServerStmt) {
+	sb.WriteString("{ALTER_SERVER")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if len(n.Options) > 0 {
+		sb.WriteString(" :options (")
+		for i, opt := range n.Options {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			fmt.Fprintf(sb, "%q", opt)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeDropServerStmt(sb *strings.Builder, n *DropServerStmt) {
+	sb.WriteString("{DROP_SERVER")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	sb.WriteString("}")
+}
+
+func writeCreateSpatialRefSysStmt(sb *strings.Builder, n *CreateSpatialRefSysStmt) {
+	sb.WriteString("{CREATE_SPATIAL_REF_SYS")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
+	fmt.Fprintf(sb, " :srid %d", n.SRID)
+	if n.Name != "" {
+		fmt.Fprintf(sb, " :name %q", n.Name)
+	}
+	if n.Definition != "" {
+		fmt.Fprintf(sb, " :definition %q", n.Definition)
+	}
+	if n.Organization != "" {
+		fmt.Fprintf(sb, " :organization %q", n.Organization)
+		fmt.Fprintf(sb, " :org_srid %d", n.OrgSRID)
+	}
+	if n.Description != "" {
+		fmt.Fprintf(sb, " :description %q", n.Description)
+	}
+	sb.WriteString("}")
+}
+
+func writeDropSpatialRefSysStmt(sb *strings.Builder, n *DropSpatialRefSysStmt) {
+	sb.WriteString("{DROP_SPATIAL_REF_SYS")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	fmt.Fprintf(sb, " :srid %d", n.SRID)
+	sb.WriteString("}")
+}
+
+func writeCreateResourceGroupStmt(sb *strings.Builder, n *CreateResourceGroupStmt) {
+	sb.WriteString("{CREATE_RESOURCE_GROUP")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if n.Type != "" {
+		fmt.Fprintf(sb, " :type %s", n.Type)
+	}
+	if len(n.VCPUs) > 0 {
+		sb.WriteString(" :vcpus (")
+		for i, v := range n.VCPUs {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			if v.End == -1 {
+				fmt.Fprintf(sb, "%d", v.Start)
+			} else {
+				fmt.Fprintf(sb, "%d-%d", v.Start, v.End)
+			}
+		}
+		sb.WriteString(")")
+	}
+	if n.ThreadPriority != nil {
+		fmt.Fprintf(sb, " :thread_priority %d", *n.ThreadPriority)
+	}
+	if n.Enable != nil {
+		if *n.Enable {
+			sb.WriteString(" :enable true")
+		} else {
+			sb.WriteString(" :enable false")
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeAlterResourceGroupStmt(sb *strings.Builder, n *AlterResourceGroupStmt) {
+	sb.WriteString("{ALTER_RESOURCE_GROUP")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if len(n.VCPUs) > 0 {
+		sb.WriteString(" :vcpus (")
+		for i, v := range n.VCPUs {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			if v.End == -1 {
+				fmt.Fprintf(sb, "%d", v.Start)
+			} else {
+				fmt.Fprintf(sb, "%d-%d", v.Start, v.End)
+			}
+		}
+		sb.WriteString(")")
+	}
+	if n.ThreadPriority != nil {
+		fmt.Fprintf(sb, " :thread_priority %d", *n.ThreadPriority)
+	}
+	if n.Enable != nil {
+		if *n.Enable {
+			sb.WriteString(" :enable true")
+		} else {
+			sb.WriteString(" :enable false")
+		}
+	}
+	if n.Force {
+		sb.WriteString(" :force true")
+	}
+	sb.WriteString("}")
+}
+
+func writeDropResourceGroupStmt(sb *strings.Builder, n *DropResourceGroupStmt) {
+	sb.WriteString("{DROP_RESOURCE_GROUP")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if n.Force {
+		sb.WriteString(" :force true")
+	}
+	sb.WriteString("}")
+}
+
+func writeAlterViewStmt(sb *strings.Builder, n *AlterViewStmt) {
+	sb.WriteString("{ALTER_VIEW")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Algorithm != "" {
+		fmt.Fprintf(sb, " :algorithm %s", n.Algorithm)
+	}
+	if n.Definer != "" {
+		fmt.Fprintf(sb, " :definer %s", n.Definer)
+	}
+	if n.SqlSecurity != "" {
+		fmt.Fprintf(sb, " :sql_security %s", n.SqlSecurity)
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if len(n.Columns) > 0 {
+		fmt.Fprintf(sb, " :columns %s", strings.Join(n.Columns, ", "))
+	}
+	if n.Select != nil {
+		sb.WriteString(" :select ")
+		writeNode(sb, n.Select)
+	}
+	if n.CheckOption != "" {
+		fmt.Fprintf(sb, " :check_option %s", n.CheckOption)
+	}
+	sb.WriteString("}")
+}
+
+func writeAlterEventStmt(sb *strings.Builder, n *AlterEventStmt) {
+	sb.WriteString("{ALTER_EVENT")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Definer != "" {
+		fmt.Fprintf(sb, " :definer %s", n.Definer)
+	}
+	if n.Name != "" {
+		fmt.Fprintf(sb, " :name %s", n.Name)
+	}
+	if n.Schedule != nil {
+		sb.WriteString(" :schedule ")
+		writeNode(sb, n.Schedule)
+	}
+	if n.OnCompletion != "" {
+		fmt.Fprintf(sb, " :on_completion %s", n.OnCompletion)
+	}
+	if n.RenameTo != "" {
+		fmt.Fprintf(sb, " :rename_to %s", n.RenameTo)
+	}
+	if n.Enable != "" {
+		fmt.Fprintf(sb, " :enable %s", n.Enable)
+	}
+	if n.Comment != "" {
+		fmt.Fprintf(sb, " :comment %q", n.Comment)
+	}
+	if n.Body != "" {
+		fmt.Fprintf(sb, " :body %q", n.Body)
+	}
+	sb.WriteString("}")
+}
+
+func writeAlterRoutineStmt(sb *strings.Builder, n *AlterRoutineStmt) {
+	sb.WriteString("{ALTER_ROUTINE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IsProcedure {
+		sb.WriteString(" :is_procedure true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if len(n.Characteristics) > 0 {
+		sb.WriteString(" :characteristics ")
+		for i, c := range n.Characteristics {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, c)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeDropRoutineStmt(sb *strings.Builder, n *DropRoutineStmt) {
+	sb.WriteString("{DROP_ROUTINE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IsProcedure {
+		sb.WriteString(" :is_procedure true")
+	}
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	sb.WriteString("}")
+}
+
+func writeDropTriggerStmt(sb *strings.Builder, n *DropTriggerStmt) {
+	sb.WriteString("{DROP_TRIGGER")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	sb.WriteString("}")
+}
+
+func writeDropEventStmt(sb *strings.Builder, n *DropEventStmt) {
+	sb.WriteString("{DROP_EVENT")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	if n.Name != "" {
+		fmt.Fprintf(sb, " :name %s", n.Name)
+	}
+	sb.WriteString("}")
+}
+
+func writeChangeReplicationSourceStmt(sb *strings.Builder, n *ChangeReplicationSourceStmt) {
+	sb.WriteString("{CHANGE_REPLICATION_SOURCE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Options) > 0 {
+		sb.WriteString(" :options (")
+		for i, opt := range n.Options {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, opt)
+		}
+		sb.WriteString(")")
+	}
+	if n.Channel != "" {
+		fmt.Fprintf(sb, " :channel %s", n.Channel)
+	}
+	sb.WriteString("}")
+}
+
+func writeReplicationOption(sb *strings.Builder, n *ReplicationOption) {
+	sb.WriteString("{REPL_OPT")
+	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
+	if n.Value != "" {
+		fmt.Fprintf(sb, " :val %s", n.Value)
+	}
+	if len(n.IDs) > 0 {
+		sb.WriteString(" :ids (")
+		for i, id := range n.IDs {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			fmt.Fprintf(sb, "%d", id)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeChangeReplicationFilterStmt(sb *strings.Builder, n *ChangeReplicationFilterStmt) {
+	sb.WriteString("{CHANGE_REPLICATION_FILTER")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Filters) > 0 {
+		sb.WriteString(" :filters (")
+		for i, f := range n.Filters {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, f)
+		}
+		sb.WriteString(")")
+	}
+	if n.Channel != "" {
+		fmt.Fprintf(sb, " :channel %s", n.Channel)
+	}
+	sb.WriteString("}")
+}
+
+func writeReplicationFilter(sb *strings.Builder, n *ReplicationFilter) {
+	sb.WriteString("{REPL_FILTER")
+	fmt.Fprintf(sb, " :loc %d :type %s", n.Loc.Start, n.Type)
+	if len(n.Values) > 0 {
+		sb.WriteString(" :values (")
+		for i, v := range n.Values {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			fmt.Fprintf(sb, "%q", v)
+		}
+		sb.WriteString(")")
+	}
 	sb.WriteString("}")
 }

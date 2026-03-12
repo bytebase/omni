@@ -183,7 +183,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwSQL:
 		p.advance()
-		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "security") {
+		if p.cur.Type == kwSECURITY || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "security")) {
 			p.advance()
 			name, _, _ := p.parseIdentifier()
 			return &nodes.RoutineCharacteristic{

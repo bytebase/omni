@@ -13,6 +13,12 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case kwSELECT:
 		return p.parseSelectStmt()
 
+	case kwTABLE:
+		return p.parseTableStmt()
+
+	case kwVALUES:
+		return p.parseValuesStmt()
+
 	case kwINSERT:
 		return p.parseInsertStmt()
 
@@ -127,6 +133,36 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case kwHANDLER:
 		return p.parseHandlerStmt()
 
+	case kwSIGNAL:
+		return p.parseSignalStmt()
+
+	case kwRESIGNAL:
+		return p.parseResignalStmt()
+
+	case kwGET:
+		return p.parseGetDiagnosticsStmt()
+
+	case kwCHANGE:
+		return p.parseChangeDispatch()
+
+	case kwCHECKSUM:
+		return p.parseChecksumTableStmt()
+
+	case kwSHUTDOWN:
+		return p.parseShutdownStmt()
+
+	case kwRESTART:
+		return p.parseRestartStmt()
+
+	case kwCLONE:
+		return p.parseCloneStmt()
+
+	case kwINSTALL:
+		return p.parseInstallStmt()
+
+	case kwUNINSTALL:
+		return p.parseUninstallStmt()
+
 	case '(':
 		// Parenthesized subquery / select
 		return p.parseSelectStmt()
@@ -139,8 +175,33 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	}
 }
 
+// parseChangeDispatch dispatches CHANGE statements to the appropriate parser.
+// CHANGE is already the current token.
+func (p *Parser) parseChangeDispatch() (nodes.Node, error) {
+	// Don't consume CHANGE here; let the sub-parsers handle start position.
+	// But we need to peek ahead: CHANGE REPLICATION {SOURCE|FILTER}
+	// Since we have no Peek, consume CHANGE and REPLICATION, then check.
+	start := p.pos()
+	p.advance() // consume CHANGE
+
+	if p.cur.Type == kwREPLICATION {
+		p.advance() // consume REPLICATION
+		switch p.cur.Type {
+		case kwSOURCE:
+			return p.parseChangeReplicationSourceStmtInner(start)
+		case kwFILTER:
+			return p.parseChangeReplicationFilterStmtInner(start)
+		default:
+			return nil, &ParseError{Message: "expected SOURCE or FILTER after CHANGE REPLICATION", Position: p.cur.Loc}
+		}
+	}
+
+	return nil, &ParseError{Message: "unexpected token after CHANGE", Position: p.cur.Loc}
+}
+
 // parseCreateDispatch dispatches CREATE statements to the appropriate parser.
 func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
+	start := p.pos()
 	p.advance() // consume CREATE
 
 	orReplace := false
@@ -151,6 +212,15 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		p.advance()
 		p.match(kwREPLACE)
 		orReplace = true
+	}
+
+	// UNDO TABLESPACE
+	if p.cur.Type == kwUNDO {
+		p.advance()
+		if p.cur.Type == kwTABLESPACE {
+			return p.parseCreateTablespaceStmt(start, true)
+		}
+		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
 	}
 
 	// TEMPORARY
@@ -180,6 +250,10 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	case kwSPATIAL:
 		p.advance()
+		// Distinguish SPATIAL REFERENCE SYSTEM from SPATIAL INDEX
+		if p.isIdentToken() && eqFold(p.cur.Str, "reference") {
+			return p.parseCreateSpatialRefSysStmt(start, orReplace)
+		}
 		return p.parseCreateIndexStmt(false, false, true)
 
 	case kwVIEW:
@@ -202,6 +276,22 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	case kwUSER:
 		return p.parseCreateUserStmt()
+
+	case kwROLE:
+		return p.parseCreateRoleStmt()
+
+	case kwTABLESPACE:
+		return p.parseCreateTablespaceStmt(start, false)
+
+	case kwSERVER:
+		return p.parseCreateServerStmt(start)
+
+	case kwLOGFILE:
+		// CREATE LOGFILE GROUP — NDB-specific, use RawStmt
+		for p.cur.Type != tokEOF && p.cur.Type != ';' {
+			p.advance()
+		}
+		return &nodes.RawStmt{}, nil
 
 	case kwALGORITHM:
 		// Only CREATE VIEW uses ALGORITHM
@@ -247,6 +337,10 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			return nil, &ParseError{Message: "unexpected token after DEFINER clause", Position: p.cur.Loc}
 		}
 
+	case kwRESOURCE:
+		p.advance() // consume RESOURCE
+		return p.parseCreateResourceGroupStmt(start)
+
 	default:
 		return nil, &ParseError{
 			Message:  "unexpected token after CREATE",
@@ -257,7 +351,17 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 // parseAlterDispatch dispatches ALTER statements to the appropriate parser.
 func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
+	start := p.pos()
 	p.advance() // consume ALTER
+
+	// UNDO TABLESPACE
+	if p.cur.Type == kwUNDO {
+		p.advance()
+		if p.cur.Type == kwTABLESPACE {
+			return p.parseAlterTablespaceStmt(start, true)
+		}
+		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
+	}
 
 	switch p.cur.Type {
 	case kwTABLE:
@@ -269,6 +373,70 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	case kwUSER:
 		return p.parseAlterUserStmt()
 
+	case kwTABLESPACE:
+		return p.parseAlterTablespaceStmt(start, false)
+
+	case kwSERVER:
+		return p.parseAlterServerStmt(start)
+
+	case kwVIEW:
+		return p.parseAlterViewStmt()
+
+	case kwALGORITHM:
+		// ALTER ALGORITHM = ... VIEW — delegate to ALTER VIEW parser
+		return p.parseAlterViewStmt()
+
+	case kwDEFINER:
+		// ALTER DEFINER = user {VIEW|EVENT|FUNCTION|PROCEDURE}
+		// Skip DEFINER = user[@host] to find the object keyword, then delegate.
+		p.advance() // consume DEFINER
+		p.match('=')
+		if p.isIdentToken() || p.cur.Type == tokSCONST {
+			p.advance()
+		}
+		if p.cur.Type == tokIDENT && p.cur.Str == "@" {
+			p.advance()
+			if p.isIdentToken() || p.cur.Type == tokSCONST {
+				p.advance()
+			}
+		}
+		// Optional SQL SECURITY {DEFINER|INVOKER}
+		if p.cur.Type == kwSQL {
+			p.advance()
+			p.match(kwSECURITY)
+			if p.isIdentToken() {
+				p.advance()
+			}
+		}
+		switch p.cur.Type {
+		case kwVIEW:
+			return p.parseAlterViewStmt()
+		case kwEVENT:
+			return p.parseAlterEventStmt()
+		default:
+			return nil, &ParseError{Message: "unexpected token after DEFINER clause in ALTER", Position: p.cur.Loc}
+		}
+
+	case kwEVENT:
+		return p.parseAlterEventStmt()
+
+	case kwFUNCTION:
+		return p.parseAlterRoutineStmt(false)
+
+	case kwPROCEDURE:
+		return p.parseAlterRoutineStmt(true)
+
+	case kwLOGFILE:
+		// ALTER LOGFILE GROUP — NDB-specific, use RawStmt
+		for p.cur.Type != tokEOF && p.cur.Type != ';' {
+			p.advance()
+		}
+		return &nodes.RawStmt{}, nil
+
+	case kwRESOURCE:
+		p.advance() // consume RESOURCE
+		return p.parseAlterResourceGroupStmt(start)
+
 	default:
 		return nil, &ParseError{
 			Message:  "unexpected token after ALTER",
@@ -279,7 +447,17 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 
 // parseDropDispatch dispatches DROP statements to the appropriate parser.
 func (p *Parser) parseDropDispatch() (nodes.Node, error) {
+	start := p.pos()
 	p.advance() // consume DROP
+
+	// UNDO TABLESPACE
+	if p.cur.Type == kwUNDO {
+		p.advance()
+		if p.cur.Type == kwTABLESPACE {
+			return p.parseDropTablespaceStmt(start, true)
+		}
+		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
+	}
 
 	temporary := false
 	if p.cur.Type == kwTEMPORARY {
@@ -303,33 +481,41 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	case kwUSER:
 		return p.parseDropUserStmt()
 
-	case kwFUNCTION, kwPROCEDURE:
-		// DROP FUNCTION/PROCEDURE — consume and skip remaining tokens
-		p.advance()
-		p.match(kwIF)
-		p.match(kwEXISTS_KW)
-		if p.isIdentToken() {
-			p.parseIdentifier()
-		}
-		return &nodes.RawStmt{}, nil
+	case kwROLE:
+		return p.parseDropRoleStmt()
+
+	case kwFUNCTION:
+		return p.parseDropRoutineStmt(false)
+
+	case kwPROCEDURE:
+		return p.parseDropRoutineStmt(true)
 
 	case kwTRIGGER:
-		p.advance()
-		p.match(kwIF)
-		p.match(kwEXISTS_KW)
-		if p.isIdentToken() {
-			p.parseIdentifier()
+		return p.parseDropTriggerStmt()
+
+	case kwEVENT:
+		return p.parseDropEventStmt()
+
+	case kwTABLESPACE:
+		return p.parseDropTablespaceStmt(start, false)
+
+	case kwSERVER:
+		return p.parseDropServerStmt(start)
+
+	case kwLOGFILE:
+		// DROP LOGFILE GROUP — NDB-specific, use RawStmt
+		for p.cur.Type != tokEOF && p.cur.Type != ';' {
+			p.advance()
 		}
 		return &nodes.RawStmt{}, nil
 
-	case kwEVENT:
-		p.advance()
-		p.match(kwIF)
-		p.match(kwEXISTS_KW)
-		if p.isIdentToken() {
-			p.parseIdentifier()
-		}
-		return &nodes.RawStmt{}, nil
+	case kwSPATIAL:
+		p.advance() // consume SPATIAL
+		return p.parseDropSpatialRefSysStmt(start)
+
+	case kwRESOURCE:
+		p.advance() // consume RESOURCE
+		return p.parseDropResourceGroupStmt(start)
 
 	default:
 		return nil, &ParseError{
