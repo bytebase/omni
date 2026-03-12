@@ -9075,3 +9075,101 @@ func TestParseShowProcesslist(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Batch 75: SOUNDS LIKE, ROW(), DEFAULT(col), VALUES(col)
+// ---------------------------------------------------------------------------
+
+func TestParseSoundsLike(t *testing.T) {
+	tests := []string{
+		// Basic SOUNDS LIKE
+		"SELECT * FROM t WHERE name SOUNDS LIKE 'John'",
+		// SOUNDS LIKE with column references
+		"SELECT * FROM t WHERE a SOUNDS LIKE b",
+		// SOUNDS LIKE in complex expression
+		"SELECT * FROM t WHERE name SOUNDS LIKE 'John' AND age > 20",
+		// SOUNDS LIKE with function
+		"SELECT * FROM t WHERE CONCAT(first, last) SOUNDS LIKE 'JohnDoe'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseRowConstructor(t *testing.T) {
+	tests := []string{
+		// Basic ROW() constructor
+		"SELECT ROW(1, 2, 3)",
+		// ROW in WHERE clause comparison
+		"SELECT * FROM t WHERE ROW(a, b) = ROW(1, 2)",
+		// ROW with expressions
+		"SELECT * FROM t WHERE ROW(a + 1, b * 2) = ROW(10, 20)",
+		// ROW with single value (MySQL requires at least 2 for row comparisons but ROW(1) is valid syntax)
+		"SELECT ROW(1)",
+		// Nested ROW is valid syntax
+		"SELECT ROW(1, ROW(2, 3))",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseRowComparison(t *testing.T) {
+	tests := []string{
+		// ROW comparison with =
+		"SELECT * FROM t1 WHERE ROW(col1, col2) = (SELECT col3, col4 FROM t2 WHERE id = 10)",
+		// ROW comparison with <>
+		"SELECT * FROM t WHERE ROW(a, b) <> ROW(1, 2)",
+		// ROW comparison with <=
+		"SELECT * FROM t WHERE ROW(a, b) <= ROW(1, 2)",
+		// ROW comparison with >=
+		"SELECT * FROM t WHERE ROW(a, b) >= ROW(1, 2)",
+		// ROW comparison with <
+		"SELECT * FROM t WHERE ROW(a, b) < ROW(1, 2)",
+		// ROW comparison with >
+		"SELECT * FROM t WHERE ROW(a, b) > ROW(1, 2)",
+		// ROW comparison with <=>
+		"SELECT * FROM t WHERE ROW(a, b) <=> ROW(1, 2)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseDefaultColName(t *testing.T) {
+	tests := []string{
+		// Bare DEFAULT in INSERT
+		"INSERT INTO t VALUES (DEFAULT)",
+		// DEFAULT(col_name) function form in UPDATE
+		"UPDATE t SET i = DEFAULT(i) + 1 WHERE id < 100",
+		// DEFAULT(col) in SELECT
+		"SELECT DEFAULT(name) FROM t",
+		// Multiple DEFAULT(col)
+		"UPDATE t SET a = DEFAULT(a), b = DEFAULT(b)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseValuesFunc(t *testing.T) {
+	tests := []string{
+		// VALUES(col) in INSERT ON DUPLICATE KEY UPDATE
+		"INSERT INTO t (a, b, c) VALUES (1, 2, 3) ON DUPLICATE KEY UPDATE c = VALUES(a) + VALUES(b)",
+		// VALUES(col) simple usage
+		"INSERT INTO t (a) VALUES (1) ON DUPLICATE KEY UPDATE a = VALUES(a)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}

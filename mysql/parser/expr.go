@@ -85,6 +85,13 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 			}
 			continue
 
+		case p.cur.Type == kwSOUNDS:
+			left, err = p.parseSoundsLikeExpr(left)
+			if err != nil {
+				return nil, err
+			}
+			continue
+
 		case p.cur.Type == kwREGEXP || p.cur.Type == kwRLIKE ||
 			(p.cur.Type == kwNOT && (p.peekNext().Type == kwREGEXP || p.peekNext().Type == kwRLIKE)):
 			left, err = p.parseRegexpExpr(left)
@@ -179,6 +186,8 @@ func (p *Parser) infixPrecedence() (int, nodes.BinaryOp, bool) {
 	case kwIN:
 		return precComparison, 0, true
 	case kwBETWEEN:
+		return precComparison, 0, true
+	case kwSOUNDS:
 		return precComparison, 0, true
 
 	// Bit operators
@@ -304,8 +313,7 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		return &nodes.NullLit{Loc: nodes.Loc{Start: tok.Loc}}, nil
 
 	case kwDEFAULT:
-		tok := p.advance()
-		return &nodes.DefaultExpr{Loc: nodes.Loc{Start: tok.Loc}}, nil
+		return p.parseDefaultExpr()
 
 	case kwCURRENT_DATE, kwCURRENT_TIME, kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwLOCALTIME, kwLOCALTIMESTAMP:
 		tok := p.advance()
@@ -333,6 +341,12 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 
 	case kwCONVERT:
 		return p.parseConvertExpr()
+
+	case kwROW:
+		return p.parseRowConstructor()
+
+	case kwVALUES:
+		return p.parseValuesFunc()
 
 	default:
 		// Variable reference
@@ -1401,6 +1415,136 @@ func (p *Parser) parseMatchExpr() (nodes.ExprNode, error) {
 
 	me.Loc.End = p.pos()
 	return me, nil
+}
+
+// parseSoundsLikeExpr parses expr SOUNDS LIKE expr.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/string-comparison-functions.html
+//
+//	expr1 SOUNDS LIKE expr2
+//
+// This is equivalent to SOUNDEX(expr1) = SOUNDEX(expr2).
+func (p *Parser) parseSoundsLikeExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
+	start := p.pos()
+	p.advance() // consume SOUNDS
+
+	if _, err := p.expect(kwLIKE); err != nil {
+		return nil, err
+	}
+
+	right, err := p.parseExprPrec(precComparison + 1)
+	if err != nil {
+		return nil, err
+	}
+
+	return &nodes.BinaryExpr{
+		Loc:   nodes.Loc{Start: start, End: p.pos()},
+		Op:    nodes.BinOpSoundsLike,
+		Left:  left,
+		Right: right,
+	}, nil
+}
+
+// parseRowConstructor parses a ROW(expr, expr, ...) constructor.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/row-subqueries.html
+//
+//	ROW(val1, val2, ..., valN)
+func (p *Parser) parseRowConstructor() (nodes.ExprNode, error) {
+	start := p.pos()
+	p.advance() // consume ROW
+
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+
+	row := &nodes.RowExpr{Loc: nodes.Loc{Start: start}}
+
+	for {
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		row.Items = append(row.Items, expr)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+
+	row.Loc.End = p.pos()
+	return row, nil
+}
+
+// parseDefaultExpr parses DEFAULT or DEFAULT(col_name).
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/miscellaneous-functions.html#function_default
+//
+//	DEFAULT
+//	DEFAULT(col_name)
+func (p *Parser) parseDefaultExpr() (nodes.ExprNode, error) {
+	start := p.pos()
+	p.advance() // consume DEFAULT
+
+	de := &nodes.DefaultExpr{Loc: nodes.Loc{Start: start}}
+
+	// Check for DEFAULT(col_name) form
+	if p.cur.Type == '(' {
+		p.advance() // consume '('
+		col, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		de.Column = col
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	}
+
+	de.Loc.End = p.pos()
+	return de, nil
+}
+
+// parseValuesFunc parses VALUES(col_name) used in INSERT ... ON DUPLICATE KEY UPDATE.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/miscellaneous-functions.html#function_values
+//
+//	VALUES(col_name)
+func (p *Parser) parseValuesFunc() (nodes.ExprNode, error) {
+	start := p.pos()
+	p.advance() // consume VALUES
+
+	// VALUES without '(' is handled elsewhere (e.g., VALUES row constructor in INSERT)
+	// Here we handle the function form VALUES(col_name)
+	if p.cur.Type != '(' {
+		// Not a function call — this shouldn't be reached from parsePrimaryExpr
+		// since VALUES without '(' is not a valid expression
+		return nil, &ParseError{
+			Message:  "expected '(' after VALUES in expression context",
+			Position: p.cur.Loc,
+		}
+	}
+	p.advance() // consume '('
+
+	col, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+
+	fc := &nodes.FuncCallExpr{
+		Loc:  nodes.Loc{Start: start, End: p.pos()},
+		Name: "VALUES",
+		Args: []nodes.ExprNode{col},
+	}
+	return fc, nil
 }
 
 // parseExprList parses a comma-separated list of expressions.

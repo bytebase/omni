@@ -197,6 +197,7 @@ const (
 	kwFOLLOWING
 	kwCURRENT
 	kwWINDOW
+	kwSOUNDS
 	kwREPLACE
 	kwIGNORE
 	kwDUPLICATE
@@ -612,6 +613,7 @@ var keywords = map[string]int{
 	"following":           kwFOLLOWING,
 	"current":             kwCURRENT,
 	"window":              kwWINDOW,
+	"sounds":              kwSOUNDS,
 	"replace":             kwREPLACE,
 	"ignore":              kwIGNORE,
 	"duplicate":           kwDUPLICATE,

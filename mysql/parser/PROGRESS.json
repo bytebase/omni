@@ -1885,7 +1885,125 @@
         "TestParseStartReplicaUntilGtid",
         "TestParseCacheIndexPartition"
       ]
+    },
+    {
+      "id": 75,
+      "name": "depth_fix_expr_sounds_like_row_default_values",
+      "file": "expr.go",
+      "status": "done",
+      "description": "Fix batch 3 gap: SOUNDS LIKE string comparison operator (add kwSOUNDS to lexer, parse as binary op), ROW() constructor expression for row comparisons (ROW(1,2) = ROW(a,b)), DEFAULT(col_name) function form (currently only parses bare DEFAULT keyword), VALUES(col_name) function for INSERT ON DUPLICATE KEY UPDATE context",
+      "rules": [
+        "parseSoundsLikeExpr",
+        "parseRowConstructor",
+        "parseDefaultExpr",
+        "parseValuesFunc"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseSoundsLike",
+        "TestParseRowConstructor",
+        "TestParseRowComparison",
+        "TestParseDefaultColName",
+        "TestParseValuesFunc"
+      ]
+    },
+    {
+      "id": 76,
+      "name": "depth_fix_match_query_expansion",
+      "file": "expr.go",
+      "status": "pending",
+      "description": "Fix batch 3 gap: MATCH ... AGAINST WITH QUERY EXPANSION modifier - currently only parses IN NATURAL LANGUAGE MODE and IN BOOLEAN MODE, missing standalone WITH QUERY EXPANSION and combined IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION",
+      "rules": [
+        "parseMatchExpr"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseMatchWithQueryExpansion",
+        "TestParseMatchNaturalLanguageWithQueryExpansion"
+      ]
+    },
+    {
+      "id": 77,
+      "name": "depth_fix_natural_join_semantics",
+      "file": "select.go",
+      "status": "pending",
+      "description": "Fix batch 4 gap: NATURAL LEFT [OUTER] JOIN and NATURAL RIGHT [OUTER] JOIN lose the NATURAL modifier - currently returns JoinLeft/JoinRight instead of preserving NATURAL semantics. Add JoinNaturalLeft and JoinNaturalRight to JoinType enum, update matchJoinType and outfuncs.go",
+      "rules": [
+        "matchJoinType"
+      ],
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseNaturalLeftJoin",
+        "TestParseNaturalRightJoin",
+        "TestParseNaturalLeftOuterJoin"
+      ]
+    },
+    {
+      "id": 78,
+      "name": "depth_fix_select_into_position2",
+      "file": "select.go",
+      "status": "pending",
+      "description": "Fix batch 4 gap: INTO clause position 2 (between HAVING and ORDER BY) is not implemented - MySQL allows INTO at 3 positions: after select_expr (pos 1), after HAVING before ORDER BY (pos 2), after FOR UPDATE (pos 3). Only positions 1 and 3 are currently supported.",
+      "rules": [
+        "parseSelectStmt",
+        "parseSelectStmtBase"
+      ],
+      "depends_on": [
+        4,
+        65
+      ],
+      "tests": [
+        "TestParseSelectIntoAfterHaving",
+        "TestParseSelectIntoAfterHavingBeforeOrderBy"
+      ]
+    },
+    {
+      "id": 79,
+      "name": "depth_fix_create_user_password_random",
+      "file": "grant.go",
+      "status": "pending",
+      "description": "Fix batch 15 gap: IDENTIFIED BY RANDOM PASSWORD syntax (MySQL 8.0.18+), RETAIN CURRENT PASSWORD dual-password support (MySQL 8.0.14+), DISCARD OLD PASSWORD. Add PasswordRandom and RetainCurrentPassword fields to UserSpec and AlterUserStmt AST nodes.",
+      "rules": [
+        "parseUserSpec",
+        "parseAlterUserStmt"
+      ],
+      "depends_on": [
+        15,
+        61,
+        69
+      ],
+      "tests": [
+        "TestParseCreateUserRandomPassword",
+        "TestParseAlterUserRetainCurrentPassword",
+        "TestParseAlterUserDiscardOldPassword"
+      ]
+    },
+    {
+      "id": 80,
+      "name": "depth_fix_table_options_secondary_engine",
+      "file": "create_table.go",
+      "status": "pending",
+      "description": "Fix batch 7 gap: missing table options - PASSWORD [=] 'string' (listed in MySQL docs but not parsed), SECONDARY_ENGINE [=] engine_name (MySQL 8.0.13+), SECONDARY_ENGINE_ATTRIBUTE [=] 'string' (MySQL 8.0.21+). Add cases to parseTableOption and corresponding AST fields.",
+      "rules": [
+        "parseTableOption"
+      ],
+      "depends_on": [
+        7,
+        59,
+        67
+      ],
+      "tests": [
+        "TestParseCreateTablePassword",
+        "TestParseCreateTableSecondaryEngine",
+        "TestParseCreateTableSecondaryEngineAttribute"
+      ]
     }
   ],
-  "audit_round": 8
+  "audit_round": 9
 }

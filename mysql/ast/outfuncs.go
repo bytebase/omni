@@ -182,7 +182,9 @@ func writeNode(sb *strings.Builder, node Node) {
 	case *ConvertExpr:
 		writeConvertExpr(sb, n)
 	case *DefaultExpr:
-		fmt.Fprintf(sb, "{DEFAULT :loc %d}", n.Loc.Start)
+		writeDefaultExpr(sb, n)
+	case *RowExpr:
+		writeRowExpr(sb, n)
 	case *StarExpr:
 		fmt.Fprintf(sb, "{STAR :loc %d}", n.Loc.Start)
 
@@ -1925,6 +1927,8 @@ func binaryOpStr(op BinaryOp) string {
 		return "->"
 	case BinOpJsonUnquote:
 		return "->>"
+	case BinOpSoundsLike:
+		return "SOUNDS LIKE"
 	default:
 		return fmt.Sprintf("?%d", op)
 	}
@@ -2188,6 +2192,31 @@ func writeConvertExpr(sb *strings.Builder, n *ConvertExpr) {
 	}
 	if n.Charset != "" {
 		fmt.Fprintf(sb, " :charset %s", n.Charset)
+	}
+	sb.WriteString("}")
+}
+
+func writeDefaultExpr(sb *strings.Builder, n *DefaultExpr) {
+	sb.WriteString("{DEFAULT")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Column != "" {
+		fmt.Fprintf(sb, " :col %s", n.Column)
+	}
+	sb.WriteString("}")
+}
+
+func writeRowExpr(sb *strings.Builder, n *RowExpr) {
+	sb.WriteString("{ROW")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Items) > 0 {
+		sb.WriteString(" :items (")
+		for i, item := range n.Items {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, item)
+		}
+		sb.WriteString(")")
 	}
 	sb.WriteString("}")
 }

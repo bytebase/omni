@@ -557,8 +557,9 @@ const (
 	BinOpLikeEscape
 	BinOpNullSafeEq  // <=>
 	BinOpAssign      // :=
-	BinOpJsonExtract // ->
-	BinOpJsonUnquote // ->>
+	BinOpJsonExtract  // ->
+	BinOpJsonUnquote  // ->>
+	BinOpSoundsLike   // SOUNDS LIKE
 )
 
 // BinaryExpr represents a binary expression (a op b).
@@ -1699,13 +1700,23 @@ type ConvertExpr struct {
 func (e *ConvertExpr) nodeTag()  {}
 func (e *ConvertExpr) exprNode() {}
 
-// DefaultExpr represents the DEFAULT keyword used as an expression.
+// DefaultExpr represents the DEFAULT keyword or DEFAULT(col_name) function used as an expression.
 type DefaultExpr struct {
-	Loc Loc
+	Loc    Loc
+	Column string // column name for DEFAULT(col_name) form; empty for bare DEFAULT
 }
 
 func (e *DefaultExpr) nodeTag()  {}
 func (e *DefaultExpr) exprNode() {}
+
+// RowExpr represents a ROW(expr, expr, ...) constructor expression.
+type RowExpr struct {
+	Loc   Loc
+	Items []ExprNode
+}
+
+func (e *RowExpr) nodeTag()  {}
+func (e *RowExpr) exprNode() {}
 
 // MemberOfExpr represents a value MEMBER OF(json_array) expression.
 type MemberOfExpr struct {
