@@ -6873,3 +6873,58 @@ func TestParseServiceBrokerDepth(t *testing.T) {
 		})
 	}
 }
+
+// TestParseWindowFrame tests ROWS/RANGE/GROUPS window frame specification in OVER clause (batch 73).
+func TestParseWindowFrame(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		// ROWS frame
+		{"rows_unbounded_preceding", "SELECT SUM(x) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING)"},
+		{"rows_n_preceding", "SELECT SUM(x) OVER (ORDER BY id ROWS 3 PRECEDING)"},
+		{"rows_current_row", "SELECT SUM(x) OVER (ORDER BY id ROWS CURRENT ROW)"},
+		{"rows_between_unbounded_preceding_and_current_row", "SELECT SUM(x) OVER (ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"},
+		{"rows_between_n_preceding_and_n_following", "SELECT SUM(x) OVER (ORDER BY id ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING)"},
+		{"rows_between_current_row_and_unbounded_following", "SELECT SUM(x) OVER (ORDER BY id ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)"},
+		{"rows_between_unbounded_preceding_and_unbounded_following", "SELECT SUM(x) OVER (ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)"},
+		{"rows_between_n_following_and_n_following", "SELECT SUM(x) OVER (ORDER BY id ROWS BETWEEN 2 FOLLOWING AND 10 FOLLOWING)"},
+		{"rows_between_n_preceding_and_current_row", "SELECT SUM(x) OVER (ORDER BY id ROWS BETWEEN 5 PRECEDING AND CURRENT ROW)"},
+		// RANGE frame
+		{"range_unbounded_preceding", "SELECT SUM(x) OVER (ORDER BY id RANGE UNBOUNDED PRECEDING)"},
+		{"range_current_row", "SELECT SUM(x) OVER (ORDER BY id RANGE CURRENT ROW)"},
+		{"range_between_unbounded_preceding_and_current_row", "SELECT SUM(x) OVER (ORDER BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"},
+		{"range_between_current_row_and_unbounded_following", "SELECT SUM(x) OVER (ORDER BY id RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)"},
+		{"range_between_unbounded_preceding_and_unbounded_following", "SELECT SUM(x) OVER (ORDER BY id RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)"},
+		// GROUPS frame (SQL Server 2022+)
+		{"groups_unbounded_preceding", "SELECT SUM(x) OVER (ORDER BY id GROUPS UNBOUNDED PRECEDING)"},
+		{"groups_between_n_preceding_and_n_following", "SELECT SUM(x) OVER (ORDER BY id GROUPS BETWEEN 1 PRECEDING AND 1 FOLLOWING)"},
+		{"groups_between_current_row_and_unbounded_following", "SELECT SUM(x) OVER (ORDER BY id GROUPS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)"},
+		// Combined with PARTITION BY
+		{"partition_and_rows_frame", "SELECT SUM(x) OVER (PARTITION BY dept ORDER BY id ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING)"},
+		{"partition_and_range_frame", "SELECT AVG(salary) OVER (PARTITION BY dept ORDER BY hire_date RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): expected 1 statement, got %d", tt.sql, result.Len())
+			}
+
+			s1 := ast.NodeToString(result.Items[0])
+			s2 := ast.NodeToString(result.Items[0])
+			if s1 != s2 {
+				t.Errorf("Parse(%q): serialization not deterministic:\n  s1=%s\n  s2=%s", tt.sql, s1, s2)
+			}
+			if s1 == "" {
+				t.Errorf("Parse(%q): empty serialization", tt.sql)
+			}
+
+			// Verify the serialization contains WINDOWFRAME
+			if !strings.Contains(s1, "WINDOWFRAME") {
+				t.Errorf("Parse(%q): expected WINDOWFRAME in serialization, got: %s", tt.sql, s1)
+			}
+		})
+	}
+}

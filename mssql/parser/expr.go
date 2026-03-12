@@ -735,7 +735,40 @@ func (p *Parser) parseFuncCall(name string, loc int) nodes.ExprNode {
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/select-over-clause-transact-sql
 //
-//	OVER '(' [PARTITION BY expr_list] [ORDER BY order_item_list] ')'
+//	OVER '(' [PARTITION BY expr_list] [ORDER BY order_item_list] [<ROW or RANGE clause>] ')'
+//
+//	<ROW or RANGE clause> ::=
+//	  { ROWS | RANGE | GROUPS } <window frame extent>
+//
+//	<window frame extent> ::=
+//	  {   <window frame preceding>
+//	    | <window frame between>
+//	  }
+//
+//	<window frame between> ::=
+//	  BETWEEN <window frame bound> AND <window frame bound>
+//
+//	<window frame bound> ::=
+//	  {   <window frame preceding>
+//	    | <window frame following>
+//	  }
+//
+//	<window frame preceding> ::=
+//	  {
+//	      UNBOUNDED PRECEDING
+//	    | <unsigned_value_specification> PRECEDING
+//	    | CURRENT ROW
+//	  }
+//
+//	<window frame following> ::=
+//	  {
+//	      UNBOUNDED FOLLOWING
+//	    | <unsigned_value_specification> FOLLOWING
+//	    | CURRENT ROW
+//	  }
+//
+//	<unsigned value specification> ::=
+//	  { <unsigned integer literal> }
 func (p *Parser) parseOverClause() *nodes.OverClause {
 	loc := p.pos()
 	p.advance() // consume OVER
@@ -791,6 +824,93 @@ func (p *Parser) parseOverClause() *nodes.OverClause {
 		over.OrderBy = &nodes.List{Items: orders}
 	}
 
+	// ROWS | RANGE | GROUPS window frame clause
+	if p.cur.Type == kwROWS || p.cur.Type == kwRANGE || p.cur.Type == kwGROUPS {
+		over.WindowFrame = p.parseWindowFrame()
+	}
+
+	over.Loc.End = p.pos()
 	_, _ = p.expect(')')
 	return over
+}
+
+// parseWindowFrame parses a window frame specification (ROWS/RANGE/GROUPS).
+//
+//	{ ROWS | RANGE | GROUPS } <window frame extent>
+//
+//	<window frame extent> ::=
+//	  {   <window frame preceding>
+//	    | BETWEEN <window frame bound> AND <window frame bound>
+//	  }
+func (p *Parser) parseWindowFrame() *nodes.WindowFrame {
+	frame := &nodes.WindowFrame{
+		Loc: nodes.Loc{Start: p.pos()},
+	}
+
+	switch p.cur.Type {
+	case kwROWS:
+		frame.Type = nodes.FrameRows
+	case kwRANGE:
+		frame.Type = nodes.FrameRange
+	case kwGROUPS:
+		frame.Type = nodes.FrameGroups
+	}
+	p.advance()
+
+	if p.cur.Type == kwBETWEEN {
+		// BETWEEN <bound> AND <bound>
+		p.advance()
+		frame.Start = p.parseWindowFrameBound()
+		if _, err := p.expect(kwAND); err != nil {
+			frame.Loc.End = p.pos()
+			return frame
+		}
+		frame.End = p.parseWindowFrameBound()
+	} else {
+		// Short syntax: <window frame preceding> (implies AND CURRENT ROW)
+		frame.Start = p.parseWindowFrameBound()
+	}
+
+	frame.Loc.End = p.pos()
+	return frame
+}
+
+// parseWindowFrameBound parses a single window frame bound.
+//
+//	<window frame bound> ::=
+//	  {   UNBOUNDED PRECEDING
+//	    | UNBOUNDED FOLLOWING
+//	    | <unsigned_value_specification> PRECEDING
+//	    | <unsigned_value_specification> FOLLOWING
+//	    | CURRENT ROW
+//	  }
+func (p *Parser) parseWindowFrameBound() *nodes.WindowBound {
+	bound := &nodes.WindowBound{
+		Loc: nodes.Loc{Start: p.pos()},
+	}
+
+	switch {
+	case p.cur.Type == kwUNBOUNDED:
+		p.advance()
+		if _, ok := p.match(kwPRECEDING); ok {
+			bound.Type = nodes.BoundUnboundedPreceding
+		} else if _, ok := p.match(kwFOLLOWING); ok {
+			bound.Type = nodes.BoundUnboundedFollowing
+		}
+	case p.cur.Type == kwCURRENT:
+		p.advance()
+		p.matchIdentCI("ROW")
+		bound.Type = nodes.BoundCurrentRow
+	default:
+		// <unsigned_value_specification> PRECEDING | FOLLOWING
+		bound.Offset = p.parseExpr()
+		if _, ok := p.match(kwPRECEDING); ok {
+			bound.Type = nodes.BoundPreceding
+		} else if _, ok := p.match(kwFOLLOWING); ok {
+			bound.Type = nodes.BoundFollowing
+		}
+	}
+
+	bound.Loc.End = p.pos()
+	return bound
 }

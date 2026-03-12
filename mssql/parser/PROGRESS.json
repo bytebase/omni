@@ -1749,7 +1749,7 @@
       "id": 73,
       "name": "window_frame",
       "file": "expr.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 3 gap: parse ROWS/RANGE/GROUPS window frame specification in OVER clause (BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW, N PRECEDING/FOLLOWING, etc.)",
       "rules": [
         "parseWindowFrame",

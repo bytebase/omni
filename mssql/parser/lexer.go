@@ -107,6 +107,7 @@ const (
 	kwFETCH
 	kwFILE
 	kwFILLFACTOR
+	kwFOLLOWING
 	kwFOR
 	kwFOREIGN
 	kwFREETEXT
@@ -118,6 +119,7 @@ const (
 	kwGOTO
 	kwGRANT
 	kwGROUP
+	kwGROUPS
 	kwHAVING
 	kwHOLDLOCK
 	kwIDENTITY
@@ -172,6 +174,7 @@ const (
 	kwOVER
 	kwPARTITION
 	kwPATH
+	kwPRECEDING
 	kwPERCENT
 	kwPIVOT
 	kwPLAN
@@ -182,6 +185,7 @@ const (
 	kwPROCEDURE
 	kwPUBLIC
 	kwRAISERROR
+	kwRANGE
 	kwRAW
 	kwREAD
 	kwREADONLY
@@ -230,6 +234,7 @@ const (
 	kwTRY_CAST
 	kwTRY_CONVERT
 	kwTYPE
+	kwUNBOUNDED
 	kwUNION
 	kwUNIQUE
 	kwUNPIVOT
@@ -277,10 +282,11 @@ func init() {
 		"else": kwELSE, "end": kwEND, "errlvl": kwERRLVL, "escape": kwESCAPE,
 		"except": kwEXCEPT, "exec": kwEXEC, "execute": kwEXECUTE, "exists": kwEXISTS,
 		"exit": kwEXIT, "external": kwEXTERNAL,
-		"fetch": kwFETCH, "file": kwFILE, "fillfactor": kwFILLFACTOR, "for": kwFOR,
+		"fetch": kwFETCH, "file": kwFILE, "fillfactor": kwFILLFACTOR,
+		"following": kwFOLLOWING, "for": kwFOR,
 		"foreign": kwFOREIGN, "freetext": kwFREETEXT, "freetexttable": kwFREETEXTTABLE,
 		"from": kwFROM, "full": kwFULL, "function": kwFUNCTION,
-		"go": kwGO, "goto": kwGOTO, "grant": kwGRANT, "group": kwGROUP,
+		"go": kwGO, "goto": kwGOTO, "grant": kwGRANT, "group": kwGROUP, "groups": kwGROUPS,
 		"having": kwHAVING, "holdlock": kwHOLDLOCK,
 		"identity": kwIDENTITY, "identity_insert": kwIDENTITY_INSERT,
 		"identitycol": kwIDENTITYCOL, "if": kwIF, "iif": kwIIF, "in": kwIN,
@@ -299,11 +305,11 @@ func init() {
 		"openjson": kwOPENJSON, "openquery": kwOPENQUERY, "openrowset": kwOPENROWSET,
 		"openxml": kwOPENXML, "option": kwOPTION, "or": kwOR, "order": kwORDER,
 		"outer": kwOUTER, "output": kwOUTPUT, "over": kwOVER,
-		"partition": kwPARTITION, "path": kwPATH, "percent": kwPERCENT,
+		"partition": kwPARTITION, "path": kwPATH, "preceding": kwPRECEDING, "percent": kwPERCENT,
 		"pivot": kwPIVOT, "plan": kwPLAN, "precision": kwPRECISION,
 		"primary": kwPRIMARY, "print": kwPRINT, "proc": kwPROC,
 		"procedure": kwPROCEDURE, "public": kwPUBLIC,
-		"raiserror": kwRAISERROR, "raw": kwRAW, "read": kwREAD,
+		"raiserror": kwRAISERROR, "range": kwRANGE, "raw": kwRAW, "read": kwREAD,
 		"readonly": kwREADONLY, "readtext": kwREADTEXT, "reconfigure": kwRECONFIGURE,
 		"references": kwREFERENCES, "replication": kwREPLICATION, "restore": kwRESTORE,
 		"restrict": kwRESTRICT, "return": kwRETURN, "returns": kwRETURNS,
@@ -319,7 +325,7 @@ func init() {
 		"tran": kwTRAN, "transaction": kwTRANSACTION, "trigger": kwTRIGGER,
 		"truncate": kwTRUNCATE, "try": kwTRY, "try_cast": kwTRY_CAST,
 		"try_convert": kwTRY_CONVERT, "type": kwTYPE,
-		"union": kwUNION, "unique": kwUNIQUE, "unpivot": kwUNPIVOT,
+		"unbounded": kwUNBOUNDED, "union": kwUNION, "unique": kwUNIQUE, "unpivot": kwUNPIVOT,
 		"update": kwUPDATE, "updatetext": kwUPDATETEXT, "use": kwUSE, "user": kwUSER,
 		"values": kwVALUES, "varying": kwVARYING, "view": kwVIEW,
 		"waitfor": kwWAITFOR, "when": kwWHEN, "where": kwWHERE, "while": kwWHILE,
