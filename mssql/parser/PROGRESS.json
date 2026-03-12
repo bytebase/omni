@@ -2182,7 +2182,7 @@
       "id": 96,
       "name": "server_audit_options_depth",
       "file": "security_audit.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 54 gap: replace skip-loop in parseAuditOptions (line 278) with structured parsing. TO clause: { FILE ( FILEPATH = path [, MAXSIZE = n [MB|GB|TB] [, MAX_ROLLOVER_FILES = n] [, RESERVE_DISK_SPACE = ON|OFF] ) | APPLICATION_LOG | SECURITY_LOG | URL | EXTERNAL_MONITOR }. WITH clause: ( QUEUE_DELAY = n [, ON_FAILURE = CONTINUE|SHUTDOWN|FAIL_OPERATION] [, AUDIT_GUID = guid] [, STATE = ON|OFF] ). WHERE clause: event predicates.",
       "rules": [
         "parseServerAuditToClause",

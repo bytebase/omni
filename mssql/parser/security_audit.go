@@ -269,41 +269,183 @@ func (p *Parser) parseDropDatabaseAuditSpecStmt() *nodes.SecurityStmt {
 }
 
 // parseAuditOptions parses the TO/WITH/WHERE portions of a SERVER AUDIT statement.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-server-audit-transact-sql
+//
+//	TO { FILE ( <file_options> [, ...n] ) | APPLICATION_LOG | SECURITY_LOG | URL | EXTERNAL_MONITOR }
+//	[ WITH ( <audit_options> [, ...n] ) ]
+//	[ WHERE <predicate_expression> ]
+//	| REMOVE WHERE
+//	| MODIFY NAME = new_audit_name
+//
+//	<file_options> ::=
+//	    FILEPATH = 'os_file_path'
+//	    [, MAXSIZE = { max_size { MB | GB | TB } | UNLIMITED } ]
+//	    [, { MAX_ROLLOVER_FILES = { integer | UNLIMITED } } | { MAX_FILES = integer } ]
+//	    [, RESERVE_DISK_SPACE = { ON | OFF } ]
+//
+//	<audit_options> ::=
+//	    [ QUEUE_DELAY = integer ]
+//	    [, ON_FAILURE = { CONTINUE | SHUTDOWN | FAIL_OPERATION } ]
+//	    [, AUDIT_GUID = uniqueidentifier ]
+//	    [, OPERATOR_AUDIT = { ON | OFF } ]
+//	    [, STATE = ON | OFF ]
+//
+//	<predicate_expression> ::=
+//	    [ NOT ] <predicate_factor> [ { AND | OR } [ NOT ] <predicate_factor> ] [, ...n]
+//	<predicate_factor> ::=
+//	    event_field_name { = | <> | != | > | >= | < | <= | LIKE } { number | 'string' }
 func (p *Parser) parseAuditOptions() *nodes.List {
 	var opts []nodes.Node
 
-	// Consume rest of statement until ; or EOF or GO
-	for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
-		if p.cur.Type == '(' {
-			// Skip parenthesized sub-clause
+	// REMOVE WHERE (ALTER only)
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REMOVE") {
+		p.advance()
+		if p.cur.Type == kwWHERE {
 			p.advance()
-			depth := 1
-			for depth > 0 && p.cur.Type != tokEOF {
-				if p.cur.Type == '(' {
-					depth++
-				} else if p.cur.Type == ')' {
-					depth--
+		}
+		opts = append(opts, &nodes.String{Str: "REMOVE WHERE"})
+		if len(opts) == 0 {
+			return nil
+		}
+		return &nodes.List{Items: opts}
+	}
+
+	// MODIFY NAME = new_name (ALTER only)
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MODIFY") {
+		p.advance()
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "NAME") {
+			p.advance()
+		}
+		if p.cur.Type == '=' {
+			p.advance()
+		}
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
+			opts = append(opts, &nodes.String{Str: "MODIFY NAME=" + p.cur.Str})
+			p.advance()
+		}
+		if len(opts) == 0 {
+			return nil
+		}
+		return &nodes.List{Items: opts}
+	}
+
+	// TO clause
+	if p.cur.Type == kwTO {
+		p.advance()
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FILE") {
+			p.advance()
+			opts = append(opts, &nodes.String{Str: "TO=FILE"})
+			// ( <file_options> )
+			if p.cur.Type == '(' {
+				p.advance()
+				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					if p.cur.Type == ',' {
+						p.advance()
+						continue
+					}
+					if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+						name := strings.ToUpper(p.cur.Str)
+						p.advance()
+						if p.cur.Type == '=' {
+							p.advance()
+							val := ""
+							if p.cur.Type == tokSCONST {
+								val = p.cur.Str
+								p.advance()
+							} else if p.cur.Type == tokICONST {
+								val = p.cur.Str
+								p.advance()
+								// MAXSIZE may have MB|GB|TB suffix
+								if p.isIdentLike() && (matchesKeywordCI(p.cur.Str, "MB") ||
+									matchesKeywordCI(p.cur.Str, "GB") ||
+									matchesKeywordCI(p.cur.Str, "TB")) {
+									val += strings.ToUpper(p.cur.Str)
+									p.advance()
+								}
+							} else if p.isIdentLike() {
+								val = strings.ToUpper(p.cur.Str)
+								p.advance()
+							} else if p.cur.Type == kwON {
+								val = "ON"
+								p.advance()
+							} else if p.cur.Type == kwOFF {
+								val = "OFF"
+								p.advance()
+							}
+							opts = append(opts, &nodes.String{Str: name + "=" + val})
+						}
+					} else {
+						p.advance()
+					}
 				}
-				if depth > 0 {
+				p.match(')')
+			}
+		} else if p.isIdentLike() {
+			target := strings.ToUpper(p.cur.Str)
+			p.advance()
+			opts = append(opts, &nodes.String{Str: "TO=" + target})
+		}
+	}
+
+	// WITH clause
+	if p.cur.Type == kwWITH {
+		p.advance()
+		if p.cur.Type == '(' {
+			p.advance()
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				if p.cur.Type == ',' {
+					p.advance()
+					continue
+				}
+				if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+					name := strings.ToUpper(p.cur.Str)
+					p.advance()
+					if p.cur.Type == '=' {
+						p.advance()
+						val := ""
+						if p.cur.Type == tokSCONST {
+							val = p.cur.Str
+							p.advance()
+						} else if p.cur.Type == tokICONST {
+							val = p.cur.Str
+							p.advance()
+						} else if p.isIdentLike() {
+							val = strings.ToUpper(p.cur.Str)
+							p.advance()
+						} else if p.cur.Type == kwON {
+							val = "ON"
+							p.advance()
+						} else if p.cur.Type == kwOFF {
+							val = "OFF"
+							p.advance()
+						}
+						opts = append(opts, &nodes.String{Str: name + "=" + val})
+					} else {
+						opts = append(opts, &nodes.String{Str: name})
+					}
+				} else {
 					p.advance()
 				}
 			}
 			p.match(')')
-		} else if p.isIdentLike() || p.cur.Type == kwWITH || p.cur.Type == kwWHERE ||
-			p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwTO {
-			optStr := strings.ToUpper(p.cur.Str)
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-				if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST ||
-					p.cur.Type == kwON || p.cur.Type == kwOFF {
-					optStr += "=" + strings.ToUpper(p.cur.Str)
-					p.advance()
-				}
+		}
+	}
+
+	// WHERE clause
+	if p.cur.Type == kwWHERE {
+		p.advance()
+		// Parse predicate expression: collect tokens until ; or EOF or GO
+		var predParts []string
+		for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
+			if p.isStatementStart() {
+				break
 			}
-			opts = append(opts, &nodes.String{Str: optStr})
-		} else {
+			predParts = append(predParts, p.cur.Str)
 			p.advance()
+		}
+		if len(predParts) > 0 {
+			opts = append(opts, &nodes.String{Str: "WHERE=" + strings.Join(predParts, " ")})
 		}
 	}
 

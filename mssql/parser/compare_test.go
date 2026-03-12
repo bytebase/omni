@@ -9597,6 +9597,95 @@ func TestParseSetuserStatement(t *testing.T) {
 	})
 }
 
+func TestParseServerAuditOptionsDepth(t *testing.T) {
+	// CREATE SERVER AUDIT TO FILE with options
+	t.Run("server_audit_to_file", func(t *testing.T) {
+		sql := `CREATE SERVER AUDIT MyAudit TO FILE (FILEPATH = '\\server\audit\', MAXSIZE = 100MB, MAX_ROLLOVER_FILES = 10)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Action != "CREATE" {
+			t.Errorf("expected CREATE, got %q", stmt.Action)
+		}
+		if stmt.Name != "MyAudit" {
+			t.Errorf("expected MyAudit, got %q", stmt.Name)
+		}
+		if stmt.Options == nil || len(stmt.Options.Items) < 3 {
+			t.Fatalf("expected at least 3 options (TO=FILE + file options), got %v", stmt.Options)
+		}
+		opt0 := stmt.Options.Items[0].(*ast.String).Str
+		if opt0 != "TO=FILE" {
+			t.Errorf("expected TO=FILE, got %q", opt0)
+		}
+	})
+
+	// CREATE SERVER AUDIT WITH options
+	t.Run("server_audit_with_options", func(t *testing.T) {
+		sql := "CREATE SERVER AUDIT MyAudit TO APPLICATION_LOG WITH (QUEUE_DELAY = 1000, ON_FAILURE = SHUTDOWN)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Options == nil || len(stmt.Options.Items) < 3 {
+			t.Fatalf("expected at least 3 options, got %v", stmt.Options)
+		}
+		opt0 := stmt.Options.Items[0].(*ast.String).Str
+		if opt0 != "TO=APPLICATION_LOG" {
+			t.Errorf("expected TO=APPLICATION_LOG, got %q", opt0)
+		}
+	})
+
+	// CREATE SERVER AUDIT with WHERE clause
+	t.Run("server_audit_where_clause", func(t *testing.T) {
+		sql := "CREATE SERVER AUDIT MyAudit TO FILE (FILEPATH = 'C:\\audit\\') WHERE object_name = 'SensitiveData'"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+		// Find WHERE option
+		found := false
+		for _, item := range stmt.Options.Items {
+			s := item.(*ast.String).Str
+			if len(s) > 6 && s[:6] == "WHERE=" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("expected WHERE predicate in options")
+		}
+	})
+
+	// ALTER SERVER AUDIT with MODIFY NAME
+	t.Run("alter_server_audit_modify_name", func(t *testing.T) {
+		sql := "ALTER SERVER AUDIT MyAudit MODIFY NAME = NewAuditName"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Action != "ALTER" {
+			t.Errorf("expected ALTER, got %q", stmt.Action)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+		opt0 := stmt.Options.Items[0].(*ast.String).Str
+		if opt0 != "MODIFY NAME=NewAuditName" {
+			t.Errorf("expected MODIFY NAME=NewAuditName, got %q", opt0)
+		}
+	})
+
+	// ALTER SERVER AUDIT with REMOVE WHERE
+	t.Run("alter_server_audit_remove_where", func(t *testing.T) {
+		sql := "ALTER SERVER AUDIT MyAudit REMOVE WHERE"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+		opt0 := stmt.Options.Items[0].(*ast.String).Str
+		if opt0 != "REMOVE WHERE" {
+			t.Errorf("expected REMOVE WHERE, got %q", opt0)
+		}
+	})
+}
+
 func TestParseAlterIndexOptionsDepth(t *testing.T) {
 	// ALTER INDEX ... REBUILD WITH options
 	t.Run("alter_index_rebuild_with", func(t *testing.T) {
