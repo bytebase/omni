@@ -1420,6 +1420,7 @@ type LoadDataStmt struct {
 	Table              *TableRef
 	Columns            []*ColumnRef
 	SetList            []*Assignment
+	LinesStartingBy    string
 	LinesTerminatedBy  string
 	FieldsTerminatedBy string
 	FieldsEnclosedBy   string

@@ -1616,7 +1616,23 @@
       "tests": [
         "TestParseSelectDistinctrow"
       ]
+    },
+    {
+      "id": 63,
+      "name": "depth_fix_load_data_lines_starting_by",
+      "file": "load_data.go",
+      "status": "done",
+      "description": "Fix batch 18 gap: LOAD DATA LINES STARTING BY clause parses value but discards it. Add LinesStartingBy field to LoadDataStmt AST node and store parsed value. Update outfuncs.go to emit the field.",
+      "rules": [
+        "parseLinesClause"
+      ],
+      "depends_on": [
+        18
+      ],
+      "tests": [
+        "TestParseLoadDataLinesStartingBy"
+      ]
     }
   ],
-  "audit_round": 5
+  "audit_round": 6
 }

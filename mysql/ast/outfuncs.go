@@ -1522,6 +1522,9 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 			writeNode(sb, a)
 		}
 	}
+	if n.LinesStartingBy != "" {
+		fmt.Fprintf(sb, " :lines_starting %q", n.LinesStartingBy)
+	}
 	if n.LinesTerminatedBy != "" {
 		fmt.Fprintf(sb, " :lines_terminated %q", n.LinesTerminatedBy)
 	}

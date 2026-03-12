@@ -176,6 +176,7 @@ func (p *Parser) parseLinesClause(stmt *nodes.LoadDataStmt) {
 			p.advance()
 			p.match(kwBY)
 			if p.cur.Type == tokSCONST {
+				stmt.LinesStartingBy = p.cur.Str
 				p.advance()
 			}
 		} else {

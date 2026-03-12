@@ -4998,6 +4998,60 @@ func TestParseLoadData(t *testing.T) {
 }
 
 // ============================================================================
+// Batch 63: LOAD DATA LINES STARTING BY fix
+// ============================================================================
+
+func TestParseLoadDataLinesStartingBy(t *testing.T) {
+	t.Run("lines starting by", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("LOAD DATA INFILE '/tmp/data.csv' INTO TABLE t LINES STARTING BY '>>'")}
+		p.advance()
+		start := p.pos()
+		p.advance() // consume LOAD
+		stmt, err := p.parseLoadDataStmt(start)
+		if err != nil {
+			t.Fatalf("error: %v", err)
+		}
+		if stmt.LinesStartingBy != ">>" {
+			t.Errorf("LinesStartingBy = %q, want \">>\"", stmt.LinesStartingBy)
+		}
+	})
+
+	t.Run("lines starting by and terminated by", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("LOAD DATA INFILE '/tmp/data.csv' INTO TABLE t LINES STARTING BY '>' TERMINATED BY '\\n'")}
+		p.advance()
+		start := p.pos()
+		p.advance() // consume LOAD
+		stmt, err := p.parseLoadDataStmt(start)
+		if err != nil {
+			t.Fatalf("error: %v", err)
+		}
+		if stmt.LinesStartingBy != ">" {
+			t.Errorf("LinesStartingBy = %q, want \">\"", stmt.LinesStartingBy)
+		}
+		if stmt.LinesTerminatedBy == "" {
+			t.Errorf("LinesTerminatedBy is empty, want non-empty")
+		}
+	})
+
+	t.Run("lines terminated by only", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("LOAD DATA INFILE '/tmp/data.csv' INTO TABLE t LINES TERMINATED BY '\\r\\n'")}
+		p.advance()
+		start := p.pos()
+		p.advance() // consume LOAD
+		stmt, err := p.parseLoadDataStmt(start)
+		if err != nil {
+			t.Fatalf("error: %v", err)
+		}
+		if stmt.LinesStartingBy != "" {
+			t.Errorf("LinesStartingBy = %q, want empty", stmt.LinesStartingBy)
+		}
+		if stmt.LinesTerminatedBy == "" {
+			t.Errorf("LinesTerminatedBy is empty, want non-empty")
+		}
+	})
+}
+
+// ============================================================================
 // Batch 19: PREPARE, EXECUTE, DEALLOCATE
 // ============================================================================
 
