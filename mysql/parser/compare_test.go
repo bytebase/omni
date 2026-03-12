@@ -4630,6 +4630,91 @@ func TestParseNamedWindow(t *testing.T) {
 	}
 }
 
+// -----------------------------------------------------------------------
+// Batch 27: CALL and HANDLER
+// -----------------------------------------------------------------------
+
+func TestParseCall(t *testing.T) {
+	tests := []string{
+		"CALL my_proc()",
+		"CALL my_proc",
+		"CALL mydb.my_proc()",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseCallWithArgs(t *testing.T) {
+	tests := []string{
+		"CALL my_proc(1, 2, 3)",
+		"CALL my_proc('hello', @var)",
+		"CALL mydb.my_proc(1 + 2, 'abc')",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseHandlerOpen(t *testing.T) {
+	tests := []string{
+		"HANDLER t1 OPEN",
+		"HANDLER t1 OPEN AS h1",
+		"HANDLER mydb.t1 OPEN",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseHandlerRead(t *testing.T) {
+	tests := []string{
+		"HANDLER t1 READ FIRST",
+		"HANDLER t1 READ NEXT",
+		"HANDLER t1 READ PREV",
+		"HANDLER t1 READ LAST",
+		"HANDLER t1 READ idx FIRST",
+		"HANDLER t1 READ idx NEXT",
+		"HANDLER t1 READ NEXT LIMIT 5",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseHandlerReadWhere(t *testing.T) {
+	tests := []string{
+		"HANDLER t1 READ FIRST WHERE id > 10",
+		"HANDLER t1 READ idx NEXT WHERE name = 'foo'",
+		"HANDLER t1 READ NEXT WHERE id > 5 LIMIT 10",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseHandlerClose(t *testing.T) {
+	tests := []string{
+		"HANDLER t1 CLOSE",
+		"HANDLER mydb.t1 CLOSE",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
 func TestParseStmtDispatchAlterVariants(t *testing.T) {
 	tests := []string{
 		"ALTER TABLE t ADD COLUMN c INT",

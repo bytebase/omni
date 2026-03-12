@@ -1510,6 +1510,98 @@ type XAStmt struct {
 func (s *XAStmt) nodeTag()  {}
 func (s *XAStmt) stmtNode() {}
 
+// CallStmt represents a CALL procedure_name([arg[,arg]...]) statement.
+type CallStmt struct {
+	Loc  Loc
+	Name *TableRef
+	Args []ExprNode
+}
+
+func (s *CallStmt) nodeTag()  {}
+func (s *CallStmt) stmtNode() {}
+
+// HandlerOpenStmt represents a HANDLER tbl_name OPEN [AS alias] statement.
+type HandlerOpenStmt struct {
+	Loc   Loc
+	Table *TableRef
+	Alias string
+}
+
+func (s *HandlerOpenStmt) nodeTag()  {}
+func (s *HandlerOpenStmt) stmtNode() {}
+
+// HandlerReadStmt represents a HANDLER tbl_name READ ... statement.
+type HandlerReadStmt struct {
+	Loc       Loc
+	Table     *TableRef
+	Direction string   // FIRST, NEXT, PREV, LAST
+	Index     string   // index name for index-based reads
+	Where     ExprNode // WHERE condition
+	Limit     *Limit   // LIMIT clause
+}
+
+func (s *HandlerReadStmt) nodeTag()  {}
+func (s *HandlerReadStmt) stmtNode() {}
+
+// HandlerCloseStmt represents a HANDLER tbl_name CLOSE statement.
+type HandlerCloseStmt struct {
+	Loc   Loc
+	Table *TableRef
+}
+
+func (s *HandlerCloseStmt) nodeTag()  {}
+func (s *HandlerCloseStmt) stmtNode() {}
+
+// SignalStmt represents a SIGNAL statement.
+type SignalStmt struct {
+	Loc            Loc
+	ConditionValue string            // SQLSTATE value or condition name
+	SetItems       []*SignalInfoItem // SET clause items
+}
+
+func (s *SignalStmt) nodeTag()  {}
+func (s *SignalStmt) stmtNode() {}
+
+// ResignalStmt represents a RESIGNAL statement.
+type ResignalStmt struct {
+	Loc            Loc
+	ConditionValue string            // SQLSTATE value or condition name (may be empty)
+	SetItems       []*SignalInfoItem // SET clause items
+}
+
+func (s *ResignalStmt) nodeTag()  {}
+func (s *ResignalStmt) stmtNode() {}
+
+// SignalInfoItem represents a signal information item (condition_info_name = value).
+type SignalInfoItem struct {
+	Loc   Loc
+	Name  string   // e.g. MESSAGE_TEXT, MYSQL_ERRNO, CLASS_ORIGIN, etc.
+	Value ExprNode // simple_value_specification
+}
+
+func (s *SignalInfoItem) nodeTag() {}
+
+// GetDiagnosticsStmt represents a GET DIAGNOSTICS statement.
+type GetDiagnosticsStmt struct {
+	Loc             Loc
+	Stacked         bool               // STACKED (vs CURRENT, which is default)
+	StatementInfo   bool               // true = statement info items, false = condition info items
+	ConditionNumber ExprNode           // condition number (only when StatementInfo is false)
+	Items           []*DiagnosticsItem // target = item_name pairs
+}
+
+func (s *GetDiagnosticsStmt) nodeTag()  {}
+func (s *GetDiagnosticsStmt) stmtNode() {}
+
+// DiagnosticsItem represents a diagnostics item (target = item_name).
+type DiagnosticsItem struct {
+	Loc    Loc
+	Target *VariableRef // target variable
+	Name   string       // item name (e.g. NUMBER, ROW_COUNT, MESSAGE_TEXT, etc.)
+}
+
+func (d *DiagnosticsItem) nodeTag() {}
+
 // RawStmt wraps a statement node with its location span.
 type RawStmt struct {
 	Loc     Loc

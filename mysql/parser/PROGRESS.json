@@ -377,7 +377,7 @@
       "id": 27,
       "name": "call_handler",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "CALL procedure statement. HANDLER table OPEN/READ/CLOSE statements for direct row access.",
       "rules": [
         "call_stmt", "handler_open_stmt", "handler_read_stmt",
@@ -389,8 +389,8 @@
     {
       "id": 28,
       "name": "signal_diagnostics",
-      "file": "utility.go",
-      "status": "pending",
+      "file": "signal.go",
+      "status": "in_progress",
       "description": "SIGNAL, RESIGNAL, and GET DIAGNOSTICS statements for stored program error handling",
       "rules": [
         "signal_stmt", "signal_condition_value",

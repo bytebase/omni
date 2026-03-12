@@ -370,6 +370,7 @@ const (
 	kwRECOVER
 	kwRESUME
 	kwONE
+	kwCALL
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -701,6 +702,7 @@ var keywords = map[string]int{
 	"recover":             kwRECOVER,
 	"resume":              kwRESUME,
 	"one":                 kwONE,
+	"call":                kwCALL,
 }
 
 // Token represents a lexical token.

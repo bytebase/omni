@@ -265,6 +265,24 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeJsonTableExpr(sb, n)
 	case *JsonTableColumn:
 		writeJsonTableColumn(sb, n)
+	case *CallStmt:
+		writeCallStmt(sb, n)
+	case *HandlerOpenStmt:
+		writeHandlerOpenStmt(sb, n)
+	case *HandlerReadStmt:
+		writeHandlerReadStmt(sb, n)
+	case *HandlerCloseStmt:
+		writeHandlerCloseStmt(sb, n)
+	case *SignalStmt:
+		writeSignalStmt(sb, n)
+	case *ResignalStmt:
+		writeResignalStmt(sb, n)
+	case *SignalInfoItem:
+		writeSignalInfoItem(sb, n)
+	case *GetDiagnosticsStmt:
+		writeGetDiagnosticsStmt(sb, n)
+	case *DiagnosticsItem:
+		writeDiagnosticsItem(sb, n)
 
 	default:
 		fmt.Fprintf(sb, "{UNKNOWN %T}", node)
@@ -2448,4 +2466,144 @@ func writeOrderByList(sb *strings.Builder, items []*OrderByItem) {
 		writeNode(sb, item)
 	}
 	sb.WriteString(")")
+}
+
+func writeCallStmt(sb *strings.Builder, n *CallStmt) {
+	sb.WriteString("{CALL")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if len(n.Args) > 0 {
+		sb.WriteString(" :args ")
+		writeExprNodeList(sb, n.Args)
+	}
+	sb.WriteString("}")
+}
+
+func writeHandlerOpenStmt(sb *strings.Builder, n *HandlerOpenStmt) {
+	sb.WriteString("{HANDLER_OPEN")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias %s", n.Alias)
+	}
+	sb.WriteString("}")
+}
+
+func writeHandlerReadStmt(sb *strings.Builder, n *HandlerReadStmt) {
+	sb.WriteString("{HANDLER_READ")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.Direction != "" {
+		fmt.Fprintf(sb, " :direction %s", n.Direction)
+	}
+	if n.Index != "" {
+		fmt.Fprintf(sb, " :index %s", n.Index)
+	}
+	if n.Where != nil {
+		sb.WriteString(" :where ")
+		writeNode(sb, n.Where)
+	}
+	if n.Limit != nil {
+		sb.WriteString(" :limit ")
+		writeNode(sb, n.Limit)
+	}
+	sb.WriteString("}")
+}
+
+func writeHandlerCloseStmt(sb *strings.Builder, n *HandlerCloseStmt) {
+	sb.WriteString("{HANDLER_CLOSE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	sb.WriteString("}")
+}
+
+func writeSignalStmt(sb *strings.Builder, n *SignalStmt) {
+	sb.WriteString("{SIGNAL")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.ConditionValue != "" {
+		fmt.Fprintf(sb, " :condition %s", n.ConditionValue)
+	}
+	if len(n.SetItems) > 0 {
+		sb.WriteString(" :set ")
+		for i, item := range n.SetItems {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, item)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeResignalStmt(sb *strings.Builder, n *ResignalStmt) {
+	sb.WriteString("{RESIGNAL")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.ConditionValue != "" {
+		fmt.Fprintf(sb, " :condition %s", n.ConditionValue)
+	}
+	if len(n.SetItems) > 0 {
+		sb.WriteString(" :set ")
+		for i, item := range n.SetItems {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, item)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeSignalInfoItem(sb *strings.Builder, n *SignalInfoItem) {
+	sb.WriteString("{SIGNAL_INFO")
+	fmt.Fprintf(sb, " :loc %d :name %s :val ", n.Loc.Start, n.Name)
+	writeNode(sb, n.Value)
+	sb.WriteString("}")
+}
+
+func writeGetDiagnosticsStmt(sb *strings.Builder, n *GetDiagnosticsStmt) {
+	sb.WriteString("{GET_DIAGNOSTICS")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Stacked {
+		sb.WriteString(" :stacked true")
+	}
+	if n.StatementInfo {
+		sb.WriteString(" :stmt_info true")
+	}
+	if n.ConditionNumber != nil {
+		sb.WriteString(" :condition_number ")
+		writeNode(sb, n.ConditionNumber)
+	}
+	if len(n.Items) > 0 {
+		sb.WriteString(" :items ")
+		for i, item := range n.Items {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, item)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeDiagnosticsItem(sb *strings.Builder, n *DiagnosticsItem) {
+	sb.WriteString("{DIAG_ITEM")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Target != nil {
+		sb.WriteString(" :target ")
+		writeNode(sb, n.Target)
+	}
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	sb.WriteString("}")
 }
