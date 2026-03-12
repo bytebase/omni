@@ -153,6 +153,29 @@ func (p *Parser) parseCreateForeignServerStmt() nodes.Node {
 func (p *Parser) parseAlterForeignServerStmt() nodes.Node {
 	p.advance() // consume SERVER
 	name, _ := p.parseName()
+
+	// Check for OWNER TO and RENAME TO before VERSION/OPTIONS
+	switch p.cur.Type {
+	case OWNER:
+		p.advance()
+		p.expect(TO)
+		roleSpec := p.parseRoleSpec()
+		return &nodes.AlterOwnerStmt{
+			ObjectType: nodes.OBJECT_FOREIGN_SERVER,
+			Object:     &nodes.String{Str: name},
+			Newowner:   roleSpec,
+		}
+	case RENAME:
+		p.advance()
+		p.expect(TO)
+		newname, _ := p.parseName()
+		return &nodes.RenameStmt{
+			RenameType: nodes.OBJECT_FOREIGN_SERVER,
+			Object:     &nodes.String{Str: name},
+			Newname:    newname,
+		}
+	}
+
 	hasVersion := false
 	version := ""
 	if p.cur.Type == VERSION_P {

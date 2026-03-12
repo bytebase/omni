@@ -84,6 +84,15 @@ func (p *Parser) parseAlterExtensionStmt() nodes.Node {
 	case DROP:
 		p.advance()
 		return p.parseAlterExtensionContents(name, -1)
+	case SET:
+		p.advance()
+		p.expect(SCHEMA)
+		newschema, _ := p.parseName()
+		return &nodes.AlterObjectSchemaStmt{
+			ObjectType: nodes.OBJECT_EXTENSION,
+			Object:     &nodes.String{Str: name},
+			Newschema:  newschema,
+		}
 	default:
 		return nil
 	}

@@ -72,6 +72,24 @@ func (p *Parser) parseAlterPublicationStmt() nodes.Node {
 	name, _ := p.parseName()
 
 	switch p.cur.Type {
+	case OWNER:
+		p.advance()
+		p.expect(TO)
+		roleSpec := p.parseRoleSpec()
+		return &nodes.AlterOwnerStmt{
+			ObjectType: nodes.OBJECT_PUBLICATION,
+			Object:     &nodes.String{Str: name},
+			Newowner:   roleSpec,
+		}
+	case RENAME:
+		p.advance()
+		p.expect(TO)
+		newname, _ := p.parseName()
+		return &nodes.RenameStmt{
+			RenameType: nodes.OBJECT_PUBLICATION,
+			Object:     &nodes.String{Str: name},
+			Newname:    newname,
+		}
 	case SET:
 		// Could be SET definition (SET '(' ...) or SET pub_obj_list
 		next := p.peekNext()
@@ -275,6 +293,25 @@ func (p *Parser) parseAlterSubscriptionStmt() nodes.Node {
 	name, _ := p.parseName()
 
 	switch p.cur.Type {
+	case OWNER:
+		p.advance()
+		p.expect(TO)
+		roleSpec := p.parseRoleSpec()
+		return &nodes.AlterOwnerStmt{
+			ObjectType: nodes.OBJECT_SUBSCRIPTION,
+			Object:     &nodes.String{Str: name},
+			Newowner:   roleSpec,
+		}
+	case RENAME:
+		p.advance()
+		p.expect(TO)
+		newname, _ := p.parseName()
+		return &nodes.RenameStmt{
+			RenameType: nodes.OBJECT_SUBSCRIPTION,
+			Object:     &nodes.String{Str: name},
+			Newname:    newname,
+		}
+
 	case CONNECTION:
 		p.advance() // consume CONNECTION
 		conninfo := p.cur.Str

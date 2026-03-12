@@ -1111,6 +1111,11 @@ func (p *Parser) parseAlterTablespaceOwner() nodes.Node {
 
 // parseAlterTriggerDependsOnExtension parses ALTER TRIGGER ...
 // ALTER has already been consumed. Current token is TRIGGER.
+//
+// Ref: https://www.postgresql.org/docs/17/sql-altertrigger.html
+//
+//	ALTER TRIGGER name ON table_name RENAME TO new_name
+//	ALTER TRIGGER name ON table_name [ NO ] DEPENDS ON EXTENSION extension_name
 func (p *Parser) parseAlterTriggerDependsOnExtension() nodes.Node {
 	p.advance() // consume TRIGGER
 	trigname, _ := p.parseName()
@@ -1118,6 +1123,19 @@ func (p *Parser) parseAlterTriggerDependsOnExtension() nodes.Node {
 	// qualified_name
 	relname, _ := p.parseAnyName()
 	rel := makeRangeVarFromAnyName(relname)
+
+	// Dispatch: RENAME TO vs [NO] DEPENDS ON EXTENSION
+	if p.cur.Type == RENAME {
+		p.advance() // consume RENAME
+		p.expect(TO)
+		newname, _ := p.parseName()
+		return &nodes.RenameStmt{
+			RenameType: nodes.OBJECT_TRIGGER,
+			Relation:   rel,
+			Subname:    trigname,
+			Newname:    newname,
+		}
+	}
 
 	remove := p.parseOptNo()
 	p.expect(DEPENDS)

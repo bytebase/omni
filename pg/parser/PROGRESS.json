@@ -1341,7 +1341,77 @@
         "alter_index_depends_ext",
         "alter_matview_depends_ext"
       ]
+    },
+    {
+      "id": 52,
+      "name": "alter_trigger_rename",
+      "file": "alter_misc.go",
+      "status": "done",
+      "description": "Fix batch 21 gap: parseAlterTriggerDependsOnExtension only handles [NO] DEPENDS ON EXTENSION variant. Missing ALTER TRIGGER name ON table_name RENAME TO new_name which produces RenameStmt with OBJECT_TRIGGER. Must dispatch on RENAME vs DEPENDS/NO after parsing trigger name and ON relation. Ref: https://www.postgresql.org/docs/17/sql-altertrigger.html",
+      "rules": ["parseAlterTriggerDependsOnExtension"],
+      "depends_on": [21],
+      "tests": ["alter_trigger_rename"]
+    },
+    {
+      "id": 53,
+      "name": "alter_extension_set_schema",
+      "file": "extension.go",
+      "status": "done",
+      "description": "Fix batch 32 gap: parseAlterExtensionStmt only handles UPDATE, ADD, DROP. Missing ALTER EXTENSION name SET SCHEMA new_schema which produces AlterObjectSchemaStmt with OBJECT_EXTENSION. Must add SET case checking for SCHEMA keyword. Ref: https://www.postgresql.org/docs/17/sql-alterextension.html",
+      "rules": ["parseAlterExtensionStmt"],
+      "depends_on": [32],
+      "tests": ["alter_extension_set_schema"]
+    },
+    {
+      "id": 54,
+      "name": "alter_server_owner_rename",
+      "file": "fdw.go",
+      "status": "done",
+      "description": "Fix batch 31 gap: parseAlterForeignServerStmt only handles VERSION and OPTIONS. Missing OWNER TO (AlterOwnerStmt with OBJECT_FOREIGN_SERVER) and RENAME TO (RenameStmt with OBJECT_FOREIGN_SERVER). Must add OWNER and RENAME cases before VERSION/OPTIONS dispatch. Ref: https://www.postgresql.org/docs/17/sql-alterserver.html",
+      "rules": ["parseAlterForeignServerStmt"],
+      "depends_on": [31],
+      "tests": ["alter_server_owner", "alter_server_rename"]
+    },
+    {
+      "id": 55,
+      "name": "alter_role_group_rename",
+      "file": "grant.go",
+      "status": "done",
+      "description": "Fix batch 18 gap: parseAlterRoleStmt missing RENAME TO (RenameStmt with OBJECT_ROLE). parseAlterGroupStmt missing RENAME TO (RenameStmt with OBJECT_ROLE). Must add RENAME case to both functions. ALTER USER RENAME TO is covered by parseAlterRoleStmt since ALTER USER dispatches there. Refs: https://www.postgresql.org/docs/17/sql-alterrole.html, https://www.postgresql.org/docs/17/sql-altergroup.html",
+      "rules": ["parseAlterRoleStmt", "parseAlterGroupStmt"],
+      "depends_on": [18],
+      "tests": ["alter_role_rename", "alter_group_rename"]
+    },
+    {
+      "id": 56,
+      "name": "alter_publication_owner_rename",
+      "file": "publication.go",
+      "status": "done",
+      "description": "Fix batch 33 gap: parseAlterPublicationStmt only handles SET/ADD/DROP. Missing OWNER TO (AlterOwnerStmt with OBJECT_PUBLICATION) and RENAME TO (RenameStmt with OBJECT_PUBLICATION). Must add OWNER and RENAME cases to the switch. Ref: https://www.postgresql.org/docs/17/sql-alterpublication.html",
+      "rules": ["parseAlterPublicationStmt"],
+      "depends_on": [33],
+      "tests": ["alter_publication_owner", "alter_publication_rename"]
+    },
+    {
+      "id": 57,
+      "name": "alter_subscription_owner_rename",
+      "file": "publication.go",
+      "status": "done",
+      "description": "Fix batch 33 gap: parseAlterSubscriptionStmt only handles SET/ADD/DROP/CONNECTION/REFRESH/ENABLE/DISABLE/SKIP. Missing OWNER TO (AlterOwnerStmt with OBJECT_SUBSCRIPTION) and RENAME TO (RenameStmt with OBJECT_SUBSCRIPTION). Must add OWNER and RENAME cases to the switch. Ref: https://www.postgresql.org/docs/17/sql-altersubscription.html",
+      "rules": ["parseAlterSubscriptionStmt"],
+      "depends_on": [33],
+      "tests": ["alter_subscription_owner", "alter_subscription_rename"]
+    },
+    {
+      "id": 58,
+      "name": "is_normalized_expr",
+      "file": "expr.go",
+      "status": "done",
+      "description": "Fix batch 3 gap: parseIsPostfix has a deferred stub for IS [NOT] [NFC|NFD|NFKC|NFKD] NORMALIZED that just returns left operand unchanged. Must produce a proper FuncCall to unicode_is_normalized(expr, form) or equivalent AST node. The unicode_normal_form rule is already implemented. Ref: https://www.postgresql.org/docs/17/functions-string.html",
+      "rules": ["parseIsPostfix"],
+      "depends_on": [3],
+      "tests": ["is_normalized"]
     }
   ],
-  "audit_round": 2
+  "audit_round": 3
 }

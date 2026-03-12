@@ -331,9 +331,42 @@ func (p *Parser) parseIsPostfix(left nodes.Node) nodes.Node {
 	case JSON:
 		// IS [NOT] JSON [VALUE|ARRAY|OBJECT|SCALAR] [WITH UNIQUE [KEYS]]
 		return p.parseJsonIsPredicate(left, negated)
+	case NORMALIZED:
+		// IS [NOT] NORMALIZED (default NFC form)
+		p.advance()
+		fc := &nodes.FuncCall{
+			Funcname:   makeFuncName("pg_catalog", "is_normalized"),
+			Args:       &nodes.List{Items: []nodes.Node{left, makeStringConst("NFC")}},
+			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
+			Location:   -1,
+		}
+		if negated {
+			return &nodes.BoolExpr{
+				Boolop:   nodes.NOT_EXPR,
+				Args:     &nodes.List{Items: []nodes.Node{fc}},
+				Location: -1,
+			}
+		}
+		return fc
+	case NFC, NFD, NFKC, NFKD:
+		// IS [NOT] NFC/NFD/NFKC/NFKD NORMALIZED
+		form := p.parseUnicodeNormalForm()
+		p.expect(NORMALIZED)
+		fc := &nodes.FuncCall{
+			Funcname:   makeFuncName("pg_catalog", "is_normalized"),
+			Args:       &nodes.List{Items: []nodes.Node{left, makeStringConst(form)}},
+			FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
+			Location:   -1,
+		}
+		if negated {
+			return &nodes.BoolExpr{
+				Boolop:   nodes.NOT_EXPR,
+				Args:     &nodes.List{Items: []nodes.Node{fc}},
+				Location: -1,
+			}
+		}
+		return fc
 	default:
-		// IS [NOT] NORMALIZED, IS [NOT] NFC/NFD/NFKC/NFKD NORMALIZED
-		// Handled as function calls in later batches; for now return left
 		return left
 	}
 }

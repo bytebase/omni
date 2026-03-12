@@ -3207,3 +3207,136 @@ func TestCompareAlterMatviewDependsExt(t *testing.T) {
 		})
 	}
 }
+
+// TestCompareAlterTriggerRename runs ALTER TRIGGER ... RENAME TO comparison tests for batch 52.
+func TestCompareAlterTriggerRename(t *testing.T) {
+	tests := []string{
+		"ALTER TRIGGER my_trigger ON my_table RENAME TO new_trigger",
+		"ALTER TRIGGER my_trigger ON myschema.my_table RENAME TO new_trigger",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+// TestCompareAlterExtensionSetSchema runs ALTER EXTENSION SET SCHEMA comparison tests for batch 53.
+func TestCompareAlterExtensionSetSchema(t *testing.T) {
+	tests := []string{
+		"ALTER EXTENSION hstore SET SCHEMA public",
+		"ALTER EXTENSION pgcrypto SET SCHEMA extensions",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+// TestCompareAlterServerOwner runs ALTER SERVER OWNER TO comparison tests for batch 54.
+func TestCompareAlterServerOwner(t *testing.T) {
+	tests := []string{
+		"ALTER SERVER myserver OWNER TO newowner",
+		"ALTER SERVER myserver OWNER TO CURRENT_USER",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+// TestCompareAlterServerRename runs ALTER SERVER RENAME TO comparison tests for batch 54.
+func TestCompareAlterServerRename(t *testing.T) {
+	tests := []string{
+		"ALTER SERVER myserver RENAME TO newserver",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+// TestCompareAlterRoleRename runs ALTER ROLE/USER RENAME TO comparison tests for batch 55.
+func TestCompareAlterRoleRename(t *testing.T) {
+	tests := []string{
+		"ALTER ROLE myrole RENAME TO newrole",
+		"ALTER USER myuser RENAME TO newuser",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+// TestCompareAlterPublicationOwner runs ALTER PUBLICATION OWNER TO comparison tests for batch 56.
+func TestCompareAlterPublicationOwner(t *testing.T) {
+	tests := []string{
+		"ALTER PUBLICATION mypub OWNER TO newowner",
+		"ALTER PUBLICATION mypub OWNER TO CURRENT_USER",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+// TestCompareAlterPublicationRename runs ALTER PUBLICATION RENAME TO comparison tests for batch 56.
+func TestCompareAlterPublicationRename(t *testing.T) {
+	tests := []string{
+		"ALTER PUBLICATION mypub RENAME TO newpub",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+// TestCompareAlterSubscriptionOwner runs ALTER SUBSCRIPTION OWNER TO comparison tests for batch 57.
+func TestCompareAlterSubscriptionOwner(t *testing.T) {
+	tests := []string{
+		"ALTER SUBSCRIPTION mysub OWNER TO newowner",
+		"ALTER SUBSCRIPTION mysub OWNER TO CURRENT_USER",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+// TestCompareAlterSubscriptionRename runs ALTER SUBSCRIPTION RENAME TO comparison tests for batch 57.
+func TestCompareAlterSubscriptionRename(t *testing.T) {
+	tests := []string{
+		"ALTER SUBSCRIPTION mysub RENAME TO newsub",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+// TestCompareIsNormalized runs IS [NOT] [form] NORMALIZED comparison tests for batch 58.
+func TestCompareIsNormalized(t *testing.T) {
+	tests := []string{
+		"SELECT 'test' IS NORMALIZED",
+		"SELECT 'test' IS NOT NORMALIZED",
+		"SELECT 'test' IS NFC NORMALIZED",
+		"SELECT 'test' IS NOT NFC NORMALIZED",
+		"SELECT 'test' IS NFD NORMALIZED",
+		"SELECT 'test' IS NOT NFD NORMALIZED",
+		"SELECT 'test' IS NFKC NORMALIZED",
+		"SELECT 'test' IS NFKD NORMALIZED",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}

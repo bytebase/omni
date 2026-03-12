@@ -699,6 +699,16 @@ func (p *Parser) parseCreateOptRoleElem() *nodes.DefElem {
 func (p *Parser) parseAlterRoleStmt() nodes.Node {
 	p.advance() // consume ROLE or USER
 	role := p.parseRoleSpec()
+	if p.cur.Type == RENAME {
+		p.advance()
+		p.expect(TO)
+		newname, _ := p.parseName()
+		return &nodes.RenameStmt{
+			RenameType: nodes.OBJECT_ROLE,
+			Subname:    role.Rolename,
+			Newname:    newname,
+		}
+	}
 	if p.cur.Type == SET || p.cur.Type == RESET {
 		return p.parseAlterRoleSetStmtSuffix(role, "")
 	}
