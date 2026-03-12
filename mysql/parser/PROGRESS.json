@@ -2174,7 +2174,78 @@
       "tests": [
         "TestParseShowProfileLimitOffset"
       ]
+    },
+    {
+      "id": 89,
+      "name": "depth_fix_table_option_autoextend_engine_attr",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "Fix batch 7 gap: missing AUTOEXTEND_SIZE [=] value table option (MySQL 8.0.23+) and ENGINE_ATTRIBUTE [=] 'string' table option (MySQL 8.0.21+) in parseTableOption identifier-based options. SECONDARY_ENGINE_ATTRIBUTE is handled but ENGINE_ATTRIBUTE is not.",
+      "rules": [
+        "parseTableOption"
+      ],
+      "depends_on": [
+        7,
+        80
+      ],
+      "tests": [
+        "TestParseCreateTableAutoextendSize",
+        "TestParseCreateTableEngineAttribute"
+      ]
+    },
+    {
+      "id": 90,
+      "name": "depth_fix_column_engine_attribute",
+      "file": "create_table.go",
+      "status": "pending",
+      "description": "Fix batch 7 gap: missing column-level ENGINE_ATTRIBUTE [=] 'string' and SECONDARY_ENGINE_ATTRIBUTE [=] 'string' modifiers in column definitions (MySQL 8.0.21+). Not parsed in parseColumnOption or isColumnConstraintStart.",
+      "rules": [
+        "parseColumnOption",
+        "isColumnConstraintStart"
+      ],
+      "depends_on": [
+        7,
+        81
+      ],
+      "tests": [
+        "TestParseColumnEngineAttribute",
+        "TestParseColumnSecondaryEngineAttribute"
+      ]
+    },
+    {
+      "id": 91,
+      "name": "depth_fix_index_engine_attribute",
+      "file": "create_index.go",
+      "status": "pending",
+      "description": "Fix batch 9 gap: missing ENGINE_ATTRIBUTE [=] 'string' and SECONDARY_ENGINE_ATTRIBUTE [=] 'string' index options in parseIndexOption (MySQL 8.0.21+). These attributes apply to CREATE INDEX and table-level index/constraint definitions.",
+      "rules": [
+        "parseIndexOption"
+      ],
+      "depends_on": [
+        9
+      ],
+      "tests": [
+        "TestParseCreateIndexEngineAttribute",
+        "TestParseCreateIndexSecondaryEngineAttribute"
+      ]
+    },
+    {
+      "id": 92,
+      "name": "depth_fix_alter_table_secondary_load_unload",
+      "file": "alter_table.go",
+      "status": "pending",
+      "description": "Fix batch 8 gap: missing ALTER TABLE ... SECONDARY_LOAD and ALTER TABLE ... SECONDARY_UNLOAD actions (MySQL 8.0.13+) for loading/unloading tables in HeatWave secondary engine. Need new AlterTableCmd types and lexer keywords.",
+      "rules": [
+        "parseAlterTableAction"
+      ],
+      "depends_on": [
+        8
+      ],
+      "tests": [
+        "TestParseAlterTableSecondaryLoad",
+        "TestParseAlterTableSecondaryUnload"
+      ]
     }
   ],
-  "audit_round": 12
+  "audit_round": 14
 }

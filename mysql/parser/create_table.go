@@ -934,7 +934,9 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool) {
 			eqFold(optName, "tablespace"),
 			eqFold(optName, "union"),
 			eqFold(optName, "secondary_engine"),
-			eqFold(optName, "secondary_engine_attribute"):
+			eqFold(optName, "secondary_engine_attribute"),
+			eqFold(optName, "autoextend_size"),
+			eqFold(optName, "engine_attribute"):
 			p.advance()
 			p.match('=')
 			val := p.consumeOptionValue()

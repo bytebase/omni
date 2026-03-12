@@ -9818,3 +9818,29 @@ func TestParsePartitionKeyAlgorithm(t *testing.T) {
 		}
 	})
 }
+
+func TestParseCreateTableAutoextendSize(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE t (id INT) AUTOEXTEND_SIZE = 4194304",
+		"CREATE TABLE t (id INT) AUTOEXTEND_SIZE 4194304",
+		"CREATE TABLE t (id INT) autoextend_size = 67108864",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseCreateTableEngineAttribute(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE t (id INT) ENGINE_ATTRIBUTE = '{\"key\": \"value\"}'",
+		"CREATE TABLE t (id INT) ENGINE_ATTRIBUTE '{\"key\": \"value\"}'",
+		"CREATE TABLE t (id INT) engine_attribute = '{}'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
