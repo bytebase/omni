@@ -217,6 +217,11 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 				next.Type == kwTRIGGER {
 				return p.parseEnableDisableTriggerStmt(false)
 			}
+			// MOVE CONVERSATION (service broker)
+			if matchesKeywordCI(p.cur.Str, "MOVE") &&
+				next.Str != "" && matchesKeywordCI(next.Str, "CONVERSATION") {
+				return p.parseMoveConversationStmt()
+			}
 		}
 		return nil
 	}
@@ -451,6 +456,16 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			stmt.Loc.Start = loc
 			return stmt
 		}
+		// CREATE BROKER PRIORITY (service broker)
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "BROKER") {
+			p.advance() // consume BROKER
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PRIORITY") {
+				p.advance() // consume PRIORITY
+			}
+			stmt := p.parseCreateBrokerPriorityStmt()
+			stmt.Loc.Start = loc
+			return stmt
+		}
 		return nil
 	}
 }
@@ -580,6 +595,89 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			}
 			return nil
 		}
+		// ALTER QUEUE (service broker)
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "QUEUE") {
+			p.advance() // consume QUEUE
+			stmt := p.parseAlterQueueStmt()
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		// ALTER SERVICE (service broker) -- not kwSERVICE, context-sensitive
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVICE") {
+			next := p.peekNext()
+			// Distinguish from ALTER SERVICE MASTER KEY (batch 60)
+			if !matchesKeywordCI(next.Str, "MASTER") {
+				p.advance() // consume SERVICE
+				stmt := p.parseAlterServiceStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
+		}
+		// ALTER ROUTE (service broker)
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ROUTE") {
+			p.advance() // consume ROUTE
+			stmt := p.parseAlterRouteStmt()
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		// ALTER REMOTE SERVICE BINDING (service broker)
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REMOTE") {
+			p.advance() // consume REMOTE
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVICE") {
+				p.advance() // consume SERVICE
+			}
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "BINDING") {
+				p.advance() // consume BINDING
+			}
+			stmt := p.parseAlterRemoteServiceBindingStmt()
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		// ALTER BROKER PRIORITY (service broker)
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "BROKER") {
+			p.advance() // consume BROKER
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PRIORITY") {
+				p.advance() // consume PRIORITY
+			}
+			stmt := p.parseAlterBrokerPriorityStmt()
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		// ALTER MESSAGE TYPE (service broker)
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MESSAGE") {
+			p.advance() // consume MESSAGE
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TYPE") {
+				p.advance() // consume TYPE
+			}
+			stmt := &nodes.ServiceBrokerStmt{
+				Action:     "ALTER",
+				ObjectType: "MESSAGE TYPE",
+				Loc:        nodes.Loc{Start: loc},
+			}
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
+				stmt.Name = p.cur.Str
+				p.advance()
+			}
+			stmt.Options = p.parseServiceBrokerOptions()
+			stmt.Loc.End = p.pos()
+			return stmt
+		}
+		// ALTER CONTRACT (service broker)
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CONTRACT") {
+			p.advance() // consume CONTRACT
+			stmt := &nodes.ServiceBrokerStmt{
+				Action:     "ALTER",
+				ObjectType: "CONTRACT",
+				Loc:        nodes.Loc{Start: loc},
+			}
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
+				stmt.Name = p.cur.Str
+				p.advance()
+			}
+			stmt.Options = p.parseServiceBrokerOptions()
+			stmt.Loc.End = p.pos()
+			return stmt
+		}
 		// ALTER XML SCHEMA COLLECTION
 		if p.cur.Type == kwXML {
 			p.advance() // consume XML
@@ -637,6 +735,68 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			p.advance() // consume DROP
 			p.advance() // consume APPLICATION
 			stmt := p.parseSecurityApplicationRoleStmt("DROP")
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		// DROP SERVICE BROKER objects
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "MESSAGE") {
+			p.advance() // consume DROP
+			p.advance() // consume MESSAGE
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TYPE") {
+				p.advance() // consume TYPE
+			}
+			stmt := p.parseDropServiceBrokerStmt("MESSAGE TYPE")
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "CONTRACT") {
+			p.advance() // consume DROP
+			p.advance() // consume CONTRACT
+			stmt := p.parseDropServiceBrokerStmt("CONTRACT")
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "QUEUE") {
+			p.advance() // consume DROP
+			p.advance() // consume QUEUE
+			stmt := p.parseDropServiceBrokerStmt("QUEUE")
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "SERVICE") {
+			p.advance() // consume DROP
+			p.advance() // consume SERVICE
+			stmt := p.parseDropServiceBrokerStmt("SERVICE")
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "ROUTE") {
+			p.advance() // consume DROP
+			p.advance() // consume ROUTE
+			stmt := p.parseDropServiceBrokerStmt("ROUTE")
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "REMOTE") {
+			p.advance() // consume DROP
+			p.advance() // consume REMOTE
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVICE") {
+				p.advance() // consume SERVICE
+			}
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "BINDING") {
+				p.advance() // consume BINDING
+			}
+			stmt := p.parseDropServiceBrokerStmt("REMOTE SERVICE BINDING")
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "BROKER") {
+			p.advance() // consume DROP
+			p.advance() // consume BROKER
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PRIORITY") {
+				p.advance() // consume PRIORITY
+			}
+			stmt := p.parseDropServiceBrokerStmt("BROKER PRIORITY")
 			stmt.Loc.Start = loc
 			return stmt
 		}

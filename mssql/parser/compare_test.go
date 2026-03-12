@@ -3931,6 +3931,62 @@ COMMIT;`,
 	}
 }
 
+// TestParseServiceBrokerAlterDrop tests batch 52: ALTER/DROP Service Broker objects, BROKER PRIORITY, MOVE CONVERSATION.
+func TestParseServiceBrokerAlterDrop(t *testing.T) {
+	tests := []string{
+		// ALTER QUEUE
+		"ALTER QUEUE dbo.ExpenseQueue WITH STATUS = ON",
+		"ALTER QUEUE ExpenseQueue WITH ACTIVATION (STATUS = ON, PROCEDURE_NAME = dbo.expense_procedure, MAX_QUEUE_READERS = 5, EXECUTE AS SELF)",
+		// ALTER SERVICE
+		"ALTER SERVICE MyService ON QUEUE dbo.NewQueue",
+		// ALTER ROUTE
+		"ALTER ROUTE MyRoute WITH ADDRESS = 'TCP://10.0.0.2:4022'",
+		"ALTER ROUTE MyRoute WITH SERVICE_NAME = '//example.com/svc', ADDRESS = 'TCP://10.0.0.2:4022'",
+		// ALTER REMOTE SERVICE BINDING
+		"ALTER REMOTE SERVICE BINDING MyBinding WITH USER = NewUser",
+		"ALTER REMOTE SERVICE BINDING MyBinding WITH USER = NewUser, ANONYMOUS = ON",
+		// ALTER MESSAGE TYPE
+		"ALTER MESSAGE TYPE MyMessageType",
+		// ALTER CONTRACT
+		"ALTER CONTRACT MyContract",
+		// DROP MESSAGE TYPE
+		"DROP MESSAGE TYPE MyMessageType",
+		// DROP CONTRACT
+		"DROP CONTRACT MyContract",
+		// DROP QUEUE
+		"DROP QUEUE dbo.ExpenseQueue",
+		// DROP SERVICE
+		"DROP SERVICE MyService",
+		// DROP ROUTE
+		"DROP ROUTE MyRoute",
+		// DROP REMOTE SERVICE BINDING
+		"DROP REMOTE SERVICE BINDING MyBinding",
+		// DROP BROKER PRIORITY
+		"DROP BROKER PRIORITY MyPriority",
+		// CREATE BROKER PRIORITY
+		"CREATE BROKER PRIORITY MyPriority FOR CONVERSATION SET (CONTRACT_NAME = MyContract, LOCAL_SERVICE_NAME = MyService, REMOTE_SERVICE_NAME = 'RemoteService', PRIORITY_LEVEL = 5)",
+		"CREATE BROKER PRIORITY SimplePriority FOR CONVERSATION",
+		"CREATE BROKER PRIORITY AnyPriority FOR CONVERSATION SET (CONTRACT_NAME = ANY, PRIORITY_LEVEL = DEFAULT)",
+		// ALTER BROKER PRIORITY
+		"ALTER BROKER PRIORITY MyPriority FOR CONVERSATION SET (PRIORITY_LEVEL = 10)",
+		// MOVE CONVERSATION
+		"MOVE CONVERSATION @dialog_handle TO @new_group_id",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.ServiceBrokerStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *ServiceBrokerStmt, got %T", sql, result.Items[0])
+			}
+			checkLocation(t, sql, "ServiceBrokerStmt", stmt.Loc)
+		})
+	}
+}
+
 // TestParseAlterTriggerEnableDisable tests batch 51: ALTER TRIGGER, ENABLE TRIGGER, DISABLE TRIGGER.
 func TestParseAlterTriggerEnableDisable(t *testing.T) {
 	// ALTER TRIGGER tests

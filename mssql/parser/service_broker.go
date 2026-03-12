@@ -665,3 +665,467 @@ func (p *Parser) parseServiceBrokerOptions() *nodes.List {
 	}
 	return &nodes.List{Items: opts}
 }
+
+// parseAlterQueueStmt parses ALTER QUEUE.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-queue-transact-sql
+//
+//	ALTER QUEUE [ database_name . [ schema_name ] . | schema_name . ] queue_name
+//	    [ WITH
+//	       [ STATUS = { ON | OFF } [ , ] ]
+//	       [ RETENTION = { ON | OFF } [ , ] ]
+//	       [ ACTIVATION (
+//	           [ STATUS = { ON | OFF } , ]
+//	           PROCEDURE_NAME = <procedure> ,
+//	           MAX_QUEUE_READERS = max_readers ,
+//	           EXECUTE AS { SELF | 'user_name' | OWNER }
+//	           ) [ , ] ]
+//	       [ POISON_MESSAGE_HANDLING ( STATUS = { ON | OFF } ) ]
+//	    ]
+//	    [ REBUILD [ WITH ( <queue_rebuild_options> ) ] ]
+//	    [ REORGANIZE [ WITH ( LOB_COMPACTION = { ON | OFF } ) ] ]
+//	    [ MOVE TO { file_group | [DEFAULT] } ]
+func (p *Parser) parseAlterQueueStmt() *nodes.ServiceBrokerStmt {
+	loc := p.pos()
+	// QUEUE keyword already consumed by caller
+
+	stmt := &nodes.ServiceBrokerStmt{
+		Action:     "ALTER",
+		ObjectType: "QUEUE",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	// Parse possibly schema-qualified queue name
+	ref := p.parseTableRef()
+	if ref != nil {
+		if ref.Schema != "" {
+			stmt.Name = ref.Schema + "." + ref.Object
+		} else {
+			stmt.Name = ref.Object
+		}
+	}
+
+	// WITH clause for ALTER QUEUE can have sub-clauses like ACTIVATION (...), POISON_MESSAGE_HANDLING (...)
+	if p.cur.Type == kwWITH {
+		p.advance()
+		var opts []nodes.Node
+		for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
+			if p.cur.Type == '(' {
+				// Skip parenthesized sub-clause
+				p.advance()
+				depth := 1
+				for depth > 0 && p.cur.Type != tokEOF {
+					if p.cur.Type == '(' {
+						depth++
+					} else if p.cur.Type == ')' {
+						depth--
+					}
+					if depth > 0 {
+						p.advance()
+					}
+				}
+				p.match(')')
+			} else if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+				optName := strings.ToUpper(p.cur.Str)
+				p.advance()
+				if p.cur.Type == '=' {
+					p.advance()
+					if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
+						optName += "=" + strings.ToUpper(p.cur.Str)
+						p.advance()
+					}
+				}
+				opts = append(opts, &nodes.String{Str: optName})
+			} else {
+				break
+			}
+			p.match(',')
+		}
+		if len(opts) > 0 {
+			stmt.Options = &nodes.List{Items: opts}
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAlterServiceStmt parses ALTER SERVICE.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-service-transact-sql
+//
+//	ALTER SERVICE service_name
+//	    [ ON QUEUE [ schema_name . ] queue_name ]
+//	    [ ( { ADD CONTRACT contract_name } | { DROP CONTRACT contract_name } [ ,...n ] ) ]
+func (p *Parser) parseAlterServiceStmt() *nodes.ServiceBrokerStmt {
+	loc := p.pos()
+	// SERVICE keyword already consumed by caller
+
+	stmt := &nodes.ServiceBrokerStmt{
+		Action:     "ALTER",
+		ObjectType: "SERVICE",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	stmt.Options = p.parseServiceBrokerOptions()
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAlterRouteStmt parses ALTER ROUTE.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-route-transact-sql
+//
+//	ALTER ROUTE route_name
+//	    WITH
+//	    [ SERVICE_NAME = 'service_name' , ]
+//	    [ BROKER_INSTANCE = 'broker_instance_identifier' , ]
+//	    [ LIFETIME = route_lifetime , ]
+//	    ADDRESS = 'next_hop_address'
+//	    [ , MIRROR_ADDRESS = 'next_hop_mirror_address' ]
+func (p *Parser) parseAlterRouteStmt() *nodes.ServiceBrokerStmt {
+	loc := p.pos()
+	// ROUTE keyword already consumed by caller
+
+	stmt := &nodes.ServiceBrokerStmt{
+		Action:     "ALTER",
+		ObjectType: "ROUTE",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	// WITH clause (same as CREATE ROUTE)
+	if p.cur.Type == kwWITH {
+		p.advance()
+		var opts []nodes.Node
+		for {
+			if !p.isIdentLike() && p.cur.Type != tokSCONST {
+				break
+			}
+			optName := strings.ToUpper(p.cur.Str)
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+				var val string
+				if p.cur.Type == tokSCONST {
+					val = p.cur.Str
+					p.advance()
+				} else if p.cur.Type == tokICONST {
+					val = p.cur.Str
+					p.advance()
+				} else if p.isIdentLike() {
+					val = p.cur.Str
+					p.advance()
+				}
+				opts = append(opts, &nodes.String{Str: optName + "=" + val})
+			} else {
+				opts = append(opts, &nodes.String{Str: optName})
+			}
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+		if len(opts) > 0 {
+			stmt.Options = &nodes.List{Items: opts}
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAlterRemoteServiceBindingStmt parses ALTER REMOTE SERVICE BINDING.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-remote-service-binding-transact-sql
+//
+//	ALTER REMOTE SERVICE BINDING binding_name
+//	    WITH USER = user_name [ , ANONYMOUS = { ON | OFF } ]
+func (p *Parser) parseAlterRemoteServiceBindingStmt() *nodes.ServiceBrokerStmt {
+	loc := p.pos()
+	// REMOTE SERVICE BINDING keywords already consumed by caller
+
+	stmt := &nodes.ServiceBrokerStmt{
+		Action:     "ALTER",
+		ObjectType: "REMOTE SERVICE BINDING",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	// WITH USER = user_name [, ANONYMOUS = { ON | OFF }]
+	var opts []nodes.Node
+	if p.cur.Type == kwWITH {
+		p.advance()
+		for {
+			if !p.isIdentLike() && p.cur.Type != kwUSER {
+				break
+			}
+			optName := strings.ToUpper(p.cur.Str)
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+				var val string
+				if p.isIdentLike() {
+					val = p.cur.Str
+					p.advance()
+				} else if p.cur.Type == kwON {
+					val = "ON"
+					p.advance()
+				} else if p.cur.Type == kwOFF {
+					val = "OFF"
+					p.advance()
+				}
+				opts = append(opts, &nodes.String{Str: optName + "=" + val})
+			}
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+	}
+	if len(opts) > 0 {
+		stmt.Options = &nodes.List{Items: opts}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseDropServiceBrokerStmt parses DROP for Service Broker objects.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-message-type-transact-sql
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-contract-transact-sql
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-queue-transact-sql
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-service-transact-sql
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-route-transact-sql
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-remote-service-binding-transact-sql
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-broker-priority-transact-sql
+//
+//	DROP { MESSAGE TYPE | CONTRACT | QUEUE | SERVICE | ROUTE | REMOTE SERVICE BINDING | BROKER PRIORITY } name
+func (p *Parser) parseDropServiceBrokerStmt(objectType string) *nodes.ServiceBrokerStmt {
+	loc := p.pos()
+
+	stmt := &nodes.ServiceBrokerStmt{
+		Action:     "DROP",
+		ObjectType: objectType,
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	// Parse possibly qualified name
+	ref := p.parseTableRef()
+	if ref != nil {
+		if ref.Schema != "" {
+			stmt.Name = ref.Schema + "." + ref.Object
+		} else {
+			stmt.Name = ref.Object
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseCreateBrokerPriorityStmt parses CREATE BROKER PRIORITY.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-broker-priority-transact-sql
+//
+//	CREATE BROKER PRIORITY ConversationPriorityName
+//	    FOR CONVERSATION
+//	    [ SET (
+//	        [ CONTRACT_NAME = { ContractName | ANY } ]
+//	        [ [ , ] LOCAL_SERVICE_NAME = { LocalServiceName | ANY } ]
+//	        [ [ , ] REMOTE_SERVICE_NAME = { 'RemoteServiceName' | ANY } ]
+//	        [ [ , ] PRIORITY_LEVEL = { PriorityValue | DEFAULT } ]
+//	    ) ]
+func (p *Parser) parseCreateBrokerPriorityStmt() *nodes.ServiceBrokerStmt {
+	loc := p.pos()
+	// BROKER PRIORITY keywords already consumed by caller
+
+	stmt := &nodes.ServiceBrokerStmt{
+		Action:     "CREATE",
+		ObjectType: "BROKER PRIORITY",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	// FOR CONVERSATION
+	if p.cur.Type == kwFOR {
+		p.advance()
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CONVERSATION") {
+			p.advance()
+		}
+	}
+
+	// SET ( ... )
+	if p.cur.Type == kwSET {
+		p.advance()
+		if p.cur.Type == '(' {
+			p.advance()
+			var opts []nodes.Node
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				if p.isIdentLike() {
+					optName := strings.ToUpper(p.cur.Str)
+					p.advance()
+					if p.cur.Type == '=' {
+						p.advance()
+						var val string
+						if p.cur.Type == tokSCONST {
+							val = p.cur.Str
+							p.advance()
+						} else if p.isIdentLike() || p.cur.Type == kwDEFAULT || p.cur.Type == kwANY {
+							val = strings.ToUpper(p.cur.Str)
+							p.advance()
+						} else if p.cur.Type == tokICONST {
+							val = p.cur.Str
+							p.advance()
+						}
+						opts = append(opts, &nodes.String{Str: optName + "=" + val})
+					}
+				} else {
+					p.advance()
+				}
+				p.match(',')
+			}
+			p.match(')')
+			if len(opts) > 0 {
+				stmt.Options = &nodes.List{Items: opts}
+			}
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAlterBrokerPriorityStmt parses ALTER BROKER PRIORITY.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-broker-priority-transact-sql
+//
+//	ALTER BROKER PRIORITY ConversationPriorityName
+//	    FOR CONVERSATION
+//	    SET (
+//	        [ CONTRACT_NAME = { ContractName | ANY } ]
+//	        [ [ , ] LOCAL_SERVICE_NAME = { LocalServiceName | ANY } ]
+//	        [ [ , ] REMOTE_SERVICE_NAME = { 'RemoteServiceName' | ANY } ]
+//	        [ [ , ] PRIORITY_LEVEL = { PriorityValue | DEFAULT } ]
+//	    )
+func (p *Parser) parseAlterBrokerPriorityStmt() *nodes.ServiceBrokerStmt {
+	loc := p.pos()
+	// BROKER PRIORITY keywords already consumed by caller
+
+	stmt := &nodes.ServiceBrokerStmt{
+		Action:     "ALTER",
+		ObjectType: "BROKER PRIORITY",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	// FOR CONVERSATION
+	if p.cur.Type == kwFOR {
+		p.advance()
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CONVERSATION") {
+			p.advance()
+		}
+	}
+
+	// SET ( ... )
+	if p.cur.Type == kwSET {
+		p.advance()
+		if p.cur.Type == '(' {
+			p.advance()
+			var opts []nodes.Node
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				if p.isIdentLike() {
+					optName := strings.ToUpper(p.cur.Str)
+					p.advance()
+					if p.cur.Type == '=' {
+						p.advance()
+						var val string
+						if p.cur.Type == tokSCONST {
+							val = p.cur.Str
+							p.advance()
+						} else if p.isIdentLike() || p.cur.Type == kwDEFAULT || p.cur.Type == kwANY {
+							val = strings.ToUpper(p.cur.Str)
+							p.advance()
+						} else if p.cur.Type == tokICONST {
+							val = p.cur.Str
+							p.advance()
+						}
+						opts = append(opts, &nodes.String{Str: optName + "=" + val})
+					}
+				} else {
+					p.advance()
+				}
+				p.match(',')
+			}
+			p.match(')')
+			if len(opts) > 0 {
+				stmt.Options = &nodes.List{Items: opts}
+			}
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseMoveConversationStmt parses MOVE CONVERSATION.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/move-conversation-transact-sql
+//
+//	MOVE CONVERSATION conversation_handle
+//	    TO conversation_group_id
+func (p *Parser) parseMoveConversationStmt() *nodes.ServiceBrokerStmt {
+	loc := p.pos()
+	p.advance() // consume MOVE
+
+	stmt := &nodes.ServiceBrokerStmt{
+		Action:     "MOVE",
+		ObjectType: "CONVERSATION",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	// CONVERSATION
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CONVERSATION") {
+		p.advance()
+	}
+
+	// conversation_handle
+	if p.cur.Type == tokVARIABLE || p.isIdentLike() {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	// TO conversation_group_id
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TO") {
+		p.advance()
+		if p.cur.Type == tokVARIABLE || p.isIdentLike() || p.cur.Type == tokSCONST {
+			var opts []nodes.Node
+			opts = append(opts, &nodes.String{Str: "TO=" + p.cur.Str})
+			stmt.Options = &nodes.List{Items: opts}
+			p.advance()
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}

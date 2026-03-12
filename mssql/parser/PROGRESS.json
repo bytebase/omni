@@ -1229,7 +1229,7 @@
       "id": 52,
       "name": "service_broker_alter_drop",
       "file": "service_broker.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: ALTER/DROP for Service Broker objects (MESSAGE TYPE, CONTRACT, QUEUE, SERVICE, ROUTE, REMOTE SERVICE BINDING), CREATE/ALTER/DROP BROKER PRIORITY, MOVE CONVERSATION",
       "rules": ["parseAlterQueueStmt", "parseAlterServiceStmt", "parseAlterRouteStmt", "parseAlterRemoteServiceBindingStmt", "parseDropServiceBrokerStmt", "parseCreateBrokerPriorityStmt", "parseMoveConversationStmt"],
       "depends_on": [50],
