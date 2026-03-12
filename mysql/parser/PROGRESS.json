@@ -2216,7 +2216,7 @@
       "id": 91,
       "name": "depth_fix_index_engine_attribute",
       "file": "create_index.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 9 gap: missing ENGINE_ATTRIBUTE [=] 'string' and SECONDARY_ENGINE_ATTRIBUTE [=] 'string' index options in parseIndexOption (MySQL 8.0.21+). These attributes apply to CREATE INDEX and table-level index/constraint definitions.",
       "rules": [
         "parseIndexOption"

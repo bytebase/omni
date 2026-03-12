@@ -301,6 +301,34 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Name: "INVISIBLE",
 		}, true, nil
+
+	case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "ENGINE_ATTRIBUTE"):
+		p.advance()
+		p.match('=')
+		if p.cur.Type == tokSCONST {
+			val := p.cur.Str
+			p.advance()
+			return &nodes.IndexOption{
+				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Name:  "ENGINE_ATTRIBUTE",
+				Value: &nodes.StringLit{Loc: nodes.Loc{Start: start}, Value: val},
+			}, true, nil
+		}
+		return nil, false, &ParseError{Message: "expected string after ENGINE_ATTRIBUTE", Position: p.cur.Loc}
+
+	case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "SECONDARY_ENGINE_ATTRIBUTE"):
+		p.advance()
+		p.match('=')
+		if p.cur.Type == tokSCONST {
+			val := p.cur.Str
+			p.advance()
+			return &nodes.IndexOption{
+				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Name:  "SECONDARY_ENGINE_ATTRIBUTE",
+				Value: &nodes.StringLit{Loc: nodes.Loc{Start: start}, Value: val},
+			}, true, nil
+		}
+		return nil, false, &ParseError{Message: "expected string after SECONDARY_ENGINE_ATTRIBUTE", Position: p.cur.Loc}
 	}
 
 	return nil, false, nil

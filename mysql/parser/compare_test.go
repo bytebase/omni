@@ -9870,3 +9870,29 @@ func TestParseColumnSecondaryEngineAttribute(t *testing.T) {
 		})
 	}
 }
+
+func TestParseCreateIndexEngineAttribute(t *testing.T) {
+	tests := []string{
+		"CREATE INDEX idx ON t (col) ENGINE_ATTRIBUTE = '{\"key\": \"val\"}'",
+		"CREATE INDEX idx ON t (col) ENGINE_ATTRIBUTE '{\"key\": \"val\"}'",
+		"CREATE INDEX idx ON t (col) engine_attribute = '{}'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseCreateIndexSecondaryEngineAttribute(t *testing.T) {
+	tests := []string{
+		"CREATE INDEX idx ON t (col) SECONDARY_ENGINE_ATTRIBUTE = '{\"key\": \"val\"}'",
+		"CREATE INDEX idx ON t (col) SECONDARY_ENGINE_ATTRIBUTE '{\"key\": \"val\"}'",
+		"CREATE INDEX idx ON t (col) secondary_engine_attribute = '{}'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
