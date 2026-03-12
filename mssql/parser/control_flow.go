@@ -75,6 +75,22 @@ func (p *Parser) parseBeginStmt() nodes.StmtNode {
 		return p.parseBeginTransStmt()
 	}
 
+	// Check for BEGIN CONVERSATION TIMER (service broker)
+	if next.Str != "" && matchesKeywordCI(next.Str, "CONVERSATION") {
+		p.advance() // consume BEGIN
+		p.advance() // consume CONVERSATION
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TIMER") {
+			p.advance() // consume TIMER
+			stmt := p.parseBeginConversationTimerStmt()
+			stmt.Loc = nodes.Loc{Start: loc}
+			stmt.Loc.End = p.pos()
+			return stmt
+		}
+		// Not a valid statement; fall through to BEGIN...END block parsing
+		// (BEGIN already consumed above, skip the p.advance() below)
+		goto parseBlock
+	}
+
 	// Check for BEGIN DIALOG [CONVERSATION] (service broker)
 	if next.Str != "" && matchesKeywordCI(next.Str, "DIALOG") {
 		p.advance() // consume BEGIN
@@ -90,6 +106,7 @@ func (p *Parser) parseBeginStmt() nodes.StmtNode {
 
 	p.advance() // consume BEGIN
 
+parseBlock:
 	// Parse statements until END
 	var stmts []nodes.Node
 	for p.cur.Type != kwEND && p.cur.Type != tokEOF {

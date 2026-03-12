@@ -2147,7 +2147,7 @@
       "id": 94,
       "name": "begin_conversation_timer",
       "file": "service_broker.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: BEGIN CONVERSATION TIMER Service Broker statement. BNF: BEGIN CONVERSATION TIMER ( conversation_handle ) TIMEOUT = timeout_value",
       "rules": [
         "parseBeginConversationTimerStmt"

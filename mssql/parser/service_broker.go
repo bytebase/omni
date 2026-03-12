@@ -1506,3 +1506,47 @@ func (p *Parser) parseMoveConversationStmt() *nodes.ServiceBrokerStmt {
 	stmt.Loc.End = p.pos()
 	return stmt
 }
+
+// parseBeginConversationTimerStmt parses a BEGIN CONVERSATION TIMER statement.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/begin-conversation-timer-transact-sql
+//
+//	BEGIN CONVERSATION TIMER ( conversation_handle )
+//	   TIMEOUT = timeout
+//	[ ; ]
+func (p *Parser) parseBeginConversationTimerStmt() *nodes.ServiceBrokerStmt {
+	// BEGIN and CONVERSATION TIMER already consumed by caller
+
+	stmt := &nodes.ServiceBrokerStmt{
+		Action:     "BEGIN",
+		ObjectType: "CONVERSATION TIMER",
+	}
+
+	var opts []nodes.Node
+
+	// ( conversation_handle )
+	if p.cur.Type == '(' {
+		p.advance()
+		handle := p.parseExpr()
+		if handle != nil {
+			opts = append(opts, &nodes.String{Str: "HANDLE=" + nodes.NodeToString(handle)})
+		}
+		p.match(')')
+	}
+
+	// TIMEOUT = timeout
+	if p.matchIdentCI("TIMEOUT") {
+		p.match('=')
+		timeout := p.parseExpr()
+		if timeout != nil {
+			opts = append(opts, &nodes.String{Str: "TIMEOUT=" + nodes.NodeToString(timeout)})
+		}
+	}
+
+	if len(opts) > 0 {
+		stmt.Options = &nodes.List{Items: opts}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}

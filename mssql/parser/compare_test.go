@@ -9577,7 +9577,7 @@ func TestParseSetuserStatement(t *testing.T) {
 	})
 
 	// SETUSER 'username' WITH NORESET
-	t.Run("setuser_with_noreset", func(t *testing.T) {
+	t.Run("setuser_with_noreset", func(t *testing.T) { //nolint:dupl
 		sql := "SETUSER 'mary' WITH NORESET"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.SecurityStmt)
@@ -9593,6 +9593,24 @@ func TestParseSetuserStatement(t *testing.T) {
 		opt := stmt.Options.Items[0].(*ast.String).Str
 		if opt != "NORESET" {
 			t.Errorf("expected NORESET option, got %q", opt)
+		}
+	})
+}
+
+func TestParseBeginConversationTimer(t *testing.T) {
+	// BEGIN CONVERSATION TIMER with variable handle and integer timeout
+	t.Run("begin_conversation_timer", func(t *testing.T) {
+		sql := "BEGIN CONVERSATION TIMER (@dialog_handle) TIMEOUT = 120"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.ServiceBrokerStmt)
+		if stmt.Action != "BEGIN" {
+			t.Errorf("expected action BEGIN, got %q", stmt.Action)
+		}
+		if stmt.ObjectType != "CONVERSATION TIMER" {
+			t.Errorf("expected object type CONVERSATION TIMER, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil || len(stmt.Options.Items) < 2 {
+			t.Fatal("expected at least 2 options (HANDLE and TIMEOUT)")
 		}
 	})
 }
