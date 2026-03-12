@@ -9,7 +9,17 @@ import (
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-view-transact-sql
 //
-//	CREATE [OR ALTER] VIEW name [(cols)] [WITH SCHEMABINDING] AS select [WITH CHECK OPTION]
+//	CREATE [ OR ALTER ] VIEW [ schema_name . ] view_name [ ( column [ ,...n ] ) ]
+//	[ WITH <view_attribute> [ ,...n ] ]
+//	AS select_statement
+//	[ WITH CHECK OPTION ]
+//
+//	<view_attribute> ::=
+//	{
+//	    [ ENCRYPTION ]
+//	    [ SCHEMABINDING ]
+//	    [ VIEW_METADATA ]
+//	}
 func (p *Parser) parseCreateViewStmt(orAlter bool) *nodes.CreateViewStmt {
 	loc := p.pos()
 
@@ -39,13 +49,20 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) *nodes.CreateViewStmt {
 		stmt.Columns = &nodes.List{Items: cols}
 	}
 
-	// WITH SCHEMABINDING
+	// WITH <view_attribute> [,...n]
 	if p.cur.Type == kwWITH {
 		next := p.peekNext()
-		if next.Type == kwSCHEMABINDING {
-			p.advance() // WITH
-			p.advance() // SCHEMABINDING
-			stmt.SchemaBinding = true
+		if p.isRoutineOption(next) {
+			p.advance() // consume WITH
+			stmt.Options = p.parseRoutineOptionList()
+			// Set SchemaBinding flag for backward compat
+			if stmt.Options != nil {
+				for _, item := range stmt.Options.Items {
+					if s, ok := item.(*nodes.String); ok && s.Str == "SCHEMABINDING" {
+						stmt.SchemaBinding = true
+					}
+				}
+			}
 		}
 	}
 

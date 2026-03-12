@@ -708,6 +708,10 @@ func writeCreateViewStmt(sb *strings.Builder, n *CreateViewStmt) {
 	if n.SchemaBinding {
 		sb.WriteString(" :schemaBinding true")
 	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }

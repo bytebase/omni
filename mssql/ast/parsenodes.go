@@ -526,6 +526,7 @@ type CreateViewStmt struct {
 	Query         StmtNode // SelectStmt
 	WithCheck     bool     // WITH CHECK OPTION
 	SchemaBinding bool     // WITH SCHEMABINDING
+	Options       *List    // WITH options (SCHEMABINDING, VIEW_METADATA, ENCRYPTION)
 	Loc           Loc
 }
 

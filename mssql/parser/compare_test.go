@@ -6604,3 +6604,87 @@ func TestParseAlterTableDepth(t *testing.T) {
 		}
 	})
 }
+
+// TestParseRoutineOptionsDepth tests WITH options for proc/func/view (batch 71).
+func TestParseRoutineOptionsDepth(t *testing.T) {
+	// CREATE PROCEDURE WITH options
+	t.Run("create_proc_with_options", func(t *testing.T) {
+		tests := []string{
+			"CREATE PROCEDURE dbo.p1 WITH RECOMPILE AS SELECT 1",
+			"CREATE PROCEDURE dbo.p1 WITH ENCRYPTION AS SELECT 1",
+			"CREATE PROCEDURE dbo.p1 WITH EXECUTE AS OWNER AS SELECT 1",
+			"CREATE PROCEDURE dbo.p1 WITH RECOMPILE, ENCRYPTION AS SELECT 1",
+			"CREATE PROCEDURE dbo.p1 WITH EXECUTE AS 'dbo' AS SELECT 1",
+			"CREATE OR ALTER PROCEDURE dbo.p1 WITH RECOMPILE AS SELECT 1",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.CreateProcedureStmt)
+				if stmt.Options == nil || stmt.Options.Len() == 0 {
+					t.Fatal("expected WITH options")
+				}
+			})
+		}
+	})
+
+	// CREATE FUNCTION WITH options
+	t.Run("create_func_with_options", func(t *testing.T) {
+		tests := []string{
+			"CREATE FUNCTION dbo.f1() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN 1 END",
+			"CREATE FUNCTION dbo.f1() RETURNS int WITH RETURNS NULL ON NULL INPUT AS BEGIN RETURN 1 END",
+			"CREATE FUNCTION dbo.f1() RETURNS int WITH CALLED ON NULL INPUT AS BEGIN RETURN 1 END",
+			"CREATE FUNCTION dbo.f1() RETURNS int WITH EXECUTE AS CALLER AS BEGIN RETURN 1 END",
+			"CREATE FUNCTION dbo.f1() RETURNS int WITH SCHEMABINDING, RETURNS NULL ON NULL INPUT AS BEGIN RETURN 1 END",
+			"CREATE FUNCTION dbo.f1() RETURNS int WITH ENCRYPTION AS BEGIN RETURN 1 END",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.CreateFunctionStmt)
+				if stmt.Options == nil || stmt.Options.Len() == 0 {
+					t.Fatal("expected WITH options")
+				}
+			})
+		}
+	})
+
+	// CREATE VIEW WITH options
+	t.Run("create_view_with_options", func(t *testing.T) {
+		tests := []string{
+			"CREATE VIEW dbo.v1 WITH SCHEMABINDING AS SELECT 1 AS a",
+			"CREATE VIEW dbo.v1 WITH VIEW_METADATA AS SELECT 1 AS a",
+			"CREATE VIEW dbo.v1 WITH ENCRYPTION AS SELECT 1 AS a",
+			"CREATE VIEW dbo.v1 WITH SCHEMABINDING, VIEW_METADATA AS SELECT 1 AS a",
+			"CREATE VIEW dbo.v1 WITH SCHEMABINDING, ENCRYPTION, VIEW_METADATA AS SELECT 1 AS a",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.CreateViewStmt)
+				if stmt.Options == nil || stmt.Options.Len() == 0 {
+					t.Fatal("expected WITH options")
+				}
+			})
+		}
+	})
+
+	// Existing tests should still pass (no WITH)
+	t.Run("proc_no_options", func(t *testing.T) {
+		sql := "CREATE PROCEDURE dbo.p1 AS SELECT 1"
+		result := ParseAndCheck(t, sql)
+		_ = result.Items[0].(*ast.CreateProcedureStmt)
+	})
+
+	t.Run("func_no_options", func(t *testing.T) {
+		sql := "CREATE FUNCTION dbo.f1() RETURNS int AS BEGIN RETURN 1 END"
+		result := ParseAndCheck(t, sql)
+		_ = result.Items[0].(*ast.CreateFunctionStmt)
+	})
+
+	t.Run("view_no_options", func(t *testing.T) {
+		sql := "CREATE VIEW dbo.v1 AS SELECT 1 AS a"
+		result := ParseAndCheck(t, sql)
+		_ = result.Items[0].(*ast.CreateViewStmt)
+	})
+}
