@@ -1249,7 +1249,7 @@
       "id": 54,
       "name": "server_audit",
       "file": "security_audit.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE/ALTER/DROP SERVER AUDIT, SERVER AUDIT SPECIFICATION, DATABASE AUDIT SPECIFICATION",
       "rules": ["parseCreateServerAuditStmt", "parseAlterServerAuditStmt", "parseDropServerAuditStmt", "parseCreateServerAuditSpecStmt", "parseCreateDatabaseAuditSpecStmt"],
       "depends_on": [1, 3],

@@ -287,6 +287,20 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		stmt.Loc.Start = loc
 		return stmt
 	case kwDATABASE:
+		// Check for CREATE DATABASE AUDIT SPECIFICATION
+		{
+			next := p.peekNext()
+			if next.Str != "" && matchesKeywordCI(next.Str, "AUDIT") {
+				p.advance() // consume DATABASE
+				p.advance() // consume AUDIT
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SPECIFICATION") {
+					p.advance() // consume SPECIFICATION
+				}
+				stmt := p.parseCreateDatabaseAuditSpecStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
+		}
 		p.advance() // consume DATABASE
 		stmt := p.parseCreateDatabaseStmt()
 		stmt.Loc.Start = loc
@@ -467,6 +481,23 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			stmt.Loc.Start = loc
 			return stmt
 		}
+		// CREATE SERVER AUDIT [SPECIFICATION]
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVER") {
+			p.advance() // consume SERVER
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AUDIT") {
+				p.advance() // consume AUDIT
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SPECIFICATION") {
+					p.advance() // consume SPECIFICATION
+					stmt := p.parseCreateServerAuditSpecStmt()
+					stmt.Loc.Start = loc
+					return stmt
+				}
+				stmt := p.parseCreateServerAuditStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
+			return nil
+		}
 		// CREATE BROKER PRIORITY (service broker)
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "BROKER") {
 			p.advance() // consume BROKER
@@ -493,6 +524,20 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		stmt.Loc.Start = loc
 		return stmt
 	case kwDATABASE:
+		// Check for ALTER DATABASE AUDIT SPECIFICATION
+		{
+			next := p.peekNext()
+			if next.Str != "" && matchesKeywordCI(next.Str, "AUDIT") {
+				p.advance() // consume DATABASE
+				p.advance() // consume AUDIT
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SPECIFICATION") {
+					p.advance() // consume SPECIFICATION
+				}
+				stmt := p.parseAlterDatabaseAuditSpecStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
+		}
 		p.advance() // consume DATABASE
 		stmt := p.parseAlterDatabaseStmt()
 		stmt.Loc.Start = loc
@@ -606,6 +651,24 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			}
 			return nil
 		}
+		// ALTER SERVER AUDIT [SPECIFICATION]
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVER") {
+			next := p.peekNext()
+			if next.Str != "" && matchesKeywordCI(next.Str, "AUDIT") {
+				p.advance() // consume SERVER
+				p.advance() // consume AUDIT
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SPECIFICATION") {
+					p.advance() // consume SPECIFICATION
+					stmt := p.parseAlterServerAuditSpecStmt()
+					stmt.Loc.Start = loc
+					return stmt
+				}
+				stmt := p.parseAlterServerAuditStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
+		}
+		// ALTER DATABASE AUDIT SPECIFICATION (handled via kwDATABASE case)
 		// ALTER AUTHORIZATION
 		if p.cur.Type == kwAUTHORIZATION {
 			p.advance() // consume AUTHORIZATION
@@ -721,7 +784,54 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 	loc := p.pos()
 	next := p.peekNext()
 
+	// Check for DROP DATABASE AUDIT SPECIFICATION — need to match DATABASE + AUDIT
+	// We already have `next` pointing to the token after DROP.
+	// For DATABASE AUDIT SPECIFICATION, we need to check if next is DATABASE and
+	// the token after that is AUDIT. Since we can only peek one ahead, handle this
+	// by falling through to parseDropStmt if it's just DROP DATABASE (no AUDIT).
+
 	switch next.Type {
+	case kwDATABASE:
+		// Could be DROP DATABASE or DROP DATABASE AUDIT SPECIFICATION
+		// We need to peek further
+		p.advance() // consume DROP
+		p.advance() // consume DATABASE
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AUDIT") {
+			p.advance() // consume AUDIT
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SPECIFICATION") {
+				p.advance() // consume SPECIFICATION
+			}
+			stmt := p.parseDropDatabaseAuditSpecStmt()
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		// Not AUDIT — it's a regular DROP DATABASE. We already consumed DROP + DATABASE.
+		// We need to call parseDropStmt logic but we've already consumed DROP + DATABASE.
+		// Let's just handle it inline.
+		dropStmt := &nodes.DropStmt{
+			ObjectType: nodes.DropDatabase,
+			Loc:        nodes.Loc{Start: loc},
+		}
+		if p.cur.Type == kwIF {
+			p.advance()
+			p.match(kwEXISTS)
+			dropStmt.IfExists = true
+		}
+		var nameItems []nodes.Node
+		for {
+			ref := p.parseTableRef()
+			if ref != nil {
+				nameItems = append(nameItems, ref)
+			}
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+		if len(nameItems) > 0 {
+			dropStmt.Names = &nodes.List{Items: nameItems}
+		}
+		dropStmt.Loc.End = p.pos()
+		return dropStmt
 	case kwUSER:
 		p.advance() // consume DROP
 		p.advance() // consume USER
@@ -755,6 +865,24 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			stmt := p.parseSecurityApplicationRoleStmt("DROP")
 			stmt.Loc.Start = loc
 			return stmt
+		}
+		// DROP SERVER AUDIT [SPECIFICATION]
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "SERVER") {
+			p.advance() // consume DROP
+			p.advance() // consume SERVER
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AUDIT") {
+				p.advance() // consume AUDIT
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SPECIFICATION") {
+					p.advance() // consume SPECIFICATION
+					stmt := p.parseDropServerAuditSpecStmt()
+					stmt.Loc.Start = loc
+					return stmt
+				}
+				stmt := p.parseDropServerAuditStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
+			return nil
 		}
 		// DROP SERVICE BROKER objects
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "MESSAGE") {

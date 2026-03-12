@@ -3931,6 +3931,55 @@ COMMIT;`,
 	}
 }
 
+// TestParseServerAudit tests batch 54: SERVER AUDIT, SERVER AUDIT SPECIFICATION, DATABASE AUDIT SPECIFICATION.
+func TestParseServerAudit(t *testing.T) {
+	tests := []string{
+		// CREATE SERVER AUDIT to file
+		"CREATE SERVER AUDIT MyAudit TO FILE (FILEPATH = 'C:\\Audits\\', MAXSIZE = 100 MB)",
+		// CREATE SERVER AUDIT to application log
+		"CREATE SERVER AUDIT MyAudit TO APPLICATION_LOG",
+		// CREATE SERVER AUDIT to security log
+		"CREATE SERVER AUDIT MyAudit TO SECURITY_LOG",
+		// CREATE SERVER AUDIT with options
+		"CREATE SERVER AUDIT MyAudit TO FILE (FILEPATH = 'C:\\Audits\\') WITH (QUEUE_DELAY = 1000, ON_FAILURE = CONTINUE)",
+		// ALTER SERVER AUDIT
+		"ALTER SERVER AUDIT MyAudit WITH (STATE = ON)",
+		// ALTER SERVER AUDIT modify name
+		"ALTER SERVER AUDIT MyAudit MODIFY NAME = NewAuditName",
+		// DROP SERVER AUDIT
+		"DROP SERVER AUDIT MyAudit",
+		// CREATE SERVER AUDIT SPECIFICATION
+		"CREATE SERVER AUDIT SPECIFICATION MySpec FOR SERVER AUDIT MyAudit ADD (FAILED_LOGIN_GROUP)",
+		// CREATE SERVER AUDIT SPECIFICATION with state
+		"CREATE SERVER AUDIT SPECIFICATION MySpec FOR SERVER AUDIT MyAudit ADD (FAILED_LOGIN_GROUP) WITH (STATE = ON)",
+		// ALTER SERVER AUDIT SPECIFICATION
+		"ALTER SERVER AUDIT SPECIFICATION MySpec FOR SERVER AUDIT MyAudit ADD (SUCCESSFUL_LOGIN_GROUP) WITH (STATE = ON)",
+		// DROP SERVER AUDIT SPECIFICATION
+		"DROP SERVER AUDIT SPECIFICATION MySpec",
+		// CREATE DATABASE AUDIT SPECIFICATION
+		"CREATE DATABASE AUDIT SPECIFICATION MyDbSpec FOR SERVER AUDIT MyAudit ADD (SELECT ON OBJECT::dbo.MyTable BY public)",
+		// CREATE DATABASE AUDIT SPECIFICATION with state
+		"CREATE DATABASE AUDIT SPECIFICATION MyDbSpec FOR SERVER AUDIT MyAudit ADD (SELECT ON SCHEMA::dbo BY public) WITH (STATE = ON)",
+		// ALTER DATABASE AUDIT SPECIFICATION
+		"ALTER DATABASE AUDIT SPECIFICATION MyDbSpec FOR SERVER AUDIT MyAudit DROP (SELECT ON OBJECT::dbo.MyTable BY public) WITH (STATE = OFF)",
+		// DROP DATABASE AUDIT SPECIFICATION
+		"DROP DATABASE AUDIT SPECIFICATION MyDbSpec",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.SecurityStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", sql, result.Items[0])
+			}
+			checkLocation(t, sql, "SecurityStmt", stmt.Loc)
+		})
+	}
+}
+
 // TestParseSecurityContext tests batch 53: EXECUTE AS, REVERT, ALTER AUTHORIZATION.
 func TestParseSecurityContext(t *testing.T) {
 	tests := []string{
