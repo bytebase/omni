@@ -3112,3 +3112,28 @@ func TestCompareAlterForeignTableSetSchema(t *testing.T) {
 		})
 	}
 }
+
+func TestCompareAlterSequenceOwner(t *testing.T) {
+	tests := []string{
+		"ALTER SEQUENCE seq1 OWNER TO new_owner",
+		"ALTER SEQUENCE IF EXISTS seq1 OWNER TO new_owner",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+func TestCompareAlterSequenceSetSchema(t *testing.T) {
+	tests := []string{
+		"ALTER SEQUENCE seq1 SET SCHEMA new_schema",
+		"ALTER SEQUENCE IF EXISTS seq1 SET SCHEMA new_schema",
+		"ALTER SEQUENCE public.seq1 SET SCHEMA new_schema",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}

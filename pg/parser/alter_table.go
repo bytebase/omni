@@ -182,6 +182,32 @@ func (p *Parser) parseAlterSequence() nodes.Node {
 		}
 	}
 
+	// Check for SET SCHEMA (produces AlterObjectSchemaStmt)
+	if p.cur.Type == SET && p.peekNext().Type == SCHEMA {
+		rv := makeRangeVarFromAnyName(names)
+		p.advance() // consume SET
+		p.advance() // consume SCHEMA
+		newschema, _ := p.parseName()
+		return &nodes.AlterObjectSchemaStmt{
+			ObjectType: nodes.OBJECT_SEQUENCE,
+			Relation:   rv,
+			Newschema:  newschema,
+			MissingOk:  missingOk,
+		}
+	}
+
+	// OWNER TO goes through alter_table_cmds in the yacc grammar
+	if p.cur.Type == OWNER {
+		rv := makeRangeVarFromAnyName(names)
+		cmds := p.parseAlterTableCmds()
+		return &nodes.AlterTableStmt{
+			Relation:   rv,
+			Cmds:       cmds,
+			ObjType:    int(nodes.OBJECT_SEQUENCE),
+			Missing_ok: missingOk,
+		}
+	}
+
 	// AlterSeqStmt: ALTER SEQUENCE name SeqOptList
 	rv := makeRangeVarFromNames(names)
 	options := p.parseSeqOptList()

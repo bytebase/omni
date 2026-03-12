@@ -1276,7 +1276,7 @@
       "id": 48,
       "name": "alter_sequence_owner_schema",
       "file": "alter_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 11 gap: parseAlterSequence only handles RENAME TO and sequence options via parseSeqOptList. Missing OWNER TO (AlterOwnerStmt) and SET SCHEMA (AlterObjectSchemaStmt). Must add OWNER and SET SCHEMA checks before falling through to parseSeqOptList. Ref: https://www.postgresql.org/docs/17/sql-altersequence.html",
       "rules": [
         "parseAlterSequence"
