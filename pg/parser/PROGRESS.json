@@ -1577,7 +1577,7 @@
       "id": 65,
       "name": "loc_end_expr",
       "file": "expr.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix End position for all parse functions in expr.go and json.go and xml.go: parseExpr (A_Expr), parsePrimaryExpr, parseTypeCast, parseFuncCall, parseSubqueryExpr, parseCaseExpr, parseCoalesceExpr, parseArrayExpr, parseRowExpr, parseBoolExpr, parseNullTest, parseBooleanTest, parseColumnRef, parseParamRef, parseJsonExpr, parseXmlExpr, etc. Every ExprNode must have valid Start and End. Add TestLocExpr with diverse expression cases.",
       "rules": [
         "parseExpr",

@@ -3572,6 +3572,49 @@ func TestLocBasic(t *testing.T) {
 	}
 }
 
+// TestLocExpr validates Loc.End is set correctly for expression nodes.
+func TestLocExpr(t *testing.T) {
+	tests := []string{
+		"SELECT 1 + 2",
+		"SELECT -1",
+		"SELECT 2 * 3 + 4",
+		"SELECT 1 = 2",
+		"SELECT 1 <> 2",
+		"SELECT TRUE AND FALSE",
+		"SELECT NOT TRUE",
+		"SELECT NULL IS NULL",
+		"SELECT 1 IS NOT NULL",
+		"SELECT TRUE IS TRUE",
+		"SELECT 5 BETWEEN 1 AND 10",
+		"SELECT 1 IN (1, 2, 3)",
+		"SELECT 'foo' LIKE 'f%'",
+		"SELECT count(*)",
+		"SELECT upper('hello')",
+		"SELECT coalesce(a, b, c)",
+		"SELECT CASE WHEN x > 0 THEN 'pos' ELSE 'neg' END",
+		"SELECT EXISTS (SELECT 1)",
+		"SELECT ARRAY[1, 2, 3]",
+		"SELECT ROW(1, 2, 3)",
+		"SELECT 1::text",
+		"SELECT CAST(1 AS text)",
+		"SELECT a",
+		"SELECT t.a",
+		"SELECT $1",
+		"SELECT NULLIF(a, b)",
+		"SELECT GREATEST(1, 2, 3)",
+		"SELECT LEAST(1, 2, 3)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}
+
 // TestLocSelect validates Loc.End is set correctly for SELECT-related nodes.
 func TestLocSelect(t *testing.T) {
 	tests := []string{

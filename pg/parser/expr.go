@@ -31,6 +31,7 @@ const (
 //
 //	a_expr: c_expr | a_expr op a_expr | ...
 func (p *Parser) parseAExpr(minPrec int) nodes.Node {
+	loc := p.pos()
 	left := p.parseAExprAtom()
 	if left == nil {
 		return nil
@@ -44,6 +45,7 @@ func (p *Parser) parseAExpr(minPrec int) nodes.Node {
 		if left == nil {
 			return nil
 		}
+		setNodeLoc(left, loc, p.pos())
 	}
 	return left
 }
@@ -90,6 +92,7 @@ func (p *Parser) aExprInfixPrec() int {
 // parseAExprAtom parses the prefix/atom part of an a_expr.
 // Handles prefix operators (NOT, unary +/-) and delegates to parseCExpr.
 func (p *Parser) parseAExprAtom() nodes.Node {
+	loc := p.pos()
 	switch p.cur.Type {
 	case NOT:
 		p.advance()
@@ -97,10 +100,12 @@ func (p *Parser) parseAExprAtom() nodes.Node {
 		if arg == nil {
 			return nil
 		}
-		return &nodes.BoolExpr{
+		n := &nodes.BoolExpr{
 			Boolop: nodes.NOT_EXPR,
 			Args:   &nodes.List{Items: []nodes.Node{arg}},
+			Loc:    nodes.Loc{Start: loc, End: p.pos()},
 		}
+		return n
 	case '+':
 		// Unary plus: just return the operand (yacc does the same)
 		p.advance()
@@ -112,7 +117,9 @@ func (p *Parser) parseAExprAtom() nodes.Node {
 		if arg == nil {
 			return nil
 		}
-		return doNegate(arg)
+		n := doNegate(arg)
+		setNodeLoc(n, loc, p.pos())
+		return n
 	default:
 		return p.parseCExpr()
 	}
@@ -863,6 +870,15 @@ func (p *Parser) parseBExprInfix(left nodes.Node, prec int) nodes.Node {
 //	    | case_expr | ARRAY select_with_parens | ARRAY array_expr
 //	    | explicit_row | implicit_row
 func (p *Parser) parseCExpr() nodes.Node {
+	loc := p.pos()
+	n := p.parseCExprInner()
+	if n != nil {
+		setNodeLoc(n, loc, p.pos())
+	}
+	return n
+}
+
+func (p *Parser) parseCExprInner() nodes.Node {
 	switch p.cur.Type {
 	// --- Constants ---
 	case ICONST:
@@ -2289,9 +2305,13 @@ func (p *Parser) parseTargetEl() nodes.Node {
 	loc := p.pos()
 	if p.cur.Type == '*' {
 		p.advance()
+		end := p.pos()
 		return &nodes.ResTarget{
-			Val: &nodes.ColumnRef{Fields: &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}}},
-			Loc: nodes.Loc{Start: loc, End: p.pos()},
+			Val: &nodes.ColumnRef{
+				Fields: &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}},
+				Loc:    nodes.Loc{Start: loc, End: end},
+			},
+			Loc: nodes.Loc{Start: loc, End: end},
 		}
 	}
 
@@ -2352,7 +2372,6 @@ func (p *Parser) isJoinKeyword() bool {
 // Helper functions
 
 // makeSimpleAExpr creates an A_Expr with a simple string operator name.
-// Loc defaults to zero value to match yacc grammar behavior.
 func makeSimpleAExpr(kind nodes.A_Expr_Kind, op string, lexpr, rexpr nodes.Node) nodes.Node {
 	return &nodes.A_Expr{
 		Kind:  kind,
@@ -2375,6 +2394,55 @@ func makeBoolExpr(boolop nodes.BoolExprType, arg1, arg2 nodes.Node) nodes.Node {
 		be.Args.Items = append(be.Args.Items, arg2)
 	}
 	return be
+}
+
+// setNodeLoc sets the Loc field on any node that has one, using type assertions.
+func setNodeLoc(n nodes.Node, start, end int) {
+	loc := nodes.Loc{Start: start, End: end}
+	switch v := n.(type) {
+	case *nodes.A_Expr:
+		v.Loc = loc
+	case *nodes.BoolExpr:
+		v.Loc = loc
+	case *nodes.NullTest:
+		v.Loc = loc
+	case *nodes.BooleanTest:
+		v.Loc = loc
+	case *nodes.ColumnRef:
+		v.Loc = loc
+	case *nodes.FuncCall:
+		v.Loc = loc
+	case *nodes.A_Const:
+		v.Loc = loc
+	case *nodes.A_ArrayExpr:
+		v.Loc = loc
+	case *nodes.CoalesceExpr:
+		v.Loc = loc
+	case *nodes.GroupingFunc:
+		v.Loc = loc
+	case *nodes.TypeCast:
+		v.Loc = loc
+	case *nodes.SubLink:
+		v.Loc = loc
+	case *nodes.CollateClause:
+		v.Loc = loc
+	case *nodes.ParamRef:
+		v.Loc = loc
+	case *nodes.CaseExpr:
+		v.Loc = loc
+	case *nodes.RowExpr:
+		v.Loc = loc
+	case *nodes.MinMaxExpr:
+		v.Loc = loc
+	case *nodes.XmlExpr:
+		v.Loc = loc
+	case *nodes.SQLValueFunction:
+		v.Loc = loc
+	case *nodes.RangeVar:
+		v.Loc = loc
+	case *nodes.SetToDefault:
+		v.Loc = loc
+	}
 }
 
 // doNegate negates a numeric constant in place or creates a unary minus A_Expr.
