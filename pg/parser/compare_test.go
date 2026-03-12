@@ -3182,3 +3182,28 @@ func TestCompareCreatedbPg17Options(t *testing.T) {
 		})
 	}
 }
+
+func TestCompareAlterIndexDependsExt(t *testing.T) {
+	tests := []string{
+		"ALTER INDEX idx DEPENDS ON EXTENSION ext1",
+		"ALTER INDEX idx NO DEPENDS ON EXTENSION ext1",
+		"ALTER INDEX public.idx DEPENDS ON EXTENSION ext1",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+func TestCompareAlterMatviewDependsExt(t *testing.T) {
+	tests := []string{
+		"ALTER MATERIALIZED VIEW mv DEPENDS ON EXTENSION ext1",
+		"ALTER MATERIALIZED VIEW mv NO DEPENDS ON EXTENSION ext1",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}

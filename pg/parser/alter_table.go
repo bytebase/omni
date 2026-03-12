@@ -146,6 +146,21 @@ func (p *Parser) parseAlterIndex() nodes.Node {
 		}
 	}
 
+	// ALTER INDEX name [NO] DEPENDS ON EXTENSION ext_name
+	if p.cur.Type == DEPENDS || (p.cur.Type == NO && p.peekNext().Type == DEPENDS) {
+		remove := p.parseOptNo()
+		p.advance() // consume DEPENDS
+		p.expect(ON)
+		p.expect(EXTENSION)
+		extname, _ := p.parseName()
+		return &nodes.AlterObjectDependsStmt{
+			ObjectType: nodes.OBJECT_INDEX,
+			Relation:   rv,
+			Extname:    &nodes.String{Str: extname},
+			Remove:     remove,
+		}
+	}
+
 	cmds := p.parseAlterTableCmds()
 	return &nodes.AlterTableStmt{
 		Relation:   rv,
@@ -310,6 +325,21 @@ func (p *Parser) parseAlterMaterializedView() nodes.Node {
 			Relation:   rv,
 			Newschema:  newschema,
 			MissingOk:  missingOk,
+		}
+	}
+
+	// ALTER MATERIALIZED VIEW name [NO] DEPENDS ON EXTENSION ext_name
+	if p.cur.Type == DEPENDS || (p.cur.Type == NO && p.peekNext().Type == DEPENDS) {
+		remove := p.parseOptNo()
+		p.advance() // consume DEPENDS
+		p.expect(ON)
+		p.expect(EXTENSION)
+		extname, _ := p.parseName()
+		return &nodes.AlterObjectDependsStmt{
+			ObjectType: nodes.OBJECT_MATVIEW,
+			Relation:   rv,
+			Extname:    &nodes.String{Str: extname},
+			Remove:     remove,
 		}
 	}
 

@@ -1328,7 +1328,7 @@
       "id": 51,
       "name": "alter_index_matview_depends_ext",
       "file": "alter_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 11 gap: parseAlterIndex and parseAlterMaterializedView do not handle [NO] DEPENDS ON EXTENSION (AlterObjectDependsStmt). In PG grammar, ALTER INDEX/MATERIALIZED VIEW name [NO] DEPENDS ON EXTENSION ext_name produces AlterObjectDependsStmt. Must add DEPENDS and NO DEPENDS checks before falling through to parseAlterTableCmds. Ref: https://www.postgresql.org/docs/17/sql-alterindex.html",
       "rules": [
         "parseAlterIndex",
