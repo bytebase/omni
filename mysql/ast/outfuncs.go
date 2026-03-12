@@ -253,6 +253,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeTriggerOrder(sb, n)
 	case *EventSchedule:
 		writeEventSchedule(sb, n)
+	case *CommonTableExpr:
+		writeCommonTableExpr(sb, n)
 
 	default:
 		fmt.Fprintf(sb, "{UNKNOWN %T}", node)
@@ -281,6 +283,16 @@ func writeList(sb *strings.Builder, l *List) {
 func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 	sb.WriteString("{SELECT")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.CTEs) > 0 {
+		sb.WriteString(" :ctes (")
+		for i, cte := range n.CTEs {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, cte)
+		}
+		sb.WriteString(")")
+	}
 	if n.DistinctKind == DistinctOn {
 		sb.WriteString(" :distinct true")
 	}
@@ -2214,6 +2226,30 @@ func writeEventSchedule(sb *strings.Builder, n *EventSchedule) {
 	if n.Ends != nil {
 		sb.WriteString(" :ends ")
 		writeNode(sb, n.Ends)
+	}
+	sb.WriteString("}")
+}
+
+func writeCommonTableExpr(sb *strings.Builder, n *CommonTableExpr) {
+	sb.WriteString("{CTE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if n.Recursive {
+		sb.WriteString(" :recursive true")
+	}
+	if len(n.Columns) > 0 {
+		sb.WriteString(" :columns (")
+		for i, col := range n.Columns {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			fmt.Fprintf(sb, "%s", col)
+		}
+		sb.WriteString(")")
+	}
+	if n.Select != nil {
+		sb.WriteString(" :select ")
+		writeNode(sb, n.Select)
 	}
 	sb.WriteString("}")
 }

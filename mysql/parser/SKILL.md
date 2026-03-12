@@ -25,33 +25,49 @@ If all batches are `"done"`, output `ALL_BATCHES_COMPLETE` and stop.
 
 ## Implementation Steps for Each Batch
 
-### Step 1: Read References
+### Step 1: Fetch Complete BNF from Official Documentation (MANDATORY)
+
+**This is the most critical step. Do NOT skip it. Do NOT write BNF from memory.**
+
+For every grammar rule in the batch, you MUST:
+
+1. **Fetch the official MySQL 8.0 documentation page** using the WebFetch tool
+   - URL pattern: `https://dev.mysql.com/doc/refman/8.0/en/{statement}.html`
+   - e.g., `select.html`, `insert.html`, `create-table.html`, `alter-table.html`
+   - For compound statements: `https://dev.mysql.com/doc/refman/8.0/en/{statement}.html`
+     - e.g., `if.html`, `case-statement.html`, `while.html`, `repeat.html`, `declare-local-variable.html`
+   - For XA: `https://dev.mysql.com/doc/refman/8.0/en/xa-statements.html`
+2. **Extract the COMPLETE BNF/syntax diagram** from the page — every branch, every option, every sub-clause
+3. **Do NOT abbreviate** — never write `...` or truncate the BNF. If a statement has 50 lines of BNF, write all 50 lines
+4. **For sub-clauses that have their own doc page**, fetch those too (e.g., CREATE TABLE's `column_definition`, `partition_options` link to separate pages)
+
+If WebFetch fails, use WebSearch to find the correct URL, then fetch it.
+
+### Step 2: Read AST and Existing Code
 
 - Read the AST node definitions from `mysql/ast/parsenodes.go` (and `node.go`)
 - Read the existing parser code in `mysql/parser/` to understand available helpers and already-implemented parse functions
+- If the existing AST types don't cover all BNF branches, add new node types / fields to `parsenodes.go`
 - Read the test cases listed in the batch's `"tests"` list in `mysql/parser/compare_test.go`
-
-### Step 2: Fetch MySQL Documentation BNF
-
-- For each major statement type, search the MySQL 8.0 documentation for its syntax
-- URL pattern: `https://dev.mysql.com/doc/refman/8.0/en/sql-statements.html`
-  - e.g., `select.html`, `insert.html`, `create-table.html`, `alter-table.html`
-- Open-source MySQL grammars (e.g., from MySQL Workbench, TiDB parser, Vitess) can be referenced for understanding grammar structure but **MUST NOT be copied** due to licensing
 
 ### Step 3: Write Test Cases FIRST (Test-Driven Development)
 
-**This is a hard requirement. For each batch:**
+**TEST-DRIVEN**: Write tests FIRST, then implement.
+
+**Every branch of the BNF must have at least one test case.** For example, if ALTER TABLE has ADD COLUMN, DROP COLUMN, MODIFY COLUMN, CHANGE COLUMN, ADD INDEX, DROP INDEX, RENAME, CONVERT CHARSET, ALGORITHM, LOCK — then you need at least 10 test cases, one per branch.
 
 1. **FIRST** write test cases in `mysql/parser/compare_test.go` covering every BNF rule and branch listed in the batch
 2. Every BNF alternative/branch must have at least one test case
 3. Include both positive tests (valid SQL that should parse) and negative tests (invalid SQL that should fail)
 4. Include edge cases: empty clauses, maximum nesting, unusual but valid syntax
 
+Add a new `TestParse{BatchName}` function.
+
 ### Step 4: Write Parse Functions
 
 Create or update the target file (e.g., `mysql/parser/select.go`).
 
-**Every parse function MUST have this comment format:**
+**Every parse function MUST have the COMPLETE BNF in its comment. This is a hard requirement.**
 
 ```go
 // parseSelectStmt parses a SELECT statement.
@@ -64,22 +80,43 @@ Create or update the target file (e.g., `mysql/parser/select.go`).
 //	    [STRAIGHT_JOIN]
 //	    [SQL_CALC_FOUND_ROWS]
 //	    select_expr [, select_expr] ...
-//	    [FROM table_references]
+//	    [FROM table_references
+//	        [PARTITION partition_list]]
 //	    [WHERE where_condition]
-//	    [GROUP BY {col_name | expr | position} [ASC | DESC], ... [WITH ROLLUP]]
+//	    [GROUP BY {col_name | expr | position}
+//	        [ASC | DESC], ... [WITH ROLLUP]]
 //	    [HAVING where_condition]
-//	    [WINDOW window_name AS (window_spec) [, window_name AS (window_spec)] ...]
-//	    [ORDER BY {col_name | expr | position} [ASC | DESC], ...]
+//	    [WINDOW window_name AS (window_spec)
+//	        [, window_name AS (window_spec)] ...]
+//	    [ORDER BY {col_name | expr | position}
+//	        [ASC | DESC], ... [WITH ROLLUP]]
 //	    [LIMIT {[offset,] row_count | row_count OFFSET offset}]
-//	    [FOR {UPDATE | SHARE} [OF tbl_name [, tbl_name] ...] [NOWAIT | SKIP LOCKED]]
-//	    [INTO OUTFILE 'file_name' | INTO DUMPFILE 'file_name' | INTO var_name [, var_name]]
+//	    [into_option]
+//	    [FOR {UPDATE | SHARE}
+//	        [OF tbl_name [, tbl_name] ...]
+//	        [NOWAIT | SKIP LOCKED]
+//	      | LOCK IN SHARE MODE]
+//	    [into_option]
+//
+//	into_option: {
+//	    INTO OUTFILE 'file_name'
+//	        [CHARACTER SET charset_name]
+//	        export_options
+//	  | INTO DUMPFILE 'file_name'
+//	  | INTO var_name [, var_name] ...
+//	}
 func (p *Parser) parseSelectStmt() *ast.SelectStmt {
 ```
 
+**The comment BNF must match the official docs exactly. No abbreviation, no `...` for omitted branches. Every branch in the BNF must have a corresponding code path in the function.**
+
 **Rules for parse function implementation:**
 
-1. **Use the existing AST types** from `mysql/ast/` — do NOT create new node types unless absolutely necessary
-2. **Record positions** on EVERY AST node that has a `Location` field.
+1. **Use the existing AST types** from `mysql/ast/` — do NOT create new node types without updating both `parsenodes.go` and `outfuncs.go`
+1a. **When implementing a new batch, you MUST also add serialization to `outfuncs.go` for any new node types used.** Every node type in `parsenodes.go` must have a corresponding case in `writeNode` and a `writeXxx` function in `outfuncs.go`.
+1b. **Every branch in the BNF comment MUST have a corresponding implementation.** If the BNF says `{ ADD | DROP | MODIFY | CHANGE | RENAME | CONVERT | ALGORITHM | LOCK }`, you must handle ALL of them, not just a subset. If a branch requires a new AST node type or field, add it.
+1c. **Sub-clauses must be recursively complete.** If a statement's BNF references `column_definition`, and `column_definition` itself has a full BNF (with DEFAULT, AUTO_INCREMENT, UNIQUE, PRIMARY KEY, COMMENT, COLLATE, GENERATED, ON UPDATE, etc.), you must fetch that sub-clause's BNF and implement it completely too.
+2. **Record positions** on EVERY AST node that has a `Loc` field.
    Set `Loc: nodes.Loc{Start: p.pos()}` at the beginning of parsing that node, and
    set `node.Loc.End = p.pos()` at the end of parsing that node (after the last token is consumed).
    **This is a hard requirement.** Missing locations will cause features (SQL rewriting, error reporting) to break.
@@ -89,12 +126,13 @@ func (p *Parser) parseSelectStmt() *ast.SelectStmt {
    - Skipping to the next semicolon for statement-level errors
    - Returning a partial AST node with what was parsed so far
 6. **Operator precedence** in expressions: use Pratt parsing (precedence climbing)
+7. **Incremental dispatch**: The `parseStmt` dispatch in `stmt.go` should be extended incrementally as each statement batch is implemented. Do not wait until batch 42 — wire in each statement parser as it is completed.
 
 ### Step 5: Wire Up
 
-- For batch 21 (stmt_dispatch), wire all statement parsers into the `parseStmt()` function
+- For new statement types, wire them into `parseStmt()` / `parseCreateDispatch()` / `parseAlterDispatch()` / `parseDropDispatch()` in `stmt.go`
 - Handle the `;`-separated list and wrap in `*ast.RawStmt` with position info
-- Ensure `Parse()` in `parser.go` calls the top-level dispatch
+- Add any missing keyword constants to `lexer.go` as needed
 
 ### Step 6: Test
 
@@ -160,6 +198,7 @@ The MySQL lexer handles these MySQL-specific constructs:
 - **`<=>` operator**: NULL-safe equality
 - **`DIV` operator**: Integer division
 - **`:=` operator**: Assignment in SET and SELECT
+- **`->` and `->>` operators**: JSON column-path extraction (MySQL 5.7+)
 
 ## Expression Parsing Strategy
 
@@ -204,6 +243,74 @@ Precedence levels (low to high, matching MySQL):
 14. `!`
 15. `BINARY`, `COLLATE`
 16. `INTERVAL`
+
+## New AST Node Types Required for Phase 2 Batches (22+)
+
+When implementing new batches, you will need to add new AST node types to `mysql/ast/parsenodes.go` and corresponding serialization in `mysql/ast/outfuncs.go`. Below is a guide for each batch area:
+
+### CTE / WITH (batch 22)
+- Extend `SelectStmt` with a `CTEs []*CommonTableExpr` field
+- Add `CommonTableExpr` struct: Name, Columns, Select, Recursive bool
+
+### Window OVER (batch 23)
+- The `WindowDef` and `WindowFrame` types already exist
+- Complete the TODO in `parseFuncCall` to actually parse the OVER clause and populate `FuncCallExpr.Over`
+
+### JSON Operators (batch 24)
+- Add `JsonExtractExpr` and `JsonUnquoteExtractExpr` (or use BinaryExpr with new op types `BinOpJsonExtract`, `BinOpJsonUnquoteExtract`)
+- Add `MemberOfExpr` struct
+- Add `JsonTableExpr` for JSON_TABLE() table function
+
+### XA Transactions (batch 25)
+- Add `XAStmt` struct with Type (START/END/PREPARE/COMMIT/ROLLBACK/RECOVER), Xid, and options
+
+### CALL / HANDLER (batch 27)
+- Add `CallStmt` struct: Name, Args
+- Add `HandlerOpenStmt`, `HandlerReadStmt`, `HandlerCloseStmt`
+
+### SIGNAL / RESIGNAL / GET DIAGNOSTICS (batch 28)
+- Add `SignalStmt`, `ResignalStmt`, `GetDiagnosticsStmt`
+
+### Compound Statements (batch 29)
+- Add `CompoundStmt` (BEGIN...END), `DeclareVarStmt`, `DeclareConditionStmt`, `DeclareHandlerStmt`, `DeclareCursorStmt`
+
+### Flow Control (batch 30)
+- Add `IfStmt`, `CaseStmt` (distinct from CaseExpr), `WhileStmt`, `RepeatStmt`, `LoopStmt`, `LeaveStmt`, `IterateStmt`, `ReturnStmt`
+- Add `OpenCursorStmt`, `FetchCursorStmt`, `CloseCursorStmt`
+
+### Role Management (batch 31)
+- Add `CreateRoleStmt`, `DropRoleStmt`, `SetDefaultRoleStmt`, `SetRoleStmt`
+
+### TABLE / VALUES Statements (batch 33)
+- Add `TableStmt` struct (simple form of SELECT * FROM)
+- Add `ValuesStmt` struct with Rows
+
+### Tablespace / Server (batch 37)
+- Add `CreateTablespaceStmt`, `AlterTablespaceStmt`, `DropTablespaceStmt`
+- Add `CreateServerStmt`, `AlterServerStmt`, `DropServerStmt`
+- Add `CreateLogfileGroupStmt`, `AlterLogfileGroupStmt`, `DropLogfileGroupStmt`
+
+### ALTER misc (batch 39)
+- Add proper `AlterViewStmt`, `AlterEventStmt`, `AlterFunctionStmt`, `AlterProcedureStmt`
+- Add proper `DropFunctionStmt`, `DropProcedureStmt`, `DropTriggerStmt`, `DropEventStmt` (replace current RawStmt stubs)
+
+### Grouping / Lateral (batch 41)
+- Add `GroupingSetsClause`, `CubeClause`, `RollupClause` as expression nodes in GROUP BY
+- Add `LateralDerivedTable` as a table expression
+
+## Known Gaps in Existing Batches (tracked as new batches)
+
+- Batch 3 (expressions): Window OVER clause has TODO placeholder — tracked in batch 23
+- Batch 4 (select): WITH/CTE not implemented — tracked in batch 22
+- Batch 4 (select): LATERAL derived tables not implemented — tracked in batch 41
+- Batch 4 (select): GROUP BY WITH ROLLUP listed but GROUPING SETS/CUBE/ROLLUP missing — tracked in batch 41
+- Batch 12 (drop): DROP FUNCTION/PROCEDURE/TRIGGER/EVENT return RawStmt stubs — tracked in batch 39
+- Batch 13 (set_show): Many SHOW variants missing — tracked in batch 32
+- Batch 13 (set_show): EXPLAIN only handles SELECT, not INSERT/UPDATE/DELETE/REPLACE — tracked in batch 40
+- Batch 14 (transaction): XA transactions missing — tracked in batch 25
+- Batch 14 (transaction): SET TRANSACTION missing — tracked in batch 26
+- Batch 21 (stmt_dispatch): ALTER dispatch missing VIEW/EVENT/FUNCTION/PROCEDURE — tracked in batch 39
+- Batch 21 (stmt_dispatch): No dispatch for CALL, HANDLER, SIGNAL, RESIGNAL, GET, XA, TABLE, VALUES — tracked in batch 42
 
 ## Important Constraints
 

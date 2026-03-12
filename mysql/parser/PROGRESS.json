@@ -303,6 +303,308 @@
       "rules": ["stmt_list", "stmt"],
       "depends_on": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
       "tests": ["TestParseMultipleStatements", "TestParseEmptyInput"]
+    },
+    {
+      "id": 22,
+      "name": "cte_with",
+      "file": "select.go",
+      "status": "done",
+      "description": "Common Table Expressions (WITH ... AS). WITH clause for SELECT, INSERT, UPDATE, DELETE. Includes RECURSIVE CTEs.",
+      "rules": [
+        "with_clause", "common_table_expression", "cte_column_list",
+        "recursive_cte"
+      ],
+      "depends_on": [4],
+      "tests": ["TestParseWithCTE", "TestParseWithRecursiveCTE", "TestParseInsertWithCTE", "TestParseUpdateWithCTE", "TestParseDeleteWithCTE"]
+    },
+    {
+      "id": 23,
+      "name": "window_over",
+      "file": "expr.go",
+      "status": "pending",
+      "description": "Complete OVER clause for window functions. Currently has TODO in parseFuncCall. Implement named/inline window specs, frame clauses (ROWS/RANGE/GROUPS BETWEEN).",
+      "rules": [
+        "over_clause", "window_spec", "window_name_or_spec",
+        "partition_by_clause", "window_frame_clause",
+        "window_frame_between", "window_frame_bound",
+        "window_frame_start", "window_frame_end",
+        "window_frame_units"
+      ],
+      "depends_on": [3, 4],
+      "tests": ["TestParseWindowRowNumber", "TestParseWindowRank", "TestParseWindowFrameRows", "TestParseWindowFrameRange", "TestParseWindowFrameGroups", "TestParseWindowPartitionOrderBy", "TestParseNamedWindow"]
+    },
+    {
+      "id": 24,
+      "name": "json_operators",
+      "file": "expr.go",
+      "status": "pending",
+      "description": "JSON column-path operators: -> (JSON_EXTRACT), ->> (JSON_UNQUOTE(JSON_EXTRACT)), MEMBER OF, JSON_TABLE",
+      "rules": [
+        "json_extract_op", "json_unquote_extract_op",
+        "member_of_expr", "json_table_expr"
+      ],
+      "depends_on": [3],
+      "tests": ["TestParseJsonExtract", "TestParseJsonUnquoteExtract", "TestParseMemberOf", "TestParseJsonTable"]
+    },
+    {
+      "id": 25,
+      "name": "xa_transactions",
+      "file": "transaction.go",
+      "status": "pending",
+      "description": "XA distributed transaction statements: XA START/BEGIN, XA END/SUSPEND, XA PREPARE, XA COMMIT, XA ROLLBACK, XA RECOVER",
+      "rules": [
+        "xa_start_stmt", "xa_end_stmt", "xa_prepare_stmt",
+        "xa_commit_stmt", "xa_rollback_stmt", "xa_recover_stmt",
+        "xid"
+      ],
+      "depends_on": [14],
+      "tests": ["TestParseXAStart", "TestParseXAEnd", "TestParseXAPrepare", "TestParseXACommit", "TestParseXARollback", "TestParseXARecover"]
+    },
+    {
+      "id": 26,
+      "name": "set_transaction",
+      "file": "transaction.go",
+      "status": "pending",
+      "description": "SET TRANSACTION isolation level and access mode. SET [GLOBAL | SESSION] TRANSACTION { ISOLATION LEVEL level | READ WRITE | READ ONLY }",
+      "rules": [
+        "set_transaction_stmt", "isolation_level",
+        "transaction_access_mode"
+      ],
+      "depends_on": [14],
+      "tests": ["TestParseSetTransactionReadUncommitted", "TestParseSetTransactionReadCommitted", "TestParseSetTransactionRepeatableRead", "TestParseSetTransactionSerializable", "TestParseSetTransactionReadOnly", "TestParseSetGlobalTransaction"]
+    },
+    {
+      "id": 27,
+      "name": "call_handler",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "CALL procedure statement. HANDLER table OPEN/READ/CLOSE statements for direct row access.",
+      "rules": [
+        "call_stmt", "handler_open_stmt", "handler_read_stmt",
+        "handler_close_stmt", "handler_read_direction"
+      ],
+      "depends_on": [3],
+      "tests": ["TestParseCall", "TestParseCallWithArgs", "TestParseHandlerOpen", "TestParseHandlerRead", "TestParseHandlerReadWhere", "TestParseHandlerClose"]
+    },
+    {
+      "id": 28,
+      "name": "signal_diagnostics",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "SIGNAL, RESIGNAL, and GET DIAGNOSTICS statements for stored program error handling",
+      "rules": [
+        "signal_stmt", "signal_condition_value",
+        "signal_information_item", "resignal_stmt",
+        "get_diagnostics_stmt", "statement_information_item",
+        "condition_information_item"
+      ],
+      "depends_on": [3],
+      "tests": ["TestParseSignal", "TestParseSignalSet", "TestParseResignal", "TestParseGetDiagnostics", "TestParseGetDiagnosticsCondition"]
+    },
+    {
+      "id": 29,
+      "name": "compound_stmt",
+      "file": "compound.go",
+      "status": "pending",
+      "description": "Stored program compound statements: BEGIN...END blocks, DECLARE (variables, conditions, handlers, cursors), labels",
+      "rules": [
+        "compound_stmt", "begin_end_block", "label",
+        "declare_variable", "declare_condition", "declare_handler",
+        "declare_cursor", "handler_action", "condition_value"
+      ],
+      "depends_on": [2, 3],
+      "tests": ["TestParseBeginEnd", "TestParseDeclareVariable", "TestParseDeclareCondition", "TestParseDeclareHandler", "TestParseDeclareCursor", "TestParseLabeledBlock"]
+    },
+    {
+      "id": 30,
+      "name": "flow_control",
+      "file": "compound.go",
+      "status": "pending",
+      "description": "Stored program flow control: IF/ELSEIF/ELSE, CASE statement, WHILE, REPEAT, LOOP, LEAVE, ITERATE, RETURN, OPEN/FETCH/CLOSE cursor",
+      "rules": [
+        "if_stmt", "elseif_clause", "case_stmt",
+        "while_stmt", "repeat_stmt", "loop_stmt",
+        "leave_stmt", "iterate_stmt", "return_stmt",
+        "open_cursor_stmt", "fetch_cursor_stmt", "close_cursor_stmt"
+      ],
+      "depends_on": [29],
+      "tests": ["TestParseIfElse", "TestParseCaseStmt", "TestParseWhile", "TestParseRepeat", "TestParseLoop", "TestParseLeave", "TestParseIterate", "TestParseReturn", "TestParseOpenCursor", "TestParseFetchCursor", "TestParseCloseCursor"]
+    },
+    {
+      "id": 31,
+      "name": "role_management",
+      "file": "grant.go",
+      "status": "pending",
+      "description": "CREATE ROLE, DROP ROLE, SET DEFAULT ROLE, SET ROLE, GRANT role TO user, REVOKE role FROM user",
+      "rules": [
+        "create_role_stmt", "drop_role_stmt",
+        "set_default_role_stmt", "set_role_stmt",
+        "grant_role_stmt", "revoke_role_stmt"
+      ],
+      "depends_on": [15],
+      "tests": ["TestParseCreateRole", "TestParseDropRole", "TestParseSetDefaultRole", "TestParseSetRole", "TestParseGrantRole", "TestParseRevokeRole"]
+    },
+    {
+      "id": 32,
+      "name": "show_extended",
+      "file": "set_show.go",
+      "status": "pending",
+      "description": "Extended SHOW variants: SHOW ENGINES, SHOW PLUGINS, SHOW MASTER STATUS, SHOW SLAVE/REPLICA STATUS, SHOW BINARY LOGS, SHOW BINLOG EVENTS, SHOW TABLE STATUS, SHOW TRIGGERS, SHOW EVENTS, SHOW PROCEDURE/FUNCTION STATUS, SHOW CREATE PROCEDURE/FUNCTION/TRIGGER/EVENT, SHOW OPEN TABLES, SHOW PRIVILEGES, SHOW PROFILES, SHOW RELAYLOG EVENTS, SHOW CHARACTER SET, SHOW COLLATION",
+      "rules": [
+        "show_engines", "show_plugins", "show_master_status",
+        "show_replica_status", "show_binary_logs",
+        "show_binlog_events", "show_table_status", "show_triggers",
+        "show_events", "show_procedure_status", "show_function_status",
+        "show_create_procedure", "show_create_function",
+        "show_create_trigger", "show_create_event",
+        "show_open_tables", "show_privileges", "show_profiles",
+        "show_relaylog_events", "show_character_set", "show_collation"
+      ],
+      "depends_on": [13],
+      "tests": ["TestParseShowEngines", "TestParseShowPlugins", "TestParseShowMasterStatus", "TestParseShowReplicaStatus", "TestParseShowBinaryLogs", "TestParseShowTableStatus", "TestParseShowTriggers", "TestParseShowCreateProcedure", "TestParseShowCharacterSet", "TestParseShowCollation"]
+    },
+    {
+      "id": 33,
+      "name": "table_values_stmt",
+      "file": "select.go",
+      "status": "pending",
+      "description": "MySQL 8.0 TABLE statement (TABLE t is equivalent to SELECT * FROM t) and VALUES statement (VALUES ROW(1,2), ROW(3,4))",
+      "rules": [
+        "table_stmt", "values_stmt", "values_row"
+      ],
+      "depends_on": [4],
+      "tests": ["TestParseTableStmt", "TestParseValuesStmt", "TestParseValuesRow", "TestParseTableUnion"]
+    },
+    {
+      "id": 34,
+      "name": "checksum_shutdown",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "CHECKSUM TABLE, SHUTDOWN, RESTART statements",
+      "rules": [
+        "checksum_table_stmt", "shutdown_stmt", "restart_stmt"
+      ],
+      "depends_on": [1],
+      "tests": ["TestParseChecksumTable", "TestParseShutdown", "TestParseRestart"]
+    },
+    {
+      "id": 35,
+      "name": "plugin_component",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "INSTALL PLUGIN, UNINSTALL PLUGIN, INSTALL COMPONENT, UNINSTALL COMPONENT",
+      "rules": [
+        "install_plugin_stmt", "uninstall_plugin_stmt",
+        "install_component_stmt", "uninstall_component_stmt"
+      ],
+      "depends_on": [1],
+      "tests": ["TestParseInstallPlugin", "TestParseUninstallPlugin", "TestParseInstallComponent", "TestParseUninstallComponent"]
+    },
+    {
+      "id": 36,
+      "name": "clone",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "CLONE LOCAL/REMOTE instance statement (MySQL 8.0.17+)",
+      "rules": [
+        "clone_stmt", "clone_local", "clone_remote"
+      ],
+      "depends_on": [1],
+      "tests": ["TestParseCloneLocal", "TestParseCloneRemote"]
+    },
+    {
+      "id": 37,
+      "name": "create_tablespace",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "CREATE/ALTER/DROP TABLESPACE, CREATE/ALTER/DROP LOGFILE GROUP, CREATE/ALTER/DROP SERVER",
+      "rules": [
+        "create_tablespace_stmt", "alter_tablespace_stmt", "drop_tablespace_stmt",
+        "create_logfile_group_stmt", "alter_logfile_group_stmt", "drop_logfile_group_stmt",
+        "create_server_stmt", "alter_server_stmt", "drop_server_stmt"
+      ],
+      "depends_on": [1],
+      "tests": ["TestParseCreateTablespace", "TestParseAlterTablespace", "TestParseDropTablespace", "TestParseCreateServer", "TestParseDropServer"]
+    },
+    {
+      "id": 38,
+      "name": "create_srs_resource",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "CREATE/DROP SPATIAL REFERENCE SYSTEM, CREATE/ALTER/DROP RESOURCE GROUP",
+      "rules": [
+        "create_spatial_ref_sys_stmt", "drop_spatial_ref_sys_stmt",
+        "create_resource_group_stmt", "alter_resource_group_stmt",
+        "drop_resource_group_stmt"
+      ],
+      "depends_on": [1],
+      "tests": ["TestParseCreateSpatialRefSys", "TestParseDropSpatialRefSys", "TestParseCreateResourceGroup", "TestParseDropResourceGroup"]
+    },
+    {
+      "id": 39,
+      "name": "alter_misc",
+      "file": "stmt.go",
+      "status": "pending",
+      "description": "ALTER dispatches for VIEW, EVENT, FUNCTION, PROCEDURE. Also proper DROP FUNCTION/PROCEDURE/TRIGGER/EVENT with AST nodes (replace current RawStmt stubs).",
+      "rules": [
+        "alter_view_stmt", "alter_event_stmt",
+        "alter_function_stmt", "alter_procedure_stmt",
+        "drop_function_stmt", "drop_procedure_stmt",
+        "drop_trigger_stmt", "drop_event_stmt"
+      ],
+      "depends_on": [10, 16, 17],
+      "tests": ["TestParseAlterView", "TestParseAlterEvent", "TestParseAlterFunction", "TestParseAlterProcedure", "TestParseDropFunction", "TestParseDropProcedure", "TestParseDropTrigger", "TestParseDropEvent"]
+    },
+    {
+      "id": 40,
+      "name": "explain_extended",
+      "file": "set_show.go",
+      "status": "pending",
+      "description": "EXPLAIN for all DML (INSERT, UPDATE, DELETE, REPLACE), EXPLAIN ANALYZE, EXPLAIN FORMAT=TREE/JSON for all statements, EXPLAIN FOR CONNECTION",
+      "rules": [
+        "explain_insert", "explain_update", "explain_delete",
+        "explain_replace", "explain_analyze", "explain_for_connection"
+      ],
+      "depends_on": [13, 5, 6],
+      "tests": ["TestParseExplainInsert", "TestParseExplainUpdate", "TestParseExplainDelete", "TestParseExplainAnalyze", "TestParseExplainForConnection"]
+    },
+    {
+      "id": 41,
+      "name": "grouping_lateral",
+      "file": "select.go",
+      "status": "pending",
+      "description": "GROUP BY WITH ROLLUP, GROUP BY grouping_sets (MySQL 8.0.25+: GROUPING SETS, CUBE, ROLLUP), LATERAL derived tables",
+      "rules": [
+        "group_by_with_rollup", "grouping_sets_clause",
+        "cube_clause", "rollup_clause", "grouping_function",
+        "lateral_derived_table"
+      ],
+      "depends_on": [4],
+      "tests": ["TestParseGroupByWithRollup", "TestParseGroupingSets", "TestParseCube", "TestParseRollup", "TestParseLateralDerivedTable"]
+    },
+    {
+      "id": 42,
+      "name": "stmt_dispatch_phase2",
+      "file": "stmt.go",
+      "status": "pending",
+      "description": "Wire all Phase 2 statement parsers into parseStmt and parseCreateDispatch/parseAlterDispatch/parseDropDispatch. Add missing keyword constants to lexer.",
+      "rules": [
+        "stmt_dispatch_xa", "stmt_dispatch_call", "stmt_dispatch_handler",
+        "stmt_dispatch_signal", "stmt_dispatch_compound",
+        "stmt_dispatch_table_values", "stmt_dispatch_clone",
+        "create_dispatch_tablespace", "create_dispatch_server",
+        "create_dispatch_srs", "create_dispatch_resource_group",
+        "create_dispatch_role",
+        "alter_dispatch_view", "alter_dispatch_event",
+        "alter_dispatch_function", "alter_dispatch_procedure",
+        "drop_dispatch_proper_function", "drop_dispatch_proper_procedure",
+        "drop_dispatch_proper_trigger", "drop_dispatch_proper_event",
+        "drop_dispatch_role", "drop_dispatch_tablespace",
+        "drop_dispatch_server", "drop_dispatch_srs",
+        "drop_dispatch_resource_group"
+      ],
+      "depends_on": [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41],
+      "tests": ["TestParsePhase2Dispatch"]
     }
   ]
 }

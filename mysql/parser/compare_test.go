@@ -4296,6 +4296,83 @@ func TestParseStmtDispatchDropVariants(t *testing.T) {
 	}
 }
 
+// -----------------------------------------------------------------------
+// Batch 22: WITH (Common Table Expressions)
+// -----------------------------------------------------------------------
+
+func TestParseWithCTE(t *testing.T) {
+	tests := []string{
+		// Simple CTE
+		"WITH cte AS (SELECT 1) SELECT * FROM cte",
+		// Multiple CTEs
+		"WITH cte1 AS (SELECT 1), cte2 AS (SELECT 2) SELECT * FROM cte1, cte2",
+		// CTE with column list
+		"WITH cte (a, b) AS (SELECT 1, 2) SELECT a, b FROM cte",
+		// CTE with complex subquery
+		"WITH cte AS (SELECT id, name FROM users WHERE active = 1) SELECT * FROM cte WHERE id > 10",
+	}
+
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseWithRecursiveCTE(t *testing.T) {
+	tests := []string{
+		// Basic recursive CTE
+		"WITH RECURSIVE cte (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM cte WHERE n < 5) SELECT * FROM cte",
+		// Recursive CTE without column list
+		"WITH RECURSIVE cte AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM cte WHERE n < 10) SELECT * FROM cte",
+		// Recursive CTE with UNION DISTINCT
+		"WITH RECURSIVE cte (n) AS (SELECT 1 UNION DISTINCT SELECT n + 1 FROM cte WHERE n < 5) SELECT * FROM cte",
+	}
+
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseInsertWithCTE(t *testing.T) {
+	tests := []string{
+		"INSERT INTO t1 WITH cte AS (SELECT 1 AS a) SELECT * FROM cte",
+		"INSERT INTO t1 (col1) WITH cte AS (SELECT 1) SELECT * FROM cte",
+	}
+
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseUpdateWithCTE(t *testing.T) {
+	tests := []string{
+		"WITH cte AS (SELECT id FROM t2) UPDATE t1 SET col1 = 1 WHERE id IN (SELECT id FROM cte)",
+	}
+
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseDeleteWithCTE(t *testing.T) {
+	tests := []string{
+		"WITH cte AS (SELECT id FROM t2) DELETE FROM t1 WHERE id IN (SELECT id FROM cte)",
+	}
+
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
 func TestParseStmtDispatchAlterVariants(t *testing.T) {
 	tests := []string{
 		"ALTER TABLE t ADD COLUMN c INT",

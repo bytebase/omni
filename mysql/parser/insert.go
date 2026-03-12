@@ -118,7 +118,7 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		}
 		stmt.SetList = setList
 
-	case kwSELECT:
+	case kwSELECT, kwWITH:
 		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err

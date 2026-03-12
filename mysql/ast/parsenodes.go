@@ -7,25 +7,37 @@ package ast
 // SelectStmt represents a SELECT statement.
 type SelectStmt struct {
 	Loc           Loc
-	DistinctKind  DistinctKind   // DISTINCT, ALL, or none
-	CalcFoundRows bool           // SQL_CALC_FOUND_ROWS
-	HighPriority  bool           // HIGH_PRIORITY
-	StraightJoin  bool           // STRAIGHT_JOIN hint
-	TargetList    []ExprNode     // select expressions (ResTarget)
-	From          []TableExpr    // FROM clause (TableRef / JoinClause)
-	Where         ExprNode       // WHERE condition
-	GroupBy       []ExprNode     // GROUP BY expressions
-	Having        ExprNode       // HAVING condition
-	OrderBy       []*OrderByItem // ORDER BY clause
-	Limit         *Limit         // LIMIT / OFFSET
-	ForUpdate     *ForUpdate     // FOR UPDATE / SHARE
-	WindowClause  []*WindowDef   // WINDOW clause
-	Into          *IntoClause    // INTO clause
-	SetOp         SetOperation   // UNION / INTERSECT / EXCEPT
-	SetAll        bool           // ALL modifier for set operations
-	Left          *SelectStmt    // left side of set operation
-	Right         *SelectStmt    // right side of set operation
+	CTEs          []*CommonTableExpr // WITH clause (CTEs)
+	DistinctKind  DistinctKind       // DISTINCT, ALL, or none
+	CalcFoundRows bool               // SQL_CALC_FOUND_ROWS
+	HighPriority  bool               // HIGH_PRIORITY
+	StraightJoin  bool               // STRAIGHT_JOIN hint
+	TargetList    []ExprNode         // select expressions (ResTarget)
+	From          []TableExpr        // FROM clause (TableRef / JoinClause)
+	Where         ExprNode           // WHERE condition
+	GroupBy       []ExprNode         // GROUP BY expressions
+	Having        ExprNode           // HAVING condition
+	OrderBy       []*OrderByItem     // ORDER BY clause
+	Limit         *Limit             // LIMIT / OFFSET
+	ForUpdate     *ForUpdate         // FOR UPDATE / SHARE
+	WindowClause  []*WindowDef       // WINDOW clause
+	Into          *IntoClause        // INTO clause
+	SetOp         SetOperation       // UNION / INTERSECT / EXCEPT
+	SetAll        bool               // ALL modifier for set operations
+	Left          *SelectStmt        // left side of set operation
+	Right         *SelectStmt        // right side of set operation
 }
+
+// CommonTableExpr represents a single CTE in a WITH clause.
+type CommonTableExpr struct {
+	Loc       Loc
+	Name      string
+	Columns   []string
+	Select    *SelectStmt
+	Recursive bool
+}
+
+func (c *CommonTableExpr) nodeTag() {}
 
 func (s *SelectStmt) nodeTag()  {}
 func (s *SelectStmt) stmtNode() {}

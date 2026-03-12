@@ -7,6 +7,9 @@ import (
 // parseStmt parses a single SQL statement.
 func (p *Parser) parseStmt() (nodes.Node, error) {
 	switch p.cur.Type {
+	case kwWITH:
+		return p.parseWithStmt()
+
 	case kwSELECT:
 		return p.parseSelectStmt()
 

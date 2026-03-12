@@ -353,6 +353,7 @@ const (
 	kwFORCE
 	_ // was kwBY_KW — duplicate of kwBY
 	kwTYPE
+	kwRECURSIVE
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -669,6 +670,7 @@ var keywords = map[string]int{
 	"condition":           kwCONDITION,
 	"force":               kwFORCE,
 	"type":                kwTYPE,
+	"recursive":           kwRECURSIVE,
 }
 
 // Token represents a lexical token.
