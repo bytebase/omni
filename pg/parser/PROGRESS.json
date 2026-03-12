@@ -1312,7 +1312,7 @@
       "id": 50,
       "name": "createdb_pg17_options",
       "file": "database.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 30 gap: parseCreatedbOptName only recognizes CONNECTION LIMIT, ENCODING, LOCATION, OWNER, TABLESPACE, TEMPLATE, and IDENT. PG 17 added many options as reserved/unreserved keywords: LOCALE, LC_COLLATE, LC_CTYPE, ICU_LOCALE, ICU_RULES, LOCALE_PROVIDER, COLLATION_VERSION, ALLOW_CONNECTIONS, IS_TEMPLATE, OID, STRATEGY, BUILTIN_LOCALE. These keywords won't match IDENT and silently fail. Must add explicit cases. Ref: https://www.postgresql.org/docs/17/sql-createdatabase.html",
       "rules": [
         "parseCreatedbOptName"

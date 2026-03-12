@@ -3160,3 +3160,25 @@ func TestCompareAlterDatabaseOwner(t *testing.T) {
 		})
 	}
 }
+
+func TestCompareCreatedbPg17Options(t *testing.T) {
+	tests := []string{
+		"CREATE DATABASE mydb LOCALE = 'en_US.UTF-8'",
+		"CREATE DATABASE mydb LC_COLLATE = 'en_US.UTF-8'",
+		"CREATE DATABASE mydb LC_CTYPE = 'en_US.UTF-8'",
+		"CREATE DATABASE mydb ICU_LOCALE = 'en-US'",
+		"CREATE DATABASE mydb ICU_RULES = '&V << w <<< W'",
+		"CREATE DATABASE mydb LOCALE_PROVIDER = 'icu'",
+		"CREATE DATABASE mydb COLLATION_VERSION = '1.0'",
+		"CREATE DATABASE mydb ALLOW_CONNECTIONS = true",
+		"CREATE DATABASE mydb IS_TEMPLATE = false",
+		"CREATE DATABASE mydb OID = 12345",
+		"CREATE DATABASE mydb STRATEGY = 'wal_log'",
+		"CREATE DATABASE mydb BUILTIN_LOCALE = 'C'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
