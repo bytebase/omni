@@ -12,8 +12,70 @@ import (
 // COLUMN ENCRYPTION KEY, COLUMN MASTER KEY, CRYPTOGRAPHIC PROVIDER.
 // Also handles OPEN/CLOSE SYMMETRIC KEY and BACKUP CERTIFICATE.
 //
-// These statements are parsed generically: we capture the action, object type,
-// name, and skip remaining tokens as options.
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-symmetric-key-transact-sql
+//
+//	CREATE SYMMETRIC KEY key_name
+//	    [ AUTHORIZATION owner_name ]
+//	    [ FROM PROVIDER provider_name ]
+//	    WITH
+//	        [
+//	            <key_options> [ , ... n ]
+//	            | ENCRYPTION BY <encrypting_mechanism> [ , ... n ]
+//	        ]
+//	<key_options> ::= KEY_SOURCE = 'pass_phrase' | ALGORITHM = <algorithm>
+//	    | IDENTITY_VALUE = 'identity_phrase' | PROVIDER_KEY_NAME = 'key_name_in_provider'
+//	    | CREATION_DISPOSITION = { CREATE_NEW | OPEN_EXISTING }
+//	<encrypting_mechanism> ::= CERTIFICATE certificate_name | PASSWORD = 'password'
+//	    | SYMMETRIC KEY symmetric_key_name | ASYMMETRIC KEY asym_key_name
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-symmetric-key-transact-sql
+//
+//	ALTER SYMMETRIC KEY Key_name <alter_option>
+//	<alter_option> ::=
+//	    ADD ENCRYPTION BY <encrypting_mechanism> [ , ... n ]
+//	    | DROP ENCRYPTION BY <encrypting_mechanism> [ , ... n ]
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-asymmetric-key-transact-sql
+//
+//	CREATE ASYMMETRIC KEY asym_key_name
+//	    [ AUTHORIZATION database_principal_name ]
+//	    [ FROM <asym_key_source> ]
+//	    [ WITH <key_option> ]
+//	    [ ENCRYPTION BY <encrypting_mechanism> ]
+//	<asym_key_source> ::= FILE = 'path' | EXECUTABLE FILE = 'path' | ASSEMBLY name | PROVIDER name
+//	<key_option> ::= ALGORITHM = <algorithm> | PROVIDER_KEY_NAME = 'name' | CREATION_DISPOSITION = { CREATE_NEW | OPEN_EXISTING }
+//	<encrypting_mechanism> ::= PASSWORD = 'password'
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-certificate-transact-sql
+//
+//	CREATE CERTIFICATE certificate_name [ AUTHORIZATION user_name ]
+//	    { FROM <existing_keys> | <generate_new_keys> }
+//	    [ ACTIVE FOR BEGIN_DIALOG = { ON | OFF } ]
+//	<existing_keys> ::= ASSEMBLY assembly_name
+//	    | { [ EXECUTABLE ] FILE = 'path' [ WITH [FORMAT = 'PFX',] PRIVATE KEY ( <private_key_options> ) ] }
+//	    | { BINARY = asn_encoded_certificate [ WITH PRIVATE KEY ( <private_key_options> ) ] }
+//	<generate_new_keys> ::= [ ENCRYPTION BY PASSWORD = 'password' ]
+//	    WITH SUBJECT = 'certificate_subject_name' [ , <date_options> [ ,...n ] ]
+//	<date_options> ::= START_DATE = 'datetime' | EXPIRY_DATE = 'datetime'
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-credential-transact-sql
+//
+//	CREATE CREDENTIAL credential_name
+//	    WITH IDENTITY = 'identity_name' [ , SECRET = 'secret' ]
+//	    [ FOR CRYPTOGRAPHIC PROVIDER cryptographic_provider_name ]
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-master-key-transact-sql
+//
+//	CREATE MASTER KEY [ ENCRYPTION BY PASSWORD = 'password' ]
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-master-key-transact-sql
+//
+//	ALTER MASTER KEY <alter_option>
+//	<alter_option> ::= <regenerate_option> | <encryption_option>
+//	<regenerate_option> ::= [ FORCE ] REGENERATE WITH ENCRYPTION BY PASSWORD = 'password'
+//	<encryption_option> ::=
+//	    ADD ENCRYPTION BY { SERVICE MASTER KEY | PASSWORD = 'password' }
+//	    | DROP ENCRYPTION BY { SERVICE MASTER KEY | PASSWORD = 'password' }
 func (p *Parser) parseSecurityKeyStmt(action string) *nodes.SecurityKeyStmt {
 	loc := p.pos()
 	stmt := &nodes.SecurityKeyStmt{
@@ -58,11 +120,173 @@ func (p *Parser) parseSecurityKeyStmt(action string) *nodes.SecurityKeyStmt {
 		return stmt
 	}
 
-	// Consume remaining tokens as options until we hit a statement boundary
-	p.skipSecurityKeyOptions(stmt)
+	// Dispatch to type-specific option parsers
+	switch {
+	case action == "ALTER" && stmt.ObjectType == "SYMMETRIC KEY":
+		p.parseAlterSymmetricKeyOptions(stmt)
+	case action == "ALTER" && stmt.ObjectType == "MASTER KEY":
+		p.parseAlterMasterKeyOptions(stmt)
+	default:
+		p.parseSecurityKeyOptions(stmt)
+	}
 
 	stmt.Loc.End = p.pos()
 	return stmt
+}
+
+// parseAlterSymmetricKeyOptions parses ALTER SYMMETRIC KEY options.
+//
+//	ALTER SYMMETRIC KEY Key_name
+//	    ADD ENCRYPTION BY <encrypting_mechanism> [ , ... n ]
+//	    | DROP ENCRYPTION BY <encrypting_mechanism> [ , ... n ]
+//	<encrypting_mechanism> ::= CERTIFICATE name | PASSWORD = 'password'
+//	    | SYMMETRIC KEY name | ASYMMETRIC KEY name
+func (p *Parser) parseAlterSymmetricKeyOptions(stmt *nodes.SecurityKeyStmt) {
+	var items []nodes.Node
+
+	// ADD ENCRYPTION BY ... or DROP ENCRYPTION BY ...
+	var op string
+	if p.cur.Type == kwADD {
+		op = "ADD"
+		p.advance()
+	} else if p.cur.Type == kwDROP {
+		op = "DROP"
+		p.advance()
+	}
+
+	if op != "" {
+		items = append(items, &nodes.String{Str: op})
+		// ENCRYPTION BY
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ENCRYPTION") {
+			p.advance()
+		}
+		if p.cur.Type == kwBY {
+			p.advance()
+		}
+		// Parse encrypting mechanisms: CERTIFICATE name | PASSWORD = 'pwd' | SYMMETRIC KEY name | ASYMMETRIC KEY name
+		for {
+			mech := p.parseEncryptingMechanism()
+			if mech == "" {
+				break
+			}
+			items = append(items, &nodes.String{Str: "ENCRYPTION BY " + mech})
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+	}
+
+	if len(items) > 0 {
+		stmt.Options = &nodes.List{Items: items}
+	}
+}
+
+// parseAlterMasterKeyOptions parses ALTER MASTER KEY options.
+//
+//	ALTER MASTER KEY <alter_option>
+//	<alter_option> ::= <regenerate_option> | <encryption_option>
+//	<regenerate_option> ::= [ FORCE ] REGENERATE WITH ENCRYPTION BY PASSWORD = 'password'
+//	<encryption_option> ::=
+//	    ADD ENCRYPTION BY { SERVICE MASTER KEY | PASSWORD = 'password' }
+//	    | DROP ENCRYPTION BY { SERVICE MASTER KEY | PASSWORD = 'password' }
+func (p *Parser) parseAlterMasterKeyOptions(stmt *nodes.SecurityKeyStmt) {
+	var items []nodes.Node
+
+	// Check for [FORCE] REGENERATE
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FORCE") {
+		items = append(items, &nodes.String{Str: "FORCE"})
+		p.advance()
+	}
+
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REGENERATE") {
+		items = append(items, &nodes.String{Str: "REGENERATE"})
+		p.advance()
+		// WITH ENCRYPTION BY PASSWORD = 'password'
+		if p.cur.Type == kwWITH {
+			p.advance()
+		}
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ENCRYPTION") {
+			p.advance()
+		}
+		if p.cur.Type == kwBY {
+			p.advance()
+		}
+		mech := p.parseEncryptingMechanism()
+		if mech != "" {
+			items = append(items, &nodes.String{Str: "ENCRYPTION BY " + mech})
+		}
+	} else if p.cur.Type == kwADD || p.cur.Type == kwDROP {
+		// ADD/DROP ENCRYPTION BY { SERVICE MASTER KEY | PASSWORD = 'password' }
+		op := "ADD"
+		if p.cur.Type == kwDROP {
+			op = "DROP"
+		}
+		p.advance()
+		items = append(items, &nodes.String{Str: op})
+
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ENCRYPTION") {
+			p.advance()
+		}
+		if p.cur.Type == kwBY {
+			p.advance()
+		}
+		mech := p.parseEncryptingMechanism()
+		if mech != "" {
+			items = append(items, &nodes.String{Str: "ENCRYPTION BY " + mech})
+		}
+	}
+
+	if len(items) > 0 {
+		stmt.Options = &nodes.List{Items: items}
+	}
+}
+
+// parseEncryptingMechanism parses a single encrypting mechanism:
+//
+//	CERTIFICATE certificate_name | PASSWORD = 'password'
+//	| SYMMETRIC KEY symmetric_key_name | ASYMMETRIC KEY asym_key_name
+//	| SERVICE MASTER KEY
+func (p *Parser) parseEncryptingMechanism() string {
+	if p.matchIdentCI("CERTIFICATE") {
+		name, _ := p.parseIdentifier()
+		return "CERTIFICATE " + name
+	}
+	if p.matchIdentCI("PASSWORD") {
+		if p.cur.Type == '=' {
+			p.advance()
+		}
+		pwd := p.consumeAnyIdent()
+		return "PASSWORD = " + pwd
+	}
+	if p.matchIdentCI("SYMMETRIC") {
+		p.match(kwKEY)
+		name, _ := p.parseIdentifier()
+		return "SYMMETRIC KEY " + name
+	}
+	if p.matchIdentCI("ASYMMETRIC") {
+		p.match(kwKEY)
+		name, _ := p.parseIdentifier()
+		return "ASYMMETRIC KEY " + name
+	}
+	if p.matchIdentCI("SERVICE") {
+		// SERVICE MASTER KEY
+		p.matchIdentCI("MASTER")
+		p.match(kwKEY)
+		return "SERVICE MASTER KEY"
+	}
+	if p.matchIdentCI("SERVER") {
+		// SERVER CERTIFICATE name or SERVER ASYMMETRIC KEY name
+		if p.matchIdentCI("CERTIFICATE") {
+			name, _ := p.parseIdentifier()
+			return "SERVER CERTIFICATE " + name
+		}
+		if p.matchIdentCI("ASYMMETRIC") {
+			p.match(kwKEY)
+			name, _ := p.parseIdentifier()
+			return "SERVER ASYMMETRIC KEY " + name
+		}
+	}
+	return ""
 }
 
 // parseSecurityKeyStmtColumn parses CREATE/ALTER/DROP COLUMN { ENCRYPTION KEY | MASTER KEY }.
@@ -123,7 +347,7 @@ func (p *Parser) parseSecurityKeyStmtColumn(action string) *nodes.SecurityKeyStm
 	stmt.Name = name
 
 	// For ALTER COLUMN ENCRYPTION KEY, handle ADD/DROP VALUE specially
-	// because DROP is a statement-start keyword that would cause skipSecurityKeyOptions to stop.
+	// because DROP is a statement-start keyword that would cause parseSecurityKeyOptions to stop.
 	if action == "ALTER" && stmt.ObjectType == "COLUMN ENCRYPTION KEY" {
 		// Consume ADD VALUE or DROP VALUE manually before skipping options
 		var buf strings.Builder
@@ -142,7 +366,7 @@ func (p *Parser) parseSecurityKeyStmtColumn(action string) *nodes.SecurityKeyStm
 			p.advance()
 		}
 		// Now consume the rest (parenthesized options)
-		p.skipSecurityKeyOptions(stmt)
+		p.parseSecurityKeyOptions(stmt)
 		// Prepend the ADD/DROP VALUE to the options
 		if buf.Len() > 0 && stmt.Options != nil {
 			existing := stmt.Options.Items[0].(*nodes.String).Str
@@ -152,7 +376,7 @@ func (p *Parser) parseSecurityKeyStmtColumn(action string) *nodes.SecurityKeyStm
 		}
 	} else {
 		// Consume remaining tokens as options
-		p.skipSecurityKeyOptions(stmt)
+		p.parseSecurityKeyOptions(stmt)
 	}
 
 	stmt.Loc.End = p.pos()
@@ -214,7 +438,7 @@ func (p *Parser) parseSecurityKeyStmtDatabaseEncryption(action string) *nodes.Se
 	}
 
 	// Consume remaining tokens as options
-	p.skipSecurityKeyOptions(stmt)
+	p.parseSecurityKeyOptions(stmt)
 
 	stmt.Loc.End = p.pos()
 	return stmt
@@ -239,7 +463,7 @@ func (p *Parser) parseOpenSymmetricKeyStmt() *nodes.SecurityKeyStmt {
 	name, _ := p.parseIdentifier()
 	stmt.Name = name
 
-	p.skipSecurityKeyOptions(stmt)
+	p.parseSecurityKeyOptions(stmt)
 
 	stmt.Loc.End = p.pos()
 	return stmt
@@ -290,7 +514,7 @@ func (p *Parser) parseBackupCertificateStmt() *nodes.SecurityKeyStmt {
 		stmt.ObjectType = "MASTER KEY"
 	}
 
-	p.skipSecurityKeyOptions(stmt)
+	p.parseSecurityKeyOptions(stmt)
 
 	stmt.Loc.End = p.pos()
 	return stmt
@@ -311,7 +535,7 @@ func (p *Parser) parseOpenMasterKeyStmt() *nodes.SecurityKeyStmt {
 		p.match(kwKEY)
 	}
 
-	p.skipSecurityKeyOptions(stmt)
+	p.parseSecurityKeyOptions(stmt)
 	stmt.Loc.End = p.pos()
 	return stmt
 }
@@ -350,12 +574,12 @@ func (p *Parser) parseRestoreMasterKeyStmt() *nodes.SecurityKeyStmt {
 		p.match(kwKEY)
 	}
 
-	p.skipSecurityKeyOptions(stmt)
+	p.parseSecurityKeyOptions(stmt)
 	stmt.Loc.End = p.pos()
 	return stmt
 }
 
-// skipSecurityKeyOptions consumes remaining tokens until a statement boundary,
+// parseSecurityKeyOptions consumes remaining tokens until a statement boundary,
 // using structured key-value parsing when possible.
 //
 // Security key statements use several patterns:
@@ -368,7 +592,7 @@ func (p *Parser) parseRestoreMasterKeyStmt() *nodes.SecurityKeyStmt {
 //   - TO FILE = '...'
 //
 // We parse these as alternating name/value pairs in a List of String nodes.
-func (p *Parser) skipSecurityKeyOptions(stmt *nodes.SecurityKeyStmt) {
+func (p *Parser) parseSecurityKeyOptions(stmt *nodes.SecurityKeyStmt) {
 	var items []nodes.Node
 	depth := 0
 

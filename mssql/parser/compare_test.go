@@ -9823,3 +9823,595 @@ func TestParseBeginConversationTimer(t *testing.T) {
 		}
 	})
 }
+
+// TestParseSecurityKeyStructuredOptions tests batch 98: structured security key option parsing.
+func TestParseSecurityKeyStructuredOptions(t *testing.T) {
+	// ---- SYMMETRIC KEY ----
+
+	t.Run("symmetric_key_structured_create_full", func(t *testing.T) {
+		sql := `CREATE SYMMETRIC KEY MySymKey
+			AUTHORIZATION dbo
+			WITH ALGORITHM = AES_256, KEY_SOURCE = 'my pass phrase', IDENTITY_VALUE = 'my identity'
+			ENCRYPTION BY CERTIFICATE MyCert`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "CREATE" {
+			t.Errorf("expected CREATE, got %q", stmt.Action)
+		}
+		if stmt.ObjectType != "SYMMETRIC KEY" {
+			t.Errorf("expected SYMMETRIC KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Name != "MySymKey" {
+			t.Errorf("expected name MySymKey, got %q", stmt.Name)
+		}
+		if stmt.Options == nil || stmt.Options.Len() < 3 {
+			t.Fatalf("expected at least 3 options, got %d", stmt.Options.Len())
+		}
+	})
+
+	t.Run("symmetric_key_structured_create_password", func(t *testing.T) {
+		sql := `CREATE SYMMETRIC KEY TempKey
+			WITH ALGORITHM = AES_128
+			ENCRYPTION BY PASSWORD = 'StrongPass123!'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "SYMMETRIC KEY" {
+			t.Errorf("expected SYMMETRIC KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("symmetric_key_structured_create_from_provider", func(t *testing.T) {
+		sql := `CREATE SYMMETRIC KEY MyEKMKey
+			FROM PROVIDER MyEKMProvider
+			WITH PROVIDER_KEY_NAME = 'KeyInEKM', CREATION_DISPOSITION = OPEN_EXISTING
+			ENCRYPTION BY PASSWORD = 'pass123'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "SYMMETRIC KEY" {
+			t.Errorf("expected SYMMETRIC KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("symmetric_key_structured_create_multi_encryption", func(t *testing.T) {
+		sql := `CREATE SYMMETRIC KEY MultiEncKey
+			WITH ALGORITHM = AES_256
+			ENCRYPTION BY CERTIFICATE MyCert, PASSWORD = 'pass123', ASYMMETRIC KEY MyAsymKey`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "SYMMETRIC KEY" {
+			t.Errorf("expected SYMMETRIC KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("symmetric_key_structured_alter_add", func(t *testing.T) {
+		sql := `ALTER SYMMETRIC KEY MySymKey ADD ENCRYPTION BY CERTIFICATE NewCert`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "ALTER" {
+			t.Errorf("expected ALTER, got %q", stmt.Action)
+		}
+		if stmt.ObjectType != "SYMMETRIC KEY" {
+			t.Errorf("expected SYMMETRIC KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("symmetric_key_structured_alter_drop", func(t *testing.T) {
+		sql := `ALTER SYMMETRIC KEY MySymKey DROP ENCRYPTION BY PASSWORD = 'OldPass'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "ALTER" {
+			t.Errorf("expected ALTER, got %q", stmt.Action)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	// ---- ASYMMETRIC KEY ----
+
+	t.Run("asymmetric_key_structured_create_algorithm", func(t *testing.T) {
+		sql := `CREATE ASYMMETRIC KEY MyAsymKey
+			WITH ALGORITHM = RSA_2048
+			ENCRYPTION BY PASSWORD = 'StrongPass!'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "ASYMMETRIC KEY" {
+			t.Errorf("expected ASYMMETRIC KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("asymmetric_key_structured_create_from_file", func(t *testing.T) {
+		sql := `CREATE ASYMMETRIC KEY FileKey
+			AUTHORIZATION dbo
+			FROM FILE = 'c:\keys\mykey.snk'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "ASYMMETRIC KEY" {
+			t.Errorf("expected ASYMMETRIC KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("asymmetric_key_structured_create_from_assembly", func(t *testing.T) {
+		sql := `CREATE ASYMMETRIC KEY AsmKey FROM ASSEMBLY MyAssembly`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "ASYMMETRIC KEY" {
+			t.Errorf("expected ASYMMETRIC KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("asymmetric_key_structured_create_from_provider", func(t *testing.T) {
+		sql := `CREATE ASYMMETRIC KEY EKMKey
+			FROM PROVIDER MyEKMProvider
+			WITH ALGORITHM = RSA_2048, PROVIDER_KEY_NAME = 'key1', CREATION_DISPOSITION = CREATE_NEW`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "ASYMMETRIC KEY" {
+			t.Errorf("expected ASYMMETRIC KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("asymmetric_key_structured_create_executable_file", func(t *testing.T) {
+		sql := `CREATE ASYMMETRIC KEY ExeKey FROM EXECUTABLE FILE = 'c:\keys\mydll.dll'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "ASYMMETRIC KEY" {
+			t.Errorf("expected ASYMMETRIC KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	// ---- CERTIFICATE ----
+
+	t.Run("certificate_structured_create_self_signed", func(t *testing.T) {
+		sql := `CREATE CERTIFICATE MyCert
+			ENCRYPTION BY PASSWORD = 'CertPass123!'
+			WITH SUBJECT = 'Test Certificate',
+			START_DATE = '2024-01-01', EXPIRY_DATE = '2025-12-31'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "CERTIFICATE" {
+			t.Errorf("expected CERTIFICATE, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil || stmt.Options.Len() < 3 {
+			t.Fatalf("expected at least 3 options, got %d", stmt.Options.Len())
+		}
+	})
+
+	t.Run("certificate_structured_create_from_file", func(t *testing.T) {
+		sql := `CREATE CERTIFICATE FileCert
+			FROM FILE = 'c:\certs\mycert.cer'
+			WITH PRIVATE KEY (FILE = 'c:\certs\mykey.pvk', DECRYPTION BY PASSWORD = 'oldpass', ENCRYPTION BY PASSWORD = 'newpass')`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "CERTIFICATE" {
+			t.Errorf("expected CERTIFICATE, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("certificate_structured_create_from_assembly", func(t *testing.T) {
+		sql := `CREATE CERTIFICATE AsmCert FROM ASSEMBLY MySignedAssembly`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "CERTIFICATE" {
+			t.Errorf("expected CERTIFICATE, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("certificate_structured_active_for_begin_dialog", func(t *testing.T) {
+		sql := `CREATE CERTIFICATE BrokerCert
+			WITH SUBJECT = 'Broker Certificate'
+			ACTIVE FOR BEGIN_DIALOG = ON`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "CERTIFICATE" {
+			t.Errorf("expected CERTIFICATE, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("certificate_structured_authorization", func(t *testing.T) {
+		sql := `CREATE CERTIFICATE OwnedCert
+			AUTHORIZATION dbo
+			WITH SUBJECT = 'Owned Certificate'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "CERTIFICATE" {
+			t.Errorf("expected CERTIFICATE, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	// ---- CREDENTIAL ----
+
+	t.Run("credential_structured_create", func(t *testing.T) {
+		sql := `CREATE CREDENTIAL MyCred
+			WITH IDENTITY = 'my_user', SECRET = 'my_secret'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "CREDENTIAL" {
+			t.Errorf("expected CREDENTIAL, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil || stmt.Options.Len() < 2 {
+			t.Fatalf("expected at least 2 options, got %d", stmt.Options.Len())
+		}
+	})
+
+	t.Run("credential_structured_create_with_provider", func(t *testing.T) {
+		sql := `CREATE CREDENTIAL EKMCred
+			WITH IDENTITY = 'User1OnEKM', SECRET = 'secretpass'
+			FOR CRYPTOGRAPHIC PROVIDER MyEKMProvider`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "CREDENTIAL" {
+			t.Errorf("expected CREDENTIAL, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("credential_structured_create_identity_only", func(t *testing.T) {
+		sql := `CREATE CREDENTIAL SimpleCred WITH IDENTITY = 'Managed Identity'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "CREDENTIAL" {
+			t.Errorf("expected CREDENTIAL, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	// ---- MASTER KEY ----
+
+	t.Run("master_key_structured_create", func(t *testing.T) {
+		sql := `CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'StrongMasterPass123!'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "MASTER KEY" {
+			t.Errorf("expected MASTER KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Action != "CREATE" {
+			t.Errorf("expected CREATE, got %q", stmt.Action)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("master_key_structured_alter_regenerate", func(t *testing.T) {
+		sql := `ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = 'NewPass123!'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "ALTER" {
+			t.Errorf("expected ALTER, got %q", stmt.Action)
+		}
+		if stmt.ObjectType != "MASTER KEY" {
+			t.Errorf("expected MASTER KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("master_key_structured_alter_force_regenerate", func(t *testing.T) {
+		sql := `ALTER MASTER KEY FORCE REGENERATE WITH ENCRYPTION BY PASSWORD = 'ForcePass!'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "ALTER" {
+			t.Errorf("expected ALTER, got %q", stmt.Action)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("master_key_structured_alter_add_encryption_smk", func(t *testing.T) {
+		sql := `ALTER MASTER KEY ADD ENCRYPTION BY SERVICE MASTER KEY`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "ALTER" {
+			t.Errorf("expected ALTER, got %q", stmt.Action)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("master_key_structured_alter_drop_encryption_password", func(t *testing.T) {
+		sql := `ALTER MASTER KEY DROP ENCRYPTION BY PASSWORD = 'OldPass123!'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "ALTER" {
+			t.Errorf("expected ALTER, got %q", stmt.Action)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	// ---- SERVICE MASTER KEY ----
+
+	t.Run("service_master_key_alter_regenerate", func(t *testing.T) {
+		sql := `ALTER SERVICE MASTER KEY REGENERATE`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "ALTER" {
+			t.Errorf("expected ALTER, got %q", stmt.Action)
+		}
+		if stmt.ObjectType != "SERVICE MASTER KEY" {
+			t.Errorf("expected SERVICE MASTER KEY, got %q", stmt.ObjectType)
+		}
+	})
+
+	t.Run("service_master_key_alter_force_regenerate", func(t *testing.T) {
+		sql := `ALTER SERVICE MASTER KEY FORCE REGENERATE`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "SERVICE MASTER KEY" {
+			t.Errorf("expected SERVICE MASTER KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("service_master_key_backup", func(t *testing.T) {
+		sql := `BACKUP SERVICE MASTER KEY TO FILE = 'c:\backup\smk.bak' ENCRYPTION BY PASSWORD = 'BackupPass'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "BACKUP" {
+			t.Errorf("expected BACKUP, got %q", stmt.Action)
+		}
+		if stmt.ObjectType != "SERVICE MASTER KEY" {
+			t.Errorf("expected SERVICE MASTER KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("service_master_key_restore", func(t *testing.T) {
+		sql := `RESTORE SERVICE MASTER KEY FROM FILE = 'c:\backup\smk.bak' DECRYPTION BY PASSWORD = 'RestorePass'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "RESTORE" {
+			t.Errorf("expected RESTORE, got %q", stmt.Action)
+		}
+		if stmt.ObjectType != "SERVICE MASTER KEY" {
+			t.Errorf("expected SERVICE MASTER KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("service_master_key_restore_force", func(t *testing.T) {
+		sql := `RESTORE SERVICE MASTER KEY FROM FILE = 'c:\backup\smk.bak' DECRYPTION BY PASSWORD = 'RestorePass' FORCE`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "RESTORE" {
+			t.Errorf("expected RESTORE, got %q", stmt.Action)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	// ---- OPEN/CLOSE/BACKUP ----
+
+	t.Run("open_symmetric_key_structured", func(t *testing.T) {
+		sql := `OPEN SYMMETRIC KEY MySymKey DECRYPTION BY CERTIFICATE MyCert`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "OPEN" {
+			t.Errorf("expected OPEN, got %q", stmt.Action)
+		}
+		if stmt.ObjectType != "SYMMETRIC KEY" {
+			t.Errorf("expected SYMMETRIC KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("open_symmetric_key_password", func(t *testing.T) {
+		sql := `OPEN SYMMETRIC KEY MySymKey DECRYPTION BY PASSWORD = 'MyPassword'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "OPEN" {
+			t.Errorf("expected OPEN, got %q", stmt.Action)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("open_master_key_structured", func(t *testing.T) {
+		sql := `OPEN MASTER KEY DECRYPTION BY PASSWORD = 'MasterPass'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "OPEN" {
+			t.Errorf("expected OPEN, got %q", stmt.Action)
+		}
+		if stmt.ObjectType != "MASTER KEY" {
+			t.Errorf("expected MASTER KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("backup_certificate_structured", func(t *testing.T) {
+		sql := `BACKUP CERTIFICATE MyCert TO FILE = 'c:\certs\mycert.cer'
+			WITH PRIVATE KEY (FILE = 'c:\certs\mykey.pvk', ENCRYPTION BY PASSWORD = 'ExportPass')`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "BACKUP" {
+			t.Errorf("expected BACKUP, got %q", stmt.Action)
+		}
+		if stmt.ObjectType != "CERTIFICATE" {
+			t.Errorf("expected CERTIFICATE, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("backup_master_key_structured", func(t *testing.T) {
+		sql := `BACKUP MASTER KEY TO FILE = 'c:\backup\masterkey.bak' ENCRYPTION BY PASSWORD = 'BackupMKPass'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "BACKUP" {
+			t.Errorf("expected BACKUP, got %q", stmt.Action)
+		}
+		if stmt.ObjectType != "MASTER KEY" {
+			t.Errorf("expected MASTER KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("restore_master_key_structured", func(t *testing.T) {
+		sql := `RESTORE MASTER KEY FROM FILE = 'c:\backup\masterkey.bak'
+			DECRYPTION BY PASSWORD = 'FilePass'
+			ENCRYPTION BY PASSWORD = 'NewMasterPass'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "RESTORE" {
+			t.Errorf("expected RESTORE, got %q", stmt.Action)
+		}
+		if stmt.ObjectType != "MASTER KEY" {
+			t.Errorf("expected MASTER KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	// ---- DATABASE ENCRYPTION KEY / DATABASE SCOPED CREDENTIAL ----
+
+	t.Run("database_encryption_key_create", func(t *testing.T) {
+		sql := `CREATE DATABASE ENCRYPTION KEY
+			WITH ALGORITHM = AES_256
+			ENCRYPTION BY SERVER CERTIFICATE MyCert`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "DATABASE ENCRYPTION KEY" {
+			t.Errorf("expected DATABASE ENCRYPTION KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("database_scoped_credential_create", func(t *testing.T) {
+		sql := `CREATE DATABASE SCOPED CREDENTIAL MyDBCred
+			WITH IDENTITY = 'db_user', SECRET = 'db_secret'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "DATABASE SCOPED CREDENTIAL" {
+			t.Errorf("expected DATABASE SCOPED CREDENTIAL, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	// ---- CRYPTOGRAPHIC PROVIDER ----
+
+	t.Run("cryptographic_provider_create", func(t *testing.T) {
+		sql := `CREATE CRYPTOGRAPHIC PROVIDER MyProvider FROM FILE = 'c:\ekm\provider.dll'`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "CRYPTOGRAPHIC PROVIDER" {
+			t.Errorf("expected CRYPTOGRAPHIC PROVIDER, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	// ---- COLUMN ENCRYPTION KEY / COLUMN MASTER KEY ----
+
+	t.Run("column_encryption_key_create", func(t *testing.T) {
+		sql := `CREATE COLUMN ENCRYPTION KEY MyCEK
+			WITH VALUES
+			(COLUMN_MASTER_KEY = MyCMK, ALGORITHM = 'RSA_OAEP', ENCRYPTED_VALUE = 0x0102030405)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "COLUMN ENCRYPTION KEY" {
+			t.Errorf("expected COLUMN ENCRYPTION KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("column_master_key_create", func(t *testing.T) {
+		sql := `CREATE COLUMN MASTER KEY MyCMK
+			WITH (KEY_STORE_PROVIDER_NAME = 'MSSQL_CERTIFICATE_STORE', KEY_PATH = 'Current User/Personal/my_cert')`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.ObjectType != "COLUMN MASTER KEY" {
+			t.Errorf("expected COLUMN MASTER KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	t.Run("alter_column_encryption_key_add", func(t *testing.T) {
+		sql := `ALTER COLUMN ENCRYPTION KEY MyCEK
+			ADD VALUE (COLUMN_MASTER_KEY = NewCMK, ALGORITHM = 'RSA_OAEP', ENCRYPTED_VALUE = 0xABCD)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "ALTER" {
+			t.Errorf("expected ALTER, got %q", stmt.Action)
+		}
+		if stmt.ObjectType != "COLUMN ENCRYPTION KEY" {
+			t.Errorf("expected COLUMN ENCRYPTION KEY, got %q", stmt.ObjectType)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+}

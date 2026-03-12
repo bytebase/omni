@@ -321,7 +321,7 @@ func (p *Parser) parseAlterServiceMasterKeyStmt() *nodes.SecurityKeyStmt {
 		Loc:        nodes.Loc{Start: loc},
 	}
 
-	p.skipSecurityKeyOptions(stmt)
+	p.parseSecurityKeyOptions(stmt)
 
 	stmt.Loc.End = p.pos()
 	return stmt
@@ -342,7 +342,7 @@ func (p *Parser) parseBackupServiceMasterKeyStmt() *nodes.SecurityKeyStmt {
 		Loc:        nodes.Loc{Start: loc},
 	}
 
-	p.skipSecurityKeyOptions(stmt)
+	p.parseSecurityKeyOptions(stmt)
 
 	stmt.Loc.End = p.pos()
 	return stmt
@@ -363,7 +363,7 @@ func (p *Parser) parseRestoreServiceMasterKeyStmt() *nodes.SecurityKeyStmt {
 		Loc:        nodes.Loc{Start: loc},
 	}
 
-	p.skipSecurityKeyOptions(stmt)
+	p.parseSecurityKeyOptions(stmt)
 
 	stmt.Loc.End = p.pos()
 	return stmt

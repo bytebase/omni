@@ -143,7 +143,7 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 	case kwOPEN:
 		// Check for OPEN SYMMETRIC KEY / OPEN MASTER KEY vs OPEN cursor
 		next := p.peekNext()
-		if next.Type >= kwADD && matchesKeywordCI(next.Str, "SYMMETRIC") {
+		if next.Str != "" && matchesKeywordCI(next.Str, "SYMMETRIC") {
 			return p.parseOpenSymmetricKeyStmt()
 		}
 		if next.Str != "" && matchesKeywordCI(next.Str, "MASTER") {
@@ -863,7 +863,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 					}
 					name, _ := p.parseIdentifier()
 					stmtKey.Name = name
-					p.skipSecurityKeyOptions(stmtKey)
+					p.parseSecurityKeyOptions(stmtKey)
 					stmtKey.Loc.End = p.pos()
 					return stmtKey
 				}

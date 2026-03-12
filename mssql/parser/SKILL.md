@@ -10,13 +10,13 @@ You are implementing a recursive descent T-SQL (SQL Server) parser.
 
 ## Your Task
 
-1. Read `mssql/parser/PROGRESS.json`
+1. Read `mssql/parser/PROGRESS_SUMMARY.json` (lightweight version — done batches are compressed, only pending/failed/in_progress have full detail)
 2. Pick the next batch to work on:
    - If any batch has `"status": "in_progress"`, **resume that batch** (it was interrupted mid-work -- read the existing code in its target file and continue from where it left off)
    - Otherwise, find the first batch with `"status": "pending"` whose dependencies (by id) are all `"done"`
    - If any batch has `"status": "failed"`, **retry it** (reset to `"in_progress"` and try again)
 3. Implement that batch following the steps below
-4. Update `PROGRESS.json`:
+4. Update `mssql/parser/PROGRESS.json` (the full file, NOT the summary):
    - Set `"in_progress"` before starting work
    - Set `"done"` only after `go build` and `go test` pass
    - Set `"failed"` with `"error"` if you cannot make tests pass

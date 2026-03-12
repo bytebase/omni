@@ -2218,8 +2218,8 @@
       "id": 98,
       "name": "security_key_structured_options",
       "file": "security_keys.go",
-      "status": "pending",
-      "description": "Fix batch 90 gap: skipSecurityKeyOptions() is still called from 13 sites across security_keys.go and server.go. Replace remaining calls with typed AST fields per key type: SYMMETRIC KEY (KEY_SOURCE, ALGORITHM, IDENTITY_VALUE, PROVIDER_KEY_NAME, ENCRYPTION BY), ASYMMETRIC KEY (ALGORITHM, FILE, EXECUTABLE_FILE, ASSEMBLY, PROVIDER_KEY_NAME), CERTIFICATE (WITH SUBJECT, EXPIRY_DATE, START_DATE, ENCRYPTION BY PASSWORD), CREDENTIAL (WITH IDENTITY, SECRET), MASTER KEY (ENCRYPTION BY PASSWORD), SERVICE MASTER KEY (FORCE).",
+      "status": "done",
+      "description": "Fix batch 90 gap: replaced generic parseSecurityKeyOptions with type-specific parsers for ALTER SYMMETRIC KEY (ADD/DROP ENCRYPTION BY) and ALTER MASTER KEY ([FORCE] REGENERATE, ADD/DROP ENCRYPTION BY). Fixed OPEN SYMMETRIC KEY dispatch (identifier check). Added parseEncryptingMechanism helper for CERTIFICATE/PASSWORD/SYMMETRIC KEY/ASYMMETRIC KEY/SERVICE MASTER KEY mechanisms. Full BNF comments from official docs.",
       "rules": [
         "parseSymmetricKeyFullOptions",
         "parseAsymmetricKeyFullOptions",
