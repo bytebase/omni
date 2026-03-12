@@ -1182,7 +1182,7 @@
       "id": 43,
       "name": "cte_search_cycle",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 7 gap: parseCommonTableExpr skips opt_search_clause and opt_cycle_clause (lines 561-562 comment 'rarely used, skip for now'). Must implement SEARCH BREADTH/DEPTH FIRST BY column_list SET column and CYCLE column_list SET column TO value DEFAULT value USING column. Ref: https://www.postgresql.org/docs/current/queries-with.html",
       "rules": [
         "opt_search_clause",

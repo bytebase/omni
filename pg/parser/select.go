@@ -558,8 +558,10 @@ func (p *Parser) parseCommonTableExpr() *nodes.CommonTableExpr {
 	cte.Ctequery = p.parseSelectNoParens()
 	p.expect(')')
 
-	// opt_search_clause (rarely used, skip for now)
-	// opt_cycle_clause (rarely used, skip for now)
+	// opt_search_clause
+	cte.SearchClause = p.parseOptSearchClause()
+	// opt_cycle_clause
+	cte.CycleClause = p.parseOptCycleClause()
 
 	return cte
 }
@@ -579,6 +581,88 @@ func (p *Parser) parseOptMaterialized() nodes.CTEMaterialize {
 		}
 	}
 	return nodes.CTEMaterializeDefault
+}
+
+// parseOptSearchClause parses an optional SEARCH clause in a recursive CTE.
+//
+// Ref: https://www.postgresql.org/docs/17/queries-with.html
+//
+//	opt_search_clause:
+//	    SEARCH DEPTH FIRST_P BY columnList SET ColId
+//	    | SEARCH BREADTH FIRST_P BY columnList SET ColId
+//	    | /* EMPTY */
+func (p *Parser) parseOptSearchClause() nodes.Node {
+	if p.cur.Type != SEARCH {
+		return nil
+	}
+	p.advance() // consume SEARCH
+
+	breadthFirst := false
+	switch p.cur.Type {
+	case DEPTH:
+		p.advance()
+		breadthFirst = false
+	case BREADTH:
+		p.advance()
+		breadthFirst = true
+	}
+	p.expect(FIRST_P)
+	p.expect(BY)
+	colList := p.parseColumnList()
+	p.expect(SET)
+	seqCol, _ := p.parseColId()
+
+	return &nodes.CTESearchClause{
+		SearchColList:      colList,
+		SearchBreadthFirst: breadthFirst,
+		SearchSeqColumn:    seqCol,
+		Location:           -1,
+	}
+}
+
+// parseOptCycleClause parses an optional CYCLE clause in a recursive CTE.
+//
+// Ref: https://www.postgresql.org/docs/17/queries-with.html
+//
+//	opt_cycle_clause:
+//	    CYCLE columnList SET ColId TO AexprConst DEFAULT AexprConst USING ColId
+//	    | CYCLE columnList SET ColId USING ColId
+//	    | /* EMPTY */
+func (p *Parser) parseOptCycleClause() nodes.Node {
+	if p.cur.Type != CYCLE {
+		return nil
+	}
+	p.advance() // consume CYCLE
+
+	colList := p.parseColumnList()
+	p.expect(SET)
+	markCol, _ := p.parseColId()
+
+	var markValue, markDefault nodes.Node
+
+	if p.cur.Type == TO {
+		// CYCLE ... SET col TO val DEFAULT val USING col
+		p.advance() // consume TO
+		markValue = p.parseCExpr()
+		p.expect(DEFAULT)
+		markDefault = p.parseCExpr()
+	} else {
+		// CYCLE ... SET col USING col (implicit TRUE/FALSE)
+		markValue = makeBoolAConst(1)
+		markDefault = makeBoolAConst(0)
+	}
+
+	p.expect(USING)
+	pathCol, _ := p.parseColId()
+
+	return &nodes.CTECycleClause{
+		CycleColList:     colList,
+		CycleMarkColumn:  markCol,
+		CycleMarkValue:   markValue,
+		CycleMarkDefault: markDefault,
+		CyclePathColumn:  pathCol,
+		Location:         -1,
+	}
 }
 
 // ---------------------------------------------------------------------------

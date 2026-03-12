@@ -2959,3 +2959,37 @@ func TestCompareJsonTableFrom(t *testing.T) {
 		})
 	}
 }
+
+func TestCompareCteSearch(t *testing.T) {
+	tests := []string{
+		// SEARCH DEPTH FIRST
+		"WITH RECURSIVE t(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM t WHERE n < 10) SEARCH DEPTH FIRST BY n SET ordercol SELECT * FROM t",
+		// SEARCH BREADTH FIRST
+		"WITH RECURSIVE t(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM t WHERE n < 10) SEARCH BREADTH FIRST BY n SET ordercol SELECT * FROM t",
+		// SEARCH with multiple columns
+		"WITH RECURSIVE t(a, b) AS (SELECT 1, 2 UNION ALL SELECT a + 1, b FROM t WHERE a < 10) SEARCH DEPTH FIRST BY a, b SET ordercol SELECT * FROM t",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+func TestCompareCteSearchCycle(t *testing.T) {
+	tests := []string{
+		// CYCLE with explicit mark values
+		"WITH RECURSIVE t(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM t WHERE n < 10) CYCLE n SET is_cycle TO true DEFAULT false USING path SELECT * FROM t",
+		// CYCLE with implicit mark values (short form)
+		"WITH RECURSIVE t(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM t WHERE n < 10) CYCLE n SET is_cycle USING path SELECT * FROM t",
+		// CYCLE with multiple columns
+		"WITH RECURSIVE t(a, b) AS (SELECT 1, 2 UNION ALL SELECT a + 1, b FROM t WHERE a < 10) CYCLE a, b SET is_cycle TO 'Y' DEFAULT 'N' USING path SELECT * FROM t",
+		// SEARCH + CYCLE combined
+		"WITH RECURSIVE t(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM t WHERE n < 10) SEARCH DEPTH FIRST BY n SET ordercol CYCLE n SET is_cycle USING path SELECT * FROM t",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
