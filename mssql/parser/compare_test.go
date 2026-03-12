@@ -5975,3 +5975,134 @@ func TestParseDropAvailabilityGroup(t *testing.T) {
 		})
 	}
 }
+
+// TestParseCreateDefault tests batch 67: CREATE DEFAULT.
+func TestParseCreateDefault(t *testing.T) {
+	tests := []string{
+		// Basic CREATE DEFAULT with string constant
+		"CREATE DEFAULT phonedflt AS 'unknown'",
+		// CREATE DEFAULT with numeric constant
+		"CREATE DEFAULT zero_default AS 0",
+		// CREATE DEFAULT with schema-qualified name
+		"CREATE DEFAULT dbo.datedflt AS GETDATE()",
+		// CREATE DEFAULT with N-string
+		"CREATE DEFAULT ndflt AS N'unknown'",
+		// CREATE DEFAULT with negative number
+		"CREATE DEFAULT neg_default AS -1",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.SecurityStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", sql, result.Items[0])
+			}
+			if stmt.Action != "CREATE" {
+				t.Errorf("Parse(%q): Action = %q, want CREATE", sql, stmt.Action)
+			}
+			if stmt.ObjectType != "DEFAULT" {
+				t.Errorf("Parse(%q): ObjectType = %q, want DEFAULT", sql, stmt.ObjectType)
+			}
+			checkLocation(t, sql, "SecurityStmt", stmt.Loc)
+		})
+	}
+}
+
+// TestParseCreateRule tests batch 67: CREATE RULE.
+func TestParseCreateRule(t *testing.T) {
+	tests := []string{
+		// Range rule
+		"CREATE RULE range_rule AS @range >= 1000 AND @range < 20000",
+		// List rule
+		"CREATE RULE list_rule AS @list IN ('1389', '0736', '0877')",
+		// Pattern rule
+		"CREATE RULE pattern_rule AS @value LIKE '__-%[0-9]'",
+		// Schema-qualified name
+		"CREATE RULE dbo.positive_rule AS @val > 0",
+		// Simple comparison
+		"CREATE RULE min_rule AS @val >= 0",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.SecurityStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", sql, result.Items[0])
+			}
+			if stmt.Action != "CREATE" {
+				t.Errorf("Parse(%q): Action = %q, want CREATE", sql, stmt.Action)
+			}
+			if stmt.ObjectType != "RULE" {
+				t.Errorf("Parse(%q): ObjectType = %q, want RULE", sql, stmt.ObjectType)
+			}
+			checkLocation(t, sql, "SecurityStmt", stmt.Loc)
+		})
+	}
+}
+
+// TestParseAlterDatabaseScopedConfig tests batch 67: ALTER DATABASE SCOPED CONFIGURATION.
+func TestParseAlterDatabaseScopedConfig(t *testing.T) {
+	tests := []string{
+		// SET MAXDOP
+		"ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 4",
+		// SET ON/OFF option
+		"ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = ON",
+		// SET with PRIMARY value
+		"ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = PRIMARY",
+		// SET PARAMETER_SNIFFING
+		"ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = OFF",
+		// SET QUERY_OPTIMIZER_HOTFIXES
+		"ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = ON",
+		// FOR SECONDARY SET
+		"ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET MAXDOP = PRIMARY",
+		// CLEAR PROCEDURE_CACHE
+		"ALTER DATABASE SCOPED CONFIGURATION CLEAR PROCEDURE_CACHE",
+		// SET IDENTITY_CACHE
+		"ALTER DATABASE SCOPED CONFIGURATION SET IDENTITY_CACHE = OFF",
+		// SET OPTIMIZE_FOR_AD_HOC_WORKLOADS
+		"ALTER DATABASE SCOPED CONFIGURATION SET OPTIMIZE_FOR_AD_HOC_WORKLOADS = ON",
+		// SET ELEVATE_ONLINE
+		"ALTER DATABASE SCOPED CONFIGURATION SET ELEVATE_ONLINE = WHEN_SUPPORTED",
+		// SET ELEVATE_RESUMABLE
+		"ALTER DATABASE SCOPED CONFIGURATION SET ELEVATE_RESUMABLE = FAIL_UNSUPPORTED",
+		// SET BATCH_MODE_ON_ROWSTORE
+		"ALTER DATABASE SCOPED CONFIGURATION SET BATCH_MODE_ON_ROWSTORE = ON",
+		// SET PAUSED_RESUMABLE_INDEX_ABORT_DURATION_MINUTES
+		"ALTER DATABASE SCOPED CONFIGURATION SET PAUSED_RESUMABLE_INDEX_ABORT_DURATION_MINUTES = 60",
+		// SET VERBOSE_TRUNCATION_WARNINGS
+		"ALTER DATABASE SCOPED CONFIGURATION SET VERBOSE_TRUNCATION_WARNINGS = ON",
+		// SET LAST_QUERY_PLAN_STATS
+		"ALTER DATABASE SCOPED CONFIGURATION SET LAST_QUERY_PLAN_STATS = ON",
+		// SET LIGHTWEIGHT_QUERY_PROFILING
+		"ALTER DATABASE SCOPED CONFIGURATION SET LIGHTWEIGHT_QUERY_PROFILING = OFF",
+		// CLEAR PROCEDURE_CACHE with plan handle
+		"ALTER DATABASE SCOPED CONFIGURATION CLEAR PROCEDURE_CACHE 0x060006001ECA270E",
+		// SET LEDGER_DIGEST_STORAGE_ENDPOINT OFF
+		"ALTER DATABASE SCOPED CONFIGURATION SET LEDGER_DIGEST_STORAGE_ENDPOINT = OFF",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.SecurityStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", sql, result.Items[0])
+			}
+			if stmt.Action != "ALTER" {
+				t.Errorf("Parse(%q): Action = %q, want ALTER", sql, stmt.Action)
+			}
+			if stmt.ObjectType != "DATABASE SCOPED CONFIGURATION" {
+				t.Errorf("Parse(%q): ObjectType = %q, want DATABASE SCOPED CONFIGURATION", sql, stmt.ObjectType)
+			}
+			checkLocation(t, sql, "SecurityStmt", stmt.Loc)
+		})
+	}
+}

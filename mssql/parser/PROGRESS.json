@@ -1379,7 +1379,7 @@
       "id": 67,
       "name": "deprecated_misc",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE DEFAULT, CREATE RULE (deprecated but still valid T-SQL), ALTER DATABASE SCOPED CONFIGURATION",
       "rules": ["parseCreateDefaultStmt", "parseCreateRuleStmt", "parseAlterDatabaseScopedConfigStmt"],
       "depends_on": [1, 3],

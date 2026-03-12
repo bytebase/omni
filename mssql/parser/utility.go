@@ -455,6 +455,238 @@ func (p *Parser) parseTruncateStmt() *nodes.TruncateStmt {
 	return stmt
 }
 
+// parseCreateDefaultStmt parses a CREATE DEFAULT statement.
+// Caller has consumed CREATE DEFAULT.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-default-transact-sql
+//
+//	CREATE DEFAULT [ schema_name . ] default_name
+//	AS constant_expression [ ; ]
+func (p *Parser) parseCreateDefaultStmt() *nodes.SecurityStmt {
+	loc := p.pos()
+
+	stmt := &nodes.SecurityStmt{
+		Action:     "CREATE",
+		ObjectType: "DEFAULT",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	// [ schema_name . ] default_name
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
+		name := p.cur.Str
+		p.advance()
+		if p.cur.Type == '.' {
+			p.advance() // consume '.'
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
+				name = name + "." + p.cur.Str
+				p.advance()
+			}
+		}
+		stmt.Name = name
+	}
+
+	// AS constant_expression
+	var opts []nodes.Node
+	if p.cur.Type == kwAS {
+		p.advance() // consume AS
+		// Parse the expression that follows AS
+		expr := p.parseExpr()
+		if expr != nil {
+			opts = append(opts, &nodes.String{Str: "AS"})
+			opts = append(opts, expr)
+		}
+	}
+	if len(opts) > 0 {
+		stmt.Options = &nodes.List{Items: opts}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseCreateRuleStmt parses a CREATE RULE statement.
+// Caller has consumed CREATE RULE.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-rule-transact-sql
+//
+//	CREATE RULE [ schema_name . ] rule_name
+//	AS condition_expression [ ; ]
+func (p *Parser) parseCreateRuleStmt() *nodes.SecurityStmt {
+	loc := p.pos()
+
+	stmt := &nodes.SecurityStmt{
+		Action:     "CREATE",
+		ObjectType: "RULE",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	// [ schema_name . ] rule_name
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
+		name := p.cur.Str
+		p.advance()
+		if p.cur.Type == '.' {
+			p.advance() // consume '.'
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
+				name = name + "." + p.cur.Str
+				p.advance()
+			}
+		}
+		stmt.Name = name
+	}
+
+	// AS condition_expression
+	var opts []nodes.Node
+	if p.cur.Type == kwAS {
+		p.advance() // consume AS
+		expr := p.parseExpr()
+		if expr != nil {
+			opts = append(opts, &nodes.String{Str: "AS"})
+			opts = append(opts, expr)
+		}
+	}
+	if len(opts) > 0 {
+		stmt.Options = &nodes.List{Items: opts}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAlterDatabaseScopedConfigStmt parses ALTER DATABASE SCOPED CONFIGURATION.
+// Caller has consumed ALTER DATABASE SCOPED CONFIGURATION.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-database-scoped-configuration-transact-sql
+//
+//	ALTER DATABASE SCOPED CONFIGURATION
+//	{
+//	    { [ FOR SECONDARY ] SET <set_options> }
+//	}
+//	| CLEAR PROCEDURE_CACHE [plan_handle]
+//	| SET < set_options >
+//	[;]
+//
+//	< set_options > ::=
+//	{
+//	      ACCELERATED_PLAN_FORCING = { ON | OFF }
+//	    | ASYNC_STATS_UPDATE_WAIT_AT_LOW_PRIORITY = { ON | OFF }
+//	    | BATCH_MODE_ADAPTIVE_JOINS = { ON | OFF }
+//	    | BATCH_MODE_MEMORY_GRANT_FEEDBACK = { ON | OFF }
+//	    | BATCH_MODE_ON_ROWSTORE = { ON | OFF }
+//	    | CE_FEEDBACK = { ON | OFF }
+//	    | DEFERRED_COMPILATION_TV = { ON | OFF }
+//	    | DOP_FEEDBACK = { ON | OFF }
+//	    | ELEVATE_ONLINE = { OFF | WHEN_SUPPORTED | FAIL_UNSUPPORTED }
+//	    | ELEVATE_RESUMABLE = { OFF | WHEN_SUPPORTED | FAIL_UNSUPPORTED }
+//	    | EXEC_QUERY_STATS_FOR_SCALAR_FUNCTIONS = { ON | OFF }
+//	    | FORCE_SHOWPLAN_RUNTIME_PARAMETER_COLLECTION = { ON | OFF }
+//	    | FULLTEXT_INDEX_VERSION = <version>
+//	    | IDENTITY_CACHE = { ON | OFF }
+//	    | INTERLEAVED_EXECUTION_TVF = { ON | OFF }
+//	    | ISOLATE_SECURITY_POLICY_CARDINALITY = { ON | OFF }
+//	    | GLOBAL_TEMPORARY_TABLE_AUTO_DROP = { ON | OFF }
+//	    | LAST_QUERY_PLAN_STATS = { ON | OFF }
+//	    | LEDGER_DIGEST_STORAGE_ENDPOINT = { <endpoint URL string> | OFF }
+//	    | LEGACY_CARDINALITY_ESTIMATION = { ON | OFF | PRIMARY }
+//	    | LIGHTWEIGHT_QUERY_PROFILING = { ON | OFF }
+//	    | MAXDOP = { <value> | PRIMARY }
+//	    | MEMORY_GRANT_FEEDBACK_PERCENTILE_GRANT = { ON | OFF }
+//	    | MEMORY_GRANT_FEEDBACK_PERSISTENCE = { ON | OFF }
+//	    | OPTIMIZE_FOR_AD_HOC_WORKLOADS = { ON | OFF }
+//	    | OPTIMIZED_PLAN_FORCING = { ON | OFF }
+//	    | OPTIMIZED_SP_EXECUTESQL = { ON | OFF }
+//	    | OPTIONAL_PARAMETER_OPTIMIZATION = { ON | OFF }
+//	    | PARAMETER_SENSITIVE_PLAN_OPTIMIZATION = { ON | OFF }
+//	    | PARAMETER_SNIFFING = { ON | OFF | PRIMARY }
+//	    | PAUSED_RESUMABLE_INDEX_ABORT_DURATION_MINUTES = <time>
+//	    | QUERY_OPTIMIZER_HOTFIXES = { ON | OFF | PRIMARY }
+//	    | ROW_MODE_MEMORY_GRANT_FEEDBACK = { ON | OFF }
+//	    | TSQL_SCALAR_UDF_INLINING = { ON | OFF }
+//	    | VERBOSE_TRUNCATION_WARNINGS = { ON | OFF }
+//	    | XTP_PROCEDURE_EXECUTION_STATISTICS = { ON | OFF }
+//	    | XTP_QUERY_EXECUTION_STATISTICS = { ON | OFF }
+//	}
+func (p *Parser) parseAlterDatabaseScopedConfigStmt() *nodes.SecurityStmt {
+	loc := p.pos()
+
+	stmt := &nodes.SecurityStmt{
+		Action:     "ALTER",
+		ObjectType: "DATABASE SCOPED CONFIGURATION",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	var opts []nodes.Node
+
+	// CLEAR PROCEDURE_CACHE [plan_handle]
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CLEAR") {
+		p.advance() // consume CLEAR
+		optStr := "CLEAR"
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PROCEDURE_CACHE") {
+			optStr += " PROCEDURE_CACHE"
+			p.advance()
+		}
+		// Optional plan_handle (hex constant)
+		if p.cur.Type == tokICONST || p.cur.Type == tokSCONST || p.isIdentLike() {
+			optStr += " " + p.cur.Str
+			p.advance()
+		}
+		opts = append(opts, &nodes.String{Str: optStr})
+	} else {
+		// [ FOR SECONDARY ] SET option = value
+		forSecondary := false
+		if p.cur.Type == kwFOR {
+			next := p.peekNext()
+			if next.Str != "" && matchesKeywordCI(next.Str, "SECONDARY") {
+				p.advance() // consume FOR
+				p.advance() // consume SECONDARY
+				forSecondary = true
+			}
+		}
+		if forSecondary {
+			opts = append(opts, &nodes.String{Str: "FOR SECONDARY"})
+		}
+
+		if p.cur.Type == kwSET {
+			p.advance() // consume SET
+		}
+
+		// Parse SET option = value pairs
+		for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
+			if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+				key := strings.ToUpper(p.cur.Str)
+				p.advance()
+				if p.cur.Type == '=' {
+					p.advance() // consume '='
+					if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST ||
+						p.cur.Type == tokFCONST || p.cur.Type == kwON || p.cur.Type == kwOFF ||
+						p.cur.Type == kwNULL || p.cur.Type == kwPRIMARY {
+						val := strings.ToUpper(p.cur.Str)
+						if p.cur.Type == tokSCONST {
+							val = "'" + p.cur.Str + "'"
+						}
+						p.advance()
+						opts = append(opts, &nodes.String{Str: key + "=" + val})
+					} else {
+						opts = append(opts, &nodes.String{Str: key + "="})
+					}
+				} else {
+					opts = append(opts, &nodes.String{Str: key})
+				}
+			} else if p.cur.Type == ',' {
+				p.advance() // skip commas
+			} else {
+				break
+			}
+		}
+	}
+
+	if len(opts) > 0 {
+		stmt.Options = &nodes.List{Items: opts}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
 // parseEnableDisableTriggerStmt parses ENABLE TRIGGER or DISABLE TRIGGER.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/enable-trigger-transact-sql

@@ -342,6 +342,16 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 	}
 
 	switch p.cur.Type {
+	case kwDEFAULT:
+		p.advance() // consume DEFAULT
+		stmt := p.parseCreateDefaultStmt()
+		stmt.Loc.Start = loc
+		return stmt
+	case kwRULE:
+		p.advance() // consume RULE
+		stmt := p.parseCreateRuleStmt()
+		stmt.Loc.Start = loc
+		return stmt
 	case kwTABLE:
 		p.advance() // consume TABLE
 		stmt := p.parseCreateTableStmt()
@@ -823,8 +833,35 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 				stmt.Loc.Start = loc
 				return stmt
 			}
-			// ALTER DATABASE ENCRYPTION KEY / ALTER DATABASE SCOPED CREDENTIAL
-			if next.Str != "" && (matchesKeywordCI(next.Str, "ENCRYPTION") || matchesKeywordCI(next.Str, "SCOPED")) {
+			// ALTER DATABASE ENCRYPTION KEY / ALTER DATABASE SCOPED CREDENTIAL / ALTER DATABASE SCOPED CONFIGURATION
+			if next.Str != "" && matchesKeywordCI(next.Str, "SCOPED") {
+				// Peek further to distinguish SCOPED CREDENTIAL from SCOPED CONFIGURATION
+				p.advance() // consume DATABASE
+				p.advance() // consume SCOPED
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CONFIGURATION") {
+					p.advance() // consume CONFIGURATION
+					stmt := p.parseAlterDatabaseScopedConfigStmt()
+					stmt.Loc.Start = loc
+					return stmt
+				}
+				// Otherwise it's DATABASE SCOPED CREDENTIAL - reparse via existing handler
+				// At this point we've consumed DATABASE SCOPED, and cur is CREDENTIAL or similar
+				if p.matchIdentCI("CREDENTIAL") {
+					// Manually handle SCOPED CREDENTIAL
+					stmtKey := &nodes.SecurityKeyStmt{
+						Action:     "ALTER",
+						ObjectType: "DATABASE SCOPED CREDENTIAL",
+						Loc:        nodes.Loc{Start: loc},
+					}
+					name, _ := p.parseIdentifier()
+					stmtKey.Name = name
+					p.skipSecurityKeyOptions(stmtKey)
+					stmtKey.Loc.End = p.pos()
+					return stmtKey
+				}
+				return nil
+			}
+			if next.Str != "" && matchesKeywordCI(next.Str, "ENCRYPTION") {
 				p.advance() // consume DATABASE
 				stmt := p.parseSecurityKeyStmtDatabaseEncryption("ALTER")
 				stmt.Loc.Start = loc
