@@ -1069,12 +1069,15 @@ func (s *UnlockTablesStmt) stmtNode() {}
 
 // GrantStmt represents a GRANT statement.
 type GrantStmt struct {
-	Loc        Loc
-	Privileges []string
-	AllPriv    bool
-	On         *GrantTarget
-	To         []string
-	WithGrant  bool
+	Loc          Loc
+	Privileges   []string
+	AllPriv      bool
+	On           *GrantTarget
+	To           []string
+	WithGrant    bool
+	AsUser       string   // AS user (MySQL 8.0+ role context)
+	WithRoleType string   // DEFAULT, NONE, ALL, ALL EXCEPT, or "" (roles list)
+	WithRoles    []string // role names for WITH ROLE role, role, ...
 }
 
 func (s *GrantStmt) nodeTag()  {}

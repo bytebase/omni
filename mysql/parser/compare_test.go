@@ -7520,3 +7520,48 @@ func TestParseSetPasswordForUser(t *testing.T) {
 		})
 	}
 }
+
+func TestParseGrantAs(t *testing.T) {
+	tests := []string{
+		"GRANT SELECT ON db.* TO 'user1'@'localhost' AS 'admin'@'localhost'",
+		"GRANT INSERT ON db.t TO user1 AS admin",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseGrantAsWithRole(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE DEFAULT",
+			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_role_type DEFAULT}",
+		},
+		{
+			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE NONE",
+			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_role_type NONE}",
+		},
+		{
+			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE ALL",
+			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_role_type ALL}",
+		},
+		{
+			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE ALL EXCEPT role1, role2",
+			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_role_type ALL EXCEPT :with_roles role1, role2}",
+		},
+		{
+			sql:  "GRANT SELECT ON db.* TO user1 AS admin WITH ROLE role1, role2",
+			want: "{GRANT :loc 0 :privileges SELECT :on {GRANT_TARGET :loc 16 :name {TABLEREF :loc 16 :schema db :name *}} :to user1 :as admin :with_roles role1, role2}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}

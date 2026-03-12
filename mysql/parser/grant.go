@@ -92,6 +92,82 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		}
 	}
 
+	// [AS user [WITH ROLE {DEFAULT | NONE | ALL | ALL EXCEPT role [, role] ... | role [, role] ...}]]
+	if p.cur.Type == kwAS {
+		p.advance() // consume AS
+		// Parse user name
+		if p.cur.Type == tokSCONST {
+			stmt.AsUser = p.cur.Str
+			p.advance()
+		} else if p.isIdentToken() {
+			name, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			stmt.AsUser = name
+		}
+		// Optional @host
+		if p.cur.Type == tokIDENT && p.cur.Str == "@" {
+			p.advance()
+			if p.cur.Type == tokSCONST {
+				stmt.AsUser += "@" + p.cur.Str
+				p.advance()
+			} else if p.isIdentToken() {
+				host, _, _ := p.parseIdentifier()
+				stmt.AsUser += "@" + host
+			}
+		}
+
+		// [WITH ROLE ...]
+		if p.cur.Type == kwWITH {
+			p.advance() // consume WITH
+			if p.cur.Type == kwROLE {
+				p.advance() // consume ROLE
+				switch {
+				case p.cur.Type == kwDEFAULT:
+					stmt.WithRoleType = "DEFAULT"
+					p.advance()
+				case p.cur.Type == kwNONE:
+					stmt.WithRoleType = "NONE"
+					p.advance()
+				case p.cur.Type == kwALL:
+					p.advance() // consume ALL
+					if p.cur.Type == kwEXCEPT {
+						p.advance() // consume EXCEPT
+						stmt.WithRoleType = "ALL EXCEPT"
+						// Parse role list
+						for {
+							role, _, err := p.parseIdentifier()
+							if err != nil {
+								return nil, err
+							}
+							stmt.WithRoles = append(stmt.WithRoles, role)
+							if p.cur.Type != ',' {
+								break
+							}
+							p.advance()
+						}
+					} else {
+						stmt.WithRoleType = "ALL"
+					}
+				default:
+					// Role list
+					for {
+						role, _, err := p.parseIdentifier()
+						if err != nil {
+							return nil, err
+						}
+						stmt.WithRoles = append(stmt.WithRoles, role)
+						if p.cur.Type != ',' {
+							break
+						}
+						p.advance()
+					}
+				}
+			}
+		}
+	}
+
 	stmt.Loc.End = p.pos()
 	return stmt, nil
 }

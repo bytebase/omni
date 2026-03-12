@@ -1111,6 +1111,15 @@ func writeGrantStmt(sb *strings.Builder, n *GrantStmt) {
 	if n.WithGrant {
 		sb.WriteString(" :with_grant true")
 	}
+	if n.AsUser != "" {
+		fmt.Fprintf(sb, " :as %s", n.AsUser)
+	}
+	if n.WithRoleType != "" {
+		fmt.Fprintf(sb, " :with_role_type %s", n.WithRoleType)
+	}
+	if len(n.WithRoles) > 0 {
+		fmt.Fprintf(sb, " :with_roles %s", strings.Join(n.WithRoles, ", "))
+	}
 	sb.WriteString("}")
 }
 

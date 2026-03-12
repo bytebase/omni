@@ -1408,7 +1408,7 @@
       "id": 55,
       "name": "depth_fix_grant_as",
       "file": "grant.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 15 gap: GRANT ... AS user [WITH ROLE {DEFAULT | NONE | ALL | ALL EXCEPT role | role, ...}] clause for MySQL 8.0+ role context",
       "rules": [
         "parseGrantAsClause"
