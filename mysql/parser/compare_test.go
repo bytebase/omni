@@ -9321,3 +9321,40 @@ func TestParseAlterUserDiscardOldPassword(t *testing.T) {
 		})
 	}
 }
+
+func TestParseCreateTablePassword(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE t (id INT) PASSWORD = 'secret'",
+		"CREATE TABLE t (id INT) PASSWORD 'secret'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseCreateTableSecondaryEngine(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE t (id INT) SECONDARY_ENGINE = RAPID",
+		"CREATE TABLE t (id INT) SECONDARY_ENGINE RAPID",
+		"CREATE TABLE t (id INT) ENGINE = InnoDB SECONDARY_ENGINE = RAPID",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseCreateTableSecondaryEngineAttribute(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE t (id INT) SECONDARY_ENGINE_ATTRIBUTE = '{\"key\": \"value\"}'",
+		"CREATE TABLE t (id INT) SECONDARY_ENGINE_ATTRIBUTE '{\"key\": \"value\"}'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}

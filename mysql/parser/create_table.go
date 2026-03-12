@@ -846,6 +846,16 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool) {
 			p.advance()
 		}
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "CONNECTION", Value: val}, true
+
+	case kwPASSWORD:
+		p.advance()
+		p.match('=')
+		val := ""
+		if p.cur.Type == tokSCONST {
+			val = p.cur.Str
+			p.advance()
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "PASSWORD", Value: val}, true
 	}
 
 	// Handle identifier-based options: KEY_BLOCK_SIZE, STATS_AUTO_RECALC, etc.
@@ -869,7 +879,9 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool) {
 			eqFold(optName, "index_directory"),
 			eqFold(optName, "tablespace"),
 			eqFold(optName, "storage"),
-			eqFold(optName, "union"):
+			eqFold(optName, "union"),
+			eqFold(optName, "secondary_engine"),
+			eqFold(optName, "secondary_engine_attribute"):
 			p.advance()
 			p.match('=')
 			val := p.consumeOptionValue()

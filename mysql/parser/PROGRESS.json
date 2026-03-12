@@ -1988,7 +1988,7 @@
       "id": 80,
       "name": "depth_fix_table_options_secondary_engine",
       "file": "create_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 7 gap: missing table options - PASSWORD [=] 'string' (listed in MySQL docs but not parsed), SECONDARY_ENGINE [=] engine_name (MySQL 8.0.13+), SECONDARY_ENGINE_ATTRIBUTE [=] 'string' (MySQL 8.0.21+). Add cases to parseTableOption and corresponding AST fields.",
       "rules": [
         "parseTableOption"
