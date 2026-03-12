@@ -1737,6 +1737,26 @@
       "tests": [
         "TestLocRawStmt"
       ]
+    },
+    {
+      "id": 72,
+      "name": "ddl_compat_unlogged_view_modifying_cte",
+      "file": "parser.go",
+      "status": "pending",
+      "description": "Fix 2 syntax gaps found by pg/ddl test suite. (1) CREATE UNLOGGED VIEW: parseCreateUnloggedDispatch only handles TABLE and MATERIALIZED VIEW, missing VIEW branch — should call parseCreateViewStmt with RELPERSISTENCE_UNLOGGED. (2) Modifying CTE: parseCommonTableExpr calls parseSelectNoParens for cte.Ctequery, but PreparableStmt in gram.y also allows INSERT/UPDATE/DELETE (modifying CTEs with RETURNING). Must dispatch on INSERT/UPDATE/DELETE tokens before falling back to parseSelectNoParens. Refs: https://www.postgresql.org/docs/17/sql-createview.html, https://www.postgresql.org/docs/17/queries-with.html#QUERIES-WITH-MODIFYING",
+      "rules": [
+        "parseCreateUnloggedDispatch",
+        "parseCommonTableExpr",
+        "PreparableStmt"
+      ],
+      "depends_on": [
+        7,
+        34
+      ],
+      "tests": [
+        "TestDdlCompatUnloggedView",
+        "TestDdlCompatModifyingCTE"
+      ]
     }
   ],
   "audit_round": 6
