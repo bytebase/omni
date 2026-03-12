@@ -9207,3 +9207,41 @@ func TestParseMatchNaturalLanguageWithQueryExpansion(t *testing.T) {
 		})
 	}
 }
+
+func TestParseNaturalLeftJoin(t *testing.T) {
+	tests := []string{
+		"SELECT * FROM t1 NATURAL LEFT JOIN t2",
+		"SELECT * FROM t1 NATURAL LEFT JOIN t2 WHERE t1.id > 1",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseNaturalRightJoin(t *testing.T) {
+	tests := []string{
+		"SELECT * FROM t1 NATURAL RIGHT JOIN t2",
+		"SELECT * FROM t1 NATURAL RIGHT JOIN t2 WHERE t1.id > 1",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseNaturalLeftOuterJoin(t *testing.T) {
+	tests := []string{
+		"SELECT * FROM t1 NATURAL LEFT OUTER JOIN t2",
+		"SELECT * FROM t1 NATURAL RIGHT OUTER JOIN t2",
+		// Plain NATURAL JOIN (regression check)
+		"SELECT * FROM t1 NATURAL JOIN t2",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}

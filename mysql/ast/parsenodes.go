@@ -879,7 +879,9 @@ const (
 	JoinRight
 	JoinCross
 	JoinNatural
-	JoinStraight // STRAIGHT_JOIN (MySQL-specific)
+	JoinStraight     // STRAIGHT_JOIN (MySQL-specific)
+	JoinNaturalLeft  // NATURAL LEFT [OUTER] JOIN
+	JoinNaturalRight // NATURAL RIGHT [OUTER] JOIN
 )
 
 // JoinClause represents a JOIN clause.

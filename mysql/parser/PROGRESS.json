@@ -1930,7 +1930,7 @@
       "id": 77,
       "name": "depth_fix_natural_join_semantics",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 4 gap: NATURAL LEFT [OUTER] JOIN and NATURAL RIGHT [OUTER] JOIN lose the NATURAL modifier - currently returns JoinLeft/JoinRight instead of preserving NATURAL semantics. Add JoinNaturalLeft and JoinNaturalRight to JoinType enum, update matchJoinType and outfuncs.go",
       "rules": [
         "matchJoinType"

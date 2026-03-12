@@ -701,12 +701,12 @@ func (p *Parser) matchJoinType() (nodes.JoinType, bool) {
 		if _, ok := p.match(kwLEFT); ok {
 			p.match(kwOUTER)
 			p.match(kwJOIN)
-			return nodes.JoinLeft, true
+			return nodes.JoinNaturalLeft, true
 		}
 		if _, ok := p.match(kwRIGHT); ok {
 			p.match(kwOUTER)
 			p.match(kwJOIN)
-			return nodes.JoinRight, true
+			return nodes.JoinNaturalRight, true
 		}
 		p.match(kwJOIN)
 		return nodes.JoinNatural, true
