@@ -1167,14 +1167,16 @@ func (n *CreateSynonymStmt) stmtNode() {}
 
 // GrantStmt represents GRANT/REVOKE/DENY.
 type GrantStmt struct {
-	StmtType   GrantType // GRANT, REVOKE, DENY
-	Privileges *List
-	OnType     string // TABLE, VIEW, PROCEDURE, etc.
-	OnName     *TableRef
-	Principals *List // TO/FROM principals
-	WithGrant  bool  // WITH GRANT OPTION
-	CascadeOpt bool  // CASCADE
-	Loc        Loc
+	StmtType       GrantType // GRANT, REVOKE, DENY
+	GrantOptionFor bool      // REVOKE GRANT OPTION FOR ...
+	Privileges     *List
+	OnType         string    // securable class: SCHEMA, OBJECT, DATABASE, LOGIN, etc.
+	OnName         *TableRef
+	Principals     *List  // TO/FROM principals
+	WithGrant      bool   // WITH GRANT OPTION
+	AsPrincipal    string // AS principal
+	CascadeOpt     bool   // CASCADE
+	Loc            Loc
 }
 
 func (n *GrantStmt) nodeTag()  {}

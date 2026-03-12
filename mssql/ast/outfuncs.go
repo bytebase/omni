@@ -1301,6 +1301,9 @@ func writeCreateSynonymStmt(sb *strings.Builder, n *CreateSynonymStmt) {
 func writeGrantStmt(sb *strings.Builder, n *GrantStmt) {
 	sb.WriteString("{GRANT")
 	sb.WriteString(fmt.Sprintf(" :stmtType %d", n.StmtType))
+	if n.GrantOptionFor {
+		sb.WriteString(" :grantOptionFor true")
+	}
 	if n.Privileges != nil {
 		sb.WriteString(" :privileges ")
 		writeNode(sb, n.Privileges)
@@ -1318,6 +1321,9 @@ func writeGrantStmt(sb *strings.Builder, n *GrantStmt) {
 	}
 	if n.WithGrant {
 		sb.WriteString(" :withGrant true")
+	}
+	if n.AsPrincipal != "" {
+		fmt.Fprintf(sb, " :asPrincipal \"%s\"", escapeString(n.AsPrincipal))
 	}
 	if n.CascadeOpt {
 		sb.WriteString(" :cascade true")

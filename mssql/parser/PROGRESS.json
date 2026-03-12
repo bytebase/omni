@@ -1852,7 +1852,7 @@
       "id": 78,
       "name": "grant_depth",
       "file": "grant.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 19 gap: parse ON securable_class::name scope resolution syntax (e.g., GRANT SELECT ON SCHEMA::dbo), support REVOKE GRANT OPTION FOR",
       "rules": [
         "parseGrantOnSecurableClass",

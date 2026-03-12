@@ -7654,6 +7654,135 @@ func TestParseCreateDatabaseDepth(t *testing.T) {
 	})
 }
 
+// TestParseGrantDepth tests GRANT/REVOKE/DENY securable class and REVOKE GRANT OPTION FOR (batch 78).
+func TestParseGrantDepth(t *testing.T) {
+	t.Run("grant_on_schema", func(t *testing.T) {
+		tests := []struct {
+			name       string
+			sql        string
+			onType     string
+			wantGrant  bool
+		}{
+			{"grant select on schema", "GRANT SELECT ON SCHEMA::dbo TO user1", "SCHEMA", false},
+			{"grant select on schema with grant option", "GRANT SELECT ON SCHEMA::Sales TO user1 WITH GRANT OPTION", "SCHEMA", true},
+			{"grant execute on schema", "GRANT EXECUTE ON SCHEMA::HumanResources TO role1", "SCHEMA", false},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt, ok := result.Items[0].(*ast.GrantStmt)
+				if !ok {
+					t.Fatalf("expected *GrantStmt, got %T", result.Items[0])
+				}
+				if stmt.OnType != tt.onType {
+					t.Errorf("expected onType %s, got %s", tt.onType, stmt.OnType)
+				}
+				if stmt.WithGrant != tt.wantGrant {
+					t.Errorf("expected withGrant %v, got %v", tt.wantGrant, stmt.WithGrant)
+				}
+			})
+		}
+	})
+
+	t.Run("grant_on_object_type", func(t *testing.T) {
+		tests := []struct {
+			name   string
+			sql    string
+			onType string
+		}{
+			{"grant on object", "GRANT SELECT ON OBJECT::dbo.MyTable TO user1", "OBJECT"},
+			{"grant on database", "GRANT CREATE TABLE ON DATABASE::mydb TO user1", "DATABASE"},
+			{"grant on login", "GRANT ALTER ON LOGIN::mylogin TO user1", "LOGIN"},
+			{"grant on user", "GRANT IMPERSONATE ON USER::myuser TO user1", "USER"},
+			{"grant on role", "GRANT ALTER ON ROLE::myrole TO user1", "ROLE"},
+			{"grant on type", "GRANT EXECUTE ON TYPE::dbo.MyType TO user1", "TYPE"},
+			{"grant on assembly", "GRANT ALTER ON ASSEMBLY::MyAssembly TO user1", "ASSEMBLY"},
+			{"grant on symmetric key", "GRANT ALTER ON SYMMETRIC KEY::mykey TO user1", "SYMMETRIC KEY"},
+			{"grant on asymmetric key", "GRANT ALTER ON ASYMMETRIC KEY::mykey TO user1", "ASYMMETRIC KEY"},
+			{"grant on certificate", "GRANT ALTER ON CERTIFICATE::mycert TO user1", "CERTIFICATE"},
+			{"grant on xml schema collection", "GRANT ALTER ON XML SCHEMA COLLECTION::dbo.myschema TO user1", "XML SCHEMA COLLECTION"},
+			{"grant on application role", "GRANT ALTER ON APPLICATION ROLE::myrole TO user1", "APPLICATION ROLE"},
+			{"grant on message type", "GRANT ALTER ON MESSAGE TYPE::mytype TO user1", "MESSAGE TYPE"},
+			{"grant on fulltext catalog", "GRANT ALTER ON FULLTEXT CATALOG::mycat TO user1", "FULLTEXT CATALOG"},
+			{"grant on search property list", "GRANT ALTER ON SEARCH PROPERTY LIST::mylist TO user1", "SEARCH PROPERTY LIST"},
+			{"grant on server role", "GRANT ALTER ON SERVER ROLE::myrole TO user1", "SERVER ROLE"},
+			{"grant on remote service binding", "GRANT ALTER ON REMOTE SERVICE BINDING::mybinding TO user1", "REMOTE SERVICE BINDING"},
+			{"grant without class", "GRANT SELECT ON dbo.MyTable TO user1", ""},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt, ok := result.Items[0].(*ast.GrantStmt)
+				if !ok {
+					t.Fatalf("expected *GrantStmt, got %T", result.Items[0])
+				}
+				if stmt.OnType != tt.onType {
+					t.Errorf("expected onType %q, got %q", tt.onType, stmt.OnType)
+				}
+			})
+		}
+	})
+
+	t.Run("revoke_grant_option_for", func(t *testing.T) {
+		tests := []struct {
+			name           string
+			sql            string
+			grantOptionFor bool
+			cascade        bool
+		}{
+			{"revoke grant option for", "REVOKE GRANT OPTION FOR SELECT ON SCHEMA::dbo FROM user1 CASCADE", true, true},
+			{"revoke grant option for no cascade", "REVOKE GRANT OPTION FOR INSERT ON dbo.t1 FROM user1", true, false},
+			{"revoke normal", "REVOKE SELECT ON SCHEMA::Sales FROM user1", false, false},
+			{"revoke with cascade", "REVOKE EXECUTE ON dbo.myproc FROM user1 CASCADE", false, true},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt, ok := result.Items[0].(*ast.GrantStmt)
+				if !ok {
+					t.Fatalf("expected *GrantStmt, got %T", result.Items[0])
+				}
+				if stmt.GrantOptionFor != tt.grantOptionFor {
+					t.Errorf("expected grantOptionFor %v, got %v", tt.grantOptionFor, stmt.GrantOptionFor)
+				}
+				if stmt.CascadeOpt != tt.cascade {
+					t.Errorf("expected cascade %v, got %v", tt.cascade, stmt.CascadeOpt)
+				}
+			})
+		}
+	})
+
+	t.Run("grant_as_principal", func(t *testing.T) {
+		sql := "GRANT SELECT ON dbo.t1 TO user1 WITH GRANT OPTION AS dbo"
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.GrantStmt)
+		if !ok {
+			t.Fatalf("expected *GrantStmt, got %T", result.Items[0])
+		}
+		if stmt.AsPrincipal != "dbo" {
+			t.Errorf("expected asPrincipal dbo, got %s", stmt.AsPrincipal)
+		}
+	})
+
+	t.Run("deny_on_schema", func(t *testing.T) {
+		sql := "DENY SELECT ON SCHEMA::Sales TO user1 CASCADE"
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.GrantStmt)
+		if !ok {
+			t.Fatalf("expected *GrantStmt, got %T", result.Items[0])
+		}
+		if stmt.StmtType != ast.GrantTypeDeny {
+			t.Errorf("expected DENY, got %d", stmt.StmtType)
+		}
+		if stmt.OnType != "SCHEMA" {
+			t.Errorf("expected onType SCHEMA, got %s", stmt.OnType)
+		}
+		if !stmt.CascadeOpt {
+			t.Error("expected cascade true")
+		}
+	})
+}
+
 // TestParseAlterDatabaseDepth tests ALTER DATABASE structured parsing (batch 77).
 func TestParseAlterDatabaseDepth(t *testing.T) {
 	// --- SET options ---
