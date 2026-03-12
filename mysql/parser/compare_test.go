@@ -7483,3 +7483,40 @@ func TestParseChangeMasterToOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestParseSetPassword(t *testing.T) {
+	tests := []string{
+		"SET PASSWORD = 'newpass'",
+		"SET PASSWORD = PASSWORD('newpass')",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseSetPasswordForUser(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "SET PASSWORD = 'newpass'",
+			want: "{SET_PASSWORD :loc 0 :password newpass}",
+		},
+		{
+			sql:  "SET PASSWORD FOR 'admin'@'localhost' = 'newpass'",
+			want: "{SET_PASSWORD :loc 0 :user {USER_SPEC :loc 17 :name admin :host localhost} :password newpass}",
+		},
+		{
+			sql:  "SET PASSWORD FOR root = 'newpass'",
+			want: "{SET_PASSWORD :loc 0 :user {USER_SPEC :loc 17 :name root} :password newpass}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}

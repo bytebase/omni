@@ -1393,7 +1393,7 @@
       "id": 54,
       "name": "set_password",
       "file": "set_show.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: SET PASSWORD [FOR user] = 'auth_string' - standalone password change with optional FOR user@host clause",
       "rules": [
         "parseSetPasswordStmt"

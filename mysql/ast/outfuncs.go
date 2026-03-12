@@ -57,6 +57,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeRenameTableStmt(sb, n)
 	case *SetStmt:
 		writeSetStmt(sb, n)
+	case *SetPasswordStmt:
+		writeSetPasswordStmt(sb, n)
 	case *ShowStmt:
 		writeShowStmt(sb, n)
 	case *UseStmt:
@@ -941,6 +943,19 @@ func writeSetStmt(sb *strings.Builder, n *SetStmt) {
 			}
 			writeNode(sb, a)
 		}
+	}
+	sb.WriteString("}")
+}
+
+func writeSetPasswordStmt(sb *strings.Builder, n *SetPasswordStmt) {
+	sb.WriteString("{SET_PASSWORD")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.User != nil {
+		sb.WriteString(" :user ")
+		writeNode(sb, n.User)
+	}
+	if n.Password != "" {
+		fmt.Fprintf(sb, " :password %s", n.Password)
 	}
 	sb.WriteString("}")
 }

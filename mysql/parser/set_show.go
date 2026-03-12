@@ -81,6 +81,11 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		return p.parseSetRoleStmt(start)
 	}
 
+	// Check for SET PASSWORD
+	if p.cur.Type == kwPASSWORD {
+		return p.parseSetPasswordStmt(start)
+	}
+
 	// Check for SET RESOURCE GROUP
 	if p.cur.Type == kwRESOURCE {
 		return p.parseSetResourceGroupStmt(start)
@@ -119,6 +124,54 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 			break
 		}
 		p.advance() // consume ','
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseSetPasswordStmt parses a SET PASSWORD statement.
+// SET has already been consumed; p.cur is PASSWORD.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/set-password.html
+//
+//	SET PASSWORD [FOR user] = 'auth_string'
+//	SET PASSWORD [FOR user] = PASSWORD('auth_string')
+func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error) {
+	p.advance() // consume PASSWORD
+
+	stmt := &nodes.SetPasswordStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Optional FOR user[@host]
+	if p.cur.Type == kwFOR {
+		p.advance() // consume FOR
+		user, err := p.parseUserSpec()
+		if err != nil {
+			return nil, err
+		}
+		stmt.User = user
+	}
+
+	// consume '='
+	p.match('=')
+
+	// Password value: either a string literal or PASSWORD('string')
+	if p.isIdentToken() && eqFold(p.cur.Str, "PASSWORD") {
+		// PASSWORD('auth_string') form
+		p.advance() // consume PASSWORD
+		p.match('(')
+		if p.cur.Type == tokSCONST {
+			stmt.Password = "PASSWORD(" + p.cur.Str + ")"
+			p.advance()
+		}
+		p.match(')')
+	} else if p.cur.Type == tokSCONST {
+		stmt.Password = p.cur.Str
+		p.advance()
+	} else {
+		return nil, &ParseError{Message: "expected password string", Position: p.cur.Loc}
 	}
 
 	stmt.Loc.End = p.pos()

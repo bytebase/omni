@@ -950,6 +950,20 @@ type SetStmt struct {
 func (s *SetStmt) nodeTag()  {}
 func (s *SetStmt) stmtNode() {}
 
+// SetPasswordStmt represents a SET PASSWORD statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/set-password.html
+//
+//	SET PASSWORD [FOR user] = 'auth_string'
+type SetPasswordStmt struct {
+	Loc      Loc
+	User     *UserSpec // optional FOR user@host
+	Password string    // the password string
+}
+
+func (s *SetPasswordStmt) nodeTag()  {}
+func (s *SetPasswordStmt) stmtNode() {}
+
 // ShowStmt represents a SHOW statement.
 type ShowStmt struct {
 	Loc          Loc
