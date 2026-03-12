@@ -168,6 +168,60 @@ The parser must achieve **100% coverage** of the PostgreSQL yacc grammar (`pg/ya
 4. **Every BNF branch must have a test case** in `compare_test.go` that exercises it and validates AST parity with the yacc parser
 5. **Official PG documentation must be fetched** (URL: `https://www.postgresql.org/docs/17/sql-{command}.html`) for every statement being implemented, to ensure all documented syntax variants are covered
 
+## Location Tracking Batches (63-71)
+
+Batches 63-71 fix `Loc.End` for ALL AST nodes. Currently, most nodes have `End = -1`, making `source[Start:End]` impossible.
+
+### Batch 63: Test Infrastructure (MUST be done first)
+
+Create a `CheckLocations(t, sql)` helper in `compare_test.go` that:
+1. Parses SQL via `Parse(sql)`
+2. Recursively walks the AST using reflection
+3. For every node with a `Loc` field where `Start >= 0`, asserts `End > Start`
+4. For statement-level nodes, validates `sql[loc.Start:loc.End]` is non-empty
+5. Reports ALL violations (don't stop at the first one)
+
+```go
+func CheckLocations(t *testing.T, sql string) {
+    t.Helper()
+    result, err := Parse(sql)
+    if err != nil {
+        t.Fatalf("Parse(%q): %v", sql, err)
+    }
+    // Walk all nodes, check Loc.Start >= 0 implies Loc.End > Loc.Start
+    // Use reflect to find all Loc fields recursively
+}
+```
+
+### Batches 64-70: Fix End positions per file group
+
+For each parse function:
+1. Record `start := p.pos()` at function entry (most already do this)
+2. Set `node.Loc.End = p.pos()` **immediately before every return** that returns the node
+3. For nodes created inline (e.g., `&nodes.A_Const{Loc: ...}`), set End after the last token is consumed
+4. **Do NOT change Start values** — only add/fix End
+
+**Test pattern for each batch:**
+```go
+func TestLocXxx(t *testing.T) {
+    tests := []string{
+        "SELECT 1",
+        "SELECT a, b FROM t WHERE x > 0",
+        // ... comprehensive cases for this file group
+    }
+    for _, sql := range tests {
+        t.Run(sql, func(t *testing.T) {
+            CompareWithYacc(t, sql)  // existing correctness check
+            CheckLocations(t, sql)   // new location check
+        })
+    }
+}
+```
+
+### Batch 71: RawStmt wrapping
+
+After all inner nodes have correct End positions, wrap statements in `RawStmt` with accurate `Loc` covering the full statement text. Validate `sql[raw.Loc.Start:raw.Loc.End]` equals the original statement for multi-statement inputs like `"SELECT 1; SELECT 2"`.
+
 ## Audit Gap Summary (2026-03-12)
 
 ### Missing Statement Types (not dispatched in parseStmt)

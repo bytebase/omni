@@ -1526,7 +1526,218 @@
         "TestDropOperatorUnary",
         "TestAlterOperatorUnary"
       ]
+    },
+    {
+      "id": 63,
+      "name": "loc_end_test_infra",
+      "file": "compare_test.go",
+      "status": "done",
+      "description": "Add location testing infrastructure: a CheckLocations(t, sql) helper that parses SQL, walks the AST, and asserts every node with a Loc field has Start >= 0 AND End > Start. Also add source[Start:End] round-trip validation for statement-level nodes (the extracted substring must be non-empty and reasonable). Add TestLocBasic with a few SELECT/INSERT/CREATE TABLE cases to prove the infra works (these will initially fail, confirming End=-1 bug).",
+      "rules": [
+        "CheckLocations",
+        "walkNodeLocs",
+        "TestLocBasic"
+      ],
+      "depends_on": [
+        0
+      ],
+      "tests": [
+        "TestLocBasic"
+      ]
+    },
+    {
+      "id": 64,
+      "name": "loc_end_select_insert_update_delete",
+      "file": "select.go",
+      "status": "pending",
+      "description": "Fix End position for all parse functions in select.go, insert.go, update.go: parseSelectNoParens, parseSelectWithParens, parseSelectClause, parseSelectClausePrimary, parseTargetEl, parseSortBy, parseWindowDef, parseFrameClause, parseGroupByItem, parseLockingClause, parseInsertStmt, parseOnConflict, parseUpdateStmt, parseDeleteStmt, parseMergeStmt, parseMergeWhen. Every function must set node.Loc.End = p.pos() before returning. Add TestLocSelect, TestLocInsert, TestLocUpdate, TestLocDelete with comprehensive SQL cases that validate Start:End extracts correct substring.",
+      "rules": [
+        "parseSelectNoParens",
+        "parseSelectClausePrimary",
+        "parseTargetEl",
+        "parseSortBy",
+        "parseWindowDef",
+        "parseInsertStmt",
+        "parseOnConflict",
+        "parseUpdateStmt",
+        "parseDeleteStmt",
+        "parseMergeStmt"
+      ],
+      "depends_on": [
+        63
+      ],
+      "tests": [
+        "TestLocSelect",
+        "TestLocInsert",
+        "TestLocUpdate",
+        "TestLocDelete"
+      ]
+    },
+    {
+      "id": 65,
+      "name": "loc_end_expr",
+      "file": "expr.go",
+      "status": "pending",
+      "description": "Fix End position for all parse functions in expr.go and json.go and xml.go: parseExpr (A_Expr), parsePrimaryExpr, parseTypeCast, parseFuncCall, parseSubqueryExpr, parseCaseExpr, parseCoalesceExpr, parseArrayExpr, parseRowExpr, parseBoolExpr, parseNullTest, parseBooleanTest, parseColumnRef, parseParamRef, parseJsonExpr, parseXmlExpr, etc. Every ExprNode must have valid Start and End. Add TestLocExpr with diverse expression cases.",
+      "rules": [
+        "parseExpr",
+        "parsePrimaryExpr",
+        "parseFuncCall",
+        "parseCaseExpr",
+        "parseArrayExpr",
+        "parseColumnRef",
+        "parseJsonExpr",
+        "parseXmlExpr"
+      ],
+      "depends_on": [
+        63
+      ],
+      "tests": [
+        "TestLocExpr"
+      ]
+    },
+    {
+      "id": 66,
+      "name": "loc_end_create_table_index_view",
+      "file": "create_table.go",
+      "status": "pending",
+      "description": "Fix End position for all parse functions in create_table.go, create_index.go, create_view.go: parseCreateStmt (CreateStmt), parseColumnDef, parseConstraint (all constraint types), parseTypeName, parsePartitionClause, parsePartitionBound, finishCreateStmt, finishCTAS, parseCreateIndexStmt, parseCreateViewStmt, parseCreateMatviewStmt. Add TestLocCreateTable, TestLocCreateIndex, TestLocCreateView.",
+      "rules": [
+        "finishCreateStmt",
+        "finishCTAS",
+        "parseColumnDef",
+        "parseConstraint",
+        "parseTypeName",
+        "parseCreateIndexStmt",
+        "parseCreateViewStmt"
+      ],
+      "depends_on": [
+        63
+      ],
+      "tests": [
+        "TestLocCreateTable",
+        "TestLocCreateIndex",
+        "TestLocCreateView"
+      ]
+    },
+    {
+      "id": 67,
+      "name": "loc_end_alter_table",
+      "file": "alter_table.go",
+      "status": "pending",
+      "description": "Fix End position for all parse functions in alter_table.go and alter_misc.go: parseAlterTableStmt, parseAlterTableCmd (all ALTER TABLE sub-commands), parseAlterDomainStmt, parseAlterEnumStmt, parseAlterOwnerStmt, parseAlterObjectSchemaStmt, parseRenameStmt, parseAlterSeqStmt, parseAlterExtensionStmt, parseAlterPolicyStmt, etc. Add TestLocAlterTable, TestLocAlterMisc.",
+      "rules": [
+        "parseAlterTableStmt",
+        "parseAlterTableCmd",
+        "parseAlterDomainStmt",
+        "parseAlterEnumStmt",
+        "parseRenameStmt"
+      ],
+      "depends_on": [
+        63
+      ],
+      "tests": [
+        "TestLocAlterTable",
+        "TestLocAlterMisc"
+      ]
+    },
+    {
+      "id": 68,
+      "name": "loc_end_create_function_trigger_type",
+      "file": "create_function.go",
+      "status": "pending",
+      "description": "Fix End position for all parse functions in create_function.go, trigger.go, type.go, sequence.go, define.go: parseCreateFunctionStmt, parseFunctionParam, parseReturnType, parseCreateTriggerStmt, parseTriggerEvent, parseCreateTypeStmt (composite, enum, range, base), parseCreateOpClassStmt, parseCreateOpFamilyStmt, parseDefineStmt (CREATE AGGREGATE, OPERATOR, COLLATION), parseCreateSeqStmt. Add TestLocCreateFunction, TestLocTrigger, TestLocType, TestLocDefine.",
+      "rules": [
+        "parseCreateFunctionStmt",
+        "parseCreateTriggerStmt",
+        "parseCreateTypeStmt",
+        "parseDefineStmt",
+        "parseCreateSeqStmt"
+      ],
+      "depends_on": [
+        63
+      ],
+      "tests": [
+        "TestLocCreateFunction",
+        "TestLocTrigger",
+        "TestLocType",
+        "TestLocDefine"
+      ]
+    },
+    {
+      "id": 69,
+      "name": "loc_end_drop_grant_schema",
+      "file": "drop.go",
+      "status": "pending",
+      "description": "Fix End position for all parse functions in drop.go, grant.go, schema.go, database.go: parseDropStmt, parseDropOwnedStmt, parseDropdbStmt, parseGrantStmt, parseRevokeStmt, parseGrantRoleStmt, parseAlterDefaultPrivilegesStmt, parseCreateSchemaStmt, parseCreatedbStmt, parseAlterRoleStmt, parseCreateRoleStmt. Add TestLocDrop, TestLocGrant, TestLocSchema, TestLocDatabase.",
+      "rules": [
+        "parseDropStmt",
+        "parseGrantStmt",
+        "parseRevokeStmt",
+        "parseCreateSchemaStmt",
+        "parseCreatedbStmt",
+        "parseCreateRoleStmt"
+      ],
+      "depends_on": [
+        63
+      ],
+      "tests": [
+        "TestLocDrop",
+        "TestLocGrant",
+        "TestLocSchema",
+        "TestLocDatabase"
+      ]
+    },
+    {
+      "id": 70,
+      "name": "loc_end_utility_misc",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "Fix End position for all remaining parse functions: utility.go (EXPLAIN, VACUUM, ANALYZE, REINDEX, CLUSTER, COMMENT, SECURITY LABEL, COPY), transaction.go (BEGIN, COMMIT, ROLLBACK, SAVEPOINT), prepare.go (PREPARE, EXECUTE, DEALLOCATE), cursor.go (DECLARE, FETCH, MOVE, CLOSE), lock.go (LOCK), set.go (SET, RESET, SHOW), publication.go, extension.go, fdw.go, maintenance.go, copy.go, func.go (DO stmt), name.go helpers. Add TestLocUtility, TestLocTransaction, TestLocCursor, TestLocSet.",
+      "rules": [
+        "parseExplainStmt",
+        "parseVacuumStmt",
+        "parseCopyStmt",
+        "parseTransactionStmt",
+        "parsePrepareStmt",
+        "parseCursorStmt",
+        "parseSetStmt",
+        "parseLockStmt"
+      ],
+      "depends_on": [
+        63
+      ],
+      "tests": [
+        "TestLocUtility",
+        "TestLocTransaction",
+        "TestLocCursor",
+        "TestLocSet"
+      ]
+    },
+    {
+      "id": 71,
+      "name": "loc_end_rawstmt_wrap",
+      "file": "parser.go",
+      "status": "pending",
+      "description": "Wrap every statement returned from parseStmt() in a RawStmt with correct Loc (Start from before the statement keyword, End from after the last token including optional semicolon). Update Parse() to record stmt_start before calling parseStmt, then wrap: RawStmt{Stmt: stmt, Loc: Loc{Start: stmt_start, End: p.pos()}}. Add TestLocRawStmt that validates source[raw.Loc.Start:raw.Loc.End] exactly equals the original SQL statement text for multi-statement inputs.",
+      "rules": [
+        "Parse",
+        "parseStmt",
+        "RawStmt"
+      ],
+      "depends_on": [
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70
+      ],
+      "tests": [
+        "TestLocRawStmt"
+      ]
     }
   ],
-  "audit_round": 5
+  "audit_round": 6
 }

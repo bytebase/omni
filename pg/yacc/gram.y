@@ -1148,7 +1148,7 @@ opt_on_conflict:
 		{
 			$$ = &nodes.OnConflictClause{
 				Action:   ONCONFLICT_NOTHING,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ON CONFLICT DO UPDATE SET set_clause_list where_clause
@@ -1157,7 +1157,7 @@ opt_on_conflict:
 				Action:      ONCONFLICT_UPDATE,
 				TargetList:  $6,
 				WhereClause: $7,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ON CONFLICT '(' index_params ')' DO NOTHING
@@ -1166,9 +1166,9 @@ opt_on_conflict:
 				Action:   ONCONFLICT_NOTHING,
 				Infer: &nodes.InferClause{
 					IndexElems: $4,
-					Location:   -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ON CONFLICT '(' index_params ')' DO UPDATE SET set_clause_list where_clause
@@ -1177,11 +1177,11 @@ opt_on_conflict:
 				Action:      ONCONFLICT_UPDATE,
 				Infer: &nodes.InferClause{
 					IndexElems: $4,
-					Location:   -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
 				TargetList:  $9,
 				WhereClause: $10,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ON CONFLICT '(' index_params ')' WHERE a_expr DO NOTHING
@@ -1191,9 +1191,9 @@ opt_on_conflict:
 				Infer: &nodes.InferClause{
 					IndexElems:  $4,
 					WhereClause: $7,
-					Location:    -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ON CONFLICT '(' index_params ')' WHERE a_expr DO UPDATE SET set_clause_list where_clause
@@ -1203,11 +1203,11 @@ opt_on_conflict:
 				Infer: &nodes.InferClause{
 					IndexElems:  $4,
 					WhereClause: $7,
-					Location:    -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
 				TargetList:  $11,
 				WhereClause: $12,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ON CONFLICT ON CONSTRAINT name DO NOTHING
@@ -1216,9 +1216,9 @@ opt_on_conflict:
 				Action:   ONCONFLICT_NOTHING,
 				Infer: &nodes.InferClause{
 					Conname:  $5,
-					Location: -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ON CONFLICT ON CONSTRAINT name DO UPDATE SET set_clause_list where_clause
@@ -1227,11 +1227,11 @@ opt_on_conflict:
 				Action:      ONCONFLICT_UPDATE,
 				Infer: &nodes.InferClause{
 					Conname:  $5,
-					Location: -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
 				TargetList:  $9,
 				WhereClause: $10,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| /* EMPTY */
@@ -1560,7 +1560,7 @@ PartitionSpec_rule:
 			$$ = &nodes.PartitionSpec{
 				Strategy:   parsePartitionStrategy($3),
 				PartParams: $5,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -1579,7 +1579,7 @@ part_elem:
 				Name:      $1,
 				Collation: $2,
 				Opclass:   $3,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| func_expr_windowless opt_collate opt_qualified_name
@@ -1588,7 +1588,7 @@ part_elem:
 				Expr:      $1,
 				Collation: $2,
 				Opclass:   $3,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| '(' a_expr ')' opt_collate opt_qualified_name
@@ -1597,7 +1597,7 @@ part_elem:
 				Expr:      $2,
 				Collation: $4,
 				Opclass:   $5,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -1613,7 +1613,7 @@ ForValues:
 		{
 			$$ = &nodes.PartitionBoundSpec{
 				IsDefault: true,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -1625,7 +1625,7 @@ PartitionBoundSpec:
 			$$ = &nodes.PartitionBoundSpec{
 				Strategy:   'l',
 				Listdatums: $5,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	/* a RANGE partition */
@@ -1635,7 +1635,7 @@ PartitionBoundSpec:
 				Strategy:    'r',
 				Lowerdatums: $5,
 				Upperdatums: $9,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	/* a HASH partition */
@@ -1645,7 +1645,7 @@ PartitionBoundSpec:
 				Strategy:  'h',
 				Modulus:   -1,
 				Remainder: -1,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			for _, item := range $5.Items {
 				opt := item.(*nodes.DefElem)
@@ -1707,7 +1707,7 @@ columnOptions:
 				Colname:     $1,
 				TypeName:    nil,
 				IsLocal:     true,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			splitColQualList($2, n)
 			$$ = n
@@ -1718,7 +1718,7 @@ columnOptions:
 				Colname:     $1,
 				TypeName:    nil,
 				IsLocal:     true,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			splitColQualList($4, n)
 			$$ = n
@@ -1785,7 +1785,7 @@ columnDef:
 				Colname:     $1,
 				TypeName:    $2,
 				IsLocal:     true,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			splitColQualList($3, n)
 			$$ = n
@@ -1816,7 +1816,7 @@ ColConstraint:
 		{
 			$$ = &nodes.CollateClause{
 				Collname: $2,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| COMPRESSION ColId
@@ -1852,28 +1852,28 @@ ConstraintAttr:
 		{
 			$$ = &nodes.Constraint{
 				Contype:  nodes.CONSTR_ATTR_DEFERRABLE,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| NOT DEFERRABLE
 		{
 			$$ = &nodes.Constraint{
 				Contype:  nodes.CONSTR_ATTR_NOT_DEFERRABLE,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| INITIALLY DEFERRED
 		{
 			$$ = &nodes.Constraint{
 				Contype:  nodes.CONSTR_ATTR_DEFERRED,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| INITIALLY IMMEDIATE
 		{
 			$$ = &nodes.Constraint{
 				Contype:  nodes.CONSTR_ATTR_IMMEDIATE,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -1883,14 +1883,14 @@ ColConstraintElem:
 		{
 			$$ = &nodes.Constraint{
 				Contype:  nodes.CONSTR_NOTNULL,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| NULL_P
 		{
 			$$ = &nodes.Constraint{
 				Contype:  nodes.CONSTR_NULL,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| UNIQUE opt_unique_null_treatment opt_definition OptConsTableSpace
@@ -1900,7 +1900,7 @@ ColConstraintElem:
 				NullsNotDistinct:  $2,
 				Options:           $3,
 				Indexspace:        $4,
-				Location:          -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| PRIMARY KEY opt_definition OptConsTableSpace
@@ -1909,7 +1909,7 @@ ColConstraintElem:
 				Contype:    nodes.CONSTR_PRIMARY,
 				Options:    $3,
 				Indexspace:  $4,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| CHECK '(' a_expr ')' no_inherit
@@ -1917,7 +1917,7 @@ ColConstraintElem:
 			n := &nodes.Constraint{
 				Contype:        nodes.CONSTR_CHECK,
 				RawExpr:        $3,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			n.IsNoInherit = $5
@@ -1928,7 +1928,7 @@ ColConstraintElem:
 			$$ = &nodes.Constraint{
 				Contype:  nodes.CONSTR_DEFAULT,
 				RawExpr:  $2,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| REFERENCES qualified_name opt_column_list key_match key_actions ConstraintAttributeSpec
@@ -1942,7 +1942,7 @@ ColConstraintElem:
 				FkUpdaction:    $5.UpdateAction.Action,
 				FkDelaction:    $5.DeleteAction.Action,
 				FkDelsetcols:   $5.DeleteAction.Cols,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, $6)
@@ -1954,7 +1954,7 @@ ColConstraintElem:
 				Contype:       nodes.CONSTR_IDENTITY,
 				GeneratedWhen: 'a',
 				Options:       $5,
-				Location:      -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| GENERATED BY DEFAULT AS IDENTITY_P OptParenthesizedSeqOptList
@@ -1963,7 +1963,7 @@ ColConstraintElem:
 				Contype:       nodes.CONSTR_IDENTITY,
 				GeneratedWhen: 'd',
 				Options:       $6,
-				Location:      -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| GENERATED ALWAYS AS '(' a_expr ')' STORED
@@ -1972,7 +1972,7 @@ ColConstraintElem:
 				Contype:       nodes.CONSTR_GENERATED,
 				GeneratedWhen: 'a',
 				RawExpr:       $5,
-				Location:      -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| GENERATED BY DEFAULT AS '(' a_expr ')' STORED
@@ -1981,7 +1981,7 @@ ColConstraintElem:
 				Contype:       nodes.CONSTR_GENERATED,
 				GeneratedWhen: 'd',
 				RawExpr:       $6,
-				Location:      -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -2005,7 +2005,7 @@ DomainConstraintElem:
 			n := &nodes.Constraint{
 				Contype:        nodes.CONSTR_CHECK,
 				RawExpr:        $3,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, $5)
@@ -2015,7 +2015,7 @@ DomainConstraintElem:
 		{
 			n := &nodes.Constraint{
 				Contype:        nodes.CONSTR_NOTNULL,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, $3)
@@ -2046,7 +2046,7 @@ ConstraintElem:
 				Including:        $6,
 				Options:          $7,
 				Indexspace:       $8,
-				Location:         -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid:   true,
 			}
 			applyConstraintAttrs(n, $9)
@@ -2057,7 +2057,7 @@ ConstraintElem:
 			n := &nodes.Constraint{
 				Contype:    nodes.CONSTR_UNIQUE,
 				Indexname:  $2,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, $3)
@@ -2071,7 +2071,7 @@ ConstraintElem:
 				Including:  $6,
 				Options:    $7,
 				Indexspace:  $8,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, $9)
@@ -2082,7 +2082,7 @@ ConstraintElem:
 			n := &nodes.Constraint{
 				Contype:    nodes.CONSTR_PRIMARY,
 				Indexname:  $3,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, $4)
@@ -2093,7 +2093,7 @@ ConstraintElem:
 			n := &nodes.Constraint{
 				Contype:  nodes.CONSTR_CHECK,
 				RawExpr:  $3,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, $5)
@@ -2111,7 +2111,7 @@ ConstraintElem:
 				FkUpdaction:    $10.UpdateAction.Action,
 				FkDelaction:    $10.DeleteAction.Action,
 				FkDelsetcols:   $10.DeleteAction.Cols,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, $11)
@@ -2127,7 +2127,7 @@ ConstraintElem:
 				Options:        $7,
 				Indexspace:      $8,
 				WhereClause:    $9,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, $10)
@@ -3126,7 +3126,7 @@ alter_table_cmd:
 				Contype:       nodes.CONSTR_IDENTITY,
 				GeneratedWhen: byte($6),
 				Options:       $9,
-				Location:      -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			$$ = &nodes.AlterTableCmd{
 				Subtype: int(nodes.AT_AddIdentity),
@@ -3140,7 +3140,7 @@ alter_table_cmd:
 				Contype:       nodes.CONSTR_IDENTITY,
 				GeneratedWhen: byte($5),
 				Options:       $8,
-				Location:      -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			$$ = &nodes.AlterTableCmd{
 				Subtype: int(nodes.AT_AddIdentity),
@@ -4368,9 +4368,9 @@ ViewStmt:
 			}
 			cr := &nodes.ColumnRef{
 				Fields: &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}},
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
-			rt := &nodes.ResTarget{Val: cr, Location: -1}
+			rt := &nodes.ResTarget{Val: cr, Loc: nodes.Loc{Start: -1, End: -1}}
 			fromRv := &nodes.RangeVar{Relname: rv.Relname, Inh: true, Relpersistence: 'p'}
 			sel := &nodes.SelectStmt{
 				TargetList: makeList(rt),
@@ -4401,9 +4401,9 @@ ViewStmt:
 			}
 			cr := &nodes.ColumnRef{
 				Fields: &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}},
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
-			rt := &nodes.ResTarget{Val: cr, Location: -1}
+			rt := &nodes.ResTarget{Val: cr, Loc: nodes.Loc{Start: -1, End: -1}}
 			fromRv := &nodes.RangeVar{Relname: rv.Relname, Inh: true, Relpersistence: 'p'}
 			sel := &nodes.SelectStmt{
 				TargetList: makeList(rt),
@@ -4457,7 +4457,7 @@ CreateFunctionStmt:
 				IsOrReplace: $2,
 				Funcname:    $4,
 				Parameters:  params,
-				ReturnType:  &nodes.TypeName{Names: makeFuncName("pg_catalog", "record"), Location: -1},
+				ReturnType:  &nodes.TypeName{Names: makeFuncName("pg_catalog", "record"), Loc: nodes.Loc{Start: -1, End: -1}},
 				Options:     $11,
 				SqlBody:     $12,
 			}
@@ -4606,7 +4606,7 @@ func_type:
 			names := prependList(&nodes.String{Str: $1}, $2)
 			tn := makeTypeNameFromNameList(names).(*nodes.TypeName)
 			tn.PctType = true
-			tn.Location = -1
+			tn.Loc = nodes.Loc{Start: -1, End: -1}
 			$$ = tn
 		}
 	| SETOF type_function_name attrs '%' TYPE_P
@@ -4615,7 +4615,7 @@ func_type:
 			tn := makeTypeNameFromNameList(names).(*nodes.TypeName)
 			tn.PctType = true
 			tn.Setof = true
-			tn.Location = -1
+			tn.Loc = nodes.Loc{Start: -1, End: -1}
 			$$ = tn
 		}
 	;
@@ -7116,7 +7116,7 @@ AlterCompositeTypeStmt:
 		{
 			rv := &nodes.RangeVar{
 				Inh:     true,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			/* Convert any_name to schema.rel */
 			names := $3
@@ -7217,7 +7217,7 @@ TableFuncElement:
 				Colname:  $1,
 				TypeName: $2,
 				IsLocal:  true,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			if $3 != nil {
 				coldef.CollClause = $3.(*nodes.CollateClause)
@@ -7231,7 +7231,7 @@ opt_collate_clause:
 		{
 			$$ = &nodes.CollateClause{
 				Collname: $2,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| /* EMPTY */
@@ -7800,11 +7800,11 @@ simple_select:
 			/* same as SELECT * FROM relation_expr */
 			cr := &nodes.ColumnRef{
 				Fields: &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}},
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			rt := &nodes.ResTarget{
 				Val:      cr,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			$$ = &nodes.SelectStmt{
 				TargetList: makeList(rt),
@@ -7952,7 +7952,7 @@ opt_search_clause:
 				SearchColList:      $5,
 				SearchBreadthFirst: false,
 				SearchSeqColumn:    $7,
-				Location:           -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| SEARCH BREADTH FIRST_P BY columnList SET ColId
@@ -7961,7 +7961,7 @@ opt_search_clause:
 				SearchColList:      $5,
 				SearchBreadthFirst: true,
 				SearchSeqColumn:    $7,
-				Location:           -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| /* EMPTY */ { $$ = nil }
@@ -7976,7 +7976,7 @@ opt_cycle_clause:
 				CycleMarkValue:   $6,
 				CycleMarkDefault: $8,
 				CyclePathColumn:  $10,
-				Location:         -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| CYCLE columnList SET ColId USING ColId
@@ -7987,7 +7987,7 @@ opt_cycle_clause:
 				CycleMarkValue:   makeBoolAConst(1),
 				CycleMarkDefault: makeBoolAConst(0),
 				CyclePathColumn:  $6,
-				Location:         -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| /* EMPTY */ { $$ = nil }
@@ -8392,7 +8392,7 @@ tablesample_clause:
 				Method: $2,
 				Args:   $4,
 				Repeatable: $6,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -8452,28 +8452,28 @@ group_by_item:
 empty_grouping_set:
 	'(' ')'
 		{
-			$$ = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_EMPTY, Location: -1}
+			$$ = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_EMPTY, Loc: nodes.Loc{Start: -1, End: -1}}
 		}
 	;
 
 cube_clause:
 	CUBE '(' expr_list ')'
 		{
-			$$ = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_CUBE, Content: $3, Location: -1}
+			$$ = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_CUBE, Content: $3, Loc: nodes.Loc{Start: -1, End: -1}}
 		}
 	;
 
 rollup_clause:
 	ROLLUP '(' expr_list ')'
 		{
-			$$ = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_ROLLUP, Content: $3, Location: -1}
+			$$ = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_ROLLUP, Content: $3, Loc: nodes.Loc{Start: -1, End: -1}}
 		}
 	;
 
 grouping_sets_clause:
 	GROUPING SETS '(' group_by_list ')'
 		{
-			$$ = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_SETS, Content: $4, Location: -1}
+			$$ = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_SETS, Content: $4, Loc: nodes.Loc{Start: -1, End: -1}}
 		}
 	;
 
@@ -8867,7 +8867,7 @@ a_expr:
 				Funcname:       makeFuncName("overlaps"),
 				Args:           args,
 				FuncFormat:     int(nodes.COERCE_SQL_SYNTAX),
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| a_expr IS DOCUMENT_P                             %prec IS
@@ -8875,7 +8875,7 @@ a_expr:
 			$$ = &nodes.XmlExpr{
 				Op:       nodes.IS_DOCUMENT,
 				Args:     makeList($1),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| a_expr IS NOT DOCUMENT_P                         %prec IS
@@ -8883,7 +8883,7 @@ a_expr:
 			$$ = makeNotExpr(&nodes.XmlExpr{
 				Op:       nodes.IS_DOCUMENT,
 				Args:     makeList($1),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			})
 		}
 	| a_expr IS json_predicate_type_constraint json_key_uniqueness_constraint_opt   %prec IS
@@ -8892,7 +8892,7 @@ a_expr:
 				Expr:       $1,
 				ItemType:   nodes.JsonValueType($3),
 				UniqueKeys: $4 != 0,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| a_expr IS NOT json_predicate_type_constraint json_key_uniqueness_constraint_opt   %prec IS
@@ -8901,7 +8901,7 @@ a_expr:
 				Expr:       $1,
 				ItemType:   nodes.JsonValueType($4),
 				UniqueKeys: $5 != 0,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			})
 		}
 	| a_expr IS unicode_normal_form NORMALIZED                    %prec IS
@@ -8910,7 +8910,7 @@ a_expr:
 				Funcname:   makeFuncName("pg_catalog", "is_normalized"),
 				Args:       makeList2($1, makeStringConst($3)),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| a_expr IS NOT unicode_normal_form NORMALIZED                %prec IS
@@ -8919,7 +8919,7 @@ a_expr:
 				Funcname:   makeFuncName("pg_catalog", "is_normalized"),
 				Args:       makeList2($1, makeStringConst($4)),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			})
 		}
 	| a_expr IS NORMALIZED                                        %prec IS
@@ -8928,7 +8928,7 @@ a_expr:
 				Funcname:   makeFuncName("pg_catalog", "is_normalized"),
 				Args:       makeList2($1, makeStringConst("NFC")),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| a_expr IS NOT NORMALIZED                                    %prec IS
@@ -8937,7 +8937,7 @@ a_expr:
 				Funcname:   makeFuncName("pg_catalog", "is_normalized"),
 				Args:       makeList2($1, makeStringConst("NFC")),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			})
 		}
 	| a_expr LIKE a_expr                              %prec LIKE
@@ -8950,7 +8950,7 @@ a_expr:
 				Funcname:   makeFuncName("pg_catalog", "like_escape"),
 				Args:       makeList2($3, $5),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			$$ = makeAExpr(nodes.AEXPR_LIKE, "~~", $1, esc)
 		}
@@ -8964,7 +8964,7 @@ a_expr:
 				Funcname:   makeFuncName("pg_catalog", "like_escape"),
 				Args:       makeList2($4, $6),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			$$ = makeAExpr(nodes.AEXPR_LIKE, "!~~", $1, esc)
 		}
@@ -8978,7 +8978,7 @@ a_expr:
 				Funcname:   makeFuncName("pg_catalog", "like_escape"),
 				Args:       makeList2($3, $5),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			$$ = makeAExpr(nodes.AEXPR_ILIKE, "~~*", $1, esc)
 		}
@@ -8992,7 +8992,7 @@ a_expr:
 				Funcname:   makeFuncName("pg_catalog", "like_escape"),
 				Args:       makeList2($4, $6),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			$$ = makeAExpr(nodes.AEXPR_ILIKE, "!~~*", $1, esc)
 		}
@@ -9002,7 +9002,7 @@ a_expr:
 				Funcname:   makeFuncName("pg_catalog", "similar_to_escape"),
 				Args:       makeList($4),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			$$ = makeAExpr(nodes.AEXPR_SIMILAR, "~", $1, esc)
 		}
@@ -9012,7 +9012,7 @@ a_expr:
 				Funcname:   makeFuncName("pg_catalog", "similar_to_escape"),
 				Args:       makeList2($4, $6),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			$$ = makeAExpr(nodes.AEXPR_SIMILAR, "~", $1, esc)
 		}
@@ -9022,7 +9022,7 @@ a_expr:
 				Funcname:   makeFuncName("pg_catalog", "similar_to_escape"),
 				Args:       makeList($5),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			$$ = makeAExpr(nodes.AEXPR_SIMILAR, "!~", $1, esc)
 		}
@@ -9032,7 +9032,7 @@ a_expr:
 				Funcname:   makeFuncName("pg_catalog", "similar_to_escape"),
 				Args:       makeList2($5, $7),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			$$ = makeAExpr(nodes.AEXPR_SIMILAR, "!~", $1, esc)
 		}
@@ -9070,7 +9070,7 @@ a_expr:
 				SubLinkType: int(nodes.ANY_SUBLINK),
 				Testexpr:    $1,
 				Subselect:   $3,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| a_expr NOT_LA IN_P select_with_parens            %prec NOT_LA
@@ -9079,7 +9079,7 @@ a_expr:
 				SubLinkType: int(nodes.ANY_SUBLINK),
 				Testexpr:    $1,
 				Subselect:   $4,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			$$ = makeBoolExpr(nodes.NOT_EXPR, sublink, nil)
 		}
@@ -9090,7 +9090,7 @@ a_expr:
 				Testexpr:    $1,
 				OperName:    $2,
 				Subselect:   $4,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| a_expr subquery_Op sub_type '(' a_expr ')' %prec Op
@@ -9112,7 +9112,7 @@ a_expr:
 			$$ = &nodes.CollateClause{
 				Arg:      $1,
 				Collname: $3,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| a_expr AT TIME ZONE a_expr                       %prec AT
@@ -9121,7 +9121,7 @@ a_expr:
 				Funcname:   makeFuncName("pg_catalog", "timezone"),
 				Args:       makeList2($5, $1),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| a_expr AT LOCAL                                  %prec AT
@@ -9130,12 +9130,12 @@ a_expr:
 				Funcname:   makeFuncName("pg_catalog", "timezone"),
 				Args:       makeList($1),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| DEFAULT
 		{
-			$$ = &nodes.SetToDefault{Location: -1}
+			$$ = &nodes.SetToDefault{Loc: nodes.Loc{Start: -1, End: -1}}
 		}
 	| a_expr '[' a_expr ']'
 		{
@@ -9160,7 +9160,7 @@ a_expr:
 			$$ = &nodes.TypeCast{
 				Arg:      $1,
 				TypeName: $3,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| '+' a_expr %prec UMINUS
@@ -9218,7 +9218,7 @@ case_expr:
 				Arg:       $2,
 				Args:      $3,
 				Defresult: $4,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -9240,7 +9240,7 @@ when_clause:
 			$$ = &nodes.CaseWhen{
 				Expr:     $2,
 				Result:   $4,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -9266,20 +9266,20 @@ array_expr:
 		{
 			$$ = &nodes.A_ArrayExpr{
 				Elements: $2,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| '[' array_expr_list ']'
 		{
 			$$ = &nodes.A_ArrayExpr{
 				Elements: $2,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| '[' ']'
 		{
 			$$ = &nodes.A_ArrayExpr{
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -9311,7 +9311,7 @@ row:
 			$$ = &nodes.RowExpr{
 				Args:     $1,
 				RowFormat: nodes.COERCE_IMPLICIT_CAST,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -9322,14 +9322,14 @@ explicit_row:
 			$$ = &nodes.RowExpr{
 				Args:     $3,
 				RowFormat: nodes.COERCE_EXPLICIT_CALL,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ROW '(' ')'
 		{
 			$$ = &nodes.RowExpr{
 				RowFormat: nodes.COERCE_EXPLICIT_CALL,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -9412,7 +9412,7 @@ b_expr:
 			$$ = &nodes.XmlExpr{
 				Op:       nodes.IS_DOCUMENT,
 				Args:     makeList($1),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| b_expr IS NOT DOCUMENT_P				%prec IS
@@ -9420,7 +9420,7 @@ b_expr:
 			$$ = makeNotExpr(&nodes.XmlExpr{
 				Op:       nodes.IS_DOCUMENT,
 				Args:     makeList($1),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			})
 		}
 	| b_expr TYPECAST Typename
@@ -9428,7 +9428,7 @@ b_expr:
 			$$ = &nodes.TypeCast{
 				Arg:      $1,
 				TypeName: $3,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| '+' b_expr %prec UMINUS
@@ -9448,7 +9448,7 @@ c_expr:
 		{
 			p := &nodes.ParamRef{
 				Number:   int($1),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			if $2 != nil {
 				$$ = &nodes.A_Indirection{
@@ -9476,7 +9476,7 @@ c_expr:
 			$$ = &nodes.SubLink{
 				SubLinkType: int(nodes.EXPR_SUBLINK),
 				Subselect:   $1,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| select_with_parens indirection
@@ -9484,7 +9484,7 @@ c_expr:
 			sublink := &nodes.SubLink{
 				SubLinkType: int(nodes.EXPR_SUBLINK),
 				Subselect:   $1,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			$$ = &nodes.A_Indirection{
 				Arg:         sublink,
@@ -9496,7 +9496,7 @@ c_expr:
 			$$ = &nodes.SubLink{
 				SubLinkType: int(nodes.EXISTS_SUBLINK),
 				Subselect:   $2,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| case_expr { $$ = $1 }
@@ -9505,7 +9505,7 @@ c_expr:
 			$$ = &nodes.SubLink{
 				SubLinkType: int(nodes.ARRAY_SUBLINK),
 				Subselect:   $2,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ARRAY array_expr
@@ -9521,7 +9521,7 @@ c_expr:
 			$$ = &nodes.RowExpr{
 				Args:     $1,
 				RowFormat: nodes.COERCE_IMPLICIT_CAST,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -9586,7 +9586,7 @@ over_clause:
 			$$ = &nodes.WindowDef{
 				Name:         $2,
 				FrameOptions: nodes.FRAMEOPTION_DEFAULTS,
-				Location:     -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| /* EMPTY */				{ $$ = nil }
@@ -9622,7 +9622,7 @@ window_specification:
 			if $4 != nil {
 				n.OrderClause = $4
 			}
-			n.Location = -1
+			n.Loc = nodes.Loc{Start: -1, End: -1}
 			$$ = n
 		}
 	;
@@ -9778,7 +9778,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("pg_catalog", "pg_collation_for"),
 				Args:       makeList($4),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| CURRENT_DATE
@@ -9834,7 +9834,7 @@ func_expr_common_subexpr:
 			$$ = &nodes.FuncCall{
 				Funcname:   makeFuncName("pg_catalog", "system_user"),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| USER
@@ -9861,7 +9861,7 @@ func_expr_common_subexpr:
 		{
 			$$ = &nodes.CoalesceExpr{
 				Args:     $3,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| GREATEST '(' expr_list ')'
@@ -9869,7 +9869,7 @@ func_expr_common_subexpr:
 			$$ = &nodes.MinMaxExpr{
 				Op:       nodes.IS_GREATEST,
 				Args:     $3,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| LEAST '(' expr_list ')'
@@ -9877,7 +9877,7 @@ func_expr_common_subexpr:
 			$$ = &nodes.MinMaxExpr{
 				Op:       nodes.IS_LEAST,
 				Args:     $3,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| EXTRACT '(' extract_list ')'
@@ -9886,7 +9886,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("pg_catalog", "extract"),
 				Args:       $3,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| NORMALIZE '(' a_expr ')'
@@ -9895,7 +9895,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("pg_catalog", "normalize"),
 				Args:       makeList($3),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| NORMALIZE '(' a_expr ',' unicode_normal_form ')'
@@ -9904,7 +9904,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("pg_catalog", "normalize"),
 				Args:       makeList2($3, makeStringConst($5)),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| OVERLAY '(' overlay_list ')'
@@ -9913,7 +9913,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("pg_catalog", "overlay"),
 				Args:       $3,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| OVERLAY '(' func_arg_list_opt ')'
@@ -9922,7 +9922,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("overlay"),
 				Args:       $3,
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| POSITION '(' position_list ')'
@@ -9931,7 +9931,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("pg_catalog", "position"),
 				Args:       $3,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| SUBSTRING '(' substr_list ')'
@@ -9940,7 +9940,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("pg_catalog", "substring"),
 				Args:       $3,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| SUBSTRING '(' func_arg_list_opt ')'
@@ -9949,7 +9949,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("substring"),
 				Args:       $3,
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| TREAT '(' a_expr AS Typename ')'
@@ -9967,7 +9967,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("pg_catalog", funcName),
 				Args:       makeList($3),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| TRIM '(' BOTH trim_list ')'
@@ -9976,7 +9976,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("pg_catalog", "btrim"),
 				Args:       $4,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| TRIM '(' LEADING trim_list ')'
@@ -9985,7 +9985,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("pg_catalog", "ltrim"),
 				Args:       $4,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| TRIM '(' TRAILING trim_list ')'
@@ -9994,7 +9994,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("pg_catalog", "rtrim"),
 				Args:       $4,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| TRIM '(' trim_list ')'
@@ -10003,14 +10003,14 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("pg_catalog", "btrim"),
 				Args:       $3,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| GROUPING '(' expr_list ')'
 		{
 			$$ = &nodes.GroupingFunc{
 				Args:     $3,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| XMLCONCAT '(' expr_list ')'
@@ -10018,7 +10018,7 @@ func_expr_common_subexpr:
 			$$ = &nodes.XmlExpr{
 				Op:       nodes.IS_XMLCONCAT,
 				Args:     $3,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| XMLELEMENT '(' NAME_P ColLabel ')'
@@ -10026,7 +10026,7 @@ func_expr_common_subexpr:
 			$$ = &nodes.XmlExpr{
 				Op:       nodes.IS_XMLELEMENT,
 				Name:     $4,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| XMLELEMENT '(' NAME_P ColLabel ',' xml_attributes ')'
@@ -10035,7 +10035,7 @@ func_expr_common_subexpr:
 				Op:        nodes.IS_XMLELEMENT,
 				Name:      $4,
 				NamedArgs: $6,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| XMLELEMENT '(' NAME_P ColLabel ',' expr_list ')'
@@ -10044,7 +10044,7 @@ func_expr_common_subexpr:
 				Op:       nodes.IS_XMLELEMENT,
 				Name:     $4,
 				Args:     $6,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| XMLELEMENT '(' NAME_P ColLabel ',' xml_attributes ',' expr_list ')'
@@ -10054,7 +10054,7 @@ func_expr_common_subexpr:
 				Name:      $4,
 				NamedArgs: $6,
 				Args:      $8,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| XMLEXISTS '(' c_expr xmlexists_argument ')'
@@ -10064,7 +10064,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("pg_catalog", "xmlexists"),
 				Args:       makeList2($3, $4),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| XMLFOREST '(' xml_attribute_list ')'
@@ -10072,7 +10072,7 @@ func_expr_common_subexpr:
 			$$ = &nodes.XmlExpr{
 				Op:        nodes.IS_XMLFOREST,
 				NamedArgs: $3,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| XMLPARSE '(' document_or_content a_expr xml_whitespace_option ')'
@@ -10081,7 +10081,7 @@ func_expr_common_subexpr:
 				Op:       nodes.IS_XMLPARSE,
 				Args:     makeList2($4, makeBoolAConst($5)),
 				Xmloption: nodes.XmlOptionType($3),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			$$ = x
 		}
@@ -10090,7 +10090,7 @@ func_expr_common_subexpr:
 			$$ = &nodes.XmlExpr{
 				Op:       nodes.IS_XMLPI,
 				Name:     $4,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| XMLPI '(' NAME_P ColLabel ',' a_expr ')'
@@ -10099,7 +10099,7 @@ func_expr_common_subexpr:
 				Op:       nodes.IS_XMLPI,
 				Name:     $4,
 				Args:     makeList($6),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| XMLROOT '(' a_expr ',' xml_root_version opt_xml_root_standalone ')'
@@ -10107,7 +10107,7 @@ func_expr_common_subexpr:
 			$$ = &nodes.XmlExpr{
 				Op:       nodes.IS_XMLROOT,
 				Args:     &nodes.List{Items: []nodes.Node{$3, $5, $6}},
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| XMLSERIALIZE '(' document_or_content a_expr AS SimpleTypename xml_indent_option ')'
@@ -10117,7 +10117,7 @@ func_expr_common_subexpr:
 				Expr:      $4,
 				TypeName:  $6,
 				Indent:    $7 != 0,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	/* SQL/JSON function expressions */
@@ -10128,7 +10128,7 @@ func_expr_common_subexpr:
 				Funcname:   makeFuncName("pg_catalog", "json_object"),
 				Args:       $3,
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| JSON_OBJECT '(' json_name_and_value_list json_object_constructor_null_clause_opt
@@ -10139,14 +10139,14 @@ func_expr_common_subexpr:
 				Output:       asJsonOutput($6),
 				AbsentOnNull: $4 != 0,
 				UniqueKeys:   $5 != 0,
-				Location:     -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| JSON_OBJECT '(' json_returning_clause_opt ')'
 		{
 			$$ = &nodes.JsonObjectConstructor{
 				Output:   asJsonOutput($3),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| JSON_ARRAY '(' json_value_expr_list json_array_constructor_null_clause_opt
@@ -10156,7 +10156,7 @@ func_expr_common_subexpr:
 				Exprs:        $3,
 				AbsentOnNull: $4 != 0,
 				Output:       asJsonOutput($5),
-				Location:     -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| JSON_ARRAY '(' select_no_parens json_format_clause_opt json_returning_clause_opt ')'
@@ -10164,14 +10164,14 @@ func_expr_common_subexpr:
 			$$ = &nodes.JsonArrayQueryConstructor{
 				Query:  $3,
 				Output: asJsonOutput($5),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| JSON_ARRAY '(' json_returning_clause_opt ')'
 		{
 			$$ = &nodes.JsonArrayConstructor{
 				Output:   asJsonOutput($3),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| JSON '(' json_value_expr json_key_uniqueness_constraint_opt ')'
@@ -10179,14 +10179,14 @@ func_expr_common_subexpr:
 			$$ = &nodes.JsonParseExpr{
 				Expr:       $3.(*nodes.JsonValueExpr),
 				UniqueKeys: $4 != 0,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| JSON_SCALAR '(' a_expr ')'
 		{
 			$$ = &nodes.JsonScalarExpr{
 				Expr:     $3,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| JSON_SERIALIZE '(' json_value_expr json_returning_clause_opt ')'
@@ -10194,7 +10194,7 @@ func_expr_common_subexpr:
 			$$ = &nodes.JsonSerializeExpr{
 				Expr:   $3.(*nodes.JsonValueExpr),
 				Output: asJsonOutput($4),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| JSON_QUERY '(' json_value_expr ',' a_expr json_passing_clause_opt
@@ -10212,7 +10212,7 @@ func_expr_common_subexpr:
 				Quotes:      nodes.JsonQuotes($9),
 				OnEmpty:     onEmpty,
 				OnError:     onError,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| JSON_EXISTS '(' json_value_expr ',' a_expr json_passing_clause_opt
@@ -10224,7 +10224,7 @@ func_expr_common_subexpr:
 				Pathspec:    $5,
 				Passing:     $6,
 				OnError:     asJsonBehavior($7),
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| JSON_VALUE '(' json_value_expr ',' a_expr json_passing_clause_opt
@@ -10239,14 +10239,14 @@ func_expr_common_subexpr:
 				Output:      asJsonOutput($7),
 				OnEmpty:     onEmpty,
 				OnError:     onError,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| MERGE_ACTION '(' ')'
 		{
 			$$ = &nodes.FuncCall{
 				Funcname:   makeFuncName("merge_action"),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -10386,14 +10386,14 @@ xml_attribute_el:
 			$$ = &nodes.ResTarget{
 				Name:     $3,
 				Val:      $1,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| a_expr
 		{
 			$$ = &nodes.ResTarget{
 				Val:      $1,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -10444,7 +10444,7 @@ xmltable:
 				Rowexpr:  $3,
 				Docexpr:  $4,
 				Columns:  $6,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| XMLTABLE '(' XMLNAMESPACES '(' xml_namespace_list ')' ','
@@ -10455,7 +10455,7 @@ xmltable:
 				Docexpr:    $9,
 				Columns:    $11,
 				Namespaces: $5,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -10473,7 +10473,7 @@ xmltable_column_el:
 			$$ = &nodes.RangeTableFuncCol{
 				Colname:  $1,
 				TypeName: $2,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ColId Typename xmltable_column_option_list
@@ -10481,7 +10481,7 @@ xmltable_column_el:
 			fc := &nodes.RangeTableFuncCol{
 				Colname:  $1,
 				TypeName: $2,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			for _, item := range $3.Items {
 				defel := item.(*nodes.DefElem)
@@ -10505,7 +10505,7 @@ xmltable_column_el:
 			$$ = &nodes.RangeTableFuncCol{
 				Colname:       $1,
 				ForOrdinality: true,
-				Location:      -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -10553,14 +10553,14 @@ xml_namespace_el:
 			$$ = &nodes.ResTarget{
 				Name:     $3,
 				Val:      $1,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| DEFAULT b_expr
 		{
 			$$ = &nodes.ResTarget{
 				Val:      $2,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -10585,14 +10585,14 @@ json_format_clause:
 		{
 			$$ = &nodes.JsonFormat{
 				FormatType: nodes.JS_FORMAT_JSON,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| FORMAT_LA JSON ENCODING name
 		{
 			$$ = &nodes.JsonFormat{
 				FormatType: nodes.JS_FORMAT_JSON,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -10623,14 +10623,14 @@ json_behavior:
 			$$ = &nodes.JsonBehavior{
 				Btype: nodes.JSON_BEHAVIOR_DEFAULT,
 				Expr:  $2,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| json_behavior_type
 		{
 			$$ = &nodes.JsonBehavior{
 				Btype: nodes.JsonBehaviorType($1),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -10780,7 +10780,7 @@ json_aggregate_func:
 			$$ = &nodes.JsonObjectAgg{
 				Constructor: &nodes.JsonAggConstructor{
 					Output:   asJsonOutput($6),
-					Location: -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
 				Arg:          $3.(*nodes.JsonKeyValue),
 				AbsentOnNull: $4 != 0,
@@ -10794,7 +10794,7 @@ json_aggregate_func:
 				Constructor: &nodes.JsonAggConstructor{
 					Output:    asJsonOutput($6),
 					Agg_order: $4,
-					Location:  -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
 				Arg:          $3.(*nodes.JsonValueExpr),
 				AbsentOnNull: $5 != 0,
@@ -10826,12 +10826,12 @@ json_table:
 				Pathspec: &nodes.JsonTablePathSpec{
 					String:   $5,
 					Name:     $6,
-					Location: -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
 				Passing:  $7,
 				Columns:  $10,
 				OnError:  asJsonBehavior($12),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -10854,7 +10854,7 @@ json_table_column_definition:
 			$$ = &nodes.JsonTableColumn{
 				Coltype:  nodes.JTC_FOR_ORDINALITY,
 				Name:     $1,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ColId Typename json_table_column_path_clause_opt
@@ -10871,7 +10871,7 @@ json_table_column_definition:
 				Quotes:   nodes.JsonQuotes($5),
 				OnEmpty:  onEmpty,
 				OnError:  onError,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ColId Typename json_format_clause json_table_column_path_clause_opt
@@ -10889,7 +10889,7 @@ json_table_column_definition:
 				Quotes:   nodes.JsonQuotes($6),
 				OnEmpty:  onEmpty,
 				OnError:  onError,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ColId Typename EXISTS json_table_column_path_clause_opt
@@ -10901,7 +10901,7 @@ json_table_column_definition:
 				TypeName: $2,
 				Pathspec: asJsonTablePathSpec($4),
 				OnError:  asJsonBehavior($5),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| NESTED path_opt Sconst json_table_path_name_opt
@@ -10912,10 +10912,10 @@ json_table_column_definition:
 				Pathspec: &nodes.JsonTablePathSpec{
 					String:   makeStringConst($3),
 					Name:     $4,
-					Location: -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
 				Columns:  $7,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -10925,7 +10925,7 @@ json_table_column_path_clause_opt:
 		{
 			$$ = &nodes.JsonTablePathSpec{
 				String:   makeStringConst($2),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| /* EMPTY */
@@ -10985,7 +10985,7 @@ func_arg_expr:
 				Name:      $1,
 				Arg:       $3,
 				Argnumber: -1,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| param_name EQUALS_GREATER a_expr
@@ -10994,7 +10994,7 @@ func_arg_expr:
 				Name:      $1,
 				Arg:       $3,
 				Argnumber: -1,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -11371,7 +11371,7 @@ GenericType:
 			$$ = &nodes.TypeName{
 				Names:    makeList(&nodes.String{Str: $1}),
 				Typmods:  $2,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| type_function_name '.' attr_name opt_type_modifiers
@@ -11381,7 +11381,7 @@ GenericType:
 			$$ = &nodes.TypeName{
 				Names:    l,
 				Typmods:  $4,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -14390,7 +14390,7 @@ alter_generic_option_elem:
 			$$ = &nodes.DefElem{
 				Defname:   $2,
 				Defaction: int(nodes.DEFELEM_DROP),
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -14401,7 +14401,7 @@ generic_option_elem:
 			$$ = &nodes.DefElem{
 				Defname:  $1,
 				Arg:      $2,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -14785,7 +14785,7 @@ reloption_elem:
 				Defnamespace: $1,
 				Defname:      $3,
 				Arg:          $5,
-				Location:     -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ColLabel '.' ColLabel
@@ -14793,7 +14793,7 @@ reloption_elem:
 			$$ = &nodes.DefElem{
 				Defnamespace: $1,
 				Defname:      $3,
-				Location:     -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -15059,7 +15059,7 @@ RowSecurityDefaultToRole:
 			/* Default is PUBLIC */
 			$$ = makeList(&nodes.RoleSpec{
 				Roletype: int(nodes.ROLESPEC_PUBLIC),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			})
 		}
 	;
@@ -15685,7 +15685,7 @@ operator_def_elem:
 		{
 			$$ = &nodes.DefElem{
 				Defname:  $1,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ColLabel '=' operator_def_arg
@@ -15693,14 +15693,14 @@ operator_def_elem:
 			$$ = &nodes.DefElem{
 				Defname:  $1,
 				Arg:      $3,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| ColLabel
 		{
 			$$ = &nodes.DefElem{
 				Defname:  $1,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -15964,7 +15964,7 @@ DefACLOption:
 			$$ = &nodes.DefElem{
 				Defname: "schemas",
 				Arg:     $3,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| FOR ROLE role_list
@@ -15972,7 +15972,7 @@ DefACLOption:
 			$$ = &nodes.DefElem{
 				Defname: "roles",
 				Arg:     $3,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	| FOR USER role_list
@@ -15980,7 +15980,7 @@ DefACLOption:
 			$$ = &nodes.DefElem{
 				Defname: "roles",
 				Arg:     $3,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	;
@@ -17400,7 +17400,7 @@ func makeStringConstCast(s string, typeName *nodes.TypeName) nodes.Node {
 	return &nodes.TypeCast{
 		Arg:      &nodes.A_Const{Val: &nodes.String{Str: s}},
 		TypeName: typeName,
-		Location: -1,
+		Loc: nodes.Loc{Start: -1, End: -1},
 	}
 }
 
@@ -17489,7 +17489,7 @@ func makeTypeName(typeName string) *nodes.TypeName {
 			&nodes.String{Str: "pg_catalog"},
 			&nodes.String{Str: typeName},
 		}},
-		Location: -1,
+		Loc: nodes.Loc{Start: -1, End: -1},
 	}
 }
 
@@ -17516,7 +17516,7 @@ func makeNotExpr(expr nodes.Node) nodes.Node {
 	return &nodes.BoolExpr{
 		Boolop: nodes.NOT_EXPR,
 		Args:   &nodes.List{Items: []nodes.Node{expr}},
-		Location: -1,
+		Loc: nodes.Loc{Start: -1, End: -1},
 	}
 }
 
@@ -17562,7 +17562,7 @@ func setJoinQual(n *nodes.JoinExpr, qual nodes.Node) {
 }
 
 func makeTypeNameFromNameList(names *nodes.List) nodes.Node {
-	tn := &nodes.TypeName{Location: -1}
+	tn := &nodes.TypeName{Loc: nodes.Loc{Start: -1, End: -1}}
 	if names != nil {
 		tn.Names = names
 	}
@@ -17617,7 +17617,7 @@ func makeDefElem(name string, arg nodes.Node) nodes.Node {
 	return &nodes.DefElem{
 		Defname:  name,
 		Arg:      arg,
-		Location: -1,
+		Loc: nodes.Loc{Start: -1, End: -1},
 	}
 }
 
@@ -17634,12 +17634,12 @@ func makeFuncName(parts ...string) *nodes.List {
 
 // makeSQLValueFunction creates a SQLValueFunction node.
 func makeSQLValueFunction(op nodes.SVFOp, typmod int) nodes.Node {
-	return &nodes.SQLValueFunction{Op: op, Typmod: int32(typmod), Location: -1}
+	return &nodes.SQLValueFunction{Op: op, Typmod: int32(typmod), Loc: nodes.Loc{Start: -1, End: -1}}
 }
 
 // makeTypeCast creates a TypeCast node.
 func makeTypeCast(arg nodes.Node, typeName *nodes.TypeName) nodes.Node {
-	return &nodes.TypeCast{Arg: arg, TypeName: typeName, Location: -1}
+	return &nodes.TypeCast{Arg: arg, TypeName: typeName, Loc: nodes.Loc{Start: -1, End: -1}}
 }
 
 // roleSpecOrNil safely casts a node to *nodes.RoleSpec, returning nil if the node is nil.
@@ -17847,7 +17847,7 @@ func makeRangeVarFromAnyName(names *nodes.List) *nodes.RangeVar {
 	rv := &nodes.RangeVar{
 		Inh:            true,
 		Relpersistence: 'p',
-		Location:       -1,
+		Loc: nodes.Loc{Start: -1, End: -1},
 	}
 	if names == nil {
 		return rv

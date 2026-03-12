@@ -1203,7 +1203,7 @@ func makeStringConstCast(s string, typeName *nodes.TypeName) nodes.Node {
 	return &nodes.TypeCast{
 		Arg:      &nodes.A_Const{Val: &nodes.String{Str: s}},
 		TypeName: typeName,
-		Location: -1,
+		Loc: nodes.Loc{Start: -1, End: -1},
 	}
 }
 
@@ -1296,7 +1296,7 @@ func makeTypeName(typeName string) *nodes.TypeName {
 			&nodes.String{Str: "pg_catalog"},
 			&nodes.String{Str: typeName},
 		}},
-		Location: -1,
+		Loc: nodes.Loc{Start: -1, End: -1},
 	}
 }
 
@@ -1323,7 +1323,7 @@ func makeNotExpr(expr nodes.Node) nodes.Node {
 	return &nodes.BoolExpr{
 		Boolop:   nodes.NOT_EXPR,
 		Args:     &nodes.List{Items: []nodes.Node{expr}},
-		Location: -1,
+		Loc: nodes.Loc{Start: -1, End: -1},
 	}
 }
 
@@ -1369,7 +1369,7 @@ func setJoinQual(n *nodes.JoinExpr, qual nodes.Node) {
 }
 
 func makeTypeNameFromNameList(names *nodes.List) nodes.Node {
-	tn := &nodes.TypeName{Location: -1}
+	tn := &nodes.TypeName{Loc: nodes.Loc{Start: -1, End: -1}}
 	if names != nil {
 		tn.Names = names
 	}
@@ -1424,7 +1424,7 @@ func makeDefElem(name string, arg nodes.Node) nodes.Node {
 	return &nodes.DefElem{
 		Defname:  name,
 		Arg:      arg,
-		Location: -1,
+		Loc: nodes.Loc{Start: -1, End: -1},
 	}
 }
 
@@ -1441,12 +1441,12 @@ func makeFuncName(parts ...string) *nodes.List {
 
 // makeSQLValueFunction creates a SQLValueFunction node.
 func makeSQLValueFunction(op nodes.SVFOp, typmod int) nodes.Node {
-	return &nodes.SQLValueFunction{Op: op, Typmod: int32(typmod), Location: -1}
+	return &nodes.SQLValueFunction{Op: op, Typmod: int32(typmod), Loc: nodes.Loc{Start: -1, End: -1}}
 }
 
 // makeTypeCast creates a TypeCast node.
 func makeTypeCast(arg nodes.Node, typeName *nodes.TypeName) nodes.Node {
-	return &nodes.TypeCast{Arg: arg, TypeName: typeName, Location: -1}
+	return &nodes.TypeCast{Arg: arg, TypeName: typeName, Loc: nodes.Loc{Start: -1, End: -1}}
 }
 
 // roleSpecOrNil safely casts a node to *nodes.RoleSpec, returning nil if the node is nil.
@@ -1654,7 +1654,7 @@ func makeRangeVarFromAnyName(names *nodes.List) *nodes.RangeVar {
 	rv := &nodes.RangeVar{
 		Inh:            true,
 		Relpersistence: 'p',
-		Location:       -1,
+		Loc: nodes.Loc{Start: -1, End: -1},
 	}
 	if names == nil {
 		return rv
@@ -18950,7 +18950,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.OnConflictClause{
 				Action:   ONCONFLICT_NOTHING,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 143:
@@ -18961,7 +18961,7 @@ pgdefault:
 				Action:      ONCONFLICT_UPDATE,
 				TargetList:  pgDollar[6].list,
 				WhereClause: pgDollar[7].node,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 144:
@@ -18972,9 +18972,9 @@ pgdefault:
 				Action: ONCONFLICT_NOTHING,
 				Infer: &nodes.InferClause{
 					IndexElems: pgDollar[4].list,
-					Location:   -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 145:
@@ -18985,11 +18985,11 @@ pgdefault:
 				Action: ONCONFLICT_UPDATE,
 				Infer: &nodes.InferClause{
 					IndexElems: pgDollar[4].list,
-					Location:   -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
 				TargetList:  pgDollar[9].list,
 				WhereClause: pgDollar[10].node,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 146:
@@ -19001,9 +19001,9 @@ pgdefault:
 				Infer: &nodes.InferClause{
 					IndexElems:  pgDollar[4].list,
 					WhereClause: pgDollar[7].node,
-					Location:    -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 147:
@@ -19015,11 +19015,11 @@ pgdefault:
 				Infer: &nodes.InferClause{
 					IndexElems:  pgDollar[4].list,
 					WhereClause: pgDollar[7].node,
-					Location:    -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
 				TargetList:  pgDollar[11].list,
 				WhereClause: pgDollar[12].node,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 148:
@@ -19030,9 +19030,9 @@ pgdefault:
 				Action: ONCONFLICT_NOTHING,
 				Infer: &nodes.InferClause{
 					Conname:  pgDollar[5].str,
-					Location: -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 149:
@@ -19043,11 +19043,11 @@ pgdefault:
 				Action: ONCONFLICT_UPDATE,
 				Infer: &nodes.InferClause{
 					Conname:  pgDollar[5].str,
-					Location: -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
 				TargetList:  pgDollar[9].list,
 				WhereClause: pgDollar[10].node,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 150:
@@ -19483,7 +19483,7 @@ pgdefault:
 			pgVAL.partspec = &nodes.PartitionSpec{
 				Strategy:   parsePartitionStrategy(pgDollar[3].str),
 				PartParams: pgDollar[5].list,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 198:
@@ -19506,7 +19506,7 @@ pgdefault:
 				Name:      pgDollar[1].str,
 				Collation: pgDollar[2].list,
 				Opclass:   pgDollar[3].list,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 201:
@@ -19517,7 +19517,7 @@ pgdefault:
 				Expr:      pgDollar[1].node,
 				Collation: pgDollar[2].list,
 				Opclass:   pgDollar[3].list,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 202:
@@ -19528,7 +19528,7 @@ pgdefault:
 				Expr:      pgDollar[2].node,
 				Collation: pgDollar[4].list,
 				Opclass:   pgDollar[5].list,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 203:
@@ -19555,7 +19555,7 @@ pgdefault:
 		{
 			pgVAL.partbound = &nodes.PartitionBoundSpec{
 				IsDefault: true,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 207:
@@ -19565,7 +19565,7 @@ pgdefault:
 			pgVAL.partbound = &nodes.PartitionBoundSpec{
 				Strategy:   'l',
 				Listdatums: pgDollar[5].list,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 208:
@@ -19576,7 +19576,7 @@ pgdefault:
 				Strategy:    'r',
 				Lowerdatums: pgDollar[5].list,
 				Upperdatums: pgDollar[9].list,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 209:
@@ -19587,7 +19587,7 @@ pgdefault:
 				Strategy:  'h',
 				Modulus:   -1,
 				Remainder: -1,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			for _, item := range pgDollar[5].list.Items {
 				opt := item.(*nodes.DefElem)
@@ -19674,7 +19674,7 @@ pgdefault:
 				Colname:  pgDollar[1].str,
 				TypeName: nil,
 				IsLocal:  true,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			splitColQualList(pgDollar[2].list, n)
 			pgVAL.node = n
@@ -19687,7 +19687,7 @@ pgdefault:
 				Colname:  pgDollar[1].str,
 				TypeName: nil,
 				IsLocal:  true,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			splitColQualList(pgDollar[4].list, n)
 			pgVAL.node = n
@@ -19831,7 +19831,7 @@ pgdefault:
 				Colname:  pgDollar[1].str,
 				TypeName: pgDollar[2].typename,
 				IsLocal:  true,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			splitColQualList(pgDollar[3].list, n)
 			pgVAL.node = n
@@ -19880,7 +19880,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.CollateClause{
 				Collname: pgDollar[2].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 252:
@@ -19925,7 +19925,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.Constraint{
 				Contype:  nodes.CONSTR_ATTR_DEFERRABLE,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 257:
@@ -19934,7 +19934,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.Constraint{
 				Contype:  nodes.CONSTR_ATTR_NOT_DEFERRABLE,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 258:
@@ -19943,7 +19943,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.Constraint{
 				Contype:  nodes.CONSTR_ATTR_DEFERRED,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 259:
@@ -19952,7 +19952,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.Constraint{
 				Contype:  nodes.CONSTR_ATTR_IMMEDIATE,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 260:
@@ -19961,7 +19961,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.Constraint{
 				Contype:  nodes.CONSTR_NOTNULL,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 261:
@@ -19970,7 +19970,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.Constraint{
 				Contype:  nodes.CONSTR_NULL,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 262:
@@ -19982,7 +19982,7 @@ pgdefault:
 				NullsNotDistinct: pgDollar[2].boolean,
 				Options:          pgDollar[3].list,
 				Indexspace:       pgDollar[4].str,
-				Location:         -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 263:
@@ -19993,7 +19993,7 @@ pgdefault:
 				Contype:    nodes.CONSTR_PRIMARY,
 				Options:    pgDollar[3].list,
 				Indexspace: pgDollar[4].str,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 264:
@@ -20003,7 +20003,7 @@ pgdefault:
 			n := &nodes.Constraint{
 				Contype:        nodes.CONSTR_CHECK,
 				RawExpr:        pgDollar[3].node,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			n.IsNoInherit = pgDollar[5].boolean
@@ -20016,7 +20016,7 @@ pgdefault:
 			pgVAL.node = &nodes.Constraint{
 				Contype:  nodes.CONSTR_DEFAULT,
 				RawExpr:  pgDollar[2].node,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 266:
@@ -20032,7 +20032,7 @@ pgdefault:
 				FkUpdaction:    pgDollar[5].keyactions.UpdateAction.Action,
 				FkDelaction:    pgDollar[5].keyactions.DeleteAction.Action,
 				FkDelsetcols:   pgDollar[5].keyactions.DeleteAction.Cols,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, pgDollar[6].ival)
@@ -20046,7 +20046,7 @@ pgdefault:
 				Contype:       nodes.CONSTR_IDENTITY,
 				GeneratedWhen: 'a',
 				Options:       pgDollar[5].list,
-				Location:      -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 268:
@@ -20057,7 +20057,7 @@ pgdefault:
 				Contype:       nodes.CONSTR_IDENTITY,
 				GeneratedWhen: 'd',
 				Options:       pgDollar[6].list,
-				Location:      -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 269:
@@ -20068,7 +20068,7 @@ pgdefault:
 				Contype:       nodes.CONSTR_GENERATED,
 				GeneratedWhen: 'a',
 				RawExpr:       pgDollar[5].node,
-				Location:      -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 270:
@@ -20079,7 +20079,7 @@ pgdefault:
 				Contype:       nodes.CONSTR_GENERATED,
 				GeneratedWhen: 'd',
 				RawExpr:       pgDollar[6].node,
-				Location:      -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 271:
@@ -20103,7 +20103,7 @@ pgdefault:
 			n := &nodes.Constraint{
 				Contype:        nodes.CONSTR_CHECK,
 				RawExpr:        pgDollar[3].node,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, pgDollar[5].ival)
@@ -20115,7 +20115,7 @@ pgdefault:
 		{
 			n := &nodes.Constraint{
 				Contype:        nodes.CONSTR_NOTNULL,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, pgDollar[3].ival)
@@ -20146,7 +20146,7 @@ pgdefault:
 				Including:        pgDollar[6].list,
 				Options:          pgDollar[7].list,
 				Indexspace:       pgDollar[8].str,
-				Location:         -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid:   true,
 			}
 			applyConstraintAttrs(n, pgDollar[9].ival)
@@ -20159,7 +20159,7 @@ pgdefault:
 			n := &nodes.Constraint{
 				Contype:        nodes.CONSTR_UNIQUE,
 				Indexname:      pgDollar[2].str,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, pgDollar[3].ival)
@@ -20175,7 +20175,7 @@ pgdefault:
 				Including:      pgDollar[6].list,
 				Options:        pgDollar[7].list,
 				Indexspace:     pgDollar[8].str,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, pgDollar[9].ival)
@@ -20188,7 +20188,7 @@ pgdefault:
 			n := &nodes.Constraint{
 				Contype:        nodes.CONSTR_PRIMARY,
 				Indexname:      pgDollar[3].str,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, pgDollar[4].ival)
@@ -20201,7 +20201,7 @@ pgdefault:
 			n := &nodes.Constraint{
 				Contype:        nodes.CONSTR_CHECK,
 				RawExpr:        pgDollar[3].node,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, pgDollar[5].ival)
@@ -20221,7 +20221,7 @@ pgdefault:
 				FkUpdaction:    pgDollar[10].keyactions.UpdateAction.Action,
 				FkDelaction:    pgDollar[10].keyactions.DeleteAction.Action,
 				FkDelsetcols:   pgDollar[10].keyactions.DeleteAction.Cols,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, pgDollar[11].ival)
@@ -20239,7 +20239,7 @@ pgdefault:
 				Options:        pgDollar[7].list,
 				Indexspace:     pgDollar[8].str,
 				WhereClause:    pgDollar[9].node,
-				Location:       -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 				InitiallyValid: true,
 			}
 			applyConstraintAttrs(n, pgDollar[10].ival)
@@ -21506,7 +21506,7 @@ pgdefault:
 				Contype:       nodes.CONSTR_IDENTITY,
 				GeneratedWhen: byte(pgDollar[6].ival),
 				Options:       pgDollar[9].list,
-				Location:      -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			pgVAL.node = &nodes.AlterTableCmd{
 				Subtype: int(nodes.AT_AddIdentity),
@@ -21522,7 +21522,7 @@ pgdefault:
 				Contype:       nodes.CONSTR_IDENTITY,
 				GeneratedWhen: byte(pgDollar[5].ival),
 				Options:       pgDollar[8].list,
-				Location:      -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			pgVAL.node = &nodes.AlterTableCmd{
 				Subtype: int(nodes.AT_AddIdentity),
@@ -23041,9 +23041,9 @@ pgdefault:
 			}
 			cr := &nodes.ColumnRef{
 				Fields:   &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}},
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
-			rt := &nodes.ResTarget{Val: cr, Location: -1}
+			rt := &nodes.ResTarget{Val: cr, Loc: nodes.Loc{Start: -1, End: -1}}
 			fromRv := &nodes.RangeVar{Relname: rv.Relname, Inh: true, Relpersistence: 'p'}
 			sel := &nodes.SelectStmt{
 				TargetList: makeList(rt),
@@ -23075,9 +23075,9 @@ pgdefault:
 			}
 			cr := &nodes.ColumnRef{
 				Fields:   &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}},
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
-			rt := &nodes.ResTarget{Val: cr, Location: -1}
+			rt := &nodes.ResTarget{Val: cr, Loc: nodes.Loc{Start: -1, End: -1}}
 			fromRv := &nodes.RangeVar{Relname: rv.Relname, Inh: true, Relpersistence: 'p'}
 			sel := &nodes.SelectStmt{
 				TargetList: makeList(rt),
@@ -23141,7 +23141,7 @@ pgdefault:
 				IsOrReplace: pgDollar[2].boolean,
 				Funcname:    pgDollar[4].list,
 				Parameters:  params,
-				ReturnType:  &nodes.TypeName{Names: makeFuncName("pg_catalog", "record"), Location: -1},
+				ReturnType:  &nodes.TypeName{Names: makeFuncName("pg_catalog", "record"), Loc: nodes.Loc{Start: -1, End: -1}},
 				Options:     pgDollar[11].list,
 				SqlBody:     pgDollar[12].node,
 			}
@@ -23357,7 +23357,7 @@ pgdefault:
 			names := prependList(&nodes.String{Str: pgDollar[1].str}, pgDollar[2].list)
 			tn := makeTypeNameFromNameList(names).(*nodes.TypeName)
 			tn.PctType = true
-			tn.Location = -1
+			tn.Loc = nodes.Loc{Start: -1, End: -1}
 			pgVAL.typename = tn
 		}
 	case 611:
@@ -23368,7 +23368,7 @@ pgdefault:
 			tn := makeTypeNameFromNameList(names).(*nodes.TypeName)
 			tn.PctType = true
 			tn.Setof = true
-			tn.Location = -1
+			tn.Loc = nodes.Loc{Start: -1, End: -1}
 			pgVAL.typename = tn
 		}
 	case 612:
@@ -26531,7 +26531,7 @@ pgdefault:
 		{
 			rv := &nodes.RangeVar{
 				Inh:      true,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			/* Convert any_name to schema.rel */
 			names := pgDollar[3].list
@@ -26643,7 +26643,7 @@ pgdefault:
 				Colname:  pgDollar[1].str,
 				TypeName: pgDollar[2].typename,
 				IsLocal:  true,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			if pgDollar[3].node != nil {
 				coldef.CollClause = pgDollar[3].node.(*nodes.CollateClause)
@@ -26656,7 +26656,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.CollateClause{
 				Collname: pgDollar[2].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 998:
@@ -27338,11 +27338,11 @@ pgdefault:
 			/* same as SELECT * FROM relation_expr */
 			cr := &nodes.ColumnRef{
 				Fields:   &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}},
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			rt := &nodes.ResTarget{
 				Val:      cr,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			pgVAL.node = &nodes.SelectStmt{
 				TargetList: makeList(rt),
@@ -27535,7 +27535,7 @@ pgdefault:
 				SearchColList:      pgDollar[5].list,
 				SearchBreadthFirst: false,
 				SearchSeqColumn:    pgDollar[7].str,
-				Location:           -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1113:
@@ -27546,7 +27546,7 @@ pgdefault:
 				SearchColList:      pgDollar[5].list,
 				SearchBreadthFirst: true,
 				SearchSeqColumn:    pgDollar[7].str,
-				Location:           -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1114:
@@ -27565,7 +27565,7 @@ pgdefault:
 				CycleMarkValue:   pgDollar[6].node,
 				CycleMarkDefault: pgDollar[8].node,
 				CyclePathColumn:  pgDollar[10].str,
-				Location:         -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1116:
@@ -27578,7 +27578,7 @@ pgdefault:
 				CycleMarkValue:   makeBoolAConst(1),
 				CycleMarkDefault: makeBoolAConst(0),
 				CyclePathColumn:  pgDollar[6].str,
-				Location:         -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1117:
@@ -28169,7 +28169,7 @@ pgdefault:
 				Method:     pgDollar[2].list,
 				Args:       pgDollar[4].list,
 				Repeatable: pgDollar[6].node,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1193:
@@ -28277,25 +28277,25 @@ pgdefault:
 		pgDollar = pgS[pgpt-2 : pgpt+1]
 //line gram.y:8454
 		{
-			pgVAL.node = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_EMPTY, Location: -1}
+			pgVAL.node = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_EMPTY, Loc: nodes.Loc{Start: -1, End: -1}}
 		}
 	case 1210:
 		pgDollar = pgS[pgpt-4 : pgpt+1]
 //line gram.y:8461
 		{
-			pgVAL.node = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_CUBE, Content: pgDollar[3].list, Location: -1}
+			pgVAL.node = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_CUBE, Content: pgDollar[3].list, Loc: nodes.Loc{Start: -1, End: -1}}
 		}
 	case 1211:
 		pgDollar = pgS[pgpt-4 : pgpt+1]
 //line gram.y:8468
 		{
-			pgVAL.node = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_ROLLUP, Content: pgDollar[3].list, Location: -1}
+			pgVAL.node = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_ROLLUP, Content: pgDollar[3].list, Loc: nodes.Loc{Start: -1, End: -1}}
 		}
 	case 1212:
 		pgDollar = pgS[pgpt-5 : pgpt+1]
 //line gram.y:8475
 		{
-			pgVAL.node = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_SETS, Content: pgDollar[4].list, Location: -1}
+			pgVAL.node = &nodes.GroupingSet{Kind: nodes.GROUPING_SET_SETS, Content: pgDollar[4].list, Loc: nodes.Loc{Start: -1, End: -1}}
 		}
 	case 1213:
 		pgDollar = pgS[pgpt-2 : pgpt+1]
@@ -28861,7 +28861,7 @@ pgdefault:
 				Funcname:   makeFuncName("overlaps"),
 				Args:       args,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1297:
@@ -28871,7 +28871,7 @@ pgdefault:
 			pgVAL.node = &nodes.XmlExpr{
 				Op:       nodes.IS_DOCUMENT,
 				Args:     makeList(pgDollar[1].node),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1298:
@@ -28881,7 +28881,7 @@ pgdefault:
 			pgVAL.node = makeNotExpr(&nodes.XmlExpr{
 				Op:       nodes.IS_DOCUMENT,
 				Args:     makeList(pgDollar[1].node),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			})
 		}
 	case 1299:
@@ -28892,7 +28892,7 @@ pgdefault:
 				Expr:       pgDollar[1].node,
 				ItemType:   nodes.JsonValueType(pgDollar[3].ival),
 				UniqueKeys: pgDollar[4].ival != 0,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1300:
@@ -28903,7 +28903,7 @@ pgdefault:
 				Expr:       pgDollar[1].node,
 				ItemType:   nodes.JsonValueType(pgDollar[4].ival),
 				UniqueKeys: pgDollar[5].ival != 0,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			})
 		}
 	case 1301:
@@ -28914,7 +28914,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "is_normalized"),
 				Args:       makeList2(pgDollar[1].node, makeStringConst(pgDollar[3].str)),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1302:
@@ -28925,7 +28925,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "is_normalized"),
 				Args:       makeList2(pgDollar[1].node, makeStringConst(pgDollar[4].str)),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			})
 		}
 	case 1303:
@@ -28936,7 +28936,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "is_normalized"),
 				Args:       makeList2(pgDollar[1].node, makeStringConst("NFC")),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1304:
@@ -28947,7 +28947,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "is_normalized"),
 				Args:       makeList2(pgDollar[1].node, makeStringConst("NFC")),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			})
 		}
 	case 1305:
@@ -28964,7 +28964,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "like_escape"),
 				Args:       makeList2(pgDollar[3].node, pgDollar[5].node),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			pgVAL.node = makeAExpr(nodes.AEXPR_LIKE, "~~", pgDollar[1].node, esc)
 		}
@@ -28982,7 +28982,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "like_escape"),
 				Args:       makeList2(pgDollar[4].node, pgDollar[6].node),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			pgVAL.node = makeAExpr(nodes.AEXPR_LIKE, "!~~", pgDollar[1].node, esc)
 		}
@@ -29000,7 +29000,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "like_escape"),
 				Args:       makeList2(pgDollar[3].node, pgDollar[5].node),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			pgVAL.node = makeAExpr(nodes.AEXPR_ILIKE, "~~*", pgDollar[1].node, esc)
 		}
@@ -29018,7 +29018,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "like_escape"),
 				Args:       makeList2(pgDollar[4].node, pgDollar[6].node),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			pgVAL.node = makeAExpr(nodes.AEXPR_ILIKE, "!~~*", pgDollar[1].node, esc)
 		}
@@ -29030,7 +29030,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "similar_to_escape"),
 				Args:       makeList(pgDollar[4].node),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			pgVAL.node = makeAExpr(nodes.AEXPR_SIMILAR, "~", pgDollar[1].node, esc)
 		}
@@ -29042,7 +29042,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "similar_to_escape"),
 				Args:       makeList2(pgDollar[4].node, pgDollar[6].node),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			pgVAL.node = makeAExpr(nodes.AEXPR_SIMILAR, "~", pgDollar[1].node, esc)
 		}
@@ -29054,7 +29054,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "similar_to_escape"),
 				Args:       makeList(pgDollar[5].node),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			pgVAL.node = makeAExpr(nodes.AEXPR_SIMILAR, "!~", pgDollar[1].node, esc)
 		}
@@ -29066,7 +29066,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "similar_to_escape"),
 				Args:       makeList2(pgDollar[5].node, pgDollar[7].node),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			pgVAL.node = makeAExpr(nodes.AEXPR_SIMILAR, "!~", pgDollar[1].node, esc)
 		}
@@ -29118,7 +29118,7 @@ pgdefault:
 				SubLinkType: int(nodes.ANY_SUBLINK),
 				Testexpr:    pgDollar[1].node,
 				Subselect:   pgDollar[3].node,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1324:
@@ -29129,7 +29129,7 @@ pgdefault:
 				SubLinkType: int(nodes.ANY_SUBLINK),
 				Testexpr:    pgDollar[1].node,
 				Subselect:   pgDollar[4].node,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			pgVAL.node = makeBoolExpr(nodes.NOT_EXPR, sublink, nil)
 		}
@@ -29142,7 +29142,7 @@ pgdefault:
 				Testexpr:    pgDollar[1].node,
 				OperName:    pgDollar[2].list,
 				Subselect:   pgDollar[4].node,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1326:
@@ -29170,7 +29170,7 @@ pgdefault:
 			pgVAL.node = &nodes.CollateClause{
 				Arg:      pgDollar[1].node,
 				Collname: pgDollar[3].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1329:
@@ -29181,7 +29181,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "timezone"),
 				Args:       makeList2(pgDollar[5].node, pgDollar[1].node),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1330:
@@ -29192,14 +29192,14 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "timezone"),
 				Args:       makeList(pgDollar[1].node),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1331:
 		pgDollar = pgS[pgpt-1 : pgpt+1]
 //line gram.y:9137
 		{
-			pgVAL.node = &nodes.SetToDefault{Location: -1}
+			pgVAL.node = &nodes.SetToDefault{Loc: nodes.Loc{Start: -1, End: -1}}
 		}
 	case 1332:
 		pgDollar = pgS[pgpt-4 : pgpt+1]
@@ -29230,7 +29230,7 @@ pgdefault:
 			pgVAL.node = &nodes.TypeCast{
 				Arg:      pgDollar[1].node,
 				TypeName: pgDollar[3].typename,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1335:
@@ -29317,7 +29317,7 @@ pgdefault:
 				Arg:       pgDollar[2].node,
 				Args:      pgDollar[3].list,
 				Defresult: pgDollar[4].node,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1349:
@@ -29339,7 +29339,7 @@ pgdefault:
 			pgVAL.node = &nodes.CaseWhen{
 				Expr:     pgDollar[2].node,
 				Result:   pgDollar[4].node,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1352:
@@ -29372,7 +29372,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.A_ArrayExpr{
 				Elements: pgDollar[2].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1357:
@@ -29381,7 +29381,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.A_ArrayExpr{
 				Elements: pgDollar[2].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1358:
@@ -29389,7 +29389,7 @@ pgdefault:
 //line gram.y:9280
 		{
 			pgVAL.node = &nodes.A_ArrayExpr{
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1359:
@@ -29417,7 +29417,7 @@ pgdefault:
 			pgVAL.node = &nodes.RowExpr{
 				Args:      pgDollar[1].list,
 				RowFormat: nodes.COERCE_IMPLICIT_CAST,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1363:
@@ -29427,7 +29427,7 @@ pgdefault:
 			pgVAL.node = &nodes.RowExpr{
 				Args:      pgDollar[3].list,
 				RowFormat: nodes.COERCE_EXPLICIT_CALL,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1364:
@@ -29436,7 +29436,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.RowExpr{
 				RowFormat: nodes.COERCE_EXPLICIT_CALL,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1365:
@@ -29554,7 +29554,7 @@ pgdefault:
 			pgVAL.node = &nodes.XmlExpr{
 				Op:       nodes.IS_DOCUMENT,
 				Args:     makeList(pgDollar[1].node),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1384:
@@ -29564,7 +29564,7 @@ pgdefault:
 			pgVAL.node = makeNotExpr(&nodes.XmlExpr{
 				Op:       nodes.IS_DOCUMENT,
 				Args:     makeList(pgDollar[1].node),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			})
 		}
 	case 1385:
@@ -29574,7 +29574,7 @@ pgdefault:
 			pgVAL.node = &nodes.TypeCast{
 				Arg:      pgDollar[1].node,
 				TypeName: pgDollar[3].typename,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1386:
@@ -29607,7 +29607,7 @@ pgdefault:
 		{
 			p := &nodes.ParamRef{
 				Number:   int(pgDollar[1].ival),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			if pgDollar[2].list != nil {
 				pgVAL.node = &nodes.A_Indirection{
@@ -29644,7 +29644,7 @@ pgdefault:
 			pgVAL.node = &nodes.SubLink{
 				SubLinkType: int(nodes.EXPR_SUBLINK),
 				Subselect:   pgDollar[1].node,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1394:
@@ -29654,7 +29654,7 @@ pgdefault:
 			sublink := &nodes.SubLink{
 				SubLinkType: int(nodes.EXPR_SUBLINK),
 				Subselect:   pgDollar[1].node,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			pgVAL.node = &nodes.A_Indirection{
 				Arg:         sublink,
@@ -29668,7 +29668,7 @@ pgdefault:
 			pgVAL.node = &nodes.SubLink{
 				SubLinkType: int(nodes.EXISTS_SUBLINK),
 				Subselect:   pgDollar[2].node,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1396:
@@ -29684,7 +29684,7 @@ pgdefault:
 			pgVAL.node = &nodes.SubLink{
 				SubLinkType: int(nodes.ARRAY_SUBLINK),
 				Subselect:   pgDollar[2].node,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1398:
@@ -29706,7 +29706,7 @@ pgdefault:
 			pgVAL.node = &nodes.RowExpr{
 				Args:      pgDollar[1].list,
 				RowFormat: nodes.COERCE_IMPLICIT_CAST,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1401:
@@ -29806,7 +29806,7 @@ pgdefault:
 			pgVAL.node = &nodes.WindowDef{
 				Name:         pgDollar[2].str,
 				FrameOptions: nodes.FRAMEOPTION_DEFAULTS,
-				Location:     -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1413:
@@ -29859,7 +29859,7 @@ pgdefault:
 			if pgDollar[4].list != nil {
 				n.OrderClause = pgDollar[4].list
 			}
-			n.Location = -1
+			n.Loc = nodes.Loc{Start: -1, End: -1}
 			pgVAL.node = n
 		}
 	case 1420:
@@ -30079,7 +30079,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "pg_collation_for"),
 				Args:       makeList(pgDollar[4].node),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1448:
@@ -30161,7 +30161,7 @@ pgdefault:
 			pgVAL.node = &nodes.FuncCall{
 				Funcname:   makeFuncName("pg_catalog", "system_user"),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1461:
@@ -30200,7 +30200,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.CoalesceExpr{
 				Args:     pgDollar[3].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1467:
@@ -30210,7 +30210,7 @@ pgdefault:
 			pgVAL.node = &nodes.MinMaxExpr{
 				Op:       nodes.IS_GREATEST,
 				Args:     pgDollar[3].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1468:
@@ -30220,7 +30220,7 @@ pgdefault:
 			pgVAL.node = &nodes.MinMaxExpr{
 				Op:       nodes.IS_LEAST,
 				Args:     pgDollar[3].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1469:
@@ -30231,7 +30231,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "extract"),
 				Args:       pgDollar[3].list,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1470:
@@ -30242,7 +30242,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "normalize"),
 				Args:       makeList(pgDollar[3].node),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1471:
@@ -30253,7 +30253,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "normalize"),
 				Args:       makeList2(pgDollar[3].node, makeStringConst(pgDollar[5].str)),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1472:
@@ -30264,7 +30264,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "overlay"),
 				Args:       pgDollar[3].list,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1473:
@@ -30275,7 +30275,7 @@ pgdefault:
 				Funcname:   makeFuncName("overlay"),
 				Args:       pgDollar[3].list,
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1474:
@@ -30286,7 +30286,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "position"),
 				Args:       pgDollar[3].list,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1475:
@@ -30297,7 +30297,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "substring"),
 				Args:       pgDollar[3].list,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1476:
@@ -30308,7 +30308,7 @@ pgdefault:
 				Funcname:   makeFuncName("substring"),
 				Args:       pgDollar[3].list,
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1477:
@@ -30328,7 +30328,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", funcName),
 				Args:       makeList(pgDollar[3].node),
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1478:
@@ -30339,7 +30339,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "btrim"),
 				Args:       pgDollar[4].list,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1479:
@@ -30350,7 +30350,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "ltrim"),
 				Args:       pgDollar[4].list,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1480:
@@ -30361,7 +30361,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "rtrim"),
 				Args:       pgDollar[4].list,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1481:
@@ -30372,7 +30372,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "btrim"),
 				Args:       pgDollar[3].list,
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1482:
@@ -30381,7 +30381,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.GroupingFunc{
 				Args:     pgDollar[3].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1483:
@@ -30391,7 +30391,7 @@ pgdefault:
 			pgVAL.node = &nodes.XmlExpr{
 				Op:       nodes.IS_XMLCONCAT,
 				Args:     pgDollar[3].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1484:
@@ -30401,7 +30401,7 @@ pgdefault:
 			pgVAL.node = &nodes.XmlExpr{
 				Op:       nodes.IS_XMLELEMENT,
 				Name:     pgDollar[4].str,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1485:
@@ -30412,7 +30412,7 @@ pgdefault:
 				Op:        nodes.IS_XMLELEMENT,
 				Name:      pgDollar[4].str,
 				NamedArgs: pgDollar[6].list,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1486:
@@ -30423,7 +30423,7 @@ pgdefault:
 				Op:       nodes.IS_XMLELEMENT,
 				Name:     pgDollar[4].str,
 				Args:     pgDollar[6].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1487:
@@ -30435,7 +30435,7 @@ pgdefault:
 				Name:      pgDollar[4].str,
 				NamedArgs: pgDollar[6].list,
 				Args:      pgDollar[8].list,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1488:
@@ -30447,7 +30447,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "xmlexists"),
 				Args:       makeList2(pgDollar[3].node, pgDollar[4].node),
 				FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1489:
@@ -30457,7 +30457,7 @@ pgdefault:
 			pgVAL.node = &nodes.XmlExpr{
 				Op:        nodes.IS_XMLFOREST,
 				NamedArgs: pgDollar[3].list,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1490:
@@ -30468,7 +30468,7 @@ pgdefault:
 				Op:        nodes.IS_XMLPARSE,
 				Args:      makeList2(pgDollar[4].node, makeBoolAConst(pgDollar[5].ival)),
 				Xmloption: nodes.XmlOptionType(pgDollar[3].ival),
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			pgVAL.node = x
 		}
@@ -30479,7 +30479,7 @@ pgdefault:
 			pgVAL.node = &nodes.XmlExpr{
 				Op:       nodes.IS_XMLPI,
 				Name:     pgDollar[4].str,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1492:
@@ -30490,7 +30490,7 @@ pgdefault:
 				Op:       nodes.IS_XMLPI,
 				Name:     pgDollar[4].str,
 				Args:     makeList(pgDollar[6].node),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1493:
@@ -30500,7 +30500,7 @@ pgdefault:
 			pgVAL.node = &nodes.XmlExpr{
 				Op:       nodes.IS_XMLROOT,
 				Args:     &nodes.List{Items: []nodes.Node{pgDollar[3].node, pgDollar[5].node, pgDollar[6].node}},
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1494:
@@ -30512,7 +30512,7 @@ pgdefault:
 				Expr:      pgDollar[4].node,
 				TypeName:  pgDollar[6].typename,
 				Indent:    pgDollar[7].ival != 0,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1495:
@@ -30524,7 +30524,7 @@ pgdefault:
 				Funcname:   makeFuncName("pg_catalog", "json_object"),
 				Args:       pgDollar[3].list,
 				FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1496:
@@ -30536,7 +30536,7 @@ pgdefault:
 				Output:       asJsonOutput(pgDollar[6].node),
 				AbsentOnNull: pgDollar[4].ival != 0,
 				UniqueKeys:   pgDollar[5].ival != 0,
-				Location:     -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1497:
@@ -30545,7 +30545,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.JsonObjectConstructor{
 				Output:   asJsonOutput(pgDollar[3].node),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1498:
@@ -30556,7 +30556,7 @@ pgdefault:
 				Exprs:        pgDollar[3].list,
 				AbsentOnNull: pgDollar[4].ival != 0,
 				Output:       asJsonOutput(pgDollar[5].node),
-				Location:     -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1499:
@@ -30566,7 +30566,7 @@ pgdefault:
 			pgVAL.node = &nodes.JsonArrayQueryConstructor{
 				Query:    pgDollar[3].node,
 				Output:   asJsonOutput(pgDollar[5].node),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1500:
@@ -30575,7 +30575,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.JsonArrayConstructor{
 				Output:   asJsonOutput(pgDollar[3].node),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1501:
@@ -30585,7 +30585,7 @@ pgdefault:
 			pgVAL.node = &nodes.JsonParseExpr{
 				Expr:       pgDollar[3].node.(*nodes.JsonValueExpr),
 				UniqueKeys: pgDollar[4].ival != 0,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1502:
@@ -30594,7 +30594,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.JsonScalarExpr{
 				Expr:     pgDollar[3].node,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1503:
@@ -30604,7 +30604,7 @@ pgdefault:
 			pgVAL.node = &nodes.JsonSerializeExpr{
 				Expr:     pgDollar[3].node.(*nodes.JsonValueExpr),
 				Output:   asJsonOutput(pgDollar[4].node),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1504:
@@ -30622,7 +30622,7 @@ pgdefault:
 				Quotes:      nodes.JsonQuotes(pgDollar[9].ival),
 				OnEmpty:     onEmpty,
 				OnError:     onError,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1505:
@@ -30635,7 +30635,7 @@ pgdefault:
 				Pathspec:    pgDollar[5].node,
 				Passing:     pgDollar[6].list,
 				OnError:     asJsonBehavior(pgDollar[7].node),
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1506:
@@ -30651,7 +30651,7 @@ pgdefault:
 				Output:      asJsonOutput(pgDollar[7].node),
 				OnEmpty:     onEmpty,
 				OnError:     onError,
-				Location:    -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1507:
@@ -30660,7 +30660,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.FuncCall{
 				Funcname: makeFuncName("merge_action"),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1508:
@@ -30880,7 +30880,7 @@ pgdefault:
 			pgVAL.node = &nodes.ResTarget{
 				Name:     pgDollar[3].str,
 				Val:      pgDollar[1].node,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1543:
@@ -30889,7 +30889,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.ResTarget{
 				Val:      pgDollar[1].node,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1544:
@@ -30972,7 +30972,7 @@ pgdefault:
 				Rowexpr:  pgDollar[3].node,
 				Docexpr:  pgDollar[4].node,
 				Columns:  pgDollar[6].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1559:
@@ -30984,7 +30984,7 @@ pgdefault:
 				Docexpr:    pgDollar[9].node,
 				Columns:    pgDollar[11].list,
 				Namespaces: pgDollar[5].list,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1560:
@@ -31006,7 +31006,7 @@ pgdefault:
 			pgVAL.node = &nodes.RangeTableFuncCol{
 				Colname:  pgDollar[1].str,
 				TypeName: pgDollar[2].typename,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1563:
@@ -31016,7 +31016,7 @@ pgdefault:
 			fc := &nodes.RangeTableFuncCol{
 				Colname:  pgDollar[1].str,
 				TypeName: pgDollar[2].typename,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 			for _, item := range pgDollar[3].list.Items {
 				defel := item.(*nodes.DefElem)
@@ -31042,7 +31042,7 @@ pgdefault:
 			pgVAL.node = &nodes.RangeTableFuncCol{
 				Colname:       pgDollar[1].str,
 				ForOrdinality: true,
-				Location:      -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1565:
@@ -31106,7 +31106,7 @@ pgdefault:
 			pgVAL.node = &nodes.ResTarget{
 				Name:     pgDollar[3].str,
 				Val:      pgDollar[1].node,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1575:
@@ -31115,7 +31115,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.ResTarget{
 				Val:      pgDollar[2].node,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1576:
@@ -31132,7 +31132,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.JsonFormat{
 				FormatType: nodes.JS_FORMAT_JSON,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1578:
@@ -31141,7 +31141,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.JsonFormat{
 				FormatType: nodes.JS_FORMAT_JSON,
-				Location:   -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1579:
@@ -31183,7 +31183,7 @@ pgdefault:
 			pgVAL.node = &nodes.JsonBehavior{
 				Btype:    nodes.JSON_BEHAVIOR_DEFAULT,
 				Expr:     pgDollar[2].node,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1585:
@@ -31192,7 +31192,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.JsonBehavior{
 				Btype:    nodes.JsonBehaviorType(pgDollar[1].ival),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1586:
@@ -31542,7 +31542,7 @@ pgdefault:
 			pgVAL.node = &nodes.JsonObjectAgg{
 				Constructor: &nodes.JsonAggConstructor{
 					Output:   asJsonOutput(pgDollar[6].node),
-					Location: -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
 				Arg:          pgDollar[3].node.(*nodes.JsonKeyValue),
 				AbsentOnNull: pgDollar[4].ival != 0,
@@ -31557,7 +31557,7 @@ pgdefault:
 				Constructor: &nodes.JsonAggConstructor{
 					Output:    asJsonOutput(pgDollar[6].node),
 					Agg_order: pgDollar[4].list,
-					Location:  -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
 				Arg:          pgDollar[3].node.(*nodes.JsonValueExpr),
 				AbsentOnNull: pgDollar[5].ival != 0,
@@ -31584,12 +31584,12 @@ pgdefault:
 				Pathspec: &nodes.JsonTablePathSpec{
 					String:   pgDollar[5].node,
 					Name:     pgDollar[6].str,
-					Location: -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
 				Passing:  pgDollar[7].list,
 				Columns:  pgDollar[10].list,
 				OnError:  asJsonBehavior(pgDollar[12].node),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1646:
@@ -31623,7 +31623,7 @@ pgdefault:
 			pgVAL.node = &nodes.JsonTableColumn{
 				Coltype:  nodes.JTC_FOR_ORDINALITY,
 				Name:     pgDollar[1].str,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1651:
@@ -31640,7 +31640,7 @@ pgdefault:
 				Quotes:   nodes.JsonQuotes(pgDollar[5].ival),
 				OnEmpty:  onEmpty,
 				OnError:  onError,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1652:
@@ -31658,7 +31658,7 @@ pgdefault:
 				Quotes:   nodes.JsonQuotes(pgDollar[6].ival),
 				OnEmpty:  onEmpty,
 				OnError:  onError,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1653:
@@ -31671,7 +31671,7 @@ pgdefault:
 				TypeName: pgDollar[2].typename,
 				Pathspec: asJsonTablePathSpec(pgDollar[4].node),
 				OnError:  asJsonBehavior(pgDollar[5].node),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1654:
@@ -31683,10 +31683,10 @@ pgdefault:
 				Pathspec: &nodes.JsonTablePathSpec{
 					String:   makeStringConst(pgDollar[3].str),
 					Name:     pgDollar[4].str,
-					Location: -1,
+					Loc: nodes.Loc{Start: -1, End: -1},
 				},
 				Columns:  pgDollar[7].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1655:
@@ -31695,7 +31695,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.JsonTablePathSpec{
 				String:   makeStringConst(pgDollar[2].str),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1656:
@@ -31790,7 +31790,7 @@ pgdefault:
 				Name:      pgDollar[1].str,
 				Arg:       pgDollar[3].node,
 				Argnumber: -1,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1671:
@@ -31801,7 +31801,7 @@ pgdefault:
 				Name:      pgDollar[1].str,
 				Arg:       pgDollar[3].node,
 				Argnumber: -1,
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1672:
@@ -32319,7 +32319,7 @@ pgdefault:
 			pgVAL.typename = &nodes.TypeName{
 				Names:    makeList(&nodes.String{Str: pgDollar[1].str}),
 				Typmods:  pgDollar[2].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1743:
@@ -32331,7 +32331,7 @@ pgdefault:
 			pgVAL.typename = &nodes.TypeName{
 				Names:    l,
 				Typmods:  pgDollar[4].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 1744:
@@ -36066,7 +36066,7 @@ pgdefault:
 			pgVAL.node = &nodes.DefElem{
 				Defname:   pgDollar[2].str,
 				Defaction: int(nodes.DEFELEM_DROP),
-				Location:  -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 2242:
@@ -36076,7 +36076,7 @@ pgdefault:
 			pgVAL.node = &nodes.DefElem{
 				Defname:  pgDollar[1].str,
 				Arg:      pgDollar[2].node,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 2243:
@@ -36483,7 +36483,7 @@ pgdefault:
 				Defnamespace: pgDollar[1].str,
 				Defname:      pgDollar[3].str,
 				Arg:          pgDollar[5].node,
-				Location:     -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 2287:
@@ -36493,7 +36493,7 @@ pgdefault:
 			pgVAL.node = &nodes.DefElem{
 				Defnamespace: pgDollar[1].str,
 				Defname:      pgDollar[3].str,
-				Location:     -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 2288:
@@ -36779,7 +36779,7 @@ pgdefault:
 			/* Default is PUBLIC */
 			pgVAL.list = makeList(&nodes.RoleSpec{
 				Roletype: int(nodes.ROLESPEC_PUBLIC),
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			})
 		}
 	case 2321:
@@ -37531,7 +37531,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.DefElem{
 				Defname:  pgDollar[1].str,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 2401:
@@ -37541,7 +37541,7 @@ pgdefault:
 			pgVAL.node = &nodes.DefElem{
 				Defname:  pgDollar[1].str,
 				Arg:      pgDollar[3].node,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 2402:
@@ -37550,7 +37550,7 @@ pgdefault:
 		{
 			pgVAL.node = &nodes.DefElem{
 				Defname:  pgDollar[1].str,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 2403:
@@ -37860,7 +37860,7 @@ pgdefault:
 			pgVAL.node = &nodes.DefElem{
 				Defname:  "schemas",
 				Arg:      pgDollar[3].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 2437:
@@ -37870,7 +37870,7 @@ pgdefault:
 			pgVAL.node = &nodes.DefElem{
 				Defname:  "roles",
 				Arg:      pgDollar[3].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 2438:
@@ -37880,7 +37880,7 @@ pgdefault:
 			pgVAL.node = &nodes.DefElem{
 				Defname:  "roles",
 				Arg:      pgDollar[3].list,
-				Location: -1,
+				Loc: nodes.Loc{Start: -1, End: -1},
 			}
 		}
 	case 2439:
