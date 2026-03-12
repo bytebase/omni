@@ -1,0 +1,872 @@
+package parser
+
+import (
+	nodes "github.com/bytebase/omni/pg/ast"
+)
+
+func (p *Parser) parseGrantStmt() nodes.Node {
+	switch p.cur.Type {
+	case ALL:
+		p.advance()
+		if p.cur.Type == PRIVILEGES {
+			p.advance()
+		}
+		if p.cur.Type == ON {
+			p.advance()
+			return p.finishGrantOnObject(true, nil)
+		}
+		if p.cur.Type == ',' || p.cur.Type == TO {
+			roles := &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{PrivName: "all"}}}
+			for p.cur.Type == ',' {
+				p.advance()
+				name, _ := p.parseColId()
+				roles.Items = append(roles.Items, &nodes.AccessPriv{PrivName: name})
+			}
+			return p.finishGrantRole(true, roles)
+		}
+		return nil
+	case SELECT, INSERT, UPDATE, DELETE_P, TRUNCATE, REFERENCES, TRIGGER,
+		CREATE, TEMPORARY, TEMP, EXECUTE:
+		privs := p.parsePrivilegeList()
+		if p.cur.Type == ON {
+			p.advance()
+			return p.finishGrantOnObject(false, privs)
+		}
+		return p.finishGrantRole(true, privs)
+	default:
+		privs := p.parsePrivilegeList()
+		if p.cur.Type == ON {
+			p.advance()
+			return p.finishGrantOnObject(false, privs)
+		}
+		return p.finishGrantRole(true, privs)
+	}
+}
+
+func (p *Parser) parseRevokeStmt() nodes.Node {
+	grantOptionFor := false
+	adminOptionFor := false
+	if p.cur.Type == GRANT {
+		p.advance()
+		p.expect(OPTION)
+		p.expect(FOR)
+		grantOptionFor = true
+	} else if p.cur.Type == ADMIN {
+		p.advance()
+		p.expect(OPTION)
+		p.expect(FOR)
+		adminOptionFor = true
+	}
+	switch p.cur.Type {
+	case ALL:
+		p.advance()
+		if p.cur.Type == PRIVILEGES {
+			p.advance()
+		}
+		if p.cur.Type == ON {
+			p.advance()
+			return p.finishRevokeOnObject(grantOptionFor, nil)
+		}
+		if p.cur.Type == ',' || p.cur.Type == FROM {
+			roles := &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{PrivName: "all"}}}
+			for p.cur.Type == ',' {
+				p.advance()
+				name, _ := p.parseColId()
+				roles.Items = append(roles.Items, &nodes.AccessPriv{PrivName: name})
+			}
+			return p.finishRevokeRole(roles, adminOptionFor)
+		}
+		return nil
+	case SELECT, INSERT, UPDATE, DELETE_P, TRUNCATE, REFERENCES, TRIGGER,
+		CREATE, TEMPORARY, TEMP, EXECUTE:
+		privs := p.parsePrivilegeList()
+		if p.cur.Type == ON {
+			p.advance()
+			return p.finishRevokeOnObject(grantOptionFor, privs)
+		}
+		return p.finishRevokeRole(privs, adminOptionFor)
+	default:
+		privs := p.parsePrivilegeList()
+		if p.cur.Type == ON {
+			p.advance()
+			return p.finishRevokeOnObject(grantOptionFor, privs)
+		}
+		return p.finishRevokeRole(privs, adminOptionFor)
+	}
+}
+
+func (p *Parser) finishGrantOnObject(allPrivs bool, privs *nodes.List) nodes.Node {
+	var privileges *nodes.List
+	if !allPrivs {
+		privileges = privs
+	}
+	targtype, objtype, objects := p.parseGrantTarget()
+	p.expect(TO)
+	grantees := p.parseGranteeList()
+	grantOption := p.parseOptGrantGrantOption()
+	return &nodes.GrantStmt{
+		IsGrant: true, Targtype: targtype, Objtype: objtype,
+		Objects: objects, Privileges: privileges, Grantees: grantees,
+		GrantOption: grantOption,
+	}
+}
+
+func (p *Parser) finishRevokeOnObject(grantOptionFor bool, privs *nodes.List) nodes.Node {
+	targtype, objtype, objects := p.parseGrantTarget()
+	p.expect(FROM)
+	grantees := p.parseGranteeList()
+	behavior := p.parseOptDropBehavior()
+	return &nodes.GrantStmt{
+		IsGrant: false, Targtype: targtype, Objtype: objtype,
+		Objects: objects, Privileges: privs, Grantees: grantees,
+		GrantOption: grantOptionFor, Behavior: nodes.DropBehavior(behavior),
+	}
+}
+
+func (p *Parser) finishGrantRole(isGrant bool, roles *nodes.List) nodes.Node {
+	p.expect(TO)
+	grantees := p.parseRoleList()
+	opts := p.parseGrantRoleOptList()
+	return &nodes.GrantRoleStmt{
+		GrantedRoles: roles, GranteeRoles: grantees, IsGrant: isGrant, Opt: opts,
+	}
+}
+
+func (p *Parser) finishRevokeRole(roles *nodes.List, adminOptionFor bool) nodes.Node {
+	p.expect(FROM)
+	grantees := p.parseRoleList()
+	grantedBy := p.parseOptGrantedBy()
+	behavior := p.parseOptDropBehavior()
+	var opts *nodes.List
+	if adminOptionFor {
+		opts = &nodes.List{Items: []nodes.Node{makeDefElem("admin", &nodes.Boolean{Boolval: false})}}
+	}
+	return &nodes.GrantRoleStmt{
+		GrantedRoles: roles, GranteeRoles: grantees, IsGrant: false,
+		Opt: opts, Grantor: grantedBy, Behavior: nodes.DropBehavior(behavior),
+	}
+}
+
+func (p *Parser) parseGrantTarget() (nodes.GrantTargetType, nodes.ObjectType, *nodes.List) {
+	switch p.cur.Type {
+	case TABLE:
+		p.advance()
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLE, p.parseGrantObjectAnyNameList()
+	case SEQUENCE:
+		p.advance()
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_SEQUENCE, p.parseGrantObjectAnyNameList()
+	case FUNCTION:
+		p.advance()
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FUNCTION, p.parseGrantFunctionWithArgtypesList()
+	case PROCEDURE:
+		p.advance()
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_PROCEDURE, p.parseGrantFunctionWithArgtypesList()
+	case ROUTINE:
+		p.advance()
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_ROUTINE, p.parseGrantFunctionWithArgtypesList()
+	case DATABASE:
+		p.advance()
+		names, _ := p.parseNameList()
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_DATABASE, makeNameListAsAnyNameList(names)
+	case DOMAIN_P:
+		p.advance()
+		objects, _ := p.parseAnyNameList()
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_DOMAIN, objects
+	case LANGUAGE:
+		p.advance()
+		names, _ := p.parseNameList()
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_LANGUAGE, makeNameListAsAnyNameList(names)
+	case LARGE_P:
+		p.advance()
+		p.expect(OBJECT_P)
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_LARGEOBJECT, p.parseNumericOnlyList()
+	case SCHEMA:
+		p.advance()
+		names, _ := p.parseNameList()
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_SCHEMA, makeNameListAsAnyNameList(names)
+	case TABLESPACE:
+		p.advance()
+		names, _ := p.parseNameList()
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLESPACE, makeNameListAsAnyNameList(names)
+	case TYPE_P:
+		p.advance()
+		objects, _ := p.parseAnyNameList()
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TYPE, objects
+	case FOREIGN:
+		p.advance()
+		if p.cur.Type == DATA_P {
+			p.advance()
+			p.expect(WRAPPER)
+			names, _ := p.parseNameList()
+			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FDW, makeNameListAsAnyNameList(names)
+		}
+		p.expect(SERVER)
+		names, _ := p.parseNameList()
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FOREIGN_SERVER, makeNameListAsAnyNameList(names)
+	case ALL:
+		p.advance()
+		var objType nodes.ObjectType
+		switch p.cur.Type {
+		case TABLES:
+			p.advance()
+			objType = nodes.OBJECT_TABLE
+		case SEQUENCES:
+			p.advance()
+			objType = nodes.OBJECT_SEQUENCE
+		case FUNCTIONS:
+			p.advance()
+			objType = nodes.OBJECT_FUNCTION
+		case PROCEDURES:
+			p.advance()
+			objType = nodes.OBJECT_PROCEDURE
+		case ROUTINES:
+			p.advance()
+			objType = nodes.OBJECT_ROUTINE
+		default:
+			objType = nodes.OBJECT_TABLE
+		}
+		p.expect(IN_P)
+		p.expect(SCHEMA)
+		names, _ := p.parseNameList()
+		return nodes.ACL_TARGET_ALL_IN_SCHEMA, objType, makeNameListAsAnyNameList(names)
+	default:
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLE, p.parseGrantObjectAnyNameList()
+	}
+}
+
+func (p *Parser) parseGrantObjectAnyNameList() *nodes.List {
+	name, err := p.parseAnyName()
+	if err != nil {
+		return nil
+	}
+	result := &nodes.List{Items: []nodes.Node{name}}
+	for p.cur.Type == ',' {
+		p.advance()
+		name, err = p.parseAnyName()
+		if err != nil {
+			break
+		}
+		result.Items = append(result.Items, name)
+	}
+	return result
+}
+
+func (p *Parser) parseNumericOnlyList() *nodes.List {
+	val := p.parseNumericOnly()
+	if val == nil {
+		return nil
+	}
+	result := &nodes.List{Items: []nodes.Node{val}}
+	for p.cur.Type == ',' {
+		p.advance()
+		val = p.parseNumericOnly()
+		if val == nil {
+			break
+		}
+		result.Items = append(result.Items, val)
+	}
+	return result
+}
+
+func (p *Parser) parseGrantFunctionWithArgtypesList() *nodes.List {
+	fn := p.parseGrantFunctionWithArgtypes()
+	if fn == nil {
+		return nil
+	}
+	result := &nodes.List{Items: []nodes.Node{fn}}
+	for p.cur.Type == ',' {
+		p.advance()
+		fn = p.parseGrantFunctionWithArgtypes()
+		if fn == nil {
+			break
+		}
+		result.Items = append(result.Items, fn)
+	}
+	return result
+}
+
+func (p *Parser) parseGrantFunctionWithArgtypes() *nodes.ObjectWithArgs {
+	funcName, err := p.parseFuncName()
+	if err != nil {
+		return nil
+	}
+	owa := &nodes.ObjectWithArgs{Objname: funcName}
+	if p.cur.Type == '(' {
+		p.advance()
+		if p.cur.Type == ')' {
+			p.advance()
+			owa.Objargs = &nodes.List{}
+		} else {
+			args := p.parseGrantFuncArgsList()
+			p.expect(')')
+			owa.Objargs = args
+		}
+	} else {
+		owa.ArgsUnspecified = true
+	}
+	return owa
+}
+
+func (p *Parser) parseGrantFuncArgsList() *nodes.List {
+	arg := p.parseGrantFuncArg()
+	if arg == nil {
+		return nil
+	}
+	result := &nodes.List{Items: []nodes.Node{arg}}
+	for p.cur.Type == ',' {
+		p.advance()
+		arg = p.parseGrantFuncArg()
+		if arg == nil {
+			break
+		}
+		result.Items = append(result.Items, arg)
+	}
+	return result
+}
+
+func (p *Parser) parseGrantFuncArg() nodes.Node {
+	switch p.cur.Type {
+	case IN_P, OUT_P, INOUT, VARIADIC:
+		p.advance()
+	}
+	tn, _ := p.parseTypename()
+	return tn
+}
+
+func (p *Parser) parsePrivileges() *nodes.List {
+	if p.cur.Type == ALL {
+		p.advance()
+		if p.cur.Type == PRIVILEGES {
+			p.advance()
+		}
+		return nil
+	}
+	return p.parsePrivilegeList()
+}
+
+func (p *Parser) parsePrivilegeList() *nodes.List {
+	priv := p.parsePrivilege()
+	if priv == nil {
+		return nil
+	}
+	result := &nodes.List{Items: []nodes.Node{priv}}
+	for p.cur.Type == ',' {
+		p.advance()
+		priv = p.parsePrivilege()
+		if priv == nil {
+			break
+		}
+		result.Items = append(result.Items, priv)
+	}
+	return result
+}
+
+func (p *Parser) parsePrivilege() *nodes.AccessPriv {
+	var privName string
+	switch p.cur.Type {
+	case SELECT:
+		privName = "select"
+		p.advance()
+	case INSERT:
+		privName = "insert"
+		p.advance()
+	case UPDATE:
+		privName = "update"
+		p.advance()
+	case DELETE_P:
+		privName = "delete"
+		p.advance()
+	case TRUNCATE:
+		privName = "truncate"
+		p.advance()
+	case REFERENCES:
+		privName = "references"
+		p.advance()
+	case TRIGGER:
+		privName = "trigger"
+		p.advance()
+	case CREATE:
+		privName = "create"
+		p.advance()
+	case TEMPORARY:
+		privName = "temporary"
+		p.advance()
+	case TEMP:
+		privName = "temp"
+		p.advance()
+	case EXECUTE:
+		privName = "execute"
+		p.advance()
+	default:
+		name, err := p.parseColId()
+		if err != nil {
+			return nil
+		}
+		privName = name
+	}
+	cols := p.parseOptColumnList()
+	return &nodes.AccessPriv{PrivName: privName, Cols: cols}
+}
+
+func (p *Parser) parseGranteeList() *nodes.List {
+	g := p.parseGrantee()
+	if g == nil {
+		return nil
+	}
+	result := &nodes.List{Items: []nodes.Node{g}}
+	for p.cur.Type == ',' {
+		p.advance()
+		g = p.parseGrantee()
+		if g == nil {
+			break
+		}
+		result.Items = append(result.Items, g)
+	}
+	return result
+}
+
+func (p *Parser) parseGrantee() *nodes.RoleSpec {
+	if p.cur.Type == GROUP_P {
+		p.advance()
+	}
+	// PUBLIC is not a reserved keyword; it appears as IDENT
+	if p.isColId() && p.cur.Str == "public" {
+		p.advance()
+		return &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_PUBLIC)}
+	}
+	return p.parseRoleSpec()
+}
+
+func (p *Parser) parseOptGrantGrantOption() bool {
+	if p.cur.Type == WITH {
+		next := p.peekNext()
+		if next.Type == GRANT {
+			p.advance()
+			p.advance()
+			p.expect(OPTION)
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Parser) parseOptGrantedBy() *nodes.RoleSpec {
+	if p.cur.Type == GRANTED {
+		p.advance()
+		p.expect(BY)
+		return p.parseRoleSpec()
+	}
+	return nil
+}
+
+func (p *Parser) parseGrantRoleOptList() *nodes.List {
+	var items []nodes.Node
+	for {
+		opt := p.parseGrantRoleOpt()
+		if opt == nil {
+			break
+		}
+		items = append(items, opt)
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	return &nodes.List{Items: items}
+}
+
+func (p *Parser) parseGrantRoleOpt() *nodes.DefElem {
+	if p.cur.Type != WITH {
+		return nil
+	}
+	p.advance()
+	return p.parseGrantRoleOptValue()
+}
+
+func (p *Parser) parseGrantRoleOptValue() *nodes.DefElem {
+	var name string
+	switch p.cur.Type {
+	case ADMIN:
+		name = "admin"
+		p.advance()
+	case INHERIT:
+		name = "inherit"
+		p.advance()
+	case SET:
+		name = "set"
+		p.advance()
+	default:
+		return nil
+	}
+	var val nodes.Node
+	switch p.cur.Type {
+	case OPTION:
+		p.advance()
+		val = &nodes.Boolean{Boolval: true}
+	case TRUE_P:
+		p.advance()
+		val = &nodes.Boolean{Boolval: true}
+	case FALSE_P:
+		p.advance()
+		val = &nodes.Boolean{Boolval: false}
+	default:
+		val = &nodes.Boolean{Boolval: true}
+	}
+	return makeDefElem(name, val)
+}
+
+func (p *Parser) parseCreateRoleStmt() nodes.Node {
+	p.advance() // consume ROLE
+	name := p.parseRoleId()
+	p.parseGrantOptWith()
+	options := p.parseOptRoleList(true)
+	return &nodes.CreateRoleStmt{StmtType: nodes.ROLESTMT_ROLE, Role: name, Options: options}
+}
+
+func (p *Parser) parseCreateUserStmt() nodes.Node {
+	p.advance() // consume USER
+	name := p.parseRoleId()
+	p.parseGrantOptWith()
+	options := p.parseOptRoleList(true)
+	return &nodes.CreateRoleStmt{StmtType: nodes.ROLESTMT_USER, Role: name, Options: options}
+}
+
+func (p *Parser) parseCreateGroupStmt() nodes.Node {
+	p.advance() // consume GROUP
+	name := p.parseRoleId()
+	p.parseGrantOptWith()
+	options := p.parseOptRoleList(true)
+	return &nodes.CreateRoleStmt{StmtType: nodes.ROLESTMT_GROUP, Role: name, Options: options}
+}
+
+func (p *Parser) parseRoleId() string {
+	name, _ := p.parseColId()
+	return name
+}
+
+func (p *Parser) parseGrantOptWith() {
+	if p.cur.Type == WITH {
+		p.advance()
+	}
+}
+
+func (p *Parser) parseOptRoleList(isCreate bool) *nodes.List {
+	var items []nodes.Node
+	for {
+		var elem *nodes.DefElem
+		if isCreate {
+			elem = p.parseCreateOptRoleElem()
+		} else {
+			elem = p.parseAlterOptRoleElem()
+		}
+		if elem == nil {
+			break
+		}
+		items = append(items, elem)
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	return &nodes.List{Items: items}
+}
+
+func (p *Parser) parseAlterOptRoleElem() *nodes.DefElem {
+	switch p.cur.Type {
+	case PASSWORD:
+		p.advance()
+		if p.cur.Type == NULL_P {
+			p.advance()
+			return makeDefElem("password", nil)
+		}
+		pw := p.cur.Str
+		p.advance()
+		return makeDefElem("password", &nodes.String{Str: pw})
+	case ENCRYPTED:
+		p.advance()
+		p.expect(PASSWORD)
+		pw := p.cur.Str
+		p.advance()
+		return makeDefElem("password", &nodes.String{Str: pw})
+	case UNENCRYPTED:
+		p.advance()
+		p.expect(PASSWORD)
+		pw := p.cur.Str
+		p.advance()
+		return makeDefElem("password", &nodes.String{Str: pw})
+	case INHERIT:
+		p.advance()
+		return makeDefElem("inherit", &nodes.Boolean{Boolval: true})
+	case CONNECTION:
+		p.advance()
+		p.expect(LIMIT)
+		val := p.parseSignedIconst()
+		return makeDefElem("connectionlimit", &nodes.Integer{Ival: val})
+	case VALID:
+		p.advance()
+		p.expect(UNTIL)
+		until := p.cur.Str
+		p.advance()
+		return makeDefElem("validUntil", &nodes.String{Str: until})
+	default:
+		return p.parseRoleOptionIdent()
+	}
+}
+
+func (p *Parser) parseRoleOptionIdent() *nodes.DefElem {
+	if !p.isColId() {
+		return nil
+	}
+	ident := p.cur.Str
+	switch ident {
+	case "superuser":
+		p.advance()
+		return makeDefElem("superuser", &nodes.Boolean{Boolval: true})
+	case "nosuperuser":
+		p.advance()
+		return makeDefElem("superuser", &nodes.Boolean{Boolval: false})
+	case "createrole":
+		p.advance()
+		return makeDefElem("createrole", &nodes.Boolean{Boolval: true})
+	case "nocreaterole":
+		p.advance()
+		return makeDefElem("createrole", &nodes.Boolean{Boolval: false})
+	case "createdb":
+		p.advance()
+		return makeDefElem("createdb", &nodes.Boolean{Boolval: true})
+	case "nocreatedb":
+		p.advance()
+		return makeDefElem("createdb", &nodes.Boolean{Boolval: false})
+	case "createuser":
+		p.advance()
+		return makeDefElem("superuser", &nodes.Boolean{Boolval: true})
+	case "nocreateuser":
+		p.advance()
+		return makeDefElem("superuser", &nodes.Boolean{Boolval: false})
+	case "login":
+		p.advance()
+		return makeDefElem("canlogin", &nodes.Boolean{Boolval: true})
+	case "nologin":
+		p.advance()
+		return makeDefElem("canlogin", &nodes.Boolean{Boolval: false})
+	case "replication":
+		p.advance()
+		return makeDefElem("isreplication", &nodes.Boolean{Boolval: true})
+	case "noreplication":
+		p.advance()
+		return makeDefElem("isreplication", &nodes.Boolean{Boolval: false})
+	case "bypassrls":
+		p.advance()
+		return makeDefElem("bypassrls", &nodes.Boolean{Boolval: true})
+	case "nobypassrls":
+		p.advance()
+		return makeDefElem("bypassrls", &nodes.Boolean{Boolval: false})
+	case "noinherit":
+		p.advance()
+		return makeDefElem("inherit", &nodes.Boolean{Boolval: false})
+	default:
+		return nil
+	}
+}
+
+func (p *Parser) parseCreateOptRoleElem() *nodes.DefElem {
+	switch p.cur.Type {
+	case SYSID:
+		p.advance()
+		val := p.cur.Ival
+		p.advance()
+		return makeDefElem("sysid", &nodes.Integer{Ival: val})
+	case ADMIN:
+		p.advance()
+		roles := p.parseRoleList()
+		return makeDefElem("adminmembers", roles)
+	case ROLE:
+		p.advance()
+		roles := p.parseRoleList()
+		return makeDefElem("rolemembers", roles)
+	case IN_P:
+		p.advance()
+		if p.cur.Type == GROUP_P {
+			p.advance()
+		} else {
+			p.expect(ROLE)
+		}
+		roles := p.parseRoleList()
+		return makeDefElem("addroleto", roles)
+	default:
+		return p.parseAlterOptRoleElem()
+	}
+}
+
+func (p *Parser) parseAlterRoleStmt() nodes.Node {
+	p.advance() // consume ROLE or USER
+	role := p.parseRoleSpec()
+	if p.cur.Type == SET || p.cur.Type == RESET {
+		return p.parseAlterRoleSetStmtSuffix(role, "")
+	}
+	if p.cur.Type == IN_P {
+		p.advance()
+		p.expect(DATABASE)
+		dbname, _ := p.parseName()
+		return p.parseAlterRoleSetStmtSuffix(role, dbname)
+	}
+	p.parseGrantOptWith()
+	options := p.parseOptRoleList(false)
+	return &nodes.AlterRoleStmt{Role: role, Options: options, Action: 1}
+}
+
+func (p *Parser) parseAlterRoleSetStmtSuffix(role *nodes.RoleSpec, dbname string) nodes.Node {
+	var setstmt *nodes.VariableSetStmt
+	if p.cur.Type == SET {
+		p.advance()
+		result := p.parseVariableSetStmt()
+		if vs, ok := result.(*nodes.VariableSetStmt); ok {
+			setstmt = vs
+		}
+	} else if p.cur.Type == RESET {
+		p.advance()
+		result := p.parseVariableResetStmt()
+		if vs, ok := result.(*nodes.VariableSetStmt); ok {
+			setstmt = vs
+		}
+	}
+	return &nodes.AlterRoleSetStmt{Role: role, Database: dbname, Setstmt: setstmt}
+}
+
+func (p *Parser) parseAlterGroupStmt() nodes.Node {
+	p.advance() // consume GROUP
+	role := p.parseRoleSpec()
+	if p.cur.Type == ADD_P {
+		p.advance()
+		p.expect(USER)
+		roles := p.parseRoleList()
+		return &nodes.AlterRoleStmt{
+			Role: role, Options: &nodes.List{Items: []nodes.Node{makeDefElem("rolemembers", roles)}}, Action: 1,
+		}
+	} else if p.cur.Type == DROP {
+		p.advance()
+		p.expect(USER)
+		roles := p.parseRoleList()
+		return &nodes.AlterRoleStmt{
+			Role: role, Options: &nodes.List{Items: []nodes.Node{makeDefElem("rolemembers", roles)}}, Action: -1,
+		}
+	}
+	return nil
+}
+
+func (p *Parser) parseDropRoleStmt() nodes.Node {
+	p.advance() // consume ROLE/USER/GROUP
+	missingOk := p.parseOptIfExists()
+	roles := p.parseRoleList()
+	return &nodes.DropRoleStmt{Roles: roles, MissingOk: missingOk}
+}
+
+func (p *Parser) parseCreatePolicyStmt() nodes.Node {
+	p.advance() // consume POLICY
+	policyName, _ := p.parseName()
+	p.expect(ON)
+	names, err := p.parseQualifiedName()
+	if err != nil {
+		return nil
+	}
+	table := makeRangeVarFromNames(names)
+	permissive := true
+	if p.cur.Type == AS {
+		p.advance()
+		if p.isColId() && p.cur.Str == "permissive" {
+			p.advance()
+		} else if p.isColId() && p.cur.Str == "restrictive" {
+			p.advance()
+			permissive = false
+		}
+	}
+	cmdName := "all"
+	if p.cur.Type == FOR {
+		p.advance()
+		cmdName = p.parseRowSecurityCmd()
+	}
+	var roles *nodes.List
+	if p.cur.Type == TO {
+		p.advance()
+		roles = p.parseRoleList()
+	}
+	var qual nodes.Node
+	if p.cur.Type == USING {
+		p.advance()
+		p.expect('(')
+		qual = p.parseAExpr(0)
+		p.expect(')')
+	}
+	var withCheck nodes.Node
+	if p.cur.Type == WITH {
+		next := p.peekNext()
+		if next.Type == CHECK {
+			p.advance()
+			p.advance()
+			p.expect('(')
+			withCheck = p.parseAExpr(0)
+			p.expect(')')
+		}
+	}
+	return &nodes.CreatePolicyStmt{
+		PolicyName: policyName, Table: table, CmdName: cmdName,
+		Permissive: permissive, Roles: roles, Qual: qual, WithCheck: withCheck,
+	}
+}
+
+func (p *Parser) parseAlterPolicyStmt() nodes.Node {
+	p.advance() // consume POLICY
+	policyName, _ := p.parseName()
+	p.expect(ON)
+	names, err := p.parseQualifiedName()
+	if err != nil {
+		return nil
+	}
+	table := makeRangeVarFromNames(names)
+	var roles *nodes.List
+	var qual nodes.Node
+	var withCheck nodes.Node
+	if p.cur.Type == TO {
+		p.advance()
+		roles = p.parseRoleList()
+	}
+	if p.cur.Type == USING {
+		p.advance()
+		p.expect('(')
+		qual = p.parseAExpr(0)
+		p.expect(')')
+	}
+	if p.cur.Type == WITH {
+		next := p.peekNext()
+		if next.Type == CHECK {
+			p.advance()
+			p.advance()
+			p.expect('(')
+			withCheck = p.parseAExpr(0)
+			p.expect(')')
+		}
+	}
+	return &nodes.AlterPolicyStmt{
+		PolicyName: policyName, Table: table, Roles: roles, Qual: qual, WithCheck: withCheck,
+	}
+}
+
+func (p *Parser) parseRowSecurityCmd() string {
+	switch p.cur.Type {
+	case ALL:
+		p.advance()
+		return "all"
+	case SELECT:
+		p.advance()
+		return "select"
+	case INSERT:
+		p.advance()
+		return "insert"
+	case UPDATE:
+		p.advance()
+		return "update"
+	case DELETE_P:
+		p.advance()
+		return "delete"
+	default:
+		return "all"
+	}
+}

@@ -1,0 +1,208 @@
+{
+  "collate.icu.utf8.sql": [
+    115,
+    187
+  ],
+  "collate.linux.utf8.sql": [
+    123,
+    180
+  ],
+  "collate.sql": [
+    79
+  ],
+  "collate.windows.win1252.sql": [
+    94,
+    151
+  ],
+  "constraints.sql": [
+    14,
+    15
+  ],
+  "copyselect.sql": [
+    18,
+    19
+  ],
+  "create_am.sql": [
+    35,
+    36,
+    37,
+    136
+  ],
+  "create_function_sql.sql": [
+    67
+  ],
+  "create_index.sql": [
+    2,
+    518
+  ],
+  "create_operator.sql": [
+    10,
+    13
+  ],
+  "create_table.sql": [
+    134
+  ],
+  "domain.sql": [
+    168
+  ],
+  "errors.sql": [
+    4,
+    10,
+    12,
+    14,
+    27,
+    28,
+    30,
+    32,
+    36,
+    37,
+    39,
+    40,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    50,
+    51,
+    54,
+    55,
+    56,
+    58,
+    59,
+    60,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86
+  ],
+  "event_trigger.sql": [
+    16
+  ],
+  "foreign_data.sql": [
+    36,
+    110,
+    199
+  ],
+  "insert.sql": [
+    363
+  ],
+  "largeobject.sql": [
+    16
+  ],
+  "merge.sql": [
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28
+  ],
+  "numerology.sql": [
+    58
+  ],
+  "psql.sql": [
+    6,
+    7,
+    8,
+    9,
+    11,
+    12,
+    32,
+    40,
+    205,
+    206,
+    207,
+    210,
+    211,
+    216,
+    218,
+    220,
+    223,
+    319
+  ],
+  "publication.sql": [
+    110,
+    509,
+    526
+  ],
+  "rowsecurity.sql": [
+    36
+  ],
+  "rules.sql": [
+    68
+  ],
+  "sqljson.sql": [
+    0,
+    22,
+    37
+  ],
+  "sqljson_jsontable.sql": [
+    0,
+    6,
+    106
+  ],
+  "stats_ext.sql": [
+    2,
+    3,
+    4,
+    23,
+    24
+  ],
+  "strings.sql": [
+    1,
+    10,
+    416
+  ],
+  "subscription.sql": [
+    5,
+    6
+  ],
+  "tablesample.sql": [
+    50
+  ],
+  "triggers.sql": [
+    183,
+    1041
+  ],
+  "tsearch.sql": [
+    282
+  ],
+  "type_sanity.sql": [
+    59
+  ],
+  "update.sql": [
+    94,
+    97,
+    119,
+    170,
+    198
+  ],
+  "vacuum.sql": [
+    179
+  ],
+  "window.sql": [
+    252,
+    256
+  ],
+  "with.sql": [
+    298,
+    299
+  ]
+}

@@ -1,0 +1,1160 @@
+{
+  "version": 1,
+  "target": "100% yacc grammar parity with recursive descent parser",
+  "status": "in_progress",
+  "batches": [
+    {
+      "id": 0,
+      "name": "infrastructure",
+      "file": "parser.go",
+      "status": "done",
+      "description": "Parser struct, advance/peek/match/expect/pos/mapTokenType helpers",
+      "rules": [],
+      "depends_on": [],
+      "tests": []
+    },
+    {
+      "id": 1,
+      "name": "names",
+      "file": "name.go",
+      "status": "done",
+      "description": "Identifiers, qualified names, name lists",
+      "rules": [
+        "name",
+        "attr_name",
+        "qualified_name",
+        "any_name",
+        "any_name_list",
+        "opt_name_list",
+        "name_list",
+        "columnref",
+        "indirection",
+        "indirection_el",
+        "opt_indirection",
+        "opt_slice_bound",
+        "attrs",
+        "ColId",
+        "ColLabel",
+        "type_function_name",
+        "unreserved_keyword",
+        "col_name_keyword",
+        "type_func_name_keyword",
+        "reserved_keyword",
+        "func_name",
+        "file_name",
+        "cursor_name",
+        "any_operator",
+        "qualified_name_list"
+      ],
+      "depends_on": [
+        0
+      ],
+      "tests": []
+    },
+    {
+      "id": 2,
+      "name": "types",
+      "file": "type.go",
+      "status": "done",
+      "description": "Type names, array bounds, type modifiers",
+      "rules": [
+        "opt_array_bounds",
+        "opt_type_modifiers",
+        "opt_float",
+        "opt_varying",
+        "opt_timezone",
+        "opt_interval",
+        "interval_second",
+        "type_list",
+        "func_type"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "typecast"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "expressions",
+      "file": "expr.go",
+      "status": "done",
+      "description": "All expression types: a_expr, b_expr, c_expr, operators, subqueries",
+      "rules": [
+        "a_expr",
+        "b_expr",
+        "c_expr",
+        "opt_asymmetric",
+        "sub_type",
+        "case_expr",
+        "when_clause_list",
+        "when_clause",
+        "case_default",
+        "case_arg",
+        "array_expr",
+        "array_expr_list",
+        "row",
+        "explicit_row",
+        "implicit_row",
+        "expr_list",
+        "func_arg_list",
+        "func_arg_list_opt",
+        "func_arg_expr",
+        "extract_list",
+        "extract_arg",
+        "unicode_normal_form",
+        "overlay_list",
+        "position_list",
+        "substr_list",
+        "trim_list",
+        "in_expr"
+      ],
+      "depends_on": [
+        1,
+        2
+      ],
+      "tests": [
+        "case",
+        "cast",
+        "array",
+        "row",
+        "subquery",
+        "distinct"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "functions",
+      "file": "func.go",
+      "status": "done",
+      "description": "Function calls, window functions, aggregates",
+      "rules": [
+        "func_expr",
+        "func_expr_windowless",
+        "func_application",
+        "func_expr_common_subexpr",
+        "within_group_clause",
+        "filter_clause",
+        "over_clause",
+        "window_clause",
+        "window_definition_list",
+        "window_definition",
+        "window_specification",
+        "opt_existing_window_name",
+        "opt_partition_clause",
+        "opt_frame_clause",
+        "frame_extent",
+        "frame_bound",
+        "opt_window_exclusion_clause"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": []
+    },
+    {
+      "id": 5,
+      "name": "xml",
+      "file": "xml.go",
+      "status": "done",
+      "description": "XML expressions and functions",
+      "rules": [
+        "xml_root_version",
+        "opt_xml_root_standalone",
+        "xml_attributes",
+        "xml_attribute_list",
+        "xml_attribute_el",
+        "document_or_content",
+        "xml_indent_option",
+        "xml_whitespace_option",
+        "xmlexists_argument",
+        "xml_passing_mech",
+        "xmltable",
+        "xmltable_column_list",
+        "xmltable_column_el",
+        "xmltable_column_option_list",
+        "xmltable_column_option_el",
+        "xml_namespace_list",
+        "xml_namespace_el"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": []
+    },
+    {
+      "id": 6,
+      "name": "json",
+      "file": "json.go",
+      "status": "done",
+      "description": "JSON expressions, constructors, queries",
+      "rules": [
+        "json_value_expr",
+        "json_format_clause",
+        "json_format_clause_opt",
+        "json_returning_clause_opt",
+        "json_output_clause_opt",
+        "json_behavior",
+        "json_behavior_type",
+        "json_behavior_clause_opt",
+        "json_on_error_clause_opt",
+        "json_wrapper_behavior",
+        "json_quotes_clause_opt",
+        "json_predicate_type_constraint",
+        "json_key_uniqueness_constraint_opt",
+        "json_name_and_value_list",
+        "json_name_and_value",
+        "json_object_constructor_null_clause_opt",
+        "json_array_constructor_null_clause_opt",
+        "json_value_expr_list",
+        "json_passing_clause_opt",
+        "json_arguments",
+        "json_argument",
+        "json_aggregate_func",
+        "json_array_aggregate_order_by_clause_opt",
+        "json_table",
+        "json_table_path_name_opt",
+        "json_table_column_definition_list",
+        "json_table_column_definition",
+        "json_table_column_path_clause_opt",
+        "json_table_column_option_list",
+        "json_table_column_option_el",
+        "path_opt"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "sqljson",
+        "json_agg"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "select",
+      "file": "select.go",
+      "status": "done",
+      "description": "SELECT statement and all clauses",
+      "rules": [
+        "select_with_parens",
+        "select_no_parens",
+        "select_clause",
+        "simple_select",
+        "values_clause",
+        "opt_all_clause",
+        "opt_distinct_clause",
+        "distinct_clause",
+        "set_quantifier",
+        "opt_with_clause",
+        "with_clause",
+        "cte_list",
+        "common_table_expr",
+        "opt_materialized",
+        "opt_search_clause",
+        "opt_cycle_clause",
+        "opt_target_list",
+        "into_clause",
+        "target_list",
+        "target_el",
+        "from_clause",
+        "from_list",
+        "table_ref",
+        "joined_table",
+        "join_type",
+        "opt_outer",
+        "join_qual",
+        "join_using_alias",
+        "relation_expr",
+        "relation_expr_opt_alias",
+        "opt_alias_clause",
+        "func_alias_clause",
+        "alias_clause",
+        "func_table",
+        "rowsfrom_list",
+        "rowsfrom_item",
+        "opt_col_def_list",
+        "opt_ordinality",
+        "tablesample_clause",
+        "opt_repeatable_clause",
+        "where_clause",
+        "where_or_current_clause",
+        "group_clause",
+        "group_by_list",
+        "group_by_item",
+        "empty_grouping_set",
+        "cube_clause",
+        "rollup_clause",
+        "grouping_sets_clause",
+        "having_clause",
+        "sort_clause",
+        "opt_sort_clause",
+        "sortby_list",
+        "sortby",
+        "opt_asc_desc",
+        "opt_nulls_order",
+        "select_limit",
+        "limit_clause",
+        "offset_clause",
+        "first_or_next",
+        "row_or_rows",
+        "select_limit_value",
+        "select_offset_value",
+        "select_fetch_first_value",
+        "opt_select_limit",
+        "for_locking_clause",
+        "opt_for_locking_clause",
+        "for_locking_items",
+        "for_locking_item",
+        "for_locking_strength",
+        "locked_rels_list",
+        "opt_nowait_or_skip"
+      ],
+      "depends_on": [
+        3,
+        4
+      ],
+      "tests": [
+        "cte",
+        "distinct",
+        "group",
+        "join",
+        "limit",
+        "subquery"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "insert",
+      "file": "insert.go",
+      "status": "done",
+      "description": "INSERT statement",
+      "rules": [
+        "insert_target",
+        "insert_rest",
+        "insert_column_list",
+        "insert_column_item",
+        "opt_on_conflict",
+        "returning_clause",
+        "set_clause_list",
+        "set_clause",
+        "set_target",
+        "set_target_list",
+        "override_kind"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "insert"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "update",
+      "file": "update.go",
+      "status": "done",
+      "description": "UPDATE, DELETE, MERGE statements",
+      "rules": [
+        "using_clause",
+        "merge_when_list",
+        "merge_when_clause",
+        "merge_when_tgt_matched",
+        "merge_when_tgt_not_matched",
+        "opt_merge_when_condition",
+        "merge_update",
+        "merge_delete",
+        "merge_insert",
+        "merge_values_clause"
+      ],
+      "depends_on": [
+        7,
+        8
+      ],
+      "tests": [
+        "update",
+        "delete",
+        "merge"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "create_table",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "CREATE TABLE, column definitions, constraints",
+      "rules": [
+        "opt_column_constraints",
+        "opt_column_list",
+        "key_match",
+        "key_actions",
+        "key_update",
+        "key_delete",
+        "key_action",
+        "opt_c_include",
+        "opt_collate",
+        "part_params",
+        "part_elem",
+        "hash_partbound",
+        "hash_partbound_elem",
+        "column_compression",
+        "generated_when",
+        "no_inherit",
+        "opt_unique_null_treatment"
+      ],
+      "depends_on": [
+        2,
+        3
+      ],
+      "tests": [
+        "createtable",
+        "createtable_relpersistence",
+        "check_constraint",
+        "fk_action"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "alter_table",
+      "file": "alter_table.go",
+      "status": "done",
+      "description": "ALTER TABLE and all subcommands",
+      "rules": [
+        "alter_table_cmds",
+        "alter_table_cmd",
+        "opt_drop_behavior",
+        "alter_column_default",
+        "opt_if_not_exists",
+        "alter_identity_column_option_list",
+        "alter_identity_column_option",
+        "opt_as",
+        "opt_collate_clause",
+        "reloptions",
+        "opt_reloptions",
+        "reloption_list",
+        "reloption_elem",
+        "opt_set_data"
+      ],
+      "depends_on": [
+        10
+      ],
+      "tests": [
+        "altertable",
+        "set_storage"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "create_index",
+      "file": "create_index.go",
+      "status": "done",
+      "description": "CREATE INDEX",
+      "rules": [
+        "opt_unique",
+        "opt_concurrently",
+        "opt_single_name",
+        "access_method_clause",
+        "index_params",
+        "index_elem",
+        "opt_include",
+        "index_including_params",
+        "opt_check_option"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "createindex"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "create_view",
+      "file": "create_view.go",
+      "status": "done",
+      "description": "CREATE VIEW, CREATE TABLE AS",
+      "rules": [
+        "opt_or_replace",
+        "create_as_target",
+        "opt_with_data",
+        "create_mv_target"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "createview",
+        "ctas"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "create_function",
+      "file": "create_function.go",
+      "status": "done",
+      "description": "CREATE FUNCTION/PROCEDURE",
+      "rules": [
+        "func_args_with_defaults",
+        "func_args_with_defaults_list",
+        "func_arg_with_default",
+        "func_arg",
+        "arg_class",
+        "param_name",
+        "func_return",
+        "table_func_column_list",
+        "table_func_column",
+        "opt_createfunc_opt_list",
+        "createfunc_opt_list",
+        "opt_routine_body",
+        "routine_body_stmt_list",
+        "routine_body_stmt",
+        "createfunc_opt_item",
+        "func_as",
+        "transform_type_list",
+        "common_func_opt_item"
+      ],
+      "depends_on": [
+        2,
+        7
+      ],
+      "tests": [
+        "createfunction"
+      ]
+    },
+    {
+      "id": 15,
+      "name": "alter_misc",
+      "file": "alter_misc.go",
+      "status": "done",
+      "description": "ALTER FUNCTION, ALTER TYPE, ALTER SEQUENCE, ALTER generic",
+      "rules": [
+        "alterfunc_opt_list",
+        "opt_restrict",
+        "alter_type_cmds",
+        "alter_type_cmd",
+        "alter_identity_column_option_list",
+        "alter_identity_column_option",
+        "function_with_argtypes_list",
+        "function_with_argtypes",
+        "func_args",
+        "func_args_list",
+        "aggregate_with_argtypes",
+        "aggregate_with_argtypes_list",
+        "operator_with_argtypes_list",
+        "operator_with_argtypes",
+        "oper_argtypes"
+      ],
+      "depends_on": [
+        11,
+        14
+      ],
+      "tests": [
+        "alterfunc",
+        "alter_generic"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "drop",
+      "file": "drop.go",
+      "status": "done",
+      "description": "DROP, TRUNCATE",
+      "rules": [
+        "object_type_any_name",
+        "object_type_name",
+        "object_type_name_on_any_name",
+        "drop_option_list",
+        "drop_option",
+        "opt_if_exists",
+        "opt_restart_seqs",
+        "opt_table",
+        "relation_expr_list"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "drop"
+      ]
+    },
+    {
+      "id": 17,
+      "name": "sequence",
+      "file": "sequence.go",
+      "status": "done",
+      "description": "CREATE/ALTER SEQUENCE",
+      "rules": [
+        "opt_enum_val_list",
+        "enum_val_list"
+      ],
+      "depends_on": [
+        2
+      ],
+      "tests": [
+        "sequence",
+        "domain"
+      ]
+    },
+    {
+      "id": 18,
+      "name": "grant",
+      "file": "grant.go",
+      "status": "done",
+      "description": "GRANT/REVOKE, policies",
+      "rules": [
+        "privileges",
+        "privilege_list",
+        "privilege",
+        "grantee_list",
+        "grantee",
+        "opt_grant_grant_option",
+        "grant_role_opt_list",
+        "grant_role_opt",
+        "grant_role_opt_value",
+        "opt_granted_by",
+        "opt_with",
+        "role_list",
+        "row_security_cmd"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "grant",
+        "policy",
+        "role"
+      ]
+    },
+    {
+      "id": 19,
+      "name": "schema",
+      "file": "schema.go",
+      "status": "done",
+      "description": "CREATE SCHEMA, RENAME, COMMENT",
+      "rules": [
+        "schema_stmt",
+        "comment_text",
+        "opt_by"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "schema",
+        "comment"
+      ]
+    },
+    {
+      "id": 20,
+      "name": "define",
+      "file": "define.go",
+      "status": "done",
+      "description": "DefineStmt, aggregate, operator, opclass definitions",
+      "rules": [
+        "definition",
+        "def_list",
+        "def_elem",
+        "def_arg",
+        "old_aggr_definition",
+        "old_aggr_list",
+        "old_aggr_elem",
+        "aggr_args",
+        "aggr_args_list",
+        "aggr_arg",
+        "opt_definition",
+        "operator_def_list",
+        "operator_def_elem",
+        "operator_def_arg",
+        "opclass_item_list",
+        "opclass_item",
+        "opt_default",
+        "opt_opfamily",
+        "opclass_purpose",
+        "opt_recheck",
+        "opclass_drop_list",
+        "opclass_drop",
+        "defacl_privilege_target",
+        "opt_stat_name_list",
+        "stats_params",
+        "stats_param",
+        "set_statistics_value"
+      ],
+      "depends_on": [
+        2,
+        3
+      ],
+      "tests": [
+        "define",
+        "opclass",
+        "stats"
+      ]
+    },
+    {
+      "id": 21,
+      "name": "trigger",
+      "file": "trigger.go",
+      "status": "done",
+      "description": "CREATE TRIGGER, event triggers",
+      "rules": [
+        "event",
+        "opt_instead",
+        "enable_trigger",
+        "event_trigger_when_list",
+        "event_trigger_when_item",
+        "event_trigger_value_list"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "trigger"
+      ]
+    },
+    {
+      "id": 22,
+      "name": "copy",
+      "file": "copy.go",
+      "status": "done",
+      "description": "COPY statement",
+      "rules": [
+        "copy_from",
+        "opt_program",
+        "copy_file_name",
+        "copy_opt_with",
+        "copy_options",
+        "copy_opt_list",
+        "copy_opt_item",
+        "opt_binary",
+        "copy_delimiter",
+        "opt_using"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "copy"
+      ]
+    },
+    {
+      "id": 23,
+      "name": "set",
+      "file": "set.go",
+      "status": "done",
+      "description": "SET, SHOW, RESET, variable handling",
+      "rules": [
+        "set_rest",
+        "generic_set",
+        "set_rest_more",
+        "var_name",
+        "var_list",
+        "var_value",
+        "zone_value",
+        "opt_encoding",
+        "iso_level",
+        "reset_rest",
+        "generic_reset",
+        "opt_boolean_or_string"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "set"
+      ]
+    },
+    {
+      "id": 24,
+      "name": "transaction",
+      "file": "transaction.go",
+      "status": "done",
+      "description": "Transaction statements",
+      "rules": [
+        "opt_transaction",
+        "opt_transaction_chain",
+        "transaction_mode_item",
+        "transaction_mode_list",
+        "transaction_mode_list_or_empty"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "transaction"
+      ]
+    },
+    {
+      "id": 25,
+      "name": "cursor",
+      "file": "cursor.go",
+      "status": "done",
+      "description": "DECLARE CURSOR, FETCH, MOVE",
+      "rules": [
+        "cursor_options",
+        "opt_hold",
+        "fetch_args",
+        "from_in",
+        "opt_from_in"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "cursor"
+      ]
+    },
+    {
+      "id": 26,
+      "name": "prepare",
+      "file": "prepare.go",
+      "status": "done",
+      "description": "PREPARE, EXECUTE, DEALLOCATE",
+      "rules": [
+        "prep_type_clause",
+        "execute_param_clause"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": []
+    },
+    {
+      "id": 27,
+      "name": "maintenance",
+      "file": "maintenance.go",
+      "status": "done",
+      "description": "VACUUM, ANALYZE, CLUSTER, REINDEX",
+      "rules": [
+        "analyze_keyword",
+        "opt_full",
+        "opt_freeze",
+        "opt_verbose",
+        "opt_analyze",
+        "vacuum_relation",
+        "vacuum_relation_list",
+        "opt_vacuum_relation_list",
+        "cluster_index_specification",
+        "reindex_target_type",
+        "reindex_target_multitable",
+        "opt_reindex_option_list"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "maintenance"
+      ]
+    },
+    {
+      "id": 28,
+      "name": "lock",
+      "file": "lock.go",
+      "status": "done",
+      "description": "LOCK, CONSTRAINTS SET",
+      "rules": [
+        "opt_lock",
+        "lock_type",
+        "opt_nowait",
+        "constraints_set_list",
+        "constraints_set_mode"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": []
+    },
+    {
+      "id": 29,
+      "name": "utility",
+      "file": "utility.go",
+      "status": "done",
+      "description": "Utility options, DO, EXPLAIN, LISTEN, NOTIFY, etc.",
+      "rules": [
+        "utility_option_list",
+        "utility_option_elem",
+        "utility_option_name",
+        "utility_option_arg",
+        "utility_option_arg_list",
+        "dostmt_opt_list",
+        "dostmt_opt_item",
+        "opt_provider",
+        "security_label"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "utility",
+        "explain"
+      ]
+    },
+    {
+      "id": 30,
+      "name": "database",
+      "file": "database.go",
+      "status": "done",
+      "description": "CREATE/ALTER DATABASE",
+      "rules": [
+        "createdb_opt_list",
+        "createdb_opt_items",
+        "createdb_opt_item",
+        "createdb_opt_name",
+        "opt_equal",
+        "add_drop"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "database"
+      ]
+    },
+    {
+      "id": 31,
+      "name": "fdw",
+      "file": "fdw.go",
+      "status": "done",
+      "description": "Foreign data wrappers, foreign servers, foreign tables",
+      "rules": [
+        "fdw_option",
+        "fdw_options",
+        "opt_fdw_options",
+        "create_generic_options",
+        "generic_option_list",
+        "alter_generic_options",
+        "alter_generic_option_list",
+        "alter_generic_option_elem",
+        "generic_option_elem",
+        "generic_option_name",
+        "generic_option_arg",
+        "opt_type",
+        "foreign_server_version",
+        "opt_foreign_server_version",
+        "import_qualification_type",
+        "import_qualification",
+        "auth_ident",
+        "opt_trusted",
+        "handler_name",
+        "opt_inline_handler",
+        "opt_validator",
+        "opt_procedural"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "fdw"
+      ]
+    },
+    {
+      "id": 32,
+      "name": "extension",
+      "file": "extension.go",
+      "status": "done",
+      "description": "CREATE/ALTER EXTENSION, ACCESS METHOD, CAST, TRANSFORM",
+      "rules": [
+        "create_extension_opt_list",
+        "create_extension_opt_item",
+        "alter_extension_opt_list",
+        "alter_extension_opt_item",
+        "am_type",
+        "cast_context",
+        "transform_element_list",
+        "opt_no"
+      ],
+      "depends_on": [
+        2
+      ],
+      "tests": [
+        "extension"
+      ]
+    },
+    {
+      "id": 33,
+      "name": "publication",
+      "file": "publication.go",
+      "status": "done",
+      "description": "Publication, subscription, rule",
+      "rules": [
+        "pub_obj_list",
+        "opt_qualified_name"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "publication",
+        "subscription",
+        "rule"
+      ]
+    },
+    {
+      "id": 34,
+      "name": "stmt_dispatch",
+      "file": "parser.go",
+      "status": "done",
+      "description": "Top-level stmtblock/stmtmulti/stmt dispatching, wire up Parse() entry point",
+      "rules": [
+        "stmtblock",
+        "stmtmulti",
+        "stmt"
+      ],
+      "depends_on": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "tests": [
+        "integration"
+      ]
+    },
+    {
+      "id": 35,
+      "name": "call_stmt",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "CALL statement for invoking procedures. Add CALL case to parseStmt dispatch. Ref: https://www.postgresql.org/docs/17/sql-call.html",
+      "rules": [
+        "CallStmt"
+      ],
+      "depends_on": [
+        4,
+        34
+      ],
+      "tests": [
+        "call"
+      ]
+    },
+    {
+      "id": 36,
+      "name": "alter_system",
+      "file": "set.go",
+      "status": "pending",
+      "description": "ALTER SYSTEM SET/RESET for modifying postgresql.conf. Add ALTER SYSTEM case to parseStmt ALTER dispatch. Ref: https://www.postgresql.org/docs/17/sql-altersystem.html",
+      "rules": [
+        "AlterSystemStmt"
+      ],
+      "depends_on": [
+        23,
+        34
+      ],
+      "tests": [
+        "alter_system"
+      ]
+    },
+    {
+      "id": 37,
+      "name": "tablespace",
+      "file": "schema.go",
+      "status": "pending",
+      "description": "CREATE TABLESPACE, DROP TABLESPACE, and full ALTER TABLESPACE (SET/RESET reloptions). Currently ALTER TABLESPACE only handles OWNER/RENAME, missing SET/RESET. Refs: https://www.postgresql.org/docs/17/sql-createtablespace.html, https://www.postgresql.org/docs/17/sql-droptablespace.html, https://www.postgresql.org/docs/17/sql-altertablespace.html",
+      "rules": [
+        "CreateTableSpaceStmt",
+        "OptTableSpaceOwner",
+        "DropTableSpaceStmt",
+        "AlterTblSpcStmt"
+      ],
+      "depends_on": [
+        11,
+        34
+      ],
+      "tests": [
+        "tablespace"
+      ]
+    },
+    {
+      "id": 38,
+      "name": "create_conversion",
+      "file": "define.go",
+      "status": "pending",
+      "description": "CREATE [DEFAULT] CONVERSION statement. Add CONVERSION case to parseCreateDispatch. Ref: https://www.postgresql.org/docs/17/sql-createconversion.html",
+      "rules": [
+        "CreateConversionStmt"
+      ],
+      "depends_on": [
+        20,
+        34
+      ],
+      "tests": [
+        "conversion"
+      ]
+    },
+    {
+      "id": 39,
+      "name": "drop_operator",
+      "file": "drop.go",
+      "status": "pending",
+      "description": "DROP OPERATOR with oper_argtypes (RemoveOperStmt). Currently has a TODO placeholder returning nil. Must parse operator_with_argtypes_list. Ref: https://www.postgresql.org/docs/17/sql-dropoperator.html",
+      "rules": [
+        "RemoveOperStmt"
+      ],
+      "depends_on": [
+        15,
+        16,
+        34
+      ],
+      "tests": [
+        "drop_operator"
+      ]
+    },
+    {
+      "id": 40,
+      "name": "drop_func_argtypes",
+      "file": "drop.go",
+      "status": "pending",
+      "description": "Fix DROP FUNCTION/PROCEDURE/ROUTINE/AGGREGATE to use function_with_argtypes_list instead of any_name_list. The yacc grammar (RemoveFuncStmt, RemoveAggrStmt) parses argument types like DROP FUNCTION foo(integer, text). Current parseDropAnyNameList only parses names without arg types. Refs: https://www.postgresql.org/docs/17/sql-dropfunction.html, https://www.postgresql.org/docs/17/sql-dropprocedure.html, https://www.postgresql.org/docs/17/sql-dropaggregate.html",
+      "rules": [
+        "RemoveFuncStmt",
+        "RemoveAggrStmt"
+      ],
+      "depends_on": [
+        15,
+        16,
+        34
+      ],
+      "tests": [
+        "drop_func_argtypes"
+      ]
+    },
+    {
+      "id": 41,
+      "name": "alter_tablespace_set_reset",
+      "file": "alter_misc.go",
+      "status": "pending",
+      "description": "Complete ALTER TABLESPACE SET/RESET reloptions (AlterTableSpaceOptionsStmt). Currently parseAlterTablespaceOwner handles OWNER/RENAME but returns nil for SET. Must produce AlterTableSpaceOptionsStmt with IsReset flag. Ref: https://www.postgresql.org/docs/17/sql-altertablespace.html",
+      "rules": [
+        "AlterTblSpcStmt"
+      ],
+      "depends_on": [
+        11,
+        34
+      ],
+      "tests": [
+        "alter_tablespace_opts"
+      ]
+    }
+  ]
+}
