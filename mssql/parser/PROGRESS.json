@@ -2202,7 +2202,7 @@
       "id": 97,
       "name": "query_hint_table_hint_depth",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 92 gap: parse TABLE HINT(exposed_object_name, hint [,...n]) in OPTION clause instead of skip-looping the parenthesized content (line 1484). exposed_object_name is a qualified table name; hints are standard table hints like NOLOCK, INDEX(), FORCESEEK.",
       "rules": [
         "parseTableHintQueryOption"

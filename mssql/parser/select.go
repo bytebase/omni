@@ -1481,21 +1481,83 @@ func (p *Parser) parseQueryHint() nodes.Node {
 		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "HINT") {
 			buf.WriteString(" HINT")
 			p.advance()
-			// Skip (exposed_object_name, ...) for now
+			// Parse TABLE HINT(exposed_object_name, hint [,...n])
+			//
+			// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/hints-transact-sql-query
+			//
+			//   TABLE HINT ( exposed_object_name [ , <table_hint> [ , ...n ] ] )
+			//   <table_hint> ::= NOLOCK | READUNCOMMITTED | UPDLOCK | REPEATABLEREAD
+			//                  | SERIALIZABLE | READCOMMITTED | TABLOCK | TABLOCKX
+			//                  | PAGLOCK | ROWLOCK | NOWAIT | READPAST | XLOCK
+			//                  | SNAPSHOT | NOEXPAND | HOLDLOCK | KEEPIDENTITY
+			//                  | KEEPDEFAULTS | IGNORE_CONSTRAINTS | IGNORE_TRIGGERS
+			//                  | INDEX ( index_val [, ...n] )
+			//                  | FORCESEEK [ ( index_val ( col [, ...n] ) ) ]
+			//                  | FORCESCAN | SPATIAL_WINDOW_MAX_CELLS = n
 			if p.cur.Type == '(' {
-				depth := 1
-				p.advance()
-				for depth > 0 && p.cur.Type != tokEOF {
-					if p.cur.Type == '(' {
-						depth++
-					} else if p.cur.Type == ')' {
-						depth--
+				p.advance() // consume '('
+				buf.WriteByte('(')
+				// exposed_object_name (may be multi-part)
+				first := true
+				for p.cur.Type != ',' && p.cur.Type != ')' && p.cur.Type != tokEOF {
+					if !first {
+						buf.WriteByte('.')
 					}
-					if depth > 0 {
+					buf.WriteString(p.cur.Str)
+					p.advance()
+					if p.cur.Type == '.' {
 						p.advance()
 					}
+					first = false
 				}
-				p.advance() // consume final )
+				// Parse comma-separated hints
+				for p.cur.Type == ',' {
+					buf.WriteString(", ")
+					p.advance() // consume ','
+					if p.isIdentLike() || p.cur.Type >= kwADD {
+						hintName := strings.ToUpper(p.cur.Str)
+						buf.WriteString(hintName)
+						p.advance()
+						// INDEX(...), FORCESEEK(...) may have parenthesized args
+						if p.cur.Type == '(' {
+							depth := 1
+							p.advance()
+							buf.WriteByte('(')
+							for depth > 0 && p.cur.Type != tokEOF {
+								if p.cur.Type == '(' {
+									depth++
+									buf.WriteByte('(')
+								} else if p.cur.Type == ')' {
+									depth--
+									if depth > 0 {
+										buf.WriteByte(')')
+									}
+								} else {
+									buf.WriteString(p.cur.Str)
+								}
+								if depth > 0 {
+									p.advance()
+									if p.cur.Type == ',' && depth > 0 {
+										buf.WriteString(", ")
+									}
+								}
+							}
+							buf.WriteByte(')')
+							p.advance() // consume final ')'
+						}
+						// SPATIAL_WINDOW_MAX_CELLS = n
+						if p.cur.Type == '=' {
+							p.advance()
+							buf.WriteString(" = ")
+							if p.cur.Str != "" {
+								buf.WriteString(p.cur.Str)
+							}
+							p.advance()
+						}
+					}
+				}
+				buf.WriteByte(')')
+				p.match(')') // consume final ')'
 			}
 		}
 

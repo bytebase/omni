@@ -9547,6 +9547,39 @@ func TestParseOptionQueryHints(t *testing.T) {
 			t.Errorf("expected 'ROBUST PLAN', got %q", hint)
 		}
 	})
+
+	// TABLE HINT with single hint
+	t.Run("option_table_hint", func(t *testing.T) {
+		sql := "SELECT * FROM t OPTION (TABLE HINT(t, NOLOCK))"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		hint := stmt.OptionClause.Items[0].(*ast.String).Str
+		if hint != "TABLE HINT(t, NOLOCK)" {
+			t.Errorf("expected 'TABLE HINT(t, NOLOCK)', got %q", hint)
+		}
+	})
+
+	// TABLE HINT with INDEX hint
+	t.Run("option_table_hint_index", func(t *testing.T) {
+		sql := "SELECT * FROM t OPTION (TABLE HINT(dbo.t, INDEX(IX_1)))"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		hint := stmt.OptionClause.Items[0].(*ast.String).Str
+		if hint != "TABLE HINT(dbo.t, INDEX(IX_1))" {
+			t.Errorf("expected 'TABLE HINT(dbo.t, INDEX(IX_1))', got %q", hint)
+		}
+	})
+
+	// TABLE HINT with multiple hints
+	t.Run("option_table_hint_multiple", func(t *testing.T) {
+		sql := "SELECT * FROM t OPTION (TABLE HINT(t, NOLOCK, NOWAIT))"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		hint := stmt.OptionClause.Items[0].(*ast.String).Str
+		if hint != "TABLE HINT(t, NOLOCK, NOWAIT)" {
+			t.Errorf("expected 'TABLE HINT(t, NOLOCK, NOWAIT)', got %q", hint)
+		}
+	})
 }
 
 func TestParseSetuserStatement(t *testing.T) {
