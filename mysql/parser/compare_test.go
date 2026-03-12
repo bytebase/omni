@@ -9245,3 +9245,35 @@ func TestParseNaturalLeftOuterJoin(t *testing.T) {
 		})
 	}
 }
+
+func TestParseSelectIntoAfterHaving(t *testing.T) {
+	tests := []string{
+		// INTO at position 2: after HAVING, before ORDER BY
+		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE '/tmp/result.txt'",
+		// INTO at position 2: after HAVING, before ORDER BY with ORDER BY
+		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE '/tmp/result.txt' ORDER BY a",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseSelectIntoAfterHavingBeforeOrderBy(t *testing.T) {
+	tests := []string{
+		// INTO with DUMPFILE at position 2
+		"SELECT a FROM t GROUP BY a HAVING a > 0 INTO DUMPFILE '/tmp/dump.dat' ORDER BY a",
+		// INTO with variable at position 2
+		"SELECT a, b FROM t GROUP BY a HAVING a > 0 INTO @x, @y ORDER BY a",
+		// Regression: INTO at position 1 still works
+		"SELECT a INTO @x FROM t",
+		// Regression: INTO at position 3 still works
+		"SELECT a FROM t FOR UPDATE INTO OUTFILE '/tmp/result.txt'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}

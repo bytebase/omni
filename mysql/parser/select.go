@@ -278,6 +278,16 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		stmt.WindowClause = defs
 	}
 
+	// INTO clause (position 2: after HAVING/WINDOW, before ORDER BY)
+	if p.cur.Type == kwINTO && stmt.Into == nil {
+		p.advance()
+		into, err := p.parseIntoClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Into = into
+	}
+
 	// ORDER BY clause
 	if p.cur.Type == kwORDER {
 		p.advance()
@@ -483,6 +493,16 @@ func (p *Parser) parseSelectStmtBase() (*nodes.SelectStmt, error) {
 			return nil, err
 		}
 		stmt.WindowClause = defs
+	}
+
+	// INTO clause (position 2: after HAVING/WINDOW, before ORDER BY)
+	if p.cur.Type == kwINTO && stmt.Into == nil {
+		p.advance()
+		into, err := p.parseIntoClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Into = into
 	}
 
 	// ORDER BY clause

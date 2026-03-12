@@ -1948,7 +1948,7 @@
       "id": 78,
       "name": "depth_fix_select_into_position2",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 4 gap: INTO clause position 2 (between HAVING and ORDER BY) is not implemented - MySQL allows INTO at 3 positions: after select_expr (pos 1), after HAVING before ORDER BY (pos 2), after FOR UPDATE (pos 3). Only positions 1 and 3 are currently supported.",
       "rules": [
         "parseSelectStmt",
