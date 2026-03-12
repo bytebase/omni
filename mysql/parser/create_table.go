@@ -87,7 +87,7 @@ func (p *Parser) parseCreateTableStmt(temporary bool) (*nodes.CreateTableStmt, e
 		}
 	}
 
-	// CREATE TABLE t (cols) AS SELECT ... — select after column definitions
+	// CREATE TABLE t (cols) [IGNORE|REPLACE] [AS] SELECT ...
 	if p.cur.Type == kwAS {
 		p.advance()
 		sel, err := p.parseSelectStmt()
@@ -117,6 +117,31 @@ func (p *Parser) parseCreateTableStmt(temporary bool) (*nodes.CreateTableStmt, e
 			return nil, err
 		}
 		stmt.Partitions = part
+	}
+
+	// IGNORE / REPLACE before SELECT in CTAS
+	if p.cur.Type == kwIGNORE {
+		p.advance()
+		stmt.Ignore = true
+	} else if p.cur.Type == kwREPLACE {
+		p.advance()
+		stmt.Replace = true
+	}
+
+	// [AS] SELECT ... — bare SELECT or AS SELECT after options/partitions
+	if p.cur.Type == kwAS {
+		p.advance()
+		sel, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Select = sel
+	} else if p.cur.Type == kwSELECT {
+		sel, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Select = sel
 	}
 
 	stmt.Loc.End = p.pos()
@@ -444,7 +469,7 @@ func (p *Parser) parseReferenceDefinition(start int) (*nodes.ColumnConstraint, e
 	if _, ok := p.match(kwMATCH); ok {
 		if p.isIdentToken() {
 			// FULL, PARTIAL, SIMPLE
-			p.advance()
+			constr.Match, _, _ = p.parseIdentifier()
 		}
 	}
 
@@ -570,6 +595,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
+		p.parseConstraintIndexOptions(constr)
 
 	case kwUNIQUE:
 		p.advance()
@@ -587,6 +613,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
+		p.parseConstraintIndexOptions(constr)
 
 	case kwFOREIGN:
 		p.advance()
@@ -674,6 +701,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
+		p.parseConstraintIndexOptions(constr)
 
 	case kwFULLTEXT:
 		p.advance()
@@ -688,6 +716,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
+		p.parseConstraintIndexOptions(constr)
 
 	case kwSPATIAL:
 		p.advance()
@@ -702,6 +731,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
+		p.parseConstraintIndexOptions(constr)
 
 	default:
 		return nil, &ParseError{
@@ -712,6 +742,17 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 
 	constr.Loc.End = p.pos()
 	return constr, nil
+}
+
+// parseConstraintIndexOptions parses index_option list after a table constraint's key parts.
+func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) {
+	for {
+		opt, ok, err := p.parseIndexOption()
+		if err != nil || !ok {
+			break
+		}
+		constr.IndexOptions = append(constr.IndexOptions, opt)
+	}
 }
 
 // parseIndexTypeClause parses an optional USING {BTREE|HASH} clause.
@@ -882,17 +923,15 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	part := &nodes.PartitionClause{Loc: nodes.Loc{Start: start}}
 
 	// Optional LINEAR
-	linear := false
-	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "linear") {
+	if p.cur.Type == kwLINEAR {
 		p.advance()
-		linear = true
+		part.Linear = true
 	}
 
 	switch p.cur.Type {
 	case kwHASH:
 		p.advance()
 		part.Type = nodes.PartitionHash
-		_ = linear
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}

@@ -288,14 +288,14 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 		}
 		return nil, false, &ParseError{Message: "expected string after COMMENT", Position: p.cur.Loc}
 
-	case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "VISIBLE"):
+	case p.cur.Type == kwVISIBLE || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "VISIBLE")):
 		p.advance()
 		return &nodes.IndexOption{
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Name: "VISIBLE",
 		}, true, nil
 
-	case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "INVISIBLE"):
+	case p.cur.Type == kwINVISIBLE || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "INVISIBLE")):
 		p.advance()
 		return &nodes.IndexOption{
 			Loc:  nodes.Loc{Start: start, End: p.pos()},

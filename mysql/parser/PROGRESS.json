@@ -1699,7 +1699,7 @@
       "id": 67,
       "name": "depth_fix_create_table_constraints_ctas",
       "file": "create_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 7 gap: index_option parsing on table-level constraints (USING, KEY_BLOCK_SIZE, COMMENT, VISIBLE/INVISIBLE), IGNORE/REPLACE before SELECT in CTAS, bare SELECT (no AS) in CTAS, store LINEAR flag on partitions, store MATCH type on foreign keys",
       "rules": [
         "parseTableConstraint",

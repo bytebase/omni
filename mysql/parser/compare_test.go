@@ -8544,6 +8544,79 @@ func TestParseIntersectPrecedence(t *testing.T) {
 	}
 }
 
+// --- Batch 67: depth_fix_create_table_constraints_ctas ---
+
+func TestParseCreateTableConstraintIndexOption(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE t (id INT, PRIMARY KEY (id) USING BTREE)",
+		"CREATE TABLE t (id INT, PRIMARY KEY (id) KEY_BLOCK_SIZE 1024)",
+		"CREATE TABLE t (id INT, PRIMARY KEY (id) COMMENT 'pk')",
+		"CREATE TABLE t (id INT, UNIQUE KEY idx (name) USING HASH COMMENT 'uniq')",
+		"CREATE TABLE t (id INT, INDEX idx (name) KEY_BLOCK_SIZE 512 COMMENT 'idx')",
+		"CREATE TABLE t (id INT, FULLTEXT KEY ft_idx (content) COMMENT 'fulltext')",
+		"CREATE TABLE t (id INT, PRIMARY KEY (id) VISIBLE)",
+		"CREATE TABLE t (id INT, UNIQUE KEY idx (name) INVISIBLE)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseCreateTableIgnoreAsSelect(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE t IGNORE SELECT * FROM s",
+		"CREATE TABLE t REPLACE SELECT * FROM s",
+		"CREATE TABLE t IGNORE AS SELECT * FROM s",
+		"CREATE TABLE t REPLACE AS SELECT * FROM s",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseCreateTableBareSelect(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE t SELECT * FROM s",
+		"CREATE TABLE t (id INT) SELECT * FROM s",
+		"CREATE TABLE t ENGINE=InnoDB SELECT * FROM s",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseCreateTableLinearHash(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE t (id INT) PARTITION BY LINEAR HASH(id) PARTITIONS 4",
+		"CREATE TABLE t (id INT) PARTITION BY LINEAR KEY(id) PARTITIONS 4",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseCreateTableFKMatch(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE t (id INT, FOREIGN KEY (pid) REFERENCES p(id) MATCH FULL)",
+		"CREATE TABLE t (id INT, FOREIGN KEY (pid) REFERENCES p(id) MATCH PARTIAL ON DELETE CASCADE)",
+		"CREATE TABLE t (id INT, FOREIGN KEY (pid) REFERENCES p(id) MATCH SIMPLE ON DELETE SET NULL ON UPDATE CASCADE)",
+		"CREATE TABLE t (id INT, pid INT REFERENCES p(id) MATCH FULL)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
 func TestParseShowProcesslist(t *testing.T) {
 	tests := []string{
 		"SHOW PROCESSLIST",

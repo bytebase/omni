@@ -761,6 +761,12 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 		sb.WriteString(" :like ")
 		writeNode(sb, n.Like)
 	}
+	if n.Ignore {
+		sb.WriteString(" :ignore true")
+	}
+	if n.Replace {
+		sb.WriteString(" :replace true")
+	}
 	if n.Select != nil {
 		sb.WriteString(" :as_select ")
 		writeNode(sb, n.Select)
@@ -2389,6 +2395,9 @@ func writeColumnConstraint(sb *strings.Builder, n *ColumnConstraint) {
 	if len(n.RefColumns) > 0 {
 		fmt.Fprintf(sb, " :ref_columns %s", strings.Join(n.RefColumns, ", "))
 	}
+	if n.Match != "" {
+		fmt.Fprintf(sb, " :match %s", n.Match)
+	}
 	if n.OnDelete != RefActNone {
 		fmt.Fprintf(sb, " :on_delete %d", n.OnDelete)
 	}
@@ -2422,6 +2431,16 @@ func writeConstraint(sb *strings.Builder, n *Constraint) {
 	}
 	if n.IndexType != "" {
 		fmt.Fprintf(sb, " :index_type %s", n.IndexType)
+	}
+	if len(n.IndexOptions) > 0 {
+		sb.WriteString(" :index_options (")
+		for i, opt := range n.IndexOptions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, opt)
+		}
+		sb.WriteString(")")
 	}
 	if n.Expr != nil {
 		sb.WriteString(" :expr ")
@@ -2562,6 +2581,9 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 func writePartitionClause(sb *strings.Builder, n *PartitionClause) {
 	sb.WriteString("{PARTITION_CLAUSE")
 	fmt.Fprintf(sb, " :loc %d :type %d", n.Loc.Start, n.Type)
+	if n.Linear {
+		sb.WriteString(" :linear true")
+	}
 	if n.Expr != nil {
 		sb.WriteString(" :expr ")
 		writeNode(sb, n.Expr)

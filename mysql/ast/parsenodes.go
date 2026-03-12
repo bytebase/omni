@@ -137,6 +137,8 @@ type CreateTableStmt struct {
 	Partitions  *PartitionClause
 	Like        *TableRef   // CREATE TABLE ... LIKE
 	Select      *SelectStmt // CREATE TABLE ... AS SELECT
+	Ignore      bool        // IGNORE before SELECT in CTAS
+	Replace     bool        // REPLACE before SELECT in CTAS
 }
 
 func (s *CreateTableStmt) nodeTag()  {}
@@ -393,6 +395,7 @@ type ColumnConstraint struct {
 	Expr        ExprNode // for CHECK, DEFAULT, etc.
 	RefTable    *TableRef
 	RefColumns  []string
+	Match       string // FULL, PARTIAL, SIMPLE
 	OnDelete    ReferenceAction
 	OnUpdate    ReferenceAction
 	NotEnforced bool // for CHECK ... NOT ENFORCED
@@ -421,6 +424,7 @@ type Constraint struct {
 	Columns      []string       // simple column names
 	IndexColumns []*IndexColumn // key parts with optional expressions (for functional indexes)
 	IndexType    string         // BTREE, HASH
+	IndexOptions []*IndexOption // index_option list (KEY_BLOCK_SIZE, COMMENT, VISIBLE/INVISIBLE, etc.)
 	Expr         ExprNode       // for CHECK
 	RefTable     *TableRef      // for FOREIGN KEY
 	RefColumns   []string       // for FOREIGN KEY
@@ -457,6 +461,7 @@ func (o *TableOption) nodeTag() {}
 type PartitionClause struct {
 	Loc            Loc
 	Type           PartitionType
+	Linear         bool // LINEAR HASH or LINEAR KEY
 	Expr           ExprNode
 	Columns        []string
 	NumParts       int
