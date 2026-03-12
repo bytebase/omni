@@ -8392,3 +8392,58 @@ func TestParseCreateTypeIndex(t *testing.T) {
 		}
 	})
 }
+
+// TestParseAlterTableFiletable tests ALTER TABLE FILETABLE_NAMESPACE and SET FILETABLE_DIRECTORY (batch 82).
+func TestParseAlterTableFiletable(t *testing.T) {
+	t.Run("alter_table_enable_filetable_namespace", func(t *testing.T) {
+		sql := "ALTER TABLE dbo.MyFileTable ENABLE FILETABLE_NAMESPACE"
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.AlterTableStmt)
+		if !ok {
+			t.Fatalf("expected *AlterTableStmt, got %T", result.Items[0])
+		}
+		if stmt.Actions == nil || stmt.Actions.Len() != 1 {
+			t.Fatalf("expected 1 action, got %d", stmt.Actions.Len())
+		}
+		action := stmt.Actions.Items[0].(*ast.AlterTableAction)
+		if action.Type != ast.ATEnableFiletableNamespace {
+			t.Errorf("expected ATEnableFiletableNamespace, got %d", action.Type)
+		}
+	})
+
+	t.Run("alter_table_disable_filetable_namespace", func(t *testing.T) {
+		sql := "ALTER TABLE dbo.MyFileTable DISABLE FILETABLE_NAMESPACE"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterTableStmt)
+		action := stmt.Actions.Items[0].(*ast.AlterTableAction)
+		if action.Type != ast.ATDisableFiletableNamespace {
+			t.Errorf("expected ATDisableFiletableNamespace, got %d", action.Type)
+		}
+	})
+
+	t.Run("alter_table_set_filetable_directory", func(t *testing.T) {
+		sql := "ALTER TABLE dbo.MyFileTable SET (FILETABLE_DIRECTORY = N'MyDocuments')"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterTableStmt)
+		if stmt.Actions == nil || stmt.Actions.Len() != 1 {
+			t.Fatalf("expected 1 action, got %d", stmt.Actions.Len())
+		}
+		action := stmt.Actions.Items[0].(*ast.AlterTableAction)
+		if action.Type != ast.ATSet {
+			t.Errorf("expected ATSet, got %d", action.Type)
+		}
+		if action.Options == nil {
+			t.Error("expected non-nil Options")
+		}
+	})
+
+	t.Run("alter_table_set_filetable_directory_simple", func(t *testing.T) {
+		sql := "ALTER TABLE MyFileTable SET (FILETABLE_DIRECTORY = 'docs')"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterTableStmt)
+		action := stmt.Actions.Items[0].(*ast.AlterTableAction)
+		if action.Type != ast.ATSet {
+			t.Errorf("expected ATSet, got %d", action.Type)
+		}
+	})
+}

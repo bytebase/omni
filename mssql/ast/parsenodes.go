@@ -458,7 +458,9 @@ const (
 	ATSwitchPartition       // SWITCH [PARTITION n] TO target [PARTITION n]
 	ATRebuild               // REBUILD [PARTITION = ALL|n] [WITH (...)]
 	ATSet                   // SET (LOCK_ESCALATION = ..., FILESTREAM_ON = ..., SYSTEM_VERSIONING = ...)
-	ATAlterColumnAddDrop    // ALTER COLUMN col {ADD|DROP} {ROWGUIDCOL|PERSISTED|...}
+	ATAlterColumnAddDrop          // ALTER COLUMN col {ADD|DROP} {ROWGUIDCOL|PERSISTED|...}
+	ATEnableFiletableNamespace    // ENABLE FILETABLE_NAMESPACE
+	ATDisableFiletableNamespace   // DISABLE FILETABLE_NAMESPACE
 )
 
 // DropStmt represents a DROP statement.

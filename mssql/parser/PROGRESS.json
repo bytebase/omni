@@ -1929,7 +1929,7 @@
       "id": 82,
       "name": "alter_table_filetable",
       "file": "alter_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 70 gap: remove parseAlterTableActionLegacy stub, add ENABLE/DISABLE FILETABLE_NAMESPACE and SET FILETABLE_DIRECTORY support in ALTER TABLE ENABLE/DISABLE and SET handlers.",
       "rules": [
         "parseAlterTableEnableDisable",

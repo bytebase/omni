@@ -138,11 +138,7 @@ func (p *Parser) parseAlterTableStmt() *nodes.AlterTableStmt {
 		action := p.parseAlterTableRebuild()
 		actions = append(actions, action)
 	default:
-		// Try legacy single action for backwards compatibility
-		action := p.parseAlterTableActionLegacy()
-		if action != nil {
-			actions = append(actions, action)
-		}
+		// Unrecognized ALTER TABLE action - skip
 	}
 
 	stmt.Actions = &nodes.List{Items: actions}
@@ -433,17 +429,26 @@ func (p *Parser) parseAlterTableCheckConstraint(withCheck string, isCheck bool) 
 	return action
 }
 
-// parseAlterTableEnableDisable parses ENABLE/DISABLE TRIGGER or CHANGE_TRACKING.
+// parseAlterTableEnableDisable parses ENABLE/DISABLE TRIGGER, CHANGE_TRACKING, or FILETABLE_NAMESPACE.
+//
+//	{ ENABLE | DISABLE } TRIGGER { ALL | trigger_name [ ,...n ] }
+//	{ ENABLE | DISABLE } CHANGE_TRACKING [ WITH ( TRACK_COLUMNS_UPDATED = { ON | OFF } ) ]
+//	{ ENABLE | DISABLE } FILETABLE_NAMESPACE [ { WITH REVERT TO parent_path } ]
 func (p *Parser) parseAlterTableEnableDisable(enable bool) *nodes.AlterTableAction {
 	loc := p.pos()
 	p.advance() // consume ENABLE/DISABLE
 
-	// TRIGGER or CHANGE_TRACKING
+	// TRIGGER
 	if p.cur.Type == kwTRIGGER {
 		return p.parseAlterTableEnableDisableTrigger(loc, enable)
 	}
+	// CHANGE_TRACKING
 	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "CHANGE_TRACKING") {
 		return p.parseAlterTableChangeTracking(loc, enable)
+	}
+	// FILETABLE_NAMESPACE
+	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "FILETABLE_NAMESPACE") {
+		return p.parseAlterTableFiletableNamespace(loc, enable)
 	}
 
 	return nil
@@ -603,9 +608,22 @@ func (p *Parser) parseAlterTableSet() *nodes.AlterTableAction {
 	return action
 }
 
-// parseAlterTableActionLegacy is a fallback for unrecognized ALTER TABLE actions.
-func (p *Parser) parseAlterTableActionLegacy() *nodes.AlterTableAction {
-	return nil
+// parseAlterTableFiletableNamespace parses ENABLE/DISABLE FILETABLE_NAMESPACE.
+//
+//	{ ENABLE | DISABLE } FILETABLE_NAMESPACE
+func (p *Parser) parseAlterTableFiletableNamespace(loc int, enable bool) *nodes.AlterTableAction {
+	action := &nodes.AlterTableAction{
+		Loc: nodes.Loc{Start: loc},
+	}
+	if enable {
+		action.Type = nodes.ATEnableFiletableNamespace
+	} else {
+		action.Type = nodes.ATDisableFiletableNamespace
+	}
+	p.advance() // consume FILETABLE_NAMESPACE
+
+	action.Loc.End = p.pos()
+	return action
 }
 
 // parseKeyValueOptionList parses ( NAME = value [, ...] ) where values can be
