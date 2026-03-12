@@ -229,6 +229,12 @@ func (p *Parser) parseChangeDispatch() (nodes.Node, error) {
 		}
 	}
 
+	// CHANGE MASTER TO (legacy alias for CHANGE REPLICATION SOURCE TO)
+	if p.cur.Type == kwMASTER {
+		p.advance() // consume MASTER
+		return p.parseChangeMasterStmtInner(start)
+	}
+
 	return nil, &ParseError{Message: "unexpected token after CHANGE", Position: p.cur.Loc}
 }
 

@@ -161,6 +161,96 @@ func (p *Parser) parseReplicationSourceOption() (*nodes.ReplicationOption, error
 	return opt, nil
 }
 
+// parseChangeMasterStmtInner parses a CHANGE MASTER TO statement (legacy alias).
+// CHANGE MASTER have already been consumed; p.cur is TO.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/change-master-to.html
+//
+//	CHANGE MASTER TO option [, option] ... [ channel_option ]
+//
+//	option: {
+//	    MASTER_BIND = 'interface_name'
+//	  | MASTER_HOST = 'host_name'
+//	  | MASTER_USER = 'user_name'
+//	  | MASTER_PASSWORD = 'password'
+//	  | MASTER_PORT = port_num
+//	  | PRIVILEGE_CHECKS_USER = {NULL | 'account'}
+//	  | REQUIRE_ROW_FORMAT = {0|1}
+//	  | REQUIRE_TABLE_PRIMARY_KEY_CHECK = {STREAM | ON | OFF | GENERATE}
+//	  | ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = {OFF | LOCAL | uuid}
+//	  | MASTER_LOG_FILE = 'source_log_name'
+//	  | MASTER_LOG_POS = source_log_pos
+//	  | MASTER_AUTO_POSITION = {0|1}
+//	  | RELAY_LOG_FILE = 'relay_log_name'
+//	  | RELAY_LOG_POS = relay_log_pos
+//	  | MASTER_HEARTBEAT_PERIOD = interval
+//	  | MASTER_CONNECT_RETRY = interval
+//	  | MASTER_RETRY_COUNT = count
+//	  | SOURCE_CONNECTION_AUTO_FAILOVER = {0|1}
+//	  | MASTER_DELAY = interval
+//	  | MASTER_COMPRESSION_ALGORITHMS = 'algorithm[,algorithm][,algorithm]'
+//	  | MASTER_ZSTD_COMPRESSION_LEVEL = level
+//	  | MASTER_SSL = {0|1}
+//	  | MASTER_SSL_CA = 'ca_file_name'
+//	  | MASTER_SSL_CAPATH = 'ca_directory_name'
+//	  | MASTER_SSL_CERT = 'cert_file_name'
+//	  | MASTER_SSL_CRL = 'crl_file_name'
+//	  | MASTER_SSL_CRLPATH = 'crl_directory_name'
+//	  | MASTER_SSL_KEY = 'key_file_name'
+//	  | MASTER_SSL_CIPHER = 'cipher_list'
+//	  | MASTER_SSL_VERIFY_SERVER_CERT = {0|1}
+//	  | MASTER_TLS_VERSION = 'protocol_list'
+//	  | MASTER_TLS_CIPHERSUITES = 'ciphersuite_list'
+//	  | MASTER_PUBLIC_KEY_PATH = 'key_file_name'
+//	  | GET_MASTER_PUBLIC_KEY = {0|1}
+//	  | NETWORK_NAMESPACE = 'namespace'
+//	  | IGNORE_SERVER_IDS = (server_id_list)
+//	  | GTID_ONLY = {0|1}
+//	}
+//
+//	channel_option:
+//	    FOR CHANNEL channel
+//
+//	server_id_list:
+//	    [server_id [, server_id] ... ]
+func (p *Parser) parseChangeMasterStmtInner(start int) (*nodes.ChangeReplicationSourceStmt, error) {
+	// consume TO
+	p.match(kwTO)
+
+	stmt := &nodes.ChangeReplicationSourceStmt{
+		Loc:    nodes.Loc{Start: start},
+		Legacy: true,
+	}
+
+	// Parse options: option [, option] ...
+	for {
+		opt, err := p.parseReplicationSourceOption()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = append(stmt.Options, opt)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+
+	// Optional: FOR CHANNEL channel
+	if p.cur.Type == kwFOR {
+		p.advance() // consume FOR
+		p.advance() // consume CHANNEL (keyword token)
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Channel = name
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
 // parseChangeReplicationFilterStmtInner parses a CHANGE REPLICATION FILTER statement.
 // CHANGE REPLICATION have already been consumed; p.cur is FILTER.
 //

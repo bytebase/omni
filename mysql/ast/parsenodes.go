@@ -2180,6 +2180,7 @@ type ChangeReplicationSourceStmt struct {
 	Loc     Loc
 	Options []*ReplicationOption // SOURCE_HOST = '...', etc.
 	Channel string               // FOR CHANNEL channel
+	Legacy  bool                 // true for CHANGE MASTER TO (legacy alias)
 }
 
 func (s *ChangeReplicationSourceStmt) nodeTag()  {}

@@ -3683,7 +3683,11 @@ func writeDropEventStmt(sb *strings.Builder, n *DropEventStmt) {
 }
 
 func writeChangeReplicationSourceStmt(sb *strings.Builder, n *ChangeReplicationSourceStmt) {
-	sb.WriteString("{CHANGE_REPLICATION_SOURCE")
+	if n.Legacy {
+		sb.WriteString("{CHANGE_MASTER")
+	} else {
+		sb.WriteString("{CHANGE_REPLICATION_SOURCE")
+	}
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if len(n.Options) > 0 {
 		sb.WriteString(" :options (")

@@ -7421,3 +7421,65 @@ func TestParseShowProcedureCode(t *testing.T) {
 		})
 	}
 }
+
+func TestParseChangeMasterTo(t *testing.T) {
+	tests := []string{
+		// Basic single option
+		"CHANGE MASTER TO MASTER_HOST = 'host1'",
+		// Multiple options
+		"CHANGE MASTER TO MASTER_HOST = 'host1', MASTER_PORT = 3306",
+		// String options
+		"CHANGE MASTER TO MASTER_USER = 'repl', MASTER_PASSWORD = 'secret'",
+		// Numeric options
+		"CHANGE MASTER TO MASTER_PORT = 3306, MASTER_LOG_POS = 1234",
+		// Boolean-like options (0/1)
+		"CHANGE MASTER TO MASTER_AUTO_POSITION = 1",
+		"CHANGE MASTER TO MASTER_SSL = 0",
+		// NULL value
+		"CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL",
+		// Identifier value options
+		"CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM",
+		// IGNORE_SERVER_IDS
+		"CHANGE MASTER TO IGNORE_SERVER_IDS = (1, 2, 3)",
+		// Empty IGNORE_SERVER_IDS
+		"CHANGE MASTER TO IGNORE_SERVER_IDS = ()",
+		// FOR CHANNEL
+		"CHANGE MASTER TO MASTER_HOST = 'host1' FOR CHANNEL ch1",
+		// SSL options
+		"CHANGE MASTER TO MASTER_SSL = 1, MASTER_SSL_CA = '/ca.pem', MASTER_SSL_CERT = '/cert.pem'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseChangeMasterToOptions(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "CHANGE MASTER TO MASTER_HOST = 'host1'",
+			want: "{CHANGE_MASTER :loc 0 :options ({REPL_OPT :loc 17 :name MASTER_HOST :val host1})}",
+		},
+		{
+			sql:  "CHANGE MASTER TO MASTER_PORT = 3306",
+			want: "{CHANGE_MASTER :loc 0 :options ({REPL_OPT :loc 17 :name MASTER_PORT :val 3306})}",
+		},
+		{
+			sql:  "CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL",
+			want: "{CHANGE_MASTER :loc 0 :options ({REPL_OPT :loc 17 :name PRIVILEGE_CHECKS_USER :val NULL})}",
+		},
+		{
+			sql:  "CHANGE MASTER TO MASTER_HOST = 'host1' FOR CHANNEL ch1",
+			want: "{CHANGE_MASTER :loc 0 :options ({REPL_OPT :loc 17 :name MASTER_HOST :val host1}) :channel ch1}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}

@@ -1373,7 +1373,52 @@
         "TestParseCreateViewWithCheckOption",
         "TestParseAlterViewWithCheckOption"
       ]
+    },
+    {
+      "id": 53,
+      "name": "change_master_to",
+      "file": "replication.go",
+      "status": "done",
+      "description": "New: CHANGE MASTER TO (legacy alias for CHANGE REPLICATION SOURCE TO) - add MASTER keyword dispatch in parseChangeDispatch",
+      "rules": [
+        "parseChangeMasterStmt"
+      ],
+      "depends_on": [43],
+      "tests": [
+        "TestParseChangeMasterTo",
+        "TestParseChangeMasterToOptions"
+      ]
+    },
+    {
+      "id": 54,
+      "name": "set_password",
+      "file": "set_show.go",
+      "status": "pending",
+      "description": "New: SET PASSWORD [FOR user] = 'auth_string' - standalone password change with optional FOR user@host clause",
+      "rules": [
+        "parseSetPasswordStmt"
+      ],
+      "depends_on": [13, 15],
+      "tests": [
+        "TestParseSetPassword",
+        "TestParseSetPasswordForUser"
+      ]
+    },
+    {
+      "id": 55,
+      "name": "depth_fix_grant_as",
+      "file": "grant.go",
+      "status": "pending",
+      "description": "Fix batch 15 gap: GRANT ... AS user [WITH ROLE {DEFAULT | NONE | ALL | ALL EXCEPT role | role, ...}] clause for MySQL 8.0+ role context",
+      "rules": [
+        "parseGrantAsClause"
+      ],
+      "depends_on": [15],
+      "tests": [
+        "TestParseGrantAs",
+        "TestParseGrantAsWithRole"
+      ]
     }
   ],
-  "audit_round": 2
+  "audit_round": 3
 }
