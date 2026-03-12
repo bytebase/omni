@@ -1353,6 +1353,14 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/fulltext-search.html
 //
 //	MATCH (col1 [, col2, ...]) AGAINST (expr [search_modifier])
+//
+//	search_modifier:
+//	  {
+//	       IN NATURAL LANGUAGE MODE
+//	     | IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION
+//	     | IN BOOLEAN MODE
+//	     | WITH QUERY EXPANSION
+//	  }
 func (p *Parser) parseMatchExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume MATCH
@@ -1388,7 +1396,10 @@ func (p *Parser) parseMatchExpr() (nodes.ExprNode, error) {
 		return nil, err
 	}
 
-	against, err := p.parseExpr()
+	// Parse against expression with high enough precedence to avoid consuming
+	// IN (which is precComparison) as part of the expression — IN here starts
+	// the search modifier, not an IN-list comparison.
+	against, err := p.parseExprPrec(precComparison + 1)
 	if err != nil {
 		return nil, err
 	}
@@ -1397,16 +1408,32 @@ func (p *Parser) parseMatchExpr() (nodes.ExprNode, error) {
 	// Search modifier
 	if p.cur.Type == kwIN {
 		p.advance()
-		// IN NATURAL LANGUAGE MODE | IN BOOLEAN MODE
-		var modifier []string
-		for p.isIdentToken() || p.cur.Type == kwNATURAL || p.cur.Type == kwLANGUAGE {
-			modifier = append(modifier, strings.ToUpper(p.cur.Str))
-			p.advance()
+		if p.cur.Type == kwNATURAL {
+			// IN NATURAL LANGUAGE MODE [WITH QUERY EXPANSION]
+			p.advance() // consume NATURAL
+			p.advance() // consume LANGUAGE
+			p.advance() // consume MODE
+			// Check for optional WITH QUERY EXPANSION
+			if p.cur.Type == kwWITH && p.peekNext().Type == kwQUERY {
+				p.advance() // consume WITH
+				p.advance() // consume QUERY
+				p.advance() // consume EXPANSION
+				me.Modifier = "IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION"
+			} else {
+				me.Modifier = "IN NATURAL LANGUAGE MODE"
+			}
+		} else {
+			// IN BOOLEAN MODE
+			p.advance() // consume BOOLEAN
+			p.advance() // consume MODE
+			me.Modifier = "IN BOOLEAN MODE"
 		}
-		// Also handle MODE keyword
-		if len(modifier) > 0 {
-			me.Modifier = strings.Join(modifier, " ")
-		}
+	} else if p.cur.Type == kwWITH && p.peekNext().Type == kwQUERY {
+		// WITH QUERY EXPANSION
+		p.advance() // consume WITH
+		p.advance() // consume QUERY
+		p.advance() // consume EXPANSION
+		me.Modifier = "WITH QUERY EXPANSION"
 	}
 
 	if _, err := p.expect(')'); err != nil {

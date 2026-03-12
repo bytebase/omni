@@ -9173,3 +9173,37 @@ func TestParseValuesFunc(t *testing.T) {
 		})
 	}
 }
+
+func TestParseMatchWithQueryExpansion(t *testing.T) {
+	tests := []string{
+		// Standalone WITH QUERY EXPANSION modifier
+		"SELECT * FROM articles WHERE MATCH (title) AGAINST ('database' WITH QUERY EXPANSION)",
+		// WITH QUERY EXPANSION with multiple columns
+		"SELECT * FROM articles WHERE MATCH (title, body) AGAINST ('MySQL' WITH QUERY EXPANSION)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseMatchNaturalLanguageWithQueryExpansion(t *testing.T) {
+	tests := []string{
+		// Combined IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION
+		"SELECT * FROM articles WHERE MATCH (title) AGAINST ('database' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION)",
+		// Combined modifier with multiple columns
+		"SELECT * FROM articles WHERE MATCH (title, body) AGAINST ('MySQL' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION)",
+		// Basic IN NATURAL LANGUAGE MODE (regression check)
+		"SELECT * FROM articles WHERE MATCH (title) AGAINST ('database' IN NATURAL LANGUAGE MODE)",
+		// IN BOOLEAN MODE (regression check)
+		"SELECT * FROM articles WHERE MATCH (title) AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE)",
+		// No modifier (regression check)
+		"SELECT * FROM articles WHERE MATCH (title, body) AGAINST ('database')",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}

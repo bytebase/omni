@@ -1913,7 +1913,7 @@
       "id": 76,
       "name": "depth_fix_match_query_expansion",
       "file": "expr.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 3 gap: MATCH ... AGAINST WITH QUERY EXPANSION modifier - currently only parses IN NATURAL LANGUAGE MODE and IN BOOLEAN MODE, missing standalone WITH QUERY EXPANSION and combined IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION",
       "rules": [
         "parseMatchExpr"
