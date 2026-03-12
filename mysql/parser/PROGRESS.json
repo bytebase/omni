@@ -20,11 +20,22 @@
       "status": "done",
       "description": "Identifiers, qualified names (db.table.col), backtick-quoted identifiers, variable refs (@user, @@system)",
       "rules": [
-        "identifier", "qualified_name", "column_ref", "table_ref",
-        "backtick_ident", "user_variable", "system_variable"
+        "identifier",
+        "qualified_name",
+        "column_ref",
+        "table_ref",
+        "backtick_ident",
+        "user_variable",
+        "system_variable"
       ],
-      "depends_on": [0],
-      "tests": ["TestParseIdentifiers", "TestParseQualifiedNames", "TestParseVariableRefs"]
+      "depends_on": [
+        0
+      ],
+      "tests": [
+        "TestParseIdentifiers",
+        "TestParseQualifiedNames",
+        "TestParseVariableRefs"
+      ]
     },
     {
       "id": 2,
@@ -33,13 +44,27 @@
       "status": "done",
       "description": "Data types: INT, VARCHAR(N), DECIMAL(M,D), ENUM, SET, JSON, BLOB, DATE/TIME types, UNSIGNED, ZEROFILL",
       "rules": [
-        "data_type", "numeric_type", "string_type", "date_type",
-        "blob_type", "enum_type", "set_type", "json_type",
-        "type_length", "type_precision", "unsigned", "zerofill",
-        "character_set", "collate"
+        "data_type",
+        "numeric_type",
+        "string_type",
+        "date_type",
+        "blob_type",
+        "enum_type",
+        "set_type",
+        "json_type",
+        "type_length",
+        "type_precision",
+        "unsigned",
+        "zerofill",
+        "character_set",
+        "collate"
       ],
-      "depends_on": [1],
-      "tests": ["TestParseDataTypes"]
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseDataTypes"
+      ]
     },
     {
       "id": 3,
@@ -48,16 +73,47 @@
       "status": "done",
       "description": "Operators, precedence (Pratt parsing), CASE, BETWEEN, IN, LIKE, REGEXP, IS, functions, CAST, CONVERT, INTERVAL",
       "rules": [
-        "expr", "primary_expr", "unary_expr", "binary_expr",
-        "comparison_expr", "logical_expr", "arithmetic_expr",
-        "case_expr", "between_expr", "in_expr", "like_expr",
-        "regexp_expr", "is_expr", "exists_expr", "cast_expr",
-        "convert_expr", "interval_expr", "collate_expr",
-        "match_expr", "func_call", "subquery_expr",
-        "paren_expr", "literal", "column_ref_expr"
+        "expr",
+        "primary_expr",
+        "unary_expr",
+        "binary_expr",
+        "comparison_expr",
+        "logical_expr",
+        "arithmetic_expr",
+        "case_expr",
+        "between_expr",
+        "in_expr",
+        "like_expr",
+        "regexp_expr",
+        "is_expr",
+        "exists_expr",
+        "cast_expr",
+        "convert_expr",
+        "interval_expr",
+        "collate_expr",
+        "match_expr",
+        "func_call",
+        "subquery_expr",
+        "paren_expr",
+        "literal",
+        "column_ref_expr"
       ],
-      "depends_on": [1, 2],
-      "tests": ["TestParseArithmetic", "TestParseComparison", "TestParseLogical", "TestParseCaseExpr", "TestParseBetween", "TestParseIn", "TestParseLike", "TestParseIs", "TestParseCast", "TestParseFuncCall"]
+      "depends_on": [
+        1,
+        2
+      ],
+      "tests": [
+        "TestParseArithmetic",
+        "TestParseComparison",
+        "TestParseLogical",
+        "TestParseCaseExpr",
+        "TestParseBetween",
+        "TestParseIn",
+        "TestParseLike",
+        "TestParseIs",
+        "TestParseCast",
+        "TestParseFuncCall"
+      ]
     },
     {
       "id": 4,
@@ -66,16 +122,40 @@
       "status": "done",
       "description": "SELECT with all clauses including MySQL-specific: SQL_CALC_FOUND_ROWS, INTO, HIGH_PRIORITY, STRAIGHT_JOIN, UNION/INTERSECT/EXCEPT",
       "rules": [
-        "select_stmt", "select_options", "select_expr_list", "select_expr",
-        "from_clause", "table_references", "table_reference", "table_factor",
-        "join_clause", "join_condition",
-        "where_clause", "group_by_clause", "having_clause",
-        "order_by_clause", "limit_clause", "for_update_clause",
-        "window_clause", "into_clause",
-        "set_operation", "subquery"
+        "select_stmt",
+        "select_options",
+        "select_expr_list",
+        "select_expr",
+        "from_clause",
+        "table_references",
+        "table_reference",
+        "table_factor",
+        "join_clause",
+        "join_condition",
+        "where_clause",
+        "group_by_clause",
+        "having_clause",
+        "order_by_clause",
+        "limit_clause",
+        "for_update_clause",
+        "window_clause",
+        "into_clause",
+        "set_operation",
+        "subquery"
       ],
-      "depends_on": [3],
-      "tests": ["TestParseSimpleSelect", "TestParseSelectFrom", "TestParseSelectJoin", "TestParseSelectGroupBy", "TestParseSelectOrderBy", "TestParseSelectLimit", "TestParseSelectUnion", "TestParseSelectForUpdate"]
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseSimpleSelect",
+        "TestParseSelectFrom",
+        "TestParseSelectJoin",
+        "TestParseSelectGroupBy",
+        "TestParseSelectOrderBy",
+        "TestParseSelectLimit",
+        "TestParseSelectUnion",
+        "TestParseSelectForUpdate"
+      ]
     },
     {
       "id": 5,
@@ -84,12 +164,25 @@
       "status": "done",
       "description": "INSERT, REPLACE, ON DUPLICATE KEY UPDATE",
       "rules": [
-        "insert_stmt", "replace_stmt", "insert_values", "insert_set",
-        "insert_select", "on_duplicate_key_update",
-        "insert_priority", "insert_ignore"
+        "insert_stmt",
+        "replace_stmt",
+        "insert_values",
+        "insert_set",
+        "insert_select",
+        "on_duplicate_key_update",
+        "insert_priority",
+        "insert_ignore"
       ],
-      "depends_on": [4],
-      "tests": ["TestParseInsertValues", "TestParseInsertSelect", "TestParseInsertSet", "TestParseReplace", "TestParseInsertOnDupKey"]
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseInsertValues",
+        "TestParseInsertSelect",
+        "TestParseInsertSet",
+        "TestParseReplace",
+        "TestParseInsertOnDupKey"
+      ]
     },
     {
       "id": 6,
@@ -98,11 +191,22 @@
       "status": "done",
       "description": "UPDATE (single and multi-table), DELETE (single and multi-table)",
       "rules": [
-        "update_stmt", "single_table_update", "multi_table_update",
-        "delete_stmt", "single_table_delete", "multi_table_delete"
+        "update_stmt",
+        "single_table_update",
+        "multi_table_update",
+        "delete_stmt",
+        "single_table_delete",
+        "multi_table_delete"
       ],
-      "depends_on": [4],
-      "tests": ["TestParseUpdate", "TestParseMultiTableUpdate", "TestParseDelete", "TestParseMultiTableDelete"]
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseUpdate",
+        "TestParseMultiTableUpdate",
+        "TestParseDelete",
+        "TestParseMultiTableDelete"
+      ]
     },
     {
       "id": 7,
@@ -111,13 +215,28 @@
       "status": "done",
       "description": "CREATE TABLE, column defs, constraints, table options, partitions, LIKE, CREATE TABLE AS SELECT",
       "rules": [
-        "create_table_stmt", "column_definition", "column_constraint",
-        "table_constraint", "table_option", "partition_clause",
-        "partition_definition", "create_table_like", "create_table_as_select",
-        "reference_definition", "reference_action"
+        "create_table_stmt",
+        "column_definition",
+        "column_constraint",
+        "table_constraint",
+        "table_option",
+        "partition_clause",
+        "partition_definition",
+        "create_table_like",
+        "create_table_as_select",
+        "reference_definition",
+        "reference_action"
       ],
-      "depends_on": [2, 3],
-      "tests": ["TestParseCreateTable", "TestParseCreateTableConstraints", "TestParseCreateTableOptions", "TestParseCreateTableLike"]
+      "depends_on": [
+        2,
+        3
+      ],
+      "tests": [
+        "TestParseCreateTable",
+        "TestParseCreateTableConstraints",
+        "TestParseCreateTableOptions",
+        "TestParseCreateTableLike"
+      ]
     },
     {
       "id": 8,
@@ -126,15 +245,35 @@
       "status": "done",
       "description": "ALTER TABLE with all MySQL-specific operations: ADD/DROP/MODIFY/CHANGE COLUMN, ADD/DROP INDEX, RENAME, etc.",
       "rules": [
-        "alter_table_stmt", "alter_table_action",
-        "add_column", "drop_column", "modify_column", "change_column",
-        "add_constraint", "drop_constraint", "add_index", "drop_index",
-        "rename_table", "rename_column", "rename_index",
-        "alter_column_default", "convert_charset", "table_option_alter",
-        "algorithm_option", "lock_option"
+        "alter_table_stmt",
+        "alter_table_action",
+        "add_column",
+        "drop_column",
+        "modify_column",
+        "change_column",
+        "add_constraint",
+        "drop_constraint",
+        "add_index",
+        "drop_index",
+        "rename_table",
+        "rename_column",
+        "rename_index",
+        "alter_column_default",
+        "convert_charset",
+        "table_option_alter",
+        "algorithm_option",
+        "lock_option"
       ],
-      "depends_on": [7],
-      "tests": ["TestParseAlterTableAddColumn", "TestParseAlterTableDropColumn", "TestParseAlterTableModifyColumn", "TestParseAlterTableAddIndex", "TestParseAlterTableRename"]
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "TestParseAlterTableAddColumn",
+        "TestParseAlterTableDropColumn",
+        "TestParseAlterTableModifyColumn",
+        "TestParseAlterTableAddIndex",
+        "TestParseAlterTableRename"
+      ]
     },
     {
       "id": 9,
@@ -143,11 +282,20 @@
       "status": "done",
       "description": "CREATE INDEX, including UNIQUE, FULLTEXT, SPATIAL index types",
       "rules": [
-        "create_index_stmt", "index_type", "index_column_list",
-        "index_column", "index_option"
+        "create_index_stmt",
+        "index_type",
+        "index_column_list",
+        "index_column",
+        "index_option"
       ],
-      "depends_on": [3],
-      "tests": ["TestParseCreateIndex", "TestParseCreateUniqueIndex", "TestParseCreateFulltextIndex"]
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseCreateIndex",
+        "TestParseCreateUniqueIndex",
+        "TestParseCreateFulltextIndex"
+      ]
     },
     {
       "id": 10,
@@ -156,11 +304,19 @@
       "status": "done",
       "description": "CREATE VIEW, ALTER VIEW, CREATE OR REPLACE VIEW",
       "rules": [
-        "create_view_stmt", "view_algorithm", "view_definer",
-        "view_sql_security", "view_check_option"
+        "create_view_stmt",
+        "view_algorithm",
+        "view_definer",
+        "view_sql_security",
+        "view_check_option"
       ],
-      "depends_on": [4],
-      "tests": ["TestParseCreateView", "TestParseCreateOrReplaceView"]
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseCreateView",
+        "TestParseCreateOrReplaceView"
+      ]
     },
     {
       "id": 11,
@@ -169,11 +325,19 @@
       "status": "done",
       "description": "CREATE/ALTER/DROP DATABASE, CREATE/ALTER/DROP SCHEMA",
       "rules": [
-        "create_database_stmt", "alter_database_stmt", "drop_database_stmt",
+        "create_database_stmt",
+        "alter_database_stmt",
+        "drop_database_stmt",
         "database_option"
       ],
-      "depends_on": [1],
-      "tests": ["TestParseCreateDatabase", "TestParseAlterDatabase", "TestParseDropDatabase"]
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseCreateDatabase",
+        "TestParseAlterDatabase",
+        "TestParseDropDatabase"
+      ]
     },
     {
       "id": 12,
@@ -182,11 +346,22 @@
       "status": "done",
       "description": "DROP TABLE/INDEX/VIEW/DATABASE, TRUNCATE TABLE, RENAME TABLE",
       "rules": [
-        "drop_table_stmt", "drop_index_stmt", "drop_view_stmt",
-        "truncate_stmt", "rename_table_stmt"
+        "drop_table_stmt",
+        "drop_index_stmt",
+        "drop_view_stmt",
+        "truncate_stmt",
+        "rename_table_stmt"
       ],
-      "depends_on": [1],
-      "tests": ["TestParseDropTable", "TestParseDropIndex", "TestParseDropView", "TestParseTruncate", "TestParseRenameTable"]
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseDropTable",
+        "TestParseDropIndex",
+        "TestParseDropView",
+        "TestParseTruncate",
+        "TestParseRenameTable"
+      ]
     },
     {
       "id": 13,
@@ -195,12 +370,29 @@
       "status": "done",
       "description": "SET, SHOW, USE, DESCRIBE/EXPLAIN statements",
       "rules": [
-        "set_stmt", "show_stmt", "use_stmt", "describe_stmt", "explain_stmt",
-        "show_databases", "show_tables", "show_columns", "show_create",
-        "show_variables", "show_status", "show_warnings", "show_errors"
+        "set_stmt",
+        "show_stmt",
+        "use_stmt",
+        "describe_stmt",
+        "explain_stmt",
+        "show_databases",
+        "show_tables",
+        "show_columns",
+        "show_create",
+        "show_variables",
+        "show_status",
+        "show_warnings",
+        "show_errors"
       ],
-      "depends_on": [3],
-      "tests": ["TestParseSet", "TestParseShow", "TestParseUse", "TestParseExplain"]
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseSet",
+        "TestParseShow",
+        "TestParseUse",
+        "TestParseExplain"
+      ]
     },
     {
       "id": 14,
@@ -209,12 +401,25 @@
       "status": "done",
       "description": "BEGIN, START TRANSACTION, COMMIT, ROLLBACK, SAVEPOINT, LOCK/UNLOCK TABLES",
       "rules": [
-        "begin_stmt", "start_transaction_stmt", "commit_stmt", "rollback_stmt",
-        "savepoint_stmt", "release_savepoint_stmt",
-        "lock_tables_stmt", "unlock_tables_stmt"
+        "begin_stmt",
+        "start_transaction_stmt",
+        "commit_stmt",
+        "rollback_stmt",
+        "savepoint_stmt",
+        "release_savepoint_stmt",
+        "lock_tables_stmt",
+        "unlock_tables_stmt"
       ],
-      "depends_on": [1],
-      "tests": ["TestParseBegin", "TestParseCommit", "TestParseRollback", "TestParseSavepoint", "TestParseLockTables"]
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseBegin",
+        "TestParseCommit",
+        "TestParseRollback",
+        "TestParseSavepoint",
+        "TestParseLockTables"
+      ]
     },
     {
       "id": 15,
@@ -223,11 +428,24 @@
       "status": "done",
       "description": "GRANT, REVOKE, CREATE/DROP/ALTER USER",
       "rules": [
-        "grant_stmt", "revoke_stmt", "create_user_stmt", "drop_user_stmt",
-        "alter_user_stmt", "privilege_list", "grant_target", "user_spec"
+        "grant_stmt",
+        "revoke_stmt",
+        "create_user_stmt",
+        "drop_user_stmt",
+        "alter_user_stmt",
+        "privilege_list",
+        "grant_target",
+        "user_spec"
       ],
-      "depends_on": [1],
-      "tests": ["TestParseGrant", "TestParseRevoke", "TestParseCreateUser", "TestParseDropUser"]
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseGrant",
+        "TestParseRevoke",
+        "TestParseCreateUser",
+        "TestParseDropUser"
+      ]
     },
     {
       "id": 16,
@@ -236,12 +454,21 @@
       "status": "done",
       "description": "CREATE FUNCTION/PROCEDURE, stored routines",
       "rules": [
-        "create_function_stmt", "create_procedure_stmt",
-        "func_param_list", "func_param", "routine_body",
+        "create_function_stmt",
+        "create_procedure_stmt",
+        "func_param_list",
+        "func_param",
+        "routine_body",
         "routine_characteristic"
       ],
-      "depends_on": [2, 4],
-      "tests": ["TestParseCreateFunction", "TestParseCreateProcedure"]
+      "depends_on": [
+        2,
+        4
+      ],
+      "tests": [
+        "TestParseCreateFunction",
+        "TestParseCreateProcedure"
+      ]
     },
     {
       "id": 17,
@@ -250,11 +477,20 @@
       "status": "done",
       "description": "CREATE TRIGGER, CREATE EVENT",
       "rules": [
-        "create_trigger_stmt", "trigger_time", "trigger_event",
-        "trigger_order", "create_event_stmt", "event_schedule"
+        "create_trigger_stmt",
+        "trigger_time",
+        "trigger_event",
+        "trigger_order",
+        "create_event_stmt",
+        "event_schedule"
       ],
-      "depends_on": [3],
-      "tests": ["TestParseCreateTrigger", "TestParseCreateEvent"]
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseCreateTrigger",
+        "TestParseCreateEvent"
+      ]
     },
     {
       "id": 18,
@@ -263,11 +499,17 @@
       "status": "done",
       "description": "LOAD DATA INFILE, LOAD XML",
       "rules": [
-        "load_data_stmt", "load_data_options",
-        "fields_clause", "lines_clause"
+        "load_data_stmt",
+        "load_data_options",
+        "fields_clause",
+        "lines_clause"
       ],
-      "depends_on": [1],
-      "tests": ["TestParseLoadData"]
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseLoadData"
+      ]
     },
     {
       "id": 19,
@@ -276,10 +518,18 @@
       "status": "done",
       "description": "PREPARE, EXECUTE, DEALLOCATE PREPARE",
       "rules": [
-        "prepare_stmt", "execute_stmt", "deallocate_stmt"
+        "prepare_stmt",
+        "execute_stmt",
+        "deallocate_stmt"
       ],
-      "depends_on": [1],
-      "tests": ["TestParsePrepare", "TestParseExecute", "TestParseDeallocate"]
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParsePrepare",
+        "TestParseExecute",
+        "TestParseDeallocate"
+      ]
     },
     {
       "id": 20,
@@ -288,11 +538,24 @@
       "status": "done",
       "description": "ANALYZE TABLE, OPTIMIZE TABLE, CHECK TABLE, REPAIR TABLE, FLUSH, RESET, KILL, DO",
       "rules": [
-        "analyze_table_stmt", "optimize_table_stmt", "check_table_stmt",
-        "repair_table_stmt", "flush_stmt", "reset_stmt", "kill_stmt", "do_stmt"
+        "analyze_table_stmt",
+        "optimize_table_stmt",
+        "check_table_stmt",
+        "repair_table_stmt",
+        "flush_stmt",
+        "reset_stmt",
+        "kill_stmt",
+        "do_stmt"
       ],
-      "depends_on": [3],
-      "tests": ["TestParseAnalyze", "TestParseOptimize", "TestParseKill", "TestParseDo"]
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseAnalyze",
+        "TestParseOptimize",
+        "TestParseKill",
+        "TestParseDo"
+      ]
     },
     {
       "id": 21,
@@ -300,9 +563,33 @@
       "file": "stmt.go",
       "status": "done",
       "description": "Top-level statement dispatch, semicolon-separated list, wire up Parse() entry point",
-      "rules": ["stmt_list", "stmt"],
-      "depends_on": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
-      "tests": ["TestParseMultipleStatements", "TestParseEmptyInput"]
+      "rules": [
+        "stmt_list",
+        "stmt"
+      ],
+      "depends_on": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "tests": [
+        "TestParseMultipleStatements",
+        "TestParseEmptyInput"
+      ]
     },
     {
       "id": 22,
@@ -311,11 +598,21 @@
       "status": "done",
       "description": "Common Table Expressions (WITH ... AS). WITH clause for SELECT, INSERT, UPDATE, DELETE. Includes RECURSIVE CTEs.",
       "rules": [
-        "with_clause", "common_table_expression", "cte_column_list",
+        "with_clause",
+        "common_table_expression",
+        "cte_column_list",
         "recursive_cte"
       ],
-      "depends_on": [4],
-      "tests": ["TestParseWithCTE", "TestParseWithRecursiveCTE", "TestParseInsertWithCTE", "TestParseUpdateWithCTE", "TestParseDeleteWithCTE"]
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseWithCTE",
+        "TestParseWithRecursiveCTE",
+        "TestParseInsertWithCTE",
+        "TestParseUpdateWithCTE",
+        "TestParseDeleteWithCTE"
+      ]
     },
     {
       "id": 23,
@@ -324,14 +621,30 @@
       "status": "done",
       "description": "Complete OVER clause for window functions. Currently has TODO in parseFuncCall. Implement named/inline window specs, frame clauses (ROWS/RANGE/GROUPS BETWEEN).",
       "rules": [
-        "over_clause", "window_spec", "window_name_or_spec",
-        "partition_by_clause", "window_frame_clause",
-        "window_frame_between", "window_frame_bound",
-        "window_frame_start", "window_frame_end",
+        "over_clause",
+        "window_spec",
+        "window_name_or_spec",
+        "partition_by_clause",
+        "window_frame_clause",
+        "window_frame_between",
+        "window_frame_bound",
+        "window_frame_start",
+        "window_frame_end",
         "window_frame_units"
       ],
-      "depends_on": [3, 4],
-      "tests": ["TestParseWindowRowNumber", "TestParseWindowRank", "TestParseWindowFrameRows", "TestParseWindowFrameRange", "TestParseWindowFrameGroups", "TestParseWindowPartitionOrderBy", "TestParseNamedWindow"]
+      "depends_on": [
+        3,
+        4
+      ],
+      "tests": [
+        "TestParseWindowRowNumber",
+        "TestParseWindowRank",
+        "TestParseWindowFrameRows",
+        "TestParseWindowFrameRange",
+        "TestParseWindowFrameGroups",
+        "TestParseWindowPartitionOrderBy",
+        "TestParseNamedWindow"
+      ]
     },
     {
       "id": 24,
@@ -340,11 +653,20 @@
       "status": "done",
       "description": "JSON column-path operators: -> (JSON_EXTRACT), ->> (JSON_UNQUOTE(JSON_EXTRACT)), MEMBER OF, JSON_TABLE",
       "rules": [
-        "json_extract_op", "json_unquote_extract_op",
-        "member_of_expr", "json_table_expr"
+        "json_extract_op",
+        "json_unquote_extract_op",
+        "member_of_expr",
+        "json_table_expr"
       ],
-      "depends_on": [3],
-      "tests": ["TestParseJsonExtract", "TestParseJsonUnquoteExtract", "TestParseMemberOf", "TestParseJsonTable"]
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseJsonExtract",
+        "TestParseJsonUnquoteExtract",
+        "TestParseMemberOf",
+        "TestParseJsonTable"
+      ]
     },
     {
       "id": 25,
@@ -353,12 +675,25 @@
       "status": "done",
       "description": "XA distributed transaction statements: XA START/BEGIN, XA END/SUSPEND, XA PREPARE, XA COMMIT, XA ROLLBACK, XA RECOVER",
       "rules": [
-        "xa_start_stmt", "xa_end_stmt", "xa_prepare_stmt",
-        "xa_commit_stmt", "xa_rollback_stmt", "xa_recover_stmt",
+        "xa_start_stmt",
+        "xa_end_stmt",
+        "xa_prepare_stmt",
+        "xa_commit_stmt",
+        "xa_rollback_stmt",
+        "xa_recover_stmt",
         "xid"
       ],
-      "depends_on": [14],
-      "tests": ["TestParseXAStart", "TestParseXAEnd", "TestParseXAPrepare", "TestParseXACommit", "TestParseXARollback", "TestParseXARecover"]
+      "depends_on": [
+        14
+      ],
+      "tests": [
+        "TestParseXAStart",
+        "TestParseXAEnd",
+        "TestParseXAPrepare",
+        "TestParseXACommit",
+        "TestParseXARollback",
+        "TestParseXARecover"
+      ]
     },
     {
       "id": 26,
@@ -367,11 +702,21 @@
       "status": "done",
       "description": "SET TRANSACTION isolation level and access mode. SET [GLOBAL | SESSION] TRANSACTION { ISOLATION LEVEL level | READ WRITE | READ ONLY }",
       "rules": [
-        "set_transaction_stmt", "isolation_level",
+        "set_transaction_stmt",
+        "isolation_level",
         "transaction_access_mode"
       ],
-      "depends_on": [14],
-      "tests": ["TestParseSetTransactionReadUncommitted", "TestParseSetTransactionReadCommitted", "TestParseSetTransactionRepeatableRead", "TestParseSetTransactionSerializable", "TestParseSetTransactionReadOnly", "TestParseSetGlobalTransaction"]
+      "depends_on": [
+        14
+      ],
+      "tests": [
+        "TestParseSetTransactionReadUncommitted",
+        "TestParseSetTransactionReadCommitted",
+        "TestParseSetTransactionRepeatableRead",
+        "TestParseSetTransactionSerializable",
+        "TestParseSetTransactionReadOnly",
+        "TestParseSetGlobalTransaction"
+      ]
     },
     {
       "id": 27,
@@ -380,26 +725,49 @@
       "status": "done",
       "description": "CALL procedure statement. HANDLER table OPEN/READ/CLOSE statements for direct row access.",
       "rules": [
-        "call_stmt", "handler_open_stmt", "handler_read_stmt",
-        "handler_close_stmt", "handler_read_direction"
+        "call_stmt",
+        "handler_open_stmt",
+        "handler_read_stmt",
+        "handler_close_stmt",
+        "handler_read_direction"
       ],
-      "depends_on": [3],
-      "tests": ["TestParseCall", "TestParseCallWithArgs", "TestParseHandlerOpen", "TestParseHandlerRead", "TestParseHandlerReadWhere", "TestParseHandlerClose"]
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseCall",
+        "TestParseCallWithArgs",
+        "TestParseHandlerOpen",
+        "TestParseHandlerRead",
+        "TestParseHandlerReadWhere",
+        "TestParseHandlerClose"
+      ]
     },
     {
       "id": 28,
       "name": "signal_diagnostics",
       "file": "signal.go",
-      "status": "in_progress",
+      "status": "done",
       "description": "SIGNAL, RESIGNAL, and GET DIAGNOSTICS statements for stored program error handling",
       "rules": [
-        "signal_stmt", "signal_condition_value",
-        "signal_information_item", "resignal_stmt",
-        "get_diagnostics_stmt", "statement_information_item",
+        "signal_stmt",
+        "signal_condition_value",
+        "signal_information_item",
+        "resignal_stmt",
+        "get_diagnostics_stmt",
+        "statement_information_item",
         "condition_information_item"
       ],
-      "depends_on": [3],
-      "tests": ["TestParseSignal", "TestParseSignalSet", "TestParseResignal", "TestParseGetDiagnostics", "TestParseGetDiagnosticsCondition"]
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseSignal",
+        "TestParseSignalSet",
+        "TestParseResignal",
+        "TestParseGetDiagnostics",
+        "TestParseGetDiagnosticsCondition"
+      ]
     },
     {
       "id": 29,
@@ -408,12 +776,28 @@
       "status": "pending",
       "description": "Stored program compound statements: BEGIN...END blocks, DECLARE (variables, conditions, handlers, cursors), labels",
       "rules": [
-        "compound_stmt", "begin_end_block", "label",
-        "declare_variable", "declare_condition", "declare_handler",
-        "declare_cursor", "handler_action", "condition_value"
+        "compound_stmt",
+        "begin_end_block",
+        "label",
+        "declare_variable",
+        "declare_condition",
+        "declare_handler",
+        "declare_cursor",
+        "handler_action",
+        "condition_value"
       ],
-      "depends_on": [2, 3],
-      "tests": ["TestParseBeginEnd", "TestParseDeclareVariable", "TestParseDeclareCondition", "TestParseDeclareHandler", "TestParseDeclareCursor", "TestParseLabeledBlock"]
+      "depends_on": [
+        2,
+        3
+      ],
+      "tests": [
+        "TestParseBeginEnd",
+        "TestParseDeclareVariable",
+        "TestParseDeclareCondition",
+        "TestParseDeclareHandler",
+        "TestParseDeclareCursor",
+        "TestParseLabeledBlock"
+      ]
     },
     {
       "id": 30,
@@ -422,13 +806,35 @@
       "status": "pending",
       "description": "Stored program flow control: IF/ELSEIF/ELSE, CASE statement, WHILE, REPEAT, LOOP, LEAVE, ITERATE, RETURN, OPEN/FETCH/CLOSE cursor",
       "rules": [
-        "if_stmt", "elseif_clause", "case_stmt",
-        "while_stmt", "repeat_stmt", "loop_stmt",
-        "leave_stmt", "iterate_stmt", "return_stmt",
-        "open_cursor_stmt", "fetch_cursor_stmt", "close_cursor_stmt"
+        "if_stmt",
+        "elseif_clause",
+        "case_stmt",
+        "while_stmt",
+        "repeat_stmt",
+        "loop_stmt",
+        "leave_stmt",
+        "iterate_stmt",
+        "return_stmt",
+        "open_cursor_stmt",
+        "fetch_cursor_stmt",
+        "close_cursor_stmt"
       ],
-      "depends_on": [29],
-      "tests": ["TestParseIfElse", "TestParseCaseStmt", "TestParseWhile", "TestParseRepeat", "TestParseLoop", "TestParseLeave", "TestParseIterate", "TestParseReturn", "TestParseOpenCursor", "TestParseFetchCursor", "TestParseCloseCursor"]
+      "depends_on": [
+        29
+      ],
+      "tests": [
+        "TestParseIfElse",
+        "TestParseCaseStmt",
+        "TestParseWhile",
+        "TestParseRepeat",
+        "TestParseLoop",
+        "TestParseLeave",
+        "TestParseIterate",
+        "TestParseReturn",
+        "TestParseOpenCursor",
+        "TestParseFetchCursor",
+        "TestParseCloseCursor"
+      ]
     },
     {
       "id": 31,
@@ -437,12 +843,24 @@
       "status": "pending",
       "description": "CREATE ROLE, DROP ROLE, SET DEFAULT ROLE, SET ROLE, GRANT role TO user, REVOKE role FROM user",
       "rules": [
-        "create_role_stmt", "drop_role_stmt",
-        "set_default_role_stmt", "set_role_stmt",
-        "grant_role_stmt", "revoke_role_stmt"
+        "create_role_stmt",
+        "drop_role_stmt",
+        "set_default_role_stmt",
+        "set_role_stmt",
+        "grant_role_stmt",
+        "revoke_role_stmt"
       ],
-      "depends_on": [15],
-      "tests": ["TestParseCreateRole", "TestParseDropRole", "TestParseSetDefaultRole", "TestParseSetRole", "TestParseGrantRole", "TestParseRevokeRole"]
+      "depends_on": [
+        15
+      ],
+      "tests": [
+        "TestParseCreateRole",
+        "TestParseDropRole",
+        "TestParseSetDefaultRole",
+        "TestParseSetRole",
+        "TestParseGrantRole",
+        "TestParseRevokeRole"
+      ]
     },
     {
       "id": 32,
@@ -451,17 +869,43 @@
       "status": "pending",
       "description": "Extended SHOW variants: SHOW ENGINES, SHOW PLUGINS, SHOW MASTER STATUS, SHOW SLAVE/REPLICA STATUS, SHOW BINARY LOGS, SHOW BINLOG EVENTS, SHOW TABLE STATUS, SHOW TRIGGERS, SHOW EVENTS, SHOW PROCEDURE/FUNCTION STATUS, SHOW CREATE PROCEDURE/FUNCTION/TRIGGER/EVENT, SHOW OPEN TABLES, SHOW PRIVILEGES, SHOW PROFILES, SHOW RELAYLOG EVENTS, SHOW CHARACTER SET, SHOW COLLATION",
       "rules": [
-        "show_engines", "show_plugins", "show_master_status",
-        "show_replica_status", "show_binary_logs",
-        "show_binlog_events", "show_table_status", "show_triggers",
-        "show_events", "show_procedure_status", "show_function_status",
-        "show_create_procedure", "show_create_function",
-        "show_create_trigger", "show_create_event",
-        "show_open_tables", "show_privileges", "show_profiles",
-        "show_relaylog_events", "show_character_set", "show_collation"
+        "show_engines",
+        "show_plugins",
+        "show_master_status",
+        "show_replica_status",
+        "show_binary_logs",
+        "show_binlog_events",
+        "show_table_status",
+        "show_triggers",
+        "show_events",
+        "show_procedure_status",
+        "show_function_status",
+        "show_create_procedure",
+        "show_create_function",
+        "show_create_trigger",
+        "show_create_event",
+        "show_open_tables",
+        "show_privileges",
+        "show_profiles",
+        "show_relaylog_events",
+        "show_character_set",
+        "show_collation"
       ],
-      "depends_on": [13],
-      "tests": ["TestParseShowEngines", "TestParseShowPlugins", "TestParseShowMasterStatus", "TestParseShowReplicaStatus", "TestParseShowBinaryLogs", "TestParseShowTableStatus", "TestParseShowTriggers", "TestParseShowCreateProcedure", "TestParseShowCharacterSet", "TestParseShowCollation"]
+      "depends_on": [
+        13
+      ],
+      "tests": [
+        "TestParseShowEngines",
+        "TestParseShowPlugins",
+        "TestParseShowMasterStatus",
+        "TestParseShowReplicaStatus",
+        "TestParseShowBinaryLogs",
+        "TestParseShowTableStatus",
+        "TestParseShowTriggers",
+        "TestParseShowCreateProcedure",
+        "TestParseShowCharacterSet",
+        "TestParseShowCollation"
+      ]
     },
     {
       "id": 33,
@@ -470,10 +914,19 @@
       "status": "pending",
       "description": "MySQL 8.0 TABLE statement (TABLE t is equivalent to SELECT * FROM t) and VALUES statement (VALUES ROW(1,2), ROW(3,4))",
       "rules": [
-        "table_stmt", "values_stmt", "values_row"
+        "table_stmt",
+        "values_stmt",
+        "values_row"
       ],
-      "depends_on": [4],
-      "tests": ["TestParseTableStmt", "TestParseValuesStmt", "TestParseValuesRow", "TestParseTableUnion"]
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseTableStmt",
+        "TestParseValuesStmt",
+        "TestParseValuesRow",
+        "TestParseTableUnion"
+      ]
     },
     {
       "id": 34,
@@ -482,10 +935,18 @@
       "status": "pending",
       "description": "CHECKSUM TABLE, SHUTDOWN, RESTART statements",
       "rules": [
-        "checksum_table_stmt", "shutdown_stmt", "restart_stmt"
+        "checksum_table_stmt",
+        "shutdown_stmt",
+        "restart_stmt"
       ],
-      "depends_on": [1],
-      "tests": ["TestParseChecksumTable", "TestParseShutdown", "TestParseRestart"]
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseChecksumTable",
+        "TestParseShutdown",
+        "TestParseRestart"
+      ]
     },
     {
       "id": 35,
@@ -494,11 +955,20 @@
       "status": "pending",
       "description": "INSTALL PLUGIN, UNINSTALL PLUGIN, INSTALL COMPONENT, UNINSTALL COMPONENT",
       "rules": [
-        "install_plugin_stmt", "uninstall_plugin_stmt",
-        "install_component_stmt", "uninstall_component_stmt"
+        "install_plugin_stmt",
+        "uninstall_plugin_stmt",
+        "install_component_stmt",
+        "uninstall_component_stmt"
       ],
-      "depends_on": [1],
-      "tests": ["TestParseInstallPlugin", "TestParseUninstallPlugin", "TestParseInstallComponent", "TestParseUninstallComponent"]
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseInstallPlugin",
+        "TestParseUninstallPlugin",
+        "TestParseInstallComponent",
+        "TestParseUninstallComponent"
+      ]
     },
     {
       "id": 36,
@@ -507,10 +977,17 @@
       "status": "pending",
       "description": "CLONE LOCAL/REMOTE instance statement (MySQL 8.0.17+)",
       "rules": [
-        "clone_stmt", "clone_local", "clone_remote"
+        "clone_stmt",
+        "clone_local",
+        "clone_remote"
       ],
-      "depends_on": [1],
-      "tests": ["TestParseCloneLocal", "TestParseCloneRemote"]
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseCloneLocal",
+        "TestParseCloneRemote"
+      ]
     },
     {
       "id": 37,
@@ -519,12 +996,26 @@
       "status": "pending",
       "description": "CREATE/ALTER/DROP TABLESPACE, CREATE/ALTER/DROP LOGFILE GROUP, CREATE/ALTER/DROP SERVER",
       "rules": [
-        "create_tablespace_stmt", "alter_tablespace_stmt", "drop_tablespace_stmt",
-        "create_logfile_group_stmt", "alter_logfile_group_stmt", "drop_logfile_group_stmt",
-        "create_server_stmt", "alter_server_stmt", "drop_server_stmt"
+        "create_tablespace_stmt",
+        "alter_tablespace_stmt",
+        "drop_tablespace_stmt",
+        "create_logfile_group_stmt",
+        "alter_logfile_group_stmt",
+        "drop_logfile_group_stmt",
+        "create_server_stmt",
+        "alter_server_stmt",
+        "drop_server_stmt"
       ],
-      "depends_on": [1],
-      "tests": ["TestParseCreateTablespace", "TestParseAlterTablespace", "TestParseDropTablespace", "TestParseCreateServer", "TestParseDropServer"]
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseCreateTablespace",
+        "TestParseAlterTablespace",
+        "TestParseDropTablespace",
+        "TestParseCreateServer",
+        "TestParseDropServer"
+      ]
     },
     {
       "id": 38,
@@ -533,12 +1024,21 @@
       "status": "pending",
       "description": "CREATE/DROP SPATIAL REFERENCE SYSTEM, CREATE/ALTER/DROP RESOURCE GROUP",
       "rules": [
-        "create_spatial_ref_sys_stmt", "drop_spatial_ref_sys_stmt",
-        "create_resource_group_stmt", "alter_resource_group_stmt",
+        "create_spatial_ref_sys_stmt",
+        "drop_spatial_ref_sys_stmt",
+        "create_resource_group_stmt",
+        "alter_resource_group_stmt",
         "drop_resource_group_stmt"
       ],
-      "depends_on": [1],
-      "tests": ["TestParseCreateSpatialRefSys", "TestParseDropSpatialRefSys", "TestParseCreateResourceGroup", "TestParseDropResourceGroup"]
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseCreateSpatialRefSys",
+        "TestParseDropSpatialRefSys",
+        "TestParseCreateResourceGroup",
+        "TestParseDropResourceGroup"
+      ]
     },
     {
       "id": 39,
@@ -547,13 +1047,30 @@
       "status": "pending",
       "description": "ALTER dispatches for VIEW, EVENT, FUNCTION, PROCEDURE. Also proper DROP FUNCTION/PROCEDURE/TRIGGER/EVENT with AST nodes (replace current RawStmt stubs).",
       "rules": [
-        "alter_view_stmt", "alter_event_stmt",
-        "alter_function_stmt", "alter_procedure_stmt",
-        "drop_function_stmt", "drop_procedure_stmt",
-        "drop_trigger_stmt", "drop_event_stmt"
+        "alter_view_stmt",
+        "alter_event_stmt",
+        "alter_function_stmt",
+        "alter_procedure_stmt",
+        "drop_function_stmt",
+        "drop_procedure_stmt",
+        "drop_trigger_stmt",
+        "drop_event_stmt"
       ],
-      "depends_on": [10, 16, 17],
-      "tests": ["TestParseAlterView", "TestParseAlterEvent", "TestParseAlterFunction", "TestParseAlterProcedure", "TestParseDropFunction", "TestParseDropProcedure", "TestParseDropTrigger", "TestParseDropEvent"]
+      "depends_on": [
+        10,
+        16,
+        17
+      ],
+      "tests": [
+        "TestParseAlterView",
+        "TestParseAlterEvent",
+        "TestParseAlterFunction",
+        "TestParseAlterProcedure",
+        "TestParseDropFunction",
+        "TestParseDropProcedure",
+        "TestParseDropTrigger",
+        "TestParseDropEvent"
+      ]
     },
     {
       "id": 40,
@@ -562,11 +1079,25 @@
       "status": "pending",
       "description": "EXPLAIN for all DML (INSERT, UPDATE, DELETE, REPLACE), EXPLAIN ANALYZE, EXPLAIN FORMAT=TREE/JSON for all statements, EXPLAIN FOR CONNECTION",
       "rules": [
-        "explain_insert", "explain_update", "explain_delete",
-        "explain_replace", "explain_analyze", "explain_for_connection"
+        "explain_insert",
+        "explain_update",
+        "explain_delete",
+        "explain_replace",
+        "explain_analyze",
+        "explain_for_connection"
       ],
-      "depends_on": [13, 5, 6],
-      "tests": ["TestParseExplainInsert", "TestParseExplainUpdate", "TestParseExplainDelete", "TestParseExplainAnalyze", "TestParseExplainForConnection"]
+      "depends_on": [
+        13,
+        5,
+        6
+      ],
+      "tests": [
+        "TestParseExplainInsert",
+        "TestParseExplainUpdate",
+        "TestParseExplainDelete",
+        "TestParseExplainAnalyze",
+        "TestParseExplainForConnection"
+      ]
     },
     {
       "id": 41,
@@ -575,12 +1106,23 @@
       "status": "pending",
       "description": "GROUP BY WITH ROLLUP, GROUP BY grouping_sets (MySQL 8.0.25+: GROUPING SETS, CUBE, ROLLUP), LATERAL derived tables",
       "rules": [
-        "group_by_with_rollup", "grouping_sets_clause",
-        "cube_clause", "rollup_clause", "grouping_function",
+        "group_by_with_rollup",
+        "grouping_sets_clause",
+        "cube_clause",
+        "rollup_clause",
+        "grouping_function",
         "lateral_derived_table"
       ],
-      "depends_on": [4],
-      "tests": ["TestParseGroupByWithRollup", "TestParseGroupingSets", "TestParseCube", "TestParseRollup", "TestParseLateralDerivedTable"]
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseGroupByWithRollup",
+        "TestParseGroupingSets",
+        "TestParseCube",
+        "TestParseRollup",
+        "TestParseLateralDerivedTable"
+      ]
     },
     {
       "id": 42,
@@ -589,22 +1131,58 @@
       "status": "pending",
       "description": "Wire all Phase 2 statement parsers into parseStmt and parseCreateDispatch/parseAlterDispatch/parseDropDispatch. Add missing keyword constants to lexer.",
       "rules": [
-        "stmt_dispatch_xa", "stmt_dispatch_call", "stmt_dispatch_handler",
-        "stmt_dispatch_signal", "stmt_dispatch_compound",
-        "stmt_dispatch_table_values", "stmt_dispatch_clone",
-        "create_dispatch_tablespace", "create_dispatch_server",
-        "create_dispatch_srs", "create_dispatch_resource_group",
+        "stmt_dispatch_xa",
+        "stmt_dispatch_call",
+        "stmt_dispatch_handler",
+        "stmt_dispatch_signal",
+        "stmt_dispatch_compound",
+        "stmt_dispatch_table_values",
+        "stmt_dispatch_clone",
+        "create_dispatch_tablespace",
+        "create_dispatch_server",
+        "create_dispatch_srs",
+        "create_dispatch_resource_group",
         "create_dispatch_role",
-        "alter_dispatch_view", "alter_dispatch_event",
-        "alter_dispatch_function", "alter_dispatch_procedure",
-        "drop_dispatch_proper_function", "drop_dispatch_proper_procedure",
-        "drop_dispatch_proper_trigger", "drop_dispatch_proper_event",
-        "drop_dispatch_role", "drop_dispatch_tablespace",
-        "drop_dispatch_server", "drop_dispatch_srs",
+        "alter_dispatch_view",
+        "alter_dispatch_event",
+        "alter_dispatch_function",
+        "alter_dispatch_procedure",
+        "drop_dispatch_proper_function",
+        "drop_dispatch_proper_procedure",
+        "drop_dispatch_proper_trigger",
+        "drop_dispatch_proper_event",
+        "drop_dispatch_role",
+        "drop_dispatch_tablespace",
+        "drop_dispatch_server",
+        "drop_dispatch_srs",
         "drop_dispatch_resource_group"
       ],
-      "depends_on": [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41],
-      "tests": ["TestParsePhase2Dispatch"]
+      "depends_on": [
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41
+      ],
+      "tests": [
+        "TestParsePhase2Dispatch"
+      ]
     }
   ]
 }

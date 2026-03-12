@@ -4715,6 +4715,176 @@ func TestParseHandlerClose(t *testing.T) {
 	}
 }
 
+func TestParseSignal(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "SIGNAL SQLSTATE '45000'",
+			want: "{SIGNAL :loc 0 :condition 45000}",
+		},
+		{
+			sql:  "SIGNAL SQLSTATE VALUE '45000'",
+			want: "{SIGNAL :loc 0 :condition 45000}",
+		},
+		{
+			sql:  "SIGNAL my_error",
+			want: "{SIGNAL :loc 0 :condition my_error}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseSignalStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseSignalSet(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'An error occurred'",
+			want: "{SIGNAL :loc 0 :condition 45000 :set {SIGNAL_INFO :loc 28 :name MESSAGE_TEXT :val {STRING_LIT :val \"An error occurred\" :loc 43}}}",
+		},
+		{
+			sql:  "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'oops', MYSQL_ERRNO = 1234",
+			want: "{SIGNAL :loc 0 :condition 45000 :set {SIGNAL_INFO :loc 28 :name MESSAGE_TEXT :val {STRING_LIT :val \"oops\" :loc 43}} {SIGNAL_INFO :loc 51 :name MYSQL_ERRNO :val {INT_LIT :val 1234 :loc 65}}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseSignalStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseResignal(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "RESIGNAL",
+			want: "{RESIGNAL :loc 0}",
+		},
+		{
+			sql:  "RESIGNAL SQLSTATE '45000'",
+			want: "{RESIGNAL :loc 0 :condition 45000}",
+		},
+		{
+			sql:  "RESIGNAL SET MESSAGE_TEXT = 'Error handled'",
+			want: "{RESIGNAL :loc 0 :set {SIGNAL_INFO :loc 13 :name MESSAGE_TEXT :val {STRING_LIT :val \"Error handled\" :loc 28}}}",
+		},
+		{
+			sql:  "RESIGNAL SQLSTATE '45000' SET MYSQL_ERRNO = 5678",
+			want: "{RESIGNAL :loc 0 :condition 45000 :set {SIGNAL_INFO :loc 30 :name MYSQL_ERRNO :val {INT_LIT :val 5678 :loc 44}}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseResignalStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseGetDiagnostics(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "GET DIAGNOSTICS @cnt = NUMBER",
+			want: "{GET_DIAGNOSTICS :loc 0 :stmt_info true :items {DIAG_ITEM :loc 16 :target {VAR :name cnt :loc 16} :name NUMBER}}",
+		},
+		{
+			sql:  "GET DIAGNOSTICS @cnt = NUMBER, @rc = ROW_COUNT",
+			want: "{GET_DIAGNOSTICS :loc 0 :stmt_info true :items {DIAG_ITEM :loc 16 :target {VAR :name cnt :loc 16} :name NUMBER} {DIAG_ITEM :loc 31 :target {VAR :name rc :loc 31} :name ROW_COUNT}}",
+		},
+		{
+			sql:  "GET CURRENT DIAGNOSTICS @cnt = NUMBER",
+			want: "{GET_DIAGNOSTICS :loc 0 :stmt_info true :items {DIAG_ITEM :loc 24 :target {VAR :name cnt :loc 24} :name NUMBER}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseGetDiagnosticsStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseGetDiagnosticsCondition(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "GET DIAGNOSTICS CONDITION 1 @msg = MESSAGE_TEXT",
+			want: "{GET_DIAGNOSTICS :loc 0 :condition_number {INT_LIT :val 1 :loc 26} :items {DIAG_ITEM :loc 28 :target {VAR :name msg :loc 28} :name MESSAGE_TEXT}}",
+		},
+		{
+			sql:  "GET DIAGNOSTICS CONDITION 1 @msg = MESSAGE_TEXT, @errno = MYSQL_ERRNO",
+			want: "{GET_DIAGNOSTICS :loc 0 :condition_number {INT_LIT :val 1 :loc 26} :items {DIAG_ITEM :loc 28 :target {VAR :name msg :loc 28} :name MESSAGE_TEXT} {DIAG_ITEM :loc 49 :target {VAR :name errno :loc 49} :name MYSQL_ERRNO}}",
+		},
+		{
+			sql:  "GET STACKED DIAGNOSTICS CONDITION 1 @sqlstate = RETURNED_SQLSTATE",
+			want: "{GET_DIAGNOSTICS :loc 0 :stacked true :condition_number {INT_LIT :val 1 :loc 34} :items {DIAG_ITEM :loc 36 :target {VAR :name sqlstate :loc 36} :name RETURNED_SQLSTATE}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			p := &Parser{lexer: NewLexer(tt.sql)}
+			p.advance()
+			stmt, err := p.parseGetDiagnosticsStmt()
+			if err != nil {
+				t.Fatalf("error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			if got != tt.want {
+				t.Errorf("got:  %s\nwant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParseStmtDispatchAlterVariants(t *testing.T) {
 	tests := []string{
 		"ALTER TABLE t ADD COLUMN c INT",
