@@ -9597,6 +9597,93 @@ func TestParseSetuserStatement(t *testing.T) {
 	})
 }
 
+func TestParseAlterIndexOptionsDepth(t *testing.T) {
+	// ALTER INDEX ... REBUILD WITH options
+	t.Run("alter_index_rebuild_with", func(t *testing.T) {
+		sql := "ALTER INDEX IX_1 ON dbo.t REBUILD WITH (FILLFACTOR = 80, PAD_INDEX = ON, SORT_IN_TEMPDB = ON)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterIndexStmt)
+		if stmt.Action != "REBUILD" {
+			t.Errorf("expected REBUILD, got %q", stmt.Action)
+		}
+		if stmt.Options == nil || len(stmt.Options.Items) != 3 {
+			t.Fatalf("expected 3 options, got %v", stmt.Options)
+		}
+		opt0 := stmt.Options.Items[0].(*ast.String).Str
+		if opt0 != "FILLFACTOR=80" {
+			t.Errorf("expected FILLFACTOR=80, got %q", opt0)
+		}
+	})
+
+	// ALTER INDEX ... REBUILD PARTITION = ALL WITH options
+	t.Run("alter_index_rebuild_partition", func(t *testing.T) {
+		sql := "ALTER INDEX ALL ON dbo.t REBUILD PARTITION = ALL WITH (ONLINE = ON, MAXDOP = 4)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterIndexStmt)
+		if stmt.Action != "REBUILD" {
+			t.Errorf("expected REBUILD, got %q", stmt.Action)
+		}
+		if stmt.Partition != "ALL" {
+			t.Errorf("expected partition ALL, got %q", stmt.Partition)
+		}
+		if stmt.Options == nil || len(stmt.Options.Items) != 2 {
+			t.Fatalf("expected 2 options, got %v", stmt.Options)
+		}
+	})
+
+	// ALTER INDEX ... REORGANIZE PARTITION = n
+	t.Run("alter_index_reorganize_partition", func(t *testing.T) {
+		sql := "ALTER INDEX IX_1 ON dbo.t REORGANIZE PARTITION = 5 WITH (LOB_COMPACTION = ON)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterIndexStmt)
+		if stmt.Action != "REORGANIZE" {
+			t.Errorf("expected REORGANIZE, got %q", stmt.Action)
+		}
+		if stmt.Partition != "5" {
+			t.Errorf("expected partition 5, got %q", stmt.Partition)
+		}
+		if stmt.Options == nil || len(stmt.Options.Items) != 1 {
+			t.Fatalf("expected 1 option, got %v", stmt.Options)
+		}
+	})
+
+	// ALTER INDEX ... SET options
+	t.Run("alter_index_set", func(t *testing.T) {
+		sql := "ALTER INDEX IX_1 ON dbo.t SET (STATISTICS_NORECOMPUTE = ON, ALLOW_ROW_LOCKS = OFF)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterIndexStmt)
+		if stmt.Action != "SET" {
+			t.Errorf("expected SET, got %q", stmt.Action)
+		}
+		if stmt.Options == nil || len(stmt.Options.Items) != 2 {
+			t.Fatalf("expected 2 options, got %v", stmt.Options)
+		}
+	})
+
+	// ALTER INDEX ... DISABLE (no options)
+	t.Run("alter_index_disable", func(t *testing.T) {
+		sql := "ALTER INDEX IX_1 ON dbo.t DISABLE"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterIndexStmt)
+		if stmt.Action != "DISABLE" {
+			t.Errorf("expected DISABLE, got %q", stmt.Action)
+		}
+	})
+
+	// ALTER INDEX ... REBUILD with DATA_COMPRESSION ON PARTITIONS
+	t.Run("alter_index_data_compression_partitions", func(t *testing.T) {
+		sql := "ALTER INDEX IX_1 ON dbo.t REBUILD WITH (DATA_COMPRESSION = PAGE ON PARTITIONS (1, 3 TO 5))"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterIndexStmt)
+		if stmt.Action != "REBUILD" {
+			t.Errorf("expected REBUILD, got %q", stmt.Action)
+		}
+		if stmt.Options == nil || len(stmt.Options.Items) == 0 {
+			t.Fatal("expected options")
+		}
+	})
+}
+
 func TestParseBeginConversationTimer(t *testing.T) {
 	// BEGIN CONVERSATION TIMER with variable handle and integer timeout
 	t.Run("begin_conversation_timer", func(t *testing.T) {

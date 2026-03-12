@@ -571,35 +571,144 @@ func (p *Parser) parseAlterIndexStmt() *nodes.AlterIndexStmt {
 		p.advance()
 	}
 
-	// Skip any remaining tokens (e.g. PARTITION = ..., WITH (...), etc.)
-	// Handle nested parentheses so that WITH (FILLFACTOR = 80) is fully consumed.
-	// We treat WITH here as part of the index action (e.g. REBUILD WITH (...))
-	// rather than a new statement start.
-	depth := 0
-	for p.cur.Type != tokEOF {
-		if p.cur.Type == ';' && depth == 0 {
-			break
+	// Parse PARTITION = { partition_number | ALL }
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PARTITION") {
+		p.advance() // consume PARTITION
+		p.match('=')
+		if p.cur.Type == kwALL {
+			stmt.Partition = "ALL"
+			p.advance()
+		} else {
+			stmt.Partition = p.cur.Str
+			p.advance()
+		}
+	}
+
+	// Parse WITH ( option = value [, ...] ) or SET ( option = value [, ...] )
+	if p.cur.Type == kwWITH || stmt.Action == "SET" {
+		if p.cur.Type == kwWITH {
+			p.advance() // consume WITH
 		}
 		if p.cur.Type == '(' {
-			depth++
-			p.advance()
-			continue
+			stmt.Options = p.parseAlterIndexOptions()
 		}
-		if p.cur.Type == ')' {
-			if depth > 0 {
-				depth--
-				p.advance()
-				continue
-			}
-			break
-		}
-		// Stop at statement-start keywords except WITH (which can be REBUILD WITH (...))
-		if depth == 0 && p.isStatementStart() && p.cur.Type != kwWITH {
-			break
-		}
-		p.advance()
 	}
 
 	stmt.Loc.End = p.pos()
 	return stmt
+}
+
+// parseAlterIndexOptions parses a parenthesized list of index options.
+//
+// <rebuild_index_option> / <reorganize_option> / <set_index_option> ::=
+//
+//	PAD_INDEX = { ON | OFF }
+//	| FILLFACTOR = fillfactor
+//	| SORT_IN_TEMPDB = { ON | OFF }
+//	| IGNORE_DUP_KEY = { ON | OFF }
+//	| STATISTICS_NORECOMPUTE = { ON | OFF }
+//	| STATISTICS_INCREMENTAL = { ON | OFF }
+//	| ONLINE = { ON [ ( <low_priority_lock_wait> ) ] | OFF }
+//	| RESUMABLE = { ON | OFF }
+//	| MAX_DURATION = <time> [ MINUTES ]
+//	| ALLOW_ROW_LOCKS = { ON | OFF }
+//	| ALLOW_PAGE_LOCKS = { ON | OFF }
+//	| MAXDOP = max_degree_of_parallelism
+//	| DATA_COMPRESSION = { NONE | ROW | PAGE | COLUMNSTORE | COLUMNSTORE_ARCHIVE }
+//	    [ ON PARTITIONS ( { <partition_number> [ TO <partition_number> ] } [ , ...n ] ) ]
+//	| XML_COMPRESSION = { ON | OFF }
+//	    [ ON PARTITIONS ( { <partition_number> [ TO <partition_number> ] } [ , ...n ] ) ]
+//	| LOB_COMPACTION = { ON | OFF }
+//	| COMPRESS_ALL_ROW_GROUPS = { ON | OFF }
+func (p *Parser) parseAlterIndexOptions() *nodes.List {
+	p.advance() // consume '('
+
+	opts := &nodes.List{}
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		if p.cur.Type == ',' {
+			p.advance()
+			continue
+		}
+
+		// Parse option_name = value
+		if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+			name := strings.ToUpper(p.cur.Str)
+			p.advance()
+
+			if p.cur.Type == '=' {
+				p.advance() // consume '='
+				// Value can be ON, OFF, an identifier, or a number
+				val := ""
+				if p.cur.Type == kwON {
+					val = "ON"
+					p.advance()
+					// ONLINE = ON ( <low_priority_lock_wait> ) -- skip nested parens
+					if p.cur.Type == '(' {
+						depth := 1
+						p.advance() // consume '('
+						for depth > 0 && p.cur.Type != tokEOF {
+							if p.cur.Type == '(' {
+								depth++
+							} else if p.cur.Type == ')' {
+								depth--
+								if depth == 0 {
+									p.advance()
+									break
+								}
+							}
+							p.advance()
+						}
+					}
+				} else if p.cur.Type == kwOFF {
+					val = "OFF"
+					p.advance()
+				} else if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+					val = p.cur.Str
+					p.advance()
+				} else if p.isIdentLike() {
+					val = strings.ToUpper(p.cur.Str)
+					p.advance()
+				}
+				opts.Items = append(opts.Items, &nodes.String{Str: name + "=" + val})
+			} else {
+				opts.Items = append(opts.Items, &nodes.String{Str: name})
+			}
+
+			// DATA_COMPRESSION / XML_COMPRESSION may have ON PARTITIONS (...)
+			if p.cur.Type == kwON {
+				next := p.peekNext()
+				if next.Str != "" && matchesKeywordCI(next.Str, "PARTITIONS") {
+					p.advance() // consume ON
+					p.advance() // consume PARTITIONS
+					if p.cur.Type == '(' {
+						depth := 1
+						p.advance() // consume '('
+						for depth > 0 && p.cur.Type != tokEOF {
+							if p.cur.Type == '(' {
+								depth++
+							} else if p.cur.Type == ')' {
+								depth--
+								if depth == 0 {
+									p.advance()
+									break
+								}
+							}
+							p.advance()
+						}
+					}
+				}
+			}
+
+			// MAX_DURATION may have MINUTES suffix
+			if strings.HasPrefix(name, "MAX_DURATION") && p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MINUTES") {
+				p.advance()
+			}
+		} else {
+			// Unknown token, skip
+			p.advance()
+		}
+	}
+
+	p.match(')') // consume ')'
+	return opts
 }

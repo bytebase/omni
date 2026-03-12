@@ -815,7 +815,9 @@ func (n *AlterDatabaseStmt) stmtNode() {}
 type AlterIndexStmt struct {
 	IndexName string    // index name or "ALL"
 	Table     *TableRef // ON table_name
-	Action    string    // REBUILD, REORGANIZE, DISABLE, SET
+	Action    string    // REBUILD, REORGANIZE, DISABLE, SET, RESUME, PAUSE, ABORT
+	Partition string    // partition number or "ALL" (empty if not specified)
+	Options   *List     // WITH options as String nodes (key=value or key)
 	Loc       Loc
 }
 

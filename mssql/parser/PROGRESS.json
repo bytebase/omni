@@ -2163,7 +2163,7 @@
       "id": 95,
       "name": "alter_index_options_depth",
       "file": "alter_objects.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 29 gap: replace skip-loop in parseAlterIndexStmt (line 574) with structured parsing of PARTITION = { n | ALL }, WITH ( option = value [, ...] ) for REBUILD/REORGANIZE actions. Options include FILLFACTOR, PAD_INDEX, SORT_IN_TEMPDB, STATISTICS_NORECOMPUTE, ONLINE, MAXDOP, DATA_COMPRESSION, RESUMABLE, MAX_DURATION.",
       "rules": [
         "parseAlterIndexOptions",

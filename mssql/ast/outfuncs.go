@@ -2634,6 +2634,13 @@ func writeAlterIndexStmt(sb *strings.Builder, n *AlterIndexStmt) {
 		writeNode(sb, n.Table)
 	}
 	fmt.Fprintf(sb, " :action \"%s\"", escapeString(n.Action))
+	if n.Partition != "" {
+		fmt.Fprintf(sb, " :partition \"%s\"", escapeString(n.Partition))
+	}
+	if n.Options != nil && len(n.Options.Items) > 0 {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
 	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")
 }
