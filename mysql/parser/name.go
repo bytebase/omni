@@ -148,6 +148,17 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 		return nil, err
 	}
 
+	// Optional PARTITION (p0, p1, ...)
+	if p.cur.Type == kwPARTITION {
+		p.advance()
+		parts, err := p.parseParenIdentList()
+		if err != nil {
+			return nil, err
+		}
+		ref.Partitions = parts
+		ref.Loc.End = p.pos()
+	}
+
 	// Optional AS alias
 	if _, ok := p.match(kwAS); ok {
 		alias, _, err := p.parseIdentifier()

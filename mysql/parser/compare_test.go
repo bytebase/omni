@@ -8499,6 +8499,51 @@ func TestParseSelectSqlBufferResult(t *testing.T) {
 	}
 }
 
+// --- Batch 66: depth_fix_select_partition_with_insert ---
+
+func TestParseSelectPartition(t *testing.T) {
+	tests := []string{
+		"SELECT * FROM t PARTITION (p0)",
+		"SELECT * FROM t PARTITION (p0, p1, p2)",
+		"SELECT * FROM t PARTITION (p0) WHERE id = 1",
+		"SELECT * FROM t PARTITION (p0, p1) AS a",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseWithInsert(t *testing.T) {
+	tests := []string{
+		"WITH cte AS (SELECT 1 AS x) INSERT INTO t SELECT * FROM cte",
+		"WITH cte AS (SELECT 1 AS x) REPLACE INTO t SELECT * FROM cte",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseIntersectPrecedence(t *testing.T) {
+	tests := []string{
+		// INTERSECT has higher precedence than UNION
+		"SELECT 1 UNION SELECT 2 INTERSECT SELECT 3",
+		"SELECT 1 INTERSECT SELECT 2 UNION SELECT 3",
+		"SELECT 1 INTERSECT ALL SELECT 2",
+		"SELECT 1 EXCEPT SELECT 2 INTERSECT SELECT 3",
+		"SELECT 1 INTERSECT SELECT 2 INTERSECT SELECT 3",
+		"SELECT 1 UNION SELECT 2 EXCEPT SELECT 3",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
 func TestParseShowProcesslist(t *testing.T) {
 	tests := []string{
 		"SHOW PROCESSLIST",

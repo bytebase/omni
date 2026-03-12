@@ -2150,6 +2150,16 @@ func writeTableRef(sb *strings.Builder, n *TableRef) {
 	if n.Alias != "" {
 		fmt.Fprintf(sb, " :alias %s", n.Alias)
 	}
+	if len(n.Partitions) > 0 {
+		sb.WriteString(" :partitions (")
+		for i, p := range n.Partitions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(p)
+		}
+		sb.WriteString(")")
+	}
 	if len(n.IndexHints) > 0 {
 		sb.WriteString(" :index_hints ")
 		for i, h := range n.IndexHints {

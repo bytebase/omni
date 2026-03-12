@@ -1678,7 +1678,7 @@
       "id": 66,
       "name": "depth_fix_select_partition_with_insert",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 4/22 gap: PARTITION clause on table references (SELECT ... FROM t PARTITION (p0, p1)), WITH ... INSERT support, set operation INTERSECT precedence over UNION/EXCEPT",
       "rules": [
         "parseTableRefWithAlias",

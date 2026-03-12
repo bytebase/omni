@@ -724,9 +724,10 @@ func (r *ColumnRef) exprNode() {}
 // TableRef represents a table reference (possibly qualified, with alias).
 type TableRef struct {
 	Loc        Loc
-	Schema     string // database name
-	Name       string // table name
-	Alias      string // AS alias
+	Schema     string   // database name
+	Name       string   // table name
+	Alias      string   // AS alias
+	Partitions []string // PARTITION (p0, p1, ...)
 	IndexHints []*IndexHint
 }
 

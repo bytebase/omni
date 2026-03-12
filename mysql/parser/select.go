@@ -92,16 +92,19 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 		}
 		return stmt, nil
 
+	case kwINSERT, kwREPLACE:
+		isReplace := p.cur.Type == kwREPLACE
+		stmt, err := p.parseInsertOrReplace(isReplace)
+		if err != nil {
+			return nil, err
+		}
+		return stmt, nil
+
 	case kwUPDATE:
 		stmt, err := p.parseUpdateStmt()
 		if err != nil {
 			return nil, err
 		}
-		// Store CTEs in update context — for now we wrap in a SelectStmt that carries the CTEs
-		// and has the update as its payload. But the simpler approach: the UpdateStmt/DeleteStmt
-		// don't have CTEs fields. We need to handle this differently.
-		// For WITH...UPDATE and WITH...DELETE, the CTEs are typically used via subqueries in WHERE.
-		// We return the update stmt as-is since the CTE is referenced in subqueries.
 		return stmt, nil
 
 	case kwDELETE:
@@ -113,7 +116,7 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 
 	default:
 		return nil, &ParseError{
-			Message:  "expected SELECT, UPDATE, or DELETE after WITH clause",
+			Message:  "expected SELECT, INSERT, UPDATE, or DELETE after WITH clause",
 			Position: p.cur.Loc,
 		}
 	}
@@ -329,6 +332,207 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		return p.parseSetOperation(stmt)
 	}
 
+	return stmt, nil
+}
+
+// parseSelectStmtBase parses a single SELECT (no set operations consumed).
+// Used by the set operation precedence parser to get the right-hand operand.
+func (p *Parser) parseSelectStmtBase() (*nodes.SelectStmt, error) {
+	// Handle parenthesized select: (SELECT ...)
+	if p.cur.Type == '(' {
+		p.advance()
+		inner, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return inner, nil
+	}
+
+	start := p.pos()
+
+	// Parse optional WITH clause
+	var ctes []*nodes.CommonTableExpr
+	if p.cur.Type == kwWITH {
+		var err error
+		ctes, err = p.parseWithClause()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	p.advance() // consume SELECT
+
+	stmt := &nodes.SelectStmt{Loc: nodes.Loc{Start: start}, CTEs: ctes}
+
+	// Parse SELECT options
+	for {
+		switch p.cur.Type {
+		case kwALL:
+			stmt.DistinctKind = nodes.DistinctAll
+			p.advance()
+			continue
+		case kwDISTINCT, kwDISTINCTROW:
+			stmt.DistinctKind = nodes.DistinctOn
+			p.advance()
+			continue
+		case kwHIGH_PRIORITY:
+			stmt.HighPriority = true
+			p.advance()
+			continue
+		case kwSTRAIGHT_JOIN:
+			stmt.StraightJoin = true
+			p.advance()
+			continue
+		case kwSQL_CALC_FOUND_ROWS:
+			stmt.CalcFoundRows = true
+			p.advance()
+			continue
+		case kwSQL_SMALL_RESULT:
+			stmt.SmallResult = true
+			p.advance()
+			continue
+		case kwSQL_BIG_RESULT:
+			stmt.BigResult = true
+			p.advance()
+			continue
+		case kwSQL_BUFFER_RESULT:
+			stmt.BufferResult = true
+			p.advance()
+			continue
+		case kwSQL_NO_CACHE:
+			stmt.NoCache = true
+			p.advance()
+			continue
+		}
+		break
+	}
+
+	// Parse select expression list
+	targets, err := p.parseSelectExprList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.TargetList = targets
+
+	// INTO clause (position 1: after select_expr, before FROM)
+	if p.cur.Type == kwINTO {
+		p.advance()
+		into, err := p.parseIntoClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Into = into
+	}
+
+	// FROM clause
+	if _, ok := p.match(kwFROM); ok {
+		from, err := p.parseTableReferenceList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.From = from
+	}
+
+	// WHERE clause
+	if _, ok := p.match(kwWHERE); ok {
+		where, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Where = where
+	}
+
+	// GROUP BY clause
+	if p.cur.Type == kwGROUP {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		groupBy, err := p.parseExprList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.GroupBy = groupBy
+
+		// WITH ROLLUP
+		if p.cur.Type == kwWITH {
+			p.advance()
+			if _, ok := p.match(kwROLLUP); ok {
+				stmt.WithRollup = true
+			}
+		}
+	}
+
+	// HAVING clause
+	if _, ok := p.match(kwHAVING); ok {
+		having, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Having = having
+	}
+
+	// WINDOW clause
+	if p.cur.Type == kwWINDOW {
+		p.advance()
+		defs, err := p.parseNamedWindowList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.WindowClause = defs
+	}
+
+	// ORDER BY clause
+	if p.cur.Type == kwORDER {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		orderBy, err := p.parseOrderByList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.OrderBy = orderBy
+	}
+
+	// LIMIT clause
+	if _, ok := p.match(kwLIMIT); ok {
+		limit, err := p.parseLimitClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Limit = limit
+	}
+
+	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
+	if p.cur.Type == kwFOR {
+		fu, err := p.parseForUpdateClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ForUpdate = fu
+	} else if p.cur.Type == kwLOCK {
+		fu, err := p.parseLockInShareMode()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ForUpdate = fu
+	}
+
+	// INTO clause (position 3: after locking clause)
+	if p.cur.Type == kwINTO && stmt.Into == nil {
+		p.advance()
+		into, err := p.parseIntoClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Into = into
+	}
+
+	stmt.Loc.End = p.pos()
 	return stmt, nil
 }
 
@@ -1107,45 +1311,84 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 	return into, nil
 }
 
-// parseSetOperation parses UNION/INTERSECT/EXCEPT [ALL] SELECT.
-func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, error) {
-	var op nodes.SetOperation
-	switch p.cur.Type {
-	case kwUNION:
-		op = nodes.SetOpUnion
+// setOpPrecedence returns the precedence for a set operation.
+// INTERSECT has higher precedence than UNION/EXCEPT in MySQL 8.0.31+.
+func setOpPrecedence(tokType int) int {
+	switch tokType {
 	case kwINTERSECT:
-		op = nodes.SetOpIntersect
-	case kwEXCEPT:
-		op = nodes.SetOpExcept
+		return 2
+	case kwUNION, kwEXCEPT:
+		return 1
 	}
-	p.advance()
+	return 0
+}
 
-	all := false
-	if _, ok := p.match(kwALL); ok {
-		all = true
-	} else {
-		p.match(kwDISTINCT) // UNION DISTINCT is the default
-	}
+// parseSetOperation parses UNION/INTERSECT/EXCEPT [ALL|DISTINCT] SELECT chains
+// with INTERSECT binding tighter than UNION/EXCEPT.
+func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, error) {
+	return p.parseSetOpWithPrecedence(left, 1)
+}
 
-	if p.cur.Type != kwSELECT && p.cur.Type != '(' {
-		return nil, &ParseError{
-			Message:  "expected SELECT after set operation",
-			Position: p.cur.Loc,
+// parseSetOpWithPrecedence implements precedence climbing for set operations.
+func (p *Parser) parseSetOpWithPrecedence(left *nodes.SelectStmt, minPrec int) (*nodes.SelectStmt, error) {
+	for {
+		prec := setOpPrecedence(p.cur.Type)
+		if prec < minPrec {
+			break
+		}
+
+		var op nodes.SetOperation
+		switch p.cur.Type {
+		case kwUNION:
+			op = nodes.SetOpUnion
+		case kwINTERSECT:
+			op = nodes.SetOpIntersect
+		case kwEXCEPT:
+			op = nodes.SetOpExcept
+		}
+		p.advance()
+
+		all := false
+		if _, ok := p.match(kwALL); ok {
+			all = true
+		} else {
+			p.match(kwDISTINCT)
+		}
+
+		if p.cur.Type != kwSELECT && p.cur.Type != '(' {
+			return nil, &ParseError{
+				Message:  "expected SELECT after set operation",
+				Position: p.cur.Loc,
+			}
+		}
+
+		right, err := p.parseSelectStmtBase()
+		if err != nil {
+			return nil, err
+		}
+
+		// If next op has higher precedence, recurse to consume it first
+		for {
+			nextPrec := setOpPrecedence(p.cur.Type)
+			if nextPrec <= prec {
+				break
+			}
+			right, err = p.parseSetOpWithPrecedence(right, nextPrec)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		left = &nodes.SelectStmt{
+			Loc:    nodes.Loc{Start: left.Loc.Start, End: right.Loc.End},
+			SetOp:  op,
+			SetAll: all,
+			Left:   left,
+			Right:  right,
 		}
 	}
 
-	right, err := p.parseSelectStmt()
-	if err != nil {
-		return nil, err
-	}
-
-	return &nodes.SelectStmt{
-		Loc:    nodes.Loc{Start: left.Loc.Start, End: right.Loc.End},
-		SetOp:  op,
-		SetAll: all,
-		Left:   left,
-		Right:  right,
-	}, nil
+	return left, nil
 }
 
 // parseParenIdentList parses a parenthesized comma-separated list of identifiers.
