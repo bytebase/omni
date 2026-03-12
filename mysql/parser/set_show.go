@@ -542,18 +542,45 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 	case kwWARNINGS:
 		stmt.Type = "WARNINGS"
 		p.advance()
-		// Optional LIMIT
+		// Optional LIMIT [offset,] count
 		if _, ok := p.match(kwLIMIT); ok {
-			// Just skip the count for now
-			p.advance()
+			first, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if p.cur.Type == ',' {
+				p.advance() // consume ','
+				count, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				stmt.LimitOffset = first
+				stmt.LimitCount = count
+			} else {
+				stmt.LimitCount = first
+			}
 		}
 
 	case kwERRORS:
 		stmt.Type = "ERRORS"
 		p.advance()
-		// Optional LIMIT
+		// Optional LIMIT [offset,] count
 		if _, ok := p.match(kwLIMIT); ok {
-			p.advance()
+			first, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if p.cur.Type == ',' {
+				p.advance() // consume ','
+				count, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				stmt.LimitOffset = first
+				stmt.LimitCount = count
+			} else {
+				stmt.LimitCount = first
+			}
 		}
 
 	case kwENGINES:
@@ -632,16 +659,28 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		}
 		// Optional FROM pos
 		if _, ok := p.match(kwFROM); ok {
-			// skip the position value
-			p.advance()
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			stmt.FromPos = expr
 		}
 		// Optional LIMIT [offset,] count
 		if _, ok := p.match(kwLIMIT); ok {
-			// skip limit value(s)
-			p.advance()
+			first, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
 			if p.cur.Type == ',' {
 				p.advance() // consume ','
-				p.advance() // consume count
+				count, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				stmt.LimitOffset = first
+				stmt.LimitCount = count
+			} else {
+				stmt.LimitCount = first
 			}
 		}
 
@@ -742,14 +781,28 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		}
 		// Optional FROM pos
 		if _, ok := p.match(kwFROM); ok {
-			p.advance()
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			stmt.FromPos = expr
 		}
 		// Optional LIMIT [offset,] count
 		if _, ok := p.match(kwLIMIT); ok {
-			p.advance()
+			first, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
 			if p.cur.Type == ',' {
-				p.advance()
-				p.advance()
+				p.advance() // consume ','
+				count, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				stmt.LimitOffset = first
+				stmt.LimitCount = count
+			} else {
+				stmt.LimitCount = first
 			}
 		}
 

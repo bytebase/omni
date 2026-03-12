@@ -1055,6 +1055,18 @@ func writeShowStmt(sb *strings.Builder, n *ShowStmt) {
 		}
 		sb.WriteString(")")
 	}
+	if n.FromPos != nil {
+		sb.WriteString(" :from_pos ")
+		writeNode(sb, n.FromPos)
+	}
+	if n.LimitCount != nil {
+		sb.WriteString(" :limit_count ")
+		writeNode(sb, n.LimitCount)
+	}
+	if n.LimitOffset != nil {
+		sb.WriteString(" :limit_offset ")
+		writeNode(sb, n.LimitOffset)
+	}
 	sb.WriteString("}")
 }
 

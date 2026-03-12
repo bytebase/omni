@@ -9600,3 +9600,120 @@ func TestParseAlterInstance(t *testing.T) {
 		})
 	}
 }
+
+// --- Batch 85: depth_fix_show_event_value_capture ---
+
+func TestParseShowBinlogEventsFromLimit(t *testing.T) {
+	tests := []struct {
+		sql      string
+		expected string
+	}{
+		{
+			sql:      "SHOW BINLOG EVENTS",
+			expected: `{SHOW :loc 0 :type BINLOG EVENTS}`,
+		},
+		{
+			sql:      "SHOW BINLOG EVENTS IN 'binlog.000001'",
+			expected: `{SHOW :loc 0 :type BINLOG EVENTS :like {STRING_LIT :val "binlog.000001" :loc 22}}`,
+		},
+		{
+			sql:      "SHOW BINLOG EVENTS FROM 4",
+			expected: `{SHOW :loc 0 :type BINLOG EVENTS :from_pos {INT_LIT :val 4 :loc 24}}`,
+		},
+		{
+			sql:      "SHOW BINLOG EVENTS IN 'binlog.000001' FROM 4",
+			expected: `{SHOW :loc 0 :type BINLOG EVENTS :like {STRING_LIT :val "binlog.000001" :loc 22} :from_pos {INT_LIT :val 4 :loc 43}}`,
+		},
+		{
+			sql:      "SHOW BINLOG EVENTS LIMIT 10",
+			expected: `{SHOW :loc 0 :type BINLOG EVENTS :limit_count {INT_LIT :val 10 :loc 25}}`,
+		},
+		{
+			sql:      "SHOW BINLOG EVENTS LIMIT 5, 10",
+			expected: `{SHOW :loc 0 :type BINLOG EVENTS :limit_count {INT_LIT :val 10 :loc 28} :limit_offset {INT_LIT :val 5 :loc 25}}`,
+		},
+		{
+			sql:      "SHOW BINLOG EVENTS IN 'binlog.000001' FROM 4 LIMIT 5, 10",
+			expected: `{SHOW :loc 0 :type BINLOG EVENTS :like {STRING_LIT :val "binlog.000001" :loc 22} :from_pos {INT_LIT :val 4 :loc 43} :limit_count {INT_LIT :val 10 :loc 54} :limit_offset {INT_LIT :val 5 :loc 51}}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.expected)
+		})
+	}
+}
+
+func TestParseShowRelaylogEventsFromLimit(t *testing.T) {
+	tests := []struct {
+		sql      string
+		expected string
+	}{
+		{
+			sql:      "SHOW RELAYLOG EVENTS",
+			expected: `{SHOW :loc 0 :type RELAYLOG EVENTS}`,
+		},
+		{
+			sql:      "SHOW RELAYLOG EVENTS IN 'relay-bin.000001'",
+			expected: `{SHOW :loc 0 :type RELAYLOG EVENTS :like {STRING_LIT :val "relay-bin.000001" :loc 24}}`,
+		},
+		{
+			sql:      "SHOW RELAYLOG EVENTS FROM 4",
+			expected: `{SHOW :loc 0 :type RELAYLOG EVENTS :from_pos {INT_LIT :val 4 :loc 26}}`,
+		},
+		{
+			sql:      "SHOW RELAYLOG EVENTS LIMIT 10",
+			expected: `{SHOW :loc 0 :type RELAYLOG EVENTS :limit_count {INT_LIT :val 10 :loc 27}}`,
+		},
+		{
+			sql:      "SHOW RELAYLOG EVENTS LIMIT 5, 10",
+			expected: `{SHOW :loc 0 :type RELAYLOG EVENTS :limit_count {INT_LIT :val 10 :loc 30} :limit_offset {INT_LIT :val 5 :loc 27}}`,
+		},
+		{
+			sql:      "SHOW RELAYLOG EVENTS IN 'relay-bin.000001' FROM 100 LIMIT 20",
+			expected: `{SHOW :loc 0 :type RELAYLOG EVENTS :like {STRING_LIT :val "relay-bin.000001" :loc 24} :from_pos {INT_LIT :val 100 :loc 48} :limit_count {INT_LIT :val 20 :loc 58}}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.expected)
+		})
+	}
+}
+
+func TestParseShowWarningsLimit(t *testing.T) {
+	tests := []struct {
+		sql      string
+		expected string
+	}{
+		{
+			sql:      "SHOW WARNINGS",
+			expected: `{SHOW :loc 0 :type WARNINGS}`,
+		},
+		{
+			sql:      "SHOW WARNINGS LIMIT 10",
+			expected: `{SHOW :loc 0 :type WARNINGS :limit_count {INT_LIT :val 10 :loc 20}}`,
+		},
+		{
+			sql:      "SHOW WARNINGS LIMIT 5, 10",
+			expected: `{SHOW :loc 0 :type WARNINGS :limit_count {INT_LIT :val 10 :loc 23} :limit_offset {INT_LIT :val 5 :loc 20}}`,
+		},
+		{
+			sql:      "SHOW ERRORS",
+			expected: `{SHOW :loc 0 :type ERRORS}`,
+		},
+		{
+			sql:      "SHOW ERRORS LIMIT 10",
+			expected: `{SHOW :loc 0 :type ERRORS :limit_count {INT_LIT :val 10 :loc 18}}`,
+		},
+		{
+			sql:      "SHOW ERRORS LIMIT 5, 10",
+			expected: `{SHOW :loc 0 :type ERRORS :limit_count {INT_LIT :val 10 :loc 21} :limit_offset {INT_LIT :val 5 :loc 18}}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.expected)
+		})
+	}
+}

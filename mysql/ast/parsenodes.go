@@ -1058,6 +1058,9 @@ type ShowStmt struct {
 	ForQuery     ExprNode // SHOW PROFILE FOR QUERY n
 	ForUser      *UserSpec   // SHOW GRANTS FOR user
 	Using        []*UserSpec // SHOW GRANTS ... USING role [, role]
+	FromPos      ExprNode    // SHOW BINLOG/RELAYLOG EVENTS FROM pos
+	LimitCount   ExprNode    // SHOW ... LIMIT count
+	LimitOffset  ExprNode    // SHOW ... LIMIT offset, count
 }
 
 func (s *ShowStmt) nodeTag()  {}

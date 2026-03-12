@@ -2111,7 +2111,7 @@
       "id": 85,
       "name": "depth_fix_show_event_value_capture",
       "file": "set_show.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 32 gap: SHOW BINLOG EVENTS and SHOW RELAYLOG EVENTS skip FROM position and LIMIT offset,count values with bare p.advance() instead of parsing expressions. SHOW WARNINGS/ERRORS LIMIT count also skipped. Store these values in ShowStmt AST fields.",
       "rules": [
         "parseShowBinlogEvents",
