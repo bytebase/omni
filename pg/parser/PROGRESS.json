@@ -1155,7 +1155,84 @@
       "tests": [
         "alter_tablespace_opts"
       ]
+    },
+    {
+      "id": 42,
+      "name": "func_table_in_from",
+      "file": "select.go",
+      "status": "done",
+      "description": "Fix batch 7 gap: parseRelationOrFuncTable does not handle bare function calls (func_table) in FROM clause. Also parseTableRefPrimary does not dispatch XMLTABLE/JSON_TABLE tokens, and parseLateralTableRef lacks LATERAL XMLTABLE/JSON_TABLE. Must disambiguate qualified_name followed by '(' as func_expr_windowless, and add XMLTABLE/JSON_TABLE cases to parseTableRefPrimary and parseLateralTableRef. Refs: https://www.postgresql.org/docs/current/sql-select.html, https://www.postgresql.org/docs/current/functions-xml.html#FUNCTIONS-XML-PROCESSING-XMLTABLE, https://www.postgresql.org/docs/current/functions-json.html#FUNCTIONS-SQLJSON-TABLE",
+      "rules": [
+        "parseRelationOrFuncTable",
+        "parseTableRefPrimary",
+        "parseLateralTableRef"
+      ],
+      "depends_on": [
+        5,
+        6,
+        7
+      ],
+      "tests": [
+        "func_table_from",
+        "xmltable_from",
+        "json_table_from"
+      ]
+    },
+    {
+      "id": 43,
+      "name": "cte_search_cycle",
+      "file": "select.go",
+      "status": "pending",
+      "description": "Fix batch 7 gap: parseCommonTableExpr skips opt_search_clause and opt_cycle_clause (lines 561-562 comment 'rarely used, skip for now'). Must implement SEARCH BREADTH/DEPTH FIRST BY column_list SET column and CYCLE column_list SET column TO value DEFAULT value USING column. Ref: https://www.postgresql.org/docs/current/queries-with.html",
+      "rules": [
+        "opt_search_clause",
+        "opt_cycle_clause"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "cte_search",
+        "cte_cycle"
+      ]
+    },
+    {
+      "id": 44,
+      "name": "begin_atomic_routine_body",
+      "file": "create_function.go",
+      "status": "pending",
+      "description": "Fix batch 14 gap: parseOptRoutineBody has TODO stub at line 525 for BEGIN ATOMIC routine_body_stmt_list END. Must parse BEGIN_P ATOMIC, then loop calling parseStmt for each statement (separated by ';'), then expect END_P. Ref: https://www.postgresql.org/docs/current/sql-createfunction.html",
+      "rules": [
+        "parseOptRoutineBody",
+        "routine_body_stmt_list",
+        "routine_body_stmt"
+      ],
+      "depends_on": [
+        14,
+        34
+      ],
+      "tests": [
+        "begin_atomic_body"
+      ]
+    },
+    {
+      "id": 45,
+      "name": "func_set_reset_options",
+      "file": "create_function.go",
+      "status": "pending",
+      "description": "Fix batch 14 gap: parseCommonFuncOptItem BNF lists SET set_rest_more and VariableResetStmt (lines 442-443) but the switch has no cases for them. Must add SET case that calls parseSetRestMore and RESET case that calls parseVariableResetStmt, wrapping results in DefElem. Ref: https://www.postgresql.org/docs/current/sql-createfunction.html",
+      "rules": [
+        "parseCommonFuncOptItem"
+      ],
+      "depends_on": [
+        14,
+        23
+      ],
+      "tests": [
+        "func_set_option",
+        "func_reset_option"
+      ]
     }
   ],
-  "audit_round": 0
+  "audit_round": 1
 }

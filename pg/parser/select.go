@@ -698,12 +698,37 @@ func (p *Parser) parseTableRef() nodes.Node {
 }
 
 // parseTableRefPrimary parses a primary (non-join) table reference.
+//
+// Ref: https://www.postgresql.org/docs/17/sql-select.html
+//
+//	table_ref:
+//	    relation_expr opt_alias_clause [tablesample_clause]
+//	    | func_table func_alias_clause
+//	    | xmltable opt_alias_clause
+//	    | json_table opt_alias_clause
+//	    | LATERAL_P ...
+//	    | select_with_parens opt_alias_clause
+//	    | '(' joined_table ')' opt_alias_clause
 func (p *Parser) parseTableRefPrimary() nodes.Node {
 	switch p.cur.Type {
 	case '(':
 		return p.parseParenTableRef()
 	case LATERAL_P:
 		return p.parseLateralTableRef()
+	case XMLTABLE:
+		n := p.parseXmlTable().(*nodes.RangeTableFunc)
+		alias := p.parseOptAliasClause()
+		if alias != nil {
+			n.Alias = alias
+		}
+		return n
+	case JSON_TABLE:
+		n := p.parseJsonTable()
+		alias := p.parseOptAliasClause()
+		if alias != nil {
+			n.Alias = alias
+		}
+		return n
 	default:
 		// Could be relation_expr or func_table
 		// relation_expr starts with qualified_name, ONLY, or ONLY '('
@@ -749,6 +774,13 @@ func (p *Parser) parseParenTableRef() nodes.Node {
 }
 
 // parseLateralTableRef handles LATERAL prefix.
+//
+// Ref: https://www.postgresql.org/docs/17/sql-select.html
+//
+//	LATERAL_P func_table func_alias_clause
+//	| LATERAL_P select_with_parens opt_alias_clause
+//	| LATERAL_P xmltable opt_alias_clause
+//	| LATERAL_P json_table opt_alias_clause
 func (p *Parser) parseLateralTableRef() nodes.Node {
 	p.advance() // consume LATERAL
 
@@ -771,12 +803,35 @@ func (p *Parser) parseLateralTableRef() nodes.Node {
 		return rf
 	}
 
-	// LATERAL func_table
+	// LATERAL xmltable opt_alias_clause
+	if p.cur.Type == XMLTABLE {
+		n := p.parseXmlTable().(*nodes.RangeTableFunc)
+		n.Lateral = true
+		alias := p.parseOptAliasClause()
+		if alias != nil {
+			n.Alias = alias
+		}
+		return n
+	}
+
+	// LATERAL json_table opt_alias_clause
+	if p.cur.Type == JSON_TABLE {
+		n := p.parseJsonTable()
+		n.Lateral = true
+		alias := p.parseOptAliasClause()
+		if alias != nil {
+			n.Alias = alias
+		}
+		return n
+	}
+
+	// LATERAL func_table func_alias_clause
 	funcExpr := p.parseFuncExprWindowless()
 	rf := &nodes.RangeFunction{
 		Lateral:   true,
 		Functions: &nodes.List{Items: []nodes.Node{&nodes.List{Items: []nodes.Node{funcExpr}}}},
 	}
+	p.parseOptOrdinality(rf)
 	p.parseFuncAliasClause(rf)
 	return rf
 }
@@ -829,38 +884,123 @@ func (p *Parser) parseRowsFromTable() nodes.Node {
 
 // parseRelationOrFuncTable determines if the current position starts a relation_expr
 // or a func_table, and parses accordingly.
+//
+// Ref: https://www.postgresql.org/docs/17/sql-select.html
+//
+//	table_ref:
+//	    relation_expr opt_alias_clause [tablesample_clause]
+//	    | func_table func_alias_clause
+//
+//	func_table:
+//	    func_expr_windowless opt_ordinality
+//	    | ROWS FROM '(' rowsfrom_list ')' opt_ordinality
+//
+// Disambiguation: parse the qualified name, then if '(' follows it's a function call,
+// otherwise it's a relation reference.
 func (p *Parser) parseRelationOrFuncTable() nodes.Node {
-	// Both start with a qualified name. We parse it as a relation first,
-	// then check if it looks like a function call (followed by '(').
-	// This is the key disambiguation: if the qualified name is followed by '(',
-	// it could be a function call.
-
-	// However, in PostgreSQL's grammar, func_table uses func_expr_windowless,
-	// which starts with func_application (name '(') or func_expr_common_subexpr.
-	// relation_expr uses qualified_name (name ['.' name ['.' name]]).
-	// If the name is followed by '(', we check if it could be a function.
-	// If not followed by '(', it's definitely a relation.
-
-	// Save state: try relation first
-	rel := p.parseRelationExpr()
-	alias := p.parseOptAliasClause()
-
-	if rel != nil {
-		if alias != nil {
-			rel.Alias = alias
-		}
-
-		// TABLESAMPLE clause
-		if p.cur.Type == TABLESAMPLE {
-			ts := p.parseTableSampleClause()
-			ts.Relation = rel
-			return ts
-		}
-
-		return rel
+	loc := p.pos()
+	name, err := p.parseColId()
+	if err != nil {
+		return nil
 	}
 
-	return nil
+	// name( → function call
+	if p.cur.Type == '(' {
+		funcName := &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}}
+		funcExpr := p.parseFuncApplication(funcName, loc)
+		return p.finishFuncTable(funcExpr)
+	}
+
+	// name.something
+	if p.cur.Type == '.' {
+		p.advance() // consume '.'
+		attr, _ := p.parseAttrName()
+
+		// schema.func(
+		if p.cur.Type == '(' {
+			funcName := &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}, &nodes.String{Str: attr}}}
+			funcExpr := p.parseFuncApplication(funcName, loc)
+			return p.finishFuncTable(funcExpr)
+		}
+
+		// catalog.schema.name
+		if p.cur.Type == '.' {
+			p.advance()
+			attr2, _ := p.parseAttrName()
+
+			// catalog.schema.func(
+			if p.cur.Type == '(' {
+				funcName := &nodes.List{Items: []nodes.Node{
+					&nodes.String{Str: name}, &nodes.String{Str: attr}, &nodes.String{Str: attr2},
+				}}
+				funcExpr := p.parseFuncApplication(funcName, loc)
+				return p.finishFuncTable(funcExpr)
+			}
+
+			// 3-part qualified relation name
+			names := &nodes.List{Items: []nodes.Node{
+				&nodes.String{Str: name}, &nodes.String{Str: attr}, &nodes.String{Str: attr2},
+			}}
+			return p.finishRelationTable(makeRangeVarFromNames(names))
+		}
+
+		// 2-part qualified relation name
+		names := &nodes.List{Items: []nodes.Node{
+			&nodes.String{Str: name}, &nodes.String{Str: attr},
+		}}
+		return p.finishRelationTable(makeRangeVarFromNames(names))
+	}
+
+	// Simple relation name
+	names := &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}}
+	rv := makeRangeVarFromNames(names)
+
+	// Check for '*' (include child tables) — relation_expr: qualified_name '*'
+	if p.cur.Type == '*' {
+		p.advance()
+		rv.Inh = true
+	}
+
+	return p.finishRelationTable(rv)
+}
+
+// finishFuncTable wraps a parsed function expression as a RangeFunction (func_table)
+// and parses opt_ordinality and func_alias_clause.
+func (p *Parser) finishFuncTable(funcExpr nodes.Node) nodes.Node {
+	rf := &nodes.RangeFunction{
+		Functions: &nodes.List{Items: []nodes.Node{&nodes.List{Items: []nodes.Node{funcExpr}}}},
+	}
+	p.parseOptOrdinality(rf)
+	p.parseFuncAliasClause(rf)
+	return rf
+}
+
+// finishRelationTable adds opt_alias_clause and optional tablesample_clause to a RangeVar.
+func (p *Parser) finishRelationTable(rel *nodes.RangeVar) nodes.Node {
+	alias := p.parseOptAliasClause()
+	if alias != nil {
+		rel.Alias = alias
+	}
+
+	// TABLESAMPLE clause
+	if p.cur.Type == TABLESAMPLE {
+		ts := p.parseTableSampleClause()
+		ts.Relation = rel
+		return ts
+	}
+
+	return rel
+}
+
+// parseOptOrdinality parses optional WITH ORDINALITY suffix for func_table.
+//
+//	opt_ordinality: WITH_LA ORDINALITY | /* EMPTY */
+func (p *Parser) parseOptOrdinality(rf *nodes.RangeFunction) {
+	if p.cur.Type == WITH_LA && p.peekNext().Type == ORDINALITY {
+		p.advance() // WITH_LA
+		p.advance() // ORDINALITY
+		rf.Ordinality = true
+	}
 }
 
 // parseRelationExprWithAlias parses ONLY qualified_name with alias.
@@ -980,6 +1120,15 @@ func (p *Parser) parseOptAliasClause() *nodes.Alias {
 }
 
 // parseFuncAliasClause parses a function alias clause and applies it to a RangeFunction.
+//
+// Ref: gram.y func_alias_clause
+//
+//	func_alias_clause:
+//	    alias_clause                              (AS ColId ['(' name_list ')'] | ColId ['(' name_list ')'])
+//	    | AS '(' TableFuncElementList ')'         (column defs without alias name)
+//	    | AS ColId '(' TableFuncElementList ')'   (alias name + column type defs)
+//	    | ColId '(' TableFuncElementList ')'      (alias name + column type defs, no AS)
+//	    | /* EMPTY */
 func (p *Parser) parseFuncAliasClause(rf *nodes.RangeFunction) {
 	if p.cur.Type == AS {
 		next := p.peekNext()
@@ -997,9 +1146,8 @@ func (p *Parser) parseFuncAliasClause(rf *nodes.RangeFunction) {
 		rf.Alias = &nodes.Alias{Aliasname: name}
 		if p.cur.Type == '(' {
 			p.advance()
-			colnames, _ := p.parseNameList()
+			p.parseFuncAliasParenContents(rf)
 			p.expect(')')
-			rf.Alias.Colnames = colnames
 		}
 		return
 	}
@@ -1009,10 +1157,27 @@ func (p *Parser) parseFuncAliasClause(rf *nodes.RangeFunction) {
 		rf.Alias = &nodes.Alias{Aliasname: name}
 		if p.cur.Type == '(' {
 			p.advance()
-			colnames, _ := p.parseNameList()
+			p.parseFuncAliasParenContents(rf)
 			p.expect(')')
-			rf.Alias.Colnames = colnames
 		}
+	}
+}
+
+// parseFuncAliasParenContents disambiguates between name_list and TableFuncElementList
+// inside the parentheses of a func_alias_clause. If the first ColId is followed by
+// another identifier/type (not ',' or ')'), it's a TableFuncElementList; otherwise name_list.
+func (p *Parser) parseFuncAliasParenContents(rf *nodes.RangeFunction) {
+	// Peek: after the first ColId, is the next token ',' or ')' (name_list)
+	// or something else (TableFuncElementList with types)?
+	next := p.peekNext()
+	if next.Type == ',' || next.Type == ')' {
+		// name_list: ColId [, ColId ...]
+		colnames, _ := p.parseNameList()
+		rf.Alias.Colnames = colnames
+	} else {
+		// TableFuncElementList: ColId Typename [, ColId Typename ...]
+		colDef := p.parseTableFuncElementList()
+		rf.Coldeflist = colDef
 	}
 }
 

@@ -2881,3 +2881,81 @@ func TestCompareCallStmt(t *testing.T) {
 		})
 	}
 }
+
+func TestCompareFuncTableFrom(t *testing.T) {
+	tests := []string{
+		// Basic function in FROM clause
+		"SELECT * FROM generate_series(1, 10)",
+		// Function with alias
+		"SELECT * FROM generate_series(1, 10) AS g",
+		// Function with column alias
+		"SELECT * FROM generate_series(1, 10) AS g(x)",
+		// Schema-qualified function
+		"SELECT * FROM pg_catalog.generate_series(1, 10)",
+		// Schema-qualified function with alias
+		"SELECT * FROM pg_catalog.generate_series(1, 10) AS gs(n)",
+		// Function with WITH ORDINALITY
+		"SELECT * FROM generate_series(1, 10) WITH ORDINALITY",
+		// Function with WITH ORDINALITY and alias
+		"SELECT * FROM generate_series(1, 10) WITH ORDINALITY AS g(x, n)",
+		// LATERAL function
+		"SELECT * FROM t, LATERAL generate_series(1, t.n) AS g(x)",
+		// Multiple functions in FROM (comma-separated)
+		"SELECT * FROM generate_series(1, 5) AS a(x), generate_series(1, 3) AS b(y)",
+		// Function joined with table
+		"SELECT * FROM t JOIN generate_series(1, 10) AS g(x) ON t.id = g.x",
+		// unnest function
+		"SELECT * FROM unnest(ARRAY[1, 2, 3]) AS u(val)",
+		// Function with no arguments
+		"SELECT * FROM now()",
+		// ROWS FROM syntax
+		"SELECT * FROM ROWS FROM (generate_series(1, 10), generate_series(1, 5)) AS g(a, b)",
+		// ROWS FROM with WITH ORDINALITY
+		"SELECT * FROM ROWS FROM (generate_series(1, 10)) WITH ORDINALITY",
+		// LATERAL ROWS FROM
+		"SELECT * FROM t, LATERAL ROWS FROM (generate_series(1, t.n)) AS g(x)",
+		// func_alias_clause: AS (coldef list)
+		"SELECT * FROM json_each('{\"a\":1}') AS f(key text, value text)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+func TestCompareXmlTableFrom(t *testing.T) {
+	tests := []string{
+		// Basic XMLTABLE
+		"SELECT * FROM XMLTABLE('/root/row' PASSING '<root><row><a>1</a></row></root>' COLUMNS a text)",
+		// XMLTABLE with alias
+		"SELECT * FROM XMLTABLE('/root/row' PASSING '<root><row><a>1</a></row></root>' COLUMNS a text) AS t",
+		// XMLTABLE with multiple columns
+		"SELECT * FROM XMLTABLE('/root/row' PASSING '<root><row><a>1</a><b>2</b></row></root>' COLUMNS a text, b text)",
+		// LATERAL XMLTABLE
+		"SELECT * FROM t, LATERAL XMLTABLE('/root/row' PASSING t.data COLUMNS a text) AS x",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+func TestCompareJsonTableFrom(t *testing.T) {
+	tests := []string{
+		// Basic JSON_TABLE
+		`SELECT * FROM JSON_TABLE('{"a":1}', '$' COLUMNS (a int))`,
+		// JSON_TABLE with alias
+		`SELECT * FROM JSON_TABLE('{"a":1}', '$' COLUMNS (a int)) AS jt`,
+		// JSON_TABLE with path name
+		`SELECT * FROM JSON_TABLE('{"a":1}', '$' AS path1 COLUMNS (a int))`,
+		// LATERAL JSON_TABLE
+		`SELECT * FROM t, LATERAL JSON_TABLE(t.data, '$.items[*]' COLUMNS (id int, name text)) AS jt`,
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
