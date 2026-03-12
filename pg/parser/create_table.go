@@ -348,6 +348,7 @@ func (p *Parser) parseColConstraint() nodes.Node {
 		return &nodes.DefElem{
 			Defname: "compression",
 			Arg:     &nodes.String{Str: id},
+			Loc:     nodes.NoLoc(),
 		}
 	case STORAGE:
 		p.advance()
@@ -355,6 +356,7 @@ func (p *Parser) parseColConstraint() nodes.Node {
 		return &nodes.DefElem{
 			Defname: "storage",
 			Arg:     &nodes.String{Str: id},
+			Loc:     nodes.NoLoc(),
 		}
 	case DEFERRABLE:
 		p.advance()

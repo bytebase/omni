@@ -323,15 +323,16 @@ func (p *Parser) parseVarList() *nodes.List {
 //	opt_boolean_or_string   -> A_Const{String{...}}
 //	| NumericOnly           -> A_Const{Integer/Float}
 func (p *Parser) parseVarValue() nodes.Node {
+	loc := p.pos()
 	// Try NumericOnly first (numbers and signed numbers).
 	if num := p.tryParseNumericOnly(); num != nil {
-		return &nodes.A_Const{Val: num}
+		return &nodes.A_Const{Val: num, Loc: nodes.Loc{Start: loc, End: p.pos()}}
 	}
 
 	// opt_boolean_or_string
 	s, ok := p.tryOptBooleanOrString()
 	if ok {
-		return makeStringConst(s)
+		return &nodes.A_Const{Val: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.pos()}}
 	}
 
 	return nil
@@ -460,15 +461,16 @@ func (p *Parser) isNonReservedWord() bool {
 //	| DEFAULT       -> nil (signals SET DEFAULT)
 //	| LOCAL         -> nil (signals SET DEFAULT)
 func (p *Parser) parseZoneValue() nodes.Node {
+	loc := p.pos()
 	switch p.cur.Type {
 	case SCONST:
 		s := p.cur.Str
 		p.advance()
-		return makeStringConst(s)
+		return &nodes.A_Const{Val: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.pos()}}
 	case IDENT:
 		s := p.cur.Str
 		p.advance()
-		return makeStringConst(s)
+		return &nodes.A_Const{Val: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.pos()}}
 	case DEFAULT:
 		p.advance()
 		return nil
@@ -478,7 +480,7 @@ func (p *Parser) parseZoneValue() nodes.Node {
 	default:
 		// Try NumericOnly
 		if num := p.tryParseNumericOnly(); num != nil {
-			return &nodes.A_Const{Val: num}
+			return &nodes.A_Const{Val: num, Loc: nodes.Loc{Start: loc, End: p.pos()}}
 		}
 		// Interval handling etc. would go here, but for now this covers the tests.
 		return nil

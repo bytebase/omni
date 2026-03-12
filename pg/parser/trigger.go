@@ -204,7 +204,7 @@ func (p *Parser) parseEventTriggerWhenItem() nodes.Node {
 	items := []nodes.Node{&nodes.String{Str: tok.Str}}
 	for p.cur.Type == ',' { p.advance(); tok = p.advance(); items = append(items, &nodes.String{Str: tok.Str}) }
 	p.expect(')')
-	return &nodes.DefElem{Defname: name, Arg: &nodes.List{Items: items}}
+	return &nodes.DefElem{Defname: name, Arg: &nodes.List{Items: items}, Loc: nodes.NoLoc()}
 }
 
 func (p *Parser) parseAlterEventTrigStmt() nodes.Node {

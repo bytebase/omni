@@ -1624,7 +1624,7 @@
       "id": 67,
       "name": "loc_end_alter_table",
       "file": "alter_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix End position for all parse functions in alter_table.go and alter_misc.go: parseAlterTableStmt, parseAlterTableCmd (all ALTER TABLE sub-commands), parseAlterDomainStmt, parseAlterEnumStmt, parseAlterOwnerStmt, parseAlterObjectSchemaStmt, parseRenameStmt, parseAlterSeqStmt, parseAlterExtensionStmt, parseAlterPolicyStmt, etc. Add TestLocAlterTable, TestLocAlterMisc.",
       "rules": [
         "parseAlterTableStmt",
@@ -1645,7 +1645,7 @@
       "id": 68,
       "name": "loc_end_create_function_trigger_type",
       "file": "create_function.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix End position for all parse functions in create_function.go, trigger.go, type.go, sequence.go, define.go: parseCreateFunctionStmt, parseFunctionParam, parseReturnType, parseCreateTriggerStmt, parseTriggerEvent, parseCreateTypeStmt (composite, enum, range, base), parseCreateOpClassStmt, parseCreateOpFamilyStmt, parseDefineStmt (CREATE AGGREGATE, OPERATOR, COLLATION), parseCreateSeqStmt. Add TestLocCreateFunction, TestLocTrigger, TestLocType, TestLocDefine.",
       "rules": [
         "parseCreateFunctionStmt",
@@ -1668,7 +1668,7 @@
       "id": 69,
       "name": "loc_end_drop_grant_schema",
       "file": "drop.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix End position for all parse functions in drop.go, grant.go, schema.go, database.go: parseDropStmt, parseDropOwnedStmt, parseDropdbStmt, parseGrantStmt, parseRevokeStmt, parseGrantRoleStmt, parseAlterDefaultPrivilegesStmt, parseCreateSchemaStmt, parseCreatedbStmt, parseAlterRoleStmt, parseCreateRoleStmt. Add TestLocDrop, TestLocGrant, TestLocSchema, TestLocDatabase.",
       "rules": [
         "parseDropStmt",
@@ -1692,7 +1692,7 @@
       "id": 70,
       "name": "loc_end_utility_misc",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix End position for all remaining parse functions: utility.go (EXPLAIN, VACUUM, ANALYZE, REINDEX, CLUSTER, COMMENT, SECURITY LABEL, COPY), transaction.go (BEGIN, COMMIT, ROLLBACK, SAVEPOINT), prepare.go (PREPARE, EXECUTE, DEALLOCATE), cursor.go (DECLARE, FETCH, MOVE, CLOSE), lock.go (LOCK), set.go (SET, RESET, SHOW), publication.go, extension.go, fdw.go, maintenance.go, copy.go, func.go (DO stmt), name.go helpers. Add TestLocUtility, TestLocTransaction, TestLocCursor, TestLocSet.",
       "rules": [
         "parseExplainStmt",

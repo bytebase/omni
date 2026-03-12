@@ -345,29 +345,35 @@ func (p *Parser) parseOptCreatefuncOptList() *nodes.List {
 //	    | WINDOW
 //	    | common_func_opt_item
 func (p *Parser) parseCreatefuncOptItem() *nodes.DefElem {
+	loc := p.pos()
+	var de *nodes.DefElem
 	switch p.cur.Type {
 	case AS:
 		p.advance()
 		funcAs := p.parseFuncAs()
-		return &nodes.DefElem{Defname: "as", Arg: funcAs}
+		de = &nodes.DefElem{Defname: "as", Arg: funcAs}
 
 	case LANGUAGE:
 		p.advance()
 		lang := p.parseNonReservedWordOrSconst()
-		return &nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: lang}}
+		de = &nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: lang}}
 
 	case TRANSFORM:
 		p.advance()
 		types := p.parseTransformTypeList()
-		return &nodes.DefElem{Defname: "transform", Arg: types}
+		de = &nodes.DefElem{Defname: "transform", Arg: types}
 
 	case WINDOW:
 		p.advance()
-		return &nodes.DefElem{Defname: "window", Arg: &nodes.Integer{Ival: 1}}
+		de = &nodes.DefElem{Defname: "window", Arg: &nodes.Integer{Ival: 1}}
 
 	default:
-		return p.parseCommonFuncOptItem()
+		de = p.parseCommonFuncOptItem()
 	}
+	if de != nil {
+		de.Loc = nodes.Loc{Start: loc, End: p.pos()}
+	}
+	return de
 }
 
 // parseFuncAs parses the AS clause body.

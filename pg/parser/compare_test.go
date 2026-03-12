@@ -3768,3 +3768,271 @@ func TestLocCreateView(t *testing.T) {
 		})
 	}
 }
+
+// TestLocAlterTable validates Loc.End for ALTER TABLE nodes.
+func TestLocAlterTable(t *testing.T) {
+	tests := []string{
+		"ALTER TABLE t ADD COLUMN c int",
+		"ALTER TABLE t DROP COLUMN c",
+		"ALTER TABLE t ALTER COLUMN c SET NOT NULL",
+		"ALTER TABLE t RENAME TO t2",
+		"ALTER TABLE t ADD CONSTRAINT c UNIQUE (a)",
+		"ALTER TABLE t DROP CONSTRAINT c",
+		"ALTER TABLE t SET SCHEMA s",
+		"ALTER TABLE t OWNER TO u",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}
+
+// TestLocAlterMisc validates Loc.End for miscellaneous ALTER nodes.
+func TestLocAlterMisc(t *testing.T) {
+	tests := []string{
+		"ALTER DOMAIN d SET NOT NULL",
+		"ALTER TYPE t ADD VALUE 'v'",
+		"ALTER SEQUENCE s RESTART",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}
+
+// TestLocCreateFunction validates Loc.End for CREATE FUNCTION nodes.
+func TestLocCreateFunction(t *testing.T) {
+	tests := []string{
+		"CREATE FUNCTION f() RETURNS int AS 'SELECT 1' LANGUAGE SQL",
+		"CREATE FUNCTION f(a int, b text) RETURNS void AS $$ $$ LANGUAGE SQL",
+		"CREATE OR REPLACE FUNCTION f() RETURNS int AS 'body' LANGUAGE plpgsql IMMUTABLE",
+		"CREATE FUNCTION f() RETURNS int AS 'body' LANGUAGE SQL STRICT SECURITY DEFINER",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}
+
+// TestLocTrigger validates Loc.End for CREATE TRIGGER nodes.
+func TestLocTrigger(t *testing.T) {
+	tests := []string{
+		"CREATE TRIGGER tr AFTER INSERT ON t FOR EACH ROW EXECUTE FUNCTION f()",
+		"CREATE TRIGGER tr BEFORE UPDATE ON t FOR EACH ROW EXECUTE PROCEDURE f()",
+		"CREATE TRIGGER tr AFTER DELETE ON t EXECUTE FUNCTION f()",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}
+
+// TestLocType validates Loc.End for CREATE TYPE nodes.
+func TestLocType(t *testing.T) {
+	tests := []string{
+		"CREATE TYPE t AS (a int, b text)",
+		"CREATE TYPE t AS ENUM ('a', 'b', 'c')",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}
+
+// TestLocDefine validates Loc.End for DEFINE statement nodes.
+func TestLocDefine(t *testing.T) {
+	tests := []string{
+		"CREATE AGGREGATE agg (int) (SFUNC = f, STYPE = int)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}
+
+// TestLocDrop validates Loc.End for DROP statement nodes.
+func TestLocDrop(t *testing.T) {
+	tests := []string{
+		"DROP TABLE t",
+		"DROP TABLE IF EXISTS t CASCADE",
+		"DROP INDEX idx",
+		"DROP VIEW v",
+		"DROP FUNCTION f()",
+		"DROP SCHEMA s CASCADE",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}
+
+// TestLocGrant validates Loc.End for GRANT/REVOKE nodes.
+func TestLocGrant(t *testing.T) {
+	tests := []string{
+		"GRANT SELECT ON t TO PUBLIC",
+		"GRANT ALL ON t TO u",
+		"REVOKE ALL ON t FROM PUBLIC",
+		"REVOKE SELECT ON t FROM u",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}
+
+// TestLocSchema validates Loc.End for CREATE SCHEMA nodes.
+func TestLocSchema(t *testing.T) {
+	tests := []string{
+		"CREATE SCHEMA s",
+		"CREATE SCHEMA IF NOT EXISTS s",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}
+
+// TestLocDatabase validates Loc.End for CREATE/DROP DATABASE nodes.
+func TestLocDatabase(t *testing.T) {
+	tests := []string{
+		"CREATE DATABASE d",
+		"DROP DATABASE d",
+		"DROP DATABASE IF EXISTS d",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}
+
+// TestLocUtility validates Loc.End for utility statement nodes.
+func TestLocUtility(t *testing.T) {
+	tests := []string{
+		"EXPLAIN SELECT 1",
+		"EXPLAIN ANALYZE SELECT 1",
+		"VACUUM t",
+		"ANALYZE t",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}
+
+// TestLocTransaction validates Loc.End for transaction statement nodes.
+func TestLocTransaction(t *testing.T) {
+	tests := []string{
+		"BEGIN",
+		"COMMIT",
+		"ROLLBACK",
+		"START TRANSACTION",
+		"SAVEPOINT sp1",
+		"RELEASE SAVEPOINT sp1",
+		"ROLLBACK TO SAVEPOINT sp1",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}
+
+// TestLocCursor validates Loc.End for cursor statement nodes.
+func TestLocCursor(t *testing.T) {
+	tests := []string{
+		"DECLARE c CURSOR FOR SELECT 1",
+		"FETCH NEXT FROM c",
+		"CLOSE c",
+		"MOVE NEXT FROM c",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}
+
+// TestLocSet validates Loc.End for SET/SHOW/RESET nodes.
+func TestLocSet(t *testing.T) {
+	tests := []string{
+		"SET search_path TO public",
+		"SET search_path = public",
+		"SET TIME ZONE 'UTC'",
+		"SHOW search_path",
+		"SHOW ALL",
+		"RESET search_path",
+		"RESET ALL",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+			violations := CheckLocations(t, sql)
+			for _, v := range violations {
+				t.Logf("  violation: %s", v)
+			}
+		})
+	}
+}

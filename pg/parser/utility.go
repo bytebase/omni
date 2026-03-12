@@ -22,15 +22,15 @@ func (p *Parser) parseExplainStmt() nodes.Node {
 			return &nodes.ExplainStmt{
 				Query: query,
 				Options: &nodes.List{Items: []nodes.Node{
-					&nodes.DefElem{Defname: "analyze"},
-					&nodes.DefElem{Defname: "verbose"},
+					&nodes.DefElem{Defname: "analyze", Loc: nodes.NoLoc()},
+					&nodes.DefElem{Defname: "verbose", Loc: nodes.NoLoc()},
 				}},
 			}
 		}
 		query := p.parseExplainableStmt()
 		return &nodes.ExplainStmt{
 			Query:   query,
-			Options: &nodes.List{Items: []nodes.Node{&nodes.DefElem{Defname: "analyze"}}},
+			Options: &nodes.List{Items: []nodes.Node{&nodes.DefElem{Defname: "analyze", Loc: nodes.NoLoc()}}},
 		}
 	}
 	if p.cur.Type == VERBOSE {
@@ -38,7 +38,7 @@ func (p *Parser) parseExplainStmt() nodes.Node {
 		query := p.parseExplainableStmt()
 		return &nodes.ExplainStmt{
 			Query:   query,
-			Options: &nodes.List{Items: []nodes.Node{&nodes.DefElem{Defname: "verbose"}}},
+			Options: &nodes.List{Items: []nodes.Node{&nodes.DefElem{Defname: "verbose", Loc: nodes.NoLoc()}}},
 		}
 	}
 	query := p.parseExplainableStmt()
@@ -85,14 +85,15 @@ func (p *Parser) parseDoStmt() nodes.Node {
 
 // parseDostmtOptItem parses dostmt_opt_item.
 func (p *Parser) parseDostmtOptItem() *nodes.DefElem {
+	loc := p.pos()
 	if p.cur.Type == LANGUAGE {
 		p.advance()
 		lang := p.parseNonReservedWordOrSconst()
-		return &nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: lang}}
+		return &nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: lang}, Loc: nodes.Loc{Start: loc, End: p.pos()}}
 	}
 	s := p.cur.Str
 	p.expect(SCONST)
-	return &nodes.DefElem{Defname: "as", Arg: &nodes.String{Str: s}}
+	return &nodes.DefElem{Defname: "as", Arg: &nodes.String{Str: s}, Loc: nodes.Loc{Start: loc, End: p.pos()}}
 }
 
 // parseCheckPointStmt parses a CHECKPOINT statement.
