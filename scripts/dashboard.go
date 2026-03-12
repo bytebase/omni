@@ -61,7 +61,7 @@ var engines = []struct {
 }{
 	{"PostgreSQL", "pg/parser/PROGRESS.json"},
 	{"MySQL", "mysql/parser/PROGRESS.json"},
-	{"T-SQL", "tsql/parser/PROGRESS.json"},
+	{"MSSQL", "mssql/parser/PROGRESS.json"},
 	{"Oracle", "oracle/parser/PROGRESS.json"},
 }
 
