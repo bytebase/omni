@@ -2303,7 +2303,7 @@
       "id": 102,
       "name": "resource_governor_options_depth",
       "file": "resource_governor.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 59 gap: replace semi-generic skip-loop in parseResourceGovernorOptions (line 325) with structured parsing. Used by 9 callers: CREATE/ALTER WORKLOAD GROUP (REQUEST_MAX_MEMORY_GRANT_PERCENT, REQUEST_MAX_CPU_TIME_SEC, MAX_DOP, GROUP_MAX_REQUESTS, IMPORTANCE), CREATE/ALTER RESOURCE POOL (MIN_CPU_PERCENT, MAX_CPU_PERCENT, CAP_CPU_PERCENT, MIN_MEMORY_PERCENT, MAX_MEMORY_PERCENT, MIN_IOPS_PER_VOLUME, MAX_IOPS_PER_VOLUME, AFFINITY), CREATE/ALTER EXTERNAL RESOURCE POOL, ALTER RESOURCE GOVERNOR (RECONFIGURE, DISABLE, RESET STATISTICS, CLASSIFIER_FUNCTION), CREATE/ALTER/DROP WORKLOAD CLASSIFIER (MEMBERNAME, WORKLOAD_GROUP, IMPORTANCE, START_TIME, END_TIME, LABEL, CONTEXT).",
       "rules": [
         "parseResourceGovernorStructuredOptions"

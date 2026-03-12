@@ -322,46 +322,40 @@ func (p *Parser) parseAlterResourceGovernorStmt() *nodes.SecurityStmt {
 // parseResourceGovernorOptions consumes the remaining tokens of a Resource Governor
 // statement (WITH (...), USING ..., RECONFIGURE, DISABLE, RESET STATISTICS, etc.)
 // and returns them as a list of String nodes.
+//
+// Used by: CREATE/ALTER WORKLOAD GROUP, CREATE/ALTER RESOURCE POOL,
+//
+//	CREATE/ALTER EXTERNAL RESOURCE POOL, ALTER RESOURCE GOVERNOR,
+//	CREATE/ALTER WORKLOAD CLASSIFIER.
+//
+// WITH clause options:
+//
+//	WORKLOAD GROUP:     IMPORTANCE, REQUEST_MAX_MEMORY_GRANT_PERCENT, REQUEST_MAX_CPU_TIME_SEC,
+//	                    REQUEST_MEMORY_GRANT_TIMEOUT_SEC, MAX_DOP, GROUP_MAX_REQUESTS,
+//	                    GROUP_MAX_TEMPDB_DATA_MB, GROUP_MAX_TEMPDB_DATA_PERCENT
+//	RESOURCE POOL:      MIN_CPU_PERCENT, MAX_CPU_PERCENT, CAP_CPU_PERCENT, MIN_MEMORY_PERCENT,
+//	                    MAX_MEMORY_PERCENT, MIN_IOPS_PER_VOLUME, MAX_IOPS_PER_VOLUME,
+//	                    AFFINITY { SCHEDULER = AUTO | (range) | NUMANODE = (range) }
+//	EXTERNAL POOL:      MAX_CPU_PERCENT, MAX_MEMORY_PERCENT, MAX_PROCESSES
+//	RESOURCE GOVERNOR:  CLASSIFIER_FUNCTION = schema.func | NULL, MAX_OUTSTANDING_IO_PER_VOLUME
+//	WORKLOAD CLASSIFIER: WORKLOAD_GROUP, MEMBERNAME, WLM_LABEL, WLM_CONTEXT,
+//	                     START_TIME, END_TIME, IMPORTANCE
+//
+// Non-WITH options:
+//
+//	USING pool_name [, EXTERNAL ext_pool] (for WORKLOAD GROUP)
+//	RECONFIGURE | DISABLE | RESET STATISTICS (for ALTER RESOURCE GOVERNOR)
 func (p *Parser) parseResourceGovernorOptions() *nodes.List {
 	var opts []nodes.Node
 
 	for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
-		if p.cur.Type == '(' {
+		if p.cur.Type == kwWITH {
 			p.advance()
-			depth := 1
-			for depth > 0 && p.cur.Type != tokEOF {
-				if p.cur.Type == '(' {
-					depth++
-				} else if p.cur.Type == ')' {
-					depth--
-				}
-				if depth > 0 {
-					if p.isIdentLike() || p.cur.Type == tokICONST || p.cur.Type == tokFCONST ||
-						p.cur.Type == tokSCONST || p.cur.Type == kwNULL ||
-						p.cur.Type == kwON || p.cur.Type == kwOFF ||
-						p.cur.Type == kwTO || p.cur.Type == kwDEFAULT {
-						optStr := strings.ToUpper(p.cur.Str)
-						p.advance()
-						if p.cur.Type == '=' {
-							p.advance()
-							if p.isIdentLike() || p.cur.Type == tokICONST || p.cur.Type == tokFCONST ||
-								p.cur.Type == tokSCONST || p.cur.Type == kwNULL ||
-								p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwDEFAULT {
-								optStr += "=" + strings.ToUpper(p.cur.Str)
-								p.advance()
-							}
-						}
-						opts = append(opts, &nodes.String{Str: optStr})
-					} else if p.cur.Type == ',' {
-						p.advance()
-					} else {
-						p.advance()
-					}
-				}
+			if p.cur.Type == '(' {
+				p.advance()
+				opts = append(opts, p.parseResourceGovernorWithOptions()...)
+				p.match(')')
 			}
-			p.match(')')
-		} else if p.cur.Type == kwWITH || p.cur.Type == ',' {
-			p.advance()
 		} else if p.isIdentLike() || p.cur.Type == kwAS || p.cur.Type == kwFOR ||
 			p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwDEFAULT ||
 			p.cur.Type == kwNULL {
@@ -369,30 +363,23 @@ func (p *Parser) parseResourceGovernorOptions() *nodes.List {
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
-				if p.isIdentLike() || p.cur.Type == tokICONST || p.cur.Type == tokFCONST ||
-					p.cur.Type == tokSCONST || p.cur.Type == kwNULL ||
-					p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwDEFAULT {
-					optStr += "=" + strings.ToUpper(p.cur.Str)
+				val := p.parseResourceGovernorValue()
+				optStr += "=" + val
+			}
+			// Handle qualified names like schema.function
+			for p.cur.Type == '.' {
+				p.advance()
+				if p.isIdentLike() {
+					optStr += "." + strings.ToUpper(p.cur.Str)
 					p.advance()
 				}
 			}
 			opts = append(opts, &nodes.String{Str: optStr})
-		} else if p.cur.Type == '.' {
-			// Handle qualified names like schema.function
-			// Append to last option
-			if len(opts) > 0 {
-				if s, ok := opts[len(opts)-1].(*nodes.String); ok {
-					p.advance() // consume '.'
-					if p.isIdentLike() {
-						s.Str += "." + strings.ToUpper(p.cur.Str)
-						p.advance()
-					}
-					continue
-				}
+			if p.cur.Type == ',' {
+				p.advance()
 			}
-			p.advance()
 		} else {
-			p.advance()
+			break
 		}
 	}
 
@@ -400,6 +387,148 @@ func (p *Parser) parseResourceGovernorOptions() *nodes.List {
 		return nil
 	}
 	return &nodes.List{Items: opts}
+}
+
+// parseResourceGovernorWithOptions parses key=value pairs inside a WITH (...) clause.
+func (p *Parser) parseResourceGovernorWithOptions() []nodes.Node {
+	var opts []nodes.Node
+
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		if p.isIdentLike() || p.cur.Type == kwNULL || p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwDEFAULT {
+			optName := strings.ToUpper(p.cur.Str)
+			p.advance()
+
+			// Special handling for AFFINITY (no = sign, sub-syntax follows directly)
+			if optName == "AFFINITY" {
+				opts = append(opts, p.parseResourceGovernorAffinityValue()...)
+			} else if p.cur.Type == '=' {
+				p.advance()
+
+				if optName == "CLASSIFIER_FUNCTION" {
+					// CLASSIFIER_FUNCTION = schema.func | NULL
+					val := p.parseResourceGovernorQualifiedValue()
+					opts = append(opts, &nodes.String{Str: optName + "=" + val})
+				} else {
+					val := p.parseResourceGovernorValue()
+					opts = append(opts, &nodes.String{Str: optName + "=" + val})
+				}
+			} else {
+				opts = append(opts, &nodes.String{Str: optName})
+			}
+		}
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+
+	return opts
+}
+
+// parseResourceGovernorValue consumes a single value: number, string, identifier, ON, OFF, NULL, DEFAULT.
+func (p *Parser) parseResourceGovernorValue() string {
+	switch {
+	case p.cur.Type == tokICONST || p.cur.Type == tokFCONST:
+		val := strings.ToUpper(p.cur.Str)
+		p.advance()
+		return val
+	case p.cur.Type == tokSCONST:
+		val := p.cur.Str
+		p.advance()
+		return val
+	case p.cur.Type == kwON:
+		p.advance()
+		return "ON"
+	case p.cur.Type == kwOFF:
+		p.advance()
+		return "OFF"
+	case p.cur.Type == kwNULL:
+		p.advance()
+		return "NULL"
+	case p.cur.Type == kwDEFAULT:
+		val := strings.ToUpper(p.cur.Str)
+		p.advance()
+		return val
+	case p.isIdentLike():
+		val := strings.ToUpper(p.cur.Str)
+		p.advance()
+		return val
+	default:
+		return ""
+	}
+}
+
+// parseResourceGovernorQualifiedValue consumes a possibly dot-qualified value (schema.func or NULL).
+func (p *Parser) parseResourceGovernorQualifiedValue() string {
+	val := p.parseResourceGovernorValue()
+	for p.cur.Type == '.' {
+		p.advance()
+		if p.isIdentLike() {
+			val += "." + strings.ToUpper(p.cur.Str)
+			p.advance()
+		}
+	}
+	return val
+}
+
+// parseResourceGovernorAffinityValue parses the AFFINITY sub-syntax:
+//
+//	AFFINITY { SCHEDULER = AUTO | ( range_spec ) | NUMANODE = ( range_spec ) }
+//	range_spec: { id | id TO id } [,...n]
+func (p *Parser) parseResourceGovernorAffinityValue() []nodes.Node {
+	var opts []nodes.Node
+
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SCHEDULER") {
+		p.advance() // consume SCHEDULER
+		if p.cur.Type == '=' {
+			p.advance()
+		}
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AUTO") {
+			opts = append(opts, &nodes.String{Str: "AFFINITY=SCHEDULER=AUTO"})
+			p.advance()
+		} else if p.cur.Type == '(' {
+			p.advance()
+			rangeStr := p.parseResourceGovernorRangeSpec()
+			p.match(')')
+			opts = append(opts, &nodes.String{Str: "AFFINITY=SCHEDULER=(" + rangeStr + ")"})
+		}
+	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "NUMANODE") {
+		p.advance() // consume NUMANODE
+		if p.cur.Type == '=' {
+			p.advance()
+		}
+		if p.cur.Type == '(' {
+			p.advance()
+			rangeStr := p.parseResourceGovernorRangeSpec()
+			p.match(')')
+			opts = append(opts, &nodes.String{Str: "AFFINITY=NUMANODE=(" + rangeStr + ")"})
+		}
+	}
+
+	return opts
+}
+
+// parseResourceGovernorRangeSpec parses: { id | id TO id } [,...n]
+func (p *Parser) parseResourceGovernorRangeSpec() string {
+	var parts []string
+	for {
+		if p.cur.Type != tokICONST && !p.isIdentLike() {
+			break
+		}
+		val := p.cur.Str
+		p.advance()
+		if p.cur.Type == kwTO {
+			p.advance()
+			if p.cur.Type == tokICONST || p.isIdentLike() {
+				val += " TO " + p.cur.Str
+				p.advance()
+			}
+		}
+		parts = append(parts, val)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	return strings.Join(parts, ", ")
 }
 
 // parseCreateWorkloadClassifierStmt parses CREATE WORKLOAD CLASSIFIER.

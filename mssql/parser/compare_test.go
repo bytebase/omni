@@ -10708,3 +10708,111 @@ func TestParseEventSessionSpecsDepth(t *testing.T) {
 		})
 	}
 }
+
+// TestParseResourceGovernorOptionsDepth tests batch 102: structured parsing of Resource Governor options.
+func TestParseResourceGovernorOptionsDepth(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		// Workload group structured options
+		{
+			name: "workload_group_all_options",
+			sql:  "CREATE WORKLOAD GROUP wg1 WITH (IMPORTANCE = HIGH, REQUEST_MAX_MEMORY_GRANT_PERCENT = 25, REQUEST_MAX_CPU_TIME_SEC = 60, REQUEST_MEMORY_GRANT_TIMEOUT_SEC = 30, MAX_DOP = 8, GROUP_MAX_REQUESTS = 100)",
+		},
+		{
+			name: "workload_group_using_pool",
+			sql:  "CREATE WORKLOAD GROUP wg1 WITH (MAX_DOP = 4) USING myPool",
+		},
+		{
+			name: "workload_group_using_external",
+			sql:  "CREATE WORKLOAD GROUP wg1 USING myPool, EXTERNAL myExtPool",
+		},
+		{
+			name: "alter_workload_group_importance",
+			sql:  "ALTER WORKLOAD GROUP [default] WITH (IMPORTANCE = LOW)",
+		},
+		// Resource pool structured options
+		{
+			name: "resource_pool_cpu_memory",
+			sql:  "CREATE RESOURCE POOL rp1 WITH (MIN_CPU_PERCENT = 10, MAX_CPU_PERCENT = 50, MIN_MEMORY_PERCENT = 5, MAX_MEMORY_PERCENT = 25)",
+		},
+		{
+			name: "resource_pool_iops",
+			sql:  "CREATE RESOURCE POOL rp1 WITH (MIN_IOPS_PER_VOLUME = 100, MAX_IOPS_PER_VOLUME = 1000)",
+		},
+		{
+			name: "resource_pool_affinity_auto",
+			sql:  "CREATE RESOURCE POOL rp1 WITH (AFFINITY SCHEDULER = AUTO)",
+		},
+		{
+			name: "resource_pool_affinity_range",
+			sql:  "CREATE RESOURCE POOL rp1 WITH (AFFINITY SCHEDULER = (0 TO 63, 128 TO 191))",
+		},
+		{
+			name: "resource_pool_affinity_numanode",
+			sql:  "CREATE RESOURCE POOL rp1 WITH (AFFINITY NUMANODE = (0, 1))",
+		},
+		{
+			name: "alter_resource_pool_cap_cpu",
+			sql:  "ALTER RESOURCE POOL rp1 WITH (CAP_CPU_PERCENT = 80)",
+		},
+		// ALTER RESOURCE GOVERNOR structured
+		{
+			name: "alter_resource_governor_reconfigure",
+			sql:  "ALTER RESOURCE GOVERNOR RECONFIGURE",
+		},
+		{
+			name: "alter_resource_governor_disable",
+			sql:  "ALTER RESOURCE GOVERNOR DISABLE",
+		},
+		{
+			name: "alter_resource_governor_reset_statistics",
+			sql:  "ALTER RESOURCE GOVERNOR RESET STATISTICS",
+		},
+		{
+			name: "alter_resource_governor_classifier",
+			sql:  "ALTER RESOURCE GOVERNOR WITH (CLASSIFIER_FUNCTION = dbo.myClassifier)",
+		},
+		{
+			name: "alter_resource_governor_classifier_null",
+			sql:  "ALTER RESOURCE GOVERNOR WITH (CLASSIFIER_FUNCTION = NULL)",
+		},
+		// Workload classifier structured options
+		{
+			name: "workload_classifier_full",
+			sql:  "CREATE WORKLOAD CLASSIFIER wc1 WITH (WORKLOAD_GROUP = 'wg1', MEMBERNAME = 'user1', IMPORTANCE = HIGH)",
+		},
+		{
+			name: "workload_classifier_all_options",
+			sql:  "CREATE WORKLOAD CLASSIFIER wc1 WITH (WORKLOAD_GROUP = 'wg1', MEMBERNAME = 'user1', WLM_LABEL = 'label1', WLM_CONTEXT = 'ctx1', START_TIME = '08:00', END_TIME = '17:00', IMPORTANCE = NORMAL)",
+		},
+		{
+			name: "alter_workload_classifier",
+			sql:  "ALTER WORKLOAD CLASSIFIER wc1 WITH (IMPORTANCE = LOW)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() == 0 {
+				t.Fatalf("Parse(%q): no statements returned", tt.sql)
+			}
+			stmt, ok := result.Items[0].(*ast.SecurityStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *ast.SecurityStmt, got %T", tt.sql, result.Items[0])
+			}
+			checkLocation(t, tt.sql, "SecurityStmt", stmt.Loc)
+
+			s1 := ast.NodeToString(result.Items[0])
+			s2 := ast.NodeToString(result.Items[0])
+			if s1 != s2 {
+				t.Errorf("Parse(%q): serialization not deterministic:\n  s1=%s\n  s2=%s", tt.sql, s1, s2)
+			}
+			if s1 == "" {
+				t.Errorf("Parse(%q): empty serialization", tt.sql)
+			}
+		})
+	}
+}
