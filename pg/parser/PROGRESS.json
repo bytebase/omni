@@ -1069,7 +1069,7 @@
       "id": 37,
       "name": "tablespace",
       "file": "schema.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE TABLESPACE, DROP TABLESPACE, and full ALTER TABLESPACE (SET/RESET reloptions). Currently ALTER TABLESPACE only handles OWNER/RENAME, missing SET/RESET. Refs: https://www.postgresql.org/docs/17/sql-createtablespace.html, https://www.postgresql.org/docs/17/sql-droptablespace.html, https://www.postgresql.org/docs/17/sql-altertablespace.html",
       "rules": [
         "CreateTableSpaceStmt",
@@ -1143,7 +1143,7 @@
       "id": 41,
       "name": "alter_tablespace_set_reset",
       "file": "alter_misc.go",
-      "status": "pending",
+      "status": "done",
       "description": "Complete ALTER TABLESPACE SET/RESET reloptions (AlterTableSpaceOptionsStmt). Currently parseAlterTablespaceOwner handles OWNER/RENAME but returns nil for SET. Must produce AlterTableSpaceOptionsStmt with IsReset flag. Ref: https://www.postgresql.org/docs/17/sql-altertablespace.html",
       "rules": [
         "AlterTblSpcStmt"

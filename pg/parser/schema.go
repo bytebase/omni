@@ -91,6 +91,66 @@ func (p *Parser) parseSchemaStmt() nodes.Node {
 	}
 }
 
+// parseCreateTableSpaceStmt parses a CREATE TABLESPACE statement.
+// The CREATE keyword has already been consumed. Current token is TABLESPACE.
+//
+// Ref: https://www.postgresql.org/docs/17/sql-createtablespace.html
+//
+//	CREATE TABLESPACE tablespace_name
+//	    [ OWNER { new_owner | CURRENT_ROLE | CURRENT_USER | SESSION_USER } ]
+//	    LOCATION 'directory'
+//	    [ WITH ( tablespace_option = value [, ... ] ) ]
+func (p *Parser) parseCreateTableSpaceStmt() nodes.Node {
+	p.advance() // consume TABLESPACE
+	name, _ := p.parseName()
+
+	var owner *nodes.RoleSpec
+	if p.cur.Type == OWNER {
+		p.advance()
+		owner = p.parseRoleSpec()
+	}
+
+	p.expect(LOCATION)
+	loc := p.cur.Str
+	p.expect(SCONST)
+
+	var options *nodes.List
+	if p.cur.Type == WITH {
+		p.advance()
+		options = p.parseReloptions()
+	}
+
+	return &nodes.CreateTableSpaceStmt{
+		Tablespacename: name,
+		Owner:          owner,
+		Location:       loc,
+		Options:        options,
+	}
+}
+
+// parseDropTableSpaceStmt parses a DROP TABLESPACE statement.
+// The DROP keyword has already been consumed. Current token is TABLESPACE.
+//
+// Ref: https://www.postgresql.org/docs/17/sql-droptablespace.html
+//
+//	DROP TABLESPACE [ IF EXISTS ] name
+func (p *Parser) parseDropTableSpaceStmt() nodes.Node {
+	p.advance() // consume TABLESPACE
+
+	missingOk := false
+	if p.cur.Type == IF_P {
+		p.advance()
+		p.expect(EXISTS)
+		missingOk = true
+	}
+
+	name, _ := p.parseName()
+	return &nodes.DropTableSpaceStmt{
+		Tablespacename: name,
+		MissingOk:      missingOk,
+	}
+}
+
 // parseCommentStmt parses a COMMENT ON statement.
 // COMMENT has already been consumed. Current token is ON.
 func (p *Parser) parseCommentStmt() nodes.Node {

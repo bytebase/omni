@@ -2718,6 +2718,34 @@ func TestCompareAlterGeneric(t *testing.T) {
 	}
 }
 
+// TestCompareTablespace runs tablespace comparison tests for batch 37.
+func TestCompareTablespace(t *testing.T) {
+	tests := []string{
+		// CREATE TABLESPACE
+		"CREATE TABLESPACE dbspace LOCATION '/data/dbs'",
+		"CREATE TABLESPACE indexspace OWNER genevieve LOCATION '/data/indexes'",
+		"CREATE TABLESPACE myspace LOCATION '/data' WITH (seq_page_cost = 1.0, random_page_cost = 4.0)",
+		"CREATE TABLESPACE myspace OWNER myuser LOCATION '/data' WITH (effective_io_concurrency = 200)",
+		// DROP TABLESPACE
+		"DROP TABLESPACE mystuff",
+		"DROP TABLESPACE IF EXISTS mystuff",
+		// ALTER TABLESPACE SET/RESET
+		"ALTER TABLESPACE myspace SET (seq_page_cost = 1.0)",
+		"ALTER TABLESPACE myspace SET (random_page_cost = 4.0, effective_io_concurrency = 200)",
+		"ALTER TABLESPACE myspace RESET (seq_page_cost)",
+		"ALTER TABLESPACE myspace RESET (random_page_cost, effective_io_concurrency)",
+		// ALTER TABLESPACE OWNER TO
+		"ALTER TABLESPACE myspace OWNER TO newowner",
+		// ALTER TABLESPACE RENAME TO
+		"ALTER TABLESPACE myspace RENAME TO newname",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
 // TestCompareAlterSystem runs ALTER SYSTEM comparison tests for batch 36.
 func TestCompareAlterSystem(t *testing.T) {
 	tests := []string{

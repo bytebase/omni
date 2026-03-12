@@ -1086,10 +1086,20 @@ func (p *Parser) parseAlterTablespaceOwner() nodes.Node {
 		}
 	case SET:
 		p.advance()
-		// SET reloptions or SET (...)
-		opts := p.parseDefinition()
-		_ = opts
-		return nil // Tablespace SET (...) is handled differently in yacc, skip for now
+		opts := p.parseReloptions()
+		return &nodes.AlterTableSpaceOptionsStmt{
+			Tablespacename: name,
+			Options:        opts,
+			IsReset:        false,
+		}
+	case RESET:
+		p.advance()
+		opts := p.parseReloptions()
+		return &nodes.AlterTableSpaceOptionsStmt{
+			Tablespacename: name,
+			Options:        opts,
+			IsReset:        true,
+		}
 	default:
 		return nil
 	}

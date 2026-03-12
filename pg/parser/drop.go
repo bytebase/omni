@@ -93,6 +93,8 @@ func (p *Parser) parseDropStmt() nodes.Node {
 		return p.parseDropTransformStmt()
 	case OPERATOR:
 		return p.parseDropOperatorClassOrFamily()
+	case TABLESPACE:
+		return p.parseDropTableSpaceStmt()
 	default:
 		return nil
 	}
