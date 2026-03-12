@@ -2281,7 +2281,7 @@
       "id": 101,
       "name": "event_session_specs_depth",
       "file": "event.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 56 gap: replace skip-loops in parseEventSessionEventSpec (line 392) and parseEventSessionTargetSpec (line 421) with structured parsing. Event spec SET: ( SET column = value [,...] ), ACTION: ( package.action [,...] ), WHERE: ( predicate ). Target spec SET: ( SET column = value [,...] ). Values can be quoted strings, integers, or identifiers.",
       "rules": [
         "parseEventSpecSetClause",

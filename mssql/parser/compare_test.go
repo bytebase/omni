@@ -10627,3 +10627,84 @@ func TestParseServiceBrokerAlterOptionsDepth(t *testing.T) {
 		})
 	}
 }
+
+// TestParseEventSessionSpecsDepth tests batch 101: structured parsing of event session event/target specs.
+func TestParseEventSessionSpecsDepth(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		// Event spec with SET
+		{
+			name: "event_spec_set",
+			sql:  "CREATE EVENT SESSION s1 ON SERVER ADD EVENT sqlserver.sql_batch_starting (SET collect_batch_text = 1)",
+		},
+		{
+			name: "event_spec_set_multiple",
+			sql:  "CREATE EVENT SESSION s1 ON SERVER ADD EVENT sqlserver.query_post_execution_showplan (SET collect_database_name = 1, collect_object_name = 1)",
+		},
+		// Event spec with ACTION
+		{
+			name: "event_spec_action",
+			sql:  "CREATE EVENT SESSION s1 ON SERVER ADD EVENT sqlserver.sql_batch_starting (ACTION (sqlserver.session_id))",
+		},
+		{
+			name: "event_spec_action_multiple",
+			sql:  "CREATE EVENT SESSION s1 ON SERVER ADD EVENT sqlserver.sql_batch_starting (ACTION (sqlserver.session_id, sqlserver.database_id, sqlserver.client_hostname))",
+		},
+		// Event spec with WHERE
+		{
+			name: "event_spec_where_simple",
+			sql:  "CREATE EVENT SESSION s1 ON SERVER ADD EVENT sqlserver.sql_batch_starting (WHERE sqlserver.session_id > 50)",
+		},
+		{
+			name: "event_spec_where_and",
+			sql:  "CREATE EVENT SESSION s1 ON SERVER ADD EVENT sqlserver.sql_batch_starting (WHERE sqlserver.session_id > 50 AND sqlserver.database_id = 5)",
+		},
+		{
+			name: "event_spec_where_string",
+			sql:  "CREATE EVENT SESSION s1 ON SERVER ADD EVENT sqlserver.sql_batch_starting (WHERE batch_text = 'SELECT')",
+		},
+		// Event spec with SET + ACTION + WHERE combined
+		{
+			name: "event_spec_all_clauses",
+			sql:  "CREATE EVENT SESSION s1 ON SERVER ADD EVENT sqlserver.sql_batch_starting (SET collect_batch_text = 1 ACTION (sqlserver.session_id) WHERE sqlserver.session_id > 50)",
+		},
+		// Target spec with SET
+		{
+			name: "target_spec_set",
+			sql:  "CREATE EVENT SESSION s1 ON SERVER ADD EVENT sqlserver.sql_batch_starting ADD TARGET package0.event_file (SET filename = 'test.xel')",
+		},
+		{
+			name: "target_spec_set_multiple",
+			sql:  "CREATE EVENT SESSION s1 ON SERVER ADD EVENT sqlserver.sql_batch_starting ADD TARGET package0.event_file (SET filename = 'test.xel', max_file_size = 256, max_rollover_files = 10)",
+		},
+		{
+			name: "target_spec_ring_buffer",
+			sql:  "CREATE EVENT SESSION s1 ON SERVER ADD EVENT sqlserver.sql_batch_starting ADD TARGET package0.ring_buffer (SET max_memory = 1024)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() == 0 {
+				t.Fatalf("Parse(%q): no statements returned", tt.sql)
+			}
+			stmt, ok := result.Items[0].(*ast.SecurityStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *ast.SecurityStmt, got %T", tt.sql, result.Items[0])
+			}
+			checkLocation(t, tt.sql, "SecurityStmt", stmt.Loc)
+
+			s1 := ast.NodeToString(result.Items[0])
+			s2 := ast.NodeToString(result.Items[0])
+			if s1 != s2 {
+				t.Errorf("Parse(%q): serialization not deterministic:\n  s1=%s\n  s2=%s", tt.sql, s1, s2)
+			}
+			if s1 == "" {
+				t.Errorf("Parse(%q): empty serialization", tt.sql)
+			}
+		})
+	}
+}

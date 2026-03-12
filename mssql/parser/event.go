@@ -382,6 +382,13 @@ func (p *Parser) parseEventSessionBody() *nodes.List {
 }
 
 // parseEventSessionEventSpec parses an ADD EVENT specifier with optional (SET/ACTION/WHERE).
+//
+//	ADD EVENT [event_module_guid].event_package_name.event_name
+//	     [ ( {
+//	             [ SET { event_customizable_attribute = <value> [ , ...n ] } ]
+//	             [ ACTION ( { [event_module_guid].event_package_name.action_name [ , ...n ] } ) ]
+//	             [ WHERE <predicate_expression> ]
+//	    } ) ]
 func (p *Parser) parseEventSessionEventSpec(prefix string) []nodes.Node {
 	var result []nodes.Node
 
@@ -391,16 +398,58 @@ func (p *Parser) parseEventSessionEventSpec(prefix string) []nodes.Node {
 	// Optional parenthesized SET/ACTION/WHERE
 	if p.cur.Type == '(' {
 		p.advance()
-		depth := 1
-		for depth > 0 && p.cur.Type != tokEOF {
-			if p.cur.Type == '(' {
-				depth++
-			} else if p.cur.Type == ')' {
-				depth--
-			}
-			if depth > 0 {
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			if p.cur.Type == kwSET {
+				// SET { attribute = value [ , ...n ] }
+				p.advance()
+				for {
+					if !p.isIdentLike() {
+						break
+					}
+					attrName := p.cur.Str
+					p.advance()
+					if p.cur.Type == '=' {
+						p.advance()
+						val := p.parseEventSessionValue()
+						result = append(result, &nodes.String{Str: "SET " + attrName + "=" + val})
+					}
+					if _, ok := p.match(','); !ok {
+						break
+					}
+					// Stop if next token is ACTION or WHERE (not another SET pair)
+					if p.isIdentLike() && (matchesKeywordCI(p.cur.Str, "ACTION") || matchesKeywordCI(p.cur.Str, "WHERE")) {
+						break
+					}
+				}
+			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ACTION") {
+				// ACTION ( { package.action_name [ , ...n ] } )
+				p.advance()
+				if p.cur.Type == '(' {
+					p.advance()
+					for p.cur.Type != ')' && p.cur.Type != tokEOF {
+						actionName := p.parseEventSessionDottedName()
+						if actionName != "" {
+							result = append(result, &nodes.String{Str: "ACTION=" + actionName})
+						}
+						if _, ok := p.match(','); !ok {
+							break
+						}
+					}
+					p.match(')')
+				}
+			} else if p.cur.Type == kwWHERE {
+				// WHERE <predicate_expression>
+				p.advance()
+				predicate := p.parseEventSessionPredicate()
+				if predicate != "" {
+					result = append(result, &nodes.String{Str: "WHERE " + predicate})
+				}
+			} else {
+				// Skip unexpected tokens
 				p.advance()
 			}
+			// Optional comma between clauses
+			p.match(',')
 		}
 		p.match(')')
 	}
@@ -409,6 +458,9 @@ func (p *Parser) parseEventSessionEventSpec(prefix string) []nodes.Node {
 }
 
 // parseEventSessionTargetSpec parses an ADD TARGET specifier with optional (SET ...).
+//
+//	ADD TARGET [event_module_guid].event_package_name.target_name
+//	    [ ( SET { target_parameter_name = <value> [ , ...n ] } ) ]
 func (p *Parser) parseEventSessionTargetSpec(prefix string) []nodes.Node {
 	var result []nodes.Node
 
@@ -418,21 +470,140 @@ func (p *Parser) parseEventSessionTargetSpec(prefix string) []nodes.Node {
 	// Optional parenthesized SET
 	if p.cur.Type == '(' {
 		p.advance()
-		depth := 1
-		for depth > 0 && p.cur.Type != tokEOF {
-			if p.cur.Type == '(' {
-				depth++
-			} else if p.cur.Type == ')' {
-				depth--
-			}
-			if depth > 0 {
+		if p.cur.Type == kwSET {
+			p.advance()
+			for {
+				if !p.isIdentLike() && p.cur.Type != tokSCONST {
+					break
+				}
+				paramName := p.cur.Str
 				p.advance()
+				if p.cur.Type == '=' {
+					p.advance()
+					val := p.parseEventSessionValue()
+					result = append(result, &nodes.String{Str: "SET " + paramName + "=" + val})
+				}
+				if _, ok := p.match(','); !ok {
+					break
+				}
 			}
 		}
 		p.match(')')
 	}
 
 	return result
+}
+
+// parseEventSessionValue consumes a value: number, 'string', N'string', or identifier.
+func (p *Parser) parseEventSessionValue() string {
+	switch {
+	case p.cur.Type == tokICONST:
+		val := p.cur.Str
+		p.advance()
+		return val
+	case p.cur.Type == tokSCONST:
+		val := p.cur.Str
+		p.advance()
+		return val
+	case p.cur.Type == tokNSCONST:
+		val := p.cur.Str
+		p.advance()
+		return val
+	case p.cur.Type == kwON:
+		p.advance()
+		return "ON"
+	case p.cur.Type == kwOFF:
+		p.advance()
+		return "OFF"
+	case p.isIdentLike():
+		val := p.cur.Str
+		p.advance()
+		return val
+	default:
+		return ""
+	}
+}
+
+// parseEventSessionPredicate consumes a simple predicate expression for event WHERE clauses.
+// Handles: field_name { = | <> | != | > | >= | < | <= } value
+// and: AND/OR connectors, NOT, parenthesized sub-expressions.
+func (p *Parser) parseEventSessionPredicate() string {
+	var parts []string
+	for {
+		part := p.parseEventSessionPredicateFactor()
+		if part == "" {
+			break
+		}
+		parts = append(parts, part)
+		// AND / OR
+		if p.cur.Type == kwAND {
+			parts = append(parts, "AND")
+			p.advance()
+		} else if p.cur.Type == kwOR {
+			parts = append(parts, "OR")
+			p.advance()
+		} else {
+			break
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+// parseEventSessionPredicateFactor parses a single predicate factor.
+func (p *Parser) parseEventSessionPredicateFactor() string {
+	// NOT
+	notPrefix := ""
+	if p.cur.Type == kwNOT {
+		notPrefix = "NOT "
+		p.advance()
+	}
+
+	// Parenthesized sub-expression
+	if p.cur.Type == '(' {
+		p.advance()
+		inner := p.parseEventSessionPredicate()
+		p.match(')')
+		return notPrefix + "(" + inner + ")"
+	}
+
+	// field_name or package.predicate_source_name
+	lhs := p.parseEventSessionDottedName()
+	if lhs == "" {
+		return ""
+	}
+
+	// Comparison operator
+	op := ""
+	switch p.cur.Type {
+	case '=':
+		op = "="
+		p.advance()
+	case '<':
+		p.advance()
+		if p.cur.Type == '=' {
+			op = "<="
+			p.advance()
+		} else {
+			op = "<"
+		}
+	case '>':
+		p.advance()
+		if p.cur.Type == '=' {
+			op = ">="
+			p.advance()
+		} else {
+			op = ">"
+		}
+	case tokNOTEQUAL: // != or <>
+		op = "!="
+		p.advance()
+	default:
+		return notPrefix + lhs
+	}
+
+	// RHS value
+	rhs := p.parseEventSessionValue()
+	return notPrefix + lhs + " " + op + " " + rhs
 }
 
 // parseEventSessionDottedName consumes a dotted name like package.event_name or [guid].package.name.
