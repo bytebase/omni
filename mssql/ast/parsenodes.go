@@ -620,6 +620,7 @@ type CreateTriggerStmt struct {
 	Table             *TableRef // ON table/view (DML trigger, nil for DDL/Logon)
 	OnDatabase        bool      // ON DATABASE (DDL trigger)
 	OnAllServer       bool      // ON ALL SERVER (DDL/Logon trigger)
+	TriggerOptions    *List     // WITH options: ENCRYPTION, EXECUTE AS, NATIVE_COMPILATION, SCHEMABINDING
 	TriggerType       string    // "FOR", "AFTER", "INSTEAD OF"
 	Events            *List     // list of String: INSERT/UPDATE/DELETE (DML) or event types (DDL)
 	WithAppend        bool      // WITH APPEND

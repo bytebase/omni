@@ -2055,7 +2055,7 @@
       "id": 89,
       "name": "trigger_with_options",
       "file": "trigger.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 24 gap: structurally parse CREATE/ALTER TRIGGER WITH options (ENCRYPTION, EXECUTE AS CALLER/SELF/OWNER/'user_name', NATIVE_COMPILATION, SCHEMABINDING) instead of skipping tokens between WITH and FOR/AFTER/INSTEAD.",
       "rules": [
         "parseTriggerWithOptions"

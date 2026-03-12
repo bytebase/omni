@@ -790,6 +790,10 @@ func writeCreateTriggerStmt(sb *strings.Builder, n *CreateTriggerStmt) {
 	if n.OnAllServer {
 		sb.WriteString(" :onAllServer true")
 	}
+	if n.TriggerOptions != nil {
+		sb.WriteString(" :triggerOptions ")
+		writeNode(sb, n.TriggerOptions)
+	}
 	if n.TriggerType != "" {
 		sb.WriteString(fmt.Sprintf(" :triggerType \"%s\"", n.TriggerType))
 	}

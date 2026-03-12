@@ -9240,3 +9240,75 @@ func TestParseAlterTablePeriod(t *testing.T) {
 		}
 	})
 }
+
+// TestParseTriggerWithOptions tests CREATE TRIGGER WITH options (batch 89).
+func TestParseTriggerWithOptions(t *testing.T) {
+	// WITH ENCRYPTION
+	t.Run("trigger_with_encryption", func(t *testing.T) {
+		sql := "CREATE TRIGGER tr1 ON dbo.t1 WITH ENCRYPTION AFTER INSERT AS BEGIN SELECT 1 END"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTriggerStmt)
+		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 1 {
+			t.Fatalf("expected 1 trigger option, got %v", stmt.TriggerOptions)
+		}
+		opt := stmt.TriggerOptions.Items[0].(*ast.String).Str
+		if opt != "ENCRYPTION" {
+			t.Errorf("expected ENCRYPTION option, got %q", opt)
+		}
+		if stmt.TriggerType != "AFTER" {
+			t.Errorf("expected AFTER trigger type, got %q", stmt.TriggerType)
+		}
+	})
+
+	// WITH EXECUTE AS
+	t.Run("trigger_with_execute_as", func(t *testing.T) {
+		sql := "CREATE TRIGGER tr2 ON dbo.t2 WITH EXECUTE AS OWNER AFTER UPDATE AS BEGIN SELECT 1 END"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTriggerStmt)
+		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 1 {
+			t.Fatalf("expected 1 trigger option")
+		}
+		opt := stmt.TriggerOptions.Items[0].(*ast.String).Str
+		if opt != "EXECUTE AS OWNER" {
+			t.Errorf("expected 'EXECUTE AS OWNER', got %q", opt)
+		}
+	})
+
+	// WITH EXECUTE AS 'user'
+	t.Run("trigger_with_execute_as_user", func(t *testing.T) {
+		sql := "CREATE TRIGGER tr3 ON t3 WITH EXECUTE AS 'dbo' FOR INSERT AS BEGIN SELECT 1 END"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTriggerStmt)
+		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 1 {
+			t.Fatalf("expected 1 trigger option")
+		}
+		opt := stmt.TriggerOptions.Items[0].(*ast.String).Str
+		if opt != "EXECUTE AS dbo" {
+			t.Errorf("expected 'EXECUTE AS dbo', got %q", opt)
+		}
+	})
+
+	// WITH ENCRYPTION, EXECUTE AS CALLER (multiple options)
+	t.Run("trigger_with_multiple_options", func(t *testing.T) {
+		sql := "CREATE TRIGGER tr4 ON t4 WITH ENCRYPTION, EXECUTE AS CALLER AFTER DELETE AS BEGIN SELECT 1 END"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTriggerStmt)
+		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 2 {
+			t.Fatalf("expected 2 trigger options, got %d", stmt.TriggerOptions.Len())
+		}
+	})
+
+	// WITH SCHEMABINDING
+	t.Run("trigger_with_schemabinding", func(t *testing.T) {
+		sql := "CREATE TRIGGER tr5 ON t5 WITH SCHEMABINDING AFTER INSERT AS BEGIN SELECT 1 END"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTriggerStmt)
+		if stmt.TriggerOptions == nil || stmt.TriggerOptions.Len() != 1 {
+			t.Fatalf("expected 1 trigger option")
+		}
+		opt := stmt.TriggerOptions.Items[0].(*ast.String).Str
+		if opt != "SCHEMABINDING" {
+			t.Errorf("expected SCHEMABINDING, got %q", opt)
+		}
+	})
+}

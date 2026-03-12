@@ -69,24 +69,24 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) *nodes.CreateTriggerStmt {
 		stmt.Table = p.parseTableRef()
 	}
 
-	// Optional WITH clause (ENCRYPTION, EXECUTE AS, etc.) -- skip for now
+	// Optional WITH clause (trigger options: ENCRYPTION, EXECUTE AS, NATIVE_COMPILATION, SCHEMABINDING)
+	//
+	//  <dml_trigger_option> ::=
+	//      [ ENCRYPTION ]
+	//      [ EXECUTE AS Clause ]
+	//      [ NATIVE_COMPILATION ]
+	//      [ SCHEMABINDING ]
 	if p.cur.Type == kwWITH {
 		next := p.peekNext()
 		// Distinguish WITH ENCRYPTION/EXECUTE AS from WITH APPEND
 		if next.Type != tokIDENT || !strings.EqualFold(next.Str, "APPEND") {
 			p.advance() // consume WITH
-			// Skip trigger options until we hit FOR/AFTER/INSTEAD
-			for p.cur.Type != kwFOR && p.cur.Type != tokEOF &&
-				!p.matchIdentCI("AFTER") && !p.matchIdentCI("INSTEAD") {
-				if p.matchIdentCI("AFTER") || p.matchIdentCI("INSTEAD") {
-					break
-				}
-				p.advance()
-			}
-			// We may have consumed AFTER or INSTEAD above, handle below
+			stmt.TriggerOptions = p.parseTriggerWithOptions()
 		}
 	}
 
+	// Handle case where matchIdentCI in parseTriggerWithOptions already consumed AFTER/INSTEAD
+	// by checking if TriggerType was set during option parsing
 	// { FOR | AFTER | INSTEAD OF }
 	if p.cur.Type == kwFOR {
 		stmt.TriggerType = "FOR"
@@ -158,4 +158,63 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) *nodes.CreateTriggerStmt {
 
 	stmt.Loc.End = p.pos()
 	return stmt
+}
+
+// parseTriggerWithOptions parses comma-separated trigger options after WITH.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-trigger-transact-sql
+//
+//	<dml_trigger_option> ::=
+//	    ENCRYPTION
+//	  | EXECUTE AS { CALLER | SELF | OWNER | 'user_name' }
+//	  | NATIVE_COMPILATION
+//	  | SCHEMABINDING
+func (p *Parser) parseTriggerWithOptions() *nodes.List {
+	var items []nodes.Node
+	for {
+		if p.cur.Type == kwFOR || p.cur.Type == tokEOF {
+			break
+		}
+		// Check for AFTER / INSTEAD which mark end of options
+		if p.isIdentLike() && (strings.EqualFold(p.cur.Str, "AFTER") || strings.EqualFold(p.cur.Str, "INSTEAD")) {
+			break
+		}
+
+		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "ENCRYPTION") {
+			items = append(items, &nodes.String{Str: "ENCRYPTION"})
+			p.advance()
+		} else if p.cur.Type == kwEXEC || p.cur.Type == kwEXECUTE {
+			p.advance() // consume EXECUTE/EXEC
+			if p.cur.Type == kwAS {
+				p.advance() // consume AS
+			}
+			// CALLER | SELF | OWNER | 'user_name'
+			var asVal string
+			if p.cur.Type == tokSCONST {
+				asVal = p.cur.Str
+				p.advance()
+			} else if p.isIdentLike() {
+				asVal = strings.ToUpper(p.cur.Str)
+				p.advance()
+			}
+			items = append(items, &nodes.String{Str: "EXECUTE AS " + asVal})
+		} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "NATIVE_COMPILATION") {
+			items = append(items, &nodes.String{Str: "NATIVE_COMPILATION"})
+			p.advance()
+		} else if p.cur.Type == kwSCHEMABINDING {
+			items = append(items, &nodes.String{Str: "SCHEMABINDING"})
+			p.advance()
+		} else {
+			// Unknown option — break to avoid infinite loop
+			break
+		}
+
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	return &nodes.List{Items: items}
 }
