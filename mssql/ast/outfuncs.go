@@ -68,6 +68,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateProcedureStmt(sb, n)
 	case *CreateDatabaseStmt:
 		writeCreateDatabaseStmt(sb, n)
+	case *DatabaseFileSpec:
+		writeDatabaseFileSpec(sb, n)
+	case *DatabaseFilegroup:
+		writeDatabaseFilegroup(sb, n)
 	case *AlterDatabaseStmt:
 		writeAlterDatabaseStmt(sb, n)
 	case *AlterIndexStmt:
@@ -837,9 +841,81 @@ func writeCreateProcedureStmt(sb *strings.Builder, n *CreateProcedureStmt) {
 func writeCreateDatabaseStmt(sb *strings.Builder, n *CreateDatabaseStmt) {
 	sb.WriteString("{CREATEDATABASE")
 	sb.WriteString(fmt.Sprintf(" :name \"%s\"", escapeString(n.Name)))
+	if n.Containment != "" {
+		sb.WriteString(fmt.Sprintf(" :containment \"%s\"", escapeString(n.Containment)))
+	}
+	if n.OnPrimary != nil {
+		sb.WriteString(" :on_primary ")
+		writeNode(sb, n.OnPrimary)
+	}
+	if n.Filegroups != nil {
+		sb.WriteString(" :filegroups ")
+		writeNode(sb, n.Filegroups)
+	}
+	if n.LogOn != nil {
+		sb.WriteString(" :log_on ")
+		writeNode(sb, n.LogOn)
+	}
+	if n.Collation != "" {
+		sb.WriteString(fmt.Sprintf(" :collation \"%s\"", escapeString(n.Collation)))
+	}
+	if n.WithOptions != nil {
+		sb.WriteString(" :with_options ")
+		writeNode(sb, n.WithOptions)
+	}
+	if n.ForAttach {
+		sb.WriteString(" :for_attach true")
+	}
+	if n.AttachOptions != nil {
+		sb.WriteString(" :attach_options ")
+		writeNode(sb, n.AttachOptions)
+	}
+	if n.ForAttachRebuildLog {
+		sb.WriteString(" :for_attach_rebuild_log true")
+	}
+	if n.SnapshotOf != "" {
+		sb.WriteString(fmt.Sprintf(" :snapshot_of \"%s\"", escapeString(n.SnapshotOf)))
+	}
 	if n.Options != nil {
 		sb.WriteString(" :options ")
 		writeNode(sb, n.Options)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeDatabaseFileSpec(sb *strings.Builder, n *DatabaseFileSpec) {
+	sb.WriteString("{DBFILESPEC")
+	sb.WriteString(fmt.Sprintf(" :name \"%s\"", escapeString(n.Name)))
+	sb.WriteString(fmt.Sprintf(" :filename \"%s\"", escapeString(n.Filename)))
+	if n.Size != "" {
+		sb.WriteString(fmt.Sprintf(" :size \"%s\"", escapeString(n.Size)))
+	}
+	if n.MaxSize != "" {
+		sb.WriteString(fmt.Sprintf(" :maxsize \"%s\"", escapeString(n.MaxSize)))
+	}
+	if n.FileGrowth != "" {
+		sb.WriteString(fmt.Sprintf(" :filegrowth \"%s\"", escapeString(n.FileGrowth)))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeDatabaseFilegroup(sb *strings.Builder, n *DatabaseFilegroup) {
+	sb.WriteString("{DBFILEGROUP")
+	sb.WriteString(fmt.Sprintf(" :name \"%s\"", escapeString(n.Name)))
+	if n.ContainsFilestream {
+		sb.WriteString(" :contains_filestream true")
+	}
+	if n.ContainsMemoryOptimized {
+		sb.WriteString(" :contains_memory_optimized true")
+	}
+	if n.IsDefault {
+		sb.WriteString(" :default true")
+	}
+	if n.Files != nil {
+		sb.WriteString(" :files ")
+		writeNode(sb, n.Files)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

@@ -691,13 +691,56 @@ func (n *CreateProcedureStmt) stmtNode() {}
 // CreateDatabaseStmt represents a CREATE DATABASE statement.
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-database-transact-sql
 type CreateDatabaseStmt struct {
-	Name    string
-	Options *List
-	Loc     Loc
+	Name          string
+	Containment   string          // NONE | PARTIAL (empty if not specified)
+	OnPrimary     *List           // list of *DatabaseFileSpec for PRIMARY filegroup
+	Filegroups    *List           // list of *DatabaseFilegroup for additional filegroups
+	LogOn         *List           // list of *DatabaseFileSpec for LOG ON
+	Collation     string          // COLLATE collation_name
+	WithOptions   *List           // list of *String for WITH options
+	ForAttach     bool            // FOR ATTACH
+	AttachOptions *List           // WITH options for ATTACH (ENABLE_BROKER, NEW_BROKER, etc.)
+	ForAttachRebuildLog bool      // FOR ATTACH_REBUILD_LOG
+	SnapshotOf    string          // AS SNAPSHOT OF source_database
+	Options       *List           // legacy options field (kept for backward compat)
+	Loc           Loc
 }
 
 func (n *CreateDatabaseStmt) nodeTag()  {}
 func (n *CreateDatabaseStmt) stmtNode() {}
+
+// DatabaseFileSpec represents a file specification in CREATE DATABASE.
+//
+//	( NAME = logical_file_name, FILENAME = 'os_file_name'
+//	  [, SIZE = size [KB|MB|GB|TB]]
+//	  [, MAXSIZE = { max_size [KB|MB|GB|TB] | UNLIMITED }]
+//	  [, FILEGROWTH = growth_increment [KB|MB|GB|TB|%]] )
+type DatabaseFileSpec struct {
+	Name       string // logical file name
+	Filename   string // OS file path
+	Size       string // e.g. "10MB"
+	MaxSize    string // e.g. "100MB" or "UNLIMITED"
+	FileGrowth string // e.g. "5MB" or "10%"
+	Loc        Loc
+}
+
+func (n *DatabaseFileSpec) nodeTag() {}
+
+// DatabaseFilegroup represents a FILEGROUP clause in CREATE DATABASE.
+//
+//	FILEGROUP filegroup_name [CONTAINS FILESTREAM] [DEFAULT]
+//	    | CONTAINS MEMORY_OPTIMIZED_DATA
+//	    <filespec> [, ...n]
+type DatabaseFilegroup struct {
+	Name              string
+	ContainsFilestream bool
+	ContainsMemoryOptimized bool
+	IsDefault         bool
+	Files             *List // list of *DatabaseFileSpec
+	Loc               Loc
+}
+
+func (n *DatabaseFilegroup) nodeTag() {}
 
 // AlterDatabaseStmt represents an ALTER DATABASE statement.
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-database-transact-sql

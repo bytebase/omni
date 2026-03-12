@@ -7363,3 +7363,293 @@ func TestParseCompoundAssignment(t *testing.T) {
 		}
 	})
 }
+
+// TestParseCreateDatabaseDepth tests CREATE DATABASE full options (batch 76).
+func TestParseCreateDatabaseDepth(t *testing.T) {
+	t.Run("create_database_filespec", func(t *testing.T) {
+		// ON PRIMARY with file specs
+		tests := []struct {
+			name string
+			sql  string
+		}{
+			{
+				"single filespec",
+				`CREATE DATABASE mydb
+				ON PRIMARY
+				( NAME = mydb_data, FILENAME = 'C:\data\mydb.mdf', SIZE = 10MB, MAXSIZE = 100MB, FILEGROWTH = 5MB )`,
+			},
+			{
+				"multiple filespecs",
+				`CREATE DATABASE mydb
+				ON PRIMARY
+				( NAME = mydb_data, FILENAME = 'C:\data\mydb.mdf', SIZE = 10MB ),
+				( NAME = mydb_data2, FILENAME = 'C:\data\mydb2.ndf', SIZE = 5MB, MAXSIZE = UNLIMITED, FILEGROWTH = 10% )`,
+			},
+			{
+				"filespec with GB size",
+				`CREATE DATABASE mydb
+				ON PRIMARY
+				( NAME = mydb_data, FILENAME = 'C:\data\mydb.mdf', SIZE = 1GB, MAXSIZE = 50GB, FILEGROWTH = 100MB )`,
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+				if !ok {
+					t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+				}
+				if stmt.Name != "mydb" {
+					t.Errorf("expected name mydb, got %s", stmt.Name)
+				}
+				if stmt.OnPrimary == nil {
+					t.Fatalf("expected OnPrimary, got nil")
+				}
+			})
+		}
+	})
+
+	t.Run("create_database_log_on", func(t *testing.T) {
+		sql := `CREATE DATABASE mydb
+			ON PRIMARY
+			( NAME = mydb_data, FILENAME = 'C:\data\mydb.mdf', SIZE = 10MB )
+			LOG ON
+			( NAME = mydb_log, FILENAME = 'C:\data\mydb.ldf', SIZE = 5MB, MAXSIZE = 25MB, FILEGROWTH = 5MB )`
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+		if !ok {
+			t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+		}
+		if stmt.LogOn == nil {
+			t.Fatalf("expected LogOn, got nil")
+		}
+		if stmt.LogOn.Len() != 1 {
+			t.Errorf("expected 1 log file, got %d", stmt.LogOn.Len())
+		}
+	})
+
+	t.Run("create_database_collate", func(t *testing.T) {
+		sql := `CREATE DATABASE mydb COLLATE Latin1_General_CI_AS`
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+		if !ok {
+			t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+		}
+		if stmt.Collation != "Latin1_General_CI_AS" {
+			t.Errorf("expected collation Latin1_General_CI_AS, got %s", stmt.Collation)
+		}
+	})
+
+	t.Run("create_database_for_attach", func(t *testing.T) {
+		tests := []struct {
+			name              string
+			sql               string
+			forAttach         bool
+			forAttachRebuild  bool
+			hasAttachOptions  bool
+		}{
+			{
+				"basic attach",
+				`CREATE DATABASE mydb
+				ON ( NAME = mydb_data, FILENAME = 'C:\data\mydb.mdf' )
+				FOR ATTACH`,
+				true, false, false,
+			},
+			{
+				"attach with broker options",
+				`CREATE DATABASE mydb
+				ON ( NAME = mydb_data, FILENAME = 'C:\data\mydb.mdf' )
+				FOR ATTACH WITH ENABLE_BROKER`,
+				true, false, true,
+			},
+			{
+				"attach rebuild log",
+				`CREATE DATABASE mydb
+				ON ( NAME = mydb_data, FILENAME = 'C:\data\mydb.mdf' )
+				FOR ATTACH_REBUILD_LOG`,
+				false, true, false,
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+				if !ok {
+					t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+				}
+				if stmt.ForAttach != tt.forAttach {
+					t.Errorf("ForAttach: expected %v, got %v", tt.forAttach, stmt.ForAttach)
+				}
+				if stmt.ForAttachRebuildLog != tt.forAttachRebuild {
+					t.Errorf("ForAttachRebuildLog: expected %v, got %v", tt.forAttachRebuild, stmt.ForAttachRebuildLog)
+				}
+				if tt.hasAttachOptions && stmt.AttachOptions == nil {
+					t.Error("expected AttachOptions, got nil")
+				}
+			})
+		}
+	})
+
+	t.Run("create_database_snapshot", func(t *testing.T) {
+		sql := `CREATE DATABASE mydb_snapshot
+			ON ( NAME = mydb_data, FILENAME = 'C:\snapshots\mydb.ss' )
+			AS SNAPSHOT OF mydb`
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+		if !ok {
+			t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+		}
+		if stmt.SnapshotOf != "mydb" {
+			t.Errorf("expected SnapshotOf mydb, got %s", stmt.SnapshotOf)
+		}
+	})
+
+	t.Run("create_database_containment", func(t *testing.T) {
+		sql := `CREATE DATABASE mydb CONTAINMENT = PARTIAL`
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+		if !ok {
+			t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+		}
+		if stmt.Containment != "PARTIAL" {
+			t.Errorf("expected containment PARTIAL, got %s", stmt.Containment)
+		}
+	})
+
+	t.Run("create_database_with_options", func(t *testing.T) {
+		tests := []struct {
+			name string
+			sql  string
+		}{
+			{
+				"with ledger",
+				`CREATE DATABASE mydb WITH LEDGER = ON`,
+			},
+			{
+				"with nested triggers and db chaining",
+				`CREATE DATABASE mydb WITH NESTED_TRIGGERS = ON, DB_CHAINING OFF`,
+			},
+			{
+				"with default language",
+				`CREATE DATABASE mydb WITH DEFAULT_LANGUAGE = us_english`,
+			},
+			{
+				"with filestream option",
+				`CREATE DATABASE mydb WITH FILESTREAM ( NON_TRANSACTED_ACCESS = FULL, DIRECTORY_NAME = 'mydir' )`,
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+				if !ok {
+					t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+				}
+				if stmt.WithOptions == nil {
+					t.Fatal("expected WithOptions, got nil")
+				}
+			})
+		}
+	})
+
+	t.Run("create_database_filegroup", func(t *testing.T) {
+		sql := `CREATE DATABASE mydb
+			ON PRIMARY
+			( NAME = mydb_data, FILENAME = 'C:\data\mydb.mdf', SIZE = 10MB )
+			FILEGROUP fg1
+			( NAME = mydb_fg1, FILENAME = 'C:\data\mydb_fg1.ndf', SIZE = 5MB )
+			LOG ON
+			( NAME = mydb_log, FILENAME = 'C:\data\mydb.ldf', SIZE = 5MB )`
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+		if !ok {
+			t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+		}
+		if stmt.OnPrimary == nil {
+			t.Fatal("expected OnPrimary, got nil")
+		}
+		if stmt.Filegroups == nil {
+			t.Fatal("expected Filegroups, got nil")
+		}
+		if stmt.Filegroups.Len() != 1 {
+			t.Errorf("expected 1 filegroup, got %d", stmt.Filegroups.Len())
+		}
+		if stmt.LogOn == nil {
+			t.Fatal("expected LogOn, got nil")
+		}
+	})
+
+	t.Run("create_database_filegroup_contains_filestream", func(t *testing.T) {
+		sql := `CREATE DATABASE mydb
+			ON PRIMARY
+			( NAME = mydb_data, FILENAME = 'C:\data\mydb.mdf' )
+			FILEGROUP fsg CONTAINS FILESTREAM DEFAULT
+			( NAME = mydb_fs, FILENAME = 'C:\data\mydb_fs' )`
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+		if !ok {
+			t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+		}
+		if stmt.Filegroups == nil {
+			t.Fatal("expected Filegroups, got nil")
+		}
+		fg := stmt.Filegroups.Items[0].(*ast.DatabaseFilegroup)
+		if !fg.ContainsFilestream {
+			t.Error("expected ContainsFilestream true")
+		}
+		if !fg.IsDefault {
+			t.Error("expected IsDefault true")
+		}
+	})
+
+	t.Run("create_database_full_example", func(t *testing.T) {
+		sql := `CREATE DATABASE mydb
+			CONTAINMENT = NONE
+			ON PRIMARY
+			( NAME = mydb_data, FILENAME = 'C:\data\mydb.mdf', SIZE = 100MB, MAXSIZE = 1GB, FILEGROWTH = 10MB )
+			LOG ON
+			( NAME = mydb_log, FILENAME = 'C:\data\mydb.ldf', SIZE = 50MB, MAXSIZE = 500MB, FILEGROWTH = 10% )
+			COLLATE SQL_Latin1_General_CP1_CI_AS
+			WITH LEDGER = OFF`
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+		if !ok {
+			t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+		}
+		if stmt.Containment != "NONE" {
+			t.Errorf("expected NONE, got %s", stmt.Containment)
+		}
+		if stmt.OnPrimary == nil {
+			t.Fatal("expected OnPrimary")
+		}
+		if stmt.LogOn == nil {
+			t.Fatal("expected LogOn")
+		}
+		if stmt.Collation != "SQL_Latin1_General_CP1_CI_AS" {
+			t.Errorf("expected SQL_Latin1_General_CP1_CI_AS, got %s", stmt.Collation)
+		}
+		if stmt.WithOptions == nil {
+			t.Fatal("expected WithOptions")
+		}
+	})
+
+	t.Run("create_database_attach_with_multiple_options", func(t *testing.T) {
+		sql := `CREATE DATABASE mydb
+			ON ( NAME = mydb_data, FILENAME = 'C:\data\mydb.mdf' )
+			FOR ATTACH WITH ENABLE_BROKER, RESTRICTED_USER`
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+		if !ok {
+			t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+		}
+		if !stmt.ForAttach {
+			t.Error("expected ForAttach true")
+		}
+		if stmt.AttachOptions == nil {
+			t.Fatal("expected AttachOptions")
+		}
+		if stmt.AttachOptions.Len() != 2 {
+			t.Errorf("expected 2 attach options, got %d", stmt.AttachOptions.Len())
+		}
+	})
+}

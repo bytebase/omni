@@ -1807,7 +1807,7 @@
       "id": 76,
       "name": "create_database_depth",
       "file": "create_database.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 13 gap: parse CREATE DATABASE full options (ON PRIMARY filegroup specs, LOG ON, COLLATE, WITH options, FOR ATTACH, AS SNAPSHOT OF, CONTAINMENT)",
       "rules": [
         "parseDatabaseFileSpec",
