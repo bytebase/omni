@@ -2262,7 +2262,7 @@
       "id": 100,
       "name": "service_broker_alter_options_depth",
       "file": "service_broker.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 52 gap: replace skip-loop in parseServiceBrokerOptions WITH clause (line 1024) with structured parsing. ALTER MESSAGE TYPE: VALIDATION = { NONE | EMPTY | WELL_FORMED_XML | VALID_XML WITH SCHEMA COLLECTION name }. ALTER CONTRACT: ADD/DROP MESSAGE TYPE name SENT BY { INITIATOR | TARGET | ANY }. ALTER ROUTE: WITH SERVICE_NAME, BROKER_INSTANCE, LIFETIME, ADDRESS, MIRROR_ADDRESS options. ALTER REMOTE SERVICE BINDING: WITH USER, ANONYMOUS = { ON | OFF } options.",
       "rules": [
         "parseServiceBrokerWithOptions"

@@ -1025,15 +1025,42 @@ func (p *Parser) parseServiceBrokerOptions() *nodes.List {
 		p.advance()
 		if p.cur.Type == '(' {
 			p.advance()
-			depth := 1
-			for depth > 0 && p.cur.Type != tokEOF {
-				if p.cur.Type == '(' {
-					depth++
-				} else if p.cur.Type == ')' {
-					depth--
-				}
-				if depth > 0 {
+			// Structured parsing of parenthesized key=value options
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				if p.isIdentLike() || p.cur.Type == kwUSER {
+					opt := strings.ToUpper(p.cur.Str)
 					p.advance()
+					if p.cur.Type == '=' {
+						p.advance()
+						var val string
+						if p.cur.Type == tokSCONST {
+							val = p.cur.Str
+							p.advance()
+						} else if p.cur.Type == tokICONST {
+							val = p.cur.Str
+							p.advance()
+						} else if p.cur.Type == kwON {
+							val = "ON"
+							p.advance()
+						} else if p.cur.Type == kwOFF {
+							val = "OFF"
+							p.advance()
+						} else if p.isIdentLike() {
+							val = p.cur.Str
+							p.advance()
+						}
+						opts = append(opts, &nodes.String{Str: opt + "=" + val})
+					} else {
+						opts = append(opts, &nodes.String{Str: opt})
+					}
+				} else {
+					// Skip unexpected tokens
+					p.advance()
+				}
+				if _, ok := p.match(','); !ok {
+					if p.cur.Type != ')' {
+						break
+					}
 				}
 			}
 			p.match(')')
@@ -1271,6 +1298,152 @@ func (p *Parser) parseAlterRemoteServiceBindingStmt() *nodes.ServiceBrokerStmt {
 			}
 		}
 	}
+	if len(opts) > 0 {
+		stmt.Options = &nodes.List{Items: opts}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAlterMessageTypeStmt parses ALTER MESSAGE TYPE.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-message-type-transact-sql
+//
+//	ALTER MESSAGE TYPE message_type_name
+//	    VALIDATION =
+//	    {  NONE
+//	     | EMPTY
+//	     | WELL_FORMED_XML
+//	     | VALID_XML WITH SCHEMA COLLECTION schema_collection_name }
+func (p *Parser) parseAlterMessageTypeStmt() *nodes.ServiceBrokerStmt {
+	loc := p.pos()
+	// MESSAGE TYPE keywords already consumed by caller
+
+	stmt := &nodes.ServiceBrokerStmt{
+		Action:     "ALTER",
+		ObjectType: "MESSAGE TYPE",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	// Optional: VALIDATION = { NONE | EMPTY | WELL_FORMED_XML | VALID_XML WITH SCHEMA COLLECTION name }
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "VALIDATION") {
+		p.advance()
+		if p.cur.Type == '=' {
+			p.advance()
+		}
+		var opts []nodes.Node
+		// Consume the validation value (NONE, EMPTY, WELL_FORMED_XML, or VALID_XML)
+		if p.isIdentLike() {
+			valType := strings.ToUpper(p.cur.Str)
+			p.advance()
+			// Check for VALID_XML WITH SCHEMA COLLECTION name
+			if valType == "VALID_XML" && p.cur.Type == kwWITH {
+				p.advance() // consume WITH
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SCHEMA") {
+					p.advance() // consume SCHEMA
+				}
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "COLLECTION") {
+					p.advance() // consume COLLECTION
+				}
+				if p.isIdentLike() || p.cur.Type == tokSCONST {
+					schemaName := p.cur.Str
+					p.advance()
+					opts = append(opts, &nodes.String{Str: "VALIDATION=VALID_XML WITH SCHEMA COLLECTION " + schemaName})
+				}
+			} else {
+				opts = append(opts, &nodes.String{Str: "VALIDATION=" + valType})
+			}
+		}
+		if len(opts) > 0 {
+			stmt.Options = &nodes.List{Items: opts}
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAlterContractStmt parses ALTER CONTRACT.
+//
+// ALTER CONTRACT is limited in T-SQL. The message types and directions in a contract
+// cannot be changed. To change AUTHORIZATION, use ALTER AUTHORIZATION.
+// We support ADD/DROP MESSAGE TYPE as extensions that some tools may emit.
+//
+//	ALTER CONTRACT contract_name
+//	    [ ADD MESSAGE TYPE message_type_name SENT BY { INITIATOR | TARGET | ANY } ]
+//	    [ DROP MESSAGE TYPE message_type_name ]
+func (p *Parser) parseAlterContractStmt() *nodes.ServiceBrokerStmt {
+	loc := p.pos()
+	// CONTRACT keyword already consumed by caller
+
+	stmt := &nodes.ServiceBrokerStmt{
+		Action:     "ALTER",
+		ObjectType: "CONTRACT",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	var opts []nodes.Node
+
+	// ADD MESSAGE TYPE name SENT BY { INITIATOR | TARGET | ANY }
+	if p.cur.Type == kwADD {
+		p.advance() // consume ADD
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MESSAGE") {
+			p.advance() // consume MESSAGE
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TYPE") {
+				p.advance() // consume TYPE
+			}
+		}
+		var msgTypeName string
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
+			msgTypeName = p.cur.Str
+			p.advance()
+		}
+		sentBy := ""
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SENT") {
+			p.advance() // consume SENT
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "BY") {
+				p.advance() // consume BY
+			}
+			if p.isIdentLike() || p.cur.Type == kwANY {
+				sentBy = strings.ToUpper(p.cur.Str)
+				p.advance()
+			}
+		}
+		if msgTypeName != "" {
+			entry := "ADD " + msgTypeName
+			if sentBy != "" {
+				entry += " SENT BY " + sentBy
+			}
+			opts = append(opts, &nodes.String{Str: entry})
+		}
+	}
+
+	// DROP MESSAGE TYPE name
+	if p.cur.Type == kwDROP {
+		p.advance() // consume DROP
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MESSAGE") {
+			p.advance() // consume MESSAGE
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TYPE") {
+				p.advance() // consume TYPE
+			}
+		}
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
+			opts = append(opts, &nodes.String{Str: "DROP " + p.cur.Str})
+			p.advance()
+		}
+	}
+
 	if len(opts) > 0 {
 		stmt.Options = &nodes.List{Items: opts}
 	}

@@ -1140,33 +1140,15 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TYPE") {
 				p.advance() // consume TYPE
 			}
-			stmt := &nodes.ServiceBrokerStmt{
-				Action:     "ALTER",
-				ObjectType: "MESSAGE TYPE",
-				Loc:        nodes.Loc{Start: loc},
-			}
-			if p.isIdentLike() || p.cur.Type == tokSCONST {
-				stmt.Name = p.cur.Str
-				p.advance()
-			}
-			stmt.Options = p.parseServiceBrokerOptions()
-			stmt.Loc.End = p.pos()
+			stmt := p.parseAlterMessageTypeStmt()
+			stmt.Loc.Start = loc
 			return stmt
 		}
 		// ALTER CONTRACT (service broker)
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CONTRACT") {
 			p.advance() // consume CONTRACT
-			stmt := &nodes.ServiceBrokerStmt{
-				Action:     "ALTER",
-				ObjectType: "CONTRACT",
-				Loc:        nodes.Loc{Start: loc},
-			}
-			if p.isIdentLike() || p.cur.Type == tokSCONST {
-				stmt.Name = p.cur.Str
-				p.advance()
-			}
-			stmt.Options = p.parseServiceBrokerOptions()
-			stmt.Loc.End = p.pos()
+			stmt := p.parseAlterContractStmt()
+			stmt.Loc.Start = loc
 			return stmt
 		}
 		// ALTER XML SCHEMA COLLECTION

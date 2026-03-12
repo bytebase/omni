@@ -10539,3 +10539,91 @@ func TestParseEndpointOptionsDepth(t *testing.T) {
 		})
 	}
 }
+
+// TestParseServiceBrokerAlterOptionsDepth tests batch 100: structured parsing for ALTER Service Broker objects.
+func TestParseServiceBrokerAlterOptionsDepth(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		// ALTER MESSAGE TYPE with VALIDATION
+		{
+			name: "alter_message_type_validation_none",
+			sql:  "ALTER MESSAGE TYPE MyMessageType VALIDATION = NONE",
+		},
+		{
+			name: "alter_message_type_validation_empty",
+			sql:  "ALTER MESSAGE TYPE MyMessageType VALIDATION = EMPTY",
+		},
+		{
+			name: "alter_message_type_validation_well_formed_xml",
+			sql:  "ALTER MESSAGE TYPE [//Adventure-Works.com/Expenses/SubmitExpense] VALIDATION = WELL_FORMED_XML",
+		},
+		{
+			name: "alter_message_type_validation_valid_xml_schema",
+			sql:  "ALTER MESSAGE TYPE MyMessageType VALIDATION = VALID_XML WITH SCHEMA COLLECTION MySchemaCollection",
+		},
+		// ALTER CONTRACT with message type modifications (ADD/DROP)
+		{
+			name: "alter_contract_add_message_type",
+			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE MyMsgType SENT BY INITIATOR",
+		},
+		{
+			name: "alter_contract_drop_message_type",
+			sql:  "ALTER CONTRACT MyContract DROP MESSAGE TYPE MyMsgType",
+		},
+		{
+			name: "alter_contract_add_sent_by_target",
+			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE ResponseMsg SENT BY TARGET",
+		},
+		{
+			name: "alter_contract_add_sent_by_any",
+			sql:  "ALTER CONTRACT MyContract ADD MESSAGE TYPE AnyMsg SENT BY ANY",
+		},
+		// ALTER ROUTE with structured WITH options
+		{
+			name: "alter_route_all_options",
+			sql:  "ALTER ROUTE MyRoute WITH SERVICE_NAME = '//example.com/svc', BROKER_INSTANCE = 'D8D4D268-00A3-4C62-8F91-634B89B1E317', LIFETIME = 600, ADDRESS = 'TCP://10.0.0.2:4022', MIRROR_ADDRESS = 'TCP://10.0.0.3:4022'",
+		},
+		{
+			name: "alter_route_address_local",
+			sql:  "ALTER ROUTE MyRoute WITH ADDRESS = 'LOCAL'",
+		},
+		{
+			name: "alter_route_address_transport",
+			sql:  "ALTER ROUTE MyRoute WITH ADDRESS = 'TRANSPORT'",
+		},
+		// ALTER REMOTE SERVICE BINDING with structured WITH options
+		{
+			name: "alter_remote_binding_user_and_anonymous_off",
+			sql:  "ALTER REMOTE SERVICE BINDING MyBinding WITH USER = SecurityAccount, ANONYMOUS = OFF",
+		},
+		{
+			name: "alter_remote_binding_user_only",
+			sql:  "ALTER REMOTE SERVICE BINDING MyBinding WITH USER = MyUser",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() == 0 {
+				t.Fatalf("Parse(%q): no statements returned", tt.sql)
+			}
+			stmt, ok := result.Items[0].(*ast.ServiceBrokerStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *ast.ServiceBrokerStmt, got %T", tt.sql, result.Items[0])
+			}
+			checkLocation(t, tt.sql, "ServiceBrokerStmt", stmt.Loc)
+
+			s1 := ast.NodeToString(result.Items[0])
+			s2 := ast.NodeToString(result.Items[0])
+			if s1 != s2 {
+				t.Errorf("Parse(%q): serialization not deterministic:\n  s1=%s\n  s2=%s", tt.sql, s1, s2)
+			}
+			if s1 == "" {
+				t.Errorf("Parse(%q): empty serialization", tt.sql)
+			}
+		})
+	}
+}
