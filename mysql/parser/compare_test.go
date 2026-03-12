@@ -8387,6 +8387,34 @@ func TestParseSelectDistinctrow(t *testing.T) {
 	}
 }
 
+func TestParseCreateLoadableFunction(t *testing.T) {
+	tests := []string{
+		"CREATE FUNCTION myfunc RETURNS STRING SONAME 'mylib.so'",
+		"CREATE FUNCTION myfunc RETURNS INTEGER SONAME 'mylib.so'",
+		"CREATE FUNCTION myfunc RETURNS REAL SONAME 'mylib.so'",
+		"CREATE FUNCTION myfunc RETURNS DECIMAL SONAME 'mylib.so'",
+		"CREATE FUNCTION IF NOT EXISTS myfunc RETURNS STRING SONAME 'mylib.so'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseCreateAggregateFunction(t *testing.T) {
+	tests := []string{
+		"CREATE AGGREGATE FUNCTION myagg RETURNS STRING SONAME 'myagg.so'",
+		"CREATE AGGREGATE FUNCTION myagg RETURNS INTEGER SONAME 'myagg.so'",
+		"CREATE AGGREGATE FUNCTION IF NOT EXISTS myagg RETURNS REAL SONAME 'myagg.so'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
 func TestParseShowProcesslist(t *testing.T) {
 	tests := []string{
 		"SHOW PROCESSLIST",

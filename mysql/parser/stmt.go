@@ -417,6 +417,14 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	case kwDATABASE, kwSCHEMA:
 		return p.parseCreateDatabaseStmt()
 
+	case kwAGGREGATE:
+		// CREATE AGGREGATE FUNCTION — loadable UDF
+		p.advance() // consume AGGREGATE
+		if p.cur.Type == kwFUNCTION {
+			return p.parseCreateLoadableFunction(true)
+		}
+		return nil, &ParseError{Message: "expected FUNCTION after AGGREGATE", Position: p.cur.Loc}
+
 	case kwFUNCTION:
 		return p.parseCreateFunctionStmt(false)
 

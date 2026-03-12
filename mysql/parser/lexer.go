@@ -301,6 +301,7 @@ const (
 	kwDEFINER
 	kwINVOKER
 	kwSECURITY
+	kwAGGREGATE
 	kwALGORITHM
 	kwUNDEFINED
 	kwMERGE
@@ -720,6 +721,7 @@ var keywords = map[string]int{
 	"definer":             kwDEFINER,
 	"invoker":             kwINVOKER,
 	"security":            kwSECURITY,
+	"aggregate":           kwAGGREGATE,
 	"algorithm":           kwALGORITHM,
 	"undefined":           kwUNDEFINED,
 	"merge":               kwMERGE,

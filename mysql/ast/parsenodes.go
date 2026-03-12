@@ -1328,11 +1328,14 @@ func (s *RevokeRoleStmt) stmtNode() {}
 type CreateFunctionStmt struct {
 	Loc             Loc
 	OrReplace       bool
+	IfNotExists     bool
 	IsProcedure     bool
+	IsAggregate     bool     // CREATE AGGREGATE FUNCTION (loadable UDF)
 	Definer         string
 	Name            *TableRef
 	Params          []*FuncParam
 	Returns         *DataType
+	Soname          string   // SONAME 'shared_library' (loadable UDF)
 	Body            string
 	Characteristics []*RoutineCharacteristic
 }

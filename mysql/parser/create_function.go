@@ -4,6 +4,72 @@ import (
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
+// parseCreateLoadableFunction parses a CREATE [AGGREGATE] FUNCTION for loadable UDFs.
+// The caller has already consumed CREATE (and AGGREGATE if present).
+// The current token is FUNCTION.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-function-loadable.html
+//
+//	CREATE [AGGREGATE] FUNCTION [IF NOT EXISTS] function_name
+//	    RETURNS {STRING|INTEGER|REAL|DECIMAL}
+//	    SONAME shared_library_name
+func (p *Parser) parseCreateLoadableFunction(isAggregate bool) (*nodes.CreateFunctionStmt, error) {
+	start := p.pos()
+	p.advance() // consume FUNCTION
+
+	stmt := &nodes.CreateFunctionStmt{
+		Loc:         nodes.Loc{Start: start},
+		IsAggregate: isAggregate,
+	}
+
+	// Optional IF NOT EXISTS
+	if p.cur.Type == kwIF {
+		p.advance() // consume IF
+		p.match(kwNOT)
+		p.match(kwEXISTS_KW)
+		stmt.IfNotExists = true
+	}
+
+	// Function name
+	ref, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = ref
+
+	return p.finishLoadableFunction(stmt)
+}
+
+// finishLoadableFunction completes parsing a loadable UDF after the function name
+// has been consumed. Parses: RETURNS {STRING|INTEGER|REAL|DECIMAL} SONAME 'lib'
+func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.CreateFunctionStmt, error) {
+	// RETURNS {STRING|INTEGER|REAL|DECIMAL}
+	if _, err := p.expect(kwRETURNS); err != nil {
+		return nil, err
+	}
+	retType, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Returns = &nodes.DataType{
+		Loc:  nodes.Loc{Start: p.pos()},
+		Name: retType,
+	}
+
+	// SONAME 'shared_library_name'
+	if _, err := p.expect(kwSONAME); err != nil {
+		return nil, err
+	}
+	if p.cur.Type != tokSCONST {
+		return nil, &ParseError{Message: "expected string literal after SONAME", Position: p.cur.Loc}
+	}
+	stmt.Soname = p.cur.Str
+	p.advance()
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
 // parseCreateFunctionStmt parses a CREATE FUNCTION or CREATE PROCEDURE statement.
 // The caller has already consumed CREATE and set isProcedure.
 //
@@ -23,12 +89,26 @@ func (p *Parser) parseCreateFunctionStmt(isProcedure bool) (*nodes.CreateFunctio
 		IsProcedure: isProcedure,
 	}
 
+	// Optional IF NOT EXISTS (loadable UDF form, MySQL 8.0.29+)
+	if !isProcedure && p.cur.Type == kwIF {
+		p.advance() // consume IF
+		p.match(kwNOT)
+		p.match(kwEXISTS_KW)
+		stmt.IfNotExists = true
+	}
+
 	// Function/procedure name
 	ref, err := p.parseTableRef()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Name = ref
+
+	// If this is a function (not procedure) and there's no '(' next, it's a loadable UDF.
+	// Loadable UDF: CREATE FUNCTION name RETURNS {STRING|INTEGER|REAL|DECIMAL} SONAME 'lib'
+	if !isProcedure && p.cur.Type != '(' {
+		return p.finishLoadableFunction(stmt)
+	}
 
 	// Parameter list
 	if _, err := p.expect('('); err != nil {

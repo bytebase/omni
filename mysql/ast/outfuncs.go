@@ -1387,8 +1387,14 @@ func writeCreateFunctionStmt(sb *strings.Builder, n *CreateFunctionStmt) {
 	if n.OrReplace {
 		sb.WriteString(" :or_replace true")
 	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
 	if n.IsProcedure {
 		sb.WriteString(" :is_procedure true")
+	}
+	if n.IsAggregate {
+		sb.WriteString(" :is_aggregate true")
 	}
 	if n.Definer != "" {
 		fmt.Fprintf(sb, " :definer %s", n.Definer)
@@ -1409,6 +1415,9 @@ func writeCreateFunctionStmt(sb *strings.Builder, n *CreateFunctionStmt) {
 	if n.Returns != nil {
 		sb.WriteString(" :returns ")
 		writeNode(sb, n.Returns)
+	}
+	if n.Soname != "" {
+		fmt.Fprintf(sb, " :soname %q", n.Soname)
 	}
 	if n.Body != "" {
 		fmt.Fprintf(sb, " :body %q", n.Body)

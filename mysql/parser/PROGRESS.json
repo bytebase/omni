@@ -1632,7 +1632,24 @@
       "tests": [
         "TestParseLoadDataLinesStartingBy"
       ]
+    },
+    {
+      "id": 64,
+      "name": "create_loadable_function",
+      "file": "create_function.go",
+      "status": "done",
+      "description": "New: CREATE [AGGREGATE] FUNCTION loadable UDF syntax (RETURNS type SONAME 'lib') - distinct from stored function syntax, requires IsAggregate flag and Soname AST field",
+      "rules": [
+        "parseCreateLoadableFunction"
+      ],
+      "depends_on": [
+        16
+      ],
+      "tests": [
+        "TestParseCreateLoadableFunction",
+        "TestParseCreateAggregateFunction"
+      ]
     }
   ],
-  "audit_round": 6
+  "audit_round": 7
 }
