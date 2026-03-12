@@ -3137,3 +3137,26 @@ func TestCompareAlterSequenceSetSchema(t *testing.T) {
 		})
 	}
 }
+
+func TestCompareAlterDatabaseRename(t *testing.T) {
+	tests := []string{
+		"ALTER DATABASE mydb RENAME TO newdb",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}
+
+func TestCompareAlterDatabaseOwner(t *testing.T) {
+	tests := []string{
+		"ALTER DATABASE mydb OWNER TO new_owner",
+		"ALTER DATABASE mydb OWNER TO CURRENT_USER",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}

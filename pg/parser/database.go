@@ -139,6 +139,28 @@ func (p *Parser) parseAlterDatabaseDispatch() nodes.Node {
 	name, _ := p.parseName()
 
 	switch p.cur.Type {
+	case RENAME:
+		// ALTER DATABASE name RENAME TO name
+		p.advance() // consume RENAME
+		p.expect(TO)
+		newname, _ := p.parseName()
+		return &nodes.RenameStmt{
+			RenameType: nodes.OBJECT_DATABASE,
+			Subname:    name,
+			Newname:    newname,
+		}
+
+	case OWNER:
+		// ALTER DATABASE name OWNER TO RoleSpec
+		p.advance() // consume OWNER
+		p.expect(TO)
+		roleSpec := p.parseRoleSpec()
+		return &nodes.AlterOwnerStmt{
+			ObjectType: nodes.OBJECT_DATABASE,
+			Object:     &nodes.String{Str: name},
+			Newowner:   roleSpec,
+		}
+
 	case SET:
 		// Could be SET TABLESPACE or SET variable
 		next := p.peekNext()

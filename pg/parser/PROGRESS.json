@@ -1294,7 +1294,7 @@
       "id": 49,
       "name": "alter_database_rename_owner_refresh",
       "file": "database.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 30 gap: parseAlterDatabaseDispatch does not handle RENAME TO (RenameStmt), OWNER TO (AlterOwnerStmt), or REFRESH COLLATION VERSION (AlterDatabaseRefreshCollStmt). RENAME falls to default which tries createdb_opt_list and fails. OWNER is parsed as a createdb option producing wrong AST. Must add explicit cases for RENAME, OWNER, and REFRESH. Ref: https://www.postgresql.org/docs/17/sql-alterdatabase.html",
       "rules": [
         "parseAlterDatabaseDispatch"
