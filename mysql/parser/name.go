@@ -174,6 +174,16 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 		ref.Loc.End = p.pos()
 	}
 
+	// Optional index hints: USE/FORCE/IGNORE {INDEX|KEY} ...
+	if p.cur.Type == kwUSE || p.cur.Type == kwFORCE || p.cur.Type == kwIGNORE {
+		hints, err := p.parseIndexHints()
+		if err != nil {
+			return nil, err
+		}
+		ref.IndexHints = hints
+		ref.Loc.End = p.pos()
+	}
+
 	return ref, nil
 }
 

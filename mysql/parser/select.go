@@ -1650,3 +1650,115 @@ func (p *Parser) parseSubqueryExpr() (*nodes.SubqueryExpr, error) {
 		Select: sel,
 	}, nil
 }
+
+// parseIndexHints parses an optional list of index hints following a table reference.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/index-hints.html
+//
+//	index_hint_list:
+//	    index_hint [index_hint] ...
+//
+//	index_hint:
+//	    USE {INDEX|KEY}
+//	      [FOR {JOIN|ORDER BY|GROUP BY}] ([index_list])
+//	  | {IGNORE|FORCE} {INDEX|KEY}
+//	      [FOR {JOIN|ORDER BY|GROUP BY}] (index_list)
+//
+//	index_list:
+//	    index_name [, index_name] ...
+func (p *Parser) parseIndexHints() ([]*nodes.IndexHint, error) {
+	var hints []*nodes.IndexHint
+	for p.cur.Type == kwUSE || p.cur.Type == kwFORCE || p.cur.Type == kwIGNORE {
+		hint, err := p.parseIndexHint()
+		if err != nil {
+			return hints, err
+		}
+		hints = append(hints, hint)
+	}
+	return hints, nil
+}
+
+// parseIndexHint parses a single index hint.
+//
+//	index_hint:
+//	    USE {INDEX|KEY}
+//	      [FOR {JOIN|ORDER BY|GROUP BY}] ([index_list])
+//	  | {IGNORE|FORCE} {INDEX|KEY}
+//	      [FOR {JOIN|ORDER BY|GROUP BY}] (index_list)
+func (p *Parser) parseIndexHint() (*nodes.IndexHint, error) {
+	start := p.pos()
+	hint := &nodes.IndexHint{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Parse hint type: USE | FORCE | IGNORE
+	switch p.cur.Type {
+	case kwUSE:
+		hint.Type = nodes.HintUse
+	case kwFORCE:
+		hint.Type = nodes.HintForce
+	case kwIGNORE:
+		hint.Type = nodes.HintIgnore
+	default:
+		return nil, &ParseError{Message: "expected USE, FORCE, or IGNORE", Position: p.cur.Loc}
+	}
+	p.advance()
+
+	// Parse INDEX | KEY
+	if p.cur.Type != kwINDEX && p.cur.Type != kwKEY {
+		return nil, &ParseError{Message: "expected INDEX or KEY", Position: p.cur.Loc}
+	}
+	p.advance()
+
+	// Optional FOR {JOIN | ORDER BY | GROUP BY}
+	hint.Scope = nodes.HintScopeAll
+	if p.cur.Type == kwFOR {
+		p.advance()
+		switch p.cur.Type {
+		case kwJOIN:
+			hint.Scope = nodes.HintScopeJoin
+			p.advance()
+		case kwORDER:
+			p.advance()
+			if _, err := p.expect(kwBY); err != nil {
+				return nil, err
+			}
+			hint.Scope = nodes.HintScopeOrderBy
+		case kwGROUP:
+			p.advance()
+			if _, err := p.expect(kwBY); err != nil {
+				return nil, err
+			}
+			hint.Scope = nodes.HintScopeGroupBy
+		default:
+			return nil, &ParseError{Message: "expected JOIN, ORDER BY, or GROUP BY", Position: p.cur.Loc}
+		}
+	}
+
+	// Parse (index_list) — required parens, list may be empty for USE
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+
+	if p.cur.Type != ')' {
+		// Parse comma-separated index names
+		for {
+			name, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			hint.Indexes = append(hint.Indexes, name)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+	}
+
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+
+	hint.Loc.End = p.pos()
+	return hint, nil
+}

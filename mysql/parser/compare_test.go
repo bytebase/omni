@@ -9540,6 +9540,51 @@ func TestParseLockUnlockInstance(t *testing.T) {
 	}
 }
 
+func TestParseIndexHints(t *testing.T) {
+	tests := []string{
+		// USE INDEX with index list
+		"SELECT * FROM t1 USE INDEX (idx1)",
+		"SELECT * FROM t1 USE INDEX (idx1, idx2)",
+		// USE KEY (synonym)
+		"SELECT * FROM t1 USE KEY (idx1)",
+		// USE INDEX with empty list (use no indexes)
+		"SELECT * FROM t1 USE INDEX ()",
+		// USE INDEX with FOR clause
+		"SELECT * FROM t1 USE INDEX FOR JOIN (idx1)",
+		"SELECT * FROM t1 USE INDEX FOR ORDER BY (idx1)",
+		"SELECT * FROM t1 USE INDEX FOR GROUP BY (idx1)",
+		// FORCE INDEX
+		"SELECT * FROM t1 FORCE INDEX (idx1)",
+		"SELECT * FROM t1 FORCE KEY (idx1, idx2)",
+		// FORCE INDEX with FOR clause
+		"SELECT * FROM t1 FORCE INDEX FOR JOIN (idx1)",
+		"SELECT * FROM t1 FORCE INDEX FOR ORDER BY (idx1)",
+		"SELECT * FROM t1 FORCE INDEX FOR GROUP BY (idx1)",
+		// IGNORE INDEX
+		"SELECT * FROM t1 IGNORE INDEX (idx1)",
+		"SELECT * FROM t1 IGNORE KEY (idx1, idx2)",
+		// IGNORE INDEX with FOR clause
+		"SELECT * FROM t1 IGNORE INDEX FOR JOIN (idx1)",
+		"SELECT * FROM t1 IGNORE INDEX FOR ORDER BY (idx1)",
+		"SELECT * FROM t1 IGNORE INDEX FOR GROUP BY (idx1)",
+		// Multiple index hints
+		"SELECT * FROM t1 USE INDEX (i1) IGNORE INDEX FOR ORDER BY (i2) ORDER BY a",
+		// Index hints with alias
+		"SELECT * FROM t1 AS a USE INDEX (idx1)",
+		// Index hints with schema-qualified table
+		"SELECT * FROM db1.t1 USE INDEX (idx1)",
+		// Index hints in JOIN
+		"SELECT * FROM t1 USE INDEX (i1) JOIN t2 FORCE INDEX (i2) ON t1.id = t2.id",
+		// Multiple FORCE INDEX hints
+		"SELECT * FROM t1 FORCE INDEX (i1) FORCE INDEX FOR ORDER BY (i2)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
 func TestParseAlterInstance(t *testing.T) {
 	tests := []string{
 		"ALTER INSTANCE ROTATE INNODB MASTER KEY",

@@ -2089,7 +2089,75 @@
         "TestParseImportTable",
         "TestParseResetPersist"
       ]
+    },
+    {
+      "id": 84,
+      "name": "index_hints",
+      "file": "select.go",
+      "status": "done",
+      "description": "New: Parse USE INDEX, FORCE INDEX, IGNORE INDEX hints on table references. AST IndexHint struct exists (parsenodes.go) with Type/Scope/Indexes fields but no parser code. Must handle USE/FORCE/IGNORE {INDEX|KEY} [FOR {JOIN|ORDER BY|GROUP BY}] (index_list) after table name in FROM clause.",
+      "rules": [
+        "parseIndexHints",
+        "parseIndexHint"
+      ],
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseIndexHints"
+      ]
+    },
+    {
+      "id": 85,
+      "name": "depth_fix_show_event_value_capture",
+      "file": "set_show.go",
+      "status": "pending",
+      "description": "Fix batch 32 gap: SHOW BINLOG EVENTS and SHOW RELAYLOG EVENTS skip FROM position and LIMIT offset,count values with bare p.advance() instead of parsing expressions. SHOW WARNINGS/ERRORS LIMIT count also skipped. Store these values in ShowStmt AST fields.",
+      "rules": [
+        "parseShowBinlogEvents",
+        "parseShowRelaylogEvents"
+      ],
+      "depends_on": [
+        32
+      ],
+      "tests": [
+        "TestParseShowBinlogEventsFromLimit",
+        "TestParseShowRelaylogEventsFromLimit",
+        "TestParseShowWarningsLimit"
+      ]
+    },
+    {
+      "id": 86,
+      "name": "depth_fix_show_create_user_host",
+      "file": "set_show.go",
+      "status": "pending",
+      "description": "Fix batch 51 gap: SHOW CREATE USER parses username via parseTableRef then discards @host with bare p.advance(). Should use parseUserSpec (from grant.go) to properly capture user@host as a UserSpec.",
+      "rules": [
+        "parseShowCreateUser"
+      ],
+      "depends_on": [
+        51
+      ],
+      "tests": [
+        "TestParseShowCreateUserHost"
+      ]
+    },
+    {
+      "id": 87,
+      "name": "depth_fix_partition_algorithm_value",
+      "file": "create_table.go",
+      "status": "pending",
+      "description": "Fix batch 7 gap: PARTITION BY KEY and SUBPARTITION BY KEY consume ALGORITHM={1|2} value with p.advance() but do not store it in PartitionClause AST. Add Algorithm field and capture the integer value at lines 1016-1019 and 1147-1152.",
+      "rules": [
+        "parsePartitionClause"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "TestParsePartitionKeyAlgorithm"
+      ]
     }
   ],
-  "audit_round": 10
+  "audit_round": 11
 }
