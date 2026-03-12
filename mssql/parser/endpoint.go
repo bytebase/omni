@@ -172,6 +172,10 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 				opts = append(opts, &nodes.String{Str: "AS=TCP"})
 				p.advance()
 				p.parseEndpointProtocolTCPOptions(&opts)
+			} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "HTTP") {
+				opts = append(opts, &nodes.String{Str: "AS=HTTP"})
+				p.advance()
+				p.parseEndpointProtocolHTTPOptions(&opts)
 			} else if p.isIdentLike() {
 				// Unknown protocol - consume as generic
 				opts = append(opts, &nodes.String{Str: "AS=" + strings.ToUpper(p.cur.Str)})
@@ -263,6 +267,88 @@ func (p *Parser) parseEndpointProtocolTCPOptions(opts *[]nodes.Node) {
 			}
 		} else {
 			p.advance()
+		}
+	}
+
+	p.match(')') // consume ')'
+}
+
+// parseEndpointProtocolHTTPOptions parses HTTP protocol-specific arguments (deprecated since SQL Server 2012).
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-endpoint-transact-sql (pre-2012)
+//
+//	( PATH = 'url'
+//	  , AUTHENTICATION = ( { BASIC | DIGEST | NTLM | KERBEROS | INTEGRATED } [ , ...n ] )
+//	  , PORTS = ( { CLEAR | SSL } [ , ...n ] )
+//	  [ , SITE = { '*' | '+' | 'webSite' } ]
+//	  [ , CLEAR_PORT = clearPort ]
+//	  [ , SSL_PORT = sslPort ]
+//	  [ , AUTH_REALM = { 'realm' | NONE } ]
+//	  [ , DEFAULT_LOGON_DOMAIN = { 'domain' | NONE } ]
+//	  [ , COMPRESSION = { ENABLED | DISABLED } ]
+//	)
+func (p *Parser) parseEndpointProtocolHTTPOptions(opts *[]nodes.Node) {
+	if p.cur.Type != '(' {
+		return
+	}
+	p.advance() // consume '('
+
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		if p.cur.Type == ',' {
+			p.advance()
+			continue
+		}
+
+		if !p.isIdentLike() {
+			p.advance()
+			continue
+		}
+
+		key := strings.ToUpper(p.cur.Str)
+		p.advance()
+
+		if p.cur.Type != '=' {
+			*opts = append(*opts, &nodes.String{Str: key})
+			continue
+		}
+		p.advance() // consume '='
+
+		switch key {
+		case "AUTHENTICATION", "PORTS":
+			// These take a parenthesized list: ( VALUE [, VALUE ...] )
+			if p.cur.Type == '(' {
+				p.advance()
+				var vals []string
+				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					if p.cur.Type == ',' {
+						p.advance()
+						continue
+					}
+					if p.isIdentLike() || p.cur.Type == tokSCONST {
+						vals = append(vals, strings.ToUpper(p.cur.Str))
+						p.advance()
+					} else {
+						p.advance()
+					}
+				}
+				p.match(')') // consume ')'
+				*opts = append(*opts, &nodes.String{Str: key + "=" + strings.Join(vals, ",")})
+			} else if p.isIdentLike() || p.cur.Type == tokSCONST {
+				*opts = append(*opts, &nodes.String{Str: key + "=" + strings.ToUpper(p.cur.Str)})
+				p.advance()
+			}
+		default:
+			// Simple KEY = VALUE (string, number, or identifier)
+			if p.cur.Type == tokSCONST {
+				*opts = append(*opts, &nodes.String{Str: key + "='" + p.cur.Str + "'"})
+				p.advance()
+			} else if p.cur.Type == tokICONST {
+				*opts = append(*opts, &nodes.String{Str: key + "=" + p.cur.Str})
+				p.advance()
+			} else if p.isIdentLike() {
+				*opts = append(*opts, &nodes.String{Str: key + "=" + strings.ToUpper(p.cur.Str)})
+				p.advance()
+			}
 		}
 	}
 

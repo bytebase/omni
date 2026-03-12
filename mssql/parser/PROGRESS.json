@@ -2401,7 +2401,7 @@
       "id": 107,
       "name": "endpoint_unknown_protocol_depth",
       "file": "endpoint.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 99 gap: replace skipParenthesized() call at line 179 for non-TCP protocols with structured parsing. HTTP protocol options (PATH, AUTHENTICATION, PORTS, SITE, CLEAR_PORT, SSL_PORT, AUTH_REALM, DEFAULT_LOGON_DOMAIN, COMPRESSION) should be parsed structurally.",
       "rules": [
         "parseEndpointProtocolHTTPOptions"

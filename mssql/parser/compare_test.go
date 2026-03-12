@@ -11021,3 +11021,50 @@ func TestParseGetTransmissionStatus(t *testing.T) {
 		})
 	}
 }
+
+// TestParseEndpointHTTPOptions tests batch 107: endpoint HTTP structured options.
+func TestParseEndpointHTTPOptions(t *testing.T) {
+	tests := []struct {
+		sql string
+	}{
+		// HTTP endpoint with PATH and AUTHENTICATION
+		{sql: "CREATE ENDPOINT MyEndpoint STATE = STARTED AS HTTP (PATH = '/sql/endpoint', AUTHENTICATION = (INTEGRATED), PORTS = (CLEAR)) FOR TSQL ()"},
+		// HTTP endpoint with all options
+		{sql: "CREATE ENDPOINT MyEndpoint AS HTTP (PATH = '/sql', AUTHENTICATION = (BASIC, DIGEST, NTLM), PORTS = (CLEAR, SSL), SITE = '*', CLEAR_PORT = 80, SSL_PORT = 443, AUTH_REALM = 'myRealm', DEFAULT_LOGON_DOMAIN = 'MYDOMAIN', COMPRESSION = ENABLED) FOR TSQL ()"},
+		// HTTP endpoint with KERBEROS
+		{sql: "CREATE ENDPOINT MyEndpoint AS HTTP (PATH = '/sql', AUTHENTICATION = (KERBEROS), PORTS = (SSL)) FOR TSQL ()"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.SecurityStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", tt.sql, result.Items[0])
+			}
+			if stmt.Action != "CREATE" {
+				t.Errorf("Parse(%q): action = %q, want CREATE", tt.sql, stmt.Action)
+			}
+			if stmt.ObjectType != "ENDPOINT" {
+				t.Errorf("Parse(%q): objectType = %q, want ENDPOINT", tt.sql, stmt.ObjectType)
+			}
+			checkLocation(t, tt.sql, "SecurityStmt", stmt.Loc)
+
+			// Verify options contain AS=HTTP
+			found := false
+			if stmt.Options != nil {
+				for _, item := range stmt.Options.Items {
+					if s, ok := item.(*ast.String); ok && s.Str == "AS=HTTP" {
+						found = true
+						break
+					}
+				}
+			}
+			if !found {
+				t.Errorf("Parse(%q): expected AS=HTTP in options", tt.sql)
+			}
+		})
+	}
+}
