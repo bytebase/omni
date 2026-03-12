@@ -1,0 +1,28 @@
+# Build outputs
+dashboard
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go
+*.test
+
+# Pipeline runtime files
+**/parser/logs/
+**/parser/driver.sh
+**/parser/status.sh
+
+# WIP files
+*.wip
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
