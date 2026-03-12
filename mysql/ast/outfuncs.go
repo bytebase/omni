@@ -2369,6 +2369,43 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	if n.After != "" {
 		fmt.Fprintf(sb, " :after %s", n.After)
 	}
+	if len(n.PartitionNames) > 0 {
+		sb.WriteString(" :partition_names (")
+		for i, name := range n.PartitionNames {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(name)
+		}
+		sb.WriteString(")")
+	}
+	if n.AllPartitions {
+		sb.WriteString(" :all_partitions true")
+	}
+	if len(n.PartitionDefs) > 0 {
+		sb.WriteString(" :partition_defs (")
+		for i, pd := range n.PartitionDefs {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, pd)
+		}
+		sb.WriteString(")")
+	}
+	if n.Number > 0 {
+		fmt.Fprintf(sb, " :number %d", n.Number)
+	}
+	if n.ExchangeTable != nil {
+		sb.WriteString(" :exchange_table ")
+		writeNode(sb, n.ExchangeTable)
+	}
+	if n.WithValidation != nil {
+		if *n.WithValidation {
+			sb.WriteString(" :validation with")
+		} else {
+			sb.WriteString(" :validation without")
+		}
+	}
 	sb.WriteString("}")
 }
 

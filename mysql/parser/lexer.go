@@ -429,6 +429,14 @@ const (
 	kwBACKUP
 	kwHELP
 	kwCACHE
+	kwREORGANIZE
+	kwEXCHANGE
+	kwREBUILD
+	kwREMOVE
+	kwDISCARD
+	kwVALIDATION
+	kwWITHOUT
+	kwPARTITIONING
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -819,6 +827,14 @@ var keywords = map[string]int{
 	"resource":            kwRESOURCE,
 	"enable":              kwENABLE,
 	"disable":             kwDISABLE,
+	"reorganize":          kwREORGANIZE,
+	"exchange":            kwEXCHANGE,
+	"rebuild":             kwREBUILD,
+	"remove":              kwREMOVE,
+	"discard":             kwDISCARD,
+	"validation":          kwVALIDATION,
+	"without":             kwWITHOUT,
+	"partitioning":        kwPARTITIONING,
 }
 
 // Token represents a lexical token.

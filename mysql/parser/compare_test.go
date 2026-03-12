@@ -3355,6 +3355,306 @@ func TestParseAlterTableRename(t *testing.T) {
 }
 
 // ============================================================================
+// Batch 57: ALTER TABLE partition operations
+// ============================================================================
+
+func TestParseAlterTableAddPartition(t *testing.T) {
+	t.Run("add partition range", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD PARTITION (PARTITION p3 VALUES LESS THAN (2000))")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAddPartition {
+			t.Errorf("Type = %d, want ATAddPartition", cmd.Type)
+		}
+		if len(cmd.PartitionDefs) != 1 {
+			t.Fatalf("PartitionDefs count = %d, want 1", len(cmd.PartitionDefs))
+		}
+		if cmd.PartitionDefs[0].Name != "p3" {
+			t.Errorf("PartitionDefs[0].Name = %s, want p3", cmd.PartitionDefs[0].Name)
+		}
+	})
+
+	t.Run("add partition list", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD PARTITION (PARTITION p4 VALUES IN (10, 20, 30))")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAddPartition {
+			t.Errorf("Type = %d, want ATAddPartition", cmd.Type)
+		}
+		if len(cmd.PartitionDefs) != 1 {
+			t.Fatalf("PartitionDefs count = %d, want 1", len(cmd.PartitionDefs))
+		}
+	})
+
+	t.Run("add multiple partitions", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD PARTITION (PARTITION p3 VALUES LESS THAN (2000), PARTITION p4 VALUES LESS THAN MAXVALUE)")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAddPartition {
+			t.Errorf("Type = %d, want ATAddPartition", cmd.Type)
+		}
+		if len(cmd.PartitionDefs) != 2 {
+			t.Fatalf("PartitionDefs count = %d, want 2", len(cmd.PartitionDefs))
+		}
+	})
+}
+
+func TestParseAlterTableDropPartition(t *testing.T) {
+	t.Run("drop single partition", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t DROP PARTITION p1")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATDropPartition {
+			t.Errorf("Type = %d, want ATDropPartition", cmd.Type)
+		}
+		if len(cmd.PartitionNames) != 1 || cmd.PartitionNames[0] != "p1" {
+			t.Errorf("PartitionNames = %v, want [p1]", cmd.PartitionNames)
+		}
+	})
+
+	t.Run("drop multiple partitions", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t DROP PARTITION p1, p2, p3")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATDropPartition {
+			t.Errorf("Type = %d, want ATDropPartition", cmd.Type)
+		}
+		if len(cmd.PartitionNames) != 3 {
+			t.Errorf("PartitionNames count = %d, want 3", len(cmd.PartitionNames))
+		}
+	})
+}
+
+func TestParseAlterTableCoalescePartition(t *testing.T) {
+	t.Run("coalesce partition", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t COALESCE PARTITION 4")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATCoalescePartition {
+			t.Errorf("Type = %d, want ATCoalescePartition", cmd.Type)
+		}
+		if cmd.Number != 4 {
+			t.Errorf("Number = %d, want 4", cmd.Number)
+		}
+	})
+}
+
+func TestParseAlterTableReorganizePartition(t *testing.T) {
+	t.Run("reorganize partition", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t REORGANIZE PARTITION p1, p2 INTO (PARTITION p1 VALUES LESS THAN (1000), PARTITION p2 VALUES LESS THAN (2000))")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATReorganizePartition {
+			t.Errorf("Type = %d, want ATReorganizePartition", cmd.Type)
+		}
+		if len(cmd.PartitionNames) != 2 {
+			t.Errorf("PartitionNames count = %d, want 2", len(cmd.PartitionNames))
+		}
+		if len(cmd.PartitionDefs) != 2 {
+			t.Errorf("PartitionDefs count = %d, want 2", len(cmd.PartitionDefs))
+		}
+	})
+}
+
+func TestParseAlterTableExchangePartition(t *testing.T) {
+	t.Run("exchange partition", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t EXCHANGE PARTITION p2 WITH TABLE t2")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATExchangePartition {
+			t.Errorf("Type = %d, want ATExchangePartition", cmd.Type)
+		}
+		if cmd.Name != "p2" {
+			t.Errorf("Name = %s, want p2", cmd.Name)
+		}
+		if cmd.ExchangeTable == nil || cmd.ExchangeTable.Name != "t2" {
+			t.Errorf("ExchangeTable = %v, want t2", cmd.ExchangeTable)
+		}
+	})
+
+	t.Run("exchange partition with validation", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t EXCHANGE PARTITION p2 WITH TABLE t2 WITH VALIDATION")
+		cmd := stmt.Commands[0]
+		if cmd.WithValidation == nil || !*cmd.WithValidation {
+			t.Errorf("WithValidation = %v, want true", cmd.WithValidation)
+		}
+	})
+
+	t.Run("exchange partition without validation", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t EXCHANGE PARTITION p2 WITH TABLE t2 WITHOUT VALIDATION")
+		cmd := stmt.Commands[0]
+		if cmd.WithValidation == nil || *cmd.WithValidation {
+			t.Errorf("WithValidation = %v, want false", cmd.WithValidation)
+		}
+	})
+}
+
+func TestParseAlterTableTruncatePartition(t *testing.T) {
+	t.Run("truncate specific partitions", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t TRUNCATE PARTITION p1, p2")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATTruncatePartition {
+			t.Errorf("Type = %d, want ATTruncatePartition", cmd.Type)
+		}
+		if len(cmd.PartitionNames) != 2 {
+			t.Errorf("PartitionNames count = %d, want 2", len(cmd.PartitionNames))
+		}
+	})
+
+	t.Run("truncate all partitions", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t TRUNCATE PARTITION ALL")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATTruncatePartition {
+			t.Errorf("Type = %d, want ATTruncatePartition", cmd.Type)
+		}
+		if !cmd.AllPartitions {
+			t.Errorf("AllPartitions = false, want true")
+		}
+	})
+}
+
+func TestParseAlterTableAnalyzePartition(t *testing.T) {
+	t.Run("analyze partition", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ANALYZE PARTITION p1")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAnalyzePartition {
+			t.Errorf("Type = %d, want ATAnalyzePartition", cmd.Type)
+		}
+	})
+
+	t.Run("analyze all partitions", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ANALYZE PARTITION ALL")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAnalyzePartition {
+			t.Errorf("Type = %d, want ATAnalyzePartition", cmd.Type)
+		}
+		if !cmd.AllPartitions {
+			t.Errorf("AllPartitions = false, want true")
+		}
+	})
+}
+
+func TestParseAlterTableCheckPartition(t *testing.T) {
+	t.Run("check partition", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t CHECK PARTITION p1, p2")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATCheckPartition {
+			t.Errorf("Type = %d, want ATCheckPartition", cmd.Type)
+		}
+		if len(cmd.PartitionNames) != 2 {
+			t.Errorf("PartitionNames count = %d, want 2", len(cmd.PartitionNames))
+		}
+	})
+
+	t.Run("check all partitions", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t CHECK PARTITION ALL")
+		cmd := stmt.Commands[0]
+		if !cmd.AllPartitions {
+			t.Errorf("AllPartitions = false, want true")
+		}
+	})
+}
+
+func TestParseAlterTableOptimizePartition(t *testing.T) {
+	t.Run("optimize partition", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t OPTIMIZE PARTITION p1")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATOptimizePartition {
+			t.Errorf("Type = %d, want ATOptimizePartition", cmd.Type)
+		}
+	})
+
+	t.Run("optimize all partitions", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t OPTIMIZE PARTITION ALL")
+		cmd := stmt.Commands[0]
+		if !cmd.AllPartitions {
+			t.Errorf("AllPartitions = false, want true")
+		}
+	})
+}
+
+func TestParseAlterTableRebuildPartition(t *testing.T) {
+	t.Run("rebuild partition", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t REBUILD PARTITION p1, p2")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATRebuildPartition {
+			t.Errorf("Type = %d, want ATRebuildPartition", cmd.Type)
+		}
+		if len(cmd.PartitionNames) != 2 {
+			t.Errorf("PartitionNames count = %d, want 2", len(cmd.PartitionNames))
+		}
+	})
+
+	t.Run("rebuild all partitions", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t REBUILD PARTITION ALL")
+		cmd := stmt.Commands[0]
+		if !cmd.AllPartitions {
+			t.Errorf("AllPartitions = false, want true")
+		}
+	})
+}
+
+func TestParseAlterTableRepairPartition(t *testing.T) {
+	t.Run("repair partition", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t REPAIR PARTITION p1")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATRepairPartition {
+			t.Errorf("Type = %d, want ATRepairPartition", cmd.Type)
+		}
+	})
+
+	t.Run("repair all partitions", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t REPAIR PARTITION ALL")
+		cmd := stmt.Commands[0]
+		if !cmd.AllPartitions {
+			t.Errorf("AllPartitions = false, want true")
+		}
+	})
+}
+
+func TestParseAlterTableDiscardImportPartition(t *testing.T) {
+	t.Run("discard partition tablespace", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t DISCARD PARTITION p1 TABLESPACE")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATDiscardPartitionTablespace {
+			t.Errorf("Type = %d, want ATDiscardPartitionTablespace", cmd.Type)
+		}
+		if len(cmd.PartitionNames) != 1 || cmd.PartitionNames[0] != "p1" {
+			t.Errorf("PartitionNames = %v, want [p1]", cmd.PartitionNames)
+		}
+	})
+
+	t.Run("discard all partition tablespace", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t DISCARD PARTITION ALL TABLESPACE")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATDiscardPartitionTablespace {
+			t.Errorf("Type = %d, want ATDiscardPartitionTablespace", cmd.Type)
+		}
+		if !cmd.AllPartitions {
+			t.Errorf("AllPartitions = false, want true")
+		}
+	})
+
+	t.Run("import partition tablespace", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t IMPORT PARTITION p1 TABLESPACE")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATImportPartitionTablespace {
+			t.Errorf("Type = %d, want ATImportPartitionTablespace", cmd.Type)
+		}
+	})
+
+	t.Run("import all partition tablespace", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t IMPORT PARTITION ALL TABLESPACE")
+		cmd := stmt.Commands[0]
+		if !cmd.AllPartitions {
+			t.Errorf("AllPartitions = false, want true")
+		}
+	})
+}
+
+func TestParseAlterTableRemovePartitioning(t *testing.T) {
+	t.Run("remove partitioning", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t REMOVE PARTITIONING")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATRemovePartitioning {
+			t.Errorf("Type = %d, want ATRemovePartitioning", cmd.Type)
+		}
+	})
+}
+
+// ============================================================================
 // Batch 9: CREATE INDEX
 // ============================================================================
 

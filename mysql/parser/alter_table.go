@@ -115,6 +115,123 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		cmd.Loc.End = p.pos()
 		return cmd, nil
 
+	case kwCOALESCE:
+		return p.parseAlterCoalescePartition(cmd)
+
+	case kwREORGANIZE:
+		return p.parseAlterReorganizePartition(cmd)
+
+	case kwEXCHANGE:
+		return p.parseAlterExchangePartition(cmd)
+
+	case kwTRUNCATE:
+		// TRUNCATE PARTITION ...
+		p.advance()
+		if _, ok := p.match(kwPARTITION); ok {
+			return p.parseAlterPartitionNamesOrAll(cmd, nodes.ATTruncatePartition)
+		}
+		return nil, &ParseError{
+			Message:  "expected PARTITION after TRUNCATE",
+			Position: p.cur.Loc,
+		}
+
+	case kwANALYZE:
+		// ANALYZE PARTITION ...
+		p.advance()
+		if _, ok := p.match(kwPARTITION); ok {
+			return p.parseAlterPartitionNamesOrAll(cmd, nodes.ATAnalyzePartition)
+		}
+		return nil, &ParseError{
+			Message:  "expected PARTITION after ANALYZE",
+			Position: p.cur.Loc,
+		}
+
+	case kwCHECK:
+		// CHECK PARTITION ...
+		p.advance()
+		if _, ok := p.match(kwPARTITION); ok {
+			return p.parseAlterPartitionNamesOrAll(cmd, nodes.ATCheckPartition)
+		}
+		return nil, &ParseError{
+			Message:  "expected PARTITION after CHECK",
+			Position: p.cur.Loc,
+		}
+
+	case kwOPTIMIZE:
+		// OPTIMIZE PARTITION ...
+		p.advance()
+		if _, ok := p.match(kwPARTITION); ok {
+			return p.parseAlterPartitionNamesOrAll(cmd, nodes.ATOptimizePartition)
+		}
+		return nil, &ParseError{
+			Message:  "expected PARTITION after OPTIMIZE",
+			Position: p.cur.Loc,
+		}
+
+	case kwREBUILD:
+		// REBUILD PARTITION ...
+		p.advance()
+		if _, ok := p.match(kwPARTITION); ok {
+			return p.parseAlterPartitionNamesOrAll(cmd, nodes.ATRebuildPartition)
+		}
+		return nil, &ParseError{
+			Message:  "expected PARTITION after REBUILD",
+			Position: p.cur.Loc,
+		}
+
+	case kwREPAIR:
+		// REPAIR PARTITION ...
+		p.advance()
+		if _, ok := p.match(kwPARTITION); ok {
+			return p.parseAlterPartitionNamesOrAll(cmd, nodes.ATRepairPartition)
+		}
+		return nil, &ParseError{
+			Message:  "expected PARTITION after REPAIR",
+			Position: p.cur.Loc,
+		}
+
+	case kwDISCARD:
+		// DISCARD PARTITION {partition_names | ALL} TABLESPACE
+		p.advance()
+		if _, ok := p.match(kwPARTITION); ok {
+			cmd, err := p.parseAlterPartitionNamesOrAll(cmd, nodes.ATDiscardPartitionTablespace)
+			if err != nil {
+				return nil, err
+			}
+			p.match(kwTABLESPACE)
+			cmd.Loc.End = p.pos()
+			return cmd, nil
+		}
+		return nil, &ParseError{
+			Message:  "expected PARTITION after DISCARD",
+			Position: p.cur.Loc,
+		}
+
+	case kwIMPORT:
+		// IMPORT PARTITION {partition_names | ALL} TABLESPACE
+		p.advance()
+		if _, ok := p.match(kwPARTITION); ok {
+			cmd, err := p.parseAlterPartitionNamesOrAll(cmd, nodes.ATImportPartitionTablespace)
+			if err != nil {
+				return nil, err
+			}
+			p.match(kwTABLESPACE)
+			cmd.Loc.End = p.pos()
+			return cmd, nil
+		}
+		return nil, &ParseError{
+			Message:  "expected PARTITION after IMPORT",
+			Position: p.cur.Loc,
+		}
+
+	case kwREMOVE:
+		// REMOVE PARTITIONING
+		p.advance()
+		p.match(kwPARTITIONING)
+		cmd.Type = nodes.ATRemovePartitioning
+		cmd.Loc.End = p.pos()
+		return cmd, nil
+
 	default:
 		// Try table options: ENGINE, CHARSET, etc.
 		opt, ok := p.parseTableOption()
@@ -134,6 +251,34 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 // parseAlterAdd parses ADD operations.
 func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
 	p.advance() // consume ADD
+
+	// ADD PARTITION (partition_definition, ...)
+	if p.cur.Type == kwPARTITION {
+		p.advance()
+		cmd.Type = nodes.ATAddPartition
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		for {
+			if p.cur.Type == ')' {
+				break
+			}
+			pd, err := p.parsePartitionDef()
+			if err != nil {
+				return nil, err
+			}
+			cmd.PartitionDefs = append(cmd.PartitionDefs, pd)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		cmd.Loc.End = p.pos()
+		return cmd, nil
+	}
 
 	// ADD [CONSTRAINT ...] PRIMARY KEY / UNIQUE / FOREIGN KEY / CHECK
 	if p.isTableConstraintStart() {
@@ -169,6 +314,18 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 	p.advance() // consume DROP
 
 	switch p.cur.Type {
+	case kwPARTITION:
+		// DROP PARTITION partition_names
+		p.advance()
+		cmd.Type = nodes.ATDropPartition
+		names, err := p.parseIdentList()
+		if err != nil {
+			return nil, err
+		}
+		cmd.PartitionNames = names
+		cmd.Loc.End = p.pos()
+		return cmd, nil
+
 	case kwPRIMARY:
 		// DROP PRIMARY KEY
 		p.advance()
@@ -386,6 +543,155 @@ func (p *Parser) parseAlterConvert(cmd *nodes.AlterTableCmd) (*nodes.AlterTableC
 
 	if _, ok := p.match(kwCOLLATE); ok {
 		cmd.NewName = p.consumeOptionValue()
+	}
+
+	cmd.Loc.End = p.pos()
+	return cmd, nil
+}
+
+// parseIdentList parses a comma-separated list of identifiers.
+func (p *Parser) parseIdentList() ([]string, error) {
+	var names []string
+	for {
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return names, nil
+}
+
+// parseAlterPartitionNamesOrAll parses {partition_names | ALL} for partition operations.
+func (p *Parser) parseAlterPartitionNamesOrAll(cmd *nodes.AlterTableCmd, cmdType nodes.AlterTableCmdType) (*nodes.AlterTableCmd, error) {
+	cmd.Type = cmdType
+	if p.cur.Type == kwALL {
+		p.advance()
+		cmd.AllPartitions = true
+	} else {
+		names, err := p.parseIdentList()
+		if err != nil {
+			return nil, err
+		}
+		cmd.PartitionNames = names
+	}
+	cmd.Loc.End = p.pos()
+	return cmd, nil
+}
+
+// parseAlterCoalescePartition parses COALESCE PARTITION number.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
+//
+//	COALESCE PARTITION number
+func (p *Parser) parseAlterCoalescePartition(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
+	p.advance() // consume COALESCE
+	if _, err := p.expect(kwPARTITION); err != nil {
+		return nil, err
+	}
+	cmd.Type = nodes.ATCoalescePartition
+	if p.cur.Type == tokICONST {
+		cmd.Number = int(p.cur.Ival)
+		p.advance()
+	}
+	cmd.Loc.End = p.pos()
+	return cmd, nil
+}
+
+// parseAlterReorganizePartition parses REORGANIZE PARTITION partition_names INTO (partition_definitions).
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
+//
+//	REORGANIZE PARTITION partition_names INTO (partition_definitions)
+func (p *Parser) parseAlterReorganizePartition(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
+	p.advance() // consume REORGANIZE
+	if _, err := p.expect(kwPARTITION); err != nil {
+		return nil, err
+	}
+	cmd.Type = nodes.ATReorganizePartition
+
+	// Parse partition names
+	names, err := p.parseIdentList()
+	if err != nil {
+		return nil, err
+	}
+	cmd.PartitionNames = names
+
+	// INTO (partition_definitions)
+	if _, err := p.expect(kwINTO); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	for {
+		if p.cur.Type == ')' {
+			break
+		}
+		pd, err := p.parsePartitionDef()
+		if err != nil {
+			return nil, err
+		}
+		cmd.PartitionDefs = append(cmd.PartitionDefs, pd)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	cmd.Loc.End = p.pos()
+	return cmd, nil
+}
+
+// parseAlterExchangePartition parses EXCHANGE PARTITION partition_name WITH TABLE tbl_name [{WITH | WITHOUT} VALIDATION].
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
+//
+//	EXCHANGE PARTITION partition_name WITH TABLE tbl_name [{WITH | WITHOUT} VALIDATION]
+func (p *Parser) parseAlterExchangePartition(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
+	p.advance() // consume EXCHANGE
+	if _, err := p.expect(kwPARTITION); err != nil {
+		return nil, err
+	}
+	cmd.Type = nodes.ATExchangePartition
+
+	// Partition name
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	cmd.Name = name
+
+	// WITH TABLE tbl_name
+	if _, err := p.expect(kwWITH); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwTABLE); err != nil {
+		return nil, err
+	}
+	tblRef, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	cmd.ExchangeTable = tblRef
+
+	// Optional [{WITH | WITHOUT} VALIDATION]
+	if p.cur.Type == kwWITH {
+		p.advance()
+		p.match(kwVALIDATION)
+		v := true
+		cmd.WithValidation = &v
+	} else if p.cur.Type == kwWITHOUT {
+		p.advance()
+		p.match(kwVALIDATION)
+		v := false
+		cmd.WithValidation = &v
 	}
 
 	cmd.Loc.End = p.pos()

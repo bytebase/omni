@@ -172,20 +172,38 @@ const (
 	ATConvertCharset
 	ATAlgorithm
 	ATLock
+	ATCoalescePartition
+	ATReorganizePartition
+	ATExchangePartition
+	ATTruncatePartition
+	ATAnalyzePartition
+	ATCheckPartition
+	ATOptimizePartition
+	ATRebuildPartition
+	ATRepairPartition
+	ATDiscardPartitionTablespace
+	ATImportPartitionTablespace
+	ATRemovePartitioning
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
 type AlterTableCmd struct {
-	Loc        Loc
-	Type       AlterTableCmdType
-	Name       string       // column/constraint/index name
-	NewName    string       // for RENAME operations
-	Column     *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
-	Constraint *Constraint  // for ADD CONSTRAINT
-	Option     *TableOption // for table options
-	IfExists   bool
-	First      bool   // FIRST positioning
-	After      string // AFTER column positioning
+	Loc            Loc
+	Type           AlterTableCmdType
+	Name           string       // column/constraint/index name
+	NewName        string       // for RENAME operations
+	Column         *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
+	Constraint     *Constraint  // for ADD CONSTRAINT
+	Option         *TableOption // for table options
+	IfExists       bool
+	First          bool   // FIRST positioning
+	After          string // AFTER column positioning
+	PartitionNames []string         // for partition operations (DROP/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR/REORGANIZE/DISCARD/IMPORT)
+	AllPartitions  bool             // for partition operations using ALL
+	PartitionDefs  []*PartitionDef  // for ADD PARTITION / REORGANIZE PARTITION ... INTO
+	Number         int              // for COALESCE PARTITION number
+	ExchangeTable  *TableRef        // for EXCHANGE PARTITION ... WITH TABLE
+	WithValidation *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
 }
 
 func (c *AlterTableCmd) nodeTag() {}

@@ -1479,7 +1479,7 @@
       "id": 57,
       "name": "alter_table_partition_ops",
       "file": "alter_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 8 gap: ALTER TABLE partition operations - ADD/DROP/COALESCE/REORGANIZE/EXCHANGE/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR PARTITION",
       "rules": [
         "parseAlterTableAddPartition",
