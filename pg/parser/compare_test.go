@@ -3049,3 +3049,17 @@ func TestCompareFuncResetOption(t *testing.T) {
 		})
 	}
 }
+
+func TestCompareAlterRule(t *testing.T) {
+	tests := []string{
+		// Basic ALTER RULE RENAME
+		"ALTER RULE my_rule ON my_table RENAME TO new_rule",
+		// Schema-qualified table
+		"ALTER RULE notify_rule ON public.events RENAME TO notify_rule_v2",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			CompareWithYacc(t, sql)
+		})
+	}
+}

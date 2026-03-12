@@ -1133,3 +1133,30 @@ func (p *Parser) parseAlterTriggerDependsOnExtension() nodes.Node {
 		Remove:     remove,
 	}
 }
+
+// ---------------------------------------------------------------------------
+// ALTER RULE
+// ---------------------------------------------------------------------------
+
+// parseAlterRuleStmt parses ALTER RULE name ON qualified_name RENAME TO name.
+// ALTER has already been consumed. Current token is RULE.
+//
+// Ref: https://www.postgresql.org/docs/17/sql-alterrule.html
+//
+//	ALTER RULE name ON table_name RENAME TO new_name
+func (p *Parser) parseAlterRuleStmt() nodes.Node {
+	p.advance() // consume RULE
+	subname, _ := p.parseName()
+	p.expect(ON)
+	names, _ := p.parseQualifiedName()
+	rel := makeRangeVarFromNames(names)
+	p.expect(RENAME)
+	p.expect(TO)
+	newname, _ := p.parseName()
+	return &nodes.RenameStmt{
+		RenameType: nodes.OBJECT_RULE,
+		Relation:   rel,
+		Subname:    subname,
+		Newname:    newname,
+	}
+}

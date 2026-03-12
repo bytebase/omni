@@ -1232,7 +1232,116 @@
         "func_set_option",
         "func_reset_option"
       ]
+    },
+    {
+      "id": 46,
+      "name": "alter_rule",
+      "file": "alter_misc.go",
+      "status": "done",
+      "description": "New: ALTER RULE name ON table_name RENAME TO new_name. Width gap — ALTER RULE is not dispatched in parseStmt ALTER switch. Add case RULE to ALTER dispatch in parser.go, implement parseAlterRuleStmt producing RenameStmt with OBJECT_RULE. Ref: https://www.postgresql.org/docs/17/sql-alterrule.html",
+      "rules": [
+        "parseAlterRuleStmt"
+      ],
+      "depends_on": [
+        34
+      ],
+      "tests": [
+        "alter_rule"
+      ]
+    },
+    {
+      "id": 47,
+      "name": "alter_relation_set_schema",
+      "file": "alter_table.go",
+      "status": "pending",
+      "description": "Fix batch 11 gap: parseAlterTable, parseAlterView, parseAlterIndex, parseAlterMaterializedView, parseAlterForeignTable do not handle SET SCHEMA. In PG yacc grammar, ALTER TABLE/VIEW/INDEX/MATVIEW/FOREIGN TABLE ... SET SCHEMA produces AlterObjectSchemaStmt, but parseAlterTableSet has no SCHEMA case and the separate parseAlter* functions don't check for it before delegating to parseAlterTableCmds. Must add SET SCHEMA dispatch before parseAlterTableCmds in each function. Ref: https://www.postgresql.org/docs/17/sql-altertable.html",
+      "rules": [
+        "parseAlterTable",
+        "parseAlterView",
+        "parseAlterIndex",
+        "parseAlterMaterializedView",
+        "parseAlterForeignTable"
+      ],
+      "depends_on": [
+        11
+      ],
+      "tests": [
+        "alter_table_set_schema",
+        "alter_view_set_schema",
+        "alter_index_set_schema",
+        "alter_matview_set_schema"
+      ]
+    },
+    {
+      "id": 48,
+      "name": "alter_sequence_owner_schema",
+      "file": "alter_table.go",
+      "status": "pending",
+      "description": "Fix batch 11 gap: parseAlterSequence only handles RENAME TO and sequence options via parseSeqOptList. Missing OWNER TO (AlterOwnerStmt) and SET SCHEMA (AlterObjectSchemaStmt). Must add OWNER and SET SCHEMA checks before falling through to parseSeqOptList. Ref: https://www.postgresql.org/docs/17/sql-altersequence.html",
+      "rules": [
+        "parseAlterSequence"
+      ],
+      "depends_on": [
+        11,
+        17
+      ],
+      "tests": [
+        "alter_sequence_owner",
+        "alter_sequence_set_schema"
+      ]
+    },
+    {
+      "id": 49,
+      "name": "alter_database_rename_owner_refresh",
+      "file": "database.go",
+      "status": "pending",
+      "description": "Fix batch 30 gap: parseAlterDatabaseDispatch does not handle RENAME TO (RenameStmt), OWNER TO (AlterOwnerStmt), or REFRESH COLLATION VERSION (AlterDatabaseRefreshCollStmt). RENAME falls to default which tries createdb_opt_list and fails. OWNER is parsed as a createdb option producing wrong AST. Must add explicit cases for RENAME, OWNER, and REFRESH. Ref: https://www.postgresql.org/docs/17/sql-alterdatabase.html",
+      "rules": [
+        "parseAlterDatabaseDispatch"
+      ],
+      "depends_on": [
+        30
+      ],
+      "tests": [
+        "alter_database_rename",
+        "alter_database_owner",
+        "alter_database_refresh_collation"
+      ]
+    },
+    {
+      "id": 50,
+      "name": "createdb_pg17_options",
+      "file": "database.go",
+      "status": "pending",
+      "description": "Fix batch 30 gap: parseCreatedbOptName only recognizes CONNECTION LIMIT, ENCODING, LOCATION, OWNER, TABLESPACE, TEMPLATE, and IDENT. PG 17 added many options as reserved/unreserved keywords: LOCALE, LC_COLLATE, LC_CTYPE, ICU_LOCALE, ICU_RULES, LOCALE_PROVIDER, COLLATION_VERSION, ALLOW_CONNECTIONS, IS_TEMPLATE, OID, STRATEGY, BUILTIN_LOCALE. These keywords won't match IDENT and silently fail. Must add explicit cases. Ref: https://www.postgresql.org/docs/17/sql-createdatabase.html",
+      "rules": [
+        "parseCreatedbOptName"
+      ],
+      "depends_on": [
+        30
+      ],
+      "tests": [
+        "createdb_pg17_options"
+      ]
+    },
+    {
+      "id": 51,
+      "name": "alter_index_matview_depends_ext",
+      "file": "alter_table.go",
+      "status": "pending",
+      "description": "Fix batch 11 gap: parseAlterIndex and parseAlterMaterializedView do not handle [NO] DEPENDS ON EXTENSION (AlterObjectDependsStmt). In PG grammar, ALTER INDEX/MATERIALIZED VIEW name [NO] DEPENDS ON EXTENSION ext_name produces AlterObjectDependsStmt. Must add DEPENDS and NO DEPENDS checks before falling through to parseAlterTableCmds. Ref: https://www.postgresql.org/docs/17/sql-alterindex.html",
+      "rules": [
+        "parseAlterIndex",
+        "parseAlterMaterializedView"
+      ],
+      "depends_on": [
+        11
+      ],
+      "tests": [
+        "alter_index_depends_ext",
+        "alter_matview_depends_ext"
+      ]
     }
   ],
-  "audit_round": 1
+  "audit_round": 2
 }

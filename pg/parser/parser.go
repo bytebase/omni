@@ -138,6 +138,8 @@ func (p *Parser) parseStmt() nodes.Node {
 			return p.parseAlterTablespaceOwner()
 		case TRIGGER:
 			return p.parseAlterTriggerDependsOnExtension()
+		case RULE:
+			return p.parseAlterRuleStmt()
 		default:
 			return p.parseAlterTableStmt()
 		}
