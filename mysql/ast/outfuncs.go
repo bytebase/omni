@@ -1033,6 +1033,9 @@ func writeShowStmt(sb *strings.Builder, n *ShowStmt) {
 		sb.WriteString(" :where ")
 		writeNode(sb, n.Where)
 	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
 	if len(n.ProfileTypes) > 0 {
 		sb.WriteString(" :profile_types (")
 		for i, pt := range n.ProfileTypes {

@@ -348,9 +348,16 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				return nil, err
 			}
 			stmt.From = ref
-		case kwDATABASE:
+		case kwDATABASE, kwSCHEMA:
 			stmt.Type = "CREATE DATABASE"
 			p.advance()
+			// Optional IF NOT EXISTS
+			if p.cur.Type == kwIF {
+				p.advance()
+				p.match(kwNOT)
+				p.match(kwEXISTS_KW)
+				stmt.IfNotExists = true
+			}
 			ref, err := p.parseTableRef()
 			if err != nil {
 				return nil, err

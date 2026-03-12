@@ -1062,8 +1062,9 @@ type ShowStmt struct {
 	From         *TableRef
 	Like         ExprNode
 	Where        ExprNode
-	ProfileTypes []string // SHOW PROFILE type list (CPU, BLOCK IO, etc.)
-	ForQuery     ExprNode // SHOW PROFILE FOR QUERY n
+	IfNotExists  bool        // SHOW CREATE DATABASE IF NOT EXISTS
+	ProfileTypes []string    // SHOW PROFILE type list (CPU, BLOCK IO, etc.)
+	ForQuery     ExprNode    // SHOW PROFILE FOR QUERY n
 	ForUser      *UserSpec   // SHOW GRANTS FOR user
 	Using        []*UserSpec // SHOW GRANTS ... USING role [, role]
 	FromPos      ExprNode    // SHOW BINLOG/RELAYLOG EVENTS FROM pos

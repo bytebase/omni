@@ -10071,6 +10071,52 @@ func TestParseDropLogfileGroup(t *testing.T) {
 	}
 }
 
+func TestParseShowCreateSchema(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "SHOW CREATE SCHEMA mydb",
+			want: "{SHOW :loc 0 :type CREATE DATABASE :from {TABLEREF :loc 19 :name mydb}}",
+		},
+		{
+			sql:  "SHOW CREATE SCHEMA `my_db`",
+			want: "{SHOW :loc 0 :type CREATE DATABASE :from {TABLEREF :loc 19 :name my_db}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
+func TestParseShowCreateDatabaseIfNotExists(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{
+			sql:  "SHOW CREATE DATABASE IF NOT EXISTS mydb",
+			want: "{SHOW :loc 0 :type CREATE DATABASE :from {TABLEREF :loc 35 :name mydb} :if_not_exists true}",
+		},
+		{
+			sql:  "SHOW CREATE SCHEMA IF NOT EXISTS mydb",
+			want: "{SHOW :loc 0 :type CREATE DATABASE :from {TABLEREF :loc 33 :name mydb} :if_not_exists true}",
+		},
+		{
+			sql:  "SHOW CREATE DATABASE mydb",
+			want: "{SHOW :loc 0 :type CREATE DATABASE :from {TABLEREF :loc 21 :name mydb}}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.want)
+		})
+	}
+}
+
 func TestParseAlterTableSecondaryUnload(t *testing.T) {
 	tests := []string{
 		"ALTER TABLE t SECONDARY_UNLOAD",

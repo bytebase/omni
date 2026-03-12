@@ -2305,7 +2305,7 @@
       "id": 96,
       "name": "depth_fix_show_create_schema_if_not_exists",
       "file": "set_show.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 13/32 gap: SHOW CREATE SCHEMA synonym not handled (only kwDATABASE checked in SHOW CREATE dispatch), and SHOW CREATE {DATABASE|SCHEMA} IF NOT EXISTS clause not parsed. Add SCHEMA case and optional IF NOT EXISTS parsing.",
       "rules": [
         "parseShowCreateStmt"
