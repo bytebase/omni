@@ -1746,7 +1746,7 @@
       "id": 69,
       "name": "depth_fix_grant_proxy_privileges",
       "file": "grant.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 15 gap: GRANT/REVOKE PROXY ON user, column-level privileges priv_type (column_list), multi-word privilege names (CREATE VIEW, ALTER ROUTINE, etc.), REVOKE ALL PRIVILEGES GRANT OPTION FROM user, IDENTIFIED WITH ... AS 'hash', ALTER USER IF EXISTS, ALTER USER DEFAULT ROLE",
       "rules": [
         "parseGrantStmt",
@@ -1776,7 +1776,7 @@
       "id": 70,
       "name": "depth_fix_set_persist_show_full",
       "file": "set_show.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 13/32 gap: SET PERSIST and SET PERSIST_ONLY scopes, SHOW FULL TABLES, SHOW SCHEMAS/FIELDS synonyms, SHOW EXTENDED COLUMNS/FULL COLUMNS, SET CHARACTER SET error handling, EXPLAIN FOR CONNECTION",
       "rules": [
         "parseSetStmt",
@@ -1803,7 +1803,7 @@
       "id": 71,
       "name": "depth_fix_analyze_histogram_flush",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 20 gap: ANALYZE TABLE UPDATE HISTOGRAM ON col WITH N BUCKETS, ANALYZE TABLE DROP HISTOGRAM ON col, FLUSH TABLES WITH READ LOCK, FLUSH TABLES FOR EXPORT, FLUSH BINARY LOGS structured parsing, ALTER TABLESPACE SET ACTIVE/INACTIVE",
       "rules": [
         "parseAnalyzeTableStmt",
@@ -1844,7 +1844,7 @@
       "id": 73,
       "name": "depth_fix_insert_update_delete_partition",
       "file": "insert.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 5/6 gap: INSERT/REPLACE PARTITION clause, INSERT AS row_alias (MySQL 8.0.19+), DELETE PARTITION clause, DELETE table alias, WITH CTE before UPDATE/DELETE dispatch",
       "rules": [
         "parseInsertOrReplace",
@@ -1868,7 +1868,7 @@
       "id": 74,
       "name": "depth_fix_replication_misc",
       "file": "replication.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 43/44/47 gap: PURGE BINARY LOGS BEFORE datetime expression parsing, START REPLICA UNTIL GTID set string parsing, CACHE INDEX with PARTITION and index list clauses",
       "rules": [
         "parsePurgeBinaryLogsStmt",

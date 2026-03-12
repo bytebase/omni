@@ -643,12 +643,17 @@ func (p *Parser) parsePurgeBinaryLogsStmt() (*nodes.PurgeBinaryLogsStmt, error) 
 
 	if p.cur.Type == kwTO {
 		p.advance() // consume TO
-		stmt.To = p.cur.Str
-		p.advance()
+		if p.cur.Type == tokSCONST {
+			stmt.To = p.cur.Str
+			p.advance()
+		}
 	} else if p.cur.Type == kwBEFORE {
 		p.advance() // consume BEFORE
-		stmt.Before = p.cur.Str
-		p.advance()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		stmt.BeforeExpr = expr
 	}
 
 	stmt.Loc.End = p.pos()

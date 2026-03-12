@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
@@ -36,6 +38,64 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 			break
 		}
 		p.advance()
+	}
+
+	// UPDATE HISTOGRAM ON col [, col] WITH N BUCKETS
+	if p.cur.Type == kwUPDATE {
+		p.advance()
+		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "histogram") {
+			p.advance()
+		}
+		stmt.HistogramOp = "UPDATE"
+		if _, err := p.expect(kwON); err != nil {
+			return nil, err
+		}
+		for {
+			col, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			stmt.HistogramColumns = append(stmt.HistogramColumns, col)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		// WITH N BUCKETS
+		if p.cur.Type == kwWITH {
+			p.advance()
+			if p.cur.Type == tokICONST {
+				stmt.Buckets = int(p.cur.Ival)
+				p.advance()
+			}
+			// BUCKETS keyword
+			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "buckets") {
+				p.advance()
+			}
+		}
+	}
+
+	// DROP HISTOGRAM ON col [, col]
+	if p.cur.Type == kwDROP {
+		p.advance()
+		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "histogram") {
+			p.advance()
+		}
+		stmt.HistogramOp = "DROP"
+		if _, err := p.expect(kwON); err != nil {
+			return nil, err
+		}
+		for {
+			col, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			stmt.HistogramColumns = append(stmt.HistogramColumns, col)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
 	}
 
 	stmt.Loc.End = p.pos()
@@ -190,7 +250,62 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 
 	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}}
 
-	// Flush options
+	// FLUSH TABLES [tbl_name, ...] [WITH READ LOCK | FOR EXPORT]
+	if p.cur.Type == kwTABLES || p.cur.Type == kwTABLE {
+		stmt.Options = append(stmt.Options, "TABLES")
+		p.advance()
+		// Optional table list (but not WITH or FOR which are clause keywords)
+		if (p.isIdentToken() || p.cur.Type == tokSCONST) && p.cur.Type != kwWITH && p.cur.Type != kwFOR {
+			for {
+				ref, err := p.parseTableRef()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Tables = append(stmt.Tables, ref)
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+			}
+		}
+		// WITH READ LOCK
+		if p.cur.Type == kwWITH {
+			p.advance()
+			if p.cur.Type == kwREAD {
+				p.advance()
+				if p.cur.Type == kwLOCK {
+					p.advance()
+				}
+				stmt.WithReadLock = true
+			}
+		}
+		// FOR EXPORT
+		if p.cur.Type == kwFOR {
+			p.advance()
+			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "export") {
+				p.advance()
+			}
+			stmt.ForExport = true
+		}
+		stmt.Loc.End = p.pos()
+		return stmt, nil
+	}
+
+	// Handle FLUSH BINARY LOGS as a multi-word option
+	if p.cur.Type == kwBINARY {
+		p.advance()
+		if p.isIdentToken() {
+			name, _, _ := p.parseIdentifier()
+			stmt.Options = append(stmt.Options, "BINARY "+strings.ToUpper(name))
+		} else {
+			stmt.Options = append(stmt.Options, "BINARY")
+		}
+		stmt.Loc.End = p.pos()
+		return stmt, nil
+	}
+
+	// Flush options (STATUS, PRIVILEGES, HOSTS, etc.)
+	// Accept both identifiers and keywords as option names.
 	for {
 		if p.cur.Type == tokEOF || p.cur.Type == ';' {
 			break
@@ -198,6 +313,9 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 		if p.isIdentToken() {
 			name, _, _ := p.parseIdentifier()
 			stmt.Options = append(stmt.Options, name)
+		} else if p.cur.Type == kwBINARY || p.cur.Type == kwSTATUS || p.cur.Type == kwPRIVILEGES {
+			tok := p.advance()
+			stmt.Options = append(stmt.Options, strings.ToUpper(tok.Str))
 		} else {
 			break
 		}
@@ -995,6 +1113,15 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 				return nil, err
 			}
 			stmt.Engine = ename
+		case p.cur.Type == kwSET:
+			p.advance() // consume SET
+			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "active") {
+				stmt.SetActive = true
+				p.advance()
+			} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "inactive") {
+				stmt.SetInactive = true
+				p.advance()
+			}
 		default:
 			goto done
 		}
@@ -1708,7 +1835,14 @@ func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
 	return stmt, nil
 }
 
-// parseCacheIndexStmt parses CACHE INDEX tbl_name [, tbl_name] ... IN cache_name.
+// parseCacheIndexStmt parses CACHE INDEX statement.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/cache-index.html
+//
+//	CACHE INDEX tbl_name [[INDEX|KEY] (idx1, idx2, ...)]
+//	    [PARTITION (p1, p2, ...) | PARTITION ALL]
+//	    [, tbl_name ...] IN cache_name
+//
 // p.cur is CACHE.
 func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 	start := p.pos()
@@ -1726,6 +1860,33 @@ func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 			return nil, err
 		}
 		stmt.Tables = append(stmt.Tables, ref)
+
+		// Optional INDEX|KEY (idx1, idx2, ...)
+		if p.cur.Type == kwINDEX || p.cur.Type == kwKEY {
+			p.advance()
+			if p.cur.Type == '(' {
+				idxList, err := p.parseParenIdentList()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Indexes = idxList
+			}
+		}
+
+		// Optional PARTITION (p1, p2, ...) | PARTITION ALL
+		if p.cur.Type == kwPARTITION {
+			p.advance()
+			if _, ok := p.match(kwALL); ok {
+				stmt.Partitions = []string{"ALL"}
+			} else {
+				parts, err := p.parseParenIdentList()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Partitions = parts
+			}
+		}
+
 		if p.cur.Type != ',' {
 			break
 		}

@@ -91,7 +91,7 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		return p.parseSetResourceGroupStmt(start)
 	}
 
-	// Check for GLOBAL / SESSION / LOCAL scope
+	// Check for GLOBAL / SESSION / LOCAL / PERSIST / PERSIST_ONLY scope
 	scope := ""
 	switch p.cur.Type {
 	case kwGLOBAL:
@@ -103,6 +103,14 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	case kwLOCAL:
 		scope = "LOCAL"
 		p.advance()
+	case kwPERSIST:
+		scope = "PERSIST"
+		p.advance()
+	default:
+		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "persist_only") {
+			scope = "PERSIST_ONLY"
+			p.advance()
+		}
 	}
 
 	// SET [GLOBAL|SESSION] TRANSACTION ...
@@ -262,7 +270,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 
 	case kwFULL:
 		p.advance() // consume FULL
-		if p.cur.Type == kwCOLUMNS {
+		if p.cur.Type == kwCOLUMNS || p.cur.Type == kwFIELDS {
 			stmt.Type = "FULL COLUMNS"
 			p.advance()
 			// FROM|IN tbl
@@ -286,12 +294,26 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
+		} else if p.cur.Type == kwTABLES {
+			stmt.Type = "FULL TABLES"
+			p.advance()
+			// Optional FROM db
+			if _, ok := p.match(kwFROM); ok {
+				ref, err := p.parseTableRef()
+				if err != nil {
+					return nil, err
+				}
+				stmt.From = ref
+			}
+			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
 		} else if p.cur.Type == kwPROCESSLIST || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "processlist")) {
 			stmt.Type = "FULL PROCESSLIST"
 			p.advance()
 		}
 
-	case kwCOLUMNS:
+	case kwCOLUMNS, kwFIELDS:
 		stmt.Type = "COLUMNS"
 		p.advance()
 		// FROM|IN tbl
@@ -391,9 +413,56 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 
 	case kwEXTENDED:
 		p.advance() // consume EXTENDED
-		// SHOW EXTENDED {INDEX | INDEXES | KEYS} ...
 		if p.cur.Type == kwINDEX || p.cur.Type == kwKEY || p.cur.Type == kwKEYS || (p.cur.Type == tokIDENT && (eqFold(p.cur.Str, "indexes") || eqFold(p.cur.Str, "keys"))) {
+			// SHOW EXTENDED {INDEX | INDEXES | KEYS} ...
 			stmt.Type = "EXTENDED INDEX"
+			p.advance()
+			if _, err := p.expectFromOrIn(); err != nil {
+				return nil, err
+			}
+			ref, err := p.parseTableRef()
+			if err != nil {
+				return nil, err
+			}
+			stmt.From = ref
+			if p.matchFromOrIn() {
+				dbRef, err := p.parseTableRef()
+				if err != nil {
+					return nil, err
+				}
+				stmt.From.Schema = dbRef.Name
+			}
+			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
+		} else if p.cur.Type == kwFULL {
+			p.advance() // consume FULL
+			// SHOW EXTENDED FULL COLUMNS ...
+			if p.cur.Type == kwCOLUMNS || p.cur.Type == kwFIELDS || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "fields")) {
+				stmt.Type = "EXTENDED FULL COLUMNS"
+				p.advance()
+				if _, err := p.expectFromOrIn(); err != nil {
+					return nil, err
+				}
+				ref, err := p.parseTableRef()
+				if err != nil {
+					return nil, err
+				}
+				stmt.From = ref
+				if p.matchFromOrIn() {
+					dbRef, err := p.parseTableRef()
+					if err != nil {
+						return nil, err
+					}
+					stmt.From.Schema = dbRef.Name
+				}
+				if err := p.parseShowLikeOrWhere(stmt); err != nil {
+					return nil, err
+				}
+			}
+		} else if p.cur.Type == kwCOLUMNS || p.cur.Type == kwFIELDS || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "fields")) {
+			// SHOW EXTENDED COLUMNS ...
+			stmt.Type = "EXTENDED COLUMNS"
 			p.advance()
 			if _, err := p.expectFromOrIn(); err != nil {
 				return nil, err
@@ -799,6 +868,13 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
+		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "schemas") {
+			// SHOW SCHEMAS (synonym for SHOW DATABASES)
+			stmt.Type = "DATABASES"
+			p.advance()
+			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -1067,6 +1143,20 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			return nil, err
 		}
 		stmt.Format = formatName
+	}
+
+	// EXPLAIN FOR CONNECTION connection_id
+	if p.cur.Type == kwFOR {
+		p.advance() // consume FOR
+		if p.cur.Type == kwCONNECTION || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "connection")) {
+			p.advance() // consume CONNECTION
+		}
+		if p.cur.Type == tokICONST {
+			stmt.ForConnection = p.cur.Ival
+			p.advance()
+		}
+		stmt.Loc.End = p.pos()
+		return stmt, nil
 	}
 
 	// Parse the explainable statement

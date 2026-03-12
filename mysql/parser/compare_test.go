@@ -8703,6 +8703,367 @@ func TestParseGroupConcatOrderByFuncCall(t *testing.T) {
 	}
 }
 
+// --- Batch 71: depth_fix_analyze_histogram_flush ---
+
+func TestParseAnalyzeTableUpdateHistogram(t *testing.T) {
+	tests := []string{
+		"ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS",
+		"ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 256 BUCKETS",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseAnalyzeTableDropHistogram(t *testing.T) {
+	tests := []string{
+		"ANALYZE TABLE t1 DROP HISTOGRAM ON col1",
+		"ANALYZE TABLE t1 DROP HISTOGRAM ON col1, col2",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseFlushTablesWithReadLock(t *testing.T) {
+	tests := []string{
+		"FLUSH TABLES WITH READ LOCK",
+		"FLUSH TABLES t1, t2 WITH READ LOCK",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseFlushTablesForExport(t *testing.T) {
+	tests := []string{
+		"FLUSH TABLES t1 FOR EXPORT",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseFlushBinaryLogs(t *testing.T) {
+	tests := []string{
+		"FLUSH BINARY LOGS",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseAlterUndoTablespaceSetActive(t *testing.T) {
+	tests := []string{
+		"ALTER UNDO TABLESPACE myts SET ACTIVE",
+		"ALTER UNDO TABLESPACE myts SET INACTIVE",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// --- Batch 70: depth_fix_set_persist_show_full ---
+
+func TestParseSetPersist(t *testing.T) {
+	tests := []string{
+		"SET PERSIST max_connections = 100",
+		"SET PERSIST innodb_buffer_pool_size = 1073741824",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseSetPersistOnly(t *testing.T) {
+	tests := []string{
+		"SET PERSIST_ONLY back_log = 100",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseShowFullTables(t *testing.T) {
+	tests := []string{
+		"SHOW FULL TABLES",
+		"SHOW FULL TABLES FROM mydb",
+		"SHOW FULL TABLES LIKE 'test%'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseShowSchemas(t *testing.T) {
+	tests := []string{
+		"SHOW SCHEMAS",
+		"SHOW SCHEMAS LIKE 'my%'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseShowFields(t *testing.T) {
+	tests := []string{
+		"SHOW FIELDS FROM t1",
+		"SHOW FULL FIELDS FROM t1",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseShowExtendedColumns(t *testing.T) {
+	tests := []string{
+		"SHOW EXTENDED COLUMNS FROM t1",
+		"SHOW EXTENDED FULL COLUMNS FROM t1",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseExplainForConnection(t *testing.T) {
+	tests := []string{
+		"EXPLAIN FOR CONNECTION 42",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// --- Batch 69: depth_fix_grant_proxy_privileges ---
+
+func TestParseGrantProxy(t *testing.T) {
+	tests := []string{
+		"GRANT PROXY ON 'admin'@'localhost' TO 'user1'@'localhost'",
+		"GRANT PROXY ON 'admin'@'localhost' TO 'user1'@'localhost' WITH GRANT OPTION",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseRevokeProxy(t *testing.T) {
+	tests := []string{
+		"REVOKE PROXY ON 'admin'@'localhost' FROM 'user1'@'localhost'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseGrantColumnPrivilege(t *testing.T) {
+	tests := []string{
+		"GRANT SELECT (col1, col2), INSERT (col1) ON mydb.mytbl TO 'user1'@'localhost'",
+		"GRANT UPDATE (col1) ON mytbl TO 'user1'@'localhost'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseGrantMultiWordPrivilege(t *testing.T) {
+	tests := []string{
+		"GRANT CREATE VIEW ON mydb.* TO 'user1'@'localhost'",
+		"GRANT ALTER ROUTINE ON mydb.* TO 'user1'@'localhost'",
+		"GRANT SHOW DATABASES ON *.* TO 'user1'@'localhost'",
+		"GRANT CREATE TEMPORARY TABLES ON mydb.* TO 'user1'@'localhost'",
+		"GRANT LOCK TABLES ON mydb.* TO 'user1'@'localhost'",
+		"GRANT REPLICATION CLIENT ON *.* TO 'user1'@'localhost'",
+		"GRANT REPLICATION SLAVE ON *.* TO 'user1'@'localhost'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseRevokeAllPrivileges(t *testing.T) {
+	tests := []string{
+		"REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user1'@'localhost'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseIdentifiedWithAs(t *testing.T) {
+	tests := []string{
+		"CREATE USER 'user1'@'localhost' IDENTIFIED WITH mysql_native_password AS '*hash123'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseAlterUserIfExists(t *testing.T) {
+	tests := []string{
+		"ALTER USER IF EXISTS 'user1'@'localhost' IDENTIFIED BY 'newpass'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseAlterUserDefaultRole(t *testing.T) {
+	tests := []string{
+		"ALTER USER 'user1'@'localhost' DEFAULT ROLE ALL",
+		"ALTER USER 'user1'@'localhost' DEFAULT ROLE NONE",
+		"ALTER USER 'user1'@'localhost' DEFAULT ROLE role1, role2",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// --- Batch 73: depth_fix_insert_update_delete_partition ---
+
+func TestParseInsertPartition(t *testing.T) {
+	tests := []string{
+		"INSERT INTO t1 PARTITION (p0) VALUES (1, 2)",
+		"INSERT INTO t1 PARTITION (p0, p1, p2) (col1, col2) VALUES (1, 2), (3, 4)",
+		"REPLACE INTO t1 PARTITION (p0) VALUES (1)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseInsertAsRowAlias(t *testing.T) {
+	tests := []string{
+		"INSERT INTO t1 VALUES (1, 2) AS new ON DUPLICATE KEY UPDATE col1 = new.col1",
+		"INSERT INTO t1 VALUES (1, 2) AS new(a, b) ON DUPLICATE KEY UPDATE col1 = new.a",
+		"INSERT INTO t1 SET col1 = 1 AS new ON DUPLICATE KEY UPDATE col1 = new.col1",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseDeletePartition(t *testing.T) {
+	tests := []string{
+		"DELETE FROM t1 PARTITION (p0) WHERE id = 1",
+		"DELETE FROM t1 PARTITION (p0, p1) WHERE id > 10",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseDeleteTableAlias(t *testing.T) {
+	tests := []string{
+		"DELETE FROM t1 AS a WHERE a.id = 1",
+		"DELETE FROM t1 a WHERE a.id = 1",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseWithUpdate(t *testing.T) {
+	tests := []string{
+		"WITH cte AS (SELECT id, val FROM t2) UPDATE t1 JOIN cte ON t1.id = cte.id SET t1.val = cte.val",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseWithDelete(t *testing.T) {
+	tests := []string{
+		"WITH cte AS (SELECT id FROM t2) DELETE FROM t1 WHERE id IN (SELECT id FROM cte)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// -----------------------------------------------------------------------
+// Batch 74 – depth_fix_replication_misc
+// -----------------------------------------------------------------------
+
+func TestParsePurgeBinaryLogsBeforeDatetime(t *testing.T) {
+	tests := []string{
+		"PURGE BINARY LOGS BEFORE '2023-01-01 00:00:00'",
+		"PURGE BINARY LOGS BEFORE NOW() - INTERVAL 3 DAY",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseCacheIndexPartition(t *testing.T) {
+	tests := []string{
+		"CACHE INDEX t1 PARTITION (p0, p1) IN hot_cache",
+		"CACHE INDEX t1 PARTITION ALL IN hot_cache",
+		"CACHE INDEX t1 INDEX (idx1, idx2) IN hot_cache",
+		"CACHE INDEX t1 KEY (idx1) PARTITION (p0) IN hot_cache",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
 func TestParseShowProcesslist(t *testing.T) {
 	tests := []string{
 		"SHOW PROCESSLIST",

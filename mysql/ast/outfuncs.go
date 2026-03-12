@@ -592,6 +592,16 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
 	}
+	if len(n.Partitions) > 0 {
+		sb.WriteString(" :partitions (")
+		for i, p := range n.Partitions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(p)
+		}
+		sb.WriteString(")")
+	}
 	if len(n.Columns) > 0 {
 		sb.WriteString(" :columns ")
 		for i, c := range n.Columns {
@@ -624,6 +634,19 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 			}
 			writeNode(sb, a)
 		}
+	}
+	if n.RowAlias != "" {
+		fmt.Fprintf(sb, " :row_alias %s", n.RowAlias)
+	}
+	if len(n.ColAliases) > 0 {
+		sb.WriteString(" :col_aliases (")
+		for i, c := range n.ColAliases {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(c)
+		}
+		sb.WriteString(")")
 	}
 	if len(n.OnDuplicateKey) > 0 {
 		sb.WriteString(" :on_dup ")
@@ -1054,6 +1077,9 @@ func writeExplainStmt(sb *strings.Builder, n *ExplainStmt) {
 	if n.Format != "" {
 		fmt.Fprintf(sb, " :format %s", n.Format)
 	}
+	if n.ForConnection != 0 {
+		fmt.Fprintf(sb, " :for_connection %d", n.ForConnection)
+	}
 	if n.Stmt != nil {
 		sb.WriteString(" :stmt ")
 		writeNode(sb, n.Stmt)
@@ -1139,6 +1165,9 @@ func writeGrantStmt(sb *strings.Builder, n *GrantStmt) {
 	if len(n.Privileges) > 0 {
 		fmt.Fprintf(sb, " :privileges %s", strings.Join(n.Privileges, ", "))
 	}
+	if n.ProxyUser != "" {
+		fmt.Fprintf(sb, " :proxy_user %s", n.ProxyUser)
+	}
 	if n.On != nil {
 		sb.WriteString(" :on ")
 		writeNode(sb, n.On)
@@ -1174,6 +1203,9 @@ func writeRevokeStmt(sb *strings.Builder, n *RevokeStmt) {
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.AllPriv {
 		sb.WriteString(" :all_priv true")
+	}
+	if n.GrantOption {
+		sb.WriteString(" :grant_option true")
 	}
 	if len(n.Privileges) > 0 {
 		fmt.Fprintf(sb, " :privileges %s", strings.Join(n.Privileges, ", "))
@@ -1259,6 +1291,18 @@ func writeDropUserStmt(sb *strings.Builder, n *DropUserStmt) {
 func writeAlterUserStmt(sb *strings.Builder, n *AlterUserStmt) {
 	sb.WriteString("{ALTER_USER")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	if n.DefaultRoleUser != "" {
+		fmt.Fprintf(sb, " :default_role_user %s", n.DefaultRoleUser)
+	}
+	if n.DefaultRoleType != "" {
+		fmt.Fprintf(sb, " :default_role_type %s", n.DefaultRoleType)
+	}
+	if len(n.DefaultRoles) > 0 {
+		fmt.Fprintf(sb, " :default_roles %s", strings.Join(n.DefaultRoles, ", "))
+	}
 	if len(n.Users) > 0 {
 		sb.WriteString(" :users ")
 		for i, u := range n.Users {
@@ -1604,6 +1648,15 @@ func writeAnalyzeTableStmt(sb *strings.Builder, n *AnalyzeTableStmt) {
 			writeNode(sb, t)
 		}
 	}
+	if n.HistogramOp != "" {
+		fmt.Fprintf(sb, " :histogram_op %s", n.HistogramOp)
+	}
+	if len(n.HistogramColumns) > 0 {
+		fmt.Fprintf(sb, " :histogram_columns %s", strings.Join(n.HistogramColumns, ", "))
+	}
+	if n.Buckets > 0 {
+		fmt.Fprintf(sb, " :buckets %d", n.Buckets)
+	}
 	sb.WriteString("}")
 }
 
@@ -1666,6 +1719,21 @@ func writeFlushStmt(sb *strings.Builder, n *FlushStmt) {
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if len(n.Options) > 0 {
 		fmt.Fprintf(sb, " :options %s", strings.Join(n.Options, ", "))
+	}
+	if len(n.Tables) > 0 {
+		sb.WriteString(" :tables ")
+		for i, t := range n.Tables {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, t)
+		}
+	}
+	if n.WithReadLock {
+		sb.WriteString(" :with_read_lock true")
+	}
+	if n.ForExport {
+		sb.WriteString(" :for_export true")
 	}
 	sb.WriteString("}")
 }
@@ -2874,6 +2942,9 @@ func writeUserSpec(sb *strings.Builder, n *UserSpec) {
 	if n.Password != "" {
 		fmt.Fprintf(sb, " :password %s", n.Password)
 	}
+	if n.AuthHash != "" {
+		fmt.Fprintf(sb, " :auth_hash %s", n.AuthHash)
+	}
 	sb.WriteString("}")
 }
 
@@ -3751,6 +3822,12 @@ func writeAlterTablespaceStmt(sb *strings.Builder, n *AlterTablespaceStmt) {
 	if n.Engine != "" {
 		fmt.Fprintf(sb, " :engine %s", n.Engine)
 	}
+	if n.SetActive {
+		sb.WriteString(" :set_active true")
+	}
+	if n.SetInactive {
+		sb.WriteString(" :set_inactive true")
+	}
 	sb.WriteString("}")
 }
 
@@ -4197,8 +4274,9 @@ func writePurgeBinaryLogsStmt(sb *strings.Builder, n *PurgeBinaryLogsStmt) {
 	if n.To != "" {
 		fmt.Fprintf(sb, " :to %s", n.To)
 	}
-	if n.Before != "" {
-		fmt.Fprintf(sb, " :before %s", n.Before)
+	if n.BeforeExpr != nil {
+		sb.WriteString(" :before ")
+		writeNode(sb, n.BeforeExpr)
 	}
 	sb.WriteString("}")
 }
@@ -4269,6 +4347,26 @@ func writeCacheIndexStmt(sb *strings.Builder, n *CacheIndexStmt) {
 				sb.WriteString(" ")
 			}
 			writeNode(sb, t)
+		}
+		sb.WriteString(")")
+	}
+	if len(n.Partitions) > 0 {
+		sb.WriteString(" :partitions (")
+		for i, p := range n.Partitions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(p)
+		}
+		sb.WriteString(")")
+	}
+	if len(n.Indexes) > 0 {
+		sb.WriteString(" :indexes (")
+		for i, idx := range n.Indexes {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(idx)
 		}
 		sb.WriteString(")")
 	}

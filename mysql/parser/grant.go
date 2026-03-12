@@ -58,6 +58,38 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	stmt.Privileges = privs
 	stmt.AllPriv = allPriv
 
+	// GRANT PROXY ON user TO user [WITH GRANT OPTION]
+	if len(privs) == 1 && eqFold(privs[0], "PROXY") && p.cur.Type == kwON {
+		p.advance() // consume ON
+		proxyUser, err := p.parseUserName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ProxyUser = proxyUser
+		// TO user [, user] ...
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
+		users, err := p.parseUserList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.To = users
+		// [WITH GRANT OPTION]
+		if p.cur.Type == kwWITH {
+			p.advance()
+			if p.cur.Type == kwGRANT {
+				p.advance()
+				if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "option") {
+					p.advance()
+				}
+				stmt.WithGrant = true
+			}
+		}
+		stmt.Loc.End = p.pos()
+		return stmt, nil
+	}
+
 	// ON [object_type] priv_level
 	if _, err := p.expect(kwON); err != nil {
 		return nil, err
@@ -202,6 +234,32 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		return nil, err
 	}
 
+	// REVOKE ALL PRIVILEGES, GRANT OPTION FROM user
+	if allPriv && p.cur.Type == ',' {
+		p.advance() // consume ','
+		if p.cur.Type == kwGRANT {
+			p.advance() // consume GRANT
+			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "option") {
+				p.advance() // consume OPTION
+			}
+			if _, err := p.expect(kwFROM); err != nil {
+				return nil, err
+			}
+			users, err := p.parseUserList()
+			if err != nil {
+				return nil, err
+			}
+			stmt := &nodes.RevokeStmt{
+				Loc:         nodes.Loc{Start: start},
+				AllPriv:     true,
+				GrantOption: true,
+				From:        users,
+			}
+			stmt.Loc.End = p.pos()
+			return stmt, nil
+		}
+	}
+
 	// If we see FROM, it's a role revoke; if ON, it's a privilege revoke.
 	if p.cur.Type == kwFROM {
 		// Role revoke: REVOKE role [, role] ... FROM user [, user] ...
@@ -214,6 +272,29 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			Loc:   nodes.Loc{Start: start},
 			Roles: privs,
 			From:  users,
+		}
+		stmt.Loc.End = p.pos()
+		return stmt, nil
+	}
+
+	// REVOKE PROXY ON user FROM user
+	if len(privs) == 1 && eqFold(privs[0], "PROXY") && p.cur.Type == kwON {
+		p.advance() // consume ON
+		proxyUser, err := p.parseUserName()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwFROM); err != nil {
+			return nil, err
+		}
+		users, err := p.parseUserList()
+		if err != nil {
+			return nil, err
+		}
+		stmt := &nodes.RevokeStmt{
+			Loc:        nodes.Loc{Start: start},
+			Privileges: []string{"PROXY(" + proxyUser + ")"},
+			From:       users,
 		}
 		stmt.Loc.End = p.pos()
 		return stmt, nil
@@ -284,26 +365,121 @@ func (p *Parser) parsePrivilegeList() ([]string, bool, error) {
 
 // parsePrivilegeName parses a single privilege name.
 // Privilege names can be keywords like SELECT, INSERT, UPDATE, DELETE, etc.
+// Multi-word: CREATE VIEW, ALTER ROUTINE, SHOW DATABASES, CREATE TEMPORARY TABLES,
+// LOCK TABLES, REPLICATION CLIENT, REPLICATION SLAVE, CREATE TABLESPACE,
+// CREATE USER, CREATE ROLE, DROP ROLE.
+// Column-level: SELECT (col1, col2), INSERT (col1).
 func (p *Parser) parsePrivilegeName() (string, error) {
+	var name string
 	switch p.cur.Type {
 	case kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwCREATE, kwDROP, kwALTER,
-		kwINDEX, kwEXECUTE, kwGRANT, kwREFERENCES, kwTRIGGER, kwEVENT:
+		kwINDEX, kwEXECUTE, kwGRANT, kwREFERENCES, kwTRIGGER, kwEVENT,
+		kwSHOW, kwLOCK:
 		tok := p.advance()
-		return strings.ToUpper(tok.Str), nil
+		name = strings.ToUpper(tok.Str)
 	case tokIDENT:
 		tok := p.advance()
-		return strings.ToUpper(tok.Str), nil
+		name = strings.ToUpper(tok.Str)
 	default:
 		// Try accepting any keyword as a privilege name
 		if p.cur.Type >= 700 {
 			tok := p.advance()
-			return strings.ToUpper(tok.Str), nil
-		}
-		return "", &ParseError{
-			Message:  "expected privilege name",
-			Position: p.cur.Loc,
+			name = strings.ToUpper(tok.Str)
+		} else {
+			return "", &ParseError{
+				Message:  "expected privilege name",
+				Position: p.cur.Loc,
+			}
 		}
 	}
+
+	// Handle multi-word privilege names
+	switch name {
+	case "CREATE":
+		// CREATE VIEW, CREATE TEMPORARY TABLES, CREATE TABLESPACE, CREATE USER, CREATE ROLE, CREATE ROUTINE
+		switch {
+		case p.cur.Type == kwVIEW:
+			p.advance()
+			name = "CREATE VIEW"
+		case p.cur.Type == kwTEMPORARY:
+			p.advance()
+			if p.cur.Type == kwTABLES || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "tables")) {
+				p.advance()
+			}
+			name = "CREATE TEMPORARY TABLES"
+		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "tablespace"):
+			p.advance()
+			name = "CREATE TABLESPACE"
+		case p.cur.Type == kwUSER:
+			p.advance()
+			name = "CREATE USER"
+		case p.cur.Type == kwROLE:
+			p.advance()
+			name = "CREATE ROLE"
+		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "routine"):
+			p.advance()
+			name = "CREATE ROUTINE"
+		}
+	case "ALTER":
+		// ALTER ROUTINE
+		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "routine") {
+			p.advance()
+			name = "ALTER ROUTINE"
+		}
+	case "SHOW":
+		// SHOW DATABASES, SHOW VIEW
+		if p.cur.Type == kwDATABASES || p.cur.Type == kwDATABASE {
+			p.advance()
+			name = "SHOW DATABASES"
+		} else if p.cur.Type == kwVIEW {
+			p.advance()
+			name = "SHOW VIEW"
+		}
+	case "LOCK":
+		// LOCK TABLES
+		if p.cur.Type == kwTABLES || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "tables")) {
+			p.advance()
+			name = "LOCK TABLES"
+		}
+	case "DROP":
+		// DROP ROLE
+		if p.cur.Type == kwROLE {
+			p.advance()
+			name = "DROP ROLE"
+		}
+	case "REPLICATION":
+		// REPLICATION CLIENT, REPLICATION SLAVE
+		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "client") {
+			p.advance()
+			name = "REPLICATION CLIENT"
+		} else if p.cur.Type == kwSLAVE || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "slave")) {
+			p.advance()
+			name = "REPLICATION SLAVE"
+		}
+	}
+
+	// Column-level privilege: priv_type (col_list)
+	if p.cur.Type == '(' {
+		p.advance()
+		var cols []string
+		for {
+			col, _, err := p.parseIdentifier()
+			if err != nil {
+				return "", err
+			}
+			cols = append(cols, col)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return "", err
+		}
+		name = name + "(" + strings.Join(cols, ", ") + ")"
+	}
+
+	return name, nil
 }
 
 // parseGrantTarget parses the ON clause target of a GRANT/REVOKE.
@@ -575,18 +751,57 @@ func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
 
 	stmt := &nodes.AlterUserStmt{Loc: nodes.Loc{Start: start}}
 
-	// user_spec [, user_spec] ...
-	for {
+	// [IF EXISTS]
+	if p.cur.Type == kwIF {
+		p.advance()
+		p.match(kwEXISTS_KW)
+		stmt.IfExists = true
+	}
+
+	// Check for ALTER USER user DEFAULT ROLE ...
+	// We parse the first user, then check if DEFAULT follows.
+	spec, err := p.parseUserSpec()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Users = append(stmt.Users, spec)
+
+	if p.cur.Type == kwDEFAULT {
+		next := p.peekNext()
+		if next.Type == kwROLE {
+			p.advance() // consume DEFAULT
+			p.advance() // consume ROLE
+			stmt.DefaultRoleUser = spec.Name
+			if spec.Host != "" {
+				stmt.DefaultRoleUser += "@" + spec.Host
+			}
+			switch {
+			case p.cur.Type == kwNONE:
+				stmt.DefaultRoleType = "NONE"
+				p.advance()
+			case p.cur.Type == kwALL:
+				stmt.DefaultRoleType = "ALL"
+				p.advance()
+			default:
+				roles, err := p.parseUserList()
+				if err != nil {
+					return nil, err
+				}
+				stmt.DefaultRoles = roles
+			}
+			stmt.Loc.End = p.pos()
+			return stmt, nil
+		}
+	}
+
+	// More user_specs
+	for p.cur.Type == ',' {
+		p.advance() // consume ','
 		spec, err := p.parseUserSpec()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Users = append(stmt.Users, spec)
-
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance() // consume ','
 	}
 
 	// [REQUIRE {NONE | tls_option [[AND] tls_option] ...}]
@@ -669,7 +884,7 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 				p.advance()
 			}
 		} else if p.cur.Type == kwWITH {
-			// IDENTIFIED WITH auth_plugin [BY 'password']
+			// IDENTIFIED WITH auth_plugin [BY 'password' | AS 'hash']
 			p.advance()
 			if p.isIdentToken() {
 				plugin, _, err := p.parseIdentifier()
@@ -678,11 +893,17 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 				}
 				spec.AuthPlugin = plugin
 			}
-			// Optional BY 'password'
+			// Optional BY 'password' or AS 'hash'
 			if p.cur.Type == kwBY {
 				p.advance()
 				if p.cur.Type == tokSCONST {
 					spec.Password = p.cur.Str
+					p.advance()
+				}
+			} else if p.cur.Type == kwAS {
+				p.advance()
+				if p.cur.Type == tokSCONST {
+					spec.AuthHash = p.cur.Str
 					p.advance()
 				}
 			}

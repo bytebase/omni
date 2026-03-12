@@ -138,6 +138,35 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		}
 		stmt.Tables = tables
 
+		// Single-table: optional [AS] alias and PARTITION
+		if len(tables) == 1 {
+			if tblRef, ok := tables[0].(*nodes.TableRef); ok {
+				// Optional [AS] alias
+				if _, ok := p.match(kwAS); ok {
+					alias, _, err := p.parseIdentifier()
+					if err != nil {
+						return nil, err
+					}
+					tblRef.Alias = alias
+					tblRef.Loc.End = p.pos()
+				} else if p.cur.Type == tokIDENT {
+					alias, _, _ := p.parseIdentifier()
+					tblRef.Alias = alias
+					tblRef.Loc.End = p.pos()
+				}
+				// Optional PARTITION (p0, p1, ...)
+				if p.cur.Type == kwPARTITION {
+					p.advance()
+					parts, err := p.parseParenIdentList()
+					if err != nil {
+						return nil, err
+					}
+					tblRef.Partitions = parts
+					tblRef.Loc.End = p.pos()
+				}
+			}
+		}
+
 		// Check for USING (multi-table syntax 2)
 		if _, ok := p.match(kwUSING); ok {
 			using, err := p.parseTableReferenceList()

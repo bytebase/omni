@@ -73,10 +73,13 @@ type InsertStmt struct {
 	Priority       InsertPriority
 	Ignore         bool          // INSERT IGNORE
 	Table          *TableRef     // target table
+	Partitions     []string      // PARTITION (p0, p1, ...)
 	Columns        []*ColumnRef  // explicit column list
 	Values         [][]ExprNode  // VALUES rows
 	Select         *SelectStmt   // INSERT ... SELECT
 	SetList        []*Assignment // INSERT ... SET col=val (MySQL extension)
+	RowAlias       string        // AS row_alias (MySQL 8.0.19+)
+	ColAliases     []string      // (col_alias, ...) after row_alias
 	OnDuplicateKey []*Assignment // ON DUPLICATE KEY UPDATE
 	Returning      []Node        // not standard MySQL but included for completeness
 }
@@ -1064,12 +1067,13 @@ func (s *UseStmt) stmtNode() {}
 
 // ExplainStmt represents an EXPLAIN/DESCRIBE statement.
 type ExplainStmt struct {
-	Loc        Loc
-	Format     string // TRADITIONAL, JSON, TREE
-	Analyze    bool   // EXPLAIN ANALYZE
-	Extended   bool   // EXPLAIN EXTENDED (deprecated but still parsed)
-	Partitions bool   // EXPLAIN PARTITIONS (deprecated but still parsed)
-	Stmt       StmtNode
+	Loc           Loc
+	Format        string // TRADITIONAL, JSON, TREE
+	Analyze       bool   // EXPLAIN ANALYZE
+	Extended      bool   // EXPLAIN EXTENDED (deprecated but still parsed)
+	Partitions    bool   // EXPLAIN PARTITIONS (deprecated but still parsed)
+	ForConnection int64  // EXPLAIN FOR CONNECTION connection_id
+	Stmt          StmtNode
 }
 
 func (s *ExplainStmt) nodeTag()  {}
@@ -1175,6 +1179,7 @@ type GrantStmt struct {
 	Loc          Loc
 	Privileges   []string
 	AllPriv      bool
+	ProxyUser    string   // GRANT PROXY ON user
 	On           *GrantTarget
 	To           []string
 	WithGrant    bool
@@ -1190,11 +1195,12 @@ func (s *GrantStmt) stmtNode() {}
 
 // RevokeStmt represents a REVOKE statement.
 type RevokeStmt struct {
-	Loc        Loc
-	Privileges []string
-	AllPriv    bool
-	On         *GrantTarget
-	From       []string
+	Loc         Loc
+	Privileges  []string
+	AllPriv     bool
+	GrantOption bool // REVOKE ALL PRIVILEGES, GRANT OPTION FROM user
+	On          *GrantTarget
+	From        []string
 }
 
 func (s *RevokeStmt) nodeTag()  {}
@@ -1247,10 +1253,14 @@ func (s *DropUserStmt) stmtNode() {}
 
 // AlterUserStmt represents an ALTER USER statement.
 type AlterUserStmt struct {
-	Loc      Loc
-	Users    []*UserSpec
-	Require  *RequireClause  // REQUIRE tls_option
-	Resource *ResourceOption // WITH resource_option
+	Loc             Loc
+	IfExists        bool
+	Users           []*UserSpec
+	DefaultRoleUser string // ALTER USER user DEFAULT ROLE ...
+	DefaultRoleType string // NONE, ALL, or "" (specific roles)
+	DefaultRoles    []string
+	Require         *RequireClause  // REQUIRE tls_option
+	Resource        *ResourceOption // WITH resource_option
 	// Password options
 	PasswordExpire         string // "", "DEFAULT", "NEVER", "INTERVAL N DAY"
 	PasswordHistory        string // "", "DEFAULT", "N"
@@ -1277,6 +1287,7 @@ type UserSpec struct {
 	Host       string
 	AuthPlugin string
 	Password   string
+	AuthHash   string // IDENTIFIED WITH plugin AS 'hash_string'
 }
 
 func (u *UserSpec) nodeTag() {}
@@ -1488,8 +1499,11 @@ func (s *DeallocateStmt) stmtNode() {}
 
 // AnalyzeTableStmt represents an ANALYZE TABLE statement.
 type AnalyzeTableStmt struct {
-	Loc    Loc
-	Tables []*TableRef
+	Loc              Loc
+	Tables           []*TableRef
+	HistogramOp      string   // "UPDATE" or "DROP"
+	HistogramColumns []string // column names
+	Buckets          int      // WITH N BUCKETS
 }
 
 func (s *AnalyzeTableStmt) nodeTag()  {}
@@ -1527,8 +1541,11 @@ func (s *RepairTableStmt) stmtNode() {}
 
 // FlushStmt represents a FLUSH statement.
 type FlushStmt struct {
-	Loc     Loc
-	Options []string
+	Loc          Loc
+	Options      []string
+	Tables       []*TableRef // FLUSH TABLES tbl_list
+	WithReadLock bool        // WITH READ LOCK
+	ForExport    bool        // FOR EXPORT
 }
 
 func (s *FlushStmt) nodeTag()  {}
@@ -2139,6 +2156,8 @@ type AlterTablespaceStmt struct {
 	DropDataFile string // DROP DATAFILE 'file_name'
 	InitialSize  string // INITIAL_SIZE value
 	Engine       string // ENGINE name
+	SetActive    bool   // SET ACTIVE
+	SetInactive  bool   // SET INACTIVE
 }
 
 func (s *AlterTablespaceStmt) nodeTag()  {}
@@ -2434,9 +2453,9 @@ func (s *ResetReplicaStmt) stmtNode() {}
 //
 //	PURGE { BINARY | MASTER } LOGS { TO 'log_name' | BEFORE datetime_expr }
 type PurgeBinaryLogsStmt struct {
-	Loc    Loc
-	To     string // TO 'log_name'
-	Before string // BEFORE datetime_expr
+	Loc        Loc
+	To         string   // TO 'log_name'
+	BeforeExpr ExprNode // BEFORE datetime_expr
 }
 
 func (s *PurgeBinaryLogsStmt) nodeTag()  {}
@@ -2521,9 +2540,11 @@ func (s *BinlogStmt) stmtNode() {}
 
 // CacheIndexStmt represents a CACHE INDEX statement.
 type CacheIndexStmt struct {
-	Loc       Loc
-	Tables    []*TableRef
-	CacheName string // IN cache_name
+	Loc        Loc
+	Tables     []*TableRef
+	Partitions []string // PARTITION (p1, p2, ...) or PARTITION ALL
+	Indexes    []string // INDEX (idx1, idx2, ...)
+	CacheName  string   // IN cache_name
 }
 
 func (s *CacheIndexStmt) nodeTag()  {}

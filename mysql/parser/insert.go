@@ -73,6 +73,16 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 	}
 	stmt.Table = tbl
 
+	// Optional PARTITION (p0, p1, ...)
+	if p.cur.Type == kwPARTITION {
+		p.advance()
+		parts, err := p.parseParenIdentList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Partitions = parts
+	}
+
 	// Optional column list: (col1, col2, ...)
 	if p.cur.Type == '(' {
 		// Peek ahead to distinguish column list from VALUES (...) or subquery SELECT
@@ -139,6 +149,35 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 				Message:  "expected VALUES, SET, or SELECT in INSERT statement",
 				Position: p.cur.Loc,
 			}
+		}
+	}
+
+	// AS row_alias [(col_alias, ...)] (MySQL 8.0.19+)
+	if p.cur.Type == kwAS {
+		p.advance()
+		alias, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.RowAlias = alias
+		if p.cur.Type == '(' {
+			p.advance()
+			var colAliases []string
+			for {
+				name, _, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				colAliases = append(colAliases, name)
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			stmt.ColAliases = colAliases
 		}
 	}
 
