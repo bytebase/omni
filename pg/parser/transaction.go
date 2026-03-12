@@ -20,6 +20,15 @@ import (
 //   | SAVEPOINT ColId
 //   | RELEASE [SAVEPOINT] ColId
 func (p *Parser) parseTransactionStmt() nodes.Node {
+	loc := p.pos()
+	n := p.parseTransactionStmtInner()
+	if ts, ok := n.(*nodes.TransactionStmt); ok {
+		ts.Loc = nodes.Loc{Start: loc, End: p.pos()}
+	}
+	return n
+}
+
+func (p *Parser) parseTransactionStmtInner() nodes.Node {
 	switch p.cur.Type {
 	case ABORT_P:
 		p.advance() // consume ABORT

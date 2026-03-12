@@ -1357,23 +1357,27 @@ func (p *Parser) parseOptDropBehavior() int {
 //
 //	RoleSpec: ColId | CURRENT_ROLE | CURRENT_USER | SESSION_USER
 func (p *Parser) parseRoleSpec() *nodes.RoleSpec {
+	loc := p.pos()
+	var rs *nodes.RoleSpec
 	switch p.cur.Type {
 	case CURRENT_ROLE:
 		p.advance()
-		return &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_CURRENT_ROLE)}
+		rs = &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_CURRENT_ROLE)}
 	case CURRENT_USER:
 		p.advance()
-		return &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_CURRENT_USER)}
+		rs = &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_CURRENT_USER)}
 	case SESSION_USER:
 		p.advance()
-		return &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_SESSION_USER)}
+		rs = &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_SESSION_USER)}
 	default:
 		name, _ := p.parseColId()
-		return &nodes.RoleSpec{
+		rs = &nodes.RoleSpec{
 			Roletype: int(nodes.ROLESPEC_CSTRING),
 			Rolename: name,
 		}
 	}
+	rs.Loc = nodes.Loc{Start: loc, End: p.pos()}
+	return rs
 }
 
 // parseRoleList parses role_list: RoleSpec [, RoleSpec ...]

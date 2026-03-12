@@ -429,10 +429,11 @@ func (p *Parser) parseGrantee() *nodes.RoleSpec {
 	if p.cur.Type == GROUP_P {
 		p.advance()
 	}
+	loc := p.pos()
 	// PUBLIC is not a reserved keyword; it appears as IDENT
 	if p.isColId() && p.cur.Str == "public" {
 		p.advance()
-		return &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_PUBLIC)}
+		return &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_PUBLIC), Loc: nodes.Loc{Start: loc, End: p.pos()}}
 	}
 	return p.parseRoleSpec()
 }
