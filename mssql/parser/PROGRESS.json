@@ -1389,7 +1389,7 @@
       "id": 68,
       "name": "stmt_dispatch_phase3",
       "file": "parser.go",
-      "status": "pending",
+      "status": "done",
       "description": "Wire up all new statement parsers (batches 50-67) into parseStmt, parseCreateStmt, parseAlterStmt, and parseDropOrSecurityStmt dispatchers",
       "rules": ["stmt_dispatch_phase3"],
       "depends_on": [49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67],

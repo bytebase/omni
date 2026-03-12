@@ -75,6 +75,19 @@ func (p *Parser) parseBeginStmt() nodes.StmtNode {
 		return p.parseBeginTransStmt()
 	}
 
+	// Check for BEGIN DIALOG [CONVERSATION] (service broker)
+	if next.Str != "" && matchesKeywordCI(next.Str, "DIALOG") {
+		p.advance() // consume BEGIN
+		p.advance() // consume DIALOG
+		// optionally consume CONVERSATION
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CONVERSATION") {
+			p.advance()
+		}
+		stmt := p.parseBeginConversationStmt()
+		stmt.Loc.Start = loc
+		return stmt
+	}
+
 	p.advance() // consume BEGIN
 
 	// Parse statements until END

@@ -6106,3 +6106,70 @@ func TestParseAlterDatabaseScopedConfig(t *testing.T) {
 		})
 	}
 }
+
+// TestParseIntegrationPhase3 tests batch 68: integration test for all phase 3 statement types.
+// Verifies that the main dispatcher correctly routes to parsers from batches 50-67.
+func TestParseIntegrationPhase3(t *testing.T) {
+	tests := []string{
+		// Batch 50: Service Broker - CREATE ROUTE, CREATE REMOTE SERVICE BINDING
+		"CREATE ROUTE ExpenseRoute WITH SERVICE_NAME = 'ExpenseService', ADDRESS = 'TCP://expense.example.com:4022'",
+		"CREATE REMOTE SERVICE BINDING MyBinding TO SERVICE 'TargetService' WITH USER = MyUser",
+		// Batch 51: ENABLE/DISABLE TRIGGER, ALTER TRIGGER
+		"ENABLE TRIGGER trg1 ON dbo.Orders",
+		"DISABLE TRIGGER ALL ON DATABASE",
+		// Batch 52: Service Broker ALTER/DROP, MOVE CONVERSATION, BROKER PRIORITY
+		"CREATE BROKER PRIORITY BrokerPriority1 FOR CONVERSATION SET (CONTRACT_NAME = MyContract, PRIORITY_LEVEL = 5)",
+		// Batch 53: Security context
+		"EXECUTE AS USER = 'testuser'",
+		"REVERT",
+		"ALTER AUTHORIZATION ON OBJECT::dbo.MyTable TO NewOwner",
+		// Batch 54: Server audit
+		"CREATE SERVER AUDIT MyAudit TO FILE (FILEPATH = 'C:\\AuditLogs')",
+		// Batch 55: Endpoint
+		"CREATE ENDPOINT MyEndpoint STATE = STARTED AS TCP (LISTENER_PORT = 4022) FOR TSQL()",
+		// Batch 56: Event notification/session
+		"CREATE EVENT SESSION MySession ON SERVER ADD EVENT sqlserver.sql_statement_completed ADD TARGET package0.event_file(SET filename = 'audit.xel')",
+		// Batch 57: External objects
+		"CREATE EXTERNAL DATA SOURCE MySource WITH (LOCATION = 'hdfs://10.10.10.10:8020')",
+		"DROP EXTERNAL DATA SOURCE MySource",
+		"DROP EXTERNAL LIBRARY MyLib",
+		"DROP EXTERNAL LANGUAGE MyLang",
+		"DROP EXTERNAL RESOURCE POOL MyPool",
+		// Batch 58: Encryption keys
+		"CREATE COLUMN MASTER KEY MyCMK WITH (KEY_STORE_PROVIDER_NAME = 'MSSQL_CERTIFICATE_STORE')",
+		// Batch 59: Resource governor
+		"CREATE WORKLOAD GROUP TestGroup USING [default]",
+		"ALTER RESOURCE GOVERNOR RECONFIGURE",
+		// Batch 60: Server-level objects
+		"CREATE SERVER ROLE MyServerRole",
+		// Batch 61: Fulltext extensions
+		"CREATE FULLTEXT STOPLIST MyStoplist",
+		// Batch 62: Security policy, classification, signature
+		"CREATE SECURITY POLICY dbo.SecurityFilter ADD FILTER PREDICATE dbo.fn_securitypredicate(TenantId) ON dbo.Sales",
+		// Batch 63: Specialized indexes, aggregate
+		"CREATE SPATIAL INDEX SIndx_SpatialTable ON dbo.SpatialTable (geometry_col)",
+		// Batch 64: Extended restore, master key ops
+		"OPEN MASTER KEY DECRYPTION BY PASSWORD = 'password123'",
+		"CLOSE MASTER KEY",
+		// Batch 65: External library/language
+		"CREATE EXTERNAL LIBRARY MyLib FROM (CONTENT = 0x504B) WITH (LANGUAGE = 'R')",
+		// Batch 66: Availability group
+		"CREATE AVAILABILITY GROUP MyAG FOR DATABASE MyDB REPLICA ON 'server1' WITH (ENDPOINT_URL = 'TCP://server1:5022', AVAILABILITY_MODE = SYNCHRONOUS_COMMIT, FAILOVER_MODE = AUTOMATIC)",
+		"ALTER AVAILABILITY GROUP MyAG FAILOVER",
+		"DROP AVAILABILITY GROUP MyAG",
+		// Batch 67: Deprecated misc
+		"CREATE DEFAULT phonedflt AS 'unknown'",
+		"CREATE RULE range_rule AS @range >= 1000 AND @range < 20000",
+		"ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 4",
+		// BEGIN DIALOG (service broker, newly wired)
+		"BEGIN DIALOG @dialog FROM SERVICE 'InitiatorService' TO SERVICE 'TargetService' ON CONTRACT 'MyContract'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() < 1 {
+				t.Fatalf("Parse(%q): got %d statements, want >= 1", sql, result.Len())
+			}
+		})
+	}
+}
