@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -672,6 +673,87 @@ func (p *Parser) parseSetRoleStmt(start int) (*nodes.SetRoleStmt, error) {
 			return nil, err
 		}
 		stmt.Roles = roles
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseRenameUserStmt parses RENAME USER old_user TO new_user [, old_user TO new_user] ...
+// RENAME already consumed. p.cur is USER.
+func (p *Parser) parseRenameUserStmt(start int) (*nodes.RenameUserStmt, error) {
+	p.advance() // consume USER
+
+	stmt := &nodes.RenameUserStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	for {
+		pairStart := p.pos()
+		pair := &nodes.RenameUserPair{Loc: nodes.Loc{Start: pairStart}}
+
+		// old_user
+		pair.OldUser, _, _ = p.parseIdentifier()
+		if p.cur.Type == tokIDENT && p.cur.Str == "@" {
+			p.advance()
+			pair.OldHost, _, _ = p.parseIdentifier()
+		}
+
+		// TO
+		p.match(kwTO)
+
+		// new_user
+		pair.NewUser, _, _ = p.parseIdentifier()
+		if p.cur.Type == tokIDENT && p.cur.Str == "@" {
+			p.advance()
+			pair.NewHost, _, _ = p.parseIdentifier()
+		}
+
+		pair.Loc.End = p.pos()
+		stmt.Pairs = append(stmt.Pairs, pair)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseSetResourceGroupStmt parses SET RESOURCE GROUP group_name [FOR thread_id [, thread_id] ...].
+// SET already consumed. p.cur is RESOURCE.
+func (p *Parser) parseSetResourceGroupStmt(start int) (*nodes.SetResourceGroupStmt, error) {
+	p.advance() // consume RESOURCE
+	p.advance() // consume GROUP (identifier)
+
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &nodes.SetResourceGroupStmt{
+		Loc:  nodes.Loc{Start: start},
+		Name: name,
+	}
+
+	// Optional: FOR thread_id [, thread_id] ...
+	if p.cur.Type == kwFOR {
+		p.advance() // consume FOR
+		for {
+			if p.cur.Type == tokICONST {
+				id, _ := strconv.ParseInt(p.cur.Str, 10, 64)
+				stmt.ThreadIDs = append(stmt.ThreadIDs, id)
+				p.advance()
+			} else {
+				break
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
 	}
 
 	stmt.Loc.End = p.pos()

@@ -2058,6 +2058,8 @@ type VCPUSpec struct {
 	End   int64 // -1 means single CPU (no range)
 }
 
+func (v *VCPUSpec) nodeTag() {}
+
 // CreateResourceGroupStmt represents a CREATE RESOURCE GROUP statement.
 type CreateResourceGroupStmt struct {
 	Loc            Loc
@@ -2291,6 +2293,138 @@ type ResetMasterStmt struct {
 
 func (s *ResetMasterStmt) nodeTag()  {}
 func (s *ResetMasterStmt) stmtNode() {}
+
+// StartGroupReplicationStmt represents a START GROUP_REPLICATION statement.
+type StartGroupReplicationStmt struct {
+	Loc         Loc
+	User        string // USER = 'user'
+	Password    string // PASSWORD = 'pass'
+	DefaultAuth string // DEFAULT_AUTH = 'plugin'
+}
+
+func (s *StartGroupReplicationStmt) nodeTag()  {}
+func (s *StartGroupReplicationStmt) stmtNode() {}
+
+// StopGroupReplicationStmt represents a STOP GROUP_REPLICATION statement.
+type StopGroupReplicationStmt struct {
+	Loc Loc
+}
+
+func (s *StopGroupReplicationStmt) nodeTag()  {}
+func (s *StopGroupReplicationStmt) stmtNode() {}
+
+// AlterInstanceStmt represents an ALTER INSTANCE statement.
+type AlterInstanceStmt struct {
+	Loc     Loc
+	Action  string // ROTATE INNODB MASTER KEY, ROTATE BINLOG MASTER KEY, ENABLE INNODB REDO_LOG, etc.
+	Channel string // FOR CHANNEL value (RELOAD TLS)
+	NoRollbackOnError bool
+}
+
+func (s *AlterInstanceStmt) nodeTag()  {}
+func (s *AlterInstanceStmt) stmtNode() {}
+
+// LockInstanceStmt represents a LOCK INSTANCE FOR BACKUP statement.
+type LockInstanceStmt struct {
+	Loc Loc
+}
+
+func (s *LockInstanceStmt) nodeTag()  {}
+func (s *LockInstanceStmt) stmtNode() {}
+
+// UnlockInstanceStmt represents an UNLOCK INSTANCE statement.
+type UnlockInstanceStmt struct {
+	Loc Loc
+}
+
+func (s *UnlockInstanceStmt) nodeTag()  {}
+func (s *UnlockInstanceStmt) stmtNode() {}
+
+// ImportTableStmt represents an IMPORT TABLE FROM statement.
+type ImportTableStmt struct {
+	Loc   Loc
+	Files []string // .sdi file paths
+}
+
+func (s *ImportTableStmt) nodeTag()  {}
+func (s *ImportTableStmt) stmtNode() {}
+
+// BinlogStmt represents a BINLOG 'str' statement.
+type BinlogStmt struct {
+	Loc Loc
+	Str string // base64-encoded string
+}
+
+func (s *BinlogStmt) nodeTag()  {}
+func (s *BinlogStmt) stmtNode() {}
+
+// CacheIndexStmt represents a CACHE INDEX statement.
+type CacheIndexStmt struct {
+	Loc       Loc
+	Tables    []*TableRef
+	CacheName string // IN cache_name
+}
+
+func (s *CacheIndexStmt) nodeTag()  {}
+func (s *CacheIndexStmt) stmtNode() {}
+
+// LoadIndexIntoCacheStmt represents a LOAD INDEX INTO CACHE statement.
+type LoadIndexIntoCacheStmt struct {
+	Loc    Loc
+	Tables []*TableRef
+}
+
+func (s *LoadIndexIntoCacheStmt) nodeTag()  {}
+func (s *LoadIndexIntoCacheStmt) stmtNode() {}
+
+// ResetPersistStmt represents a RESET PERSIST statement.
+type ResetPersistStmt struct {
+	Loc      Loc
+	IfExists bool
+	Variable string // variable name, or "" for all
+}
+
+func (s *ResetPersistStmt) nodeTag()  {}
+func (s *ResetPersistStmt) stmtNode() {}
+
+// RenameUserStmt represents a RENAME USER statement.
+type RenameUserStmt struct {
+	Loc   Loc
+	Pairs []*RenameUserPair
+}
+
+func (s *RenameUserStmt) nodeTag()  {}
+func (s *RenameUserStmt) stmtNode() {}
+
+// RenameUserPair represents a single old TO new pair in RENAME USER.
+type RenameUserPair struct {
+	Loc     Loc
+	OldUser string
+	OldHost string
+	NewUser string
+	NewHost string
+}
+
+func (p *RenameUserPair) nodeTag() {}
+
+// SetResourceGroupStmt represents a SET RESOURCE GROUP statement.
+type SetResourceGroupStmt struct {
+	Loc       Loc
+	Name      string  // group name
+	ThreadIDs []int64 // FOR thread_id [, thread_id] ...
+}
+
+func (s *SetResourceGroupStmt) nodeTag()  {}
+func (s *SetResourceGroupStmt) stmtNode() {}
+
+// HelpStmt represents a HELP 'topic' statement.
+type HelpStmt struct {
+	Loc   Loc
+	Topic string
+}
+
+func (s *HelpStmt) nodeTag()  {}
+func (s *HelpStmt) stmtNode() {}
 
 // RawStmt wraps a statement node with its location span.
 type RawStmt struct {

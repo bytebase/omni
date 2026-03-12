@@ -403,6 +403,36 @@ func writeNode(sb *strings.Builder, node Node) {
 		writePurgeBinaryLogsStmt(sb, n)
 	case *ResetMasterStmt:
 		writeResetMasterStmt(sb, n)
+	case *StartGroupReplicationStmt:
+		writeStartGroupReplicationStmt(sb, n)
+	case *StopGroupReplicationStmt:
+		writeStopGroupReplicationStmt(sb, n)
+	case *AlterInstanceStmt:
+		writeAlterInstanceStmt(sb, n)
+	case *LockInstanceStmt:
+		fmt.Fprintf(sb, "{LOCK_INSTANCE :loc %d}", n.Loc.Start)
+	case *UnlockInstanceStmt:
+		fmt.Fprintf(sb, "{UNLOCK_INSTANCE :loc %d}", n.Loc.Start)
+	case *ImportTableStmt:
+		writeImportTableStmt(sb, n)
+	case *BinlogStmt:
+		fmt.Fprintf(sb, "{BINLOG :loc %d :str %q}", n.Loc.Start, n.Str)
+	case *CacheIndexStmt:
+		writeCacheIndexStmt(sb, n)
+	case *LoadIndexIntoCacheStmt:
+		writeLoadIndexIntoCacheStmt(sb, n)
+	case *ResetPersistStmt:
+		writeResetPersistStmt(sb, n)
+	case *RenameUserStmt:
+		writeRenameUserStmt(sb, n)
+	case *RenameUserPair:
+		writeRenameUserPair(sb, n)
+	case *SetResourceGroupStmt:
+		writeSetResourceGroupStmt(sb, n)
+	case *HelpStmt:
+		fmt.Fprintf(sb, "{HELP :loc %d :topic %q}", n.Loc.Start, n.Topic)
+	case *VCPUSpec:
+		writeVCPUSpec(sb, n)
 
 	default:
 		fmt.Fprintf(sb, "{UNKNOWN %T}", node)
@@ -3793,4 +3823,151 @@ func writeResetMasterStmt(sb *strings.Builder, n *ResetMasterStmt) {
 		fmt.Fprintf(sb, " :to %d", n.To)
 	}
 	sb.WriteString("}")
+}
+
+func writeStartGroupReplicationStmt(sb *strings.Builder, n *StartGroupReplicationStmt) {
+	sb.WriteString("{START_GROUP_REPLICATION")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.User != "" {
+		fmt.Fprintf(sb, " :user %s", n.User)
+	}
+	if n.Password != "" {
+		sb.WriteString(" :password ***")
+	}
+	if n.DefaultAuth != "" {
+		fmt.Fprintf(sb, " :default_auth %s", n.DefaultAuth)
+	}
+	sb.WriteString("}")
+}
+
+func writeStopGroupReplicationStmt(sb *strings.Builder, n *StopGroupReplicationStmt) {
+	fmt.Fprintf(sb, "{STOP_GROUP_REPLICATION :loc %d}", n.Loc.Start)
+}
+
+func writeAlterInstanceStmt(sb *strings.Builder, n *AlterInstanceStmt) {
+	sb.WriteString("{ALTER_INSTANCE")
+	fmt.Fprintf(sb, " :loc %d :action %s", n.Loc.Start, n.Action)
+	if n.Channel != "" {
+		fmt.Fprintf(sb, " :channel %s", n.Channel)
+	}
+	if n.NoRollbackOnError {
+		sb.WriteString(" :no_rollback_on_error true")
+	}
+	sb.WriteString("}")
+}
+
+func writeImportTableStmt(sb *strings.Builder, n *ImportTableStmt) {
+	sb.WriteString("{IMPORT_TABLE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Files) > 0 {
+		sb.WriteString(" :files (")
+		for i, f := range n.Files {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			fmt.Fprintf(sb, "%q", f)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeCacheIndexStmt(sb *strings.Builder, n *CacheIndexStmt) {
+	sb.WriteString("{CACHE_INDEX")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Tables) > 0 {
+		sb.WriteString(" :tables (")
+		for i, t := range n.Tables {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, t)
+		}
+		sb.WriteString(")")
+	}
+	if n.CacheName != "" {
+		fmt.Fprintf(sb, " :cache %s", n.CacheName)
+	}
+	sb.WriteString("}")
+}
+
+func writeLoadIndexIntoCacheStmt(sb *strings.Builder, n *LoadIndexIntoCacheStmt) {
+	sb.WriteString("{LOAD_INDEX_INTO_CACHE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Tables) > 0 {
+		sb.WriteString(" :tables (")
+		for i, t := range n.Tables {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, t)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeResetPersistStmt(sb *strings.Builder, n *ResetPersistStmt) {
+	sb.WriteString("{RESET_PERSIST")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	if n.Variable != "" {
+		fmt.Fprintf(sb, " :variable %s", n.Variable)
+	}
+	sb.WriteString("}")
+}
+
+func writeRenameUserStmt(sb *strings.Builder, n *RenameUserStmt) {
+	sb.WriteString("{RENAME_USER")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Pairs) > 0 {
+		sb.WriteString(" :pairs (")
+		for i, p := range n.Pairs {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, p)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeRenameUserPair(sb *strings.Builder, n *RenameUserPair) {
+	sb.WriteString("{RENAME_USER_PAIR")
+	fmt.Fprintf(sb, " :loc %d :old %s", n.Loc.Start, n.OldUser)
+	if n.OldHost != "" {
+		fmt.Fprintf(sb, "@%s", n.OldHost)
+	}
+	fmt.Fprintf(sb, " :new %s", n.NewUser)
+	if n.NewHost != "" {
+		fmt.Fprintf(sb, "@%s", n.NewHost)
+	}
+	sb.WriteString("}")
+}
+
+func writeSetResourceGroupStmt(sb *strings.Builder, n *SetResourceGroupStmt) {
+	sb.WriteString("{SET_RESOURCE_GROUP")
+	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
+	if len(n.ThreadIDs) > 0 {
+		sb.WriteString(" :threads (")
+		for i, id := range n.ThreadIDs {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			fmt.Fprintf(sb, "%d", id)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeVCPUSpec(sb *strings.Builder, n *VCPUSpec) {
+	if n.End < 0 {
+		fmt.Fprintf(sb, "{VCPU %d}", n.Start)
+	} else {
+		fmt.Fprintf(sb, "{VCPU %d-%d}", n.Start, n.End)
+	}
 }

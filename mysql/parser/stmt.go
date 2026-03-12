@@ -44,7 +44,11 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseTruncateStmt()
 
 	case kwRENAME:
+		start := p.pos()
 		p.advance() // consume RENAME
+		if p.cur.Type == kwUSER {
+			return p.parseRenameUserStmt(start)
+		}
 		return p.parseRenameTableStmt()
 
 	case kwSET:
@@ -78,11 +82,19 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseReleaseSavepointStmt()
 
 	case kwLOCK:
+		start := p.pos()
 		p.advance() // consume LOCK
+		if p.cur.Type == kwINSTANCE {
+			return p.parseLockInstanceStmt(start)
+		}
 		return p.parseLockTablesStmt()
 
 	case kwUNLOCK:
+		start := p.pos()
 		p.advance() // consume UNLOCK
+		if p.cur.Type == kwINSTANCE {
+			return p.parseUnlockInstanceStmt(start)
+		}
 		return p.parseUnlockTablesStmt()
 
 	case kwGRANT:
@@ -92,7 +104,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseRevokeStmt()
 
 	case kwLOAD:
-		return p.parseLoadDataStmt()
+		return p.parseLoadDispatch()
 
 	case kwPREPARE:
 		return p.parsePrepareStmt()
@@ -149,10 +161,22 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseChangeDispatch()
 
 	case kwSTOP:
-		return p.parseStopReplicaStmt()
+		return p.parseStopDispatch()
 
 	case kwPURGE:
 		return p.parsePurgeBinaryLogsStmt()
+
+	case kwIMPORT:
+		return p.parseImportTableStmt()
+
+	case kwBINLOG:
+		return p.parseBinlogStmt()
+
+	case kwCACHE:
+		return p.parseCacheIndexStmt()
+
+	case kwHELP:
+		return p.parseHelpStmt()
 
 	case kwCHECKSUM:
 		return p.parseChecksumTableStmt()
@@ -219,6 +243,11 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 		return p.parseStartReplicaStmt(start)
 	}
 
+	if p.isIdentToken() && eqFold(p.cur.Str, "GROUP_REPLICATION") {
+		p.advance() // consume GROUP_REPLICATION
+		return p.parseStartGroupReplicationStmt(start)
+	}
+
 	// Fall through to START TRANSACTION (parseBeginStmt expects p.cur is START or BEGIN)
 	// We already consumed START, so we need to handle TRANSACTION here
 	p.match(kwTRANSACTION)
@@ -260,6 +289,9 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 	if p.cur.Type == kwMASTER {
 		return p.parseResetMasterStmt(start)
 	}
+	if p.cur.Type == kwPERSIST {
+		return p.parseResetPersistStmt(start)
+	}
 
 	// Fall through to generic RESET (re-assemble the FlushStmt from utility.go)
 	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}}
@@ -280,6 +312,40 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 	}
 	stmt.Loc.End = p.pos()
 	return stmt, nil
+}
+
+// parseStopDispatch dispatches STOP statements.
+// STOP REPLICA/SLAVE -> replication; STOP GROUP_REPLICATION -> group replication.
+func (p *Parser) parseStopDispatch() (nodes.Node, error) {
+	start := p.pos()
+	p.advance() // consume STOP
+
+	if p.cur.Type == kwREPLICA || p.cur.Type == kwSLAVE {
+		p.advance() // consume REPLICA or SLAVE
+		return p.parseStopReplicaStmt(start)
+	}
+
+	if p.isIdentToken() && eqFold(p.cur.Str, "GROUP_REPLICATION") {
+		p.advance() // consume GROUP_REPLICATION
+		return p.parseStopGroupReplicationStmt(start)
+	}
+
+	return nil, &ParseError{Message: "expected REPLICA, SLAVE, or GROUP_REPLICATION after STOP", Position: p.cur.Loc}
+}
+
+// parseLoadDispatch dispatches LOAD statements.
+// LOAD DATA/XML -> load data; LOAD INDEX INTO CACHE -> load index.
+func (p *Parser) parseLoadDispatch() (nodes.Node, error) {
+	start := p.pos()
+	p.advance() // consume LOAD
+
+	if p.cur.Type == kwINDEX {
+		p.advance() // consume INDEX
+		return p.parseLoadIndexIntoCacheStmt(start)
+	}
+
+	// Fall through to LOAD DATA / LOAD XML
+	return p.parseLoadDataStmt(start)
 }
 
 // parseCreateDispatch dispatches CREATE statements to the appropriate parser.
@@ -519,6 +585,9 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	case kwRESOURCE:
 		p.advance() // consume RESOURCE
 		return p.parseAlterResourceGroupStmt(start)
+
+	case kwINSTANCE:
+		return p.parseAlterInstanceStmt(start)
 
 	default:
 		return nil, &ParseError{

@@ -1573,3 +1573,259 @@ func (p *Parser) parseDropResourceGroupStmt(start int) (*nodes.DropResourceGroup
 	stmt.Loc.End = p.pos()
 	return stmt, nil
 }
+
+// parseAlterInstanceStmt parses an ALTER INSTANCE statement.
+// ALTER already consumed. p.cur is INSTANCE.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-instance.html
+//
+//	ALTER INSTANCE instance_action
+//
+//	instance_action: {
+//	    ENABLE INNODB REDO_LOG
+//	  | DISABLE INNODB REDO_LOG
+//	  | ROTATE INNODB MASTER KEY
+//	  | ROTATE BINLOG MASTER KEY
+//	  | RELOAD TLS [FOR CHANNEL {mysql_main | mysql_admin}] [NO ROLLBACK ON ERROR]
+//	  | RELOAD KEYRING
+//	}
+func (p *Parser) parseAlterInstanceStmt(start int) (*nodes.AlterInstanceStmt, error) {
+	p.advance() // consume INSTANCE
+
+	stmt := &nodes.AlterInstanceStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Collect action words until end of statement or special clauses
+	var words []string
+	for p.cur.Type != tokEOF && p.cur.Type != ';' {
+		// Check for FOR CHANNEL
+		if p.cur.Type == kwFOR {
+			p.advance() // consume FOR
+			p.advance() // consume CHANNEL (identifier)
+			name, _, _ := p.parseIdentifier()
+			stmt.Channel = name
+			continue
+		}
+		// Check for NO ROLLBACK ON ERROR
+		if p.cur.Type == kwNO {
+			p.advance() // consume NO
+			p.advance() // consume ROLLBACK (identifier)
+			p.advance() // consume ON
+			p.advance() // consume ERROR (identifier)
+			stmt.NoRollbackOnError = true
+			continue
+		}
+		if p.isIdentToken() || p.cur.Type >= 700 {
+			name, _, _ := p.parseIdentifier()
+			words = append(words, name)
+		} else {
+			break
+		}
+	}
+
+	stmt.Action = ""
+	for i, w := range words {
+		if i > 0 {
+			stmt.Action += " "
+		}
+		stmt.Action += w
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseLockInstanceStmt parses LOCK INSTANCE FOR BACKUP.
+// LOCK already consumed. p.cur is INSTANCE.
+func (p *Parser) parseLockInstanceStmt(start int) (*nodes.LockInstanceStmt, error) {
+	p.advance() // consume INSTANCE
+	p.advance() // consume FOR
+	p.advance() // consume BACKUP
+
+	stmt := &nodes.LockInstanceStmt{
+		Loc: nodes.Loc{Start: start, End: p.pos()},
+	}
+	return stmt, nil
+}
+
+// parseUnlockInstanceStmt parses UNLOCK INSTANCE.
+// UNLOCK already consumed. p.cur is INSTANCE.
+func (p *Parser) parseUnlockInstanceStmt(start int) (*nodes.UnlockInstanceStmt, error) {
+	p.advance() // consume INSTANCE
+
+	stmt := &nodes.UnlockInstanceStmt{
+		Loc: nodes.Loc{Start: start, End: p.pos()},
+	}
+	return stmt, nil
+}
+
+// parseImportTableStmt parses IMPORT TABLE FROM sdi_file [, sdi_file] ...
+// p.cur is IMPORT.
+func (p *Parser) parseImportTableStmt() (*nodes.ImportTableStmt, error) {
+	start := p.pos()
+	p.advance() // consume IMPORT
+	p.advance() // consume TABLE
+	p.advance() // consume FROM
+
+	stmt := &nodes.ImportTableStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	for {
+		if p.cur.Type == tokSCONST {
+			stmt.Files = append(stmt.Files, p.cur.Str)
+			p.advance()
+		} else {
+			break
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseBinlogStmt parses BINLOG 'str'.
+// p.cur is BINLOG.
+func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
+	start := p.pos()
+	p.advance() // consume BINLOG
+
+	stmt := &nodes.BinlogStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	if p.cur.Type == tokSCONST {
+		stmt.Str = p.cur.Str
+		p.advance()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseCacheIndexStmt parses CACHE INDEX tbl_name [, tbl_name] ... IN cache_name.
+// p.cur is CACHE.
+func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
+	start := p.pos()
+	p.advance() // consume CACHE
+	p.advance() // consume INDEX
+
+	stmt := &nodes.CacheIndexStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Parse table list
+	for {
+		ref, err := p.parseTableRef()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Tables = append(stmt.Tables, ref)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	// IN cache_name
+	if p.cur.Type == kwIN {
+		p.advance()
+		name, _, _ := p.parseIdentifier()
+		stmt.CacheName = name
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseLoadIndexIntoCacheStmt parses LOAD INDEX INTO CACHE tbl_name [, tbl_name] ...
+// LOAD and INDEX already consumed. p.cur is INTO.
+func (p *Parser) parseLoadIndexIntoCacheStmt(start int) (*nodes.LoadIndexIntoCacheStmt, error) {
+	p.advance() // consume INTO
+	p.advance() // consume CACHE
+
+	stmt := &nodes.LoadIndexIntoCacheStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Parse table list
+	for {
+		ref, err := p.parseTableRef()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Tables = append(stmt.Tables, ref)
+		// Skip optional IGNORE LEAVES or INDEX/KEY hints
+		for p.isIdentToken() && (eqFold(p.cur.Str, "IGNORE") || eqFold(p.cur.Str, "INDEX") || eqFold(p.cur.Str, "KEY")) {
+			p.advance()
+			if p.cur.Type == '(' {
+				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					p.advance()
+				}
+				if p.cur.Type == ')' {
+					p.advance()
+				}
+			} else if p.isIdentToken() {
+				p.advance() // e.g. LEAVES
+			}
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseResetPersistStmt parses RESET PERSIST [IF EXISTS] [sys_var_name].
+// RESET already consumed. p.cur is PERSIST.
+func (p *Parser) parseResetPersistStmt(start int) (*nodes.ResetPersistStmt, error) {
+	p.advance() // consume PERSIST
+
+	stmt := &nodes.ResetPersistStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	if p.cur.Type == kwIF {
+		p.advance() // consume IF
+		p.advance() // consume EXISTS
+		stmt.IfExists = true
+	}
+
+	if p.isIdentToken() {
+		name, _, _ := p.parseIdentifier()
+		stmt.Variable = name
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseHelpStmt parses HELP 'topic'.
+// p.cur is HELP.
+func (p *Parser) parseHelpStmt() (*nodes.HelpStmt, error) {
+	start := p.pos()
+	p.advance() // consume HELP
+
+	stmt := &nodes.HelpStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	if p.cur.Type == tokSCONST {
+		stmt.Topic = p.cur.Str
+		p.advance()
+	} else if p.isIdentToken() {
+		name, _, _ := p.parseIdentifier()
+		stmt.Topic = name
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}

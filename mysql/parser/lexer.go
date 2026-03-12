@@ -424,6 +424,11 @@ const (
 	kwCHANNEL
 	kwPURGE
 	kwSTOP
+	kwIMPORT
+	kwPERSIST
+	kwBACKUP
+	kwHELP
+	kwCACHE
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -691,6 +696,11 @@ var keywords = map[string]int{
 	"channel":             kwCHANNEL,
 	"purge":               kwPURGE,
 	"stop":                kwSTOP,
+	"import":              kwIMPORT,
+	"persist":             kwPERSIST,
+	"backup":              kwBACKUP,
+	"help":                kwHELP,
+	"cache":               kwCACHE,
 	"out":                 kwOUT,
 	"inout":               kwINOUT,
 	"at":                  kwAT,

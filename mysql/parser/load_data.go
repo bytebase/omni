@@ -16,10 +16,8 @@ import (
 //	    [IGNORE number {LINES | ROWS}]
 //	    [(col_name_or_user_var [, col_name_or_user_var] ...)]
 //	    [SET col_name={expr | DEFAULT} [, col_name={expr | DEFAULT}] ...]
-func (p *Parser) parseLoadDataStmt() (*nodes.LoadDataStmt, error) {
-	start := p.pos()
-	p.advance() // consume LOAD
-	p.advance() // consume DATA
+func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
+	p.advance() // consume DATA or XML
 
 	stmt := &nodes.LoadDataStmt{Loc: nodes.Loc{Start: start}}
 

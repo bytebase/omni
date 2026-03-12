@@ -475,11 +475,7 @@ func (p *Parser) parseThreadTypes(stmt interface{}) {
 //
 //	channel_option:
 //	    FOR CHANNEL channel
-func (p *Parser) parseStopReplicaStmt() (*nodes.StopReplicaStmt, error) {
-	start := p.pos()
-	p.advance() // consume STOP
-	p.advance() // consume REPLICA or SLAVE
-
+func (p *Parser) parseStopReplicaStmt(start int) (*nodes.StopReplicaStmt, error) {
 	stmt := &nodes.StopReplicaStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -592,5 +588,62 @@ func (p *Parser) parseResetMasterStmt(start int) (*nodes.ResetMasterStmt, error)
 	}
 
 	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseStartGroupReplicationStmt parses a START GROUP_REPLICATION statement.
+// START already consumed. GROUP_REPLICATION identifier already consumed.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/start-group-replication.html
+//
+//	START GROUP_REPLICATION
+//	    [USER='user_name']
+//	    [, PASSWORD='user_pass']
+//	    [, DEFAULT_AUTH='plugin_name']
+func (p *Parser) parseStartGroupReplicationStmt(start int) (*nodes.StartGroupReplicationStmt, error) {
+	stmt := &nodes.StartGroupReplicationStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Optional connection options
+	for p.isIdentToken() || p.cur.Type == kwUSER || p.cur.Type == kwPASSWORD {
+		switch {
+		case p.cur.Type == kwUSER || (p.isIdentToken() && eqFold(p.cur.Str, "USER")):
+			p.advance()
+			p.match('=')
+			stmt.User = p.cur.Str
+			p.advance()
+		case p.cur.Type == kwPASSWORD || (p.isIdentToken() && eqFold(p.cur.Str, "PASSWORD")):
+			p.advance()
+			p.match('=')
+			stmt.Password = p.cur.Str
+			p.advance()
+		case p.isIdentToken() && eqFold(p.cur.Str, "DEFAULT_AUTH"):
+			p.advance()
+			p.match('=')
+			stmt.DefaultAuth = p.cur.Str
+			p.advance()
+		default:
+			goto groupReplDone
+		}
+		if p.cur.Type == ',' {
+			p.advance()
+		}
+	}
+groupReplDone:
+	stmt.Loc.End = p.pos()
+	return stmt, nil
+}
+
+// parseStopGroupReplicationStmt parses a STOP GROUP_REPLICATION statement.
+// p.cur is STOP. (dispatched when STOP followed by GROUP_REPLICATION identifier)
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/stop-group-replication.html
+//
+//	STOP GROUP_REPLICATION
+func (p *Parser) parseStopGroupReplicationStmt(start int) (*nodes.StopGroupReplicationStmt, error) {
+	stmt := &nodes.StopGroupReplicationStmt{
+		Loc: nodes.Loc{Start: start, End: p.pos()},
+	}
 	return stmt, nil
 }

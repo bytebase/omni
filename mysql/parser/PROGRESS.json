@@ -1230,7 +1230,7 @@
       "id": 45,
       "name": "group_replication",
       "file": "replication.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: START GROUP_REPLICATION with USER/PASSWORD/DEFAULT_AUTH, STOP GROUP_REPLICATION",
       "rules": [
         "parseStartGroupReplicationStmt",
@@ -1246,7 +1246,7 @@
       "id": 46,
       "name": "instance_admin",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: ALTER INSTANCE (ROTATE keys, ENABLE/DISABLE REDO_LOG, RELOAD TLS/KEYRING), LOCK/UNLOCK INSTANCE FOR BACKUP, IMPORT TABLE",
       "rules": [
         "parseAlterInstanceStmt",
@@ -1268,7 +1268,7 @@
       "id": 47,
       "name": "cache_binlog",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: BINLOG 'str', CACHE INDEX tbl IN cache_name, LOAD INDEX INTO CACHE tbl, RESET PERSIST [var]",
       "rules": [
         "parseBinlogStmt",
@@ -1288,7 +1288,7 @@
       "id": 48,
       "name": "account_misc",
       "file": "grant.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: RENAME USER old TO new, SET RESOURCE GROUP name [FOR thread_id], HELP 'topic'",
       "rules": [
         "parseRenameUserStmt",
@@ -1306,7 +1306,7 @@
       "id": 49,
       "name": "depth_fix_outfuncs_vcpu",
       "file": "../ast/outfuncs.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 38 gap: VCPUSpec struct missing writeNode case in outfuncs.go",
       "rules": [
         "writeVCPUSpec"
@@ -1320,7 +1320,7 @@
       "id": 50,
       "name": "stmt_dispatch_phase3",
       "file": "stmt.go",
-      "status": "pending",
+      "status": "done",
       "description": "Wire Phase 3 parsers into parseStmt: replication, instance admin, cache/binlog, account misc, HELP, IMPORT",
       "rules": [
         "stmt_dispatch_replication",

@@ -4400,7 +4400,9 @@ func TestParseLoadData(t *testing.T) {
 	t.Run("basic", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("LOAD DATA INFILE '/tmp/data.csv' INTO TABLE t")}
 		p.advance()
-		stmt, err := p.parseLoadDataStmt()
+		start := p.pos()
+		p.advance() // consume LOAD
+		stmt, err := p.parseLoadDataStmt(start)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -4415,7 +4417,9 @@ func TestParseLoadData(t *testing.T) {
 	t.Run("local", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("LOAD DATA LOCAL INFILE '/tmp/data.csv' INTO TABLE t")}
 		p.advance()
-		stmt, err := p.parseLoadDataStmt()
+		start := p.pos()
+		p.advance() // consume LOAD
+		stmt, err := p.parseLoadDataStmt(start)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -4427,7 +4431,9 @@ func TestParseLoadData(t *testing.T) {
 	t.Run("replace", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("LOAD DATA INFILE '/tmp/data.csv' REPLACE INTO TABLE t")}
 		p.advance()
-		stmt, err := p.parseLoadDataStmt()
+		start := p.pos()
+		p.advance() // consume LOAD
+		stmt, err := p.parseLoadDataStmt(start)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -4439,7 +4445,9 @@ func TestParseLoadData(t *testing.T) {
 	t.Run("fields terminated", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("LOAD DATA INFILE '/tmp/data.csv' INTO TABLE t FIELDS TERMINATED BY ','")}
 		p.advance()
-		stmt, err := p.parseLoadDataStmt()
+		start := p.pos()
+		p.advance() // consume LOAD
+		stmt, err := p.parseLoadDataStmt(start)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -7121,4 +7129,172 @@ func TestParseResetMaster(t *testing.T) {
 			ParseAndCheck(t, sql)
 		})
 	}
+}
+
+// ============================================================================
+// Batch 45: GROUP REPLICATION
+// ============================================================================
+
+func TestParseStartGroupReplication(t *testing.T) {
+	tests := []struct {
+		sql      string
+		expected string
+	}{
+		{
+			"START GROUP_REPLICATION",
+			"{START_GROUP_REPLICATION :loc 0}",
+		},
+		{
+			"START GROUP_REPLICATION USER='repl', PASSWORD='secret'",
+			"{START_GROUP_REPLICATION :loc 0 :user repl :password ***}",
+		},
+		{
+			"START GROUP_REPLICATION USER='repl', PASSWORD='secret', DEFAULT_AUTH='mysql_native_password'",
+			"{START_GROUP_REPLICATION :loc 0 :user repl :password *** :default_auth mysql_native_password}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.expected)
+		})
+	}
+}
+
+func TestParseStopGroupReplication(t *testing.T) {
+	ParseAndCompare(t, "STOP GROUP_REPLICATION", "{STOP_GROUP_REPLICATION :loc 0}")
+}
+
+// ============================================================================
+// Batch 46: INSTANCE ADMIN
+// ============================================================================
+
+func TestParseAlterInstanceRotateKey(t *testing.T) {
+	ParseAndCheck(t, "ALTER INSTANCE ROTATE INNODB MASTER KEY")
+}
+
+func TestParseAlterInstanceRedoLog(t *testing.T) {
+	tests := []string{
+		"ALTER INSTANCE ENABLE INNODB REDO_LOG",
+		"ALTER INSTANCE DISABLE INNODB REDO_LOG",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseAlterInstanceReloadTLS(t *testing.T) {
+	tests := []string{
+		"ALTER INSTANCE RELOAD TLS",
+		"ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR",
+		"ALTER INSTANCE RELOAD TLS FOR CHANNEL mysql_main",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseLockInstance(t *testing.T) {
+	ParseAndCompare(t, "LOCK INSTANCE FOR BACKUP", "{LOCK_INSTANCE :loc 0}")
+}
+
+func TestParseUnlockInstance(t *testing.T) {
+	ParseAndCompare(t, "UNLOCK INSTANCE", "{UNLOCK_INSTANCE :loc 0}")
+}
+
+func TestParseImportTable(t *testing.T) {
+	ParseAndCheck(t, "IMPORT TABLE FROM '/tmp/t1.sdi', '/tmp/t2.sdi'")
+}
+
+// ============================================================================
+// Batch 47: CACHE/BINLOG
+// ============================================================================
+
+func TestParseBinlog(t *testing.T) {
+	ParseAndCompare(t, "BINLOG 'base64str'", "{BINLOG :loc 0 :str \"base64str\"}")
+}
+
+func TestParseCacheIndex(t *testing.T) {
+	ParseAndCheck(t, "CACHE INDEX t1 IN hot_cache")
+}
+
+func TestParseLoadIndexIntoCache(t *testing.T) {
+	ParseAndCheck(t, "LOAD INDEX INTO CACHE t1")
+}
+
+func TestParseResetPersist(t *testing.T) {
+	tests := []struct {
+		sql      string
+		expected string
+	}{
+		{
+			"RESET PERSIST",
+			"{RESET_PERSIST :loc 0}",
+		},
+		{
+			"RESET PERSIST max_connections",
+			"{RESET_PERSIST :loc 0 :variable max_connections}",
+		},
+		{
+			"RESET PERSIST IF EXISTS max_connections",
+			"{RESET_PERSIST :loc 0 :if_exists true :variable max_connections}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.expected)
+		})
+	}
+}
+
+// ============================================================================
+// Batch 48: ACCOUNT MISC
+// ============================================================================
+
+func TestParseRenameUser(t *testing.T) {
+	tests := []string{
+		"RENAME USER foo TO bar",
+		"RENAME USER foo TO bar, baz TO qux",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseSetResourceGroup(t *testing.T) {
+	tests := []struct {
+		sql      string
+		expected string
+	}{
+		{
+			"SET RESOURCE GROUP rg1",
+			"{SET_RESOURCE_GROUP :loc 0 :name rg1}",
+		},
+		{
+			"SET RESOURCE GROUP rg1 FOR 1, 2, 3",
+			"{SET_RESOURCE_GROUP :loc 0 :name rg1 :threads (1 2 3)}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.expected)
+		})
+	}
+}
+
+func TestParseHelp(t *testing.T) {
+	ParseAndCompare(t, "HELP 'contents'", "{HELP :loc 0 :topic \"contents\"}")
+}
+
+// ============================================================================
+// Batch 49: VCPUSpec depth fix (tested via CREATE RESOURCE GROUP)
+// ============================================================================
+
+func TestDeparseCreateResourceGroup(t *testing.T) {
+	ParseAndCheck(t, "CREATE RESOURCE GROUP rg1 TYPE = USER VCPU = 0-3")
 }
