@@ -10816,3 +10816,72 @@ func TestParseResourceGovernorOptionsDepth(t *testing.T) {
 		})
 	}
 }
+
+// TestParseDropSecurityKeysDispatch tests batch 103: DROP MASTER KEY, DROP CREDENTIAL,
+// DROP CERTIFICATE, DROP ASYMMETRIC KEY, DROP SYMMETRIC KEY.
+func TestParseDropSecurityKeysDispatch(t *testing.T) {
+	tests := []struct {
+		sql        string
+		action     string
+		objectType string
+		name       string
+	}{
+		// DROP MASTER KEY
+		{
+			sql:        "DROP MASTER KEY",
+			action:     "DROP",
+			objectType: "MASTER KEY",
+			name:       "",
+		},
+		// DROP CREDENTIAL
+		{
+			sql:        "DROP CREDENTIAL MyCredential",
+			action:     "DROP",
+			objectType: "CREDENTIAL",
+			name:       "MyCredential",
+		},
+		// DROP CERTIFICATE
+		{
+			sql:        "DROP CERTIFICATE MyCertificate",
+			action:     "DROP",
+			objectType: "CERTIFICATE",
+			name:       "MyCertificate",
+		},
+		// DROP ASYMMETRIC KEY
+		{
+			sql:        "DROP ASYMMETRIC KEY MyAsymKey",
+			action:     "DROP",
+			objectType: "ASYMMETRIC KEY",
+			name:       "MyAsymKey",
+		},
+		// DROP SYMMETRIC KEY
+		{
+			sql:        "DROP SYMMETRIC KEY MySymKey",
+			action:     "DROP",
+			objectType: "SYMMETRIC KEY",
+			name:       "MySymKey",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.SecurityKeyStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *SecurityKeyStmt, got %T", tt.sql, result.Items[0])
+			}
+			if stmt.Action != tt.action {
+				t.Errorf("Parse(%q): action = %q, want %q", tt.sql, stmt.Action, tt.action)
+			}
+			if stmt.ObjectType != tt.objectType {
+				t.Errorf("Parse(%q): objectType = %q, want %q", tt.sql, stmt.ObjectType, tt.objectType)
+			}
+			if stmt.Name != tt.name {
+				t.Errorf("Parse(%q): name = %q, want %q", tt.sql, stmt.Name, tt.name)
+			}
+			checkLocation(t, tt.sql, "SecurityKeyStmt", stmt.Loc)
+		})
+	}
+}

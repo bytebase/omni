@@ -1635,6 +1635,41 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			}
 			return nil
 		}
+		// DROP MASTER KEY
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "MASTER") {
+			p.advance() // consume DROP
+			stmt := p.parseSecurityKeyStmt("DROP")
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		// DROP SYMMETRIC KEY
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "SYMMETRIC") {
+			p.advance() // consume DROP
+			stmt := p.parseSecurityKeyStmt("DROP")
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		// DROP ASYMMETRIC KEY
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "ASYMMETRIC") {
+			p.advance() // consume DROP
+			stmt := p.parseSecurityKeyStmt("DROP")
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		// DROP CERTIFICATE
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "CERTIFICATE") {
+			p.advance() // consume DROP
+			stmt := p.parseSecurityKeyStmt("DROP")
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		// DROP CREDENTIAL
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "CREDENTIAL") {
+			p.advance() // consume DROP
+			stmt := p.parseSecurityKeyStmt("DROP")
+			stmt.Loc.Start = loc
+			return stmt
+		}
 		return p.parseDropStmt()
 	}
 }

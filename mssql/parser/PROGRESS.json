@@ -2317,7 +2317,102 @@
         "alter_resource_governor_structured",
         "workload_classifier_structured_options"
       ]
+    },
+    {
+      "id": 103,
+      "name": "drop_security_keys_dispatch",
+      "file": "drop.go",
+      "status": "done",
+      "description": "Fix batch 31 gap: add DROP MASTER KEY, DROP CREDENTIAL, DROP CERTIFICATE, DROP ASYMMETRIC KEY, DROP SYMMETRIC KEY to parseDropOrSecurityStmt dispatcher and implement parsers. These objects have CREATE/ALTER support but missing DROP dispatch.",
+      "rules": [
+        "parseDropMasterKeyStmt",
+        "parseDropCredentialStmt",
+        "parseDropCertificateStmt",
+        "parseDropAsymmetricKeyStmt",
+        "parseDropSymmetricKeyStmt"
+      ],
+      "depends_on": [
+        31,
+        48
+      ],
+      "tests": [
+        "drop_master_key",
+        "drop_credential",
+        "drop_certificate",
+        "drop_asymmetric_key",
+        "drop_symmetric_key"
+      ]
+    },
+    {
+      "id": 104,
+      "name": "drop_external_library_language_dispatch",
+      "file": "parser.go",
+      "status": "pending",
+      "description": "Fix batch 65 gap: wire DROP EXTERNAL LIBRARY and DROP EXTERNAL LANGUAGE to their existing parseDropExternalLibraryStmt/parseDropExternalLanguageStmt parsers in parseDropOrSecurityStmt dispatcher. Parsers exist but are unreachable from the dispatcher.",
+      "rules": [
+        "drop_external_library_dispatch",
+        "drop_external_language_dispatch"
+      ],
+      "depends_on": [
+        65,
+        68
+      ],
+      "tests": [
+        "drop_external_library",
+        "drop_external_language"
+      ]
+    },
+    {
+      "id": 105,
+      "name": "backup_restore_symmetric_key",
+      "file": "security_keys.go",
+      "status": "pending",
+      "description": "New: BACKUP SYMMETRIC KEY and RESTORE SYMMETRIC KEY statements. BNF: BACKUP SYMMETRIC KEY key_name TO FILE = 'path' ENCRYPTION BY PASSWORD = 'password'; RESTORE SYMMETRIC KEY key_name FROM FILE = 'path' DECRYPTION BY PASSWORD = 'password'.",
+      "rules": [
+        "parseBackupSymmetricKeyStmt",
+        "parseRestoreSymmetricKeyStmt"
+      ],
+      "depends_on": [
+        31,
+        34
+      ],
+      "tests": [
+        "backup_symmetric_key",
+        "restore_symmetric_key"
+      ]
+    },
+    {
+      "id": 106,
+      "name": "get_transmission_status",
+      "file": "service_broker.go",
+      "status": "pending",
+      "description": "New: GET TRANSMISSION STATUS Service Broker statement. BNF: GET TRANSMISSION STATUS ( conversation_handle )",
+      "rules": [
+        "parseGetTransmissionStatusStmt"
+      ],
+      "depends_on": [
+        46
+      ],
+      "tests": [
+        "get_transmission_status"
+      ]
+    },
+    {
+      "id": 107,
+      "name": "endpoint_unknown_protocol_depth",
+      "file": "endpoint.go",
+      "status": "pending",
+      "description": "Fix batch 99 gap: replace skipParenthesized() call at line 179 for non-TCP protocols with structured parsing. HTTP protocol options (PATH, AUTHENTICATION, PORTS, SITE, CLEAR_PORT, SSL_PORT, AUTH_REALM, DEFAULT_LOGON_DOMAIN, COMPRESSION) should be parsed structurally.",
+      "rules": [
+        "parseEndpointProtocolHTTPOptions"
+      ],
+      "depends_on": [
+        99
+      ],
+      "tests": [
+        "endpoint_http_structured_options"
+      ]
     }
   ],
-  "audit_round": 7
+  "audit_round": 8
 }
