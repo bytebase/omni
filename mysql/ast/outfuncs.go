@@ -2450,6 +2450,12 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 		sb.WriteString(" :generated ")
 		writeNode(sb, n.Generated)
 	}
+	if n.ColumnFormat != "" {
+		fmt.Fprintf(sb, " :column_format %s", n.ColumnFormat)
+	}
+	if n.Storage != "" {
+		fmt.Fprintf(sb, " :storage %s", n.Storage)
+	}
 	if len(n.Constraints) > 0 {
 		sb.WriteString(" :constraints ")
 		for i, c := range n.Constraints {

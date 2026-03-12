@@ -9358,3 +9358,34 @@ func TestParseCreateTableSecondaryEngineAttribute(t *testing.T) {
 		})
 	}
 }
+
+func TestParseColumnFormat(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE t (id INT COLUMN_FORMAT FIXED)",
+		"CREATE TABLE t (id INT COLUMN_FORMAT DYNAMIC)",
+		"CREATE TABLE t (id INT COLUMN_FORMAT DEFAULT)",
+		"CREATE TABLE t (id INT NOT NULL COLUMN_FORMAT FIXED AUTO_INCREMENT)",
+		"CREATE TABLE t (a INT COLUMN_FORMAT FIXED, b VARCHAR(100) COLUMN_FORMAT DYNAMIC)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseColumnStorage(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE t (id INT STORAGE DISK)",
+		"CREATE TABLE t (id INT STORAGE MEMORY)",
+		"CREATE TABLE t (id INT NOT NULL STORAGE DISK AUTO_INCREMENT)",
+		"CREATE TABLE t (a INT STORAGE DISK, b VARCHAR(100) STORAGE MEMORY)",
+		"CREATE TABLE t (id INT COLUMN_FORMAT FIXED STORAGE DISK)",
+		"CREATE TABLE t (id INT STORAGE MEMORY COLUMN_FORMAT DYNAMIC)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}

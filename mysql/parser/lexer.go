@@ -342,6 +342,10 @@ const (
 	kwPREV
 	kwQUERY
 	kwCONNECTION
+	kwCOLUMN_FORMAT
+	kwSTORAGE
+	kwDISK
+	kwMEMORY
 	kwBINLOG
 	kwMASTER
 	kwSLAVE
@@ -761,6 +765,10 @@ var keywords = map[string]int{
 	"redundant":           kwREDUNDANT,
 	"compact":             kwCOMPACT,
 	"row_format":          kwROW_FORMAT,
+	"column_format":       kwCOLUMN_FORMAT,
+	"storage":             kwSTORAGE,
+	"disk":                kwDISK,
+	"memory":              kwMEMORY,
 	"handler":             kwHANDLER,
 	"open":                kwOPEN,
 	"close":               kwCLOSE,

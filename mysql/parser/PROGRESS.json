@@ -2003,7 +2003,93 @@
         "TestParseCreateTableSecondaryEngine",
         "TestParseCreateTableSecondaryEngineAttribute"
       ]
+    },
+    {
+      "id": 81,
+      "name": "depth_fix_column_format_storage",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "Fix batch 7 gap: COLUMN_FORMAT {FIXED|DYNAMIC|DEFAULT} column modifier and STORAGE {DISK|MEMORY|DEFAULT} column modifier are not parsed. MySQL 8.0 allows these in column definitions but the parser only handles STORAGE as a table option. Add COLUMN_FORMAT and STORAGE to parseColumnOption, isColumnConstraintStart, and corresponding AST ColumnDef fields.",
+      "rules": [
+        "parseColumnOption",
+        "isColumnConstraintStart"
+      ],
+      "depends_on": [
+        7,
+        59
+      ],
+      "tests": [
+        "TestParseColumnFormat",
+        "TestParseColumnStorage"
+      ]
+    },
+    {
+      "id": 82,
+      "name": "depth_fix_utility_tests_batch1",
+      "file": "compare_test.go",
+      "status": "pending",
+      "description": "Fix batch 20 gap: add dedicated tests for table maintenance and administrative statements in utility.go - ANALYZE TABLE, OPTIMIZE TABLE, CHECK TABLE, REPAIR TABLE, FLUSH, RESET, KILL, DO, CHECKSUM TABLE, SHUTDOWN, RESTART",
+      "rules": [],
+      "depends_on": [
+        20,
+        34,
+        71
+      ],
+      "tests": [
+        "TestParseAnalyzeTable",
+        "TestParseOptimizeTable",
+        "TestParseCheckTable",
+        "TestParseRepairTable",
+        "TestParseFlush",
+        "TestParseReset",
+        "TestParseKill",
+        "TestParseDo",
+        "TestParseChecksumTable",
+        "TestParseShutdown",
+        "TestParseRestart"
+      ]
+    },
+    {
+      "id": 83,
+      "name": "depth_fix_utility_tests_batch2",
+      "file": "compare_test.go",
+      "status": "pending",
+      "description": "Fix batch 27/35/36/37/38/46 gap: add dedicated tests for CALL, HANDLER OPEN/READ/CLOSE, INSTALL/UNINSTALL PLUGIN/COMPONENT, CREATE/ALTER/DROP TABLESPACE, CREATE/ALTER/DROP SERVER, CREATE/DROP SPATIAL REFERENCE SYSTEM, CREATE/ALTER/DROP RESOURCE GROUP, ALTER INSTANCE, LOCK/UNLOCK INSTANCE, IMPORT TABLE, RESET PERSIST",
+      "rules": [],
+      "depends_on": [
+        27,
+        35,
+        36,
+        37,
+        38,
+        46,
+        47,
+        48
+      ],
+      "tests": [
+        "TestParseCall",
+        "TestParseHandlerOpenReadClose",
+        "TestParseInstallPlugin",
+        "TestParseUninstallPlugin",
+        "TestParseInstallComponent",
+        "TestParseUninstallComponent",
+        "TestParseCreateTablespace",
+        "TestParseAlterTablespace",
+        "TestParseDropTablespace",
+        "TestParseCreateServer",
+        "TestParseAlterServer",
+        "TestParseDropServer",
+        "TestParseCreateSpatialRefSys",
+        "TestParseDropSpatialRefSys",
+        "TestParseCreateResourceGroup",
+        "TestParseAlterResourceGroup",
+        "TestParseDropResourceGroup",
+        "TestParseAlterInstance",
+        "TestParseLockUnlockInstance",
+        "TestParseImportTable",
+        "TestParseResetPersist"
+      ]
     }
   ],
-  "audit_round": 9
+  "audit_round": 10
 }

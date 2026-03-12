@@ -989,7 +989,7 @@ func (p *Parser) parseShowProfileType() string {
 		p.advance()
 		return "IPC"
 	}
-	if p.isIdentLike("memory") {
+	if p.isIdentLike("memory") || p.cur.Type == kwMEMORY {
 		p.advance()
 		return "MEMORY"
 	}
