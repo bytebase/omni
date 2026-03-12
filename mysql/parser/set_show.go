@@ -318,6 +318,19 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				return nil, err
 			}
 			stmt.From = ref
+		case kwUSER:
+			stmt.Type = "CREATE USER"
+			p.advance()
+			ref, err := p.parseTableRef()
+			if err != nil {
+				return nil, err
+			}
+			stmt.From = ref
+			// Skip optional @'host' part
+			if p.cur.Type == '@' {
+				p.advance()
+				p.advance() // skip host
+			}
 		}
 
 	case kwINDEX:
@@ -393,6 +406,25 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		stmt.Type = "ENGINES"
 		p.advance()
 
+	case kwENGINE:
+		// SHOW ENGINE engine_name {STATUS | MUTEX}
+		p.advance() // consume ENGINE
+		engineName, nameLoc, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.From = &nodes.TableRef{
+			Loc:  nodes.Loc{Start: nameLoc, End: p.pos()},
+			Name: engineName,
+		}
+		if p.cur.Type == kwSTATUS {
+			stmt.Type = "ENGINE STATUS"
+			p.advance()
+		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "mutex") {
+			stmt.Type = "ENGINE MUTEX"
+			p.advance()
+		}
+
 	case kwPLUGINS:
 		stmt.Type = "PLUGINS"
 		p.advance()
@@ -408,6 +440,9 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		p.advance() // consume SLAVE
 		if p.cur.Type == kwSTATUS {
 			stmt.Type = "SLAVE STATUS"
+			p.advance()
+		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "hosts") {
+			stmt.Type = "REPLICAS"
 			p.advance()
 		}
 
@@ -490,6 +525,14 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
+		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "code") {
+			stmt.Type = "PROCEDURE CODE"
+			p.advance() // consume CODE
+			ref, err := p.parseTableRef()
+			if err != nil {
+				return nil, err
+			}
+			stmt.From = ref
 		}
 
 	case kwFUNCTION:
@@ -500,6 +543,14 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
+		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "code") {
+			stmt.Type = "FUNCTION CODE"
+			p.advance() // consume CODE
+			ref, err := p.parseTableRef()
+			if err != nil {
+				return nil, err
+			}
+			stmt.From = ref
 		}
 
 	case kwOPEN:
@@ -566,6 +617,25 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		}
 
 	default:
+		// SHOW PROFILE [type [, type] ...] [FOR QUERY n] [LIMIT row_count [OFFSET offset]]
+		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "profile") {
+			stmt.Type = "PROFILE"
+			p.advance() // consume PROFILE
+			if err := p.parseShowProfileOptions(stmt); err != nil {
+				return nil, err
+			}
+			stmt.Loc.End = p.pos()
+			return stmt, nil
+		}
+
+		// SHOW REPLICAS
+		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "replicas") {
+			stmt.Type = "REPLICAS"
+			p.advance()
+			stmt.Loc.End = p.pos()
+			return stmt, nil
+		}
+
 		// Handle GRANTS and PROCESSLIST as identifier-based keywords
 		if p.cur.Type == kwGRANT || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "grants")) {
 			stmt.Type = "GRANTS"
@@ -634,6 +704,123 @@ func (p *Parser) parseShowFromLikeOrWhere(stmt *nodes.ShowStmt) error {
 		stmt.From = ref
 	}
 	return p.parseShowLikeOrWhere(stmt)
+}
+
+// parseShowProfileOptions parses the optional parts of SHOW PROFILE.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/show-profile.html
+//
+//	SHOW PROFILE [type [, type] ... ]
+//	    [FOR QUERY n]
+//	    [LIMIT row_count [OFFSET offset]]
+//
+//	type: {
+//	    ALL
+//	  | BLOCK IO
+//	  | CONTEXT SWITCHES
+//	  | CPU
+//	  | IPC
+//	  | MEMORY
+//	  | PAGE FAULTS
+//	  | SOURCE
+//	  | SWAPS
+//	}
+func (p *Parser) parseShowProfileOptions(stmt *nodes.ShowStmt) error {
+	// Parse optional profile type list
+	for {
+		pt := p.parseShowProfileType()
+		if pt == "" {
+			break
+		}
+		stmt.ProfileTypes = append(stmt.ProfileTypes, pt)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+
+	// Optional FOR QUERY n
+	if p.cur.Type == kwFOR {
+		p.advance() // consume FOR
+		// Expect QUERY
+		if p.cur.Type == kwQUERY {
+			p.advance() // consume QUERY
+			expr, err := p.parseExpr()
+			if err != nil {
+				return err
+			}
+			stmt.ForQuery = expr
+		}
+	}
+
+	// Optional LIMIT row_count [OFFSET offset]
+	if _, ok := p.match(kwLIMIT); ok {
+		p.advance() // skip count
+		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "offset") {
+			p.advance() // consume OFFSET
+			p.advance() // skip offset value
+		}
+	}
+
+	return nil
+}
+
+// parseShowProfileType tries to parse a single SHOW PROFILE type keyword.
+// Returns "" if the current token is not a valid profile type.
+func (p *Parser) parseShowProfileType() string {
+	if p.cur.Type == kwALL {
+		p.advance()
+		return "ALL"
+	}
+	// Handle profile types that may be keywords or identifiers
+	if p.isIdentLike("cpu") {
+		p.advance()
+		return "CPU"
+	}
+	if p.isIdentLike("ipc") {
+		p.advance()
+		return "IPC"
+	}
+	if p.isIdentLike("memory") {
+		p.advance()
+		return "MEMORY"
+	}
+	if p.cur.Type == kwSOURCE || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "source")) {
+		p.advance()
+		return "SOURCE"
+	}
+	if p.isIdentLike("swaps") {
+		p.advance()
+		return "SWAPS"
+	}
+	if p.isIdentLike("block") {
+		p.advance() // consume BLOCK
+		if p.isIdentLike("io") {
+			p.advance()
+		}
+		return "BLOCK_IO"
+	}
+	if p.isIdentLike("context") {
+		p.advance() // consume CONTEXT
+		if p.isIdentLike("switches") {
+			p.advance()
+		}
+		return "CONTEXT_SWITCHES"
+	}
+	if p.isIdentLike("page") {
+		p.advance() // consume PAGE
+		if p.isIdentLike("faults") {
+			p.advance()
+		}
+		return "PAGE_FAULTS"
+	}
+	return ""
+}
+
+// isIdentLike checks if the current token is an identifier (or unreserved keyword)
+// matching the given name (case-insensitive).
+func (p *Parser) isIdentLike(name string) bool {
+	return p.cur.Type == tokIDENT && eqFold(p.cur.Str, name)
 }
 
 // parseUseStmt parses a USE statement.

@@ -1334,7 +1334,46 @@
       "tests": [
         "TestParsePhase3Dispatch"
       ]
+    },
+    {
+      "id": 51,
+      "name": "show_remaining",
+      "file": "set_show.go",
+      "status": "done",
+      "description": "New: SHOW CREATE USER, SHOW REPLICAS/SLAVE HOSTS, SHOW ENGINE (singular, e.g. SHOW ENGINE INNODB STATUS/MUTEX), SHOW PROFILE (singular with type/query options), SHOW FUNCTION CODE, SHOW PROCEDURE CODE",
+      "rules": [
+        "parseShowCreateUser",
+        "parseShowReplicas",
+        "parseShowEngine",
+        "parseShowProfile",
+        "parseShowFunctionCode",
+        "parseShowProcedureCode"
+      ],
+      "depends_on": [32],
+      "tests": [
+        "TestParseShowCreateUser",
+        "TestParseShowReplicas",
+        "TestParseShowEngineInnodbStatus",
+        "TestParseShowProfile",
+        "TestParseShowFunctionCode",
+        "TestParseShowProcedureCode"
+      ]
+    },
+    {
+      "id": 52,
+      "name": "depth_fix_view_with_check_option",
+      "file": "select.go",
+      "status": "pending",
+      "description": "Fix batch 10/39 gap: WITH CHECK OPTION after SELECT in CREATE/ALTER VIEW conflicts with WITH keyword parsing. Test at compare_test.go:6653 is disabled.",
+      "rules": [
+        "parseViewWithCheckOption"
+      ],
+      "depends_on": [10, 39],
+      "tests": [
+        "TestParseCreateViewWithCheckOption",
+        "TestParseAlterViewWithCheckOption"
+      ]
     }
   ],
-  "audit_round": 1
+  "audit_round": 2
 }

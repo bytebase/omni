@@ -952,11 +952,13 @@ func (s *SetStmt) stmtNode() {}
 
 // ShowStmt represents a SHOW statement.
 type ShowStmt struct {
-	Loc   Loc
-	Type  string // DATABASES, TABLES, COLUMNS, etc.
-	From  *TableRef
-	Like  ExprNode
-	Where ExprNode
+	Loc          Loc
+	Type         string // DATABASES, TABLES, COLUMNS, etc.
+	From         *TableRef
+	Like         ExprNode
+	Where        ExprNode
+	ProfileTypes []string // SHOW PROFILE type list (CPU, BLOCK IO, etc.)
+	ForQuery     ExprNode // SHOW PROFILE FOR QUERY n
 }
 
 func (s *ShowStmt) nodeTag()  {}

@@ -963,6 +963,20 @@ func writeShowStmt(sb *strings.Builder, n *ShowStmt) {
 		sb.WriteString(" :where ")
 		writeNode(sb, n.Where)
 	}
+	if len(n.ProfileTypes) > 0 {
+		sb.WriteString(" :profile_types (")
+		for i, pt := range n.ProfileTypes {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(pt)
+		}
+		sb.WriteString(")")
+	}
+	if n.ForQuery != nil {
+		sb.WriteString(" :for_query ")
+		writeNode(sb, n.ForQuery)
+	}
 	sb.WriteString("}")
 }
 

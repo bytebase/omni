@@ -7298,3 +7298,96 @@ func TestParseHelp(t *testing.T) {
 func TestDeparseCreateResourceGroup(t *testing.T) {
 	ParseAndCheck(t, "CREATE RESOURCE GROUP rg1 TYPE = USER VCPU = 0-3")
 }
+
+// ============================================================================
+// Batch 51: SHOW REMAINING
+// ============================================================================
+
+func TestParseShowCreateUser(t *testing.T) {
+	tests := []string{
+		"SHOW CREATE USER root",
+		"SHOW CREATE USER current_user",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseShowReplicas(t *testing.T) {
+	tests := []struct {
+		sql      string
+		expected string
+	}{
+		{
+			"SHOW REPLICAS",
+			`{SHOW :loc 0 :type REPLICAS}`,
+		},
+		{
+			"SHOW SLAVE HOSTS",
+			`{SHOW :loc 0 :type REPLICAS}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			ParseAndCompare(t, tt.sql, tt.expected)
+		})
+	}
+}
+
+func TestParseShowEngineInnodbStatus(t *testing.T) {
+	tests := []string{
+		"SHOW ENGINE INNODB STATUS",
+		"SHOW ENGINE INNODB MUTEX",
+		"SHOW ENGINE PERFORMANCE_SCHEMA STATUS",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseShowProfile(t *testing.T) {
+	tests := []string{
+		"SHOW PROFILE",
+		"SHOW PROFILE CPU",
+		"SHOW PROFILE CPU, BLOCK IO",
+		"SHOW PROFILE ALL FOR QUERY 2",
+		"SHOW PROFILE CPU FOR QUERY 1 LIMIT 5",
+		"SHOW PROFILE SOURCE, SWAPS FOR QUERY 3",
+		"SHOW PROFILE CONTEXT SWITCHES",
+		"SHOW PROFILE PAGE FAULTS, IPC, MEMORY",
+		"SHOW PROFILE ALL",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseShowFunctionCode(t *testing.T) {
+	tests := []string{
+		"SHOW FUNCTION CODE my_func",
+		"SHOW FUNCTION CODE db1.my_func",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestParseShowProcedureCode(t *testing.T) {
+	tests := []string{
+		"SHOW PROCEDURE CODE my_proc",
+		"SHOW PROCEDURE CODE db1.my_proc",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
