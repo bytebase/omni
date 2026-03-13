@@ -4,6 +4,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
@@ -147,10 +149,30 @@ func (p *Parser) parseDropServerRoleStmt() *nodes.SecurityStmt {
 //	   | HADR CLUSTER CONTEXT = { 'remote_windows_cluster' | LOCAL }
 //	   | BUFFER POOL EXTENSION { ON ( FILENAME = 'path', SIZE = <size_spec> ) | OFF }
 //	   | SOFTNUMA { ON | OFF }
-//	   | MEMORY_OPTIMIZED { ON | OFF | TEMPDB_METADATA = { ON | OFF } | HYBRID_BUFFER_POOL = { ON | OFF } }
+//	   | MEMORY_OPTIMIZED { ON | OFF | TEMPDB_METADATA = { ON [(RESOURCE_POOL='pool')] | OFF } | HYBRID_BUFFER_POOL = { ON | OFF } }
 //	   | HARDWARE_OFFLOAD { ON | OFF }
 //	   | SUSPEND_FOR_SNAPSHOT_BACKUP = { ON | OFF } [ ( GROUP = ( <database>,...n ) [ , MODE = COPY_ONLY ] ) ]
 //	}
+//
+//	<CPU_range_spec> ::=
+//	    { CPU_ID | CPU_ID TO CPU_ID } [ ,...n ]
+//
+//	<NUMA_node_range_spec> ::=
+//	    { NUMA_node_ID | NUMA_node_ID TO NUMA_node_ID } [ ,...n ]
+//
+//	<resource_property> ::=
+//	{
+//	    VerboseLogging = { 'logging_detail' | DEFAULT }
+//	  | SqlDumperDumpFlags = { 'dump_file_type' | DEFAULT }
+//	  | SqlDumperDumpPath = { 'os_file_path' | DEFAULT }
+//	  | SqlDumperDumpTimeOut = { 'dump_time-out' | DEFAULT }
+//	  | FailureConditionLevel = { 'failure_condition_level' | DEFAULT }
+//	  | HealthCheckTimeout = { 'health_check_time-out' | DEFAULT }
+//	  | ClusterConnectionOptions = '<key_value_pairs>[;...]'
+//	}
+//
+//	<size_spec> ::=
+//	    { size [ KB | MB | GB ] }
 func (p *Parser) parseAlterServerConfigurationStmt() *nodes.AlterServerConfigurationStmt {
 	loc := p.pos()
 	// ALTER, SERVER, CONFIGURATION already consumed by caller
@@ -167,24 +189,20 @@ func (p *Parser) parseAlterServerConfigurationStmt() *nodes.AlterServerConfigura
 	var opts []nodes.Node
 
 	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PROCESS") {
-		// PROCESS AFFINITY ...
 		p.advance() // consume PROCESS
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AFFINITY") {
 			p.advance() // consume AFFINITY
 		}
 		stmt.OptionType = "PROCESS AFFINITY"
-		// Consume remaining tokens until statement boundary
-		opts = p.consumeServerConfigOptions()
+		opts = p.parseServerConfigProcessAffinity()
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "DIAGNOSTICS") {
-		// DIAGNOSTICS LOG ...
 		p.advance() // consume DIAGNOSTICS
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LOG") {
 			p.advance() // consume LOG
 		}
 		stmt.OptionType = "DIAGNOSTICS LOG"
-		opts = p.consumeServerConfigOptions()
+		opts = p.parseServerConfigDiagnosticsLog()
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FAILOVER") {
-		// FAILOVER CLUSTER PROPERTY ...
 		p.advance() // consume FAILOVER
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CLUSTER") {
 			p.advance() // consume CLUSTER
@@ -193,9 +211,8 @@ func (p *Parser) parseAlterServerConfigurationStmt() *nodes.AlterServerConfigura
 			p.advance() // consume PROPERTY
 		}
 		stmt.OptionType = "FAILOVER CLUSTER PROPERTY"
-		opts = p.consumeServerConfigOptions()
+		opts = p.parseServerConfigFailoverClusterProperty()
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "HADR") {
-		// HADR CLUSTER CONTEXT = ...
 		p.advance() // consume HADR
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CLUSTER") {
 			p.advance() // consume CLUSTER
@@ -204,9 +221,8 @@ func (p *Parser) parseAlterServerConfigurationStmt() *nodes.AlterServerConfigura
 			p.advance() // consume CONTEXT
 		}
 		stmt.OptionType = "HADR CLUSTER CONTEXT"
-		opts = p.consumeServerConfigOptions()
+		opts = p.parseServerConfigHadrCluster()
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "BUFFER") {
-		// BUFFER POOL EXTENSION ...
 		p.advance() // consume BUFFER
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POOL") {
 			p.advance() // consume POOL
@@ -215,27 +231,23 @@ func (p *Parser) parseAlterServerConfigurationStmt() *nodes.AlterServerConfigura
 			p.advance() // consume EXTENSION
 		}
 		stmt.OptionType = "BUFFER POOL EXTENSION"
-		opts = p.consumeServerConfigOptions()
+		opts = p.parseServerConfigBufferPoolExtension()
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SOFTNUMA") {
-		// SOFTNUMA ON/OFF
 		p.advance() // consume SOFTNUMA
 		stmt.OptionType = "SOFTNUMA"
-		opts = p.consumeServerConfigOptions()
+		opts = p.parseServerConfigOnOff()
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MEMORY_OPTIMIZED") {
-		// MEMORY_OPTIMIZED ...
 		p.advance() // consume MEMORY_OPTIMIZED
 		stmt.OptionType = "MEMORY_OPTIMIZED"
-		opts = p.consumeServerConfigOptions()
+		opts = p.parseServerConfigMemoryOptimized()
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "HARDWARE_OFFLOAD") {
-		// HARDWARE_OFFLOAD ON/OFF
 		p.advance() // consume HARDWARE_OFFLOAD
 		stmt.OptionType = "HARDWARE_OFFLOAD"
-		opts = p.consumeServerConfigOptions()
+		opts = p.parseServerConfigOnOff()
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SUSPEND_FOR_SNAPSHOT_BACKUP") {
-		// SUSPEND_FOR_SNAPSHOT_BACKUP = ON/OFF
 		p.advance() // consume SUSPEND_FOR_SNAPSHOT_BACKUP
 		stmt.OptionType = "SUSPEND_FOR_SNAPSHOT_BACKUP"
-		opts = p.consumeServerConfigOptions()
+		opts = p.parseServerConfigSuspendForSnapshotBackup()
 	} else {
 		// Unknown option type - consume remaining tokens generically
 		stmt.OptionType = "UNKNOWN"
@@ -250,8 +262,426 @@ func (p *Parser) parseAlterServerConfigurationStmt() *nodes.AlterServerConfigura
 	return stmt
 }
 
+// parseServerConfigProcessAffinity parses PROCESS AFFINITY options.
+//
+//	PROCESS AFFINITY { CPU = { AUTO | <CPU_range_spec> } | NUMANODE = <NUMA_node_range_spec> }
+//	<CPU_range_spec> ::= { CPU_ID | CPU_ID TO CPU_ID } [ ,...n ]
+//	<NUMA_node_range_spec> ::= { NUMA_node_ID | NUMA_node_ID TO NUMA_node_ID } [ ,...n ]
+func (p *Parser) parseServerConfigProcessAffinity() []nodes.Node {
+	var opts []nodes.Node
+
+	// Expect CPU or NUMANODE
+	if !p.isIdentLike() {
+		return opts
+	}
+
+	key := p.cur.Str // CPU or NUMANODE
+	p.advance()
+
+	// Consume =
+	if p.cur.Type == '=' {
+		p.advance()
+	}
+
+	// Check for AUTO
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AUTO") {
+		opts = append(opts, &nodes.String{Str: key + "=AUTO"})
+		p.advance()
+		return opts
+	}
+
+	// Parse range spec: { ID | ID TO ID } [ ,...n ]
+	var ranges []string
+	for {
+		if p.cur.Type != tokICONST {
+			break
+		}
+		startID := p.cur.Str
+		p.advance()
+
+		if p.cur.Type == kwTO {
+			p.advance() // consume TO
+			if p.cur.Type == tokICONST {
+				endID := p.cur.Str
+				p.advance()
+				ranges = append(ranges, startID+" TO "+endID)
+			}
+		} else {
+			ranges = append(ranges, startID)
+		}
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume comma
+	}
+
+	val := ""
+	for i, r := range ranges {
+		if i > 0 {
+			val += ", "
+		}
+		val += r
+	}
+	opts = append(opts, &nodes.String{Str: key + "=" + val})
+	return opts
+}
+
+// parseServerConfigDiagnosticsLog parses DIAGNOSTICS LOG options.
+//
+//	DIAGNOSTICS LOG { ON | OFF | PATH = { 'os_file_path' | DEFAULT } | MAX_SIZE = { 'log_max_size' MB | DEFAULT } | MAX_FILES = { 'max_file_count' | DEFAULT } }
+func (p *Parser) parseServerConfigDiagnosticsLog() []nodes.Node {
+	var opts []nodes.Node
+
+	// ON / OFF
+	if p.cur.Type == kwON {
+		opts = append(opts, &nodes.String{Str: "ON"})
+		p.advance()
+		return opts
+	}
+	if p.cur.Type == kwOFF {
+		opts = append(opts, &nodes.String{Str: "OFF"})
+		p.advance()
+		return opts
+	}
+
+	// PATH / MAX_SIZE / MAX_FILES
+	if !p.isIdentLike() {
+		return opts
+	}
+
+	key := strings.ToUpper(p.cur.Str) // PATH, MAX_SIZE, MAX_FILES
+	p.advance()
+
+	// Consume =
+	if p.cur.Type == '=' {
+		p.advance()
+	}
+
+	// DEFAULT
+	if p.cur.Type == kwDEFAULT {
+		opts = append(opts, &nodes.String{Str: key + "=DEFAULT"})
+		p.advance()
+		return opts
+	}
+
+	// String constant (for PATH)
+	if p.cur.Type == tokSCONST {
+		opts = append(opts, &nodes.String{Str: key + "='" + p.cur.Str + "'"})
+		p.advance()
+		return opts
+	}
+
+	// Integer (for MAX_SIZE or MAX_FILES)
+	if p.cur.Type == tokICONST {
+		val := p.cur.Str
+		p.advance()
+		// Check for MB suffix (MAX_SIZE)
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MB") {
+			val += " MB"
+			p.advance()
+		}
+		opts = append(opts, &nodes.String{Str: key + "=" + val})
+		return opts
+	}
+
+	return opts
+}
+
+// parseServerConfigFailoverClusterProperty parses FAILOVER CLUSTER PROPERTY <resource_property>.
+//
+//	<resource_property> ::=
+//	{
+//	    VerboseLogging = { 'logging_detail' | DEFAULT }
+//	  | SqlDumperDumpFlags = { 'dump_file_type' | DEFAULT }
+//	  | SqlDumperDumpPath = { 'os_file_path' | DEFAULT }
+//	  | SqlDumperDumpTimeOut = { 'dump_time-out' | DEFAULT }
+//	  | FailureConditionLevel = { 'failure_condition_level' | DEFAULT }
+//	  | HealthCheckTimeout = { 'health_check_time-out' | DEFAULT }
+//	  | ClusterConnectionOptions = '<key_value_pairs>[;...]'
+//	}
+func (p *Parser) parseServerConfigFailoverClusterProperty() []nodes.Node {
+	var opts []nodes.Node
+
+	if !p.isIdentLike() {
+		return opts
+	}
+
+	key := p.cur.Str
+	p.advance()
+
+	// Consume =
+	if p.cur.Type == '=' {
+		p.advance()
+	}
+
+	// DEFAULT
+	if p.cur.Type == kwDEFAULT {
+		opts = append(opts, &nodes.String{Str: key + "=DEFAULT"})
+		p.advance()
+		return opts
+	}
+
+	// String constant
+	if p.cur.Type == tokSCONST {
+		opts = append(opts, &nodes.String{Str: key + "='" + p.cur.Str + "'"})
+		p.advance()
+		return opts
+	}
+
+	// Integer constant
+	if p.cur.Type == tokICONST {
+		opts = append(opts, &nodes.String{Str: key + "=" + p.cur.Str})
+		p.advance()
+		return opts
+	}
+
+	return opts
+}
+
+// parseServerConfigHadrCluster parses HADR CLUSTER CONTEXT = { 'remote_windows_cluster' | LOCAL }.
+func (p *Parser) parseServerConfigHadrCluster() []nodes.Node {
+	var opts []nodes.Node
+
+	// Consume =
+	if p.cur.Type == '=' {
+		p.advance()
+	}
+
+	// String constant or LOCAL
+	if p.cur.Type == tokSCONST {
+		opts = append(opts, &nodes.String{Str: "CONTEXT='" + p.cur.Str + "'"})
+		p.advance()
+	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LOCAL") {
+		opts = append(opts, &nodes.String{Str: "CONTEXT=LOCAL"})
+		p.advance()
+	}
+
+	return opts
+}
+
+// parseServerConfigBufferPoolExtension parses BUFFER POOL EXTENSION options.
+//
+//	BUFFER POOL EXTENSION { ON ( FILENAME = 'path', SIZE = <size_spec> ) | OFF }
+//	<size_spec> ::= { size [ KB | MB | GB ] }
+func (p *Parser) parseServerConfigBufferPoolExtension() []nodes.Node {
+	var opts []nodes.Node
+
+	if p.cur.Type == kwOFF {
+		opts = append(opts, &nodes.String{Str: "OFF"})
+		p.advance()
+		return opts
+	}
+
+	if p.cur.Type == kwON {
+		opts = append(opts, &nodes.String{Str: "ON"})
+		p.advance()
+
+		// ( FILENAME = 'path', SIZE = <size_spec> )
+		if p.cur.Type == '(' {
+			p.advance() // consume (
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				if !p.isIdentLike() {
+					p.advance()
+					continue
+				}
+				key := p.cur.Str // FILENAME or SIZE
+				p.advance()
+
+				if p.cur.Type == '=' {
+					p.advance() // consume =
+				}
+
+				if matchesKeywordCI(key, "FILENAME") {
+					if p.cur.Type == tokSCONST {
+						opts = append(opts, &nodes.String{Str: "FILENAME='" + p.cur.Str + "'"})
+						p.advance()
+					}
+				} else if matchesKeywordCI(key, "SIZE") {
+					if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+						val := p.cur.Str
+						p.advance()
+						// Check for KB/MB/GB suffix
+						if p.isIdentLike() {
+							upper := p.cur.Str
+							if matchesKeywordCI(upper, "KB") || matchesKeywordCI(upper, "MB") || matchesKeywordCI(upper, "GB") {
+								val += " " + upper
+								p.advance()
+							}
+						}
+						opts = append(opts, &nodes.String{Str: "SIZE=" + val})
+					}
+				}
+
+				if p.cur.Type == ',' {
+					p.advance() // consume comma
+				}
+			}
+			if p.cur.Type == ')' {
+				p.advance() // consume )
+			}
+		}
+	}
+
+	return opts
+}
+
+// parseServerConfigOnOff parses a simple ON/OFF option (SOFTNUMA, HARDWARE_OFFLOAD).
+func (p *Parser) parseServerConfigOnOff() []nodes.Node {
+	var opts []nodes.Node
+	if p.cur.Type == kwON {
+		opts = append(opts, &nodes.String{Str: "ON"})
+		p.advance()
+	} else if p.cur.Type == kwOFF {
+		opts = append(opts, &nodes.String{Str: "OFF"})
+		p.advance()
+	}
+	return opts
+}
+
+// parseServerConfigMemoryOptimized parses MEMORY_OPTIMIZED options.
+//
+//	MEMORY_OPTIMIZED { ON | OFF | TEMPDB_METADATA = { ON [(RESOURCE_POOL='pool')] | OFF } | HYBRID_BUFFER_POOL = { ON | OFF } }
+func (p *Parser) parseServerConfigMemoryOptimized() []nodes.Node {
+	var opts []nodes.Node
+
+	// Direct ON/OFF
+	if p.cur.Type == kwON {
+		opts = append(opts, &nodes.String{Str: "ON"})
+		p.advance()
+		return opts
+	}
+	if p.cur.Type == kwOFF {
+		opts = append(opts, &nodes.String{Str: "OFF"})
+		p.advance()
+		return opts
+	}
+
+	// TEMPDB_METADATA or HYBRID_BUFFER_POOL
+	if !p.isIdentLike() {
+		return opts
+	}
+
+	key := p.cur.Str
+	p.advance()
+
+	// Consume =
+	if p.cur.Type == '=' {
+		p.advance()
+	}
+
+	if p.cur.Type == kwON {
+		opts = append(opts, &nodes.String{Str: key + "=ON"})
+		p.advance()
+
+		// Check for (RESOURCE_POOL = 'pool_name') -- only for TEMPDB_METADATA
+		if matchesKeywordCI(key, "TEMPDB_METADATA") && p.cur.Type == '(' {
+			p.advance() // consume (
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "RESOURCE_POOL") {
+				p.advance() // consume RESOURCE_POOL
+				if p.cur.Type == '=' {
+					p.advance() // consume =
+				}
+				if p.cur.Type == tokSCONST {
+					opts = append(opts, &nodes.String{Str: "RESOURCE_POOL='" + p.cur.Str + "'"})
+					p.advance()
+				}
+			}
+			if p.cur.Type == ')' {
+				p.advance() // consume )
+			}
+		}
+	} else if p.cur.Type == kwOFF {
+		opts = append(opts, &nodes.String{Str: key + "=OFF"})
+		p.advance()
+	}
+
+	return opts
+}
+
+// parseServerConfigSuspendForSnapshotBackup parses SUSPEND_FOR_SNAPSHOT_BACKUP options.
+//
+//	SUSPEND_FOR_SNAPSHOT_BACKUP = { ON | OFF } [ ( GROUP = ( <database>,...n ) [ , MODE = COPY_ONLY ] ) ]
+func (p *Parser) parseServerConfigSuspendForSnapshotBackup() []nodes.Node {
+	var opts []nodes.Node
+
+	// Consume =
+	if p.cur.Type == '=' {
+		p.advance()
+	}
+
+	if p.cur.Type == kwON {
+		opts = append(opts, &nodes.String{Str: "ON"})
+		p.advance()
+	} else if p.cur.Type == kwOFF {
+		opts = append(opts, &nodes.String{Str: "OFF"})
+		p.advance()
+		return opts
+	}
+
+	// Optional ( GROUP = ( db1, db2 ) [ , MODE = COPY_ONLY ] )
+	if p.cur.Type == '(' {
+		p.advance() // consume outer (
+
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "GROUP") {
+				p.advance() // consume GROUP
+				if p.cur.Type == '=' {
+					p.advance() // consume =
+				}
+				// ( db1, db2, ... )
+				if p.cur.Type == '(' {
+					p.advance() // consume inner (
+					var dbs []string
+					for {
+						if name, ok := p.parseIdentifier(); ok {
+							dbs = append(dbs, name)
+						}
+						if p.cur.Type != ',' {
+							break
+						}
+						p.advance() // consume comma
+					}
+					if p.cur.Type == ')' {
+						p.advance() // consume inner )
+					}
+					val := ""
+					for i, db := range dbs {
+						if i > 0 {
+							val += ", "
+						}
+						val += db
+					}
+					opts = append(opts, &nodes.String{Str: "GROUP=" + val})
+				}
+			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MODE") {
+				p.advance() // consume MODE
+				if p.cur.Type == '=' {
+					p.advance() // consume =
+				}
+				if p.isIdentLike() {
+					opts = append(opts, &nodes.String{Str: "MODE=" + p.cur.Str})
+					p.advance()
+				}
+			} else {
+				p.advance()
+			}
+
+			if p.cur.Type == ',' {
+				p.advance() // consume comma between GROUP and MODE
+			}
+		}
+		if p.cur.Type == ')' {
+			p.advance() // consume outer )
+		}
+	}
+
+	return opts
+}
+
 // consumeServerConfigOptions consumes remaining tokens for an ALTER SERVER CONFIGURATION
 // option until a statement boundary (semicolon or EOF), collecting them as string nodes.
+// Used as a fallback for unknown option types.
 func (p *Parser) consumeServerConfigOptions() []nodes.Node {
 	var opts []nodes.Node
 	depth := 0
@@ -285,8 +715,6 @@ func (p *Parser) consumeServerConfigOptions() []nodes.Node {
 			opts = append(opts, &nodes.String{Str: p.cur.Str})
 		} else if p.cur.Type == '=' {
 			opts = append(opts, &nodes.String{Str: "="})
-		} else if p.cur.Type == ',' {
-			opts = append(opts, &nodes.String{Str: ","})
 		} else if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwNULL || p.cur.Type == kwDEFAULT || p.cur.Type == kwTO || p.cur.Type == kwKEY || p.cur.Type == kwFILE {
 			opts = append(opts, &nodes.String{Str: p.cur.Str})
 		} else {

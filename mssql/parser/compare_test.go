@@ -11728,3 +11728,277 @@ func TestParseStmtDispatchPhase4(t *testing.T) {
 		})
 	}
 }
+
+// TestParseServerConfigOptionsDepth tests batch 114: structured parsing
+// of ALTER SERVER CONFIGURATION SET options.
+func TestParseServerConfigOptionsDepth(t *testing.T) {
+	tests := []struct {
+		sql        string
+		optionType string
+		wantOpts   []string
+	}{
+		// PROCESS AFFINITY CPU = AUTO
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = AUTO",
+			optionType: "PROCESS AFFINITY",
+			wantOpts:   []string{"CPU=AUTO"},
+		},
+		// PROCESS AFFINITY CPU ranges
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = 0 TO 63, 128 TO 191",
+			optionType: "PROCESS AFFINITY",
+			wantOpts:   []string{"CPU=0 TO 63, 128 TO 191"},
+		},
+		// PROCESS AFFINITY CPU single
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = 0",
+			optionType: "PROCESS AFFINITY",
+			wantOpts:   []string{"CPU=0"},
+		},
+		// PROCESS AFFINITY NUMANODE
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE = 0, 7",
+			optionType: "PROCESS AFFINITY",
+			wantOpts:   []string{"NUMANODE=0, 7"},
+		},
+		// PROCESS AFFINITY NUMANODE range
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY NUMANODE = 0 TO 3",
+			optionType: "PROCESS AFFINITY",
+			wantOpts:   []string{"NUMANODE=0 TO 3"},
+		},
+		// DIAGNOSTICS LOG ON
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG ON",
+			optionType: "DIAGNOSTICS LOG",
+			wantOpts:   []string{"ON"},
+		},
+		// DIAGNOSTICS LOG OFF
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG OFF",
+			optionType: "DIAGNOSTICS LOG",
+			wantOpts:   []string{"OFF"},
+		},
+		// DIAGNOSTICS LOG PATH
+		{
+			sql:        `ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG PATH = 'C:\logs'`,
+			optionType: "DIAGNOSTICS LOG",
+			wantOpts:   []string{`PATH='C:\logs'`},
+		},
+		// DIAGNOSTICS LOG PATH DEFAULT
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG PATH = DEFAULT",
+			optionType: "DIAGNOSTICS LOG",
+			wantOpts:   []string{"PATH=DEFAULT"},
+		},
+		// DIAGNOSTICS LOG MAX_SIZE
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = 10 MB",
+			optionType: "DIAGNOSTICS LOG",
+			wantOpts:   []string{"MAX_SIZE=10 MB"},
+		},
+		// DIAGNOSTICS LOG MAX_SIZE DEFAULT
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = DEFAULT",
+			optionType: "DIAGNOSTICS LOG",
+			wantOpts:   []string{"MAX_SIZE=DEFAULT"},
+		},
+		// DIAGNOSTICS LOG MAX_FILES
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_FILES = 5",
+			optionType: "DIAGNOSTICS LOG",
+			wantOpts:   []string{"MAX_FILES=5"},
+		},
+		// DIAGNOSTICS LOG MAX_FILES DEFAULT
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_FILES = DEFAULT",
+			optionType: "DIAGNOSTICS LOG",
+			wantOpts:   []string{"MAX_FILES=DEFAULT"},
+		},
+		// FAILOVER CLUSTER PROPERTY HealthCheckTimeout
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY HealthCheckTimeout = 15000",
+			optionType: "FAILOVER CLUSTER PROPERTY",
+			wantOpts:   []string{"HealthCheckTimeout=15000"},
+		},
+		// FAILOVER CLUSTER PROPERTY VerboseLogging
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY VerboseLogging = 2",
+			optionType: "FAILOVER CLUSTER PROPERTY",
+			wantOpts:   []string{"VerboseLogging=2"},
+		},
+		// FAILOVER CLUSTER PROPERTY SqlDumperDumpPath
+		{
+			sql:        `ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY SqlDumperDumpPath = 'C:\dumps'`,
+			optionType: "FAILOVER CLUSTER PROPERTY",
+			wantOpts:   []string{`SqlDumperDumpPath='C:\dumps'`},
+		},
+		// FAILOVER CLUSTER PROPERTY FailureConditionLevel DEFAULT
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY FailureConditionLevel = DEFAULT",
+			optionType: "FAILOVER CLUSTER PROPERTY",
+			wantOpts:   []string{"FailureConditionLevel=DEFAULT"},
+		},
+		// FAILOVER CLUSTER PROPERTY ClusterConnectionOptions
+		{
+			sql:        `ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY ClusterConnectionOptions = 'Encrypt=Strict'`,
+			optionType: "FAILOVER CLUSTER PROPERTY",
+			wantOpts:   []string{`ClusterConnectionOptions='Encrypt=Strict'`},
+		},
+		// HADR CLUSTER CONTEXT string
+		{
+			sql:        `ALTER SERVER CONFIGURATION SET HADR CLUSTER CONTEXT = 'clus01.xyz.com'`,
+			optionType: "HADR CLUSTER CONTEXT",
+			wantOpts:   []string{`CONTEXT='clus01.xyz.com'`},
+		},
+		// HADR CLUSTER CONTEXT LOCAL
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET HADR CLUSTER CONTEXT = LOCAL",
+			optionType: "HADR CLUSTER CONTEXT",
+			wantOpts:   []string{"CONTEXT=LOCAL"},
+		},
+		// BUFFER POOL EXTENSION ON
+		{
+			sql:        `ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME = 'F:\SSDCACHE\Example.BPE', SIZE = 50 GB)`,
+			optionType: "BUFFER POOL EXTENSION",
+			wantOpts:   []string{"ON", `FILENAME='F:\SSDCACHE\Example.BPE'`, "SIZE=50 GB"},
+		},
+		// BUFFER POOL EXTENSION OFF
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION OFF",
+			optionType: "BUFFER POOL EXTENSION",
+			wantOpts:   []string{"OFF"},
+		},
+		// BUFFER POOL EXTENSION ON with KB size
+		{
+			sql:        `ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME = 'cache.bpe', SIZE = 512 KB)`,
+			optionType: "BUFFER POOL EXTENSION",
+			wantOpts:   []string{"ON", `FILENAME='cache.bpe'`, "SIZE=512 KB"},
+		},
+		// BUFFER POOL EXTENSION ON with MB size
+		{
+			sql:        `ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME = 'cache.bpe', SIZE = 256 MB)`,
+			optionType: "BUFFER POOL EXTENSION",
+			wantOpts:   []string{"ON", `FILENAME='cache.bpe'`, "SIZE=256 MB"},
+		},
+		// SOFTNUMA ON
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET SOFTNUMA ON",
+			optionType: "SOFTNUMA",
+			wantOpts:   []string{"ON"},
+		},
+		// SOFTNUMA OFF
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET SOFTNUMA OFF",
+			optionType: "SOFTNUMA",
+			wantOpts:   []string{"OFF"},
+		},
+		// MEMORY_OPTIMIZED ON
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED ON",
+			optionType: "MEMORY_OPTIMIZED",
+			wantOpts:   []string{"ON"},
+		},
+		// MEMORY_OPTIMIZED OFF
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED OFF",
+			optionType: "MEMORY_OPTIMIZED",
+			wantOpts:   []string{"OFF"},
+		},
+		// MEMORY_OPTIMIZED TEMPDB_METADATA ON
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED TEMPDB_METADATA = ON",
+			optionType: "MEMORY_OPTIMIZED",
+			wantOpts:   []string{"TEMPDB_METADATA=ON"},
+		},
+		// MEMORY_OPTIMIZED TEMPDB_METADATA OFF
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED TEMPDB_METADATA = OFF",
+			optionType: "MEMORY_OPTIMIZED",
+			wantOpts:   []string{"TEMPDB_METADATA=OFF"},
+		},
+		// MEMORY_OPTIMIZED TEMPDB_METADATA ON with RESOURCE_POOL
+		{
+			sql:        `ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED TEMPDB_METADATA = ON (RESOURCE_POOL = 'pool_name')`,
+			optionType: "MEMORY_OPTIMIZED",
+			wantOpts:   []string{"TEMPDB_METADATA=ON", `RESOURCE_POOL='pool_name'`},
+		},
+		// MEMORY_OPTIMIZED HYBRID_BUFFER_POOL ON
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED HYBRID_BUFFER_POOL = ON",
+			optionType: "MEMORY_OPTIMIZED",
+			wantOpts:   []string{"HYBRID_BUFFER_POOL=ON"},
+		},
+		// MEMORY_OPTIMIZED HYBRID_BUFFER_POOL OFF
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED HYBRID_BUFFER_POOL = OFF",
+			optionType: "MEMORY_OPTIMIZED",
+			wantOpts:   []string{"HYBRID_BUFFER_POOL=OFF"},
+		},
+		// HARDWARE_OFFLOAD ON
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD ON",
+			optionType: "HARDWARE_OFFLOAD",
+			wantOpts:   []string{"ON"},
+		},
+		// HARDWARE_OFFLOAD OFF
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET HARDWARE_OFFLOAD OFF",
+			optionType: "HARDWARE_OFFLOAD",
+			wantOpts:   []string{"OFF"},
+		},
+		// SUSPEND_FOR_SNAPSHOT_BACKUP ON
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET SUSPEND_FOR_SNAPSHOT_BACKUP = ON",
+			optionType: "SUSPEND_FOR_SNAPSHOT_BACKUP",
+			wantOpts:   []string{"ON"},
+		},
+		// SUSPEND_FOR_SNAPSHOT_BACKUP OFF
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET SUSPEND_FOR_SNAPSHOT_BACKUP = OFF",
+			optionType: "SUSPEND_FOR_SNAPSHOT_BACKUP",
+			wantOpts:   []string{"OFF"},
+		},
+		// SUSPEND_FOR_SNAPSHOT_BACKUP ON with GROUP and MODE
+		{
+			sql:        "ALTER SERVER CONFIGURATION SET SUSPEND_FOR_SNAPSHOT_BACKUP = ON (GROUP = (db1, db2), MODE = COPY_ONLY)",
+			optionType: "SUSPEND_FOR_SNAPSHOT_BACKUP",
+			wantOpts:   []string{"ON", "GROUP=db1, db2", "MODE=COPY_ONLY"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.AlterServerConfigurationStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *AlterServerConfigurationStmt, got %T", tt.sql, result.Items[0])
+			}
+			if stmt.OptionType != tt.optionType {
+				t.Errorf("Parse(%q): optionType = %q, want %q", tt.sql, stmt.OptionType, tt.optionType)
+			}
+			if len(tt.wantOpts) > 0 {
+				if stmt.Options == nil {
+					t.Fatalf("Parse(%q): expected options, got nil", tt.sql)
+				}
+				if len(stmt.Options.Items) != len(tt.wantOpts) {
+					var gotStrs []string
+					for _, item := range stmt.Options.Items {
+						gotStrs = append(gotStrs, item.(*ast.String).Str)
+					}
+					t.Fatalf("Parse(%q): got %d options %v, want %d %v", tt.sql, len(stmt.Options.Items), gotStrs, len(tt.wantOpts), tt.wantOpts)
+				}
+				for i, want := range tt.wantOpts {
+					got := stmt.Options.Items[i].(*ast.String).Str
+					if got != want {
+						t.Errorf("Parse(%q): option[%d] = %q, want %q", tt.sql, i, got, want)
+					}
+				}
+			}
+			checkLocation(t, tt.sql, "AlterServerConfigurationStmt", stmt.Loc)
+		})
+	}
+}

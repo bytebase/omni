@@ -2531,7 +2531,104 @@
       "tests": [
         "integration_phase4"
       ]
+    },
+    {
+      "id": 114,
+      "name": "server_config_options_depth",
+      "file": "server.go",
+      "status": "done",
+      "description": "Fix batch 60 gap: replace consumeServerConfigOptions() generic token-to-string loop (line 255) with structured parsing. ALTER SERVER CONFIGURATION SET options: PROCESS AFFINITY (CPU/NUMANODE ranges), DIAGNOSTICS LOG (ON/OFF/PATH/MAX_SIZE/MAX_FILES), HADR CLUSTER CONTEXT, BUFFER POOL EXTENSION (ON/OFF/FILENAME/SIZE), SOFTNUMA (ON/OFF), EXTERNAL_SCRIPT (ON/OFF), FAILOVER CLUSTER PROPERTY. Each option type has distinct sub-syntax.",
+      "rules": [
+        "parseServerConfigProcessAffinity",
+        "parseServerConfigDiagnosticsLog",
+        "parseServerConfigHadrCluster",
+        "parseServerConfigBufferPoolExtension",
+        "parseServerConfigSoftNuma"
+      ],
+      "depends_on": [
+        60
+      ],
+      "tests": [
+        "server_config_process_affinity",
+        "server_config_diagnostics_log",
+        "server_config_buffer_pool_extension",
+        "server_config_softnuma"
+      ]
+    },
+    {
+      "id": 115,
+      "name": "availability_group_options_depth",
+      "file": "availability.go",
+      "status": "pending",
+      "description": "Fix batch 66 gap: replace generic string collection in parseAvailabilityGroupOptions() (line 218) with structured parsing. REPLICA ON: 'server' WITH (ENDPOINT_URL, AVAILABILITY_MODE, FAILOVER_MODE, SEEDING_MODE, SECONDARY_ROLE, PRIMARY_ROLE, SESSION_TIMEOUT, BACKUP_PRIORITY). LISTENER: 'name' WITH (DHCP/IP addresses, PORT). parseNestedParens() calls at lines 225, 400 should be replaced with typed option nodes.",
+      "rules": [
+        "parseAvailabilityGroupReplicaOn",
+        "parseAvailabilityGroupListener",
+        "parseAvailabilityGroupReplicaOptions"
+      ],
+      "depends_on": [
+        66
+      ],
+      "tests": [
+        "ag_replica_on_structured",
+        "ag_listener_structured",
+        "ag_replica_options_structured"
+      ]
+    },
+    {
+      "id": 116,
+      "name": "endpoint_unknown_protocol_skip",
+      "file": "endpoint.go",
+      "status": "pending",
+      "description": "Fix batch 107 gap: remaining skipParenthesized() call at line 183 in parseEndpointOptions() for non-TCP/non-HTTP protocols. Should parse the parenthesized options structurally as key=value pairs or raise a parse error for truly unknown protocols.",
+      "rules": [
+        "parseEndpointGenericProtocolOptions"
+      ],
+      "depends_on": [
+        107
+      ],
+      "tests": [
+        "endpoint_unknown_protocol_options"
+      ]
+    },
+    {
+      "id": 117,
+      "name": "alter_database_unknown_action",
+      "file": "alter_objects.go",
+      "status": "pending",
+      "description": "Fix batch 77 gap: replace token skip-loop at line 134 in parseAlterDatabaseStmt() default case with structured parsing. Missing ALTER DATABASE actions: REMOVE FILE/FILEGROUP, SET PARTNER (mirroring), SET WITNESS, SET HADR. Also fix ALTER INDEX unknown token skip at line 707 in parseAlterIndexOptions().",
+      "rules": [
+        "parseAlterDatabaseRemoveFile",
+        "parseAlterDatabaseSetPartner",
+        "parseAlterIndexUnknownOption"
+      ],
+      "depends_on": [
+        77,
+        95
+      ],
+      "tests": [
+        "alter_database_remove_file",
+        "alter_database_set_partner",
+        "alter_index_unknown_option_handled"
+      ]
+    },
+    {
+      "id": 118,
+      "name": "predict_statement",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "New: PREDICT statement (SQL Server 2022+). BNF: PREDICT ( MODEL = @model | 'literal' , DATA = table_source [ , RUNTIME = ONNX ] ) WITH ( column_def [,...n] ). Used for native ML model scoring.",
+      "rules": [
+        "parsePredictStmt"
+      ],
+      "depends_on": [
+        0
+      ],
+      "tests": [
+        "predict_basic",
+        "predict_with_runtime"
+      ]
     }
   ],
-  "audit_round": 11
+  "audit_round": 12
 }
