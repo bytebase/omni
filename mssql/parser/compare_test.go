@@ -12593,3 +12593,374 @@ func TestParseEdgeConstraint(t *testing.T) {
 		}
 	})
 }
+
+// TestParseBackupRestoreOptionsDepth tests batch 120: structured BACKUP/RESTORE WITH options.
+func TestParseBackupRestoreOptionsDepth(t *testing.T) {
+	t.Run("backup_options_structured", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			sql      string
+			wantOpts int // expected number of options
+		}{
+			{
+				name:     "compression_flag",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH COMPRESSION",
+				wantOpts: 1,
+			},
+			{
+				name:     "multiple_flags",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH COMPRESSION, INIT, FORMAT, CHECKSUM",
+				wantOpts: 4,
+			},
+			{
+				name:     "name_equals_value",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH NAME = 'Full backup'",
+				wantOpts: 1,
+			},
+			{
+				name:     "stats_with_value",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH STATS = 10",
+				wantOpts: 1,
+			},
+			{
+				name:     "stats_without_value",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH STATS",
+				wantOpts: 1,
+			},
+			{
+				name:     "description_value",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH DESCRIPTION = 'Full database backup'",
+				wantOpts: 1,
+			},
+			{
+				name:     "differential_copy_only",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH DIFFERENTIAL, COPY_ONLY",
+				wantOpts: 2,
+			},
+			{
+				name:     "mixed_flags_and_kv",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH FORMAT, INIT, NAME = 'Full backup', COMPRESSION, STATS = 10",
+				wantOpts: 5,
+			},
+			{
+				name:     "expiredate",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH EXPIREDATE = '2025-12-31'",
+				wantOpts: 1,
+			},
+			{
+				name:     "retaindays",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH RETAINDAYS = 30",
+				wantOpts: 1,
+			},
+			{
+				name:     "blocksize_buffercount_maxtransfersize",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH BLOCKSIZE = 65536, BUFFERCOUNT = 50, MAXTRANSFERSIZE = 4194304",
+				wantOpts: 3,
+			},
+			{
+				name:     "medianame_mediadescription",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH MEDIANAME = 'MyMedia', MEDIADESCRIPTION = 'Full backup media set'",
+				wantOpts: 2,
+			},
+			{
+				name:     "no_compression",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH NO_COMPRESSION",
+				wantOpts: 1,
+			},
+			{
+				name:     "noskip_noinit_noformat",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH NOSKIP, NOINIT, NOFORMAT",
+				wantOpts: 3,
+			},
+			{
+				name:     "stop_on_error",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH STOP_ON_ERROR",
+				wantOpts: 1,
+			},
+			{
+				name:     "continue_after_error",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH CONTINUE_AFTER_ERROR",
+				wantOpts: 1,
+			},
+			{
+				name:     "no_checksum",
+				sql:      "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH NO_CHECKSUM",
+				wantOpts: 1,
+			},
+			{
+				name:     "norecovery_no_truncate",
+				sql:      "BACKUP LOG mydb TO DISK = '/backup/mydb.bak' WITH NORECOVERY, NO_TRUNCATE",
+				wantOpts: 2,
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("expected 1 stmt, got %d", result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.BackupStmt)
+				if !ok {
+					t.Fatalf("expected *BackupStmt, got %T", result.Items[0])
+				}
+				if stmt.Options == nil {
+					t.Fatalf("expected options, got nil")
+				}
+				if len(stmt.Options.Items) != tt.wantOpts {
+					t.Errorf("expected %d options, got %d", tt.wantOpts, len(stmt.Options.Items))
+				}
+				// Verify all options are BackupRestoreOption nodes
+				for i, item := range stmt.Options.Items {
+					opt, ok := item.(*ast.BackupRestoreOption)
+					if !ok {
+						t.Errorf("option[%d]: expected *BackupRestoreOption, got %T", i, item)
+					}
+					if opt.Name == "" {
+						t.Errorf("option[%d]: empty name", i)
+					}
+					checkLocation(t, tt.sql, "BackupRestoreOption", opt.Loc)
+				}
+			})
+		}
+	})
+
+	t.Run("restore_options_structured", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			sql      string
+			wantOpts int
+		}{
+			{
+				name:     "recovery",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH RECOVERY",
+				wantOpts: 1,
+			},
+			{
+				name:     "norecovery",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH NORECOVERY",
+				wantOpts: 1,
+			},
+			{
+				name:     "replace",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH REPLACE",
+				wantOpts: 1,
+			},
+			{
+				name:     "replace_norecovery",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH REPLACE, NORECOVERY, STATS = 10",
+				wantOpts: 3,
+			},
+			{
+				name:     "file_option",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH FILE = 2",
+				wantOpts: 1,
+			},
+			{
+				name:     "standby",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH STANDBY = 'C:\\undo\\mydb_undo.ldf'",
+				wantOpts: 1,
+			},
+			{
+				name:     "stopat",
+				sql:      "RESTORE LOG mydb FROM DISK = '/backup/mydb_log.bak' WITH STOPAT = '2025-01-01T12:00:00'",
+				wantOpts: 1,
+			},
+			{
+				name:     "enable_broker",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH ENABLE_BROKER",
+				wantOpts: 1,
+			},
+			{
+				name:     "new_broker",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH NEW_BROKER",
+				wantOpts: 1,
+			},
+			{
+				name:     "error_broker_conversations",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH ERROR_BROKER_CONVERSATIONS",
+				wantOpts: 1,
+			},
+			{
+				name:     "medianame",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH MEDIANAME = 'MyMedia'",
+				wantOpts: 1,
+			},
+			{
+				name:     "mediapassword",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH MEDIAPASSWORD = 'secret123'",
+				wantOpts: 1,
+			},
+			{
+				name:     "restricted_user_keep_replication",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH RESTRICTED_USER, KEEP_REPLICATION",
+				wantOpts: 2,
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("expected 1 stmt, got %d", result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.RestoreStmt)
+				if !ok {
+					t.Fatalf("expected *RestoreStmt, got %T", result.Items[0])
+				}
+				if stmt.Options == nil {
+					t.Fatalf("expected options, got nil")
+				}
+				if len(stmt.Options.Items) != tt.wantOpts {
+					t.Errorf("expected %d options, got %d", tt.wantOpts, len(stmt.Options.Items))
+				}
+				for i, item := range stmt.Options.Items {
+					opt, ok := item.(*ast.BackupRestoreOption)
+					if !ok {
+						t.Errorf("option[%d]: expected *BackupRestoreOption, got %T", i, item)
+					}
+					if opt.Name == "" {
+						t.Errorf("option[%d]: empty name", i)
+					}
+					checkLocation(t, tt.sql, "BackupRestoreOption", opt.Loc)
+				}
+			})
+		}
+	})
+
+	t.Run("backup_encryption_option", func(t *testing.T) {
+		tests := []struct {
+			name          string
+			sql           string
+			algorithm     string
+			encryptorType string
+			encryptorName string
+		}{
+			{
+				name:          "aes256_server_cert",
+				sql:           "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH ENCRYPTION (ALGORITHM = AES_256, SERVER CERTIFICATE = MyCert)",
+				algorithm:     "AES_256",
+				encryptorType: "SERVER CERTIFICATE",
+				encryptorName: "MyCert",
+			},
+			{
+				name:          "aes128_server_cert",
+				sql:           "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH ENCRYPTION (ALGORITHM = AES_128, SERVER CERTIFICATE = BackupCert)",
+				algorithm:     "AES_128",
+				encryptorType: "SERVER CERTIFICATE",
+				encryptorName: "BackupCert",
+			},
+			{
+				name:          "triple_des_asymmetric_key",
+				sql:           "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH ENCRYPTION (ALGORITHM = TRIPLE_DES_3KEY, SERVER ASYMMETRIC KEY = MyAsymKey)",
+				algorithm:     "TRIPLE_DES_3KEY",
+				encryptorType: "ASYMMETRIC KEY",
+				encryptorName: "MyAsymKey",
+			},
+			{
+				name:          "encryption_with_other_options",
+				sql:           "BACKUP DATABASE mydb TO DISK = '/backup/mydb.bak' WITH COMPRESSION, ENCRYPTION (ALGORITHM = AES_256, SERVER CERTIFICATE = MyCert), STATS = 10",
+				algorithm:     "AES_256",
+				encryptorType: "SERVER CERTIFICATE",
+				encryptorName: "MyCert",
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("expected 1 stmt, got %d", result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.BackupStmt)
+				if !ok {
+					t.Fatalf("expected *BackupStmt, got %T", result.Items[0])
+				}
+				if stmt.Options == nil {
+					t.Fatalf("expected options, got nil")
+				}
+				// Find the ENCRYPTION option
+				var encOpt *ast.BackupRestoreOption
+				for _, item := range stmt.Options.Items {
+					opt, ok := item.(*ast.BackupRestoreOption)
+					if ok && opt.Name == "ENCRYPTION" {
+						encOpt = opt
+						break
+					}
+				}
+				if encOpt == nil {
+					t.Fatalf("expected ENCRYPTION option, not found")
+				}
+				if encOpt.Algorithm != tt.algorithm {
+					t.Errorf("algorithm = %q, want %q", encOpt.Algorithm, tt.algorithm)
+				}
+				if encOpt.EncryptorType != tt.encryptorType {
+					t.Errorf("encryptorType = %q, want %q", encOpt.EncryptorType, tt.encryptorType)
+				}
+				if encOpt.EncryptorName != tt.encryptorName {
+					t.Errorf("encryptorName = %q, want %q", encOpt.EncryptorName, tt.encryptorName)
+				}
+				checkLocation(t, tt.sql, "BackupRestoreOption", encOpt.Loc)
+			})
+		}
+	})
+
+	t.Run("restore_move_option", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			sql      string
+			moveFrom string
+			moveTo   string
+		}{
+			{
+				name:     "single_move",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH MOVE 'mydb' TO 'C:\\data\\mydb.mdf'",
+				moveFrom: "mydb",
+				moveTo:   "C:\\data\\mydb.mdf",
+			},
+			{
+				name:     "multiple_moves",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH MOVE 'mydb' TO 'C:\\data\\mydb.mdf', MOVE 'mydb_log' TO 'C:\\data\\mydb_log.ldf'",
+				moveFrom: "mydb",
+				moveTo:   "C:\\data\\mydb.mdf",
+			},
+			{
+				name:     "move_with_replace",
+				sql:      "RESTORE DATABASE mydb FROM DISK = '/backup/mydb.bak' WITH MOVE 'mydb' TO 'C:\\data\\mydb.mdf', REPLACE, NORECOVERY",
+				moveFrom: "mydb",
+				moveTo:   "C:\\data\\mydb.mdf",
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("expected 1 stmt, got %d", result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.RestoreStmt)
+				if !ok {
+					t.Fatalf("expected *RestoreStmt, got %T", result.Items[0])
+				}
+				if stmt.Options == nil {
+					t.Fatalf("expected options, got nil")
+				}
+				// Find first MOVE option
+				var moveOpt *ast.BackupRestoreOption
+				for _, item := range stmt.Options.Items {
+					opt, ok := item.(*ast.BackupRestoreOption)
+					if ok && opt.Name == "MOVE" {
+						moveOpt = opt
+						break
+					}
+				}
+				if moveOpt == nil {
+					t.Fatalf("expected MOVE option, not found")
+				}
+				if moveOpt.MoveFrom != tt.moveFrom {
+					t.Errorf("moveFrom = %q, want %q", moveOpt.MoveFrom, tt.moveFrom)
+				}
+				if moveOpt.MoveTo != tt.moveTo {
+					t.Errorf("moveTo = %q, want %q", moveOpt.MoveTo, tt.moveTo)
+				}
+				checkLocation(t, tt.sql, "BackupRestoreOption", moveOpt.Loc)
+			})
+		}
+	})
+}

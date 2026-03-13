@@ -2652,7 +2652,7 @@
       "id": 120,
       "name": "backup_restore_options_depth",
       "file": "backup_restore.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 34 gap: replace generic string-accumulation loop in parseBackupRestoreOptions() with structured parsing. BACKUP options: COMPRESSION, NO_COMPRESSION, ENCRYPTION (ALGORITHM, SERVER CERTIFICATE/ASYMMETRIC KEY), DIFFERENTIAL, COPY_ONLY, DESCRIPTION, NAME, EXPIREDATE, RETAINDAYS, INIT/NOINIT, NOSKIP/SKIP, FORMAT/NOFORMAT, MEDIADESCRIPTION, MEDIANAME, BLOCKSIZE, BUFFERCOUNT, MAXTRANSFERSIZE, NO_CHECKSUM/CHECKSUM, STOP_ON_ERROR/CONTINUE_AFTER_ERROR, STATS, RESTART. RESTORE options: MOVE 'logical' TO 'physical', REPLACE, RECOVERY/NORECOVERY/STANDBY, STOPAT, STOPATMARK, STOPBEFOREMARK, FILE, MEDIANAME, MEDIAPASSWORD, ENABLE_BROKER, NEW_BROKER, ERROR_BROKER_CONVERSATIONS.",
       "rules": [
         "parseBackupOptions",

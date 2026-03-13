@@ -290,6 +290,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeBackupStmt(sb, n)
 	case *RestoreStmt:
 		writeRestoreStmt(sb, n)
+	case *BackupRestoreOption:
+		writeBackupRestoreOption(sb, n)
 	case *SecurityKeyStmt:
 		writeSecurityKeyStmt(sb, n)
 	case *BeginDistributedTransStmt:
@@ -2734,6 +2736,31 @@ func writeRestoreStmt(sb *strings.Builder, n *RestoreStmt) {
 	if n.Options != nil {
 		sb.WriteString(" :options ")
 		writeNode(sb, n.Options)
+	}
+	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
+	sb.WriteString("}")
+}
+
+func writeBackupRestoreOption(sb *strings.Builder, n *BackupRestoreOption) {
+	sb.WriteString("{BACKUPRESTOREOPTION")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	if n.Value != "" {
+		fmt.Fprintf(sb, " :value \"%s\"", escapeString(n.Value))
+	}
+	if n.Algorithm != "" {
+		fmt.Fprintf(sb, " :algorithm \"%s\"", escapeString(n.Algorithm))
+	}
+	if n.EncryptorType != "" {
+		fmt.Fprintf(sb, " :encryptorType \"%s\"", escapeString(n.EncryptorType))
+	}
+	if n.EncryptorName != "" {
+		fmt.Fprintf(sb, " :encryptorName \"%s\"", escapeString(n.EncryptorName))
+	}
+	if n.MoveFrom != "" {
+		fmt.Fprintf(sb, " :moveFrom \"%s\"", escapeString(n.MoveFrom))
+	}
+	if n.MoveTo != "" {
+		fmt.Fprintf(sb, " :moveTo \"%s\"", escapeString(n.MoveTo))
 	}
 	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")

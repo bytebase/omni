@@ -1932,7 +1932,7 @@ type BackupStmt struct {
 	Type     string // "DATABASE" or "LOG"
 	Database string // database name
 	Target   string // TO DISK/URL path value
-	Options  *List  // WITH options (as String nodes)
+	Options  *List  // WITH options (as BackupRestoreOption nodes)
 	Loc      Loc
 }
 
@@ -1949,12 +1949,47 @@ type RestoreStmt struct {
 	Type     string // "DATABASE", "LOG", "HEADERONLY", "FILELISTONLY", etc.
 	Database string // database name (may be empty for HEADERONLY/FILELISTONLY)
 	Source   string // FROM DISK/URL path value
-	Options  *List  // WITH options (as String nodes)
+	Options  *List  // WITH options (as BackupRestoreOption nodes)
 	Loc      Loc
 }
 
 func (n *RestoreStmt) nodeTag()  {}
 func (n *RestoreStmt) stmtNode() {}
+
+// BackupRestoreOption represents a single structured option in a BACKUP/RESTORE WITH clause.
+//
+// Flag options: COMPRESSION, NO_COMPRESSION, DIFFERENTIAL, COPY_ONLY, INIT, NOINIT,
+//
+//	NOSKIP, SKIP, FORMAT, NOFORMAT, NO_CHECKSUM, CHECKSUM,
+//	STOP_ON_ERROR, CONTINUE_AFTER_ERROR, RESTART, REPLACE,
+//	RECOVERY, NORECOVERY, ENABLE_BROKER, NEW_BROKER,
+//	ERROR_BROKER_CONVERSATIONS
+//
+// Key=value options: NAME, DESCRIPTION, EXPIREDATE, RETAINDAYS, STATS,
+//
+//	BLOCKSIZE, BUFFERCOUNT, MAXTRANSFERSIZE, MEDIADESCRIPTION,
+//	MEDIANAME, MEDIAPASSWORD, STANDBY, STOPAT, STOPATMARK,
+//	STOPBEFOREMARK, FILE
+//
+// ENCRYPTION: ALGORITHM = alg, SERVER CERTIFICATE name | ASYMMETRIC KEY name
+// MOVE: MOVE 'logical' TO 'physical'
+type BackupRestoreOption struct {
+	Name  string // option name
+	Value string // value for key=value options
+
+	// ENCRYPTION sub-options
+	Algorithm     string // AES_128, AES_192, AES_256, TRIPLE_DES_3KEY
+	EncryptorType string // SERVER CERTIFICATE, ASYMMETRIC KEY
+	EncryptorName string // certificate/key name
+
+	// MOVE sub-options (RESTORE)
+	MoveFrom string // logical file name
+	MoveTo   string // OS file name
+
+	Loc Loc
+}
+
+func (n *BackupRestoreOption) nodeTag() {}
 
 // ---------- Security keys/certs ----------
 
