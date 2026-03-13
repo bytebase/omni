@@ -14669,3 +14669,111 @@ func TestParseFulltextAlterDepth(t *testing.T) {
 		}
 	})
 }
+
+// TestParseSecurityMiscRemainingDepth tests batch 130: structured CryptoItem and SensitivityOption parsing.
+func TestParseSecurityMiscRemainingDepth(t *testing.T) {
+	t.Run("signature_crypto_item_structured", func(t *testing.T) {
+		tests := []struct {
+			sql       string
+			mechanism string
+			name      string
+			withType  string
+		}{
+			// CERTIFICATE only
+			{`ADD SIGNATURE TO dbo.myProc BY CERTIFICATE cert1`, "CERTIFICATE", "cert1", ""},
+			// CERTIFICATE with PASSWORD
+			{`ADD SIGNATURE TO sp_demo BY CERTIFICATE cert_demo WITH PASSWORD = 'secret123'`, "CERTIFICATE", "cert_demo", "PASSWORD"},
+			// CERTIFICATE with SIGNATURE blob
+			{`ADD SIGNATURE TO sp_demo BY CERTIFICATE cert_demo WITH SIGNATURE = 0xABCD`, "CERTIFICATE", "cert_demo", "SIGNATURE"},
+			// ASYMMETRIC KEY only
+			{`ADD SIGNATURE TO dbo.myProc BY ASYMMETRIC KEY myKey`, "ASYMMETRIC KEY", "myKey", ""},
+			// ASYMMETRIC KEY with PASSWORD
+			{`ADD SIGNATURE TO dbo.myProc BY ASYMMETRIC KEY myKey WITH PASSWORD = 'keypass'`, "ASYMMETRIC KEY", "myKey", "PASSWORD"},
+			// ASYMMETRIC KEY with SIGNATURE blob
+			{`ADD SIGNATURE TO dbo.myProc BY ASYMMETRIC KEY myKey WITH SIGNATURE = 0xFF01`, "ASYMMETRIC KEY", "myKey", "SIGNATURE"},
+			// DROP with CERTIFICATE
+			{`DROP SIGNATURE FROM sp_test BY CERTIFICATE cert1`, "CERTIFICATE", "cert1", ""},
+			// COUNTER SIGNATURE with CERTIFICATE and PASSWORD
+			{`ADD COUNTER SIGNATURE TO ProcSelectT1 BY CERTIFICATE csSelectT WITH PASSWORD = 'secret'`, "CERTIFICATE", "csSelectT", "PASSWORD"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.SignatureStmt)
+				if !ok {
+					t.Fatalf("Parse(%q): expected *SignatureStmt, got %T", tt.sql, result.Items[0])
+				}
+				if stmt.CryptoList == nil || stmt.CryptoList.Len() < 1 {
+					t.Fatalf("Parse(%q): expected CryptoList with items", tt.sql)
+				}
+				ci, ok := stmt.CryptoList.Items[0].(*ast.CryptoItem)
+				if !ok {
+					t.Fatalf("Parse(%q): expected *CryptoItem, got %T", tt.sql, stmt.CryptoList.Items[0])
+				}
+				if ci.Mechanism != tt.mechanism {
+					t.Errorf("Parse(%q): mechanism = %q, want %q", tt.sql, ci.Mechanism, tt.mechanism)
+				}
+				if ci.Name != tt.name {
+					t.Errorf("Parse(%q): name = %q, want %q", tt.sql, ci.Name, tt.name)
+				}
+				if ci.WithType != tt.withType {
+					t.Errorf("Parse(%q): withType = %q, want %q", tt.sql, ci.WithType, tt.withType)
+				}
+				checkLocation(t, tt.sql, "CryptoItem", ci.Loc)
+				s1 := ast.NodeToString(result.Items[0])
+				s2 := ast.NodeToString(result.Items[0])
+				if s1 != s2 {
+					t.Errorf("Parse(%q): serialization not deterministic", tt.sql)
+				}
+			})
+		}
+	})
+
+	t.Run("sensitivity_classification_options_structured", func(t *testing.T) {
+		tests := []struct {
+			sql      string
+			optCount int
+			firstKey string
+		}{
+			// Single option
+			{`ADD SENSITIVITY CLASSIFICATION TO dbo.t1.col1 WITH (LABEL = 'Confidential')`, 1, "LABEL"},
+			// Multiple options
+			{`ADD SENSITIVITY CLASSIFICATION TO dbo.t1.col1 WITH (LABEL = 'Highly Confidential', INFORMATION_TYPE = 'Financial', RANK = CRITICAL)`, 3, "LABEL"},
+			// LABEL_ID and INFORMATION_TYPE_ID
+			{`ADD SENSITIVITY CLASSIFICATION TO dbo.t1.col1 WITH (LABEL_ID = '643f7acd-776a-438d-890c-79c3f2a520d6', INFORMATION_TYPE_ID = '57845286-7598-22f5-9659-15b24aeb125e')`, 2, "LABEL_ID"},
+			// RANK only
+			{`ADD SENSITIVITY CLASSIFICATION TO dbo.t1.col1 WITH (RANK = HIGH)`, 1, "RANK"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.SensitivityClassificationStmt)
+				if !ok {
+					t.Fatalf("Parse(%q): expected *SensitivityClassificationStmt, got %T", tt.sql, result.Items[0])
+				}
+				if stmt.Options == nil || stmt.Options.Len() != tt.optCount {
+					t.Fatalf("Parse(%q): expected %d options, got %v", tt.sql, tt.optCount, stmt.Options)
+				}
+				opt, ok := stmt.Options.Items[0].(*ast.SensitivityOption)
+				if !ok {
+					t.Fatalf("Parse(%q): expected *SensitivityOption, got %T", tt.sql, stmt.Options.Items[0])
+				}
+				if opt.Key != tt.firstKey {
+					t.Errorf("Parse(%q): first option key = %q, want %q", tt.sql, opt.Key, tt.firstKey)
+				}
+				checkLocation(t, tt.sql, "SensitivityOption", opt.Loc)
+				s1 := ast.NodeToString(result.Items[0])
+				s2 := ast.NodeToString(result.Items[0])
+				if s1 != s2 {
+					t.Errorf("Parse(%q): serialization not deterministic", tt.sql)
+				}
+			})
+		}
+	})
+}

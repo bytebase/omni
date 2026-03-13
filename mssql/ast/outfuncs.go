@@ -384,6 +384,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeSensitivityClassificationStmt(sb, n)
 	case *SignatureStmt:
 		writeSignatureStmt(sb, n)
+	case *CryptoItem:
+		writeCryptoItem(sb, n)
+	case *SensitivityOption:
+		writeSensitivityOption(sb, n)
 	case *CreateXmlIndexStmt:
 		writeCreateXmlIndexStmt(sb, n)
 	case *CreateSelectiveXmlIndexStmt:
@@ -3755,4 +3759,24 @@ func writeOptimizeForParam(sb *strings.Builder, n *OptimizeForParam) {
 	}
 	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")
+}
+
+func writeCryptoItem(sb *strings.Builder, n *CryptoItem) {
+	sb.WriteString("{CRYPTOITEM")
+	fmt.Fprintf(sb, " :mechanism \"%s\"", escapeString(n.Mechanism))
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	if n.WithType != "" {
+		fmt.Fprintf(sb, " :withType \"%s\"", escapeString(n.WithType))
+	}
+	if n.WithValue != "" {
+		fmt.Fprintf(sb, " :withValue \"%s\"", escapeString(n.WithValue))
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeSensitivityOption(sb *strings.Builder, n *SensitivityOption) {
+	sb.WriteString("{SENSITIVITYOPTION")
+	fmt.Fprintf(sb, " :key \"%s\"", escapeString(n.Key))
+	fmt.Fprintf(sb, " :value \"%s\"", escapeString(n.Value))
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }

@@ -348,6 +348,7 @@ func (p *Parser) parseAddSensitivityClassificationStmt() *nodes.SensitivityClass
 			var opts []nodes.Node
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
 				if p.isIdentLike() {
+					optLoc := p.pos()
 					key := strings.ToUpper(p.cur.Str)
 					p.advance()
 					if p.cur.Type == '=' {
@@ -361,7 +362,11 @@ func (p *Parser) parseAddSensitivityClassificationStmt() *nodes.SensitivityClass
 						val = p.cur.Str
 						p.advance()
 					}
-					opts = append(opts, &nodes.String{Str: key + "=" + val})
+					opts = append(opts, &nodes.SensitivityOption{
+						Key:   key,
+						Value: val,
+						Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+					})
 				}
 				if _, ok := p.match(','); !ok {
 					break
@@ -489,10 +494,10 @@ func (p *Parser) parseSignatureStmt(action string) *nodes.SignatureStmt {
 		var cryptos []nodes.Node
 		for {
 			crypto := p.parseSignatureCryptoItem()
-			if crypto == "" {
+			if crypto == nil {
 				break
 			}
-			cryptos = append(cryptos, &nodes.String{Str: crypto})
+			cryptos = append(cryptos, crypto)
 			if _, ok := p.match(','); !ok {
 				break
 			}
@@ -507,55 +512,67 @@ func (p *Parser) parseSignatureStmt(action string) *nodes.SignatureStmt {
 }
 
 // parseSignatureCryptoItem parses a single crypto reference in a SIGNATURE BY clause.
-func (p *Parser) parseSignatureCryptoItem() string {
-	var result strings.Builder
+//
+//	<crypto_list> ::=
+//	    CERTIFICATE cert_name
+//	    | CERTIFICATE cert_name [ WITH PASSWORD = 'password' ]
+//	    | CERTIFICATE cert_name WITH SIGNATURE = signed_blob
+//	    | ASYMMETRIC KEY Asym_Key_Name
+//	    | ASYMMETRIC KEY Asym_Key_Name [ WITH PASSWORD = 'password' ]
+//	    | ASYMMETRIC KEY Asym_Key_Name WITH SIGNATURE = signed_blob
+func (p *Parser) parseSignatureCryptoItem() *nodes.CryptoItem {
+	loc := p.pos()
+	item := &nodes.CryptoItem{Loc: nodes.Loc{Start: loc}}
 
 	// CERTIFICATE cert_name or ASYMMETRIC KEY key_name
 	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CERTIFICATE") {
-		result.WriteString("CERTIFICATE ")
+		item.Mechanism = "CERTIFICATE"
 		p.advance()
 		if p.isIdentLike() {
-			result.WriteString(p.cur.Str)
+			item.Name = p.cur.Str
 			p.advance()
 		}
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ASYMMETRIC") {
-		result.WriteString("ASYMMETRIC KEY ")
+		item.Mechanism = "ASYMMETRIC KEY"
 		p.advance()
 		if p.cur.Type == kwKEY {
 			p.advance()
 		}
 		if p.isIdentLike() {
-			result.WriteString(p.cur.Str)
+			item.Name = p.cur.Str
 			p.advance()
 		}
 	} else {
-		return ""
+		return nil
 	}
 
 	// Optional: WITH PASSWORD = 'password' or WITH SIGNATURE = hex_blob
 	if p.cur.Type == kwWITH {
 		p.advance()
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PASSWORD") {
-			result.WriteString(" WITH PASSWORD")
+			item.WithType = "PASSWORD"
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 			}
 			if p.cur.Type == tokSCONST {
-				p.advance() // consume password value but don't store it
+				item.WithValue = p.cur.Str
+				p.advance()
 			}
 		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SIGNATURE") {
-			result.WriteString(" WITH SIGNATURE")
+			item.WithType = "SIGNATURE"
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			// hex blob - consume it
+			// hex blob
 			if p.isIdentLike() || p.cur.Type == tokICONST {
+				item.WithValue = p.cur.Str
 				p.advance()
 			}
 		}
 	}
 
-	return result.String()
+	item.Loc.End = p.pos()
+	return item
 }

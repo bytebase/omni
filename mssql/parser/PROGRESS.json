@@ -2852,7 +2852,7 @@
       "id": 130,
       "name": "security_misc_remaining_depth",
       "file": "security_misc.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 62 gap: replace strings.Builder in parseSignatureCryptoItem() at lines 511-560 with structured CryptoItem AST node (mechanism type, name, optional password/signature). Fix token loop in parseAddSensitivityClassificationStmt() at lines 349-369 with structured label/information_type/rank option parsing.",
       "rules": [
         "parseSignatureCryptoItemStructured",

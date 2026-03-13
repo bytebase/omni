@@ -2688,7 +2688,7 @@ func (n *SecurityPredicate) nodeTag() {}
 type SensitivityClassificationStmt struct {
 	Action  string // ADD or DROP
 	Columns *List  // list of *TableRef (schema.table.column references)
-	Options *List  // list of *String key=value pairs (for ADD: LABEL, LABEL_ID, INFORMATION_TYPE, etc.)
+	Options *List  // list of *SensitivityOption (for ADD: LABEL, LABEL_ID, INFORMATION_TYPE, etc.)
 	Loc     Loc
 }
 
@@ -2703,7 +2703,7 @@ type SignatureStmt struct {
 	IsCounter   bool   // COUNTER SIGNATURE
 	ModuleClass string // OBJECT, ASSEMBLY, etc. (default OBJECT)
 	ModuleName  *TableRef // module name
-	CryptoList  *List  // list of *String with certificate/key references
+	CryptoList  *List  // list of *CryptoItem with certificate/key references
 	Loc         Loc
 }
 
@@ -3039,3 +3039,28 @@ type OptimizeForParam struct {
 }
 
 func (n *OptimizeForParam) nodeTag() {}
+
+// ---------- Batch 130: Security Misc Remaining Depth ----------
+
+// CryptoItem represents a single item in a SIGNATURE BY crypto_list.
+//
+// CERTIFICATE cert_name [ WITH PASSWORD = 'password' | WITH SIGNATURE = signed_blob ]
+// ASYMMETRIC KEY key_name [ WITH PASSWORD = 'password' | WITH SIGNATURE = signed_blob ]
+type CryptoItem struct {
+	Mechanism string    // "CERTIFICATE" or "ASYMMETRIC KEY"
+	Name      string    // certificate or key name
+	WithType  string    // "PASSWORD" or "SIGNATURE" (empty if none)
+	WithValue string    // password or signature blob value
+	Loc       Loc
+}
+
+func (n *CryptoItem) nodeTag() {}
+
+// SensitivityOption represents a single key=value option in ADD SENSITIVITY CLASSIFICATION WITH clause.
+type SensitivityOption struct {
+	Key   string // LABEL, LABEL_ID, INFORMATION_TYPE, INFORMATION_TYPE_ID, RANK
+	Value string // option value
+	Loc   Loc
+}
+
+func (n *SensitivityOption) nodeTag() {}
