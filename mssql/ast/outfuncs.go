@@ -290,6 +290,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeBulkInsertStmt(sb, n)
 	case *DbccStmt:
 		writeDbccStmt(sb, n)
+	case *DbccOption:
+		writeDbccOption(sb, n)
 	case *BackupStmt:
 		writeBackupStmt(sb, n)
 	case *RestoreStmt:
@@ -2753,6 +2755,13 @@ func writeDbccStmt(sb *strings.Builder, n *DbccStmt) {
 		sb.WriteString(" :options ")
 		writeNode(sb, n.Options)
 	}
+	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
+	sb.WriteString("}")
+}
+
+func writeDbccOption(sb *strings.Builder, n *DbccOption) {
+	sb.WriteString("{DBCCOPTION")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
 	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")
 }

@@ -13605,3 +13605,111 @@ func findSecOpt(t *testing.T, stmt *ast.SecurityStmt, name string) *ast.Security
 	t.Fatalf("option %q not found in SecurityStmt options", name)
 	return nil
 }
+
+// TestParseDbccWithOptionsDepth tests batch 123: structured DBCC WITH options.
+func TestParseDbccWithOptionsDepth(t *testing.T) {
+	t.Run("dbcc_with_options_structured", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			sql      string
+			wantOpts int
+			wantNames []string
+		}{
+			{
+				name:      "checkdb_no_infomsgs",
+				sql:       "DBCC CHECKDB ('mydb') WITH NO_INFOMSGS",
+				wantOpts:  1,
+				wantNames: []string{"NO_INFOMSGS"},
+			},
+			{
+				name:      "checkdb_all_errormsgs",
+				sql:       "DBCC CHECKDB ('mydb') WITH ALL_ERRORMSGS",
+				wantOpts:  1,
+				wantNames: []string{"ALL_ERRORMSGS"},
+			},
+			{
+				name:      "checkdb_physical_only",
+				sql:       "DBCC CHECKDB ('mydb') WITH PHYSICAL_ONLY",
+				wantOpts:  1,
+				wantNames: []string{"PHYSICAL_ONLY"},
+			},
+			{
+				name:      "checkdb_extended_logical_checks",
+				sql:       "DBCC CHECKDB ('mydb') WITH EXTENDED_LOGICAL_CHECKS",
+				wantOpts:  1,
+				wantNames: []string{"EXTENDED_LOGICAL_CHECKS"},
+			},
+			{
+				name:      "checkdb_data_purity",
+				sql:       "DBCC CHECKDB ('mydb') WITH DATA_PURITY",
+				wantOpts:  1,
+				wantNames: []string{"DATA_PURITY"},
+			},
+			{
+				name:      "checktable_tablock",
+				sql:       "DBCC CHECKTABLE ('dbo.mytable') WITH TABLOCK",
+				wantOpts:  1,
+				wantNames: []string{"TABLOCK"},
+			},
+			{
+				name:      "checkdb_estimateonly",
+				sql:       "DBCC CHECKDB ('mydb') WITH ESTIMATEONLY",
+				wantOpts:  1,
+				wantNames: []string{"ESTIMATEONLY"},
+			},
+			{
+				name:      "checkdb_count_rows",
+				sql:       "DBCC CHECKDB ('mydb') WITH COUNT_ROWS",
+				wantOpts:  1,
+				wantNames: []string{"COUNT_ROWS"},
+			},
+			{
+				name:      "checkdb_multiple_options",
+				sql:       "DBCC CHECKDB ('mydb') WITH NO_INFOMSGS, ALL_ERRORMSGS, PHYSICAL_ONLY",
+				wantOpts:  3,
+				wantNames: []string{"NO_INFOMSGS", "ALL_ERRORMSGS", "PHYSICAL_ONLY"},
+			},
+			{
+				name:      "checkdb_all_options",
+				sql:       "DBCC CHECKDB ('mydb') WITH NO_INFOMSGS, DATA_PURITY, TABLOCK, ESTIMATEONLY",
+				wantOpts:  4,
+				wantNames: []string{"NO_INFOMSGS", "DATA_PURITY", "TABLOCK", "ESTIMATEONLY"},
+			},
+			{
+				name:      "checkdb_tableresults",
+				sql:       "DBCC CHECKDB ('mydb') WITH TABLERESULTS",
+				wantOpts:  1,
+				wantNames: []string{"TABLERESULTS"},
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("expected 1 stmt, got %d", result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.DbccStmt)
+				if !ok {
+					t.Fatalf("expected *DbccStmt, got %T", result.Items[0])
+				}
+				if stmt.Options == nil {
+					t.Fatalf("expected options, got nil")
+				}
+				if len(stmt.Options.Items) != tt.wantOpts {
+					t.Errorf("expected %d options, got %d", tt.wantOpts, len(stmt.Options.Items))
+				}
+				for i, item := range stmt.Options.Items {
+					opt, ok := item.(*ast.DbccOption)
+					if !ok {
+						t.Errorf("option[%d]: expected *DbccOption, got %T", i, item)
+						continue
+					}
+					if i < len(tt.wantNames) && opt.Name != tt.wantNames[i] {
+						t.Errorf("option[%d]: name = %q, want %q", i, opt.Name, tt.wantNames[i])
+					}
+					checkLocation(t, tt.sql, "DbccOption", opt.Loc)
+				}
+			})
+		}
+	})
+}

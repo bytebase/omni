@@ -2716,7 +2716,7 @@
       "id": 123,
       "name": "dbcc_with_options_depth",
       "file": "dbcc.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 32 gap: replace generic identifier loop in DBCC WITH options parsing with structured parsing. Common DBCC WITH options: NO_INFOMSGS, ALL_ERRORMSGS, PHYSICAL_ONLY, EXTENDED_LOGICAL_CHECKS, DATA_PURITY, TABLOCK, ESTIMATEONLY, COUNT_ROWS. The DBCC arguments themselves (inside parentheses) are already parsed as expressions, but the WITH clause options are just collected as string identifiers.",
       "rules": [
         "parseDbccWithOptions"

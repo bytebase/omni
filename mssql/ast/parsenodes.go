@@ -1971,12 +1971,25 @@ func (n *DeallocateCursorStmt) stmtNode() {}
 type DbccStmt struct {
 	Command string // e.g. CHECKDB, SHRINKDATABASE, FREEPROCCACHE, etc.
 	Args    *List  // optional arguments inside parentheses
-	Options *List  // optional WITH options (list of String nodes)
+	Options *List  // optional WITH options (list of *DbccOption nodes)
 	Loc     Loc
 }
 
 func (n *DbccStmt) nodeTag()  {}
 func (n *DbccStmt) stmtNode() {}
+
+// DbccOption represents a single structured DBCC WITH option.
+//
+// Common options: NO_INFOMSGS, ALL_ERRORMSGS, PHYSICAL_ONLY,
+//
+//	EXTENDED_LOGICAL_CHECKS, DATA_PURITY, TABLOCK,
+//	ESTIMATEONLY, COUNT_ROWS, TABLERESULTS
+type DbccOption struct {
+	Name string // option name (always uppercase)
+	Loc  Loc
+}
+
+func (n *DbccOption) nodeTag() {}
 
 // ---------- Backup / Restore ----------
 

@@ -49,16 +49,22 @@ func (p *Parser) parseDbccStmt() *nodes.DbccStmt {
 	}
 
 	// Optional WITH options: WITH option [, ...]
+	//
+	//   WITH { NO_INFOMSGS | ALL_ERRORMSGS | PHYSICAL_ONLY
+	//        | EXTENDED_LOGICAL_CHECKS | DATA_PURITY | TABLOCK
+	//        | ESTIMATEONLY | COUNT_ROWS | TABLERESULTS } [ , ... ]
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
 		var opts []nodes.Node
 		for {
 			if p.isIdentLike() {
-				// Capture option name; some options may have =value (e.g. ESTIMATEONLY)
-				optStr := strings.ToUpper(p.cur.Str)
+				optLoc := p.pos()
+				optName := strings.ToUpper(p.cur.Str)
 				p.advance()
-				// Handle NO_INFOMSGS, TABLERESULTS, etc. — just store the option name.
-				opts = append(opts, &nodes.String{Str: optStr})
+				opts = append(opts, &nodes.DbccOption{
+					Name: optName,
+					Loc:  nodes.Loc{Start: optLoc, End: p.pos()},
+				})
 			} else {
 				break
 			}
