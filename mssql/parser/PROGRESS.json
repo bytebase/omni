@@ -2815,7 +2815,7 @@
       "id": 128,
       "name": "security_keys_remaining_depth",
       "file": "security_keys.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 98 gap: replace strings.Builder in parseSecurityKeyStmtColumn() at lines 353-376 with structured ADD/DROP VALUE AST nodes. Replace parseSecurityKeyOptions() string accumulation at lines 675-702 and unstructured for-loop at lines 645-753 with structured ENCRYPTION BY / DECRYPTION BY mechanism nodes reusing parseEncryptingMechanism().",
       "rules": [
         "parseSecurityKeyStmtColumnStructured",

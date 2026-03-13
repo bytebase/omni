@@ -14364,3 +14364,181 @@ func TestParseServerConfigRemainingDepth(t *testing.T) {
 		}
 	})
 }
+
+// TestParseSecurityKeysRemainingDepth tests batch 128: structured security key column
+// and security key options remaining depth.
+func TestParseSecurityKeysRemainingDepth(t *testing.T) {
+	// ---- ALTER COLUMN ENCRYPTION KEY with structured ADD/DROP VALUE ----
+
+	t.Run("security_key_column_structured", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			sql      string
+			action   string
+			objType  string
+			keyName  string
+			wantOpts []string
+		}{
+			{
+				name:    "alter_column_encryption_key_add_value",
+				sql:     `ALTER COLUMN ENCRYPTION KEY MyColKey ADD VALUE (COLUMN_MASTER_KEY = MyCMK, ALGORITHM = 'RSA_OAEP', ENCRYPTED_VALUE = 0xABCD)`,
+				action:  "ALTER",
+				objType: "COLUMN ENCRYPTION KEY",
+				keyName: "MyColKey",
+				wantOpts: []string{
+					"ADD", "VALUE",
+					"COLUMN_MASTER_KEY", "MyCMK",
+					"ALGORITHM", "RSA_OAEP",
+					"ENCRYPTED_VALUE", "0xABCD",
+				},
+			},
+			{
+				name:    "alter_column_encryption_key_drop_value",
+				sql:     `ALTER COLUMN ENCRYPTION KEY MyColKey DROP VALUE (COLUMN_MASTER_KEY = OldCMK)`,
+				action:  "ALTER",
+				objType: "COLUMN ENCRYPTION KEY",
+				keyName: "MyColKey",
+				wantOpts: []string{
+					"DROP", "VALUE",
+					"COLUMN_MASTER_KEY", "OldCMK",
+				},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != tt.action {
+					t.Errorf("expected action %q, got %q", tt.action, stmt.Action)
+				}
+				if stmt.ObjectType != tt.objType {
+					t.Errorf("expected objectType %q, got %q", tt.objType, stmt.ObjectType)
+				}
+				if stmt.Name != tt.keyName {
+					t.Errorf("expected name %q, got %q", tt.keyName, stmt.Name)
+				}
+				if stmt.Options == nil {
+					t.Fatal("expected options, got nil")
+				}
+				if len(tt.wantOpts) > 0 && stmt.Options.Len() < len(tt.wantOpts) {
+					t.Fatalf("expected at least %d options, got %d", len(tt.wantOpts), stmt.Options.Len())
+				}
+				for i, want := range tt.wantOpts {
+					if i >= stmt.Options.Len() {
+						break
+					}
+					got := stmt.Options.Items[i].(*ast.String).Str
+					if got != want {
+						t.Errorf("option[%d] = %q, want %q", i, got, want)
+					}
+				}
+				checkLocation(t, tt.sql, "SecurityKeyStmt", stmt.Loc)
+			})
+		}
+	})
+
+	// ---- ENCRYPTION BY / DECRYPTION BY structured using parseEncryptingMechanism ----
+
+	t.Run("security_key_options_remaining_structured", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			sql      string
+			wantOpts []string
+		}{
+			{
+				name: "create_symmetric_encryption_by_certificate",
+				sql:  `CREATE SYMMETRIC KEY TestKey WITH ALGORITHM = AES_256 ENCRYPTION BY CERTIFICATE MyCert`,
+				wantOpts: []string{
+					"ALGORITHM", "AES_256",
+					"ENCRYPTION BY CERTIFICATE MyCert",
+				},
+			},
+			{
+				name: "create_symmetric_encryption_by_password",
+				sql:  `CREATE SYMMETRIC KEY TestKey WITH ALGORITHM = AES_128 ENCRYPTION BY PASSWORD = 'pass123'`,
+				wantOpts: []string{
+					"ALGORITHM", "AES_128",
+					"ENCRYPTION BY PASSWORD = pass123",
+				},
+			},
+			{
+				name: "create_symmetric_encryption_by_symmetric_key",
+				sql:  `CREATE SYMMETRIC KEY TestKey WITH ALGORITHM = AES_256 ENCRYPTION BY SYMMETRIC KEY OtherKey`,
+				wantOpts: []string{
+					"ALGORITHM", "AES_256",
+					"ENCRYPTION BY SYMMETRIC KEY OtherKey",
+				},
+			},
+			{
+				name: "create_symmetric_encryption_by_asymmetric_key",
+				sql:  `CREATE SYMMETRIC KEY TestKey WITH ALGORITHM = AES_256 ENCRYPTION BY ASYMMETRIC KEY MyAsymKey`,
+				wantOpts: []string{
+					"ALGORITHM", "AES_256",
+					"ENCRYPTION BY ASYMMETRIC KEY MyAsymKey",
+				},
+			},
+			{
+				name: "open_symmetric_decryption_by_certificate",
+				sql:  `OPEN SYMMETRIC KEY TestKey DECRYPTION BY CERTIFICATE MyCert`,
+				wantOpts: []string{
+					"DECRYPTION BY CERTIFICATE MyCert",
+				},
+			},
+			{
+				name: "open_symmetric_decryption_by_password",
+				sql:  `OPEN SYMMETRIC KEY TestKey DECRYPTION BY PASSWORD = 'mypass'`,
+				wantOpts: []string{
+					"DECRYPTION BY PASSWORD = mypass",
+				},
+			},
+			{
+				name: "create_symmetric_multi_encryption",
+				sql:  `CREATE SYMMETRIC KEY TestKey WITH ALGORITHM = AES_256 ENCRYPTION BY CERTIFICATE Cert1, PASSWORD = 'pass1'`,
+				wantOpts: []string{
+					"ALGORITHM", "AES_256",
+					"ENCRYPTION BY CERTIFICATE Cert1",
+					"ENCRYPTION BY PASSWORD = pass1",
+				},
+			},
+			{
+				name: "database_encryption_key_server_cert",
+				sql:  `CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_256 ENCRYPTION BY SERVER CERTIFICATE MyCert`,
+				wantOpts: []string{
+					"ALGORITHM", "AES_256",
+					"ENCRYPTION BY SERVER CERTIFICATE MyCert",
+				},
+			},
+			{
+				name: "database_encryption_key_server_asymmetric",
+				sql:  `CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER ASYMMETRIC KEY MyAsymKey`,
+				wantOpts: []string{
+					"ALGORITHM", "AES_128",
+					"ENCRYPTION BY SERVER ASYMMETRIC KEY MyAsymKey",
+				},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Options == nil {
+					t.Fatal("expected options, got nil")
+				}
+				if len(tt.wantOpts) > 0 && stmt.Options.Len() < len(tt.wantOpts) {
+					t.Fatalf("expected at least %d options, got %d", len(tt.wantOpts), stmt.Options.Len())
+				}
+				for i, want := range tt.wantOpts {
+					if i >= stmt.Options.Len() {
+						break
+					}
+					got := stmt.Options.Items[i].(*ast.String).Str
+					if got != want {
+						t.Errorf("option[%d] = %q, want %q", i, got, want)
+					}
+				}
+			})
+		}
+	})
+}

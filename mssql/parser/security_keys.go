@@ -349,30 +349,28 @@ func (p *Parser) parseSecurityKeyStmtColumn(action string) *nodes.SecurityKeyStm
 	// For ALTER COLUMN ENCRYPTION KEY, handle ADD/DROP VALUE specially
 	// because DROP is a statement-start keyword that would cause parseSecurityKeyOptions to stop.
 	if action == "ALTER" && stmt.ObjectType == "COLUMN ENCRYPTION KEY" {
-		// Consume ADD VALUE or DROP VALUE manually before skipping options
-		var buf strings.Builder
+		// Parse ADD VALUE or DROP VALUE as structured nodes
+		var prefixItems []nodes.Node
 		if p.cur.Type == kwADD {
-			buf.WriteString("ADD")
+			prefixItems = append(prefixItems, &nodes.String{Str: "ADD"})
 			p.advance()
 		} else if p.cur.Type == kwDROP {
-			buf.WriteString("DROP")
+			prefixItems = append(prefixItems, &nodes.String{Str: "DROP"})
 			p.advance()
 		}
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "VALUE") {
-			if buf.Len() > 0 {
-				buf.WriteByte(' ')
-			}
-			buf.WriteString("VALUE")
+			prefixItems = append(prefixItems, &nodes.String{Str: "VALUE"})
 			p.advance()
 		}
 		// Now consume the rest (parenthesized options)
 		p.parseSecurityKeyOptions(stmt)
-		// Prepend the ADD/DROP VALUE to the options
-		if buf.Len() > 0 && stmt.Options != nil {
-			existing := stmt.Options.Items[0].(*nodes.String).Str
-			stmt.Options.Items[0] = &nodes.String{Str: buf.String() + " " + existing}
-		} else if buf.Len() > 0 {
-			stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: buf.String()}}}
+		// Prepend the ADD/DROP VALUE nodes to the options
+		if len(prefixItems) > 0 {
+			if stmt.Options != nil {
+				stmt.Options.Items = append(prefixItems, stmt.Options.Items...)
+			} else {
+				stmt.Options = &nodes.List{Items: prefixItems}
+			}
 		}
 	} else {
 		// Consume remaining tokens as options
@@ -671,37 +669,30 @@ func (p *Parser) parseSecurityKeyOptions(stmt *nodes.SecurityKeyStmt) {
 			if p.cur.Type == kwBY {
 				p.advance() // consume BY
 			}
-			// Collect the encryption spec: PASSWORD = '...', CERTIFICATE name, ASYMMETRIC KEY name, etc.
-			var spec strings.Builder
-			spec.WriteString(keyword)
-			spec.WriteString(" BY")
-			for p.cur.Type != tokEOF && p.cur.Type != ';' && p.cur.Type != ',' {
+			// Use parseEncryptingMechanism for structured parsing
+			for {
+				mech := p.parseEncryptingMechanism()
+				if mech == "" {
+					// Fallback: if no known mechanism matched, just record the keyword
+					items = append(items, &nodes.String{Str: keyword + " BY"})
+					break
+				}
+				items = append(items, &nodes.String{Str: keyword + " BY " + mech})
+				if _, ok := p.match(','); !ok {
+					break
+				}
+				// After comma, check if next token is another mechanism or a different clause
+				if p.isIdentLike() && (strings.EqualFold(p.cur.Str, "ENCRYPTION") ||
+					strings.EqualFold(p.cur.Str, "DECRYPTION")) {
+					break
+				}
+				if p.cur.Type == kwWITH || p.cur.Type == tokEOF || p.cur.Type == ';' {
+					break
+				}
 				if depth == 0 && isStmtStart(p.cur.Type) {
 					break
 				}
-				if p.cur.Type == kwWITH || (p.isIdentLike() && (strings.EqualFold(p.cur.Str, "ENCRYPTION") ||
-					strings.EqualFold(p.cur.Str, "DECRYPTION"))) {
-					break
-				}
-				if p.cur.Type == '(' {
-					depth++
-				} else if p.cur.Type == ')' {
-					if depth > 0 {
-						depth--
-					} else {
-						break
-					}
-				}
-				spec.WriteByte(' ')
-				if p.cur.Str != "" {
-					spec.WriteString(p.cur.Str)
-				} else {
-					spec.WriteRune(rune(p.cur.Type))
-				}
-				p.advance()
 			}
-			items = append(items, &nodes.String{Str: spec.String()})
-			p.match(',')
 			continue
 		}
 
