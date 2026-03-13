@@ -2515,7 +2515,7 @@
       "id": 113,
       "name": "stmt_dispatch_phase4",
       "file": "parser.go",
-      "status": "pending",
+      "status": "done",
       "description": "Wire up all new statement parsers (batches 108-112) into parseStmt, parseCreateStmt, parseAlterStmt, and parseDropOrSecurityStmt dispatchers",
       "rules": [
         "stmt_dispatch_phase4"

@@ -11690,3 +11690,41 @@ AS SELECT * FROM dbo.source`
 		}
 	})
 }
+
+// TestParseStmtDispatchPhase4 is the integration test for batch 113.
+// Verifies all statements from batches 108-112 are properly dispatched.
+func TestParseStmtDispatchPhase4(t *testing.T) {
+	tests := []struct {
+		name    string
+		sql     string
+		wantTyp string
+	}{
+		// Batch 108 - external model
+		{"create_external_model", "CREATE EXTERNAL MODEL mymodel WITH (LOCATION = 'onnx:///mymodel.onnx')", "*ast.SecurityStmt"},
+		// Batch 109 - json/vector index
+		{"create_json_index", "CREATE JSON INDEX idx_json ON dbo.t1 (col1)", "*ast.CreateJsonIndexStmt"},
+		// Batch 110 - materialized view
+		{"create_materialized_view", "CREATE MATERIALIZED VIEW dbo.mv AS SELECT col1 FROM dbo.t1", "*ast.CreateMaterializedViewStmt"},
+		{"alter_materialized_view", "ALTER MATERIALIZED VIEW dbo.mv REBUILD", "*ast.AlterMaterializedViewStmt"},
+		// Batch 111 - copy into
+		{"copy_into", "COPY INTO dbo.t1 FROM 'https://storage.blob.core.windows.net/data/' WITH (FILE_TYPE = 'CSV')", "*ast.CopyIntoStmt"},
+		// Batch 112 - rename, CETAS, clone
+		{"rename_object", "RENAME OBJECT dbo.old_table TO new_table", "*ast.RenameStmt"},
+		{"rename_database", "RENAME DATABASE mydb TO newdb", "*ast.RenameStmt"},
+		{"cetas", "CREATE EXTERNAL TABLE dbo.ext (col1) WITH (LOCATION = '/out/', DATA_SOURCE = ds, FILE_FORMAT = ff) AS SELECT 1", "*ast.CreateExternalTableAsSelectStmt"},
+		{"create_table_clone", "CREATE TABLE dbo.clone AS CLONE OF dbo.original", "*ast.CreateTableCloneStmt"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() == 0 {
+				t.Fatalf("Parse(%q): no statements returned", tt.sql)
+			}
+			gotTyp := fmt.Sprintf("%T", result.Items[0])
+			if gotTyp != tt.wantTyp {
+				t.Errorf("Parse(%q): got type %s, want %s", tt.sql, gotTyp, tt.wantTyp)
+			}
+		})
+	}
+}
