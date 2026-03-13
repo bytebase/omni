@@ -38,7 +38,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 	case kwTRIGGER:
 		return p.parseAlterTriggerStmt(start)
 	case kwTYPE:
-		return p.parseAlterGeneric(start, nodes.OBJECT_TYPE)
+		return p.parseAlterTypeStmt(start)
 	case kwPACKAGE:
 		return p.parseAlterPackageStmt(start)
 	case kwMATERIALIZED:
@@ -999,6 +999,359 @@ func (p *Parser) parseAlterTriggerStmt(start int) nodes.StmtNode {
 
 	stmt.Loc.End = p.pos()
 	return stmt
+}
+
+// parseAlterTypeStmt parses an ALTER TYPE statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/ALTER-TYPE-statement.html
+//
+//	ALTER TYPE [IF EXISTS] [schema.]type_name
+//	  { alter_type_clause | type_compile_clause }
+//	  [ EDITIONABLE | NONEDITIONABLE ]
+//
+//	alter_type_clause:
+//	    RESET
+//	  | [NOT] INSTANTIABLE
+//	  | [NOT] FINAL
+//	  | ADD ATTRIBUTE ( attribute datatype [, ...] )
+//	  | DROP ATTRIBUTE ( attribute [, ...] )
+//	  | MODIFY ATTRIBUTE ( attribute datatype [, ...] )
+//	  | ADD { MAP | ORDER } MEMBER FUNCTION ...
+//	  | ADD { MEMBER | STATIC } { FUNCTION | PROCEDURE } ...
+//	  | ADD CONSTRUCTOR FUNCTION ...
+//	  | DROP { MAP | ORDER } MEMBER FUNCTION ...
+//	  | DROP { MEMBER | STATIC } { FUNCTION | PROCEDURE } ...
+//	  | MODIFY LIMIT integer
+//	  | MODIFY ELEMENT TYPE datatype
+//	  | dependent_handling_clause
+//
+//	type_compile_clause:
+//	    COMPILE [SPECIFICATION | BODY] [DEBUG] [compiler_parameters_clause ...] [REUSE SETTINGS]
+//
+//	dependent_handling_clause:
+//	    INVALIDATE
+//	  | CASCADE [INCLUDING TABLE DATA | NOT INCLUDING TABLE DATA | CONVERT TO SUBSTITUTABLE]
+//	    [FORCE]
+func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
+	p.advance() // consume TYPE
+
+	stmt := &nodes.AlterTypeStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// IF EXISTS
+	if p.cur.Type == kwIF {
+		if p.peekNext().Type == kwEXISTS {
+			stmt.IfExists = true
+			p.advance() // consume IF
+			p.advance() // consume EXISTS
+		}
+	}
+
+	stmt.Name = p.parseObjectName()
+
+	// Parse action
+	switch {
+	case p.isIdentLikeStr("COMPILE"):
+		stmt.Action = "COMPILE"
+		p.advance() // consume COMPILE
+		// Optional SPECIFICATION | BODY
+		if p.isIdentLikeStr("SPECIFICATION") {
+			stmt.CompileTarget = "SPECIFICATION"
+			p.advance()
+		} else if p.isIdentLikeStr("BODY") {
+			stmt.CompileTarget = "BODY"
+			p.advance()
+		}
+		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams = p.parseCompileClause()
+
+	case p.isIdentLikeStr("RESET"):
+		stmt.Action = "RESET"
+		p.advance()
+
+	case p.cur.Type == kwNOT:
+		p.advance() // consume NOT
+		if p.isIdentLikeStr("INSTANTIABLE") {
+			stmt.Action = "NOT_INSTANTIABLE"
+			p.advance()
+		} else if p.isIdentLikeStr("FINAL") {
+			stmt.Action = "NOT_FINAL"
+			p.advance()
+		} else {
+			p.skipToSemicolon()
+		}
+		p.parseAlterTypeDependentHandling(stmt)
+
+	case p.isIdentLikeStr("INSTANTIABLE"):
+		stmt.Action = "INSTANTIABLE"
+		p.advance()
+		p.parseAlterTypeDependentHandling(stmt)
+
+	case p.isIdentLikeStr("FINAL"):
+		stmt.Action = "FINAL"
+		p.advance()
+		p.parseAlterTypeDependentHandling(stmt)
+
+	case p.cur.Type == kwADD:
+		p.advance() // consume ADD
+		p.parseAlterTypeAddDrop(stmt, "ADD")
+
+	case p.cur.Type == kwDROP:
+		p.advance() // consume DROP
+		p.parseAlterTypeAddDrop(stmt, "DROP")
+
+	case p.isIdentLikeStr("MODIFY"):
+		p.advance() // consume MODIFY
+		if p.isIdentLikeStr("ATTRIBUTE") {
+			stmt.Action = "MODIFY_ATTRIBUTE"
+			p.advance() // consume ATTRIBUTE
+			stmt.Attributes = p.parseAlterTypeAttributes(true)
+			p.parseAlterTypeDependentHandling(stmt)
+		} else if p.isIdentLikeStr("LIMIT") {
+			stmt.Action = "MODIFY_LIMIT"
+			p.advance() // consume LIMIT
+			stmt.LimitValue = p.parseExpr()
+			p.parseAlterTypeDependentHandling(stmt)
+		} else if p.isIdentLikeStr("ELEMENT") {
+			stmt.Action = "MODIFY_ELEMENT_TYPE"
+			p.advance() // consume ELEMENT
+			if p.cur.Type == kwTYPE {
+				p.advance() // consume TYPE
+			}
+			stmt.ElementType = p.parseTypeName()
+			p.parseAlterTypeDependentHandling(stmt)
+		} else {
+			p.skipToSemicolon()
+		}
+
+	case p.isIdentLikeStr("INVALIDATE"):
+		stmt.Invalidate = true
+		p.advance()
+
+	case p.isIdentLikeStr("CASCADE"):
+		p.parseAlterTypeCascade(stmt)
+
+	case p.isIdentLikeStr("EDITIONABLE"):
+		stmt.Action = "EDITIONABLE"
+		stmt.Editionable = true
+		p.advance()
+
+	case p.isIdentLikeStr("NONEDITIONABLE"):
+		stmt.Action = "NONEDITIONABLE"
+		stmt.NonEditionable = true
+		p.advance()
+
+	default:
+		p.skipToSemicolon()
+	}
+
+	// Trailing EDITIONABLE / NONEDITIONABLE (after other clauses)
+	if stmt.Action != "EDITIONABLE" && stmt.Action != "NONEDITIONABLE" {
+		if p.isIdentLikeStr("EDITIONABLE") {
+			stmt.Editionable = true
+			p.advance()
+		} else if p.isIdentLikeStr("NONEDITIONABLE") {
+			stmt.NonEditionable = true
+			p.advance()
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAlterTypeAddDrop handles ADD/DROP ATTRIBUTE or ADD/DROP method.
+func (p *Parser) parseAlterTypeAddDrop(stmt *nodes.AlterTypeStmt, action string) {
+	switch {
+	case p.isIdentLikeStr("ATTRIBUTE"):
+		if action == "ADD" {
+			stmt.Action = "ADD_ATTRIBUTE"
+		} else {
+			stmt.Action = "DROP_ATTRIBUTE"
+		}
+		p.advance() // consume ATTRIBUTE
+		needDatatype := action == "ADD"
+		stmt.Attributes = p.parseAlterTypeAttributes(needDatatype)
+		p.parseAlterTypeDependentHandling(stmt)
+
+	case p.isIdentLikeStr("MEMBER"), p.isIdentLikeStr("STATIC"):
+		kind := p.cur.Str
+		p.advance() // consume MEMBER/STATIC
+		if action == "ADD" {
+			stmt.Action = "ADD_METHOD"
+		} else {
+			stmt.Action = "DROP_METHOD"
+		}
+		stmt.MethodKind = kind
+		p.parseAlterTypeMethodSig(stmt)
+		p.parseAlterTypeDependentHandling(stmt)
+
+	case p.isIdentLikeStr("MAP"), p.isIdentLikeStr("ORDER"):
+		kind := p.cur.Str
+		p.advance() // consume MAP/ORDER
+		if p.isIdentLikeStr("MEMBER") {
+			kind += " MEMBER"
+			p.advance() // consume MEMBER
+		}
+		if action == "ADD" {
+			stmt.Action = "ADD_METHOD"
+		} else {
+			stmt.Action = "DROP_METHOD"
+		}
+		stmt.MethodKind = kind
+		p.parseAlterTypeMethodSig(stmt)
+		p.parseAlterTypeDependentHandling(stmt)
+
+	case p.isIdentLikeStr("CONSTRUCTOR"):
+		p.advance() // consume CONSTRUCTOR
+		if action == "ADD" {
+			stmt.Action = "ADD_METHOD"
+		} else {
+			stmt.Action = "DROP_METHOD"
+		}
+		stmt.MethodKind = "CONSTRUCTOR"
+		p.parseAlterTypeMethodSig(stmt)
+		p.parseAlterTypeDependentHandling(stmt)
+
+	default:
+		p.skipToSemicolon()
+	}
+}
+
+// parseAlterTypeMethodSig parses a method signature: FUNCTION/PROCEDURE name [(params)] [RETURN type].
+func (p *Parser) parseAlterTypeMethodSig(stmt *nodes.AlterTypeStmt) {
+	// FUNCTION or PROCEDURE
+	if p.cur.Type == kwFUNCTION {
+		stmt.MethodType = "FUNCTION"
+		p.advance()
+	} else if p.cur.Type == kwPROCEDURE {
+		stmt.MethodType = "PROCEDURE"
+		p.advance()
+	}
+
+	// Method name
+	stmt.MethodName = p.parseIdentifier()
+
+	// Optional parameter list
+	if p.cur.Type == '(' {
+		params := p.parseParameterList()
+		if params != nil {
+			for _, item := range params.Items {
+				if param, ok := item.(*nodes.Parameter); ok {
+					stmt.MethodParams = append(stmt.MethodParams, param)
+				}
+			}
+		}
+	}
+
+	// Optional RETURN type
+	if p.cur.Type == kwRETURN {
+		p.advance() // consume RETURN
+		// SELF AS RESULT
+		if p.isIdentLikeStr("SELF") {
+			p.advance() // consume SELF
+			if p.cur.Type == kwAS {
+				p.advance() // consume AS
+			}
+			if p.isIdentLikeStr("RESULT") {
+				p.advance() // consume RESULT
+			}
+			stmt.MethodReturn = &nodes.TypeName{
+				Names: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "SELF AS RESULT"}}},
+			}
+		} else {
+			stmt.MethodReturn = p.parseTypeName()
+		}
+	}
+}
+
+// parseAlterTypeAttributes parses ( attribute [datatype] [, ...] ).
+func (p *Parser) parseAlterTypeAttributes(withDatatype bool) []*nodes.TypeAttribute {
+	var attrs []*nodes.TypeAttribute
+
+	if p.cur.Type == '(' {
+		p.advance() // consume (
+		for {
+			attrStart := p.pos()
+			attr := &nodes.TypeAttribute{
+				Name: p.parseIdentifier(),
+				Loc:  nodes.Loc{Start: attrStart},
+			}
+			if withDatatype {
+				attr.DataType = p.parseTypeName()
+			}
+			attr.Loc.End = p.pos()
+			attrs = append(attrs, attr)
+			if p.cur.Type == ',' {
+				p.advance() // consume ,
+				continue
+			}
+			break
+		}
+		if p.cur.Type == ')' {
+			p.advance() // consume )
+		}
+	}
+
+	return attrs
+}
+
+// parseAlterTypeDependentHandling parses optional INVALIDATE / CASCADE / FORCE.
+func (p *Parser) parseAlterTypeDependentHandling(stmt *nodes.AlterTypeStmt) {
+	if p.isIdentLikeStr("INVALIDATE") {
+		stmt.Invalidate = true
+		p.advance()
+		return
+	}
+	if p.isIdentLikeStr("CASCADE") {
+		p.parseAlterTypeCascade(stmt)
+	}
+}
+
+// parseAlterTypeCascade parses CASCADE [INCLUDING TABLE DATA | NOT INCLUDING TABLE DATA | CONVERT TO SUBSTITUTABLE] [FORCE].
+func (p *Parser) parseAlterTypeCascade(stmt *nodes.AlterTypeStmt) {
+	stmt.Cascade = true
+	p.advance() // consume CASCADE
+
+	if p.isIdentLikeStr("INCLUDING") {
+		p.advance() // consume INCLUDING
+		if p.cur.Type == kwTABLE {
+			p.advance() // consume TABLE
+		}
+		if p.isIdentLikeStr("DATA") {
+			p.advance() // consume DATA
+		}
+		t := true
+		stmt.IncludeData = &t
+	} else if p.cur.Type == kwNOT {
+		p.advance() // consume NOT
+		if p.isIdentLikeStr("INCLUDING") {
+			p.advance() // consume INCLUDING
+		}
+		if p.cur.Type == kwTABLE {
+			p.advance() // consume TABLE
+		}
+		if p.isIdentLikeStr("DATA") {
+			p.advance() // consume DATA
+		}
+		f := false
+		stmt.IncludeData = &f
+	} else if p.isIdentLikeStr("CONVERT") {
+		p.advance() // consume CONVERT
+		if p.cur.Type == kwTO {
+			p.advance() // consume TO
+		}
+		if p.isIdentLikeStr("SUBSTITUTABLE") {
+			p.advance() // consume SUBSTITUTABLE
+		}
+		stmt.ConvertToSubst = true
+	}
+
+	// Optional FORCE
+	if p.isIdentLikeStr("FORCE") {
+		stmt.Force = true
+		p.advance()
+	}
 }
 
 // skipToSemicolon advances until a semicolon or EOF is found.

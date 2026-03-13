@@ -342,6 +342,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterPackageStmt(sb, n)
 	case *AlterTriggerStmt:
 		writeAlterTriggerStmt(sb, n)
+	case *AlterTypeStmt:
+		writeAlterTypeStmt(sb, n)
+	case *TypeAttribute:
+		writeTypeAttribute(sb, n)
 	case *SetRoleStmt:
 		writeSetRoleStmt(sb, n)
 	case *SetConstraintsStmt:
@@ -4179,6 +4183,105 @@ func writeAlterTriggerStmt(sb *strings.Builder, n *AlterTriggerStmt) {
 	writeCompileFields(sb, n.Action == "COMPILE", n.Debug, n.ReuseSettings, n.CompilerParams)
 	if n.NewName != "" {
 		sb.WriteString(fmt.Sprintf(" :newName %q", n.NewName))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterTypeStmt(sb *strings.Builder, n *AlterTypeStmt) {
+	sb.WriteString("{ALTER_TYPE")
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.IfExists {
+		sb.WriteString(" :ifExists true")
+	}
+	if n.Action != "" {
+		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	}
+	if n.CompileTarget != "" {
+		sb.WriteString(fmt.Sprintf(" :compileTarget %q", n.CompileTarget))
+	}
+	writeCompileFields(sb, n.Action == "COMPILE", n.Debug, n.ReuseSettings, n.CompilerParams)
+	if len(n.Attributes) > 0 {
+		sb.WriteString(" :attributes (")
+		for i, a := range n.Attributes {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, a)
+		}
+		sb.WriteString(")")
+	}
+	if n.MethodKind != "" {
+		sb.WriteString(fmt.Sprintf(" :methodKind %q", n.MethodKind))
+	}
+	if n.MethodType != "" {
+		sb.WriteString(fmt.Sprintf(" :methodType %q", n.MethodType))
+	}
+	if n.MethodName != "" {
+		sb.WriteString(fmt.Sprintf(" :methodName %q", n.MethodName))
+	}
+	if len(n.MethodParams) > 0 {
+		sb.WriteString(" :methodParams (")
+		for i, p := range n.MethodParams {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, p)
+		}
+		sb.WriteString(")")
+	}
+	if n.MethodReturn != nil {
+		sb.WriteString(" :methodReturn ")
+		writeNode(sb, n.MethodReturn)
+	}
+	if n.LimitValue != nil {
+		sb.WriteString(" :limitValue ")
+		writeNode(sb, n.LimitValue)
+	}
+	if n.ElementType != nil {
+		sb.WriteString(" :elementType ")
+		writeNode(sb, n.ElementType)
+	}
+	if n.Invalidate {
+		sb.WriteString(" :invalidate true")
+	}
+	if n.Cascade {
+		sb.WriteString(" :cascade true")
+	}
+	if n.IncludeData != nil {
+		if *n.IncludeData {
+			sb.WriteString(" :includeData true")
+		} else {
+			sb.WriteString(" :includeData false")
+		}
+	}
+	if n.ConvertToSubst {
+		sb.WriteString(" :convertToSubst true")
+	}
+	if n.Force {
+		sb.WriteString(" :force true")
+	}
+	if n.Editionable {
+		sb.WriteString(" :editionable true")
+	}
+	if n.NonEditionable {
+		sb.WriteString(" :nonEditionable true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeTypeAttribute(sb *strings.Builder, n *TypeAttribute) {
+	sb.WriteString("{TYPE_ATTR")
+	if n.Name != "" {
+		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	}
+	if n.DataType != nil {
+		sb.WriteString(" :dataType ")
+		writeNode(sb, n.DataType)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

@@ -2811,6 +2811,77 @@ type AlterTriggerStmt struct {
 func (n *AlterTriggerStmt) nodeTag()  {}
 func (n *AlterTriggerStmt) stmtNode() {}
 
+// AlterTypeStmt represents an ALTER TYPE statement.
+//
+//	ALTER TYPE [IF EXISTS] [schema.]type_name
+//	  { alter_type_clause | type_compile_clause }
+//	  [ EDITIONABLE | NONEDITIONABLE ]
+//
+//	alter_type_clause:
+//	    RESET
+//	  | [NOT] INSTANTIABLE
+//	  | [NOT] FINAL
+//	  | ADD ATTRIBUTE ( attribute datatype [, ...] )
+//	  | DROP ATTRIBUTE ( attribute [, ...] )
+//	  | MODIFY ATTRIBUTE ( attribute datatype [, ...] )
+//	  | ADD { MAP | ORDER } MEMBER FUNCTION ...
+//	  | ADD { MEMBER | STATIC } { FUNCTION | PROCEDURE } ...
+//	  | ADD CONSTRUCTOR FUNCTION ...
+//	  | DROP { MAP | ORDER } MEMBER FUNCTION ...
+//	  | DROP { MEMBER | STATIC } { FUNCTION | PROCEDURE } ...
+//	  | MODIFY LIMIT integer
+//	  | MODIFY ELEMENT TYPE datatype
+//	  | dependent_handling_clause
+//
+//	type_compile_clause:
+//	    COMPILE [SPECIFICATION | BODY] [DEBUG] [compiler_parameters_clause ...] [REUSE SETTINGS]
+//
+//	dependent_handling_clause:
+//	    INVALIDATE
+//	  | CASCADE [INCLUDING TABLE DATA | NOT INCLUDING TABLE DATA | CONVERT TO SUBSTITUTABLE]
+//	    [FORCE]
+type AlterTypeStmt struct {
+	Name            *ObjectName       // type name
+	IfExists        bool              // IF EXISTS
+	Action          string            // "COMPILE", "ADD_ATTRIBUTE", "DROP_ATTRIBUTE", "MODIFY_ATTRIBUTE",
+	                                  // "ADD_METHOD", "DROP_METHOD", "NOT_INSTANTIABLE", "INSTANTIABLE",
+	                                  // "NOT_FINAL", "FINAL", "MODIFY_LIMIT", "MODIFY_ELEMENT_TYPE",
+	                                  // "RESET", "EDITIONABLE", "NONEDITIONABLE"
+	CompileTarget   string            // "SPECIFICATION", "BODY", "" (for COMPILE)
+	Debug           bool              // COMPILE DEBUG
+	ReuseSettings   bool              // REUSE SETTINGS
+	CompilerParams  []*SetParam       // compiler_parameters_clause
+	Attributes      []*TypeAttribute  // for ADD/DROP/MODIFY ATTRIBUTE
+	MethodSpec      string            // raw method signature text for ADD/DROP method
+	MethodKind      string            // "MEMBER", "STATIC", "MAP MEMBER", "ORDER MEMBER", "CONSTRUCTOR"
+	MethodType      string            // "FUNCTION" or "PROCEDURE"
+	MethodName      string            // method name
+	MethodParams    []*Parameter      // method parameters
+	MethodReturn    *TypeName         // method return type
+	LimitValue      ExprNode          // for MODIFY LIMIT
+	ElementType     *TypeName         // for MODIFY ELEMENT TYPE
+	Invalidate      bool              // INVALIDATE
+	Cascade         bool              // CASCADE
+	IncludeData     *bool             // CASCADE INCLUDING TABLE DATA (true) / NOT INCLUDING TABLE DATA (false) / nil (not specified)
+	ConvertToSubst  bool              // CASCADE CONVERT TO SUBSTITUTABLE
+	Force           bool              // FORCE (exceptions_clause)
+	Editionable     bool              // EDITIONABLE
+	NonEditionable  bool              // NONEDITIONABLE
+	Loc             Loc
+}
+
+// TypeAttribute represents an attribute name with optional datatype in ALTER TYPE.
+type TypeAttribute struct {
+	Name     string    // attribute name
+	DataType *TypeName // datatype (nil for DROP ATTRIBUTE)
+	Loc      Loc
+}
+
+func (n *TypeAttribute) nodeTag() {}
+
+func (n *AlterTypeStmt) nodeTag()  {}
+func (n *AlterTypeStmt) stmtNode() {}
+
 // ---------------------------------------------------------------------------
 // Star expression (SELECT *)
 // ---------------------------------------------------------------------------

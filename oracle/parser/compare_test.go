@@ -3398,3 +3398,107 @@ func TestParseAlterSequenceProper(t *testing.T) {
 		}
 	})
 }
+
+func TestParseAlterType(t *testing.T) {
+	tests := []string{
+		// COMPILE variations
+		"ALTER TYPE my_type COMPILE",
+		"ALTER TYPE my_schema.my_type COMPILE",
+		"ALTER TYPE my_type COMPILE SPECIFICATION",
+		"ALTER TYPE my_type COMPILE BODY",
+		"ALTER TYPE my_type COMPILE DEBUG",
+		"ALTER TYPE my_type COMPILE SPECIFICATION REUSE SETTINGS",
+		"ALTER TYPE my_type COMPILE BODY DEBUG PLSQL_OPTIMIZE_LEVEL = 2 REUSE SETTINGS",
+
+		// ADD ATTRIBUTE
+		"ALTER TYPE person_t ADD ATTRIBUTE (email VARCHAR2(100)) CASCADE",
+		"ALTER TYPE person_t ADD ATTRIBUTE (phone NUMBER) INVALIDATE",
+		"ALTER TYPE person_t ADD ATTRIBUTE (addr VARCHAR2(200), zip NUMBER) CASCADE NOT INCLUDING TABLE DATA",
+
+		// DROP ATTRIBUTE
+		"ALTER TYPE person_t DROP ATTRIBUTE (email) CASCADE",
+		"ALTER TYPE person_t DROP ATTRIBUTE (email, phone) INVALIDATE",
+
+		// MODIFY ATTRIBUTE
+		"ALTER TYPE person_t MODIFY ATTRIBUTE (email VARCHAR2(200)) CASCADE",
+		"ALTER TYPE person_t MODIFY ATTRIBUTE (email VARCHAR2(200), phone NUMBER(20)) CASCADE INCLUDING TABLE DATA",
+
+		// ADD method
+		"ALTER TYPE data_typ1 ADD MEMBER FUNCTION get_name RETURN VARCHAR2 CASCADE",
+		"ALTER TYPE data_typ1 ADD STATIC PROCEDURE init(p1 NUMBER) CASCADE",
+		"ALTER TYPE data_typ1 ADD MAP MEMBER FUNCTION cmp RETURN NUMBER CASCADE",
+		"ALTER TYPE data_typ1 ADD ORDER MEMBER FUNCTION cmp(other data_typ1) RETURN NUMBER CASCADE",
+		"ALTER TYPE data_typ1 ADD CONSTRUCTOR FUNCTION data_typ1(x NUMBER) RETURN SELF AS RESULT CASCADE",
+
+		// DROP method
+		"ALTER TYPE data_typ1 DROP MEMBER FUNCTION get_name RETURN VARCHAR2 CASCADE",
+		"ALTER TYPE data_typ1 DROP STATIC PROCEDURE init(p1 NUMBER) INVALIDATE",
+		"ALTER TYPE data_typ1 DROP MAP MEMBER FUNCTION cmp RETURN NUMBER CASCADE",
+
+		// NOT INSTANTIABLE / NOT FINAL / FINAL / INSTANTIABLE
+		"ALTER TYPE my_type NOT INSTANTIABLE CASCADE",
+		"ALTER TYPE my_type NOT FINAL CASCADE",
+		"ALTER TYPE my_type FINAL CASCADE",
+		"ALTER TYPE my_type INSTANTIABLE CASCADE",
+
+		// MODIFY LIMIT (varray)
+		"ALTER TYPE phone_list_t MODIFY LIMIT 20 CASCADE",
+
+		// MODIFY ELEMENT TYPE (collection)
+		"ALTER TYPE phone_list_t MODIFY ELEMENT TYPE VARCHAR2(64) CASCADE",
+
+		// EDITIONABLE / NONEDITIONABLE
+		"ALTER TYPE my_type EDITIONABLE",
+		"ALTER TYPE my_type NONEDITIONABLE",
+
+		// IF EXISTS
+		"ALTER TYPE IF EXISTS my_type COMPILE",
+
+		// RESET
+		"ALTER TYPE my_type RESET",
+
+		// CASCADE with INCLUDING/NOT INCLUDING TABLE DATA
+		"ALTER TYPE person_t ADD ATTRIBUTE (x NUMBER) CASCADE INCLUDING TABLE DATA",
+		"ALTER TYPE person_t ADD ATTRIBUTE (x NUMBER) CASCADE NOT INCLUDING TABLE DATA",
+		"ALTER TYPE person_t ADD ATTRIBUTE (x NUMBER) CASCADE CONVERT TO SUBSTITUTABLE",
+
+		// FORCE (exceptions clause)
+		"ALTER TYPE person_t ADD ATTRIBUTE (x NUMBER) CASCADE FORCE",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+
+	// Verify AST node type
+	t.Run("alter_type_ast_check", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER TYPE my_schema.my_type ADD ATTRIBUTE (email VARCHAR2(100)) CASCADE")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterTypeStmt)
+		if stmt.Name == nil {
+			t.Fatal("expected non-nil Name")
+		}
+		if stmt.Action != "ADD_ATTRIBUTE" {
+			t.Errorf("expected Action=ADD_ATTRIBUTE, got %q", stmt.Action)
+		}
+	})
+
+	t.Run("alter_type_compile_check", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER TYPE my_type COMPILE SPECIFICATION DEBUG REUSE SETTINGS")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterTypeStmt)
+		if stmt.Action != "COMPILE" {
+			t.Errorf("expected Action=COMPILE, got %q", stmt.Action)
+		}
+		if stmt.CompileTarget != "SPECIFICATION" {
+			t.Errorf("expected CompileTarget=SPECIFICATION, got %q", stmt.CompileTarget)
+		}
+		if !stmt.Debug {
+			t.Error("expected Debug=true")
+		}
+		if !stmt.ReuseSettings {
+			t.Error("expected ReuseSettings=true")
+		}
+	})
+}

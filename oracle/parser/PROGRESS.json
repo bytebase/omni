@@ -1797,7 +1797,7 @@
       "id": 82,
       "name": "alter_type_proper",
       "file": "alter_misc.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 45 gap: ALTER TYPE still routes through parseAlterGeneric with skipToSemicolon. ALTER TYPE supports ADD/DROP/MODIFY ATTRIBUTE, ADD/DROP MAP/ORDER/MEMBER/STATIC METHOD, COMPILE, NOT INSTANTIABLE/FINAL, INVALIDATE, CASCADE",
       "rules": [
         "alter_type_add_attribute",
