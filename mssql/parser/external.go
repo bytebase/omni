@@ -272,12 +272,8 @@ func (p *Parser) parseCreateExternalTableOrCETAS(createLoc int) nodes.StmtNode {
 	if cetasStmt.Columns != nil || cetasStmt.Options != nil {
 		var opts []nodes.Node
 		if cetasStmt.Columns != nil {
-			// Include column names as ColumnDef nodes
-			for _, c := range cetasStmt.Columns.Items {
-				if s, ok := c.(*nodes.String); ok {
-					opts = append(opts, &nodes.ColumnDef{Name: s.Str})
-				}
-			}
+			// Include column definitions directly (already ColumnDef nodes)
+			opts = append(opts, cetasStmt.Columns.Items...)
 		}
 		if cetasStmt.Options != nil {
 			opts = append(opts, cetasStmt.Options.Items...)

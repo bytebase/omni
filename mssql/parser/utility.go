@@ -649,27 +649,35 @@ func (p *Parser) parseAlterDatabaseScopedConfigStmt() *nodes.SecurityStmt {
 			p.advance() // consume SET
 		}
 
-		// Parse SET option = value pairs
+		// Parse SET option = value pairs as structured SecurityPrincipalOption nodes
 		for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
 			if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+				optLoc := p.pos()
 				key := strings.ToUpper(p.cur.Str)
 				p.advance()
 				if p.cur.Type == '=' {
 					p.advance() // consume '='
+					val := ""
 					if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST ||
 						p.cur.Type == tokFCONST || p.cur.Type == kwON || p.cur.Type == kwOFF ||
 						p.cur.Type == kwNULL || p.cur.Type == kwPRIMARY {
-						val := strings.ToUpper(p.cur.Str)
 						if p.cur.Type == tokSCONST {
-							val = "'" + p.cur.Str + "'"
+							val = p.cur.Str
+						} else {
+							val = strings.ToUpper(p.cur.Str)
 						}
 						p.advance()
-						opts = append(opts, &nodes.String{Str: key + "=" + val})
-					} else {
-						opts = append(opts, &nodes.String{Str: key + "="})
 					}
+					opts = append(opts, &nodes.SecurityPrincipalOption{
+						Name:  key,
+						Value: val,
+						Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+					})
 				} else {
-					opts = append(opts, &nodes.String{Str: key})
+					opts = append(opts, &nodes.SecurityPrincipalOption{
+						Name: key,
+						Loc:  nodes.Loc{Start: optLoc, End: p.pos()},
+					})
 				}
 			} else if p.cur.Type == ',' {
 				p.advance() // skip commas
@@ -1069,40 +1077,22 @@ func (p *Parser) parseCreateExternalTableAsSelectStmt() *nodes.CreateExternalTab
 	// Table name
 	stmt.Name = p.parseTableRef()
 
-	// Optional column list (may include type definitions with nested parens)
+	// Optional column list: parse as structured ColumnDef nodes
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
-		depth := 1
 		var cols []nodes.Node
-		var colBuf strings.Builder
-		for depth > 0 && p.cur.Type != tokEOF {
-			if p.cur.Type == '(' {
-				depth++
-				colBuf.WriteString("(")
-				p.advance()
-			} else if p.cur.Type == ')' {
-				depth--
-				if depth > 0 {
-					colBuf.WriteString(")")
-					p.advance()
-				}
-			} else if p.cur.Type == ',' && depth == 1 {
-				// Column separator at top level
-				cols = append(cols, &nodes.String{Str: strings.TrimSpace(colBuf.String())})
-				colBuf.Reset()
-				p.advance()
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			col := p.parseColumnDef()
+			if col != nil {
+				cols = append(cols, col)
 			} else {
-				if colBuf.Len() > 0 {
-					colBuf.WriteString(" ")
-				}
-				colBuf.WriteString(p.cur.Str)
-				p.advance()
+				break
+			}
+			if _, ok := p.match(','); !ok {
+				break
 			}
 		}
-		if colBuf.Len() > 0 {
-			cols = append(cols, &nodes.String{Str: strings.TrimSpace(colBuf.String())})
-		}
-		p.match(')') // consume final ')'
+		p.match(')') // consume ')'
 		if len(cols) > 0 {
 			stmt.Columns = &nodes.List{Items: cols}
 		}

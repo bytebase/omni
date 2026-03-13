@@ -14777,3 +14777,226 @@ func TestParseSecurityMiscRemainingDepth(t *testing.T) {
 		}
 	})
 }
+
+// TestParseUtilityCetasDbscopedDepth tests batch 131: structured CETAS columns and ALTER DATABASE SCOPED CONFIG options.
+func TestParseUtilityCetasDbscopedDepth(t *testing.T) {
+	// Test 1: CETAS with structured column definitions (ColumnDef nodes instead of raw strings)
+	t.Run("cetas_column_defs_structured", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			sql      string
+			numCols  int
+			colNames []string
+		}{
+			{
+				name: "simple_columns",
+				sql: `CREATE EXTERNAL TABLE dbo.export_data
+					(id, name, value)
+					WITH (LOCATION = '/out/', DATA_SOURCE = ds, FILE_FORMAT = ff)
+					AS SELECT id, name, value FROM src`,
+				numCols:  3,
+				colNames: []string{"id", "name", "value"},
+			},
+			{
+				name: "typed_columns",
+				sql: `CREATE EXTERNAL TABLE dbo.export_data
+					(id INT, name VARCHAR(100), value FLOAT)
+					WITH (LOCATION = '/out/', DATA_SOURCE = ds, FILE_FORMAT = ff)
+					AS SELECT id, name, value FROM src`,
+				numCols:  3,
+				colNames: []string{"id", "name", "value"},
+			},
+			{
+				name: "single_column",
+				sql: `CREATE EXTERNAL TABLE dbo.export_data (col1)
+					WITH (LOCATION = '/out/', DATA_SOURCE = ds, FILE_FORMAT = ff)
+					AS SELECT 1`,
+				numCols:  1,
+				colNames: []string{"col1"},
+			},
+			{
+				name: "typed_columns_nullable",
+				sql: `CREATE EXTERNAL TABLE dbo.export_data
+					(id INT NOT NULL, name NVARCHAR(50) NULL)
+					WITH (LOCATION = '/out/', DATA_SOURCE = ds, FILE_FORMAT = ff)
+					AS SELECT id, name FROM src`,
+				numCols:  2,
+				colNames: []string{"id", "name"},
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.CreateExternalTableAsSelectStmt)
+				if !ok {
+					t.Fatalf("Parse(%q): expected *CreateExternalTableAsSelectStmt, got %T", tt.sql, result.Items[0])
+				}
+				if stmt.Columns == nil {
+					t.Fatalf("Parse(%q): expected columns, got nil", tt.sql)
+				}
+				if len(stmt.Columns.Items) != tt.numCols {
+					t.Fatalf("Parse(%q): got %d columns, want %d", tt.sql, len(stmt.Columns.Items), tt.numCols)
+				}
+				for i, item := range stmt.Columns.Items {
+					colDef, ok := item.(*ast.ColumnDef)
+					if !ok {
+						t.Errorf("Parse(%q): column %d is %T, want *ColumnDef", tt.sql, i, item)
+						continue
+					}
+					if colDef.Name != tt.colNames[i] {
+						t.Errorf("Parse(%q): column %d name = %q, want %q", tt.sql, i, colDef.Name, tt.colNames[i])
+					}
+				}
+				checkLocation(t, tt.sql, "CETAS", stmt.Loc)
+				// Check deterministic serialization
+				s1 := ast.NodeToString(result.Items[0])
+				s2 := ast.NodeToString(result.Items[0])
+				if s1 != s2 {
+					t.Errorf("Parse(%q): serialization not deterministic", tt.sql)
+				}
+			})
+		}
+	})
+
+	// Test 2: ALTER DATABASE SCOPED CONFIGURATION with structured SecurityPrincipalOption nodes
+	t.Run("alter_db_scoped_config_structured", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			sql   string
+			key   string
+			value string
+		}{
+			{
+				name:  "set_maxdop",
+				sql:   "ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = 4",
+				key:   "MAXDOP",
+				value: "4",
+			},
+			{
+				name:  "set_on",
+				sql:   "ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = ON",
+				key:   "LEGACY_CARDINALITY_ESTIMATION",
+				value: "ON",
+			},
+			{
+				name:  "set_off",
+				sql:   "ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = OFF",
+				key:   "PARAMETER_SNIFFING",
+				value: "OFF",
+			},
+			{
+				name:  "set_primary",
+				sql:   "ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = PRIMARY",
+				key:   "MAXDOP",
+				value: "PRIMARY",
+			},
+			{
+				name:  "set_string_value",
+				sql:   "ALTER DATABASE SCOPED CONFIGURATION SET LEDGER_DIGEST_STORAGE_ENDPOINT = 'https://ledger.endpoint.com'",
+				key:   "LEDGER_DIGEST_STORAGE_ENDPOINT",
+				value: "https://ledger.endpoint.com",
+			},
+			{
+				name:  "set_when_supported",
+				sql:   "ALTER DATABASE SCOPED CONFIGURATION SET ELEVATE_ONLINE = WHEN_SUPPORTED",
+				key:   "ELEVATE_ONLINE",
+				value: "WHEN_SUPPORTED",
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.SecurityStmt)
+				if !ok {
+					t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", tt.sql, result.Items[0])
+				}
+				if stmt.Options == nil {
+					t.Fatalf("Parse(%q): expected options, got nil", tt.sql)
+				}
+				// Find the SecurityPrincipalOption with the expected key
+				found := false
+				for _, item := range stmt.Options.Items {
+					opt, ok := item.(*ast.SecurityPrincipalOption)
+					if !ok {
+						continue
+					}
+					if opt.Name == tt.key {
+						found = true
+						if opt.Value != tt.value {
+							t.Errorf("Parse(%q): option %q value = %q, want %q", tt.sql, tt.key, opt.Value, tt.value)
+						}
+					}
+				}
+				if !found {
+					t.Errorf("Parse(%q): expected SecurityPrincipalOption with key %q, got none", tt.sql, tt.key)
+				}
+				checkLocation(t, tt.sql, "SecurityStmt", stmt.Loc)
+			})
+		}
+
+		// Test FOR SECONDARY
+		t.Run("for_secondary", func(t *testing.T) {
+			sql := "ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET MAXDOP = PRIMARY"
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.SecurityStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", sql, result.Items[0])
+			}
+			if stmt.Options == nil {
+				t.Fatalf("Parse(%q): expected options, got nil", sql)
+			}
+			// Should have FOR SECONDARY string and a SecurityPrincipalOption
+			hasForSecondary := false
+			hasOption := false
+			for _, item := range stmt.Options.Items {
+				if s, ok := item.(*ast.String); ok && s.Str == "FOR SECONDARY" {
+					hasForSecondary = true
+				}
+				if opt, ok := item.(*ast.SecurityPrincipalOption); ok && opt.Name == "MAXDOP" {
+					hasOption = true
+				}
+			}
+			if !hasForSecondary {
+				t.Errorf("Parse(%q): expected FOR SECONDARY marker", sql)
+			}
+			if !hasOption {
+				t.Errorf("Parse(%q): expected MAXDOP option", sql)
+			}
+		})
+
+		// Test CLEAR PROCEDURE_CACHE
+		t.Run("clear_procedure_cache", func(t *testing.T) {
+			sql := "ALTER DATABASE SCOPED CONFIGURATION CLEAR PROCEDURE_CACHE"
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.SecurityStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", sql, result.Items[0])
+			}
+			if stmt.Options == nil {
+				t.Fatalf("Parse(%q): expected options, got nil", sql)
+			}
+			// CLEAR is still a String since it's not a key=value option
+			found := false
+			for _, item := range stmt.Options.Items {
+				if s, ok := item.(*ast.String); ok && strings.Contains(s.Str, "CLEAR") {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("Parse(%q): expected CLEAR option string", sql)
+			}
+		})
+	})
+}

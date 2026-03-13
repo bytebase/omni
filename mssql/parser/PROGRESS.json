@@ -2870,7 +2870,7 @@
       "id": 131,
       "name": "utility_cetas_dbscoped_depth",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 112 gap: replace strings.Builder with manual depth tracking in parseCreateExternalTableAsSelectStmt() column parsing at lines 1077-1104 with structured column definition list. Fix batch 67 gap: replace string accumulation in parseAlterDatabaseScopedConfigStmt() at lines 622-679 with structured SET option = value nodes.",
       "rules": [
         "parseCETASColumnDefsStructured",
