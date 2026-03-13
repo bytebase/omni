@@ -1,13 +1,13 @@
 # Omni
 
-Universal SQL parser for PostgreSQL, MySQL, SQL Server, and Oracle. Each engine is a hand-written recursive descent parser producing a full AST, with no runtime dependencies.
+SQL toolchain for multiple database engines. Each engine provides a parser, AST, and additional components such as catalog simulation and semantic analysis -- all in pure Go with zero dependencies.
 
 ## Features
 
 - **Zero dependencies** -- pure Go, no CGo, no generated code at runtime
 - **Full AST** -- every parsed statement produces a complete abstract syntax tree
 - **Position tracking** -- every AST node carries byte-offset location info
-- **Four engines** -- PostgreSQL 17, MySQL 8.0, SQL Server (T-SQL), Oracle
+- **Beyond parsing** -- catalog simulation, DDL semantic analysis, and more per engine
 
 ## Engine Status
 
