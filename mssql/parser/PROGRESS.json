@@ -3022,7 +3022,7 @@
       "id": 139,
       "name": "event_notification_options_depth",
       "file": "event.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 135 gap: replace nodes.String formatting in parseEventNotificationOptions() (lines 75-155) with structured EventNotificationOption AST nodes (scope type, event group list, target service/broker instance) instead of manual ON=SERVER/FOR=xxx/SERVICE=xxx string formatting.",
       "rules": [
         "parseEventNotificationOptionsStructured"

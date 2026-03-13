@@ -69,27 +69,35 @@ func (p *Parser) parseDropEventNotificationStmt() *nodes.SecurityStmt {
 }
 
 // parseEventNotificationOptions consumes ON/WITH/FOR/TO clauses of EVENT NOTIFICATION.
+//
+//	ON { SERVER | DATABASE | QUEUE queue_name }
+//	[ WITH FAN_IN ]
+//	FOR { event_type | event_group } [ , ...n ]
+//	TO SERVICE 'broker_service' , { 'broker_instance_specifier' | 'current database' }
 func (p *Parser) parseEventNotificationOptions() *nodes.List {
-	var opts []nodes.Node
+	loc := p.pos()
+	opt := &nodes.EventNotificationOption{
+		Loc: nodes.Loc{Start: loc},
+	}
 
 	for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
 		switch {
 		case p.cur.Type == kwON:
 			p.advance()
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVER") {
-				opts = append(opts, &nodes.String{Str: "ON=SERVER"})
+				opt.Scope = "SERVER"
 				p.advance()
 			} else if p.cur.Type == kwDATABASE {
-				opts = append(opts, &nodes.String{Str: "ON=DATABASE"})
+				opt.Scope = "DATABASE"
 				p.advance()
 			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "QUEUE") {
+				opt.Scope = "QUEUE"
 				p.advance()
 				queueName := ""
 				if p.isIdentLike() || p.cur.Type == tokSCONST {
 					queueName = p.cur.Str
 					p.advance()
 				}
-				// Qualified name (schema.queue)
 				for p.cur.Type == '.' {
 					p.advance()
 					if p.isIdentLike() || p.cur.Type == tokSCONST {
@@ -97,20 +105,19 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 						p.advance()
 					}
 				}
-				opts = append(opts, &nodes.String{Str: "ON=QUEUE " + queueName})
+				opt.QueueName = queueName
 			}
 		case p.cur.Type == kwWITH:
 			p.advance()
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FAN_IN") {
-				opts = append(opts, &nodes.String{Str: "FAN_IN"})
+				opt.FanIn = true
 				p.advance()
 			}
 		case p.cur.Type == kwFOR:
 			p.advance()
-			// Collect event types/groups
 			for {
 				if p.isIdentLike() || p.cur.Type == tokSCONST {
-					opts = append(opts, &nodes.String{Str: "FOR=" + strings.ToUpper(p.cur.Str)})
+					opt.Events = append(opt.Events, strings.ToUpper(p.cur.Str))
 					p.advance()
 				}
 				if _, ok := p.match(','); !ok {
@@ -122,31 +129,24 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVICE") {
 				p.advance()
 			}
-			// 'broker_service'
 			if p.cur.Type == tokSCONST {
-				opts = append(opts, &nodes.String{Str: "SERVICE=" + p.cur.Str})
+				opt.ServiceName = p.cur.Str
 				p.advance()
 			}
 			p.match(',')
-			// 'broker_instance_specifier' or 'current database'
 			if p.cur.Type == tokSCONST {
-				opts = append(opts, &nodes.String{Str: "INSTANCE=" + p.cur.Str})
+				opt.BrokerInstance = p.cur.Str
 				p.advance()
 			}
 		default:
-			// Skip commas between notification names for DROP
+			// Handle commas between notification names for DROP
 			if p.cur.Type == ',' {
 				p.advance()
 				if p.isIdentLike() || p.cur.Type == tokSCONST {
-					opts = append(opts, &nodes.String{Str: "NAME=" + p.cur.Str})
+					opt.ExtraNames = append(opt.ExtraNames, p.cur.Str)
 					p.advance()
 				}
-			} else if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
-				// Consume structured identifier or string token
-				opts = append(opts, &nodes.String{Str: p.cur.Str})
-				p.advance()
 			} else if p.cur.Type != tokEOF && p.cur.Type != ';' {
-				// Skip unrecognized token to prevent infinite loop
 				p.advance()
 			} else {
 				break
@@ -154,10 +154,8 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 		}
 	}
 
-	if len(opts) == 0 {
-		return nil
-	}
-	return &nodes.List{Items: opts}
+	opt.Loc.End = p.pos()
+	return &nodes.List{Items: []nodes.Node{opt}}
 }
 
 // parseCreateEventSessionStmt parses CREATE EVENT SESSION.

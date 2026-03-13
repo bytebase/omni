@@ -15629,3 +15629,99 @@ func TestParseAuditSpecActionsWhereDepth(t *testing.T) {
 		}
 	})
 }
+
+// TestParseEventNotificationOptionsDepth tests batch 139: structured EventNotificationOption.
+func TestParseEventNotificationOptionsDepth(t *testing.T) {
+	// ON SERVER scope
+	t.Run("event_notification_structured_scope", func(t *testing.T) {
+		sql := "CREATE EVENT NOTIFICATION log_ddl1 ON SERVER FOR Object_Created TO SERVICE 'NotifyService', '8140a771-3c4b-4479-8ac0-81008ab17984'"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Options == nil || len(stmt.Options.Items) == 0 {
+			t.Fatal("expected options")
+		}
+		opt, ok := stmt.Options.Items[0].(*ast.EventNotificationOption)
+		if !ok {
+			t.Fatalf("expected *EventNotificationOption, got %T", stmt.Options.Items[0])
+		}
+		if opt.Scope != "SERVER" {
+			t.Errorf("expected scope SERVER, got %q", opt.Scope)
+		}
+		if len(opt.Events) != 1 || opt.Events[0] != "OBJECT_CREATED" {
+			t.Errorf("expected events [OBJECT_CREATED], got %v", opt.Events)
+		}
+		if opt.ServiceName != "NotifyService" {
+			t.Errorf("expected serviceName NotifyService, got %q", opt.ServiceName)
+		}
+		if opt.BrokerInstance != "8140a771-3c4b-4479-8ac0-81008ab17984" {
+			t.Errorf("expected brokerInstance, got %q", opt.BrokerInstance)
+		}
+	})
+
+	// ON DATABASE scope
+	t.Run("event_notification_database_scope", func(t *testing.T) {
+		sql := "CREATE EVENT NOTIFICATION Notify_ALTER ON DATABASE FOR ALTER_TABLE TO SERVICE 'NotifyService', 'current database'"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		opt := stmt.Options.Items[0].(*ast.EventNotificationOption)
+		if opt.Scope != "DATABASE" {
+			t.Errorf("expected scope DATABASE, got %q", opt.Scope)
+		}
+		if opt.BrokerInstance != "current database" {
+			t.Errorf("expected brokerInstance 'current database', got %q", opt.BrokerInstance)
+		}
+	})
+
+	// ON QUEUE scope
+	t.Run("event_notification_queue_scope", func(t *testing.T) {
+		sql := "CREATE EVENT NOTIFICATION NotifyQueue ON QUEUE dbo.ExpenseQueue FOR QUEUE_ACTIVATION TO SERVICE 'NotifyService', '8140a771'"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		opt := stmt.Options.Items[0].(*ast.EventNotificationOption)
+		if opt.Scope != "QUEUE" {
+			t.Errorf("expected scope QUEUE, got %q", opt.Scope)
+		}
+		if opt.QueueName != "dbo.ExpenseQueue" {
+			t.Errorf("expected queueName dbo.ExpenseQueue, got %q", opt.QueueName)
+		}
+	})
+
+	// WITH FAN_IN
+	t.Run("event_notification_fan_in", func(t *testing.T) {
+		sql := "CREATE EVENT NOTIFICATION log_ddl2 ON SERVER WITH FAN_IN FOR ALTER_TABLE TO SERVICE 'NotifyService', '8140a771'"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		opt := stmt.Options.Items[0].(*ast.EventNotificationOption)
+		if !opt.FanIn {
+			t.Error("expected FanIn to be true")
+		}
+	})
+
+	// Multiple events
+	t.Run("event_notification_structured_events", func(t *testing.T) {
+		sql := "CREATE EVENT NOTIFICATION log_ddl3 ON DATABASE FOR CREATE_TABLE, ALTER_TABLE, DROP_TABLE TO SERVICE 'NotifyService', 'current database'"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		opt := stmt.Options.Items[0].(*ast.EventNotificationOption)
+		if len(opt.Events) != 3 {
+			t.Errorf("expected 3 events, got %d: %v", len(opt.Events), opt.Events)
+		}
+	})
+
+	// DROP with multiple names
+	t.Run("event_notification_drop_multi", func(t *testing.T) {
+		sql := "DROP EVENT NOTIFICATION log_ddl1, log_ddl2 ON SERVER"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Name != "log_ddl1" {
+			t.Errorf("expected name log_ddl1, got %q", stmt.Name)
+		}
+		opt := stmt.Options.Items[0].(*ast.EventNotificationOption)
+		if len(opt.ExtraNames) != 1 || opt.ExtraNames[0] != "log_ddl2" {
+			t.Errorf("expected extraNames [log_ddl2], got %v", opt.ExtraNames)
+		}
+		if opt.Scope != "SERVER" {
+			t.Errorf("expected scope SERVER, got %q", opt.Scope)
+		}
+	})
+}

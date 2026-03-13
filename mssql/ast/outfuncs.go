@@ -130,6 +130,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeSecurityStmt(sb, n)
 	case *AuditSpecAction:
 		writeAuditSpecAction(sb, n)
+	case *EventNotificationOption:
+		writeEventNotificationOption(sb, n)
 	case *SecurityPrincipalOption:
 		writeSecurityPrincipalOption(sb, n)
 	case *CreateSchemaStmt:
@@ -1291,6 +1293,47 @@ func writeAuditSpecAction(sb *strings.Builder, n *AuditSpecAction) {
 				sb.WriteString(" ")
 			}
 			fmt.Fprintf(sb, "\"%s\"", escapeString(p))
+		}
+		sb.WriteString(")")
+	}
+	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
+	sb.WriteString("}")
+}
+
+func writeEventNotificationOption(sb *strings.Builder, n *EventNotificationOption) {
+	sb.WriteString("{EVENTNOTIFYOPT")
+	if n.Scope != "" {
+		fmt.Fprintf(sb, " :scope \"%s\"", escapeString(n.Scope))
+	}
+	if n.QueueName != "" {
+		fmt.Fprintf(sb, " :queueName \"%s\"", escapeString(n.QueueName))
+	}
+	if n.FanIn {
+		sb.WriteString(" :fanIn true")
+	}
+	if len(n.Events) > 0 {
+		sb.WriteString(" :events (")
+		for i, e := range n.Events {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			fmt.Fprintf(sb, "\"%s\"", escapeString(e))
+		}
+		sb.WriteString(")")
+	}
+	if n.ServiceName != "" {
+		fmt.Fprintf(sb, " :serviceName \"%s\"", escapeString(n.ServiceName))
+	}
+	if n.BrokerInstance != "" {
+		fmt.Fprintf(sb, " :brokerInstance \"%s\"", escapeString(n.BrokerInstance))
+	}
+	if len(n.ExtraNames) > 0 {
+		sb.WriteString(" :extraNames (")
+		for i, name := range n.ExtraNames {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			fmt.Fprintf(sb, "\"%s\"", escapeString(name))
 		}
 		sb.WriteString(")")
 	}

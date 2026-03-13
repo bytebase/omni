@@ -1190,6 +1190,27 @@ type SecurityPrincipalOption struct {
 
 func (n *SecurityPrincipalOption) nodeTag() {}
 
+// EventNotificationOption represents a structured option for EVENT NOTIFICATION statements.
+//
+// Scope: SERVER, DATABASE, or QUEUE (with QueueName).
+// FanIn: true if WITH FAN_IN was specified.
+// Events: list of event type/group names from FOR clause.
+// ServiceName: broker service name from TO SERVICE clause.
+// BrokerInstance: broker instance specifier from TO SERVICE clause.
+// ExtraNames: additional notification names for DROP ... name1, name2.
+type EventNotificationOption struct {
+	Scope          string   // "SERVER", "DATABASE", "QUEUE"
+	QueueName      string   // queue name (only when Scope == "QUEUE")
+	FanIn          bool     // WITH FAN_IN
+	Events         []string // FOR event_type/event_group names
+	ServiceName    string   // TO SERVICE 'broker_service'
+	BrokerInstance string   // broker_instance_specifier
+	ExtraNames     []string // additional names (for DROP with multiple names)
+	Loc            Loc
+}
+
+func (n *EventNotificationOption) nodeTag() {}
+
 // CreateSchemaStmt represents CREATE SCHEMA.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-schema-transact-sql
