@@ -2943,7 +2943,7 @@
       "id": 135,
       "name": "misc_unknown_skip_depth",
       "file": "create_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix remaining shallow unknown-token-skip patterns across multiple files: create_table.go:280-281 (SYSTEM_VERSIONING sub-option value consumed without validation), alter_table.go:447-449 (ALTER COLUMN unknown option consumed as string), event.go:145 (event notification unknown token p.advance()), backup_restore.go:381 (unknown backup/restore option treated as flag).",
       "rules": [
         "parseSystemVersioningSubOptionStructured",

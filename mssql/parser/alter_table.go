@@ -443,9 +443,9 @@ func (p *Parser) parseAlterColumnAddDrop(loc int, colName string) *nodes.AlterTa
 		}
 		optItems = append(optItems, &nodes.String{Str: "NOT FOR REPLICATION"})
 	default:
-		// Unknown option, consume as identifier
+		// Unknown option, consume as normalized uppercase identifier
 		if p.isIdentLike() {
-			optItems = append(optItems, &nodes.String{Str: p.cur.Str})
+			optItems = append(optItems, &nodes.String{Str: strings.ToUpper(p.cur.Str)})
 			p.advance()
 		}
 	}

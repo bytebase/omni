@@ -377,12 +377,25 @@ func (p *Parser) parseOneBackupRestoreOption() *nodes.BackupRestoreOption {
 		return opt
 	}
 
-	// Unknown option — treat as flag and advance to prevent infinite loop
-	p.advance()
-	return &nodes.BackupRestoreOption{
+	// Unknown option — consume name and optional = value structurally
+	p.advance() // consume option name
+	opt := &nodes.BackupRestoreOption{
 		Name: name,
-		Loc:  nodes.Loc{Start: optLoc, End: p.pos()},
+		Loc:  nodes.Loc{Start: optLoc},
 	}
+	if p.cur.Type == '=' {
+		p.advance()
+		if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST ||
+			p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+			opt.Value = p.cur.Str
+			p.advance()
+		} else if p.isIdentLike() {
+			opt.Value = p.cur.Str
+			p.advance()
+		}
+	}
+	opt.Loc.End = p.pos()
+	return opt
 }
 
 // parseBackupEncryptionOption parses the ENCRYPTION option.

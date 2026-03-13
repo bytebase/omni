@@ -276,8 +276,14 @@ func (p *Parser) parseOneTableOption() *nodes.TableOption {
 						}
 						opt.HistoryRetentionPeriod = strings.Join(valParts, " ")
 					default:
-						// Skip unknown sub-option value
-						if p.isIdentLike() {
+						// Consume unknown sub-option value structurally (ON/OFF/identifier/number)
+						if p.cur.Type == kwON {
+							p.advance()
+						} else if p.cur.Type == kwOFF {
+							p.advance()
+						} else if p.isIdentLike() {
+							p.advance()
+						} else if p.cur.Type == tokICONST {
 							p.advance()
 						}
 					}

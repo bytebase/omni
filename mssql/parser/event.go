@@ -141,8 +141,15 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 					opts = append(opts, &nodes.String{Str: "NAME=" + p.cur.Str})
 					p.advance()
 				}
-			} else {
+			} else if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
+				// Consume structured identifier or string token
+				opts = append(opts, &nodes.String{Str: p.cur.Str})
 				p.advance()
+			} else if p.cur.Type != tokEOF && p.cur.Type != ';' {
+				// Skip unrecognized token to prevent infinite loop
+				p.advance()
+			} else {
+				break
 			}
 		}
 	}

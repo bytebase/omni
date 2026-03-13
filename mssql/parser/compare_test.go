@@ -3444,6 +3444,64 @@ func TestParseSetIsolationLevelStructured(t *testing.T) {
 	}
 }
 
+// TestParseMiscUnknownSkipDepth tests structured parsing replacing shallow unknown-token-skip patterns (batch 135).
+func TestParseMiscUnknownSkipDepth(t *testing.T) {
+	// 1. SYSTEM_VERSIONING sub-option with unknown key=value is consumed structurally
+	t.Run("system_versioning_sub_option", func(t *testing.T) {
+		sql := `CREATE TABLE t (
+			id INT PRIMARY KEY,
+			s datetime2 GENERATED ALWAYS AS ROW START NOT NULL,
+			e datetime2 GENERATED ALWAYS AS ROW END NOT NULL,
+			PERIOD FOR SYSTEM_TIME (s, e)
+		) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = dbo.h, DATA_CONSISTENCY_CHECK = ON))`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateTableStmt)
+		if stmt.TableOptions == nil {
+			t.Fatal("expected table options")
+		}
+	})
+
+	// 2. ALTER COLUMN ADD/DROP with known options
+	t.Run("alter_column_option_structured", func(t *testing.T) {
+		tests := []string{
+			"ALTER TABLE t ALTER COLUMN c ADD ROWGUIDCOL",
+			"ALTER TABLE t ALTER COLUMN c DROP ROWGUIDCOL",
+			"ALTER TABLE t ALTER COLUMN c ADD PERSISTED",
+			"ALTER TABLE t ALTER COLUMN c ADD SPARSE",
+			"ALTER TABLE t ALTER COLUMN c ADD HIDDEN",
+			"ALTER TABLE t ALTER COLUMN c ADD NOT FOR REPLICATION",
+			"ALTER TABLE t ALTER COLUMN c ADD MASKED WITH (FUNCTION = 'default()')",
+		}
+		for _, sql := range tests {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				if result.Len() == 0 {
+					t.Fatalf("Parse(%q): no statements returned", sql)
+				}
+			})
+		}
+	})
+
+	// 3. Event notification unknown token is consumed with structured identifier
+	t.Run("event_notification_option_structured", func(t *testing.T) {
+		sql := "CREATE EVENT NOTIFICATION en1 ON DATABASE FOR CREATE_TABLE TO SERVICE 'svc', 'broker_id'"
+		result := ParseAndCheck(t, sql)
+		if result.Len() == 0 {
+			t.Fatalf("Parse(%q): no statements returned", sql)
+		}
+	})
+
+	// 4. Backup/restore unknown option treated as flag with advance
+	t.Run("backup_restore_unknown_option", func(t *testing.T) {
+		sql := "BACKUP DATABASE mydb TO DISK = 'backup.bak' WITH INIT, COMPRESSION, CHECKSUM"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.BackupStmt)
+		if stmt.Options == nil {
+			t.Fatal("expected backup options")
+		}
+	})
+}
+
 // TestParsePartition tests CREATE/ALTER PARTITION FUNCTION/SCHEME (batch 42).
 func TestParsePartition(t *testing.T) {
 	tests := []struct {
