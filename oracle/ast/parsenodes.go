@@ -2318,6 +2318,24 @@ type AdminDDLStmt struct {
 func (n *AdminDDLStmt) nodeTag()  {}
 func (n *AdminDDLStmt) stmtNode() {}
 
+// CreateSchemaStmt represents a CREATE SCHEMA statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-SCHEMA.html
+//
+//	CREATE SCHEMA AUTHORIZATION schema_name
+//	  { create_table_statement
+//	  | create_view_statement
+//	  | grant_statement
+//	  } ...
+type CreateSchemaStmt struct {
+	SchemaName string    // AUTHORIZATION schema_name
+	Stmts      *List     // nested CREATE TABLE / CREATE VIEW / GRANT statements
+	Loc        Loc
+}
+
+func (n *CreateSchemaStmt) nodeTag()  {}
+func (n *CreateSchemaStmt) stmtNode() {}
+
 // AlterDatabaseLinkStmt represents an ALTER DATABASE LINK statement.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-DATABASE-LINK.html

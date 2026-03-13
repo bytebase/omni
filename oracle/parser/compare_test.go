@@ -1298,7 +1298,31 @@ func TestParseAlterSequenceFull(t *testing.T) {
 func TestParseCreateSchema(t *testing.T) {
 	tests := []string{
 		"CREATE SCHEMA AUTHORIZATION hr;",
-		"CREATE SCHEMA AUTHORIZATION hr CREATE TABLE t1 (id NUMBER); CREATE VIEW v1 AS SELECT 1 FROM dual;",
+		"CREATE SCHEMA AUTHORIZATION hr CREATE TABLE t1 (id NUMBER);",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Batch 85: CREATE SCHEMA (proper)
+// ---------------------------------------------------------------------------
+
+func TestParseCreateSchemaProper(t *testing.T) {
+	tests := []string{
+		// Basic: authorization only
+		"CREATE SCHEMA AUTHORIZATION hr;",
+		// With a single CREATE TABLE
+		"CREATE SCHEMA AUTHORIZATION hr CREATE TABLE t1 (id NUMBER);",
+		// With CREATE TABLE and CREATE VIEW
+		"CREATE SCHEMA AUTHORIZATION hr CREATE TABLE t1 (id NUMBER) CREATE VIEW v1 AS SELECT id FROM t1;",
+		// With CREATE TABLE, CREATE VIEW, and GRANT
+		"CREATE SCHEMA AUTHORIZATION hr CREATE TABLE t1 (id NUMBER, name VARCHAR2(100)) CREATE VIEW v1 AS SELECT id, name FROM t1 GRANT SELECT ON t1 TO scott;",
+		// With multiple tables and grants
+		"CREATE SCHEMA AUTHORIZATION sales CREATE TABLE orders (order_id NUMBER, customer_id NUMBER) CREATE TABLE items (item_id NUMBER, order_id NUMBER) GRANT SELECT ON orders TO hr GRANT SELECT ON items TO hr;",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {

@@ -328,6 +328,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateProfileStmt(sb, n)
 	case *AdminDDLStmt:
 		writeAdminDDLStmt(sb, n)
+	case *CreateSchemaStmt:
+		writeCreateSchemaStmt(sb, n)
 	case *AlterDatabaseLinkStmt:
 		writeAlterDatabaseLinkStmt(sb, n)
 	case *AlterSynonymStmt:
@@ -3031,6 +3033,17 @@ func writeAdminDDLStmt(sb *strings.Builder, n *AdminDDLStmt) {
 	}
 	if n.IfExists {
 		sb.WriteString(" :ifExists true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateSchemaStmt(sb *strings.Builder, n *CreateSchemaStmt) {
+	sb.WriteString("{CREATE_SCHEMA")
+	sb.WriteString(fmt.Sprintf(" :schemaName %q", n.SchemaName))
+	if n.Stmts != nil && len(n.Stmts.Items) > 0 {
+		sb.WriteString(" :stmts ")
+		writeNode(sb, n.Stmts)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

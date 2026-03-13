@@ -1859,7 +1859,7 @@
       "id": 85,
       "name": "create_schema_proper",
       "file": "create_admin.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 53 gap: CREATE SCHEMA dispatches to parseAdminDDLStmt with wrong OBJECT_TABLE type and skips to semicolon. Need proper parseCreateSchemaStmt that parses AUTHORIZATION schema_name followed by CREATE TABLE/VIEW and GRANT statements terminated by semicolons",
       "rules": [
         "create_schema_stmt_proper",

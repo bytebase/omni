@@ -61,6 +61,62 @@ func (p *Parser) parseAdminDDLStmt(action string, objType nodes.ObjectType, star
 	return stmt
 }
 
+// parseCreateSchemaStmt parses a CREATE SCHEMA statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-SCHEMA.html
+//
+//	CREATE SCHEMA AUTHORIZATION schema_name
+//	  { create_table_statement
+//	  | create_view_statement
+//	  | grant_statement
+//	  } ...
+func (p *Parser) parseCreateSchemaStmt(start int) *nodes.CreateSchemaStmt {
+	stmt := &nodes.CreateSchemaStmt{
+		Stmts: &nodes.List{},
+		Loc:   nodes.Loc{Start: start},
+	}
+
+	// AUTHORIZATION schema_name
+	if p.isIdentLikeStr("AUTHORIZATION") {
+		p.advance() // consume AUTHORIZATION
+	}
+	if p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT || p.isIdentLike() {
+		stmt.SchemaName = p.cur.Str
+		p.advance()
+	}
+
+	// Parse nested statements: CREATE TABLE, CREATE VIEW, GRANT
+	// In Oracle syntax, nested statements do NOT have their own semicolons.
+	for p.cur.Type != ';' && p.cur.Type != tokEOF {
+		nestedStart := p.pos()
+		switch p.cur.Type {
+		case kwCREATE:
+			p.advance() // consume CREATE
+			switch p.cur.Type {
+			case kwTABLE:
+				stmt.Stmts.Items = append(stmt.Stmts.Items, p.parseCreateTableStmt(nestedStart, false, false, false))
+			case kwVIEW:
+				stmt.Stmts.Items = append(stmt.Stmts.Items, p.parseCreateViewStmt(nestedStart, false))
+			case kwFORCE:
+				stmt.Stmts.Items = append(stmt.Stmts.Items, p.parseCreateViewStmt(nestedStart, false))
+			default:
+				// Unknown nested CREATE — skip to next CREATE/GRANT/semicolon
+				p.skipToSemicolon()
+				goto done
+			}
+		case kwGRANT:
+			stmt.Stmts.Items = append(stmt.Stmts.Items, p.parseGrantStmt())
+		default:
+			// Unexpected token — stop parsing nested statements
+			goto done
+		}
+	}
+
+done:
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
 // parseCreateAdminObject handles CREATE dispatches for admin DDL objects
 // (called from parseCreateStmt after consuming CREATE and modifiers).
 func (p *Parser) parseCreateAdminObject(start int) nodes.StmtNode {
@@ -99,7 +155,7 @@ func (p *Parser) parseCreateAdminObject(start int) nodes.StmtNode {
 		return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_LIBRARY, start)
 	case kwSCHEMA:
 		p.advance()
-		return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_TABLE, start) // reuse TABLE type for SCHEMA
+		return p.parseCreateSchemaStmt(start)
 	default:
 		// DIMENSION, FLASHBACK ARCHIVE, MANDATORY PROFILE handled via identifiers
 		if p.isIdentLike() {
