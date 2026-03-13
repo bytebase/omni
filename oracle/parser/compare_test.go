@@ -2097,3 +2097,107 @@ func TestParseDropDiskgroup(t *testing.T) {
 		})
 	}
 }
+
+// TestParseCreatePDB tests CREATE PLUGGABLE DATABASE statements.
+func TestParseCreatePDB(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"basic", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER admin1 IDENTIFIED BY pass"},
+		{"from_seed", "CREATE PLUGGABLE DATABASE pdb1 FROM SEED ADMIN USER pdbadm IDENTIFIED BY pass"},
+		{"clone", "CREATE PLUGGABLE DATABASE pdb2 FROM pdb1"},
+		{"relocate", "CREATE PLUGGABLE DATABASE pdb3 FROM pdb1 RELOCATE"},
+		{"using_xml", "CREATE PLUGGABLE DATABASE pdb1 USING '/tmp/pdb1.xml'"},
+		{"as_clone", "CREATE PLUGGABLE DATABASE pdb2 AS CLONE USING '/tmp/pdb1.xml'"},
+		{"file_name_convert", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER admin1 IDENTIFIED BY pass FILE_NAME_CONVERT = ('/u01/pdb_seed/', '/u01/pdb1/')"},
+		{"storage", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER admin1 IDENTIFIED BY pass STORAGE UNLIMITED"},
+		{"create_file_dest", "CREATE PLUGGABLE DATABASE pdb1 ADMIN USER admin1 IDENTIFIED BY pass CREATE_FILE_DEST = '/u01/oradata/pdb1'"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
+			if !ok {
+				t.Fatalf("expected *AdminDDLStmt, got %T", raw.Stmt)
+			}
+			if stmt.Action != "CREATE" {
+				t.Errorf("expected action CREATE, got %q", stmt.Action)
+			}
+			if stmt.ObjectType != ast.OBJECT_PLUGGABLE_DATABASE {
+				t.Errorf("expected OBJECT_PLUGGABLE_DATABASE, got %d", stmt.ObjectType)
+			}
+		})
+	}
+}
+
+// TestParseAlterPDB tests ALTER PLUGGABLE DATABASE statements.
+func TestParseAlterPDB(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"open", "ALTER PLUGGABLE DATABASE pdb1 OPEN"},
+		{"close", "ALTER PLUGGABLE DATABASE pdb1 CLOSE"},
+		{"open_all", "ALTER PLUGGABLE DATABASE ALL OPEN"},
+		{"close_immediate", "ALTER PLUGGABLE DATABASE pdb1 CLOSE IMMEDIATE"},
+		{"save_state", "ALTER PLUGGABLE DATABASE pdb1 SAVE STATE"},
+		{"discard_state", "ALTER PLUGGABLE DATABASE pdb1 DISCARD STATE"},
+		{"unplug", "ALTER PLUGGABLE DATABASE pdb1 UNPLUG INTO '/tmp/pdb1.xml'"},
+		{"default_tablespace", "ALTER PLUGGABLE DATABASE pdb1 DEFAULT TABLESPACE users"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
+			if !ok {
+				t.Fatalf("expected *AdminDDLStmt, got %T", raw.Stmt)
+			}
+			if stmt.Action != "ALTER" {
+				t.Errorf("expected action ALTER, got %q", stmt.Action)
+			}
+			if stmt.ObjectType != ast.OBJECT_PLUGGABLE_DATABASE {
+				t.Errorf("expected OBJECT_PLUGGABLE_DATABASE, got %d", stmt.ObjectType)
+			}
+		})
+	}
+}
+
+// TestParseDropPDB tests DROP PLUGGABLE DATABASE statements.
+func TestParseDropPDB(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"basic", "DROP PLUGGABLE DATABASE pdb1"},
+		{"including_datafiles", "DROP PLUGGABLE DATABASE pdb1 INCLUDING DATAFILES"},
+		{"keep_datafiles", "DROP PLUGGABLE DATABASE pdb1 KEEP DATAFILES"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
+			if !ok {
+				t.Fatalf("expected *AdminDDLStmt, got %T", raw.Stmt)
+			}
+			if stmt.Action != "DROP" {
+				t.Errorf("expected action DROP, got %q", stmt.Action)
+			}
+			if stmt.ObjectType != ast.OBJECT_PLUGGABLE_DATABASE {
+				t.Errorf("expected OBJECT_PLUGGABLE_DATABASE, got %d", stmt.ObjectType)
+			}
+		})
+	}
+}

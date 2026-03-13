@@ -112,6 +112,12 @@ func (p *Parser) parseCreateAdminObject(start int) nodes.StmtNode {
 			case "DISKGROUP":
 				p.advance()
 				return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_DISKGROUP, start)
+			case "PLUGGABLE":
+				p.advance() // consume PLUGGABLE
+				if p.cur.Type == kwDATABASE {
+					p.advance() // consume DATABASE
+				}
+				return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_PLUGGABLE_DATABASE, start)
 			}
 		}
 		return nil
@@ -185,6 +191,12 @@ func (p *Parser) parseDropAdminObject(start int) nodes.StmtNode {
 			case "DISKGROUP":
 				p.advance()
 				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_DISKGROUP, start)
+			case "PLUGGABLE":
+				p.advance() // consume PLUGGABLE
+				if p.cur.Type == kwDATABASE {
+					p.advance() // consume DATABASE
+				}
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_PLUGGABLE_DATABASE, start)
 			}
 		}
 		return nil
@@ -940,6 +952,12 @@ func (p *Parser) parseAlterAdminObject(start int) nodes.StmtNode {
 			case "DISKGROUP":
 				p.advance()
 				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_DISKGROUP, start)
+			case "PLUGGABLE":
+				p.advance() // consume PLUGGABLE
+				if p.cur.Type == kwDATABASE {
+					p.advance() // consume DATABASE
+				}
+				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_PLUGGABLE_DATABASE, start)
 			}
 		}
 		return nil

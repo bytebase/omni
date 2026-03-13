@@ -1411,7 +1411,7 @@
       "id": 63,
       "name": "pluggable_database",
       "file": "database.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE PLUGGABLE DATABASE, ALTER PLUGGABLE DATABASE, DROP PLUGGABLE DATABASE. Multitenant architecture PDB management.",
       "rules": [
         "create_pluggable_database_stmt",

@@ -94,6 +94,7 @@ const (
 	OBJECT_CONTROLFILE
 	OBJECT_DATABASE_DICTIONARY
 	OBJECT_DISKGROUP
+	OBJECT_PLUGGABLE_DATABASE
 )
 
 // ConstraintType represents constraint types.
