@@ -38,6 +38,9 @@ func (s *Statement) Empty() bool {
 
 // Parse splits and parses a SQL string into statements.
 // Each statement includes the text, AST, and byte/line positions.
+// Text boundaries are derived from RawStmt.Loc: each statement's text
+// spans from the end of the previous statement to just past the semicolon
+// (or end of input) following the current statement.
 func Parse(sql string) ([]Statement, error) {
 	list, err := parser.Parse(sql)
 	if err != nil {
@@ -47,27 +50,34 @@ func Parse(sql string) ([]Statement, error) {
 		return nil, nil
 	}
 
-	// Build a line index for position calculation.
 	lineIndex := buildLineIndex(sql)
 
-	// We split the SQL text by semicolons to determine each statement's boundaries.
-	ranges := splitRanges(sql, len(list.Items))
-
 	var stmts []Statement
-	for i, item := range list.Items {
+	prevEnd := 0 // byte offset where previous statement's text ended
+
+	for _, item := range list.Items {
 		if item == nil {
 			continue
 		}
 
-		// Unwrap RawStmt if present (future-proofing).
-		node := item
-		if raw, ok := item.(*ast.RawStmt); ok {
-			node = raw.Stmt
+		raw, ok := item.(*ast.RawStmt)
+		if !ok {
+			continue
 		}
 
-		start := ranges[i][0]
-		end := ranges[i][1]
-		text := sql[start:end]
+		// Text starts where the previous statement ended (includes leading whitespace/comments).
+		start := prevEnd
+
+		// Text ends after the semicolon following the statement, or at the Loc.End if no semicolon.
+		end := raw.Loc.End
+		// Scan past trailing whitespace to find the semicolon.
+		j := end
+		for j < len(sql) && isSpace(sql[j]) {
+			j++
+		}
+		if j < len(sql) && sql[j] == ';' {
+			end = j + 1
+		}
 
 		// Start position points to the first non-whitespace character.
 		contentStart := start
@@ -76,144 +86,17 @@ func Parse(sql string) ([]Statement, error) {
 		}
 
 		stmts = append(stmts, Statement{
-			Text:      text,
-			AST:       node,
+			Text:      sql[start:end],
+			AST:       raw.Stmt,
 			ByteStart: start,
 			ByteEnd:   end,
 			Start:     offsetToPosition(lineIndex, contentStart),
 			End:       offsetToPosition(lineIndex, end),
 		})
+
+		prevEnd = end
 	}
 	return stmts, nil
-}
-
-// splitRanges splits SQL text into n statement ranges by semicolons.
-// Returns [n][2]int where each pair is [start, end) byte offsets.
-// It handles quoted strings, comments, and dollar-quoted strings.
-func splitRanges(sql string, n int) [][2]int {
-	ranges := make([][2]int, 0, n)
-	start := 0
-	i := 0
-
-	for i < len(sql) && len(ranges) < n-1 {
-		switch sql[i] {
-		case '\'':
-			// Skip single-quoted string.
-			i++
-			for i < len(sql) {
-				if sql[i] == '\'' {
-					i++
-					if i < len(sql) && sql[i] == '\'' {
-						i++ // escaped quote
-						continue
-					}
-					break
-				}
-				i++
-			}
-		case '"':
-			// Skip double-quoted identifier.
-			i++
-			for i < len(sql) {
-				if sql[i] == '"' {
-					i++
-					if i < len(sql) && sql[i] == '"' {
-						i++ // escaped quote
-						continue
-					}
-					break
-				}
-				i++
-			}
-		case '-':
-			// Skip line comment.
-			if i+1 < len(sql) && sql[i+1] == '-' {
-				for i < len(sql) && sql[i] != '\n' {
-					i++
-				}
-			} else {
-				i++
-			}
-		case '/':
-			// Skip block comment.
-			if i+1 < len(sql) && sql[i+1] == '*' {
-				i += 2
-				depth := 1
-				for i < len(sql) && depth > 0 {
-					if sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*' {
-						depth++
-						i += 2
-					} else if sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/' {
-						depth--
-						i += 2
-					} else {
-						i++
-					}
-				}
-			} else {
-				i++
-			}
-		case '$':
-			// Skip dollar-quoted string.
-			tag := parseDollarTag(sql, i)
-			if tag != "" {
-				i += len(tag)
-				end := findDollarEnd(sql, i, tag)
-				if end >= 0 {
-					i = end + len(tag)
-				}
-			} else {
-				i++
-			}
-		case ';':
-			// Found statement boundary.
-			end := i + 1 // include the semicolon
-			ranges = append(ranges, [2]int{start, end})
-			start = end
-			i++
-		default:
-			i++
-		}
-	}
-
-	// Last statement gets the rest.
-	if len(ranges) < n {
-		end := len(sql)
-		ranges = append(ranges, [2]int{start, end})
-	}
-
-	return ranges
-}
-
-func parseDollarTag(sql string, pos int) string {
-	if pos >= len(sql) || sql[pos] != '$' {
-		return ""
-	}
-	end := pos + 1
-	for end < len(sql) {
-		if sql[end] == '$' {
-			return sql[pos : end+1]
-		}
-		c := sql[end]
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || (c >= '0' && c <= '9' && end > pos+1)) {
-			break
-		}
-		end++
-	}
-	// $$ (empty tag)
-	if end == pos+1 && end < len(sql) && sql[end] == '$' {
-		return "$$"
-	}
-	return ""
-}
-
-func findDollarEnd(sql string, pos int, tag string) int {
-	for i := pos; i <= len(sql)-len(tag); i++ {
-		if sql[i] == '$' && sql[i:i+len(tag)] == tag {
-			return i
-		}
-	}
-	return -1
 }
 
 func isSpace(c byte) bool {

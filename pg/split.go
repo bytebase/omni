@@ -43,6 +43,9 @@ func (s Segment) Empty() bool {
 					i++
 				}
 			}
+			if depth > 0 {
+				return false // unterminated block comment is not empty
+			}
 			continue
 		}
 		// Found a non-whitespace, non-comment, non-semicolon character.
@@ -132,7 +135,7 @@ func matchKeyword(sql string, i int, kw string) bool {
 	if i+n > len(sql) {
 		return false
 	}
-	for j := 0; j < n; j++ {
+	for j := range n {
 		c := sql[i+j]
 		// Convert to uppercase for comparison.
 		if c >= 'a' && c <= 'z' {
@@ -228,15 +231,11 @@ func skipDollarQuote(sql string, i int) int {
 	tag := sql[i:j]
 
 	// Search for the closing tag.
-	i = j
-	for i < len(sql) {
-		idx := strings.Index(sql[i:], tag)
-		if idx < 0 {
-			return len(sql) // unterminated
-		}
-		return i + idx + len(tag)
+	idx := strings.Index(sql[j:], tag)
+	if idx < 0 {
+		return len(sql) // unterminated
 	}
-	return len(sql)
+	return j + idx + len(tag)
 }
 
 // skipBlockComment skips a block comment starting at position i.
