@@ -3444,6 +3444,82 @@ func TestParseSetIsolationLevelStructured(t *testing.T) {
 	}
 }
 
+// TestParseAlterAuthorizationEntityStructured tests structured entity type parsing in ALTER AUTHORIZATION (batch 136).
+func TestParseAlterAuthorizationEntityStructured(t *testing.T) {
+	tests := []struct {
+		name       string
+		sql        string
+		entityType string // expected ObjectType on the SecurityStmt
+	}{
+		{
+			name:       "alter_authorization_no_entity_type",
+			sql:        "ALTER AUTHORIZATION ON dbo.MyTable TO newOwner",
+			entityType: "ALTER AUTHORIZATION",
+		},
+		{
+			name:       "alter_authorization_object",
+			sql:        "ALTER AUTHORIZATION ON OBJECT::dbo.MyTable TO newOwner",
+			entityType: "ALTER AUTHORIZATION",
+		},
+		{
+			name:       "alter_authorization_schema",
+			sql:        "ALTER AUTHORIZATION ON SCHEMA::Sales TO dbo",
+			entityType: "ALTER AUTHORIZATION",
+		},
+		{
+			name:       "alter_authorization_database",
+			sql:        "ALTER AUTHORIZATION ON DATABASE::mydb TO sa",
+			entityType: "ALTER AUTHORIZATION",
+		},
+		{
+			name:       "alter_authorization_to_schema_owner",
+			sql:        "ALTER AUTHORIZATION ON OBJECT::dbo.MyTable TO SCHEMA OWNER",
+			entityType: "ALTER AUTHORIZATION",
+		},
+		{
+			name:       "alter_authorization_type",
+			sql:        "ALTER AUTHORIZATION ON TYPE::dbo.MyType TO newOwner",
+			entityType: "ALTER AUTHORIZATION",
+		},
+		{
+			name:       "alter_authorization_xml_schema_collection",
+			sql:        "ALTER AUTHORIZATION ON XML SCHEMA COLLECTION::dbo.MyXmlSchema TO newOwner",
+			entityType: "ALTER AUTHORIZATION",
+		},
+		{
+			name:       "alter_authorization_assembly",
+			sql:        "ALTER AUTHORIZATION ON ASSEMBLY::MyAssembly TO newOwner",
+			entityType: "ALTER AUTHORIZATION",
+		},
+		{
+			name:       "alter_authorization_role",
+			sql:        "ALTER AUTHORIZATION ON ROLE::db_datareader TO dbo",
+			entityType: "ALTER AUTHORIZATION",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() == 0 {
+				t.Fatalf("Parse(%q): no statements returned", tt.sql)
+			}
+			stmt, ok := result.Items[0].(*ast.SecurityStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *ast.SecurityStmt, got %T", tt.sql, result.Items[0])
+			}
+			if stmt.ObjectType != tt.entityType {
+				t.Errorf("Parse(%q): ObjectType = %q, want %q", tt.sql, stmt.ObjectType, tt.entityType)
+			}
+			// Verify TO clause was parsed - Options should have at least one entry
+			if stmt.Options == nil || len(stmt.Options.Items) == 0 {
+				t.Errorf("Parse(%q): expected Options (TO clause), got nil/empty", tt.sql)
+			}
+			checkLocation(t, tt.sql, "SecurityStmt", stmt.Loc)
+		})
+	}
+}
+
 // TestParseMiscUnknownSkipDepth tests structured parsing replacing shallow unknown-token-skip patterns (batch 135).
 func TestParseMiscUnknownSkipDepth(t *testing.T) {
 	// 1. SYSTEM_VERSIONING sub-option with unknown key=value is consumed structurally

@@ -582,33 +582,25 @@ func (p *Parser) parseAlterAuthorizationStmt() *nodes.SecurityStmt {
 
 	stmt := &nodes.SecurityStmt{
 		Action:     "ALTER AUTHORIZATION",
-		ObjectType: "OBJECT",
+		ObjectType: "ALTER AUTHORIZATION",
 		Loc:        nodes.Loc{Start: loc},
 	}
 
-	// ON [ class_type :: ] entity_name
+	// ON [ entity_type :: ] entity_name
 	if p.cur.Type == kwON {
 		p.advance()
-		// Collect tokens until we find TO
-		var nameParts []string
-		for p.cur.Type != tokEOF && p.cur.Type != ';' {
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TO") {
-				break
+		// Try to detect entity_type :: pattern
+		// Entity types can be multi-word: XML SCHEMA COLLECTION, SEARCH PROPERTY LIST, etc.
+		entityType := p.tryParseAlterAuthEntityType()
+		if entityType != "" {
+			// We have entity_type, now expect ::
+			if p.cur.Type == tokCOLONCOLON {
+				p.advance() // consume ::
 			}
-			if p.cur.Type == ':' {
-				// Skip :: separator
-				p.advance()
-				continue
-			}
-			if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == kwDATABASE || p.cur.Type == kwXML || p.cur.Type == kwROLE {
-				nameParts = append(nameParts, p.cur.Str)
-			} else if p.cur.Type == '.' {
-				nameParts = append(nameParts, ".")
-			}
-			p.advance()
-		}
-		if len(nameParts) > 0 {
-			stmt.Name = strings.Join(nameParts, " ")
+			stmt.Name = entityType + "::" + p.parseAlterAuthEntityName()
+		} else {
+			// No entity_type, just parse entity_name
+			stmt.Name = p.parseAlterAuthEntityName()
 		}
 	}
 
@@ -633,6 +625,99 @@ func (p *Parser) parseAlterAuthorizationStmt() *nodes.SecurityStmt {
 
 	stmt.Loc.End = p.pos()
 	return stmt
+}
+
+// tryParseAlterAuthEntityType checks if the current position has an entity_type :: pattern.
+// If so, consumes the entity type tokens and returns the entity type string.
+// Otherwise returns empty string without consuming anything.
+//
+// Known single-word entity types: OBJECT, ASSEMBLY, CONTRACT, CERTIFICATE, ENDPOINT,
+// ROUTE, SERVICE, TYPE, SCHEMA, DATABASE, ROLE
+// Multi-word: XML SCHEMA COLLECTION, MESSAGE TYPE, REMOTE SERVICE BINDING,
+// FULLTEXT CATALOG, FULLTEXT STOPLIST, SEARCH PROPERTY LIST,
+// SYMMETRIC KEY, ASYMMETRIC KEY, AVAILABILITY GROUP, SERVER ROLE
+func (p *Parser) tryParseAlterAuthEntityType() string {
+	// For single-word entity types, check if next token is ':'
+	if (p.isIdentLike() || p.cur.Type == kwDATABASE || p.cur.Type == kwXML ||
+		p.cur.Type == kwROLE || p.cur.Type == kwSCHEMA || p.cur.Type == kwTYPE) &&
+		p.peekNext().Type == tokCOLONCOLON {
+		word := strings.ToUpper(p.cur.Str)
+		p.advance() // consume entity type word
+		return word
+	}
+	// For multi-word entity types: check first word, then peek second
+	if p.isIdentLike() || p.cur.Type == kwXML || p.cur.Type == kwSCHEMA {
+		first := strings.ToUpper(p.cur.Str)
+		switch first {
+		case "XML":
+			return p.tryParseMultiWordEntityType(first, []string{"SCHEMA", "COLLECTION"})
+		case "MESSAGE":
+			return p.tryParseMultiWordEntityType(first, []string{"TYPE"})
+		case "REMOTE":
+			return p.tryParseMultiWordEntityType(first, []string{"SERVICE", "BINDING"})
+		case "FULLTEXT":
+			next := p.peekNext()
+			if matchesKeywordCI(next.Str, "CATALOG") || matchesKeywordCI(next.Str, "STOPLIST") {
+				return p.tryParseMultiWordEntityType(first, []string{strings.ToUpper(next.Str)})
+			}
+		case "SEARCH":
+			return p.tryParseMultiWordEntityType(first, []string{"PROPERTY", "LIST"})
+		case "SYMMETRIC", "ASYMMETRIC":
+			return p.tryParseMultiWordEntityType(first, []string{"KEY"})
+		case "AVAILABILITY":
+			return p.tryParseMultiWordEntityType(first, []string{"GROUP"})
+		case "SERVER":
+			return p.tryParseMultiWordEntityType(first, []string{"ROLE"})
+		}
+	}
+	return ""
+}
+
+// tryParseMultiWordEntityType consumes a multi-word entity type if the next word matches.
+// Validates by peeking before consuming. Returns the entity type or "".
+func (p *Parser) tryParseMultiWordEntityType(first string, remaining []string) string {
+	if len(remaining) == 0 {
+		return ""
+	}
+	// Peek to confirm next token matches first remaining word
+	next := p.peekNext()
+	if !matchesKeywordCI(next.Str, remaining[0]) {
+		return ""
+	}
+
+	// Pattern looks good, consume first word
+	p.advance()
+	parts := []string{first}
+	for _, word := range remaining {
+		if (p.isIdentLike() || p.cur.Type == kwSCHEMA || p.cur.Type == kwTYPE) &&
+			matchesKeywordCI(p.cur.Str, word) {
+			parts = append(parts, strings.ToUpper(p.cur.Str))
+			p.advance()
+		} else {
+			break
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+// parseAlterAuthEntityName parses the entity name (possibly qualified with dots) until TO keyword.
+func (p *Parser) parseAlterAuthEntityName() string {
+	var parts []string
+	for p.cur.Type != tokEOF && p.cur.Type != ';' {
+		if p.cur.Type == kwTO || (p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TO")) {
+			break
+		}
+		if p.isIdentLike() || p.cur.Type == kwDATABASE || p.cur.Type == kwXML ||
+			p.cur.Type == kwROLE || p.cur.Type == kwSCHEMA || p.cur.Type == kwTYPE {
+			parts = append(parts, p.cur.Str)
+		} else if p.cur.Type == '.' {
+			parts = append(parts, ".")
+		} else {
+			break
+		}
+		p.advance()
+	}
+	return strings.Join(parts, " ")
 }
 
 // matchesKeywordCI returns true if s case-insensitively equals keyword.

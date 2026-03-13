@@ -2968,7 +2968,7 @@
       "id": 136,
       "name": "alter_authorization_entity_depth",
       "file": "security_principals.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 53 gap: replace token accumulation loop in parseAlterAuthorizationStmt() at lines 593-609 with structured entity type parsing. BNF: ALTER AUTHORIZATION ON [ entity_type :: ] entity_name TO { principal_name | SCHEMA OWNER }. Entity types: OBJECT, SCHEMA, DATABASE, ASSEMBLY, ROLE, TYPE, XML SCHEMA COLLECTION, etc.",
       "rules": [
         "parseAlterAuthorizationEntityStructured"
