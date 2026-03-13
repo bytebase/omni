@@ -1160,6 +1160,29 @@ type SecurityStmt struct {
 func (n *SecurityStmt) nodeTag()  {}
 func (n *SecurityStmt) stmtNode() {}
 
+// EndpointOption represents a typed key=value option in a CREATE/ALTER ENDPOINT statement.
+// Replaces nodes.String concatenations with structured Name + Value pairs.
+//
+// Examples:
+//   - Protocol: Name="AS", Value="TCP"
+//   - State: Name="STATE", Value="STARTED"
+//   - Payload: Name="FOR", Value="SERVICE_BROKER"
+//   - Auth: Name="AUTHENTICATION", Value="WINDOWS KERBEROS CERTIFICATE MyCert"
+//   - Encryption: Name="ENCRYPTION", Value="REQUIRED ALGORITHM AES"
+//   - Role: Name="ROLE", Value="PARTNER"
+//   - Listener: Name="LISTENER_PORT", Value="4022"
+//   - Forwarding: Name="MESSAGE_FORWARDING", Value="ENABLED"
+//   - Forward size: Name="MESSAGE_FORWARD_SIZE", Value="10"
+//   - Authorization: Name="AUTHORIZATION", Value="sa"
+//   - Flag options: Name="VERBOSE", Value=""
+type EndpointOption struct {
+	Name  string // option name (e.g., "AS", "FOR", "STATE", "AUTHENTICATION", "ENCRYPTION", "ROLE")
+	Value string // option value (may be empty for flag-like options)
+	Loc   Loc
+}
+
+func (n *EndpointOption) nodeTag() {}
+
 // AvailabilityGroupOption represents a typed option in a CREATE/ALTER AVAILABILITY GROUP statement.
 // Replaces nodes.String concatenations with structured Name + Value pairs.
 //

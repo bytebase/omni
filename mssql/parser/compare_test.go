@@ -6051,6 +6051,11 @@ func agOptStr(n ast.Node) string {
 			return opt.Name
 		}
 		return opt.Name + "=" + opt.Value
+	case *ast.EndpointOption:
+		if opt.Value == "" {
+			return opt.Name
+		}
+		return opt.Name + "=" + opt.Value
 	case *ast.String:
 		return opt.Str
 	default:
@@ -11779,7 +11784,7 @@ func TestParseEndpointHTTPOptions(t *testing.T) {
 			found := false
 			if stmt.Options != nil {
 				for _, item := range stmt.Options.Items {
-					if s, ok := item.(*ast.String); ok && s.Str == "AS=HTTP" {
+					if s, ok := item.(*ast.EndpointOption); ok && s.Name == "AS" && s.Value == "HTTP" {
 						found = true
 						break
 					}
@@ -11850,7 +11855,7 @@ func TestParseEndpointUnknownProtocolOptions(t *testing.T) {
 			for _, want := range tt.wantOpts {
 				found := false
 				for _, item := range stmt.Options.Items {
-					if item.(*ast.String).Str == want {
+					if agOptStr(item) == want {
 						found = true
 						break
 					}
@@ -15704,7 +15709,7 @@ func TestParseEndpointRemainingDepth(t *testing.T) {
 				for _, want := range tt.wantOpts {
 					found := false
 					for _, item := range stmt.Options.Items {
-						if s, ok := item.(*ast.String); ok && s.Str == want {
+						if agOptStr(item) == want {
 							found = true
 							break
 						}
@@ -15746,6 +15751,174 @@ func TestParseEndpointRemainingDepth(t *testing.T) {
 				_, ok := result.Items[0].(*ast.SecurityStmt)
 				if !ok {
 					t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", tt.sql, result.Items[0])
+				}
+			})
+		}
+	})
+}
+
+// TestParseEndpointOptionsStringsDepth tests batch 151: endpoint options use EndpointOption typed nodes.
+func TestParseEndpointOptionsStringsDepth(t *testing.T) {
+	t.Run("endpoint_service_broker_payload_final", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			sql      string
+			wantOpts map[string]string // Name -> Value
+		}{
+			{
+				"sb_message_forwarding_enabled",
+				"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (MESSAGE_FORWARDING = ENABLED)",
+				map[string]string{"MESSAGE_FORWARDING": "ENABLED", "FOR": "SERVICE_BROKER"},
+			},
+			{
+				"sb_message_forward_size",
+				"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (MESSAGE_FORWARD_SIZE = 10)",
+				map[string]string{"MESSAGE_FORWARD_SIZE": "10", "FOR": "SERVICE_BROKER"},
+			},
+			{
+				"sb_auth_encryption_forwarding_combined",
+				"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS, ENCRYPTION = REQUIRED ALGORITHM AES, MESSAGE_FORWARDING = DISABLED, MESSAGE_FORWARD_SIZE = 5)",
+				map[string]string{
+					"AUTHENTICATION":      "WINDOWS",
+					"ENCRYPTION":          "REQUIRED ALGORITHM AES",
+					"MESSAGE_FORWARDING":  "DISABLED",
+					"MESSAGE_FORWARD_SIZE": "5",
+				},
+			},
+			{
+				"sb_unknown_payload_option",
+				"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (CUSTOM_OPT = myval)",
+				map[string]string{"CUSTOM_OPT": "MYVAL"},
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.SecurityStmt)
+				if !ok {
+					t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", tt.sql, result.Items[0])
+				}
+				if stmt.Options == nil {
+					t.Fatalf("Parse(%q): options is nil", tt.sql)
+				}
+				for wantName, wantValue := range tt.wantOpts {
+					found := false
+					for _, item := range stmt.Options.Items {
+						if opt, ok := item.(*ast.EndpointOption); ok && opt.Name == wantName && opt.Value == wantValue {
+							found = true
+							if opt.Loc.Start == 0 && opt.Loc.End == 0 {
+								t.Errorf("EndpointOption %s has zero Loc", wantName)
+							}
+							break
+						}
+					}
+					if !found {
+						var gotStrs []string
+						for _, item := range stmt.Options.Items {
+							gotStrs = append(gotStrs, agOptStr(item))
+						}
+						t.Errorf("Parse(%q): expected EndpointOption %s=%s not found in %v", tt.sql, wantName, wantValue, gotStrs)
+					}
+				}
+			})
+		}
+	})
+
+	t.Run("endpoint_mirroring_payload_final", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			sql      string
+			wantOpts map[string]string
+		}{
+			{
+				"mirroring_role_witness",
+				"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 7022) FOR DATABASE_MIRRORING (ROLE = WITNESS)",
+				map[string]string{"ROLE": "WITNESS", "FOR": "DATABASE_MIRRORING"},
+			},
+			{
+				"mirroring_role_partner",
+				"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 7022) FOR DATABASE_MIRRORING (ROLE = PARTNER)",
+				map[string]string{"ROLE": "PARTNER"},
+			},
+			{
+				"mirroring_role_all",
+				"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 7022) FOR DATABASE_MIRRORING (ROLE = ALL)",
+				map[string]string{"ROLE": "ALL"},
+			},
+			{
+				"mirroring_full_options",
+				"CREATE ENDPOINT ep1 STATE = STARTED AS TCP (LISTENER_PORT = 7022) FOR DATABASE_MIRRORING (AUTHENTICATION = WINDOWS KERBEROS, ENCRYPTION = SUPPORTED, ROLE = ALL)",
+				map[string]string{
+					"STATE":          "STARTED",
+					"AS":             "TCP",
+					"LISTENER_PORT":  "7022",
+					"FOR":            "DATABASE_MIRRORING",
+					"AUTHENTICATION": "WINDOWS KERBEROS",
+					"ENCRYPTION":     "SUPPORTED",
+					"ROLE":           "ALL",
+				},
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.SecurityStmt)
+				if !ok {
+					t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", tt.sql, result.Items[0])
+				}
+				if stmt.Options == nil {
+					t.Fatalf("Parse(%q): options is nil", tt.sql)
+				}
+				for wantName, wantValue := range tt.wantOpts {
+					found := false
+					for _, item := range stmt.Options.Items {
+						if opt, ok := item.(*ast.EndpointOption); ok && opt.Name == wantName && opt.Value == wantValue {
+							found = true
+							break
+						}
+					}
+					if !found {
+						var gotStrs []string
+						for _, item := range stmt.Options.Items {
+							gotStrs = append(gotStrs, agOptStr(item))
+						}
+						t.Errorf("Parse(%q): expected EndpointOption %s=%s not found in %v", tt.sql, wantName, wantValue, gotStrs)
+					}
+				}
+			})
+		}
+	})
+
+	t.Run("all_options_typed", func(t *testing.T) {
+		// Verify no *ast.String nodes remain in endpoint options
+		tests := []string{
+			"CREATE ENDPOINT ep1 AUTHORIZATION sa STATE = STARTED AS TCP (LISTENER_PORT = 4022, LISTENER_IP = ALL) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS NEGOTIATE, ENCRYPTION = REQUIRED ALGORITHM AES RC4, MESSAGE_FORWARDING = ENABLED, MESSAGE_FORWARD_SIZE = 10)",
+			"ALTER ENDPOINT ep1 STATE = DISABLED AS TCP (LISTENER_PORT = 7022) FOR DATABASE_MIRRORING (AUTHENTICATION = CERTIFICATE MyCert, ENCRYPTION = SUPPORTED, ROLE = PARTNER)",
+			"CREATE ENDPOINT ep1 AS HTTP (PATH = '/sql', AUTHENTICATION = (INTEGRATED), PORTS = (CLEAR, SSL), SITE = '*', CLEAR_PORT = 80, SSL_PORT = 443, COMPRESSION = ENABLED)",
+		}
+		for _, sql := range tests {
+			t.Run(sql[:40], func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				if result.Len() != 1 {
+					t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.SecurityStmt)
+				if !ok {
+					t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", sql, result.Items[0])
+				}
+				if stmt.Options == nil {
+					t.Fatalf("Parse(%q): options is nil", sql)
+				}
+				for _, item := range stmt.Options.Items {
+					if _, ok := item.(*ast.String); ok {
+						t.Errorf("Parse(%q): found *ast.String in options, expected all EndpointOption: %s", sql, agOptStr(item))
+					}
 				}
 			})
 		}

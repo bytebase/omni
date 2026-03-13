@@ -3236,7 +3236,7 @@
       "id": 151,
       "name": "endpoint_options_strings_depth",
       "file": "endpoint.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 133 gap: replace 28 remaining nodes.String key=value concatenations in endpoint.go with typed AST nodes. Major areas: SERVICE_BROKER payload options (MESSAGE_FORWARD_SIZE=, ROLE= at lines 514-547), DATABASE_MIRRORING payload options (key=value at lines 543-547). These options were partially structured in batches 99/107/116/133 but payload-specific options still use nodes.String.",
       "rules": [
         "parseEndpointPayloadOptionsStructuredFinal"

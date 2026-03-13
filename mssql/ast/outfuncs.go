@@ -130,6 +130,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		sb.WriteString(fmt.Sprintf("{SAVETRANS :name \"%s\" :loc %d %d}", escapeString(n.Name), n.Loc.Start, n.Loc.End))
 	case *SecurityStmt:
 		writeSecurityStmt(sb, n)
+	case *EndpointOption:
+		writeEndpointOption(sb, n)
 	case *AvailabilityGroupOption:
 		writeAvailabilityGroupOption(sb, n)
 	case *AuditSpecAction:
@@ -1299,6 +1301,15 @@ func writeSecurityStmt(sb *strings.Builder, n *SecurityStmt) {
 	}
 	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")
+}
+
+func writeEndpointOption(sb *strings.Builder, n *EndpointOption) {
+	sb.WriteString("{EPOPT")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	if n.Value != "" {
+		fmt.Fprintf(sb, " :value \"%s\"", escapeString(n.Value))
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
 
 func writeAvailabilityGroupOption(sb *strings.Builder, n *AvailabilityGroupOption) {
