@@ -574,6 +574,22 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			}
 			return nil
 		}
+		// CREATE JSON INDEX
+		if p.cur.Type == kwJSON {
+			p.advance() // consume JSON
+			p.match(kwINDEX)
+			stmt := p.parseCreateJsonIndexStmt()
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		// CREATE VECTOR INDEX
+		if p.cur.Type == kwVECTOR {
+			p.advance() // consume VECTOR
+			p.match(kwINDEX)
+			stmt := p.parseCreateVectorIndexStmt()
+			stmt.Loc.Start = loc
+			return stmt
+		}
 		// CREATE SPATIAL INDEX
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SPATIAL") {
 			p.advance() // consume SPATIAL

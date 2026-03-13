@@ -2437,7 +2437,7 @@
       "id": 109,
       "name": "json_vector_index",
       "file": "create_index.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE JSON INDEX and CREATE VECTOR INDEX (SQL Server 2025+). JSON INDEX indexes JSON documents; VECTOR INDEX supports approximate nearest neighbor search with options (TYPE = DISKANN, DISTANCE = COSINE/DOT/L2)",
       "rules": [
         "parseCreateJsonIndexStmt",

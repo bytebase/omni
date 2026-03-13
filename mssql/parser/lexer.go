@@ -245,6 +245,7 @@ const (
 	kwUSER
 	kwVALUES
 	kwVARYING
+	kwVECTOR
 	kwVIEW
 	kwWAITFOR
 	kwWHEN
@@ -329,7 +330,7 @@ func init() {
 		"try_convert": kwTRY_CONVERT, "type": kwTYPE,
 		"unbounded": kwUNBOUNDED, "union": kwUNION, "unique": kwUNIQUE, "unpivot": kwUNPIVOT,
 		"update": kwUPDATE, "updatetext": kwUPDATETEXT, "use": kwUSE, "user": kwUSER,
-		"values": kwVALUES, "varying": kwVARYING, "view": kwVIEW,
+		"values": kwVALUES, "varying": kwVARYING, "vector": kwVECTOR, "view": kwVIEW,
 		"waitfor": kwWAITFOR, "when": kwWHEN, "where": kwWHERE, "while": kwWHILE,
 		"with": kwWITH, "within": kwWITHIN, "writetext": kwWRITETEXT,
 		"xml": kwXML, "xact_abort": kwXACT_ABORT,

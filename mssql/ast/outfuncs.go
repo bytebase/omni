@@ -384,6 +384,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateAggregateStmt(sb, n)
 	case *DropAggregateStmt:
 		writeDropAggregateStmt(sb, n)
+	case *CreateJsonIndexStmt:
+		writeCreateJsonIndexStmt(sb, n)
+	case *CreateVectorIndexStmt:
+		writeCreateVectorIndexStmt(sb, n)
 	default:
 		sb.WriteString("{UNKNOWN}")
 	}
@@ -3365,6 +3369,50 @@ func writeDropAggregateStmt(sb *strings.Builder, n *DropAggregateStmt) {
 	}
 	if n.IfExists {
 		sb.WriteString(" :ifExists true")
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeCreateJsonIndexStmt(sb *strings.Builder, n *CreateJsonIndexStmt) {
+	sb.WriteString("{CREATEJSONINDEX")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.JsonColumn != "" {
+		fmt.Fprintf(sb, " :jsonColumn \"%s\"", escapeString(n.JsonColumn))
+	}
+	if n.ForPaths != nil {
+		sb.WriteString(" :forPaths ")
+		writeNode(sb, n.ForPaths)
+	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
+	if n.OnFileGroup != "" {
+		fmt.Fprintf(sb, " :onFileGroup \"%s\"", escapeString(n.OnFileGroup))
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeCreateVectorIndexStmt(sb *strings.Builder, n *CreateVectorIndexStmt) {
+	sb.WriteString("{CREATEVECTORINDEX")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.VectorCol != "" {
+		fmt.Fprintf(sb, " :vectorCol \"%s\"", escapeString(n.VectorCol))
+	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
+	if n.OnFileGroup != "" {
+		fmt.Fprintf(sb, " :onFileGroup \"%s\"", escapeString(n.OnFileGroup))
 	}
 	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }

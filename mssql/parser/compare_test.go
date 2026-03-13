@@ -11132,3 +11132,76 @@ func TestParseExternalModel(t *testing.T) {
 		})
 	}
 }
+
+// TestParseJsonVectorIndex tests batch 109: CREATE JSON INDEX and CREATE VECTOR INDEX.
+func TestParseJsonVectorIndex(t *testing.T) {
+	// --- CREATE JSON INDEX tests ---
+	jsonTests := []string{
+		// Basic JSON index
+		"CREATE JSON INDEX idx_json ON dbo.Products (JsonData)",
+		// JSON index with FOR paths
+		"CREATE JSON INDEX idx_json ON Products (JsonCol) FOR ('$.name', '$.price')",
+		// JSON index with single path
+		"CREATE JSON INDEX idx_json ON MyTable (Details) FOR ('$.address.city')",
+		// JSON index with WITH options (numeric)
+		"CREATE JSON INDEX idx_json ON dbo.Orders (OrderInfo) WITH (FILLFACTOR = 80)",
+		// JSON index with multiple WITH options
+		"CREATE JSON INDEX idx_json ON Sales.Orders (Data) WITH (FILLFACTOR = 80, MAXDOP = 4)",
+		// JSON index with FOR and WITH
+		"CREATE JSON INDEX idx_json ON Products (JsonCol) FOR ('$.name') WITH (DATA_COMPRESSION = PAGE)",
+		// JSON index with ON filegroup
+		"CREATE JSON INDEX idx_json ON dbo.Products (JsonData) ON fg_primary",
+		// JSON index with all clauses
+		"CREATE JSON INDEX idx_json ON Products (Data) FOR ('$.id', '$.name') WITH (FILLFACTOR = 90) ON fg1",
+	}
+	for _, sql := range jsonTests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.CreateJsonIndexStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *CreateJsonIndexStmt, got %T", sql, result.Items[0])
+			}
+			if stmt.Name == "" {
+				t.Errorf("Parse(%q): Name is empty", sql)
+			}
+			checkLocation(t, sql, "CreateJsonIndexStmt", stmt.Loc)
+		})
+	}
+
+	// --- CREATE VECTOR INDEX tests ---
+	vectorTests := []string{
+		// Basic vector index
+		"CREATE VECTOR INDEX idx_vec ON dbo.Products (EmbeddingCol)",
+		// Vector index with METRIC option
+		"CREATE VECTOR INDEX idx_vec ON Products (Vec) WITH (METRIC = 'cosine')",
+		// Vector index with TYPE option
+		"CREATE VECTOR INDEX idx_vec ON dbo.Items (Embedding) WITH (TYPE = 'DiskANN')",
+		// Vector index with multiple options
+		"CREATE VECTOR INDEX idx_vec ON Products (Vec) WITH (METRIC = 'dot', TYPE = 'DiskANN', MAXDOP = 4)",
+		// Vector index with euclidean metric
+		"CREATE VECTOR INDEX idx_vec ON dbo.Docs (Vec) WITH (METRIC = 'euclidean')",
+		// Vector index with ON filegroup
+		"CREATE VECTOR INDEX idx_vec ON Products (Vec) ON fg_primary",
+		// Vector index with WITH and ON filegroup
+		"CREATE VECTOR INDEX idx_vec ON Products (Vec) WITH (METRIC = 'cosine') ON fg1",
+	}
+	for _, sql := range vectorTests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.CreateVectorIndexStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *CreateVectorIndexStmt, got %T", sql, result.Items[0])
+			}
+			if stmt.Name == "" {
+				t.Errorf("Parse(%q): Name is empty", sql)
+			}
+			checkLocation(t, sql, "CreateVectorIndexStmt", stmt.Loc)
+		})
+	}
+}

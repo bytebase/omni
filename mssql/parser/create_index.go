@@ -390,6 +390,148 @@ func joinDots(parts []string) string {
 	return result
 }
 
+// parseCreateJsonIndexStmt parses a CREATE JSON INDEX statement.
+// Caller has consumed CREATE JSON INDEX.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-json-index-transact-sql
+//
+//	CREATE JSON INDEX name ON table_name (json_column_name)
+//	  [ FOR ( sql_json_path [ , ...n ] ) ]
+//	  [ WITH ( <json_index_option> [ , ...n ] ) ]
+//	  [ ON { filegroup_name | "default" } ]
+//
+//	<json_index_option> ::=
+//	{
+//	    OPTIMIZE_FOR_ARRAY_SEARCH = { ON | OFF }
+//	  | FILLFACTOR = fillfactor
+//	  | DROP_EXISTING = { ON | OFF }
+//	  | ONLINE = OFF
+//	  | ALLOW_ROW_LOCKS = { ON | OFF }
+//	  | ALLOW_PAGE_LOCKS = { ON | OFF }
+//	  | MAXDOP = max_degree_of_parallelism
+//	  | DATA_COMPRESSION = { NONE | ROW | PAGE }
+//	}
+func (p *Parser) parseCreateJsonIndexStmt() *nodes.CreateJsonIndexStmt {
+	loc := p.pos()
+	stmt := &nodes.CreateJsonIndexStmt{
+		Loc: nodes.Loc{Start: loc},
+	}
+
+	// Index name
+	name, _ := p.parseIdentifier()
+	stmt.Name = name
+
+	// ON table
+	if _, ok := p.match(kwON); ok {
+		stmt.Table = p.parseTableRef()
+	}
+
+	// (json_column_name)
+	if p.cur.Type == '(' {
+		p.advance()
+		col, _ := p.parseIdentifier()
+		stmt.JsonColumn = col
+		p.match(')')
+	}
+
+	// FOR (sql_json_path, ...)
+	if _, ok := p.match(kwFOR); ok {
+		if p.cur.Type == '(' {
+			p.advance()
+			var paths []nodes.Node
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				// JSON paths are string literals like '$.name'
+				expr := p.parseExpr()
+				if expr != nil {
+					paths = append(paths, expr)
+				}
+				if _, ok := p.match(','); !ok {
+					break
+				}
+			}
+			p.match(')')
+			if len(paths) > 0 {
+				stmt.ForPaths = &nodes.List{Items: paths}
+			}
+		}
+	}
+
+	// WITH (options)
+	if p.cur.Type == kwWITH {
+		p.advance()
+		if p.cur.Type == '(' {
+			stmt.Options = p.parseOptionList()
+		}
+	}
+
+	// ON filegroup
+	if _, ok := p.match(kwON); ok {
+		if p.isIdentLike() {
+			stmt.OnFileGroup = p.cur.Str
+			p.advance()
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseCreateVectorIndexStmt parses a CREATE VECTOR INDEX statement.
+// Caller has consumed CREATE VECTOR INDEX.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-vector-index-transact-sql
+//
+//	CREATE VECTOR INDEX index_name
+//	ON object ( vector_column )
+//	[ WITH (
+//	    [ , ] METRIC = { 'cosine' | 'dot' | 'euclidean' }
+//	    [ [ , ] TYPE = 'DiskANN' ]
+//	    [ [ , ] MAXDOP = max_degree_of_parallelism ]
+//	) ]
+//	[ ON { filegroup_name | "default" } ]
+func (p *Parser) parseCreateVectorIndexStmt() *nodes.CreateVectorIndexStmt {
+	loc := p.pos()
+	stmt := &nodes.CreateVectorIndexStmt{
+		Loc: nodes.Loc{Start: loc},
+	}
+
+	// Index name
+	name, _ := p.parseIdentifier()
+	stmt.Name = name
+
+	// ON table
+	if _, ok := p.match(kwON); ok {
+		stmt.Table = p.parseTableRef()
+	}
+
+	// (vector_column)
+	if p.cur.Type == '(' {
+		p.advance()
+		col, _ := p.parseIdentifier()
+		stmt.VectorCol = col
+		p.match(')')
+	}
+
+	// WITH (options)
+	if p.cur.Type == kwWITH {
+		p.advance()
+		if p.cur.Type == '(' {
+			stmt.Options = p.parseOptionList()
+		}
+	}
+
+	// ON filegroup
+	if _, ok := p.match(kwON); ok {
+		if p.isIdentLike() {
+			stmt.OnFileGroup = p.cur.Str
+			p.advance()
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
 // parseOptionList parses (option = value, ...) used in WITH clauses.
 func (p *Parser) parseOptionList() *nodes.List {
 	p.advance() // consume (

@@ -2661,3 +2661,36 @@ type DropAggregateStmt struct {
 
 func (n *DropAggregateStmt) nodeTag()  {}
 func (n *DropAggregateStmt) stmtNode() {}
+
+// ---------- Batch 109: JSON Index / Vector Index ----------
+
+// CreateJsonIndexStmt represents CREATE JSON INDEX.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-json-index-transact-sql
+type CreateJsonIndexStmt struct {
+	Name        string    // index name
+	Table       *TableRef // ON table
+	JsonColumn  string    // (json_column_name)
+	ForPaths    *List     // FOR ('$.path1', ...) as *String items
+	Options     *List     // WITH (options)
+	OnFileGroup string    // ON filegroup
+	Loc         Loc
+}
+
+func (n *CreateJsonIndexStmt) nodeTag()  {}
+func (n *CreateJsonIndexStmt) stmtNode() {}
+
+// CreateVectorIndexStmt represents CREATE VECTOR INDEX.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-vector-index-transact-sql
+type CreateVectorIndexStmt struct {
+	Name        string    // index name
+	Table       *TableRef // ON table
+	VectorCol   string    // (vector_column)
+	Options     *List     // WITH (options)
+	OnFileGroup string    // ON filegroup
+	Loc         Loc
+}
+
+func (n *CreateVectorIndexStmt) nodeTag()  {}
+func (n *CreateVectorIndexStmt) stmtNode() {}
