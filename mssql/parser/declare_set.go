@@ -170,17 +170,34 @@ func (p *Parser) parseSetOptionStmt(loc int) *nodes.SetOptionStmt {
 			p.advance()
 		}
 		// isolation level name: READ UNCOMMITTED / READ COMMITTED / REPEATABLE READ / SNAPSHOT / SERIALIZABLE
-		var level strings.Builder
-		for p.isIdentLike() || p.cur.Type == kwREAD {
-			if level.Len() > 0 {
-				level.WriteString(" ")
-			}
-			level.WriteString(strings.ToUpper(p.cur.Str))
-			p.advance()
-		}
 		stmt.Option = "TRANSACTION ISOLATION LEVEL"
 		valLoc := p.pos()
-		stmt.Value = &nodes.ColumnRef{Column: level.String(), Loc: nodes.Loc{Start: valLoc}}
+		var level string
+		if p.cur.Type == kwREAD || (p.isIdentLike() && matchesKeywordCI(p.cur.Str, "READ")) {
+			p.advance() // consume READ
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "UNCOMMITTED") {
+				p.advance()
+				level = "READ UNCOMMITTED"
+			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "COMMITTED") {
+				p.advance()
+				level = "READ COMMITTED"
+			} else {
+				level = "READ"
+			}
+		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REPEATABLE") {
+			p.advance() // consume REPEATABLE
+			if p.cur.Type == kwREAD || (p.isIdentLike() && matchesKeywordCI(p.cur.Str, "READ")) {
+				p.advance()
+			}
+			level = "REPEATABLE READ"
+		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERIALIZABLE") {
+			p.advance()
+			level = "SERIALIZABLE"
+		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SNAPSHOT") {
+			p.advance()
+			level = "SNAPSHOT"
+		}
+		stmt.Value = &nodes.ColumnRef{Column: level, Loc: nodes.Loc{Start: valLoc, End: p.pos()}}
 		stmt.Loc.End = p.pos()
 		return stmt
 	}

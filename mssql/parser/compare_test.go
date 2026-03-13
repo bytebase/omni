@@ -3383,6 +3383,67 @@ func TestParseSetOptions(t *testing.T) {
 	}
 }
 
+// TestParseSetIsolationLevelStructured tests SET TRANSACTION ISOLATION LEVEL with structured parsing (batch 134).
+func TestParseSetIsolationLevelStructured(t *testing.T) {
+	tests := []struct {
+		name  string
+		sql   string
+		level string
+	}{
+		{
+			name:  "read_uncommitted",
+			sql:   "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED",
+			level: "READ UNCOMMITTED",
+		},
+		{
+			name:  "read_committed",
+			sql:   "SET TRANSACTION ISOLATION LEVEL READ COMMITTED",
+			level: "READ COMMITTED",
+		},
+		{
+			name:  "repeatable_read",
+			sql:   "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ",
+			level: "REPEATABLE READ",
+		},
+		{
+			name:  "serializable",
+			sql:   "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+			level: "SERIALIZABLE",
+		},
+		{
+			name:  "snapshot",
+			sql:   "SET TRANSACTION ISOLATION LEVEL SNAPSHOT",
+			level: "SNAPSHOT",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() == 0 {
+				t.Fatalf("Parse(%q): no statements returned", tt.sql)
+			}
+			stmt, ok := result.Items[0].(*ast.SetOptionStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *ast.SetOptionStmt, got %T", tt.sql, result.Items[0])
+			}
+			if stmt.Option != "TRANSACTION ISOLATION LEVEL" {
+				t.Errorf("Parse(%q): Option = %q, want %q", tt.sql, stmt.Option, "TRANSACTION ISOLATION LEVEL")
+			}
+			// Check that Value is a ColumnRef with the correct isolation level
+			ref, ok := stmt.Value.(*ast.ColumnRef)
+			if !ok {
+				t.Fatalf("Parse(%q): Value expected *ast.ColumnRef, got %T", tt.sql, stmt.Value)
+			}
+			if ref.Column != tt.level {
+				t.Errorf("Parse(%q): isolation level = %q, want %q", tt.sql, ref.Column, tt.level)
+			}
+			checkLocation(t, tt.sql, "SetOptionStmt", stmt.Loc)
+			checkLocation(t, tt.sql, "Value", ref.Loc)
+		})
+	}
+}
+
 // TestParsePartition tests CREATE/ALTER PARTITION FUNCTION/SCHEME (batch 42).
 func TestParsePartition(t *testing.T) {
 	tests := []struct {

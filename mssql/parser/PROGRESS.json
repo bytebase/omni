@@ -2927,7 +2927,7 @@
       "id": 134,
       "name": "declare_set_isolation_depth",
       "file": "declare_set.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 41 gap: replace strings.Builder in SET TRANSACTION ISOLATION LEVEL parsing at lines 173-180 with structured isolation level enum node (READ UNCOMMITTED, READ COMMITTED, REPEATABLE READ, SERIALIZABLE, SNAPSHOT) instead of raw string accumulation.",
       "rules": [
         "parseSetIsolationLevelStructured"
