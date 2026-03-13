@@ -1467,7 +1467,7 @@
       "id": 66,
       "name": "analytic_view_hierarchy",
       "file": "analytic_objects.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE/ALTER/DROP ANALYTIC VIEW, CREATE/ALTER/DROP ATTRIBUTE DIMENSION, CREATE/ALTER/DROP HIERARCHY. Oracle 23c OLAP analytic objects.",
       "rules": [
         "create_analytic_view_stmt",
@@ -1493,7 +1493,7 @@
       "id": 67,
       "name": "domain",
       "file": "create_admin.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE DOMAIN, ALTER DOMAIN, DROP DOMAIN. Oracle 23c SQL domains for column constraints and defaults.",
       "rules": [
         "create_domain_stmt",
@@ -1513,7 +1513,7 @@
       "id": 68,
       "name": "indextype_operator",
       "file": "create_admin.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE/ALTER/DROP INDEXTYPE, CREATE/ALTER/DROP OPERATOR. User-defined index types and operators for extensible indexing.",
       "rules": [
         "create_indextype_stmt",
@@ -1535,7 +1535,7 @@
       "id": 69,
       "name": "lockdown_profile_outline",
       "file": "security.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE/ALTER/DROP LOCKDOWN PROFILE (PDB security restrictions), CREATE/ALTER/DROP OUTLINE (plan stability hints).",
       "rules": [
         "create_lockdown_profile_stmt",
@@ -1557,7 +1557,7 @@
       "id": 70,
       "name": "materialized_zonemap_inmemory_join_group",
       "file": "create_admin.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE/ALTER/DROP MATERIALIZED ZONEMAP (zone maps for scan pruning), CREATE/ALTER/DROP INMEMORY JOIN GROUP (in-memory join optimization).",
       "rules": [
         "create_materialized_zonemap_stmt",
@@ -1579,7 +1579,7 @@
       "id": 71,
       "name": "json_duality_view",
       "file": "create_view.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE/ALTER/DROP JSON RELATIONAL DUALITY VIEW. Oracle 23c JSON duality views for document-relational duality.",
       "rules": [
         "create_json_duality_view_stmt",
@@ -1597,7 +1597,7 @@
       "id": 72,
       "name": "alter_misc_round3",
       "file": "alter_misc.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: ALTER JAVA, ALTER LIBRARY, ALTER FLASHBACK ARCHIVE, ALTER RESOURCE COST, ALTER ROLLBACK SEGMENT. Remaining ALTER statements not covered by batches 17/45/52.",
       "rules": [
         "alter_java_stmt",
@@ -1619,7 +1619,7 @@
       "id": 73,
       "name": "rollback_segment_edition",
       "file": "create_admin.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE/DROP ROLLBACK SEGMENT, CREATE/DROP EDITION. Rollback segments for undo management and editions for edition-based redefinition.",
       "rules": [
         "create_rollback_segment_stmt",
@@ -1639,7 +1639,7 @@
       "id": 74,
       "name": "tablespace_set",
       "file": "create_admin.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE TABLESPACE SET, ALTER TABLESPACE SET, DROP TABLESPACE SET. Sharded database tablespace set management.",
       "rules": [
         "create_tablespace_set_stmt",
@@ -1658,7 +1658,7 @@
       "id": 75,
       "name": "mle_env_module",
       "file": "create_admin.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE/DROP MLE ENV, CREATE/DROP MLE MODULE. Oracle 23c Multilingual Engine for JavaScript stored procedures.",
       "rules": [
         "create_mle_env_stmt",
@@ -1678,7 +1678,7 @@
       "id": 76,
       "name": "pfile_spfile",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE PFILE, CREATE SPFILE. Parameter file management for database initialization.",
       "rules": [
         "create_pfile_stmt",
@@ -1696,7 +1696,7 @@
       "id": 77,
       "name": "property_graph_vector_index",
       "file": "create_admin.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE PROPERTY GRAPH (Oracle 23c graph), CREATE VECTOR INDEX (Oracle 23ai vector search). Modern Oracle features.",
       "rules": [
         "create_property_graph_stmt",
@@ -1714,7 +1714,7 @@
       "id": 78,
       "name": "restore_point_misc",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE/DROP RESTORE POINT, CREATE LOGICAL PARTITION TRACKING, CREATE PMEM FILESTORE. Miscellaneous administrative DDL.",
       "rules": [
         "create_restore_point_stmt",
@@ -1734,7 +1734,7 @@
       "id": 79,
       "name": "truncate_cluster_drop_type_body",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: TRUNCATE CLUSTER (distinct from TRUNCATE TABLE), DROP TYPE BODY. Small remaining statement types.",
       "rules": [
         "truncate_cluster_stmt",

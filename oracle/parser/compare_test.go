@@ -2346,3 +2346,341 @@ func TestParseDropAuditPolicy(t *testing.T) {
 		})
 	}
 }
+
+// ---------- Batch 66-79 Tests ----------
+
+// adminDDLTest is a helper for testing AdminDDLStmt parsing.
+func adminDDLTest(t *testing.T, sql string, wantAction string, wantType ast.ObjectType) {
+	t.Helper()
+	result := ParseAndCheck(t, sql)
+	if result.Len() != 1 {
+		t.Fatalf("expected 1 statement, got %d", result.Len())
+	}
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
+	if !ok {
+		t.Fatalf("expected *AdminDDLStmt, got %T", raw.Stmt)
+	}
+	if stmt.Action != wantAction {
+		t.Errorf("expected action %q, got %q", wantAction, stmt.Action)
+	}
+	if stmt.ObjectType != wantType {
+		t.Errorf("expected object type %d, got %d", wantType, stmt.ObjectType)
+	}
+}
+
+// TestBatch66_AnalyticViewHierarchy tests CREATE/ALTER/DROP ANALYTIC VIEW, ATTRIBUTE DIMENSION, HIERARCHY.
+func TestBatch66_AnalyticViewHierarchy(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		action string
+		obj    ast.ObjectType
+	}{
+		{"create_analytic_view", "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim) MEASURES (amount)", "CREATE", ast.OBJECT_ANALYTIC_VIEW},
+		{"alter_analytic_view", "ALTER ANALYTIC VIEW sales_av RENAME TO sales_av2", "ALTER", ast.OBJECT_ANALYTIC_VIEW},
+		{"drop_analytic_view", "DROP ANALYTIC VIEW sales_av", "DROP", ast.OBJECT_ANALYTIC_VIEW},
+		{"create_attribute_dimension", "CREATE ATTRIBUTE DIMENSION time_attr_dim USING time_dim", "CREATE", ast.OBJECT_ATTRIBUTE_DIMENSION},
+		{"alter_attribute_dimension", "ALTER ATTRIBUTE DIMENSION time_attr_dim RENAME TO time_attr_dim2", "ALTER", ast.OBJECT_ATTRIBUTE_DIMENSION},
+		{"drop_attribute_dimension", "DROP ATTRIBUTE DIMENSION time_attr_dim", "DROP", ast.OBJECT_ATTRIBUTE_DIMENSION},
+		{"create_hierarchy", "CREATE HIERARCHY time_hier USING time_attr_dim", "CREATE", ast.OBJECT_HIERARCHY},
+		{"alter_hierarchy", "ALTER HIERARCHY time_hier RENAME TO time_hier2", "ALTER", ast.OBJECT_HIERARCHY},
+		{"drop_hierarchy", "DROP HIERARCHY time_hier", "DROP", ast.OBJECT_HIERARCHY},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adminDDLTest(t, tt.sql, tt.action, tt.obj)
+		})
+	}
+}
+
+// TestBatch67_Domain tests CREATE/ALTER/DROP DOMAIN.
+func TestBatch67_Domain(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		action string
+		obj    ast.ObjectType
+	}{
+		{"create_domain", "CREATE DOMAIN email_domain AS VARCHAR2(255) NOT NULL", "CREATE", ast.OBJECT_DOMAIN},
+		{"alter_domain", "ALTER DOMAIN email_domain ADD CONSTRAINT chk_email CHECK (VALUE LIKE '%@%')", "ALTER", ast.OBJECT_DOMAIN},
+		{"drop_domain", "DROP DOMAIN email_domain", "DROP", ast.OBJECT_DOMAIN},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adminDDLTest(t, tt.sql, tt.action, tt.obj)
+		})
+	}
+}
+
+// TestBatch68_IndextypeOperator tests CREATE/ALTER/DROP INDEXTYPE and OPERATOR.
+func TestBatch68_IndextypeOperator(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		action string
+		obj    ast.ObjectType
+	}{
+		{"create_indextype", "CREATE INDEXTYPE my_indextype FOR my_operator(NUMBER) USING my_type", "CREATE", ast.OBJECT_INDEXTYPE},
+		{"alter_indextype", "ALTER INDEXTYPE my_indextype ADD my_operator2(VARCHAR2)", "ALTER", ast.OBJECT_INDEXTYPE},
+		{"drop_indextype", "DROP INDEXTYPE my_indextype", "DROP", ast.OBJECT_INDEXTYPE},
+		{"create_operator", "CREATE OPERATOR my_eq BINDING (NUMBER, NUMBER) RETURN NUMBER USING my_eq_func", "CREATE", ast.OBJECT_OPERATOR},
+		{"alter_operator", "ALTER OPERATOR my_eq ADD BINDING (VARCHAR2, VARCHAR2) RETURN NUMBER USING my_eq_str", "ALTER", ast.OBJECT_OPERATOR},
+		{"drop_operator", "DROP OPERATOR my_eq", "DROP", ast.OBJECT_OPERATOR},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adminDDLTest(t, tt.sql, tt.action, tt.obj)
+		})
+	}
+}
+
+// TestBatch69_LockdownProfileOutline tests CREATE/ALTER/DROP LOCKDOWN PROFILE and OUTLINE.
+func TestBatch69_LockdownProfileOutline(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		action string
+		obj    ast.ObjectType
+	}{
+		{"create_lockdown_profile", "CREATE LOCKDOWN PROFILE my_lockdown_prof", "CREATE", ast.OBJECT_LOCKDOWN_PROFILE},
+		{"alter_lockdown_profile", "ALTER LOCKDOWN PROFILE my_lockdown_prof DISABLE STATEMENT = ('ALTER SYSTEM')", "ALTER", ast.OBJECT_LOCKDOWN_PROFILE},
+		{"drop_lockdown_profile", "DROP LOCKDOWN PROFILE my_lockdown_prof", "DROP", ast.OBJECT_LOCKDOWN_PROFILE},
+		{"create_outline", "CREATE OUTLINE my_outline FOR CATEGORY my_cat ON SELECT * FROM t", "CREATE", ast.OBJECT_OUTLINE},
+		{"alter_outline", "ALTER OUTLINE my_outline RENAME TO my_outline2", "ALTER", ast.OBJECT_OUTLINE},
+		{"drop_outline", "DROP OUTLINE my_outline", "DROP", ast.OBJECT_OUTLINE},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adminDDLTest(t, tt.sql, tt.action, tt.obj)
+		})
+	}
+}
+
+// TestBatch70_MaterializedZonemapInmemoryJoinGroup tests CREATE/ALTER/DROP MATERIALIZED ZONEMAP and INMEMORY JOIN GROUP.
+func TestBatch70_MaterializedZonemapInmemoryJoinGroup(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		action string
+		obj    ast.ObjectType
+	}{
+		{"create_materialized_zonemap", "CREATE MATERIALIZED ZONEMAP sales_zmap ON sales (region_id, product_id)", "CREATE", ast.OBJECT_MATERIALIZED_ZONEMAP},
+		{"alter_materialized_zonemap", "ALTER MATERIALIZED ZONEMAP sales_zmap ENABLE PRUNING", "ALTER", ast.OBJECT_MATERIALIZED_ZONEMAP},
+		{"drop_materialized_zonemap", "DROP MATERIALIZED ZONEMAP sales_zmap", "DROP", ast.OBJECT_MATERIALIZED_ZONEMAP},
+		{"create_inmemory_join_group", "CREATE INMEMORY JOIN GROUP my_jg (t1(id), t2(t1_id))", "CREATE", ast.OBJECT_INMEMORY_JOIN_GROUP},
+		{"alter_inmemory_join_group", "ALTER INMEMORY JOIN GROUP my_jg ADD (t3(t1_id))", "ALTER", ast.OBJECT_INMEMORY_JOIN_GROUP},
+		{"drop_inmemory_join_group", "DROP INMEMORY JOIN GROUP my_jg", "DROP", ast.OBJECT_INMEMORY_JOIN_GROUP},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adminDDLTest(t, tt.sql, tt.action, tt.obj)
+		})
+	}
+}
+
+// TestBatch71_JsonDualityView tests CREATE/ALTER/DROP JSON RELATIONAL DUALITY VIEW.
+func TestBatch71_JsonDualityView(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		action string
+		obj    ast.ObjectType
+	}{
+		{"create_json_duality_view", "CREATE JSON RELATIONAL DUALITY VIEW emp_dv AS employees", "CREATE", ast.OBJECT_JSON_DUALITY_VIEW},
+		{"alter_json_duality_view", "ALTER JSON RELATIONAL DUALITY VIEW emp_dv RENAME TO emp_dv2", "ALTER", ast.OBJECT_JSON_DUALITY_VIEW},
+		{"drop_json_duality_view", "DROP JSON RELATIONAL DUALITY VIEW emp_dv", "DROP", ast.OBJECT_JSON_DUALITY_VIEW},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adminDDLTest(t, tt.sql, tt.action, tt.obj)
+		})
+	}
+}
+
+// TestBatch72_AlterMiscRound3 tests ALTER FLASHBACK ARCHIVE, ALTER RESOURCE COST, ALTER ROLLBACK SEGMENT.
+func TestBatch72_AlterMiscRound3(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		action string
+		obj    ast.ObjectType
+	}{
+		{"alter_flashback_archive", "ALTER FLASHBACK ARCHIVE fla1 SET DEFAULT", "ALTER", ast.OBJECT_FLASHBACK_ARCHIVE},
+		{"alter_flashback_archive_purge", "ALTER FLASHBACK ARCHIVE fla1 PURGE BEFORE TIMESTAMP SYSTIMESTAMP - 30", "ALTER", ast.OBJECT_FLASHBACK_ARCHIVE},
+		{"alter_resource_cost", "ALTER RESOURCE COST CPU_PER_SESSION 100", "ALTER", ast.OBJECT_RESOURCE_COST},
+		{"alter_rollback_segment", "ALTER ROLLBACK SEGMENT rbs1 ONLINE", "ALTER", ast.OBJECT_ROLLBACK_SEGMENT},
+		{"alter_rollback_segment_offline", "ALTER ROLLBACK SEGMENT rbs1 OFFLINE", "ALTER", ast.OBJECT_ROLLBACK_SEGMENT},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adminDDLTest(t, tt.sql, tt.action, tt.obj)
+		})
+	}
+}
+
+// TestBatch73_RollbackSegmentEdition tests CREATE/DROP ROLLBACK SEGMENT and EDITION.
+func TestBatch73_RollbackSegmentEdition(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		action string
+		obj    ast.ObjectType
+	}{
+		{"create_rollback_segment", "CREATE ROLLBACK SEGMENT rbs1 TABLESPACE undotbs", "CREATE", ast.OBJECT_ROLLBACK_SEGMENT},
+		{"drop_rollback_segment", "DROP ROLLBACK SEGMENT rbs1", "DROP", ast.OBJECT_ROLLBACK_SEGMENT},
+		{"create_edition", "CREATE EDITION e2 AS CHILD OF ora$base", "CREATE", ast.OBJECT_EDITION},
+		{"drop_edition", "DROP EDITION e2", "DROP", ast.OBJECT_EDITION},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adminDDLTest(t, tt.sql, tt.action, tt.obj)
+		})
+	}
+}
+
+// TestBatch74_TablespaceSet tests CREATE/ALTER/DROP TABLESPACE SET.
+func TestBatch74_TablespaceSet(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		action string
+		obj    ast.ObjectType
+	}{
+		{"create_tablespace_set", "CREATE TABLESPACE SET ts_set1 IN SHARDSPACE shardspace1 USING TEMPLATE (DATAFILE SIZE 100M)", "CREATE", ast.OBJECT_TABLESPACE_SET},
+		{"alter_tablespace_set", "ALTER TABLESPACE SET ts_set1 ADD DATAFILE SIZE 200M", "ALTER", ast.OBJECT_TABLESPACE_SET},
+		{"drop_tablespace_set", "DROP TABLESPACE SET ts_set1", "DROP", ast.OBJECT_TABLESPACE_SET},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adminDDLTest(t, tt.sql, tt.action, tt.obj)
+		})
+	}
+}
+
+// TestBatch75_MleEnvModule tests CREATE/DROP MLE ENV and MLE MODULE.
+func TestBatch75_MleEnvModule(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		action string
+		obj    ast.ObjectType
+	}{
+		{"create_mle_env", "CREATE MLE ENV my_env IMPORTS ('module1')", "CREATE", ast.OBJECT_MLE_ENV},
+		{"drop_mle_env", "DROP MLE ENV my_env", "DROP", ast.OBJECT_MLE_ENV},
+		{"create_mle_module", "CREATE MLE MODULE my_module LANGUAGE JAVASCRIPT AS 'export function hello() { return 1; }'", "CREATE", ast.OBJECT_MLE_MODULE},
+		{"drop_mle_module", "DROP MLE MODULE my_module", "DROP", ast.OBJECT_MLE_MODULE},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adminDDLTest(t, tt.sql, tt.action, tt.obj)
+		})
+	}
+}
+
+// TestBatch76_PfileSpfile tests CREATE PFILE and SPFILE.
+func TestBatch76_PfileSpfile(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		action string
+		obj    ast.ObjectType
+	}{
+		{"create_pfile", "CREATE PFILE FROM SPFILE", "CREATE", ast.OBJECT_PFILE},
+		{"create_pfile_named", "CREATE PFILE '/tmp/initTEST.ora' FROM SPFILE '/u01/app/oracle/dbs/spfileTEST.ora'", "CREATE", ast.OBJECT_PFILE},
+		{"create_spfile", "CREATE SPFILE FROM PFILE", "CREATE", ast.OBJECT_SPFILE},
+		{"create_spfile_named", "CREATE SPFILE '/u01/app/oracle/dbs/spfileTEST.ora' FROM PFILE '/tmp/initTEST.ora'", "CREATE", ast.OBJECT_SPFILE},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adminDDLTest(t, tt.sql, tt.action, tt.obj)
+		})
+	}
+}
+
+// TestBatch77_PropertyGraphVectorIndex tests CREATE PROPERTY GRAPH and VECTOR INDEX.
+func TestBatch77_PropertyGraphVectorIndex(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		action string
+		obj    ast.ObjectType
+	}{
+		{"create_property_graph", "CREATE PROPERTY GRAPH my_graph VERTEX TABLES (persons) EDGE TABLES (friendships)", "CREATE", ast.OBJECT_PROPERTY_GRAPH},
+		{"create_vector_index", "CREATE VECTOR INDEX vec_idx ON docs (embedding) ORGANIZATION NEIGHBOR PARTITIONS", "CREATE", ast.OBJECT_VECTOR_INDEX},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adminDDLTest(t, tt.sql, tt.action, tt.obj)
+		})
+	}
+}
+
+// TestBatch78_RestorePointMisc tests CREATE/DROP RESTORE POINT, LOGICAL PARTITION TRACKING, PMEM FILESTORE.
+func TestBatch78_RestorePointMisc(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		action string
+		obj    ast.ObjectType
+	}{
+		{"create_restore_point", "CREATE RESTORE POINT before_upgrade", "CREATE", ast.OBJECT_RESTORE_POINT},
+		{"create_restore_point_guaranteed", "CREATE RESTORE POINT before_upgrade GUARANTEE FLASHBACK DATABASE", "CREATE", ast.OBJECT_RESTORE_POINT},
+		{"drop_restore_point", "DROP RESTORE POINT before_upgrade", "DROP", ast.OBJECT_RESTORE_POINT},
+		{"create_logical_partition_tracking", "CREATE LOGICAL PARTITION TRACKING my_tracking ON my_table", "CREATE", ast.OBJECT_LOGICAL_PARTITION_TRACKING},
+		{"create_pmem_filestore", "CREATE PMEM FILESTORE my_pmem MOUNTPOINT '/pmem0' SIZE 100G", "CREATE", ast.OBJECT_PMEM_FILESTORE},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adminDDLTest(t, tt.sql, tt.action, tt.obj)
+		})
+	}
+}
+
+// TestBatch79_TruncateClusterDropTypeBody tests TRUNCATE CLUSTER and DROP TYPE BODY.
+func TestBatch79_TruncateClusterDropTypeBody(t *testing.T) {
+	// TRUNCATE CLUSTER
+	t.Run("truncate_cluster", func(t *testing.T) {
+		result := ParseAndCheck(t, "TRUNCATE CLUSTER my_cluster")
+		if result.Len() != 1 {
+			t.Fatalf("expected 1 statement, got %d", result.Len())
+		}
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.TruncateStmt)
+		if !ok {
+			t.Fatalf("expected *TruncateStmt, got %T", raw.Stmt)
+		}
+		if !stmt.Cluster {
+			t.Errorf("expected Cluster=true")
+		}
+	})
+
+	// TRUNCATE CLUSTER with options
+	t.Run("truncate_cluster_storage", func(t *testing.T) {
+		result := ParseAndCheck(t, "TRUNCATE CLUSTER my_cluster DROP STORAGE")
+		if result.Len() != 1 {
+			t.Fatalf("expected 1 statement, got %d", result.Len())
+		}
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.TruncateStmt)
+		if !ok {
+			t.Fatalf("expected *TruncateStmt, got %T", raw.Stmt)
+		}
+	})
+
+	// DROP TYPE BODY
+	t.Run("drop_type_body", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP TYPE BODY my_type")
+		if result.Len() != 1 {
+			t.Fatalf("expected 1 statement, got %d", result.Len())
+		}
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.DropStmt)
+		if !ok {
+			t.Fatalf("expected *DropStmt, got %T", raw.Stmt)
+		}
+		if stmt.ObjectType != ast.OBJECT_TYPE_BODY {
+			t.Errorf("expected OBJECT_TYPE_BODY, got %d", stmt.ObjectType)
+		}
+	})
+}

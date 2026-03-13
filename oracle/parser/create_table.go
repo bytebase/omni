@@ -90,6 +90,19 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			p.advance() // consume POLICY
 		}
 		return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_AUDIT_POLICY, start)
+	case kwJSON:
+		// CREATE JSON RELATIONAL DUALITY VIEW
+		p.advance() // consume JSON
+		if p.isIdentLike() && p.cur.Str == "RELATIONAL" {
+			p.advance() // consume RELATIONAL
+		}
+		if p.isIdentLike() && p.cur.Str == "DUALITY" {
+			p.advance() // consume DUALITY
+		}
+		if p.cur.Type == kwVIEW {
+			p.advance() // consume VIEW
+		}
+		return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_JSON_DUALITY_VIEW, start)
 	case kwUSER, kwROLE, kwPROFILE,
 		kwTABLESPACE, kwDIRECTORY, kwCONTEXT,
 		kwCLUSTER, kwJAVA, kwLIBRARY, kwSCHEMA:

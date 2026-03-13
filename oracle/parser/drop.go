@@ -35,6 +35,11 @@ func (p *Parser) parseDropStmt() nodes.StmtNode {
 		p.advance()
 	case kwMATERIALIZED:
 		p.advance() // consume MATERIALIZED
+		// Check for MATERIALIZED ZONEMAP
+		if p.isIdentLike() && p.cur.Str == "ZONEMAP" {
+			p.advance() // consume ZONEMAP
+			return p.parseAdminDDLStmt("DROP", nodes.OBJECT_MATERIALIZED_ZONEMAP, start)
+		}
 		if p.cur.Type == kwVIEW {
 			p.advance() // consume VIEW
 			// Check for MATERIALIZED VIEW LOG
@@ -101,6 +106,19 @@ func (p *Parser) parseDropStmt() nodes.StmtNode {
 			p.advance() // consume POLICY
 		}
 		return p.parseAdminDDLStmt("DROP", nodes.OBJECT_AUDIT_POLICY, start)
+	case kwJSON:
+		// DROP JSON RELATIONAL DUALITY VIEW
+		p.advance() // consume JSON
+		if p.isIdentLike() && p.cur.Str == "RELATIONAL" {
+			p.advance() // consume RELATIONAL
+		}
+		if p.isIdentLike() && p.cur.Str == "DUALITY" {
+			p.advance() // consume DUALITY
+		}
+		if p.cur.Type == kwVIEW {
+			p.advance() // consume VIEW
+		}
+		return p.parseAdminDDLStmt("DROP", nodes.OBJECT_JSON_DUALITY_VIEW, start)
 	case kwUSER, kwROLE, kwPROFILE,
 		kwTABLESPACE, kwDIRECTORY, kwCONTEXT,
 		kwCLUSTER, kwJAVA, kwLIBRARY:

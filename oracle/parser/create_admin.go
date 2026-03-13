@@ -9,6 +9,11 @@ import (
 // - CREATE MATERIALIZED VIEW ... (regular mview)
 func (p *Parser) parseCreateMaterializedOrView(start int, orReplace bool) nodes.StmtNode {
 	p.advance() // consume MATERIALIZED
+	// Check for MATERIALIZED ZONEMAP
+	if p.isIdentLike() && p.cur.Str == "ZONEMAP" {
+		p.advance() // consume ZONEMAP
+		return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_MATERIALIZED_ZONEMAP, start)
+	}
 	if p.cur.Type == kwVIEW {
 		next := p.peekNext()
 		if next.Type == kwLOG {
@@ -71,6 +76,11 @@ func (p *Parser) parseCreateAdminObject(start int) nodes.StmtNode {
 		return p.parseCreateProfileStmt(start, false)
 	case kwTABLESPACE:
 		p.advance()
+		// Check for TABLESPACE SET
+		if p.cur.Type == kwSET {
+			p.advance() // consume SET
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_TABLESPACE_SET, start)
+		}
 		return p.parseCreateTablespaceStmt(start, false, false, false, false)
 	case kwDIRECTORY:
 		p.advance()
@@ -118,9 +128,110 @@ func (p *Parser) parseCreateAdminObject(start int) nodes.StmtNode {
 					p.advance() // consume DATABASE
 				}
 				return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_PLUGGABLE_DATABASE, start)
+		case "ANALYTIC":
+			p.advance() // consume ANALYTIC
+			if p.cur.Type == kwVIEW {
+				p.advance() // consume VIEW
 			}
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_ANALYTIC_VIEW, start)
+		case "ATTRIBUTE":
+			p.advance() // consume ATTRIBUTE
+			if p.isIdentLike() && p.cur.Str == "DIMENSION" {
+				p.advance() // consume DIMENSION
+			}
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_ATTRIBUTE_DIMENSION, start)
+		case "HIERARCHY":
+			p.advance()
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_HIERARCHY, start)
+		case "DOMAIN":
+			p.advance()
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_DOMAIN, start)
+		case "INDEXTYPE":
+			p.advance()
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_INDEXTYPE, start)
+		case "OPERATOR":
+			p.advance()
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_OPERATOR, start)
+		case "LOCKDOWN":
+			p.advance() // consume LOCKDOWN
+			if p.cur.Type == kwPROFILE {
+				p.advance() // consume PROFILE
+			}
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_LOCKDOWN_PROFILE, start)
+		case "OUTLINE":
+			p.advance()
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_OUTLINE, start)
+		case "INMEMORY":
+			p.advance() // consume INMEMORY
+			if p.cur.Type == kwJOIN {
+				p.advance() // consume JOIN
+			}
+			if p.cur.Type == kwGROUP || (p.isIdentLike() && p.cur.Str == "GROUP") {
+				p.advance() // consume GROUP
+			}
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_INMEMORY_JOIN_GROUP, start)
+		case "ROLLBACK":
+			p.advance() // consume ROLLBACK
+			if p.isIdentLike() && p.cur.Str == "SEGMENT" {
+				p.advance() // consume SEGMENT
+			}
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_ROLLBACK_SEGMENT, start)
+		case "EDITION":
+			p.advance()
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_EDITION, start)
+		case "MLE":
+			p.advance() // consume MLE
+			if p.isIdentLike() && p.cur.Str == "ENV" {
+				p.advance() // consume ENV
+				return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_MLE_ENV, start)
+			}
+			if p.isIdentLike() && p.cur.Str == "MODULE" {
+				p.advance() // consume MODULE
+				return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_MLE_MODULE, start)
+			}
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_MLE_ENV, start)
+		case "PFILE":
+			p.advance()
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_PFILE, start)
+		case "SPFILE":
+			p.advance()
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_SPFILE, start)
+		case "PROPERTY":
+			p.advance() // consume PROPERTY
+			if p.isIdentLike() && p.cur.Str == "GRAPH" {
+				p.advance() // consume GRAPH
+			}
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_PROPERTY_GRAPH, start)
+		case "VECTOR":
+			p.advance() // consume VECTOR
+			if p.cur.Type == kwINDEX {
+				p.advance() // consume INDEX
+			}
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_VECTOR_INDEX, start)
+		case "RESTORE":
+			p.advance() // consume RESTORE
+			if p.isIdentLike() && p.cur.Str == "POINT" {
+				p.advance() // consume POINT
+			}
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_RESTORE_POINT, start)
+		case "LOGICAL":
+			p.advance() // consume LOGICAL
+			if p.cur.Type == kwPARTITION || (p.isIdentLike() && p.cur.Str == "PARTITION") {
+				p.advance() // consume PARTITION
+			}
+			if p.isIdentLike() && p.cur.Str == "TRACKING" {
+				p.advance() // consume TRACKING
+			}
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_LOGICAL_PARTITION_TRACKING, start)
+		case "PMEM":
+			p.advance() // consume PMEM
+			if p.isIdentLike() && p.cur.Str == "FILESTORE" {
+				p.advance() // consume FILESTORE
+			}
+			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_PMEM_FILESTORE, start)
 		}
-		return nil
+	}
+	return nil
 	}
 }
 
@@ -160,6 +271,10 @@ func (p *Parser) parseDropAdminObject(start int) nodes.StmtNode {
 		return stmt
 	case kwTABLESPACE:
 		p.advance()
+		if p.cur.Type == kwSET {
+			p.advance() // consume SET
+			return p.parseAdminDDLStmt("DROP", nodes.OBJECT_TABLESPACE_SET, start)
+		}
 		return p.parseAdminDDLStmt("DROP", nodes.OBJECT_TABLESPACE, start)
 	case kwDIRECTORY:
 		p.advance()
@@ -197,6 +312,101 @@ func (p *Parser) parseDropAdminObject(start int) nodes.StmtNode {
 					p.advance() // consume DATABASE
 				}
 				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_PLUGGABLE_DATABASE, start)
+			case "ANALYTIC":
+				p.advance() // consume ANALYTIC
+				if p.cur.Type == kwVIEW {
+					p.advance() // consume VIEW
+				}
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_ANALYTIC_VIEW, start)
+			case "ATTRIBUTE":
+				p.advance() // consume ATTRIBUTE
+				if p.isIdentLike() && p.cur.Str == "DIMENSION" {
+					p.advance() // consume DIMENSION
+				}
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_ATTRIBUTE_DIMENSION, start)
+			case "HIERARCHY":
+				p.advance()
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_HIERARCHY, start)
+			case "DOMAIN":
+				p.advance()
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_DOMAIN, start)
+			case "INDEXTYPE":
+				p.advance()
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_INDEXTYPE, start)
+			case "OPERATOR":
+				p.advance()
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_OPERATOR, start)
+			case "LOCKDOWN":
+				p.advance() // consume LOCKDOWN
+				if p.cur.Type == kwPROFILE {
+					p.advance() // consume PROFILE
+				}
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_LOCKDOWN_PROFILE, start)
+			case "OUTLINE":
+				p.advance()
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_OUTLINE, start)
+			case "INMEMORY":
+				p.advance() // consume INMEMORY
+				if p.cur.Type == kwJOIN {
+					p.advance() // consume JOIN
+				}
+				if p.cur.Type == kwGROUP || (p.isIdentLike() && p.cur.Str == "GROUP") {
+					p.advance() // consume GROUP
+				}
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_INMEMORY_JOIN_GROUP, start)
+			case "ROLLBACK":
+				p.advance() // consume ROLLBACK
+				if p.isIdentLike() && p.cur.Str == "SEGMENT" {
+					p.advance() // consume SEGMENT
+				}
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_ROLLBACK_SEGMENT, start)
+			case "EDITION":
+				p.advance()
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_EDITION, start)
+			case "MLE":
+				p.advance() // consume MLE
+				if p.isIdentLike() && p.cur.Str == "ENV" {
+					p.advance() // consume ENV
+					return p.parseAdminDDLStmt("DROP", nodes.OBJECT_MLE_ENV, start)
+				}
+				if p.isIdentLike() && p.cur.Str == "MODULE" {
+					p.advance() // consume MODULE
+					return p.parseAdminDDLStmt("DROP", nodes.OBJECT_MLE_MODULE, start)
+				}
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_MLE_ENV, start)
+			case "PROPERTY":
+				p.advance() // consume PROPERTY
+				if p.isIdentLike() && p.cur.Str == "GRAPH" {
+					p.advance() // consume GRAPH
+				}
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_PROPERTY_GRAPH, start)
+			case "VECTOR":
+				p.advance() // consume VECTOR
+				if p.cur.Type == kwINDEX {
+					p.advance() // consume INDEX
+				}
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_VECTOR_INDEX, start)
+			case "RESTORE":
+				p.advance() // consume RESTORE
+				if p.isIdentLike() && p.cur.Str == "POINT" {
+					p.advance() // consume POINT
+				}
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_RESTORE_POINT, start)
+			case "LOGICAL":
+				p.advance() // consume LOGICAL
+				if p.cur.Type == kwPARTITION || (p.isIdentLike() && p.cur.Str == "PARTITION") {
+					p.advance() // consume PARTITION
+				}
+				if p.isIdentLike() && p.cur.Str == "TRACKING" {
+					p.advance() // consume TRACKING
+				}
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_LOGICAL_PARTITION_TRACKING, start)
+			case "PMEM":
+				p.advance() // consume PMEM
+				if p.isIdentLike() && p.cur.Str == "FILESTORE" {
+					p.advance() // consume FILESTORE
+				}
+				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_PMEM_FILESTORE, start)
 			}
 		}
 		return nil
@@ -933,6 +1143,10 @@ func (p *Parser) parseAlterAdminObject(start int) nodes.StmtNode {
 		return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_PROFILE, start)
 	case kwTABLESPACE:
 		p.advance()
+		if p.cur.Type == kwSET {
+			p.advance() // consume SET
+			return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_TABLESPACE_SET, start)
+		}
 		return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_TABLESPACE, start)
 	case kwCLUSTER:
 		p.advance()
@@ -958,6 +1172,73 @@ func (p *Parser) parseAlterAdminObject(start int) nodes.StmtNode {
 					p.advance() // consume DATABASE
 				}
 				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_PLUGGABLE_DATABASE, start)
+			case "ANALYTIC":
+				p.advance() // consume ANALYTIC
+				if p.cur.Type == kwVIEW {
+					p.advance() // consume VIEW
+				}
+				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_ANALYTIC_VIEW, start)
+			case "ATTRIBUTE":
+				p.advance() // consume ATTRIBUTE
+				if p.isIdentLike() && p.cur.Str == "DIMENSION" {
+					p.advance() // consume DIMENSION
+				}
+				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_ATTRIBUTE_DIMENSION, start)
+			case "HIERARCHY":
+				p.advance()
+				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_HIERARCHY, start)
+			case "DOMAIN":
+				p.advance()
+				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_DOMAIN, start)
+			case "INDEXTYPE":
+				p.advance()
+				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_INDEXTYPE, start)
+			case "OPERATOR":
+				p.advance()
+				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_OPERATOR, start)
+			case "LOCKDOWN":
+				p.advance() // consume LOCKDOWN
+				if p.cur.Type == kwPROFILE {
+					p.advance() // consume PROFILE
+				}
+				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_LOCKDOWN_PROFILE, start)
+			case "OUTLINE":
+				p.advance()
+				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_OUTLINE, start)
+			case "INMEMORY":
+				p.advance() // consume INMEMORY
+				if p.cur.Type == kwJOIN {
+					p.advance() // consume JOIN
+				}
+				if p.cur.Type == kwGROUP || (p.isIdentLike() && p.cur.Str == "GROUP") {
+					p.advance() // consume GROUP
+				}
+				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_INMEMORY_JOIN_GROUP, start)
+			case "FLASHBACK":
+				p.advance() // consume FLASHBACK
+				if p.isIdentLike() && p.cur.Str == "ARCHIVE" {
+					p.advance() // consume ARCHIVE
+				}
+				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_FLASHBACK_ARCHIVE, start)
+			case "RESOURCE":
+				p.advance() // consume RESOURCE
+				if p.isIdentLike() && p.cur.Str == "COST" {
+					p.advance() // consume COST
+				}
+				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_RESOURCE_COST, start)
+			case "ROLLBACK":
+				p.advance() // consume ROLLBACK
+				if p.isIdentLike() && p.cur.Str == "SEGMENT" {
+					p.advance() // consume SEGMENT
+				}
+				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_ROLLBACK_SEGMENT, start)
+			case "MATERIALIZED":
+				p.advance() // consume MATERIALIZED (already a keyword, handled above for MVIEW)
+				if p.isIdentLike() && p.cur.Str == "ZONEMAP" {
+					p.advance() // consume ZONEMAP
+					return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_MATERIALIZED_ZONEMAP, start)
+				}
+				return nil
 			}
 		}
 		return nil
