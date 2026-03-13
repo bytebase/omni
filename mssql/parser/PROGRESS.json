@@ -3109,9 +3109,17 @@
       "file": "utility.go",
       "status": "done",
       "description": "Fix batch 111 gap: replace string concatenation and p.advance() // skip unexpected in COPY INTO column list parsing (lines 840-888) with structured CopyIntoColumn AST nodes containing column name, optional DEFAULT value, and optional field_number. The skip unexpected at line 877 silently drops malformed tokens instead of raising a parse error.",
-      "rules": ["parseCopyIntoColumnListStructured"],
-      "depends_on": [111],
-      "tests": ["copy_into_column_structured", "copy_into_column_default", "copy_into_column_error"]
+      "rules": [
+        "parseCopyIntoColumnListStructured"
+      ],
+      "depends_on": [
+        111
+      ],
+      "tests": [
+        "copy_into_column_structured",
+        "copy_into_column_default",
+        "copy_into_column_error"
+      ]
     },
     {
       "id": 145,
@@ -3119,9 +3127,16 @@
       "file": "service_broker.go",
       "status": "done",
       "description": "Fix batch 72 gap: replace string concatenation for RECEIVE column list (lines 450-496) with structured ReceiveColumn AST nodes containing expression, optional alias, and optional INTO. Currently builds COLUMNS=col1 AS alias,col2 as a flat string, losing AST structure. Also replace FROM=, INTO=, TOP= string formatting with typed ReceiveOption nodes.",
-      "rules": ["parseReceiveColumnListStructured"],
-      "depends_on": [72],
-      "tests": ["receive_column_structured", "receive_column_alias_structured"]
+      "rules": [
+        "parseReceiveColumnListStructured"
+      ],
+      "depends_on": [
+        72
+      ],
+      "tests": [
+        "receive_column_structured",
+        "receive_column_alias_structured"
+      ]
     },
     {
       "id": 146,
@@ -3129,9 +3144,16 @@
       "file": "utility.go",
       "status": "done",
       "description": "New: KILL QUERY NOTIFICATION SUBSCRIPTION statement. BNF: KILL QUERY NOTIFICATION SUBSCRIPTION { ALL | subscription_id }. Current parseKillStmt() uses parseExpr() for session_id which misparses multi-keyword variants. Add explicit dispatch for QUERY NOTIFICATION SUBSCRIPTION before falling through to parseExpr().",
-      "rules": ["parseKillQueryNotificationStmt"],
-      "depends_on": [47],
-      "tests": ["kill_query_notification_all", "kill_query_notification_id"]
+      "rules": [
+        "parseKillQueryNotificationStmt"
+      ],
+      "depends_on": [
+        47
+      ],
+      "tests": [
+        "kill_query_notification_all",
+        "kill_query_notification_id"
+      ]
     },
     {
       "id": 147,
@@ -3139,9 +3161,17 @@
       "file": "create_database.go",
       "status": "done",
       "description": "Fix batch 76 gap: replace parseSizeValue() strings.Builder (line 312) with structured SizeValue AST node containing numeric value and unit (KB/MB/GB/TB/%). Currently returns plain string like '10MB'. This is the last non-lexer strings.Builder usage in the parser.",
-      "rules": ["parseSizeValueStructured"],
-      "depends_on": [76],
-      "tests": ["size_value_mb", "size_value_percent", "size_value_unlimited"]
+      "rules": [
+        "parseSizeValueStructured"
+      ],
+      "depends_on": [
+        76
+      ],
+      "tests": [
+        "size_value_mb",
+        "size_value_percent",
+        "size_value_unlimited"
+      ]
     },
     {
       "id": 148,
@@ -3149,9 +3179,19 @@
       "file": "service_broker.go",
       "status": "done",
       "description": "Fix batch 72/100 gap: replace 41 remaining nodes.String key=value concatenations in service_broker.go with typed AST nodes. Major areas: BEGIN CONVERSATION options (FROM SERVICE=, TO SERVICE=, ON CONTRACT=, RELATED_CONVERSATION=, LIFETIME=, ENCRYPTION= at lines 563-636), END CONVERSATION options (ERROR=, DESCRIPTION=, CLEANUP at lines 699-715), CREATE QUEUE options (STATUS=, RETENTION=, POISON_MESSAGE_HANDLING=, ACTIVATION: at lines 189-327), ALTER route/binding/service WITH options (lines 786-1018).",
-      "rules": ["parseServiceBrokerOptionsStructuredFinal"],
-      "depends_on": [72, 100, 145],
-      "tests": ["begin_conversation_opts_final", "end_conversation_opts_final", "create_queue_opts_final"]
+      "rules": [
+        "parseServiceBrokerOptionsStructuredFinal"
+      ],
+      "depends_on": [
+        72,
+        100,
+        145
+      ],
+      "tests": [
+        "begin_conversation_opts_final",
+        "end_conversation_opts_final",
+        "create_queue_opts_final"
+      ]
     },
     {
       "id": 149,
@@ -3159,19 +3199,38 @@
       "file": "availability.go",
       "status": "done",
       "description": "Fix batch 125/142 gap: replace 40 remaining nodes.String concatenations in availability.go with typed AST nodes. Major areas: ALTER AG action types (WITH, FOR DATABASE, REPLICA ON, ADD/REMOVE/MODIFY DATABASE/REPLICA/LISTENER at lines 239-399), key=value option pairs (lines 424-429), IP address tuple strings (lines 497-504), nested option key=value pairs (lines 523-540). Many were partially structured in batches 115/125/142 but still emit nodes.String.",
-      "rules": ["parseAvailabilityGroupOptionsStructuredFinal"],
-      "depends_on": [115, 125, 142],
-      "tests": ["ag_alter_actions_final", "ag_key_value_opts_final", "ag_ip_tuples_final"]
+      "rules": [
+        "parseAvailabilityGroupOptionsStructuredFinal"
+      ],
+      "depends_on": [
+        115,
+        125,
+        142
+      ],
+      "tests": [
+        "ag_alter_actions_final",
+        "ag_key_value_opts_final",
+        "ag_ip_tuples_final"
+      ]
     },
     {
       "id": 150,
       "name": "server_config_strings_depth",
       "file": "server.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 126 gap: replace 32 remaining nodes.String key=value concatenations in server.go with typed AST nodes. Major areas: CREATE/ALTER SERVER ROLE options (AUTHORIZATION=, ADD MEMBER=, DROP MEMBER= at lines 35-100), ALTER SERVER CONFIGURATION options (key=AUTO, key=val, ON/OFF, FILENAME=, SIZE=, CONTEXT= at lines 296-664). These were partially structured in batches 114/126 but still use nodes.String for option values.",
-      "rules": ["parseServerOptionsStructuredFinal"],
-      "depends_on": [60, 114, 126],
-      "tests": ["server_role_opts_final", "server_config_opts_final"]
+      "rules": [
+        "parseServerOptionsStructuredFinal"
+      ],
+      "depends_on": [
+        60,
+        114,
+        126
+      ],
+      "tests": [
+        "server_role_opts_final",
+        "server_config_opts_final"
+      ]
     },
     {
       "id": 151,
@@ -3179,9 +3238,17 @@
       "file": "endpoint.go",
       "status": "pending",
       "description": "Fix batch 133 gap: replace 28 remaining nodes.String key=value concatenations in endpoint.go with typed AST nodes. Major areas: SERVICE_BROKER payload options (MESSAGE_FORWARD_SIZE=, ROLE= at lines 514-547), DATABASE_MIRRORING payload options (key=value at lines 543-547). These options were partially structured in batches 99/107/116/133 but payload-specific options still use nodes.String.",
-      "rules": ["parseEndpointPayloadOptionsStructuredFinal"],
-      "depends_on": [99, 133],
-      "tests": ["endpoint_service_broker_payload_final", "endpoint_mirroring_payload_final"]
+      "rules": [
+        "parseEndpointPayloadOptionsStructuredFinal"
+      ],
+      "depends_on": [
+        99,
+        133
+      ],
+      "tests": [
+        "endpoint_service_broker_payload_final",
+        "endpoint_mirroring_payload_final"
+      ]
     },
     {
       "id": 152,
@@ -3189,9 +3256,17 @@
       "file": "alter_table.go",
       "status": "pending",
       "description": "Fix batch 70 gap: replace 16 remaining nodes.String values in alter_table.go with typed AST nodes. ALTER COLUMN extended options (ADD/DROP ROWGUIDCOL, PERSISTED, SPARSE, HIDDEN, MASKED, NOT FOR REPLICATION at lines 406-448) use nodes.String for action type and option name instead of typed AlterColumnOption enum nodes.",
-      "rules": ["parseAlterColumnOptionsTyped"],
-      "depends_on": [70, 82],
-      "tests": ["alter_column_options_typed", "alter_column_not_for_replication_typed"]
+      "rules": [
+        "parseAlterColumnOptionsTyped"
+      ],
+      "depends_on": [
+        70,
+        82
+      ],
+      "tests": [
+        "alter_column_options_typed",
+        "alter_column_not_for_replication_typed"
+      ]
     },
     {
       "id": 153,
@@ -3199,9 +3274,18 @@
       "file": "create_trigger.go",
       "status": "pending",
       "description": "Fix batch 89 gap: replace 9 remaining nodes.String values in create_trigger.go with typed AST nodes. Trigger event list (INSERT, UPDATE, DELETE, LOGON at lines 106-118) uses nodes.String instead of typed TriggerEvent enum. WITH options (ENCRYPTION, EXECUTE AS, NATIVE_COMPILATION, SCHEMABINDING at lines 184-205) use nodes.String instead of typed TriggerOption nodes.",
-      "rules": ["parseTriggerEventsTyped", "parseTriggerOptionsTyped"],
-      "depends_on": [24, 89],
-      "tests": ["trigger_events_typed", "trigger_options_typed"]
+      "rules": [
+        "parseTriggerEventsTyped",
+        "parseTriggerOptionsTyped"
+      ],
+      "depends_on": [
+        24,
+        89
+      ],
+      "tests": [
+        "trigger_events_typed",
+        "trigger_options_typed"
+      ]
     },
     {
       "id": 154,
@@ -3209,9 +3293,16 @@
       "file": "assembly.go",
       "status": "pending",
       "description": "Fix batch 45 gap: replace 5 remaining nodes.String values in assembly.go with typed AST nodes. ALTER ASSEMBLY actions (FROM=path, permission_set, DROP FILE, ADD FILE at lines 110-155) use nodes.String for action type and value instead of typed AssemblyAction nodes. CREATE ASSEMBLY file list (line 47) uses nodes.String for file paths.",
-      "rules": ["parseAssemblyActionsTyped"],
-      "depends_on": [45],
-      "tests": ["assembly_actions_typed", "assembly_files_typed"]
+      "rules": [
+        "parseAssemblyActionsTyped"
+      ],
+      "depends_on": [
+        45
+      ],
+      "tests": [
+        "assembly_actions_typed",
+        "assembly_files_typed"
+      ]
     }
   ],
   "audit_round": 18

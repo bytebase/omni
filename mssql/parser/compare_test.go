@@ -6035,7 +6035,7 @@ func TestParseExternalLanguage(t *testing.T) {
 	}
 }
 
-// agOptStr extracts the display string from an AG option node (AvailabilityGroupOption or String).
+// agOptStr extracts the display string from an AG option node (AvailabilityGroupOption, ServerConfigOption, or String).
 func agOptStr(n ast.Node) string {
 	switch opt := n.(type) {
 	case *ast.AvailabilityGroupOption:
@@ -6044,6 +6044,11 @@ func agOptStr(n ast.Node) string {
 		}
 		if opt.Name == "" {
 			return opt.Value
+		}
+		return opt.Name + "=" + opt.Value
+	case *ast.ServerConfigOption:
+		if opt.Value == "" {
+			return opt.Name
 		}
 		return opt.Name + "=" + opt.Value
 	case *ast.String:
@@ -12906,7 +12911,13 @@ func TestParseServerConfigOptionsDepth(t *testing.T) {
 					t.Fatalf("Parse(%q): got %d options %v, want %d %v", tt.sql, len(stmt.Options.Items), gotStrs, len(tt.wantOpts), tt.wantOpts)
 				}
 				for i, want := range tt.wantOpts {
-					got := stmt.Options.Items[i].(*ast.String).Str
+					opt := stmt.Options.Items[i].(*ast.ServerConfigOption)
+					var got string
+					if opt.Value != "" {
+						got = opt.Name + "=" + opt.Value
+					} else {
+						got = opt.Name
+					}
 					if got != want {
 						t.Errorf("Parse(%q): option[%d] = %q, want %q", tt.sql, i, got, want)
 					}
@@ -14802,7 +14813,13 @@ func TestParseServerConfigRemainingDepth(t *testing.T) {
 					t.Fatalf("Parse(%q): got %d options %v, want %d %v", tt.sql, len(stmt.Options.Items), gotStrs, len(tt.wantOpts), tt.wantOpts)
 				}
 				for i, want := range tt.wantOpts {
-					got := stmt.Options.Items[i].(*ast.String).Str
+					opt := stmt.Options.Items[i].(*ast.ServerConfigOption)
+					var got string
+					if opt.Value != "" {
+						got = opt.Name + "=" + opt.Value
+					} else {
+						got = opt.Name
+					}
 					if got != want {
 						t.Errorf("Parse(%q): option[%d] = %q, want %q", tt.sql, i, got, want)
 					}
@@ -14863,7 +14880,13 @@ func TestParseServerConfigRemainingDepth(t *testing.T) {
 					t.Fatalf("Parse(%q): got %d options %v, want %d %v", tt.sql, len(stmt.Options.Items), gotStrs, len(tt.wantOpts), tt.wantOpts)
 				}
 				for i, want := range tt.wantOpts {
-					got := stmt.Options.Items[i].(*ast.String).Str
+					opt := stmt.Options.Items[i].(*ast.ServerConfigOption)
+					var got string
+					if opt.Value != "" {
+						got = opt.Name + "=" + opt.Value
+					} else {
+						got = opt.Name
+					}
 					if got != want {
 						t.Errorf("Parse(%q): option[%d] = %q, want %q", tt.sql, i, got, want)
 					}
@@ -16805,6 +16828,291 @@ func TestParseAvailabilityOptionsStringsFinal(t *testing.T) {
 		opt := getOpt(t, result, 0)
 		if opt.Name != "ADD DATABASE" || opt.Value != "TestDB" {
 			t.Errorf("option[0] = %q/%q, want ADD DATABASE/TestDB", opt.Name, opt.Value)
+		}
+	})
+}
+
+// TestParseServerConfigStringsDepth tests batch 150: replace nodes.String
+// concatenations in server.go with typed ServerConfigOption AST nodes.
+func TestParseServerConfigStringsDepth(t *testing.T) {
+	getSrvOpt := func(t *testing.T, result *ast.List, idx int) *ast.ServerConfigOption {
+		t.Helper()
+		if result.Len() != 1 {
+			t.Fatalf("expected 1 statement, got %d", result.Len())
+		}
+		switch stmt := result.Items[0].(type) {
+		case *ast.AlterServerConfigurationStmt:
+			if stmt.Options == nil || idx >= len(stmt.Options.Items) {
+				t.Fatalf("option index %d out of range", idx)
+			}
+			opt, ok := stmt.Options.Items[idx].(*ast.ServerConfigOption)
+			if !ok {
+				t.Fatalf("option[%d]: expected *ServerConfigOption, got %T", idx, stmt.Options.Items[idx])
+			}
+			return opt
+		case *ast.SecurityStmt:
+			if stmt.Options == nil || idx >= len(stmt.Options.Items) {
+				t.Fatalf("option index %d out of range", idx)
+			}
+			opt, ok := stmt.Options.Items[idx].(*ast.ServerConfigOption)
+			if !ok {
+				t.Fatalf("option[%d]: expected *ServerConfigOption, got %T", idx, stmt.Options.Items[idx])
+			}
+			return opt
+		default:
+			t.Fatalf("unexpected statement type: %T", result.Items[0])
+			return nil
+		}
+	}
+
+	// server_role_opts_final: CREATE SERVER ROLE with AUTHORIZATION
+	t.Run("server_role_authorization", func(t *testing.T) {
+		sql := "CREATE SERVER ROLE auditors AUTHORIZATION securityadmin"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "AUTHORIZATION" || opt.Value != "securityadmin" {
+			t.Errorf("option[0] = %q/%q, want AUTHORIZATION/securityadmin", opt.Name, opt.Value)
+		}
+	})
+
+	// server_role_opts_final: ALTER SERVER ROLE ADD MEMBER
+	t.Run("server_role_add_member", func(t *testing.T) {
+		sql := "ALTER SERVER ROLE sysadmin ADD MEMBER TestLogin"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "ADD MEMBER" || opt.Value != "TestLogin" {
+			t.Errorf("option[0] = %q/%q, want ADD MEMBER/TestLogin", opt.Name, opt.Value)
+		}
+	})
+
+	// server_role_opts_final: ALTER SERVER ROLE DROP MEMBER
+	t.Run("server_role_drop_member", func(t *testing.T) {
+		sql := "ALTER SERVER ROLE diskadmin DROP MEMBER TestLogin"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "DROP MEMBER" || opt.Value != "TestLogin" {
+			t.Errorf("option[0] = %q/%q, want DROP MEMBER/TestLogin", opt.Name, opt.Value)
+		}
+	})
+
+	// server_role_opts_final: ALTER SERVER ROLE WITH NAME
+	t.Run("server_role_with_name", func(t *testing.T) {
+		sql := "ALTER SERVER ROLE buyers WITH NAME = purchasing"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "NAME" || opt.Value != "purchasing" {
+			t.Errorf("option[0] = %q/%q, want NAME/purchasing", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: PROCESS AFFINITY CPU = AUTO
+	t.Run("config_process_affinity_auto", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = AUTO"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "CPU" || opt.Value != "AUTO" {
+			t.Errorf("option[0] = %q/%q, want CPU/AUTO", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: PROCESS AFFINITY CPU range
+	t.Run("config_process_affinity_range", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET PROCESS AFFINITY CPU = 0 TO 3, 8 TO 11"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "CPU" || opt.Value != "0 TO 3, 8 TO 11" {
+			t.Errorf("option[0] = %q/%q, want CPU/0 TO 3, 8 TO 11", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: DIAGNOSTICS LOG ON
+	t.Run("config_diagnostics_on", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG ON"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "ON" || opt.Value != "" {
+			t.Errorf("option[0] = %q/%q, want ON/empty", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: DIAGNOSTICS LOG OFF
+	t.Run("config_diagnostics_off", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG OFF"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "OFF" || opt.Value != "" {
+			t.Errorf("option[0] = %q/%q, want OFF/empty", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: DIAGNOSTICS LOG PATH
+	t.Run("config_diagnostics_path", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG PATH = 'C:\\Logs'"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "PATH" || opt.Value != "'C:\\Logs'" {
+			t.Errorf("option[0] = %q/%q, want PATH/'C:\\Logs'", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: DIAGNOSTICS LOG MAX_SIZE DEFAULT
+	t.Run("config_diagnostics_max_size_default", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = DEFAULT"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "MAX_SIZE" || opt.Value != "DEFAULT" {
+			t.Errorf("option[0] = %q/%q, want MAX_SIZE/DEFAULT", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: DIAGNOSTICS LOG MAX_SIZE with MB
+	t.Run("config_diagnostics_max_size_mb", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_SIZE = 20 MB"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "MAX_SIZE" || opt.Value != "20 MB" {
+			t.Errorf("option[0] = %q/%q, want MAX_SIZE/20 MB", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: DIAGNOSTICS LOG MAX_FILES
+	t.Run("config_diagnostics_max_files", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG MAX_FILES = 10"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "MAX_FILES" || opt.Value != "10" {
+			t.Errorf("option[0] = %q/%q, want MAX_FILES/10", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: FAILOVER CLUSTER PROPERTY key=string
+	t.Run("config_failover_cluster_string", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY VerboseLogging = '7'"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "VerboseLogging" || opt.Value != "'7'" {
+			t.Errorf("option[0] = %q/%q, want VerboseLogging/'7'", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: FAILOVER CLUSTER PROPERTY key=DEFAULT
+	t.Run("config_failover_cluster_default", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET FAILOVER CLUSTER PROPERTY HealthCheckTimeout = DEFAULT"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "HealthCheckTimeout" || opt.Value != "DEFAULT" {
+			t.Errorf("option[0] = %q/%q, want HealthCheckTimeout/DEFAULT", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: HADR CLUSTER CONTEXT
+	t.Run("config_hadr_cluster_string", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET HADR CLUSTER CONTEXT = 'clus01.xyz.com'"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "CONTEXT" || opt.Value != "'clus01.xyz.com'" {
+			t.Errorf("option[0] = %q/%q, want CONTEXT/'clus01.xyz.com'", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: HADR CLUSTER CONTEXT = LOCAL
+	t.Run("config_hadr_cluster_local", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET HADR CLUSTER CONTEXT = LOCAL"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "CONTEXT" || opt.Value != "LOCAL" {
+			t.Errorf("option[0] = %q/%q, want CONTEXT/LOCAL", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: BUFFER POOL EXTENSION OFF
+	t.Run("config_buffer_pool_off", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION OFF"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "OFF" || opt.Value != "" {
+			t.Errorf("option[0] = %q/%q, want OFF/empty", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: BUFFER POOL EXTENSION ON with FILENAME and SIZE
+	t.Run("config_buffer_pool_on", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET BUFFER POOL EXTENSION ON (FILENAME = 'C:\\BPE.bpe', SIZE = 10 GB)"
+		result := ParseAndCheck(t, sql)
+		if result.Len() != 1 {
+			t.Fatalf("expected 1 statement, got %d", result.Len())
+		}
+		stmt := result.Items[0].(*ast.AlterServerConfigurationStmt)
+		if stmt.Options == nil || len(stmt.Options.Items) < 3 {
+			t.Fatalf("expected at least 3 options, got %d", len(stmt.Options.Items))
+		}
+		opt0 := stmt.Options.Items[0].(*ast.ServerConfigOption)
+		if opt0.Name != "ON" {
+			t.Errorf("option[0] = %q/%q, want ON/empty", opt0.Name, opt0.Value)
+		}
+		opt1 := stmt.Options.Items[1].(*ast.ServerConfigOption)
+		if opt1.Name != "FILENAME" || opt1.Value != "'C:\\BPE.bpe'" {
+			t.Errorf("option[1] = %q/%q, want FILENAME/'C:\\BPE.bpe'", opt1.Name, opt1.Value)
+		}
+		opt2 := stmt.Options.Items[2].(*ast.ServerConfigOption)
+		if opt2.Name != "SIZE" || opt2.Value != "10 GB" {
+			t.Errorf("option[2] = %q/%q, want SIZE/10 GB", opt2.Name, opt2.Value)
+		}
+	})
+
+	// server_config_opts_final: SOFTNUMA ON/OFF
+	t.Run("config_softnuma_on", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET SOFTNUMA ON"
+		result := ParseAndCheck(t, sql)
+		opt := getSrvOpt(t, result, 0)
+		if opt.Name != "ON" || opt.Value != "" {
+			t.Errorf("option[0] = %q/%q, want ON/empty", opt.Name, opt.Value)
+		}
+	})
+
+	// server_config_opts_final: MEMORY_OPTIMIZED TEMPDB_METADATA ON with RESOURCE_POOL
+	t.Run("config_memory_optimized_tempdb", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET MEMORY_OPTIMIZED TEMPDB_METADATA = ON (RESOURCE_POOL = 'mypool')"
+		result := ParseAndCheck(t, sql)
+		if result.Len() != 1 {
+			t.Fatalf("expected 1 statement, got %d", result.Len())
+		}
+		stmt := result.Items[0].(*ast.AlterServerConfigurationStmt)
+		if stmt.Options == nil || len(stmt.Options.Items) < 2 {
+			t.Fatalf("expected at least 2 options, got %d", len(stmt.Options.Items))
+		}
+		opt0 := stmt.Options.Items[0].(*ast.ServerConfigOption)
+		if opt0.Name != "TEMPDB_METADATA" || opt0.Value != "ON" {
+			t.Errorf("option[0] = %q/%q, want TEMPDB_METADATA/ON", opt0.Name, opt0.Value)
+		}
+		opt1 := stmt.Options.Items[1].(*ast.ServerConfigOption)
+		if opt1.Name != "RESOURCE_POOL" || opt1.Value != "'mypool'" {
+			t.Errorf("option[1] = %q/%q, want RESOURCE_POOL/'mypool'", opt1.Name, opt1.Value)
+		}
+	})
+
+	// server_config_opts_final: SUSPEND_FOR_SNAPSHOT_BACKUP ON with GROUP and MODE
+	t.Run("config_suspend_snapshot_group", func(t *testing.T) {
+		sql := "ALTER SERVER CONFIGURATION SET SUSPEND_FOR_SNAPSHOT_BACKUP = ON (GROUP = (db1, db2), MODE = COPY_ONLY)"
+		result := ParseAndCheck(t, sql)
+		if result.Len() != 1 {
+			t.Fatalf("expected 1 statement, got %d", result.Len())
+		}
+		stmt := result.Items[0].(*ast.AlterServerConfigurationStmt)
+		if stmt.Options == nil || len(stmt.Options.Items) < 3 {
+			t.Fatalf("expected at least 3 options, got %d", len(stmt.Options.Items))
+		}
+		opt0 := stmt.Options.Items[0].(*ast.ServerConfigOption)
+		if opt0.Name != "ON" {
+			t.Errorf("option[0] = %q/%q, want ON/empty", opt0.Name, opt0.Value)
+		}
+		opt1 := stmt.Options.Items[1].(*ast.ServerConfigOption)
+		if opt1.Name != "GROUP" || opt1.Value != "db1, db2" {
+			t.Errorf("option[1] = %q/%q, want GROUP/db1, db2", opt1.Name, opt1.Value)
+		}
+		opt2 := stmt.Options.Items[2].(*ast.ServerConfigOption)
+		if opt2.Name != "MODE" || opt2.Value != "COPY_ONLY" {
+			t.Errorf("option[2] = %q/%q, want MODE/COPY_ONLY", opt2.Name, opt2.Value)
 		}
 	})
 }

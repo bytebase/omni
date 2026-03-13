@@ -384,6 +384,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCubeExpr(sb, n)
 	case *AlterServerConfigurationStmt:
 		writeAlterServerConfigurationStmt(sb, n)
+	case *ServerConfigOption:
+		writeServerConfigOption(sb, n)
 	case *CreateFulltextStoplistStmt:
 		writeCreateFulltextStoplistStmt(sb, n)
 	case *AlterFulltextStoplistStmt:
@@ -3449,6 +3451,16 @@ func writeAlterServerConfigurationStmt(sb *strings.Builder, n *AlterServerConfig
 	if n.Options != nil && len(n.Options.Items) > 0 {
 		sb.WriteString(" :options ")
 		writeNode(sb, n.Options)
+	}
+	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
+	sb.WriteString("}")
+}
+
+func writeServerConfigOption(sb *strings.Builder, n *ServerConfigOption) {
+	sb.WriteString("{SRVOPT")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	if n.Value != "" {
+		fmt.Fprintf(sb, " :value \"%s\"", escapeString(n.Value))
 	}
 	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")

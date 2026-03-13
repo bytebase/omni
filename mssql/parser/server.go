@@ -29,10 +29,11 @@ func (p *Parser) parseCreateServerRoleStmt() *nodes.SecurityStmt {
 
 	// [ AUTHORIZATION server_principal ]
 	if p.cur.Type == kwAUTHORIZATION {
+		optLoc := p.pos()
 		p.advance() // consume AUTHORIZATION
 		var opts []nodes.Node
 		if owner, ok := p.parseIdentifier(); ok {
-			opts = append(opts, &nodes.String{Str: "AUTHORIZATION=" + owner})
+			opts = append(opts, &nodes.ServerConfigOption{Name: "AUTHORIZATION", Value: owner, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		}
 		stmt.Options = &nodes.List{Items: opts}
 	}
@@ -68,20 +69,22 @@ func (p *Parser) parseAlterServerRoleStmt() *nodes.SecurityStmt {
 
 	// ADD MEMBER | DROP MEMBER | WITH NAME = new_name
 	if p.cur.Type == kwADD {
+		optLoc := p.pos()
 		p.advance() // consume ADD
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MEMBER") {
 			p.advance() // consume MEMBER
 		}
 		if member, ok := p.parseIdentifier(); ok {
-			opts = append(opts, &nodes.String{Str: "ADD MEMBER=" + member})
+			opts = append(opts, &nodes.ServerConfigOption{Name: "ADD MEMBER", Value: member, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		}
 	} else if p.cur.Type == kwDROP {
+		optLoc := p.pos()
 		p.advance() // consume DROP
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MEMBER") {
 			p.advance() // consume MEMBER
 		}
 		if member, ok := p.parseIdentifier(); ok {
-			opts = append(opts, &nodes.String{Str: "DROP MEMBER=" + member})
+			opts = append(opts, &nodes.ServerConfigOption{Name: "DROP MEMBER", Value: member, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		}
 	} else if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
@@ -89,15 +92,16 @@ func (p *Parser) parseAlterServerRoleStmt() *nodes.SecurityStmt {
 			if !p.isIdentLike() {
 				break
 			}
+			optLoc := p.pos()
 			key := p.cur.Str
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 				if val, ok := p.parseIdentifier(); ok {
-					opts = append(opts, &nodes.String{Str: key + "=" + val})
+					opts = append(opts, &nodes.ServerConfigOption{Name: key, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 				}
 			} else {
-				opts = append(opts, &nodes.String{Str: key})
+				opts = append(opts, &nodes.ServerConfigOption{Name: key, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 			}
 			if _, ok := p.match(','); !ok {
 				break
@@ -283,6 +287,7 @@ func (p *Parser) parseServerConfigProcessAffinity() []nodes.Node {
 		return opts
 	}
 
+	optLoc := p.pos()
 	key := p.cur.Str // CPU or NUMANODE
 	p.advance()
 
@@ -293,29 +298,33 @@ func (p *Parser) parseServerConfigProcessAffinity() []nodes.Node {
 
 	// Check for AUTO
 	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AUTO") {
-		opts = append(opts, &nodes.String{Str: key + "=AUTO"})
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: key, Value: "AUTO", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		return opts
 	}
 
 	// Parse range spec: { ID | ID TO ID } [ ,...n ]
-	var ranges []string
+	var sb strings.Builder
+	first := true
 	for {
 		if p.cur.Type != tokICONST {
 			break
 		}
+		if !first {
+			sb.WriteString(", ")
+		}
+		first = false
 		startID := p.cur.Str
 		p.advance()
 
 		if p.cur.Type == kwTO {
 			p.advance() // consume TO
 			if p.cur.Type == tokICONST {
-				endID := p.cur.Str
+				sb.WriteString(startID + " TO " + p.cur.Str)
 				p.advance()
-				ranges = append(ranges, startID+" TO "+endID)
 			}
 		} else {
-			ranges = append(ranges, startID)
+			sb.WriteString(startID)
 		}
 
 		if p.cur.Type != ',' {
@@ -324,14 +333,7 @@ func (p *Parser) parseServerConfigProcessAffinity() []nodes.Node {
 		p.advance() // consume comma
 	}
 
-	val := ""
-	for i, r := range ranges {
-		if i > 0 {
-			val += ", "
-		}
-		val += r
-	}
-	opts = append(opts, &nodes.String{Str: key + "=" + val})
+	opts = append(opts, &nodes.ServerConfigOption{Name: key, Value: sb.String(), Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 	return opts
 }
 
@@ -343,13 +345,15 @@ func (p *Parser) parseServerConfigDiagnosticsLog() []nodes.Node {
 
 	// ON / OFF
 	if p.cur.Type == kwON {
-		opts = append(opts, &nodes.String{Str: "ON"})
+		optLoc := p.pos()
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: "ON", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		return opts
 	}
 	if p.cur.Type == kwOFF {
-		opts = append(opts, &nodes.String{Str: "OFF"})
+		optLoc := p.pos()
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: "OFF", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		return opts
 	}
 
@@ -358,6 +362,7 @@ func (p *Parser) parseServerConfigDiagnosticsLog() []nodes.Node {
 		return opts
 	}
 
+	optLoc := p.pos()
 	key := strings.ToUpper(p.cur.Str) // PATH, MAX_SIZE, MAX_FILES
 	p.advance()
 
@@ -368,15 +373,16 @@ func (p *Parser) parseServerConfigDiagnosticsLog() []nodes.Node {
 
 	// DEFAULT
 	if p.cur.Type == kwDEFAULT {
-		opts = append(opts, &nodes.String{Str: key + "=DEFAULT"})
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: key, Value: "DEFAULT", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		return opts
 	}
 
 	// String constant (for PATH)
 	if p.cur.Type == tokSCONST {
-		opts = append(opts, &nodes.String{Str: key + "='" + p.cur.Str + "'"})
+		val := "'" + p.cur.Str + "'"
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: key, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		return opts
 	}
 
@@ -389,7 +395,7 @@ func (p *Parser) parseServerConfigDiagnosticsLog() []nodes.Node {
 			val += " MB"
 			p.advance()
 		}
-		opts = append(opts, &nodes.String{Str: key + "=" + val})
+		opts = append(opts, &nodes.ServerConfigOption{Name: key, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		return opts
 	}
 
@@ -415,6 +421,7 @@ func (p *Parser) parseServerConfigFailoverClusterProperty() []nodes.Node {
 		return opts
 	}
 
+	optLoc := p.pos()
 	key := p.cur.Str
 	p.advance()
 
@@ -425,22 +432,24 @@ func (p *Parser) parseServerConfigFailoverClusterProperty() []nodes.Node {
 
 	// DEFAULT
 	if p.cur.Type == kwDEFAULT {
-		opts = append(opts, &nodes.String{Str: key + "=DEFAULT"})
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: key, Value: "DEFAULT", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		return opts
 	}
 
 	// String constant
 	if p.cur.Type == tokSCONST {
-		opts = append(opts, &nodes.String{Str: key + "='" + p.cur.Str + "'"})
+		val := "'" + p.cur.Str + "'"
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: key, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		return opts
 	}
 
 	// Integer constant
 	if p.cur.Type == tokICONST {
-		opts = append(opts, &nodes.String{Str: key + "=" + p.cur.Str})
+		val := p.cur.Str
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: key, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		return opts
 	}
 
@@ -451,6 +460,7 @@ func (p *Parser) parseServerConfigFailoverClusterProperty() []nodes.Node {
 func (p *Parser) parseServerConfigHadrCluster() []nodes.Node {
 	var opts []nodes.Node
 
+	optLoc := p.pos()
 	// Consume =
 	if p.cur.Type == '=' {
 		p.advance()
@@ -458,11 +468,12 @@ func (p *Parser) parseServerConfigHadrCluster() []nodes.Node {
 
 	// String constant or LOCAL
 	if p.cur.Type == tokSCONST {
-		opts = append(opts, &nodes.String{Str: "CONTEXT='" + p.cur.Str + "'"})
+		val := "'" + p.cur.Str + "'"
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: "CONTEXT", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LOCAL") {
-		opts = append(opts, &nodes.String{Str: "CONTEXT=LOCAL"})
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: "CONTEXT", Value: "LOCAL", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 	}
 
 	return opts
@@ -476,14 +487,16 @@ func (p *Parser) parseServerConfigBufferPoolExtension() []nodes.Node {
 	var opts []nodes.Node
 
 	if p.cur.Type == kwOFF {
-		opts = append(opts, &nodes.String{Str: "OFF"})
+		optLoc := p.pos()
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: "OFF", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		return opts
 	}
 
 	if p.cur.Type == kwON {
-		opts = append(opts, &nodes.String{Str: "ON"})
+		optLoc := p.pos()
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: "ON", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 
 		// ( FILENAME = 'path', SIZE = <size_spec> )
 		if p.cur.Type == '(' {
@@ -496,6 +509,7 @@ func (p *Parser) parseServerConfigBufferPoolExtension() []nodes.Node {
 				if !p.isIdentLike() {
 					break // unexpected token - stop parsing options
 				}
+				subLoc := p.pos()
 				key := p.cur.Str // FILENAME or SIZE
 				p.advance()
 
@@ -505,8 +519,9 @@ func (p *Parser) parseServerConfigBufferPoolExtension() []nodes.Node {
 
 				if matchesKeywordCI(key, "FILENAME") {
 					if p.cur.Type == tokSCONST {
-						opts = append(opts, &nodes.String{Str: "FILENAME='" + p.cur.Str + "'"})
+						val := "'" + p.cur.Str + "'"
 						p.advance()
+						opts = append(opts, &nodes.ServerConfigOption{Name: "FILENAME", Value: val, Loc: nodes.Loc{Start: subLoc, End: p.pos()}})
 					}
 				} else if matchesKeywordCI(key, "SIZE") {
 					if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
@@ -520,7 +535,7 @@ func (p *Parser) parseServerConfigBufferPoolExtension() []nodes.Node {
 								p.advance()
 							}
 						}
-						opts = append(opts, &nodes.String{Str: "SIZE=" + val})
+						opts = append(opts, &nodes.ServerConfigOption{Name: "SIZE", Value: val, Loc: nodes.Loc{Start: subLoc, End: p.pos()}})
 					}
 				} else {
 					break // unknown option key - stop parsing
@@ -539,11 +554,13 @@ func (p *Parser) parseServerConfigBufferPoolExtension() []nodes.Node {
 func (p *Parser) parseServerConfigOnOff() []nodes.Node {
 	var opts []nodes.Node
 	if p.cur.Type == kwON {
-		opts = append(opts, &nodes.String{Str: "ON"})
+		optLoc := p.pos()
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: "ON", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 	} else if p.cur.Type == kwOFF {
-		opts = append(opts, &nodes.String{Str: "OFF"})
+		optLoc := p.pos()
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: "OFF", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 	}
 	return opts
 }
@@ -556,13 +573,15 @@ func (p *Parser) parseServerConfigMemoryOptimized() []nodes.Node {
 
 	// Direct ON/OFF
 	if p.cur.Type == kwON {
-		opts = append(opts, &nodes.String{Str: "ON"})
+		optLoc := p.pos()
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: "ON", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		return opts
 	}
 	if p.cur.Type == kwOFF {
-		opts = append(opts, &nodes.String{Str: "OFF"})
+		optLoc := p.pos()
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: "OFF", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		return opts
 	}
 
@@ -571,6 +590,7 @@ func (p *Parser) parseServerConfigMemoryOptimized() []nodes.Node {
 		return opts
 	}
 
+	optLoc := p.pos()
 	key := p.cur.Str
 	p.advance()
 
@@ -580,20 +600,22 @@ func (p *Parser) parseServerConfigMemoryOptimized() []nodes.Node {
 	}
 
 	if p.cur.Type == kwON {
-		opts = append(opts, &nodes.String{Str: key + "=ON"})
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: key, Value: "ON", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 
 		// Check for (RESOURCE_POOL = 'pool_name') -- only for TEMPDB_METADATA
 		if matchesKeywordCI(key, "TEMPDB_METADATA") && p.cur.Type == '(' {
 			p.advance() // consume (
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "RESOURCE_POOL") {
+				subLoc := p.pos()
 				p.advance() // consume RESOURCE_POOL
 				if p.cur.Type == '=' {
 					p.advance() // consume =
 				}
 				if p.cur.Type == tokSCONST {
-					opts = append(opts, &nodes.String{Str: "RESOURCE_POOL='" + p.cur.Str + "'"})
+					val := "'" + p.cur.Str + "'"
 					p.advance()
+					opts = append(opts, &nodes.ServerConfigOption{Name: "RESOURCE_POOL", Value: val, Loc: nodes.Loc{Start: subLoc, End: p.pos()}})
 				}
 			}
 			if p.cur.Type == ')' {
@@ -601,8 +623,8 @@ func (p *Parser) parseServerConfigMemoryOptimized() []nodes.Node {
 			}
 		}
 	} else if p.cur.Type == kwOFF {
-		opts = append(opts, &nodes.String{Str: key + "=OFF"})
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: key, Value: "OFF", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 	}
 
 	return opts
@@ -620,11 +642,13 @@ func (p *Parser) parseServerConfigSuspendForSnapshotBackup() []nodes.Node {
 	}
 
 	if p.cur.Type == kwON {
-		opts = append(opts, &nodes.String{Str: "ON"})
+		optLoc := p.pos()
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: "ON", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 	} else if p.cur.Type == kwOFF {
-		opts = append(opts, &nodes.String{Str: "OFF"})
+		optLoc := p.pos()
 		p.advance()
+		opts = append(opts, &nodes.ServerConfigOption{Name: "OFF", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
 		return opts
 	}
 
@@ -641,6 +665,7 @@ func (p *Parser) parseServerConfigSuspendForSnapshotBackup() []nodes.Node {
 				break // unexpected token
 			}
 			if matchesKeywordCI(p.cur.Str, "GROUP") {
+				subLoc := p.pos()
 				p.advance() // consume GROUP
 				if p.cur.Type == '=' {
 					p.advance() // consume =
@@ -661,16 +686,18 @@ func (p *Parser) parseServerConfigSuspendForSnapshotBackup() []nodes.Node {
 					if p.cur.Type == ')' {
 						p.advance() // consume inner )
 					}
-					opts = append(opts, &nodes.String{Str: "GROUP=" + strings.Join(dbs, ", ")})
+					opts = append(opts, &nodes.ServerConfigOption{Name: "GROUP", Value: strings.Join(dbs, ", "), Loc: nodes.Loc{Start: subLoc, End: p.pos()}})
 				}
 			} else if matchesKeywordCI(p.cur.Str, "MODE") {
+				subLoc := p.pos()
 				p.advance() // consume MODE
 				if p.cur.Type == '=' {
 					p.advance() // consume =
 				}
 				if p.isIdentLike() {
-					opts = append(opts, &nodes.String{Str: "MODE=" + p.cur.Str})
+					val := p.cur.Str
 					p.advance()
+					opts = append(opts, &nodes.ServerConfigOption{Name: "MODE", Value: val, Loc: nodes.Loc{Start: subLoc, End: p.pos()}})
 				}
 			} else {
 				break // unknown option - stop parsing

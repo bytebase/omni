@@ -2702,12 +2702,32 @@ func (n *CubeExpr) exprNode() {}
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-server-configuration-transact-sql
 type AlterServerConfigurationStmt struct {
 	OptionType string // e.g. "PROCESS AFFINITY", "DIAGNOSTICS LOG", "BUFFER POOL EXTENSION", etc.
-	Options    *List  // list of String nodes for key=value pairs
+	Options    *List  // list of *ServerConfigOption nodes
 	Loc        Loc
 }
 
 func (n *AlterServerConfigurationStmt) nodeTag()  {}
 func (n *AlterServerConfigurationStmt) stmtNode() {}
+
+// ServerConfigOption represents a typed option in server-level statements.
+// Used by ALTER SERVER CONFIGURATION, CREATE/ALTER SERVER ROLE.
+// Replaces nodes.String key=value concatenations with structured Name + Value pairs.
+//
+// Examples:
+//   - ON/OFF flags: Name="ON", Value=""
+//   - Key=value: Name="CPU", Value="AUTO"
+//   - Key=range: Name="CPU", Value="0 TO 3, 8 TO 11"
+//   - File paths: Name="FILENAME", Value="'/path/to/file'"
+//   - Size specs: Name="SIZE", Value="10 GB"
+//   - Actions: Name="AUTHORIZATION", Value="securityadmin"
+//   - Sub-options: Name="RESOURCE_POOL", Value="'mypool'"
+type ServerConfigOption struct {
+	Name  string // option name (e.g., CPU, FILENAME, SIZE, ON, OFF, AUTHORIZATION)
+	Value string // option value (may be empty for flag-like options)
+	Loc   Loc
+}
+
+func (n *ServerConfigOption) nodeTag() {}
 
 // ---------- Batch 61: FULLTEXT STOPLIST / SEARCH PROPERTY LIST ----------
 
