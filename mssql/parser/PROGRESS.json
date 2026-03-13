@@ -2579,7 +2579,7 @@
       "id": 116,
       "name": "endpoint_unknown_protocol_skip",
       "file": "endpoint.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 107 gap: remaining skipParenthesized() call at line 183 in parseEndpointOptions() for non-TCP/non-HTTP protocols. Should parse the parenthesized options structurally as key=value pairs or raise a parse error for truly unknown protocols.",
       "rules": [
         "parseEndpointGenericProtocolOptions"

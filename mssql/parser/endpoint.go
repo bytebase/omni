@@ -177,10 +177,10 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 				p.advance()
 				p.parseEndpointProtocolHTTPOptions(&opts)
 			} else if p.isIdentLike() {
-				// Unknown protocol - consume as generic
+				// Unknown protocol - parse as generic key=value options
 				opts = append(opts, &nodes.String{Str: "AS=" + strings.ToUpper(p.cur.Str)})
 				p.advance()
-				p.skipParenthesized()
+				p.parseEndpointGenericProtocolOptions(&opts)
 			}
 
 		case p.cur.Type == kwFOR:
@@ -264,6 +264,52 @@ func (p *Parser) parseEndpointProtocolTCPOptions(opts *[]nodes.Node) {
 			} else if p.isIdentLike() || p.cur.Type == tokSCONST {
 				*opts = append(*opts, &nodes.String{Str: "LISTENER_IP=" + p.cur.Str})
 				p.advance()
+			}
+		} else {
+			p.advance()
+		}
+	}
+
+	p.match(')') // consume ')'
+}
+
+// parseEndpointGenericProtocolOptions parses protocol options for unknown/future protocols
+// as generic key=value pairs.
+//
+//	( key = value [ , key = value ] ... )
+func (p *Parser) parseEndpointGenericProtocolOptions(opts *[]nodes.Node) {
+	if p.cur.Type != '(' {
+		return
+	}
+	p.advance() // consume '('
+
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		if p.cur.Type == ',' {
+			p.advance()
+			continue
+		}
+
+		if p.isIdentLike() {
+			key := strings.ToUpper(p.cur.Str)
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+				if p.cur.Type == '(' {
+					// Parenthesized value list
+					inner := p.parseNestedParens()
+					*opts = append(*opts, &nodes.String{Str: key + "=(" + inner + ")"})
+				} else if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+					val := strings.ToUpper(p.cur.Str)
+					if p.cur.Type == tokSCONST {
+						val = "'" + p.cur.Str + "'"
+					} else if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+						val = p.cur.Str
+					}
+					*opts = append(*opts, &nodes.String{Str: key + "=" + val})
+					p.advance()
+				}
+			} else {
+				*opts = append(*opts, &nodes.String{Str: key})
 			}
 		} else {
 			p.advance()

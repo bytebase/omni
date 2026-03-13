@@ -11069,6 +11069,82 @@ func TestParseEndpointHTTPOptions(t *testing.T) {
 	}
 }
 
+// TestParseEndpointUnknownProtocolOptions tests batch 116: unknown protocol structured options.
+func TestParseEndpointUnknownProtocolOptions(t *testing.T) {
+	tests := []struct {
+		sql      string
+		wantOpts []string
+	}{
+		// Unknown protocol with key=value options
+		{
+			sql: "CREATE ENDPOINT ep1 AS CUSTOM_PROTO (OPTION_A = value1, OPTION_B = 42) FOR TSQL ()",
+			wantOpts: []string{
+				"AS=CUSTOM_PROTO",
+				"OPTION_A=VALUE1",
+				"OPTION_B=42",
+				"FOR=TSQL",
+			},
+		},
+		// Unknown protocol with string values
+		{
+			sql: "CREATE ENDPOINT ep1 AS MYPROTO (LISTENER_ADDRESS = '10.0.0.1', PORT = 8080) FOR TSQL ()",
+			wantOpts: []string{
+				"AS=MYPROTO",
+				"LISTENER_ADDRESS='10.0.0.1'",
+				"PORT=8080",
+				"FOR=TSQL",
+			},
+		},
+		// Unknown protocol with single option
+		{
+			sql: "CREATE ENDPOINT ep1 AS SOMEPROTO (PARAM1 = enabled) FOR TSQL ()",
+			wantOpts: []string{
+				"AS=SOMEPROTO",
+				"PARAM1=ENABLED",
+				"FOR=TSQL",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.SecurityStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", tt.sql, result.Items[0])
+			}
+			if stmt.Options == nil || len(stmt.Options.Items) < len(tt.wantOpts) {
+				var gotStrs []string
+				if stmt.Options != nil {
+					for _, item := range stmt.Options.Items {
+						gotStrs = append(gotStrs, item.(*ast.String).Str)
+					}
+				}
+				t.Fatalf("Parse(%q): got %d options %v, want at least %d %v", tt.sql, len(gotStrs), gotStrs, len(tt.wantOpts), tt.wantOpts)
+			}
+			for _, want := range tt.wantOpts {
+				found := false
+				for _, item := range stmt.Options.Items {
+					if item.(*ast.String).Str == want {
+						found = true
+						break
+					}
+				}
+				if !found {
+					var gotStrs []string
+					for _, item := range stmt.Options.Items {
+						gotStrs = append(gotStrs, item.(*ast.String).Str)
+					}
+					t.Errorf("Parse(%q): expected option %q not found in %v", tt.sql, want, gotStrs)
+				}
+			}
+			checkLocation(t, tt.sql, "SecurityStmt", stmt.Loc)
+		})
+	}
+}
+
 // TestParseExternalModel tests batch 108: CREATE/ALTER/DROP EXTERNAL MODEL.
 func TestParseExternalModel(t *testing.T) {
 	tests := []struct {
