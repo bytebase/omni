@@ -388,6 +388,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateJsonIndexStmt(sb, n)
 	case *CreateVectorIndexStmt:
 		writeCreateVectorIndexStmt(sb, n)
+	case *CreateMaterializedViewStmt:
+		writeCreateMaterializedViewStmt(sb, n)
+	case *AlterMaterializedViewStmt:
+		writeAlterMaterializedViewStmt(sb, n)
 	default:
 		sb.WriteString("{UNKNOWN}")
 	}
@@ -3436,4 +3440,41 @@ func escapeString(s string) string {
 		}
 	}
 	return sb.String()
+}
+
+func writeCreateMaterializedViewStmt(sb *strings.Builder, n *CreateMaterializedViewStmt) {
+	sb.WriteString("{CREATEMATERIALIZEDVIEW")
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Distribution != "" {
+		sb.WriteString(fmt.Sprintf(" :distribution \"%s\"", escapeString(n.Distribution)))
+	}
+	if n.HashColumns != nil {
+		sb.WriteString(" :hashColumns ")
+		writeNode(sb, n.HashColumns)
+	}
+	if n.ForAppend {
+		sb.WriteString(" :forAppend true")
+	}
+	if n.Query != nil {
+		sb.WriteString(" :query ")
+		writeNode(sb, n.Query)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterMaterializedViewStmt(sb *strings.Builder, n *AlterMaterializedViewStmt) {
+	sb.WriteString("{ALTERMATERIALIZEDVIEW")
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Action != "" {
+		sb.WriteString(fmt.Sprintf(" :action \"%s\"", escapeString(n.Action)))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
 }

@@ -378,6 +378,16 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			return stmt
 		}
 		return nil
+	case kwMATERIALIZED:
+		// CREATE MATERIALIZED VIEW
+		p.advance() // consume MATERIALIZED
+		if p.cur.Type == kwVIEW {
+			p.advance() // consume VIEW
+			stmt := p.parseCreateMaterializedViewStmt()
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		return nil
 	case kwVIEW:
 		p.advance() // consume VIEW
 		stmt := p.parseCreateViewStmt(orAlter)
@@ -911,6 +921,16 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		stmt := p.parseAlterIndexStmt()
 		stmt.Loc.Start = loc
 		return stmt
+	case kwMATERIALIZED:
+		// ALTER MATERIALIZED VIEW
+		p.advance() // consume MATERIALIZED
+		if p.cur.Type == kwVIEW {
+			p.advance() // consume VIEW
+			stmt := p.parseAlterMaterializedViewStmt()
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		return nil
 	case kwVIEW:
 		p.advance() // consume VIEW
 		stmt := p.parseCreateViewStmt(true /* orAlter */)

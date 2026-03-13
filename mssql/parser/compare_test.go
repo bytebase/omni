@@ -11205,3 +11205,101 @@ func TestParseJsonVectorIndex(t *testing.T) {
 		})
 	}
 }
+
+// TestParseMaterializedView tests CREATE/ALTER/DROP MATERIALIZED VIEW parsing (batch 110).
+func TestParseMaterializedView(t *testing.T) {
+	// --- CREATE MATERIALIZED VIEW tests ---
+	createTests := []string{
+		// Basic with HASH distribution
+		"CREATE MATERIALIZED VIEW dbo.mv_sales WITH (DISTRIBUTION = HASH(region)) AS SELECT region, SUM(amount) AS total FROM sales GROUP BY region",
+		// With ROUND_ROBIN distribution
+		"CREATE MATERIALIZED VIEW mv_test WITH (DISTRIBUTION = ROUND_ROBIN) AS SELECT a, COUNT_BIG(*) AS cnt FROM t GROUP BY a",
+		// Multi-column HASH distribution
+		"CREATE MATERIALIZED VIEW dbo.mv_multi WITH (DISTRIBUTION = HASH(col1, col2)) AS SELECT col1, col2, SUM(val) AS total FROM t GROUP BY col1, col2",
+		// With FOR_APPEND option
+		"CREATE MATERIALIZED VIEW mv_minmax WITH (DISTRIBUTION = HASH(id), FOR_APPEND) AS SELECT id, MAX(start_date) AS max_date, MIN(end_date) AS min_date FROM items GROUP BY id",
+		// Schema-qualified view name
+		"CREATE MATERIALIZED VIEW sales.mv_orders WITH (DISTRIBUTION = ROUND_ROBIN) AS SELECT order_date, COUNT_BIG(*) AS order_count FROM orders GROUP BY order_date",
+		// With join in SELECT
+		"CREATE MATERIALIZED VIEW dbo.mv_join WITH (DISTRIBUTION = HASH(vendor_id)) AS SELECT a.vendor_id, SUM(a.total_amount) AS s, COUNT_BIG(*) AS c FROM t1 a INNER JOIN t2 b ON a.vendor_id = b.vendor_id GROUP BY a.vendor_id",
+	}
+	for _, sql := range createTests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.CreateMaterializedViewStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *CreateMaterializedViewStmt, got %T", sql, result.Items[0])
+			}
+			if stmt.Name == nil {
+				t.Errorf("Parse(%q): Name is nil", sql)
+			}
+			if stmt.Distribution == "" {
+				t.Errorf("Parse(%q): Distribution is empty", sql)
+			}
+			if stmt.Query == nil {
+				t.Errorf("Parse(%q): Query is nil", sql)
+			}
+			checkLocation(t, sql, "CreateMaterializedViewStmt", stmt.Loc)
+		})
+	}
+
+	// --- ALTER MATERIALIZED VIEW tests ---
+	alterTests := []struct {
+		sql    string
+		action string
+	}{
+		// REBUILD
+		{"ALTER MATERIALIZED VIEW dbo.mv_sales REBUILD", "REBUILD"},
+		// DISABLE
+		{"ALTER MATERIALIZED VIEW mv_test DISABLE", "DISABLE"},
+		// Schema-qualified REBUILD
+		{"ALTER MATERIALIZED VIEW sales.mv_orders REBUILD", "REBUILD"},
+		// Schema-qualified DISABLE
+		{"ALTER MATERIALIZED VIEW sales.mv_orders DISABLE", "DISABLE"},
+	}
+	for _, tc := range alterTests {
+		t.Run(tc.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tc.sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", tc.sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.AlterMaterializedViewStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *AlterMaterializedViewStmt, got %T", tc.sql, result.Items[0])
+			}
+			if stmt.Name == nil {
+				t.Errorf("Parse(%q): Name is nil", tc.sql)
+			}
+			if !strings.EqualFold(stmt.Action, tc.action) {
+				t.Errorf("Parse(%q): Action = %q, want %q", tc.sql, stmt.Action, tc.action)
+			}
+			checkLocation(t, tc.sql, "AlterMaterializedViewStmt", stmt.Loc)
+		})
+	}
+
+	// --- DROP MATERIALIZED VIEW tests ---
+	dropTests := []string{
+		"DROP MATERIALIZED VIEW dbo.mv_sales",
+		"DROP MATERIALIZED VIEW mv_test",
+		"DROP MATERIALIZED VIEW IF EXISTS sales.mv_orders",
+	}
+	for _, sql := range dropTests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.DropStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *DropStmt, got %T", sql, result.Items[0])
+			}
+			if stmt.ObjectType != ast.DropMaterializedView {
+				t.Errorf("Parse(%q): ObjectType = %d, want DropMaterializedView", sql, stmt.ObjectType)
+			}
+			checkLocation(t, sql, "DropStmt", stmt.Loc)
+		})
+	}
+}

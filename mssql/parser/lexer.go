@@ -145,6 +145,7 @@ const (
 	kwLINENO
 	kwLOAD
 	kwLOGIN
+	kwMATERIALIZED
 	kwMAX
 	kwMERGE
 	kwNATIONAL
@@ -299,7 +300,7 @@ func init() {
 		"key": kwKEY, "kill": kwKILL,
 		"left": kwLEFT, "like": kwLIKE, "lineno": kwLINENO, "load": kwLOAD,
 		"login": kwLOGIN,
-		"max":   kwMAX, "merge": kwMERGE,
+		"materialized": kwMATERIALIZED, "max": kwMAX, "merge": kwMERGE,
 		"national": kwNATIONAL, "nocheck": kwNOCHECK, "nocount": kwNOCOUNT,
 		"nolock": kwNOLOCK, "nonclustered": kwNONCLUSTERED, "not": kwNOT,
 		"nowait": kwNOWAIT, "null": kwNULL, "nullif": kwNULLIF,

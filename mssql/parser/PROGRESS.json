@@ -2455,7 +2455,7 @@
       "id": 110,
       "name": "materialized_view",
       "file": "create_view.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE MATERIALIZED VIEW AS SELECT, ALTER MATERIALIZED VIEW (REBUILD/DISABLE), DROP MATERIALIZED VIEW (Azure Synapse/Fabric). WITH (DISTRIBUTION = HASH/ROUND_ROBIN) option",
       "rules": [
         "parseCreateMaterializedViewStmt",

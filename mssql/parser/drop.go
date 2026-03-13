@@ -25,6 +25,13 @@ func (p *Parser) parseDropStmt() *nodes.DropStmt {
 	case kwTABLE:
 		stmt.ObjectType = nodes.DropTable
 		p.advance()
+	case kwMATERIALIZED:
+		// DROP MATERIALIZED VIEW
+		p.advance() // consume MATERIALIZED
+		if p.cur.Type == kwVIEW {
+			stmt.ObjectType = nodes.DropMaterializedView
+			p.advance()
+		}
 	case kwVIEW:
 		stmt.ObjectType = nodes.DropView
 		p.advance()

@@ -528,6 +528,7 @@ const (
 	DropXmlSchemaCollection
 	DropFulltextIndex
 	DropFulltextCatalog
+	DropMaterializedView
 )
 
 // CreateIndexStmt represents a CREATE INDEX statement.
@@ -2694,3 +2695,48 @@ type CreateVectorIndexStmt struct {
 
 func (n *CreateVectorIndexStmt) nodeTag()  {}
 func (n *CreateVectorIndexStmt) stmtNode() {}
+
+// CreateMaterializedViewStmt represents a CREATE MATERIALIZED VIEW AS SELECT statement.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-materialized-view-as-select-transact-sql
+//
+//	CREATE MATERIALIZED VIEW [ schema_name. ] materialized_view_name
+//	    WITH (
+//	      <distribution_option>
+//	      [, FOR_APPEND ]
+//	    )
+//	    AS <select_statement>
+//
+//	<distribution_option> ::=
+//	    {
+//	        DISTRIBUTION = HASH ( distribution_column_name [, ...n] )
+//	      | DISTRIBUTION = ROUND_ROBIN
+//	    }
+type CreateMaterializedViewStmt struct {
+	Name         *TableRef // view name (may include schema)
+	Distribution string    // "HASH" or "ROUND_ROBIN"
+	HashColumns  *List     // columns for HASH distribution
+	ForAppend    bool      // FOR_APPEND option
+	Query        StmtNode  // the SELECT statement
+	Loc          Loc
+}
+
+func (n *CreateMaterializedViewStmt) nodeTag()  {}
+func (n *CreateMaterializedViewStmt) stmtNode() {}
+
+// AlterMaterializedViewStmt represents an ALTER MATERIALIZED VIEW statement.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-materialized-view-transact-sql
+//
+//	ALTER MATERIALIZED VIEW [ schema_name. ] view_name
+//	{
+//	    REBUILD | DISABLE
+//	}
+type AlterMaterializedViewStmt struct {
+	Name   *TableRef // view name (may include schema)
+	Action string    // "REBUILD" or "DISABLE"
+	Loc    Loc
+}
+
+func (n *AlterMaterializedViewStmt) nodeTag()  {}
+func (n *AlterMaterializedViewStmt) stmtNode() {}
