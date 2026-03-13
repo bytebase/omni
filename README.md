@@ -9,14 +9,14 @@ SQL toolchain for multiple database engines. Each engine provides a parser, AST,
 - **Position tracking** -- every AST node carries byte-offset location info
 - **Beyond parsing** -- catalog simulation, DDL semantic analysis, and more per engine
 
-## Engine Status
+## Status
 
-| Engine | Package | Batches | Status |
-|--------|---------|---------|--------|
-| PostgreSQL | `pg/` | 74/77 | Production-ready, 3 minor gaps |
-| MySQL | `mysql/` | 97/97 | Complete |
-| SQL Server | `mssql/` | 108/108 | Complete |
-| Oracle | `oracle/` | 60/80 | In progress |
+| Engine | Parser | Catalog | Completion |
+|--------|--------|---------|------------|
+| PostgreSQL | :white_check_mark: | :white_check_mark: | Planned |
+| MySQL | :construction: | Planned | Planned |
+| SQL Server | :construction: | Planned | Planned |
+| Oracle | :construction: | Planned | Planned |
 
 ## Quick Start
 
