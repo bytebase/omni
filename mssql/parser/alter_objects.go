@@ -131,11 +131,27 @@ func (p *Parser) parseAlterDatabaseStmt() *nodes.AlterDatabaseStmt {
 			stmt.Action = "REMOVE"
 			p.parseAlterDatabaseRemove(stmt)
 		default:
-			// Unknown action - record and skip
+			// Unknown action - record and collect remaining tokens as options
 			stmt.Action = action
 			p.advance()
+			var opts []nodes.Node
 			for p.cur.Type != tokEOF && p.cur.Type != ';' && !p.isStatementStart() {
-				p.advance()
+				if p.cur.Type == '(' {
+					inner := p.parseNestedParens()
+					if inner != "" {
+						opts = append(opts, &nodes.String{Str: "(" + inner + ")"})
+					}
+				} else if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
+					opts = append(opts, &nodes.String{Str: strings.ToUpper(p.cur.Str)})
+					p.advance()
+				} else if p.cur.Type == '=' || p.cur.Type == ',' {
+					p.advance()
+				} else {
+					p.advance()
+				}
+			}
+			if len(opts) > 0 {
+				stmt.Options = &nodes.List{Items: opts}
 			}
 		}
 	}
@@ -205,6 +221,39 @@ func (p *Parser) parseAlterDatabaseSetOption() string {
 		"READ_ONLY", "READ_WRITE",
 		"ENABLE_BROKER", "DISABLE_BROKER", "NEW_BROKER", "ERROR_BROKER_CONVERSATIONS":
 		return key
+	}
+
+	// SET PARTNER (database mirroring)
+	// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-database-transact-sql-database-mirroring
+	//
+	//   SET PARTNER { = 'partner_server' | FAILOVER | FORCE_SERVICE_ALLOW_DATA_LOSS
+	//     | OFF | RESUME | SAFETY { FULL | OFF } | SUSPEND | TIMEOUT integer }
+	if key == "PARTNER" {
+		return p.parseAlterDatabaseSetPartner()
+	}
+
+	// SET WITNESS (database mirroring)
+	//   SET WITNESS { = 'witness_server' | OFF }
+	if key == "WITNESS" {
+		if p.cur.Type == '=' {
+			p.advance()
+			val := p.parseAlterDatabaseOptionValue()
+			return "WITNESS=" + val
+		}
+		if p.isIdentLike() || p.cur.Type == kwOFF {
+			val := strings.ToUpper(p.cur.Str)
+			p.advance()
+			return "WITNESS=" + val
+		}
+		return "WITNESS"
+	}
+
+	// SET HADR (Always On)
+	// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-database-transact-sql-set-hadr
+	//
+	//   SET HADR { AVAILABILITY GROUP = group_name | OFF | SUSPEND | RESUME }
+	if key == "HADR" {
+		return p.parseAlterDatabaseSetHadr()
 	}
 
 	// QUERY_STORE special handling: CLEAR [ALL]
@@ -277,6 +326,81 @@ func (p *Parser) parseAlterDatabaseSetOption() string {
 	}
 
 	return key
+}
+
+// parseAlterDatabaseSetPartner parses the remainder of SET PARTNER options.
+// Caller has consumed PARTNER.
+//
+//	SET PARTNER { = 'partner_server' | FAILOVER | FORCE_SERVICE_ALLOW_DATA_LOSS
+//	  | OFF | RESUME | SAFETY { FULL | OFF } | SUSPEND | TIMEOUT integer }
+func (p *Parser) parseAlterDatabaseSetPartner() string {
+	if p.cur.Type == '=' {
+		p.advance()
+		val := p.parseAlterDatabaseOptionValue()
+		return "PARTNER=" + val
+	}
+	if p.isIdentLike() || p.cur.Type == kwOFF {
+		sub := strings.ToUpper(p.cur.Str)
+		p.advance()
+		switch sub {
+		case "SAFETY":
+			// SAFETY { FULL | OFF }
+			if p.isIdentLike() || p.cur.Type == kwOFF {
+				val := strings.ToUpper(p.cur.Str)
+				p.advance()
+				return "PARTNER SAFETY=" + val
+			}
+			return "PARTNER SAFETY"
+		case "TIMEOUT":
+			// TIMEOUT integer
+			if p.cur.Type == tokICONST {
+				val := p.cur.Str
+				p.advance()
+				return "PARTNER TIMEOUT=" + val
+			}
+			return "PARTNER TIMEOUT"
+		case "OFF":
+			return "PARTNER=OFF"
+		default:
+			// FAILOVER, FORCE_SERVICE_ALLOW_DATA_LOSS, RESUME, SUSPEND
+			return "PARTNER " + sub
+		}
+	}
+	return "PARTNER"
+}
+
+// parseAlterDatabaseSetHadr parses the remainder of SET HADR options.
+// Caller has consumed HADR.
+//
+//	SET HADR { AVAILABILITY GROUP = group_name | OFF | SUSPEND | RESUME }
+func (p *Parser) parseAlterDatabaseSetHadr() string {
+	if p.isIdentLike() {
+		sub := strings.ToUpper(p.cur.Str)
+		p.advance()
+		switch sub {
+		case "AVAILABILITY":
+			// AVAILABILITY GROUP = group_name
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "GROUP") {
+				p.advance() // consume GROUP
+			}
+			if p.cur.Type == '=' {
+				p.advance()
+				val := p.parseAlterDatabaseOptionValue()
+				return "HADR AVAILABILITY GROUP=" + val
+			}
+			return "HADR AVAILABILITY GROUP"
+		case "OFF":
+			return "HADR=OFF"
+		default:
+			// SUSPEND, RESUME
+			return "HADR " + sub
+		}
+	}
+	if p.cur.Type == kwOFF {
+		p.advance()
+		return "HADR=OFF"
+	}
+	return "HADR"
 }
 
 // parseAlterDatabaseOptionValue parses a value after = in a SET option.
@@ -703,6 +827,10 @@ func (p *Parser) parseAlterIndexOptions() *nodes.List {
 			if strings.HasPrefix(name, "MAX_DURATION") && p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MINUTES") {
 				p.advance()
 			}
+		} else if p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+			// Collect string/numeric literals as standalone option values
+			opts.Items = append(opts.Items, &nodes.String{Str: p.cur.Str})
+			p.advance()
 		} else {
 			// Unknown token, skip
 			p.advance()

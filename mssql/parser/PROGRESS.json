@@ -2595,7 +2595,7 @@
       "id": 117,
       "name": "alter_database_unknown_action",
       "file": "alter_objects.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 77 gap: replace token skip-loop at line 134 in parseAlterDatabaseStmt() default case with structured parsing. Missing ALTER DATABASE actions: REMOVE FILE/FILEGROUP, SET PARTNER (mirroring), SET WITNESS, SET HADR. Also fix ALTER INDEX unknown token skip at line 707 in parseAlterIndexOptions().",
       "rules": [
         "parseAlterDatabaseRemoveFile",

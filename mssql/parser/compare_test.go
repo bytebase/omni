@@ -8205,6 +8205,146 @@ func TestParseAlterDatabaseDepth(t *testing.T) {
 			t.Errorf("expected newName newdb, got %s", stmt.NewName)
 		}
 	})
+
+	// --- SET PARTNER (batch 117) ---
+	t.Run("alter_database_set_partner", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			sql      string
+			wantOpt  string
+		}{
+			{"partner server", "ALTER DATABASE mydb SET PARTNER = 'TCP://server2:5022'", "PARTNER='TCP://server2:5022'"},
+			{"partner off", "ALTER DATABASE mydb SET PARTNER OFF", "PARTNER=OFF"},
+			{"partner safety full", "ALTER DATABASE mydb SET PARTNER SAFETY FULL", "PARTNER SAFETY=FULL"},
+			{"partner safety off", "ALTER DATABASE mydb SET PARTNER SAFETY OFF", "PARTNER SAFETY=OFF"},
+			{"partner timeout", "ALTER DATABASE mydb SET PARTNER TIMEOUT 30", "PARTNER TIMEOUT=30"},
+			{"partner failover", "ALTER DATABASE mydb SET PARTNER FAILOVER", "PARTNER FAILOVER"},
+			{"partner force_failover", "ALTER DATABASE mydb SET PARTNER FORCE_SERVICE_ALLOW_DATA_LOSS", "PARTNER FORCE_SERVICE_ALLOW_DATA_LOSS"},
+			{"partner resume", "ALTER DATABASE mydb SET PARTNER RESUME", "PARTNER RESUME"},
+			{"partner suspend", "ALTER DATABASE mydb SET PARTNER SUSPEND", "PARTNER SUSPEND"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt, ok := result.Items[0].(*ast.AlterDatabaseStmt)
+				if !ok {
+					t.Fatalf("expected *AlterDatabaseStmt, got %T", result.Items[0])
+				}
+				if stmt.Action != "SET" {
+					t.Errorf("expected action SET, got %s", stmt.Action)
+				}
+				if stmt.Options == nil || stmt.Options.Len() == 0 {
+					t.Fatal("expected SET options")
+				}
+				got := stmt.Options.Items[0].(*ast.String).Str
+				if got != tt.wantOpt {
+					t.Errorf("option = %q, want %q", got, tt.wantOpt)
+				}
+			})
+		}
+	})
+
+	// --- SET WITNESS (batch 117) ---
+	t.Run("alter_database_set_witness", func(t *testing.T) {
+		tests := []struct {
+			name    string
+			sql     string
+			wantOpt string
+		}{
+			{"witness server", "ALTER DATABASE mydb SET WITNESS = 'TCP://witness:5022'", "WITNESS='TCP://witness:5022'"},
+			{"witness off", "ALTER DATABASE mydb SET WITNESS OFF", "WITNESS=OFF"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt, ok := result.Items[0].(*ast.AlterDatabaseStmt)
+				if !ok {
+					t.Fatalf("expected *AlterDatabaseStmt, got %T", result.Items[0])
+				}
+				if stmt.Action != "SET" {
+					t.Errorf("expected action SET, got %s", stmt.Action)
+				}
+				got := stmt.Options.Items[0].(*ast.String).Str
+				if got != tt.wantOpt {
+					t.Errorf("option = %q, want %q", got, tt.wantOpt)
+				}
+			})
+		}
+	})
+
+	// --- SET HADR (batch 117) ---
+	t.Run("alter_database_set_hadr", func(t *testing.T) {
+		tests := []struct {
+			name    string
+			sql     string
+			wantOpt string
+		}{
+			{"hadr availability group", "ALTER DATABASE mydb SET HADR AVAILABILITY GROUP = MyAG", "HADR AVAILABILITY GROUP=MYAG"},
+			{"hadr off", "ALTER DATABASE mydb SET HADR OFF", "HADR=OFF"},
+			{"hadr suspend", "ALTER DATABASE mydb SET HADR SUSPEND", "HADR SUSPEND"},
+			{"hadr resume", "ALTER DATABASE mydb SET HADR RESUME", "HADR RESUME"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt, ok := result.Items[0].(*ast.AlterDatabaseStmt)
+				if !ok {
+					t.Fatalf("expected *AlterDatabaseStmt, got %T", result.Items[0])
+				}
+				if stmt.Action != "SET" {
+					t.Errorf("expected action SET, got %s", stmt.Action)
+				}
+				got := stmt.Options.Items[0].(*ast.String).Str
+				if got != tt.wantOpt {
+					t.Errorf("option = %q, want %q", got, tt.wantOpt)
+				}
+			})
+		}
+	})
+
+	// --- Unknown action structured (batch 117) ---
+	t.Run("alter_database_unknown_action", func(t *testing.T) {
+		sql := "ALTER DATABASE mydb UNKNOWN_ACTION arg1 arg2"
+		result := ParseAndCheck(t, sql)
+		stmt, ok := result.Items[0].(*ast.AlterDatabaseStmt)
+		if !ok {
+			t.Fatalf("expected *AlterDatabaseStmt, got %T", result.Items[0])
+		}
+		if stmt.Action != "UNKNOWN_ACTION" {
+			t.Errorf("expected action UNKNOWN_ACTION, got %s", stmt.Action)
+		}
+		// Options should capture the remaining tokens instead of silently skipping
+		if stmt.Options == nil || stmt.Options.Len() == 0 {
+			t.Error("expected unknown action to capture remaining tokens as options")
+		}
+	})
+}
+
+// TestParseAlterIndexUnknownOption tests batch 117: ALTER INDEX unknown token handling.
+func TestParseAlterIndexUnknownOption(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"rebuild basic", "ALTER INDEX idx1 ON dbo.MyTable REBUILD"},
+		{"reorganize", "ALTER INDEX ALL ON dbo.MyTable REORGANIZE"},
+		{"disable", "ALTER INDEX idx1 ON dbo.MyTable DISABLE"},
+		{"set options", "ALTER INDEX idx1 ON dbo.MyTable SET (ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)"},
+		{"rebuild with options", "ALTER INDEX idx1 ON dbo.MyTable REBUILD WITH (FILLFACTOR = 80, SORT_IN_TEMPDB = ON)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			stmt, ok := result.Items[0].(*ast.AlterIndexStmt)
+			if !ok {
+				t.Fatalf("expected *AlterIndexStmt, got %T", result.Items[0])
+			}
+			if stmt.Action == "" {
+				t.Error("expected non-empty action")
+			}
+			checkLocation(t, tt.sql, "AlterIndexStmt", stmt.Loc)
+		})
+	}
 }
 
 // TestParseCreateTypeIndex tests CREATE TYPE with INDEX in table type (batch 81).
