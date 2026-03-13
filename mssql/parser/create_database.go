@@ -405,6 +405,13 @@ func (p *Parser) parseDatabaseFilegroup() *nodes.DatabaseFilegroup {
 //	    | TRUSTWORTHY { OFF | ON }
 //	    | PERSISTENT_LOG_BUFFER = ON ( DIRECTORY_NAME = 'path-to-directory-on-a-DAX-volume' )
 //	    | LEDGER = { ON | OFF }
+//	    | CATALOG_COLLATION = { DATABASE_DEFAULT | SQL_Latin1_General_CP1_CI_AS }
+//	}
+//
+//	<filestream_option> ::=
+//	{
+//	      NON_TRANSACTED_ACCESS = { OFF | READ_ONLY | FULL }
+//	    | DIRECTORY_NAME = 'directory_name'
 //	}
 func (p *Parser) parseDatabaseWithOptions() *nodes.List {
 	var opts []nodes.Node
@@ -413,94 +420,12 @@ func (p *Parser) parseDatabaseWithOptions() *nodes.List {
 		if !p.isIdentLike() {
 			break
 		}
-		key := strings.ToUpper(p.cur.Str)
 
-		if key == "FILESTREAM" {
-			p.advance() // consume FILESTREAM
-			// ( <filestream_option> [ , ...n ] )
-			var sb strings.Builder
-			sb.WriteString("FILESTREAM(")
-			if p.cur.Type == '(' {
-				p.advance()
-				first := true
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					if !first {
-						sb.WriteString(", ")
-					}
-					first = false
-					if p.isIdentLike() {
-						optKey := strings.ToUpper(p.cur.Str)
-						sb.WriteString(optKey)
-						p.advance()
-						if p.cur.Type == '=' {
-							p.advance()
-							sb.WriteString("=")
-							if p.cur.Type == tokSCONST {
-								sb.WriteString("'")
-								sb.WriteString(p.cur.Str)
-								sb.WriteString("'")
-								p.advance()
-							} else if p.isIdentLike() {
-								sb.WriteString(strings.ToUpper(p.cur.Str))
-								p.advance()
-							}
-						}
-					}
-					if p.cur.Type == ',' {
-						p.advance()
-					} else {
-						break
-					}
-				}
-				p.match(')')
-			}
-			sb.WriteString(")")
-			opts = append(opts, &nodes.String{Str: sb.String()})
-		} else {
-			// key = value or key ON/OFF
-			p.advance() // consume key
-			var val string
-			if p.cur.Type == '=' {
-				p.advance() // consume =
-				val = p.parseDatabaseOptionValue()
-			} else if p.cur.Type == kwON || (p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ON")) {
-				val = "ON"
-				p.advance()
-			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "OFF") {
-				val = "OFF"
-				p.advance()
-			}
-			// For PERSISTENT_LOG_BUFFER = ON ( DIRECTORY_NAME = '...' )
-			if key == "PERSISTENT_LOG_BUFFER" && val == "ON" && p.cur.Type == '(' {
-				p.advance() // consume (
-				var sb strings.Builder
-				sb.WriteString(key)
-				sb.WriteString("=ON(")
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					if p.isIdentLike() {
-						sb.WriteString(strings.ToUpper(p.cur.Str))
-						p.advance()
-					}
-					if p.cur.Type == '=' {
-						sb.WriteString("=")
-						p.advance()
-						if p.cur.Type == tokSCONST {
-							sb.WriteString("'")
-							sb.WriteString(p.cur.Str)
-							sb.WriteString("'")
-							p.advance()
-						}
-					}
-				}
-				sb.WriteString(")")
-				p.match(')')
-				opts = append(opts, &nodes.String{Str: sb.String()})
-			} else {
-				opts = append(opts, &nodes.String{Str: key + "=" + val})
-			}
+		opt := p.parseOneDatabaseOption()
+		if opt != nil {
+			opts = append(opts, opt)
 		}
 
-		// Consume comma between options
 		if p.cur.Type == ',' {
 			p.advance()
 		} else {
@@ -514,12 +439,127 @@ func (p *Parser) parseDatabaseWithOptions() *nodes.List {
 	return &nodes.List{Items: opts}
 }
 
+// parseOneDatabaseOption parses a single CREATE DATABASE WITH option.
+func (p *Parser) parseOneDatabaseOption() *nodes.DatabaseOption {
+	if !p.isIdentLike() {
+		return nil
+	}
+
+	optLoc := p.pos()
+	key := strings.ToUpper(p.cur.Str)
+
+	// FILESTREAM ( <filestream_option> [ , ...n ] )
+	if key == "FILESTREAM" {
+		return p.parseDatabaseFilestreamOption()
+	}
+
+	p.advance() // consume key
+
+	opt := &nodes.DatabaseOption{
+		Name: key,
+		Loc:  nodes.Loc{Start: optLoc},
+	}
+
+	// Parse value: = value or bare ON/OFF
+	if p.cur.Type == '=' {
+		p.advance() // consume =
+		opt.Value = p.parseDatabaseOptionValue()
+	} else if p.cur.Type == kwON || (p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ON")) {
+		opt.Value = "ON"
+		p.advance()
+	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "OFF") {
+		opt.Value = "OFF"
+		p.advance()
+	}
+
+	// PERSISTENT_LOG_BUFFER = ON ( DIRECTORY_NAME = 'path' )
+	if key == "PERSISTENT_LOG_BUFFER" && opt.Value == "ON" && p.cur.Type == '(' {
+		p.advance() // consume (
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "DIRECTORY_NAME") {
+				p.advance() // consume DIRECTORY_NAME
+				if p.cur.Type == '=' {
+					p.advance()
+					if p.cur.Type == tokSCONST {
+						opt.PersistentLogDir = p.cur.Str
+						p.advance()
+					}
+				}
+			} else {
+				p.advance()
+			}
+		}
+		p.match(')')
+	}
+
+	opt.Loc.End = p.pos()
+	return opt
+}
+
+// parseDatabaseFilestreamOption parses FILESTREAM ( <filestream_option> [ , ...n ] ).
+//
+//	FILESTREAM (
+//	    NON_TRANSACTED_ACCESS = { OFF | READ_ONLY | FULL },
+//	    DIRECTORY_NAME = 'directory_name'
+//	)
+func (p *Parser) parseDatabaseFilestreamOption() *nodes.DatabaseOption {
+	optLoc := p.pos()
+	p.advance() // consume FILESTREAM
+
+	opt := &nodes.DatabaseOption{
+		Name: "FILESTREAM",
+		Loc:  nodes.Loc{Start: optLoc},
+	}
+
+	if p.cur.Type == '(' {
+		p.advance() // consume (
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			if p.isIdentLike() {
+				subKey := strings.ToUpper(p.cur.Str)
+				p.advance() // consume sub-key
+				if p.cur.Type == '=' {
+					p.advance() // consume =
+					switch subKey {
+					case "NON_TRANSACTED_ACCESS":
+						if p.isIdentLike() || p.cur.Type == kwOFF {
+							opt.FilestreamAccess = strings.ToUpper(p.cur.Str)
+							p.advance()
+						}
+					case "DIRECTORY_NAME":
+						if p.cur.Type == tokSCONST {
+							opt.FilestreamDirName = p.cur.Str
+							p.advance()
+						} else if p.cur.Type == kwNULL {
+							opt.FilestreamDirName = "NULL"
+							p.advance()
+						}
+					default:
+						// unknown sub-option, skip value
+						if p.isIdentLike() || p.cur.Type == tokSCONST {
+							p.advance()
+						}
+					}
+				}
+			}
+			if p.cur.Type == ',' {
+				p.advance()
+			} else {
+				break
+			}
+		}
+		p.match(')')
+	}
+
+	opt.Loc.End = p.pos()
+	return opt
+}
+
 // parseDatabaseOptionValue parses a value for a database option (identifier, number, or string).
 func (p *Parser) parseDatabaseOptionValue() string {
 	if p.cur.Type == tokSCONST {
 		val := p.cur.Str
 		p.advance()
-		return "'" + val + "'"
+		return val
 	}
 	if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 		val := p.cur.Str
@@ -556,49 +596,28 @@ func (p *Parser) parseDatabaseOptionValue() string {
 func (p *Parser) parseDatabaseAttachOptions() *nodes.List {
 	var opts []nodes.Node
 	for {
-		if p.isIdentLike() {
-			key := strings.ToUpper(p.cur.Str)
-			switch key {
-			case "ENABLE_BROKER", "NEW_BROKER", "ERROR_BROKER_CONVERSATIONS", "RESTRICTED_USER":
-				opts = append(opts, &nodes.String{Str: key})
-				p.advance()
-			case "FILESTREAM":
-				p.advance() // consume FILESTREAM
-				var sb strings.Builder
-				sb.WriteString("FILESTREAM(")
-				if p.cur.Type == '(' {
-					p.advance()
-					for p.cur.Type != ')' && p.cur.Type != tokEOF {
-						if p.isIdentLike() {
-							sb.WriteString(strings.ToUpper(p.cur.Str))
-							p.advance()
-						}
-						if p.cur.Type == '=' {
-							sb.WriteString("=")
-							p.advance()
-							if p.cur.Type == tokSCONST {
-								sb.WriteString("'")
-								sb.WriteString(p.cur.Str)
-								sb.WriteString("'")
-								p.advance()
-							} else if p.cur.Type == kwNULL {
-								sb.WriteString("NULL")
-								p.advance()
-							} else if p.isIdentLike() {
-								sb.WriteString(strings.ToUpper(p.cur.Str))
-								p.advance()
-							}
-						}
-					}
-					p.match(')')
-				}
-				sb.WriteString(")")
-				opts = append(opts, &nodes.String{Str: sb.String()})
-			default:
-				break
-			}
-		} else {
+		if !p.isIdentLike() {
 			break
+		}
+		key := strings.ToUpper(p.cur.Str)
+		switch key {
+		case "ENABLE_BROKER", "NEW_BROKER", "ERROR_BROKER_CONVERSATIONS", "RESTRICTED_USER":
+			optLoc := p.pos()
+			p.advance()
+			opts = append(opts, &nodes.DatabaseOption{
+				Name: key,
+				Loc:  nodes.Loc{Start: optLoc, End: p.pos()},
+			})
+		case "FILESTREAM":
+			opts = append(opts, p.parseDatabaseFilestreamOption())
+		default:
+			// unknown option, advance to prevent infinite loop
+			optLoc := p.pos()
+			p.advance()
+			opts = append(opts, &nodes.DatabaseOption{
+				Name: key,
+				Loc:  nodes.Loc{Start: optLoc, End: p.pos()},
+			})
 		}
 		if p.cur.Type == ',' {
 			p.advance()

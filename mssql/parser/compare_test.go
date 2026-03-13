@@ -12964,3 +12964,338 @@ func TestParseBackupRestoreOptionsDepth(t *testing.T) {
 		}
 	})
 }
+
+// TestParseCreateDatabaseOptionsDepth tests batch 121: structured CREATE DATABASE WITH options.
+func TestParseCreateDatabaseOptionsDepth(t *testing.T) {
+	t.Run("database_with_options_structured", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			sql      string
+			wantOpts int
+			checkOpt func(t *testing.T, opts []*ast.DatabaseOption)
+		}{
+			{
+				name:     "db_chaining_on",
+				sql:      "CREATE DATABASE mydb WITH DB_CHAINING ON",
+				wantOpts: 1,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "DB_CHAINING" || opts[0].Value != "ON" {
+						t.Errorf("expected DB_CHAINING=ON, got %s=%s", opts[0].Name, opts[0].Value)
+					}
+				},
+			},
+			{
+				name:     "trustworthy_off",
+				sql:      "CREATE DATABASE mydb WITH TRUSTWORTHY OFF",
+				wantOpts: 1,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "TRUSTWORTHY" || opts[0].Value != "OFF" {
+						t.Errorf("expected TRUSTWORTHY=OFF, got %s=%s", opts[0].Name, opts[0].Value)
+					}
+				},
+			},
+			{
+				name:     "ledger_on",
+				sql:      "CREATE DATABASE mydb WITH LEDGER = ON",
+				wantOpts: 1,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "LEDGER" || opts[0].Value != "ON" {
+						t.Errorf("expected LEDGER=ON, got %s=%s", opts[0].Name, opts[0].Value)
+					}
+				},
+			},
+			{
+				name:     "default_fulltext_language",
+				sql:      "CREATE DATABASE mydb WITH DEFAULT_FULLTEXT_LANGUAGE = 1033",
+				wantOpts: 1,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "DEFAULT_FULLTEXT_LANGUAGE" || opts[0].Value != "1033" {
+						t.Errorf("expected DEFAULT_FULLTEXT_LANGUAGE=1033, got %s=%s", opts[0].Name, opts[0].Value)
+					}
+				},
+			},
+			{
+				name:     "default_language_name",
+				sql:      "CREATE DATABASE mydb WITH DEFAULT_LANGUAGE = English",
+				wantOpts: 1,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "DEFAULT_LANGUAGE" || opts[0].Value != "ENGLISH" {
+						t.Errorf("expected DEFAULT_LANGUAGE=ENGLISH, got %s=%s", opts[0].Name, opts[0].Value)
+					}
+				},
+			},
+			{
+				name:     "nested_triggers_off",
+				sql:      "CREATE DATABASE mydb WITH NESTED_TRIGGERS = OFF",
+				wantOpts: 1,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "NESTED_TRIGGERS" || opts[0].Value != "OFF" {
+						t.Errorf("expected NESTED_TRIGGERS=OFF, got %s=%s", opts[0].Name, opts[0].Value)
+					}
+				},
+			},
+			{
+				name:     "transform_noise_words_on",
+				sql:      "CREATE DATABASE mydb WITH TRANSFORM_NOISE_WORDS = ON",
+				wantOpts: 1,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "TRANSFORM_NOISE_WORDS" || opts[0].Value != "ON" {
+						t.Errorf("expected TRANSFORM_NOISE_WORDS=ON, got %s=%s", opts[0].Name, opts[0].Value)
+					}
+				},
+			},
+			{
+				name:     "two_digit_year_cutoff",
+				sql:      "CREATE DATABASE mydb WITH TWO_DIGIT_YEAR_CUTOFF = 2049",
+				wantOpts: 1,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "TWO_DIGIT_YEAR_CUTOFF" || opts[0].Value != "2049" {
+						t.Errorf("expected TWO_DIGIT_YEAR_CUTOFF=2049, got %s=%s", opts[0].Name, opts[0].Value)
+					}
+				},
+			},
+			{
+				name:     "catalog_collation",
+				sql:      "CREATE DATABASE mydb WITH CATALOG_COLLATION = DATABASE_DEFAULT",
+				wantOpts: 1,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "CATALOG_COLLATION" || opts[0].Value != "DATABASE_DEFAULT" {
+						t.Errorf("expected CATALOG_COLLATION=DATABASE_DEFAULT, got %s=%s", opts[0].Name, opts[0].Value)
+					}
+				},
+			},
+			{
+				name:     "multiple_options",
+				sql:      "CREATE DATABASE mydb WITH DB_CHAINING ON, TRUSTWORTHY OFF, NESTED_TRIGGERS = ON",
+				wantOpts: 3,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "DB_CHAINING" || opts[0].Value != "ON" {
+						t.Errorf("opt[0]: expected DB_CHAINING=ON")
+					}
+					if opts[1].Name != "TRUSTWORTHY" || opts[1].Value != "OFF" {
+						t.Errorf("opt[1]: expected TRUSTWORTHY=OFF")
+					}
+					if opts[2].Name != "NESTED_TRIGGERS" || opts[2].Value != "ON" {
+						t.Errorf("opt[2]: expected NESTED_TRIGGERS=ON")
+					}
+				},
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("expected 1 stmt, got %d", result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+				if !ok {
+					t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+				}
+				if stmt.WithOptions == nil {
+					t.Fatalf("expected WithOptions, got nil")
+				}
+				if len(stmt.WithOptions.Items) != tt.wantOpts {
+					t.Errorf("expected %d options, got %d", tt.wantOpts, len(stmt.WithOptions.Items))
+				}
+				var dbOpts []*ast.DatabaseOption
+				for _, item := range stmt.WithOptions.Items {
+					opt, ok := item.(*ast.DatabaseOption)
+					if !ok {
+						t.Fatalf("expected *DatabaseOption, got %T", item)
+					}
+					checkLocation(t, tt.sql, "DatabaseOption", opt.Loc)
+					dbOpts = append(dbOpts, opt)
+				}
+				if tt.checkOpt != nil {
+					tt.checkOpt(t, dbOpts)
+				}
+			})
+		}
+	})
+
+	t.Run("database_filestream_options", func(t *testing.T) {
+		tests := []struct {
+			name           string
+			sql            string
+			wantAccess     string
+			wantDirName    string
+		}{
+			{
+				name:       "filestream_non_transacted_access",
+				sql:        "CREATE DATABASE mydb WITH FILESTREAM (NON_TRANSACTED_ACCESS = FULL)",
+				wantAccess: "FULL",
+			},
+			{
+				name:       "filestream_read_only",
+				sql:        "CREATE DATABASE mydb WITH FILESTREAM (NON_TRANSACTED_ACCESS = READ_ONLY)",
+				wantAccess: "READ_ONLY",
+			},
+			{
+				name:       "filestream_off",
+				sql:        "CREATE DATABASE mydb WITH FILESTREAM (NON_TRANSACTED_ACCESS = OFF)",
+				wantAccess: "OFF",
+			},
+			{
+				name:        "filestream_directory_name",
+				sql:         "CREATE DATABASE mydb WITH FILESTREAM (DIRECTORY_NAME = 'mydir')",
+				wantDirName: "mydir",
+			},
+			{
+				name:        "filestream_both",
+				sql:         "CREATE DATABASE mydb WITH FILESTREAM (NON_TRANSACTED_ACCESS = FULL, DIRECTORY_NAME = 'myfilestreamdir')",
+				wantAccess:  "FULL",
+				wantDirName: "myfilestreamdir",
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("expected 1 stmt, got %d", result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+				if !ok {
+					t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+				}
+				if stmt.WithOptions == nil || len(stmt.WithOptions.Items) < 1 {
+					t.Fatalf("expected at least 1 option")
+				}
+				opt, ok := stmt.WithOptions.Items[0].(*ast.DatabaseOption)
+				if !ok {
+					t.Fatalf("expected *DatabaseOption, got %T", stmt.WithOptions.Items[0])
+				}
+				if opt.Name != "FILESTREAM" {
+					t.Errorf("expected FILESTREAM, got %s", opt.Name)
+				}
+				if tt.wantAccess != "" && opt.FilestreamAccess != tt.wantAccess {
+					t.Errorf("filestreamAccess = %q, want %q", opt.FilestreamAccess, tt.wantAccess)
+				}
+				if tt.wantDirName != "" && opt.FilestreamDirName != tt.wantDirName {
+					t.Errorf("filestreamDirName = %q, want %q", opt.FilestreamDirName, tt.wantDirName)
+				}
+				checkLocation(t, tt.sql, "DatabaseOption", opt.Loc)
+			})
+		}
+	})
+
+	t.Run("database_attach_options_structured", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			sql      string
+			wantOpts int
+			checkOpt func(t *testing.T, opts []*ast.DatabaseOption)
+		}{
+			{
+				name:     "attach_enable_broker",
+				sql:      "CREATE DATABASE mydb ON (NAME = mydb_data, FILENAME = 'C:\\data\\mydb.mdf') FOR ATTACH WITH ENABLE_BROKER",
+				wantOpts: 1,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "ENABLE_BROKER" {
+						t.Errorf("expected ENABLE_BROKER, got %s", opts[0].Name)
+					}
+				},
+			},
+			{
+				name:     "attach_new_broker",
+				sql:      "CREATE DATABASE mydb ON (NAME = mydb_data, FILENAME = 'C:\\data\\mydb.mdf') FOR ATTACH WITH NEW_BROKER",
+				wantOpts: 1,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "NEW_BROKER" {
+						t.Errorf("expected NEW_BROKER, got %s", opts[0].Name)
+					}
+				},
+			},
+			{
+				name:     "attach_error_broker_conversations",
+				sql:      "CREATE DATABASE mydb ON (NAME = mydb_data, FILENAME = 'C:\\data\\mydb.mdf') FOR ATTACH WITH ERROR_BROKER_CONVERSATIONS",
+				wantOpts: 1,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "ERROR_BROKER_CONVERSATIONS" {
+						t.Errorf("expected ERROR_BROKER_CONVERSATIONS, got %s", opts[0].Name)
+					}
+				},
+			},
+			{
+				name:     "attach_restricted_user",
+				sql:      "CREATE DATABASE mydb ON (NAME = mydb_data, FILENAME = 'C:\\data\\mydb.mdf') FOR ATTACH WITH RESTRICTED_USER",
+				wantOpts: 1,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "RESTRICTED_USER" {
+						t.Errorf("expected RESTRICTED_USER, got %s", opts[0].Name)
+					}
+				},
+			},
+			{
+				name:     "attach_multiple",
+				sql:      "CREATE DATABASE mydb ON (NAME = mydb_data, FILENAME = 'C:\\data\\mydb.mdf') FOR ATTACH WITH ENABLE_BROKER, RESTRICTED_USER",
+				wantOpts: 2,
+				checkOpt: func(t *testing.T, opts []*ast.DatabaseOption) {
+					if opts[0].Name != "ENABLE_BROKER" {
+						t.Errorf("opt[0]: expected ENABLE_BROKER, got %s", opts[0].Name)
+					}
+					if opts[1].Name != "RESTRICTED_USER" {
+						t.Errorf("opt[1]: expected RESTRICTED_USER, got %s", opts[1].Name)
+					}
+				},
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				if result.Len() != 1 {
+					t.Fatalf("expected 1 stmt, got %d", result.Len())
+				}
+				stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+				if !ok {
+					t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+				}
+				if stmt.AttachOptions == nil {
+					t.Fatalf("expected AttachOptions, got nil")
+				}
+				if len(stmt.AttachOptions.Items) != tt.wantOpts {
+					t.Errorf("expected %d options, got %d", tt.wantOpts, len(stmt.AttachOptions.Items))
+				}
+				var dbOpts []*ast.DatabaseOption
+				for _, item := range stmt.AttachOptions.Items {
+					opt, ok := item.(*ast.DatabaseOption)
+					if !ok {
+						t.Fatalf("expected *DatabaseOption, got %T", item)
+					}
+					checkLocation(t, tt.sql, "DatabaseOption", opt.Loc)
+					dbOpts = append(dbOpts, opt)
+				}
+				if tt.checkOpt != nil {
+					tt.checkOpt(t, dbOpts)
+				}
+			})
+		}
+	})
+
+	t.Run("persistent_log_buffer", func(t *testing.T) {
+		sql := "CREATE DATABASE mydb WITH PERSISTENT_LOG_BUFFER = ON (DIRECTORY_NAME = 'S:\\PLBData')"
+		result := ParseAndCheck(t, sql)
+		if result.Len() != 1 {
+			t.Fatalf("expected 1 stmt, got %d", result.Len())
+		}
+		stmt, ok := result.Items[0].(*ast.CreateDatabaseStmt)
+		if !ok {
+			t.Fatalf("expected *CreateDatabaseStmt, got %T", result.Items[0])
+		}
+		if stmt.WithOptions == nil || len(stmt.WithOptions.Items) != 1 {
+			t.Fatalf("expected 1 option")
+		}
+		opt, ok := stmt.WithOptions.Items[0].(*ast.DatabaseOption)
+		if !ok {
+			t.Fatalf("expected *DatabaseOption, got %T", stmt.WithOptions.Items[0])
+		}
+		if opt.Name != "PERSISTENT_LOG_BUFFER" {
+			t.Errorf("expected PERSISTENT_LOG_BUFFER, got %s", opt.Name)
+		}
+		if opt.Value != "ON" {
+			t.Errorf("expected value ON, got %s", opt.Value)
+		}
+		if opt.PersistentLogDir != "S:\\PLBData" {
+			t.Errorf("expected persistentLogDir S:\\PLBData, got %s", opt.PersistentLogDir)
+		}
+	})
+}

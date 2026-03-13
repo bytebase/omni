@@ -741,9 +741,9 @@ type CreateDatabaseStmt struct {
 	Filegroups    *List           // list of *DatabaseFilegroup for additional filegroups
 	LogOn         *List           // list of *DatabaseFileSpec for LOG ON
 	Collation     string          // COLLATE collation_name
-	WithOptions   *List           // list of *String for WITH options
+	WithOptions   *List           // list of *DatabaseOption for WITH options
 	ForAttach     bool            // FOR ATTACH
-	AttachOptions *List           // WITH options for ATTACH (ENABLE_BROKER, NEW_BROKER, etc.)
+	AttachOptions *List           // WITH options for ATTACH (as *DatabaseOption nodes)
 	ForAttachRebuildLog bool      // FOR ATTACH_REBUILD_LOG
 	SnapshotOf    string          // AS SNAPSHOT OF source_database
 	Options       *List           // legacy options field (kept for backward compat)
@@ -752,6 +752,37 @@ type CreateDatabaseStmt struct {
 
 func (n *CreateDatabaseStmt) nodeTag()  {}
 func (n *CreateDatabaseStmt) stmtNode() {}
+
+// DatabaseOption represents a structured option in CREATE DATABASE WITH or FOR ATTACH WITH.
+//
+// Simple options: DB_CHAINING ON/OFF, TRUSTWORTHY ON/OFF, LEDGER ON/OFF,
+//
+//	NESTED_TRIGGERS ON/OFF, TRANSFORM_NOISE_WORDS ON/OFF
+//
+// Key=value options: DEFAULT_FULLTEXT_LANGUAGE, DEFAULT_LANGUAGE, TWO_DIGIT_YEAR_CUTOFF,
+//
+//	CATALOG_COLLATION
+//
+// Flag options (attach): ENABLE_BROKER, NEW_BROKER, ERROR_BROKER_CONVERSATIONS, RESTRICTED_USER
+//
+// FILESTREAM: sub-options NON_TRANSACTED_ACCESS = OFF|READ_ONLY|FULL, DIRECTORY_NAME = 'name'
+//
+// PERSISTENT_LOG_BUFFER: = ON with DIRECTORY_NAME sub-option
+type DatabaseOption struct {
+	Name  string // option name
+	Value string // option value (ON, OFF, identifier, number, string literal)
+
+	// For FILESTREAM option
+	FilestreamAccess   string // NON_TRANSACTED_ACCESS value: OFF, READ_ONLY, FULL
+	FilestreamDirName  string // DIRECTORY_NAME value
+
+	// For PERSISTENT_LOG_BUFFER = ON (DIRECTORY_NAME = 'path')
+	PersistentLogDir string // DIRECTORY_NAME value
+
+	Loc Loc
+}
+
+func (n *DatabaseOption) nodeTag() {}
 
 // DatabaseFileSpec represents a file specification in CREATE DATABASE.
 //

@@ -70,6 +70,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateProcedureStmt(sb, n)
 	case *CreateDatabaseStmt:
 		writeCreateDatabaseStmt(sb, n)
+	case *DatabaseOption:
+		writeDatabaseOption(sb, n)
 	case *DatabaseFileSpec:
 		writeDatabaseFileSpec(sb, n)
 	case *DatabaseFilegroup:
@@ -960,6 +962,25 @@ func writeCreateDatabaseStmt(sb *strings.Builder, n *CreateDatabaseStmt) {
 		writeNode(sb, n.Options)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeDatabaseOption(sb *strings.Builder, n *DatabaseOption) {
+	sb.WriteString("{DBOPTION")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	if n.Value != "" {
+		fmt.Fprintf(sb, " :value \"%s\"", escapeString(n.Value))
+	}
+	if n.FilestreamAccess != "" {
+		fmt.Fprintf(sb, " :filestreamAccess \"%s\"", escapeString(n.FilestreamAccess))
+	}
+	if n.FilestreamDirName != "" {
+		fmt.Fprintf(sb, " :filestreamDirName \"%s\"", escapeString(n.FilestreamDirName))
+	}
+	if n.PersistentLogDir != "" {
+		fmt.Fprintf(sb, " :persistentLogDir \"%s\"", escapeString(n.PersistentLogDir))
+	}
+	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")
 }
 

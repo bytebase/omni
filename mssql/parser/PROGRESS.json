@@ -2674,7 +2674,7 @@
       "id": 121,
       "name": "create_database_options_depth",
       "file": "create_database.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 76 gap: replace generic string-building loops in parseDatabaseWithOptions() and parseDatabaseAttachOptions() with structured parsing. WITH options: DB_CHAINING ON/OFF, TRUSTWORTHY ON/OFF, DEFAULT_FULLTEXT_LANGUAGE, DEFAULT_LANGUAGE, NESTED_TRIGGERS, TRANSFORM_NOISE_WORDS, TWO_DIGIT_YEAR_CUTOFF, CATALOG_COLLATION, LEDGER = ON/OFF, PERSISTENT_LOG_BUFFER = ON. FILESTREAM sub-options: NON_TRANSACTED_ACCESS = OFF/READ_ONLY/FULL, DIRECTORY_NAME = 'name'. Attach options: ENABLE_BROKER, NEW_BROKER, ERROR_BROKER_CONVERSATIONS, RESTRICTED_USER.",
       "rules": [
         "parseDatabaseWithOptionsStructured",
