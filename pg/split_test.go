@@ -193,6 +193,120 @@ func TestSplit(t *testing.T) {
 			empties: []bool{false, false},
 		},
 
+		// PL/pgSQL blocks inside dollar-quotes.
+		// These validate that BEGIN/END, IF/END IF, LOOP/END LOOP, CASE/END CASE
+		// inside dollar-quoted function bodies do NOT cause incorrect splitting.
+		{
+			name: "CREATE FUNCTION with BEGIN END in dollar-quote",
+			input: `CREATE FUNCTION foo() RETURNS void AS $$
+BEGIN
+  INSERT INTO t VALUES (1);
+  UPDATE t SET a = 2;
+END;
+$$ LANGUAGE plpgsql; SELECT 1;`,
+			want: []Segment{
+				{Text: "CREATE FUNCTION foo() RETURNS void AS $$\nBEGIN\n  INSERT INTO t VALUES (1);\n  UPDATE t SET a = 2;\nEND;\n$$ LANGUAGE plpgsql;", ByteStart: 0, ByteEnd: 122},
+				{Text: " SELECT 1;", ByteStart: 122, ByteEnd: 132},
+			},
+			empties: []bool{false, false},
+		},
+		{
+			name: "CREATE FUNCTION with IF END IF in dollar-quote",
+			input: `CREATE FUNCTION bar() RETURNS void AS $$
+BEGIN
+  IF x > 0 THEN
+    INSERT INTO t VALUES (1);
+  END IF;
+END;
+$$ LANGUAGE plpgsql; SELECT 2;`,
+			want: []Segment{
+				{Text: "CREATE FUNCTION bar() RETURNS void AS $$\nBEGIN\n  IF x > 0 THEN\n    INSERT INTO t VALUES (1);\n  END IF;\nEND;\n$$ LANGUAGE plpgsql;", ByteStart: 0, ByteEnd: 128},
+				{Text: " SELECT 2;", ByteStart: 128, ByteEnd: 138},
+			},
+			empties: []bool{false, false},
+		},
+		{
+			name: "CREATE FUNCTION with LOOP END LOOP in dollar-quote",
+			input: `CREATE FUNCTION baz() RETURNS void AS $$
+BEGIN
+  LOOP
+    EXIT WHEN done;
+    INSERT INTO t VALUES (1);
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql; SELECT 3;`,
+			want: []Segment{
+				{Text: "CREATE FUNCTION baz() RETURNS void AS $$\nBEGIN\n  LOOP\n    EXIT WHEN done;\n    INSERT INTO t VALUES (1);\n  END LOOP;\nEND;\n$$ LANGUAGE plpgsql;", ByteStart: 0, ByteEnd: 141},
+				{Text: " SELECT 3;", ByteStart: 141, ByteEnd: 151},
+			},
+			empties: []bool{false, false},
+		},
+		{
+			name: "CREATE FUNCTION with CASE END in dollar-quote",
+			input: `CREATE FUNCTION qux() RETURNS int AS $$
+BEGIN
+  RETURN CASE WHEN x > 0 THEN 1 ELSE 2 END;
+END;
+$$ LANGUAGE plpgsql; SELECT 4;`,
+			want: []Segment{
+				{Text: "CREATE FUNCTION qux() RETURNS int AS $$\nBEGIN\n  RETURN CASE WHEN x > 0 THEN 1 ELSE 2 END;\nEND;\n$$ LANGUAGE plpgsql;", ByteStart: 0, ByteEnd: 115},
+				{Text: " SELECT 4;", ByteStart: 115, ByteEnd: 125},
+			},
+			empties: []bool{false, false},
+		},
+		{
+			name: "CREATE FUNCTION with tagged dollar-quote and nested blocks",
+			input: `CREATE FUNCTION complex() RETURNS void AS $fn$
+BEGIN
+  IF x > 0 THEN
+    LOOP
+      EXIT WHEN y < 0;
+      INSERT INTO t VALUES (CASE WHEN a THEN 1 ELSE 2 END);
+    END LOOP;
+  END IF;
+END;
+$fn$ LANGUAGE plpgsql; SELECT 5;`,
+			want: []Segment{
+				{Text: "CREATE FUNCTION complex() RETURNS void AS $fn$\nBEGIN\n  IF x > 0 THEN\n    LOOP\n      EXIT WHEN y < 0;\n      INSERT INTO t VALUES (CASE WHEN a THEN 1 ELSE 2 END);\n    END LOOP;\n  END IF;\nEND;\n$fn$ LANGUAGE plpgsql;", ByteStart: 0, ByteEnd: 212},
+				{Text: " SELECT 5;", ByteStart: 212, ByteEnd: 222},
+			},
+			empties: []bool{false, false},
+		},
+		{
+			name: "DO block with dollar-quote",
+			input: `DO $$
+BEGIN
+  INSERT INTO t VALUES (1);
+  INSERT INTO t VALUES (2);
+END;
+$$; SELECT 1;`,
+			want: []Segment{
+				{Text: "DO $$\nBEGIN\n  INSERT INTO t VALUES (1);\n  INSERT INTO t VALUES (2);\nEND;\n$$;", ByteStart: 0, ByteEnd: 76},
+				{Text: " SELECT 1;", ByteStart: 76, ByteEnd: 86},
+			},
+			empties: []bool{false, false},
+		},
+		{
+			name: "BEGIN TRANSACTION is normal split",
+			input: "BEGIN TRANSACTION; SELECT 1; COMMIT;",
+			want: []Segment{
+				{Text: "BEGIN TRANSACTION;", ByteStart: 0, ByteEnd: 18},
+				{Text: " SELECT 1;", ByteStart: 18, ByteEnd: 28},
+				{Text: " COMMIT;", ByteStart: 28, ByteEnd: 36},
+			},
+			empties: []bool{false, false, false},
+		},
+		{
+			name: "BEGIN WORK is normal split",
+			input: "BEGIN WORK; SELECT 1; END WORK;",
+			want: []Segment{
+				{Text: "BEGIN WORK;", ByteStart: 0, ByteEnd: 11},
+				{Text: " SELECT 1;", ByteStart: 11, ByteEnd: 21},
+				{Text: " END WORK;", ByteStart: 21, ByteEnd: 31},
+			},
+			empties: []bool{false, false, false},
+		},
+
 		// Unterminated constructs.
 		{
 			name:  "unterminated single quote",
