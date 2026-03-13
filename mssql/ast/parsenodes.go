@@ -2476,6 +2476,18 @@ type KillStmt struct {
 func (n *KillStmt) nodeTag()  {}
 func (n *KillStmt) stmtNode() {}
 
+// KillQueryNotificationStmt represents KILL QUERY NOTIFICATION SUBSCRIPTION { ALL | subscription_id }.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/kill-query-notification-subscription-transact-sql
+type KillQueryNotificationStmt struct {
+	All            bool     // true if ALL is specified
+	SubscriptionID ExprNode // subscription_id expression (when not ALL)
+	Loc            Loc
+}
+
+func (n *KillQueryNotificationStmt) nodeTag()  {}
+func (n *KillQueryNotificationStmt) stmtNode() {}
+
 // ReadtextStmt represents READTEXT table.column textpointer offset size [HOLDLOCK].
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/readtext-transact-sql

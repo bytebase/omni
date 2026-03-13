@@ -231,9 +231,18 @@ func (p *Parser) parseShutdownStmt() *nodes.ShutdownStmt {
 //
 //	KILL { session_id | UOW } [ WITH STATUSONLY ]
 //	KILL STATS JOB job_id
-func (p *Parser) parseKillStmt() *nodes.KillStmt {
+//	KILL QUERY NOTIFICATION SUBSCRIPTION { ALL | subscription_id }
+func (p *Parser) parseKillStmt() nodes.StmtNode {
 	loc := p.pos()
 	p.advance() // consume KILL
+
+	// Check for KILL QUERY NOTIFICATION SUBSCRIPTION
+	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "QUERY") {
+		next := p.peekNext()
+		if next.Str != "" && strings.EqualFold(next.Str, "NOTIFICATION") {
+			return p.parseKillQueryNotificationStmt(loc)
+		}
+	}
 
 	stmt := &nodes.KillStmt{
 		Loc: nodes.Loc{Start: loc},
@@ -249,6 +258,36 @@ func (p *Parser) parseKillStmt() *nodes.KillStmt {
 			p.advance()
 			stmt.StatusOnly = true
 		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseKillQueryNotificationStmt parses a KILL QUERY NOTIFICATION SUBSCRIPTION statement.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/kill-query-notification-subscription-transact-sql
+//
+//	KILL QUERY NOTIFICATION SUBSCRIPTION { ALL | subscription_id }
+func (p *Parser) parseKillQueryNotificationStmt(loc int) *nodes.KillQueryNotificationStmt {
+	p.advance() // consume QUERY
+	p.advance() // consume NOTIFICATION
+
+	// consume SUBSCRIPTION
+	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "SUBSCRIPTION") {
+		p.advance()
+	}
+
+	stmt := &nodes.KillQueryNotificationStmt{
+		Loc: nodes.Loc{Start: loc},
+	}
+
+	// { ALL | subscription_id }
+	if p.cur.Type == kwALL {
+		stmt.All = true
+		p.advance()
+	} else {
+		stmt.SubscriptionID = p.parseExpr()
 	}
 
 	stmt.Loc.End = p.pos()

@@ -16179,3 +16179,51 @@ func TestParseCreateRemoteTableAsSelect(t *testing.T) {
 		}
 	})
 }
+
+// TestParseKillQueryNotification tests KILL QUERY NOTIFICATION SUBSCRIPTION (batch 146).
+func TestParseKillQueryNotification(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{
+			name: "kill_query_notification_all",
+			sql:  "KILL QUERY NOTIFICATION SUBSCRIPTION ALL",
+		},
+		{
+			name: "kill_query_notification_id",
+			sql:  "KILL QUERY NOTIFICATION SUBSCRIPTION 42",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() == 0 {
+				t.Fatalf("Parse(%q): no statements returned", tt.sql)
+			}
+			s1 := ast.NodeToString(result.Items[0])
+			s2 := ast.NodeToString(result.Items[0])
+			if s1 != s2 {
+				t.Errorf("Parse(%q): serialization not deterministic", tt.sql)
+			}
+			// Verify correct AST type
+			switch tt.name {
+			case "kill_query_notification_all":
+				if n, ok := result.Items[0].(*ast.KillQueryNotificationStmt); !ok {
+					t.Errorf("expected *ast.KillQueryNotificationStmt, got %T", result.Items[0])
+				} else if !n.All {
+					t.Errorf("expected All=true")
+				}
+			case "kill_query_notification_id":
+				if n, ok := result.Items[0].(*ast.KillQueryNotificationStmt); !ok {
+					t.Errorf("expected *ast.KillQueryNotificationStmt, got %T", result.Items[0])
+				} else if n.All {
+					t.Errorf("expected All=false")
+				} else if n.SubscriptionID == nil {
+					t.Errorf("expected SubscriptionID to be set")
+				}
+			}
+		})
+	}
+}

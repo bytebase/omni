@@ -356,6 +356,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		fmt.Fprintf(sb, "{SHUTDOWN :withNoWait %v :loc %d %d}", n.WithNoWait, n.Loc.Start, n.Loc.End)
 	case *KillStmt:
 		writeKillStmt(sb, n)
+	case *KillQueryNotificationStmt:
+		writeKillQueryNotificationStmt(sb, n)
 	case *ReadtextStmt:
 		writeReadtextStmt(sb, n)
 	case *WritetextStmt:
@@ -3239,6 +3241,16 @@ func writeKillStmt(sb *strings.Builder, n *KillStmt) {
 		writeNode(sb, n.SessionID)
 	}
 	fmt.Fprintf(sb, " :statusOnly %v :loc %d %d}", n.StatusOnly, n.Loc.Start, n.Loc.End)
+}
+
+func writeKillQueryNotificationStmt(sb *strings.Builder, n *KillQueryNotificationStmt) {
+	sb.WriteString("{KILL_QUERY_NOTIFICATION_SUBSCRIPTION")
+	fmt.Fprintf(sb, " :all %v", n.All)
+	if n.SubscriptionID != nil {
+		sb.WriteString(" :subscriptionId ")
+		writeNode(sb, n.SubscriptionID)
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
 
 func writeReadtextStmt(sb *strings.Builder, n *ReadtextStmt) {
