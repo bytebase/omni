@@ -1798,7 +1798,7 @@
       "id": 75,
       "name": "alter_role_all_create_group_user",
       "file": "grant.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix 2 gaps in role management. (1) ALTER ROLE ALL SET: parseAlterRoleStmt() calls parseRoleSpec() immediately, but ALL is a reserved keyword that parseRoleSpec/parseColId cannot handle. Must check for ALL token before parseRoleSpec, set role to nil, then proceed to parse SET/RESET/IN DATABASE. (2) CREATE GROUP ... USER: parseCreateGroupStmt() calls parseOptRoleList() which delegates to parseCreateOptRoleElem(), but the bare USER keyword is not handled as a role option. Must recognize USER as a synonym for ROLE in CREATE GROUP context and parse the following role list as rolemembers DefElem.",
       "rules": [
         "parseAlterRoleStmt",

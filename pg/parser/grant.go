@@ -679,7 +679,7 @@ func (p *Parser) parseCreateOptRoleElem() *nodes.DefElem {
 		p.advance()
 		roles := p.parseRoleList()
 		return makeDefElem("adminmembers", roles)
-	case ROLE:
+	case ROLE, USER:
 		p.advance()
 		roles := p.parseRoleList()
 		return makeDefElem("rolemembers", roles)
@@ -699,6 +699,20 @@ func (p *Parser) parseCreateOptRoleElem() *nodes.DefElem {
 
 func (p *Parser) parseAlterRoleStmt() nodes.Node {
 	p.advance() // consume ROLE or USER
+	// ALTER ROLE ALL SET/RESET/IN DATABASE ...
+	if p.cur.Type == ALL {
+		p.advance()
+		if p.cur.Type == SET || p.cur.Type == RESET {
+			return p.parseAlterRoleSetStmtSuffix(nil, "")
+		}
+		if p.cur.Type == IN_P {
+			p.advance()
+			p.expect(DATABASE)
+			dbname, _ := p.parseName()
+			return p.parseAlterRoleSetStmtSuffix(nil, dbname)
+		}
+		return nil
+	}
 	role := p.parseRoleSpec()
 	if p.cur.Type == RENAME {
 		p.advance()
