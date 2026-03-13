@@ -615,3 +615,105 @@ func (p *Parser) parseProfileLimit() *nodes.ProfileLimit {
 	lim.Loc.End = p.pos()
 	return lim
 }
+
+// parseAdministerKeyManagementStmt parses an ADMINISTER KEY MANAGEMENT statement.
+// The current token is "ADMINISTER" (identifier).
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ADMINISTER-KEY-MANAGEMENT.html
+//
+//	ADMINISTER KEY MANAGEMENT
+//	  { keystore_management_clauses
+//	  | key_management_clauses
+//	  | secret_management_clauses
+//	  | zero_downtime_software_patching_clauses }
+//
+//	keystore_management_clauses:
+//	    CREATE KEYSTORE 'keystore_location' IDENTIFIED BY { password | EXTERNAL STORE }
+//	  | CREATE [ LOCAL ] AUTO_LOGIN KEYSTORE FROM KEYSTORE 'keystore_location'
+//	        IDENTIFIED BY { password | EXTERNAL STORE }
+//	  | ALTER KEYSTORE PASSWORD [ FORCE KEYSTORE ]
+//	        IDENTIFIED BY old_password SET new_password [ WITH BACKUP [ USING 'description' ] ]
+//	  | CLOSE KEYSTORE [ IDENTIFIED BY { password | EXTERNAL STORE } ]
+//	  | BACKUP KEYSTORE [ USING 'description' ] [ FORCE KEYSTORE ]
+//	        IDENTIFIED BY { password | EXTERNAL STORE } [ TO 'keystore_location' ]
+//	  | MERGE KEYSTORE 'keystore_location1' [ AND 'keystore_location2' ]
+//	        IDENTIFIED BY { password | EXTERNAL STORE }
+//	        INTO [ NEW ] KEYSTORE 'keystore_location3'
+//	        IDENTIFIED BY { password | EXTERNAL STORE }
+//	  | FORCE KEYSTORE { ISOLATE KEYSTORE | UNITE KEYSTORE }
+//	        IDENTIFIED BY { EXTERNAL STORE | isolated_password }
+//	  | SET KEYSTORE OPEN [ FORCE KEYSTORE ]
+//	        IDENTIFIED BY { password | EXTERNAL STORE }
+//	        [ CONTAINER = { CURRENT | ALL } ]
+//	  | SET KEY [ USING TAG 'tag' ]
+//	        [ USING ALGORITHM 'algorithm' ]
+//	        [ FORCE KEYSTORE ]
+//	        IDENTIFIED BY { password | EXTERNAL STORE }
+//	        [ WITH BACKUP [ USING 'description' ] ]
+//	        [ CONTAINER = { CURRENT | ALL } ]
+//	  | CREATE KEY [ USING TAG 'tag' ]
+//	        [ USING ALGORITHM 'algorithm' ]
+//	        [ FORCE KEYSTORE ]
+//	        IDENTIFIED BY { password | EXTERNAL STORE }
+//	        [ WITH BACKUP [ USING 'description' ] ]
+//	        [ CONTAINER = { CURRENT | ALL } ]
+//	  | USE KEY 'key_id'
+//	        [ USING TAG 'tag' ]
+//	        [ FORCE KEYSTORE ]
+//	        IDENTIFIED BY { password | EXTERNAL STORE }
+//	        [ WITH BACKUP [ USING 'description' ] ]
+//	  | SET TAG 'tag' FOR 'key_id'
+//	        [ FORCE KEYSTORE ]
+//	        IDENTIFIED BY { password | EXTERNAL STORE }
+//	        [ WITH BACKUP [ USING 'description' ] ]
+//	  | EXPORT [ ENCRYPTION ] KEYS WITH SECRET 'secret'
+//	        TO 'filename'
+//	        [ FORCE KEYSTORE ]
+//	        IDENTIFIED BY { password | EXTERNAL STORE }
+//	        [ WITH IDENTIFIER IN ( key_id [, ...] | subquery )  ]
+//	  | IMPORT [ ENCRYPTION ] KEYS WITH SECRET 'secret'
+//	        FROM 'filename'
+//	        [ FORCE KEYSTORE ]
+//	        IDENTIFIED BY { password | EXTERNAL STORE }
+//	        [ WITH BACKUP [ USING 'description' ] ]
+//	  | MOVE [ ENCRYPTION ] KEYS
+//	        TO NEW KEYSTORE 'keystore_location'
+//	        IDENTIFIED BY keystore_password
+//	        FROM [ FORCE ] KEYSTORE
+//	        IDENTIFIED BY { password | EXTERNAL STORE }
+//	        [ WITH IDENTIFIER IN ( key_id [, ...] | subquery ) ]
+//	        [ WITH BACKUP [ USING 'description' ] ]
+//
+//	secret_management_clauses:
+//	    ADD SECRET 'secret' FOR CLIENT 'client_identifier'
+//	        [ USING TAG 'tag' ]
+//	        [ FORCE KEYSTORE ]
+//	        IDENTIFIED BY { password | EXTERNAL STORE }
+//	        [ WITH BACKUP [ USING 'description' ] ]
+//	  | UPDATE SECRET 'secret' FOR CLIENT 'client_identifier'
+//	        [ USING TAG 'tag' ]
+//	        [ FORCE KEYSTORE ]
+//	        IDENTIFIED BY { password | EXTERNAL STORE }
+//	        [ WITH BACKUP [ USING 'description' ] ]
+//	  | DELETE SECRET FOR CLIENT 'client_identifier'
+//	        [ FORCE KEYSTORE ]
+//	        IDENTIFIED BY { password | EXTERNAL STORE }
+//	        [ WITH BACKUP [ USING 'description' ] ]
+func (p *Parser) parseAdministerKeyManagementStmt() nodes.StmtNode {
+	start := p.pos()
+	p.advance() // consume ADMINISTER
+
+	stmt := &nodes.AdminDDLStmt{
+		Action:     "ADMINISTER",
+		ObjectType: nodes.OBJECT_KEY_MANAGEMENT,
+		Loc:        nodes.Loc{Start: start},
+	}
+
+	// Skip KEY MANAGEMENT and all remaining tokens
+	for p.cur.Type != ';' && p.cur.Type != tokEOF {
+		p.advance()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}

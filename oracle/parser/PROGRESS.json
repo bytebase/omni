@@ -1431,7 +1431,7 @@
       "id": 64,
       "name": "administer_key_management",
       "file": "security.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: ADMINISTER KEY MANAGEMENT for Transparent Data Encryption (TDE) keystore and key operations.",
       "rules": [
         "administer_key_management_stmt"
@@ -1447,7 +1447,7 @@
       "id": 65,
       "name": "audit_policy",
       "file": "security.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: CREATE AUDIT POLICY, ALTER AUDIT POLICY, DROP AUDIT POLICY (Unified Auditing). Define fine-grained audit policies.",
       "rules": [
         "create_audit_policy_stmt",

@@ -83,6 +83,13 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		return p.parseCreatePackageStmt(start, orReplace)
 	case kwTRIGGER:
 		return p.parseCreateTriggerStmt(start, orReplace)
+	case kwAUDIT:
+		// CREATE AUDIT POLICY
+		p.advance() // consume AUDIT
+		if p.isIdentLikeStr("POLICY") {
+			p.advance() // consume POLICY
+		}
+		return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_AUDIT_POLICY, start)
 	case kwUSER, kwROLE, kwPROFILE,
 		kwTABLESPACE, kwDIRECTORY, kwCONTEXT,
 		kwCLUSTER, kwJAVA, kwLIBRARY, kwSCHEMA:

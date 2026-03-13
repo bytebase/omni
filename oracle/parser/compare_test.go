@@ -2201,3 +2201,148 @@ func TestParseDropPDB(t *testing.T) {
 		})
 	}
 }
+
+// TestParseAdministerKeyMgmt tests ADMINISTER KEY MANAGEMENT statements.
+func TestParseAdministerKeyMgmt(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"create_keystore", "ADMINISTER KEY MANAGEMENT CREATE KEYSTORE '/u01/keystore' IDENTIFIED BY password1"},
+		{"create_auto_login", "ADMINISTER KEY MANAGEMENT CREATE AUTO_LOGIN KEYSTORE FROM KEYSTORE '/u01/keystore' IDENTIFIED BY password1"},
+		{"create_local_auto_login", "ADMINISTER KEY MANAGEMENT CREATE LOCAL AUTO_LOGIN KEYSTORE FROM KEYSTORE '/u01/keystore' IDENTIFIED BY password1"},
+		{"open_keystore", "ADMINISTER KEY MANAGEMENT SET KEYSTORE OPEN IDENTIFIED BY password1"},
+		{"close_keystore", "ADMINISTER KEY MANAGEMENT SET KEYSTORE CLOSE IDENTIFIED BY password1"},
+		{"set_key", "ADMINISTER KEY MANAGEMENT SET KEY IDENTIFIED BY password1 WITH BACKUP"},
+		{"set_key_tag", "ADMINISTER KEY MANAGEMENT SET KEY USING TAG 'quarterly_key' IDENTIFIED BY password1 WITH BACKUP USING 'Q1 key rotation'"},
+		{"create_key", "ADMINISTER KEY MANAGEMENT CREATE KEY IDENTIFIED BY password1 WITH BACKUP"},
+		{"use_key", "ADMINISTER KEY MANAGEMENT USE KEY 'key_id_123' IDENTIFIED BY password1 WITH BACKUP"},
+		{"backup_keystore", "ADMINISTER KEY MANAGEMENT BACKUP KEYSTORE IDENTIFIED BY password1 TO '/backup/'"},
+		{"alter_password", "ADMINISTER KEY MANAGEMENT ALTER KEYSTORE PASSWORD IDENTIFIED BY old_pass SET new_pass WITH BACKUP"},
+		{"export_keys", "ADMINISTER KEY MANAGEMENT EXPORT KEYS WITH SECRET 'my_secret' TO '/tmp/export.p12' IDENTIFIED BY password1"},
+		{"import_keys", "ADMINISTER KEY MANAGEMENT IMPORT KEYS WITH SECRET 'my_secret' FROM '/tmp/export.p12' IDENTIFIED BY password1 WITH BACKUP"},
+		{"merge_keystore", "ADMINISTER KEY MANAGEMENT MERGE KEYSTORE '/u01/ks1' AND '/u01/ks2' IDENTIFIED BY password1 INTO NEW KEYSTORE '/u01/merged' IDENTIFIED BY password2"},
+		{"add_secret", "ADMINISTER KEY MANAGEMENT ADD SECRET 'secret1' FOR CLIENT 'client1' IDENTIFIED BY password1"},
+		{"set_tag", "ADMINISTER KEY MANAGEMENT SET TAG 'mytag' FOR 'key123' IDENTIFIED BY password1 WITH BACKUP"},
+		{"external_store", "ADMINISTER KEY MANAGEMENT SET KEY IDENTIFIED BY EXTERNAL STORE WITH BACKUP"},
+		{"container_all", "ADMINISTER KEY MANAGEMENT SET KEY IDENTIFIED BY password1 WITH BACKUP CONTAINER = ALL"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
+			if !ok {
+				t.Fatalf("expected *AdminDDLStmt, got %T", raw.Stmt)
+			}
+			if stmt.Action != "ADMINISTER" {
+				t.Errorf("expected action ADMINISTER, got %q", stmt.Action)
+			}
+			if stmt.ObjectType != ast.OBJECT_KEY_MANAGEMENT {
+				t.Errorf("expected OBJECT_KEY_MANAGEMENT, got %d", stmt.ObjectType)
+			}
+		})
+	}
+}
+
+// TestParseCreateAuditPolicy tests CREATE AUDIT POLICY statements.
+func TestParseCreateAuditPolicy(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"basic", "CREATE AUDIT POLICY my_policy ACTIONS SELECT ON hr.employees"},
+		{"all_actions", "CREATE AUDIT POLICY my_policy ACTIONS ALL"},
+		{"multiple_actions", "CREATE AUDIT POLICY my_policy ACTIONS INSERT ON hr.employees, DELETE ON hr.employees"},
+		{"privileges", "CREATE AUDIT POLICY priv_policy PRIVILEGES CREATE TABLE, DROP ANY TABLE"},
+		{"roles", "CREATE AUDIT POLICY role_policy ROLES dba, resource"},
+		{"when_condition", "CREATE AUDIT POLICY cond_policy ACTIONS SELECT ON hr.employees WHEN 'SYS_CONTEXT(''USERENV'', ''SESSION_USER'') = ''HR''' EVALUATE PER SESSION"},
+		{"system_actions", "CREATE AUDIT POLICY sys_policy ACTIONS CREATE TABLE, ALTER TABLE, DROP TABLE"},
+		{"container_current", "CREATE AUDIT POLICY my_policy ACTIONS SELECT CONTAINER = CURRENT"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
+			if !ok {
+				t.Fatalf("expected *AdminDDLStmt, got %T", raw.Stmt)
+			}
+			if stmt.Action != "CREATE" {
+				t.Errorf("expected action CREATE, got %q", stmt.Action)
+			}
+			if stmt.ObjectType != ast.OBJECT_AUDIT_POLICY {
+				t.Errorf("expected OBJECT_AUDIT_POLICY, got %d", stmt.ObjectType)
+			}
+		})
+	}
+}
+
+// TestParseAlterAuditPolicy tests ALTER AUDIT POLICY statements.
+func TestParseAlterAuditPolicy(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"add_actions", "ALTER AUDIT POLICY my_policy ADD ACTIONS DELETE ON hr.employees"},
+		{"drop_actions", "ALTER AUDIT POLICY my_policy DROP ACTIONS SELECT ON hr.employees"},
+		{"add_privileges", "ALTER AUDIT POLICY my_policy ADD PRIVILEGES CREATE ANY TABLE"},
+		{"add_roles", "ALTER AUDIT POLICY my_policy ADD ROLES connect"},
+		{"condition", "ALTER AUDIT POLICY my_policy CONDITION 'SYS_CONTEXT(''USERENV'',''IP_ADDRESS'') = ''10.0.0.1''' EVALUATE PER SESSION"},
+		{"drop_condition", "ALTER AUDIT POLICY my_policy CONDITION DROP"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
+			if !ok {
+				t.Fatalf("expected *AdminDDLStmt, got %T", raw.Stmt)
+			}
+			if stmt.Action != "ALTER" {
+				t.Errorf("expected action ALTER, got %q", stmt.Action)
+			}
+			if stmt.ObjectType != ast.OBJECT_AUDIT_POLICY {
+				t.Errorf("expected OBJECT_AUDIT_POLICY, got %d", stmt.ObjectType)
+			}
+		})
+	}
+}
+
+// TestParseDropAuditPolicy tests DROP AUDIT POLICY statements.
+func TestParseDropAuditPolicy(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"basic", "DROP AUDIT POLICY my_policy"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
+			if !ok {
+				t.Fatalf("expected *AdminDDLStmt, got %T", raw.Stmt)
+			}
+			if stmt.Action != "DROP" {
+				t.Errorf("expected action DROP, got %q", stmt.Action)
+			}
+			if stmt.ObjectType != ast.OBJECT_AUDIT_POLICY {
+				t.Errorf("expected OBJECT_AUDIT_POLICY, got %d", stmt.ObjectType)
+			}
+		})
+	}
+}

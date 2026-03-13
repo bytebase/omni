@@ -94,6 +94,13 @@ func (p *Parser) parseDropStmt() nodes.StmtNode {
 			}
 			stmt.ObjectType = nodes.OBJECT_DATABASE_LINK
 		}
+	case kwAUDIT:
+		// DROP AUDIT POLICY
+		p.advance() // consume AUDIT
+		if p.isIdentLikeStr("POLICY") {
+			p.advance() // consume POLICY
+		}
+		return p.parseAdminDDLStmt("DROP", nodes.OBJECT_AUDIT_POLICY, start)
 	case kwUSER, kwROLE, kwPROFILE,
 		kwTABLESPACE, kwDIRECTORY, kwCONTEXT,
 		kwCLUSTER, kwJAVA, kwLIBRARY:

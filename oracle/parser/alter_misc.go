@@ -57,6 +57,13 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		return p.parseAlterDatabaseStmt(start)
 	case kwSYNONYM:
 		return p.parseAlterGeneric(start, nodes.OBJECT_SYNONYM)
+	case kwAUDIT:
+		// ALTER AUDIT POLICY
+		p.advance() // consume AUDIT
+		if p.isIdentLikeStr("POLICY") {
+			p.advance() // consume POLICY
+		}
+		return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_AUDIT_POLICY, start)
 	case kwUSER, kwROLE, kwPROFILE,
 		kwTABLESPACE, kwCLUSTER, kwJAVA, kwLIBRARY:
 		if adminStmt := p.parseAlterAdminObject(start); adminStmt != nil {

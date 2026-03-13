@@ -142,6 +142,13 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 	case tokLABELOPEN:
 		return p.parsePLSQLBlock()
 	default:
+		// Handle identifier-based statements
+		if p.isIdentLike() {
+			switch p.cur.Str {
+			case "ADMINISTER":
+				return p.parseAdministerKeyManagementStmt()
+			}
+		}
 		return nil
 	}
 }
