@@ -12039,6 +12039,126 @@ WITH (
 	})
 }
 
+// TestParseCopyIntoColumnDepth tests structured COPY INTO column list parsing (batch 144).
+func TestParseCopyIntoColumnDepth(t *testing.T) {
+	t.Run("copy_into_column_structured", func(t *testing.T) {
+		sql := `COPY INTO dbo.lineitem (col1, col2, col3) FROM 'https://myaccount.blob.core.windows.net/container/data.csv' WITH (FILE_TYPE = 'CSV')`
+		result := ParseAndCheck(t, sql)
+		if result.Len() == 0 {
+			t.Fatalf("Parse(%q): no statements returned", sql)
+		}
+		stmt, ok := result.Items[0].(*ast.CopyIntoStmt)
+		if !ok {
+			t.Fatalf("expected *CopyIntoStmt, got %T", result.Items[0])
+		}
+		if stmt.ColumnList == nil || stmt.ColumnList.Len() != 3 {
+			t.Fatalf("expected 3 columns, got %d", stmt.ColumnList.Len())
+		}
+		// Verify first column is a structured CopyIntoColumn node
+		col0, ok := stmt.ColumnList.Items[0].(*ast.CopyIntoColumn)
+		if !ok {
+			t.Fatalf("expected *CopyIntoColumn, got %T", stmt.ColumnList.Items[0])
+		}
+		if col0.Name != "col1" {
+			t.Errorf("expected col name 'col1', got %q", col0.Name)
+		}
+		if col0.DefaultValue != nil {
+			t.Errorf("expected no default value for col1")
+		}
+		if col0.FieldNumber != 0 {
+			t.Errorf("expected no field number for col1")
+		}
+		checkLocation(t, sql, "CopyIntoStmt", stmt.Loc)
+	})
+
+	t.Run("copy_into_column_default", func(t *testing.T) {
+		sql := `COPY INTO dbo.lineitem (col1 DEFAULT 'N/A', col2 DEFAULT 42, col3 3) FROM 'https://myaccount.blob.core.windows.net/container/data.csv' WITH (FILE_TYPE = 'CSV')`
+		result := ParseAndCheck(t, sql)
+		if result.Len() == 0 {
+			t.Fatalf("Parse(%q): no statements returned", sql)
+		}
+		stmt, ok := result.Items[0].(*ast.CopyIntoStmt)
+		if !ok {
+			t.Fatalf("expected *CopyIntoStmt, got %T", result.Items[0])
+		}
+		if stmt.ColumnList == nil || stmt.ColumnList.Len() != 3 {
+			t.Fatalf("expected 3 columns, got %d", stmt.ColumnList.Len())
+		}
+		// col1 has DEFAULT 'N/A'
+		col0, ok := stmt.ColumnList.Items[0].(*ast.CopyIntoColumn)
+		if !ok {
+			t.Fatalf("expected *CopyIntoColumn, got %T", stmt.ColumnList.Items[0])
+		}
+		if col0.Name != "col1" {
+			t.Errorf("expected col name 'col1', got %q", col0.Name)
+		}
+		if col0.DefaultValue == nil {
+			t.Errorf("expected default value for col1")
+		}
+		// col2 has DEFAULT 42
+		col1, ok := stmt.ColumnList.Items[1].(*ast.CopyIntoColumn)
+		if !ok {
+			t.Fatalf("expected *CopyIntoColumn, got %T", stmt.ColumnList.Items[1])
+		}
+		if col1.Name != "col2" {
+			t.Errorf("expected col name 'col2', got %q", col1.Name)
+		}
+		if col1.DefaultValue == nil {
+			t.Errorf("expected default value for col2")
+		}
+		// col3 has field_number 3
+		col2, ok := stmt.ColumnList.Items[2].(*ast.CopyIntoColumn)
+		if !ok {
+			t.Fatalf("expected *CopyIntoColumn, got %T", stmt.ColumnList.Items[2])
+		}
+		if col2.Name != "col3" {
+			t.Errorf("expected col name 'col3', got %q", col2.Name)
+		}
+		if col2.FieldNumber != 3 {
+			t.Errorf("expected field number 3 for col3, got %d", col2.FieldNumber)
+		}
+		checkLocation(t, sql, "CopyIntoStmt", stmt.Loc)
+	})
+
+	t.Run("copy_into_column_error", func(t *testing.T) {
+		// Test that columns without DEFAULT or field_number still parse correctly
+		sql := `COPY INTO dbo.t1 (a DEFAULT 'x' 1, b 2) FROM 'https://storage.blob.core.windows.net/data/' WITH (FILE_TYPE = 'CSV')`
+		result := ParseAndCheck(t, sql)
+		if result.Len() == 0 {
+			t.Fatalf("Parse(%q): no statements returned", sql)
+		}
+		stmt, ok := result.Items[0].(*ast.CopyIntoStmt)
+		if !ok {
+			t.Fatalf("expected *CopyIntoStmt, got %T", result.Items[0])
+		}
+		if stmt.ColumnList == nil || stmt.ColumnList.Len() != 2 {
+			t.Fatalf("expected 2 columns, got %d", stmt.ColumnList.Len())
+		}
+		// Column 'a' has both DEFAULT and field_number
+		col0, ok := stmt.ColumnList.Items[0].(*ast.CopyIntoColumn)
+		if !ok {
+			t.Fatalf("expected *CopyIntoColumn, got %T", stmt.ColumnList.Items[0])
+		}
+		if col0.Name != "a" {
+			t.Errorf("expected col name 'a', got %q", col0.Name)
+		}
+		if col0.DefaultValue == nil {
+			t.Errorf("expected default value for col a")
+		}
+		if col0.FieldNumber != 1 {
+			t.Errorf("expected field number 1, got %d", col0.FieldNumber)
+		}
+		// Column 'b' has just field_number
+		col1, ok := stmt.ColumnList.Items[1].(*ast.CopyIntoColumn)
+		if !ok {
+			t.Fatalf("expected *CopyIntoColumn, got %T", stmt.ColumnList.Items[1])
+		}
+		if col1.FieldNumber != 2 {
+			t.Errorf("expected field number 2, got %d", col1.FieldNumber)
+		}
+	})
+}
+
 // TestParseRenameCETAS tests RENAME, CETAS, and CREATE TABLE AS CLONE OF (batch 112).
 func TestParseRenameCETAS(t *testing.T) {
 	// RENAME OBJECT

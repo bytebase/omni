@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
@@ -842,39 +843,31 @@ func (p *Parser) parseCopyIntoStmt() *nodes.CopyIntoStmt {
 		var cols []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
 			// Each entry is: Column_name [ DEFAULT value ] [ field_number ]
-			// We store the whole thing as a string for simplicity
 			if p.isIdentLike() || p.cur.Type == '[' {
-				colStr := p.cur.Str
+				col := &nodes.CopyIntoColumn{
+					Loc: nodes.Loc{Start: p.pos()},
+				}
+				col.Name = p.cur.Str
 				p.advance()
 
 				// Check for DEFAULT value
 				if p.matchIdentCI("DEFAULT") {
-					defVal := ""
-					switch p.cur.Type {
-					case tokSCONST, tokNSCONST:
-						defVal = "'" + p.cur.Str + "'"
-						p.advance()
-					case tokICONST, tokFCONST:
-						defVal = p.cur.Str
-						p.advance()
-					default:
-						if p.isIdentLike() {
-							defVal = p.cur.Str
-							p.advance()
-						}
-					}
-					colStr += " DEFAULT " + defVal
+					col.DefaultValue = p.parseExpr()
 				}
 
 				// Check for field_number (integer)
 				if p.cur.Type == tokICONST {
-					colStr += " " + p.cur.Str
+					if n, err := strconv.Atoi(p.cur.Str); err == nil {
+						col.FieldNumber = n
+					}
 					p.advance()
 				}
 
-				cols = append(cols, &nodes.String{Str: colStr})
+				col.Loc.End = p.pos()
+				cols = append(cols, col)
 			} else {
-				p.advance() // skip unexpected
+				// unexpected token in column list - break to avoid silent consumption
+				break
 			}
 
 			if _, ok := p.match(','); !ok {

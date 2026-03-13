@@ -416,6 +416,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterMaterializedViewStmt(sb, n)
 	case *CopyIntoStmt:
 		writeCopyIntoStmt(sb, n)
+	case *CopyIntoColumn:
+		writeCopyIntoColumn(sb, n)
 	case *RenameStmt:
 		writeRenameStmt(sb, n)
 	case *CreateExternalTableAsSelectStmt:
@@ -3744,6 +3746,22 @@ func writeCopyIntoStmt(sb *strings.Builder, n *CopyIntoStmt) {
 	if n.Options != nil {
 		sb.WriteString(" :options ")
 		writeNode(sb, n.Options)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCopyIntoColumn(sb *strings.Builder, n *CopyIntoColumn) {
+	sb.WriteString("{COPY_INTO_COLUMN")
+	if n.Name != "" {
+		fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	}
+	if n.DefaultValue != nil {
+		sb.WriteString(" :defaultValue ")
+		writeNode(sb, n.DefaultValue)
+	}
+	if n.FieldNumber != 0 {
+		fmt.Fprintf(sb, " :fieldNumber %d", n.FieldNumber)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

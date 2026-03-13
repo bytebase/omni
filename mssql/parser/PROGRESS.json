@@ -3102,7 +3102,27 @@
         "crtas_basic",
         "crtas_with_options"
       ]
+    },
+    {
+      "id": 144,
+      "name": "copy_into_column_depth",
+      "file": "utility.go",
+      "status": "done",
+      "description": "Fix batch 111 gap: replace string concatenation and p.advance() // skip unexpected in COPY INTO column list parsing (lines 840-888) with structured CopyIntoColumn AST nodes containing column name, optional DEFAULT value, and optional field_number. The skip unexpected at line 877 silently drops malformed tokens instead of raising a parse error.",
+      "rules": ["parseCopyIntoColumnListStructured"],
+      "depends_on": [111],
+      "tests": ["copy_into_column_structured", "copy_into_column_default", "copy_into_column_error"]
+    },
+    {
+      "id": 145,
+      "name": "receive_column_list_depth",
+      "file": "service_broker.go",
+      "status": "pending",
+      "description": "Fix batch 72 gap: replace string concatenation for RECEIVE column list (lines 450-496) with structured ReceiveColumn AST nodes containing expression, optional alias, and optional INTO. Currently builds COLUMNS=col1 AS alias,col2 as a flat string, losing AST structure. Also replace FROM=, INTO=, TOP= string formatting with typed ReceiveOption nodes.",
+      "rules": ["parseReceiveColumnListStructured"],
+      "depends_on": [72],
+      "tests": ["receive_column_structured", "receive_column_alias_structured"]
     }
   ],
-  "audit_round": 16
+  "audit_round": 17
 }

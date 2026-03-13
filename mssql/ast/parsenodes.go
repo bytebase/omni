@@ -2963,6 +2963,18 @@ type CopyIntoStmt struct {
 func (n *CopyIntoStmt) nodeTag()  {}
 func (n *CopyIntoStmt) stmtNode() {}
 
+// CopyIntoColumn represents a column entry in COPY INTO column list.
+//
+//	Column_name [ DEFAULT value ] [ field_number ]
+type CopyIntoColumn struct {
+	Name         string   // column name
+	DefaultValue ExprNode // optional DEFAULT value
+	FieldNumber  int      // optional field_number (0 means not specified)
+	Loc          Loc
+}
+
+func (n *CopyIntoColumn) nodeTag() {}
+
 // RenameStmt represents a RENAME statement (Azure Synapse / PDW).
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/rename-transact-sql
