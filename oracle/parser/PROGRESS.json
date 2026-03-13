@@ -1840,7 +1840,7 @@
       "id": 84,
       "name": "alter_dblink_synonym_proper",
       "file": "alter_misc.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 45 gap: ALTER DATABASE LINK and ALTER SYNONYM still route through parseAlterGeneric with skipToSemicolon. ALTER DATABASE LINK supports CONNECT TO user IDENTIFIED BY password [AUTHENTICATED BY]. ALTER SYNONYM supports COMPILE/EDITIONABLE/NONEDITIONABLE",
       "rules": [
         "alter_dblink_connect_to",

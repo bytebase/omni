@@ -328,6 +328,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateProfileStmt(sb, n)
 	case *AdminDDLStmt:
 		writeAdminDDLStmt(sb, n)
+	case *AlterDatabaseLinkStmt:
+		writeAlterDatabaseLinkStmt(sb, n)
+	case *AlterSynonymStmt:
+		writeAlterSynonymStmt(sb, n)
 	case *AlterMaterializedViewStmt:
 		writeAlterMaterializedViewStmt(sb, n)
 	case *AlterIndexStmt:
@@ -3027,6 +3031,53 @@ func writeAdminDDLStmt(sb *strings.Builder, n *AdminDDLStmt) {
 	}
 	if n.IfExists {
 		sb.WriteString(" :ifExists true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterDatabaseLinkStmt(sb *strings.Builder, n *AlterDatabaseLinkStmt) {
+	sb.WriteString("{ALTER_DATABASE_LINK")
+	if n.Shared {
+		sb.WriteString(" :shared true")
+	}
+	if n.Public {
+		sb.WriteString(" :public true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.ConnectUser != "" {
+		sb.WriteString(fmt.Sprintf(" :connectUser %q", n.ConnectUser))
+	}
+	if n.ConnectPassword != "" {
+		sb.WriteString(fmt.Sprintf(" :connectPassword %q", n.ConnectPassword))
+	}
+	if n.AuthenticatedUser != "" {
+		sb.WriteString(fmt.Sprintf(" :authenticatedUser %q", n.AuthenticatedUser))
+	}
+	if n.AuthenticatedPass != "" {
+		sb.WriteString(fmt.Sprintf(" :authenticatedPass %q", n.AuthenticatedPass))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterSynonymStmt(sb *strings.Builder, n *AlterSynonymStmt) {
+	sb.WriteString("{ALTER_SYNONYM")
+	if n.Public {
+		sb.WriteString(" :public true")
+	}
+	if n.IfExists {
+		sb.WriteString(" :ifExists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Action != "" {
+		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

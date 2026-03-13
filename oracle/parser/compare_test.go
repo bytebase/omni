@@ -2059,12 +2059,12 @@ func TestParseAlterDatabaseLinkStillWorks(t *testing.T) {
 		t.Fatalf("expected 1 statement, got %d", result.Len())
 	}
 	raw := result.Items[0].(*ast.RawStmt)
-	stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
+	stmt, ok := raw.Stmt.(*ast.AlterDatabaseLinkStmt)
 	if !ok {
-		t.Fatalf("expected *AdminDDLStmt, got %T", raw.Stmt)
+		t.Fatalf("expected *AlterDatabaseLinkStmt, got %T", raw.Stmt)
 	}
-	if stmt.ObjectType != ast.OBJECT_DATABASE_LINK {
-		t.Errorf("expected OBJECT_DATABASE_LINK, got %d", stmt.ObjectType)
+	if stmt.Name == nil {
+		t.Fatal("expected non-nil Name")
 	}
 }
 
@@ -3571,4 +3571,97 @@ func TestParseAlterMaterializedView(t *testing.T) {
 			ParseAndCheck(t, sql)
 		})
 	}
+}
+
+// TestParseAlterDatabaseLink tests parsing of ALTER DATABASE LINK statements.
+func TestParseAlterDatabaseLink(t *testing.T) {
+	tests := []string{
+		// Basic ALTER DATABASE LINK
+		"ALTER DATABASE LINK private_link CONNECT TO hr IDENTIFIED BY hr_password",
+		// PUBLIC
+		"ALTER PUBLIC DATABASE LINK pub_link CONNECT TO scott IDENTIFIED BY tiger",
+		// SHARED
+		"ALTER SHARED DATABASE LINK shared_link CONNECT TO hr IDENTIFIED BY hr_pass",
+		// SHARED PUBLIC with AUTHENTICATED BY
+		"ALTER SHARED PUBLIC DATABASE LINK shared_pub_link CONNECT TO scott IDENTIFIED BY tiger AUTHENTICATED BY hr IDENTIFIED BY hr_pass",
+		// Schema-qualified link name
+		"ALTER DATABASE LINK my_schema.my_link CONNECT TO admin IDENTIFIED BY secret",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+
+	// Verify AST node type
+	t.Run("alter_dblink_ast_check", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER SHARED PUBLIC DATABASE LINK mylink CONNECT TO scott IDENTIFIED BY tiger AUTHENTICATED BY hr IDENTIFIED BY hr_pass")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterDatabaseLinkStmt)
+		if stmt.Name == nil {
+			t.Fatal("expected non-nil Name")
+		}
+		if !stmt.Shared {
+			t.Fatal("expected Shared=true")
+		}
+		if !stmt.Public {
+			t.Fatal("expected Public=true")
+		}
+		if stmt.ConnectUser != "SCOTT" {
+			t.Fatalf("expected ConnectUser=SCOTT, got %s", stmt.ConnectUser)
+		}
+		if stmt.ConnectPassword != "TIGER" {
+			t.Fatalf("expected ConnectPassword=TIGER, got %s", stmt.ConnectPassword)
+		}
+		if stmt.AuthenticatedUser != "HR" {
+			t.Fatalf("expected AuthenticatedUser=HR, got %s", stmt.AuthenticatedUser)
+		}
+		if stmt.AuthenticatedPass != "HR_PASS" {
+			t.Fatalf("expected AuthenticatedPass=HR_PASS, got %s", stmt.AuthenticatedPass)
+		}
+	})
+}
+
+// TestParseAlterSynonym tests parsing of ALTER SYNONYM statements.
+func TestParseAlterSynonym(t *testing.T) {
+	tests := []string{
+		// COMPILE
+		"ALTER SYNONYM my_syn COMPILE",
+		// PUBLIC COMPILE
+		"ALTER PUBLIC SYNONYM emp_table COMPILE",
+		// EDITIONABLE
+		"ALTER SYNONYM my_syn EDITIONABLE",
+		// NONEDITIONABLE
+		"ALTER SYNONYM my_syn NONEDITIONABLE",
+		// IF EXISTS
+		"ALTER SYNONYM IF EXISTS my_syn COMPILE",
+		// PUBLIC IF EXISTS
+		"ALTER PUBLIC SYNONYM IF EXISTS my_syn COMPILE",
+		// Schema-qualified
+		"ALTER SYNONYM my_schema.my_syn COMPILE",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+
+	// Verify AST node type
+	t.Run("alter_synonym_ast_check", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER PUBLIC SYNONYM IF EXISTS my_syn EDITIONABLE")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterSynonymStmt)
+		if stmt.Name == nil {
+			t.Fatal("expected non-nil Name")
+		}
+		if !stmt.Public {
+			t.Fatal("expected Public=true")
+		}
+		if !stmt.IfExists {
+			t.Fatal("expected IfExists=true")
+		}
+		if stmt.Action != "EDITIONABLE" {
+			t.Fatalf("expected Action=EDITIONABLE, got %s", stmt.Action)
+		}
+	})
 }

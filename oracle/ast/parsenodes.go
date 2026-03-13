@@ -2318,6 +2318,44 @@ type AdminDDLStmt struct {
 func (n *AdminDDLStmt) nodeTag()  {}
 func (n *AdminDDLStmt) stmtNode() {}
 
+// AlterDatabaseLinkStmt represents an ALTER DATABASE LINK statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-DATABASE-LINK.html
+//
+//	ALTER [ SHARED ] [ PUBLIC ] DATABASE LINK dblink_name
+//	  CONNECT TO user IDENTIFIED BY password
+//	  [ AUTHENTICATED BY user IDENTIFIED BY password ]
+type AlterDatabaseLinkStmt struct {
+	Name              *ObjectName // database link name
+	Shared            bool        // SHARED keyword present
+	Public            bool        // PUBLIC keyword present
+	ConnectUser       string      // CONNECT TO user
+	ConnectPassword   string      // IDENTIFIED BY password
+	AuthenticatedUser string      // AUTHENTICATED BY user (optional)
+	AuthenticatedPass string      // IDENTIFIED BY password (optional, for AUTHENTICATED)
+	Loc               Loc
+}
+
+func (n *AlterDatabaseLinkStmt) nodeTag()  {}
+func (n *AlterDatabaseLinkStmt) stmtNode() {}
+
+// AlterSynonymStmt represents an ALTER SYNONYM statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-SYNONYM.html
+//
+//	ALTER [ PUBLIC ] SYNONYM [ IF EXISTS ] [ schema. ] synonym
+//	  { EDITIONABLE | NONEDITIONABLE | COMPILE }
+type AlterSynonymStmt struct {
+	Name     *ObjectName // synonym name
+	Public   bool        // PUBLIC keyword present
+	IfExists bool        // IF EXISTS
+	Action   string      // "COMPILE", "EDITIONABLE", "NONEDITIONABLE"
+	Loc      Loc
+}
+
+func (n *AlterSynonymStmt) nodeTag()  {}
+func (n *AlterSynonymStmt) stmtNode() {}
+
 // AlterMaterializedViewStmt represents an ALTER MATERIALIZED VIEW statement.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-MATERIALIZED-VIEW.html

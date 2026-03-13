@@ -57,7 +57,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		// Distinguish ALTER DATABASE LINK, ALTER DATABASE DICTIONARY, ALTER DATABASE
 		next := p.peekNext()
 		if next.Type == kwLINK {
-			return p.parseAlterGeneric(start, nodes.OBJECT_DATABASE_LINK)
+			return p.parseAlterDatabaseLinkStmt(start, false, false)
 		}
 		p.advance() // consume DATABASE
 		if p.isIdentLikeStr("DICTIONARY") {
@@ -66,7 +66,19 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		}
 		return p.parseAlterDatabaseStmt(start)
 	case kwSYNONYM:
-		return p.parseAlterGeneric(start, nodes.OBJECT_SYNONYM)
+		return p.parseAlterSynonymStmt(start, false)
+	case kwPUBLIC:
+		// ALTER PUBLIC DATABASE LINK or ALTER PUBLIC SYNONYM
+		p.advance() // consume PUBLIC
+		if p.cur.Type == kwDATABASE {
+			return p.parseAlterDatabaseLinkStmt(start, false, true)
+		}
+		if p.cur.Type == kwSYNONYM {
+			return p.parseAlterSynonymStmt(start, true)
+		}
+		// Unknown ALTER PUBLIC target
+		p.skipToSemicolon()
+		return nil
 	case kwAUDIT:
 		// ALTER AUDIT POLICY
 		p.advance() // consume AUDIT
@@ -102,8 +114,23 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		p.skipToSemicolon()
 		return nil
 	default:
-		// Check for DIMENSION (identifier)
 		if p.isIdentLike() {
+			// ALTER SHARED [PUBLIC] DATABASE LINK
+			if p.cur.Str == "SHARED" {
+				p.advance() // consume SHARED
+				isPublic := false
+				if p.cur.Type == kwPUBLIC {
+					isPublic = true
+					p.advance() // consume PUBLIC
+				}
+				if p.cur.Type == kwDATABASE {
+					return p.parseAlterDatabaseLinkStmt(start, true, isPublic)
+				}
+				// Unknown ALTER SHARED target
+				p.skipToSemicolon()
+				return nil
+			}
+			// Check for DIMENSION and other identifier-based objects
 			if adminStmt := p.parseAlterAdminObject(start); adminStmt != nil {
 				return adminStmt
 			}
@@ -509,6 +536,119 @@ func (p *Parser) parseAlterGeneric(start int, objType nodes.ObjectType) nodes.St
 
 	// Skip remainder of the statement (clauses vary greatly by object type).
 	p.skipToSemicolon()
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAlterDatabaseLinkStmt parses an ALTER DATABASE LINK statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-DATABASE-LINK.html
+//
+//	ALTER [ SHARED ] [ PUBLIC ] DATABASE LINK dblink_name
+//	  CONNECT TO user IDENTIFIED BY password
+//	  [ AUTHENTICATED BY user IDENTIFIED BY password ]
+func (p *Parser) parseAlterDatabaseLinkStmt(start int, shared bool, public bool) nodes.StmtNode {
+	p.advance() // consume DATABASE
+	if p.cur.Type == kwLINK {
+		p.advance() // consume LINK
+	}
+
+	stmt := &nodes.AlterDatabaseLinkStmt{
+		Shared: shared,
+		Public: public,
+		Loc:    nodes.Loc{Start: start},
+	}
+
+	// Parse the database link name.
+	stmt.Name = p.parseObjectName()
+
+	// CONNECT TO user IDENTIFIED BY password
+	if p.cur.Type == kwCONNECT {
+		p.advance() // consume CONNECT
+		if p.cur.Type == kwTO {
+			p.advance() // consume TO
+		}
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			stmt.ConnectUser = p.cur.Str
+			p.advance() // consume user
+		}
+		if p.cur.Type == kwIDENTIFIED {
+			p.advance() // consume IDENTIFIED
+			if p.cur.Type == kwBY {
+				p.advance() // consume BY
+			}
+			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokSCONST {
+				stmt.ConnectPassword = p.cur.Str
+				p.advance() // consume password
+			}
+		}
+	}
+
+	// [ AUTHENTICATED BY user IDENTIFIED BY password ]
+	if p.isIdentLikeStr("AUTHENTICATED") {
+		p.advance() // consume AUTHENTICATED
+		if p.cur.Type == kwBY {
+			p.advance() // consume BY
+		}
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			stmt.AuthenticatedUser = p.cur.Str
+			p.advance() // consume user
+		}
+		if p.cur.Type == kwIDENTIFIED {
+			p.advance() // consume IDENTIFIED
+			if p.cur.Type == kwBY {
+				p.advance() // consume BY
+			}
+			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokSCONST {
+				stmt.AuthenticatedPass = p.cur.Str
+				p.advance() // consume password
+			}
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAlterSynonymStmt parses an ALTER SYNONYM statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-SYNONYM.html
+//
+//	ALTER [ PUBLIC ] SYNONYM [ IF EXISTS ] [ schema. ] synonym
+//	  { EDITIONABLE | NONEDITIONABLE | COMPILE }
+func (p *Parser) parseAlterSynonymStmt(start int, public bool) nodes.StmtNode {
+	p.advance() // consume SYNONYM
+
+	stmt := &nodes.AlterSynonymStmt{
+		Public: public,
+		Loc:    nodes.Loc{Start: start},
+	}
+
+	// IF EXISTS
+	if p.cur.Type == kwIF {
+		next := p.peekNext()
+		if next.Type == kwEXISTS {
+			stmt.IfExists = true
+			p.advance() // consume IF
+			p.advance() // consume EXISTS
+		}
+	}
+
+	// Parse the synonym name.
+	stmt.Name = p.parseObjectName()
+
+	// { EDITIONABLE | NONEDITIONABLE | COMPILE }
+	if p.isIdentLikeStr("EDITIONABLE") {
+		stmt.Action = "EDITIONABLE"
+		p.advance()
+	} else if p.isIdentLikeStr("NONEDITIONABLE") {
+		stmt.Action = "NONEDITIONABLE"
+		p.advance()
+	} else if p.isIdentLikeStr("COMPILE") {
+		stmt.Action = "COMPILE"
+		p.advance()
+	}
 
 	stmt.Loc.End = p.pos()
 	return stmt
