@@ -2,7 +2,7 @@ package pg
 
 import (
 	"github.com/bytebase/omni/pg/ast"
-	"github.com/bytebase/omni/pg/yacc"
+	"github.com/bytebase/omni/pg/parser"
 )
 
 // Statement is the result of parsing a single SQL statement.
@@ -39,7 +39,7 @@ func (s *Statement) Empty() bool {
 // Parse splits and parses a SQL string into statements.
 // Each statement includes the text, AST, and byte/line positions.
 func Parse(sql string) ([]Statement, error) {
-	list, err := yacc.Parse(sql)
+	list, err := parser.Parse(sql)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,6 @@ func Parse(sql string) ([]Statement, error) {
 	// Build a line index for position calculation.
 	lineIndex := buildLineIndex(sql)
 
-	// The grammar returns statement nodes directly (not wrapped in RawStmt).
 	// We split the SQL text by semicolons to determine each statement's boundaries.
 	ranges := splitRanges(sql, len(list.Items))
 

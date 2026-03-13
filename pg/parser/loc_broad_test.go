@@ -45,11 +45,7 @@ func TestLocBroadScan(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			CompareWithYacc(t, sql)
-			violations := CheckLocations(t, sql)
-			for _, v := range violations {
-				t.Logf("  violation: %s", v)
-			}
+			parseAndCheckLoc(t, sql)
 		})
 	}
 }
