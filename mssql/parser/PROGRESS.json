@@ -3147,7 +3147,7 @@
       "id": 148,
       "name": "service_broker_options_strings_depth",
       "file": "service_broker.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 72/100 gap: replace 41 remaining nodes.String key=value concatenations in service_broker.go with typed AST nodes. Major areas: BEGIN CONVERSATION options (FROM SERVICE=, TO SERVICE=, ON CONTRACT=, RELATED_CONVERSATION=, LIFETIME=, ENCRYPTION= at lines 563-636), END CONVERSATION options (ERROR=, DESCRIPTION=, CLEANUP at lines 699-715), CREATE QUEUE options (STATUS=, RETENTION=, POISON_MESSAGE_HANDLING=, ACTIVATION: at lines 189-327), ALTER route/binding/service WITH options (lines 786-1018).",
       "rules": ["parseServiceBrokerOptionsStructuredFinal"],
       "depends_on": [72, 100, 145],

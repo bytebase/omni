@@ -16332,3 +16332,277 @@ func TestParseKillQueryNotification(t *testing.T) {
 		})
 	}
 }
+
+// TestParseServiceBrokerOptionsStringsDepth tests batch 148: typed ServiceBrokerOption nodes.
+func TestParseServiceBrokerOptionsStringsDepth(t *testing.T) {
+	// Helper to get first option from ServiceBrokerStmt
+	getOpt := func(t *testing.T, result *ast.List, idx int) *ast.ServiceBrokerOption {
+		t.Helper()
+		stmt, ok := result.Items[0].(*ast.ServiceBrokerStmt)
+		if !ok {
+			t.Fatalf("expected *ServiceBrokerStmt, got %T", result.Items[0])
+		}
+		if stmt.Options == nil || stmt.Options.Len() <= idx {
+			t.Fatalf("expected at least %d options, got %d", idx+1, stmt.Options.Len())
+		}
+		opt, ok := stmt.Options.Items[idx].(*ast.ServiceBrokerOption)
+		if !ok {
+			t.Fatalf("expected *ServiceBrokerOption at index %d, got %T", idx, stmt.Options.Items[idx])
+		}
+		return opt
+	}
+
+	t.Run("begin_conversation_opts_final", func(t *testing.T) {
+		sql := "BEGIN DIALOG CONVERSATION @dialog_handle FROM SERVICE [//MyApp/Initiator] TO SERVICE '//MyApp/Target', 'abc-guid' ON CONTRACT [//MyApp/Contract] WITH LIFETIME = 60, ENCRYPTION = OFF"
+		result := ParseAndCheck(t, sql)
+		// FROM SERVICE
+		opt := getOpt(t, result, 0)
+		if opt.Name != "FROM SERVICE" || opt.Value != "//MyApp/Initiator" {
+			t.Errorf("expected FROM SERVICE=//MyApp/Initiator, got %s=%s", opt.Name, opt.Value)
+		}
+		// TO SERVICE
+		opt = getOpt(t, result, 1)
+		if opt.Name != "TO SERVICE" || opt.Value != "//MyApp/Target" {
+			t.Errorf("expected TO SERVICE=//MyApp/Target, got %s=%s", opt.Name, opt.Value)
+		}
+		// BROKER_INSTANCE
+		opt = getOpt(t, result, 2)
+		if opt.Name != "BROKER_INSTANCE" || opt.Value != "abc-guid" {
+			t.Errorf("expected BROKER_INSTANCE=abc-guid, got %s=%s", opt.Name, opt.Value)
+		}
+		// ON CONTRACT
+		opt = getOpt(t, result, 3)
+		if opt.Name != "ON CONTRACT" || opt.Value != "//MyApp/Contract" {
+			t.Errorf("expected ON CONTRACT=//MyApp/Contract, got %s=%s", opt.Name, opt.Value)
+		}
+		// LIFETIME
+		opt = getOpt(t, result, 4)
+		if opt.Name != "LIFETIME" || opt.Value != "60" {
+			t.Errorf("expected LIFETIME=60, got %s=%s", opt.Name, opt.Value)
+		}
+		// ENCRYPTION
+		opt = getOpt(t, result, 5)
+		if opt.Name != "ENCRYPTION" || opt.Value != "OFF" {
+			t.Errorf("expected ENCRYPTION=OFF, got %s=%s", opt.Name, opt.Value)
+		}
+	})
+
+	t.Run("begin_conversation_related", func(t *testing.T) {
+		sql := "BEGIN DIALOG CONVERSATION @dialog_handle FROM SERVICE [//MyApp/Initiator] TO SERVICE '//MyApp/Target' ON CONTRACT [//MyApp/Contract] WITH RELATED_CONVERSATION = @existing_handle"
+		result := ParseAndCheck(t, sql)
+		opt := getOpt(t, result, 3)
+		if opt.Name != "RELATED_CONVERSATION" || opt.Value != "@existing_handle" {
+			t.Errorf("expected RELATED_CONVERSATION=@existing_handle, got %s=%s", opt.Name, opt.Value)
+		}
+	})
+
+	t.Run("begin_conversation_related_group", func(t *testing.T) {
+		sql := "BEGIN DIALOG CONVERSATION @dialog_handle FROM SERVICE [//MyApp/Initiator] TO SERVICE '//MyApp/Target' ON CONTRACT [//MyApp/Contract] WITH RELATED_CONVERSATION_GROUP = @group_id"
+		result := ParseAndCheck(t, sql)
+		opt := getOpt(t, result, 3)
+		if opt.Name != "RELATED_CONVERSATION_GROUP" || opt.Value != "@group_id" {
+			t.Errorf("expected RELATED_CONVERSATION_GROUP=@group_id, got %s=%s", opt.Name, opt.Value)
+		}
+	})
+
+	t.Run("end_conversation_opts_final", func(t *testing.T) {
+		sql := "END CONVERSATION @dialog_handle WITH ERROR = 100 DESCRIPTION = 'Something went wrong'"
+		result := ParseAndCheck(t, sql)
+		opt := getOpt(t, result, 0)
+		if opt.Name != "ERROR" || opt.Value != "100" {
+			t.Errorf("expected ERROR=100, got %s=%s", opt.Name, opt.Value)
+		}
+		opt = getOpt(t, result, 1)
+		if opt.Name != "DESCRIPTION" || opt.Value != "Something went wrong" {
+			t.Errorf("expected DESCRIPTION=Something went wrong, got %s=%s", opt.Name, opt.Value)
+		}
+	})
+
+	t.Run("end_conversation_cleanup", func(t *testing.T) {
+		sql := "END CONVERSATION @dialog_handle WITH CLEANUP"
+		result := ParseAndCheck(t, sql)
+		opt := getOpt(t, result, 0)
+		if opt.Name != "CLEANUP" {
+			t.Errorf("expected CLEANUP, got %s", opt.Name)
+		}
+	})
+
+	t.Run("create_queue_opts_final", func(t *testing.T) {
+		sql := "CREATE QUEUE dbo.MyQueue WITH STATUS = ON, RETENTION = OFF, ACTIVATION (STATUS = ON, PROCEDURE_NAME = dbo.myproc, MAX_QUEUE_READERS = 5, EXECUTE AS SELF), POISON_MESSAGE_HANDLING (STATUS = ON)"
+		result := ParseAndCheck(t, sql)
+		// STATUS
+		opt := getOpt(t, result, 0)
+		if opt.Name != "STATUS" || opt.Value != "ON" {
+			t.Errorf("expected STATUS=ON, got %s=%s", opt.Name, opt.Value)
+		}
+		// RETENTION
+		opt = getOpt(t, result, 1)
+		if opt.Name != "RETENTION" || opt.Value != "OFF" {
+			t.Errorf("expected RETENTION=OFF, got %s=%s", opt.Name, opt.Value)
+		}
+		// ACTIVATION:STATUS
+		opt = getOpt(t, result, 2)
+		if opt.Name != "ACTIVATION:STATUS" || opt.Value != "ON" {
+			t.Errorf("expected ACTIVATION:STATUS=ON, got %s=%s", opt.Name, opt.Value)
+		}
+		// ACTIVATION:PROCEDURE_NAME
+		opt = getOpt(t, result, 3)
+		if opt.Name != "ACTIVATION:PROCEDURE_NAME" || opt.Value != "dbo.myproc" {
+			t.Errorf("expected ACTIVATION:PROCEDURE_NAME=dbo.myproc, got %s=%s", opt.Name, opt.Value)
+		}
+		// ACTIVATION:MAX_QUEUE_READERS
+		opt = getOpt(t, result, 4)
+		if opt.Name != "ACTIVATION:MAX_QUEUE_READERS" || opt.Value != "5" {
+			t.Errorf("expected ACTIVATION:MAX_QUEUE_READERS=5, got %s=%s", opt.Name, opt.Value)
+		}
+		// ACTIVATION:EXECUTE AS
+		opt = getOpt(t, result, 5)
+		if opt.Name != "ACTIVATION:EXECUTE AS" || opt.Value != "SELF" {
+			t.Errorf("expected ACTIVATION:EXECUTE AS=SELF, got %s=%s", opt.Name, opt.Value)
+		}
+		// POISON_MESSAGE_HANDLING
+		opt = getOpt(t, result, 6)
+		if opt.Name != "POISON_MESSAGE_HANDLING" || opt.Value != "ON" {
+			t.Errorf("expected POISON_MESSAGE_HANDLING=ON, got %s=%s", opt.Name, opt.Value)
+		}
+	})
+
+	t.Run("create_route_opts", func(t *testing.T) {
+		sql := "CREATE ROUTE MyRoute WITH SERVICE_NAME = '/example/svc', ADDRESS = 'TCP://10.0.0.1:4022'"
+		result := ParseAndCheck(t, sql)
+		opt := getOpt(t, result, 0)
+		if opt.Name != "SERVICE_NAME" || opt.Value != "/example/svc" {
+			t.Errorf("expected SERVICE_NAME=/example/svc, got %s=%s", opt.Name, opt.Value)
+		}
+		opt = getOpt(t, result, 1)
+		if opt.Name != "ADDRESS" || opt.Value != "TCP://10.0.0.1:4022" {
+			t.Errorf("expected ADDRESS=TCP://10.0.0.1:4022, got %s=%s", opt.Name, opt.Value)
+		}
+	})
+
+	t.Run("create_remote_service_binding_opts", func(t *testing.T) {
+		sql := "CREATE REMOTE SERVICE BINDING MyBinding TO SERVICE '//example/svc' WITH USER = ExpensesUser, ANONYMOUS = ON"
+		result := ParseAndCheck(t, sql)
+		opt := getOpt(t, result, 0)
+		if opt.Name != "SERVICE" || opt.Value != "//example/svc" {
+			t.Errorf("expected SERVICE=//example/svc, got %s=%s", opt.Name, opt.Value)
+		}
+		opt = getOpt(t, result, 1)
+		if opt.Name != "USER" || opt.Value != "ExpensesUser" {
+			t.Errorf("expected USER=ExpensesUser, got %s=%s", opt.Name, opt.Value)
+		}
+		opt = getOpt(t, result, 2)
+		if opt.Name != "ANONYMOUS" || opt.Value != "ON" {
+			t.Errorf("expected ANONYMOUS=ON, got %s=%s", opt.Name, opt.Value)
+		}
+	})
+
+	t.Run("broker_priority_set_opts", func(t *testing.T) {
+		sql := "CREATE BROKER PRIORITY MyPriority FOR CONVERSATION SET (CONTRACT_NAME = MyContract, LOCAL_SERVICE_NAME = ANY, PRIORITY_LEVEL = 5)"
+		result := ParseAndCheck(t, sql)
+		opt := getOpt(t, result, 0)
+		if opt.Name != "CONTRACT_NAME" || opt.Value != "MYCONTRACT" {
+			t.Errorf("expected CONTRACT_NAME=MYCONTRACT, got %s=%s", opt.Name, opt.Value)
+		}
+		opt = getOpt(t, result, 1)
+		if opt.Name != "LOCAL_SERVICE_NAME" || opt.Value != "ANY" {
+			t.Errorf("expected LOCAL_SERVICE_NAME=ANY, got %s=%s", opt.Name, opt.Value)
+		}
+		opt = getOpt(t, result, 2)
+		if opt.Name != "PRIORITY_LEVEL" || opt.Value != "5" {
+			t.Errorf("expected PRIORITY_LEVEL=5, got %s=%s", opt.Name, opt.Value)
+		}
+	})
+
+	t.Run("alter_route_opts", func(t *testing.T) {
+		sql := "ALTER ROUTE MyRoute WITH ADDRESS = 'TCP://10.0.0.2:4022'"
+		result := ParseAndCheck(t, sql)
+		opt := getOpt(t, result, 0)
+		if opt.Name != "ADDRESS" || opt.Value != "TCP://10.0.0.2:4022" {
+			t.Errorf("expected ADDRESS=TCP://10.0.0.2:4022, got %s=%s", opt.Name, opt.Value)
+		}
+	})
+
+	t.Run("alter_remote_service_binding_opts", func(t *testing.T) {
+		sql := "ALTER REMOTE SERVICE BINDING MyBinding WITH USER = NewUser, ANONYMOUS = OFF"
+		result := ParseAndCheck(t, sql)
+		opt := getOpt(t, result, 0)
+		if opt.Name != "USER" || opt.Value != "NewUser" {
+			t.Errorf("expected USER=NewUser, got %s=%s", opt.Name, opt.Value)
+		}
+		opt = getOpt(t, result, 1)
+		if opt.Name != "ANONYMOUS" || opt.Value != "OFF" {
+			t.Errorf("expected ANONYMOUS=OFF, got %s=%s", opt.Name, opt.Value)
+		}
+	})
+
+	t.Run("alter_message_type_validation", func(t *testing.T) {
+		sql := "ALTER MESSAGE TYPE MyMsg VALIDATION = WELL_FORMED_XML"
+		result := ParseAndCheck(t, sql)
+		opt := getOpt(t, result, 0)
+		if opt.Name != "VALIDATION" || opt.Value != "WELL_FORMED_XML" {
+			t.Errorf("expected VALIDATION=WELL_FORMED_XML, got %s=%s", opt.Name, opt.Value)
+		}
+	})
+
+	t.Run("alter_contract_add_drop", func(t *testing.T) {
+		sql := "ALTER CONTRACT MyContract ADD MESSAGE TYPE MyMsgType SENT BY INITIATOR"
+		result := ParseAndCheck(t, sql)
+		opt := getOpt(t, result, 0)
+		if opt.Name != "ADD" || opt.Value != "MyMsgType SENT BY INITIATOR" {
+			t.Errorf("expected ADD=MyMsgType SENT BY INITIATOR, got %s=%s", opt.Name, opt.Value)
+		}
+	})
+
+	t.Run("move_conversation_to", func(t *testing.T) {
+		sql := "MOVE CONVERSATION @dialog_handle TO @group_id"
+		result := ParseAndCheck(t, sql)
+		opt := getOpt(t, result, 0)
+		if opt.Name != "TO" || opt.Value != "@group_id" {
+			t.Errorf("expected TO=@group_id, got %s=%s", opt.Name, opt.Value)
+		}
+	})
+
+	t.Run("create_service_queue_contract", func(t *testing.T) {
+		sql := "CREATE SERVICE [//MyApp/MyService] ON QUEUE MyQueue ([//MyApp/Contract1], [//MyApp/Contract2])"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.ServiceBrokerStmt)
+		if stmt.Options == nil {
+			t.Fatal("expected Options")
+		}
+		// Should have QUEUE + 2 contract entries
+		if stmt.Options.Len() < 3 {
+			t.Fatalf("expected at least 3 options, got %d", stmt.Options.Len())
+		}
+		opt := getOpt(t, result, 0)
+		if opt.Name != "QUEUE" || opt.Value != "MyQueue" {
+			t.Errorf("expected QUEUE=MyQueue, got %s=%s", opt.Name, opt.Value)
+		}
+	})
+
+	t.Run("activation_drop", func(t *testing.T) {
+		sql := "ALTER QUEUE MyQueue WITH ACTIVATION (DROP)"
+		result := ParseAndCheck(t, sql)
+		opt := getOpt(t, result, 0)
+		if opt.Name != "ACTIVATION:DROP" {
+			t.Errorf("expected ACTIVATION:DROP, got %s", opt.Name)
+		}
+	})
+
+	// Verify all existing tests still pass by checking basic parsing
+	existingTests := []string{
+		"CREATE MESSAGE TYPE [//MyApp/RequestMsg] VALIDATION = NONE",
+		"CREATE CONTRACT [//MyApp/MyContract] ([//MyApp/RequestMsg] SENT BY INITIATOR)",
+		"CREATE QUEUE MyQueue",
+		"ALTER QUEUE dbo.ExpenseQueue WITH STATUS = ON",
+		"ALTER SERVICE MyService ON QUEUE dbo.NewQueue",
+		"END CONVERSATION @handle",
+		"BEGIN DIALOG CONVERSATION @dialog_handle FROM SERVICE [//MyApp/Initiator] TO SERVICE '//MyApp/Target' ON CONTRACT [//MyApp/Contract]",
+		"GET CONVERSATION GROUP @conversation_group_id FROM ExpenseQueue",
+	}
+	for _, sql := range existingTests {
+		t.Run("existing_"+sql[:20], func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}

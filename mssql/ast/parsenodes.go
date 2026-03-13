@@ -2408,6 +2408,15 @@ type ServiceBrokerStmt struct {
 func (n *ServiceBrokerStmt) nodeTag()  {}
 func (n *ServiceBrokerStmt) stmtNode() {}
 
+// ServiceBrokerOption represents a typed key=value option in a Service Broker statement.
+type ServiceBrokerOption struct {
+	Name  string // option name (e.g., STATUS, RETENTION, FROM SERVICE, ENCRYPTION)
+	Value string // option value (may be empty for flag-like options such as CLEANUP, DROP)
+	Loc   Loc
+}
+
+func (n *ServiceBrokerOption) nodeTag() {}
+
 // ReceiveStmt represents a RECEIVE statement with structured fields.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/receive-transact-sql

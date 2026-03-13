@@ -346,6 +346,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterAssemblyStmt(sb, n)
 	case *ServiceBrokerStmt:
 		writeServiceBrokerStmt(sb, n)
+	case *ServiceBrokerOption:
+		writeServiceBrokerOption(sb, n)
 	case *ReceiveStmt:
 		writeReceiveStmt(sb, n)
 	case *ReceiveColumn:
@@ -3199,6 +3201,15 @@ func writeServiceBrokerStmt(sb *strings.Builder, n *ServiceBrokerStmt) {
 	if n.Options != nil {
 		sb.WriteString(" :options ")
 		writeNode(sb, n.Options)
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeServiceBrokerOption(sb *strings.Builder, n *ServiceBrokerOption) {
+	sb.WriteString("{SBOPT")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	if n.Value != "" {
+		fmt.Fprintf(sb, " :value \"%s\"", escapeString(n.Value))
 	}
 	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
