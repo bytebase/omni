@@ -1,5 +1,7 @@
 package ast
 
+//go:generate go run ./cmd/genwalker
+
 // Visitor defines the interface for AST traversal.
 // Visit is called for each node during a depth-first walk.
 // If Visit returns a non-nil Visitor, Walk recurses into the node's children
@@ -39,12 +41,17 @@ func (f inspector) Visit(node Node) Visitor {
 	return nil
 }
 
-// walkList walks each item in a List.
+// walkList visits a List node and then walks each of its items.
 func walkList(v Visitor, list *List) {
 	if list == nil {
 		return
 	}
-	for _, item := range list.Items {
-		Walk(v, item)
+	w := v.Visit(list)
+	if w == nil {
+		return
 	}
+	for _, item := range list.Items {
+		Walk(w, item)
+	}
+	w.Visit(nil)
 }
