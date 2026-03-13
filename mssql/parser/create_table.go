@@ -973,6 +973,348 @@ func (p *Parser) parseInlineTableIndex() *nodes.InlineIndexDef {
 	return idx
 }
 
+// isCTAS detects whether the current token stream (after table name) represents
+// a CREATE TABLE AS SELECT statement. This is called during lookahead and the
+// caller will restore lexer state afterwards. The tableName parameter is unused
+// but kept for signature consistency with the dispatch.
+//
+// CTAS patterns after table name:
+//
+//	WITH ( DISTRIBUTION = ... ) AS SELECT ...
+//	( col_list ) WITH ( ... ) AS SELECT ...
+//	( col_list ) AS SELECT ...
+//	AS SELECT ...
+func (p *Parser) isCTAS(_ *nodes.TableRef) bool {
+	// Skip optional column list: ( col1, col2, ... )
+	if p.cur.Type == '(' {
+		depth := 1
+		p.advance()
+		for depth > 0 && p.cur.Type != tokEOF {
+			if p.cur.Type == '(' {
+				depth++
+			} else if p.cur.Type == ')' {
+				depth--
+			}
+			p.advance()
+		}
+	}
+
+	// Check for WITH ( DISTRIBUTION = ... ) pattern (Synapse table options)
+	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
+		p.advance() // consume WITH
+		depth := 1
+		p.advance() // consume (
+		for depth > 0 && p.cur.Type != tokEOF {
+			if p.cur.Type == '(' {
+				depth++
+			} else if p.cur.Type == ')' {
+				depth--
+			}
+			p.advance()
+		}
+	}
+
+	// After optional column list and optional WITH, check for AS SELECT or AS WITH (CTE)
+	if p.cur.Type == kwAS {
+		next := p.peekNext()
+		if next.Type == kwSELECT || next.Type == kwWITH || next.Type == '(' {
+			return true
+		}
+	}
+	return false
+}
+
+// parseCreateTableAsSelectStmt parses a CREATE TABLE AS SELECT (CTAS) statement
+// for Azure Synapse Analytics / Analytics Platform System.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-table-as-select-azure-sql-data-warehouse
+//
+//	CREATE TABLE { database_name.schema_name.table_name | schema_name.table_name | table_name }
+//	    [ ( column_name [ ,...n ] ) ]
+//	    WITH (
+//	      <distribution_option>
+//	      [ , <table_option> [ ,...n ] ]
+//	    )
+//	    AS <select_statement>
+//	    OPTION <query_hint>
+//
+//	<distribution_option> ::=
+//	    {
+//	        DISTRIBUTION = HASH ( distribution_column_name [, ...n] )
+//	      | DISTRIBUTION = ROUND_ROBIN
+//	      | DISTRIBUTION = REPLICATE
+//	    }
+//
+//	<table_option> ::=
+//	    {
+//	        CLUSTERED COLUMNSTORE INDEX
+//	      | CLUSTERED COLUMNSTORE INDEX ORDER ( column [,...n] )
+//	      | HEAP
+//	      | CLUSTERED INDEX ( { index_column_name [ ASC | DESC ] } [ ,...n ] )
+//	    }
+//	    | PARTITION ( partition_column_name RANGE [ LEFT | RIGHT ]
+//	        FOR VALUES ( [ boundary_value [,...n] ] ) )
+func (p *Parser) parseCreateTableAsSelectStmt() *nodes.CreateTableAsSelectStmt {
+	loc := p.pos()
+
+	stmt := &nodes.CreateTableAsSelectStmt{
+		Loc: nodes.Loc{Start: loc},
+	}
+
+	// Table name
+	stmt.Name = p.parseTableRef()
+
+	// Optional column list: ( col1, col2, ... )
+	if p.cur.Type == '(' {
+		// Peek ahead to check if this is a simple column name list (CTAS)
+		// or a column definition list (regular CREATE TABLE).
+		// In CTAS, the paren list contains only identifiers separated by commas.
+		stmt.Columns = p.parseParenIdentList()
+	}
+
+	// Optional WITH ( distribution_option [, table_option ...] )
+	if p.cur.Type == kwWITH {
+		p.advance() // consume WITH
+		stmt.Options = p.parseCTASWithOptions()
+	}
+
+	// AS <select_statement>
+	if p.cur.Type == kwAS {
+		p.advance() // consume AS
+	}
+
+	// Parse the SELECT statement
+	stmt.Query = p.parseSelectStmt()
+
+	// Optional OPTION ( query_hint )
+	// This is already handled inside parseSelectStmt via parseOptionClause
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseCTASWithOptions parses the WITH ( ... ) clause for a CTAS statement.
+// Options include DISTRIBUTION, CLUSTERED COLUMNSTORE INDEX, CLUSTERED INDEX,
+// HEAP, and PARTITION.
+func (p *Parser) parseCTASWithOptions() *nodes.List {
+	if p.cur.Type != '(' {
+		return nil
+	}
+	p.advance() // consume (
+
+	var items []nodes.Node
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		opt := p.parseCTASOption()
+		if opt != nil {
+			items = append(items, opt)
+		}
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	p.expect(')')
+
+	if len(items) == 0 {
+		return nil
+	}
+	return &nodes.List{Items: items}
+}
+
+// parseCTASOption parses a single CTAS WITH option.
+func (p *Parser) parseCTASOption() *nodes.TableOption {
+	loc := p.pos()
+
+	// CLUSTERED COLUMNSTORE INDEX [ORDER (col, ...)]
+	if p.cur.Type == kwCLUSTERED {
+		next := p.peekNext()
+		if next.Type == kwCOLUMNSTORE {
+			p.advance() // consume CLUSTERED
+			p.advance() // consume COLUMNSTORE
+			if p.cur.Type == kwINDEX {
+				p.advance() // consume INDEX
+			}
+			opt := &nodes.TableOption{
+				Name: "CLUSTERED COLUMNSTORE INDEX",
+				Loc:  nodes.Loc{Start: loc},
+			}
+			// Optional ORDER (col, ...)
+			if p.cur.Type == kwORDER || (p.isIdentLike() && strings.EqualFold(p.cur.Str, "ORDER")) {
+				p.advance() // consume ORDER
+				if p.cur.Type == '(' {
+					var cols []string
+					p.advance()
+					for p.cur.Type != ')' && p.cur.Type != tokEOF {
+						name, ok := p.parseIdentifier()
+						if !ok {
+							break
+						}
+						cols = append(cols, name)
+						if _, ok := p.match(','); !ok {
+							break
+						}
+					}
+					p.expect(')')
+					opt.Value = "ORDER(" + strings.Join(cols, ", ") + ")"
+				}
+			}
+			opt.Loc.End = p.pos()
+			return opt
+		}
+		// CLUSTERED INDEX ( col [ASC|DESC], ... )
+		if next.Type == kwINDEX {
+			p.advance() // consume CLUSTERED
+			p.advance() // consume INDEX
+			opt := &nodes.TableOption{
+				Name: "CLUSTERED INDEX",
+				Loc:  nodes.Loc{Start: loc},
+			}
+			if p.cur.Type == '(' {
+				p.advance()
+				var parts []string
+				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					name, ok := p.parseIdentifier()
+					if !ok {
+						break
+					}
+					entry := name
+					if p.cur.Type == kwASC {
+						entry += " ASC"
+						p.advance()
+					} else if p.cur.Type == kwDESC {
+						entry += " DESC"
+						p.advance()
+					}
+					parts = append(parts, entry)
+					if _, ok := p.match(','); !ok {
+						break
+					}
+				}
+				p.expect(')')
+				opt.Value = strings.Join(parts, ", ")
+			}
+			opt.Loc.End = p.pos()
+			return opt
+		}
+	}
+
+	// HEAP
+	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "HEAP") {
+		p.advance()
+		opt := &nodes.TableOption{
+			Name: "HEAP",
+			Loc:  nodes.Loc{Start: loc},
+		}
+		opt.Loc.End = p.pos()
+		return opt
+	}
+
+	// PARTITION ( col RANGE [LEFT|RIGHT] FOR VALUES ( ... ) )
+	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "PARTITION") {
+		p.advance() // consume PARTITION
+		opt := &nodes.TableOption{
+			Name: "PARTITION",
+			Loc:  nodes.Loc{Start: loc},
+		}
+		if p.cur.Type == '(' {
+			p.advance()
+			// partition_column_name
+			colName, _ := p.parseIdentifier()
+			opt.Value = colName
+
+			// RANGE [LEFT|RIGHT]
+			rangeDir := ""
+			if p.isIdentLike() && strings.EqualFold(p.cur.Str, "RANGE") {
+				p.advance()
+				if p.cur.Type == kwLEFT {
+					rangeDir = "LEFT"
+					p.advance()
+				} else if p.cur.Type == kwRIGHT {
+					rangeDir = "RIGHT"
+					p.advance()
+				}
+			}
+			if rangeDir != "" {
+				opt.Value += " RANGE " + rangeDir
+			} else {
+				opt.Value += " RANGE"
+			}
+
+			// FOR VALUES ( value, ... )
+			if p.cur.Type == kwFOR {
+				p.advance() // consume FOR
+				if p.isIdentLike() && strings.EqualFold(p.cur.Str, "VALUES") {
+					p.advance() // consume VALUES
+				}
+				if p.cur.Type == '(' {
+					p.advance()
+					var vals []string
+					for p.cur.Type != ')' && p.cur.Type != tokEOF {
+						// Boundary values can be integers, strings, dates, etc.
+						val := p.cur.Str
+						if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+							val = p.cur.Str
+						} else if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
+							val = "'" + p.cur.Str + "'"
+						} else if p.cur.Type == '-' {
+							p.advance()
+							val = "-" + p.cur.Str
+						}
+						vals = append(vals, val)
+						p.advance()
+						if _, ok := p.match(','); !ok {
+							break
+						}
+					}
+					p.expect(')')
+					opt.Value += " FOR VALUES(" + strings.Join(vals, ", ") + ")"
+				}
+			}
+			p.expect(')')
+		}
+		opt.Loc.End = p.pos()
+		return opt
+	}
+
+	// DISTRIBUTION = HASH(col [,...]) | ROUND_ROBIN | REPLICATE
+	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "DISTRIBUTION") {
+		p.advance() // consume DISTRIBUTION
+		opt := &nodes.TableOption{
+			Name: "DISTRIBUTION",
+			Loc:  nodes.Loc{Start: loc},
+		}
+		if p.cur.Type == '=' {
+			p.advance()
+		}
+		if p.isIdentLike() {
+			distType := strings.ToUpper(p.cur.Str)
+			p.advance()
+			if distType == "HASH" && p.cur.Type == '(' {
+				p.advance()
+				var cols []string
+				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					name, ok := p.parseIdentifier()
+					if !ok {
+						break
+					}
+					cols = append(cols, name)
+					if _, ok := p.match(','); !ok {
+						break
+					}
+				}
+				p.expect(')')
+				opt.Value = "HASH(" + strings.Join(cols, ", ") + ")"
+			} else {
+				opt.Value = distType
+			}
+		}
+		opt.Loc.End = p.pos()
+		return opt
+	}
+
+	// Fallback: parse as NAME = VALUE
+	return p.parseOneTableOption()
+}
+
 // parseParenIdentList parses (ident, ident, ...).
 func (p *Parser) parseParenIdentList() *nodes.List {
 	p.advance() // consume (

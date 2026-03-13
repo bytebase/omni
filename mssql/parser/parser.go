@@ -379,14 +379,16 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		return stmt
 	case kwTABLE:
 		p.advance() // consume TABLE
-		// Check if this is CREATE TABLE ... AS CLONE OF (Fabric)
-		// Save lexer state for potential AS CLONE OF detection
+		// Check if this is CREATE TABLE ... AS CLONE OF (Fabric) or CTAS (Synapse)
+		// Save lexer state for potential lookahead detection
 		savedLexerPos := p.lexer.pos
 		savedCur := p.cur
 		savedPrev := p.prev
 		savedNextBuf := p.nextBuf
 		savedHasNext := p.hasNext
 		tableName := p.parseTableRef()
+
+		// Check for AS CLONE OF
 		if p.cur.Type == kwAS {
 			next := p.peekNext()
 			if next.Type == tokIDENT && strings.EqualFold(next.Str, "CLONE") {
@@ -396,7 +398,26 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				return cloneStmt
 			}
 		}
-		// Not a clone — restore lexer state and parse normally
+
+		// Check for CTAS (CREATE TABLE ... AS SELECT / WITH ... AS SELECT)
+		// Patterns after table name:
+		//   1. WITH (...) AS SELECT ...        (WITH is table options, not CTE)
+		//   2. (col_list) WITH (...) AS SELECT ...
+		//   3. (col_list) AS SELECT ...
+		//   4. AS SELECT ...                   (no WITH, no columns)
+		if p.isCTAS(tableName) {
+			// Restore and re-parse as CTAS
+			p.lexer.pos = savedLexerPos
+			p.cur = savedCur
+			p.prev = savedPrev
+			p.nextBuf = savedNextBuf
+			p.hasNext = savedHasNext
+			ctasStmt := p.parseCreateTableAsSelectStmt()
+			ctasStmt.Loc.Start = loc
+			return ctasStmt
+		}
+
+		// Not a clone or CTAS — restore lexer state and parse normally
 		p.lexer.pos = savedLexerPos
 		p.cur = savedCur
 		p.prev = savedPrev

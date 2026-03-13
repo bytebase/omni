@@ -15414,3 +15414,79 @@ func TestParseEndpointRemainingDepth(t *testing.T) {
 		}
 	})
 }
+
+// TestParseCtasSynapse tests CREATE TABLE AS SELECT (CTAS) for Azure Synapse Analytics.
+func TestParseCtasSynapse(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		// Basic CTAS with distribution
+		{
+			name: "ctas_basic_round_robin",
+			sql:  "CREATE TABLE dbo.NewTable WITH (DISTRIBUTION = ROUND_ROBIN) AS SELECT * FROM dbo.OldTable",
+		},
+		{
+			name: "ctas_hash_distribution",
+			sql:  "CREATE TABLE dbo.NewTable WITH (DISTRIBUTION = HASH(ProductKey)) AS SELECT * FROM dbo.OldTable",
+		},
+		{
+			name: "ctas_replicate_distribution",
+			sql:  "CREATE TABLE dbo.NewTable WITH (DISTRIBUTION = REPLICATE) AS SELECT * FROM dbo.OldTable",
+		},
+		// Multi-column hash distribution
+		{
+			name: "ctas_multi_column_hash",
+			sql:  "CREATE TABLE dbo.NewTable WITH (DISTRIBUTION = HASH(Col1, Col2)) AS SELECT * FROM dbo.OldTable",
+		},
+		// CTAS with index options
+		{
+			name: "ctas_clustered_columnstore",
+			sql:  "CREATE TABLE dbo.NewTable WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = ROUND_ROBIN) AS SELECT * FROM dbo.OldTable",
+		},
+		{
+			name: "ctas_clustered_columnstore_order",
+			sql:  "CREATE TABLE dbo.NewTable WITH (CLUSTERED COLUMNSTORE INDEX ORDER(Col1, Col2), DISTRIBUTION = HASH(Col1)) AS SELECT * FROM dbo.OldTable",
+		},
+		{
+			name: "ctas_heap",
+			sql:  "CREATE TABLE dbo.NewTable WITH (HEAP, DISTRIBUTION = ROUND_ROBIN) AS SELECT * FROM dbo.OldTable",
+		},
+		{
+			name: "ctas_clustered_index",
+			sql:  "CREATE TABLE dbo.NewTable WITH (CLUSTERED INDEX(ProductKey ASC, OrderDateKey DESC), DISTRIBUTION = HASH(ProductKey)) AS SELECT * FROM dbo.OldTable",
+		},
+		// CTAS with partition
+		{
+			name: "ctas_with_partition",
+			sql:  "CREATE TABLE dbo.NewTable WITH (DISTRIBUTION = HASH(ProductKey), PARTITION(OrderDateKey RANGE RIGHT FOR VALUES(20200101, 20210101, 20220101))) AS SELECT * FROM dbo.OldTable",
+		},
+		// CTAS with column list
+		{
+			name: "ctas_with_columns",
+			sql:  "CREATE TABLE dbo.NewTable (Col1, Col2, Col3) WITH (DISTRIBUTION = ROUND_ROBIN) AS SELECT a, b, c FROM dbo.OldTable",
+		},
+		// CTAS with complex SELECT
+		{
+			name: "ctas_complex_select",
+			sql:  "CREATE TABLE dbo.Summary WITH (DISTRIBUTION = HASH(CustomerKey)) AS SELECT CustomerKey, SUM(Amount) AS TotalAmount FROM dbo.Sales GROUP BY CustomerKey",
+		},
+		// CTAS with all options combined
+		{
+			name: "ctas_all_options",
+			sql:  "CREATE TABLE dbo.FactCopy WITH (CLUSTERED COLUMNSTORE INDEX, DISTRIBUTION = HASH(ProductKey), PARTITION(OrderDateKey RANGE RIGHT FOR VALUES(20200101, 20210101))) AS SELECT * FROM dbo.FactTable",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+			}
+			_, ok := result.Items[0].(*ast.CreateTableAsSelectStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *CreateTableAsSelectStmt, got %T", tt.sql, result.Items[0])
+			}
+		})
+	}
+}

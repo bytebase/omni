@@ -414,6 +414,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateExternalTableAsSelectStmt(sb, n)
 	case *CreateTableCloneStmt:
 		writeCreateTableCloneStmt(sb, n)
+	case *CreateTableAsSelectStmt:
+		writeCreateTableAsSelectStmt(sb, n)
 	case *PredictStmt:
 		writePredictStmt(sb, n)
 	case *QueryHint:
@@ -3692,6 +3694,28 @@ func writeCreateTableCloneStmt(sb *strings.Builder, n *CreateTableCloneStmt) {
 	}
 	if n.AtTime != "" {
 		fmt.Fprintf(sb, " :atTime \"%s\"", escapeString(n.AtTime))
+	}
+	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
+	sb.WriteString("}")
+}
+
+func writeCreateTableAsSelectStmt(sb *strings.Builder, n *CreateTableAsSelectStmt) {
+	sb.WriteString("{CREATETABLEASSELECT")
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
+	if n.Query != nil {
+		sb.WriteString(" :query ")
+		writeNode(sb, n.Query)
 	}
 	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")

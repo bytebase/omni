@@ -2980,7 +2980,111 @@
         "alter_authorization_entity_structured",
         "alter_authorization_to_schema_owner"
       ]
+    },
+    {
+      "id": 137,
+      "name": "ctas_synapse",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "New: CREATE TABLE AS SELECT (CTAS) for Azure Synapse Analytics. BNF: CREATE TABLE table_name [ WITH ( DISTRIBUTION = { HASH(col) | ROUND_ROBIN | REPLICATE }, [ CLUSTERED COLUMNSTORE INDEX | CLUSTERED INDEX (col,...) | HEAP ] [, PARTITION (col RANGE ...)] ) ] AS select_stmt",
+      "rules": [
+        "parseCreateTableAsSelectStmt"
+      ],
+      "depends_on": [
+        8,
+        4
+      ],
+      "tests": [
+        "ctas_basic",
+        "ctas_with_distribution",
+        "ctas_with_partition"
+      ]
+    },
+    {
+      "id": 138,
+      "name": "audit_spec_actions_where_depth",
+      "file": "security_audit.go",
+      "status": "pending",
+      "description": "Fix batch 96 gap: replace raw token string collection in WHERE clause predicate (line 440) with parsed expression using p.parseExpr(). Replace manual parenthesis depth tracking in ADD/DROP audit spec actions (lines 481-539) with structured AuditSpecAction AST nodes containing action type and group list instead of string concatenation.",
+      "rules": [
+        "parseAuditSpecWhereExpr",
+        "parseAuditSpecActionsStructured"
+      ],
+      "depends_on": [
+        96
+      ],
+      "tests": [
+        "audit_spec_where_expr",
+        "audit_spec_add_drop_structured"
+      ]
+    },
+    {
+      "id": 139,
+      "name": "event_notification_options_depth",
+      "file": "event.go",
+      "status": "pending",
+      "description": "Fix batch 135 gap: replace nodes.String formatting in parseEventNotificationOptions() (lines 75-155) with structured EventNotificationOption AST nodes (scope type, event group list, target service/broker instance) instead of manual ON=SERVER/FOR=xxx/SERVICE=xxx string formatting.",
+      "rules": [
+        "parseEventNotificationOptionsStructured"
+      ],
+      "depends_on": [
+        56,
+        135
+      ],
+      "tests": [
+        "event_notification_structured_scope",
+        "event_notification_structured_events"
+      ]
+    },
+    {
+      "id": 140,
+      "name": "resource_governor_outer_depth",
+      "file": "resource_governor.go",
+      "status": "pending",
+      "description": "Fix batch 102 gap: replace nodes.String key=value string concatenation in parseResourceGovernorOptions() outer loop (lines 351-390) with structured ResourceGovernorOption AST nodes. The WITH clause inner parsing is structured but outer USING pool_name, RECONFIGURE, DISABLE, qualified name options still use string nodes.",
+      "rules": [
+        "parseResourceGovernorOuterOptionsStructured"
+      ],
+      "depends_on": [
+        102
+      ],
+      "tests": [
+        "resource_governor_outer_options_structured"
+      ]
+    },
+    {
+      "id": 141,
+      "name": "external_cleanup_depth",
+      "file": "external.go",
+      "status": "pending",
+      "description": "Fix batch 124 gap: remove dead parseNestedParens() function (lines 971-1020, defined but never called). Replace nodes.String formatting in parseExternalSetOptions() (lines 665-690) with structured ExternalOption AST nodes (key, value) instead of key=value string concatenation.",
+      "rules": [
+        "removeDeadParseNestedParens",
+        "parseExternalSetOptionsStructured"
+      ],
+      "depends_on": [
+        124
+      ],
+      "tests": [
+        "external_set_options_structured"
+      ]
+    },
+    {
+      "id": 142,
+      "name": "availability_skip_cleanup_depth",
+      "file": "availability.go",
+      "status": "pending",
+      "description": "Fix batch 125 gap: replace p.advance() // skip unexpected tokens at lines 433, 502, 567 with structured error handling or explicit unknown-token error recovery. These default-case token skips silently consume malformed input without raising parse errors.",
+      "rules": [
+        "parseAvailabilityGroupOptionDefault"
+      ],
+      "depends_on": [
+        125
+      ],
+      "tests": [
+        "availability_group_unexpected_token_error"
+      ]
     }
   ],
-  "audit_round": 14
+  "audit_round": 15
 }

@@ -2961,6 +2961,47 @@ type CreateTableCloneStmt struct {
 func (n *CreateTableCloneStmt) nodeTag()  {}
 func (n *CreateTableCloneStmt) stmtNode() {}
 
+// CreateTableAsSelectStmt represents a CREATE TABLE AS SELECT (CTAS) statement
+// for Azure Synapse Analytics / Analytics Platform System.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-table-as-select-azure-sql-data-warehouse
+//
+//	CREATE TABLE { database_name.schema_name.table_name | schema_name.table_name | table_name }
+//	    [ ( column_name [ ,...n ] ) ]
+//	    WITH (
+//	      <distribution_option>
+//	      [ , <table_option> [ ,...n ] ]
+//	    )
+//	    AS <select_statement>
+//	    OPTION <query_hint>
+//
+//	<distribution_option> ::=
+//	    {
+//	        DISTRIBUTION = HASH ( distribution_column_name [, ...n] )
+//	      | DISTRIBUTION = ROUND_ROBIN
+//	      | DISTRIBUTION = REPLICATE
+//	    }
+//
+//	<table_option> ::=
+//	    {
+//	        CLUSTERED COLUMNSTORE INDEX
+//	      | CLUSTERED COLUMNSTORE INDEX ORDER ( column [,...n] )
+//	      | HEAP
+//	      | CLUSTERED INDEX ( { index_column_name [ ASC | DESC ] } [ ,...n ] )
+//	    }
+//	    | PARTITION ( partition_column_name RANGE [ LEFT | RIGHT ]
+//	        FOR VALUES ( [ boundary_value [,...n] ] ) )
+type CreateTableAsSelectStmt struct {
+	Name    *TableRef // table name
+	Columns *List     // optional column list (String nodes)
+	Options *List     // WITH options (TableOption nodes for DISTRIBUTION, index type, PARTITION, etc.)
+	Query   Node      // the SELECT statement
+	Loc     Loc
+}
+
+func (n *CreateTableAsSelectStmt) nodeTag()  {}
+func (n *CreateTableAsSelectStmt) stmtNode() {}
+
 // PredictStmt represents a PREDICT statement (SQL Server 2022+).
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/predict-transact-sql
