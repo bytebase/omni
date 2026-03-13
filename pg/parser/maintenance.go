@@ -380,7 +380,7 @@ func (p *Parser) parseUtilityOptionName() string {
 	case ANALYZE, ANALYSE:
 		p.advance()
 		return "analyze"
-	case FORMAT_LA:
+	case FORMAT:
 		p.advance()
 		return "format"
 	case DEFAULT:

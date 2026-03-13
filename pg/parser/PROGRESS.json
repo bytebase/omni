@@ -1821,7 +1821,7 @@
       "id": 76,
       "name": "json_table_format_empty_behavior",
       "file": "json.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix 2 JSON/SQL gaps. (1) JSON_TABLE COLUMNS with FORMAT clause: parseJsonTableColumnDefinition() does not handle FORMAT JSON/JSONB specifier on REGULAR columns (e.g. COLUMNS(j jsonb FORMAT JSON)). Must parse optional FORMAT keyword after type in column definitions. (2) Bare EMPTY behavior in JSON_QUERY/JSON_VALUE: parseJsonBehaviorClauseOpt() does not recognize EMPTY as a standalone behavior type (EMPTY ARRAY/OBJECT). Statements like JSON_QUERY(..., '$[*]' EMPTY ON EMPTY) and JSON_VALUE(..., '$' EMPTY ON ERROR) fail. Must add EMPTY as a valid json_behavior_type that produces JSON_BEHAVIOR_EMPTY_ARRAY or JSON_BEHAVIOR_EMPTY_OBJECT.",
       "rules": [
         "parseJsonTableColumnDefinition",

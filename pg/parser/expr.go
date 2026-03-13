@@ -1756,6 +1756,21 @@ func (p *Parser) parseColumnRefOrFuncCall() nodes.Node {
 		return nil
 	}
 
+	// Check for func_name Sconst (type-casted constant like: jsonb '[]', text 'hello')
+	if p.cur.Type == SCONST {
+		tok := p.advance()
+		tn := &nodes.TypeName{
+			Names:   &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}},
+			TypeOid: 0,
+			Loc:     nodes.NoLoc(),
+		}
+		return &nodes.TypeCast{
+			Arg:      &nodes.A_Const{Val: &nodes.String{Str: tok.Str}},
+			TypeName: tn,
+			Loc:      nodes.NoLoc(),
+		}
+	}
+
 	// Check for function call
 	if p.cur.Type == '(' {
 		funcName := &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}}
@@ -1776,6 +1791,21 @@ func (p *Parser) parseColumnRefOrFuncCall() nodes.Node {
 		attr, err := p.parseAttrName()
 		if err != nil {
 			return nil
+		}
+
+		// schema.typename Sconst (e.g., pg_catalog.int4 '42')
+		if p.cur.Type == SCONST {
+			tok := p.advance()
+			tn := &nodes.TypeName{
+				Names:   &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}, &nodes.String{Str: attr}}},
+				TypeOid: 0,
+				Loc:     nodes.NoLoc(),
+			}
+			return &nodes.TypeCast{
+				Arg:      &nodes.A_Const{Val: &nodes.String{Str: tok.Str}},
+				TypeName: tn,
+				Loc:      nodes.NoLoc(),
+			}
 		}
 
 		// schema.func(...)

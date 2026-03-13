@@ -27,10 +27,10 @@ func (p *Parser) parseJsonValueExpr() *nodes.JsonValueExpr {
 // parseJsonFormatClause parses FORMAT JSON [ENCODING name].
 //
 //	json_format_clause:
-//	    FORMAT_LA JSON
-//	    | FORMAT_LA JSON ENCODING name
+//	    FORMAT JSON
+//	    | FORMAT JSON ENCODING name
 func (p *Parser) parseJsonFormatClause() *nodes.JsonFormat {
-	p.advance() // consume FORMAT_LA
+	p.advance() // consume FORMAT
 	p.expect(JSON)
 	f := &nodes.JsonFormat{
 		FormatType: nodes.JS_FORMAT_JSON,
@@ -45,7 +45,7 @@ func (p *Parser) parseJsonFormatClause() *nodes.JsonFormat {
 
 // parseJsonFormatClauseOpt parses an optional FORMAT clause.
 func (p *Parser) parseJsonFormatClauseOpt() *nodes.JsonFormat {
-	if p.cur.Type == FORMAT_LA {
+	if p.cur.Type == FORMAT {
 		return p.parseJsonFormatClause()
 	}
 	return nil
@@ -986,7 +986,7 @@ func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
 
 	// Check for FORMAT JSON clause
 	var format *nodes.JsonFormat
-	if p.cur.Type == FORMAT_LA {
+	if p.cur.Type == FORMAT {
 		format = p.parseJsonFormatClause()
 	}
 
