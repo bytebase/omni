@@ -23,23 +23,44 @@ You are implementing a recursive descent T-SQL (SQL Server) parser.
 
 If all batches are `"done"`, output `ALL_BATCHES_COMPLETE` and stop.
 
+## Progress Logging (MANDATORY)
+
+You MUST print progress markers to stdout at each step. This is how the pipeline operator monitors your work. Use this exact format:
+
+```
+[BATCH N] STARTED - batch_name
+[BATCH N] STEP reading_refs - Reading BNF and AST definitions
+[BATCH N] STEP writing_tests - Writing test cases
+[BATCH N] STEP writing_code - Implementing parse functions
+[BATCH N] STEP build - Running go build
+[BATCH N] STEP test - Running go test (X passed, Y failed)
+[BATCH N] STEP commit - Committing changes
+[BATCH N] DONE
+```
+
+If a step fails, print:
+```
+[BATCH N] FAIL test - description of failure
+[BATCH N] RETRY - what you're fixing
+```
+
+**Do NOT skip these markers.** They appear in the build log and are essential for debugging pipeline issues.
+
 ## Implementation Steps for Each Batch
 
-### Step 1: Fetch Complete BNF from Official Documentation (MANDATORY)
+### Step 1: Read Official Documentation (MANDATORY)
 
 **This is the most critical step. Do NOT skip it. Do NOT write BNF from memory.**
 
-For every grammar rule in the batch, you MUST:
+Documentation has been **pre-fetched** to local files. For every grammar rule in the batch:
 
-1. **Fetch the official Microsoft T-SQL documentation page** using the WebFetch tool
-   - URL pattern: `https://learn.microsoft.com/en-us/sql/t-sql/statements/{statement}-transact-sql`
-   - e.g., `alter-table-transact-sql`, `create-trigger-transact-sql`, `merge-transact-sql`
+1. **First check local docs**: Read from `mssql/parser/docs/{statement}.txt` (e.g., `alter-table-transact-sql.txt`, `create-trigger-transact-sql.txt`)
+2. **Only if the local file is missing**, use WebFetch as fallback:
+   - `https://learn.microsoft.com/en-us/sql/t-sql/statements/{statement}-transact-sql`
    - For queries: `https://learn.microsoft.com/en-us/sql/t-sql/queries/{query}-transact-sql`
-2. **Extract the COMPLETE BNF/syntax diagram** from the page — every branch, every option, every sub-clause
-3. **Do NOT abbreviate** — write `...` or truncate the BNF. If a statement has 50 lines of BNF, write all 50 lines
-4. **For sub-clauses that have their own doc page**, fetch those too (e.g., ALTER TABLE's `column_definition` links to a separate page)
-
-If WebFetch fails, use WebSearch to find the correct URL, then fetch it.
+3. **Extract the COMPLETE BNF/syntax diagram** — every branch, every option, every sub-clause
+4. **Do NOT abbreviate** — never write `...` or truncate the BNF
+5. **For sub-clauses that have their own doc page**, check `mssql/parser/docs/` first, then WebFetch if missing
 
 ### Step 2: Read AST and Existing Code
 

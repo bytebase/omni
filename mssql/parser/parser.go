@@ -761,6 +761,12 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				stmt.Loc.Start = loc
 				return stmt
 			}
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MODEL") {
+				p.advance() // consume MODEL
+				stmt := p.parseCreateExternalModelStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
 			return nil
 		}
 		// CREATE AVAILABILITY GROUP
@@ -1199,6 +1205,12 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LANGUAGE") {
 				p.advance() // consume LANGUAGE
 				stmt := p.parseAlterExternalLanguageStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MODEL") {
+				p.advance() // consume MODEL
+				stmt := p.parseAlterExternalModelStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}

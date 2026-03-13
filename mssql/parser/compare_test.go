@@ -11068,3 +11068,67 @@ func TestParseEndpointHTTPOptions(t *testing.T) {
 		})
 	}
 }
+
+// TestParseExternalModel tests batch 108: CREATE/ALTER/DROP EXTERNAL MODEL.
+func TestParseExternalModel(t *testing.T) {
+	tests := []struct {
+		sql    string
+		action string
+	}{
+		// CREATE basic with Azure OpenAI
+		{
+			sql:    "CREATE EXTERNAL MODEL MyAzureOpenAIModel WITH (LOCATION = 'https://my-endpoint.cognitiveservices.azure.com/openai/deployments/text-embedding-ada-002/embeddings?api-version=2024-02-01', API_FORMAT = 'Azure OpenAI', MODEL_TYPE = EMBEDDINGS, MODEL = 'text-embedding-ada-002', CREDENTIAL = [https://my-endpoint.cognitiveservices.azure.com/])",
+			action: "CREATE",
+		},
+		// CREATE with AUTHORIZATION
+		{
+			sql:    "CREATE EXTERNAL MODEL MyModel AUTHORIZATION dbo WITH (LOCATION = 'https://localhost:11435/api/embed', API_FORMAT = 'Ollama', MODEL_TYPE = EMBEDDINGS, MODEL = 'all-minilm')",
+			action: "CREATE",
+		},
+		// CREATE with PARAMETERS and CREDENTIAL
+		{
+			sql:    "CREATE EXTERNAL MODEL MyModel WITH (LOCATION = 'https://api.openai.com/v1/embeddings', API_FORMAT = 'OpenAI', MODEL_TYPE = EMBEDDINGS, MODEL = 'text-embedding-3-small', CREDENTIAL = [https://openai.com], PARAMETERS = '{\"dimensions\":725}')",
+			action: "CREATE",
+		},
+		// CREATE with LOCAL_RUNTIME_PATH (ONNX)
+		{
+			sql:    "CREATE EXTERNAL MODEL myLocalOnnxModel WITH (LOCATION = 'C:\\onnx_runtime\\model\\all-MiniLM-L6-v2-onnx', API_FORMAT = 'ONNX Runtime', MODEL_TYPE = EMBEDDINGS, MODEL = 'allMiniLM', PARAMETERS = '{\"valid\":\"JSON\"}', LOCAL_RUNTIME_PATH = 'C:\\onnx_runtime\\')",
+			action: "CREATE",
+		},
+		// ALTER basic - change MODEL
+		{
+			sql:    "ALTER EXTERNAL MODEL myAImodel SET (MODEL = 'text-embedding-3-large')",
+			action: "ALTER",
+		},
+		// ALTER with multiple options
+		{
+			sql:    "ALTER EXTERNAL MODEL myAImodel SET (LOCATION = 'https://new-endpoint.com/v1/embeddings', API_FORMAT = 'OpenAI', MODEL_TYPE = EMBEDDINGS, MODEL = 'text-embedding-3-large', CREDENTIAL = [https://new-endpoint.com])",
+			action: "ALTER",
+		},
+		// DROP basic
+		{
+			sql:    "DROP EXTERNAL MODEL myAImodel",
+			action: "DROP",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.SecurityStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *SecurityStmt, got %T", tt.sql, result.Items[0])
+			}
+			if stmt.Action != tt.action {
+				t.Errorf("Parse(%q): action = %q, want %q", tt.sql, stmt.Action, tt.action)
+			}
+			if stmt.ObjectType != "EXTERNAL MODEL" {
+				t.Errorf("Parse(%q): objectType = %q, want EXTERNAL MODEL", tt.sql, stmt.ObjectType)
+			}
+			checkLocation(t, tt.sql, "SecurityStmt", stmt.Loc)
+		})
+	}
+}

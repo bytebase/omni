@@ -126,6 +126,9 @@ func (p *Parser) parseDropExternalStmt() *nodes.SecurityStmt {
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LANGUAGE") {
 		p.advance() // consume LANGUAGE
 		return p.parseDropExternalLanguageStmt()
+	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MODEL") {
+		p.advance() // consume MODEL
+		return p.parseDropExternalModelStmt()
 	}
 
 	// name (possibly qualified)
@@ -717,6 +720,144 @@ func (p *Parser) parseExternalOptionValue() string {
 		p.advance()
 	}
 	return val
+}
+
+// parseCreateExternalModelStmt parses CREATE EXTERNAL MODEL.
+// Caller has consumed CREATE EXTERNAL MODEL.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-external-model-transact-sql
+//
+//	CREATE EXTERNAL MODEL external_model_object_name
+//	[ AUTHORIZATION owner_name ]
+//	WITH
+//	  ( LOCATION = '<prefix>://<path>[:<port>]'
+//	    , API_FORMAT = '<OpenAI, Azure OpenAI, etc>'
+//	    , MODEL_TYPE = EMBEDDINGS
+//	    , MODEL = 'text-embedding-model-name'
+//	    [ , CREDENTIAL = <credential_name> ]
+//	    [ , PARAMETERS = '{"valid":"JSON"}' ]
+//	    [ , LOCAL_RUNTIME_PATH = 'path to the ONNX Runtime files' ]
+//	  )
+//	[ ; ]
+func (p *Parser) parseCreateExternalModelStmt() *nodes.SecurityStmt {
+	loc := p.pos()
+	stmt := &nodes.SecurityStmt{
+		Action:     "CREATE",
+		ObjectType: "EXTERNAL MODEL",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	// external_model_object_name
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	// [ AUTHORIZATION owner_name ]
+	if p.cur.Type == kwAUTHORIZATION {
+		p.advance()
+		if p.isIdentLike() {
+			p.advance()
+		}
+	}
+
+	// WITH ( options )
+	stmt.Options = p.parseExternalWithOptions()
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAlterExternalModelStmt parses ALTER EXTERNAL MODEL.
+// Caller has consumed ALTER EXTERNAL MODEL.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-external-model-transact-sql
+//
+//	ALTER EXTERNAL MODEL external_model_object_name
+//	SET
+//	  (   LOCATION = '<prefix>://<path>[:<port>]'
+//	    , API_FORMAT = '<OpenAI, Azure OpenAI, etc>'
+//	    , MODEL_TYPE = EMBEDDINGS
+//	    , MODEL = 'text-embedding-ada-002'
+//	    [ , CREDENTIAL = <credential_name> ]
+//	    [ , PARAMETERS = '{"valid":"JSON"}' ]
+//	  )
+//	[ ; ]
+func (p *Parser) parseAlterExternalModelStmt() *nodes.SecurityStmt {
+	loc := p.pos()
+	stmt := &nodes.SecurityStmt{
+		Action:     "ALTER",
+		ObjectType: "EXTERNAL MODEL",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	// external_model_object_name
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	// SET
+	if p.cur.Type == kwSET {
+		p.advance()
+	}
+
+	// ( options )
+	if p.cur.Type == '(' {
+		p.advance() // consume '('
+		var opts []nodes.Node
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			if p.cur.Type == ',' {
+				p.advance()
+				continue
+			}
+			if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+				key := strings.ToUpper(p.cur.Str)
+				p.advance()
+				if p.cur.Type == '=' {
+					p.advance()
+					val := p.parseExternalOptionValue()
+					opts = append(opts, &nodes.String{Str: key + "=" + val})
+				} else {
+					opts = append(opts, &nodes.String{Str: key})
+				}
+			} else {
+				p.advance()
+			}
+		}
+		p.match(')') // consume ')'
+		if len(opts) > 0 {
+			stmt.Options = &nodes.List{Items: opts}
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseDropExternalModelStmt parses DROP EXTERNAL MODEL.
+// Caller has consumed DROP EXTERNAL MODEL.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-external-model-transact-sql
+//
+//	DROP EXTERNAL MODEL external_model_object_name
+//	[ ; ]
+func (p *Parser) parseDropExternalModelStmt() *nodes.SecurityStmt {
+	loc := p.pos()
+	stmt := &nodes.SecurityStmt{
+		Action:     "DROP",
+		ObjectType: "EXTERNAL MODEL",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	// external_model_object_name
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
 }
 
 // parseNestedParens consumes content between ( and ) including nested parens.
