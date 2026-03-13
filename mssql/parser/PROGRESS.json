@@ -2616,7 +2616,7 @@
       "id": 118,
       "name": "predict_statement",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: PREDICT statement (SQL Server 2022+). BNF: PREDICT ( MODEL = @model | 'literal' , DATA = table_source [ , RUNTIME = ONNX ] ) WITH ( column_def [,...n] ). Used for native ML model scoring.",
       "rules": [
         "parsePredictStmt"

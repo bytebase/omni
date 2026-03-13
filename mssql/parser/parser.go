@@ -289,6 +289,14 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 			if matchesKeywordCI(p.cur.Str, "REVERT") {
 				return p.parseRevertStmt()
 			}
+			// PREDICT (ML scoring)
+			if matchesKeywordCI(p.cur.Str, "PREDICT") {
+				loc := p.pos()
+				p.advance() // consume PREDICT
+				stmt := p.parsePredictStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
 			// ADD SENSITIVITY CLASSIFICATION / ADD [COUNTER] SIGNATURE
 			if matchesKeywordCI(p.cur.Str, "ADD") {
 				return p.parseAddStmt()

@@ -400,6 +400,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateExternalTableAsSelectStmt(sb, n)
 	case *CreateTableCloneStmt:
 		writeCreateTableCloneStmt(sb, n)
+	case *PredictStmt:
+		writePredictStmt(sb, n)
 	default:
 		sb.WriteString("{UNKNOWN}")
 	}
@@ -3565,6 +3567,30 @@ func writeCreateTableCloneStmt(sb *strings.Builder, n *CreateTableCloneStmt) {
 	}
 	if n.AtTime != "" {
 		fmt.Fprintf(sb, " :atTime \"%s\"", escapeString(n.AtTime))
+	}
+	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
+	sb.WriteString("}")
+}
+
+func writePredictStmt(sb *strings.Builder, n *PredictStmt) {
+	sb.WriteString("{PREDICT")
+	if n.Model != nil {
+		sb.WriteString(" :model ")
+		writeNode(sb, n.Model)
+	}
+	if n.Data != nil {
+		sb.WriteString(" :data ")
+		writeNode(sb, n.Data)
+	}
+	if n.DataAlias != "" {
+		fmt.Fprintf(sb, " :dataAlias \"%s\"", escapeString(n.DataAlias))
+	}
+	if n.Runtime != "" {
+		fmt.Fprintf(sb, " :runtime \"%s\"", escapeString(n.Runtime))
+	}
+	if n.WithColumns != nil && len(n.WithColumns.Items) > 0 {
+		sb.WriteString(" :withColumns ")
+		writeNode(sb, n.WithColumns)
 	}
 	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")

@@ -2838,3 +2838,28 @@ type CreateTableCloneStmt struct {
 
 func (n *CreateTableCloneStmt) nodeTag()  {}
 func (n *CreateTableCloneStmt) stmtNode() {}
+
+// PredictStmt represents a PREDICT statement (SQL Server 2022+).
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/predict-transact-sql
+//
+//	PREDICT (
+//	  MODEL = @model | model_literal,
+//	  DATA = object AS <table_alias>
+//	  [, RUNTIME = ONNX ]
+//	)
+//	WITH ( <result_set_definition> )
+//
+//	<result_set_definition> ::=
+//	  { column_name data_type [ COLLATE collation_name ] [ NULL | NOT NULL ] } [,...n]
+type PredictStmt struct {
+	Model       ExprNode // MODEL = @var | 'literal' | (subquery)
+	Data        ExprNode // DATA = table_source
+	DataAlias   string   // AS alias for DATA
+	Runtime     string   // RUNTIME = ONNX (optional)
+	WithColumns *List    // WITH ( column_def [,...n] )
+	Loc         Loc
+}
+
+func (n *PredictStmt) nodeTag()  {}
+func (n *PredictStmt) stmtNode() {}

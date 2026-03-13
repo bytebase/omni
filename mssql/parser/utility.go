@@ -1180,3 +1180,150 @@ func (p *Parser) parseCreateTableCloneStmt(name *nodes.TableRef) *nodes.CreateTa
 	stmt.Loc.End = p.pos()
 	return stmt
 }
+
+// parsePredictStmt parses a PREDICT statement.
+// Caller has consumed PREDICT.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/predict-transact-sql
+//
+//	PREDICT (
+//	  MODEL = @model | model_literal,
+//	  DATA = object AS <table_alias>
+//	  [, RUNTIME = ONNX ]
+//	)
+//	WITH ( <result_set_definition> )
+//
+//	<result_set_definition> ::=
+//	  { column_name data_type [ COLLATE collation_name ] [ NULL | NOT NULL ] } [,...n]
+func (p *Parser) parsePredictStmt() *nodes.PredictStmt {
+	loc := p.pos()
+	// PREDICT already consumed by caller
+
+	stmt := &nodes.PredictStmt{
+		Loc: nodes.Loc{Start: loc},
+	}
+
+	// Expect '('
+	p.match('(')
+
+	// Parse arguments: MODEL = expr, DATA = table AS alias [, RUNTIME = ONNX]
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		if p.cur.Type == ',' {
+			p.advance()
+			continue
+		}
+
+		if p.isIdentLike() {
+			key := strings.ToUpper(p.cur.Str)
+			p.advance()
+
+			if p.cur.Type == '=' {
+				p.advance() // consume '='
+			}
+
+			switch key {
+			case "MODEL":
+				// MODEL = @variable | 'literal' | (subquery)
+				stmt.Model = p.parseExpr()
+			case "DATA":
+				// DATA = table_source AS alias
+				stmt.Data = p.parseExpr()
+				// Optional AS alias
+				if p.cur.Type == kwAS {
+					p.advance() // consume AS
+					if p.isIdentLike() {
+						stmt.DataAlias = p.cur.Str
+						p.advance()
+					}
+				}
+			case "RUNTIME":
+				// RUNTIME = ONNX
+				if p.isIdentLike() {
+					stmt.Runtime = strings.ToUpper(p.cur.Str)
+					p.advance()
+				}
+			default:
+				// Skip unknown args
+				if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
+					p.advance()
+				}
+			}
+		} else {
+			p.advance()
+		}
+	}
+
+	p.match(')') // consume ')'
+
+	// WITH ( result_set_definition )
+	if p.cur.Type == kwWITH {
+		p.advance() // consume WITH
+		if p.cur.Type == '(' {
+			p.advance() // consume '('
+			var cols []nodes.Node
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				if p.cur.Type == ',' {
+					p.advance()
+					continue
+				}
+				// column_name data_type [COLLATE collation] [NULL | NOT NULL]
+				col := p.parsePredictColumnDef()
+				if col != nil {
+					cols = append(cols, col)
+				}
+			}
+			p.match(')') // consume ')'
+			if len(cols) > 0 {
+				stmt.WithColumns = &nodes.List{Items: cols}
+			}
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parsePredictColumnDef parses a column definition in PREDICT's WITH clause.
+// column_name data_type [COLLATE collation_name] [NULL | NOT NULL]
+func (p *Parser) parsePredictColumnDef() *nodes.ColumnDef {
+	if !p.isIdentLike() {
+		return nil
+	}
+	loc := p.pos()
+
+	colName := p.cur.Str
+	p.advance()
+
+	// data_type
+	dt := p.parseDataType()
+
+	col := &nodes.ColumnDef{
+		Name:     colName,
+		DataType: dt,
+		Loc:      nodes.Loc{Start: loc},
+	}
+
+	// Optional COLLATE
+	if p.cur.Type == kwCOLLATE {
+		p.advance()
+		if p.isIdentLike() {
+			col.Collation = p.cur.Str
+			p.advance()
+		}
+	}
+
+	// Optional NULL / NOT NULL
+	if p.cur.Type == kwNOT {
+		p.advance()
+		if p.cur.Type == kwNULL {
+			p.advance()
+			col.Nullable = &nodes.NullableSpec{NotNull: true, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		}
+	} else if p.cur.Type == kwNULL {
+		p.advance()
+		col.Nullable = &nodes.NullableSpec{NotNull: false, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+	}
+
+	col.Loc.End = p.pos()
+	return col
+}

@@ -12368,3 +12368,96 @@ func TestParseAvailabilityGroupOptionsDepth(t *testing.T) {
 		})
 	}
 }
+
+// TestParsePredictStmt tests batch 118: PREDICT statement.
+func TestParsePredictStmt(t *testing.T) {
+	tests := []struct {
+		name        string
+		sql         string
+		wantModel   bool
+		wantData    bool
+		wantAlias   string
+		wantRuntime string
+		wantCols    int
+	}{
+		// predict_basic: basic PREDICT with model variable and data table
+		{
+			name:      "predict_basic",
+			sql:       "PREDICT (MODEL = @model, DATA = dbo.mytable AS d) WITH (Score FLOAT)",
+			wantModel: true,
+			wantData:  true,
+			wantAlias: "d",
+			wantCols:  1,
+		},
+		// predict_with_runtime: PREDICT with RUNTIME = ONNX (Azure Synapse)
+		{
+			name:        "predict_with_runtime",
+			sql:         "PREDICT (MODEL = @model, DATA = dbo.mytable AS d, RUNTIME = ONNX) WITH (Score FLOAT)",
+			wantModel:   true,
+			wantData:    true,
+			wantAlias:   "d",
+			wantRuntime: "ONNX",
+			wantCols:    1,
+		},
+		// predict with string literal model
+		{
+			name:      "predict_model_literal",
+			sql:       "PREDICT (MODEL = 'my_model_binary', DATA = dbo.input_data AS d) WITH (prediction INT, probability FLOAT)",
+			wantModel: true,
+			wantData:  true,
+			wantAlias: "d",
+			wantCols:  2,
+		},
+		// predict with NOT NULL columns
+		{
+			name:      "predict_with_notnull",
+			sql:       "PREDICT (MODEL = @model, DATA = dbo.mytable AS d) WITH (Score FLOAT NOT NULL, Label NVARCHAR(100) NULL)",
+			wantModel: true,
+			wantData:  true,
+			wantAlias: "d",
+			wantCols:  2,
+		},
+		// predict without alias
+		{
+			name:      "predict_no_alias",
+			sql:       "PREDICT (MODEL = @model, DATA = dbo.mytable) WITH (Score FLOAT)",
+			wantModel: true,
+			wantData:  true,
+			wantCols:  1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.PredictStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *PredictStmt, got %T", tt.sql, result.Items[0])
+			}
+			if tt.wantModel && stmt.Model == nil {
+				t.Errorf("Parse(%q): expected non-nil Model", tt.sql)
+			}
+			if tt.wantData && stmt.Data == nil {
+				t.Errorf("Parse(%q): expected non-nil Data", tt.sql)
+			}
+			if stmt.DataAlias != tt.wantAlias {
+				t.Errorf("Parse(%q): DataAlias = %q, want %q", tt.sql, stmt.DataAlias, tt.wantAlias)
+			}
+			if stmt.Runtime != tt.wantRuntime {
+				t.Errorf("Parse(%q): Runtime = %q, want %q", tt.sql, stmt.Runtime, tt.wantRuntime)
+			}
+			if tt.wantCols > 0 {
+				if stmt.WithColumns == nil || len(stmt.WithColumns.Items) != tt.wantCols {
+					gotCols := 0
+					if stmt.WithColumns != nil {
+						gotCols = len(stmt.WithColumns.Items)
+					}
+					t.Errorf("Parse(%q): got %d WITH columns, want %d", tt.sql, gotCols, tt.wantCols)
+				}
+			}
+			checkLocation(t, tt.sql, "PredictStmt", stmt.Loc)
+		})
+	}
+}
