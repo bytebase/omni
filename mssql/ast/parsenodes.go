@@ -3066,6 +3066,26 @@ type CreateTableAsSelectStmt struct {
 func (n *CreateTableAsSelectStmt) nodeTag()  {}
 func (n *CreateTableAsSelectStmt) stmtNode() {}
 
+// CreateRemoteTableAsSelectStmt represents a CREATE REMOTE TABLE AS SELECT (CRTAS) statement
+// for Analytics Platform System (PDW).
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-remote-table-as-select-parallel-data-warehouse
+//
+//	CREATE REMOTE TABLE { database_name.schema_name.table_name | schema_name.table_name | table_name }
+//	    AT ('<connection_string>')
+//	    [ WITH ( BATCH_SIZE = batch_size ) ]
+//	    AS <select_statement>
+type CreateRemoteTableAsSelectStmt struct {
+	Name             *TableRef // table name
+	ConnectionString string    // AT connection string
+	Options          *List     // WITH options (e.g., BATCH_SIZE)
+	Query            Node      // the SELECT statement
+	Loc              Loc
+}
+
+func (n *CreateRemoteTableAsSelectStmt) nodeTag()  {}
+func (n *CreateRemoteTableAsSelectStmt) stmtNode() {}
+
 // PredictStmt represents a PREDICT statement (SQL Server 2022+).
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/predict-transact-sql

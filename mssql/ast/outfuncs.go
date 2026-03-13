@@ -424,6 +424,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateTableCloneStmt(sb, n)
 	case *CreateTableAsSelectStmt:
 		writeCreateTableAsSelectStmt(sb, n)
+	case *CreateRemoteTableAsSelectStmt:
+		writeCreateRemoteTableAsSelectStmt(sb, n)
 	case *PredictStmt:
 		writePredictStmt(sb, n)
 	case *QueryHint:
@@ -3817,6 +3819,27 @@ func writeCreateTableAsSelectStmt(sb *strings.Builder, n *CreateTableAsSelectStm
 	if n.Columns != nil {
 		sb.WriteString(" :columns ")
 		writeNode(sb, n.Columns)
+	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
+	if n.Query != nil {
+		sb.WriteString(" :query ")
+		writeNode(sb, n.Query)
+	}
+	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
+	sb.WriteString("}")
+}
+
+func writeCreateRemoteTableAsSelectStmt(sb *strings.Builder, n *CreateRemoteTableAsSelectStmt) {
+	sb.WriteString("{CRTAS")
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.ConnectionString != "" {
+		fmt.Fprintf(sb, " :connectionString \"%s\"", escapeString(n.ConnectionString))
 	}
 	if n.Options != nil {
 		sb.WriteString(" :options ")

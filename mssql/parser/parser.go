@@ -749,9 +749,16 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			stmt.Loc.Start = loc
 			return stmt
 		}
-		// CREATE REMOTE SERVICE BINDING (service broker)
+		// CREATE REMOTE TABLE AS SELECT (CRTAS) / CREATE REMOTE SERVICE BINDING (service broker)
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REMOTE") {
 			p.advance() // consume REMOTE
+			if p.cur.Type == kwTABLE {
+				// CREATE REMOTE TABLE ... AT (...) AS SELECT
+				p.advance() // consume TABLE
+				stmt := p.parseCreateRemoteTableAsSelectStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVICE") {
 				p.advance() // consume SERVICE
 			}

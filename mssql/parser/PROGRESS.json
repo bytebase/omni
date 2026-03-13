@@ -3084,7 +3084,25 @@
       "tests": [
         "availability_group_unexpected_token_error"
       ]
+    },
+    {
+      "id": 143,
+      "name": "create_remote_table_as_select",
+      "file": "utility.go",
+      "status": "done",
+      "description": "New: CREATE REMOTE TABLE AS SELECT (CRTAS) for Azure Synapse Analytics / Analytics Platform System. BNF: CREATE REMOTE TABLE [ database_name . [ schema_name ] . | schema_name . ] table_name AT ( 'connection_string' ) [ WITH ( option = value [,...n] ) ] AS select_stmt",
+      "rules": [
+        "parseCreateRemoteTableAsSelectStmt"
+      ],
+      "depends_on": [
+        4,
+        112
+      ],
+      "tests": [
+        "crtas_basic",
+        "crtas_with_options"
+      ]
     }
   ],
-  "audit_round": 15
+  "audit_round": 16
 }

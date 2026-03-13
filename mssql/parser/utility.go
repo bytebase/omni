@@ -1317,3 +1317,77 @@ func (p *Parser) parsePredictColumnDef() *nodes.ColumnDef {
 	col.Loc.End = p.pos()
 	return col
 }
+
+// parseCreateRemoteTableAsSelectStmt parses a CREATE REMOTE TABLE AS SELECT (CRTAS) statement.
+// Caller has consumed CREATE REMOTE TABLE.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-remote-table-as-select-parallel-data-warehouse
+//
+//	CREATE REMOTE TABLE { database_name.schema_name.table_name | schema_name.table_name | table_name }
+//	    AT ('<connection_string>')
+//	    [ WITH ( BATCH_SIZE = batch_size ) ]
+//	    AS <select_statement>
+//
+//	<connection_string> ::=
+//	    Data Source = { IP_address | hostname } [, port ]; User ID = user_name; Password = strong_password;
+//
+//	<select_statement> ::=
+//	    [ WITH <common_table_expression> [ ,...n ] ]
+//	    SELECT <select_criteria>
+func (p *Parser) parseCreateRemoteTableAsSelectStmt() *nodes.CreateRemoteTableAsSelectStmt {
+	loc := p.pos()
+	// REMOTE TABLE already consumed by caller
+
+	stmt := &nodes.CreateRemoteTableAsSelectStmt{
+		Loc: nodes.Loc{Start: loc},
+	}
+
+	// Table name: { database_name.schema_name.table_name | schema_name.table_name | table_name }
+	stmt.Name = p.parseTableRef()
+
+	// AT ('<connection_string>')
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AT") {
+		p.advance() // consume AT
+		if p.cur.Type == '(' {
+			p.advance() // consume '('
+			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
+				stmt.ConnectionString = p.cur.Str
+				p.advance()
+			}
+			p.match(')') // consume ')'
+		}
+	}
+
+	// [ WITH ( BATCH_SIZE = batch_size ) ]
+	if p.cur.Type == kwWITH {
+		p.advance() // consume WITH
+		if p.cur.Type == '(' {
+			p.advance() // consume '('
+			var opts []nodes.Node
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				opt := p.parseCopyIntoOption() // reuse generic KEY=VALUE option parser
+				if opt != nil {
+					opts = append(opts, opt)
+				}
+				if _, ok := p.match(','); !ok {
+					break
+				}
+			}
+			p.match(')') // consume ')'
+			if len(opts) > 0 {
+				stmt.Options = &nodes.List{Items: opts}
+			}
+		}
+	}
+
+	// AS <select_statement>
+	if p.cur.Type == kwAS {
+		p.advance() // consume AS
+		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+			stmt.Query = p.parseSelectStmt()
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}

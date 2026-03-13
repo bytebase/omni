@@ -15912,3 +15912,67 @@ func TestParseAvailabilitySkipCleanupDepth(t *testing.T) {
 		}
 	})
 }
+
+// TestParseCreateRemoteTableAsSelect tests batch 143: CREATE REMOTE TABLE AS SELECT (CRTAS).
+func TestParseCreateRemoteTableAsSelect(t *testing.T) {
+	t.Run("crtas_basic", func(t *testing.T) {
+		tests := []string{
+			// Basic CRTAS with simple table name
+			"CREATE REMOTE TABLE MyTable AT ('Data Source = SQLA, 1433; User ID = sa; Password = pass;') AS SELECT * FROM Orders",
+			// CRTAS with schema-qualified table name
+			"CREATE REMOTE TABLE dbo.MyTable AT ('Data Source = 10.0.0.1; User ID = admin; Password = secret;') AS SELECT col1, col2 FROM src",
+			// CRTAS with fully-qualified table name (database.schema.table)
+			"CREATE REMOTE TABLE OrderReporting.Orders.MyOrdersTable AT ('Data Source = SQLA, 1433; User ID = user1; Password = pw;') AS SELECT * FROM local_orders",
+		}
+		for _, sql := range tests {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Errorf("Parse(%q): expected 1 statement, got %d", sql, result.Len())
+			}
+			if _, ok := result.Items[0].(*ast.CreateRemoteTableAsSelectStmt); !ok {
+				t.Errorf("Parse(%q): expected *CreateRemoteTableAsSelectStmt, got %T", sql, result.Items[0])
+			}
+		}
+	})
+
+	t.Run("crtas_with_options", func(t *testing.T) {
+		tests := []string{
+			// CRTAS with BATCH_SIZE option
+			"CREATE REMOTE TABLE dbo.RemoteOrders AT ('Data Source = SQLA; User ID = sa; Password = pw;') WITH (BATCH_SIZE = 1000) AS SELECT * FROM Orders",
+			// CRTAS with BATCH_SIZE = 0
+			"CREATE REMOTE TABLE Reports.dbo.Summary AT ('Data Source = 10.0.0.1, 1450; User ID = user1; Password = pw;') WITH (BATCH_SIZE = 0) AS SELECT id, total FROM summary_view",
+		}
+		for _, sql := range tests {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Errorf("Parse(%q): expected 1 statement, got %d", sql, result.Len())
+			}
+			stmt, ok := result.Items[0].(*ast.CreateRemoteTableAsSelectStmt)
+			if !ok {
+				t.Errorf("Parse(%q): expected *CreateRemoteTableAsSelectStmt, got %T", sql, result.Items[0])
+				continue
+			}
+			if stmt.Options == nil {
+				t.Errorf("Parse(%q): expected Options to be non-nil", sql)
+			}
+		}
+	})
+
+	t.Run("crtas_with_join_hint", func(t *testing.T) {
+		// CRTAS with query join hint (from official docs example)
+		sql := "CREATE REMOTE TABLE OrderReporting.Orders.MyOrdersTable AT ('Data Source = SQLA, 1433; User ID = user1; Password = pw;') AS SELECT T1.* FROM Orders T1 JOIN Customer T2 ON T1.CustomerID = T2.CustomerID OPTION (HASH JOIN)"
+		result := ParseAndCheck(t, sql)
+		if result.Len() != 1 {
+			t.Errorf("Parse(%q): expected 1 statement, got %d", sql, result.Len())
+		}
+	})
+
+	t.Run("crtas_with_cte", func(t *testing.T) {
+		// CRTAS with CTE in the select
+		sql := "CREATE REMOTE TABLE dbo.Results AT ('Data Source = Server1; User ID = sa; Password = pw;') AS WITH cte AS (SELECT id, name FROM src WHERE active = 1) SELECT * FROM cte"
+		result := ParseAndCheck(t, sql)
+		if result.Len() != 1 {
+			t.Errorf("Parse(%q): expected 1 statement, got %d", sql, result.Len())
+		}
+	})
+}
