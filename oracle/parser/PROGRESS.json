@@ -1,5 +1,5 @@
 {
-  "audit_round": 3,
+  "audit_round": 4,
   "batches": [
     {
       "id": 0,
@@ -1340,12 +1340,168 @@
         "comment.go"
       ],
       "tests": []
+    },
+    {
+      "id": 107,
+      "name": "test_database_security_session",
+      "file": "database_test.go",
+      "status": "done",
+      "description": "New: Add test coverage for database.go (CREATE/ALTER/DROP DATABASE, PLUGGABLE DATABASE, DISKGROUP, CONTROLFILE), security.go (USER, ROLE, PROFILE, AUDIT POLICY, KEY MANAGEMENT, LOCKDOWN PROFILE), and session.go (SET ROLE, SET CONSTRAINTS). These parser files have no corresponding _test.go files.",
+      "bnf_files": [
+        "CREATE-DATABASE.bnf",
+        "ALTER-DATABASE.bnf",
+        "CREATE-PLUGGABLE-DATABASE.bnf",
+        "ALTER-PLUGGABLE-DATABASE.bnf",
+        "CREATE-DISKGROUP.bnf",
+        "ALTER-DISKGROUP.bnf",
+        "CREATE-USER.bnf",
+        "ALTER-USER.bnf",
+        "CREATE-ROLE.bnf",
+        "ALTER-ROLE.bnf",
+        "CREATE-PROFILE.bnf",
+        "ALTER-PROFILE.bnf",
+        "SET-ROLE.bnf",
+        "SET-CONSTRAINTS.bnf"
+      ],
+      "bnf_lines": 0,
+      "effort": "test",
+      "rules": [
+        "parseCreateDatabaseStmt",
+        "parseAlterDatabaseStmt",
+        "parseCreatePluggableDatabaseStmt",
+        "parseAlterPluggableDatabaseStmt",
+        "parseCreateDiskgroupStmt",
+        "parseAlterDiskgroupStmt",
+        "parseCreateUserStmt",
+        "parseAlterUserStmt",
+        "parseCreateRoleStmt",
+        "parseAlterRoleStmt",
+        "parseCreateProfileStmt",
+        "parseAlterProfileStmt",
+        "parseSetRoleStmt",
+        "parseSetConstraintStmt"
+      ],
+      "depends_on": [94, 95, 96, 99],
+      "files": [
+        "database.go",
+        "security.go",
+        "session.go"
+      ],
+      "tests": [
+        "TestParseDatabaseStmts",
+        "TestParseSecurityStmts",
+        "TestParseSessionStmts"
+      ]
+    },
+    {
+      "id": 108,
+      "name": "test_create_admin",
+      "file": "create_admin_test.go",
+      "status": "pending",
+      "description": "New: Add test coverage for create_admin.go. Covers CREATE/ALTER TABLESPACE, DIRECTORY, CLUSTER, DIMENSION, JAVA, LIBRARY, CONTEXT, DOMAIN, INDEXTYPE, OPERATOR, MATERIALIZED ZONEMAP, INMEMORY JOIN GROUP, PROPERTY GRAPH, VECTOR INDEX, MLE ENV/MODULE, FLASHBACK ARCHIVE, ROLLBACK SEGMENT, EDITION, RESTORE POINT, SCHEMA, LOGICAL PARTITION TRACKING, PMEM FILESTORE, and DROP admin objects. No create_admin_test.go exists.",
+      "bnf_files": [
+        "CREATE-TABLESPACE.bnf",
+        "CREATE-CLUSTER.bnf",
+        "CREATE-DIMENSION.bnf",
+        "CREATE-JAVA.bnf",
+        "CREATE-LIBRARY.bnf",
+        "CREATE-CONTEXT.bnf",
+        "create-domain.bnf",
+        "CREATE-INDEXTYPE.bnf",
+        "CREATE-OPERATOR.bnf",
+        "CREATE-MATERIALIZED-ZONEMAP.bnf",
+        "CREATE-INMEMORY-JOIN-GROUP.bnf",
+        "create-property-graph.bnf",
+        "create-vector-index.bnf",
+        "CREATE-SCHEMA.bnf"
+      ],
+      "bnf_lines": 0,
+      "effort": "test",
+      "rules": [
+        "parseCreateTablespaceStmt",
+        "parseCreateClusterStmt",
+        "parseCreateDimensionStmt",
+        "parseCreateJavaStmt",
+        "parseCreateLibraryStmt",
+        "parseCreateContextStmt",
+        "parseCreateDomainStmt",
+        "parseCreateIndextypeStmt",
+        "parseCreateOperatorStmt",
+        "parseCreateMaterializedZonemapStmt",
+        "parseCreateInmemoryJoinGroupStmt",
+        "parseCreatePropertyGraphStmt",
+        "parseCreateVectorIndexStmt",
+        "parseCreateSchemaStmt",
+        "parseAlterAdminObject",
+        "parseAdminDDLStmt"
+      ],
+      "depends_on": [97, 102, 103, 104, 105],
+      "files": [
+        "create_admin.go"
+      ],
+      "tests": [
+        "TestParseCreateAdminStmts"
+      ]
+    },
+    {
+      "id": 109,
+      "name": "test_analytic_objects",
+      "file": "analytic_objects_test.go",
+      "status": "pending",
+      "description": "New: Add test coverage for analytic_objects.go. Covers CREATE/ALTER ANALYTIC VIEW, CREATE/ALTER ATTRIBUTE DIMENSION, CREATE/ALTER HIERARCHY. No analytic_objects_test.go exists.",
+      "bnf_files": [
+        "CREATE-ANALYTIC-VIEW.bnf",
+        "ALTER-ANALYTIC-VIEW.bnf",
+        "CREATE-ATTRIBUTE-DIMENSION.bnf",
+        "ALTER-ATTRIBUTE-DIMENSION.bnf",
+        "CREATE-HIERARCHY.bnf",
+        "ALTER-HIERARCHY.bnf"
+      ],
+      "bnf_lines": 0,
+      "effort": "test",
+      "rules": [
+        "parseCreateAnalyticViewStmt",
+        "parseAlterAnalyticViewStmt",
+        "parseCreateAttributeDimensionStmt",
+        "parseAlterAttributeDimensionStmt",
+        "parseCreateHierarchyStmt",
+        "parseAlterHierarchyStmt"
+      ],
+      "depends_on": [66, 102],
+      "files": [
+        "analytic_objects.go"
+      ],
+      "tests": [
+        "TestParseAnalyticObjectStmts"
+      ]
+    },
+    {
+      "id": 110,
+      "name": "alter_type_replace_body",
+      "file": "alter_misc.go",
+      "status": "pending",
+      "description": "Fix batch 82 gap: ALTER TYPE ... REPLACE currently skips the type body spec via skipToSemicolon (alter_misc.go:2834). Should parse the inline type replacement spec (attribute/method definitions) instead of skipping.",
+      "bnf_files": [
+        "ALTER-TYPE.bnf"
+      ],
+      "bnf_lines": 0,
+      "effort": "fix",
+      "rules": [
+        "parseAlterTypeReplaceClause"
+      ],
+      "depends_on": [82],
+      "files": [
+        "alter_misc.go"
+      ],
+      "tests": [
+        "TestAlterTypeReplace"
+      ]
     }
   ],
   "stats": {
-    "total": 107,
-    "done": 87,
-    "pending": 20,
+    "total": 111,
+    "done": 107,
+    "pending": 4,
     "failed": 0,
     "in_progress": 0
   }
