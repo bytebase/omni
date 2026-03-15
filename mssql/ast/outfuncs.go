@@ -1649,6 +1649,9 @@ func writeCreateTypeStmt(sb *strings.Builder, n *CreateTypeStmt) {
 		sb.WriteString(" :tableDef ")
 		writeNode(sb, n.TableDef)
 	}
+	if n.MemoryOptimized {
+		sb.WriteString(" :memoryOptimized true")
+	}
 	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")
 }
@@ -3306,6 +3309,10 @@ func writeCreateStatisticsStmt(sb *strings.Builder, n *CreateStatisticsStmt) {
 		sb.WriteString(" :columns ")
 		writeNode(sb, n.Columns)
 	}
+	if n.Where != nil {
+		sb.WriteString(" :where ")
+		writeNode(sb, n.Where)
+	}
 	if n.Options != nil {
 		sb.WriteString(" :options ")
 		writeNode(sb, n.Options)
@@ -3321,6 +3328,10 @@ func writeUpdateStatisticsStmt(sb *strings.Builder, n *UpdateStatisticsStmt) {
 	}
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	}
+	if n.Names != nil {
+		sb.WriteString(" :names ")
+		writeNode(sb, n.Names)
 	}
 	if n.Options != nil {
 		sb.WriteString(" :options ")

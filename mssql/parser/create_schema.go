@@ -9,11 +9,9 @@ import (
 
 // parseCreateSchemaStmt parses a CREATE SCHEMA statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-schema-transact-sql
+// BNF: mssql/parser/bnf/create-schema-transact-sql.bnf
 //
-// BNF:
-//
-//	CREATE SCHEMA <schema_name_clause> [ <schema_element> [ ...n ] ]
+//	CREATE SCHEMA schema_name_clause [ <schema_element> [ ...n ] ]
 //
 //	<schema_name_clause> ::=
 //	    { schema_name
@@ -71,9 +69,7 @@ func (p *Parser) parseCreateSchemaStmt() *nodes.CreateSchemaStmt {
 
 // parseAlterSchemaStmt parses an ALTER SCHEMA statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-schema-transact-sql
-//
-// BNF:
+// BNF: mssql/parser/bnf/alter-schema-transact-sql.bnf
 //
 //	ALTER SCHEMA schema_name TRANSFER [ <entity_type> :: ] securable_name
 //

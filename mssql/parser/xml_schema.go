@@ -7,9 +7,9 @@ import (
 
 // parseCreateXmlSchemaCollectionStmt parses a CREATE XML SCHEMA COLLECTION statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-xml-schema-collection-transact-sql
+// BNF: mssql/parser/bnf/create-xml-schema-collection-transact-sql.bnf
 //
-//	CREATE XML SCHEMA COLLECTION [ <relational_schema>. ]sql_identifier AS Expression
+//	CREATE XML SCHEMA COLLECTION [ <relational_schema>. ] sql_identifier AS Expression
 func (p *Parser) parseCreateXmlSchemaCollectionStmt() *nodes.CreateXmlSchemaCollectionStmt {
 	loc := p.pos()
 	// COLLECTION keyword already consumed by caller
@@ -33,7 +33,7 @@ func (p *Parser) parseCreateXmlSchemaCollectionStmt() *nodes.CreateXmlSchemaColl
 
 // parseAlterXmlSchemaCollectionStmt parses an ALTER XML SCHEMA COLLECTION statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-xml-schema-collection-transact-sql
+// BNF: mssql/parser/bnf/alter-xml-schema-collection-transact-sql.bnf
 //
 //	ALTER XML SCHEMA COLLECTION [ relational_schema. ] sql_identifier ADD 'Schema Component'
 func (p *Parser) parseAlterXmlSchemaCollectionStmt() *nodes.AlterXmlSchemaCollectionStmt {

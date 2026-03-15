@@ -9,19 +9,22 @@ import (
 
 // parseCreateStatisticsStmt parses a CREATE STATISTICS statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-statistics-transact-sql
+// BNF: mssql/parser/bnf/create-statistics-transact-sql.bnf
 //
 //	CREATE STATISTICS statistics_name
 //	    ON { table_or_indexed_view_name } ( column [ ,...n ] )
 //	    [ WHERE <filter_predicate> ]
 //	    [ WITH
-//	        [ FULLSCAN [ , PERSIST_SAMPLE_PERCENT = { ON | OFF } ] ]
-//	        | SAMPLE number { PERCENT | ROWS }
-//	        | STATS_STREAM = stats_stream
-//	        [ , NORECOMPUTE ]
-//	        [ , INCREMENTAL = { ON | OFF } ]
-//	        [ , MAXDOP = max_degree_of_parallelism ]
-//	        [ , AUTO_DROP = { ON | OFF } ]
+//	        [ FULLSCAN
+//	            [ [ , ] PERSIST_SAMPLE_PERCENT = { ON | OFF } ]
+//	          | SAMPLE number { PERCENT | ROWS }
+//	            [ [ , ] PERSIST_SAMPLE_PERCENT = { ON | OFF } ]
+//	          | <update_stats_stream_option> [ ,...n ]
+//	        ]
+//	        [ [ , ] NORECOMPUTE ]
+//	        [ [ , ] INCREMENTAL = { ON | OFF } ]
+//	        [ [ , ] MAXDOP = max_degree_of_parallelism ]
+//	        [ [ , ] AUTO_DROP = { ON | OFF } ]
 //	    ]
 func (p *Parser) parseCreateStatisticsStmt() *nodes.CreateStatisticsStmt {
 	loc := p.pos()
@@ -62,7 +65,7 @@ func (p *Parser) parseCreateStatisticsStmt() *nodes.CreateStatisticsStmt {
 	// WHERE filter predicate (optional)
 	if p.cur.Type == kwWHERE {
 		p.advance()
-		p.parseExpr() // consume but don't store
+		stmt.Where = p.parseExpr()
 	}
 
 	// WITH options
@@ -77,7 +80,7 @@ func (p *Parser) parseCreateStatisticsStmt() *nodes.CreateStatisticsStmt {
 
 // parseUpdateStatisticsStmt parses an UPDATE STATISTICS statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/update-statistics-transact-sql
+// BNF: mssql/parser/bnf/update-statistics-transact-sql.bnf
 //
 //	UPDATE STATISTICS table_or_indexed_view_name
 //	    [
@@ -85,10 +88,19 @@ func (p *Parser) parseCreateStatisticsStmt() *nodes.CreateStatisticsStmt {
 //	      | ( { index_or_statistics_name } [ ,...n ] )
 //	    ]
 //	    [ WITH
-//	        [ FULLSCAN [ , PERSIST_SAMPLE_PERCENT = { ON | OFF } ] ]
-//	        | SAMPLE number { PERCENT | ROWS }
-//	        | RESAMPLE [ ON PARTITIONS (...) ]
-//	        | <update_stats_stream_option> [ ,...n ]
+//	        [ FULLSCAN
+//	            [ [ , ] PERSIST_SAMPLE_PERCENT = { ON | OFF } ]
+//	          | SAMPLE number { PERCENT | ROWS }
+//	            [ [ , ] PERSIST_SAMPLE_PERCENT = { ON | OFF } ]
+//	          | RESAMPLE
+//	            [ ON PARTITIONS ( { <partition_number> | <range> } [ ,...n ] ) ]
+//	          | <update_stats_stream_option> [ ,...n ]
+//	        ]
+//	        [ [ , ] [ ALL | COLUMNS | INDEX ]
+//	        [ [ , ] NORECOMPUTE ]
+//	        [ [ , ] INCREMENTAL = { ON | OFF } ]
+//	        [ [ , ] MAXDOP = max_degree_of_parallelism ]
+//	        [ [ , ] AUTO_DROP = { ON | OFF } ]
 //	    ]
 func (p *Parser) parseUpdateStatisticsStmt() *nodes.UpdateStatisticsStmt {
 	loc := p.pos()
@@ -104,11 +116,10 @@ func (p *Parser) parseUpdateStatisticsStmt() *nodes.UpdateStatisticsStmt {
 	// Optional statistics name or list
 	if p.cur.Type == '(' {
 		p.advance()
+		var names []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
 			if p.isIdentLike() {
-				if stmt.Name == "" {
-					stmt.Name = p.cur.Str
-				}
+				names = append(names, &nodes.String{Str: p.cur.Str})
 				p.advance()
 			}
 			if _, ok := p.match(','); !ok {
@@ -116,6 +127,13 @@ func (p *Parser) parseUpdateStatisticsStmt() *nodes.UpdateStatisticsStmt {
 			}
 		}
 		p.match(')')
+		if len(names) > 0 {
+			stmt.Names = &nodes.List{Items: names}
+			// Also set Name to first for backward compatibility
+			if s, ok := names[0].(*nodes.String); ok {
+				stmt.Name = s.Str
+			}
+		}
 	} else if p.isIdentLike() && p.cur.Type != kwWITH {
 		stmt.Name = p.cur.Str
 		p.advance()
@@ -133,10 +151,9 @@ func (p *Parser) parseUpdateStatisticsStmt() *nodes.UpdateStatisticsStmt {
 
 // parseDropStatisticsStmt parses a DROP STATISTICS statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-statistics-transact-sql
+// BNF: mssql/parser/bnf/drop-statistics-transact-sql.bnf
 //
-//	DROP STATISTICS { table | view }.statistics_name [ ,...n ]
-//	(fully-qualified: [schema.]table.statistics_name)
+//	DROP STATISTICS table.statistics_name | view.statistics_name [ ,...n ]
 func (p *Parser) parseDropStatisticsStmt() *nodes.DropStatisticsStmt {
 	loc := p.pos()
 	// STATISTICS keyword already consumed by caller
@@ -185,12 +202,36 @@ func (p *Parser) parseStatisticsWithOptions() *nodes.List {
 				if p.isIdentLike() {
 					p.advance() // PERCENT or ROWS
 				}
+			} else if strings.EqualFold(opt, "RESAMPLE") {
+				// RESAMPLE [ ON PARTITIONS ( { partition_number | range } [ ,...n ] ) ]
+				if p.cur.Type == kwON {
+					p.advance() // ON
+					if p.matchIdentCI("PARTITIONS") {
+						if p.cur.Type == '(' {
+							p.advance()
+							for p.cur.Type != ')' && p.cur.Type != tokEOF {
+								p.parseExpr() // partition number
+								// TO for range
+								if p.isIdentLike() && strings.EqualFold(p.cur.Str, "TO") {
+									p.advance()
+									p.parseExpr()
+								}
+								if _, ok := p.match(','); !ok {
+									break
+								}
+							}
+							p.match(')')
+						}
+					}
+				}
 			} else if p.cur.Type == '=' {
-				// key = value
+				// key = value (e.g., INCREMENTAL = ON, MAXDOP = 4, AUTO_DROP = ON)
 				p.advance()
-				p.parseExpr()
-			} else if p.cur.Type == kwON || p.cur.Type == kwOFF {
-				p.advance()
+				if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+					p.advance()
+				} else {
+					p.parseExpr()
+				}
 			}
 			opts = append(opts, &nodes.String{Str: opt})
 		} else {

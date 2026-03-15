@@ -7,11 +7,17 @@ import (
 
 // parseCreateSynonymStmt parses a CREATE SYNONYM statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-synonym-transact-sql
+// BNF: mssql/parser/bnf/create-synonym-transact-sql.bnf
 //
-// BNF:
+//	CREATE SYNONYM [ schema_name_1. ] synonym_name FOR <object>
 //
-//	CREATE SYNONYM [ schema_name. ] synonym_name FOR <object>
+//	<object> ::=
+//	{
+//	    [ server_name. [ database_name ] . [ schema_name_2 ] .
+//	      | database_name. [ schema_name_2 ] .
+//	      | schema_name_2. ]
+//	    object_name
+//	}
 func (p *Parser) parseCreateSynonymStmt() *nodes.CreateSynonymStmt {
 	stmt := &nodes.CreateSynonymStmt{}
 	stmt.Name = p.parseTableRef()

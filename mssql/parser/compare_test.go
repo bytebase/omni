@@ -22985,3 +22985,247 @@ func TestParseClrExternalBnfReview(t *testing.T) {
 		}
 	})
 }
+
+// ---------- Batch 172: BNF review schema objects ----------
+
+// TestParseSchemaObjectsBnfReview tests gaps found during BNF review of schema objects (batch 172).
+func TestParseSchemaObjectsBnfReview(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		// CREATE TYPE - WITH (MEMORY_OPTIMIZED = ON)
+		{
+			name: "create_type_table_memory_optimized",
+			sql:  "CREATE TYPE dbo.OrderTableType AS TABLE (OrderID int NOT NULL, OrderDate datetime NOT NULL, INDEX ix1 NONCLUSTERED (OrderID)) WITH (MEMORY_OPTIMIZED = ON)",
+		},
+		// CREATE SEQUENCE - options in non-standard order
+		{
+			name: "create_sequence_all_options",
+			sql:  "CREATE SEQUENCE dbo.seq1 AS bigint START WITH 1 INCREMENT BY 1 MINVALUE 1 MAXVALUE 1000 CYCLE CACHE 20",
+		},
+		{
+			name: "create_sequence_no_options",
+			sql:  "CREATE SEQUENCE dbo.seq2 AS int NO MINVALUE NO MAXVALUE NO CYCLE NO CACHE",
+		},
+		{
+			name: "create_sequence_reordered_options",
+			sql:  "CREATE SEQUENCE dbo.seq3 AS int CACHE 50 INCREMENT BY 5 START WITH 100",
+		},
+		// ALTER SEQUENCE - options in various orders
+		{
+			name: "alter_sequence_restart",
+			sql:  "ALTER SEQUENCE dbo.seq1 RESTART WITH 1",
+		},
+		{
+			name: "alter_sequence_restart_then_options",
+			sql:  "ALTER SEQUENCE dbo.seq1 RESTART INCREMENT BY 10 MAXVALUE 5000",
+		},
+		{
+			name: "alter_sequence_increment_then_restart",
+			sql:  "ALTER SEQUENCE dbo.seq1 INCREMENT BY 5 RESTART WITH 100",
+		},
+		{
+			name: "alter_sequence_no_cycle_no_cache",
+			sql:  "ALTER SEQUENCE dbo.seq1 NO CYCLE NO CACHE",
+		},
+		// CREATE SYNONYM
+		{
+			name: "create_synonym_simple",
+			sql:  "CREATE SYNONYM dbo.ProductSyn FOR AdventureWorks.Production.Product",
+		},
+		{
+			name: "create_synonym_four_part",
+			sql:  "CREATE SYNONYM dbo.RemoteSyn FOR RemoteServer.AdventureWorks.dbo.Product",
+		},
+		// CREATE STATISTICS - WHERE clause
+		{
+			name: "create_statistics_where",
+			sql:  "CREATE STATISTICS stat1 ON dbo.Orders (OrderDate) WHERE OrderDate > '2020-01-01'",
+		},
+		{
+			name: "create_statistics_where_with_options",
+			sql:  "CREATE STATISTICS stat2 ON dbo.Orders (Status) WHERE Status = 1 WITH FULLSCAN",
+		},
+		{
+			name: "create_statistics_incremental",
+			sql:  "CREATE STATISTICS stat3 ON dbo.Orders (CustomerID) WITH INCREMENTAL = ON",
+		},
+		{
+			name: "create_statistics_maxdop",
+			sql:  "CREATE STATISTICS stat4 ON dbo.Orders (OrderDate) WITH FULLSCAN, MAXDOP = 4",
+		},
+		{
+			name: "create_statistics_auto_drop",
+			sql:  "CREATE STATISTICS stat5 ON dbo.Orders (OrderDate) WITH AUTO_DROP = ON",
+		},
+		// UPDATE STATISTICS - multiple names
+		{
+			name: "update_statistics_multiple_names",
+			sql:  "UPDATE STATISTICS dbo.Orders (stat1, stat2, stat3)",
+		},
+		{
+			name: "update_statistics_resample",
+			sql:  "UPDATE STATISTICS dbo.Orders WITH RESAMPLE",
+		},
+		{
+			name: "update_statistics_resample_on_partitions",
+			sql:  "UPDATE STATISTICS dbo.Orders WITH RESAMPLE ON PARTITIONS (1, 5)",
+		},
+		{
+			name: "update_statistics_resample_partition_range",
+			sql:  "UPDATE STATISTICS dbo.Orders WITH RESAMPLE ON PARTITIONS (1 TO 5, 8)",
+		},
+		{
+			name: "update_statistics_all_columns_index",
+			sql:  "UPDATE STATISTICS dbo.Orders WITH ALL",
+		},
+		// CREATE SCHEMA
+		{
+			name: "create_schema_simple",
+			sql:  "CREATE SCHEMA Sales",
+		},
+		{
+			name: "create_schema_authorization",
+			sql:  "CREATE SCHEMA Sales AUTHORIZATION dbo",
+		},
+		{
+			name: "create_schema_authorization_only",
+			sql:  "CREATE SCHEMA AUTHORIZATION dbo",
+		},
+		// ALTER SCHEMA - TRANSFER types
+		{
+			name: "alter_schema_transfer",
+			sql:  "ALTER SCHEMA Sales TRANSFER dbo.Orders",
+		},
+		{
+			name: "alter_schema_transfer_object",
+			sql:  "ALTER SCHEMA Sales TRANSFER OBJECT::dbo.Orders",
+		},
+		{
+			name: "alter_schema_transfer_type",
+			sql:  "ALTER SCHEMA Sales TRANSFER TYPE::dbo.MyType",
+		},
+		{
+			name: "alter_schema_transfer_xml_schema_collection",
+			sql:  "ALTER SCHEMA Sales TRANSFER XML SCHEMA COLLECTION::dbo.MyXmlCol",
+		},
+		// CREATE/ALTER PARTITION FUNCTION - already tested but add BNF coverage
+		{
+			name: "create_partition_function_no_range",
+			sql:  "CREATE PARTITION FUNCTION pfNoRange (int) AS RANGE FOR VALUES (1, 10, 100)",
+		},
+		// CREATE/ALTER PARTITION SCHEME
+		{
+			name: "alter_partition_scheme_no_filegroup",
+			sql:  "ALTER PARTITION SCHEME myScheme NEXT USED",
+		},
+		// DROP XML SCHEMA COLLECTION
+		{
+			name: "drop_xml_schema_collection",
+			sql:  "DROP XML SCHEMA COLLECTION dbo.myXmlCol",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() == 0 {
+				t.Fatalf("Parse(%q): no statements returned", tt.sql)
+			}
+			// Verify deterministic serialization
+			s1 := ast.NodeToString(result.Items[0])
+			s2 := ast.NodeToString(result.Items[0])
+			if s1 != s2 {
+				t.Errorf("Parse(%q): serialization not deterministic\n  s1=%s\n  s2=%s", tt.sql, s1, s2)
+			}
+		})
+	}
+
+	// Specific assertion: CREATE TYPE WITH (MEMORY_OPTIMIZED = ON) should set the flag
+	t.Run("verify_memory_optimized_flag", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE TYPE dbo.T1 AS TABLE (id int) WITH (MEMORY_OPTIMIZED = ON)")
+		stmt, ok := result.Items[0].(*ast.CreateTypeStmt)
+		if !ok {
+			t.Fatalf("expected CreateTypeStmt, got %T", result.Items[0])
+		}
+		if !stmt.MemoryOptimized {
+			t.Errorf("expected MemoryOptimized=true, got false")
+		}
+		s := ast.NodeToString(stmt)
+		if !strings.Contains(s, ":memoryOptimized true") {
+			t.Errorf("serialization missing :memoryOptimized, got %s", s)
+		}
+	})
+
+	// Specific assertion: CREATE STATISTICS WHERE clause should be stored
+	t.Run("verify_where_stored", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE STATISTICS stat1 ON dbo.T (col1) WHERE col1 > 10")
+		stmt, ok := result.Items[0].(*ast.CreateStatisticsStmt)
+		if !ok {
+			t.Fatalf("expected CreateStatisticsStmt, got %T", result.Items[0])
+		}
+		if stmt.Where == nil {
+			t.Errorf("expected Where to be non-nil")
+		}
+		s := ast.NodeToString(stmt)
+		if !strings.Contains(s, ":where") {
+			t.Errorf("serialization missing :where, got %s", s)
+		}
+	})
+
+	// Specific assertion: UPDATE STATISTICS with parenthesized list stores Names
+	t.Run("verify_stats_names_list", func(t *testing.T) {
+		result := ParseAndCheck(t, "UPDATE STATISTICS dbo.T (s1, s2)")
+		stmt, ok := result.Items[0].(*ast.UpdateStatisticsStmt)
+		if !ok {
+			t.Fatalf("expected UpdateStatisticsStmt, got %T", result.Items[0])
+		}
+		if stmt.Names == nil {
+			t.Fatalf("expected Names to be non-nil")
+		}
+		if stmt.Names.Len() != 2 {
+			t.Errorf("expected 2 names, got %d", stmt.Names.Len())
+		}
+		s := ast.NodeToString(stmt)
+		if !strings.Contains(s, ":names") {
+			t.Errorf("serialization missing :names, got %s", s)
+		}
+	})
+
+	// Specific assertion: sequence options in any order
+	t.Run("verify_sequence_reorder", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE SEQUENCE dbo.s1 AS int CACHE 50 INCREMENT BY 5 START WITH 100")
+		stmt, ok := result.Items[0].(*ast.CreateSequenceStmt)
+		if !ok {
+			t.Fatalf("expected CreateSequenceStmt, got %T", result.Items[0])
+		}
+		if stmt.Cache == nil {
+			t.Errorf("expected Cache to be non-nil")
+		}
+		if stmt.Increment == nil {
+			t.Errorf("expected Increment to be non-nil")
+		}
+		if stmt.Start == nil {
+			t.Errorf("expected Start to be non-nil")
+		}
+	})
+
+	// Specific assertion: ALTER SEQUENCE RESTART after INCREMENT
+	t.Run("verify_alter_sequence_restart_after_increment", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER SEQUENCE dbo.s1 INCREMENT BY 5 RESTART WITH 100")
+		stmt, ok := result.Items[0].(*ast.AlterSequenceStmt)
+		if !ok {
+			t.Fatalf("expected AlterSequenceStmt, got %T", result.Items[0])
+		}
+		if !stmt.Restart {
+			t.Errorf("expected Restart=true")
+		}
+		if stmt.RestartWith == nil {
+			t.Errorf("expected RestartWith to be non-nil")
+		}
+		if stmt.Increment == nil {
+			t.Errorf("expected Increment to be non-nil")
+		}
+	})
+}

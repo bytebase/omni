@@ -626,7 +626,7 @@
       "id": 172,
       "name": "bnf_review_schema_objects",
       "file": "create_type.go",
-      "status": "pending",
+      "status": "done",
       "description": "BNF review of CREATE/ALTER/DROP TYPE, SEQUENCE, SYNONYM, STATISTICS, SCHEMA, PARTITION FUNCTION, PARTITION SCHEME, XML SCHEMA COLLECTION.",
       "rules": [
         "create_type_stmt",

@@ -7,15 +7,15 @@ import (
 
 // parseCreateTypeStmt parses a CREATE TYPE statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-type-transact-sql
-//
-// BNF:
+// BNF: mssql/parser/bnf/create-type-transact-sql.bnf
 //
 //	CREATE TYPE [ schema_name. ] type_name
 //	{
 //	    FROM base_type [ ( precision [ , scale ] ) ] [ NULL | NOT NULL ]
 //	  | EXTERNAL NAME assembly_name [ .class_name ]
-//	  | AS TABLE ( { <column_definition> | <table_constraint> | <table_index> } [ ,...n ] )
+//	  | AS TABLE ( { <column_definition> | <computed_column_definition>
+//	      | <table_constraint> | <table_index> } [ ,...n ] )
+//	    [ WITH ( MEMORY_OPTIMIZED = ON ) ]
 //	}
 //
 //	<table_index> ::=
@@ -89,6 +89,22 @@ func (p *Parser) parseCreateTypeStmt() *nodes.CreateTypeStmt {
 			p.match(')')
 			if len(elements) > 0 {
 				stmt.TableDef = &nodes.List{Items: elements}
+			}
+		}
+		// [ WITH ( MEMORY_OPTIMIZED = ON ) ]
+		if p.cur.Type == kwWITH {
+			p.advance()
+			if _, err := p.expect('('); err == nil {
+				if p.matchIdentCI("MEMORY_OPTIMIZED") {
+					p.match('=')
+					if p.cur.Type == kwON {
+						stmt.MemoryOptimized = true
+						p.advance()
+					} else {
+						p.advance() // OFF or other
+					}
+				}
+				p.match(')')
 			}
 		}
 	}

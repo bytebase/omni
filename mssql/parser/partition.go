@@ -9,7 +9,7 @@ import (
 
 // parseCreatePartitionFunctionStmt parses a CREATE PARTITION FUNCTION statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-partition-function-transact-sql
+// BNF: mssql/parser/bnf/create-partition-function-transact-sql.bnf
 //
 //	CREATE PARTITION FUNCTION partition_function_name ( input_parameter_type )
 //	AS RANGE [ LEFT | RIGHT ]
@@ -78,7 +78,7 @@ func (p *Parser) parseCreatePartitionFunctionStmt() *nodes.CreatePartitionFuncti
 
 // parseAlterPartitionFunctionStmt parses an ALTER PARTITION FUNCTION statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-partition-function-transact-sql
+// BNF: mssql/parser/bnf/alter-partition-function-transact-sql.bnf
 //
 //	ALTER PARTITION FUNCTION partition_function_name ()
 //	{ SPLIT | MERGE } RANGE ( boundary_value )
@@ -124,7 +124,7 @@ func (p *Parser) parseAlterPartitionFunctionStmt() *nodes.AlterPartitionFunction
 
 // parseCreatePartitionSchemeStmt parses a CREATE PARTITION SCHEME statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-partition-scheme-transact-sql
+// BNF: mssql/parser/bnf/create-partition-scheme-transact-sql.bnf
 //
 //	CREATE PARTITION SCHEME partition_scheme_name
 //	AS PARTITION partition_function_name
@@ -193,7 +193,7 @@ func (p *Parser) parseCreatePartitionSchemeStmt() *nodes.CreatePartitionSchemeSt
 
 // parseAlterPartitionSchemeStmt parses an ALTER PARTITION SCHEME statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-partition-scheme-transact-sql
+// BNF: mssql/parser/bnf/alter-partition-scheme-transact-sql.bnf
 //
 //	ALTER PARTITION SCHEME partition_scheme_name
 //	NEXT USED [ filegroup_name ]

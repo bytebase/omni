@@ -1445,12 +1445,13 @@ func (n *AlterSchemaStmt) stmtNode() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-type-transact-sql
 type CreateTypeStmt struct {
-	Name         *TableRef // [schema.]type_name
-	BaseType     *DataType // FROM base_type (alias type)
-	Nullable     *bool     // NULL / NOT NULL for alias type
-	ExternalName string    // EXTERNAL NAME assembly.class
-	TableDef     *List     // AS TABLE (...) column/constraint definitions
-	Loc          Loc
+	Name            *TableRef // [schema.]type_name
+	BaseType        *DataType // FROM base_type (alias type)
+	Nullable        *bool     // NULL / NOT NULL for alias type
+	ExternalName    string    // EXTERNAL NAME assembly.class
+	TableDef        *List     // AS TABLE (...) column/constraint definitions
+	MemoryOptimized bool      // WITH (MEMORY_OPTIMIZED = ON)
+	Loc             Loc
 }
 
 func (n *CreateTypeStmt) nodeTag()  {}
@@ -1480,18 +1481,20 @@ func (n *TableTypeIndex) nodeTag() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-sequence-transact-sql
 type CreateSequenceStmt struct {
-	Name     *TableRef // [schema.]sequence_name
-	DataType *DataType // AS integer_type (optional)
-	Start    ExprNode  // START WITH constant
-	Increment ExprNode // INCREMENT BY constant
-	MinValue ExprNode  // MINVALUE constant
-	MaxValue ExprNode  // MAXVALUE constant
-	NoMinVal bool      // NO MINVALUE
-	NoMaxVal bool      // NO MAXVALUE
-	Cycle    *bool     // CYCLE (true) / NO CYCLE (false) / nil (unset)
-	Cache    ExprNode  // CACHE n
-	NoCache  bool      // NO CACHE
-	Loc      Loc
+	Name        *TableRef // [schema.]sequence_name
+	DataType    *DataType // AS integer_type (optional)
+	Start       ExprNode  // START WITH constant
+	Restart     bool      // RESTART (used internally for ALTER SEQUENCE option parsing)
+	RestartWith ExprNode  // RESTART WITH constant (used internally for ALTER SEQUENCE)
+	Increment   ExprNode  // INCREMENT BY constant
+	MinValue    ExprNode  // MINVALUE constant
+	MaxValue    ExprNode  // MAXVALUE constant
+	NoMinVal    bool      // NO MINVALUE
+	NoMaxVal    bool      // NO MAXVALUE
+	Cycle       *bool     // CYCLE (true) / NO CYCLE (false) / nil (unset)
+	Cache       ExprNode  // CACHE n
+	NoCache     bool      // NO CACHE
+	Loc         Loc
 }
 
 func (n *CreateSequenceStmt) nodeTag()  {}
@@ -2379,6 +2382,7 @@ type CreateStatisticsStmt struct {
 	Name    string     // statistics name
 	Table   *TableRef  // table or indexed view
 	Columns *List      // column name list
+	Where   ExprNode   // WHERE filter predicate (optional)
 	Options *List      // WITH options as String nodes
 	Loc     Loc
 }
@@ -2391,7 +2395,8 @@ func (n *CreateStatisticsStmt) stmtNode() {}
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/update-statistics-transact-sql
 type UpdateStatisticsStmt struct {
 	Table   *TableRef // table or indexed view
-	Name    string    // statistics name (optional)
+	Name    string    // statistics name (optional, single name)
+	Names   *List     // statistics/index names list (optional, parenthesized list)
 	Options *List     // WITH options as String nodes
 	Loc     Loc
 }

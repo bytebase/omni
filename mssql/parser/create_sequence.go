@@ -9,9 +9,7 @@ import (
 
 // parseCreateSequenceStmt parses a CREATE SEQUENCE statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-sequence-transact-sql
-//
-// BNF:
+// BNF: mssql/parser/bnf/create-sequence-transact-sql.bnf
 //
 //	CREATE SEQUENCE [ schema_name . ] sequence_name
 //	    [ AS [ built_in_integer_type | user-defined_integer_type ] ]
@@ -35,9 +33,7 @@ func (p *Parser) parseCreateSequenceStmt() *nodes.CreateSequenceStmt {
 
 // parseAlterSequenceStmt parses an ALTER SEQUENCE statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-sequence-transact-sql
-//
-// BNF:
+// BNF: mssql/parser/bnf/alter-sequence-transact-sql.bnf
 //
 //	ALTER SEQUENCE [ schema_name. ] sequence_name
 //	    [ RESTART [ WITH <constant> ] ]
@@ -49,15 +45,10 @@ func (p *Parser) parseCreateSequenceStmt() *nodes.CreateSequenceStmt {
 func (p *Parser) parseAlterSequenceStmt() *nodes.AlterSequenceStmt {
 	stmt := &nodes.AlterSequenceStmt{}
 	stmt.Name = p.parseTableRef()
-	if p.matchIdentCI("RESTART") {
-		stmt.Restart = true
-		if p.cur.Type == kwWITH {
-			p.advance()
-			stmt.RestartWith = p.parseExpr()
-		}
-	}
 	tmp := &nodes.CreateSequenceStmt{}
 	p.parseSequenceOptions(tmp, true)
+	stmt.Restart = tmp.Restart
+	stmt.RestartWith = tmp.RestartWith
 	stmt.Increment = tmp.Increment
 	stmt.MinValue = tmp.MinValue
 	stmt.MaxValue = tmp.MaxValue
@@ -71,55 +62,62 @@ func (p *Parser) parseAlterSequenceStmt() *nodes.AlterSequenceStmt {
 }
 
 // parseSequenceOptions parses the common options for CREATE/ALTER SEQUENCE.
+// Options can appear in any order per the BNF grammar.
 func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt, isAlter bool) {
-	if !isAlter && p.matchIdentCI("START") {
-		if p.cur.Type == kwWITH {
-			p.advance()
+	for {
+		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "NO") {
+			// NO { MINVALUE | MAXVALUE | CYCLE | CACHE }
+			if p.isNextIdentCI("MINVALUE") {
+				p.advance()
+				p.advance()
+				stmt.NoMinVal = true
+				continue
+			} else if p.isNextIdentCI("MAXVALUE") {
+				p.advance()
+				p.advance()
+				stmt.NoMaxVal = true
+				continue
+			} else if p.isNextIdentCI("CYCLE") {
+				p.advance()
+				p.advance()
+				b := false
+				stmt.Cycle = &b
+				continue
+			} else if p.isNextIdentCI("CACHE") {
+				p.advance()
+				p.advance()
+				stmt.NoCache = true
+				continue
+			}
 		}
-		stmt.Start = p.parseExpr()
-	}
-	if p.matchIdentCI("INCREMENT") {
-		p.matchIdentCI("BY")
-		stmt.Increment = p.parseExpr()
-	}
-	if p.matchIdentCI("MINVALUE") {
-		stmt.MinValue = p.parseExpr()
-	} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "NO") {
-		if p.isNextIdentCI("MINVALUE") {
-			p.advance()
-			p.advance()
-			stmt.NoMinVal = true
-		}
-	}
-	if p.matchIdentCI("MAXVALUE") {
-		stmt.MaxValue = p.parseExpr()
-	} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "NO") {
-		if p.isNextIdentCI("MAXVALUE") {
-			p.advance()
-			p.advance()
-			stmt.NoMaxVal = true
-		}
-	}
-	if p.matchIdentCI("CYCLE") {
-		b := true
-		stmt.Cycle = &b
-	} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "NO") {
-		if p.isNextIdentCI("CYCLE") {
-			p.advance()
-			p.advance()
-			b := false
+
+		if !isAlter && p.matchIdentCI("START") {
+			if p.cur.Type == kwWITH {
+				p.advance()
+			}
+			stmt.Start = p.parseExpr()
+		} else if isAlter && p.matchIdentCI("RESTART") {
+			stmt.Restart = true
+			if p.cur.Type == kwWITH {
+				p.advance()
+				stmt.RestartWith = p.parseExpr()
+			}
+		} else if p.matchIdentCI("INCREMENT") {
+			p.matchIdentCI("BY")
+			stmt.Increment = p.parseExpr()
+		} else if p.matchIdentCI("MINVALUE") {
+			stmt.MinValue = p.parseExpr()
+		} else if p.matchIdentCI("MAXVALUE") {
+			stmt.MaxValue = p.parseExpr()
+		} else if p.matchIdentCI("CYCLE") {
+			b := true
 			stmt.Cycle = &b
-		}
-	}
-	if p.matchIdentCI("CACHE") {
-		if p.cur.Type == tokICONST {
-			stmt.Cache = p.parseExpr()
-		}
-	} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "NO") {
-		if p.isNextIdentCI("CACHE") {
-			p.advance()
-			p.advance()
-			stmt.NoCache = true
+		} else if p.matchIdentCI("CACHE") {
+			if p.cur.Type == tokICONST {
+				stmt.Cache = p.parseExpr()
+			}
+		} else {
+			break
 		}
 	}
 }
