@@ -698,7 +698,7 @@
       "id": 175,
       "name": "insert_bulk_lineno",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: implement INSERT BULK (TDS-level bulk insert command) and LINENO (deprecated line number directive) statements",
       "rules": ["parseInsertBulkStmt", "parseLinenoStmt"],
       "depends_on": [0],

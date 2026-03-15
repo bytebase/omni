@@ -23626,3 +23626,110 @@ func TestParseFederationStatements(t *testing.T) {
 		}
 	})
 }
+
+// TestParseInsertBulkLineno tests batch 175 — INSERT BULK and LINENO statements.
+func TestParseInsertBulkLineno(t *testing.T) {
+	// Basic INSERT BULK
+	t.Run("insert_bulk_basic", func(t *testing.T) {
+		sql := "INSERT BULK dbo.MyTable"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.InsertBulkStmt)
+		if stmt.Table == nil || stmt.Table.Object != "MyTable" {
+			t.Errorf("expected Table.Object=MyTable, got %v", stmt.Table)
+		}
+	})
+
+	// INSERT BULK with column definitions
+	t.Run("insert_bulk_columns", func(t *testing.T) {
+		sql := "INSERT BULK dbo.MyTable (id INT NOT NULL, name NVARCHAR(100) NULL, age INT)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.InsertBulkStmt)
+		if stmt.Columns == nil || stmt.Columns.Len() != 3 {
+			t.Errorf("expected 3 columns, got %v", stmt.Columns)
+		}
+		col0 := stmt.Columns.Items[0].(*ast.InsertBulkColumnDef)
+		if col0.Name != "id" {
+			t.Errorf("expected col0.Name=id, got %s", col0.Name)
+		}
+		if col0.Nullable == nil || *col0.Nullable != false {
+			t.Errorf("expected col0 NOT NULL")
+		}
+		col1 := stmt.Columns.Items[1].(*ast.InsertBulkColumnDef)
+		if col1.Name != "name" {
+			t.Errorf("expected col1.Name=name, got %s", col1.Name)
+		}
+		if col1.Nullable == nil || *col1.Nullable != true {
+			t.Errorf("expected col1 NULL")
+		}
+		col2 := stmt.Columns.Items[2].(*ast.InsertBulkColumnDef)
+		if col2.Name != "age" {
+			t.Errorf("expected col2.Name=age, got %s", col2.Name)
+		}
+		if col2.Nullable != nil {
+			t.Errorf("expected col2 nullable unspecified")
+		}
+	})
+
+	// INSERT BULK with options
+	t.Run("insert_bulk_with_options", func(t *testing.T) {
+		sql := "INSERT BULK dbo.MyTable WITH (TABLOCK, FIRE_TRIGGERS, BATCHSIZE = 1000)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.InsertBulkStmt)
+		if stmt.Options == nil || stmt.Options.Len() != 3 {
+			t.Errorf("expected 3 options, got %v", stmt.Options)
+		}
+	})
+
+	// INSERT BULK with columns and options
+	t.Run("insert_bulk_columns_and_options", func(t *testing.T) {
+		sql := "INSERT BULK dbo.Products (id INT NOT NULL, name VARCHAR(50)) WITH (TABLOCK)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.InsertBulkStmt)
+		if stmt.Columns == nil || stmt.Columns.Len() != 2 {
+			t.Errorf("expected 2 columns, got %v", stmt.Columns)
+		}
+		if stmt.Options == nil || stmt.Options.Len() != 1 {
+			t.Errorf("expected 1 option, got %v", stmt.Options)
+		}
+	})
+
+	// INSERT BULK with three-part name
+	t.Run("insert_bulk_three_part_name", func(t *testing.T) {
+		sql := "INSERT BULK mydb.dbo.MyTable"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.InsertBulkStmt)
+		if stmt.Table == nil || stmt.Table.Database != "mydb" || stmt.Table.Schema != "dbo" || stmt.Table.Object != "MyTable" {
+			t.Errorf("expected three-part name mydb.dbo.MyTable, got %v", stmt.Table)
+		}
+	})
+
+	// LINENO basic
+	t.Run("lineno_basic", func(t *testing.T) {
+		sql := "LINENO 42"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.LinenoStmt)
+		if stmt.LineNo != 42 {
+			t.Errorf("expected LineNo=42, got %d", stmt.LineNo)
+		}
+	})
+
+	// LINENO zero
+	t.Run("lineno_zero", func(t *testing.T) {
+		sql := "LINENO 0"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.LinenoStmt)
+		if stmt.LineNo != 0 {
+			t.Errorf("expected LineNo=0, got %d", stmt.LineNo)
+		}
+	})
+
+	// LINENO large number
+	t.Run("lineno_large", func(t *testing.T) {
+		sql := "LINENO 9999"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.LinenoStmt)
+		if stmt.LineNo != 9999 {
+			t.Errorf("expected LineNo=9999, got %d", stmt.LineNo)
+		}
+	})
+}

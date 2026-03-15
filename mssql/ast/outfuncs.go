@@ -474,6 +474,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		fmt.Fprintf(sb, "{DROPFEDERATION :name \"%s\" :loc %d %d}", escapeString(n.Name), n.Loc.Start, n.Loc.End)
 	case *UseFederationStmt:
 		writeUseFederationStmt(sb, n)
+	case *InsertBulkStmt:
+		writeInsertBulkStmt(sb, n)
+	case *InsertBulkColumnDef:
+		writeInsertBulkColumnDef(sb, n)
+	case *LinenoStmt:
+		fmt.Fprintf(sb, "{LINENO :lineNo %d :loc %d %d}", n.LineNo, n.Loc.Start, n.Loc.End)
 	default:
 		sb.WriteString("{UNKNOWN}")
 	}
@@ -4460,6 +4466,42 @@ func writeUseFederationStmt(sb *strings.Builder, n *UseFederationStmt) {
 	}
 	if n.Filtering {
 		sb.WriteString(" :filtering true")
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+// ---------- Batch 175: INSERT BULK and LINENO ----------
+
+func writeInsertBulkStmt(sb *strings.Builder, n *InsertBulkStmt) {
+	sb.WriteString("{INSERTBULK")
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeInsertBulkColumnDef(sb *strings.Builder, n *InsertBulkColumnDef) {
+	sb.WriteString("{INSERTBULKCOLDEF")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	if n.DataType != nil {
+		sb.WriteString(" :dataType ")
+		writeNode(sb, n.DataType)
+	}
+	if n.Nullable != nil {
+		if *n.Nullable {
+			sb.WriteString(" :nullable true")
+		} else {
+			sb.WriteString(" :nullable false")
+		}
 	}
 	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }

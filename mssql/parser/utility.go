@@ -1643,3 +1643,117 @@ func (p *Parser) parseUseFederationStmt() *nodes.UseFederationStmt {
 	stmt.Loc.End = p.pos()
 	return stmt
 }
+
+// ---------- Batch 175: INSERT BULK and LINENO ----------
+
+// parseInsertBulkStmt parses an INSERT BULK statement.
+//
+// BNF: mssql/parser/bnf/insert-bulk-transact-sql.bnf
+//
+//	INSERT BULK schemaObjectThreePartName
+//	  [ ( column_name data_type [ NULL | NOT NULL ] [ ,...n ] ) ]
+//	  [ WITH ( option [ = value ] [ ,...n ] ) ]
+func (p *Parser) parseInsertBulkStmt() *nodes.InsertBulkStmt {
+	stmt := &nodes.InsertBulkStmt{
+		Loc: nodes.Loc{Start: p.pos()},
+	}
+
+	// table name (three-part name)
+	stmt.Table = p.parseTableRef()
+
+	// optional column definition list
+	if p.cur.Type == '(' {
+		p.advance() // consume (
+		var cols []nodes.Node
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			col := p.parseInsertBulkColumnDef()
+			if col != nil {
+				cols = append(cols, col)
+			}
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+		p.match(')') // consume )
+		if len(cols) > 0 {
+			stmt.Columns = &nodes.List{Items: cols}
+		}
+	}
+
+	// optional WITH ( options )
+	if p.cur.Type == kwWITH {
+		p.advance() // consume WITH
+		if p.cur.Type == '(' {
+			p.advance() // consume (
+			var opts []nodes.Node
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				opt := p.parseBulkInsertOption()
+				if opt != nil {
+					opts = append(opts, opt)
+				}
+				if _, ok := p.match(','); !ok {
+					break
+				}
+			}
+			p.match(')') // consume )
+			if len(opts) > 0 {
+				stmt.Options = &nodes.List{Items: opts}
+			}
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseInsertBulkColumnDef parses a column definition in INSERT BULK.
+//
+//	column_name data_type [ NULL | NOT NULL ]
+func (p *Parser) parseInsertBulkColumnDef() *nodes.InsertBulkColumnDef {
+	col := &nodes.InsertBulkColumnDef{
+		Loc: nodes.Loc{Start: p.pos()},
+	}
+
+	if name, ok := p.parseIdentifier(); ok {
+		col.Name = name
+	}
+
+	col.DataType = p.parseDataType()
+
+	// Optional NULL / NOT NULL
+	if p.cur.Type == kwNOT {
+		p.advance() // consume NOT
+		p.match(kwNULL)
+		f := false
+		col.Nullable = &f
+	} else if p.cur.Type == kwNULL {
+		p.advance() // consume NULL
+		t := true
+		col.Nullable = &t
+	}
+
+	col.Loc.End = p.pos()
+	return col
+}
+
+// parseLinenoStmt parses a LINENO statement.
+//
+// BNF: mssql/parser/bnf/lineno-transact-sql.bnf
+//
+//	LINENO integer
+func (p *Parser) parseLinenoStmt() *nodes.LinenoStmt {
+	loc := p.pos()
+	p.advance() // consume LINENO
+
+	stmt := &nodes.LinenoStmt{
+		Loc: nodes.Loc{Start: loc},
+	}
+
+	if p.cur.Type == tokICONST {
+		stmt.LineNo = int(p.cur.Ival)
+		p.advance()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}

@@ -62,6 +62,18 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 	case kwWITH:
 		return p.parseSelectStmt()
 	case kwINSERT:
+		// Check for INSERT BULK
+		{
+			next := p.peekNext()
+			if next.Type == kwBULK {
+				loc := p.pos()
+				p.advance() // consume INSERT
+				p.advance() // consume BULK
+				stmt := p.parseInsertBulkStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
+		}
 		return p.parseInsertStmt()
 	case kwUPDATE:
 		// Could be UPDATE table... or UPDATE STATISTICS
@@ -185,6 +197,8 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 		return p.parseBulkInsertStmt()
 	case kwDBCC:
 		return p.parseDbccStmt()
+	case kwLINENO:
+		return p.parseLinenoStmt()
 	case kwBACKUP:
 		// Check for BACKUP SERVICE MASTER KEY / BACKUP CERTIFICATE / BACKUP MASTER KEY vs BACKUP DATABASE/LOG
 		next := p.peekNext()

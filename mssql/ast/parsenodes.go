@@ -3584,3 +3584,41 @@ type UseFederationStmt struct {
 
 func (n *UseFederationStmt) nodeTag()  {}
 func (n *UseFederationStmt) stmtNode() {}
+
+// ---------- Batch 175: INSERT BULK and LINENO ----------
+
+// InsertBulkStmt represents an INSERT BULK statement (TDS-level bulk insert command).
+//
+//	INSERT BULK table_name
+//	  [ ( column_name data_type [ NULL | NOT NULL ] [ ,...n ] ) ]
+//	  [ WITH ( option [ = value ] [ ,...n ] ) ]
+type InsertBulkStmt struct {
+	Table   *TableRef // target table
+	Columns *List     // optional column definitions (InsertBulkColumnDef nodes)
+	Options *List     // WITH options (key=value or flag strings)
+	Loc     Loc
+}
+
+func (n *InsertBulkStmt) nodeTag()  {}
+func (n *InsertBulkStmt) stmtNode() {}
+
+// InsertBulkColumnDef represents a column definition in INSERT BULK.
+type InsertBulkColumnDef struct {
+	Name     string    // column name
+	DataType *DataType // column type
+	Nullable *bool     // nil if not specified, true for NULL, false for NOT NULL
+	Loc      Loc
+}
+
+func (n *InsertBulkColumnDef) nodeTag() {}
+
+// LinenoStmt represents a LINENO statement (deprecated line number directive).
+//
+//	LINENO integer
+type LinenoStmt struct {
+	LineNo int
+	Loc    Loc
+}
+
+func (n *LinenoStmt) nodeTag()  {}
+func (n *LinenoStmt) stmtNode() {}
