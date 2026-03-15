@@ -1397,7 +1397,7 @@
       "id": 108,
       "name": "test_create_admin",
       "file": "create_admin_test.go",
-      "status": "pending",
+      "status": "done",
       "description": "New: Add test coverage for create_admin.go. Covers CREATE/ALTER TABLESPACE, DIRECTORY, CLUSTER, DIMENSION, JAVA, LIBRARY, CONTEXT, DOMAIN, INDEXTYPE, OPERATOR, MATERIALIZED ZONEMAP, INMEMORY JOIN GROUP, PROPERTY GRAPH, VECTOR INDEX, MLE ENV/MODULE, FLASHBACK ARCHIVE, ROLLBACK SEGMENT, EDITION, RESTORE POINT, SCHEMA, LOGICAL PARTITION TRACKING, PMEM FILESTORE, and DROP admin objects. No create_admin_test.go exists.",
       "bnf_files": [
         "CREATE-TABLESPACE.bnf",
