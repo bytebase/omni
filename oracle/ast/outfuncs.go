@@ -382,6 +382,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeSetRoleStmt(sb, n)
 	case *SetConstraintsStmt:
 		writeSetConstraintsStmt(sb, n)
+	case *CreateAuditPolicyStmt:
+		writeCreateAuditPolicyStmt(sb, n)
+	case *AlterAuditPolicyStmt:
+		writeAlterAuditPolicyStmt(sb, n)
+	case *DropAuditPolicyStmt:
+		writeDropAuditPolicyStmt(sb, n)
 	case *AuditStmt:
 		writeAuditStmt(sb, n)
 	case *NoauditStmt:
@@ -3976,8 +3982,238 @@ func writeSetConstraintsStmt(sb *strings.Builder, n *SetConstraintsStmt) {
 	sb.WriteString("}")
 }
 
+func writeCreateAuditPolicyStmt(sb *strings.Builder, n *CreateAuditPolicyStmt) {
+	sb.WriteString("{CREATE_AUDIT_POLICY")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if len(n.Privileges) > 0 {
+		sb.WriteString(" :privileges (")
+		for i, p := range n.Privileges {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", p))
+		}
+		sb.WriteString(")")
+	}
+	if len(n.Actions) > 0 {
+		sb.WriteString(" :actions (")
+		for i, a := range n.Actions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeAuditActionEntry(sb, a)
+		}
+		sb.WriteString(")")
+	}
+	if len(n.ComponentActions) > 0 {
+		sb.WriteString(" :component_actions (")
+		for i, c := range n.ComponentActions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeAuditComponentAction(sb, c)
+		}
+		sb.WriteString(")")
+	}
+	if len(n.Roles) > 0 {
+		sb.WriteString(" :roles (")
+		for i, r := range n.Roles {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", r))
+		}
+		sb.WriteString(")")
+	}
+	if n.WhenCondition != "" {
+		sb.WriteString(fmt.Sprintf(" :when %q", n.WhenCondition))
+	}
+	if n.EvaluatePer != "" {
+		sb.WriteString(fmt.Sprintf(" :evaluate_per %q", n.EvaluatePer))
+	}
+	if n.OnlyToplevel {
+		sb.WriteString(" :only_toplevel true")
+	}
+	if n.ContainerAll != nil {
+		if *n.ContainerAll {
+			sb.WriteString(" :container ALL")
+		} else {
+			sb.WriteString(" :container CURRENT")
+		}
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAuditActionEntry(sb *strings.Builder, n *AuditActionEntry) {
+	sb.WriteString("{ACTION")
+	sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	if len(n.Columns) > 0 {
+		sb.WriteString(" :columns (")
+		for i, c := range n.Columns {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", c))
+		}
+		sb.WriteString(")")
+	}
+	if n.Object != nil {
+		sb.WriteString(" :object ")
+		writeNode(sb, n.Object)
+	}
+	if n.Directory != "" {
+		sb.WriteString(fmt.Sprintf(" :directory %q", n.Directory))
+	}
+	if n.MiningModel {
+		sb.WriteString(" :mining_model true")
+	}
+	sb.WriteString("}")
+}
+
+func writeAuditComponentAction(sb *strings.Builder, n *AuditComponentAction) {
+	sb.WriteString("{COMPONENT")
+	sb.WriteString(fmt.Sprintf(" :component %q", n.Component))
+	if len(n.Actions) > 0 {
+		sb.WriteString(" :actions (")
+		for i, a := range n.Actions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", a))
+		}
+		sb.WriteString(")")
+	}
+	if n.Object != "" {
+		sb.WriteString(fmt.Sprintf(" :object %q", n.Object))
+	}
+	sb.WriteString("}")
+}
+
+func writeAlterAuditPolicyStmt(sb *strings.Builder, n *AlterAuditPolicyStmt) {
+	sb.WriteString("{ALTER_AUDIT_POLICY")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.AddDrop != "" {
+		sb.WriteString(fmt.Sprintf(" :add_drop %q", n.AddDrop))
+	}
+	if len(n.Privileges) > 0 {
+		sb.WriteString(" :privileges (")
+		for i, p := range n.Privileges {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", p))
+		}
+		sb.WriteString(")")
+	}
+	if len(n.Actions) > 0 {
+		sb.WriteString(" :actions (")
+		for i, a := range n.Actions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeAuditActionEntry(sb, a)
+		}
+		sb.WriteString(")")
+	}
+	if len(n.ComponentActions) > 0 {
+		sb.WriteString(" :component_actions (")
+		for i, c := range n.ComponentActions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeAuditComponentAction(sb, c)
+		}
+		sb.WriteString(")")
+	}
+	if len(n.Roles) > 0 {
+		sb.WriteString(" :roles (")
+		for i, r := range n.Roles {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", r))
+		}
+		sb.WriteString(")")
+	}
+	if n.ConditionDrop {
+		sb.WriteString(" :condition_drop true")
+	}
+	if n.Condition != "" {
+		sb.WriteString(fmt.Sprintf(" :condition %q", n.Condition))
+	}
+	if n.EvaluatePer != "" {
+		sb.WriteString(fmt.Sprintf(" :evaluate_per %q", n.EvaluatePer))
+	}
+	if n.AddToplevel {
+		sb.WriteString(" :add_toplevel true")
+	}
+	if n.DropToplevel {
+		sb.WriteString(" :drop_toplevel true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeDropAuditPolicyStmt(sb *strings.Builder, n *DropAuditPolicyStmt) {
+	sb.WriteString("{DROP_AUDIT_POLICY")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
 func writeAuditStmt(sb *strings.Builder, n *AuditStmt) {
 	sb.WriteString("{AUDIT")
+	if n.Policy != "" {
+		sb.WriteString(fmt.Sprintf(" :policy %q", n.Policy))
+	}
+	if len(n.ByUsers) > 0 {
+		sb.WriteString(" :by_users (")
+		for i, u := range n.ByUsers {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", u))
+		}
+		sb.WriteString(")")
+	}
+	if len(n.ExceptUsers) > 0 {
+		sb.WriteString(" :except_users (")
+		for i, u := range n.ExceptUsers {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", u))
+		}
+		sb.WriteString(")")
+	}
+	if len(n.WithRoles) > 0 {
+		if n.WithRoleExcept {
+			sb.WriteString(" :except_with_roles (")
+		} else {
+			sb.WriteString(" :by_with_roles (")
+		}
+		for i, r := range n.WithRoles {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", r))
+		}
+		sb.WriteString(")")
+	}
+	if n.ContextNS != "" {
+		sb.WriteString(fmt.Sprintf(" :context_ns %q", n.ContextNS))
+	}
+	if len(n.ContextAttrs) > 0 {
+		sb.WriteString(" :context_attrs (")
+		for i, a := range n.ContextAttrs {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", a))
+		}
+		sb.WriteString(")")
+	}
 	if len(n.Actions) > 0 {
 		sb.WriteString(" :actions (")
 		for i, a := range n.Actions {
@@ -3992,11 +4228,40 @@ func writeAuditStmt(sb *strings.Builder, n *AuditStmt) {
 		sb.WriteString(" :object ")
 		writeNode(sb, n.Object)
 	}
+	if n.OnDefault {
+		sb.WriteString(" :on_default true")
+	}
+	if n.OnDirectory != "" {
+		sb.WriteString(fmt.Sprintf(" :on_directory %q", n.OnDirectory))
+	}
+	if n.OnNetwork {
+		sb.WriteString(" :on_network true")
+	}
+	if n.OnDirectPath {
+		sb.WriteString(" :on_direct_path true")
+	}
 	if n.By != "" {
 		sb.WriteString(fmt.Sprintf(" :by %q", n.By))
 	}
+	if len(n.ByUsers2) > 0 {
+		sb.WriteString(" :by_users2 (")
+		for i, u := range n.ByUsers2 {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", u))
+		}
+		sb.WriteString(")")
+	}
 	if n.When != "" {
 		sb.WriteString(fmt.Sprintf(" :when %q", n.When))
+	}
+	if n.ContainerAll != nil {
+		if *n.ContainerAll {
+			sb.WriteString(" :container ALL")
+		} else {
+			sb.WriteString(" :container CURRENT")
+		}
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -4004,6 +4269,42 @@ func writeAuditStmt(sb *strings.Builder, n *AuditStmt) {
 
 func writeNoauditStmt(sb *strings.Builder, n *NoauditStmt) {
 	sb.WriteString("{NOAUDIT")
+	if n.Policy != "" {
+		sb.WriteString(fmt.Sprintf(" :policy %q", n.Policy))
+	}
+	if len(n.ByUsers) > 0 {
+		sb.WriteString(" :by_users (")
+		for i, u := range n.ByUsers {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", u))
+		}
+		sb.WriteString(")")
+	}
+	if len(n.WithRoles) > 0 {
+		sb.WriteString(" :with_roles (")
+		for i, r := range n.WithRoles {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", r))
+		}
+		sb.WriteString(")")
+	}
+	if n.ContextNS != "" {
+		sb.WriteString(fmt.Sprintf(" :context_ns %q", n.ContextNS))
+	}
+	if len(n.ContextAttrs) > 0 {
+		sb.WriteString(" :context_attrs (")
+		for i, a := range n.ContextAttrs {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", a))
+		}
+		sb.WriteString(")")
+	}
 	if len(n.Actions) > 0 {
 		sb.WriteString(" :actions (")
 		for i, a := range n.Actions {
@@ -4018,8 +4319,37 @@ func writeNoauditStmt(sb *strings.Builder, n *NoauditStmt) {
 		sb.WriteString(" :object ")
 		writeNode(sb, n.Object)
 	}
+	if n.OnDefault {
+		sb.WriteString(" :on_default true")
+	}
+	if n.OnDirectory != "" {
+		sb.WriteString(fmt.Sprintf(" :on_directory %q", n.OnDirectory))
+	}
+	if n.OnNetwork {
+		sb.WriteString(" :on_network true")
+	}
+	if n.OnDirectPath {
+		sb.WriteString(" :on_direct_path true")
+	}
+	if len(n.ByUsers2) > 0 {
+		sb.WriteString(" :by_users2 (")
+		for i, u := range n.ByUsers2 {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", u))
+		}
+		sb.WriteString(")")
+	}
 	if n.When != "" {
 		sb.WriteString(fmt.Sprintf(" :when %q", n.When))
+	}
+	if n.ContainerAll != nil {
+		if *n.ContainerAll {
+			sb.WriteString(" :container ALL")
+		} else {
+			sb.WriteString(" :container CURRENT")
+		}
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

@@ -90,7 +90,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		if p.isIdentLikeStr("POLICY") {
 			p.advance() // consume POLICY
 		}
-		return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_AUDIT_POLICY, start)
+		return p.parseAlterAuditPolicyStmt(start)
 	case kwJSON:
 		// ALTER JSON RELATIONAL DUALITY VIEW
 		p.advance() // consume JSON

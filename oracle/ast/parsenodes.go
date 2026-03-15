@@ -2889,28 +2889,149 @@ type SetConstraintsStmt struct {
 func (n *SetConstraintsStmt) nodeTag()  {}
 func (n *SetConstraintsStmt) stmtNode() {}
 
-// AuditStmt represents an AUDIT statement.
+// CreateAuditPolicyStmt represents a CREATE AUDIT POLICY statement (Unified Auditing).
+type CreateAuditPolicyStmt struct {
+	Name          string              // policy name
+	Privileges    []string            // PRIVILEGES system_privilege [, ...]
+	Actions       []*AuditActionEntry // ACTIONS entries
+	ComponentActions []*AuditComponentAction // COMPONENT = ... actions
+	Roles         []string            // ROLES role [, ...]
+	WhenCondition string              // WHEN 'condition'
+	EvaluatePer   string              // EVALUATE PER { STATEMENT | SESSION | INSTANCE }
+	OnlyToplevel  bool                // ONLY TOPLEVEL
+	ContainerAll  *bool               // CONTAINER = { ALL | CURRENT }
+	Loc           Loc
+}
+
+func (n *CreateAuditPolicyStmt) nodeTag()  {}
+func (n *CreateAuditPolicyStmt) stmtNode() {}
+
+// AuditActionEntry represents a single action entry in audit policy ACTIONS clause.
+type AuditActionEntry struct {
+	Action    string      // action name (SELECT, INSERT, etc.) or ALL
+	Columns   []string    // optional column list
+	Object    *ObjectName // ON [schema.]object
+	Directory string      // ON DIRECTORY dir_name
+	MiningModel bool      // ON MINING MODEL
+	Loc       Loc
+}
+
+func (n *AuditActionEntry) nodeTag() {}
+
+// AuditComponentAction represents a COMPONENT = ... action in audit policy.
+type AuditComponentAction struct {
+	Component string   // DATAPUMP, DIRECT_LOAD, OLS, XS, DV, SQL_FIREWALL, PROTOCOL
+	Actions   []string // component actions or ALL
+	Object    string   // optional ON object_name (DV only)
+	Loc       Loc
+}
+
+func (n *AuditComponentAction) nodeTag() {}
+
+// AlterAuditPolicyStmt represents an ALTER AUDIT POLICY statement (Unified Auditing).
+type AlterAuditPolicyStmt struct {
+	Name             string              // policy name
+	AddDrop          string              // ADD or DROP
+	Privileges       []string            // PRIVILEGES privilege [, ...]
+	Actions          []*AuditActionEntry // ACTIONS entries
+	ComponentActions []*AuditComponentAction // COMPONENT = ... actions
+	Roles            []string            // ROLES role [, ...]
+	ConditionDrop    bool                // CONDITION DROP
+	Condition        string              // CONDITION 'audit_condition'
+	EvaluatePer      string              // EVALUATE PER { STATEMENT | SESSION | INSTANCE }
+	AddToplevel      bool                // ADD ONLY TOPLEVEL
+	DropToplevel     bool                // DROP ONLY TOPLEVEL
+	Loc              Loc
+}
+
+func (n *AlterAuditPolicyStmt) nodeTag()  {}
+func (n *AlterAuditPolicyStmt) stmtNode() {}
+
+// DropAuditPolicyStmt represents a DROP AUDIT POLICY statement (Unified Auditing).
+type DropAuditPolicyStmt struct {
+	Name string // policy name
+	Loc  Loc
+}
+
+func (n *DropAuditPolicyStmt) nodeTag()  {}
+func (n *DropAuditPolicyStmt) stmtNode() {}
+
+// AuditStmt represents an AUDIT statement (Traditional + Unified Auditing).
 //
-//	AUDIT { sql_statement_clause | schema_object_clause } [BY { SESSION | ACCESS }] [WHENEVER [NOT] SUCCESSFUL]
+// Traditional:
+//
+//	AUDIT { audit_operation_clause [ auditing_by_clause | auditing_on_clause ]
+//	      | audit_schema_object_clause }
+//	    [ BY { SESSION | ACCESS } ] [ WHENEVER [ NOT ] SUCCESSFUL ]
+//	    [ CONTAINER = { CURRENT | ALL } ]
+//
+// Unified:
+//
+//	AUDIT POLICY policy_name
+//	    [ { BY | EXCEPT } user [, user ]... ]
+//	    [ { BY | EXCEPT } USERS WITH ROLE role [, role ]... ]
+//	    [ WHENEVER [ NOT ] SUCCESSFUL ]
+//	| AUDIT CONTEXT NAMESPACE namespace ATTRIBUTES attribute [, attribute]...
+//	    [ BY user [, user ]... ]
 type AuditStmt struct {
-	Actions []string    // audit actions
-	Object  *ObjectName // optional object being audited
-	By      string      // BY SESSION or BY ACCESS
-	When    string      // WHENEVER clause text
-	Loc     Loc
+	// Unified auditing fields
+	Policy        string      // POLICY policy_name (unified)
+	ByUsers       []string    // BY user [, user]... (unified)
+	ExceptUsers   []string    // EXCEPT user [, user]... (unified)
+	WithRoles     []string    // BY/EXCEPT USERS WITH ROLE role [, ...]
+	WithRoleExcept bool       // true if EXCEPT USERS WITH ROLE (vs BY)
+	ContextNS     string      // CONTEXT NAMESPACE namespace (unified)
+	ContextAttrs  []string    // ATTRIBUTES attr [, attr]... (unified)
+	// Traditional auditing fields
+	Actions       []string    // audit actions (traditional)
+	Object        *ObjectName // optional object being audited (traditional)
+	By            string      // BY SESSION or BY ACCESS (traditional)
+	ByUsers2      []string    // auditing_by_clause: BY user [, user]... (traditional)
+	OnDefault     bool        // ON DEFAULT (traditional)
+	OnDirectory   string      // ON DIRECTORY directory_name (traditional)
+	OnNetwork     bool        // NETWORK (traditional)
+	OnDirectPath  bool        // DIRECT_PATH LOAD (traditional)
+	// Shared
+	When          string      // WHENEVER clause text
+	ContainerAll  *bool       // CONTAINER = { ALL | CURRENT }
+	Loc           Loc
 }
 
 func (n *AuditStmt) nodeTag()  {}
 func (n *AuditStmt) stmtNode() {}
 
-// NoauditStmt represents a NOAUDIT statement.
+// NoauditStmt represents a NOAUDIT statement (Traditional + Unified Auditing).
 //
-//	NOAUDIT { sql_statement_clause | schema_object_clause } [WHENEVER [NOT] SUCCESSFUL]
+// Traditional:
+//
+//	NOAUDIT { audit_operation_clause [ auditing_by_clause ]
+//	        | audit_schema_object_clause }
+//	    [ WHENEVER [ NOT ] SUCCESSFUL ] [ CONTAINER = { CURRENT | ALL } ]
+//
+// Unified:
+//
+//	NOAUDIT POLICY policy [ BY user [, user]... [ WITH ROLE role [, role]... ] ]
+//	| NOAUDIT CONTEXT NAMESPACE namespace ATTRIBUTES attr [, attr]...
+//	    [ BY user [, user]... [ WITH ROLE role [, role]... ] ]
 type NoauditStmt struct {
-	Actions []string    // noaudit actions
-	Object  *ObjectName // optional object
-	When    string      // WHENEVER clause text
-	Loc     Loc
+	// Unified auditing fields
+	Policy       string   // POLICY policy (unified)
+	ByUsers      []string // BY user [, user]... (unified)
+	WithRoles    []string // WITH ROLE role [, role]... (unified)
+	ContextNS    string   // CONTEXT NAMESPACE namespace (unified)
+	ContextAttrs []string // ATTRIBUTES attr [, attr]... (unified)
+	// Traditional auditing fields
+	Actions      []string    // noaudit actions (traditional)
+	Object       *ObjectName // optional object (traditional)
+	ByUsers2     []string    // auditing_by_clause: BY user [, user]... (traditional)
+	OnDefault    bool        // ON DEFAULT (traditional)
+	OnDirectory  string      // ON DIRECTORY directory_name (traditional)
+	OnNetwork    bool        // NETWORK (traditional)
+	OnDirectPath bool        // DIRECT_PATH LOAD (traditional)
+	// Shared
+	When         string      // WHENEVER clause text
+	ContainerAll *bool       // CONTAINER = { CURRENT | ALL }
+	Loc          Loc
 }
 
 func (n *NoauditStmt) nodeTag()  {}

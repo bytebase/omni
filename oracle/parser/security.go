@@ -1064,3 +1064,457 @@ func (p *Parser) parseAdministerKeyManagementStmt() nodes.StmtNode {
 	stmt.Loc.End = p.pos()
 	return stmt
 }
+
+// parseCreateAuditPolicyStmt parses a CREATE AUDIT POLICY statement (Unified Auditing).
+// Called after CREATE AUDIT POLICY has been consumed.
+//
+// BNF: oracle/parser/bnf/CREATE-AUDIT-POLICY-Unified-Auditing.bnf
+//
+//	CREATE AUDIT POLICY policy
+//	    [ privilege_audit_clause ]
+//	    [ action_audit_clause ]
+//	    [ role_audit_clause ]
+//	    [ WHEN 'audit_condition' EVALUATE PER { STATEMENT | SESSION | INSTANCE } ]
+//	    [ ONLY TOPLEVEL ]
+//	    [ CONTAINER = { ALL | CURRENT } ] ;
+//
+//	privilege_audit_clause:
+//	    PRIVILEGES system_privilege [, system_privilege ]...
+//
+//	action_audit_clause:
+//	    ACTIONS [ standard_actions ] [ component_actions ]
+//
+//	standard_actions:
+//	    { object_action [ ( column [, column ]... ) ]
+//	        ON { [ schema. ] object_name
+//	           | DIRECTORY directory_name
+//	           | MINING MODEL [ schema. ] object_name }
+//	    | ALL ON { [ schema. ] object_name
+//	             | DIRECTORY directory_name
+//	             | MINING MODEL [ schema. ] object_name }
+//	    | system_action
+//	    | ALL
+//	    } [, { object_action [ ( column [, column ]... ) ]
+//	            ON { [ schema. ] object_name
+//	               | DIRECTORY directory_name
+//	               | MINING MODEL [ schema. ] object_name }
+//	          | ALL ON { [ schema. ] object_name
+//	                   | DIRECTORY directory_name
+//	                   | MINING MODEL [ schema. ] object_name }
+//	          | system_action
+//	          | ALL
+//	          } ]...
+//
+//	component_actions:
+//	    COMPONENT = { DATAPUMP { component_action | ALL } [, { component_action | ALL } ]...
+//	                | DIRECT_LOAD { component_action | ALL } [, { component_action | ALL } ]...
+//	                | OLS { component_action | ALL } [, { component_action | ALL } ]...
+//	                | XS { component_action | ALL } [, { component_action | ALL } ]...
+//	                | DV { component_action [ ON object_name ] | ALL } [, { component_action [ ON object_name ] | ALL } ]...
+//	                | SQL_FIREWALL
+//	                | PROTOCOL { HTTP | FTP | AUTHENTICATION }
+//	                }
+//
+//	role_audit_clause:
+//	    ROLES role [, role ]...
+func (p *Parser) parseCreateAuditPolicyStmt(start int) nodes.StmtNode {
+	stmt := &nodes.CreateAuditPolicyStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Policy name
+	if p.isIdentLike() {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	// Parse clauses in any order
+	for p.cur.Type != ';' && p.cur.Type != tokEOF {
+		switch {
+		case p.cur.Type == kwPRIVILEGES:
+			// privilege_audit_clause
+			p.advance()
+			stmt.Privileges = p.parseAuditPrivilegeList()
+
+		case p.isIdentLikeStr("ACTIONS"):
+			// action_audit_clause
+			p.advance()
+			p.parseAuditActionsClause(&stmt.Actions, &stmt.ComponentActions)
+
+		case p.isIdentLikeStr("ROLES"):
+			// role_audit_clause
+			p.advance()
+			stmt.Roles = p.parseAuditIdentList()
+
+		case p.cur.Type == kwWHEN:
+			// WHEN 'audit_condition' EVALUATE PER { STATEMENT | SESSION | INSTANCE }
+			p.advance()
+			if p.cur.Type == tokSCONST {
+				stmt.WhenCondition = p.cur.Str
+				p.advance()
+			}
+			if p.isIdentLikeStr("EVALUATE") {
+				p.advance()
+				if p.isIdentLikeStr("PER") {
+					p.advance()
+				}
+				if p.isIdentLike() {
+					stmt.EvaluatePer = p.cur.Str
+					p.advance()
+				}
+			}
+
+		case p.isIdentLikeStr("ONLY"):
+			// ONLY TOPLEVEL
+			p.advance()
+			if p.isIdentLikeStr("TOPLEVEL") {
+				p.advance()
+				stmt.OnlyToplevel = true
+			}
+
+		case p.isIdentLikeStr("CONTAINER"):
+			// CONTAINER = { ALL | CURRENT }
+			p.advance()
+			stmt.ContainerAll = p.parseContainerClause()
+
+		default:
+			goto createDone
+		}
+	}
+createDone:
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAlterAuditPolicyStmt parses an ALTER AUDIT POLICY statement (Unified Auditing).
+// Called after ALTER AUDIT POLICY has been consumed.
+//
+// BNF: oracle/parser/bnf/ALTER-AUDIT-POLICY-Unified-Auditing.bnf
+//
+//	alter_audit_policy ::=
+//	  ALTER AUDIT POLICY policy
+//	    { ADD | DROP }
+//	      [ privilege_audit_clause ] [ action_audit_clause ] [ role_audit_clause ]
+//	  | ALTER AUDIT POLICY policy
+//	      CONDITION { DROP | 'audit_condition' [ EVALUATE { PER STATEMENT | PER SESSION | PER INSTANCE } ] }
+//	  | ALTER AUDIT POLICY policy
+//	      { ADD | DROP } ONLY TOPLEVEL
+//
+//	privilege_audit_clause ::=
+//	  PRIVILEGES privilege [, privilege ]...
+//
+//	action_audit_clause ::=
+//	  ACTIONS { standard_actions | component_actions } [, { standard_actions | component_actions } ]...
+//
+//	standard_actions ::=
+//	  action [ ON [ schema . ] object [ ( column [, column ]... ) ] ]
+//
+//	component_actions ::=
+//	  COMPONENT = component_name action [, action ]...
+//
+//	role_audit_clause ::=
+//	  ROLES role [, role ]...
+func (p *Parser) parseAlterAuditPolicyStmt(start int) nodes.StmtNode {
+	stmt := &nodes.AlterAuditPolicyStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Policy name
+	if p.isIdentLike() {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	// { ADD | DROP } or CONDITION
+	if p.isIdentLikeStr("ADD") || p.cur.Type == kwDROP {
+		stmt.AddDrop = p.cur.Str
+		p.advance()
+
+		// Check for ONLY TOPLEVEL
+		if p.isIdentLikeStr("ONLY") {
+			p.advance()
+			if p.isIdentLikeStr("TOPLEVEL") {
+				p.advance()
+				if stmt.AddDrop == "ADD" {
+					stmt.AddToplevel = true
+				} else {
+					stmt.DropToplevel = true
+				}
+				stmt.Loc.End = p.pos()
+				return stmt
+			}
+		}
+
+		// Parse sub-clauses
+		for p.cur.Type != ';' && p.cur.Type != tokEOF {
+			switch {
+			case p.cur.Type == kwPRIVILEGES:
+				p.advance()
+				stmt.Privileges = p.parseAuditPrivilegeList()
+			case p.isIdentLikeStr("ACTIONS"):
+				p.advance()
+				p.parseAuditActionsClause(&stmt.Actions, &stmt.ComponentActions)
+			case p.isIdentLikeStr("ROLES"):
+				p.advance()
+				stmt.Roles = p.parseAuditIdentList()
+			default:
+				goto alterDone
+			}
+		}
+	} else if p.isIdentLikeStr("CONDITION") {
+		p.advance()
+		if p.cur.Type == kwDROP {
+			stmt.ConditionDrop = true
+			p.advance()
+		} else if p.cur.Type == tokSCONST {
+			stmt.Condition = p.cur.Str
+			p.advance()
+			// Optional EVALUATE PER { STATEMENT | SESSION | INSTANCE }
+			if p.isIdentLikeStr("EVALUATE") {
+				p.advance()
+				if p.isIdentLikeStr("PER") {
+					p.advance()
+				}
+				if p.isIdentLike() {
+					stmt.EvaluatePer = p.cur.Str
+					p.advance()
+				}
+			}
+		}
+	}
+alterDone:
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseDropAuditPolicyStmt parses a DROP AUDIT POLICY statement (Unified Auditing).
+// Called after DROP AUDIT POLICY has been consumed.
+//
+// BNF: oracle/parser/bnf/DROP-AUDIT-POLICY-Unified-Auditing.bnf
+//
+//	DROP AUDIT POLICY policy
+func (p *Parser) parseDropAuditPolicyStmt(start int) nodes.StmtNode {
+	stmt := &nodes.DropAuditPolicyStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	if p.isIdentLike() {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAuditActionsClause parses standard_actions and component_actions for audit policy.
+// Called after ACTIONS keyword has been consumed.
+func (p *Parser) parseAuditActionsClause(actions *[]*nodes.AuditActionEntry, compActions *[]*nodes.AuditComponentAction) {
+	for p.cur.Type != ';' && p.cur.Type != tokEOF {
+		// Check for COMPONENT =
+		if p.isIdentLikeStr("COMPONENT") {
+			actStart := p.pos()
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			comp := &nodes.AuditComponentAction{
+				Loc: nodes.Loc{Start: actStart},
+			}
+			if p.isIdentLike() {
+				comp.Component = p.cur.Str
+				p.advance()
+			}
+			// Parse component actions
+			for {
+				if p.isIdentLike() || p.cur.Type == kwALL {
+					comp.Actions = append(comp.Actions, p.cur.Str)
+					p.advance()
+					// DV: optional ON object_name
+					if p.cur.Type == kwON {
+						p.advance()
+						if p.isIdentLike() {
+							comp.Object = p.cur.Str
+							p.advance()
+						}
+					}
+				}
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+			}
+			comp.Loc.End = p.pos()
+			*compActions = append(*compActions, comp)
+			continue
+		}
+
+		// Check if we hit a clause keyword that ends actions
+		if p.cur.Type == kwPRIVILEGES || p.isIdentLikeStr("ROLES") || p.cur.Type == kwWHEN ||
+			p.isIdentLikeStr("ONLY") || p.isIdentLikeStr("CONTAINER") ||
+			p.isIdentLikeStr("CONDITION") {
+			break
+		}
+
+		// Parse standard action entry
+		entry := p.parseAuditActionEntry()
+		if entry == nil {
+			break
+		}
+		*actions = append(*actions, entry)
+
+		if p.cur.Type == ',' {
+			p.advance()
+		} else {
+			break
+		}
+	}
+}
+
+// parseAuditActionEntry parses a single standard audit action entry.
+func (p *Parser) parseAuditActionEntry() *nodes.AuditActionEntry {
+	if !p.isIdentLike() && p.cur.Type != kwALL && p.cur.Type != kwSELECT &&
+		p.cur.Type != kwINSERT && p.cur.Type != kwUPDATE && p.cur.Type != kwDELETE &&
+		p.cur.Type != kwCREATE && p.cur.Type != kwALTER && p.cur.Type != kwDROP &&
+		p.cur.Type != kwGRANT && p.cur.Type != kwEXECUTE {
+		return nil
+	}
+
+	start := p.pos()
+	entry := &nodes.AuditActionEntry{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Collect action name (may be multi-word like "CREATE TABLE")
+	action := p.cur.Str
+	p.advance()
+
+	// Check for ON immediately after ALL (ALL ON = all actions on specific object)
+	if action == "ALL" && p.cur.Type == kwON {
+		entry.Action = "ALL"
+		p.advance()
+		p.parseAuditOnTarget(entry)
+		entry.Loc.End = p.pos()
+		return entry
+	}
+
+	// Multi-word action: keep collecting until we see ON, comma, semicolon, or clause keyword
+	for p.isIdentLike() || p.cur.Type == kwALL {
+		// Stop at ON (introduces object target) or clause keywords
+		if p.cur.Type == kwON {
+			break
+		}
+		str := p.cur.Str
+		if str == "COMPONENT" || str == "ROLES" || str == "ONLY" || str == "CONTAINER" || str == "CONDITION" {
+			break
+		}
+		action += " " + str
+		p.advance()
+	}
+	entry.Action = action
+
+	// Optional (column [, column]...)
+	if p.cur.Type == '(' {
+		p.advance()
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			if p.isIdentLike() {
+				entry.Columns = append(entry.Columns, p.cur.Str)
+				p.advance()
+			}
+			if p.cur.Type == ',' {
+				p.advance()
+			} else {
+				break
+			}
+		}
+		if p.cur.Type == ')' {
+			p.advance()
+		}
+	}
+
+	// Optional ON target
+	if p.cur.Type == kwON {
+		p.advance()
+		p.parseAuditOnTarget(entry)
+	}
+
+	entry.Loc.End = p.pos()
+	return entry
+}
+
+// parseAuditOnTarget parses the ON target for an audit action entry.
+// Called after ON has been consumed.
+func (p *Parser) parseAuditOnTarget(entry *nodes.AuditActionEntry) {
+	if p.isIdentLikeStr("DIRECTORY") {
+		p.advance()
+		if p.isIdentLike() {
+			entry.Directory = p.cur.Str
+			p.advance()
+		}
+	} else if p.isIdentLikeStr("MINING") {
+		p.advance()
+		if p.cur.Type == kwMODEL {
+			p.advance()
+		}
+		entry.MiningModel = true
+		entry.Object = p.parseObjectName()
+	} else {
+		entry.Object = p.parseObjectName()
+	}
+}
+
+// parsePrivilegeList parses a comma-separated list of privileges (may be multi-word).
+// Called after PRIVILEGES keyword has been consumed.
+func (p *Parser) parseAuditPrivilegeList() []string {
+	var privs []string
+	for {
+		priv := ""
+		for p.isIdentLike() || p.cur.Type == kwALL || p.cur.Type == kwCREATE ||
+			p.cur.Type == kwALTER || p.cur.Type == kwDROP || p.cur.Type == kwSELECT ||
+			p.cur.Type == kwINSERT || p.cur.Type == kwUPDATE || p.cur.Type == kwDELETE ||
+			p.cur.Type == kwEXECUTE || p.cur.Type == kwGRANT || p.cur.Type == kwINDEX {
+			// Stop if this is a clause keyword
+			str := p.cur.Str
+			if str == "ACTIONS" || str == "ROLES" || str == "COMPONENT" ||
+				str == "ONLY" || str == "CONTAINER" || str == "CONDITION" {
+				break
+			}
+			if p.cur.Type == kwWHEN {
+				break
+			}
+			if priv != "" {
+				priv += " "
+			}
+			priv += str
+			p.advance()
+		}
+		if priv == "" {
+			break
+		}
+		privs = append(privs, priv)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return privs
+}
+
+// parseAuditIdentList parses a comma-separated list of simple identifiers.
+func (p *Parser) parseAuditIdentList() []string {
+	var list []string
+	for {
+		if !p.isIdentLike() {
+			break
+		}
+		list = append(list, p.cur.Str)
+		p.advance()
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return list
+}

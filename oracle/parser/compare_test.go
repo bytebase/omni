@@ -2992,20 +2992,65 @@ func TestParseAdministerKeyMgmt(t *testing.T) {
 	}
 }
 
-// TestParseCreateAuditPolicy tests CREATE AUDIT POLICY statements.
-func TestParseCreateAuditPolicy(t *testing.T) {
+// TestBatch100_CreateAuditPolicy tests CREATE AUDIT POLICY statements.
+func TestBatch100_CreateAuditPolicy(t *testing.T) {
 	tests := []struct {
 		name string
 		sql  string
+		check func(t *testing.T, stmt *ast.CreateAuditPolicyStmt)
 	}{
-		{"basic", "CREATE AUDIT POLICY my_policy ACTIONS SELECT ON hr.employees"},
-		{"all_actions", "CREATE AUDIT POLICY my_policy ACTIONS ALL"},
-		{"multiple_actions", "CREATE AUDIT POLICY my_policy ACTIONS INSERT ON hr.employees, DELETE ON hr.employees"},
-		{"privileges", "CREATE AUDIT POLICY priv_policy PRIVILEGES CREATE TABLE, DROP ANY TABLE"},
-		{"roles", "CREATE AUDIT POLICY role_policy ROLES dba, resource"},
-		{"when_condition", "CREATE AUDIT POLICY cond_policy ACTIONS SELECT ON hr.employees WHEN 'SYS_CONTEXT(''USERENV'', ''SESSION_USER'') = ''HR''' EVALUATE PER SESSION"},
-		{"system_actions", "CREATE AUDIT POLICY sys_policy ACTIONS CREATE TABLE, ALTER TABLE, DROP TABLE"},
-		{"container_current", "CREATE AUDIT POLICY my_policy ACTIONS SELECT CONTAINER = CURRENT"},
+		{"basic_action_on_object", "CREATE AUDIT POLICY my_policy ACTIONS SELECT ON hr.employees",
+			func(t *testing.T, stmt *ast.CreateAuditPolicyStmt) {
+				if stmt.Name != "MY_POLICY" { t.Errorf("name=%q", stmt.Name) }
+				if len(stmt.Actions) != 1 { t.Errorf("actions=%d", len(stmt.Actions)) }
+			}},
+		{"all_actions", "CREATE AUDIT POLICY my_policy ACTIONS ALL",
+			func(t *testing.T, stmt *ast.CreateAuditPolicyStmt) {
+				if len(stmt.Actions) != 1 || stmt.Actions[0].Action != "ALL" { t.Errorf("expected ALL action") }
+			}},
+		{"multiple_actions", "CREATE AUDIT POLICY my_policy ACTIONS INSERT ON hr.employees, DELETE ON hr.employees",
+			func(t *testing.T, stmt *ast.CreateAuditPolicyStmt) {
+				if len(stmt.Actions) != 2 { t.Errorf("actions=%d", len(stmt.Actions)) }
+			}},
+		{"privileges", "CREATE AUDIT POLICY priv_policy PRIVILEGES CREATE TABLE, DROP ANY TABLE",
+			func(t *testing.T, stmt *ast.CreateAuditPolicyStmt) {
+				if len(stmt.Privileges) != 2 { t.Errorf("privileges=%d, want 2", len(stmt.Privileges)) }
+			}},
+		{"roles", "CREATE AUDIT POLICY role_policy ROLES dba, resource",
+			func(t *testing.T, stmt *ast.CreateAuditPolicyStmt) {
+				if len(stmt.Roles) != 2 { t.Errorf("roles=%d", len(stmt.Roles)) }
+			}},
+		{"when_condition", "CREATE AUDIT POLICY cond_policy ACTIONS SELECT ON hr.employees WHEN 'SYS_CONTEXT(''USERENV'', ''SESSION_USER'') = ''HR''' EVALUATE PER SESSION",
+			func(t *testing.T, stmt *ast.CreateAuditPolicyStmt) {
+				if stmt.WhenCondition == "" { t.Error("expected when condition") }
+				if stmt.EvaluatePer != "SESSION" { t.Errorf("evaluate_per=%q", stmt.EvaluatePer) }
+			}},
+		{"system_actions", "CREATE AUDIT POLICY sys_policy ACTIONS CREATE TABLE, ALTER TABLE, DROP TABLE",
+			func(t *testing.T, stmt *ast.CreateAuditPolicyStmt) {
+				if len(stmt.Actions) != 3 { t.Errorf("actions=%d, want 3", len(stmt.Actions)) }
+			}},
+		{"container_current", "CREATE AUDIT POLICY my_policy ACTIONS SELECT CONTAINER = CURRENT",
+			func(t *testing.T, stmt *ast.CreateAuditPolicyStmt) {
+				if stmt.ContainerAll == nil || *stmt.ContainerAll != false { t.Error("expected CURRENT") }
+			}},
+		{"only_toplevel", "CREATE AUDIT POLICY my_policy ACTIONS ALL ONLY TOPLEVEL",
+			func(t *testing.T, stmt *ast.CreateAuditPolicyStmt) {
+				if !stmt.OnlyToplevel { t.Error("expected ONLY TOPLEVEL") }
+			}},
+		{"all_on_directory", "CREATE AUDIT POLICY dir_policy ACTIONS ALL ON DIRECTORY my_dir",
+			func(t *testing.T, stmt *ast.CreateAuditPolicyStmt) {
+				if len(stmt.Actions) != 1 { t.Fatalf("actions=%d", len(stmt.Actions)) }
+				if stmt.Actions[0].Directory != "MY_DIR" { t.Errorf("dir=%q", stmt.Actions[0].Directory) }
+			}},
+		{"component_datapump", "CREATE AUDIT POLICY dp_policy ACTIONS COMPONENT = DATAPUMP EXPORT, IMPORT",
+			func(t *testing.T, stmt *ast.CreateAuditPolicyStmt) {
+				if len(stmt.ComponentActions) != 1 { t.Fatalf("comp=%d", len(stmt.ComponentActions)) }
+				if stmt.ComponentActions[0].Component != "DATAPUMP" { t.Errorf("comp=%q", stmt.ComponentActions[0].Component) }
+			}},
+		{"evaluate_per_instance", "CREATE AUDIT POLICY my_policy PRIVILEGES CREATE ANY TABLE WHEN 'TRUE' EVALUATE PER INSTANCE",
+			func(t *testing.T, stmt *ast.CreateAuditPolicyStmt) {
+				if stmt.EvaluatePer != "INSTANCE" { t.Errorf("evaluate_per=%q", stmt.EvaluatePer) }
+			}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3014,32 +3059,58 @@ func TestParseCreateAuditPolicy(t *testing.T) {
 				t.Fatalf("expected 1 statement, got %d", result.Len())
 			}
 			raw := result.Items[0].(*ast.RawStmt)
-			stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
+			stmt, ok := raw.Stmt.(*ast.CreateAuditPolicyStmt)
 			if !ok {
-				t.Fatalf("expected *AdminDDLStmt, got %T", raw.Stmt)
+				t.Fatalf("expected *CreateAuditPolicyStmt, got %T", raw.Stmt)
 			}
-			if stmt.Action != "CREATE" {
-				t.Errorf("expected action CREATE, got %q", stmt.Action)
-			}
-			if stmt.ObjectType != ast.OBJECT_AUDIT_POLICY {
-				t.Errorf("expected OBJECT_AUDIT_POLICY, got %d", stmt.ObjectType)
+			if tt.check != nil {
+				tt.check(t, stmt)
 			}
 		})
 	}
 }
 
-// TestParseAlterAuditPolicy tests ALTER AUDIT POLICY statements.
-func TestParseAlterAuditPolicy(t *testing.T) {
+// TestBatch100_AlterAuditPolicy tests ALTER AUDIT POLICY statements.
+func TestBatch100_AlterAuditPolicy(t *testing.T) {
 	tests := []struct {
 		name string
 		sql  string
+		check func(t *testing.T, stmt *ast.AlterAuditPolicyStmt)
 	}{
-		{"add_actions", "ALTER AUDIT POLICY my_policy ADD ACTIONS DELETE ON hr.employees"},
-		{"drop_actions", "ALTER AUDIT POLICY my_policy DROP ACTIONS SELECT ON hr.employees"},
-		{"add_privileges", "ALTER AUDIT POLICY my_policy ADD PRIVILEGES CREATE ANY TABLE"},
-		{"add_roles", "ALTER AUDIT POLICY my_policy ADD ROLES connect"},
-		{"condition", "ALTER AUDIT POLICY my_policy CONDITION 'SYS_CONTEXT(''USERENV'',''IP_ADDRESS'') = ''10.0.0.1''' EVALUATE PER SESSION"},
-		{"drop_condition", "ALTER AUDIT POLICY my_policy CONDITION DROP"},
+		{"add_actions", "ALTER AUDIT POLICY my_policy ADD ACTIONS DELETE ON hr.employees",
+			func(t *testing.T, stmt *ast.AlterAuditPolicyStmt) {
+				if stmt.AddDrop != "ADD" { t.Errorf("add_drop=%q", stmt.AddDrop) }
+				if len(stmt.Actions) != 1 { t.Errorf("actions=%d", len(stmt.Actions)) }
+			}},
+		{"drop_actions", "ALTER AUDIT POLICY my_policy DROP ACTIONS SELECT ON hr.employees",
+			func(t *testing.T, stmt *ast.AlterAuditPolicyStmt) {
+				if stmt.AddDrop != "DROP" { t.Errorf("add_drop=%q", stmt.AddDrop) }
+			}},
+		{"add_privileges", "ALTER AUDIT POLICY my_policy ADD PRIVILEGES CREATE ANY TABLE",
+			func(t *testing.T, stmt *ast.AlterAuditPolicyStmt) {
+				if len(stmt.Privileges) != 1 { t.Errorf("privs=%d", len(stmt.Privileges)) }
+			}},
+		{"add_roles", "ALTER AUDIT POLICY my_policy ADD ROLES connect",
+			func(t *testing.T, stmt *ast.AlterAuditPolicyStmt) {
+				if len(stmt.Roles) != 1 { t.Errorf("roles=%d", len(stmt.Roles)) }
+			}},
+		{"condition_set", "ALTER AUDIT POLICY my_policy CONDITION 'SYS_CONTEXT(''USERENV'',''IP_ADDRESS'') = ''10.0.0.1''' EVALUATE PER SESSION",
+			func(t *testing.T, stmt *ast.AlterAuditPolicyStmt) {
+				if stmt.Condition == "" { t.Error("expected condition") }
+				if stmt.EvaluatePer != "SESSION" { t.Errorf("evaluate_per=%q", stmt.EvaluatePer) }
+			}},
+		{"condition_drop", "ALTER AUDIT POLICY my_policy CONDITION DROP",
+			func(t *testing.T, stmt *ast.AlterAuditPolicyStmt) {
+				if !stmt.ConditionDrop { t.Error("expected condition drop") }
+			}},
+		{"add_toplevel", "ALTER AUDIT POLICY my_policy ADD ONLY TOPLEVEL",
+			func(t *testing.T, stmt *ast.AlterAuditPolicyStmt) {
+				if !stmt.AddToplevel { t.Error("expected add toplevel") }
+			}},
+		{"drop_toplevel", "ALTER AUDIT POLICY my_policy DROP ONLY TOPLEVEL",
+			func(t *testing.T, stmt *ast.AlterAuditPolicyStmt) {
+				if !stmt.DropToplevel { t.Error("expected drop toplevel") }
+			}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3048,27 +3119,66 @@ func TestParseAlterAuditPolicy(t *testing.T) {
 				t.Fatalf("expected 1 statement, got %d", result.Len())
 			}
 			raw := result.Items[0].(*ast.RawStmt)
-			stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
+			stmt, ok := raw.Stmt.(*ast.AlterAuditPolicyStmt)
 			if !ok {
-				t.Fatalf("expected *AdminDDLStmt, got %T", raw.Stmt)
+				t.Fatalf("expected *AlterAuditPolicyStmt, got %T", raw.Stmt)
 			}
-			if stmt.Action != "ALTER" {
-				t.Errorf("expected action ALTER, got %q", stmt.Action)
-			}
-			if stmt.ObjectType != ast.OBJECT_AUDIT_POLICY {
-				t.Errorf("expected OBJECT_AUDIT_POLICY, got %d", stmt.ObjectType)
+			if tt.check != nil {
+				tt.check(t, stmt)
 			}
 		})
 	}
 }
 
-// TestParseDropAuditPolicy tests DROP AUDIT POLICY statements.
-func TestParseDropAuditPolicy(t *testing.T) {
+// TestBatch100_DropAuditPolicy tests DROP AUDIT POLICY statements.
+func TestBatch100_DropAuditPolicy(t *testing.T) {
+	result := ParseAndCheck(t, "DROP AUDIT POLICY my_policy")
+	if result.Len() != 1 {
+		t.Fatalf("expected 1 statement, got %d", result.Len())
+	}
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt, ok := raw.Stmt.(*ast.DropAuditPolicyStmt)
+	if !ok {
+		t.Fatalf("expected *DropAuditPolicyStmt, got %T", raw.Stmt)
+	}
+	if stmt.Name != "MY_POLICY" {
+		t.Errorf("name=%q", stmt.Name)
+	}
+}
+
+// TestBatch100_AuditUnified tests AUDIT (Unified Auditing) statements.
+func TestBatch100_AuditUnified(t *testing.T) {
 	tests := []struct {
 		name string
 		sql  string
+		check func(t *testing.T, stmt *ast.AuditStmt)
 	}{
-		{"basic", "DROP AUDIT POLICY my_policy"},
+		{"policy_basic", "AUDIT POLICY my_policy",
+			func(t *testing.T, stmt *ast.AuditStmt) {
+				if stmt.Policy != "MY_POLICY" { t.Errorf("policy=%q", stmt.Policy) }
+			}},
+		{"policy_by_users", "AUDIT POLICY my_policy BY scott, hr",
+			func(t *testing.T, stmt *ast.AuditStmt) {
+				if len(stmt.ByUsers) != 2 { t.Errorf("by_users=%d", len(stmt.ByUsers)) }
+			}},
+		{"policy_except_users", "AUDIT POLICY my_policy EXCEPT scott",
+			func(t *testing.T, stmt *ast.AuditStmt) {
+				if len(stmt.ExceptUsers) != 1 { t.Errorf("except_users=%d", len(stmt.ExceptUsers)) }
+			}},
+		{"policy_with_role", "AUDIT POLICY my_policy BY USERS WITH ROLE dba, connect",
+			func(t *testing.T, stmt *ast.AuditStmt) {
+				if len(stmt.WithRoles) != 2 { t.Errorf("with_roles=%d", len(stmt.WithRoles)) }
+			}},
+		{"policy_whenever", "AUDIT POLICY my_policy WHENEVER NOT SUCCESSFUL",
+			func(t *testing.T, stmt *ast.AuditStmt) {
+				if stmt.When != "WHENEVER NOT SUCCESSFUL" { t.Errorf("when=%q", stmt.When) }
+			}},
+		{"context", "AUDIT CONTEXT NAMESPACE my_ns ATTRIBUTES attr1, attr2 BY scott",
+			func(t *testing.T, stmt *ast.AuditStmt) {
+				if stmt.ContextNS != "MY_NS" { t.Errorf("ns=%q", stmt.ContextNS) }
+				if len(stmt.ContextAttrs) != 2 { t.Errorf("attrs=%d", len(stmt.ContextAttrs)) }
+				if len(stmt.ByUsers) != 1 { t.Errorf("by=%d", len(stmt.ByUsers)) }
+			}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3077,15 +3187,158 @@ func TestParseDropAuditPolicy(t *testing.T) {
 				t.Fatalf("expected 1 statement, got %d", result.Len())
 			}
 			raw := result.Items[0].(*ast.RawStmt)
-			stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
+			stmt, ok := raw.Stmt.(*ast.AuditStmt)
 			if !ok {
-				t.Fatalf("expected *AdminDDLStmt, got %T", raw.Stmt)
+				t.Fatalf("expected *AuditStmt, got %T", raw.Stmt)
 			}
-			if stmt.Action != "DROP" {
-				t.Errorf("expected action DROP, got %q", stmt.Action)
+			if tt.check != nil {
+				tt.check(t, stmt)
 			}
-			if stmt.ObjectType != ast.OBJECT_AUDIT_POLICY {
-				t.Errorf("expected OBJECT_AUDIT_POLICY, got %d", stmt.ObjectType)
+		})
+	}
+}
+
+// TestBatch100_AuditTraditional tests AUDIT (Traditional Auditing) statements.
+func TestBatch100_AuditTraditional(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		check func(t *testing.T, stmt *ast.AuditStmt)
+	}{
+		{"basic_action", "AUDIT SELECT TABLE BY ACCESS",
+			func(t *testing.T, stmt *ast.AuditStmt) {
+				if len(stmt.Actions) == 0 { t.Error("expected actions") }
+				if stmt.By != "ACCESS" { t.Errorf("by=%q", stmt.By) }
+			}},
+		{"on_object", "AUDIT SELECT ON hr.employees BY ACCESS WHENEVER SUCCESSFUL",
+			func(t *testing.T, stmt *ast.AuditStmt) {
+				if stmt.Object == nil { t.Error("expected object") }
+				if stmt.When != "WHENEVER SUCCESSFUL" { t.Errorf("when=%q", stmt.When) }
+			}},
+		{"on_default", "AUDIT INSERT, UPDATE, DELETE ON DEFAULT BY ACCESS",
+			func(t *testing.T, stmt *ast.AuditStmt) {
+				if !stmt.OnDefault { t.Error("expected ON DEFAULT") }
+			}},
+		{"on_directory", "AUDIT SELECT ON DIRECTORY my_dir",
+			func(t *testing.T, stmt *ast.AuditStmt) {
+				if stmt.OnDirectory != "MY_DIR" { t.Errorf("dir=%q", stmt.OnDirectory) }
+			}},
+		{"network", "AUDIT SELECT TABLE NETWORK",
+			func(t *testing.T, stmt *ast.AuditStmt) {
+				if !stmt.OnNetwork { t.Error("expected NETWORK") }
+			}},
+		{"by_users", "AUDIT SELECT TABLE BY scott, hr WHENEVER NOT SUCCESSFUL",
+			func(t *testing.T, stmt *ast.AuditStmt) {
+				if len(stmt.ByUsers2) != 2 { t.Errorf("by_users=%d", len(stmt.ByUsers2)) }
+			}},
+		{"all_statements", "AUDIT ALL STATEMENTS BY ACCESS",
+			func(t *testing.T, stmt *ast.AuditStmt) {
+				if len(stmt.Actions) == 0 { t.Error("expected actions") }
+			}},
+		{"container", "AUDIT ALL PRIVILEGES BY ACCESS CONTAINER = ALL",
+			func(t *testing.T, stmt *ast.AuditStmt) {
+				if stmt.ContainerAll == nil || !*stmt.ContainerAll { t.Error("expected CONTAINER=ALL") }
+			}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.AuditStmt)
+			if !ok {
+				t.Fatalf("expected *AuditStmt, got %T", raw.Stmt)
+			}
+			if tt.check != nil {
+				tt.check(t, stmt)
+			}
+		})
+	}
+}
+
+// TestBatch100_NoauditUnified tests NOAUDIT (Unified Auditing) statements.
+func TestBatch100_NoauditUnified(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		check func(t *testing.T, stmt *ast.NoauditStmt)
+	}{
+		{"policy_basic", "NOAUDIT POLICY my_policy",
+			func(t *testing.T, stmt *ast.NoauditStmt) {
+				if stmt.Policy != "MY_POLICY" { t.Errorf("policy=%q", stmt.Policy) }
+			}},
+		{"policy_by_users", "NOAUDIT POLICY my_policy BY scott, hr",
+			func(t *testing.T, stmt *ast.NoauditStmt) {
+				if len(stmt.ByUsers) != 2 { t.Errorf("by=%d", len(stmt.ByUsers)) }
+			}},
+		{"policy_with_role", "NOAUDIT POLICY my_policy BY scott WITH ROLE dba",
+			func(t *testing.T, stmt *ast.NoauditStmt) {
+				if len(stmt.WithRoles) != 1 { t.Errorf("roles=%d", len(stmt.WithRoles)) }
+			}},
+		{"context", "NOAUDIT CONTEXT NAMESPACE my_ns ATTRIBUTES attr1, attr2",
+			func(t *testing.T, stmt *ast.NoauditStmt) {
+				if stmt.ContextNS != "MY_NS" { t.Errorf("ns=%q", stmt.ContextNS) }
+				if len(stmt.ContextAttrs) != 2 { t.Errorf("attrs=%d", len(stmt.ContextAttrs)) }
+			}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.NoauditStmt)
+			if !ok {
+				t.Fatalf("expected *NoauditStmt, got %T", raw.Stmt)
+			}
+			if tt.check != nil {
+				tt.check(t, stmt)
+			}
+		})
+	}
+}
+
+// TestBatch100_NoauditTraditional tests NOAUDIT (Traditional Auditing) statements.
+func TestBatch100_NoauditTraditional(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		check func(t *testing.T, stmt *ast.NoauditStmt)
+	}{
+		{"basic", "NOAUDIT SELECT TABLE",
+			func(t *testing.T, stmt *ast.NoauditStmt) {
+				if len(stmt.Actions) == 0 { t.Error("expected actions") }
+			}},
+		{"on_object", "NOAUDIT INSERT, UPDATE ON hr.employees WHENEVER SUCCESSFUL",
+			func(t *testing.T, stmt *ast.NoauditStmt) {
+				if stmt.Object == nil { t.Error("expected object") }
+				if stmt.When != "WHENEVER SUCCESSFUL" { t.Errorf("when=%q", stmt.When) }
+			}},
+		{"on_default", "NOAUDIT ALL ON DEFAULT",
+			func(t *testing.T, stmt *ast.NoauditStmt) {
+				if !stmt.OnDefault { t.Error("expected ON DEFAULT") }
+			}},
+		{"by_users", "NOAUDIT SELECT TABLE BY scott",
+			func(t *testing.T, stmt *ast.NoauditStmt) {
+				if len(stmt.ByUsers2) != 1 { t.Errorf("by=%d", len(stmt.ByUsers2)) }
+			}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.NoauditStmt)
+			if !ok {
+				t.Fatalf("expected *NoauditStmt, got %T", raw.Stmt)
+			}
+			if tt.check != nil {
+				tt.check(t, stmt)
 			}
 		})
 	}

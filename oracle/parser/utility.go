@@ -496,11 +496,55 @@ func (p *Parser) parsePurgeStmt() nodes.StmtNode {
 	return stmt
 }
 
-// parseAuditStmt parses an AUDIT statement.
+// parseAuditStmt parses an AUDIT statement (Traditional + Unified Auditing).
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/AUDIT-Traditional-Auditing.html
+// BNF: oracle/parser/bnf/AUDIT-Traditional-Auditing.bnf
 //
-//	AUDIT { action [,...] } [ON object] [BY { SESSION | ACCESS }] [WHENEVER [NOT] SUCCESSFUL]
+//	AUDIT { audit_operation_clause [ auditing_by_clause | auditing_on_clause ]
+//	      | audit_schema_object_clause
+//	      }
+//	    [ BY { SESSION | ACCESS } ]
+//	    [ WHENEVER [ NOT ] SUCCESSFUL ]
+//	    [ CONTAINER = { CURRENT | ALL } ]
+//
+//	audit_operation_clause:
+//	    { sql_statement_shortcut
+//	    | system_privilege
+//	    | ALL
+//	    | ALL STATEMENTS
+//	    | ALL PRIVILEGES
+//	    }
+//	    [, { sql_statement_shortcut | system_privilege } ]...
+//
+//	auditing_by_clause:
+//	    BY { user [, user ]...
+//	       | SESSION CURRENT
+//	       }
+//
+//	audit_schema_object_clause:
+//	    sql_operation [, sql_operation ]...
+//	    auditing_on_clause
+//
+//	auditing_on_clause:
+//	    ON [ schema. ] object
+//	  | ON DEFAULT
+//	  | ON DIRECTORY directory_name
+//	  | ON MINING MODEL model_name
+//	  | ON SQL TRANSLATION PROFILE profile_name
+//	  | NETWORK
+//	  | DIRECT_PATH LOAD
+//
+// BNF: oracle/parser/bnf/AUDIT-Unified-Auditing.bnf
+//
+//	AUDIT
+//	    { POLICY policy_name
+//	        [ { BY | EXCEPT } user [, user ]... ]
+//	        [ { BY | EXCEPT } USERS WITH ROLE role [, role ]... ]
+//	        [ WHENEVER [ NOT ] SUCCESSFUL ]
+//	    | CONTEXT NAMESPACE namespace
+//	        ATTRIBUTES attribute [, attribute ]...
+//	        [ BY user [, user ]... ]
+//	    } ;
 func (p *Parser) parseAuditStmt() nodes.StmtNode {
 	start := p.pos()
 	p.advance() // consume AUDIT
@@ -509,21 +553,114 @@ func (p *Parser) parseAuditStmt() nodes.StmtNode {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Parse audit actions until ON/BY/WHENEVER/;/EOF
-	stmt.Actions = p.parseAuditActions()
-
-	// ON object
-	if p.cur.Type == kwON {
-		p.advance()
-		stmt.Object = p.parseObjectName()
-	}
-
-	// BY { SESSION | ACCESS }
-	if p.cur.Type == kwBY {
+	// Unified: AUDIT POLICY ...
+	if p.isIdentLikeStr("POLICY") {
 		p.advance()
 		if p.isIdentLike() {
-			stmt.By = p.cur.Str
+			stmt.Policy = p.cur.Str
 			p.advance()
+		}
+		// [ { BY | EXCEPT } user [, user]... ]
+		// [ { BY | EXCEPT } USERS WITH ROLE role [, role]... ]
+		for p.cur.Type != ';' && p.cur.Type != tokEOF {
+			if p.cur.Type == kwBY {
+				p.advance()
+				if p.isIdentLikeStr("USERS") {
+					// BY USERS WITH ROLE role [, role]...
+					p.advance()
+					if p.cur.Type == kwWITH {
+						p.advance()
+					}
+					if p.cur.Type == kwROLE {
+						p.advance()
+					}
+					stmt.WithRoles = p.parseIdentListForAudit()
+				} else {
+					// BY user [, user]...
+					stmt.ByUsers = p.parseIdentListForAudit()
+				}
+			} else if p.cur.Type == kwEXCEPT {
+				p.advance()
+				if p.isIdentLikeStr("USERS") {
+					// EXCEPT USERS WITH ROLE role [, role]...
+					p.advance()
+					if p.cur.Type == kwWITH {
+						p.advance()
+					}
+					if p.cur.Type == kwROLE {
+						p.advance()
+					}
+					stmt.WithRoles = p.parseIdentListForAudit()
+					stmt.WithRoleExcept = true
+				} else {
+					// EXCEPT user [, user]...
+					stmt.ExceptUsers = p.parseIdentListForAudit()
+				}
+			} else if p.cur.Type == kwWHENEVER {
+				stmt.When = p.parseWheneverClause()
+			} else {
+				break
+			}
+		}
+		stmt.Loc.End = p.pos()
+		return stmt
+	}
+
+	// Unified: AUDIT CONTEXT NAMESPACE ...
+	if p.cur.Type == kwCONTEXT {
+		p.advance()
+		if p.isIdentLikeStr("NAMESPACE") {
+			p.advance()
+		}
+		if p.isIdentLike() {
+			stmt.ContextNS = p.cur.Str
+			p.advance()
+		}
+		if p.isIdentLikeStr("ATTRIBUTES") {
+			p.advance()
+			stmt.ContextAttrs = p.parseIdentListForAudit()
+		}
+		if p.cur.Type == kwBY {
+			p.advance()
+			stmt.ByUsers = p.parseIdentListForAudit()
+		}
+		stmt.Loc.End = p.pos()
+		return stmt
+	}
+
+	// Traditional: parse audit actions
+	stmt.Actions = p.parseAuditActions()
+
+	// ON clause or auditing_by_clause
+	if p.cur.Type == kwON {
+		p.advance()
+		p.parseTraditionalAuditOnClause(stmt)
+	} else if p.isIdentLikeStr("NETWORK") {
+		stmt.OnNetwork = true
+		p.advance()
+	} else if p.isIdentLikeStr("DIRECT_PATH") {
+		stmt.OnDirectPath = true
+		p.advance()
+		if p.isIdentLikeStr("LOAD") {
+			p.advance()
+		}
+	}
+
+	// BY { SESSION | ACCESS } or BY user [, user]...
+	if p.cur.Type == kwBY {
+		p.advance()
+		tok := p.cur.Str
+		if tok == "SESSION" || tok == "ACCESS" {
+			stmt.By = tok
+			p.advance()
+			// Check for CURRENT after SESSION
+			if tok == "SESSION" && p.isIdentLikeStr("CURRENT") {
+				stmt.By = "SESSION CURRENT"
+				p.advance()
+			}
+		} else {
+			// BY user [, user]...
+			stmt.ByUsers2 = p.parseIdentListForAudit()
 		}
 	}
 
@@ -532,15 +669,64 @@ func (p *Parser) parseAuditStmt() nodes.StmtNode {
 		stmt.When = p.parseWheneverClause()
 	}
 
+	// CONTAINER = { CURRENT | ALL }
+	if p.isIdentLikeStr("CONTAINER") {
+		p.advance()
+		stmt.ContainerAll = p.parseContainerClause()
+	}
+
 	stmt.Loc.End = p.pos()
 	return stmt
 }
 
-// parseNoauditStmt parses a NOAUDIT statement.
+// parseNoauditStmt parses a NOAUDIT statement (Traditional + Unified Auditing).
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/NOAUDIT-Traditional-Auditing.html
+// BNF: oracle/parser/bnf/NOAUDIT-Traditional-Auditing.bnf
 //
-//	NOAUDIT { action [,...] } [ON object] [WHENEVER [NOT] SUCCESSFUL]
+//	NOAUDIT
+//	    { audit_operation_clause [ auditing_by_clause ]
+//	    | audit_schema_object_clause
+//	    }
+//	    [ WHENEVER [ NOT ] SUCCESSFUL ]
+//	    [ CONTAINER = { CURRENT | ALL } ] ;
+//
+//	audit_operation_clause::=
+//	    { statement_option [, statement_option ]...
+//	    | ALL
+//	    | ALL STATEMENTS
+//	    | system_privilege [, system_privilege ]...
+//	    | ALL PRIVILEGES
+//	    }
+//
+//	auditing_by_clause::=
+//	    BY user [, user ]...
+//
+//	audit_schema_object_clause::=
+//	    { sql_operation [, sql_operation ]...
+//	    | ALL
+//	    }
+//	    ON auditing_on_clause
+//
+//	auditing_on_clause::=
+//	    [ schema. ] object
+//	  | DIRECTORY directory_name
+//	  | SQL TRANSLATION PROFILE [ schema. ] profile
+//	  | DEFAULT
+//	  | NETWORK
+//	  | DIRECT_PATH LOAD
+//
+// BNF: oracle/parser/bnf/NOAUDIT-Unified-Auditing.bnf
+//
+//	NOAUDIT POLICY policy
+//	    [ BY user [, user ]...
+//	      [ WITH ROLE role [, role ]... ]
+//	    ] ;
+//
+//	NOAUDIT CONTEXT NAMESPACE namespace
+//	    ATTRIBUTES attribute [, attribute ]...
+//	    [ BY user [, user ]...
+//	      [ WITH ROLE role [, role ]... ]
+//	    ] ;
 func (p *Parser) parseNoauditStmt() nodes.StmtNode {
 	start := p.pos()
 	p.advance() // consume NOAUDIT
@@ -549,13 +735,79 @@ func (p *Parser) parseNoauditStmt() nodes.StmtNode {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Parse audit actions
+	// Unified: NOAUDIT POLICY ...
+	if p.isIdentLikeStr("POLICY") {
+		p.advance()
+		if p.isIdentLike() {
+			stmt.Policy = p.cur.Str
+			p.advance()
+		}
+		if p.cur.Type == kwBY {
+			p.advance()
+			stmt.ByUsers = p.parseIdentListForAudit()
+			if p.cur.Type == kwWITH {
+				p.advance()
+				if p.cur.Type == kwROLE {
+					p.advance()
+				}
+				stmt.WithRoles = p.parseIdentListForAudit()
+			}
+		}
+		stmt.Loc.End = p.pos()
+		return stmt
+	}
+
+	// Unified: NOAUDIT CONTEXT NAMESPACE ...
+	if p.cur.Type == kwCONTEXT {
+		p.advance()
+		if p.isIdentLikeStr("NAMESPACE") {
+			p.advance()
+		}
+		if p.isIdentLike() {
+			stmt.ContextNS = p.cur.Str
+			p.advance()
+		}
+		if p.isIdentLikeStr("ATTRIBUTES") {
+			p.advance()
+			stmt.ContextAttrs = p.parseIdentListForAudit()
+		}
+		if p.cur.Type == kwBY {
+			p.advance()
+			stmt.ByUsers = p.parseIdentListForAudit()
+			if p.cur.Type == kwWITH {
+				p.advance()
+				if p.cur.Type == kwROLE {
+					p.advance()
+				}
+				stmt.WithRoles = p.parseIdentListForAudit()
+			}
+		}
+		stmt.Loc.End = p.pos()
+		return stmt
+	}
+
+	// Traditional: parse audit actions
 	stmt.Actions = p.parseAuditActions()
 
-	// ON object
+	// ON clause
 	if p.cur.Type == kwON {
 		p.advance()
-		stmt.Object = p.parseObjectName()
+		p.parseTraditionalNoauditOnClause(stmt)
+	} else if p.isIdentLikeStr("NETWORK") {
+		stmt.OnNetwork = true
+		p.advance()
+	} else if p.isIdentLikeStr("DIRECT_PATH") {
+		stmt.OnDirectPath = true
+		p.advance()
+		if p.isIdentLikeStr("LOAD") {
+			p.advance()
+		}
+	}
+
+	// BY user [, user]...
+	if p.cur.Type == kwBY {
+		p.advance()
+		stmt.ByUsers2 = p.parseIdentListForAudit()
 	}
 
 	// WHENEVER [NOT] SUCCESSFUL
@@ -563,8 +815,83 @@ func (p *Parser) parseNoauditStmt() nodes.StmtNode {
 		stmt.When = p.parseWheneverClause()
 	}
 
+	// CONTAINER = { CURRENT | ALL }
+	if p.isIdentLikeStr("CONTAINER") {
+		p.advance()
+		stmt.ContainerAll = p.parseContainerClause()
+	}
+
 	stmt.Loc.End = p.pos()
 	return stmt
+}
+
+// parseTraditionalAuditOnClause parses the ON clause for traditional AUDIT.
+// Called after ON has been consumed.
+func (p *Parser) parseTraditionalAuditOnClause(stmt *nodes.AuditStmt) {
+	if p.cur.Type == kwDEFAULT {
+		stmt.OnDefault = true
+		p.advance()
+	} else if p.isIdentLikeStr("DIRECTORY") {
+		p.advance()
+		if p.isIdentLike() {
+			stmt.OnDirectory = p.cur.Str
+			p.advance()
+		}
+	} else if p.isIdentLikeStr("MINING") {
+		p.advance()
+		if p.cur.Type == kwMODEL {
+			p.advance()
+		}
+		stmt.Object = p.parseObjectName()
+	} else if p.isIdentLikeStr("SQL") {
+		// SQL TRANSLATION PROFILE
+		p.advance()
+		if p.isIdentLikeStr("TRANSLATION") {
+			p.advance()
+		}
+		if p.cur.Type == kwPROFILE {
+			p.advance()
+		}
+		stmt.Object = p.parseObjectName()
+	} else {
+		stmt.Object = p.parseObjectName()
+	}
+}
+
+// parseTraditionalNoauditOnClause parses the ON clause for traditional NOAUDIT.
+// Called after ON has been consumed.
+func (p *Parser) parseTraditionalNoauditOnClause(stmt *nodes.NoauditStmt) {
+	if p.cur.Type == kwDEFAULT {
+		stmt.OnDefault = true
+		p.advance()
+	} else if p.isIdentLikeStr("DIRECTORY") {
+		p.advance()
+		if p.isIdentLike() {
+			stmt.OnDirectory = p.cur.Str
+			p.advance()
+		}
+	} else if p.isIdentLikeStr("SQL") {
+		// SQL TRANSLATION PROFILE
+		p.advance()
+		if p.isIdentLikeStr("TRANSLATION") {
+			p.advance()
+		}
+		if p.cur.Type == kwPROFILE {
+			p.advance()
+		}
+		stmt.Object = p.parseObjectName()
+	} else if p.isIdentLikeStr("NETWORK") {
+		stmt.OnNetwork = true
+		p.advance()
+	} else if p.isIdentLikeStr("DIRECT_PATH") {
+		stmt.OnDirectPath = true
+		p.advance()
+		if p.isIdentLikeStr("LOAD") {
+			p.advance()
+		}
+	} else {
+		stmt.Object = p.parseObjectName()
+	}
 }
 
 // parseAuditActions collects audit action identifiers separated by commas.
@@ -577,6 +904,10 @@ func (p *Parser) parseAuditActions() []string {
 			p.cur.Type == kwUPDATE || p.cur.Type == kwDELETE || p.cur.Type == kwCREATE ||
 			p.cur.Type == kwALTER || p.cur.Type == kwDROP || p.cur.Type == kwGRANT ||
 			p.cur.Type == kwEXECUTE || p.cur.Type == kwINDEX || p.cur.Type == kwALL {
+			// Stop before special clause identifiers
+			if p.isIdentLikeStr("NETWORK") || p.isIdentLikeStr("DIRECT_PATH") || p.isIdentLikeStr("CONTAINER") {
+				break
+			}
 			if action != "" {
 				action += " "
 			}
@@ -611,6 +942,24 @@ func (p *Parser) parseWheneverClause() string {
 		p.advance()
 	}
 	return result
+}
+
+// parseIdentListForAudit parses a comma-separated list of identifiers,
+// stopping at clause keywords (BY, EXCEPT, WHENEVER, WITH, CONTAINER, ;, EOF).
+func (p *Parser) parseIdentListForAudit() []string {
+	var list []string
+	for {
+		if !p.isIdentLike() {
+			break
+		}
+		list = append(list, p.cur.Str)
+		p.advance()
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return list
 }
 
 // parseAssociateStatisticsStmt parses an ASSOCIATE STATISTICS statement.

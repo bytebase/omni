@@ -110,7 +110,7 @@ func (p *Parser) parseDropStmt() nodes.StmtNode {
 		if p.isIdentLikeStr("POLICY") {
 			p.advance() // consume POLICY
 		}
-		return p.parseAdminDDLStmt("DROP", nodes.OBJECT_AUDIT_POLICY, start)
+		return p.parseDropAuditPolicyStmt(start)
 	case kwJSON:
 		// DROP JSON RELATIONAL DUALITY VIEW
 		p.advance() // consume JSON

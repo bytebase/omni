@@ -980,7 +980,7 @@
       "id": 100,
       "name": "audit_all",
       "file": "security.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE/ALTER/DROP AUDIT POLICY (stubbed). AUDIT/NOAUDIT traditional + unified (basic impl exists, review against BNF).",
       "bnf_files": [
         "CREATE-AUDIT-POLICY-Unified-Auditing.bnf",

@@ -100,7 +100,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		if p.isIdentLikeStr("POLICY") {
 			p.advance() // consume POLICY
 		}
-		return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_AUDIT_POLICY, start)
+		return p.parseCreateAuditPolicyStmt(start)
 	case kwJSON:
 		// CREATE JSON RELATIONAL DUALITY VIEW
 		p.advance() // consume JSON
