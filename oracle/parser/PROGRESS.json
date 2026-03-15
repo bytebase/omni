@@ -1685,7 +1685,7 @@
       "id": 118,
       "name": "analyze_cluster_validate",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 106 gap: parseAnalyzeStmt missing CLUSTER object type (falls to wrong default). Validate action sub-clauses (CASCADE FAST, INTO table, SET DANGLING TO NULL) are not structured.",
       "bnf_files": [
         "ANALYZE.bnf"
@@ -1707,8 +1707,8 @@
     }
   ],
   "stats": {
-    "total": 111,
-    "done": 111,
+    "total": 119,
+    "done": 119,
     "pending": 0,
     "failed": 0,
     "in_progress": 0

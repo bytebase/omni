@@ -2397,10 +2397,18 @@ func (n *PLSQLCall) stmtNode() {}
 
 // AnalyzeStmt represents an ANALYZE statement.
 type AnalyzeStmt struct {
-	Table      *ObjectName // table/index to analyze
-	ObjectType ObjectType  // TABLE, INDEX
-	Action     string      // COMPUTE STATISTICS, ESTIMATE STATISTICS, DELETE STATISTICS, VALIDATE STRUCTURE
-	Loc        Loc         // start location
+	Table          *ObjectName // table/index/cluster to analyze
+	ObjectType     ObjectType  // TABLE, INDEX, CLUSTER
+	Action         string      // COMPUTE STATISTICS, ESTIMATE STATISTICS, DELETE STATISTICS, VALIDATE STRUCTURE, VALIDATE REF UPDATE, LIST CHAINED ROWS
+	DeleteSystem   bool        // DELETE SYSTEM STATISTICS
+	SampleValue    int         // ESTIMATE STATISTICS SAMPLE n {ROWS|PERCENT}
+	SampleUnit     string      // ROWS or PERCENT
+	CascadeFast    bool        // VALIDATE STRUCTURE CASCADE FAST
+	IntoTable      *ObjectName // INTO table (VALIDATE STRUCTURE / LIST CHAINED ROWS)
+	SetDanglingNull bool       // VALIDATE REF UPDATE SET DANGLING TO NULL
+	Online         bool        // VALIDATE STRUCTURE ONLINE
+	Offline        bool        // VALIDATE STRUCTURE OFFLINE
+	Loc            Loc         // start location
 }
 
 func (n *AnalyzeStmt) nodeTag()  {}

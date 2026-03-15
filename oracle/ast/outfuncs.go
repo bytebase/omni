@@ -3487,6 +3487,31 @@ func writeAnalyzeStmt(sb *strings.Builder, n *AnalyzeStmt) {
 	if n.Action != "" {
 		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
 	}
+	if n.DeleteSystem {
+		sb.WriteString(" :deleteSystem true")
+	}
+	if n.SampleValue != 0 {
+		sb.WriteString(fmt.Sprintf(" :sampleValue %d", n.SampleValue))
+	}
+	if n.SampleUnit != "" {
+		sb.WriteString(fmt.Sprintf(" :sampleUnit %q", n.SampleUnit))
+	}
+	if n.CascadeFast {
+		sb.WriteString(" :cascadeFast true")
+	}
+	if n.IntoTable != nil {
+		sb.WriteString(" :intoTable ")
+		writeNode(sb, n.IntoTable)
+	}
+	if n.SetDanglingNull {
+		sb.WriteString(" :setDanglingNull true")
+	}
+	if n.Online {
+		sb.WriteString(" :online true")
+	}
+	if n.Offline {
+		sb.WriteString(" :offline true")
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }

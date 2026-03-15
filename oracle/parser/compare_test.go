@@ -9448,3 +9448,129 @@ func TestSetTransaction(t *testing.T) {
 		})
 	}
 }
+
+// TestAnalyze tests parsing of ANALYZE statements (batch 118).
+func TestAnalyze(t *testing.T) {
+	tests := []struct {
+		sql             string
+		objectType      ast.ObjectType
+		action          string
+		deleteSystem    bool
+		sampleValue     int
+		sampleUnit      string
+		cascadeFast     bool
+		intoTable       string
+		setDanglingNull bool
+		online          bool
+		offline         bool
+	}{
+		{
+			sql:        "ANALYZE TABLE t1 COMPUTE STATISTICS",
+			objectType: ast.OBJECT_TABLE,
+			action:     "COMPUTE STATISTICS",
+		},
+		{
+			sql:         "ANALYZE TABLE t1 ESTIMATE STATISTICS SAMPLE 20 PERCENT",
+			objectType:  ast.OBJECT_TABLE,
+			action:      "ESTIMATE STATISTICS",
+			sampleValue: 20,
+			sampleUnit:  "PERCENT",
+		},
+		{
+			sql:        "ANALYZE INDEX idx1 VALIDATE STRUCTURE",
+			objectType: ast.OBJECT_INDEX,
+			action:     "VALIDATE STRUCTURE",
+		},
+		{
+			sql:         "ANALYZE TABLE t1 VALIDATE STRUCTURE CASCADE FAST",
+			objectType:  ast.OBJECT_TABLE,
+			action:      "VALIDATE STRUCTURE",
+			cascadeFast: true,
+		},
+		{
+			sql:        "ANALYZE TABLE t1 VALIDATE STRUCTURE INTO schema1.chained_rows",
+			objectType: ast.OBJECT_TABLE,
+			action:     "VALIDATE STRUCTURE",
+			intoTable:  "CHAINED_ROWS",
+		},
+		{
+			sql:        "ANALYZE TABLE t1 LIST CHAINED ROWS INTO my_chain",
+			objectType: ast.OBJECT_TABLE,
+			action:     "LIST CHAINED ROWS",
+			intoTable:  "MY_CHAIN",
+		},
+		{
+			sql:        "ANALYZE TABLE t1 DELETE STATISTICS",
+			objectType: ast.OBJECT_TABLE,
+			action:     "DELETE STATISTICS",
+		},
+		{
+			sql:          "ANALYZE TABLE t1 DELETE SYSTEM STATISTICS",
+			objectType:   ast.OBJECT_TABLE,
+			action:       "DELETE SYSTEM STATISTICS",
+			deleteSystem: true,
+		},
+		{
+			sql:        "ANALYZE CLUSTER c1 COMPUTE STATISTICS",
+			objectType: ast.OBJECT_CLUSTER,
+			action:     "COMPUTE STATISTICS",
+		},
+		{
+			sql:             "ANALYZE TABLE t1 VALIDATE REF UPDATE SET DANGLING TO NULL",
+			objectType:      ast.OBJECT_TABLE,
+			action:          "VALIDATE REF UPDATE",
+			setDanglingNull: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.AnalyzeStmt)
+			if !ok {
+				t.Fatalf("expected AnalyzeStmt, got %T", raw.Stmt)
+			}
+			if stmt.ObjectType != tt.objectType {
+				t.Errorf("ObjectType: got %d, want %d", stmt.ObjectType, tt.objectType)
+			}
+			if stmt.Action != tt.action {
+				t.Errorf("Action: got %q, want %q", stmt.Action, tt.action)
+			}
+			if stmt.DeleteSystem != tt.deleteSystem {
+				t.Errorf("DeleteSystem: got %v, want %v", stmt.DeleteSystem, tt.deleteSystem)
+			}
+			if stmt.SampleValue != tt.sampleValue {
+				t.Errorf("SampleValue: got %d, want %d", stmt.SampleValue, tt.sampleValue)
+			}
+			if stmt.SampleUnit != tt.sampleUnit {
+				t.Errorf("SampleUnit: got %q, want %q", stmt.SampleUnit, tt.sampleUnit)
+			}
+			if stmt.CascadeFast != tt.cascadeFast {
+				t.Errorf("CascadeFast: got %v, want %v", stmt.CascadeFast, tt.cascadeFast)
+			}
+			if tt.intoTable != "" {
+				if stmt.IntoTable == nil {
+					t.Errorf("IntoTable: got nil, want %q", tt.intoTable)
+				} else if stmt.IntoTable.Name != tt.intoTable {
+					t.Errorf("IntoTable.Name: got %q, want %q", stmt.IntoTable.Name, tt.intoTable)
+				}
+			}
+			if stmt.SetDanglingNull != tt.setDanglingNull {
+				t.Errorf("SetDanglingNull: got %v, want %v", stmt.SetDanglingNull, tt.setDanglingNull)
+			}
+			if stmt.Online != tt.online {
+				t.Errorf("Online: got %v, want %v", stmt.Online, tt.online)
+			}
+			if stmt.Offline != tt.offline {
+				t.Errorf("Offline: got %v, want %v", stmt.Offline, tt.offline)
+			}
+			s := ast.NodeToString(result.Items[0])
+			if s == "" {
+				t.Errorf("expected non-empty serialization for %q", tt.sql)
+			}
+		})
+	}
+}

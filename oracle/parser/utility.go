@@ -318,7 +318,7 @@ func (p *Parser) parseAnalyzeStmt() nodes.StmtNode {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Object type: TABLE or INDEX
+	// Object type: TABLE, INDEX, or CLUSTER
 	switch p.cur.Type {
 	case kwTABLE:
 		stmt.ObjectType = nodes.OBJECT_TABLE
@@ -326,39 +326,157 @@ func (p *Parser) parseAnalyzeStmt() nodes.StmtNode {
 	case kwINDEX:
 		stmt.ObjectType = nodes.OBJECT_INDEX
 		p.advance()
+	case kwCLUSTER:
+		stmt.ObjectType = nodes.OBJECT_CLUSTER
+		p.advance()
 	default:
 		stmt.ObjectType = nodes.OBJECT_TABLE
 	}
 
-	// Object name
+	// Object name (possibly schema-qualified)
 	stmt.Table = p.parseObjectName()
 
-	// Action: COMPUTE STATISTICS, ESTIMATE STATISTICS, DELETE STATISTICS, VALIDATE STRUCTURE
-	if p.isIdentLike() {
-		action := p.cur.Str
-		p.advance()
-		// Second word of the action
-		if p.isIdentLike() {
-			action += " " + p.cur.Str
-			p.advance()
+	// Skip optional partition_extension_clause:
+	//   PARTITION ( name ) | SUBPARTITION ( name )
+	if p.isIdentLike() && (p.cur.Str == "PARTITION" || p.cur.Str == "SUBPARTITION") {
+		p.advance() // consume PARTITION/SUBPARTITION
+		if p.cur.Type == '(' {
+			p.advance() // consume (
+			p.parseExpr()
+			if p.cur.Type == ')' {
+				p.advance() // consume )
+			}
 		}
-		stmt.Action = action
-	} else if p.cur.Type == kwDELETE {
+	}
+
+	// Action clause
+	switch {
+	case p.isIdentLike() && p.cur.Str == "COMPUTE":
+		// COMPUTE STATISTICS
+		p.advance() // consume COMPUTE
+		stmt.Action = "COMPUTE STATISTICS"
+		if p.cur.Type == kwSTATISTICS {
+			p.advance() // consume STATISTICS
+		}
+		// Optional FOR clause - consume until end of statement
+		if p.cur.Type == kwFOR {
+			p.advance() // consume FOR
+			// Consume the rest of the FOR clause (TABLE | ALL [INDEXED] COLUMNS [SIZE n] | COLUMNS ...)
+			for p.cur.Type != ';' && p.cur.Type != tokEOF {
+				p.advance()
+			}
+		}
+
+	case p.isIdentLike() && p.cur.Str == "ESTIMATE":
+		// ESTIMATE STATISTICS [FOR ...] [SAMPLE n {ROWS|PERCENT}]
+		p.advance() // consume ESTIMATE
+		stmt.Action = "ESTIMATE STATISTICS"
+		if p.cur.Type == kwSTATISTICS {
+			p.advance() // consume STATISTICS
+		}
+		// Optional FOR clause
+		if p.cur.Type == kwFOR {
+			p.advance() // consume FOR
+			for p.cur.Type != kwSAMPLE && p.cur.Type != ';' && p.cur.Type != tokEOF {
+				p.advance()
+			}
+		}
+		// Optional SAMPLE n {ROWS|PERCENT}
+		if p.cur.Type == kwSAMPLE {
+			p.advance() // consume SAMPLE
+			if p.cur.Type == tokICONST {
+				stmt.SampleValue = p.parseIntValue()
+			}
+			if p.cur.Type == kwROWS {
+				stmt.SampleUnit = "ROWS"
+				p.advance()
+			} else if p.cur.Type == kwPERCENT {
+				stmt.SampleUnit = "PERCENT"
+				p.advance()
+			}
+		}
+
+	case p.cur.Type == kwDELETE:
+		// DELETE [SYSTEM] STATISTICS
 		p.advance() // consume DELETE
-		action := "DELETE"
-		if p.isIdentLike() {
-			action += " " + p.cur.Str
-			p.advance()
+		stmt.Action = "DELETE STATISTICS"
+		if p.cur.Type == kwSYSTEM {
+			p.advance() // consume SYSTEM
+			stmt.DeleteSystem = true
+			stmt.Action = "DELETE SYSTEM STATISTICS"
 		}
-		stmt.Action = action
-	} else if p.cur.Type == kwVALIDATE {
+		if p.cur.Type == kwSTATISTICS {
+			p.advance() // consume STATISTICS
+		}
+
+	case p.cur.Type == kwVALIDATE:
+		// VALIDATE REF UPDATE [SET DANGLING TO NULL]
+		// VALIDATE STRUCTURE [CASCADE [FAST]] [ONLINE|OFFLINE] [INTO table]
 		p.advance() // consume VALIDATE
-		action := "VALIDATE"
-		if p.isIdentLike() {
-			action += " " + p.cur.Str
-			p.advance()
+		if p.cur.Type == kwREF {
+			// VALIDATE REF UPDATE [SET DANGLING TO NULL]
+			p.advance() // consume REF
+			stmt.Action = "VALIDATE REF UPDATE"
+			if p.cur.Type == kwUPDATE {
+				p.advance() // consume UPDATE
+			}
+			if p.cur.Type == kwSET {
+				p.advance() // consume SET
+				// DANGLING is an identifier
+				if p.isIdentLike() && p.cur.Str == "DANGLING" {
+					p.advance() // consume DANGLING
+					if p.cur.Type == kwTO {
+						p.advance() // consume TO
+					}
+					if p.cur.Type == kwNULL {
+						p.advance() // consume NULL
+						stmt.SetDanglingNull = true
+					}
+				}
+			}
+		} else if p.isIdentLike() && p.cur.Str == "STRUCTURE" {
+			// VALIDATE STRUCTURE [CASCADE [FAST]] [ONLINE|OFFLINE] [INTO table]
+			p.advance() // consume STRUCTURE
+			stmt.Action = "VALIDATE STRUCTURE"
+			// Optional CASCADE [FAST]
+			if p.cur.Type == kwCASCADE {
+				p.advance() // consume CASCADE
+				if p.isIdentLike() && p.cur.Str == "FAST" {
+					p.advance() // consume FAST
+					stmt.CascadeFast = true
+				}
+			}
+			// Optional ONLINE | OFFLINE
+			if p.cur.Type == kwONLINE {
+				p.advance() // consume ONLINE
+				stmt.Online = true
+			} else if p.cur.Type == kwOFFLINE {
+				p.advance() // consume OFFLINE
+				stmt.Offline = true
+			}
+			// Optional INTO table
+			if p.cur.Type == kwINTO {
+				p.advance() // consume INTO
+				stmt.IntoTable = p.parseObjectName()
+			}
 		}
-		stmt.Action = action
+
+	case p.cur.Type == kwLIST:
+		// LIST CHAINED ROWS [INTO table]
+		p.advance() // consume LIST
+		stmt.Action = "LIST CHAINED ROWS"
+		// CHAINED is an identifier
+		if p.isIdentLike() && p.cur.Str == "CHAINED" {
+			p.advance() // consume CHAINED
+		}
+		if p.cur.Type == kwROWS {
+			p.advance() // consume ROWS
+		}
+		// Optional INTO table
+		if p.cur.Type == kwINTO {
+			p.advance() // consume INTO
+			stmt.IntoTable = p.parseObjectName()
+		}
 	}
 
 	stmt.Loc.End = p.pos()
