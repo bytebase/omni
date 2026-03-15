@@ -277,6 +277,23 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 
 	stmt := &nodes.ShowStmt{Loc: nodes.Loc{Start: start}}
 
+	// SHOW COUNT(*) ERRORS | SHOW COUNT(*) WARNINGS
+	if p.cur.Type == kwCOUNT {
+		p.advance() // consume COUNT
+		p.match('(')
+		p.match('*')
+		p.match(')')
+		if p.cur.Type == kwERRORS {
+			stmt.Type = "COUNT ERRORS"
+			p.advance()
+		} else if p.cur.Type == kwWARNINGS {
+			stmt.Type = "COUNT WARNINGS"
+			p.advance()
+		}
+		stmt.Loc.End = p.pos()
+		return stmt, nil
+	}
+
 	switch p.cur.Type {
 	case kwDATABASES:
 		stmt.Type = "DATABASES"
@@ -288,8 +305,8 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 	case kwTABLES:
 		stmt.Type = "TABLES"
 		p.advance()
-		// Optional FROM db
-		if _, ok := p.match(kwFROM); ok {
+		// Optional FROM|IN db
+		if p.matchFromOrIn() {
 			ref, err := p.parseTableRef()
 			if err != nil {
 				return nil, err
@@ -329,8 +346,8 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		} else if p.cur.Type == kwTABLES {
 			stmt.Type = "FULL TABLES"
 			p.advance()
-			// Optional FROM db
-			if _, ok := p.match(kwFROM); ok {
+			// Optional FROM|IN db
+			if p.matchFromOrIn() {
 				ref, err := p.parseTableRef()
 				if err != nil {
 					return nil, err
@@ -507,6 +524,20 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				if err := p.parseShowLikeOrWhere(stmt); err != nil {
 					return nil, err
 				}
+			} else if p.cur.Type == kwTABLES {
+				// SHOW EXTENDED FULL TABLES ...
+				stmt.Type = "EXTENDED FULL TABLES"
+				p.advance()
+				if p.matchFromOrIn() {
+					ref, err := p.parseTableRef()
+					if err != nil {
+						return nil, err
+					}
+					stmt.From = ref
+				}
+				if err := p.parseShowLikeOrWhere(stmt); err != nil {
+					return nil, err
+				}
 			}
 		} else if p.cur.Type == kwCOLUMNS || p.cur.Type == kwFIELDS || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "fields")) {
 			// SHOW EXTENDED COLUMNS ...
@@ -526,6 +557,20 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 					return nil, err
 				}
 				stmt.From.Schema = dbRef.Name
+			}
+			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
+		} else if p.cur.Type == kwTABLES {
+			// SHOW EXTENDED TABLES ...
+			stmt.Type = "EXTENDED TABLES"
+			p.advance()
+			if p.matchFromOrIn() {
+				ref, err := p.parseTableRef()
+				if err != nil {
+					return nil, err
+				}
+				stmt.From = ref
 			}
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err
@@ -631,6 +676,14 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			}
 		}
 
+	case kwSTORAGE:
+		// SHOW STORAGE ENGINES
+		p.advance() // consume STORAGE
+		if p.cur.Type == kwENGINES {
+			stmt.Type = "ENGINES"
+			p.advance()
+		}
+
 	case kwENGINES:
 		stmt.Type = "ENGINES"
 		p.advance()
@@ -663,6 +716,10 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		if p.cur.Type == kwSTATUS {
 			stmt.Type = "MASTER STATUS"
 			p.advance()
+		} else if p.cur.Type == kwLOGS {
+			// SHOW MASTER LOGS (synonym for SHOW BINARY LOGS)
+			stmt.Type = "BINARY LOGS"
+			p.advance()
 		}
 
 	case kwSLAVE:
@@ -670,6 +727,18 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		if p.cur.Type == kwSTATUS {
 			stmt.Type = "SLAVE STATUS"
 			p.advance()
+			// Optional FOR CHANNEL channel
+			if p.cur.Type == kwFOR {
+				p.advance() // consume FOR
+				if p.cur.Type == kwCHANNEL {
+					p.advance() // consume CHANNEL
+					ch, _, err := p.parseIdentifier()
+					if err != nil {
+						return nil, err
+					}
+					stmt.Channel = ch
+				}
+			}
 		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "hosts") {
 			stmt.Type = "REPLICAS"
 			p.advance()
@@ -680,6 +749,18 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		if p.cur.Type == kwSTATUS {
 			stmt.Type = "REPLICA STATUS"
 			p.advance()
+			// Optional FOR CHANNEL channel
+			if p.cur.Type == kwFOR {
+				p.advance() // consume FOR
+				if p.cur.Type == kwCHANNEL {
+					p.advance() // consume CHANNEL
+					ch, _, err := p.parseIdentifier()
+					if err != nil {
+						return nil, err
+					}
+					stmt.Channel = ch
+				}
+			}
 		}
 
 	case kwBINARY:
@@ -853,6 +934,18 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				stmt.LimitCount = first
 			}
 		}
+		// Optional FOR CHANNEL channel
+		if p.cur.Type == kwFOR {
+			p.advance() // consume FOR
+			if p.cur.Type == kwCHANNEL {
+				p.advance() // consume CHANNEL
+				ch, _, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Channel = ch
+			}
+		}
 
 	case kwCHARACTER:
 		p.advance() // consume CHARACTER
@@ -862,6 +955,14 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
+		}
+
+	case kwCHARSET:
+		// SHOW CHARSET (synonym for SHOW CHARACTER SET)
+		stmt.Type = "CHARACTER SET"
+		p.advance()
+		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			return nil, err
 		}
 
 	case kwCOLLATION:

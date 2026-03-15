@@ -1092,6 +1092,9 @@ func writeShowStmt(sb *strings.Builder, n *ShowStmt) {
 		sb.WriteString(" :limit_offset ")
 		writeNode(sb, n.LimitOffset)
 	}
+	if n.Channel != "" {
+		fmt.Fprintf(sb, " :channel %s", n.Channel)
+	}
 	sb.WriteString("}")
 }
 

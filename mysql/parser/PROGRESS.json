@@ -2595,7 +2595,7 @@
       "id": 108,
       "name": "review_show",
       "file": "set_show.go",
-      "status": "pending",
+      "status": "done",
       "description": "BNF review: All 37+ SHOW variants against 207 lines of BNF across 37 files. SHOW DATABASES, TABLES, COLUMNS, CREATE TABLE/VIEW/etc., INDEX, GRANTS, PROCESSLIST, STATUS/VARIABLES, ERRORS/WARNINGS, ENGINES, PLUGINS, PROFILES, BINARY LOGS, BINLOG/RELAYLOG EVENTS, REPLICA STATUS, MASTER STATUS, OPEN TABLES, TABLE STATUS, TRIGGERS, EVENTS, FUNCTION/PROCEDURE STATUS/CODE, REPLICAS, PRIVILEGES, CHARACTER SET, COLLATION, ENGINE.",
       "effort": "review",
       "bnf_files": [

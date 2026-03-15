@@ -10534,3 +10534,113 @@ func TestReviewBatch107_LockTableSingular(t *testing.T) {
 func TestReviewBatch107_UnlockTableSingular(t *testing.T) {
 	ParseAndCheck(t, "UNLOCK TABLE")
 }
+
+// === Review Batch 108: SHOW BNF gaps ===
+
+func TestReviewBatch108_ShowTablesIn(t *testing.T) {
+	// SHOW TABLES {FROM | IN} db_name - IN variant
+	stmt := parseShow(t, "SHOW TABLES IN mydb")
+	if stmt.Type != "TABLES" {
+		t.Errorf("expected TABLES, got %s", stmt.Type)
+	}
+	if stmt.From == nil || stmt.From.Name != "mydb" {
+		t.Errorf("expected From=mydb, got %v", stmt.From)
+	}
+}
+
+func TestReviewBatch108_ShowFullTablesIn(t *testing.T) {
+	stmt := parseShow(t, "SHOW FULL TABLES IN mydb")
+	if stmt.Type != "FULL TABLES" {
+		t.Errorf("expected FULL TABLES, got %s", stmt.Type)
+	}
+	if stmt.From == nil || stmt.From.Name != "mydb" {
+		t.Errorf("expected From=mydb, got %v", stmt.From)
+	}
+}
+
+func TestReviewBatch108_ShowExtendedTables(t *testing.T) {
+	ParseAndCheck(t, "SHOW EXTENDED TABLES")
+	ParseAndCheck(t, "SHOW EXTENDED TABLES FROM mydb")
+	ParseAndCheck(t, "SHOW EXTENDED TABLES LIKE 'test%'")
+}
+
+func TestReviewBatch108_ShowExtendedFullTables(t *testing.T) {
+	ParseAndCheck(t, "SHOW EXTENDED FULL TABLES")
+	ParseAndCheck(t, "SHOW EXTENDED FULL TABLES IN mydb")
+	ParseAndCheck(t, "SHOW EXTENDED FULL TABLES LIKE 'user%'")
+}
+
+func TestReviewBatch108_ShowCountErrors(t *testing.T) {
+	stmt := parseShow(t, "SHOW COUNT(*) ERRORS")
+	if stmt.Type != "COUNT ERRORS" {
+		t.Errorf("expected COUNT ERRORS, got %s", stmt.Type)
+	}
+}
+
+func TestReviewBatch108_ShowCountWarnings(t *testing.T) {
+	stmt := parseShow(t, "SHOW COUNT(*) WARNINGS")
+	if stmt.Type != "COUNT WARNINGS" {
+		t.Errorf("expected COUNT WARNINGS, got %s", stmt.Type)
+	}
+}
+
+func TestReviewBatch108_ShowStorageEngines(t *testing.T) {
+	stmt := parseShow(t, "SHOW STORAGE ENGINES")
+	if stmt.Type != "ENGINES" {
+		t.Errorf("expected ENGINES, got %s", stmt.Type)
+	}
+}
+
+func TestReviewBatch108_ShowMasterLogs(t *testing.T) {
+	stmt := parseShow(t, "SHOW MASTER LOGS")
+	if stmt.Type != "BINARY LOGS" {
+		t.Errorf("expected BINARY LOGS, got %s", stmt.Type)
+	}
+}
+
+func TestReviewBatch108_ShowReplicaStatusForChannel(t *testing.T) {
+	stmt := parseShow(t, "SHOW REPLICA STATUS FOR CHANNEL ch1")
+	if stmt.Type != "REPLICA STATUS" {
+		t.Errorf("expected REPLICA STATUS, got %s", stmt.Type)
+	}
+	if stmt.Channel != "ch1" {
+		t.Errorf("expected channel ch1, got %s", stmt.Channel)
+	}
+}
+
+func TestReviewBatch108_ShowSlaveStatusForChannel(t *testing.T) {
+	stmt := parseShow(t, "SHOW SLAVE STATUS FOR CHANNEL ch1")
+	if stmt.Type != "SLAVE STATUS" {
+		t.Errorf("expected SLAVE STATUS, got %s", stmt.Type)
+	}
+	if stmt.Channel != "ch1" {
+		t.Errorf("expected channel ch1, got %s", stmt.Channel)
+	}
+}
+
+func TestReviewBatch108_ShowRelaylogEventsForChannel(t *testing.T) {
+	stmt := parseShow(t, "SHOW RELAYLOG EVENTS FOR CHANNEL ch1")
+	if stmt.Type != "RELAYLOG EVENTS" {
+		t.Errorf("expected RELAYLOG EVENTS, got %s", stmt.Type)
+	}
+	if stmt.Channel != "ch1" {
+		t.Errorf("expected channel ch1, got %s", stmt.Channel)
+	}
+}
+
+func TestReviewBatch108_ShowCharset(t *testing.T) {
+	stmt := parseShow(t, "SHOW CHARSET")
+	if stmt.Type != "CHARACTER SET" {
+		t.Errorf("expected CHARACTER SET, got %s", stmt.Type)
+	}
+}
+
+func TestReviewBatch108_ShowCharsetLike(t *testing.T) {
+	stmt := parseShow(t, "SHOW CHARSET LIKE 'utf8%'")
+	if stmt.Type != "CHARACTER SET" {
+		t.Errorf("expected CHARACTER SET, got %s", stmt.Type)
+	}
+	if stmt.Like == nil {
+		t.Error("expected Like to be set")
+	}
+}

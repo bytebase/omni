@@ -1075,6 +1075,7 @@ type ShowStmt struct {
 	FromPos      ExprNode    // SHOW BINLOG/RELAYLOG EVENTS FROM pos
 	LimitCount   ExprNode    // SHOW ... LIMIT count
 	LimitOffset  ExprNode    // SHOW ... LIMIT offset, count
+	Channel      string      // FOR CHANNEL channel (RELAYLOG EVENTS, REPLICA STATUS)
 }
 
 func (s *ShowStmt) nodeTag()  {}
