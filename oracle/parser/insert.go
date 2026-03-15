@@ -6,23 +6,79 @@ import (
 
 // parseInsertStmt parses an INSERT statement.
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/INSERT.html
+// BNF: oracle/parser/bnf/INSERT.bnf
 //
-//	INSERT [ hint ] INTO table [ alias ] [ ( col1, col2, ... ) ]
-//	  { VALUES ( expr, ... ) | subquery }
-//	  [ RETURNING expr [, ...] INTO bind [, ...] ]
-//	  [ LOG ERRORS [ INTO table ] [ ( tag ) ] [ REJECT LIMIT { integer | UNLIMITED } ] ]
+//	INSERT [ hint ]
+//	    { single_table_insert | multi_table_insert }
 //
-//	INSERT [ hint ] ALL
-//	  INTO table [ ( col1, ... ) ] VALUES ( expr, ... )
-//	  [ INTO table [ ( col1, ... ) ] VALUES ( expr, ... ) ]*
-//	  subquery
+//	single_table_insert::=
+//	    insert_into_clause
+//	    { values_clause | subquery | insert_set_clause | by_name_position_clause }
+//	    [ returning_clause ]
+//	    [ error_logging_clause ]
 //
-//	INSERT [ hint ] FIRST
-//	  WHEN condition THEN INTO table [ ( col1, ... ) ] VALUES ( expr, ... ) [INTO ...]
-//	  [ WHEN condition THEN INTO table ... ]*
-//	  [ ELSE INTO table [ ( col1, ... ) ] VALUES ( expr, ... ) [INTO ...] ]
-//	  subquery
+//	insert_into_clause::=
+//	    INTO [ schema. ] { table | view | materialized_view }
+//	    [ partition_extension_clause ]
+//	    [ @ dblink ]
+//	    [ t_alias ]
+//	    [ ( column [, column ]... ) ]
+//
+//	DML_table_expression_clause::=
+//	    [ schema. ] { table | view | materialized_view }
+//	    [ partition_extension_clause ]
+//	    [ @ dblink ]
+//	    [ t_alias ]
+//	  | ( subquery [ subquery_restriction_clause ] ) [ t_alias ]
+//	  | TABLE ( collection_expression ) [ (+) ] [ t_alias ]
+//
+//	partition_extension_clause::=
+//	    PARTITION ( partition )
+//	  | PARTITION FOR ( partition_key_value [, partition_key_value ]... )
+//	  | SUBPARTITION ( subpartition )
+//	  | SUBPARTITION FOR ( subpartition_key_value [, subpartition_key_value ]... )
+//
+//	subquery_restriction_clause::=
+//	    WITH { READ ONLY | CHECK OPTION [ CONSTRAINT constraint ] }
+//
+//	values_clause::=
+//	    VALUES ( expr [, expr ]... )
+//
+//	insert_set_clause::=
+//	    SET column = { expr | DEFAULT } [, column = { expr | DEFAULT } ]...
+//
+//	by_name_position_clause::=
+//	    BY { NAME | POSITION } subquery
+//
+//	returning_clause::=
+//	    { RETURNING | RETURN } expr [, expr ]...
+//	    INTO data_item [, data_item ]...
+//
+//	multi_table_insert::=
+//	    { ALL into_clause [ values_clause ] [, into_clause [ values_clause ] ]...
+//	    | conditional_insert_clause
+//	    }
+//	    subquery
+//
+//	conditional_insert_clause::=
+//	    [ ALL | FIRST ]
+//	    WHEN condition THEN
+//	        into_clause [ values_clause ]
+//	        [, into_clause [ values_clause ] ]...
+//	    [ WHEN condition THEN
+//	        into_clause [ values_clause ]
+//	        [, into_clause [ values_clause ] ]... ]...
+//	    [ ELSE
+//	        into_clause [ values_clause ]
+//	        [, into_clause [ values_clause ] ]... ]
+//
+//	into_clause::=
+//	    INTO [ schema. ] { table | view } [ ( column [, column ]... ) ]
+//
+//	error_logging_clause::=
+//	    LOG ERRORS [ INTO [ schema. ] table ]
+//	    [ ( simple_expression ) ]
+//	    [ REJECT LIMIT { integer | UNLIMITED } ]
 func (p *Parser) parseInsertStmt() *nodes.InsertStmt {
 	start := p.pos()
 	stmt := &nodes.InsertStmt{
@@ -41,16 +97,33 @@ func (p *Parser) parseInsertStmt() *nodes.InsertStmt {
 		p.advance()
 	}
 
-	// INSERT ALL ...
+	// INSERT ALL ... (unconditional multi-table)
 	if p.cur.Type == kwALL {
+		next := p.peekNext()
+		if next.Type == kwINTO {
+			// INSERT ALL INTO ... INTO ... subquery
+			p.advance()
+			return p.parseMultiTableInsert(stmt, nodes.INSERT_ALL)
+		}
+		// INSERT ALL WHEN ... (conditional with ALL prefix)
+		if next.Type == kwWHEN {
+			p.advance()
+			return p.parseConditionalInsert(stmt, nodes.INSERT_ALL)
+		}
+		// Fallback: treat as unconditional
 		p.advance()
 		return p.parseMultiTableInsert(stmt, nodes.INSERT_ALL)
 	}
 
-	// INSERT FIRST ...
+	// INSERT FIRST WHEN ...
 	if p.cur.Type == kwFIRST {
 		p.advance()
-		return p.parseMultiTableInsert(stmt, nodes.INSERT_FIRST)
+		return p.parseConditionalInsert(stmt, nodes.INSERT_FIRST)
+	}
+
+	// Conditional insert without ALL/FIRST prefix: INSERT WHEN ...
+	if p.cur.Type == kwWHEN {
+		return p.parseConditionalInsert(stmt, nodes.INSERT_ALL)
 	}
 
 	// Single-table INSERT INTO ...
@@ -66,6 +139,17 @@ func (p *Parser) parseInsertStmt() *nodes.InsertStmt {
 		stmt.Table = p.parseObjectName()
 	}
 
+	// Partition extension clause
+	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
+		stmt.PartitionExt = p.parsePartitionExtClause()
+	}
+
+	// @dblink
+	if p.cur.Type == '@' {
+		p.advance()
+		stmt.Dblink = p.parseIdentifier()
+	}
+
 	// Optional alias
 	if p.isTableAliasCandidate() {
 		stmt.Alias = &nodes.Alias{Name: p.parseIdentifier()}
@@ -76,8 +160,9 @@ func (p *Parser) parseInsertStmt() *nodes.InsertStmt {
 		stmt.Columns = p.parseParenColumnList()
 	}
 
-	// VALUES (...) or subquery
-	if p.cur.Type == kwVALUES {
+	// VALUES (...) or subquery or SET or BY NAME/POSITION
+	switch {
+	case p.cur.Type == kwVALUES:
 		p.advance()
 		if p.cur.Type == '(' {
 			p.advance()
@@ -86,12 +171,29 @@ func (p *Parser) parseInsertStmt() *nodes.InsertStmt {
 				p.advance()
 			}
 		}
-	} else if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+	case p.cur.Type == kwSET:
+		// INSERT ... SET col = expr, ...
+		p.advance()
+		stmt.SetClauses = p.parseSetClauses()
+	case p.cur.Type == kwBY:
+		// BY { NAME | POSITION } subquery
+		p.advance()
+		if p.cur.Type == kwNAME {
+			stmt.ByName = true
+			p.advance()
+		} else if p.isIdentLike() && p.cur.Str == "POSITION" {
+			stmt.ByPosition = true
+			p.advance()
+		}
+		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH || p.cur.Type == '(' {
+			stmt.Select = p.parseSelectStmt()
+		}
+	case p.cur.Type == kwSELECT || p.cur.Type == kwWITH || p.cur.Type == '(':
 		stmt.Select = p.parseSelectStmt()
 	}
 
-	// RETURNING clause
-	if p.cur.Type == kwRETURNING {
+	// RETURNING / RETURN clause
+	if p.cur.Type == kwRETURNING || p.cur.Type == kwRETURN {
 		stmt.Returning = p.parseReturningClause()
 	}
 
@@ -104,45 +206,72 @@ func (p *Parser) parseInsertStmt() *nodes.InsertStmt {
 	return stmt
 }
 
-// parseMultiTableInsert parses INSERT ALL or INSERT FIRST multi-table inserts.
+// parseMultiTableInsert parses INSERT ALL unconditional multi-table inserts.
+//
+//	ALL into_clause [ values_clause ] [, into_clause [ values_clause ] ]...
+//	subquery
 func (p *Parser) parseMultiTableInsert(stmt *nodes.InsertStmt, insertType nodes.InsertType) *nodes.InsertStmt {
 	stmt.InsertType = insertType
 	stmt.MultiTable = &nodes.List{}
 
-	if insertType == nodes.INSERT_FIRST {
-		// FIRST: WHEN cond THEN INTO ... [WHEN ...] [ELSE INTO ...] subquery
-		for p.cur.Type == kwWHEN {
-			p.advance() // consume WHEN
-			cond := p.parseExpr()
-			if p.cur.Type == kwTHEN {
-				p.advance()
-			}
-			// One or more INTO clauses after THEN
-			for p.cur.Type == kwINTO {
-				clause := p.parseInsertIntoClause()
-				clause.When = cond
-				stmt.MultiTable.Items = append(stmt.MultiTable.Items, clause)
-			}
-		}
-		// ELSE
-		if p.cur.Type == kwELSE {
+	// ALL: INTO ... INTO ... subquery
+	for p.cur.Type == kwINTO {
+		clause := p.parseInsertIntoClause()
+		stmt.MultiTable.Items = append(stmt.MultiTable.Items, clause)
+	}
+
+	// Trailing subquery
+	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH || p.cur.Type == '(' {
+		stmt.Subquery = p.parseSelectStmt()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseConditionalInsert parses conditional INSERT (WHEN ... THEN INTO ...).
+//
+//	conditional_insert_clause::=
+//	    [ ALL | FIRST ]
+//	    WHEN condition THEN
+//	        into_clause [ values_clause ]
+//	        [, into_clause [ values_clause ] ]...
+//	    [ WHEN condition THEN
+//	        into_clause [ values_clause ]
+//	        [, into_clause [ values_clause ] ]... ]...
+//	    [ ELSE
+//	        into_clause [ values_clause ]
+//	        [, into_clause [ values_clause ] ]... ]
+//	    subquery
+func (p *Parser) parseConditionalInsert(stmt *nodes.InsertStmt, insertType nodes.InsertType) *nodes.InsertStmt {
+	stmt.InsertType = insertType
+	stmt.MultiTable = &nodes.List{}
+
+	for p.cur.Type == kwWHEN {
+		p.advance() // consume WHEN
+		cond := p.parseExpr()
+		if p.cur.Type == kwTHEN {
 			p.advance()
-			for p.cur.Type == kwINTO {
-				clause := p.parseInsertIntoClause()
-				// When is nil for ELSE clauses
-				stmt.MultiTable.Items = append(stmt.MultiTable.Items, clause)
-			}
 		}
-	} else {
-		// ALL: INTO ... INTO ... subquery
+		// One or more INTO clauses after THEN
 		for p.cur.Type == kwINTO {
 			clause := p.parseInsertIntoClause()
+			clause.When = cond
+			stmt.MultiTable.Items = append(stmt.MultiTable.Items, clause)
+		}
+	}
+	// ELSE
+	if p.cur.Type == kwELSE {
+		p.advance()
+		for p.cur.Type == kwINTO {
+			clause := p.parseInsertIntoClause()
+			// When is nil for ELSE clauses
 			stmt.MultiTable.Items = append(stmt.MultiTable.Items, clause)
 		}
 	}
 
 	// Trailing subquery
-	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH || p.cur.Type == '(' {
 		stmt.Subquery = p.parseSelectStmt()
 	}
 
@@ -152,7 +281,8 @@ func (p *Parser) parseMultiTableInsert(stmt *nodes.InsertStmt, insertType nodes.
 
 // parseInsertIntoClause parses a single INTO clause for multi-table INSERT.
 //
-//	INTO table [ ( col1, ... ) ] VALUES ( expr, ... )
+//	INTO [ schema. ] { table | view } [ ( column [, column ]... ) ]
+//	[ VALUES ( expr, ... ) ]
 func (p *Parser) parseInsertIntoClause() *nodes.InsertIntoClause {
 	start := p.pos()
 	clause := &nodes.InsertIntoClause{
@@ -212,9 +342,13 @@ func (p *Parser) parseParenColumnList() *nodes.List {
 	return list
 }
 
-// parseReturningClause parses RETURNING expr [, ...] INTO bind [, ...].
+// parseReturningClause parses RETURNING/RETURN expr [, ...] INTO bind [, ...].
+//
+//	returning_clause::=
+//	    { RETURNING | RETURN } expr [, expr ]...
+//	    INTO data_item [, data_item ]...
 func (p *Parser) parseReturningClause() *nodes.List {
-	p.advance() // consume RETURNING
+	p.advance() // consume RETURNING or RETURN
 	list := p.parseExprList()
 	// INTO bind variables
 	if p.cur.Type == kwINTO {
@@ -227,6 +361,11 @@ func (p *Parser) parseReturningClause() *nodes.List {
 }
 
 // parseErrorLogClause parses LOG ERRORS [INTO table] [(tag)] [REJECT LIMIT {n|UNLIMITED}].
+//
+//	error_logging_clause::=
+//	    LOG ERRORS [ INTO [ schema. ] table ]
+//	    [ ( simple_expression ) ]
+//	    [ REJECT LIMIT { integer | UNLIMITED } ]
 func (p *Parser) parseErrorLogClause() *nodes.ErrorLogClause {
 	start := p.pos()
 	p.advance() // consume LOG

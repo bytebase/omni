@@ -1231,20 +1231,25 @@ func (n *RollupClause) exprNode() {}
 // ---------------------------------------------------------------------------
 
 // InsertStmt represents an INSERT statement.
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/INSERT.html
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/INSERT.html
 type InsertStmt struct {
-	InsertType InsertType      // single, ALL, FIRST
-	Table      *ObjectName     // target table (for single insert)
-	Alias      *Alias          // table alias
-	Columns    *List           // column list (list of *ColumnRef)
-	Values     *List           // VALUES list (list of expressions)
-	Select     *SelectStmt     // subquery source
-	MultiTable *List           // for INSERT ALL/FIRST: list of *InsertIntoClause
-	Subquery   StmtNode        // source subquery for multi-table insert
-	Returning  *List           // RETURNING clause
-	ErrorLog   *ErrorLogClause // LOG ERRORS
-	Hints      *List           // optimizer hints
-	Loc        Loc             // start location
+	InsertType   InsertType          // single, ALL, FIRST
+	Table        *ObjectName         // target table (for single insert)
+	PartitionExt *PartitionExtClause // PARTITION/SUBPARTITION extension
+	Dblink       string              // @dblink name
+	Alias        *Alias              // table alias
+	Columns      *List               // column list (list of *ColumnRef)
+	Values       *List               // VALUES list (list of expressions)
+	SetClauses   *List               // INSERT SET col=expr form (list of *SetClause)
+	ByName       bool                // BY NAME subquery
+	ByPosition   bool                // BY POSITION subquery
+	Select       *SelectStmt         // subquery source
+	MultiTable   *List               // for INSERT ALL/FIRST: list of *InsertIntoClause
+	Subquery     StmtNode            // source subquery for multi-table insert
+	Returning    *List               // RETURNING clause
+	ErrorLog     *ErrorLogClause     // LOG ERRORS
+	Hints        *List               // optimizer hints
+	Loc          Loc                 // start location
 }
 
 func (n *InsertStmt) nodeTag()  {}
@@ -1276,16 +1281,19 @@ func (n *ErrorLogClause) nodeTag() {}
 // ---------------------------------------------------------------------------
 
 // UpdateStmt represents an UPDATE statement.
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/UPDATE.html
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/UPDATE.html
 type UpdateStmt struct {
-	Table       *ObjectName     // table to update
-	Alias       *Alias          // table alias
-	SetClauses  *List           // list of *SetClause
-	WhereClause ExprNode        // WHERE condition
-	Returning   *List           // RETURNING INTO
-	ErrorLog    *ErrorLogClause // LOG ERRORS
-	Hints       *List           // optimizer hints
-	Loc         Loc             // start location
+	Table        *ObjectName         // table to update
+	PartitionExt *PartitionExtClause // PARTITION/SUBPARTITION extension
+	Dblink       string              // @dblink name
+	Alias        *Alias              // table alias
+	SetClauses   *List               // list of *SetClause
+	FromClause   *List               // FROM clause (list of table references)
+	WhereClause  ExprNode            // WHERE condition
+	Returning    *List               // RETURNING INTO
+	ErrorLog     *ErrorLogClause     // LOG ERRORS
+	Hints        *List               // optimizer hints
+	Loc          Loc                 // start location
 }
 
 func (n *UpdateStmt) nodeTag()  {}
@@ -1306,15 +1314,17 @@ func (n *SetClause) nodeTag() {}
 // ---------------------------------------------------------------------------
 
 // DeleteStmt represents a DELETE statement.
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/DELETE.html
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/DELETE.html
 type DeleteStmt struct {
-	Table       *ObjectName     // table to delete from
-	Alias       *Alias          // table alias
-	WhereClause ExprNode        // WHERE condition
-	Returning   *List           // RETURNING INTO
-	ErrorLog    *ErrorLogClause // LOG ERRORS
-	Hints       *List           // optimizer hints
-	Loc         Loc             // start location
+	Table        *ObjectName         // table to delete from
+	PartitionExt *PartitionExtClause // PARTITION/SUBPARTITION extension
+	Dblink       string              // @dblink name
+	Alias        *Alias              // table alias
+	WhereClause  ExprNode            // WHERE condition
+	Returning    *List               // RETURNING INTO
+	ErrorLog     *ErrorLogClause     // LOG ERRORS
+	Hints        *List               // optimizer hints
+	Loc          Loc                 // start location
 }
 
 func (n *DeleteStmt) nodeTag()  {}
@@ -1343,13 +1353,16 @@ func (n *MergeStmt) stmtNode() {}
 
 // MergeClause represents a WHEN MATCHED / WHEN NOT MATCHED clause.
 type MergeClause struct {
-	Matched    bool     // true for WHEN MATCHED, false for WHEN NOT MATCHED
-	Condition  ExprNode // AND condition (nil if absent)
-	UpdateSet  *List    // SET clauses for UPDATE (list of *SetClause)
-	InsertCols *List    // INSERT column list
-	InsertVals *List    // INSERT values
-	IsDelete   bool     // DELETE (no SET)
-	Loc        Loc      // start location
+	Matched     bool     // true for WHEN MATCHED, false for WHEN NOT MATCHED
+	Condition   ExprNode // AND condition (nil if absent)
+	UpdateSet   *List    // SET clauses for UPDATE (list of *SetClause)
+	UpdateWhere ExprNode // WHERE condition after UPDATE SET
+	DeleteWhere ExprNode // DELETE WHERE condition (inside merge_update_clause)
+	InsertCols  *List    // INSERT column list
+	InsertVals  *List    // INSERT values
+	InsertWhere ExprNode // WHERE condition after INSERT VALUES
+	IsDelete    bool     // DELETE (no SET)
+	Loc         Loc      // start location
 }
 
 func (n *MergeClause) nodeTag() {}

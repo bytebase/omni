@@ -4118,3 +4118,231 @@ func TestParseInfrastructureErrorRecovery(t *testing.T) {
 		t.Fatal("expected parse error for invalid SQL")
 	}
 }
+
+// TestParseDMLReview tests INSERT/UPDATE/DELETE/MERGE statements against BNF.
+func TestParseDMLReview(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		// --- INSERT ---
+		{
+			name: "insert_basic_values",
+			sql:  `INSERT INTO employees (employee_id, first_name, last_name) VALUES (1, 'John', 'Doe')`,
+		},
+		{
+			name: "insert_subquery",
+			sql:  `INSERT INTO emp_archive SELECT * FROM employees WHERE hire_date < TO_DATE('2020-01-01', 'YYYY-MM-DD')`,
+		},
+		{
+			name: "insert_partition",
+			sql:  `INSERT INTO sales PARTITION (sales_q1_2024) (prod_id, amount) VALUES (100, 500.00)`,
+		},
+		{
+			name: "insert_partition_for",
+			sql:  `INSERT INTO sales PARTITION FOR (TO_DATE('2024-03-15', 'YYYY-MM-DD')) (prod_id, amount) VALUES (100, 500.00)`,
+		},
+		{
+			name: "insert_subpartition",
+			sql:  `INSERT INTO sales SUBPARTITION (sales_q1_west) (prod_id, amount) VALUES (101, 250.00)`,
+		},
+		{
+			name: "insert_dblink",
+			sql:  `INSERT INTO employees@remote_db (employee_id, first_name) VALUES (999, 'Remote')`,
+		},
+		{
+			name: "insert_with_alias",
+			sql:  `INSERT INTO employees e (employee_id) VALUES (1)`,
+		},
+		{
+			name: "insert_returning",
+			sql:  `INSERT INTO employees (employee_id, first_name) VALUES (1, 'John') RETURNING employee_id INTO :id`,
+		},
+		{
+			name: "insert_return_keyword",
+			sql:  `INSERT INTO employees (employee_id) VALUES (1) RETURN employee_id INTO :id`,
+		},
+		{
+			name: "insert_error_logging",
+			sql:  `INSERT INTO employees (employee_id) VALUES (1) LOG ERRORS INTO err_employees ('batch1') REJECT LIMIT 100`,
+		},
+		{
+			name: "insert_error_logging_unlimited",
+			sql:  `INSERT INTO employees (employee_id) VALUES (1) LOG ERRORS REJECT LIMIT UNLIMITED`,
+		},
+		{
+			name: "insert_all_unconditional",
+			sql: `INSERT ALL
+				INTO sal_history (empid, hire_date, salary) VALUES (empno, hiredate, sal)
+				INTO mgr_history (empid, manager, salary) VALUES (empno, mgr, sal)
+				SELECT empno, hiredate, sal, mgr FROM emp WHERE deptno = 10`,
+		},
+		{
+			name: "insert_first_conditional",
+			sql: `INSERT FIRST
+				WHEN sal > 10000 THEN INTO high_sal (empid, salary) VALUES (empno, sal)
+				WHEN sal > 5000 THEN INTO mid_sal (empid, salary) VALUES (empno, sal)
+				ELSE INTO low_sal (empid, salary) VALUES (empno, sal)
+				SELECT empno, sal FROM emp`,
+		},
+		{
+			name: "insert_all_conditional",
+			sql: `INSERT ALL
+				WHEN deptno = 10 THEN INTO dept10 (empid) VALUES (empno)
+				WHEN deptno = 20 THEN INTO dept20 (empid) VALUES (empno)
+				SELECT empno, deptno FROM emp`,
+		},
+		{
+			name: "insert_hints",
+			sql:  `INSERT /*+ APPEND */ INTO employees (employee_id) VALUES (1)`,
+		},
+		{
+			name: "insert_set_clause",
+			sql:  `INSERT INTO employees SET employee_id = 1, first_name = 'John', last_name = 'Doe'`,
+		},
+		{
+			name: "insert_by_name",
+			sql:  `INSERT INTO target_table BY NAME SELECT * FROM source_table`,
+		},
+
+		// --- UPDATE ---
+		{
+			name: "update_basic",
+			sql:  `UPDATE employees SET salary = 50000 WHERE employee_id = 100`,
+		},
+		{
+			name: "update_multi_column",
+			sql:  `UPDATE employees SET salary = 50000, commission_pct = 0.1 WHERE department_id = 80`,
+		},
+		{
+			name: "update_subquery_value",
+			sql:  `UPDATE employees SET (salary, commission_pct) = (SELECT avg_sal, avg_comm FROM dept_avg WHERE dept_id = 80) WHERE department_id = 80`,
+		},
+		{
+			name: "update_partition",
+			sql:  `UPDATE employees PARTITION (p_2024) SET salary = salary * 1.1`,
+		},
+		{
+			name: "update_dblink",
+			sql:  `UPDATE employees@remote_db SET salary = 50000 WHERE employee_id = 100`,
+		},
+		{
+			name: "update_returning",
+			sql:  `UPDATE employees SET salary = 50000 WHERE employee_id = 100 RETURNING salary INTO :new_sal`,
+		},
+		{
+			name: "update_return_keyword",
+			sql:  `UPDATE employees SET salary = 50000 WHERE employee_id = 100 RETURN salary INTO :new_sal`,
+		},
+		{
+			name: "update_error_logging",
+			sql:  `UPDATE employees SET salary = 50000 WHERE department_id = 80 LOG ERRORS INTO err_employees ('update_batch') REJECT LIMIT 50`,
+		},
+		{
+			name: "update_set_default",
+			sql:  `UPDATE employees SET commission_pct = DEFAULT WHERE department_id = 10`,
+		},
+		{
+			name: "update_with_alias",
+			sql:  `UPDATE employees e SET e.salary = 50000 WHERE e.employee_id = 100`,
+		},
+		{
+			name: "update_with_hints",
+			sql:  `UPDATE /*+ PARALLEL(employees, 4) */ employees SET salary = salary * 1.1`,
+		},
+
+		// --- DELETE ---
+		{
+			name: "delete_basic",
+			sql:  `DELETE FROM employees WHERE employee_id = 100`,
+		},
+		{
+			name: "delete_without_from",
+			sql:  `DELETE employees WHERE employee_id = 100`,
+		},
+		{
+			name: "delete_partition",
+			sql:  `DELETE FROM sales PARTITION (sales_q1_2024) WHERE amount < 10`,
+		},
+		{
+			name: "delete_subpartition",
+			sql:  `DELETE FROM sales SUBPARTITION (sales_q1_west)`,
+		},
+		{
+			name: "delete_dblink",
+			sql:  `DELETE FROM employees@remote_db WHERE employee_id = 999`,
+		},
+		{
+			name: "delete_returning",
+			sql:  `DELETE FROM employees WHERE employee_id = 100 RETURNING first_name, last_name INTO :fname, :lname`,
+		},
+		{
+			name: "delete_error_logging",
+			sql:  `DELETE FROM employees WHERE department_id = 80 LOG ERRORS INTO err_employees REJECT LIMIT UNLIMITED`,
+		},
+		{
+			name: "delete_with_alias",
+			sql:  `DELETE FROM employees e WHERE e.department_id = 10`,
+		},
+		{
+			name: "delete_hints",
+			sql:  `DELETE /*+ PARALLEL */ FROM employees WHERE hire_date < SYSDATE - 3650`,
+		},
+
+		// --- MERGE ---
+		{
+			name: "merge_basic",
+			sql: `MERGE INTO target t USING source s ON (t.id = s.id)
+				WHEN MATCHED THEN UPDATE SET t.val = s.val
+				WHEN NOT MATCHED THEN INSERT (id, val) VALUES (s.id, s.val)`,
+		},
+		{
+			name: "merge_update_where",
+			sql: `MERGE INTO target t USING source s ON (t.id = s.id)
+				WHEN MATCHED THEN UPDATE SET t.val = s.val WHERE t.status = 'ACTIVE'`,
+		},
+		{
+			name: "merge_update_delete_where",
+			sql: `MERGE INTO target t USING source s ON (t.id = s.id)
+				WHEN MATCHED THEN UPDATE SET t.val = s.val DELETE WHERE t.status = 'DELETED'`,
+		},
+		{
+			name: "merge_insert_where",
+			sql: `MERGE INTO target t USING source s ON (t.id = s.id)
+				WHEN NOT MATCHED THEN INSERT (id, val) VALUES (s.id, s.val) WHERE s.active = 1`,
+		},
+		{
+			name: "merge_error_logging",
+			sql: `MERGE INTO target t USING source s ON (t.id = s.id)
+				WHEN MATCHED THEN UPDATE SET t.val = s.val
+				WHEN NOT MATCHED THEN INSERT (id, val) VALUES (s.id, s.val)
+				LOG ERRORS INTO merge_errors ('batch1') REJECT LIMIT 200`,
+		},
+		{
+			name: "merge_using_subquery",
+			sql: `MERGE INTO employees e
+				USING (SELECT id, new_sal FROM salary_changes) sc ON (e.employee_id = sc.id)
+				WHEN MATCHED THEN UPDATE SET e.salary = sc.new_sal`,
+		},
+		{
+			name: "merge_with_hints",
+			sql: `MERGE /*+ PARALLEL(4) */ INTO target t USING source s ON (t.id = s.id)
+				WHEN MATCHED THEN UPDATE SET t.val = s.val`,
+		},
+		{
+			name: "merge_set_default",
+			sql: `MERGE INTO target t USING source s ON (t.id = s.id)
+				WHEN MATCHED THEN UPDATE SET t.val = DEFAULT`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() == 0 {
+				t.Fatalf("expected at least 1 statement, got 0")
+			}
+			_ = ast.NodeToString(result.Items[0])
+		})
+	}
+}

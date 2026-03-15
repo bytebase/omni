@@ -578,7 +578,7 @@
       "id": 89,
       "name": "dml_review",
       "file": "insert.go",
-      "status": "pending",
+      "status": "done",
       "description": "Review all DML against BNF. Multi-table INSERT (INSERT ALL/FIRST), conditional insert, error_logging_clause, RETURNING, returning INTO, DML subquery.",
       "bnf_files": ["INSERT.bnf", "UPDATE.bnf", "DELETE.bnf", "MERGE.bnf"],
       "bnf_lines": 232,

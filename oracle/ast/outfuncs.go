@@ -1736,6 +1736,14 @@ func writeMergeClause(sb *strings.Builder, n *MergeClause) {
 		sb.WriteString(" :updateSet ")
 		writeNode(sb, n.UpdateSet)
 	}
+	if n.UpdateWhere != nil {
+		sb.WriteString(" :updateWhere ")
+		writeNode(sb, n.UpdateWhere)
+	}
+	if n.DeleteWhere != nil {
+		sb.WriteString(" :deleteWhere ")
+		writeNode(sb, n.DeleteWhere)
+	}
 	if n.InsertCols != nil {
 		sb.WriteString(" :insertCols ")
 		writeNode(sb, n.InsertCols)
@@ -1743,6 +1751,10 @@ func writeMergeClause(sb *strings.Builder, n *MergeClause) {
 	if n.InsertVals != nil {
 		sb.WriteString(" :insertVals ")
 		writeNode(sb, n.InsertVals)
+	}
+	if n.InsertWhere != nil {
+		sb.WriteString(" :insertWhere ")
+		writeNode(sb, n.InsertWhere)
 	}
 	if n.IsDelete {
 		sb.WriteString(" :isDelete true")
@@ -2100,6 +2112,13 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
 	}
+	if n.PartitionExt != nil {
+		sb.WriteString(" :partitionExt ")
+		writeNode(sb, n.PartitionExt)
+	}
+	if n.Dblink != "" {
+		sb.WriteString(fmt.Sprintf(" :dblink %q", n.Dblink))
+	}
 	if n.Alias != nil {
 		sb.WriteString(" :alias ")
 		writeNode(sb, n.Alias)
@@ -2111,6 +2130,16 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 	if n.Values != nil {
 		sb.WriteString(" :values ")
 		writeNode(sb, n.Values)
+	}
+	if n.SetClauses != nil {
+		sb.WriteString(" :setClauses ")
+		writeNode(sb, n.SetClauses)
+	}
+	if n.ByName {
+		sb.WriteString(" :byName true")
+	}
+	if n.ByPosition {
+		sb.WriteString(" :byPosition true")
 	}
 	if n.Select != nil {
 		sb.WriteString(" :select ")
@@ -2146,6 +2175,13 @@ func writeUpdateStmt(sb *strings.Builder, n *UpdateStmt) {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
 	}
+	if n.PartitionExt != nil {
+		sb.WriteString(" :partitionExt ")
+		writeNode(sb, n.PartitionExt)
+	}
+	if n.Dblink != "" {
+		sb.WriteString(fmt.Sprintf(" :dblink %q", n.Dblink))
+	}
 	if n.Alias != nil {
 		sb.WriteString(" :alias ")
 		writeNode(sb, n.Alias)
@@ -2153,6 +2189,10 @@ func writeUpdateStmt(sb *strings.Builder, n *UpdateStmt) {
 	if n.SetClauses != nil {
 		sb.WriteString(" :setClauses ")
 		writeNode(sb, n.SetClauses)
+	}
+	if n.FromClause != nil {
+		sb.WriteString(" :fromClause ")
+		writeNode(sb, n.FromClause)
 	}
 	if n.WhereClause != nil {
 		sb.WriteString(" :whereClause ")
@@ -2179,6 +2219,13 @@ func writeDeleteStmt(sb *strings.Builder, n *DeleteStmt) {
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
+	}
+	if n.PartitionExt != nil {
+		sb.WriteString(" :partitionExt ")
+		writeNode(sb, n.PartitionExt)
+	}
+	if n.Dblink != "" {
+		sb.WriteString(fmt.Sprintf(" :dblink %q", n.Dblink))
 	}
 	if n.Alias != nil {
 		sb.WriteString(" :alias ")

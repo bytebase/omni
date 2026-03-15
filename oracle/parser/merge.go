@@ -6,13 +6,34 @@ import (
 
 // parseMergeStmt parses a MERGE INTO statement.
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/MERGE.html
+// BNF: oracle/parser/bnf/MERGE.bnf
 //
-//	MERGE [ hint ] INTO target [ alias ]
-//	  USING source [ alias ]
-//	  ON ( condition )
-//	  [ WHEN MATCHED THEN UPDATE SET ... | DELETE ]
-//	  [ WHEN NOT MATCHED THEN INSERT [ (cols) ] VALUES (vals) ]
+//	MERGE [ hint ] INTO [ schema. ] { table | view } [ t_alias ]
+//	    USING { [ schema. ] { table | view }
+//	          | subquery
+//	          } [ t_alias ]
+//	    ON ( condition )
+//	    [ merge_update_clause ]
+//	    [ merge_insert_clause ]
+//	    [ error_logging_clause ] ;
+//
+//	merge_update_clause::=
+//	    WHEN MATCHED THEN
+//	    UPDATE SET column = { expr | DEFAULT }
+//	               [, column = { expr | DEFAULT } ]...
+//	    [ WHERE condition ]
+//	    [ DELETE WHERE condition ]
+//
+//	merge_insert_clause::=
+//	    WHEN NOT MATCHED THEN
+//	    INSERT [ ( column [, column ]... ) ]
+//	    VALUES ( { expr | DEFAULT } [, { expr | DEFAULT } ]... )
+//	    [ WHERE condition ]
+//
+//	error_logging_clause::=
+//	    LOG ERRORS [ INTO [ schema. ] table ]
+//	    [ ( simple_expression ) ]
+//	    [ REJECT LIMIT { integer | UNLIMITED } ]
 func (p *Parser) parseMergeStmt() *nodes.MergeStmt {
 	start := p.pos()
 	p.advance() // consume MERGE
@@ -86,6 +107,11 @@ func (p *Parser) parseMergeStmt() *nodes.MergeStmt {
 		}
 	}
 
+	// error_logging_clause
+	if p.cur.Type == kwLOG {
+		stmt.ErrorLog = p.parseErrorLogClause()
+	}
+
 	stmt.Loc.End = p.pos()
 	return stmt
 }
@@ -132,6 +158,21 @@ func (p *Parser) parseMergeClause() *nodes.MergeClause {
 		}
 		mc.UpdateSet = p.parseMergeSetList()
 
+		// [ WHERE condition ]
+		if p.cur.Type == kwWHERE {
+			p.advance()
+			mc.UpdateWhere = p.parseExpr()
+		}
+
+		// [ DELETE WHERE condition ]
+		if p.cur.Type == kwDELETE {
+			p.advance()
+			if p.cur.Type == kwWHERE {
+				p.advance()
+			}
+			mc.DeleteWhere = p.parseExpr()
+		}
+
 	case kwINSERT:
 		p.advance() // consume INSERT
 		// Optional column list
@@ -152,6 +193,12 @@ func (p *Parser) parseMergeClause() *nodes.MergeClause {
 					p.advance()
 				}
 			}
+		}
+
+		// [ WHERE condition ]
+		if p.cur.Type == kwWHERE {
+			p.advance()
+			mc.InsertWhere = p.parseExpr()
 		}
 
 	case kwDELETE:
@@ -180,7 +227,7 @@ func (p *Parser) parseMergeSetList() *nodes.List {
 	return list
 }
 
-// parseMergeSetClause parses a single col = expr assignment.
+// parseMergeSetClause parses a single col = { expr | DEFAULT } assignment.
 func (p *Parser) parseMergeSetClause() *nodes.SetClause {
 	if !p.isIdentLike() {
 		return nil
@@ -198,7 +245,16 @@ func (p *Parser) parseMergeSetClause() *nodes.SetClause {
 		p.advance()
 	}
 
-	sc.Value = p.parseExpr()
+	// DEFAULT or expression
+	if p.cur.Type == kwDEFAULT {
+		sc.Value = &nodes.ColumnRef{
+			Column: "DEFAULT",
+			Loc:    nodes.Loc{Start: p.pos(), End: p.pos()},
+		}
+		p.advance()
+	} else {
+		sc.Value = p.parseExpr()
+	}
 	sc.Loc.End = p.pos()
 	return sc
 }
