@@ -1479,7 +1479,7 @@
       "id": 110,
       "name": "alter_type_replace_body",
       "file": "alter_misc.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 82 gap: ALTER TYPE ... REPLACE currently skips the type body spec via skipToSemicolon (alter_misc.go:2834). Should parse the inline type replacement spec (attribute/method definitions) instead of skipping.",
       "bnf_files": [
         "ALTER-TYPE.bnf"
@@ -1500,8 +1500,8 @@
   ],
   "stats": {
     "total": 111,
-    "done": 107,
-    "pending": 4,
+    "done": 111,
+    "pending": 0,
     "failed": 0,
     "in_progress": 0
   }

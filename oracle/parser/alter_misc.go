@@ -2829,9 +2829,8 @@ func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
 	case p.isIdentLikeStr("REPLACE"):
 		stmt.Action = "REPLACE"
 		p.advance() // consume REPLACE
-		// REPLACE alter_type_replace_clause — skip the type body spec to semicolon
-		// (the replace clause redefines the type spec inline)
-		p.skipToSemicolon()
+		// REPLACE alter_type_replace_clause — parse the inline type spec
+		p.parseAlterTypeReplaceClause(stmt)
 
 	case p.isIdentLikeStr("RESET"):
 		stmt.Action = "RESET"
@@ -3128,6 +3127,132 @@ func (p *Parser) parseAlterTypeCascade(stmt *nodes.AlterTypeStmt) {
 	if p.isIdentLikeStr("FORCE") {
 		stmt.Force = true
 		p.advance()
+	}
+}
+
+// parseAlterTypeReplaceClause parses the REPLACE clause of ALTER TYPE.
+// The REPLACE keyword has already been consumed.
+//
+// BNF: oracle/parser/bnf/ALTER-TYPE.bnf
+//
+//	REPLACE
+//	    [ AUTHID { CURRENT_USER | DEFINER } ]
+//	    [ ACCESSIBLE BY ( accessor [, accessor ]... ) ]
+//	    AS OBJECT (
+//	        attribute datatype [, attribute datatype ]...
+//	        [, { MEMBER | STATIC } { FUNCTION | PROCEDURE } spec ]...
+//	        [, { MAP | ORDER } MEMBER FUNCTION spec ]
+//	        [, CONSTRUCTOR FUNCTION spec ]
+//	    )
+//	    [ [ NOT ] INSTANTIABLE ] [ [ NOT ] FINAL ]
+func (p *Parser) parseAlterTypeReplaceClause(stmt *nodes.AlterTypeStmt) {
+	// Optional AUTHID clause
+	if p.isIdentLikeStr("AUTHID") {
+		p.advance() // AUTHID
+		if p.isIdentLike() {
+			p.advance() // CURRENT_USER or DEFINER
+		}
+	}
+
+	// Optional ACCESSIBLE BY
+	if p.isIdentLikeStr("ACCESSIBLE") {
+		p.advance() // ACCESSIBLE
+		if p.cur.Type == kwBY {
+			p.advance() // BY
+		}
+		if p.cur.Type == '(' {
+			p.advance()
+			depth := 1
+			for depth > 0 && p.cur.Type != tokEOF {
+				if p.cur.Type == '(' {
+					depth++
+				} else if p.cur.Type == ')' {
+					depth--
+					if depth == 0 {
+						break
+					}
+				}
+				p.advance()
+			}
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		}
+	}
+
+	// AS OBJECT ( ... ) or IS OBJECT ( ... )
+	if p.cur.Type == kwAS || p.cur.Type == kwIS {
+		p.advance() // AS/IS
+	}
+
+	if p.isIdentLikeStr("OBJECT") {
+		p.advance() // OBJECT
+	}
+
+	if p.cur.Type == '(' {
+		p.advance()
+		// Parse attributes and method specs inside parentheses.
+		// Attributes are: name datatype
+		// Methods start with MEMBER, STATIC, MAP, ORDER, or CONSTRUCTOR
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			switch {
+			case p.isIdentLikeStr("MEMBER") || p.isIdentLikeStr("STATIC") ||
+				p.isIdentLikeStr("MAP") || p.isIdentLikeStr("ORDER") ||
+				p.isIdentLikeStr("CONSTRUCTOR"):
+				// Method spec — skip to next comma or closing paren at depth 0
+				depth := 0
+				for p.cur.Type != tokEOF {
+					if p.cur.Type == '(' {
+						depth++
+					} else if p.cur.Type == ')' {
+						if depth == 0 {
+							break
+						}
+						depth--
+					} else if p.cur.Type == ',' && depth == 0 {
+						break
+					}
+					p.advance()
+				}
+			default:
+				// Attribute: name datatype
+				attrStart := p.pos()
+				name := p.parseIdentifier()
+				if name == "" {
+					p.advance()
+					continue
+				}
+				typeName := p.parseTypeName()
+				attr := &nodes.TypeAttribute{
+					Name:     name,
+					DataType: typeName,
+					Loc:      nodes.Loc{Start: attrStart, End: p.pos()},
+				}
+				stmt.Attributes = append(stmt.Attributes, attr)
+			}
+
+			if p.cur.Type == ',' {
+				p.advance()
+			}
+		}
+		if p.cur.Type == ')' {
+			p.advance()
+		}
+	}
+
+	// Optional trailing modifiers: [NOT] INSTANTIABLE, [NOT] FINAL
+	for p.cur.Type != ';' && p.cur.Type != tokEOF {
+		switch {
+		case p.cur.Type == kwNOT:
+			p.advance()
+			if p.isIdentLikeStr("INSTANTIABLE") || p.isIdentLikeStr("FINAL") {
+				p.advance()
+			}
+		case p.isIdentLikeStr("INSTANTIABLE") || p.isIdentLikeStr("FINAL"):
+			p.advance()
+		default:
+			return
+		}
 	}
 }
 

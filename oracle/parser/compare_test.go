@@ -4636,6 +4636,16 @@ func TestParseAlterType(t *testing.T) {
 
 		// FORCE (exceptions clause)
 		"ALTER TYPE person_t ADD ATTRIBUTE (x NUMBER) CASCADE FORCE",
+
+		// REPLACE clause — redefine the type spec inline
+		"ALTER TYPE person_t REPLACE AS OBJECT (name VARCHAR2(100), age NUMBER)",
+		"ALTER TYPE person_t REPLACE AS OBJECT (name VARCHAR2(100), age NUMBER, MEMBER FUNCTION get_name RETURN VARCHAR2)",
+		"ALTER TYPE person_t REPLACE AS OBJECT (name VARCHAR2(100), MEMBER FUNCTION get_name RETURN VARCHAR2, MEMBER PROCEDURE set_name(p_name VARCHAR2))",
+		"ALTER TYPE person_t REPLACE AS OBJECT (id NUMBER, name VARCHAR2(100)) NOT FINAL",
+		"ALTER TYPE person_t REPLACE AS OBJECT (id NUMBER) NOT INSTANTIABLE NOT FINAL",
+		"ALTER TYPE person_t REPLACE AUTHID CURRENT_USER AS OBJECT (id NUMBER, name VARCHAR2(100))",
+		"ALTER TYPE person_t REPLACE AUTHID DEFINER AS OBJECT (id NUMBER)",
+		"ALTER TYPE my_schema.person_t REPLACE AS OBJECT (x NUMBER, y NUMBER)",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
