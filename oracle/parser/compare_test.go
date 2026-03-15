@@ -9382,3 +9382,69 @@ func TestAlterSynonym(t *testing.T) {
 		}
 	})
 }
+
+// TestSetTransaction tests parsing of SET TRANSACTION statements (batch 117).
+func TestSetTransaction(t *testing.T) {
+	tests := []struct {
+		sql                string
+		readOnly           bool
+		readWrite          bool
+		isolLevel          string
+		useRollbackSegment string
+		name               string
+	}{
+		{
+			sql:      "SET TRANSACTION READ ONLY",
+			readOnly: true,
+		},
+		{
+			sql:       "SET TRANSACTION READ WRITE",
+			readWrite: true,
+		},
+		{
+			sql:       "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+			isolLevel: "SERIALIZABLE",
+		},
+		{
+			sql:                "SET TRANSACTION USE ROLLBACK SEGMENT rbs1",
+			useRollbackSegment: "RBS1",
+		},
+		{
+			sql:      "SET TRANSACTION READ ONLY NAME 'my_txn'",
+			readOnly: true,
+			name:     "my_txn",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.SetTransactionStmt)
+			if !ok {
+				t.Fatalf("expected SetTransactionStmt, got %T", raw.Stmt)
+			}
+			if stmt.ReadOnly != tt.readOnly {
+				t.Errorf("ReadOnly: got %v, want %v", stmt.ReadOnly, tt.readOnly)
+			}
+			if stmt.ReadWrite != tt.readWrite {
+				t.Errorf("ReadWrite: got %v, want %v", stmt.ReadWrite, tt.readWrite)
+			}
+			if stmt.IsolLevel != tt.isolLevel {
+				t.Errorf("IsolLevel: got %q, want %q", stmt.IsolLevel, tt.isolLevel)
+			}
+			if stmt.UseRollbackSegment != tt.useRollbackSegment {
+				t.Errorf("UseRollbackSegment: got %q, want %q", stmt.UseRollbackSegment, tt.useRollbackSegment)
+			}
+			if stmt.Name != tt.name {
+				t.Errorf("Name: got %q, want %q", stmt.Name, tt.name)
+			}
+			s := ast.NodeToString(result.Items[0])
+			if s == "" {
+				t.Errorf("expected non-empty serialization for %q", tt.sql)
+			}
+		})
+	}
+}

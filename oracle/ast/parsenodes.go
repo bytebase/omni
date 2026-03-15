@@ -2106,11 +2106,12 @@ func (n *SavepointStmt) stmtNode() {}
 
 // SetTransactionStmt represents a SET TRANSACTION statement.
 type SetTransactionStmt struct {
-	ReadOnly  bool   // READ ONLY
-	ReadWrite bool   // READ WRITE
-	IsolLevel string // ISOLATION LEVEL
-	Name      string // NAME 'text'
-	Loc       Loc    // start location
+	ReadOnly            bool   // READ ONLY
+	ReadWrite           bool   // READ WRITE
+	IsolLevel           string // ISOLATION LEVEL
+	UseRollbackSegment  string // USE ROLLBACK SEGMENT segment_name
+	Name                string // NAME 'text'
+	Loc                 Loc    // start location
 }
 
 func (n *SetTransactionStmt) nodeTag()  {}

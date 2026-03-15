@@ -3467,6 +3467,9 @@ func writeSetTransactionStmt(sb *strings.Builder, n *SetTransactionStmt) {
 	if n.IsolLevel != "" {
 		sb.WriteString(fmt.Sprintf(" :isolLevel %q", n.IsolLevel))
 	}
+	if n.UseRollbackSegment != "" {
+		sb.WriteString(fmt.Sprintf(" :useRollbackSegment %q", n.UseRollbackSegment))
+	}
 	if n.Name != "" {
 		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
 	}

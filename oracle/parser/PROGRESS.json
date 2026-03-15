@@ -1661,7 +1661,7 @@
       "id": 117,
       "name": "set_transaction_use_rollback",
       "file": "transaction.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 106 gap: parseSetTransactionStmt missing USE ROLLBACK SEGMENT clause per BNF.",
       "bnf_files": [
         "SET-TRANSACTION.bnf"

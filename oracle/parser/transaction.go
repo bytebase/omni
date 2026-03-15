@@ -185,8 +185,19 @@ func (p *Parser) parseSetTransactionStmt() nodes.StmtNode {
 				}
 			}
 		default:
-			// Check for NAME 'text' (NAME is an identifier, not a keyword)
-			if p.isIdentLike() && p.cur.Str == "NAME" {
+			if p.isIdentLike() && p.cur.Str == "USE" {
+				p.advance() // consume USE
+				if p.cur.Type == kwROLLBACK {
+					p.advance() // consume ROLLBACK
+					// SEGMENT is not a keyword
+					if p.isIdentLike() && p.cur.Str == "SEGMENT" {
+						p.advance() // consume SEGMENT
+					}
+					// segment_name
+					stmt.UseRollbackSegment = p.parseIdentifier()
+				}
+			} else if p.isIdentLike() && p.cur.Str == "NAME" {
+				// Check for NAME 'text' (NAME is an identifier, not a keyword)
 				p.advance() // consume NAME
 				if p.cur.Type == tokSCONST {
 					stmt.Name = p.cur.Str
