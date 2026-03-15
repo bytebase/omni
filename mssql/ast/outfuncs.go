@@ -351,7 +351,7 @@ func writeNode(sb *strings.Builder, node Node) {
 	case *CreateFulltextCatalogStmt:
 		writeCreateFulltextCatalogStmt(sb, n)
 	case *AlterFulltextCatalogStmt:
-		fmt.Fprintf(sb, "{ALTERFULLTEXTCATALOG :name \"%s\" :action \"%s\" :loc %d %d}", escapeString(n.Name), escapeString(n.Action), n.Loc.Start, n.Loc.End)
+		writeAlterFulltextCatalogStmt(sb, n)
 	case *CreateXmlSchemaCollectionStmt:
 		writeCreateXmlSchemaCollectionStmt(sb, n)
 	case *AlterXmlSchemaCollectionStmt:
@@ -822,6 +822,10 @@ func writeDropStmt(sb *strings.Builder, n *DropStmt) {
 		writeNode(sb, n.Names)
 	}
 	sb.WriteString(fmt.Sprintf(" :ifExists %t", n.IfExists))
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -850,6 +854,10 @@ func writeCreateIndexStmt(sb *strings.Builder, n *CreateIndexStmt) {
 		sb.WriteString(" :include ")
 		writeNode(sb, n.IncludeCols)
 	}
+	if n.OrderCols != nil {
+		sb.WriteString(" :order ")
+		writeNode(sb, n.OrderCols)
+	}
 	if n.WhereClause != nil {
 		sb.WriteString(" :where ")
 		writeNode(sb, n.WhereClause)
@@ -860,6 +868,9 @@ func writeCreateIndexStmt(sb *strings.Builder, n *CreateIndexStmt) {
 	}
 	if n.OnFileGroup != "" {
 		sb.WriteString(fmt.Sprintf(" :onFileGroup \"%s\"", escapeString(n.OnFileGroup)))
+	}
+	if n.FilestreamOn != "" {
+		sb.WriteString(fmt.Sprintf(" :filestreamOn \"%s\"", escapeString(n.FilestreamOn)))
 	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -3314,6 +3325,17 @@ func writeAlterFulltextIndexStmt(sb *strings.Builder, n *AlterFulltextIndexStmt)
 func writeCreateFulltextCatalogStmt(sb *strings.Builder, n *CreateFulltextCatalogStmt) {
 	sb.WriteString("{CREATEFULLTEXTCATALOG")
 	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeAlterFulltextCatalogStmt(sb *strings.Builder, n *AlterFulltextCatalogStmt) {
+	sb.WriteString("{ALTERFULLTEXTCATALOG")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	fmt.Fprintf(sb, " :action \"%s\"", escapeString(n.Action))
 	if n.Options != nil {
 		sb.WriteString(" :options ")
 		writeNode(sb, n.Options)

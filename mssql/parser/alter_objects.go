@@ -747,10 +747,22 @@ func (p *Parser) parseAlterDatabaseRemove(stmt *nodes.AlterDatabaseStmt) {
 
 // parseAlterIndexStmt parses an ALTER INDEX statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-index-transact-sql
+// BNF: mssql/parser/bnf/alter-index-transact-sql.bnf
 //
 //	ALTER INDEX { index_name | ALL } ON <object>
-//	    { REBUILD [ PARTITION = ... ] | REORGANIZE [ PARTITION = ... ] | DISABLE | SET ( ... ) }
+//	{
+//	      REBUILD [
+//	            [ WITH ( <rebuild_index_option> [ ,...n ] ) ]
+//	          | [ PARTITION = ALL [ WITH ( <rebuild_index_option> [ ,...n ] ) ] ]
+//	          | [ PARTITION = partition_number [ WITH ( <single_partition_rebuild_index_option> ) ] ]
+//	      ]
+//	    | DISABLE
+//	    | REORGANIZE  [ PARTITION = partition_number ] [ WITH ( <reorganize_option> ) ]
+//	    | SET ( <set_index_option> [ ,...n ] )
+//	    | RESUME [ WITH ( <resumable_index_option> [ ,...n ] ) ]
+//	    | PAUSE
+//	    | ABORT
+//	}
 func (p *Parser) parseAlterIndexStmt() *nodes.AlterIndexStmt {
 	loc := p.pos()
 
@@ -770,7 +782,7 @@ func (p *Parser) parseAlterIndexStmt() *nodes.AlterIndexStmt {
 		stmt.Table = p.parseTableRef()
 	}
 
-	// Action: REBUILD, REORGANIZE, DISABLE, SET
+	// Action: REBUILD, REORGANIZE, DISABLE, SET, RESUME, PAUSE, ABORT
 	if p.cur.Type == kwSET {
 		stmt.Action = "SET"
 		p.advance()
@@ -792,7 +804,7 @@ func (p *Parser) parseAlterIndexStmt() *nodes.AlterIndexStmt {
 		}
 	}
 
-	// Parse WITH ( option = value [, ...] ) or SET ( option = value [, ...] )
+	// Parse WITH ( option = value [, ...] ) for REBUILD/REORGANIZE/RESUME or SET ( ... )
 	if p.cur.Type == kwWITH || stmt.Action == "SET" {
 		if p.cur.Type == kwWITH {
 			p.advance() // consume WITH
@@ -876,6 +888,22 @@ func (p *Parser) parseAlterIndexOptions() *nodes.List {
 				} else if p.isIdentLike() {
 					val = strings.ToUpper(p.cur.Str)
 					p.advance()
+				} else if p.cur.Type == '(' {
+					// Nested parenthesized value like BOUNDING_BOX = (0, 0, 100, 100)
+					depth := 1
+					p.advance() // consume '('
+					for depth > 0 && p.cur.Type != tokEOF {
+						if p.cur.Type == '(' {
+							depth++
+						} else if p.cur.Type == ')' {
+							depth--
+							if depth == 0 {
+								p.advance()
+								break
+							}
+						}
+						p.advance()
+					}
 				}
 				opts.Items = append(opts.Items, &nodes.String{Str: name + "=" + val})
 			} else {

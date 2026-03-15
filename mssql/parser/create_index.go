@@ -7,10 +7,32 @@ import (
 
 // parseCreateIndexStmt parses a CREATE INDEX statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-index-transact-sql
+// BNF: mssql/parser/bnf/create-index-transact-sql.bnf
 //
-//	CREATE [UNIQUE] [CLUSTERED|NONCLUSTERED] INDEX name ON table (cols)
-//	    [INCLUDE (cols)] [WHERE expr] [WITH (options)]
+//	CREATE [ UNIQUE ] [ CLUSTERED | NONCLUSTERED ] INDEX index_name
+//	    ON <object> ( column [ ASC | DESC ] [ ,...n ] )
+//	    [ INCLUDE ( column_name [ ,...n ] ) ]
+//	    [ WHERE <filter_predicate> ]
+//	    [ WITH ( <relational_index_option> [ ,...n ] ) ]
+//	    [ ON { partition_scheme_name ( column_name )
+//	         | filegroup_name
+//	         | default
+//	         }
+//	    ]
+//	    [ FILESTREAM_ON { filestream_filegroup_name | partition_scheme_name | "NULL" } ]
+//
+//	CREATE [ UNIQUE ] [ CLUSTERED | NONCLUSTERED ] COLUMNSTORE INDEX index_name
+//	    ON <object>
+//	    [ ( column [ ,...n ] ) ]
+//	    [ ORDER ( column [ ,...n ] ) ]
+//	    [ WHERE <filter_expression> ]
+//	    [ WITH ( <with_option> [ ,...n ] ) ]
+//	    [ ON { partition_scheme_name ( column_name )
+//	         | filegroup_name
+//	         | default
+//	         }
+//	    ]
+//	    [ FILESTREAM_ON { filestream_filegroup_name | partition_scheme_name | "NULL" } ]
 func (p *Parser) parseCreateIndexStmt(unique bool) *nodes.CreateIndexStmt {
 	loc := p.pos()
 
@@ -53,11 +75,19 @@ func (p *Parser) parseCreateIndexStmt(unique bool) *nodes.CreateIndexStmt {
 		stmt.Columns = p.parseIndexColumnList()
 	}
 
-	// INCLUDE
+	// INCLUDE (relational index only)
 	if p.cur.Type == kwINCLUDE {
 		p.advance()
 		if p.cur.Type == '(' {
 			stmt.IncludeCols = p.parseParenIdentList()
+		}
+	}
+
+	// ORDER (columnstore index only)
+	if p.cur.Type == kwORDER {
+		p.advance()
+		if p.cur.Type == '(' {
+			stmt.OrderCols = p.parseParenIdentList()
 		}
 	}
 
@@ -66,19 +96,44 @@ func (p *Parser) parseCreateIndexStmt(unique bool) *nodes.CreateIndexStmt {
 		stmt.WhereClause = p.parseExpr()
 	}
 
-	// WITH (options)
+	// WITH ( <relational_index_option> [ ,...n ] )
 	if p.cur.Type == kwWITH {
 		p.advance()
 		if p.cur.Type == '(' {
-			stmt.Options = p.parseOptionList()
+			stmt.Options = p.parseAlterIndexOptions()
 		}
 	}
 
-	// ON filegroup
+	// ON { partition_scheme_name ( column_name ) | filegroup_name | default }
 	if _, ok := p.match(kwON); ok {
-		if p.isIdentLike() {
+		if p.isIdentLike() || p.cur.Type == kwDEFAULT {
 			stmt.OnFileGroup = p.cur.Str
 			p.advance()
+			// partition_scheme_name ( column_name )
+			if p.cur.Type == '(' {
+				p.advance()
+				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					p.advance()
+				}
+				p.match(')')
+			}
+		}
+	}
+
+	// FILESTREAM_ON { filestream_filegroup_name | partition_scheme_name | "NULL" }
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FILESTREAM_ON") {
+		p.advance()
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
+			stmt.FilestreamOn = p.cur.Str
+			p.advance()
+			// partition_scheme_name ( column_name )
+			if p.cur.Type == '(' {
+				p.advance()
+				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					p.advance()
+				}
+				p.match(')')
+			}
 		}
 	}
 
@@ -118,7 +173,14 @@ func (p *Parser) parseIndexColumnList() *nodes.List {
 // parseCreateXmlIndexStmt parses CREATE [PRIMARY] XML INDEX.
 // Caller has consumed CREATE [PRIMARY] XML INDEX.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-xml-index-transact-sql
+// BNF: mssql/parser/bnf/create-xml-index-transact-sql.bnf
+//
+//	CREATE [ PRIMARY ] XML INDEX index_name
+//	    ON <object> ( xml_column_name )
+//	    [ USING XML INDEX xml_index_name
+//	        [ FOR { VALUE | PATH | PROPERTY } ]
+//	    ]
+//	    [ WITH ( <xml_index_option> [ ,...n ] ) ]
 func (p *Parser) parseCreateXmlIndexStmt(primary bool) *nodes.CreateXmlIndexStmt {
 	loc := p.pos()
 	stmt := &nodes.CreateXmlIndexStmt{
@@ -236,7 +298,22 @@ func (p *Parser) parseCreateSelectiveXmlIndexStmt() *nodes.CreateSelectiveXmlInd
 // parseCreateSpatialIndexStmt parses CREATE SPATIAL INDEX.
 // Caller has consumed CREATE SPATIAL INDEX.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-spatial-index-transact-sql
+// BNF: mssql/parser/bnf/create-spatial-index-transact-sql.bnf
+//
+//	CREATE SPATIAL INDEX index_name
+//	    ON <object> ( spatial_column_name )
+//	    { <geometry_tessellation> | <geography_tessellation> }
+//	    [ ON { filegroup_name | "default" } ]
+//
+//	<geometry_tessellation> ::=
+//	    [ USING { GEOMETRY_AUTO_GRID | GEOMETRY_GRID } ]
+//	    WITH ( <bounding_box> [, <tessellation_grid>] [, <tessellation_cells_per_object>]
+//	           [, <spatial_index_option> [,...n] ] )
+//
+//	<geography_tessellation> ::=
+//	    [ USING { GEOGRAPHY_AUTO_GRID | GEOGRAPHY_GRID } ]
+//	    [ WITH ( [<tessellation_grid>] [, <tessellation_cells_per_object>]
+//	             [, <spatial_index_option> [,...n] ] ) ]
 func (p *Parser) parseCreateSpatialIndexStmt() *nodes.CreateSpatialIndexStmt {
 	loc := p.pos()
 	stmt := &nodes.CreateSpatialIndexStmt{
@@ -269,11 +346,11 @@ func (p *Parser) parseCreateSpatialIndexStmt() *nodes.CreateSpatialIndexStmt {
 		}
 	}
 
-	// WITH (options)
+	// WITH (options) - spatial index uses the same option key=value format
 	if p.cur.Type == kwWITH {
 		p.advance()
 		if p.cur.Type == '(' {
-			stmt.Options = p.parseOptionList()
+			stmt.Options = p.parseAlterIndexOptions()
 		}
 	}
 

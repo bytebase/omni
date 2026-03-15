@@ -573,6 +573,7 @@ type DropStmt struct {
 	ObjectType DropObjectType
 	Names      *List // list of TableRef
 	IfExists   bool
+	Options    *List // WITH options (e.g., DROP INDEX ... WITH (MAXDOP=1, ONLINE=ON))
 	Loc        Loc
 }
 
@@ -609,17 +610,19 @@ const (
 // CreateIndexStmt represents a CREATE INDEX statement.
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-index-transact-sql
 type CreateIndexStmt struct {
-	Unique      bool
-	Clustered   *bool // true=CLUSTERED, false=NONCLUSTERED
-	Columnstore bool
-	Name        string
-	Table       *TableRef
-	Columns     *List    // index columns
-	IncludeCols *List    // INCLUDE columns
-	WhereClause ExprNode // filtered index
-	Options     *List    // WITH options
-	OnFileGroup string
-	Loc         Loc
+	Unique       bool
+	Clustered    *bool // true=CLUSTERED, false=NONCLUSTERED
+	Columnstore  bool
+	Name         string
+	Table        *TableRef
+	Columns      *List    // index columns
+	IncludeCols  *List    // INCLUDE columns
+	OrderCols    *List    // ORDER columns (columnstore only)
+	WhereClause  ExprNode // filtered index
+	Options      *List    // WITH options
+	OnFileGroup  string
+	FilestreamOn string // FILESTREAM_ON filegroup
+	Loc          Loc
 }
 
 func (n *CreateIndexStmt) nodeTag()  {}
@@ -2473,9 +2476,10 @@ func (n *CreateFulltextCatalogStmt) stmtNode() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-fulltext-catalog-transact-sql
 type AlterFulltextCatalogStmt struct {
-	Name   string
-	Action string // REBUILD, REORGANIZE, AS DEFAULT
-	Loc    Loc
+	Name    string
+	Action  string // REBUILD, REORGANIZE, AS DEFAULT
+	Options *List  // WITH options (e.g., ACCENT_SENSITIVITY=ON)
+	Loc     Loc
 }
 
 func (n *AlterFulltextCatalogStmt) nodeTag()  {}

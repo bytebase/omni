@@ -9,7 +9,7 @@ import (
 
 // parseCreateFulltextIndexStmt parses a CREATE FULLTEXT INDEX statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-fulltext-index-transact-sql
+// BNF: mssql/parser/bnf/create-fulltext-index-transact-sql.bnf
 //
 //	CREATE FULLTEXT INDEX ON table_name
 //	    [ ( { column_name
@@ -20,7 +20,18 @@ import (
 //	      ) ]
 //	    KEY INDEX index_name
 //	    [ ON <catalog_filegroup_option> ]
-//	    [ WITH ( <with_option> [ ,...n ] ) ]
+//	    [ WITH [ ( ] <with_option> [ ,...n ] [ ) ] ]
+//
+//	<catalog_filegroup_option> ::=
+//	    fulltext_catalog_name
+//	  | ( fulltext_catalog_name , FILEGROUP filegroup_name )
+//	  | ( FILEGROUP filegroup_name , fulltext_catalog_name )
+//	  | ( FILEGROUP filegroup_name )
+//
+//	<with_option> ::=
+//	    CHANGE_TRACKING [ = ] { MANUAL | AUTO | OFF [ , NO POPULATION ] }
+//	  | STOPLIST [ = ] { OFF | SYSTEM | stoplist_name }
+//	  | SEARCH PROPERTY LIST [ = ] property_list_name
 func (p *Parser) parseCreateFulltextIndexStmt() *nodes.CreateFulltextIndexStmt {
 	loc := p.pos()
 	// INDEX keyword already consumed by caller
@@ -85,10 +96,41 @@ func (p *Parser) parseCreateFulltextIndexStmt() *nodes.CreateFulltextIndexStmt {
 		}
 	}
 
-	// ON catalog_name
+	// ON <catalog_filegroup_option>
+	//   catalog_name
+	//   | ( catalog_name , FILEGROUP filegroup_name )
+	//   | ( FILEGROUP filegroup_name , catalog_name )
+	//   | ( FILEGROUP filegroup_name )
 	if p.cur.Type == kwON {
 		p.advance()
-		if p.isIdentLike() {
+		if p.cur.Type == '(' {
+			// Parenthesized form
+			p.advance()
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FILEGROUP") {
+				p.advance()
+				if p.isIdentLike() {
+					p.advance() // filegroup name (not captured in AST)
+				}
+				if _, ok := p.match(','); ok {
+					if p.isIdentLike() {
+						stmt.CatalogName = p.cur.Str
+						p.advance()
+					}
+				}
+			} else if p.isIdentLike() {
+				stmt.CatalogName = p.cur.Str
+				p.advance()
+				if _, ok := p.match(','); ok {
+					if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FILEGROUP") {
+						p.advance()
+						if p.isIdentLike() {
+							p.advance() // filegroup name
+						}
+					}
+				}
+			}
+			p.match(')')
+		} else if p.isIdentLike() {
 			stmt.CatalogName = p.cur.Str
 			p.advance()
 		}
@@ -135,11 +177,14 @@ func (p *Parser) parseCreateFulltextIndexStmt() *nodes.CreateFulltextIndexStmt {
 
 // parseAlterFulltextIndexStmt parses an ALTER FULLTEXT INDEX ON table action.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-fulltext-index-transact-sql
+// BNF: mssql/parser/bnf/alter-fulltext-index-transact-sql.bnf
 //
 //	ALTER FULLTEXT INDEX ON table_name
-//	    { ENABLE | DISABLE
-//	    | SET CHANGE_TRACKING { MANUAL | AUTO | OFF }
+//	    { ENABLE
+//	    | DISABLE
+//	    | SET CHANGE_TRACKING [ = ] { MANUAL | AUTO | OFF }
+//	    | SET STOPLIST [ = ] { OFF | SYSTEM | stoplist_name } [ WITH NO POPULATION ]
+//	    | SET SEARCH PROPERTY LIST [ = ] { OFF | property_list_name } [ WITH NO POPULATION ]
 //	    | ADD ( column_name
 //	          [ TYPE COLUMN type_column_name ]
 //	          [ LANGUAGE language_term ]
@@ -148,9 +193,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() *nodes.CreateFulltextIndexStmt {
 //	    | ALTER COLUMN column_name { ADD | DROP } STATISTICAL_SEMANTICS [ WITH NO POPULATION ]
 //	    | DROP ( column_name [,...n] ) [ WITH NO POPULATION ]
 //	    | START { FULL | INCREMENTAL | UPDATE } POPULATION
-//	    | STOP POPULATION
-//	    | PAUSE POPULATION
-//	    | RESUME POPULATION
+//	    | { STOP | PAUSE | RESUME } POPULATION
 //	    }
 func (p *Parser) parseAlterFulltextIndexStmt() *nodes.AlterFulltextIndexStmt {
 	loc := p.pos()
@@ -178,9 +221,10 @@ func (p *Parser) parseAlterFulltextIndexStmt() *nodes.AlterFulltextIndexStmt {
 	case p.cur.Type == kwSET:
 		stmt.Action = "SET"
 		p.advance()
-		// CHANGE_TRACKING { MANUAL | AUTO | OFF }
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CHANGE_TRACKING") {
+			// SET CHANGE_TRACKING [ = ] { MANUAL | AUTO | OFF }
 			p.advance()
+			p.match('=') // optional =
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MANUAL") {
 				stmt.ChangeTracking = "MANUAL"
 				p.advance()
@@ -191,6 +235,47 @@ func (p *Parser) parseAlterFulltextIndexStmt() *nodes.AlterFulltextIndexStmt {
 				stmt.ChangeTracking = "OFF"
 				p.advance()
 			}
+		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STOPLIST") {
+			// SET STOPLIST [ = ] { OFF | SYSTEM | stoplist_name } [ WITH NO POPULATION ]
+			p.advance()
+			p.match('=') // optional =
+			var opts []nodes.Node
+			if p.cur.Type == kwOFF {
+				opts = append(opts, &nodes.String{Str: "STOPLIST=OFF"})
+				p.advance()
+			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SYSTEM") {
+				opts = append(opts, &nodes.String{Str: "STOPLIST=SYSTEM"})
+				p.advance()
+			} else if p.isIdentLike() {
+				opts = append(opts, &nodes.String{Str: "STOPLIST=" + p.cur.Str})
+				p.advance()
+			}
+			if len(opts) > 0 {
+				stmt.Options = &nodes.List{Items: opts}
+			}
+			stmt.WithNoPopulation = p.parseWithNoPopulation()
+		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SEARCH") {
+			// SET SEARCH PROPERTY LIST [ = ] { OFF | property_list_name } [ WITH NO POPULATION ]
+			p.advance() // consume SEARCH
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PROPERTY") {
+				p.advance()
+			}
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LIST") {
+				p.advance()
+			}
+			p.match('=') // optional =
+			var opts []nodes.Node
+			if p.cur.Type == kwOFF {
+				opts = append(opts, &nodes.String{Str: "SEARCH_PROPERTY_LIST=OFF"})
+				p.advance()
+			} else if p.isIdentLike() {
+				opts = append(opts, &nodes.String{Str: "SEARCH_PROPERTY_LIST=" + p.cur.Str})
+				p.advance()
+			}
+			if len(opts) > 0 {
+				stmt.Options = &nodes.List{Items: opts}
+			}
+			stmt.WithNoPopulation = p.parseWithNoPopulation()
 		}
 
 	case p.cur.Type == kwADD:
@@ -345,7 +430,7 @@ func (p *Parser) parseWithNoPopulation() bool {
 
 // parseCreateFulltextCatalogStmt parses a CREATE FULLTEXT CATALOG statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-fulltext-catalog-transact-sql
+// BNF: mssql/parser/bnf/create-fulltext-catalog-transact-sql.bnf
 //
 //	CREATE FULLTEXT CATALOG catalog_name
 //	    [ ON FILEGROUP filegroup ]
@@ -438,7 +523,7 @@ func (p *Parser) parseCreateFulltextCatalogStmt() *nodes.CreateFulltextCatalogSt
 
 // parseCreateFulltextStoplistStmt parses a CREATE FULLTEXT STOPLIST statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-fulltext-stoplist-transact-sql
+// BNF: mssql/parser/bnf/create-fulltext-stoplist-transact-sql.bnf
 //
 //	CREATE FULLTEXT STOPLIST stoplist_name
 //	    [ FROM { [ database_name . ] source_stoplist_name } | SYSTEM STOPLIST ]
@@ -499,7 +584,7 @@ func (p *Parser) parseCreateFulltextStoplistStmt() *nodes.CreateFulltextStoplist
 
 // parseAlterFulltextStoplistStmt parses an ALTER FULLTEXT STOPLIST statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-fulltext-stoplist-transact-sql
+// BNF: mssql/parser/bnf/alter-fulltext-stoplist-transact-sql.bnf
 //
 //	ALTER FULLTEXT STOPLIST stoplist_name
 //	{
@@ -552,8 +637,11 @@ func (p *Parser) parseAlterFulltextStoplistStmt() *nodes.AlterFulltextStoplistSt
 		stmt.Action = "DROP"
 		p.advance()
 
-		if p.cur.Type == tokSCONST {
-			// DROP 'stopword' LANGUAGE language_term
+		if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
+			// DROP [N]'stopword' LANGUAGE language_term
+			if p.cur.Type == tokNSCONST {
+				stmt.IsNStr = true
+			}
 			stmt.Stopword = p.cur.Str
 			p.advance()
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LANGUAGE") {
@@ -774,7 +862,7 @@ func (p *Parser) parseDropSearchPropertyListStmt() *nodes.DropSearchPropertyList
 
 // parseAlterFulltextCatalogStmt parses an ALTER FULLTEXT CATALOG statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-fulltext-catalog-transact-sql
+// BNF: mssql/parser/bnf/alter-fulltext-catalog-transact-sql.bnf
 //
 //	ALTER FULLTEXT CATALOG catalog_name
 //	    { REBUILD [ WITH ACCENT_SENSITIVITY = { ON | OFF } ]
@@ -803,11 +891,20 @@ func (p *Parser) parseAlterFulltextCatalogStmt() *nodes.AlterFulltextCatalogStmt
 			action = "AS DEFAULT"
 			p.advance()
 		} else if action == "REBUILD" {
-			// WITH ACCENT_SENSITIVITY = ON|OFF
+			// WITH ACCENT_SENSITIVITY = { ON | OFF }
 			if p.cur.Type == kwWITH {
 				p.advance()
-				for p.isIdentLike() || p.cur.Type == '=' || p.cur.Type == kwON || p.cur.Type == kwOFF {
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ACCENT_SENSITIVITY") {
+					optName := strings.ToUpper(p.cur.Str)
 					p.advance()
+					if p.cur.Type == '=' {
+						p.advance()
+						if p.cur.Type == kwON || p.cur.Type == kwOFF {
+							optName += "=" + strings.ToUpper(p.cur.Str)
+							p.advance()
+						}
+					}
+					stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: optName}}}
 				}
 			}
 		}

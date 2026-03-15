@@ -12,6 +12,20 @@ import (
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-table-transact-sql
 //
 //	DROP TABLE|VIEW|INDEX|PROCEDURE|FUNCTION|DATABASE [IF EXISTS] name [, ...]
+//
+// BNF (DROP INDEX): mssql/parser/bnf/drop-index-transact-sql.bnf
+//
+//	DROP INDEX [ IF EXISTS ]
+//	{ <drop_relational_or_xml_or_spatial_index> [ ,...n ]
+//	| <drop_backward_compatible_index> [ ,...n ]
+//	}
+//
+//	<drop_relational_or_xml_or_spatial_index> ::=
+//	    index_name ON <object>
+//	    [ WITH ( <drop_clustered_index_option> [ ,...n ] ) ]
+//
+//	<drop_backward_compatible_index> ::=
+//	    [ owner_name. ] table_or_view_name.index_name
 func (p *Parser) parseDropStmt() *nodes.DropStmt {
 	loc := p.pos()
 	p.advance() // consume DROP
@@ -145,10 +159,17 @@ func (p *Parser) parseDropStmt() *nodes.DropStmt {
 			if name == nil {
 				break
 			}
-			// For DROP INDEX: index_name ON table_name
+			// For DROP INDEX: index_name ON table_name [ WITH ( options ) ]
 			if stmt.ObjectType == nodes.DropIndex {
 				if _, ok := p.match(kwON); ok {
 					p.parseTableRef() // consume table name
+				}
+				// WITH ( <drop_clustered_index_option> [ ,...n ] )
+				if p.cur.Type == kwWITH {
+					p.advance()
+					if p.cur.Type == '(' {
+						stmt.Options = p.parseAlterIndexOptions()
+					}
 				}
 			}
 			names = append(names, name)

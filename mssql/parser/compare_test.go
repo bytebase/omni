@@ -18943,3 +18943,328 @@ func TestParseCreateTableBnfReview(t *testing.T) {
 		}
 	})
 }
+
+// TestParseIndexBnfReview tests batch 159: BNF review of all index types.
+func TestParseIndexBnfReview(t *testing.T) {
+	// CREATE INDEX with FILESTREAM_ON
+	t.Run("create index with filestream_on", func(t *testing.T) {
+		sql := "CREATE UNIQUE CLUSTERED INDEX IX_t ON dbo.t (id ASC) INCLUDE (name) WITH (PAD_INDEX = ON) ON ps_scheme(id) FILESTREAM_ON fs_fg"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateIndexStmt)
+		if !stmt.Unique {
+			t.Error("expected Unique=true")
+		}
+		if stmt.OnFileGroup != "ps_scheme" {
+			t.Errorf("expected OnFileGroup=ps_scheme, got %s", stmt.OnFileGroup)
+		}
+		if stmt.FilestreamOn != "fs_fg" {
+			t.Errorf("expected FilestreamOn=fs_fg, got %s", stmt.FilestreamOn)
+		}
+	})
+
+	// CREATE COLUMNSTORE INDEX with ORDER
+	t.Run("create columnstore index with order", func(t *testing.T) {
+		sql := "CREATE CLUSTERED COLUMNSTORE INDEX CCI_t ON dbo.t ORDER (col1, col2) WITH (MAXDOP = 1)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateIndexStmt)
+		if !stmt.Columnstore {
+			t.Error("expected Columnstore=true")
+		}
+		if stmt.OrderCols == nil || len(stmt.OrderCols.Items) != 2 {
+			t.Errorf("expected 2 ORDER columns, got %v", stmt.OrderCols)
+		}
+	})
+
+	// CREATE NONCLUSTERED COLUMNSTORE INDEX with columns and WHERE
+	t.Run("nonclustered columnstore index with filter", func(t *testing.T) {
+		sql := "CREATE NONCLUSTERED COLUMNSTORE INDEX NCCI_t ON t (col1, col2) WHERE col1 IS NOT NULL"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateIndexStmt)
+		if stmt.Columnstore != true {
+			t.Error("expected Columnstore=true")
+		}
+		if stmt.WhereClause == nil {
+			t.Error("expected non-nil WhereClause")
+		}
+	})
+
+	// ALTER INDEX REBUILD with PARTITION and WITH options
+	t.Run("alter index rebuild partition all", func(t *testing.T) {
+		sql := "ALTER INDEX IX_t ON dbo.t REBUILD PARTITION = ALL WITH (ONLINE = ON, MAXDOP = 4)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterIndexStmt)
+		if stmt.Action != "REBUILD" {
+			t.Errorf("expected action REBUILD, got %s", stmt.Action)
+		}
+		if stmt.Partition != "ALL" {
+			t.Errorf("expected partition ALL, got %s", stmt.Partition)
+		}
+		if stmt.Options == nil {
+			t.Error("expected non-nil Options")
+		}
+	})
+
+	// ALTER INDEX REORGANIZE with PARTITION
+	t.Run("alter index reorganize partition", func(t *testing.T) {
+		sql := "ALTER INDEX IX_t ON t REORGANIZE PARTITION = 5 WITH (LOB_COMPACTION = ON)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterIndexStmt)
+		if stmt.Action != "REORGANIZE" {
+			t.Errorf("expected action REORGANIZE, got %s", stmt.Action)
+		}
+		if stmt.Partition != "5" {
+			t.Errorf("expected partition 5, got %s", stmt.Partition)
+		}
+	})
+
+	// ALTER INDEX RESUME with options
+	t.Run("alter index resume with options", func(t *testing.T) {
+		sql := "ALTER INDEX IX_t ON t RESUME WITH (MAX_DURATION = 10)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterIndexStmt)
+		if stmt.Action != "RESUME" {
+			t.Errorf("expected action RESUME, got %s", stmt.Action)
+		}
+		if stmt.Options == nil {
+			t.Error("expected non-nil Options for RESUME")
+		}
+	})
+
+	// ALTER INDEX PAUSE and ABORT
+	t.Run("alter index pause", func(t *testing.T) {
+		sql := "ALTER INDEX IX_t ON t PAUSE"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterIndexStmt)
+		if stmt.Action != "PAUSE" {
+			t.Errorf("expected action PAUSE, got %s", stmt.Action)
+		}
+	})
+
+	t.Run("alter index abort", func(t *testing.T) {
+		sql := "ALTER INDEX IX_t ON t ABORT"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterIndexStmt)
+		if stmt.Action != "ABORT" {
+			t.Errorf("expected action ABORT, got %s", stmt.Action)
+		}
+	})
+
+	// ALTER INDEX DISABLE
+	t.Run("alter index disable", func(t *testing.T) {
+		sql := "ALTER INDEX ALL ON dbo.t DISABLE"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterIndexStmt)
+		if !strings.EqualFold(stmt.IndexName, "ALL") {
+			t.Errorf("expected IndexName=ALL, got %s", stmt.IndexName)
+		}
+		if stmt.Action != "DISABLE" {
+			t.Errorf("expected action DISABLE, got %s", stmt.Action)
+		}
+	})
+
+	// DROP INDEX with WITH options
+	t.Run("drop index with options", func(t *testing.T) {
+		sql := "DROP INDEX IF EXISTS IX_t ON dbo.t WITH (MAXDOP = 1, ONLINE = ON)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.DropStmt)
+		if !stmt.IfExists {
+			t.Error("expected IfExists=true")
+		}
+		if stmt.Options == nil {
+			t.Error("expected non-nil Options for DROP INDEX WITH")
+		}
+	})
+
+	// CREATE XML INDEX (primary)
+	t.Run("create primary xml index", func(t *testing.T) {
+		sql := "CREATE PRIMARY XML INDEX PXML_t ON dbo.t (xml_col)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateXmlIndexStmt)
+		if !stmt.Primary {
+			t.Error("expected Primary=true")
+		}
+		if stmt.Name != "PXML_t" {
+			t.Errorf("expected name PXML_t, got %s", stmt.Name)
+		}
+	})
+
+	// CREATE XML INDEX (secondary with FOR)
+	t.Run("create secondary xml index for path", func(t *testing.T) {
+		sql := "CREATE XML INDEX SXML_t ON dbo.t (xml_col) USING XML INDEX PXML_t FOR PATH"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateXmlIndexStmt)
+		if stmt.Primary {
+			t.Error("expected Primary=false")
+		}
+		if stmt.UsingIndex != "PXML_t" {
+			t.Errorf("expected UsingIndex=PXML_t, got %s", stmt.UsingIndex)
+		}
+		if !strings.EqualFold(stmt.SecondaryFor, "PATH") {
+			t.Errorf("expected SecondaryFor=PATH, got %s", stmt.SecondaryFor)
+		}
+	})
+
+	// CREATE SPATIAL INDEX
+	t.Run("create spatial index with using", func(t *testing.T) {
+		sql := "CREATE SPATIAL INDEX SI_t ON dbo.t (geom) USING GEOMETRY_AUTO_GRID WITH (BOUNDING_BOX = (0, 0, 100, 100))"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateSpatialIndexStmt)
+		if stmt.Name != "SI_t" {
+			t.Errorf("expected name SI_t, got %s", stmt.Name)
+		}
+		if stmt.Using != "GEOMETRY_AUTO_GRID" {
+			t.Errorf("expected Using=GEOMETRY_AUTO_GRID, got %s", stmt.Using)
+		}
+	})
+
+	// ALTER FULLTEXT INDEX SET CHANGE_TRACKING with =
+	t.Run("alter fulltext index set change_tracking with equals", func(t *testing.T) {
+		sql := "ALTER FULLTEXT INDEX ON dbo.t SET CHANGE_TRACKING = MANUAL"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterFulltextIndexStmt)
+		if stmt.Action != "SET" {
+			t.Errorf("expected action SET, got %s", stmt.Action)
+		}
+		if stmt.ChangeTracking != "MANUAL" {
+			t.Errorf("expected ChangeTracking=MANUAL, got %s", stmt.ChangeTracking)
+		}
+	})
+
+	// ALTER FULLTEXT INDEX SET STOPLIST
+	t.Run("alter fulltext index set stoplist", func(t *testing.T) {
+		sql := "ALTER FULLTEXT INDEX ON dbo.t SET STOPLIST = SYSTEM"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterFulltextIndexStmt)
+		if stmt.Action != "SET" {
+			t.Errorf("expected action SET, got %s", stmt.Action)
+		}
+		if stmt.Options == nil || len(stmt.Options.Items) == 0 {
+			t.Fatal("expected non-nil Options for SET STOPLIST")
+		}
+	})
+
+	// ALTER FULLTEXT INDEX SET STOPLIST OFF WITH NO POPULATION
+	t.Run("alter fulltext index set stoplist off with no population", func(t *testing.T) {
+		sql := "ALTER FULLTEXT INDEX ON dbo.t SET STOPLIST = OFF WITH NO POPULATION"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterFulltextIndexStmt)
+		if !stmt.WithNoPopulation {
+			t.Error("expected WithNoPopulation=true")
+		}
+	})
+
+	// ALTER FULLTEXT INDEX SET SEARCH PROPERTY LIST
+	t.Run("alter fulltext index set search property list", func(t *testing.T) {
+		sql := "ALTER FULLTEXT INDEX ON dbo.t SET SEARCH PROPERTY LIST = MyPropertyList"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterFulltextIndexStmt)
+		if stmt.Action != "SET" {
+			t.Errorf("expected action SET, got %s", stmt.Action)
+		}
+		if stmt.Options == nil || len(stmt.Options.Items) == 0 {
+			t.Fatal("expected non-nil Options for SET SEARCH PROPERTY LIST")
+		}
+	})
+
+	// ALTER FULLTEXT CATALOG REBUILD WITH ACCENT_SENSITIVITY
+	t.Run("alter fulltext catalog rebuild with accent_sensitivity", func(t *testing.T) {
+		sql := "ALTER FULLTEXT CATALOG ft_catalog REBUILD WITH ACCENT_SENSITIVITY = ON"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterFulltextCatalogStmt)
+		if stmt.Action != "REBUILD" {
+			t.Errorf("expected action REBUILD, got %s", stmt.Action)
+		}
+		if stmt.Options == nil || len(stmt.Options.Items) == 0 {
+			t.Fatal("expected non-nil Options with ACCENT_SENSITIVITY")
+		}
+	})
+
+	// ALTER FULLTEXT CATALOG REORGANIZE
+	t.Run("alter fulltext catalog reorganize", func(t *testing.T) {
+		sql := "ALTER FULLTEXT CATALOG ft_catalog REORGANIZE"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterFulltextCatalogStmt)
+		if stmt.Action != "REORGANIZE" {
+			t.Errorf("expected action REORGANIZE, got %s", stmt.Action)
+		}
+	})
+
+	// ALTER FULLTEXT CATALOG AS DEFAULT
+	t.Run("alter fulltext catalog as default", func(t *testing.T) {
+		sql := "ALTER FULLTEXT CATALOG ft_catalog AS DEFAULT"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterFulltextCatalogStmt)
+		if stmt.Action != "AS DEFAULT" {
+			t.Errorf("expected action AS DEFAULT, got %s", stmt.Action)
+		}
+	})
+
+	// CREATE FULLTEXT INDEX with parenthesized catalog_filegroup_option
+	t.Run("create fulltext index with catalog and filegroup", func(t *testing.T) {
+		sql := "CREATE FULLTEXT INDEX ON dbo.t (col1) KEY INDEX IX_pk ON (ft_catalog, FILEGROUP fg1) WITH CHANGE_TRACKING = AUTO"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateFulltextIndexStmt)
+		if stmt.CatalogName != "ft_catalog" {
+			t.Errorf("expected CatalogName=ft_catalog, got %s", stmt.CatalogName)
+		}
+	})
+
+	// ALTER FULLTEXT STOPLIST DROP N'stopword'
+	t.Run("alter fulltext stoplist drop n-string", func(t *testing.T) {
+		sql := "ALTER FULLTEXT STOPLIST sl1 DROP N'the' LANGUAGE 1033"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterFulltextStoplistStmt)
+		if stmt.Action != "DROP" {
+			t.Errorf("expected action DROP, got %s", stmt.Action)
+		}
+		if !stmt.IsNStr {
+			t.Error("expected IsNStr=true for N-string")
+		}
+		if stmt.Stopword != "the" {
+			t.Errorf("expected Stopword=the, got %s", stmt.Stopword)
+		}
+	})
+
+	// CREATE INDEX on partition scheme with column
+	t.Run("create index on partition scheme", func(t *testing.T) {
+		sql := "CREATE INDEX IX_t ON t (col1) ON ps_scheme(col1)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateIndexStmt)
+		if stmt.OnFileGroup != "ps_scheme" {
+			t.Errorf("expected OnFileGroup=ps_scheme, got %s", stmt.OnFileGroup)
+		}
+	})
+
+	// CREATE INDEX ON default
+	t.Run("create index on default filegroup", func(t *testing.T) {
+		sql := `CREATE INDEX IX_t ON t (col1) ON [default]`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateIndexStmt)
+		if stmt.OnFileGroup != "default" {
+			t.Errorf("expected OnFileGroup=default, got %s", stmt.OnFileGroup)
+		}
+	})
+
+	// ALTER INDEX SET options
+	t.Run("alter index set options", func(t *testing.T) {
+		sql := "ALTER INDEX IX_t ON t SET (ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = OFF)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterIndexStmt)
+		if stmt.Action != "SET" {
+			t.Errorf("expected action SET, got %s", stmt.Action)
+		}
+		if stmt.Options == nil || len(stmt.Options.Items) < 2 {
+			t.Error("expected at least 2 options")
+		}
+	})
+
+	// CREATE FULLTEXT INDEX with FILEGROUP-first ON clause
+	t.Run("create fulltext index filegroup first", func(t *testing.T) {
+		sql := "CREATE FULLTEXT INDEX ON t (col1) KEY INDEX IX_pk ON (FILEGROUP fg1, ft_catalog)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateFulltextIndexStmt)
+		if stmt.CatalogName != "ft_catalog" {
+			t.Errorf("expected CatalogName=ft_catalog, got %s", stmt.CatalogName)
+		}
+	})
+}

@@ -282,7 +282,7 @@
       "id": 159,
       "name": "bnf_review_index",
       "file": "create_index.go",
-      "status": "pending",
+      "status": "done",
       "description": "BNF review of all index types. CREATE/ALTER/DROP INDEX, CREATE/ALTER COLUMNSTORE INDEX, CREATE/ALTER SPATIAL INDEX, CREATE XML INDEX, CREATE/ALTER FULLTEXT INDEX, CREATE/ALTER FULLTEXT CATALOG.",
       "rules": [
         "create_index_stmt",
