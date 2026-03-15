@@ -64,8 +64,9 @@ func (p *Parser) parseCreateTableStmt(temporary bool) (*nodes.CreateTableStmt, e
 
 	// Parenthesized create definitions (columns and constraints)
 	if p.cur.Type == '(' {
+		next := p.peekNext()
 		// Check for CREATE TABLE ... (SELECT ...) — subquery without AS
-		if next := p.peekNext(); next.Type == kwSELECT {
+		if next.Type == kwSELECT {
 			// CREATE TABLE t (SELECT ...)
 			p.advance() // consume '('
 			sel, err := p.parseSelectStmt()
@@ -74,6 +75,21 @@ func (p *Parser) parseCreateTableStmt(temporary bool) (*nodes.CreateTableStmt, e
 			}
 			p.match(')')
 			stmt.Select = sel
+			stmt.Loc.End = p.pos()
+			return stmt, nil
+		}
+		// Check for CREATE TABLE ... (LIKE old_tbl_name) — parenthesized LIKE
+		if next.Type == kwLIKE {
+			p.advance() // consume '('
+			p.advance() // consume LIKE
+			likeRef, err := p.parseTableRef()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Like = likeRef
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 			stmt.Loc.End = p.pos()
 			return stmt, nil
 		}
@@ -952,6 +968,15 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool) {
 		p.match('=')
 		val := p.consumeOptionValue()
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "STORAGE", Value: val}, true
+
+	case kwSTART:
+		// START TRANSACTION (used for versioned tables)
+		if next := p.peekNext(); next.Type == kwTRANSACTION {
+			p.advance() // consume START
+			p.advance() // consume TRANSACTION
+			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "START TRANSACTION", Value: ""}, true
+		}
+		return nil, false
 	}
 
 	// Handle identifier-based options: KEY_BLOCK_SIZE, STATS_AUTO_RECALC, etc.

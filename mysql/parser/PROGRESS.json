@@ -2364,7 +2364,7 @@
       "id": 100,
       "name": "review_create_table",
       "file": "create_table.go",
-      "status": "pending",
+      "status": "done",
       "description": "BNF review: Full review against 165-line BNF. Column definitions, constraints, table options (ENGINE, CHARSET, COLLATE, ROW_FORMAT, COMPRESSION, etc.), partitioning (RANGE/LIST/HASH/KEY/LINEAR), LIKE, AS SELECT, temporary tables.",
       "effort": "review",
       "bnf_files": ["create-table.bnf"],

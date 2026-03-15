@@ -2884,6 +2884,19 @@ func TestParseCreateTableOptions(t *testing.T) {
 			t.Errorf("CHARACTER SET option not found")
 		}
 	})
+
+	t.Run("start transaction", func(t *testing.T) {
+		stmt := parseCreateTable(t, "CREATE TABLE t (id INT) ENGINE=InnoDB START TRANSACTION")
+		found := false
+		for _, opt := range stmt.Options {
+			if opt.Name == "START TRANSACTION" {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("START TRANSACTION option not found in options: %v", stmt.Options)
+		}
+	})
 }
 
 func TestParseCreateTableLike(t *testing.T) {
@@ -2914,6 +2927,16 @@ func TestParseCreateTableLike(t *testing.T) {
 		}
 		if stmt.Like == nil {
 			t.Fatal("Like is nil")
+		}
+	})
+
+	t.Run("parenthesized like", func(t *testing.T) {
+		stmt := parseCreateTable(t, "CREATE TABLE t2 (LIKE t1)")
+		if stmt.Like == nil {
+			t.Fatal("Like is nil for parenthesized LIKE")
+		}
+		if stmt.Like.Name != "t1" {
+			t.Errorf("Like.Name = %q, want %q", stmt.Like.Name, "t1")
 		}
 	})
 
