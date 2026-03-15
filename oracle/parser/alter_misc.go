@@ -1034,31 +1034,68 @@ func (p *Parser) parseSetParam() *nodes.SetParam {
 // parseAlterMaterializedViewStmt parses an ALTER MATERIALIZED VIEW statement.
 // Called after ALTER MATERIALIZED VIEW has been consumed.
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-MATERIALIZED-VIEW.html
+// BNF: oracle/parser/bnf/ALTER-MATERIALIZED-VIEW.bnf
 //
-//	ALTER MATERIALIZED VIEW [IF EXISTS] [schema.]materialized_view
-//	  { alter_mv_refresh
-//	  | ENABLE QUERY REWRITE
-//	  | DISABLE QUERY REWRITE
-//	  | COMPILE
-//	  | CONSIDER FRESH
-//	  | { ENABLE | DISABLE } CONCURRENT REFRESH
-//	  | SHRINK SPACE [ COMPACT | CASCADE ]
-//	  | { CACHE | NOCACHE }
-//	  | { PARALLEL [integer] | NOPARALLEL }
-//	  | { LOGGING | NOLOGGING }
-//	  | ... }
+//	ALTER MATERIALIZED VIEW [ IF EXISTS ] [ schema. ] materialized_view
+//	    { physical_attributes_clause
+//	    | modify_mv_column_clause
+//	    | table_compression
+//	    | inmemory_table_clause
+//	    | LOB_storage_clause
+//	    | modify_LOB_storage_clause
+//	    | alter_table_partitioning
+//	    | parallel_clause
+//	    | logging_clause
+//	    | allocate_extent_clause
+//	    | deallocate_unused_clause
+//	    | shrink_clause
+//	    | { CACHE | NOCACHE }
+//	    | annotations_clause
+//	    | alter_iot_clauses
+//	    | MODIFY scoped_table_ref_constraint
+//	    | alter_mv_refresh
+//	    | evaluation_edition_clause
+//	    | { ENABLE | DISABLE } ON QUERY COMPUTATION
+//	    | alter_query_rewrite_clause
+//	    | COMPILE
+//	    | CONSIDER FRESH
+//	    } ;
+//
+//	physical_attributes_clause:
+//	    [ PCTFREE integer ]
+//	    [ PCTUSED integer ]
+//	    [ INITRANS integer ]
+//	    [ storage_clause ]
 //
 //	alter_mv_refresh:
-//	  REFRESH
-//	    [ FAST | COMPLETE | FORCE ]
-//	    [ ON { COMMIT | DEMAND } ]
-//	    [ START WITH date ]
-//	    [ NEXT date ]
+//	    REFRESH
+//	    { FAST | COMPLETE | FORCE }
+//	    [ { ON COMMIT | ON DEMAND } ]
+//	    [ START WITH date_expression ]
+//	    [ NEXT date_expression ]
+//	    [ USING ROLLBACK SEGMENT rollback_segment_name ]
 //	    [ WITH PRIMARY KEY ]
-//	    [ USING ROLLBACK SEGMENT rollback_segment ]
-//	    [ USING { ENFORCED | TRUSTED } CONSTRAINTS ]
-//	    [ { ENABLE | DISABLE } ON QUERY COMPUTATION ]
+//	    [ { ENABLE | DISABLE } CONCURRENT REFRESH ]
+//
+//	evaluation_edition_clause:
+//	    EVALUATE USING EDITION edition_name
+//	    [ CONSIDER FRESH ]
+//
+//	alter_query_rewrite_clause:
+//	    QUERY REWRITE
+//	    { ENABLE [ unusable_editions_clause ]
+//	    | DISABLE
+//	    | unusable_editions_clause
+//	    }
+//
+//	allocate_extent_clause:
+//	    ALLOCATE EXTENT [ ( [ SIZE size_clause ] [ DATAFILE 'filename' ] [ INSTANCE integer ] ) ]
+//
+//	deallocate_unused_clause:
+//	    DEALLOCATE UNUSED [ KEEP size_clause ]
+//
+//	shrink_clause:
+//	    SHRINK SPACE [ COMPACT ] [ CASCADE ]
 func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 	stmt := &nodes.AlterMaterializedViewStmt{
 		Loc: nodes.Loc{Start: start},
@@ -1107,9 +1144,18 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 			if p.cur.Type == kwREFRESH {
 				p.advance() // consume REFRESH
 			}
+		} else if p.cur.Type == kwON {
+			// ENABLE ON QUERY COMPUTATION
+			stmt.Action = "ENABLE_ON_QUERY_COMPUTATION"
+			p.advance() // consume ON
+			if p.isIdentLikeStr("QUERY") {
+				p.advance() // consume QUERY
+			}
+			if p.isIdentLikeStr("COMPUTATION") {
+				p.advance() // consume COMPUTATION
+			}
 		} else {
 			stmt.Action = "ENABLE_QUERY_REWRITE"
-			p.skipToSemicolon()
 		}
 
 	case p.cur.Type == kwDISABLE:
@@ -1126,9 +1172,18 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 			if p.cur.Type == kwREFRESH {
 				p.advance() // consume REFRESH
 			}
+		} else if p.cur.Type == kwON {
+			// DISABLE ON QUERY COMPUTATION
+			stmt.Action = "DISABLE_ON_QUERY_COMPUTATION"
+			p.advance() // consume ON
+			if p.isIdentLikeStr("QUERY") {
+				p.advance() // consume QUERY
+			}
+			if p.isIdentLikeStr("COMPUTATION") {
+				p.advance() // consume COMPUTATION
+			}
 		} else {
 			stmt.Action = "DISABLE_QUERY_REWRITE"
-			p.skipToSemicolon()
 		}
 
 	case p.isIdentLikeStr("SHRINK"):
@@ -1173,8 +1228,151 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 		stmt.Action = "NOLOGGING"
 		p.advance()
 
+	case p.isIdentLikeStr("ALLOCATE"):
+		stmt.Action = "ALLOCATE_EXTENT"
+		p.advance() // consume ALLOCATE
+		if p.isIdentLikeStr("EXTENT") {
+			p.advance() // consume EXTENT
+		}
+		// optional ( SIZE size DATAFILE 'filename' INSTANCE integer )
+		if p.cur.Type == '(' {
+			p.advance()
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				switch {
+				case p.isIdentLikeStr("SIZE"):
+					p.advance()
+					stmt.AllocateSize = p.parseIdentifier()
+				case p.isIdentLikeStr("DATAFILE"):
+					p.advance()
+					if p.cur.Type == tokSCONST {
+						stmt.AllocateDatafile = p.cur.Str
+						p.advance()
+					}
+				case p.isIdentLikeStr("INSTANCE"):
+					p.advance()
+					if p.cur.Type == tokICONST {
+						stmt.AllocateInstance = p.parseIntValue()
+					}
+				default:
+					p.advance()
+				}
+			}
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		}
+
+	case p.isIdentLikeStr("DEALLOCATE"):
+		stmt.Action = "DEALLOCATE_UNUSED"
+		p.advance() // consume DEALLOCATE
+		if p.isIdentLikeStr("UNUSED") {
+			p.advance()
+		}
+		if p.cur.Type == kwKEEP {
+			p.advance()
+			// size_clause: integer [K|M|G|T|P|E]
+			if p.cur.Type == tokICONST {
+				val := p.cur.Str
+				p.advance()
+				// optional size unit
+				if p.isIdentLikeStr("K") || p.isIdentLikeStr("M") || p.isIdentLikeStr("G") || p.isIdentLikeStr("T") || p.isIdentLikeStr("P") || p.isIdentLikeStr("E") {
+					val += p.cur.Str
+					p.advance()
+				}
+				stmt.DeallocateKeep = val
+			} else {
+				stmt.DeallocateKeep = p.parseIdentifier()
+			}
+		}
+
+	case p.isIdentLikeStr("PCTFREE"):
+		stmt.Action = "PCTFREE"
+		p.advance()
+		if p.cur.Type == tokICONST {
+			stmt.PctFree = p.parseIntValue()
+		}
+
+	case p.isIdentLikeStr("PCTUSED"):
+		stmt.Action = "PCTUSED"
+		p.advance()
+		if p.cur.Type == tokICONST {
+			stmt.PctUsed = p.parseIntValue()
+		}
+
+	case p.isIdentLikeStr("INITRANS"):
+		stmt.Action = "INITRANS"
+		p.advance()
+		if p.cur.Type == tokICONST {
+			stmt.IniTrans = p.parseIntValue()
+		}
+
+	case p.isIdentLikeStr("EVALUATE"):
+		stmt.Action = "EVALUATE_USING_EDITION"
+		p.advance() // consume EVALUATE
+		if p.cur.Type == kwUSING {
+			p.advance() // consume USING
+		}
+		if p.isIdentLikeStr("EDITION") {
+			p.advance() // consume EDITION
+		}
+		stmt.EditionName = p.parseIdentifier()
+
+	case p.cur.Type == kwCOMPRESS:
+		stmt.Action = "COMPRESS"
+		p.advance()
+		// optional BASIC or FOR { OLTP | QUERY | ARCHIVE }
+		if p.isIdentLikeStr("BASIC") {
+			p.advance()
+		} else if p.cur.Type == kwFOR {
+			p.advance()
+			p.parseIdentifier() // OLTP, QUERY, ARCHIVE
+			// optional LOW | HIGH
+			if p.isIdentLikeStr("LOW") || p.isIdentLikeStr("HIGH") {
+				p.advance()
+			}
+		}
+
+	case p.isIdentLikeStr("NOCOMPRESS"):
+		stmt.Action = "NOCOMPRESS"
+		p.advance()
+
+	case p.isIdentLikeStr("INMEMORY"):
+		stmt.Action = "INMEMORY"
+		p.advance()
+		// skip remaining in-memory attributes
+		p.parseAlterMViewInMemoryAttrs()
+
+	case p.isIdentLikeStr("NO"):
+		// NO INMEMORY
+		p.advance() // consume NO
+		if p.isIdentLikeStr("INMEMORY") {
+			stmt.Action = "NO_INMEMORY"
+			p.advance()
+		}
+
+	case p.cur.Type == kwMODIFY:
+		stmt.Action = "MODIFY"
+		p.advance()
+		// consume rest of MODIFY clause (column encryption or scoped ref)
+		p.skipToSemicolon()
+
+	case p.isIdentLikeStr("QUERY"):
+		// alter_query_rewrite_clause: QUERY REWRITE { ENABLE | DISABLE | ... }
+		stmt.Action = "ENABLE_QUERY_REWRITE"
+		p.advance() // consume QUERY
+		if p.cur.Type == kwREWRITE {
+			p.advance() // consume REWRITE
+		}
+		if p.cur.Type == kwENABLE {
+			stmt.Action = "ENABLE_QUERY_REWRITE"
+			p.advance()
+		} else if p.cur.Type == kwDISABLE {
+			stmt.Action = "DISABLE_QUERY_REWRITE"
+			p.advance()
+		}
+
 	default:
-		// Fallback for unrecognized clauses
+		// Fallback for truly unrecognized clauses
 		p.skipToSemicolon()
 	}
 
@@ -1290,6 +1488,43 @@ func (p *Parser) parseAlterMViewRefreshClause(stmt *nodes.AlterMaterializedViewS
 				stmt.DisableOnQueryComputation = true
 			} else {
 				return // not part of REFRESH clause, back out
+			}
+		default:
+			return
+		}
+	}
+}
+
+// parseAlterMViewInMemoryAttrs consumes optional INMEMORY attributes:
+// MEMCOMPRESS, PRIORITY, DISTRIBUTE, DUPLICATE keywords until we hit
+// something that doesn't look like an inmemory attribute.
+func (p *Parser) parseAlterMViewInMemoryAttrs() {
+	for {
+		switch {
+		case p.isIdentLikeStr("MEMCOMPRESS"):
+			p.advance()
+			if p.cur.Type == kwFOR {
+				p.advance()
+				p.parseIdentifier() // QUERY, OLTP, ARCHIVE
+				if p.isIdentLikeStr("LOW") || p.isIdentLikeStr("HIGH") {
+					p.advance()
+				}
+			}
+		case p.isIdentLikeStr("PRIORITY"):
+			p.advance()
+			p.parseIdentifier() // LOW, MEDIUM, HIGH, CRITICAL
+		case p.isIdentLikeStr("DISTRIBUTE"):
+			p.advance()
+			if p.cur.Type == kwBY {
+				p.advance()
+				p.parseIdentifier() // ROWID, PARTITION, SUBPARTITION
+			}
+		case p.isIdentLikeStr("DUPLICATE"):
+			p.advance()
+			if p.cur.Type == kwALL {
+				p.advance()
+			} else if p.isIdentLikeStr("NONE") {
+				p.advance()
 			}
 		default:
 			return

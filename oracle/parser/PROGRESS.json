@@ -1541,7 +1541,7 @@
       "id": 112,
       "name": "alter_mview_enable_disable",
       "file": "alter_misc.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 83 gap: parseAlterMaterializedViewStmt ENABLE/DISABLE branches skip to semicolon for non-QUERY/CONCURRENT clauses. Also missing USING INDEX, physical attribute clauses in default branch.",
       "bnf_files": [
         "ALTER-MATERIALIZED-VIEW.bnf"

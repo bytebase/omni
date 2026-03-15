@@ -2857,7 +2857,7 @@ type AlterMaterializedViewStmt struct {
 	IfExists bool        // IF EXISTS
 
 	// Action type
-	Action string // "COMPILE", "CONSIDER_FRESH", "REFRESH", "ENABLE_QUERY_REWRITE", "DISABLE_QUERY_REWRITE", "ENABLE_CONCURRENT_REFRESH", "DISABLE_CONCURRENT_REFRESH", "SHRINK", "CACHE", "NOCACHE", "PARALLEL", "NOPARALLEL", "LOGGING", "NOLOGGING"
+	Action string // "COMPILE", "CONSIDER_FRESH", "REFRESH", "ENABLE_QUERY_REWRITE", "DISABLE_QUERY_REWRITE", "ENABLE_CONCURRENT_REFRESH", "DISABLE_CONCURRENT_REFRESH", "ENABLE_ON_QUERY_COMPUTATION", "DISABLE_ON_QUERY_COMPUTATION", "SHRINK", "CACHE", "NOCACHE", "PARALLEL", "NOPARALLEL", "LOGGING", "NOLOGGING", "ALLOCATE_EXTENT", "DEALLOCATE_UNUSED", "EVALUATE_USING_EDITION", "PCTFREE", "PCTUSED", "INITRANS", "COMPRESS", "NOCOMPRESS", "INMEMORY", "NO_INMEMORY", "MODIFY"
 
 	// REFRESH clause options
 	RefreshMethod string   // "FAST", "COMPLETE", "FORCE"
@@ -2876,6 +2876,23 @@ type AlterMaterializedViewStmt struct {
 
 	// PARALLEL options
 	ParallelDegree string // parallel degree (number as string)
+
+	// Physical attributes
+	PctFree  int // PCTFREE integer
+	PctUsed  int // PCTUSED integer
+	IniTrans int // INITRANS integer
+
+	// ALLOCATE EXTENT / DEALLOCATE UNUSED
+	AllocateSize     string // SIZE value
+	AllocateDatafile string // DATAFILE 'filename'
+	AllocateInstance int    // INSTANCE integer
+	DeallocateKeep   string // KEEP size
+
+	// EVALUATE USING EDITION
+	EditionName string // edition name
+
+	// Options (generic list for clauses parsed as options)
+	Options *List
 
 	Loc Loc
 }

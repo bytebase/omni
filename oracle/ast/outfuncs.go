@@ -4051,6 +4051,30 @@ func writeAlterMaterializedViewStmt(sb *strings.Builder, n *AlterMaterializedVie
 	if n.ParallelDegree != "" {
 		sb.WriteString(fmt.Sprintf(" :parallelDegree %q", n.ParallelDegree))
 	}
+	if n.PctFree != 0 {
+		sb.WriteString(fmt.Sprintf(" :pctfree %d", n.PctFree))
+	}
+	if n.PctUsed != 0 {
+		sb.WriteString(fmt.Sprintf(" :pctused %d", n.PctUsed))
+	}
+	if n.IniTrans != 0 {
+		sb.WriteString(fmt.Sprintf(" :initrans %d", n.IniTrans))
+	}
+	if n.AllocateSize != "" {
+		sb.WriteString(fmt.Sprintf(" :allocateSize %q", n.AllocateSize))
+	}
+	if n.AllocateDatafile != "" {
+		sb.WriteString(fmt.Sprintf(" :allocateDatafile %q", n.AllocateDatafile))
+	}
+	if n.AllocateInstance != 0 {
+		sb.WriteString(fmt.Sprintf(" :allocateInstance %d", n.AllocateInstance))
+	}
+	if n.DeallocateKeep != "" {
+		sb.WriteString(fmt.Sprintf(" :deallocateKeep %q", n.DeallocateKeep))
+	}
+	if n.EditionName != "" {
+		sb.WriteString(fmt.Sprintf(" :editionName %q", n.EditionName))
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }

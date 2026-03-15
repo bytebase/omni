@@ -9015,3 +9015,66 @@ func TestAlterSystem(t *testing.T) {
 		})
 	}
 }
+
+// TestAlterMaterializedView tests ALTER MATERIALIZED VIEW (batch 112).
+// Covers ENABLE/DISABLE ON QUERY COMPUTATION, physical attributes,
+// ALLOCATE EXTENT, DEALLOCATE UNUSED, EVALUATE USING EDITION, COMPRESS,
+// NOCOMPRESS, INMEMORY, NO INMEMORY, and other missing branches.
+func TestAlterMaterializedView(t *testing.T) {
+	tests := []string{
+		// ENABLE ON QUERY COMPUTATION (top-level, not within REFRESH)
+		"ALTER MATERIALIZED VIEW mv1 ENABLE ON QUERY COMPUTATION",
+		// DISABLE ON QUERY COMPUTATION (top-level)
+		"ALTER MATERIALIZED VIEW mv1 DISABLE ON QUERY COMPUTATION",
+		// ALLOCATE EXTENT
+		"ALTER MATERIALIZED VIEW mv1 ALLOCATE EXTENT",
+		"ALTER MATERIALIZED VIEW mv1 ALLOCATE EXTENT (SIZE 100K DATAFILE '/data/ts01.dbf' INSTANCE 2)",
+		// DEALLOCATE UNUSED
+		"ALTER MATERIALIZED VIEW mv1 DEALLOCATE UNUSED",
+		"ALTER MATERIALIZED VIEW mv1 DEALLOCATE UNUSED KEEP 10M",
+		// Physical attributes
+		"ALTER MATERIALIZED VIEW mv1 PCTFREE 20",
+		"ALTER MATERIALIZED VIEW mv1 PCTUSED 40",
+		"ALTER MATERIALIZED VIEW mv1 INITRANS 4",
+		// EVALUATE USING EDITION
+		"ALTER MATERIALIZED VIEW mv1 EVALUATE USING EDITION ora_edition1",
+		// COMPRESS / NOCOMPRESS
+		"ALTER MATERIALIZED VIEW mv1 COMPRESS",
+		"ALTER MATERIALIZED VIEW mv1 COMPRESS BASIC",
+		"ALTER MATERIALIZED VIEW mv1 COMPRESS FOR OLTP",
+		"ALTER MATERIALIZED VIEW mv1 COMPRESS FOR QUERY HIGH",
+		"ALTER MATERIALIZED VIEW mv1 NOCOMPRESS",
+		// INMEMORY / NO INMEMORY
+		"ALTER MATERIALIZED VIEW mv1 INMEMORY",
+		"ALTER MATERIALIZED VIEW mv1 INMEMORY MEMCOMPRESS FOR QUERY LOW",
+		"ALTER MATERIALIZED VIEW mv1 INMEMORY PRIORITY HIGH",
+		"ALTER MATERIALIZED VIEW mv1 NO INMEMORY",
+		// QUERY REWRITE (alter_query_rewrite_clause)
+		"ALTER MATERIALIZED VIEW mv1 QUERY REWRITE ENABLE",
+		"ALTER MATERIALIZED VIEW mv1 QUERY REWRITE DISABLE",
+	}
+	for _, sql := range tests {
+		name := sql
+		if len(name) > 70 {
+			name = name[:70]
+		}
+		t.Run(name, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.AlterMaterializedViewStmt)
+			if !ok {
+				t.Fatalf("expected AlterMaterializedViewStmt, got %T", raw.Stmt)
+			}
+			if stmt.Action == "" {
+				t.Error("expected non-empty Action")
+			}
+			s := ast.NodeToString(result.Items[0])
+			if s == "" {
+				t.Errorf("expected non-empty serialization for %q", sql)
+			}
+		})
+	}
+}
