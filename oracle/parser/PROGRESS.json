@@ -1015,7 +1015,7 @@
       "id": 101,
       "name": "plsql_objects_all",
       "file": "create_proc.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE PROCEDURE/FUNCTION/PACKAGE/PACKAGE BODY/TRIGGER/TYPE/TYPE BODY (review). ALTER PROCEDURE/FUNCTION/PACKAGE/TRIGGER (fix \u2014 only COMPILE handled). ALTER TYPE (fix \u2014 skipToSemicolon fallbacks).",
       "bnf_files": [
         "CREATE-FUNCTION.bnf",

@@ -2520,6 +2520,9 @@ func writeDropStmt(sb *strings.Builder, n *DropStmt) {
 	if n.Force {
 		sb.WriteString(" :force true")
 	}
+	if n.Validate {
+		sb.WriteString(" :validate true")
+	}
 	if n.Invalidation != "" {
 		sb.WriteString(fmt.Sprintf(" :invalidation %q", n.Invalidation))
 	}
@@ -2859,6 +2862,15 @@ func writeCreateTypeStmt(sb *strings.Builder, n *CreateTypeStmt) {
 	if n.OrReplace {
 		sb.WriteString(" :orReplace true")
 	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	if n.Editionable {
+		sb.WriteString(" :editionable true")
+	}
+	if n.NonEditionable {
+		sb.WriteString(" :nonEditionable true")
+	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
@@ -2917,6 +2929,18 @@ func writeCreatePackageStmt(sb *strings.Builder, n *CreatePackageStmt) {
 	if n.OrReplace {
 		sb.WriteString(" :orReplace true")
 	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	if n.Editionable {
+		sb.WriteString(" :editionable true")
+	}
+	if n.NonEditionable {
+		sb.WriteString(" :nonEditionable true")
+	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
+	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
@@ -2936,6 +2960,18 @@ func writeCreateProcedureStmt(sb *strings.Builder, n *CreateProcedureStmt) {
 	sb.WriteString("{CREATEPROCEDURE")
 	if n.OrReplace {
 		sb.WriteString(" :orReplace true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	if n.Editionable {
+		sb.WriteString(" :editionable true")
+	}
+	if n.NonEditionable {
+		sb.WriteString(" :nonEditionable true")
+	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
 	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
@@ -2957,6 +2993,18 @@ func writeCreateFunctionStmt(sb *strings.Builder, n *CreateFunctionStmt) {
 	sb.WriteString("{CREATEFUNCTION")
 	if n.OrReplace {
 		sb.WriteString(" :orReplace true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	if n.Editionable {
+		sb.WriteString(" :editionable true")
+	}
+	if n.NonEditionable {
+		sb.WriteString(" :nonEditionable true")
+	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
 	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
@@ -2981,6 +3029,12 @@ func writeCreateFunctionStmt(sb *strings.Builder, n *CreateFunctionStmt) {
 	}
 	if n.ResultCache {
 		sb.WriteString(" :resultCache true")
+	}
+	if n.Aggregate {
+		sb.WriteString(" :aggregate true")
+	}
+	if n.SqlMacro {
+		sb.WriteString(" :sqlMacro true")
 	}
 	if n.Body != nil {
 		sb.WriteString(" :body ")
@@ -3012,6 +3066,15 @@ func writeCreateTriggerStmt(sb *strings.Builder, n *CreateTriggerStmt) {
 	sb.WriteString("{CREATETRIGGER")
 	if n.OrReplace {
 		sb.WriteString(" :orReplace true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	if n.Editionable {
+		sb.WriteString(" :editionable true")
+	}
+	if n.NonEditionable {
+		sb.WriteString(" :nonEditionable true")
 	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
@@ -5647,6 +5710,9 @@ func writeAlterFunctionStmt(sb *strings.Builder, n *AlterFunctionStmt) {
 
 func writeAlterPackageStmt(sb *strings.Builder, n *AlterPackageStmt) {
 	sb.WriteString("{ALTER_PACKAGE")
+	if n.IfExists {
+		sb.WriteString(" :ifExists true")
+	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)

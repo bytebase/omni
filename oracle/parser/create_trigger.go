@@ -7,24 +7,22 @@ import (
 // parseCreateTriggerStmt parses a CREATE TRIGGER statement after the TRIGGER keyword.
 // The caller has already consumed CREATE [OR REPLACE].
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-TRIGGER.html
+// BNF: oracle/parser/bnf/CREATE-TRIGGER.bnf
 //
-//	TRIGGER [schema.]trigger_name
-//	  { BEFORE | AFTER | INSTEAD OF }
-//	  { INSERT | UPDATE [OF col [, col...]] | DELETE }
-//	  [OR { INSERT | UPDATE [OF col [, col...]] | DELETE } ...]
-//	  ON [schema.]table_name
-//	  [FOR EACH ROW]
-//	  [WHEN (condition)]
-//	  { plsql_block | CALL routine_name }
-func (p *Parser) parseCreateTriggerStmt(start int, orReplace bool) *nodes.CreateTriggerStmt {
+//	CREATE [ OR REPLACE | IF NOT EXISTS ]
+//	    [ EDITIONABLE | NONEDITIONABLE ]
+//	    TRIGGER plsql_trigger_source ;
+func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) *nodes.CreateTriggerStmt {
 	p.advance() // consume TRIGGER
 
 	stmt := &nodes.CreateTriggerStmt{
-		OrReplace: orReplace,
-		Enable:    true,
-		Events:    &nodes.List{},
-		Loc:       nodes.Loc{Start: start},
+		OrReplace:      orReplace,
+		IfNotExists:    ifNotExists,
+		Editionable:    editionable,
+		NonEditionable: nonEditionable,
+		Enable:         true,
+		Events:         &nodes.List{},
+		Loc:            nodes.Loc{Start: start},
 	}
 
 	// Trigger name

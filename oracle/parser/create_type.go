@@ -26,10 +26,13 @@ import (
 //	      { IS | AS } { [ declare_section ] BEGIN statement... [EXCEPTION ...] END [name] ; }
 //	  } ...
 //	END [ type_name ] ;
-func (p *Parser) parseCreateTypeStmt(start int, orReplace bool) *nodes.CreateTypeStmt {
+func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) *nodes.CreateTypeStmt {
 	stmt := &nodes.CreateTypeStmt{
-		OrReplace: orReplace,
-		Loc:       nodes.Loc{Start: start},
+		OrReplace:      orReplace,
+		IfNotExists:    ifNotExists,
+		Editionable:    editionable,
+		NonEditionable: nonEditionable,
+		Loc:            nodes.Loc{Start: start},
 	}
 
 	// TYPE keyword

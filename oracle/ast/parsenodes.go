@@ -1595,6 +1595,7 @@ type DropStmt struct {
 	Purge        bool       // PURGE (for tables)
 	Online       bool       // ONLINE (for DROP INDEX)
 	Force        bool       // FORCE (for DROP INDEX/INDEXTYPE/OPERATOR)
+	Validate     bool       // VALIDATE (for DROP TYPE)
 	Invalidation string     // "DEFERRED" or "IMMEDIATE" (for DROP INDEX)
 	Loc          Loc        // start location
 }
@@ -1788,15 +1789,18 @@ func (n *CreateDatabaseLinkStmt) stmtNode() {}
 // CreateTypeStmt represents a CREATE TYPE statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-TYPE.html
 type CreateTypeStmt struct {
-	OrReplace  bool        // OR REPLACE
-	Name       *ObjectName // type name
-	Attributes *List       // list of *ColumnDef (for object types)
-	AsTable    *TypeName   // TABLE OF type (nested table)
-	AsVarray   *TypeName   // VARRAY(n) OF type
-	VarraySize ExprNode    // varray size limit
-	IsBody     bool        // CREATE TYPE BODY
-	Body       *List       // type body members (list of *TypeBodyMember)
-	Loc        Loc         // start location
+	OrReplace      bool        // OR REPLACE
+	IfNotExists    bool        // IF NOT EXISTS
+	Editionable    bool        // EDITIONABLE
+	NonEditionable bool        // NONEDITIONABLE
+	Name           *ObjectName // type name
+	Attributes     *List       // list of *ColumnDef (for object types)
+	AsTable        *TypeName   // TABLE OF type (nested table)
+	AsVarray       *TypeName   // VARRAY(n) OF type
+	VarraySize     ExprNode    // varray size limit
+	IsBody         bool        // CREATE TYPE BODY
+	Body           *List       // type body members (list of *TypeBodyMember)
+	Loc            Loc         // start location
 }
 
 func (n *CreateTypeStmt) nodeTag()  {}
@@ -1829,11 +1833,15 @@ func (n *TypeBodyMember) nodeTag() {}
 
 // CreatePackageStmt represents a CREATE PACKAGE statement.
 type CreatePackageStmt struct {
-	OrReplace bool        // OR REPLACE
-	Name      *ObjectName // package name
-	IsBody    bool        // PACKAGE BODY
-	Body      *List       // package body declarations
-	Loc       Loc         // start location
+	OrReplace      bool        // OR REPLACE
+	IfNotExists    bool        // IF NOT EXISTS
+	Editionable    bool        // EDITIONABLE
+	NonEditionable bool        // NONEDITIONABLE
+	Sharing        string      // SHARING = METADATA | NONE
+	Name           *ObjectName // package name
+	IsBody         bool        // PACKAGE BODY
+	Body           *List       // package body declarations
+	Loc            Loc         // start location
 }
 
 func (n *CreatePackageStmt) nodeTag()  {}
@@ -1845,11 +1853,15 @@ func (n *CreatePackageStmt) stmtNode() {}
 
 // CreateProcedureStmt represents a CREATE PROCEDURE statement.
 type CreateProcedureStmt struct {
-	OrReplace  bool        // OR REPLACE
-	Name       *ObjectName // procedure name
-	Parameters *List       // parameter list (list of *Parameter)
-	Body       StmtNode    // procedure body (PL/SQL block)
-	Loc        Loc         // start location
+	OrReplace      bool        // OR REPLACE
+	IfNotExists    bool        // IF NOT EXISTS
+	Editionable    bool        // EDITIONABLE
+	NonEditionable bool        // NONEDITIONABLE
+	Sharing        string      // SHARING = METADATA | NONE
+	Name           *ObjectName // procedure name
+	Parameters     *List       // parameter list (list of *Parameter)
+	Body           StmtNode    // procedure body (PL/SQL block)
+	Loc            Loc         // start location
 }
 
 func (n *CreateProcedureStmt) nodeTag()  {}
@@ -1857,16 +1869,22 @@ func (n *CreateProcedureStmt) stmtNode() {}
 
 // CreateFunctionStmt represents a CREATE FUNCTION statement.
 type CreateFunctionStmt struct {
-	OrReplace     bool        // OR REPLACE
-	Name          *ObjectName // function name
-	Parameters    *List       // parameter list (list of *Parameter)
-	ReturnType    *TypeName   // RETURN type
-	Deterministic bool        // DETERMINISTIC
-	Pipelined     bool        // PIPELINED
-	Parallel      bool        // PARALLEL_ENABLE
-	ResultCache   bool        // RESULT_CACHE
-	Body          StmtNode    // function body (PL/SQL block)
-	Loc           Loc         // start location
+	OrReplace      bool        // OR REPLACE
+	IfNotExists    bool        // IF NOT EXISTS
+	Editionable    bool        // EDITIONABLE
+	NonEditionable bool        // NONEDITIONABLE
+	Sharing        string      // SHARING = METADATA | NONE
+	Name           *ObjectName // function name
+	Parameters     *List       // parameter list (list of *Parameter)
+	ReturnType     *TypeName   // RETURN type
+	Deterministic  bool        // DETERMINISTIC
+	Pipelined      bool        // PIPELINED
+	Parallel       bool        // PARALLEL_ENABLE
+	ResultCache    bool        // RESULT_CACHE
+	Aggregate      bool        // AGGREGATE USING
+	SqlMacro       bool        // SQL_MACRO
+	Body           StmtNode    // function body (PL/SQL block)
+	Loc            Loc         // start location
 }
 
 func (n *CreateFunctionStmt) nodeTag()  {}
@@ -1890,17 +1908,20 @@ func (n *Parameter) nodeTag() {}
 // CreateTriggerStmt represents a CREATE TRIGGER statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-TRIGGER.html
 type CreateTriggerStmt struct {
-	OrReplace  bool          // OR REPLACE
-	Name       *ObjectName   // trigger name
-	Timing     TriggerTiming // BEFORE/AFTER/INSTEAD OF
-	Events     *List         // trigger events (list of TriggerEvent)
-	Table      *ObjectName   // ON table
-	ForEachRow bool          // FOR EACH ROW
-	When       ExprNode      // WHEN condition
-	Body       StmtNode      // trigger body
-	Compound   bool          // COMPOUND TRIGGER
-	Enable     bool          // ENABLE (default true)
-	Loc        Loc           // start location
+	OrReplace      bool          // OR REPLACE
+	IfNotExists    bool          // IF NOT EXISTS
+	Editionable    bool          // EDITIONABLE
+	NonEditionable bool          // NONEDITIONABLE
+	Name           *ObjectName   // trigger name
+	Timing         TriggerTiming // BEFORE/AFTER/INSTEAD OF
+	Events         *List         // trigger events (list of TriggerEvent)
+	Table          *ObjectName   // ON table
+	ForEachRow     bool          // FOR EACH ROW
+	When           ExprNode      // WHEN condition
+	Body           StmtNode      // trigger body
+	Compound       bool          // COMPOUND TRIGGER
+	Enable         bool          // ENABLE (default true)
+	Loc            Loc           // start location
 }
 
 func (n *CreateTriggerStmt) nodeTag()  {}
@@ -3560,6 +3581,7 @@ func (n *AlterFunctionStmt) stmtNode() {}
 //	    [ EDITIONABLE | NONEDITIONABLE ]
 type AlterPackageStmt struct {
 	Name            *ObjectName  // package name
+	IfExists        bool         // IF EXISTS
 	Compile         bool         // COMPILE
 	CompileTarget   string       // "PACKAGE", "BODY", "SPECIFICATION", or "" (default)
 	Debug           bool         // COMPILE DEBUG

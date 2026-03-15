@@ -6,21 +6,38 @@ import (
 
 // parseCreateProcedureStmt parses a CREATE [OR REPLACE] PROCEDURE statement.
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/CREATE-PROCEDURE-statement.html
+// BNF: oracle/parser/bnf/CREATE-PROCEDURE.bnf
 //
-//	CREATE [OR REPLACE] PROCEDURE [schema.]name [(parameter [, ...])]
-//	  { IS | AS }
-//	  plsql_block
-func (p *Parser) parseCreateProcedureStmt(start int, orReplace bool) *nodes.CreateProcedureStmt {
+//	CREATE [ OR REPLACE | IF NOT EXISTS ]
+//	    [ EDITIONABLE | NONEDITIONABLE ]
+//	    PROCEDURE [ schema. ] procedure_name
+//	    [ SHARING = { METADATA | NONE } ]
+//	    plsql_procedure_source ;
+func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) *nodes.CreateProcedureStmt {
 	p.advance() // consume PROCEDURE
 
 	stmt := &nodes.CreateProcedureStmt{
-		OrReplace: orReplace,
-		Loc:       nodes.Loc{Start: start},
+		OrReplace:      orReplace,
+		IfNotExists:    ifNotExists,
+		Editionable:    editionable,
+		NonEditionable: nonEditionable,
+		Loc:            nodes.Loc{Start: start},
 	}
 
 	// Procedure name
 	stmt.Name = p.parseObjectName()
+
+	// Optional SHARING = { METADATA | NONE }
+	if p.isIdentLikeStr("SHARING") {
+		p.advance() // consume SHARING
+		if p.cur.Type == '=' {
+			p.advance() // consume =
+		}
+		if p.isIdentLike() {
+			stmt.Sharing = p.cur.Str
+			p.advance()
+		}
+	}
 
 	// Optional parameter list
 	if p.cur.Type == '(' {
@@ -41,20 +58,46 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace bool) *nodes.Crea
 
 // parseCreateFunctionStmt parses a CREATE [OR REPLACE] FUNCTION statement.
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/CREATE-FUNCTION-statement.html
+// BNF: oracle/parser/bnf/CREATE-FUNCTION.bnf
 //
-//	CREATE [OR REPLACE] FUNCTION [schema.]name [(parameter [, ...])]
-//	  RETURN datatype
-//	  [DETERMINISTIC] [PIPELINED] [PARALLEL_ENABLE] [RESULT_CACHE]
-//	  { IS | AS }
-//	  plsql_block
-func (p *Parser) parseCreateFunctionStmt(start int, orReplace bool) *nodes.CreateFunctionStmt {
+//	CREATE [ OR REPLACE ] [ EDITIONABLE | NONEDITIONABLE ]
+//	    FUNCTION [ IF NOT EXISTS ] [ schema. ] function_name
+//	    [ ( parameter_declaration [, parameter_declaration ]... ) ]
+//	    RETURN datatype
+//	    [ SHARING = { METADATA | NONE } ]
+//	    [ { invoker_rights_clause
+//	      | accessible_by_clause
+//	      | default_collation_clause
+//	      | deterministic_clause
+//	      | parallel_enable_clause
+//	      | result_cache_clause
+//	      | aggregate_clause
+//	      | pipelined_clause
+//	      | sql_macro_clause }... ]
+//	    { IS | AS }
+//	    { plsql_function_source | call_spec } ;
+func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) *nodes.CreateFunctionStmt {
 	p.advance() // consume FUNCTION
 
 	stmt := &nodes.CreateFunctionStmt{
-		OrReplace: orReplace,
-		Loc:       nodes.Loc{Start: start},
+		OrReplace:      orReplace,
+		Editionable:    editionable,
+		NonEditionable: nonEditionable,
+		Loc:            nodes.Loc{Start: start},
 	}
+
+	// IF NOT EXISTS (for FUNCTION, it comes after the FUNCTION keyword per BNF)
+	if !ifNotExists && p.cur.Type == kwIF {
+		if p.peekNext().Type == kwNOT {
+			p.advance() // consume IF
+			p.advance() // consume NOT
+			if p.cur.Type == kwEXISTS {
+				p.advance() // consume EXISTS
+				ifNotExists = true
+			}
+		}
+	}
+	stmt.IfNotExists = ifNotExists
 
 	// Function name
 	stmt.Name = p.parseObjectName()
@@ -68,6 +111,18 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace bool) *nodes.Creat
 	if p.cur.Type == kwRETURN {
 		p.advance() // consume RETURN
 		stmt.ReturnType = p.parseTypeName()
+	}
+
+	// Optional SHARING = { METADATA | NONE }
+	if p.isIdentLikeStr("SHARING") {
+		p.advance() // consume SHARING
+		if p.cur.Type == '=' {
+			p.advance() // consume =
+		}
+		if p.isIdentLike() {
+			stmt.Sharing = p.cur.Str
+			p.advance()
+		}
 	}
 
 	// Optional function properties (can appear in any order before IS/AS)
@@ -85,22 +140,75 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace bool) *nodes.Creat
 	return stmt
 }
 
-// parseFunctionProperties parses optional DETERMINISTIC, PIPELINED, PARALLEL_ENABLE, RESULT_CACHE.
+// parseFunctionProperties parses optional DETERMINISTIC, PIPELINED, PARALLEL_ENABLE, RESULT_CACHE,
+// AGGREGATE USING, SQL_MACRO, AUTHID, and other function property clauses.
 func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) {
 	for {
-		switch p.cur.Type {
-		case kwDETERMINISTIC:
+		switch {
+		case p.cur.Type == kwDETERMINISTIC:
 			stmt.Deterministic = true
 			p.advance()
-		case kwPIPELINED:
+		case p.cur.Type == kwPIPELINED:
 			stmt.Pipelined = true
 			p.advance()
-		case kwPARALLEL_ENABLE:
+		case p.cur.Type == kwPARALLEL_ENABLE:
 			stmt.Parallel = true
 			p.advance()
-		case kwRESULT_CACHE:
+		case p.cur.Type == kwRESULT_CACHE:
 			stmt.ResultCache = true
 			p.advance()
+		case p.isIdentLikeStr("AGGREGATE"):
+			stmt.Aggregate = true
+			p.advance() // consume AGGREGATE
+			if p.cur.Type == kwUSING {
+				p.advance() // consume USING
+				p.parseObjectName() // consume implementation type
+			}
+		case p.isIdentLikeStr("SQL_MACRO"):
+			stmt.SqlMacro = true
+			p.advance() // consume SQL_MACRO
+			// Optional ( SCALAR | TABLE )
+			if p.cur.Type == '(' {
+				p.advance()
+				if p.isIdentLike() {
+					p.advance() // consume SCALAR or TABLE
+				}
+				if p.cur.Type == ')' {
+					p.advance()
+				}
+			}
+		case p.isIdentLikeStr("AUTHID"):
+			// invoker_rights_clause: AUTHID { CURRENT_USER | DEFINER }
+			p.advance() // consume AUTHID
+			if p.isIdentLike() {
+				p.advance() // consume CURRENT_USER or DEFINER
+			}
+		case p.isIdentLikeStr("ACCESSIBLE"):
+			// accessible_by_clause: ACCESSIBLE BY ( accessor [, ...] )
+			p.advance() // consume ACCESSIBLE
+			if p.cur.Type == kwBY {
+				p.advance() // consume BY
+			}
+			if p.cur.Type == '(' {
+				p.advance()
+				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					p.parseObjectName()
+					if p.cur.Type != ',' {
+						break
+					}
+					p.advance()
+				}
+				if p.cur.Type == ')' {
+					p.advance()
+				}
+			}
+		case p.cur.Type == kwDEFAULT && p.isIdentLikeStrAt(p.peekNext(), "COLLATION"):
+			// default_collation_clause: DEFAULT COLLATION collation_name
+			p.advance() // consume DEFAULT
+			p.advance() // consume COLLATION
+			if p.isIdentLike() {
+				p.advance() // consume collation name
+			}
 		default:
 			return
 		}
@@ -109,22 +217,33 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) {
 
 // parseCreatePackageStmt parses a CREATE [OR REPLACE] PACKAGE [BODY] statement.
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/CREATE-PACKAGE-statement.html
+// BNF: oracle/parser/bnf/CREATE-PACKAGE.bnf
 //
-//	CREATE [OR REPLACE] PACKAGE [schema.]name { IS | AS }
-//	  declarations...
-//	END [name] ;
+//	CREATE [ OR REPLACE | IF NOT EXISTS ]
+//	    [ EDITIONABLE | NONEDITIONABLE ]
+//	    PACKAGE [ schema. ] package_name
+//	    [ SHARING = { METADATA | NONE } ]
+//	    [ ACCESSIBLE BY ( accessor [, accessor ]... ) ]
+//	    [ invoker_rights_clause ]
+//	    { IS | AS }
+//	    plsql_package_source ;
 //
-//	CREATE [OR REPLACE] PACKAGE BODY [schema.]name { IS | AS }
-//	  declarations...
-//	  [BEGIN statements [EXCEPTION handlers]]
-//	END [name] ;
-func (p *Parser) parseCreatePackageStmt(start int, orReplace bool) *nodes.CreatePackageStmt {
+// BNF: oracle/parser/bnf/CREATE-PACKAGE-BODY.bnf
+//
+//	CREATE [ OR REPLACE | IF NOT EXISTS ]
+//	    [ EDITIONABLE | NONEDITIONABLE ]
+//	    PACKAGE BODY [ schema. ] package_name
+//	    { IS | AS }
+//	    plsql_package_body_source ;
+func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) *nodes.CreatePackageStmt {
 	p.advance() // consume PACKAGE
 
 	stmt := &nodes.CreatePackageStmt{
-		OrReplace: orReplace,
-		Loc:       nodes.Loc{Start: start},
+		OrReplace:      orReplace,
+		IfNotExists:    ifNotExists,
+		Editionable:    editionable,
+		NonEditionable: nonEditionable,
+		Loc:            nodes.Loc{Start: start},
 	}
 
 	// Check for BODY keyword
@@ -135,6 +254,48 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace bool) *nodes.Create
 
 	// Package name
 	stmt.Name = p.parseObjectName()
+
+	// Optional SHARING = { METADATA | NONE }
+	if p.isIdentLikeStr("SHARING") {
+		p.advance() // consume SHARING
+		if p.cur.Type == '=' {
+			p.advance() // consume =
+		}
+		if p.isIdentLike() {
+			stmt.Sharing = p.cur.Str
+			p.advance()
+		}
+	}
+
+	// Optional ACCESSIBLE BY ( ... ) — skip for package body
+	if !stmt.IsBody && p.isIdentLikeStr("ACCESSIBLE") {
+		p.advance() // consume ACCESSIBLE
+		if p.cur.Type == kwBY {
+			p.advance() // consume BY
+		}
+		if p.cur.Type == '(' {
+			p.advance()
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				// Each accessor: [ unit_kind ] [ schema. ] unit_name
+				p.parseObjectName()
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+			}
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		}
+	}
+
+	// Optional invoker_rights_clause: AUTHID { CURRENT_USER | DEFINER }
+	if !stmt.IsBody && p.isIdentLikeStr("AUTHID") {
+		p.advance() // consume AUTHID
+		if p.isIdentLike() {
+			p.advance() // consume CURRENT_USER or DEFINER
+		}
+	}
 
 	// IS | AS
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {

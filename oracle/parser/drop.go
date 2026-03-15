@@ -171,6 +171,9 @@ func (p *Parser) parseDropStmt() nodes.StmtNode {
 		} else if p.cur.Type == kwFORCE {
 			p.advance()
 			stmt.Force = true
+		} else if p.isIdentLikeStr("VALIDATE") {
+			p.advance()
+			stmt.Validate = true
 		} else if p.cur.Type == kwONLINE {
 			p.advance()
 			stmt.Online = true

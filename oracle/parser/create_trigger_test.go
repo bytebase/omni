@@ -8,7 +8,7 @@ import (
 
 func TestParseCreateTriggerBeforeInsert(t *testing.T) {
 	p := newTestParser("TRIGGER my_trigger BEFORE INSERT ON employees BEGIN NULL; END;")
-	stmt := p.parseCreateTriggerStmt(0, false)
+	stmt := p.parseCreateTriggerStmt(0, false, false, false, false)
 	if stmt == nil {
 		t.Fatal("expected CreateTriggerStmt, got nil")
 	}
@@ -38,7 +38,7 @@ func TestParseCreateTriggerBeforeInsert(t *testing.T) {
 
 func TestParseCreateTriggerAfterUpdateForEachRow(t *testing.T) {
 	p := newTestParser("TRIGGER audit_trigger AFTER UPDATE ON employees FOR EACH ROW BEGIN NULL; END;")
-	stmt := p.parseCreateTriggerStmt(0, false)
+	stmt := p.parseCreateTriggerStmt(0, false, false, false, false)
 	if stmt == nil {
 		t.Fatal("expected CreateTriggerStmt, got nil")
 	}
@@ -62,7 +62,7 @@ func TestParseCreateTriggerAfterUpdateForEachRow(t *testing.T) {
 
 func TestParseCreateTriggerInsteadOf(t *testing.T) {
 	p := newTestParser("TRIGGER instead_trigger INSTEAD OF INSERT ON my_view BEGIN NULL; END;")
-	stmt := p.parseCreateTriggerStmt(0, false)
+	stmt := p.parseCreateTriggerStmt(0, false, false, false, false)
 	if stmt == nil {
 		t.Fatal("expected CreateTriggerStmt, got nil")
 	}
@@ -76,7 +76,7 @@ func TestParseCreateTriggerInsteadOf(t *testing.T) {
 
 func TestParseCreateTriggerMultipleEvents(t *testing.T) {
 	p := newTestParser("TRIGGER multi_trigger BEFORE INSERT OR UPDATE OR DELETE ON employees BEGIN NULL; END;")
-	stmt := p.parseCreateTriggerStmt(0, false)
+	stmt := p.parseCreateTriggerStmt(0, false, false, false, false)
 	if stmt == nil {
 		t.Fatal("expected CreateTriggerStmt, got nil")
 	}
@@ -99,7 +99,7 @@ func TestParseCreateTriggerMultipleEvents(t *testing.T) {
 
 func TestParseCreateTriggerWithWhen(t *testing.T) {
 	p := newTestParser("TRIGGER when_trigger BEFORE INSERT ON employees FOR EACH ROW WHEN (NEW.salary > 1000) BEGIN NULL; END;")
-	stmt := p.parseCreateTriggerStmt(0, false)
+	stmt := p.parseCreateTriggerStmt(0, false, false, false, false)
 	if stmt == nil {
 		t.Fatal("expected CreateTriggerStmt, got nil")
 	}
@@ -113,7 +113,7 @@ func TestParseCreateTriggerWithWhen(t *testing.T) {
 
 func TestParseCreateOrReplaceTrigger(t *testing.T) {
 	p := newTestParser("TRIGGER hr.my_trigger BEFORE DELETE ON hr.employees BEGIN NULL; END;")
-	stmt := p.parseCreateTriggerStmt(0, true)
+	stmt := p.parseCreateTriggerStmt(0, true, false, false, false)
 	if stmt == nil {
 		t.Fatal("expected CreateTriggerStmt, got nil")
 	}

@@ -16,13 +16,44 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 	start := p.pos()
 	p.advance() // consume CREATE
 
-	// OR REPLACE
+	// OR REPLACE | IF NOT EXISTS
 	orReplace := false
+	ifNotExists := false
 	if p.cur.Type == kwOR {
 		p.advance() // consume OR
 		if p.cur.Type == kwREPLACE {
 			p.advance() // consume REPLACE
 			orReplace = true
+		}
+	} else if p.cur.Type == kwIF {
+		if p.peekNext().Type == kwNOT {
+			p.advance() // consume IF
+			p.advance() // consume NOT
+			if p.cur.Type == kwEXISTS {
+				p.advance() // consume EXISTS
+				ifNotExists = true
+			}
+		}
+	}
+
+	// EDITIONABLE | NONEDITIONABLE (only for PL/SQL objects: PROCEDURE, FUNCTION, PACKAGE, TRIGGER, TYPE)
+	// Note: Views handle EDITIONABLE internally in parseCreateViewStmt.
+	editionable := false
+	nonEditionable := false
+	if p.isIdentLikeStr("EDITIONABLE") {
+		// Peek to see if the next token is a PL/SQL object keyword
+		next := p.peekNext()
+		if next.Type == kwPROCEDURE || next.Type == kwFUNCTION || next.Type == kwPACKAGE ||
+			next.Type == kwTRIGGER || next.Type == kwTYPE {
+			editionable = true
+			p.advance()
+		}
+	} else if p.isIdentLikeStr("NONEDITIONABLE") {
+		next := p.peekNext()
+		if next.Type == kwPROCEDURE || next.Type == kwFUNCTION || next.Type == kwPACKAGE ||
+			next.Type == kwTRIGGER || next.Type == kwTYPE {
+			nonEditionable = true
+			p.advance()
 		}
 	}
 
@@ -85,15 +116,15 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		}
 		return p.parseCreateDatabaseStmt(start)
 	case kwTYPE:
-		return p.parseCreateTypeStmt(start, orReplace)
+		return p.parseCreateTypeStmt(start, orReplace, ifNotExists, editionable, nonEditionable)
 	case kwPROCEDURE:
-		return p.parseCreateProcedureStmt(start, orReplace)
+		return p.parseCreateProcedureStmt(start, orReplace, ifNotExists, editionable, nonEditionable)
 	case kwFUNCTION:
-		return p.parseCreateFunctionStmt(start, orReplace)
+		return p.parseCreateFunctionStmt(start, orReplace, ifNotExists, editionable, nonEditionable)
 	case kwPACKAGE:
-		return p.parseCreatePackageStmt(start, orReplace)
+		return p.parseCreatePackageStmt(start, orReplace, ifNotExists, editionable, nonEditionable)
 	case kwTRIGGER:
-		return p.parseCreateTriggerStmt(start, orReplace)
+		return p.parseCreateTriggerStmt(start, orReplace, ifNotExists, editionable, nonEditionable)
 	case kwAUDIT:
 		// CREATE AUDIT POLICY
 		p.advance() // consume AUDIT

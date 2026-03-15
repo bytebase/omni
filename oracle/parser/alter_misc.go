@@ -2495,11 +2495,19 @@ func (p *Parser) parseCompileClause() (bool, bool, []*nodes.SetParam) {
 
 // parseAlterProcedureStmt parses an ALTER PROCEDURE statement.
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-PROCEDURE.html
+// BNF: oracle/parser/bnf/ALTER-PROCEDURE.bnf
 //
-//	ALTER PROCEDURE [IF EXISTS] [schema.]procedure_name
-//	    { COMPILE [DEBUG] [compiler_parameters_clause ...] [REUSE SETTINGS] }
-//	    [ EDITIONABLE | NONEDITIONABLE ]
+//	ALTER PROCEDURE [ IF EXISTS ] [ schema. ] procedure_name
+//	    [ procedure_compile_clause ]
+//	    [ { EDITIONABLE | NONEDITIONABLE } ] ;
+//
+//	procedure_compile_clause:
+//	    COMPILE [ DEBUG ]
+//	    [ compiler_parameters_clause ]
+//	    [ REUSE SETTINGS ]
+//
+//	compiler_parameters_clause:
+//	    parameter_name = parameter_value
 func (p *Parser) parseAlterProcedureStmt(start int) nodes.StmtNode {
 	p.advance() // consume PROCEDURE
 
@@ -2519,19 +2527,19 @@ func (p *Parser) parseAlterProcedureStmt(start int) nodes.StmtNode {
 	stmt.Name = p.parseObjectName()
 
 	// Parse action
-	switch {
-	case p.isIdentLikeStr("COMPILE"):
+	if p.isIdentLikeStr("COMPILE") {
 		stmt.Compile = true
 		p.advance() // consume COMPILE
 		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams = p.parseCompileClause()
-	case p.isIdentLikeStr("EDITIONABLE"):
+	}
+
+	// Trailing EDITIONABLE | NONEDITIONABLE
+	if p.isIdentLikeStr("EDITIONABLE") {
 		stmt.Editionable = true
 		p.advance()
-	case p.isIdentLikeStr("NONEDITIONABLE"):
+	} else if p.isIdentLikeStr("NONEDITIONABLE") {
 		stmt.NonEditionable = true
 		p.advance()
-	default:
-		p.skipToSemicolon()
 	}
 
 	stmt.Loc.End = p.pos()
@@ -2540,11 +2548,17 @@ func (p *Parser) parseAlterProcedureStmt(start int) nodes.StmtNode {
 
 // parseAlterFunctionStmt parses an ALTER FUNCTION statement.
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-FUNCTION.html
+// BNF: oracle/parser/bnf/ALTER-FUNCTION.bnf
 //
-//	ALTER FUNCTION [IF EXISTS] [schema.]function_name
-//	    { COMPILE [DEBUG] [compiler_parameters_clause ...] [REUSE SETTINGS] }
-//	    [ EDITIONABLE | NONEDITIONABLE ]
+//	ALTER FUNCTION [ IF EXISTS ] [ schema. ] function_name
+//	    { function_compile_clause }
+//	    [ EDITIONABLE | NONEDITIONABLE ] ;
+//
+//	function_compile_clause:
+//	    COMPILE [ DEBUG ] [ compiler_parameters_clause ] [ REUSE SETTINGS ]
+//
+//	compiler_parameters_clause:
+//	    parameter_name = parameter_value
 func (p *Parser) parseAlterFunctionStmt(start int) nodes.StmtNode {
 	p.advance() // consume FUNCTION
 
@@ -2564,19 +2578,19 @@ func (p *Parser) parseAlterFunctionStmt(start int) nodes.StmtNode {
 	stmt.Name = p.parseObjectName()
 
 	// Parse action
-	switch {
-	case p.isIdentLikeStr("COMPILE"):
+	if p.isIdentLikeStr("COMPILE") {
 		stmt.Compile = true
 		p.advance() // consume COMPILE
 		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams = p.parseCompileClause()
-	case p.isIdentLikeStr("EDITIONABLE"):
+	}
+
+	// Trailing EDITIONABLE | NONEDITIONABLE
+	if p.isIdentLikeStr("EDITIONABLE") {
 		stmt.Editionable = true
 		p.advance()
-	case p.isIdentLikeStr("NONEDITIONABLE"):
+	} else if p.isIdentLikeStr("NONEDITIONABLE") {
 		stmt.NonEditionable = true
 		p.advance()
-	default:
-		p.skipToSemicolon()
 	}
 
 	stmt.Loc.End = p.pos()
@@ -2585,12 +2599,19 @@ func (p *Parser) parseAlterFunctionStmt(start int) nodes.StmtNode {
 
 // parseAlterPackageStmt parses an ALTER PACKAGE statement.
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-PACKAGE.html
+// BNF: oracle/parser/bnf/ALTER-PACKAGE.bnf
 //
-//	ALTER PACKAGE [schema.]package_name
-//	    { COMPILE [ PACKAGE | BODY | SPECIFICATION ] [DEBUG]
-//	      [compiler_parameters_clause ...] [REUSE SETTINGS] }
-//	    [ EDITIONABLE | NONEDITIONABLE ]
+//	ALTER PACKAGE [ IF EXISTS ] [ schema. ] package_name
+//	    [ package_compile_clause ]
+//	    [ { EDITIONABLE | NONEDITIONABLE } ] ;
+//
+//	package_compile_clause:
+//	    COMPILE [ DEBUG ] [ PACKAGE | SPECIFICATION | BODY ]
+//	    [ compiler_parameters_clause ]
+//	    [ REUSE SETTINGS ]
+//
+//	compiler_parameters_clause:
+//	    parameter_name = parameter_value
 func (p *Parser) parseAlterPackageStmt(start int) nodes.StmtNode {
 	p.advance() // consume PACKAGE
 
@@ -2598,13 +2619,27 @@ func (p *Parser) parseAlterPackageStmt(start int) nodes.StmtNode {
 		Loc: nodes.Loc{Start: start},
 	}
 
+	// IF EXISTS
+	if p.cur.Type == kwIF {
+		if p.peekNext().Type == kwEXISTS {
+			stmt.IfExists = true
+			p.advance() // consume IF
+			p.advance() // consume EXISTS
+		}
+	}
+
 	stmt.Name = p.parseObjectName()
 
 	// Parse action
-	switch {
-	case p.isIdentLikeStr("COMPILE"):
+	if p.isIdentLikeStr("COMPILE") {
 		stmt.Compile = true
 		p.advance() // consume COMPILE
+
+		// Optional DEBUG (comes before target per BNF)
+		if p.isIdentLikeStr("DEBUG") {
+			stmt.Debug = true
+			p.advance()
+		}
 
 		// Optional PACKAGE | BODY | SPECIFICATION
 		switch {
@@ -2619,15 +2654,22 @@ func (p *Parser) parseAlterPackageStmt(start int) nodes.StmtNode {
 			p.advance()
 		}
 
-		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams = p.parseCompileClause()
-	case p.isIdentLikeStr("EDITIONABLE"):
+		// Remaining compile clause (DEBUG if not yet consumed, compiler params, REUSE SETTINGS)
+		debug, reuseSettings, compilerParams := p.parseCompileClause()
+		if debug {
+			stmt.Debug = true
+		}
+		stmt.ReuseSettings = reuseSettings
+		stmt.CompilerParams = compilerParams
+	}
+
+	// Trailing EDITIONABLE | NONEDITIONABLE
+	if p.isIdentLikeStr("EDITIONABLE") {
 		stmt.Editionable = true
 		p.advance()
-	case p.isIdentLikeStr("NONEDITIONABLE"):
+	} else if p.isIdentLikeStr("NONEDITIONABLE") {
 		stmt.NonEditionable = true
 		p.advance()
-	default:
-		p.skipToSemicolon()
 	}
 
 	stmt.Loc.End = p.pos()
@@ -2636,16 +2678,22 @@ func (p *Parser) parseAlterPackageStmt(start int) nodes.StmtNode {
 
 // parseAlterTriggerStmt parses an ALTER TRIGGER statement.
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-TRIGGER.html
+// BNF: oracle/parser/bnf/ALTER-TRIGGER.bnf
 //
-//	ALTER TRIGGER [IF EXISTS] [schema.]trigger_name
-//	  { ENABLE
-//	  | DISABLE
-//	  | COMPILE [DEBUG] [compiler_parameters_clause ...] [REUSE SETTINGS]
-//	  | RENAME TO new_name
-//	  | EDITIONABLE
-//	  | NONEDITIONABLE
-//	  }
+//	ALTER TRIGGER [ IF EXISTS ] [ schema. ] trigger_name
+//	    { trigger_compile_clause
+//	    | ENABLE
+//	    | DISABLE
+//	    | RENAME TO new_name
+//	    | EDITIONABLE
+//	    | NONEDITIONABLE
+//	    } ;
+//
+//	trigger_compile_clause:
+//	    COMPILE [ DEBUG ] [ compiler_parameters_clause [ compiler_parameters_clause ]... ] [ REUSE SETTINGS ]
+//
+//	compiler_parameters_clause:
+//	    parameter_name = parameter_value
 func (p *Parser) parseAlterTriggerStmt(start int) nodes.StmtNode {
 	p.advance() // consume TRIGGER
 
@@ -2689,8 +2737,6 @@ func (p *Parser) parseAlterTriggerStmt(start int) nodes.StmtNode {
 	case p.isIdentLikeStr("NONEDITIONABLE"):
 		stmt.Action = "NONEDITIONABLE"
 		p.advance()
-	default:
-		p.skipToSemicolon()
 	}
 
 	stmt.Loc.End = p.pos()
@@ -2751,6 +2797,11 @@ func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
 	case p.isIdentLikeStr("COMPILE"):
 		stmt.Action = "COMPILE"
 		p.advance() // consume COMPILE
+		// Optional DEBUG (comes before SPECIFICATION/BODY per BNF)
+		if p.isIdentLikeStr("DEBUG") {
+			stmt.Debug = true
+			p.advance()
+		}
 		// Optional SPECIFICATION | BODY
 		if p.isIdentLikeStr("SPECIFICATION") {
 			stmt.CompileTarget = "SPECIFICATION"
@@ -2759,7 +2810,20 @@ func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
 			stmt.CompileTarget = "BODY"
 			p.advance()
 		}
-		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams = p.parseCompileClause()
+		// Remaining compile clause (DEBUG if not yet consumed, compiler params, REUSE SETTINGS)
+		debug, reuseSettings, compilerParams := p.parseCompileClause()
+		if debug {
+			stmt.Debug = true
+		}
+		stmt.ReuseSettings = reuseSettings
+		stmt.CompilerParams = compilerParams
+
+	case p.isIdentLikeStr("REPLACE"):
+		stmt.Action = "REPLACE"
+		p.advance() // consume REPLACE
+		// REPLACE alter_type_replace_clause — skip the type body spec to semicolon
+		// (the replace clause redefines the type spec inline)
+		p.skipToSemicolon()
 
 	case p.isIdentLikeStr("RESET"):
 		stmt.Action = "RESET"
@@ -2773,8 +2837,6 @@ func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
 		} else if p.isIdentLikeStr("FINAL") {
 			stmt.Action = "NOT_FINAL"
 			p.advance()
-		} else {
-			p.skipToSemicolon()
 		}
 		p.parseAlterTypeDependentHandling(stmt)
 
@@ -2817,7 +2879,24 @@ func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
 			stmt.ElementType = p.parseTypeName()
 			p.parseAlterTypeDependentHandling(stmt)
 		} else {
-			p.skipToSemicolon()
+			// modifier_clause: NOT INSTANTIABLE | INSTANTIABLE | NOT FINAL | FINAL
+			if p.cur.Type == kwNOT {
+				p.advance()
+				if p.isIdentLikeStr("INSTANTIABLE") {
+					stmt.Action = "MODIFY_NOT_INSTANTIABLE"
+					p.advance()
+				} else if p.isIdentLikeStr("FINAL") {
+					stmt.Action = "MODIFY_NOT_FINAL"
+					p.advance()
+				}
+			} else if p.isIdentLikeStr("INSTANTIABLE") {
+				stmt.Action = "MODIFY_INSTANTIABLE"
+				p.advance()
+			} else if p.isIdentLikeStr("FINAL") {
+				stmt.Action = "MODIFY_FINAL"
+				p.advance()
+			}
+			p.parseAlterTypeDependentHandling(stmt)
 		}
 
 	case p.isIdentLikeStr("INVALIDATE"):
@@ -2836,9 +2915,6 @@ func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
 		stmt.Action = "NONEDITIONABLE"
 		stmt.NonEditionable = true
 		p.advance()
-
-	default:
-		p.skipToSemicolon()
 	}
 
 	// Trailing EDITIONABLE / NONEDITIONABLE (after other clauses)
@@ -2908,9 +2984,6 @@ func (p *Parser) parseAlterTypeAddDrop(stmt *nodes.AlterTypeStmt, action string)
 		stmt.MethodKind = "CONSTRUCTOR"
 		p.parseAlterTypeMethodSig(stmt)
 		p.parseAlterTypeDependentHandling(stmt)
-
-	default:
-		p.skipToSemicolon()
 	}
 }
 
