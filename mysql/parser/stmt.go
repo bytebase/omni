@@ -60,7 +60,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case kwUSE:
 		return p.parseUseStmt()
 
-	case kwDESCRIBE, kwEXPLAIN:
+	case kwDESCRIBE, kwDESC, kwEXPLAIN:
 		return p.parseExplainStmt()
 
 	case kwBEGIN:

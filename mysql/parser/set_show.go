@@ -8,9 +8,14 @@ import (
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/set-variable.html
 //
-//	SET [GLOBAL | SESSION | LOCAL] var = expr [, var = expr] ...
-//	SET NAMES charset [COLLATE collation]
-//	SET CHARACTER SET charset
+//	SET variable = expr [, variable = expr] ...
+//	variable: { user_var_name | param_name | local_var_name
+//	    | {GLOBAL | @@GLOBAL.} system_var_name
+//	    | {PERSIST | @@PERSIST.} system_var_name
+//	    | {PERSIST_ONLY | @@PERSIST_ONLY.} system_var_name
+//	    | [SESSION | @@SESSION. | @@] system_var_name }
+//	SET NAMES {charset_name [COLLATE collation_name] | DEFAULT}
+//	SET {CHARACTER SET | CHARSET} {charset_name | DEFAULT}
 func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume SET
@@ -18,12 +23,21 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	stmt := &nodes.SetStmt{Loc: nodes.Loc{Start: start}}
 
 	// Check for NAMES special form
+	// SET NAMES {charset_name [COLLATE collation_name] | DEFAULT}
 	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "names") {
 		p.advance() // consume NAMES
-		// Parse charset name
-		charset, charsetLoc, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
+		// Parse charset name or DEFAULT
+		charsetLoc := p.pos()
+		var charset string
+		if p.cur.Type == kwDEFAULT {
+			charset = "DEFAULT"
+			p.advance()
+		} else {
+			var err error
+			charset, charsetLoc, err = p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
 		}
 		// Build assignment: NAMES = charset
 		stmt.Assignments = append(stmt.Assignments, &nodes.Assignment{
@@ -31,7 +45,7 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 			Column: &nodes.ColumnRef{Loc: nodes.Loc{Start: charsetLoc}, Column: "NAMES"},
 			Value:  &nodes.StringLit{Loc: nodes.Loc{Start: charsetLoc}, Value: charset},
 		})
-		// Optional COLLATE
+		// Optional COLLATE (not valid with DEFAULT, but we parse it anyway)
 		if _, ok := p.match(kwCOLLATE); ok {
 			collation, collLoc, err := p.parseIdentifier()
 			if err != nil {
@@ -47,13 +61,26 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		return stmt, nil
 	}
 
-	// Check for CHARACTER SET special form
-	if p.cur.Type == kwCHARACTER {
-		p.advance() // consume CHARACTER
-		if _, ok := p.match(kwSET); ok {
-			charset, charsetLoc, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
+	// Check for CHARACTER SET / CHARSET special form
+	// SET {CHARACTER SET | CHARSET} {charset_name | DEFAULT}
+	if p.cur.Type == kwCHARACTER || p.cur.Type == kwCHARSET {
+		isCharset := p.cur.Type == kwCHARSET
+		p.advance() // consume CHARACTER or CHARSET
+		if isCharset || p.cur.Type == kwSET {
+			if !isCharset {
+				p.advance() // consume SET
+			}
+			charsetLoc := p.pos()
+			var charset string
+			if p.cur.Type == kwDEFAULT {
+				charset = "DEFAULT"
+				p.advance()
+			} else {
+				var err error
+				charset, charsetLoc, err = p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
 			}
 			stmt.Assignments = append(stmt.Assignments, &nodes.Assignment{
 				Loc:    nodes.Loc{Start: charsetLoc},
@@ -250,8 +277,10 @@ func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 		}
 	}
 
-	// Expect '='
-	if _, err := p.expect('='); err != nil {
+	// Expect '=' or ':='
+	if p.cur.Type == tokAssign {
+		p.advance()
+	} else if _, err := p.expect('='); err != nil {
 		return nil, err
 	}
 
@@ -1284,14 +1313,16 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/explain.html
 //
-//	EXPLAIN [EXTENDED | PARTITIONS] {SELECT|INSERT|UPDATE|DELETE|REPLACE} ...
-//	EXPLAIN ANALYZE SELECT ...
-//	EXPLAIN FORMAT = {TRADITIONAL|JSON|TREE} {SELECT|INSERT|UPDATE|DELETE|REPLACE} ...
-//	DESCRIBE tbl_name [col_name | wild]
+//	{EXPLAIN | DESCRIBE | DESC} tbl_name [col_name | wild]
+//	{EXPLAIN | DESCRIBE | DESC} [explain_type] {explainable_stmt | FOR CONNECTION connection_id}
+//	{EXPLAIN | DESCRIBE | DESC} ANALYZE [explain_type] select_stmt
+//	explain_type: { FORMAT = format_name }
+//	format_name: { TRADITIONAL | JSON | TREE }
+//	explainable_stmt: { SELECT | TABLE | DELETE | INSERT | REPLACE | UPDATE }
 func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	start := p.pos()
-	isDescribe := p.cur.Type == kwDESCRIBE
-	p.advance() // consume EXPLAIN or DESCRIBE
+	isDescribe := p.cur.Type == kwDESCRIBE || p.cur.Type == kwDESC
+	p.advance() // consume EXPLAIN, DESCRIBE, or DESC
 
 	stmt := &nodes.ExplainStmt{Loc: nodes.Loc{Start: start}}
 
@@ -1401,6 +1432,12 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			return nil, err
 		}
 		stmt.Stmt = rep
+	case kwTABLE:
+		tbl, err := p.parseTableStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Stmt = tbl
 	default:
 		// For other tokens, try to parse as a table ref (EXPLAIN table_name)
 		ref, err := p.parseTableRef()
@@ -1412,6 +1449,15 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			Type: "COLUMNS",
 			From: ref,
 		}
+		// Optional column name or wildcard pattern
+		if p.cur.Type != tokEOF && p.cur.Type != ';' {
+			colExpr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			showStmt.Like = colExpr
+		}
+		showStmt.Loc.End = p.pos()
 		stmt.Stmt = showStmt
 	}
 

@@ -10644,3 +10644,100 @@ func TestReviewBatch108_ShowCharsetLike(t *testing.T) {
 		t.Error("expected Like to be set")
 	}
 }
+
+// ============================================================================
+// Batch 109: review_set_explain
+// ============================================================================
+
+func TestReviewBatch109_SetNamesDefault(t *testing.T) {
+	stmt := parseSet(t, "SET NAMES DEFAULT")
+	if len(stmt.Assignments) != 1 {
+		t.Fatalf("Assignments count = %d, want 1", len(stmt.Assignments))
+	}
+	if stmt.Assignments[0].Column.Column != "NAMES" {
+		t.Errorf("Column = %s, want NAMES", stmt.Assignments[0].Column.Column)
+	}
+	val, ok := stmt.Assignments[0].Value.(*ast.StringLit)
+	if !ok || val.Value != "DEFAULT" {
+		t.Errorf("Value = %v, want DEFAULT", stmt.Assignments[0].Value)
+	}
+}
+
+func TestReviewBatch109_SetCharsetDefault(t *testing.T) {
+	stmt := parseSet(t, "SET CHARACTER SET DEFAULT")
+	if len(stmt.Assignments) != 1 {
+		t.Fatalf("Assignments count = %d, want 1", len(stmt.Assignments))
+	}
+	if stmt.Assignments[0].Column.Column != "CHARACTER SET" {
+		t.Errorf("Column = %s, want CHARACTER SET", stmt.Assignments[0].Column.Column)
+	}
+	val, ok := stmt.Assignments[0].Value.(*ast.StringLit)
+	if !ok || val.Value != "DEFAULT" {
+		t.Errorf("Value = %v, want DEFAULT", stmt.Assignments[0].Value)
+	}
+}
+
+func TestReviewBatch109_SetCharsetSynonym(t *testing.T) {
+	stmt := parseSet(t, "SET CHARSET utf8mb4")
+	if len(stmt.Assignments) != 1 {
+		t.Fatalf("Assignments count = %d, want 1", len(stmt.Assignments))
+	}
+	if stmt.Assignments[0].Column.Column != "CHARACTER SET" {
+		t.Errorf("Column = %s, want CHARACTER SET", stmt.Assignments[0].Column.Column)
+	}
+	val, ok := stmt.Assignments[0].Value.(*ast.StringLit)
+	if !ok || val.Value != "utf8mb4" {
+		t.Errorf("Value = %v, want utf8mb4", stmt.Assignments[0].Value)
+	}
+}
+
+func TestReviewBatch109_SetCharsetSynonymDefault(t *testing.T) {
+	stmt := parseSet(t, "SET CHARSET DEFAULT")
+	if len(stmt.Assignments) != 1 {
+		t.Fatalf("Assignments count = %d, want 1", len(stmt.Assignments))
+	}
+	val, ok := stmt.Assignments[0].Value.(*ast.StringLit)
+	if !ok || val.Value != "DEFAULT" {
+		t.Errorf("Value = %v, want DEFAULT", stmt.Assignments[0].Value)
+	}
+}
+
+func TestReviewBatch109_SetAssignOperator(t *testing.T) {
+	ParseAndCheck(t, "SET @x := 42")
+}
+
+func TestReviewBatch109_DescTable(t *testing.T) {
+	ParseAndCheck(t, "DESC users")
+}
+
+func TestReviewBatch109_DescTableColumn(t *testing.T) {
+	ParseAndCheck(t, "DESC users name")
+}
+
+func TestReviewBatch109_ExplainTableColumn(t *testing.T) {
+	ParseAndCheck(t, "EXPLAIN users name")
+}
+
+func TestReviewBatch109_ExplainTableWild(t *testing.T) {
+	ParseAndCheck(t, "EXPLAIN users '%name%'")
+}
+
+func TestReviewBatch109_ExplainTableStmt(t *testing.T) {
+	ParseAndCheck(t, "EXPLAIN TABLE t")
+}
+
+func TestReviewBatch109_ExplainAnalyze(t *testing.T) {
+	ParseAndCheck(t, "EXPLAIN ANALYZE SELECT * FROM t")
+}
+
+func TestReviewBatch109_ExplainFormatTree(t *testing.T) {
+	ParseAndCheck(t, "EXPLAIN FORMAT = TREE SELECT * FROM t")
+}
+
+func TestReviewBatch109_HelpString(t *testing.T) {
+	ParseAndCheck(t, "HELP 'SELECT'")
+}
+
+func TestReviewBatch109_SetResourceGroupFor(t *testing.T) {
+	ParseAndCheck(t, "SET RESOURCE GROUP rg1 FOR 10, 20")
+}

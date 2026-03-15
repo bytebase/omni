@@ -2651,7 +2651,7 @@
       "id": 109,
       "name": "review_set_explain",
       "file": "set_show.go",
-      "status": "pending",
+      "status": "done",
       "description": "BNF review: SET variable, SET CHARACTER SET, SET NAMES, SET RESOURCE GROUP, EXPLAIN/DESCRIBE/HELP against 67 lines of BNF.",
       "effort": "review",
       "bnf_files": [
