@@ -864,6 +864,21 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				stmt.Loc.Start = loc
 				return stmt
 			}
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STREAM") {
+				p.advance() // consume STREAM
+				stmt := p.parseCreateExternalStreamStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STREAMING") {
+				p.advance() // consume STREAMING
+				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "JOB") {
+					p.advance() // consume JOB
+				}
+				stmt := p.parseCreateExternalStreamingJobStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
 			return nil
 		}
 		// CREATE AVAILABILITY GROUP

@@ -22737,3 +22737,251 @@ func TestParseServiceBrokerBnfReview(t *testing.T) {
 		}
 	})
 }
+
+// TestParseClrExternalBnfReview tests batch 171: BNF review of CLR/external objects.
+func TestParseClrExternalBnfReview(t *testing.T) {
+	// CREATE ASSEMBLY with varbinary literal (hex)
+	t.Run("create_assembly_varbinary", func(t *testing.T) {
+		sql := "CREATE ASSEMBLY myClrAssembly FROM 0x4D5A900003 WITH PERMISSION_SET = SAFE"
+		result := ParseAndCheck(t, sql)
+		if result.Len() != 1 {
+			t.Fatalf("expected 1 statement, got %d", result.Len())
+		}
+		stmt := result.Items[0].(*ast.CreateAssemblyStmt)
+		if stmt.Name != "myClrAssembly" {
+			t.Errorf("expected name myClrAssembly, got %s", stmt.Name)
+		}
+		if stmt.FromFiles == nil || len(stmt.FromFiles.Items) != 1 {
+			t.Fatal("expected 1 FROM file")
+		}
+		if stmt.PermissionSet != "SAFE" {
+			t.Errorf("expected SAFE, got %s", stmt.PermissionSet)
+		}
+	})
+
+	// CREATE ASSEMBLY with multiple varbinary literals
+	t.Run("create_assembly_multi_varbinary", func(t *testing.T) {
+		sql := "CREATE ASSEMBLY myClrAssembly FROM 0x4D5A9000, 0xABCDEF WITH PERMISSION_SET = EXTERNAL_ACCESS"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateAssemblyStmt)
+		if stmt.FromFiles == nil || len(stmt.FromFiles.Items) != 2 {
+			t.Fatalf("expected 2 FROM files, got %d", len(stmt.FromFiles.Items))
+		}
+		if stmt.PermissionSet != "EXTERNAL_ACCESS" {
+			t.Errorf("expected EXTERNAL_ACCESS, got %s", stmt.PermissionSet)
+		}
+	})
+
+	// CREATE ASSEMBLY with AUTHORIZATION and UNSAFE
+	t.Run("create_assembly_auth_unsafe", func(t *testing.T) {
+		sql := "CREATE ASSEMBLY UnsafeAssembly AUTHORIZATION dbo FROM 'C:\\assemblies\\unsafe.dll' WITH PERMISSION_SET = UNSAFE"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateAssemblyStmt)
+		if stmt.Authorization != "dbo" {
+			t.Errorf("expected authorization dbo, got %s", stmt.Authorization)
+		}
+		if stmt.PermissionSet != "UNSAFE" {
+			t.Errorf("expected UNSAFE, got %s", stmt.PermissionSet)
+		}
+	})
+
+	// ALTER ASSEMBLY with VISIBILITY and UNCHECKED DATA
+	t.Run("alter_assembly_visibility_unchecked", func(t *testing.T) {
+		sql := "ALTER ASSEMBLY myAssembly WITH VISIBILITY = ON, UNCHECKED DATA"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterAssemblyStmt)
+		if stmt.Name != "myAssembly" {
+			t.Errorf("expected name myAssembly, got %s", stmt.Name)
+		}
+		if stmt.Actions == nil {
+			t.Fatal("expected actions")
+		}
+	})
+
+	// ALTER ASSEMBLY DROP FILE ALL
+	t.Run("alter_assembly_drop_file_all", func(t *testing.T) {
+		sql := "ALTER ASSEMBLY myAssembly DROP FILE ALL"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterAssemblyStmt)
+		if stmt.Actions == nil || len(stmt.Actions.Items) == 0 {
+			t.Fatal("expected DROP FILE action")
+		}
+	})
+
+	// ALTER ASSEMBLY ADD FILE FROM
+	t.Run("alter_assembly_add_file", func(t *testing.T) {
+		sql := "ALTER ASSEMBLY myAssembly ADD FILE FROM 'C:\\files\\debug.pdb' AS 'myAssembly.pdb'"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterAssemblyStmt)
+		if stmt.Actions == nil || len(stmt.Actions.Items) == 0 {
+			t.Fatal("expected ADD FILE action")
+		}
+	})
+
+	// DROP ASSEMBLY WITH NO DEPENDENTS
+	t.Run("drop_assembly_no_dependents", func(t *testing.T) {
+		sql := "DROP ASSEMBLY myAssembly WITH NO DEPENDENTS"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.DropStmt)
+		if stmt.ObjectType != ast.DropAssembly {
+			t.Errorf("expected DropAssembly, got %d", stmt.ObjectType)
+		}
+		if !stmt.NoDependents {
+			t.Error("expected NoDependents=true")
+		}
+	})
+
+	// DROP ASSEMBLY IF EXISTS WITH NO DEPENDENTS
+	t.Run("drop_assembly_if_exists_no_dependents", func(t *testing.T) {
+		sql := "DROP ASSEMBLY IF EXISTS myAssembly WITH NO DEPENDENTS"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.DropStmt)
+		if !stmt.IfExists {
+			t.Error("expected IfExists=true")
+		}
+		if !stmt.NoDependents {
+			t.Error("expected NoDependents=true")
+		}
+	})
+
+	// DROP ASSEMBLY multiple names
+	t.Run("drop_assembly_multi", func(t *testing.T) {
+		sql := "DROP ASSEMBLY asm1, asm2, asm3"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.DropStmt)
+		if stmt.Names == nil || len(stmt.Names.Items) != 3 {
+			t.Fatalf("expected 3 names, got %d", len(stmt.Names.Items))
+		}
+	})
+
+	// CREATE AGGREGATE with BNF-complete params
+	t.Run("create_aggregate_full", func(t *testing.T) {
+		sql := "CREATE AGGREGATE dbo.Concatenate (@input nvarchar(4000)) RETURNS nvarchar(4000) EXTERNAL NAME StringUtilities.Concatenate"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateAggregateStmt)
+		if stmt.Name == nil || stmt.Name.Object != "Concatenate" {
+			t.Error("expected aggregate name Concatenate")
+		}
+		if stmt.Params == nil || len(stmt.Params.Items) != 1 {
+			t.Fatal("expected 1 param")
+		}
+		if stmt.ExternalName != "StringUtilities.Concatenate" {
+			t.Errorf("expected external name StringUtilities.Concatenate, got %s", stmt.ExternalName)
+		}
+	})
+
+	// CREATE AGGREGATE with multiple params
+	t.Run("create_aggregate_multi_params", func(t *testing.T) {
+		sql := "CREATE AGGREGATE dbo.WeightedAvg (@value float, @weight float) RETURNS float EXTERNAL NAME MyAssembly.WeightedAvg"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateAggregateStmt)
+		if stmt.Params == nil || len(stmt.Params.Items) != 2 {
+			t.Fatalf("expected 2 params, got %d", len(stmt.Params.Items))
+		}
+	})
+
+	// DROP AGGREGATE IF EXISTS
+	t.Run("drop_aggregate_if_exists", func(t *testing.T) {
+		sql := "DROP AGGREGATE IF EXISTS dbo.MyAgg"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.DropAggregateStmt)
+		if !stmt.IfExists {
+			t.Error("expected IfExists=true")
+		}
+	})
+
+	// CREATE EXTERNAL STREAM
+	t.Run("create_external_stream", func(t *testing.T) {
+		sql := "CREATE EXTERNAL STREAM MyStream WITH (DATA_SOURCE = MyEdgeHub, LOCATION = N'MyStream', INPUT_OPTIONS = N'{\"partitionKey\": \"\"}')"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Action != "CREATE" || stmt.ObjectType != "EXTERNAL STREAM" {
+			t.Errorf("expected CREATE EXTERNAL STREAM, got %s %s", stmt.Action, stmt.ObjectType)
+		}
+		if stmt.Name != "MyStream" {
+			t.Errorf("expected name MyStream, got %s", stmt.Name)
+		}
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	// CREATE EXTERNAL STREAM with FILE_FORMAT
+	t.Run("create_external_stream_file_format", func(t *testing.T) {
+		sql := "CREATE EXTERNAL STREAM MyOutputStream WITH (DATA_SOURCE = MyEdgeHub, LOCATION = N'MyOutputStream', FILE_FORMAT = MyFileFormat, OUTPUT_OPTIONS = N'{\"topic\": \"out\"}')"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.ObjectType != "EXTERNAL STREAM" {
+			t.Errorf("expected EXTERNAL STREAM, got %s", stmt.ObjectType)
+		}
+	})
+
+	// CREATE EXTERNAL STREAMING JOB
+	t.Run("create_external_streaming_job", func(t *testing.T) {
+		sql := "CREATE EXTERNAL STREAMING JOB MyStreamJob AS 'SELECT * FROM MyStream INTO MyOutputStream'"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Action != "CREATE" || stmt.ObjectType != "EXTERNAL STREAMING JOB" {
+			t.Errorf("expected CREATE EXTERNAL STREAMING JOB, got %s %s", stmt.Action, stmt.ObjectType)
+		}
+	})
+
+	// DROP EXTERNAL STREAM
+	t.Run("drop_external_stream", func(t *testing.T) {
+		sql := "DROP EXTERNAL STREAM MyStream"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Action != "DROP" || stmt.ObjectType != "EXTERNAL STREAM" {
+			t.Errorf("expected DROP EXTERNAL STREAM, got %s %s", stmt.Action, stmt.ObjectType)
+		}
+		if stmt.Name != "MyStream" {
+			t.Errorf("expected name MyStream, got %s", stmt.Name)
+		}
+	})
+
+	// DROP EXTERNAL STREAMING JOB
+	t.Run("drop_external_streaming_job", func(t *testing.T) {
+		sql := "DROP EXTERNAL STREAMING JOB MyStreamJob"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Action != "DROP" || stmt.ObjectType != "EXTERNAL STREAMING JOB" {
+			t.Errorf("expected DROP EXTERNAL STREAMING JOB, got %s %s", stmt.Action, stmt.ObjectType)
+		}
+	})
+
+	// Existing statement roundtrip checks
+	t.Run("existing_roundtrip", func(t *testing.T) {
+		tests := []string{
+			// CREATE/ALTER/DROP EXTERNAL DATA SOURCE
+			"CREATE EXTERNAL DATA SOURCE MySource WITH (LOCATION = 'hdfs://10.10.10.10:8020', TYPE = HADOOP)",
+			"ALTER EXTERNAL DATA SOURCE MySource SET LOCATION = 'hdfs://newhost:8020'",
+			"DROP EXTERNAL DATA SOURCE MySource",
+			// CREATE/DROP EXTERNAL TABLE
+			`CREATE EXTERNAL TABLE dbo.ExtData (id INT, name VARCHAR(100)) WITH (LOCATION = '/data/', DATA_SOURCE = myds, FILE_FORMAT = myff)`,
+			"DROP EXTERNAL TABLE dbo.ExtData",
+			// CREATE/DROP EXTERNAL FILE FORMAT
+			"CREATE EXTERNAL FILE FORMAT CsvFormat WITH (FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS (FIELD_TERMINATOR = ','), DATA_COMPRESSION = 'org.apache.hadoop.io.compress.GzipCodec')",
+			"DROP EXTERNAL FILE FORMAT CsvFormat",
+			// CREATE/ALTER/DROP EXTERNAL LANGUAGE
+			"CREATE EXTERNAL LANGUAGE Java FROM (CONTENT = N'C:\\temp\\java.zip', FILE_NAME = 'javaextension.dll')",
+			"ALTER EXTERNAL LANGUAGE Java SET (CONTENT = N'C:\\temp\\java.zip', FILE_NAME = 'javaextension.dll')",
+			"ALTER EXTERNAL LANGUAGE Java REMOVE PLATFORM LINUX",
+			"DROP EXTERNAL LANGUAGE Java",
+			// CREATE/ALTER/DROP EXTERNAL LIBRARY
+			"CREATE EXTERNAL LIBRARY customPackage FROM (CONTENT = 'C:\\temp\\pkg.zip') WITH (LANGUAGE = 'R')",
+			"ALTER EXTERNAL LIBRARY customPackage SET (CONTENT = 'C:\\temp\\pkg.zip') WITH (LANGUAGE = 'R')",
+			"DROP EXTERNAL LIBRARY customPackage",
+			// DROP EXTERNAL RESOURCE POOL
+			"DROP EXTERNAL RESOURCE POOL ex_pool",
+		}
+		for _, sql := range tests {
+			name := sql
+			if len(name) > 40 {
+				name = name[:40]
+			}
+			t.Run(name, func(t *testing.T) {
+				ParseAndCheck(t, sql)
+			})
+		}
+	})
+}

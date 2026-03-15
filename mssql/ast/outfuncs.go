@@ -832,6 +832,9 @@ func writeDropStmt(sb *strings.Builder, n *DropStmt) {
 	if n.OnAllServer {
 		sb.WriteString(" :onAllServer true")
 	}
+	if n.NoDependents {
+		sb.WriteString(" :noDependents true")
+	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }

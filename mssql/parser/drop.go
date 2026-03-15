@@ -212,6 +212,18 @@ func (p *Parser) parseDropStmt() *nodes.DropStmt {
 		}
 	}
 
+	// DROP ASSEMBLY ... WITH NO DEPENDENTS
+	if stmt.ObjectType == nodes.DropAssembly && p.cur.Type == kwWITH {
+		p.advance() // consume WITH
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "NO") {
+			p.advance() // consume NO
+			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "DEPENDENTS") {
+				p.advance() // consume DEPENDENTS
+				stmt.NoDependents = true
+			}
+		}
+	}
+
 	// Some DROP types also support CASCADE / RESTRICT
 	if p.cur.Type == kwCASCADE {
 		p.advance()

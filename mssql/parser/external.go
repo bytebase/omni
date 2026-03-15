@@ -129,6 +129,15 @@ func (p *Parser) parseDropExternalStmt() *nodes.SecurityStmt {
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MODEL") {
 		p.advance() // consume MODEL
 		return p.parseDropExternalModelStmt()
+	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STREAM") {
+		p.advance() // consume STREAM
+		stmt.ObjectType = "EXTERNAL STREAM"
+	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STREAMING") {
+		p.advance() // consume STREAMING
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "JOB") {
+			p.advance() // consume JOB
+		}
+		stmt.ObjectType = "EXTERNAL STREAMING JOB"
 	}
 
 	// name (possibly qualified)
@@ -931,6 +940,78 @@ func (p *Parser) parseDropExternalModelStmt() *nodes.SecurityStmt {
 	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseCreateExternalStreamStmt parses CREATE EXTERNAL STREAM.
+// Caller has consumed CREATE EXTERNAL STREAM.
+//
+// BNF: mssql/parser/bnf/create-external-stream-transact-sql.bnf
+//
+//	CREATE EXTERNAL STREAM stream_name
+//	    WITH (
+//	        [ LOCATION = 'location' , ]
+//	        [ INPUT_OPTIONS = 'json_string' , ]
+//	        [ OUTPUT_OPTIONS = 'json_string' , ]
+//	        [ DATA_SOURCE = data_source_name , ]
+//	        [ FILE_FORMAT = file_format_name ]
+//	    )
+//	[ ; ]
+func (p *Parser) parseCreateExternalStreamStmt() *nodes.SecurityStmt {
+	loc := p.pos()
+	stmt := &nodes.SecurityStmt{
+		Action:     "CREATE",
+		ObjectType: "EXTERNAL STREAM",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	// stream_name
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	// WITH ( options )
+	stmt.Options = p.parseExternalWithOptions()
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseCreateExternalStreamingJobStmt parses CREATE EXTERNAL STREAMING JOB.
+// Caller has consumed CREATE EXTERNAL STREAMING JOB.
+//
+//	CREATE EXTERNAL STREAMING JOB job_name
+//	    WITH ( options )
+//	    AS query_string
+//	[ ; ]
+func (p *Parser) parseCreateExternalStreamingJobStmt() *nodes.SecurityStmt {
+	loc := p.pos()
+	stmt := &nodes.SecurityStmt{
+		Action:     "CREATE",
+		ObjectType: "EXTERNAL STREAMING JOB",
+		Loc:        nodes.Loc{Start: loc},
+	}
+
+	// job_name
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
+		stmt.Name = p.cur.Str
+		p.advance()
+	}
+
+	// WITH ( options )
+	stmt.Options = p.parseExternalWithOptions()
+
+	// AS query_string (skip the rest)
+	if p.cur.Type == kwAS {
+		p.advance()
+		// consume query string literal
+		if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
+			p.advance()
+		}
 	}
 
 	stmt.Loc.End = p.pos()

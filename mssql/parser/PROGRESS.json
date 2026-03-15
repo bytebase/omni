@@ -595,7 +595,7 @@
       "id": 171,
       "name": "bnf_review_clr_external",
       "file": "assembly.go",
-      "status": "pending",
+      "status": "done",
       "description": "BNF review of CREATE/ALTER/DROP ASSEMBLY, AGGREGATE, EXTERNAL TABLE, EXTERNAL DATA SOURCE, EXTERNAL FILE FORMAT, EXTERNAL STREAM, EXTERNAL STREAMING JOB, EXTERNAL LANGUAGE, EXTERNAL LIBRARY, EXTERNAL RESOURCE POOL.",
       "rules": [
         "create_assembly_stmt",

@@ -369,7 +369,19 @@ func (p *Parser) parseCreateSpatialIndexStmt() *nodes.CreateSpatialIndexStmt {
 // parseCreateAggregateStmt parses CREATE AGGREGATE.
 // Caller has consumed CREATE AGGREGATE.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-aggregate-transact-sql
+// BNF: mssql/parser/bnf/create-aggregate-transact-sql.bnf
+//
+//	CREATE AGGREGATE [ schema_name . ] aggregate_name
+//	        (@param_name <input_sqltype>
+//	        [ ,...n ] )
+//	RETURNS <return_sqltype>
+//	EXTERNAL NAME assembly_name [ .class_name ]
+//
+//	<input_sqltype> ::=
+//	        system_scalar_type | { [ udt_schema_name. ] udt_type_name }
+//
+//	<return_sqltype> ::=
+//	        system_scalar_type | { [ udt_schema_name. ] udt_type_name }
 func (p *Parser) parseCreateAggregateStmt() *nodes.CreateAggregateStmt {
 	loc := p.pos()
 	stmt := &nodes.CreateAggregateStmt{
@@ -438,6 +450,10 @@ func (p *Parser) parseCreateAggregateStmt() *nodes.CreateAggregateStmt {
 
 // parseDropAggregateStmt parses DROP AGGREGATE [IF EXISTS] name.
 // Caller has consumed DROP AGGREGATE.
+//
+// BNF: mssql/parser/bnf/drop-aggregate-transact-sql.bnf
+//
+//	DROP AGGREGATE [ IF EXISTS ] [ schema_name . ] aggregate_name
 func (p *Parser) parseDropAggregateStmt() *nodes.DropAggregateStmt {
 	loc := p.pos()
 	stmt := &nodes.DropAggregateStmt{

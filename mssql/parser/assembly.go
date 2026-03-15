@@ -9,12 +9,20 @@ import (
 
 // parseCreateAssemblyStmt parses a CREATE ASSEMBLY statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-assembly-transact-sql
+// BNF: mssql/parser/bnf/create-assembly-transact-sql.bnf
 //
 //	CREATE ASSEMBLY assembly_name
 //	    [ AUTHORIZATION owner_name ]
 //	    FROM { <client_assembly_specifier> | <assembly_bits> [ ,...n ] }
 //	    [ WITH PERMISSION_SET = { SAFE | EXTERNAL_ACCESS | UNSAFE } ]
+//	    [ ; ]
+//
+//	<client_assembly_specifier> ::=
+//	    '[ \\computer_name\ ] share_name\ [ path\ ] manifest_file_name'
+//	    | '[ local_path\ ] manifest_file_name'
+//
+//	<assembly_bits> ::=
+//	    { varbinary_literal | varbinary_expression }
 func (p *Parser) parseCreateAssemblyStmt() *nodes.CreateAssemblyStmt {
 	loc := p.pos()
 	// ASSEMBLY keyword already consumed by caller
@@ -38,21 +46,27 @@ func (p *Parser) parseCreateAssemblyStmt() *nodes.CreateAssemblyStmt {
 		}
 	}
 
-	// FROM file_path [, ...]
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FROM") {
+	// FROM { <client_assembly_specifier> | <assembly_bits> [ ,...n ] }
+	if p.cur.Type == kwFROM {
 		p.advance()
 		var files []nodes.Node
 		for {
-			if p.cur.Type == tokSCONST {
+			switch p.cur.Type {
+			case tokSCONST, tokNSCONST:
 				files = append(files, &nodes.String{Str: p.cur.Str})
 				p.advance()
-			} else {
-				break
+			case tokICONST, tokFCONST:
+				// varbinary_literal (e.g., 0xABC123)
+				files = append(files, &nodes.String{Str: p.cur.Str})
+				p.advance()
+			default:
+				goto doneFiles
 			}
 			if _, ok := p.match(','); !ok {
 				break
 			}
 		}
+	doneFiles:
 		if len(files) > 0 {
 			stmt.FromFiles = &nodes.List{Items: files}
 		}
@@ -79,14 +93,23 @@ func (p *Parser) parseCreateAssemblyStmt() *nodes.CreateAssemblyStmt {
 
 // parseAlterAssemblyStmt parses an ALTER ASSEMBLY statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-assembly-transact-sql
+// BNF: mssql/parser/bnf/alter-assembly-transact-sql.bnf
 //
 //	ALTER ASSEMBLY assembly_name
 //	    [ FROM <client_assembly_specifier> | <assembly_bits> ]
 //	    [ WITH <assembly_option> [ ,...n ] ]
 //	    [ DROP FILE { file_name [ ,...n ] | ALL } ]
 //	    [ ADD FILE FROM
-//	        <client_file_specifier> [ AS <file_name> ][ ,...n ] ]
+//	        {
+//	            client_file_specifier [ AS file_name ]
+//	          | file_bits AS file_name
+//	        } [ ,...n ]
+//	    ] [ ; ]
+//
+//	<assembly_option> ::=
+//	    PERMISSION_SET = { SAFE | EXTERNAL_ACCESS | UNSAFE }
+//	  | VISIBILITY = { ON | OFF }
+//	  | UNCHECKED DATA
 func (p *Parser) parseAlterAssemblyStmt() *nodes.AlterAssemblyStmt {
 	loc := p.pos()
 	// ASSEMBLY keyword already consumed by caller
@@ -112,7 +135,7 @@ func (p *Parser) parseAlterAssemblyStmt() *nodes.AlterAssemblyStmt {
 		}
 	}
 
-	// WITH PERMISSION_SET | VISIBILITY
+	// WITH PERMISSION_SET | VISIBILITY | UNCHECKED DATA
 	if p.cur.Type == kwWITH {
 		p.advance()
 		for p.isIdentLike() {
@@ -120,10 +143,14 @@ func (p *Parser) parseAlterAssemblyStmt() *nodes.AlterAssemblyStmt {
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
-				if p.isIdentLike() {
+				if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 					opt += "=" + strings.ToUpper(p.cur.Str)
 					p.advance()
 				}
+			} else if opt == "UNCHECKED" && p.isIdentLike() && matchesKeywordCI(p.cur.Str, "DATA") {
+				// UNCHECKED DATA (two-word option)
+				opt = "UNCHECKED DATA"
+				p.advance()
 			}
 			actions = append(actions, &nodes.String{Str: opt})
 			if _, ok := p.match(','); !ok {
