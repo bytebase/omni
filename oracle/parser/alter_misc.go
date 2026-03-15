@@ -734,6 +734,7 @@ func (p *Parser) parseAlterSystemStmt(start int) nodes.StmtNode {
 		}
 
 	default:
+		// All BNF branches are covered above; this handles truly unrecognized tokens.
 		p.skipToSemicolon()
 	}
 

@@ -1,5 +1,5 @@
 {
-  "audit_round": 4,
+  "audit_round": 5,
   "batches": [
     {
       "id": 0,
@@ -1381,7 +1381,12 @@
         "parseSetRoleStmt",
         "parseSetConstraintStmt"
       ],
-      "depends_on": [94, 95, 96, 99],
+      "depends_on": [
+        94,
+        95,
+        96,
+        99
+      ],
       "files": [
         "database.go",
         "security.go",
@@ -1435,7 +1440,13 @@
         "parseAlterAdminObject",
         "parseAdminDDLStmt"
       ],
-      "depends_on": [97, 102, 103, 104, 105],
+      "depends_on": [
+        97,
+        102,
+        103,
+        104,
+        105
+      ],
       "files": [
         "create_admin.go"
       ],
@@ -1467,7 +1478,10 @@
         "parseCreateHierarchyStmt",
         "parseAlterHierarchyStmt"
       ],
-      "depends_on": [66, 102],
+      "depends_on": [
+        66,
+        102
+      ],
       "files": [
         "analytic_objects.go"
       ],
@@ -1489,12 +1503,206 @@
       "rules": [
         "parseAlterTypeReplaceClause"
       ],
-      "depends_on": [82],
+      "depends_on": [
+        82
+      ],
       "files": [
         "alter_misc.go"
       ],
       "tests": [
         "TestAlterTypeReplace"
+      ]
+    },
+    {
+      "id": 111,
+      "name": "alter_system_full",
+      "file": "alter_misc.go",
+      "status": "done",
+      "description": "Fix batch 98 gap: parseAlterSystemStmt default branch silently skips to semicolon. Missing FLUSH, CHECKPOINT, SET EVENTS, RESET, MINIMIZE LOAD, DISCONNECT SESSION, RESTRICTED SESSION sub-commands.",
+      "bnf_files": [
+        "ALTER-SYSTEM.bnf"
+      ],
+      "bnf_lines": 0,
+      "effort": "fix",
+      "rules": [
+        "parseAlterSystemStmt"
+      ],
+      "depends_on": [
+        98
+      ],
+      "files": [
+        "alter_misc.go"
+      ],
+      "tests": [
+        "TestAlterSystem"
+      ]
+    },
+    {
+      "id": 112,
+      "name": "alter_mview_enable_disable",
+      "file": "alter_misc.go",
+      "status": "pending",
+      "description": "Fix batch 83 gap: parseAlterMaterializedViewStmt ENABLE/DISABLE branches skip to semicolon for non-QUERY/CONCURRENT clauses. Also missing USING INDEX, physical attribute clauses in default branch.",
+      "bnf_files": [
+        "ALTER-MATERIALIZED-VIEW.bnf"
+      ],
+      "bnf_lines": 0,
+      "effort": "fix",
+      "rules": [
+        "parseAlterMaterializedViewStmt"
+      ],
+      "depends_on": [
+        83
+      ],
+      "files": [
+        "alter_misc.go"
+      ],
+      "tests": [
+        "TestAlterMaterializedView"
+      ]
+    },
+    {
+      "id": 113,
+      "name": "commit_write_clause",
+      "file": "transaction.go",
+      "status": "pending",
+      "description": "Fix batch 106 gap: parseCommitStmt missing WRITE [WAIT|NOWAIT] [IMMEDIATE|BATCH] clause. Also missing optional integer after FORCE string.",
+      "bnf_files": [
+        "COMMIT.bnf"
+      ],
+      "bnf_lines": 0,
+      "effort": "fix",
+      "rules": [
+        "parseCommitStmt"
+      ],
+      "depends_on": [
+        106
+      ],
+      "files": [
+        "transaction.go"
+      ],
+      "tests": [
+        "TestCommit"
+      ]
+    },
+    {
+      "id": 114,
+      "name": "lock_table_full",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "Fix batch 106 gap: parseLockTableStmt only handles single table. Missing multi-table support and partition_extension_clause per BNF.",
+      "bnf_files": [
+        "LOCK-TABLE.bnf"
+      ],
+      "bnf_lines": 0,
+      "effort": "fix",
+      "rules": [
+        "parseLockTableStmt"
+      ],
+      "depends_on": [
+        106
+      ],
+      "files": [
+        "utility.go"
+      ],
+      "tests": [
+        "TestLockTable"
+      ]
+    },
+    {
+      "id": 115,
+      "name": "flashback_table_full",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "Fix batch 106 gap: parseFlashbackTableStmt missing TO RESTORE POINT branch, ENABLE/DISABLE TRIGGERS clause, and multi-table support.",
+      "bnf_files": [
+        "FLASHBACK-TABLE.bnf"
+      ],
+      "bnf_lines": 0,
+      "effort": "fix",
+      "rules": [
+        "parseFlashbackTableStmt"
+      ],
+      "depends_on": [
+        106
+      ],
+      "files": [
+        "utility.go"
+      ],
+      "tests": [
+        "TestFlashbackTable"
+      ]
+    },
+    {
+      "id": 116,
+      "name": "alter_shared_synonym_dispatch",
+      "file": "alter_misc.go",
+      "status": "pending",
+      "description": "Fix batch 98 gap: parseAlterStmt ALTER SHARED PUBLIC branch does not dispatch ALTER SHARED PUBLIC SYNONYM. Falls through to skipToSemicolon.",
+      "bnf_files": [
+        "ALTER-SYNONYM.bnf"
+      ],
+      "bnf_lines": 0,
+      "effort": "fix",
+      "rules": [
+        "parseAlterStmt"
+      ],
+      "depends_on": [
+        98
+      ],
+      "files": [
+        "alter_misc.go"
+      ],
+      "tests": [
+        "TestAlterSynonym"
+      ]
+    },
+    {
+      "id": 117,
+      "name": "set_transaction_use_rollback",
+      "file": "transaction.go",
+      "status": "pending",
+      "description": "Fix batch 106 gap: parseSetTransactionStmt missing USE ROLLBACK SEGMENT clause per BNF.",
+      "bnf_files": [
+        "SET-TRANSACTION.bnf"
+      ],
+      "bnf_lines": 0,
+      "effort": "fix",
+      "rules": [
+        "parseSetTransactionStmt"
+      ],
+      "depends_on": [
+        106
+      ],
+      "files": [
+        "transaction.go"
+      ],
+      "tests": [
+        "TestSetTransaction"
+      ]
+    },
+    {
+      "id": 118,
+      "name": "analyze_cluster_validate",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "Fix batch 106 gap: parseAnalyzeStmt missing CLUSTER object type (falls to wrong default). Validate action sub-clauses (CASCADE FAST, INTO table, SET DANGLING TO NULL) are not structured.",
+      "bnf_files": [
+        "ANALYZE.bnf"
+      ],
+      "bnf_lines": 0,
+      "effort": "fix",
+      "rules": [
+        "parseAnalyzeStmt"
+      ],
+      "depends_on": [
+        106
+      ],
+      "files": [
+        "utility.go"
+      ],
+      "tests": [
+        "TestAnalyze"
       ]
     }
   ],
