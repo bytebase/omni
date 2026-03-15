@@ -2798,7 +2798,7 @@
       "id": 114,
       "name": "review_spatial_resource_group",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "BNF review: CREATE/DROP SPATIAL REFERENCE SYSTEM, CREATE/ALTER/DROP RESOURCE GROUP, SET RESOURCE GROUP against 54 lines of BNF.",
       "effort": "review",
       "bnf_files": [
