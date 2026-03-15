@@ -23502,3 +23502,127 @@ func TestParseUtilityAdminDropBnfReview(t *testing.T) {
 	// Suppress unused import warning
 	_ = fmt.Sprintf
 }
+
+// TestParseFederationStatements tests batch 174 — federation statements.
+func TestParseFederationStatements(t *testing.T) {
+	// CREATE FEDERATION
+	t.Run("create_federation", func(t *testing.T) {
+		sql := "CREATE FEDERATION MyFederation (dist_key INT RANGE)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateFederationStmt)
+		if stmt.Name != "MyFederation" {
+			t.Errorf("expected Name=MyFederation, got %s", stmt.Name)
+		}
+		if stmt.DistributionName != "dist_key" {
+			t.Errorf("expected DistributionName=dist_key, got %s", stmt.DistributionName)
+		}
+		if stmt.DataType == nil || stmt.DataType.Name != "INT" {
+			t.Errorf("expected DataType=INT, got %v", stmt.DataType)
+		}
+	})
+
+	// CREATE FEDERATION with BIGINT type
+	t.Run("create_federation_bigint", func(t *testing.T) {
+		sql := "CREATE FEDERATION OrdersFed (cust_id BIGINT RANGE)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateFederationStmt)
+		if stmt.Name != "OrdersFed" {
+			t.Errorf("expected Name=OrdersFed, got %s", stmt.Name)
+		}
+		if stmt.DataType == nil || stmt.DataType.Name != "BIGINT" {
+			t.Errorf("expected DataType=BIGINT, got %v", stmt.DataType)
+		}
+	})
+
+	// CREATE FEDERATION with UNIQUEIDENTIFIER
+	t.Run("create_federation_uniqueidentifier", func(t *testing.T) {
+		sql := "CREATE FEDERATION TenantFed (tenant_id UNIQUEIDENTIFIER RANGE)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.CreateFederationStmt)
+		if stmt.DataType == nil || stmt.DataType.Name != "UNIQUEIDENTIFIER" {
+			t.Errorf("expected DataType=UNIQUEIDENTIFIER, got %v", stmt.DataType)
+		}
+	})
+
+	// ALTER FEDERATION SPLIT AT
+	t.Run("alter_federation_split", func(t *testing.T) {
+		sql := "ALTER FEDERATION MyFederation SPLIT AT (dist_key = 100)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterFederationStmt)
+		if stmt.Name != "MyFederation" {
+			t.Errorf("expected Name=MyFederation, got %s", stmt.Name)
+		}
+		if stmt.Kind != "SPLIT" {
+			t.Errorf("expected Kind=SPLIT, got %s", stmt.Kind)
+		}
+		if stmt.DistributionName != "dist_key" {
+			t.Errorf("expected DistributionName=dist_key, got %s", stmt.DistributionName)
+		}
+	})
+
+	// ALTER FEDERATION DROP AT LOW
+	t.Run("alter_federation_drop_low", func(t *testing.T) {
+		sql := "ALTER FEDERATION MyFederation DROP AT (LOW dist_key = 50)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterFederationStmt)
+		if stmt.Kind != "DROP LOW" {
+			t.Errorf("expected Kind=DROP LOW, got %s", stmt.Kind)
+		}
+	})
+
+	// ALTER FEDERATION DROP AT HIGH
+	t.Run("alter_federation_drop_high", func(t *testing.T) {
+		sql := "ALTER FEDERATION MyFederation DROP AT (HIGH dist_key = 200)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.AlterFederationStmt)
+		if stmt.Kind != "DROP HIGH" {
+			t.Errorf("expected Kind=DROP HIGH, got %s", stmt.Kind)
+		}
+	})
+
+	// DROP FEDERATION
+	t.Run("drop_federation", func(t *testing.T) {
+		sql := "DROP FEDERATION MyFederation"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.DropFederationStmt)
+		if stmt.Name != "MyFederation" {
+			t.Errorf("expected Name=MyFederation, got %s", stmt.Name)
+		}
+	})
+
+	// USE FEDERATION ROOT
+	t.Run("use_federation_root", func(t *testing.T) {
+		sql := "USE FEDERATION ROOT WITH RESET"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.UseFederationStmt)
+		if !stmt.IsRoot {
+			t.Errorf("expected IsRoot=true")
+		}
+	})
+
+	// USE FEDERATION with member
+	t.Run("use_federation_member", func(t *testing.T) {
+		sql := "USE FEDERATION MyFederation (dist_key = 100) WITH FILTERING = ON, RESET"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.UseFederationStmt)
+		if stmt.FederationName != "MyFederation" {
+			t.Errorf("expected FederationName=MyFederation, got %s", stmt.FederationName)
+		}
+		if stmt.DistributionName != "dist_key" {
+			t.Errorf("expected DistributionName=dist_key, got %s", stmt.DistributionName)
+		}
+		if !stmt.Filtering {
+			t.Errorf("expected Filtering=true")
+		}
+	})
+
+	// USE FEDERATION with FILTERING = OFF
+	t.Run("use_federation_filtering_off", func(t *testing.T) {
+		sql := "USE FEDERATION MyFederation (dist_key = 50) WITH FILTERING = OFF, RESET"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.UseFederationStmt)
+		if stmt.Filtering {
+			t.Errorf("expected Filtering=false")
+		}
+	})
+}

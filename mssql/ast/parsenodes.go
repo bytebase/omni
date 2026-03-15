@@ -3526,3 +3526,61 @@ type SensitivityOption struct {
 }
 
 func (n *SensitivityOption) nodeTag() {}
+
+// ---------- Batch 174: Federation Statements ----------
+
+// CreateFederationStmt represents a CREATE FEDERATION statement (retired Azure SQL DB v1).
+//
+//	CREATE FEDERATION federation_name ( distribution_name data_type RANGE )
+type CreateFederationStmt struct {
+	Name             string // federation name
+	DistributionName string // distribution column name
+	DataType         *DataType // scalar data type
+	Loc              Loc
+}
+
+func (n *CreateFederationStmt) nodeTag()  {}
+func (n *CreateFederationStmt) stmtNode() {}
+
+// AlterFederationStmt represents an ALTER FEDERATION statement (retired Azure SQL DB v1).
+//
+//	ALTER FEDERATION federation_name
+//	  { SPLIT AT ( distribution_name = value )
+//	  | DROP AT ( LOW | HIGH distribution_name = value ) }
+type AlterFederationStmt struct {
+	Name             string   // federation name
+	Kind             string   // "SPLIT", "DROP LOW", "DROP HIGH"
+	DistributionName string   // distribution column name
+	Boundary         ExprNode // boundary value expression
+	Loc              Loc
+}
+
+func (n *AlterFederationStmt) nodeTag()  {}
+func (n *AlterFederationStmt) stmtNode() {}
+
+// DropFederationStmt represents a DROP FEDERATION statement (retired Azure SQL DB v1).
+//
+//	DROP FEDERATION federation_name
+type DropFederationStmt struct {
+	Name string
+	Loc  Loc
+}
+
+func (n *DropFederationStmt) nodeTag()  {}
+func (n *DropFederationStmt) stmtNode() {}
+
+// UseFederationStmt represents a USE FEDERATION statement (retired Azure SQL DB v1).
+//
+//	USE FEDERATION { ROOT WITH | federation_name ( distribution_name = value )
+//	  WITH FILTERING = { ON | OFF } , } RESET
+type UseFederationStmt struct {
+	FederationName   string   // federation name (empty for ROOT)
+	IsRoot           bool     // true if USE FEDERATION ROOT
+	DistributionName string   // distribution column name
+	Value            ExprNode // distribution value expression
+	Filtering        bool     // FILTERING = ON (true) or OFF (false)
+	Loc              Loc
+}
+
+func (n *UseFederationStmt) nodeTag()  {}
+func (n *UseFederationStmt) stmtNode() {}

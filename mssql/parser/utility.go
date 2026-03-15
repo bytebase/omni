@@ -1478,3 +1478,168 @@ func (p *Parser) parseCreateRemoteTableAsSelectStmt() *nodes.CreateRemoteTableAs
 	stmt.Loc.End = p.pos()
 	return stmt
 }
+
+// ---------- Batch 174: Federation Statements ----------
+
+// parseCreateFederationStmt parses a CREATE FEDERATION statement.
+//
+// BNF: mssql/parser/bnf/create-federation-transact-sql.bnf
+//
+//	CREATE FEDERATION federation_name ( distribution_name data_type RANGE )
+func (p *Parser) parseCreateFederationStmt() *nodes.CreateFederationStmt {
+	stmt := &nodes.CreateFederationStmt{
+		Loc: nodes.Loc{Start: p.pos()},
+	}
+
+	// federation_name
+	if name, ok := p.parseIdentifier(); ok {
+		stmt.Name = name
+	}
+
+	// ( distribution_name data_type RANGE )
+	p.match('(')
+	if name, ok := p.parseIdentifier(); ok {
+		stmt.DistributionName = name
+	}
+	// data_type - parse as type reference string
+	stmt.DataType = p.parseDataType()
+	// RANGE
+	p.matchIdentCI("RANGE")
+	p.match(')')
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAlterFederationStmt parses an ALTER FEDERATION statement.
+//
+// BNF: mssql/parser/bnf/alter-federation-transact-sql.bnf
+//
+//	ALTER FEDERATION federation_name
+//	{
+//	    SPLIT AT ( distribution_name = value )
+//	  | DROP AT ( { LOW | HIGH } distribution_name = value )
+//	}
+func (p *Parser) parseAlterFederationStmt() *nodes.AlterFederationStmt {
+	stmt := &nodes.AlterFederationStmt{
+		Loc: nodes.Loc{Start: p.pos()},
+	}
+
+	// federation_name
+	if name, ok := p.parseIdentifier(); ok {
+		stmt.Name = name
+	}
+
+	// SPLIT AT or DROP AT
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SPLIT") {
+		p.advance() // consume SPLIT
+		p.matchIdentCI("AT")
+		stmt.Kind = "SPLIT"
+	} else if p.cur.Type == kwDROP {
+		p.advance() // consume DROP
+		p.matchIdentCI("AT")
+		p.match('(')
+		// LOW or HIGH
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LOW") {
+			stmt.Kind = "DROP LOW"
+			p.advance()
+		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "HIGH") {
+			stmt.Kind = "DROP HIGH"
+			p.advance()
+		}
+		// distribution_name = value
+		if name, ok := p.parseIdentifier(); ok {
+			stmt.DistributionName = name
+		}
+		p.match('=')
+		stmt.Boundary = p.parseExpr()
+		p.match(')')
+		stmt.Loc.End = p.pos()
+		return stmt
+	}
+
+	// For SPLIT: ( distribution_name = value )
+	p.match('(')
+	if name, ok := p.parseIdentifier(); ok {
+		stmt.DistributionName = name
+	}
+	p.match('=')
+	stmt.Boundary = p.parseExpr()
+	p.match(')')
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseDropFederationStmt parses a DROP FEDERATION statement.
+//
+// BNF: mssql/parser/bnf/drop-federation-transact-sql.bnf
+//
+//	DROP FEDERATION federation_name
+func (p *Parser) parseDropFederationStmt() *nodes.DropFederationStmt {
+	stmt := &nodes.DropFederationStmt{
+		Loc: nodes.Loc{Start: p.pos()},
+	}
+
+	if name, ok := p.parseIdentifier(); ok {
+		stmt.Name = name
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseUseFederationStmt parses a USE FEDERATION statement.
+//
+// BNF: mssql/parser/bnf/use-federation-transact-sql.bnf
+//
+//	USE FEDERATION
+//	{
+//	    ROOT WITH
+//	  | federation_name ( distribution_name = value )
+//	    WITH FILTERING = { ON | OFF } ,
+//	}
+//	RESET
+func (p *Parser) parseUseFederationStmt() *nodes.UseFederationStmt {
+	stmt := &nodes.UseFederationStmt{
+		Loc: nodes.Loc{Start: p.pos()},
+	}
+
+	// ROOT or federation_name
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ROOT") {
+		stmt.IsRoot = true
+		p.advance() // consume ROOT
+		p.match(kwWITH)
+	} else {
+		// federation_name
+		if name, ok := p.parseIdentifier(); ok {
+			stmt.FederationName = name
+		}
+		// ( distribution_name = value )
+		p.match('(')
+		if name, ok := p.parseIdentifier(); ok {
+			stmt.DistributionName = name
+		}
+		p.match('=')
+		stmt.Value = p.parseExpr()
+		p.match(')')
+		// WITH FILTERING = { ON | OFF }
+		p.match(kwWITH)
+		p.matchIdentCI("FILTERING")
+		p.match('=')
+		if p.cur.Type == kwON {
+			stmt.Filtering = true
+			p.advance()
+		} else if p.cur.Type == kwOFF {
+			p.advance()
+		}
+		// comma separator
+		p.match(',')
+	}
+
+	// RESET
+	p.matchIdentCI("RESET")
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}

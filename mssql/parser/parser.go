@@ -135,6 +135,18 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 	case kwDENY:
 		return p.parseDenyStmt()
 	case kwUSE:
+		// Check for USE FEDERATION
+		{
+			next := p.peekNext()
+			if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "FEDERATION") {
+				loc := p.pos()
+				p.advance() // consume USE
+				p.advance() // consume FEDERATION
+				stmt := p.parseUseFederationStmt()
+				stmt.Loc.Start = loc
+				return stmt
+			}
+		}
 		return p.parseUseStmt()
 	case kwPRINT:
 		return p.parsePrintStmt()
@@ -928,6 +940,13 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			}
 			return nil
 		}
+		// CREATE FEDERATION
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FEDERATION") {
+			p.advance() // consume FEDERATION
+			stmt := p.parseCreateFederationStmt()
+			stmt.Loc.Start = loc
+			return stmt
+		}
 		return nil
 	}
 }
@@ -1381,6 +1400,13 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			}
 			return nil
 		}
+		// ALTER FEDERATION
+		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FEDERATION") {
+			p.advance() // consume FEDERATION
+			stmt := p.parseAlterFederationStmt()
+			stmt.Loc.Start = loc
+			return stmt
+		}
 		return nil
 	}
 }
@@ -1805,6 +1831,14 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "CREDENTIAL") {
 			p.advance() // consume DROP
 			stmt := p.parseSecurityKeyStmt("DROP")
+			stmt.Loc.Start = loc
+			return stmt
+		}
+		// DROP FEDERATION
+		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "FEDERATION") {
+			p.advance() // consume DROP
+			p.advance() // consume FEDERATION
+			stmt := p.parseDropFederationStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}

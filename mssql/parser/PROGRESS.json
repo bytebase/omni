@@ -2,7 +2,7 @@
   "version": 1,
   "target": "Complete T-SQL recursive descent parser",
   "status": "in_progress",
-  "audit_round": 19,
+  "audit_round": 20,
   "batches": [
     {"id": 0, "name": "infrastructure", "status": "done", "file": "parser.go"},
     {"id": 1, "name": "names", "status": "done", "file": "name.go"},
@@ -682,12 +682,34 @@
       ],
       "bnf_files": ["dbcc-transact-sql.bnf", "checkpoint-transact-sql.bnf", "reconfigure-transact-sql.bnf", "shutdown-transact-sql.bnf", "kill-transact-sql.bnf", "bulk-insert-transact-sql.bnf", "drop-table-transact-sql.bnf", "drop-index-transact-sql.bnf", "drop-view-transact-sql.bnf", "truncate-table-transact-sql.bnf", "update-statistics-transact-sql.bnf", "openrowset-transact-sql.bnf", "openquery-transact-sql.bnf", "openjson-transact-sql.bnf", "openxml-transact-sql.bnf", "opendatasource-transact-sql.bnf"],
       "review_files": ["dbcc.go", "utility.go", "drop.go", "rowset_functions.go", "alter_objects.go"]
+    },
+    {
+      "id": 174,
+      "name": "federation_statements",
+      "file": "utility.go",
+      "status": "done",
+      "description": "New: implement CREATE/ALTER/DROP/USE FEDERATION statements (retired Azure SQL Database v1 feature, present in TSql170.g grammar)",
+      "rules": ["parseCreateFederationStmt", "parseAlterFederationStmt", "parseDropFederationStmt", "parseUseFederationStmt"],
+      "depends_on": [0],
+      "tests": ["federation_statements"],
+      "bnf_files": ["create-federation-transact-sql.bnf", "alter-federation-transact-sql.bnf", "drop-federation-transact-sql.bnf", "use-federation-transact-sql.bnf"]
+    },
+    {
+      "id": 175,
+      "name": "insert_bulk_lineno",
+      "file": "utility.go",
+      "status": "pending",
+      "description": "New: implement INSERT BULK (TDS-level bulk insert command) and LINENO (deprecated line number directive) statements",
+      "rules": ["parseInsertBulkStmt", "parseLinenoStmt"],
+      "depends_on": [0],
+      "tests": ["insert_bulk_lineno"],
+      "bnf_files": ["insert-bulk-transact-sql.bnf", "lineno-transact-sql.bnf"]
     }
   ],
   "stats": {
-    "total": 174,
+    "total": 176,
     "done": 154,
-    "pending": 20,
+    "pending": 22,
     "failed": 0,
     "in_progress": 0
   }

@@ -466,6 +466,14 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeQueryHint(sb, n)
 	case *OptimizeForParam:
 		writeOptimizeForParam(sb, n)
+	case *CreateFederationStmt:
+		writeCreateFederationStmt(sb, n)
+	case *AlterFederationStmt:
+		writeAlterFederationStmt(sb, n)
+	case *DropFederationStmt:
+		fmt.Fprintf(sb, "{DROPFEDERATION :name \"%s\" :loc %d %d}", escapeString(n.Name), n.Loc.Start, n.Loc.End)
+	case *UseFederationStmt:
+		writeUseFederationStmt(sb, n)
 	default:
 		sb.WriteString("{UNKNOWN}")
 	}
@@ -4407,5 +4415,51 @@ func writeSensitivityOption(sb *strings.Builder, n *SensitivityOption) {
 	sb.WriteString("{SENSITIVITYOPTION")
 	fmt.Fprintf(sb, " :key \"%s\"", escapeString(n.Key))
 	fmt.Fprintf(sb, " :value \"%s\"", escapeString(n.Value))
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+// ---------- Batch 174: Federation Statements ----------
+
+func writeCreateFederationStmt(sb *strings.Builder, n *CreateFederationStmt) {
+	sb.WriteString("{CREATEFEDERATION")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	fmt.Fprintf(sb, " :distributionName \"%s\"", escapeString(n.DistributionName))
+	if n.DataType != nil {
+		sb.WriteString(" :dataType ")
+		writeNode(sb, n.DataType)
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeAlterFederationStmt(sb *strings.Builder, n *AlterFederationStmt) {
+	sb.WriteString("{ALTERFEDERATION")
+	fmt.Fprintf(sb, " :name \"%s\"", escapeString(n.Name))
+	fmt.Fprintf(sb, " :kind \"%s\"", escapeString(n.Kind))
+	fmt.Fprintf(sb, " :distributionName \"%s\"", escapeString(n.DistributionName))
+	if n.Boundary != nil {
+		sb.WriteString(" :boundary ")
+		writeNode(sb, n.Boundary)
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeUseFederationStmt(sb *strings.Builder, n *UseFederationStmt) {
+	sb.WriteString("{USEFEDERATION")
+	if n.IsRoot {
+		sb.WriteString(" :isRoot true")
+	}
+	if n.FederationName != "" {
+		fmt.Fprintf(sb, " :federationName \"%s\"", escapeString(n.FederationName))
+	}
+	if n.DistributionName != "" {
+		fmt.Fprintf(sb, " :distributionName \"%s\"", escapeString(n.DistributionName))
+	}
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
+	if n.Filtering {
+		sb.WriteString(" :filtering true")
+	}
 	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
