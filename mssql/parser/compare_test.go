@@ -21005,3 +21005,193 @@ func TestParseCryptoBnfReview(t *testing.T) {
 		}
 	})
 }
+
+// TestParseAuditEventBnfReview tests batch 165: BNF review of audit and event session statements.
+func TestParseAuditEventBnfReview(t *testing.T) {
+	// TO URL with parenthesized options (gap: parser previously treated URL as simple target)
+	t.Run("server_audit_to_url_with_options", func(t *testing.T) {
+		sql := "CREATE SERVER AUDIT MyAudit TO URL (FILEPATH = 'https://storage.blob.core.windows.net/audit/', MAXSIZE = 100 MB)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Action != "CREATE" {
+			t.Errorf("expected CREATE, got %q", stmt.Action)
+		}
+		if stmt.Options == nil || len(stmt.Options.Items) < 2 {
+			t.Fatalf("expected at least 2 options (TO=URL + file options), got %v", stmt.Options)
+		}
+		opt0 := stmt.Options.Items[0].(*ast.String).Str
+		if opt0 != "TO=URL" {
+			t.Errorf("expected TO=URL, got %q", opt0)
+		}
+	})
+
+	// TO EXTERNAL_MONITOR
+	t.Run("server_audit_to_external_monitor", func(t *testing.T) {
+		sql := "CREATE SERVER AUDIT MyAudit TO EXTERNAL_MONITOR"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+		opt0 := stmt.Options.Items[0].(*ast.String).Str
+		if opt0 != "TO=EXTERNAL_MONITOR" {
+			t.Errorf("expected TO=EXTERNAL_MONITOR, got %q", opt0)
+		}
+	})
+
+	// CREATE SERVER AUDIT with OPERATOR_AUDIT option
+	t.Run("server_audit_operator_audit", func(t *testing.T) {
+		sql := "CREATE SERVER AUDIT MyAudit TO SECURITY_LOG WITH (QUEUE_DELAY = 1000, OPERATOR_AUDIT = ON)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Options == nil || len(stmt.Options.Items) < 3 {
+			t.Fatalf("expected at least 3 options, got %v", stmt.Options)
+		}
+	})
+
+	// CREATE SERVER AUDIT with AUDIT_GUID
+	t.Run("server_audit_guid", func(t *testing.T) {
+		sql := "CREATE SERVER AUDIT MyAudit TO FILE (FILEPATH = 'C:\\audit\\') WITH (AUDIT_GUID = '8E39C1D7-9A3B-4ACF-B56F-123456789ABC')"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	// CREATE SERVER AUDIT with WHERE predicate using LIKE
+	t.Run("server_audit_where_like", func(t *testing.T) {
+		sql := "CREATE SERVER AUDIT MyAudit TO FILE (FILEPATH = 'C:\\audit\\') WHERE object_name LIKE 'Sensitive%'"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.WhereClause == nil {
+			t.Fatal("expected WhereClause to be set")
+		}
+	})
+
+	// ALTER SERVER AUDIT with STATE option
+	t.Run("alter_server_audit_state", func(t *testing.T) {
+		sql := "ALTER SERVER AUDIT MyAudit WITH (STATE = OFF)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Action != "ALTER" {
+			t.Errorf("expected ALTER, got %q", stmt.Action)
+		}
+	})
+
+	// ALTER SERVER AUDIT with TO + WITH + WHERE
+	t.Run("alter_server_audit_full", func(t *testing.T) {
+		sql := "ALTER SERVER AUDIT MyAudit TO FILE (FILEPATH = 'D:\\audit\\') WITH (QUEUE_DELAY = 500, ON_FAILURE = FAIL_OPERATION) WHERE server_principal_name = 'sa'"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+		if stmt.WhereClause == nil {
+			t.Fatal("expected WhereClause")
+		}
+	})
+
+	// CREATE SERVER AUDIT SPECIFICATION with multiple ADD clauses
+	t.Run("server_audit_spec_multiple_add", func(t *testing.T) {
+		sql := "CREATE SERVER AUDIT SPECIFICATION MySpec FOR SERVER AUDIT MyAudit ADD (FAILED_LOGIN_GROUP), ADD (SUCCESSFUL_LOGIN_GROUP) WITH (STATE = ON)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.ObjectType != "SERVER AUDIT SPECIFICATION" {
+			t.Errorf("expected SERVER AUDIT SPECIFICATION, got %q", stmt.ObjectType)
+		}
+	})
+
+	// ALTER SERVER AUDIT SPECIFICATION with ADD and DROP
+	t.Run("alter_server_audit_spec_add_drop", func(t *testing.T) {
+		sql := "ALTER SERVER AUDIT SPECIFICATION MySpec FOR SERVER AUDIT MyAudit ADD (BACKUP_RESTORE_GROUP), DROP (FAILED_LOGIN_GROUP)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Action != "ALTER" {
+			t.Errorf("expected ALTER, got %q", stmt.Action)
+		}
+	})
+
+	// CREATE DATABASE AUDIT SPECIFICATION with action specification
+	t.Run("db_audit_spec_action_spec", func(t *testing.T) {
+		sql := "CREATE DATABASE AUDIT SPECIFICATION MyDbSpec FOR SERVER AUDIT MyAudit ADD (SELECT, INSERT, UPDATE ON OBJECT::dbo.MyTable BY public, dbo)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.ObjectType != "DATABASE AUDIT SPECIFICATION" {
+			t.Errorf("expected DATABASE AUDIT SPECIFICATION, got %q", stmt.ObjectType)
+		}
+	})
+
+	// ALTER DATABASE AUDIT SPECIFICATION with DROP action
+	t.Run("alter_db_audit_spec_drop", func(t *testing.T) {
+		sql := "ALTER DATABASE AUDIT SPECIFICATION MyDbSpec DROP (DATABASE_OBJECT_CHANGE_GROUP) WITH (STATE = OFF)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Action != "ALTER" {
+			t.Errorf("expected ALTER, got %q", stmt.Action)
+		}
+	})
+
+	// Event session with predicate function form
+	t.Run("event_session_predicate_function", func(t *testing.T) {
+		sql := "CREATE EVENT SESSION test_session ON SERVER ADD EVENT sqlserver.sql_batch_starting (WHERE package0.equal_boolean(sqlserver.is_system, 1))"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.ObjectType != "EVENT SESSION" {
+			t.Errorf("expected EVENT SESSION, got %q", stmt.ObjectType)
+		}
+	})
+
+	// Event session with MAX_DURATION option
+	t.Run("event_session_max_duration", func(t *testing.T) {
+		sql := "CREATE EVENT SESSION test_session ON SERVER ADD EVENT sqlserver.sql_batch_starting WITH (MAX_DURATION = 60 MINUTES)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	// Event session with MAX_EVENT_SIZE
+	t.Run("event_session_max_event_size", func(t *testing.T) {
+		sql := "CREATE EVENT SESSION test_session ON SERVER ADD EVENT sqlserver.sql_batch_starting WITH (MAX_EVENT_SIZE = 4 KB)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Options == nil {
+			t.Fatal("expected options")
+		}
+	})
+
+	// ALTER EVENT SESSION with combined ADD EVENT and WITH options
+	t.Run("alter_event_session_add_with_options", func(t *testing.T) {
+		sql := "ALTER EVENT SESSION test_session ON SERVER ADD EVENT sqlserver.database_transaction_begin WITH (MAX_MEMORY = 16 MB)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Action != "ALTER" {
+			t.Errorf("expected ALTER, got %q", stmt.Action)
+		}
+	})
+
+	// Event session with complex WHERE: AND/OR with NOT
+	t.Run("event_session_complex_where", func(t *testing.T) {
+		sql := "CREATE EVENT SESSION test_session ON SERVER ADD EVENT sqlserver.sql_batch_starting (WHERE sqlserver.database_id = 5 AND NOT sqlserver.is_system = 1)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.ObjectType != "EVENT SESSION" {
+			t.Errorf("expected EVENT SESSION, got %q", stmt.ObjectType)
+		}
+	})
+
+	// DROP EVENT SESSION
+	t.Run("drop_event_session_database", func(t *testing.T) {
+		sql := "DROP EVENT SESSION test_session ON DATABASE"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SecurityStmt)
+		if stmt.Action != "DROP" {
+			t.Errorf("expected DROP, got %q", stmt.Action)
+		}
+		if stmt.ObjectType != "EVENT SESSION" {
+			t.Errorf("expected EVENT SESSION, got %q", stmt.ObjectType)
+		}
+	})
+}

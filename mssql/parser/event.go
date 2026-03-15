@@ -183,6 +183,7 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 //	        [ ( SET { target_parameter_name = <value> [ , ...n ] } ) ]
 //
 //	<event_session_options>::=
+//	{
 //	    [       MAX_MEMORY = size [ KB | MB ] ]
 //	    [ [ , ] EVENT_RETENTION_MODE = { ALLOW_SINGLE_EVENT_LOSS | ALLOW_MULTIPLE_EVENT_LOSS | NO_EVENT_LOSS } ]
 //	    [ [ , ] MAX_DISPATCH_LATENCY = { seconds SECONDS | INFINITE } ]
@@ -190,6 +191,8 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 //	    [ [ , ] MEMORY_PARTITION_MODE = { NONE | PER_NODE | PER_CPU } ]
 //	    [ [ , ] TRACK_CAUSALITY = { ON | OFF } ]
 //	    [ [ , ] STARTUP_STATE = { ON | OFF } ]
+//	    [ [ , ] MAX_DURATION = { <time duration> { SECONDS | MINUTES | HOURS | DAYS } | UNLIMITED } ]
+//	}
 func (p *Parser) parseCreateEventSessionStmt() *nodes.SecurityStmt {
 	loc := p.pos()
 	// EVENT SESSION keywords already consumed by caller
@@ -555,6 +558,16 @@ func (p *Parser) parseEventSessionPredicate() string {
 }
 
 // parseEventSessionPredicateFactor parses a single predicate factor.
+//
+// BNF (from create-event-session-transact-sql.bnf):
+//
+//	<predicate_factor> ::=
+//	    <predicate_leaf> | ( <predicate_expression> )
+//
+//	<predicate_leaf> ::=
+//	      <predicate_source_declaration> { = | <> | != | > | >= | < | <= } <value>
+//	    | [event_module_guid].event_package_name.predicate_compare_name
+//	        ( <predicate_source_declaration> , <value> )
 func (p *Parser) parseEventSessionPredicateFactor() string {
 	// NOT
 	notPrefix := ""
@@ -571,10 +584,20 @@ func (p *Parser) parseEventSessionPredicateFactor() string {
 		return notPrefix + "(" + inner + ")"
 	}
 
-	// field_name or package.predicate_source_name
+	// field_name or package.predicate_source_name or package.predicate_compare_name
 	lhs := p.parseEventSessionDottedName()
 	if lhs == "" {
 		return ""
+	}
+
+	// Check for function call form: predicate_compare_name(source, value)
+	if p.cur.Type == '(' {
+		p.advance()
+		arg1 := p.parseEventSessionDottedName()
+		p.match(',')
+		arg2 := p.parseEventSessionValue()
+		p.match(')')
+		return notPrefix + lhs + "(" + arg1 + ", " + arg2 + ")"
 	}
 
 	// Comparison operator

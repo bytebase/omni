@@ -432,7 +432,7 @@
       "id": 165,
       "name": "bnf_review_audit_event",
       "file": "security_audit.go",
-      "status": "pending",
+      "status": "done",
       "description": "BNF review of CREATE/ALTER/DROP SERVER AUDIT, CREATE/ALTER/DROP SERVER AUDIT SPECIFICATION, CREATE/ALTER/DROP DATABASE AUDIT SPECIFICATION, CREATE/ALTER/DROP EVENT SESSION.",
       "rules": [
         "create_server_audit_stmt",

@@ -9,25 +9,41 @@ import (
 
 // parseCreateServerAuditStmt parses CREATE SERVER AUDIT.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-server-audit-transact-sql
+// BNF: mssql/parser/bnf/create-server-audit-transact-sql.bnf
 //
 //	CREATE SERVER AUDIT audit_name
-//	    {
-//	        TO { FILE ( <file_options> [,...n] ) | APPLICATION_LOG | SECURITY_LOG | URL | EXTERNAL_MONITOR }
-//	        [ WITH ( <audit_options> [,...n] ) ]
-//	        [ WHERE <predicate_expression> ]
-//	    }
+//	{
+//	    TO { FILE ( <file_options> [,...n] ) | APPLICATION_LOG | SECURITY_LOG
+//	       | URL ( <file_options> [,...n] ) | EXTERNAL_MONITOR }
+//	    [ WITH ( <audit_options> [,...n] ) ]
+//	    [ WHERE <predicate_expression> ]
+//	}
+//
 //	<file_options> ::=
-//	    { FILEPATH = 'os_file_path'
-//	      [, MAXSIZE = { max_size { MB | GB | TB } | UNLIMITED } ]
-//	      [, { MAX_ROLLOVER_FILES = { integer | UNLIMITED } } | { MAX_FILES = integer } ]
-//	      [, RESERVE_DISK_SPACE = { ON | OFF } ]
-//	    }
+//	{
+//	    FILEPATH = 'os_file_path'
+//	    [, MAXSIZE = { max_size { MB | GB | TB } | UNLIMITED } ]
+//	    [, { MAX_ROLLOVER_FILES = { integer | UNLIMITED } } | { MAX_FILES = integer } ]
+//	    [, RESERVE_DISK_SPACE = { ON | OFF } ]
+//	}
+//
 //	<audit_options> ::=
-//	    { QUEUE_DELAY = integer
-//	      [, ON_FAILURE = { CONTINUE | SHUTDOWN | FAIL_OPERATION } ]
-//	      [, AUDIT_GUID = uniqueidentifier
-//	    }
+//	{
+//	    [ QUEUE_DELAY = integer ]
+//	    [, ON_FAILURE = { CONTINUE | SHUTDOWN | FAIL_OPERATION } ]
+//	    [, AUDIT_GUID = uniqueidentifier ]
+//	    [, OPERATOR_AUDIT = { ON | OFF } ]
+//	}
+//
+//	<predicate_expression> ::=
+//	{
+//	    [ NOT ] <predicate_factor>
+//	    [ { AND | OR } [ NOT ] { <predicate_factor> } ]
+//	    [, ...n]
+//	}
+//
+//	<predicate_factor> ::=
+//	    event_field_name { = | <> | != | > | >= | < | <= | LIKE } { number | 'string' }
 func (p *Parser) parseCreateServerAuditStmt() *nodes.SecurityStmt {
 	loc := p.pos()
 	// SERVER AUDIT keywords already consumed by caller
@@ -53,16 +69,25 @@ func (p *Parser) parseCreateServerAuditStmt() *nodes.SecurityStmt {
 
 // parseAlterServerAuditStmt parses ALTER SERVER AUDIT.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-server-audit-transact-sql
+// BNF: mssql/parser/bnf/alter-server-audit-transact-sql.bnf
 //
 //	ALTER SERVER AUDIT audit_name
-//	    {
-//	        [ TO { FILE ( <file_options> [,...n] ) | APPLICATION_LOG | SECURITY_LOG | URL | EXTERNAL_MONITOR } ]
-//	        [ WITH ( <audit_options> [,...n] ) ]
-//	        [ WHERE <predicate_expression> ]
-//	    }
-//	  | { REMOVE WHERE }
-//	  | { MODIFY NAME = new_audit_name }
+//	{
+//	    [ TO { FILE ( <file_options> [,...n] ) | APPLICATION_LOG | SECURITY_LOG
+//	         | URL ( <file_options> [,...n] ) | EXTERNAL_MONITOR } ]
+//	    [ WITH ( <audit_options> [,...n] ) ]
+//	    [ WHERE <predicate_expression> ]
+//	}
+//	| REMOVE WHERE
+//	| MODIFY NAME = new_audit_name
+//
+//	<audit_options> ::=
+//	{
+//	    [ QUEUE_DELAY = integer ]
+//	    [, ON_FAILURE = { CONTINUE | SHUTDOWN | FAIL_OPERATION } ]
+//	    [, STATE = { ON | OFF } ]
+//	    [, OPERATOR_AUDIT = { ON | OFF } ]
+//	}
 func (p *Parser) parseAlterServerAuditStmt() *nodes.SecurityStmt {
 	loc := p.pos()
 	// SERVER AUDIT keywords already consumed by caller
@@ -333,10 +358,11 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 	// TO clause
 	if p.cur.Type == kwTO {
 		p.advance()
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FILE") {
+		if p.isIdentLike() && (matchesKeywordCI(p.cur.Str, "FILE") || matchesKeywordCI(p.cur.Str, "URL")) {
+			target := strings.ToUpper(p.cur.Str)
 			p.advance()
-			opts = append(opts, &nodes.String{Str: "TO=FILE"})
-			// ( <file_options> )
+			opts = append(opts, &nodes.String{Str: "TO=" + target})
+			// ( <file_options> ) -- both FILE and URL support parenthesized options
 			if p.cur.Type == '(' {
 				p.advance()
 				for p.cur.Type != ')' && p.cur.Type != tokEOF {
