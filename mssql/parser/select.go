@@ -9,21 +9,30 @@ import (
 
 // parseSelectStmt parses a full SELECT statement.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/select-transact-sql
+// BNF: mssql/parser/bnf/select-transact-sql.bnf
 //
-//	[WITH cte_list]
-//	SELECT [ALL | DISTINCT] [TOP ...]
-//	    target_list
-//	    [INTO table]
-//	    [FROM table_source_list]
-//	    [WHERE expr]
-//	    [GROUP BY expr_list]
-//	    [HAVING expr]
-//	    [ORDER BY order_item_list]
-//	    [OFFSET n ROWS [FETCH NEXT n ROWS ONLY]]
-//	    [FOR XML|JSON ...]
-//	    [OPTION (...)]
-//	    [UNION|INTERSECT|EXCEPT ...]
+//	<SELECT statement> ::=
+//	    [ WITH { [ XMLNAMESPACES , ] [ <common_table_expression> [ , ...n ] ] } ]
+//	    <query_expression>
+//	    [ ORDER BY <order_by_expression> ]
+//	    [ <FOR Clause> ]
+//	    [ OPTION ( <query_hint> [ , ...n ] ) ]
+//
+//	<query_expression> ::=
+//	    { <query_specification> | ( <query_expression> ) }
+//	    [  { UNION [ ALL ] | EXCEPT | INTERSECT }
+//	        <query_specification> | ( <query_expression> ) [ ...n ] ]
+//
+//	<query_specification> ::=
+//	SELECT [ ALL | DISTINCT ]
+//	    [ TOP ( expression ) [ PERCENT ] [ WITH TIES ] ]
+//	    <select_list>
+//	    [ INTO new_table ]
+//	    [ FROM { <table_source> } [ , ...n ] ]
+//	    [ WHERE <search_condition> ]
+//	    [ <GROUP BY> ]
+//	    [ HAVING <search_condition> ]
+//	    [ WINDOW windowDefinition [ , windowDefinition ]* ]
 func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 	loc := p.pos()
 
@@ -73,10 +82,13 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 		stmt.WhereClause = p.parseExpr()
 	}
 
-	// GROUP BY
+	// GROUP BY [ALL]
 	if p.cur.Type == kwGROUP {
 		p.advance()
 		if _, err := p.expect(kwBY); err == nil {
+			if _, ok := p.match(kwALL); ok {
+				stmt.GroupByAll = true
+			}
 			stmt.GroupByClause = p.parseGroupByList()
 		}
 	}
@@ -84,6 +96,11 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 	// HAVING
 	if _, ok := p.match(kwHAVING); ok {
 		stmt.HavingClause = p.parseExpr()
+	}
+
+	// WINDOW clause (named window definitions)
+	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "WINDOW") {
+		stmt.WindowClause = p.parseWindowClause()
 	}
 
 	// ORDER BY
@@ -126,10 +143,10 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 		}
 	}
 
-	// FOR XML / FOR JSON (only if followed by XML or JSON, not FOR UPDATE/READ_ONLY)
+	// FOR XML / FOR JSON / FOR BROWSE
 	if p.cur.Type == kwFOR {
 		next := p.peekNext()
-		if next.Type == kwXML || next.Type == kwJSON {
+		if next.Type == kwXML || next.Type == kwJSON || next.Type == kwBROWSE {
 			stmt.ForClause = p.parseForClause()
 		}
 	}
@@ -176,7 +193,11 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) *nodes.SelectStmt {
 	}
 }
 
-// parseWithClause parses WITH cte_name [(col_list)] AS (select), ...
+// parseWithClause parses WITH [XMLNAMESPACES(...),] cte_name [(col_list)] AS (select), ...
+//
+// BNF: mssql/parser/bnf/select-transact-sql.bnf
+//
+//	[ WITH { [ XMLNAMESPACES , ] [ <common_table_expression> [ , ...n ] ] } ]
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/with-common-table-expression-transact-sql
 func (p *Parser) parseWithClause() *nodes.WithClause {
@@ -187,8 +208,14 @@ func (p *Parser) parseWithClause() *nodes.WithClause {
 		Loc: nodes.Loc{Start: loc},
 	}
 
+	// Optional XMLNAMESPACES (...)
+	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "XMLNAMESPACES") {
+		wc.XmlNamespaces = p.parseXmlNamespaces()
+		p.match(',') // consume comma between XMLNAMESPACES and CTEs
+	}
+
 	var ctes []nodes.Node
-	for {
+	for p.cur.Type != kwSELECT && p.cur.Type != tokEOF && p.cur.Type != ';' {
 		cte := p.parseCTE()
 		if cte == nil {
 			break
@@ -201,6 +228,54 @@ func (p *Parser) parseWithClause() *nodes.WithClause {
 	wc.CTEs = &nodes.List{Items: ctes}
 	wc.Loc.End = p.pos()
 	return wc
+}
+
+// parseXmlNamespaces parses XMLNAMESPACES ( namespace_decl [, ...n] ).
+//
+//	XMLNAMESPACES ( uri AS prefix [, ...n] | DEFAULT uri [, ...n] )
+func (p *Parser) parseXmlNamespaces() *nodes.List {
+	p.advance() // consume XMLNAMESPACES
+	if _, err := p.expect('('); err != nil {
+		return nil
+	}
+
+	var decls []nodes.Node
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		loc := p.pos()
+		decl := &nodes.XmlNamespaceDecl{Loc: nodes.Loc{Start: loc}}
+
+		if _, ok := p.match(kwDEFAULT); ok {
+			// DEFAULT 'uri'
+			decl.IsDefault = true
+			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
+				decl.URI = p.cur.Str
+				p.advance()
+			}
+		} else {
+			// 'uri' AS prefix
+			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
+				decl.URI = p.cur.Str
+				p.advance()
+			}
+			if _, ok := p.match(kwAS); ok {
+				if name, ok := p.parseIdentifier(); ok {
+					decl.Prefix = name
+				}
+			}
+		}
+		decl.Loc.End = p.pos()
+		decls = append(decls, decl)
+
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	_, _ = p.expect(')')
+
+	if len(decls) == 0 {
+		return nil
+	}
+	return &nodes.List{Items: decls}
 }
 
 // parseCTE parses a single CTE: name [(columns)] AS (query).
@@ -644,12 +719,22 @@ func (p *Parser) parseOptionalAlias() string {
 		return ""
 	}
 	// Bare alias - only if it's an identifier and NOT a clause keyword
-	if p.cur.Type == tokIDENT {
+	if p.cur.Type == tokIDENT && !p.isSelectClauseIdent() {
 		name := p.cur.Str
 		p.advance()
 		return name
 	}
 	return ""
+}
+
+// isSelectClauseIdent returns true if the current identifier token is a contextual
+// keyword that starts a SELECT clause and should not be consumed as a bare alias.
+func (p *Parser) isSelectClauseIdent() bool {
+	if p.cur.Type != tokIDENT {
+		return false
+	}
+	upper := strings.ToUpper(p.cur.Str)
+	return upper == "WINDOW"
 }
 
 // matchJoinType matches and consumes a join keyword sequence, returning the join type.
@@ -698,9 +783,9 @@ func (p *Parser) matchJoinType() (nodes.JoinType, bool) {
 	}
 }
 
-// parseForClause parses FOR XML or FOR JSON.
+// parseForClause parses FOR BROWSE, FOR XML, or FOR JSON.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/select-for-clause-transact-sql
+// BNF: mssql/parser/bnf/select-transact-sql.bnf
 //
 //	[ FOR { BROWSE | <XML> | <JSON> } ]
 //
@@ -746,6 +831,13 @@ func (p *Parser) parseForClause() *nodes.ForClause {
 
 	fc := &nodes.ForClause{
 		Loc: nodes.Loc{Start: loc},
+	}
+
+	if p.cur.Type == kwBROWSE {
+		fc.Mode = nodes.ForBrowse
+		p.advance()
+		fc.Loc.End = p.pos()
+		return fc
 	}
 
 	if p.cur.Type == kwXML {
@@ -992,6 +1084,94 @@ func (p *Parser) parseGroupingSet() *nodes.List {
 		return &nodes.List{Items: []nodes.Node{expr}}
 	}
 	return &nodes.List{Items: nil}
+}
+
+// parseWindowClause parses WINDOW window_name AS (window_spec) [, ...].
+//
+//	WINDOW window_name AS ( [ existing_window_name ]
+//	    [ PARTITION BY expr [,...n] ]
+//	    [ ORDER BY order_item [,...n] ]
+//	    [ <window_frame> ]
+//	)
+func (p *Parser) parseWindowClause() *nodes.List {
+	p.advance() // consume WINDOW
+
+	var defs []nodes.Node
+	for {
+		loc := p.pos()
+		name, ok := p.parseIdentifier()
+		if !ok {
+			break
+		}
+		def := &nodes.WindowDef{
+			Name: name,
+			Loc:  nodes.Loc{Start: loc},
+		}
+
+		if _, err := p.expect(kwAS); err != nil {
+			defs = append(defs, def)
+			break
+		}
+		if _, err := p.expect('('); err != nil {
+			defs = append(defs, def)
+			break
+		}
+
+		// Optional existing_window_name (must be an ident not followed by keyword like PARTITION, ORDER)
+		if p.cur.Type == tokIDENT && p.cur.Type != kwPARTITION && p.cur.Type != kwORDER &&
+			p.cur.Type != kwROWS && p.cur.Type != kwRANGE && p.cur.Type != kwGROUPS {
+			// Check if this looks like a reference name (ident not a keyword)
+			if !strings.EqualFold(p.cur.Str, "PARTITION") &&
+				!strings.EqualFold(p.cur.Str, "ORDER") &&
+				!strings.EqualFold(p.cur.Str, "ROWS") &&
+				!strings.EqualFold(p.cur.Str, "RANGE") &&
+				!strings.EqualFold(p.cur.Str, "GROUPS") &&
+				p.cur.Type != ')' {
+				next := p.peekNext()
+				// If next token is a clause keyword or ), this is a refname
+				if next.Type == kwPARTITION || next.Type == kwORDER ||
+					next.Type == kwROWS || next.Type == kwRANGE || next.Type == kwGROUPS ||
+					next.Type == ')' {
+					def.RefName = p.cur.Str
+					p.advance()
+				}
+			}
+		}
+
+		// PARTITION BY
+		if p.cur.Type == kwPARTITION {
+			p.advance()
+			if _, err := p.expect(kwBY); err == nil {
+				def.PartitionBy = p.parseExprList()
+			}
+		}
+
+		// ORDER BY
+		if p.cur.Type == kwORDER {
+			p.advance()
+			if _, err := p.expect(kwBY); err == nil {
+				def.OrderBy = p.parseOrderByList()
+			}
+		}
+
+		// Window frame: ROWS | RANGE | GROUPS
+		if p.cur.Type == kwROWS || p.cur.Type == kwRANGE || p.cur.Type == kwGROUPS {
+			def.Frame = p.parseWindowFrame()
+		}
+
+		_, _ = p.expect(')')
+		def.Loc.End = p.pos()
+		defs = append(defs, def)
+
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+
+	if len(defs) == 0 {
+		return nil
+	}
+	return &nodes.List{Items: defs}
 }
 
 // parseOrderByList parses ORDER BY items.

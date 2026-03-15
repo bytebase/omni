@@ -182,7 +182,7 @@
       "id": 155,
       "name": "bnf_review_select",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "Full BNF review of SELECT. CTE/WITH, TOP, INTO, FROM, JOIN, APPLY, WHERE, GROUP BY, HAVING, ORDER BY, OFFSET/FETCH, FOR XML/JSON, OPTION hints, UNION/INTERSECT/EXCEPT.",
       "rules": [
         "select_stmt",

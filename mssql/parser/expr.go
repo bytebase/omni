@@ -937,6 +937,18 @@ func (p *Parser) parseWithinGroupClause() *nodes.List {
 func (p *Parser) parseOverClause() *nodes.OverClause {
 	loc := p.pos()
 	p.advance() // consume OVER
+
+	// OVER window_name (reference to named window, no parentheses)
+	if p.cur.Type != '(' && p.isIdentLike() {
+		over := &nodes.OverClause{
+			WindowName: p.cur.Str,
+			Loc:        nodes.Loc{Start: loc, End: p.pos()},
+		}
+		p.advance()
+		over.Loc.End = p.pos()
+		return over
+	}
+
 	if _, err := p.expect('('); err != nil {
 		return nil
 	}

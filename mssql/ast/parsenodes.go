@@ -32,9 +32,13 @@ type SelectStmt struct {
 
 	// GROUP BY clause
 	GroupByClause *List
+	GroupByAll    bool // GROUP BY ALL (deprecated)
 
 	// HAVING clause
 	HavingClause ExprNode
+
+	// WINDOW clause (named window definitions)
+	WindowClause *List // list of WindowDef
 
 	// ORDER BY clause
 	OrderByClause *List
@@ -124,13 +128,27 @@ type ForMode int
 const (
 	ForXML ForMode = iota
 	ForJSON
+	ForBrowse
 )
 
 // WithClause represents a WITH (CTE) clause.
 type WithClause struct {
-	CTEs *List // list of CommonTableExpr
-	Loc  Loc
+	XmlNamespaces *List // optional XMLNAMESPACES declarations
+	CTEs          *List // list of CommonTableExpr
+	Loc           Loc
 }
+
+// XmlNamespaceDecl represents a single XMLNAMESPACES declaration.
+//
+//	uri AS prefix | DEFAULT uri
+type XmlNamespaceDecl struct {
+	URI       string // the namespace URI
+	Prefix    string // AS prefix (empty for DEFAULT)
+	IsDefault bool   // DEFAULT uri
+	Loc       Loc
+}
+
+func (n *XmlNamespaceDecl) nodeTag() {}
 
 func (n *WithClause) nodeTag() {}
 
@@ -1896,6 +1914,20 @@ func (n *AliasedTableRef) nodeTag()   {}
 func (n *AliasedTableRef) tableExpr() {}
 
 // ---------- Window / OVER clause ----------
+
+// WindowDef represents a named window definition in a WINDOW clause.
+//
+//	window_name AS ( window_specification )
+type WindowDef struct {
+	Name        string     // window name
+	PartitionBy *List      // PARTITION BY expressions
+	OrderBy     *List      // ORDER BY items
+	Frame       *WindowFrame
+	RefName     string // reference to another named window
+	Loc         Loc
+}
+
+func (n *WindowDef) nodeTag() {}
 
 // OverClause represents an OVER clause for window functions.
 type OverClause struct {

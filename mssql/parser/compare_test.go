@@ -17629,3 +17629,427 @@ func TestParseInfrastructureBnfReview(t *testing.T) {
 		}
 	})
 }
+
+// TestParseSelectBnfReview tests SELECT features added in batch 155 (BNF review).
+func TestParseSelectBnfReview(t *testing.T) {
+	// WINDOW clause
+	t.Run("WINDOW basic", func(t *testing.T) {
+		sql := "SELECT SUM(amount) OVER w FROM orders WINDOW w AS (PARTITION BY customer_id ORDER BY order_date)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.WindowClause == nil {
+			t.Fatal("expected WindowClause, got nil")
+		}
+		if len(stmt.WindowClause.Items) != 1 {
+			t.Fatalf("expected 1 window def, got %d", len(stmt.WindowClause.Items))
+		}
+		wd := stmt.WindowClause.Items[0].(*ast.WindowDef)
+		if wd.Name != "w" {
+			t.Errorf("expected window name 'w', got %q", wd.Name)
+		}
+		if wd.PartitionBy == nil {
+			t.Error("expected PartitionBy, got nil")
+		}
+		if wd.OrderBy == nil {
+			t.Error("expected OrderBy, got nil")
+		}
+	})
+
+	t.Run("WINDOW multiple", func(t *testing.T) {
+		sql := "SELECT SUM(x) OVER w1, AVG(y) OVER w2 FROM t WINDOW w1 AS (PARTITION BY a), w2 AS (ORDER BY b)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.WindowClause == nil {
+			t.Fatal("expected WindowClause, got nil")
+		}
+		if len(stmt.WindowClause.Items) != 2 {
+			t.Fatalf("expected 2 window defs, got %d", len(stmt.WindowClause.Items))
+		}
+	})
+
+	t.Run("WINDOW with frame", func(t *testing.T) {
+		sql := "SELECT SUM(x) OVER w FROM t WINDOW w AS (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.WindowClause == nil {
+			t.Fatal("expected WindowClause")
+		}
+		wd := stmt.WindowClause.Items[0].(*ast.WindowDef)
+		if wd.Frame == nil {
+			t.Error("expected Frame, got nil")
+		}
+	})
+
+	// FOR BROWSE
+	t.Run("FOR BROWSE", func(t *testing.T) {
+		sql := "SELECT a, b FROM t FOR BROWSE"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.ForClause == nil {
+			t.Fatal("expected ForClause, got nil")
+		}
+		if stmt.ForClause.Mode != ast.ForBrowse {
+			t.Errorf("expected ForBrowse mode, got %d", stmt.ForClause.Mode)
+		}
+	})
+
+	// WITH XMLNAMESPACES
+	t.Run("WITH XMLNAMESPACES single", func(t *testing.T) {
+		sql := "WITH XMLNAMESPACES ('http://schemas.example.com' AS ns) SELECT 1"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.WithClause == nil {
+			t.Fatal("expected WithClause, got nil")
+		}
+		if stmt.WithClause.XmlNamespaces == nil {
+			t.Fatal("expected XmlNamespaces, got nil")
+		}
+		if len(stmt.WithClause.XmlNamespaces.Items) != 1 {
+			t.Fatalf("expected 1 xmlns, got %d", len(stmt.WithClause.XmlNamespaces.Items))
+		}
+		decl := stmt.WithClause.XmlNamespaces.Items[0].(*ast.XmlNamespaceDecl)
+		if decl.URI != "http://schemas.example.com" {
+			t.Errorf("expected URI 'http://schemas.example.com', got %q", decl.URI)
+		}
+		if decl.Prefix != "ns" {
+			t.Errorf("expected prefix 'ns', got %q", decl.Prefix)
+		}
+	})
+
+	t.Run("WITH XMLNAMESPACES default", func(t *testing.T) {
+		sql := "WITH XMLNAMESPACES (DEFAULT 'http://default.example.com') SELECT 1"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.WithClause == nil {
+			t.Fatal("expected WithClause")
+		}
+		decl := stmt.WithClause.XmlNamespaces.Items[0].(*ast.XmlNamespaceDecl)
+		if !decl.IsDefault {
+			t.Error("expected IsDefault=true")
+		}
+		if decl.URI != "http://default.example.com" {
+			t.Errorf("expected URI 'http://default.example.com', got %q", decl.URI)
+		}
+	})
+
+	t.Run("WITH XMLNAMESPACES and CTE", func(t *testing.T) {
+		sql := "WITH XMLNAMESPACES ('http://example.com' AS ns), cte1 AS (SELECT 1) SELECT * FROM cte1"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.WithClause == nil {
+			t.Fatal("expected WithClause")
+		}
+		if stmt.WithClause.XmlNamespaces == nil {
+			t.Fatal("expected XmlNamespaces")
+		}
+		if stmt.WithClause.CTEs == nil || len(stmt.WithClause.CTEs.Items) != 1 {
+			t.Fatal("expected 1 CTE")
+		}
+	})
+
+	// GROUP BY ALL
+	t.Run("GROUP BY ALL", func(t *testing.T) {
+		sql := "SELECT dept, COUNT(*) FROM employees GROUP BY ALL dept"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if !stmt.GroupByAll {
+			t.Error("expected GroupByAll=true")
+		}
+		if stmt.GroupByClause == nil {
+			t.Error("expected GroupByClause, got nil")
+		}
+	})
+
+	// Parenthesized subquery in set operations
+	t.Run("UNION with subquery", func(t *testing.T) {
+		sql := "SELECT 1 UNION ALL SELECT 2"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.Op != ast.SetOpUnion {
+			t.Errorf("expected SetOpUnion, got %d", stmt.Op)
+		}
+		if !stmt.All {
+			t.Error("expected All=true for UNION ALL")
+		}
+	})
+
+	t.Run("INTERSECT", func(t *testing.T) {
+		sql := "SELECT a FROM t1 INTERSECT SELECT a FROM t2"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.Op != ast.SetOpIntersect {
+			t.Errorf("expected SetOpIntersect, got %d", stmt.Op)
+		}
+	})
+
+	t.Run("EXCEPT", func(t *testing.T) {
+		sql := "SELECT a FROM t1 EXCEPT SELECT a FROM t2"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.Op != ast.SetOpExcept {
+			t.Errorf("expected SetOpExcept, got %d", stmt.Op)
+		}
+	})
+
+	// OFFSET/FETCH
+	t.Run("OFFSET FETCH", func(t *testing.T) {
+		sql := "SELECT a FROM t ORDER BY a OFFSET 10 ROWS FETCH NEXT 5 ROWS ONLY"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.OffsetClause == nil {
+			t.Error("expected OffsetClause")
+		}
+		if stmt.FetchClause == nil {
+			t.Error("expected FetchClause")
+		}
+	})
+
+	t.Run("OFFSET FETCH FIRST", func(t *testing.T) {
+		sql := "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 10 ROWS ONLY"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.FetchClause == nil {
+			t.Error("expected FetchClause")
+		}
+	})
+
+	// FOR XML with all options
+	t.Run("FOR XML RAW ELEMENTS XSINIL ROOT", func(t *testing.T) {
+		sql := "SELECT a, b FROM t FOR XML RAW('Row'), ELEMENTS XSINIL, ROOT('Results')"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.ForClause == nil {
+			t.Fatal("expected ForClause")
+		}
+		fc := stmt.ForClause
+		if fc.Mode != ast.ForXML {
+			t.Errorf("expected ForXML, got %d", fc.Mode)
+		}
+		if fc.SubMode != "RAW" {
+			t.Errorf("expected RAW, got %q", fc.SubMode)
+		}
+		if fc.ElementName != "Row" {
+			t.Errorf("expected ElementName 'Row', got %q", fc.ElementName)
+		}
+		if !fc.Elements {
+			t.Error("expected Elements=true")
+		}
+		if fc.ElementsMode != "XSINIL" {
+			t.Errorf("expected XSINIL, got %q", fc.ElementsMode)
+		}
+		if !fc.Root {
+			t.Error("expected Root=true")
+		}
+		if fc.RootName != "Results" {
+			t.Errorf("expected RootName 'Results', got %q", fc.RootName)
+		}
+	})
+
+	t.Run("FOR XML AUTO BINARY BASE64 TYPE", func(t *testing.T) {
+		sql := "SELECT a FROM t FOR XML AUTO, BINARY BASE64, TYPE"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		fc := stmt.ForClause
+		if fc.SubMode != "AUTO" {
+			t.Errorf("expected AUTO, got %q", fc.SubMode)
+		}
+		if !fc.BinaryBase64 {
+			t.Error("expected BinaryBase64=true")
+		}
+		if !fc.Type {
+			t.Error("expected Type=true")
+		}
+	})
+
+	t.Run("FOR XML PATH XMLSCHEMA", func(t *testing.T) {
+		sql := "SELECT a FROM t FOR XML PATH('item'), XMLSCHEMA('http://example.com/schema')"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		fc := stmt.ForClause
+		if !fc.XmlSchema {
+			t.Error("expected XmlSchema=true")
+		}
+		if fc.XmlSchemaURI != "http://example.com/schema" {
+			t.Errorf("expected XmlSchemaURI, got %q", fc.XmlSchemaURI)
+		}
+	})
+
+	t.Run("FOR JSON PATH options", func(t *testing.T) {
+		sql := "SELECT a, b FROM t FOR JSON PATH, ROOT('data'), INCLUDE_NULL_VALUES, WITHOUT_ARRAY_WRAPPER"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		fc := stmt.ForClause
+		if fc.Mode != ast.ForJSON {
+			t.Errorf("expected ForJSON, got %d", fc.Mode)
+		}
+		if fc.SubMode != "PATH" {
+			t.Errorf("expected PATH, got %q", fc.SubMode)
+		}
+		if !fc.Root {
+			t.Error("expected Root=true")
+		}
+		if !fc.IncludeNullValues {
+			t.Error("expected IncludeNullValues=true")
+		}
+		if !fc.WithoutArrayWrapper {
+			t.Error("expected WithoutArrayWrapper=true")
+		}
+	})
+
+	// OPTION clause
+	t.Run("OPTION hints", func(t *testing.T) {
+		sql := "SELECT a FROM t OPTION (RECOMPILE, MAXDOP 4)"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.OptionClause == nil {
+			t.Fatal("expected OptionClause")
+		}
+		if len(stmt.OptionClause.Items) != 2 {
+			t.Fatalf("expected 2 hints, got %d", len(stmt.OptionClause.Items))
+		}
+	})
+
+	t.Run("OPTION USE HINT", func(t *testing.T) {
+		sql := "SELECT a FROM t OPTION (USE HINT ('DISABLE_OPTIMIZED_NESTED_LOOP'))"
+		ParseAndCheck(t, sql)
+	})
+
+	// Complex combinations
+	t.Run("Full SELECT with all clauses", func(t *testing.T) {
+		sql := `SELECT DISTINCT TOP (10) PERCENT WITH TIES
+			a, b, SUM(c) AS total
+			INTO #temp
+			FROM t1 INNER JOIN t2 ON t1.id = t2.id
+			WHERE t1.status = 1
+			GROUP BY a, b
+			HAVING SUM(c) > 100
+			ORDER BY total DESC
+			OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY
+			FOR JSON PATH, ROOT('result')
+			OPTION (RECOMPILE)`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if !stmt.Distinct {
+			t.Error("expected Distinct=true")
+		}
+		if stmt.Top == nil {
+			t.Error("expected Top")
+		}
+		if stmt.IntoTable == nil {
+			t.Error("expected IntoTable")
+		}
+		if stmt.FromClause == nil {
+			t.Error("expected FromClause")
+		}
+		if stmt.WhereClause == nil {
+			t.Error("expected WhereClause")
+		}
+		if stmt.GroupByClause == nil {
+			t.Error("expected GroupByClause")
+		}
+		if stmt.HavingClause == nil {
+			t.Error("expected HavingClause")
+		}
+		if stmt.OrderByClause == nil {
+			t.Error("expected OrderByClause")
+		}
+		if stmt.OffsetClause == nil {
+			t.Error("expected OffsetClause")
+		}
+		if stmt.FetchClause == nil {
+			t.Error("expected FetchClause")
+		}
+		if stmt.ForClause == nil {
+			t.Error("expected ForClause")
+		}
+		if stmt.OptionClause == nil {
+			t.Error("expected OptionClause")
+		}
+	})
+
+	// CTE
+	t.Run("WITH CTE recursive", func(t *testing.T) {
+		sql := `WITH cte (n) AS (
+			SELECT 1
+			UNION ALL
+			SELECT n + 1 FROM cte WHERE n < 10
+		)
+		SELECT n FROM cte`
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.SelectStmt)
+		if stmt.WithClause == nil {
+			t.Fatal("expected WithClause")
+		}
+		if len(stmt.WithClause.CTEs.Items) != 1 {
+			t.Fatalf("expected 1 CTE, got %d", len(stmt.WithClause.CTEs.Items))
+		}
+		cte := stmt.WithClause.CTEs.Items[0].(*ast.CommonTableExpr)
+		if cte.Name != "cte" {
+			t.Errorf("expected CTE name 'cte', got %q", cte.Name)
+		}
+		if cte.Columns == nil || len(cte.Columns.Items) != 1 {
+			t.Error("expected 1 column in CTE")
+		}
+	})
+
+	// TABLESAMPLE
+	t.Run("TABLESAMPLE", func(t *testing.T) {
+		sql := "SELECT * FROM t TABLESAMPLE (10 PERCENT)"
+		ParseAndCheck(t, sql)
+	})
+
+	// PIVOT
+	t.Run("PIVOT", func(t *testing.T) {
+		sql := "SELECT * FROM sales PIVOT (SUM(amount) FOR quarter IN ([Q1], [Q2], [Q3], [Q4])) AS pvt"
+		ParseAndCheck(t, sql)
+	})
+
+	// UNPIVOT
+	t.Run("UNPIVOT", func(t *testing.T) {
+		sql := "SELECT * FROM pvt UNPIVOT (amount FOR quarter IN ([Q1], [Q2], [Q3], [Q4])) AS unpvt"
+		ParseAndCheck(t, sql)
+	})
+
+	// CROSS APPLY / OUTER APPLY
+	t.Run("CROSS APPLY", func(t *testing.T) {
+		sql := "SELECT * FROM t1 CROSS APPLY fn(t1.id) AS f"
+		ParseAndCheck(t, sql)
+	})
+
+	t.Run("OUTER APPLY", func(t *testing.T) {
+		sql := "SELECT * FROM t1 OUTER APPLY fn(t1.id) AS f"
+		ParseAndCheck(t, sql)
+	})
+
+	// Table hints
+	t.Run("table hint NOLOCK", func(t *testing.T) {
+		sql := "SELECT a FROM t WITH (NOLOCK)"
+		ParseAndCheck(t, sql)
+	})
+
+	t.Run("table hint INDEX", func(t *testing.T) {
+		sql := "SELECT a FROM t WITH (INDEX(idx1, idx2))"
+		ParseAndCheck(t, sql)
+	})
+
+	t.Run("table hint FORCESEEK", func(t *testing.T) {
+		sql := "SELECT a FROM t WITH (FORCESEEK(idx1 (col1, col2)))"
+		ParseAndCheck(t, sql)
+	})
+
+	// GROUP BY extensions
+	t.Run("GROUP BY GROUPING SETS", func(t *testing.T) {
+		sql := "SELECT a, b, SUM(c) FROM t GROUP BY GROUPING SETS ((a, b), (a), ())"
+		ParseAndCheck(t, sql)
+	})
+
+	t.Run("GROUP BY ROLLUP", func(t *testing.T) {
+		sql := "SELECT a, b, SUM(c) FROM t GROUP BY ROLLUP(a, b)"
+		ParseAndCheck(t, sql)
+	})
+
+	t.Run("GROUP BY CUBE", func(t *testing.T) {
+		sql := "SELECT a, b, SUM(c) FROM t GROUP BY CUBE(a, b)"
+		ParseAndCheck(t, sql)
+	})
+}

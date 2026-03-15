@@ -228,6 +228,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeTableHint(sb, n)
 	case *OverClause:
 		writeOverClause(sb, n)
+	case *WindowDef:
+		writeWindowDef(sb, n)
+	case *XmlNamespaceDecl:
+		writeXmlNamespaceDecl(sb, n)
 	case *OrderByItem:
 		writeOrderByItem(sb, n)
 	case *ResTarget:
@@ -512,9 +516,16 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 		sb.WriteString(" :groupBy ")
 		writeNode(sb, n.GroupByClause)
 	}
+	if n.GroupByAll {
+		sb.WriteString(" :groupByAll true")
+	}
 	if n.HavingClause != nil {
 		sb.WriteString(" :having ")
 		writeNode(sb, n.HavingClause)
+	}
+	if n.WindowClause != nil {
+		sb.WriteString(" :window ")
+		writeNode(sb, n.WindowClause)
 	}
 	if n.OrderByClause != nil {
 		sb.WriteString(" :orderBy ")
@@ -2204,6 +2215,41 @@ func writeOverClause(sb *strings.Builder, n *OverClause) {
 	sb.WriteString("}")
 }
 
+func writeWindowDef(sb *strings.Builder, n *WindowDef) {
+	sb.WriteString("{WINDOWDEF")
+	sb.WriteString(fmt.Sprintf(" :name \"%s\"", escapeString(n.Name)))
+	if n.RefName != "" {
+		sb.WriteString(fmt.Sprintf(" :refName \"%s\"", escapeString(n.RefName)))
+	}
+	if n.PartitionBy != nil {
+		sb.WriteString(" :partitionBy ")
+		writeNode(sb, n.PartitionBy)
+	}
+	if n.OrderBy != nil {
+		sb.WriteString(" :orderBy ")
+		writeNode(sb, n.OrderBy)
+	}
+	if n.Frame != nil {
+		sb.WriteString(" :frame ")
+		writeNode(sb, n.Frame)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeXmlNamespaceDecl(sb *strings.Builder, n *XmlNamespaceDecl) {
+	sb.WriteString("{XMLNS")
+	if n.IsDefault {
+		sb.WriteString(" :default true")
+	}
+	sb.WriteString(fmt.Sprintf(" :uri \"%s\"", escapeString(n.URI)))
+	if n.Prefix != "" {
+		sb.WriteString(fmt.Sprintf(" :prefix \"%s\"", escapeString(n.Prefix)))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
 func writeOrderByItem(sb *strings.Builder, n *OrderByItem) {
 	sb.WriteString("{ORDERBY")
 	if n.Expr != nil {
@@ -2278,6 +2324,10 @@ func writeTopClause(sb *strings.Builder, n *TopClause) {
 
 func writeWithClause(sb *strings.Builder, n *WithClause) {
 	sb.WriteString("{WITH")
+	if n.XmlNamespaces != nil {
+		sb.WriteString(" :xmlNamespaces ")
+		writeNode(sb, n.XmlNamespaces)
+	}
 	if n.CTEs != nil {
 		sb.WriteString(" :ctes ")
 		writeNode(sb, n.CTEs)
