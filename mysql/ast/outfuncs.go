@@ -3449,6 +3449,9 @@ func writeBeginEndBlock(sb *strings.Builder, n *BeginEndBlock) {
 	if n.Label != "" {
 		fmt.Fprintf(sb, " :label %s", n.Label)
 	}
+	if n.EndLabel != "" {
+		fmt.Fprintf(sb, " :end_label %s", n.EndLabel)
+	}
 	if len(n.Stmts) > 0 {
 		sb.WriteString(" :stmts")
 		for _, s := range n.Stmts {
@@ -3631,6 +3634,9 @@ func writeWhileStmt(sb *strings.Builder, n *WhileStmt) {
 	if n.Label != "" {
 		fmt.Fprintf(sb, " :label %s", n.Label)
 	}
+	if n.EndLabel != "" {
+		fmt.Fprintf(sb, " :end_label %s", n.EndLabel)
+	}
 	if n.Cond != nil {
 		sb.WriteString(" :cond ")
 		writeNode(sb, n.Cond)
@@ -3654,6 +3660,9 @@ func writeRepeatStmt(sb *strings.Builder, n *RepeatStmt) {
 	if n.Label != "" {
 		fmt.Fprintf(sb, " :label %s", n.Label)
 	}
+	if n.EndLabel != "" {
+		fmt.Fprintf(sb, " :end_label %s", n.EndLabel)
+	}
 	if len(n.Stmts) > 0 {
 		sb.WriteString(" :stmts (")
 		for i, s := range n.Stmts {
@@ -3676,6 +3685,9 @@ func writeLoopStmt(sb *strings.Builder, n *LoopStmt) {
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.Label != "" {
 		fmt.Fprintf(sb, " :label %s", n.Label)
+	}
+	if n.EndLabel != "" {
+		fmt.Fprintf(sb, " :end_label %s", n.EndLabel)
 	}
 	if len(n.Stmts) > 0 {
 		sb.WriteString(" :stmts (")

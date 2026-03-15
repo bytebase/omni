@@ -2420,7 +2420,7 @@
       "id": 104,
       "name": "review_compound_flow",
       "file": "compound.go",
-      "status": "pending",
+      "status": "done",
       "description": "BNF review: BEGIN...END, DECLARE, IF/ELSEIF/ELSE, CASE, LOOP/WHILE/REPEAT, LEAVE/ITERATE, RETURN, OPEN/FETCH/CLOSE cursor, SIGNAL/RESIGNAL/GET DIAGNOSTICS against ~80 lines of BNF.",
       "effort": "review",
       "bnf_files": [],

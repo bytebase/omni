@@ -5867,6 +5867,10 @@ func TestParseGetDiagnostics(t *testing.T) {
 			sql:  "GET CURRENT DIAGNOSTICS @cnt = NUMBER",
 			want: "{GET_DIAGNOSTICS :loc 0 :stmt_info true :items {DIAG_ITEM :loc 24 :target {VAR :name cnt :loc 24} :name NUMBER}}",
 		},
+		{
+			sql:  "GET DIAGNOSTICS cnt = NUMBER",
+			want: "{GET_DIAGNOSTICS :loc 0 :stmt_info true :items {DIAG_ITEM :loc 16 :target {COLREF :loc 16 :col cnt} :name NUMBER}}",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {
@@ -5977,11 +5981,11 @@ func TestParseBeginEndBlockLabeled(t *testing.T) {
 	}{
 		{
 			sql:  "myblock: BEGIN END myblock",
-			want: "{BEGIN_END :loc 0 :label myblock}",
+			want: "{BEGIN_END :loc 0 :label myblock :end_label myblock}",
 		},
 		{
 			sql:  "lbl: BEGIN SELECT 1; END lbl",
-			want: "{BEGIN_END :loc 0 :label lbl :stmts {SELECT :loc 11 :targets ({INT_LIT :val 1 :loc 18})}}",
+			want: "{BEGIN_END :loc 0 :label lbl :end_label lbl :stmts {SELECT :loc 11 :targets ({INT_LIT :val 1 :loc 18})}}",
 		},
 	}
 	for _, tt := range tests {
@@ -6617,7 +6621,7 @@ func TestParseWhile(t *testing.T) {
 		},
 		{
 			sql:  "lbl: WHILE x > 0 DO SELECT 1; END WHILE lbl",
-			want: "{WHILE :loc 0 :label lbl :cond {BINEXPR :op > :left {COLREF :loc 11 :col x} :right {INT_LIT :val 0 :loc 15}} :stmts ({SELECT :loc 20 :targets ({INT_LIT :val 1 :loc 27})})}",
+			want: "{WHILE :loc 0 :label lbl :end_label lbl :cond {BINEXPR :op > :left {COLREF :loc 11 :col x} :right {INT_LIT :val 0 :loc 15}} :stmts ({SELECT :loc 20 :targets ({INT_LIT :val 1 :loc 27})})}",
 		},
 	}
 	for _, tt := range tests {
@@ -6644,6 +6648,10 @@ func TestParseRepeat(t *testing.T) {
 		{
 			sql:  "REPEAT SELECT 1; UNTIL x > 0 END REPEAT",
 			want: "{REPEAT :loc 0 :stmts ({SELECT :loc 7 :targets ({INT_LIT :val 1 :loc 14})}) :until {BINEXPR :op > :left {COLREF :loc 23 :col x} :right {INT_LIT :val 0 :loc 27}}}",
+		},
+		{
+			sql:  "lbl: REPEAT SELECT 1; UNTIL x > 0 END REPEAT lbl",
+			want: "{REPEAT :loc 0 :label lbl :end_label lbl :stmts ({SELECT :loc 12 :targets ({INT_LIT :val 1 :loc 19})}) :until {BINEXPR :op > :left {COLREF :loc 28 :col x} :right {INT_LIT :val 0 :loc 32}}}",
 		},
 	}
 	for _, tt := range tests {
@@ -6673,7 +6681,7 @@ func TestParseLoop(t *testing.T) {
 		},
 		{
 			sql:  "lbl: LOOP SELECT 1; END LOOP lbl",
-			want: "{LOOP :loc 0 :label lbl :stmts ({SELECT :loc 10 :targets ({INT_LIT :val 1 :loc 17})})}",
+			want: "{LOOP :loc 0 :label lbl :end_label lbl :stmts ({SELECT :loc 10 :targets ({INT_LIT :val 1 :loc 17})})}",
 		},
 	}
 	for _, tt := range tests {

@@ -1908,17 +1908,18 @@ func (s *GetDiagnosticsStmt) stmtNode() {}
 // DiagnosticsItem represents a diagnostics item (target = item_name).
 type DiagnosticsItem struct {
 	Loc    Loc
-	Target *VariableRef // target variable
-	Name   string       // item name (e.g. NUMBER, ROW_COUNT, MESSAGE_TEXT, etc.)
+	Target Node   // target: *VariableRef or *ColumnRef (local variable)
+	Name   string // item name (e.g. NUMBER, ROW_COUNT, MESSAGE_TEXT, etc.)
 }
 
 func (d *DiagnosticsItem) nodeTag() {}
 
 // BeginEndBlock represents a BEGIN...END compound statement block.
 type BeginEndBlock struct {
-	Loc   Loc
-	Label string // optional label name
-	Stmts []Node // statements inside the block
+	Loc      Loc
+	Label    string // optional begin label name
+	EndLabel string // optional end label name
+	Stmts    []Node // statements inside the block
 }
 
 func (s *BeginEndBlock) nodeTag()  {}
@@ -2033,10 +2034,11 @@ func (w *CaseStmtWhen) nodeTag() {}
 
 // WhileStmt represents a WHILE loop compound statement.
 type WhileStmt struct {
-	Loc   Loc
-	Label string   // optional label
-	Cond  ExprNode // loop condition
-	Stmts []Node   // statement list
+	Loc      Loc
+	Label    string   // optional begin label
+	EndLabel string   // optional end label
+	Cond     ExprNode // loop condition
+	Stmts    []Node   // statement list
 }
 
 func (s *WhileStmt) nodeTag()  {}
@@ -2044,10 +2046,11 @@ func (s *WhileStmt) stmtNode() {}
 
 // RepeatStmt represents a REPEAT loop compound statement.
 type RepeatStmt struct {
-	Loc   Loc
-	Label string   // optional label
-	Stmts []Node   // statement list
-	Cond  ExprNode // UNTIL condition
+	Loc      Loc
+	Label    string   // optional begin label
+	EndLabel string   // optional end label
+	Stmts    []Node   // statement list
+	Cond     ExprNode // UNTIL condition
 }
 
 func (s *RepeatStmt) nodeTag()  {}
@@ -2055,9 +2058,10 @@ func (s *RepeatStmt) stmtNode() {}
 
 // LoopStmt represents a LOOP compound statement.
 type LoopStmt struct {
-	Loc   Loc
-	Label string // optional label
-	Stmts []Node // statement list
+	Loc      Loc
+	Label    string // optional begin label
+	EndLabel string // optional end label
+	Stmts    []Node // statement list
 }
 
 func (s *LoopStmt) nodeTag()  {}

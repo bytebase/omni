@@ -332,16 +332,28 @@ func (p *Parser) parseDiagnosticsItems() ([]*nodes.DiagnosticsItem, error) {
 func (p *Parser) parseDiagnosticsItem() (*nodes.DiagnosticsItem, error) {
 	start := p.pos()
 
-	// target must be a variable reference (@var or @@var)
-	if !p.isVariableRef() {
+	// target: user_variable (@var) | local_variable (identifier) | param
+	var target nodes.Node
+	if p.isVariableRef() {
+		t, err := p.parseVariableRef()
+		if err != nil {
+			return nil, err
+		}
+		target = t
+	} else if p.isIdentToken() {
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		target = &nodes.ColumnRef{
+			Loc:    nodes.Loc{Start: start, End: p.pos()},
+			Column: name,
+		}
+	} else {
 		return nil, &ParseError{
-			Message:  "expected variable reference as diagnostics target",
+			Message:  "expected variable or identifier as diagnostics target",
 			Position: p.cur.Loc,
 		}
-	}
-	target, err := p.parseVariableRef()
-	if err != nil {
-		return nil, err
 	}
 
 	// '='

@@ -47,6 +47,7 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 
 	// Optional end_label
 	if p.isIdentToken() && p.cur.Type != tokEOF {
+		stmt.EndLabel = p.cur.Str
 		p.advance()
 	}
 
@@ -633,15 +634,18 @@ func (p *Parser) parseWhileStmt(labelName string, labelStart int) (*nodes.WhileS
 	}
 
 	// Optional end_label
+	var endLabel string
 	if p.isIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
+		endLabel = p.cur.Str
 		p.advance()
 	}
 
 	return &nodes.WhileStmt{
-		Loc:   nodes.Loc{Start: start, End: p.pos()},
-		Label: labelName,
-		Cond:  cond,
-		Stmts: stmts,
+		Loc:      nodes.Loc{Start: start, End: p.pos()},
+		Label:    labelName,
+		EndLabel: endLabel,
+		Cond:     cond,
+		Stmts:    stmts,
 	}, nil
 }
 
@@ -684,15 +688,18 @@ func (p *Parser) parseRepeatStmt(labelName string, labelStart int) (*nodes.Repea
 	}
 
 	// Optional end_label
+	var endLabel string
 	if p.isIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
+		endLabel = p.cur.Str
 		p.advance()
 	}
 
 	return &nodes.RepeatStmt{
-		Loc:   nodes.Loc{Start: start, End: p.pos()},
-		Label: labelName,
-		Stmts: stmts,
-		Cond:  cond,
+		Loc:      nodes.Loc{Start: start, End: p.pos()},
+		Label:    labelName,
+		EndLabel: endLabel,
+		Stmts:    stmts,
+		Cond:     cond,
 	}, nil
 }
 
@@ -723,14 +730,17 @@ func (p *Parser) parseLoopStmt(labelName string, labelStart int) (*nodes.LoopStm
 	}
 
 	// Optional end_label
+	var endLabel string
 	if p.isIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
+		endLabel = p.cur.Str
 		p.advance()
 	}
 
 	return &nodes.LoopStmt{
-		Loc:   nodes.Loc{Start: start, End: p.pos()},
-		Label: labelName,
-		Stmts: stmts,
+		Loc:      nodes.Loc{Start: start, End: p.pos()},
+		Label:    labelName,
+		EndLabel: endLabel,
+		Stmts:    stmts,
 	}, nil
 }
 
