@@ -299,6 +299,16 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 			return nil, err
 		}
 		stmt.OrderBy = orderBy
+
+		// WITH ROLLUP (MySQL 8.0.12+)
+		if p.cur.Type == kwWITH {
+			next := p.peekNext()
+			if next.Type == kwROLLUP {
+				p.advance() // consume WITH
+				p.advance() // consume ROLLUP
+				stmt.OrderByWithRollup = true
+			}
+		}
 	}
 
 	// LIMIT clause
@@ -516,6 +526,16 @@ func (p *Parser) parseSelectStmtBase() (*nodes.SelectStmt, error) {
 			return nil, err
 		}
 		stmt.OrderBy = orderBy
+
+		// WITH ROLLUP (MySQL 8.0.12+)
+		if p.cur.Type == kwWITH {
+			next := p.peekNext()
+			if next.Type == kwROLLUP {
+				p.advance() // consume WITH
+				p.advance() // consume ROLLUP
+				stmt.OrderByWithRollup = true
+			}
+		}
 	}
 
 	// LIMIT clause

@@ -22,8 +22,9 @@ type SelectStmt struct {
 	GroupBy       []ExprNode         // GROUP BY expressions
 	WithRollup    bool               // GROUP BY ... WITH ROLLUP
 	Having        ExprNode           // HAVING condition
-	OrderBy       []*OrderByItem     // ORDER BY clause
-	Limit         *Limit             // LIMIT / OFFSET
+	OrderBy           []*OrderByItem // ORDER BY clause
+	OrderByWithRollup bool           // ORDER BY ... WITH ROLLUP
+	Limit             *Limit         // LIMIT / OFFSET
 	ForUpdate     *ForUpdate         // FOR UPDATE / SHARE
 	WindowClause  []*WindowDef       // WINDOW clause
 	Into          *IntoClause        // INTO clause

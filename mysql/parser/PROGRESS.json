@@ -2336,7 +2336,7 @@
       "id": 98,
       "name": "review_select",
       "file": "select.go",
-      "status": "pending",
+      "status": "done",
       "description": "BNF review: Full review of SELECT against 46-line BNF. CTE/WITH, subquery, JOIN, PARTITION, GROUP BY WITH ROLLUP, HAVING, ORDER BY, LIMIT/OFFSET, FOR UPDATE/SHARE, INTO, DISTINCT/ALL, index hints, LATERAL.",
       "effort": "review",
       "bnf_files": ["select.bnf"],

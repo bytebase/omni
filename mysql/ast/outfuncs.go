@@ -537,6 +537,9 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 	if len(n.OrderBy) > 0 {
 		sb.WriteString(" :order_by ")
 		writeOrderByList(sb, n.OrderBy)
+		if n.OrderByWithRollup {
+			sb.WriteString(" :order_by_with_rollup true")
+		}
 	}
 	if n.Limit != nil {
 		sb.WriteString(" :limit ")

@@ -7378,6 +7378,23 @@ func TestParseRollup(t *testing.T) {
 	}
 }
 
+// TestParseOrderByWithRollup tests ORDER BY ... WITH ROLLUP (MySQL 8.0.12+).
+func TestParseOrderByWithRollup(t *testing.T) {
+	sel := parseSelect(t, "SELECT year, SUM(amount) FROM sales GROUP BY year ORDER BY year WITH ROLLUP")
+	if !sel.OrderByWithRollup {
+		t.Error("expected OrderByWithRollup = true")
+	}
+	if len(sel.OrderBy) != 1 {
+		t.Errorf("order_by count = %d, want 1", len(sel.OrderBy))
+	}
+
+	// ORDER BY multiple columns WITH ROLLUP
+	ParseAndCheck(t, "SELECT a, b, SUM(c) FROM t ORDER BY a, b WITH ROLLUP")
+
+	// ORDER BY WITH ROLLUP followed by LIMIT
+	ParseAndCheck(t, "SELECT a, SUM(b) FROM t ORDER BY a WITH ROLLUP LIMIT 10")
+}
+
 // TestParseLateralDerivedTable tests LATERAL derived tables in FROM clause.
 func TestParseLateralDerivedTable(t *testing.T) {
 	// LATERAL with AS alias
