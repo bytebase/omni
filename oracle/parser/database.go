@@ -4951,3 +4951,1530 @@ done:
 	stmt.Loc.End = p.pos()
 	return stmt
 }
+
+// parseCreateDiskgroupStmt parses a CREATE DISKGROUP statement.
+// The CREATE keyword has been consumed. DISKGROUP has been consumed by caller.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-DISKGROUP.html
+func (p *Parser) parseCreateDiskgroupStmt(start int) nodes.StmtNode {
+	stmt := &nodes.AdminDDLStmt{
+		Action:     "CREATE",
+		ObjectType: nodes.OBJECT_DISKGROUP,
+		Loc:        nodes.Loc{Start: start},
+	}
+
+	// Diskgroup name
+	stmt.Name = p.parseObjectName()
+
+	opts := &nodes.List{}
+
+	// Optional redundancy: { NORMAL | HIGH | FLEX | EXTENDED | EXTERNAL } REDUNDANCY
+	if p.isIdentLike() {
+		switch p.cur.Str {
+		case "NORMAL", "HIGH", "FLEX", "EXTENDED", "EXTERNAL":
+			red := p.cur.Str
+			p.advance()
+			if p.isIdentLike() && p.cur.Str == "REDUNDANCY" {
+				p.advance()
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "REDUNDANCY", Value: red})
+		}
+	}
+
+	// Parse FAILGROUP/DISK clauses
+	for p.cur.Type != ';' && p.cur.Type != tokEOF {
+		optStart := p.pos()
+
+		switch {
+		// { QUORUM | REGULAR } FAILGROUP failgroup_name DISK ...
+		case p.isIdentLike() && (p.cur.Str == "QUORUM" || p.cur.Str == "REGULAR" || p.cur.Str == "FAILGROUP"):
+			qualifier := ""
+			if p.cur.Str == "QUORUM" || p.cur.Str == "REGULAR" {
+				qualifier = p.cur.Str
+				p.advance()
+			}
+			if p.isIdentLike() && p.cur.Str == "FAILGROUP" {
+				p.advance() // FAILGROUP
+				fgName := ""
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					fgName = p.cur.Str
+					p.advance()
+				}
+				val := fgName
+				if qualifier != "" {
+					val = qualifier + ":" + fgName
+				}
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "FAILGROUP", Value: val,
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			}
+
+		// DISK qualified_disk_clause [, qualified_disk_clause]...
+		case p.isIdentLike() && p.cur.Str == "DISK":
+			p.advance() // DISK
+			for {
+				dStart := p.pos()
+				// path_name (string constant or identifier)
+				path := ""
+				if p.cur.Type == tokSCONST {
+					path = p.cur.Str
+					p.advance()
+				} else if p.isIdentLike() || p.cur.Type == tokIDENT {
+					path = p.cur.Str
+					p.advance()
+				}
+				name := ""
+				size := ""
+				forceFlag := ""
+				if p.isIdentLike() && p.cur.Str == "NAME" {
+					p.advance()
+					if p.isIdentLike() || p.cur.Type == tokIDENT {
+						name = p.cur.Str
+						p.advance()
+					}
+				}
+				if p.cur.Type == kwSIZE {
+					p.advance()
+					size = p.parseSizeValue()
+				}
+				if p.cur.Type == kwFORCE {
+					forceFlag = "FORCE"
+					p.advance()
+				} else if p.isIdentLike() && p.cur.Str == "NOFORCE" {
+					forceFlag = "NOFORCE"
+					p.advance()
+				}
+				val := path
+				if name != "" {
+					val += ":NAME:" + name
+				}
+				if size != "" {
+					val += ":SIZE:" + size
+				}
+				if forceFlag != "" {
+					val += ":" + forceFlag
+				}
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "DISK", Value: val,
+					Loc: nodes.Loc{Start: dStart, End: p.pos()},
+				})
+				if p.cur.Type == ',' {
+					p.advance()
+					continue
+				}
+				break
+			}
+
+		// ATTRIBUTE 'name' = 'value' [, ...]
+		case p.isIdentLike() && p.cur.Str == "ATTRIBUTE":
+			p.advance()
+			attrItems := &nodes.List{}
+			for {
+				if p.cur.Type == tokSCONST {
+					attrName := p.cur.Str
+					p.advance()
+					if p.cur.Type == '=' {
+						p.advance()
+					}
+					attrVal := ""
+					if p.cur.Type == tokSCONST {
+						attrVal = p.cur.Str
+						p.advance()
+					}
+					attrItems.Items = append(attrItems.Items, &nodes.DDLOption{
+						Key: attrName, Value: attrVal,
+					})
+				}
+				if p.cur.Type == ',' {
+					p.advance()
+					continue
+				}
+				break
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key: "ATTRIBUTE", Items: attrItems,
+				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			})
+
+		default:
+			goto createDgDone
+		}
+	}
+createDgDone:
+	if len(opts.Items) > 0 {
+		stmt.Options = opts
+	}
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseAlterDiskgroupStmt parses an ALTER DISKGROUP statement.
+// The ALTER keyword has been consumed. DISKGROUP has been consumed by caller.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ALTER-DISKGROUP.html
+func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
+	stmt := &nodes.AdminDDLStmt{
+		Action:     "ALTER",
+		ObjectType: nodes.OBJECT_DISKGROUP,
+		Loc:        nodes.Loc{Start: start},
+	}
+
+	// Diskgroup name
+	stmt.Name = p.parseObjectName()
+
+	opts := &nodes.List{}
+
+	// Parse the main clause
+	for p.cur.Type != ';' && p.cur.Type != tokEOF {
+		optStart := p.pos()
+
+		switch {
+		// ADD DISK / ADD DIRECTORY / ADD ALIAS / ADD TEMPLATE / ADD VOLUME /
+		// ADD USERGROUP / ADD USER / ADD QUOTAGROUP / ADD FILEGROUP
+		case p.cur.Type == kwADD || (p.isIdentLike() && p.cur.Str == "ADD"):
+			p.advance() // ADD
+			p.parseDiskgroupAddClause(opts, optStart)
+
+		// DROP DISK / DROP DISKS / DROP TEMPLATE / DROP DIRECTORY / DROP ALIAS /
+		// DROP VOLUME / DROP USERGROUP / DROP USER / DROP QUOTAGROUP / DROP FILEGROUP / DROP FILE
+		case p.cur.Type == kwDROP:
+			p.advance() // DROP
+			p.parseDiskgroupDropClause(opts, optStart)
+
+		// RESIZE ALL SIZE / RESIZE VOLUME / RESIZE DISK
+		case p.isIdentLike() && p.cur.Str == "RESIZE":
+			p.advance() // RESIZE
+			if p.cur.Type == kwALL || (p.isIdentLike() && p.cur.Str == "ALL") {
+				p.advance() // ALL
+				if p.cur.Type == kwSIZE {
+					p.advance()
+				}
+				size := p.parseSizeValue()
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "RESIZE_ALL", Value: size,
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			} else if p.isIdentLike() && p.cur.Str == "VOLUME" {
+				p.advance() // VOLUME
+				volName := ""
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					volName = p.cur.Str
+					p.advance()
+				}
+				if p.cur.Type == kwSIZE {
+					p.advance()
+				}
+				size := p.parseSizeValue()
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "RESIZE_VOLUME", Value: volName + ":" + size,
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			} else if p.isIdentLike() && p.cur.Str == "DISK" {
+				p.advance() // DISK
+				diskName := ""
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					diskName = p.cur.Str
+					p.advance()
+				}
+				if p.cur.Type == kwSIZE {
+					p.advance()
+				}
+				size := p.parseSizeValue()
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "RESIZE_DISK", Value: diskName + ":" + size,
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			}
+
+		// REPLACE DISK / REPLACE USER
+		case p.isIdentLike() && p.cur.Str == "REPLACE":
+			p.advance() // REPLACE
+			if p.isIdentLike() && p.cur.Str == "DISK" {
+				p.advance() // DISK
+				oldName := ""
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					oldName = p.cur.Str
+					p.advance()
+				}
+				if p.cur.Type == kwWITH {
+					p.advance() // WITH
+				}
+				newPath := ""
+				if p.cur.Type == tokSCONST {
+					newPath = p.cur.Str
+					p.advance()
+				} else if p.isIdentLike() || p.cur.Type == tokIDENT {
+					newPath = p.cur.Str
+					p.advance()
+				}
+				val := oldName + ":" + newPath
+				val += p.parseDiskgroupForceWaitPower()
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "REPLACE_DISK", Value: val,
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			} else if p.cur.Type == kwUSER || (p.isIdentLike() && p.cur.Str == "USER") {
+				p.advance() // USER
+				oldUser := ""
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					oldUser = p.cur.Str
+					p.advance()
+				}
+				if p.cur.Type == kwWITH {
+					p.advance()
+				}
+				newUser := ""
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					newUser = p.cur.Str
+					p.advance()
+				}
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "REPLACE_USER", Value: oldUser + ":" + newUser,
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			}
+
+		// RENAME DISK / RENAME DISKS ALL / RENAME DIRECTORY / RENAME ALIAS
+		case p.cur.Type == kwRENAME:
+			p.advance() // RENAME
+			if p.isIdentLike() && p.cur.Str == "DISK" {
+				p.advance()
+				var pairs []string
+				for {
+					oldName := ""
+					if p.isIdentLike() || p.cur.Type == tokIDENT {
+						oldName = p.cur.Str
+						p.advance()
+					}
+					if p.cur.Type == kwTO {
+						p.advance()
+					}
+					newName := ""
+					if p.isIdentLike() || p.cur.Type == tokIDENT {
+						newName = p.cur.Str
+						p.advance()
+					}
+					pairs = append(pairs, oldName+":"+newName)
+					if p.cur.Type == ',' {
+						p.advance()
+						continue
+					}
+					break
+				}
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "RENAME_DISK", Value: strings.Join(pairs, ","),
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			} else if p.isIdentLike() && p.cur.Str == "DISKS" {
+				p.advance() // DISKS
+				if p.cur.Type == kwALL || (p.isIdentLike() && p.cur.Str == "ALL") {
+					p.advance()
+				}
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "RENAME_DISKS_ALL",
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			} else if p.isIdentLike() && p.cur.Str == "DIRECTORY" {
+				p.advance()
+				oldPath := ""
+				if p.cur.Type == tokSCONST {
+					oldPath = p.cur.Str
+					p.advance()
+				}
+				if p.cur.Type == kwTO {
+					p.advance()
+				}
+				newPath := ""
+				if p.cur.Type == tokSCONST {
+					newPath = p.cur.Str
+					p.advance()
+				}
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "RENAME_DIRECTORY", Value: oldPath + ":" + newPath,
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			} else if p.isIdentLike() && p.cur.Str == "ALIAS" {
+				p.advance()
+				oldAlias := ""
+				if p.cur.Type == tokSCONST {
+					oldAlias = p.cur.Str
+					p.advance()
+				}
+				if p.cur.Type == kwTO {
+					p.advance()
+				}
+				newAlias := ""
+				if p.cur.Type == tokSCONST {
+					newAlias = p.cur.Str
+					p.advance()
+				}
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "RENAME_ALIAS", Value: oldAlias + ":" + newAlias,
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			}
+
+		// ONLINE DISK / ONLINE DISKS IN FAILGROUP / ONLINE ALL
+		case p.isIdentLike() && p.cur.Str == "ONLINE":
+			p.advance()
+			val := ""
+			if p.isIdentLike() && p.cur.Str == "DISK" {
+				p.advance()
+				val = "DISK:" + p.parseDiskNameList()
+			} else if p.isIdentLike() && p.cur.Str == "DISKS" {
+				p.advance()
+				if p.cur.Type == kwIN {
+					p.advance()
+				}
+				if p.isIdentLike() && p.cur.Str == "FAILGROUP" {
+					p.advance()
+				}
+				fgName := ""
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					fgName = p.cur.Str
+					p.advance()
+				}
+				val = "FAILGROUP:" + fgName
+			} else if p.cur.Type == kwALL || (p.isIdentLike() && p.cur.Str == "ALL") {
+				p.advance()
+				val = "ALL"
+			}
+			val += p.parseDiskgroupForceWaitPower()
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key: "ONLINE", Value: val,
+				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			})
+
+		// OFFLINE DISK / OFFLINE DISKS IN FAILGROUP
+		case p.isIdentLike() && p.cur.Str == "OFFLINE":
+			p.advance()
+			val := ""
+			if p.isIdentLike() && p.cur.Str == "DISK" {
+				p.advance()
+				val = "DISK:" + p.parseDiskNameList()
+			} else if p.isIdentLike() && p.cur.Str == "DISKS" {
+				p.advance()
+				if p.cur.Type == kwIN {
+					p.advance()
+				}
+				if p.isIdentLike() && p.cur.Str == "FAILGROUP" {
+					p.advance()
+				}
+				fgName := ""
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					fgName = p.cur.Str
+					p.advance()
+				}
+				val = "FAILGROUP:" + fgName
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key: "OFFLINE", Value: val,
+				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			})
+
+		// REBALANCE
+		case p.isIdentLike() && p.cur.Str == "REBALANCE":
+			p.advance()
+			val := ""
+			if p.cur.Type == kwWITH {
+				p.advance()
+				var modes []string
+				for p.isIdentLike() && (p.cur.Str == "RESTORE" || p.cur.Str == "BALANCE" || p.cur.Str == "PREPARE" || p.cur.Str == "COMPACT") {
+					modes = append(modes, p.cur.Str)
+					p.advance()
+					if p.cur.Type == ',' {
+						p.advance()
+					}
+				}
+				val = "WITH:" + strings.Join(modes, ",")
+			} else if p.isIdentLike() && p.cur.Str == "WITHOUT" {
+				p.advance()
+				var modes []string
+				for p.isIdentLike() && (p.cur.Str == "BALANCE" || p.cur.Str == "PREPARE" || p.cur.Str == "COMPACT") {
+					modes = append(modes, p.cur.Str)
+					p.advance()
+					if p.cur.Type == ',' {
+						p.advance()
+					}
+				}
+				val = "WITHOUT:" + strings.Join(modes, ",")
+			}
+			val += p.parseDiskgroupForceWaitPower()
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key: "REBALANCE", Value: val,
+				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			})
+
+		// CHECK
+		case p.isIdentLike() && p.cur.Str == "CHECK":
+			p.advance()
+			val := ""
+			if p.cur.Type == kwALL || (p.isIdentLike() && p.cur.Str == "ALL") {
+				p.advance()
+				val = "ALL"
+			} else if p.isIdentLike() && p.cur.Str == "DISK" {
+				p.advance()
+				val = "DISK:" + p.parseDiskNameList()
+			} else if p.isIdentLike() && p.cur.Str == "DISKS" {
+				p.advance()
+				if p.cur.Type == kwIN {
+					p.advance()
+				}
+				if p.isIdentLike() && p.cur.Str == "FAILGROUP" {
+					p.advance()
+				}
+				fgName := ""
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					fgName = p.cur.Str
+					p.advance()
+				}
+				val = "FAILGROUP:" + fgName
+			} else if p.isIdentLike() && p.cur.Str == "FILE" {
+				p.advance()
+				val = "FILE"
+				for p.cur.Type == tokSCONST || (p.isIdentLike() && p.cur.Str != "REPAIR" && p.cur.Str != "NOREPAIR") {
+					p.advance()
+					if p.cur.Type == ',' {
+						p.advance()
+					}
+				}
+			}
+			if p.isIdentLike() && p.cur.Str == "REPAIR" {
+				p.advance()
+				val += ":REPAIR"
+			} else if p.isIdentLike() && p.cur.Str == "NOREPAIR" {
+				p.advance()
+				val += ":NOREPAIR"
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key: "CHECK", Value: val,
+				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			})
+
+		// MODIFY TEMPLATE / MODIFY VOLUME / MODIFY USERGROUP / MODIFY FILEGROUP /
+		// MODIFY FILE / MODIFY POWER / MODIFY QUOTAGROUP
+		case p.isIdentLike() && p.cur.Str == "MODIFY":
+			p.advance()
+			p.parseDiskgroupModifyClause(opts, optStart)
+
+		// SET ATTRIBUTE / SET PERMISSION / SET OWNER / SET GROUP
+		case p.cur.Type == kwSET:
+			p.advance()
+			p.parseDiskgroupSetClause(opts, optStart)
+
+		// CONVERT REDUNDANCY
+		case p.isIdentLike() && p.cur.Str == "CONVERT":
+			p.advance()
+			if p.isIdentLike() && p.cur.Str == "REDUNDANCY" {
+				p.advance()
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key: "CONVERT_REDUNDANCY",
+				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			})
+
+		// UNDROP DISKS
+		case p.isIdentLike() && p.cur.Str == "UNDROP":
+			p.advance()
+			if p.isIdentLike() && p.cur.Str == "DISKS" {
+				p.advance()
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key: "UNDROP_DISKS",
+				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			})
+
+		// MOUNT
+		case p.isIdentLike() && p.cur.Str == "MOUNT":
+			p.advance()
+			val := ""
+			if p.cur.Type == kwALL || (p.isIdentLike() && p.cur.Str == "ALL") {
+				val = "ALL"
+				p.advance()
+			}
+			if p.isIdentLike() && (p.cur.Str == "RESTRICTED" || p.cur.Str == "NORMAL") {
+				if val != "" {
+					val += ","
+				}
+				val += p.cur.Str
+				p.advance()
+			}
+			if p.cur.Type == kwFORCE {
+				if val != "" {
+					val += ","
+				}
+				val += "FORCE"
+				p.advance()
+			} else if p.isIdentLike() && p.cur.Str == "NOFORCE" {
+				if val != "" {
+					val += ","
+				}
+				val += "NOFORCE"
+				p.advance()
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key: "MOUNT", Value: val,
+				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			})
+
+		// DISMOUNT
+		case p.isIdentLike() && p.cur.Str == "DISMOUNT":
+			p.advance()
+			val := ""
+			if p.cur.Type == kwALL || (p.isIdentLike() && p.cur.Str == "ALL") {
+				val = "ALL"
+				p.advance()
+			}
+			if p.cur.Type == kwFORCE {
+				if val != "" {
+					val += ","
+				}
+				val += "FORCE"
+				p.advance()
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key: "DISMOUNT", Value: val,
+				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			})
+
+		// ENABLE VOLUME / DISABLE VOLUME
+		case p.cur.Type == kwENABLE:
+			p.advance()
+			if p.isIdentLike() && p.cur.Str == "VOLUME" {
+				p.advance()
+				val := p.parseDiskgroupVolumeList()
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "ENABLE_VOLUME", Value: val,
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			}
+		case p.cur.Type == kwDISABLE:
+			p.advance()
+			if p.isIdentLike() && p.cur.Str == "VOLUME" {
+				p.advance()
+				val := p.parseDiskgroupVolumeList()
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "DISABLE_VOLUME", Value: val,
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			}
+
+		// SCRUB
+		case p.isIdentLike() && p.cur.Str == "SCRUB":
+			p.advance()
+			val := ""
+			if p.isIdentLike() && p.cur.Str == "STOP" {
+				p.advance()
+				val = "STOP"
+			} else {
+				if p.isIdentLike() && p.cur.Str == "FILE" {
+					p.advance()
+					val = "FILE"
+					if p.cur.Type == tokSCONST || p.isIdentLike() {
+						val += ":" + p.cur.Str
+						p.advance()
+					}
+				} else if p.isIdentLike() && p.cur.Str == "DISK" {
+					p.advance()
+					val = "DISK"
+					if p.isIdentLike() || p.cur.Type == tokIDENT {
+						val += ":" + p.cur.Str
+						p.advance()
+					}
+				}
+				if p.isIdentLike() && p.cur.Str == "REPAIR" {
+					p.advance()
+					val += ",REPAIR"
+				} else if p.isIdentLike() && p.cur.Str == "NOREPAIR" {
+					p.advance()
+					val += ",NOREPAIR"
+				}
+				for {
+					if p.isIdentLike() && p.cur.Str == "POWER" {
+						p.advance()
+						if p.isIdentLike() || p.cur.Type == tokICONST {
+							val += ",POWER:" + p.cur.Str
+							p.advance()
+						}
+					} else if p.isIdentLike() && p.cur.Str == "WAIT" {
+						val += ",WAIT"
+						p.advance()
+					} else if p.isIdentLike() && p.cur.Str == "NOWAIT" {
+						val += ",NOWAIT"
+						p.advance()
+					} else if p.cur.Type == kwFORCE {
+						val += ",FORCE"
+						p.advance()
+					} else if p.isIdentLike() && p.cur.Str == "NOFORCE" {
+						val += ",NOFORCE"
+						p.advance()
+					} else {
+						break
+					}
+				}
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key: "SCRUB", Value: val,
+				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			})
+
+		// MOVE FILE ... TO FILEGROUP / MOVE FILEGROUP ... TO QUOTAGROUP
+		case p.isIdentLike() && p.cur.Str == "MOVE":
+			p.advance()
+			if p.isIdentLike() && p.cur.Str == "FILE" {
+				p.advance()
+				fileSpec := ""
+				if p.cur.Type == tokSCONST {
+					fileSpec = p.cur.Str
+					p.advance()
+				} else if p.isIdentLike() || p.cur.Type == tokIDENT {
+					fileSpec = p.cur.Str
+					p.advance()
+				}
+				if p.cur.Type == kwTO {
+					p.advance()
+				}
+				if p.isIdentLike() && p.cur.Str == "FILEGROUP" {
+					p.advance()
+				}
+				fgName := ""
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					fgName = p.cur.Str
+					p.advance()
+				}
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "MOVE_FILE_TO_FILEGROUP", Value: fileSpec + ":" + fgName,
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			} else if p.isIdentLike() && p.cur.Str == "FILEGROUP" {
+				p.advance()
+				fgName := ""
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					fgName = p.cur.Str
+					p.advance()
+				}
+				if p.cur.Type == kwTO {
+					p.advance()
+				}
+				if p.isIdentLike() && p.cur.Str == "QUOTAGROUP" {
+					p.advance()
+				}
+				qgName := ""
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					qgName = p.cur.Str
+					p.advance()
+				}
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "MOVE_FILEGROUP_TO_QUOTAGROUP", Value: fgName + ":" + qgName,
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			}
+
+		// ALTER TEMPLATE
+		case p.cur.Type == kwALTER:
+			p.advance()
+			if p.isIdentLike() && p.cur.Str == "TEMPLATE" {
+				p.advance()
+				tmplName := ""
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					tmplName = p.cur.Str
+					p.advance()
+				}
+				p.parseDiskgroupSkipParens()
+				opts.Items = append(opts.Items, &nodes.DDLOption{
+					Key: "ALTER_TEMPLATE", Value: tmplName,
+					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				})
+			}
+
+		default:
+			goto alterDgDone
+		}
+	}
+alterDgDone:
+	if len(opts.Items) > 0 {
+		stmt.Options = opts
+	}
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseDiskgroupAddClause handles ADD sub-clauses for ALTER DISKGROUP.
+func (p *Parser) parseDiskgroupAddClause(opts *nodes.List, optStart int) {
+	switch {
+	case p.isIdentLike() && p.cur.Str == "DISK":
+		p.advance()
+		for {
+			path := ""
+			if p.cur.Type == tokSCONST {
+				path = p.cur.Str
+				p.advance()
+			} else if p.isIdentLike() || p.cur.Type == tokIDENT {
+				path = p.cur.Str
+				p.advance()
+			}
+			val := path
+			if p.isIdentLike() && p.cur.Str == "NAME" {
+				p.advance()
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					val += ":NAME:" + p.cur.Str
+					p.advance()
+				}
+			}
+			if p.cur.Type == kwSIZE {
+				p.advance()
+				val += ":SIZE:" + p.parseSizeValue()
+			}
+			if p.isIdentLike() && p.cur.Str == "FAILGROUP" {
+				p.advance()
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					val += ":FAILGROUP:" + p.cur.Str
+					p.advance()
+				}
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key: "ADD_DISK", Value: val,
+				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			})
+			if p.cur.Type == ',' {
+				p.advance()
+				continue
+			}
+			break
+		}
+
+	case p.isIdentLike() && p.cur.Str == "DIRECTORY":
+		p.advance()
+		path := ""
+		if p.cur.Type == tokSCONST {
+			path = p.cur.Str
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "ADD_DIRECTORY", Value: path,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "ALIAS":
+		p.advance()
+		alias := ""
+		if p.cur.Type == tokSCONST {
+			alias = p.cur.Str
+			p.advance()
+		}
+		if p.cur.Type == kwFOR {
+			p.advance()
+		}
+		target := ""
+		if p.cur.Type == tokSCONST {
+			target = p.cur.Str
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "ADD_ALIAS", Value: alias + ":" + target,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "TEMPLATE":
+		p.advance()
+		tmplName := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			tmplName = p.cur.Str
+			p.advance()
+		}
+		p.parseDiskgroupSkipParens()
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "ADD_TEMPLATE", Value: tmplName,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "VOLUME":
+		p.advance()
+		volName := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			volName = p.cur.Str
+			p.advance()
+		}
+		size := ""
+		if p.cur.Type == kwSIZE {
+			p.advance()
+			size = p.parseSizeValue()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "ADD_VOLUME", Value: volName + ":" + size,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+		for p.isIdentLike() && (p.cur.Str == "MIRROR" || p.cur.Str == "HIGH" || p.cur.Str == "UNPROTECTED" ||
+			p.cur.Str == "PARITY" || p.cur.Str == "DOUBLE" || p.cur.Str == "FINE" || p.cur.Str == "COARSE" ||
+			p.cur.Str == "STRIPE_WIDTH" || p.cur.Str == "STRIPE_COLUMNS") {
+			p.advance()
+			if p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
+				p.advance()
+			}
+			if p.cur.Type == kwSIZE {
+				p.advance()
+				p.parseSizeValue()
+			}
+		}
+
+	case p.isIdentLike() && p.cur.Str == "USERGROUP":
+		p.advance()
+		name := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			name = p.cur.Str
+			p.advance()
+		}
+		member := ""
+		if p.isIdentLike() && p.cur.Str == "MEMBER" {
+			p.advance()
+			if p.isIdentLike() || p.cur.Type == tokIDENT {
+				member = p.cur.Str
+				p.advance()
+			}
+		}
+		val := name
+		if member != "" {
+			val += ":" + member
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "ADD_USERGROUP", Value: val,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.cur.Type == kwUSER || (p.isIdentLike() && p.cur.Str == "USER"):
+		p.advance()
+		var users []string
+		for {
+			if p.isIdentLike() || p.cur.Type == tokIDENT {
+				users = append(users, p.cur.Str)
+				p.advance()
+			}
+			if p.cur.Type == ',' {
+				p.advance()
+				continue
+			}
+			break
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "ADD_USER", Value: strings.Join(users, ","),
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "QUOTAGROUP":
+		p.advance()
+		name := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			name = p.cur.Str
+			p.advance()
+		}
+		val := name
+		if p.cur.Type == kwSET {
+			p.advance()
+			if p.isIdentLike() && p.cur.Str == "QUOTA" {
+				p.advance()
+			}
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			val += ":" + p.parsePDBSizeOrUnlimited()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "ADD_QUOTAGROUP", Value: val,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "FILEGROUP":
+		p.advance()
+		name := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			name = p.cur.Str
+			p.advance()
+		}
+		for p.cur.Type != ';' && p.cur.Type != tokEOF {
+			if p.cur.Type == kwDATABASE || p.cur.Type == kwCLUSTER ||
+				(p.isIdentLike() && (p.cur.Str == "VOLUME" || p.cur.Str == "TEMPLATE")) {
+				p.advance()
+				if p.isIdentLike() || p.cur.Type == tokIDENT {
+					p.advance()
+				}
+			} else if p.cur.Type == kwSET {
+				p.advance()
+				for p.cur.Type != ';' && p.cur.Type != tokEOF {
+					p.advance()
+					if p.cur.Type == '=' {
+						p.advance()
+						if p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.isIdentLike() {
+							p.advance()
+						}
+					}
+					if p.cur.Type != ',' {
+						break
+					}
+					p.advance()
+				}
+			} else {
+				break
+			}
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "ADD_FILEGROUP", Value: name,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+	}
+}
+
+// parseDiskgroupDropClause handles DROP sub-clauses for ALTER DISKGROUP.
+func (p *Parser) parseDiskgroupDropClause(opts *nodes.List, optStart int) {
+	switch {
+	case p.isIdentLike() && p.cur.Str == "DISK":
+		p.advance()
+		val := "DISK:" + p.parseDiskNameList()
+		if p.cur.Type == kwFORCE {
+			val += ":FORCE"
+			p.advance()
+		} else if p.isIdentLike() && p.cur.Str == "NOFORCE" {
+			val += ":NOFORCE"
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "DROP_DISK", Value: val,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "DISKS":
+		p.advance()
+		if p.cur.Type == kwIN {
+			p.advance()
+		}
+		if p.isIdentLike() && p.cur.Str == "FAILGROUP" {
+			p.advance()
+		}
+		fgName := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			fgName = p.cur.Str
+			p.advance()
+		}
+		val := fgName
+		if p.cur.Type == kwFORCE {
+			val += ":FORCE"
+			p.advance()
+		} else if p.isIdentLike() && p.cur.Str == "NOFORCE" {
+			val += ":NOFORCE"
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "DROP_DISKS_FAILGROUP", Value: val,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "TEMPLATE":
+		p.advance()
+		name := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			name = p.cur.Str
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "DROP_TEMPLATE", Value: name,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "DIRECTORY":
+		p.advance()
+		path := ""
+		if p.cur.Type == tokSCONST {
+			path = p.cur.Str
+			p.advance()
+		}
+		force := ""
+		if p.cur.Type == kwFORCE {
+			force = ":FORCE"
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "DROP_DIRECTORY", Value: path + force,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "ALIAS":
+		p.advance()
+		alias := ""
+		if p.cur.Type == tokSCONST {
+			alias = p.cur.Str
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "DROP_ALIAS", Value: alias,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "VOLUME":
+		p.advance()
+		name := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			name = p.cur.Str
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "DROP_VOLUME", Value: name,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "USERGROUP":
+		p.advance()
+		name := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			name = p.cur.Str
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "DROP_USERGROUP", Value: name,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.cur.Type == kwUSER || (p.isIdentLike() && p.cur.Str == "USER"):
+		p.advance()
+		var users []string
+		for {
+			if p.isIdentLike() || p.cur.Type == tokIDENT {
+				users = append(users, p.cur.Str)
+				p.advance()
+			}
+			if p.cur.Type == kwCASCADE || (p.isIdentLike() && p.cur.Str == "CASCADE") {
+				p.advance()
+			}
+			if p.cur.Type == ',' {
+				p.advance()
+				continue
+			}
+			break
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "DROP_USER", Value: strings.Join(users, ","),
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "QUOTAGROUP":
+		p.advance()
+		name := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			name = p.cur.Str
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "DROP_QUOTAGROUP", Value: name,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "FILEGROUP":
+		p.advance()
+		name := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			name = p.cur.Str
+			p.advance()
+		}
+		val := name
+		if p.cur.Type == kwCASCADE || (p.isIdentLike() && p.cur.Str == "CASCADE") {
+			val += ":CASCADE"
+			p.advance()
+			for p.cur.Type == kwFOR {
+				p.advance()
+				if p.cur.Type == kwDATABASE || (p.isIdentLike() && p.cur.Str == "PLUGGABLE") {
+					p.advance()
+					if p.cur.Type == kwDATABASE {
+						p.advance()
+					}
+					if p.isIdentLike() || p.cur.Type == tokIDENT {
+						p.advance()
+					}
+				}
+			}
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "DROP_FILEGROUP", Value: val,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "FILE":
+		p.advance()
+		fileSpec := ""
+		if p.cur.Type == tokSCONST {
+			fileSpec = p.cur.Str
+			p.advance()
+		} else if p.isIdentLike() || p.cur.Type == tokIDENT {
+			fileSpec = p.cur.Str
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "DROP_FILE", Value: fileSpec,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+	}
+}
+
+// parseDiskgroupModifyClause handles MODIFY sub-clauses for ALTER DISKGROUP.
+func (p *Parser) parseDiskgroupModifyClause(opts *nodes.List, optStart int) {
+	switch {
+	case p.isIdentLike() && p.cur.Str == "TEMPLATE":
+		p.advance()
+		name := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			name = p.cur.Str
+			p.advance()
+		}
+		p.parseDiskgroupSkipParens()
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "MODIFY_TEMPLATE", Value: name,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "VOLUME":
+		p.advance()
+		name := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			name = p.cur.Str
+			p.advance()
+		}
+		for p.isIdentLike() && (p.cur.Str == "MOUNTPATH" || p.cur.Str == "USAGE") {
+			p.advance()
+			if p.cur.Type == tokSCONST {
+				p.advance()
+			}
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "MODIFY_VOLUME", Value: name,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "USERGROUP":
+		p.advance()
+		name := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			name = p.cur.Str
+			p.advance()
+		}
+		action := ""
+		if p.cur.Type == kwADD || (p.isIdentLike() && p.cur.Str == "ADD") {
+			action = "ADD"
+			p.advance()
+		} else if p.cur.Type == kwDROP {
+			action = "DROP"
+			p.advance()
+		}
+		if p.isIdentLike() && p.cur.Str == "MEMBER" {
+			p.advance()
+		}
+		member := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			member = p.cur.Str
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "MODIFY_USERGROUP", Value: name + ":" + action + ":" + member,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "FILEGROUP":
+		p.advance()
+		name := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			name = p.cur.Str
+			p.advance()
+		}
+		if p.cur.Type == kwSET {
+			p.advance()
+			for p.cur.Type != ';' && p.cur.Type != tokEOF {
+				if p.cur.Type == tokSCONST || p.isIdentLike() {
+					p.advance()
+				}
+				if p.cur.Type == '=' {
+					p.advance()
+					if p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.isIdentLike() {
+						p.advance()
+					}
+				}
+				if p.cur.Type == ',' {
+					p.advance()
+					continue
+				}
+				break
+			}
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "MODIFY_FILEGROUP", Value: name,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "FILE":
+		p.advance()
+		fileSpec := ""
+		if p.cur.Type == tokSCONST {
+			fileSpec = p.cur.Str
+			p.advance()
+		}
+		for p.isIdentLike() && (p.cur.Str == "MIRROR" || p.cur.Str == "HIGH" || p.cur.Str == "UNPROTECTED" || p.cur.Str == "PARITY" || p.cur.Str == "DOUBLE") {
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "MODIFY_FILE", Value: fileSpec,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "POWER":
+		p.advance()
+		val := ""
+		if p.cur.Type == tokICONST {
+			val = p.cur.Str
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "MODIFY_POWER", Value: val,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+
+	case p.isIdentLike() && p.cur.Str == "QUOTAGROUP":
+		p.advance()
+		name := ""
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			name = p.cur.Str
+			p.advance()
+		}
+		if p.cur.Type == kwSET {
+			p.advance()
+		}
+		if p.isIdentLike() && p.cur.Str == "QUOTA" {
+			p.advance()
+		}
+		if p.cur.Type == '=' {
+			p.advance()
+		}
+		val := name + ":" + p.parsePDBSizeOrUnlimited()
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "MODIFY_QUOTAGROUP", Value: val,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+	}
+}
+
+// parseDiskgroupSetClause handles SET sub-clauses for ALTER DISKGROUP.
+func (p *Parser) parseDiskgroupSetClause(opts *nodes.List, optStart int) {
+	if p.isIdentLike() && p.cur.Str == "ATTRIBUTE" {
+		p.advance()
+		attrItems := &nodes.List{}
+		for {
+			if p.cur.Type == tokSCONST {
+				attrName := p.cur.Str
+				p.advance()
+				if p.cur.Type == '=' {
+					p.advance()
+				}
+				attrVal := ""
+				if p.cur.Type == tokSCONST {
+					attrVal = p.cur.Str
+					p.advance()
+				}
+				attrItems.Items = append(attrItems.Items, &nodes.DDLOption{
+					Key: attrName, Value: attrVal,
+				})
+			}
+			if p.cur.Type == ',' {
+				p.advance()
+				continue
+			}
+			break
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "SET_ATTRIBUTE", Items: attrItems,
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+	} else if p.isIdentLike() && p.cur.Str == "PERMISSION" {
+		p.advance()
+		for p.cur.Type != ';' && p.cur.Type != tokEOF {
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "SET_PERMISSION",
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+	} else if p.isIdentLike() && p.cur.Str == "OWNER" {
+		p.advance()
+		for p.cur.Type != ';' && p.cur.Type != tokEOF {
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "SET_OWNER",
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+	} else if p.cur.Type == kwGROUP || (p.isIdentLike() && p.cur.Str == "GROUP") {
+		p.advance()
+		for p.cur.Type != ';' && p.cur.Type != tokEOF {
+			p.advance()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key: "SET_GROUP",
+			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		})
+	}
+}
+
+// parseDiskNameList parses a comma-separated list of disk names.
+func (p *Parser) parseDiskNameList() string {
+	var names []string
+	for {
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			names = append(names, p.cur.Str)
+			p.advance()
+		}
+		if p.cur.Type == ',' {
+			next := p.peekNext()
+			if next.Type == tokIDENT || (next.Type >= 256 && next.Str != "") {
+				p.advance()
+				continue
+			}
+		}
+		break
+	}
+	return strings.Join(names, ",")
+}
+
+// parseDiskgroupVolumeList parses ALL or comma-separated volume names.
+func (p *Parser) parseDiskgroupVolumeList() string {
+	if p.cur.Type == kwALL || (p.isIdentLike() && p.cur.Str == "ALL") {
+		p.advance()
+		return "ALL"
+	}
+	var names []string
+	for {
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
+			names = append(names, p.cur.Str)
+			p.advance()
+		}
+		if p.cur.Type == ',' {
+			p.advance()
+			continue
+		}
+		break
+	}
+	return strings.Join(names, ",")
+}
+
+// parseDiskgroupForceWaitPower parses optional FORCE/NOFORCE, POWER n, WAIT/NOWAIT.
+func (p *Parser) parseDiskgroupForceWaitPower() string {
+	val := ""
+	for {
+		if p.cur.Type == kwFORCE {
+			val += ":FORCE"
+			p.advance()
+		} else if p.isIdentLike() && p.cur.Str == "NOFORCE" {
+			val += ":NOFORCE"
+			p.advance()
+		} else if p.isIdentLike() && p.cur.Str == "POWER" {
+			p.advance()
+			power := ""
+			if p.cur.Type == tokICONST {
+				power = p.cur.Str
+				p.advance()
+			} else if p.isIdentLike() && p.cur.Str == "LIMIT" {
+				p.advance()
+				if p.cur.Type == tokICONST {
+					power = p.cur.Str
+					p.advance()
+				}
+			}
+			val += ":POWER:" + power
+		} else if p.isIdentLike() && p.cur.Str == "WAIT" {
+			val += ":WAIT"
+			p.advance()
+		} else if p.isIdentLike() && p.cur.Str == "NOWAIT" {
+			val += ":NOWAIT"
+			p.advance()
+		} else {
+			break
+		}
+	}
+	return val
+}
+
+// parseDiskgroupSkipParens skips an optional ATTRIBUTES (...) clause.
+func (p *Parser) parseDiskgroupSkipParens() {
+	if p.isIdentLike() && p.cur.Str == "ATTRIBUTES" {
+		p.advance()
+	}
+	if p.cur.Type == '(' {
+		depth := 1
+		p.advance()
+		for depth > 0 && p.cur.Type != tokEOF {
+			if p.cur.Type == '(' {
+				depth++
+			} else if p.cur.Type == ')' {
+				depth--
+			}
+			if depth > 0 {
+				p.advance()
+			}
+		}
+		if p.cur.Type == ')' {
+			p.advance()
+		}
+	}
+}
+
+// parseDropDiskgroupStmt parses a DROP DISKGROUP statement.
+// The DROP keyword has been consumed. DISKGROUP has been consumed by caller.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/DROP-DISKGROUP.html
+func (p *Parser) parseDropDiskgroupStmt(start int) nodes.StmtNode {
+	stmt := &nodes.AdminDDLStmt{
+		Action:     "DROP",
+		ObjectType: nodes.OBJECT_DISKGROUP,
+		Loc:        nodes.Loc{Start: start},
+	}
+
+	stmt.Name = p.parseObjectName()
+
+	opts := &nodes.List{}
+
+	for p.cur.Type != ';' && p.cur.Type != tokEOF {
+		optStart := p.pos()
+		switch {
+		case p.isIdentLike() && p.cur.Str == "INCLUDING":
+			p.advance()
+			if p.isIdentLike() && p.cur.Str == "CONTENTS" {
+				p.advance()
+			}
+			val := "INCLUDING_CONTENTS"
+			if p.cur.Type == kwFORCE {
+				val += ":FORCE"
+				p.advance()
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key: val,
+				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			})
+		case p.isIdentLike() && p.cur.Str == "EXCLUDING":
+			p.advance()
+			if p.isIdentLike() && p.cur.Str == "CONTENTS" {
+				p.advance()
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key: "EXCLUDING_CONTENTS",
+				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			})
+		case p.cur.Type == kwFORCE:
+			p.advance()
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key: "FORCE",
+				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			})
+		default:
+			goto dropDgDone
+		}
+	}
+dropDgDone:
+	if len(opts.Items) > 0 {
+		stmt.Options = opts
+	}
+	stmt.Loc.End = p.pos()
+	return stmt
+}

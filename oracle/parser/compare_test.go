@@ -2328,6 +2328,158 @@ func TestParseDropDiskgroup(t *testing.T) {
 	}
 }
 
+// TestParseDiskgroupBatch96 tests CREATE/ALTER/DROP DISKGROUP with full BNF coverage.
+func TestParseDiskgroupBatch96(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		// === CREATE DISKGROUP ===
+		{"create_basic", "CREATE DISKGROUP dg1 DISK '/dev/sda1'"},
+		{"create_name", "CREATE DISKGROUP dg1 DISK '/dev/sda1' NAME disk1"},
+		{"create_size", "CREATE DISKGROUP dg1 DISK '/dev/sda1' NAME disk1 SIZE 100G"},
+		{"create_normal", "CREATE DISKGROUP dg1 NORMAL REDUNDANCY DISK '/dev/sda1', '/dev/sdb1'"},
+		{"create_high", "CREATE DISKGROUP dg1 HIGH REDUNDANCY DISK '/dev/sda1', '/dev/sdb1', '/dev/sdc1'"},
+		{"create_flex", "CREATE DISKGROUP dg1 FLEX REDUNDANCY DISK '/dev/sda1'"},
+		{"create_extended", "CREATE DISKGROUP dg1 EXTENDED REDUNDANCY DISK '/dev/sda1'"},
+		{"create_external", "CREATE DISKGROUP dg1 EXTERNAL REDUNDANCY DISK '/dev/sda1'"},
+		{"create_failgroup", "CREATE DISKGROUP dg1 NORMAL REDUNDANCY FAILGROUP fg1 DISK '/dev/sda1' FAILGROUP fg2 DISK '/dev/sdb1'"},
+		{"create_quorum_failgroup", "CREATE DISKGROUP dg1 NORMAL REDUNDANCY QUORUM FAILGROUP fg1 DISK '/dev/sda1' REGULAR FAILGROUP fg2 DISK '/dev/sdb1'"},
+		{"create_disk_force", "CREATE DISKGROUP dg1 DISK '/dev/sda1' FORCE"},
+		{"create_disk_noforce", "CREATE DISKGROUP dg1 DISK '/dev/sda1' NOFORCE"},
+		{"create_attribute", "CREATE DISKGROUP dg1 DISK '/dev/sda1' ATTRIBUTE 'compatible.asm' = '19.0'"},
+		{"create_multi_attribute", "CREATE DISKGROUP dg1 DISK '/dev/sda1' ATTRIBUTE 'compatible.asm' = '19.0', 'compatible.rdbms' = '19.0'"},
+		// === ALTER DISKGROUP ===
+		// add_disk_clause
+		{"alter_add_disk", "ALTER DISKGROUP dg1 ADD DISK '/dev/sdc1'"},
+		{"alter_add_disk_name", "ALTER DISKGROUP dg1 ADD DISK '/dev/sdc1' NAME disk3"},
+		{"alter_add_disk_size", "ALTER DISKGROUP dg1 ADD DISK '/dev/sdc1' SIZE 100G"},
+		{"alter_add_disk_failgroup", "ALTER DISKGROUP dg1 ADD DISK '/dev/sdc1' FAILGROUP fg1"},
+		{"alter_add_multi_disk", "ALTER DISKGROUP dg1 ADD DISK '/dev/sdc1' NAME disk3, '/dev/sdd1' NAME disk4"},
+		// drop_disk_clause
+		{"alter_drop_disk", "ALTER DISKGROUP dg1 DROP DISK disk2"},
+		{"alter_drop_multi_disk", "ALTER DISKGROUP dg1 DROP DISK disk2, disk3"},
+		{"alter_drop_disk_force", "ALTER DISKGROUP dg1 DROP DISK disk2 FORCE"},
+		{"alter_drop_disks_failgroup", "ALTER DISKGROUP dg1 DROP DISKS IN FAILGROUP fg1"},
+		// resize_disk_clause
+		{"alter_resize_all", "ALTER DISKGROUP dg1 RESIZE ALL SIZE 500G"},
+		// replace_disk_clause
+		{"alter_replace_disk", "ALTER DISKGROUP dg1 REPLACE DISK disk1 WITH '/dev/sde1'"},
+		{"alter_replace_disk_force", "ALTER DISKGROUP dg1 REPLACE DISK disk1 WITH '/dev/sde1' FORCE"},
+		{"alter_replace_disk_power", "ALTER DISKGROUP dg1 REPLACE DISK disk1 WITH '/dev/sde1' POWER 5"},
+		{"alter_replace_disk_wait", "ALTER DISKGROUP dg1 REPLACE DISK disk1 WITH '/dev/sde1' WAIT"},
+		{"alter_replace_disk_nowait", "ALTER DISKGROUP dg1 REPLACE DISK disk1 WITH '/dev/sde1' NOWAIT"},
+		// rename_disk_clause
+		{"alter_rename_disk", "ALTER DISKGROUP dg1 RENAME DISK old1 TO new1"},
+		{"alter_rename_disks_all", "ALTER DISKGROUP dg1 RENAME DISKS ALL"},
+		// disk_online_clause
+		{"alter_online_disk", "ALTER DISKGROUP dg1 ONLINE DISK disk1"},
+		{"alter_online_multi_disk", "ALTER DISKGROUP dg1 ONLINE DISK disk1, disk2"},
+		{"alter_online_disks_failgroup", "ALTER DISKGROUP dg1 ONLINE DISKS IN FAILGROUP fg1"},
+		{"alter_online_all", "ALTER DISKGROUP dg1 ONLINE ALL"},
+		{"alter_online_power", "ALTER DISKGROUP dg1 ONLINE ALL POWER 3"},
+		// disk_offline_clause
+		{"alter_offline_disk", "ALTER DISKGROUP dg1 OFFLINE DISK disk1"},
+		{"alter_offline_disks_failgroup", "ALTER DISKGROUP dg1 OFFLINE DISKS IN FAILGROUP fg1"},
+		// rebalance_diskgroup_clause
+		{"alter_rebalance", "ALTER DISKGROUP dg1 REBALANCE"},
+		{"alter_rebalance_power", "ALTER DISKGROUP dg1 REBALANCE POWER 5"},
+		{"alter_rebalance_wait", "ALTER DISKGROUP dg1 REBALANCE POWER 5 WAIT"},
+		{"alter_rebalance_nowait", "ALTER DISKGROUP dg1 REBALANCE NOWAIT"},
+		{"alter_rebalance_with", "ALTER DISKGROUP dg1 REBALANCE WITH RESTORE"},
+		// check_diskgroup_clause
+		{"alter_check", "ALTER DISKGROUP dg1 CHECK"},
+		{"alter_check_all", "ALTER DISKGROUP dg1 CHECK ALL"},
+		{"alter_check_repair", "ALTER DISKGROUP dg1 CHECK ALL REPAIR"},
+		{"alter_check_norepair", "ALTER DISKGROUP dg1 CHECK ALL NOREPAIR"},
+		{"alter_check_disk", "ALTER DISKGROUP dg1 CHECK DISK disk1"},
+		{"alter_check_failgroup", "ALTER DISKGROUP dg1 CHECK DISKS IN FAILGROUP fg1"},
+		// diskgroup_template_clauses
+		{"alter_add_template", "ALTER DISKGROUP dg1 ADD TEMPLATE tmpl1 ATTRIBUTES (MIRROR FINE)"},
+		{"alter_modify_template", "ALTER DISKGROUP dg1 MODIFY TEMPLATE tmpl1 ATTRIBUTES (HIGH COARSE)"},
+		{"alter_drop_template", "ALTER DISKGROUP dg1 DROP TEMPLATE tmpl1"},
+		// diskgroup_directory_clauses
+		{"alter_add_directory", "ALTER DISKGROUP dg1 ADD DIRECTORY '+dg1/mydir'"},
+		{"alter_drop_directory", "ALTER DISKGROUP dg1 DROP DIRECTORY '+dg1/mydir'"},
+		{"alter_drop_directory_force", "ALTER DISKGROUP dg1 DROP DIRECTORY '+dg1/mydir' FORCE"},
+		{"alter_rename_directory", "ALTER DISKGROUP dg1 RENAME DIRECTORY '+dg1/old' TO '+dg1/new'"},
+		// diskgroup_alias_clauses
+		{"alter_add_alias", "ALTER DISKGROUP dg1 ADD ALIAS '+dg1/myalias' FOR '+dg1.1.1'"},
+		{"alter_drop_alias", "ALTER DISKGROUP dg1 DROP ALIAS '+dg1/myalias'"},
+		{"alter_rename_alias", "ALTER DISKGROUP dg1 RENAME ALIAS '+dg1/old' TO '+dg1/new'"},
+		// diskgroup_volume_clauses
+		{"alter_add_volume", "ALTER DISKGROUP dg1 ADD VOLUME vol1 SIZE 10G"},
+		{"alter_resize_volume", "ALTER DISKGROUP dg1 RESIZE VOLUME vol1 SIZE 20G"},
+		{"alter_drop_volume", "ALTER DISKGROUP dg1 DROP VOLUME vol1"},
+		{"alter_modify_volume", "ALTER DISKGROUP dg1 MODIFY VOLUME vol1 MOUNTPATH '/mnt/vol1'"},
+		// diskgroup_attributes
+		{"alter_set_attribute", "ALTER DISKGROUP dg1 SET ATTRIBUTE 'compatible.asm' = '19.0'"},
+		// modify_diskgroup_file / drop_diskgroup_file
+		{"alter_modify_file", "ALTER DISKGROUP dg1 MODIFY FILE '+dg1.1.1' MIRROR"},
+		{"alter_drop_file", "ALTER DISKGROUP dg1 DROP FILE '+dg1.1.1'"},
+		// convert_redundancy_clause
+		{"alter_convert_redundancy", "ALTER DISKGROUP dg1 CONVERT REDUNDANCY"},
+		// usergroup_clauses
+		{"alter_add_usergroup", "ALTER DISKGROUP dg1 ADD USERGROUP ug1"},
+		{"alter_add_usergroup_member", "ALTER DISKGROUP dg1 ADD USERGROUP ug1 MEMBER user1"},
+		{"alter_modify_usergroup", "ALTER DISKGROUP dg1 MODIFY USERGROUP ug1 ADD MEMBER user2"},
+		{"alter_drop_usergroup", "ALTER DISKGROUP dg1 DROP USERGROUP ug1"},
+		// user_clauses
+		{"alter_add_user", "ALTER DISKGROUP dg1 ADD USER user1"},
+		{"alter_drop_user", "ALTER DISKGROUP dg1 DROP USER user1"},
+		{"alter_replace_user", "ALTER DISKGROUP dg1 REPLACE USER old1 WITH new1"},
+		// scrub_clause
+		{"alter_scrub", "ALTER DISKGROUP dg1 SCRUB"},
+		{"alter_scrub_repair", "ALTER DISKGROUP dg1 SCRUB REPAIR"},
+		{"alter_scrub_disk", "ALTER DISKGROUP dg1 SCRUB DISK disk1"},
+		{"alter_scrub_stop", "ALTER DISKGROUP dg1 SCRUB STOP"},
+		// quotagroup_clauses
+		{"alter_add_quotagroup", "ALTER DISKGROUP dg1 ADD QUOTAGROUP qg1"},
+		{"alter_add_quotagroup_quota", "ALTER DISKGROUP dg1 ADD QUOTAGROUP qg1 SET QUOTA = 100G"},
+		{"alter_modify_quotagroup", "ALTER DISKGROUP dg1 MODIFY QUOTAGROUP qg1 SET QUOTA = UNLIMITED"},
+		{"alter_drop_quotagroup", "ALTER DISKGROUP dg1 DROP QUOTAGROUP qg1"},
+		// filegroup_clauses
+		{"alter_add_filegroup", "ALTER DISKGROUP dg1 ADD FILEGROUP fg1"},
+		{"alter_modify_filegroup", "ALTER DISKGROUP dg1 MODIFY FILEGROUP fg1 SET 'priority' = '1'"},
+		{"alter_drop_filegroup", "ALTER DISKGROUP dg1 DROP FILEGROUP fg1"},
+		{"alter_drop_filegroup_cascade", "ALTER DISKGROUP dg1 DROP FILEGROUP fg1 CASCADE"},
+		{"alter_move_file_to_filegroup", "ALTER DISKGROUP dg1 MOVE FILE '+dg1.1.1' TO FILEGROUP fg1"},
+		// undrop_disk_clause
+		{"alter_undrop_disks", "ALTER DISKGROUP dg1 UNDROP DISKS"},
+		// diskgroup_availability
+		{"alter_mount", "ALTER DISKGROUP dg1 MOUNT"},
+		{"alter_mount_restricted", "ALTER DISKGROUP dg1 MOUNT RESTRICTED"},
+		{"alter_mount_force", "ALTER DISKGROUP dg1 MOUNT FORCE"},
+		{"alter_dismount", "ALTER DISKGROUP dg1 DISMOUNT"},
+		{"alter_dismount_force", "ALTER DISKGROUP dg1 DISMOUNT FORCE"},
+		// enable_disable_volume
+		{"alter_enable_volume", "ALTER DISKGROUP dg1 ENABLE VOLUME ALL"},
+		{"alter_disable_volume", "ALTER DISKGROUP dg1 DISABLE VOLUME ALL"},
+		{"alter_enable_volume_name", "ALTER DISKGROUP dg1 ENABLE VOLUME vol1"},
+		// === DROP DISKGROUP ===
+		{"drop_basic", "DROP DISKGROUP dg1"},
+		{"drop_including_contents", "DROP DISKGROUP dg1 INCLUDING CONTENTS"},
+		{"drop_including_force", "DROP DISKGROUP dg1 INCLUDING CONTENTS FORCE"},
+		{"drop_excluding_contents", "DROP DISKGROUP dg1 EXCLUDING CONTENTS"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
+			if !ok {
+				t.Fatalf("expected *AdminDDLStmt, got %T", raw.Stmt)
+			}
+			if stmt.ObjectType != ast.OBJECT_DISKGROUP {
+				t.Errorf("expected OBJECT_DISKGROUP, got %d", stmt.ObjectType)
+			}
+		})
+	}
+}
+
 // TestParseCreatePDB tests CREATE PLUGGABLE DATABASE statements.
 func TestParseCreatePDB(t *testing.T) {
 	tests := []struct {

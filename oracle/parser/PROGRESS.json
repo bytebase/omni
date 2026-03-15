@@ -754,7 +754,7 @@
       "id": 96,
       "name": "diskgroup_full",
       "file": "database.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE/ALTER/DROP DISKGROUP — ALTER DISKGROUP (212 BNF lines) is currently stubbed. ADD/DROP/RESIZE DISK, REBALANCE, CHECK, MOUNT/DISMOUNT, etc.",
       "bnf_files": ["CREATE-DISKGROUP.bnf", "ALTER-DISKGROUP.bnf", "DROP-DISKGROUP.bnf"],
       "bnf_lines": 235,
