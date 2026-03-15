@@ -379,20 +379,51 @@ func (p *Parser) parseFlashbackTableStmt() nodes.StmtNode {
 
 // parseFlashbackDatabaseStmt parses a FLASHBACK DATABASE statement.
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/FLASHBACK-DATABASE.html
+// BNF: oracle/parser/bnf/FLASHBACK-DATABASE.bnf
 //
-//	FLASHBACK DATABASE TO { SCN expr | TIMESTAMP expr | RESTORE POINT name }
+//	FLASHBACK [ STANDBY | PLUGGABLE ] DATABASE [ database ]
+//	    { TO SCN scn_number
+//	    | TO BEFORE SCN scn_number
+//	    | TO TIMESTAMP timestamp_expression
+//	    | TO BEFORE TIMESTAMP timestamp_expression
+//	    | TO RESTORE POINT restore_point_name
+//	    | TO BEFORE RESETLOGS
+//	    } ;
 func (p *Parser) parseFlashbackDatabaseStmt() nodes.StmtNode {
 	start := p.pos()
 	p.advance() // consume FLASHBACK
-	p.advance() // consume DATABASE
 
 	stmt := &nodes.FlashbackDatabaseStmt{
 		Loc: nodes.Loc{Start: start},
 	}
 
+	// Optional STANDBY | PLUGGABLE
+	if p.isIdentLike() && p.cur.Str == "STANDBY" {
+		stmt.Modifier = "STANDBY"
+		p.advance()
+	} else if p.isIdentLike() && p.cur.Str == "PLUGGABLE" {
+		stmt.Modifier = "PLUGGABLE"
+		p.advance()
+	}
+
+	// DATABASE
+	if p.cur.Type == kwDATABASE {
+		p.advance()
+	}
+
+	// Optional database name (not TO keyword)
+	if p.isIdentLike() && p.cur.Str != "TO" {
+		stmt.DatabaseName = p.parseObjectName()
+	}
+
 	// TO
 	if p.cur.Type == kwTO {
+		p.advance()
+	}
+
+	// Optional BEFORE
+	if p.isIdentLike() && p.cur.Str == "BEFORE" {
+		stmt.Before = true
 		p.advance()
 	}
 
@@ -404,7 +435,6 @@ func (p *Parser) parseFlashbackDatabaseStmt() nodes.StmtNode {
 		p.advance()
 		stmt.ToTimestamp = p.parseExpr()
 	default:
-		// RESTORE POINT name
 		if p.isIdentLike() && p.cur.Str == "RESTORE" {
 			p.advance()
 			if p.isIdentLike() && p.cur.Str == "POINT" {
@@ -414,6 +444,9 @@ func (p *Parser) parseFlashbackDatabaseStmt() nodes.StmtNode {
 				stmt.ToRestorePoint = p.cur.Str
 				p.advance()
 			}
+		} else if p.isIdentLike() && p.cur.Str == "RESETLOGS" {
+			stmt.ToResetlogs = true
+			p.advance()
 		}
 	}
 

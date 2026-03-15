@@ -715,7 +715,7 @@
       "id": 94,
       "name": "database_controlfile",
       "file": "database.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE DATABASE (review), ALTER DATABASE (review+fix against 320-line BNF), CREATE CONTROLFILE (review), ALTER DATABASE DICTIONARY (review), FLASHBACK DATABASE.",
       "bnf_files": ["CREATE-DATABASE.bnf", "ALTER-DATABASE.bnf", "CREATE-CONTROLFILE.bnf", "ALTER-DATABASE-DICTIONARY.bnf", "FLASHBACK-DATABASE.bnf", "DROP-DATABASE.bnf"],
       "bnf_lines": 445,

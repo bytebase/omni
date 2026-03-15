@@ -3259,6 +3259,16 @@ func writeFlashbackTableStmt(sb *strings.Builder, n *FlashbackTableStmt) {
 
 func writeFlashbackDatabaseStmt(sb *strings.Builder, n *FlashbackDatabaseStmt) {
 	sb.WriteString("{FLASHBACKDATABASE")
+	if n.Modifier != "" {
+		sb.WriteString(fmt.Sprintf(" :modifier %q", n.Modifier))
+	}
+	if n.DatabaseName != nil {
+		sb.WriteString(" :databaseName ")
+		writeNode(sb, n.DatabaseName)
+	}
+	if n.Before {
+		sb.WriteString(" :before true")
+	}
 	if n.ToSCN != nil {
 		sb.WriteString(" :toSCN ")
 		writeNode(sb, n.ToSCN)
@@ -3269,6 +3279,9 @@ func writeFlashbackDatabaseStmt(sb *strings.Builder, n *FlashbackDatabaseStmt) {
 	}
 	if n.ToRestorePoint != "" {
 		sb.WriteString(fmt.Sprintf(" :toRestorePoint %q", n.ToRestorePoint))
+	}
+	if n.ToResetlogs {
+		sb.WriteString(" :toResetlogs true")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

@@ -2368,11 +2368,24 @@ func (n *FlashbackTableStmt) stmtNode() {}
 
 // FlashbackDatabaseStmt represents a FLASHBACK DATABASE statement.
 //
-//	FLASHBACK DATABASE TO { SCN expr | TIMESTAMP expr | RESTORE POINT name }
+// BNF: oracle/parser/bnf/FLASHBACK-DATABASE.bnf
+//
+//	FLASHBACK [ STANDBY | PLUGGABLE ] DATABASE [ database ]
+//	    { TO SCN scn_number
+//	    | TO BEFORE SCN scn_number
+//	    | TO TIMESTAMP timestamp_expression
+//	    | TO BEFORE TIMESTAMP timestamp_expression
+//	    | TO RESTORE POINT restore_point_name
+//	    | TO BEFORE RESETLOGS
+//	    } ;
 type FlashbackDatabaseStmt struct {
-	ToSCN          ExprNode // SCN expression
-	ToTimestamp    ExprNode // TIMESTAMP expression
-	ToRestorePoint string   // RESTORE POINT name
+	Modifier       string      // "STANDBY", "PLUGGABLE", or ""
+	DatabaseName   *ObjectName // optional database name
+	Before         bool        // true if TO BEFORE variant
+	ToSCN          ExprNode    // SCN expression
+	ToTimestamp    ExprNode    // TIMESTAMP expression
+	ToRestorePoint string      // RESTORE POINT name
+	ToResetlogs    bool        // TO BEFORE RESETLOGS
 	Loc            Loc
 }
 

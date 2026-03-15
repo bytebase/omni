@@ -4109,6 +4109,153 @@ func TestParseAlterDatabaseDictionaryProper(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Batch 94: database_controlfile — review+fix
+// ---------------------------------------------------------------------------
+
+// TestParseDatabaseControlfileBatch94 tests all BNF branches for batch 94.
+func TestParseDatabaseControlfileBatch94(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		// --- FLASHBACK DATABASE: STANDBY/PLUGGABLE, BEFORE variants, database name ---
+		{"flashback_standby", "FLASHBACK STANDBY DATABASE TO SCN 12345"},
+		{"flashback_pluggable", "FLASHBACK PLUGGABLE DATABASE pdb1 TO TIMESTAMP SYSTIMESTAMP - 1"},
+		{"flashback_before_scn", "FLASHBACK DATABASE TO BEFORE SCN 99999"},
+		{"flashback_before_timestamp", "FLASHBACK DATABASE TO BEFORE TIMESTAMP SYSTIMESTAMP - 1"},
+		{"flashback_before_resetlogs", "FLASHBACK DATABASE TO BEFORE RESETLOGS"},
+		{"flashback_named_db", "FLASHBACK DATABASE mydb TO RESTORE POINT rp1"},
+		{"flashback_standby_named", "FLASHBACK STANDBY DATABASE mydb TO SCN 555"},
+
+		// --- DROP DATABASE ---
+		{"drop_database", "DROP DATABASE"},
+
+		// --- CREATE DATABASE: missing BNF branches ---
+		{"create_db_sysaux_datafile", "CREATE DATABASE mydb SYSAUX DATAFILE '/u01/sysaux01.dbf' SIZE 500M"},
+		{"create_db_default_local_temp", "CREATE DATABASE mydb DEFAULT LOCAL TEMPORARY TABLESPACE localtemp TEMPFILE '/u01/localtemp.dbf' SIZE 100M"},
+		{"create_db_default_local_temp_for_all", "CREATE DATABASE mydb DEFAULT LOCAL TEMPORARY TABLESPACE localtemp FOR ALL TEMPFILE '/u01/localtemp.dbf' SIZE 100M"},
+		{"create_db_extent_management", "CREATE DATABASE mydb EXTENT MANAGEMENT LOCAL"},
+		{"create_db_extent_management_uniform", "CREATE DATABASE mydb EXTENT MANAGEMENT LOCAL UNIFORM SIZE 1M"},
+		{"create_db_using_mirror_copy", "CREATE DATABASE mydb USING MIRROR COPY mirror1"},
+		{"create_db_enable_pdb_seed", "CREATE DATABASE mydb ENABLE PLUGGABLE DATABASE SEED FILE_NAME_CONVERT = ('/u01/pdb/', '/u01/seed/')"},
+		{"create_db_enable_pdb_seed_system", "CREATE DATABASE mydb ENABLE PLUGGABLE DATABASE SEED SYSTEM DATAFILES SIZE 200M AUTOEXTEND ON NEXT 10M MAXSIZE UNLIMITED"},
+		{"create_db_enable_pdb_seed_sysaux", "CREATE DATABASE mydb ENABLE PLUGGABLE DATABASE SEED SYSAUX DATAFILES SIZE 200M"},
+		{"create_db_enable_pdb_seed_undo", "CREATE DATABASE mydb ENABLE PLUGGABLE DATABASE SEED LOCAL UNDO ON"},
+
+		// --- ALTER DATABASE: missing BNF branches ---
+		// controlfile_clauses: CREATE STANDBY CONTROLFILE
+		{"alter_db_create_standby_ctl", "ALTER DATABASE CREATE PHYSICAL STANDBY CONTROLFILE AS '/u01/standby.ctl'"},
+		{"alter_db_create_logical_standby_ctl", "ALTER DATABASE CREATE LOGICAL STANDBY CONTROLFILE AS '/u01/standby.ctl' REUSE"},
+		{"alter_db_create_far_sync_ctl", "ALTER DATABASE CREATE FAR SYNC INSTANCE CONTROLFILE AS '/u01/farsync.ctl' REUSE"},
+
+		// commit_switchover_clause
+		{"alter_db_prepare_switchover_logical", "ALTER DATABASE PREPARE TO SWITCHOVER TO LOGICAL STANDBY"},
+		{"alter_db_prepare_switchover_primary", "ALTER DATABASE PREPARE TO SWITCHOVER TO PRIMARY DATABASE"},
+		{"alter_db_commit_switchover_standby", "ALTER DATABASE COMMIT TO SWITCHOVER TO STANDBY"},
+		{"alter_db_commit_switchover_logical", "ALTER DATABASE COMMIT TO SWITCHOVER TO LOGICAL STANDBY"},
+		{"alter_db_commit_switchover_primary", "ALTER DATABASE COMMIT TO SWITCHOVER TO PRIMARY DATABASE"},
+
+		// start/stop standby apply
+		{"alter_db_start_standby_apply", "ALTER DATABASE START LOGICAL STANDBY APPLY"},
+		{"alter_db_start_standby_apply_immediate", "ALTER DATABASE START LOGICAL STANDBY APPLY IMMEDIATE"},
+		{"alter_db_stop_standby_apply", "ALTER DATABASE STOP LOGICAL STANDBY APPLY"},
+
+		// switchover/failover clause
+		{"alter_db_switchover_to", "ALTER DATABASE SWITCHOVER TO PRIMARY VERIFY FORCE mydb"},
+		{"alter_db_failover_to", "ALTER DATABASE FAILOVER TO PHYSICAL STANDBY FORCE mydb"},
+
+		// instance_clauses: ENABLE/DISABLE RESTRICTED SESSION
+		{"alter_db_enable_restricted", "ALTER DATABASE ENABLE RESTRICTED SESSION"},
+		{"alter_db_disable_restricted", "ALTER DATABASE DISABLE RESTRICTED SESSION"},
+
+		// cdb_fleet_clauses
+		{"alter_db_set_lead_cdb", "ALTER DATABASE SET LEAD_CDB = mydb"},
+		{"alter_db_set_lead_cdb_none", "ALTER DATABASE SET LEAD_CDB = NONE"},
+		{"alter_db_set_lead_cdb_uri", "ALTER DATABASE SET LEAD_CDB_URI = 'jdbc:oracle:thin:@//host:1521/mydb'"},
+		{"alter_db_set_property", "ALTER DATABASE SET PROPERTY myprop = myval"},
+
+		// replay_upgrade_clause
+		{"alter_db_start_replay", "ALTER DATABASE START REPLAY"},
+		{"alter_db_stop_replay", "ALTER DATABASE STOP REPLAY"},
+
+		// ENCRYPT/DECRYPT for datafile
+		{"alter_db_datafile_encrypt", "ALTER DATABASE DATAFILE '/u01/data01.dbf' ENCRYPT"},
+		{"alter_db_datafile_decrypt", "ALTER DATABASE DATAFILE '/u01/data01.dbf' DECRYPT"},
+
+		// NO FORCE LOGGING (already has basic test, ensure it works)
+		{"alter_db_no_force_logging", "ALTER DATABASE NO FORCE LOGGING"},
+
+		// ARCHIVELOG / MANUAL / NOARCHIVELOG in logfile_clauses
+		{"alter_db_archivelog", "ALTER DATABASE ARCHIVELOG"},
+		{"alter_db_noarchivelog", "ALTER DATABASE NOARCHIVELOG"},
+
+		// SET STANDBY NOLOGGING FOR ...
+		{"alter_db_set_standby_nologging_data", "ALTER DATABASE SET STANDBY NOLOGGING FOR DATA AVAILABILITY"},
+		{"alter_db_set_standby_nologging_load", "ALTER DATABASE SET STANDBY NOLOGGING FOR LOAD PERFORMANCE"},
+
+		// supplemental_db_logging sub-clauses
+		{"alter_db_add_supp_log_pk", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (PRIMARY KEY COLUMNS)"},
+		{"alter_db_add_supp_log_unique", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (UNIQUE COLUMNS)"},
+		{"alter_db_add_supp_log_fk", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (FOREIGN KEY COLUMNS)"},
+		{"alter_db_add_supp_log_all", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA (ALL COLUMNS)"},
+		{"alter_db_drop_supp_log_pk", "ALTER DATABASE DROP SUPPLEMENTAL LOG DATA (PRIMARY KEY COLUMNS)"},
+		{"alter_db_add_supp_log_subset", "ALTER DATABASE ADD SUPPLEMENTAL LOG DATA SUBSET DATABASE REPLICATION"},
+		{"alter_db_drop_supp_log_subset", "ALTER DATABASE DROP SUPPLEMENTAL LOG DATA SUBSET DATABASE REPLICATION"},
+
+		// SWITCH LOGFILE TO BLOCK SIZE
+		{"alter_db_switch_logfile_blocksize", "ALTER DATABASE SWITCH LOGFILE TO BLOCK SIZE 4096"},
+
+		// CLEAR LOGFILE with UNRECOVERABLE DATAFILE
+		{"alter_db_clear_logfile_unrecoverable", "ALTER DATABASE CLEAR LOGFILE GROUP 3 UNRECOVERABLE DATAFILE"},
+
+		// ADD LOGFILE with INSTANCE/THREAD
+		{"alter_db_add_logfile_instance", "ALTER DATABASE ADD LOGFILE INSTANCE 'inst1' GROUP 5 '/u01/redo05.log' SIZE 100M"},
+		{"alter_db_add_logfile_thread", "ALTER DATABASE ADD LOGFILE THREAD 2 GROUP 5 '/u01/redo05.log' SIZE 100M"},
+
+		// DEFAULT LOCAL TEMPORARY TABLESPACE
+		{"alter_db_default_local_temp", "ALTER DATABASE DEFAULT LOCAL TEMPORARY TABLESPACE localtemp"},
+
+		// SET UNDO TABLESPACE
+		{"alter_db_set_undo_tablespace", "ALTER DATABASE SET UNDO TABLESPACE = undots2"},
+
+		// ENABLE/DISABLE LOST WRITE PROTECTION
+		{"alter_db_enable_lost_write", "ALTER DATABASE ENABLE LOST WRITE PROTECTION"},
+		{"alter_db_disable_lost_write", "ALTER DATABASE DISABLE LOST WRITE PROTECTION"},
+
+		// PREPARE MIRROR COPY / DROP MIRROR COPY
+		{"alter_db_prepare_mirror", "ALTER DATABASE PREPARE MIRROR COPY mirrorname"},
+		{"alter_db_drop_mirror", "ALTER DATABASE DROP MIRROR COPY"},
+
+		// ENABLE BLOCK CHANGE TRACKING USING FILE '+diskgroup'
+		{"alter_db_enable_bct_asm", "ALTER DATABASE ENABLE BLOCK CHANGE TRACKING USING FILE '+DATA/bct.f'"},
+
+		// CREATE CONTROLFILE: SET STANDBY NOLOGGING
+		{"create_ctlfile_standby_nologging", "CREATE CONTROLFILE SET DATABASE mydb LOGFILE GROUP 1 '/u01/redo01.log' SIZE 100M RESETLOGS SET STANDBY NOLOGGING FOR DATA AVAILABILITY"},
+
+		// recover with UNTIL CONSISTENT, LOGFILE, TEST, ALLOW CORRUPTION
+		{"alter_db_recover_until_time", "ALTER DATABASE RECOVER DATABASE UNTIL TIME '2024-01-15:12:00:00'"},
+		{"alter_db_recover_until_consistent", "ALTER DATABASE RECOVER DATABASE UNTIL CONSISTENT"},
+		{"alter_db_recover_standby_until", "ALTER DATABASE RECOVER STANDBY DATABASE UNTIL CANCEL"},
+		{"alter_db_recover_using_backup_ctl", "ALTER DATABASE RECOVER DATABASE USING BACKUP CONTROLFILE"},
+
+		// managed standby with USING CURRENT LOGFILE, UNTIL CHANGE, etc.
+		{"alter_db_managed_standby_using_current", "ALTER DATABASE RECOVER MANAGED STANDBY DATABASE USING CURRENT LOGFILE"},
+		{"alter_db_managed_standby_until_change", "ALTER DATABASE RECOVER MANAGED STANDBY DATABASE UNTIL CHANGE 123456"},
+		{"alter_db_managed_standby_nodelay", "ALTER DATABASE RECOVER MANAGED STANDBY DATABASE NODELAY"},
+		{"alter_db_managed_standby_finish_force", "ALTER DATABASE RECOVER MANAGED STANDBY DATABASE FINISH FORCE"},
+
+		// REGISTER LOGFILE from managed standby context
+		{"alter_db_register_logfile_or_replace", "ALTER DATABASE REGISTER LOGFILE '/u01/arch01.log' OR REPLACE"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ParseAndCheck(t, tc.sql)
+		})
+	}
+}
+
 // TestParseInfrastructureSharedHelpers tests shared parser helpers
 // that are used across all statement parsers (batch 87).
 func TestParseInfrastructureSharedHelpers(t *testing.T) {

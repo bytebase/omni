@@ -117,7 +117,8 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 		return p.parseExplainPlanStmt()
 	case kwFLASHBACK:
 		next := p.peekNext()
-		if next.Type == kwDATABASE {
+		if next.Type == kwDATABASE ||
+			(next.Type == tokIDENT && (next.Str == "STANDBY" || next.Str == "PLUGGABLE")) {
 			return p.parseFlashbackDatabaseStmt()
 		}
 		return p.parseFlashbackTableStmt()

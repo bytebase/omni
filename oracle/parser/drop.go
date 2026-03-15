@@ -84,8 +84,13 @@ func (p *Parser) parseDropStmt() nodes.StmtNode {
 		p.advance() // consume DATABASE
 		if p.cur.Type == kwLINK {
 			p.advance() // consume LINK
+			stmt.ObjectType = nodes.OBJECT_DATABASE_LINK
+		} else {
+			// DROP DATABASE (no LINK)
+			stmt.ObjectType = nodes.OBJECT_DATABASE
+			stmt.Loc.End = p.pos()
+			return stmt
 		}
-		stmt.ObjectType = nodes.OBJECT_DATABASE_LINK
 	case kwPUBLIC:
 		p.advance() // consume PUBLIC
 		// PUBLIC SYNONYM or PUBLIC DATABASE LINK
