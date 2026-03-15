@@ -159,6 +159,21 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				return p.parseCreateControlfileStmt(start)
 			}
 		}
+		// Check for MULTIVALUE INDEX
+		if p.isIdentLikeStr("MULTIVALUE") {
+			return p.parseCreateIndexStmt(start)
+		}
+		// Check for INDEXTYPE and OPERATOR (identifier-based keywords)
+		if p.isIdentLike() {
+			switch p.cur.Str {
+			case "INDEXTYPE":
+				p.advance() // consume INDEXTYPE
+				return p.parseCreateIndextypeStmt(start, orReplace)
+			case "OPERATOR":
+				p.advance() // consume OPERATOR
+				return p.parseCreateOperatorStmt(start, orReplace, false)
+			}
+		}
 		// Check for DIMENSION, FLASHBACK ARCHIVE
 		if adminStmt := p.parseCreateAdminObject(start); adminStmt != nil {
 			return adminStmt

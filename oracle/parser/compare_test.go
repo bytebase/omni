@@ -2644,25 +2644,74 @@ func TestBatch67_Domain(t *testing.T) {
 }
 
 // TestBatch68_IndextypeOperator tests CREATE/ALTER/DROP INDEXTYPE and OPERATOR.
+// Updated in batch 92 to use dedicated AST types.
 func TestBatch68_IndextypeOperator(t *testing.T) {
-	tests := []struct {
-		name   string
-		sql    string
-		action string
-		obj    ast.ObjectType
-	}{
-		{"create_indextype", "CREATE INDEXTYPE my_indextype FOR my_operator(NUMBER) USING my_type", "CREATE", ast.OBJECT_INDEXTYPE},
-		{"alter_indextype", "ALTER INDEXTYPE my_indextype ADD my_operator2(VARCHAR2)", "ALTER", ast.OBJECT_INDEXTYPE},
-		{"drop_indextype", "DROP INDEXTYPE my_indextype", "DROP", ast.OBJECT_INDEXTYPE},
-		{"create_operator", "CREATE OPERATOR my_eq BINDING (NUMBER, NUMBER) RETURN NUMBER USING my_eq_func", "CREATE", ast.OBJECT_OPERATOR},
-		{"alter_operator", "ALTER OPERATOR my_eq ADD BINDING (VARCHAR2, VARCHAR2) RETURN NUMBER USING my_eq_str", "ALTER", ast.OBJECT_OPERATOR},
-		{"drop_operator", "DROP OPERATOR my_eq", "DROP", ast.OBJECT_OPERATOR},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			adminDDLTest(t, tt.sql, tt.action, tt.obj)
-		})
-	}
+	t.Run("create_indextype", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEXTYPE my_indextype FOR my_operator(NUMBER) USING my_type")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.CreateIndextypeStmt)
+		if !ok {
+			t.Fatalf("expected *CreateIndextypeStmt, got %T", raw.Stmt)
+		}
+		if stmt.Name.Name != "MY_INDEXTYPE" {
+			t.Errorf("expected MY_INDEXTYPE, got %q", stmt.Name.Name)
+		}
+	})
+	t.Run("alter_indextype", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEXTYPE my_indextype ADD my_operator2(VARCHAR2)")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.AlterIndextypeStmt)
+		if !ok {
+			t.Fatalf("expected *AlterIndextypeStmt, got %T", raw.Stmt)
+		}
+		if stmt.Name.Name != "MY_INDEXTYPE" {
+			t.Errorf("expected MY_INDEXTYPE, got %q", stmt.Name.Name)
+		}
+	})
+	t.Run("drop_indextype", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP INDEXTYPE my_indextype")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.DropStmt)
+		if !ok {
+			t.Fatalf("expected *DropStmt, got %T", raw.Stmt)
+		}
+		if stmt.ObjectType != ast.OBJECT_INDEXTYPE {
+			t.Errorf("expected OBJECT_INDEXTYPE, got %d", stmt.ObjectType)
+		}
+	})
+	t.Run("create_operator", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE OPERATOR my_eq BINDING (NUMBER, NUMBER) RETURN NUMBER USING my_eq_func")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.CreateOperatorStmt)
+		if !ok {
+			t.Fatalf("expected *CreateOperatorStmt, got %T", raw.Stmt)
+		}
+		if stmt.Name.Name != "MY_EQ" {
+			t.Errorf("expected MY_EQ, got %q", stmt.Name.Name)
+		}
+	})
+	t.Run("alter_operator", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER OPERATOR my_eq ADD BINDING (VARCHAR2, VARCHAR2) RETURN NUMBER USING my_eq_str")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.AlterOperatorStmt)
+		if !ok {
+			t.Fatalf("expected *AlterOperatorStmt, got %T", raw.Stmt)
+		}
+		if stmt.Name.Name != "MY_EQ" {
+			t.Errorf("expected MY_EQ, got %q", stmt.Name.Name)
+		}
+	})
+	t.Run("drop_operator", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP OPERATOR my_eq")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.DropStmt)
+		if !ok {
+			t.Fatalf("expected *DropStmt, got %T", raw.Stmt)
+		}
+		if stmt.ObjectType != ast.OBJECT_OPERATOR {
+			t.Errorf("expected OBJECT_OPERATOR, got %d", stmt.ObjectType)
+		}
+	})
 }
 
 // TestBatch69_LockdownProfileOutline tests CREATE/ALTER/DROP LOCKDOWN PROFILE and OUTLINE.
@@ -4949,4 +4998,505 @@ func TestParseAlterTableFull(t *testing.T) {
 			_ = ast.NodeToString(result.Items[0])
 		})
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Batch 92: index_indextype_operator
+// ---------------------------------------------------------------------------
+
+func TestParseIndexIndextypeOperator(t *testing.T) {
+	// ===== CREATE INDEX =====
+	t.Run("create_index_basic", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_emp ON employees (last_name)")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.CreateIndexStmt)
+		if !ok { t.Fatalf("expected *CreateIndexStmt, got %T", raw.Stmt) }
+		if stmt.Name.Name != "IDX_EMP" { t.Errorf("expected IDX_EMP, got %q", stmt.Name.Name) }
+		if stmt.Table.Name != "EMPLOYEES" { t.Errorf("expected EMPLOYEES, got %q", stmt.Table.Name) }
+	})
+	t.Run("create_unique_index", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE UNIQUE INDEX idx_emp_id ON hr.employees (employee_id)")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.Unique { t.Error("expected Unique=true") }
+	})
+	t.Run("create_bitmap_index", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE BITMAP INDEX idx_status ON orders (status)")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.Bitmap { t.Error("expected Bitmap=true") }
+	})
+	t.Run("create_multivalue_index", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE MULTIVALUE INDEX idx_tags ON products (tags)")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.Multivalue { t.Error("expected Multivalue=true") }
+	})
+	t.Run("create_index_if_not_exists", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX IF NOT EXISTS idx_emp ON employees (last_name)")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.IfNotExists { t.Error("expected IfNotExists=true") }
+	})
+	t.Run("create_index_reverse", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_rev ON t (a) REVERSE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.Reverse { t.Error("expected Reverse=true") }
+	})
+	t.Run("create_index_nosort", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_ns ON t (a) NOSORT")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.NoSort { t.Error("expected NoSort=true") }
+	})
+	t.Run("create_index_sort", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_s ON t (a) SORT")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.Sort { t.Error("expected Sort=true") }
+	})
+	t.Run("create_index_visible", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_v ON t (a) VISIBLE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.Visible { t.Error("expected Visible=true") }
+	})
+	t.Run("create_index_invisible", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_i ON t (a) INVISIBLE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.Invisible { t.Error("expected Invisible=true") }
+	})
+	t.Run("create_index_logging", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_l ON t (a) LOGGING")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.Logging { t.Error("expected Logging=true") }
+	})
+	t.Run("create_index_nologging", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_nl ON t (a) NOLOGGING")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.NoLogging { t.Error("expected NoLogging=true") }
+	})
+	t.Run("create_index_compress_advanced", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_ca ON t (a) COMPRESS ADVANCED HIGH")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if stmt.Compress != "ADVANCED HIGH" { t.Errorf("expected 'ADVANCED HIGH', got %q", stmt.Compress) }
+	})
+	t.Run("create_index_domain", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_ctx ON docs (content) INDEXTYPE IS CTXSYS.CONTEXT")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if stmt.IndexType == nil { t.Fatal("expected non-nil IndexType") }
+	})
+	t.Run("create_index_parameters", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_ctx ON docs (content) INDEXTYPE IS CTXSYS.CONTEXT PARAMETERS ('WORDLIST my_wordlist')")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if stmt.Parameters != "WORDLIST my_wordlist" { t.Errorf("expected parameters, got %q", stmt.Parameters) }
+	})
+	t.Run("create_index_cluster", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_clust ON CLUSTER emp_dept_cluster")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if stmt.Cluster == nil { t.Fatal("expected non-nil Cluster") }
+		if stmt.Cluster.Name != "EMP_DEPT_CLUSTER" { t.Errorf("expected EMP_DEPT_CLUSTER, got %q", stmt.Cluster.Name) }
+	})
+	t.Run("create_index_pctfree", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_pf ON t (a) PCTFREE 20")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if stmt.PctFree != "20" { t.Errorf("expected 20, got %q", stmt.PctFree) }
+	})
+	t.Run("create_index_local", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_local ON t (a) LOCAL")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.Local { t.Error("expected Local=true") }
+	})
+	t.Run("create_index_global", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_global ON t (a) GLOBAL")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.Global { t.Error("expected Global=true") }
+	})
+	t.Run("create_index_deferred_invalidation", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_di ON t (a) DEFERRED INVALIDATION")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if stmt.Invalidation != "DEFERRED" { t.Errorf("expected DEFERRED, got %q", stmt.Invalidation) }
+	})
+	t.Run("create_index_indexing_full", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_if ON t (a) INDEXING FULL")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.IndexingFull { t.Error("expected IndexingFull=true") }
+	})
+	t.Run("create_index_multi_options", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE UNIQUE INDEX idx_m ON t (a, b DESC) TABLESPACE ts1 ONLINE PARALLEL 4 COMPRESS 2 NOLOGGING VISIBLE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if !stmt.Unique { t.Error("expected Unique=true") }
+		if stmt.Tablespace != "TS1" { t.Errorf("expected TS1, got %q", stmt.Tablespace) }
+		if !stmt.Online { t.Error("expected Online=true") }
+		if stmt.Parallel != "4" { t.Errorf("expected 4, got %q", stmt.Parallel) }
+		if stmt.Compress != "2" { t.Errorf("expected 2, got %q", stmt.Compress) }
+		if !stmt.NoLogging { t.Error("expected NoLogging=true") }
+		if !stmt.Visible { t.Error("expected Visible=true") }
+	})
+	t.Run("create_index_nocompress", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_nc ON t (a) NOCOMPRESS")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if stmt.Compress != "NOCOMPRESS" { t.Errorf("expected NOCOMPRESS, got %q", stmt.Compress) }
+	})
+	t.Run("create_index_noparallel", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_np ON t (a) NOPARALLEL")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if stmt.Parallel != "NOPARALLEL" { t.Errorf("expected NOPARALLEL, got %q", stmt.Parallel) }
+	})
+	t.Run("create_index_immediate_invalidation", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEX idx_ii ON t (a) IMMEDIATE INVALIDATION")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndexStmt)
+		if stmt.Invalidation != "IMMEDIATE" { t.Errorf("expected IMMEDIATE, got %q", stmt.Invalidation) }
+	})
+
+	// ===== ALTER INDEX =====
+	t.Run("alter_index_deallocate_unused", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 DEALLOCATE UNUSED")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Action != "DEALLOCATE_UNUSED" { t.Errorf("expected DEALLOCATE_UNUSED, got %q", stmt.Action) }
+	})
+	t.Run("alter_index_deallocate_unused_keep", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 DEALLOCATE UNUSED KEEP 100M")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.DeallocateKeep != "100M" { t.Errorf("expected 100M, got %q", stmt.DeallocateKeep) }
+	})
+	t.Run("alter_index_allocate_extent", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 ALLOCATE EXTENT")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Action != "ALLOCATE_EXTENT" { t.Errorf("expected ALLOCATE_EXTENT, got %q", stmt.Action) }
+	})
+	t.Run("alter_index_parameters", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 PARAMETERS ('my_params')")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Parameters != "my_params" { t.Errorf("expected my_params, got %q", stmt.Parameters) }
+	})
+	t.Run("alter_index_deferred_invalidation", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 DEFERRED INVALIDATION")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Invalidation != "DEFERRED" { t.Errorf("expected DEFERRED, got %q", stmt.Invalidation) }
+	})
+	t.Run("alter_index_immediate_invalidation", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 IMMEDIATE INVALIDATION")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Invalidation != "IMMEDIATE" { t.Errorf("expected IMMEDIATE, got %q", stmt.Invalidation) }
+	})
+	t.Run("alter_index_modify_default_attrs", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 MODIFY DEFAULT ATTRIBUTES TABLESPACE ts_new")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Action != "MODIFY_DEFAULT_ATTRIBUTES" { t.Errorf("expected MODIFY_DEFAULT_ATTRIBUTES, got %q", stmt.Action) }
+		if stmt.Tablespace != "TS_NEW" { t.Errorf("expected TS_NEW, got %q", stmt.Tablespace) }
+	})
+	t.Run("alter_index_modify_default_attrs_for_partition", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 MODIFY DEFAULT ATTRIBUTES FOR PARTITION p1 LOGGING")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.ModifyDefaultFor != "P1" { t.Errorf("expected P1, got %q", stmt.ModifyDefaultFor) }
+		if !stmt.Logging { t.Error("expected Logging=true") }
+	})
+	t.Run("alter_index_add_partition", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 ADD PARTITION p_new TABLESPACE ts1")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Action != "ADD_PARTITION" { t.Errorf("expected ADD_PARTITION, got %q", stmt.Action) }
+		if stmt.AddPartitionName != "P_NEW" { t.Errorf("expected P_NEW, got %q", stmt.AddPartitionName) }
+	})
+	t.Run("alter_index_modify_partition", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 MODIFY PARTITION p1 UNUSABLE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Action != "MODIFY_PARTITION" { t.Errorf("expected MODIFY_PARTITION, got %q", stmt.Action) }
+		if stmt.ModifyPartAction != "UNUSABLE" { t.Errorf("expected UNUSABLE, got %q", stmt.ModifyPartAction) }
+	})
+	t.Run("alter_index_rename_partition", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 RENAME PARTITION old_p TO new_p")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Action != "RENAME_PARTITION" { t.Errorf("expected RENAME_PARTITION, got %q", stmt.Action) }
+		if stmt.NewName != "NEW_P" { t.Errorf("expected NEW_P, got %q", stmt.NewName) }
+	})
+	t.Run("alter_index_rename_subpartition", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 RENAME SUBPARTITION old_sp TO new_sp")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Action != "RENAME_SUBPARTITION" { t.Errorf("expected RENAME_SUBPARTITION, got %q", stmt.Action) }
+	})
+	t.Run("alter_index_drop_partition", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 DROP PARTITION p1")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Action != "DROP_PARTITION" { t.Errorf("expected DROP_PARTITION, got %q", stmt.Action) }
+		if stmt.Partition != "P1" { t.Errorf("expected P1, got %q", stmt.Partition) }
+	})
+	t.Run("alter_index_split_partition", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 SPLIT PARTITION p_old AT (100)")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Action != "SPLIT_PARTITION" { t.Errorf("expected SPLIT_PARTITION, got %q", stmt.Action) }
+		if stmt.SplitPartition != "P_OLD" { t.Errorf("expected P_OLD, got %q", stmt.SplitPartition) }
+	})
+	t.Run("alter_index_coalesce_partition", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 COALESCE PARTITION")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Action != "COALESCE_PARTITION" { t.Errorf("expected COALESCE_PARTITION, got %q", stmt.Action) }
+	})
+	t.Run("alter_index_modify_subpartition", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 MODIFY SUBPARTITION sp1 UNUSABLE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Action != "MODIFY_SUBPARTITION" { t.Errorf("expected MODIFY_SUBPARTITION, got %q", stmt.Action) }
+	})
+	t.Run("alter_index_pctfree", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 PCTFREE 30")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.PctFree != "30" { t.Errorf("expected 30, got %q", stmt.PctFree) }
+	})
+	t.Run("alter_index_rebuild_compress_advanced", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 REBUILD COMPRESS ADVANCED HIGH")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Compress != "ADVANCED HIGH" { t.Errorf("expected 'ADVANCED HIGH', got %q", stmt.Compress) }
+	})
+	t.Run("alter_index_rebuild_parameters", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 REBUILD PARAMETERS ('rebuild_params')")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Parameters != "rebuild_params" { t.Errorf("expected rebuild_params, got %q", stmt.Parameters) }
+	})
+	t.Run("alter_index_rebuild_deferred_invalidation", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 REBUILD DEFERRED INVALIDATION")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Invalidation != "DEFERRED" { t.Errorf("expected DEFERRED, got %q", stmt.Invalidation) }
+	})
+	t.Run("alter_index_modify_partition_parameters", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 MODIFY PARTITION p1 PARAMETERS ('some_params')")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Parameters != "some_params" { t.Errorf("expected some_params, got %q", stmt.Parameters) }
+	})
+	t.Run("alter_index_modify_partition_coalesce", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 MODIFY PARTITION p1 COALESCE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.ModifyPartAction != "COALESCE" { t.Errorf("expected COALESCE, got %q", stmt.ModifyPartAction) }
+	})
+	t.Run("alter_index_rebuild_subpartition", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEX idx1 REBUILD SUBPARTITION sp1 ONLINE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndexStmt)
+		if stmt.Subpartition != "SP1" { t.Errorf("expected SP1, got %q", stmt.Subpartition) }
+		if !stmt.Online { t.Error("expected Online=true") }
+	})
+
+	// ===== DROP INDEX =====
+	t.Run("drop_index_basic", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP INDEX hr.idx_emp")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.DropStmt)
+		if stmt.ObjectType != ast.OBJECT_INDEX { t.Errorf("expected OBJECT_INDEX, got %d", stmt.ObjectType) }
+	})
+	t.Run("drop_index_if_exists", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP INDEX IF EXISTS idx_emp")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.DropStmt)
+		if !stmt.IfExists { t.Error("expected IfExists=true") }
+	})
+	t.Run("drop_index_online", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP INDEX idx_emp ONLINE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.DropStmt)
+		if !stmt.Online { t.Error("expected Online=true") }
+	})
+	t.Run("drop_index_force", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP INDEX idx_emp FORCE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.DropStmt)
+		if !stmt.Force { t.Error("expected Force=true") }
+	})
+	t.Run("drop_index_deferred_invalidation", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP INDEX idx_emp ONLINE FORCE DEFERRED INVALIDATION")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.DropStmt)
+		if !stmt.Online { t.Error("expected Online=true") }
+		if !stmt.Force { t.Error("expected Force=true") }
+		if stmt.Invalidation != "DEFERRED" { t.Errorf("expected DEFERRED, got %q", stmt.Invalidation) }
+	})
+	t.Run("drop_index_immediate_invalidation", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP INDEX idx_emp IMMEDIATE INVALIDATION")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.DropStmt)
+		if stmt.Invalidation != "IMMEDIATE" { t.Errorf("expected IMMEDIATE, got %q", stmt.Invalidation) }
+	})
+
+	// ===== CREATE INDEXTYPE =====
+	t.Run("create_indextype_basic", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEXTYPE my_itype FOR my_op(NUMBER) USING my_impl_type")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndextypeStmt)
+		if stmt.Name.Name != "MY_ITYPE" { t.Errorf("expected MY_ITYPE, got %q", stmt.Name.Name) }
+		if len(stmt.Operators) != 1 { t.Fatalf("expected 1 operator, got %d", len(stmt.Operators)) }
+		if stmt.UsingType == nil { t.Fatal("expected non-nil UsingType") }
+	})
+	t.Run("create_or_replace_indextype", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE OR REPLACE INDEXTYPE my_itype FOR my_op(NUMBER, VARCHAR2) USING my_type")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndextypeStmt)
+		if !stmt.OrReplace { t.Error("expected OrReplace=true") }
+		if len(stmt.Operators[0].ParamTypes) != 2 { t.Errorf("expected 2 param types, got %d", len(stmt.Operators[0].ParamTypes)) }
+	})
+	t.Run("create_indextype_multi_operators", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEXTYPE my_itype FOR op1(NUMBER), op2(VARCHAR2) USING my_type")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndextypeStmt)
+		if len(stmt.Operators) != 2 { t.Fatalf("expected 2 operators, got %d", len(stmt.Operators)) }
+	})
+	t.Run("create_indextype_local_partition", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEXTYPE my_itype FOR my_op(NUMBER) USING my_type WITH LOCAL PARTITION")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndextypeStmt)
+		if !stmt.WithLocal { t.Error("expected WithLocal=true") }
+	})
+	t.Run("create_indextype_local_range_partition", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEXTYPE my_itype FOR my_op(NUMBER) USING my_type WITH LOCAL RANGE PARTITION")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndextypeStmt)
+		if !stmt.WithRange { t.Error("expected WithRange=true") }
+	})
+	t.Run("create_indextype_storage_table", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEXTYPE my_itype FOR my_op(NUMBER) USING my_type WITH SYSTEM MANAGED STORAGE TABLES")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndextypeStmt)
+		if stmt.StorageTable != "SYSTEM" { t.Errorf("expected SYSTEM, got %q", stmt.StorageTable) }
+	})
+	t.Run("create_indextype_if_not_exists", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEXTYPE IF NOT EXISTS my_itype FOR my_op(NUMBER) USING my_type")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndextypeStmt)
+		if !stmt.IfNotExists { t.Error("expected IfNotExists=true") }
+	})
+	t.Run("create_indextype_sharing", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE INDEXTYPE my_itype SHARING = METADATA FOR my_op(NUMBER) USING my_type")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateIndextypeStmt)
+		if stmt.Sharing != "METADATA" { t.Errorf("expected METADATA, got %q", stmt.Sharing) }
+	})
+
+	// ===== ALTER INDEXTYPE =====
+	t.Run("alter_indextype_add", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEXTYPE my_itype ADD my_op2(VARCHAR2)")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndextypeStmt)
+		if stmt.Action != "ADD_DROP" { t.Errorf("expected ADD_DROP, got %q", stmt.Action) }
+		if !stmt.Modifications[0].Add { t.Error("expected Add=true") }
+	})
+	t.Run("alter_indextype_drop", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEXTYPE my_itype DROP my_op2(VARCHAR2)")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndextypeStmt)
+		if stmt.Modifications[0].Add { t.Error("expected Add=false") }
+	})
+	t.Run("alter_indextype_compile", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEXTYPE my_itype COMPILE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndextypeStmt)
+		if stmt.Action != "COMPILE" { t.Errorf("expected COMPILE, got %q", stmt.Action) }
+	})
+	t.Run("alter_indextype_if_exists", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEXTYPE IF EXISTS my_itype COMPILE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndextypeStmt)
+		if !stmt.IfExists { t.Error("expected IfExists=true") }
+	})
+	t.Run("alter_indextype_using_type", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEXTYPE my_itype ADD my_op2(NUMBER) USING my_new_type")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndextypeStmt)
+		if stmt.UsingType == nil { t.Fatal("expected non-nil UsingType") }
+	})
+	t.Run("alter_indextype_local_partition", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEXTYPE my_itype ADD my_op2(NUMBER) WITH LOCAL PARTITION")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndextypeStmt)
+		if !stmt.WithLocal { t.Error("expected WithLocal=true") }
+	})
+	t.Run("alter_indextype_storage_table", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER INDEXTYPE my_itype ADD my_op2(NUMBER) WITH SYSTEM MANAGED STORAGE TABLES")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterIndextypeStmt)
+		if stmt.StorageTable != "SYSTEM" { t.Errorf("expected SYSTEM, got %q", stmt.StorageTable) }
+	})
+
+	// ===== DROP INDEXTYPE =====
+	t.Run("drop_indextype_basic", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP INDEXTYPE my_itype")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.DropStmt)
+		if stmt.ObjectType != ast.OBJECT_INDEXTYPE { t.Errorf("expected OBJECT_INDEXTYPE, got %d", stmt.ObjectType) }
+	})
+	t.Run("drop_indextype_force", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP INDEXTYPE my_itype FORCE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.DropStmt)
+		if !stmt.Force { t.Error("expected Force=true") }
+	})
+	t.Run("drop_indextype_if_exists", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP INDEXTYPE IF EXISTS my_itype")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.DropStmt)
+		if !stmt.IfExists { t.Error("expected IfExists=true") }
+	})
+
+	// ===== CREATE OPERATOR =====
+	t.Run("create_operator_basic", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE OPERATOR my_eq BINDING (NUMBER, NUMBER) RETURN NUMBER USING my_eq_func")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateOperatorStmt)
+		if stmt.Name.Name != "MY_EQ" { t.Errorf("expected MY_EQ, got %q", stmt.Name.Name) }
+		if len(stmt.Bindings) != 1 { t.Fatalf("expected 1 binding, got %d", len(stmt.Bindings)) }
+		if stmt.Bindings[0].ReturnType != "NUMBER" { t.Errorf("expected NUMBER, got %q", stmt.Bindings[0].ReturnType) }
+	})
+	t.Run("create_or_replace_operator", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE OR REPLACE OPERATOR my_eq BINDING (NUMBER, NUMBER) RETURN NUMBER USING my_eq_func")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateOperatorStmt)
+		if !stmt.OrReplace { t.Error("expected OrReplace=true") }
+	})
+	t.Run("create_operator_schema_func", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE OPERATOR my_eq BINDING (NUMBER, NUMBER) RETURN NUMBER USING hr.my_eq_func")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateOperatorStmt)
+		if stmt.Bindings[0].UsingFunc == nil { t.Fatal("expected non-nil UsingFunc") }
+	})
+	t.Run("create_operator_ancillary", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE OPERATOR my_anc BINDING (NUMBER) RETURN NUMBER ANCILLARY TO my_primary(NUMBER) USING my_anc_func")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateOperatorStmt)
+		if stmt.Bindings[0].AncillaryTo == nil { t.Fatal("expected non-nil AncillaryTo") }
+	})
+	t.Run("create_operator_context", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE OPERATOR my_op BINDING (NUMBER) RETURN NUMBER WITH INDEX CONTEXT, SCAN CONTEXT my_impl_type COMPUTE ANCILLARY DATA USING my_func")
+		b := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateOperatorStmt).Bindings[0]
+		if !b.WithIndexCtx { t.Error("expected WithIndexCtx=true") }
+		if b.ScanCtxType != "MY_IMPL_TYPE" { t.Errorf("expected MY_IMPL_TYPE, got %q", b.ScanCtxType) }
+		if !b.ComputeAnc { t.Error("expected ComputeAnc=true") }
+	})
+	t.Run("create_operator_sharing", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE OPERATOR my_eq BINDING (NUMBER, NUMBER) RETURN NUMBER USING my_eq_func SHARING = METADATA")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateOperatorStmt)
+		if stmt.Sharing != "METADATA" { t.Errorf("expected METADATA, got %q", stmt.Sharing) }
+	})
+
+	// ===== ALTER OPERATOR =====
+	t.Run("alter_operator_add_binding", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER OPERATOR my_eq ADD BINDING (VARCHAR2, VARCHAR2) RETURN NUMBER USING my_eq_str")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterOperatorStmt)
+		if stmt.Action != "ADD_BINDING" { t.Errorf("expected ADD_BINDING, got %q", stmt.Action) }
+		if stmt.Binding == nil { t.Fatal("expected non-nil Binding") }
+	})
+	t.Run("alter_operator_drop_binding", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER OPERATOR my_eq DROP BINDING (VARCHAR2, VARCHAR2)")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterOperatorStmt)
+		if stmt.Action != "DROP_BINDING" { t.Errorf("expected DROP_BINDING, got %q", stmt.Action) }
+		if len(stmt.DropTypes) != 2 { t.Errorf("expected 2 types, got %d", len(stmt.DropTypes)) }
+	})
+	t.Run("alter_operator_drop_binding_force", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER OPERATOR my_eq DROP BINDING (NUMBER) FORCE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterOperatorStmt)
+		if !stmt.DropForce { t.Error("expected DropForce=true") }
+	})
+	t.Run("alter_operator_compile", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER OPERATOR my_eq COMPILE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterOperatorStmt)
+		if stmt.Action != "COMPILE" { t.Errorf("expected COMPILE, got %q", stmt.Action) }
+	})
+	t.Run("alter_operator_if_exists", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER OPERATOR IF EXISTS my_eq COMPILE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AlterOperatorStmt)
+		if !stmt.IfExists { t.Error("expected IfExists=true") }
+	})
+
+	// ===== DROP OPERATOR =====
+	t.Run("drop_operator_basic", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP OPERATOR my_eq")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.DropStmt)
+		if stmt.ObjectType != ast.OBJECT_OPERATOR { t.Errorf("expected OBJECT_OPERATOR, got %d", stmt.ObjectType) }
+	})
+	t.Run("drop_operator_force", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP OPERATOR my_eq FORCE")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.DropStmt)
+		if !stmt.Force { t.Error("expected Force=true") }
+	})
+	t.Run("drop_operator_if_exists", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP OPERATOR IF EXISTS my_eq")
+		stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.DropStmt)
+		if !stmt.IfExists { t.Error("expected IfExists=true") }
+	})
+
+	// ===== Serialization =====
+	t.Run("serialize_all", func(t *testing.T) {
+		sqls := []string{
+			"CREATE UNIQUE BITMAP INDEX IF NOT EXISTS hr.idx1 ON hr.emp (last_name DESC, first_name) TABLESPACE ts1 ONLINE PARALLEL 4 COMPRESS 2 NOLOGGING VISIBLE REVERSE",
+			"ALTER INDEX IF EXISTS hr.idx1 REBUILD PARTITION p1 TABLESPACE ts1 ONLINE REVERSE PARALLEL 4 COMPRESS 2 LOGGING",
+			"CREATE OR REPLACE INDEXTYPE my_itype FOR my_op(NUMBER, VARCHAR2) USING my_type WITH LOCAL RANGE PARTITION",
+			"CREATE OPERATOR my_eq BINDING (NUMBER, NUMBER) RETURN NUMBER USING hr.my_eq_func",
+			"ALTER OPERATOR my_eq ADD BINDING (VARCHAR2, VARCHAR2) RETURN NUMBER USING my_eq_str",
+			"ALTER INDEXTYPE my_itype ADD my_op2(NUMBER)",
+		}
+		for _, sql := range sqls {
+			result := ParseAndCheck(t, sql)
+			s := ast.NodeToString(result.Items[0])
+			if s == "" { t.Errorf("expected non-empty serialization for %q", sql) }
+		}
+	})
 }

@@ -204,10 +204,10 @@ func (p *Parser) parseCreateAdminObject(start int) nodes.StmtNode {
 			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_DOMAIN, start)
 		case "INDEXTYPE":
 			p.advance()
-			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_INDEXTYPE, start)
+			return p.parseCreateIndextypeStmt(start, false)
 		case "OPERATOR":
 			p.advance()
-			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_OPERATOR, start)
+			return p.parseCreateOperatorStmt(start, false, false)
 		case "LOCKDOWN":
 			p.advance() // consume LOCKDOWN
 			if p.cur.Type == kwPROFILE {
@@ -388,10 +388,10 @@ func (p *Parser) parseDropAdminObject(start int) nodes.StmtNode {
 				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_DOMAIN, start)
 			case "INDEXTYPE":
 				p.advance()
-				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_INDEXTYPE, start)
+				return p.parseDropSimpleStmt(nodes.OBJECT_INDEXTYPE, start)
 			case "OPERATOR":
 				p.advance()
-				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_OPERATOR, start)
+				return p.parseDropSimpleStmt(nodes.OBJECT_OPERATOR, start)
 			case "LOCKDOWN":
 				p.advance() // consume LOCKDOWN
 				if p.cur.Type == kwPROFILE {
@@ -1248,10 +1248,10 @@ func (p *Parser) parseAlterAdminObject(start int) nodes.StmtNode {
 				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_DOMAIN, start)
 			case "INDEXTYPE":
 				p.advance()
-				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_INDEXTYPE, start)
+				return p.parseAlterIndextypeStmt(start)
 			case "OPERATOR":
 				p.advance()
-				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_OPERATOR, start)
+				return p.parseAlterOperatorStmt(start)
 			case "LOCKDOWN":
 				p.advance() // consume LOCKDOWN
 				if p.cur.Type == kwPROFILE {

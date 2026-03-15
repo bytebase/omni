@@ -404,6 +404,20 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeDimensionJoinKey(sb, n)
 	case *DimensionAttribute:
 		writeDimensionAttribute(sb, n)
+	case *CreateIndextypeStmt:
+		writeCreateIndextypeStmt(sb, n)
+	case *AlterIndextypeStmt:
+		writeAlterIndextypeStmt(sb, n)
+	case *IndextypeOp:
+		writeIndextypeOp(sb, n)
+	case *IndextypeModOp:
+		writeIndextypeModOp(sb, n)
+	case *CreateOperatorStmt:
+		writeCreateOperatorStmt(sb, n)
+	case *AlterOperatorStmt:
+		writeAlterOperatorStmt(sb, n)
+	case *OperatorBinding:
+		writeOperatorBinding(sb, n)
 
 	// PL/SQL nodes
 	case *PLSQLBlock:
@@ -2470,6 +2484,15 @@ func writeDropStmt(sb *strings.Builder, n *DropStmt) {
 	if n.Purge {
 		sb.WriteString(" :purge true")
 	}
+	if n.Online {
+		sb.WriteString(" :online true")
+	}
+	if n.Force {
+		sb.WriteString(" :force true")
+	}
+	if n.Invalidation != "" {
+		sb.WriteString(fmt.Sprintf(" :invalidation %q", n.Invalidation))
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -2482,6 +2505,9 @@ func writeCreateIndexStmt(sb *strings.Builder, n *CreateIndexStmt) {
 	if n.Bitmap {
 		sb.WriteString(" :bitmap true")
 	}
+	if n.Multivalue {
+		sb.WriteString(" :multivalue true")
+	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
@@ -2489,6 +2515,13 @@ func writeCreateIndexStmt(sb *strings.Builder, n *CreateIndexStmt) {
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
+	}
+	if n.Cluster != nil {
+		sb.WriteString(" :cluster ")
+		writeNode(sb, n.Cluster)
+	}
+	if n.Alias != "" {
+		sb.WriteString(fmt.Sprintf(" :alias %q", n.Alias))
 	}
 	if n.Columns != nil {
 		sb.WriteString(" :columns ")
@@ -2499,6 +2532,12 @@ func writeCreateIndexStmt(sb *strings.Builder, n *CreateIndexStmt) {
 	}
 	if n.Reverse {
 		sb.WriteString(" :reverse true")
+	}
+	if n.Sort {
+		sb.WriteString(" :sort true")
+	}
+	if n.NoSort {
+		sb.WriteString(" :nosort true")
 	}
 	if n.Local {
 		sb.WriteString(" :local true")
@@ -2518,8 +2557,53 @@ func writeCreateIndexStmt(sb *strings.Builder, n *CreateIndexStmt) {
 	if n.Online {
 		sb.WriteString(" :online true")
 	}
+	if n.Logging {
+		sb.WriteString(" :logging true")
+	}
+	if n.NoLogging {
+		sb.WriteString(" :nologging true")
+	}
+	if n.Visible {
+		sb.WriteString(" :visible true")
+	}
+	if n.Invisible {
+		sb.WriteString(" :invisible true")
+	}
+	if n.IndexType != nil {
+		sb.WriteString(" :indexType ")
+		writeNode(sb, n.IndexType)
+	}
+	if n.Parameters != "" {
+		sb.WriteString(fmt.Sprintf(" :parameters %q", n.Parameters))
+	}
+	if n.Invalidation != "" {
+		sb.WriteString(fmt.Sprintf(" :invalidation %q", n.Invalidation))
+	}
 	if n.IfNotExists {
 		sb.WriteString(" :ifNotExists true")
+	}
+	if n.FromTables != nil {
+		sb.WriteString(" :fromTables ")
+		writeNode(sb, n.FromTables)
+	}
+	if n.Where != nil {
+		sb.WriteString(" :where ")
+		writeNode(sb, n.Where)
+	}
+	if n.PctFree != "" {
+		sb.WriteString(fmt.Sprintf(" :pctfree %q", n.PctFree))
+	}
+	if n.InitTrans != "" {
+		sb.WriteString(fmt.Sprintf(" :initrans %q", n.InitTrans))
+	}
+	if n.MaxTrans != "" {
+		sb.WriteString(fmt.Sprintf(" :maxtrans %q", n.MaxTrans))
+	}
+	if n.IndexingFull {
+		sb.WriteString(" :indexingFull true")
+	}
+	if n.IndexingPartial {
+		sb.WriteString(" :indexingPartial true")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -4462,6 +4546,43 @@ func writeAlterIndexStmt(sb *strings.Builder, n *AlterIndexStmt) {
 	if n.IndexingPartial {
 		sb.WriteString(" :indexingPartial true")
 	}
+	if n.PctFree != "" {
+		sb.WriteString(fmt.Sprintf(" :pctfree %q", n.PctFree))
+	}
+	if n.PctUsed != "" {
+		sb.WriteString(fmt.Sprintf(" :pctused %q", n.PctUsed))
+	}
+	if n.InitTrans != "" {
+		sb.WriteString(fmt.Sprintf(" :initrans %q", n.InitTrans))
+	}
+	if n.MaxTrans != "" {
+		sb.WriteString(fmt.Sprintf(" :maxtrans %q", n.MaxTrans))
+	}
+	if n.Parameters != "" {
+		sb.WriteString(fmt.Sprintf(" :parameters %q", n.Parameters))
+	}
+	if n.Invalidation != "" {
+		sb.WriteString(fmt.Sprintf(" :invalidation %q", n.Invalidation))
+	}
+	if n.DeallocateKeep != "" {
+		sb.WriteString(fmt.Sprintf(" :deallocateKeep %q", n.DeallocateKeep))
+	}
+	if n.ModifyDefaultFor != "" {
+		sb.WriteString(fmt.Sprintf(" :modifyDefaultFor %q", n.ModifyDefaultFor))
+	}
+	if n.AddPartitionName != "" {
+		sb.WriteString(fmt.Sprintf(" :addPartitionName %q", n.AddPartitionName))
+	}
+	if n.ModifyPartAction != "" {
+		sb.WriteString(fmt.Sprintf(" :modifyPartAction %q", n.ModifyPartAction))
+	}
+	if n.SplitPartition != "" {
+		sb.WriteString(fmt.Sprintf(" :splitPartition %q", n.SplitPartition))
+	}
+	if n.SplitValues != nil {
+		sb.WriteString(" :splitValues ")
+		writeNode(sb, n.SplitValues)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -4782,6 +4903,205 @@ func writeTypeAttribute(sb *strings.Builder, n *TypeAttribute) {
 	if n.DataType != nil {
 		sb.WriteString(" :dataType ")
 		writeNode(sb, n.DataType)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateIndextypeStmt(sb *strings.Builder, n *CreateIndextypeStmt) {
+	sb.WriteString("{CREATE_INDEXTYPE")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
+	}
+	if len(n.Operators) > 0 {
+		sb.WriteString(" :operators (")
+		for i, op := range n.Operators {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, op)
+		}
+		sb.WriteString(")")
+	}
+	if n.UsingType != nil {
+		sb.WriteString(" :usingType ")
+		writeNode(sb, n.UsingType)
+	}
+	if n.WithLocal {
+		sb.WriteString(" :withLocal true")
+	}
+	if n.WithRange {
+		sb.WriteString(" :withRange true")
+	}
+	if n.StorageTable != "" {
+		sb.WriteString(fmt.Sprintf(" :storageTable %q", n.StorageTable))
+	}
+	if n.ArrayDML {
+		sb.WriteString(" :arrayDML true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeIndextypeOp(sb *strings.Builder, n *IndextypeOp) {
+	sb.WriteString("{INDEXTYPE_OP")
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if len(n.ParamTypes) > 0 {
+		sb.WriteString(fmt.Sprintf(" :paramTypes %q", strings.Join(n.ParamTypes, ",")))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterIndextypeStmt(sb *strings.Builder, n *AlterIndextypeStmt) {
+	sb.WriteString("{ALTER_INDEXTYPE")
+	if n.IfExists {
+		sb.WriteString(" :ifExists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	if len(n.Modifications) > 0 {
+		sb.WriteString(" :modifications (")
+		for i, m := range n.Modifications {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, m)
+		}
+		sb.WriteString(")")
+	}
+	if n.UsingType != nil {
+		sb.WriteString(" :usingType ")
+		writeNode(sb, n.UsingType)
+	}
+	if n.ArrayDML {
+		sb.WriteString(" :arrayDML true")
+	}
+	if n.WithLocal {
+		sb.WriteString(" :withLocal true")
+	}
+	if n.StorageTable != "" {
+		sb.WriteString(fmt.Sprintf(" :storageTable %q", n.StorageTable))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeIndextypeModOp(sb *strings.Builder, n *IndextypeModOp) {
+	sb.WriteString("{INDEXTYPE_MOD_OP")
+	if n.Add {
+		sb.WriteString(" :add true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if len(n.ParamTypes) > 0 {
+		sb.WriteString(fmt.Sprintf(" :paramTypes %q", strings.Join(n.ParamTypes, ",")))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateOperatorStmt(sb *strings.Builder, n *CreateOperatorStmt) {
+	sb.WriteString("{CREATE_OPERATOR")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if len(n.Bindings) > 0 {
+		sb.WriteString(" :bindings (")
+		for i, b := range n.Bindings {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, b)
+		}
+		sb.WriteString(")")
+	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeOperatorBinding(sb *strings.Builder, n *OperatorBinding) {
+	sb.WriteString("{OP_BINDING")
+	if len(n.ParamTypes) > 0 {
+		sb.WriteString(fmt.Sprintf(" :paramTypes %q", strings.Join(n.ParamTypes, ",")))
+	}
+	if n.ReturnType != "" {
+		sb.WriteString(fmt.Sprintf(" :returnType %q", n.ReturnType))
+	}
+	if n.UsingFunc != nil {
+		sb.WriteString(" :usingFunc ")
+		writeNode(sb, n.UsingFunc)
+	}
+	if n.AncillaryTo != nil {
+		sb.WriteString(" :ancillaryTo ")
+		writeNode(sb, n.AncillaryTo)
+	}
+	if len(n.AncillaryParams) > 0 {
+		sb.WriteString(fmt.Sprintf(" :ancillaryParams %q", strings.Join(n.AncillaryParams, ",")))
+	}
+	if n.WithIndexCtx {
+		sb.WriteString(" :withIndexCtx true")
+	}
+	if n.ScanCtxType != "" {
+		sb.WriteString(fmt.Sprintf(" :scanCtxType %q", n.ScanCtxType))
+	}
+	if n.ComputeAnc {
+		sb.WriteString(" :computeAnc true")
+	}
+	if n.WithColumnCtx {
+		sb.WriteString(" :withColumnCtx true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterOperatorStmt(sb *strings.Builder, n *AlterOperatorStmt) {
+	sb.WriteString("{ALTER_OPERATOR")
+	if n.IfExists {
+		sb.WriteString(" :ifExists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	if n.Binding != nil {
+		sb.WriteString(" :binding ")
+		writeNode(sb, n.Binding)
+	}
+	if len(n.DropTypes) > 0 {
+		sb.WriteString(fmt.Sprintf(" :dropTypes %q", strings.Join(n.DropTypes, ",")))
+	}
+	if n.DropForce {
+		sb.WriteString(" :dropForce true")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

@@ -1588,12 +1588,15 @@ func (n *AlterTableCmd) nodeTag() {}
 // DropStmt represents a DROP statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/DROP-TABLE.html
 type DropStmt struct {
-	ObjectType ObjectType // what to drop
-	Names      *List      // object names (list of *ObjectName)
-	IfExists   bool       // IF EXISTS
-	Cascade    bool       // CASCADE CONSTRAINTS
-	Purge      bool       // PURGE (for tables)
-	Loc        Loc        // start location
+	ObjectType   ObjectType // what to drop
+	Names        *List      // object names (list of *ObjectName)
+	IfExists     bool       // IF EXISTS
+	Cascade      bool       // CASCADE CONSTRAINTS
+	Purge        bool       // PURGE (for tables)
+	Online       bool       // ONLINE (for DROP INDEX)
+	Force        bool       // FORCE (for DROP INDEX/INDEXTYPE/OPERATOR)
+	Invalidation string     // "DEFERRED" or "IMMEDIATE" (for DROP INDEX)
+	Loc          Loc        // start location
 }
 
 func (n *DropStmt) nodeTag()  {}
@@ -1604,23 +1607,52 @@ func (n *DropStmt) stmtNode() {}
 // ---------------------------------------------------------------------------
 
 // CreateIndexStmt represents a CREATE INDEX statement.
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-INDEX.html
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-INDEX.html
+//
+//	CREATE [ UNIQUE ] [ BITMAP ] [ MULTIVALUE ] INDEX [ IF NOT EXISTS ]
+//	    [ schema. ] index_name
+//	    [ index_ilm_clause ]
+//	    { cluster_index_clause | table_index_clause | bitmap_join_index_clause }
+//	    [ { DEFERRED | IMMEDIATE } INVALIDATION ]
 type CreateIndexStmt struct {
 	Unique        bool        // UNIQUE
 	Bitmap        bool        // BITMAP
+	Multivalue    bool        // MULTIVALUE
 	Name          *ObjectName // index name
-	Table         *ObjectName // table name
+	Table         *ObjectName // table name (ON table)
+	Cluster       *ObjectName // ON CLUSTER name (cluster_index_clause)
+	Alias         string      // table alias
 	Columns       *List       // index columns (list of *IndexColumn)
 	FunctionBased bool        // function-based index
 	Reverse       bool        // REVERSE
+	Sort          bool        // SORT
+	NoSort        bool        // NOSORT
 	Local         bool        // LOCAL partitioned
 	Global        bool        // GLOBAL partitioned
 	Tablespace    string      // TABLESPACE
 	Parallel      string      // PARALLEL/NOPARALLEL
 	Compress      string      // COMPRESS N
 	Online        bool        // ONLINE
+	Logging       bool        // LOGGING
+	NoLogging     bool        // NOLOGGING
+	Visible       bool        // VISIBLE
+	Invisible     bool        // INVISIBLE
+	IndexType     *ObjectName // INDEXTYPE IS indextype (domain_index_clause)
+	Parameters    string      // PARAMETERS ('...')
+	Invalidation  string      // "DEFERRED" or "IMMEDIATE" INVALIDATION
 	IfNotExists   bool        // IF NOT EXISTS
-	Loc           Loc         // start location
+	// bitmap_join_index_clause
+	FromTables  *List    // FROM table_list
+	Where       ExprNode // WHERE join_condition
+	// Physical attributes
+	PctFree     string // PCTFREE integer
+	InitTrans   string // INITRANS integer
+	MaxTrans    string // MAXTRANS integer
+	// Indexing clause
+	IndexingFull    bool // INDEXING FULL
+	IndexingPartial bool // INDEXING PARTIAL
+	Loc             Loc  // start location
 }
 
 func (n *CreateIndexStmt) nodeTag()  {}
@@ -2931,27 +2963,33 @@ func (n *DimensionAttribute) nodeTag() {}
 // ---------------------------------------------------------------------------
 
 // AlterIndexStmt represents an ALTER INDEX statement.
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-INDEX.html
 //
-//	ALTER INDEX [IF EXISTS] [schema.]index_name
-//	{   REBUILD [PARTITION partition | SUBPARTITION subpartition]
-//	          [TABLESPACE tablespace] [ONLINE] [REVERSE | NOREVERSE]
-//	          [PARALLEL integer | NOPARALLEL] [COMPRESS integer | NOCOMPRESS]
-//	          [LOGGING | NOLOGGING]
-//	  | RENAME TO new_name
-//	  | COALESCE [CLEANUP [ONLY]] [PARALLEL integer | NOPARALLEL]
-//	  | { MONITORING | NOMONITORING } USAGE
-//	  | USABLE | UNUSABLE [ONLINE]
-//	  | VISIBLE | INVISIBLE
-//	  | ENABLE | DISABLE | COMPILE
-//	  | SHRINK SPACE [COMPACT] [CASCADE]
-//	  | PARALLEL integer | NOPARALLEL
-//	  | LOGGING | NOLOGGING
-//	  | DEALLOCATE UNUSED [KEEP integer [K|M|G|T]]
-//	  | ALLOCATE EXTENT [(SIZE integer [K|M|G|T]) (DATAFILE 'file') (INSTANCE integer)]
-//	  | UPDATE BLOCK REFERENCES
-//	  | INDEXING {FULL | PARTIAL}
-//	}
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ALTER-INDEX.html
+//
+//	ALTER INDEX [ IF EXISTS ] [ schema. ] index_name
+//	    { deallocate_unused_clause
+//	    | allocate_extent_clause
+//	    | shrink_clause
+//	    | parallel_clause
+//	    | physical_attributes_clause
+//	    | logging_clause
+//	    | partial_index_clause
+//	    | rebuild_clause
+//	    | alter_index_partitioning
+//	    | PARAMETERS ( 'odci_parameters' )
+//	    | { DEFERRED | IMMEDIATE } INVALIDATION
+//	    | COMPILE
+//	    | ENABLE
+//	    | DISABLE
+//	    | { USABLE | UNUSABLE } [ ONLINE ]
+//	    | { VISIBLE | INVISIBLE }
+//	    | RENAME TO new_index_name
+//	    | COALESCE [ CLEANUP [ ONLY ] ] [ parallel_clause ]
+//	    | MONITORING USAGE
+//	    | NOMONITORING USAGE
+//	    | UPDATE BLOCK REFERENCES
+//	    | annotations_clause
+//	    }
 type AlterIndexStmt struct {
 	Name     *ObjectName // index name
 	IfExists bool        // IF EXISTS
@@ -2964,7 +3002,7 @@ type AlterIndexStmt struct {
 	Reverse      bool   // REVERSE
 	NoReverse    bool   // NOREVERSE
 	// RENAME
-	NewName string // RENAME TO new_name
+	NewName string // RENAME TO new_name (also for RENAME PARTITION/SUBPARTITION)
 	// COALESCE
 	Cleanup     bool // CLEANUP
 	CleanupOnly bool // CLEANUP ONLY
@@ -2983,7 +3021,28 @@ type AlterIndexStmt struct {
 	// INDEXING
 	IndexingFull    bool // INDEXING FULL
 	IndexingPartial bool // INDEXING PARTIAL
-	Loc             Loc
+	// Physical attributes
+	PctFree   string // PCTFREE integer
+	PctUsed   string // PCTUSED integer
+	InitTrans string // INITRANS integer
+	MaxTrans  string // MAXTRANS integer
+	// PARAMETERS
+	Parameters string // PARAMETERS ('...')
+	// INVALIDATION
+	Invalidation string // "DEFERRED" or "IMMEDIATE"
+	// DEALLOCATE UNUSED
+	DeallocateKeep string // KEEP size
+	// ALTER INDEX PARTITIONING sub-actions
+	// MODIFY DEFAULT ATTRIBUTES
+	ModifyDefaultFor string // FOR PARTITION name (optional)
+	// ADD PARTITION
+	AddPartitionName string // partition name (optional)
+	// MODIFY PARTITION / MODIFY SUBPARTITION sub-action
+	ModifyPartAction string // sub-action within MODIFY PARTITION
+	// SPLIT PARTITION
+	SplitPartition string // old partition name
+	SplitValues    *List  // AT (literal, ...)
+	Loc            Loc
 }
 
 func (n *AlterIndexStmt) nodeTag()  {}
@@ -3230,6 +3289,162 @@ func (n *TypeAttribute) nodeTag() {}
 
 func (n *AlterTypeStmt) nodeTag()  {}
 func (n *AlterTypeStmt) stmtNode() {}
+
+// ---------------------------------------------------------------------------
+// CREATE INDEXTYPE statement
+// ---------------------------------------------------------------------------
+
+// CreateIndextypeStmt represents a CREATE INDEXTYPE statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-INDEXTYPE.html
+//
+//	CREATE [ OR REPLACE ] INDEXTYPE [ IF NOT EXISTS ] [ schema. ] indextype
+//	    [ SHARING = { METADATA | NONE } ]
+//	    FOR [ schema. ] operator ( parameter_type [, parameter_type ]... )
+//	        [, [ schema. ] operator ( parameter_type [, parameter_type ]... ) ]...
+//	    using_type_clause
+//	    [ WITH LOCAL [ RANGE ] PARTITION ]
+//	    [ storage_table_clause ]
+//	    [ array_DML_clause ]
+type CreateIndextypeStmt struct {
+	OrReplace    bool            // OR REPLACE
+	IfNotExists  bool            // IF NOT EXISTS
+	Name         *ObjectName     // indextype name
+	Sharing      string          // METADATA or NONE
+	Operators    []*IndextypeOp  // FOR operator_list
+	UsingType    *ObjectName     // USING implementation_type
+	WithLocal    bool            // WITH LOCAL PARTITION
+	WithRange    bool            // WITH LOCAL RANGE PARTITION
+	StorageTable string          // "SYSTEM" or "USER"
+	ArrayDML     bool            // WITH ARRAY DML
+	Loc          Loc
+}
+
+func (n *CreateIndextypeStmt) nodeTag()  {}
+func (n *CreateIndextypeStmt) stmtNode() {}
+
+// IndextypeOp represents an operator binding in CREATE/ALTER INDEXTYPE.
+//
+//	[ schema. ] operator ( parameter_type [, parameter_type ]... )
+type IndextypeOp struct {
+	Name       *ObjectName // operator name
+	ParamTypes []string    // parameter types
+	Loc        Loc
+}
+
+func (n *IndextypeOp) nodeTag() {}
+
+// ---------------------------------------------------------------------------
+// ALTER INDEXTYPE statement
+// ---------------------------------------------------------------------------
+
+// AlterIndextypeStmt represents an ALTER INDEXTYPE statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ALTER-INDEXTYPE.html
+//
+//	ALTER INDEXTYPE [ IF EXISTS ] [ schema. ] indextype
+//	    { { ADD | DROP } [ schema. ] operator ( parameter_type [, parameter_type ]... )
+//	        [ , { ADD | DROP } [ schema. ] operator ( parameter_type [, parameter_type ]... ) ]...
+//	        [ using_type_clause ]
+//	    | COMPILE
+//	    }
+//	    [ WITH LOCAL PARTITION ]
+//	    [ storage_table_clause ]
+type AlterIndextypeStmt struct {
+	IfExists     bool                // IF EXISTS
+	Name         *ObjectName         // indextype name
+	Action       string              // "ADD_DROP" or "COMPILE"
+	Modifications []*IndextypeModOp  // ADD/DROP operators
+	UsingType    *ObjectName         // USING implementation_type
+	ArrayDML     bool                // WITH ARRAY DML
+	WithLocal    bool                // WITH LOCAL PARTITION
+	StorageTable string              // "SYSTEM" or "USER"
+	Loc          Loc
+}
+
+func (n *AlterIndextypeStmt) nodeTag()  {}
+func (n *AlterIndextypeStmt) stmtNode() {}
+
+// IndextypeModOp represents an ADD/DROP operator in ALTER INDEXTYPE.
+type IndextypeModOp struct {
+	Add        bool        // true=ADD, false=DROP
+	Name       *ObjectName // operator name
+	ParamTypes []string    // parameter types
+	Loc        Loc
+}
+
+func (n *IndextypeModOp) nodeTag() {}
+
+// ---------------------------------------------------------------------------
+// CREATE OPERATOR statement
+// ---------------------------------------------------------------------------
+
+// CreateOperatorStmt represents a CREATE OPERATOR statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-OPERATOR.html
+//
+//	CREATE [ OR REPLACE | IF NOT EXISTS ] OPERATOR
+//	    [ schema. ] operator
+//	    binding_clause
+//	    [ SHARING = { METADATA | NONE } ]
+type CreateOperatorStmt struct {
+	OrReplace   bool              // OR REPLACE
+	IfNotExists bool              // IF NOT EXISTS
+	Name        *ObjectName       // operator name
+	Bindings    []*OperatorBinding // BINDING clauses
+	Sharing     string            // METADATA or NONE
+	Loc         Loc
+}
+
+func (n *CreateOperatorStmt) nodeTag()  {}
+func (n *CreateOperatorStmt) stmtNode() {}
+
+// OperatorBinding represents a BINDING clause in CREATE/ALTER OPERATOR.
+//
+//	BINDING ( [ parameter_type [, parameter_type ]... ] )
+//	    RETURN return_type
+//	    [ implementation_clause ]
+//	    using_function_clause
+type OperatorBinding struct {
+	ParamTypes   []string    // parameter types
+	ReturnType   string      // RETURN type
+	UsingFunc    *ObjectName // USING function
+	AncillaryTo  *ObjectName // ANCILLARY TO primary_operator
+	AncillaryParams []string // ANCILLARY TO parameter types
+	WithIndexCtx bool        // WITH INDEX CONTEXT
+	ScanCtxType  string      // SCAN CONTEXT implementation_type
+	ComputeAnc   bool        // COMPUTE ANCILLARY DATA
+	WithColumnCtx bool       // WITH COLUMN CONTEXT
+	Loc          Loc
+}
+
+func (n *OperatorBinding) nodeTag() {}
+
+// ---------------------------------------------------------------------------
+// ALTER OPERATOR statement
+// ---------------------------------------------------------------------------
+
+// AlterOperatorStmt represents an ALTER OPERATOR statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ALTER-OPERATOR.html
+//
+//	ALTER OPERATOR [ IF EXISTS ] [ schema. ] operator
+//	    { add_binding_clause
+//	    | drop_binding_clause
+//	    | COMPILE
+//	    }
+type AlterOperatorStmt struct {
+	IfExists  bool              // IF EXISTS
+	Name      *ObjectName       // operator name
+	Action    string            // "ADD_BINDING", "DROP_BINDING", "COMPILE"
+	Binding   *OperatorBinding  // for ADD BINDING
+	DropTypes []string          // DROP BINDING parameter types
+	DropForce bool              // DROP BINDING ... FORCE
+	Loc       Loc
+}
+
+func (n *AlterOperatorStmt) nodeTag()  {}
+func (n *AlterOperatorStmt) stmtNode() {}
 
 // ---------------------------------------------------------------------------
 // Star expression (SELECT *)

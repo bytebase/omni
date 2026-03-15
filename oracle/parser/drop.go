@@ -152,7 +152,7 @@ func (p *Parser) parseDropStmt() nodes.StmtNode {
 	name := p.parseObjectName()
 	stmt.Names.Items = append(stmt.Names.Items, name)
 
-	// Optional trailing options: CASCADE CONSTRAINTS, PURGE, FORCE
+	// Optional trailing options: CASCADE CONSTRAINTS, PURGE, FORCE, ONLINE, DEFERRED/IMMEDIATE INVALIDATION
 	for {
 		if p.cur.Type == kwCASCADE {
 			p.advance() // consume CASCADE
@@ -165,9 +165,60 @@ func (p *Parser) parseDropStmt() nodes.StmtNode {
 			stmt.Purge = true
 		} else if p.cur.Type == kwFORCE {
 			p.advance()
+			stmt.Force = true
+		} else if p.cur.Type == kwONLINE {
+			p.advance()
+			stmt.Online = true
+		} else if p.cur.Type == kwDEFERRED {
+			stmt.Invalidation = "DEFERRED"
+			p.advance() // consume DEFERRED
+			if p.isIdentLikeStr("INVALIDATION") {
+				p.advance() // consume INVALIDATION
+			}
+		} else if p.cur.Type == kwIMMEDIATE {
+			stmt.Invalidation = "IMMEDIATE"
+			p.advance() // consume IMMEDIATE
+			if p.isIdentLikeStr("INVALIDATION") {
+				p.advance() // consume INVALIDATION
+			}
 		} else {
 			break
 		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseDropSimpleStmt parses a simple DROP statement for objects like INDEXTYPE and OPERATOR.
+// Called after DROP and the object type keyword have been consumed.
+//
+//	DROP { INDEXTYPE | OPERATOR } [ IF EXISTS ] [ schema. ] name [ FORCE ]
+func (p *Parser) parseDropSimpleStmt(objType nodes.ObjectType, start int) *nodes.DropStmt {
+	stmt := &nodes.DropStmt{
+		ObjectType: objType,
+		Names:      &nodes.List{},
+		Loc:        nodes.Loc{Start: start},
+	}
+
+	// Optional IF EXISTS
+	if p.cur.Type == kwIF {
+		next := p.peekNext()
+		if next.Type == kwEXISTS {
+			p.advance() // consume IF
+			p.advance() // consume EXISTS
+			stmt.IfExists = true
+		}
+	}
+
+	// Parse object name
+	name := p.parseObjectName()
+	stmt.Names.Items = append(stmt.Names.Items, name)
+
+	// Optional FORCE
+	if p.cur.Type == kwFORCE {
+		p.advance()
+		stmt.Force = true
 	}
 
 	stmt.Loc.End = p.pos()

@@ -656,25 +656,32 @@ func (p *Parser) parseAlterSynonymStmt(start int, public bool) nodes.StmtNode {
 
 // parseAlterIndexStmt parses an ALTER INDEX statement.
 //
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-INDEX.html
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ALTER-INDEX.html
 //
-//	ALTER INDEX [IF EXISTS] [schema.]index_name
-//	{   REBUILD [PARTITION partition | SUBPARTITION subpartition]
-//	          [TABLESPACE tablespace] [ONLINE] [REVERSE | NOREVERSE]
-//	          [PARALLEL integer | NOPARALLEL] [COMPRESS integer | NOCOMPRESS]
-//	          [LOGGING | NOLOGGING]
-//	  | RENAME TO new_name
-//	  | COALESCE [CLEANUP [ONLY]] [PARALLEL integer | NOPARALLEL]
-//	  | { MONITORING | NOMONITORING } USAGE
-//	  | USABLE | UNUSABLE [ONLINE]
-//	  | VISIBLE | INVISIBLE
-//	  | ENABLE | DISABLE | COMPILE
-//	  | SHRINK SPACE [COMPACT] [CASCADE]
-//	  | PARALLEL integer | NOPARALLEL
-//	  | LOGGING | NOLOGGING
-//	  | UPDATE BLOCK REFERENCES
-//	  | INDEXING {FULL | PARTIAL}
-//	}
+//	ALTER INDEX [ IF EXISTS ] [ schema. ] index_name
+//	    { deallocate_unused_clause
+//	    | allocate_extent_clause
+//	    | shrink_clause
+//	    | parallel_clause
+//	    | physical_attributes_clause
+//	    | logging_clause
+//	    | partial_index_clause
+//	    | rebuild_clause
+//	    | alter_index_partitioning
+//	    | PARAMETERS ( 'odci_parameters' )
+//	    | { DEFERRED | IMMEDIATE } INVALIDATION
+//	    | COMPILE
+//	    | ENABLE
+//	    | DISABLE
+//	    | { USABLE | UNUSABLE } [ ONLINE ]
+//	    | { VISIBLE | INVISIBLE }
+//	    | RENAME TO new_index_name
+//	    | COALESCE [ CLEANUP [ ONLY ] ] [ parallel_clause ]
+//	    | MONITORING USAGE
+//	    | NOMONITORING USAGE
+//	    | UPDATE BLOCK REFERENCES
+//	    | annotations_clause
+//	    }
 func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 	p.advance() // consume INDEX
 
@@ -706,7 +713,7 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 			case p.cur.Type == kwPARTITION:
 				p.advance() // consume PARTITION
 				stmt.Partition = p.parseIdentifier()
-			case p.isIdentLikeStr("SUBPARTITION"):
+			case p.cur.Type == kwSUBPARTITION:
 				p.advance() // consume SUBPARTITION
 				stmt.Subpartition = p.parseIdentifier()
 			case p.cur.Type == kwTABLESPACE:
@@ -732,7 +739,18 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 				p.advance()
 			case p.cur.Type == kwCOMPRESS:
 				p.advance() // consume COMPRESS
-				if p.cur.Type == tokICONST {
+				if p.isIdentLikeStr("ADVANCED") {
+					p.advance()
+					if p.isIdentLikeStr("LOW") {
+						stmt.Compress = "ADVANCED LOW"
+						p.advance()
+					} else if p.isIdentLikeStr("HIGH") {
+						stmt.Compress = "ADVANCED HIGH"
+						p.advance()
+					} else {
+						stmt.Compress = "ADVANCED"
+					}
+				} else if p.cur.Type == tokICONST {
 					stmt.Compress = p.cur.Str
 					p.advance()
 				} else {
@@ -747,23 +765,91 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 			case p.cur.Type == kwNOLOGGING:
 				stmt.NoLogging = true
 				p.advance()
+			case p.isIdentLikeStr("PARAMETERS"):
+				p.advance() // consume PARAMETERS
+				if p.cur.Type == '(' {
+					p.advance()
+					if p.cur.Type == tokSCONST {
+						stmt.Parameters = p.cur.Str
+						p.advance()
+					}
+					if p.cur.Type == ')' {
+						p.advance()
+					}
+				}
+			case p.cur.Type == kwPCTFREE:
+				p.advance()
+				if p.cur.Type == tokICONST {
+					stmt.PctFree = p.cur.Str
+					p.advance()
+				}
+			case p.isIdentLikeStr("INITRANS"):
+				p.advance()
+				if p.cur.Type == tokICONST {
+					stmt.InitTrans = p.cur.Str
+					p.advance()
+				}
+			case p.isIdentLikeStr("INDEXING"):
+				p.advance()
+				if p.isIdentLikeStr("FULL") {
+					stmt.IndexingFull = true
+					p.advance()
+				} else if p.isIdentLikeStr("PARTIAL") {
+					stmt.IndexingPartial = true
+					p.advance()
+				}
+			case p.cur.Type == kwDEFERRED:
+				stmt.Invalidation = "DEFERRED"
+				p.advance()
+				if p.isIdentLikeStr("INVALIDATION") {
+					p.advance()
+				}
+			case p.cur.Type == kwIMMEDIATE:
+				stmt.Invalidation = "IMMEDIATE"
+				p.advance()
+				if p.isIdentLikeStr("INVALIDATION") {
+					p.advance()
+				}
 			default:
 				goto done
 			}
 		}
 
 	case p.cur.Type == kwRENAME:
-		stmt.Action = "RENAME"
 		p.advance() // consume RENAME
-		if p.cur.Type == kwTO {
-			p.advance() // consume TO
+		// RENAME TO new_name or RENAME PARTITION/SUBPARTITION name TO new_name
+		if p.cur.Type == kwPARTITION {
+			stmt.Action = "RENAME_PARTITION"
+			p.advance() // consume PARTITION
+			stmt.Partition = p.parseIdentifier()
+			if p.cur.Type == kwTO {
+				p.advance() // consume TO
+			}
+			stmt.NewName = p.parseIdentifier()
+		} else if p.cur.Type == kwSUBPARTITION {
+			stmt.Action = "RENAME_SUBPARTITION"
+			p.advance() // consume SUBPARTITION
+			stmt.Subpartition = p.parseIdentifier()
+			if p.cur.Type == kwTO {
+				p.advance() // consume TO
+			}
+			stmt.NewName = p.parseIdentifier()
+		} else {
+			stmt.Action = "RENAME"
+			if p.cur.Type == kwTO {
+				p.advance() // consume TO
+			}
+			stmt.NewName = p.parseIdentifier()
 		}
-		stmt.NewName = p.parseIdentifier()
 
 	case p.isIdentLikeStr("COALESCE"):
 		stmt.Action = "COALESCE"
 		p.advance() // consume COALESCE
-		if p.isIdentLikeStr("CLEANUP") {
+		// COALESCE PARTITION [parallel_clause]
+		if p.cur.Type == kwPARTITION {
+			stmt.Action = "COALESCE_PARTITION"
+			p.advance() // consume PARTITION
+		} else if p.isIdentLikeStr("CLEANUP") {
 			stmt.Cleanup = true
 			p.advance() // consume CLEANUP
 			if p.isIdentLikeStr("ONLY") {
@@ -864,6 +950,57 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 		stmt.Action = "NOLOGGING"
 		p.advance() // consume NOLOGGING
 
+	case p.isIdentLikeStr("DEALLOCATE"):
+		// deallocate_unused_clause: DEALLOCATE UNUSED [KEEP size_clause]
+		stmt.Action = "DEALLOCATE_UNUSED"
+		p.advance() // consume DEALLOCATE
+		if p.isIdentLikeStr("UNUSED") {
+			p.advance() // consume UNUSED
+		}
+		if p.cur.Type == kwKEEP {
+			p.advance() // consume KEEP
+			stmt.DeallocateKeep = p.parseSizeClause()
+		}
+
+	case p.isIdentLikeStr("ALLOCATE"):
+		// allocate_extent_clause: ALLOCATE EXTENT [(...)]
+		stmt.Action = "ALLOCATE_EXTENT"
+		p.advance() // consume ALLOCATE
+		if p.isIdentLikeStr("EXTENT") {
+			p.advance() // consume EXTENT
+		}
+		p.skipParenthesizedBlock()
+
+	case p.isIdentLikeStr("PARAMETERS"):
+		stmt.Action = "PARAMETERS"
+		p.advance() // consume PARAMETERS
+		if p.cur.Type == '(' {
+			p.advance()
+			if p.cur.Type == tokSCONST {
+				stmt.Parameters = p.cur.Str
+				p.advance()
+			}
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		}
+
+	case p.cur.Type == kwDEFERRED:
+		stmt.Action = "INVALIDATION"
+		stmt.Invalidation = "DEFERRED"
+		p.advance() // consume DEFERRED
+		if p.isIdentLikeStr("INVALIDATION") {
+			p.advance()
+		}
+
+	case p.cur.Type == kwIMMEDIATE:
+		stmt.Action = "INVALIDATION"
+		stmt.Invalidation = "IMMEDIATE"
+		p.advance() // consume IMMEDIATE
+		if p.isIdentLikeStr("INVALIDATION") {
+			p.advance()
+		}
+
 	case p.isIdentLikeStr("UPDATE"):
 		stmt.Action = "UPDATE_BLOCK_REFERENCES"
 		p.advance() // consume UPDATE
@@ -886,14 +1023,366 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 			p.advance()
 		}
 
+	case p.cur.Type == kwPCTFREE:
+		stmt.Action = "PHYSICAL_ATTRIBUTES"
+		p.advance()
+		if p.cur.Type == tokICONST {
+			stmt.PctFree = p.cur.Str
+			p.advance()
+		}
+		// May have more physical attributes
+		p.parseAlterIndexPhysicalAttrs(stmt)
+
+	case p.isIdentLikeStr("PCTUSED"):
+		stmt.Action = "PHYSICAL_ATTRIBUTES"
+		p.advance()
+		if p.cur.Type == tokICONST {
+			stmt.PctUsed = p.cur.Str
+			p.advance()
+		}
+		p.parseAlterIndexPhysicalAttrs(stmt)
+
+	case p.isIdentLikeStr("INITRANS"):
+		stmt.Action = "PHYSICAL_ATTRIBUTES"
+		p.advance()
+		if p.cur.Type == tokICONST {
+			stmt.InitTrans = p.cur.Str
+			p.advance()
+		}
+		p.parseAlterIndexPhysicalAttrs(stmt)
+
+	case p.isIdentLikeStr("MAXTRANS"):
+		stmt.Action = "PHYSICAL_ATTRIBUTES"
+		p.advance()
+		if p.cur.Type == tokICONST {
+			stmt.MaxTrans = p.cur.Str
+			p.advance()
+		}
+		p.parseAlterIndexPhysicalAttrs(stmt)
+
+	case p.isIdentLikeStr("STORAGE"):
+		stmt.Action = "PHYSICAL_ATTRIBUTES"
+		p.advance()
+		p.skipParenthesizedBlock()
+
+	case p.cur.Type == kwMODIFY:
+		p.advance() // consume MODIFY
+		if p.cur.Type == kwDEFAULT {
+			// modify_index_default_attrs
+			stmt.Action = "MODIFY_DEFAULT_ATTRIBUTES"
+			p.advance() // consume DEFAULT
+			if p.isIdentLikeStr("ATTRIBUTES") {
+				p.advance() // consume ATTRIBUTES
+			}
+			// Optional FOR PARTITION partition_name
+			if p.cur.Type == kwFOR {
+				p.advance() // consume FOR
+				if p.cur.Type == kwPARTITION {
+					p.advance() // consume PARTITION
+				}
+				stmt.ModifyDefaultFor = p.parseIdentifier()
+			}
+			// Skip remaining options (physical_attributes, TABLESPACE, logging)
+			p.parseAlterIndexPhysicalAttrs(stmt)
+		} else if p.cur.Type == kwPARTITION {
+			// modify_index_partition
+			stmt.Action = "MODIFY_PARTITION"
+			p.advance() // consume PARTITION
+			stmt.Partition = p.parseIdentifier()
+			// Sub-actions: skip remaining tokens
+			for p.cur.Type != ';' && p.cur.Type != tokEOF {
+				switch {
+				case p.isIdentLikeStr("UNUSABLE"):
+					stmt.ModifyPartAction = "UNUSABLE"
+					p.advance()
+				case p.isIdentLikeStr("COALESCE"):
+					stmt.ModifyPartAction = "COALESCE"
+					p.advance()
+					if p.isIdentLikeStr("CLEANUP") {
+						p.advance()
+						if p.isIdentLikeStr("ONLY") {
+							p.advance()
+						}
+					}
+				case p.isIdentLikeStr("UPDATE"):
+					stmt.ModifyPartAction = "UPDATE_BLOCK_REFERENCES"
+					p.advance()
+					if p.isIdentLikeStr("BLOCK") {
+						p.advance()
+					}
+					if p.isIdentLikeStr("REFERENCES") {
+						p.advance()
+					}
+				case p.isIdentLikeStr("PARAMETERS"):
+					stmt.ModifyPartAction = "PARAMETERS"
+					p.advance()
+					if p.cur.Type == '(' {
+						p.advance()
+						if p.cur.Type == tokSCONST {
+							stmt.Parameters = p.cur.Str
+							p.advance()
+						}
+						if p.cur.Type == ')' {
+							p.advance()
+						}
+					}
+				case p.isIdentLikeStr("DEALLOCATE"):
+					stmt.ModifyPartAction = "DEALLOCATE"
+					p.advance()
+					if p.isIdentLikeStr("UNUSED") {
+						p.advance()
+					}
+					if p.cur.Type == kwKEEP {
+						p.advance()
+						stmt.DeallocateKeep = p.parseSizeClause()
+					}
+				case p.isIdentLikeStr("ALLOCATE"):
+					stmt.ModifyPartAction = "ALLOCATE"
+					p.advance()
+					if p.isIdentLikeStr("EXTENT") {
+						p.advance()
+					}
+					p.skipParenthesizedBlock()
+				case p.cur.Type == kwPCTFREE:
+					stmt.ModifyPartAction = "PHYSICAL"
+					p.advance()
+					if p.cur.Type == tokICONST {
+						stmt.PctFree = p.cur.Str
+						p.advance()
+					}
+				case p.cur.Type == kwLOGGING:
+					stmt.ModifyPartAction = "LOGGING"
+					stmt.Logging = true
+					p.advance()
+				case p.cur.Type == kwNOLOGGING:
+					stmt.ModifyPartAction = "NOLOGGING"
+					stmt.NoLogging = true
+					p.advance()
+				case p.cur.Type == kwCOMPRESS:
+					stmt.ModifyPartAction = "COMPRESS"
+					p.advance()
+					if p.cur.Type == tokICONST {
+						stmt.Compress = p.cur.Str
+						p.advance()
+					} else {
+						stmt.Compress = "1"
+					}
+				case p.cur.Type == kwNOCOMPRESS:
+					stmt.ModifyPartAction = "NOCOMPRESS"
+					stmt.NoCompress = true
+					p.advance()
+				default:
+					goto done
+				}
+			}
+		} else if p.cur.Type == kwSUBPARTITION {
+			// modify_index_subpartition
+			stmt.Action = "MODIFY_SUBPARTITION"
+			p.advance() // consume SUBPARTITION
+			stmt.Subpartition = p.parseIdentifier()
+			// Sub-actions: UNUSABLE, allocate_extent, deallocate_unused
+			if p.isIdentLikeStr("UNUSABLE") {
+				stmt.ModifyPartAction = "UNUSABLE"
+				p.advance()
+			} else if p.isIdentLikeStr("ALLOCATE") {
+				stmt.ModifyPartAction = "ALLOCATE"
+				p.advance()
+				if p.isIdentLikeStr("EXTENT") {
+					p.advance()
+				}
+				p.skipParenthesizedBlock()
+			} else if p.isIdentLikeStr("DEALLOCATE") {
+				stmt.ModifyPartAction = "DEALLOCATE"
+				p.advance()
+				if p.isIdentLikeStr("UNUSED") {
+					p.advance()
+				}
+				if p.cur.Type == kwKEEP {
+					p.advance()
+					stmt.DeallocateKeep = p.parseSizeClause()
+				}
+			}
+		}
+
+	case p.cur.Type == kwADD:
+		// add_hash_index_partition
+		stmt.Action = "ADD_PARTITION"
+		p.advance() // consume ADD
+		if p.cur.Type == kwPARTITION {
+			p.advance() // consume PARTITION
+		}
+		// Optional partition name
+		if p.isIdentLike() && p.cur.Type != kwTABLESPACE && p.cur.Type != kwCOMPRESS &&
+			p.cur.Type != kwNOCOMPRESS && p.cur.Type != kwPARALLEL && p.cur.Type != kwNOPARALLEL &&
+			p.cur.Type != ';' && p.cur.Type != tokEOF {
+			stmt.AddPartitionName = p.parseIdentifier()
+		}
+		// Optional TABLESPACE, index_compression, parallel_clause
+		for p.cur.Type != ';' && p.cur.Type != tokEOF {
+			switch {
+			case p.cur.Type == kwTABLESPACE:
+				p.advance()
+				stmt.Tablespace = p.parseIdentifier()
+			case p.cur.Type == kwCOMPRESS:
+				p.advance()
+				if p.cur.Type == tokICONST {
+					stmt.Compress = p.cur.Str
+					p.advance()
+				} else {
+					stmt.Compress = "1"
+				}
+			case p.cur.Type == kwNOCOMPRESS:
+				stmt.NoCompress = true
+				p.advance()
+			case p.cur.Type == kwPARALLEL:
+				p.advance()
+				if p.cur.Type == tokICONST {
+					stmt.Parallel = p.cur.Str
+					p.advance()
+				}
+			case p.cur.Type == kwNOPARALLEL:
+				stmt.NoParallel = true
+				p.advance()
+			default:
+				goto done
+			}
+		}
+
+	case p.cur.Type == kwDROP:
+		// drop_index_partition
+		stmt.Action = "DROP_PARTITION"
+		p.advance() // consume DROP
+		if p.cur.Type == kwPARTITION {
+			p.advance() // consume PARTITION
+		}
+		stmt.Partition = p.parseIdentifier()
+
+	case p.isIdentLikeStr("SPLIT"):
+		// split_index_partition
+		stmt.Action = "SPLIT_PARTITION"
+		p.advance() // consume SPLIT
+		if p.cur.Type == kwPARTITION {
+			p.advance() // consume PARTITION
+		}
+		stmt.SplitPartition = p.parseIdentifier()
+		// AT ( literal [, literal ]... )
+		if p.isIdentLikeStr("AT") {
+			p.advance() // consume AT
+			if p.cur.Type == '(' {
+				p.advance()
+				stmt.SplitValues = &nodes.List{}
+				for {
+					val := p.parseExpr()
+					if val != nil {
+						stmt.SplitValues.Items = append(stmt.SplitValues.Items, val)
+					}
+					if p.cur.Type != ',' {
+						break
+					}
+					p.advance()
+				}
+				if p.cur.Type == ')' {
+					p.advance()
+				}
+			}
+		}
+		// Optional INTO ( ... ) and parallel_clause - skip
+		if p.cur.Type == kwINTO {
+			p.advance()
+			p.skipParenthesizedBlock()
+		}
+		if p.cur.Type == kwPARALLEL {
+			p.advance()
+			if p.cur.Type == tokICONST {
+				stmt.Parallel = p.cur.Str
+				p.advance()
+			}
+		} else if p.cur.Type == kwNOPARALLEL {
+			stmt.NoParallel = true
+			p.advance()
+		}
+
+	case p.isIdentLikeStr("ANNOTATIONS"):
+		stmt.Action = "ANNOTATIONS"
+		p.advance()
+		p.skipParenthesizedBlock()
+
 	default:
-		// Unknown action — skip remaining tokens
-		p.skipToSemicolon()
+		// Consume remaining tokens for unknown actions
+		for p.cur.Type != ';' && p.cur.Type != tokEOF {
+			p.advance()
+		}
 	}
 
 done:
 	stmt.Loc.End = p.pos()
 	return stmt
+}
+
+// parseAlterIndexPhysicalAttrs parses remaining physical_attributes_clause
+// options for ALTER INDEX (PCTFREE, PCTUSED, INITRANS, MAXTRANS, STORAGE, TABLESPACE, logging).
+func (p *Parser) parseAlterIndexPhysicalAttrs(stmt *nodes.AlterIndexStmt) {
+	for {
+		switch {
+		case p.cur.Type == kwPCTFREE:
+			p.advance()
+			if p.cur.Type == tokICONST {
+				stmt.PctFree = p.cur.Str
+				p.advance()
+			}
+		case p.isIdentLikeStr("PCTUSED"):
+			p.advance()
+			if p.cur.Type == tokICONST {
+				stmt.PctUsed = p.cur.Str
+				p.advance()
+			}
+		case p.isIdentLikeStr("INITRANS"):
+			p.advance()
+			if p.cur.Type == tokICONST {
+				stmt.InitTrans = p.cur.Str
+				p.advance()
+			}
+		case p.isIdentLikeStr("MAXTRANS"):
+			p.advance()
+			if p.cur.Type == tokICONST {
+				stmt.MaxTrans = p.cur.Str
+				p.advance()
+			}
+		case p.isIdentLikeStr("STORAGE"):
+			p.advance()
+			p.skipParenthesizedBlock()
+		case p.cur.Type == kwTABLESPACE:
+			p.advance()
+			stmt.Tablespace = p.parseIdentifier()
+		case p.cur.Type == kwLOGGING:
+			stmt.Logging = true
+			p.advance()
+		case p.cur.Type == kwNOLOGGING:
+			stmt.NoLogging = true
+			p.advance()
+		default:
+			return
+		}
+	}
+}
+
+// parseSizeClause parses a size clause like "10M", "100K", "1G", etc.
+// Returns the combined string.
+func (p *Parser) parseSizeClause() string {
+	if p.cur.Type == tokICONST {
+		size := p.cur.Str
+		p.advance()
+		// Optional unit suffix (K, M, G, T)
+		if p.isIdentLike() {
+			u := p.cur.Str
+			if u == "K" || u == "M" || u == "G" || u == "T" {
+				size += u
+				p.advance()
+			}
+		}
+		return size
+	}
+	return ""
 }
 
 // parseAlterViewStmt parses an ALTER VIEW statement.

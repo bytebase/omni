@@ -662,7 +662,7 @@
       "id": 92,
       "name": "index_indextype_operator",
       "file": "create_index.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE INDEX (full review), ALTER INDEX (fix skipToSemicolon fallback), CREATE/ALTER INDEXTYPE, CREATE/ALTER OPERATOR. All DROP variants.",
       "bnf_files": ["CREATE-INDEX.bnf", "ALTER-INDEX.bnf", "ALTER-INDEXTYPE.bnf", "CREATE-INDEXTYPE.bnf", "CREATE-OPERATOR.bnf", "ALTER-OPERATOR.bnf", "DROP-INDEX.bnf", "DROP-INDEXTYPE.bnf", "DROP-OPERATOR.bnf"],
       "bnf_lines": 459,
