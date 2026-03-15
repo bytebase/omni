@@ -2418,12 +2418,16 @@ func (n *ExplainPlanStmt) stmtNode() {}
 
 // FlashbackTableStmt represents a FLASHBACK TABLE statement.
 type FlashbackTableStmt struct {
-	Table        *ObjectName // table name
-	ToSCN        ExprNode    // TO SCN expression
-	ToTimestamp  ExprNode    // TO TIMESTAMP expression
-	ToBeforeDrop bool        // TO BEFORE DROP
-	Rename       string      // RENAME TO name
-	Loc          Loc         // start location
+	Tables         []*ObjectName // one or more table names
+	Table          *ObjectName   // table name (kept for backward compat; first entry)
+	ToSCN          ExprNode      // TO SCN expression
+	ToTimestamp    ExprNode      // TO TIMESTAMP expression
+	ToRestorePoint string        // TO RESTORE POINT name
+	Before         bool          // true if TO BEFORE { SCN | TIMESTAMP }
+	ToBeforeDrop   bool          // TO BEFORE DROP
+	Rename         string        // RENAME TO name
+	EnableTriggers *bool         // nil = not specified, true = ENABLE, false = DISABLE
+	Loc            Loc           // start location
 }
 
 func (n *FlashbackTableStmt) nodeTag()  {}

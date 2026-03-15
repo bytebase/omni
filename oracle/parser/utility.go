@@ -442,36 +442,85 @@ func (p *Parser) parseFlashbackTableStmt() nodes.StmtNode {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Table name
-	stmt.Table = p.parseObjectName()
+	// One or more table names (comma-separated), ending before TO
+	first := p.parseObjectName()
+	stmt.Tables = append(stmt.Tables, first)
+	stmt.Table = first
+	for p.cur.Type == ',' {
+		p.advance() // consume ','
+		t := p.parseObjectName()
+		stmt.Tables = append(stmt.Tables, t)
+	}
 
 	// TO
 	if p.cur.Type == kwTO {
 		p.advance()
 	}
 
-	// SCN expr | TIMESTAMP expr | BEFORE DROP
-	switch p.cur.Type {
-	case kwSCN:
-		p.advance()
-		stmt.ToSCN = p.parseExpr()
-	case kwTIMESTAMP:
-		p.advance()
-		stmt.ToTimestamp = p.parseExpr()
-	case kwBEFORE:
+	// BEFORE variant or RESTORE POINT or SCN expr | TIMESTAMP expr
+	if p.cur.Type == kwBEFORE {
 		p.advance() // consume BEFORE
 		if p.cur.Type == kwDROP {
 			p.advance() // consume DROP
 			stmt.ToBeforeDrop = true
-		}
-		// Optional RENAME TO name
-		if p.cur.Type == kwRENAME {
-			p.advance() // consume RENAME
-			if p.cur.Type == kwTO {
-				p.advance()
+			// Optional RENAME TO name
+			if p.cur.Type == kwRENAME {
+				p.advance() // consume RENAME
+				if p.cur.Type == kwTO {
+					p.advance()
+				}
+				stmt.Rename = p.parseIdentifier()
 			}
-			stmt.Rename = p.parseIdentifier()
+		} else {
+			// TO BEFORE SCN expr | TO BEFORE TIMESTAMP expr
+			stmt.Before = true
+			switch p.cur.Type {
+			case kwSCN:
+				p.advance()
+				stmt.ToSCN = p.parseExpr()
+			case kwTIMESTAMP:
+				p.advance()
+				stmt.ToTimestamp = p.parseExpr()
+			}
 		}
+	} else {
+		switch p.cur.Type {
+		case kwSCN:
+			p.advance()
+			stmt.ToSCN = p.parseExpr()
+		case kwTIMESTAMP:
+			p.advance()
+			stmt.ToTimestamp = p.parseExpr()
+		default:
+			// TO RESTORE POINT restore_point_name
+			if p.isIdentLike() && p.cur.Str == "RESTORE" {
+				p.advance()
+				if p.isIdentLike() && p.cur.Str == "POINT" {
+					p.advance()
+				}
+				if p.isIdentLike() {
+					stmt.ToRestorePoint = p.cur.Str
+					p.advance()
+				}
+			}
+		}
+	}
+
+	// Optional { ENABLE | DISABLE } TRIGGERS
+	if p.cur.Type == kwENABLE {
+		p.advance()
+		if p.isIdentLike() && p.cur.Str == "TRIGGERS" {
+			p.advance()
+		}
+		t := true
+		stmt.EnableTriggers = &t
+	} else if p.cur.Type == kwDISABLE {
+		p.advance()
+		if p.isIdentLike() && p.cur.Str == "TRIGGERS" {
+			p.advance()
+		}
+		f := false
+		stmt.EnableTriggers = &f
 	}
 
 	stmt.Loc.End = p.pos()

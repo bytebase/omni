@@ -9238,3 +9238,113 @@ func TestLockTable(t *testing.T) {
 		})
 	}
 }
+
+// TestFlashbackTable covers multi-table, TO RESTORE POINT, TO SCN, TO TIMESTAMP,
+// TO BEFORE SCN/TIMESTAMP, and ENABLE/DISABLE TRIGGERS.
+func TestFlashbackTable(t *testing.T) {
+	tests := []struct {
+		sql             string
+		tableCount      int
+		hasToSCN        bool
+		hasToTimestamp  bool
+		toRestorePoint  string
+		before          bool
+		toBeforeDrop    bool
+		enableTriggers  *bool // nil=not set, true=ENABLE, false=DISABLE
+	}{
+		{
+			sql:            "FLASHBACK TABLE employees TO TIMESTAMP SYSDATE",
+			tableCount:     1,
+			hasToTimestamp: true,
+		},
+		{
+			sql:         "FLASHBACK TABLE hr.orders TO SCN 1234567",
+			tableCount:  1,
+			hasToSCN:    true,
+		},
+		{
+			sql:            "FLASHBACK TABLE hr.orders TO RESTORE POINT my_restore_point",
+			tableCount:     1,
+			toRestorePoint: "MY_RESTORE_POINT",
+		},
+		{
+			sql:            "FLASHBACK TABLE employees TO BEFORE TIMESTAMP SYSDATE",
+			tableCount:     1,
+			hasToTimestamp: true,
+			before:         true,
+		},
+		{
+			sql:        "FLASHBACK TABLE employees TO BEFORE SCN 9999",
+			tableCount: 1,
+			hasToSCN:   true,
+			before:     true,
+		},
+		{
+			sql:            "FLASHBACK TABLE employees TO TIMESTAMP SYSDATE ENABLE TRIGGERS",
+			tableCount:     1,
+			hasToTimestamp: true,
+			enableTriggers: func() *bool { b := true; return &b }(),
+		},
+		{
+			sql:            "FLASHBACK TABLE employees TO SCN 100 DISABLE TRIGGERS",
+			tableCount:     1,
+			hasToSCN:       true,
+			enableTriggers: func() *bool { b := false; return &b }(),
+		},
+		{
+			sql:        "FLASHBACK TABLE hr.t1, hr.t2, hr.t3 TO SCN 5000",
+			tableCount: 3,
+			hasToSCN:   true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.FlashbackTableStmt)
+			if !ok {
+				t.Fatalf("expected FlashbackTableStmt, got %T", raw.Stmt)
+			}
+			if len(stmt.Tables) != tt.tableCount {
+				t.Errorf("Tables: got %d, want %d", len(stmt.Tables), tt.tableCount)
+			}
+			if tt.hasToSCN && stmt.ToSCN == nil {
+				t.Error("expected non-nil ToSCN")
+			}
+			if !tt.hasToSCN && stmt.ToSCN != nil {
+				t.Error("expected nil ToSCN")
+			}
+			if tt.hasToTimestamp && stmt.ToTimestamp == nil {
+				t.Error("expected non-nil ToTimestamp")
+			}
+			if !tt.hasToTimestamp && stmt.ToTimestamp != nil {
+				t.Error("expected nil ToTimestamp")
+			}
+			if tt.toRestorePoint != "" && stmt.ToRestorePoint != tt.toRestorePoint {
+				t.Errorf("ToRestorePoint: got %q, want %q", stmt.ToRestorePoint, tt.toRestorePoint)
+			}
+			if stmt.Before != tt.before {
+				t.Errorf("Before: got %v, want %v", stmt.Before, tt.before)
+			}
+			if stmt.ToBeforeDrop != tt.toBeforeDrop {
+				t.Errorf("ToBeforeDrop: got %v, want %v", stmt.ToBeforeDrop, tt.toBeforeDrop)
+			}
+			if tt.enableTriggers != nil {
+				if stmt.EnableTriggers == nil {
+					t.Error("expected non-nil EnableTriggers")
+				} else if *stmt.EnableTriggers != *tt.enableTriggers {
+					t.Errorf("EnableTriggers: got %v, want %v", *stmt.EnableTriggers, *tt.enableTriggers)
+				}
+			} else if stmt.EnableTriggers != nil {
+				t.Error("expected nil EnableTriggers")
+			}
+			s := ast.NodeToString(result.Items[0])
+			if s == "" {
+				t.Errorf("expected non-empty serialization for %q", tt.sql)
+			}
+		})
+	}
+}

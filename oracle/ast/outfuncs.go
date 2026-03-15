@@ -3507,9 +3507,21 @@ func writeExplainPlanStmt(sb *strings.Builder, n *ExplainPlanStmt) {
 
 func writeFlashbackTableStmt(sb *strings.Builder, n *FlashbackTableStmt) {
 	sb.WriteString("{FLASHBACKTABLE")
-	if n.Table != nil {
+	if len(n.Tables) > 0 {
+		sb.WriteString(" :tables (")
+		for i, t := range n.Tables {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, t)
+		}
+		sb.WriteString(")")
+	} else if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
+	}
+	if n.Before {
+		sb.WriteString(" :before true")
 	}
 	if n.ToSCN != nil {
 		sb.WriteString(" :toSCN ")
@@ -3519,11 +3531,21 @@ func writeFlashbackTableStmt(sb *strings.Builder, n *FlashbackTableStmt) {
 		sb.WriteString(" :toTimestamp ")
 		writeNode(sb, n.ToTimestamp)
 	}
+	if n.ToRestorePoint != "" {
+		sb.WriteString(fmt.Sprintf(" :toRestorePoint %q", n.ToRestorePoint))
+	}
 	if n.ToBeforeDrop {
 		sb.WriteString(" :toBeforeDrop true")
 	}
 	if n.Rename != "" {
 		sb.WriteString(fmt.Sprintf(" :rename %q", n.Rename))
+	}
+	if n.EnableTriggers != nil {
+		if *n.EnableTriggers {
+			sb.WriteString(" :triggers \"ENABLE\"")
+		} else {
+			sb.WriteString(" :triggers \"DISABLE\"")
+		}
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

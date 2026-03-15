@@ -1613,7 +1613,7 @@
       "id": 115,
       "name": "flashback_table_full",
       "file": "utility.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 106 gap: parseFlashbackTableStmt missing TO RESTORE POINT branch, ENABLE/DISABLE TRIGGERS clause, and multi-table support.",
       "bnf_files": [
         "FLASHBACK-TABLE.bnf"
