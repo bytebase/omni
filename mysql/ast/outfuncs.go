@@ -637,6 +637,10 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 		sb.WriteString(" :select ")
 		writeNode(sb, n.Select)
 	}
+	if n.TableSource != nil {
+		sb.WriteString(" :table_source ")
+		writeNode(sb, n.TableSource)
+	}
 	if len(n.SetList) > 0 {
 		sb.WriteString(" :set ")
 		for i, a := range n.SetList {

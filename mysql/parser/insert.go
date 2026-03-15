@@ -135,6 +135,14 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		}
 		stmt.Select = sel
 
+	case kwTABLE:
+		// TABLE table_name (MySQL 8.0.19+)
+		tblStmt, err := p.parseTableStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.TableSource = tblStmt
+
 	default:
 		// Also accept VALUE (MySQL alias for VALUES)
 		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "value") {

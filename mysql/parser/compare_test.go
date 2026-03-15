@@ -1514,6 +1514,30 @@ func TestParseInsertOnDupKey(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Batch 99 (review_dml): INSERT ... TABLE source
+// ---------------------------------------------------------------------------
+
+// TestParseInsertTableSource tests INSERT INTO t1 TABLE t2 (MySQL 8.0.19+).
+func TestParseInsertTableSource(t *testing.T) {
+	stmt := parseInsert(t, "INSERT INTO t1 TABLE t2")
+	if stmt.TableSource == nil {
+		t.Fatal("expected TableSource to be non-nil")
+	}
+	if stmt.TableSource.Table.Name != "t2" {
+		t.Errorf("TableSource.Table.Name = %q, want %q", stmt.TableSource.Table.Name, "t2")
+	}
+
+	// REPLACE ... TABLE
+	rep := parseReplace(t, "REPLACE INTO t1 TABLE t2")
+	if rep.TableSource == nil {
+		t.Fatal("expected TableSource to be non-nil for REPLACE")
+	}
+
+	// INSERT with ON DUPLICATE KEY UPDATE after TABLE source
+	ParseAndCheck(t, "INSERT INTO t1 TABLE t2 ON DUPLICATE KEY UPDATE col = 1")
+}
+
+// ---------------------------------------------------------------------------
 // Batch 6: update_delete
 // ---------------------------------------------------------------------------
 

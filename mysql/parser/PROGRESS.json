@@ -2350,7 +2350,7 @@
       "id": 99,
       "name": "review_dml",
       "file": "insert.go",
-      "status": "pending",
+      "status": "done",
       "description": "BNF review: Review all DML against BNF. INSERT ON DUPLICATE KEY, REPLACE, multi-table UPDATE/DELETE, PARTITION clause, LOW_PRIORITY/DELAYED/HIGH_PRIORITY, IGNORE.",
       "effort": "review",
       "bnf_files": ["insert.bnf", "update.bnf", "delete.bnf", "replace.bnf", "do.bnf"],

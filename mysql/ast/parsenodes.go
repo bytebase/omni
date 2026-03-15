@@ -78,6 +78,7 @@ type InsertStmt struct {
 	Columns        []*ColumnRef  // explicit column list
 	Values         [][]ExprNode  // VALUES rows
 	Select         *SelectStmt   // INSERT ... SELECT
+	TableSource    *TableStmt    // INSERT ... TABLE table_name (MySQL 8.0.19+)
 	SetList        []*Assignment // INSERT ... SET col=val (MySQL extension)
 	RowAlias       string        // AS row_alias (MySQL 8.0.19+)
 	ColAliases     []string      // (col_alias, ...) after row_alias
