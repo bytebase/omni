@@ -40,7 +40,57 @@ func (p *Parser) parseLockTableStmt() nodes.StmtNode {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	stmt.Table = p.parseObjectName()
+	// Parse one or more table entries separated by commas.
+	// Each entry is: [schema.]table[@dblink] [partition_extension_clause]
+	for {
+		itemStart := p.pos()
+		item := &nodes.LockTableItem{
+			Loc: nodes.Loc{Start: itemStart},
+		}
+		item.Table = p.parseObjectName()
+
+		// Optional partition_extension_clause:
+		//   PARTITION ( partition_name )
+		//   PARTITION FOR ( partition_key_value )
+		//   SUBPARTITION ( subpartition_name )
+		//   SUBPARTITION FOR ( subpartition_key_value )
+		if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
+			if p.cur.Type == kwPARTITION {
+				item.PartitionType = "PARTITION"
+			} else {
+				item.PartitionType = "SUBPARTITION"
+			}
+			p.advance()
+			if p.cur.Type == kwFOR {
+				item.PartitionFor = true
+				p.advance()
+			}
+			if p.cur.Type == '(' {
+				p.advance() // consume '('
+				// Collect partition name/value as a string
+				name := ""
+				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					if name != "" {
+						name += " "
+					}
+					name += p.cur.Str
+					p.advance()
+				}
+				item.PartitionName = name
+				if p.cur.Type == ')' {
+					p.advance() // consume ')'
+				}
+			}
+		}
+
+		item.Loc.End = p.pos()
+		stmt.Tables = append(stmt.Tables, item)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
 
 	// IN
 	if p.cur.Type == kwIN {

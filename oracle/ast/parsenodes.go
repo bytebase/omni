@@ -2465,14 +2465,28 @@ type PurgeStmt struct {
 func (n *PurgeStmt) nodeTag()  {}
 func (n *PurgeStmt) stmtNode() {}
 
+// LockTableItem represents a single table entry in a LOCK TABLE statement,
+// including optional partition_extension_clause.
+type LockTableItem struct {
+	Table         *ObjectName // table/view name (with optional schema and dblink)
+	PartitionType string      // "PARTITION" or "SUBPARTITION" (empty if none)
+	PartitionFor  bool        // true if PARTITION FOR / SUBPARTITION FOR
+	PartitionName string      // partition or subpartition name / key value
+	Loc           Loc
+}
+
+func (n *LockTableItem) nodeTag() {}
+
 // LockTableStmt represents a LOCK TABLE statement.
 //
-//	LOCK TABLE [schema.]table IN lock_mode MODE [NOWAIT | WAIT n]
+//	LOCK TABLE [schema.]table [partition_extension_clause]
+//	    [, [schema.]table [partition_extension_clause]]...
+//	    IN lock_mode MODE [NOWAIT | WAIT n]
 type LockTableStmt struct {
-	Table    *ObjectName // table name
-	LockMode string      // ROW SHARE, ROW EXCLUSIVE, SHARE, etc.
-	Nowait   bool        // NOWAIT
-	Wait     ExprNode    // WAIT n
+	Tables   []*LockTableItem // one or more table entries
+	LockMode string           // ROW SHARE, ROW EXCLUSIVE, SHARE, etc.
+	Nowait   bool             // NOWAIT
+	Wait     ExprNode         // WAIT n
 	Loc      Loc
 }
 

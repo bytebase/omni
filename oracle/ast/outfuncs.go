@@ -322,6 +322,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writePurgeStmt(sb, n)
 	case *LockTableStmt:
 		writeLockTableStmt(sb, n)
+	case *LockTableItem:
+		writeLockTableItem(sb, n)
 	case *CallStmt:
 		writeCallStmt(sb, n)
 	case *RenameStmt:
@@ -3568,11 +3570,36 @@ func writePurgeStmt(sb *strings.Builder, n *PurgeStmt) {
 	sb.WriteString("}")
 }
 
-func writeLockTableStmt(sb *strings.Builder, n *LockTableStmt) {
-	sb.WriteString("{LOCK_TABLE")
+func writeLockTableItem(sb *strings.Builder, n *LockTableItem) {
+	sb.WriteString("{LOCK_TABLE_ITEM")
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
+	}
+	if n.PartitionType != "" {
+		sb.WriteString(fmt.Sprintf(" :partitionType %q", n.PartitionType))
+		if n.PartitionFor {
+			sb.WriteString(" :partitionFor true")
+		}
+		if n.PartitionName != "" {
+			sb.WriteString(fmt.Sprintf(" :partitionName %q", n.PartitionName))
+		}
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeLockTableStmt(sb *strings.Builder, n *LockTableStmt) {
+	sb.WriteString("{LOCK_TABLE")
+	if len(n.Tables) > 0 {
+		sb.WriteString(" :tables (")
+		for i, item := range n.Tables {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeLockTableItem(sb, item)
+		}
+		sb.WriteString(")")
 	}
 	if n.LockMode != "" {
 		sb.WriteString(fmt.Sprintf(" :lockMode %q", n.LockMode))

@@ -9136,3 +9136,105 @@ func TestCommit(t *testing.T) {
 		})
 	}
 }
+
+// TestLockTable tests LOCK TABLE statement parsing (batch 114).
+// Covers single table, multiple tables, partition_extension_clause, NOWAIT, and WAIT integer.
+func TestLockTable(t *testing.T) {
+	tests := []struct {
+		sql          string
+		tableCount   int
+		lockMode     string
+		nowait       bool
+		hasWait      bool
+		partType     string // partition type of first table entry
+		partFor      bool   // whether PARTITION FOR / SUBPARTITION FOR
+		partName     string // partition name of first table entry
+	}{
+		{
+			sql:        "LOCK TABLE employees IN EXCLUSIVE MODE",
+			tableCount: 1,
+			lockMode:   "EXCLUSIVE",
+		},
+		{
+			sql:        "LOCK TABLE hr.employees, hr.departments IN ROW SHARE MODE NOWAIT",
+			tableCount: 2,
+			lockMode:   "ROW SHARE",
+			nowait:     true,
+		},
+		{
+			sql:        "LOCK TABLE hr.employees PARTITION (p1) IN SHARE MODE",
+			tableCount: 1,
+			lockMode:   "SHARE",
+			partType:   "PARTITION",
+			partName:   "P1",
+		},
+		{
+			sql:        "LOCK TABLE hr.employees SUBPARTITION (sp1) IN ROW EXCLUSIVE MODE NOWAIT",
+			tableCount: 1,
+			lockMode:   "ROW EXCLUSIVE",
+			nowait:     true,
+			partType:   "SUBPARTITION",
+			partName:   "SP1",
+		},
+		{
+			sql:        "LOCK TABLE orders IN SHARE ROW EXCLUSIVE MODE WAIT 10",
+			tableCount: 1,
+			lockMode:   "SHARE ROW EXCLUSIVE",
+			hasWait:    true,
+		},
+		{
+			sql:        "LOCK TABLE t1, t2, t3 IN SHARE UPDATE MODE",
+			tableCount: 3,
+			lockMode:   "SHARE UPDATE",
+		},
+		{
+			sql:        "LOCK TABLE hr.employees PARTITION FOR (2023) IN EXCLUSIVE MODE",
+			tableCount: 1,
+			lockMode:   "EXCLUSIVE",
+			partType:   "PARTITION",
+			partFor:    true,
+			partName:   "2023",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() != 1 {
+				t.Fatalf("expected 1 statement, got %d", result.Len())
+			}
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.LockTableStmt)
+			if !ok {
+				t.Fatalf("expected LockTableStmt, got %T", raw.Stmt)
+			}
+			if len(stmt.Tables) != tt.tableCount {
+				t.Errorf("Tables: got %d, want %d", len(stmt.Tables), tt.tableCount)
+			}
+			if stmt.LockMode != tt.lockMode {
+				t.Errorf("LockMode: got %q, want %q", stmt.LockMode, tt.lockMode)
+			}
+			if stmt.Nowait != tt.nowait {
+				t.Errorf("Nowait: got %v, want %v", stmt.Nowait, tt.nowait)
+			}
+			if tt.hasWait && stmt.Wait == nil {
+				t.Error("expected non-nil Wait")
+			}
+			if tt.partType != "" && len(stmt.Tables) > 0 {
+				item := stmt.Tables[0]
+				if item.PartitionType != tt.partType {
+					t.Errorf("PartitionType: got %q, want %q", item.PartitionType, tt.partType)
+				}
+				if item.PartitionFor != tt.partFor {
+					t.Errorf("PartitionFor: got %v, want %v", item.PartitionFor, tt.partFor)
+				}
+				if item.PartitionName != tt.partName {
+					t.Errorf("PartitionName: got %q, want %q", item.PartitionName, tt.partName)
+				}
+			}
+			s := ast.NodeToString(result.Items[0])
+			if s == "" {
+				t.Errorf("expected non-empty serialization for %q", tt.sql)
+			}
+		})
+	}
+}
