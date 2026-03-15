@@ -1676,19 +1676,44 @@ func (n *IndexColumn) nodeTag() {}
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-VIEW.html
 type CreateViewStmt struct {
 	OrReplace    bool        // OR REPLACE
+	IfNotExists  bool        // IF NOT EXISTS
 	Force        bool        // FORCE
 	NoForce      bool        // NO FORCE
+	Editioning   bool        // EDITIONING
+	Editionable  string      // "EDITIONABLE" or "NONEDITIONABLE"
+	Sharing      string      // METADATA, DATA, EXTENDED DATA, NONE
 	Materialized bool        // MATERIALIZED VIEW
 	Name         *ObjectName // view name
 	Columns      *List       // column aliases
 	Query        StmtNode    // AS SELECT ...
 	WithCheckOpt bool        // WITH CHECK OPTION
 	WithReadOnly bool        // WITH READ ONLY
+	ConstraintName string    // CONSTRAINT name for WITH READ ONLY/CHECK OPTION
+	Bequeath     string      // "CURRENT_USER" or "DEFINER"
+	DefaultCollation string  // DEFAULT COLLATION name
+	ContainerMap bool        // CONTAINER_MAP
+	ContainersDefault bool   // CONTAINERS_DEFAULT
 	// Materialized view specific
-	BuildMode   string // BUILD IMMEDIATE / BUILD DEFERRED
-	RefreshMode string // REFRESH FAST / COMPLETE / FORCE / ON DEMAND / ON COMMIT
-	EnableQuery bool   // ENABLE QUERY REWRITE
-	Loc         Loc    // start location
+	BuildMode     string
+	RefreshMode   string
+	RefreshMethod string    // FAST, COMPLETE, FORCE
+	OnPrebuilt    bool       // ON PREBUILT TABLE
+	ReducedPrec   string     // "WITH_REDUCED", "WITHOUT_REDUCED"
+	NeverRefresh  bool       // NEVER REFRESH
+	WithPK        bool       // WITH PRIMARY KEY
+	WithRowID     bool       // WITH ROWID
+	RefreshOnStmt bool       // ON STATEMENT
+	StartWith     ExprNode   // START WITH
+	Next          ExprNode   // NEXT
+	EnableQuery   bool
+	DisableQuery  bool       // DISABLE QUERY REWRITE
+	EnableOnQueryComputation bool
+	DisableOnQueryComputation bool
+	CacheMode     string     // "CACHE" or "NOCACHE"
+	ParallelMode  string     // "PARALLEL" or "NOPARALLEL"
+	ParallelDegree string    // degree number
+	Options       *List      // remaining generic options
+	Loc           Loc        // start location
 }
 
 func (n *CreateViewStmt) nodeTag()  {}
@@ -3066,11 +3091,12 @@ func (n *AlterIndexStmt) stmtNode() {}
 type AlterViewStmt struct {
 	Name           *ObjectName      // view name
 	IfExists       bool             // IF EXISTS
-	Action         string           // "COMPILE", "ADD_CONSTRAINT", "MODIFY_CONSTRAINT", "DROP_CONSTRAINT", "READ_ONLY", "READ_WRITE", "EDITIONABLE", "NONEDITIONABLE"
+	Action         string           // "COMPILE", "ADD_CONSTRAINT", "MODIFY_CONSTRAINT", "DROP_CONSTRAINT", "READ_ONLY", "READ_WRITE", "EDITIONABLE", "NONEDITIONABLE", "ANNOTATIONS"
 	Constraint     *TableConstraint // for ADD constraint
 	ConstraintName string           // for MODIFY/DROP CONSTRAINT
 	Rely           bool             // MODIFY CONSTRAINT ... RELY
 	NoRely         bool             // MODIFY CONSTRAINT ... NORELY
+	Annotations    *List            // for ANNOTATIONS action
 	Loc            Loc
 }
 
@@ -3445,6 +3471,128 @@ type AlterOperatorStmt struct {
 
 func (n *AlterOperatorStmt) nodeTag()  {}
 func (n *AlterOperatorStmt) stmtNode() {}
+
+// ---------------------------------------------------------------------------
+// CREATE MATERIALIZED VIEW LOG
+// ---------------------------------------------------------------------------
+
+// CreateMviewLogStmt represents a CREATE MATERIALIZED VIEW LOG statement.
+type CreateMviewLogStmt struct {
+	OnTable     *ObjectName // ON table
+	IfNotExists bool
+	Sharing     string   // METADATA, NONE
+	WithPK      bool     // WITH PRIMARY KEY
+	WithRowID   bool     // WITH ROWID
+	WithOID     bool     // WITH OBJECT ID
+	WithSeq     bool     // WITH SEQUENCE
+	CommitSCN   bool     // COMMIT SCN
+	Columns     *List    // column list
+	Including   bool     // INCLUDING NEW VALUES
+	Excluding   bool     // EXCLUDING NEW VALUES
+	PurgeMode   string   // "IMMEDIATE_SYNC", "IMMEDIATE_ASYNC", "START_WITH"
+	PurgeStart  ExprNode // START WITH datetime
+	PurgeNext   ExprNode // NEXT datetime
+	ForRefresh  string   // "FAST", "SYNCHRONOUS"
+	StagingLog  string   // staging log name for SYNCHRONOUS REFRESH
+	Options     *List    // generic options (physical attrs, TABLESPACE, etc.)
+	Loc         Loc
+}
+
+func (n *CreateMviewLogStmt) nodeTag()  {}
+func (n *CreateMviewLogStmt) stmtNode() {}
+
+// ---------------------------------------------------------------------------
+// ALTER MATERIALIZED VIEW LOG
+// ---------------------------------------------------------------------------
+
+// AlterMviewLogStmt represents an ALTER MATERIALIZED VIEW LOG statement.
+type AlterMviewLogStmt struct {
+	OnTable  *ObjectName // ON table
+	IfExists bool
+	Force    bool
+	Action   string // "ADD", "ADD_PRIMARY_KEY", "ADD_ROWID", "ADD_OBJECT_ID", "ADD_SEQUENCE", "ADD_COLUMNS", "SHRINK", "MOVE", "PURGE", "FOR_REFRESH", "PARALLEL", "NOPARALLEL", "LOGGING", "NOLOGGING", "ALLOCATE_EXTENT"
+	Columns  *List  // columns for ADD
+	Options  *List  // generic options
+	Loc      Loc
+}
+
+func (n *AlterMviewLogStmt) nodeTag()  {}
+func (n *AlterMviewLogStmt) stmtNode() {}
+
+// ---------------------------------------------------------------------------
+// CREATE ANALYTIC VIEW
+// ---------------------------------------------------------------------------
+
+// CreateAnalyticViewStmt represents a CREATE ANALYTIC VIEW statement.
+type CreateAnalyticViewStmt struct {
+	Name             *ObjectName // view name
+	OrReplace        bool
+	Force            bool
+	NoForce          bool
+	IfNotExists      bool
+	Sharing          string      // METADATA, NONE
+	UsingTable       *ObjectName // USING table/view
+	UsingAlias       string
+	DimBy            *List  // DIMENSION BY list
+	Measures         *List  // MEASURES list
+	DefaultMeasure   string // DEFAULT MEASURE name
+	DefaultAggregate string // DEFAULT AGGREGATE BY function
+	Options          *List  // remaining options (cache, fact columns, etc.)
+	Loc              Loc
+}
+
+func (n *CreateAnalyticViewStmt) nodeTag()  {}
+func (n *CreateAnalyticViewStmt) stmtNode() {}
+
+// ---------------------------------------------------------------------------
+// ALTER ANALYTIC VIEW
+// ---------------------------------------------------------------------------
+
+// AlterAnalyticViewStmt represents an ALTER ANALYTIC VIEW statement.
+type AlterAnalyticViewStmt struct {
+	Name     *ObjectName
+	IfExists bool
+	Action   string      // "RENAME", "COMPILE", "ADD_CACHE", "DROP_CACHE"
+	NewName  *ObjectName // for RENAME
+	Options  *List       // for cache clauses
+	Loc      Loc
+}
+
+func (n *AlterAnalyticViewStmt) nodeTag()  {}
+func (n *AlterAnalyticViewStmt) stmtNode() {}
+
+// ---------------------------------------------------------------------------
+// CREATE JSON RELATIONAL DUALITY VIEW
+// ---------------------------------------------------------------------------
+
+// CreateJsonDualityViewStmt represents a CREATE JSON RELATIONAL DUALITY VIEW statement.
+type CreateJsonDualityViewStmt struct {
+	Name                      *ObjectName
+	OrReplace                 bool
+	IfNotExists               bool
+	EnableLogicalReplication  bool
+	DisableLogicalReplication bool
+	Query                     StmtNode // AS subquery
+	Options                   *List    // remaining options
+	Loc                       Loc
+}
+
+func (n *CreateJsonDualityViewStmt) nodeTag()  {}
+func (n *CreateJsonDualityViewStmt) stmtNode() {}
+
+// ---------------------------------------------------------------------------
+// ALTER JSON RELATIONAL DUALITY VIEW
+// ---------------------------------------------------------------------------
+
+// AlterJsonDualityViewStmt represents an ALTER JSON RELATIONAL DUALITY VIEW statement.
+type AlterJsonDualityViewStmt struct {
+	Name   *ObjectName
+	Action string // "ENABLE_LOGICAL_REPLICATION", "DISABLE_LOGICAL_REPLICATION"
+	Loc    Loc
+}
+
+func (n *AlterJsonDualityViewStmt) nodeTag()  {}
+func (n *AlterJsonDualityViewStmt) stmtNode() {}
 
 // ---------------------------------------------------------------------------
 // Star expression (SELECT *)

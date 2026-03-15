@@ -2601,14 +2601,31 @@ func adminDDLTest(t *testing.T, sql string, wantAction string, wantType ast.Obje
 
 // TestBatch66_AnalyticViewHierarchy tests CREATE/ALTER/DROP ANALYTIC VIEW, ATTRIBUTE DIMENSION, HIERARCHY.
 func TestBatch66_AnalyticViewHierarchy(t *testing.T) {
-	tests := []struct {
+	// CREATE/ALTER ANALYTIC VIEW now use dedicated AST types (upgraded in batch 93)
+	t.Run("create_analytic_view", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim) MEASURES (amount)")
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.CreateAnalyticViewStmt)
+		if !ok {
+			t.Fatalf("expected *CreateAnalyticViewStmt, got %T", raw.Stmt)
+		}
+	})
+	t.Run("alter_analytic_view", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER ANALYTIC VIEW sales_av RENAME TO sales_av2")
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.AlterAnalyticViewStmt)
+		if !ok {
+			t.Fatalf("expected *AlterAnalyticViewStmt, got %T", raw.Stmt)
+		}
+	})
+
+	// DROP and ATTRIBUTE DIMENSION / HIERARCHY still use AdminDDLStmt
+	adminTests := []struct {
 		name   string
 		sql    string
 		action string
 		obj    ast.ObjectType
 	}{
-		{"create_analytic_view", "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_dim) MEASURES (amount)", "CREATE", ast.OBJECT_ANALYTIC_VIEW},
-		{"alter_analytic_view", "ALTER ANALYTIC VIEW sales_av RENAME TO sales_av2", "ALTER", ast.OBJECT_ANALYTIC_VIEW},
 		{"drop_analytic_view", "DROP ANALYTIC VIEW sales_av", "DROP", ast.OBJECT_ANALYTIC_VIEW},
 		{"create_attribute_dimension", "CREATE ATTRIBUTE DIMENSION time_attr_dim USING time_dim", "CREATE", ast.OBJECT_ATTRIBUTE_DIMENSION},
 		{"alter_attribute_dimension", "ALTER ATTRIBUTE DIMENSION time_attr_dim RENAME TO time_attr_dim2", "ALTER", ast.OBJECT_ATTRIBUTE_DIMENSION},
@@ -2617,7 +2634,7 @@ func TestBatch66_AnalyticViewHierarchy(t *testing.T) {
 		{"alter_hierarchy", "ALTER HIERARCHY time_hier RENAME TO time_hier2", "ALTER", ast.OBJECT_HIERARCHY},
 		{"drop_hierarchy", "DROP HIERARCHY time_hier", "DROP", ast.OBJECT_HIERARCHY},
 	}
-	for _, tt := range tests {
+	for _, tt := range adminTests {
 		t.Run(tt.name, func(t *testing.T) {
 			adminDDLTest(t, tt.sql, tt.action, tt.obj)
 		})
@@ -2759,22 +2776,27 @@ func TestBatch70_MaterializedZonemapInmemoryJoinGroup(t *testing.T) {
 }
 
 // TestBatch71_JsonDualityView tests CREATE/ALTER/DROP JSON RELATIONAL DUALITY VIEW.
+// Updated in batch 93 to use dedicated AST types for CREATE/ALTER.
 func TestBatch71_JsonDualityView(t *testing.T) {
-	tests := []struct {
-		name   string
-		sql    string
-		action string
-		obj    ast.ObjectType
-	}{
-		{"create_json_duality_view", "CREATE JSON RELATIONAL DUALITY VIEW emp_dv AS employees", "CREATE", ast.OBJECT_JSON_DUALITY_VIEW},
-		{"alter_json_duality_view", "ALTER JSON RELATIONAL DUALITY VIEW emp_dv RENAME TO emp_dv2", "ALTER", ast.OBJECT_JSON_DUALITY_VIEW},
-		{"drop_json_duality_view", "DROP JSON RELATIONAL DUALITY VIEW emp_dv", "DROP", ast.OBJECT_JSON_DUALITY_VIEW},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			adminDDLTest(t, tt.sql, tt.action, tt.obj)
-		})
-	}
+	t.Run("create_json_duality_view", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE JSON RELATIONAL DUALITY VIEW emp_dv AS SELECT employee_id FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.CreateJsonDualityViewStmt)
+		if !ok {
+			t.Fatalf("expected *CreateJsonDualityViewStmt, got %T", raw.Stmt)
+		}
+	})
+	t.Run("alter_json_duality_view", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER JSON RELATIONAL DUALITY VIEW emp_dv ENABLE LOGICAL REPLICATION")
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.AlterJsonDualityViewStmt)
+		if !ok {
+			t.Fatalf("expected *AlterJsonDualityViewStmt, got %T", raw.Stmt)
+		}
+	})
+	t.Run("drop_json_duality_view", func(t *testing.T) {
+		adminDDLTest(t, "DROP JSON RELATIONAL DUALITY VIEW emp_dv", "DROP", ast.OBJECT_JSON_DUALITY_VIEW)
+	})
 }
 
 // TestBatch72_AlterMiscRound3 tests ALTER FLASHBACK ARCHIVE, ALTER RESOURCE COST, ALTER ROLLBACK SEGMENT.
@@ -5497,6 +5519,602 @@ func TestParseIndexIndextypeOperator(t *testing.T) {
 			result := ParseAndCheck(t, sql)
 			s := ast.NodeToString(result.Items[0])
 			if s == "" { t.Errorf("expected non-empty serialization for %q", sql) }
+		}
+	})
+}
+
+// TestBatch93_ViewsAllTypes tests CREATE/ALTER VIEW, MATERIALIZED VIEW, ANALYTIC VIEW, and JSON DUALITY VIEW.
+func TestBatch93_ViewsAllTypes(t *testing.T) {
+	// ===== CREATE VIEW =====
+	t.Run("create_view_basic", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE VIEW emp_v AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.CreateViewStmt)
+		if !ok {
+			t.Fatalf("expected *CreateViewStmt, got %T", raw.Stmt)
+		}
+		if stmt.Name == nil || stmt.Name.Name != "EMP_V" {
+			t.Errorf("expected name=EMP_V, got %v", stmt.Name)
+		}
+		if stmt.Query == nil {
+			t.Error("expected query to be set")
+		}
+	})
+
+	t.Run("create_view_with_columns", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE VIEW emp_v (eid, ename) AS SELECT employee_id, last_name FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if stmt.Columns == nil || len(stmt.Columns.Items) != 2 {
+			t.Errorf("expected 2 columns, got %v", stmt.Columns)
+		}
+	})
+
+	t.Run("create_view_or_replace", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE OR REPLACE VIEW emp_v AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if !stmt.OrReplace {
+			t.Error("expected OrReplace=true")
+		}
+	})
+
+	t.Run("create_view_if_not_exists", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE VIEW IF NOT EXISTS emp_v AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if !stmt.IfNotExists {
+			t.Error("expected IfNotExists=true")
+		}
+	})
+
+	t.Run("create_view_force", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE FORCE VIEW emp_v AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if !stmt.Force {
+			t.Error("expected Force=true")
+		}
+	})
+
+	t.Run("create_view_noforce", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE NO FORCE VIEW emp_v AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if !stmt.NoForce {
+			t.Error("expected NoForce=true")
+		}
+	})
+
+	t.Run("create_view_editioning", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE EDITIONING VIEW emp_v AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if !stmt.Editioning {
+			t.Error("expected Editioning=true")
+		}
+	})
+
+	t.Run("create_view_editionable", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE EDITIONABLE VIEW emp_v AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if stmt.Editionable != "EDITIONABLE" {
+			t.Errorf("expected Editionable=EDITIONABLE, got %q", stmt.Editionable)
+		}
+	})
+
+	t.Run("create_view_noneditionable", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE NONEDITIONABLE VIEW emp_v AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if stmt.Editionable != "NONEDITIONABLE" {
+			t.Errorf("expected Editionable=NONEDITIONABLE, got %q", stmt.Editionable)
+		}
+	})
+
+	t.Run("create_view_sharing", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE VIEW emp_v SHARING = METADATA AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if stmt.Sharing != "METADATA" {
+			t.Errorf("expected Sharing=METADATA, got %q", stmt.Sharing)
+		}
+	})
+
+	t.Run("create_view_bequeath", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE VIEW emp_v BEQUEATH DEFINER AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if stmt.Bequeath != "DEFINER" {
+			t.Errorf("expected Bequeath=DEFINER, got %q", stmt.Bequeath)
+		}
+	})
+
+	t.Run("create_view_with_check_option_constraint", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE VIEW emp_v AS SELECT * FROM employees WITH CHECK OPTION CONSTRAINT emp_ck")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if !stmt.WithCheckOpt {
+			t.Error("expected WithCheckOpt=true")
+		}
+		if stmt.ConstraintName != "EMP_CK" {
+			t.Errorf("expected ConstraintName=EMP_CK, got %q", stmt.ConstraintName)
+		}
+	})
+
+	t.Run("create_view_with_read_only_constraint", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE VIEW emp_v AS SELECT * FROM employees WITH READ ONLY CONSTRAINT emp_ro")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if !stmt.WithReadOnly {
+			t.Error("expected WithReadOnly=true")
+		}
+		if stmt.ConstraintName != "EMP_RO" {
+			t.Errorf("expected ConstraintName=EMP_RO, got %q", stmt.ConstraintName)
+		}
+	})
+
+	t.Run("create_view_container_map", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE VIEW emp_v CONTAINER_MAP AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if !stmt.ContainerMap {
+			t.Error("expected ContainerMap=true")
+		}
+	})
+
+	// ===== ALTER VIEW =====
+	t.Run("alter_view_compile", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER VIEW emp_v COMPILE")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.AlterViewStmt)
+		if !ok {
+			t.Fatalf("expected *AlterViewStmt, got %T", raw.Stmt)
+		}
+		if stmt.Action != "COMPILE" {
+			t.Errorf("expected Action=COMPILE, got %q", stmt.Action)
+		}
+	})
+
+	t.Run("alter_view_add_constraint", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER VIEW emp_v ADD CONSTRAINT emp_pk PRIMARY KEY (employee_id) DISABLE NOVALIDATE")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterViewStmt)
+		if stmt.Action != "ADD_CONSTRAINT" {
+			t.Errorf("expected ADD_CONSTRAINT, got %q", stmt.Action)
+		}
+	})
+
+	t.Run("alter_view_modify_constraint_rely", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER VIEW emp_v MODIFY CONSTRAINT emp_pk RELY")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterViewStmt)
+		if stmt.Action != "MODIFY_CONSTRAINT" {
+			t.Errorf("expected MODIFY_CONSTRAINT, got %q", stmt.Action)
+		}
+		if !stmt.Rely {
+			t.Error("expected Rely=true")
+		}
+	})
+
+	t.Run("alter_view_drop_constraint", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER VIEW emp_v DROP CONSTRAINT emp_pk")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterViewStmt)
+		if stmt.Action != "DROP_CONSTRAINT" {
+			t.Errorf("expected DROP_CONSTRAINT, got %q", stmt.Action)
+		}
+	})
+
+	t.Run("alter_view_read_only", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER VIEW emp_v READ ONLY")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterViewStmt)
+		if stmt.Action != "READ_ONLY" {
+			t.Errorf("expected READ_ONLY, got %q", stmt.Action)
+		}
+	})
+
+	t.Run("alter_view_read_write", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER VIEW emp_v READ WRITE")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterViewStmt)
+		if stmt.Action != "READ_WRITE" {
+			t.Errorf("expected READ_WRITE, got %q", stmt.Action)
+		}
+	})
+
+	t.Run("alter_view_editionable", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER VIEW emp_v EDITIONABLE")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterViewStmt)
+		if stmt.Action != "EDITIONABLE" {
+			t.Errorf("expected EDITIONABLE, got %q", stmt.Action)
+		}
+	})
+
+	t.Run("alter_view_annotations", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER VIEW emp_v ANNOTATIONS (ADD note 'some note')")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterViewStmt)
+		if stmt.Action != "ANNOTATIONS" {
+			t.Errorf("expected ANNOTATIONS, got %q", stmt.Action)
+		}
+	})
+
+	// ===== CREATE MATERIALIZED VIEW =====
+	t.Run("create_mview_basic", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE MATERIALIZED VIEW emp_mv AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.CreateViewStmt)
+		if !ok {
+			t.Fatalf("expected *CreateViewStmt, got %T", raw.Stmt)
+		}
+		if !stmt.Materialized {
+			t.Error("expected Materialized=true")
+		}
+	})
+
+	t.Run("create_mview_with_refresh", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE MATERIALIZED VIEW emp_mv REFRESH FAST ON COMMIT AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if stmt.RefreshMethod != "FAST" {
+			t.Errorf("expected RefreshMethod=FAST, got %q", stmt.RefreshMethod)
+		}
+		if stmt.RefreshMode != "ON COMMIT" {
+			t.Errorf("expected RefreshMode=ON COMMIT, got %q", stmt.RefreshMode)
+		}
+	})
+
+	t.Run("create_mview_with_build", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE MATERIALIZED VIEW emp_mv BUILD DEFERRED REFRESH COMPLETE ON DEMAND AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if stmt.BuildMode != "DEFERRED" {
+			t.Errorf("expected BuildMode=DEFERRED, got %q", stmt.BuildMode)
+		}
+	})
+
+	t.Run("create_mview_on_prebuilt", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE MATERIALIZED VIEW emp_mv ON PREBUILT TABLE REFRESH FAST AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if !stmt.OnPrebuilt {
+			t.Error("expected OnPrebuilt=true")
+		}
+	})
+
+	t.Run("create_mview_never_refresh", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE MATERIALIZED VIEW emp_mv NEVER REFRESH AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if !stmt.NeverRefresh {
+			t.Error("expected NeverRefresh=true")
+		}
+	})
+
+	t.Run("create_mview_cache_parallel", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE MATERIALIZED VIEW emp_mv CACHE PARALLEL 4 AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if stmt.CacheMode != "CACHE" {
+			t.Errorf("expected CacheMode=CACHE, got %q", stmt.CacheMode)
+		}
+		if stmt.ParallelMode != "PARALLEL" {
+			t.Errorf("expected ParallelMode=PARALLEL, got %q", stmt.ParallelMode)
+		}
+	})
+
+	t.Run("create_mview_enable_query_rewrite", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE MATERIALIZED VIEW emp_mv ENABLE QUERY REWRITE AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if !stmt.EnableQuery {
+			t.Error("expected EnableQuery=true")
+		}
+	})
+
+	t.Run("create_mview_with_pk", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE MATERIALIZED VIEW emp_mv REFRESH FAST WITH PRIMARY KEY AS SELECT * FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.CreateViewStmt)
+		if !stmt.WithPK {
+			t.Error("expected WithPK=true")
+		}
+	})
+
+	// ===== ALTER MATERIALIZED VIEW =====
+	t.Run("alter_mview_compile", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER MATERIALIZED VIEW emp_mv COMPILE")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.AlterMaterializedViewStmt)
+		if !ok {
+			t.Fatalf("expected *AlterMaterializedViewStmt, got %T", raw.Stmt)
+		}
+		if stmt.Action != "COMPILE" {
+			t.Errorf("expected COMPILE, got %q", stmt.Action)
+		}
+	})
+
+	t.Run("alter_mview_refresh_fast", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER MATERIALIZED VIEW emp_mv REFRESH FAST ON COMMIT")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterMaterializedViewStmt)
+		if stmt.Action != "REFRESH" {
+			t.Errorf("expected REFRESH, got %q", stmt.Action)
+		}
+		if stmt.RefreshMethod != "FAST" {
+			t.Errorf("expected RefreshMethod=FAST, got %q", stmt.RefreshMethod)
+		}
+	})
+
+	t.Run("alter_mview_cache", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER MATERIALIZED VIEW emp_mv CACHE")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterMaterializedViewStmt)
+		if stmt.Action != "CACHE" {
+			t.Errorf("expected CACHE, got %q", stmt.Action)
+		}
+	})
+
+	t.Run("alter_mview_parallel", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER MATERIALIZED VIEW emp_mv PARALLEL 4")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterMaterializedViewStmt)
+		if stmt.Action != "PARALLEL" {
+			t.Errorf("expected PARALLEL, got %q", stmt.Action)
+		}
+	})
+
+	t.Run("alter_mview_shrink_space", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER MATERIALIZED VIEW emp_mv SHRINK SPACE")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterMaterializedViewStmt)
+		if stmt.Action != "SHRINK" {
+			t.Errorf("expected SHRINK, got %q", stmt.Action)
+		}
+	})
+
+	t.Run("alter_mview_consider_fresh", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER MATERIALIZED VIEW emp_mv CONSIDER FRESH")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt := raw.Stmt.(*ast.AlterMaterializedViewStmt)
+		if stmt.Action != "CONSIDER_FRESH" {
+			t.Errorf("expected CONSIDER_FRESH, got %q", stmt.Action)
+		}
+	})
+
+	// ===== CREATE MATERIALIZED VIEW LOG =====
+	t.Run("create_mview_log_basic", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE MATERIALIZED VIEW LOG ON employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.CreateMviewLogStmt)
+		if !ok {
+			t.Fatalf("expected *CreateMviewLogStmt, got %T", raw.Stmt)
+		}
+		if stmt.OnTable == nil || stmt.OnTable.Name != "EMPLOYEES" {
+			t.Errorf("expected OnTable=EMPLOYEES, got %v", stmt.OnTable)
+		}
+	})
+
+	t.Run("create_mview_log_with_options", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE MATERIALIZED VIEW LOG ON employees TABLESPACE ts1 NOLOGGING")
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.CreateMviewLogStmt)
+		if !ok {
+			t.Fatalf("expected *CreateMviewLogStmt, got %T", raw.Stmt)
+		}
+	})
+
+	t.Run("create_mview_log_with_clauses", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE MATERIALIZED VIEW LOG ON employees WITH PRIMARY KEY, ROWID (salary) INCLUDING NEW VALUES")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.CreateMviewLogStmt)
+		if !ok {
+			t.Fatalf("expected *CreateMviewLogStmt, got %T", raw.Stmt)
+		}
+		if !stmt.WithPK {
+			t.Error("expected WithPK=true")
+		}
+		if !stmt.WithRowID {
+			t.Error("expected WithRowID=true")
+		}
+		if !stmt.Including {
+			t.Error("expected Including=true")
+		}
+	})
+
+	t.Run("create_mview_log_with_purge", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE MATERIALIZED VIEW LOG ON employees WITH PRIMARY KEY PURGE IMMEDIATE")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.CreateMviewLogStmt)
+		if !ok {
+			t.Fatalf("expected *CreateMviewLogStmt, got %T", raw.Stmt)
+		}
+		if stmt.PurgeMode != "IMMEDIATE_SYNC" {
+			t.Errorf("expected PurgeMode=IMMEDIATE_SYNC, got %q", stmt.PurgeMode)
+		}
+	})
+
+	// ===== ALTER MATERIALIZED VIEW LOG =====
+	t.Run("alter_mview_log_add_columns", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER MATERIALIZED VIEW LOG ON employees ADD (salary, commission_pct)")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.AlterMviewLogStmt)
+		if !ok {
+			t.Fatalf("expected *AlterMviewLogStmt, got %T", raw.Stmt)
+		}
+		if stmt.Action != "ADD" {
+			t.Errorf("expected ADD, got %q", stmt.Action)
+		}
+	})
+
+	t.Run("alter_mview_log_shrink_space", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER MATERIALIZED VIEW LOG ON employees SHRINK SPACE")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.AlterMviewLogStmt)
+		if !ok {
+			t.Fatalf("expected *AlterMviewLogStmt, got %T", raw.Stmt)
+		}
+		if stmt.Action != "SHRINK" {
+			t.Errorf("expected SHRINK, got %q", stmt.Action)
+		}
+	})
+
+	t.Run("alter_mview_log_purge", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER MATERIALIZED VIEW LOG ON employees PURGE IMMEDIATE")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.AlterMviewLogStmt)
+		if !ok {
+			t.Fatalf("expected *AlterMviewLogStmt, got %T", raw.Stmt)
+		}
+		if stmt.Action != "PURGE" {
+			t.Errorf("expected PURGE, got %q", stmt.Action)
+		}
+	})
+
+	// ===== CREATE ANALYTIC VIEW =====
+	t.Run("create_analytic_view_basic", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr HIERARCHY time_hier) MEASURES (sales)")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.CreateAnalyticViewStmt)
+		if !ok {
+			t.Fatalf("expected *CreateAnalyticViewStmt, got %T", raw.Stmt)
+		}
+		if stmt.Name == nil || stmt.Name.Name != "SALES_AV" {
+			t.Errorf("expected name=SALES_AV, got %v", stmt.Name)
+		}
+	})
+
+	t.Run("create_analytic_view_with_options", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE OR REPLACE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr HIERARCHY time_hier) MEASURES (sales FACT sales)")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.CreateAnalyticViewStmt)
+		if !ok {
+			t.Fatalf("expected *CreateAnalyticViewStmt, got %T", raw.Stmt)
+		}
+		if !stmt.OrReplace {
+			t.Error("expected OrReplace=true")
+		}
+	})
+
+	// ===== ALTER ANALYTIC VIEW =====
+	t.Run("alter_analytic_view_rename", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER ANALYTIC VIEW sales_av RENAME TO sales_av2")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.AlterAnalyticViewStmt)
+		if !ok {
+			t.Fatalf("expected *AlterAnalyticViewStmt, got %T", raw.Stmt)
+		}
+		if stmt.Action != "RENAME" {
+			t.Errorf("expected RENAME, got %q", stmt.Action)
+		}
+		if stmt.NewName == nil || stmt.NewName.Name != "SALES_AV2" {
+			t.Errorf("expected NewName=SALES_AV2, got %v", stmt.NewName)
+		}
+	})
+
+	t.Run("alter_analytic_view_compile", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER ANALYTIC VIEW sales_av COMPILE")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.AlterAnalyticViewStmt)
+		if !ok {
+			t.Fatalf("expected *AlterAnalyticViewStmt, got %T", raw.Stmt)
+		}
+		if stmt.Action != "COMPILE" {
+			t.Errorf("expected COMPILE, got %q", stmt.Action)
+		}
+	})
+
+	t.Run("alter_analytic_view_add_cache", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER ANALYTIC VIEW sales_av ADD CACHE STORE AS COLUMNSTORE")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.AlterAnalyticViewStmt)
+		if !ok {
+			t.Fatalf("expected *AlterAnalyticViewStmt, got %T", raw.Stmt)
+		}
+		if stmt.Action != "ADD_CACHE" {
+			t.Errorf("expected ADD_CACHE, got %q", stmt.Action)
+		}
+	})
+
+	// ===== CREATE JSON RELATIONAL DUALITY VIEW =====
+	t.Run("create_json_duality_view_basic", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE JSON RELATIONAL DUALITY VIEW emp_dv AS SELECT employee_id FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.CreateJsonDualityViewStmt)
+		if !ok {
+			t.Fatalf("expected *CreateJsonDualityViewStmt, got %T", raw.Stmt)
+		}
+		if stmt.Name == nil || stmt.Name.Name != "EMP_DV" {
+			t.Errorf("expected name=EMP_DV, got %v", stmt.Name)
+		}
+	})
+
+	t.Run("create_json_duality_view_with_replication", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE JSON RELATIONAL DUALITY VIEW emp_dv ENABLE LOGICAL REPLICATION AS SELECT employee_id FROM employees")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.CreateJsonDualityViewStmt)
+		if !ok {
+			t.Fatalf("expected *CreateJsonDualityViewStmt, got %T", raw.Stmt)
+		}
+		if !stmt.EnableLogicalReplication {
+			t.Error("expected EnableLogicalReplication=true")
+		}
+	})
+
+	// ===== ALTER JSON RELATIONAL DUALITY VIEW =====
+	t.Run("alter_json_duality_view", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER JSON RELATIONAL DUALITY VIEW emp_dv ENABLE LOGICAL REPLICATION")
+		raw := result.Items[0].(*ast.RawStmt)
+		stmt, ok := raw.Stmt.(*ast.AlterJsonDualityViewStmt)
+		if !ok {
+			t.Fatalf("expected *AlterJsonDualityViewStmt, got %T", raw.Stmt)
+		}
+		if stmt.Action != "ENABLE_LOGICAL_REPLICATION" {
+			t.Errorf("expected ENABLE_LOGICAL_REPLICATION, got %q", stmt.Action)
+		}
+	})
+
+	// ===== DROP =====
+	t.Run("drop_mview_log", func(t *testing.T) {
+		ParseAndCheck(t, "DROP MATERIALIZED VIEW LOG ON employees")
+	})
+
+	t.Run("drop_analytic_view", func(t *testing.T) {
+		ParseAndCheck(t, "DROP ANALYTIC VIEW sales_av")
+	})
+
+	// ===== Serialization =====
+	t.Run("serialize_views", func(t *testing.T) {
+		sqls := []string{
+			"CREATE VIEW emp_v AS SELECT * FROM employees",
+			"CREATE OR REPLACE VIEW emp_v AS SELECT * FROM employees WITH CHECK OPTION",
+			"CREATE FORCE VIEW emp_v AS SELECT e.employee_id eid, e.last_name ename FROM employees e",
+			"ALTER VIEW emp_v COMPILE",
+			"ALTER VIEW emp_v READ ONLY",
+			"ALTER VIEW emp_v ADD CONSTRAINT emp_pk PRIMARY KEY (employee_id) DISABLE NOVALIDATE",
+			"CREATE MATERIALIZED VIEW emp_mv REFRESH FAST ON COMMIT ENABLE QUERY REWRITE AS SELECT * FROM employees",
+			"CREATE MATERIALIZED VIEW emp_mv BUILD DEFERRED AS SELECT * FROM employees",
+			"ALTER MATERIALIZED VIEW emp_mv REFRESH COMPLETE ON DEMAND",
+			"ALTER MATERIALIZED VIEW emp_mv CONSIDER FRESH",
+			"ALTER MATERIALIZED VIEW emp_mv SHRINK SPACE COMPACT",
+			"CREATE MATERIALIZED VIEW LOG ON employees WITH PRIMARY KEY INCLUDING NEW VALUES",
+			"ALTER MATERIALIZED VIEW LOG ON employees ADD (salary)",
+			"CREATE ANALYTIC VIEW sales_av USING sales_fact DIMENSION BY (time_attr HIERARCHY time_hier) MEASURES (sales)",
+			"ALTER ANALYTIC VIEW sales_av COMPILE",
+			"ALTER ANALYTIC VIEW sales_av RENAME TO sales_av_new",
+			"CREATE JSON RELATIONAL DUALITY VIEW emp_dv AS SELECT employee_id FROM employees",
+			"ALTER JSON RELATIONAL DUALITY VIEW emp_dv DISABLE LOGICAL REPLICATION",
+		}
+		for _, sql := range sqls {
+			result := ParseAndCheck(t, sql)
+			s := ast.NodeToString(result.Items[0])
+			if s == "" {
+				t.Errorf("expected non-empty serialization for %q", sql)
+			}
 		}
 	})
 }

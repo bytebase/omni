@@ -92,8 +92,8 @@ func TestParseCreateMaterializedView(t *testing.T) {
 func TestParseCreateMaterializedViewRefresh(t *testing.T) {
 	p := newTestParser("MATERIALIZED VIEW mv_emp REFRESH FAST AS SELECT 1 FROM dual")
 	stmt := p.parseCreateViewStmt(0, false)
-	if stmt.RefreshMode != "FAST" {
-		t.Errorf("expected RefreshMode FAST, got %q", stmt.RefreshMode)
+	if stmt.RefreshMethod != "FAST" {
+		t.Errorf("expected RefreshMethod FAST, got %q", stmt.RefreshMethod)
 	}
 }
 

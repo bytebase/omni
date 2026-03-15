@@ -113,7 +113,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		if p.cur.Type == kwVIEW {
 			p.advance() // consume VIEW
 		}
-		return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_JSON_DUALITY_VIEW, start)
+		return p.parseCreateJsonDualityViewStmt(start, orReplace, false)
 	case kwUSER, kwROLE, kwPROFILE,
 		kwTABLESPACE, kwDIRECTORY, kwCONTEXT,
 		kwCLUSTER, kwJAVA, kwLIBRARY, kwSCHEMA:
@@ -131,6 +131,10 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 	default:
 		// Check for "NO FORCE VIEW"
 		if p.isIdentLikeStr("NO") || p.cur.Type == kwNOT {
+			return p.parseCreateViewStmt(start, orReplace)
+		}
+		// Check for EDITIONING / EDITIONABLE / NONEDITIONABLE VIEW
+		if p.isIdentLike() && (p.cur.Str == "EDITIONING" || p.cur.Str == "EDITIONABLE" || p.cur.Str == "NONEDITIONABLE") {
 			return p.parseCreateViewStmt(start, orReplace)
 		}
 		// Check for BIGFILE/SMALLFILE/UNDO TABLESPACE, CONTROLFILE
@@ -163,7 +167,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		if p.isIdentLikeStr("MULTIVALUE") {
 			return p.parseCreateIndexStmt(start)
 		}
-		// Check for INDEXTYPE and OPERATOR (identifier-based keywords)
+		// Check for INDEXTYPE, OPERATOR, ANALYTIC VIEW (identifier-based keywords)
 		if p.isIdentLike() {
 			switch p.cur.Str {
 			case "INDEXTYPE":
@@ -172,6 +176,12 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			case "OPERATOR":
 				p.advance() // consume OPERATOR
 				return p.parseCreateOperatorStmt(start, orReplace, false)
+			case "ANALYTIC":
+				p.advance() // consume ANALYTIC
+				if p.cur.Type == kwVIEW {
+					p.advance() // consume VIEW
+				}
+				return p.parseCreateAnalyticViewStmt(start, orReplace, false, false)
 			}
 		}
 		// Check for DIMENSION, FLASHBACK ARCHIVE

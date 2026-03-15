@@ -48,9 +48,14 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			p.advance() // consume ZONEMAP
 			return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_MATERIALIZED_ZONEMAP, start)
 		}
-		// MATERIALIZED VIEW - consume VIEW and parse
+		// MATERIALIZED VIEW - consume VIEW and check if LOG follows
 		if p.cur.Type == kwVIEW {
 			p.advance() // consume VIEW
+		}
+		// Check for MATERIALIZED VIEW LOG
+		if p.cur.Type == kwLOG {
+			p.advance() // consume LOG
+			return p.parseAlterMviewLogStmt(start)
 		}
 		return p.parseAlterMaterializedViewStmt(start)
 	case kwDATABASE:
@@ -98,7 +103,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		if p.cur.Type == kwVIEW {
 			p.advance() // consume VIEW
 		}
-		return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_JSON_DUALITY_VIEW, start)
+		return p.parseAlterJsonDualityViewStmt(start)
 	case kwFLASHBACK:
 		// ALTER FLASHBACK ARCHIVE
 		p.advance() // consume FLASHBACK
@@ -1442,7 +1447,10 @@ func (p *Parser) parseAlterViewStmt(start int) nodes.StmtNode {
 				p.advance()
 			}
 		} else {
-			p.skipToSemicolon()
+			// skip unrecognized MODIFY clause
+			for p.cur.Type != ';' && p.cur.Type != tokEOF {
+				p.advance()
+			}
 		}
 
 	case p.cur.Type == kwDROP:
@@ -1452,7 +1460,34 @@ func (p *Parser) parseAlterViewStmt(start int) nodes.StmtNode {
 			p.advance() // consume CONSTRAINT
 			stmt.ConstraintName = p.parseIdentifier()
 		} else {
-			p.skipToSemicolon()
+			// skip unrecognized DROP clause
+			for p.cur.Type != ';' && p.cur.Type != tokEOF {
+				p.advance()
+			}
+		}
+
+	case p.isIdentLike() && p.cur.Str == "ANNOTATIONS":
+		stmt.Action = "ANNOTATIONS"
+		p.advance() // consume ANNOTATIONS
+		// skip annotations list if present
+		if p.cur.Type == '(' {
+			p.advance()
+			depth := 1
+			stmt.Annotations = &nodes.List{}
+			for depth > 0 && p.cur.Type != tokEOF {
+				if p.cur.Type == '(' {
+					depth++
+				} else if p.cur.Type == ')' {
+					depth--
+					if depth == 0 {
+						break
+					}
+				}
+				p.advance()
+			}
+			if p.cur.Type == ')' {
+				p.advance()
+			}
 		}
 
 	case p.cur.Type == kwREAD:

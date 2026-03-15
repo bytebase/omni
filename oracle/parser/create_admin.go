@@ -19,7 +19,7 @@ func (p *Parser) parseCreateMaterializedOrView(start int, orReplace bool) nodes.
 		if next.Type == kwLOG {
 			p.advance() // consume VIEW
 			p.advance() // consume LOG
-			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_MATERIALIZED_VIEW_LOG, start)
+			return p.parseCreateMviewLogStmt(start)
 		}
 	}
 	// It's a regular MATERIALIZED VIEW — but we already consumed MATERIALIZED.
@@ -189,7 +189,7 @@ func (p *Parser) parseCreateAdminObject(start int) nodes.StmtNode {
 			if p.cur.Type == kwVIEW {
 				p.advance() // consume VIEW
 			}
-			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_ANALYTIC_VIEW, start)
+			return p.parseCreateAnalyticViewStmt(start, false, false, false)
 		case "ATTRIBUTE":
 			p.advance() // consume ATTRIBUTE
 			if p.isIdentLike() && p.cur.Str == "DIMENSION" {
@@ -1233,7 +1233,7 @@ func (p *Parser) parseAlterAdminObject(start int) nodes.StmtNode {
 				if p.cur.Type == kwVIEW {
 					p.advance() // consume VIEW
 				}
-				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_ANALYTIC_VIEW, start)
+				return p.parseAlterAnalyticViewStmt(start)
 			case "ATTRIBUTE":
 				p.advance() // consume ATTRIBUTE
 				if p.isIdentLike() && p.cur.Str == "DIMENSION" {

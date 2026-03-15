@@ -418,6 +418,18 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterOperatorStmt(sb, n)
 	case *OperatorBinding:
 		writeOperatorBinding(sb, n)
+	case *CreateMviewLogStmt:
+		writeCreateMviewLogStmt(sb, n)
+	case *AlterMviewLogStmt:
+		writeAlterMviewLogStmt(sb, n)
+	case *CreateAnalyticViewStmt:
+		writeCreateAnalyticViewStmt(sb, n)
+	case *AlterAnalyticViewStmt:
+		writeAlterAnalyticViewStmt(sb, n)
+	case *CreateJsonDualityViewStmt:
+		writeCreateJsonDualityViewStmt(sb, n)
+	case *AlterJsonDualityViewStmt:
+		writeAlterJsonDualityViewStmt(sb, n)
 
 	// PL/SQL nodes
 	case *PLSQLBlock:
@@ -2614,11 +2626,23 @@ func writeCreateViewStmt(sb *strings.Builder, n *CreateViewStmt) {
 	if n.OrReplace {
 		sb.WriteString(" :orReplace true")
 	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
 	if n.Force {
 		sb.WriteString(" :force true")
 	}
 	if n.NoForce {
 		sb.WriteString(" :noForce true")
+	}
+	if n.Editioning {
+		sb.WriteString(" :editioning true")
+	}
+	if n.Editionable != "" {
+		sb.WriteString(fmt.Sprintf(" :editionable %q", n.Editionable))
+	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
 	}
 	if n.Materialized {
 		sb.WriteString(" :materialized true")
@@ -2641,14 +2665,77 @@ func writeCreateViewStmt(sb *strings.Builder, n *CreateViewStmt) {
 	if n.WithReadOnly {
 		sb.WriteString(" :withReadOnly true")
 	}
+	if n.ConstraintName != "" {
+		sb.WriteString(fmt.Sprintf(" :constraintName %q", n.ConstraintName))
+	}
+	if n.Bequeath != "" {
+		sb.WriteString(fmt.Sprintf(" :bequeath %q", n.Bequeath))
+	}
+	if n.DefaultCollation != "" {
+		sb.WriteString(fmt.Sprintf(" :defaultCollation %q", n.DefaultCollation))
+	}
+	if n.ContainerMap {
+		sb.WriteString(" :containerMap true")
+	}
+	if n.ContainersDefault {
+		sb.WriteString(" :containersDefault true")
+	}
 	if n.BuildMode != "" {
 		sb.WriteString(fmt.Sprintf(" :buildMode %q", n.BuildMode))
 	}
 	if n.RefreshMode != "" {
 		sb.WriteString(fmt.Sprintf(" :refreshMode %q", n.RefreshMode))
 	}
+	if n.RefreshMethod != "" {
+		sb.WriteString(fmt.Sprintf(" :refreshMethod %q", n.RefreshMethod))
+	}
+	if n.OnPrebuilt {
+		sb.WriteString(" :onPrebuilt true")
+	}
+	if n.NeverRefresh {
+		sb.WriteString(" :neverRefresh true")
+	}
+	if n.WithPK {
+		sb.WriteString(" :withPK true")
+	}
+	if n.WithRowID {
+		sb.WriteString(" :withRowID true")
+	}
+	if n.RefreshOnStmt {
+		sb.WriteString(" :refreshOnStmt true")
+	}
+	if n.StartWith != nil {
+		sb.WriteString(" :startWith ")
+		writeNode(sb, n.StartWith)
+	}
+	if n.Next != nil {
+		sb.WriteString(" :next ")
+		writeNode(sb, n.Next)
+	}
 	if n.EnableQuery {
 		sb.WriteString(" :enableQuery true")
+	}
+	if n.DisableQuery {
+		sb.WriteString(" :disableQuery true")
+	}
+	if n.EnableOnQueryComputation {
+		sb.WriteString(" :enableOnQueryComputation true")
+	}
+	if n.DisableOnQueryComputation {
+		sb.WriteString(" :disableOnQueryComputation true")
+	}
+	if n.CacheMode != "" {
+		sb.WriteString(fmt.Sprintf(" :cacheMode %q", n.CacheMode))
+	}
+	if n.ParallelMode != "" {
+		sb.WriteString(fmt.Sprintf(" :parallelMode %q", n.ParallelMode))
+	}
+	if n.ParallelDegree != "" {
+		sb.WriteString(fmt.Sprintf(" :parallelDegree %q", n.ParallelDegree))
+	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -4610,6 +4697,10 @@ func writeAlterViewStmt(sb *strings.Builder, n *AlterViewStmt) {
 	if n.NoRely {
 		sb.WriteString(" :norely true")
 	}
+	if n.Annotations != nil {
+		sb.WriteString(" :annotations ")
+		writeNode(sb, n.Annotations)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -5127,4 +5218,210 @@ func escapeString(s string) string {
 		}
 	}
 	return sb.String()
+}
+
+func writeCreateMviewLogStmt(sb *strings.Builder, n *CreateMviewLogStmt) {
+	sb.WriteString("{CREATE_MVIEW_LOG")
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	if n.OnTable != nil {
+		sb.WriteString(" :onTable ")
+		writeNode(sb, n.OnTable)
+	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
+	}
+	if n.WithPK {
+		sb.WriteString(" :withPK true")
+	}
+	if n.WithRowID {
+		sb.WriteString(" :withRowID true")
+	}
+	if n.WithOID {
+		sb.WriteString(" :withOID true")
+	}
+	if n.WithSeq {
+		sb.WriteString(" :withSeq true")
+	}
+	if n.CommitSCN {
+		sb.WriteString(" :commitSCN true")
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.Including {
+		sb.WriteString(" :including true")
+	}
+	if n.Excluding {
+		sb.WriteString(" :excluding true")
+	}
+	if n.PurgeMode != "" {
+		sb.WriteString(fmt.Sprintf(" :purgeMode %q", n.PurgeMode))
+	}
+	if n.PurgeStart != nil {
+		sb.WriteString(" :purgeStart ")
+		writeNode(sb, n.PurgeStart)
+	}
+	if n.PurgeNext != nil {
+		sb.WriteString(" :purgeNext ")
+		writeNode(sb, n.PurgeNext)
+	}
+	if n.ForRefresh != "" {
+		sb.WriteString(fmt.Sprintf(" :forRefresh %q", n.ForRefresh))
+	}
+	if n.StagingLog != "" {
+		sb.WriteString(fmt.Sprintf(" :stagingLog %q", n.StagingLog))
+	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterMviewLogStmt(sb *strings.Builder, n *AlterMviewLogStmt) {
+	sb.WriteString("{ALTER_MVIEW_LOG")
+	if n.IfExists {
+		sb.WriteString(" :ifExists true")
+	}
+	if n.Force {
+		sb.WriteString(" :force true")
+	}
+	if n.OnTable != nil {
+		sb.WriteString(" :onTable ")
+		writeNode(sb, n.OnTable)
+	}
+	if n.Action != "" {
+		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateAnalyticViewStmt(sb *strings.Builder, n *CreateAnalyticViewStmt) {
+	sb.WriteString("{CREATE_ANALYTIC_VIEW")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	if n.Force {
+		sb.WriteString(" :force true")
+	}
+	if n.NoForce {
+		sb.WriteString(" :noForce true")
+	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.UsingTable != nil {
+		sb.WriteString(" :usingTable ")
+		writeNode(sb, n.UsingTable)
+	}
+	if n.UsingAlias != "" {
+		sb.WriteString(fmt.Sprintf(" :usingAlias %q", n.UsingAlias))
+	}
+	if n.DimBy != nil {
+		sb.WriteString(" :dimBy ")
+		writeNode(sb, n.DimBy)
+	}
+	if n.Measures != nil {
+		sb.WriteString(" :measures ")
+		writeNode(sb, n.Measures)
+	}
+	if n.DefaultMeasure != "" {
+		sb.WriteString(fmt.Sprintf(" :defaultMeasure %q", n.DefaultMeasure))
+	}
+	if n.DefaultAggregate != "" {
+		sb.WriteString(fmt.Sprintf(" :defaultAggregate %q", n.DefaultAggregate))
+	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterAnalyticViewStmt(sb *strings.Builder, n *AlterAnalyticViewStmt) {
+	sb.WriteString("{ALTER_ANALYTIC_VIEW")
+	if n.IfExists {
+		sb.WriteString(" :ifExists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Action != "" {
+		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	}
+	if n.NewName != nil {
+		sb.WriteString(" :newName ")
+		writeNode(sb, n.NewName)
+	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateJsonDualityViewStmt(sb *strings.Builder, n *CreateJsonDualityViewStmt) {
+	sb.WriteString("{CREATE_JSON_DUALITY_VIEW")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	if n.EnableLogicalReplication {
+		sb.WriteString(" :enableLogicalReplication true")
+	}
+	if n.DisableLogicalReplication {
+		sb.WriteString(" :disableLogicalReplication true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Query != nil {
+		sb.WriteString(" :query ")
+		writeNode(sb, n.Query)
+	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterJsonDualityViewStmt(sb *strings.Builder, n *AlterJsonDualityViewStmt) {
+	sb.WriteString("{ALTER_JSON_DUALITY_VIEW")
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Action != "" {
+		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
 }

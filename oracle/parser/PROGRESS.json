@@ -686,7 +686,7 @@
       "id": 93,
       "name": "views_all_types",
       "file": "create_view.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE/ALTER VIEW, CREATE/ALTER MATERIALIZED VIEW + LOG, CREATE/ALTER ANALYTIC VIEW, CREATE/ALTER JSON RELATIONAL DUALITY VIEW. Fix ALTER VIEW/MVIEW skipToSemicolon gaps. Implement analytic view and JSON duality view fully.",
       "bnf_files": ["CREATE-VIEW.bnf", "ALTER-VIEW.bnf", "CREATE-MATERIALIZED-VIEW.bnf", "ALTER-MATERIALIZED-VIEW.bnf", "CREATE-MATERIALIZED-VIEW-LOG.bnf", "ALTER-MATERIALIZED-VIEW-LOG.bnf", "CREATE-ANALYTIC-VIEW.bnf", "ALTER-ANALYTIC-VIEW.bnf", "create-json-relational-duality-view.bnf", "alter-json-relational-duality-view.bnf", "DROP-VIEW.bnf", "DROP-MATERIALIZED-VIEW.bnf", "DROP-MATERIALIZED-VIEW-LOG.bnf", "DROP-ANALYTIC-VIEW.bnf"],
       "bnf_lines": 645,
