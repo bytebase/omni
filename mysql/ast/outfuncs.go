@@ -1019,6 +1019,15 @@ func writeSetPasswordStmt(sb *strings.Builder, n *SetPasswordStmt) {
 	if n.Password != "" {
 		fmt.Fprintf(sb, " :password %s", n.Password)
 	}
+	if n.ToRandom {
+		sb.WriteString(" :to_random true")
+	}
+	if n.Replace != "" {
+		fmt.Fprintf(sb, " :replace %s", n.Replace)
+	}
+	if n.RetainCurrentPassword {
+		sb.WriteString(" :retain_current_password true")
+	}
 	sb.WriteString("}")
 }
 
@@ -1231,6 +1240,9 @@ func writeGrantStmt(sb *strings.Builder, n *GrantStmt) {
 func writeRevokeStmt(sb *strings.Builder, n *RevokeStmt) {
 	sb.WriteString("{REVOKE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
 	if n.AllPriv {
 		sb.WriteString(" :all_priv true")
 	}
@@ -1246,6 +1258,9 @@ func writeRevokeStmt(sb *strings.Builder, n *RevokeStmt) {
 	}
 	if len(n.From) > 0 {
 		fmt.Fprintf(sb, " :from %s", strings.Join(n.From, ", "))
+	}
+	if n.IgnoreUnknownUser {
+		sb.WriteString(" :ignore_unknown_user true")
 	}
 	sb.WriteString("}")
 }
@@ -1264,6 +1279,9 @@ func writeCreateUserStmt(sb *strings.Builder, n *CreateUserStmt) {
 			}
 			writeNode(sb, u)
 		}
+	}
+	if len(n.DefaultRoles) > 0 {
+		fmt.Fprintf(sb, " :default_roles %s", strings.Join(n.DefaultRoles, ", "))
 	}
 	if n.Require != nil {
 		sb.WriteString(" :require ")
@@ -1464,11 +1482,17 @@ func writeGrantRoleStmt(sb *strings.Builder, n *GrantRoleStmt) {
 func writeRevokeRoleStmt(sb *strings.Builder, n *RevokeRoleStmt) {
 	sb.WriteString("{REVOKE_ROLE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
 	if len(n.Roles) > 0 {
 		fmt.Fprintf(sb, " :roles %s", strings.Join(n.Roles, ", "))
 	}
 	if len(n.From) > 0 {
 		fmt.Fprintf(sb, " :from %s", strings.Join(n.From, ", "))
+	}
+	if n.IgnoreUnknownUser {
+		sb.WriteString(" :ignore_unknown_user true")
 	}
 	sb.WriteString("}")
 }
@@ -3037,6 +3061,28 @@ func writeUserSpec(sb *strings.Builder, n *UserSpec) {
 	}
 	if n.DiscardOldPassword {
 		sb.WriteString(" :discard_old_password true")
+	}
+	if n.Replace != "" {
+		fmt.Fprintf(sb, " :replace %s", n.Replace)
+	}
+	if len(n.AuthFactors) > 0 {
+		sb.WriteString(" :auth_factors (")
+		for i, af := range n.AuthFactors {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, af)
+		}
+		sb.WriteString(")")
+	}
+	if n.InitialAuthPlugin != "" {
+		fmt.Fprintf(sb, " :initial_auth_plugin %s", n.InitialAuthPlugin)
+	}
+	if n.InitialAuthString != "" {
+		fmt.Fprintf(sb, " :initial_auth_string %s", n.InitialAuthString)
+	}
+	if n.InitialAuthRandom {
+		sb.WriteString(" :initial_auth_random true")
 	}
 	sb.WriteString("}")
 }

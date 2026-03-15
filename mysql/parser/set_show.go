@@ -143,8 +143,14 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/set-password.html
 //
-//	SET PASSWORD [FOR user] = 'auth_string'
-//	SET PASSWORD [FOR user] = PASSWORD('auth_string')
+//	SET PASSWORD [FOR user] auth_option
+//	    [REPLACE 'current_auth_string']
+//	    [RETAIN CURRENT PASSWORD]
+//
+//	auth_option: {
+//	    = 'auth_string'
+//	  | TO RANDOM
+//	}
 func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error) {
 	p.advance() // consume PASSWORD
 
@@ -162,24 +168,50 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 		stmt.User = user
 	}
 
-	// consume '='
-	p.match('=')
+	// auth_option: = 'auth_string' | TO RANDOM
+	if p.cur.Type == kwTO {
+		p.advance() // consume TO
+		if p.cur.Type == kwRANDOM {
+			p.advance() // consume RANDOM
+			stmt.ToRandom = true
+		}
+	} else {
+		// consume '='
+		p.match('=')
 
-	// Password value: either a string literal or PASSWORD('string')
-	if p.isIdentToken() && eqFold(p.cur.Str, "PASSWORD") {
-		// PASSWORD('auth_string') form
-		p.advance() // consume PASSWORD
-		p.match('(')
+		// Password value: either a string literal or PASSWORD('string')
+		if p.isIdentToken() && eqFold(p.cur.Str, "PASSWORD") {
+			// PASSWORD('auth_string') form
+			p.advance() // consume PASSWORD
+			p.match('(')
+			if p.cur.Type == tokSCONST {
+				stmt.Password = "PASSWORD(" + p.cur.Str + ")"
+				p.advance()
+			}
+			p.match(')')
+		} else if p.cur.Type == tokSCONST {
+			stmt.Password = p.cur.Str
+			p.advance()
+		} else {
+			return nil, &ParseError{Message: "expected password string", Position: p.cur.Loc}
+		}
+	}
+
+	// [REPLACE 'current_auth_string']
+	if p.cur.Type == kwREPLACE {
+		p.advance()
 		if p.cur.Type == tokSCONST {
-			stmt.Password = "PASSWORD(" + p.cur.Str + ")"
+			stmt.Replace = p.cur.Str
 			p.advance()
 		}
-		p.match(')')
-	} else if p.cur.Type == tokSCONST {
-		stmt.Password = p.cur.Str
-		p.advance()
-	} else {
-		return nil, &ParseError{Message: "expected password string", Position: p.cur.Loc}
+	}
+
+	// [RETAIN CURRENT PASSWORD]
+	if p.cur.Type == kwRETAIN {
+		p.advance() // consume RETAIN
+		p.advance() // consume CURRENT
+		p.advance() // consume PASSWORD
+		stmt.RetainCurrentPassword = true
 	}
 
 	stmt.Loc.End = p.pos()

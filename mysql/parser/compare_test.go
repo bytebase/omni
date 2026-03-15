@@ -10333,3 +10333,52 @@ func TestBatch103_CreateEventEnableDisable(t *testing.T) {
 		})
 	}
 }
+
+// TestBNFReviewSecurity tests BNF review batch 105 - security statements.
+func TestBNFReviewSecurity(t *testing.T) {
+	tests := []string{
+		// REVOKE IF EXISTS
+		"REVOKE IF EXISTS SELECT ON db1.* FROM 'user1'@'localhost'",
+		"REVOKE IF EXISTS ALL PRIVILEGES, GRANT OPTION FROM 'user1'@'localhost'",
+		"REVOKE IF EXISTS INSERT, UPDATE ON *.* FROM user1",
+		// REVOKE IGNORE UNKNOWN USER
+		"REVOKE SELECT ON db1.* FROM 'user1'@'localhost' IGNORE UNKNOWN USER",
+		"REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user1'@'localhost' IGNORE UNKNOWN USER",
+		"REVOKE IF EXISTS SELECT ON db1.t1 FROM user1 IGNORE UNKNOWN USER",
+		// REVOKE IF EXISTS role
+		"REVOKE IF EXISTS role1 FROM user1",
+		// REVOKE PROXY IF EXISTS
+		"REVOKE IF EXISTS PROXY ON 'admin'@'localhost' FROM 'user1'@'localhost'",
+		// SET PASSWORD TO RANDOM
+		"SET PASSWORD TO RANDOM",
+		"SET PASSWORD FOR 'user1'@'localhost' TO RANDOM",
+		// SET PASSWORD with REPLACE
+		"SET PASSWORD = 'newpass' REPLACE 'oldpass'",
+		"SET PASSWORD FOR user1 = 'newpass' REPLACE 'oldpass'",
+		// SET PASSWORD with RETAIN CURRENT PASSWORD
+		"SET PASSWORD = 'newpass' RETAIN CURRENT PASSWORD",
+		"SET PASSWORD FOR 'user1'@'localhost' = 'newpass' REPLACE 'oldpass' RETAIN CURRENT PASSWORD",
+		// CREATE USER DEFAULT ROLE
+		"CREATE USER 'user1'@'localhost' IDENTIFIED BY 'pass' DEFAULT ROLE role1, role2",
+		// CREATE USER with 2FA chaining
+		"CREATE USER 'user1'@'localhost' IDENTIFIED BY 'pass1' AND IDENTIFIED BY 'pass2'",
+		"CREATE USER 'user1'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'pass1' AND IDENTIFIED BY 'pass2' AND IDENTIFIED BY 'pass3'",
+		// CREATE USER with INITIAL AUTHENTICATION
+		"CREATE USER 'user1'@'localhost' IDENTIFIED WITH caching_sha2_password INITIAL AUTHENTICATION IDENTIFIED BY RANDOM PASSWORD",
+		"CREATE USER 'user1'@'localhost' IDENTIFIED WITH caching_sha2_password INITIAL AUTHENTICATION IDENTIFIED WITH sha256_password AS 'hash'",
+		"CREATE USER 'user1'@'localhost' IDENTIFIED WITH caching_sha2_password INITIAL AUTHENTICATION IDENTIFIED BY 'initpass'",
+		// ALTER USER with REPLACE
+		"ALTER USER 'user1'@'localhost' IDENTIFIED BY 'newpass' REPLACE 'oldpass'",
+		"ALTER USER 'user1'@'localhost' IDENTIFIED BY 'newpass' REPLACE 'oldpass' RETAIN CURRENT PASSWORD",
+		// ALTER USER with IDENTIFIED WITH ... BY ... REPLACE
+		"ALTER USER 'user1'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'newpass' REPLACE 'oldpass'",
+		// RENAME USER with quoted names
+		"RENAME USER 'olduser'@'localhost' TO 'newuser'@'localhost'",
+		"RENAME USER 'u1'@'h1' TO 'u2'@'h2', 'u3'@'h3' TO 'u4'@'h4'",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}

@@ -2434,7 +2434,7 @@
       "id": 105,
       "name": "review_security",
       "file": "grant.go",
-      "status": "pending",
+      "status": "done",
       "description": "BNF review: CREATE/ALTER/DROP USER, CREATE/DROP ROLE, GRANT, REVOKE, SET DEFAULT ROLE, SET ROLE, SET PASSWORD, RENAME USER against 283 lines of BNF.",
       "effort": "review",
       "bnf_files": ["create-user.bnf", "alter-user.bnf", "drop-user.bnf", "create-role.bnf", "drop-role.bnf", "grant.bnf", "revoke.bnf", "set-default-role.bnf", "set-role.bnf", "set-password.bnf", "rename-user.bnf"],

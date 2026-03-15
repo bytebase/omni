@@ -1049,9 +1049,12 @@ func (s *SetStmt) stmtNode() {}
 //
 //	SET PASSWORD [FOR user] = 'auth_string'
 type SetPasswordStmt struct {
-	Loc      Loc
-	User     *UserSpec // optional FOR user@host
-	Password string    // the password string
+	Loc                  Loc
+	User                 *UserSpec // optional FOR user@host
+	Password             string    // the password string
+	ToRandom             bool      // SET PASSWORD ... TO RANDOM
+	Replace              string    // [REPLACE 'current_auth_string']
+	RetainCurrentPassword bool     // [RETAIN CURRENT PASSWORD]
 }
 
 func (s *SetPasswordStmt) nodeTag()  {}
@@ -1216,12 +1219,14 @@ func (s *GrantStmt) stmtNode() {}
 
 // RevokeStmt represents a REVOKE statement.
 type RevokeStmt struct {
-	Loc         Loc
-	Privileges  []string
-	AllPriv     bool
-	GrantOption bool // REVOKE ALL PRIVILEGES, GRANT OPTION FROM user
-	On          *GrantTarget
-	From        []string
+	Loc               Loc
+	IfExists          bool
+	Privileges        []string
+	AllPriv           bool
+	GrantOption       bool // REVOKE ALL PRIVILEGES, GRANT OPTION FROM user
+	On                *GrantTarget
+	From              []string
+	IgnoreUnknownUser bool // [IGNORE UNKNOWN USER]
 }
 
 func (s *RevokeStmt) nodeTag()  {}
@@ -1238,11 +1243,12 @@ func (t *GrantTarget) nodeTag() {}
 
 // CreateUserStmt represents a CREATE USER statement.
 type CreateUserStmt struct {
-	Loc         Loc
-	IfNotExists bool
-	Users       []*UserSpec
-	Require     *RequireClause  // REQUIRE tls_option
-	Resource    *ResourceOption // WITH resource_option
+	Loc          Loc
+	IfNotExists  bool
+	Users        []*UserSpec
+	DefaultRoles []string        // DEFAULT ROLE role [, role] ...
+	Require      *RequireClause  // REQUIRE tls_option
+	Resource     *ResourceOption // WITH resource_option
 	// Password options
 	PasswordExpire         string // "", "DEFAULT", "NEVER", "INTERVAL N DAY"
 	PasswordHistory        string // "", "DEFAULT", "N"
@@ -1303,15 +1309,20 @@ func (s *AlterUserStmt) stmtNode() {}
 
 // UserSpec represents a user specification.
 type UserSpec struct {
-	Loc                  Loc
-	Name                 string
-	Host                 string
-	AuthPlugin           string
-	Password             string
-	AuthHash             string // IDENTIFIED WITH plugin AS 'hash_string'
-	PasswordRandom       bool   // IDENTIFIED BY RANDOM PASSWORD
-	RetainCurrentPassword bool  // RETAIN CURRENT PASSWORD
-	DiscardOldPassword   bool   // DISCARD OLD PASSWORD
+	Loc                   Loc
+	Name                  string
+	Host                  string
+	AuthPlugin            string
+	Password              string
+	AuthHash              string // IDENTIFIED WITH plugin AS 'hash_string'
+	PasswordRandom        bool   // IDENTIFIED BY RANDOM PASSWORD
+	RetainCurrentPassword bool   // RETAIN CURRENT PASSWORD
+	DiscardOldPassword    bool   // DISCARD OLD PASSWORD
+	Replace               string // [REPLACE 'current_auth_string'] (ALTER USER)
+	AuthFactors           []*UserSpec // AND 2fa/3fa auth chaining
+	InitialAuthPlugin     string // INITIAL AUTHENTICATION IDENTIFIED WITH plugin
+	InitialAuthString     string // INITIAL AUTHENTICATION ... AS/BY 'auth_string'
+	InitialAuthRandom     bool   // INITIAL AUTHENTICATION IDENTIFIED BY RANDOM PASSWORD
 }
 
 func (u *UserSpec) nodeTag() {}
@@ -1374,9 +1385,11 @@ func (s *GrantRoleStmt) stmtNode() {}
 
 // RevokeRoleStmt represents a REVOKE role FROM user statement.
 type RevokeRoleStmt struct {
-	Loc   Loc
-	Roles []string
-	From  []string
+	Loc               Loc
+	IfExists          bool
+	Roles             []string
+	From              []string
+	IgnoreUnknownUser bool
 }
 
 func (s *RevokeRoleStmt) nodeTag()  {}

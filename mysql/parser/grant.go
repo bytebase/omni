@@ -222,11 +222,22 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/revoke.html
 //
-//	REVOKE priv_type [, priv_type] ... ON [object_type] priv_level FROM user [, user] ...
-//	REVOKE role [, role] ... FROM user [, user] ...
+//	REVOKE [IF EXISTS] priv_type [(column_list)] [, priv_type [(column_list)]] ...
+//	    ON [object_type] priv_level FROM user_or_role [, user_or_role] ... [IGNORE UNKNOWN USER]
+//	REVOKE [IF EXISTS] ALL [PRIVILEGES], GRANT OPTION FROM user_or_role [, user_or_role] ... [IGNORE UNKNOWN USER]
+//	REVOKE [IF EXISTS] PROXY ON user_or_role FROM user_or_role [, user_or_role] ... [IGNORE UNKNOWN USER]
+//	REVOKE [IF EXISTS] role [, role] ... FROM user_or_role [, user_or_role] ... [IGNORE UNKNOWN USER]
 func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume REVOKE
+
+	// [IF EXISTS]
+	ifExists := false
+	if p.cur.Type == kwIF {
+		p.advance()
+		p.match(kwEXISTS_KW)
+		ifExists = true
+	}
 
 	// Parse the names (could be privileges or roles).
 	privs, allPriv, err := p.parsePrivilegeList()
@@ -251,9 +262,21 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			}
 			stmt := &nodes.RevokeStmt{
 				Loc:         nodes.Loc{Start: start},
+				IfExists:    ifExists,
 				AllPriv:     true,
 				GrantOption: true,
 				From:        users,
+			}
+			// [IGNORE UNKNOWN USER]
+			if p.cur.Type == kwIGNORE {
+				p.advance()
+				if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "unknown") {
+					p.advance()
+				}
+				if p.cur.Type == kwUSER {
+					p.advance()
+				}
+				stmt.IgnoreUnknownUser = true
 			}
 			stmt.Loc.End = p.pos()
 			return stmt, nil
@@ -269,9 +292,21 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			return nil, err
 		}
 		stmt := &nodes.RevokeRoleStmt{
-			Loc:   nodes.Loc{Start: start},
-			Roles: privs,
-			From:  users,
+			Loc:      nodes.Loc{Start: start},
+			IfExists: ifExists,
+			Roles:    privs,
+			From:     users,
+		}
+		// [IGNORE UNKNOWN USER]
+		if p.cur.Type == kwIGNORE {
+			p.advance()
+			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "unknown") {
+				p.advance()
+			}
+			if p.cur.Type == kwUSER {
+				p.advance()
+			}
+			stmt.IgnoreUnknownUser = true
 		}
 		stmt.Loc.End = p.pos()
 		return stmt, nil
@@ -293,8 +328,20 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		}
 		stmt := &nodes.RevokeStmt{
 			Loc:        nodes.Loc{Start: start},
+			IfExists:   ifExists,
 			Privileges: []string{"PROXY(" + proxyUser + ")"},
 			From:       users,
+		}
+		// [IGNORE UNKNOWN USER]
+		if p.cur.Type == kwIGNORE {
+			p.advance()
+			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "unknown") {
+				p.advance()
+			}
+			if p.cur.Type == kwUSER {
+				p.advance()
+			}
+			stmt.IgnoreUnknownUser = true
 		}
 		stmt.Loc.End = p.pos()
 		return stmt, nil
@@ -302,6 +349,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 
 	// Privilege revoke
 	stmt := &nodes.RevokeStmt{Loc: nodes.Loc{Start: start}}
+	stmt.IfExists = ifExists
 	stmt.Privileges = privs
 	stmt.AllPriv = allPriv
 
@@ -326,6 +374,18 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	stmt.From = users
+
+	// [IGNORE UNKNOWN USER]
+	if p.cur.Type == kwIGNORE {
+		p.advance()
+		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "unknown") {
+			p.advance()
+		}
+		if p.cur.Type == kwUSER {
+			p.advance()
+		}
+		stmt.IgnoreUnknownUser = true
+	}
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil
@@ -650,7 +710,13 @@ func (p *Parser) parseUserName() (string, error) {
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/create-user.html
 //
-//	CREATE USER [IF NOT EXISTS] user_spec [, user_spec] ...
+//	CREATE USER [IF NOT EXISTS]
+//	    user [auth_option] [, user [auth_option]] ...
+//	    DEFAULT ROLE role [, role ] ...
+//	    [REQUIRE {NONE | tls_option [[AND] tls_option] ...}]
+//	    [WITH resource_option [resource_option] ...]
+//	    [password_option | lock_option] ...
+//	    [COMMENT 'comment_string' | ATTRIBUTE 'json_object']
 func (p *Parser) parseCreateUserStmt() (*nodes.CreateUserStmt, error) {
 	start := p.pos()
 	p.advance() // consume USER
@@ -677,6 +743,20 @@ func (p *Parser) parseCreateUserStmt() (*nodes.CreateUserStmt, error) {
 			break
 		}
 		p.advance() // consume ','
+	}
+
+	// [DEFAULT ROLE role [, role] ...]
+	if p.cur.Type == kwDEFAULT {
+		next := p.peekNext()
+		if next.Type == kwROLE {
+			p.advance() // consume DEFAULT
+			p.advance() // consume ROLE
+			roles, err := p.parseUserList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.DefaultRoles = roles
+		}
 	}
 
 	// [REQUIRE {NONE | tls_option [[AND] tls_option] ...}]
@@ -836,7 +916,22 @@ func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
 
 // parseUserSpec parses a user specification.
 //
-//	user_spec: user [IDENTIFIED BY 'password' | IDENTIFIED WITH auth_plugin [BY 'password']]
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-user.html
+//
+//	user [auth_option] [, user [auth_option]] ...
+//
+//	auth_option: {
+//	    IDENTIFIED BY 'auth_string' [AND 2fa_auth_option]
+//	  | IDENTIFIED BY RANDOM PASSWORD [AND 2fa_auth_option]
+//	  | IDENTIFIED WITH auth_plugin [AND 2fa_auth_option]
+//	  | IDENTIFIED WITH auth_plugin BY 'auth_string' [AND 2fa_auth_option]
+//	  | IDENTIFIED WITH auth_plugin BY RANDOM PASSWORD [AND 2fa_auth_option]
+//	  | IDENTIFIED WITH auth_plugin AS 'auth_string' [AND 2fa_auth_option]
+//	  | IDENTIFIED WITH auth_plugin [initial_auth_option]
+//	}
+//
+// ALTER USER also supports [REPLACE 'current_auth_string'] [RETAIN CURRENT PASSWORD]
+// after IDENTIFIED BY forms.
 func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 	start := p.pos()
 	spec := &nodes.UserSpec{Loc: nodes.Loc{Start: start}}
@@ -875,48 +970,15 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 
 	// Optional IDENTIFIED BY/WITH
 	if p.cur.Type == kwIDENTIFIED {
+		p.parseUserAuthOption(spec)
+	}
+
+	// [REPLACE 'current_auth_string'] (ALTER USER)
+	if p.cur.Type == kwREPLACE {
 		p.advance()
-		if p.cur.Type == kwBY {
-			// IDENTIFIED BY 'password' | IDENTIFIED BY RANDOM PASSWORD
+		if p.cur.Type == tokSCONST {
+			spec.Replace = p.cur.Str
 			p.advance()
-			if p.cur.Type == kwRANDOM {
-				// IDENTIFIED BY RANDOM PASSWORD
-				p.advance() // consume RANDOM
-				p.advance() // consume PASSWORD
-				spec.PasswordRandom = true
-			} else if p.cur.Type == tokSCONST {
-				spec.Password = p.cur.Str
-				p.advance()
-			}
-		} else if p.cur.Type == kwWITH {
-			// IDENTIFIED WITH auth_plugin [BY 'password' | BY RANDOM PASSWORD | AS 'hash']
-			p.advance()
-			if p.isIdentToken() {
-				plugin, _, err := p.parseIdentifier()
-				if err != nil {
-					return nil, err
-				}
-				spec.AuthPlugin = plugin
-			}
-			// Optional BY 'password' / BY RANDOM PASSWORD / AS 'hash'
-			if p.cur.Type == kwBY {
-				p.advance()
-				if p.cur.Type == kwRANDOM {
-					// BY RANDOM PASSWORD
-					p.advance() // consume RANDOM
-					p.advance() // consume PASSWORD
-					spec.PasswordRandom = true
-				} else if p.cur.Type == tokSCONST {
-					spec.Password = p.cur.Str
-					p.advance()
-				}
-			} else if p.cur.Type == kwAS {
-				p.advance()
-				if p.cur.Type == tokSCONST {
-					spec.AuthHash = p.cur.Str
-					p.advance()
-				}
-			}
 		}
 	}
 
@@ -934,6 +996,55 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 		p.advance() // consume OLD
 		p.advance() // consume PASSWORD
 		spec.DiscardOldPassword = true
+	}
+
+	// [AND 2fa_auth_option [AND 3fa_auth_option]]
+	for p.cur.Type == kwAND {
+		next := p.peekNext()
+		if next.Type != kwIDENTIFIED {
+			break
+		}
+		p.advance() // consume AND
+		factor := &nodes.UserSpec{Loc: nodes.Loc{Start: p.pos()}}
+		p.parseUserAuthOption(factor)
+		factor.Loc.End = p.pos()
+		spec.AuthFactors = append(spec.AuthFactors, factor)
+	}
+
+	// [INITIAL AUTHENTICATION ...]
+	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "initial") {
+		next := p.peekNext()
+		if next.Type == tokIDENT && eqFold(next.Str, "authentication") {
+			p.advance() // consume INITIAL
+			p.advance() // consume AUTHENTICATION
+			if p.cur.Type == kwIDENTIFIED {
+				p.advance() // consume IDENTIFIED
+				if p.cur.Type == kwBY {
+					p.advance() // consume BY
+					if p.cur.Type == kwRANDOM {
+						p.advance() // consume RANDOM
+						p.advance() // consume PASSWORD
+						spec.InitialAuthRandom = true
+					} else if p.cur.Type == tokSCONST {
+						spec.InitialAuthString = p.cur.Str
+						p.advance()
+					}
+				} else if p.cur.Type == kwWITH {
+					p.advance() // consume WITH
+					if p.isIdentToken() {
+						plugin, _, _ := p.parseIdentifier()
+						spec.InitialAuthPlugin = plugin
+					}
+					if p.cur.Type == kwAS {
+						p.advance()
+						if p.cur.Type == tokSCONST {
+							spec.InitialAuthString = p.cur.Str
+							p.advance()
+						}
+					}
+				}
+			}
+		}
 	}
 
 	spec.Loc.End = p.pos()
@@ -993,6 +1104,48 @@ func (p *Parser) parseDropRoleStmt() (*nodes.DropRoleStmt, error) {
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil
+}
+
+// parseUserAuthOption parses the IDENTIFIED BY/WITH portion of a user spec.
+// Caller has verified p.cur.Type == kwIDENTIFIED.
+func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec) {
+	p.advance() // consume IDENTIFIED
+	if p.cur.Type == kwBY {
+		// IDENTIFIED BY 'password' | IDENTIFIED BY RANDOM PASSWORD
+		p.advance()
+		if p.cur.Type == kwRANDOM {
+			p.advance() // consume RANDOM
+			p.advance() // consume PASSWORD
+			spec.PasswordRandom = true
+		} else if p.cur.Type == tokSCONST {
+			spec.Password = p.cur.Str
+			p.advance()
+		}
+	} else if p.cur.Type == kwWITH {
+		// IDENTIFIED WITH auth_plugin [BY 'password' | BY RANDOM PASSWORD | AS 'hash']
+		p.advance()
+		if p.isIdentToken() {
+			plugin, _, _ := p.parseIdentifier()
+			spec.AuthPlugin = plugin
+		}
+		if p.cur.Type == kwBY {
+			p.advance()
+			if p.cur.Type == kwRANDOM {
+				p.advance() // consume RANDOM
+				p.advance() // consume PASSWORD
+				spec.PasswordRandom = true
+			} else if p.cur.Type == tokSCONST {
+				spec.Password = p.cur.Str
+				p.advance()
+			}
+		} else if p.cur.Type == kwAS {
+			p.advance()
+			if p.cur.Type == tokSCONST {
+				spec.AuthHash = p.cur.Str
+				p.advance()
+			}
+		}
+	}
 }
 
 // parseSetDefaultRoleStmt parses a SET DEFAULT ROLE statement.
@@ -1072,6 +1225,10 @@ func (p *Parser) parseSetRoleStmt(start int) (*nodes.SetRoleStmt, error) {
 
 // parseRenameUserStmt parses RENAME USER old_user TO new_user [, old_user TO new_user] ...
 // RENAME already consumed. p.cur is USER.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/rename-user.html
+//
+//	RENAME USER old_user TO new_user [, old_user TO new_user] ...
 func (p *Parser) parseRenameUserStmt(start int) (*nodes.RenameUserStmt, error) {
 	p.advance() // consume USER
 
@@ -1083,22 +1240,14 @@ func (p *Parser) parseRenameUserStmt(start int) (*nodes.RenameUserStmt, error) {
 		pairStart := p.pos()
 		pair := &nodes.RenameUserPair{Loc: nodes.Loc{Start: pairStart}}
 
-		// old_user
-		pair.OldUser, _, _ = p.parseIdentifier()
-		if p.cur.Type == tokIDENT && p.cur.Str == "@" {
-			p.advance()
-			pair.OldHost, _, _ = p.parseIdentifier()
-		}
+		// old_user — can be 'user'@'host' or identifier@identifier
+		pair.OldUser, pair.OldHost = p.parseRenameUserPart()
 
 		// TO
 		p.match(kwTO)
 
 		// new_user
-		pair.NewUser, _, _ = p.parseIdentifier()
-		if p.cur.Type == tokIDENT && p.cur.Str == "@" {
-			p.advance()
-			pair.NewHost, _, _ = p.parseIdentifier()
-		}
+		pair.NewUser, pair.NewHost = p.parseRenameUserPart()
 
 		pair.Loc.End = p.pos()
 		stmt.Pairs = append(stmt.Pairs, pair)
@@ -1111,6 +1260,28 @@ func (p *Parser) parseRenameUserStmt(start int) (*nodes.RenameUserStmt, error) {
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil
+}
+
+// parseRenameUserPart parses a user part (name[@host]) in a RENAME USER statement.
+// Supports both quoted and unquoted user names.
+func (p *Parser) parseRenameUserPart() (string, string) {
+	var name, host string
+	if p.cur.Type == tokSCONST {
+		name = p.cur.Str
+		p.advance()
+	} else if p.isIdentToken() {
+		name, _, _ = p.parseIdentifier()
+	}
+	if p.cur.Type == tokIDENT && p.cur.Str == "@" {
+		p.advance()
+		if p.cur.Type == tokSCONST {
+			host = p.cur.Str
+			p.advance()
+		} else if p.isIdentToken() {
+			host, _, _ = p.parseIdentifier()
+		}
+	}
+	return name, host
 }
 
 // parseRequireClause parses a REQUIRE clause for TLS options.
