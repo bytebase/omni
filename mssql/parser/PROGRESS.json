@@ -720,7 +720,7 @@
       "id": 177,
       "name": "set_offsets_depth",
       "file": "declare_set.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 166 gap: SET OFFSETS keyword_list ON|OFF parsed shallowly by generic SET handler; comma-separated keyword list (SELECT, FROM, ORDER, TABLE, PROCEDURE, STATEMENT, PARAM, EXECUTE) not correctly captured before ON/OFF",
       "rules": ["parseSetOptionStmt"],
       "depends_on": [166],

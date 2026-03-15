@@ -3592,6 +3592,51 @@ func TestParseSetOptions(t *testing.T) {
 	}
 }
 
+// TestParseSetOffsets tests SET OFFSETS keyword_list ON|OFF (batch 177).
+func TestParseSetOffsets(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		option string
+	}{
+		{
+			name:   "set_offsets_single_on",
+			sql:    "SET OFFSETS SELECT ON",
+			option: "OFFSETS SELECT",
+		},
+		{
+			name:   "set_offsets_multiple_off",
+			sql:    "SET OFFSETS SELECT, FROM, ORDER OFF",
+			option: "OFFSETS SELECT, FROM, ORDER",
+		},
+		{
+			name:   "set_offsets_all_keywords",
+			sql:    "SET OFFSETS SELECT, FROM, ORDER, TABLE, PROCEDURE, STATEMENT, PARAM, EXECUTE ON",
+			option: "OFFSETS SELECT, FROM, ORDER, TABLE, PROCEDURE, STATEMENT, PARAM, EXECUTE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			if result.Len() == 0 {
+				t.Fatalf("Parse(%q): no statements returned", tt.sql)
+			}
+			stmt, ok := result.Items[0].(*ast.SetOptionStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): expected *ast.SetOptionStmt, got %T", tt.sql, result.Items[0])
+			}
+			if stmt.Option != tt.option {
+				t.Errorf("Parse(%q): Option = %q, want %q", tt.sql, stmt.Option, tt.option)
+			}
+			if stmt.Value == nil {
+				t.Errorf("Parse(%q): expected Value (ON/OFF) to be set", tt.sql)
+			}
+			checkLocation(t, tt.sql, "SetOptionStmt", stmt.Loc)
+		})
+	}
+}
+
 // TestParseSetIsolationLevelStructured tests SET TRANSACTION ISOLATION LEVEL with structured parsing (batch 134).
 func TestParseSetIsolationLevelStructured(t *testing.T) {
 	tests := []struct {

@@ -241,6 +241,46 @@ func (p *Parser) parseSetOptionStmt(loc int) *nodes.SetOptionStmt {
 		return stmt
 	}
 
+	// SET OFFSETS keyword_list { ON | OFF }
+	// BNF: mssql/parser/bnf/set-offsets-transact-sql.bnf
+	//
+	//	SET OFFSETS keyword_list { ON | OFF }
+	//	keyword_list: SELECT, FROM, ORDER, COMPUTE, TABLE, PROCEDURE, STATEMENT, PARAM, EXECUTE
+	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "OFFSETS") {
+		p.advance() // consume OFFSETS
+		stmt.Option = "OFFSETS"
+		// Collect comma-separated keyword list
+		var keywords []string
+		for {
+			if p.cur.Type == kwON || p.cur.Type == kwOFF {
+				break
+			}
+			if p.cur.Type == ';' || p.cur.Type == tokEOF || p.cur.Type == kwGO {
+				break
+			}
+			if p.cur.Type == ',' {
+				p.advance()
+				continue
+			}
+			keywords = append(keywords, strings.ToUpper(p.cur.Str))
+			p.advance()
+		}
+		if len(keywords) > 0 {
+			stmt.Option = "OFFSETS " + strings.Join(keywords, ", ")
+		}
+		if p.cur.Type == kwON {
+			onLoc := p.pos()
+			p.advance()
+			stmt.Value = &nodes.ColumnRef{Column: "ON", Loc: nodes.Loc{Start: onLoc}}
+		} else if p.cur.Type == kwOFF {
+			offLoc := p.pos()
+			p.advance()
+			stmt.Value = &nodes.ColumnRef{Column: "OFF", Loc: nodes.Loc{Start: offLoc}}
+		}
+		stmt.Loc.End = p.pos()
+		return stmt
+	}
+
 	// Generic option name
 	if p.isIdentLike() || p.cur.Type == kwNOCOUNT || p.cur.Type == kwXACT_ABORT ||
 		p.cur.Type == kwROWCOUNT || p.cur.Type == kwTEXTSIZE ||
