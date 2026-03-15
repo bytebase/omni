@@ -183,7 +183,7 @@ func (p *Parser) parseCreateAdminObject(start int) nodes.StmtNode {
 				if p.cur.Type == kwDATABASE {
 					p.advance() // consume DATABASE
 				}
-				return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_PLUGGABLE_DATABASE, start)
+				return p.parseCreatePluggableDatabaseStmt(start)
 		case "ANALYTIC":
 			p.advance() // consume ANALYTIC
 			if p.cur.Type == kwVIEW {
@@ -367,7 +367,7 @@ func (p *Parser) parseDropAdminObject(start int) nodes.StmtNode {
 				if p.cur.Type == kwDATABASE {
 					p.advance() // consume DATABASE
 				}
-				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_PLUGGABLE_DATABASE, start)
+				return p.parseDropPluggableDatabaseStmt(start)
 			case "ANALYTIC":
 				p.advance() // consume ANALYTIC
 				if p.cur.Type == kwVIEW {
@@ -1227,7 +1227,7 @@ func (p *Parser) parseAlterAdminObject(start int) nodes.StmtNode {
 				if p.cur.Type == kwDATABASE {
 					p.advance() // consume DATABASE
 				}
-				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_PLUGGABLE_DATABASE, start)
+				return p.parseAlterPluggableDatabaseStmt(start)
 			case "ANALYTIC":
 				p.advance() // consume ANALYTIC
 				if p.cur.Type == kwVIEW {

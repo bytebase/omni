@@ -736,7 +736,7 @@
       "id": 95,
       "name": "pluggable_database_full",
       "file": "database.go",
-      "status": "pending",
+      "status": "done",
       "description": "CREATE/ALTER/DROP PLUGGABLE DATABASE — currently stubbed via parseAdminDDLStmt. Full implementation: FROM/AS CLONE, FILE_NAME_CONVERT, STORAGE, PATH_PREFIX, open/close/unplug/relocate clauses.",
       "bnf_files": ["CREATE-PLUGGABLE-DATABASE.bnf", "ALTER-PLUGGABLE-DATABASE.bnf", "DROP-PLUGGABLE-DATABASE.bnf"],
       "bnf_lines": 372,
