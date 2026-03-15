@@ -9589,3 +9589,40 @@ func TestAnalyze(t *testing.T) {
 		})
 	}
 }
+
+func TestAlterMaterializedViewModify(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		action string
+	}{
+		{
+			"modify_column_encrypt",
+			"ALTER MATERIALIZED VIEW mv1 MODIFY (col1 ENCRYPT)",
+			"MODIFY",
+		},
+		{
+			"modify_column_encrypt_algo",
+			"ALTER MATERIALIZED VIEW mv1 MODIFY (col1 ENCRYPT USING 'AES256')",
+			"MODIFY",
+		},
+		{
+			"modify_scope_for",
+			"ALTER MATERIALIZED VIEW mv1 MODIFY SCOPE FOR (ref_col) IS hr.departments",
+			"MODIFY_SCOPE",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tc.sql)
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt, ok := raw.Stmt.(*ast.AlterMaterializedViewStmt)
+			if !ok {
+				t.Fatalf("expected *AlterMaterializedViewStmt, got %T", raw.Stmt)
+			}
+			if stmt.Action != tc.action {
+				t.Errorf("expected action %q, got %q", tc.action, stmt.Action)
+			}
+		})
+	}
+}

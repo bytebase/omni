@@ -1738,7 +1738,7 @@
       "id": 120,
       "name": "alter_mview_modify_clause",
       "file": "alter_misc.go",
-      "status": "pending",
+      "status": "done",
       "description": "Fix batch 83 gap: parseAlterMaterializedViewStmt MODIFY clause (alter_misc.go:1360) skips to semicolon. Must parse modify_mv_column_clause (MODIFY column encryption_spec) and MODIFY scoped_table_ref_constraint per ALTER-MATERIALIZED-VIEW.bnf lines 20,35-36.",
       "bnf_files": [
         "ALTER-MATERIALIZED-VIEW.bnf"

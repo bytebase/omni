@@ -4161,6 +4161,13 @@ func writeAlterMaterializedViewStmt(sb *strings.Builder, n *AlterMaterializedVie
 	if n.EditionName != "" {
 		sb.WriteString(fmt.Sprintf(" :editionName %q", n.EditionName))
 	}
+	if n.ScopeColumn != "" {
+		sb.WriteString(fmt.Sprintf(" :scopeColumn %q", n.ScopeColumn))
+	}
+	if n.ScopeTable != nil {
+		sb.WriteString(" :scopeTable ")
+		writeNode(sb, n.ScopeTable)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }

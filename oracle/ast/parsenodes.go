@@ -2922,6 +2922,10 @@ type AlterMaterializedViewStmt struct {
 	// EVALUATE USING EDITION
 	EditionName string // edition name
 
+	// MODIFY SCOPE FOR
+	ScopeColumn string      // ref column name
+	ScopeTable  *ObjectName // target table name
+
 	// Options (generic list for clauses parsed as options)
 	Options *List
 

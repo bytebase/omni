@@ -1354,10 +1354,73 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 		}
 
 	case p.cur.Type == kwMODIFY:
-		stmt.Action = "MODIFY"
-		p.advance()
-		// consume rest of MODIFY clause (column encryption or scoped ref)
-		p.skipToSemicolon()
+		p.advance() // consume MODIFY
+		// MODIFY scoped_table_ref_constraint: SCOPE FOR ( ref_col ) IS [schema.]table
+		if p.isIdentLikeStr("SCOPE") {
+			stmt.Action = "MODIFY_SCOPE"
+			p.advance() // consume SCOPE
+			if p.cur.Type == kwFOR {
+				p.advance() // consume FOR
+			}
+			if p.cur.Type == '(' {
+				p.advance() // consume (
+				stmt.ScopeColumn = p.parseIdentifier()
+				if p.cur.Type == ')' {
+					p.advance() // consume )
+				}
+			}
+			if p.cur.Type == kwIS {
+				p.advance() // consume IS
+			}
+			stmt.ScopeTable = p.parseObjectName()
+		} else {
+			// modify_mv_column_clause: MODIFY ( column_name encryption_spec [, ...] )
+			stmt.Action = "MODIFY"
+			if p.cur.Type == '(' {
+				p.advance() // consume (
+				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					_ = p.parseIdentifier() // column_name
+					if p.isIdentLikeStr("ENCRYPT") {
+						p.advance() // consume ENCRYPT
+						// parse encryption_spec options
+						for {
+							if p.cur.Type == kwUSING {
+								p.advance() // consume USING
+								if p.cur.Type == tokSCONST {
+									p.advance() // consume algorithm string
+								}
+							} else if p.isIdentLikeStr("IDENTIFIED") {
+								p.advance() // consume IDENTIFIED
+								if p.cur.Type == kwBY {
+									p.advance() // consume BY
+									p.parseIdentifier() // consume password
+								}
+							} else if p.isIdentLikeStr("SALT") {
+								p.advance()
+							} else if p.isIdentLikeStr("NO") {
+								next := p.peekNext()
+								if (next.Type == tokIDENT || next.Type >= 2000) && next.Str == "SALT" {
+									p.advance() // consume NO
+									p.advance() // consume SALT
+								} else {
+									break
+								}
+							} else {
+								break
+							}
+						}
+					}
+					if p.cur.Type == ',' {
+						p.advance() // consume ,
+					} else {
+						break
+					}
+				}
+				if p.cur.Type == ')' {
+					p.advance() // consume )
+				}
+			}
+		}
 
 	case p.isIdentLikeStr("QUERY"):
 		// alter_query_rewrite_clause: QUERY REWRITE { ENABLE | DISABLE | ... }
