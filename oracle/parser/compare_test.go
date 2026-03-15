@@ -3386,45 +3386,88 @@ func TestBatch66_AnalyticViewHierarchy(t *testing.T) {
 		}
 	})
 
-	// DROP and ATTRIBUTE DIMENSION / HIERARCHY still use AdminDDLStmt
-	adminTests := []struct {
-		name   string
-		sql    string
-		action string
-		obj    ast.ObjectType
-	}{
-		{"drop_analytic_view", "DROP ANALYTIC VIEW sales_av", "DROP", ast.OBJECT_ANALYTIC_VIEW},
-		{"create_attribute_dimension", "CREATE ATTRIBUTE DIMENSION time_attr_dim USING time_dim", "CREATE", ast.OBJECT_ATTRIBUTE_DIMENSION},
-		{"alter_attribute_dimension", "ALTER ATTRIBUTE DIMENSION time_attr_dim RENAME TO time_attr_dim2", "ALTER", ast.OBJECT_ATTRIBUTE_DIMENSION},
-		{"drop_attribute_dimension", "DROP ATTRIBUTE DIMENSION time_attr_dim", "DROP", ast.OBJECT_ATTRIBUTE_DIMENSION},
-		{"create_hierarchy", "CREATE HIERARCHY time_hier USING time_attr_dim", "CREATE", ast.OBJECT_HIERARCHY},
-		{"alter_hierarchy", "ALTER HIERARCHY time_hier RENAME TO time_hier2", "ALTER", ast.OBJECT_HIERARCHY},
-		{"drop_hierarchy", "DROP HIERARCHY time_hier", "DROP", ast.OBJECT_HIERARCHY},
-	}
-	for _, tt := range adminTests {
-		t.Run(tt.name, func(t *testing.T) {
-			adminDDLTest(t, tt.sql, tt.action, tt.obj)
-		})
-	}
+	// DROP ANALYTIC VIEW still uses AdminDDLStmt
+	t.Run("drop_analytic_view", func(t *testing.T) {
+		adminDDLTest(t, "DROP ANALYTIC VIEW sales_av", "DROP", ast.OBJECT_ANALYTIC_VIEW)
+	})
+
+	// ATTRIBUTE DIMENSION / HIERARCHY now use dedicated AST types (upgraded in batch 102)
+	t.Run("create_attribute_dimension", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE ATTRIBUTE DIMENSION time_attr_dim USING time_dim ATTRIBUTES (yr) LEVEL detail KEY yr")
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.CreateAttributeDimensionStmt)
+		if !ok {
+			t.Fatalf("expected *CreateAttributeDimensionStmt, got %T", raw.Stmt)
+		}
+	})
+	t.Run("alter_attribute_dimension", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER ATTRIBUTE DIMENSION time_attr_dim RENAME TO time_attr_dim2")
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.AlterAttributeDimensionStmt)
+		if !ok {
+			t.Fatalf("expected *AlterAttributeDimensionStmt, got %T", raw.Stmt)
+		}
+	})
+	t.Run("drop_attribute_dimension", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP ATTRIBUTE DIMENSION time_attr_dim")
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.DropStmt)
+		if !ok {
+			t.Fatalf("expected *DropStmt, got %T", raw.Stmt)
+		}
+	})
+	t.Run("create_hierarchy", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE HIERARCHY time_hier USING time_attr_dim (month CHILD OF year)")
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.CreateHierarchyStmt)
+		if !ok {
+			t.Fatalf("expected *CreateHierarchyStmt, got %T", raw.Stmt)
+		}
+	})
+	t.Run("alter_hierarchy", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER HIERARCHY time_hier RENAME TO time_hier2")
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.AlterHierarchyStmt)
+		if !ok {
+			t.Fatalf("expected *AlterHierarchyStmt, got %T", raw.Stmt)
+		}
+	})
+	t.Run("drop_hierarchy", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP HIERARCHY time_hier")
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.DropStmt)
+		if !ok {
+			t.Fatalf("expected *DropStmt, got %T", raw.Stmt)
+		}
+	})
 }
 
-// TestBatch67_Domain tests CREATE/ALTER/DROP DOMAIN.
+// TestBatch67_Domain tests CREATE/ALTER/DROP DOMAIN (upgraded in batch 102).
 func TestBatch67_Domain(t *testing.T) {
-	tests := []struct {
-		name   string
-		sql    string
-		action string
-		obj    ast.ObjectType
-	}{
-		{"create_domain", "CREATE DOMAIN email_domain AS VARCHAR2(255) NOT NULL", "CREATE", ast.OBJECT_DOMAIN},
-		{"alter_domain", "ALTER DOMAIN email_domain ADD CONSTRAINT chk_email CHECK (VALUE LIKE '%@%')", "ALTER", ast.OBJECT_DOMAIN},
-		{"drop_domain", "DROP DOMAIN email_domain", "DROP", ast.OBJECT_DOMAIN},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			adminDDLTest(t, tt.sql, tt.action, tt.obj)
-		})
-	}
+	t.Run("create_domain", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE DOMAIN email_domain AS VARCHAR2(255) NOT NULL")
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.CreateDomainStmt)
+		if !ok {
+			t.Fatalf("expected *CreateDomainStmt, got %T", raw.Stmt)
+		}
+	})
+	t.Run("alter_domain", func(t *testing.T) {
+		result := ParseAndCheck(t, "ALTER DOMAIN email_domain ADD DISPLAY email_col")
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.AlterDomainStmt)
+		if !ok {
+			t.Fatalf("expected *AlterDomainStmt, got %T", raw.Stmt)
+		}
+	})
+	t.Run("drop_domain", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP DOMAIN email_domain")
+		raw := result.Items[0].(*ast.RawStmt)
+		_, ok := raw.Stmt.(*ast.DropStmt)
+		if !ok {
+			t.Fatalf("expected *DropStmt, got %T", raw.Stmt)
+		}
+	})
 }
 
 // TestBatch68_IndextypeOperator tests CREATE/ALTER/DROP INDEXTYPE and OPERATOR.
@@ -7220,6 +7263,125 @@ func TestParseBatch101_PLSQLObjects(t *testing.T) {
 		"DROP TRIGGER IF EXISTS my_trigger",
 		// DROP TYPE BODY - IF EXISTS
 		"DROP TYPE BODY IF EXISTS my_type",
+	}
+	for _, sql := range tests {
+		name := sql
+		if len(name) > 70 {
+			name = name[:70]
+		}
+		t.Run(name, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			s := ast.NodeToString(result.Items[0])
+			if s == "" {
+				t.Errorf("expected non-empty serialization for %q", sql)
+			}
+		})
+	}
+}
+
+func TestParseBatch102_AttrDimensionHierarchyDomain(t *testing.T) {
+	tests := []string{
+		// CREATE ATTRIBUTE DIMENSION - basic with USING, ATTRIBUTES, LEVEL
+		`CREATE ATTRIBUTE DIMENSION sales_attr_dim
+			USING sales_fact
+			ATTRIBUTES (product_id, time_id, channel_id)
+			LEVEL detail
+				KEY product_id`,
+		// CREATE ATTRIBUTE DIMENSION - OR REPLACE, SHARING, DIMENSION TYPE, classification
+		`CREATE OR REPLACE ATTRIBUTE DIMENSION hr.time_attr_dim
+			SHARING = METADATA
+			CAPTION 'Time Dimension'
+			DESCRIPTION 'Time-based attribute dimension'
+			DIMENSION TYPE TIME
+			USING time_table
+			ATTRIBUTES (year_id AS yr, quarter_id AS qtr, month_id)
+			LEVEL year LEVEL TYPE YEARS KEY year_id NOT NULL
+			LEVEL quarter LEVEL TYPE QUARTERS KEY quarter_id
+			LEVEL month LEVEL TYPE MONTHS KEY month_id`,
+		// CREATE ATTRIBUTE DIMENSION - IF NOT EXISTS, JOIN PATH, multiple sources
+		`CREATE ATTRIBUTE DIMENSION IF NOT EXISTS product_dim
+			USING products p, JOIN PATH jp1 ON p.cat_id = categories.cat_id
+			ATTRIBUTES (prod_name, prod_desc AS description)
+			LEVEL product KEY prod_name
+			LEVEL category KEY (cat_id, subcat_id)`,
+		// CREATE ATTRIBUTE DIMENSION - ALTERNATE KEY, MEMBER exprs, ORDER BY, DETERMINES, ALL clause
+		`CREATE ATTRIBUTE DIMENSION geo_dim
+			USING geography
+			ATTRIBUTES (country_id, region_id, city_id)
+			LEVEL country
+				KEY country_id NOT NULL
+				ALTERNATE KEY country_code
+				MEMBER NAME country_id
+				MEMBER CAPTION country_id
+				ORDER BY country_id ASC
+				DETERMINES (region_id)
+			LEVEL region KEY region_id
+			ALL MEMBER NAME 'ALL_GEO'`,
+		// CREATE ATTRIBUTE DIMENSION - SKIP WHEN NULL, ORDER BY with multiple attrs
+		`CREATE ATTRIBUTE DIMENSION time_dim
+			USING calendar
+			ATTRIBUTES (year_val, quarter_val, month_val)
+			LEVEL year KEY year_val SKIP WHEN NULL
+			LEVEL quarter KEY quarter_val
+				ORDER BY (quarter_val ASC, year_val DESC)`,
+		// ALTER ATTRIBUTE DIMENSION - COMPILE
+		"ALTER ATTRIBUTE DIMENSION my_dim COMPILE",
+		// ALTER ATTRIBUTE DIMENSION - RENAME TO
+		"ALTER ATTRIBUTE DIMENSION IF EXISTS hr.old_dim RENAME TO new_dim",
+		// CREATE HIERARCHY - basic
+		`CREATE HIERARCHY time_hier
+			USING time_attr_dim
+			(month CHILD OF quarter CHILD OF year)`,
+		// CREATE HIERARCHY - OR REPLACE, SHARING, classification, HIERARCHICAL ATTRIBUTES
+		`CREATE OR REPLACE HIERARCHY hr.geo_hier
+			SHARING = METADATA
+			CAPTION 'Geography Hierarchy'
+			USING geo_attr_dim
+			(city CHILD OF region CHILD OF country)
+			HIERARCHICAL ATTRIBUTES (HIER_ORDER, DEPTH, IS_LEAF)`,
+		// CREATE HIERARCHY - IF NOT EXISTS
+		`CREATE HIERARCHY IF NOT EXISTS product_hier
+			USING product_dim
+			(product CHILD OF category)`,
+		// ALTER HIERARCHY - COMPILE
+		"ALTER HIERARCHY my_hier COMPILE",
+		// ALTER HIERARCHY - RENAME TO with IF EXISTS
+		"ALTER HIERARCHY IF EXISTS hr.old_hier RENAME TO new_hier",
+		// DROP ATTRIBUTE DIMENSION, HIERARCHY
+		"DROP ATTRIBUTE DIMENSION IF EXISTS hr.my_dim",
+		"DROP HIERARCHY my_hier",
+		// CREATE DOMAIN - single column with constraints
+		`CREATE DOMAIN email_domain AS VARCHAR2(100)
+			NOT NULL
+			CHECK (VALUE LIKE '%@%')
+			DISPLAY email_domain`,
+		// CREATE DOMAIN - OR REPLACE, DEFAULT ON NULL, COLLATE
+		`CREATE OR REPLACE DOMAIN phone_domain AS VARCHAR2(20)
+			DEFAULT ON NULL '+1-000-000-0000'
+			CONSTRAINT phone_nn NOT NULL
+			COLLATE BINARY_CI`,
+		// CREATE DOMAIN - ENUM
+		`CREATE DOMAIN color_domain AS ENUM (RED, GREEN, BLUE)`,
+		// CREATE DOMAIN - multi-column
+		`CREATE DOMAIN address_domain AS (
+			street AS VARCHAR2(200),
+			city AS VARCHAR2(100),
+			zip AS VARCHAR2(10)
+		)`,
+		// ALTER DOMAIN - ADD DISPLAY
+		"ALTER DOMAIN my_domain ADD DISPLAY my_col",
+		// ALTER DOMAIN - MODIFY ORDER
+		"ALTER DOMAIN my_domain MODIFY ORDER sort_key",
+		// ALTER DOMAIN - DROP DISPLAY
+		"ALTER DOMAIN my_domain DROP DISPLAY",
+		// ALTER DOMAIN - DROP ORDER
+		"ALTER DOMAIN IF EXISTS my_domain DROP ORDER",
+		// DROP DOMAIN
+		"DROP DOMAIN IF EXISTS hr.my_domain",
+		// ALTER DOMAIN - USECASE
+		"ALTER USECASE DOMAIN my_domain ADD DISPLAY my_col",
+		// CREATE DOMAIN - USECASE
+		"CREATE USECASE DOMAIN my_domain AS NUMBER NOT NULL",
 	}
 	for _, sql := range tests {
 		name := sql

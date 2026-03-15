@@ -208,7 +208,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		if p.isIdentLikeStr("MULTIVALUE") {
 			return p.parseCreateIndexStmt(start)
 		}
-		// Check for INDEXTYPE, OPERATOR, ANALYTIC VIEW (identifier-based keywords)
+		// Check for INDEXTYPE, OPERATOR, ANALYTIC VIEW, ATTRIBUTE DIMENSION, HIERARCHY, DOMAIN
 		if p.isIdentLike() {
 			switch p.cur.Str {
 			case "INDEXTYPE":
@@ -223,6 +223,24 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 					p.advance() // consume VIEW
 				}
 				return p.parseCreateAnalyticViewStmt(start, orReplace, false, false)
+			case "ATTRIBUTE":
+				p.advance() // consume ATTRIBUTE
+				if p.isIdentLike() && p.cur.Str == "DIMENSION" {
+					p.advance() // consume DIMENSION
+				}
+				return p.parseCreateAttributeDimensionStmt(start, orReplace, false, false)
+			case "HIERARCHY":
+				p.advance() // consume HIERARCHY
+				return p.parseCreateHierarchyStmt(start, orReplace, false, false)
+			case "DOMAIN":
+				p.advance() // consume DOMAIN
+				return p.parseCreateDomainStmt(start, orReplace, false)
+			case "USECASE":
+				p.advance() // consume USECASE
+				if p.isIdentLike() && p.cur.Str == "DOMAIN" {
+					p.advance() // consume DOMAIN
+					return p.parseCreateDomainStmt(start, orReplace, true)
+				}
 			}
 		}
 		// Check for DIMENSION, FLASHBACK ARCHIVE

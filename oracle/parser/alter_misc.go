@@ -135,6 +135,14 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 				p.skipToSemicolon()
 				return nil
 			}
+			// ALTER USECASE DOMAIN
+			if p.cur.Str == "USECASE" {
+				p.advance() // consume USECASE
+				if p.isIdentLike() && p.cur.Str == "DOMAIN" {
+					p.advance() // consume DOMAIN
+					return p.parseAlterDomainStmt(start, true)
+				}
+			}
 			// Check for DIMENSION and other identifier-based objects
 			if adminStmt := p.parseAlterAdminObject(start); adminStmt != nil {
 				return adminStmt

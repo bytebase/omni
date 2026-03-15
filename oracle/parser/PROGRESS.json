@@ -1074,7 +1074,7 @@
       "id": 102,
       "name": "attr_dimension_hierarchy_domain",
       "file": "create_admin.go",
-      "status": "pending",
+      "status": "done",
       "description": "All stubbed via parseAdminDDLStmt. CREATE/ALTER ATTRIBUTE DIMENSION, CREATE/ALTER HIERARCHY, CREATE/ALTER DOMAIN.",
       "bnf_files": [
         "CREATE-ATTRIBUTE-DIMENSION.bnf",

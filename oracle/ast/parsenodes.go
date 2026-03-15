@@ -3969,6 +3969,261 @@ func (n *AlterJsonDualityViewStmt) nodeTag()  {}
 func (n *AlterJsonDualityViewStmt) stmtNode() {}
 
 // ---------------------------------------------------------------------------
+// CREATE ATTRIBUTE DIMENSION
+// ---------------------------------------------------------------------------
+
+// CreateAttributeDimensionStmt represents a CREATE ATTRIBUTE DIMENSION statement.
+type CreateAttributeDimensionStmt struct {
+	Name          *ObjectName
+	OrReplace     bool
+	Force         bool
+	NoForce       bool
+	IfNotExists   bool
+	Sharing       string // METADATA, NONE
+	DimensionType string // STANDARD, TIME
+	Classifications *List // classification_clause items
+	Sources       *List   // attr_dim_using_clause: source_clause list
+	Attributes    *List   // attributes_clause: attr_dim_attribute_clause list
+	Levels        *List   // attr_dim_level_clause list
+	AllClause     *AttrDimAllClause
+	Loc           Loc
+}
+
+func (n *CreateAttributeDimensionStmt) nodeTag()  {}
+func (n *CreateAttributeDimensionStmt) stmtNode() {}
+
+// AttrDimSourceClause represents a source clause in USING.
+type AttrDimSourceClause struct {
+	Remote  bool
+	Name    *ObjectName
+	Alias   string
+	IsJoinPath    bool
+	JoinPathName  string
+	JoinCondition *List // list of *AttrDimJoinCondElem
+	Loc     Loc
+}
+
+func (n *AttrDimSourceClause) nodeTag() {}
+
+// AttrDimJoinCondElem represents a join condition element: col = col.
+type AttrDimJoinCondElem struct {
+	LeftTable  string
+	LeftCol    string
+	RightTable string
+	RightCol   string
+	Loc        Loc
+}
+
+func (n *AttrDimJoinCondElem) nodeTag() {}
+
+// AttrDimAttribute represents an attribute in the ATTRIBUTES clause.
+type AttrDimAttribute struct {
+	Column string
+	Alias  string
+	Classifications *List
+	Loc    Loc
+}
+
+func (n *AttrDimAttribute) nodeTag() {}
+
+// AttrDimLevel represents a LEVEL clause in CREATE ATTRIBUTE DIMENSION.
+type AttrDimLevel struct {
+	Name            string
+	LevelType       string // STANDARD, YEARS, HALF_YEARS, QUARTERS, MONTHS, WEEKS, DAYS, HOURS, MINUTES, SECONDS
+	Classifications *List
+	KeyAttrs        *List  // key attributes (list of *String)
+	KeyNotNull      bool
+	KeySkipWhenNull bool
+	AltKeyAttrs     *List  // alternate key attributes
+	MemberName      ExprNode
+	MemberCaption   ExprNode
+	MemberDesc      ExprNode
+	OrderByAttrs    *List  // list of *AttrDimOrderByItem
+	Determines      *List  // list of *String
+	Loc             Loc
+}
+
+func (n *AttrDimLevel) nodeTag() {}
+
+// AttrDimOrderByItem represents an ORDER BY item in an attribute dimension level.
+type AttrDimOrderByItem struct {
+	Attribute string
+	Direction string // ASC, DESC
+	Loc       Loc
+}
+
+func (n *AttrDimOrderByItem) nodeTag() {}
+
+// AttrDimAllClause represents the ALL clause at the end of CREATE ATTRIBUTE DIMENSION.
+type AttrDimAllClause struct {
+	MemberName    ExprNode
+	MemberCaption ExprNode
+	MemberDesc    ExprNode
+	Loc           Loc
+}
+
+func (n *AttrDimAllClause) nodeTag() {}
+
+// ---------------------------------------------------------------------------
+// ALTER ATTRIBUTE DIMENSION
+// ---------------------------------------------------------------------------
+
+// AlterAttributeDimensionStmt represents an ALTER ATTRIBUTE DIMENSION statement.
+type AlterAttributeDimensionStmt struct {
+	Name     *ObjectName
+	IfExists bool
+	Action   string      // RENAME, COMPILE
+	NewName  *ObjectName // for RENAME TO
+	Loc      Loc
+}
+
+func (n *AlterAttributeDimensionStmt) nodeTag()  {}
+func (n *AlterAttributeDimensionStmt) stmtNode() {}
+
+// ---------------------------------------------------------------------------
+// CREATE HIERARCHY
+// ---------------------------------------------------------------------------
+
+// CreateHierarchyStmt represents a CREATE HIERARCHY statement.
+type CreateHierarchyStmt struct {
+	Name            *ObjectName
+	OrReplace       bool
+	Force           bool
+	NoForce         bool
+	IfNotExists     bool
+	Sharing         string // METADATA, NONE
+	Classifications *List
+	UsingAttrDim    *ObjectName // USING attr_dimension
+	LevelHier       *HierLevelClause
+	HierAttrs       *List // HIERARCHICAL ATTRIBUTES list
+	Loc             Loc
+}
+
+func (n *CreateHierarchyStmt) nodeTag()  {}
+func (n *CreateHierarchyStmt) stmtNode() {}
+
+// HierLevelClause represents a level in a hierarchy definition.
+type HierLevelClause struct {
+	Name            string
+	Classifications *List
+	ChildOf         *HierLevelClause // recursive
+	Loc             Loc
+}
+
+func (n *HierLevelClause) nodeTag() {}
+
+// HierAttr represents a hierarchical attribute.
+type HierAttr struct {
+	Name            string // HIER_ORDER, DEPTH, IS_LEAF, etc.
+	Classifications *List
+	Loc             Loc
+}
+
+func (n *HierAttr) nodeTag() {}
+
+// ---------------------------------------------------------------------------
+// ALTER HIERARCHY
+// ---------------------------------------------------------------------------
+
+// AlterHierarchyStmt represents an ALTER HIERARCHY statement.
+type AlterHierarchyStmt struct {
+	Name     *ObjectName
+	IfExists bool
+	Action   string      // RENAME, COMPILE
+	NewName  *ObjectName // for RENAME TO
+	Loc      Loc
+}
+
+func (n *AlterHierarchyStmt) nodeTag()  {}
+func (n *AlterHierarchyStmt) stmtNode() {}
+
+// ---------------------------------------------------------------------------
+// CREATE DOMAIN
+// ---------------------------------------------------------------------------
+
+// CreateDomainStmt represents a CREATE DOMAIN statement.
+type CreateDomainStmt struct {
+	Name        *ObjectName
+	OrReplace   bool
+	Usecase     bool
+	IfNotExists bool
+	DomainType  string // SINGLE, MULTI, FLEXIBLE, ENUM
+	// Single column domain fields
+	DataType    *TypeName
+	Strict      bool
+	Default     ExprNode
+	DefaultOnNull bool
+	Constraints *List  // constraint_clause list
+	Collation   string
+	Display     ExprNode
+	Order       ExprNode
+	Annotations *List
+	// Enum fields
+	EnumItems   *List // list of *DomainEnumItem
+	// Multi column domain fields
+	Columns     *List // list of *DomainColumn
+	// Flexible domain fields
+	FlexDomainName *ObjectName
+	FlexColumns    *List // column names
+	ChooseUsing    *List // discriminant columns (list of *DomainColumn)
+	ChooseExpr     ExprNode // DECODE or CASE expression
+	Loc         Loc
+}
+
+func (n *CreateDomainStmt) nodeTag()  {}
+func (n *CreateDomainStmt) stmtNode() {}
+
+// DomainColumn represents a column in a multi-column domain.
+type DomainColumn struct {
+	Name        string
+	DataType    *TypeName
+	Annotations *List
+	Loc         Loc
+}
+
+func (n *DomainColumn) nodeTag() {}
+
+// DomainEnumItem represents an item in an ENUM domain.
+type DomainEnumItem struct {
+	Name    string
+	Aliases []string
+	Value   ExprNode
+	Loc     Loc
+}
+
+func (n *DomainEnumItem) nodeTag() {}
+
+// DomainConstraint represents a constraint in a domain definition.
+type DomainConstraint struct {
+	Name       string // constraint name (optional)
+	Type       string // NOT_NULL, NULL, CHECK
+	CheckExpr  ExprNode
+	State      *List // constraint state options
+	Loc        Loc
+}
+
+func (n *DomainConstraint) nodeTag() {}
+
+// ---------------------------------------------------------------------------
+// ALTER DOMAIN
+// ---------------------------------------------------------------------------
+
+// AlterDomainStmt represents an ALTER DOMAIN statement.
+type AlterDomainStmt struct {
+	Name        *ObjectName
+	Usecase     bool
+	IfExists    bool
+	Action      string   // ADD_DISPLAY, MODIFY_DISPLAY, DROP_DISPLAY, ADD_ORDER, MODIFY_ORDER, DROP_ORDER, ANNOTATIONS
+	Display     ExprNode // for ADD/MODIFY DISPLAY
+	Order       ExprNode // for ADD/MODIFY ORDER
+	Annotations *List    // for annotations_clause
+	Loc         Loc
+}
+
+func (n *AlterDomainStmt) nodeTag()  {}
+func (n *AlterDomainStmt) stmtNode() {}
+
+// ---------------------------------------------------------------------------
 // Star expression (SELECT *)
 // ---------------------------------------------------------------------------
 

@@ -448,6 +448,40 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateJsonDualityViewStmt(sb, n)
 	case *AlterJsonDualityViewStmt:
 		writeAlterJsonDualityViewStmt(sb, n)
+	case *CreateAttributeDimensionStmt:
+		writeCreateAttributeDimensionStmt(sb, n)
+	case *AlterAttributeDimensionStmt:
+		writeAlterAttributeDimensionStmt(sb, n)
+	case *AttrDimSourceClause:
+		writeAttrDimSourceClause(sb, n)
+	case *AttrDimJoinCondElem:
+		writeAttrDimJoinCondElem(sb, n)
+	case *AttrDimAttribute:
+		writeAttrDimAttribute(sb, n)
+	case *AttrDimLevel:
+		writeAttrDimLevel(sb, n)
+	case *AttrDimOrderByItem:
+		writeAttrDimOrderByItem(sb, n)
+	case *AttrDimAllClause:
+		writeAttrDimAllClause(sb, n)
+	case *CreateHierarchyStmt:
+		writeCreateHierarchyStmt(sb, n)
+	case *AlterHierarchyStmt:
+		writeAlterHierarchyStmt(sb, n)
+	case *HierLevelClause:
+		writeHierLevelClause(sb, n)
+	case *HierAttr:
+		writeHierAttr(sb, n)
+	case *CreateDomainStmt:
+		writeCreateDomainStmt(sb, n)
+	case *AlterDomainStmt:
+		writeAlterDomainStmt(sb, n)
+	case *DomainColumn:
+		writeDomainColumn(sb, n)
+	case *DomainEnumItem:
+		writeDomainEnumItem(sb, n)
+	case *DomainConstraint:
+		writeDomainConstraint(sb, n)
 
 	// PL/SQL nodes
 	case *PLSQLBlock:
@@ -6274,5 +6308,444 @@ func writeAlterJsonDualityViewStmt(sb *strings.Builder, n *AlterJsonDualityViewS
 		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCreateAttributeDimensionStmt(sb *strings.Builder, n *CreateAttributeDimensionStmt) {
+	sb.WriteString("{CREATE_ATTRIBUTE_DIMENSION")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.Force {
+		sb.WriteString(" :force true")
+	}
+	if n.NoForce {
+		sb.WriteString(" :noForce true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
+	}
+	if n.DimensionType != "" {
+		sb.WriteString(fmt.Sprintf(" :dimensionType %q", n.DimensionType))
+	}
+	if n.Classifications != nil {
+		sb.WriteString(" :classifications ")
+		writeNode(sb, n.Classifications)
+	}
+	if n.Sources != nil {
+		sb.WriteString(" :sources ")
+		writeNode(sb, n.Sources)
+	}
+	if n.Attributes != nil {
+		sb.WriteString(" :attributes ")
+		writeNode(sb, n.Attributes)
+	}
+	if n.Levels != nil {
+		sb.WriteString(" :levels ")
+		writeNode(sb, n.Levels)
+	}
+	if n.AllClause != nil {
+		sb.WriteString(" :allClause ")
+		writeNode(sb, n.AllClause)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterAttributeDimensionStmt(sb *strings.Builder, n *AlterAttributeDimensionStmt) {
+	sb.WriteString("{ALTER_ATTRIBUTE_DIMENSION")
+	if n.IfExists {
+		sb.WriteString(" :ifExists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Action != "" {
+		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	}
+	if n.NewName != nil {
+		sb.WriteString(" :newName ")
+		writeNode(sb, n.NewName)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAttrDimSourceClause(sb *strings.Builder, n *AttrDimSourceClause) {
+	sb.WriteString("{ATTR_DIM_SOURCE")
+	if n.Remote {
+		sb.WriteString(" :remote true")
+	}
+	if n.IsJoinPath {
+		sb.WriteString(" :isJoinPath true")
+		if n.JoinPathName != "" {
+			sb.WriteString(fmt.Sprintf(" :joinPathName %q", n.JoinPathName))
+		}
+		if n.JoinCondition != nil {
+			sb.WriteString(" :joinCondition ")
+			writeNode(sb, n.JoinCondition)
+		}
+	} else {
+		if n.Name != nil {
+			sb.WriteString(" :name ")
+			writeNode(sb, n.Name)
+		}
+		if n.Alias != "" {
+			sb.WriteString(fmt.Sprintf(" :alias %q", n.Alias))
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeAttrDimJoinCondElem(sb *strings.Builder, n *AttrDimJoinCondElem) {
+	sb.WriteString("{JOIN_COND_ELEM")
+	if n.LeftTable != "" {
+		sb.WriteString(fmt.Sprintf(" :leftTable %q", n.LeftTable))
+	}
+	sb.WriteString(fmt.Sprintf(" :leftCol %q", n.LeftCol))
+	if n.RightTable != "" {
+		sb.WriteString(fmt.Sprintf(" :rightTable %q", n.RightTable))
+	}
+	sb.WriteString(fmt.Sprintf(" :rightCol %q", n.RightCol))
+	sb.WriteString("}")
+}
+
+func writeAttrDimAttribute(sb *strings.Builder, n *AttrDimAttribute) {
+	sb.WriteString("{ATTR_DIM_ATTR")
+	sb.WriteString(fmt.Sprintf(" :column %q", n.Column))
+	if n.Alias != "" {
+		sb.WriteString(fmt.Sprintf(" :alias %q", n.Alias))
+	}
+	if n.Classifications != nil {
+		sb.WriteString(" :classifications ")
+		writeNode(sb, n.Classifications)
+	}
+	sb.WriteString("}")
+}
+
+func writeAttrDimLevel(sb *strings.Builder, n *AttrDimLevel) {
+	sb.WriteString("{ATTR_DIM_LEVEL")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.LevelType != "" {
+		sb.WriteString(fmt.Sprintf(" :levelType %q", n.LevelType))
+	}
+	if n.Classifications != nil {
+		sb.WriteString(" :classifications ")
+		writeNode(sb, n.Classifications)
+	}
+	if n.KeyAttrs != nil {
+		sb.WriteString(" :keyAttrs ")
+		writeNode(sb, n.KeyAttrs)
+	}
+	if n.KeyNotNull {
+		sb.WriteString(" :keyNotNull true")
+	}
+	if n.KeySkipWhenNull {
+		sb.WriteString(" :keySkipWhenNull true")
+	}
+	if n.AltKeyAttrs != nil {
+		sb.WriteString(" :altKeyAttrs ")
+		writeNode(sb, n.AltKeyAttrs)
+	}
+	if n.MemberName != nil {
+		sb.WriteString(" :memberName ")
+		writeNode(sb, n.MemberName)
+	}
+	if n.MemberCaption != nil {
+		sb.WriteString(" :memberCaption ")
+		writeNode(sb, n.MemberCaption)
+	}
+	if n.MemberDesc != nil {
+		sb.WriteString(" :memberDesc ")
+		writeNode(sb, n.MemberDesc)
+	}
+	if n.OrderByAttrs != nil {
+		sb.WriteString(" :orderByAttrs ")
+		writeNode(sb, n.OrderByAttrs)
+	}
+	if n.Determines != nil {
+		sb.WriteString(" :determines ")
+		writeNode(sb, n.Determines)
+	}
+	sb.WriteString("}")
+}
+
+func writeAttrDimOrderByItem(sb *strings.Builder, n *AttrDimOrderByItem) {
+	sb.WriteString("{ORDER_BY_ITEM")
+	sb.WriteString(fmt.Sprintf(" :attribute %q", n.Attribute))
+	if n.Direction != "" {
+		sb.WriteString(fmt.Sprintf(" :direction %q", n.Direction))
+	}
+	sb.WriteString("}")
+}
+
+func writeAttrDimAllClause(sb *strings.Builder, n *AttrDimAllClause) {
+	sb.WriteString("{ATTR_DIM_ALL")
+	if n.MemberName != nil {
+		sb.WriteString(" :memberName ")
+		writeNode(sb, n.MemberName)
+	}
+	if n.MemberCaption != nil {
+		sb.WriteString(" :memberCaption ")
+		writeNode(sb, n.MemberCaption)
+	}
+	if n.MemberDesc != nil {
+		sb.WriteString(" :memberDesc ")
+		writeNode(sb, n.MemberDesc)
+	}
+	sb.WriteString("}")
+}
+
+func writeCreateHierarchyStmt(sb *strings.Builder, n *CreateHierarchyStmt) {
+	sb.WriteString("{CREATE_HIERARCHY")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.Force {
+		sb.WriteString(" :force true")
+	}
+	if n.NoForce {
+		sb.WriteString(" :noForce true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
+	}
+	if n.Classifications != nil {
+		sb.WriteString(" :classifications ")
+		writeNode(sb, n.Classifications)
+	}
+	if n.UsingAttrDim != nil {
+		sb.WriteString(" :usingAttrDim ")
+		writeNode(sb, n.UsingAttrDim)
+	}
+	if n.LevelHier != nil {
+		sb.WriteString(" :levelHier ")
+		writeNode(sb, n.LevelHier)
+	}
+	if n.HierAttrs != nil {
+		sb.WriteString(" :hierAttrs ")
+		writeNode(sb, n.HierAttrs)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterHierarchyStmt(sb *strings.Builder, n *AlterHierarchyStmt) {
+	sb.WriteString("{ALTER_HIERARCHY")
+	if n.IfExists {
+		sb.WriteString(" :ifExists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Action != "" {
+		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	}
+	if n.NewName != nil {
+		sb.WriteString(" :newName ")
+		writeNode(sb, n.NewName)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeHierLevelClause(sb *strings.Builder, n *HierLevelClause) {
+	sb.WriteString("{HIER_LEVEL")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.Classifications != nil {
+		sb.WriteString(" :classifications ")
+		writeNode(sb, n.Classifications)
+	}
+	if n.ChildOf != nil {
+		sb.WriteString(" :childOf ")
+		writeNode(sb, n.ChildOf)
+	}
+	sb.WriteString("}")
+}
+
+func writeHierAttr(sb *strings.Builder, n *HierAttr) {
+	sb.WriteString("{HIER_ATTR")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.Classifications != nil {
+		sb.WriteString(" :classifications ")
+		writeNode(sb, n.Classifications)
+	}
+	sb.WriteString("}")
+}
+
+func writeCreateDomainStmt(sb *strings.Builder, n *CreateDomainStmt) {
+	sb.WriteString("{CREATE_DOMAIN")
+	if n.OrReplace {
+		sb.WriteString(" :orReplace true")
+	}
+	if n.Usecase {
+		sb.WriteString(" :usecase true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.DomainType != "" {
+		sb.WriteString(fmt.Sprintf(" :domainType %q", n.DomainType))
+	}
+	if n.DataType != nil {
+		sb.WriteString(" :dataType ")
+		writeNode(sb, n.DataType)
+	}
+	if n.Strict {
+		sb.WriteString(" :strict true")
+	}
+	if n.Default != nil {
+		sb.WriteString(" :default ")
+		writeNode(sb, n.Default)
+	}
+	if n.DefaultOnNull {
+		sb.WriteString(" :defaultOnNull true")
+	}
+	if n.Constraints != nil {
+		sb.WriteString(" :constraints ")
+		writeNode(sb, n.Constraints)
+	}
+	if n.Collation != "" {
+		sb.WriteString(fmt.Sprintf(" :collation %q", n.Collation))
+	}
+	if n.Display != nil {
+		sb.WriteString(" :display ")
+		writeNode(sb, n.Display)
+	}
+	if n.Order != nil {
+		sb.WriteString(" :order ")
+		writeNode(sb, n.Order)
+	}
+	if n.Annotations != nil {
+		sb.WriteString(" :annotations ")
+		writeNode(sb, n.Annotations)
+	}
+	if n.EnumItems != nil {
+		sb.WriteString(" :enumItems ")
+		writeNode(sb, n.EnumItems)
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.FlexDomainName != nil {
+		sb.WriteString(" :flexDomainName ")
+		writeNode(sb, n.FlexDomainName)
+	}
+	if n.FlexColumns != nil {
+		sb.WriteString(" :flexColumns ")
+		writeNode(sb, n.FlexColumns)
+	}
+	if n.ChooseUsing != nil {
+		sb.WriteString(" :chooseUsing ")
+		writeNode(sb, n.ChooseUsing)
+	}
+	if n.ChooseExpr != nil {
+		sb.WriteString(" :chooseExpr ")
+		writeNode(sb, n.ChooseExpr)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterDomainStmt(sb *strings.Builder, n *AlterDomainStmt) {
+	sb.WriteString("{ALTER_DOMAIN")
+	if n.Usecase {
+		sb.WriteString(" :usecase true")
+	}
+	if n.IfExists {
+		sb.WriteString(" :ifExists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.Action != "" {
+		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	}
+	if n.Display != nil {
+		sb.WriteString(" :display ")
+		writeNode(sb, n.Display)
+	}
+	if n.Order != nil {
+		sb.WriteString(" :order ")
+		writeNode(sb, n.Order)
+	}
+	if n.Annotations != nil {
+		sb.WriteString(" :annotations ")
+		writeNode(sb, n.Annotations)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeDomainColumn(sb *strings.Builder, n *DomainColumn) {
+	sb.WriteString("{DOMAIN_COLUMN")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.DataType != nil {
+		sb.WriteString(" :dataType ")
+		writeNode(sb, n.DataType)
+	}
+	if n.Annotations != nil {
+		sb.WriteString(" :annotations ")
+		writeNode(sb, n.Annotations)
+	}
+	sb.WriteString("}")
+}
+
+func writeDomainEnumItem(sb *strings.Builder, n *DomainEnumItem) {
+	sb.WriteString("{DOMAIN_ENUM_ITEM")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if len(n.Aliases) > 0 {
+		sb.WriteString(" :aliases (")
+		for i, a := range n.Aliases {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", a))
+		}
+		sb.WriteString(")")
+	}
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
+	sb.WriteString("}")
+}
+
+func writeDomainConstraint(sb *strings.Builder, n *DomainConstraint) {
+	sb.WriteString("{DOMAIN_CONSTRAINT")
+	if n.Name != "" {
+		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	}
+	sb.WriteString(fmt.Sprintf(" :type %q", n.Type))
+	if n.CheckExpr != nil {
+		sb.WriteString(" :checkExpr ")
+		writeNode(sb, n.CheckExpr)
+	}
+	if n.State != nil {
+		sb.WriteString(" :state ")
+		writeNode(sb, n.State)
+	}
 	sb.WriteString("}")
 }

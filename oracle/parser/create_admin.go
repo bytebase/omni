@@ -195,13 +195,13 @@ func (p *Parser) parseCreateAdminObject(start int) nodes.StmtNode {
 			if p.isIdentLike() && p.cur.Str == "DIMENSION" {
 				p.advance() // consume DIMENSION
 			}
-			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_ATTRIBUTE_DIMENSION, start)
+			return p.parseCreateAttributeDimensionStmt(start, false, false, false)
 		case "HIERARCHY":
 			p.advance()
-			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_HIERARCHY, start)
+			return p.parseCreateHierarchyStmt(start, false, false, false)
 		case "DOMAIN":
 			p.advance()
-			return p.parseAdminDDLStmt("CREATE", nodes.OBJECT_DOMAIN, start)
+			return p.parseCreateDomainStmt(start, false, false)
 		case "INDEXTYPE":
 			p.advance()
 			return p.parseCreateIndextypeStmt(start, false)
@@ -387,13 +387,13 @@ func (p *Parser) parseDropAdminObject(start int) nodes.StmtNode {
 				if p.isIdentLike() && p.cur.Str == "DIMENSION" {
 					p.advance() // consume DIMENSION
 				}
-				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_ATTRIBUTE_DIMENSION, start)
+				return p.parseDropSimpleStmt(nodes.OBJECT_ATTRIBUTE_DIMENSION, start)
 			case "HIERARCHY":
 				p.advance()
-				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_HIERARCHY, start)
+				return p.parseDropSimpleStmt(nodes.OBJECT_HIERARCHY, start)
 			case "DOMAIN":
 				p.advance()
-				return p.parseAdminDDLStmt("DROP", nodes.OBJECT_DOMAIN, start)
+				return p.parseDropSimpleStmt(nodes.OBJECT_DOMAIN, start)
 			case "INDEXTYPE":
 				p.advance()
 				return p.parseDropSimpleStmt(nodes.OBJECT_INDEXTYPE, start)
@@ -2130,13 +2130,13 @@ func (p *Parser) parseAlterAdminObject(start int) nodes.StmtNode {
 				if p.isIdentLike() && p.cur.Str == "DIMENSION" {
 					p.advance() // consume DIMENSION
 				}
-				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_ATTRIBUTE_DIMENSION, start)
+				return p.parseAlterAttributeDimensionStmt(start)
 			case "HIERARCHY":
 				p.advance()
-				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_HIERARCHY, start)
+				return p.parseAlterHierarchyStmt(start)
 			case "DOMAIN":
 				p.advance()
-				return p.parseAdminDDLStmt("ALTER", nodes.OBJECT_DOMAIN, start)
+				return p.parseAlterDomainStmt(start, false)
 			case "INDEXTYPE":
 				p.advance()
 				return p.parseAlterIndextypeStmt(start)
@@ -2190,4 +2190,1160 @@ func (p *Parser) parseAlterAdminObject(start int) nodes.StmtNode {
 		}
 		return nil
 	}
+}
+
+// ---------------------------------------------------------------------------
+// CREATE ATTRIBUTE DIMENSION
+// ---------------------------------------------------------------------------
+
+// parseCreateAttributeDimensionStmt parses a CREATE ATTRIBUTE DIMENSION statement.
+//
+// BNF: oracle/parser/bnf/CREATE-ATTRIBUTE-DIMENSION.bnf
+//
+//  CREATE [ OR REPLACE ] [ { FORCE | NOFORCE } ] ATTRIBUTE DIMENSION
+//      [ IF NOT EXISTS ] [ schema. ] attr_dimension
+//      [ SHARING = { METADATA | NONE } ]
+//      [ classification_clause ]
+//      [ DIMENSION TYPE { STANDARD | TIME } ]
+//      attr_dim_using_clause
+//      attributes_clause
+//      attr_dim_level_clause [ attr_dim_level_clause ]...
+//      [ all_clause ] ;
+//
+//  classification_clause:
+//      { CAPTION 'caption'
+//      | DESCRIPTION 'description'
+//      | CLASSIFICATION classification_name [ LANGUAGE language ] VALUE 'value'
+//      } [ classification_clause ]
+//
+//  attr_dim_using_clause:
+//      USING source_clause [, source_clause ]...
+//
+//  source_clause:
+//      [ REMOTE ] [ schema. ] { table | view } [ [ AS ] alias ]
+//      | join_path_clause
+//
+//  join_path_clause:
+//      JOIN PATH join_path_name ON join_condition
+//
+//  join_condition:
+//      join_condition_elem [ AND join_condition_elem ]...
+//
+//  join_condition_elem:
+//      [ table_alias. ] column = [ table_alias. ] column
+//
+//  attributes_clause:
+//      ATTRIBUTES ( attr_dim_attribute_clause [, attr_dim_attribute_clause ]... )
+//
+//  attr_dim_attribute_clause:
+//      column [ AS alias ]
+//      [ classification_clause ]
+//
+//  attr_dim_level_clause:
+//      LEVEL level_name
+//      [ LEVEL TYPE { STANDARD | YEARS | HALF_YEARS | QUARTERS | MONTHS | WEEKS | DAYS | HOURS | MINUTES | SECONDS } ]
+//      [ classification_clause ]
+//      key_clause
+//      [ alternate_key_clause ]
+//      [ MEMBER NAME expression ]
+//      [ MEMBER CAPTION expression ]
+//      [ MEMBER DESCRIPTION expression ]
+//      [ dim_order_clause ]
+//      [ DETERMINES ( attribute [, attribute ]... ) ]
+//
+//  key_clause:
+//      KEY { attribute [ NOT NULL | SKIP WHEN NULL ]
+//          | ( attribute [, attribute ]... ) }
+//
+//  alternate_key_clause:
+//      ALTERNATE KEY { attribute
+//                    | ( attribute [, attribute ]... ) }
+//
+//  dim_order_clause:
+//      ORDER BY { attribute [ ASC | DESC ]
+//               | ( attribute [ ASC | DESC ] [, attribute [ ASC | DESC ] ]... ) }
+//
+//  all_clause:
+//      ALL [ MEMBER NAME expression ]
+//          [ MEMBER CAPTION expression ]
+//          [ MEMBER DESCRIPTION expression ]
+func (p *Parser) parseCreateAttributeDimensionStmt(start int, orReplace, force, noForce bool) *nodes.CreateAttributeDimensionStmt {
+	stmt := &nodes.CreateAttributeDimensionStmt{
+		OrReplace: orReplace,
+		Force:     force,
+		NoForce:   noForce,
+		Loc:       nodes.Loc{Start: start},
+	}
+
+	// IF NOT EXISTS
+	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
+		p.advance()
+		p.advance()
+		if p.cur.Type == kwEXISTS {
+			p.advance()
+		}
+		stmt.IfNotExists = true
+	}
+
+	// name
+	stmt.Name = p.parseObjectName()
+
+	// SHARING = { METADATA | NONE }
+	if p.isIdentLikeStr("SHARING") {
+		p.advance()
+		if p.cur.Type == '=' {
+			p.advance()
+		}
+		if p.isIdentLike() {
+			stmt.Sharing = p.cur.Str
+			p.advance()
+		}
+	}
+
+	// classification_clause(s) at top level
+	stmt.Classifications = p.parseClassificationClauses()
+
+	// DIMENSION TYPE { STANDARD | TIME }
+	if p.isIdentLike() && p.cur.Str == "DIMENSION" {
+		next := p.peekNext()
+		if next.Type == kwTYPE {
+			p.advance() // consume DIMENSION
+			p.advance() // consume TYPE
+			if p.isIdentLike() {
+				stmt.DimensionType = p.cur.Str
+				p.advance()
+			}
+		}
+	}
+
+	// USING source_clause [, source_clause]...
+	if p.cur.Type == kwUSING {
+		p.advance()
+		stmt.Sources = &nodes.List{}
+		for {
+			src := p.parseAttrDimSourceClause()
+			if src != nil {
+				stmt.Sources.Items = append(stmt.Sources.Items, src)
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume comma
+		}
+	}
+
+	// ATTRIBUTES ( ... )
+	if p.isIdentLikeStr("ATTRIBUTES") {
+		p.advance()
+		stmt.Attributes = &nodes.List{}
+		if p.cur.Type == '(' {
+			p.advance()
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				attr := p.parseAttrDimAttributeClause()
+				if attr != nil {
+					stmt.Attributes.Items = append(stmt.Attributes.Items, attr)
+				}
+				if p.cur.Type == ',' {
+					p.advance()
+				}
+			}
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		}
+	}
+
+	// LEVEL clauses (one or more)
+	stmt.Levels = &nodes.List{}
+	for p.cur.Type == kwLEVEL {
+		lvl := p.parseAttrDimLevelClause()
+		if lvl != nil {
+			stmt.Levels.Items = append(stmt.Levels.Items, lvl)
+		}
+	}
+
+	// ALL clause
+	if p.cur.Type == kwALL {
+		p.advance()
+		allc := &nodes.AttrDimAllClause{
+			Loc: nodes.Loc{Start: p.pos()},
+		}
+		allc.MemberName, allc.MemberCaption, allc.MemberDesc = p.parseMemberExprs()
+		allc.Loc.End = p.pos()
+		stmt.AllClause = allc
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseClassificationClauses parses zero or more classification_clause items.
+func (p *Parser) parseClassificationClauses() *nodes.List {
+	var items []nodes.Node
+	for {
+		if p.isIdentLikeStr("CAPTION") {
+			p.advance()
+			if p.cur.Type == tokSCONST {
+				items = append(items, &nodes.DDLOption{Key: "CAPTION", Value: p.cur.Str})
+				p.advance()
+			}
+		} else if p.isIdentLikeStr("DESCRIPTION") {
+			p.advance()
+			if p.cur.Type == tokSCONST {
+				items = append(items, &nodes.DDLOption{Key: "DESCRIPTION", Value: p.cur.Str})
+				p.advance()
+			}
+		} else if p.isIdentLikeStr("CLASSIFICATION") {
+			p.advance()
+			opt := &nodes.DDLOption{Key: "CLASSIFICATION"}
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
+				opt.Value = p.cur.Str
+				p.advance()
+			}
+			// [ LANGUAGE language ]
+			if p.isIdentLikeStr("LANGUAGE") {
+				p.advance()
+				if p.isIdentLike() || p.cur.Type == tokSCONST {
+					opt.Value += " LANGUAGE " + p.cur.Str
+					p.advance()
+				}
+			}
+			// VALUE 'value'
+			if p.isIdentLikeStr("VALUE") {
+				p.advance()
+				if p.cur.Type == tokSCONST {
+					opt.Value += " VALUE " + p.cur.Str
+					p.advance()
+				}
+			}
+			items = append(items, opt)
+		} else {
+			break
+		}
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	return &nodes.List{Items: items}
+}
+
+// parseAttrDimSourceClause parses a source_clause in an attribute dimension USING clause.
+func (p *Parser) parseAttrDimSourceClause() *nodes.AttrDimSourceClause {
+	src := &nodes.AttrDimSourceClause{Loc: nodes.Loc{Start: p.pos()}}
+
+	// JOIN PATH join_path_name ON join_condition
+	if p.cur.Type == kwJOIN {
+		p.advance() // consume JOIN
+		if p.isIdentLikeStr("PATH") {
+			p.advance() // consume PATH
+		}
+		src.IsJoinPath = true
+		src.JoinPathName = p.parseIdentifier()
+		if p.cur.Type == kwON {
+			p.advance()
+		}
+		src.JoinCondition = &nodes.List{}
+		for {
+			elem := p.parseAttrDimJoinCondElem()
+			if elem != nil {
+				src.JoinCondition.Items = append(src.JoinCondition.Items, elem)
+			}
+			if p.cur.Type != kwAND {
+				break
+			}
+			p.advance() // consume AND
+		}
+		src.Loc.End = p.pos()
+		return src
+	}
+
+	// [ REMOTE ]
+	if p.isIdentLikeStr("REMOTE") {
+		src.Remote = true
+		p.advance()
+	}
+
+	// [ schema. ] table/view
+	src.Name = p.parseObjectName()
+
+	// [ [ AS ] alias ]
+	if p.cur.Type == kwAS {
+		p.advance()
+		src.Alias = p.parseIdentifier()
+	} else if p.isIdentLike() && p.cur.Str != "ATTRIBUTES" && p.cur.Str != "JOIN" &&
+		p.cur.Str != "DIMENSION" && p.cur.Str != "SHARING" && p.cur.Str != "CAPTION" &&
+		p.cur.Str != "DESCRIPTION" && p.cur.Str != "CLASSIFICATION" &&
+		p.cur.Type != ',' && p.cur.Type != ';' && p.cur.Type != tokEOF {
+		src.Alias = p.parseIdentifier()
+	}
+
+	src.Loc.End = p.pos()
+	return src
+}
+
+// parseAttrDimJoinCondElem parses a join condition element: [table.]col = [table.]col
+func (p *Parser) parseAttrDimJoinCondElem() *nodes.AttrDimJoinCondElem {
+	elem := &nodes.AttrDimJoinCondElem{Loc: nodes.Loc{Start: p.pos()}}
+	// Left side
+	name1 := p.parseIdentifier()
+	if p.cur.Type == '.' {
+		p.advance()
+		elem.LeftTable = name1
+		elem.LeftCol = p.parseIdentifier()
+	} else {
+		elem.LeftCol = name1
+	}
+	// =
+	if p.cur.Type == '=' {
+		p.advance()
+	}
+	// Right side
+	name2 := p.parseIdentifier()
+	if p.cur.Type == '.' {
+		p.advance()
+		elem.RightTable = name2
+		elem.RightCol = p.parseIdentifier()
+	} else {
+		elem.RightCol = name2
+	}
+	elem.Loc.End = p.pos()
+	return elem
+}
+
+// parseAttrDimAttributeClause parses an attribute in the ATTRIBUTES clause.
+func (p *Parser) parseAttrDimAttributeClause() *nodes.AttrDimAttribute {
+	attr := &nodes.AttrDimAttribute{Loc: nodes.Loc{Start: p.pos()}}
+	attr.Column = p.parseIdentifier()
+	if p.cur.Type == kwAS {
+		p.advance()
+		attr.Alias = p.parseIdentifier()
+	}
+	attr.Classifications = p.parseClassificationClauses()
+	attr.Loc.End = p.pos()
+	return attr
+}
+
+// parseAttrDimLevelClause parses a LEVEL clause in CREATE ATTRIBUTE DIMENSION.
+func (p *Parser) parseAttrDimLevelClause() *nodes.AttrDimLevel {
+	lvl := &nodes.AttrDimLevel{Loc: nodes.Loc{Start: p.pos()}}
+	p.advance() // consume LEVEL
+
+	lvl.Name = p.parseIdentifier()
+
+	// LEVEL TYPE { STANDARD | YEARS | ... }
+	if p.cur.Type == kwLEVEL {
+		next := p.peekNext()
+		if next.Type == kwTYPE {
+			p.advance() // consume LEVEL
+			p.advance() // consume TYPE
+			if p.isIdentLike() {
+				lvl.LevelType = p.cur.Str
+				p.advance()
+			}
+		}
+	}
+
+	// classification_clause(s)
+	lvl.Classifications = p.parseClassificationClauses()
+
+	// KEY clause
+	if p.cur.Type == kwKEY {
+		p.advance()
+		lvl.KeyAttrs = &nodes.List{}
+		if p.cur.Type == '(' {
+			p.advance()
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				lvl.KeyAttrs.Items = append(lvl.KeyAttrs.Items, &nodes.String{Str: p.parseIdentifier()})
+				if p.cur.Type == ',' {
+					p.advance()
+				}
+			}
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		} else {
+			lvl.KeyAttrs.Items = append(lvl.KeyAttrs.Items, &nodes.String{Str: p.parseIdentifier()})
+			// NOT NULL | SKIP WHEN NULL
+			if p.cur.Type == kwNOT && p.peekNext().Type == kwNULL {
+				lvl.KeyNotNull = true
+				p.advance()
+				p.advance()
+			} else if p.cur.Type == kwSKIP {
+				p.advance() // consume SKIP
+				if p.cur.Type == kwWHEN {
+					p.advance() // consume WHEN
+				}
+				if p.cur.Type == kwNULL {
+					p.advance() // consume NULL
+				}
+				lvl.KeySkipWhenNull = true
+			}
+		}
+	}
+
+	// ALTERNATE KEY
+	if p.isIdentLikeStr("ALTERNATE") {
+		p.advance() // consume ALTERNATE
+		if p.cur.Type == kwKEY {
+			p.advance() // consume KEY
+		}
+		lvl.AltKeyAttrs = &nodes.List{}
+		if p.cur.Type == '(' {
+			p.advance()
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				lvl.AltKeyAttrs.Items = append(lvl.AltKeyAttrs.Items, &nodes.String{Str: p.parseIdentifier()})
+				if p.cur.Type == ',' {
+					p.advance()
+				}
+			}
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		} else {
+			lvl.AltKeyAttrs.Items = append(lvl.AltKeyAttrs.Items, &nodes.String{Str: p.parseIdentifier()})
+		}
+	}
+
+	// MEMBER NAME / CAPTION / DESCRIPTION
+	lvl.MemberName, lvl.MemberCaption, lvl.MemberDesc = p.parseMemberExprs()
+
+	// ORDER BY
+	if p.cur.Type == kwORDER {
+		p.advance() // consume ORDER
+		if p.cur.Type == kwBY {
+			p.advance() // consume BY
+		}
+		lvl.OrderByAttrs = &nodes.List{}
+		if p.cur.Type == '(' {
+			p.advance()
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				item := &nodes.AttrDimOrderByItem{Loc: nodes.Loc{Start: p.pos()}}
+				item.Attribute = p.parseIdentifier()
+				if p.cur.Type == kwASC {
+					item.Direction = "ASC"
+					p.advance()
+				} else if p.cur.Type == kwDESC {
+					item.Direction = "DESC"
+					p.advance()
+				}
+				item.Loc.End = p.pos()
+				lvl.OrderByAttrs.Items = append(lvl.OrderByAttrs.Items, item)
+				if p.cur.Type == ',' {
+					p.advance()
+				}
+			}
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		} else {
+			item := &nodes.AttrDimOrderByItem{Loc: nodes.Loc{Start: p.pos()}}
+			item.Attribute = p.parseIdentifier()
+			if p.cur.Type == kwASC {
+				item.Direction = "ASC"
+				p.advance()
+			} else if p.cur.Type == kwDESC {
+				item.Direction = "DESC"
+				p.advance()
+			}
+			item.Loc.End = p.pos()
+			lvl.OrderByAttrs.Items = append(lvl.OrderByAttrs.Items, item)
+		}
+	}
+
+	// DETERMINES ( attribute [, attribute ]... )
+	if p.isIdentLikeStr("DETERMINES") {
+		p.advance()
+		lvl.Determines = &nodes.List{}
+		if p.cur.Type == '(' {
+			p.advance()
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				lvl.Determines.Items = append(lvl.Determines.Items, &nodes.String{Str: p.parseIdentifier()})
+				if p.cur.Type == ',' {
+					p.advance()
+				}
+			}
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		}
+	}
+
+	lvl.Loc.End = p.pos()
+	return lvl
+}
+
+// parseMemberExprs parses MEMBER NAME/CAPTION/DESCRIPTION expression triples.
+func (p *Parser) parseMemberExprs() (name, caption, desc nodes.ExprNode) {
+	for p.isIdentLikeStr("MEMBER") {
+		p.advance() // consume MEMBER
+		switch {
+		case p.cur.Type == kwNAME || p.isIdentLikeStr("NAME"):
+			p.advance()
+			name = p.parseExpr()
+		case p.isIdentLikeStr("CAPTION"):
+			p.advance()
+			caption = p.parseExpr()
+		case p.isIdentLikeStr("DESCRIPTION"):
+			p.advance()
+			desc = p.parseExpr()
+		default:
+			return
+		}
+	}
+	return
+}
+
+// ---------------------------------------------------------------------------
+// ALTER ATTRIBUTE DIMENSION
+// ---------------------------------------------------------------------------
+
+// parseAlterAttributeDimensionStmt parses an ALTER ATTRIBUTE DIMENSION statement.
+//
+// BNF: oracle/parser/bnf/ALTER-ATTRIBUTE-DIMENSION.bnf
+//
+//  ALTER ATTRIBUTE DIMENSION [ IF EXISTS ] [ schema . ] attr_dim_name
+//      {
+//          RENAME TO new_attr_dim_name
+//        | COMPILE
+//      }
+func (p *Parser) parseAlterAttributeDimensionStmt(start int) *nodes.AlterAttributeDimensionStmt {
+	stmt := &nodes.AlterAttributeDimensionStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// IF EXISTS
+	if p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
+		stmt.IfExists = true
+		p.advance()
+		p.advance()
+	}
+
+	stmt.Name = p.parseObjectName()
+
+	switch {
+	case p.isIdentLikeStr("COMPILE"):
+		stmt.Action = "COMPILE"
+		p.advance()
+	case p.cur.Type == kwRENAME || p.isIdentLikeStr("RENAME"):
+		stmt.Action = "RENAME"
+		p.advance() // consume RENAME
+		if p.cur.Type == kwTO {
+			p.advance() // consume TO
+		}
+		stmt.NewName = p.parseObjectName()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// ---------------------------------------------------------------------------
+// CREATE HIERARCHY
+// ---------------------------------------------------------------------------
+
+// parseCreateHierarchyStmt parses a CREATE HIERARCHY statement.
+//
+// BNF: oracle/parser/bnf/CREATE-HIERARCHY.bnf
+//
+//  CREATE [ OR REPLACE ] [ { FORCE | NOFORCE } ] HIERARCHY
+//      [ IF NOT EXISTS ] [ schema. ] hierarchy
+//      [ SHARING = { METADATA | NONE } ]
+//      [ classification_clause ]...
+//      hier_using_clause
+//      ( level_hier_clause )
+//      [ hier_attrs_clause ] ;
+//
+//  classification_clause:
+//      { CAPTION 'caption'
+//      | DESCRIPTION 'description'
+//      | CLASSIFICATION classification_name VALUE 'classification_value'
+//          [ LANGUAGE language ] }
+//
+//  hier_using_clause:
+//      USING [ schema. ] attr_dimension
+//
+//  level_hier_clause:
+//      level_name [ classification_clause ]...
+//          [ CHILD OF level_hier_clause ]
+//
+//  hier_attrs_clause:
+//      HIERARCHICAL ATTRIBUTES ( hier_attr_clause [, hier_attr_clause ]... )
+//
+//  hier_attr_clause:
+//      hier_attr_name [ classification_clause ]...
+//
+//  hier_attr_name:
+//      { HIER_ORDER | DEPTH | IS_LEAF | IS_ROOT
+//      | MEMBER_NAME | MEMBER_UNIQUE_NAME | MEMBER_CAPTION | MEMBER_DESCRIPTION
+//      | PARENT_LEVEL_NAME | PARENT_UNIQUE_NAME }
+func (p *Parser) parseCreateHierarchyStmt(start int, orReplace, force, noForce bool) *nodes.CreateHierarchyStmt {
+	stmt := &nodes.CreateHierarchyStmt{
+		OrReplace: orReplace,
+		Force:     force,
+		NoForce:   noForce,
+		Loc:       nodes.Loc{Start: start},
+	}
+
+	// IF NOT EXISTS
+	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
+		p.advance()
+		p.advance()
+		if p.cur.Type == kwEXISTS {
+			p.advance()
+		}
+		stmt.IfNotExists = true
+	}
+
+	stmt.Name = p.parseObjectName()
+
+	// SHARING = { METADATA | NONE }
+	if p.isIdentLikeStr("SHARING") {
+		p.advance()
+		if p.cur.Type == '=' {
+			p.advance()
+		}
+		if p.isIdentLike() {
+			stmt.Sharing = p.cur.Str
+			p.advance()
+		}
+	}
+
+	// classification_clause(s)
+	stmt.Classifications = p.parseClassificationClauses()
+
+	// USING [ schema. ] attr_dimension
+	if p.cur.Type == kwUSING {
+		p.advance()
+		stmt.UsingAttrDim = p.parseObjectName()
+	}
+
+	// ( level_hier_clause )
+	if p.cur.Type == '(' {
+		p.advance()
+		stmt.LevelHier = p.parseHierLevelClause()
+		if p.cur.Type == ')' {
+			p.advance()
+		}
+	}
+
+	// HIERARCHICAL ATTRIBUTES ( ... )
+	if p.isIdentLikeStr("HIERARCHICAL") {
+		p.advance() // consume HIERARCHICAL
+		if p.isIdentLikeStr("ATTRIBUTES") {
+			p.advance() // consume ATTRIBUTES
+		}
+		if p.cur.Type == '(' {
+			p.advance()
+			stmt.HierAttrs = &nodes.List{}
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				ha := &nodes.HierAttr{Loc: nodes.Loc{Start: p.pos()}}
+				ha.Name = p.parseIdentifier()
+				ha.Classifications = p.parseClassificationClauses()
+				ha.Loc.End = p.pos()
+				stmt.HierAttrs.Items = append(stmt.HierAttrs.Items, ha)
+				if p.cur.Type == ',' {
+					p.advance()
+				}
+			}
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		}
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseHierLevelClause parses a level_hier_clause recursively.
+func (p *Parser) parseHierLevelClause() *nodes.HierLevelClause {
+	lvl := &nodes.HierLevelClause{Loc: nodes.Loc{Start: p.pos()}}
+	lvl.Name = p.parseIdentifier()
+	lvl.Classifications = p.parseClassificationClauses()
+
+	// CHILD OF level_hier_clause
+	if p.isIdentLikeStr("CHILD") {
+		p.advance() // consume CHILD
+		if p.cur.Type == kwOF {
+			p.advance() // consume OF
+		}
+		lvl.ChildOf = p.parseHierLevelClause()
+	}
+
+	lvl.Loc.End = p.pos()
+	return lvl
+}
+
+// ---------------------------------------------------------------------------
+// ALTER HIERARCHY
+// ---------------------------------------------------------------------------
+
+// parseAlterHierarchyStmt parses an ALTER HIERARCHY statement.
+//
+// BNF: oracle/parser/bnf/ALTER-HIERARCHY.bnf
+//
+//  ALTER HIERARCHY [ IF EXISTS ] [ schema. ] hierarchy_name
+//      { RENAME TO new_hier_name
+//      | COMPILE
+//      } ;
+func (p *Parser) parseAlterHierarchyStmt(start int) *nodes.AlterHierarchyStmt {
+	stmt := &nodes.AlterHierarchyStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// IF EXISTS
+	if p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
+		stmt.IfExists = true
+		p.advance()
+		p.advance()
+	}
+
+	stmt.Name = p.parseObjectName()
+
+	switch {
+	case p.isIdentLikeStr("COMPILE"):
+		stmt.Action = "COMPILE"
+		p.advance()
+	case p.cur.Type == kwRENAME || p.isIdentLikeStr("RENAME"):
+		stmt.Action = "RENAME"
+		p.advance()
+		if p.cur.Type == kwTO {
+			p.advance()
+		}
+		stmt.NewName = p.parseObjectName()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// ---------------------------------------------------------------------------
+// CREATE DOMAIN
+// ---------------------------------------------------------------------------
+
+// parseCreateDomainStmt parses a CREATE DOMAIN statement.
+//
+// BNF: oracle/parser/bnf/create-domain.bnf
+//
+//  CREATE [ OR REPLACE ] [ USECASE ] DOMAIN [ IF NOT EXISTS ] [ schema. ] domain_name
+//      AS { create_single_column_domain
+//         | create_multi_column_domain
+//         | create_flexible_domain } ;
+//
+//  create_single_column_domain:
+//      datatype [ STRICT ]
+//      [ DEFAULT [ ON NULL ] default_expression ]
+//      [ { constraint_clause }... ]
+//      [ COLLATE collation_name ]
+//      [ DISPLAY display_expression ]
+//      [ ORDER order_expression ]
+//      [ annotations_clause ]
+//
+//  create_single_column_domain:  -- ENUM variant
+//      ENUM ( enum_list ) [ STRICT ]
+//      [ DEFAULT [ ON NULL ] default_expression ]
+//      [ { constraint_clause }... ]
+//      [ COLLATE collation_name ]
+//      [ DISPLAY display_expression ]
+//      [ ORDER order_expression ]
+//      [ annotations_clause ]
+//
+//  enum_list:
+//      enum_item_list [, enum_item_list ]...
+//
+//  enum_item_list:
+//      name [ = enum_alias_list ] [ = value ]
+//
+//  enum_alias_list:
+//      alias [ = alias ]...
+//
+//  column_properties_clause:
+//      [ DEFAULT [ ON NULL ] default_expression ]
+//      [ { constraint_clause }... ]
+//      [ COLLATE collation_name ]
+//      [ DISPLAY display_expression ]
+//      [ ORDER order_expression ]
+//
+//  create_multi_column_domain:
+//      ( column_name AS datatype [ annotations_clause ]
+//        [, column_name AS datatype [ annotations_clause ] ]... )
+//      [ { constraint_clause }... ]
+//      [ COLLATE collation_name ]
+//      [ DISPLAY display_expression ]
+//      [ ORDER order_expression ]
+//      [ annotations_clause ]
+//
+//  create_flexible_domain:
+//      FLEXIBLE DOMAIN [ schema. ] domain_name
+//          ( column_name [, column_name ]... )
+//      CHOOSE DOMAIN USING ( domain_discriminant_column datatype
+//          [, domain_discriminant_column datatype ]... )
+//      FROM { DECODE ( expr , comparison_expr , result_expr
+//                      [, comparison_expr , result_expr ]... )
+//           | CASE { WHEN condition THEN result_expr }... END }
+//
+//  result_expr:
+//      [ schema. ] domain_name ( column_name [, column_name ]... )
+//
+//  default_clause:
+//      DEFAULT [ ON NULL ] default_expression
+//
+//  constraint_clause:
+//      [ CONSTRAINT constraint_name ]
+//      { NOT NULL | NULL | CHECK ( condition ) }
+//      [ constraint_state ]
+//
+//  annotations_clause:
+//      ANNOTATIONS ( annotation [, annotation ]... )
+func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) *nodes.CreateDomainStmt {
+	stmt := &nodes.CreateDomainStmt{
+		OrReplace: orReplace,
+		Usecase:   usecase,
+		Loc:       nodes.Loc{Start: start},
+	}
+
+	// IF NOT EXISTS
+	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
+		p.advance()
+		p.advance()
+		if p.cur.Type == kwEXISTS {
+			p.advance()
+		}
+		stmt.IfNotExists = true
+	}
+
+	stmt.Name = p.parseObjectName()
+
+	// AS
+	if p.cur.Type == kwAS {
+		p.advance()
+	}
+
+	// Determine variant: flexible (FLEXIBLE), enum (ENUM), multi-column '(', or single-column (datatype)
+	switch {
+	case p.isIdentLikeStr("FLEXIBLE"):
+		stmt.DomainType = "FLEXIBLE"
+		p.advance() // consume FLEXIBLE
+		// DOMAIN [schema.]domain_name (column_name, ...)
+		if p.isIdentLike() && p.cur.Str == "DOMAIN" {
+			p.advance()
+		}
+		stmt.FlexDomainName = p.parseObjectName()
+		if p.cur.Type == '(' {
+			p.advance()
+			stmt.FlexColumns = &nodes.List{}
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				stmt.FlexColumns.Items = append(stmt.FlexColumns.Items, &nodes.String{Str: p.parseIdentifier()})
+				if p.cur.Type == ',' {
+					p.advance()
+				}
+			}
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		}
+		// CHOOSE DOMAIN USING ( ... )
+		if p.isIdentLikeStr("CHOOSE") {
+			p.advance()
+			if p.isIdentLike() && p.cur.Str == "DOMAIN" {
+				p.advance()
+			}
+			if p.cur.Type == kwUSING {
+				p.advance()
+			}
+			if p.cur.Type == '(' {
+				p.advance()
+				stmt.ChooseUsing = &nodes.List{}
+				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					col := &nodes.DomainColumn{Loc: nodes.Loc{Start: p.pos()}}
+					col.Name = p.parseIdentifier()
+					col.DataType = p.parseTypeName()
+					col.Loc.End = p.pos()
+					stmt.ChooseUsing.Items = append(stmt.ChooseUsing.Items, col)
+					if p.cur.Type == ',' {
+						p.advance()
+					}
+				}
+				if p.cur.Type == ')' {
+					p.advance()
+				}
+			}
+		}
+		// FROM { DECODE(...) | CASE ... END }
+		if p.cur.Type == kwFROM {
+			p.advance()
+			stmt.ChooseExpr = p.parseExpr()
+		}
+
+	case p.isIdentLikeStr("ENUM"):
+		stmt.DomainType = "ENUM"
+		p.advance() // consume ENUM
+		// ( enum_list )
+		if p.cur.Type == '(' {
+			p.advance()
+			stmt.EnumItems = &nodes.List{}
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				item := &nodes.DomainEnumItem{Loc: nodes.Loc{Start: p.pos()}}
+				item.Name = p.parseIdentifier()
+				// [ = alias [= alias]... ] [ = value ]
+				for p.cur.Type == '=' {
+					p.advance()
+					if p.cur.Type == tokICONST || p.cur.Type == tokFCONST || p.cur.Type == tokSCONST {
+						item.Value = p.parseExpr()
+					} else if p.isIdentLike() || p.cur.Type == tokIDENT {
+						item.Aliases = append(item.Aliases, p.parseIdentifier())
+					} else {
+						item.Value = p.parseExpr()
+					}
+				}
+				item.Loc.End = p.pos()
+				stmt.EnumItems.Items = append(stmt.EnumItems.Items, item)
+				if p.cur.Type == ',' {
+					p.advance()
+				}
+			}
+			if p.cur.Type == ')' {
+				p.advance()
+			}
+		}
+		// STRICT
+		if p.isIdentLikeStr("STRICT") {
+			stmt.Strict = true
+			p.advance()
+		}
+		p.parseDomainProperties(stmt)
+
+	case p.cur.Type == '(':
+		// Multi-column domain: ( column_name AS datatype [, ...] )
+		stmt.DomainType = "MULTI"
+		p.advance() // consume (
+		stmt.Columns = &nodes.List{}
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			col := &nodes.DomainColumn{Loc: nodes.Loc{Start: p.pos()}}
+			col.Name = p.parseIdentifier()
+			if p.cur.Type == kwAS {
+				p.advance()
+			}
+			col.DataType = p.parseTypeName()
+			// annotations_clause per column
+			if p.isIdentLikeStr("ANNOTATIONS") {
+				col.Annotations = p.parseDomainAnnotations()
+			}
+			col.Loc.End = p.pos()
+			stmt.Columns.Items = append(stmt.Columns.Items, col)
+			if p.cur.Type == ',' {
+				p.advance()
+			}
+		}
+		if p.cur.Type == ')' {
+			p.advance()
+		}
+		p.parseDomainProperties(stmt)
+
+	default:
+		// Single-column domain: datatype [STRICT] [properties...]
+		stmt.DomainType = "SINGLE"
+		stmt.DataType = p.parseTypeName()
+		if p.isIdentLikeStr("STRICT") {
+			stmt.Strict = true
+			p.advance()
+		}
+		p.parseDomainProperties(stmt)
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
+}
+
+// parseDomainProperties parses the common properties after a domain type definition.
+func (p *Parser) parseDomainProperties(stmt *nodes.CreateDomainStmt) {
+	// DEFAULT [ON NULL] expr
+	if p.cur.Type == kwDEFAULT {
+		p.advance()
+		if p.cur.Type == kwON && p.peekNext().Type == kwNULL {
+			stmt.DefaultOnNull = true
+			p.advance()
+			p.advance()
+		}
+		stmt.Default = p.parseExpr()
+	}
+
+	// constraint_clause(s)
+	stmt.Constraints = p.parseDomainConstraints()
+
+	// COLLATE collation_name
+	if p.isIdentLikeStr("COLLATE") {
+		p.advance()
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
+			stmt.Collation = p.cur.Str
+			p.advance()
+		}
+	}
+
+	// DISPLAY display_expression
+	if p.isIdentLikeStr("DISPLAY") {
+		p.advance()
+		stmt.Display = p.parseExpr()
+	}
+
+	// ORDER order_expression
+	if p.cur.Type == kwORDER {
+		p.advance()
+		stmt.Order = p.parseExpr()
+	}
+
+	// ANNOTATIONS ( ... )
+	if p.isIdentLikeStr("ANNOTATIONS") {
+		stmt.Annotations = p.parseDomainAnnotations()
+	}
+}
+
+// parseDomainConstraints parses zero or more constraint_clause items.
+func (p *Parser) parseDomainConstraints() *nodes.List {
+	var items []nodes.Node
+	for {
+		var c *nodes.DomainConstraint
+		if p.cur.Type == kwCONSTRAINT {
+			c = &nodes.DomainConstraint{Loc: nodes.Loc{Start: p.pos()}}
+			p.advance()
+			c.Name = p.parseIdentifier()
+		}
+		if p.cur.Type == kwNOT && p.peekNext().Type == kwNULL {
+			if c == nil {
+				c = &nodes.DomainConstraint{Loc: nodes.Loc{Start: p.pos()}}
+			}
+			c.Type = "NOT_NULL"
+			p.advance()
+			p.advance()
+		} else if p.cur.Type == kwNULL {
+			if c == nil {
+				c = &nodes.DomainConstraint{Loc: nodes.Loc{Start: p.pos()}}
+			}
+			c.Type = "NULL"
+			p.advance()
+		} else if p.cur.Type == kwCHECK {
+			if c == nil {
+				c = &nodes.DomainConstraint{Loc: nodes.Loc{Start: p.pos()}}
+			}
+			c.Type = "CHECK"
+			p.advance()
+			if p.cur.Type == '(' {
+				p.advance()
+				c.CheckExpr = p.parseExpr()
+				if p.cur.Type == ')' {
+					p.advance()
+				}
+			}
+		} else if c != nil {
+			// CONSTRAINT name without a recognized type — shouldn't happen, keep going
+			c.Type = "UNKNOWN"
+		} else {
+			break
+		}
+		c.Loc.End = p.pos()
+		items = append(items, c)
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	return &nodes.List{Items: items}
+}
+
+// parseDomainAnnotations parses ANNOTATIONS ( ... ) for domains.
+func (p *Parser) parseDomainAnnotations() *nodes.List {
+	p.advance() // consume ANNOTATIONS
+	result := &nodes.List{}
+	if p.cur.Type == '(' {
+		p.advance()
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			key := p.parseIdentifier()
+			var val string
+			if p.cur.Type == tokSCONST {
+				val = p.cur.Str
+				p.advance()
+			}
+			result.Items = append(result.Items, &nodes.DDLOption{Key: key, Value: val})
+			if p.cur.Type == ',' {
+				p.advance()
+			}
+		}
+		if p.cur.Type == ')' {
+			p.advance()
+		}
+	}
+	return result
+}
+
+// ---------------------------------------------------------------------------
+// ALTER DOMAIN
+// ---------------------------------------------------------------------------
+
+// parseAlterDomainStmt parses an ALTER DOMAIN statement.
+//
+// BNF: oracle/parser/bnf/alter-domain.bnf
+//
+//  ALTER [ USECASE ] DOMAIN [ IF EXISTS ] [ schema. ] domain_name
+//      { ADD DISPLAY display_expression
+//      | MODIFY DISPLAY display_expression
+//      | DROP DISPLAY
+//      | ADD ORDER order_expression
+//      | MODIFY ORDER order_expression
+//      | DROP ORDER
+//      | annotations_clause
+//      } ;
+func (p *Parser) parseAlterDomainStmt(start int, usecase bool) *nodes.AlterDomainStmt {
+	stmt := &nodes.AlterDomainStmt{
+		Usecase: usecase,
+		Loc:     nodes.Loc{Start: start},
+	}
+
+	// IF EXISTS
+	if p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
+		stmt.IfExists = true
+		p.advance()
+		p.advance()
+	}
+
+	stmt.Name = p.parseObjectName()
+
+	// Action
+	switch {
+	case p.isIdentLikeStr("ADD"):
+		p.advance()
+		if p.isIdentLikeStr("DISPLAY") {
+			stmt.Action = "ADD_DISPLAY"
+			p.advance()
+			stmt.Display = p.parseExpr()
+		} else if p.cur.Type == kwORDER {
+			stmt.Action = "ADD_ORDER"
+			p.advance()
+			stmt.Order = p.parseExpr()
+		}
+	case p.isIdentLikeStr("MODIFY"):
+		p.advance()
+		if p.isIdentLikeStr("DISPLAY") {
+			stmt.Action = "MODIFY_DISPLAY"
+			p.advance()
+			stmt.Display = p.parseExpr()
+		} else if p.cur.Type == kwORDER {
+			stmt.Action = "MODIFY_ORDER"
+			p.advance()
+			stmt.Order = p.parseExpr()
+		}
+	case p.isIdentLikeStr("DROP"):
+		p.advance()
+		if p.isIdentLikeStr("DISPLAY") {
+			stmt.Action = "DROP_DISPLAY"
+			p.advance()
+		} else if p.cur.Type == kwORDER {
+			stmt.Action = "DROP_ORDER"
+			p.advance()
+		}
+	case p.isIdentLikeStr("ANNOTATIONS"):
+		stmt.Action = "ANNOTATIONS"
+		stmt.Annotations = p.parseDomainAnnotations()
+	}
+
+	stmt.Loc.End = p.pos()
+	return stmt
 }
