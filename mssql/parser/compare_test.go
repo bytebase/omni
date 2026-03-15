@@ -20391,3 +20391,617 @@ func TestParseSecurityBnfReview(t *testing.T) {
 		}
 	})
 }
+
+// TestParseCryptoBnfReview tests batch 164: BNF review of all cryptographic objects.
+func TestParseCryptoBnfReview(t *testing.T) {
+	// ---------- CREATE SYMMETRIC KEY ----------
+	t.Run("create_symmetric_key", func(t *testing.T) {
+		tests := []struct {
+			sql  string
+			name string
+		}{
+			// Basic with ALGORITHM and ENCRYPTION BY CERTIFICATE
+			{
+				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = AES_256 ENCRYPTION BY CERTIFICATE MyCert",
+				name: "MySymKey",
+			},
+			// With AUTHORIZATION
+			{
+				sql:  "CREATE SYMMETRIC KEY MySymKey AUTHORIZATION dbo WITH ALGORITHM = AES_256 ENCRYPTION BY CERTIFICATE MyCert",
+				name: "MySymKey",
+			},
+			// With KEY_SOURCE and IDENTITY_VALUE
+			{
+				sql:  "CREATE SYMMETRIC KEY MySymKey WITH KEY_SOURCE = 'my pass phrase', ALGORITHM = AES_256, IDENTITY_VALUE = 'my identity' ENCRYPTION BY CERTIFICATE MyCert",
+				name: "MySymKey",
+			},
+			// With PROVIDER_KEY_NAME and CREATION_DISPOSITION
+			{
+				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = AES_256, PROVIDER_KEY_NAME = 'MyEKMKey', CREATION_DISPOSITION = CREATE_NEW ENCRYPTION BY CERTIFICATE MyCert",
+				name: "MySymKey",
+			},
+			// FROM PROVIDER
+			{
+				sql:  "CREATE SYMMETRIC KEY MySymKey FROM PROVIDER MyEKMProvider WITH ALGORITHM = AES_256 ENCRYPTION BY CERTIFICATE MyCert",
+				name: "MySymKey",
+			},
+			// Multiple encryption mechanisms
+			{
+				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = AES_128 ENCRYPTION BY CERTIFICATE Cert1, PASSWORD = 'pass1', SYMMETRIC KEY OtherKey",
+				name: "MySymKey",
+			},
+			// ENCRYPTION BY ASYMMETRIC KEY
+			{
+				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = TRIPLE_DES_3KEY ENCRYPTION BY ASYMMETRIC KEY MyAsymKey",
+				name: "MySymKey",
+			},
+			// DES algorithm
+			{
+				sql:  "CREATE SYMMETRIC KEY MySymKey WITH ALGORITHM = DES ENCRYPTION BY PASSWORD = 'secret123'",
+				name: "MySymKey",
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != "CREATE" {
+					t.Errorf("expected CREATE, got %s", stmt.Action)
+				}
+				if stmt.ObjectType != "SYMMETRIC KEY" {
+					t.Errorf("expected SYMMETRIC KEY, got %s", stmt.ObjectType)
+				}
+				if stmt.Name != tt.name {
+					t.Errorf("expected name %q, got %q", tt.name, stmt.Name)
+				}
+			})
+		}
+	})
+
+	// ---------- ALTER SYMMETRIC KEY ----------
+	t.Run("alter_symmetric_key", func(t *testing.T) {
+		sqls := []string{
+			"ALTER SYMMETRIC KEY MySymKey ADD ENCRYPTION BY CERTIFICATE MyCert",
+			"ALTER SYMMETRIC KEY MySymKey DROP ENCRYPTION BY CERTIFICATE MyCert",
+			"ALTER SYMMETRIC KEY MySymKey ADD ENCRYPTION BY PASSWORD = 'newpass'",
+			"ALTER SYMMETRIC KEY MySymKey DROP ENCRYPTION BY PASSWORD = 'oldpass'",
+			"ALTER SYMMETRIC KEY MySymKey ADD ENCRYPTION BY SYMMETRIC KEY OtherKey",
+			"ALTER SYMMETRIC KEY MySymKey ADD ENCRYPTION BY ASYMMETRIC KEY MyAsymKey",
+			// Multiple mechanisms
+			"ALTER SYMMETRIC KEY MySymKey ADD ENCRYPTION BY CERTIFICATE Cert1, PASSWORD = 'pass1'",
+		}
+		for _, sql := range sqls {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != "ALTER" || stmt.ObjectType != "SYMMETRIC KEY" {
+					t.Errorf("expected ALTER SYMMETRIC KEY, got %s %s", stmt.Action, stmt.ObjectType)
+				}
+				if stmt.Name != "MySymKey" {
+					t.Errorf("expected name MySymKey, got %q", stmt.Name)
+				}
+				if stmt.Options == nil || len(stmt.Options.Items) == 0 {
+					t.Error("expected options for alter symmetric key")
+				}
+			})
+		}
+	})
+
+	// ---------- DROP SYMMETRIC KEY ----------
+	t.Run("drop_symmetric_key", func(t *testing.T) {
+		sqls := []string{
+			"DROP SYMMETRIC KEY MySymKey",
+			"DROP SYMMETRIC KEY MySymKey REMOVE PROVIDER KEY",
+		}
+		for _, sql := range sqls {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != "DROP" || stmt.ObjectType != "SYMMETRIC KEY" {
+					t.Errorf("expected DROP SYMMETRIC KEY, got %s %s", stmt.Action, stmt.ObjectType)
+				}
+			})
+		}
+	})
+
+	// ---------- CREATE ASYMMETRIC KEY ----------
+	t.Run("create_asymmetric_key", func(t *testing.T) {
+		sqls := []string{
+			// WITH ALGORITHM
+			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_2048",
+			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_4096",
+			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_1024",
+			// WITH AUTHORIZATION
+			"CREATE ASYMMETRIC KEY MyAsymKey AUTHORIZATION dbo WITH ALGORITHM = RSA_2048",
+			// FROM FILE
+			"CREATE ASYMMETRIC KEY MyAsymKey FROM FILE = 'c:\\keys\\mykey.snk'",
+			// FROM EXECUTABLE FILE
+			"CREATE ASYMMETRIC KEY MyAsymKey FROM EXECUTABLE FILE = 'c:\\keys\\myapp.exe'",
+			// FROM ASSEMBLY
+			"CREATE ASYMMETRIC KEY MyAsymKey FROM ASSEMBLY MyAssembly",
+			// FROM PROVIDER
+			"CREATE ASYMMETRIC KEY MyAsymKey FROM PROVIDER MyEKMProv WITH ALGORITHM = RSA_2048, PROVIDER_KEY_NAME = 'MyEKMKey', CREATION_DISPOSITION = CREATE_NEW",
+			// ENCRYPTION BY PASSWORD
+			"CREATE ASYMMETRIC KEY MyAsymKey WITH ALGORITHM = RSA_2048 ENCRYPTION BY PASSWORD = 'StrongPass!'",
+		}
+		for _, sql := range sqls {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != "CREATE" || stmt.ObjectType != "ASYMMETRIC KEY" {
+					t.Errorf("expected CREATE ASYMMETRIC KEY, got %s %s", stmt.Action, stmt.ObjectType)
+				}
+				if stmt.Name != "MyAsymKey" {
+					t.Errorf("expected name MyAsymKey, got %q", stmt.Name)
+				}
+			})
+		}
+	})
+
+	// ---------- ALTER ASYMMETRIC KEY ----------
+	t.Run("alter_asymmetric_key", func(t *testing.T) {
+		sqls := []string{
+			// REMOVE PRIVATE KEY
+			"ALTER ASYMMETRIC KEY MyAsymKey REMOVE PRIVATE KEY",
+			// WITH PRIVATE KEY (password change)
+			"ALTER ASYMMETRIC KEY MyAsymKey WITH PRIVATE KEY (DECRYPTION BY PASSWORD = 'oldpass', ENCRYPTION BY PASSWORD = 'newpass')",
+			// WITH PRIVATE KEY (encryption only)
+			"ALTER ASYMMETRIC KEY MyAsymKey WITH PRIVATE KEY (ENCRYPTION BY PASSWORD = 'newpass')",
+			// WITH PRIVATE KEY (decryption only)
+			"ALTER ASYMMETRIC KEY MyAsymKey WITH PRIVATE KEY (DECRYPTION BY PASSWORD = 'oldpass')",
+		}
+		for _, sql := range sqls {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != "ALTER" || stmt.ObjectType != "ASYMMETRIC KEY" {
+					t.Errorf("expected ALTER ASYMMETRIC KEY, got %s %s", stmt.Action, stmt.ObjectType)
+				}
+			})
+		}
+	})
+
+	// ---------- DROP ASYMMETRIC KEY ----------
+	t.Run("drop_asymmetric_key", func(t *testing.T) {
+		sqls := []string{
+			"DROP ASYMMETRIC KEY MyAsymKey",
+			"DROP ASYMMETRIC KEY MyAsymKey REMOVE PROVIDER KEY",
+		}
+		for _, sql := range sqls {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != "DROP" || stmt.ObjectType != "ASYMMETRIC KEY" {
+					t.Errorf("expected DROP ASYMMETRIC KEY, got %s %s", stmt.Action, stmt.ObjectType)
+				}
+			})
+		}
+	})
+
+	// ---------- CREATE CERTIFICATE ----------
+	t.Run("create_certificate", func(t *testing.T) {
+		sqls := []string{
+			// Generate new keys with SUBJECT
+			"CREATE CERTIFICATE MyCert WITH SUBJECT = 'My Certificate'",
+			// With ENCRYPTION BY PASSWORD
+			"CREATE CERTIFICATE MyCert ENCRYPTION BY PASSWORD = 'pass123' WITH SUBJECT = 'My Certificate'",
+			// With date options
+			"CREATE CERTIFICATE MyCert WITH SUBJECT = 'My Certificate', START_DATE = '2024-01-01', EXPIRY_DATE = '2025-12-31'",
+			// With AUTHORIZATION
+			"CREATE CERTIFICATE MyCert AUTHORIZATION dbo WITH SUBJECT = 'My Certificate'",
+			// FROM FILE
+			"CREATE CERTIFICATE MyCert FROM FILE = 'c:\\certs\\mycert.cer'",
+			// FROM EXECUTABLE FILE
+			"CREATE CERTIFICATE MyCert FROM EXECUTABLE FILE = 'c:\\certs\\myapp.dll'",
+			// FROM ASSEMBLY
+			"CREATE CERTIFICATE MyCert FROM ASSEMBLY MyAssembly",
+			// FROM FILE with PRIVATE KEY
+			"CREATE CERTIFICATE MyCert FROM FILE = 'c:\\certs\\mycert.cer' WITH PRIVATE KEY (FILE = 'c:\\keys\\mykey.pvk', DECRYPTION BY PASSWORD = 'pass123')",
+			// FROM FILE with PRIVATE KEY and ENCRYPTION
+			"CREATE CERTIFICATE MyCert FROM FILE = 'c:\\certs\\mycert.cer' WITH PRIVATE KEY (FILE = 'c:\\keys\\mykey.pvk', DECRYPTION BY PASSWORD = 'old', ENCRYPTION BY PASSWORD = 'new')",
+			// ACTIVE FOR BEGIN_DIALOG
+			"CREATE CERTIFICATE MyCert WITH SUBJECT = 'My Certificate' ACTIVE FOR BEGIN_DIALOG = ON",
+			"CREATE CERTIFICATE MyCert WITH SUBJECT = 'My Certificate' ACTIVE FOR BEGIN_DIALOG = OFF",
+			// PFX FORMAT
+			"CREATE CERTIFICATE MyCert FROM FILE = 'c:\\certs\\mycert.pfx' WITH FORMAT = 'PFX', PRIVATE KEY (FILE = 'c:\\keys\\mykey.pvk', DECRYPTION BY PASSWORD = 'pass123')",
+		}
+		for _, sql := range sqls {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != "CREATE" || stmt.ObjectType != "CERTIFICATE" {
+					t.Errorf("expected CREATE CERTIFICATE, got %s %s", stmt.Action, stmt.ObjectType)
+				}
+				if stmt.Name != "MyCert" {
+					t.Errorf("expected name MyCert, got %q", stmt.Name)
+				}
+			})
+		}
+	})
+
+	// ---------- ALTER CERTIFICATE ----------
+	t.Run("alter_certificate", func(t *testing.T) {
+		sqls := []string{
+			// REMOVE PRIVATE KEY
+			"ALTER CERTIFICATE MyCert REMOVE PRIVATE KEY",
+			// WITH PRIVATE KEY (FILE)
+			"ALTER CERTIFICATE MyCert WITH PRIVATE KEY (FILE = 'c:\\keys\\newkey.pvk', DECRYPTION BY PASSWORD = 'oldpass', ENCRYPTION BY PASSWORD = 'newpass')",
+			// WITH ACTIVE FOR BEGIN_DIALOG
+			"ALTER CERTIFICATE MyCert WITH ACTIVE FOR BEGIN_DIALOG = ON",
+			"ALTER CERTIFICATE MyCert WITH ACTIVE FOR BEGIN_DIALOG = OFF",
+		}
+		for _, sql := range sqls {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != "ALTER" || stmt.ObjectType != "CERTIFICATE" {
+					t.Errorf("expected ALTER CERTIFICATE, got %s %s", stmt.Action, stmt.ObjectType)
+				}
+			})
+		}
+	})
+
+	// ---------- DROP CERTIFICATE ----------
+	t.Run("drop_certificate", func(t *testing.T) {
+		result := ParseAndCheck(t, "DROP CERTIFICATE MyCert")
+		stmt := result.Items[0].(*ast.SecurityKeyStmt)
+		if stmt.Action != "DROP" || stmt.ObjectType != "CERTIFICATE" {
+			t.Errorf("expected DROP CERTIFICATE, got %s %s", stmt.Action, stmt.ObjectType)
+		}
+	})
+
+	// ---------- CREATE/ALTER/DROP MASTER KEY ----------
+	t.Run("master_key", func(t *testing.T) {
+		sqls := []struct {
+			sql    string
+			action string
+		}{
+			{"CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'StrongPass!'", "CREATE"},
+			// CREATE without password (Azure SQL)
+			{"CREATE MASTER KEY", "CREATE"},
+			// ALTER - REGENERATE
+			{"ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = 'NewPass!'", "ALTER"},
+			// ALTER - FORCE REGENERATE
+			{"ALTER MASTER KEY FORCE REGENERATE WITH ENCRYPTION BY PASSWORD = 'NewPass!'", "ALTER"},
+			// ALTER - ADD ENCRYPTION BY SERVICE MASTER KEY
+			{"ALTER MASTER KEY ADD ENCRYPTION BY SERVICE MASTER KEY", "ALTER"},
+			// ALTER - ADD ENCRYPTION BY PASSWORD
+			{"ALTER MASTER KEY ADD ENCRYPTION BY PASSWORD = 'backup_pass'", "ALTER"},
+			// ALTER - DROP ENCRYPTION BY SERVICE MASTER KEY
+			{"ALTER MASTER KEY DROP ENCRYPTION BY SERVICE MASTER KEY", "ALTER"},
+			// ALTER - DROP ENCRYPTION BY PASSWORD
+			{"ALTER MASTER KEY DROP ENCRYPTION BY PASSWORD = 'old_pass'", "ALTER"},
+			// DROP
+			{"DROP MASTER KEY", "DROP"},
+		}
+		for _, tt := range sqls {
+			t.Run(tt.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != tt.action {
+					t.Errorf("expected action %s, got %s", tt.action, stmt.Action)
+				}
+				if stmt.ObjectType != "MASTER KEY" {
+					t.Errorf("expected MASTER KEY, got %s", stmt.ObjectType)
+				}
+			})
+		}
+	})
+
+	// ---------- DATABASE ENCRYPTION KEY ----------
+	t.Run("database_encryption_key", func(t *testing.T) {
+		sqls := []struct {
+			sql    string
+			action string
+		}{
+			// CREATE with CERTIFICATE
+			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_256 ENCRYPTION BY SERVER CERTIFICATE MyCert", "CREATE"},
+			// CREATE with ASYMMETRIC KEY
+			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = AES_128 ENCRYPTION BY SERVER ASYMMETRIC KEY MyAsymKey", "CREATE"},
+			// CREATE with TRIPLE_DES_3KEY
+			{"CREATE DATABASE ENCRYPTION KEY WITH ALGORITHM = TRIPLE_DES_3KEY ENCRYPTION BY SERVER CERTIFICATE MyCert", "CREATE"},
+			// ALTER - REGENERATE
+			{"ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_256", "ALTER"},
+			// ALTER - REGENERATE with ENCRYPTION BY
+			{"ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = AES_256 ENCRYPTION BY SERVER CERTIFICATE NewCert", "ALTER"},
+			// ALTER - ENCRYPTION BY
+			{"ALTER DATABASE ENCRYPTION KEY ENCRYPTION BY SERVER CERTIFICATE MyCert", "ALTER"},
+			// DROP
+			{"DROP DATABASE ENCRYPTION KEY", "DROP"},
+		}
+		for _, tt := range sqls {
+			t.Run(tt.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != tt.action {
+					t.Errorf("expected action %s, got %s", tt.action, stmt.Action)
+				}
+				if stmt.ObjectType != "DATABASE ENCRYPTION KEY" {
+					t.Errorf("expected DATABASE ENCRYPTION KEY, got %s", stmt.ObjectType)
+				}
+			})
+		}
+	})
+
+	// ---------- CREDENTIAL ----------
+	t.Run("credential", func(t *testing.T) {
+		sqls := []struct {
+			sql    string
+			action string
+		}{
+			// CREATE with IDENTITY and SECRET
+			{"CREATE CREDENTIAL MyCred WITH IDENTITY = 'MyUser', SECRET = 'MySecret'", "CREATE"},
+			// CREATE with IDENTITY only
+			{"CREATE CREDENTIAL MyCred WITH IDENTITY = 'MyUser'", "CREATE"},
+			// CREATE with FOR CRYPTOGRAPHIC PROVIDER
+			{"CREATE CREDENTIAL MyCred WITH IDENTITY = 'MyUser', SECRET = 'MySecret' FOR CRYPTOGRAPHIC PROVIDER MyProv", "CREATE"},
+			// ALTER
+			{"ALTER CREDENTIAL MyCred WITH IDENTITY = 'NewUser', SECRET = 'NewSecret'", "ALTER"},
+			// DROP
+			{"DROP CREDENTIAL MyCred", "DROP"},
+		}
+		for _, tt := range sqls {
+			t.Run(tt.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != tt.action {
+					t.Errorf("expected action %s, got %s", tt.action, stmt.Action)
+				}
+				if stmt.ObjectType != "CREDENTIAL" {
+					t.Errorf("expected CREDENTIAL, got %s", stmt.ObjectType)
+				}
+				if stmt.Name != "MyCred" {
+					t.Errorf("expected name MyCred, got %q", stmt.Name)
+				}
+			})
+		}
+	})
+
+	// ---------- DATABASE SCOPED CREDENTIAL ----------
+	t.Run("database_scoped_credential", func(t *testing.T) {
+		sqls := []struct {
+			sql    string
+			action string
+		}{
+			{"CREATE DATABASE SCOPED CREDENTIAL MyScopedCred WITH IDENTITY = 'MyUser', SECRET = 'MySecret'", "CREATE"},
+			{"CREATE DATABASE SCOPED CREDENTIAL MyScopedCred WITH IDENTITY = 'SHARED ACCESS SIGNATURE', SECRET = 'sas_token'", "CREATE"},
+			{"CREATE DATABASE SCOPED CREDENTIAL MyScopedCred WITH IDENTITY = 'Managed Identity'", "CREATE"},
+			{"ALTER DATABASE SCOPED CREDENTIAL MyScopedCred WITH IDENTITY = 'NewUser', SECRET = 'NewSecret'", "ALTER"},
+			{"DROP DATABASE SCOPED CREDENTIAL MyScopedCred", "DROP"},
+		}
+		for _, tt := range sqls {
+			t.Run(tt.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != tt.action {
+					t.Errorf("expected action %s, got %s", tt.action, stmt.Action)
+				}
+				if stmt.ObjectType != "DATABASE SCOPED CREDENTIAL" {
+					t.Errorf("expected DATABASE SCOPED CREDENTIAL, got %s", stmt.ObjectType)
+				}
+			})
+		}
+	})
+
+	// ---------- OPEN SYMMETRIC KEY ----------
+	t.Run("open_symmetric_key", func(t *testing.T) {
+		sqls := []string{
+			"OPEN SYMMETRIC KEY MyKey DECRYPTION BY CERTIFICATE MyCert",
+			"OPEN SYMMETRIC KEY MyKey DECRYPTION BY PASSWORD = 'mypass'",
+			"OPEN SYMMETRIC KEY MyKey DECRYPTION BY ASYMMETRIC KEY MyAsymKey",
+			"OPEN SYMMETRIC KEY MyKey DECRYPTION BY SYMMETRIC KEY OtherKey",
+			// CERTIFICATE with WITH PASSWORD
+			"OPEN SYMMETRIC KEY MyKey DECRYPTION BY CERTIFICATE MyCert WITH PASSWORD = 'certpass'",
+			// ASYMMETRIC KEY with WITH PASSWORD
+			"OPEN SYMMETRIC KEY MyKey DECRYPTION BY ASYMMETRIC KEY MyAsymKey WITH PASSWORD = 'asympass'",
+		}
+		for _, sql := range sqls {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != "OPEN" || stmt.ObjectType != "SYMMETRIC KEY" {
+					t.Errorf("expected OPEN SYMMETRIC KEY, got %s %s", stmt.Action, stmt.ObjectType)
+				}
+				if stmt.Name != "MyKey" {
+					t.Errorf("expected name MyKey, got %q", stmt.Name)
+				}
+			})
+		}
+	})
+
+	// ---------- CLOSE SYMMETRIC KEY ----------
+	t.Run("close_symmetric_key", func(t *testing.T) {
+		t.Run("single", func(t *testing.T) {
+			result := ParseAndCheck(t, "CLOSE SYMMETRIC KEY MyKey")
+			stmt := result.Items[0].(*ast.SecurityKeyStmt)
+			if stmt.Action != "CLOSE" || stmt.ObjectType != "SYMMETRIC KEY" {
+				t.Errorf("expected CLOSE SYMMETRIC KEY, got %s %s", stmt.Action, stmt.ObjectType)
+			}
+			if stmt.Name != "MyKey" {
+				t.Errorf("expected name MyKey, got %q", stmt.Name)
+			}
+		})
+		t.Run("all", func(t *testing.T) {
+			result := ParseAndCheck(t, "CLOSE ALL SYMMETRIC KEYS")
+			stmt := result.Items[0].(*ast.SecurityKeyStmt)
+			if stmt.Action != "CLOSE" || stmt.ObjectType != "ALL SYMMETRIC KEYS" {
+				t.Errorf("expected CLOSE ALL SYMMETRIC KEYS, got %s %s", stmt.Action, stmt.ObjectType)
+			}
+		})
+	})
+
+	// ---------- BACKUP CERTIFICATE ----------
+	t.Run("backup_certificate", func(t *testing.T) {
+		sqls := []string{
+			// Basic TO FILE
+			"BACKUP CERTIFICATE MyCert TO FILE = 'c:\\certs\\mycert.cer'",
+			// With PRIVATE KEY
+			"BACKUP CERTIFICATE MyCert TO FILE = 'c:\\certs\\mycert.cer' WITH PRIVATE KEY (FILE = 'c:\\keys\\mykey.pvk', ENCRYPTION BY PASSWORD = 'encpass')",
+			// With PRIVATE KEY and DECRYPTION
+			"BACKUP CERTIFICATE MyCert TO FILE = 'c:\\certs\\mycert.cer' WITH PRIVATE KEY (FILE = 'c:\\keys\\mykey.pvk', ENCRYPTION BY PASSWORD = 'encpass', DECRYPTION BY PASSWORD = 'decpass')",
+		}
+		for _, sql := range sqls {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != "BACKUP" || stmt.ObjectType != "CERTIFICATE" {
+					t.Errorf("expected BACKUP CERTIFICATE, got %s %s", stmt.Action, stmt.ObjectType)
+				}
+			})
+		}
+	})
+
+	// ---------- BACKUP/RESTORE MASTER KEY ----------
+	t.Run("backup_restore_master_key", func(t *testing.T) {
+		sqls := []struct {
+			sql    string
+			action string
+		}{
+			{"BACKUP MASTER KEY TO FILE = 'c:\\backup\\masterkey.bak' ENCRYPTION BY PASSWORD = 'pass123'", "BACKUP"},
+			{"RESTORE MASTER KEY FROM FILE = 'c:\\backup\\masterkey.bak' DECRYPTION BY PASSWORD = 'oldpass' ENCRYPTION BY PASSWORD = 'newpass'", "RESTORE"},
+			// RESTORE with FORCE
+			{"RESTORE MASTER KEY FROM FILE = 'c:\\backup\\masterkey.bak' DECRYPTION BY PASSWORD = 'oldpass' ENCRYPTION BY PASSWORD = 'newpass' FORCE", "RESTORE"},
+		}
+		for _, tt := range sqls {
+			t.Run(tt.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != tt.action || stmt.ObjectType != "MASTER KEY" {
+					t.Errorf("expected %s MASTER KEY, got %s %s", tt.action, stmt.Action, stmt.ObjectType)
+				}
+			})
+		}
+	})
+
+	// ---------- BACKUP/RESTORE SERVICE MASTER KEY ----------
+	t.Run("backup_restore_service_master_key", func(t *testing.T) {
+		sqls := []struct {
+			sql    string
+			action string
+		}{
+			{"BACKUP SERVICE MASTER KEY TO FILE = 'c:\\backup\\smk.bak' ENCRYPTION BY PASSWORD = 'pass123'", "BACKUP"},
+			{"RESTORE SERVICE MASTER KEY FROM FILE = 'c:\\backup\\smk.bak' DECRYPTION BY PASSWORD = 'pass123'", "RESTORE"},
+			// RESTORE with FORCE
+			{"RESTORE SERVICE MASTER KEY FROM FILE = 'c:\\backup\\smk.bak' DECRYPTION BY PASSWORD = 'pass123' FORCE", "RESTORE"},
+		}
+		for _, tt := range sqls {
+			t.Run(tt.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != tt.action || stmt.ObjectType != "SERVICE MASTER KEY" {
+					t.Errorf("expected %s SERVICE MASTER KEY, got %s %s", tt.action, stmt.Action, stmt.ObjectType)
+				}
+			})
+		}
+	})
+
+	// ---------- COLUMN ENCRYPTION KEY ----------
+	t.Run("column_encryption_key", func(t *testing.T) {
+		sqls := []string{
+			// CREATE with single value
+			"CREATE COLUMN ENCRYPTION KEY MyCEK WITH VALUES (COLUMN_MASTER_KEY = MyCMK, ALGORITHM = 'RSA_OAEP', ENCRYPTED_VALUE = 0x01AB)",
+			// CREATE with two values
+			"CREATE COLUMN ENCRYPTION KEY MyCEK WITH VALUES (COLUMN_MASTER_KEY = CMK1, ALGORITHM = 'RSA_OAEP', ENCRYPTED_VALUE = 0x01AB), (COLUMN_MASTER_KEY = CMK2, ALGORITHM = 'RSA_OAEP', ENCRYPTED_VALUE = 0x02CD)",
+			// ALTER - ADD VALUE
+			"ALTER COLUMN ENCRYPTION KEY MyCEK ADD VALUE (COLUMN_MASTER_KEY = NewCMK, ALGORITHM = 'RSA_OAEP', ENCRYPTED_VALUE = 0x03EF)",
+			// ALTER - DROP VALUE
+			"ALTER COLUMN ENCRYPTION KEY MyCEK DROP VALUE (COLUMN_MASTER_KEY = OldCMK)",
+			// DROP
+			"DROP COLUMN ENCRYPTION KEY MyCEK",
+		}
+		for _, sql := range sqls {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.ObjectType != "COLUMN ENCRYPTION KEY" {
+					t.Errorf("expected COLUMN ENCRYPTION KEY, got %s", stmt.ObjectType)
+				}
+			})
+		}
+	})
+
+	// ---------- COLUMN MASTER KEY ----------
+	t.Run("column_master_key", func(t *testing.T) {
+		sqls := []string{
+			// CREATE basic
+			"CREATE COLUMN MASTER KEY MyCMK WITH (KEY_STORE_PROVIDER_NAME = 'MSSQL_CERTIFICATE_STORE', KEY_PATH = 'CurrentUser/My/BBF037EC')",
+			// CREATE with ENCLAVE_COMPUTATIONS
+			"CREATE COLUMN MASTER KEY MyCMK WITH (KEY_STORE_PROVIDER_NAME = 'AZURE_KEY_VAULT', KEY_PATH = 'https://vault.azure.net/keys/MyCMK/abc', ENCLAVE_COMPUTATIONS (SIGNATURE = 0xA80F))",
+			// DROP
+			"DROP COLUMN MASTER KEY MyCMK",
+		}
+		for _, sql := range sqls {
+			t.Run(sql, func(t *testing.T) {
+				result := ParseAndCheck(t, sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.ObjectType != "COLUMN MASTER KEY" {
+					t.Errorf("expected COLUMN MASTER KEY, got %s", stmt.ObjectType)
+				}
+			})
+		}
+	})
+
+	// ---------- CRYPTOGRAPHIC PROVIDER ----------
+	t.Run("cryptographic_provider", func(t *testing.T) {
+		sqls := []struct {
+			sql    string
+			action string
+		}{
+			{"CREATE CRYPTOGRAPHIC PROVIDER MyProv FROM FILE = 'c:\\providers\\myprov.dll'", "CREATE"},
+			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv ENABLE", "ALTER"},
+			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv DISABLE", "ALTER"},
+			{"ALTER CRYPTOGRAPHIC PROVIDER MyProv FROM FILE = 'c:\\providers\\myprov_v2.dll' ENABLE", "ALTER"},
+			{"DROP CRYPTOGRAPHIC PROVIDER MyProv", "DROP"},
+		}
+		for _, tt := range sqls {
+			t.Run(tt.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != tt.action || stmt.ObjectType != "CRYPTOGRAPHIC PROVIDER" {
+					t.Errorf("expected %s CRYPTOGRAPHIC PROVIDER, got %s %s", tt.action, stmt.Action, stmt.ObjectType)
+				}
+			})
+		}
+	})
+
+	// ---------- OPEN/CLOSE MASTER KEY ----------
+	t.Run("open_close_master_key", func(t *testing.T) {
+		t.Run("open", func(t *testing.T) {
+			result := ParseAndCheck(t, "OPEN MASTER KEY DECRYPTION BY PASSWORD = 'masterpass'")
+			stmt := result.Items[0].(*ast.SecurityKeyStmt)
+			if stmt.Action != "OPEN" || stmt.ObjectType != "MASTER KEY" {
+				t.Errorf("expected OPEN MASTER KEY, got %s %s", stmt.Action, stmt.ObjectType)
+			}
+		})
+		t.Run("close", func(t *testing.T) {
+			result := ParseAndCheck(t, "CLOSE MASTER KEY")
+			stmt := result.Items[0].(*ast.SecurityKeyStmt)
+			if stmt.Action != "CLOSE" || stmt.ObjectType != "MASTER KEY" {
+				t.Errorf("expected CLOSE MASTER KEY, got %s %s", stmt.Action, stmt.ObjectType)
+			}
+		})
+	})
+
+	// ---------- BACKUP/RESTORE SYMMETRIC KEY ----------
+	t.Run("backup_restore_symmetric_key", func(t *testing.T) {
+		sqls := []struct {
+			sql    string
+			action string
+		}{
+			{"BACKUP SYMMETRIC KEY MySymKey TO FILE = 'c:\\backup\\symkey.bak' ENCRYPTION BY PASSWORD = 'pass123'", "BACKUP"},
+			{"RESTORE SYMMETRIC KEY MySymKey FROM FILE = 'c:\\backup\\symkey.bak' DECRYPTION BY PASSWORD = 'pass123' ENCRYPTION BY PASSWORD = 'newpass'", "RESTORE"},
+		}
+		for _, tt := range sqls {
+			t.Run(tt.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tt.sql)
+				stmt := result.Items[0].(*ast.SecurityKeyStmt)
+				if stmt.Action != tt.action {
+					t.Errorf("expected action %s, got %s", tt.action, stmt.Action)
+				}
+				if stmt.ObjectType != "SYMMETRIC KEY" {
+					t.Errorf("expected SYMMETRIC KEY, got %s", stmt.ObjectType)
+				}
+			})
+		}
+	})
+}

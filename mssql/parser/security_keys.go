@@ -12,7 +12,7 @@ import (
 // COLUMN ENCRYPTION KEY, COLUMN MASTER KEY, CRYPTOGRAPHIC PROVIDER.
 // Also handles OPEN/CLOSE SYMMETRIC KEY and BACKUP CERTIFICATE.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-symmetric-key-transact-sql
+// BNF: mssql/parser/bnf/create-symmetric-key-transact-sql.bnf
 //
 //	CREATE SYMMETRIC KEY key_name
 //	    [ AUTHORIZATION owner_name ]
@@ -22,53 +22,133 @@ import (
 //	            <key_options> [ , ... n ]
 //	            | ENCRYPTION BY <encrypting_mechanism> [ , ... n ]
 //	        ]
-//	<key_options> ::= KEY_SOURCE = 'pass_phrase' | ALGORITHM = <algorithm>
-//	    | IDENTITY_VALUE = 'identity_phrase' | PROVIDER_KEY_NAME = 'key_name_in_provider'
+//	<key_options> ::=
+//	    KEY_SOURCE = 'pass_phrase'
+//	    | ALGORITHM = <algorithm>
+//	    | IDENTITY_VALUE = 'identity_phrase'
+//	    | PROVIDER_KEY_NAME = 'key_name_in_provider'
 //	    | CREATION_DISPOSITION = { CREATE_NEW | OPEN_EXISTING }
-//	<encrypting_mechanism> ::= CERTIFICATE certificate_name | PASSWORD = 'password'
-//	    | SYMMETRIC KEY symmetric_key_name | ASYMMETRIC KEY asym_key_name
+//	<algorithm> ::=
+//	    DES | TRIPLE_DES | TRIPLE_DES_3KEY | RC2 | RC4 | RC4_128
+//	    | DESX | AES_128 | AES_192 | AES_256
+//	<encrypting_mechanism> ::=
+//	    CERTIFICATE certificate_name
+//	    | PASSWORD = 'password'
+//	    | SYMMETRIC KEY symmetric_key_name
+//	    | ASYMMETRIC KEY asym_key_name
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-symmetric-key-transact-sql
+// BNF: mssql/parser/bnf/alter-symmetric-key-transact-sql.bnf
 //
 //	ALTER SYMMETRIC KEY Key_name <alter_option>
 //	<alter_option> ::=
 //	    ADD ENCRYPTION BY <encrypting_mechanism> [ , ... n ]
 //	    | DROP ENCRYPTION BY <encrypting_mechanism> [ , ... n ]
+//	<encrypting_mechanism> ::=
+//	    CERTIFICATE certificate_name
+//	    | PASSWORD = 'password'
+//	    | SYMMETRIC KEY Symmetric_Key_Name
+//	    | ASYMMETRIC KEY Asym_Key_Name
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-asymmetric-key-transact-sql
+// BNF: mssql/parser/bnf/drop-symmetric-key-transact-sql.bnf
+//
+//	DROP SYMMETRIC KEY symmetric_key_name [REMOVE PROVIDER KEY]
+//
+// BNF: mssql/parser/bnf/create-asymmetric-key-transact-sql.bnf
 //
 //	CREATE ASYMMETRIC KEY asym_key_name
 //	    [ AUTHORIZATION database_principal_name ]
 //	    [ FROM <asym_key_source> ]
 //	    [ WITH <key_option> ]
 //	    [ ENCRYPTION BY <encrypting_mechanism> ]
-//	<asym_key_source> ::= FILE = 'path' | EXECUTABLE FILE = 'path' | ASSEMBLY name | PROVIDER name
-//	<key_option> ::= ALGORITHM = <algorithm> | PROVIDER_KEY_NAME = 'name' | CREATION_DISPOSITION = { CREATE_NEW | OPEN_EXISTING }
+//	<asym_key_source> ::=
+//	    FILE = 'path_to_strong-name_file'
+//	    | EXECUTABLE FILE = 'path_to_executable_file'
+//	    | ASSEMBLY assembly_name
+//	    | PROVIDER provider_name
+//	<key_option> ::=
+//	    ALGORITHM = <algorithm>
+//	    | PROVIDER_KEY_NAME = 'key_name_in_provider'
+//	    | CREATION_DISPOSITION = { CREATE_NEW | OPEN_EXISTING }
+//	<algorithm> ::= RSA_4096 | RSA_3072 | RSA_2048 | RSA_1024 | RSA_512
 //	<encrypting_mechanism> ::= PASSWORD = 'password'
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-certificate-transact-sql
+// BNF: mssql/parser/bnf/alter-asymmetric-key-transact-sql.bnf
+//
+//	ALTER ASYMMETRIC KEY Asym_Key_Name <alter_option>
+//	<alter_option> ::=
+//	    <password_change_option>
+//	    | REMOVE PRIVATE KEY
+//	<password_change_option> ::=
+//	    WITH PRIVATE KEY ( <password_option> [ , <password_option> ] )
+//	<password_option> ::=
+//	    ENCRYPTION BY PASSWORD = 'strongPassword'
+//	    | DECRYPTION BY PASSWORD = 'oldPassword'
+//
+// BNF: mssql/parser/bnf/drop-asymmetric-key-transact-sql.bnf
+//
+//	DROP ASYMMETRIC KEY key_name [ REMOVE PROVIDER KEY ]
+//
+// BNF: mssql/parser/bnf/create-certificate-transact-sql.bnf
 //
 //	CREATE CERTIFICATE certificate_name [ AUTHORIZATION user_name ]
 //	    { FROM <existing_keys> | <generate_new_keys> }
 //	    [ ACTIVE FOR BEGIN_DIALOG = { ON | OFF } ]
-//	<existing_keys> ::= ASSEMBLY assembly_name
-//	    | { [ EXECUTABLE ] FILE = 'path' [ WITH [FORMAT = 'PFX',] PRIVATE KEY ( <private_key_options> ) ] }
-//	    | { BINARY = asn_encoded_certificate [ WITH PRIVATE KEY ( <private_key_options> ) ] }
-//	<generate_new_keys> ::= [ ENCRYPTION BY PASSWORD = 'password' ]
-//	    WITH SUBJECT = 'certificate_subject_name' [ , <date_options> [ ,...n ] ]
+//	<existing_keys> ::=
+//	    ASSEMBLY assembly_name
+//	    | { [ EXECUTABLE ] FILE = 'path_to_file'
+//	        [ WITH [FORMAT = 'PFX',] PRIVATE KEY ( <private_key_options> ) ] }
+//	    | { BINARY = asn_encoded_certificate
+//	        [ WITH PRIVATE KEY ( <private_key_options> ) ] }
+//	<generate_new_keys> ::=
+//	    [ ENCRYPTION BY PASSWORD = 'password' ]
+//	    WITH SUBJECT = 'certificate_subject_name'
+//	    [ , <date_options> [ ,...n ] ]
+//	<private_key_options> ::=
+//	    { FILE = 'path_to_private_key'
+//	      [ , DECRYPTION BY PASSWORD = 'password' ]
+//	      [ , ENCRYPTION BY PASSWORD = 'password' ] }
+//	    | { BINARY = private_key_bits
+//	      [ , DECRYPTION BY PASSWORD = 'password' ]
+//	      [ , ENCRYPTION BY PASSWORD = 'password' ] }
 //	<date_options> ::= START_DATE = 'datetime' | EXPIRY_DATE = 'datetime'
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-credential-transact-sql
+// BNF: mssql/parser/bnf/alter-certificate-transact-sql.bnf
+//
+//	ALTER CERTIFICATE certificate_name
+//	    REMOVE PRIVATE KEY
+//	    | WITH PRIVATE KEY ( <private_key_spec> )
+//	    | WITH ACTIVE FOR BEGIN_DIALOG = { ON | OFF }
+//	<private_key_spec> ::=
+//	    { FILE = 'path_to_private_key' | BINARY = private_key_bits }
+//	    [ , DECRYPTION BY PASSWORD = 'current_password' ]
+//	    [ , ENCRYPTION BY PASSWORD = 'new_password' ]
+//
+// BNF: mssql/parser/bnf/drop-certificate-transact-sql.bnf
+//
+//	DROP CERTIFICATE certificate_name
+//
+// BNF: mssql/parser/bnf/create-credential-transact-sql.bnf
 //
 //	CREATE CREDENTIAL credential_name
-//	    WITH IDENTITY = 'identity_name' [ , SECRET = 'secret' ]
+//	    WITH IDENTITY = 'identity_name'
+//	    [ , SECRET = 'secret' ]
 //	    [ FOR CRYPTOGRAPHIC PROVIDER cryptographic_provider_name ]
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-master-key-transact-sql
+// BNF: mssql/parser/bnf/alter-credential-transact-sql.bnf
+//
+//	ALTER CREDENTIAL credential_name
+//	    WITH IDENTITY = 'identity_name'
+//	    [ , SECRET = 'secret' ]
+//
+// BNF: mssql/parser/bnf/drop-credential-transact-sql.bnf
+//
+//	DROP CREDENTIAL credential_name
+//
+// BNF: mssql/parser/bnf/create-master-key-transact-sql.bnf
 //
 //	CREATE MASTER KEY [ ENCRYPTION BY PASSWORD = 'password' ]
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-master-key-transact-sql
+// BNF: mssql/parser/bnf/alter-master-key-transact-sql.bnf
 //
 //	ALTER MASTER KEY <alter_option>
 //	<alter_option> ::= <regenerate_option> | <encryption_option>
@@ -76,6 +156,10 @@ import (
 //	<encryption_option> ::=
 //	    ADD ENCRYPTION BY { SERVICE MASTER KEY | PASSWORD = 'password' }
 //	    | DROP ENCRYPTION BY { SERVICE MASTER KEY | PASSWORD = 'password' }
+//
+// BNF: mssql/parser/bnf/drop-master-key-transact-sql.bnf
+//
+//	DROP MASTER KEY
 func (p *Parser) parseSecurityKeyStmt(action string) *nodes.SecurityKeyStmt {
 	loc := p.pos()
 	stmt := &nodes.SecurityKeyStmt{
@@ -292,7 +376,7 @@ func (p *Parser) parseEncryptingMechanism() string {
 // parseSecurityKeyStmtColumn parses CREATE/ALTER/DROP COLUMN { ENCRYPTION KEY | MASTER KEY }.
 // Called after "COLUMN" has been matched by the dispatcher.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-column-encryption-key-transact-sql
+// BNF: mssql/parser/bnf/create-column-encryption-key-transact-sql.bnf
 //
 //	CREATE COLUMN ENCRYPTION KEY key_name
 //	WITH VALUES
@@ -301,18 +385,21 @@ func (p *Parser) parseEncryptingMechanism() string {
 //	    ALGORITHM = 'algorithm_name',
 //	    ENCRYPTED_VALUE = varbinary_literal
 //	  )
-//	[, ( ... ) ]
+//	[, (
+//	    COLUMN_MASTER_KEY = column_master_key_name,
+//	    ALGORITHM = 'algorithm_name',
+//	    ENCRYPTED_VALUE = varbinary_literal
+//	  ) ]
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-column-encryption-key-transact-sql
+// ALTER COLUMN ENCRYPTION KEY key_name
 //
-//	ALTER COLUMN ENCRYPTION KEY key_name
-//	  [ ADD | DROP ] VALUE
+//	{ ADD | DROP } VALUE
 //	  (
 //	    COLUMN_MASTER_KEY = column_master_key_name
 //	    [, ALGORITHM = 'algorithm_name', ENCRYPTED_VALUE = varbinary_literal ]
 //	  )
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-column-master-key-transact-sql
+// BNF: mssql/parser/bnf/create-column-master-key-transact-sql.bnf
 //
 //	CREATE COLUMN MASTER KEY key_name
 //	  WITH (
@@ -385,33 +472,36 @@ func (p *Parser) parseSecurityKeyStmtColumn(action string) *nodes.SecurityKeyStm
 // and CREATE/ALTER/DROP DATABASE SCOPED CREDENTIAL.
 // Called after "DATABASE" has been consumed and the next token is "ENCRYPTION" or "SCOPED".
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-database-encryption-key-transact-sql
+// BNF: mssql/parser/bnf/create-database-encryption-key-transact-sql.bnf
 //
 //	CREATE DATABASE ENCRYPTION KEY
-//	  WITH ALGORITHM = { AES_128 | AES_192 | AES_256 | TRIPLE_DES_3KEY }
-//	  ENCRYPTION BY SERVER
-//	    { CERTIFICATE Encryptor_Name | ASYMMETRIC KEY Encryptor_Name }
+//	    WITH ALGORITHM = { AES_128 | AES_192 | AES_256 | TRIPLE_DES_3KEY }
+//	    ENCRYPTION BY SERVER
+//	        { CERTIFICATE Encryptor_Name | ASYMMETRIC KEY Encryptor_Name }
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-database-encryption-key-transact-sql
+// BNF: mssql/parser/bnf/alter-database-encryption-key-transact-sql.bnf
 //
 //	ALTER DATABASE ENCRYPTION KEY
-//	  REGENERATE WITH ALGORITHM = { AES_128 | AES_192 | AES_256 | TRIPLE_DES_3KEY }
-//	  | ENCRYPTION BY SERVER
-//	    { CERTIFICATE Encryptor_Name | ASYMMETRIC KEY Encryptor_Name }
+//	    REGENERATE WITH ALGORITHM = { AES_128 | AES_192 | AES_256 | TRIPLE_DES_3KEY }
+//	        [ ENCRYPTION BY SERVER { CERTIFICATE Encryptor_Name | ASYMMETRIC KEY Encryptor_Name } ]
+//	    | ENCRYPTION BY SERVER
+//	        { CERTIFICATE Encryptor_Name | ASYMMETRIC KEY Encryptor_Name }
 //
-// DROP DATABASE ENCRYPTION KEY
+// BNF: mssql/parser/bnf/drop-database-encryption-key-transact-sql.bnf
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-database-scoped-credential-transact-sql
+//	DROP DATABASE ENCRYPTION KEY
+//
+// BNF: mssql/parser/bnf/create-database-scoped-credential-transact-sql.bnf
 //
 //	CREATE DATABASE SCOPED CREDENTIAL credential_name
-//	  WITH IDENTITY = 'identity_name'
+//	    WITH IDENTITY = 'identity_name'
 //	    [ , SECRET = 'secret' ]
 //
-// ALTER DATABASE SCOPED CREDENTIAL credential_name
-//   WITH IDENTITY = 'identity_name'
-//     [ , SECRET = 'secret' ]
+//	ALTER DATABASE SCOPED CREDENTIAL credential_name
+//	    WITH IDENTITY = 'identity_name'
+//	    [ , SECRET = 'secret' ]
 //
-// DROP DATABASE SCOPED CREDENTIAL credential_name
+//	DROP DATABASE SCOPED CREDENTIAL credential_name
 func (p *Parser) parseSecurityKeyStmtDatabaseEncryption(action string) *nodes.SecurityKeyStmt {
 	loc := p.pos()
 	stmt := &nodes.SecurityKeyStmt{
@@ -444,7 +534,14 @@ func (p *Parser) parseSecurityKeyStmtDatabaseEncryption(action string) *nodes.Se
 
 // parseOpenSymmetricKeyStmt parses OPEN SYMMETRIC KEY statements.
 //
-//	OPEN SYMMETRIC KEY key_name DECRYPTION BY ...
+// BNF: mssql/parser/bnf/open-symmetric-key-transact-sql.bnf
+//
+//	OPEN SYMMETRIC KEY Key_name DECRYPTION BY <decryption_mechanism>
+//	<decryption_mechanism> ::=
+//	    CERTIFICATE certificate_name [ WITH PASSWORD = 'password' ]
+//	    | ASYMMETRIC KEY asym_key_name [ WITH PASSWORD = 'password' ]
+//	    | SYMMETRIC KEY decrypting_Key_name
+//	    | PASSWORD = 'decryption_password'
 func (p *Parser) parseOpenSymmetricKeyStmt() *nodes.SecurityKeyStmt {
 	loc := p.pos()
 	p.advance() // consume OPEN
@@ -468,6 +565,8 @@ func (p *Parser) parseOpenSymmetricKeyStmt() *nodes.SecurityKeyStmt {
 }
 
 // parseCloseSymmetricKeyStmt parses CLOSE SYMMETRIC KEY or CLOSE ALL SYMMETRIC KEYS.
+//
+// BNF: mssql/parser/bnf/close-symmetric-key-transact-sql.bnf
 //
 //	CLOSE { SYMMETRIC KEY key_name | ALL SYMMETRIC KEYS }
 func (p *Parser) parseCloseSymmetricKeyStmt() *nodes.SecurityKeyStmt {
@@ -496,12 +595,26 @@ func (p *Parser) parseCloseSymmetricKeyStmt() *nodes.SecurityKeyStmt {
 
 // parseBackupCertificateStmt parses BACKUP CERTIFICATE|MASTER KEY|SYMMETRIC KEY statements.
 //
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/backup-certificate-transact-sql
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/backup-symmetric-key-transact-sql
+// BNF: mssql/parser/bnf/backup-certificate-transact-sql.bnf
 //
-//	BACKUP CERTIFICATE certname TO FILE = 'path_to_file' [ WITH PRIVATE KEY ( ... ) ]
-//	BACKUP MASTER KEY TO FILE = 'path_to_file' ENCRYPTION BY PASSWORD = 'password'
-//	BACKUP SYMMETRIC KEY key_name TO { FILE = 'path' | URL = 'url' } ENCRYPTION BY PASSWORD = 'password'
+//	BACKUP CERTIFICATE certname TO FILE = 'path_to_file'
+//	    [ WITH
+//	      [FORMAT = 'PFX',]
+//	      PRIVATE KEY
+//	      (
+//	        FILE = 'path_to_private_key_file' ,
+//	        ENCRYPTION BY PASSWORD = 'encryption_password'
+//	        [ , DECRYPTION BY PASSWORD = 'decryption_password' ]
+//	      )
+//	    ]
+//
+// BNF: mssql/parser/bnf/backup-master-key-transact-sql.bnf
+//
+//	BACKUP MASTER KEY TO FILE = 'path_to_file'
+//	    ENCRYPTION BY PASSWORD = 'password'
+//
+//	BACKUP SYMMETRIC KEY key_name TO { FILE = 'path' | URL = 'url' }
+//	    ENCRYPTION BY PASSWORD = 'password'
 func (p *Parser) parseBackupCertificateStmt() *nodes.SecurityKeyStmt {
 	loc := p.pos()
 	p.advance() // consume BACKUP
@@ -570,6 +683,13 @@ func (p *Parser) parseCloseMasterKeyStmt() *nodes.SecurityKeyStmt {
 }
 
 // parseRestoreMasterKeyStmt parses RESTORE MASTER KEY FROM FILE = 'path' ...
+//
+// BNF: mssql/parser/bnf/restore-master-key-transact-sql.bnf
+//
+//	RESTORE MASTER KEY FROM { FILE = 'path_to_file' | URL = 'Azure Blob storage URL' }
+//	    DECRYPTION BY PASSWORD = 'password'
+//	    ENCRYPTION BY PASSWORD = 'password'
+//	    [ FORCE ]
 func (p *Parser) parseRestoreMasterKeyStmt() *nodes.SecurityKeyStmt {
 	loc := p.pos()
 	p.advance() // consume RESTORE

@@ -401,7 +401,7 @@
       "id": 164,
       "name": "bnf_review_crypto",
       "file": "security_keys.go",
-      "status": "pending",
+      "status": "done",
       "description": "BNF review of all cryptographic objects. CREATE/ALTER/DROP SYMMETRIC KEY, ASYMMETRIC KEY, CERTIFICATE, MASTER KEY, DATABASE ENCRYPTION KEY, CREDENTIAL, OPEN/CLOSE SYMMETRIC KEY, BACKUP/RESTORE CERTIFICATE, BACKUP/RESTORE MASTER KEY, BACKUP/RESTORE SERVICE MASTER KEY.",
       "rules": [
         "create_symmetric_key_stmt",

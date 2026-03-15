@@ -160,7 +160,7 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 		if next.Str != "" && matchesKeywordCI(next.Str, "MASTER") {
 			return p.parseCloseMasterKeyStmt()
 		}
-		if (next.Type >= kwADD && matchesKeywordCI(next.Str, "SYMMETRIC")) ||
+		if (next.Str != "" && matchesKeywordCI(next.Str, "SYMMETRIC")) ||
 			next.Type == kwALL {
 			return p.parseCloseSymmetricKeyStmt()
 		}
