@@ -62,6 +62,44 @@ func TestCompleteKeywords(t *testing.T) {
 	}
 }
 
+func TestCompletePrefixFilter(t *testing.T) {
+	candidates := Complete("SEL", 3, nil)
+	for _, c := range candidates {
+		if c.Type == CandidateKeyword && c.Text == "INSERT" {
+			t.Error("INSERT should be filtered out by prefix 'SEL'")
+		}
+	}
+	found := false
+	for _, c := range candidates {
+		if c.Type == CandidateKeyword && c.Text == "SELECT" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected SELECT to match prefix 'SEL'")
+	}
+}
+
+func TestCompleteCTE(t *testing.T) {
+	cat := catalog.New()
+	cat.Exec("CREATE TABLE users (id int, name text);", nil)
+
+	sql := "WITH active AS (SELECT * FROM users) SELECT * FROM "
+	offset := len(sql)
+	candidates := Complete(sql, offset, cat)
+
+	// Should include CTE name "active" as a table ref
+	found := false
+	for _, c := range candidates {
+		if c.Text == "active" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected CTE 'active' in table candidates")
+	}
+}
+
 func TestTrickyCompletePartialSQL(t *testing.T) {
 	cat := catalog.New()
 	cat.Exec("CREATE TABLE orders (id int, amount numeric);", nil)

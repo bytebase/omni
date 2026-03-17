@@ -112,6 +112,20 @@ func (p *Parser) parseStmt() nodes.Node {
 		return p.parseSecLabelStmt()
 	case ALTER:
 		p.advance() // consume ALTER
+		if p.collectMode() {
+			alterTokens := []int{
+				DATABASE, ROLE, USER, SERVER, GROUP_P, POLICY,
+				PUBLICATION, SUBSCRIPTION, STATISTICS, OPERATOR,
+				SCHEMA, DEFAULT, FUNCTION, PROCEDURE, ROUTINE,
+				TYPE_P, DOMAIN_P, COLLATION, CONVERSION_P, EXTENSION,
+				AGGREGATE, TEXT_P, LANGUAGE, PROCEDURAL, LARGE_P,
+				EVENT, SYSTEM_P, TABLESPACE, TRIGGER, RULE, TABLE,
+			}
+			for _, t := range alterTokens {
+				p.addTokenCandidate(t)
+			}
+			return nil
+		}
 		switch p.cur.Type {
 		case DATABASE:
 			return p.parseAlterDatabaseDispatch()
@@ -214,6 +228,22 @@ func (p *Parser) parseStmt() nodes.Node {
 		return p.parseRevokeStmt()
 	case DROP:
 		p.advance() // consume DROP
+		if p.collectMode() {
+			dropTokens := []int{
+				TABLE, VIEW, MATERIALIZED, INDEX, SEQUENCE,
+				FUNCTION, PROCEDURE, ROUTINE, AGGREGATE,
+				OPERATOR, TYPE_P, DOMAIN_P, COLLATION, CONVERSION_P,
+				SCHEMA, DATABASE, ROLE, USER, GROUP_P,
+				POLICY, TRIGGER, RULE, EXTENSION, EVENT,
+				FOREIGN, SERVER, PUBLICATION, SUBSCRIPTION,
+				TABLESPACE, TEXT_P, ACCESS, CAST, TRANSFORM,
+				LANGUAGE, TRUSTED, PROCEDURAL, OWNED,
+			}
+			for _, t := range dropTokens {
+				p.addTokenCandidate(t)
+			}
+			return nil
+		}
 		return p.parseDropStmt()
 	case TRUNCATE:
 		p.advance() // consume TRUNCATE
@@ -280,6 +310,31 @@ func (p *Parser) parseStmt() nodes.Node {
 // The current token is CREATE. We peek at the next token to determine which
 // CREATE sub-statement to parse.
 func (p *Parser) parseCreateDispatch() nodes.Node {
+	// In collect mode, check if the next token is at/past cursor.
+	// We need to peek ahead because CREATE has not been consumed yet.
+	if p.completing && !p.collecting {
+		next := p.peekNext()
+		if next.Loc >= p.cursorOff || next.Type == 0 {
+			p.collecting = true
+		}
+	}
+	if p.collectMode() {
+		createTokens := []int{
+			OR, VIEW, RECURSIVE, MATERIALIZED, TABLE,
+			TEMPORARY, TEMP, LOCAL, UNLOGGED,
+			UNIQUE, INDEX, SEQUENCE, DOMAIN_P, TYPE_P,
+			AGGREGATE, OPERATOR, TEXT_P, COLLATION, STATISTICS,
+			FUNCTION, PROCEDURE, DATABASE, ROLE, USER, GROUP_P,
+			POLICY, TRIGGER, CONSTRAINT, EVENT, FOREIGN, SERVER,
+			LANGUAGE, TRUSTED, PROCEDURAL, GLOBAL,
+			PUBLICATION, SUBSCRIPTION, RULE, EXTENSION, ACCESS,
+			CAST, TRANSFORM, CONVERSION_P, DEFAULT, TABLESPACE, SCHEMA,
+		}
+		for _, t := range createTokens {
+			p.addTokenCandidate(t)
+		}
+		return nil
+	}
 	next := p.peekNext()
 	switch next.Type {
 	case OR:

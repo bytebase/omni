@@ -136,6 +136,42 @@ func TestCollectAfterWhere(t *testing.T) {
 	}
 }
 
+func TestCollectAfterCreate(t *testing.T) {
+	candidates := Collect("CREATE ", 7)
+	if candidates == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	for _, tok := range []int{TABLE, VIEW, INDEX, FUNCTION, SCHEMA, DATABASE} {
+		if !candidates.HasToken(tok) {
+			t.Errorf("missing CREATE sub-keyword: %d", tok)
+		}
+	}
+}
+
+func TestCollectAfterAlter(t *testing.T) {
+	candidates := Collect("ALTER ", 6)
+	if candidates == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	for _, tok := range []int{TABLE, DATABASE, ROLE, SCHEMA, FUNCTION} {
+		if !candidates.HasToken(tok) {
+			t.Errorf("missing ALTER sub-keyword: %d", tok)
+		}
+	}
+}
+
+func TestCollectAfterDrop(t *testing.T) {
+	candidates := Collect("DROP ", 5)
+	if candidates == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	for _, tok := range []int{TABLE, VIEW, INDEX, FUNCTION, SCHEMA} {
+		if !candidates.HasToken(tok) {
+			t.Errorf("missing DROP sub-keyword: %d", tok)
+		}
+	}
+}
+
 func TestCollectKeywordCategories(t *testing.T) {
 	candidates := Collect("SELECT ", 7)
 	// Unreserved keywords like NAME should be candidates (valid as identifiers)

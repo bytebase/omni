@@ -2,6 +2,8 @@
 package completion
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/pg/catalog"
 	"github.com/bytebase/omni/pg/parser"
 )
@@ -36,11 +38,51 @@ type Candidate struct {
 // Complete returns completion candidates for the given SQL at the cursor offset.
 // cat may be nil if no catalog context is available.
 func Complete(sql string, cursorOffset int, cat *catalog.Catalog) []Candidate {
-	result := standardComplete(sql, cursorOffset, cat)
-	if len(result) > 0 {
-		return result
+	prefix := extractPrefix(sql, cursorOffset)
+
+	// When the cursor is mid-token, back up to the start of the token
+	// so the parser sees the position before the partial text.
+	collectOffset := cursorOffset - len(prefix)
+
+	result := standardComplete(sql, collectOffset, cat)
+	if len(result) == 0 {
+		result = trickyComplete(sql, collectOffset, cat)
 	}
-	return trickyComplete(sql, cursorOffset, cat)
+
+	return filterByPrefix(result, prefix)
+}
+
+// extractPrefix returns the partial token the user is typing at cursorOffset.
+func extractPrefix(sql string, cursorOffset int) string {
+	if cursorOffset > len(sql) {
+		cursorOffset = len(sql)
+	}
+	i := cursorOffset
+	for i > 0 {
+		c := sql[i-1]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') || c == '_' {
+			i--
+		} else {
+			break
+		}
+	}
+	return sql[i:cursorOffset]
+}
+
+// filterByPrefix filters candidates whose text starts with prefix (case-insensitive).
+func filterByPrefix(candidates []Candidate, prefix string) []Candidate {
+	if prefix == "" {
+		return candidates
+	}
+	upper := strings.ToUpper(prefix)
+	var result []Candidate
+	for _, c := range candidates {
+		if strings.HasPrefix(strings.ToUpper(c.Text), upper) {
+			result = append(result, c)
+		}
+	}
+	return result
 }
 
 // standardComplete collects parser-level candidates using Collect, then

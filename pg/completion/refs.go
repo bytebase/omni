@@ -39,12 +39,19 @@ func extractTableRefs(sql string, cursorOffset int) []TableRef {
 			continue
 		}
 		ast.Inspect(raw.Stmt, func(n ast.Node) bool {
-			if rv, ok := n.(*ast.RangeVar); ok && rv != nil && rv.Relname != "" {
-				ref := TableRef{Schema: rv.Schemaname, Table: rv.Relname}
-				if rv.Alias != nil {
-					ref.Alias = rv.Alias.Aliasname
+			switch v := n.(type) {
+			case *ast.RangeVar:
+				if v != nil && v.Relname != "" {
+					ref := TableRef{Schema: v.Schemaname, Table: v.Relname}
+					if v.Alias != nil {
+						ref.Alias = v.Alias.Aliasname
+					}
+					refs = append(refs, ref)
 				}
-				refs = append(refs, ref)
+			case *ast.CommonTableExpr:
+				if v != nil && v.Ctename != "" {
+					refs = append(refs, TableRef{Table: v.Ctename})
+				}
 			}
 			return true
 		})

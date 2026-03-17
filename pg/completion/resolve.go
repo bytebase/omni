@@ -37,14 +37,14 @@ func resolveRule(rule string, cat *catalog.Catalog, sql string, offset int) []Ca
 	case "columnref":
 		return resolveColumns(cat, sql, offset)
 	case "relation_expr":
-		return resolveRelations(cat)
+		return resolveRelations(cat, sql, offset)
 	case "func_name":
 		return resolveFunctions(cat)
 	}
 	return nil
 }
 
-func resolveRelations(cat *catalog.Catalog) []Candidate {
+func resolveRelations(cat *catalog.Catalog, sql string, offset int) []Candidate {
 	var result []Candidate
 	for _, s := range cat.UserSchemas() {
 		result = append(result, Candidate{Text: s.Name, Type: CandidateSchema})
@@ -60,6 +60,14 @@ func resolveRelations(cat *catalog.Catalog) []Candidate {
 		}
 		for name := range s.Sequences {
 			result = append(result, Candidate{Text: name, Type: CandidateSequence})
+		}
+	}
+	// Include CTE names from the query as table candidates.
+	refs := extractTableRefs(sql, offset)
+	for _, ref := range refs {
+		if ref.Schema == "" && cat.GetRelation("", ref.Table) == nil {
+			// This ref is not a real table — likely a CTE.
+			result = append(result, Candidate{Text: ref.Table, Type: CandidateTable})
 		}
 	}
 	return result
