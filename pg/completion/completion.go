@@ -42,8 +42,8 @@ func Complete(sql string, cursorOffset int, cat *catalog.Catalog) []Candidate {
 // standardComplete collects parser-level candidates using Collect, then
 // resolves them against the catalog. Stub for now.
 func standardComplete(sql string, cursorOffset int, cat *catalog.Catalog) []Candidate {
-	_ = parser.Collect(sql, cursorOffset)
-	return nil
+	cs := parser.Collect(sql, cursorOffset)
+	return resolve(cs, cat, sql, cursorOffset)
 }
 
 // trickyComplete handles edge cases that the standard C3 approach cannot

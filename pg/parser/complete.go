@@ -1,5 +1,34 @@
 package parser
 
+import "strings"
+
+// TokenName returns the SQL keyword string for a token type, or "" if not a keyword.
+func TokenName(tokenType int) string {
+	// Single-char tokens
+	if tokenType > 0 && tokenType < 256 {
+		return string(rune(tokenType))
+	}
+	// Search keyword table
+	for i := range Keywords {
+		if Keywords[i].Token == tokenType {
+			return strings.ToUpper(Keywords[i].Name)
+		}
+	}
+	// Special non-keyword tokens
+	switch tokenType {
+	case IDENT:
+		return "" // identifier — not a keyword
+	case ICONST, FCONST, SCONST, BCONST, XCONST, PARAM, Op:
+		return "" // literals/operators — not completable keywords
+	}
+	return ""
+}
+
+// MapTokenType maps lexer-internal token types to parser token constants.
+func MapTokenType(typ int) int {
+	return mapTokenType(typ)
+}
+
 // RuleCandidate represents a grammar rule that is a completion candidate.
 type RuleCandidate struct {
 	Rule string

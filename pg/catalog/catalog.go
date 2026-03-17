@@ -445,6 +445,16 @@ func (c *Catalog) UserSchemas() []*Schema {
 	return result
 }
 
+// AllProcNames returns all unique procedure/function names, sorted.
+func (c *Catalog) AllProcNames() []string {
+	names := make([]string, 0, len(c.procByName))
+	for name := range c.procByName {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
 // FormatType formats a type OID and typmod into a human-readable type name.
 func (c *Catalog) FormatType(typeOID uint32, typmod int32) string {
 	return c.formatType(typeOID, typmod)
