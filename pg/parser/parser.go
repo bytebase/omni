@@ -15,6 +15,14 @@ type Parser struct {
 	prev    Token // previous token (for error reporting)
 	nextBuf Token // buffered next token for 2-token lookahead
 	hasNext bool  // whether nextBuf is valid
+
+	// Completion mode fields.
+	completing   bool          // true when collecting completion candidates
+	cursorOff    int           // byte offset of the cursor in source
+	candidates   *CandidateSet // collected candidates
+	collecting   bool          // true once cursor position is reached
+	collectDepth int           // recursion depth in collect mode
+	maxCollect   int           // max exploration depth
 }
 
 // Parse parses a SQL string into an AST list.
@@ -61,6 +69,24 @@ func Parse(sql string) (*nodes.List, error) {
 // Minimal implementation — SELECT/VALUES/TABLE/WITH/INSERT/UPDATE/DELETE/MERGE/CREATE TABLE/ALTER TABLE are supported.
 // Full dispatch will be implemented in batch 34.
 func (p *Parser) parseStmt() nodes.Node {
+	if p.collectMode() {
+		// In collection mode, add all statement-starting keywords as candidates.
+		stmtTokens := []int{
+			SELECT, VALUES, TABLE, WITH, INSERT, UPDATE, DELETE_P, MERGE,
+			CREATE, COMMENT, SECURITY, ALTER, REFRESH,
+			BEGIN_P, START, COMMIT, END_P, ABORT_P, SAVEPOINT, RELEASE,
+			ROLLBACK, PREPARE, EXECUTE, DEALLOCATE,
+			SET, SHOW, RESET, GRANT, REVOKE, DROP, TRUNCATE,
+			LOCK_P, DECLARE, FETCH, MOVE, CLOSE,
+			VACUUM, ANALYZE, ANALYSE, CLUSTER, REINDEX,
+			COPY, IMPORT_P, EXPLAIN, DO, CHECKPOINT,
+			DISCARD, LISTEN, UNLISTEN, NOTIFY, LOAD, CALL, REASSIGN,
+		}
+		for _, t := range stmtTokens {
+			p.addTokenCandidate(t)
+		}
+		return nil
+	}
 	switch p.cur.Type {
 	case SELECT, VALUES, TABLE:
 		return p.parseSelectNoParens()
@@ -903,6 +929,9 @@ func (p *Parser) advance() Token {
 			p.cur.Type = NULLS_LA
 		}
 	}
+	if p.completing && !p.collecting {
+		p.checkCursor()
+	}
 	return p.prev
 }
 
@@ -977,6 +1006,12 @@ func (p *Parser) peek() Token {
 // match checks if the current token type matches any of the given types.
 // If it matches, the token is consumed and returned with ok=true.
 func (p *Parser) match(types ...int) (Token, bool) {
+	if p.collectMode() {
+		for _, t := range types {
+			p.addTokenCandidate(t)
+		}
+		return Token{}, false
+	}
 	for _, t := range types {
 		if p.cur.Type == t {
 			return p.advance(), true
@@ -988,6 +1023,10 @@ func (p *Parser) match(types ...int) (Token, bool) {
 // expect consumes the current token if it matches the expected type.
 // Returns an error if the token does not match.
 func (p *Parser) expect(tokenType int) (Token, error) {
+	if p.collectMode() {
+		p.addTokenCandidate(tokenType)
+		return Token{}, errCollecting
+	}
 	if p.cur.Type == tokenType {
 		return p.advance(), nil
 	}
