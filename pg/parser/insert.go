@@ -35,6 +35,9 @@ func (p *Parser) parseInsertStmt(withClause *nodes.WithClause) *nodes.InsertStmt
 	// insert_target: qualified_name [AS ColId]
 	rvLoc := p.pos()
 	names, _ := p.parseQualifiedName()
+	if names == nil {
+		return nil // collect-mode: parseQualifiedName already emitted rule candidates
+	}
 	rv := makeRangeVarFromNames(names)
 	if p.cur.Type == AS {
 		p.advance()
@@ -43,9 +46,28 @@ func (p *Parser) parseInsertStmt(withClause *nodes.WithClause) *nodes.InsertStmt
 	}
 	rv.Loc = nodes.Loc{Start: rvLoc, End: p.pos()}
 
+	if p.collectMode() {
+		// After table name, valid continuations for insert_rest:
+		for _, t := range []int{'(', DEFAULT, OVERRIDING, SELECT, VALUES, TABLE, WITH} {
+			p.addTokenCandidate(t)
+		}
+		return nil
+	}
+
 	// insert_rest
 	stmt := p.parseInsertRest()
+	if stmt == nil {
+		return nil
+	}
 	stmt.Relation = rv
+
+	if p.collectMode() {
+		// After insert_rest, valid continuations:
+		for _, t := range []int{ON, RETURNING, ';'} {
+			p.addTokenCandidate(t)
+		}
+		return nil
+	}
 
 	// opt_on_conflict
 	if p.cur.Type == ON {
@@ -69,6 +91,13 @@ func (p *Parser) parseInsertStmt(withClause *nodes.WithClause) *nodes.InsertStmt
 
 // parseInsertRest parses the body of an INSERT statement after the target table.
 func (p *Parser) parseInsertRest() *nodes.InsertStmt {
+	if p.collectMode() {
+		// Valid first tokens for insert_rest:
+		for _, t := range []int{DEFAULT, '(', OVERRIDING, SELECT, VALUES, TABLE, WITH} {
+			p.addTokenCandidate(t)
+		}
+		return nil
+	}
 	switch p.cur.Type {
 	case DEFAULT:
 		// DEFAULT VALUES
@@ -155,6 +184,10 @@ func (p *Parser) parseInsertColumnList() *nodes.List {
 //	insert_column_item:
 //	    ColId opt_indirection
 func (p *Parser) parseInsertColumnItem() *nodes.ResTarget {
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		return nil
+	}
 	loc := p.pos()
 	name, _ := p.parseColId()
 	ind := p.parseOptIndirection()
@@ -271,6 +304,11 @@ func (p *Parser) parseSetClauseList() *nodes.List {
 // parseSetClause parses a single SET clause. Returns a slice because
 // multi-column assignment (a, b) = expr expands to multiple ResTargets.
 func (p *Parser) parseSetClause() []nodes.Node {
+	if p.collectMode() {
+		p.addTokenCandidate('(')
+		p.addRuleCandidate("columnref")
+		return nil
+	}
 	if p.cur.Type == '(' {
 		// Multi-column: '(' set_target_list ')' '=' a_expr
 		p.advance() // consume '('
@@ -305,6 +343,10 @@ func (p *Parser) parseSetClause() []nodes.Node {
 //	set_target:
 //	    ColId opt_indirection
 func (p *Parser) parseSetTarget() *nodes.ResTarget {
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		return nil
+	}
 	loc := p.pos()
 	name, _ := p.parseColId()
 	ind := p.parseOptIndirection()

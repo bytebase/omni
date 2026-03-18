@@ -117,7 +117,7 @@ func (p *Parser) parseTypeFunctionName() (string, error) {
 //	    | ColId '.' attr_name '.' attr_name
 func (p *Parser) parseQualifiedName() (*nodes.List, error) {
 	if p.collectMode() {
-		p.addRuleCandidate("relation_expr")
+		p.addRuleCandidate("qualified_name")
 		return nil, errCollecting
 	}
 	id, err := p.parseColId()

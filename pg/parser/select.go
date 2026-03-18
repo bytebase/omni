@@ -560,6 +560,10 @@ func (p *Parser) parseForLockingStrength() int64 {
 //	    | WITH RECURSIVE cte_list
 func (p *Parser) parseWithClause() *nodes.WithClause {
 	loc := p.pos()
+	// Record CTE position for completion context (before consuming WITH).
+	if p.completing {
+		p.addCTEPosition(loc)
+	}
 	p.advance() // consume WITH or WITH_LA
 
 	wc := &nodes.WithClause{
@@ -860,6 +864,7 @@ func (p *Parser) parseTableRef() nodes.Node {
 func (p *Parser) parseTableRefPrimary() nodes.Node {
 	if p.collectMode() {
 		p.addRuleCandidate("relation_expr")
+		p.addRuleCandidate("qualified_name")
 		p.addTokenCandidate('(')       // subquery
 		p.addTokenCandidate(LATERAL_P) // LATERAL
 		return nil
@@ -1191,6 +1196,14 @@ func (p *Parser) parseRelationExprWithAlias() nodes.Node {
 //	    | ONLY qualified_name
 //	    | ONLY '(' qualified_name ')'
 func (p *Parser) parseRelationExpr() *nodes.RangeVar {
+	if p.collectMode() {
+		p.addRuleCandidate("relation_expr")
+		// Also emit ONLY token since it's a valid prefix
+		p.addTokenCandidate(ONLY)
+		// Emit qualified_name candidates too (identifiers/keywords)
+		p.addRuleCandidate("qualified_name")
+		return nil
+	}
 	loc := p.pos()
 	if p.cur.Type == ONLY {
 		p.advance()

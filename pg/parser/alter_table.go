@@ -509,6 +509,20 @@ func (p *Parser) parseAlterTableCmds() *nodes.List {
 
 // parseAlterTableCmd parses a single alter_table_cmd.
 func (p *Parser) parseAlterTableCmd() *nodes.AlterTableCmd {
+	if p.collectMode() {
+		p.cachedCollect("parseAlterTableCmd", func() {
+			for _, t := range []int{
+				ADD_P, DROP, ALTER, OWNER, VALIDATE,
+				INHERIT, NO, ATTACH, DETACH,
+				ENABLE_P, DISABLE_P, FORCE, CLUSTER,
+				SET, RESET, REPLICA, OF, NOT, OPTIONS,
+				RENAME,
+			} {
+				p.addTokenCandidate(t)
+			}
+		})
+		return nil
+	}
 	switch p.cur.Type {
 	case ADD_P:
 		return p.parseAlterTableAdd()
@@ -556,6 +570,20 @@ func (p *Parser) parseAlterTableCmd() *nodes.AlterTableCmd {
 // parseAlterTableAdd handles ADD ... subcommands.
 func (p *Parser) parseAlterTableAdd() *nodes.AlterTableCmd {
 	p.advance() // consume ADD
+
+	if p.collectMode() {
+		p.cachedCollect("parseAlterTableAdd", func() {
+			for _, t := range []int{
+				COLUMN, IF_P, CONSTRAINT, CHECK,
+				UNIQUE, PRIMARY, EXCLUDE, FOREIGN,
+			} {
+				p.addTokenCandidate(t)
+			}
+			// Also valid: column name (for ADD column_def without COLUMN keyword)
+			p.addRuleCandidate("columnref")
+		})
+		return nil
+	}
 
 	switch p.cur.Type {
 	case COLUMN:
@@ -607,6 +635,17 @@ func (p *Parser) parseAlterTableAdd() *nodes.AlterTableCmd {
 // parseAlterTableDrop handles DROP ... subcommands.
 func (p *Parser) parseAlterTableDrop() *nodes.AlterTableCmd {
 	p.advance() // consume DROP
+
+	if p.collectMode() {
+		p.cachedCollect("parseAlterTableDrop", func() {
+			for _, t := range []int{COLUMN, CONSTRAINT, IF_P} {
+				p.addTokenCandidate(t)
+			}
+			// Also valid: column name directly (DROP col_name)
+			p.addRuleCandidate("columnref")
+		})
+		return nil
+	}
 
 	switch p.cur.Type {
 	case COLUMN:
@@ -669,6 +708,13 @@ func (p *Parser) parseAlterTableDrop() *nodes.AlterTableCmd {
 // parseAlterTableAlter handles ALTER [COLUMN] ... subcommands.
 func (p *Parser) parseAlterTableAlter() *nodes.AlterTableCmd {
 	p.advance() // consume ALTER
+
+	if p.collectMode() {
+		p.addTokenCandidate(COLUMN)
+		p.addTokenCandidate(CONSTRAINT)
+		p.addRuleCandidate("columnref")
+		return nil
+	}
 
 	hasColumnKeyword := false
 	if p.cur.Type == COLUMN {

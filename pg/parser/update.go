@@ -23,6 +23,9 @@ func (p *Parser) parseUpdateStmt(withClause *nodes.WithClause) *nodes.UpdateStmt
 
 	// relation_expr_opt_alias (SET must not be consumed as alias)
 	rv := p.parseRelationExpr()
+	if rv == nil {
+		return nil // collect-mode: parseRelationExpr already emitted rule candidates
+	}
 	if p.cur.Type == AS {
 		p.advance()
 		name, _ := p.parseColId()
@@ -36,15 +39,35 @@ func (p *Parser) parseUpdateStmt(withClause *nodes.WithClause) *nodes.UpdateStmt
 	p.expect(SET)
 	targetList := p.parseSetClauseList()
 
+	if p.collectMode() {
+		// After SET clause, valid continuations:
+		for _, t := range []int{',', FROM, WHERE, RETURNING, ';'} {
+			p.addTokenCandidate(t)
+		}
+		return nil
+	}
+
 	// from_clause: FROM from_list | EMPTY
 	var fromClause *nodes.List
 	if p.cur.Type == FROM {
 		p.advance()
 		fromClause = p.parseFromListFull()
+		if p.collectMode() {
+			for _, t := range []int{WHERE, RETURNING, ';'} {
+				p.addTokenCandidate(t)
+			}
+			return nil
+		}
 	}
 
 	// where_or_current_clause
 	whereClause := p.parseWhereOrCurrentClause()
+	if p.collectMode() {
+		for _, t := range []int{RETURNING, ';'} {
+			p.addTokenCandidate(t)
+		}
+		return nil
+	}
 
 	// returning_clause
 	returningList := p.parseReturningClause()
@@ -80,16 +103,39 @@ func (p *Parser) parseDeleteStmt(withClause *nodes.WithClause) *nodes.DeleteStmt
 
 	// relation_expr_opt_alias
 	rv := p.parseRelationExprOptAlias()
+	if rv == nil {
+		return nil // collect-mode: parseRelationExpr already emitted rule candidates
+	}
+
+	if p.collectMode() {
+		// After relation, valid continuations:
+		for _, t := range []int{USING, WHERE, RETURNING, ';'} {
+			p.addTokenCandidate(t)
+		}
+		return nil
+	}
 
 	// using_clause: USING from_list | EMPTY
 	var usingClause *nodes.List
 	if p.cur.Type == USING {
 		p.advance()
 		usingClause = p.parseFromListFull()
+		if p.collectMode() {
+			for _, t := range []int{WHERE, RETURNING, ';'} {
+				p.addTokenCandidate(t)
+			}
+			return nil
+		}
 	}
 
 	// where_or_current_clause
 	whereClause := p.parseWhereOrCurrentClause()
+	if p.collectMode() {
+		for _, t := range []int{RETURNING, ';'} {
+			p.addTokenCandidate(t)
+		}
+		return nil
+	}
 
 	// returning_clause
 	returningList := p.parseReturningClause()
@@ -124,14 +170,33 @@ func (p *Parser) parseMergeStmt(withClause *nodes.WithClause) *nodes.MergeStmt {
 
 	// relation_expr_opt_alias
 	rv := p.parseRelationExprOptAlias()
+	if rv == nil {
+		return nil // collect-mode: parseRelationExpr already emitted rule candidates
+	}
+
+	if p.collectMode() {
+		p.addTokenCandidate(USING)
+		return nil
+	}
 
 	// USING table_ref
 	p.expect(USING)
 	sourceRelation := p.parseTableRef()
 
+	if p.collectMode() {
+		p.addTokenCandidate(ON)
+		return nil
+	}
+
 	// ON a_expr
 	p.expect(ON)
 	joinCondition := p.parseAExpr(0)
+
+	if p.collectMode() {
+		p.addTokenCandidate(WHEN)
+		p.addTokenCandidate(RETURNING)
+		return nil
+	}
 
 	// merge_when_list
 	mergeWhenClauses := p.parseMergeWhenList()
@@ -214,6 +279,12 @@ func (p *Parser) parseMergeWhenClause() *nodes.MergeWhenClause {
 	p.expect(THEN)
 
 	// Dispatch based on action keyword
+	if p.collectMode() {
+		for _, t := range []int{UPDATE, DELETE_P, INSERT, DO} {
+			p.addTokenCandidate(t)
+		}
+		return nil
+	}
 	switch p.cur.Type {
 	case UPDATE:
 		// merge_update: UPDATE SET set_clause_list

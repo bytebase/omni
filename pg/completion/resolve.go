@@ -36,7 +36,7 @@ func resolveRule(rule string, cat *catalog.Catalog, sql string, offset int) []Ca
 	switch rule {
 	case "columnref":
 		return resolveColumns(cat, sql, offset)
-	case "relation_expr":
+	case "relation_expr", "qualified_name":
 		return resolveRelations(cat, sql, offset)
 	case "func_name":
 		return resolveFunctions(cat)

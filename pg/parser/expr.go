@@ -2415,15 +2415,23 @@ func (p *Parser) parseTargetEl() nodes.Node {
 
 	// Optional alias: AS ColLabel | ColId (without AS)
 	if p.cur.Type == AS {
+		aliasLoc := p.pos()
 		p.advance()
 		label, err := p.parseColLabel()
 		if err == nil {
 			rt.Name = label
+			if p.completing {
+				p.addSelectAliasPosition(aliasLoc)
+			}
 		}
 	} else if p.isColId() && !p.isReservedForClause() {
+		aliasLoc := p.pos()
 		label, err := p.parseColId()
 		if err == nil {
 			rt.Name = label
+			if p.completing {
+				p.addSelectAliasPosition(aliasLoc)
+			}
 		}
 	}
 
