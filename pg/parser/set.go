@@ -162,6 +162,11 @@ func (p *Parser) parseSetRestMore() nodes.Node {
 		return n
 
 	case ROLE:
+		// If next token is '=' or TO, this is generic_set (e.g. SET role = 'admin').
+		// Only handle as SET ROLE <value> when there is no '=' or TO.
+		if next := p.peekNext(); next.Type == '=' || next.Type == TO {
+			return p.parseGenericSetOrFromCurrent()
+		}
 		p.advance() // consume ROLE
 		val := p.parseNonReservedWordOrSconst()
 		return &nodes.VariableSetStmt{

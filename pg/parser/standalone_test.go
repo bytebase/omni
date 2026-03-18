@@ -114,3 +114,41 @@ func TestAlterColumnReset(t *testing.T) {
 		})
 	}
 }
+
+// TestReservedKeywordInFromClause tests that reserved keywords like USER,
+// CURRENT_USER, etc. are accepted in FROM context via the func_table path,
+// matching PostgreSQL behavior where they resolve to func_expr_common_subexpr.
+func TestReservedKeywordInFromClause(t *testing.T) {
+	tests := []string{
+		"SELECT * FROM user",
+		"SELECT * FROM current_user",
+		"SELECT * FROM session_user",
+		"SELECT * FROM current_date",
+		"SELECT * FROM current_timestamp",
+		"SELECT * FROM current_role",
+		"SELECT * FROM current_catalog",
+		"SELECT * FROM current_schema",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			parseOK(t, sql)
+		})
+	}
+}
+
+// TestSetRoleEquals tests that SET role = 'admin' is accepted as generic_set,
+// while SET ROLE admin still works as the keyword-specific form.
+func TestSetRoleEquals(t *testing.T) {
+	tests := []string{
+		"SET role = 'admin'",
+		"SET role TO 'admin'",
+		"SET ROLE admin",
+		"SET ROLE 'admin'",
+		"SET ROLE DEFAULT",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			parseOK(t, sql)
+		})
+	}
+}

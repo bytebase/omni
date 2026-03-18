@@ -840,6 +840,14 @@ func (p *Parser) parseTableRefPrimary() nodes.Node {
 		if p.isColId() {
 			return p.parseRelationOrFuncTable()
 		}
+		// func_table: func_expr_common_subexpr tokens (USER, CURRENT_USER, etc.)
+		// In PostgreSQL, table_ref has a separate func_table alternative that
+		// matches func_expr_windowless, which includes func_expr_common_subexpr.
+		// For example, SELECT * FROM user parses USER as CURRENT_USER via this path.
+		if p.isFuncExprCommonSubexprStart() {
+			funcExpr := p.parseFuncExprWindowless()
+			return p.finishFuncTable(funcExpr)
+		}
 		return nil
 	}
 }

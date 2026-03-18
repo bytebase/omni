@@ -857,6 +857,30 @@ func (p *Parser) parseBExprInfix(left nodes.Node, prec int) nodes.Node {
 	return left
 }
 
+// isFuncExprCommonSubexprStart returns true if the current token can start
+// a func_expr_common_subexpr production. This is used by parseTableRefPrimary
+// to route tokens like USER, CURRENT_USER, etc. to the func_table path,
+// matching PostgreSQL's table_ref grammar where func_table is a separate
+// alternative from relation_expr.
+func (p *Parser) isFuncExprCommonSubexprStart() bool {
+	switch p.cur.Type {
+	case CAST, COALESCE, GREATEST, LEAST, NULLIF,
+		EXTRACT, NORMALIZE, OVERLAY, POSITION, SUBSTRING, TRIM,
+		GROUPING, COLLATION, TREAT,
+		// JSON functions
+		JSON, JSON_OBJECT, JSON_ARRAY, JSON_SCALAR, JSON_SERIALIZE,
+		JSON_QUERY, JSON_EXISTS, JSON_VALUE, JSON_OBJECTAGG, JSON_ARRAYAGG,
+		// XML functions
+		XMLCONCAT, XMLELEMENT, XMLEXISTS, XMLFOREST, XMLPARSE, XMLPI, XMLROOT, XMLSERIALIZE,
+		// SQL value functions
+		CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP, LOCALTIME, LOCALTIMESTAMP,
+		CURRENT_ROLE, CURRENT_USER, SESSION_USER, USER, CURRENT_CATALOG, CURRENT_SCHEMA, SYSTEM_USER:
+		return true
+	default:
+		return false
+	}
+}
+
 // ---------------------------------------------------------------------------
 // parseCExpr parses primary expressions (atoms).
 //
