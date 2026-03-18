@@ -1851,8 +1851,27 @@ func (p *Parser) parseColumnRefOrFuncCall() nodes.Node {
 			if err != nil {
 				return nil
 			}
+			// Support 4+ part column references (e.g. db.schema.table.column)
+			// by continuing to consume dot-separated names, matching PostgreSQL's
+			// columnref: ColId indirection rule which allows arbitrary depth.
+			fields := []nodes.Node{&nodes.String{Str: name}, &nodes.String{Str: attr}, &nodes.String{Str: attr2}}
+			for p.cur.Type == '.' {
+				p.advance()
+				if p.cur.Type == '*' {
+					p.advance()
+					fields = append(fields, &nodes.A_Star{})
+					return &nodes.ColumnRef{
+						Fields: &nodes.List{Items: fields},
+					}
+				}
+				attrN, err := p.parseAttrName()
+				if err != nil {
+					return nil
+				}
+				fields = append(fields, &nodes.String{Str: attrN})
+			}
 			return &nodes.ColumnRef{
-				Fields:   &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}, &nodes.String{Str: attr}, &nodes.String{Str: attr2}}},
+				Fields: &nodes.List{Items: fields},
 			}
 		}
 
