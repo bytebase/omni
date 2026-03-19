@@ -167,11 +167,11 @@ The foundation — our output must be byte-for-byte identical to MySQL 8.0.
 ### 1.12 Unique Keys
 
 ```
-[ ] UNIQUE KEY `name` (col)
-[ ] UNIQUE KEY without name → auto-named from first column
-[ ] Multi-column UNIQUE KEY
-[ ] Multiple UNIQUE KEYs on same table
-[ ] UNIQUE KEY auto-naming collision (col, col_2, col_3)
+[x] UNIQUE KEY `name` (col)
+[x] UNIQUE KEY without name → auto-named from first column
+[x] Multi-column UNIQUE KEY
+[x] Multiple UNIQUE KEYs on same table
+[x] UNIQUE KEY auto-naming collision (col, col_2, col_3)
 ```
 
 ### 1.13 Regular Indexes
