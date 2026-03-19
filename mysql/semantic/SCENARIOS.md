@@ -479,10 +479,10 @@ Every error must match MySQL's errno, SQLSTATE, and message format.
 ### 3.6 Error Context
 
 ```
-[ ] Error message identifier quoting matches MySQL
-[ ] Error position (line number) for multi-statement SQL
-[ ] IF EXISTS suppresses errors correctly
-[ ] IF NOT EXISTS suppresses errors correctly
+[x] Error message identifier quoting matches MySQL
+[x] Error position (line number) for multi-statement SQL
+[x] IF EXISTS suppresses errors correctly
+[x] IF NOT EXISTS suppresses errors correctly
 ```
 
 ---

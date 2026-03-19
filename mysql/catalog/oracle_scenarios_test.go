@@ -3868,3 +3868,412 @@ func TestOracle_Section_3_5_FKErrors(t *testing.T) {
 		oracle.execSQL("DROP TABLE IF EXISTS t_fk_parent_mismatch")
 	})
 }
+
+func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	// Helper to extract MySQL error code and message from go-sql-driver error.
+	extractMySQLErr := func(err error) (uint16, string, string) {
+		var mysqlErr *mysqldriver.MySQLError
+		if errors.As(err, &mysqlErr) {
+			return mysqlErr.Number, string(mysqlErr.SQLState[:]), mysqlErr.Message
+		}
+		return 0, "", ""
+	}
+
+	// Scenario 1: Error message identifier quoting matches MySQL
+	// MySQL uses single quotes around identifiers in error messages (not backticks).
+	// Test a variety of error types and compare message format exactly.
+	t.Run("identifier_quoting", func(t *testing.T) {
+		// 1a: Duplicate database — quotes around db name
+		oracle.execSQL("DROP DATABASE IF EXISTS db_quote_test")
+		oracle.execSQL("CREATE DATABASE db_quote_test")
+		oracleErr := oracle.execSQL("CREATE DATABASE db_quote_test")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error")
+		}
+		oracleCode, _, oracleMsg := extractMySQLErr(oracleErr)
+		t.Logf("oracle dup db: %d %s", oracleCode, oracleMsg)
+
+		c := New()
+		c.Exec("CREATE DATABASE db_quote_test", nil)
+		results, _ := c.Exec("CREATE DATABASE db_quote_test", &ExecOptions{ContinueOnError: true})
+		catErr, ok := results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+		if catErr.Message != oracleMsg {
+			t.Errorf("dup db message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+
+		// 1b: Duplicate table — quotes around table name
+		oracle.execSQL("DROP TABLE IF EXISTS t_quote_test")
+		oracle.execSQL("CREATE TABLE t_quote_test (id INT)")
+		oracleErr = oracle.execSQL("CREATE TABLE t_quote_test (id INT)")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error")
+		}
+		oracleCode, _, oracleMsg = extractMySQLErr(oracleErr)
+		t.Logf("oracle dup table: %d %s", oracleCode, oracleMsg)
+
+		c2 := New()
+		c2.Exec("CREATE DATABASE test", nil)
+		c2.SetCurrentDatabase("test")
+		c2.Exec("CREATE TABLE t_quote_test (id INT)", nil)
+		results, _ = c2.Exec("CREATE TABLE t_quote_test (id INT)", &ExecOptions{ContinueOnError: true})
+		catErr, ok = results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+		if catErr.Message != oracleMsg {
+			t.Errorf("dup table message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+
+		// 1c: Unknown column — quotes around column name and context
+		oracle.execSQL("DROP TABLE IF EXISTS t_col_quote")
+		oracle.execSQL("CREATE TABLE t_col_quote (id INT)")
+		oracleErr = oracle.execSQL("ALTER TABLE t_col_quote DROP COLUMN nonexistent")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error")
+		}
+		oracleCode, _, oracleMsg = extractMySQLErr(oracleErr)
+		t.Logf("oracle unknown col: %d %s", oracleCode, oracleMsg)
+
+		c3 := New()
+		c3.Exec("CREATE DATABASE test", nil)
+		c3.SetCurrentDatabase("test")
+		c3.Exec("CREATE TABLE t_col_quote (id INT)", nil)
+		results, _ = c3.Exec("ALTER TABLE t_col_quote DROP COLUMN nonexistent", &ExecOptions{ContinueOnError: true})
+		catErr, ok = results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+		if catErr.Message != oracleMsg {
+			t.Errorf("unknown col message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+
+		// 1d: Duplicate key name — quotes around key name
+		oracle.execSQL("DROP TABLE IF EXISTS t_key_quote")
+		oracle.execSQL("CREATE TABLE t_key_quote (id INT, val INT, KEY idx_val (val))")
+		oracleErr = oracle.execSQL("ALTER TABLE t_key_quote ADD INDEX idx_val (id)")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error")
+		}
+		oracleCode, _, oracleMsg = extractMySQLErr(oracleErr)
+		t.Logf("oracle dup key: %d %s", oracleCode, oracleMsg)
+
+		c4 := New()
+		c4.Exec("CREATE DATABASE test", nil)
+		c4.SetCurrentDatabase("test")
+		c4.Exec("CREATE TABLE t_key_quote (id INT, val INT, KEY idx_val (val))", nil)
+		results, _ = c4.Exec("ALTER TABLE t_key_quote ADD INDEX idx_val (id)", &ExecOptions{ContinueOnError: true})
+		catErr, ok = results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+		if catErr.Message != oracleMsg {
+			t.Errorf("dup key message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+
+		// 1e: Can't drop key — quotes around key name
+		oracle.execSQL("DROP TABLE IF EXISTS t_dropkey_quote")
+		oracle.execSQL("CREATE TABLE t_dropkey_quote (id INT)")
+		oracleErr = oracle.execSQL("ALTER TABLE t_dropkey_quote DROP INDEX nokey")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error")
+		}
+		oracleCode, _, oracleMsg = extractMySQLErr(oracleErr)
+		t.Logf("oracle can't drop key: %d %s", oracleCode, oracleMsg)
+
+		c5 := New()
+		c5.Exec("CREATE DATABASE test", nil)
+		c5.SetCurrentDatabase("test")
+		c5.Exec("CREATE TABLE t_dropkey_quote (id INT)", nil)
+		results, _ = c5.Exec("ALTER TABLE t_dropkey_quote DROP INDEX nokey", &ExecOptions{ContinueOnError: true})
+		catErr, ok = results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+		if catErr.Message != oracleMsg {
+			t.Errorf("can't drop key message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+
+		// 1f: Unknown table (DROP TABLE) — quotes around db.table
+		oracle.execSQL("DROP TABLE IF EXISTS t_unknown_quote")
+		oracleErr = oracle.execSQL("DROP TABLE t_unknown_quote")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error")
+		}
+		oracleCode, _, oracleMsg = extractMySQLErr(oracleErr)
+		t.Logf("oracle unknown table: %d %s", oracleCode, oracleMsg)
+
+		c6 := New()
+		c6.Exec("CREATE DATABASE test", nil)
+		c6.SetCurrentDatabase("test")
+		results, _ = c6.Exec("DROP TABLE t_unknown_quote", &ExecOptions{ContinueOnError: true})
+		catErr, ok = results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+		if catErr.Message != oracleMsg {
+			t.Errorf("unknown table message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+
+		// Cleanup
+		oracle.execSQL("DROP TABLE IF EXISTS t_quote_test")
+		oracle.execSQL("DROP TABLE IF EXISTS t_col_quote")
+		oracle.execSQL("DROP TABLE IF EXISTS t_key_quote")
+		oracle.execSQL("DROP TABLE IF EXISTS t_dropkey_quote")
+		oracle.execSQL("DROP DATABASE IF EXISTS db_quote_test")
+	})
+
+	// Scenario 2: Error position (index) for multi-statement SQL
+	// When executing multiple statements, the error should appear at the correct index.
+	t.Run("error_position_multi_statement", func(t *testing.T) {
+		// Setup: Execute 3 statements where the 3rd one fails.
+		// The first two should succeed, the third should error.
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+
+		sql := "CREATE TABLE t_pos1 (id INT); CREATE TABLE t_pos2 (id INT); CREATE TABLE t_pos1 (id INT)"
+		results, _ := c.Exec(sql, &ExecOptions{ContinueOnError: true})
+
+		// Verify we got 3 results.
+		if len(results) != 3 {
+			t.Fatalf("expected 3 results, got %d", len(results))
+		}
+		// First two should succeed.
+		if results[0].Error != nil {
+			t.Errorf("statement 0: unexpected error: %v", results[0].Error)
+		}
+		if results[1].Error != nil {
+			t.Errorf("statement 1: unexpected error: %v", results[1].Error)
+		}
+		// Third should fail with duplicate table.
+		if results[2].Error == nil {
+			t.Fatal("statement 2: expected error for duplicate table")
+		}
+		if results[2].Index != 2 {
+			t.Errorf("error index: want 2, got %d", results[2].Index)
+		}
+		catErr, ok := results[2].Error.(*Error)
+		if !ok {
+			t.Fatalf("expected *Error, got %T", results[2].Error)
+		}
+		if catErr.Code != 1050 {
+			t.Errorf("error code: want 1050, got %d", catErr.Code)
+		}
+
+		// Also verify on oracle: same 3-statement SQL, error on 3rd.
+		oracle.execSQL("DROP TABLE IF EXISTS t_pos1")
+		oracle.execSQL("DROP TABLE IF EXISTS t_pos2")
+		oracle.execSQL("CREATE TABLE t_pos1 (id INT)")
+		oracle.execSQL("CREATE TABLE t_pos2 (id INT)")
+		oracleErr := oracle.execSQL("CREATE TABLE t_pos1 (id INT)")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for duplicate table")
+		}
+		oracleCode, _, _ := extractMySQLErr(oracleErr)
+		if oracleCode != 1050 {
+			t.Errorf("oracle error code: want 1050, got %d", oracleCode)
+		}
+
+		// Second test: error on the 1st statement of multi-statement batch.
+		c2 := New()
+		c2.Exec("CREATE DATABASE test", nil)
+		c2.SetCurrentDatabase("test")
+
+		sql2 := "CREATE TABLE t_pos1 (a INT, a INT); CREATE TABLE t_pos3 (id INT)"
+		results2, _ := c2.Exec(sql2, &ExecOptions{ContinueOnError: true})
+		if len(results2) < 1 {
+			t.Fatal("expected at least 1 result")
+		}
+		if results2[0].Error == nil {
+			t.Fatal("statement 0: expected error for duplicate column")
+		}
+		if results2[0].Index != 0 {
+			t.Errorf("error index: want 0, got %d", results2[0].Index)
+		}
+
+		// Cleanup
+		oracle.execSQL("DROP TABLE IF EXISTS t_pos1")
+		oracle.execSQL("DROP TABLE IF EXISTS t_pos2")
+	})
+
+	// Scenario 3: IF EXISTS suppresses errors correctly
+	t.Run("if_exists_suppresses_errors", func(t *testing.T) {
+		// 3a: DROP TABLE IF EXISTS on nonexistent table — no error on both.
+		oracle.execSQL("DROP TABLE IF EXISTS t_ifexists_none")
+		oracleErr := oracle.execSQL("DROP TABLE IF EXISTS t_ifexists_none")
+		if oracleErr != nil {
+			t.Fatalf("oracle DROP TABLE IF EXISTS error: %v", oracleErr)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, _ := c.Exec("DROP TABLE IF EXISTS t_ifexists_none", nil)
+		if results[0].Error != nil {
+			t.Errorf("omni DROP TABLE IF EXISTS error: %v", results[0].Error)
+		}
+
+		// 3b: DROP DATABASE IF EXISTS on nonexistent database — no error on both.
+		oracle.execSQL("DROP DATABASE IF EXISTS db_ifexists_none")
+		oracleErr = oracle.execSQL("DROP DATABASE IF EXISTS db_ifexists_none")
+		if oracleErr != nil {
+			t.Fatalf("oracle DROP DATABASE IF EXISTS error: %v", oracleErr)
+		}
+
+		c2 := New()
+		results, _ = c2.Exec("DROP DATABASE IF EXISTS db_ifexists_none", nil)
+		if results[0].Error != nil {
+			t.Errorf("omni DROP DATABASE IF EXISTS error: %v", results[0].Error)
+		}
+
+		// 3c: DROP VIEW IF EXISTS on nonexistent view — no error on both.
+		oracle.execSQL("DROP VIEW IF EXISTS v_ifexists_none")
+		oracleErr = oracle.execSQL("DROP VIEW IF EXISTS v_ifexists_none")
+		if oracleErr != nil {
+			t.Fatalf("oracle DROP VIEW IF EXISTS error: %v", oracleErr)
+		}
+
+		c3 := New()
+		c3.Exec("CREATE DATABASE test", nil)
+		c3.SetCurrentDatabase("test")
+		results, _ = c3.Exec("DROP VIEW IF EXISTS v_ifexists_none", nil)
+		if results[0].Error != nil {
+			t.Errorf("omni DROP VIEW IF EXISTS error: %v", results[0].Error)
+		}
+
+		// 3d: DROP TABLE IF EXISTS on existing table — should succeed (table is dropped).
+		oracle.execSQL("DROP TABLE IF EXISTS t_ifexists_real")
+		oracle.execSQL("CREATE TABLE t_ifexists_real (id INT)")
+		oracleErr = oracle.execSQL("DROP TABLE IF EXISTS t_ifexists_real")
+		if oracleErr != nil {
+			t.Fatalf("oracle DROP TABLE IF EXISTS (existing) error: %v", oracleErr)
+		}
+
+		c4 := New()
+		c4.Exec("CREATE DATABASE test", nil)
+		c4.SetCurrentDatabase("test")
+		c4.Exec("CREATE TABLE t_ifexists_real (id INT)", nil)
+		results, _ = c4.Exec("DROP TABLE IF EXISTS t_ifexists_real", nil)
+		if results[0].Error != nil {
+			t.Errorf("omni DROP TABLE IF EXISTS (existing) error: %v", results[0].Error)
+		}
+		// Verify the table was actually dropped.
+		results, _ = c4.Exec("DROP TABLE t_ifexists_real", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Error("omni: table should have been dropped but still exists")
+		}
+
+		// 3e: Without IF EXISTS, DROP TABLE on nonexistent table — must error.
+		oracle.execSQL("DROP TABLE IF EXISTS t_noifexists")
+		oracleErr = oracle.execSQL("DROP TABLE t_noifexists")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for DROP TABLE without IF EXISTS")
+		}
+		oracleCode, _, oracleMsg := extractMySQLErr(oracleErr)
+
+		c5 := New()
+		c5.Exec("CREATE DATABASE test", nil)
+		c5.SetCurrentDatabase("test")
+		results, _ = c5.Exec("DROP TABLE t_noifexists", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for DROP TABLE without IF EXISTS")
+		}
+		catErr, ok := results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+		if catErr.Code != int(oracleCode) {
+			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		}
+		if catErr.Message != oracleMsg {
+			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+	})
+
+	// Scenario 4: IF NOT EXISTS suppresses errors correctly
+	t.Run("if_not_exists_suppresses_errors", func(t *testing.T) {
+		// 4a: CREATE DATABASE IF NOT EXISTS on existing database — no error.
+		oracle.execSQL("DROP DATABASE IF EXISTS db_ifne")
+		oracle.execSQL("CREATE DATABASE db_ifne")
+		oracleErr := oracle.execSQL("CREATE DATABASE IF NOT EXISTS db_ifne")
+		if oracleErr != nil {
+			t.Fatalf("oracle CREATE DATABASE IF NOT EXISTS error: %v", oracleErr)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE db_ifne", nil)
+		results, _ := c.Exec("CREATE DATABASE IF NOT EXISTS db_ifne", nil)
+		if results[0].Error != nil {
+			t.Errorf("omni CREATE DATABASE IF NOT EXISTS error: %v", results[0].Error)
+		}
+
+		// 4b: CREATE TABLE IF NOT EXISTS on existing table — no error, original preserved.
+		oracle.execSQL("DROP TABLE IF EXISTS t_ifne")
+		oracle.execSQL("CREATE TABLE t_ifne (id INT)")
+		oracleErr = oracle.execSQL("CREATE TABLE IF NOT EXISTS t_ifne (val VARCHAR(100))")
+		if oracleErr != nil {
+			t.Fatalf("oracle CREATE TABLE IF NOT EXISTS error: %v", oracleErr)
+		}
+		// Verify original table is unchanged.
+		oracleDDL, _ := oracle.showCreateTable("t_ifne")
+		if !strings.Contains(oracleDDL, "`id`") {
+			t.Errorf("oracle: original table structure should be preserved, got: %s", oracleDDL)
+		}
+
+		c2 := New()
+		c2.Exec("CREATE DATABASE test", nil)
+		c2.SetCurrentDatabase("test")
+		c2.Exec("CREATE TABLE t_ifne (id INT)", nil)
+		results, _ = c2.Exec("CREATE TABLE IF NOT EXISTS t_ifne (val VARCHAR(100))", nil)
+		if results[0].Error != nil {
+			t.Errorf("omni CREATE TABLE IF NOT EXISTS error: %v", results[0].Error)
+		}
+		// Verify original table is unchanged.
+		omniDDL := c2.ShowCreateTable("test", "t_ifne")
+		if !strings.Contains(omniDDL, "`id`") {
+			t.Errorf("omni: original table structure should be preserved, got: %s", omniDDL)
+		}
+
+		// 4c: Without IF NOT EXISTS, CREATE TABLE on existing table — must error.
+		oracle.execSQL("DROP TABLE IF EXISTS t_no_ifne")
+		oracle.execSQL("CREATE TABLE t_no_ifne (id INT)")
+		oracleErr = oracle.execSQL("CREATE TABLE t_no_ifne (id INT)")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for CREATE TABLE without IF NOT EXISTS")
+		}
+		oracleCode, _, oracleMsg := extractMySQLErr(oracleErr)
+
+		c3 := New()
+		c3.Exec("CREATE DATABASE test", nil)
+		c3.SetCurrentDatabase("test")
+		c3.Exec("CREATE TABLE t_no_ifne (id INT)", nil)
+		results, _ = c3.Exec("CREATE TABLE t_no_ifne (id INT)", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for CREATE TABLE without IF NOT EXISTS")
+		}
+		catErr, ok := results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+		if catErr.Code != int(oracleCode) {
+			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		}
+		if catErr.Message != oracleMsg {
+			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+
+		// Cleanup
+		oracle.execSQL("DROP TABLE IF EXISTS t_ifne")
+		oracle.execSQL("DROP TABLE IF EXISTS t_no_ifne")
+		oracle.execSQL("DROP DATABASE IF EXISTS db_ifne")
+	})
+}

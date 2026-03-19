@@ -169,7 +169,9 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if cmd.IfExists {
 			return nil
 		}
-		return errNoSuchColumn(cmd.Name, tbl.Name)
+		// MySQL 8.0 returns error 1091 for DROP COLUMN on nonexistent column,
+		// same as DROP INDEX: "Can't DROP 'x'; check that column/key exists".
+		return errCantDropKey(cmd.Name)
 	}
 
 	// Check if column is referenced by a foreign key constraint.
