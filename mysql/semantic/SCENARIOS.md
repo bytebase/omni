@@ -420,15 +420,15 @@ Beyond output format — the catalog must behave identically to MySQL.
 ### 2.11 CREATE/DROP/ALTER DATABASE
 
 ```
-[ ] CREATE DATABASE db
-[ ] CREATE DATABASE IF NOT EXISTS
-[ ] CREATE DATABASE with CHARACTER SET
-[ ] CREATE DATABASE with COLLATE
-[ ] DROP DATABASE db
-[ ] DROP DATABASE IF EXISTS
-[ ] ALTER DATABASE db CHARACTER SET utf8mb4
-[ ] ALTER DATABASE db COLLATE utf8mb4_unicode_ci
-[ ] Operations on nonexistent database → proper errors
+[x] CREATE DATABASE db
+[x] CREATE DATABASE IF NOT EXISTS
+[x] CREATE DATABASE with CHARACTER SET
+[x] CREATE DATABASE with COLLATE
+[x] DROP DATABASE db
+[x] DROP DATABASE IF EXISTS
+[x] ALTER DATABASE db CHARACTER SET utf8mb4
+[x] ALTER DATABASE db COLLATE utf8mb4_unicode_ci
+[x] Operations on nonexistent database → proper errors
 ```
 
 ---

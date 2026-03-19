@@ -95,6 +95,16 @@ func (o *mysqlOracle) execSQL(sqlStr string) error {
 	return nil
 }
 
+// showCreateDatabase runs SHOW CREATE DATABASE and returns the CREATE DATABASE statement.
+func (o *mysqlOracle) showCreateDatabase(database string) (string, error) {
+	var dbName, createStmt string
+	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE DATABASE "+database).Scan(&dbName, &createStmt)
+	if err != nil {
+		return "", fmt.Errorf("SHOW CREATE DATABASE %s: %w", database, err)
+	}
+	return createStmt, nil
+}
+
 // showCreateTable runs SHOW CREATE TABLE and returns the CREATE TABLE statement.
 func (o *mysqlOracle) showCreateTable(table string) (string, error) {
 	var tableName, createStmt string

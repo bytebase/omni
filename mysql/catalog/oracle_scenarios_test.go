@@ -2882,3 +2882,278 @@ func TestOracle_Section_2_10_CreateDropView(t *testing.T) {
 		}
 	})
 }
+
+func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	t.Run("create_database", func(t *testing.T) {
+		oracle.execSQL("DROP DATABASE IF EXISTS db_create1")
+		oracleErr := oracle.execSQL("CREATE DATABASE db_create1")
+		if oracleErr != nil {
+			t.Fatalf("oracle CREATE DATABASE error: %v", oracleErr)
+		}
+		oracleDDL, err := oracle.showCreateDatabase("db_create1")
+		if err != nil {
+			t.Fatalf("oracle SHOW CREATE DATABASE error: %v", err)
+		}
+
+		c := New()
+		results, _ := c.Exec("CREATE DATABASE db_create1", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni CREATE DATABASE error: %v", results[0].Error)
+		}
+		db := c.GetDatabase("db_create1")
+		if db == nil {
+			t.Fatal("omni: database not found after CREATE DATABASE")
+		}
+		// Verify charset/collation defaults match oracle.
+		// Oracle returns something like: CREATE DATABASE `db_create1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+		if !strings.Contains(oracleDDL, "utf8mb4") {
+			t.Logf("oracle DDL: %s", oracleDDL)
+		}
+		if db.Charset != "utf8mb4" {
+			t.Errorf("omni charset mismatch: got %q, want utf8mb4", db.Charset)
+		}
+		if db.Collation != "utf8mb4_0900_ai_ci" {
+			t.Errorf("omni collation mismatch: got %q, want utf8mb4_0900_ai_ci", db.Collation)
+		}
+		oracle.execSQL("DROP DATABASE IF EXISTS db_create1")
+	})
+
+	t.Run("create_database_if_not_exists", func(t *testing.T) {
+		oracle.execSQL("DROP DATABASE IF EXISTS db_ine")
+		oracle.execSQL("CREATE DATABASE db_ine")
+
+		// CREATE DATABASE IF NOT EXISTS on existing db should succeed (no error).
+		oracleErr := oracle.execSQL("CREATE DATABASE IF NOT EXISTS db_ine")
+		if oracleErr != nil {
+			t.Fatalf("oracle CREATE DATABASE IF NOT EXISTS error: %v", oracleErr)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE db_ine", nil)
+		results, _ := c.Exec("CREATE DATABASE IF NOT EXISTS db_ine", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni CREATE DATABASE IF NOT EXISTS error: %v", results[0].Error)
+		}
+		oracle.execSQL("DROP DATABASE IF EXISTS db_ine")
+	})
+
+	t.Run("create_database_charset", func(t *testing.T) {
+		oracle.execSQL("DROP DATABASE IF EXISTS db_cs")
+		oracleErr := oracle.execSQL("CREATE DATABASE db_cs CHARACTER SET latin1")
+		if oracleErr != nil {
+			t.Fatalf("oracle CREATE DATABASE with charset error: %v", oracleErr)
+		}
+		oracleDDL, _ := oracle.showCreateDatabase("db_cs")
+
+		c := New()
+		results, _ := c.Exec("CREATE DATABASE db_cs CHARACTER SET latin1", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni CREATE DATABASE with charset error: %v", results[0].Error)
+		}
+		db := c.GetDatabase("db_cs")
+		if db == nil {
+			t.Fatal("omni: database not found")
+		}
+		// Oracle should show latin1 charset
+		if !strings.Contains(oracleDDL, "latin1") {
+			t.Errorf("oracle DDL missing latin1: %s", oracleDDL)
+		}
+		if db.Charset != "latin1" {
+			t.Errorf("omni charset: got %q, want latin1", db.Charset)
+		}
+		// Default collation for latin1 is latin1_swedish_ci
+		if db.Collation != "latin1_swedish_ci" {
+			t.Errorf("omni collation: got %q, want latin1_swedish_ci", db.Collation)
+		}
+		oracle.execSQL("DROP DATABASE IF EXISTS db_cs")
+	})
+
+	t.Run("create_database_collate", func(t *testing.T) {
+		oracle.execSQL("DROP DATABASE IF EXISTS db_coll")
+		oracleErr := oracle.execSQL("CREATE DATABASE db_coll COLLATE utf8mb4_unicode_ci")
+		if oracleErr != nil {
+			t.Fatalf("oracle CREATE DATABASE with collate error: %v", oracleErr)
+		}
+		oracleDDL, _ := oracle.showCreateDatabase("db_coll")
+
+		c := New()
+		results, _ := c.Exec("CREATE DATABASE db_coll COLLATE utf8mb4_unicode_ci", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni CREATE DATABASE with collate error: %v", results[0].Error)
+		}
+		db := c.GetDatabase("db_coll")
+		if db == nil {
+			t.Fatal("omni: database not found")
+		}
+		if !strings.Contains(oracleDDL, "utf8mb4_unicode_ci") {
+			t.Errorf("oracle DDL missing utf8mb4_unicode_ci: %s", oracleDDL)
+		}
+		if db.Collation != "utf8mb4_unicode_ci" {
+			t.Errorf("omni collation: got %q, want utf8mb4_unicode_ci", db.Collation)
+		}
+		oracle.execSQL("DROP DATABASE IF EXISTS db_coll")
+	})
+
+	t.Run("drop_database", func(t *testing.T) {
+		oracle.execSQL("DROP DATABASE IF EXISTS db_drop1")
+		oracle.execSQL("CREATE DATABASE db_drop1")
+
+		oracleErr := oracle.execSQL("DROP DATABASE db_drop1")
+		if oracleErr != nil {
+			t.Fatalf("oracle DROP DATABASE error: %v", oracleErr)
+		}
+		// Verify it's gone.
+		_, showErr := oracle.showCreateDatabase("db_drop1")
+		if showErr == nil {
+			t.Fatal("oracle: database still exists after DROP DATABASE")
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE db_drop1", nil)
+		results, _ := c.Exec("DROP DATABASE db_drop1", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni DROP DATABASE error: %v", results[0].Error)
+		}
+		if c.GetDatabase("db_drop1") != nil {
+			t.Fatal("omni: database still exists after DROP DATABASE")
+		}
+	})
+
+	t.Run("drop_database_if_exists", func(t *testing.T) {
+		oracle.execSQL("DROP DATABASE IF EXISTS db_drop_ine")
+		// DROP DATABASE IF EXISTS on nonexistent db should not error.
+		oracleErr := oracle.execSQL("DROP DATABASE IF EXISTS db_drop_ine")
+		if oracleErr != nil {
+			t.Fatalf("oracle DROP DATABASE IF EXISTS error: %v", oracleErr)
+		}
+
+		c := New()
+		results, _ := c.Exec("DROP DATABASE IF EXISTS db_drop_ine", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni DROP DATABASE IF EXISTS error: %v", results[0].Error)
+		}
+	})
+
+	t.Run("alter_database_charset", func(t *testing.T) {
+		oracle.execSQL("DROP DATABASE IF EXISTS db_alter_cs")
+		oracle.execSQL("CREATE DATABASE db_alter_cs")
+
+		oracleErr := oracle.execSQL("ALTER DATABASE db_alter_cs CHARACTER SET utf8mb4")
+		if oracleErr != nil {
+			t.Fatalf("oracle ALTER DATABASE charset error: %v", oracleErr)
+		}
+		oracleDDL, _ := oracle.showCreateDatabase("db_alter_cs")
+
+		c := New()
+		c.Exec("CREATE DATABASE db_alter_cs", nil)
+		results, _ := c.Exec("ALTER DATABASE db_alter_cs CHARACTER SET utf8mb4", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni ALTER DATABASE charset error: %v", results[0].Error)
+		}
+		db := c.GetDatabase("db_alter_cs")
+		if db == nil {
+			t.Fatal("omni: database not found")
+		}
+		if !strings.Contains(oracleDDL, "utf8mb4") {
+			t.Errorf("oracle DDL missing utf8mb4: %s", oracleDDL)
+		}
+		if db.Charset != "utf8mb4" {
+			t.Errorf("omni charset: got %q, want utf8mb4", db.Charset)
+		}
+		if db.Collation != "utf8mb4_0900_ai_ci" {
+			t.Errorf("omni collation: got %q, want utf8mb4_0900_ai_ci", db.Collation)
+		}
+		oracle.execSQL("DROP DATABASE IF EXISTS db_alter_cs")
+	})
+
+	t.Run("alter_database_collate", func(t *testing.T) {
+		oracle.execSQL("DROP DATABASE IF EXISTS db_alter_coll")
+		oracle.execSQL("CREATE DATABASE db_alter_coll")
+
+		oracleErr := oracle.execSQL("ALTER DATABASE db_alter_coll COLLATE utf8mb4_unicode_ci")
+		if oracleErr != nil {
+			t.Fatalf("oracle ALTER DATABASE collate error: %v", oracleErr)
+		}
+		oracleDDL, _ := oracle.showCreateDatabase("db_alter_coll")
+
+		c := New()
+		c.Exec("CREATE DATABASE db_alter_coll", nil)
+		results, _ := c.Exec("ALTER DATABASE db_alter_coll COLLATE utf8mb4_unicode_ci", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni ALTER DATABASE collate error: %v", results[0].Error)
+		}
+		db := c.GetDatabase("db_alter_coll")
+		if db == nil {
+			t.Fatal("omni: database not found")
+		}
+		if !strings.Contains(oracleDDL, "utf8mb4_unicode_ci") {
+			t.Errorf("oracle DDL missing utf8mb4_unicode_ci: %s", oracleDDL)
+		}
+		if db.Collation != "utf8mb4_unicode_ci" {
+			t.Errorf("omni collation: got %q, want utf8mb4_unicode_ci", db.Collation)
+		}
+		oracle.execSQL("DROP DATABASE IF EXISTS db_alter_coll")
+	})
+
+	t.Run("ops_on_nonexistent_database", func(t *testing.T) {
+		// DROP DATABASE on nonexistent db should error.
+		oracle.execSQL("DROP DATABASE IF EXISTS db_nonexist_xyz")
+		oracleDropErr := oracle.execSQL("DROP DATABASE db_nonexist_xyz")
+		if oracleDropErr == nil {
+			t.Fatal("oracle: expected error for DROP nonexistent database")
+		}
+
+		c := New()
+		results, _ := c.Exec("DROP DATABASE db_nonexist_xyz", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for DROP nonexistent database")
+		}
+		catErr, ok := results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+		if catErr.Code != ErrUnknownDatabase {
+			t.Errorf("omni error code: got %d, want %d", catErr.Code, ErrUnknownDatabase)
+		}
+
+		// ALTER DATABASE on nonexistent db should error.
+		oracleAlterErr := oracle.execSQL("ALTER DATABASE db_nonexist_xyz CHARACTER SET utf8mb4")
+		if oracleAlterErr == nil {
+			t.Fatal("oracle: expected error for ALTER nonexistent database")
+		}
+
+		c2 := New()
+		results2, _ := c2.Exec("ALTER DATABASE db_nonexist_xyz CHARACTER SET utf8mb4", &ExecOptions{ContinueOnError: true})
+		if results2[0].Error == nil {
+			t.Fatal("omni: expected error for ALTER nonexistent database")
+		}
+		catErr2, ok := results2[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results2[0].Error)
+		}
+		if catErr2.Code != ErrUnknownDatabase {
+			t.Errorf("omni error code: got %d, want %d", catErr2.Code, ErrUnknownDatabase)
+		}
+
+		// CREATE DATABASE duplicate should error.
+		c3 := New()
+		c3.Exec("CREATE DATABASE db_dup_test", nil)
+		results3, _ := c3.Exec("CREATE DATABASE db_dup_test", &ExecOptions{ContinueOnError: true})
+		if results3[0].Error == nil {
+			t.Fatal("omni: expected error for duplicate CREATE DATABASE")
+		}
+		catErr3, ok := results3[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results3[0].Error)
+		}
+		if catErr3.Code != ErrDupDatabase {
+			t.Errorf("omni error code: got %d, want %d", catErr3.Code, ErrDupDatabase)
+		}
+	})
+}
