@@ -36,7 +36,8 @@ func (p *Parser) parseAlterTableStmt() nodes.Node {
 		return p.parseAlterForeignTable()
 	case EVENT:
 		p.advance() // consume EVENT
-		return p.parseAlterEventTrigStmt()
+		n, _ := p.parseAlterEventTrigStmt()
+		return n
 	case EXTENSION:
 		return p.parseAlterExtensionStmt()
 	default:
@@ -785,7 +786,7 @@ func (p *Parser) parseAlterColumnAction(colname string) *nodes.AlterTableCmd {
 		// ALTER COLUMN ColId RESET '(' def_list ')'
 		p.advance() // consume RESET
 		p.expect('(')
-		defs := p.parseDefList()
+		defs, _ := p.parseDefList()
 		p.expect(')')
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_ResetOptions),
@@ -906,7 +907,7 @@ func (p *Parser) parseAlterColumnSet(colname string) *nodes.AlterTableCmd {
 	case '(':
 		// SET (def_list)
 		p.advance()
-		defs := p.parseDefList()
+		defs, _ := p.parseDefList()
 		p.expect(')')
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetOptions),

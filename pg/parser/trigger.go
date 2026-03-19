@@ -5,42 +5,66 @@ import (
 	nodes "github.com/bytebase/omni/pg/ast"
 )
 
-func (p *Parser) parseCreateTrigStmt(replace bool) nodes.Node {
+func (p *Parser) parseCreateTrigStmt(replace bool) (*nodes.CreateTrigStmt, error) {
 	if p.cur.Type == CONSTRAINT {
 		return p.parseCreateConstraintTrigger(replace)
 	}
-	p.expect(TRIGGER)
+	if _, err := p.expect(TRIGGER); err != nil {
+		return nil, err
+	}
 	trigname, _ := p.parseName()
 	timing := p.parseTriggerActionTime()
 	events, columns := p.parseTriggerEvents()
-	p.expect(ON)
+	if _, err := p.expect(ON); err != nil {
+		return nil, err
+	}
 	relNames, _ := p.parseQualifiedName()
 	relation := makeRangeVarFromAnyName(relNames)
 	transitionRels := p.parseTriggerReferencing()
 	row := p.parseTriggerForSpec()
-	whenClause := p.parseTriggerWhen()
-	p.expect(EXECUTE)
+	whenClause, err := p.parseTriggerWhen()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(EXECUTE); err != nil {
+		return nil, err
+	}
 	if p.cur.Type == FUNCTION || p.cur.Type == PROCEDURE { p.advance() }
 	funcname, _ := p.parseFuncName()
-	p.expect('(')
-	args := p.parseTriggerFuncArgs()
-	p.expect(')')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	args, err := p.parseTriggerFuncArgs()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.CreateTrigStmt{
 		Replace: replace, IsConstraint: false, Trigname: trigname,
 		Relation: relation, Funcname: funcname, Args: args, Row: row,
 		Timing: int16(timing), Events: int16(events), Columns: columns,
 		WhenClause: whenClause, TransitionRels: transitionRels,
 		Deferrable: false, Initdeferred: false,
-	}
+	}, nil
 }
 
-func (p *Parser) parseCreateConstraintTrigger(replace bool) nodes.Node {
-	p.expect(CONSTRAINT)
-	p.expect(TRIGGER)
+func (p *Parser) parseCreateConstraintTrigger(replace bool) (*nodes.CreateTrigStmt, error) {
+	if _, err := p.expect(CONSTRAINT); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(TRIGGER); err != nil {
+		return nil, err
+	}
 	trigname, _ := p.parseName()
-	p.expect(AFTER)
+	if _, err := p.expect(AFTER); err != nil {
+		return nil, err
+	}
 	events, columns := p.parseTriggerEvents()
-	p.expect(ON)
+	if _, err := p.expect(ON); err != nil {
+		return nil, err
+	}
 	relNames, _ := p.parseQualifiedName()
 	relation := makeRangeVarFromAnyName(relNames)
 	var constrrel *nodes.RangeVar
@@ -52,23 +76,39 @@ func (p *Parser) parseCreateConstraintTrigger(replace bool) nodes.Node {
 	casBits := p.parseConstraintAttributeSpec()
 	deferrable := (casBits & int64(nodes.CAS_DEFERRABLE)) != 0
 	initdeferred := (casBits & int64(nodes.CAS_INITIALLY_DEFERRED)) != 0
-	p.expect(FOR)
+	if _, err := p.expect(FOR); err != nil {
+		return nil, err
+	}
 	if p.cur.Type == EACH { p.advance() }
-	p.expect(ROW)
-	whenClause := p.parseTriggerWhen()
-	p.expect(EXECUTE)
+	if _, err := p.expect(ROW); err != nil {
+		return nil, err
+	}
+	whenClause, err := p.parseTriggerWhen()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(EXECUTE); err != nil {
+		return nil, err
+	}
 	if p.cur.Type == FUNCTION || p.cur.Type == PROCEDURE { p.advance() }
 	funcname, _ := p.parseFuncName()
-	p.expect('(')
-	args := p.parseTriggerFuncArgs()
-	p.expect(')')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	args, err := p.parseTriggerFuncArgs()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.CreateTrigStmt{
 		Replace: replace, IsConstraint: true, Trigname: trigname,
 		Relation: relation, Funcname: funcname, Args: args, Row: true,
 		Timing: int16(nodes.TRIGGER_TYPE_AFTER), Events: int16(events),
 		Columns: columns, WhenClause: whenClause,
 		Deferrable: deferrable, Initdeferred: initdeferred, Constrrel: constrrel,
-	}
+	}, nil
 }
 
 func (p *Parser) parseTriggerActionTime() int64 {
@@ -118,26 +158,26 @@ func (p *Parser) parseTriggerReferencing() *nodes.List {
 	p.advance()
 	var items []nodes.Node
 	for {
-		tt := p.parseTriggerTransition()
-		if tt == nil { break }
+		tt, err := p.parseTriggerTransition()
+		if err != nil || tt == nil { break }
 		items = append(items, tt)
 	}
 	if len(items) == 0 { return nil }
 	return &nodes.List{Items: items}
 }
 
-func (p *Parser) parseTriggerTransition() *nodes.TriggerTransition {
+func (p *Parser) parseTriggerTransition() (*nodes.TriggerTransition, error) {
 	var isNew bool
 	switch p.cur.Type {
 	case NEW: isNew = true; p.advance()
 	case OLD: isNew = false; p.advance()
-	default: return nil
+	default: return nil, nil
 	}
 	isTable := false
 	if p.cur.Type == TABLE { isTable = true; p.advance() } else if p.cur.Type == ROW { p.advance() }
 	if p.cur.Type == AS { p.advance() }
 	name, _ := p.parseColId()
-	return &nodes.TriggerTransition{Name: name, IsNew: isNew, IsTable: isTable}
+	return &nodes.TriggerTransition{Name: name, IsNew: isNew, IsTable: isTable}, nil
 }
 
 func (p *Parser) parseTriggerForSpec() bool {
@@ -149,69 +189,113 @@ func (p *Parser) parseTriggerForSpec() bool {
 	return false
 }
 
-func (p *Parser) parseTriggerWhen() nodes.Node {
-	if p.cur.Type != WHEN { return nil }
+func (p *Parser) parseTriggerWhen() (nodes.Node, error) {
+	if p.cur.Type != WHEN { return nil, nil }
 	p.advance()
-	p.expect('(')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 	expr, _ := p.parseAExpr(0)
-	p.expect(')')
-	return expr
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return expr, nil
 }
 
-func (p *Parser) parseTriggerFuncArgs() *nodes.List {
-	if p.cur.Type == ')' { return nil }
+func (p *Parser) parseTriggerFuncArgs() (*nodes.List, error) {
+	if p.cur.Type == ')' { return nil, nil }
 	var items []nodes.Node
-	items = append(items, p.parseTriggerFuncArg())
-	for p.cur.Type == ',' { p.advance(); items = append(items, p.parseTriggerFuncArg()) }
-	return &nodes.List{Items: items}
+	arg, err := p.parseTriggerFuncArg()
+	if err != nil {
+		return nil, err
+	}
+	items = append(items, arg)
+	for p.cur.Type == ',' {
+		p.advance()
+		arg, err := p.parseTriggerFuncArg()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, arg)
+	}
+	return &nodes.List{Items: items}, nil
 }
 
-func (p *Parser) parseTriggerFuncArg() nodes.Node {
+func (p *Parser) parseTriggerFuncArg() (nodes.Node, error) {
 	switch p.cur.Type {
-	case ICONST: tok := p.advance(); return &nodes.String{Str: strconv.FormatInt(tok.Ival, 10)}
-	case FCONST: tok := p.advance(); return &nodes.String{Str: tok.Str}
-	case SCONST: tok := p.advance(); return &nodes.String{Str: tok.Str}
-	default: label, _ := p.parseColLabel(); return &nodes.String{Str: label}
+	case ICONST: tok := p.advance(); return &nodes.String{Str: strconv.FormatInt(tok.Ival, 10)}, nil
+	case FCONST: tok := p.advance(); return &nodes.String{Str: tok.Str}, nil
+	case SCONST: tok := p.advance(); return &nodes.String{Str: tok.Str}, nil
+	default: label, _ := p.parseColLabel(); return &nodes.String{Str: label}, nil
 	}
 }
 
-func (p *Parser) parseCreateEventTrigStmt() nodes.Node {
-	p.expect(TRIGGER)
+func (p *Parser) parseCreateEventTrigStmt() (*nodes.CreateEventTrigStmt, error) {
+	if _, err := p.expect(TRIGGER); err != nil {
+		return nil, err
+	}
 	trigname, _ := p.parseName()
-	p.expect(ON)
+	if _, err := p.expect(ON); err != nil {
+		return nil, err
+	}
 	eventname, _ := p.parseColLabel()
 	var whenclause *nodes.List
 	if p.cur.Type == WHEN {
 		p.advance()
 		var items []nodes.Node
-		items = append(items, p.parseEventTriggerWhenItem())
-		for p.cur.Type == AND { p.advance(); items = append(items, p.parseEventTriggerWhenItem()) }
+		item, err := p.parseEventTriggerWhenItem()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+		for p.cur.Type == AND {
+			p.advance()
+			item, err := p.parseEventTriggerWhenItem()
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, item)
+		}
 		whenclause = &nodes.List{Items: items}
 	}
-	p.expect(EXECUTE)
+	if _, err := p.expect(EXECUTE); err != nil {
+		return nil, err
+	}
 	if p.cur.Type == FUNCTION || p.cur.Type == PROCEDURE { p.advance() }
 	funcname, _ := p.parseFuncName()
-	p.expect('(')
-	p.expect(')')
-	return &nodes.CreateEventTrigStmt{Trigname: trigname, Eventname: eventname, Whenclause: whenclause, Funcname: funcname}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.CreateEventTrigStmt{Trigname: trigname, Eventname: eventname, Whenclause: whenclause, Funcname: funcname}, nil
 }
 
-func (p *Parser) parseEventTriggerWhenItem() nodes.Node {
+func (p *Parser) parseEventTriggerWhenItem() (*nodes.DefElem, error) {
 	name, _ := p.parseColId()
-	p.expect(IN_P)
-	p.expect('(')
+	if _, err := p.expect(IN_P); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 	tok := p.advance()
 	items := []nodes.Node{&nodes.String{Str: tok.Str}}
 	for p.cur.Type == ',' { p.advance(); tok = p.advance(); items = append(items, &nodes.String{Str: tok.Str}) }
-	p.expect(')')
-	return &nodes.DefElem{Defname: name, Arg: &nodes.List{Items: items}, Loc: nodes.NoLoc()}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.DefElem{Defname: name, Arg: &nodes.List{Items: items}, Loc: nodes.NoLoc()}, nil
 }
 
-func (p *Parser) parseAlterEventTrigStmt() nodes.Node {
-	p.expect(TRIGGER)
+func (p *Parser) parseAlterEventTrigStmt() (*nodes.AlterEventTrigStmt, error) {
+	if _, err := p.expect(TRIGGER); err != nil {
+		return nil, err
+	}
 	trigname, _ := p.parseName()
 	tgenabled := p.parseEnableTrigger()
-	return &nodes.AlterEventTrigStmt{Trigname: trigname, Tgenabled: byte(tgenabled)}
+	return &nodes.AlterEventTrigStmt{Trigname: trigname, Tgenabled: byte(tgenabled)}, nil
 }
 
 func (p *Parser) parseEnableTrigger() int64 {

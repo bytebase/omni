@@ -160,13 +160,16 @@ func (p *Parser) parseStmt() nodes.Node {
 		case SUBSCRIPTION:
 			return p.parseAlterSubscriptionStmt()
 		case STATISTICS:
-			return p.parseAlterStatisticsStmt()
+			n, _ := p.parseAlterStatisticsStmt()
+			return n
 		case OPERATOR:
-			return p.parseAlterOperatorStmt()
+			n, _ := p.parseAlterOperatorStmt()
+			return n
 		case SCHEMA:
 			return p.parseAlterSchemaOwner()
 		case DEFAULT:
-			return p.parseAlterDefaultPrivilegesStmt()
+			n, _ := p.parseAlterDefaultPrivilegesStmt()
+			return n
 		case FUNCTION, PROCEDURE, ROUTINE:
 			return p.parseAlterFunctionStmt()
 		case TYPE_P:
@@ -205,7 +208,8 @@ func (p *Parser) parseStmt() nodes.Node {
 		}
 	case REFRESH:
 		p.advance() // consume REFRESH
-		return p.parseRefreshMatViewStmt()
+		n, _ := p.parseRefreshMatViewStmt()
+		return n
 	case BEGIN_P, START, COMMIT, END_P, ABORT_P, SAVEPOINT, RELEASE:
 		n, _ := p.parseTransactionStmt()
 		return n
@@ -375,32 +379,38 @@ func (p *Parser) parseCreateDispatch() nodes.Node {
 			n, _ := p.parseCreateFunctionStmt(true)
 			return n
 		case TRIGGER, CONSTRAINT:
-			return p.parseCreateTrigStmt(true)
+			n, _ := p.parseCreateTrigStmt(true)
+			return n
 		case TRUSTED, PROCEDURAL, LANGUAGE:
 			return p.parseCreatePLangStmt(true)
 		case RULE:
 			return p.parseCreateRuleStmt(true)
 		case AGGREGATE:
-			return p.parseDefineStmtAggregate(true)
+			n, _ := p.parseDefineStmtAggregate(true)
+			return n
 		case TRANSFORM:
 			return p.parseCreateTransformStmt(true)
 		default:
-			return p.parseViewStmt(true)
+			n, _ := p.parseViewStmt(true)
+			return n
 		}
 	case VIEW:
 		// CREATE VIEW ...
 		p.advance() // consume CREATE
-		return p.parseViewStmt(false)
+		n, _ := p.parseViewStmt(false)
+		return n
 	case RECURSIVE:
 		// CREATE RECURSIVE VIEW ...
 		p.advance() // consume CREATE
-		return p.parseViewStmt(false)
+		n, _ := p.parseViewStmt(false)
+		return n
 	case MATERIALIZED:
 		// CREATE MATERIALIZED VIEW ...
 		p.advance() // consume CREATE
 		relpersistence := byte(nodes.RELPERSISTENCE_PERMANENT)
 		p.advance() // consume MATERIALIZED
-		return p.parseCreateMatViewStmt(relpersistence)
+		n, _ := p.parseCreateMatViewStmt(relpersistence)
+		return n
 	case TABLE:
 		// CREATE TABLE ... (could be regular CREATE TABLE or CREATE TABLE AS)
 		return p.parseCreateOrCTAS()
@@ -436,27 +446,33 @@ func (p *Parser) parseCreateDispatch() nodes.Node {
 	case TYPE_P:
 		// CREATE TYPE ... (base, composite, enum, range, shell)
 		p.advance() // consume CREATE
-		return p.parseDefineStmtType()
+		n, _ := p.parseDefineStmtType()
+		return n
 	case AGGREGATE:
 		// CREATE AGGREGATE ...
 		p.advance() // consume CREATE
-		return p.parseDefineStmtAggregate(false)
+		n, _ := p.parseDefineStmtAggregate(false)
+		return n
 	case OPERATOR:
 		// CREATE OPERATOR ... / CREATE OPERATOR CLASS ... / CREATE OPERATOR FAMILY ...
 		p.advance() // consume CREATE
-		return p.parseDefineStmtOperator()
+		n, _ := p.parseDefineStmtOperator()
+		return n
 	case TEXT_P:
 		// CREATE TEXT SEARCH ...
 		p.advance() // consume CREATE
-		return p.parseDefineStmtTextSearch()
+		n, _ := p.parseDefineStmtTextSearch()
+		return n
 	case COLLATION:
 		// CREATE COLLATION ...
 		p.advance() // consume CREATE
-		return p.parseDefineStmtCollation()
+		n, _ := p.parseDefineStmtCollation()
+		return n
 	case STATISTICS:
 		// CREATE STATISTICS ...
 		p.advance() // consume CREATE
-		return p.parseCreateStatsStmt()
+		n, _ := p.parseCreateStatsStmt()
+		return n
 	case FUNCTION:
 		// CREATE FUNCTION ...
 		p.advance() // consume CREATE
@@ -494,16 +510,19 @@ func (p *Parser) parseCreateDispatch() nodes.Node {
 	case TRIGGER:
 		// CREATE TRIGGER ...
 		p.advance() // consume CREATE
-		return p.parseCreateTrigStmt(false)
+		n, _ := p.parseCreateTrigStmt(false)
+		return n
 	case CONSTRAINT:
 		// CREATE CONSTRAINT TRIGGER ...
 		p.advance() // consume CREATE
-		return p.parseCreateTrigStmt(false)
+		n, _ := p.parseCreateTrigStmt(false)
+		return n
 	case EVENT:
 		// CREATE EVENT TRIGGER ...
 		p.advance() // consume CREATE
 		p.advance() // consume EVENT
-		return p.parseCreateEventTrigStmt()
+		n, _ := p.parseCreateEventTrigStmt()
+		return n
 	case FOREIGN:
 		// CREATE FOREIGN DATA WRAPPER or CREATE FOREIGN TABLE
 		p.advance() // consume CREATE
@@ -564,12 +583,14 @@ func (p *Parser) parseCreateDispatch() nodes.Node {
 	case CONVERSION_P:
 		// CREATE CONVERSION ...
 		p.advance() // consume CREATE
-		return p.parseCreateConversionStmt(false)
+		n, _ := p.parseCreateConversionStmt(false)
+		return n
 	case DEFAULT:
 		// CREATE DEFAULT CONVERSION ...
 		p.advance() // consume CREATE
 		p.advance() // consume DEFAULT
-		return p.parseCreateConversionStmt(true)
+		n, _ := p.parseCreateConversionStmt(true)
+		return n
 	case TABLESPACE:
 		// CREATE TABLESPACE ...
 		p.advance() // consume CREATE
@@ -593,7 +614,7 @@ func (p *Parser) parseCreateTempDispatch() nodes.Node {
 
 	if p.cur.Type == VIEW || p.cur.Type == RECURSIVE {
 		// CREATE TEMP VIEW ... or CREATE TEMP RECURSIVE VIEW ...
-		stmt := p.parseViewStmt(false)
+		stmt, _ := p.parseViewStmt(false)
 		if stmt != nil {
 			stmt.View.Relpersistence = relpersistence
 		}
@@ -651,12 +672,13 @@ func (p *Parser) parseCreateUnloggedDispatch() nodes.Node {
 
 	if p.cur.Type == MATERIALIZED {
 		p.advance() // consume MATERIALIZED
-		return p.parseCreateMatViewStmt(relpersistence)
+		n, _ := p.parseCreateMatViewStmt(relpersistence)
+		return n
 	}
 
 	if p.cur.Type == VIEW || p.cur.Type == RECURSIVE {
 		// CREATE UNLOGGED VIEW ... or CREATE UNLOGGED RECURSIVE VIEW ...
-		stmt := p.parseViewStmt(false)
+		stmt, _ := p.parseViewStmt(false)
 		if stmt != nil {
 			stmt.View.Relpersistence = relpersistence
 		}
@@ -888,7 +910,7 @@ func (p *Parser) finishCTAS(names *nodes.List, colNames *nodes.List, relpersiste
 	if p.cur.Type == EXECUTE {
 		p.advance()
 		name, _ := p.parseName()
-		params := p.parseExecuteParamClause()
+		params, _ := p.parseExecuteParamClause()
 		query = &nodes.ExecuteStmt{
 			Name:   name,
 			Params: params,

@@ -1258,7 +1258,7 @@ func (p *Parser) parseRowsFromTable() (nodes.Node, error) {
 		if p.cur.Type == AS && p.peekNext().Type == '(' {
 			p.advance() // AS
 			p.advance() // (
-			colDef = p.parseTableFuncElementList()
+			colDef, _ = p.parseTableFuncElementList()
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
@@ -1615,7 +1615,7 @@ func (p *Parser) parseFuncAliasClause(rf *nodes.RangeFunction) {
 			// AS '(' TableFuncElementList ')'
 			p.advance() // AS
 			p.advance() // (
-			colDef := p.parseTableFuncElementList()
+			colDef, _ := p.parseTableFuncElementList()
 			p.expect(')')
 			rf.Coldeflist = colDef
 			return
@@ -1655,7 +1655,7 @@ func (p *Parser) parseFuncAliasParenContents(rf *nodes.RangeFunction) {
 		rf.Alias.Colnames = colnames
 	} else {
 		// TableFuncElementList: ColId Typename [, ColId Typename ...]
-		colDef := p.parseTableFuncElementList()
+		colDef, _ := p.parseTableFuncElementList()
 		rf.Coldeflist = colDef
 	}
 }

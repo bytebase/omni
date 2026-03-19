@@ -74,7 +74,8 @@ func (p *Parser) parseExplainableStmt() nodes.Node {
 		return p.parseDeclareCursorStmt()
 	case REFRESH:
 		p.advance()
-		return p.parseRefreshMatViewStmt()
+		n, _ := p.parseRefreshMatViewStmt()
+		return n
 	default:
 		return nil
 	}

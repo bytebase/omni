@@ -82,12 +82,14 @@ func (p *Parser) parseSchemaStmt() nodes.Node {
 		return n
 	case VIEW:
 		p.advance() // consume CREATE
-		return p.parseViewStmt(false)
+		n, _ := p.parseViewStmt(false)
+		return n
 	case OR:
 		p.advance() // consume CREATE
 		p.advance() // consume OR
 		p.expect(REPLACE)
-		return p.parseViewStmt(true)
+		n, _ := p.parseViewStmt(true)
+		return n
 	default:
 		return nil
 	}

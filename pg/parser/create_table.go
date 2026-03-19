@@ -1250,7 +1250,7 @@ func (p *Parser) parseOptDefinition() *nodes.List {
 	}
 	p.advance() // WITH
 	p.advance() // (
-	list := p.parseDefList()
+	list, _ := p.parseDefList()
 	p.expect(')')
 	return list
 }
@@ -1487,7 +1487,7 @@ func (p *Parser) parseReloptionElem() *nodes.DefElem {
 		sublabel, _ := p.parseColLabel()
 		if p.cur.Type == '=' {
 			p.advance()
-			arg := p.parseDefArg()
+			arg, _ := p.parseDefArg()
 			return &nodes.DefElem{
 				Defnamespace: label,
 				Defname:      sublabel,
@@ -1504,7 +1504,7 @@ func (p *Parser) parseReloptionElem() *nodes.DefElem {
 
 	if p.cur.Type == '=' {
 		p.advance()
-		arg := p.parseDefArg()
+		arg, _ := p.parseDefArg()
 		return &nodes.DefElem{
 			Defname:  label,
 			Arg:      arg,

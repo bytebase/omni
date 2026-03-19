@@ -19,7 +19,7 @@ const (
 //	    | CREATE OR REPLACE OptTemp VIEW qualified_name opt_column_list opt_reloptions AS SelectStmt opt_check_option
 //	    | CREATE OptTemp RECURSIVE VIEW qualified_name '(' columnList ')' opt_reloptions AS SelectStmt opt_check_option
 //	    | CREATE OR REPLACE OptTemp RECURSIVE VIEW qualified_name '(' columnList ')' opt_reloptions AS SelectStmt opt_check_option
-func (p *Parser) parseViewStmt(replace bool) *nodes.ViewStmt {
+func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 	// OptTemp
 	relpersistence := p.parseOptTemp()
 
@@ -31,12 +31,14 @@ func (p *Parser) parseViewStmt(replace bool) *nodes.ViewStmt {
 	}
 
 	// VIEW
-	p.expect(VIEW)
+	if _, err := p.expect(VIEW); err != nil {
+		return nil, err
+	}
 
 	// qualified_name
 	names, err := p.parseQualifiedName()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	rv := makeRangeVarFromNames(names)
 	rv.Relpersistence = relpersistence
@@ -44,9 +46,13 @@ func (p *Parser) parseViewStmt(replace bool) *nodes.ViewStmt {
 	var aliases *nodes.List
 	if recursive {
 		// '(' columnList ')'
-		p.expect('(')
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
 		aliases = p.parseColumnList()
-		p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	} else {
 		// opt_column_list
 		aliases = p.parseOptColumnList()
@@ -56,7 +62,9 @@ func (p *Parser) parseViewStmt(replace bool) *nodes.ViewStmt {
 	options := p.parseOptReloptions()
 
 	// AS
-	p.expect(AS)
+	if _, err := p.expect(AS); err != nil {
+		return nil, err
+	}
 
 	// SelectStmt
 	var query nodes.Node
@@ -100,7 +108,7 @@ func (p *Parser) parseViewStmt(replace bool) *nodes.ViewStmt {
 		Query:           query,
 		Replace:         replace,
 		WithCheckOption: checkOption,
-	}
+	}, nil
 }
 
 // parseOptCheckOption parses opt_check_option.
@@ -167,13 +175,18 @@ func (p *Parser) parseOptReloptions() *nodes.List {
 //	    | CREATE OptTemp TABLE IF NOT EXISTS create_as_target AS SelectStmt opt_with_data
 //	    | CREATE OptTemp TABLE create_as_target AS EXECUTE name execute_param_clause opt_with_data
 //	    | CREATE OptTemp TABLE IF NOT EXISTS create_as_target AS EXECUTE name execute_param_clause opt_with_data
-func (p *Parser) parseCreateTableAsStmt(relpersistence byte, ifNotExists bool) *nodes.CreateTableAsStmt {
+func (p *Parser) parseCreateTableAsStmt(relpersistence byte, ifNotExists bool) (*nodes.CreateTableAsStmt, error) {
 	// create_as_target: qualified_name opt_column_list OptAccessMethod OptWith OnCommitOption OptTableSpace
-	into := p.parseCreateAsTarget()
+	into, err := p.parseCreateAsTarget()
+	if err != nil {
+		return nil, err
+	}
 	into.Rel.Relpersistence = relpersistence
 
 	// AS
-	p.expect(AS)
+	if _, err := p.expect(AS); err != nil {
+		return nil, err
+	}
 
 	var query nodes.Node
 
@@ -181,7 +194,10 @@ func (p *Parser) parseCreateTableAsStmt(relpersistence byte, ifNotExists bool) *
 		// AS EXECUTE name execute_param_clause
 		p.advance() // EXECUTE
 		name, _ := p.parseName()
-		params := p.parseExecuteParamClause()
+		params, err := p.parseExecuteParamClause()
+		if err != nil {
+			return nil, err
+		}
 		query = &nodes.ExecuteStmt{
 			Name:   name,
 			Params: params,
@@ -200,17 +216,17 @@ func (p *Parser) parseCreateTableAsStmt(relpersistence byte, ifNotExists bool) *
 		Into:        into,
 		Objtype:     nodes.OBJECT_TABLE,
 		IfNotExists: ifNotExists,
-	}
+	}, nil
 }
 
 // parseCreateAsTarget parses create_as_target.
 //
 //	create_as_target:
 //	    qualified_name opt_column_list OptAccessMethod OptWith OnCommitOption OptTableSpace
-func (p *Parser) parseCreateAsTarget() *nodes.IntoClause {
+func (p *Parser) parseCreateAsTarget() (*nodes.IntoClause, error) {
 	names, err := p.parseQualifiedName()
 	if err != nil {
-		return &nodes.IntoClause{Rel: &nodes.RangeVar{Inh: true, Relpersistence: 'p', Loc: nodes.NoLoc()}}
+		return nil, err
 	}
 	rv := makeRangeVarFromAnyName(names)
 
@@ -227,7 +243,7 @@ func (p *Parser) parseCreateAsTarget() *nodes.IntoClause {
 		Options:        options,
 		OnCommit:       onCommit,
 		TableSpaceName: tableSpace,
-	}
+	}, nil
 }
 
 // parseCreateMatViewStmt parses a CREATE [UNLOGGED] MATERIALIZED VIEW statement.
@@ -237,26 +253,37 @@ func (p *Parser) parseCreateAsTarget() *nodes.IntoClause {
 //	CreateMatViewStmt:
 //	    CREATE OptNoLog MATERIALIZED VIEW create_mv_target AS SelectStmt opt_with_data
 //	    | CREATE OptNoLog MATERIALIZED VIEW IF NOT EXISTS create_mv_target AS SelectStmt opt_with_data
-func (p *Parser) parseCreateMatViewStmt(relpersistence byte) *nodes.CreateTableAsStmt {
+func (p *Parser) parseCreateMatViewStmt(relpersistence byte) (*nodes.CreateTableAsStmt, error) {
 	// MATERIALIZED has already been consumed by the caller.
 	// VIEW
-	p.expect(VIEW)
+	if _, err := p.expect(VIEW); err != nil {
+		return nil, err
+	}
 
 	// IF NOT EXISTS
 	ifNotExists := false
 	if p.cur.Type == IF_P {
 		p.advance()
-		p.expect(NOT)
-		p.expect(EXISTS)
+		if _, err := p.expect(NOT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(EXISTS); err != nil {
+			return nil, err
+		}
 		ifNotExists = true
 	}
 
 	// create_mv_target: qualified_name opt_column_list OptAccessMethod opt_reloptions OptTableSpace
-	into := p.parseCreateMvTarget()
+	into, err := p.parseCreateMvTarget()
+	if err != nil {
+		return nil, err
+	}
 	into.Rel.Relpersistence = relpersistence
 
 	// AS
-	p.expect(AS)
+	if _, err := p.expect(AS); err != nil {
+		return nil, err
+	}
 
 	// SelectStmt
 	query, _ := p.parseSelectNoParens()
@@ -270,17 +297,17 @@ func (p *Parser) parseCreateMatViewStmt(relpersistence byte) *nodes.CreateTableA
 		Into:        into,
 		Objtype:     nodes.OBJECT_MATVIEW,
 		IfNotExists: ifNotExists,
-	}
+	}, nil
 }
 
 // parseCreateMvTarget parses create_mv_target.
 //
 //	create_mv_target:
 //	    qualified_name opt_column_list OptAccessMethod opt_reloptions OptTableSpace
-func (p *Parser) parseCreateMvTarget() *nodes.IntoClause {
+func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 	names, err := p.parseQualifiedName()
 	if err != nil {
-		return &nodes.IntoClause{Rel: &nodes.RangeVar{Inh: true, Relpersistence: 'p', Loc: nodes.NoLoc()}}
+		return nil, err
 	}
 	rv := makeRangeVarFromAnyName(names)
 
@@ -295,7 +322,7 @@ func (p *Parser) parseCreateMvTarget() *nodes.IntoClause {
 		AccessMethod:   accessMethod,
 		Options:        options,
 		TableSpaceName: tableSpace,
-	}
+	}, nil
 }
 
 // parseOptWithData parses opt_with_data.
@@ -330,11 +357,15 @@ func (p *Parser) parseOptWithData() bool {
 //
 //	RefreshMatViewStmt:
 //	    REFRESH MATERIALIZED VIEW opt_concurrently qualified_name opt_with_data
-func (p *Parser) parseRefreshMatViewStmt() *nodes.RefreshMatViewStmt {
+func (p *Parser) parseRefreshMatViewStmt() (*nodes.RefreshMatViewStmt, error) {
 	// MATERIALIZED
-	p.expect(MATERIALIZED)
+	if _, err := p.expect(MATERIALIZED); err != nil {
+		return nil, err
+	}
 	// VIEW
-	p.expect(VIEW)
+	if _, err := p.expect(VIEW); err != nil {
+		return nil, err
+	}
 
 	// opt_concurrently
 	concurrent := false
@@ -346,7 +377,7 @@ func (p *Parser) parseRefreshMatViewStmt() *nodes.RefreshMatViewStmt {
 	// qualified_name
 	names, err := p.parseQualifiedName()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	rv := makeRangeVarFromAnyName(names)
 
@@ -357,7 +388,7 @@ func (p *Parser) parseRefreshMatViewStmt() *nodes.RefreshMatViewStmt {
 		Concurrent: concurrent,
 		SkipData:   !withData,
 		Relation:   rv,
-	}
+	}, nil
 }
 
 // parseExecuteParamClause parses execute_param_clause.
@@ -365,12 +396,14 @@ func (p *Parser) parseRefreshMatViewStmt() *nodes.RefreshMatViewStmt {
 //	execute_param_clause:
 //	    '(' expr_list ')'
 //	    | /* EMPTY */
-func (p *Parser) parseExecuteParamClause() *nodes.List {
+func (p *Parser) parseExecuteParamClause() (*nodes.List, error) {
 	if p.cur.Type != '(' {
-		return nil
+		return nil, nil
 	}
 	p.advance() // '('
 	list := p.parseExprList()
-	p.expect(')')
-	return list
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return list, nil
 }

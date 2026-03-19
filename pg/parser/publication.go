@@ -97,7 +97,7 @@ func (p *Parser) parseAlterPublicationStmt() nodes.Node {
 			// SET definition
 			p.advance() // consume SET
 			p.advance() // consume '('
-			list := p.parseDefList()
+			list, _ := p.parseDefList()
 			p.expect(')')
 			return &nodes.AlterPublicationStmt{
 				Pubname: name,
@@ -355,7 +355,7 @@ func (p *Parser) parseAlterSubscriptionStmt() nodes.Node {
 	case SKIP:
 		p.advance() // consume SKIP
 		p.expect('(')
-		list := p.parseDefList()
+		list, _ := p.parseDefList()
 		p.expect(')')
 		return &nodes.AlterSubscriptionStmt{
 			Kind:    nodes.ALTER_SUBSCRIPTION_SKIP,
@@ -370,7 +370,7 @@ func (p *Parser) parseAlterSubscriptionStmt() nodes.Node {
 			// SET definition
 			p.advance() // consume SET
 			p.advance() // consume '('
-			list := p.parseDefList()
+			list, _ := p.parseDefList()
 			p.expect(')')
 			return &nodes.AlterSubscriptionStmt{
 				Kind:    nodes.ALTER_SUBSCRIPTION_OPTIONS,

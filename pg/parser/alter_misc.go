@@ -22,7 +22,7 @@ func (p *Parser) parseAlterFunctionStmt() nodes.Node {
 	}
 	p.advance() // consume FUNCTION/PROCEDURE/ROUTINE
 
-	fwa := p.parseFunctionWithArgtypes()
+	fwa, _ := p.parseFunctionWithArgtypes()
 
 	// Dispatch on the next token to determine which ALTER variant.
 	switch p.cur.Type {
@@ -200,7 +200,7 @@ func (p *Parser) parseAlterTypeStmt() nodes.Node {
 		// ALTER TYPE name SET (operator_def_list) -> AlterTypeStmt
 		p.advance() // consume SET
 		p.expect('(')
-		opts := p.parseOperatorDefList()
+		opts, _ := p.parseOperatorDefList()
 		p.expect(')')
 		return &nodes.AlterTypeStmt{
 			TypeName: names,
@@ -318,7 +318,7 @@ func (p *Parser) parseAlterTypeCmd() *nodes.AlterTableCmd {
 	case ADD_P:
 		p.advance()
 		p.expect(ATTRIBUTE)
-		elem := p.parseTableFuncElement()
+		elem, _ := p.parseTableFuncElement()
 		behavior := p.parseOptDropBehavior()
 		return &nodes.AlterTableCmd{
 			Subtype:  int(nodes.AT_AddColumn),
@@ -707,7 +707,7 @@ func (p *Parser) parseAlterAggregateStmt() nodes.Node {
 // parseAggregateWithArgtypesLocal parses aggregate_with_argtypes: func_name aggr_args
 func (p *Parser) parseAggregateWithArgtypesLocal() *nodes.ObjectWithArgs {
 	funcname, _ := p.parseFuncName()
-	aggrArgs := p.parseAggrArgs()
+	aggrArgs, _ := p.parseAggrArgs()
 	return &nodes.ObjectWithArgs{
 		Objname: funcname,
 		Objargs: extractAggrArgTypesLocal(aggrArgs),
@@ -764,7 +764,7 @@ func (p *Parser) parseAlterTSDictionary() nodes.Node {
 	switch p.cur.Type {
 	case '(':
 		// ALTER TEXT SEARCH DICTIONARY name definition
-		def := p.parseDefinition()
+		def, _ := p.parseDefinition()
 		return &nodes.AlterTSDictionaryStmt{
 			Dictname: names,
 			Options:  def,

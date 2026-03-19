@@ -599,7 +599,7 @@ func (p *Parser) parseOperatorWithArgtypesList() *nodes.List {
 func (p *Parser) parseOperatorWithArgtypes() *nodes.ObjectWithArgs {
 	opName, _ := p.parseAnyOperator()
 	owa := &nodes.ObjectWithArgs{Objname: opName}
-	owa.Objargs = p.parseOperArgtypes()
+	owa.Objargs, _ = p.parseOperArgtypes()
 	return owa
 }
 
@@ -627,11 +627,12 @@ func (p *Parser) parseDropFuncStmt(objType nodes.ObjectType) nodes.Node {
 
 // parseFunctionWithArgtypesList parses a comma-separated list of function_with_argtypes.
 func (p *Parser) parseFunctionWithArgtypesList() *nodes.List {
-	fwa := p.parseFunctionWithArgtypes()
+	fwa, _ := p.parseFunctionWithArgtypes()
 	items := []nodes.Node{fwa}
 	for p.cur.Type == ',' {
 		p.advance()
-		items = append(items, p.parseFunctionWithArgtypes())
+		f, _ := p.parseFunctionWithArgtypes()
+		items = append(items, f)
 	}
 	return &nodes.List{Items: items}
 }
