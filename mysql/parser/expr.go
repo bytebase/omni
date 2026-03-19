@@ -321,11 +321,25 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		tok := p.advance()
 		name := strings.ToUpper(tok.Str)
 		fc := &nodes.FuncCallExpr{Loc: nodes.Loc{Start: tok.Loc}, Name: name}
-		// Optional parentheses
+		// Optional parentheses with optional fsp argument
 		if p.cur.Type == '(' {
 			p.advance()
-			if p.cur.Type == ')' {
-				p.advance()
+			if p.cur.Type != ')' {
+				// Parse arguments (e.g., fractional seconds precision)
+				for {
+					arg, err := p.parseExpr()
+					if err != nil {
+						return nil, err
+					}
+					fc.Args = append(fc.Args, arg)
+					if p.cur.Type != ',' {
+						break
+					}
+					p.advance() // consume ','
+				}
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
 			}
 		}
 		fc.Loc.End = p.pos()

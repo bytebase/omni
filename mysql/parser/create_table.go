@@ -531,6 +531,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 	// Handle parenthesized expression: DEFAULT (expr)
 	if p.cur.Type == '(' {
+		start := p.pos()
 		p.advance()
 		expr, err := p.parseExpr()
 		if err != nil {
@@ -539,7 +540,7 @@ func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		return expr, nil
+		return &nodes.ParenExpr{Loc: nodes.Loc{Start: start, End: p.pos()}, Expr: expr}, nil
 	}
 	return p.parseExpr()
 }

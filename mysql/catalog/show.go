@@ -164,7 +164,7 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 
 	// ON UPDATE.
 	if col.OnUpdate != "" {
-		b.WriteString(fmt.Sprintf(" ON UPDATE %s", col.OnUpdate))
+		b.WriteString(fmt.Sprintf(" ON UPDATE %s", formatOnUpdate(col.OnUpdate)))
 	}
 
 	// COMMENT.
@@ -192,8 +192,8 @@ func formatDefault(val string, col *Column) string {
 		return "CURRENT_TIMESTAMP"
 	}
 	if strings.HasPrefix(upper, "CURRENT_TIMESTAMP(") {
-		// CURRENT_TIMESTAMP(N) — keep precision.
-		return val
+		// CURRENT_TIMESTAMP(N) — keep precision, use uppercase.
+		return upper
 	}
 	if upper == "NOW()" {
 		return "CURRENT_TIMESTAMP"
@@ -203,12 +203,31 @@ func formatDefault(val string, col *Column) string {
 		strings.HasPrefix(val, "0x") || strings.HasPrefix(val, "0X") {
 		return val
 	}
+	// Expression defaults: (expr) — not quoted, shown as-is.
+	if len(val) >= 2 && val[0] == '(' && val[len(val)-1] == ')' {
+		return val
+	}
 	// Already single-quoted string — return as-is.
 	if len(val) >= 2 && val[0] == '\'' && val[len(val)-1] == '\'' {
 		return val
 	}
 	// MySQL 8.0 quotes all literal defaults (including numerics).
 	return "'" + val + "'"
+}
+
+// formatOnUpdate normalizes ON UPDATE values to MySQL 8.0 format.
+func formatOnUpdate(val string) string {
+	upper := strings.ToUpper(val)
+	if upper == "CURRENT_TIMESTAMP" || upper == "CURRENT_TIMESTAMP()" {
+		return "CURRENT_TIMESTAMP"
+	}
+	if strings.HasPrefix(upper, "CURRENT_TIMESTAMP(") {
+		return upper
+	}
+	if upper == "NOW()" {
+		return "CURRENT_TIMESTAMP"
+	}
+	return val
 }
 
 // isTimestampType returns true for TIMESTAMP/DATETIME types.
@@ -225,7 +244,7 @@ func isTextBlobType(dt string) bool {
 	switch strings.ToLower(dt) {
 	case "text", "tinytext", "mediumtext", "longtext",
 		"blob", "tinyblob", "mediumblob", "longblob",
-		"json", "geometry", "point", "linestring", "polygon",
+		"geometry", "point", "linestring", "polygon",
 		"multipoint", "multilinestring", "multipolygon", "geometrycollection":
 		return true
 	}

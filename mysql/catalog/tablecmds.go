@@ -545,23 +545,98 @@ func nodeToSQL(node nodes.ExprNode) string {
 	case *nodes.StringLit:
 		return "'" + n.Value + "'"
 	case *nodes.FuncCallExpr:
+		funcName := strings.ToLower(n.Name)
 		if n.Star {
-			return n.Name + "(*)"
+			return funcName + "(*)"
 		}
 		var args []string
 		for _, a := range n.Args {
 			args = append(args, nodeToSQL(a))
 		}
-		return n.Name + "(" + strings.Join(args, ", ") + ")"
+		return funcName + "(" + strings.Join(args, ",") + ")"
 	case *nodes.NullLit:
 		return "NULL"
 	case *nodes.BoolLit:
 		if n.Value {
-			return "TRUE"
+			return "1"
 		}
-		return "FALSE"
+		return "0"
+	case *nodes.FloatLit:
+		return n.Value
+	case *nodes.BitLit:
+		// MySQL strips leading zeros from bit literals in SHOW CREATE TABLE.
+		val := strings.TrimLeft(n.Value, "0")
+		if val == "" {
+			val = "0"
+		}
+		return "b'" + val + "'"
+	case *nodes.ParenExpr:
+		return "(" + nodeToSQL(n.Expr) + ")"
+	case *nodes.BinaryExpr:
+		left := nodeToSQL(n.Left)
+		right := nodeToSQL(n.Right)
+		op := binaryOpToString(n.Op)
+		// MySQL wraps binary expressions in parentheses in SHOW CREATE TABLE.
+		return "(" + left + " " + op + " " + right + ")"
+	case *nodes.UnaryExpr:
+		operand := nodeToSQL(n.Operand)
+		switch n.Op {
+		case nodes.UnaryMinus:
+			return "-" + operand
+		case nodes.UnaryNot:
+			return "NOT " + operand
+		case nodes.UnaryBitNot:
+			return "~" + operand
+		default:
+			return operand
+		}
 	default:
 		return "(?)"
+	}
+}
+
+func binaryOpToString(op nodes.BinaryOp) string {
+	switch op {
+	case nodes.BinOpAdd:
+		return "+"
+	case nodes.BinOpSub:
+		return "-"
+	case nodes.BinOpMul:
+		return "*"
+	case nodes.BinOpDiv:
+		return "/"
+	case nodes.BinOpMod:
+		return "%"
+	case nodes.BinOpEq:
+		return "="
+	case nodes.BinOpNe:
+		return "!="
+	case nodes.BinOpLt:
+		return "<"
+	case nodes.BinOpGt:
+		return ">"
+	case nodes.BinOpLe:
+		return "<="
+	case nodes.BinOpGe:
+		return ">="
+	case nodes.BinOpAnd:
+		return "AND"
+	case nodes.BinOpOr:
+		return "OR"
+	case nodes.BinOpBitAnd:
+		return "&"
+	case nodes.BinOpBitOr:
+		return "|"
+	case nodes.BinOpBitXor:
+		return "^"
+	case nodes.BinOpShiftLeft:
+		return "<<"
+	case nodes.BinOpShiftRight:
+		return ">>"
+	case nodes.BinOpDivInt:
+		return "DIV"
+	default:
+		return "?"
 	}
 }
 

@@ -1,6 +1,8 @@
 package catalog
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestOracle_Section_1_2_StringTypes(t *testing.T) {
 	if testing.Short() {
@@ -162,6 +164,71 @@ func TestOracle_Section_1_1_NumericTypes(t *testing.T) {
 			c.Exec("CREATE DATABASE test", nil)
 			c.SetCurrentDatabase("test")
 			results, _ := c.Exec(tc.sql, nil)
+			if results[0].Error != nil {
+				t.Fatalf("omni exec error: %v", results[0].Error)
+			}
+			omniDDL := c.ShowCreateTable("test", tc.table)
+
+			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
+					oracleDDL, omniDDL)
+			}
+		})
+	}
+}
+
+func TestOracle_Section_1_7_DefaultValues(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	cases := []struct {
+		name  string
+		sql   string
+		table string
+	}{
+		{"int_default_0", "CREATE TABLE t_def_int0 (a INT DEFAULT 0)", "t_def_int0"},
+		{"int_default_null", "CREATE TABLE t_def_intn (a INT DEFAULT NULL)", "t_def_intn"},
+		{"int_not_null", "CREATE TABLE t_def_intnn (a INT NOT NULL)", "t_def_intnn"},
+		{"varchar_default_hello", "CREATE TABLE t_def_vch (a VARCHAR(50) DEFAULT 'hello')", "t_def_vch"},
+		{"varchar_default_empty", "CREATE TABLE t_def_vce (a VARCHAR(50) DEFAULT '')", "t_def_vce"},
+		{"float_default", "CREATE TABLE t_def_flt (a FLOAT DEFAULT 3.14)", "t_def_flt"},
+		{"decimal_default", "CREATE TABLE t_def_dec (a DECIMAL(10,2) DEFAULT 0.00)", "t_def_dec"},
+		{"bool_default_true", "CREATE TABLE t_def_bt (a BOOLEAN DEFAULT TRUE)", "t_def_bt"},
+		{"bool_default_false", "CREATE TABLE t_def_bf (a BOOLEAN DEFAULT FALSE)", "t_def_bf"},
+		{"enum_default", "CREATE TABLE t_def_enum (a ENUM('a','b','c') DEFAULT 'a')", "t_def_enum"},
+		{"set_default", "CREATE TABLE t_def_set (a SET('x','y','z') DEFAULT 'x,y')", "t_def_set"},
+		{"bit_default", "CREATE TABLE t_def_bit (a BIT(8) DEFAULT b'00001111')", "t_def_bit"},
+		{"blob_no_default_null", "CREATE TABLE t_def_blob (a BLOB)", "t_def_blob"},
+		{"text_no_default_null", "CREATE TABLE t_def_text (a TEXT)", "t_def_text"},
+		{"json_no_default_null", "CREATE TABLE t_def_json (a JSON)", "t_def_json"},
+		{"timestamp_default_ct", "CREATE TABLE t_def_tsct (a TIMESTAMP DEFAULT CURRENT_TIMESTAMP)", "t_def_tsct"},
+		{"datetime_default_ct", "CREATE TABLE t_def_dtct (a DATETIME DEFAULT CURRENT_TIMESTAMP)", "t_def_dtct"},
+		{"timestamp3_default_ct3", "CREATE TABLE t_def_ts3 (a TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP(3))", "t_def_ts3"},
+		{"expr_default_int", "CREATE TABLE t_def_expr (a INT DEFAULT (FLOOR(RAND()*100)))", "t_def_expr"},
+		{"expr_default_json", "CREATE TABLE t_def_exjson (a JSON DEFAULT (JSON_ARRAY()))", "t_def_exjson"},
+		{"expr_default_varchar", "CREATE TABLE t_def_exvc (a VARCHAR(36) DEFAULT (UUID()))", "t_def_exvc"},
+		{"datetime_default_literal", "CREATE TABLE t_def_dtlit (a DATETIME DEFAULT '2024-01-01 00:00:00')", "t_def_dtlit"},
+		{"date_default_literal", "CREATE TABLE t_def_dtlit2 (a DATE DEFAULT '2024-01-01')", "t_def_dtlit2"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := oracle.execSQL(tc.sql); err != nil {
+				t.Fatalf("oracle exec: %v", err)
+			}
+			oracleDDL, _ := oracle.showCreateTable(tc.table)
+
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			results, err := c.Exec(tc.sql, nil)
+			if err != nil {
+				t.Fatalf("omni parse error: %v", err)
+			}
 			if results[0].Error != nil {
 				t.Fatalf("omni exec error: %v", results[0].Error)
 			}

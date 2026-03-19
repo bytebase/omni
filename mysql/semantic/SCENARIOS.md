@@ -95,28 +95,28 @@ The foundation — our output must be byte-for-byte identical to MySQL 8.0.
 ### 1.7 Default Values
 
 ```
-[ ] INT DEFAULT 0 → DEFAULT '0' (quoted)
-[ ] INT DEFAULT NULL
-[ ] INT NOT NULL (no default shown)
-[ ] VARCHAR DEFAULT 'hello'
-[ ] VARCHAR DEFAULT '' (empty string)
-[ ] FLOAT DEFAULT 3.14 → DEFAULT '3.14'
-[ ] DECIMAL(10,2) DEFAULT 0.00 → DEFAULT '0.00'
-[ ] BOOLEAN DEFAULT TRUE → tinyint(1) DEFAULT '1'
-[ ] BOOLEAN DEFAULT FALSE → tinyint(1) DEFAULT '0'
-[ ] ENUM DEFAULT 'a'
-[ ] SET DEFAULT 'x,y'
-[ ] BIT(8) DEFAULT b'00001111'
-[ ] BLOB/TEXT — no DEFAULT NULL shown
-[ ] JSON — no DEFAULT NULL shown
-[ ] TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-[ ] DATETIME DEFAULT CURRENT_TIMESTAMP
-[ ] TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP(3)
-[ ] Expression default (8.0.13+): INT DEFAULT (FLOOR(RAND()*100))
-[ ] Expression default: JSON DEFAULT (JSON_ARRAY())
-[ ] Expression default: VARCHAR DEFAULT (UUID())
-[ ] DATETIME DEFAULT '2024-01-01 00:00:00'
-[ ] DATE DEFAULT '2024-01-01'
+[x] INT DEFAULT 0 → DEFAULT '0' (quoted)
+[x] INT DEFAULT NULL
+[x] INT NOT NULL (no default shown)
+[x] VARCHAR DEFAULT 'hello'
+[x] VARCHAR DEFAULT '' (empty string)
+[x] FLOAT DEFAULT 3.14 → DEFAULT '3.14'
+[x] DECIMAL(10,2) DEFAULT 0.00 → DEFAULT '0.00'
+[x] BOOLEAN DEFAULT TRUE → tinyint(1) DEFAULT '1'
+[x] BOOLEAN DEFAULT FALSE → tinyint(1) DEFAULT '0'
+[x] ENUM DEFAULT 'a'
+[x] SET DEFAULT 'x,y'
+[x] BIT(8) DEFAULT b'00001111'
+[x] BLOB/TEXT — no DEFAULT NULL shown
+[x] JSON — no DEFAULT NULL shown
+[x] TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+[x] DATETIME DEFAULT CURRENT_TIMESTAMP
+[x] TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP(3)
+[x] Expression default (8.0.13+): INT DEFAULT (FLOOR(RAND()*100))
+[x] Expression default: JSON DEFAULT (JSON_ARRAY())
+[x] Expression default: VARCHAR DEFAULT (UUID())
+[x] DATETIME DEFAULT '2024-01-01 00:00:00'
+[x] DATE DEFAULT '2024-01-01'
 ```
 
 ### 1.8 ON UPDATE
@@ -625,10 +625,10 @@ Every error must match MySQL's errno, SQLSTATE, and message format.
 
 | Phase | Total | Done | % |
 |-------|-------|------|---|
-| 1. SHOW CREATE TABLE Precision | ~130 | 29 | 22% |
+| 1. SHOW CREATE TABLE Precision | ~130 | 51 | 39% |
 | 2. DDL Behavior Precision | ~75 | ~30 | 40% |
 | 3. Error Precision | ~18 | ~8 | 44% |
 | 4. Advanced DDL | ~25 | 0 | 0% |
 | 5. Session & System | ~12 | 0 | 0% |
 | 6. Query APIs | ~15 | 5 | 33% |
-| **Total** | **~275** | **~72** | **~26%** |
+| **Total** | **~275** | **~94** | **~34%** |
