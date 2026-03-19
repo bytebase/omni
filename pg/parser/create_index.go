@@ -54,7 +54,7 @@ func (p *Parser) parseIndexStmt() *nodes.IndexStmt {
 	p.expect(ON)
 
 	// relation_expr
-	rel := p.parseRelationExpr()
+	rel, _ := p.parseRelationExpr()
 
 	// access_method_clause
 	accessMethod := ""
@@ -94,7 +94,7 @@ func (p *Parser) parseIndexStmt() *nodes.IndexStmt {
 	tableSpace := p.parseOptTableSpace()
 
 	// where_clause
-	whereClause := p.parseWhereClause()
+	whereClause, _ := p.parseWhereClause()
 
 	return &nodes.IndexStmt{
 		Idxname:              idxname,

@@ -63,7 +63,7 @@ func (p *Parser) parseViewStmt(replace bool) *nodes.ViewStmt {
 
 	if recursive {
 		// For RECURSIVE VIEW, we need to wrap the select in a CTE.
-		selectStmt := p.parseSelectNoParens()
+		selectStmt, _ := p.parseSelectNoParens()
 
 		cte := &nodes.CommonTableExpr{
 			Ctename:       rv.Relname,
@@ -87,7 +87,7 @@ func (p *Parser) parseViewStmt(replace bool) *nodes.ViewStmt {
 		}
 		query = sel
 	} else {
-		query = p.parseSelectNoParens()
+		query, _ = p.parseSelectNoParens()
 	}
 
 	// opt_check_option
@@ -188,7 +188,7 @@ func (p *Parser) parseCreateTableAsStmt(relpersistence byte, ifNotExists bool) *
 		}
 	} else {
 		// AS SelectStmt
-		query = p.parseSelectNoParens()
+		query, _ = p.parseSelectNoParens()
 	}
 
 	// opt_with_data
@@ -259,7 +259,7 @@ func (p *Parser) parseCreateMatViewStmt(relpersistence byte) *nodes.CreateTableA
 	p.expect(AS)
 
 	// SelectStmt
-	query := p.parseSelectNoParens()
+	query, _ := p.parseSelectNoParens()
 
 	// opt_with_data
 	withData := p.parseOptWithData()

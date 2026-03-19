@@ -98,17 +98,22 @@ func (p *Parser) parseStmt() nodes.Node {
 	}
 	switch p.cur.Type {
 	case SELECT, VALUES, TABLE:
-		return p.parseSelectNoParens()
+		n, _ := p.parseSelectNoParens()
+		return n
 	case WITH:
 		return p.parseWithStmt()
 	case INSERT:
-		return p.parseInsertStmt(nil)
+		n, _ := p.parseInsertStmt(nil)
+		return n
 	case UPDATE:
-		return p.parseUpdateStmt(nil)
+		n, _ := p.parseUpdateStmt(nil)
+		return n
 	case DELETE_P:
-		return p.parseDeleteStmt(nil)
+		n, _ := p.parseDeleteStmt(nil)
+		return n
 	case MERGE:
-		return p.parseMergeStmt(nil)
+		n, _ := p.parseMergeStmt(nil)
+		return n
 	case CREATE:
 		return p.parseCreateDispatch()
 	case COMMENT:
@@ -872,7 +877,7 @@ func (p *Parser) finishCTAS(names *nodes.List, colNames *nodes.List, relpersiste
 			Params: params,
 		}
 	} else {
-		query = p.parseSelectNoParens()
+		query, _ = p.parseSelectNoParens()
 	}
 
 	withData := p.parseOptWithData()
@@ -931,19 +936,23 @@ func (p *Parser) finishCreateStmt(names *nodes.List, relpersistence byte, ifNotE
 
 // parseWithStmt parses a WITH clause followed by SELECT, INSERT, UPDATE, DELETE, or MERGE.
 func (p *Parser) parseWithStmt() nodes.Node {
-	withClause := p.parseWithClause()
+	withClause, _ := p.parseWithClause()
 	switch p.cur.Type {
 	case INSERT:
-		return p.parseInsertStmt(withClause)
+		n, _ := p.parseInsertStmt(withClause)
+		return n
 	case UPDATE:
-		return p.parseUpdateStmt(withClause)
+		n, _ := p.parseUpdateStmt(withClause)
+		return n
 	case DELETE_P:
-		return p.parseDeleteStmt(withClause)
+		n, _ := p.parseDeleteStmt(withClause)
+		return n
 	case MERGE:
-		return p.parseMergeStmt(withClause)
+		n, _ := p.parseMergeStmt(withClause)
+		return n
 	default:
 		// SELECT
-		stmt := p.parseSelectClause(setOpPrecNone)
+		stmt, _ := p.parseSelectClause(setOpPrecNone)
 		if stmt == nil {
 			return nil
 		}

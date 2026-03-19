@@ -22,36 +22,50 @@ const (
 //	    | select_clause opt_sort_clause for_locking_clause opt_select_limit
 //	    | select_clause opt_sort_clause select_limit opt_for_locking_clause
 //	    | with_clause select_clause ...
-func (p *Parser) parseSelectNoParens() *nodes.SelectStmt {
+func (p *Parser) parseSelectNoParens() (*nodes.SelectStmt, error) {
 	loc := p.pos()
 	// 1. Optional WITH clause
 	var withClause *nodes.WithClause
 	if p.cur.Type == WITH || p.cur.Type == WITH_LA {
-		withClause = p.parseWithClause()
+		var err error
+		withClause, err = p.parseWithClause()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// 2. Parse select_clause (handles UNION/INTERSECT/EXCEPT)
-	stmt := p.parseSelectClause(setOpPrecNone)
+	stmt, err := p.parseSelectClause(setOpPrecNone)
+	if err != nil {
+		return nil, err
+	}
 	if stmt == nil {
-		return nil
+		return nil, nil
 	}
 
 	// 3. Optional ORDER BY
 	if p.cur.Type == ORDER {
 		p.advance()
-		p.expect(BY)
-		stmt.SortClause, _ = p.parseSortByList()
+		if _, err := p.expect(BY); err != nil {
+			return nil, err
+		}
+		stmt.SortClause, err = p.parseSortByList()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// 4. Parse LIMIT/OFFSET and FOR locking in either order
-	p.parseSelectOptions(stmt)
+	if err := p.parseSelectOptions(stmt); err != nil {
+		return nil, err
+	}
 
 	if withClause != nil {
 		stmt.WithClause = withClause
 	}
 
 	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
-	return stmt
+	return stmt, nil
 }
 
 // parseSelectWithParens parses a parenthesized SELECT statement.
@@ -59,16 +73,24 @@ func (p *Parser) parseSelectNoParens() *nodes.SelectStmt {
 //	select_with_parens:
 //	    '(' select_no_parens ')'
 //	    | '(' select_with_parens ')'
-func (p *Parser) parseSelectWithParens() *nodes.SelectStmt {
-	p.expect('(')
-	var stmt *nodes.SelectStmt
-	if p.cur.Type == '(' {
-		stmt = p.parseSelectWithParens()
-	} else {
-		stmt = p.parseSelectNoParens()
+func (p *Parser) parseSelectWithParens() (*nodes.SelectStmt, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
 	}
-	p.expect(')')
-	return stmt
+	var stmt *nodes.SelectStmt
+	var err error
+	if p.cur.Type == '(' {
+		stmt, err = p.parseSelectWithParens()
+	} else {
+		stmt, err = p.parseSelectNoParens()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return stmt, nil
 }
 
 // parseSelectClause parses a select_clause using precedence climbing
@@ -77,10 +99,13 @@ func (p *Parser) parseSelectWithParens() *nodes.SelectStmt {
 //	select_clause:
 //	    simple_select
 //	    | select_with_parens
-func (p *Parser) parseSelectClause(minPrec int) *nodes.SelectStmt {
-	left := p.parseSelectClausePrimary()
+func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
+	left, err := p.parseSelectClausePrimary()
+	if err != nil {
+		return nil, err
+	}
 	if left == nil {
-		return nil
+		return nil, nil
 	}
 
 	for {
@@ -94,14 +119,17 @@ func (p *Parser) parseSelectClause(minPrec int) *nodes.SelectStmt {
 		case INTERSECT:
 			prec, op = setOpPrecIntersect, nodes.SETOP_INTERSECT
 		default:
-			return left
+			return left, nil
 		}
 		if prec < minPrec {
-			return left
+			return left, nil
 		}
 		p.advance() // consume UNION/INTERSECT/EXCEPT
 		all := p.parseSetQuantifier()
-		right := p.parseSelectClause(prec + 1) // left-associative
+		right, err := p.parseSelectClause(prec + 1) // left-associative
+		if err != nil {
+			return nil, err
+		}
 		result := &nodes.SelectStmt{
 			Op:   op,
 			Larg: left,
@@ -116,7 +144,7 @@ func (p *Parser) parseSelectClause(minPrec int) *nodes.SelectStmt {
 }
 
 // parseSelectClausePrimary parses a primary select clause (leaf or parenthesized).
-func (p *Parser) parseSelectClausePrimary() *nodes.SelectStmt {
+func (p *Parser) parseSelectClausePrimary() (*nodes.SelectStmt, error) {
 	if p.cur.Type == '(' {
 		return p.parseSelectWithParens()
 	}
@@ -130,7 +158,7 @@ func (p *Parser) parseSelectClausePrimary() *nodes.SelectStmt {
 //	           [WHERE ...] [GROUP BY ...] [HAVING ...] [WINDOW ...]
 //	    | VALUES (...)
 //	    | TABLE relation_expr
-func (p *Parser) parseSimpleSelectLeaf() *nodes.SelectStmt {
+func (p *Parser) parseSimpleSelectLeaf() (*nodes.SelectStmt, error) {
 	switch p.cur.Type {
 	case SELECT:
 		return p.parseSimpleSelectCore()
@@ -139,7 +167,7 @@ func (p *Parser) parseSimpleSelectLeaf() *nodes.SelectStmt {
 	case TABLE:
 		return p.parseTableCmd()
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
@@ -155,7 +183,7 @@ func (p *Parser) parseSimpleSelectLeaf() *nodes.SelectStmt {
 //	    [ GROUP BY [ ALL | DISTINCT ] grouping_element [, ...] ]
 //	    [ HAVING condition ]
 //	    [ WINDOW window_name AS ( window_definition ) [, ...] ]
-func (p *Parser) parseSimpleSelectCore() *nodes.SelectStmt {
+func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 	loc := p.pos()
 	p.advance() // consume SELECT
 	stmt := &nodes.SelectStmt{}
@@ -167,16 +195,28 @@ func (p *Parser) parseSimpleSelectCore() *nodes.SelectStmt {
 		p.advance()
 		if p.cur.Type == ON {
 			p.advance()
-			p.expect('(')
-			stmt.DistinctClause, _ = p.parseExprListFull()
-			p.expect(')')
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			var err error
+			stmt.DistinctClause, err = p.parseExprListFull()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		} else {
 			stmt.DistinctClause = &nodes.List{Items: []nodes.Node{nil}}
 		}
 	}
 
 	// target_list (opt_target_list)
-	stmt.TargetList, _ = p.parseTargetList()
+	var err error
+	stmt.TargetList, err = p.parseTargetList()
+	if err != nil {
+		return nil, err
+	}
 
 	if p.collectMode() {
 		// After target list, valid continuations:
@@ -190,18 +230,24 @@ func (p *Parser) parseSimpleSelectCore() *nodes.SelectStmt {
 		// Also valid: expression operators (AS for alias, comma for next target)
 		p.addTokenCandidate(',')
 		p.addTokenCandidate(AS)
-		return stmt
+		return stmt, nil
 	}
 
 	// INTO clause
 	if p.cur.Type == INTO {
-		stmt.IntoClause = p.parseIntoClause()
+		stmt.IntoClause, err = p.parseIntoClause()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// FROM clause
 	if p.cur.Type == FROM {
 		p.advance()
-		stmt.FromClause = p.parseFromListFull()
+		stmt.FromClause, err = p.parseFromListFull()
+		if err != nil {
+			return nil, err
+		}
 		if p.collectMode() {
 			for _, t := range []int{
 				WHERE, GROUP_P, HAVING, WINDOW,
@@ -210,14 +256,17 @@ func (p *Parser) parseSimpleSelectCore() *nodes.SelectStmt {
 			} {
 				p.addTokenCandidate(t)
 			}
-			return stmt
+			return stmt, nil
 		}
 	}
 
 	// WHERE clause
 	if p.cur.Type == WHERE {
 		p.advance()
-		stmt.WhereClause, _ = p.parseAExpr(0)
+		stmt.WhereClause, err = p.parseAExpr(0)
+		if err != nil {
+			return nil, err
+		}
 		if p.collectMode() {
 			for _, t := range []int{
 				GROUP_P, HAVING, WINDOW,
@@ -226,14 +275,16 @@ func (p *Parser) parseSimpleSelectCore() *nodes.SelectStmt {
 			} {
 				p.addTokenCandidate(t)
 			}
-			return stmt
+			return stmt, nil
 		}
 	}
 
 	// GROUP BY clause
 	if p.cur.Type == GROUP_P {
 		p.advance()
-		p.expect(BY)
+		if _, err := p.expect(BY); err != nil {
+			return nil, err
+		}
 		// Check for ALL or DISTINCT
 		if p.cur.Type == ALL {
 			p.advance()
@@ -242,7 +293,10 @@ func (p *Parser) parseSimpleSelectCore() *nodes.SelectStmt {
 			p.advance()
 			stmt.GroupDistinct = true
 		}
-		stmt.GroupClause = p.parseGroupByList()
+		stmt.GroupClause, err = p.parseGroupByList()
+		if err != nil {
+			return nil, err
+		}
 		if p.collectMode() {
 			for _, t := range []int{
 				HAVING, WINDOW, ORDER, LIMIT, OFFSET, FETCH, FOR,
@@ -250,62 +304,85 @@ func (p *Parser) parseSimpleSelectCore() *nodes.SelectStmt {
 			} {
 				p.addTokenCandidate(t)
 			}
-			return stmt
+			return stmt, nil
 		}
 	}
 
 	// HAVING clause
 	if p.cur.Type == HAVING {
 		p.advance()
-		stmt.HavingClause, _ = p.parseAExpr(0)
+		stmt.HavingClause, err = p.parseAExpr(0)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// WINDOW clause
-	stmt.WindowClause, _ = p.parseWindowClause()
+	stmt.WindowClause, err = p.parseWindowClause()
+	if err != nil {
+		return nil, err
+	}
 
 	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
-	return stmt
+	return stmt, nil
 }
 
 // parseValuesClause parses a VALUES clause.
 //
 //	values_clause:
 //	    VALUES '(' expr_list ')' [',' '(' expr_list ')' ...]
-func (p *Parser) parseValuesClause() *nodes.SelectStmt {
+func (p *Parser) parseValuesClause() (*nodes.SelectStmt, error) {
 	loc := p.pos()
 	p.advance() // consume VALUES
 	stmt := &nodes.SelectStmt{}
 
-	p.expect('(')
-	first, _ := p.parseExprListFull()
-	p.expect(')')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	first, err := p.parseExprListFull()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	stmt.ValuesLists = &nodes.List{Items: []nodes.Node{first}}
 
 	for p.cur.Type == ',' {
 		p.advance()
-		p.expect('(')
-		exprs, _ := p.parseExprListFull()
-		p.expect(')')
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		exprs, err := p.parseExprListFull()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		stmt.ValuesLists.Items = append(stmt.ValuesLists.Items, exprs)
 	}
 
 	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
-	return stmt
+	return stmt, nil
 }
 
 // parseTableCmd parses TABLE relation_expr (shorthand for SELECT * FROM ...).
 //
 //	TABLE relation_expr
-func (p *Parser) parseTableCmd() *nodes.SelectStmt {
+func (p *Parser) parseTableCmd() (*nodes.SelectStmt, error) {
 	loc := p.pos()
 	p.advance() // consume TABLE
-	rel := p.parseRelationExpr()
+	rel, err := p.parseRelationExpr()
+	if err != nil {
+		return nil, err
+	}
 	cr := &nodes.ColumnRef{
-		Fields:   &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}},
-		Loc: nodes.NoLoc(),
+		Fields: &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}},
+		Loc:    nodes.NoLoc(),
 	}
 	rt := &nodes.ResTarget{
-		Val:      cr,
+		Val: cr,
 		Loc: nodes.NoLoc(),
 	}
 	stmt := &nodes.SelectStmt{
@@ -313,7 +390,7 @@ func (p *Parser) parseTableCmd() *nodes.SelectStmt {
 		FromClause: &nodes.List{Items: []nodes.Node{rel}},
 	}
 	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
-	return stmt
+	return stmt, nil
 }
 
 // parseSetQuantifier parses ALL | DISTINCT | EMPTY for set operations.
@@ -334,19 +411,24 @@ func (p *Parser) parseSetQuantifier() nodes.SetQuantifier {
 
 // parseSelectOptions parses ORDER BY, LIMIT/OFFSET, and FOR locking clauses.
 // These can appear in various orders.
-func (p *Parser) parseSelectOptions(stmt *nodes.SelectStmt) {
+func (p *Parser) parseSelectOptions(stmt *nodes.SelectStmt) error {
 	// Parse LIMIT/OFFSET/FETCH and FOR locking in either order
 	for {
 		if p.collectMode() {
 			for _, t := range []int{LIMIT, OFFSET, FETCH, FOR, ';'} {
 				p.addTokenCandidate(t)
 			}
-			return
+			return nil
 		}
 		if p.cur.Type == LIMIT || p.cur.Type == OFFSET || p.cur.Type == FETCH {
-			p.parseSelectLimit(stmt)
+			if err := p.parseSelectLimit(stmt); err != nil {
+				return err
+			}
 		} else if p.cur.Type == FOR {
-			locking := p.parseForLockingClause()
+			locking, err := p.parseForLockingClause()
+			if err != nil {
+				return err
+			}
 			if locking != nil {
 				stmt.LockingClause = locking
 			}
@@ -354,6 +436,7 @@ func (p *Parser) parseSelectOptions(stmt *nodes.SelectStmt) {
 			break
 		}
 	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -366,7 +449,7 @@ func (p *Parser) parseSelectOptions(stmt *nodes.SelectStmt) {
 //	    | offset_clause limit_clause
 //	    | limit_clause
 //	    | offset_clause
-func (p *Parser) parseSelectLimit(stmt *nodes.SelectStmt) {
+func (p *Parser) parseSelectLimit(stmt *nodes.SelectStmt) error {
 	for {
 		switch p.cur.Type {
 		case LIMIT:
@@ -376,7 +459,11 @@ func (p *Parser) parseSelectLimit(stmt *nodes.SelectStmt) {
 				stmt.LimitCount = &nodes.A_Const{Isnull: true}
 				stmt.LimitOption = nodes.LIMIT_OPTION_COUNT
 			} else {
-				stmt.LimitCount, _ = p.parseAExpr(0)
+				var err error
+				stmt.LimitCount, err = p.parseAExpr(0)
+				if err != nil {
+					return err
+				}
 				stmt.LimitOption = nodes.LIMIT_OPTION_COUNT
 				// Check for deprecated LIMIT #,# syntax
 				if p.cur.Type == ',' {
@@ -384,23 +471,31 @@ func (p *Parser) parseSelectLimit(stmt *nodes.SelectStmt) {
 					// In MySQL-compatible syntax: LIMIT offset, count
 					// Swap: what we parsed as count is actually offset
 					stmt.LimitOffset = stmt.LimitCount
-					stmt.LimitCount, _ = p.parseAExpr(0)
+					stmt.LimitCount, err = p.parseAExpr(0)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		case OFFSET:
 			p.advance()
 			// Could be: OFFSET select_offset_value
 			// or: OFFSET select_fetch_first_value row_or_rows
-			expr, _ := p.parseAExpr(0)
+			expr, err := p.parseAExpr(0)
+			if err != nil {
+				return err
+			}
 			// Check if followed by ROW or ROWS (SQL:2008 syntax)
 			if p.cur.Type == ROW || p.cur.Type == ROWS {
 				p.advance()
 			}
 			stmt.LimitOffset = expr
 		case FETCH:
-			p.parseFetchClause(stmt)
+			if err := p.parseFetchClause(stmt); err != nil {
+				return err
+			}
 		default:
-			return
+			return nil
 		}
 	}
 }
@@ -411,7 +506,7 @@ func (p *Parser) parseSelectLimit(stmt *nodes.SelectStmt) {
 //	| FETCH first_or_next select_fetch_first_value row_or_rows WITH TIES
 //	| FETCH first_or_next row_or_rows ONLY
 //	| FETCH first_or_next row_or_rows WITH TIES
-func (p *Parser) parseFetchClause(stmt *nodes.SelectStmt) {
+func (p *Parser) parseFetchClause(stmt *nodes.SelectStmt) error {
 	p.advance() // consume FETCH
 	// first_or_next: FIRST | NEXT (ignored semantically)
 	if p.cur.Type == FIRST_P || p.cur.Type == NEXT {
@@ -424,15 +519,25 @@ func (p *Parser) parseFetchClause(stmt *nodes.SelectStmt) {
 		stmt.LimitCount = &nodes.A_Const{Val: &nodes.Integer{Ival: 1}}
 	} else {
 		// select_fetch_first_value: c_expr | '+' c_expr | '-' c_expr
+		var err error
 		if p.cur.Type == '+' {
 			p.advance()
-			stmt.LimitCount, _ = p.parseCExpr()
+			stmt.LimitCount, err = p.parseCExpr()
+			if err != nil {
+				return err
+			}
 		} else if p.cur.Type == '-' {
 			p.advance()
-			limitExpr, _ := p.parseCExpr()
+			limitExpr, err := p.parseCExpr()
+			if err != nil {
+				return err
+			}
 			stmt.LimitCount = doNegate(limitExpr)
 		} else {
-			stmt.LimitCount, _ = p.parseCExpr()
+			stmt.LimitCount, err = p.parseCExpr()
+			if err != nil {
+				return err
+			}
 		}
 		// row_or_rows: ROW | ROWS
 		if p.cur.Type == ROW || p.cur.Type == ROWS {
@@ -443,12 +548,17 @@ func (p *Parser) parseFetchClause(stmt *nodes.SelectStmt) {
 	// ONLY or WITH TIES
 	if p.cur.Type == WITH {
 		p.advance()
-		p.expect(TIES)
+		if _, err := p.expect(TIES); err != nil {
+			return err
+		}
 		stmt.LimitOption = nodes.LIMIT_OPTION_WITH_TIES
 	} else {
-		p.expect(ONLY)
+		if _, err := p.expect(ONLY); err != nil {
+			return err
+		}
 		stmt.LimitOption = nodes.LIMIT_OPTION_COUNT
 	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -459,9 +569,9 @@ func (p *Parser) parseFetchClause(stmt *nodes.SelectStmt) {
 //	for_locking_clause:
 //	    for_locking_items
 //	    | FOR READ ONLY
-func (p *Parser) parseForLockingClause() *nodes.List {
+func (p *Parser) parseForLockingClause() (*nodes.List, error) {
 	if p.cur.Type != FOR {
-		return nil
+		return nil, nil
 	}
 
 	// Check for FOR READ ONLY
@@ -469,31 +579,36 @@ func (p *Parser) parseForLockingClause() *nodes.List {
 	if next.Type == READ {
 		p.advance() // consume FOR
 		p.advance() // consume READ
-		p.expect(ONLY)
-		return nil // FOR READ ONLY = no locking
+		if _, err := p.expect(ONLY); err != nil {
+			return nil, err
+		}
+		return nil, nil // FOR READ ONLY = no locking
 	}
 
 	var items []nodes.Node
 	for p.cur.Type == FOR {
-		item := p.parseForLockingItem()
+		item, err := p.parseForLockingItem()
+		if err != nil {
+			return nil, err
+		}
 		if item != nil {
 			items = append(items, item)
 		}
 	}
 	if len(items) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseForLockingItem parses a single FOR UPDATE/SHARE item.
 //
 //	for_locking_item:
 //	    for_locking_strength locked_rels_list opt_nowait_or_skip
-func (p *Parser) parseForLockingItem() *nodes.LockingClause {
+func (p *Parser) parseForLockingItem() (*nodes.LockingClause, error) {
 	strength := p.parseForLockingStrength()
 	if strength < 0 {
-		return nil
+		return nil, nil
 	}
 
 	lc := &nodes.LockingClause{
@@ -503,8 +618,11 @@ func (p *Parser) parseForLockingItem() *nodes.LockingClause {
 	// locked_rels_list: OF qualified_name_list | EMPTY
 	if p.cur.Type == OF {
 		p.advance()
-		rels, _ := p.parseQualifiedNameList()
-		lc.LockedRels = rels
+		var err error
+		lc.LockedRels, err = p.parseQualifiedNameList()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// opt_nowait_or_skip
@@ -513,13 +631,15 @@ func (p *Parser) parseForLockingItem() *nodes.LockingClause {
 		lc.WaitPolicy = int(nodes.LockWaitError)
 	} else if p.cur.Type == SKIP {
 		p.advance()
-		p.expect(LOCKED)
+		if _, err := p.expect(LOCKED); err != nil {
+			return nil, err
+		}
 		lc.WaitPolicy = int(nodes.LockWaitSkip)
 	} else {
 		lc.WaitPolicy = int(nodes.LockWaitBlock)
 	}
 
-	return lc
+	return lc, nil
 }
 
 // parseForLockingStrength parses FOR UPDATE/NO KEY UPDATE/SHARE/KEY SHARE.
@@ -559,7 +679,7 @@ func (p *Parser) parseForLockingStrength() int64 {
 //	    WITH cte_list
 //	    | WITH_LA cte_list
 //	    | WITH RECURSIVE cte_list
-func (p *Parser) parseWithClause() *nodes.WithClause {
+func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 	loc := p.pos()
 	// Record CTE position for completion context (before consuming WITH).
 	if p.completing {
@@ -576,20 +696,31 @@ func (p *Parser) parseWithClause() *nodes.WithClause {
 		wc.Recursive = true
 	}
 
-	wc.Ctes = p.parseCTEList()
+	var err error
+	wc.Ctes, err = p.parseCTEList()
+	if err != nil {
+		return nil, err
+	}
 	wc.Loc.End = p.pos()
-	return wc
+	return wc, nil
 }
 
 // parseCTEList parses a comma-separated list of CTEs.
-func (p *Parser) parseCTEList() *nodes.List {
-	first := p.parseCommonTableExpr()
+func (p *Parser) parseCTEList() (*nodes.List, error) {
+	first, err := p.parseCommonTableExpr()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
 		p.advance()
-		items = append(items, p.parseCommonTableExpr())
+		cte, err := p.parseCommonTableExpr()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, cte)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseCommonTableExpr parses a single CTE.
@@ -597,40 +728,62 @@ func (p *Parser) parseCTEList() *nodes.List {
 //	common_table_expr:
 //	    name opt_name_list AS opt_materialized '(' PreparableStmt ')' opt_search_clause opt_cycle_clause
 //	    | name '(' name_list ')' AS opt_materialized '(' PreparableStmt ')' opt_search_clause opt_cycle_clause
-func (p *Parser) parseCommonTableExpr() *nodes.CommonTableExpr {
+func (p *Parser) parseCommonTableExpr() (*nodes.CommonTableExpr, error) {
 	loc := p.pos()
-	name, _ := p.parseName()
+	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 
 	cte := &nodes.CommonTableExpr{
-		Ctename:  name,
-		Loc: nodes.Loc{Start: loc, End: -1},
+		Ctename: name,
+		Loc:     nodes.Loc{Start: loc, End: -1},
 	}
 
 	// Check for name '(' name_list ')' form
 	if p.cur.Type == '(' {
 		p.advance()
-		colnames, _ := p.parseNameList()
-		p.expect(')')
+		colnames, err := p.parseNameList()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		cte.Aliascolnames = colnames
 	}
 
-	p.expect(AS)
+	if _, err := p.expect(AS); err != nil {
+		return nil, err
+	}
 
 	// opt_materialized
 	cte.Ctematerialized = int(p.parseOptMaterialized())
 
 	// '(' PreparableStmt ')'
-	p.expect('(')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 	cte.Ctequery = p.parsePreparableStmt()
-	p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	// opt_search_clause
-	cte.SearchClause = p.parseOptSearchClause()
+	var searchErr error
+	cte.SearchClause, searchErr = p.parseOptSearchClause()
+	if searchErr != nil {
+		return nil, searchErr
+	}
 	// opt_cycle_clause
-	cte.CycleClause = p.parseOptCycleClause()
+	var cycleErr error
+	cte.CycleClause, cycleErr = p.parseOptCycleClause()
+	if cycleErr != nil {
+		return nil, cycleErr
+	}
 
 	cte.Loc.End = p.pos()
-	return cte
+	return cte, nil
 }
 
 // parseOptMaterialized parses MATERIALIZED / NOT MATERIALIZED / empty.
@@ -658,9 +811,9 @@ func (p *Parser) parseOptMaterialized() nodes.CTEMaterialize {
 //	    SEARCH DEPTH FIRST_P BY columnList SET ColId
 //	    | SEARCH BREADTH FIRST_P BY columnList SET ColId
 //	    | /* EMPTY */
-func (p *Parser) parseOptSearchClause() nodes.Node {
+func (p *Parser) parseOptSearchClause() (nodes.Node, error) {
 	if p.cur.Type != SEARCH {
-		return nil
+		return nil, nil
 	}
 	p.advance() // consume SEARCH
 
@@ -673,18 +826,27 @@ func (p *Parser) parseOptSearchClause() nodes.Node {
 		p.advance()
 		breadthFirst = true
 	}
-	p.expect(FIRST_P)
-	p.expect(BY)
+	if _, err := p.expect(FIRST_P); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(BY); err != nil {
+		return nil, err
+	}
 	colList := p.parseColumnList()
-	p.expect(SET)
-	seqCol, _ := p.parseColId()
+	if _, err := p.expect(SET); err != nil {
+		return nil, err
+	}
+	seqCol, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.CTESearchClause{
 		SearchColList:      colList,
 		SearchBreadthFirst: breadthFirst,
 		SearchSeqColumn:    seqCol,
-		Loc: nodes.NoLoc(),
-	}
+		Loc:                nodes.NoLoc(),
+	}, nil
 }
 
 // parseOptCycleClause parses an optional CYCLE clause in a recursive CTE.
@@ -695,32 +857,50 @@ func (p *Parser) parseOptSearchClause() nodes.Node {
 //	    CYCLE columnList SET ColId TO AexprConst DEFAULT AexprConst USING ColId
 //	    | CYCLE columnList SET ColId USING ColId
 //	    | /* EMPTY */
-func (p *Parser) parseOptCycleClause() nodes.Node {
+func (p *Parser) parseOptCycleClause() (nodes.Node, error) {
 	if p.cur.Type != CYCLE {
-		return nil
+		return nil, nil
 	}
 	p.advance() // consume CYCLE
 
 	colList := p.parseColumnList()
-	p.expect(SET)
-	markCol, _ := p.parseColId()
+	if _, err := p.expect(SET); err != nil {
+		return nil, err
+	}
+	markCol, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
 
 	var markValue, markDefault nodes.Node
 
 	if p.cur.Type == TO {
 		// CYCLE ... SET col TO val DEFAULT val USING col
 		p.advance() // consume TO
-		markValue, _ = p.parseCExpr()
-		p.expect(DEFAULT)
-		markDefault, _ = p.parseCExpr()
+		markValue, err = p.parseCExpr()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(DEFAULT); err != nil {
+			return nil, err
+		}
+		markDefault, err = p.parseCExpr()
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		// CYCLE ... SET col USING col (implicit TRUE/FALSE)
 		markValue = makeBoolAConst(1)
 		markDefault = makeBoolAConst(0)
 	}
 
-	p.expect(USING)
-	pathCol, _ := p.parseColId()
+	if _, err := p.expect(USING); err != nil {
+		return nil, err
+	}
+	pathCol, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.CTECycleClause{
 		CycleColList:     colList,
@@ -728,8 +908,8 @@ func (p *Parser) parseOptCycleClause() nodes.Node {
 		CycleMarkValue:   markValue,
 		CycleMarkDefault: markDefault,
 		CyclePathColumn:  pathCol,
-		Loc: nodes.NoLoc(),
-	}
+		Loc:              nodes.NoLoc(),
+	}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -739,14 +919,17 @@ func (p *Parser) parseOptCycleClause() nodes.Node {
 //
 //	into_clause:
 //	    INTO OptTempTableName
-func (p *Parser) parseIntoClause() *nodes.IntoClause {
+func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 	p.advance() // consume INTO
 
-	rv := p.parseOptTempTableName()
+	rv, err := p.parseOptTempTableName()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.IntoClause{
 		Rel:      rv,
 		OnCommit: nodes.ONCOMMIT_NOOP,
-	}
+	}, nil
 }
 
 // parseOptTempTableName parses the target table name for SELECT INTO.
@@ -761,7 +944,7 @@ func (p *Parser) parseIntoClause() *nodes.IntoClause {
 //	    | UNLOGGED opt_table qualified_name
 //	    | TABLE qualified_name
 //	    | qualified_name
-func (p *Parser) parseOptTempTableName() *nodes.RangeVar {
+func (p *Parser) parseOptTempTableName() (*nodes.RangeVar, error) {
 	loc := p.pos()
 	persistence := byte('p')
 
@@ -785,11 +968,14 @@ func (p *Parser) parseOptTempTableName() *nodes.RangeVar {
 		p.advance()
 	}
 
-	names, _ := p.parseQualifiedName()
+	names, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
+	}
 	rv := makeRangeVarFromNames(names)
 	rv.Relpersistence = persistence
 	rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
-	return rv
+	return rv, nil
 }
 
 // parseOptTable consumes optional TABLE keyword.
@@ -803,21 +989,27 @@ func (p *Parser) parseOptTable() {
 // FROM clause
 
 // parseFromListFull parses a comma-separated list of table references with join support.
-func (p *Parser) parseFromListFull() *nodes.List {
-	first := p.parseTableRef()
+func (p *Parser) parseFromListFull() (*nodes.List, error) {
+	first, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
 	if first == nil {
-		return nil
+		return nil, nil
 	}
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
 		p.advance()
-		item := p.parseTableRef()
+		item, err := p.parseTableRef()
+		if err != nil {
+			return nil, err
+		}
 		if item == nil {
 			break
 		}
 		items = append(items, item)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseTableRef parses a table reference with optional joins.
@@ -832,22 +1024,28 @@ func (p *Parser) parseFromListFull() *nodes.List {
 //	    | '(' joined_table ')' opt_alias_clause
 //	    | xmltable opt_alias_clause
 //	    | json_table opt_alias_clause
-func (p *Parser) parseTableRef() nodes.Node {
-	left := p.parseTableRefPrimary()
+func (p *Parser) parseTableRef() (nodes.Node, error) {
+	left, err := p.parseTableRefPrimary()
+	if err != nil {
+		return nil, err
+	}
 	if left == nil {
-		return nil
+		return nil, nil
 	}
 
 	// Handle joins (left-recursive in yacc, loop in recursive descent)
 	for {
-		joined := p.tryParseJoin(left)
+		joined, err := p.tryParseJoin(left)
+		if err != nil {
+			return nil, err
+		}
 		if joined == nil {
 			break
 		}
 		left = joined
 	}
 
-	return left
+	return left, nil
 }
 
 // parseTableRefPrimary parses a primary (non-join) table reference.
@@ -862,13 +1060,13 @@ func (p *Parser) parseTableRef() nodes.Node {
 //	    | LATERAL_P ...
 //	    | select_with_parens opt_alias_clause
 //	    | '(' joined_table ')' opt_alias_clause
-func (p *Parser) parseTableRefPrimary() nodes.Node {
+func (p *Parser) parseTableRefPrimary() (nodes.Node, error) {
 	if p.collectMode() {
 		p.addRuleCandidate("relation_expr")
 		p.addRuleCandidate("qualified_name")
 		p.addTokenCandidate('(')       // subquery
 		p.addTokenCandidate(LATERAL_P) // LATERAL
-		return nil
+		return nil, errCollecting
 	}
 	switch p.cur.Type {
 	case '(':
@@ -876,20 +1074,26 @@ func (p *Parser) parseTableRefPrimary() nodes.Node {
 	case LATERAL_P:
 		return p.parseLateralTableRef()
 	case XMLTABLE:
-		xt, _ := p.parseXmlTable()
+		xt, err := p.parseXmlTable()
+		if err != nil {
+			return nil, err
+		}
 		n := xt.(*nodes.RangeTableFunc)
 		alias := p.parseOptAliasClause()
 		if alias != nil {
 			n.Alias = alias
 		}
-		return n
+		return n, nil
 	case JSON_TABLE:
-		n, _ := p.parseJsonTable()
+		n, err := p.parseJsonTable()
+		if err != nil {
+			return nil, err
+		}
 		alias := p.parseOptAliasClause()
 		if n != nil && alias != nil {
 			n.Alias = alias
 		}
-		return n
+		return n, nil
 	default:
 		// Could be relation_expr or func_table
 		// relation_expr starts with qualified_name, ONLY, or ONLY '('
@@ -908,38 +1112,49 @@ func (p *Parser) parseTableRefPrimary() nodes.Node {
 		// matches func_expr_windowless, which includes func_expr_common_subexpr.
 		// For example, SELECT * FROM user parses USER as CURRENT_USER via this path.
 		if p.isFuncExprCommonSubexprStart() {
-			funcExpr, _ := p.parseFuncExprWindowless()
-			return p.finishFuncTable(funcExpr)
+			funcExpr, err := p.parseFuncExprWindowless()
+			if err != nil {
+				return nil, err
+			}
+			return p.finishFuncTable(funcExpr), nil
 		}
-		return nil
+		return nil, nil
 	}
 }
 
 // parseParenTableRef handles '(' ... ')' in FROM clause.
 // Could be: '(' select_no_parens ')' or '(' joined_table ')' opt_alias
-func (p *Parser) parseParenTableRef() nodes.Node {
+func (p *Parser) parseParenTableRef() (nodes.Node, error) {
 	// Peek to see if this is a subquery or joined table
 	// If next token after '(' is SELECT/VALUES/WITH/TABLE, it's a subquery
 	next := p.peekNext()
 	if next.Type == SELECT || next.Type == VALUES || next.Type == WITH || next.Type == TABLE || next.Type == '(' {
 		// Could be select_with_parens → subquery
-		stmt := p.parseSelectWithParens()
+		stmt, err := p.parseSelectWithParens()
+		if err != nil {
+			return nil, err
+		}
 		alias := p.parseOptAliasClause()
 		return &nodes.RangeSubselect{
 			Subquery: stmt,
 			Alias:    alias,
-		}
+		}, nil
 	}
 
 	// '(' joined_table ')' opt_alias_clause
 	p.advance() // consume '('
-	inner := p.parseTableRef()
-	p.expect(')')
+	inner, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	alias := p.parseOptAliasClause()
 	if j, ok := inner.(*nodes.JoinExpr); ok && alias != nil {
 		j.Alias = alias
 	}
-	return inner
+	return inner, nil
 }
 
 // parseLateralTableRef handles LATERAL prefix.
@@ -950,43 +1165,55 @@ func (p *Parser) parseParenTableRef() nodes.Node {
 //	| LATERAL_P select_with_parens opt_alias_clause
 //	| LATERAL_P xmltable opt_alias_clause
 //	| LATERAL_P json_table opt_alias_clause
-func (p *Parser) parseLateralTableRef() nodes.Node {
+func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 	p.advance() // consume LATERAL
 
 	if p.cur.Type == '(' {
 		// LATERAL select_with_parens
-		stmt := p.parseSelectWithParens()
+		stmt, err := p.parseSelectWithParens()
+		if err != nil {
+			return nil, err
+		}
 		alias := p.parseOptAliasClause()
 		return &nodes.RangeSubselect{
 			Lateral:  true,
 			Subquery: stmt,
 			Alias:    alias,
-		}
+		}, nil
 	}
 
 	if p.cur.Type == ROWS {
-		rf := p.parseRowsFromTable()
+		rf, err := p.parseRowsFromTable()
+		if err != nil {
+			return nil, err
+		}
 		if rf, ok := rf.(*nodes.RangeFunction); ok {
 			rf.Lateral = true
 		}
-		return rf
+		return rf, nil
 	}
 
 	// LATERAL xmltable opt_alias_clause
 	if p.cur.Type == XMLTABLE {
-		xt, _ := p.parseXmlTable()
+		xt, err := p.parseXmlTable()
+		if err != nil {
+			return nil, err
+		}
 		n := xt.(*nodes.RangeTableFunc)
 		n.Lateral = true
 		alias := p.parseOptAliasClause()
 		if alias != nil {
 			n.Alias = alias
 		}
-		return n
+		return n, nil
 	}
 
 	// LATERAL json_table opt_alias_clause
 	if p.cur.Type == JSON_TABLE {
-		n, _ := p.parseJsonTable()
+		n, err := p.parseJsonTable()
+		if err != nil {
+			return nil, err
+		}
 		if n != nil {
 			n.Lateral = true
 			alias := p.parseOptAliasClause()
@@ -994,35 +1221,47 @@ func (p *Parser) parseLateralTableRef() nodes.Node {
 				n.Alias = alias
 			}
 		}
-		return n
+		return n, nil
 	}
 
 	// LATERAL func_table func_alias_clause
-	funcExpr, _ := p.parseFuncExprWindowless()
+	funcExpr, err := p.parseFuncExprWindowless()
+	if err != nil {
+		return nil, err
+	}
 	rf := &nodes.RangeFunction{
 		Lateral:   true,
 		Functions: &nodes.List{Items: []nodes.Node{&nodes.List{Items: []nodes.Node{funcExpr}}}},
 	}
 	p.parseOptOrdinality(rf)
 	p.parseFuncAliasClause(rf)
-	return rf
+	return rf, nil
 }
 
 // parseRowsFromTable parses ROWS FROM (...) [WITH ORDINALITY].
-func (p *Parser) parseRowsFromTable() nodes.Node {
+func (p *Parser) parseRowsFromTable() (nodes.Node, error) {
 	p.advance() // consume ROWS
-	p.expect(FROM)
-	p.expect('(')
+	if _, err := p.expect(FROM); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 
 	var items []nodes.Node
 	for {
-		funcExpr, _ := p.parseFuncExprWindowless()
+		funcExpr, err := p.parseFuncExprWindowless()
+		if err != nil {
+			return nil, err
+		}
 		var colDef *nodes.List
 		if p.cur.Type == AS && p.peekNext().Type == '(' {
 			p.advance() // AS
 			p.advance() // (
 			colDef = p.parseTableFuncElementList()
-			p.expect(')')
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		}
 		item := &nodes.List{Items: []nodes.Node{funcExpr}}
 		if colDef != nil {
@@ -1034,7 +1273,9 @@ func (p *Parser) parseRowsFromTable() nodes.Node {
 		}
 		p.advance()
 	}
-	p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	ordinality := false
 	if p.cur.Type == WITH_LA && p.peekNext().Type == ORDINALITY {
@@ -1049,7 +1290,7 @@ func (p *Parser) parseRowsFromTable() nodes.Node {
 		Functions:  &nodes.List{Items: items},
 	}
 	p.parseFuncAliasClause(rf)
-	return rf
+	return rf, nil
 }
 
 // parseTableFuncElementList is in define.go
@@ -1069,18 +1310,21 @@ func (p *Parser) parseRowsFromTable() nodes.Node {
 //
 // Disambiguation: parse the qualified name, then if '(' follows it's a function call,
 // otherwise it's a relation reference.
-func (p *Parser) parseRelationOrFuncTable() nodes.Node {
+func (p *Parser) parseRelationOrFuncTable() (nodes.Node, error) {
 	loc := p.pos()
 	name, err := p.parseColId()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	// name( → function call
 	if p.cur.Type == '(' {
 		funcName := &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}}
-		funcExpr, _ := p.parseFuncApplication(funcName, loc)
-		return p.finishFuncTable(funcExpr)
+		funcExpr, err := p.parseFuncApplication(funcName, loc)
+		if err != nil {
+			return nil, err
+		}
+		return p.finishFuncTable(funcExpr), nil
 	}
 
 	// name.something
@@ -1092,13 +1336,19 @@ func (p *Parser) parseRelationOrFuncTable() nodes.Node {
 			p.addRuleCandidate("qualified_name")
 			p.addRuleCandidate("func_name")
 		}
-		attr, _ := p.parseAttrName()
+		attr, err := p.parseAttrName()
+		if err != nil {
+			return nil, err
+		}
 
 		// schema.func(
 		if p.cur.Type == '(' {
 			funcName := &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}, &nodes.String{Str: attr}}}
-			funcExpr, _ := p.parseFuncApplication(funcName, loc)
-			return p.finishFuncTable(funcExpr)
+			funcExpr, err := p.parseFuncApplication(funcName, loc)
+			if err != nil {
+				return nil, err
+			}
+			return p.finishFuncTable(funcExpr), nil
 		}
 
 		// catalog.schema.name
@@ -1110,15 +1360,21 @@ func (p *Parser) parseRelationOrFuncTable() nodes.Node {
 				p.addRuleCandidate("qualified_name")
 				p.addRuleCandidate("func_name")
 			}
-			attr2, _ := p.parseAttrName()
+			attr2, err := p.parseAttrName()
+			if err != nil {
+				return nil, err
+			}
 
 			// catalog.schema.func(
 			if p.cur.Type == '(' {
 				funcName := &nodes.List{Items: []nodes.Node{
 					&nodes.String{Str: name}, &nodes.String{Str: attr}, &nodes.String{Str: attr2},
 				}}
-				funcExpr, _ := p.parseFuncApplication(funcName, loc)
-				return p.finishFuncTable(funcExpr)
+				funcExpr, err := p.parseFuncApplication(funcName, loc)
+				if err != nil {
+					return nil, err
+				}
+				return p.finishFuncTable(funcExpr), nil
 			}
 
 			// 3-part qualified relation name
@@ -1127,7 +1383,7 @@ func (p *Parser) parseRelationOrFuncTable() nodes.Node {
 			}}
 			rv3 := makeRangeVarFromNames(names)
 			rv3.Loc = nodes.Loc{Start: loc, End: p.pos()}
-			return p.finishRelationTable(rv3)
+			return p.finishRelationTable(rv3), nil
 		}
 
 		// 2-part qualified relation name
@@ -1136,7 +1392,7 @@ func (p *Parser) parseRelationOrFuncTable() nodes.Node {
 		}}
 		rv2 := makeRangeVarFromNames(names)
 		rv2.Loc = nodes.Loc{Start: loc, End: p.pos()}
-		return p.finishRelationTable(rv2)
+		return p.finishRelationTable(rv2), nil
 	}
 
 	// Simple relation name
@@ -1150,7 +1406,7 @@ func (p *Parser) parseRelationOrFuncTable() nodes.Node {
 	}
 
 	rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
-	return p.finishRelationTable(rv)
+	return p.finishRelationTable(rv), nil
 }
 
 // finishFuncTable wraps a parsed function expression as a RangeFunction (func_table)
@@ -1173,9 +1429,11 @@ func (p *Parser) finishRelationTable(rel *nodes.RangeVar) nodes.Node {
 
 	// TABLESAMPLE clause
 	if p.cur.Type == TABLESAMPLE {
-		ts := p.parseTableSampleClause()
-		ts.Relation = rel
-		return ts
+		ts, _ := p.parseTableSampleClause()
+		if ts != nil {
+			ts.Relation = rel
+			return ts
+		}
 	}
 
 	return rel
@@ -1193,13 +1451,16 @@ func (p *Parser) parseOptOrdinality(rf *nodes.RangeFunction) {
 }
 
 // parseRelationExprWithAlias parses ONLY qualified_name with alias.
-func (p *Parser) parseRelationExprWithAlias() nodes.Node {
-	rel := p.parseRelationExpr()
+func (p *Parser) parseRelationExprWithAlias() (nodes.Node, error) {
+	rel, err := p.parseRelationExpr()
+	if err != nil {
+		return nil, err
+	}
 	alias := p.parseOptAliasClause()
 	if rel != nil && alias != nil {
 		rel.Alias = alias
 	}
-	return rel
+	return rel, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1212,37 +1473,45 @@ func (p *Parser) parseRelationExprWithAlias() nodes.Node {
 //	    | qualified_name '*'
 //	    | ONLY qualified_name
 //	    | ONLY '(' qualified_name ')'
-func (p *Parser) parseRelationExpr() *nodes.RangeVar {
+func (p *Parser) parseRelationExpr() (*nodes.RangeVar, error) {
 	if p.collectMode() {
 		p.addRuleCandidate("relation_expr")
 		// Also emit ONLY token since it's a valid prefix
 		p.addTokenCandidate(ONLY)
 		// Emit qualified_name candidates too (identifiers/keywords)
 		p.addRuleCandidate("qualified_name")
-		return nil
+		return nil, errCollecting
 	}
 	loc := p.pos()
 	if p.cur.Type == ONLY {
 		p.advance()
 		if p.cur.Type == '(' {
 			p.advance()
-			names, _ := p.parseQualifiedName()
-			p.expect(')')
+			names, err := p.parseQualifiedName()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 			rv := makeRangeVarFromNames(names)
 			rv.Inh = false
 			rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
-			return rv
+			return rv, nil
 		}
-		names, _ := p.parseQualifiedName()
+		names, err := p.parseQualifiedName()
+		if err != nil {
+			return nil, err
+		}
 		rv := makeRangeVarFromNames(names)
 		rv.Inh = false
 		rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
-		return rv
+		return rv, nil
 	}
 
 	names, err := p.parseQualifiedName()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	rv := makeRangeVarFromNames(names)
 
@@ -1253,7 +1522,7 @@ func (p *Parser) parseRelationExpr() *nodes.RangeVar {
 	}
 
 	rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
-	return rv
+	return rv, nil
 }
 
 // parseRelationExprOptAlias parses relation_expr with optional alias.
@@ -1262,22 +1531,31 @@ func (p *Parser) parseRelationExpr() *nodes.RangeVar {
 //	    relation_expr
 //	    | relation_expr ColId
 //	    | relation_expr AS ColId
-func (p *Parser) parseRelationExprOptAlias() *nodes.RangeVar {
-	rv := p.parseRelationExpr()
+func (p *Parser) parseRelationExprOptAlias() (*nodes.RangeVar, error) {
+	rv, err := p.parseRelationExpr()
+	if err != nil {
+		return nil, err
+	}
 	if rv == nil {
-		return nil
+		return nil, nil
 	}
 
 	if p.cur.Type == AS {
 		p.advance()
-		name, _ := p.parseColId()
+		name, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
 		rv.Alias = &nodes.Alias{Aliasname: name}
 	} else if p.isColId() && !p.isReservedForClause() && !p.isJoinKeyword() {
-		name, _ := p.parseColId()
+		name, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
 		rv.Alias = &nodes.Alias{Aliasname: name}
 	}
 
-	return rv
+	return rv, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1387,81 +1665,119 @@ func (p *Parser) parseFuncAliasParenContents(rf *nodes.RangeFunction) {
 
 // tryParseJoin attempts to parse a JOIN following a table reference.
 // Returns nil if no join is found.
-func (p *Parser) tryParseJoin(left nodes.Node) nodes.Node {
+func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 	switch p.cur.Type {
 	case CROSS:
 		// CROSS JOIN
 		p.advance() // consume CROSS
-		p.expect(JOIN)
-		right := p.parseTableRefPrimary()
+		if _, err := p.expect(JOIN); err != nil {
+			return nil, err
+		}
+		right, err := p.parseTableRefPrimary()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.JoinExpr{
 			Jointype: nodes.JOIN_INNER,
 			Larg:     left,
 			Rarg:     right,
-		}
+		}, nil
 
 	case JOIN:
 		// [INNER] JOIN
 		p.advance() // consume JOIN
-		right := p.parseTableRefPrimary()
+		right, err := p.parseTableRefPrimary()
+		if err != nil {
+			return nil, err
+		}
 		j := &nodes.JoinExpr{
 			Jointype: nodes.JOIN_INNER,
 			Larg:     left,
 			Rarg:     right,
 		}
-		p.parseJoinQual(j)
-		return j
+		if err := p.parseJoinQual(j); err != nil {
+			return nil, err
+		}
+		return j, nil
 
 	case INNER_P:
 		p.advance() // consume INNER
-		p.expect(JOIN)
-		right := p.parseTableRefPrimary()
+		if _, err := p.expect(JOIN); err != nil {
+			return nil, err
+		}
+		right, err := p.parseTableRefPrimary()
+		if err != nil {
+			return nil, err
+		}
 		j := &nodes.JoinExpr{
 			Jointype: nodes.JOIN_INNER,
 			Larg:     left,
 			Rarg:     right,
 		}
-		p.parseJoinQual(j)
-		return j
+		if err := p.parseJoinQual(j); err != nil {
+			return nil, err
+		}
+		return j, nil
 
 	case LEFT:
 		p.advance() // consume LEFT
 		p.parseOptOuter()
-		p.expect(JOIN)
-		right := p.parseTableRefPrimary()
+		if _, err := p.expect(JOIN); err != nil {
+			return nil, err
+		}
+		right, err := p.parseTableRefPrimary()
+		if err != nil {
+			return nil, err
+		}
 		j := &nodes.JoinExpr{
 			Jointype: nodes.JOIN_LEFT,
 			Larg:     left,
 			Rarg:     right,
 		}
-		p.parseJoinQual(j)
-		return j
+		if err := p.parseJoinQual(j); err != nil {
+			return nil, err
+		}
+		return j, nil
 
 	case RIGHT:
 		p.advance() // consume RIGHT
 		p.parseOptOuter()
-		p.expect(JOIN)
-		right := p.parseTableRefPrimary()
+		if _, err := p.expect(JOIN); err != nil {
+			return nil, err
+		}
+		right, err := p.parseTableRefPrimary()
+		if err != nil {
+			return nil, err
+		}
 		j := &nodes.JoinExpr{
 			Jointype: nodes.JOIN_RIGHT,
 			Larg:     left,
 			Rarg:     right,
 		}
-		p.parseJoinQual(j)
-		return j
+		if err := p.parseJoinQual(j); err != nil {
+			return nil, err
+		}
+		return j, nil
 
 	case FULL:
 		p.advance() // consume FULL
 		p.parseOptOuter()
-		p.expect(JOIN)
-		right := p.parseTableRefPrimary()
+		if _, err := p.expect(JOIN); err != nil {
+			return nil, err
+		}
+		right, err := p.parseTableRefPrimary()
+		if err != nil {
+			return nil, err
+		}
 		j := &nodes.JoinExpr{
 			Jointype: nodes.JOIN_FULL,
 			Larg:     left,
 			Rarg:     right,
 		}
-		p.parseJoinQual(j)
-		return j
+		if err := p.parseJoinQual(j); err != nil {
+			return nil, err
+		}
+		return j, nil
 
 	case NATURAL:
 		p.advance() // consume NATURAL
@@ -1482,17 +1798,22 @@ func (p *Parser) tryParseJoin(left nodes.Node) nodes.Node {
 		case INNER_P:
 			p.advance()
 		}
-		p.expect(JOIN)
-		right := p.parseTableRefPrimary()
+		if _, err := p.expect(JOIN); err != nil {
+			return nil, err
+		}
+		right, err := p.parseTableRefPrimary()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.JoinExpr{
 			Jointype:  jt,
 			IsNatural: true,
 			Larg:      left,
 			Rarg:      right,
-		}
+		}, nil
 
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
@@ -1508,24 +1829,39 @@ func (p *Parser) parseOptOuter() {
 //	join_qual:
 //	    USING '(' name_list ')' join_using_alias
 //	    | ON a_expr
-func (p *Parser) parseJoinQual(j *nodes.JoinExpr) {
+func (p *Parser) parseJoinQual(j *nodes.JoinExpr) error {
 	if p.cur.Type == USING {
 		p.advance()
-		p.expect('(')
-		names, _ := p.parseNameList()
-		p.expect(')')
+		if _, err := p.expect('('); err != nil {
+			return err
+		}
+		names, err := p.parseNameList()
+		if err != nil {
+			return err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return err
+		}
 		j.UsingClause = names
 
 		// join_using_alias: AS ColId | EMPTY
 		if p.cur.Type == AS {
 			p.advance()
-			aliasName, _ := p.parseColId()
+			aliasName, err := p.parseColId()
+			if err != nil {
+				return err
+			}
 			j.JoinUsing = &nodes.Alias{Aliasname: aliasName}
 		}
 	} else if p.cur.Type == ON {
 		p.advance()
-		j.Quals, _ = p.parseAExpr(0)
+		var err error
+		j.Quals, err = p.parseAExpr(0)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1535,31 +1871,48 @@ func (p *Parser) parseJoinQual(j *nodes.JoinExpr) {
 //
 //	tablesample_clause:
 //	    TABLESAMPLE func_name '(' expr_list ')' opt_repeatable_clause
-func (p *Parser) parseTableSampleClause() *nodes.RangeTableSample {
+func (p *Parser) parseTableSampleClause() (*nodes.RangeTableSample, error) {
 	loc := p.pos()
 	p.advance() // consume TABLESAMPLE
 
-	method, _ := p.parseFuncName()
-	p.expect('(')
-	args, _ := p.parseExprListFull()
-	p.expect(')')
+	method, err := p.parseFuncName()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	args, err := p.parseExprListFull()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	ts := &nodes.RangeTableSample{
-		Method:   method,
-		Args:     args,
-		Loc: nodes.Loc{Start: loc, End: -1},
+		Method: method,
+		Args:   args,
+		Loc:    nodes.Loc{Start: loc, End: -1},
 	}
 
 	// opt_repeatable_clause
 	if p.cur.Type == REPEATABLE {
 		p.advance()
-		p.expect('(')
-		ts.Repeatable, _ = p.parseAExpr(0)
-		p.expect(')')
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		ts.Repeatable, err = p.parseAExpr(0)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 
 	ts.Loc.End = p.pos()
-	return ts
+	return ts, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1569,14 +1922,21 @@ func (p *Parser) parseTableSampleClause() *nodes.RangeTableSample {
 //
 //	group_by_list:
 //	    group_by_item [',' group_by_item ...]
-func (p *Parser) parseGroupByList() *nodes.List {
-	first := p.parseGroupByItem()
+func (p *Parser) parseGroupByList() (*nodes.List, error) {
+	first, err := p.parseGroupByItem()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
 		p.advance()
-		items = append(items, p.parseGroupByItem())
+		item, err := p.parseGroupByItem()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseGroupByItem parses a single GROUP BY item.
@@ -1587,7 +1947,7 @@ func (p *Parser) parseGroupByList() *nodes.List {
 //	    | cube_clause
 //	    | rollup_clause
 //	    | grouping_sets_clause
-func (p *Parser) parseGroupByItem() nodes.Node {
+func (p *Parser) parseGroupByItem() (nodes.Node, error) {
 	switch p.cur.Type {
 	case '(':
 		// empty_grouping_set: '(' ')'
@@ -1595,24 +1955,37 @@ func (p *Parser) parseGroupByItem() nodes.Node {
 		if next.Type == ')' {
 			p.advance() // (
 			p.advance() // )
-			return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_EMPTY, Loc: nodes.NoLoc()}
+			return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_EMPTY, Loc: nodes.NoLoc()}, nil
 		}
-		result, _ := p.parseAExpr(0)
-		return result
+		return p.parseAExpr(0)
 
 	case CUBE:
 		p.advance()
-		p.expect('(')
-		content, _ := p.parseExprListFull()
-		p.expect(')')
-		return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_CUBE, Content: content, Loc: nodes.NoLoc()}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		content, err := p.parseExprListFull()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_CUBE, Content: content, Loc: nodes.NoLoc()}, nil
 
 	case ROLLUP:
 		p.advance()
-		p.expect('(')
-		content, _ := p.parseExprListFull()
-		p.expect(')')
-		return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_ROLLUP, Content: content, Loc: nodes.NoLoc()}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		content, err := p.parseExprListFull()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_ROLLUP, Content: content, Loc: nodes.NoLoc()}, nil
 
 	case GROUPING:
 		// Check for GROUPING SETS
@@ -1620,18 +1993,23 @@ func (p *Parser) parseGroupByItem() nodes.Node {
 		if next.Type == SETS {
 			p.advance() // GROUPING
 			p.advance() // SETS
-			p.expect('(')
-			content := p.parseGroupByList()
-			p.expect(')')
-			return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_SETS, Content: content, Loc: nodes.NoLoc()}
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			content, err := p.parseGroupByList()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_SETS, Content: content, Loc: nodes.NoLoc()}, nil
 		}
 		// Not GROUPING SETS; parse as expression (could be GROUPING(...) function)
-		result, _ := p.parseAExpr(0)
-		return result
+		return p.parseAExpr(0)
 
 	default:
-		result, _ := p.parseAExpr(0)
-		return result
+		return p.parseAExpr(0)
 	}
 }
 
@@ -1639,13 +2017,12 @@ func (p *Parser) parseGroupByItem() nodes.Node {
 // WHERE clause helpers
 
 // parseWhereClause parses an optional WHERE clause.
-func (p *Parser) parseWhereClause() nodes.Node {
+func (p *Parser) parseWhereClause() (nodes.Node, error) {
 	if p.cur.Type != WHERE {
-		return nil
+		return nil, nil
 	}
 	p.advance()
-	result, _ := p.parseAExpr(0)
-	return result
+	return p.parseAExpr(0)
 }
 
 // parseWhereOrCurrentClause parses WHERE clause including WHERE CURRENT OF.
@@ -1654,9 +2031,9 @@ func (p *Parser) parseWhereClause() nodes.Node {
 //	    WHERE a_expr
 //	    | WHERE CURRENT_P OF cursor_name
 //	    | /* EMPTY */
-func (p *Parser) parseWhereOrCurrentClause() nodes.Node {
+func (p *Parser) parseWhereOrCurrentClause() (nodes.Node, error) {
 	if p.cur.Type != WHERE {
-		return nil
+		return nil, nil
 	}
 	p.advance()
 
@@ -1665,13 +2042,15 @@ func (p *Parser) parseWhereOrCurrentClause() nodes.Node {
 		if next.Type == OF {
 			p.advance() // CURRENT
 			p.advance() // OF
-			name, _ := p.parseCursorName()
+			name, err := p.parseCursorName()
+			if err != nil {
+				return nil, err
+			}
 			return &nodes.CurrentOfExpr{
 				CursorName: name,
-			}
+			}, nil
 		}
 	}
 
-	result, _ := p.parseAExpr(0)
-	return result
+	return p.parseAExpr(0)
 }

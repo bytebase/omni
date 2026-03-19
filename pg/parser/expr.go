@@ -2941,7 +2941,8 @@ func (p *Parser) isSelectStart() bool {
 // parseSelectStmtForExpr parses a select statement in expression context.
 // Delegates to the full SELECT parser in select.go.
 func (p *Parser) parseSelectStmtForExpr() nodes.Node {
-	return p.parseSelectNoParens()
+	n, _ := p.parseSelectNoParens()
+	return n
 }
 
 // parseTargetList parses a comma-separated target list (SELECT expressions).
@@ -3035,7 +3036,7 @@ func (p *Parser) isReservedForClause() bool {
 
 // parseFromList is a compatibility wrapper that calls parseFromListFull.
 func (p *Parser) parseFromList() (*nodes.List, error) {
-	return p.parseFromListFull(), nil
+	return p.parseFromListFull()
 }
 
 // isJoinKeyword checks if the current token is a join-related keyword.

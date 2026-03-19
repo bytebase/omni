@@ -166,7 +166,7 @@ func (p *Parser) parsePublicationObjSpec() *nodes.PublicationObjSpec {
 
 	if p.cur.Type == TABLE {
 		p.advance() // consume TABLE
-		rel := p.parseRelationExpr()
+		rel, _ := p.parseRelationExpr()
 		cols := p.parseOptColumnList()
 		where := p.parseOptWhereClausePub()
 		pt := &nodes.PublicationTable{
@@ -211,7 +211,7 @@ func (p *Parser) parsePublicationObjSpec() *nodes.PublicationObjSpec {
 	}
 
 	// CONTINUATION: relation_expr opt_column_list OptWhereClause
-	rel := p.parseRelationExpr()
+	rel, _ := p.parseRelationExpr()
 	cols := p.parseOptColumnList()
 	where := p.parseOptWhereClausePub()
 	pt := &nodes.PublicationTable{
@@ -450,7 +450,7 @@ func (p *Parser) parseCreateRuleStmt(replace bool) nodes.Node {
 	rel := makeRangeVarFromAnyName(names)
 
 	// where_clause (optional)
-	whereClause := p.parseWhereClause()
+	whereClause, _ := p.parseWhereClause()
 
 	p.expect(DO)
 
@@ -570,13 +570,17 @@ func (p *Parser) parseRuleActionStmt() nodes.Node {
 		if p.cur.Type == WITH {
 			return p.parseWithStmt()
 		}
-		return p.parseSelectNoParens()
+		n, _ := p.parseSelectNoParens()
+		return n
 	case INSERT:
-		return p.parseInsertStmt(nil)
+		n, _ := p.parseInsertStmt(nil)
+		return n
 	case UPDATE:
-		return p.parseUpdateStmt(nil)
+		n, _ := p.parseUpdateStmt(nil)
+		return n
 	case DELETE_P:
-		return p.parseDeleteStmt(nil)
+		n, _ := p.parseDeleteStmt(nil)
+		return n
 	default:
 		return nil
 	}

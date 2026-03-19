@@ -17,60 +17,83 @@ import (
 //	    [ FROM from_item [, ...] ]
 //	    [ WHERE condition | WHERE CURRENT OF cursor_name ]
 //	    [ RETURNING * | output_expression [ [ AS ] output_name ] [, ...] ]
-func (p *Parser) parseUpdateStmt(withClause *nodes.WithClause) *nodes.UpdateStmt {
+func (p *Parser) parseUpdateStmt(withClause *nodes.WithClause) (*nodes.UpdateStmt, error) {
 	loc := p.pos()
 	p.advance() // consume UPDATE
 
 	// relation_expr_opt_alias (SET must not be consumed as alias)
-	rv := p.parseRelationExpr()
+	rv, err := p.parseRelationExpr()
+	if err != nil {
+		return nil, err
+	}
 	if rv == nil {
-		return nil // collect-mode: parseRelationExpr already emitted rule candidates
+		return nil, nil // collect-mode: parseRelationExpr already emitted rule candidates
 	}
 	if p.cur.Type == AS {
 		p.advance()
-		name, _ := p.parseColId()
+		name, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
 		rv.Alias = &nodes.Alias{Aliasname: name}
 	} else if p.isColId() && p.cur.Type != SET {
-		name, _ := p.parseColId()
+		name, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
 		rv.Alias = &nodes.Alias{Aliasname: name}
 	}
 
 	// SET set_clause_list
-	p.expect(SET)
-	targetList := p.parseSetClauseList()
+	if _, err := p.expect(SET); err != nil {
+		return nil, err
+	}
+	targetList, err := p.parseSetClauseList()
+	if err != nil {
+		return nil, err
+	}
 
 	if p.collectMode() {
 		// After SET clause, valid continuations:
 		for _, t := range []int{',', FROM, WHERE, RETURNING, ';'} {
 			p.addTokenCandidate(t)
 		}
-		return nil
+		return nil, errCollecting
 	}
 
 	// from_clause: FROM from_list | EMPTY
 	var fromClause *nodes.List
 	if p.cur.Type == FROM {
 		p.advance()
-		fromClause = p.parseFromListFull()
+		fromClause, err = p.parseFromListFull()
+		if err != nil {
+			return nil, err
+		}
 		if p.collectMode() {
 			for _, t := range []int{WHERE, RETURNING, ';'} {
 				p.addTokenCandidate(t)
 			}
-			return nil
+			return nil, errCollecting
 		}
 	}
 
 	// where_or_current_clause
-	whereClause := p.parseWhereOrCurrentClause()
+	whereClause, err := p.parseWhereOrCurrentClause()
+	if err != nil {
+		return nil, err
+	}
 	if p.collectMode() {
 		for _, t := range []int{RETURNING, ';'} {
 			p.addTokenCandidate(t)
 		}
-		return nil
+		return nil, errCollecting
 	}
 
 	// returning_clause
-	returningList := p.parseReturningClause()
+	returningList, err := p.parseReturningClause()
+	if err != nil {
+		return nil, err
+	}
 
 	stmt := &nodes.UpdateStmt{
 		Relation:      rv,
@@ -84,7 +107,7 @@ func (p *Parser) parseUpdateStmt(withClause *nodes.WithClause) *nodes.UpdateStmt
 		loc = withClause.Loc.Start
 	}
 	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
-	return stmt
+	return stmt, nil
 }
 
 // parseDeleteStmt parses a DELETE statement.
@@ -96,15 +119,20 @@ func (p *Parser) parseUpdateStmt(withClause *nodes.WithClause) *nodes.UpdateStmt
 //	    [ USING from_item [, ...] ]
 //	    [ WHERE condition | WHERE CURRENT OF cursor_name ]
 //	    [ RETURNING * | output_expression [ [ AS ] output_name ] [, ...] ]
-func (p *Parser) parseDeleteStmt(withClause *nodes.WithClause) *nodes.DeleteStmt {
+func (p *Parser) parseDeleteStmt(withClause *nodes.WithClause) (*nodes.DeleteStmt, error) {
 	loc := p.pos()
 	p.advance() // consume DELETE
-	p.expect(FROM)
+	if _, err := p.expect(FROM); err != nil {
+		return nil, err
+	}
 
 	// relation_expr_opt_alias
-	rv := p.parseRelationExprOptAlias()
+	rv, err := p.parseRelationExprOptAlias()
+	if err != nil {
+		return nil, err
+	}
 	if rv == nil {
-		return nil // collect-mode: parseRelationExpr already emitted rule candidates
+		return nil, nil // collect-mode: parseRelationExpr already emitted rule candidates
 	}
 
 	if p.collectMode() {
@@ -112,33 +140,42 @@ func (p *Parser) parseDeleteStmt(withClause *nodes.WithClause) *nodes.DeleteStmt
 		for _, t := range []int{USING, WHERE, RETURNING, ';'} {
 			p.addTokenCandidate(t)
 		}
-		return nil
+		return nil, errCollecting
 	}
 
 	// using_clause: USING from_list | EMPTY
 	var usingClause *nodes.List
 	if p.cur.Type == USING {
 		p.advance()
-		usingClause = p.parseFromListFull()
+		usingClause, err = p.parseFromListFull()
+		if err != nil {
+			return nil, err
+		}
 		if p.collectMode() {
 			for _, t := range []int{WHERE, RETURNING, ';'} {
 				p.addTokenCandidate(t)
 			}
-			return nil
+			return nil, errCollecting
 		}
 	}
 
 	// where_or_current_clause
-	whereClause := p.parseWhereOrCurrentClause()
+	whereClause, err := p.parseWhereOrCurrentClause()
+	if err != nil {
+		return nil, err
+	}
 	if p.collectMode() {
 		for _, t := range []int{RETURNING, ';'} {
 			p.addTokenCandidate(t)
 		}
-		return nil
+		return nil, errCollecting
 	}
 
 	// returning_clause
-	returningList := p.parseReturningClause()
+	returningList, err := p.parseReturningClause()
+	if err != nil {
+		return nil, err
+	}
 
 	stmt := &nodes.DeleteStmt{
 		Relation:      rv,
@@ -151,7 +188,7 @@ func (p *Parser) parseDeleteStmt(withClause *nodes.WithClause) *nodes.DeleteStmt
 		loc = withClause.Loc.Start
 	}
 	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
-	return stmt
+	return stmt, nil
 }
 
 // parseMergeStmt parses a MERGE statement.
@@ -163,46 +200,67 @@ func (p *Parser) parseDeleteStmt(withClause *nodes.WithClause) *nodes.DeleteStmt
 //	USING data_source ON join_condition
 //	when_clause [...]
 //	[ RETURNING * | output_expression [ [ AS ] output_name ] [, ...] ]
-func (p *Parser) parseMergeStmt(withClause *nodes.WithClause) *nodes.MergeStmt {
+func (p *Parser) parseMergeStmt(withClause *nodes.WithClause) (*nodes.MergeStmt, error) {
 	loc := p.pos()
 	p.advance() // consume MERGE
-	p.expect(INTO)
+	if _, err := p.expect(INTO); err != nil {
+		return nil, err
+	}
 
 	// relation_expr_opt_alias
-	rv := p.parseRelationExprOptAlias()
+	rv, err := p.parseRelationExprOptAlias()
+	if err != nil {
+		return nil, err
+	}
 	if rv == nil {
-		return nil // collect-mode: parseRelationExpr already emitted rule candidates
+		return nil, nil // collect-mode: parseRelationExpr already emitted rule candidates
 	}
 
 	if p.collectMode() {
 		p.addTokenCandidate(USING)
-		return nil
+		return nil, errCollecting
 	}
 
 	// USING table_ref
-	p.expect(USING)
-	sourceRelation := p.parseTableRef()
+	if _, err := p.expect(USING); err != nil {
+		return nil, err
+	}
+	sourceRelation, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
 
 	if p.collectMode() {
 		p.addTokenCandidate(ON)
-		return nil
+		return nil, errCollecting
 	}
 
 	// ON a_expr
-	p.expect(ON)
-	joinCondition, _ := p.parseAExpr(0)
+	if _, err := p.expect(ON); err != nil {
+		return nil, err
+	}
+	joinCondition, err := p.parseAExpr(0)
+	if err != nil {
+		return nil, err
+	}
 
 	if p.collectMode() {
 		p.addTokenCandidate(WHEN)
 		p.addTokenCandidate(RETURNING)
-		return nil
+		return nil, errCollecting
 	}
 
 	// merge_when_list
-	mergeWhenClauses := p.parseMergeWhenList()
+	mergeWhenClauses, err := p.parseMergeWhenList()
+	if err != nil {
+		return nil, err
+	}
 
 	// returning_clause
-	returningList := p.parseReturningClause()
+	returningList, err := p.parseReturningClause()
+	if err != nil {
+		return nil, err
+	}
 
 	stmt := &nodes.MergeStmt{
 		Relation:         rv,
@@ -216,19 +274,23 @@ func (p *Parser) parseMergeStmt(withClause *nodes.WithClause) *nodes.MergeStmt {
 		loc = withClause.Loc.Start
 	}
 	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
-	return stmt
+	return stmt, nil
 }
 
 // parseMergeWhenList parses one or more WHEN clauses in a MERGE statement.
 //
 //	merge_when_list:
 //	    merge_when_clause [merge_when_clause ...]
-func (p *Parser) parseMergeWhenList() *nodes.List {
+func (p *Parser) parseMergeWhenList() (*nodes.List, error) {
 	var items []nodes.Node
 	for p.cur.Type == WHEN {
-		items = append(items, p.parseMergeWhenClause())
+		clause, err := p.parseMergeWhenClause()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, clause)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseMergeWhenClause parses a single WHEN clause in a MERGE statement.
@@ -239,7 +301,7 @@ func (p *Parser) parseMergeWhenList() *nodes.List {
 //	    | merge_when_tgt_not_matched opt_merge_when_condition THEN merge_insert
 //	    | merge_when_tgt_matched opt_merge_when_condition THEN DO NOTHING
 //	    | merge_when_tgt_not_matched opt_merge_when_condition THEN DO NOTHING
-func (p *Parser) parseMergeWhenClause() *nodes.MergeWhenClause {
+func (p *Parser) parseMergeWhenClause() (*nodes.MergeWhenClause, error) {
 	p.advance() // consume WHEN
 
 	// Determine match kind
@@ -250,7 +312,9 @@ func (p *Parser) parseMergeWhenClause() *nodes.MergeWhenClause {
 		kind = nodes.MERGE_WHEN_MATCHED
 	} else if p.cur.Type == NOT {
 		p.advance() // consume NOT
-		p.expect(MATCHED)
+		if _, err := p.expect(MATCHED); err != nil {
+			return nil, err
+		}
 		// Check for BY SOURCE or BY TARGET
 		if p.cur.Type == BY {
 			p.advance() // consume BY
@@ -272,32 +336,43 @@ func (p *Parser) parseMergeWhenClause() *nodes.MergeWhenClause {
 	var condition nodes.Node
 	if p.cur.Type == AND {
 		p.advance()
-		condition, _ = p.parseAExpr(0)
+		var err error
+		condition, err = p.parseAExpr(0)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// THEN
-	p.expect(THEN)
+	if _, err := p.expect(THEN); err != nil {
+		return nil, err
+	}
 
 	// Dispatch based on action keyword
 	if p.collectMode() {
 		for _, t := range []int{UPDATE, DELETE_P, INSERT, DO} {
 			p.addTokenCandidate(t)
 		}
-		return nil
+		return nil, errCollecting
 	}
 	switch p.cur.Type {
 	case UPDATE:
 		// merge_update: UPDATE SET set_clause_list
 		p.advance()
-		p.expect(SET)
-		targetList := p.parseSetClauseList()
+		if _, err := p.expect(SET); err != nil {
+			return nil, err
+		}
+		targetList, err := p.parseSetClauseList()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.MergeWhenClause{
 			Kind:        kind,
 			Condition:   condition,
 			CommandType: nodes.CMD_UPDATE,
 			Override:    nodes.OVERRIDING_NOT_SET,
 			TargetList:  targetList,
-		}
+		}, nil
 
 	case DELETE_P:
 		// merge_delete: DELETE
@@ -307,7 +382,7 @@ func (p *Parser) parseMergeWhenClause() *nodes.MergeWhenClause {
 			Condition:   condition,
 			CommandType: nodes.CMD_DELETE,
 			Override:    nodes.OVERRIDING_NOT_SET,
-		}
+		}, nil
 
 	case INSERT:
 		// merge_insert
@@ -316,18 +391,20 @@ func (p *Parser) parseMergeWhenClause() *nodes.MergeWhenClause {
 	case DO:
 		// DO NOTHING
 		p.advance()
-		p.expect(NOTHING)
+		if _, err := p.expect(NOTHING); err != nil {
+			return nil, err
+		}
 		return &nodes.MergeWhenClause{
 			Kind:        kind,
 			Condition:   condition,
 			CommandType: nodes.CMD_NOTHING,
-		}
+		}, nil
 
 	default:
 		return &nodes.MergeWhenClause{
 			Kind:      kind,
 			Condition: condition,
-		}
+		}, nil
 	}
 }
 
@@ -339,7 +416,7 @@ func (p *Parser) parseMergeWhenClause() *nodes.MergeWhenClause {
 //	    | INSERT '(' insert_column_list ')' merge_values_clause
 //	    | INSERT '(' insert_column_list ')' OVERRIDING override_kind VALUE merge_values_clause
 //	    | INSERT DEFAULT VALUES
-func (p *Parser) parseMergeInsert(kind nodes.MergeMatchKind, condition nodes.Node) *nodes.MergeWhenClause {
+func (p *Parser) parseMergeInsert(kind nodes.MergeMatchKind, condition nodes.Node) (*nodes.MergeWhenClause, error) {
 	p.advance() // consume INSERT
 
 	clause := &nodes.MergeWhenClause{
@@ -353,30 +430,55 @@ func (p *Parser) parseMergeInsert(kind nodes.MergeMatchKind, condition nodes.Nod
 	case DEFAULT:
 		// INSERT DEFAULT VALUES
 		p.advance()
-		p.expect(VALUES)
-		return clause
+		if _, err := p.expect(VALUES); err != nil {
+			return nil, err
+		}
+		return clause, nil
 
 	case '(':
 		// INSERT '(' insert_column_list ')' [OVERRIDING ...] merge_values_clause
 		p.advance() // consume '('
-		clause.TargetList = p.parseInsertColumnList()
-		p.expect(')')
-		if p.cur.Type == OVERRIDING {
-			clause.Override = p.parseOverriding()
+		var err error
+		clause.TargetList, err = p.parseInsertColumnList()
+		if err != nil {
+			return nil, err
 		}
-		clause.Values = p.parseMergeValuesClause()
-		return clause
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		if p.cur.Type == OVERRIDING {
+			clause.Override, err = p.parseOverriding()
+			if err != nil {
+				return nil, err
+			}
+		}
+		clause.Values, err = p.parseMergeValuesClause()
+		if err != nil {
+			return nil, err
+		}
+		return clause, nil
 
 	case OVERRIDING:
 		// INSERT OVERRIDING override_kind VALUE merge_values_clause
-		clause.Override = p.parseOverriding()
-		clause.Values = p.parseMergeValuesClause()
-		return clause
+		var err error
+		clause.Override, err = p.parseOverriding()
+		if err != nil {
+			return nil, err
+		}
+		clause.Values, err = p.parseMergeValuesClause()
+		if err != nil {
+			return nil, err
+		}
+		return clause, nil
 
 	default:
 		// INSERT merge_values_clause (VALUES (...))
-		clause.Values = p.parseMergeValuesClause()
-		return clause
+		var err error
+		clause.Values, err = p.parseMergeValuesClause()
+		if err != nil {
+			return nil, err
+		}
+		return clause, nil
 	}
 }
 
@@ -384,10 +486,16 @@ func (p *Parser) parseMergeInsert(kind nodes.MergeMatchKind, condition nodes.Nod
 //
 //	merge_values_clause:
 //	    VALUES '(' expr_list ')'
-func (p *Parser) parseMergeValuesClause() *nodes.List {
-	p.expect(VALUES)
-	p.expect('(')
+func (p *Parser) parseMergeValuesClause() (*nodes.List, error) {
+	if _, err := p.expect(VALUES); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 	list := p.parseExprList()
-	p.expect(')')
-	return list
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return list, nil
 }

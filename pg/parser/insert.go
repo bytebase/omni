@@ -27,21 +27,29 @@ const (
 //	    | '(' insert_column_list ')' SelectStmt
 //	    | '(' insert_column_list ')' OVERRIDING override_kind VALUE SelectStmt
 //	    | DEFAULT VALUES
-func (p *Parser) parseInsertStmt(withClause *nodes.WithClause) *nodes.InsertStmt {
+func (p *Parser) parseInsertStmt(withClause *nodes.WithClause) (*nodes.InsertStmt, error) {
 	loc := p.pos()
 	p.advance() // consume INSERT
-	p.expect(INTO)
+	if _, err := p.expect(INTO); err != nil {
+		return nil, err
+	}
 
 	// insert_target: qualified_name [AS ColId]
 	rvLoc := p.pos()
-	names, _ := p.parseQualifiedName()
+	names, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
+	}
 	if names == nil {
-		return nil // collect-mode: parseQualifiedName already emitted rule candidates
+		return nil, nil // collect-mode: parseQualifiedName already emitted rule candidates
 	}
 	rv := makeRangeVarFromNames(names)
 	if p.cur.Type == AS {
 		p.advance()
-		alias, _ := p.parseColId()
+		alias, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
 		rv.Alias = &nodes.Alias{Aliasname: alias}
 	}
 	rv.Loc = nodes.Loc{Start: rvLoc, End: p.pos()}
@@ -51,13 +59,16 @@ func (p *Parser) parseInsertStmt(withClause *nodes.WithClause) *nodes.InsertStmt
 		for _, t := range []int{'(', DEFAULT, OVERRIDING, SELECT, VALUES, TABLE, WITH} {
 			p.addTokenCandidate(t)
 		}
-		return nil
+		return nil, errCollecting
 	}
 
 	// insert_rest
-	stmt := p.parseInsertRest()
+	stmt, err := p.parseInsertRest()
+	if err != nil {
+		return nil, err
+	}
 	if stmt == nil {
-		return nil
+		return nil, nil
 	}
 	stmt.Relation = rv
 
@@ -66,19 +77,27 @@ func (p *Parser) parseInsertStmt(withClause *nodes.WithClause) *nodes.InsertStmt
 		for _, t := range []int{ON, RETURNING, ';'} {
 			p.addTokenCandidate(t)
 		}
-		return nil
+		return nil, errCollecting
 	}
 
 	// opt_on_conflict
 	if p.cur.Type == ON {
 		next := p.peekNext()
 		if next.Type == CONFLICT {
-			stmt.OnConflictClause = p.parseOnConflict()
+			var err error
+			stmt.OnConflictClause, err = p.parseOnConflict()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	// returning_clause
-	stmt.ReturningList = p.parseReturningClause()
+	var retErr error
+	stmt.ReturningList, retErr = p.parseReturningClause()
+	if retErr != nil {
+		return nil, retErr
+	}
 
 	if withClause != nil {
 		stmt.WithClause = withClause
@@ -86,63 +105,86 @@ func (p *Parser) parseInsertStmt(withClause *nodes.WithClause) *nodes.InsertStmt
 	}
 
 	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
-	return stmt
+	return stmt, nil
 }
 
 // parseInsertRest parses the body of an INSERT statement after the target table.
-func (p *Parser) parseInsertRest() *nodes.InsertStmt {
+func (p *Parser) parseInsertRest() (*nodes.InsertStmt, error) {
 	if p.collectMode() {
 		// Valid first tokens for insert_rest:
 		for _, t := range []int{DEFAULT, '(', OVERRIDING, SELECT, VALUES, TABLE, WITH} {
 			p.addTokenCandidate(t)
 		}
-		return nil
+		return nil, errCollecting
 	}
 	switch p.cur.Type {
 	case DEFAULT:
 		// DEFAULT VALUES
 		p.advance()
-		p.expect(VALUES)
-		return &nodes.InsertStmt{}
+		if _, err := p.expect(VALUES); err != nil {
+			return nil, err
+		}
+		return &nodes.InsertStmt{}, nil
 
 	case '(':
 		// '(' insert_column_list ')' [OVERRIDING override_kind VALUE] SelectStmt
 		p.advance() // consume '('
-		cols := p.parseInsertColumnList()
-		p.expect(')')
+		cols, err := p.parseInsertColumnList()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 
 		var override nodes.OverridingKind
 		if p.cur.Type == OVERRIDING {
-			override = p.parseOverriding()
+			var err error
+			override, err = p.parseOverriding()
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		selectStmt := p.parseSelectStmt()
+		selectStmt, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.InsertStmt{
 			Cols:       cols,
 			Override:   override,
 			SelectStmt: selectStmt,
-		}
+		}, nil
 
 	case OVERRIDING:
 		// OVERRIDING override_kind VALUE SelectStmt
-		override := p.parseOverriding()
-		selectStmt := p.parseSelectStmt()
+		override, err := p.parseOverriding()
+		if err != nil {
+			return nil, err
+		}
+		selectStmt, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.InsertStmt{
 			Override:   override,
 			SelectStmt: selectStmt,
-		}
+		}, nil
 
 	default:
 		// SelectStmt
-		selectStmt := p.parseSelectStmt()
+		selectStmt, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.InsertStmt{
 			SelectStmt: selectStmt,
-		}
+		}, nil
 	}
 }
 
 // parseOverriding parses OVERRIDING {USER|SYSTEM} VALUE.
-func (p *Parser) parseOverriding() nodes.OverridingKind {
+func (p *Parser) parseOverriding() (nodes.OverridingKind, error) {
 	p.advance() // consume OVERRIDING
 	var kind nodes.OverridingKind
 	switch p.cur.Type {
@@ -153,12 +195,14 @@ func (p *Parser) parseOverriding() nodes.OverridingKind {
 		p.advance()
 		kind = nodes.OVERRIDING_SYSTEM_VALUE
 	}
-	p.expect(VALUE_P)
-	return kind
+	if _, err := p.expect(VALUE_P); err != nil {
+		return kind, err
+	}
+	return kind, nil
 }
 
 // parseSelectStmt parses SelectStmt: select_no_parens | select_with_parens.
-func (p *Parser) parseSelectStmt() nodes.Node {
+func (p *Parser) parseSelectStmt() (nodes.Node, error) {
 	if p.cur.Type == '(' {
 		return p.parseSelectWithParens()
 	}
@@ -169,33 +213,46 @@ func (p *Parser) parseSelectStmt() nodes.Node {
 //
 //	insert_column_list:
 //	    insert_column_item [',' insert_column_item ...]
-func (p *Parser) parseInsertColumnList() *nodes.List {
-	first := p.parseInsertColumnItem()
+func (p *Parser) parseInsertColumnList() (*nodes.List, error) {
+	first, err := p.parseInsertColumnItem()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
 		p.advance()
-		items = append(items, p.parseInsertColumnItem())
+		item, err := p.parseInsertColumnItem()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseInsertColumnItem parses a single insert column.
 //
 //	insert_column_item:
 //	    ColId opt_indirection
-func (p *Parser) parseInsertColumnItem() *nodes.ResTarget {
+func (p *Parser) parseInsertColumnItem() (*nodes.ResTarget, error) {
 	if p.collectMode() {
 		p.addRuleCandidate("columnref")
-		return nil
+		return nil, errCollecting
 	}
 	loc := p.pos()
-	name, _ := p.parseColId()
-	ind, _ := p.parseOptIndirection()
+	name, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
+	ind, err := p.parseOptIndirection()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.ResTarget{
 		Name:        name,
 		Indirection: ind,
 		Loc:         nodes.Loc{Start: loc, End: p.pos()},
-	}
+	}, nil
 }
 
 // parseOnConflict parses ON CONFLICT clause.
@@ -205,7 +262,7 @@ func (p *Parser) parseInsertColumnItem() *nodes.ResTarget {
 //	    | ON CONFLICT DO UPDATE SET set_clause_list where_clause
 //	    | ON CONFLICT '(' index_params ')' [WHERE a_expr] DO {NOTHING | UPDATE SET ...}
 //	    | ON CONFLICT ON CONSTRAINT name DO {NOTHING | UPDATE SET ...}
-func (p *Parser) parseOnConflict() *nodes.OnConflictClause {
+func (p *Parser) parseOnConflict() (*nodes.OnConflictClause, error) {
 	loc := p.pos()
 	p.advance() // consume ON
 	p.advance() // consume CONFLICT
@@ -221,7 +278,9 @@ func (p *Parser) parseOnConflict() *nodes.OnConflictClause {
 		inferLoc := p.pos()
 		p.advance() // consume '('
 		indexElems := p.parseIndexParams()
-		p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 
 		infer := &nodes.InferClause{
 			IndexElems: indexElems,
@@ -231,7 +290,11 @@ func (p *Parser) parseOnConflict() *nodes.OnConflictClause {
 		// Optional WHERE clause for partial index predicate
 		if p.cur.Type == WHERE {
 			p.advance()
-			infer.WhereClause, _ = p.parseAExpr(0)
+			var err error
+			infer.WhereClause, err = p.parseAExpr(0)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		infer.Loc.End = p.pos()
@@ -241,8 +304,13 @@ func (p *Parser) parseOnConflict() *nodes.OnConflictClause {
 		// ON CONSTRAINT name
 		inferLoc := p.pos()
 		p.advance() // consume ON (second one)
-		p.expect(CONSTRAINT)
-		name, _ := p.parseName()
+		if _, err := p.expect(CONSTRAINT); err != nil {
+			return nil, err
+		}
+		name, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		occ.Infer = &nodes.InferClause{
 			Conname: name,
 			Loc:     nodes.Loc{Start: inferLoc, End: p.pos()},
@@ -253,20 +321,31 @@ func (p *Parser) parseOnConflict() *nodes.OnConflictClause {
 	}
 
 	// DO {NOTHING | UPDATE SET ...}
-	p.expect(DO)
+	if _, err := p.expect(DO); err != nil {
+		return nil, err
+	}
 	if p.cur.Type == NOTHING {
 		p.advance()
 		occ.Action = 1 // ONCONFLICT_NOTHING
 	} else if p.cur.Type == UPDATE {
 		p.advance()
-		p.expect(SET)
+		if _, err := p.expect(SET); err != nil {
+			return nil, err
+		}
 		occ.Action = 2 // ONCONFLICT_UPDATE
-		occ.TargetList = p.parseSetClauseList()
-		occ.WhereClause = p.parseWhereClause()
+		var err error
+		occ.TargetList, err = p.parseSetClauseList()
+		if err != nil {
+			return nil, err
+		}
+		occ.WhereClause, err = p.parseWhereClause()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	occ.Loc.End = p.pos()
-	return occ
+	return occ, nil
 }
 
 // parseReturningClause parses an optional RETURNING clause.
@@ -274,13 +353,12 @@ func (p *Parser) parseOnConflict() *nodes.OnConflictClause {
 //	returning_clause:
 //	    RETURNING target_list
 //	    | /* EMPTY */
-func (p *Parser) parseReturningClause() *nodes.List {
+func (p *Parser) parseReturningClause() (*nodes.List, error) {
 	if p.cur.Type != RETURNING {
-		return nil
+		return nil, nil
 	}
 	p.advance()
-	result, _ := p.parseTargetList()
-	return result
+	return p.parseTargetList()
 }
 
 // parseSetClauseList parses a comma-separated list of SET clauses (for UPDATE/ON CONFLICT).
@@ -291,32 +369,49 @@ func (p *Parser) parseReturningClause() *nodes.List {
 //	set_clause:
 //	    set_target '=' a_expr
 //	    | '(' set_target_list ')' '=' a_expr
-func (p *Parser) parseSetClauseList() *nodes.List {
+func (p *Parser) parseSetClauseList() (*nodes.List, error) {
 	var items []nodes.Node
-	first := p.parseSetClause()
+	first, err := p.parseSetClause()
+	if err != nil {
+		return nil, err
+	}
 	items = append(items, first...)
 	for p.cur.Type == ',' {
 		p.advance()
-		items = append(items, p.parseSetClause()...)
+		clause, err := p.parseSetClause()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, clause...)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseSetClause parses a single SET clause. Returns a slice because
 // multi-column assignment (a, b) = expr expands to multiple ResTargets.
-func (p *Parser) parseSetClause() []nodes.Node {
+func (p *Parser) parseSetClause() ([]nodes.Node, error) {
 	if p.collectMode() {
 		p.addTokenCandidate('(')
 		p.addRuleCandidate("columnref")
-		return nil
+		return nil, errCollecting
 	}
 	if p.cur.Type == '(' {
 		// Multi-column: '(' set_target_list ')' '=' a_expr
 		p.advance() // consume '('
-		targets := p.parseSetTargetList()
-		p.expect(')')
-		p.expect('=')
-		expr, _ := p.parseAExpr(0)
+		targets, err := p.parseSetTargetList()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		expr, err := p.parseAExpr(0)
+		if err != nil {
+			return nil, err
+		}
 
 		ncolumns := len(targets.Items)
 		var result []nodes.Node
@@ -329,44 +424,65 @@ func (p *Parser) parseSetClause() []nodes.Node {
 			}
 			result = append(result, rt)
 		}
-		return result
+		return result, nil
 	}
 
 	// Single column: set_target '=' a_expr
-	rt := p.parseSetTarget()
-	p.expect('=')
-	rt.Val, _ = p.parseAExpr(0)
-	return []nodes.Node{rt}
+	rt, err := p.parseSetTarget()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('='); err != nil {
+		return nil, err
+	}
+	rt.Val, err = p.parseAExpr(0)
+	if err != nil {
+		return nil, err
+	}
+	return []nodes.Node{rt}, nil
 }
 
 // parseSetTarget parses a SET target column.
 //
 //	set_target:
 //	    ColId opt_indirection
-func (p *Parser) parseSetTarget() *nodes.ResTarget {
+func (p *Parser) parseSetTarget() (*nodes.ResTarget, error) {
 	if p.collectMode() {
 		p.addRuleCandidate("columnref")
-		return nil
+		return nil, errCollecting
 	}
 	loc := p.pos()
-	name, _ := p.parseColId()
-	ind, _ := p.parseOptIndirection()
+	name, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
+	ind, err := p.parseOptIndirection()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.ResTarget{
 		Name:        name,
 		Indirection: ind,
 		Loc:         nodes.Loc{Start: loc, End: p.pos()},
-	}
+	}, nil
 }
 
 // parseSetTargetList parses a comma-separated list of SET targets.
-func (p *Parser) parseSetTargetList() *nodes.List {
-	first := p.parseSetTarget()
+func (p *Parser) parseSetTargetList() (*nodes.List, error) {
+	first, err := p.parseSetTarget()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
 		p.advance()
-		items = append(items, p.parseSetTarget())
+		target, err := p.parseSetTarget()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, target)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseIndexParams and parseIndexElem are defined in create_index.go

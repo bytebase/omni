@@ -18,7 +18,7 @@ func (p *Parser) parseCopyStmt() nodes.Node {
 		return p.parseCopyQueryStmt()
 	}
 	optBin := p.parseCopyOptBinary()
-	rel := p.parseRelationExpr()
+	rel, _ := p.parseRelationExpr()
 	attlist := p.parseOptColumnList()
 	isFrom := p.parseCopyFrom()
 	isProgram := p.parseCopyOptProgram()
@@ -26,7 +26,7 @@ func (p *Parser) parseCopyStmt() nodes.Node {
 	delimOpt := p.parseCopyDelimiter()
 	p.parseCopyOptWith()
 	options := p.parseCopyOptions()
-	whereClause := p.parseWhereClause()
+	whereClause, _ := p.parseWhereClause()
 	stmt := &nodes.CopyStmt{
 		Relation:    rel,
 		Attlist:     attlist,
@@ -70,17 +70,23 @@ func (p *Parser) parseCopyQueryStmt() nodes.Node {
 func (p *Parser) parsePreparableStmt() nodes.Node {
 	switch p.cur.Type {
 	case SELECT, VALUES, TABLE, WITH:
-		return p.parseSelectNoParens()
+		n, _ := p.parseSelectNoParens()
+		return n
 	case INSERT:
-		return p.parseInsertStmt(nil)
+		n, _ := p.parseInsertStmt(nil)
+		return n
 	case UPDATE:
-		return p.parseUpdateStmt(nil)
+		n, _ := p.parseUpdateStmt(nil)
+		return n
 	case DELETE_P:
-		return p.parseDeleteStmt(nil)
+		n, _ := p.parseDeleteStmt(nil)
+		return n
 	case MERGE:
-		return p.parseMergeStmt(nil)
+		n, _ := p.parseMergeStmt(nil)
+		return n
 	default:
-		return p.parseSelectNoParens()
+		n, _ := p.parseSelectNoParens()
+		return n
 	}
 }
 

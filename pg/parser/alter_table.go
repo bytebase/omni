@@ -62,7 +62,7 @@ func (p *Parser) parseAlterTable() nodes.Node {
 	}
 
 	// relation_expr
-	rel := p.parseRelationExpr()
+	rel, _ := p.parseRelationExpr()
 
 	// Check for RENAME (produces RenameStmt, not AlterTableStmt)
 	if p.cur.Type == RENAME {
@@ -370,7 +370,7 @@ func (p *Parser) parseAlterForeignTable() nodes.Node {
 		missingOk = true
 	}
 
-	rel := p.parseRelationExpr()
+	rel, _ := p.parseRelationExpr()
 
 	// Check for RENAME
 	if p.cur.Type == RENAME {

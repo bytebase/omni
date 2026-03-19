@@ -23,7 +23,7 @@ func (p *Parser) parseDeclareCursorStmt() *nodes.DeclareCursorStmt {
 
 	p.expect(FOR)
 
-	query := p.parseSelectNoParens()
+	query, _ := p.parseSelectNoParens()
 
 	return &nodes.DeclareCursorStmt{
 		Portalname: name,

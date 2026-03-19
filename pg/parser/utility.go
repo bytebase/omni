@@ -49,17 +49,22 @@ func (p *Parser) parseExplainStmt() nodes.Node {
 func (p *Parser) parseExplainableStmt() nodes.Node {
 	switch p.cur.Type {
 	case SELECT, VALUES, TABLE, '(':
-		return p.parseSelectNoParens()
+		n, _ := p.parseSelectNoParens()
+		return n
 	case WITH:
 		return p.parseWithStmt()
 	case INSERT:
-		return p.parseInsertStmt(nil)
+		n, _ := p.parseInsertStmt(nil)
+		return n
 	case UPDATE:
-		return p.parseUpdateStmt(nil)
+		n, _ := p.parseUpdateStmt(nil)
+		return n
 	case DELETE_P:
-		return p.parseDeleteStmt(nil)
+		n, _ := p.parseDeleteStmt(nil)
+		return n
 	case MERGE:
-		return p.parseMergeStmt(nil)
+		n, _ := p.parseMergeStmt(nil)
+		return n
 	case EXECUTE:
 		n, _ := p.parseExecuteStmt()
 		return n

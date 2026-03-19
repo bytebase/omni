@@ -476,7 +476,7 @@ func (p *Parser) parseTruncateStmt() nodes.Node {
 //	    relation_expr
 //	    | relation_expr_list ',' relation_expr
 func (p *Parser) parseRelationExprList() *nodes.List {
-	rel := p.parseRelationExpr()
+	rel, _ := p.parseRelationExpr()
 	if rel == nil {
 		return nil
 	}
@@ -484,7 +484,7 @@ func (p *Parser) parseRelationExprList() *nodes.List {
 
 	for p.cur.Type == ',' {
 		p.advance()
-		rel = p.parseRelationExpr()
+		rel, _ = p.parseRelationExpr()
 		if rel == nil {
 			break
 		}
