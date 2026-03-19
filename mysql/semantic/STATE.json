@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "pipeline": "DISCOVER -> SCENARIO -> ORACLE -> IMPLEMENT -> VERIFY -> SYNTHESIZE",
+  "families": [
+    {"id": "create_database", "status": "done", "stages": {"discover": "done", "scenario": "done", "oracle": "done", "implement": "done", "verify": "done"}},
+    {"id": "create_table", "status": "in_progress", "stages": {"discover": "done", "scenario": "done", "oracle": "in_progress", "implement": "done", "verify": "in_progress"}},
+    {"id": "alter_table", "status": "in_progress", "stages": {"discover": "done", "scenario": "in_progress", "oracle": "pending", "implement": "in_progress", "verify": "pending"}},
+    {"id": "drop_table", "status": "done", "stages": {"discover": "done", "scenario": "done", "oracle": "done", "implement": "done", "verify": "done"}},
+    {"id": "create_index", "status": "done", "stages": {"discover": "done", "scenario": "done", "oracle": "done", "implement": "done", "verify": "done"}},
+    {"id": "drop_index", "status": "done", "stages": {"discover": "done", "scenario": "done", "oracle": "done", "implement": "done", "verify": "done"}},
+    {"id": "create_view", "status": "done", "stages": {"discover": "done", "scenario": "done", "oracle": "pending", "implement": "done", "verify": "pending"}},
+    {"id": "alter_database", "status": "done", "stages": {"discover": "done", "scenario": "done", "oracle": "done", "implement": "done", "verify": "done"}},
+    {"id": "drop_database", "status": "done", "stages": {"discover": "done", "scenario": "done", "oracle": "done", "implement": "done", "verify": "done"}},
+    {"id": "rename_table", "status": "done", "stages": {"discover": "done", "scenario": "done", "oracle": "pending", "implement": "done", "verify": "pending"}},
+    {"id": "truncate_table", "status": "done", "stages": {"discover": "done", "scenario": "done", "oracle": "done", "implement": "done", "verify": "done"}},
+    {"id": "create_function", "status": "pending", "stages": {"discover": "pending", "scenario": "pending", "oracle": "pending", "implement": "pending", "verify": "pending"}},
+    {"id": "create_trigger", "status": "pending", "stages": {"discover": "pending", "scenario": "pending", "oracle": "pending", "implement": "pending", "verify": "pending"}},
+    {"id": "create_event", "status": "pending", "stages": {"discover": "pending", "scenario": "pending", "oracle": "pending", "implement": "pending", "verify": "pending"}},
+    {"id": "grant_revoke", "status": "pending", "stages": {"discover": "pending", "scenario": "pending", "oracle": "pending", "implement": "pending", "verify": "pending"}}
+  ]
+}
