@@ -9,16 +9,20 @@ import (
 // Ref: https://www.postgresql.org/docs/17/functions-xml.html
 //
 //	XMLCONCAT ( xml [, ...] )
-func (p *Parser) parseXmlConcat() nodes.Node {
+func (p *Parser) parseXmlConcat() (nodes.Node, error) {
 	p.advance() // consume XMLCONCAT
-	p.expect('(')
-	args := p.parseExprListFull()
-	p.expect(')')
-	return &nodes.XmlExpr{
-		Op:       nodes.IS_XMLCONCAT,
-		Args:     args,
-		Loc: nodes.NoLoc(),
+	if _, err := p.expect('('); err != nil {
+		return nil, err
 	}
+	args := p.parseExprListFull()
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.XmlExpr{
+		Op:   nodes.IS_XMLCONCAT,
+		Args: args,
+		Loc:  nodes.NoLoc(),
+	}, nil
 }
 
 // parseXmlElement parses XMLELEMENT(NAME name [, xml_attributes] [, expr, ...]).
@@ -26,22 +30,33 @@ func (p *Parser) parseXmlConcat() nodes.Node {
 // Ref: https://www.postgresql.org/docs/17/functions-xml.html
 //
 //	XMLELEMENT ( NAME name [, XMLATTRIBUTES ( attr_list )] [, content [, ...]] )
-func (p *Parser) parseXmlElement() nodes.Node {
+func (p *Parser) parseXmlElement() (nodes.Node, error) {
 	p.advance() // consume XMLELEMENT
-	p.expect('(')
-	p.expect(NAME_P)
-	name, _ := p.parseColLabel()
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(NAME_P); err != nil {
+		return nil, err
+	}
+	name, err := p.parseColLabel()
+	if err != nil {
+		return nil, err
+	}
 
 	result := &nodes.XmlExpr{
-		Op:       nodes.IS_XMLELEMENT,
-		Name:     name,
-		Loc: nodes.NoLoc(),
+		Op:   nodes.IS_XMLELEMENT,
+		Name: name,
+		Loc:  nodes.NoLoc(),
 	}
 
 	if p.cur.Type == ',' {
 		p.advance()
 		if p.cur.Type == XMLATTRIBUTES {
-			result.NamedArgs = p.parseXmlAttributes()
+			namedArgs, err := p.parseXmlAttributes()
+			if err != nil {
+				return nil, err
+			}
+			result.NamedArgs = namedArgs
 			if p.cur.Type == ',' {
 				p.advance()
 				result.Args = p.parseExprListFull()
@@ -52,8 +67,10 @@ func (p *Parser) parseXmlElement() nodes.Node {
 		}
 	}
 
-	p.expect(')')
-	return result
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // parseExprListFromCurrent parses a comma-separated expression list starting
@@ -67,18 +84,25 @@ func (p *Parser) parseExprListFromCurrent() *nodes.List {
 // Ref: https://www.postgresql.org/docs/17/functions-xml.html
 //
 //	XMLEXISTS ( text PASSING [BY {REF|VALUE}] xml [BY {REF|VALUE}] )
-func (p *Parser) parseXmlExists() nodes.Node {
+func (p *Parser) parseXmlExists() (nodes.Node, error) {
 	p.advance() // consume XMLEXISTS
-	p.expect('(')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 	xpath := p.parseCExpr()
-	arg := p.parseXmlExistsArgument()
-	p.expect(')')
+	arg, err := p.parseXmlExistsArgument()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.FuncCall{
 		Funcname:   makeFuncName("pg_catalog", "xmlexists"),
 		Args:       &nodes.List{Items: []nodes.Node{xpath, arg}},
 		FuncFormat: int(nodes.COERCE_SQL_SYNTAX),
-		Loc: nodes.NoLoc(),
-	}
+		Loc:        nodes.NoLoc(),
+	}, nil
 }
 
 // parseXmlForest parses XMLFOREST(xml_attribute_list).
@@ -86,16 +110,23 @@ func (p *Parser) parseXmlExists() nodes.Node {
 // Ref: https://www.postgresql.org/docs/17/functions-xml.html
 //
 //	XMLFOREST ( content [AS name] [, ...] )
-func (p *Parser) parseXmlForest() nodes.Node {
+func (p *Parser) parseXmlForest() (nodes.Node, error) {
 	p.advance() // consume XMLFOREST
-	p.expect('(')
-	attrs := p.parseXmlAttributeList()
-	p.expect(')')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	attrs, err := p.parseXmlAttributeList()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.XmlExpr{
 		Op:        nodes.IS_XMLFOREST,
 		NamedArgs: attrs,
-		Loc: nodes.NoLoc(),
-	}
+		Loc:       nodes.NoLoc(),
+	}, nil
 }
 
 // parseXmlParse parses XMLPARSE(DOCUMENT|CONTENT expr).
@@ -103,19 +134,29 @@ func (p *Parser) parseXmlForest() nodes.Node {
 // Ref: https://www.postgresql.org/docs/17/functions-xml.html
 //
 //	XMLPARSE ( { DOCUMENT | CONTENT } value )
-func (p *Parser) parseXmlParse() nodes.Node {
+func (p *Parser) parseXmlParse() (nodes.Node, error) {
 	p.advance() // consume XMLPARSE
-	p.expect('(')
-	xmloption := p.parseDocumentOrContent()
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	xmloption, err := p.parseDocumentOrContent()
+	if err != nil {
+		return nil, err
+	}
 	expr := p.parseAExpr(0)
-	ws := p.parseXmlWhitespaceOption()
-	p.expect(')')
+	ws, err := p.parseXmlWhitespaceOption()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.XmlExpr{
 		Op:        nodes.IS_XMLPARSE,
 		Args:      &nodes.List{Items: []nodes.Node{expr, makeBoolAConst(ws)}},
 		Xmloption: nodes.XmlOptionType(xmloption),
-		Loc: nodes.NoLoc(),
-	}
+		Loc:       nodes.NoLoc(),
+	}, nil
 }
 
 // parseXmlPI parses XMLPI(NAME name [, expr]).
@@ -123,16 +164,23 @@ func (p *Parser) parseXmlParse() nodes.Node {
 // Ref: https://www.postgresql.org/docs/17/functions-xml.html
 //
 //	XMLPI ( NAME name [, content] )
-func (p *Parser) parseXmlPI() nodes.Node {
+func (p *Parser) parseXmlPI() (nodes.Node, error) {
 	p.advance() // consume XMLPI
-	p.expect('(')
-	p.expect(NAME_P)
-	name, _ := p.parseColLabel()
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(NAME_P); err != nil {
+		return nil, err
+	}
+	name, err := p.parseColLabel()
+	if err != nil {
+		return nil, err
+	}
 
 	result := &nodes.XmlExpr{
-		Op:       nodes.IS_XMLPI,
-		Name:     name,
-		Loc: nodes.NoLoc(),
+		Op:   nodes.IS_XMLPI,
+		Name: name,
+		Loc:  nodes.NoLoc(),
 	}
 
 	if p.cur.Type == ',' {
@@ -141,8 +189,10 @@ func (p *Parser) parseXmlPI() nodes.Node {
 		result.Args = &nodes.List{Items: []nodes.Node{expr}}
 	}
 
-	p.expect(')')
-	return result
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // parseXmlRoot parses XMLROOT(xml, VERSION expr|NO VALUE [, STANDALONE YES|NO|NO VALUE]).
@@ -150,19 +200,31 @@ func (p *Parser) parseXmlPI() nodes.Node {
 // Ref: https://www.postgresql.org/docs/17/functions-xml.html
 //
 //	XMLROOT ( xml, VERSION {value|NO VALUE} [, STANDALONE {YES|NO|NO VALUE}] )
-func (p *Parser) parseXmlRoot() nodes.Node {
+func (p *Parser) parseXmlRoot() (nodes.Node, error) {
 	p.advance() // consume XMLROOT
-	p.expect('(')
-	xmlExpr := p.parseAExpr(0)
-	p.expect(',')
-	version := p.parseXmlRootVersion()
-	standalone := p.parseOptXmlRootStandalone()
-	p.expect(')')
-	return &nodes.XmlExpr{
-		Op:       nodes.IS_XMLROOT,
-		Args:     &nodes.List{Items: []nodes.Node{xmlExpr, version, standalone}},
-		Loc: nodes.NoLoc(),
+	if _, err := p.expect('('); err != nil {
+		return nil, err
 	}
+	xmlExpr := p.parseAExpr(0)
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
+	version, err := p.parseXmlRootVersion()
+	if err != nil {
+		return nil, err
+	}
+	standalone, err := p.parseOptXmlRootStandalone()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.XmlExpr{
+		Op:   nodes.IS_XMLROOT,
+		Args: &nodes.List{Items: []nodes.Node{xmlExpr, version, standalone}},
+		Loc:  nodes.NoLoc(),
+	}, nil
 }
 
 // parseXmlSerialize parses XMLSERIALIZE(DOCUMENT|CONTENT expr AS typename [INDENT]).
@@ -170,101 +232,139 @@ func (p *Parser) parseXmlRoot() nodes.Node {
 // Ref: https://www.postgresql.org/docs/17/functions-xml.html
 //
 //	XMLSERIALIZE ( { DOCUMENT | CONTENT } value AS type [INDENT] )
-func (p *Parser) parseXmlSerialize() nodes.Node {
+func (p *Parser) parseXmlSerialize() (nodes.Node, error) {
 	p.advance() // consume XMLSERIALIZE
-	p.expect('(')
-	xmloption := p.parseDocumentOrContent()
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	xmloption, err := p.parseDocumentOrContent()
+	if err != nil {
+		return nil, err
+	}
 	expr := p.parseAExpr(0)
-	p.expect(AS)
-	typeName, _ := p.parseSimpleTypename()
+	if _, err := p.expect(AS); err != nil {
+		return nil, err
+	}
+	typeName, err := p.parseSimpleTypename()
+	if err != nil {
+		return nil, err
+	}
 	indent := p.parseXmlIndentOption()
-	p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.XmlSerialize{
 		Xmloption: nodes.XmlOptionType(xmloption),
 		Expr:      expr,
 		TypeName:  typeName,
 		Indent:    indent != 0,
-		Loc: nodes.NoLoc(),
-	}
+		Loc:       nodes.NoLoc(),
+	}, nil
 }
 
 // parseXmlRootVersion parses VERSION a_expr | VERSION NO VALUE.
-func (p *Parser) parseXmlRootVersion() nodes.Node {
-	p.expect(VERSION_P)
+func (p *Parser) parseXmlRootVersion() (nodes.Node, error) {
+	if _, err := p.expect(VERSION_P); err != nil {
+		return nil, err
+	}
 	if p.cur.Type == NO {
 		p.advance()
-		p.expect(VALUE_P)
-		return &nodes.A_Const{Isnull: true}
+		if _, err := p.expect(VALUE_P); err != nil {
+			return nil, err
+		}
+		return &nodes.A_Const{Isnull: true}, nil
 	}
-	return p.parseAExpr(0)
+	return p.parseAExpr(0), nil
 }
 
 // parseOptXmlRootStandalone parses optional STANDALONE YES|NO|NO VALUE.
-func (p *Parser) parseOptXmlRootStandalone() nodes.Node {
+func (p *Parser) parseOptXmlRootStandalone() (nodes.Node, error) {
 	if p.cur.Type != ',' {
-		return makeIntConst(int64(nodes.XML_STANDALONE_OMITTED))
+		return makeIntConst(int64(nodes.XML_STANDALONE_OMITTED)), nil
 	}
 	p.advance() // consume ','
-	p.expect(STANDALONE_P)
+	if _, err := p.expect(STANDALONE_P); err != nil {
+		return nil, err
+	}
 	switch p.cur.Type {
 	case YES_P:
 		p.advance()
-		return makeIntConst(int64(nodes.XML_STANDALONE_YES))
+		return makeIntConst(int64(nodes.XML_STANDALONE_YES)), nil
 	case NO:
 		p.advance()
 		if p.cur.Type == VALUE_P {
 			p.advance()
-			return makeIntConst(int64(nodes.XML_STANDALONE_NO_VALUE))
+			return makeIntConst(int64(nodes.XML_STANDALONE_NO_VALUE)), nil
 		}
-		return makeIntConst(int64(nodes.XML_STANDALONE_NO))
+		return makeIntConst(int64(nodes.XML_STANDALONE_NO)), nil
 	default:
-		return makeIntConst(int64(nodes.XML_STANDALONE_OMITTED))
+		return makeIntConst(int64(nodes.XML_STANDALONE_OMITTED)), nil
 	}
 }
 
 // parseXmlAttributes parses XMLATTRIBUTES '(' xml_attribute_list ')'.
-func (p *Parser) parseXmlAttributes() *nodes.List {
+func (p *Parser) parseXmlAttributes() (*nodes.List, error) {
 	p.advance() // consume XMLATTRIBUTES
-	p.expect('(')
-	list := p.parseXmlAttributeList()
-	p.expect(')')
-	return list
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	list, err := p.parseXmlAttributeList()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return list, nil
 }
 
 // parseXmlAttributeList parses a comma-separated list of xml_attribute_el.
-func (p *Parser) parseXmlAttributeList() *nodes.List {
+func (p *Parser) parseXmlAttributeList() (*nodes.List, error) {
 	result := &nodes.List{}
-	result.Items = append(result.Items, p.parseXmlAttributeEl())
+	el, err := p.parseXmlAttributeEl()
+	if err != nil {
+		return nil, err
+	}
+	result.Items = append(result.Items, el)
 	for p.cur.Type == ',' {
 		p.advance()
-		result.Items = append(result.Items, p.parseXmlAttributeEl())
+		el, err := p.parseXmlAttributeEl()
+		if err != nil {
+			return nil, err
+		}
+		result.Items = append(result.Items, el)
 	}
-	return result
+	return result, nil
 }
 
 // parseXmlAttributeEl parses a_expr [AS ColLabel].
-func (p *Parser) parseXmlAttributeEl() nodes.Node {
+func (p *Parser) parseXmlAttributeEl() (nodes.Node, error) {
 	expr := p.parseAExpr(0)
 	rt := &nodes.ResTarget{
-		Val:      expr,
+		Val: expr,
 		Loc: nodes.NoLoc(),
 	}
 	if p.cur.Type == AS {
 		p.advance()
-		name, _ := p.parseColLabel()
+		name, err := p.parseColLabel()
+		if err != nil {
+			return nil, err
+		}
 		rt.Name = name
 	}
-	return rt
+	return rt, nil
 }
 
 // parseDocumentOrContent parses DOCUMENT | CONTENT.
-func (p *Parser) parseDocumentOrContent() int64 {
+func (p *Parser) parseDocumentOrContent() (int64, error) {
 	if p.cur.Type == DOCUMENT_P {
 		p.advance()
-		return int64(nodes.XMLOPTION_DOCUMENT)
+		return int64(nodes.XMLOPTION_DOCUMENT), nil
 	}
-	p.expect(CONTENT_P)
-	return int64(nodes.XMLOPTION_CONTENT)
+	if _, err := p.expect(CONTENT_P); err != nil {
+		return 0, err
+	}
+	return int64(nodes.XMLOPTION_CONTENT), nil
 }
 
 // parseXmlIndentOption parses optional INDENT | NO INDENT.
@@ -285,23 +385,29 @@ func (p *Parser) parseXmlIndentOption() int64 {
 }
 
 // parseXmlWhitespaceOption parses optional PRESERVE WHITESPACE | STRIP WHITESPACE.
-func (p *Parser) parseXmlWhitespaceOption() int64 {
+func (p *Parser) parseXmlWhitespaceOption() (int64, error) {
 	if p.cur.Type == PRESERVE {
 		p.advance()
-		p.expect(WHITESPACE_P)
-		return 1
+		if _, err := p.expect(WHITESPACE_P); err != nil {
+			return 0, err
+		}
+		return 1, nil
 	}
 	if p.cur.Type == STRIP_P {
 		p.advance()
-		p.expect(WHITESPACE_P)
-		return 0
+		if _, err := p.expect(WHITESPACE_P); err != nil {
+			return 0, err
+		}
+		return 0, nil
 	}
-	return 0
+	return 0, nil
 }
 
 // parseXmlExistsArgument parses PASSING [BY {REF|VALUE}] c_expr [BY {REF|VALUE}].
-func (p *Parser) parseXmlExistsArgument() nodes.Node {
-	p.expect(PASSING)
+func (p *Parser) parseXmlExistsArgument() (nodes.Node, error) {
+	if _, err := p.expect(PASSING); err != nil {
+		return nil, err
+	}
 	// Check for optional leading BY REF/VALUE
 	if p.cur.Type == BY {
 		p.parseXmlPassingMech()
@@ -311,7 +417,7 @@ func (p *Parser) parseXmlExistsArgument() nodes.Node {
 	if p.cur.Type == BY {
 		p.parseXmlPassingMech()
 	}
-	return expr
+	return expr, nil
 }
 
 // parseXmlPassingMech consumes BY REF or BY VALUE (ignored semantically).
@@ -327,76 +433,117 @@ func (p *Parser) parseXmlPassingMech() {
 // Ref: https://www.postgresql.org/docs/17/functions-xml.html
 //
 //	XMLTABLE ( [XMLNAMESPACES(...),] row_expr PASSING doc_expr COLUMNS col_list )
-func (p *Parser) parseXmlTable() nodes.Node {
+func (p *Parser) parseXmlTable() (nodes.Node, error) {
 	p.advance() // consume XMLTABLE
-	p.expect('(')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 
 	var namespaces *nodes.List
 
 	// Check for XMLNAMESPACES
 	if p.cur.Type == XMLNAMESPACES {
 		p.advance()
-		p.expect('(')
-		namespaces = p.parseXmlNamespaceList()
-		p.expect(')')
-		p.expect(',')
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		var err error
+		namespaces, err = p.parseXmlNamespaceList()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(','); err != nil {
+			return nil, err
+		}
 	}
 
 	rowExpr := p.parseCExpr()
-	docExpr := p.parseXmlExistsArgument()
-	p.expect(COLUMNS)
-	columns := p.parseXmlTableColumnList()
+	docExpr, err := p.parseXmlExistsArgument()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(COLUMNS); err != nil {
+		return nil, err
+	}
+	columns, err := p.parseXmlTableColumnList()
+	if err != nil {
+		return nil, err
+	}
 
-	p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	return &nodes.RangeTableFunc{
 		Rowexpr:    rowExpr,
 		Docexpr:    docExpr,
 		Columns:    columns,
 		Namespaces: namespaces,
-		Loc: nodes.NoLoc(),
-	}
+		Loc:        nodes.NoLoc(),
+	}, nil
 }
 
 // parseXmlTableColumnList parses a comma-separated list of xmltable_column_el.
-func (p *Parser) parseXmlTableColumnList() *nodes.List {
+func (p *Parser) parseXmlTableColumnList() (*nodes.List, error) {
 	result := &nodes.List{}
-	result.Items = append(result.Items, p.parseXmlTableColumnEl())
+	el, err := p.parseXmlTableColumnEl()
+	if err != nil {
+		return nil, err
+	}
+	result.Items = append(result.Items, el)
 	for p.cur.Type == ',' {
 		p.advance()
-		result.Items = append(result.Items, p.parseXmlTableColumnEl())
+		el, err := p.parseXmlTableColumnEl()
+		if err != nil {
+			return nil, err
+		}
+		result.Items = append(result.Items, el)
 	}
-	return result
+	return result, nil
 }
 
 // parseXmlTableColumnEl parses a single XMLTABLE column definition.
 //
 //	ColId Typename [options...] | ColId FOR ORDINALITY
-func (p *Parser) parseXmlTableColumnEl() nodes.Node {
-	colname, _ := p.parseColId()
+func (p *Parser) parseXmlTableColumnEl() (nodes.Node, error) {
+	colname, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
 
 	// ColId FOR ORDINALITY
 	if p.cur.Type == FOR {
 		p.advance()
-		p.expect(ORDINALITY)
+		if _, err := p.expect(ORDINALITY); err != nil {
+			return nil, err
+		}
 		return &nodes.RangeTableFuncCol{
 			Colname:       colname,
 			ForOrdinality: true,
-			Loc: nodes.NoLoc(),
-		}
+			Loc:           nodes.NoLoc(),
+		}, nil
 	}
 
 	// ColId Typename [option_list]
-	typeName, _ := p.parseTypename()
+	typeName, err := p.parseTypename()
+	if err != nil {
+		return nil, err
+	}
 	fc := &nodes.RangeTableFuncCol{
 		Colname:  colname,
 		TypeName: typeName,
-		Loc: nodes.NoLoc(),
+		Loc:      nodes.NoLoc(),
 	}
 
 	// Parse optional column options (PATH, DEFAULT, NOT NULL, NULL)
 	for {
-		opt := p.parseXmlTableColumnOptionEl()
+		opt, err := p.parseXmlTableColumnOptionEl()
+		if err != nil {
+			return nil, err
+		}
 		if opt == nil {
 			break
 		}
@@ -415,68 +562,83 @@ func (p *Parser) parseXmlTableColumnEl() nodes.Node {
 		}
 	}
 
-	return fc
+	return fc, nil
 }
 
 // parseXmlTableColumnOptionEl tries to parse a single xmltable column option.
-// Returns nil if the current token doesn't start an option.
-func (p *Parser) parseXmlTableColumnOptionEl() nodes.Node {
+// Returns nil, nil if the current token doesn't start an option.
+func (p *Parser) parseXmlTableColumnOptionEl() (nodes.Node, error) {
 	switch p.cur.Type {
 	case DEFAULT:
 		p.advance()
 		expr := p.parseBExpr(0)
-		return &nodes.DefElem{Defname: "default", Arg: expr, Loc: nodes.NoLoc()}
+		return &nodes.DefElem{Defname: "default", Arg: expr, Loc: nodes.NoLoc()}, nil
 	case NOT:
 		p.advance()
-		p.expect(NULL_P)
-		return &nodes.DefElem{Defname: "__pg__is_not_null", Arg: &nodes.Boolean{Boolval: true}, Loc: nodes.NoLoc()}
+		if _, err := p.expect(NULL_P); err != nil {
+			return nil, err
+		}
+		return &nodes.DefElem{Defname: "__pg__is_not_null", Arg: &nodes.Boolean{Boolval: true}, Loc: nodes.NoLoc()}, nil
 	case NULL_P:
 		p.advance()
-		return &nodes.DefElem{Defname: "__pg__is_not_null", Arg: &nodes.Boolean{Boolval: false}, Loc: nodes.NoLoc()}
+		return &nodes.DefElem{Defname: "__pg__is_not_null", Arg: &nodes.Boolean{Boolval: false}, Loc: nodes.NoLoc()}, nil
 	case PATH:
 		p.advance()
 		expr := p.parseBExpr(0)
-		return &nodes.DefElem{Defname: "path", Arg: expr, Loc: nodes.NoLoc()}
+		return &nodes.DefElem{Defname: "path", Arg: expr, Loc: nodes.NoLoc()}, nil
 	case IDENT:
 		// Generic IDENT option (rare, but grammar supports it)
 		name := p.cur.Str
 		p.advance()
 		expr := p.parseBExpr(0)
-		return &nodes.DefElem{Defname: name, Arg: expr, Loc: nodes.NoLoc()}
+		return &nodes.DefElem{Defname: name, Arg: expr, Loc: nodes.NoLoc()}, nil
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
 // parseXmlNamespaceList parses a comma-separated list of xml_namespace_el.
-func (p *Parser) parseXmlNamespaceList() *nodes.List {
+func (p *Parser) parseXmlNamespaceList() (*nodes.List, error) {
 	result := &nodes.List{}
-	result.Items = append(result.Items, p.parseXmlNamespaceEl())
+	el, err := p.parseXmlNamespaceEl()
+	if err != nil {
+		return nil, err
+	}
+	result.Items = append(result.Items, el)
 	for p.cur.Type == ',' {
 		p.advance()
-		result.Items = append(result.Items, p.parseXmlNamespaceEl())
+		el, err := p.parseXmlNamespaceEl()
+		if err != nil {
+			return nil, err
+		}
+		result.Items = append(result.Items, el)
 	}
-	return result
+	return result, nil
 }
 
 // parseXmlNamespaceEl parses b_expr AS ColLabel | DEFAULT b_expr.
-func (p *Parser) parseXmlNamespaceEl() nodes.Node {
+func (p *Parser) parseXmlNamespaceEl() (nodes.Node, error) {
 	if p.cur.Type == DEFAULT {
 		p.advance()
 		expr := p.parseBExpr(0)
 		return &nodes.ResTarget{
-			Val:      expr,
+			Val: expr,
 			Loc: nodes.NoLoc(),
-		}
+		}, nil
 	}
 	expr := p.parseBExpr(0)
-	p.expect(AS)
-	name, _ := p.parseColLabel()
-	return &nodes.ResTarget{
-		Name:     name,
-		Val:      expr,
-		Loc: nodes.NoLoc(),
+	if _, err := p.expect(AS); err != nil {
+		return nil, err
 	}
+	name, err := p.parseColLabel()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.ResTarget{
+		Name: name,
+		Val:  expr,
+		Loc:  nodes.NoLoc(),
+	}, nil
 }
 
 // makeBoolAConst creates an A_Const representing a boolean value as "t" or "f" string.

@@ -875,16 +875,17 @@ func (p *Parser) parseTableRefPrimary() nodes.Node {
 	case LATERAL_P:
 		return p.parseLateralTableRef()
 	case XMLTABLE:
-		n := p.parseXmlTable().(*nodes.RangeTableFunc)
+		xt, _ := p.parseXmlTable()
+		n := xt.(*nodes.RangeTableFunc)
 		alias := p.parseOptAliasClause()
 		if alias != nil {
 			n.Alias = alias
 		}
 		return n
 	case JSON_TABLE:
-		n := p.parseJsonTable()
+		n, _ := p.parseJsonTable()
 		alias := p.parseOptAliasClause()
-		if alias != nil {
+		if n != nil && alias != nil {
 			n.Alias = alias
 		}
 		return n
@@ -972,7 +973,8 @@ func (p *Parser) parseLateralTableRef() nodes.Node {
 
 	// LATERAL xmltable opt_alias_clause
 	if p.cur.Type == XMLTABLE {
-		n := p.parseXmlTable().(*nodes.RangeTableFunc)
+		xt, _ := p.parseXmlTable()
+		n := xt.(*nodes.RangeTableFunc)
 		n.Lateral = true
 		alias := p.parseOptAliasClause()
 		if alias != nil {
@@ -983,11 +985,13 @@ func (p *Parser) parseLateralTableRef() nodes.Node {
 
 	// LATERAL json_table opt_alias_clause
 	if p.cur.Type == JSON_TABLE {
-		n := p.parseJsonTable()
-		n.Lateral = true
-		alias := p.parseOptAliasClause()
-		if alias != nil {
-			n.Alias = alias
+		n, _ := p.parseJsonTable()
+		if n != nil {
+			n.Lateral = true
+			alias := p.parseOptAliasClause()
+			if alias != nil {
+				n.Alias = alias
+			}
 		}
 		return n
 	}

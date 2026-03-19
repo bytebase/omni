@@ -196,7 +196,7 @@ func (p *Parser) parseSetRestMore() nodes.Node {
 	case XML_P:
 		p.advance() // consume XML
 		p.expect(OPTION)
-		docOrContent := p.parseDocumentOrContent()
+		docOrContent, _ := p.parseDocumentOrContent()
 		var val string
 		if docOrContent == int64(nodes.XMLOPTION_DOCUMENT) {
 			val = "DOCUMENT"

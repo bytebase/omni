@@ -1031,43 +1031,61 @@ func (p *Parser) parseCExprInner() nodes.Node {
 
 	// --- JSON functions ---
 	case JSON:
-		return p.parseJsonParseExpr()
+		n, _ := p.parseJsonParseExpr()
+		return n
 	case JSON_OBJECT:
-		return p.parseJsonObjectExpr()
+		n, _ := p.parseJsonObjectExpr()
+		return n
 	case JSON_ARRAY:
-		return p.parseJsonArrayExpr()
+		n, _ := p.parseJsonArrayExpr()
+		return n
 	case JSON_SCALAR:
-		return p.parseJsonScalarExpr()
+		n, _ := p.parseJsonScalarExpr()
+		return n
 	case JSON_SERIALIZE:
-		return p.parseJsonSerializeExpr()
+		n, _ := p.parseJsonSerializeExpr()
+		return n
 	case JSON_QUERY:
-		return p.parseJsonQueryExpr()
+		n, _ := p.parseJsonQueryExpr()
+		return n
 	case JSON_EXISTS:
-		return p.parseJsonExistsExpr()
+		n, _ := p.parseJsonExistsExpr()
+		return n
 	case JSON_VALUE:
-		return p.parseJsonValueFuncExpr()
+		n, _ := p.parseJsonValueFuncExpr()
+		return n
 	case JSON_OBJECTAGG:
-		return p.parseJsonObjectAgg()
+		n, _ := p.parseJsonObjectAgg()
+		return n
 	case JSON_ARRAYAGG:
-		return p.parseJsonArrayAgg()
+		n, _ := p.parseJsonArrayAgg()
+		return n
 
 	// --- XML functions ---
 	case XMLCONCAT:
-		return p.parseXmlConcat()
+		n, _ := p.parseXmlConcat()
+		return n
 	case XMLELEMENT:
-		return p.parseXmlElement()
+		n, _ := p.parseXmlElement()
+		return n
 	case XMLEXISTS:
-		return p.parseXmlExists()
+		n, _ := p.parseXmlExists()
+		return n
 	case XMLFOREST:
-		return p.parseXmlForest()
+		n, _ := p.parseXmlForest()
+		return n
 	case XMLPARSE:
-		return p.parseXmlParse()
+		n, _ := p.parseXmlParse()
+		return n
 	case XMLPI:
-		return p.parseXmlPI()
+		n, _ := p.parseXmlPI()
+		return n
 	case XMLROOT:
-		return p.parseXmlRoot()
+		n, _ := p.parseXmlRoot()
+		return n
 	case XMLSERIALIZE:
-		return p.parseXmlSerialize()
+		n, _ := p.parseXmlSerialize()
+		return n
 
 	// --- SQL value functions (no parens) ---
 	case CURRENT_DATE:

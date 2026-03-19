@@ -14,14 +14,17 @@ import (
 //
 //	json_value_expr:
 //	    a_expr json_format_clause_opt
-func (p *Parser) parseJsonValueExpr() *nodes.JsonValueExpr {
+func (p *Parser) parseJsonValueExpr() (*nodes.JsonValueExpr, error) {
 	expr := p.parseAExpr(0)
 	// json_format_clause_opt: FORMAT JSON [ENCODING name] | empty
 	// We parse but the yacc grammar discards the format in JsonValueExpr.RawExpr
-	_ = p.parseJsonFormatClauseOpt()
+	_, err := p.parseJsonFormatClauseOpt()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.JsonValueExpr{
 		RawExpr: expr,
-	}
+	}, nil
 }
 
 // parseJsonFormatClause parses FORMAT JSON [ENCODING name].
@@ -29,26 +32,28 @@ func (p *Parser) parseJsonValueExpr() *nodes.JsonValueExpr {
 //	json_format_clause:
 //	    FORMAT JSON
 //	    | FORMAT JSON ENCODING name
-func (p *Parser) parseJsonFormatClause() *nodes.JsonFormat {
+func (p *Parser) parseJsonFormatClause() (*nodes.JsonFormat, error) {
 	p.advance() // consume FORMAT
-	p.expect(JSON)
+	if _, err := p.expect(JSON); err != nil {
+		return nil, err
+	}
 	f := &nodes.JsonFormat{
 		FormatType: nodes.JS_FORMAT_JSON,
-		Loc: nodes.NoLoc(),
+		Loc:        nodes.NoLoc(),
 	}
 	if p.cur.Type == ENCODING {
 		p.advance()
 		p.parseColId() // consume encoding name, ignored
 	}
-	return f
+	return f, nil
 }
 
 // parseJsonFormatClauseOpt parses an optional FORMAT clause.
-func (p *Parser) parseJsonFormatClauseOpt() *nodes.JsonFormat {
+func (p *Parser) parseJsonFormatClauseOpt() (*nodes.JsonFormat, error) {
 	if p.cur.Type == FORMAT {
 		return p.parseJsonFormatClause()
 	}
-	return nil
+	return nil, nil
 }
 
 // parseJsonReturningClauseOpt parses an optional RETURNING Typename [FORMAT ...].
@@ -56,19 +61,21 @@ func (p *Parser) parseJsonFormatClauseOpt() *nodes.JsonFormat {
 //	json_returning_clause_opt:
 //	    RETURNING Typename json_format_clause_opt
 //	    | /* EMPTY */
-func (p *Parser) parseJsonReturningClauseOpt() *nodes.JsonOutput {
+func (p *Parser) parseJsonReturningClauseOpt() (*nodes.JsonOutput, error) {
 	if p.cur.Type != RETURNING {
-		return nil
+		return nil, nil
 	}
 	p.advance() // consume RETURNING
 	tn, err := p.parseTypename()
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	_ = p.parseJsonFormatClauseOpt()
+	if _, err := p.parseJsonFormatClauseOpt(); err != nil {
+		return nil, err
+	}
 	return &nodes.JsonOutput{
 		TypeName: tn,
-	}
+	}, nil
 }
 
 // parseJsonBehavior parses a json_behavior production.
@@ -81,9 +88,9 @@ func (p *Parser) parseJsonBehavior() *nodes.JsonBehavior {
 		p.advance()
 		expr := p.parseAExpr(0)
 		return &nodes.JsonBehavior{
-			Btype:    nodes.JSON_BEHAVIOR_DEFAULT,
-			Expr:     expr,
-			Loc: nodes.NoLoc(),
+			Btype: nodes.JSON_BEHAVIOR_DEFAULT,
+			Expr:  expr,
+			Loc:   nodes.NoLoc(),
 		}
 	}
 	bt, ok := p.parseJsonBehaviorType()
@@ -91,8 +98,8 @@ func (p *Parser) parseJsonBehavior() *nodes.JsonBehavior {
 		return nil
 	}
 	return &nodes.JsonBehavior{
-		Btype:    bt,
-		Loc: nodes.NoLoc(),
+		Btype: bt,
+		Loc:   nodes.NoLoc(),
 	}
 }
 
@@ -396,14 +403,21 @@ func (p *Parser) parseJsonArrayConstructorNullClauseOpt() bool {
 //
 //	json_name_and_value_list:
 //	    json_name_and_value (',' json_name_and_value)*
-func (p *Parser) parseJsonNameAndValueList() *nodes.List {
-	first := p.parseJsonNameAndValue()
+func (p *Parser) parseJsonNameAndValueList() (*nodes.List, error) {
+	first, err := p.parseJsonNameAndValue()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
 		p.advance()
-		items = append(items, p.parseJsonNameAndValue())
+		kv, err := p.parseJsonNameAndValue()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, kv)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseJsonNameAndValue parses a single key-value pair.
@@ -414,35 +428,51 @@ func (p *Parser) parseJsonNameAndValueList() *nodes.List {
 //
 // Since we cannot easily distinguish c_expr VALUE_P from a_expr in an LL parser,
 // we parse as a_expr and check for VALUE_P or ':'.
-func (p *Parser) parseJsonNameAndValue() *nodes.JsonKeyValue {
+func (p *Parser) parseJsonNameAndValue() (*nodes.JsonKeyValue, error) {
 	key := p.parseAExpr(0)
 
 	if p.cur.Type == VALUE_P {
 		p.advance() // consume VALUE
-		val := p.parseJsonValueExpr()
-		return &nodes.JsonKeyValue{Key: key, Value: val}
+		val, err := p.parseJsonValueExpr()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.JsonKeyValue{Key: key, Value: val}, nil
 	}
 
 	if p.cur.Type == ':' {
 		p.advance() // consume ':'
-		val := p.parseJsonValueExpr()
-		return &nodes.JsonKeyValue{Key: key, Value: val}
+		val, err := p.parseJsonValueExpr()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.JsonKeyValue{Key: key, Value: val}, nil
 	}
 
 	// Fallback: treat as key VALUE expr
-	val := p.parseJsonValueExpr()
-	return &nodes.JsonKeyValue{Key: key, Value: val}
+	val, err := p.parseJsonValueExpr()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.JsonKeyValue{Key: key, Value: val}, nil
 }
 
 // parseJsonValueExprList parses a comma-separated list of json_value_expr.
-func (p *Parser) parseJsonValueExprList() *nodes.List {
-	first := p.parseJsonValueExpr()
+func (p *Parser) parseJsonValueExprList() (*nodes.List, error) {
+	first, err := p.parseJsonValueExpr()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
 		p.advance()
-		items = append(items, p.parseJsonValueExpr())
+		v, err := p.parseJsonValueExpr()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, v)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseJsonPassingClauseOpt parses optional PASSING clause.
@@ -450,34 +480,49 @@ func (p *Parser) parseJsonValueExprList() *nodes.List {
 //	json_passing_clause_opt:
 //	    PASSING json_arguments
 //	    | /* EMPTY */
-func (p *Parser) parseJsonPassingClauseOpt() *nodes.List {
+func (p *Parser) parseJsonPassingClauseOpt() (*nodes.List, error) {
 	if p.cur.Type != PASSING {
-		return nil
+		return nil, nil
 	}
 	p.advance() // consume PASSING
 	return p.parseJsonArguments()
 }
 
 // parseJsonArguments parses comma-separated json_argument list.
-func (p *Parser) parseJsonArguments() *nodes.List {
-	first := p.parseJsonArgument()
+func (p *Parser) parseJsonArguments() (*nodes.List, error) {
+	first, err := p.parseJsonArgument()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
 		p.advance()
-		items = append(items, p.parseJsonArgument())
+		arg, err := p.parseJsonArgument()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, arg)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseJsonArgument parses json_value_expr AS ColLabel.
-func (p *Parser) parseJsonArgument() *nodes.JsonArgument {
-	val := p.parseJsonValueExpr()
-	p.expect(AS)
-	name, _ := p.parseColLabel()
+func (p *Parser) parseJsonArgument() (*nodes.JsonArgument, error) {
+	val, err := p.parseJsonValueExpr()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(AS); err != nil {
+		return nil, err
+	}
+	name, err := p.parseColLabel()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.JsonArgument{
 		Val:  val,
 		Name: name,
-	}
+	}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -491,22 +536,29 @@ func (p *Parser) parseJsonArgument() *nodes.JsonArgument {
 //	JSON_OBJECT '(' func_arg_list ')'                          -- legacy
 //	JSON_OBJECT '(' json_name_and_value_list ... ')'           -- SQL/JSON
 //	JSON_OBJECT '(' json_returning_clause_opt ')'              -- empty
-func (p *Parser) parseJsonObjectExpr() nodes.Node {
+func (p *Parser) parseJsonObjectExpr() (nodes.Node, error) {
 	p.advance() // consume JSON_OBJECT
-	p.expect('(')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 
 	// Empty: JSON_OBJECT() or JSON_OBJECT(RETURNING ...)
 	if p.cur.Type == ')' {
 		p.advance()
-		return &nodes.JsonObjectConstructor{Loc: nodes.NoLoc()}
+		return &nodes.JsonObjectConstructor{Loc: nodes.NoLoc()}, nil
 	}
 	if p.cur.Type == RETURNING {
-		output := p.parseJsonReturningClauseOpt()
-		p.expect(')')
-		return &nodes.JsonObjectConstructor{
-			Output:   output,
-			Loc: nodes.NoLoc(),
+		output, err := p.parseJsonReturningClauseOpt()
+		if err != nil {
+			return nil, err
 		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return &nodes.JsonObjectConstructor{
+			Output: output,
+			Loc:    nodes.NoLoc(),
+		}, nil
 	}
 
 	// We need to disambiguate:
@@ -523,49 +575,73 @@ func (p *Parser) parseJsonObjectExpr() nodes.Node {
 	if p.cur.Type == VALUE_P {
 		// SQL/JSON form: key VALUE val
 		p.advance()
-		firstVal := p.parseJsonValueExpr()
+		firstVal, err := p.parseJsonValueExpr()
+		if err != nil {
+			return nil, err
+		}
 		firstKV := &nodes.JsonKeyValue{Key: firstExpr, Value: firstVal}
 		items := []nodes.Node{firstKV}
 		for p.cur.Type == ',' {
 			p.advance()
-			items = append(items, p.parseJsonNameAndValue())
+			kv, err := p.parseJsonNameAndValue()
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, kv)
 		}
 		exprs := &nodes.List{Items: items}
 		absentOnNull := p.parseJsonObjectConstructorNullClauseOpt()
 		uniqueKeys := p.parseJsonKeyUniquenessConstraintOpt()
-		output := p.parseJsonReturningClauseOpt()
-		p.expect(')')
+		output, err := p.parseJsonReturningClauseOpt()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		return &nodes.JsonObjectConstructor{
 			Exprs:        exprs,
 			Output:       output,
 			AbsentOnNull: absentOnNull,
 			UniqueKeys:   uniqueKeys,
-			Loc: nodes.NoLoc(),
-		}
+			Loc:          nodes.NoLoc(),
+		}, nil
 	}
 
 	if p.cur.Type == ':' {
 		// SQL/JSON form: key : val
 		p.advance()
-		firstVal := p.parseJsonValueExpr()
+		firstVal, err := p.parseJsonValueExpr()
+		if err != nil {
+			return nil, err
+		}
 		firstKV := &nodes.JsonKeyValue{Key: firstExpr, Value: firstVal}
 		items := []nodes.Node{firstKV}
 		for p.cur.Type == ',' {
 			p.advance()
-			items = append(items, p.parseJsonNameAndValue())
+			kv, err := p.parseJsonNameAndValue()
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, kv)
 		}
 		exprs := &nodes.List{Items: items}
 		absentOnNull := p.parseJsonObjectConstructorNullClauseOpt()
 		uniqueKeys := p.parseJsonKeyUniquenessConstraintOpt()
-		output := p.parseJsonReturningClauseOpt()
-		p.expect(')')
+		output, err := p.parseJsonReturningClauseOpt()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		return &nodes.JsonObjectConstructor{
 			Exprs:        exprs,
 			Output:       output,
 			AbsentOnNull: absentOnNull,
 			UniqueKeys:   uniqueKeys,
-			Loc: nodes.NoLoc(),
-		}
+			Loc:          nodes.NoLoc(),
+		}, nil
 	}
 
 	// Legacy form: JSON_OBJECT(func_arg_list)
@@ -575,13 +651,15 @@ func (p *Parser) parseJsonObjectExpr() nodes.Node {
 		p.advance()
 		args = append(args, p.parseFuncArgExpr())
 	}
-	p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.FuncCall{
 		Funcname:   makeFuncName("pg_catalog", "json_object"),
 		Args:       &nodes.List{Items: args},
 		FuncFormat: int(nodes.COERCE_EXPLICIT_CALL),
-		Loc: nodes.NoLoc(),
-	}
+		Loc:        nodes.NoLoc(),
+	}, nil
 }
 
 // parseJsonArrayExpr parses JSON_ARRAY(...).
@@ -591,48 +669,70 @@ func (p *Parser) parseJsonObjectExpr() nodes.Node {
 //	JSON_ARRAY '(' json_value_expr_list ... ')'     -- with values
 //	JSON_ARRAY '(' select_no_parens ... ')'         -- with subquery
 //	JSON_ARRAY '(' json_returning_clause_opt ')'    -- empty
-func (p *Parser) parseJsonArrayExpr() nodes.Node {
+func (p *Parser) parseJsonArrayExpr() (nodes.Node, error) {
 	p.advance() // consume JSON_ARRAY
-	p.expect('(')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 
 	// Empty: JSON_ARRAY() or JSON_ARRAY(RETURNING ...)
 	if p.cur.Type == ')' {
 		p.advance()
-		return &nodes.JsonArrayConstructor{Loc: nodes.NoLoc()}
+		return &nodes.JsonArrayConstructor{Loc: nodes.NoLoc()}, nil
 	}
 	if p.cur.Type == RETURNING {
-		output := p.parseJsonReturningClauseOpt()
-		p.expect(')')
-		return &nodes.JsonArrayConstructor{
-			Output:   output,
-			Loc: nodes.NoLoc(),
+		output, err := p.parseJsonReturningClauseOpt()
+		if err != nil {
+			return nil, err
 		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return &nodes.JsonArrayConstructor{
+			Output: output,
+			Loc:    nodes.NoLoc(),
+		}, nil
 	}
 
 	// Check for subquery: SELECT, VALUES, WITH, TABLE
 	if p.isSelectStart() {
 		query := p.parseSelectStmtForExpr()
-		_ = p.parseJsonFormatClauseOpt()
-		output := p.parseJsonReturningClauseOpt()
-		p.expect(')')
-		return &nodes.JsonArrayQueryConstructor{
-			Query:    query,
-			Output:   output,
-			Loc: nodes.NoLoc(),
+		if _, err := p.parseJsonFormatClauseOpt(); err != nil {
+			return nil, err
 		}
+		output, err := p.parseJsonReturningClauseOpt()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return &nodes.JsonArrayQueryConstructor{
+			Query:  query,
+			Output: output,
+			Loc:    nodes.NoLoc(),
+		}, nil
 	}
 
 	// Value list
-	exprs := p.parseJsonValueExprList()
+	exprs, err := p.parseJsonValueExprList()
+	if err != nil {
+		return nil, err
+	}
 	absentOnNull := p.parseJsonArrayConstructorNullClauseOpt()
-	output := p.parseJsonReturningClauseOpt()
-	p.expect(')')
+	output, err := p.parseJsonReturningClauseOpt()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.JsonArrayConstructor{
 		Exprs:        exprs,
 		AbsentOnNull: absentOnNull,
 		Output:       output,
-		Loc: nodes.NoLoc(),
-	}
+		Loc:          nodes.NoLoc(),
+	}, nil
 }
 
 // parseJsonParseExpr parses JSON(json_value_expr [WITH UNIQUE [KEYS]]).
@@ -640,47 +740,68 @@ func (p *Parser) parseJsonArrayExpr() nodes.Node {
 // Ref: https://www.postgresql.org/docs/17/functions-json.html
 //
 //	JSON '(' json_value_expr json_key_uniqueness_constraint_opt ')'
-func (p *Parser) parseJsonParseExpr() nodes.Node {
+func (p *Parser) parseJsonParseExpr() (nodes.Node, error) {
 	p.advance() // consume JSON
-	p.expect('(')
-	val := p.parseJsonValueExpr()
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	val, err := p.parseJsonValueExpr()
+	if err != nil {
+		return nil, err
+	}
 	uniqueKeys := p.parseJsonKeyUniquenessConstraintOpt()
-	p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.JsonParseExpr{
 		Expr:       val,
 		UniqueKeys: uniqueKeys,
-		Loc: nodes.NoLoc(),
-	}
+		Loc:        nodes.NoLoc(),
+	}, nil
 }
 
 // parseJsonScalarExpr parses JSON_SCALAR(a_expr).
 //
 //	JSON_SCALAR '(' a_expr ')'
-func (p *Parser) parseJsonScalarExpr() nodes.Node {
+func (p *Parser) parseJsonScalarExpr() (nodes.Node, error) {
 	p.advance() // consume JSON_SCALAR
-	p.expect('(')
-	expr := p.parseAExpr(0)
-	p.expect(')')
-	return &nodes.JsonScalarExpr{
-		Expr:     expr,
-		Loc: nodes.NoLoc(),
+	if _, err := p.expect('('); err != nil {
+		return nil, err
 	}
+	expr := p.parseAExpr(0)
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.JsonScalarExpr{
+		Expr: expr,
+		Loc:  nodes.NoLoc(),
+	}, nil
 }
 
 // parseJsonSerializeExpr parses JSON_SERIALIZE(json_value_expr [RETURNING ...]).
 //
 //	JSON_SERIALIZE '(' json_value_expr json_returning_clause_opt ')'
-func (p *Parser) parseJsonSerializeExpr() nodes.Node {
+func (p *Parser) parseJsonSerializeExpr() (nodes.Node, error) {
 	p.advance() // consume JSON_SERIALIZE
-	p.expect('(')
-	val := p.parseJsonValueExpr()
-	output := p.parseJsonReturningClauseOpt()
-	p.expect(')')
-	return &nodes.JsonSerializeExpr{
-		Expr:     val,
-		Output:   output,
-		Loc: nodes.NoLoc(),
+	if _, err := p.expect('('); err != nil {
+		return nil, err
 	}
+	val, err := p.parseJsonValueExpr()
+	if err != nil {
+		return nil, err
+	}
+	output, err := p.parseJsonReturningClauseOpt()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.JsonSerializeExpr{
+		Expr:   val,
+		Output: output,
+		Loc:    nodes.NoLoc(),
+	}, nil
 }
 
 // parseJsonQueryExpr parses JSON_QUERY(...).
@@ -691,18 +812,33 @@ func (p *Parser) parseJsonSerializeExpr() nodes.Node {
 //	    json_passing_clause_opt json_returning_clause_opt
 //	    json_wrapper_behavior json_quotes_clause_opt
 //	    json_behavior_clause_opt ')'
-func (p *Parser) parseJsonQueryExpr() nodes.Node {
+func (p *Parser) parseJsonQueryExpr() (nodes.Node, error) {
 	p.advance() // consume JSON_QUERY
-	p.expect('(')
-	contextItem := p.parseJsonValueExpr()
-	p.expect(',')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	contextItem, err := p.parseJsonValueExpr()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
 	pathspec := p.parseAExpr(0)
-	passing := p.parseJsonPassingClauseOpt()
-	output := p.parseJsonReturningClauseOpt()
+	passing, err := p.parseJsonPassingClauseOpt()
+	if err != nil {
+		return nil, err
+	}
+	output, err := p.parseJsonReturningClauseOpt()
+	if err != nil {
+		return nil, err
+	}
 	wrapper := p.parseJsonWrapperBehavior()
 	quotes := p.parseJsonQuotesClauseOpt()
 	onEmpty, onError := p.parseJsonBehaviorClauseOpt()
-	p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.JsonFuncExpr{
 		Op:          nodes.JSON_QUERY_OP,
 		ContextItem: contextItem,
@@ -713,31 +849,43 @@ func (p *Parser) parseJsonQueryExpr() nodes.Node {
 		Quotes:      quotes,
 		OnEmpty:     onEmpty,
 		OnError:     onError,
-		Loc: nodes.NoLoc(),
-	}
+		Loc:         nodes.NoLoc(),
+	}, nil
 }
 
 // parseJsonExistsExpr parses JSON_EXISTS(...).
 //
 //	JSON_EXISTS '(' json_value_expr ',' a_expr
 //	    json_passing_clause_opt json_on_error_clause_opt ')'
-func (p *Parser) parseJsonExistsExpr() nodes.Node {
+func (p *Parser) parseJsonExistsExpr() (nodes.Node, error) {
 	p.advance() // consume JSON_EXISTS
-	p.expect('(')
-	contextItem := p.parseJsonValueExpr()
-	p.expect(',')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	contextItem, err := p.parseJsonValueExpr()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
 	pathspec := p.parseAExpr(0)
-	passing := p.parseJsonPassingClauseOpt()
+	passing, err := p.parseJsonPassingClauseOpt()
+	if err != nil {
+		return nil, err
+	}
 	onError := p.parseJsonOnErrorClauseOpt()
-	p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.JsonFuncExpr{
 		Op:          nodes.JSON_EXISTS_OP,
 		ContextItem: contextItem,
 		Pathspec:    pathspec,
 		Passing:     passing,
 		OnError:     onError,
-		Loc: nodes.NoLoc(),
-	}
+		Loc:         nodes.NoLoc(),
+	}, nil
 }
 
 // parseJsonValueFuncExpr parses JSON_VALUE(...).
@@ -745,16 +893,31 @@ func (p *Parser) parseJsonExistsExpr() nodes.Node {
 //	JSON_VALUE '(' json_value_expr ',' a_expr
 //	    json_passing_clause_opt json_returning_clause_opt
 //	    json_behavior_clause_opt ')'
-func (p *Parser) parseJsonValueFuncExpr() nodes.Node {
+func (p *Parser) parseJsonValueFuncExpr() (nodes.Node, error) {
 	p.advance() // consume JSON_VALUE
-	p.expect('(')
-	contextItem := p.parseJsonValueExpr()
-	p.expect(',')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	contextItem, err := p.parseJsonValueExpr()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
 	pathspec := p.parseAExpr(0)
-	passing := p.parseJsonPassingClauseOpt()
-	output := p.parseJsonReturningClauseOpt()
+	passing, err := p.parseJsonPassingClauseOpt()
+	if err != nil {
+		return nil, err
+	}
+	output, err := p.parseJsonReturningClauseOpt()
+	if err != nil {
+		return nil, err
+	}
 	onEmpty, onError := p.parseJsonBehaviorClauseOpt()
-	p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.JsonFuncExpr{
 		Op:          nodes.JSON_VALUE_OP,
 		ContextItem: contextItem,
@@ -763,8 +926,8 @@ func (p *Parser) parseJsonValueFuncExpr() nodes.Node {
 		Output:      output,
 		OnEmpty:     onEmpty,
 		OnError:     onError,
-		Loc: nodes.NoLoc(),
-	}
+		Loc:         nodes.NoLoc(),
+	}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -779,19 +942,29 @@ func (p *Parser) parseJsonValueFuncExpr() nodes.Node {
 //	    json_returning_clause_opt ')'
 //
 // After parsing, FILTER and OVER clauses are handled by the caller.
-func (p *Parser) parseJsonObjectAgg() nodes.Node {
+func (p *Parser) parseJsonObjectAgg() (nodes.Node, error) {
 	p.advance() // consume JSON_OBJECTAGG
-	p.expect('(')
-	kv := p.parseJsonNameAndValue()
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	kv, err := p.parseJsonNameAndValue()
+	if err != nil {
+		return nil, err
+	}
 	absentOnNull := p.parseJsonObjectConstructorNullClauseOpt()
 	uniqueKeys := p.parseJsonKeyUniquenessConstraintOpt()
-	output := p.parseJsonReturningClauseOpt()
-	p.expect(')')
+	output, err := p.parseJsonReturningClauseOpt()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	agg := &nodes.JsonObjectAgg{
 		Constructor: &nodes.JsonAggConstructor{
-			Output:   output,
-			Loc: nodes.NoLoc(),
+			Output: output,
+			Loc:    nodes.NoLoc(),
 		},
 		Arg:          kv,
 		AbsentOnNull: absentOnNull,
@@ -799,9 +972,11 @@ func (p *Parser) parseJsonObjectAgg() nodes.Node {
 	}
 
 	// Apply filter_clause and over_clause
-	p.applyJsonAggClauses(agg.Constructor)
+	if err := p.applyJsonAggClauses(agg.Constructor); err != nil {
+		return nil, err
+	}
 
-	return agg
+	return agg, nil
 }
 
 // parseJsonArrayAgg parses JSON_ARRAYAGG(...).
@@ -810,40 +985,58 @@ func (p *Parser) parseJsonObjectAgg() nodes.Node {
 //	    json_array_aggregate_order_by_clause_opt
 //	    json_array_constructor_null_clause_opt
 //	    json_returning_clause_opt ')'
-func (p *Parser) parseJsonArrayAgg() nodes.Node {
+func (p *Parser) parseJsonArrayAgg() (nodes.Node, error) {
 	p.advance() // consume JSON_ARRAYAGG
-	p.expect('(')
-	val := p.parseJsonValueExpr()
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	val, err := p.parseJsonValueExpr()
+	if err != nil {
+		return nil, err
+	}
 	aggOrder := p.parseOptSortClause()
 	absentOnNull := p.parseJsonArrayConstructorNullClauseOpt()
-	output := p.parseJsonReturningClauseOpt()
-	p.expect(')')
+	output, err := p.parseJsonReturningClauseOpt()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	agg := &nodes.JsonArrayAgg{
 		Constructor: &nodes.JsonAggConstructor{
 			Output:    output,
 			Agg_order: aggOrder,
-			Loc: nodes.NoLoc(),
+			Loc:       nodes.NoLoc(),
 		},
 		Arg:          val,
 		AbsentOnNull: absentOnNull,
 	}
 
 	// Apply filter_clause and over_clause
-	p.applyJsonAggClauses(agg.Constructor)
+	if err := p.applyJsonAggClauses(agg.Constructor); err != nil {
+		return nil, err
+	}
 
-	return agg
+	return agg, nil
 }
 
 // applyJsonAggClauses parses and applies FILTER and OVER clauses to a JsonAggConstructor.
-func (p *Parser) applyJsonAggClauses(c *nodes.JsonAggConstructor) {
+func (p *Parser) applyJsonAggClauses(c *nodes.JsonAggConstructor) error {
 	// filter_clause: FILTER '(' WHERE a_expr ')'
 	if p.cur.Type == FILTER {
 		p.advance()
-		p.expect('(')
-		p.expect(WHERE)
+		if _, err := p.expect('('); err != nil {
+			return err
+		}
+		if _, err := p.expect(WHERE); err != nil {
+			return err
+		}
 		c.Agg_filter = p.parseAExpr(0)
-		p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return err
+		}
 	}
 
 	// over_clause: OVER window_specification | OVER ColId
@@ -853,6 +1046,7 @@ func (p *Parser) applyJsonAggClauses(c *nodes.JsonAggConstructor) {
 			c.Over = wd
 		}
 	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -869,12 +1063,19 @@ func (p *Parser) applyJsonAggClauses(c *nodes.JsonAggConstructor) {
 //	    COLUMNS '(' json_table_column_definition_list ')'
 //	    json_on_error_clause_opt
 //	')'
-func (p *Parser) parseJsonTable() *nodes.JsonTable {
+func (p *Parser) parseJsonTable() (*nodes.JsonTable, error) {
 	p.advance() // consume JSON_TABLE
-	p.expect('(')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 
-	contextItem := p.parseJsonValueExpr()
-	p.expect(',')
+	contextItem, err := p.parseJsonValueExpr()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
 	pathExpr := p.parseAExpr(0)
 
 	// json_table_path_name_opt: AS name | empty
@@ -884,40 +1085,61 @@ func (p *Parser) parseJsonTable() *nodes.JsonTable {
 		pathName, _ = p.parseColId()
 	}
 
-	passing := p.parseJsonPassingClauseOpt()
+	passing, err := p.parseJsonPassingClauseOpt()
+	if err != nil {
+		return nil, err
+	}
 
-	p.expect(COLUMNS)
-	p.expect('(')
-	columns := p.parseJsonTableColumnDefinitionList()
-	p.expect(')')
+	if _, err := p.expect(COLUMNS); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	columns, err := p.parseJsonTableColumnDefinitionList()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	onError := p.parseJsonOnErrorClauseOpt()
 
-	p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	return &nodes.JsonTable{
 		ContextItem: contextItem,
 		Pathspec: &nodes.JsonTablePathSpec{
-			String:   pathExpr,
-			Name:     pathName,
-			Loc: nodes.NoLoc(),
+			String: pathExpr,
+			Name:   pathName,
+			Loc:    nodes.NoLoc(),
 		},
-		Passing:  passing,
-		Columns:  columns,
-		OnError:  onError,
-		Loc: nodes.NoLoc(),
-	}
+		Passing: passing,
+		Columns: columns,
+		OnError: onError,
+		Loc:     nodes.NoLoc(),
+	}, nil
 }
 
 // parseJsonTableColumnDefinitionList parses comma-separated column definitions.
-func (p *Parser) parseJsonTableColumnDefinitionList() *nodes.List {
-	first := p.parseJsonTableColumnDefinition()
+func (p *Parser) parseJsonTableColumnDefinitionList() (*nodes.List, error) {
+	first, err := p.parseJsonTableColumnDefinition()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
 		p.advance()
-		items = append(items, p.parseJsonTableColumnDefinition())
+		col, err := p.parseJsonTableColumnDefinition()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, col)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseJsonTableColumnDefinition parses a single JSON_TABLE column definition.
@@ -925,7 +1147,7 @@ func (p *Parser) parseJsonTableColumnDefinitionList() *nodes.List {
 //	ColId FOR ORDINALITY
 //	| ColId Typename [FORMAT JSON] [EXISTS] [PATH Sconst] [wrapper] [quotes] [behavior]
 //	| NESTED [PATH] Sconst [AS name] COLUMNS '(' column_list ')'
-func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
+func (p *Parser) parseJsonTableColumnDefinition() (*nodes.JsonTableColumn, error) {
 	// NESTED path
 	if p.cur.Type == NESTED {
 		p.advance() // consume NESTED
@@ -935,7 +1157,9 @@ func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
 		}
 		// Sconst
 		pathStr := p.cur.Str
-		p.expect(SCONST)
+		if _, err := p.expect(SCONST); err != nil {
+			return nil, err
+		}
 
 		// json_table_path_name_opt
 		pathName := ""
@@ -944,21 +1168,30 @@ func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
 			pathName, _ = p.parseColId()
 		}
 
-		p.expect(COLUMNS)
-		p.expect('(')
-		columns := p.parseJsonTableColumnDefinitionList()
-		p.expect(')')
+		if _, err := p.expect(COLUMNS); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		columns, err := p.parseJsonTableColumnDefinitionList()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 
 		return &nodes.JsonTableColumn{
 			Coltype: nodes.JTC_NESTED,
 			Pathspec: &nodes.JsonTablePathSpec{
-				String:   &nodes.A_Const{Val: &nodes.String{Str: pathStr}},
-				Name:     pathName,
-				Loc: nodes.NoLoc(),
+				String: &nodes.A_Const{Val: &nodes.String{Str: pathStr}},
+				Name:   pathName,
+				Loc:    nodes.NoLoc(),
 			},
-			Columns:  columns,
-			Loc: nodes.NoLoc(),
-		}
+			Columns: columns,
+			Loc:     nodes.NoLoc(),
+		}, nil
 	}
 
 	// ColId ...
@@ -967,27 +1200,32 @@ func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
 	// ColId FOR ORDINALITY
 	if p.cur.Type == FOR {
 		p.advance()
-		p.expect(ORDINALITY)
-		return &nodes.JsonTableColumn{
-			Coltype:  nodes.JTC_FOR_ORDINALITY,
-			Name:     colName,
-			Loc: nodes.NoLoc(),
+		if _, err := p.expect(ORDINALITY); err != nil {
+			return nil, err
 		}
+		return &nodes.JsonTableColumn{
+			Coltype: nodes.JTC_FOR_ORDINALITY,
+			Name:    colName,
+			Loc:     nodes.NoLoc(),
+		}, nil
 	}
 
 	// ColId Typename ...
 	tn, err := p.parseTypename()
 	if err != nil {
 		return &nodes.JsonTableColumn{
-			Name:     colName,
-			Loc: nodes.NoLoc(),
-		}
+			Name: colName,
+			Loc:  nodes.NoLoc(),
+		}, nil
 	}
 
 	// Check for FORMAT JSON clause
 	var format *nodes.JsonFormat
 	if p.cur.Type == FORMAT {
-		format = p.parseJsonFormatClause()
+		format, err = p.parseJsonFormatClause()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Check for EXISTS
@@ -999,7 +1237,10 @@ func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
 
 	if isExists {
 		// EXISTS column: ColId Typename EXISTS [PATH Sconst] [ON ERROR]
-		pathspec := p.parseJsonTableColumnPathClauseOpt()
+		pathspec, err := p.parseJsonTableColumnPathClauseOpt()
+		if err != nil {
+			return nil, err
+		}
 		onError := p.parseJsonOnErrorClauseOpt()
 		return &nodes.JsonTableColumn{
 			Coltype:  nodes.JTC_EXISTS,
@@ -1007,13 +1248,16 @@ func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
 			TypeName: tn,
 			Pathspec: pathspec,
 			OnError:  onError,
-			Loc: nodes.NoLoc(),
-		}
+			Loc:      nodes.NoLoc(),
+		}, nil
 	}
 
 	if format != nil {
 		// FORMATTED column: ColId Typename FORMAT JSON [PATH Sconst] [wrapper] [quotes] [behavior]
-		pathspec := p.parseJsonTableColumnPathClauseOpt()
+		pathspec, err := p.parseJsonTableColumnPathClauseOpt()
+		if err != nil {
+			return nil, err
+		}
 		wrapper := p.parseJsonWrapperBehavior()
 		quotes := p.parseJsonQuotesClauseOpt()
 		onEmpty, onError := p.parseJsonBehaviorClauseOpt()
@@ -1027,12 +1271,15 @@ func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
 			Quotes:   quotes,
 			OnEmpty:  onEmpty,
 			OnError:  onError,
-			Loc: nodes.NoLoc(),
-		}
+			Loc:      nodes.NoLoc(),
+		}, nil
 	}
 
 	// REGULAR column: ColId Typename [PATH Sconst] [wrapper] [quotes] [behavior]
-	pathspec := p.parseJsonTableColumnPathClauseOpt()
+	pathspec, err := p.parseJsonTableColumnPathClauseOpt()
+	if err != nil {
+		return nil, err
+	}
 	wrapper := p.parseJsonWrapperBehavior()
 	quotes := p.parseJsonQuotesClauseOpt()
 	onEmpty, onError := p.parseJsonBehaviorClauseOpt()
@@ -1045,25 +1292,27 @@ func (p *Parser) parseJsonTableColumnDefinition() *nodes.JsonTableColumn {
 		Quotes:   quotes,
 		OnEmpty:  onEmpty,
 		OnError:  onError,
-		Loc: nodes.NoLoc(),
-	}
+		Loc:      nodes.NoLoc(),
+	}, nil
 }
 
 // parseJsonTableColumnPathClauseOpt parses optional PATH Sconst.
 //
 //	json_table_column_path_clause_opt:
 //	    PATH Sconst | /* EMPTY */
-func (p *Parser) parseJsonTableColumnPathClauseOpt() *nodes.JsonTablePathSpec {
+func (p *Parser) parseJsonTableColumnPathClauseOpt() (*nodes.JsonTablePathSpec, error) {
 	if p.cur.Type != PATH {
-		return nil
+		return nil, nil
 	}
 	p.advance() // consume PATH
 	pathStr := p.cur.Str
-	p.expect(SCONST)
-	return &nodes.JsonTablePathSpec{
-		String:   &nodes.A_Const{Val: &nodes.String{Str: pathStr}},
-		Loc: nodes.NoLoc(),
+	if _, err := p.expect(SCONST); err != nil {
+		return nil, err
 	}
+	return &nodes.JsonTablePathSpec{
+		String: &nodes.A_Const{Val: &nodes.String{Str: pathStr}},
+		Loc:    nodes.NoLoc(),
+	}, nil
 }
 
 // parseJsonIsPredicate parses IS [NOT] JSON [...] for the IS postfix handler.
@@ -1075,13 +1324,13 @@ func (p *Parser) parseJsonIsPredicate(left nodes.Node, negated bool) nodes.Node 
 		Expr:       left,
 		ItemType:   itemType,
 		UniqueKeys: uniqueKeys,
-		Loc: nodes.NoLoc(),
+		Loc:        nodes.NoLoc(),
 	}
 	if negated {
 		return &nodes.BoolExpr{
-			Boolop:   nodes.NOT_EXPR,
-			Args:     &nodes.List{Items: []nodes.Node{pred}},
-			Loc: nodes.NoLoc(),
+			Boolop: nodes.NOT_EXPR,
+			Args:   &nodes.List{Items: []nodes.Node{pred}},
+			Loc:    nodes.NoLoc(),
 		}
 	}
 	return pred
