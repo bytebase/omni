@@ -39,25 +39,7 @@ func (p *Parser) parseCreateViewStmt(orReplace bool) (*nodes.CreateViewStmt, err
 
 	// DEFINER = user
 	if p.cur.Type == kwDEFINER {
-		p.advance()
-		if _, err := p.expect('='); err != nil {
-			return nil, err
-		}
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		definer := name
-		// Handle 'user'@'host' format
-		if p.cur.Type == tokIDENT && p.cur.Str == "@" {
-			p.advance()
-			host, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			definer = definer + "@" + host
-		}
-		stmt.Definer = definer
+		stmt.Definer = p.parseDefinerValue()
 	}
 
 	// SQL SECURITY { DEFINER | INVOKER }

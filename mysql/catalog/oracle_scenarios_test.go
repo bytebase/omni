@@ -2624,3 +2624,261 @@ func TestOracle_Section_2_9_RenameTable(t *testing.T) {
 		}
 	})
 }
+
+func TestOracle_Section_2_10_CreateDropView(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	t.Run("create_view_basic", func(t *testing.T) {
+		// CREATE VIEW v AS SELECT ...
+		oracle.execSQL("DROP VIEW IF EXISTS v_basic")
+		oracleErr := oracle.execSQL("CREATE VIEW v_basic AS SELECT 1 AS a")
+		if oracleErr != nil {
+			t.Fatalf("oracle CREATE VIEW error: %v", oracleErr)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, _ := c.Exec("CREATE VIEW v_basic AS SELECT 1 AS a", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni CREATE VIEW error: %v", results[0].Error)
+		}
+		db := c.GetDatabase("test")
+		if db.Views[toLower("v_basic")] == nil {
+			t.Error("omni: view v_basic should exist after CREATE VIEW")
+		}
+	})
+
+	t.Run("create_or_replace_view", func(t *testing.T) {
+		// CREATE OR REPLACE VIEW
+		oracle.execSQL("DROP VIEW IF EXISTS v_replace")
+		oracle.execSQL("CREATE VIEW v_replace AS SELECT 1 AS a")
+		oracleErr := oracle.execSQL("CREATE OR REPLACE VIEW v_replace AS SELECT 2 AS b")
+		if oracleErr != nil {
+			t.Fatalf("oracle CREATE OR REPLACE VIEW error: %v", oracleErr)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE VIEW v_replace AS SELECT 1 AS a", nil)
+		results, _ := c.Exec("CREATE OR REPLACE VIEW v_replace AS SELECT 2 AS b", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni CREATE OR REPLACE VIEW error: %v", results[0].Error)
+		}
+		db := c.GetDatabase("test")
+		if db.Views[toLower("v_replace")] == nil {
+			t.Error("omni: view v_replace should exist after CREATE OR REPLACE VIEW")
+		}
+	})
+
+	t.Run("create_view_with_columns", func(t *testing.T) {
+		// CREATE VIEW with column list
+		oracle.execSQL("DROP VIEW IF EXISTS v_cols")
+		oracleErr := oracle.execSQL("CREATE VIEW v_cols (x, y) AS SELECT 1, 2")
+		if oracleErr != nil {
+			t.Fatalf("oracle CREATE VIEW with columns error: %v", oracleErr)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, _ := c.Exec("CREATE VIEW v_cols (x, y) AS SELECT 1, 2", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni CREATE VIEW with columns error: %v", results[0].Error)
+		}
+		db := c.GetDatabase("test")
+		v := db.Views[toLower("v_cols")]
+		if v == nil {
+			t.Fatal("omni: view v_cols should exist")
+		}
+		if len(v.Columns) != 2 || v.Columns[0] != "x" || v.Columns[1] != "y" {
+			t.Errorf("omni: expected columns [x, y], got %v", v.Columns)
+		}
+	})
+
+	t.Run("create_view_with_options", func(t *testing.T) {
+		// CREATE VIEW with ALGORITHM, DEFINER, SQL_SECURITY
+		oracle.execSQL("DROP VIEW IF EXISTS v_opts")
+		oracleErr := oracle.execSQL("CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW v_opts AS SELECT 1 AS a")
+		if oracleErr != nil {
+			t.Fatalf("oracle CREATE VIEW with options error: %v", oracleErr)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, _ := c.Exec("CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW v_opts AS SELECT 1 AS a", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni CREATE VIEW with options error: %v", results[0].Error)
+		}
+		db := c.GetDatabase("test")
+		v := db.Views[toLower("v_opts")]
+		if v == nil {
+			t.Fatal("omni: view v_opts should exist")
+		}
+		if v.Algorithm != "MERGE" {
+			t.Errorf("omni: expected Algorithm=MERGE, got %q", v.Algorithm)
+		}
+		if v.SqlSecurity != "INVOKER" {
+			t.Errorf("omni: expected SqlSecurity=INVOKER, got %q", v.SqlSecurity)
+		}
+	})
+
+	t.Run("create_view_with_check_option", func(t *testing.T) {
+		// CREATE VIEW with CHECK OPTION
+		oracle.execSQL("DROP VIEW IF EXISTS v_chk")
+		oracle.execSQL("DROP TABLE IF EXISTS t_chk_view")
+		oracle.execSQL("CREATE TABLE t_chk_view (id INT, val INT)")
+		oracleErr := oracle.execSQL("CREATE VIEW v_chk AS SELECT * FROM t_chk_view WHERE val > 0 WITH CASCADED CHECK OPTION")
+		if oracleErr != nil {
+			t.Fatalf("oracle CREATE VIEW WITH CHECK OPTION error: %v", oracleErr)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE TABLE t_chk_view (id INT, val INT)", nil)
+		results, _ := c.Exec("CREATE VIEW v_chk AS SELECT * FROM t_chk_view WHERE val > 0 WITH CASCADED CHECK OPTION", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni CREATE VIEW WITH CHECK OPTION error: %v", results[0].Error)
+		}
+		db := c.GetDatabase("test")
+		v := db.Views[toLower("v_chk")]
+		if v == nil {
+			t.Fatal("omni: view v_chk should exist")
+		}
+		if v.CheckOption != "CASCADED" {
+			t.Errorf("omni: expected CheckOption=CASCADED, got %q", v.CheckOption)
+		}
+	})
+
+	t.Run("drop_view_basic", func(t *testing.T) {
+		// DROP VIEW v
+		oracle.execSQL("DROP VIEW IF EXISTS v_drop1")
+		oracle.execSQL("CREATE VIEW v_drop1 AS SELECT 1 AS a")
+		oracleErr := oracle.execSQL("DROP VIEW v_drop1")
+		if oracleErr != nil {
+			t.Fatalf("oracle DROP VIEW error: %v", oracleErr)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE VIEW v_drop1 AS SELECT 1 AS a", nil)
+		results, _ := c.Exec("DROP VIEW v_drop1", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni DROP VIEW error: %v", results[0].Error)
+		}
+		db := c.GetDatabase("test")
+		if db.Views[toLower("v_drop1")] != nil {
+			t.Error("omni: view v_drop1 should not exist after DROP VIEW")
+		}
+	})
+
+	t.Run("drop_view_if_exists", func(t *testing.T) {
+		// DROP VIEW IF EXISTS on nonexistent view — no error
+		oracle.execSQL("DROP VIEW IF EXISTS v_noexist")
+		oracleErr := oracle.execSQL("DROP VIEW IF EXISTS v_noexist")
+		if oracleErr != nil {
+			t.Fatalf("oracle DROP VIEW IF EXISTS error: %v", oracleErr)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, _ := c.Exec("DROP VIEW IF EXISTS v_noexist", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni DROP VIEW IF EXISTS error: %v", results[0].Error)
+		}
+	})
+
+	t.Run("drop_view_multi", func(t *testing.T) {
+		// DROP VIEW v1, v2 (multi-view)
+		oracle.execSQL("DROP VIEW IF EXISTS v_m1")
+		oracle.execSQL("DROP VIEW IF EXISTS v_m2")
+		oracle.execSQL("CREATE VIEW v_m1 AS SELECT 1 AS a")
+		oracle.execSQL("CREATE VIEW v_m2 AS SELECT 2 AS b")
+		oracleErr := oracle.execSQL("DROP VIEW v_m1, v_m2")
+		if oracleErr != nil {
+			t.Fatalf("oracle DROP VIEW multi error: %v", oracleErr)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE VIEW v_m1 AS SELECT 1 AS a", nil)
+		c.Exec("CREATE VIEW v_m2 AS SELECT 2 AS b", nil)
+		results, _ := c.Exec("DROP VIEW v_m1, v_m2", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni DROP VIEW multi error: %v", results[0].Error)
+		}
+		db := c.GetDatabase("test")
+		if db.Views[toLower("v_m1")] != nil {
+			t.Error("omni: view v_m1 should not exist after DROP VIEW")
+		}
+		if db.Views[toLower("v_m2")] != nil {
+			t.Error("omni: view v_m2 should not exist after DROP VIEW")
+		}
+	})
+
+	// Extra: CREATE VIEW duplicate (no OR REPLACE) should error
+	t.Run("create_view_duplicate_error", func(t *testing.T) {
+		oracle.execSQL("DROP VIEW IF EXISTS v_dup")
+		oracle.execSQL("CREATE VIEW v_dup AS SELECT 1 AS a")
+		oracleErr := oracle.execSQL("CREATE VIEW v_dup AS SELECT 2 AS b")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for duplicate view")
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE VIEW v_dup AS SELECT 1 AS a", nil)
+		results, _ := c.Exec("CREATE VIEW v_dup AS SELECT 2 AS b", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for duplicate view")
+		}
+	})
+
+	// Extra: CREATE VIEW with same name as existing table should error
+	t.Run("create_view_table_conflict", func(t *testing.T) {
+		oracle.execSQL("DROP VIEW IF EXISTS v_tbl_conflict")
+		oracle.execSQL("DROP TABLE IF EXISTS v_tbl_conflict")
+		oracle.execSQL("CREATE TABLE v_tbl_conflict (id INT)")
+		oracleErr := oracle.execSQL("CREATE VIEW v_tbl_conflict AS SELECT 1 AS a")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for view with same name as table")
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE TABLE v_tbl_conflict (id INT)", nil)
+		results, _ := c.Exec("CREATE VIEW v_tbl_conflict AS SELECT 1 AS a", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for view with same name as table")
+		}
+	})
+
+	// Extra: DROP VIEW on nonexistent view (no IF EXISTS) should error
+	t.Run("drop_view_nonexistent_error", func(t *testing.T) {
+		oracle.execSQL("DROP VIEW IF EXISTS v_nonexist_err")
+		oracleErr := oracle.execSQL("DROP VIEW v_nonexist_err")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for DROP VIEW on nonexistent view")
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, _ := c.Exec("DROP VIEW v_nonexist_err", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for DROP VIEW on nonexistent view")
+		}
+	})
+}

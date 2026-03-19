@@ -407,14 +407,14 @@ Beyond output format — the catalog must behave identically to MySQL.
 ### 2.10 CREATE/DROP VIEW
 
 ```
-[ ] CREATE VIEW v AS SELECT ...
-[ ] CREATE OR REPLACE VIEW
-[ ] CREATE VIEW with column list
-[ ] CREATE VIEW with ALGORITHM, DEFINER, SQL_SECURITY
-[ ] CREATE VIEW with CHECK OPTION
-[ ] DROP VIEW v
-[ ] DROP VIEW IF EXISTS
-[ ] DROP VIEW v1, v2 (multi-view)
+[x] CREATE VIEW v AS SELECT ...
+[x] CREATE OR REPLACE VIEW
+[x] CREATE VIEW with column list
+[x] CREATE VIEW with ALGORITHM, DEFINER, SQL_SECURITY
+[x] CREATE VIEW with CHECK OPTION
+[x] DROP VIEW v
+[x] DROP VIEW IF EXISTS
+[x] DROP VIEW v1, v2 (multi-view)
 ```
 
 ### 2.11 CREATE/DROP/ALTER DATABASE

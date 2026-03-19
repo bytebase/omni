@@ -8,6 +8,10 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
 		return err
 	}
 	key := toLower(stmt.Name.Name)
+	// Tables and views share the same namespace in MySQL.
+	if _, exists := db.Tables[key]; exists {
+		return errDupTable(stmt.Name.Name)
+	}
 	if _, exists := db.Views[key]; exists {
 		if !stmt.OrReplace {
 			return errDupTable(stmt.Name.Name)
