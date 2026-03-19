@@ -329,7 +329,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				}
 			}
 			idxCols := buildIndexColumns(con)
-			tbl.Indexes = append(tbl.Indexes, &Index{
+			pkIdx := &Index{
 				Name:      "PRIMARY",
 				Table:     tbl,
 				Columns:   idxCols,
@@ -337,7 +337,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Primary:   true,
 				IndexType: "",
 				Visible:   true,
-			})
+			}
+			applyIndexOptions(pkIdx, con.IndexOptions)
+			tbl.Indexes = append(tbl.Indexes, pkIdx)
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:      "PRIMARY",
 				Type:      ConPrimaryKey,
@@ -352,14 +354,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				idxName = allocIndexName(tbl, cols[0])
 			}
 			idxCols := buildIndexColumns(con)
-			tbl.Indexes = append(tbl.Indexes, &Index{
+			uqIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
 				Columns:   idxCols,
 				Unique:    true,
 				IndexType: resolveConstraintIndexType(con),
 				Visible:   true,
-			})
+			}
+			applyIndexOptions(uqIdx, con.IndexOptions)
+			tbl.Indexes = append(tbl.Indexes, uqIdx)
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:      idxName,
 				Type:      ConUniqueKey,
@@ -423,13 +427,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				idxName = allocIndexName(tbl, cols[0])
 			}
 			idxCols := buildIndexColumns(con)
-			tbl.Indexes = append(tbl.Indexes, &Index{
+			keyIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
 				Columns:   idxCols,
 				IndexType: resolveConstraintIndexType(con),
 				Visible:   true,
-			})
+			}
+			applyIndexOptions(keyIdx, con.IndexOptions)
+			tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 		case nodes.ConstrFulltextIndex:
 			idxName := con.Name
@@ -437,14 +443,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				idxName = allocIndexName(tbl, cols[0])
 			}
 			idxCols := buildIndexColumns(con)
-			tbl.Indexes = append(tbl.Indexes, &Index{
+			ftIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
 				Columns:   idxCols,
 				Fulltext:  true,
 				IndexType: "FULLTEXT",
 				Visible:   true,
-			})
+			}
+			applyIndexOptions(ftIdx, con.IndexOptions)
+			tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 		case nodes.ConstrSpatialIndex:
 			idxName := con.Name
@@ -452,14 +460,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				idxName = allocIndexName(tbl, cols[0])
 			}
 			idxCols := buildIndexColumns(con)
-			tbl.Indexes = append(tbl.Indexes, &Index{
+			spIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
 				Columns:   idxCols,
 				Spatial:   true,
 				IndexType: "SPATIAL",
 				Visible:   true,
-			})
+			}
+			applyIndexOptions(spIdx, con.IndexOptions)
+			tbl.Indexes = append(tbl.Indexes, spIdx)
 		}
 	}
 
@@ -550,6 +560,27 @@ func resolveConstraintIndexType(con *nodes.Constraint) string {
 		}
 	}
 	return ""
+}
+
+// applyIndexOptions extracts COMMENT, VISIBLE/INVISIBLE, and KEY_BLOCK_SIZE
+// from AST IndexOptions and applies them to the given Index.
+func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
+	for _, opt := range opts {
+		switch strings.ToUpper(opt.Name) {
+		case "COMMENT":
+			if s, ok := opt.Value.(*nodes.StringLit); ok {
+				idx.Comment = s.Value
+			}
+		case "VISIBLE":
+			idx.Visible = true
+		case "INVISIBLE":
+			idx.Visible = false
+		case "KEY_BLOCK_SIZE":
+			if n, ok := opt.Value.(*nodes.Integer); ok {
+				idx.KeyBlockSize = int(n.Ival)
+			}
+		}
+	}
 }
 
 // countFKConstraints counts the number of foreign key constraints on a table.

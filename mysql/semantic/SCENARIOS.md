@@ -208,10 +208,10 @@ The foundation — our output must be byte-for-byte identical to MySQL 8.0.
 ### 1.16 Index Options
 
 ```
-[ ] INDEX with COMMENT 'description'
-[ ] INDEX INVISIBLE (8.0+)
-[ ] INDEX VISIBLE — not shown (default)
-[ ] INDEX with KEY_BLOCK_SIZE=4
+[x] INDEX with COMMENT 'description'
+[x] INDEX INVISIBLE (8.0+)
+[x] INDEX VISIBLE — not shown (default)
+[x] INDEX with KEY_BLOCK_SIZE=4
 ```
 
 ### 1.17 Foreign Keys

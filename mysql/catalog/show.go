@@ -293,6 +293,11 @@ func showIndex(idx *Index) string {
 		b.WriteString(fmt.Sprintf(" USING %s", strings.ToUpper(idx.IndexType)))
 	}
 
+	// KEY_BLOCK_SIZE.
+	if idx.KeyBlockSize > 0 {
+		b.WriteString(fmt.Sprintf(" KEY_BLOCK_SIZE=%d", idx.KeyBlockSize))
+	}
+
 	// Comment.
 	if idx.Comment != "" {
 		b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(idx.Comment)))
