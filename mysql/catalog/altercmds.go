@@ -647,6 +647,10 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	// Type info.
 	if colDef.TypeName != nil {
 		col.DataType = toLower(colDef.TypeName.Name)
+		// MySQL 8.0 normalizes GEOMETRYCOLLECTION → geomcollection.
+		if col.DataType == "geometrycollection" {
+			col.DataType = "geomcollection"
+		}
 		col.ColumnType = formatColumnType(colDef.TypeName)
 		if colDef.TypeName.Charset != "" {
 			col.Charset = colDef.TypeName.Charset

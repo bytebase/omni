@@ -789,6 +789,7 @@ func formatColumnType(dt *nodes.DataType) string {
 	name := strings.ToLower(dt.Name)
 
 	// MySQL type aliases: BOOLEAN/BOOL → tinyint(1), NUMERIC → decimal, SERIAL → bigint unsigned
+	// GEOMETRYCOLLECTION → geomcollection (MySQL 8.0 normalized form)
 	switch name {
 	case "boolean":
 		return "tinyint(1)"
@@ -796,6 +797,8 @@ func formatColumnType(dt *nodes.DataType) string {
 		name = "decimal"
 	case "serial":
 		return "bigint unsigned"
+	case "geometrycollection":
+		name = "geomcollection"
 	}
 
 	var buf strings.Builder

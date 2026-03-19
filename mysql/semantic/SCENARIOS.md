@@ -76,13 +76,13 @@ The foundation — our output must be byte-for-byte identical to MySQL 8.0.
 ### 1.5 Spatial Types
 
 ```
-[ ] GEOMETRY
-[ ] POINT
-[ ] LINESTRING
-[ ] POLYGON
-[ ] MULTIPOINT, MULTILINESTRING, MULTIPOLYGON
-[ ] GEOMETRYCOLLECTION
-[ ] POINT NOT NULL SRID 4326
+[x] GEOMETRY
+[x] POINT
+[x] LINESTRING
+[x] POLYGON
+[x] MULTIPOINT, MULTILINESTRING, MULTIPOLYGON
+[x] GEOMETRYCOLLECTION
+[~] POINT NOT NULL SRID 4326 — requires parser support for SRID on column definitions
 ```
 
 ### 1.6 JSON Type

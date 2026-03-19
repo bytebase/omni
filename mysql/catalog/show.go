@@ -260,9 +260,7 @@ func isTimestampType(dt string) bool {
 func isTextBlobType(dt string) bool {
 	switch strings.ToLower(dt) {
 	case "text", "tinytext", "mediumtext", "longtext",
-		"blob", "tinyblob", "mediumblob", "longblob",
-		"geometry", "point", "linestring", "polygon",
-		"multipoint", "multilinestring", "multipolygon", "geometrycollection":
+		"blob", "tinyblob", "mediumblob", "longblob":
 		return true
 	}
 	return false
