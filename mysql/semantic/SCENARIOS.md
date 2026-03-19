@@ -35,18 +35,18 @@ The foundation — our output must be byte-for-byte identical to MySQL 8.0.
 ### 1.2 String Types
 
 ```
-[ ] CHAR(10)
-[ ] CHAR (no length → CHAR(1))
-[ ] VARCHAR(255)
-[ ] VARCHAR(16383) — max for utf8mb4
-[ ] TINYTEXT, TEXT, MEDIUMTEXT, LONGTEXT
-[ ] TEXT(1000) — display shows TEXT, not TEXT(1000)
-[ ] ENUM('a','b','c')
-[ ] ENUM with special characters in values (quotes, commas)
-[ ] SET('x','y','z')
-[ ] CHAR with CHARACTER SET latin1
-[ ] VARCHAR with CHARACTER SET utf8mb3 COLLATE utf8mb3_bin
-[ ] NATIONAL CHAR / NCHAR / NVARCHAR
+[x] CHAR(10)
+[x] CHAR (no length → CHAR(1))
+[x] VARCHAR(255)
+[x] VARCHAR(16383) — max for utf8mb4
+[x] TINYTEXT, TEXT, MEDIUMTEXT, LONGTEXT
+[x] TEXT(1000) — display shows TEXT, not TEXT(1000)
+[x] ENUM('a','b','c')
+[x] ENUM with special characters in values (quotes, commas)
+[x] SET('x','y','z')
+[x] CHAR with CHARACTER SET latin1
+[x] VARCHAR with CHARACTER SET utf8mb3 COLLATE utf8mb3_bin
+[x] NATIONAL CHAR / NCHAR / NVARCHAR
 ```
 
 ### 1.3 Binary Types

@@ -264,6 +264,41 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 				eqFold(name, "serial"):
 				dt.Name = name
 				p.advance()
+			case eqFold(name, "national"):
+				// NATIONAL CHAR / NATIONAL VARCHAR → utf8mb3 character set
+				p.advance()
+				if p.cur.Type == kwCHAR {
+					dt.Name = "CHAR"
+					dt.Charset = "utf8mb3"
+					p.advance()
+					p.parseOptionalLength(dt)
+					p.parseCharsetCollate(dt)
+				} else if p.cur.Type == kwVARCHAR {
+					dt.Name = "VARCHAR"
+					dt.Charset = "utf8mb3"
+					p.advance()
+					p.parseOptionalLength(dt)
+					p.parseCharsetCollate(dt)
+				} else {
+					return nil, &ParseError{
+						Message:  "expected CHAR or VARCHAR after NATIONAL",
+						Position: p.cur.Loc,
+					}
+				}
+			case eqFold(name, "nchar"):
+				// NCHAR → CHAR with utf8mb3 charset
+				dt.Name = "CHAR"
+				dt.Charset = "utf8mb3"
+				p.advance()
+				p.parseOptionalLength(dt)
+				p.parseCharsetCollate(dt)
+			case eqFold(name, "nvarchar"):
+				// NVARCHAR → VARCHAR with utf8mb3 charset
+				dt.Name = "VARCHAR"
+				dt.Charset = "utf8mb3"
+				p.advance()
+				p.parseOptionalLength(dt)
+				p.parseCharsetCollate(dt)
 			default:
 				return nil, &ParseError{
 					Message:  "expected data type",

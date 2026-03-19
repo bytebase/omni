@@ -51,7 +51,7 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	// Columns.
 	parts := make([]string, 0, len(tbl.Columns)+len(tbl.Indexes)+len(tbl.Constraints))
 	for _, col := range tbl.Columns {
-		parts = append(parts, showColumn(col))
+		parts = append(parts, showColumnWithTable(col, tbl))
 	}
 
 	// Indexes.
@@ -81,8 +81,46 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 }
 
 func showColumn(col *Column) string {
+	return showColumnWithTable(col, nil)
+}
+
+func showColumnWithTable(col *Column, tbl *Table) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("`%s` %s", col.Name, col.ColumnType))
+
+	// CHARACTER SET and COLLATE — shown only when different from table defaults.
+	if isStringType(col.DataType) || isEnumSetType(col.DataType) {
+		tableCharset := ""
+		tableCollation := ""
+		if tbl != nil {
+			tableCharset = tbl.Charset
+			tableCollation = tbl.Collation
+			// Resolve default collation for table charset if not set.
+			if tableCollation == "" && tableCharset != "" {
+				if dc, ok := defaultCollationForCharset[toLower(tableCharset)]; ok {
+					tableCollation = dc
+				}
+			}
+		}
+		showCharset := col.Charset != "" && !eqFoldStr(col.Charset, tableCharset)
+		showCollation := col.Collation != "" && !eqFoldStr(col.Collation, tableCollation)
+		if showCharset {
+			b.WriteString(fmt.Sprintf(" CHARACTER SET %s", col.Charset))
+			// When charset differs from table, MySQL always shows collation too
+			// (even if it's the default collation for that charset).
+			if !showCollation && col.Collation != "" {
+				b.WriteString(fmt.Sprintf(" COLLATE %s", col.Collation))
+			} else if !showCollation {
+				// Resolve default collation for the column's charset.
+				if dc, ok := defaultCollationForCharset[toLower(col.Charset)]; ok {
+					b.WriteString(fmt.Sprintf(" COLLATE %s", dc))
+				}
+			}
+		}
+		if showCollation {
+			b.WriteString(fmt.Sprintf(" COLLATE %s", col.Collation))
+		}
+	}
 
 	// Generated column.
 	if col.Generated != nil {
@@ -320,6 +358,18 @@ func showTableOptions(tbl *Table) string {
 func isFKDefault(action string) bool {
 	upper := strings.ToUpper(action)
 	return upper == "RESTRICT" || upper == "NO ACTION"
+}
+
+func isEnumSetType(dt string) bool {
+	switch strings.ToLower(dt) {
+	case "enum", "set":
+		return true
+	}
+	return false
+}
+
+func eqFoldStr(a, b string) bool {
+	return strings.EqualFold(a, b)
 }
 
 func escapeComment(s string) string {

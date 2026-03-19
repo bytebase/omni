@@ -111,7 +111,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				col.Charset = tbl.Charset
 			}
 			if col.Collation == "" {
-				col.Collation = tbl.Collation
+				// If column charset differs from table charset, use the default
+				// collation for the column's charset, not the table's collation.
+				if !strings.EqualFold(col.Charset, tbl.Charset) {
+					if dc, ok := defaultCollationForCharset[toLower(col.Charset)]; ok {
+						col.Collation = dc
+					}
+				} else {
+					col.Collation = tbl.Collation
+				}
 			}
 		}
 
@@ -590,6 +598,13 @@ func formatColumnType(dt *nodes.DataType) string {
 	} else if name == "decimal" && dt.Length == 0 && dt.Scale == 0 {
 		// DECIMAL with no precision → MySQL shows decimal(10,0)
 		buf.WriteString("(10,0)")
+	} else if isTextBlobLengthStripped(name) {
+		// TEXT(n) and BLOB(n) — MySQL stores the length internally but
+		// SHOW CREATE TABLE displays just TEXT / BLOB without the length.
+		// Do not emit length.
+	} else if name == "char" && dt.Length == 0 {
+		// CHAR with no length → MySQL shows char(1)
+		buf.WriteString("(1)")
 	} else if dt.Length > 0 && dt.Scale > 0 {
 		fmt.Fprintf(&buf, "(%d,%d)", dt.Length, dt.Scale)
 	} else if dt.Length > 0 {
@@ -602,7 +617,7 @@ func formatColumnType(dt *nodes.DataType) string {
 			if i > 0 {
 				buf.WriteString(",")
 			}
-			buf.WriteString("'" + v + "'")
+			buf.WriteString("'" + escapeEnumValue(v) + "'")
 		}
 		buf.WriteString(")")
 	}
@@ -655,6 +670,22 @@ func defaultIntDisplayWidth(typeName string, unsigned bool) int {
 		return 20
 	}
 	return 11
+}
+
+// isTextBlobLengthStripped returns true for types where MySQL strips the length
+// in SHOW CREATE TABLE output (TEXT(n) → text, BLOB(n) → blob).
+func isTextBlobLengthStripped(dt string) bool {
+	switch dt {
+	case "text", "blob":
+		return true
+	}
+	return false
+}
+
+// escapeEnumValue escapes single quotes in ENUM/SET values for SHOW CREATE TABLE.
+// MySQL uses '' (two single quotes) to escape a single quote in enum values.
+func escapeEnumValue(s string) string {
+	return strings.ReplaceAll(s, "'", "''")
 }
 
 func refActionToString(action nodes.ReferenceAction) string {
