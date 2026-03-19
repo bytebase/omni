@@ -456,9 +456,9 @@ Every error must match MySQL's errno, SQLSTATE, and message format.
 ### 3.3 Column Errors
 
 ```
-[ ] 1054 (42S22) Unknown column 'col' in 'table definition'
-[ ] 1060 (42S21) Duplicate column name 'col'
-[ ] 1068 (42000) Multiple primary key defined
+[x] 1054 (42S22) Unknown column 'col' in 'table definition'
+[x] 1060 (42S21) Duplicate column name 'col'
+[x] 1068 (42000) Multiple primary key defined
 ```
 
 ### 3.4 Index/Key Errors

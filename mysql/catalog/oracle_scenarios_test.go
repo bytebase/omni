@@ -3458,3 +3458,151 @@ func TestOracle_Section_3_2_TableErrors(t *testing.T) {
 		}
 	})
 }
+
+func TestOracle_Section_3_3_ColumnErrors(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	// Helper to extract MySQL error code and message from go-sql-driver error.
+	extractMySQLErr := func(err error) (uint16, string, string) {
+		var mysqlErr *mysqldriver.MySQLError
+		if errors.As(err, &mysqlErr) {
+			return mysqlErr.Number, string(mysqlErr.SQLState[:]), mysqlErr.Message
+		}
+		return 0, "", ""
+	}
+
+	t.Run("1054_unknown_column", func(t *testing.T) {
+		// ALTER TABLE ... MODIFY COLUMN AFTER nonexistent_col triggers 1054
+		// "Unknown column 'col' in 'table definition'"
+		oracle.execSQL("DROP TABLE IF EXISTS t_err_nocol")
+		oracle.execSQL("CREATE TABLE t_err_nocol (id INT, name VARCHAR(50))")
+
+		oracleErr := oracle.execSQL("ALTER TABLE t_err_nocol MODIFY COLUMN name VARCHAR(50) AFTER nonexistent")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for unknown column in AFTER clause")
+		}
+		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
+		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+
+		if oracleCode != 1054 {
+			t.Fatalf("oracle: expected error code 1054, got %d", oracleCode)
+		}
+
+		// Run on omni.
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE TABLE t_err_nocol (id INT, name VARCHAR(50))", nil)
+		results, _ := c.Exec("ALTER TABLE t_err_nocol MODIFY COLUMN name VARCHAR(50) AFTER nonexistent", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for unknown column in AFTER clause")
+		}
+		catErr, ok := results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+
+		// Compare error code.
+		if catErr.Code != int(oracleCode) {
+			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		}
+		// Compare SQLSTATE.
+		if catErr.SQLState != oracleState {
+			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		}
+		// Compare error message format.
+		if catErr.Message != oracleMsg {
+			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+
+		oracle.execSQL("DROP TABLE IF EXISTS t_err_nocol")
+	})
+
+	t.Run("1060_duplicate_column", func(t *testing.T) {
+		// CREATE TABLE with two columns of the same name.
+		oracle.execSQL("DROP TABLE IF EXISTS t_err_dupcol")
+
+		oracleErr := oracle.execSQL("CREATE TABLE t_err_dupcol (a INT, a VARCHAR(10))")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for duplicate column name")
+		}
+		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
+		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+
+		if oracleCode != 1060 {
+			t.Fatalf("oracle: expected error code 1060, got %d", oracleCode)
+		}
+
+		// Run on omni.
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, _ := c.Exec("CREATE TABLE t_err_dupcol (a INT, a VARCHAR(10))", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for duplicate column name")
+		}
+		catErr, ok := results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+
+		// Compare error code.
+		if catErr.Code != int(oracleCode) {
+			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		}
+		// Compare SQLSTATE.
+		if catErr.SQLState != oracleState {
+			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		}
+		// Compare error message format.
+		if catErr.Message != oracleMsg {
+			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+	})
+
+	t.Run("1068_multiple_primary_key", func(t *testing.T) {
+		// CREATE TABLE with two PRIMARY KEY definitions.
+		oracle.execSQL("DROP TABLE IF EXISTS t_err_multipk")
+
+		oracleErr := oracle.execSQL("CREATE TABLE t_err_multipk (a INT, b INT, PRIMARY KEY (a), PRIMARY KEY (b))")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for multiple primary key")
+		}
+		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
+		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+
+		if oracleCode != 1068 {
+			t.Fatalf("oracle: expected error code 1068, got %d", oracleCode)
+		}
+
+		// Run on omni.
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, _ := c.Exec("CREATE TABLE t_err_multipk (a INT, b INT, PRIMARY KEY (a), PRIMARY KEY (b))", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for multiple primary key")
+		}
+		catErr, ok := results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+
+		// Compare error code.
+		if catErr.Code != int(oracleCode) {
+			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		}
+		// Compare SQLSTATE.
+		if catErr.SQLState != oracleState {
+			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		}
+		// Compare error message format.
+		if catErr.Message != oracleMsg {
+			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+	})
+}

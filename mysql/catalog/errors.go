@@ -97,9 +97,9 @@ func errMultiplePriKey() error {
 		Message: "Multiple primary key defined"}
 }
 
-func errNoSuchColumn(name string) error {
+func errNoSuchColumn(name, context string) error {
 	return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
-		Message: fmt.Sprintf("Unknown column '%s' in 'table definition'", name)}
+		Message: fmt.Sprintf("Unknown column '%s' in '%s'", name, context)}
 }
 
 func errUnknownTable(db, name string) error {

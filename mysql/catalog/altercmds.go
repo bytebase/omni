@@ -98,7 +98,7 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	} else if cmd.After != "" {
 		afterIdx, ok := tbl.colByName[toLower(cmd.After)]
 		if !ok {
-			return errNoSuchColumn(cmd.After)
+			return errNoSuchColumn(cmd.After, tbl.Name)
 		}
 		// Insert after afterIdx.
 		pos := afterIdx + 1
@@ -169,7 +169,7 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if cmd.IfExists {
 			return nil
 		}
-		return errNoSuchColumn(cmd.Name)
+		return errNoSuchColumn(cmd.Name, tbl.Name)
 	}
 
 	// Check if column is referenced by a foreign key constraint.
@@ -257,7 +257,7 @@ func (c *Catalog) alterModifyColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	colKey := toLower(colDef.Name)
 	idx, exists := tbl.colByName[colKey]
 	if !exists {
-		return errNoSuchColumn(colDef.Name)
+		return errNoSuchColumn(colDef.Name, tbl.Name)
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
@@ -277,7 +277,7 @@ func (c *Catalog) alterModifyColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 				rebuildColIndex(tbl)
 				afterIdx, ok = tbl.colByName[toLower(cmd.After)]
 				if !ok {
-					return errNoSuchColumn(cmd.After)
+					return errNoSuchColumn(cmd.After, tbl.Name)
 				}
 			}
 			pos := afterIdx + 1
@@ -302,7 +302,7 @@ func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	oldKey := toLower(oldName)
 	idx, exists := tbl.colByName[oldKey]
 	if !exists {
-		return errNoSuchColumn(oldName)
+		return errNoSuchColumn(oldName, tbl.Name)
 	}
 
 	// Check if new name conflicts with existing column (unless same).
@@ -331,7 +331,7 @@ func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		} else {
 			afterIdx, ok := tbl.colByName[toLower(cmd.After)]
 			if !ok {
-				return errNoSuchColumn(cmd.After)
+				return errNoSuchColumn(cmd.After, tbl.Name)
 			}
 			pos := afterIdx + 1
 			tbl.Columns = append(tbl.Columns, nil)
@@ -586,7 +586,7 @@ func (c *Catalog) alterRenameColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	oldKey := toLower(cmd.Name)
 	idx, exists := tbl.colByName[oldKey]
 	if !exists {
-		return errNoSuchColumn(cmd.Name)
+		return errNoSuchColumn(cmd.Name, tbl.Name)
 	}
 
 	newKey := toLower(cmd.NewName)
@@ -683,7 +683,7 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 	colKey := toLower(cmd.Name)
 	idx, exists := tbl.colByName[colKey]
 	if !exists {
-		return errNoSuchColumn(cmd.Name)
+		return errNoSuchColumn(cmd.Name, tbl.Name)
 	}
 
 	col := tbl.Columns[idx]
@@ -704,7 +704,7 @@ func (c *Catalog) alterColumnVisibility(tbl *Table, cmd *nodes.AlterTableCmd, in
 	colKey := toLower(cmd.Name)
 	idx, exists := tbl.colByName[colKey]
 	if !exists {
-		return errNoSuchColumn(cmd.Name)
+		return errNoSuchColumn(cmd.Name, tbl.Name)
 	}
 	tbl.Columns[idx].Invisible = invisible
 	return nil
