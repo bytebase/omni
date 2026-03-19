@@ -1,0 +1,92 @@
+{
+  "batches": [
+    {
+      "id": 0,
+      "name": "leaf_simple",
+      "files": ["transaction.go", "lock.go", "prepare.go"],
+      "function_count": 9,
+      "status": "done",
+      "notes": "Leaf files with no parser-internal dependencies"
+    },
+    {
+      "id": 1,
+      "name": "name",
+      "files": ["name.go"],
+      "function_count": 4,
+      "status": "done",
+      "notes": "Name/identifier parsing, called by almost everything"
+    },
+    {
+      "id": 2,
+      "name": "type_func",
+      "files": ["type.go", "func.go"],
+      "function_count": 18,
+      "status": "done",
+      "notes": "Type and function parsing, depends on name.go"
+    },
+    {
+      "id": 3,
+      "name": "json_xml",
+      "files": ["json.go", "xml.go"],
+      "function_count": 71,
+      "status": "done",
+      "notes": "JSON/XML expression parsing"
+    },
+    {
+      "id": 4,
+      "name": "expr",
+      "files": ["expr.go"],
+      "function_count": 61,
+      "status": "done",
+      "notes": "Expression parsing, depends on name, type, func, json, xml"
+    },
+    {
+      "id": 5,
+      "name": "select_insert_update",
+      "files": ["select.go", "insert.go", "update.go"],
+      "function_count": 90,
+      "status": "pending",
+      "notes": "DML statement parsing, depends on expr"
+    },
+    {
+      "id": 6,
+      "name": "create_ddl",
+      "files": ["create_table.go", "create_index.go", "create_function.go", "sequence.go", "set.go", "maintenance.go"],
+      "function_count": 158,
+      "status": "pending",
+      "notes": "CREATE statements and related DDL"
+    },
+    {
+      "id": 7,
+      "name": "create_view_define_trigger",
+      "files": ["create_view.go", "define.go", "trigger.go"],
+      "function_count": 91,
+      "status": "pending",
+      "notes": "Views, operator/aggregate definitions, triggers"
+    },
+    {
+      "id": 8,
+      "name": "alter_grant_ext_fdw",
+      "files": ["alter_table.go", "grant.go", "extension.go", "fdw.go"],
+      "function_count": 181,
+      "status": "pending",
+      "notes": "ALTER, GRANT, extensions, foreign data wrappers (has circular deps)"
+    },
+    {
+      "id": 9,
+      "name": "alter_misc_utilities",
+      "files": ["alter_misc.go", "drop.go", "schema.go", "database.go", "publication.go", "cursor.go", "copy.go", "utility.go"],
+      "function_count": 139,
+      "status": "pending",
+      "notes": "Remaining ALTER, DROP, and utility statements"
+    },
+    {
+      "id": 10,
+      "name": "parser_toplevel",
+      "files": ["parser.go"],
+      "function_count": 7,
+      "status": "pending",
+      "notes": "Top-level entry: parseStmt, parseWithStmt, parseCreateDispatch, etc."
+    }
+  ]
+}

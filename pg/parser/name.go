@@ -376,7 +376,11 @@ func (p *Parser) parseIndirectionEl() (nodes.Node, error) {
 			p.advance()
 			var uidx nodes.Node
 			if p.cur.Type != ']' {
-				uidx = p.parseAExpr(0)
+				var err error
+				uidx, err = p.parseAExpr(0)
+				if err != nil {
+					return nil, err
+				}
 			}
 			if _, err := p.expect(']'); err != nil {
 				return nil, err
@@ -385,14 +389,20 @@ func (p *Parser) parseIndirectionEl() (nodes.Node, error) {
 		}
 
 		// Parse first expression
-		expr := p.parseAExpr(0)
+		expr, err := p.parseAExpr(0)
+		if err != nil {
+			return nil, err
+		}
 
 		if p.cur.Type == ':' {
 			// Slice: [ expr : opt_slice_bound ]
 			p.advance()
 			var uidx nodes.Node
 			if p.cur.Type != ']' {
-				uidx = p.parseAExpr(0)
+				uidx, err = p.parseAExpr(0)
+				if err != nil {
+					return nil, err
+				}
 			}
 			if _, err := p.expect(']'); err != nil {
 				return nil, err

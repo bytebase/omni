@@ -826,7 +826,7 @@ func (p *Parser) parseCreatePolicyStmt() nodes.Node {
 	if p.cur.Type == USING {
 		p.advance()
 		p.expect('(')
-		qual = p.parseAExpr(0)
+		qual, _ = p.parseAExpr(0)
 		p.expect(')')
 	}
 	var withCheck nodes.Node
@@ -836,7 +836,7 @@ func (p *Parser) parseCreatePolicyStmt() nodes.Node {
 			p.advance()
 			p.advance()
 			p.expect('(')
-			withCheck = p.parseAExpr(0)
+			withCheck, _ = p.parseAExpr(0)
 			p.expect(')')
 		}
 	}
@@ -865,7 +865,7 @@ func (p *Parser) parseAlterPolicyStmt() nodes.Node {
 	if p.cur.Type == USING {
 		p.advance()
 		p.expect('(')
-		qual = p.parseAExpr(0)
+		qual, _ = p.parseAExpr(0)
 		p.expect(')')
 	}
 	if p.cur.Type == WITH {
@@ -874,7 +874,7 @@ func (p *Parser) parseAlterPolicyStmt() nodes.Node {
 			p.advance()
 			p.advance()
 			p.expect('(')
-			withCheck = p.parseAExpr(0)
+			withCheck, _ = p.parseAExpr(0)
 			p.expect(')')
 		}
 	}

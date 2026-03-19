@@ -172,7 +172,7 @@ func (p *Parser) parseCallStmt() nodes.Node {
 		return nil
 	}
 	loc := p.pos()
-	fc := p.parseFuncApplication(funcName, loc)
+	fc, _ := p.parseFuncApplication(funcName, loc)
 	if fc == nil {
 		return nil
 	}

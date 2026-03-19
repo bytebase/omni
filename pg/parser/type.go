@@ -288,7 +288,8 @@ func (p *Parser) parseAExprForTypmod() nodes.Node {
 		}
 	}
 	// Fall back to full a_expr for complex expressions
-	return p.parseAExpr(0)
+	result, _ := p.parseAExpr(0)
+	return result
 }
 
 // parseOptFloat parses opt_float after FLOAT keyword.

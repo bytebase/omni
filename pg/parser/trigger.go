@@ -153,7 +153,7 @@ func (p *Parser) parseTriggerWhen() nodes.Node {
 	if p.cur.Type != WHEN { return nil }
 	p.advance()
 	p.expect('(')
-	expr := p.parseAExpr(0)
+	expr, _ := p.parseAExpr(0)
 	p.expect(')')
 	return expr
 }

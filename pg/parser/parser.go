@@ -950,7 +950,7 @@ func (p *Parser) parseWithStmt() nodes.Node {
 		if p.cur.Type == ORDER {
 			p.advance()
 			p.expect(BY)
-			stmt.SortClause = p.parseSortByList()
+			stmt.SortClause, _ = p.parseSortByList()
 		}
 		p.parseSelectOptions(stmt)
 		stmt.WithClause = withClause

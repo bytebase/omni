@@ -29,6 +29,44 @@ func MapTokenType(typ int) int {
 	return mapTokenType(typ)
 }
 
+// Tokenize runs the lexer on sql and returns all non-EOF tokens with
+// parser-mapped token types. Useful for walking the token stream without
+// a full parse.
+func Tokenize(sql string) []Token {
+	lex := NewLexer(sql)
+	var tokens []Token
+	for {
+		tok := lex.NextToken()
+		if tok.Type == 0 { // EOF
+			break
+		}
+		tok.Type = mapTokenType(tok.Type)
+		tokens = append(tokens, tok)
+	}
+	return tokens
+}
+
+// IsReservedKeyword returns true if name (case-insensitive) is a PostgreSQL
+// reserved keyword.
+func IsReservedKeyword(name string) bool {
+	kw := LookupKeyword(name)
+	return kw != nil && kw.Category == ReservedKeyword
+}
+
+// IsIdentifierTokenType reports whether tokenType can act as an identifier
+// (IDENT, or any keyword that is not strictly reserved).
+func IsIdentifierTokenType(tokenType int) bool {
+	if tokenType == IDENT {
+		return true
+	}
+	for i := range Keywords {
+		if Keywords[i].Token == tokenType {
+			return Keywords[i].Category != ReservedKeyword
+		}
+	}
+	return false
+}
+
 // RuleCandidate represents a grammar rule that is a completion candidate.
 type RuleCandidate struct {
 	Rule string
@@ -99,6 +137,7 @@ func Collect(sql string, cursorOffset int) *CandidateSet {
 	cs := newCandidateSet()
 	p := &Parser{
 		lexer:      NewLexer(sql),
+		source:     sql,
 		completing: true,
 		cursorOff:  cursorOffset,
 		candidates: cs,

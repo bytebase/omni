@@ -231,7 +231,7 @@ func (p *Parser) parseOnConflict() *nodes.OnConflictClause {
 		// Optional WHERE clause for partial index predicate
 		if p.cur.Type == WHERE {
 			p.advance()
-			infer.WhereClause = p.parseAExpr(0)
+			infer.WhereClause, _ = p.parseAExpr(0)
 		}
 
 		infer.Loc.End = p.pos()
@@ -279,7 +279,8 @@ func (p *Parser) parseReturningClause() *nodes.List {
 		return nil
 	}
 	p.advance()
-	return p.parseTargetList()
+	result, _ := p.parseTargetList()
+	return result
 }
 
 // parseSetClauseList parses a comma-separated list of SET clauses (for UPDATE/ON CONFLICT).
@@ -315,7 +316,7 @@ func (p *Parser) parseSetClause() []nodes.Node {
 		targets := p.parseSetTargetList()
 		p.expect(')')
 		p.expect('=')
-		expr := p.parseAExpr(0)
+		expr, _ := p.parseAExpr(0)
 
 		ncolumns := len(targets.Items)
 		var result []nodes.Node
@@ -334,7 +335,7 @@ func (p *Parser) parseSetClause() []nodes.Node {
 	// Single column: set_target '=' a_expr
 	rt := p.parseSetTarget()
 	p.expect('=')
-	rt.Val = p.parseAExpr(0)
+	rt.Val, _ = p.parseAExpr(0)
 	return []nodes.Node{rt}
 }
 

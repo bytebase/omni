@@ -40,7 +40,7 @@ func (p *Parser) parseSelectNoParens() *nodes.SelectStmt {
 	if p.cur.Type == ORDER {
 		p.advance()
 		p.expect(BY)
-		stmt.SortClause = p.parseSortByList()
+		stmt.SortClause, _ = p.parseSortByList()
 	}
 
 	// 4. Parse LIMIT/OFFSET and FOR locking in either order
@@ -168,7 +168,7 @@ func (p *Parser) parseSimpleSelectCore() *nodes.SelectStmt {
 		if p.cur.Type == ON {
 			p.advance()
 			p.expect('(')
-			stmt.DistinctClause = p.parseExprListFull()
+			stmt.DistinctClause, _ = p.parseExprListFull()
 			p.expect(')')
 		} else {
 			stmt.DistinctClause = &nodes.List{Items: []nodes.Node{nil}}
@@ -176,7 +176,7 @@ func (p *Parser) parseSimpleSelectCore() *nodes.SelectStmt {
 	}
 
 	// target_list (opt_target_list)
-	stmt.TargetList = p.parseTargetList()
+	stmt.TargetList, _ = p.parseTargetList()
 
 	if p.collectMode() {
 		// After target list, valid continuations:
@@ -217,7 +217,7 @@ func (p *Parser) parseSimpleSelectCore() *nodes.SelectStmt {
 	// WHERE clause
 	if p.cur.Type == WHERE {
 		p.advance()
-		stmt.WhereClause = p.parseAExpr(0)
+		stmt.WhereClause, _ = p.parseAExpr(0)
 		if p.collectMode() {
 			for _, t := range []int{
 				GROUP_P, HAVING, WINDOW,
@@ -257,7 +257,7 @@ func (p *Parser) parseSimpleSelectCore() *nodes.SelectStmt {
 	// HAVING clause
 	if p.cur.Type == HAVING {
 		p.advance()
-		stmt.HavingClause = p.parseAExpr(0)
+		stmt.HavingClause, _ = p.parseAExpr(0)
 	}
 
 	// WINDOW clause
@@ -277,14 +277,14 @@ func (p *Parser) parseValuesClause() *nodes.SelectStmt {
 	stmt := &nodes.SelectStmt{}
 
 	p.expect('(')
-	first := p.parseExprListFull()
+	first, _ := p.parseExprListFull()
 	p.expect(')')
 	stmt.ValuesLists = &nodes.List{Items: []nodes.Node{first}}
 
 	for p.cur.Type == ',' {
 		p.advance()
 		p.expect('(')
-		exprs := p.parseExprListFull()
+		exprs, _ := p.parseExprListFull()
 		p.expect(')')
 		stmt.ValuesLists.Items = append(stmt.ValuesLists.Items, exprs)
 	}
@@ -376,7 +376,7 @@ func (p *Parser) parseSelectLimit(stmt *nodes.SelectStmt) {
 				stmt.LimitCount = &nodes.A_Const{Isnull: true}
 				stmt.LimitOption = nodes.LIMIT_OPTION_COUNT
 			} else {
-				stmt.LimitCount = p.parseAExpr(0)
+				stmt.LimitCount, _ = p.parseAExpr(0)
 				stmt.LimitOption = nodes.LIMIT_OPTION_COUNT
 				// Check for deprecated LIMIT #,# syntax
 				if p.cur.Type == ',' {
@@ -384,14 +384,14 @@ func (p *Parser) parseSelectLimit(stmt *nodes.SelectStmt) {
 					// In MySQL-compatible syntax: LIMIT offset, count
 					// Swap: what we parsed as count is actually offset
 					stmt.LimitOffset = stmt.LimitCount
-					stmt.LimitCount = p.parseAExpr(0)
+					stmt.LimitCount, _ = p.parseAExpr(0)
 				}
 			}
 		case OFFSET:
 			p.advance()
 			// Could be: OFFSET select_offset_value
 			// or: OFFSET select_fetch_first_value row_or_rows
-			expr := p.parseAExpr(0)
+			expr, _ := p.parseAExpr(0)
 			// Check if followed by ROW or ROWS (SQL:2008 syntax)
 			if p.cur.Type == ROW || p.cur.Type == ROWS {
 				p.advance()
@@ -426,12 +426,13 @@ func (p *Parser) parseFetchClause(stmt *nodes.SelectStmt) {
 		// select_fetch_first_value: c_expr | '+' c_expr | '-' c_expr
 		if p.cur.Type == '+' {
 			p.advance()
-			stmt.LimitCount = p.parseCExpr()
+			stmt.LimitCount, _ = p.parseCExpr()
 		} else if p.cur.Type == '-' {
 			p.advance()
-			stmt.LimitCount = doNegate(p.parseCExpr())
+			limitExpr, _ := p.parseCExpr()
+			stmt.LimitCount = doNegate(limitExpr)
 		} else {
-			stmt.LimitCount = p.parseCExpr()
+			stmt.LimitCount, _ = p.parseCExpr()
 		}
 		// row_or_rows: ROW | ROWS
 		if p.cur.Type == ROW || p.cur.Type == ROWS {
@@ -709,9 +710,9 @@ func (p *Parser) parseOptCycleClause() nodes.Node {
 	if p.cur.Type == TO {
 		// CYCLE ... SET col TO val DEFAULT val USING col
 		p.advance() // consume TO
-		markValue = p.parseCExpr()
+		markValue, _ = p.parseCExpr()
 		p.expect(DEFAULT)
-		markDefault = p.parseCExpr()
+		markDefault, _ = p.parseCExpr()
 	} else {
 		// CYCLE ... SET col USING col (implicit TRUE/FALSE)
 		markValue = makeBoolAConst(1)
@@ -1078,7 +1079,7 @@ func (p *Parser) parseRelationOrFuncTable() nodes.Node {
 	// name( → function call
 	if p.cur.Type == '(' {
 		funcName := &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}}
-		funcExpr := p.parseFuncApplication(funcName, loc)
+		funcExpr, _ := p.parseFuncApplication(funcName, loc)
 		return p.finishFuncTable(funcExpr)
 	}
 
@@ -1096,7 +1097,7 @@ func (p *Parser) parseRelationOrFuncTable() nodes.Node {
 		// schema.func(
 		if p.cur.Type == '(' {
 			funcName := &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}, &nodes.String{Str: attr}}}
-			funcExpr := p.parseFuncApplication(funcName, loc)
+			funcExpr, _ := p.parseFuncApplication(funcName, loc)
 			return p.finishFuncTable(funcExpr)
 		}
 
@@ -1116,7 +1117,7 @@ func (p *Parser) parseRelationOrFuncTable() nodes.Node {
 				funcName := &nodes.List{Items: []nodes.Node{
 					&nodes.String{Str: name}, &nodes.String{Str: attr}, &nodes.String{Str: attr2},
 				}}
-				funcExpr := p.parseFuncApplication(funcName, loc)
+				funcExpr, _ := p.parseFuncApplication(funcName, loc)
 				return p.finishFuncTable(funcExpr)
 			}
 
@@ -1523,7 +1524,7 @@ func (p *Parser) parseJoinQual(j *nodes.JoinExpr) {
 		}
 	} else if p.cur.Type == ON {
 		p.advance()
-		j.Quals = p.parseAExpr(0)
+		j.Quals, _ = p.parseAExpr(0)
 	}
 }
 
@@ -1540,7 +1541,7 @@ func (p *Parser) parseTableSampleClause() *nodes.RangeTableSample {
 
 	method, _ := p.parseFuncName()
 	p.expect('(')
-	args := p.parseExprListFull()
+	args, _ := p.parseExprListFull()
 	p.expect(')')
 
 	ts := &nodes.RangeTableSample{
@@ -1553,7 +1554,7 @@ func (p *Parser) parseTableSampleClause() *nodes.RangeTableSample {
 	if p.cur.Type == REPEATABLE {
 		p.advance()
 		p.expect('(')
-		ts.Repeatable = p.parseAExpr(0)
+		ts.Repeatable, _ = p.parseAExpr(0)
 		p.expect(')')
 	}
 
@@ -1596,19 +1597,20 @@ func (p *Parser) parseGroupByItem() nodes.Node {
 			p.advance() // )
 			return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_EMPTY, Loc: nodes.NoLoc()}
 		}
-		return p.parseAExpr(0)
+		result, _ := p.parseAExpr(0)
+		return result
 
 	case CUBE:
 		p.advance()
 		p.expect('(')
-		content := p.parseExprListFull()
+		content, _ := p.parseExprListFull()
 		p.expect(')')
 		return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_CUBE, Content: content, Loc: nodes.NoLoc()}
 
 	case ROLLUP:
 		p.advance()
 		p.expect('(')
-		content := p.parseExprListFull()
+		content, _ := p.parseExprListFull()
 		p.expect(')')
 		return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_ROLLUP, Content: content, Loc: nodes.NoLoc()}
 
@@ -1624,10 +1626,12 @@ func (p *Parser) parseGroupByItem() nodes.Node {
 			return &nodes.GroupingSet{Kind: nodes.GROUPING_SET_SETS, Content: content, Loc: nodes.NoLoc()}
 		}
 		// Not GROUPING SETS; parse as expression (could be GROUPING(...) function)
-		return p.parseAExpr(0)
+		result, _ := p.parseAExpr(0)
+		return result
 
 	default:
-		return p.parseAExpr(0)
+		result, _ := p.parseAExpr(0)
+		return result
 	}
 }
 
@@ -1640,7 +1644,8 @@ func (p *Parser) parseWhereClause() nodes.Node {
 		return nil
 	}
 	p.advance()
-	return p.parseAExpr(0)
+	result, _ := p.parseAExpr(0)
+	return result
 }
 
 // parseWhereOrCurrentClause parses WHERE clause including WHERE CURRENT OF.
@@ -1667,5 +1672,6 @@ func (p *Parser) parseWhereOrCurrentClause() nodes.Node {
 		}
 	}
 
-	return p.parseAExpr(0)
+	result, _ := p.parseAExpr(0)
+	return result
 }

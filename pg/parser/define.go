@@ -533,7 +533,7 @@ func (p *Parser) parseCreateStatsStmt() nodes.Node {
 		p.expect(ON)
 		exprs := p.parseStatsParams()
 		p.expect(FROM)
-		relations := p.parseFromList()
+		relations, _ := p.parseFromList()
 		return &nodes.CreateStatsStmt{
 			Defnames: defnames, StatTypes: statTypes,
 			Exprs: exprs, Relations: relations, IfNotExists: true,
@@ -547,7 +547,7 @@ func (p *Parser) parseCreateStatsStmt() nodes.Node {
 	p.expect(ON)
 	exprs := p.parseStatsParams()
 	p.expect(FROM)
-	relations := p.parseFromList()
+	relations, _ := p.parseFromList()
 	return &nodes.CreateStatsStmt{
 		Defnames: defnames, StatTypes: statTypes,
 		Exprs: exprs, Relations: relations, IfNotExists: false,
@@ -577,7 +577,7 @@ func (p *Parser) parseStatsParams() *nodes.List {
 func (p *Parser) parseStatsParam() nodes.Node {
 	if p.cur.Type == '(' {
 		p.advance()
-		expr := p.parseAExpr(0)
+		expr, _ := p.parseAExpr(0)
 		p.expect(')')
 		return &nodes.StatsElem{Expr: expr}
 	}

@@ -143,7 +143,7 @@ func (p *Parser) parseIndexElem() *nodes.IndexElem {
 	if p.cur.Type == '(' {
 		// Expression index: '(' a_expr ')'
 		p.advance()
-		elem.Expr = p.parseAExpr(0)
+		elem.Expr, _ = p.parseAExpr(0)
 		p.expect(')')
 		elem.Collation = p.parseOptCollate()
 		elem.Opclass, elem.Opclassopts = p.parseIndexElemOpclass()
@@ -187,10 +187,12 @@ func (p *Parser) parseIndexElemFuncCall(name string) nodes.Node {
 
 	var args []nodes.Node
 	if p.cur.Type != ')' {
-		args = append(args, p.parseAExpr(0))
+		arg, _ := p.parseAExpr(0)
+		args = append(args, arg)
 		for p.cur.Type == ',' {
 			p.advance()
-			args = append(args, p.parseAExpr(0))
+			arg, _ = p.parseAExpr(0)
+			args = append(args, arg)
 		}
 	}
 	p.expect(')')

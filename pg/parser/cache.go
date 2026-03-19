@@ -24,25 +24,11 @@ func (c *firstSetCache) set(key string, cs *CandidateSet) {
 	c.m[key] = cs
 }
 
-// cachedCollect checks the FIRST-set cache before running collect.
-// If cached, merges the cached set into the parser's candidates.
-// Returns true if cache hit.
-func (p *Parser) cachedCollect(key string, fn func()) bool {
-	if cached := globalFirstSets.get(key); cached != nil {
-		for _, tok := range cached.Tokens {
-			p.addTokenCandidate(tok)
-		}
-		for _, rule := range cached.Rules {
-			p.addRuleCandidate(rule.Rule)
-		}
-		return true
-	}
-	// Take snapshot, run fn, compute diff, cache.
-	before := p.candidates.snapshot()
+// cachedCollect runs the given function to collect candidates.
+// The cache is intentionally disabled because FIRST sets can depend on parser
+// state that varies between Collect calls (e.g., cursor position relative to
+// nested expressions), causing stale cache entries to return incomplete results.
+func (p *Parser) cachedCollect(_ string, fn func()) bool {
 	fn()
-	diff := p.candidates.diff(before)
-	if diff != nil {
-		globalFirstSets.set(key, diff)
-	}
 	return false
 }

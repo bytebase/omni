@@ -414,7 +414,7 @@ func (p *Parser) parseAlterDomainOwnerOrOther() nodes.Node {
 			// SET DEFAULT a_expr
 			p.advance() // consume SET
 			p.advance() // consume DEFAULT
-			expr := p.parseAExpr(0)
+			expr, _ := p.parseAExpr(0)
 			return &nodes.AlterDomainStmt{
 				Subtype: 'T',
 				Typname: names,
@@ -519,7 +519,7 @@ func (p *Parser) parseDomainConstraintForAlter(typname *nodes.List) *nodes.Alter
 	// DomainConstraintElem: CHECK '(' a_expr ')' ConstraintAttributeSpec
 	p.expect(CHECK)
 	p.expect('(')
-	expr := p.parseAExpr(0)
+	expr, _ := p.parseAExpr(0)
 	p.expect(')')
 	// ConstraintAttributeSpec - parse optional attributes
 	constraint := &nodes.Constraint{

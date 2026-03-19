@@ -828,7 +828,7 @@ func (p *Parser) parseAlterColumnSet(colname string) *nodes.AlterTableCmd {
 	case DEFAULT:
 		// SET DEFAULT a_expr
 		p.advance()
-		expr := p.parseAExpr(0)
+		expr, _ := p.parseAExpr(0)
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_ColumnDefault),
 			Name:    colname,
@@ -885,7 +885,7 @@ func (p *Parser) parseAlterColumnSet(colname string) *nodes.AlterTableCmd {
 		p.advance()
 		p.expect(AS)
 		p.expect('(')
-		expr := p.parseAExpr(0)
+		expr, _ := p.parseAExpr(0)
 		p.expect(')')
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetExpression),
@@ -992,7 +992,7 @@ func (p *Parser) parseAlterColumnTypeInner(colname string) *nodes.AlterTableCmd 
 	// transform analysis, not the raw parse tree)
 	if p.cur.Type == USING {
 		p.advance()
-		_ = p.parseAExpr(0)
+		_, _ = p.parseAExpr(0)
 	}
 
 	return &nodes.AlterTableCmd{

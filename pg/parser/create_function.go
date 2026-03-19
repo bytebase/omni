@@ -144,10 +144,10 @@ func (p *Parser) parseFuncArgWithDefault() *nodes.FunctionParameter {
 	fp := p.parseFuncArg()
 	if p.cur.Type == DEFAULT {
 		p.advance()
-		fp.Defexpr = p.parseAExpr(0)
+		fp.Defexpr, _ = p.parseAExpr(0)
 	} else if p.cur.Type == '=' {
 		p.advance()
-		fp.Defexpr = p.parseAExpr(0)
+		fp.Defexpr, _ = p.parseAExpr(0)
 	}
 	return fp
 }
@@ -531,7 +531,7 @@ func (p *Parser) parseCommonFuncOptItem() *nodes.DefElem {
 func (p *Parser) parseOptRoutineBody() nodes.Node {
 	if p.cur.Type == RETURN {
 		p.advance()
-		expr := p.parseAExpr(0)
+		expr, _ := p.parseAExpr(0)
 		return &nodes.ReturnStmt{Returnval: expr}
 	}
 	if p.cur.Type == BEGIN_P {
@@ -544,7 +544,7 @@ func (p *Parser) parseOptRoutineBody() nodes.Node {
 			var stmt nodes.Node
 			if p.cur.Type == RETURN {
 				p.advance()
-				expr := p.parseAExpr(0)
+				expr, _ := p.parseAExpr(0)
 				stmt = &nodes.ReturnStmt{Returnval: expr}
 			} else {
 				stmt = p.parseStmt()

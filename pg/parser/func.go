@@ -22,7 +22,7 @@ func (p *Parser) parseFuncExprWindowless() (nodes.Node, error) {
 	// already dispatches COALESCE, GREATEST, LEAST, CAST, etc.
 	// For func_application, we need a name followed by '('.
 	// We delegate to parseCExpr which handles both cases.
-	return p.parseCExpr(), nil
+	return p.parseCExpr()
 }
 
 // parseWindowClause parses an optional WINDOW clause in a SELECT statement.
@@ -75,7 +75,11 @@ func (p *Parser) parseWindowDefinition() (*nodes.WindowDef, error) {
 	if _, err := p.expect(AS); err != nil {
 		return nil, err
 	}
-	wd := p.parseWindowSpecification().(*nodes.WindowDef)
+	wsNode, err := p.parseWindowSpecification()
+	if err != nil {
+		return nil, err
+	}
+	wd := wsNode.(*nodes.WindowDef)
 	wd.Name = name
 	wd.Loc = nodes.Loc{Start: loc, End: p.pos()}
 	return wd, nil

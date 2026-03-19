@@ -190,7 +190,7 @@ func (p *Parser) parseMergeStmt(withClause *nodes.WithClause) *nodes.MergeStmt {
 
 	// ON a_expr
 	p.expect(ON)
-	joinCondition := p.parseAExpr(0)
+	joinCondition, _ := p.parseAExpr(0)
 
 	if p.collectMode() {
 		p.addTokenCandidate(WHEN)
@@ -272,7 +272,7 @@ func (p *Parser) parseMergeWhenClause() *nodes.MergeWhenClause {
 	var condition nodes.Node
 	if p.cur.Type == AND {
 		p.advance()
-		condition = p.parseAExpr(0)
+		condition, _ = p.parseAExpr(0)
 	}
 
 	// THEN

@@ -237,7 +237,7 @@ func (p *Parser) parseOptWhereClausePub() nodes.Node {
 	}
 	p.advance() // consume WHERE
 	p.expect('(')
-	expr := p.parseAExpr(0)
+	expr, _ := p.parseAExpr(0)
 	p.expect(')')
 	return expr
 }

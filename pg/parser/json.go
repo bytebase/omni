@@ -15,10 +15,13 @@ import (
 //	json_value_expr:
 //	    a_expr json_format_clause_opt
 func (p *Parser) parseJsonValueExpr() (*nodes.JsonValueExpr, error) {
-	expr := p.parseAExpr(0)
+	expr, err := p.parseAExpr(0)
+	if err != nil {
+		return nil, err
+	}
 	// json_format_clause_opt: FORMAT JSON [ENCODING name] | empty
 	// We parse but the yacc grammar discards the format in JsonValueExpr.RawExpr
-	_, err := p.parseJsonFormatClauseOpt()
+	_, err = p.parseJsonFormatClauseOpt()
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +89,7 @@ func (p *Parser) parseJsonReturningClauseOpt() (*nodes.JsonOutput, error) {
 func (p *Parser) parseJsonBehavior() *nodes.JsonBehavior {
 	if p.cur.Type == DEFAULT {
 		p.advance()
-		expr := p.parseAExpr(0)
+		expr, _ := p.parseAExpr(0)
 		return &nodes.JsonBehavior{
 			Btype: nodes.JSON_BEHAVIOR_DEFAULT,
 			Expr:  expr,
@@ -429,7 +432,7 @@ func (p *Parser) parseJsonNameAndValueList() (*nodes.List, error) {
 // Since we cannot easily distinguish c_expr VALUE_P from a_expr in an LL parser,
 // we parse as a_expr and check for VALUE_P or ':'.
 func (p *Parser) parseJsonNameAndValue() (*nodes.JsonKeyValue, error) {
-	key := p.parseAExpr(0)
+	key, err := p.parseAExpr(0)
 
 	if p.cur.Type == VALUE_P {
 		p.advance() // consume VALUE
@@ -570,7 +573,10 @@ func (p *Parser) parseJsonObjectExpr() (nodes.Node, error) {
 	// Otherwise, it's legacy (func_arg_list).
 
 	// Save position for potential backtrack (we can't easily backtrack, so we parse first expr)
-	firstExpr := p.parseAExpr(0)
+	firstExpr, err := p.parseAExpr(0)
+	if err != nil {
+		return nil, err
+	}
 
 	if p.cur.Type == VALUE_P {
 		// SQL/JSON form: key VALUE val
@@ -649,7 +655,11 @@ func (p *Parser) parseJsonObjectExpr() (nodes.Node, error) {
 	args := []nodes.Node{firstExpr}
 	for p.cur.Type == ',' {
 		p.advance()
-		args = append(args, p.parseFuncArgExpr())
+		arg, err := p.parseFuncArgExpr()
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, arg)
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -768,7 +778,10 @@ func (p *Parser) parseJsonScalarExpr() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	expr := p.parseAExpr(0)
+	expr, err := p.parseAExpr(0)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -824,7 +837,7 @@ func (p *Parser) parseJsonQueryExpr() (nodes.Node, error) {
 	if _, err := p.expect(','); err != nil {
 		return nil, err
 	}
-	pathspec := p.parseAExpr(0)
+	pathspec, err := p.parseAExpr(0)
 	passing, err := p.parseJsonPassingClauseOpt()
 	if err != nil {
 		return nil, err
@@ -869,7 +882,7 @@ func (p *Parser) parseJsonExistsExpr() (nodes.Node, error) {
 	if _, err := p.expect(','); err != nil {
 		return nil, err
 	}
-	pathspec := p.parseAExpr(0)
+	pathspec, err := p.parseAExpr(0)
 	passing, err := p.parseJsonPassingClauseOpt()
 	if err != nil {
 		return nil, err
@@ -905,7 +918,7 @@ func (p *Parser) parseJsonValueFuncExpr() (nodes.Node, error) {
 	if _, err := p.expect(','); err != nil {
 		return nil, err
 	}
-	pathspec := p.parseAExpr(0)
+	pathspec, err := p.parseAExpr(0)
 	passing, err := p.parseJsonPassingClauseOpt()
 	if err != nil {
 		return nil, err
@@ -994,7 +1007,7 @@ func (p *Parser) parseJsonArrayAgg() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	aggOrder := p.parseOptSortClause()
+	aggOrder, err := p.parseOptSortClause()
 	absentOnNull := p.parseJsonArrayConstructorNullClauseOpt()
 	output, err := p.parseJsonReturningClauseOpt()
 	if err != nil {
@@ -1033,7 +1046,7 @@ func (p *Parser) applyJsonAggClauses(c *nodes.JsonAggConstructor) error {
 		if _, err := p.expect(WHERE); err != nil {
 			return err
 		}
-		c.Agg_filter = p.parseAExpr(0)
+		c.Agg_filter, _ = p.parseAExpr(0)
 		if _, err := p.expect(')'); err != nil {
 			return err
 		}
@@ -1041,7 +1054,10 @@ func (p *Parser) applyJsonAggClauses(c *nodes.JsonAggConstructor) error {
 
 	// over_clause: OVER window_specification | OVER ColId
 	if p.cur.Type == OVER {
-		over := p.parseOverClause()
+		over, err := p.parseOverClause()
+		if err != nil {
+			return err
+		}
 		if wd, ok := over.(*nodes.WindowDef); ok {
 			c.Over = wd
 		}
@@ -1076,7 +1092,7 @@ func (p *Parser) parseJsonTable() (*nodes.JsonTable, error) {
 	if _, err := p.expect(','); err != nil {
 		return nil, err
 	}
-	pathExpr := p.parseAExpr(0)
+	pathExpr, err := p.parseAExpr(0)
 
 	// json_table_path_name_opt: AS name | empty
 	pathName := ""
