@@ -338,7 +338,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	case nodes.ConstrForeignKey:
 		conName := con.Name
 		if conName == "" {
-			conName = fmt.Sprintf("%s_ibfk_%d", tbl.Name, len(tbl.Constraints)+1)
+			conName = fmt.Sprintf("%s_ibfk_%d", tbl.Name, countFKConstraints(tbl)+1)
 		}
 		refDB := ""
 		refTable := ""

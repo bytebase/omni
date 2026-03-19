@@ -193,7 +193,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				}
 				conName := cc.Name
 				if conName == "" {
-					conName = fmt.Sprintf("%s_ibfk_%d", tableName, len(tbl.Constraints)+1)
+					conName = fmt.Sprintf("%s_ibfk_%d", tableName, countFKConstraints(tbl)+1)
 				}
 				tbl.Constraints = append(tbl.Constraints, &Constraint{
 					Name:       conName,
@@ -355,7 +355,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case nodes.ConstrForeignKey:
 			conName := con.Name
 			if conName == "" {
-				conName = fmt.Sprintf("%s_ibfk_%d", tableName, len(tbl.Constraints)+1)
+				conName = fmt.Sprintf("%s_ibfk_%d", tableName, countFKConstraints(tbl)+1)
 			}
 			refDB := ""
 			refTable := ""
@@ -534,6 +534,17 @@ func resolveConstraintIndexType(con *nodes.Constraint) string {
 		}
 	}
 	return ""
+}
+
+// countFKConstraints counts the number of foreign key constraints on a table.
+func countFKConstraints(tbl *Table) int {
+	count := 0
+	for _, c := range tbl.Constraints {
+		if c.Type == ConForeignKey {
+			count++
+		}
+	}
+	return count
 }
 
 func isStringType(dt string) bool {

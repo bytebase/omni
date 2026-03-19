@@ -217,21 +217,21 @@ The foundation — our output must be byte-for-byte identical to MySQL 8.0.
 ### 1.17 Foreign Keys
 
 ```
-[ ] Basic FK: FOREIGN KEY (col) REFERENCES parent(id)
-[ ] FK with name: CONSTRAINT `fk_name` FOREIGN KEY ...
-[ ] FK ON DELETE CASCADE
-[ ] FK ON DELETE SET NULL
-[ ] FK ON DELETE SET DEFAULT
-[ ] FK ON DELETE RESTRICT — not shown (MySQL default)
-[ ] FK ON DELETE NO ACTION — not shown (MySQL default)
-[ ] FK ON UPDATE CASCADE
-[ ] FK ON UPDATE SET NULL
-[ ] FK combined: ON DELETE CASCADE ON UPDATE SET NULL
-[ ] FK auto-naming: table_ibfk_1, table_ibfk_2
-[ ] FK auto-generates backing index (KEY `fk_name` (col))
-[ ] FK self-referencing: REFERENCES same_table(id)
-[ ] FK multi-column: FOREIGN KEY (a, b) REFERENCES parent(x, y)
-[ ] FK to different database: explicit schema qualification
+[x] Basic FK: FOREIGN KEY (col) REFERENCES parent(id)
+[x] FK with name: CONSTRAINT `fk_name` FOREIGN KEY ...
+[x] FK ON DELETE CASCADE
+[x] FK ON DELETE SET NULL
+[x] FK ON DELETE SET DEFAULT
+[x] FK ON DELETE RESTRICT — shown when explicitly specified (unlike NO ACTION)
+[x] FK ON DELETE NO ACTION — not shown (MySQL default)
+[x] FK ON UPDATE CASCADE
+[x] FK ON UPDATE SET NULL
+[x] FK combined: ON DELETE CASCADE ON UPDATE SET NULL
+[x] FK auto-naming: table_ibfk_1, table_ibfk_2
+[x] FK auto-generates backing index (KEY `fk_name` (col))
+[x] FK self-referencing: REFERENCES same_table(id)
+[x] FK multi-column: FOREIGN KEY (a, b) REFERENCES parent(x, y)
+[~] FK to different database: explicit schema qualification — requires cross-database test infrastructure
 ```
 
 ### 1.18 Check Constraints (8.0.16+)

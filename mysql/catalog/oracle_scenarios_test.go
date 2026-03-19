@@ -390,6 +390,168 @@ func TestOracle_Section_1_13_RegularIndexes(t *testing.T) {
 	}
 }
 
+func TestOracle_Section_1_17_ForeignKeys(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	cases := []struct {
+		name    string
+		setup   string // SQL to run before the main CREATE TABLE (e.g., parent tables)
+		sql     string // The CREATE TABLE with FK to compare
+		table   string // The table to SHOW CREATE TABLE on
+		cleanup string // SQL to clean up after (drop child then parent)
+	}{
+		{
+			"fk_basic",
+			"CREATE TABLE t_parent1 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB",
+			"CREATE TABLE t_fk1 (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_parent1(id))",
+			"t_fk1",
+			"DROP TABLE IF EXISTS t_fk1; DROP TABLE IF EXISTS t_parent1",
+		},
+		{
+			"fk_named",
+			"CREATE TABLE t_parent2 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB",
+			"CREATE TABLE t_fk2 (id INT, pid INT, CONSTRAINT `fk_name` FOREIGN KEY (pid) REFERENCES t_parent2(id))",
+			"t_fk2",
+			"DROP TABLE IF EXISTS t_fk2; DROP TABLE IF EXISTS t_parent2",
+		},
+		{
+			"fk_on_delete_cascade",
+			"CREATE TABLE t_parent3 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB",
+			"CREATE TABLE t_fk3 (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_parent3(id) ON DELETE CASCADE)",
+			"t_fk3",
+			"DROP TABLE IF EXISTS t_fk3; DROP TABLE IF EXISTS t_parent3",
+		},
+		{
+			"fk_on_delete_set_null",
+			"CREATE TABLE t_parent4 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB",
+			"CREATE TABLE t_fk4 (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_parent4(id) ON DELETE SET NULL)",
+			"t_fk4",
+			"DROP TABLE IF EXISTS t_fk4; DROP TABLE IF EXISTS t_parent4",
+		},
+		{
+			"fk_on_delete_set_default",
+			"CREATE TABLE t_parent5 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB",
+			"CREATE TABLE t_fk5 (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_parent5(id) ON DELETE SET DEFAULT)",
+			"t_fk5",
+			"DROP TABLE IF EXISTS t_fk5; DROP TABLE IF EXISTS t_parent5",
+		},
+		{
+			"fk_on_delete_restrict",
+			"CREATE TABLE t_parent6 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB",
+			"CREATE TABLE t_fk6 (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_parent6(id) ON DELETE RESTRICT)",
+			"t_fk6",
+			"DROP TABLE IF EXISTS t_fk6; DROP TABLE IF EXISTS t_parent6",
+		},
+		{
+			"fk_on_delete_no_action",
+			"CREATE TABLE t_parent7 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB",
+			"CREATE TABLE t_fk7 (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_parent7(id) ON DELETE NO ACTION)",
+			"t_fk7",
+			"DROP TABLE IF EXISTS t_fk7; DROP TABLE IF EXISTS t_parent7",
+		},
+		{
+			"fk_on_update_cascade",
+			"CREATE TABLE t_parent8 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB",
+			"CREATE TABLE t_fk8 (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_parent8(id) ON UPDATE CASCADE)",
+			"t_fk8",
+			"DROP TABLE IF EXISTS t_fk8; DROP TABLE IF EXISTS t_parent8",
+		},
+		{
+			"fk_on_update_set_null",
+			"CREATE TABLE t_parent9 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB",
+			"CREATE TABLE t_fk9 (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_parent9(id) ON UPDATE SET NULL)",
+			"t_fk9",
+			"DROP TABLE IF EXISTS t_fk9; DROP TABLE IF EXISTS t_parent9",
+		},
+		{
+			"fk_combined_actions",
+			"CREATE TABLE t_parent10 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB",
+			"CREATE TABLE t_fk10 (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_parent10(id) ON DELETE CASCADE ON UPDATE SET NULL)",
+			"t_fk10",
+			"DROP TABLE IF EXISTS t_fk10; DROP TABLE IF EXISTS t_parent10",
+		},
+		{
+			"fk_auto_naming",
+			"CREATE TABLE t_parent11 (id INT NOT NULL, id2 INT NOT NULL, PRIMARY KEY (id), KEY (id2)) ENGINE=InnoDB",
+			"CREATE TABLE t_fk11 (id INT, pid INT, pid2 INT, FOREIGN KEY (pid) REFERENCES t_parent11(id), FOREIGN KEY (pid2) REFERENCES t_parent11(id2))",
+			"t_fk11",
+			"DROP TABLE IF EXISTS t_fk11; DROP TABLE IF EXISTS t_parent11",
+		},
+		{
+			"fk_auto_generates_index",
+			"CREATE TABLE t_parent12 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=InnoDB",
+			"CREATE TABLE t_fk12 (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_parent12(id))",
+			"t_fk12",
+			"DROP TABLE IF EXISTS t_fk12; DROP TABLE IF EXISTS t_parent12",
+		},
+		{
+			"fk_self_referencing",
+			"",
+			"CREATE TABLE t_fk13 (id INT NOT NULL, parent_id INT, PRIMARY KEY (id), FOREIGN KEY (parent_id) REFERENCES t_fk13(id))",
+			"t_fk13",
+			"DROP TABLE IF EXISTS t_fk13",
+		},
+		{
+			"fk_multi_column",
+			"CREATE TABLE t_parent14 (x INT NOT NULL, y INT NOT NULL, PRIMARY KEY (x, y)) ENGINE=InnoDB",
+			"CREATE TABLE t_fk14 (id INT, a INT, b INT, FOREIGN KEY (a, b) REFERENCES t_parent14(x, y))",
+			"t_fk14",
+			"DROP TABLE IF EXISTS t_fk14; DROP TABLE IF EXISTS t_parent14",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Cleanup from prior runs.
+			oracle.execSQL(tc.cleanup)
+
+			// Setup parent tables.
+			if tc.setup != "" {
+				if err := oracle.execSQL(tc.setup); err != nil {
+					t.Fatalf("oracle setup: %v", err)
+				}
+			}
+			if err := oracle.execSQL(tc.sql); err != nil {
+				t.Fatalf("oracle exec: %v", err)
+			}
+			oracleDDL, _ := oracle.showCreateTable(tc.table)
+
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			// Run setup on omni too.
+			if tc.setup != "" {
+				results, err := c.Exec(tc.setup, nil)
+				if err != nil {
+					t.Fatalf("omni setup parse error: %v", err)
+				}
+				for _, r := range results {
+					if r.Error != nil {
+						t.Fatalf("omni setup exec error: %v", r.Error)
+					}
+				}
+			}
+			results, err := c.Exec(tc.sql, nil)
+			if err != nil {
+				t.Fatalf("omni parse error: %v", err)
+			}
+			if results[0].Error != nil {
+				t.Fatalf("omni exec error: %v", results[0].Error)
+			}
+			omniDDL := c.ShowCreateTable("test", tc.table)
+
+			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
+					oracleDDL, omniDDL)
+			}
+		})
+	}
+}
+
 func TestOracle_Section_1_12_UniqueKeys(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping oracle test in short mode")

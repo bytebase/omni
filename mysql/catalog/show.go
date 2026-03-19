@@ -317,13 +317,13 @@ func showConstraint(con *Constraint) string {
 		for _, c := range con.Columns {
 			cols = append(cols, fmt.Sprintf("`%s`", c))
 		}
-		b.WriteString(strings.Join(cols, ","))
+		b.WriteString(strings.Join(cols, ", "))
 		b.WriteString(fmt.Sprintf(") REFERENCES `%s` (", con.RefTable))
 		refCols := make([]string, 0, len(con.RefColumns))
 		for _, c := range con.RefColumns {
 			refCols = append(refCols, fmt.Sprintf("`%s`", c))
 		}
-		b.WriteString(strings.Join(refCols, ","))
+		b.WriteString(strings.Join(refCols, ", "))
 		b.WriteString(")")
 
 		// ON DELETE — omit if RESTRICT or NO ACTION (MySQL defaults).
@@ -373,10 +373,11 @@ func showTableOptions(tbl *Table) string {
 	return strings.Join(parts, " ")
 }
 
-// isFKDefault returns true if the action is a MySQL FK default (RESTRICT or NO ACTION).
+// isFKDefault returns true if the action is a MySQL FK default that should not be shown.
+// MySQL 8.0 hides NO ACTION (the implicit default) but shows RESTRICT when explicitly specified.
 func isFKDefault(action string) bool {
 	upper := strings.ToUpper(action)
-	return upper == "RESTRICT" || upper == "NO ACTION"
+	return upper == "NO ACTION"
 }
 
 func isEnumSetType(dt string) bool {

@@ -112,9 +112,9 @@ func TestShowCreateTableForeignKeyRestrict(t *testing.T) {
 	)`)
 
 	got := c.ShowCreateTable("testdb", "fk_tbl")
-	// Both RESTRICT: neither should be shown.
-	assertNotContains(t, got, "ON DELETE")
-	assertNotContains(t, got, "ON UPDATE")
+	// MySQL 8.0 shows RESTRICT when explicitly specified (unlike NO ACTION which is hidden).
+	assertContains(t, got, "ON DELETE RESTRICT")
+	assertContains(t, got, "ON UPDATE RESTRICT")
 }
 
 func TestShowCreateTableComment(t *testing.T) {
