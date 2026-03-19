@@ -563,9 +563,9 @@ func nodeToSQL(node nodes.ExprNode) string {
 	switch n := node.(type) {
 	case *nodes.ColumnRef:
 		if n.Table != "" {
-			return n.Table + "." + n.Column
+			return "`" + n.Table + "`.`" + n.Column + "`"
 		}
-		return n.Column
+		return "`" + n.Column + "`"
 	case *nodes.IntLit:
 		return fmt.Sprintf("%d", n.Value)
 	case *nodes.StringLit:
@@ -646,9 +646,9 @@ func binaryOpToString(op nodes.BinaryOp) string {
 	case nodes.BinOpGe:
 		return ">="
 	case nodes.BinOpAnd:
-		return "AND"
+		return "and"
 	case nodes.BinOpOr:
-		return "OR"
+		return "or"
 	case nodes.BinOpBitAnd:
 		return "&"
 	case nodes.BinOpBitOr:

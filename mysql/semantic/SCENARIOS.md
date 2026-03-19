@@ -237,12 +237,12 @@ The foundation — our output must be byte-for-byte identical to MySQL 8.0.
 ### 1.18 Check Constraints (8.0.16+)
 
 ```
-[ ] CHECK (col > 0)
-[ ] CHECK with name: CONSTRAINT `chk_name` CHECK (col > 0)
-[ ] CHECK NOT ENFORCED → /*!80016 NOT ENFORCED */
-[ ] CHECK auto-naming: table_chk_1, table_chk_2
-[ ] CHECK expression display format (parenthesization)
-[ ] CHECK referencing multiple columns
+[x] CHECK (col > 0)
+[x] CHECK with name: CONSTRAINT `chk_name` CHECK (col > 0)
+[x] CHECK NOT ENFORCED → /*!80016 NOT ENFORCED */
+[x] CHECK auto-naming: table_chk_1, table_chk_2
+[x] CHECK expression display format (parenthesization)
+[x] CHECK referencing multiple columns
 ```
 
 ### 1.19 Table Options
