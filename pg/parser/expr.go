@@ -968,7 +968,7 @@ func (p *Parser) parseCExprInner() nodes.Node {
 	case PARAM:
 		tok := p.advance()
 		ref := &nodes.ParamRef{Number: int(tok.Ival)}
-		indir := p.parseOptIndirection()
+		indir, _ := p.parseOptIndirection()
 		if indir != nil && len(indir.Items) > 0 {
 			return &nodes.A_Indirection{Arg: ref, Indirection: indir}
 		}
@@ -1177,7 +1177,7 @@ func (p *Parser) parseParenExprOrRow() nodes.Node {
 	// Parenthesized expression
 	p.expect(')')
 	// Check for indirection
-	indir := p.parseOptIndirection()
+	indir, _ := p.parseOptIndirection()
 	if indir != nil && len(indir.Items) > 0 {
 		return &nodes.A_Indirection{Arg: first, Indirection: indir}
 	}
@@ -1838,6 +1838,10 @@ func (p *Parser) parseColumnRefOrFuncCall() nodes.Node {
 	// Check for qualified name: schema.func(...) or schema.table.column
 	if p.cur.Type == '.' {
 		p.advance()
+		// After "name.", we're in a column reference context.
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+		}
 		if p.cur.Type == '*' {
 			// schema.*
 			p.advance()
@@ -1875,6 +1879,10 @@ func (p *Parser) parseColumnRefOrFuncCall() nodes.Node {
 		// schema.table.column or schema.column
 		if p.cur.Type == '.' {
 			p.advance()
+			// After "name.attr.", emit columnref for 3+ part references.
+			if p.collectMode() {
+				p.addRuleCandidate("columnref")
+			}
 			if p.cur.Type == '*' {
 				p.advance()
 				return &nodes.ColumnRef{
@@ -1934,6 +1942,14 @@ func (p *Parser) parseFuncApplication(funcName *nodes.List, loc int) nodes.Node 
 
 	fc := &nodes.FuncCall{
 		Funcname: funcName,
+	}
+
+	// If cursor is inside function parens, emit expression candidates.
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		p.addTokenCandidate('*')
+		p.addTokenCandidate(DISTINCT)
 	}
 
 	if p.cur.Type == ')' {

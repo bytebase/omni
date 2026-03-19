@@ -190,7 +190,7 @@ func (p *Parser) parseInsertColumnItem() *nodes.ResTarget {
 	}
 	loc := p.pos()
 	name, _ := p.parseColId()
-	ind := p.parseOptIndirection()
+	ind, _ := p.parseOptIndirection()
 	return &nodes.ResTarget{
 		Name:        name,
 		Indirection: ind,
@@ -349,7 +349,7 @@ func (p *Parser) parseSetTarget() *nodes.ResTarget {
 	}
 	loc := p.pos()
 	name, _ := p.parseColId()
-	ind := p.parseOptIndirection()
+	ind, _ := p.parseOptIndirection()
 	return &nodes.ResTarget{
 		Name:        name,
 		Indirection: ind,

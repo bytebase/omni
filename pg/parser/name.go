@@ -68,7 +68,7 @@ func (p *Parser) parseColId() (string, error) {
 		tok := p.advance()
 		return tok.Str, nil
 	}
-	return "", &ParseError{Message: "expected identifier", Position: p.cur.Loc}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseColLabel parses a ColLabel (any identifier or keyword).
@@ -79,7 +79,7 @@ func (p *Parser) parseColLabel() (string, error) {
 		tok := p.advance()
 		return tok.Str, nil
 	}
-	return "", &ParseError{Message: "expected identifier or keyword", Position: p.cur.Loc}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseName parses a name (same as ColId).
@@ -104,7 +104,7 @@ func (p *Parser) parseTypeFunctionName() (string, error) {
 		tok := p.advance()
 		return tok.Str, nil
 	}
-	return "", &ParseError{Message: "expected type/function name", Position: p.cur.Loc}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseQualifiedName parses a qualified name (up to 3 parts).
@@ -128,6 +128,11 @@ func (p *Parser) parseQualifiedName() (*nodes.List, error) {
 
 	if p.cur.Type == '.' {
 		p.advance()
+		// After "name.", we may have reached the cursor position.
+		// Emit rule candidates so callers (relation_expr, etc.) are recognized.
+		if p.collectMode() {
+			p.addRuleCandidate("qualified_name")
+		}
 		attr, err := p.parseAttrName()
 		if err != nil {
 			return nil, err
@@ -136,6 +141,10 @@ func (p *Parser) parseQualifiedName() (*nodes.List, error) {
 
 		if p.cur.Type == '.' {
 			p.advance()
+			// Same for second dot in 3-part names.
+			if p.collectMode() {
+				p.addRuleCandidate("qualified_name")
+			}
 			attr2, err := p.parseAttrName()
 			if err != nil {
 				return nil, err
@@ -209,15 +218,11 @@ func (p *Parser) parseAnyNameList() (*nodes.List, error) {
 //	opt_name_list:
 //	    name_list
 //	    | /* EMPTY */
-func (p *Parser) parseOptNameList() *nodes.List {
+func (p *Parser) parseOptNameList() (*nodes.List, error) {
 	if p.isColId() {
-		l, err := p.parseNameList()
-		if err != nil {
-			return nil
-		}
-		return l
+		return p.parseNameList()
 	}
-	return nil
+	return nil, nil
 }
 
 // parseNameList parses a comma-separated list of names.
@@ -402,7 +407,7 @@ func (p *Parser) parseIndirectionEl() (nodes.Node, error) {
 		return &nodes.A_Indices{Uidx: expr}, nil
 	}
 
-	return nil, &ParseError{Message: "expected '.' or '['", Position: p.cur.Loc}
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseOptIndirection parses optional indirection.
@@ -410,15 +415,11 @@ func (p *Parser) parseIndirectionEl() (nodes.Node, error) {
 //	opt_indirection:
 //	    indirection
 //	    | /* EMPTY */
-func (p *Parser) parseOptIndirection() *nodes.List {
+func (p *Parser) parseOptIndirection() (*nodes.List, error) {
 	if p.cur.Type == '.' || p.cur.Type == '[' {
-		l, err := p.parseIndirection()
-		if err != nil {
-			return nil
-		}
-		return l
+		return p.parseIndirection()
 	}
-	return nil
+	return nil, nil
 }
 
 // parseAttrs parses dot-separated attribute names.
@@ -483,7 +484,7 @@ func (p *Parser) parseFuncName() (*nodes.List, error) {
 		return &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}}, nil
 	}
 
-	return nil, &ParseError{Message: "expected function name", Position: p.cur.Loc}
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseFileName parses a file name (string constant).
@@ -494,7 +495,7 @@ func (p *Parser) parseFileName() (string, error) {
 		tok := p.advance()
 		return tok.Str, nil
 	}
-	return "", &ParseError{Message: "expected string constant", Position: p.cur.Loc}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseCursorName parses a cursor name.
@@ -541,7 +542,7 @@ func (p *Parser) parseAnyOperator() (*nodes.List, error) {
 		// Restore (we can't easily backtrack in this parser design).
 		// This case shouldn't happen if the caller knows an operator is expected.
 		_ = saved
-		return nil, &ParseError{Message: "expected operator", Position: p.cur.Loc}
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// Parse all_Op
@@ -565,7 +566,7 @@ func (p *Parser) parseAllOp() (string, error) {
 		tok := p.advance()
 		return tok.Str, nil
 	}
-	return "", &ParseError{Message: "expected operator", Position: p.cur.Loc}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseMathOp tries to parse a math operator. Returns the operator string and true if matched.
