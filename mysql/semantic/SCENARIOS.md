@@ -440,9 +440,9 @@ Every error must match MySQL's errno, SQLSTATE, and message format.
 ### 3.1 Database Errors
 
 ```
-[ ] 1007 (HY000) Can't create database 'db'; database exists
-[ ] 1049 (42000) Unknown database 'db'
-[ ] 1046 (3D000) No database selected
+[x] 1007 (HY000) Can't create database 'db'; database exists
+[x] 1049 (42000) Unknown database 'db'
+[x] 1046 (3D000) No database selected
 ```
 
 ### 3.2 Table Errors

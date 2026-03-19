@@ -1,8 +1,11 @@
 package catalog
 
 import (
+	"errors"
 	"strings"
 	"testing"
+
+	mysqldriver "github.com/go-sql-driver/mysql"
 )
 
 func TestOracle_Section_1_2_StringTypes(t *testing.T) {
@@ -3154,6 +3157,157 @@ func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		}
 		if catErr3.Code != ErrDupDatabase {
 			t.Errorf("omni error code: got %d, want %d", catErr3.Code, ErrDupDatabase)
+		}
+	})
+}
+
+func TestOracle_Section_3_1_DatabaseErrors(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	// Helper to extract MySQL error code and message from go-sql-driver error.
+	extractMySQLErr := func(err error) (uint16, string, string) {
+		var mysqlErr *mysqldriver.MySQLError
+		if errors.As(err, &mysqlErr) {
+			return mysqlErr.Number, string(mysqlErr.SQLState[:]), mysqlErr.Message
+		}
+		return 0, "", ""
+	}
+
+	t.Run("1007_dup_database", func(t *testing.T) {
+		// Setup: create the database first, then try to create it again.
+		oracle.execSQL("DROP DATABASE IF EXISTS db_err_dup")
+		oracle.execSQL("CREATE DATABASE db_err_dup")
+
+		oracleErr := oracle.execSQL("CREATE DATABASE db_err_dup")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for duplicate CREATE DATABASE")
+		}
+		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
+		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+
+		if oracleCode != 1007 {
+			t.Fatalf("oracle: expected error code 1007, got %d", oracleCode)
+		}
+
+		// Run on omni.
+		c := New()
+		c.Exec("CREATE DATABASE db_err_dup", nil)
+		results, _ := c.Exec("CREATE DATABASE db_err_dup", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for duplicate CREATE DATABASE")
+		}
+		catErr, ok := results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+
+		// Compare error code.
+		if catErr.Code != int(oracleCode) {
+			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		}
+		// Compare SQLSTATE.
+		if catErr.SQLState != oracleState {
+			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		}
+		// Compare error message format.
+		// Oracle: "Can't create database 'db_err_dup'; database exists"
+		if catErr.Message != oracleMsg {
+			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+
+		oracle.execSQL("DROP DATABASE IF EXISTS db_err_dup")
+	})
+
+	t.Run("1049_unknown_database", func(t *testing.T) {
+		// USE a nonexistent database on oracle.
+		oracle.execSQL("DROP DATABASE IF EXISTS db_err_unknown_xyz")
+		oracleErr := oracle.execSQL("USE db_err_unknown_xyz")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for USE nonexistent database")
+		}
+		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
+		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+
+		if oracleCode != 1049 {
+			t.Fatalf("oracle: expected error code 1049, got %d", oracleCode)
+		}
+
+		// Run on omni: DROP DATABASE on nonexistent db triggers 1008, but
+		// we need to test the "Unknown database" error (1049).
+		// Use DROP DATABASE which should return 1008 in MySQL...
+		// Actually, let's check what MySQL returns for DROP DATABASE on nonexistent:
+		oracleErr2 := oracle.execSQL("DROP DATABASE db_err_unknown_xyz")
+		if oracleErr2 == nil {
+			t.Fatal("oracle: expected error for DROP nonexistent database")
+		}
+		oracleCode2, _, _ := extractMySQLErr(oracleErr2)
+		t.Logf("oracle DROP error code: %d", oracleCode2)
+
+		// For omni, test USE nonexistent database.
+		c := New()
+		results, _ := c.Exec("USE db_err_unknown_xyz", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for USE nonexistent database")
+		}
+		catErr, ok := results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+
+		// Compare error code.
+		if catErr.Code != int(oracleCode) {
+			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		}
+		// Compare SQLSTATE.
+		if catErr.SQLState != oracleState {
+			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		}
+		// Compare error message format.
+		if catErr.Message != oracleMsg {
+			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+	})
+
+	t.Run("1046_no_database_selected", func(t *testing.T) {
+		// On oracle, try to CREATE TABLE without selecting a database.
+		// We need a fresh connection with no default database.
+		// The oracle connection defaults to "test" database, so we'll
+		// test omni behavior and verify the error code/SQLSTATE/message match MySQL's known format.
+
+		// First verify MySQL's behavior: SELECT DATABASE() after no USE should work,
+		// but CREATE TABLE without database should fail.
+		// Since our oracle connection defaults to 'test' db, we verify omni matches MySQL's
+		// documented error format: ERROR 1046 (3D000): No database selected
+
+		// Run on omni with no current database.
+		c := New()
+		// Don't set any database — just try to create a table.
+		results, _ := c.Exec("CREATE TABLE t_no_db (id INT)", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for CREATE TABLE without database selected")
+		}
+		catErr, ok := results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+
+		// Verify against MySQL's documented error values.
+		wantCode := 1046
+		wantState := "3D000"
+		wantMsg := "No database selected"
+
+		if catErr.Code != wantCode {
+			t.Errorf("error code: got %d, want %d", catErr.Code, wantCode)
+		}
+		if catErr.SQLState != wantState {
+			t.Errorf("SQLSTATE: got %q, want %q", catErr.SQLState, wantState)
+		}
+		if catErr.Message != wantMsg {
+			t.Errorf("message: got %q, want %q", catErr.Message, wantMsg)
 		}
 	})
 }
