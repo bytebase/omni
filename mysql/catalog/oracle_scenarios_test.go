@@ -3606,3 +3606,112 @@ func TestOracle_Section_3_3_ColumnErrors(t *testing.T) {
 		}
 	})
 }
+
+func TestOracle_Section_3_4_IndexKeyErrors(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	// Helper to extract MySQL error code and message from go-sql-driver error.
+	extractMySQLErr := func(err error) (uint16, string, string) {
+		var mysqlErr *mysqldriver.MySQLError
+		if errors.As(err, &mysqlErr) {
+			return mysqlErr.Number, string(mysqlErr.SQLState[:]), mysqlErr.Message
+		}
+		return 0, "", ""
+	}
+
+	t.Run("1061_dup_key_name", func(t *testing.T) {
+		// Setup: create a table with an index, then try to add another index with the same name.
+		oracle.execSQL("DROP TABLE IF EXISTS t_dup_key")
+		oracle.execSQL("CREATE TABLE t_dup_key (a INT, b INT, KEY idx_a (a))")
+
+		oracleErr := oracle.execSQL("ALTER TABLE t_dup_key ADD INDEX idx_a (b)")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for duplicate key name")
+		}
+		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
+		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+
+		if oracleCode != 1061 {
+			t.Fatalf("oracle: expected error code 1061, got %d", oracleCode)
+		}
+
+		// Run on omni.
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE TABLE t_dup_key (a INT, b INT, KEY idx_a (a))", nil)
+		results, _ := c.Exec("ALTER TABLE t_dup_key ADD INDEX idx_a (b)", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for duplicate key name")
+		}
+		catErr, ok := results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+
+		// Compare error code.
+		if catErr.Code != int(oracleCode) {
+			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		}
+		// Compare SQLSTATE.
+		if catErr.SQLState != oracleState {
+			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		}
+		// Compare error message format.
+		if catErr.Message != oracleMsg {
+			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+
+		oracle.execSQL("DROP TABLE IF EXISTS t_dup_key")
+	})
+
+	t.Run("1091_cant_drop_key", func(t *testing.T) {
+		// Setup: create a table, then try to drop a nonexistent index.
+		oracle.execSQL("DROP TABLE IF EXISTS t_drop_key")
+		oracle.execSQL("CREATE TABLE t_drop_key (a INT)")
+
+		oracleErr := oracle.execSQL("ALTER TABLE t_drop_key DROP INDEX idx_nonexistent")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for dropping nonexistent key")
+		}
+		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
+		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+
+		if oracleCode != 1091 {
+			t.Fatalf("oracle: expected error code 1091, got %d", oracleCode)
+		}
+
+		// Run on omni.
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE TABLE t_drop_key (a INT)", nil)
+		results, _ := c.Exec("ALTER TABLE t_drop_key DROP INDEX idx_nonexistent", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for dropping nonexistent key")
+		}
+		catErr, ok := results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+
+		// Compare error code.
+		if catErr.Code != int(oracleCode) {
+			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		}
+		// Compare SQLSTATE.
+		if catErr.SQLState != oracleState {
+			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		}
+		// Compare error message format.
+		if catErr.Message != oracleMsg {
+			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+
+		oracle.execSQL("DROP TABLE IF EXISTS t_drop_key")
+	})
+}

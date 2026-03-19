@@ -464,8 +464,8 @@ Every error must match MySQL's errno, SQLSTATE, and message format.
 ### 3.4 Index/Key Errors
 
 ```
-[ ] 1061 (42000) Duplicate key name 'idx'
-[ ] 1091 (42000) Can't DROP 'idx'; check that column/key exists
+[x] 1061 (42000) Duplicate key name 'idx'
+[x] 1091 (42000) Can't DROP 'idx'; check that column/key exists
 ```
 
 ### 3.5 FK Errors

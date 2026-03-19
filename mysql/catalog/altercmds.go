@@ -390,6 +390,8 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		idxName := con.Name
 		if idxName == "" && len(cols) > 0 {
 			idxName = allocIndexName(tbl, cols[0])
+		} else if idxName != "" && indexNameExists(tbl, idxName) {
+			return errDupKeyName(idxName)
 		}
 		idxCols := buildIndexColumns(con)
 		tbl.Indexes = append(tbl.Indexes, &Index{
@@ -461,6 +463,8 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		idxName := con.Name
 		if idxName == "" && len(cols) > 0 {
 			idxName = allocIndexName(tbl, cols[0])
+		} else if idxName != "" && indexNameExists(tbl, idxName) {
+			return errDupKeyName(idxName)
 		}
 		idxCols := buildIndexColumns(con)
 		tbl.Indexes = append(tbl.Indexes, &Index{
@@ -475,6 +479,8 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		idxName := con.Name
 		if idxName == "" && len(cols) > 0 {
 			idxName = allocIndexName(tbl, cols[0])
+		} else if idxName != "" && indexNameExists(tbl, idxName) {
+			return errDupKeyName(idxName)
 		}
 		idxCols := buildIndexColumns(con)
 		tbl.Indexes = append(tbl.Indexes, &Index{
@@ -490,6 +496,8 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		idxName := con.Name
 		if idxName == "" && len(cols) > 0 {
 			idxName = allocIndexName(tbl, cols[0])
+		} else if idxName != "" && indexNameExists(tbl, idxName) {
+			return errDupKeyName(idxName)
 		}
 		idxCols := buildIndexColumns(con)
 		tbl.Indexes = append(tbl.Indexes, &Index{
@@ -522,11 +530,7 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if cmd.IfExists {
 			return nil
 		}
-		return &Error{
-			Code:     ErrDupKeyName,
-			SQLState: sqlState(ErrDupKeyName),
-			Message:  fmt.Sprintf("Can't DROP '%s'; check that column/key exists", name),
-		}
+		return errCantDropKey(name)
 	}
 
 	// Also remove any constraint that references this index.
@@ -560,11 +564,7 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 		if cmd.IfExists {
 			return nil
 		}
-		return &Error{
-			Code:     ErrDupKeyName,
-			SQLState: sqlState(ErrDupKeyName),
-			Message:  fmt.Sprintf("Can't DROP '%s'; check that column/key exists", name),
-		}
+		return errCantDropKey(name)
 	}
 
 	// For FK constraints, MySQL keeps the backing index when dropping the FK.
