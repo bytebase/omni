@@ -21,12 +21,25 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
 
-	// Check for duplicate table.
+	// Check for duplicate table or view with the same name.
 	if db.Tables[key] != nil {
 		if stmt.IfNotExists {
 			return nil
 		}
 		return errDupTable(tableName)
+	}
+	if db.Views[key] != nil {
+		return errDupTable(tableName)
+	}
+
+	// CREATE TABLE ... LIKE
+	if stmt.Like != nil {
+		return c.createTableLike(db, tableName, key, stmt)
+	}
+
+	// CREATE TABLE ... AS SELECT (CTAS) — not supported yet, skip silently
+	if stmt.Select != nil && len(stmt.Columns) == 0 {
+		return nil
 	}
 
 	tbl := &Table{
@@ -942,6 +955,115 @@ func isTextBlobLengthStripped(dt string) bool {
 // MySQL uses '' (two single quotes) to escape a single quote in enum values.
 func escapeEnumValue(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
+}
+
+// createTableLike implements CREATE TABLE t2 LIKE t1.
+// It copies the structure (columns, indexes, constraints) from the source table.
+func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nodes.CreateTableStmt) error {
+	// Resolve source table.
+	srcDBName := stmt.Like.Schema
+	srcDB, err := c.resolveDatabase(srcDBName)
+	if err != nil {
+		return err
+	}
+	srcTbl := srcDB.GetTable(stmt.Like.Name)
+	if srcTbl == nil {
+		return errNoSuchTable(srcDB.Name, stmt.Like.Name)
+	}
+
+	tbl := &Table{
+		Name:      tableName,
+		Database:  db,
+		Columns:   make([]*Column, 0, len(srcTbl.Columns)),
+		colByName: make(map[string]int),
+		Indexes:   make([]*Index, 0, len(srcTbl.Indexes)),
+		Constraints: make([]*Constraint, 0, len(srcTbl.Constraints)),
+		Engine:    srcTbl.Engine,
+		Charset:   srcTbl.Charset,
+		Collation: srcTbl.Collation,
+		Comment:   srcTbl.Comment,
+		RowFormat: srcTbl.RowFormat,
+		KeyBlockSize: srcTbl.KeyBlockSize,
+		Temporary: stmt.Temporary,
+	}
+
+	// Copy columns.
+	for i, srcCol := range srcTbl.Columns {
+		col := &Column{
+			Position:      srcCol.Position,
+			Name:          srcCol.Name,
+			DataType:      srcCol.DataType,
+			ColumnType:    srcCol.ColumnType,
+			Nullable:      srcCol.Nullable,
+			AutoIncrement: srcCol.AutoIncrement,
+			Charset:       srcCol.Charset,
+			Collation:     srcCol.Collation,
+			Comment:       srcCol.Comment,
+			OnUpdate:      srcCol.OnUpdate,
+			Invisible:     srcCol.Invisible,
+		}
+		if srcCol.Default != nil {
+			def := *srcCol.Default
+			col.Default = &def
+		}
+		if srcCol.Generated != nil {
+			col.Generated = &GeneratedColumnInfo{
+				Expr:   srcCol.Generated.Expr,
+				Stored: srcCol.Generated.Stored,
+			}
+		}
+		tbl.Columns = append(tbl.Columns, col)
+		tbl.colByName[toLower(col.Name)] = i
+	}
+
+	// Copy indexes.
+	for _, srcIdx := range srcTbl.Indexes {
+		idx := &Index{
+			Name:         srcIdx.Name,
+			Table:        tbl,
+			Unique:       srcIdx.Unique,
+			Primary:      srcIdx.Primary,
+			Fulltext:     srcIdx.Fulltext,
+			Spatial:      srcIdx.Spatial,
+			IndexType:    srcIdx.IndexType,
+			Visible:      srcIdx.Visible,
+			Comment:      srcIdx.Comment,
+			KeyBlockSize: srcIdx.KeyBlockSize,
+		}
+		cols := make([]*IndexColumn, len(srcIdx.Columns))
+		for i, sc := range srcIdx.Columns {
+			cols[i] = &IndexColumn{
+				Name:       sc.Name,
+				Length:     sc.Length,
+				Descending: sc.Descending,
+				Expr:       sc.Expr,
+			}
+		}
+		idx.Columns = cols
+		tbl.Indexes = append(tbl.Indexes, idx)
+	}
+
+	// Copy constraints.
+	for _, srcCon := range srcTbl.Constraints {
+		con := &Constraint{
+			Name:        srcCon.Name,
+			Type:        srcCon.Type,
+			Table:       tbl,
+			Columns:     append([]string{}, srcCon.Columns...),
+			IndexName:   srcCon.IndexName,
+			CheckExpr:   srcCon.CheckExpr,
+			NotEnforced: srcCon.NotEnforced,
+			RefDatabase: srcCon.RefDatabase,
+			RefTable:    srcCon.RefTable,
+			RefColumns:  append([]string{}, srcCon.RefColumns...),
+			OnDelete:    srcCon.OnDelete,
+			OnUpdate:    srcCon.OnUpdate,
+		}
+		tbl.Constraints = append(tbl.Constraints, con)
+	}
+
+	db.Tables[key] = tbl
+	return nil
 }
 
 func refActionToString(action nodes.ReferenceAction) string {

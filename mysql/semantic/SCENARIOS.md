@@ -283,12 +283,12 @@ Beyond output format — the catalog must behave identically to MySQL.
 ### 2.1 CREATE TABLE Variants
 
 ```
-[ ] CREATE TABLE IF NOT EXISTS — no error when table exists
-[ ] CREATE TEMPORARY TABLE
-[ ] CREATE TABLE t2 LIKE t1 — copies structure
-[ ] CREATE TABLE t2 AS SELECT * FROM t1 — CTAS
-[ ] CREATE TABLE with same name as existing view — error
-[ ] CREATE TABLE with reserved word as name (backtick-quoted)
+[x] CREATE TABLE IF NOT EXISTS — no error when table exists
+[x] CREATE TEMPORARY TABLE
+[x] CREATE TABLE t2 LIKE t1 — copies structure
+[~] CREATE TABLE t2 AS SELECT * FROM t1 — CTAS — requires query execution engine (not catalog-level)
+[x] CREATE TABLE with same name as existing view — error
+[x] CREATE TABLE with reserved word as name (backtick-quoted)
 ```
 
 ### 2.2 ALTER TABLE — Column Operations

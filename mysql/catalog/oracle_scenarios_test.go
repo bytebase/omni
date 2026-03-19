@@ -1208,3 +1208,136 @@ func TestOracle_Section_1_16_IndexOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestOracle_Section_2_1_CreateTableVariants(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	t.Run("if_not_exists_no_error", func(t *testing.T) {
+		oracle.execSQL("DROP TABLE IF EXISTS t_ine")
+		oracle.execSQL("CREATE TABLE t_ine (id INT)")
+
+		// Second CREATE with IF NOT EXISTS should not error on oracle.
+		oracleErr := oracle.execSQL("CREATE TABLE IF NOT EXISTS t_ine (id INT)")
+		if oracleErr != nil {
+			t.Fatalf("oracle error on IF NOT EXISTS: %v", oracleErr)
+		}
+
+		// Omni should also not error.
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE TABLE t_ine (id INT)", nil)
+		results, _ := c.Exec("CREATE TABLE IF NOT EXISTS t_ine (id INT)", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni error on IF NOT EXISTS: %v", results[0].Error)
+		}
+
+		// Compare SHOW CREATE TABLE.
+		oracleDDL, _ := oracle.showCreateTable("t_ine")
+		omniDDL := c.ShowCreateTable("test", "t_ine")
+		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
+				oracleDDL, omniDDL)
+		}
+	})
+
+	t.Run("temporary_table", func(t *testing.T) {
+		// MySQL SHOW CREATE TABLE for temporary tables shows "CREATE TEMPORARY TABLE".
+		oracle.execSQL("DROP TEMPORARY TABLE IF EXISTS t_temp")
+		err := oracle.execSQL("CREATE TEMPORARY TABLE t_temp (id INT, name VARCHAR(50))")
+		if err != nil {
+			t.Fatalf("oracle exec: %v", err)
+		}
+		oracleDDL, err := oracle.showCreateTable("t_temp")
+		if err != nil {
+			t.Fatalf("oracle show create: %v", err)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, _ := c.Exec("CREATE TEMPORARY TABLE t_temp (id INT, name VARCHAR(50))", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni exec error: %v", results[0].Error)
+		}
+		omniDDL := c.ShowCreateTable("test", "t_temp")
+
+		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
+				oracleDDL, omniDDL)
+		}
+	})
+
+	t.Run("create_table_like", func(t *testing.T) {
+		oracle.execSQL("DROP TABLE IF EXISTS t_like_dst")
+		oracle.execSQL("DROP TABLE IF EXISTS t_like_src")
+		oracle.execSQL("CREATE TABLE t_like_src (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL DEFAULT '', score DECIMAL(10,2))")
+		err := oracle.execSQL("CREATE TABLE t_like_dst LIKE t_like_src")
+		if err != nil {
+			t.Fatalf("oracle exec: %v", err)
+		}
+		oracleDDL, _ := oracle.showCreateTable("t_like_dst")
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE TABLE t_like_src (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL DEFAULT '', score DECIMAL(10,2))", nil)
+		results, _ := c.Exec("CREATE TABLE t_like_dst LIKE t_like_src", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni exec error: %v", results[0].Error)
+		}
+		omniDDL := c.ShowCreateTable("test", "t_like_dst")
+
+		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
+				oracleDDL, omniDDL)
+		}
+	})
+
+	t.Run("create_table_with_view_name_conflict", func(t *testing.T) {
+		// Creating a table with same name as an existing view should error.
+		oracle.execSQL("DROP TABLE IF EXISTS t_view_conflict")
+		oracle.execSQL("DROP VIEW IF EXISTS t_view_conflict")
+		oracle.execSQL("CREATE VIEW t_view_conflict AS SELECT 1 AS a")
+		oracleErr := oracle.execSQL("CREATE TABLE t_view_conflict (id INT)")
+		if oracleErr == nil {
+			t.Fatal("expected oracle error when creating table with same name as view")
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE VIEW t_view_conflict AS SELECT 1 AS a", nil)
+		results, _ := c.Exec("CREATE TABLE t_view_conflict (id INT)", nil)
+		if results[0].Error == nil {
+			t.Fatal("expected omni error when creating table with same name as view")
+		}
+	})
+
+	t.Run("reserved_word_as_name", func(t *testing.T) {
+		oracle.execSQL("DROP TABLE IF EXISTS `select`")
+		err := oracle.execSQL("CREATE TABLE `select` (`from` INT, `where` VARCHAR(50))")
+		if err != nil {
+			t.Fatalf("oracle exec: %v", err)
+		}
+		oracleDDL, _ := oracle.showCreateTable("`select`")
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, _ := c.Exec("CREATE TABLE `select` (`from` INT, `where` VARCHAR(50))", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni exec error: %v", results[0].Error)
+		}
+		omniDDL := c.ShowCreateTable("test", "select")
+
+		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
+				oracleDDL, omniDDL)
+		}
+	})
+}

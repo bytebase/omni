@@ -46,7 +46,11 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	}
 
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("CREATE TABLE `%s` (\n", tbl.Name))
+	if tbl.Temporary {
+		b.WriteString(fmt.Sprintf("CREATE TEMPORARY TABLE `%s` (\n", tbl.Name))
+	} else {
+		b.WriteString(fmt.Sprintf("CREATE TABLE `%s` (\n", tbl.Name))
+	}
 
 	// Columns.
 	parts := make([]string, 0, len(tbl.Columns)+len(tbl.Indexes)+len(tbl.Constraints))
