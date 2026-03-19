@@ -57,6 +57,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			fmt.Sscanf(opt.Value, "%d", &tbl.AutoIncrement)
 		case "row_format":
 			tbl.RowFormat = opt.Value
+		case "key_block_size":
+			fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
 		}
 	}
 

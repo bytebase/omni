@@ -88,22 +88,24 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("`%s` %s", col.Name, col.ColumnType))
 
-	// CHARACTER SET and COLLATE — shown only when different from table defaults.
+	// CHARACTER SET and COLLATE — MySQL 8.0 display rules:
+	// - CHARACTER SET shown when column charset differs from table charset
+	// - COLLATE shown when column collation differs from the charset's default collation
 	if isStringType(col.DataType) || isEnumSetType(col.DataType) {
 		tableCharset := ""
-		tableCollation := ""
 		if tbl != nil {
 			tableCharset = tbl.Charset
-			tableCollation = tbl.Collation
-			// Resolve default collation for table charset if not set.
-			if tableCollation == "" && tableCharset != "" {
-				if dc, ok := defaultCollationForCharset[toLower(tableCharset)]; ok {
-					tableCollation = dc
-				}
+		}
+		// Resolve the default collation for the column's charset.
+		colCharsetDefault := ""
+		if col.Charset != "" {
+			if dc, ok := defaultCollationForCharset[toLower(col.Charset)]; ok {
+				colCharsetDefault = dc
 			}
 		}
 		showCharset := col.Charset != "" && !eqFoldStr(col.Charset, tableCharset)
-		showCollation := col.Collation != "" && !eqFoldStr(col.Collation, tableCollation)
+		// Show COLLATE when the column's collation differs from its charset's default.
+		showCollation := col.Collation != "" && !eqFoldStr(col.Collation, colCharsetDefault)
 		if showCharset {
 			b.WriteString(fmt.Sprintf(" CHARACTER SET %s", col.Charset))
 			// When charset differs from table, MySQL always shows collation too
@@ -111,9 +113,8 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 			if !showCollation && col.Collation != "" {
 				b.WriteString(fmt.Sprintf(" COLLATE %s", col.Collation))
 			} else if !showCollation {
-				// Resolve default collation for the column's charset.
-				if dc, ok := defaultCollationForCharset[toLower(col.Charset)]; ok {
-					b.WriteString(fmt.Sprintf(" COLLATE %s", dc))
+				if colCharsetDefault != "" {
+					b.WriteString(fmt.Sprintf(" COLLATE %s", colCharsetDefault))
 				}
 			}
 		}
@@ -352,18 +353,41 @@ func showTableOptions(tbl *Table) string {
 		parts = append(parts, fmt.Sprintf("ENGINE=%s", tbl.Engine))
 	}
 
+	// AUTO_INCREMENT — shown only when > 1.
+	if tbl.AutoIncrement > 1 {
+		parts = append(parts, fmt.Sprintf("AUTO_INCREMENT=%d", tbl.AutoIncrement))
+	}
+
 	if tbl.Charset != "" {
 		parts = append(parts, fmt.Sprintf("DEFAULT CHARSET=%s", tbl.Charset))
 	}
 
-	// MySQL 8.0 always shows COLLATE in SHOW CREATE TABLE.
-	if tbl.Collation != "" {
-		parts = append(parts, fmt.Sprintf("COLLATE=%s", tbl.Collation))
-	} else if tbl.Charset != "" {
-		// If no explicit collation, show the default for the charset.
-		if defColl, ok := defaultCollationForCharset[toLower(tbl.Charset)]; ok {
-			parts = append(parts, fmt.Sprintf("COLLATE=%s", defColl))
+	// MySQL 8.0 shows COLLATE when:
+	// - The collation differs from the charset's default, OR
+	// - The table charset matches the database charset (collation was inherited/explicit)
+	if tbl.Charset != "" {
+		effectiveCollation := tbl.Collation
+		if effectiveCollation == "" {
+			effectiveCollation = defaultCollationForCharset[toLower(tbl.Charset)]
 		}
+		defColl := defaultCollationForCharset[toLower(tbl.Charset)]
+		isNonDefaultCollation := effectiveCollation != "" && !eqFoldStr(effectiveCollation, defColl)
+		sameAsDBCharset := tbl.Database != nil && eqFoldStr(tbl.Charset, tbl.Database.Charset)
+		if isNonDefaultCollation || sameAsDBCharset {
+			if effectiveCollation != "" {
+				parts = append(parts, fmt.Sprintf("COLLATE=%s", effectiveCollation))
+			}
+		}
+	}
+
+	// KEY_BLOCK_SIZE — shown when non-zero.
+	if tbl.KeyBlockSize > 0 {
+		parts = append(parts, fmt.Sprintf("KEY_BLOCK_SIZE=%d", tbl.KeyBlockSize))
+	}
+
+	// ROW_FORMAT — shown when explicitly set.
+	if tbl.RowFormat != "" {
+		parts = append(parts, fmt.Sprintf("ROW_FORMAT=%s", strings.ToUpper(tbl.RowFormat)))
 	}
 
 	if tbl.Comment != "" {
@@ -394,6 +418,6 @@ func eqFoldStr(a, b string) bool {
 
 func escapeComment(s string) string {
 	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, "'", "\\'")
+	s = strings.ReplaceAll(s, "'", "''")
 	return s
 }

@@ -248,19 +248,19 @@ The foundation — our output must be byte-for-byte identical to MySQL 8.0.
 ### 1.19 Table Options
 
 ```
-[ ] ENGINE=InnoDB (default)
-[ ] ENGINE=MyISAM
-[ ] ENGINE=MEMORY
-[ ] DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-[ ] DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
-[ ] DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci (non-default collation)
-[ ] COMMENT='table description'
-[ ] COMMENT with special chars (quotes, backslash)
-[ ] ROW_FORMAT=DYNAMIC
-[ ] ROW_FORMAT=COMPRESSED
-[ ] AUTO_INCREMENT=1000 (shown only if > 1)
-[ ] KEY_BLOCK_SIZE=8
-[ ] Multiple options ordering in output
+[x] ENGINE=InnoDB (default)
+[x] ENGINE=MyISAM
+[x] ENGINE=MEMORY
+[x] DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[x] DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+[x] DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci (non-default collation)
+[x] COMMENT='table description'
+[x] COMMENT with special chars (quotes, backslash)
+[x] ROW_FORMAT=DYNAMIC
+[x] ROW_FORMAT=COMPRESSED
+[x] AUTO_INCREMENT=1000 (shown only if > 1)
+[x] KEY_BLOCK_SIZE=8
+[x] Multiple options ordering in output
 ```
 
 ### 1.20 Charset/Collation Inheritance
