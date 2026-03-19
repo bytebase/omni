@@ -143,14 +143,14 @@ The foundation — our output must be byte-for-byte identical to MySQL 8.0.
 ### 1.10 Column Attributes Combination
 
 ```
-[ ] INT NOT NULL AUTO_INCREMENT
-[ ] BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
-[ ] VARCHAR(100) NOT NULL DEFAULT ''
-[ ] VARCHAR(100) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL
-[ ] INT NOT NULL COMMENT 'user id'
-[ ] VARCHAR(255) INVISIBLE (8.0.23+)
-[ ] INT VISIBLE (should not show VISIBLE — it's the default)
-[ ] Column with all: INT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'count'
+[x] INT NOT NULL AUTO_INCREMENT
+[x] BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+[x] VARCHAR(100) NOT NULL DEFAULT ''
+[x] VARCHAR(100) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL
+[x] INT NOT NULL COMMENT 'user id'
+[x] VARCHAR(255) INVISIBLE (8.0.23+)
+[x] INT VISIBLE (should not show VISIBLE — it's the default)
+[x] Column with all: INT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'count'
 ```
 
 ### 1.11 Primary Key
@@ -625,10 +625,10 @@ Every error must match MySQL's errno, SQLSTATE, and message format.
 
 | Phase | Total | Done | % |
 |-------|-------|------|---|
-| 1. SHOW CREATE TABLE Precision | ~130 | 51 | 39% |
+| 1. SHOW CREATE TABLE Precision | ~130 | 59 | 45% |
 | 2. DDL Behavior Precision | ~75 | ~30 | 40% |
 | 3. Error Precision | ~18 | ~8 | 44% |
 | 4. Advanced DDL | ~25 | 0 | 0% |
 | 5. Session & System | ~12 | 0 | 0% |
 | 6. Query APIs | ~15 | 5 | 33% |
-| **Total** | **~275** | **~94** | **~34%** |
+| **Total** | **~275** | **~102** | **~37%** |
