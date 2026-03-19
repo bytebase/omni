@@ -1,0 +1,634 @@
+# MySQL Catalog Compatibility Scenarios
+
+> Ultimate goal: every scenario passes oracle testing against real MySQL 8.0.
+> Verification surface: `SHOW CREATE TABLE` output exact match + error code/message match.
+
+Status legend: `[ ]` pending, `[x]` passing, `[~]` partial, `[-]` not applicable
+
+---
+
+## Phase 1: SHOW CREATE TABLE Precision
+
+The foundation — our output must be byte-for-byte identical to MySQL 8.0.
+
+### 1.1 Numeric Types
+
+```
+[x] INT / INTEGER
+[x] INT(11) — display width (deprecated 8.0.17+ but still shown)
+[x] INT UNSIGNED
+[x] INT UNSIGNED ZEROFILL
+[x] TINYINT, SMALLINT, MEDIUMINT, BIGINT
+[x] BIGINT UNSIGNED (common for IDs)
+[x] FLOAT
+[x] FLOAT(7,3)
+[x] FLOAT UNSIGNED
+[x] DOUBLE / DOUBLE PRECISION
+[x] DOUBLE(15,5)
+[x] DECIMAL(10,2) / NUMERIC(10,2)
+[x] DECIMAL (no precision — MySQL shows DECIMAL(10,0))
+[x] BOOLEAN / BOOL (→ tinyint(1))
+[x] BIT(1), BIT(8), BIT(64)
+[x] SERIAL (→ BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE)
+```
+
+### 1.2 String Types
+
+```
+[ ] CHAR(10)
+[ ] CHAR (no length → CHAR(1))
+[ ] VARCHAR(255)
+[ ] VARCHAR(16383) — max for utf8mb4
+[ ] TINYTEXT, TEXT, MEDIUMTEXT, LONGTEXT
+[ ] TEXT(1000) — display shows TEXT, not TEXT(1000)
+[ ] ENUM('a','b','c')
+[ ] ENUM with special characters in values (quotes, commas)
+[ ] SET('x','y','z')
+[ ] CHAR with CHARACTER SET latin1
+[ ] VARCHAR with CHARACTER SET utf8mb3 COLLATE utf8mb3_bin
+[ ] NATIONAL CHAR / NCHAR / NVARCHAR
+```
+
+### 1.3 Binary Types
+
+```
+[ ] BINARY(16)
+[ ] BINARY (no length → BINARY(1))
+[ ] VARBINARY(255)
+[ ] TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB
+[ ] BLOB(1000) — display shows BLOB, not BLOB(1000)
+```
+
+### 1.4 Date/Time Types
+
+```
+[ ] DATE
+[ ] TIME
+[ ] TIME(3) — fractional seconds
+[ ] DATETIME
+[ ] DATETIME(6)
+[ ] TIMESTAMP
+[ ] TIMESTAMP(3)
+[ ] YEAR
+[ ] YEAR(4) — same as YEAR
+```
+
+### 1.5 Spatial Types
+
+```
+[ ] GEOMETRY
+[ ] POINT
+[ ] LINESTRING
+[ ] POLYGON
+[ ] MULTIPOINT, MULTILINESTRING, MULTIPOLYGON
+[ ] GEOMETRYCOLLECTION
+[ ] POINT NOT NULL SRID 4326
+```
+
+### 1.6 JSON Type
+
+```
+[ ] JSON
+[ ] JSON DEFAULT NULL — should NOT show DEFAULT NULL (like TEXT/BLOB)
+```
+
+### 1.7 Default Values
+
+```
+[ ] INT DEFAULT 0 → DEFAULT '0' (quoted)
+[ ] INT DEFAULT NULL
+[ ] INT NOT NULL (no default shown)
+[ ] VARCHAR DEFAULT 'hello'
+[ ] VARCHAR DEFAULT '' (empty string)
+[ ] FLOAT DEFAULT 3.14 → DEFAULT '3.14'
+[ ] DECIMAL(10,2) DEFAULT 0.00 → DEFAULT '0.00'
+[ ] BOOLEAN DEFAULT TRUE → tinyint(1) DEFAULT '1'
+[ ] BOOLEAN DEFAULT FALSE → tinyint(1) DEFAULT '0'
+[ ] ENUM DEFAULT 'a'
+[ ] SET DEFAULT 'x,y'
+[ ] BIT(8) DEFAULT b'00001111'
+[ ] BLOB/TEXT — no DEFAULT NULL shown
+[ ] JSON — no DEFAULT NULL shown
+[ ] TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+[ ] DATETIME DEFAULT CURRENT_TIMESTAMP
+[ ] TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP(3)
+[ ] Expression default (8.0.13+): INT DEFAULT (FLOOR(RAND()*100))
+[ ] Expression default: JSON DEFAULT (JSON_ARRAY())
+[ ] Expression default: VARCHAR DEFAULT (UUID())
+[ ] DATETIME DEFAULT '2024-01-01 00:00:00'
+[ ] DATE DEFAULT '2024-01-01'
+```
+
+### 1.8 ON UPDATE
+
+```
+[ ] TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+[ ] DATETIME(3) ON UPDATE CURRENT_TIMESTAMP(3)
+[ ] TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+[ ] DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
+```
+
+### 1.9 Generated Columns
+
+```
+[ ] INT GENERATED ALWAYS AS (col1 + col2) VIRTUAL
+[ ] INT GENERATED ALWAYS AS (col1 * col2) STORED
+[ ] VARCHAR(255) AS (CONCAT(first_name, ' ', last_name)) VIRTUAL
+[ ] Generated column with NOT NULL
+[ ] Generated column with COMMENT
+[ ] Generated column with INVISIBLE
+[ ] JSON GENERATED ALWAYS AS (JSON_EXTRACT(data, '$.name'))
+```
+
+### 1.10 Column Attributes Combination
+
+```
+[ ] INT NOT NULL AUTO_INCREMENT
+[ ] BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+[ ] VARCHAR(100) NOT NULL DEFAULT ''
+[ ] VARCHAR(100) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL
+[ ] INT NOT NULL COMMENT 'user id'
+[ ] VARCHAR(255) INVISIBLE (8.0.23+)
+[ ] INT VISIBLE (should not show VISIBLE — it's the default)
+[ ] Column with all: INT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'count'
+```
+
+### 1.11 Primary Key
+
+```
+[ ] Single column PK: PRIMARY KEY (id)
+[ ] Multi-column PK: PRIMARY KEY (a, b)
+[ ] PK on BIGINT UNSIGNED AUTO_INCREMENT
+[ ] PK column ordering in SHOW CREATE TABLE
+[ ] PK implicitly makes columns NOT NULL
+[ ] PK name is never shown (always PRIMARY KEY, not KEY `PRIMARY`)
+```
+
+### 1.12 Unique Keys
+
+```
+[ ] UNIQUE KEY `name` (col)
+[ ] UNIQUE KEY without name → auto-named from first column
+[ ] Multi-column UNIQUE KEY
+[ ] Multiple UNIQUE KEYs on same table
+[ ] UNIQUE KEY auto-naming collision (col, col_2, col_3)
+```
+
+### 1.13 Regular Indexes
+
+```
+[ ] KEY `idx_name` (col)
+[ ] KEY without name → auto-named
+[ ] Multi-column KEY
+[ ] KEY with prefix length: KEY `idx` (col(10))
+[ ] KEY with DESC: KEY `idx` (col DESC) (8.0+)
+[ ] KEY with mixed ASC/DESC: KEY `idx` (a ASC, b DESC)
+[ ] USING HASH — shown only for non-BTREE
+[ ] USING BTREE — not shown (default)
+```
+
+### 1.14 Fulltext and Spatial Indexes
+
+```
+[ ] FULLTEXT KEY `ft_idx` (col)
+[ ] FULLTEXT KEY on multiple TEXT columns
+[ ] FULLTEXT KEY auto-naming
+[ ] SPATIAL KEY `sp_idx` (geo_col)
+```
+
+### 1.15 Expression Indexes (8.0.13+)
+
+```
+[ ] KEY `idx` ((UPPER(name)))
+[ ] KEY `idx` ((col1 + col2))
+[ ] UNIQUE KEY on expression
+[ ] Expression index display format in SHOW CREATE TABLE
+```
+
+### 1.16 Index Options
+
+```
+[ ] INDEX with COMMENT 'description'
+[ ] INDEX INVISIBLE (8.0+)
+[ ] INDEX VISIBLE — not shown (default)
+[ ] INDEX with KEY_BLOCK_SIZE=4
+```
+
+### 1.17 Foreign Keys
+
+```
+[ ] Basic FK: FOREIGN KEY (col) REFERENCES parent(id)
+[ ] FK with name: CONSTRAINT `fk_name` FOREIGN KEY ...
+[ ] FK ON DELETE CASCADE
+[ ] FK ON DELETE SET NULL
+[ ] FK ON DELETE SET DEFAULT
+[ ] FK ON DELETE RESTRICT — not shown (MySQL default)
+[ ] FK ON DELETE NO ACTION — not shown (MySQL default)
+[ ] FK ON UPDATE CASCADE
+[ ] FK ON UPDATE SET NULL
+[ ] FK combined: ON DELETE CASCADE ON UPDATE SET NULL
+[ ] FK auto-naming: table_ibfk_1, table_ibfk_2
+[ ] FK auto-generates backing index (KEY `fk_name` (col))
+[ ] FK self-referencing: REFERENCES same_table(id)
+[ ] FK multi-column: FOREIGN KEY (a, b) REFERENCES parent(x, y)
+[ ] FK to different database: explicit schema qualification
+```
+
+### 1.18 Check Constraints (8.0.16+)
+
+```
+[ ] CHECK (col > 0)
+[ ] CHECK with name: CONSTRAINT `chk_name` CHECK (col > 0)
+[ ] CHECK NOT ENFORCED → /*!80016 NOT ENFORCED */
+[ ] CHECK auto-naming: table_chk_1, table_chk_2
+[ ] CHECK expression display format (parenthesization)
+[ ] CHECK referencing multiple columns
+```
+
+### 1.19 Table Options
+
+```
+[ ] ENGINE=InnoDB (default)
+[ ] ENGINE=MyISAM
+[ ] ENGINE=MEMORY
+[ ] DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[ ] DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+[ ] DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci (non-default collation)
+[ ] COMMENT='table description'
+[ ] COMMENT with special chars (quotes, backslash)
+[ ] ROW_FORMAT=DYNAMIC
+[ ] ROW_FORMAT=COMPRESSED
+[ ] AUTO_INCREMENT=1000 (shown only if > 1)
+[ ] KEY_BLOCK_SIZE=8
+[ ] Multiple options ordering in output
+```
+
+### 1.20 Charset/Collation Inheritance
+
+```
+[ ] Table charset inherited from database
+[ ] Column charset inherited from table
+[ ] Column charset overrides table charset
+[ ] Column collation overrides table collation
+[ ] Column charset/collation display rules (when shown vs omitted)
+[ ] Binary charset on column
+```
+
+---
+
+## Phase 2: DDL Behavior Precision
+
+Beyond output format — the catalog must behave identically to MySQL.
+
+### 2.1 CREATE TABLE Variants
+
+```
+[ ] CREATE TABLE IF NOT EXISTS — no error when table exists
+[ ] CREATE TEMPORARY TABLE
+[ ] CREATE TABLE t2 LIKE t1 — copies structure
+[ ] CREATE TABLE t2 AS SELECT * FROM t1 — CTAS
+[ ] CREATE TABLE with same name as existing view — error
+[ ] CREATE TABLE with reserved word as name (backtick-quoted)
+```
+
+### 2.2 ALTER TABLE — Column Operations
+
+```
+[ ] ADD COLUMN at end
+[ ] ADD COLUMN FIRST
+[ ] ADD COLUMN AFTER specific_col
+[ ] ADD multiple columns in one ALTER
+[ ] DROP COLUMN
+[ ] DROP COLUMN that's part of an index → index removed or shrunk
+[ ] DROP COLUMN that's the only column in an index → index removed
+[ ] DROP COLUMN that's part of PK → error
+[ ] DROP COLUMN that's referenced by FK → error
+[ ] DROP COLUMN IF EXISTS
+[ ] MODIFY COLUMN — change type, keep name
+[ ] MODIFY COLUMN — widen VARCHAR
+[ ] MODIFY COLUMN — narrow VARCHAR (data truncation warning in real MySQL)
+[ ] MODIFY COLUMN — change INT to BIGINT
+[ ] MODIFY COLUMN — add NOT NULL
+[ ] MODIFY COLUMN — remove NOT NULL
+[ ] MODIFY COLUMN FIRST / AFTER
+[ ] CHANGE COLUMN — rename + change type
+[ ] CHANGE COLUMN — same name, different type
+[ ] CHANGE COLUMN — update index column references
+[ ] RENAME COLUMN old TO new
+[ ] RENAME COLUMN — update index column references
+[ ] ALTER COLUMN col SET DEFAULT value
+[ ] ALTER COLUMN col DROP DEFAULT
+[ ] ALTER COLUMN col SET VISIBLE
+[ ] ALTER COLUMN col SET INVISIBLE
+```
+
+### 2.3 ALTER TABLE — Index Operations
+
+```
+[ ] ADD INDEX idx_name (col)
+[ ] ADD UNIQUE INDEX
+[ ] ADD FULLTEXT INDEX
+[ ] ADD PRIMARY KEY
+[ ] ADD PRIMARY KEY when one already exists → error 1068
+[ ] DROP INDEX idx_name
+[ ] DROP INDEX IF EXISTS
+[ ] DROP PRIMARY KEY
+[ ] RENAME INDEX old TO new
+[ ] ALTER INDEX idx VISIBLE
+[ ] ALTER INDEX idx INVISIBLE
+```
+
+### 2.4 ALTER TABLE — Constraint Operations
+
+```
+[ ] ADD CONSTRAINT fk FOREIGN KEY ...
+[ ] ADD CHECK (expr)
+[ ] DROP FOREIGN KEY fk_name
+[ ] DROP CHECK chk_name
+[ ] DROP CONSTRAINT name (generic)
+[ ] ALTER CHECK name ENFORCED
+[ ] ALTER CHECK name NOT ENFORCED
+```
+
+### 2.5 ALTER TABLE — Table-level
+
+```
+[ ] RENAME TO new_name
+[ ] ENGINE=MyISAM (change engine)
+[ ] CONVERT TO CHARACTER SET utf8mb4
+[ ] DEFAULT CHARACTER SET latin1
+[ ] COMMENT='new comment'
+[ ] AUTO_INCREMENT=1000
+[ ] ROW_FORMAT=COMPRESSED
+```
+
+### 2.6 DROP TABLE
+
+```
+[ ] DROP TABLE t1
+[ ] DROP TABLE IF EXISTS t1
+[ ] DROP TABLE t1, t2, t3 — multi-table
+[ ] DROP TABLE nonexistent → error 1051
+[ ] DROP TEMPORARY TABLE
+[ ] DROP TABLE that has FK references → error (without foreign_key_checks=0)
+```
+
+### 2.7 TRUNCATE TABLE
+
+```
+[ ] TRUNCATE TABLE t1
+[ ] TRUNCATE resets AUTO_INCREMENT
+[ ] TRUNCATE nonexistent table → error
+```
+
+### 2.8 CREATE/DROP INDEX (standalone)
+
+```
+[ ] CREATE INDEX idx ON t (col)
+[ ] CREATE UNIQUE INDEX
+[ ] CREATE FULLTEXT INDEX
+[ ] CREATE SPATIAL INDEX
+[ ] CREATE INDEX IF NOT EXISTS
+[ ] CREATE INDEX — duplicate name → error 1061
+[ ] DROP INDEX idx ON t
+[ ] DROP INDEX nonexistent → error 1091
+```
+
+### 2.9 RENAME TABLE
+
+```
+[ ] RENAME TABLE t1 TO t2
+[ ] RENAME TABLE t1 TO db2.t1 (cross-database)
+[ ] RENAME TABLE t1 TO t2, t3 TO t4 (multi-pair)
+[ ] RENAME TABLE nonexistent → error
+[ ] RENAME TABLE to existing name → error
+```
+
+### 2.10 CREATE/DROP VIEW
+
+```
+[ ] CREATE VIEW v AS SELECT ...
+[ ] CREATE OR REPLACE VIEW
+[ ] CREATE VIEW with column list
+[ ] CREATE VIEW with ALGORITHM, DEFINER, SQL_SECURITY
+[ ] CREATE VIEW with CHECK OPTION
+[ ] DROP VIEW v
+[ ] DROP VIEW IF EXISTS
+[ ] DROP VIEW v1, v2 (multi-view)
+```
+
+### 2.11 CREATE/DROP/ALTER DATABASE
+
+```
+[ ] CREATE DATABASE db
+[ ] CREATE DATABASE IF NOT EXISTS
+[ ] CREATE DATABASE with CHARACTER SET
+[ ] CREATE DATABASE with COLLATE
+[ ] DROP DATABASE db
+[ ] DROP DATABASE IF EXISTS
+[ ] ALTER DATABASE db CHARACTER SET utf8mb4
+[ ] ALTER DATABASE db COLLATE utf8mb4_unicode_ci
+[ ] Operations on nonexistent database → proper errors
+```
+
+---
+
+## Phase 3: Error Precision
+
+Every error must match MySQL's errno, SQLSTATE, and message format.
+
+### 3.1 Database Errors
+
+```
+[ ] 1007 (HY000) Can't create database 'db'; database exists
+[ ] 1049 (42000) Unknown database 'db'
+[ ] 1046 (3D000) No database selected
+```
+
+### 3.2 Table Errors
+
+```
+[ ] 1050 (42S01) Table 'tbl' already exists
+[ ] 1051 (42S02) Unknown table 'db.tbl'
+[ ] 1146 (42S02) Table 'db.tbl' doesn't exist
+```
+
+### 3.3 Column Errors
+
+```
+[ ] 1054 (42S22) Unknown column 'col' in 'table definition'
+[ ] 1060 (42S21) Duplicate column name 'col'
+[ ] 1068 (42000) Multiple primary key defined
+```
+
+### 3.4 Index/Key Errors
+
+```
+[ ] 1061 (42000) Duplicate key name 'idx'
+[ ] 1091 (42000) Can't DROP 'idx'; check that column/key exists
+```
+
+### 3.5 FK Errors
+
+```
+[ ] 1824 (HY000) Failed to open the referenced table 'tbl'
+[ ] 1822 (HY000) A foreign key constraint fails
+[ ] FK column type mismatch detection
+```
+
+### 3.6 Error Context
+
+```
+[ ] Error message identifier quoting matches MySQL
+[ ] Error position (line number) for multi-statement SQL
+[ ] IF EXISTS suppresses errors correctly
+[ ] IF NOT EXISTS suppresses errors correctly
+```
+
+---
+
+## Phase 4: Advanced DDL
+
+### 4.1 Partitioning
+
+```
+[ ] PARTITION BY RANGE (col)
+[ ] PARTITION BY RANGE COLUMNS (col)
+[ ] PARTITION BY LIST (col)
+[ ] PARTITION BY HASH (col)
+[ ] PARTITION BY KEY (col)
+[ ] LINEAR HASH
+[ ] SUBPARTITION
+[ ] SHOW CREATE TABLE output for partitioned tables
+[ ] ALTER TABLE ADD PARTITION
+[ ] ALTER TABLE DROP PARTITION
+[ ] ALTER TABLE REORGANIZE PARTITION
+[ ] ALTER TABLE TRUNCATE PARTITION
+[ ] ALTER TABLE COALESCE PARTITION
+[ ] ALTER TABLE EXCHANGE PARTITION
+```
+
+### 4.2 Stored Routines
+
+```
+[ ] CREATE FUNCTION — store metadata (name, params, return type, body)
+[ ] CREATE PROCEDURE — store metadata
+[ ] DROP FUNCTION / PROCEDURE
+[ ] ALTER ROUTINE (characteristics only)
+[ ] SHOW CREATE FUNCTION output
+[ ] SHOW CREATE PROCEDURE output
+```
+
+### 4.3 Triggers
+
+```
+[ ] CREATE TRIGGER — store metadata (name, timing, event, table, body)
+[ ] DROP TRIGGER
+[ ] SHOW CREATE TRIGGER output
+[ ] Multiple triggers per table/event (MySQL 8.0 supports ordering)
+```
+
+### 4.4 Events
+
+```
+[ ] CREATE EVENT — store metadata
+[ ] ALTER EVENT
+[ ] DROP EVENT
+[ ] SHOW CREATE EVENT output
+```
+
+### 4.5 Views — Deep
+
+```
+[ ] ALTER VIEW
+[ ] View dependency tracking (base table dropped → view invalid)
+[ ] SHOW CREATE VIEW output format
+[ ] View with column aliases
+```
+
+---
+
+## Phase 5: Session & System Behavior
+
+### 5.1 USE Statement
+
+```
+[ ] USE db — sets current database
+[ ] USE nonexistent → error 1049
+```
+
+### 5.2 SET Variables (affecting DDL behavior)
+
+```
+[ ] SET foreign_key_checks = 0 — skip FK validation
+[ ] SET foreign_key_checks = 1 — enforce FK validation
+[ ] SET NAMES utf8mb4
+[ ] SET CHARACTER SET utf8mb4
+[ ] SET sql_mode (affects parsing and behavior)
+```
+
+### 5.3 User/Role Management
+
+```
+[ ] CREATE USER 'user'@'host'
+[ ] DROP USER
+[ ] ALTER USER
+[ ] CREATE ROLE
+[ ] DROP ROLE
+[ ] GRANT privileges
+[ ] REVOKE privileges
+```
+
+---
+
+## Phase 6: Query APIs
+
+### 6.1 SHOW CREATE TABLE
+
+```
+[x] Basic table output
+[x] Column formatting
+[x] Index formatting
+[x] Constraint formatting
+[x] Table options
+[ ] All data types (Phase 1.1-1.6)
+[ ] All default value forms (Phase 1.7)
+[ ] All index types (Phase 1.13-1.16)
+[ ] All constraint forms (Phase 1.17-1.18)
+[ ] Partitioned table output (Phase 4.1)
+```
+
+### 6.2 SHOW CREATE VIEW/FUNCTION/PROCEDURE/TRIGGER/EVENT
+
+```
+[ ] SHOW CREATE VIEW
+[ ] SHOW CREATE FUNCTION
+[ ] SHOW CREATE PROCEDURE
+[ ] SHOW CREATE TRIGGER
+[ ] SHOW CREATE EVENT
+```
+
+### 6.3 INFORMATION_SCHEMA Consistency
+
+```
+[ ] INFORMATION_SCHEMA.COLUMNS matches catalog state
+[ ] INFORMATION_SCHEMA.STATISTICS matches catalog indexes
+[ ] INFORMATION_SCHEMA.TABLE_CONSTRAINTS matches
+[ ] INFORMATION_SCHEMA.KEY_COLUMN_USAGE matches
+[ ] INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS matches
+[ ] INFORMATION_SCHEMA.CHECK_CONSTRAINTS matches
+```
+
+---
+
+## Progress Tracking
+
+| Phase | Total | Done | % |
+|-------|-------|------|---|
+| 1. SHOW CREATE TABLE Precision | ~130 | 29 | 22% |
+| 2. DDL Behavior Precision | ~75 | ~30 | 40% |
+| 3. Error Precision | ~18 | ~8 | 44% |
+| 4. Advanced DDL | ~25 | 0 | 0% |
+| 5. Session & System | ~12 | 0 | 0% |
+| 6. Query APIs | ~15 | 5 | 33% |
+| **Total** | **~275** | **~72** | **~26%** |
