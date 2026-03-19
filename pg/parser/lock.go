@@ -33,7 +33,7 @@ import nodes "github.com/bytebase/omni/pg/ast"
 //
 //	NOWAIT  -> true
 //	| /* EMPTY */ -> false
-func (p *Parser) parseLockStmt() nodes.Node {
+func (p *Parser) parseLockStmt() (nodes.Node, error) {
 	p.advance() // consume LOCK_P
 
 	// opt_table
@@ -45,7 +45,10 @@ func (p *Parser) parseLockStmt() nodes.Node {
 	relations := p.parseRelationExprList()
 
 	// opt_lock
-	mode := p.parseOptLock()
+	mode, err := p.parseOptLock()
+	if err != nil {
+		return nil, err
+	}
 
 	// opt_nowait
 	nowait := p.parseOptNowait()
@@ -54,7 +57,7 @@ func (p *Parser) parseLockStmt() nodes.Node {
 		Relations: relations,
 		Mode:      mode,
 		Nowait:    nowait,
-	}
+	}, nil
 }
 
 // parseOptLock parses the optional lock mode clause.
@@ -62,17 +65,22 @@ func (p *Parser) parseLockStmt() nodes.Node {
 //	opt_lock:
 //	    IN_P lock_type MODE
 //	    | /* EMPTY */           -> AccessExclusiveLock
-func (p *Parser) parseOptLock() int {
+func (p *Parser) parseOptLock() (int, error) {
 	if p.cur.Type != IN_P {
-		return nodes.AccessExclusiveLock
+		return nodes.AccessExclusiveLock, nil
 	}
 	p.advance() // consume IN
 
-	mode := p.parseLockType()
+	mode, err := p.parseLockType()
+	if err != nil {
+		return 0, err
+	}
 
-	p.expect(MODE)
+	if _, err := p.expect(MODE); err != nil {
+		return 0, err
+	}
 
-	return mode
+	return mode, nil
 }
 
 // parseLockType parses the lock type keyword(s).
@@ -86,50 +94,58 @@ func (p *Parser) parseOptLock() int {
 //	    | SHARE ROW EXCLUSIVE
 //	    | EXCLUSIVE
 //	    | ACCESS EXCLUSIVE
-func (p *Parser) parseLockType() int {
+func (p *Parser) parseLockType() (int, error) {
 	switch p.cur.Type {
 	case ACCESS:
 		p.advance() // consume ACCESS
 		if p.cur.Type == SHARE {
 			p.advance()
-			return nodes.AccessShareLock
+			return nodes.AccessShareLock, nil
 		}
 		// ACCESS EXCLUSIVE
-		p.expect(EXCLUSIVE)
-		return nodes.AccessExclusiveLock
+		if _, err := p.expect(EXCLUSIVE); err != nil {
+			return 0, err
+		}
+		return nodes.AccessExclusiveLock, nil
 
 	case ROW:
 		p.advance() // consume ROW
 		if p.cur.Type == SHARE {
 			p.advance()
-			return nodes.RowShareLock
+			return nodes.RowShareLock, nil
 		}
 		// ROW EXCLUSIVE
-		p.expect(EXCLUSIVE)
-		return nodes.RowExclusiveLock
+		if _, err := p.expect(EXCLUSIVE); err != nil {
+			return 0, err
+		}
+		return nodes.RowExclusiveLock, nil
 
 	case SHARE:
 		p.advance() // consume SHARE
 		if p.cur.Type == UPDATE {
 			p.advance() // consume UPDATE
-			p.expect(EXCLUSIVE)
-			return nodes.ShareUpdateExclusiveLock
+			if _, err := p.expect(EXCLUSIVE); err != nil {
+				return 0, err
+			}
+			return nodes.ShareUpdateExclusiveLock, nil
 		}
 		if p.cur.Type == ROW {
 			p.advance() // consume ROW
-			p.expect(EXCLUSIVE)
-			return nodes.ShareRowExclusiveLock
+			if _, err := p.expect(EXCLUSIVE); err != nil {
+				return 0, err
+			}
+			return nodes.ShareRowExclusiveLock, nil
 		}
 		// plain SHARE
-		return nodes.ShareLock
+		return nodes.ShareLock, nil
 
 	case EXCLUSIVE:
 		p.advance()
-		return nodes.ExclusiveLock
+		return nodes.ExclusiveLock, nil
 
 	default:
 		// Default to AccessExclusiveLock if unrecognized
-		return nodes.AccessExclusiveLock
+		return nodes.AccessExclusiveLock, nil
 	}
 }
 

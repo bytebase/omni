@@ -61,7 +61,8 @@ func (p *Parser) parseExplainableStmt() nodes.Node {
 	case MERGE:
 		return p.parseMergeStmt(nil)
 	case EXECUTE:
-		return p.parseExecuteStmt()
+		n, _ := p.parseExecuteStmt()
+		return n
 	case CREATE:
 		return p.parseCreateDispatch()
 	case DECLARE:

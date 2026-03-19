@@ -7,66 +7,85 @@ import (
 // parseTransactionStmt parses a transaction control statement.
 //
 // TransactionStmt:
-//   ABORT_P opt_transaction opt_transaction_chain
-//   | BEGIN_P opt_transaction transaction_mode_list_or_empty
-//   | START TRANSACTION transaction_mode_list_or_empty
-//   | PREPARE TRANSACTION Sconst
-//   | COMMIT PREPARED Sconst
-//   | ROLLBACK PREPARED Sconst
-//   | COMMIT opt_transaction opt_transaction_chain
-//   | END_P opt_transaction opt_transaction_chain
-//   | ROLLBACK opt_transaction opt_transaction_chain
-//   | ROLLBACK opt_transaction TO [SAVEPOINT] ColId
-//   | SAVEPOINT ColId
-//   | RELEASE [SAVEPOINT] ColId
-func (p *Parser) parseTransactionStmt() nodes.Node {
+//
+//	ABORT_P opt_transaction opt_transaction_chain
+//	| BEGIN_P opt_transaction transaction_mode_list_or_empty
+//	| START TRANSACTION transaction_mode_list_or_empty
+//	| PREPARE TRANSACTION Sconst
+//	| COMMIT PREPARED Sconst
+//	| ROLLBACK PREPARED Sconst
+//	| COMMIT opt_transaction opt_transaction_chain
+//	| END_P opt_transaction opt_transaction_chain
+//	| ROLLBACK opt_transaction opt_transaction_chain
+//	| ROLLBACK opt_transaction TO [SAVEPOINT] ColId
+//	| SAVEPOINT ColId
+//	| RELEASE [SAVEPOINT] ColId
+func (p *Parser) parseTransactionStmt() (nodes.Node, error) {
 	loc := p.pos()
-	n := p.parseTransactionStmtInner()
+	n, err := p.parseTransactionStmtInner()
+	if err != nil {
+		return nil, err
+	}
 	if ts, ok := n.(*nodes.TransactionStmt); ok {
 		ts.Loc = nodes.Loc{Start: loc, End: p.pos()}
 	}
-	return n
+	return n, nil
 }
 
-func (p *Parser) parseTransactionStmtInner() nodes.Node {
+func (p *Parser) parseTransactionStmtInner() (nodes.Node, error) {
 	switch p.cur.Type {
 	case ABORT_P:
 		p.advance() // consume ABORT
 		p.parseOptTransaction()
-		chain := p.parseOptTransactionChain()
+		chain, err := p.parseOptTransactionChain()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.TransactionStmt{
 			Kind:  nodes.TRANS_STMT_ROLLBACK,
 			Chain: chain,
-		}
+		}, nil
 
 	case BEGIN_P:
 		p.advance() // consume BEGIN
 		p.parseOptTransaction()
-		options := p.parseTransactionModeListOrEmpty()
+		options, err := p.parseTransactionModeListOrEmpty()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.TransactionStmt{
 			Kind:    nodes.TRANS_STMT_BEGIN,
 			Options: options,
-		}
+		}, nil
 
 	case START:
 		p.advance() // consume START
-		p.expect(TRANSACTION)
-		options := p.parseTransactionModeListOrEmpty()
+		if _, err := p.expect(TRANSACTION); err != nil {
+			return nil, err
+		}
+		options, err := p.parseTransactionModeListOrEmpty()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.TransactionStmt{
 			Kind:    nodes.TRANS_STMT_START,
 			Options: options,
-		}
+		}, nil
 
 	case PREPARE:
 		// PREPARE TRANSACTION Sconst
 		p.advance() // consume PREPARE
-		p.expect(TRANSACTION)
+		if _, err := p.expect(TRANSACTION); err != nil {
+			return nil, err
+		}
 		gid := p.cur.Str
-		p.expect(SCONST)
+		if _, err := p.expect(SCONST); err != nil {
+			return nil, err
+		}
 		return &nodes.TransactionStmt{
 			Kind: nodes.TRANS_STMT_PREPARE,
 			Gid:  gid,
-		}
+		}, nil
 
 	case COMMIT:
 		p.advance() // consume COMMIT
@@ -74,28 +93,36 @@ func (p *Parser) parseTransactionStmtInner() nodes.Node {
 		if p.cur.Type == PREPARED {
 			p.advance() // consume PREPARED
 			gid := p.cur.Str
-			p.expect(SCONST)
+			if _, err := p.expect(SCONST); err != nil {
+				return nil, err
+			}
 			return &nodes.TransactionStmt{
 				Kind: nodes.TRANS_STMT_COMMIT_PREPARED,
 				Gid:  gid,
-			}
+			}, nil
 		}
 		// COMMIT opt_transaction opt_transaction_chain
 		p.parseOptTransaction()
-		chain := p.parseOptTransactionChain()
+		chain, err := p.parseOptTransactionChain()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.TransactionStmt{
 			Kind:  nodes.TRANS_STMT_COMMIT,
 			Chain: chain,
-		}
+		}, nil
 
 	case END_P:
 		p.advance() // consume END
 		p.parseOptTransaction()
-		chain := p.parseOptTransactionChain()
+		chain, err := p.parseOptTransactionChain()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.TransactionStmt{
 			Kind:  nodes.TRANS_STMT_COMMIT,
 			Chain: chain,
-		}
+		}, nil
 
 	case ROLLBACK:
 		p.advance() // consume ROLLBACK
@@ -103,11 +130,13 @@ func (p *Parser) parseTransactionStmtInner() nodes.Node {
 		if p.cur.Type == PREPARED {
 			p.advance() // consume PREPARED
 			gid := p.cur.Str
-			p.expect(SCONST)
+			if _, err := p.expect(SCONST); err != nil {
+				return nil, err
+			}
 			return &nodes.TransactionStmt{
 				Kind: nodes.TRANS_STMT_ROLLBACK_PREPARED,
 				Gid:  gid,
-			}
+			}, nil
 		}
 		// ROLLBACK opt_transaction TO [SAVEPOINT] ColId
 		// ROLLBACK opt_transaction opt_transaction_chain
@@ -117,48 +146,61 @@ func (p *Parser) parseTransactionStmtInner() nodes.Node {
 			if p.cur.Type == SAVEPOINT {
 				p.advance() // consume SAVEPOINT
 			}
-			name, _ := p.parseColId()
+			name, err := p.parseColId()
+			if err != nil {
+				return nil, err
+			}
 			return &nodes.TransactionStmt{
 				Kind:      nodes.TRANS_STMT_ROLLBACK_TO,
 				Savepoint: name,
-			}
+			}, nil
 		}
-		chain := p.parseOptTransactionChain()
+		chain, err := p.parseOptTransactionChain()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.TransactionStmt{
 			Kind:  nodes.TRANS_STMT_ROLLBACK,
 			Chain: chain,
-		}
+		}, nil
 
 	case SAVEPOINT:
 		p.advance() // consume SAVEPOINT
-		name, _ := p.parseColId()
+		name, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.TransactionStmt{
 			Kind:      nodes.TRANS_STMT_SAVEPOINT,
 			Savepoint: name,
-		}
+		}, nil
 
 	case RELEASE:
 		p.advance() // consume RELEASE
 		if p.cur.Type == SAVEPOINT {
 			p.advance() // consume SAVEPOINT
 		}
-		name, _ := p.parseColId()
+		name, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.TransactionStmt{
 			Kind:      nodes.TRANS_STMT_RELEASE,
 			Savepoint: name,
-		}
+		}, nil
 
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
 // parseOptTransaction consumes the optional WORK or TRANSACTION keyword.
 //
 // opt_transaction:
-//   WORK
-//   | TRANSACTION
-//   | /* EMPTY */
+//
+//	WORK
+//	| TRANSACTION
+//	| /* EMPTY */
 func (p *Parser) parseOptTransaction() {
 	if p.cur.Type == WORK || p.cur.Type == TRANSACTION {
 		p.advance()
@@ -168,32 +210,41 @@ func (p *Parser) parseOptTransaction() {
 // parseOptTransactionChain parses the optional AND [NO] CHAIN clause.
 //
 // opt_transaction_chain:
-//   AND CHAIN        -> true
-//   | AND NO CHAIN   -> false
-//   | /* EMPTY */    -> false
-func (p *Parser) parseOptTransactionChain() bool {
+//
+//	AND CHAIN        -> true
+//	| AND NO CHAIN   -> false
+//	| /* EMPTY */    -> false
+func (p *Parser) parseOptTransactionChain() (bool, error) {
 	if p.cur.Type == AND {
 		p.advance() // consume AND
 		if p.cur.Type == NO {
 			p.advance() // consume NO
-			p.expect(CHAIN)
-			return false
+			if _, err := p.expect(CHAIN); err != nil {
+				return false, err
+			}
+			return false, nil
 		}
-		p.expect(CHAIN)
-		return true
+		if _, err := p.expect(CHAIN); err != nil {
+			return false, err
+		}
+		return true, nil
 	}
-	return false
+	return false, nil
 }
 
 // parseTransactionModeListOrEmpty parses an optional list of transaction mode items.
 //
 // transaction_mode_list_or_empty:
-//   transaction_mode_list
-//   | /* EMPTY */
-func (p *Parser) parseTransactionModeListOrEmpty() *nodes.List {
-	item := p.parseTransactionModeItem()
+//
+//	transaction_mode_list
+//	| /* EMPTY */
+func (p *Parser) parseTransactionModeListOrEmpty() (*nodes.List, error) {
+	item, err := p.parseTransactionModeItem()
+	if err != nil {
+		return nil, err
+	}
 	if item == nil {
-		return nil
+		return nil, nil
 	}
 	items := []nodes.Node{item}
 	for {
@@ -201,44 +252,55 @@ func (p *Parser) parseTransactionModeListOrEmpty() *nodes.List {
 		if p.cur.Type == ',' {
 			p.advance()
 		}
-		next := p.parseTransactionModeItem()
+		next, err := p.parseTransactionModeItem()
+		if err != nil {
+			return nil, err
+		}
 		if next == nil {
 			break
 		}
 		items = append(items, next)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseTransactionModeItem parses a single transaction mode item.
 //
 // transaction_mode_item:
-//   ISOLATION LEVEL iso_level
-//   | READ ONLY
-//   | READ WRITE
-//   | DEFERRABLE
-//   | NOT DEFERRABLE
-func (p *Parser) parseTransactionModeItem() nodes.Node {
+//
+//	ISOLATION LEVEL iso_level
+//	| READ ONLY
+//	| READ WRITE
+//	| DEFERRABLE
+//	| NOT DEFERRABLE
+func (p *Parser) parseTransactionModeItem() (nodes.Node, error) {
 	switch p.cur.Type {
 	case ISOLATION:
 		p.advance() // consume ISOLATION
-		p.expect(LEVEL)
-		level := p.parseIsoLevel()
-		return makeDefElem("transaction_isolation", &nodes.A_Const{Val: &nodes.String{Str: level}})
+		if _, err := p.expect(LEVEL); err != nil {
+			return nil, err
+		}
+		level, err := p.parseIsoLevel()
+		if err != nil {
+			return nil, err
+		}
+		return makeDefElem("transaction_isolation", &nodes.A_Const{Val: &nodes.String{Str: level}}), nil
 
 	case READ:
 		p.advance() // consume READ
 		if p.cur.Type == ONLY {
 			p.advance() // consume ONLY
-			return makeDefElem("transaction_read_only", makeIntConst(1))
+			return makeDefElem("transaction_read_only", makeIntConst(1)), nil
 		}
 		// READ WRITE
-		p.expect(WRITE)
-		return makeDefElem("transaction_read_only", makeIntConst(0))
+		if _, err := p.expect(WRITE); err != nil {
+			return nil, err
+		}
+		return makeDefElem("transaction_read_only", makeIntConst(0)), nil
 
 	case DEFERRABLE:
 		p.advance() // consume DEFERRABLE
-		return makeDefElem("transaction_deferrable", makeIntConst(1))
+		return makeDefElem("transaction_deferrable", makeIntConst(1)), nil
 
 	case NOT:
 		// NOT DEFERRABLE — but we need to check that it's actually DEFERRABLE after NOT.
@@ -248,9 +310,9 @@ func (p *Parser) parseTransactionModeItem() nodes.Node {
 		if next.Type == DEFERRABLE {
 			p.advance() // consume NOT
 			p.advance() // consume DEFERRABLE
-			return makeDefElem("transaction_deferrable", makeIntConst(0))
+			return makeDefElem("transaction_deferrable", makeIntConst(0)), nil
 		}
-		return nil
+		return nil, nil
 
 	case NOT_LA:
 		// NOT_LA DEFERRABLE
@@ -258,41 +320,46 @@ func (p *Parser) parseTransactionModeItem() nodes.Node {
 		if next.Type == DEFERRABLE {
 			p.advance() // consume NOT_LA
 			p.advance() // consume DEFERRABLE
-			return makeDefElem("transaction_deferrable", makeIntConst(0))
+			return makeDefElem("transaction_deferrable", makeIntConst(0)), nil
 		}
-		return nil
+		return nil, nil
 
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
 // parseIsoLevel parses the isolation level name.
 //
 // iso_level:
-//   READ UNCOMMITTED   -> "read uncommitted"
-//   | READ COMMITTED   -> "read committed"
-//   | REPEATABLE READ  -> "repeatable read"
-//   | SERIALIZABLE     -> "serializable"
-func (p *Parser) parseIsoLevel() string {
+//
+//	READ UNCOMMITTED   -> "read uncommitted"
+//	| READ COMMITTED   -> "read committed"
+//	| REPEATABLE READ  -> "repeatable read"
+//	| SERIALIZABLE     -> "serializable"
+func (p *Parser) parseIsoLevel() (string, error) {
 	switch p.cur.Type {
 	case READ:
 		p.advance() // consume READ
 		if p.cur.Type == UNCOMMITTED {
 			p.advance()
-			return "read uncommitted"
+			return "read uncommitted", nil
 		}
 		// READ COMMITTED
-		p.expect(COMMITTED)
-		return "read committed"
+		if _, err := p.expect(COMMITTED); err != nil {
+			return "", err
+		}
+		return "read committed", nil
 	case REPEATABLE:
 		p.advance() // consume REPEATABLE
-		p.expect(READ)
-		return "repeatable read"
+		if _, err := p.expect(READ); err != nil {
+			return "", err
+		}
+		return "repeatable read", nil
 	case SERIALIZABLE:
 		p.advance()
-		return "serializable"
+		return "serializable", nil
 	default:
-		return ""
+		return "", nil
 	}
 }

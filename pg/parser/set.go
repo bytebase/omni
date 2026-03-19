@@ -63,7 +63,7 @@ func (p *Parser) parseSetRest() nodes.Node {
 	switch p.cur.Type {
 	case TRANSACTION:
 		p.advance() // consume TRANSACTION
-		modes := p.parseTransactionModeListOrEmpty()
+		modes, _ := p.parseTransactionModeListOrEmpty()
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_SET_MULTI,
 			Name: "TRANSACTION",
@@ -78,7 +78,7 @@ func (p *Parser) parseSetRest() nodes.Node {
 			p.advance() // consume CHARACTERISTICS
 			p.expect(AS)
 			p.expect(TRANSACTION)
-			modes := p.parseTransactionModeListOrEmpty()
+			modes, _ := p.parseTransactionModeListOrEmpty()
 			return &nodes.VariableSetStmt{
 				Kind: nodes.VAR_SET_MULTI,
 				Name: "SESSION CHARACTERISTICS",

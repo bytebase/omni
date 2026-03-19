@@ -5,12 +5,15 @@
 package parser
 
 import (
+	"fmt"
+
 	nodes "github.com/bytebase/omni/pg/ast"
 )
 
 // Parser is a recursive descent parser for PostgreSQL SQL.
 type Parser struct {
 	lexer   *Lexer
+	source  string
 	cur     Token // current token
 	prev    Token // previous token (for error reporting)
 	nextBuf Token // buffered next token for 2-token lookahead
@@ -30,7 +33,8 @@ type Parser struct {
 // Full statement dispatch will be implemented in batch 34.
 func Parse(sql string) (*nodes.List, error) {
 	p := &Parser{
-		lexer: NewLexer(sql),
+		lexer:  NewLexer(sql),
+		source: sql,
 	}
 	p.advance()
 
@@ -41,16 +45,19 @@ func Parse(sql string) (*nodes.List, error) {
 			p.advance()
 			continue
 		}
+		if p.lexer.Err != nil {
+			return nil, p.lexerError()
+		}
 		stmtStart := p.pos()
 		stmt := p.parseStmt()
 		if stmt == nil {
 			if p.cur.Type != 0 {
-				return nil, &ParseError{
-					Message:  "unexpected token in statement",
-					Position: p.cur.Loc,
-				}
+				return nil, p.syntaxErrorAtCur()
 			}
 			break
+		}
+		if p.lexer.Err != nil {
+			return nil, p.lexerError()
 		}
 		raw := &nodes.RawStmt{
 			Stmt: stmt,
@@ -194,19 +201,25 @@ func (p *Parser) parseStmt() nodes.Node {
 		p.advance() // consume REFRESH
 		return p.parseRefreshMatViewStmt()
 	case BEGIN_P, START, COMMIT, END_P, ABORT_P, SAVEPOINT, RELEASE:
-		return p.parseTransactionStmt()
+		n, _ := p.parseTransactionStmt()
+		return n
 	case ROLLBACK:
-		return p.parseTransactionStmt()
+		n, _ := p.parseTransactionStmt()
+		return n
 	case PREPARE:
 		// PREPARE TRANSACTION is a transaction stmt; plain PREPARE is a prepared stmt.
 		if p.peekNext().Type == TRANSACTION {
-			return p.parseTransactionStmt()
+			n, _ := p.parseTransactionStmt()
+			return n
 		}
-		return p.parsePrepareStmt()
+		n, _ := p.parsePrepareStmt()
+		return n
 	case EXECUTE:
-		return p.parseExecuteStmt()
+		n, _ := p.parseExecuteStmt()
+		return n
 	case DEALLOCATE:
-		return p.parseDeallocateStmt()
+		n, _ := p.parseDeallocateStmt()
+		return n
 	case SET:
 		p.advance() // consume SET
 		// SET CONSTRAINTS is a different statement type.
@@ -249,7 +262,8 @@ func (p *Parser) parseStmt() nodes.Node {
 		p.advance() // consume TRUNCATE
 		return p.parseTruncateStmt()
 	case LOCK_P:
-		return p.parseLockStmt()
+		n, _ := p.parseLockStmt()
+		return n
 	case DECLARE:
 		return p.parseDeclareCursorStmt()
 	case FETCH, MOVE:
@@ -946,7 +960,7 @@ func (p *Parser) parseWithStmt() nodes.Node {
 
 // advance consumes the current token and moves to the next one.
 // It maps lexer-internal token types (lex_*) to parser token constants.
-// It also performs lookahead-based token reclassification (NOT → NOT_LA).
+// It also performs lookahead-based token reclassification (NOT -> NOT_LA).
 func (p *Parser) advance() Token {
 	p.prev = p.cur
 	if p.hasNext {
@@ -960,26 +974,26 @@ func (p *Parser) advance() Token {
 	// Lookahead-based token reclassification (mirrors PostgreSQL's lexer lookahead).
 	switch p.cur.Type {
 	case NOT:
-		// NOT → NOT_LA when followed by BETWEEN, IN, LIKE, ILIKE, SIMILAR
+		// NOT -> NOT_LA when followed by BETWEEN, IN, LIKE, ILIKE, SIMILAR
 		next := p.peekNext()
 		switch next.Type {
 		case BETWEEN, IN_P, LIKE, ILIKE, SIMILAR:
 			p.cur.Type = NOT_LA
 		}
 	case WITH:
-		// WITH → WITH_LA when followed by TIME or ORDINALITY
+		// WITH -> WITH_LA when followed by TIME or ORDINALITY
 		next := p.peekNext()
 		switch next.Type {
 		case TIME, ORDINALITY:
 			p.cur.Type = WITH_LA
 		}
 	case WITHOUT:
-		// WITHOUT → WITHOUT_LA when followed by TIME
+		// WITHOUT -> WITHOUT_LA when followed by TIME
 		if p.peekNext().Type == TIME {
 			p.cur.Type = WITHOUT_LA
 		}
 	case NULLS_P:
-		// NULLS → NULLS_LA when followed by FIRST or LAST
+		// NULLS -> NULLS_LA when followed by FIRST or LAST
 		next := p.peekNext()
 		switch next.Type {
 		case FIRST_P, LAST_P:
@@ -1087,10 +1101,7 @@ func (p *Parser) expect(tokenType int) (Token, error) {
 	if p.cur.Type == tokenType {
 		return p.advance(), nil
 	}
-	return Token{}, &ParseError{
-		Message:  "unexpected token",
-		Position: p.cur.Loc,
-	}
+	return Token{}, p.syntaxErrorAtCur()
 }
 
 // pos returns the byte position of the current token.
@@ -1100,10 +1111,62 @@ func (p *Parser) pos() int {
 
 // ParseError represents a parse error with position information.
 type ParseError struct {
+	Severity string
+	Code     string
 	Message  string
 	Position int
 }
 
 func (e *ParseError) Error() string {
-	return e.Message
+	sev := e.Severity
+	if sev == "" {
+		sev = "ERROR"
+	}
+	code := e.Code
+	if code == "" {
+		code = "42601"
+	}
+	return fmt.Sprintf("%s: %s (SQLSTATE %s)", sev, e.Message, code)
+}
+
+func (p *Parser) syntaxErrorAtCur() *ParseError {
+	return p.syntaxErrorAtTok(p.cur)
+}
+
+func (p *Parser) syntaxErrorAtTok(tok Token) *ParseError {
+	text := p.tokenText(tok)
+	var msg string
+	if text == "" {
+		msg = "syntax error at end of input"
+	} else {
+		msg = fmt.Sprintf("syntax error at or near \"%s\"", text)
+	}
+	return &ParseError{Message: msg, Position: tok.Loc}
+}
+
+func (p *Parser) tokenText(tok Token) string {
+	if tok.Type == 0 {
+		return ""
+	}
+	if tok.Loc >= 0 && tok.End > tok.Loc && tok.End <= len(p.source) {
+		return p.source[tok.Loc:tok.End]
+	}
+	if tok.Str != "" {
+		return tok.Str
+	}
+	if tok.Type > 0 && tok.Type < 256 {
+		return string(rune(tok.Type))
+	}
+	return ""
+}
+
+func (p *Parser) lexerError() *ParseError {
+	text := p.tokenText(p.cur)
+	var msg string
+	if text != "" {
+		msg = fmt.Sprintf("%s at or near \"%s\"", p.lexer.Err.Error(), text)
+	} else {
+		msg = p.lexer.Err.Error()
+	}
+	return &ParseError{Message: msg, Position: p.cur.Loc}
 }
