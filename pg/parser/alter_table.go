@@ -85,7 +85,10 @@ func (p *Parser) parseAlterTable() (nodes.Node, error) {
 	}
 
 	// alter_table_cmds
-	cmds := p.parseAlterTableCmds()
+	cmds, err := p.parseAlterTableCmds()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterTableStmt{
 		Relation:   rel,
 		Cmds:       cmds,
@@ -173,7 +176,10 @@ func (p *Parser) parseAlterIndex() (nodes.Node, error) {
 		}, nil
 	}
 
-	cmds := p.parseAlterTableCmds()
+	cmds, err := p.parseAlterTableCmds()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterTableStmt{
 		Relation:   rv,
 		Cmds:       cmds,
@@ -230,7 +236,10 @@ func (p *Parser) parseAlterSequence() (nodes.Node, error) {
 	// OWNER TO goes through alter_table_cmds in the yacc grammar
 	if p.cur.Type == OWNER {
 		rv := makeRangeVarFromAnyName(names)
-		cmds := p.parseAlterTableCmds()
+		cmds, err := p.parseAlterTableCmds()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableStmt{
 			Relation:   rv,
 			Cmds:       cmds,
@@ -241,7 +250,10 @@ func (p *Parser) parseAlterSequence() (nodes.Node, error) {
 
 	// AlterSeqStmt: ALTER SEQUENCE name SeqOptList
 	rv := makeRangeVarFromNames(names)
-	options := p.parseSeqOptList()
+	options, err := p.parseSeqOptList()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterSeqStmt{
 		Sequence:  rv,
 		Options:   options,
@@ -293,7 +305,10 @@ func (p *Parser) parseAlterView() (nodes.Node, error) {
 		}, nil
 	}
 
-	cmds := p.parseAlterTableCmds()
+	cmds, err := p.parseAlterTableCmds()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterTableStmt{
 		Relation:   rv,
 		Cmds:       cmds,
@@ -373,7 +388,10 @@ func (p *Parser) parseAlterMaterializedView() (nodes.Node, error) {
 		}, nil
 	}
 
-	cmds := p.parseAlterTableCmds()
+	cmds, err := p.parseAlterTableCmds()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterTableStmt{
 		Relation:   rv,
 		Cmds:       cmds,
@@ -424,7 +442,10 @@ func (p *Parser) parseAlterForeignTable() (nodes.Node, error) {
 		}, nil
 	}
 
-	cmds := p.parseAlterTableCmds()
+	cmds, err := p.parseAlterTableCmds()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterTableStmt{
 		Relation:   rel,
 		Cmds:       cmds,
@@ -530,19 +551,25 @@ func (p *Parser) parseAlterTableRename(rel *nodes.RangeVar, missingOk bool) *nod
 // parseAlterTableCmds parses a comma-separated list of alter_table_cmd.
 //
 //	alter_table_cmds: alter_table_cmd | alter_table_cmds ',' alter_table_cmd
-func (p *Parser) parseAlterTableCmds() *nodes.List {
-	cmd := p.parseAlterTableCmd()
+func (p *Parser) parseAlterTableCmds() (*nodes.List, error) {
+	cmd, err := p.parseAlterTableCmd()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{cmd}
 	for p.cur.Type == ',' {
 		p.advance()
-		cmd = p.parseAlterTableCmd()
+		cmd, err = p.parseAlterTableCmd()
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, cmd)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseAlterTableCmd parses a single alter_table_cmd.
-func (p *Parser) parseAlterTableCmd() *nodes.AlterTableCmd {
+func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	if p.collectMode() {
 		p.cachedCollect("parseAlterTableCmd", func() {
 			for _, t := range []int{
@@ -555,49 +582,49 @@ func (p *Parser) parseAlterTableCmd() *nodes.AlterTableCmd {
 				p.addTokenCandidate(t)
 			}
 		})
-		return nil
+		return nil, nil
 	}
 	switch p.cur.Type {
 	case ADD_P:
-		return p.parseAlterTableAdd()
+		return p.parseAlterTableAdd(), nil
 	case DROP:
-		return p.parseAlterTableDrop()
+		return p.parseAlterTableDrop(), nil
 	case ALTER:
 		return p.parseAlterTableAlter()
 	case OWNER:
-		return p.parseAlterTableOwner()
+		return p.parseAlterTableOwner(), nil
 	case VALIDATE:
-		return p.parseAlterTableValidate()
+		return p.parseAlterTableValidate(), nil
 	case INHERIT:
-		return p.parseAlterTableInherit()
+		return p.parseAlterTableInherit(), nil
 	case NO:
-		return p.parseAlterTableNo()
+		return p.parseAlterTableNo(), nil
 	case ATTACH:
-		return p.parseAlterTableAttach()
+		return p.parseAlterTableAttach(), nil
 	case DETACH:
-		return p.parseAlterTableDetach()
+		return p.parseAlterTableDetach(), nil
 	case ENABLE_P:
-		return p.parseAlterTableEnable()
+		return p.parseAlterTableEnable(), nil
 	case DISABLE_P:
-		return p.parseAlterTableDisable()
+		return p.parseAlterTableDisable(), nil
 	case FORCE:
-		return p.parseAlterTableForce()
+		return p.parseAlterTableForce(), nil
 	case CLUSTER:
-		return p.parseAlterTableCluster()
+		return p.parseAlterTableCluster(), nil
 	case SET:
-		return p.parseAlterTableSet()
+		return p.parseAlterTableSet(), nil
 	case RESET:
-		return p.parseAlterTableReset()
+		return p.parseAlterTableReset(), nil
 	case REPLICA:
-		return p.parseAlterTableReplica()
+		return p.parseAlterTableReplica(), nil
 	case OF:
-		return p.parseAlterTableOf()
+		return p.parseAlterTableOf(), nil
 	case NOT:
-		return p.parseAlterTableNot()
+		return p.parseAlterTableNot(), nil
 	case OPTIONS:
-		return p.parseAlterTableOptions()
+		return p.parseAlterTableOptions(), nil
 	default:
-		return &nodes.AlterTableCmd{}
+		return &nodes.AlterTableCmd{}, nil
 	}
 }
 
@@ -630,7 +657,7 @@ func (p *Parser) parseAlterTableAdd() *nodes.AlterTableCmd {
 			p.expect(EXISTS)
 			missingOk = true
 		}
-		coldef := p.parseColumnDef()
+		coldef, _ := p.parseColumnDef()
 		return &nodes.AlterTableCmd{
 			Subtype:    int(nodes.AT_AddColumn),
 			Def:        coldef,
@@ -641,7 +668,7 @@ func (p *Parser) parseAlterTableAdd() *nodes.AlterTableCmd {
 		p.advance()
 		p.expect(NOT)
 		p.expect(EXISTS)
-		coldef := p.parseColumnDef()
+		coldef, _ := p.parseColumnDef()
 		return &nodes.AlterTableCmd{
 			Subtype:    int(nodes.AT_AddColumn),
 			Def:        coldef,
@@ -658,7 +685,7 @@ func (p *Parser) parseAlterTableAdd() *nodes.AlterTableCmd {
 		// ADD columnDef (without COLUMN keyword)
 		// Try to distinguish between column def and constraint.
 		// If current token looks like a column name followed by a type, it's a column def.
-		coldef := p.parseColumnDef()
+		coldef, _ := p.parseColumnDef()
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_AddColumn),
 			Def:     coldef,
@@ -740,14 +767,14 @@ func (p *Parser) parseAlterTableDrop() *nodes.AlterTableCmd {
 }
 
 // parseAlterTableAlter handles ALTER [COLUMN] ... subcommands.
-func (p *Parser) parseAlterTableAlter() *nodes.AlterTableCmd {
+func (p *Parser) parseAlterTableAlter() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume ALTER
 
 	if p.collectMode() {
 		p.addTokenCandidate(COLUMN)
 		p.addTokenCandidate(CONSTRAINT)
 		p.addRuleCandidate("columnref")
-		return nil
+		return nil, nil
 	}
 
 	hasColumnKeyword := false
@@ -765,7 +792,7 @@ func (p *Parser) parseAlterTableAlter() *nodes.AlterTableCmd {
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_AlterConstraint),
 			Name:    name,
-		}
+		}, nil
 	}
 
 	// Check for ALTER COLUMN Iconst (numeric column reference) SET STATISTICS
@@ -779,7 +806,7 @@ func (p *Parser) parseAlterTableAlter() *nodes.AlterTableCmd {
 			Subtype: int(nodes.AT_SetStatistics),
 			Num:     num,
 			Def:     makeIntConst(val),
-		}
+		}, nil
 	}
 	// ALTER Iconst (without COLUMN keyword) SET STATISTICS
 	if !hasColumnKeyword && p.cur.Type == ICONST {
@@ -792,7 +819,7 @@ func (p *Parser) parseAlterTableAlter() *nodes.AlterTableCmd {
 			Subtype: int(nodes.AT_SetStatistics),
 			Num:     num,
 			Def:     makeIntConst(val),
-		}
+		}, nil
 	}
 
 	// Regular column name
@@ -802,14 +829,14 @@ func (p *Parser) parseAlterTableAlter() *nodes.AlterTableCmd {
 }
 
 // parseAlterColumnAction parses the action after ALTER [COLUMN] colname.
-func (p *Parser) parseAlterColumnAction(colname string) *nodes.AlterTableCmd {
+func (p *Parser) parseAlterColumnAction(colname string) (*nodes.AlterTableCmd, error) {
 	switch p.cur.Type {
 	case SET:
 		p.advance() // consume SET
 		return p.parseAlterColumnSet(colname)
 	case DROP:
 		p.advance() // consume DROP
-		return p.parseAlterColumnDrop(colname)
+		return p.parseAlterColumnDrop(colname), nil
 	case TYPE_P:
 		return p.parseAlterColumnType(colname, false)
 	case ADD_P:
@@ -825,7 +852,7 @@ func (p *Parser) parseAlterColumnAction(colname string) *nodes.AlterTableCmd {
 			Subtype: int(nodes.AT_ResetOptions),
 			Name:    colname,
 			Def:     defs,
-		}
+		}, nil
 	case OPTIONS:
 		// alter_generic_options
 		opts := p.parseAlterGenericOptions()
@@ -833,19 +860,22 @@ func (p *Parser) parseAlterColumnAction(colname string) *nodes.AlterTableCmd {
 			Subtype: int(nodes.AT_AlterColumnGenericOptions),
 			Name:    colname,
 			Def:     opts,
-		}
+		}, nil
 	default:
 		// ALTER COLUMN ColId alter_identity_column_option_list
 		// The first token should be RESTART, SET, or a keyword that starts an identity option.
 		if p.cur.Type == RESTART || (p.cur.Type == SET && p.isAlterIdentityOption()) {
-			opts := p.parseAlterIdentityColumnOptionList()
+			opts, err := p.parseAlterIdentityColumnOptionList()
+			if err != nil {
+				return nil, err
+			}
 			return &nodes.AlterTableCmd{
 				Subtype: int(nodes.AT_SetIdentity),
 				Name:    colname,
 				Def:     opts,
-			}
+			}, nil
 		}
-		return &nodes.AlterTableCmd{}
+		return &nodes.AlterTableCmd{}, nil
 	}
 }
 
@@ -857,7 +887,7 @@ func (p *Parser) isAlterIdentityOption() bool {
 }
 
 // parseAlterColumnSet handles ALTER COLUMN colname SET ...
-func (p *Parser) parseAlterColumnSet(colname string) *nodes.AlterTableCmd {
+func (p *Parser) parseAlterColumnSet(colname string) (*nodes.AlterTableCmd, error) {
 	switch p.cur.Type {
 	case DEFAULT:
 		// SET DEFAULT a_expr
@@ -867,7 +897,7 @@ func (p *Parser) parseAlterColumnSet(colname string) *nodes.AlterTableCmd {
 			Subtype: int(nodes.AT_ColumnDefault),
 			Name:    colname,
 			Def:     expr,
-		}
+		}, nil
 	case NOT:
 		// SET NOT NULL
 		p.advance() // NOT
@@ -875,7 +905,7 @@ func (p *Parser) parseAlterColumnSet(colname string) *nodes.AlterTableCmd {
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetNotNull),
 			Name:    colname,
-		}
+		}, nil
 	case DATA_P:
 		// SET DATA TYPE Typename ...
 		p.advance() // DATA
@@ -889,7 +919,7 @@ func (p *Parser) parseAlterColumnSet(colname string) *nodes.AlterTableCmd {
 			Subtype: int(nodes.AT_SetStatistics),
 			Name:    colname,
 			Def:     makeIntConst(val),
-		}
+		}, nil
 	case STORAGE:
 		// SET STORAGE ColId | SET STORAGE DEFAULT
 		p.advance()
@@ -904,7 +934,7 @@ func (p *Parser) parseAlterColumnSet(colname string) *nodes.AlterTableCmd {
 			Subtype: int(nodes.AT_SetStorage),
 			Name:    colname,
 			Def:     &nodes.String{Str: storageVal},
-		}
+		}, nil
 	case COMPRESSION:
 		// SET COMPRESSION ColId
 		p.advance()
@@ -913,7 +943,7 @@ func (p *Parser) parseAlterColumnSet(colname string) *nodes.AlterTableCmd {
 			Subtype: int(nodes.AT_SetCompression),
 			Name:    colname,
 			Def:     &nodes.String{Str: compVal},
-		}
+		}, nil
 	case EXPRESSION:
 		// SET EXPRESSION AS '(' a_expr ')'
 		p.advance()
@@ -925,7 +955,7 @@ func (p *Parser) parseAlterColumnSet(colname string) *nodes.AlterTableCmd {
 			Subtype: int(nodes.AT_SetExpression),
 			Name:    colname,
 			Def:     expr,
-		}
+		}, nil
 	case GENERATED:
 		// SET GENERATED generated_when
 		p.advance()
@@ -936,7 +966,7 @@ func (p *Parser) parseAlterColumnSet(colname string) *nodes.AlterTableCmd {
 			Def: &nodes.List{Items: []nodes.Node{
 				makeDefElem("generated", makeIntConst(int64(gw))),
 			}},
-		}
+		}, nil
 	case '(':
 		// SET (def_list)
 		p.advance()
@@ -946,9 +976,9 @@ func (p *Parser) parseAlterColumnSet(colname string) *nodes.AlterTableCmd {
 			Subtype: int(nodes.AT_SetOptions),
 			Name:    colname,
 			Def:     defs,
-		}
+		}, nil
 	default:
-		return &nodes.AlterTableCmd{}
+		return &nodes.AlterTableCmd{}, nil
 	}
 }
 
@@ -1000,7 +1030,7 @@ func (p *Parser) parseAlterColumnDrop(colname string) *nodes.AlterTableCmd {
 }
 
 // parseAlterColumnType handles ALTER COLUMN colname TYPE Typename ...
-func (p *Parser) parseAlterColumnType(colname string, hasSetData bool) *nodes.AlterTableCmd {
+func (p *Parser) parseAlterColumnType(colname string, hasSetData bool) (*nodes.AlterTableCmd, error) {
 	if !hasSetData {
 		p.advance() // consume TYPE
 	}
@@ -1008,14 +1038,20 @@ func (p *Parser) parseAlterColumnType(colname string, hasSetData bool) *nodes.Al
 }
 
 // parseAlterColumnTypeInner is the common code for TYPE typename [COLLATE] [USING]
-func (p *Parser) parseAlterColumnTypeInner(colname string) *nodes.AlterTableCmd {
-	tn, _ := p.parseTypename()
+func (p *Parser) parseAlterColumnTypeInner(colname string) (*nodes.AlterTableCmd, error) {
+	tn, err := p.parseTypename()
+	if err != nil {
+		return nil, err
+	}
 	coldef := &nodes.ColumnDef{TypeName: tn}
 
 	// opt_collate_clause
 	if p.cur.Type == COLLATE {
 		p.advance()
-		collname, _ := p.parseAnyName()
+		collname, err := p.parseAnyName()
+		if err != nil {
+			return nil, err
+		}
 		coldef.CollClause = &nodes.CollateClause{
 			Collname: collname,
 			Loc:      nodes.NoLoc(),
@@ -1026,23 +1062,29 @@ func (p *Parser) parseAlterColumnTypeInner(colname string) *nodes.AlterTableCmd 
 	// transform analysis, not the raw parse tree)
 	if p.cur.Type == USING {
 		p.advance()
-		_, _ = p.parseAExpr(0)
+		_, err = p.parseAExpr(0)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &nodes.AlterTableCmd{
 		Subtype: int(nodes.AT_AlterColumnType),
 		Name:    colname,
 		Def:     coldef,
-	}
+	}, nil
 }
 
 // parseAlterColumnAddGenerated handles ALTER COLUMN colname ADD GENERATED ...
-func (p *Parser) parseAlterColumnAddGenerated(colname string) *nodes.AlterTableCmd {
+func (p *Parser) parseAlterColumnAddGenerated(colname string) (*nodes.AlterTableCmd, error) {
 	p.expect(GENERATED)
 	gw := p.parseGeneratedWhen()
 	p.expect(AS)
 	p.expect(IDENTITY_P)
-	opts := p.parseOptParenthesizedSeqOptList()
+	opts, err := p.parseOptParenthesizedSeqOptList()
+	if err != nil {
+		return nil, err
+	}
 	c := &nodes.Constraint{
 		Contype:       nodes.CONSTR_IDENTITY,
 		GeneratedWhen: byte(gw),
@@ -1053,7 +1095,7 @@ func (p *Parser) parseAlterColumnAddGenerated(colname string) *nodes.AlterTableC
 		Subtype: int(nodes.AT_AddIdentity),
 		Name:    colname,
 		Def:     c,
-	}
+	}, nil
 }
 
 // parseAlterTableOwner handles OWNER TO RoleSpec.
@@ -1513,25 +1555,28 @@ func (p *Parser) parseGeneratedWhen() byte {
 }
 
 // parseAlterIdentityColumnOptionList parses alter_identity_column_option_list.
-func (p *Parser) parseAlterIdentityColumnOptionList() *nodes.List {
+func (p *Parser) parseAlterIdentityColumnOptionList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
-		opt := p.parseAlterIdentityColumnOption()
+		opt, err := p.parseAlterIdentityColumnOption()
+		if err != nil {
+			return nil, err
+		}
 		if opt == nil {
 			break
 		}
 		items = append(items, opt)
 	}
 	if len(items) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseAlterIdentityColumnOption parses alter_identity_column_option.
 //
 //	RESTART | RESTART opt_with NumericOnly | SET SeqOptElem | SET GENERATED generated_when
-func (p *Parser) parseAlterIdentityColumnOption() nodes.Node {
+func (p *Parser) parseAlterIdentityColumnOption() (nodes.Node, error) {
 	switch p.cur.Type {
 	case RESTART:
 		p.advance()
@@ -1541,20 +1586,20 @@ func (p *Parser) parseAlterIdentityColumnOption() nodes.Node {
 		}
 		if p.cur.Type == ICONST || p.cur.Type == FCONST || p.cur.Type == '+' || p.cur.Type == '-' {
 			val := p.parseNumericOnly()
-			return makeDefElem("restart", val)
+			return makeDefElem("restart", val), nil
 		}
-		return makeDefElem("restart", nil)
+		return makeDefElem("restart", nil), nil
 	case SET:
 		p.advance()
 		if p.cur.Type == GENERATED {
 			p.advance()
 			gw := p.parseGeneratedWhen()
-			return makeDefElem("generated", makeIntConst(int64(gw)))
+			return makeDefElem("generated", makeIntConst(int64(gw))), nil
 		}
 		// SET SeqOptElem
 		return p.parseOneSeqOptElem()
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
@@ -1626,12 +1671,15 @@ func (p *Parser) parseGenericOptionElem() *nodes.DefElem {
 }
 
 // parseOneSeqOptElem parses a single SeqOptElem using the existing parseSeqOptList.
-func (p *Parser) parseOneSeqOptElem() *nodes.DefElem {
-	list := p.parseSeqOptList()
+func (p *Parser) parseOneSeqOptElem() (*nodes.DefElem, error) {
+	list, err := p.parseSeqOptList()
+	if err != nil {
+		return nil, err
+	}
 	if list != nil && len(list.Items) > 0 {
 		if de, ok := list.Items[0].(*nodes.DefElem); ok {
-			return de
+			return de, nil
 		}
 	}
-	return &nodes.DefElem{Loc: nodes.NoLoc()}
+	return &nodes.DefElem{Loc: nodes.NoLoc()}, nil
 }

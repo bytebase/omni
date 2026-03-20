@@ -84,10 +84,10 @@ func (p *Parser) parseAlterExtensionStmt() (nodes.Node, error) {
 		}, nil
 	case ADD_P:
 		p.advance()
-		return p.parseAlterExtensionContents(name, 1), nil
+		return p.parseAlterExtensionContents(name, 1)
 	case DROP:
 		p.advance()
-		return p.parseAlterExtensionContents(name, -1), nil
+		return p.parseAlterExtensionContents(name, -1)
 	case SET:
 		p.advance()
 		if _, err := p.expect(SCHEMA); err != nil {
@@ -128,7 +128,7 @@ func (p *Parser) parseAlterExtensionOptItem() *nodes.DefElem {
 	return nil
 }
 
-func (p *Parser) parseAlterExtensionContents(extname string, action int) nodes.Node {
+func (p *Parser) parseAlterExtensionContents(extname string, action int) (nodes.Node, error) {
 	switch p.cur.Type {
 	case AGGREGATE:
 		p.advance()
@@ -136,28 +136,28 @@ func (p *Parser) parseAlterExtensionContents(extname string, action int) nodes.N
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_AGGREGATE, Object: obj,
-		}
+		}, nil
 	case FUNCTION:
 		p.advance()
 		obj := p.parseExtFuncWithArgtypes()
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_FUNCTION, Object: obj,
-		}
+		}, nil
 	case PROCEDURE:
 		p.advance()
 		obj := p.parseExtFuncWithArgtypes()
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_PROCEDURE, Object: obj,
-		}
+		}, nil
 	case ROUTINE:
 		p.advance()
 		obj := p.parseExtFuncWithArgtypes()
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_ROUTINE, Object: obj,
-		}
+		}, nil
 	case OPERATOR:
 		p.advance()
 		if p.cur.Type == CLASS {
@@ -169,7 +169,7 @@ func (p *Parser) parseAlterExtensionContents(extname string, action int) nodes.N
 			return &nodes.AlterExtensionContentsStmt{
 				Extname: extname, Action: action,
 				Objtype: nodes.OBJECT_OPCLASS, Object: obj,
-			}
+			}, nil
 		}
 		if p.cur.Type == FAMILY {
 			p.advance()
@@ -180,27 +180,33 @@ func (p *Parser) parseAlterExtensionContents(extname string, action int) nodes.N
 			return &nodes.AlterExtensionContentsStmt{
 				Extname: extname, Action: action,
 				Objtype: nodes.OBJECT_OPFAMILY, Object: obj,
-			}
+			}, nil
 		}
 		obj := p.parseExtOperWithArgtypes()
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_OPERATOR, Object: obj,
-		}
+		}, nil
 	case DOMAIN_P:
 		p.advance()
-		tn, _ := p.parseTypename()
+		tn, err := p.parseTypename()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_DOMAIN, Object: tn,
-		}
+		}, nil
 	case TYPE_P:
 		p.advance()
-		tn, _ := p.parseTypename()
+		tn, err := p.parseTypename()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_TYPE, Object: tn,
-		}
+		}, nil
 	default:
 		objType, ok := p.tryParseExtObjTypeName()
 		if ok {
@@ -208,14 +214,14 @@ func (p *Parser) parseAlterExtensionContents(extname string, action int) nodes.N
 			return &nodes.AlterExtensionContentsStmt{
 				Extname: extname, Action: action,
 				Objtype: objType, Object: &nodes.String{Str: objName},
-			}
+			}, nil
 		}
 		objType = p.parseObjectTypeAnyName()
 		anyName, _ := p.parseAnyName()
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: objType, Object: anyName,
-		}
+		}, nil
 	}
 }
 

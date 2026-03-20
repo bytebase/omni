@@ -30,7 +30,7 @@ func extractTableRefsInner(sql string, cursorOffset int) []TableRef {
 	if err != nil || list == nil || len(list.Items) == 0 {
 		// Fallback: try with placeholder
 		if cursorOffset <= len(sql) {
-			patched := sql[:cursorOffset] + " 1"
+			patched := sql[:cursorOffset] + " _x"
 			if cursorOffset < len(sql) {
 				patched += sql[cursorOffset:]
 			}

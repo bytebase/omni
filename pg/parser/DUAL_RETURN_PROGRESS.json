@@ -85,7 +85,7 @@
       "name": "parser_toplevel",
       "files": ["parser.go"],
       "function_count": 7,
-      "status": "pending",
+      "status": "done",
       "notes": "Top-level entry: parseStmt, parseWithStmt, parseCreateDispatch, etc."
     }
   ]

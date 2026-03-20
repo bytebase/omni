@@ -119,6 +119,14 @@ func TestParseErrors(t *testing.T) {
 		{name: "GROUP BY CUBE no expr list", sql: "SELECT 1 FROM t GROUP BY CUBE(", wantContains: "syntax error", wantPos: -1},
 		{name: "GROUP BY ROLLUP no expr list", sql: "SELECT 1 FROM t GROUP BY ROLLUP(", wantContains: "syntax error", wantPos: -1},
 		{name: "GROUP BY GROUPING SETS no content", sql: "SELECT 1 FROM t GROUP BY GROUPING SETS(", wantContains: "syntax error", wantPos: -1},
+		// Section 5.1: CREATE TABLE Constraints — soft-fail nil checks
+		{name: "DEFAULT no default expr", sql: "CREATE TABLE t (a int DEFAULT", wantContains: "syntax error", wantPos: -1},
+		{name: "COLLATE no collation name", sql: "CREATE TABLE t (a int COLLATE", wantContains: "syntax error", wantPos: -1},
+		{name: "REFERENCES no table name", sql: "CREATE TABLE t (a int REFERENCES", wantContains: "syntax error", wantPos: -1},
+		{name: "LIKE no source table name", sql: "CREATE TABLE t (LIKE", wantContains: "syntax error", wantPos: -1},
+		{name: "CHECK no check expr", sql: "CREATE TABLE t (a int CHECK (", wantContains: "syntax error", wantPos: -1},
+		{name: "COMPRESSION no method", sql: "CREATE TABLE t (a int COMPRESSION", wantContains: "syntax error", wantPos: -1},
+		{name: "STORAGE no mode", sql: "CREATE TABLE t (a int STORAGE", wantContains: "syntax error", wantPos: -1},
 	}
 
 	for _, tt := range tests {

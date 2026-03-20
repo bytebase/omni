@@ -706,7 +706,10 @@ func (p *Parser) parseJsonArrayExpr() (nodes.Node, error) {
 
 	// Check for subquery: SELECT, VALUES, WITH, TABLE
 	if p.isSelectStart() {
-		query := p.parseSelectStmtForExpr()
+		query, err := p.parseSelectStmtForExpr()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.parseJsonFormatClauseOpt(); err != nil {
 			return nil, err
 		}

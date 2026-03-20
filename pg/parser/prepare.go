@@ -36,7 +36,10 @@ func (p *Parser) parsePrepareStmt() (nodes.Node, error) {
 	}
 
 	// PreparableStmt: SelectStmt | InsertStmt | UpdateStmt | DeleteStmt | MergeStmt
-	query := p.parsePreparableStmt()
+	query, err := p.parsePreparableStmt()
+	if err != nil {
+		return nil, err
+	}
 
 	return &nodes.PrepareStmt{
 		Name:     name,

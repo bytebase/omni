@@ -52,7 +52,10 @@ func (p *Parser) parseCopyQueryStmt() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	query := p.parsePreparableStmt()
+	query, err := p.parsePreparableStmt()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -73,26 +76,20 @@ func (p *Parser) parseCopyQueryStmt() (nodes.Node, error) {
 }
 
 // parsePreparableStmt parses SELECT, INSERT, UPDATE, or DELETE.
-func (p *Parser) parsePreparableStmt() nodes.Node {
+func (p *Parser) parsePreparableStmt() (nodes.Node, error) {
 	switch p.cur.Type {
 	case SELECT, VALUES, TABLE, WITH:
-		n, _ := p.parseSelectNoParens()
-		return n
+		return p.parseSelectNoParens()
 	case INSERT:
-		n, _ := p.parseInsertStmt(nil)
-		return n
+		return p.parseInsertStmt(nil)
 	case UPDATE:
-		n, _ := p.parseUpdateStmt(nil)
-		return n
+		return p.parseUpdateStmt(nil)
 	case DELETE_P:
-		n, _ := p.parseDeleteStmt(nil)
-		return n
+		return p.parseDeleteStmt(nil)
 	case MERGE:
-		n, _ := p.parseMergeStmt(nil)
-		return n
+		return p.parseMergeStmt(nil)
 	default:
-		n, _ := p.parseSelectNoParens()
-		return n
+		return p.parseSelectNoParens()
 	}
 }
 

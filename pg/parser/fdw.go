@@ -307,7 +307,11 @@ func (p *Parser) parseCreateForeignTableStmt() (nodes.Node, error) {
 		if p.cur.Type == '(' {
 			p.advance()
 			if p.cur.Type != ')' {
-				tableElts = p.parseOptTableElementList()
+				var err error
+				tableElts, err = p.parseOptTableElementList()
+				if err != nil {
+					return nil, err
+				}
 			}
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
@@ -337,7 +341,11 @@ func (p *Parser) parseCreateForeignTableStmt() (nodes.Node, error) {
 	}
 	var tableElts *nodes.List
 	if p.cur.Type != ')' {
-		tableElts = p.parseOptTableElementList()
+		var err error
+		tableElts, err = p.parseOptTableElementList()
+		if err != nil {
+			return nil, err
+		}
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err

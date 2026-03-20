@@ -68,7 +68,11 @@ func (p *Parser) parseCreateStmt() (*nodes.CreateStmt, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	stmt.TableElts = p.parseOptTableElementList()
+	tableElts, err := p.parseOptTableElementList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.TableElts = tableElts
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -201,9 +205,9 @@ func makeTypeNameFromNameList(names *nodes.List) *nodes.TypeName {
 // parseOptTableElementList parses OptTableElementList.
 //
 //	OptTableElementList: TableElementList | /* EMPTY */
-func (p *Parser) parseOptTableElementList() *nodes.List {
+func (p *Parser) parseOptTableElementList() (*nodes.List, error) {
 	if p.cur.Type == ')' {
-		return nil
+		return nil, nil
 	}
 	return p.parseTableElementList()
 }
@@ -211,32 +215,38 @@ func (p *Parser) parseOptTableElementList() *nodes.List {
 // parseTableElementList parses a comma-separated list of TableElements.
 //
 //	TableElementList: TableElement | TableElementList ',' TableElement
-func (p *Parser) parseTableElementList() *nodes.List {
-	elem := p.parseTableElement()
+func (p *Parser) parseTableElementList() (*nodes.List, error) {
+	elem, err := p.parseTableElement()
+	if err != nil {
+		return nil, err
+	}
 	if elem == nil {
-		return nil
+		return nil, nil
 	}
 	items := []nodes.Node{elem}
 	for p.cur.Type == ',' {
 		p.advance()
-		elem = p.parseTableElement()
+		elem, err = p.parseTableElement()
+		if err != nil {
+			return nil, err
+		}
 		if elem == nil {
 			break
 		}
 		items = append(items, elem)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseTableElement parses a single table element.
 //
 //	TableElement: columnDef | TableConstraint | TableLikeClause
-func (p *Parser) parseTableElement() nodes.Node {
+func (p *Parser) parseTableElement() (nodes.Node, error) {
 	switch p.cur.Type {
 	case CONSTRAINT:
-		return p.parseTableConstraint()
+		return p.parseTableConstraint(), nil
 	case CHECK, UNIQUE, PRIMARY, FOREIGN, EXCLUDE:
-		return p.parseTableConstraint()
+		return p.parseTableConstraint(), nil
 	case LIKE:
 		return p.parseTableLikeClause()
 	default:
@@ -250,15 +260,15 @@ func (p *Parser) parseTableElement() nodes.Node {
 // Ref: gram.y columnDef
 //
 //	columnDef: ColId Typename opt_column_constraints
-func (p *Parser) parseColumnDef() *nodes.ColumnDef {
+func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	colname, err := p.parseColId()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	tn, err := p.parseTypename()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	n := &nodes.ColumnDef{
@@ -269,28 +279,34 @@ func (p *Parser) parseColumnDef() *nodes.ColumnDef {
 	}
 
 	// opt_column_constraints
-	qualList := p.parseOptColumnConstraints()
+	qualList, err := p.parseOptColumnConstraints()
+	if err != nil {
+		return nil, err
+	}
 	splitColQualList(qualList, n)
 
-	return n
+	return n, nil
 }
 
 // parseOptColumnConstraints parses opt_column_constraints.
 //
 //	opt_column_constraints: ColConstraintList | /* EMPTY */
-func (p *Parser) parseOptColumnConstraints() *nodes.List {
+func (p *Parser) parseOptColumnConstraints() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
-		c := p.parseColConstraint()
+		c, err := p.parseColConstraint()
+		if err != nil {
+			return nil, err
+		}
 		if c == nil {
 			break
 		}
 		items = append(items, c)
 	}
 	if len(items) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseColConstraint parses a single ColConstraint.
@@ -302,17 +318,20 @@ func (p *Parser) parseOptColumnConstraints() *nodes.List {
 //	    | COMPRESSION ColId
 //	    | STORAGE ColId
 //	    | ConstraintAttr
-func (p *Parser) parseColConstraint() nodes.Node {
+func (p *Parser) parseColConstraint() (nodes.Node, error) {
 	switch p.cur.Type {
 	case CONSTRAINT:
 		p.advance()
 		name, _ := p.parseName()
-		c := p.parseColConstraintElem()
+		c, err := p.parseColConstraintElem()
+		if err != nil {
+			return nil, err
+		}
 		if c == nil {
-			return nil
+			return nil, nil
 		}
 		c.(*nodes.Constraint).Conname = name
-		return c
+		return c, nil
 	case NOT:
 		// NOT NULL or NOT DEFERRABLE
 		next := p.peekNext()
@@ -322,7 +341,7 @@ func (p *Parser) parseColConstraint() nodes.Node {
 			return &nodes.Constraint{
 				Contype:  nodes.CONSTR_NOTNULL,
 				Loc: nodes.NoLoc(),
-			}
+			}, nil
 		}
 		if next.Type == DEFERRABLE {
 			p.advance() // NOT
@@ -330,15 +349,15 @@ func (p *Parser) parseColConstraint() nodes.Node {
 			return &nodes.Constraint{
 				Contype:  nodes.CONSTR_ATTR_NOT_DEFERRABLE,
 				Loc: nodes.NoLoc(),
-			}
+			}, nil
 		}
-		return nil
+		return nil, nil
 	case NULL_P:
 		p.advance()
 		return &nodes.Constraint{
 			Contype:  nodes.CONSTR_NULL,
 			Loc: nodes.NoLoc(),
-		}
+		}, nil
 	case UNIQUE:
 		return p.parseColConstraintElem()
 	case PRIMARY:
@@ -353,33 +372,51 @@ func (p *Parser) parseColConstraint() nodes.Node {
 		return p.parseColConstraintElem()
 	case COLLATE:
 		p.advance()
-		collname, _ := p.parseAnyName()
+		collname, err := p.parseAnyName()
+		if err != nil {
+			return nil, err
+		}
+		if !p.collectMode() && collname == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.CollateClause{
 			Collname: collname,
 			Loc: nodes.NoLoc(),
-		}
+		}, nil
 	case COMPRESSION:
 		p.advance()
-		id, _ := p.parseColId()
+		id, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
+		if !p.collectMode() && id == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.DefElem{
 			Defname: "compression",
 			Arg:     &nodes.String{Str: id},
 			Loc:     nodes.NoLoc(),
-		}
+		}, nil
 	case STORAGE:
 		p.advance()
-		id, _ := p.parseColId()
+		id, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
+		if !p.collectMode() && id == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.DefElem{
 			Defname: "storage",
 			Arg:     &nodes.String{Str: id},
 			Loc:     nodes.NoLoc(),
-		}
+		}, nil
 	case DEFERRABLE:
 		p.advance()
 		return &nodes.Constraint{
 			Contype:  nodes.CONSTR_ATTR_DEFERRABLE,
 			Loc: nodes.NoLoc(),
-		}
+		}, nil
 	case INITIALLY:
 		p.advance()
 		if p.cur.Type == DEFERRED {
@@ -387,18 +424,18 @@ func (p *Parser) parseColConstraint() nodes.Node {
 			return &nodes.Constraint{
 				Contype:  nodes.CONSTR_ATTR_DEFERRED,
 				Loc: nodes.NoLoc(),
-			}
+			}, nil
 		}
 		if p.cur.Type == IMMEDIATE {
 			p.advance()
 			return &nodes.Constraint{
 				Contype:  nodes.CONSTR_ATTR_IMMEDIATE,
 				Loc: nodes.NoLoc(),
-			}
+			}, nil
 		}
-		return nil
+		return nil, nil
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
@@ -411,7 +448,7 @@ func (p *Parser) parseColConstraint() nodes.Node {
 //	    | GENERATED BY DEFAULT AS IDENTITY_P OptParenthesizedSeqOptList
 //	    | GENERATED ALWAYS AS '(' a_expr ')' STORED
 //	    | GENERATED BY DEFAULT AS '(' a_expr ')' STORED
-func (p *Parser) parseColConstraintElem() nodes.Node {
+func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 	switch p.cur.Type {
 	case NOT:
 		p.advance() // NOT
@@ -419,13 +456,13 @@ func (p *Parser) parseColConstraintElem() nodes.Node {
 		return &nodes.Constraint{
 			Contype:  nodes.CONSTR_NOTNULL,
 			Loc: nodes.NoLoc(),
-		}
+		}, nil
 	case NULL_P:
 		p.advance()
 		return &nodes.Constraint{
 			Contype:  nodes.CONSTR_NULL,
 			Loc: nodes.NoLoc(),
-		}
+		}, nil
 	case UNIQUE:
 		p.advance()
 		nullsNotDistinct := p.parseOptUniqueNullTreatment()
@@ -437,7 +474,7 @@ func (p *Parser) parseColConstraintElem() nodes.Node {
 			Options:          options,
 			Indexspace:        indexspace,
 			Loc: nodes.NoLoc(),
-		}
+		}, nil
 	case PRIMARY:
 		p.advance() // PRIMARY
 		p.expect(KEY)
@@ -448,11 +485,17 @@ func (p *Parser) parseColConstraintElem() nodes.Node {
 			Options:   options,
 			Indexspace: indexspace,
 			Loc: nodes.NoLoc(),
-		}
+		}, nil
 	case CHECK:
 		p.advance() // CHECK
 		p.expect('(')
-		expr, _ := p.parseAExpr(0)
+		expr, err := p.parseAExpr(0)
+		if err != nil {
+			return nil, err
+		}
+		if !p.collectMode() && expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.expect(')')
 		noInherit := p.parseNoInherit()
 		return &nodes.Constraint{
@@ -461,18 +504,30 @@ func (p *Parser) parseColConstraintElem() nodes.Node {
 			IsNoInherit:    noInherit,
 			Loc: nodes.NoLoc(),
 			InitiallyValid: true,
-		}
+		}, nil
 	case DEFAULT:
 		p.advance()
-		expr, _ := p.parseBExpr(0)
+		expr, err := p.parseBExpr(0)
+		if err != nil {
+			return nil, err
+		}
+		if !p.collectMode() && expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.Constraint{
 			Contype:  nodes.CONSTR_DEFAULT,
 			RawExpr:  expr,
 			Loc: nodes.NoLoc(),
-		}
+		}, nil
 	case REFERENCES:
 		p.advance()
-		refNames, _ := p.parseQualifiedName()
+		refNames, err := p.parseQualifiedName()
+		if err != nil {
+			return nil, err
+		}
+		if !p.collectMode() && refNames == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		refRv := makeRangeVarFromNames(refNames)
 		pkAttrs := p.parseOptColumnList()
 		matchType := p.parseKeyMatch()
@@ -490,16 +545,16 @@ func (p *Parser) parseColConstraintElem() nodes.Node {
 			InitiallyValid: true,
 		}
 		applyConstraintAttrs(n, attrs)
-		return n
+		return n, nil
 	case GENERATED:
 		return p.parseGeneratedConstraint()
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
 // parseGeneratedConstraint parses GENERATED ... column constraints.
-func (p *Parser) parseGeneratedConstraint() *nodes.Constraint {
+func (p *Parser) parseGeneratedConstraint() (*nodes.Constraint, error) {
 	p.advance() // GENERATED
 
 	if p.cur.Type == ALWAYS {
@@ -508,13 +563,16 @@ func (p *Parser) parseGeneratedConstraint() *nodes.Constraint {
 		if p.cur.Type == IDENTITY_P {
 			// GENERATED ALWAYS AS IDENTITY OptParenthesizedSeqOptList
 			p.advance() // IDENTITY
-			opts := p.parseOptParenthesizedSeqOptList()
+			opts, err := p.parseOptParenthesizedSeqOptList()
+			if err != nil {
+				return nil, err
+			}
 			return &nodes.Constraint{
 				Contype:       nodes.CONSTR_IDENTITY,
 				GeneratedWhen: 'a',
 				Options:       opts,
 				Loc: nodes.NoLoc(),
-			}
+			}, nil
 		}
 		// GENERATED ALWAYS AS '(' a_expr ')' STORED
 		p.expect('(')
@@ -526,7 +584,7 @@ func (p *Parser) parseGeneratedConstraint() *nodes.Constraint {
 			GeneratedWhen: 'a',
 			RawExpr:       expr,
 			Loc: nodes.NoLoc(),
-		}
+		}, nil
 	}
 
 	// GENERATED BY DEFAULT AS ...
@@ -535,13 +593,16 @@ func (p *Parser) parseGeneratedConstraint() *nodes.Constraint {
 	p.expect(AS)
 	if p.cur.Type == IDENTITY_P {
 		p.advance()
-		opts := p.parseOptParenthesizedSeqOptList()
+		opts, err := p.parseOptParenthesizedSeqOptList()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.Constraint{
 			Contype:       nodes.CONSTR_IDENTITY,
 			GeneratedWhen: 'd',
 			Options:       opts,
 			Loc: nodes.NoLoc(),
-		}
+		}, nil
 	}
 	// GENERATED BY DEFAULT AS '(' a_expr ')' STORED
 	p.expect('(')
@@ -553,20 +614,23 @@ func (p *Parser) parseGeneratedConstraint() *nodes.Constraint {
 		GeneratedWhen: 'd',
 		RawExpr:       expr,
 		Loc: nodes.NoLoc(),
-	}
+	}, nil
 }
 
 // parseOptParenthesizedSeqOptList parses OptParenthesizedSeqOptList.
 //
 //	OptParenthesizedSeqOptList: '(' SeqOptList ')' | /* EMPTY */
-func (p *Parser) parseOptParenthesizedSeqOptList() *nodes.List {
+func (p *Parser) parseOptParenthesizedSeqOptList() (*nodes.List, error) {
 	if p.cur.Type != '(' {
-		return nil
+		return nil, nil
 	}
 	p.advance()
-	opts := p.parseSeqOptList()
+	opts, err := p.parseSeqOptList()
+	if err != nil {
+		return nil, err
+	}
 	p.expect(')')
-	return opts
+	return opts, nil
 }
 
 // makeDefElem creates a DefElem with Loc=NoLoc().
@@ -877,9 +941,15 @@ func (p *Parser) parseWhereClauseOpt() nodes.Node {
 // parseTableLikeClause parses a LIKE clause in CREATE TABLE.
 //
 //	TableLikeClause: LIKE qualified_name TableLikeOptionList?
-func (p *Parser) parseTableLikeClause() *nodes.TableLikeClause {
+func (p *Parser) parseTableLikeClause() (*nodes.TableLikeClause, error) {
 	p.advance() // LIKE
-	names, _ := p.parseQualifiedName()
+	names, err := p.parseQualifiedName()
+	if err != nil {
+		return nil, err
+	}
+	if !p.collectMode() && names == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 	rv := makeRangeVarFromNames(names)
 	var opts uint32
 	for p.cur.Type == INCLUDING || p.cur.Type == EXCLUDING {
@@ -895,7 +965,7 @@ func (p *Parser) parseTableLikeClause() *nodes.TableLikeClause {
 	return &nodes.TableLikeClause{
 		Relation: rv,
 		Options:  opts,
-	}
+	}, nil
 }
 
 // parseTableLikeOption parses a single TableLikeOption keyword.
@@ -986,7 +1056,10 @@ func (p *Parser) parseColumnOptions() *nodes.ColumnDef {
 		p.expect(OPTIONS)
 	}
 
-	qualList := p.parseOptColumnConstraints()
+	qualList, err := p.parseOptColumnConstraints()
+	if err != nil {
+		return nil
+	}
 	splitColQualList(qualList, n)
 
 	return n

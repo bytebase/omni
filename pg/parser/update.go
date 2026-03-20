@@ -69,6 +69,9 @@ func (p *Parser) parseUpdateStmt(withClause *nodes.WithClause) (*nodes.UpdateStm
 		if err != nil {
 			return nil, err
 		}
+		if fromClause == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if p.collectMode() {
 			for _, t := range []int{WHERE, RETURNING, ';'} {
 				p.addTokenCandidate(t)
@@ -150,6 +153,9 @@ func (p *Parser) parseDeleteStmt(withClause *nodes.WithClause) (*nodes.DeleteStm
 		usingClause, err = p.parseFromListFull()
 		if err != nil {
 			return nil, err
+		}
+		if usingClause == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if p.collectMode() {
 			for _, t := range []int{WHERE, RETURNING, ';'} {

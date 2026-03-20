@@ -111,13 +111,13 @@ After consuming JOIN keyword(s), `parseTableRefPrimary()` can return (nil, nil).
 
 ### 5.1 CREATE TABLE Constraints
 
-- [ ] `CREATE TABLE t (a int DEFAULT` — DEFAULT consumed, no default expr → syntax error at end of input
-- [ ] `CREATE TABLE t (a int COLLATE` — COLLATE consumed, no collation name → syntax error at end of input
-- [ ] `CREATE TABLE t (a int REFERENCES` — REFERENCES consumed, no table name → syntax error at end of input
-- [ ] `CREATE TABLE t (LIKE` — LIKE consumed, no source table name → syntax error at end of input
-- [ ] `CREATE TABLE t (a int CHECK (` — CHECK ( consumed, no check expr → syntax error at end of input
-- [ ] `CREATE TABLE t (a int COMPRESSION` — COMPRESSION consumed, no method → syntax error at end of input
-- [ ] `CREATE TABLE t (a int STORAGE` — STORAGE consumed, no mode → syntax error at end of input
+- [x] `CREATE TABLE t (a int DEFAULT` — DEFAULT consumed, no default expr → syntax error at end of input
+- [x] `CREATE TABLE t (a int COLLATE` — COLLATE consumed, no collation name → syntax error at end of input
+- [x] `CREATE TABLE t (a int REFERENCES` — REFERENCES consumed, no table name → syntax error at end of input
+- [x] `CREATE TABLE t (LIKE` — LIKE consumed, no source table name → syntax error at end of input
+- [x] `CREATE TABLE t (a int CHECK (` — CHECK ( consumed, no check expr → syntax error at end of input
+- [x] `CREATE TABLE t (a int COMPRESSION` — COMPRESSION consumed, no method → syntax error at end of input
+- [x] `CREATE TABLE t (a int STORAGE` — STORAGE consumed, no mode → syntax error at end of input
 
 ### 5.2 ALTER TABLE, GRANT, CREATE FUNCTION
 

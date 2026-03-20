@@ -35,7 +35,11 @@ func (p *Parser) parseCreateSchemaStmt() (nodes.Node, error) {
 	if p.cur.Type == AUTHORIZATION {
 		p.advance() // consume AUTHORIZATION
 		stmt.Authrole = p.parseRoleSpec()
-		stmt.SchemaElts = p.parseOptSchemaEltList()
+		elts, err := p.parseOptSchemaEltList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.SchemaElts = elts
 		return stmt, nil
 	}
 
@@ -50,56 +54,60 @@ func (p *Parser) parseCreateSchemaStmt() (nodes.Node, error) {
 		stmt.Authrole = p.parseRoleSpec()
 	}
 
-	stmt.SchemaElts = p.parseOptSchemaEltList()
+	elts, err := p.parseOptSchemaEltList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.SchemaElts = elts
 	return stmt, nil
 }
 
 // parseOptSchemaEltList parses an optional list of schema elements.
-func (p *Parser) parseOptSchemaEltList() *nodes.List {
+func (p *Parser) parseOptSchemaEltList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
-		elt := p.parseSchemaStmt()
+		elt, err := p.parseSchemaStmt()
+		if err != nil {
+			return nil, err
+		}
 		if elt == nil {
 			break
 		}
 		items = append(items, elt)
 	}
 	if len(items) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseSchemaStmt parses a schema_stmt (a statement allowed inside CREATE SCHEMA).
-func (p *Parser) parseSchemaStmt() nodes.Node {
+func (p *Parser) parseSchemaStmt() (nodes.Node, error) {
 	if p.cur.Type != CREATE {
-		return nil
+		return nil, nil
 	}
 	next := p.peekNext()
 	switch next.Type {
 	case TABLE:
-		n, _ := p.parseCreateOrCTAS()
-		return n
+		return p.parseCreateOrCTAS()
 	case INDEX, UNIQUE:
 		p.advance() // consume CREATE
-		n, _ := p.parseIndexStmt()
-		return n
+		return p.parseIndexStmt()
 	case SEQUENCE:
 		p.advance() // consume CREATE
-		n, _ := p.parseCreateSeqStmt(byte(nodes.RELPERSISTENCE_PERMANENT))
-		return n
+		return p.parseCreateSeqStmt(byte(nodes.RELPERSISTENCE_PERMANENT))
 	case VIEW:
 		p.advance() // consume CREATE
-		n, _ := p.parseViewStmt(false)
-		return n
+		return p.parseViewStmt(false)
 	case OR:
 		p.advance() // consume CREATE
 		p.advance() // consume OR
-		p.expect(REPLACE)
-		n, _ := p.parseViewStmt(true)
-		return n
+		if _, err := p.expect(REPLACE); err != nil {
+			return nil, err
+		}
+		return p.parseViewStmt(true)
 	default:
-		return nil
+		return nil, nil
 	}
 }
 

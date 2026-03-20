@@ -45,7 +45,11 @@ func (p *Parser) parseCreateFunctionStmt(isReplace bool) (*nodes.CreateFunctionS
 
 	if isProcedure {
 		// PROCEDURE: no RETURNS clause
-		stmt.Options = p.parseOptCreatefuncOptList()
+		opts, err := p.parseOptCreatefuncOptList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
 		stmt.SqlBody = p.parseOptRoutineBody()
 		// Add isProcedure marker
 		procDef := &nodes.DefElem{
@@ -97,7 +101,11 @@ func (p *Parser) parseCreateFunctionStmt(isReplace bool) (*nodes.CreateFunctionS
 		}
 	}
 
-	stmt.Options = p.parseOptCreatefuncOptList()
+	opts, err := p.parseOptCreatefuncOptList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Options = opts
 	stmt.SqlBody = p.parseOptRoutineBody()
 	return stmt, nil
 }
@@ -330,19 +338,22 @@ func (p *Parser) parseTableFuncColumn() *nodes.FunctionParameter {
 //	opt_createfunc_opt_list:
 //	    createfunc_opt_list
 //	    | /* EMPTY */
-func (p *Parser) parseOptCreatefuncOptList() *nodes.List {
+func (p *Parser) parseOptCreatefuncOptList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
-		opt := p.parseCreatefuncOptItem()
+		opt, err := p.parseCreatefuncOptItem()
+		if err != nil {
+			return nil, err
+		}
 		if opt == nil {
 			break
 		}
 		items = append(items, opt)
 	}
 	if len(items) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseCreatefuncOptItem parses a single function option.
@@ -353,7 +364,7 @@ func (p *Parser) parseOptCreatefuncOptList() *nodes.List {
 //	    | TRANSFORM transform_type_list
 //	    | WINDOW
 //	    | common_func_opt_item
-func (p *Parser) parseCreatefuncOptItem() *nodes.DefElem {
+func (p *Parser) parseCreatefuncOptItem() (*nodes.DefElem, error) {
 	loc := p.pos()
 	var de *nodes.DefElem
 	switch p.cur.Type {
@@ -369,7 +380,10 @@ func (p *Parser) parseCreatefuncOptItem() *nodes.DefElem {
 
 	case TRANSFORM:
 		p.advance()
-		types := p.parseTransformTypeList()
+		types, err := p.parseTransformTypeList()
+		if err != nil {
+			return nil, err
+		}
 		de = &nodes.DefElem{Defname: "transform", Arg: types}
 
 	case WINDOW:
@@ -382,7 +396,7 @@ func (p *Parser) parseCreatefuncOptItem() *nodes.DefElem {
 	if de != nil {
 		de.Loc = nodes.Loc{Start: loc, End: p.pos()}
 	}
-	return de
+	return de, nil
 }
 
 // parseFuncAs parses the AS clause body.
@@ -428,19 +442,25 @@ func (p *Parser) parseNonReservedWordOrSconst() string {
 //	transform_type_list:
 //	    FOR TYPE_P Typename
 //	    | transform_type_list ',' FOR TYPE_P Typename
-func (p *Parser) parseTransformTypeList() *nodes.List {
+func (p *Parser) parseTransformTypeList() (*nodes.List, error) {
 	p.expect(FOR)
 	p.expect(TYPE_P)
-	tn, _ := p.parseTypename()
+	tn, err := p.parseTypename()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{tn}
 	for p.cur.Type == ',' {
 		p.advance()
 		p.expect(FOR)
 		p.expect(TYPE_P)
-		tn, _ = p.parseTypename()
+		tn, err = p.parseTypename()
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, tn)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseCommonFuncOptItem parses a common function option.

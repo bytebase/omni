@@ -761,7 +761,11 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, relpersiste
 	// indicate CREATE TABLE.
 	if p.isCreateTableElement() {
 		// This is a regular CREATE TABLE.
-		stmt.TableElts = p.parseOptTableElementList()
+		tableElts, err := p.parseOptTableElementList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.TableElts = tableElts
 		p.expect(')')
 		stmt.InhRelations = p.parseOptInherit()
 		stmt.Partspec = p.parseOptPartitionSpec()
@@ -812,7 +816,11 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, relpersiste
 		p.cur = firstName
 		p.prev = savedPrev
 
-		stmt.TableElts = p.parseOptTableElementList()
+		tableElts, err := p.parseOptTableElementList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.TableElts = tableElts
 		p.expect(')')
 		stmt.InhRelations = p.parseOptInherit()
 		stmt.Partspec = p.parseOptPartitionSpec()
@@ -824,7 +832,11 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, relpersiste
 	}
 
 	// Fallback: parse as CREATE TABLE
-	stmt.TableElts = p.parseOptTableElementList()
+	tableElts, err := p.parseOptTableElementList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.TableElts = tableElts
 	p.expect(')')
 	stmt.InhRelations = p.parseOptInherit()
 	stmt.Partspec = p.parseOptPartitionSpec()
@@ -926,7 +938,11 @@ func (p *Parser) finishCreateStmt(names *nodes.List, relpersistence byte, ifNotE
 
 	// Should have '(' but we already handled that case
 	p.expect('(')
-	stmt.TableElts = p.parseOptTableElementList()
+	tableElts, err := p.parseOptTableElementList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.TableElts = tableElts
 	p.expect(')')
 	stmt.InhRelations = p.parseOptInherit()
 	stmt.Partspec = p.parseOptPartitionSpec()
