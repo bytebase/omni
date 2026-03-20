@@ -384,9 +384,20 @@ func deparseExprAlias(node ast.ExprNode) string {
 		return operand
 	case *ast.FuncCallExpr:
 		name := strings.ToLower(n.Name)
+		// Apply function name rewrites for alias generation
+		upper := strings.ToUpper(n.Name)
+		if rewritten, ok := funcNameRewrites[upper]; ok {
+			name = rewritten
+		}
+		if n.Star {
+			return name + "(0)"
+		}
 		args := make([]string, len(n.Args))
 		for i, arg := range n.Args {
 			args[i] = deparseExprAlias(arg)
+		}
+		if n.Distinct {
+			return name + "(distinct " + strings.Join(args, ",") + ")"
 		}
 		return name + "(" + strings.Join(args, ",") + ")"
 	case *ast.ParenExpr:

@@ -371,18 +371,18 @@ Depends on Phase 4-5. Requires Catalog access.
 ### 6.1 Column Name Qualification
 
 ```
-[ ] Resolver interface: accepts *Catalog + *SelectStmt, returns resolved *SelectStmt
-[ ] Single table: `SELECT a FROM t` → `select `t`.`a` AS `a` from `t``
-[ ] Multiple columns: all columns get table prefix
-[ ] Qualified column preserved: `SELECT t.a FROM t` → `select `t`.`a` AS `a``
-[ ] Ambiguous column (two tables with same column name): error or correct resolution
-[ ] Table alias: `SELECT a FROM t AS x` → `select `x`.`a` AS `a` from `t` `x``
-[ ] Column in WHERE: `WHERE a > 0` → `where (`t`.`a` > 0)`
-[ ] Column in ORDER BY: qualified
-[ ] Column in GROUP BY: qualified
-[ ] Column in HAVING: qualified
-[ ] Column in ON condition: both sides qualified
-[ ] Qualified star: `SELECT t1.*, t2.a` — t1.* expanded, t2.a qualified
+[x] Resolver interface: accepts *Catalog + *SelectStmt, returns resolved *SelectStmt
+[x] Single table: `SELECT a FROM t` → `select `t`.`a` AS `a` from `t``
+[x] Multiple columns: all columns get table prefix
+[x] Qualified column preserved: `SELECT t.a FROM t` → `select `t`.`a` AS `a``
+[x] Ambiguous column (two tables with same column name): error or correct resolution
+[x] Table alias: `SELECT a FROM t AS x` → `select `x`.`a` AS `a` from `t` `x``
+[x] Column in WHERE: `WHERE a > 0` → `where (`t`.`a` > 0)`
+[x] Column in ORDER BY: qualified
+[x] Column in GROUP BY: qualified
+[x] Column in HAVING: qualified
+[x] Column in ON condition: both sides qualified
+[x] Qualified star: `SELECT t1.*, t2.a` — t1.* expanded, t2.a qualified
 ```
 
 ### 6.2 SELECT * Expansion
