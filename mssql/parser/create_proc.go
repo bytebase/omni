@@ -38,7 +38,7 @@ import (
 //	    [ EXECUTE AS { CALLER | SELF | OWNER | 'user_name' } ]
 //	    [ NATIVE_COMPILATION ]
 //	    [ SCHEMABINDING ]
-func (p *Parser) parseCreateProcedureStmt(orAlter bool) *nodes.CreateProcedureStmt {
+func (p *Parser) parseCreateProcedureStmt(orAlter bool) (*nodes.CreateProcedureStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.CreateProcedureStmt{
@@ -47,7 +47,11 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) *nodes.CreateProcedureSt
 	}
 
 	// Procedure name
-	stmt.Name , _ = p.parseTableRef()
+	name, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
 
 	// Optional procedure number: ; number
 	if p.cur.Type == ';' {
@@ -65,11 +69,21 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) *nodes.CreateProcedureSt
 	if p.cur.Type == '(' {
 		p.advance()
 		if p.cur.Type != ')' {
-			stmt.Params = p.parseParamDefList()
+			params, err := p.parseParamDefList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Params = params
 		}
-		_, _ = p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	} else if p.cur.Type == tokVARIABLE {
-		stmt.Params = p.parseParamDefList()
+		params, err := p.parseParamDefList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Params = params
 	}
 
 	// WITH <procedure_option> [,...n]
@@ -77,7 +91,11 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) *nodes.CreateProcedureSt
 		next := p.peekNext()
 		if p.isRoutineOption(next) {
 			p.advance() // consume WITH
-			stmt.Options = p.parseRoutineOptionList()
+			opts, err := p.parseRoutineOptionList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Options = opts
 		}
 	}
 
@@ -107,7 +125,7 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) *nodes.CreateProcedureSt
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseMethodSpecifier parses assembly_name.class_name.method_name.
@@ -207,7 +225,7 @@ func (p *Parser) parseMethodSpecifier() string {
 //	}
 //
 //	<method_specifier> ::= assembly_name.class_name.method_name
-func (p *Parser) parseCreateFunctionStmt(orAlter bool) *nodes.CreateFunctionStmt {
+func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.CreateFunctionStmt{
@@ -216,15 +234,25 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) *nodes.CreateFunctionStmt
 	}
 
 	// Function name
-	stmt.Name , _ = p.parseTableRef()
+	name, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
 
 	// Parameters in parentheses
 	if p.cur.Type == '(' {
 		p.advance()
 		if p.cur.Type != ')' {
-			stmt.Params = p.parseParamDefList()
+			params, err := p.parseParamDefList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Params = params
 		}
-		_, _ = p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 
 	// RETURNS type or RETURNS TABLE
@@ -239,7 +267,10 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) *nodes.CreateFunctionStmt
 				p.advance()
 				var cols []nodes.Node
 				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					col, _ := p.parseColumnDef()
+					col, err := p.parseColumnDef()
+					if err != nil {
+						return nil, err
+					}
 					if col != nil {
 						cols = append(cols, col)
 					}
@@ -247,7 +278,9 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) *nodes.CreateFunctionStmt
 						break
 					}
 				}
-				_, _ = p.expect(')')
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 				stmt.ReturnsTable.Columns = &nodes.List{Items: cols}
 			}
 			stmt.ReturnsTable.Loc.End = p.pos()
@@ -265,7 +298,10 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) *nodes.CreateFunctionStmt
 					p.advance()
 					var cols []nodes.Node
 					for p.cur.Type != ')' && p.cur.Type != tokEOF {
-						col, _ := p.parseColumnDef()
+						col, err := p.parseColumnDef()
+						if err != nil {
+							return nil, err
+						}
 						if col != nil {
 							cols = append(cols, col)
 						}
@@ -273,13 +309,19 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) *nodes.CreateFunctionStmt
 							break
 						}
 					}
-					_, _ = p.expect(')')
+					if _, err := p.expect(')'); err != nil {
+						return nil, err
+					}
 					stmt.ReturnsTable.Columns = &nodes.List{Items: cols}
 				}
 				stmt.ReturnsTable.Loc.End = p.pos()
 			}
 		} else {
-			stmt.ReturnType , _ = p.parseDataType()
+			dt, err := p.parseDataType()
+			if err != nil {
+				return nil, err
+			}
+			stmt.ReturnType = dt
 		}
 	}
 
@@ -288,7 +330,11 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) *nodes.CreateFunctionStmt
 		next := p.peekNext()
 		if p.isRoutineOption(next) {
 			p.advance() // consume WITH
-			stmt.Options = p.parseRoutineOptionList()
+			opts, err := p.parseRoutineOptionList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Options = opts
 		}
 	}
 
@@ -297,8 +343,14 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) *nodes.CreateFunctionStmt
 		p.advance() // consume ORDER
 		if p.cur.Type == '(' {
 			p.advance()
-			stmt.OrderClause, _ = p.parseOrderByList()
-			_, _ = p.expect(')')
+			orderBy, err := p.parseOrderByList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.OrderClause = orderBy
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -321,7 +373,10 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) *nodes.CreateFunctionStmt
 			hasParen = true
 			p.advance()
 		}
-		selectStmt, _ := p.parseSelectStmt()
+		selectStmt, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
 		if hasParen {
 			p.match(')')
 		}
@@ -334,17 +389,20 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) *nodes.CreateFunctionStmt
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseParamDefList parses a comma-separated list of parameter definitions.
 //
 //	param_def_list = param_def { ',' param_def }
 //	param_def = @name [AS] type [VARYING] [NULL] [= default] [OUT|OUTPUT|READONLY]
-func (p *Parser) parseParamDefList() *nodes.List {
+func (p *Parser) parseParamDefList() (*nodes.List, error) {
 	var params []nodes.Node
 	for {
-		param := p.parseParamDef()
+		param, err := p.parseParamDef()
+		if err != nil {
+			return nil, err
+		}
 		if param == nil {
 			break
 		}
@@ -353,16 +411,16 @@ func (p *Parser) parseParamDefList() *nodes.List {
 			break
 		}
 	}
-	return &nodes.List{Items: params}
+	return &nodes.List{Items: params}, nil
 }
 
 // parseParamDef parses a single parameter definition.
 //
 //	@parameter_name [ AS ] [ type_schema_name. ] data_type
 //	    [ VARYING ] [ NULL ] [ = default ] [ OUT | OUTPUT | READONLY ]
-func (p *Parser) parseParamDef() *nodes.ParamDef {
+func (p *Parser) parseParamDef() (*nodes.ParamDef, error) {
 	if p.cur.Type != tokVARIABLE {
-		return nil
+		return nil, nil
 	}
 
 	loc := p.pos()
@@ -376,7 +434,11 @@ func (p *Parser) parseParamDef() *nodes.ParamDef {
 	p.match(kwAS)
 
 	// Data type
-	param.DataType , _ = p.parseDataType()
+	dt, err := p.parseDataType()
+	if err != nil {
+		return nil, err
+	}
+	param.DataType = dt
 
 	// VARYING (for cursor parameters)
 	if p.cur.Type == kwVARYING {
@@ -393,7 +455,11 @@ func (p *Parser) parseParamDef() *nodes.ParamDef {
 	// Default value
 	if p.cur.Type == '=' {
 		p.advance()
-		param.Default, _ = p.parseExpr()
+		def, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		param.Default = def
 	}
 
 	// OUTPUT / OUT
@@ -409,7 +475,7 @@ func (p *Parser) parseParamDef() *nodes.ParamDef {
 	}
 
 	param.Loc.End = p.pos()
-	return param
+	return param, nil
 }
 
 // isRoutineOption checks if a token looks like a routine option keyword.
@@ -446,7 +512,7 @@ func (p *Parser) isRoutineOption(tok Token) bool {
 //
 //	<view_option> ::=
 //	    ENCRYPTION | SCHEMABINDING | VIEW_METADATA
-func (p *Parser) parseRoutineOptionList() *nodes.List {
+func (p *Parser) parseRoutineOptionList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
 		opt := p.parseRoutineOption()
@@ -458,7 +524,7 @@ func (p *Parser) parseRoutineOptionList() *nodes.List {
 			break
 		}
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseRoutineOption parses a single routine option.

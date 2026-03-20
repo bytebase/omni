@@ -66,7 +66,7 @@ import (
 //	<logon_trigger_option> ::=
 //	    [ ENCRYPTION ]
 //	    [ EXECUTE AS Clause ]
-func (p *Parser) parseCreateTriggerStmt(orAlter bool) *nodes.CreateTriggerStmt {
+func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.CreateTriggerStmt{
@@ -75,12 +75,16 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) *nodes.CreateTriggerStmt {
 	}
 
 	// Trigger name (possibly schema-qualified)
-	stmt.Name , _ = p.parseTableRef()
+	name, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
 
 	// ON clause
 	if _, ok := p.match(kwON); !ok {
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// Determine target: table/view, DATABASE, or ALL SERVER
@@ -95,7 +99,11 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) *nodes.CreateTriggerStmt {
 		}
 	} else {
 		// DML trigger: ON table_or_view
-		stmt.Table , _ = p.parseTableRef()
+		tbl, err := p.parseTableRef()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Table = tbl
 	}
 
 	// Optional WITH clause (trigger options: ENCRYPTION, EXECUTE AS, NATIVE_COMPILATION, SCHEMABINDING)
@@ -209,7 +217,7 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) *nodes.CreateTriggerStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseTriggerWithOptions parses comma-separated trigger options after WITH.

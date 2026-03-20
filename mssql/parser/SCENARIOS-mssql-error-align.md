@@ -55,11 +55,11 @@ Migrate all parse functions from returning single values to `(T, error)` tuples.
 
 ### 1.6 DDL: create_view.go, create_proc.go, create_trigger.go
 
-- [ ] create_view.go — `parseCreateViewStmt`, `parseCreateMaterializedViewStmt`, `parseAlterMaterializedViewStmt` return dual
-- [ ] create_proc.go — `parseCreateProcedureStmt`, `parseCreateFunctionStmt`, `parseParamDefList`, `parseParamDef`, `parseRoutineOptionList`, `parseRoutineOption`, `parseMethodSpecifier` return dual
-- [ ] create_trigger.go — `parseCreateTriggerStmt`, `parseTriggerWithOptions` return dual
-- [ ] All cross-file callers updated
-- [ ] Build passes after 1.6
+- [x] create_view.go — `parseCreateViewStmt`, `parseCreateMaterializedViewStmt`, `parseAlterMaterializedViewStmt` return dual
+- [x] create_proc.go — `parseCreateProcedureStmt`, `parseCreateFunctionStmt`, `parseParamDefList`, `parseParamDef`, `parseRoutineOptionList`, `parseRoutineOption`, `parseMethodSpecifier` return dual
+- [x] create_trigger.go — `parseCreateTriggerStmt`, `parseTriggerWithOptions` return dual
+- [x] All cross-file callers updated
+- [x] Build passes after 1.6
 
 ### 1.7 DDL: create_database.go, create_type.go, create_sequence.go, create_schema.go, create_statistics.go, create_synonym.go
 

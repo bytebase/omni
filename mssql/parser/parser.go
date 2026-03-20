@@ -478,24 +478,24 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		p.advance() // consume MATERIALIZED
 		if p.cur.Type == kwVIEW {
 			p.advance() // consume VIEW
-			stmt := p.parseCreateMaterializedViewStmt()
+			stmt, _ := p.parseCreateMaterializedViewStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		return nil
 	case kwVIEW:
 		p.advance() // consume VIEW
-		stmt := p.parseCreateViewStmt(orAlter)
+		stmt, _ := p.parseCreateViewStmt(orAlter)
 		stmt.Loc.Start = loc
 		return stmt
 	case kwPROCEDURE, kwPROC:
 		p.advance() // consume PROCEDURE/PROC
-		stmt := p.parseCreateProcedureStmt(orAlter)
+		stmt, _ := p.parseCreateProcedureStmt(orAlter)
 		stmt.Loc.Start = loc
 		return stmt
 	case kwFUNCTION:
 		p.advance() // consume FUNCTION
-		stmt := p.parseCreateFunctionStmt(orAlter)
+		stmt, _ := p.parseCreateFunctionStmt(orAlter)
 		stmt.Loc.Start = loc
 		return stmt
 	case kwCOLUMN:
@@ -532,7 +532,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		return stmt
 	case kwTRIGGER:
 		p.advance() // consume TRIGGER
-		stmt := p.parseCreateTriggerStmt(orAlter)
+		stmt, _ := p.parseCreateTriggerStmt(orAlter)
 		stmt.Loc.Start = loc
 		return stmt
 	case kwSCHEMA:
@@ -1051,29 +1051,29 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		p.advance() // consume MATERIALIZED
 		if p.cur.Type == kwVIEW {
 			p.advance() // consume VIEW
-			stmt := p.parseAlterMaterializedViewStmt()
+			stmt, _ := p.parseAlterMaterializedViewStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		return nil
 	case kwVIEW:
 		p.advance() // consume VIEW
-		stmt := p.parseCreateViewStmt(true /* orAlter */)
+		stmt, _ := p.parseCreateViewStmt(true /* orAlter */)
 		stmt.Loc.Start = loc
 		return stmt
 	case kwPROCEDURE, kwPROC:
 		p.advance() // consume PROCEDURE/PROC
-		stmt := p.parseCreateProcedureStmt(true /* orAlter */)
+		stmt, _ := p.parseCreateProcedureStmt(true /* orAlter */)
 		stmt.Loc.Start = loc
 		return stmt
 	case kwFUNCTION:
 		p.advance() // consume FUNCTION
-		stmt := p.parseCreateFunctionStmt(true /* orAlter */)
+		stmt, _ := p.parseCreateFunctionStmt(true /* orAlter */)
 		stmt.Loc.Start = loc
 		return stmt
 	case kwTRIGGER:
 		p.advance() // consume TRIGGER
-		stmt := p.parseCreateTriggerStmt(true /* orAlter */)
+		stmt, _ := p.parseCreateTriggerStmt(true /* orAlter */)
 		stmt.Loc.Start = loc
 		return stmt
 	case kwSCHEMA:

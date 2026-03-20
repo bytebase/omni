@@ -22,7 +22,7 @@ import (
 //	    [ SCHEMABINDING ]
 //	    [ VIEW_METADATA ]
 //	}
-func (p *Parser) parseCreateViewStmt(orAlter bool) *nodes.CreateViewStmt {
+func (p *Parser) parseCreateViewStmt(orAlter bool) (*nodes.CreateViewStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.CreateViewStmt{
@@ -31,7 +31,11 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) *nodes.CreateViewStmt {
 	}
 
 	// View name
-	stmt.Name , _ = p.parseTableRef()
+	name, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
 
 	// Optional column list
 	if p.cur.Type == '(' {
@@ -47,7 +51,9 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) *nodes.CreateViewStmt {
 				break
 			}
 		}
-		_, _ = p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		stmt.Columns = &nodes.List{Items: cols}
 	}
 
@@ -56,7 +62,11 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) *nodes.CreateViewStmt {
 		next := p.peekNext()
 		if p.isRoutineOption(next) {
 			p.advance() // consume WITH
-			stmt.Options = p.parseRoutineOptionList()
+			opts, err := p.parseRoutineOptionList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Options = opts
 			// Set SchemaBinding flag for backward compat
 			if stmt.Options != nil {
 				for _, item := range stmt.Options.Items {
@@ -72,7 +82,11 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) *nodes.CreateViewStmt {
 	p.match(kwAS)
 
 	// SELECT query
-	stmt.Query, _ = p.parseSelectStmt()
+	query, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Query = query
 
 	// WITH CHECK OPTION
 	if p.cur.Type == kwWITH {
@@ -89,7 +103,7 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) *nodes.CreateViewStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateMaterializedViewStmt parses a CREATE MATERIALIZED VIEW AS SELECT statement.
@@ -108,7 +122,7 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) *nodes.CreateViewStmt {
 //	        DISTRIBUTION = HASH ( distribution_column_name [, ...n] )
 //	      | DISTRIBUTION = ROUND_ROBIN
 //	    }
-func (p *Parser) parseCreateMaterializedViewStmt() *nodes.CreateMaterializedViewStmt {
+func (p *Parser) parseCreateMaterializedViewStmt() (*nodes.CreateMaterializedViewStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.CreateMaterializedViewStmt{
@@ -116,12 +130,18 @@ func (p *Parser) parseCreateMaterializedViewStmt() *nodes.CreateMaterializedView
 	}
 
 	// View name
-	stmt.Name , _ = p.parseTableRef()
+	name, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
 
 	// WITH ( <distribution_option> [, FOR_APPEND] )
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
-		p.expect('(')
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
 
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
 			ident, ok := p.parseIdentifier()
@@ -130,14 +150,18 @@ func (p *Parser) parseCreateMaterializedViewStmt() *nodes.CreateMaterializedView
 			}
 			switch {
 			case strings.EqualFold(ident, "DISTRIBUTION"):
-				p.expect('=')
+				if _, err := p.expect('='); err != nil {
+					return nil, err
+				}
 				distType, ok := p.parseIdentifier()
 				if !ok {
 					break
 				}
 				if strings.EqualFold(distType, "HASH") {
 					stmt.Distribution = "HASH"
-					p.expect('(')
+					if _, err := p.expect('('); err != nil {
+						return nil, err
+					}
 					var cols []nodes.Node
 					for p.cur.Type != ')' && p.cur.Type != tokEOF {
 						colName, ok := p.parseIdentifier()
@@ -149,7 +173,9 @@ func (p *Parser) parseCreateMaterializedViewStmt() *nodes.CreateMaterializedView
 							break
 						}
 					}
-					p.expect(')')
+					if _, err := p.expect(')'); err != nil {
+						return nil, err
+					}
 					stmt.HashColumns = &nodes.List{Items: cols}
 				} else if strings.EqualFold(distType, "ROUND_ROBIN") {
 					stmt.Distribution = "ROUND_ROBIN"
@@ -161,17 +187,23 @@ func (p *Parser) parseCreateMaterializedViewStmt() *nodes.CreateMaterializedView
 				break
 			}
 		}
-		p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 
 	// AS
 	p.match(kwAS)
 
 	// SELECT query
-	stmt.Query, _ = p.parseSelectStmt()
+	query, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Query = query
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterMaterializedViewStmt parses an ALTER MATERIALIZED VIEW statement.
@@ -182,7 +214,7 @@ func (p *Parser) parseCreateMaterializedViewStmt() *nodes.CreateMaterializedView
 //	{
 //	    REBUILD | DISABLE
 //	}
-func (p *Parser) parseAlterMaterializedViewStmt() *nodes.AlterMaterializedViewStmt {
+func (p *Parser) parseAlterMaterializedViewStmt() (*nodes.AlterMaterializedViewStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.AlterMaterializedViewStmt{
@@ -190,7 +222,11 @@ func (p *Parser) parseAlterMaterializedViewStmt() *nodes.AlterMaterializedViewSt
 	}
 
 	// View name
-	stmt.Name , _ = p.parseTableRef()
+	name, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
 
 	// REBUILD | DISABLE
 	action, ok := p.parseIdentifier()
@@ -199,5 +235,5 @@ func (p *Parser) parseAlterMaterializedViewStmt() *nodes.AlterMaterializedViewSt
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
