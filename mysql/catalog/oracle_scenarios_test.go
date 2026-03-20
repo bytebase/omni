@@ -5661,3 +5661,102 @@ func TestOracle_Section_4_5_ViewsDeep(t *testing.T) {
 		}
 	})
 }
+
+func TestOracle_Section_5_1_UseStatement(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	// Helper to extract MySQL error code from go-sql-driver error.
+	extractMySQLErr := func(err error) (uint16, string, string) {
+		var mysqlErr *mysqldriver.MySQLError
+		if errors.As(err, &mysqlErr) {
+			return mysqlErr.Number, string(mysqlErr.SQLState[:]), mysqlErr.Message
+		}
+		return 0, "", ""
+	}
+
+	t.Run("use_db_sets_current_database", func(t *testing.T) {
+		// On oracle: create a separate database, USE it, then CREATE TABLE without qualifying.
+		oracle.execSQL("DROP DATABASE IF EXISTS use_test_db")
+		oracle.execSQL("CREATE DATABASE use_test_db")
+		if err := oracle.execSQL("USE use_test_db"); err != nil {
+			t.Fatalf("oracle USE: %v", err)
+		}
+		oracle.execSQL("DROP TABLE IF EXISTS t_use_check")
+		if err := oracle.execSQL("CREATE TABLE t_use_check (id INT PRIMARY KEY)"); err != nil {
+			t.Fatalf("oracle CREATE TABLE: %v", err)
+		}
+		oracleDDL, err := oracle.showCreateTable("t_use_check")
+		if err != nil {
+			t.Fatalf("oracle SHOW CREATE TABLE: %v", err)
+		}
+
+		// On omni: same sequence via Exec.
+		c := New()
+		c.Exec("CREATE DATABASE use_test_db", nil)
+		results, _ := c.Exec("USE use_test_db", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni USE error: %v", results[0].Error)
+		}
+		// Verify current database was set.
+		if c.CurrentDatabase() != "use_test_db" {
+			t.Fatalf("omni CurrentDatabase: got %q, want %q", c.CurrentDatabase(), "use_test_db")
+		}
+
+		results, _ = c.Exec("CREATE TABLE t_use_check (id INT PRIMARY KEY)", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni CREATE TABLE error: %v", results[0].Error)
+		}
+		omniDDL := c.ShowCreateTable("use_test_db", "t_use_check")
+
+		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
+				oracleDDL, omniDDL)
+		}
+
+		// Cleanup oracle.
+		oracle.execSQL("DROP DATABASE IF EXISTS use_test_db")
+	})
+
+	t.Run("use_nonexistent_error_1049", func(t *testing.T) {
+		// On oracle: USE a nonexistent database.
+		oracle.execSQL("DROP DATABASE IF EXISTS use_nonexistent_db")
+		oracleErr := oracle.execSQL("USE use_nonexistent_db")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for USE nonexistent database")
+		}
+		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
+		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+
+		if oracleCode != 1049 {
+			t.Fatalf("oracle: expected error code 1049, got %d", oracleCode)
+		}
+
+		// On omni: USE a nonexistent database.
+		c := New()
+		results, _ := c.Exec("USE use_nonexistent_db", &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error for USE nonexistent database")
+		}
+		catErr, ok := results[0].Error.(*Error)
+		if !ok {
+			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
+		}
+
+		// Compare error code.
+		if catErr.Code != int(oracleCode) {
+			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		}
+		// Compare SQLSTATE.
+		if catErr.SQLState != oracleState {
+			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		}
+		// Compare error message.
+		if catErr.Message != oracleMsg {
+			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		}
+	})
+}

@@ -553,8 +553,8 @@ Every error must match MySQL's errno, SQLSTATE, and message format.
 ### 5.1 USE Statement
 
 ```
-[ ] USE db — sets current database
-[ ] USE nonexistent → error 1049
+[x] USE db — sets current database
+[x] USE nonexistent → error 1049
 ```
 
 ### 5.2 SET Variables (affecting DDL behavior)
