@@ -430,6 +430,11 @@ func deparseFuncCallExpr(n *ast.FuncCallExpr) string {
 		return deparseTrimDirectional("both", n.Args)
 	}
 
+	// GROUP_CONCAT has special formatting
+	if name == "GROUP_CONCAT" {
+		return deparseGroupConcat(n)
+	}
+
 	// Determine the canonical function name
 	canonical, ok := funcNameRewrites[name]
 	if !ok {
@@ -465,5 +470,53 @@ func deparseFuncCallExpr(n *ast.FuncCallExpr) string {
 	}
 
 	return canonical + "(" + argStr + ")"
+}
+
+// deparseGroupConcat handles GROUP_CONCAT with its special syntax:
+// group_concat([distinct] expr [order by expr ASC|DESC] separator 'str')
+// MySQL 8.0 always shows the separator (default ',') and explicit ASC in ORDER BY.
+func deparseGroupConcat(n *ast.FuncCallExpr) string {
+	var b strings.Builder
+	b.WriteString("group_concat(")
+
+	// DISTINCT
+	if n.Distinct {
+		b.WriteString("distinct ")
+	}
+
+	// Arguments
+	for i, arg := range n.Args {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		b.WriteString(deparseExpr(arg))
+	}
+
+	// ORDER BY — MySQL 8.0 always shows explicit ASC/DESC
+	if len(n.OrderBy) > 0 {
+		b.WriteString(" order by ")
+		for i, item := range n.OrderBy {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(deparseExpr(item.Expr))
+			if item.Desc {
+				b.WriteString(" DESC")
+			} else {
+				b.WriteString(" ASC")
+			}
+		}
+	}
+
+	// SEPARATOR — always shown; default is ','
+	b.WriteString(" separator ")
+	if n.Separator != nil {
+		b.WriteString(deparseExpr(n.Separator))
+	} else {
+		b.WriteString("','")
+	}
+
+	b.WriteString(")")
+	return b.String()
 }
 

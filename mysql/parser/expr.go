@@ -901,7 +901,7 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 		if err != nil {
 			return nil, err
 		}
-		fc.Args = append(fc.Args, sep)
+		fc.Separator = sep
 	}
 
 	if _, err := p.expect(')'); err != nil {

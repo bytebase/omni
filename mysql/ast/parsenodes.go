@@ -538,6 +538,7 @@ type DataType struct {
 	Collate    string   // COLLATE
 	EnumValues []string // for ENUM and SET types
 	ArrayDim   int      // not used in MySQL, but here for consistency
+	SRID       int      // Spatial Reference ID for spatial types (0 = not set)
 }
 
 func (t *DataType) nodeTag() {}
@@ -612,14 +613,15 @@ func (e *UnaryExpr) exprNode() {}
 
 // FuncCallExpr represents a function call.
 type FuncCallExpr struct {
-	Loc      Loc
-	Name     string
-	Schema   string // schema-qualified name
-	Args     []ExprNode
-	Distinct bool // COUNT(DISTINCT ...)
-	Star     bool // COUNT(*)
-	OrderBy  []*OrderByItem
-	Over     *WindowDef // OVER clause for window functions
+	Loc       Loc
+	Name      string
+	Schema    string // schema-qualified name
+	Args      []ExprNode
+	Distinct  bool // COUNT(DISTINCT ...)
+	Star      bool // COUNT(*)
+	OrderBy   []*OrderByItem
+	Over      *WindowDef // OVER clause for window functions
+	Separator ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
 }
 
 func (e *FuncCallExpr) nodeTag()  {}

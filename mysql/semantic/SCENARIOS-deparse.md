@@ -200,10 +200,10 @@ Function name rewrites (SUBSTRING→substr, etc.) are applied here — oracle te
 Prerequisite: AST may need a dedicated Separator field on FuncCallExpr or a GroupConcatExpr node.
 
 ```
-[ ] Basic: `GROUP_CONCAT(a)` → `group_concat(`a` separator ',')`
-[ ] With ORDER BY: `GROUP_CONCAT(a ORDER BY a)` → `group_concat(`a` order by `a` ASC separator ',')`
-[ ] With SEPARATOR: `GROUP_CONCAT(a SEPARATOR ';')` → `group_concat(`a` separator ';')`
-[ ] With DISTINCT + ORDER BY DESC + SEPARATOR: full combination
+[x] Basic: `GROUP_CONCAT(a)` → `group_concat(`a` separator ',')`
+[x] With ORDER BY: `GROUP_CONCAT(a ORDER BY a)` → `group_concat(`a` order by `a` ASC separator ',')`
+[x] With SEPARATOR: `GROUP_CONCAT(a SEPARATOR ';')` → `group_concat(`a` separator ';')`
+[x] With DISTINCT + ORDER BY DESC + SEPARATOR: full combination
 ```
 
 ### 3.5 Window Functions

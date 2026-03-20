@@ -514,6 +514,34 @@ func TestDeparse_Section_3_3_AggregateFunctions(t *testing.T) {
 	}
 }
 
+func TestDeparse_Section_3_4_GroupConcat(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		// Basic GROUP_CONCAT — default separator always shown
+		{"basic", "GROUP_CONCAT(a)", "group_concat(`a` separator ',')"},
+		// With ORDER BY — ASC shown explicitly
+		{"with_order_by", "GROUP_CONCAT(a ORDER BY a)", "group_concat(`a` order by `a` ASC separator ',')"},
+		// With explicit SEPARATOR
+		{"with_separator", "GROUP_CONCAT(a SEPARATOR ';')", "group_concat(`a` separator ';')"},
+		// DISTINCT + ORDER BY DESC + SEPARATOR — full combination
+		{"distinct_order_desc_separator", "GROUP_CONCAT(DISTINCT a ORDER BY a DESC SEPARATOR ';')",
+			"group_concat(distinct `a` order by `a` DESC separator ';')"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			node := parseExpr(t, tc.input)
+			got := Deparse(node)
+			if got != tc.expected {
+				t.Errorf("Deparse(%q) = %q, want %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
 func TestDeparse_NilNode(t *testing.T) {
 	got := Deparse(nil)
 	if got != "" {
