@@ -5998,3 +5998,219 @@ func TestOracle_Section_5_3_UserRoleManagement(t *testing.T) {
 		})
 	}
 }
+
+func TestOracle_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	cases := []struct {
+		name  string
+		sql   string
+		table string
+	}{
+		// --- All data types (Phase 1.1-1.6) integration ---
+		{"all_data_types", `CREATE TABLE t_all_types (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			tiny_col TINYINT,
+			small_col SMALLINT,
+			med_col MEDIUMINT,
+			int_col INT,
+			big_col BIGINT,
+			float_col FLOAT,
+			float_prec FLOAT(7,3),
+			double_col DOUBLE,
+			double_prec DOUBLE(15,5),
+			decimal_col DECIMAL(10,2),
+			decimal_bare DECIMAL,
+			bool_col BOOLEAN,
+			bit_col BIT(8),
+			char_col CHAR(10),
+			varchar_col VARCHAR(255),
+			tinytext_col TINYTEXT,
+			text_col TEXT,
+			mediumtext_col MEDIUMTEXT,
+			longtext_col LONGTEXT,
+			enum_col ENUM('a','b','c'),
+			set_col SET('x','y','z'),
+			binary_col BINARY(16),
+			varbinary_col VARBINARY(255),
+			tinyblob_col TINYBLOB,
+			blob_col BLOB,
+			mediumblob_col MEDIUMBLOB,
+			longblob_col LONGBLOB,
+			date_col DATE,
+			time_col TIME,
+			time_frac TIME(3),
+			datetime_col DATETIME,
+			datetime_frac DATETIME(6),
+			timestamp_col TIMESTAMP NULL,
+			timestamp_frac TIMESTAMP(3) NULL,
+			year_col YEAR,
+			json_col JSON,
+			geo_col GEOMETRY,
+			point_col POINT,
+			linestring_col LINESTRING,
+			polygon_col POLYGON,
+			multipoint_col MULTIPOINT,
+			multiline_col MULTILINESTRING,
+			multipoly_col MULTIPOLYGON,
+			geocoll_col GEOMETRYCOLLECTION,
+			PRIMARY KEY (id)
+		)`, "t_all_types"},
+
+		// --- All default value forms (Phase 1.7) integration ---
+		{"all_defaults", `CREATE TABLE t_all_defaults (
+			id INT NOT NULL AUTO_INCREMENT,
+			int_def INT DEFAULT 0,
+			int_null INT DEFAULT NULL,
+			int_notnull INT NOT NULL,
+			varchar_def VARCHAR(100) DEFAULT 'hello',
+			varchar_empty VARCHAR(100) DEFAULT '',
+			float_def FLOAT DEFAULT 3.14,
+			decimal_def DECIMAL(10,2) DEFAULT 0.00,
+			bool_true BOOLEAN DEFAULT TRUE,
+			bool_false BOOLEAN DEFAULT FALSE,
+			enum_def ENUM('a','b','c') DEFAULT 'a',
+			set_def SET('x','y','z') DEFAULT 'x,y',
+			bit_def BIT(8) DEFAULT b'00001111',
+			blob_col BLOB,
+			text_col TEXT,
+			json_col JSON,
+			ts_def TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			dt_def DATETIME DEFAULT CURRENT_TIMESTAMP,
+			ts3_def TIMESTAMP(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
+			expr_int INT DEFAULT (FLOOR(RAND()*100)),
+			expr_json JSON DEFAULT (JSON_ARRAY()),
+			expr_varchar VARCHAR(100) DEFAULT (UUID()),
+			dt_literal DATETIME DEFAULT '2024-01-01 00:00:00',
+			date_literal DATE DEFAULT '2024-01-01',
+			PRIMARY KEY (id)
+		)`, "t_all_defaults"},
+
+		// --- All index types (Phase 1.13-1.16) integration ---
+		{"all_index_types", `CREATE TABLE t_all_indexes (
+			id INT NOT NULL AUTO_INCREMENT,
+			name VARCHAR(255) NOT NULL,
+			email VARCHAR(255),
+			score INT,
+			rank_val INT,
+			bio TEXT,
+			description TEXT,
+			geo_col POINT NOT NULL,
+			PRIMARY KEY (id),
+			KEY idx_name (name),
+			KEY idx_email_prefix (email(10)),
+			KEY idx_score_desc (score DESC),
+			KEY idx_multi_mixed (score ASC, rank_val DESC),
+			UNIQUE KEY uk_email (email),
+			FULLTEXT KEY ft_bio (bio, description),
+			SPATIAL KEY sp_geo (geo_col),
+			KEY idx_expr ((UPPER(name))),
+			KEY idx_expr_calc ((score + rank_val)),
+			KEY idx_comment (name) COMMENT 'name lookup index',
+			KEY idx_invisible (score) /*!80000 INVISIBLE */
+		) ENGINE=InnoDB`, "t_all_indexes"},
+
+		// --- All constraint forms (Phase 1.17-1.18) integration ---
+		{"all_constraints_parent", `CREATE TABLE t_parent (
+			id INT NOT NULL AUTO_INCREMENT,
+			code VARCHAR(10) NOT NULL,
+			PRIMARY KEY (id),
+			UNIQUE KEY uk_code (code)
+		)`, "t_parent"},
+		{"all_constraints", `CREATE TABLE t_all_constraints (
+			id INT NOT NULL AUTO_INCREMENT,
+			parent_id INT,
+			parent_code VARCHAR(10),
+			self_ref INT,
+			val INT,
+			score INT,
+			PRIMARY KEY (id),
+			CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES t_parent(id) ON DELETE CASCADE,
+			CONSTRAINT fk_code FOREIGN KEY (parent_code) REFERENCES t_parent(code) ON UPDATE SET NULL,
+			CONSTRAINT fk_self FOREIGN KEY (self_ref) REFERENCES t_all_constraints(id) ON DELETE SET NULL ON UPDATE CASCADE,
+			CONSTRAINT chk_val CHECK (val > 0),
+			CONSTRAINT chk_score CHECK (score >= 0 AND score <= 100),
+			CONSTRAINT chk_not_enforced CHECK (val < 1000) /*!80016 NOT ENFORCED */
+		)`, "t_all_constraints"},
+
+		// --- Partitioned table output (Phase 4.1) integration ---
+		{"partitioned_range", `CREATE TABLE t_part_range (
+			id INT NOT NULL,
+			created_date DATE NOT NULL,
+			name VARCHAR(100),
+			PRIMARY KEY (id, created_date)
+		) ENGINE=InnoDB
+		PARTITION BY RANGE (YEAR(created_date)) (
+			PARTITION p2020 VALUES LESS THAN (2021),
+			PARTITION p2021 VALUES LESS THAN (2022),
+			PARTITION p2022 VALUES LESS THAN (2023),
+			PARTITION pmax VALUES LESS THAN MAXVALUE
+		)`, "t_part_range"},
+		{"partitioned_list", `CREATE TABLE t_part_list (
+			id INT NOT NULL AUTO_INCREMENT,
+			region VARCHAR(20) NOT NULL,
+			data VARCHAR(100),
+			PRIMARY KEY (id, region)
+		) ENGINE=InnoDB
+		PARTITION BY LIST COLUMNS(region) (
+			PARTITION p_east VALUES IN ('east','northeast'),
+			PARTITION p_west VALUES IN ('west','northwest'),
+			PARTITION p_other VALUES IN ('central','south')
+		)`, "t_part_list"},
+		{"partitioned_hash", `CREATE TABLE t_part_hash (
+			id INT NOT NULL AUTO_INCREMENT,
+			val INT,
+			PRIMARY KEY (id)
+		) ENGINE=InnoDB
+		PARTITION BY HASH(id)
+		PARTITIONS 4`, "t_part_hash"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Clean up in proper order (child before parent)
+			if tc.table == "t_all_constraints" {
+				oracle.execSQL("DROP TABLE IF EXISTS t_all_constraints")
+			}
+			if tc.table == "t_parent" {
+				oracle.execSQL("DROP TABLE IF EXISTS t_all_constraints")
+				oracle.execSQL("DROP TABLE IF EXISTS t_parent")
+			}
+			if tc.table != "t_all_constraints" && tc.table != "t_parent" {
+				oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			}
+			if err := oracle.execSQL(tc.sql); err != nil {
+				t.Fatalf("oracle exec: %v", err)
+			}
+			oracleDDL, err := oracle.showCreateTable(tc.table)
+			if err != nil {
+				t.Fatalf("oracle showCreateTable: %v", err)
+			}
+
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			// For constraint tests, need parent table first
+			if tc.table == "t_all_constraints" {
+				c.Exec("CREATE TABLE t_parent (id INT NOT NULL AUTO_INCREMENT, code VARCHAR(10) NOT NULL, PRIMARY KEY (id), UNIQUE KEY uk_code (code))", nil)
+			}
+			results, err := c.Exec(tc.sql, nil)
+			if err != nil {
+				t.Fatalf("omni parse error: %v", err)
+			}
+			if len(results) > 0 && results[0].Error != nil {
+				t.Fatalf("omni exec error: %v", results[0].Error)
+			}
+			omniDDL := c.ShowCreateTable("test", tc.table)
+
+			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
+					oracleDDL, omniDDL)
+			}
+		})
+	}
+}

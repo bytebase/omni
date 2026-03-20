@@ -591,11 +591,11 @@ Every error must match MySQL's errno, SQLSTATE, and message format.
 [x] Index formatting
 [x] Constraint formatting
 [x] Table options
-[ ] All data types (Phase 1.1-1.6)
-[ ] All default value forms (Phase 1.7)
-[ ] All index types (Phase 1.13-1.16)
-[ ] All constraint forms (Phase 1.17-1.18)
-[ ] Partitioned table output (Phase 4.1)
+[x] All data types (Phase 1.1-1.6)
+[x] All default value forms (Phase 1.7)
+[x] All index types (Phase 1.13-1.16)
+[x] All constraint forms (Phase 1.17-1.18)
+[x] Partitioned table output (Phase 4.1)
 ```
 
 ### 6.2 SHOW CREATE VIEW/FUNCTION/PROCEDURE/TRIGGER/EVENT

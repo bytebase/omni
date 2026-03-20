@@ -1037,8 +1037,43 @@ func (l *Lexer) skipWhitespaceAndComments() {
 
 		// Block comment: /* ... */
 		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+			// MySQL conditional comments: /*!NNNNN ... */ or /*! ... */
+			// These should be parsed as SQL, not skipped.
+			if l.pos+2 < len(l.input) && l.input[l.pos+2] == '!' {
+				// Skip /*!
+				innerStart := l.pos + 3
+				// Skip optional version number (digits)
+				vpos := innerStart
+				for vpos < len(l.input) && l.input[vpos] >= '0' && l.input[vpos] <= '9' {
+					vpos++
+				}
+				// Find the matching */
+				end := vpos
+				depth := 1
+				for end < len(l.input) && depth > 0 {
+					if l.input[end] == '*' && end+1 < len(l.input) && l.input[end+1] == '/' {
+						depth--
+						if depth == 0 {
+							break
+						}
+						end += 2
+					} else if l.input[end] == '/' && end+1 < len(l.input) && l.input[end+1] == '*' {
+						depth++
+						end += 2
+					} else {
+						end++
+					}
+				}
+				// Extract the inner content and splice it into the input,
+				// replacing the conditional comment with its content.
+				inner := l.input[vpos:end]
+				l.input = l.input[:l.pos] + inner + l.input[end+2:]
+				// Don't advance l.pos — re-scan from the start of the inner content.
+				continue
+			}
+
 			l.pos += 2
-			// Handle MySQL optimizer hints /*+ ... */ and conditional comments /*! ... */
+			// Regular block comment: skip everything.
 			depth := 1
 			for l.pos < len(l.input) && depth > 0 {
 				if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -58,16 +59,55 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		parts = append(parts, showColumnWithTable(col, tbl))
 	}
 
-	// Indexes.
+	// Indexes — MySQL 8.0 orders them in groups:
+	// 1. PRIMARY KEY
+	// 2. UNIQUE KEYs (creation order)
+	// 3. Regular + SPATIAL KEYs, non-expression (creation order)
+	// 4. Expression-based KEYs (creation order)
+	// 5. FULLTEXT KEYs (creation order)
+	var idxPrimary, idxUnique, idxRegular, idxExpr, idxFulltext []*Index
 	for _, idx := range tbl.Indexes {
-		parts = append(parts, showIndex(idx))
+		switch {
+		case idx.Primary:
+			idxPrimary = append(idxPrimary, idx)
+		case idx.Unique:
+			idxUnique = append(idxUnique, idx)
+		case idx.Fulltext:
+			idxFulltext = append(idxFulltext, idx)
+		case isExpressionIndex(idx):
+			idxExpr = append(idxExpr, idx)
+		default:
+			idxRegular = append(idxRegular, idx)
+		}
+	}
+	for _, group := range [][]*Index{idxPrimary, idxUnique, idxRegular, idxExpr, idxFulltext} {
+		for _, idx := range group {
+			parts = append(parts, showIndex(idx))
+		}
 	}
 
 	// Constraints (FK and CHECK only — PK/UNIQUE are shown via indexes).
+	// MySQL 8.0 sorts FKs alphabetically by name, then CHECKs alphabetically by name.
+	var fkConstraints, chkConstraints []*Constraint
 	for _, con := range tbl.Constraints {
-		if con.Type == ConForeignKey || con.Type == ConCheck {
-			parts = append(parts, showConstraint(con))
+		switch con.Type {
+		case ConForeignKey:
+			fkConstraints = append(fkConstraints, con)
+		case ConCheck:
+			chkConstraints = append(chkConstraints, con)
 		}
+	}
+	sort.Slice(fkConstraints, func(i, j int) bool {
+		return fkConstraints[i].Name < fkConstraints[j].Name
+	})
+	sort.Slice(chkConstraints, func(i, j int) bool {
+		return chkConstraints[i].Name < chkConstraints[j].Name
+	})
+	for _, con := range fkConstraints {
+		parts = append(parts, showConstraint(con))
+	}
+	for _, con := range chkConstraints {
+		parts = append(parts, showConstraint(con))
 	}
 
 	b.WriteString("  ")
@@ -438,6 +478,16 @@ func isEnumSetType(dt string) bool {
 	switch strings.ToLower(dt) {
 	case "enum", "set":
 		return true
+	}
+	return false
+}
+
+// isExpressionIndex returns true if any column in the index is an expression.
+func isExpressionIndex(idx *Index) bool {
+	for _, ic := range idx.Columns {
+		if ic.Expr != "" {
+			return true
+		}
 	}
 	return false
 }
