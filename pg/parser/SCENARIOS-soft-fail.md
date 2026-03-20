@@ -72,18 +72,18 @@ For each: after consuming the operator, `parseAExpr()` can return (nil, nil). Th
 
 These are the same operators in `parseBExprInfix()` context (restricted expression without AND/OR/NOT).
 
-- [ ] `SELECT CAST(1 + AS int)` — plus consumed in b_expr, no right operand → syntax error at or near "AS"
-- [ ] `SELECT CAST(1 - AS int)` — minus consumed in b_expr, no right operand → syntax error at or near "AS"
-- [ ] `SELECT CAST(1 * AS int)` — multiply consumed in b_expr → syntax error at or near "AS"
-- [ ] `SELECT CAST(1 < AS int)` — less-than consumed in b_expr → syntax error at or near "AS"
-- [ ] `SELECT CAST(1 > AS int)` — greater-than consumed in b_expr → syntax error at or near "AS"
-- [ ] `SELECT CAST(1 = AS int)` — equals consumed in b_expr → syntax error at or near "AS"
-- [ ] `SELECT CAST(1 <= AS int)` — LESS_EQUALS consumed in b_expr → syntax error at or near "AS"
-- [ ] `SELECT CAST(1 >= AS int)` — GREATER_EQUALS consumed in b_expr → syntax error at or near "AS"
-- [ ] `SELECT CAST(1 <> AS int)` — NOT_EQUALS consumed in b_expr → syntax error at or near "AS"
-- [ ] `SELECT CAST(1 || AS int)` — Op consumed in b_expr → syntax error at or near "AS"
-- [ ] `SELECT CAST(1 IS DISTINCT FROM AS int)` — IS DISTINCT FROM consumed in b_expr → syntax error at or near "AS"
-- [ ] `SELECT CAST(1:: AS int)` — TYPECAST in b_expr, no type → syntax error at or near "AS"
+- [x] `SELECT CAST(1 + AS int)` — plus consumed in b_expr, no right operand → syntax error at or near "AS"
+- [x] `SELECT CAST(1 - AS int)` — minus consumed in b_expr, no right operand → syntax error at or near "AS"
+- [x] `SELECT CAST(1 * AS int)` — multiply consumed in b_expr → syntax error at or near "AS"
+- [x] `SELECT CAST(1 < AS int)` — less-than consumed in b_expr → syntax error at or near "AS"
+- [x] `SELECT CAST(1 > AS int)` — greater-than consumed in b_expr → syntax error at or near "AS"
+- [x] `SELECT CAST(1 = AS int)` — equals consumed in b_expr → syntax error at or near "AS"
+- [x] `SELECT CAST(1 <= AS int)` — LESS_EQUALS consumed in b_expr → syntax error at or near "AS"
+- [x] `SELECT CAST(1 >= AS int)` — GREATER_EQUALS consumed in b_expr → syntax error at or near "AS"
+- [x] `SELECT CAST(1 <> AS int)` — NOT_EQUALS consumed in b_expr → syntax error at or near "AS"
+- [x] `SELECT CAST(1 || AS int)` — Op consumed in b_expr → syntax error at or near "AS"
+- [x] `SELECT CAST(1 IS DISTINCT FROM AS int)` — IS DISTINCT FROM consumed in b_expr → syntax error at or near "AS"
+- [x] `SELECT CAST(1:: AS int)` — TYPECAST in b_expr, no type → syntax error at or near "AS"
 
 ## Phase 4: select.go — JOIN & GROUP BY
 

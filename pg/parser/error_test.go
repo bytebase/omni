@@ -92,6 +92,19 @@ func TestParseErrors(t *testing.T) {
 		{name: "SUBSTRING FROM FOR no length", sql: "SELECT SUBSTRING('abc' FROM 1 FOR", wantContains: "syntax error", wantPos: -1},
 		{name: "SUBSTRING SIMILAR no pattern", sql: "SELECT SUBSTRING('abc' SIMILAR", wantContains: "syntax error", wantPos: -1},
 		{name: "TRIM FROM no source string", sql: "SELECT TRIM(LEADING FROM", wantContains: "syntax error", wantPos: -1},
+		// Section 3.1: b_expr Binary Operators — soft-fail nil checks
+		{name: "b_expr plus no right", sql: "SELECT CAST(1 + AS int)", wantContains: `syntax error at or near "AS"`, wantPos: 16},
+		{name: "b_expr minus no right", sql: "SELECT CAST(1 - AS int)", wantContains: `syntax error at or near "AS"`, wantPos: 16},
+		{name: "b_expr multiply no right", sql: "SELECT CAST(1 * AS int)", wantContains: `syntax error at or near "AS"`, wantPos: 16},
+		{name: "b_expr less-than no right", sql: "SELECT CAST(1 < AS int)", wantContains: `syntax error at or near "AS"`, wantPos: 16},
+		{name: "b_expr greater-than no right", sql: "SELECT CAST(1 > AS int)", wantContains: `syntax error at or near "AS"`, wantPos: 16},
+		{name: "b_expr equals no right", sql: "SELECT CAST(1 = AS int)", wantContains: `syntax error at or near "AS"`, wantPos: 16},
+		{name: "b_expr less-equals no right", sql: "SELECT CAST(1 <= AS int)", wantContains: `syntax error at or near "AS"`, wantPos: 17},
+		{name: "b_expr greater-equals no right", sql: "SELECT CAST(1 >= AS int)", wantContains: `syntax error at or near "AS"`, wantPos: 17},
+		{name: "b_expr not-equals no right", sql: "SELECT CAST(1 <> AS int)", wantContains: `syntax error at or near "AS"`, wantPos: 17},
+		{name: "b_expr concat-op no right", sql: "SELECT CAST(1 || AS int)", wantContains: `syntax error at or near "AS"`, wantPos: 17},
+		{name: "b_expr IS DISTINCT FROM no right", sql: "SELECT CAST(1 IS DISTINCT FROM AS int)", wantContains: `syntax error at or near "AS"`, wantPos: 31},
+		{name: "b_expr TYPECAST no type", sql: "SELECT CAST(1:: AS int)", wantContains: `syntax error at or near "AS"`, wantPos: 16},
 	}
 
 	for _, tt := range tests {

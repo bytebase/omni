@@ -1004,6 +1004,9 @@ func (p *Parser) parseBExprInfix(left nodes.Node, prec int) (nodes.Node, error) 
 			if err != nil {
 				return nil, err
 			}
+			if right == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 			kind := nodes.AEXPR_DISTINCT
 			if negated {
 				kind = nodes.AEXPR_NOT_DISTINCT
@@ -1032,12 +1035,18 @@ func (p *Parser) parseBExprInfix(left nodes.Node, prec int) (nodes.Node, error) 
 		if err != nil {
 			return nil, err
 		}
+		if right == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return makeSimpleAExpr(nodes.AEXPR_OP, string(rune(tok.Type)), left, right), nil
 	case LESS_EQUALS:
 		p.advance()
 		right, err := p.parseBExpr(prec + 1)
 		if err != nil {
 			return nil, err
+		}
+		if right == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		return makeSimpleAExpr(nodes.AEXPR_OP, "<=", left, right), nil
 	case GREATER_EQUALS:
@@ -1046,12 +1055,18 @@ func (p *Parser) parseBExprInfix(left nodes.Node, prec int) (nodes.Node, error) 
 		if err != nil {
 			return nil, err
 		}
+		if right == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return makeSimpleAExpr(nodes.AEXPR_OP, ">=", left, right), nil
 	case NOT_EQUALS:
 		p.advance()
 		right, err := p.parseBExpr(prec + 1)
 		if err != nil {
 			return nil, err
+		}
+		if right == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		return makeSimpleAExpr(nodes.AEXPR_OP, "<>", left, right), nil
 	case Op:
@@ -1061,6 +1076,9 @@ func (p *Parser) parseBExprInfix(left nodes.Node, prec int) (nodes.Node, error) 
 		if err != nil {
 			return nil, err
 		}
+		if right == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.A_Expr{Kind: nodes.AEXPR_OP, Name: opName, Lexpr: left, Rexpr: right}, nil
 	case '+', '-', '*', '/', '%', '^':
 		tok := p.advance()
@@ -1068,12 +1086,18 @@ func (p *Parser) parseBExprInfix(left nodes.Node, prec int) (nodes.Node, error) 
 		if err != nil {
 			return nil, err
 		}
+		if right == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return makeSimpleAExpr(nodes.AEXPR_OP, string(rune(tok.Type)), left, right), nil
 	case TYPECAST:
 		p.advance()
 		tn, err := p.parseTypename()
 		if err != nil {
 			return nil, err
+		}
+		if tn == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		return &nodes.TypeCast{Arg: left, TypeName: tn, Loc: nodes.NoLoc()}, nil
 	}
