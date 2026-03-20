@@ -143,7 +143,7 @@ func (p *Parser) parseExecStmt() *nodes.ExecStmt {
 // Returns the string expression (possibly concatenated).
 func (p *Parser) parseExecString() nodes.ExprNode {
 	p.advance() // consume '('
-	expr := p.parseExpr()
+	expr, _ := p.parseExpr()
 	// Parse additional comma-separated parameters for linked server pass-through
 	// ( 'string', param1, param2 )
 	for p.cur.Type == ',' {
@@ -316,7 +316,7 @@ func (p *Parser) parseExecArg() *nodes.ExecArg {
 	}
 
 	// Parse value expression
-	arg.Value = p.parseExpr()
+	arg.Value, _ = p.parseExpr()
 	if arg.Value == nil {
 		return nil
 	}

@@ -25,7 +25,7 @@ func (p *Parser) parseRowsetFunction() nodes.TableExpr {
 		if p.cur.Type != ')' {
 			var args []nodes.Node
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				arg := p.parseExpr()
+				arg, _ := p.parseExpr()
 				args = append(args, arg)
 				if _, ok := p.match(','); !ok {
 					break

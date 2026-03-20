@@ -227,10 +227,10 @@ func (p *Parser) parseFetchCursorStmt() *nodes.FetchCursorStmt {
 		orientation = "LAST"
 	case p.matchIdentCI("ABSOLUTE"):
 		orientation = "ABSOLUTE"
-		stmt.FetchOffset = p.parseExpr()
+		stmt.FetchOffset, _ = p.parseExpr()
 	case p.matchIdentCI("RELATIVE"):
 		orientation = "RELATIVE"
-		stmt.FetchOffset = p.parseExpr()
+		stmt.FetchOffset, _ = p.parseExpr()
 	}
 
 	if orientation != "" {

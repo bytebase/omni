@@ -385,7 +385,7 @@ func (p *Parser) parseColumnDef() *nodes.ColumnDef {
 	if p.cur.Type == kwAS {
 		p.advance()
 		compLoc := p.pos()
-		expr := p.parseExpr()
+		expr, _ := p.parseExpr()
 		persisted := false
 		notNull := false
 		if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "persisted") {
@@ -550,7 +550,7 @@ func (p *Parser) parseColumnDef() *nodes.ColumnDef {
 		// DEFAULT
 		if p.cur.Type == kwDEFAULT {
 			p.advance()
-			col.DefaultExpr = p.parseExpr()
+			col.DefaultExpr, _ = p.parseExpr()
 			consumed = true
 		}
 
@@ -823,13 +823,13 @@ func (p *Parser) parseInlineConstraint(name string) *nodes.ConstraintDef {
 			cd.NotForReplication = true
 		}
 		if _, err := p.expect('('); err == nil {
-			cd.Expr = p.parseExpr()
+			cd.Expr, _ = p.parseExpr()
 			_, _ = p.expect(')')
 		}
 	case kwDEFAULT:
 		p.advance()
 		cd.Type = nodes.ConstraintDefault
-		cd.Expr = p.parseExpr()
+		cd.Expr, _ = p.parseExpr()
 	case kwREFERENCES:
 		p.advance()
 		cd.Type = nodes.ConstraintForeignKey
@@ -963,7 +963,7 @@ func (p *Parser) parseTableConstraint() *nodes.ConstraintDef {
 			cd.NotForReplication = true
 		}
 		if _, err := p.expect('('); err == nil {
-			cd.Expr = p.parseExpr()
+			cd.Expr, _ = p.parseExpr()
 			_, _ = p.expect(')')
 		}
 	case kwFOREIGN:
@@ -992,7 +992,7 @@ func (p *Parser) parseTableConstraint() *nodes.ConstraintDef {
 	case kwDEFAULT:
 		p.advance()
 		cd.Type = nodes.ConstraintDefault
-		cd.Expr = p.parseExpr()
+		cd.Expr, _ = p.parseExpr()
 		// FOR column
 		if _, ok := p.match(kwFOR); ok {
 			p.parseIdentifier() // column name (not stored separately but consumed)
@@ -1183,7 +1183,7 @@ trailingOptions:
 
 	// [ WHERE <filter_predicate> ]
 	if _, ok := p.match(kwWHERE); ok {
-		idx.WhereClause = p.parseExpr()
+		idx.WhereClause, _ = p.parseExpr()
 	}
 
 	// [ WITH ( <index_option> [ ,...n ] ) ]

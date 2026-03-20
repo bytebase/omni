@@ -76,7 +76,7 @@ func (p *Parser) parseMergeStmt() *nodes.MergeStmt {
 
 	// ON condition
 	if _, ok := p.match(kwON); ok {
-		stmt.OnCondition = p.parseExpr()
+		stmt.OnCondition, _ = p.parseExpr()
 	}
 
 	// WHEN clauses
@@ -143,7 +143,7 @@ func (p *Parser) parseMergeWhenClause() *nodes.MergeWhenClause {
 
 	// Optional AND condition
 	if _, ok := p.match(kwAND); ok {
-		wc.Condition = p.parseExpr()
+		wc.Condition, _ = p.parseExpr()
 	}
 
 	// THEN

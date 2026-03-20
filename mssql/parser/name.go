@@ -106,7 +106,7 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 
 	// Function call: ident(...)
 	if p.cur.Type == '(' {
-		return p.parseFuncCall(name, loc), nil
+		return p.parseFuncCall(name, loc)
 	}
 
 	// Static method call: type::Method(args)
@@ -127,7 +127,7 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			var args []nodes.Node
 			if p.cur.Type != ')' {
 				for {
-					arg := p.parseExpr()
+					arg, _ := p.parseExpr()
 					args = append(args, arg)
 					if _, ok := p.match(','); !ok {
 						break
@@ -215,7 +215,7 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 					var args []nodes.Node
 					if p.cur.Type != ')' {
 						for {
-							arg := p.parseExpr()
+							arg, _ := p.parseExpr()
 							args = append(args, arg)
 							if _, ok := p.match(','); !ok {
 								break
@@ -281,7 +281,7 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 			return nil, err
 		}
 		if p.cur.Type == kwOVER {
-			fc.Over = p.parseOverClause()
+			fc.Over, _ = p.parseOverClause()
 		}
 		return fc, nil
 	}
@@ -289,7 +289,7 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 	if p.cur.Type == ')' {
 		p.advance()
 		if p.cur.Type == kwOVER {
-			fc.Over = p.parseOverClause()
+			fc.Over, _ = p.parseOverClause()
 		}
 		return fc, nil
 	}
@@ -301,7 +301,7 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 
 	var args []nodes.Node
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		arg := p.parseExpr()
+		arg, _ := p.parseExpr()
 		args = append(args, arg)
 		if _, ok := p.match(','); !ok {
 			break
@@ -314,7 +314,7 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 
 	// Check for OVER clause
 	if p.cur.Type == kwOVER {
-		fc.Over = p.parseOverClause()
+		fc.Over, _ = p.parseOverClause()
 	}
 
 	return fc, nil

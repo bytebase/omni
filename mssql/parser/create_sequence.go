@@ -95,26 +95,26 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt, isAlter bo
 			if p.cur.Type == kwWITH {
 				p.advance()
 			}
-			stmt.Start = p.parseExpr()
+			stmt.Start, _ = p.parseExpr()
 		} else if isAlter && p.matchIdentCI("RESTART") {
 			stmt.Restart = true
 			if p.cur.Type == kwWITH {
 				p.advance()
-				stmt.RestartWith = p.parseExpr()
+				stmt.RestartWith, _ = p.parseExpr()
 			}
 		} else if p.matchIdentCI("INCREMENT") {
 			p.matchIdentCI("BY")
-			stmt.Increment = p.parseExpr()
+			stmt.Increment, _ = p.parseExpr()
 		} else if p.matchIdentCI("MINVALUE") {
-			stmt.MinValue = p.parseExpr()
+			stmt.MinValue, _ = p.parseExpr()
 		} else if p.matchIdentCI("MAXVALUE") {
-			stmt.MaxValue = p.parseExpr()
+			stmt.MaxValue, _ = p.parseExpr()
 		} else if p.matchIdentCI("CYCLE") {
 			b := true
 			stmt.Cycle = &b
 		} else if p.matchIdentCI("CACHE") {
 			if p.cur.Type == tokICONST {
-				stmt.Cache = p.parseExpr()
+				stmt.Cache, _ = p.parseExpr()
 			}
 		} else {
 			break

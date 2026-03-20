@@ -101,7 +101,7 @@ func (p *Parser) parseVariableDecl() *nodes.VariableDecl {
 	// Optional default value
 	if p.cur.Type == '=' {
 		p.advance()
-		vd.Default = p.parseExpr()
+		vd.Default, _ = p.parseExpr()
 	}
 
 	vd.Loc.End = p.pos()
@@ -141,9 +141,9 @@ func (p *Parser) parseSetStmt() nodes.StmtNode {
 		if op := p.isCompoundAssign(); op != "" {
 			stmt.Operator = op
 			p.advance()
-			stmt.Value = p.parseExpr()
+			stmt.Value, _ = p.parseExpr()
 		} else if _, err := p.expect('='); err == nil {
-			stmt.Value = p.parseExpr()
+			stmt.Value, _ = p.parseExpr()
 		}
 		stmt.Loc.End = p.pos()
 		return stmt
@@ -304,7 +304,7 @@ func (p *Parser) parseSetOptionStmt(loc int) *nodes.SetOptionStmt {
 			stmt.Value = &nodes.ColumnRef{Column: "OFF", Loc: nodes.Loc{Start: offLoc}}
 		} else if p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
 			// Could be SET ROWCOUNT n, SET LANGUAGE ..., SET DATEFORMAT ..., etc.
-			stmt.Value = p.parseExpr()
+			stmt.Value, _ = p.parseExpr()
 		}
 	}
 

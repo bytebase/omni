@@ -151,7 +151,7 @@ func (p *Parser) parseTableTypeIndex() *nodes.TableTypeIndex {
 		if _, err := p.expect('('); err == nil {
 			if p.matchIdentCI("BUCKET_COUNT") {
 				p.match('=')
-				idx.BucketCount = p.parseExpr()
+				idx.BucketCount, _ = p.parseExpr()
 			}
 			p.match(')')
 		}

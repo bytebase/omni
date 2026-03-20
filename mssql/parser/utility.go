@@ -41,7 +41,7 @@ func (p *Parser) parsePrintStmt() *nodes.PrintStmt {
 		Loc: nodes.Loc{Start: loc},
 	}
 
-	stmt.Expr = p.parseExpr()
+	stmt.Expr, _ = p.parseExpr()
 
 	stmt.Loc.End = p.pos()
 	return stmt
@@ -66,16 +66,16 @@ func (p *Parser) parseRaiseErrorStmt() *nodes.RaiseErrorStmt {
 	// RAISERROR can use parens or not: RAISERROR('msg', 16, 1)
 	if _, err := p.expect('('); err == nil {
 		// Message
-		stmt.Message = p.parseExpr()
+		stmt.Message, _ = p.parseExpr()
 
 		// Severity
 		if _, ok := p.match(','); ok {
-			stmt.Severity = p.parseExpr()
+			stmt.Severity, _ = p.parseExpr()
 		}
 
 		// State
 		if _, ok := p.match(','); ok {
-			stmt.State = p.parseExpr()
+			stmt.State, _ = p.parseExpr()
 		}
 
 		// Optional args
@@ -84,7 +84,7 @@ func (p *Parser) parseRaiseErrorStmt() *nodes.RaiseErrorStmt {
 			if _, ok := p.match(','); !ok {
 				break
 			}
-			arg := p.parseExpr()
+			arg, _ := p.parseExpr()
 			args = append(args, arg)
 		}
 		if len(args) > 0 {
@@ -142,16 +142,16 @@ func (p *Parser) parseThrowStmt() *nodes.ThrowStmt {
 	}
 
 	// Error number
-	stmt.ErrorNumber = p.parseExpr()
+	stmt.ErrorNumber, _ = p.parseExpr()
 
 	// Message
 	if _, ok := p.match(','); ok {
-		stmt.Message = p.parseExpr()
+		stmt.Message, _ = p.parseExpr()
 	}
 
 	// State
 	if _, ok := p.match(','); ok {
-		stmt.State = p.parseExpr()
+		stmt.State, _ = p.parseExpr()
 	}
 
 	stmt.Loc.End = p.pos()
@@ -173,7 +173,7 @@ func (p *Parser) parseCheckpointStmt() *nodes.CheckpointStmt {
 
 	// Optional duration
 	if p.cur.Type == tokICONST || p.cur.Type == tokVARIABLE {
-		stmt.Duration = p.parseExpr()
+		stmt.Duration, _ = p.parseExpr()
 	}
 
 	stmt.Loc.End = p.pos()
@@ -265,7 +265,7 @@ func (p *Parser) parseKillStmt() nodes.StmtNode {
 	}
 
 	// session_id or UOW
-	stmt.SessionID = p.parseExpr()
+	stmt.SessionID, _ = p.parseExpr()
 
 	// WITH { STATUSONLY | COMMIT | ROLLBACK }
 	if p.cur.Type == kwWITH {
@@ -299,7 +299,7 @@ func (p *Parser) parseKillStatsJobStmt(loc int) *nodes.KillStatsJobStmt {
 		Loc: nodes.Loc{Start: loc},
 	}
 
-	stmt.JobID = p.parseExpr()
+	stmt.JobID, _ = p.parseExpr()
 
 	stmt.Loc.End = p.pos()
 	return stmt
@@ -328,7 +328,7 @@ func (p *Parser) parseKillQueryNotificationStmt(loc int) *nodes.KillQueryNotific
 		stmt.All = true
 		p.advance()
 	} else {
-		stmt.SubscriptionID = p.parseExpr()
+		stmt.SubscriptionID, _ = p.parseExpr()
 	}
 
 	stmt.Loc.End = p.pos()
@@ -374,11 +374,11 @@ func (p *Parser) parseReadtextStmt() *nodes.ReadtextStmt {
 	}
 
 	// text_ptr
-	stmt.TextPtr = p.parseExpr()
+	stmt.TextPtr, _ = p.parseExpr()
 	// offset
-	stmt.Offset = p.parseExpr()
+	stmt.Offset, _ = p.parseExpr()
 	// size
-	stmt.Size = p.parseExpr()
+	stmt.Size, _ = p.parseExpr()
 
 	// HOLDLOCK
 	if p.cur.Type == kwHOLDLOCK {
@@ -428,7 +428,7 @@ func (p *Parser) parseWritetextStmt() *nodes.WritetextStmt {
 	}
 
 	// text_ptr
-	stmt.TextPtr = p.parseExpr()
+	stmt.TextPtr, _ = p.parseExpr()
 
 	// WITH LOG
 	if p.cur.Type == kwWITH {
@@ -441,7 +441,7 @@ func (p *Parser) parseWritetextStmt() *nodes.WritetextStmt {
 	}
 
 	// data
-	stmt.Data = p.parseExpr()
+	stmt.Data, _ = p.parseExpr()
 
 	stmt.Loc.End = p.pos()
 	return stmt
@@ -489,11 +489,11 @@ func (p *Parser) parseUpdatetextStmt() *nodes.UpdatetextStmt {
 	}
 
 	// dest_text_ptr
-	stmt.DestTextPtr = p.parseExpr()
+	stmt.DestTextPtr, _ = p.parseExpr()
 	// insert_offset (NULL or n)
-	stmt.InsertOffset = p.parseExpr()
+	stmt.InsertOffset, _ = p.parseExpr()
 	// delete_length (NULL or n)
-	stmt.DeleteLength = p.parseExpr()
+	stmt.DeleteLength, _ = p.parseExpr()
 
 	// WITH LOG
 	if p.cur.Type == kwWITH {
@@ -507,7 +507,7 @@ func (p *Parser) parseUpdatetextStmt() *nodes.UpdatetextStmt {
 
 	// inserted_data
 	if p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
-		stmt.InsertedData = p.parseExpr()
+		stmt.InsertedData, _ = p.parseExpr()
 	}
 
 	stmt.Loc.End = p.pos()
@@ -548,7 +548,7 @@ func (p *Parser) parseTruncateStmt() *nodes.TruncateStmt {
 					p.advance() // consume inner '('
 					var parts []nodes.Node
 					for p.cur.Type != ')' && p.cur.Type != tokEOF {
-						expr := p.parseExpr()
+						expr, _ := p.parseExpr()
 						// Check for TO (range)
 						if p.cur.Type == kwTO {
 							p.advance() // consume TO
@@ -608,7 +608,7 @@ func (p *Parser) parseCreateDefaultStmt() *nodes.SecurityStmt {
 	if p.cur.Type == kwAS {
 		p.advance() // consume AS
 		// Parse the expression that follows AS
-		expr := p.parseExpr()
+		expr, _ := p.parseExpr()
 		if expr != nil {
 			opts = append(opts, &nodes.String{Str: "AS"})
 			opts = append(opts, expr)
@@ -656,7 +656,7 @@ func (p *Parser) parseCreateRuleStmt() *nodes.SecurityStmt {
 	var opts []nodes.Node
 	if p.cur.Type == kwAS {
 		p.advance() // consume AS
-		expr := p.parseExpr()
+		expr, _ := p.parseExpr()
 		if expr != nil {
 			opts = append(opts, &nodes.String{Str: "AS"})
 			opts = append(opts, expr)
@@ -973,7 +973,7 @@ func (p *Parser) parseCopyIntoStmt() *nodes.CopyIntoStmt {
 
 				// Check for DEFAULT value
 				if p.matchIdentCI("DEFAULT") {
-					col.DefaultValue = p.parseExpr()
+					col.DefaultValue, _ = p.parseExpr()
 				}
 
 				// Check for field_number (integer)
@@ -1328,10 +1328,10 @@ func (p *Parser) parsePredictStmt() *nodes.PredictStmt {
 			switch key {
 			case "MODEL":
 				// MODEL = @variable | 'literal' | (subquery)
-				stmt.Model = p.parseExpr()
+				stmt.Model, _ = p.parseExpr()
 			case "DATA":
 				// DATA = table_source AS alias
-				stmt.Data = p.parseExpr()
+				stmt.Data, _ = p.parseExpr()
 				// Optional AS alias
 				if p.cur.Type == kwAS {
 					p.advance() // consume AS
@@ -1579,7 +1579,7 @@ func (p *Parser) parseAlterFederationStmt() *nodes.AlterFederationStmt {
 			stmt.DistributionName = name
 		}
 		p.match('=')
-		stmt.Boundary = p.parseExpr()
+		stmt.Boundary, _ = p.parseExpr()
 		p.match(')')
 		stmt.Loc.End = p.pos()
 		return stmt
@@ -1591,7 +1591,7 @@ func (p *Parser) parseAlterFederationStmt() *nodes.AlterFederationStmt {
 		stmt.DistributionName = name
 	}
 	p.match('=')
-	stmt.Boundary = p.parseExpr()
+	stmt.Boundary, _ = p.parseExpr()
 	p.match(')')
 
 	stmt.Loc.End = p.pos()
@@ -1648,7 +1648,7 @@ func (p *Parser) parseUseFederationStmt() *nodes.UseFederationStmt {
 			stmt.DistributionName = name
 		}
 		p.match('=')
-		stmt.Value = p.parseExpr()
+		stmt.Value, _ = p.parseExpr()
 		p.match(')')
 		// WITH FILTERING = { ON | OFF }
 		p.match(kwWITH)

@@ -55,9 +55,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			dt.MaxLength = true
 			p.advance()
 		} else {
-			dt.Length = p.parseExpr()
+			dt.Length, _ = p.parseExpr()
 			if _, ok := p.match(','); ok {
-				dt.Scale = p.parseExpr()
+				dt.Scale, _ = p.parseExpr()
 				dt.Precision = dt.Length
 				dt.Length = nil
 			}

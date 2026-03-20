@@ -93,7 +93,7 @@ func (p *Parser) parseCreateIndexStmt(unique bool) *nodes.CreateIndexStmt {
 
 	// WHERE (filtered index)
 	if _, ok := p.match(kwWHERE); ok {
-		stmt.WhereClause = p.parseExpr()
+		stmt.WhereClause, _ = p.parseExpr()
 	}
 
 	// WITH ( <relational_index_option> [ ,...n ] )
@@ -534,7 +534,7 @@ func (p *Parser) parseCreateJsonIndexStmt() *nodes.CreateJsonIndexStmt {
 			var paths []nodes.Node
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
 				// JSON paths are string literals like '$.name'
-				expr := p.parseExpr()
+				expr, _ := p.parseExpr()
 				if expr != nil {
 					paths = append(paths, expr)
 				}
@@ -630,7 +630,7 @@ func (p *Parser) parseOptionList() *nodes.List {
 	p.advance() // consume (
 	var items []nodes.Node
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		expr := p.parseExpr()
+		expr, _ := p.parseExpr()
 		if expr != nil {
 			items = append(items, expr)
 		}

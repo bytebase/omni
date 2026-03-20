@@ -60,7 +60,7 @@ func (p *Parser) parseCreatePartitionFunctionStmt() *nodes.CreatePartitionFuncti
 		p.advance()
 		var vals []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			expr := p.parseExpr()
+			expr, _ := p.parseExpr()
 			if expr != nil {
 				vals = append(vals, expr)
 			}
@@ -114,7 +114,7 @@ func (p *Parser) parseAlterPartitionFunctionStmt() *nodes.AlterPartitionFunction
 	}
 	if p.cur.Type == '(' {
 		p.advance()
-		stmt.BoundaryValue = p.parseExpr()
+		stmt.BoundaryValue, _ = p.parseExpr()
 		p.match(')')
 	}
 

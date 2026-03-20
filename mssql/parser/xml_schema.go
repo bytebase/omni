@@ -25,7 +25,7 @@ func (p *Parser) parseCreateXmlSchemaCollectionStmt() *nodes.CreateXmlSchemaColl
 	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AS") {
 		p.advance()
 	}
-	stmt.XmlSchemaNamespaces = p.parseExpr()
+	stmt.XmlSchemaNamespaces, _ = p.parseExpr()
 
 	stmt.Loc.End = p.pos()
 	return stmt
@@ -49,7 +49,7 @@ func (p *Parser) parseAlterXmlSchemaCollectionStmt() *nodes.AlterXmlSchemaCollec
 
 	// ADD Expression
 	if _, ok := p.match(kwADD); ok {
-		stmt.XmlSchemaNamespaces = p.parseExpr()
+		stmt.XmlSchemaNamespaces, _ = p.parseExpr()
 	}
 
 	stmt.Loc.End = p.pos()

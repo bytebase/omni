@@ -485,7 +485,7 @@ func (p *Parser) parseReceiveStmt() *nodes.ReceiveStmt {
 		p.advance()
 		if p.cur.Type == '(' {
 			p.advance()
-			stmt.Top = p.parseExpr()
+			stmt.Top, _ = p.parseExpr()
 			p.match(')')
 		}
 	}
@@ -505,7 +505,7 @@ func (p *Parser) parseReceiveStmt() *nodes.ReceiveStmt {
 				col.Expr = &nodes.ColumnRef{Column: p.cur.Str, Loc: nodes.Loc{Start: p.pos(), End: p.pos() + len(p.cur.Str)}}
 				p.advance()
 			} else {
-				col.Expr = p.parseExpr()
+				col.Expr, _ = p.parseExpr()
 			}
 			// optional alias: [AS] alias
 			if p.cur.Type == kwAS {
@@ -552,7 +552,7 @@ func (p *Parser) parseReceiveStmt() *nodes.ReceiveStmt {
 	// WHERE clause
 	if p.cur.Type == kwWHERE {
 		p.advance()
-		stmt.WhereClause = p.parseExpr()
+		stmt.WhereClause, _ = p.parseExpr()
 	}
 
 	stmt.Loc.End = p.pos()
@@ -1821,7 +1821,7 @@ func (p *Parser) parseBeginConversationTimerStmt() *nodes.ServiceBrokerStmt {
 	if p.cur.Type == '(' {
 		hLoc := p.pos()
 		p.advance()
-		handle := p.parseExpr()
+		handle, _ := p.parseExpr()
 		if handle != nil {
 			opts = append(opts, &nodes.ServiceBrokerOption{Name: "HANDLE", Value: nodes.NodeToString(handle), Loc: nodes.Loc{Start: hLoc, End: p.pos()}})
 		}
@@ -1832,7 +1832,7 @@ func (p *Parser) parseBeginConversationTimerStmt() *nodes.ServiceBrokerStmt {
 	if p.matchIdentCI("TIMEOUT") {
 		tLoc := p.pos()
 		p.match('=')
-		timeout := p.parseExpr()
+		timeout, _ := p.parseExpr()
 		if timeout != nil {
 			opts = append(opts, &nodes.ServiceBrokerOption{Name: "TIMEOUT", Value: nodes.NodeToString(timeout), Loc: nodes.Loc{Start: tLoc, End: p.pos()}})
 		}

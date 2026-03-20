@@ -209,7 +209,7 @@ func (p *Parser) parseSecurityPredicate() *nodes.SecurityPredicate {
 		p.advance()
 		var args []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			arg := p.parseExpr()
+			arg, _ := p.parseExpr()
 			if arg != nil {
 				args = append(args, arg)
 			}

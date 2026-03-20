@@ -20,13 +20,13 @@ Migrate all parse functions from returning single values to `(T, error)` tuples.
 
 ### 1.2 Expression: expr.go
 
-- [ ] Binary operators — `parseExpr`, `parseOr`, `parseAnd`, `parseNot`, `parseComparison`, `parseAddition`, `parseMultiplication`, `parseUnary` return `(nodes.ExprNode, error)`
-- [ ] Primaries — `parsePrimary`, `parseCast`, `parseTryCast`, `parseConvert`, `parseTryConvert` return `(nodes.ExprNode, error)`
-- [ ] Special expressions — `parseCaseExpr`, `parseCoalesce`, `parseNullif`, `parseIif`, `parseExists` return `(nodes.ExprNode, error)`
-- [ ] Function/window — `parseFuncCall`, `parseOverClause`, `parseWindowFrame`, `parseWindowFrameBound`, `parseWithinGroupClause` return dual
-- [ ] Collate/ATZ — `parseCollateExpr`, `parseAtTimeZoneExpr` return `(nodes.ExprNode, error)`
-- [ ] All cross-file callers of expr.go functions updated (select.go, insert.go, update_delete.go, merge.go, create_table.go, alter_table.go, control_flow.go, declare_set.go, etc.)
-- [ ] Build passes after 1.2
+- [x] Binary operators — `parseExpr`, `parseOr`, `parseAnd`, `parseNot`, `parseComparison`, `parseAddition`, `parseMultiplication`, `parseUnary` return `(nodes.ExprNode, error)`
+- [x] Primaries — `parsePrimary`, `parseCast`, `parseTryCast`, `parseConvert`, `parseTryConvert` return `(nodes.ExprNode, error)`
+- [x] Special expressions — `parseCaseExpr`, `parseCoalesce`, `parseNullif`, `parseIif`, `parseExists` return `(nodes.ExprNode, error)`
+- [x] Function/window — `parseFuncCall`, `parseOverClause`, `parseWindowFrame`, `parseWindowFrameBound`, `parseWithinGroupClause` return dual
+- [x] Collate/ATZ — `parseCollateExpr`, `parseAtTimeZoneExpr` return `(nodes.ExprNode, error)`
+- [x] All cross-file callers of expr.go functions updated (select.go, insert.go, update_delete.go, merge.go, create_table.go, alter_table.go, control_flow.go, declare_set.go, etc.)
+- [x] Build passes after 1.2
 
 ### 1.3 DML: select.go
 

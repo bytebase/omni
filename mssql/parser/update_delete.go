@@ -202,7 +202,8 @@ func (p *Parser) parseWhereClauseBody() nodes.ExprNode {
 			}
 		}
 	}
-	return p.parseExpr()
+	result, _ := p.parseExpr()
+	return result
 }
 
 // isCompoundAssign returns the operator string if the current token is a compound assignment operator,
@@ -284,7 +285,7 @@ func (p *Parser) parseSetClause() *nodes.SetExpr {
 				if p.cur.Type == '(' {
 					se.WriteMethod = true
 					// Parse as a FuncCallExpr to store the args
-					se.Value = p.parseFuncCall("WRITE", writeLoc)
+					se.Value, _ = p.parseFuncCall("WRITE", writeLoc)
 					se.Loc.End = p.pos()
 					return se
 				}
@@ -300,7 +301,7 @@ func (p *Parser) parseSetClause() *nodes.SetExpr {
 		return nil
 	}
 
-	se.Value = p.parseExpr()
+	se.Value, _ = p.parseExpr()
 	se.Loc.End = p.pos()
 	return se
 }

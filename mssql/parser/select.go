@@ -79,7 +79,7 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 
 	// WHERE
 	if _, ok := p.match(kwWHERE); ok {
-		stmt.WhereClause = p.parseExpr()
+		stmt.WhereClause, _ = p.parseExpr()
 	}
 
 	// GROUP BY [ALL]
@@ -95,7 +95,7 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 
 	// HAVING
 	if _, ok := p.match(kwHAVING); ok {
-		stmt.HavingClause = p.parseExpr()
+		stmt.HavingClause, _ = p.parseExpr()
 	}
 
 	// WINDOW clause (named window definitions)
@@ -114,7 +114,7 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 	// OFFSET ... FETCH
 	if p.cur.Type == kwOFFSET {
 		p.advance()
-		stmt.OffsetClause = p.parseExpr()
+		stmt.OffsetClause, _ = p.parseExpr()
 		// Consume optional ROWS/ROW
 		if p.cur.Type == kwROWS || (p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "row")) {
 			p.advance()
@@ -127,7 +127,7 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 			if p.cur.Type == tokIDENT && (strings.EqualFold(p.cur.Str, "next") || strings.EqualFold(p.cur.Str, "first")) {
 				p.advance()
 			}
-			count := p.parseExpr()
+			count, _ := p.parseExpr()
 			// ROWS/ROW
 			if p.cur.Type == kwROWS || (p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "row")) {
 				p.advance()
@@ -337,10 +337,10 @@ func (p *Parser) parseTopClause() *nodes.TopClause {
 	// TOP (expr) or TOP literal
 	if p.cur.Type == '(' {
 		p.advance()
-		tc.Count = p.parseExpr()
+		tc.Count, _ = p.parseExpr()
 		_, _ = p.expect(')')
 	} else {
-		tc.Count = p.parsePrimary()
+		tc.Count, _ = p.parsePrimary()
 	}
 
 	// PERCENT
@@ -367,7 +367,7 @@ func (p *Parser) parseTargetList() *nodes.List {
 	var targets []nodes.Node
 	for {
 		targetLoc := p.pos()
-		expr := p.parseExpr()
+		expr, _ := p.parseExpr()
 		if expr == nil {
 			break
 		}
@@ -433,7 +433,7 @@ func (p *Parser) parseTableSource() nodes.TableExpr {
 		// ON condition (not for CROSS JOIN / CROSS APPLY / OUTER APPLY)
 		if jt != nodes.JoinCross && jt != nodes.JoinCrossApply && jt != nodes.JoinOuterApply {
 			if _, ok := p.match(kwON); ok {
-				join.Condition = p.parseExpr()
+				join.Condition, _ = p.parseExpr()
 			}
 		}
 		left = join
@@ -546,7 +546,7 @@ func (p *Parser) parsePivotExpr(source nodes.TableExpr) *nodes.PivotExpr {
 	}
 
 	// Parse aggregate function call
-	pivot.AggFunc = p.parseExpr()
+	pivot.AggFunc, _ = p.parseExpr()
 
 	// FOR column
 	if _, ok := p.match(kwFOR); ok {
@@ -648,7 +648,7 @@ func (p *Parser) parseTableSampleClause() *nodes.TableSampleClause {
 		return ts
 	}
 
-	ts.Size = p.parseExpr()
+	ts.Size, _ = p.parseExpr()
 
 	// PERCENT or ROWS
 	if _, ok := p.match(kwPERCENT); ok {
@@ -662,7 +662,7 @@ func (p *Parser) parseTableSampleClause() *nodes.TableSampleClause {
 	// REPEATABLE (seed)
 	if p.matchIdentCI("REPEATABLE") {
 		if _, err := p.expect('('); err == nil {
-			ts.Repeatable = p.parseExpr()
+			ts.Repeatable, _ = p.parseExpr()
 			_, _ = p.expect(')')
 		}
 	}
@@ -684,7 +684,7 @@ func (p *Parser) parseTableValuedFunction(ref *nodes.TableRef) nodes.TableExpr {
 	if p.cur.Type != ')' {
 		var args []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			arg := p.parseExpr()
+			arg, _ := p.parseExpr()
 			args = append(args, arg)
 			if _, ok := p.match(','); !ok {
 				break
@@ -965,7 +965,7 @@ func (p *Parser) parseForJsonOptions(fc *nodes.ForClause) {
 func (p *Parser) parseExprList() *nodes.List {
 	var items []nodes.Node
 	for {
-		expr := p.parseExpr()
+		expr, _ := p.parseExpr()
 		if expr == nil {
 			break
 		}
@@ -1044,7 +1044,7 @@ func (p *Parser) parseGroupByList() *nodes.List {
 			continue
 		}
 		// Regular expression
-		expr := p.parseExpr()
+		expr, _ := p.parseExpr()
 		if expr == nil {
 			break
 		}
@@ -1067,7 +1067,7 @@ func (p *Parser) parseGroupingSet() *nodes.List {
 		}
 		var items []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			expr := p.parseExpr()
+			expr, _ := p.parseExpr()
 			if expr != nil {
 				items = append(items, expr)
 			}
@@ -1079,7 +1079,7 @@ func (p *Parser) parseGroupingSet() *nodes.List {
 		return &nodes.List{Items: items}
 	}
 	// Single expression as a set
-	expr := p.parseExpr()
+	expr, _ := p.parseExpr()
 	if expr != nil {
 		return &nodes.List{Items: []nodes.Node{expr}}
 	}
@@ -1156,7 +1156,7 @@ func (p *Parser) parseWindowClause() *nodes.List {
 
 		// Window frame: ROWS | RANGE | GROUPS
 		if p.cur.Type == kwROWS || p.cur.Type == kwRANGE || p.cur.Type == kwGROUPS {
-			def.Frame = p.parseWindowFrame()
+			def.Frame, _ = p.parseWindowFrame()
 		}
 
 		_, _ = p.expect(')')
@@ -1179,7 +1179,7 @@ func (p *Parser) parseOrderByList() *nodes.List {
 	var items []nodes.Node
 	for {
 		oloc := p.pos()
-		expr := p.parseExpr()
+		expr, _ := p.parseExpr()
 		if expr == nil {
 			break
 		}
@@ -1354,7 +1354,7 @@ func (p *Parser) parseTableHint() *nodes.TableHint {
 			Loc:  nodes.Loc{Start: loc},
 		}
 		if _, ok := p.match('='); ok {
-			hint.IntValue = p.parsePrimary()
+			hint.IntValue, _ = p.parsePrimary()
 		}
 		hint.Loc.End = p.pos()
 		return hint
@@ -1559,7 +1559,7 @@ func (p *Parser) parseQueryHint() nodes.Node {
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "MAXDOP", Loc: nodes.Loc{Start: loc}}
 		if p.cur.Type == tokICONST {
-			hint.Value = p.parsePrimary()
+			hint.Value, _ = p.parsePrimary()
 		}
 		hint.Loc.End = p.pos()
 		return hint
@@ -1568,7 +1568,7 @@ func (p *Parser) parseQueryHint() nodes.Node {
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "MAXRECURSION", Loc: nodes.Loc{Start: loc}}
 		if p.cur.Type == tokICONST {
-			hint.Value = p.parsePrimary()
+			hint.Value, _ = p.parsePrimary()
 		}
 		hint.Loc.End = p.pos()
 		return hint
@@ -1577,7 +1577,7 @@ func (p *Parser) parseQueryHint() nodes.Node {
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "FAST", Loc: nodes.Loc{Start: loc}}
 		if p.cur.Type == tokICONST {
-			hint.Value = p.parsePrimary()
+			hint.Value, _ = p.parsePrimary()
 		}
 		hint.Loc.End = p.pos()
 		return hint
@@ -1586,7 +1586,7 @@ func (p *Parser) parseQueryHint() nodes.Node {
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "QUERYTRACEON", Loc: nodes.Loc{Start: loc}}
 		if p.cur.Type == tokICONST {
-			hint.Value = p.parsePrimary()
+			hint.Value, _ = p.parsePrimary()
 		}
 		hint.Loc.End = p.pos()
 		return hint
@@ -1712,7 +1712,7 @@ func (p *Parser) parseQueryHint() nodes.Node {
 			hint := &nodes.QueryHint{Kind: name, Loc: nodes.Loc{Start: loc}}
 			if p.cur.Type == '=' {
 				p.advance()
-				hint.Value = p.parsePrimary()
+				hint.Value, _ = p.parsePrimary()
 			}
 			hint.Loc.End = p.pos()
 			return hint
@@ -1736,7 +1736,7 @@ func (p *Parser) parseOptimizeForParam() *nodes.OptimizeForParam {
 	p.advance()
 	if p.cur.Type == '=' {
 		p.advance()
-		param.Value = p.parsePrimary()
+		param.Value, _ = p.parsePrimary()
 	} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "UNKNOWN") {
 		param.Unknown = true
 		p.advance()

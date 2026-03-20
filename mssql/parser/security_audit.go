@@ -462,7 +462,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 	var whereClause nodes.ExprNode
 	if p.cur.Type == kwWHERE {
 		p.advance()
-		whereClause = p.parseExpr()
+		whereClause, _ = p.parseExpr()
 	}
 
 	if len(opts) == 0 {

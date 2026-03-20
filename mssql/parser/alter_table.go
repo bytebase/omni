@@ -677,7 +677,7 @@ func (p *Parser) parseAlterTableSwitch() *nodes.AlterTableAction {
 	// Optional PARTITION source_partition_number
 	if p.cur.Type == kwPARTITION {
 		p.advance() // consume PARTITION
-		action.Partition = p.parseExpr()
+		action.Partition, _ = p.parseExpr()
 	}
 
 	// TO target_table
@@ -689,7 +689,7 @@ func (p *Parser) parseAlterTableSwitch() *nodes.AlterTableAction {
 	// Optional PARTITION target_partition_number
 	if p.cur.Type == kwPARTITION {
 		p.advance() // consume PARTITION
-		action.TargetPart = p.parseExpr()
+		action.TargetPart, _ = p.parseExpr()
 	}
 
 	// Optional WITH ( <low_priority_lock_wait> )
@@ -723,7 +723,7 @@ func (p *Parser) parseAlterTableRebuild() *nodes.AlterTableAction {
 			action.ColName = "ALL" // reuse ColName to indicate PARTITION = ALL
 			p.advance()
 		} else {
-			action.Partition = p.parseExpr()
+			action.Partition, _ = p.parseExpr()
 		}
 	}
 
@@ -762,7 +762,7 @@ func (p *Parser) parseAlterTableSplitMergeRange(isSplit bool) *nodes.AlterTableA
 	// ( boundary_value )
 	if p.cur.Type == '(' {
 		p.advance() // consume (
-		action.Partition = p.parseExpr()
+		action.Partition, _ = p.parseExpr()
 		p.expect(')')
 	}
 

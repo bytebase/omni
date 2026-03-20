@@ -65,7 +65,7 @@ func (p *Parser) parseCreateStatisticsStmt() *nodes.CreateStatisticsStmt {
 	// WHERE filter predicate (optional)
 	if p.cur.Type == kwWHERE {
 		p.advance()
-		stmt.Where = p.parseExpr()
+		stmt.Where, _ = p.parseExpr()
 	}
 
 	// WITH options

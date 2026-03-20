@@ -393,7 +393,7 @@ func (p *Parser) parseParamDef() *nodes.ParamDef {
 	// Default value
 	if p.cur.Type == '=' {
 		p.advance()
-		param.Default = p.parseExpr()
+		param.Default, _ = p.parseExpr()
 	}
 
 	// OUTPUT / OUT

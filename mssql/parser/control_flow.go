@@ -23,7 +23,7 @@ func (p *Parser) parseIfStmt() *nodes.IfStmt {
 		Loc: nodes.Loc{Start: loc},
 	}
 
-	stmt.Condition = p.parseExpr()
+	stmt.Condition, _ = p.parseExpr()
 	stmt.Then = p.parseStmt()
 
 	// ELSE
@@ -49,7 +49,7 @@ func (p *Parser) parseWhileStmt() *nodes.WhileStmt {
 		Loc: nodes.Loc{Start: loc},
 	}
 
-	stmt.Condition = p.parseExpr()
+	stmt.Condition, _ = p.parseExpr()
 	stmt.Body = p.parseStmt()
 
 	stmt.Loc.End = p.pos()
@@ -218,7 +218,7 @@ func (p *Parser) parseReturnStmt() *nodes.ReturnStmt {
 	// Optional return expression
 	if p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwEND &&
 		p.cur.Type != kwELSE && p.cur.Type != kwGO {
-		stmt.Value = p.parseExpr()
+		stmt.Value, _ = p.parseExpr()
 	}
 
 	stmt.Loc.End = p.pos()
@@ -294,11 +294,11 @@ func (p *Parser) parseWaitForStmt() *nodes.WaitForStmt {
 	if p.cur.Type == kwDELAY {
 		stmt.WaitType = "DELAY"
 		p.advance()
-		stmt.Value = p.parseExpr()
+		stmt.Value, _ = p.parseExpr()
 	} else if p.cur.Type == kwTIME || (p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "time")) {
 		stmt.WaitType = "TIME"
 		p.advance()
-		stmt.Value = p.parseExpr()
+		stmt.Value, _ = p.parseExpr()
 	} else if p.cur.Type == '(' {
 		// Parenthesized form: WAITFOR ( receive_statement | get_conversation_group_statement )
 		p.advance() // consume '('
@@ -308,7 +308,7 @@ func (p *Parser) parseWaitForStmt() *nodes.WaitForStmt {
 		if _, ok := p.match(','); ok {
 			if p.isIdentLike() && strings.EqualFold(p.cur.Str, "TIMEOUT") {
 				p.advance()
-				stmt.Timeout = p.parseExpr()
+				stmt.Timeout, _ = p.parseExpr()
 			}
 		}
 	}
