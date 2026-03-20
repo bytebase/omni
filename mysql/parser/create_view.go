@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
@@ -85,12 +87,14 @@ func (p *Parser) parseCreateViewStmt(orReplace bool) (*nodes.CreateViewStmt, err
 		return nil, err
 	}
 
-	// SELECT statement
+	// SELECT statement — capture raw text
+	selectStart := p.pos()
 	sel, err := p.parseSelectStmt()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Select = sel
+	stmt.SelectText = strings.TrimSpace(p.inputText(selectStart, p.pos()))
 
 	// WITH [CASCADED | LOCAL] CHECK OPTION
 	if p.cur.Type == kwWITH {

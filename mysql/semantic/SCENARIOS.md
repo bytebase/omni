@@ -540,10 +540,10 @@ Every error must match MySQL's errno, SQLSTATE, and message format.
 ### 4.5 Views — Deep
 
 ```
-[ ] ALTER VIEW
-[ ] View dependency tracking (base table dropped → view invalid)
-[ ] SHOW CREATE VIEW output format
-[ ] View with column aliases
+[x] ALTER VIEW
+[x] View dependency tracking (base table dropped → view invalid)
+[~] SHOW CREATE VIEW output format — preamble matches; SELECT text requires SQL deparser to match MySQL's rewritten form
+[~] View with column aliases — column list matches; SELECT text requires SQL deparser
 ```
 
 ---

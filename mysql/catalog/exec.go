@@ -84,6 +84,8 @@ func (c *Catalog) processUtility(stmt nodes.Node) error {
 		return c.createIndex(s)
 	case *nodes.CreateViewStmt:
 		return c.createView(s)
+	case *nodes.AlterViewStmt:
+		return c.alterView(s)
 	case *nodes.AlterTableStmt:
 		return c.alterTable(s)
 	case *nodes.AlterDatabaseStmt:

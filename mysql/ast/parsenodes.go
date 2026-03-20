@@ -298,6 +298,7 @@ type CreateViewStmt struct {
 	Name        *TableRef
 	Columns     []string
 	Select      *SelectStmt
+	SelectText  string // raw SQL text of the AS select_statement portion
 	CheckOption string // CASCADED, LOCAL
 }
 
@@ -2448,6 +2449,7 @@ type AlterViewStmt struct {
 	Name        *TableRef
 	Columns     []string
 	Select      *SelectStmt
+	SelectText  string // raw SQL text of the AS select_statement portion
 	CheckOption string // CASCADED, LOCAL
 }
 

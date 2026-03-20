@@ -5461,3 +5461,203 @@ func TestOracle_Section_4_4_Events(t *testing.T) {
 		}
 	})
 }
+
+// extractViewPreamble extracts the CREATE VIEW preamble up to and including " AS ".
+// This allows comparing structural elements without comparing the rewritten SELECT text.
+func extractViewPreamble(ddl string) string {
+	idx := strings.Index(ddl, " AS ")
+	if idx < 0 {
+		return ddl
+	}
+	return normalizeWhitespace(ddl[:idx+4])
+}
+
+func TestOracle_Section_4_5_ViewsDeep(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	t.Run("alter_view", func(t *testing.T) {
+		// ALTER VIEW changes the view definition.
+		// Verify both oracle and omni accept ALTER VIEW and update the view.
+		oracle.execSQL("DROP VIEW IF EXISTS v_alter_test")
+		oracle.execSQL("CREATE VIEW v_alter_test AS SELECT 1 AS a")
+		oracleErr := oracle.execSQL("ALTER VIEW v_alter_test AS SELECT 2 AS b, 3 AS c")
+		if oracleErr != nil {
+			t.Fatalf("oracle ALTER VIEW error: %v", oracleErr)
+		}
+		// Verify oracle view was updated.
+		oracleDDL, _ := oracle.showCreateView("v_alter_test")
+		if !strings.Contains(oracleDDL, "v_alter_test") {
+			t.Fatalf("oracle: view not found after ALTER VIEW")
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE VIEW v_alter_test AS SELECT 1 AS a", nil)
+		results, _ := c.Exec("ALTER VIEW v_alter_test AS SELECT 2 AS b, 3 AS c", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni ALTER VIEW error: %v", results[0].Error)
+		}
+		// Verify omni view was updated.
+		db := c.GetDatabase("test")
+		v := db.Views[toLower("v_alter_test")]
+		if v == nil {
+			t.Fatal("omni: view v_alter_test should exist after ALTER VIEW")
+		}
+		if !strings.Contains(v.Definition, "2") {
+			t.Errorf("omni: view definition should contain new select, got: %s", v.Definition)
+		}
+
+		// ALTER VIEW on nonexistent view should error on both.
+		oracle.execSQL("DROP VIEW IF EXISTS v_alter_noexist")
+		oracleErr = oracle.execSQL("ALTER VIEW v_alter_noexist AS SELECT 1")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error for ALTER VIEW on nonexistent view")
+		}
+
+		c2 := New()
+		c2.Exec("CREATE DATABASE test", nil)
+		c2.SetCurrentDatabase("test")
+		results2, _ := c2.Exec("ALTER VIEW v_alter_noexist AS SELECT 1", &ExecOptions{ContinueOnError: true})
+		if results2[0].Error == nil {
+			t.Fatal("omni: expected error for ALTER VIEW on nonexistent view")
+		}
+	})
+
+	t.Run("view_dependency_tracking", func(t *testing.T) {
+		// In MySQL, dropping a base table does NOT drop the view.
+		// The view still exists but errors when queried.
+		oracle.execSQL("DROP VIEW IF EXISTS v_dep_test")
+		oracle.execSQL("DROP TABLE IF EXISTS t_dep_base")
+		oracle.execSQL("CREATE TABLE t_dep_base (id INT, val VARCHAR(100))")
+		oracle.execSQL("CREATE VIEW v_dep_test AS SELECT id, val FROM t_dep_base")
+
+		// Drop the base table
+		oracleErr := oracle.execSQL("DROP TABLE t_dep_base")
+		if oracleErr != nil {
+			t.Fatalf("oracle DROP TABLE error: %v", oracleErr)
+		}
+
+		// View should still exist in oracle
+		_, showErr := oracle.showCreateView("v_dep_test")
+		if showErr != nil {
+			t.Fatalf("oracle: view should still exist after base table drop, got: %v", showErr)
+		}
+
+		// Omni: same behavior
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE TABLE t_dep_base (id INT, val VARCHAR(100))", nil)
+		c.Exec("CREATE VIEW v_dep_test AS SELECT id, val FROM t_dep_base", nil)
+		c.Exec("DROP TABLE t_dep_base", nil)
+
+		// View should still exist
+		db := c.GetDatabase("test")
+		if db.Views[toLower("v_dep_test")] == nil {
+			t.Error("omni: view v_dep_test should still exist after base table drop")
+		}
+
+		// Cleanup oracle
+		oracle.execSQL("DROP VIEW IF EXISTS v_dep_test")
+	})
+
+	t.Run("show_create_view_basic", func(t *testing.T) {
+		// SHOW CREATE VIEW output format — verify structural elements.
+		// Note: MySQL rewrites the SELECT text (lowercases keywords, backtick-quotes aliases)
+		// which requires a full SQL deparser. We verify the CREATE VIEW preamble matches.
+		oracle.execSQL("DROP VIEW IF EXISTS v_show_basic")
+		oracle.execSQL("CREATE VIEW v_show_basic AS SELECT 1 AS a, 2 AS b")
+		oracleDDL, err := oracle.showCreateView("v_show_basic")
+		if err != nil {
+			t.Fatalf("oracle SHOW CREATE VIEW error: %v", err)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, parseErr := c.Exec("CREATE VIEW v_show_basic AS SELECT 1 AS a, 2 AS b", nil)
+		if parseErr != nil {
+			t.Fatalf("omni parse error: %v", parseErr)
+		}
+		if results[0].Error != nil {
+			t.Fatalf("omni exec error: %v", results[0].Error)
+		}
+		omniDDL := c.ShowCreateView("test", "v_show_basic")
+
+		// Verify structural preamble matches.
+		oraclePreamble := extractViewPreamble(oracleDDL)
+		omniPreamble := extractViewPreamble(omniDDL)
+		if oraclePreamble != omniPreamble {
+			t.Errorf("preamble mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s\n--- oracle full ---\n%s\n--- omni full ---\n%s",
+				oraclePreamble, omniPreamble, oracleDDL, omniDDL)
+		}
+	})
+
+	t.Run("show_create_view_with_options", func(t *testing.T) {
+		// SHOW CREATE VIEW with SQL SECURITY INVOKER.
+		// Note: MySQL normalizes ALGORITHM to UNDEFINED for simple views even if MERGE was specified.
+		oracle.execSQL("DROP VIEW IF EXISTS v_show_opts")
+		oracle.execSQL("CREATE SQL SECURITY INVOKER VIEW v_show_opts AS SELECT 1 AS x")
+		oracleDDL, err := oracle.showCreateView("v_show_opts")
+		if err != nil {
+			t.Fatalf("oracle SHOW CREATE VIEW error: %v", err)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, _ := c.Exec("CREATE SQL SECURITY INVOKER VIEW v_show_opts AS SELECT 1 AS x", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni exec error: %v", results[0].Error)
+		}
+		omniDDL := c.ShowCreateView("test", "v_show_opts")
+
+		// Verify structural preamble matches (up to and including AS).
+		oraclePreamble := extractViewPreamble(oracleDDL)
+		omniPreamble := extractViewPreamble(omniDDL)
+		if oraclePreamble != omniPreamble {
+			t.Errorf("preamble mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s\n--- oracle full ---\n%s\n--- omni full ---\n%s",
+				oraclePreamble, omniPreamble, oracleDDL, omniDDL)
+		}
+	})
+
+	t.Run("view_with_column_aliases", func(t *testing.T) {
+		// View with column list — verify columns are stored and preamble matches.
+		oracle.execSQL("DROP VIEW IF EXISTS v_col_aliases")
+		oracle.execSQL("CREATE VIEW v_col_aliases (x, y, z) AS SELECT 1, 2, 3")
+		oracleDDL, err := oracle.showCreateView("v_col_aliases")
+		if err != nil {
+			t.Fatalf("oracle SHOW CREATE VIEW error: %v", err)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, _ := c.Exec("CREATE VIEW v_col_aliases (x, y, z) AS SELECT 1, 2, 3", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni exec error: %v", results[0].Error)
+		}
+		omniDDL := c.ShowCreateView("test", "v_col_aliases")
+
+		// Verify columns are present in SHOW CREATE VIEW output.
+		oraclePreamble := extractViewPreamble(oracleDDL)
+		omniPreamble := extractViewPreamble(omniDDL)
+		if oraclePreamble != omniPreamble {
+			t.Errorf("preamble mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s\n--- oracle full ---\n%s\n--- omni full ---\n%s",
+				oraclePreamble, omniPreamble, oracleDDL, omniDDL)
+		}
+
+		// Verify column list appears in both outputs.
+		if !strings.Contains(oracleDDL, "`x`") || !strings.Contains(oracleDDL, "`y`") || !strings.Contains(oracleDDL, "`z`") {
+			t.Errorf("oracle DDL missing column aliases: %s", oracleDDL)
+		}
+		if !strings.Contains(omniDDL, "`x`") || !strings.Contains(omniDDL, "`y`") || !strings.Contains(omniDDL, "`z`") {
+			t.Errorf("omni DDL missing column aliases: %s", omniDDL)
+		}
+	})
+}

@@ -95,6 +95,20 @@ func (p *Parser) pos() int {
 	return p.cur.Loc
 }
 
+// inputText returns a substring of the original input between start and end byte positions.
+func (p *Parser) inputText(start, end int) string {
+	if start < 0 {
+		start = 0
+	}
+	if end > len(p.lexer.input) {
+		end = len(p.lexer.input)
+	}
+	if start >= end {
+		return ""
+	}
+	return p.lexer.input[start:end]
+}
+
 // ParseError represents a parse error with position information.
 type ParseError struct {
 	Message  string

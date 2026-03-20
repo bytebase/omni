@@ -156,6 +156,17 @@ func (o *mysqlOracle) showCreateTrigger(name string) (string, error) {
 	return createStmt, nil
 }
 
+// showCreateView runs SHOW CREATE VIEW and returns the CREATE VIEW statement.
+func (o *mysqlOracle) showCreateView(name string) (string, error) {
+	var viewName, createStmt, charSetClient, collConn string
+	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE VIEW "+name).Scan(
+		&viewName, &createStmt, &charSetClient, &collConn)
+	if err != nil {
+		return "", fmt.Errorf("SHOW CREATE VIEW %s: %w", name, err)
+	}
+	return createStmt, nil
+}
+
 // showCreateEvent runs SHOW CREATE EVENT and returns the CREATE EVENT statement.
 func (o *mysqlOracle) showCreateEvent(name string) (string, error) {
 	var eventName, sqlMode, tz, createStmt, charSetClient, collConn, dbCollation string
