@@ -481,9 +481,9 @@ Depends on all previous phases. End-to-end oracle testing against MySQL 8.0.
 ### 7.6 Regression & Compatibility
 
 ```
-[ ] All existing mysql/catalog tests pass (go test ./mysql/catalog/ -short)
-[ ] All existing mysql/parser tests pass (go test ./mysql/parser/ -short)
-[ ] SHOW CREATE VIEW for simple views matches MySQL 8.0 exactly
-[ ] SHOW CREATE VIEW for complex views matches MySQL 8.0 exactly
-[ ] View with explicit column aliases matches
+[x] All existing mysql/catalog tests pass (go test ./mysql/catalog/ -short)
+[x] All existing mysql/parser tests pass (go test ./mysql/parser/ -short)
+[x] SHOW CREATE VIEW for simple views matches MySQL 8.0 exactly
+[x] SHOW CREATE VIEW for complex views matches MySQL 8.0 exactly
+[x] View with explicit column aliases matches
 ```
