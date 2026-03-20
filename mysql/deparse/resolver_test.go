@@ -317,5 +317,116 @@ func TestResolver_Section_6_3_AutoAliasGeneration(t *testing.T) {
 	}
 }
 
+// setupCatalogForJoins creates a catalog with tables that have overlapping columns
+// for testing NATURAL JOIN expansion.
+// Schema: testdb.t1(a INT, b INT), testdb.t2(a INT, d INT), testdb.t3(a INT, b INT)
+func setupCatalogForJoins(t *testing.T) *catalog.Catalog {
+	t.Helper()
+	c := catalog.New()
+	sqls := []string{
+		"CREATE DATABASE testdb",
+		"USE testdb",
+		"CREATE TABLE t1 (a INT, b INT)",
+		"CREATE TABLE t2 (a INT, d INT)",
+		"CREATE TABLE t3 (a INT, b INT)",
+	}
+	for _, sql := range sqls {
+		_, err := c.Exec(sql, nil)
+		if err != nil {
+			t.Fatalf("catalog setup failed on %q: %v", sql, err)
+		}
+	}
+	return c
+}
+
+func TestResolver_Section_6_4_JoinNormalization(t *testing.T) {
+	t.Run("natural_join", func(t *testing.T) {
+		// t1(a, b) NATURAL JOIN t2(a, d) → common column: a
+		// Test with explicit column selection to verify ON expansion
+		cat := setupCatalogForJoins(t)
+		got := resolveAndDeparse(t, cat, "SELECT t1.a, t1.b, t2.d FROM t1 NATURAL JOIN t2")
+		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`d` AS `d` from (`t1` join `t2` on((`t1`.`a` = `t2`.`a`)))"
+		if got != expected {
+			t.Errorf("NATURAL JOIN:\n  got:  %q\n  want: %q", got, expected)
+		}
+	})
+
+	t.Run("natural_join_multi_common", func(t *testing.T) {
+		// t1(a, b) NATURAL JOIN t3(a, b) → common columns: a, b
+		cat := setupCatalogForJoins(t)
+		got := resolveAndDeparse(t, cat, "SELECT t1.a, t1.b FROM t1 NATURAL JOIN t3")
+		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b` from (`t1` join `t3` on(((`t1`.`a` = `t3`.`a`) and (`t1`.`b` = `t3`.`b`))))"
+		if got != expected {
+			t.Errorf("NATURAL JOIN multi common:\n  got:  %q\n  want: %q", got, expected)
+		}
+	})
+
+	t.Run("using_single_column", func(t *testing.T) {
+		// USING (a) → on((`t1`.`a` = `t2`.`a`))
+		cat := setupCatalogForJoins(t)
+		got := resolveAndDeparse(t, cat, "SELECT t1.a, t1.b, t2.d FROM t1 JOIN t2 USING (a)")
+		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t2`.`d` AS `d` from (`t1` join `t2` on((`t1`.`a` = `t2`.`a`)))"
+		if got != expected {
+			t.Errorf("USING single:\n  got:  %q\n  want: %q", got, expected)
+		}
+	})
+
+	t.Run("using_multiple_columns", func(t *testing.T) {
+		// USING (a, b) via AST since parser may not support multi-column USING
+		cat := setupCatalogForJoins(t)
+		// Build manually: t1 JOIN t3 USING (a, b)
+		join := &ast.JoinClause{
+			Type:  ast.JoinInner,
+			Left:  &ast.TableRef{Name: "t1"},
+			Right: &ast.TableRef{Name: "t3"},
+			Condition: &ast.UsingCondition{
+				Columns: []string{"a", "b"},
+			},
+		}
+		sel := &ast.SelectStmt{
+			TargetList: []ast.ExprNode{&ast.StarExpr{}},
+			From:       []ast.TableExpr{join},
+		}
+		rewriteSelectStmt(sel)
+		resolver := &Resolver{Lookup: catalogLookup(cat)}
+		resolved := resolver.Resolve(sel)
+		got := DeparseSelect(resolved)
+		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b` from (`t1` join `t3` on(((`t1`.`a` = `t3`.`a`) and (`t1`.`b` = `t3`.`b`))))"
+		if got != expected {
+			t.Errorf("USING multi:\n  got:  %q\n  want: %q", got, expected)
+		}
+	})
+
+	t.Run("right_join_to_left_join", func(t *testing.T) {
+		// RIGHT JOIN → LEFT JOIN with table swap
+		cat := setupCatalogForJoins(t)
+		got := resolveAndDeparse(t, cat, "SELECT t1.a, t2.d FROM t1 RIGHT JOIN t2 ON t1.a = t2.a")
+		expected := "select `t1`.`a` AS `a`,`t2`.`d` AS `d` from (`t2` left join `t1` on((`t1`.`a` = `t2`.`a`)))"
+		if got != expected {
+			t.Errorf("RIGHT JOIN:\n  got:  %q\n  want: %q", got, expected)
+		}
+	})
+
+	t.Run("cross_join_to_join", func(t *testing.T) {
+		// CROSS JOIN → plain join (no ON)
+		cat := setupCatalogForJoins(t)
+		got := resolveAndDeparse(t, cat, "SELECT t1.a, t2.d FROM t1 CROSS JOIN t2")
+		expected := "select `t1`.`a` AS `a`,`t2`.`d` AS `d` from (`t1` join `t2`)"
+		if got != expected {
+			t.Errorf("CROSS JOIN:\n  got:  %q\n  want: %q", got, expected)
+		}
+	})
+
+	t.Run("implicit_cross_join", func(t *testing.T) {
+		// FROM t1, t2 → FROM (`t1` join `t2`)
+		cat := setupCatalogForJoins(t)
+		got := resolveAndDeparse(t, cat, "SELECT t1.a, t2.d FROM t1, t2")
+		expected := "select `t1`.`a` AS `a`,`t2`.`d` AS `d` from (`t1` join `t2`)"
+		if got != expected {
+			t.Errorf("Implicit cross join:\n  got:  %q\n  want: %q", got, expected)
+		}
+	})
+}
+
 // Ensure the Resolver handles an unused import gracefully.
 var _ = strings.ToLower

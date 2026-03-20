@@ -418,17 +418,156 @@ func (r *Resolver) resolveFromExprs(from []ast.TableExpr, sc *scope) {
 }
 
 // resolveTableExpr resolves expressions within a table expression (e.g., ON conditions).
+// For NATURAL JOINs, it expands the join by finding common columns between both tables
+// and building an ON condition. For USING clauses, it resolves column references.
 func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *scope) {
 	switch t := tbl.(type) {
 	case *ast.JoinClause:
 		r.resolveTableExpr(t.Left, sc)
 		r.resolveTableExpr(t.Right, sc)
+
+		// Expand NATURAL JOIN → find common columns → build ON condition
+		if t.Type == ast.JoinNatural || t.Type == ast.JoinNaturalLeft || t.Type == ast.JoinNaturalRight {
+			r.expandNaturalJoin(t)
+		}
+
+		// Expand USING → build ON condition with qualified column refs
+		if t.Condition != nil {
+			if using, ok := t.Condition.(*ast.UsingCondition); ok {
+				r.expandUsingCondition(t, using)
+			}
+		}
+
 		if t.Condition != nil {
 			if on, ok := t.Condition.(*ast.OnCondition); ok {
 				on.Expr = r.resolveExpr(on.Expr, sc)
 			}
 		}
 	}
+}
+
+// expandNaturalJoin finds common columns between the left and right tables of a
+// NATURAL JOIN and builds an ON condition. It also changes the join type:
+//   - NATURAL JOIN → JoinInner
+//   - NATURAL LEFT JOIN → JoinLeft
+//   - NATURAL RIGHT JOIN → JoinRight (deparse will then swap to LEFT)
+func (r *Resolver) expandNaturalJoin(j *ast.JoinClause) {
+	leftTable := r.lookupTableExpr(j.Left)
+	rightTable := r.lookupTableExpr(j.Right)
+	if leftTable == nil || rightTable == nil {
+		// Can't expand without schema info; leave as-is
+		switch j.Type {
+		case ast.JoinNatural:
+			j.Type = ast.JoinInner
+		case ast.JoinNaturalLeft:
+			j.Type = ast.JoinLeft
+		case ast.JoinNaturalRight:
+			j.Type = ast.JoinRight
+		}
+		return
+	}
+
+	// Find common columns (columns with matching names, case-insensitive)
+	// Use left table column order for deterministic output
+	leftCols := sortedResolverColumns(leftTable)
+	var commonCols []string
+	for _, lc := range leftCols {
+		if rightTable.GetColumn(lc.Name) != nil {
+			commonCols = append(commonCols, lc.Name)
+		}
+	}
+
+	// Get effective table names for qualified column refs
+	leftName := tableExprEffectiveName(j.Left)
+	rightName := tableExprEffectiveName(j.Right)
+
+	// Build ON condition from common columns
+	if len(commonCols) > 0 {
+		j.Condition = &ast.OnCondition{
+			Expr: buildColumnEqualityChain(commonCols, leftName, rightName),
+		}
+	}
+
+	// Change join type from NATURAL variant to standard variant
+	switch j.Type {
+	case ast.JoinNatural:
+		j.Type = ast.JoinInner
+	case ast.JoinNaturalLeft:
+		j.Type = ast.JoinLeft
+	case ast.JoinNaturalRight:
+		j.Type = ast.JoinRight
+	}
+}
+
+// expandUsingCondition converts a USING condition into an ON condition with
+// fully qualified column references, then replaces the condition on the join.
+func (r *Resolver) expandUsingCondition(j *ast.JoinClause, using *ast.UsingCondition) {
+	leftName := tableExprEffectiveName(j.Left)
+	rightName := tableExprEffectiveName(j.Right)
+
+	if len(using.Columns) > 0 && leftName != "" && rightName != "" {
+		j.Condition = &ast.OnCondition{
+			Expr: buildColumnEqualityChain(using.Columns, leftName, rightName),
+		}
+	}
+}
+
+// lookupTableExpr returns the ResolverTable for a table expression.
+// Only works for simple TableRef nodes.
+func (r *Resolver) lookupTableExpr(tbl ast.TableExpr) *ResolverTable {
+	switch t := tbl.(type) {
+	case *ast.TableRef:
+		return r.Lookup(t.Name)
+	default:
+		return nil
+	}
+}
+
+// tableExprEffectiveName returns the effective name (alias or table name) of a table expression.
+func tableExprEffectiveName(tbl ast.TableExpr) string {
+	switch t := tbl.(type) {
+	case *ast.TableRef:
+		if t.Alias != "" {
+			return t.Alias
+		}
+		return t.Name
+	default:
+		return ""
+	}
+}
+
+// buildColumnEqualityChain builds an AND-chained equality expression for column pairs.
+// e.g., columns [a, b] with left=t1, right=t2 →
+//
+//	((`t1`.`a` = `t2`.`a`) and (`t1`.`b` = `t2`.`b`))
+func buildColumnEqualityChain(columns []string, leftName, rightName string) ast.ExprNode {
+	if len(columns) == 0 {
+		return nil
+	}
+
+	// Build individual equality expressions
+	equalities := make([]ast.ExprNode, len(columns))
+	for i, col := range columns {
+		equalities[i] = &ast.BinaryExpr{
+			Op:    ast.BinOpEq,
+			Left:  &ast.ColumnRef{Table: leftName, Column: col},
+			Right: &ast.ColumnRef{Table: rightName, Column: col},
+		}
+	}
+
+	// Chain with AND if multiple
+	if len(equalities) == 1 {
+		return equalities[0]
+	}
+	result := equalities[0]
+	for i := 1; i < len(equalities); i++ {
+		result = &ast.BinaryExpr{
+			Op:    ast.BinOpAnd,
+			Left:  result,
+			Right: equalities[i],
+		}
+	}
+	return result
 }
 
 // AmbiguousColumnError is returned when a column reference matches multiple tables.

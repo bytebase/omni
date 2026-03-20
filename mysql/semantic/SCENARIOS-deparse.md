@@ -303,9 +303,9 @@ Depends on Phase 1-4. Handles full SELECT clause formatting.
 [x] RIGHT JOIN → LEFT JOIN: `t1 RIGHT JOIN t2 ON ...` → `(`t2` left join `t1` on((...)))` — tables swapped
 [x] CROSS JOIN: `t1 CROSS JOIN t2` → `(`t1` join `t2`)` — CROSS removed
 [x] STRAIGHT_JOIN: `(`t1` straight_join `t2` on((...)))` — lowercase
-[~] NATURAL JOIN: expanded to `join ... on((col equality conditions))` — basic join format works; full ON expansion needs Phase 6 resolver
-[~] NATURAL LEFT JOIN: expanded similarly with `left join` — basic format works; full ON expansion needs Phase 6 resolver
-[~] NATURAL RIGHT JOIN: expanded as `left join` with table swap — basic format works; full ON expansion needs Phase 6 resolver
+[x] NATURAL JOIN: expanded to `join ... on((col equality conditions))` — resolver expands common columns to ON
+[x] NATURAL LEFT JOIN: expanded similarly with `left join` — resolver expands common columns to ON
+[x] NATURAL RIGHT JOIN: expanded as `left join` with table swap — resolver expands common columns to ON
 [x] USING: `JOIN t2 USING (a)` → `join `t2` on((`t1`.`a` = `t2`.`a`))` — expanded to ON
 ```
 
@@ -410,12 +410,12 @@ Depends on Phase 4-5. Requires Catalog access.
 ### 6.4 JOIN Normalization (Schema-Aware)
 
 ```
-[ ] NATURAL JOIN: find common columns → expand to ON((...) and (...))
-[ ] USING single column: `USING (a)` → `on((`t1`.`a` = `t2`.`a`))`
-[ ] USING multiple columns: `USING (a, b)` → `on((...) and (...))`
-[ ] RIGHT JOIN → LEFT JOIN: swap table order in AST
-[ ] CROSS JOIN → JOIN: remove CROSS keyword
-[ ] Implicit cross join → explicit: `FROM t1, t2` → `FROM (`t1` join `t2`)`
+[x] NATURAL JOIN: find common columns → expand to ON((...) and (...))
+[x] USING single column: `USING (a)` → `on((`t1`.`a` = `t2`.`a`))`
+[x] USING multiple columns: `USING (a, b)` → `on((...) and (...))`
+[x] RIGHT JOIN → LEFT JOIN: swap table order in AST
+[x] CROSS JOIN → JOIN: remove CROSS keyword
+[x] Implicit cross join → explicit: `FROM t1, t2` → `FROM (`t1` join `t2`)`
 ```
 
 ### 6.5 CAST Charset from Catalog
