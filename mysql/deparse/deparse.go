@@ -121,6 +121,55 @@ func deparseSelectStmt(stmt *ast.SelectStmt) string {
 		b.WriteString(deparseExpr(stmt.Limit.Count))
 	}
 
+	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
+	if stmt.ForUpdate != nil {
+		b.WriteString(" ")
+		b.WriteString(deparseForUpdate(stmt.ForUpdate))
+	}
+
+	return b.String()
+}
+
+// deparseForUpdate formats a FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE clause.
+// MySQL 8.0 format:
+//   - for update
+//   - for share
+//   - lock in share mode (legacy syntax)
+//   - for update of `t`
+//   - for update nowait
+//   - for update skip locked
+func deparseForUpdate(fu *ast.ForUpdate) string {
+	if fu.LockInShareMode {
+		return "lock in share mode"
+	}
+
+	var b strings.Builder
+	if fu.Share {
+		b.WriteString("for share")
+	} else {
+		b.WriteString("for update")
+	}
+
+	// OF table list
+	if len(fu.Tables) > 0 {
+		b.WriteString(" of ")
+		for i, tbl := range fu.Tables {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString("`")
+			b.WriteString(tbl.Name)
+			b.WriteString("`")
+		}
+	}
+
+	// NOWAIT / SKIP LOCKED
+	if fu.NoWait {
+		b.WriteString(" nowait")
+	} else if fu.SkipLocked {
+		b.WriteString(" skip locked")
+	}
+
 	return b.String()
 }
 

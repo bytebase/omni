@@ -356,12 +356,12 @@ Depends on Phase 1-4. Handles full SELECT clause formatting.
 ### 5.8 FOR UPDATE / FOR SHARE
 
 ```
-[ ] FOR UPDATE: → `for update` (lowercase)
-[ ] FOR SHARE: → `for share`
-[ ] LOCK IN SHARE MODE: → `lock in share mode`
-[ ] FOR UPDATE OF table: → `for update of `t``
-[ ] FOR UPDATE NOWAIT: → `for update nowait`
-[ ] FOR UPDATE SKIP LOCKED: → `for update skip locked`
+[x] FOR UPDATE: → `for update` (lowercase)
+[x] FOR SHARE: → `for share`
+[x] LOCK IN SHARE MODE: → `lock in share mode`
+[x] FOR UPDATE OF table: → `for update of `t``
+[x] FOR UPDATE NOWAIT: → `for update nowait`
+[x] FOR UPDATE SKIP LOCKED: → `for update skip locked`
 ```
 
 ## Phase 6: Schema-Aware Resolver

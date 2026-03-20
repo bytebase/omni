@@ -1272,3 +1272,52 @@ func TestDeparseSelect_Section_5_7_CTE(t *testing.T) {
 		})
 	}
 }
+
+func TestDeparse_Section_5_8_ForUpdate(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			"for_update",
+			"SELECT a FROM t FOR UPDATE",
+			"select `a` AS `a` from `t` for update",
+		},
+		{
+			"for_share",
+			"SELECT a FROM t FOR SHARE",
+			"select `a` AS `a` from `t` for share",
+		},
+		{
+			"lock_in_share_mode",
+			"SELECT a FROM t LOCK IN SHARE MODE",
+			"select `a` AS `a` from `t` lock in share mode",
+		},
+		{
+			"for_update_of_table",
+			"SELECT a FROM t FOR UPDATE OF t",
+			"select `a` AS `a` from `t` for update of `t`",
+		},
+		{
+			"for_update_nowait",
+			"SELECT a FROM t FOR UPDATE NOWAIT",
+			"select `a` AS `a` from `t` for update nowait",
+		},
+		{
+			"for_update_skip_locked",
+			"SELECT a FROM t FOR UPDATE SKIP LOCKED",
+			"select `a` AS `a` from `t` for update skip locked",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sel := parseSelect(t, tc.input)
+			got := DeparseSelect(sel)
+			if got != tc.expected {
+				t.Errorf("DeparseSelect(%q) =\n  %q\nwant:\n  %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
