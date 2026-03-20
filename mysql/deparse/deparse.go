@@ -46,14 +46,16 @@ func deparseSelectStmt(stmt *ast.SelectStmt) string {
 		b.WriteString(deparseResTarget(target, i+1))
 	}
 
-	// FROM clause (basic, will be extended in 5.2)
+	// FROM clause
 	if len(stmt.From) > 0 {
 		b.WriteString(" from ")
-		for i, tbl := range stmt.From {
-			if i > 0 {
-				b.WriteString(",")
-			}
-			b.WriteString(deparseTableExpr(tbl))
+		if len(stmt.From) == 1 {
+			b.WriteString(deparseTableExpr(stmt.From[0]))
+		} else {
+			// Multiple tables (implicit cross join) → normalized to explicit join with parens
+			// e.g., FROM t1, t2 → from (`t1` join `t2`)
+			// For 3+ tables: FROM t1, t2, t3 → from ((`t1` join `t2`) join `t3`)
+			b.WriteString(deparseImplicitCrossJoin(stmt.From))
 		}
 	}
 
@@ -178,14 +180,102 @@ func deparseExprAlias(node ast.ExprNode) string {
 	}
 }
 
+// deparseImplicitCrossJoin normalizes multiple FROM tables (implicit cross join)
+// into explicit join syntax with parentheses.
+// e.g., FROM t1, t2, t3 → ((`t1` join `t2`) join `t3`)
+func deparseImplicitCrossJoin(tables []ast.TableExpr) string {
+	if len(tables) == 0 {
+		return ""
+	}
+	result := deparseTableExpr(tables[0])
+	for i := 1; i < len(tables); i++ {
+		result = "(" + result + " join " + deparseTableExpr(tables[i]) + ")"
+	}
+	return result
+}
+
 // deparseTableExpr formats a table expression in the FROM clause.
 func deparseTableExpr(tbl ast.TableExpr) string {
 	switch t := tbl.(type) {
 	case *ast.TableRef:
 		return deparseTableRef(t)
+	case *ast.JoinClause:
+		return deparseJoinClause(t)
+	case *ast.SubqueryExpr:
+		return deparseSubqueryTableExpr(t)
 	default:
 		return fmt.Sprintf("/* unsupported table expr: %T */", tbl)
 	}
+}
+
+// deparseJoinClause formats a JOIN clause.
+// MySQL 8.0 format: (`t1` join `t2` on((...)))
+func deparseJoinClause(j *ast.JoinClause) string {
+	left := deparseTableExpr(j.Left)
+	right := deparseTableExpr(j.Right)
+
+	var joinType string
+	switch j.Type {
+	case ast.JoinInner:
+		joinType = "join"
+	case ast.JoinLeft:
+		joinType = "left join"
+	case ast.JoinRight:
+		// RIGHT JOIN → LEFT JOIN with table swap
+		joinType = "left join"
+		left, right = right, left
+	case ast.JoinCross:
+		// CROSS JOIN → plain join
+		joinType = "join"
+	case ast.JoinStraight:
+		joinType = "straight_join"
+	case ast.JoinNatural:
+		joinType = "join"
+	case ast.JoinNaturalLeft:
+		joinType = "left join"
+	case ast.JoinNaturalRight:
+		joinType = "left join"
+		left, right = right, left
+	default:
+		joinType = "join"
+	}
+
+	var b strings.Builder
+	b.WriteString("(")
+	b.WriteString(left)
+	b.WriteString(" ")
+	b.WriteString(joinType)
+	b.WriteString(" ")
+	b.WriteString(right)
+
+	// ON condition
+	if j.Condition != nil {
+		if on, ok := j.Condition.(*ast.OnCondition); ok {
+			b.WriteString(" on(")
+			b.WriteString(deparseExpr(on.Expr))
+			b.WriteString(")")
+		}
+	}
+
+	b.WriteString(")")
+	return b.String()
+}
+
+// deparseSubqueryTableExpr formats a derived table (subquery as table expression).
+// MySQL 8.0 format: (select ...) `alias` — no AS keyword for alias
+func deparseSubqueryTableExpr(s *ast.SubqueryExpr) string {
+	var b strings.Builder
+	b.WriteString("(")
+	if s.Select != nil {
+		b.WriteString(deparseSelectStmt(s.Select))
+	}
+	b.WriteString(")")
+	if s.Alias != "" {
+		b.WriteString(" `")
+		b.WriteString(s.Alias)
+		b.WriteString("`")
+	}
+	return b.String()
 }
 
 // deparseTableRef formats a simple table reference.

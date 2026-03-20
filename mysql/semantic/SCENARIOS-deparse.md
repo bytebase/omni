@@ -287,12 +287,12 @@ Depends on Phase 1-4. Handles full SELECT clause formatting.
 ### 5.2 FROM Clause
 
 ```
-[ ] Single table: `FROM t` → `from `t``
-[ ] Table alias with AS: `FROM t AS t1` → `from `t` `t1`` — no AS keyword for table alias
-[ ] Table alias without AS: `FROM t t1` → `from `t` `t1`` — same output
-[ ] Multiple tables (implicit cross join): `FROM t1, t2` → `from (`t1` join `t2`)`
-[ ] Derived table: `FROM (SELECT a FROM t) d` → `from (select ...) `d`` — no AS
-[ ] Derived table with AS: same output (AS stripped)
+[x] Single table: `FROM t` → `from `t``
+[x] Table alias with AS: `FROM t AS t1` → `from `t` `t1`` — no AS keyword for table alias
+[x] Table alias without AS: `FROM t t1` → `from `t` `t1`` — same output
+[x] Multiple tables (implicit cross join): `FROM t1, t2` → `from (`t1` join `t2`)`
+[~] Derived table: `FROM (SELECT a FROM t) d` → `from (select ...) `d`` — no AS — deparse logic implemented; parser doesn't produce SubqueryExpr for derived tables in FROM
+[~] Derived table with AS: same output (AS stripped) — deparse logic implemented; parser doesn't produce SubqueryExpr for derived tables in FROM
 ```
 
 ### 5.3 JOIN Clause

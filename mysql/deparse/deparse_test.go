@@ -941,3 +941,60 @@ func TestDeparseSelect_Section_5_1_NilStmt(t *testing.T) {
 		t.Errorf("DeparseSelect(nil) = %q, want empty string", got)
 	}
 }
+
+func TestDeparseSelect_Section_5_2_FromClause(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		// Single table
+		{"single_table", "SELECT a FROM t", "select `a` AS `a` from `t`"},
+		// Table alias with AS — no AS keyword in output for table alias
+		{"table_alias_with_as", "SELECT a FROM t AS t1", "select `a` AS `a` from `t` `t1`"},
+		// Table alias without AS — same output
+		{"table_alias_without_as", "SELECT a FROM t t1", "select `a` AS `a` from `t` `t1`"},
+		// Multiple tables (implicit cross join) → explicit join with parens
+		{"implicit_cross_join", "SELECT a FROM t1, t2", "select `a` AS `a` from (`t1` join `t2`)"},
+		// Three tables implicit cross join
+		{"implicit_cross_join_3", "SELECT a FROM t1, t2, t3", "select `a` AS `a` from ((`t1` join `t2`) join `t3`)"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sel := parseSelect(t, tc.input)
+			got := DeparseSelect(sel)
+			if got != tc.expected {
+				t.Errorf("DeparseSelect(%q) =\n  %q\nwant:\n  %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestDeparseSelect_Section_5_2_DerivedTable(t *testing.T) {
+	// Note: Parser currently does not produce SubqueryExpr for derived tables in FROM clause.
+	// These tests verify the deparse logic works when given the correct AST manually.
+	t.Run("derived_table_subquery_expr", func(t *testing.T) {
+		// Manually construct: FROM (SELECT 1 AS a) `d`
+		inner := &ast.SelectStmt{
+			TargetList: []ast.ExprNode{
+				&ast.ResTarget{Name: "a", Val: &ast.IntLit{Value: 1}},
+			},
+		}
+		subq := &ast.SubqueryExpr{
+			Select: inner,
+			Alias:  "d",
+		}
+		outer := &ast.SelectStmt{
+			TargetList: []ast.ExprNode{
+				&ast.ResTarget{Val: &ast.ColumnRef{Column: "a"}},
+			},
+			From: []ast.TableExpr{subq},
+		}
+		got := DeparseSelect(outer)
+		expected := "select `a` AS `a` from (select 1 AS `a`) `d`"
+		if got != expected {
+			t.Errorf("DeparseSelect(derived table) =\n  %q\nwant:\n  %q", got, expected)
+		}
+	})
+}
