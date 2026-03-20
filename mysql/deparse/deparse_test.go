@@ -229,6 +229,45 @@ func TestDeparse_Section_2_2_ComparisonOperators(t *testing.T) {
 	}
 }
 
+func TestDeparse_Section_2_3_BitwiseOperators(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"bitwise_or", "a | b", "(`a` | `b`)"},
+		{"bitwise_and", "a & b", "(`a` & `b`)"},
+		{"bitwise_xor", "a ^ b", "(`a` ^ `b`)"},
+		{"left_shift", "a << b", "(`a` << `b`)"},
+		{"right_shift", "a >> b", "(`a` >> `b`)"},
+		{"bitwise_not", "~a", "~`a`"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			node := parseExpr(t, tc.input)
+			got := Deparse(node)
+			if got != tc.expected {
+				t.Errorf("Deparse(%q) = %q, want %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
+// TestDeparse_Section_2_3_BitwiseNotAST tests bitwise NOT via hand-built AST
+// to verify deparseUnaryExpr handles UnaryBitNot correctly.
+func TestDeparse_Section_2_3_BitwiseNotAST(t *testing.T) {
+	node := &ast.UnaryExpr{
+		Op:      ast.UnaryBitNot,
+		Operand: &ast.ColumnRef{Column: "a"},
+	}
+	got := Deparse(node)
+	expected := "~`a`"
+	if got != expected {
+		t.Errorf("Deparse(UnaryBitNot(a)) = %q, want %q", got, expected)
+	}
+}
+
 func TestDeparse_NilNode(t *testing.T) {
 	got := Deparse(nil)
 	if got != "" {

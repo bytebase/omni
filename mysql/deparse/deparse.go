@@ -161,6 +161,8 @@ func deparseUnaryExpr(n *ast.UnaryExpr) string {
 	case ast.UnaryPlus:
 		// MySQL drops unary plus entirely
 		return operand
+	case ast.UnaryBitNot:
+		return "~" + operand
 	default:
 		return operand
 	}

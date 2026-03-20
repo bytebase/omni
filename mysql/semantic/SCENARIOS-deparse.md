@@ -89,12 +89,12 @@ Rewrites (!=→<>, MOD→%, +a dropped) are applied here — oracle tests verify
 ### 2.3 Bitwise Operators
 
 ```
-[ ] Bitwise OR: `a | b` → `(`a` | `b`)`
-[ ] Bitwise AND: `a & b` → `(`a` & `b`)`
-[ ] Bitwise XOR: `a ^ b` → `(`a` ^ `b`)`
-[ ] Left shift: `a << b` → `(`a` << `b`)`
-[ ] Right shift: `a >> b` → `(`a` >> `b`)`
-[ ] Bitwise NOT: `~a` → `~(`a`)` — tilde then parens
+[x] Bitwise OR: `a | b` → `(`a` | `b`)`
+[x] Bitwise AND: `a & b` → `(`a` & `b`)`
+[x] Bitwise XOR: `a ^ b` → `(`a` ^ `b`)`
+[x] Left shift: `a << b` → `(`a` << `b`)`
+[x] Right shift: `a >> b` → `(`a` >> `b`)`
+[x] Bitwise NOT: `~a` → `~`a`` — tilde directly before operand
 ```
 
 ### 2.4 Precedence & Parenthesization
