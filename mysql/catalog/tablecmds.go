@@ -486,9 +486,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 	}
 
-	// Validate foreign key constraints.
-	if err := c.validateForeignKeys(db, tbl); err != nil {
-		return err
+	// Validate foreign key constraints (unless foreign_key_checks=0).
+	if c.foreignKeyChecks {
+		if err := c.validateForeignKeys(db, tbl); err != nil {
+			return err
+		}
 	}
 
 	// Process partition clause.

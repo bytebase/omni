@@ -1,6 +1,8 @@
 package catalog
 
 import (
+	"fmt"
+
 	nodes "github.com/bytebase/omni/mysql/ast"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
@@ -65,6 +67,54 @@ func LoadSQL(sql string) (*Catalog, error) {
 	return c, nil
 }
 
+// execSet handles SET statements that affect catalog behavior.
+// Most SET variables are silently accepted (session-level settings like NAMES,
+// CHARACTER SET, sql_mode). Variables that affect DDL behavior (foreign_key_checks)
+// update the catalog state.
+func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
+	for _, asgn := range stmt.Assignments {
+		varName := toLower(asgn.Column.Column)
+		switch varName {
+		case "foreign_key_checks":
+			// Extract the value.
+			val := nodeToSQLValue(asgn.Value)
+			switch toLower(val) {
+			case "0", "off", "false":
+				c.foreignKeyChecks = false
+			case "1", "on", "true":
+				c.foreignKeyChecks = true
+			}
+		case "names", "character set":
+			// Silently accept — these affect character encoding but
+			// the in-memory catalog doesn't need to change behavior.
+		default:
+			// Silently accept all other SET variables (sql_mode, etc.).
+		}
+	}
+	return nil
+}
+
+// nodeToSQLValue extracts a simple string value from an expression node.
+func nodeToSQLValue(expr nodes.ExprNode) string {
+	switch e := expr.(type) {
+	case *nodes.StringLit:
+		return e.Value
+	case *nodes.IntLit:
+		return fmt.Sprintf("%d", e.Value)
+	case *nodes.FloatLit:
+		return e.Value
+	case *nodes.BoolLit:
+		if e.Value {
+			return "1"
+		}
+		return "0"
+	case *nodes.ColumnRef:
+		return e.Column
+	default:
+		return ""
+	}
+}
+
 func isDML(stmt nodes.Node) bool {
 	switch stmt.(type) {
 	case *nodes.SelectStmt, *nodes.InsertStmt, *nodes.UpdateStmt, *nodes.DeleteStmt:
@@ -120,6 +170,8 @@ func (c *Catalog) processUtility(stmt nodes.Node) error {
 		return c.alterEvent(s)
 	case *nodes.DropEventStmt:
 		return c.dropEvent(s)
+	case *nodes.SetStmt:
+		return c.execSet(s)
 	default:
 		return nil
 	}

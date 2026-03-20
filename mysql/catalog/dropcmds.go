@@ -19,9 +19,12 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 			}
 			return errUnknownTable(db.Name, ref.Name)
 		}
-		// Check if any other table in any database has a FK referencing this table.
-		if err := c.checkFKReferences(db.Name, ref.Name); err != nil {
-			return err
+		// Check if any other table in any database has a FK referencing this table
+		// (unless foreign_key_checks=0).
+		if c.foreignKeyChecks {
+			if err := c.checkFKReferences(db.Name, ref.Name); err != nil {
+				return err
+			}
 		}
 		delete(db.Tables, key)
 	}

@@ -446,10 +446,12 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			OnDelete:   refActionToString(con.OnDelete),
 			OnUpdate:   refActionToString(con.OnUpdate),
 		}
-		// Validate FK before adding.
+		// Validate FK before adding (unless foreign_key_checks=0).
 		db := tbl.Database
-		if err := c.validateSingleFK(db, tbl, fkCon); err != nil {
-			return err
+		if c.foreignKeyChecks {
+			if err := c.validateSingleFK(db, tbl, fkCon); err != nil {
+				return err
+			}
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
 		// Add implicit backing index.

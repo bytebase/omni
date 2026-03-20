@@ -5760,3 +5760,142 @@ func TestOracle_Section_5_1_UseStatement(t *testing.T) {
 		}
 	})
 }
+
+func TestOracle_Section_5_2_SetVariables(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	// Scenario: SET foreign_key_checks = 0 — skip FK validation on CREATE TABLE
+	t.Run("fk_checks_off_create", func(t *testing.T) {
+		oracle.execSQL("DROP TABLE IF EXISTS t_fkoff_child")
+		oracle.execSQL("SET foreign_key_checks = 0")
+		oracleErr := oracle.execSQL("CREATE TABLE t_fkoff_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES nonexistent_parent(id))")
+		oracle.execSQL("SET foreign_key_checks = 1")
+		if oracleErr != nil {
+			t.Fatalf("oracle: unexpected error with FK checks off: %v", oracleErr)
+		}
+		oracleDDL, err := oracle.showCreateTable("t_fkoff_child")
+		if err != nil {
+			t.Fatalf("oracle: SHOW CREATE TABLE: %v", err)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("SET foreign_key_checks = 0", nil)
+		results, _ := c.Exec("CREATE TABLE t_fkoff_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES nonexistent_parent(id))", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni: unexpected error with FK checks off: %v", results[0].Error)
+		}
+		omniDDL := c.ShowCreateTable("test", "t_fkoff_child")
+
+		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s", oracleDDL, omniDDL)
+		}
+	})
+
+	// Scenario: SET foreign_key_checks = 0 — drop table with FK references
+	t.Run("fk_checks_off_drop", func(t *testing.T) {
+		oracle.execSQL("SET foreign_key_checks = 0")
+		oracle.execSQL("DROP TABLE IF EXISTS t_fkdrop_child")
+		oracle.execSQL("DROP TABLE IF EXISTS t_fkdrop_parent")
+		oracle.execSQL("SET foreign_key_checks = 1")
+		oracle.execSQL("CREATE TABLE t_fkdrop_parent (id INT PRIMARY KEY)")
+		oracle.execSQL("CREATE TABLE t_fkdrop_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES t_fkdrop_parent(id))")
+		oracle.execSQL("SET foreign_key_checks = 0")
+		oracleErr := oracle.execSQL("DROP TABLE t_fkdrop_parent")
+		oracle.execSQL("SET foreign_key_checks = 1")
+		if oracleErr != nil {
+			t.Fatalf("oracle: unexpected error dropping FK-referenced table with checks off: %v", oracleErr)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE TABLE t_fkdrop_parent (id INT PRIMARY KEY)", nil)
+		c.Exec("CREATE TABLE t_fkdrop_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES t_fkdrop_parent(id))", nil)
+		c.Exec("SET foreign_key_checks = 0", nil)
+		results, _ := c.Exec("DROP TABLE t_fkdrop_parent", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni: unexpected error dropping FK-referenced table with checks off: %v", results[0].Error)
+		}
+		omniDDL := c.ShowCreateTable("test", "t_fkdrop_parent")
+		if omniDDL != "" {
+			t.Errorf("omni: parent table should be gone after drop, got: %s", omniDDL)
+		}
+	})
+
+	// Scenario: SET foreign_key_checks = 1 — enforce FK validation
+	t.Run("fk_checks_on_enforce", func(t *testing.T) {
+		oracle.execSQL("SET foreign_key_checks = 0")
+		oracle.execSQL("DROP TABLE IF EXISTS t_fkon_child")
+		oracle.execSQL("SET foreign_key_checks = 1")
+		oracleErr := oracle.execSQL("CREATE TABLE t_fkon_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES nonexistent_on_parent(id))")
+		if oracleErr == nil {
+			t.Fatal("oracle: expected error with FK checks on, referencing non-existent table")
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("SET foreign_key_checks = 1", nil)
+		results, _ := c.Exec("CREATE TABLE t_fkon_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES nonexistent_on_parent(id))", nil)
+		if results[0].Error == nil {
+			t.Fatal("omni: expected error with FK checks on, referencing non-existent table")
+		}
+	})
+
+	// Scenario: SET NAMES utf8mb4 — silently accepted
+	t.Run("set_names", func(t *testing.T) {
+		oracleErr := oracle.execSQL("SET NAMES utf8mb4")
+		if oracleErr != nil {
+			t.Fatalf("oracle: SET NAMES error: %v", oracleErr)
+		}
+
+		c := New()
+		results, err := c.Exec("SET NAMES utf8mb4", nil)
+		if err != nil {
+			t.Fatalf("omni: parse error: %v", err)
+		}
+		if results[0].Error != nil {
+			t.Fatalf("omni: SET NAMES error: %v", results[0].Error)
+		}
+	})
+
+	// Scenario: SET CHARACTER SET utf8mb4 — silently accepted
+	t.Run("set_character_set", func(t *testing.T) {
+		oracleErr := oracle.execSQL("SET CHARACTER SET utf8mb4")
+		if oracleErr != nil {
+			t.Fatalf("oracle: SET CHARACTER SET error: %v", oracleErr)
+		}
+
+		c := New()
+		results, err := c.Exec("SET CHARACTER SET utf8mb4", nil)
+		if err != nil {
+			t.Fatalf("omni: parse error: %v", err)
+		}
+		if results[0].Error != nil {
+			t.Fatalf("omni: SET CHARACTER SET error: %v", results[0].Error)
+		}
+	})
+
+	// Scenario: SET sql_mode — silently accepted
+	t.Run("set_sql_mode", func(t *testing.T) {
+		oracleErr := oracle.execSQL("SET sql_mode = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION'")
+		if oracleErr != nil {
+			t.Fatalf("oracle: SET sql_mode error: %v", oracleErr)
+		}
+
+		c := New()
+		results, err := c.Exec("SET sql_mode = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION'", nil)
+		if err != nil {
+			t.Fatalf("omni: parse error: %v", err)
+		}
+		if results[0].Error != nil {
+			t.Fatalf("omni: SET sql_mode error: %v", results[0].Error)
+		}
+	})
+}

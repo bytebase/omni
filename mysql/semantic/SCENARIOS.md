@@ -560,11 +560,11 @@ Every error must match MySQL's errno, SQLSTATE, and message format.
 ### 5.2 SET Variables (affecting DDL behavior)
 
 ```
-[ ] SET foreign_key_checks = 0 — skip FK validation
-[ ] SET foreign_key_checks = 1 — enforce FK validation
-[ ] SET NAMES utf8mb4
-[ ] SET CHARACTER SET utf8mb4
-[ ] SET sql_mode (affects parsing and behavior)
+[x] SET foreign_key_checks = 0 — skip FK validation
+[x] SET foreign_key_checks = 1 — enforce FK validation
+[x] SET NAMES utf8mb4
+[x] SET CHARACTER SET utf8mb4
+[x] SET sql_mode (affects parsing and behavior)
 ```
 
 ### 5.3 User/Role Management
