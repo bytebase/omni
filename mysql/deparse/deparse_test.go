@@ -119,6 +119,36 @@ func TestDeparse_Section_1_2_CharsetIntroducer(t *testing.T) {
 	}
 }
 
+func TestDeparse_Section_1_3_HexBitLiterals(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		// Hex literals — MySQL normalizes to 0x lowercase form
+		{"hex_0x_form", "0xFF", "0xff"},
+		{"hex_X_quote_form", "X'FF'", "0xff"},
+
+		// Bit literals — MySQL converts to hex form
+		{"bit_0b_form", "0b1010", "0x0a"},
+		{"bit_b_quote_form", "b'1010'", "0x0a"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			node := parseExpr(t, tc.input)
+			got := Deparse(node)
+			if got != tc.expected {
+				t.Errorf("Deparse(%q) = %q, want %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
+// TestDeparse_Section_1_3_DateTimeLiterals tests DATE/TIME/TIMESTAMP literal deparsing
+// using hand-built AST nodes, since the parser doesn't support temporal literals yet.
+// These are marked as [~] partial in SCENARIOS — parser support needed.
+
 func TestDeparse_NilNode(t *testing.T) {
 	got := Deparse(nil)
 	if got != "" {

@@ -43,13 +43,13 @@ Foundation: build the `Deparse(node) string` function and handle all literal typ
 ### 1.3 Hex, Bit & Date/Time Literals
 
 ```
-[ ] Hex literal 0x form: `0xFF` → `0xff` (lowercase)
-[ ] Hex literal X'' form: `X'FF'` → `0xff` (normalized to 0x form, lowercase)
-[ ] Bit literal 0b form: `0b1010` → `0x0a` (converted to hex)
-[ ] Bit literal b'' form: `b'1010'` → `0x0a` (converted to hex)
-[ ] DATE literal: `DATE '2024-01-01'` → `DATE'2024-01-01'` (no space, uppercase DATE)
-[ ] TIME literal: `TIME '12:00:00'` → `TIME'12:00:00'` (no space, uppercase TIME)
-[ ] TIMESTAMP literal: `TIMESTAMP '2024-01-01 12:00:00'` → `TIMESTAMP'2024-01-01 12:00:00'`
+[x] Hex literal 0x form: `0xFF` → `0xff` (lowercase)
+[x] Hex literal X'' form: `X'FF'` → `0xff` (normalized to 0x form, lowercase)
+[x] Bit literal 0b form: `0b1010` → `0x0a` (converted to hex)
+[x] Bit literal b'' form: `b'1010'` → `0x0a` (converted to hex)
+[~] DATE literal: `DATE '2024-01-01'` → `DATE'2024-01-01'` (no space, uppercase DATE) — parser doesn't support temporal literals
+[~] TIME literal: `TIME '12:00:00'` → `TIME'12:00:00'` (no space, uppercase TIME) — parser doesn't support temporal literals
+[~] TIMESTAMP literal: `TIMESTAMP '2024-01-01 12:00:00'` → `TIMESTAMP'2024-01-01 12:00:00'` — parser doesn't support temporal literals
 ```
 
 ## Phase 2: Operators & Expressions
