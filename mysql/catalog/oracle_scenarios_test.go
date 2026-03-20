@@ -6214,3 +6214,185 @@ func TestOracle_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 		})
 	}
 }
+
+// TestOracle_Section_6_2_ShowCreateOtherObjects tests SHOW CREATE VIEW/FUNCTION/PROCEDURE/TRIGGER/EVENT
+// output against real MySQL 8.0. This complements sections 4.2-4.5 by testing additional patterns
+// and verifying SHOW CREATE as a query API surface.
+func TestOracle_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	// --- SHOW CREATE VIEW ---
+	t.Run("show_create_view", func(t *testing.T) {
+		// Test SHOW CREATE VIEW with default options.
+		// MySQL rewrites SELECT text, so we compare preamble only.
+		oracle.execSQL("DROP VIEW IF EXISTS v_sc_basic")
+		oracle.execSQL("CREATE VIEW v_sc_basic AS SELECT 1 AS col1, 2 AS col2")
+		oracleDDL, err := oracle.showCreateView("v_sc_basic")
+		if err != nil {
+			t.Fatalf("oracle SHOW CREATE VIEW: %v", err)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, parseErr := c.Exec("CREATE VIEW v_sc_basic AS SELECT 1 AS col1, 2 AS col2", nil)
+		if parseErr != nil {
+			t.Fatalf("omni parse error: %v", parseErr)
+		}
+		if results[0].Error != nil {
+			t.Fatalf("omni exec error: %v", results[0].Error)
+		}
+		omniDDL := c.ShowCreateView("test", "v_sc_basic")
+
+		// Compare preamble (up to AS) — SELECT text may differ due to MySQL rewriting.
+		oraclePreamble := extractViewPreamble(oracleDDL)
+		omniPreamble := extractViewPreamble(omniDDL)
+		if oraclePreamble != omniPreamble {
+			t.Errorf("preamble mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s\n--- oracle full ---\n%s\n--- omni full ---\n%s",
+				oraclePreamble, omniPreamble, oracleDDL, omniDDL)
+		}
+
+		// Verify both contain the key structural elements.
+		for _, substr := range []string{"ALGORITHM=", "DEFINER=", "SQL SECURITY", "VIEW", "v_sc_basic", " AS "} {
+			if !strings.Contains(oracleDDL, substr) {
+				t.Errorf("oracle DDL missing %q: %s", substr, oracleDDL)
+			}
+			if !strings.Contains(omniDDL, substr) {
+				t.Errorf("omni DDL missing %q: %s", substr, omniDDL)
+			}
+		}
+	})
+
+	// --- SHOW CREATE FUNCTION ---
+	t.Run("show_create_function", func(t *testing.T) {
+		// Test SHOW CREATE FUNCTION with various characteristics.
+		oracle.execSQL("DROP FUNCTION IF EXISTS fn_sc_multiply")
+		createSQL := "CREATE FUNCTION fn_sc_multiply(x INT, y INT) RETURNS INT DETERMINISTIC RETURN x * y"
+		if err := oracle.execSQL(createSQL); err != nil {
+			t.Fatalf("oracle exec: %v", err)
+		}
+		oracleDDL, err := oracle.showCreateFunction("fn_sc_multiply")
+		if err != nil {
+			t.Fatalf("oracle SHOW CREATE FUNCTION: %v", err)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, parseErr := c.Exec(createSQL, nil)
+		if parseErr != nil {
+			t.Fatalf("omni parse error: %v", parseErr)
+		}
+		if results[0].Error != nil {
+			t.Fatalf("omni exec error: %v", results[0].Error)
+		}
+		omniDDL := c.ShowCreateFunction("test", "fn_sc_multiply")
+
+		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
+				oracleDDL, omniDDL)
+		}
+	})
+
+	// --- SHOW CREATE PROCEDURE ---
+	t.Run("show_create_procedure", func(t *testing.T) {
+		// Test SHOW CREATE PROCEDURE with INOUT params.
+		oracle.execSQLDirect("DROP PROCEDURE IF EXISTS sp_sc_swap")
+		createSQL := "CREATE PROCEDURE sp_sc_swap(INOUT a INT, INOUT b INT) BEGIN DECLARE tmp INT; SET tmp = a; SET a = b; SET b = tmp; END"
+		if err := oracle.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("oracle exec: %v", err)
+		}
+		oracleDDL, err := oracle.showCreateProcedure("sp_sc_swap")
+		if err != nil {
+			t.Fatalf("oracle SHOW CREATE PROCEDURE: %v", err)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, parseErr := c.Exec(createSQL, nil)
+		if parseErr != nil {
+			t.Fatalf("omni parse error: %v", parseErr)
+		}
+		if results[0].Error != nil {
+			t.Fatalf("omni exec error: %v", results[0].Error)
+		}
+		omniDDL := c.ShowCreateProcedure("test", "sp_sc_swap")
+
+		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
+				oracleDDL, omniDDL)
+		}
+	})
+
+	// --- SHOW CREATE TRIGGER ---
+	t.Run("show_create_trigger", func(t *testing.T) {
+		// Setup table for triggers.
+		oracle.execSQL("DROP TRIGGER IF EXISTS tr_sc_audit")
+		oracle.execSQL("DROP TABLE IF EXISTS t_sc_trigger")
+		if err := oracle.execSQL("CREATE TABLE t_sc_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, updated_at DATETIME)"); err != nil {
+			t.Fatalf("oracle setup table: %v", err)
+		}
+		createSQL := "CREATE TRIGGER tr_sc_audit AFTER INSERT ON t_sc_trigger FOR EACH ROW SET @last_insert_id = NEW.id"
+		if err := oracle.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("oracle exec: %v", err)
+		}
+		oracleDDL, err := oracle.showCreateTrigger("tr_sc_audit")
+		if err != nil {
+			t.Fatalf("oracle SHOW CREATE TRIGGER: %v", err)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE TABLE t_sc_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, updated_at DATETIME)", nil)
+		results, parseErr := c.Exec(createSQL, nil)
+		if parseErr != nil {
+			t.Fatalf("omni parse error: %v", parseErr)
+		}
+		if results[0].Error != nil {
+			t.Fatalf("omni exec error: %v", results[0].Error)
+		}
+		omniDDL := c.ShowCreateTrigger("test", "tr_sc_audit")
+
+		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
+				oracleDDL, omniDDL)
+		}
+	})
+
+	// --- SHOW CREATE EVENT ---
+	t.Run("show_create_event", func(t *testing.T) {
+		// Test SHOW CREATE EVENT with AT schedule (exact timestamp, no auto-STARTS issue).
+		oracle.execSQL("DROP EVENT IF EXISTS ev_sc_onetime")
+		createSQL := "CREATE EVENT ev_sc_onetime ON SCHEDULE AT '2035-06-15 12:00:00' ON COMPLETION PRESERVE COMMENT 'one-time event' DO SELECT 1"
+		if err := oracle.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("oracle exec: %v", err)
+		}
+		oracleDDL, err := oracle.showCreateEvent("ev_sc_onetime")
+		if err != nil {
+			t.Fatalf("oracle SHOW CREATE EVENT: %v", err)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		results, parseErr := c.Exec(createSQL, nil)
+		if parseErr != nil {
+			t.Fatalf("omni parse error: %v", parseErr)
+		}
+		if results[0].Error != nil {
+			t.Fatalf("omni exec error: %v", results[0].Error)
+		}
+		omniDDL := c.ShowCreateEvent("test", "ev_sc_onetime")
+
+		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
+				oracleDDL, omniDDL)
+		}
+	})
+}

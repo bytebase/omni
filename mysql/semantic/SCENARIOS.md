@@ -601,11 +601,11 @@ Every error must match MySQL's errno, SQLSTATE, and message format.
 ### 6.2 SHOW CREATE VIEW/FUNCTION/PROCEDURE/TRIGGER/EVENT
 
 ```
-[ ] SHOW CREATE VIEW
-[ ] SHOW CREATE FUNCTION
-[ ] SHOW CREATE PROCEDURE
-[ ] SHOW CREATE TRIGGER
-[ ] SHOW CREATE EVENT
+[~] SHOW CREATE VIEW — preamble matches; SELECT text requires SQL deparser to match MySQL's rewritten form
+[x] SHOW CREATE FUNCTION
+[x] SHOW CREATE PROCEDURE
+[x] SHOW CREATE TRIGGER
+[x] SHOW CREATE EVENT
 ```
 
 ### 6.3 INFORMATION_SCHEMA Consistency
