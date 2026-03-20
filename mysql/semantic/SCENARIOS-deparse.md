@@ -274,14 +274,14 @@ Depends on Phase 1-4. Handles full SELECT clause formatting.
 ### 5.1 Target List & Aliases
 
 ```
-[ ] Single column: `SELECT a FROM t` → `select `a` from `t``
-[ ] Multiple columns: comma-separated, no space after comma
-[ ] Column alias with AS: `SELECT a AS col1` → `select `a` AS `col1``
-[ ] Column alias without AS: same output (always adds AS)
-[ ] Expression alias: `SELECT a + b AS sum_col` → `(`a` + `b`) AS `sum_col``
-[ ] Auto-alias literal: `SELECT 1` → `1 AS `1``
-[ ] Auto-alias expression: `SELECT a + b` → `(`a` + `b`) AS `a + b``
-[ ] Auto-alias empty/complex: long expressions → `Name_exp_1` pattern
+[x] Single column: `SELECT a FROM t` → `select `a` from `t``
+[x] Multiple columns: comma-separated, no space after comma
+[x] Column alias with AS: `SELECT a AS col1` → `select `a` AS `col1``
+[x] Column alias without AS: same output (always adds AS)
+[x] Expression alias: `SELECT a + b AS sum_col` → `(`a` + `b`) AS `sum_col``
+[x] Auto-alias literal: `SELECT 1` → `1 AS `1``
+[x] Auto-alias expression: `SELECT a + b` → `(`a` + `b`) AS `a + b``
+[x] Auto-alias empty/complex: long expressions → `Name_exp_1` pattern
 ```
 
 ### 5.2 FROM Clause

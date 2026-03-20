@@ -19,6 +19,194 @@ func Deparse(node ast.ExprNode) string {
 	return deparseExpr(node)
 }
 
+// DeparseSelect converts a SelectStmt AST node to its SQL text representation,
+// matching MySQL 8.0's SHOW CREATE VIEW formatting.
+func DeparseSelect(stmt *ast.SelectStmt) string {
+	if stmt == nil {
+		return ""
+	}
+	return deparseSelectStmt(stmt)
+}
+
+func deparseSelectStmt(stmt *ast.SelectStmt) string {
+	var b strings.Builder
+
+	b.WriteString("select ")
+
+	// DISTINCT
+	if stmt.DistinctKind == ast.DistinctOn {
+		b.WriteString("distinct ")
+	}
+
+	// Target list
+	for i, target := range stmt.TargetList {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		b.WriteString(deparseResTarget(target, i+1))
+	}
+
+	// FROM clause (basic, will be extended in 5.2)
+	if len(stmt.From) > 0 {
+		b.WriteString(" from ")
+		for i, tbl := range stmt.From {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(deparseTableExpr(tbl))
+		}
+	}
+
+	return b.String()
+}
+
+// deparseResTarget formats a single result target in the SELECT list.
+// MySQL 8.0 SHOW CREATE VIEW format: expr AS `alias`
+// - Always uses AS keyword
+// - Alias is always backtick-quoted
+// - Auto-alias: column ref → column name; literal → literal text; expression → expression text
+func deparseResTarget(node ast.ExprNode, position int) string {
+	rt, isRT := node.(*ast.ResTarget)
+
+	var expr ast.ExprNode
+	var explicitAlias string
+	if isRT {
+		expr = rt.Val
+		explicitAlias = rt.Name
+	} else {
+		expr = node
+	}
+
+	exprStr := deparseExpr(expr)
+
+	// Determine alias
+	alias := explicitAlias
+	if alias == "" {
+		alias = autoAlias(expr, exprStr, position)
+	}
+
+	return exprStr + " AS `" + alias + "`"
+}
+
+// autoAlias generates an automatic alias for a SELECT target expression.
+// MySQL 8.0 rules:
+// - Column ref → column name (unqualified)
+// - Literal → literal text representation
+// - Short expression → expression text (without backtick quoting)
+// - Long/complex expression → Name_exp_N
+func autoAlias(expr ast.ExprNode, exprStr string, position int) string {
+	switch n := expr.(type) {
+	case *ast.ColumnRef:
+		return n.Column
+	case *ast.IntLit:
+		return fmt.Sprintf("%d", n.Value)
+	case *ast.FloatLit:
+		return n.Value
+	case *ast.StringLit:
+		return n.Value
+	case *ast.NullLit:
+		return "NULL"
+	case *ast.BoolLit:
+		if n.Value {
+			return "TRUE"
+		}
+		return "FALSE"
+	default:
+		// For expressions: generate a human-readable alias text without backtick quoting.
+		// MySQL 8.0 uses the original expression text for the alias.
+		aliasText := deparseExprAlias(expr)
+		if len(aliasText) > 64 {
+			return fmt.Sprintf("Name_exp_%d", position)
+		}
+		return aliasText
+	}
+}
+
+// deparseExprAlias generates a human-readable expression text for use as an auto-alias.
+// Unlike deparseExpr, this does NOT backtick-quote column names, matching MySQL 8.0's
+// behavior of using the original expression text as the alias.
+func deparseExprAlias(node ast.ExprNode) string {
+	switch n := node.(type) {
+	case *ast.ColumnRef:
+		if n.Table != "" {
+			return n.Table + "." + n.Column
+		}
+		return n.Column
+	case *ast.IntLit:
+		return fmt.Sprintf("%d", n.Value)
+	case *ast.FloatLit:
+		return n.Value
+	case *ast.StringLit:
+		return n.Value
+	case *ast.NullLit:
+		return "NULL"
+	case *ast.BoolLit:
+		if n.Value {
+			return "TRUE"
+		}
+		return "FALSE"
+	case *ast.BinaryExpr:
+		left := deparseExprAlias(n.Left)
+		right := deparseExprAlias(n.Right)
+		op := binaryOpToString(n.Op)
+		return left + " " + op + " " + right
+	case *ast.UnaryExpr:
+		operand := deparseExprAlias(n.Operand)
+		switch n.Op {
+		case ast.UnaryMinus:
+			return "-" + operand
+		case ast.UnaryPlus:
+			return operand
+		case ast.UnaryNot:
+			return "not(" + operand + ")"
+		case ast.UnaryBitNot:
+			return "~" + operand
+		}
+		return operand
+	case *ast.FuncCallExpr:
+		name := strings.ToLower(n.Name)
+		args := make([]string, len(n.Args))
+		for i, arg := range n.Args {
+			args[i] = deparseExprAlias(arg)
+		}
+		return name + "(" + strings.Join(args, ",") + ")"
+	case *ast.ParenExpr:
+		return deparseExprAlias(n.Expr)
+	default:
+		// Fallback: use the regular deparsed text
+		return deparseExpr(node)
+	}
+}
+
+// deparseTableExpr formats a table expression in the FROM clause.
+func deparseTableExpr(tbl ast.TableExpr) string {
+	switch t := tbl.(type) {
+	case *ast.TableRef:
+		return deparseTableRef(t)
+	default:
+		return fmt.Sprintf("/* unsupported table expr: %T */", tbl)
+	}
+}
+
+// deparseTableRef formats a simple table reference.
+func deparseTableRef(t *ast.TableRef) string {
+	var b strings.Builder
+	if t.Schema != "" {
+		b.WriteString("`")
+		b.WriteString(t.Schema)
+		b.WriteString("`.")
+	}
+	b.WriteString("`")
+	b.WriteString(t.Name)
+	b.WriteString("`")
+	if t.Alias != "" {
+		b.WriteString(" `")
+		b.WriteString(t.Alias)
+		b.WriteString("`")
+	}
+	return b.String()
+}
+
 func deparseExpr(node ast.ExprNode) string {
 	switch n := node.(type) {
 	case *ast.IntLit:
@@ -618,15 +806,18 @@ func deparseWindowFrameBound(fb *ast.WindowFrameBound) string {
 // deparseExistsExpr formats an EXISTS expression.
 // MySQL 8.0 format: exists(select ...)
 func deparseExistsExpr(n *ast.ExistsExpr) string {
-	// Minimal: we only need to know it's exists(...) for boolean identification.
-	// Full SELECT deparsing is a Phase 5 concern.
+	if n.Select != nil {
+		return "exists(" + deparseSelectStmt(n.Select) + ")"
+	}
 	return "exists(/* subquery */)"
 }
 
 // deparseSubqueryExpr formats a subquery expression.
 // MySQL 8.0 format: (select ...)
 func deparseSubqueryExpr(n *ast.SubqueryExpr) string {
-	// Minimal: full SELECT deparsing is a Phase 5 concern.
+	if n.Select != nil {
+		return "(" + deparseSelectStmt(n.Select) + ")"
+	}
 	return "(/* subquery */)"
 }
 

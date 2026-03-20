@@ -875,3 +875,69 @@ func TestRewriteExpr_NilNode(t *testing.T) {
 		t.Errorf("RewriteExpr(nil) = %v, want nil", got)
 	}
 }
+
+// parseSelect parses a full SQL SELECT statement and returns the SelectStmt.
+func parseSelect(t *testing.T, sql string) *ast.SelectStmt {
+	t.Helper()
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatalf("failed to parse %q: %v", sql, err)
+	}
+	if list.Len() == 0 {
+		t.Fatalf("no statements parsed from %q", sql)
+	}
+	sel, ok := list.Items[0].(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("expected SelectStmt, got %T", list.Items[0])
+	}
+	return sel
+}
+
+func TestDeparseSelect_Section_5_1_TargetListAliases(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		// Single column with FROM
+		{"single_column", "SELECT a FROM t", "select `a` AS `a` from `t`"},
+		// Multiple columns: comma-separated, no space after comma
+		{"multiple_columns", "SELECT a, b, c FROM t", "select `a` AS `a`,`b` AS `b`,`c` AS `c` from `t`"},
+		// Column alias with AS
+		{"column_alias_as", "SELECT a AS col1 FROM t", "select `a` AS `col1` from `t`"},
+		// Column alias without AS (should still produce AS in output)
+		{"column_alias_no_as", "SELECT a col1 FROM t", "select `a` AS `col1` from `t`"},
+		// Expression alias
+		{"expression_alias", "SELECT a + b AS sum_col FROM t", "select (`a` + `b`) AS `sum_col` from `t`"},
+		// Auto-alias literal: SELECT 1 → 1 AS `1`
+		{"auto_alias_literal", "SELECT 1", "select 1 AS `1`"},
+		// Auto-alias expression: SELECT a + b → (`a` + `b`) AS `a + b`
+		{"auto_alias_expression", "SELECT a + b FROM t", "select (`a` + `b`) AS `a + b` from `t`"},
+		// Auto-alias string literal
+		{"auto_alias_string", "SELECT 'hello'", "select 'hello' AS `hello`"},
+		// Auto-alias NULL
+		{"auto_alias_null", "SELECT NULL", "select NULL AS `NULL`"},
+		// Auto-alias function call
+		{"auto_alias_func", "SELECT CONCAT(a, b) FROM t", "select concat(`a`,`b`) AS `concat(a,b)` from `t`"},
+		// Auto-alias boolean literal
+		{"auto_alias_true", "SELECT TRUE", "select true AS `TRUE`"},
+		{"auto_alias_false", "SELECT FALSE", "select false AS `FALSE`"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sel := parseSelect(t, tc.input)
+			got := DeparseSelect(sel)
+			if got != tc.expected {
+				t.Errorf("DeparseSelect(%q) =\n  %q\nwant:\n  %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestDeparseSelect_Section_5_1_NilStmt(t *testing.T) {
+	got := DeparseSelect(nil)
+	if got != "" {
+		t.Errorf("DeparseSelect(nil) = %q, want empty string", got)
+	}
+}
