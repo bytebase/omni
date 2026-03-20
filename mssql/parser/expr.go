@@ -169,7 +169,10 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 		}
 		// Check for subquery: IN (SELECT ...)
 		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			sub := p.parseSelectStmt()
+			sub, err := p.parseSelectStmt()
+			if err != nil {
+				return nil, err
+			}
 			_, _ = p.expect(')')
 			return &nodes.InExpr{
 				Expr:     left,
@@ -240,7 +243,10 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			p.advance() // consume ALL/SOME/ANY
 			if p.cur.Type == '(' {
 				p.advance() // consume (
-				subquery := p.parseSelectStmt()
+				subquery, err := p.parseSelectStmt()
+				if err != nil {
+					return nil, err
+				}
 				_, _ = p.expect(')')
 				return &nodes.SubqueryComparisonExpr{
 					Left:       left,
@@ -553,7 +559,10 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		p.advance()
 		// Scalar subquery: (SELECT ...)
 		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			sub := p.parseSelectStmt()
+			sub, err := p.parseSelectStmt()
+			if err != nil {
+				return nil, err
+			}
 			_, _ = p.expect(')')
 			return &nodes.SubqueryExpr{
 				Query: sub,

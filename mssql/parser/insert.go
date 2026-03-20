@@ -41,18 +41,18 @@ func (p *Parser) parseInsertStmt() *nodes.InsertStmt {
 
 	// Optional TOP
 	if p.cur.Type == kwTOP {
-		stmt.Top = p.parseTopClause()
+		stmt.Top, _ = p.parseTopClause()
 	}
 
 	// Optional INTO
 	p.match(kwINTO)
 
 	// Table name or @table_variable
-	stmt.Relation , _ = p.parseTableRef()
+	stmt.Relation, _ = p.parseTableRef()
 
 	// Optional WITH ( <Table_Hint_Limited> ) on target
 	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-		stmt.Relation.Hints = p.parseTableHints()
+		stmt.Relation.Hints, _ = p.parseTableHints()
 	}
 
 	// Optional column list
@@ -83,7 +83,7 @@ func (p *Parser) parseInsertStmt() *nodes.InsertStmt {
 	case p.cur.Type == kwVALUES:
 		stmt.Source = p.parseValuesClause()
 	case p.cur.Type == kwSELECT || p.cur.Type == kwWITH:
-		stmt.Source = p.parseSelectStmt()
+		stmt.Source, _ = p.parseSelectStmt()
 	case p.cur.Type == kwEXEC || p.cur.Type == kwEXECUTE:
 		stmt.Source = p.parseExecStmt()
 	case p.cur.Type == kwDEFAULT:
@@ -101,7 +101,7 @@ func (p *Parser) parseInsertStmt() *nodes.InsertStmt {
 
 	// Optional OPTION clause
 	if p.cur.Type == kwOPTION {
-		stmt.OptionClause = p.parseOptionClause()
+		stmt.OptionClause, _ = p.parseOptionClause()
 	}
 
 	stmt.Loc.End = p.pos()
@@ -124,7 +124,7 @@ func (p *Parser) parseValuesClause() *nodes.ValuesClause {
 		if _, err := p.expect('('); err != nil {
 			break
 		}
-		row := p.parseExprList()
+		row, _ := p.parseExprList()
 		_, _ = p.expect(')')
 		rows = append(rows, row)
 		if _, ok := p.match(','); !ok {
@@ -150,7 +150,7 @@ func (p *Parser) parseOutputClause() *nodes.OutputClause {
 	}
 
 	// Parse output targets (comma-separated expressions like inserted.col, deleted.col, $action)
-	oc.Targets = p.parseTargetList()
+	oc.Targets, _ = p.parseTargetList()
 
 	// Optional INTO @table_variable | output_table
 	if _, ok := p.match(kwINTO); ok {

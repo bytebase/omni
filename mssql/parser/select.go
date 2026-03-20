@@ -33,17 +33,21 @@ import (
 //	    [ <GROUP BY> ]
 //	    [ HAVING <search_condition> ]
 //	    [ WINDOW windowDefinition [ , windowDefinition ]* ]
-func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
+func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 	loc := p.pos()
 
 	// WITH clause (CTE)
 	var withClause *nodes.WithClause
 	if p.cur.Type == kwWITH {
-		withClause = p.parseWithClause()
+		var err error
+		withClause, err = p.parseWithClause()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if p.cur.Type != kwSELECT {
-		return nil
+		return nil, nil
 	}
 	p.advance() // consume SELECT
 
@@ -61,25 +65,42 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 
 	// TOP clause
 	if p.cur.Type == kwTOP {
-		stmt.Top = p.parseTopClause()
+		var err error
+		stmt.Top, err = p.parseTopClause()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Target list
-	stmt.TargetList = p.parseTargetList()
+	var err error
+	stmt.TargetList, err = p.parseTargetList()
+	if err != nil {
+		return nil, err
+	}
 
 	// INTO
 	if _, ok := p.match(kwINTO); ok {
-		stmt.IntoTable , _ = p.parseTableRef()
+		stmt.IntoTable, err = p.parseTableRef()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// FROM
 	if _, ok := p.match(kwFROM); ok {
-		stmt.FromClause = p.parseFromClause()
+		stmt.FromClause, err = p.parseFromClause()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// WHERE
 	if _, ok := p.match(kwWHERE); ok {
-		stmt.WhereClause, _ = p.parseExpr()
+		stmt.WhereClause, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// GROUP BY [ALL]
@@ -89,32 +110,47 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 			if _, ok := p.match(kwALL); ok {
 				stmt.GroupByAll = true
 			}
-			stmt.GroupByClause = p.parseGroupByList()
+			stmt.GroupByClause, err = p.parseGroupByList()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	// HAVING
 	if _, ok := p.match(kwHAVING); ok {
-		stmt.HavingClause, _ = p.parseExpr()
+		stmt.HavingClause, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// WINDOW clause (named window definitions)
 	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "WINDOW") {
-		stmt.WindowClause = p.parseWindowClause()
+		stmt.WindowClause, err = p.parseWindowClause()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// ORDER BY
 	if p.cur.Type == kwORDER {
 		p.advance()
 		if _, err := p.expect(kwBY); err == nil {
-			stmt.OrderByClause = p.parseOrderByList()
+			stmt.OrderByClause, err = p.parseOrderByList()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	// OFFSET ... FETCH
 	if p.cur.Type == kwOFFSET {
 		p.advance()
-		stmt.OffsetClause, _ = p.parseExpr()
+		stmt.OffsetClause, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 		// Consume optional ROWS/ROW
 		if p.cur.Type == kwROWS || (p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "row")) {
 			p.advance()
@@ -127,7 +163,10 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 			if p.cur.Type == tokIDENT && (strings.EqualFold(p.cur.Str, "next") || strings.EqualFold(p.cur.Str, "first")) {
 				p.advance()
 			}
-			count, _ := p.parseExpr()
+			count, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
 			// ROWS/ROW
 			if p.cur.Type == kwROWS || (p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "row")) {
 				p.advance()
@@ -147,13 +186,19 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 	if p.cur.Type == kwFOR {
 		next := p.peekNext()
 		if next.Type == kwXML || next.Type == kwJSON || next.Type == kwBROWSE {
-			stmt.ForClause = p.parseForClause()
+			stmt.ForClause, err = p.parseForClause()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	// OPTION clause
 	if p.cur.Type == kwOPTION {
-		stmt.OptionClause = p.parseOptionClause()
+		stmt.OptionClause, err = p.parseOptionClause()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// UNION / INTERSECT / EXCEPT
@@ -162,11 +207,11 @@ func (p *Parser) parseSelectStmt() *nodes.SelectStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseSetOperation parses UNION/INTERSECT/EXCEPT.
-func (p *Parser) parseSetOperation(left *nodes.SelectStmt) *nodes.SelectStmt {
+func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, error) {
 	var op nodes.SetOperation
 	switch p.cur.Type {
 	case kwUNION:
@@ -183,14 +228,17 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) *nodes.SelectStmt {
 		all = true
 	}
 
-	right := p.parseSelectStmt()
+	right, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.SelectStmt{
 		Op:   op,
 		All:  all,
 		Larg: left,
 		Rarg: right,
 		Loc:  left.Loc,
-	}
+	}, nil
 }
 
 // parseWithClause parses WITH [XMLNAMESPACES(...),] cte_name [(col_list)] AS (select), ...
@@ -200,7 +248,7 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) *nodes.SelectStmt {
 //	[ WITH { [ XMLNAMESPACES , ] [ <common_table_expression> [ , ...n ] ] } ]
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/with-common-table-expression-transact-sql
-func (p *Parser) parseWithClause() *nodes.WithClause {
+func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 	loc := p.pos()
 	p.advance() // consume WITH
 
@@ -210,13 +258,20 @@ func (p *Parser) parseWithClause() *nodes.WithClause {
 
 	// Optional XMLNAMESPACES (...)
 	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "XMLNAMESPACES") {
-		wc.XmlNamespaces = p.parseXmlNamespaces()
+		var err error
+		wc.XmlNamespaces, err = p.parseXmlNamespaces()
+		if err != nil {
+			return nil, err
+		}
 		p.match(',') // consume comma between XMLNAMESPACES and CTEs
 	}
 
 	var ctes []nodes.Node
 	for p.cur.Type != kwSELECT && p.cur.Type != tokEOF && p.cur.Type != ';' {
-		cte := p.parseCTE()
+		cte, err := p.parseCTE()
+		if err != nil {
+			return nil, err
+		}
 		if cte == nil {
 			break
 		}
@@ -227,16 +282,16 @@ func (p *Parser) parseWithClause() *nodes.WithClause {
 	}
 	wc.CTEs = &nodes.List{Items: ctes}
 	wc.Loc.End = p.pos()
-	return wc
+	return wc, nil
 }
 
 // parseXmlNamespaces parses XMLNAMESPACES ( namespace_decl [, ...n] ).
 //
 //	XMLNAMESPACES ( uri AS prefix [, ...n] | DEFAULT uri [, ...n] )
-func (p *Parser) parseXmlNamespaces() *nodes.List {
+func (p *Parser) parseXmlNamespaces() (*nodes.List, error) {
 	p.advance() // consume XMLNAMESPACES
 	if _, err := p.expect('('); err != nil {
-		return nil
+		return nil, err
 	}
 
 	var decls []nodes.Node
@@ -270,20 +325,22 @@ func (p *Parser) parseXmlNamespaces() *nodes.List {
 			break
 		}
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	if len(decls) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: decls}
+	return &nodes.List{Items: decls}, nil
 }
 
 // parseCTE parses a single CTE: name [(columns)] AS (query).
-func (p *Parser) parseCTE() *nodes.CommonTableExpr {
+func (p *Parser) parseCTE() (*nodes.CommonTableExpr, error) {
 	loc := p.pos()
 	name, ok := p.parseIdentifier()
 	if !ok {
-		return nil
+		return nil, nil
 	}
 
 	cte := &nodes.CommonTableExpr{
@@ -305,28 +362,36 @@ func (p *Parser) parseCTE() *nodes.CommonTableExpr {
 				break
 			}
 		}
-		_, _ = p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		cte.Columns = &nodes.List{Items: cols}
 	}
 
 	if _, err := p.expect(kwAS); err != nil {
-		return cte
+		return nil, err
 	}
 	if _, err := p.expect('('); err != nil {
-		return cte
+		return nil, err
 	}
 
-	cte.Query = p.parseSelectStmt()
-	_, _ = p.expect(')')
+	var err error
+	cte.Query, err = p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	cte.Loc.End = p.pos()
-	return cte
+	return cte, nil
 }
 
 // parseTopClause parses TOP (expr) [PERCENT] [WITH TIES].
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/top-transact-sql
-func (p *Parser) parseTopClause() *nodes.TopClause {
+func (p *Parser) parseTopClause() (*nodes.TopClause, error) {
 	loc := p.pos()
 	p.advance() // consume TOP
 
@@ -335,12 +400,21 @@ func (p *Parser) parseTopClause() *nodes.TopClause {
 	}
 
 	// TOP (expr) or TOP literal
+	var err error
 	if p.cur.Type == '(' {
 		p.advance()
-		tc.Count, _ = p.parseExpr()
-		_, _ = p.expect(')')
+		tc.Count, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	} else {
-		tc.Count, _ = p.parsePrimary()
+		tc.Count, err = p.parsePrimary()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// PERCENT
@@ -359,15 +433,18 @@ func (p *Parser) parseTopClause() *nodes.TopClause {
 	}
 
 	tc.Loc.End = p.pos()
-	return tc
+	return tc, nil
 }
 
 // parseTargetList parses a comma-separated list of result columns.
-func (p *Parser) parseTargetList() *nodes.List {
+func (p *Parser) parseTargetList() (*nodes.List, error) {
 	var targets []nodes.Node
 	for {
 		targetLoc := p.pos()
-		expr, _ := p.parseExpr()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 		if expr == nil {
 			break
 		}
@@ -391,14 +468,17 @@ func (p *Parser) parseTargetList() *nodes.List {
 			break
 		}
 	}
-	return &nodes.List{Items: targets}
+	return &nodes.List{Items: targets}, nil
 }
 
 // parseFromClause parses a FROM clause table source list.
-func (p *Parser) parseFromClause() *nodes.List {
+func (p *Parser) parseFromClause() (*nodes.List, error) {
 	var sources []nodes.Node
 	for {
-		source := p.parseTableSource()
+		source, err := p.parseTableSource()
+		if err != nil {
+			return nil, err
+		}
 		if source == nil {
 			break
 		}
@@ -407,14 +487,17 @@ func (p *Parser) parseFromClause() *nodes.List {
 			break
 		}
 	}
-	return &nodes.List{Items: sources}
+	return &nodes.List{Items: sources}, nil
 }
 
 // parseTableSource parses a single table source (table, subquery, join).
-func (p *Parser) parseTableSource() nodes.TableExpr {
-	left := p.parsePrimaryTableSource()
+func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
+	left, err := p.parsePrimaryTableSource()
+	if err != nil {
+		return nil, err
+	}
 	if left == nil {
-		return nil
+		return nil, nil
 	}
 
 	// Parse joins
@@ -423,7 +506,10 @@ func (p *Parser) parseTableSource() nodes.TableExpr {
 		if !ok {
 			break
 		}
-		right := p.parsePrimaryTableSource()
+		right, err := p.parsePrimaryTableSource()
+		if err != nil {
+			return nil, err
+		}
 		join := &nodes.JoinClause{
 			Type:  jt,
 			Left:  left,
@@ -433,23 +519,31 @@ func (p *Parser) parseTableSource() nodes.TableExpr {
 		// ON condition (not for CROSS JOIN / CROSS APPLY / OUTER APPLY)
 		if jt != nodes.JoinCross && jt != nodes.JoinCrossApply && jt != nodes.JoinOuterApply {
 			if _, ok := p.match(kwON); ok {
-				join.Condition, _ = p.parseExpr()
+				join.Condition, err = p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 		left = join
 	}
 
-	return left
+	return left, nil
 }
 
 // parsePrimaryTableSource parses a base table, subquery, or function call as table source.
-func (p *Parser) parsePrimaryTableSource() nodes.TableExpr {
+func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 	// Subquery: (SELECT ...)
 	if p.cur.Type == '(' {
 		loc := p.pos()
 		p.advance()
-		sub := p.parseSelectStmt()
-		_, _ = p.expect(')')
+		sub, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 
 		subExpr := &nodes.SubqueryExpr{
 			Query: sub,
@@ -472,23 +566,33 @@ func (p *Parser) parsePrimaryTableSource() nodes.TableExpr {
 	// Rowset functions: OPENROWSET, OPENQUERY, OPENJSON, OPENDATASOURCE, OPENXML
 	if p.cur.Type == kwOPENROWSET || p.cur.Type == kwOPENQUERY || p.cur.Type == kwOPENJSON ||
 		p.cur.Type == kwOPENDATASOURCE || p.cur.Type == kwOPENXML {
-		return p.parseRowsetFunction()
+		return p.parseRowsetFunction(), nil
 	}
 
 	// Table reference
-	ref , _ := p.parseTableRef()
+	ref, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
 	if ref == nil {
-		return nil
+		return nil, nil
 	}
 
 	// Check if this is a function call (table-valued function)
 	if p.cur.Type == '(' {
-		return p.parsePivotUnpivot(p.parseTableValuedFunction(ref))
+		tvf, err := p.parseTableValuedFunction(ref)
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePivotUnpivot(tvf)
 	}
 
 	// TABLESAMPLE
 	if p.cur.Type == kwTABLESAMPLE {
-		ts := p.parseTableSampleClause()
+		ts, err := p.parseTableSampleClause()
+		if err != nil {
+			return nil, err
+		}
 		alias := p.parseOptionalAlias()
 		if alias != "" {
 			ref.Alias = alias
@@ -501,7 +605,11 @@ func (p *Parser) parsePrimaryTableSource() nodes.TableExpr {
 		}
 		// Table hints after TABLESAMPLE
 		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-			result.Hints = p.parseTableHints()
+			var err error
+			result.Hints, err = p.parseTableHints()
+			if err != nil {
+				return nil, err
+			}
 		}
 		return p.parsePivotUnpivot(result)
 	}
@@ -514,25 +622,28 @@ func (p *Parser) parsePrimaryTableSource() nodes.TableExpr {
 
 	// Table hints: WITH (NOLOCK), WITH (INDEX(idx1)), etc.
 	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-		ref.Hints = p.parseTableHints()
+		ref.Hints, err = p.parseTableHints()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return p.parsePivotUnpivot(ref)
 }
 
 // parsePivotUnpivot checks for and parses PIVOT or UNPIVOT after a table source.
-func (p *Parser) parsePivotUnpivot(source nodes.TableExpr) nodes.TableExpr {
+func (p *Parser) parsePivotUnpivot(source nodes.TableExpr) (nodes.TableExpr, error) {
 	if p.cur.Type == kwPIVOT {
 		return p.parsePivotExpr(source)
 	}
 	if p.cur.Type == kwUNPIVOT {
 		return p.parseUnpivotExpr(source)
 	}
-	return source
+	return source, nil
 }
 
 // parsePivotExpr parses PIVOT (agg_func(col) FOR pivot_col IN ([v1],[v2],...)) AS alias.
-func (p *Parser) parsePivotExpr(source nodes.TableExpr) *nodes.PivotExpr {
+func (p *Parser) parsePivotExpr(source nodes.TableExpr) (*nodes.PivotExpr, error) {
 	loc := p.pos()
 	p.advance() // consume PIVOT
 
@@ -542,11 +653,15 @@ func (p *Parser) parsePivotExpr(source nodes.TableExpr) *nodes.PivotExpr {
 	}
 
 	if _, err := p.expect('('); err != nil {
-		return pivot
+		return nil, err
 	}
 
 	// Parse aggregate function call
-	pivot.AggFunc, _ = p.parseExpr()
+	var err error
+	pivot.AggFunc, err = p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
 
 	// FOR column
 	if _, ok := p.match(kwFOR); ok {
@@ -567,23 +682,27 @@ func (p *Parser) parsePivotExpr(source nodes.TableExpr) *nodes.PivotExpr {
 					break
 				}
 			}
-			_, _ = p.expect(')')
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 			pivot.InValues = &nodes.List{Items: vals}
 		}
 	}
 
-	_, _ = p.expect(')') // closing paren of PIVOT(...)
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	// AS alias
 	alias := p.parseOptionalAlias()
 	pivot.Alias = alias
 
 	pivot.Loc.End = p.pos()
-	return pivot
+	return pivot, nil
 }
 
 // parseUnpivotExpr parses UNPIVOT (value_col FOR pivot_col IN ([c1],[c2],...)) AS alias.
-func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) *nodes.UnpivotExpr {
+func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) (*nodes.UnpivotExpr, error) {
 	loc := p.pos()
 	p.advance() // consume UNPIVOT
 
@@ -593,7 +712,7 @@ func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) *nodes.UnpivotExpr {
 	}
 
 	if _, err := p.expect('('); err != nil {
-		return unpivot
+		return nil, err
 	}
 
 	// value column name
@@ -620,23 +739,27 @@ func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) *nodes.UnpivotExpr {
 					break
 				}
 			}
-			_, _ = p.expect(')')
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 			unpivot.InCols = &nodes.List{Items: cols}
 		}
 	}
 
-	_, _ = p.expect(')') // closing paren of UNPIVOT(...)
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	// AS alias
 	alias := p.parseOptionalAlias()
 	unpivot.Alias = alias
 
 	unpivot.Loc.End = p.pos()
-	return unpivot
+	return unpivot, nil
 }
 
 // parseTableSampleClause parses TABLESAMPLE (size PERCENT|ROWS) [REPEATABLE (seed)].
-func (p *Parser) parseTableSampleClause() *nodes.TableSampleClause {
+func (p *Parser) parseTableSampleClause() (*nodes.TableSampleClause, error) {
 	loc := p.pos()
 	p.advance() // consume TABLESAMPLE
 
@@ -645,10 +768,14 @@ func (p *Parser) parseTableSampleClause() *nodes.TableSampleClause {
 	}
 
 	if _, err := p.expect('('); err != nil {
-		return ts
+		return nil, err
 	}
 
-	ts.Size, _ = p.parseExpr()
+	var err error
+	ts.Size, err = p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
 
 	// PERCENT or ROWS
 	if _, ok := p.match(kwPERCENT); ok {
@@ -657,22 +784,29 @@ func (p *Parser) parseTableSampleClause() *nodes.TableSampleClause {
 		ts.Unit = "ROWS"
 	}
 
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	// REPEATABLE (seed)
 	if p.matchIdentCI("REPEATABLE") {
 		if _, err := p.expect('('); err == nil {
-			ts.Repeatable, _ = p.parseExpr()
-			_, _ = p.expect(')')
+			ts.Repeatable, err = p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	ts.Loc.End = p.pos()
-	return ts
+	return ts, nil
 }
 
 // parseTableValuedFunction parses a table-valued function call after the name.
-func (p *Parser) parseTableValuedFunction(ref *nodes.TableRef) nodes.TableExpr {
+func (p *Parser) parseTableValuedFunction(ref *nodes.TableRef) (nodes.TableExpr, error) {
 	loc := ref.Loc.Start
 	p.advance() // consume (
 
@@ -684,7 +818,10 @@ func (p *Parser) parseTableValuedFunction(ref *nodes.TableRef) nodes.TableExpr {
 	if p.cur.Type != ')' {
 		var args []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			arg, _ := p.parseExpr()
+			arg, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
 			args = append(args, arg)
 			if _, ok := p.match(','); !ok {
 				break
@@ -692,7 +829,9 @@ func (p *Parser) parseTableValuedFunction(ref *nodes.TableRef) nodes.TableExpr {
 		}
 		fc.Args = &nodes.List{Items: args}
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	alias := p.parseOptionalAlias()
 	if alias != "" {
@@ -700,12 +839,12 @@ func (p *Parser) parseTableValuedFunction(ref *nodes.TableRef) nodes.TableExpr {
 			Table: fc,
 			Alias: alias,
 			Loc:   nodes.Loc{Start: loc},
-		}
+		}, nil
 	}
 	return &nodes.AliasedTableRef{
 		Table: fc,
 		Loc:   nodes.Loc{Start: loc},
-	}
+	}, nil
 }
 
 // parseOptionalAlias parses an optional alias (AS name or just name).
@@ -825,7 +964,7 @@ func (p *Parser) matchJoinType() (nodes.JoinType, bool) {
 //	        [ , WITHOUT_ARRAY_WRAPPER ]
 //	    ]
 //	}
-func (p *Parser) parseForClause() *nodes.ForClause {
+func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 	loc := p.pos()
 	p.advance() // consume FOR
 
@@ -837,7 +976,7 @@ func (p *Parser) parseForClause() *nodes.ForClause {
 		fc.Mode = nodes.ForBrowse
 		p.advance()
 		fc.Loc.End = p.pos()
-		return fc
+		return fc, nil
 	}
 
 	if p.cur.Type == kwXML {
@@ -854,7 +993,9 @@ func (p *Parser) parseForClause() *nodes.ForClause {
 					fc.ElementName = p.cur.Str
 					p.advance()
 				}
-				_, _ = p.expect(')')
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 			}
 		}
 		// Parse comma-separated XML options
@@ -872,7 +1013,7 @@ func (p *Parser) parseForClause() *nodes.ForClause {
 	}
 
 	fc.Loc.End = p.pos()
-	return fc
+	return fc, nil
 }
 
 // parseForXmlOptions parses the comma-separated options after FOR XML {RAW|AUTO|EXPLICIT|PATH}.
@@ -962,10 +1103,13 @@ func (p *Parser) parseForJsonOptions(fc *nodes.ForClause) {
 }
 
 // parseExprList parses a comma-separated list of expressions.
-func (p *Parser) parseExprList() *nodes.List {
+func (p *Parser) parseExprList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
-		expr, _ := p.parseExpr()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 		if expr == nil {
 			break
 		}
@@ -974,11 +1118,11 @@ func (p *Parser) parseExprList() *nodes.List {
 			break
 		}
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseGroupByList parses a GROUP BY list which may contain GROUPING SETS, ROLLUP, CUBE.
-func (p *Parser) parseGroupByList() *nodes.List {
+func (p *Parser) parseGroupByList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
 		// GROUPING SETS (...)
@@ -991,13 +1135,18 @@ func (p *Parser) parseGroupByList() *nodes.List {
 				if _, err := p.expect('('); err == nil {
 					var sets []nodes.Node
 					for p.cur.Type != ')' && p.cur.Type != tokEOF {
-						set := p.parseGroupingSet()
+						set, err := p.parseGroupingSet()
+						if err != nil {
+							return nil, err
+						}
 						sets = append(sets, set)
 						if _, ok := p.match(','); !ok {
 							break
 						}
 					}
-					_, _ = p.expect(')')
+					if _, err := p.expect(')'); err != nil {
+						return nil, err
+					}
 					items = append(items, &nodes.GroupingSetsExpr{
 						Sets: &nodes.List{Items: sets},
 						Loc:  nodes.Loc{Start: loc, End: p.pos()},
@@ -1014,8 +1163,13 @@ func (p *Parser) parseGroupByList() *nodes.List {
 			loc := p.pos()
 			p.advance() // consume ROLLUP
 			if _, err := p.expect('('); err == nil {
-				args := p.parseExprList()
-				_, _ = p.expect(')')
+				args, err := p.parseExprList()
+				if err != nil {
+					return nil, err
+				}
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 				items = append(items, &nodes.RollupExpr{
 					Args: args,
 					Loc:  nodes.Loc{Start: loc, End: p.pos()},
@@ -1031,8 +1185,13 @@ func (p *Parser) parseGroupByList() *nodes.List {
 			loc := p.pos()
 			p.advance() // consume CUBE
 			if _, err := p.expect('('); err == nil {
-				args := p.parseExprList()
-				_, _ = p.expect(')')
+				args, err := p.parseExprList()
+				if err != nil {
+					return nil, err
+				}
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 				items = append(items, &nodes.CubeExpr{
 					Args: args,
 					Loc:  nodes.Loc{Start: loc, End: p.pos()},
@@ -1044,7 +1203,10 @@ func (p *Parser) parseGroupByList() *nodes.List {
 			continue
 		}
 		// Regular expression
-		expr, _ := p.parseExpr()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 		if expr == nil {
 			break
 		}
@@ -1053,21 +1215,24 @@ func (p *Parser) parseGroupByList() *nodes.List {
 			break
 		}
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseGroupingSet parses a single grouping set: () or (expr, expr, ...) or just expr.
-func (p *Parser) parseGroupingSet() *nodes.List {
+func (p *Parser) parseGroupingSet() (*nodes.List, error) {
 	if p.cur.Type == '(' {
 		p.advance()
 		if p.cur.Type == ')' {
 			// Empty set ()
 			p.advance()
-			return &nodes.List{Items: nil}
+			return &nodes.List{Items: nil}, nil
 		}
 		var items []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			expr, _ := p.parseExpr()
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
 			if expr != nil {
 				items = append(items, expr)
 			}
@@ -1075,15 +1240,20 @@ func (p *Parser) parseGroupingSet() *nodes.List {
 				break
 			}
 		}
-		_, _ = p.expect(')')
-		return &nodes.List{Items: items}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return &nodes.List{Items: items}, nil
 	}
 	// Single expression as a set
-	expr, _ := p.parseExpr()
-	if expr != nil {
-		return &nodes.List{Items: []nodes.Node{expr}}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
 	}
-	return &nodes.List{Items: nil}
+	if expr != nil {
+		return &nodes.List{Items: []nodes.Node{expr}}, nil
+	}
+	return &nodes.List{Items: nil}, nil
 }
 
 // parseWindowClause parses WINDOW window_name AS (window_spec) [, ...].
@@ -1093,7 +1263,7 @@ func (p *Parser) parseGroupingSet() *nodes.List {
 //	    [ ORDER BY order_item [,...n] ]
 //	    [ <window_frame> ]
 //	)
-func (p *Parser) parseWindowClause() *nodes.List {
+func (p *Parser) parseWindowClause() (*nodes.List, error) {
 	p.advance() // consume WINDOW
 
 	var defs []nodes.Node
@@ -1109,12 +1279,10 @@ func (p *Parser) parseWindowClause() *nodes.List {
 		}
 
 		if _, err := p.expect(kwAS); err != nil {
-			defs = append(defs, def)
-			break
+			return nil, err
 		}
 		if _, err := p.expect('('); err != nil {
-			defs = append(defs, def)
-			break
+			return nil, err
 		}
 
 		// Optional existing_window_name (must be an ident not followed by keyword like PARTITION, ORDER)
@@ -1142,7 +1310,11 @@ func (p *Parser) parseWindowClause() *nodes.List {
 		if p.cur.Type == kwPARTITION {
 			p.advance()
 			if _, err := p.expect(kwBY); err == nil {
-				def.PartitionBy = p.parseExprList()
+				var err error
+				def.PartitionBy, err = p.parseExprList()
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 
@@ -1150,16 +1322,26 @@ func (p *Parser) parseWindowClause() *nodes.List {
 		if p.cur.Type == kwORDER {
 			p.advance()
 			if _, err := p.expect(kwBY); err == nil {
-				def.OrderBy = p.parseOrderByList()
+				var err error
+				def.OrderBy, err = p.parseOrderByList()
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 
 		// Window frame: ROWS | RANGE | GROUPS
 		if p.cur.Type == kwROWS || p.cur.Type == kwRANGE || p.cur.Type == kwGROUPS {
-			def.Frame, _ = p.parseWindowFrame()
+			var err error
+			def.Frame, err = p.parseWindowFrame()
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		_, _ = p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		def.Loc.End = p.pos()
 		defs = append(defs, def)
 
@@ -1169,17 +1351,20 @@ func (p *Parser) parseWindowClause() *nodes.List {
 	}
 
 	if len(defs) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: defs}
+	return &nodes.List{Items: defs}, nil
 }
 
 // parseOrderByList parses ORDER BY items.
-func (p *Parser) parseOrderByList() *nodes.List {
+func (p *Parser) parseOrderByList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
 		oloc := p.pos()
-		expr, _ := p.parseExpr()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 		if expr == nil {
 			break
 		}
@@ -1198,7 +1383,7 @@ func (p *Parser) parseOrderByList() *nodes.List {
 			break
 		}
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseTableHints parses WITH ( <table_hint> [ [ , ] ...n ] ).
@@ -1230,15 +1415,18 @@ func (p *Parser) parseOrderByList() *nodes.List {
 //	  | UPDLOCK
 //	  | XLOCK
 //	}
-func (p *Parser) parseTableHints() *nodes.List {
+func (p *Parser) parseTableHints() (*nodes.List, error) {
 	p.advance() // consume WITH
 	if _, err := p.expect('('); err != nil {
-		return nil
+		return nil, err
 	}
 
 	var hints []nodes.Node
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		hint := p.parseTableHint()
+		hint, err := p.parseTableHint()
+		if err != nil {
+			return nil, err
+		}
 		if hint == nil {
 			break
 		}
@@ -1246,16 +1434,18 @@ func (p *Parser) parseTableHints() *nodes.List {
 		// Optional comma between hints
 		p.match(',')
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	if len(hints) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: hints}
+	return &nodes.List{Items: hints}, nil
 }
 
 // parseTableHint parses a single table hint.
-func (p *Parser) parseTableHint() *nodes.TableHint {
+func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 	loc := p.pos()
 
 	// INDEX hint: INDEX ( values ) or INDEX = ( value )
@@ -1270,12 +1460,18 @@ func (p *Parser) parseTableHint() *nodes.TableHint {
 			if _, err := p.expect('('); err == nil {
 				var vals []nodes.Node
 				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					vals = append(vals, p.parseIndexValue())
+					v, err := p.parseIndexValue()
+					if err != nil {
+						return nil, err
+					}
+					vals = append(vals, v)
 					if _, ok := p.match(','); !ok {
 						break
 					}
 				}
-				_, _ = p.expect(')')
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 				hint.IndexValues = &nodes.List{Items: vals}
 			}
 		} else if p.cur.Type == '(' {
@@ -1283,34 +1479,40 @@ func (p *Parser) parseTableHint() *nodes.TableHint {
 			p.advance()
 			var vals []nodes.Node
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				vals = append(vals, p.parseIndexValue())
+				v, err := p.parseIndexValue()
+				if err != nil {
+					return nil, err
+				}
+				vals = append(vals, v)
 				if _, ok := p.match(','); !ok {
 					break
 				}
 			}
-			_, _ = p.expect(')')
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 			hint.IndexValues = &nodes.List{Items: vals}
 		}
 		hint.Loc.End = p.pos()
-		return hint
+		return hint, nil
 	}
 
 	// Check for keyword-based hints that are lexer keywords
 	switch p.cur.Type {
 	case kwHOLDLOCK:
 		p.advance()
-		return &nodes.TableHint{Name: "HOLDLOCK", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.TableHint{Name: "HOLDLOCK", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 	case kwNOLOCK:
 		p.advance()
-		return &nodes.TableHint{Name: "NOLOCK", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.TableHint{Name: "NOLOCK", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 	case kwNOWAIT:
 		p.advance()
-		return &nodes.TableHint{Name: "NOWAIT", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.TableHint{Name: "NOWAIT", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 	}
 
 	// All remaining hints are identifiers (not lexer keywords)
 	if !p.isIdentLike() {
-		return nil
+		return nil, nil
 	}
 
 	name := strings.ToUpper(p.cur.Str)
@@ -1325,7 +1527,10 @@ func (p *Parser) parseTableHint() *nodes.TableHint {
 		if p.cur.Type == '(' {
 			p.advance()
 			// index value
-			idxVal := p.parseIndexValue()
+			idxVal, err := p.parseIndexValue()
+			if err != nil {
+				return nil, err
+			}
 			hint.IndexValues = &nodes.List{Items: []nodes.Node{idxVal}}
 			// ( col1, col2, ... )
 			if p.cur.Type == '(' {
@@ -1339,13 +1544,17 @@ func (p *Parser) parseTableHint() *nodes.TableHint {
 						break
 					}
 				}
-				_, _ = p.expect(')')
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 				hint.ForceSeekColumns = &nodes.List{Items: cols}
 			}
-			_, _ = p.expect(')') // outer paren
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		}
 		hint.Loc.End = p.pos()
-		return hint
+		return hint, nil
 
 	case "SPATIAL_WINDOW_MAX_CELLS":
 		p.advance()
@@ -1354,10 +1563,14 @@ func (p *Parser) parseTableHint() *nodes.TableHint {
 			Loc:  nodes.Loc{Start: loc},
 		}
 		if _, ok := p.match('='); ok {
-			hint.IntValue, _ = p.parsePrimary()
+			var err error
+			hint.IntValue, err = p.parsePrimary()
+			if err != nil {
+				return nil, err
+			}
 		}
 		hint.Loc.End = p.pos()
-		return hint
+		return hint, nil
 
 	case "FORCESCAN", "NOEXPAND",
 		"PAGLOCK", "READCOMMITTED", "READCOMMITTEDLOCK",
@@ -1366,24 +1579,24 @@ func (p *Parser) parseTableHint() *nodes.TableHint {
 		"TABLOCK", "TABLOCKX", "UPDLOCK", "XLOCK",
 		"KEEPIDENTITY", "KEEPDEFAULTS", "IGNORE_CONSTRAINTS", "IGNORE_TRIGGERS":
 		p.advance()
-		return &nodes.TableHint{Name: name, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.TableHint{Name: name, Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
 // parseIndexValue parses an index value (identifier or integer).
-func (p *Parser) parseIndexValue() nodes.Node {
+func (p *Parser) parseIndexValue() (nodes.Node, error) {
 	if p.cur.Type == tokICONST {
 		val := &nodes.Integer{Ival: p.cur.Ival}
 		p.advance()
-		return val
+		return val, nil
 	}
 	if name, ok := p.parseIdentifier(); ok {
-		return &nodes.String{Str: name}
+		return &nodes.String{Str: name}, nil
 	}
-	return &nodes.String{Str: ""}
+	return &nodes.String{Str: ""}, nil
 }
 
 // parseOptionClause parses OPTION ( query_hint [,...n] ).
@@ -1418,15 +1631,18 @@ func (p *Parser) parseIndexValue() nodes.Node {
 //	  | USE HINT ( 'hint_name' [ , ...n ] )
 //	  | USE PLAN N'xml_plan'
 //	  | TABLE HINT ( exposed_object_name [ , hint [ , ...n ] ] )
-func (p *Parser) parseOptionClause() *nodes.List {
+func (p *Parser) parseOptionClause() (*nodes.List, error) {
 	p.advance() // consume OPTION
 	if _, err := p.expect('('); err != nil {
-		return nil
+		return nil, err
 	}
 
 	var hints []nodes.Node
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		hint := p.parseQueryHint()
+		hint, err := p.parseQueryHint()
+		if err != nil {
+			return nil, err
+		}
 		if hint != nil {
 			hints = append(hints, hint)
 		}
@@ -1434,12 +1650,14 @@ func (p *Parser) parseOptionClause() *nodes.List {
 			break
 		}
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	if len(hints) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: hints}
+	return &nodes.List{Items: hints}, nil
 }
 
 // parseQueryHint parses a single query hint within an OPTION clause.
@@ -1472,13 +1690,13 @@ func (p *Parser) parseOptionClause() *nodes.List {
 //	  | USE HINT ( 'hint_name' [ , ...n ] )
 //	  | USE PLAN N'xml_plan'
 //	  | TABLE HINT ( exposed_object_name [ , <table_hint> [ , ...n ] ] )
-func (p *Parser) parseQueryHint() nodes.Node {
+func (p *Parser) parseQueryHint() (nodes.Node, error) {
 	loc := p.pos()
 
 	switch {
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "RECOMPILE"):
 		p.advance()
-		return &nodes.QueryHint{Kind: "RECOMPILE", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.QueryHint{Kind: "RECOMPILE", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "OPTIMIZE"):
 		p.advance()
@@ -1486,13 +1704,16 @@ func (p *Parser) parseQueryHint() nodes.Node {
 			p.advance()
 			if p.isIdentLike() && strings.EqualFold(p.cur.Str, "UNKNOWN") {
 				p.advance()
-				return &nodes.QueryHint{Kind: "OPTIMIZE FOR UNKNOWN", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+				return &nodes.QueryHint{Kind: "OPTIMIZE FOR UNKNOWN", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 			}
 			if p.cur.Type == '(' {
 				p.advance()
 				var params []nodes.Node
 				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					param := p.parseOptimizeForParam()
+					param, err := p.parseOptimizeForParam()
+					if err != nil {
+						return nil, err
+					}
 					if param != nil {
 						params = append(params, param)
 					}
@@ -1500,15 +1721,17 @@ func (p *Parser) parseQueryHint() nodes.Node {
 						break
 					}
 				}
-				_, _ = p.expect(')')
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 				hint := &nodes.QueryHint{Kind: "OPTIMIZE FOR", Loc: nodes.Loc{Start: loc, End: p.pos()}}
 				if len(params) > 0 {
 					hint.Params = &nodes.List{Items: params}
 				}
-				return hint
+				return hint, nil
 			}
 		}
-		return &nodes.QueryHint{Kind: "OPTIMIZE", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.QueryHint{Kind: "OPTIMIZE", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 
 	case p.isIdentLike() && (strings.EqualFold(p.cur.Str, "LOOP") ||
 		strings.EqualFold(p.cur.Str, "HASH") ||
@@ -1517,111 +1740,127 @@ func (p *Parser) parseQueryHint() nodes.Node {
 		p.advance()
 		if p.cur.Type == kwJOIN {
 			p.advance()
-			return &nodes.QueryHint{Kind: prefix + " JOIN", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+			return &nodes.QueryHint{Kind: prefix + " JOIN", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 		} else if p.cur.Type == kwUNION {
 			p.advance()
-			return &nodes.QueryHint{Kind: prefix + " UNION", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+			return &nodes.QueryHint{Kind: prefix + " UNION", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 		} else if p.cur.Type == kwGROUP {
 			p.advance()
-			return &nodes.QueryHint{Kind: prefix + " GROUP", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+			return &nodes.QueryHint{Kind: prefix + " GROUP", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 		}
-		return &nodes.QueryHint{Kind: prefix, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.QueryHint{Kind: prefix, Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "CONCAT"):
 		p.advance()
 		if p.cur.Type == kwUNION {
 			p.advance()
-			return &nodes.QueryHint{Kind: "CONCAT UNION", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+			return &nodes.QueryHint{Kind: "CONCAT UNION", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "CONCAT", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.QueryHint{Kind: "CONCAT", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 
 	case p.cur.Type == kwORDER:
 		p.advance()
 		if p.cur.Type == kwGROUP {
 			p.advance()
-			return &nodes.QueryHint{Kind: "ORDER GROUP", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+			return &nodes.QueryHint{Kind: "ORDER GROUP", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "ORDER", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.QueryHint{Kind: "ORDER", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "FORCE"):
 		p.advance()
 		if p.cur.Type == kwORDER {
 			p.advance()
-			return &nodes.QueryHint{Kind: "FORCE ORDER", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+			return &nodes.QueryHint{Kind: "FORCE ORDER", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 		} else if p.isIdentLike() {
 			suffix := strings.ToUpper(p.cur.Str)
 			p.advance()
-			return &nodes.QueryHint{Kind: "FORCE " + suffix, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+			return &nodes.QueryHint{Kind: "FORCE " + suffix, Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "FORCE", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.QueryHint{Kind: "FORCE", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "MAXDOP"):
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "MAXDOP", Loc: nodes.Loc{Start: loc}}
 		if p.cur.Type == tokICONST {
-			hint.Value, _ = p.parsePrimary()
+			var err error
+			hint.Value, err = p.parsePrimary()
+			if err != nil {
+				return nil, err
+			}
 		}
 		hint.Loc.End = p.pos()
-		return hint
+		return hint, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "MAXRECURSION"):
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "MAXRECURSION", Loc: nodes.Loc{Start: loc}}
 		if p.cur.Type == tokICONST {
-			hint.Value, _ = p.parsePrimary()
+			var err error
+			hint.Value, err = p.parsePrimary()
+			if err != nil {
+				return nil, err
+			}
 		}
 		hint.Loc.End = p.pos()
-		return hint
+		return hint, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "FAST"):
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "FAST", Loc: nodes.Loc{Start: loc}}
 		if p.cur.Type == tokICONST {
-			hint.Value, _ = p.parsePrimary()
+			var err error
+			hint.Value, err = p.parsePrimary()
+			if err != nil {
+				return nil, err
+			}
 		}
 		hint.Loc.End = p.pos()
-		return hint
+		return hint, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "QUERYTRACEON"):
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "QUERYTRACEON", Loc: nodes.Loc{Start: loc}}
 		if p.cur.Type == tokICONST {
-			hint.Value, _ = p.parsePrimary()
+			var err error
+			hint.Value, err = p.parsePrimary()
+			if err != nil {
+				return nil, err
+			}
 		}
 		hint.Loc.End = p.pos()
-		return hint
+		return hint, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "EXPAND"):
 		p.advance()
 		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "VIEWS") {
 			p.advance()
-			return &nodes.QueryHint{Kind: "EXPAND VIEWS", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+			return &nodes.QueryHint{Kind: "EXPAND VIEWS", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "EXPAND", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.QueryHint{Kind: "EXPAND", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "KEEP"):
 		p.advance()
 		if p.cur.Type == kwPLAN {
 			p.advance()
-			return &nodes.QueryHint{Kind: "KEEP PLAN", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+			return &nodes.QueryHint{Kind: "KEEP PLAN", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "KEEP", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.QueryHint{Kind: "KEEP", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "KEEPFIXED"):
 		p.advance()
 		if p.cur.Type == kwPLAN {
 			p.advance()
-			return &nodes.QueryHint{Kind: "KEEPFIXED PLAN", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+			return &nodes.QueryHint{Kind: "KEEPFIXED PLAN", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "KEEPFIXED", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.QueryHint{Kind: "KEEPFIXED", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "ROBUST"):
 		p.advance()
 		if p.cur.Type == kwPLAN {
 			p.advance()
-			return &nodes.QueryHint{Kind: "ROBUST PLAN", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+			return &nodes.QueryHint{Kind: "ROBUST PLAN", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "ROBUST", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.QueryHint{Kind: "ROBUST", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "PARAMETERIZATION"):
 		p.advance()
@@ -1631,7 +1870,7 @@ func (p *Parser) parseQueryHint() nodes.Node {
 			p.advance()
 		}
 		hint.Loc.End = p.pos()
-		return hint
+		return hint, nil
 
 	case p.cur.Type == kwUSE:
 		p.advance()
@@ -1648,13 +1887,15 @@ func (p *Parser) parseQueryHint() nodes.Node {
 					}
 					p.match(',')
 				}
-				_, _ = p.expect(')')
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 				if len(hintNames) > 0 {
 					hint.Params = &nodes.List{Items: hintNames}
 				}
 			}
 			hint.Loc.End = p.pos()
-			return hint
+			return hint, nil
 		} else if p.cur.Type == kwPLAN {
 			p.advance()
 			hint := &nodes.QueryHint{Kind: "USE PLAN", Loc: nodes.Loc{Start: loc}}
@@ -1663,18 +1904,18 @@ func (p *Parser) parseQueryHint() nodes.Node {
 				p.advance()
 			}
 			hint.Loc.End = p.pos()
-			return hint
+			return hint, nil
 		}
-		return &nodes.QueryHint{Kind: "USE", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.QueryHint{Kind: "USE", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "DISABLE"):
 		p.advance()
 		if p.isIdentLike() {
 			suffix := strings.ToUpper(p.cur.Str)
 			p.advance()
-			return &nodes.QueryHint{Kind: "DISABLE " + suffix, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+			return &nodes.QueryHint{Kind: "DISABLE " + suffix, Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "DISABLE", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.QueryHint{Kind: "DISABLE", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 
 	case p.cur.Type == kwTABLE:
 		p.advance()
@@ -1684,12 +1925,19 @@ func (p *Parser) parseQueryHint() nodes.Node {
 			if p.cur.Type == '(' {
 				p.advance()
 				// Parse exposed_object_name as a TableRef
-				hint.TableName , _ = p.parseTableRef()
+				var err error
+				hint.TableName, err = p.parseTableRef()
+				if err != nil {
+					return nil, err
+				}
 				// Parse comma-separated table hints reusing parseTableHint()
 				var hints []nodes.Node
 				for p.cur.Type == ',' {
 					p.advance()
-					th := p.parseTableHint()
+					th, err := p.parseTableHint()
+					if err != nil {
+						return nil, err
+					}
 					if th != nil {
 						hints = append(hints, th)
 					}
@@ -1697,12 +1945,14 @@ func (p *Parser) parseQueryHint() nodes.Node {
 				if len(hints) > 0 {
 					hint.TableHints = &nodes.List{Items: hints}
 				}
-				_, _ = p.expect(')')
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 			}
 			hint.Loc.End = p.pos()
-			return hint
+			return hint, nil
 		}
-		return &nodes.QueryHint{Kind: "TABLE", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		return &nodes.QueryHint{Kind: "TABLE", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
 
 	default:
 		// Unknown hint with name = value pattern (e.g., MAX_GRANT_PERCENT = 10)
@@ -1712,21 +1962,25 @@ func (p *Parser) parseQueryHint() nodes.Node {
 			hint := &nodes.QueryHint{Kind: name, Loc: nodes.Loc{Start: loc}}
 			if p.cur.Type == '=' {
 				p.advance()
-				hint.Value, _ = p.parsePrimary()
+				var err error
+				hint.Value, err = p.parsePrimary()
+				if err != nil {
+					return nil, err
+				}
 			}
 			hint.Loc.End = p.pos()
-			return hint
+			return hint, nil
 		}
-		return nil
+		return nil, nil
 	}
 }
 
 // parseOptimizeForParam parses a single OPTIMIZE FOR parameter.
 //
 //	@variable_name { UNKNOWN | = literal_constant }
-func (p *Parser) parseOptimizeForParam() *nodes.OptimizeForParam {
+func (p *Parser) parseOptimizeForParam() (*nodes.OptimizeForParam, error) {
 	if p.cur.Type != tokVARIABLE {
-		return nil
+		return nil, nil
 	}
 	loc := p.pos()
 	param := &nodes.OptimizeForParam{
@@ -1736,11 +1990,15 @@ func (p *Parser) parseOptimizeForParam() *nodes.OptimizeForParam {
 	p.advance()
 	if p.cur.Type == '=' {
 		p.advance()
-		param.Value, _ = p.parsePrimary()
+		var err error
+		param.Value, err = p.parsePrimary()
+		if err != nil {
+			return nil, err
+		}
 	} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "UNKNOWN") {
 		param.Unknown = true
 		p.advance()
 	}
 	param.Loc.End = p.pos()
-	return param
+	return param, nil
 }

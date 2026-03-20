@@ -30,13 +30,13 @@ Migrate all parse functions from returning single values to `(T, error)` tuples.
 
 ### 1.3 DML: select.go
 
-- [ ] Top-level — `parseSelectStmt`, `parseSetOperation`, `parseWithClause`, `parseCTE` return dual
-- [ ] Clauses — `parseTopClause`, `parseTargetList`, `parseFromClause`, `parseForClause` return dual
-- [ ] Table sources — `parseTableSource`, `parsePrimaryTableSource`, `parsePivotUnpivot`, `parsePivotExpr`, `parseUnpivotExpr`, `parseTableSampleClause`, `parseTableValuedFunction` return dual
-- [ ] Lists — `parseExprList`, `parseGroupByList`, `parseGroupingSet`, `parseWindowClause`, `parseOrderByList` return dual
-- [ ] Hints/options — `parseTableHints`, `parseTableHint`, `parseIndexValue`, `parseOptionClause`, `parseQueryHint`, `parseOptimizeForParam` return dual
-- [ ] All cross-file callers updated (parser.go, insert.go, merge.go, create_view.go, cursor.go, etc.)
-- [ ] Build passes after 1.3
+- [x] Top-level — `parseSelectStmt`, `parseSetOperation`, `parseWithClause`, `parseCTE` return dual
+- [x] Clauses — `parseTopClause`, `parseTargetList`, `parseFromClause`, `parseForClause` return dual
+- [x] Table sources — `parseTableSource`, `parsePrimaryTableSource`, `parsePivotUnpivot`, `parsePivotExpr`, `parseUnpivotExpr`, `parseTableSampleClause`, `parseTableValuedFunction` return dual
+- [x] Lists — `parseExprList`, `parseGroupByList`, `parseGroupingSet`, `parseWindowClause`, `parseOrderByList` return dual
+- [x] Hints/options — `parseTableHints`, `parseTableHint`, `parseIndexValue`, `parseOptionClause`, `parseQueryHint`, `parseOptimizeForParam` return dual
+- [x] All cross-file callers updated (parser.go, insert.go, merge.go, create_view.go, cursor.go, etc.)
+- [x] Build passes after 1.3
 
 ### 1.4 DML: insert.go, update_delete.go, merge.go
 

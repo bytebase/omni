@@ -1335,7 +1335,7 @@ func (p *Parser) parseCreateTableAsSelectStmt() *nodes.CreateTableAsSelectStmt {
 	}
 
 	// Parse the SELECT statement
-	stmt.Query = p.parseSelectStmt()
+	stmt.Query, _ = p.parseSelectStmt()
 
 	// Optional OPTION ( query_hint )
 	// This is already handled inside parseSelectStmt via parseOptionClause

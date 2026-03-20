@@ -57,15 +57,15 @@ func (p *Parser) parseUpdateStmt() *nodes.UpdateStmt {
 
 	// Optional TOP
 	if p.cur.Type == kwTOP {
-		stmt.Top = p.parseTopClause()
+		stmt.Top, _ = p.parseTopClause()
 	}
 
 	// Table name or @table_variable
-	stmt.Relation , _ = p.parseTableRef()
+	stmt.Relation, _ = p.parseTableRef()
 
 	// Optional WITH ( <Table_Hint_Limited> ) on target
 	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-		stmt.Relation.Hints = p.parseTableHints()
+		stmt.Relation.Hints, _ = p.parseTableHints()
 	}
 
 	// SET clause
@@ -80,7 +80,7 @@ func (p *Parser) parseUpdateStmt() *nodes.UpdateStmt {
 
 	// FROM clause
 	if _, ok := p.match(kwFROM); ok {
-		stmt.FromClause = p.parseFromClause()
+		stmt.FromClause, _ = p.parseFromClause()
 	}
 
 	// WHERE clause (includes CURRENT OF cursor support)
@@ -90,7 +90,7 @@ func (p *Parser) parseUpdateStmt() *nodes.UpdateStmt {
 
 	// OPTION clause
 	if p.cur.Type == kwOPTION {
-		stmt.OptionClause = p.parseOptionClause()
+		stmt.OptionClause, _ = p.parseOptionClause()
 	}
 
 	stmt.Loc.End = p.pos()
@@ -134,18 +134,18 @@ func (p *Parser) parseDeleteStmt() *nodes.DeleteStmt {
 
 	// Optional TOP
 	if p.cur.Type == kwTOP {
-		stmt.Top = p.parseTopClause()
+		stmt.Top, _ = p.parseTopClause()
 	}
 
 	// Optional FROM before table name
 	p.match(kwFROM)
 
 	// Table name or @table_variable
-	stmt.Relation , _ = p.parseTableRef()
+	stmt.Relation, _ = p.parseTableRef()
 
 	// Optional WITH ( <Table_Hint_Limited> ) on target
 	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-		stmt.Relation.Hints = p.parseTableHints()
+		stmt.Relation.Hints, _ = p.parseTableHints()
 	}
 
 	// OUTPUT clause
@@ -155,7 +155,7 @@ func (p *Parser) parseDeleteStmt() *nodes.DeleteStmt {
 
 	// FROM clause (second FROM for join)
 	if _, ok := p.match(kwFROM); ok {
-		stmt.FromClause = p.parseFromClause()
+		stmt.FromClause, _ = p.parseFromClause()
 	}
 
 	// WHERE clause (includes CURRENT OF cursor support)
@@ -165,7 +165,7 @@ func (p *Parser) parseDeleteStmt() *nodes.DeleteStmt {
 
 	// OPTION clause
 	if p.cur.Type == kwOPTION {
-		stmt.OptionClause = p.parseOptionClause()
+		stmt.OptionClause, _ = p.parseOptionClause()
 	}
 
 	stmt.Loc.End = p.pos()

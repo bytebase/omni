@@ -58,9 +58,11 @@ func Parse(sql string) (*nodes.List, error) {
 func (p *Parser) parseStmt() nodes.StmtNode {
 	switch p.cur.Type {
 	case kwSELECT:
-		return p.parseSelectStmt()
+		stmt, _ := p.parseSelectStmt()
+		return stmt
 	case kwWITH:
-		return p.parseSelectStmt()
+		stmt, _ := p.parseSelectStmt()
+		return stmt
 	case kwINSERT:
 		// Check for INSERT BULK
 		{

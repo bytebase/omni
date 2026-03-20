@@ -39,18 +39,18 @@ func (p *Parser) parseMergeStmt() *nodes.MergeStmt {
 
 	// Optional TOP
 	if p.cur.Type == kwTOP {
-		stmt.Top = p.parseTopClause()
+		stmt.Top, _ = p.parseTopClause()
 	}
 
 	// Optional INTO
 	p.match(kwINTO)
 
 	// Target table
-	stmt.Target , _ = p.parseTableRef()
+	stmt.Target, _ = p.parseTableRef()
 
 	// Optional WITH ( <merge_hint> ) on target
 	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-		stmt.Target.Hints = p.parseTableHints()
+		stmt.Target.Hints, _ = p.parseTableHints()
 	}
 
 	// Optional alias
@@ -65,7 +65,7 @@ func (p *Parser) parseMergeStmt() *nodes.MergeStmt {
 	}
 
 	// Parse source table
-	source := p.parseTableSource()
+	source, _ := p.parseTableSource()
 	stmt.Source = source
 
 	// Source alias
@@ -96,7 +96,7 @@ func (p *Parser) parseMergeStmt() *nodes.MergeStmt {
 
 	// OPTION clause
 	if p.cur.Type == kwOPTION {
-		stmt.OptionClause = p.parseOptionClause()
+		stmt.OptionClause, _ = p.parseOptionClause()
 	}
 
 	stmt.Loc.End = p.pos()
@@ -211,7 +211,7 @@ func (p *Parser) parseMergeInsertAction() *nodes.MergeInsertAction {
 		action.DefaultValues = true
 	} else if _, ok := p.match(kwVALUES); ok {
 		if _, err := p.expect('('); err == nil {
-			action.Values = p.parseExprList()
+			action.Values, _ = p.parseExprList()
 			_, _ = p.expect(')')
 		}
 	}

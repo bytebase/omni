@@ -72,7 +72,7 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) *nodes.CreateViewStmt {
 	p.match(kwAS)
 
 	// SELECT query
-	stmt.Query = p.parseSelectStmt()
+	stmt.Query, _ = p.parseSelectStmt()
 
 	// WITH CHECK OPTION
 	if p.cur.Type == kwWITH {
@@ -168,7 +168,7 @@ func (p *Parser) parseCreateMaterializedViewStmt() *nodes.CreateMaterializedView
 	p.match(kwAS)
 
 	// SELECT query
-	stmt.Query = p.parseSelectStmt()
+	stmt.Query, _ = p.parseSelectStmt()
 
 	stmt.Loc.End = p.pos()
 	return stmt

@@ -73,7 +73,7 @@ func (p *Parser) parseDeclareCursorStmt() *nodes.DeclareCursorStmt {
 
 	// FOR select_statement
 	if _, ok := p.match(kwFOR); ok {
-		stmt.Query = p.parseSelectStmt()
+		stmt.Query, _ = p.parseSelectStmt()
 	}
 
 	// Optional: FOR { READ_ONLY | UPDATE [ OF column_name [,...n] ] }

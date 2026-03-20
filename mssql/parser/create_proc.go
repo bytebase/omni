@@ -297,7 +297,7 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) *nodes.CreateFunctionStmt
 		p.advance() // consume ORDER
 		if p.cur.Type == '(' {
 			p.advance()
-			stmt.OrderClause = p.parseOrderByList()
+			stmt.OrderClause, _ = p.parseOrderByList()
 			_, _ = p.expect(')')
 		}
 	}
@@ -321,7 +321,7 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) *nodes.CreateFunctionStmt
 			hasParen = true
 			p.advance()
 		}
-		selectStmt := p.parseSelectStmt()
+		selectStmt, _ := p.parseSelectStmt()
 		if hasParen {
 			p.match(')')
 		}
