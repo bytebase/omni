@@ -176,8 +176,12 @@ func (p *Parser) parseAnyName() (*nodes.List, error) {
 		p.advance()
 		// After "name.", we may have reached the cursor position.
 		// Emit rule candidates so callers can recognize schema-qualified names.
+		// Also emit "columnref" because in qualified contexts like
+		// COMMENT ON COLUMN table.col, the element after the dot is a column.
 		if p.collectMode() {
 			p.addRuleCandidate("any_name")
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("qualified_name")
 			return &nodes.List{Items: items}, errCollecting
 		}
 		// The recursive any_name starts with ColId, but we need to handle
