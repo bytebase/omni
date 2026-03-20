@@ -149,6 +149,57 @@ func TestDeparse_Section_1_3_HexBitLiterals(t *testing.T) {
 // using hand-built AST nodes, since the parser doesn't support temporal literals yet.
 // These are marked as [~] partial in SCENARIOS — parser support needed.
 
+func TestDeparse_Section_2_1_ArithmeticUnary(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		// Arithmetic binary operators
+		{"addition", "a + b", "(`a` + `b`)"},
+		{"subtraction", "a - b", "(`a` - `b`)"},
+		{"multiplication", "a * b", "(`a` * `b`)"},
+		{"division", "a / b", "(`a` / `b`)"},
+		{"integer_division", "a DIV b", "(`a` DIV `b`)"},
+		{"modulo_MOD", "a MOD b", "(`a` % `b`)"},
+		{"modulo_percent", "a % b", "(`a` % `b`)"},
+
+		// Left-associative chaining
+		{"left_assoc_chain", "a + b + c", "((`a` + `b`) + `c`)"},
+
+		// Unary minus (with column ref operand)
+		{"unary_minus", "-a", "-`a`"},
+
+		// Unary plus — parser drops it entirely, so +a parses as just ColumnRef
+		{"unary_plus", "+a", "`a`"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			node := parseExpr(t, tc.input)
+			got := Deparse(node)
+			if got != tc.expected {
+				t.Errorf("Deparse(%q) = %q, want %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
+// TestDeparse_Section_2_1_UnaryPlusAST tests unary plus via hand-built AST
+// to verify that deparseUnaryExpr handles UnaryPlus correctly, even though
+// the parser drops unary plus before building the AST.
+func TestDeparse_Section_2_1_UnaryPlusAST(t *testing.T) {
+	node := &ast.UnaryExpr{
+		Op:      ast.UnaryPlus,
+		Operand: &ast.ColumnRef{Column: "a"},
+	}
+	got := Deparse(node)
+	expected := "`a`"
+	if got != expected {
+		t.Errorf("Deparse(UnaryPlus(a)) = %q, want %q", got, expected)
+	}
+}
+
 func TestDeparse_NilNode(t *testing.T) {
 	got := Deparse(nil)
 	if got != "" {

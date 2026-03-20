@@ -60,16 +60,16 @@ Rewrites (!=→<>, MOD→%, +a dropped) are applied here — oracle tests verify
 ### 2.1 Arithmetic & Unary Operators
 
 ```
-[ ] Addition: `a + b` → `(`a` + `b`)` — spaces around operator, outer parens
-[ ] Subtraction: `a - b` → `(`a` - `b`)`
-[ ] Multiplication: `a * b` → `(`a` * `b`)`
-[ ] Division: `a / b` → `(`a` / `b`)`
-[ ] Integer division: `a DIV b` → `(`a` DIV `b`)` — DIV stays uppercase
-[ ] Modulo (MOD): `a MOD b` → `(`a` % `b`)` — MOD normalized to %
-[ ] Modulo (%): `a % b` → `(`a` % `b`)`
-[ ] Left-associative chaining: `a + b + c` → `((`a` + `b`) + `c`)`
-[ ] Unary minus: `-a` → `-(`a`)`
-[ ] Unary plus: `+a` → `a` (dropped entirely)
+[x] Addition: `a + b` → `(`a` + `b`)` — spaces around operator, outer parens
+[x] Subtraction: `a - b` → `(`a` - `b`)`
+[x] Multiplication: `a * b` → `(`a` * `b`)`
+[x] Division: `a / b` → `(`a` / `b`)`
+[x] Integer division: `a DIV b` → `(`a` DIV `b`)` — DIV stays uppercase
+[x] Modulo (MOD): `a MOD b` → `(`a` % `b`)` — MOD normalized to %
+[x] Modulo (%): `a % b` → `(`a` % `b`)`
+[x] Left-associative chaining: `a + b + c` → `((`a` + `b`) + `c`)`
+[x] Unary minus: `-a` → `-(`a`)`
+[x] Unary plus: `+a` → `a` (dropped entirely)
 ```
 
 ### 2.2 Comparison Operators

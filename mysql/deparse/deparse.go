@@ -38,6 +38,10 @@ func deparseExpr(node ast.ExprNode) string {
 		return deparseHexLit(n)
 	case *ast.BitLit:
 		return deparseBitLit(n)
+	case *ast.BinaryExpr:
+		return deparseBinaryExpr(n)
+	case *ast.ColumnRef:
+		return deparseColumnRef(n)
 	case *ast.UnaryExpr:
 		return deparseUnaryExpr(n)
 	case *ast.ParenExpr:
@@ -81,6 +85,72 @@ func deparseBitLit(n *ast.BitLit) string {
 	i := new(big.Int)
 	i.SetString(val, 2)
 	return "0x" + fmt.Sprintf("%02x", i)
+}
+
+func deparseBinaryExpr(n *ast.BinaryExpr) string {
+	left := deparseExpr(n.Left)
+	right := deparseExpr(n.Right)
+	op := binaryOpToString(n.Op)
+	return "(" + left + " " + op + " " + right + ")"
+}
+
+func deparseColumnRef(n *ast.ColumnRef) string {
+	if n.Schema != "" {
+		return "`" + n.Schema + "`.`" + n.Table + "`.`" + n.Column + "`"
+	}
+	if n.Table != "" {
+		return "`" + n.Table + "`.`" + n.Column + "`"
+	}
+	return "`" + n.Column + "`"
+}
+
+func binaryOpToString(op ast.BinaryOp) string {
+	switch op {
+	case ast.BinOpAdd:
+		return "+"
+	case ast.BinOpSub:
+		return "-"
+	case ast.BinOpMul:
+		return "*"
+	case ast.BinOpDiv:
+		return "/"
+	case ast.BinOpMod:
+		return "%"
+	case ast.BinOpDivInt:
+		return "DIV"
+	case ast.BinOpEq:
+		return "="
+	case ast.BinOpNe:
+		return "<>"
+	case ast.BinOpLt:
+		return "<"
+	case ast.BinOpGt:
+		return ">"
+	case ast.BinOpLe:
+		return "<="
+	case ast.BinOpGe:
+		return ">="
+	case ast.BinOpNullSafeEq:
+		return "<=>"
+	case ast.BinOpAnd:
+		return "and"
+	case ast.BinOpOr:
+		return "or"
+	case ast.BinOpBitAnd:
+		return "&"
+	case ast.BinOpBitOr:
+		return "|"
+	case ast.BinOpBitXor:
+		return "^"
+	case ast.BinOpShiftLeft:
+		return "<<"
+	case ast.BinOpShiftRight:
+		return ">>"
+	case ast.BinOpSoundsLike:
+		return "sounds like"
+	default:
+		return "?"
+	}
 }
 
 func deparseUnaryExpr(n *ast.UnaryExpr) string {
