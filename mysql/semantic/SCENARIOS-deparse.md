@@ -75,15 +75,15 @@ Rewrites (!=→<>, MOD→%, +a dropped) are applied here — oracle tests verify
 ### 2.2 Comparison Operators
 
 ```
-[ ] Equal: `a = b` → `(`a` = `b`)`
-[ ] Not equal (<>): `a <> b` → `(`a` <> `b`)`
-[ ] Not equal (!=): `a != b` → `(`a` <> `b`)` — normalized to <>
-[ ] Greater: `a > b` → `(`a` > `b`)`
-[ ] Less: `a < b` → `(`a` < `b`)`
-[ ] Greater or equal: `a >= b` → `(`a` >= `b`)`
-[ ] Less or equal: `a <= b` → `(`a` <= `b`)`
-[ ] Null-safe equal: `a <=> b` → `(`a` <=> `b`)`
-[ ] SOUNDS LIKE: `a SOUNDS LIKE b` — verify MySQL output format
+[x] Equal: `a = b` → `(`a` = `b`)`
+[x] Not equal (<>): `a <> b` → `(`a` <> `b`)`
+[x] Not equal (!=): `a != b` → `(`a` <> `b`)` — normalized to <>
+[x] Greater: `a > b` → `(`a` > `b`)`
+[x] Less: `a < b` → `(`a` < `b`)`
+[x] Greater or equal: `a >= b` → `(`a` >= `b`)`
+[x] Less or equal: `a <= b` → `(`a` <= `b`)`
+[x] Null-safe equal: `a <=> b` → `(`a` <=> `b`)`
+[x] SOUNDS LIKE: `a SOUNDS LIKE b` — verify MySQL output format
 ```
 
 ### 2.3 Bitwise Operators

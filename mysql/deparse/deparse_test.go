@@ -200,6 +200,35 @@ func TestDeparse_Section_2_1_UnaryPlusAST(t *testing.T) {
 	}
 }
 
+func TestDeparse_Section_2_2_ComparisonOperators(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		// Basic comparison operators
+		{"equal", "a = b", "(`a` = `b`)"},
+		{"not_equal_angle", "a <> b", "(`a` <> `b`)"},
+		{"not_equal_bang", "a != b", "(`a` <> `b`)"},          // != normalized to <>
+		{"greater", "a > b", "(`a` > `b`)"},
+		{"less", "a < b", "(`a` < `b`)"},
+		{"greater_or_equal", "a >= b", "(`a` >= `b`)"},
+		{"less_or_equal", "a <= b", "(`a` <= `b`)"},
+		{"null_safe_equal", "a <=> b", "(`a` <=> `b`)"},
+		{"sounds_like", "a SOUNDS LIKE b", "(`a` sounds like `b`)"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			node := parseExpr(t, tc.input)
+			got := Deparse(node)
+			if got != tc.expected {
+				t.Errorf("Deparse(%q) = %q, want %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
 func TestDeparse_NilNode(t *testing.T) {
 	got := Deparse(nil)
 	if got != "" {
