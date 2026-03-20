@@ -46,6 +46,16 @@ func deparseExpr(node ast.ExprNode) string {
 		return deparseUnaryExpr(n)
 	case *ast.ParenExpr:
 		return deparseExpr(n.Expr)
+	case *ast.InExpr:
+		return deparseInExpr(n)
+	case *ast.BetweenExpr:
+		return deparseBetweenExpr(n)
+	case *ast.LikeExpr:
+		return deparseLikeExpr(n)
+	case *ast.IsExpr:
+		return deparseIsExpr(n)
+	case *ast.RowExpr:
+		return deparseRowExpr(n)
 	default:
 		return fmt.Sprintf("/* unsupported: %T */", node)
 	}
@@ -166,5 +176,86 @@ func deparseUnaryExpr(n *ast.UnaryExpr) string {
 	default:
 		return operand
 	}
+}
+
+func deparseInExpr(n *ast.InExpr) string {
+	expr := deparseExpr(n.Expr)
+	keyword := "in"
+	if n.Not {
+		keyword = "not in"
+	}
+	// Build the value list with no spaces after commas
+	items := make([]string, len(n.List))
+	for i, item := range n.List {
+		items[i] = deparseExpr(item)
+	}
+	return "(" + expr + " " + keyword + " (" + strings.Join(items, ",") + "))"
+}
+
+func deparseBetweenExpr(n *ast.BetweenExpr) string {
+	expr := deparseExpr(n.Expr)
+	low := deparseExpr(n.Low)
+	high := deparseExpr(n.High)
+	keyword := "between"
+	if n.Not {
+		keyword = "not between"
+	}
+	return "(" + expr + " " + keyword + " " + low + " and " + high + ")"
+}
+
+func deparseLikeExpr(n *ast.LikeExpr) string {
+	expr := deparseExpr(n.Expr)
+	pattern := deparseExpr(n.Pattern)
+	keyword := "like"
+	if n.Not {
+		keyword = "not like"
+	}
+	result := "(" + expr + " " + keyword + " " + pattern
+	if n.Escape != nil {
+		result += " escape " + deparseExpr(n.Escape)
+	}
+	return result + ")"
+}
+
+func deparseIsExpr(n *ast.IsExpr) string {
+	expr := deparseExpr(n.Expr)
+	var test string
+	switch n.Test {
+	case ast.IsNull:
+		if n.Not {
+			test = "is not null"
+		} else {
+			test = "is null"
+		}
+	case ast.IsTrue:
+		if n.Not {
+			test = "is not true"
+		} else {
+			test = "is true"
+		}
+	case ast.IsFalse:
+		if n.Not {
+			test = "is not false"
+		} else {
+			test = "is false"
+		}
+	case ast.IsUnknown:
+		if n.Not {
+			test = "is not unknown"
+		} else {
+			test = "is unknown"
+		}
+	default:
+		test = "is ?"
+	}
+	return "(" + expr + " " + test + ")"
+}
+
+func deparseRowExpr(n *ast.RowExpr) string {
+	items := make([]string, len(n.Items))
+	for i, item := range n.Items {
+		items[i] = deparseExpr(item)
+	}
+	return "row(" + strings.Join(items, ",") + ")"
 }
 

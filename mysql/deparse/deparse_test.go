@@ -297,6 +297,49 @@ func TestDeparse_Section_2_4_PrecedenceParenthesization(t *testing.T) {
 	}
 }
 
+func TestDeparse_Section_2_5_ComparisonPredicates(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		// IN list
+		{"in_list", "a IN (1,2,3)", "(`a` in (1,2,3))"},
+		// NOT IN
+		{"not_in_list", "a NOT IN (1,2,3)", "(`a` not in (1,2,3))"},
+		// BETWEEN
+		{"between", "a BETWEEN 1 AND 10", "(`a` between 1 and 10)"},
+		// NOT BETWEEN
+		{"not_between", "a NOT BETWEEN 1 AND 10", "(`a` not between 1 and 10)"},
+		// LIKE
+		{"like", "a LIKE 'foo%'", "(`a` like 'foo%')"},
+		// LIKE with ESCAPE
+		{"like_escape", "a LIKE 'x' ESCAPE '\\\\'", "(`a` like 'x' escape '\\\\')"},
+		// IS NULL
+		{"is_null", "a IS NULL", "(`a` is null)"},
+		// IS NOT NULL
+		{"is_not_null", "a IS NOT NULL", "(`a` is not null)"},
+		// IS TRUE
+		{"is_true", "a IS TRUE", "(`a` is true)"},
+		// IS FALSE
+		{"is_false", "a IS FALSE", "(`a` is false)"},
+		// IS UNKNOWN
+		{"is_unknown", "a IS UNKNOWN", "(`a` is unknown)"},
+		// ROW comparison
+		{"row_comparison", "ROW(a,b) = ROW(1,2)", "(row(`a`,`b`) = row(1,2))"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			node := parseExpr(t, tc.input)
+			got := Deparse(node)
+			if got != tc.expected {
+				t.Errorf("Deparse(%q) = %q, want %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
 func TestDeparse_NilNode(t *testing.T) {
 	got := Deparse(nil)
 	if got != "" {

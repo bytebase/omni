@@ -110,18 +110,18 @@ Rewrites (!=→<>, MOD→%, +a dropped) are applied here — oracle tests verify
 ### 2.5 Comparison Predicates
 
 ```
-[ ] IN list: `a IN (1,2,3)` → `(`a` in (1,2,3))` — lowercase in, no spaces after commas
-[ ] NOT IN: `a NOT IN (1,2,3)` → `(`a` not in (1,2,3))`
-[ ] BETWEEN: `a BETWEEN 1 AND 10` → `(`a` between 1 and 10)` — lowercase
-[ ] NOT BETWEEN: `a NOT BETWEEN 1 AND 10` → `(`a` not between 1 and 10)`
-[ ] LIKE: `a LIKE 'foo%'` → `(`a` like 'foo%')`
-[ ] LIKE with ESCAPE: `a LIKE 'x' ESCAPE '\\'` → `(`a` like 'x' escape '\\\\')`
-[ ] IS NULL: `a IS NULL` → `(`a` is null)`
-[ ] IS NOT NULL: `a IS NOT NULL` → `(`a` is not null)`
-[ ] IS TRUE: `a IS TRUE` — verify format (may involve boolean wrapping)
-[ ] IS FALSE: `a IS FALSE` — verify format
-[ ] IS UNKNOWN: `a IS UNKNOWN` — verify MySQL output
-[ ] ROW comparison: `ROW(a,b) = ROW(1,2)` — verify format (RowExpr)
+[x] IN list: `a IN (1,2,3)` → `(`a` in (1,2,3))` — lowercase in, no spaces after commas
+[x] NOT IN: `a NOT IN (1,2,3)` → `(`a` not in (1,2,3))`
+[x] BETWEEN: `a BETWEEN 1 AND 10` → `(`a` between 1 and 10)` — lowercase
+[x] NOT BETWEEN: `a NOT BETWEEN 1 AND 10` → `(`a` not between 1 and 10)`
+[x] LIKE: `a LIKE 'foo%'` → `(`a` like 'foo%')`
+[x] LIKE with ESCAPE: `a LIKE 'x' ESCAPE '\\'` → `(`a` like 'x' escape '\\\\')`
+[x] IS NULL: `a IS NULL` → `(`a` is null)`
+[x] IS NOT NULL: `a IS NOT NULL` → `(`a` is not null)`
+[x] IS TRUE: `a IS TRUE` — verify format (may involve boolean wrapping)
+[x] IS FALSE: `a IS FALSE` — verify format
+[x] IS UNKNOWN: `a IS UNKNOWN` — verify MySQL output
+[x] ROW comparison: `ROW(a,b) = ROW(1,2)` — verify format (RowExpr)
 ```
 
 ### 2.6 CASE, CAST & CONVERT
