@@ -92,7 +92,7 @@ import (
 //	    { READONLY | READWRITE }
 //	    | { READ_ONLY | READ_WRITE }
 //	}
-func (p *Parser) parseAlterDatabaseStmt() *nodes.AlterDatabaseStmt {
+func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.AlterDatabaseStmt{
@@ -173,7 +173,7 @@ func (p *Parser) parseAlterDatabaseStmt() *nodes.AlterDatabaseStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterDatabaseSetOptions parses SET <option_spec> [,...n] [WITH <termination>].
@@ -800,7 +800,7 @@ func (p *Parser) parseAlterDatabaseRemove(stmt *nodes.AlterDatabaseStmt) {
 //	    | PAUSE
 //	    | ABORT
 //	}
-func (p *Parser) parseAlterIndexStmt() *nodes.AlterIndexStmt {
+func (p *Parser) parseAlterIndexStmt() (*nodes.AlterIndexStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.AlterIndexStmt{
@@ -816,7 +816,11 @@ func (p *Parser) parseAlterIndexStmt() *nodes.AlterIndexStmt {
 	// ON table_name
 	if p.cur.Type == kwON {
 		p.advance() // consume ON
-		stmt.Table , _ = p.parseTableRef()
+		var err error
+		stmt.Table, err = p.parseTableRef()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Action: REBUILD, REORGANIZE, DISABLE, SET, RESUME, PAUSE, ABORT
@@ -847,12 +851,16 @@ func (p *Parser) parseAlterIndexStmt() *nodes.AlterIndexStmt {
 			p.advance() // consume WITH
 		}
 		if p.cur.Type == '(' {
-			stmt.Options = p.parseAlterIndexOptions()
+			var err error
+			stmt.Options, err = p.parseAlterIndexOptions()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterIndexOptions parses a parenthesized list of index options.
@@ -877,7 +885,7 @@ func (p *Parser) parseAlterIndexStmt() *nodes.AlterIndexStmt {
 //	    [ ON PARTITIONS ( { <partition_number> [ TO <partition_number> ] } [ , ...n ] ) ]
 //	| LOB_COMPACTION = { ON | OFF }
 //	| COMPRESS_ALL_ROW_GROUPS = { ON | OFF }
-func (p *Parser) parseAlterIndexOptions() *nodes.List {
+func (p *Parser) parseAlterIndexOptions() (*nodes.List, error) {
 	p.advance() // consume '('
 
 	opts := &nodes.List{}
@@ -987,5 +995,5 @@ func (p *Parser) parseAlterIndexOptions() *nodes.List {
 	}
 
 	p.match(')') // consume ')'
-	return opts
+	return opts, nil
 }

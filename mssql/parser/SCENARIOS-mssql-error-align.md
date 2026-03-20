@@ -74,10 +74,10 @@ Migrate all parse functions from returning single values to `(T, error)` tuples.
 
 ### 1.8 ALTER: alter_table.go, alter_objects.go
 
-- [ ] alter_table.go — `parseAlterTableStmt`, `parseAlterTableAdd`, `parseAlterTableDrop`, `parseAlterTableAlterColumn`, `parseAlterColumnAddDrop`, `parseAlterTableCheckConstraint`, `parseAlterTableEnableDisable`, `parseAlterTableEnableDisableTrigger`, `parseAlterTableChangeTracking`, `parseAlterTableSwitch`, `parseAlterTableRebuild`, `parseAlterTableSplitMergeRange`, `parseAlterTableSet`, `parseAlterTableFiletableNamespace`, `parseAlterTableAddPeriod`, `parseKeyValueOptionList` return dual
-- [ ] alter_objects.go — `parseAlterDatabaseStmt`, `parseAlterIndexStmt`, `parseAlterIndexOptions` return dual; void helpers update to return error
-- [ ] All cross-file callers updated
-- [ ] Build passes after 1.8
+- [x] alter_table.go — `parseAlterTableStmt`, `parseAlterTableAdd`, `parseAlterTableDrop`, `parseAlterTableAlterColumn`, `parseAlterColumnAddDrop`, `parseAlterTableCheckConstraint`, `parseAlterTableEnableDisable`, `parseAlterTableEnableDisableTrigger`, `parseAlterTableChangeTracking`, `parseAlterTableSwitch`, `parseAlterTableRebuild`, `parseAlterTableSplitMergeRange`, `parseAlterTableSet`, `parseAlterTableFiletableNamespace`, `parseAlterTableAddPeriod`, `parseKeyValueOptionList` return dual
+- [x] alter_objects.go — `parseAlterDatabaseStmt`, `parseAlterIndexStmt`, `parseAlterIndexOptions` return dual; void helpers update to return error
+- [x] All cross-file callers updated
+- [x] Build passes after 1.8
 
 ### 1.9 Security: grant.go, security_principals.go, security_misc.go, security_keys.go, security_audit.go
 

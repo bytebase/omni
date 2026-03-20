@@ -120,7 +120,7 @@ func (p *Parser) parseCreateIndexStmt(unique bool) (*nodes.CreateIndexStmt, erro
 	if p.cur.Type == kwWITH {
 		p.advance()
 		if p.cur.Type == '(' {
-			stmt.Options = p.parseAlterIndexOptions()
+			stmt.Options, _ = p.parseAlterIndexOptions()
 		}
 	}
 
@@ -400,7 +400,7 @@ func (p *Parser) parseCreateSpatialIndexStmt() (*nodes.CreateSpatialIndexStmt, e
 	if p.cur.Type == kwWITH {
 		p.advance()
 		if p.cur.Type == '(' {
-			stmt.Options = p.parseAlterIndexOptions()
+			stmt.Options, _ = p.parseAlterIndexOptions()
 		}
 	}
 

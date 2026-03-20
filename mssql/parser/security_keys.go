@@ -771,7 +771,7 @@ func (p *Parser) parseSecurityKeyOptions(stmt *nodes.SecurityKeyStmt) {
 			p.advance() // consume WITH
 			if p.cur.Type == '(' {
 				// WITH ( NAME = VALUE [, ...] )
-				nested := p.parseKeyValueOptionList()
+				nested, _ := p.parseKeyValueOptionList()
 				if nested != nil {
 					items = append(items, nested.Items...)
 				}

@@ -199,7 +199,7 @@ func (p *Parser) parseDropStmt() *nodes.DropStmt {
 				if p.cur.Type == kwWITH {
 					p.advance()
 					if p.cur.Type == '(' {
-						stmt.Options = p.parseAlterIndexOptions()
+						stmt.Options, _ = p.parseAlterIndexOptions()
 					}
 				}
 			}

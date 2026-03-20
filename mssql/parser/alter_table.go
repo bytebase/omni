@@ -88,7 +88,7 @@ import (
 //	<low_priority_lock_wait> ::=
 //	    WAIT_AT_LOW_PRIORITY ( MAX_DURATION = <time> [ MINUTES ],
 //	        ABORT_AFTER_WAIT = { NONE | SELF | BLOCKERS } )
-func (p *Parser) parseAlterTableStmt() *nodes.AlterTableStmt {
+func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.AlterTableStmt{
@@ -96,7 +96,11 @@ func (p *Parser) parseAlterTableStmt() *nodes.AlterTableStmt {
 	}
 
 	// Table name
-	stmt.Name , _ = p.parseTableRef()
+	var err error
+	stmt.Name, err = p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
 
 	// Parse optional WITH { CHECK | NOCHECK } prefix
 	withCheck := ""
@@ -117,44 +121,80 @@ func (p *Parser) parseAlterTableStmt() *nodes.AlterTableStmt {
 	var actions []nodes.Node
 	switch {
 	case p.cur.Type == kwADD:
-		actions = p.parseAlterTableAdd()
+		actions, err = p.parseAlterTableAdd()
+		if err != nil {
+			return nil, err
+		}
 	case p.cur.Type == kwDROP:
-		actions = p.parseAlterTableDrop()
+		actions, err = p.parseAlterTableDrop()
+		if err != nil {
+			return nil, err
+		}
 	case p.cur.Type == kwALTER:
-		action := p.parseAlterTableAlterColumn()
+		action, err := p.parseAlterTableAlterColumn()
+		if err != nil {
+			return nil, err
+		}
 		if action != nil {
 			actions = append(actions, action)
 		}
 	case p.cur.Type == kwCHECK:
-		action := p.parseAlterTableCheckConstraint(withCheck, true)
+		action, err := p.parseAlterTableCheckConstraint(withCheck, true)
+		if err != nil {
+			return nil, err
+		}
 		actions = append(actions, action)
 	case p.cur.Type == kwNOCHECK:
-		action := p.parseAlterTableCheckConstraint(withCheck, false)
+		action, err := p.parseAlterTableCheckConstraint(withCheck, false)
+		if err != nil {
+			return nil, err
+		}
 		actions = append(actions, action)
 	case p.cur.Type == kwSET:
-		action := p.parseAlterTableSet()
+		action, err := p.parseAlterTableSet()
+		if err != nil {
+			return nil, err
+		}
 		actions = append(actions, action)
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "ENABLE"):
-		action := p.parseAlterTableEnableDisable(true)
+		action, err := p.parseAlterTableEnableDisable(true)
+		if err != nil {
+			return nil, err
+		}
 		if action != nil {
 			actions = append(actions, action)
 		}
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "DISABLE"):
-		action := p.parseAlterTableEnableDisable(false)
+		action, err := p.parseAlterTableEnableDisable(false)
+		if err != nil {
+			return nil, err
+		}
 		if action != nil {
 			actions = append(actions, action)
 		}
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "SWITCH"):
-		action := p.parseAlterTableSwitch()
+		action, err := p.parseAlterTableSwitch()
+		if err != nil {
+			return nil, err
+		}
 		actions = append(actions, action)
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "REBUILD"):
-		action := p.parseAlterTableRebuild()
+		action, err := p.parseAlterTableRebuild()
+		if err != nil {
+			return nil, err
+		}
 		actions = append(actions, action)
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "SPLIT"):
-		action := p.parseAlterTableSplitMergeRange(true)
+		action, err := p.parseAlterTableSplitMergeRange(true)
+		if err != nil {
+			return nil, err
+		}
 		actions = append(actions, action)
 	case p.cur.Type == kwMERGE:
-		action := p.parseAlterTableSplitMergeRange(false)
+		action, err := p.parseAlterTableSplitMergeRange(false)
+		if err != nil {
+			return nil, err
+		}
 		actions = append(actions, action)
 	default:
 		// Unrecognized ALTER TABLE action - skip
@@ -162,7 +202,7 @@ func (p *Parser) parseAlterTableStmt() *nodes.AlterTableStmt {
 
 	stmt.Actions = &nodes.List{Items: actions}
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterTableAdd parses ADD with comma-separated columns/constraints,
@@ -170,7 +210,7 @@ func (p *Parser) parseAlterTableStmt() *nodes.AlterTableStmt {
 //
 //	ADD { <column_definition> | <table_constraint> } [ ,...n ]
 //	ADD PERIOD FOR SYSTEM_TIME ( start_col , end_col )
-func (p *Parser) parseAlterTableAdd() []nodes.Node {
+func (p *Parser) parseAlterTableAdd() ([]nodes.Node, error) {
 	p.advance() // consume ADD
 
 	// ADD PERIOD FOR SYSTEM_TIME (start_col, end_col)
@@ -188,15 +228,27 @@ func (p *Parser) parseAlterTableAdd() []nodes.Node {
 
 		if p.cur.Type == kwCONSTRAINT {
 			action.Type = nodes.ATAddConstraint
-			action.Constraint, _ = p.parseTableConstraint()
+			var err error
+			action.Constraint, err = p.parseTableConstraint()
+			if err != nil {
+				return nil, err
+			}
 		} else if p.cur.Type == kwPRIMARY || p.cur.Type == kwUNIQUE ||
 			p.cur.Type == kwFOREIGN || p.cur.Type == kwCHECK || p.cur.Type == kwDEFAULT {
 			// Unnamed constraint
 			action.Type = nodes.ATAddConstraint
-			action.Constraint, _ = p.parseTableConstraint()
+			var err error
+			action.Constraint, err = p.parseTableConstraint()
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			action.Type = nodes.ATAddColumn
-			action.Column, _ = p.parseColumnDef()
+			var err error
+			action.Column, err = p.parseColumnDef()
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		action.Loc.End = p.pos()
@@ -207,7 +259,7 @@ func (p *Parser) parseAlterTableAdd() []nodes.Node {
 		}
 	}
 
-	return actions
+	return actions, nil
 }
 
 // parseAlterTableAddPeriod parses ADD PERIOD FOR SYSTEM_TIME (start_col, end_col).
@@ -215,7 +267,7 @@ func (p *Parser) parseAlterTableAdd() []nodes.Node {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-table-transact-sql
 //
 //	ADD PERIOD FOR SYSTEM_TIME ( system_start_time_column_name , system_end_time_column_name )
-func (p *Parser) parseAlterTableAddPeriod() []nodes.Node {
+func (p *Parser) parseAlterTableAddPeriod() ([]nodes.Node, error) {
 	loc := p.pos()
 	p.advance() // consume PERIOD
 	if p.cur.Type == kwFOR {
@@ -240,12 +292,14 @@ func (p *Parser) parseAlterTableAddPeriod() []nodes.Node {
 		p.match(',')
 		endCol, _ := p.parseIdentifier()
 		names = append(names, &nodes.String{Str: endCol})
-		p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		action.Names = &nodes.List{Items: names}
 	}
 
 	action.Loc.End = p.pos()
-	return []nodes.Node{action}
+	return []nodes.Node{action}, nil
 }
 
 // parseAlterTableDrop parses DROP with comma-separated columns/constraints,
@@ -257,7 +311,7 @@ func (p *Parser) parseAlterTableAddPeriod() []nodes.Node {
 //	  | COLUMN [ IF EXISTS ] { column_name } [ ,...n ]
 //	  | PERIOD FOR SYSTEM_TIME
 //	} [ ,...n ] ]
-func (p *Parser) parseAlterTableDrop() []nodes.Node {
+func (p *Parser) parseAlterTableDrop() ([]nodes.Node, error) {
 	p.advance() // consume DROP
 	var actions []nodes.Node
 
@@ -276,7 +330,7 @@ func (p *Parser) parseAlterTableDrop() []nodes.Node {
 			Loc:  nodes.Loc{Start: loc},
 		}
 		action.Loc.End = p.pos()
-		return []nodes.Node{action}
+		return []nodes.Node{action}, nil
 	}
 
 	if p.cur.Type == kwCOLUMN {
@@ -337,7 +391,11 @@ func (p *Parser) parseAlterTableDrop() []nodes.Node {
 			if p.cur.Type == kwWITH {
 				p.advance() // consume WITH
 				if p.cur.Type == '(' {
-					action.Options = p.parseKeyValueOptionList()
+					var err error
+					action.Options, err = p.parseKeyValueOptionList()
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 			action.Loc.End = p.pos()
@@ -374,14 +432,18 @@ func (p *Parser) parseAlterTableDrop() []nodes.Node {
 		if p.cur.Type == kwWITH {
 			p.advance() // consume WITH
 			if p.cur.Type == '(' {
-				action.Options = p.parseKeyValueOptionList()
+				var err error
+				action.Options, err = p.parseKeyValueOptionList()
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 		action.Loc.End = p.pos()
 		actions = append(actions, action)
 	}
 
-	return actions
+	return actions, nil
 }
 
 // parseAlterTableAlterColumn parses ALTER COLUMN with extended options.
@@ -396,7 +458,7 @@ func (p *Parser) parseAlterTableDrop() []nodes.Node {
 //	  | { ADD | DROP } MASKED [ WITH ( FUNCTION = 'mask_function' ) ]
 //	}
 //	[ WITH ( ONLINE = ON | OFF ) ]
-func (p *Parser) parseAlterTableAlterColumn() *nodes.AlterTableAction {
+func (p *Parser) parseAlterTableAlterColumn() (*nodes.AlterTableAction, error) {
 	loc := p.pos()
 	p.advance() // consume ALTER
 
@@ -418,7 +480,11 @@ func (p *Parser) parseAlterTableAlterColumn() *nodes.AlterTableAction {
 		Loc:     nodes.Loc{Start: loc},
 	}
 
-	action.DataType , _ = p.parseDataType()
+	var err error
+	action.DataType, err = p.parseDataType()
+	if err != nil {
+		return nil, err
+	}
 
 	// COLLATE collation_name
 	if p.cur.Type == kwCOLLATE {
@@ -447,16 +513,19 @@ func (p *Parser) parseAlterTableAlterColumn() *nodes.AlterTableAction {
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
 		if p.cur.Type == '(' {
-			action.Options = p.parseKeyValueOptionList()
+			action.Options, err = p.parseKeyValueOptionList()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	action.Loc.End = p.pos()
-	return action
+	return action, nil
 }
 
 // parseAlterColumnAddDrop parses ALTER COLUMN col {ADD|DROP} {ROWGUIDCOL|PERSISTED|...}
-func (p *Parser) parseAlterColumnAddDrop(loc int, colName string) *nodes.AlterTableAction {
+func (p *Parser) parseAlterColumnAddDrop(loc int, colName string) (*nodes.AlterTableAction, error) {
 	action := &nodes.AlterTableAction{
 		Type:    nodes.ATAlterColumnAddDrop,
 		ColName: colName,
@@ -515,7 +584,9 @@ func (p *Parser) parseAlterColumnAddDrop(loc int, colName string) *nodes.AlterTa
 						break
 					}
 				}
-				p.expect(')')
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 			}
 		}
 	case p.cur.Type == kwNOT:
@@ -539,11 +610,11 @@ func (p *Parser) parseAlterColumnAddDrop(loc int, colName string) *nodes.AlterTa
 	opt.Loc.End = p.pos()
 	action.Options = &nodes.List{Items: []nodes.Node{opt}}
 	action.Loc.End = p.pos()
-	return action
+	return action, nil
 }
 
 // parseAlterTableCheckConstraint parses CHECK/NOCHECK CONSTRAINT { ALL | name [,...n] }.
-func (p *Parser) parseAlterTableCheckConstraint(withCheck string, isCheck bool) *nodes.AlterTableAction {
+func (p *Parser) parseAlterTableCheckConstraint(withCheck string, isCheck bool) (*nodes.AlterTableAction, error) {
 	loc := p.pos()
 	action := &nodes.AlterTableAction{
 		Loc:       nodes.Loc{Start: loc},
@@ -579,7 +650,7 @@ func (p *Parser) parseAlterTableCheckConstraint(withCheck string, isCheck bool) 
 	action.Names = &nodes.List{Items: names}
 
 	action.Loc.End = p.pos()
-	return action
+	return action, nil
 }
 
 // parseAlterTableEnableDisable parses ENABLE/DISABLE TRIGGER, CHANGE_TRACKING, or FILETABLE_NAMESPACE.
@@ -587,7 +658,7 @@ func (p *Parser) parseAlterTableCheckConstraint(withCheck string, isCheck bool) 
 //	{ ENABLE | DISABLE } TRIGGER { ALL | trigger_name [ ,...n ] }
 //	{ ENABLE | DISABLE } CHANGE_TRACKING [ WITH ( TRACK_COLUMNS_UPDATED = { ON | OFF } ) ]
 //	{ ENABLE | DISABLE } FILETABLE_NAMESPACE [ { WITH REVERT TO parent_path } ]
-func (p *Parser) parseAlterTableEnableDisable(enable bool) *nodes.AlterTableAction {
+func (p *Parser) parseAlterTableEnableDisable(enable bool) (*nodes.AlterTableAction, error) {
 	loc := p.pos()
 	p.advance() // consume ENABLE/DISABLE
 
@@ -604,11 +675,11 @@ func (p *Parser) parseAlterTableEnableDisable(enable bool) *nodes.AlterTableActi
 		return p.parseAlterTableFiletableNamespace(loc, enable)
 	}
 
-	return nil
+	return nil, nil
 }
 
 // parseAlterTableEnableDisableTrigger parses ENABLE/DISABLE TRIGGER { ALL | name [,...n] }.
-func (p *Parser) parseAlterTableEnableDisableTrigger(loc int, enable bool) *nodes.AlterTableAction {
+func (p *Parser) parseAlterTableEnableDisableTrigger(loc int, enable bool) (*nodes.AlterTableAction, error) {
 	action := &nodes.AlterTableAction{
 		Loc: nodes.Loc{Start: loc},
 	}
@@ -637,11 +708,11 @@ func (p *Parser) parseAlterTableEnableDisableTrigger(loc int, enable bool) *node
 	action.Names = &nodes.List{Items: names}
 
 	action.Loc.End = p.pos()
-	return action
+	return action, nil
 }
 
 // parseAlterTableChangeTracking parses ENABLE/DISABLE CHANGE_TRACKING [WITH (...)].
-func (p *Parser) parseAlterTableChangeTracking(loc int, enable bool) *nodes.AlterTableAction {
+func (p *Parser) parseAlterTableChangeTracking(loc int, enable bool) (*nodes.AlterTableAction, error) {
 	action := &nodes.AlterTableAction{
 		Loc: nodes.Loc{Start: loc},
 	}
@@ -657,16 +728,20 @@ func (p *Parser) parseAlterTableChangeTracking(loc int, enable bool) *nodes.Alte
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
 		if p.cur.Type == '(' {
-			action.Options = p.parseKeyValueOptionList()
+			var err error
+			action.Options, err = p.parseKeyValueOptionList()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	action.Loc.End = p.pos()
-	return action
+	return action, nil
 }
 
 // parseAlterTableSwitch parses SWITCH [PARTITION n] TO target [PARTITION n].
-func (p *Parser) parseAlterTableSwitch() *nodes.AlterTableAction {
+func (p *Parser) parseAlterTableSwitch() (*nodes.AlterTableAction, error) {
 	loc := p.pos()
 	action := &nodes.AlterTableAction{
 		Type: nodes.ATSwitchPartition,
@@ -677,35 +752,49 @@ func (p *Parser) parseAlterTableSwitch() *nodes.AlterTableAction {
 	// Optional PARTITION source_partition_number
 	if p.cur.Type == kwPARTITION {
 		p.advance() // consume PARTITION
-		action.Partition, _ = p.parseExpr()
+		var err error
+		action.Partition, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// TO target_table
 	if p.cur.Type == kwTO {
 		p.advance() // consume TO
 	}
-	action.TargetName , _ = p.parseTableRef()
+	var err error
+	action.TargetName, err = p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
 
 	// Optional PARTITION target_partition_number
 	if p.cur.Type == kwPARTITION {
 		p.advance() // consume PARTITION
-		action.TargetPart, _ = p.parseExpr()
+		action.TargetPart, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Optional WITH ( <low_priority_lock_wait> )
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
 		if p.cur.Type == '(' {
-			action.Options = p.parseKeyValueOptionList()
+			action.Options, err = p.parseKeyValueOptionList()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	action.Loc.End = p.pos()
-	return action
+	return action, nil
 }
 
 // parseAlterTableRebuild parses REBUILD [PARTITION = ALL|n] [WITH (...)].
-func (p *Parser) parseAlterTableRebuild() *nodes.AlterTableAction {
+func (p *Parser) parseAlterTableRebuild() (*nodes.AlterTableAction, error) {
 	loc := p.pos()
 	action := &nodes.AlterTableAction{
 		Type: nodes.ATRebuild,
@@ -723,7 +812,11 @@ func (p *Parser) parseAlterTableRebuild() *nodes.AlterTableAction {
 			action.ColName = "ALL" // reuse ColName to indicate PARTITION = ALL
 			p.advance()
 		} else {
-			action.Partition, _ = p.parseExpr()
+			var err error
+			action.Partition, err = p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -731,18 +824,22 @@ func (p *Parser) parseAlterTableRebuild() *nodes.AlterTableAction {
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
 		if p.cur.Type == '(' {
-			action.Options, _ = p.parseOptionList()
+			var err error
+			action.Options, err = p.parseOptionList()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	action.Loc.End = p.pos()
-	return action
+	return action, nil
 }
 
 // parseAlterTableSplitMergeRange parses { SPLIT | MERGE } RANGE ( boundary_value ).
 //
 //	{ SPLIT | MERGE } RANGE ( boundary_value )
-func (p *Parser) parseAlterTableSplitMergeRange(isSplit bool) *nodes.AlterTableAction {
+func (p *Parser) parseAlterTableSplitMergeRange(isSplit bool) (*nodes.AlterTableAction, error) {
 	loc := p.pos()
 	action := &nodes.AlterTableAction{
 		Loc: nodes.Loc{Start: loc},
@@ -762,12 +859,18 @@ func (p *Parser) parseAlterTableSplitMergeRange(isSplit bool) *nodes.AlterTableA
 	// ( boundary_value )
 	if p.cur.Type == '(' {
 		p.advance() // consume (
-		action.Partition, _ = p.parseExpr()
-		p.expect(')')
+		var err error
+		action.Partition, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 
 	action.Loc.End = p.pos()
-	return action
+	return action, nil
 }
 
 // parseAlterTableSet parses SET ( option = value [,...] ).
@@ -777,7 +880,7 @@ func (p *Parser) parseAlterTableSplitMergeRange(isSplit bool) *nodes.AlterTableA
 //	    | SYSTEM_VERSIONING = { OFF | ON [ ( HISTORY_TABLE = schema_name.table_name [...] ) ] }
 //	    | DATA_DELETION = { OFF | ON [ ( ... ) ] }
 //	    )
-func (p *Parser) parseAlterTableSet() *nodes.AlterTableAction {
+func (p *Parser) parseAlterTableSet() (*nodes.AlterTableAction, error) {
 	loc := p.pos()
 	action := &nodes.AlterTableAction{
 		Type: nodes.ATSet,
@@ -786,17 +889,21 @@ func (p *Parser) parseAlterTableSet() *nodes.AlterTableAction {
 	p.advance() // consume SET
 
 	if p.cur.Type == '(' {
-		action.Options = p.parseKeyValueOptionList()
+		var err error
+		action.Options, err = p.parseKeyValueOptionList()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	action.Loc.End = p.pos()
-	return action
+	return action, nil
 }
 
 // parseAlterTableFiletableNamespace parses ENABLE/DISABLE FILETABLE_NAMESPACE.
 //
 //	{ ENABLE | DISABLE } FILETABLE_NAMESPACE
-func (p *Parser) parseAlterTableFiletableNamespace(loc int, enable bool) *nodes.AlterTableAction {
+func (p *Parser) parseAlterTableFiletableNamespace(loc int, enable bool) (*nodes.AlterTableAction, error) {
 	action := &nodes.AlterTableAction{
 		Loc: nodes.Loc{Start: loc},
 	}
@@ -808,14 +915,14 @@ func (p *Parser) parseAlterTableFiletableNamespace(loc int, enable bool) *nodes.
 	p.advance() // consume FILETABLE_NAMESPACE
 
 	action.Loc.End = p.pos()
-	return action
+	return action, nil
 }
 
 // parseKeyValueOptionList parses ( NAME = value [, ...] ) where values can be
 // keywords like ON, OFF, TABLE, AUTO, DISABLE etc. Returns a list of String
 // nodes in alternating name/value pairs. Nested parentheses are handled for
 // sub-options like SYSTEM_VERSIONING = ON (HISTORY_TABLE = dbo.t).
-func (p *Parser) parseKeyValueOptionList() *nodes.List {
+func (p *Parser) parseKeyValueOptionList() (*nodes.List, error) {
 	p.advance() // consume (
 	var items []nodes.Node
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
@@ -831,7 +938,10 @@ func (p *Parser) parseKeyValueOptionList() *nodes.List {
 		// Parse value - could be keyword, identifier, number, string, or nested (...)
 		if p.cur.Type == '(' {
 			// Nested option list, e.g., SYSTEM_VERSIONING = ON (HISTORY_TABLE = ...)
-			nested := p.parseKeyValueOptionList()
+			nested, err := p.parseKeyValueOptionList()
+			if err != nil {
+				return nil, err
+			}
 			items = append(items, nested)
 		} else {
 			val := p.consumeAnyIdent()
@@ -839,7 +949,10 @@ func (p *Parser) parseKeyValueOptionList() *nodes.List {
 
 			// Check for nested parens after value, e.g., ON (HISTORY_TABLE = ...)
 			if p.cur.Type == '(' {
-				nested := p.parseKeyValueOptionList()
+				nested, err := p.parseKeyValueOptionList()
+				if err != nil {
+					return nil, err
+				}
 				items = append(items, nested)
 			}
 		}
@@ -848,8 +961,10 @@ func (p *Parser) parseKeyValueOptionList() *nodes.List {
 			break
 		}
 	}
-	_, _ = p.expect(')')
-	return &nodes.List{Items: items}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.List{Items: items}, nil
 }
 
 // consumeAnyIdent consumes the current token as an identifier string,

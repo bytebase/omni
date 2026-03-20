@@ -979,7 +979,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 	switch p.cur.Type {
 	case kwTABLE:
 		p.advance() // consume TABLE
-		stmt := p.parseAlterTableStmt()
+		stmt, _ := p.parseAlterTableStmt()
 		stmt.Loc.Start = loc
 		return stmt
 	case kwCOLUMN:
@@ -1038,12 +1038,12 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			}
 		}
 		p.advance() // consume DATABASE
-		stmt := p.parseAlterDatabaseStmt()
+		stmt, _ := p.parseAlterDatabaseStmt()
 		stmt.Loc.Start = loc
 		return stmt
 	case kwINDEX:
 		p.advance() // consume INDEX
-		stmt := p.parseAlterIndexStmt()
+		stmt, _ := p.parseAlterIndexStmt()
 		stmt.Loc.Start = loc
 		return stmt
 	case kwMATERIALIZED:

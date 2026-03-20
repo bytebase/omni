@@ -941,7 +941,7 @@ func (p *Parser) parseConstraintWithOptions(cd *nodes.ConstraintDef) {
 	}
 	p.advance()
 	if p.cur.Type == '(' {
-		cd.IndexOptions = p.parseAlterIndexOptions()
+		cd.IndexOptions, _ = p.parseAlterIndexOptions()
 	} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "FILLFACTOR") {
 		p.advance()
 		if p.cur.Type == '=' {
