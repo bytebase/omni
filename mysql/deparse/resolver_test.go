@@ -1,4 +1,4 @@
-package deparse
+package deparse_test
 
 import (
 	"strings"
@@ -6,6 +6,7 @@ import (
 
 	ast "github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/mysql/catalog"
+	"github.com/bytebase/omni/mysql/deparse"
 	"github.com/bytebase/omni/mysql/parser"
 )
 
@@ -31,8 +32,8 @@ func setupCatalog(t *testing.T) *catalog.Catalog {
 }
 
 // catalogLookup creates a TableLookup function from a catalog.Catalog.
-func catalogLookup(c *catalog.Catalog) TableLookup {
-	return func(tableName string) *ResolverTable {
+func catalogLookup(c *catalog.Catalog) deparse.TableLookup {
+	return func(tableName string) *deparse.ResolverTable {
 		db := c.GetDatabase(c.CurrentDatabase())
 		if db == nil {
 			return nil
@@ -41,11 +42,11 @@ func catalogLookup(c *catalog.Catalog) TableLookup {
 		if tbl == nil {
 			return nil
 		}
-		cols := make([]ResolverColumn, len(tbl.Columns))
+		cols := make([]deparse.ResolverColumn, len(tbl.Columns))
 		for i, col := range tbl.Columns {
-			cols[i] = ResolverColumn{Name: col.Name, Position: col.Position}
+			cols[i] = deparse.ResolverColumn{Name: col.Name, Position: col.Position}
 		}
-		return &ResolverTable{Name: tbl.Name, Columns: cols}
+		return &deparse.ResolverTable{Name: tbl.Name, Columns: cols}
 	}
 }
 
@@ -65,7 +66,7 @@ func resolveAndDeparse(t *testing.T, cat *catalog.Catalog, sql string) string {
 	}
 
 	// Apply rewrites first (NOT folding, boolean context), then resolve
-	rewriteSelectStmt(sel)
+	deparse.RewriteSelectStmt(sel)
 
 	// Get the database default charset for the resolver
 	defaultCharset := ""
@@ -74,40 +75,9 @@ func resolveAndDeparse(t *testing.T, cat *catalog.Catalog, sql string) string {
 		defaultCharset = db.Charset
 	}
 
-	resolver := &Resolver{Lookup: catalogLookup(cat), DefaultCharset: defaultCharset}
+	resolver := &deparse.Resolver{Lookup: catalogLookup(cat), DefaultCharset: defaultCharset}
 	resolved := resolver.Resolve(sel)
-	return DeparseSelect(resolved)
-}
-
-// rewriteSelectStmt applies RewriteExpr to all expression positions in a SelectStmt.
-func rewriteSelectStmt(stmt *ast.SelectStmt) {
-	if stmt == nil {
-		return
-	}
-	if stmt.SetOp != ast.SetOpNone {
-		rewriteSelectStmt(stmt.Left)
-		rewriteSelectStmt(stmt.Right)
-		return
-	}
-	for i, target := range stmt.TargetList {
-		if rt, ok := target.(*ast.ResTarget); ok {
-			rt.Val = RewriteExpr(rt.Val)
-		} else {
-			stmt.TargetList[i] = RewriteExpr(target)
-		}
-	}
-	if stmt.Where != nil {
-		stmt.Where = RewriteExpr(stmt.Where)
-	}
-	for i, expr := range stmt.GroupBy {
-		stmt.GroupBy[i] = RewriteExpr(expr)
-	}
-	if stmt.Having != nil {
-		stmt.Having = RewriteExpr(stmt.Having)
-	}
-	for _, item := range stmt.OrderBy {
-		item.Expr = RewriteExpr(item.Expr)
-	}
+	return deparse.DeparseSelect(resolved)
 }
 
 func TestResolver_Section_6_1_ColumnQualification(t *testing.T) {
@@ -202,9 +172,9 @@ func TestResolver_Section_6_1_AmbiguousColumn(t *testing.T) {
 }
 
 func TestResolverTable_GetColumn(t *testing.T) {
-	rt := &ResolverTable{
+	rt := &deparse.ResolverTable{
 		Name: "t",
-		Columns: []ResolverColumn{
+		Columns: []deparse.ResolverColumn{
 			{Name: "a", Position: 1},
 			{Name: "b", Position: 2},
 		},
@@ -394,10 +364,10 @@ func TestResolver_Section_6_4_JoinNormalization(t *testing.T) {
 			TargetList: []ast.ExprNode{&ast.StarExpr{}},
 			From:       []ast.TableExpr{join},
 		}
-		rewriteSelectStmt(sel)
-		resolver := &Resolver{Lookup: catalogLookup(cat)}
+		deparse.RewriteSelectStmt(sel)
+		resolver := &deparse.Resolver{Lookup: catalogLookup(cat)}
 		resolved := resolver.Resolve(sel)
-		got := DeparseSelect(resolved)
+		got := deparse.DeparseSelect(resolved)
 		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b` from (`t1` join `t3` on(((`t1`.`a` = `t3`.`a`) and (`t1`.`b` = `t3`.`b`))))"
 		if got != expected {
 			t.Errorf("USING multi:\n  got:  %q\n  want: %q", got, expected)

@@ -226,3 +226,35 @@ func wrapBooleanContext(node ast.ExprNode) ast.ExprNode {
 		Right: node,
 	}
 }
+
+// RewriteSelectStmt applies RewriteExpr to all expression positions in a SelectStmt.
+// This should be called after resolver but before deparsing.
+func RewriteSelectStmt(stmt *ast.SelectStmt) {
+	if stmt == nil {
+		return
+	}
+	if stmt.SetOp != ast.SetOpNone {
+		RewriteSelectStmt(stmt.Left)
+		RewriteSelectStmt(stmt.Right)
+		return
+	}
+	for i, target := range stmt.TargetList {
+		if rt, ok := target.(*ast.ResTarget); ok {
+			rt.Val = RewriteExpr(rt.Val)
+		} else {
+			stmt.TargetList[i] = RewriteExpr(target)
+		}
+	}
+	if stmt.Where != nil {
+		stmt.Where = RewriteExpr(stmt.Where)
+	}
+	for i, expr := range stmt.GroupBy {
+		stmt.GroupBy[i] = RewriteExpr(expr)
+	}
+	if stmt.Having != nil {
+		stmt.Having = RewriteExpr(stmt.Having)
+	}
+	for _, item := range stmt.OrderBy {
+		item.Expr = RewriteExpr(item.Expr)
+	}
+}

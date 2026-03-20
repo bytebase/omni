@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
+	"github.com/bytebase/omni/mysql/deparse"
 )
 
 func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
@@ -29,10 +30,13 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
 		definer = "`root`@`%`"
 	}
 
+	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
+	definition := c.deparseViewSelect(stmt.Select, stmt.SelectText, db)
+
 	db.Views[key] = &View{
 		Name:        stmt.Name.Name,
 		Database:    db,
-		Definition:  stmt.SelectText,
+		Definition:  definition,
 		Algorithm:   stmt.Algorithm,
 		Definer:     definer,
 		SqlSecurity: stmt.SqlSecurity,
@@ -59,10 +63,13 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt) error {
 		definer = "`root`@`%`"
 	}
 
+	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
+	definition := c.deparseViewSelect(stmt.Select, stmt.SelectText, db)
+
 	db.Views[key] = &View{
 		Name:        stmt.Name.Name,
 		Database:    db,
-		Definition:  stmt.SelectText,
+		Definition:  definition,
 		Algorithm:   stmt.Algorithm,
 		Definer:     definer,
 		SqlSecurity: stmt.SqlSecurity,
@@ -91,6 +98,58 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 		delete(db.Views, key)
 	}
 	return nil
+}
+
+// deparseViewSelect resolves, rewrites, and deparses the SELECT AST for a view.
+// If the AST is nil (parser didn't produce one), falls back to the raw SelectText.
+func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText string, db *Database) string {
+	if sel == nil {
+		return rawText
+	}
+
+	// Build a TableLookup that resolves table names from this database.
+	lookup := tableLookupForDB(db)
+
+	// Determine the database charset for CAST resolution.
+	charset := db.Charset
+	if charset == "" {
+		charset = c.defaultCharset
+	}
+
+	// Resolve: qualify columns, expand *, normalize JOINs.
+	resolver := &deparse.Resolver{
+		Lookup:         lookup,
+		DefaultCharset: charset,
+	}
+	resolver.Resolve(sel)
+
+	// Rewrite: NOT folding, boolean context wrapping.
+	deparse.RewriteSelectStmt(sel)
+
+	// Deparse: AST → canonical SQL text.
+	return deparse.DeparseSelect(sel)
+}
+
+// tableLookupForDB returns a deparse.TableLookup function that resolves table
+// names from the given database's Tables map.
+func tableLookupForDB(db *Database) deparse.TableLookup {
+	return func(tableName string) *deparse.ResolverTable {
+		tbl := db.Tables[toLower(tableName)]
+		if tbl == nil {
+			return nil
+		}
+		cols := make([]deparse.ResolverColumn, len(tbl.Columns))
+		for i, c := range tbl.Columns {
+			cols[i] = deparse.ResolverColumn{
+				Name:     c.Name,
+				Position: c.Position,
+			}
+		}
+		return &deparse.ResolverTable{
+			Name:    tbl.Name,
+			Columns: cols,
+		}
+	}
 }
 
 // ShowCreateView produces MySQL 8.0-compatible SHOW CREATE VIEW output.

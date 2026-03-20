@@ -432,9 +432,9 @@ Depends on all previous phases. End-to-end oracle testing against MySQL 8.0.
 ### 7.1 View Creation Pipeline
 
 ```
-[ ] createView() calls resolver + deparser instead of storing raw SelectText
-[ ] View.Definition contains deparsed SQL, not raw input
-[ ] Preamble: CREATE ALGORITHM=UNDEFINED DEFINER=... SQL SECURITY DEFINER VIEW ... AS
+[x] createView() calls resolver + deparser instead of storing raw SelectText
+[x] View.Definition contains deparsed SQL, not raw input
+[x] Preamble: CREATE ALGORITHM=UNDEFINED DEFINER=... SQL SECURITY DEFINER VIEW ... AS
 ```
 
 ### 7.2 Simple Views (oracle match)
