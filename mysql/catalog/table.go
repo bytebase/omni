@@ -121,6 +121,18 @@ type TriggerOrderInfo struct {
 	TriggerName string
 }
 
+// Event represents a scheduled event in the catalog.
+type Event struct {
+	Name         string
+	Database     *Database
+	Definer      string
+	Schedule     string // raw schedule text (e.g. "EVERY 1 HOUR", "AT '2024-01-01 00:00:00'")
+	OnCompletion string // PRESERVE, NOT PRESERVE, or "" (default NOT PRESERVE)
+	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE, or "" (default ENABLE)
+	Comment      string
+	Body         string
+}
+
 func (t *Table) GetColumn(name string) *Column {
 	idx, ok := t.colByName[toLower(name)]
 	if !ok {

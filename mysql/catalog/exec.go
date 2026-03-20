@@ -112,6 +112,12 @@ func (c *Catalog) processUtility(stmt nodes.Node) error {
 		return c.createTrigger(s)
 	case *nodes.DropTriggerStmt:
 		return c.dropTrigger(s)
+	case *nodes.CreateEventStmt:
+		return c.createEvent(s)
+	case *nodes.AlterEventStmt:
+		return c.alterEvent(s)
+	case *nodes.DropEventStmt:
+		return c.dropEvent(s)
 	default:
 		return nil
 	}

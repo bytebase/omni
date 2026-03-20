@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
@@ -269,6 +271,11 @@ func (p *Parser) parseEventSchedule() (*nodes.EventSchedule, error) {
 			return nil, err
 		}
 		sched.Every = expr
+		// Consume optional interval unit (HOUR, DAY, MINUTE, SECOND, WEEK, MONTH, YEAR, QUARTER)
+		// Consume optional interval unit (HOUR, DAY, MINUTE, SECOND, WEEK, MONTH, YEAR, QUARTER)
+		if isIntervalUnitToken(p.cur) {
+			p.advance()
+		}
 
 		// Optional STARTS
 		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "starts") {
@@ -292,5 +299,22 @@ func (p *Parser) parseEventSchedule() (*nodes.EventSchedule, error) {
 	}
 
 	sched.Loc.End = p.pos()
+	sched.RawText = strings.TrimSpace(p.lexer.input[start:sched.Loc.End])
 	return sched, nil
+}
+
+// isIntervalUnitToken returns true if the token represents a MySQL interval unit keyword.
+func isIntervalUnitToken(tok Token) bool {
+	if tok.Type == kwYEAR {
+		return true
+	}
+	if tok.Type == tokIDENT {
+		switch strings.ToUpper(tok.Str) {
+		case "HOUR", "DAY", "MINUTE", "SECOND", "WEEK", "MONTH", "QUARTER",
+			"HOUR_MINUTE", "HOUR_SECOND", "DAY_HOUR", "DAY_MINUTE", "DAY_SECOND",
+			"YEAR_MONTH", "MINUTE_SECOND":
+			return true
+		}
+	}
+	return false
 }

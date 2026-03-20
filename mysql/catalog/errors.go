@@ -37,6 +37,8 @@ const (
 	ErrDupProcedure            = 1304
 	ErrNoSuchTrigger           = 1360
 	ErrDupTrigger              = 1359
+	ErrNoSuchEvent             = 1539
+	ErrDupEvent                = 1537
 )
 
 var sqlStateMap = map[int]string{
@@ -60,6 +62,8 @@ var sqlStateMap = map[int]string{
 	ErrFKIncompatibleColumns:   "HY000",
 	ErrNoSuchFunction:          "42000",
 	ErrDupFunction:             "HY000",
+	ErrNoSuchEvent:             "HY000",
+	ErrDupEvent:                "HY000",
 }
 
 func sqlState(code int) string {
@@ -172,4 +176,14 @@ func errDupTrigger(name string) error {
 func errNoSuchTrigger(db, name string) error {
 	return &Error{Code: ErrNoSuchTrigger, SQLState: sqlState(ErrNoSuchTrigger),
 		Message: fmt.Sprintf("Trigger does not exist")}
+}
+
+func errDupEvent(name string) error {
+	return &Error{Code: ErrDupEvent, SQLState: sqlState(ErrDupEvent),
+		Message: fmt.Sprintf("Event '%s' already exists", name)}
+}
+
+func errNoSuchEvent(db, name string) error {
+	return &Error{Code: ErrNoSuchEvent, SQLState: sqlState(ErrNoSuchEvent),
+		Message: fmt.Sprintf("Unknown event '%s'", name)}
 }

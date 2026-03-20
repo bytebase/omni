@@ -531,10 +531,10 @@ Every error must match MySQL's errno, SQLSTATE, and message format.
 ### 4.4 Events
 
 ```
-[ ] CREATE EVENT — store metadata
-[ ] ALTER EVENT
-[ ] DROP EVENT
-[ ] SHOW CREATE EVENT output
+[x] CREATE EVENT — store metadata
+[x] ALTER EVENT
+[x] DROP EVENT
+[x] SHOW CREATE EVENT output
 ```
 
 ### 4.5 Views — Deep

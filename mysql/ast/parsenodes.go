@@ -1516,11 +1516,12 @@ func (s *CreateEventStmt) stmtNode() {}
 
 // EventSchedule represents an event schedule.
 type EventSchedule struct {
-	Loc    Loc
-	At     ExprNode
-	Every  ExprNode
-	Starts ExprNode
-	Ends   ExprNode
+	Loc     Loc
+	At      ExprNode
+	Every   ExprNode
+	Starts  ExprNode
+	Ends    ExprNode
+	RawText string // raw schedule text from input (e.g., "EVERY 1 HOUR" or "AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR")
 }
 
 func (s *EventSchedule) nodeTag() {}

@@ -6,11 +6,12 @@ type Database struct {
 	Name       string
 	Charset    string
 	Collation  string
-	Tables     map[string]*Table // lowered name -> Table
+	Tables     map[string]*Table   // lowered name -> Table
 	Views      map[string]*View
 	Functions  map[string]*Routine // lowered name -> stored function
 	Procedures map[string]*Routine // lowered name -> stored procedure
 	Triggers   map[string]*Trigger // lowered name -> trigger
+	Events     map[string]*Event   // lowered name -> event
 }
 
 func newDatabase(name, charset, collation string) *Database {
@@ -23,6 +24,7 @@ func newDatabase(name, charset, collation string) *Database {
 		Functions:  make(map[string]*Routine),
 		Procedures: make(map[string]*Routine),
 		Triggers:   make(map[string]*Trigger),
+		Events:     make(map[string]*Event),
 	}
 }
 

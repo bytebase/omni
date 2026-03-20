@@ -156,6 +156,17 @@ func (o *mysqlOracle) showCreateTrigger(name string) (string, error) {
 	return createStmt, nil
 }
 
+// showCreateEvent runs SHOW CREATE EVENT and returns the CREATE EVENT statement.
+func (o *mysqlOracle) showCreateEvent(name string) (string, error) {
+	var eventName, sqlMode, tz, createStmt, charSetClient, collConn, dbCollation string
+	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE EVENT "+name).Scan(
+		&eventName, &sqlMode, &tz, &createStmt, &charSetClient, &collConn, &dbCollation)
+	if err != nil {
+		return "", fmt.Errorf("SHOW CREATE EVENT %s: %w", name, err)
+	}
+	return createStmt, nil
+}
+
 // queryColumns queries INFORMATION_SCHEMA.COLUMNS for the given table.
 func (o *mysqlOracle) queryColumns(database, table string) ([]columnInfo, error) {
 	rows, err := o.db.QueryContext(o.ctx, `
