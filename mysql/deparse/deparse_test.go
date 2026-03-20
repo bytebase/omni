@@ -577,6 +577,33 @@ func TestDeparse_Section_3_5_WindowFunctions(t *testing.T) {
 	}
 }
 
+func TestDeparse_Section_3_6_OperatorToFunctionRewrites(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		// REGEXP → regexp_like()
+		{"regexp", "a REGEXP 'pattern'", "regexp_like(`a`,'pattern')"},
+		// NOT REGEXP → (not(regexp_like()))
+		{"not_regexp", "a NOT REGEXP 'p'", "(not(regexp_like(`a`,'p')))"},
+		// -> → json_extract()
+		{"json_extract", "a->'$.key'", "json_extract(`a`,'$.key')"},
+		// ->> → json_unquote(json_extract())
+		{"json_unquote", "a->>'$.key'", "json_unquote(json_extract(`a`,'$.key'))"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			node := parseExpr(t, tc.input)
+			got := Deparse(node)
+			if got != tc.expected {
+				t.Errorf("Deparse(%q) = %q, want %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
 func TestDeparse_NilNode(t *testing.T) {
 	got := Deparse(nil)
 	if got != "" {

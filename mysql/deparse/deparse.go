@@ -110,6 +110,19 @@ func deparseBitLit(n *ast.BitLit) string {
 }
 
 func deparseBinaryExpr(n *ast.BinaryExpr) string {
+	// Operator-to-function rewrites:
+	// REGEXP → regexp_like(left, right)
+	// -> → json_extract(left, right)
+	// ->> → json_unquote(json_extract(left, right))
+	switch n.Op {
+	case ast.BinOpRegexp:
+		return "regexp_like(" + deparseExpr(n.Left) + "," + deparseExpr(n.Right) + ")"
+	case ast.BinOpJsonExtract:
+		return "json_extract(" + deparseExpr(n.Left) + "," + deparseExpr(n.Right) + ")"
+	case ast.BinOpJsonUnquote:
+		return "json_unquote(json_extract(" + deparseExpr(n.Left) + "," + deparseExpr(n.Right) + "))"
+	}
+
 	left := n.Left
 	right := n.Right
 	// MySQL normalizes INTERVAL + expr to expr + INTERVAL (interval on the right)
@@ -191,6 +204,8 @@ func deparseUnaryExpr(n *ast.UnaryExpr) string {
 	case ast.UnaryPlus:
 		// MySQL drops unary plus entirely
 		return operand
+	case ast.UnaryNot:
+		return "(not(" + operand + "))"
 	case ast.UnaryBitNot:
 		return "~" + operand
 	default:

@@ -218,10 +218,10 @@ Prerequisite: AST may need a dedicated Separator field on FuncCallExpr or a Grou
 ### 3.6 Operator-to-Function Rewrites
 
 ```
-[ ] REGEXP → regexp_like(): `a REGEXP 'pattern'` → `regexp_like(`a`,'pattern')`
-[ ] NOT REGEXP: `a NOT REGEXP 'p'` → `(not(regexp_like(`a`,'p')))`
-[ ] -> → json_extract(): `a->'$.key'` → `json_extract(`a`,'$.key')`
-[ ] ->> → json_unquote(json_extract()): `a->>'$.key'` → `json_unquote(json_extract(`a`,'$.key'))`
+[x] REGEXP → regexp_like(): `a REGEXP 'pattern'` → `regexp_like(`a`,'pattern')`
+[x] NOT REGEXP: `a NOT REGEXP 'p'` → `(not(regexp_like(`a`,'p')))`
+[x] -> → json_extract(): `a->'$.key'` → `json_extract(`a`,'$.key')`
+[x] ->> → json_unquote(json_extract()): `a->>'$.key'` → `json_unquote(json_extract(`a`,'$.key'))`
 ```
 
 ## Phase 4: AST Rewrites (No Schema Required)
