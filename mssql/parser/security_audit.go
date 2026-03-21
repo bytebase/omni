@@ -44,7 +44,7 @@ import (
 //
 //	<predicate_factor> ::=
 //	    event_field_name { = | <> | != | > | >= | < | <= | LIKE } { number | 'string' }
-func (p *Parser) parseCreateServerAuditStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateServerAuditStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// SERVER AUDIT keywords already consumed by caller
 
@@ -64,7 +64,7 @@ func (p *Parser) parseCreateServerAuditStmt() *nodes.SecurityStmt {
 	stmt.Options, stmt.WhereClause = p.parseAuditOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterServerAuditStmt parses ALTER SERVER AUDIT.
@@ -88,7 +88,7 @@ func (p *Parser) parseCreateServerAuditStmt() *nodes.SecurityStmt {
 //	    [, STATE = { ON | OFF } ]
 //	    [, OPERATOR_AUDIT = { ON | OFF } ]
 //	}
-func (p *Parser) parseAlterServerAuditStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterServerAuditStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// SERVER AUDIT keywords already consumed by caller
 
@@ -107,7 +107,7 @@ func (p *Parser) parseAlterServerAuditStmt() *nodes.SecurityStmt {
 	stmt.Options, stmt.WhereClause = p.parseAuditOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropServerAuditStmt parses DROP SERVER AUDIT.
@@ -115,7 +115,7 @@ func (p *Parser) parseAlterServerAuditStmt() *nodes.SecurityStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-server-audit-transact-sql
 //
 //	DROP SERVER AUDIT audit_name
-func (p *Parser) parseDropServerAuditStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropServerAuditStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// SERVER AUDIT keywords already consumed by caller
 
@@ -131,7 +131,7 @@ func (p *Parser) parseDropServerAuditStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateServerAuditSpecStmt parses CREATE SERVER AUDIT SPECIFICATION.
@@ -142,7 +142,7 @@ func (p *Parser) parseDropServerAuditStmt() *nodes.SecurityStmt {
 //	    FOR SERVER AUDIT audit_name
 //	    { { ADD ( audit_action_group_name ) } [,...n] }
 //	    [ WITH ( STATE = { ON | OFF } ) ]
-func (p *Parser) parseCreateServerAuditSpecStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateServerAuditSpecStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// SPECIFICATION keyword already consumed by caller
 
@@ -160,7 +160,7 @@ func (p *Parser) parseCreateServerAuditSpecStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseAuditSpecOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterServerAuditSpecStmt parses ALTER SERVER AUDIT SPECIFICATION.
@@ -172,7 +172,7 @@ func (p *Parser) parseCreateServerAuditSpecStmt() *nodes.SecurityStmt {
 //	    { { ADD ( audit_action_group_name ) }
 //	      | { DROP ( audit_action_group_name ) } } [,...n]
 //	    [ WITH ( STATE = { ON | OFF } ) ]
-func (p *Parser) parseAlterServerAuditSpecStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterServerAuditSpecStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.SecurityStmt{
@@ -189,13 +189,13 @@ func (p *Parser) parseAlterServerAuditSpecStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseAuditSpecOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropServerAuditSpecStmt parses DROP SERVER AUDIT SPECIFICATION.
 //
 //	DROP SERVER AUDIT SPECIFICATION audit_specification_name
-func (p *Parser) parseDropServerAuditSpecStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropServerAuditSpecStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.SecurityStmt{
@@ -210,7 +210,7 @@ func (p *Parser) parseDropServerAuditSpecStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateDatabaseAuditSpecStmt parses CREATE DATABASE AUDIT SPECIFICATION.
@@ -225,7 +225,7 @@ func (p *Parser) parseDropServerAuditSpecStmt() *nodes.SecurityStmt {
 //
 //	<audit_action_specification> ::=
 //	    action [ ,...n ] ON [ class :: ] securable BY principal [ ,...n ]
-func (p *Parser) parseCreateDatabaseAuditSpecStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateDatabaseAuditSpecStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// SPECIFICATION keyword already consumed by caller
 
@@ -243,7 +243,7 @@ func (p *Parser) parseCreateDatabaseAuditSpecStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseAuditSpecOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterDatabaseAuditSpecStmt parses ALTER DATABASE AUDIT SPECIFICATION.
@@ -252,7 +252,7 @@ func (p *Parser) parseCreateDatabaseAuditSpecStmt() *nodes.SecurityStmt {
 //	    FOR SERVER AUDIT audit_name
 //	    { { ADD | DROP } ( { <audit_action_specification> | audit_action_group_name } ) } [,...n]
 //	    [ WITH ( STATE = { ON | OFF } ) ]
-func (p *Parser) parseAlterDatabaseAuditSpecStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterDatabaseAuditSpecStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.SecurityStmt{
@@ -269,13 +269,13 @@ func (p *Parser) parseAlterDatabaseAuditSpecStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseAuditSpecOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropDatabaseAuditSpecStmt parses DROP DATABASE AUDIT SPECIFICATION.
 //
 //	DROP DATABASE AUDIT SPECIFICATION audit_specification_name
-func (p *Parser) parseDropDatabaseAuditSpecStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropDatabaseAuditSpecStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.SecurityStmt{
@@ -290,7 +290,7 @@ func (p *Parser) parseDropDatabaseAuditSpecStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAuditOptions parses the TO/WITH/WHERE portions of a SERVER AUDIT statement.

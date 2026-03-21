@@ -160,7 +160,7 @@ import (
 // BNF: mssql/parser/bnf/drop-master-key-transact-sql.bnf
 //
 //	DROP MASTER KEY
-func (p *Parser) parseSecurityKeyStmt(action string) *nodes.SecurityKeyStmt {
+func (p *Parser) parseSecurityKeyStmt(action string) (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityKeyStmt{
 		Action: action,
@@ -201,7 +201,7 @@ func (p *Parser) parseSecurityKeyStmt(action string) *nodes.SecurityKeyStmt {
 		stmt.Name = name
 	default:
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// Dispatch to type-specific option parsers
@@ -215,7 +215,7 @@ func (p *Parser) parseSecurityKeyStmt(action string) *nodes.SecurityKeyStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterSymmetricKeyOptions parses ALTER SYMMETRIC KEY options.
@@ -410,7 +410,7 @@ func (p *Parser) parseEncryptingMechanism() string {
 //
 // DROP COLUMN ENCRYPTION KEY key_name
 // DROP COLUMN MASTER KEY key_name
-func (p *Parser) parseSecurityKeyStmtColumn(action string) *nodes.SecurityKeyStmt {
+func (p *Parser) parseSecurityKeyStmtColumn(action string) (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityKeyStmt{
 		Action: action,
@@ -426,7 +426,7 @@ func (p *Parser) parseSecurityKeyStmtColumn(action string) *nodes.SecurityKeyStm
 		stmt.ObjectType = "COLUMN MASTER KEY"
 	} else {
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// Parse key name
@@ -465,7 +465,7 @@ func (p *Parser) parseSecurityKeyStmtColumn(action string) *nodes.SecurityKeyStm
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseSecurityKeyStmtDatabaseEncryption parses CREATE/ALTER/DROP DATABASE ENCRYPTION KEY
@@ -502,7 +502,7 @@ func (p *Parser) parseSecurityKeyStmtColumn(action string) *nodes.SecurityKeyStm
 //	    [ , SECRET = 'secret' ]
 //
 //	DROP DATABASE SCOPED CREDENTIAL credential_name
-func (p *Parser) parseSecurityKeyStmtDatabaseEncryption(action string) *nodes.SecurityKeyStmt {
+func (p *Parser) parseSecurityKeyStmtDatabaseEncryption(action string) (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityKeyStmt{
 		Action: action,
@@ -522,14 +522,14 @@ func (p *Parser) parseSecurityKeyStmtDatabaseEncryption(action string) *nodes.Se
 		stmt.Name = name
 	} else {
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// Consume remaining tokens as options
 	p.parseSecurityKeyOptions(stmt)
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseOpenSymmetricKeyStmt parses OPEN SYMMETRIC KEY statements.
@@ -542,7 +542,7 @@ func (p *Parser) parseSecurityKeyStmtDatabaseEncryption(action string) *nodes.Se
 //	    | ASYMMETRIC KEY asym_key_name [ WITH PASSWORD = 'password' ]
 //	    | SYMMETRIC KEY decrypting_Key_name
 //	    | PASSWORD = 'decryption_password'
-func (p *Parser) parseOpenSymmetricKeyStmt() *nodes.SecurityKeyStmt {
+func (p *Parser) parseOpenSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	p.advance() // consume OPEN
 	stmt := &nodes.SecurityKeyStmt{
@@ -561,7 +561,7 @@ func (p *Parser) parseOpenSymmetricKeyStmt() *nodes.SecurityKeyStmt {
 	p.parseSecurityKeyOptions(stmt)
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCloseSymmetricKeyStmt parses CLOSE SYMMETRIC KEY or CLOSE ALL SYMMETRIC KEYS.
@@ -569,7 +569,7 @@ func (p *Parser) parseOpenSymmetricKeyStmt() *nodes.SecurityKeyStmt {
 // BNF: mssql/parser/bnf/close-symmetric-key-transact-sql.bnf
 //
 //	CLOSE { SYMMETRIC KEY key_name | ALL SYMMETRIC KEYS }
-func (p *Parser) parseCloseSymmetricKeyStmt() *nodes.SecurityKeyStmt {
+func (p *Parser) parseCloseSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	p.advance() // consume CLOSE
 	stmt := &nodes.SecurityKeyStmt{
@@ -590,7 +590,7 @@ func (p *Parser) parseCloseSymmetricKeyStmt() *nodes.SecurityKeyStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseBackupCertificateStmt parses BACKUP CERTIFICATE|MASTER KEY|SYMMETRIC KEY statements.
@@ -615,7 +615,7 @@ func (p *Parser) parseCloseSymmetricKeyStmt() *nodes.SecurityKeyStmt {
 //
 //	BACKUP SYMMETRIC KEY key_name TO { FILE = 'path' | URL = 'url' }
 //	    ENCRYPTION BY PASSWORD = 'password'
-func (p *Parser) parseBackupCertificateStmt() *nodes.SecurityKeyStmt {
+func (p *Parser) parseBackupCertificateStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	p.advance() // consume BACKUP
 	stmt := &nodes.SecurityKeyStmt{
@@ -640,11 +640,11 @@ func (p *Parser) parseBackupCertificateStmt() *nodes.SecurityKeyStmt {
 	p.parseSecurityKeyOptions(stmt)
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseOpenMasterKeyStmt parses OPEN MASTER KEY DECRYPTION BY PASSWORD = 'password'.
-func (p *Parser) parseOpenMasterKeyStmt() *nodes.SecurityKeyStmt {
+func (p *Parser) parseOpenMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	p.advance() // consume OPEN
 	stmt := &nodes.SecurityKeyStmt{
@@ -660,11 +660,11 @@ func (p *Parser) parseOpenMasterKeyStmt() *nodes.SecurityKeyStmt {
 
 	p.parseSecurityKeyOptions(stmt)
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCloseMasterKeyStmt parses CLOSE MASTER KEY.
-func (p *Parser) parseCloseMasterKeyStmt() *nodes.SecurityKeyStmt {
+func (p *Parser) parseCloseMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	p.advance() // consume CLOSE
 	stmt := &nodes.SecurityKeyStmt{
@@ -679,7 +679,7 @@ func (p *Parser) parseCloseMasterKeyStmt() *nodes.SecurityKeyStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseRestoreMasterKeyStmt parses RESTORE MASTER KEY FROM FILE = 'path' ...
@@ -690,7 +690,7 @@ func (p *Parser) parseCloseMasterKeyStmt() *nodes.SecurityKeyStmt {
 //	    DECRYPTION BY PASSWORD = 'password'
 //	    ENCRYPTION BY PASSWORD = 'password'
 //	    [ FORCE ]
-func (p *Parser) parseRestoreMasterKeyStmt() *nodes.SecurityKeyStmt {
+func (p *Parser) parseRestoreMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RESTORE
 	stmt := &nodes.SecurityKeyStmt{
@@ -706,7 +706,7 @@ func (p *Parser) parseRestoreMasterKeyStmt() *nodes.SecurityKeyStmt {
 
 	p.parseSecurityKeyOptions(stmt)
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseRestoreSymmetricKeyStmt parses RESTORE SYMMETRIC KEY key_name FROM { FILE | URL } = '...' ...
@@ -720,7 +720,7 @@ func (p *Parser) parseRestoreMasterKeyStmt() *nodes.SecurityKeyStmt {
 //	  }
 //	      DECRYPTION BY PASSWORD = 'password'
 //	      ENCRYPTION BY PASSWORD = 'password'
-func (p *Parser) parseRestoreSymmetricKeyStmt() *nodes.SecurityKeyStmt {
+func (p *Parser) parseRestoreSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RESTORE
 	stmt := &nodes.SecurityKeyStmt{
@@ -740,7 +740,7 @@ func (p *Parser) parseRestoreSymmetricKeyStmt() *nodes.SecurityKeyStmt {
 
 	p.parseSecurityKeyOptions(stmt)
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseSecurityKeyOptions consumes remaining tokens until a statement boundary,

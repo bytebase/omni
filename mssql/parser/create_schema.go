@@ -45,11 +45,11 @@ func (p *Parser) parseCreateSchemaStmt() (*nodes.CreateSchemaStmt, error) {
 		case kwCREATE:
 			elem = p.parseCreateStmt()
 		case kwGRANT:
-			elem = p.parseGrantStmt()
+			elem, _ = p.parseGrantStmt()
 		case kwREVOKE:
-			elem = p.parseRevokeStmt()
+			elem, _ = p.parseRevokeStmt()
 		case kwDENY:
-			elem = p.parseDenyStmt()
+			elem, _ = p.parseDenyStmt()
 		}
 		if elem == nil {
 			break
