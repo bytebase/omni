@@ -21,7 +21,7 @@ import (
 //	    [ [ , ] RESOURCE_MANAGER_LOCATION = '<resource_manager>[:<port>]' ]
 //	  )
 //	[ ; ]
-func (p *Parser) parseCreateExternalDataSourceStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateExternalDataSourceStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// EXTERNAL DATA SOURCE already consumed by caller
 
@@ -41,7 +41,7 @@ func (p *Parser) parseCreateExternalDataSourceStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseExternalWithOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterExternalDataSourceStmt parses ALTER EXTERNAL DATA SOURCE.
@@ -55,7 +55,7 @@ func (p *Parser) parseCreateExternalDataSourceStmt() *nodes.SecurityStmt {
 //	        CREDENTIAL = credential_name
 //	    }
 //	[ ; ]
-func (p *Parser) parseAlterExternalDataSourceStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterExternalDataSourceStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// EXTERNAL DATA SOURCE already consumed by caller
 
@@ -79,7 +79,7 @@ func (p *Parser) parseAlterExternalDataSourceStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseExternalSetOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropExternalStmt parses DROP EXTERNAL { DATA SOURCE | TABLE | FILE FORMAT }.
@@ -89,7 +89,7 @@ func (p *Parser) parseAlterExternalDataSourceStmt() *nodes.SecurityStmt {
 //	DROP EXTERNAL DATA SOURCE external_data_source_name
 //	DROP EXTERNAL TABLE [ database_name . [ schema_name ] . | schema_name . ] table_name
 //	DROP EXTERNAL FILE FORMAT external_file_format_name
-func (p *Parser) parseDropExternalStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropExternalStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// EXTERNAL already consumed by caller
 
@@ -164,7 +164,7 @@ func (p *Parser) parseDropExternalStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateExternalTableStmt parses CREATE EXTERNAL TABLE.
@@ -197,7 +197,7 @@ func (p *Parser) parseDropExternalStmt() *nodes.SecurityStmt {
 //	    | REJECT_SAMPLE_VALUE = reject_sample_value
 //	    | REJECTED_ROW_LOCATION = '/REJECT_Directory'
 //	}
-func (p *Parser) parseCreateExternalTableStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateExternalTableStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// EXTERNAL TABLE already consumed by caller
 
@@ -251,17 +251,17 @@ func (p *Parser) parseCreateExternalTableStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateExternalTableOrCETAS dispatches between CREATE EXTERNAL TABLE and CETAS.
 // If the statement has AS <select_statement> after the WITH clause, it's CETAS.
-func (p *Parser) parseCreateExternalTableOrCETAS(createLoc int) nodes.StmtNode {
-	cetasStmt := p.parseCreateExternalTableAsSelectStmt()
+func (p *Parser) parseCreateExternalTableOrCETAS(createLoc int) (nodes.StmtNode, error) {
+	cetasStmt, _ := p.parseCreateExternalTableAsSelectStmt()
 	// If it parsed a query, it's CETAS
 	if cetasStmt.Query != nil {
 		cetasStmt.Loc.Start = createLoc
-		return cetasStmt
+		return cetasStmt, nil
 	}
 	// Otherwise, convert to regular SecurityStmt for backward compat
 	secStmt := &nodes.SecurityStmt{
@@ -291,7 +291,7 @@ func (p *Parser) parseCreateExternalTableOrCETAS(createLoc int) nodes.StmtNode {
 			secStmt.Options = &nodes.List{Items: opts}
 		}
 	}
-	return secStmt
+	return secStmt, nil
 }
 
 // parseCreateExternalFileFormatStmt parses CREATE EXTERNAL FILE FORMAT.
@@ -317,7 +317,7 @@ func (p *Parser) parseCreateExternalTableOrCETAS(createLoc int) nodes.StmtNode {
 //	    | ENCODING = { 'UTF8' | 'UTF16' }
 //	    | PARSER_VERSION = 'parser_version'
 //	}
-func (p *Parser) parseCreateExternalFileFormatStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateExternalFileFormatStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// EXTERNAL FILE FORMAT already consumed by caller
 
@@ -337,7 +337,7 @@ func (p *Parser) parseCreateExternalFileFormatStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseExternalWithOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateExternalLibraryStmt parses CREATE EXTERNAL LIBRARY.
@@ -361,7 +361,7 @@ func (p *Parser) parseCreateExternalFileFormatStmt() *nodes.SecurityStmt {
 //	<library_bits> :: = { varbinary_literal | varbinary_expression }
 //	<platform> :: = { WINDOWS | LINUX }
 //	<language> :: = { 'R' | 'Python' | <external_language> }
-func (p *Parser) parseCreateExternalLibraryStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "CREATE",
@@ -405,7 +405,7 @@ func (p *Parser) parseCreateExternalLibraryStmt() *nodes.SecurityStmt {
 		stmt.Options = &nodes.List{Items: allOpts}
 	}
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterExternalLibraryStmt parses ALTER EXTERNAL LIBRARY.
@@ -429,7 +429,7 @@ func (p *Parser) parseCreateExternalLibraryStmt() *nodes.SecurityStmt {
 //	<library_bits> :: = { varbinary_literal | varbinary_expression }
 //	<platform> :: = { WINDOWS | LINUX }
 //	<language> :: = { 'R' | 'Python' | <external_language> }
-func (p *Parser) parseAlterExternalLibraryStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "ALTER",
@@ -469,7 +469,7 @@ func (p *Parser) parseAlterExternalLibraryStmt() *nodes.SecurityStmt {
 		stmt.Options = &nodes.List{Items: allOpts}
 	}
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateExternalLanguageStmt parses CREATE EXTERNAL LANGUAGE.
@@ -495,7 +495,7 @@ func (p *Parser) parseAlterExternalLibraryStmt() *nodes.SecurityStmt {
 //	<content_bits> :: = { varbinary_literal | varbinary_expression }
 //	<external_lang_file_name> :: = 'extension_file_name'
 //	<platform> :: = { WINDOWS | LINUX }
-func (p *Parser) parseCreateExternalLanguageStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateExternalLanguageStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "CREATE",
@@ -536,7 +536,7 @@ func (p *Parser) parseCreateExternalLanguageStmt() *nodes.SecurityStmt {
 		stmt.Options = &nodes.List{Items: fileSpecOpts}
 	}
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterExternalLanguageStmt parses ALTER EXTERNAL LANGUAGE.
@@ -563,7 +563,7 @@ func (p *Parser) parseCreateExternalLanguageStmt() *nodes.SecurityStmt {
 //	}
 //
 //	<platform> :: = { WINDOWS | LINUX }
-func (p *Parser) parseAlterExternalLanguageStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterExternalLanguageStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "ALTER",
@@ -606,7 +606,7 @@ func (p *Parser) parseAlterExternalLanguageStmt() *nodes.SecurityStmt {
 		stmt.Options = &nodes.List{Items: fileSpecOpts}
 	}
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropExternalLibraryStmt parses DROP EXTERNAL LIBRARY.
@@ -617,7 +617,7 @@ func (p *Parser) parseAlterExternalLanguageStmt() *nodes.SecurityStmt {
 //	DROP EXTERNAL LIBRARY library_name
 //	[ AUTHORIZATION owner_name ]
 //	[ ; ]
-func (p *Parser) parseDropExternalLibraryStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "DROP",
@@ -639,7 +639,7 @@ func (p *Parser) parseDropExternalLibraryStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropExternalLanguageStmt parses DROP EXTERNAL LANGUAGE.
@@ -649,7 +649,7 @@ func (p *Parser) parseDropExternalLibraryStmt() *nodes.SecurityStmt {
 //
 //	DROP EXTERNAL LANGUAGE language_name
 //	[ ; ]
-func (p *Parser) parseDropExternalLanguageStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropExternalLanguageStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "DROP",
@@ -663,7 +663,7 @@ func (p *Parser) parseDropExternalLanguageStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseExternalSetOptions parses SET key = value [, key = value ...] (no parentheses).
@@ -825,7 +825,7 @@ func (p *Parser) parseExternalOptionValue() string {
 //	    [ , LOCAL_RUNTIME_PATH = 'path to the ONNX Runtime files' ]
 //	  )
 //	[ ; ]
-func (p *Parser) parseCreateExternalModelStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateExternalModelStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "CREATE",
@@ -851,7 +851,7 @@ func (p *Parser) parseCreateExternalModelStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseExternalWithOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterExternalModelStmt parses ALTER EXTERNAL MODEL.
@@ -869,7 +869,7 @@ func (p *Parser) parseCreateExternalModelStmt() *nodes.SecurityStmt {
 //	    [ , PARAMETERS = '{"valid":"JSON"}' ]
 //	  )
 //	[ ; ]
-func (p *Parser) parseAlterExternalModelStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterExternalModelStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "ALTER",
@@ -918,7 +918,7 @@ func (p *Parser) parseAlterExternalModelStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropExternalModelStmt parses DROP EXTERNAL MODEL.
@@ -928,7 +928,7 @@ func (p *Parser) parseAlterExternalModelStmt() *nodes.SecurityStmt {
 //
 //	DROP EXTERNAL MODEL external_model_object_name
 //	[ ; ]
-func (p *Parser) parseDropExternalModelStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropExternalModelStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "DROP",
@@ -943,7 +943,7 @@ func (p *Parser) parseDropExternalModelStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateExternalStreamStmt parses CREATE EXTERNAL STREAM.
@@ -960,7 +960,7 @@ func (p *Parser) parseDropExternalModelStmt() *nodes.SecurityStmt {
 //	        [ FILE_FORMAT = file_format_name ]
 //	    )
 //	[ ; ]
-func (p *Parser) parseCreateExternalStreamStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateExternalStreamStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "CREATE",
@@ -978,7 +978,7 @@ func (p *Parser) parseCreateExternalStreamStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseExternalWithOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateExternalStreamingJobStmt parses CREATE EXTERNAL STREAMING JOB.
@@ -988,7 +988,7 @@ func (p *Parser) parseCreateExternalStreamStmt() *nodes.SecurityStmt {
 //	    WITH ( options )
 //	    AS query_string
 //	[ ; ]
-func (p *Parser) parseCreateExternalStreamingJobStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateExternalStreamingJobStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "CREATE",
@@ -1015,7 +1015,7 @@ func (p *Parser) parseCreateExternalStreamingJobStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseExternalFileSpec parses a parenthesized list of key = value options.

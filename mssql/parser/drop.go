@@ -57,7 +57,7 @@ import (
 //	            | filestream_filegroup_name
 //	            | "default" } ]
 //	}
-func (p *Parser) parseDropStmt() *nodes.DropStmt {
+func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 	loc := p.pos()
 	p.advance() // consume DROP
 
@@ -248,5 +248,5 @@ func (p *Parser) parseDropStmt() *nodes.DropStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }

@@ -10,7 +10,7 @@ import (
 // BNF: mssql/parser/bnf/create-xml-schema-collection-transact-sql.bnf
 //
 //	CREATE XML SCHEMA COLLECTION [ <relational_schema>. ] sql_identifier AS Expression
-func (p *Parser) parseCreateXmlSchemaCollectionStmt() *nodes.CreateXmlSchemaCollectionStmt {
+func (p *Parser) parseCreateXmlSchemaCollectionStmt() (*nodes.CreateXmlSchemaCollectionStmt, error) {
 	loc := p.pos()
 	// COLLECTION keyword already consumed by caller
 
@@ -28,7 +28,7 @@ func (p *Parser) parseCreateXmlSchemaCollectionStmt() *nodes.CreateXmlSchemaColl
 	stmt.XmlSchemaNamespaces, _ = p.parseExpr()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterXmlSchemaCollectionStmt parses an ALTER XML SCHEMA COLLECTION statement.
@@ -36,7 +36,7 @@ func (p *Parser) parseCreateXmlSchemaCollectionStmt() *nodes.CreateXmlSchemaColl
 // BNF: mssql/parser/bnf/alter-xml-schema-collection-transact-sql.bnf
 //
 //	ALTER XML SCHEMA COLLECTION [ relational_schema. ] sql_identifier ADD 'Schema Component'
-func (p *Parser) parseAlterXmlSchemaCollectionStmt() *nodes.AlterXmlSchemaCollectionStmt {
+func (p *Parser) parseAlterXmlSchemaCollectionStmt() (*nodes.AlterXmlSchemaCollectionStmt, error) {
 	loc := p.pos()
 	// COLLECTION keyword already consumed by caller
 
@@ -53,5 +53,5 @@ func (p *Parser) parseAlterXmlSchemaCollectionStmt() *nodes.AlterXmlSchemaCollec
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }

@@ -14,7 +14,7 @@ import (
 //	CREATE PARTITION FUNCTION partition_function_name ( input_parameter_type )
 //	AS RANGE [ LEFT | RIGHT ]
 //	FOR VALUES ( [ boundary_value [ ,...n ] ] )
-func (p *Parser) parseCreatePartitionFunctionStmt() *nodes.CreatePartitionFunctionStmt {
+func (p *Parser) parseCreatePartitionFunctionStmt() (*nodes.CreatePartitionFunctionStmt, error) {
 	loc := p.pos()
 	// FUNCTION keyword already consumed by caller
 
@@ -73,7 +73,7 @@ func (p *Parser) parseCreatePartitionFunctionStmt() *nodes.CreatePartitionFuncti
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterPartitionFunctionStmt parses an ALTER PARTITION FUNCTION statement.
@@ -82,7 +82,7 @@ func (p *Parser) parseCreatePartitionFunctionStmt() *nodes.CreatePartitionFuncti
 //
 //	ALTER PARTITION FUNCTION partition_function_name ()
 //	{ SPLIT | MERGE } RANGE ( boundary_value )
-func (p *Parser) parseAlterPartitionFunctionStmt() *nodes.AlterPartitionFunctionStmt {
+func (p *Parser) parseAlterPartitionFunctionStmt() (*nodes.AlterPartitionFunctionStmt, error) {
 	loc := p.pos()
 	// FUNCTION keyword already consumed by caller
 
@@ -119,7 +119,7 @@ func (p *Parser) parseAlterPartitionFunctionStmt() *nodes.AlterPartitionFunction
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreatePartitionSchemeStmt parses a CREATE PARTITION SCHEME statement.
@@ -129,7 +129,7 @@ func (p *Parser) parseAlterPartitionFunctionStmt() *nodes.AlterPartitionFunction
 //	CREATE PARTITION SCHEME partition_scheme_name
 //	AS PARTITION partition_function_name
 //	[ ALL ] TO ( { file_group_name | [ PRIMARY ] } [ ,...n ] )
-func (p *Parser) parseCreatePartitionSchemeStmt() *nodes.CreatePartitionSchemeStmt {
+func (p *Parser) parseCreatePartitionSchemeStmt() (*nodes.CreatePartitionSchemeStmt, error) {
 	loc := p.pos()
 	// SCHEME keyword already consumed by caller
 
@@ -188,7 +188,7 @@ func (p *Parser) parseCreatePartitionSchemeStmt() *nodes.CreatePartitionSchemeSt
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterPartitionSchemeStmt parses an ALTER PARTITION SCHEME statement.
@@ -197,7 +197,7 @@ func (p *Parser) parseCreatePartitionSchemeStmt() *nodes.CreatePartitionSchemeSt
 //
 //	ALTER PARTITION SCHEME partition_scheme_name
 //	NEXT USED [ filegroup_name ]
-func (p *Parser) parseAlterPartitionSchemeStmt() *nodes.AlterPartitionSchemeStmt {
+func (p *Parser) parseAlterPartitionSchemeStmt() (*nodes.AlterPartitionSchemeStmt, error) {
 	loc := p.pos()
 	// SCHEME keyword already consumed by caller
 
@@ -224,5 +224,5 @@ func (p *Parser) parseAlterPartitionSchemeStmt() *nodes.AlterPartitionSchemeStmt
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }

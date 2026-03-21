@@ -9,7 +9,7 @@ import (
 
 // parseRowsetFunction parses OPENROWSET, OPENQUERY, OPENJSON, OPENDATASOURCE, OPENXML
 // as table sources. These are treated as FuncCallExpr nodes with keyword names.
-func (p *Parser) parseRowsetFunction() nodes.TableExpr {
+func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 	loc := p.pos()
 	funcName := p.cur.Str
 	p.advance() // consume the keyword
@@ -42,7 +42,7 @@ func (p *Parser) parseRowsetFunction() nodes.TableExpr {
 			if next.Type == '(' {
 				p.advance() // consume WITH
 				p.advance() // consume (
-				withClause = p.parseRowsetWithClause()
+				withClause, _ = p.parseRowsetWithClause()
 			}
 		}
 
@@ -54,7 +54,7 @@ func (p *Parser) parseRowsetFunction() nodes.TableExpr {
 			Loc:   nodes.Loc{Start: loc},
 		}
 		_ = withClause // WITH clause columns are consumed but not stored in AST for now
-		return result
+		return result, nil
 	}
 
 	// Shouldn't happen but handle gracefully
@@ -64,12 +64,12 @@ func (p *Parser) parseRowsetFunction() nodes.TableExpr {
 			Loc:  nodes.Loc{Start: loc},
 		},
 		Loc: nodes.Loc{Start: loc},
-	}
+	}, nil
 }
 
 // parseRowsetWithClause parses the WITH (...) column definitions for OPENJSON/OPENXML.
 // The opening '(' has already been consumed.
-func (p *Parser) parseRowsetWithClause() *nodes.List {
+func (p *Parser) parseRowsetWithClause() (*nodes.List, error) {
 	var cols []nodes.Node
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
 		// column_name data_type [path]
@@ -93,5 +93,5 @@ func (p *Parser) parseRowsetWithClause() *nodes.List {
 		}
 	}
 	_, _ = p.expect(')')
-	return &nodes.List{Items: cols}
+	return &nodes.List{Items: cols}, nil
 }

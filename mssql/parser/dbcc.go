@@ -14,7 +14,7 @@ import (
 //	DBCC command_name
 //	    [ ( argument [ , ...n ] ) ]
 //	    [ WITH option [ , ...n ] ]
-func (p *Parser) parseDbccStmt() *nodes.DbccStmt {
+func (p *Parser) parseDbccStmt() (*nodes.DbccStmt, error) {
 	loc := p.pos()
 	p.advance() // consume DBCC
 
@@ -80,5 +80,5 @@ func (p *Parser) parseDbccStmt() *nodes.DbccStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
