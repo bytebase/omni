@@ -11,7 +11,7 @@ import (
 // parseUseStmt parses a USE database statement.
 //
 //	USE database
-func (p *Parser) parseUseStmt() *nodes.UseStmt {
+func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 	loc := p.pos()
 	p.advance() // consume USE
 
@@ -25,7 +25,7 @@ func (p *Parser) parseUseStmt() *nodes.UseStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parsePrintStmt parses a PRINT statement.
@@ -33,7 +33,7 @@ func (p *Parser) parseUseStmt() *nodes.UseStmt {
 // BNF: mssql/parser/bnf/print-transact-sql.bnf
 //
 //	PRINT msg_str | @local_variable | string_expr
-func (p *Parser) parsePrintStmt() *nodes.PrintStmt {
+func (p *Parser) parsePrintStmt() (*nodes.PrintStmt, error) {
 	loc := p.pos()
 	p.advance() // consume PRINT
 
@@ -44,7 +44,7 @@ func (p *Parser) parsePrintStmt() *nodes.PrintStmt {
 	stmt.Expr, _ = p.parseExpr()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseRaiseErrorStmt parses a RAISERROR statement.
@@ -55,7 +55,7 @@ func (p *Parser) parsePrintStmt() *nodes.PrintStmt {
 //	    { , severity , state }
 //	    [ , argument [ , ...n ] ] )
 //	    [ WITH option [ , ...n ] ]
-func (p *Parser) parseRaiseErrorStmt() *nodes.RaiseErrorStmt {
+func (p *Parser) parseRaiseErrorStmt() (*nodes.RaiseErrorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RAISERROR
 
@@ -115,7 +115,7 @@ func (p *Parser) parseRaiseErrorStmt() *nodes.RaiseErrorStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseThrowStmt parses a THROW statement.
@@ -126,7 +126,7 @@ func (p *Parser) parseRaiseErrorStmt() *nodes.RaiseErrorStmt {
 //	    , { message | @local_variable }
 //	    , { state | @local_variable } ]
 //	[ ; ]
-func (p *Parser) parseThrowStmt() *nodes.ThrowStmt {
+func (p *Parser) parseThrowStmt() (*nodes.ThrowStmt, error) {
 	loc := p.pos()
 	p.advance() // consume THROW
 
@@ -138,7 +138,7 @@ func (p *Parser) parseThrowStmt() *nodes.ThrowStmt {
 	if p.cur.Type == ';' || p.cur.Type == tokEOF || p.cur.Type == kwEND ||
 		p.isStatementStart() {
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// Error number
@@ -155,7 +155,7 @@ func (p *Parser) parseThrowStmt() *nodes.ThrowStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCheckpointStmt parses a CHECKPOINT statement.
@@ -163,7 +163,7 @@ func (p *Parser) parseThrowStmt() *nodes.ThrowStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/checkpoint-transact-sql
 //
 //	CHECKPOINT [ checkpoint_duration ]
-func (p *Parser) parseCheckpointStmt() *nodes.CheckpointStmt {
+func (p *Parser) parseCheckpointStmt() (*nodes.CheckpointStmt, error) {
 	loc := p.pos()
 	p.advance() // consume CHECKPOINT
 
@@ -177,7 +177,7 @@ func (p *Parser) parseCheckpointStmt() *nodes.CheckpointStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseReconfigureStmt parses a RECONFIGURE statement.
@@ -185,7 +185,7 @@ func (p *Parser) parseCheckpointStmt() *nodes.CheckpointStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/reconfigure-transact-sql
 //
 //	RECONFIGURE [ WITH OVERRIDE ]
-func (p *Parser) parseReconfigureStmt() *nodes.ReconfigureStmt {
+func (p *Parser) parseReconfigureStmt() (*nodes.ReconfigureStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RECONFIGURE
 
@@ -204,7 +204,7 @@ func (p *Parser) parseReconfigureStmt() *nodes.ReconfigureStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseShutdownStmt parses a SHUTDOWN statement.
@@ -212,7 +212,7 @@ func (p *Parser) parseReconfigureStmt() *nodes.ReconfigureStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/shutdown-transact-sql
 //
 //	SHUTDOWN [ WITH NOWAIT ]
-func (p *Parser) parseShutdownStmt() *nodes.ShutdownStmt {
+func (p *Parser) parseShutdownStmt() (*nodes.ShutdownStmt, error) {
 	loc := p.pos()
 	p.advance() // consume SHUTDOWN
 
@@ -230,7 +230,7 @@ func (p *Parser) parseShutdownStmt() *nodes.ShutdownStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseKillStmt parses a KILL statement.
@@ -240,7 +240,7 @@ func (p *Parser) parseShutdownStmt() *nodes.ShutdownStmt {
 //	KILL { session_id [ WITH STATUSONLY ] | UOW [ WITH STATUSONLY | COMMIT | ROLLBACK ] }
 //	KILL STATS JOB job_id
 //	KILL QUERY NOTIFICATION SUBSCRIPTION { ALL | subscription_id }
-func (p *Parser) parseKillStmt() nodes.StmtNode {
+func (p *Parser) parseKillStmt() (nodes.StmtNode, error) {
 	loc := p.pos()
 	p.advance() // consume KILL
 
@@ -283,7 +283,7 @@ func (p *Parser) parseKillStmt() nodes.StmtNode {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseKillStatsJobStmt parses a KILL STATS JOB statement.
@@ -291,7 +291,7 @@ func (p *Parser) parseKillStmt() nodes.StmtNode {
 // BNF: mssql/parser/bnf/kill-stats-job-transact-sql.bnf
 //
 //	KILL STATS JOB job_id
-func (p *Parser) parseKillStatsJobStmt(loc int) *nodes.KillStatsJobStmt {
+func (p *Parser) parseKillStatsJobStmt(loc int) (*nodes.KillStatsJobStmt, error) {
 	p.advance() // consume STATS
 	p.advance() // consume JOB
 
@@ -302,7 +302,7 @@ func (p *Parser) parseKillStatsJobStmt(loc int) *nodes.KillStatsJobStmt {
 	stmt.JobID, _ = p.parseExpr()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseKillQueryNotificationStmt parses a KILL QUERY NOTIFICATION SUBSCRIPTION statement.
@@ -310,7 +310,7 @@ func (p *Parser) parseKillStatsJobStmt(loc int) *nodes.KillStatsJobStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/kill-query-notification-subscription-transact-sql
 //
 //	KILL QUERY NOTIFICATION SUBSCRIPTION { ALL | subscription_id }
-func (p *Parser) parseKillQueryNotificationStmt(loc int) *nodes.KillQueryNotificationStmt {
+func (p *Parser) parseKillQueryNotificationStmt(loc int) (*nodes.KillQueryNotificationStmt, error) {
 	p.advance() // consume QUERY
 	p.advance() // consume NOTIFICATION
 
@@ -332,7 +332,7 @@ func (p *Parser) parseKillQueryNotificationStmt(loc int) *nodes.KillQueryNotific
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseReadtextStmt parses a READTEXT statement.
@@ -340,7 +340,7 @@ func (p *Parser) parseKillQueryNotificationStmt(loc int) *nodes.KillQueryNotific
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/readtext-transact-sql
 //
 //	READTEXT { table.column text_ptr offset size } [ HOLDLOCK ]
-func (p *Parser) parseReadtextStmt() *nodes.ReadtextStmt {
+func (p *Parser) parseReadtextStmt() (*nodes.ReadtextStmt, error) {
 	loc := p.pos()
 	p.advance() // consume READTEXT
 
@@ -387,7 +387,7 @@ func (p *Parser) parseReadtextStmt() *nodes.ReadtextStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseWritetextStmt parses a WRITETEXT statement.
@@ -395,7 +395,7 @@ func (p *Parser) parseReadtextStmt() *nodes.ReadtextStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/writetext-transact-sql
 //
 //	WRITETEXT { table.column text_ptr } [ WITH LOG ] { data }
-func (p *Parser) parseWritetextStmt() *nodes.WritetextStmt {
+func (p *Parser) parseWritetextStmt() (*nodes.WritetextStmt, error) {
 	loc := p.pos()
 	p.advance() // consume WRITETEXT
 
@@ -444,7 +444,7 @@ func (p *Parser) parseWritetextStmt() *nodes.WritetextStmt {
 	stmt.Data, _ = p.parseExpr()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseUpdatetextStmt parses an UPDATETEXT statement.
@@ -456,7 +456,7 @@ func (p *Parser) parseWritetextStmt() *nodes.WritetextStmt {
 //	    { NULL | delete_length }
 //	    [ WITH LOG ]
 //	    [ inserted_data | { table_name.src_column_name src_text_ptr } ]
-func (p *Parser) parseUpdatetextStmt() *nodes.UpdatetextStmt {
+func (p *Parser) parseUpdatetextStmt() (*nodes.UpdatetextStmt, error) {
 	loc := p.pos()
 	p.advance() // consume UPDATETEXT
 
@@ -511,7 +511,7 @@ func (p *Parser) parseUpdatetextStmt() *nodes.UpdatetextStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseTruncateStmt parses a TRUNCATE TABLE statement.
@@ -525,7 +525,7 @@ func (p *Parser) parseUpdatetextStmt() *nodes.UpdatetextStmt {
 //
 //	<range> ::=
 //	<partition_number_expression> TO <partition_number_expression>
-func (p *Parser) parseTruncateStmt() *nodes.TruncateStmt {
+func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 	loc := p.pos()
 	p.advance() // consume TRUNCATE
 
@@ -570,7 +570,7 @@ func (p *Parser) parseTruncateStmt() *nodes.TruncateStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateDefaultStmt parses a CREATE DEFAULT statement.
@@ -580,7 +580,7 @@ func (p *Parser) parseTruncateStmt() *nodes.TruncateStmt {
 //
 //	CREATE DEFAULT [ schema_name . ] default_name
 //	AS constant_expression [ ; ]
-func (p *Parser) parseCreateDefaultStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateDefaultStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.SecurityStmt{
@@ -619,7 +619,7 @@ func (p *Parser) parseCreateDefaultStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateRuleStmt parses a CREATE RULE statement.
@@ -629,7 +629,7 @@ func (p *Parser) parseCreateDefaultStmt() *nodes.SecurityStmt {
 //
 //	CREATE RULE [ schema_name . ] rule_name
 //	AS condition_expression [ ; ]
-func (p *Parser) parseCreateRuleStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateRuleStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.SecurityStmt{
@@ -667,7 +667,7 @@ func (p *Parser) parseCreateRuleStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterDatabaseScopedConfigStmt parses ALTER DATABASE SCOPED CONFIGURATION.
@@ -727,7 +727,7 @@ func (p *Parser) parseCreateRuleStmt() *nodes.SecurityStmt {
 //	    | XTP_PROCEDURE_EXECUTION_STATISTICS = { ON | OFF }
 //	    | XTP_QUERY_EXECUTION_STATISTICS = { ON | OFF }
 //	}
-func (p *Parser) parseAlterDatabaseScopedConfigStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterDatabaseScopedConfigStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.SecurityStmt{
@@ -814,7 +814,7 @@ func (p *Parser) parseAlterDatabaseScopedConfigStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseEnableDisableTriggerStmt parses ENABLE TRIGGER or DISABLE TRIGGER.
@@ -824,7 +824,7 @@ func (p *Parser) parseAlterDatabaseScopedConfigStmt() *nodes.SecurityStmt {
 //
 //	{ ENABLE | DISABLE } TRIGGER { [ schema_name . ] trigger_name [ , ...n ] | ALL }
 //	    ON { object_name | DATABASE | ALL SERVER }
-func (p *Parser) parseEnableDisableTriggerStmt(enable bool) *nodes.EnableDisableTriggerStmt {
+func (p *Parser) parseEnableDisableTriggerStmt(enable bool) (*nodes.EnableDisableTriggerStmt, error) {
 	loc := p.pos()
 	p.advance() // consume ENABLE or DISABLE
 	p.advance() // consume TRIGGER
@@ -881,7 +881,7 @@ func (p *Parser) parseEnableDisableTriggerStmt(enable bool) *nodes.EnableDisable
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseSetuserStmt parses a SETUSER statement.
@@ -889,7 +889,7 @@ func (p *Parser) parseEnableDisableTriggerStmt(enable bool) *nodes.EnableDisable
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/setuser-transact-sql
 //
 //	SETUSER [ 'username' [ WITH NORESET ] ]
-func (p *Parser) parseSetuserStmt() *nodes.SecurityStmt {
+func (p *Parser) parseSetuserStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	p.advance() // consume SETUSER
 
@@ -916,7 +916,7 @@ func (p *Parser) parseSetuserStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCopyIntoStmt parses a COPY INTO statement (Azure Synapse / Fabric).
@@ -944,7 +944,7 @@ func (p *Parser) parseSetuserStmt() *nodes.SecurityStmt {
 //	  [ , IDENTITY_INSERT = { 'ON' | 'OFF' } ]
 //	  [ , AUTO_CREATE_TABLE = { 'ON' | 'OFF' } ]
 //	)
-func (p *Parser) parseCopyIntoStmt() *nodes.CopyIntoStmt {
+func (p *Parser) parseCopyIntoStmt() (*nodes.CopyIntoStmt, error) {
 	loc := p.pos()
 	p.advance() // consume COPY
 
@@ -1044,7 +1044,7 @@ func (p *Parser) parseCopyIntoStmt() *nodes.CopyIntoStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCopyIntoOption parses a single COPY INTO WITH option.
@@ -1109,7 +1109,7 @@ func (p *Parser) parseCopyIntoOption() nodes.Node {
 //	RENAME OBJECT [::] [ [ database_name . [ schema_name ] . ] | [ schema_name . ] ] table_name TO new_table_name
 //	RENAME DATABASE [::] database_name TO new_database_name
 //	RENAME OBJECT [::] [ [ database_name . [ schema_name ] . ] | [ schema_name . ] ] table_name COLUMN column_name TO new_column_name
-func (p *Parser) parseRenameStmt() *nodes.RenameStmt {
+func (p *Parser) parseRenameStmt() (*nodes.RenameStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RENAME
 
@@ -1157,7 +1157,7 @@ func (p *Parser) parseRenameStmt() *nodes.RenameStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateExternalTableAsSelectStmt parses CREATE EXTERNAL TABLE ... AS SELECT (CETAS).
@@ -1180,7 +1180,7 @@ func (p *Parser) parseRenameStmt() *nodes.RenameStmt {
 //	    | REJECT_VALUE = reject_value
 //	    | REJECT_SAMPLE_VALUE = reject_sample_value
 //	}
-func (p *Parser) parseCreateExternalTableAsSelectStmt() *nodes.CreateExternalTableAsSelectStmt {
+func (p *Parser) parseCreateExternalTableAsSelectStmt() (*nodes.CreateExternalTableAsSelectStmt, error) {
 	loc := p.pos()
 	// EXTERNAL TABLE already consumed by caller
 
@@ -1243,7 +1243,7 @@ func (p *Parser) parseCreateExternalTableAsSelectStmt() *nodes.CreateExternalTab
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateTableCloneStmt parses CREATE TABLE ... AS CLONE OF (Fabric).
@@ -1255,7 +1255,7 @@ func (p *Parser) parseCreateExternalTableAsSelectStmt() *nodes.CreateExternalTab
 //	AS CLONE OF
 //	    { database_name.schema_name.table_name | schema_name.table_name | table_name }
 //	    [ AT { point_in_time } ]
-func (p *Parser) parseCreateTableCloneStmt(name *nodes.TableRef) *nodes.CreateTableCloneStmt {
+func (p *Parser) parseCreateTableCloneStmt(name *nodes.TableRef) (*nodes.CreateTableCloneStmt, error) {
 	loc := p.pos()
 	// AS CLONE OF already partially consumed; caller consumed AS, we consume CLONE OF
 
@@ -1282,7 +1282,7 @@ func (p *Parser) parseCreateTableCloneStmt(name *nodes.TableRef) *nodes.CreateTa
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parsePredictStmt parses a PREDICT statement.
@@ -1299,7 +1299,7 @@ func (p *Parser) parseCreateTableCloneStmt(name *nodes.TableRef) *nodes.CreateTa
 //
 //	<result_set_definition> ::=
 //	  { column_name data_type [ COLLATE collation_name ] [ NULL | NOT NULL ] } [,...n]
-func (p *Parser) parsePredictStmt() *nodes.PredictStmt {
+func (p *Parser) parsePredictStmt() (*nodes.PredictStmt, error) {
 	loc := p.pos()
 	// PREDICT already consumed by caller
 
@@ -1384,7 +1384,7 @@ func (p *Parser) parsePredictStmt() *nodes.PredictStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parsePredictColumnDef parses a column definition in PREDICT's WITH clause.
@@ -1448,7 +1448,7 @@ func (p *Parser) parsePredictColumnDef() *nodes.ColumnDef {
 //	<select_statement> ::=
 //	    [ WITH <common_table_expression> [ ,...n ] ]
 //	    SELECT <select_criteria>
-func (p *Parser) parseCreateRemoteTableAsSelectStmt() *nodes.CreateRemoteTableAsSelectStmt {
+func (p *Parser) parseCreateRemoteTableAsSelectStmt() (*nodes.CreateRemoteTableAsSelectStmt, error) {
 	loc := p.pos()
 	// REMOTE TABLE already consumed by caller
 
@@ -1503,7 +1503,7 @@ func (p *Parser) parseCreateRemoteTableAsSelectStmt() *nodes.CreateRemoteTableAs
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // ---------- Batch 174: Federation Statements ----------
@@ -1513,7 +1513,7 @@ func (p *Parser) parseCreateRemoteTableAsSelectStmt() *nodes.CreateRemoteTableAs
 // BNF: mssql/parser/bnf/create-federation-transact-sql.bnf
 //
 //	CREATE FEDERATION federation_name ( distribution_name data_type RANGE )
-func (p *Parser) parseCreateFederationStmt() *nodes.CreateFederationStmt {
+func (p *Parser) parseCreateFederationStmt() (*nodes.CreateFederationStmt, error) {
 	stmt := &nodes.CreateFederationStmt{
 		Loc: nodes.Loc{Start: p.pos()},
 	}
@@ -1535,7 +1535,7 @@ func (p *Parser) parseCreateFederationStmt() *nodes.CreateFederationStmt {
 	p.match(')')
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterFederationStmt parses an ALTER FEDERATION statement.
@@ -1547,7 +1547,7 @@ func (p *Parser) parseCreateFederationStmt() *nodes.CreateFederationStmt {
 //	    SPLIT AT ( distribution_name = value )
 //	  | DROP AT ( { LOW | HIGH } distribution_name = value )
 //	}
-func (p *Parser) parseAlterFederationStmt() *nodes.AlterFederationStmt {
+func (p *Parser) parseAlterFederationStmt() (*nodes.AlterFederationStmt, error) {
 	stmt := &nodes.AlterFederationStmt{
 		Loc: nodes.Loc{Start: p.pos()},
 	}
@@ -1582,7 +1582,7 @@ func (p *Parser) parseAlterFederationStmt() *nodes.AlterFederationStmt {
 		stmt.Boundary, _ = p.parseExpr()
 		p.match(')')
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// For SPLIT: ( distribution_name = value )
@@ -1595,7 +1595,7 @@ func (p *Parser) parseAlterFederationStmt() *nodes.AlterFederationStmt {
 	p.match(')')
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropFederationStmt parses a DROP FEDERATION statement.
@@ -1603,7 +1603,7 @@ func (p *Parser) parseAlterFederationStmt() *nodes.AlterFederationStmt {
 // BNF: mssql/parser/bnf/drop-federation-transact-sql.bnf
 //
 //	DROP FEDERATION federation_name
-func (p *Parser) parseDropFederationStmt() *nodes.DropFederationStmt {
+func (p *Parser) parseDropFederationStmt() (*nodes.DropFederationStmt, error) {
 	stmt := &nodes.DropFederationStmt{
 		Loc: nodes.Loc{Start: p.pos()},
 	}
@@ -1613,7 +1613,7 @@ func (p *Parser) parseDropFederationStmt() *nodes.DropFederationStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseUseFederationStmt parses a USE FEDERATION statement.
@@ -1627,7 +1627,7 @@ func (p *Parser) parseDropFederationStmt() *nodes.DropFederationStmt {
 //	    WITH FILTERING = { ON | OFF } ,
 //	}
 //	RESET
-func (p *Parser) parseUseFederationStmt() *nodes.UseFederationStmt {
+func (p *Parser) parseUseFederationStmt() (*nodes.UseFederationStmt, error) {
 	stmt := &nodes.UseFederationStmt{
 		Loc: nodes.Loc{Start: p.pos()},
 	}
@@ -1668,7 +1668,7 @@ func (p *Parser) parseUseFederationStmt() *nodes.UseFederationStmt {
 	p.matchIdentCI("RESET")
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // ---------- Batch 175: INSERT BULK and LINENO ----------
@@ -1680,7 +1680,7 @@ func (p *Parser) parseUseFederationStmt() *nodes.UseFederationStmt {
 //	INSERT BULK schemaObjectThreePartName
 //	  [ ( column_name data_type [ NULL | NOT NULL ] [ ,...n ] ) ]
 //	  [ WITH ( option [ = value ] [ ,...n ] ) ]
-func (p *Parser) parseInsertBulkStmt() *nodes.InsertBulkStmt {
+func (p *Parser) parseInsertBulkStmt() (*nodes.InsertBulkStmt, error) {
 	stmt := &nodes.InsertBulkStmt{
 		Loc: nodes.Loc{Start: p.pos()},
 	}
@@ -1730,7 +1730,7 @@ func (p *Parser) parseInsertBulkStmt() *nodes.InsertBulkStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseInsertBulkColumnDef parses a column definition in INSERT BULK.
@@ -1768,7 +1768,7 @@ func (p *Parser) parseInsertBulkColumnDef() *nodes.InsertBulkColumnDef {
 // BNF: mssql/parser/bnf/lineno-transact-sql.bnf
 //
 //	LINENO integer
-func (p *Parser) parseLinenoStmt() *nodes.LinenoStmt {
+func (p *Parser) parseLinenoStmt() (*nodes.LinenoStmt, error) {
 	loc := p.pos()
 	p.advance() // consume LINENO
 
@@ -1782,5 +1782,5 @@ func (p *Parser) parseLinenoStmt() *nodes.LinenoStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }

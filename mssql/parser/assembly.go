@@ -23,7 +23,7 @@ import (
 //
 //	<assembly_bits> ::=
 //	    { varbinary_literal | varbinary_expression }
-func (p *Parser) parseCreateAssemblyStmt() *nodes.CreateAssemblyStmt {
+func (p *Parser) parseCreateAssemblyStmt() (*nodes.CreateAssemblyStmt, error) {
 	loc := p.pos()
 	// ASSEMBLY keyword already consumed by caller
 
@@ -88,7 +88,7 @@ func (p *Parser) parseCreateAssemblyStmt() *nodes.CreateAssemblyStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterAssemblyStmt parses an ALTER ASSEMBLY statement.
@@ -110,7 +110,7 @@ func (p *Parser) parseCreateAssemblyStmt() *nodes.CreateAssemblyStmt {
 //	    PERMISSION_SET = { SAFE | EXTERNAL_ACCESS | UNSAFE }
 //	  | VISIBILITY = { ON | OFF }
 //	  | UNCHECKED DATA
-func (p *Parser) parseAlterAssemblyStmt() *nodes.AlterAssemblyStmt {
+func (p *Parser) parseAlterAssemblyStmt() (*nodes.AlterAssemblyStmt, error) {
 	loc := p.pos()
 	// ASSEMBLY keyword already consumed by caller
 
@@ -203,5 +203,5 @@ func (p *Parser) parseAlterAssemblyStmt() *nodes.AlterAssemblyStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }

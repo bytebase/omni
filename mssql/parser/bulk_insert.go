@@ -40,7 +40,7 @@ import (
 //	   [ [ , ] KILOBYTES_PER_BATCH = kilobytes_per_batch ]
 //	   [ [ , ] BATCHSIZE = batch_size ]
 //	    ) ]
-func (p *Parser) parseBulkInsertStmt() *nodes.BulkInsertStmt {
+func (p *Parser) parseBulkInsertStmt() (*nodes.BulkInsertStmt, error) {
 	loc := p.pos()
 	p.advance() // consume BULK
 
@@ -86,7 +86,7 @@ func (p *Parser) parseBulkInsertStmt() *nodes.BulkInsertStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseBulkInsertOption parses a single BULK INSERT WITH option.

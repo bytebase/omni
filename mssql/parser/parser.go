@@ -71,7 +71,7 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 				loc := p.pos()
 				p.advance() // consume INSERT
 				p.advance() // consume BULK
-				stmt := p.parseInsertBulkStmt()
+				stmt, _ := p.parseInsertBulkStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -104,7 +104,8 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 	case kwDROP:
 		return p.parseDropOrSecurityStmt()
 	case kwTRUNCATE:
-		return p.parseTruncateStmt()
+		stmt, _ := p.parseTruncateStmt()
+		return stmt
 	case kwIF:
 		return p.parseIfStmt()
 	case kwWHILE:
@@ -160,18 +161,22 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 				loc := p.pos()
 				p.advance() // consume USE
 				p.advance() // consume FEDERATION
-				stmt := p.parseUseFederationStmt()
+				stmt, _ := p.parseUseFederationStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 		}
-		return p.parseUseStmt()
+		stmt, _ := p.parseUseStmt()
+		return stmt
 	case kwPRINT:
-		return p.parsePrintStmt()
+		stmt, _ := p.parsePrintStmt()
+		return stmt
 	case kwRAISERROR:
-		return p.parseRaiseErrorStmt()
+		stmt, _ := p.parseRaiseErrorStmt()
+		return stmt
 	case kwTHROW:
-		return p.parseThrowStmt()
+		stmt, _ := p.parseThrowStmt()
+		return stmt
 	case kwOPEN:
 		// Check for OPEN SYMMETRIC KEY / OPEN MASTER KEY vs OPEN cursor
 		next := p.peekNext()
@@ -198,13 +203,17 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 	case kwDEALLOCATE:
 		return p.parseDeallocateCursorStmt()
 	case kwGO:
-		return p.parseGoStmt()
+		stmt, _ := p.parseGoStmt()
+		return stmt
 	case kwBULK:
-		return p.parseBulkInsertStmt()
+		stmt, _ := p.parseBulkInsertStmt()
+		return stmt
 	case kwDBCC:
-		return p.parseDbccStmt()
+		stmt, _ := p.parseDbccStmt()
+		return stmt
 	case kwLINENO:
-		return p.parseLinenoStmt()
+		stmt, _ := p.parseLinenoStmt()
+		return stmt
 	case kwBACKUP:
 		// Check for BACKUP SERVICE MASTER KEY / BACKUP CERTIFICATE / BACKUP MASTER KEY vs BACKUP DATABASE/LOG
 		next := p.peekNext()
@@ -253,21 +262,29 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 		}
 		return p.parseRestoreStmt()
 	case kwCHECKPOINT:
-		return p.parseCheckpointStmt()
+		stmt, _ := p.parseCheckpointStmt()
+		return stmt
 	case kwRECONFIGURE:
-		return p.parseReconfigureStmt()
+		stmt, _ := p.parseReconfigureStmt()
+		return stmt
 	case kwSHUTDOWN:
-		return p.parseShutdownStmt()
+		stmt, _ := p.parseShutdownStmt()
+		return stmt
 	case kwKILL:
-		return p.parseKillStmt()
+		stmt, _ := p.parseKillStmt()
+		return stmt
 	case kwSETUSER:
-		return p.parseSetuserStmt()
+		stmt, _ := p.parseSetuserStmt()
+		return stmt
 	case kwREADTEXT:
-		return p.parseReadtextStmt()
+		stmt, _ := p.parseReadtextStmt()
+		return stmt
 	case kwWRITETEXT:
-		return p.parseWritetextStmt()
+		stmt, _ := p.parseWritetextStmt()
+		return stmt
 	case kwUPDATETEXT:
-		return p.parseUpdatetextStmt()
+		stmt, _ := p.parseUpdatetextStmt()
+		return stmt
 	default:
 		// Check for label: identifier followed by ':'
 		if p.isIdentLike() {
@@ -296,12 +313,14 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 			// ENABLE TRIGGER
 			if matchesKeywordCI(p.cur.Str, "ENABLE") &&
 				next.Type == kwTRIGGER {
-				return p.parseEnableDisableTriggerStmt(true)
+				stmt, _ := p.parseEnableDisableTriggerStmt(true)
+				return stmt
 			}
 			// DISABLE TRIGGER
 			if matchesKeywordCI(p.cur.Str, "DISABLE") &&
 				next.Type == kwTRIGGER {
-				return p.parseEnableDisableTriggerStmt(false)
+				stmt, _ := p.parseEnableDisableTriggerStmt(false)
+				return stmt
 			}
 			// MOVE CONVERSATION (service broker)
 			if matchesKeywordCI(p.cur.Str, "MOVE") &&
@@ -311,11 +330,13 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 			// COPY INTO (Azure Synapse/Fabric bulk load)
 			if matchesKeywordCI(p.cur.Str, "COPY") &&
 				next.Str != "" && matchesKeywordCI(next.Str, "INTO") {
-				return p.parseCopyIntoStmt()
+				stmt, _ := p.parseCopyIntoStmt()
+				return stmt
 			}
 			// RENAME OBJECT/DATABASE (Azure Synapse/PDW)
 			if matchesKeywordCI(p.cur.Str, "RENAME") {
-				return p.parseRenameStmt()
+				stmt, _ := p.parseRenameStmt()
+				return stmt
 			}
 			// REVERT (security context)
 			if matchesKeywordCI(p.cur.Str, "REVERT") {
@@ -325,7 +346,7 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 			if matchesKeywordCI(p.cur.Str, "PREDICT") {
 				loc := p.pos()
 				p.advance() // consume PREDICT
-				stmt := p.parsePredictStmt()
+				stmt, _ := p.parsePredictStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -401,12 +422,12 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 	switch p.cur.Type {
 	case kwDEFAULT:
 		p.advance() // consume DEFAULT
-		stmt := p.parseCreateDefaultStmt()
+		stmt, _ := p.parseCreateDefaultStmt()
 		stmt.Loc.Start = loc
 		return stmt
 	case kwRULE:
 		p.advance() // consume RULE
-		stmt := p.parseCreateRuleStmt()
+		stmt, _ := p.parseCreateRuleStmt()
 		stmt.Loc.Start = loc
 		return stmt
 	case kwTABLE:
@@ -425,7 +446,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			next := p.peekNext()
 			if next.Type == tokIDENT && strings.EqualFold(next.Str, "CLONE") {
 				p.advance() // consume AS
-				cloneStmt := p.parseCreateTableCloneStmt(tableName)
+				cloneStmt, _ := p.parseCreateTableCloneStmt(tableName)
 				cloneStmt.Loc.Start = loc
 				return cloneStmt
 			}
@@ -572,7 +593,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			return stmt
 		}
 		if p.matchIdentCI("ASSEMBLY") {
-			stmt := p.parseCreateAssemblyStmt()
+			stmt, _ := p.parseCreateAssemblyStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -612,13 +633,13 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			p.advance() // consume PARTITION
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FUNCTION") {
 				p.advance() // consume FUNCTION
-				stmt := p.parseCreatePartitionFunctionStmt()
+				stmt, _ := p.parseCreatePartitionFunctionStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SCHEME") {
 				p.advance() // consume SCHEME
-				stmt := p.parseCreatePartitionSchemeStmt()
+				stmt, _ := p.parseCreatePartitionSchemeStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -629,19 +650,19 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			p.advance() // consume FULLTEXT
 			if p.cur.Type == kwINDEX {
 				p.advance() // consume INDEX
-				stmt := p.parseCreateFulltextIndexStmt()
+				stmt, _ := p.parseCreateFulltextIndexStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CATALOG") {
 				p.advance() // consume CATALOG
-				stmt := p.parseCreateFulltextCatalogStmt()
+				stmt, _ := p.parseCreateFulltextCatalogStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STOPLIST") {
 				p.advance() // consume STOPLIST
-				stmt := p.parseCreateFulltextStoplistStmt()
+				stmt, _ := p.parseCreateFulltextStoplistStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -654,7 +675,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				p.advance() // consume SCHEMA
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "COLLECTION") {
 					p.advance() // consume COLLECTION
-					stmt := p.parseCreateXmlSchemaCollectionStmt()
+					stmt, _ := p.parseCreateXmlSchemaCollectionStmt()
 					stmt.Loc.Start = loc
 					return stmt
 				}
@@ -728,7 +749,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				p.advance() // consume PROPERTY
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LIST") {
 					p.advance() // consume LIST
-					stmt := p.parseCreateSearchPropertyListStmt()
+					stmt, _ := p.parseCreateSearchPropertyListStmt()
 					stmt.Loc.Start = loc
 					return stmt
 				}
@@ -787,7 +808,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			if p.cur.Type == kwTABLE {
 				// CREATE REMOTE TABLE ... AT (...) AS SELECT
 				p.advance() // consume TABLE
-				stmt := p.parseCreateRemoteTableAsSelectStmt()
+				stmt, _ := p.parseCreateRemoteTableAsSelectStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -829,13 +850,13 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			p.advance() // consume EVENT
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "NOTIFICATION") {
 				p.advance() // consume NOTIFICATION
-				stmt := p.parseCreateEventNotificationStmt()
+				stmt, _ := p.parseCreateEventNotificationStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SESSION") {
 				p.advance() // consume SESSION
-				stmt := p.parseCreateEventSessionStmt()
+				stmt, _ := p.parseCreateEventSessionStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -849,7 +870,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SOURCE") {
 					p.advance() // consume SOURCE
 				}
-				stmt := p.parseCreateExternalDataSourceStmt()
+				stmt, _ := p.parseCreateExternalDataSourceStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -857,7 +878,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				p.advance() // consume TABLE
 				// Could be CETAS: CREATE EXTERNAL TABLE ... WITH (...) AS SELECT
 				// Try CETAS parser which falls back to regular external table if no AS SELECT
-				cetasStmt := p.parseCreateExternalTableOrCETAS(loc)
+				cetasStmt, _ := p.parseCreateExternalTableOrCETAS(loc)
 				return cetasStmt
 			}
 			if p.cur.Type == kwFILE || (p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FILE")) {
@@ -865,7 +886,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FORMAT") {
 					p.advance() // consume FORMAT
 				}
-				stmt := p.parseCreateExternalFileFormatStmt()
+				stmt, _ := p.parseCreateExternalFileFormatStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -880,25 +901,25 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LIBRARY") {
 				p.advance() // consume LIBRARY
-				stmt := p.parseCreateExternalLibraryStmt()
+				stmt, _ := p.parseCreateExternalLibraryStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LANGUAGE") {
 				p.advance() // consume LANGUAGE
-				stmt := p.parseCreateExternalLanguageStmt()
+				stmt, _ := p.parseCreateExternalLanguageStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MODEL") {
 				p.advance() // consume MODEL
-				stmt := p.parseCreateExternalModelStmt()
+				stmt, _ := p.parseCreateExternalModelStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STREAM") {
 				p.advance() // consume STREAM
-				stmt := p.parseCreateExternalStreamStmt()
+				stmt, _ := p.parseCreateExternalStreamStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -907,7 +928,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "JOB") {
 					p.advance() // consume JOB
 				}
-				stmt := p.parseCreateExternalStreamingJobStmt()
+				stmt, _ := p.parseCreateExternalStreamingJobStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -963,7 +984,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		// CREATE FEDERATION
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FEDERATION") {
 			p.advance() // consume FEDERATION
-			stmt := p.parseCreateFederationStmt()
+			stmt, _ := p.parseCreateFederationStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1009,7 +1030,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 				p.advance() // consume SCOPED
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CONFIGURATION") {
 					p.advance() // consume CONFIGURATION
-					stmt := p.parseAlterDatabaseScopedConfigStmt()
+					stmt, _ := p.parseAlterDatabaseScopedConfigStmt()
 					stmt.Loc.Start = loc
 					return stmt
 				}
@@ -1103,7 +1124,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			return stmt
 		}
 		if p.matchIdentCI("ASSEMBLY") {
-			stmt := p.parseAlterAssemblyStmt()
+			stmt, _ := p.parseAlterAssemblyStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1132,13 +1153,13 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			p.advance() // consume PARTITION
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FUNCTION") {
 				p.advance() // consume FUNCTION
-				stmt := p.parseAlterPartitionFunctionStmt()
+				stmt, _ := p.parseAlterPartitionFunctionStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SCHEME") {
 				p.advance() // consume SCHEME
-				stmt := p.parseAlterPartitionSchemeStmt()
+				stmt, _ := p.parseAlterPartitionSchemeStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1149,19 +1170,19 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			p.advance() // consume FULLTEXT
 			if p.cur.Type == kwINDEX {
 				p.advance() // consume INDEX
-				stmt := p.parseAlterFulltextIndexStmt()
+				stmt, _ := p.parseAlterFulltextIndexStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CATALOG") {
 				p.advance() // consume CATALOG
-				stmt := p.parseAlterFulltextCatalogStmt()
+				stmt, _ := p.parseAlterFulltextCatalogStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STOPLIST") {
 				p.advance() // consume STOPLIST
-				stmt := p.parseAlterFulltextStoplistStmt()
+				stmt, _ := p.parseAlterFulltextStoplistStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1185,7 +1206,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 				p.advance() // consume PROPERTY
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LIST") {
 					p.advance() // consume LIST
-					stmt := p.parseAlterSearchPropertyListStmt()
+					stmt, _ := p.parseAlterSearchPropertyListStmt()
 					stmt.Loc.Start = loc
 					return stmt
 				}
@@ -1299,7 +1320,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			p.advance() // consume EVENT
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SESSION") {
 				p.advance() // consume SESSION
-				stmt := p.parseAlterEventSessionStmt()
+				stmt, _ := p.parseAlterEventSessionStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1329,7 +1350,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 				p.advance() // consume SCHEMA
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "COLLECTION") {
 					p.advance() // consume COLLECTION
-					stmt := p.parseAlterXmlSchemaCollectionStmt()
+					stmt, _ := p.parseAlterXmlSchemaCollectionStmt()
 					stmt.Loc.Start = loc
 					return stmt
 				}
@@ -1344,7 +1365,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SOURCE") {
 					p.advance() // consume SOURCE
 				}
-				stmt := p.parseAlterExternalDataSourceStmt()
+				stmt, _ := p.parseAlterExternalDataSourceStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1359,19 +1380,19 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LIBRARY") {
 				p.advance() // consume LIBRARY
-				stmt := p.parseAlterExternalLibraryStmt()
+				stmt, _ := p.parseAlterExternalLibraryStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LANGUAGE") {
 				p.advance() // consume LANGUAGE
-				stmt := p.parseAlterExternalLanguageStmt()
+				stmt, _ := p.parseAlterExternalLanguageStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MODEL") {
 				p.advance() // consume MODEL
-				stmt := p.parseAlterExternalModelStmt()
+				stmt, _ := p.parseAlterExternalModelStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1423,7 +1444,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		// ALTER FEDERATION
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FEDERATION") {
 			p.advance() // consume FEDERATION
-			stmt := p.parseAlterFederationStmt()
+			stmt, _ := p.parseAlterFederationStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1631,7 +1652,7 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 		if next.Type == kwEXTERNAL {
 			p.advance() // consume DROP
 			p.advance() // consume EXTERNAL
-			stmt := p.parseDropExternalStmt()
+			stmt, _ := p.parseDropExternalStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1652,13 +1673,13 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			p.advance() // consume EVENT
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "NOTIFICATION") {
 				p.advance() // consume NOTIFICATION
-				stmt := p.parseDropEventNotificationStmt()
+				stmt, _ := p.parseDropEventNotificationStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SESSION") {
 				p.advance() // consume SESSION
-				stmt := p.parseDropEventSessionStmt()
+				stmt, _ := p.parseDropEventSessionStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1749,7 +1770,7 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			p.advance() // consume FULLTEXT
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STOPLIST") {
 				p.advance() // consume STOPLIST
-				stmt := p.parseDropFulltextStoplistStmt()
+				stmt, _ := p.parseDropFulltextStoplistStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1812,7 +1833,7 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 				p.advance() // consume PROPERTY
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LIST") {
 					p.advance() // consume LIST
-					stmt := p.parseDropSearchPropertyListStmt()
+					stmt, _ := p.parseDropSearchPropertyListStmt()
 					stmt.Loc.Start = loc
 					return stmt
 				}
@@ -1858,11 +1879,12 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "FEDERATION") {
 			p.advance() // consume DROP
 			p.advance() // consume FEDERATION
-			stmt := p.parseDropFederationStmt()
+			stmt, _ := p.parseDropFederationStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
-		return p.parseDropStmt()
+		stmt, _ := p.parseDropStmt()
+		return stmt
 	}
 }
 

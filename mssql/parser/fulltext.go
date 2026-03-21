@@ -32,7 +32,7 @@ import (
 //	    CHANGE_TRACKING [ = ] { MANUAL | AUTO | OFF [ , NO POPULATION ] }
 //	  | STOPLIST [ = ] { OFF | SYSTEM | stoplist_name }
 //	  | SEARCH PROPERTY LIST [ = ] property_list_name
-func (p *Parser) parseCreateFulltextIndexStmt() *nodes.CreateFulltextIndexStmt {
+func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt, error) {
 	loc := p.pos()
 	// INDEX keyword already consumed by caller
 
@@ -172,7 +172,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() *nodes.CreateFulltextIndexStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterFulltextIndexStmt parses an ALTER FULLTEXT INDEX ON table action.
@@ -195,7 +195,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() *nodes.CreateFulltextIndexStmt {
 //	    | START { FULL | INCREMENTAL | UPDATE } POPULATION
 //	    | { STOP | PAUSE | RESUME } POPULATION
 //	    }
-func (p *Parser) parseAlterFulltextIndexStmt() *nodes.AlterFulltextIndexStmt {
+func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, error) {
 	loc := p.pos()
 	// INDEX keyword already consumed by caller
 
@@ -409,7 +409,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() *nodes.AlterFulltextIndexStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseWithNoPopulation checks for and consumes WITH NO POPULATION.
@@ -438,7 +438,7 @@ func (p *Parser) parseWithNoPopulation() bool {
 //	    [ WITH ACCENT_SENSITIVITY = { ON | OFF } ]
 //	    [ AS DEFAULT ]
 //	    [ AUTHORIZATION owner_name ]
-func (p *Parser) parseCreateFulltextCatalogStmt() *nodes.CreateFulltextCatalogStmt {
+func (p *Parser) parseCreateFulltextCatalogStmt() (*nodes.CreateFulltextCatalogStmt, error) {
 	loc := p.pos()
 	// CATALOG keyword already consumed by caller
 
@@ -518,7 +518,7 @@ func (p *Parser) parseCreateFulltextCatalogStmt() *nodes.CreateFulltextCatalogSt
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateFulltextStoplistStmt parses a CREATE FULLTEXT STOPLIST statement.
@@ -528,7 +528,7 @@ func (p *Parser) parseCreateFulltextCatalogStmt() *nodes.CreateFulltextCatalogSt
 //	CREATE FULLTEXT STOPLIST stoplist_name
 //	    [ FROM { [ database_name . ] source_stoplist_name } | SYSTEM STOPLIST ]
 //	    [ AUTHORIZATION owner_name ]
-func (p *Parser) parseCreateFulltextStoplistStmt() *nodes.CreateFulltextStoplistStmt {
+func (p *Parser) parseCreateFulltextStoplistStmt() (*nodes.CreateFulltextStoplistStmt, error) {
 	loc := p.pos()
 	// STOPLIST keyword already consumed by caller
 
@@ -579,7 +579,7 @@ func (p *Parser) parseCreateFulltextStoplistStmt() *nodes.CreateFulltextStoplist
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterFulltextStoplistStmt parses an ALTER FULLTEXT STOPLIST statement.
@@ -596,7 +596,7 @@ func (p *Parser) parseCreateFulltextStoplistStmt() *nodes.CreateFulltextStoplist
 //	      | ALL
 //	    }
 //	}
-func (p *Parser) parseAlterFulltextStoplistStmt() *nodes.AlterFulltextStoplistStmt {
+func (p *Parser) parseAlterFulltextStoplistStmt() (*nodes.AlterFulltextStoplistStmt, error) {
 	loc := p.pos()
 	// STOPLIST keyword already consumed by caller
 
@@ -666,7 +666,7 @@ func (p *Parser) parseAlterFulltextStoplistStmt() *nodes.AlterFulltextStoplistSt
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropFulltextStoplistStmt parses a DROP FULLTEXT STOPLIST statement.
@@ -674,7 +674,7 @@ func (p *Parser) parseAlterFulltextStoplistStmt() *nodes.AlterFulltextStoplistSt
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-fulltext-stoplist-transact-sql
 //
 //	DROP FULLTEXT STOPLIST stoplist_name
-func (p *Parser) parseDropFulltextStoplistStmt() *nodes.DropFulltextStoplistStmt {
+func (p *Parser) parseDropFulltextStoplistStmt() (*nodes.DropFulltextStoplistStmt, error) {
 	loc := p.pos()
 	// STOPLIST keyword already consumed by caller
 
@@ -688,7 +688,7 @@ func (p *Parser) parseDropFulltextStoplistStmt() *nodes.DropFulltextStoplistStmt
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateSearchPropertyListStmt parses a CREATE SEARCH PROPERTY LIST statement.
@@ -698,7 +698,7 @@ func (p *Parser) parseDropFulltextStoplistStmt() *nodes.DropFulltextStoplistStmt
 //	CREATE SEARCH PROPERTY LIST new_list_name
 //	    [ FROM [ database_name . ] source_list_name ]
 //	    [ AUTHORIZATION owner_name ]
-func (p *Parser) parseCreateSearchPropertyListStmt() *nodes.CreateSearchPropertyListStmt {
+func (p *Parser) parseCreateSearchPropertyListStmt() (*nodes.CreateSearchPropertyListStmt, error) {
 	loc := p.pos()
 	// LIST keyword already consumed by caller
 
@@ -741,7 +741,7 @@ func (p *Parser) parseCreateSearchPropertyListStmt() *nodes.CreateSearchProperty
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterSearchPropertyListStmt parses an ALTER SEARCH PROPERTY LIST statement.
@@ -759,7 +759,7 @@ func (p *Parser) parseCreateSearchPropertyListStmt() *nodes.CreateSearchProperty
 //	      )
 //	  | DROP 'property_name'
 //	}
-func (p *Parser) parseAlterSearchPropertyListStmt() *nodes.AlterSearchPropertyListStmt {
+func (p *Parser) parseAlterSearchPropertyListStmt() (*nodes.AlterSearchPropertyListStmt, error) {
 	loc := p.pos()
 	// LIST keyword already consumed by caller
 
@@ -835,7 +835,7 @@ func (p *Parser) parseAlterSearchPropertyListStmt() *nodes.AlterSearchPropertyLi
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropSearchPropertyListStmt parses a DROP SEARCH PROPERTY LIST statement.
@@ -843,7 +843,7 @@ func (p *Parser) parseAlterSearchPropertyListStmt() *nodes.AlterSearchPropertyLi
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-search-property-list-transact-sql
 //
 //	DROP SEARCH PROPERTY LIST property_list_name
-func (p *Parser) parseDropSearchPropertyListStmt() *nodes.DropSearchPropertyListStmt {
+func (p *Parser) parseDropSearchPropertyListStmt() (*nodes.DropSearchPropertyListStmt, error) {
 	loc := p.pos()
 	// LIST keyword already consumed by caller
 
@@ -857,7 +857,7 @@ func (p *Parser) parseDropSearchPropertyListStmt() *nodes.DropSearchPropertyList
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterFulltextCatalogStmt parses an ALTER FULLTEXT CATALOG statement.
@@ -869,7 +869,7 @@ func (p *Parser) parseDropSearchPropertyListStmt() *nodes.DropSearchPropertyList
 //	    | REORGANIZE
 //	    | AS DEFAULT
 //	    }
-func (p *Parser) parseAlterFulltextCatalogStmt() *nodes.AlterFulltextCatalogStmt {
+func (p *Parser) parseAlterFulltextCatalogStmt() (*nodes.AlterFulltextCatalogStmt, error) {
 	loc := p.pos()
 	// CATALOG keyword already consumed by caller
 
@@ -912,5 +912,5 @@ func (p *Parser) parseAlterFulltextCatalogStmt() *nodes.AlterFulltextCatalogStmt
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }

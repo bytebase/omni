@@ -566,7 +566,7 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 	// Rowset functions: OPENROWSET, OPENQUERY, OPENJSON, OPENDATASOURCE, OPENXML
 	if p.cur.Type == kwOPENROWSET || p.cur.Type == kwOPENQUERY || p.cur.Type == kwOPENJSON ||
 		p.cur.Type == kwOPENDATASOURCE || p.cur.Type == kwOPENXML {
-		return p.parseRowsetFunction(), nil
+		return p.parseRowsetFunction()
 	}
 
 	// Table reference

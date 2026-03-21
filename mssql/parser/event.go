@@ -16,7 +16,7 @@ import (
 //	[ WITH FAN_IN ]
 //	FOR { event_type | event_group } [ , ...n ]
 //	TO SERVICE 'broker_service' , { 'broker_instance_specifier' | 'current database' }
-func (p *Parser) parseCreateEventNotificationStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateEventNotificationStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// EVENT NOTIFICATION keywords already consumed by caller
 
@@ -36,7 +36,7 @@ func (p *Parser) parseCreateEventNotificationStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseEventNotificationOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropEventNotificationStmt parses DROP EVENT NOTIFICATION.
@@ -45,7 +45,7 @@ func (p *Parser) parseCreateEventNotificationStmt() *nodes.SecurityStmt {
 //
 //	DROP EVENT NOTIFICATION notification_name [ ,...n ]
 //	ON { SERVER | DATABASE | QUEUE queue_name }
-func (p *Parser) parseDropEventNotificationStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropEventNotificationStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// EVENT NOTIFICATION keywords already consumed by caller
 
@@ -65,7 +65,7 @@ func (p *Parser) parseDropEventNotificationStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseEventNotificationOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseEventNotificationOptions consumes ON/WITH/FOR/TO clauses of EVENT NOTIFICATION.
@@ -193,7 +193,7 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 //	    [ [ , ] STARTUP_STATE = { ON | OFF } ]
 //	    [ [ , ] MAX_DURATION = { <time duration> { SECONDS | MINUTES | HOURS | DAYS } | UNLIMITED } ]
 //	}
-func (p *Parser) parseCreateEventSessionStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateEventSessionStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// EVENT SESSION keywords already consumed by caller
 
@@ -213,7 +213,7 @@ func (p *Parser) parseCreateEventSessionStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseEventSessionBody()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterEventSessionStmt parses ALTER EVENT SESSION.
@@ -237,7 +237,7 @@ func (p *Parser) parseCreateEventSessionStmt() *nodes.SecurityStmt {
 //	<add_drop_event_target>::=
 //	    ADD TARGET <event_target_specifier> [ ( SET ... ) ]
 //	    | DROP TARGET <event_target_specifier>
-func (p *Parser) parseAlterEventSessionStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterEventSessionStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// EVENT SESSION keywords already consumed by caller
 
@@ -257,7 +257,7 @@ func (p *Parser) parseAlterEventSessionStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseEventSessionBody()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropEventSessionStmt parses DROP EVENT SESSION.
@@ -266,7 +266,7 @@ func (p *Parser) parseAlterEventSessionStmt() *nodes.SecurityStmt {
 //
 //	DROP EVENT SESSION event_session_name
 //	ON { SERVER | DATABASE }
-func (p *Parser) parseDropEventSessionStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropEventSessionStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// EVENT SESSION keywords already consumed by caller
 
@@ -286,7 +286,7 @@ func (p *Parser) parseDropEventSessionStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseEventSessionBody()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseEventSessionBody consumes ON, ADD EVENT/TARGET, DROP EVENT/TARGET, WITH, STATE clauses.

@@ -8,7 +8,7 @@ import (
 // parseGoStmt parses a GO batch separator.
 //
 //	GO [count]
-func (p *Parser) parseGoStmt() *nodes.GoStmt {
+func (p *Parser) parseGoStmt() (*nodes.GoStmt, error) {
 	loc := p.pos()
 	p.advance() // consume GO
 
@@ -24,5 +24,5 @@ func (p *Parser) parseGoStmt() *nodes.GoStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
