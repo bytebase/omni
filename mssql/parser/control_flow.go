@@ -92,7 +92,10 @@ func (p *Parser) parseBeginStmt() (nodes.StmtNode, error) {
 		p.advance() // consume CONVERSATION
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TIMER") {
 			p.advance() // consume TIMER
-			stmt := p.parseBeginConversationTimerStmt()
+			stmt, err := p.parseBeginConversationTimerStmt()
+			if err != nil {
+				return nil, err
+			}
 			stmt.Loc = nodes.Loc{Start: loc}
 			stmt.Loc.End = p.pos()
 			return stmt, nil
@@ -110,7 +113,10 @@ func (p *Parser) parseBeginStmt() (nodes.StmtNode, error) {
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CONVERSATION") {
 			p.advance()
 		}
-		stmt := p.parseBeginConversationStmt()
+		stmt, err := p.parseBeginConversationStmt()
+		if err != nil {
+			return nil, err
+		}
 		stmt.Loc.Start = loc
 		return stmt, nil
 	}

@@ -26,7 +26,7 @@ import (
 //	    [ pool_name | [default] ]
 //	    [ [ , ] EXTERNAL external_pool_name | [ default ] ]
 //	    } ]
-func (p *Parser) parseCreateWorkloadGroupStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "CREATE",
@@ -42,7 +42,7 @@ func (p *Parser) parseCreateWorkloadGroupStmt() *nodes.SecurityStmt {
 
 	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterWorkloadGroupStmt parses ALTER WORKLOAD GROUP.
@@ -61,7 +61,7 @@ func (p *Parser) parseCreateWorkloadGroupStmt() *nodes.SecurityStmt {
 //	      [ [ , ] GROUP_MAX_TEMPDB_DATA_PERCENT = value ] )
 //	]
 //	[ USING { pool_name | [default] } ]
-func (p *Parser) parseAlterWorkloadGroupStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "ALTER",
@@ -77,7 +77,7 @@ func (p *Parser) parseAlterWorkloadGroupStmt() *nodes.SecurityStmt {
 
 	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropWorkloadGroupStmt parses DROP WORKLOAD GROUP.
@@ -85,7 +85,7 @@ func (p *Parser) parseAlterWorkloadGroupStmt() *nodes.SecurityStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-workload-group-transact-sql
 //
 //	DROP WORKLOAD GROUP group_name
-func (p *Parser) parseDropWorkloadGroupStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "DROP",
@@ -100,7 +100,7 @@ func (p *Parser) parseDropWorkloadGroupStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateResourcePoolStmt parses CREATE RESOURCE POOL.
@@ -130,7 +130,7 @@ func (p *Parser) parseDropWorkloadGroupStmt() *nodes.SecurityStmt {
 //
 //	<NUMA_node_range_spec> ::=
 //	{ NUMA_node_ID | NUMA_node_ID TO NUMA_node_ID }[,...n]
-func (p *Parser) parseCreateResourcePoolStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateResourcePoolStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "CREATE",
@@ -146,7 +146,7 @@ func (p *Parser) parseCreateResourcePoolStmt() *nodes.SecurityStmt {
 
 	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterResourcePoolStmt parses ALTER RESOURCE POOL.
@@ -168,7 +168,7 @@ func (p *Parser) parseCreateResourcePoolStmt() *nodes.SecurityStmt {
 //	    [ [ , ] MIN_IOPS_PER_VOLUME = value ]
 //	    [ [ , ] MAX_IOPS_PER_VOLUME = value ]
 //	)]
-func (p *Parser) parseAlterResourcePoolStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterResourcePoolStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "ALTER",
@@ -184,7 +184,7 @@ func (p *Parser) parseAlterResourcePoolStmt() *nodes.SecurityStmt {
 
 	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropResourcePoolStmt parses DROP RESOURCE POOL.
@@ -192,7 +192,7 @@ func (p *Parser) parseAlterResourcePoolStmt() *nodes.SecurityStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-resource-pool-transact-sql
 //
 //	DROP RESOURCE POOL pool_name
-func (p *Parser) parseDropResourcePoolStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropResourcePoolStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "DROP",
@@ -207,7 +207,7 @@ func (p *Parser) parseDropResourcePoolStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateExternalResourcePoolStmt parses CREATE EXTERNAL RESOURCE POOL.
@@ -221,7 +221,7 @@ func (p *Parser) parseDropResourcePoolStmt() *nodes.SecurityStmt {
 //	    [ [ , ] MAX_PROCESSES = value ]
 //	    )
 //	]
-func (p *Parser) parseCreateExternalResourcePoolStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateExternalResourcePoolStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "CREATE",
@@ -237,7 +237,7 @@ func (p *Parser) parseCreateExternalResourcePoolStmt() *nodes.SecurityStmt {
 
 	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterExternalResourcePoolStmt parses ALTER EXTERNAL RESOURCE POOL.
@@ -251,7 +251,7 @@ func (p *Parser) parseCreateExternalResourcePoolStmt() *nodes.SecurityStmt {
 //	    [ [ , ] MAX_PROCESSES = value ]
 //	    )
 //	]
-func (p *Parser) parseAlterExternalResourcePoolStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterExternalResourcePoolStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "ALTER",
@@ -267,7 +267,7 @@ func (p *Parser) parseAlterExternalResourcePoolStmt() *nodes.SecurityStmt {
 
 	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropExternalResourcePoolStmt parses DROP EXTERNAL RESOURCE POOL.
@@ -275,7 +275,7 @@ func (p *Parser) parseAlterExternalResourcePoolStmt() *nodes.SecurityStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-external-resource-pool-transact-sql
 //
 //	DROP EXTERNAL RESOURCE POOL pool_name
-func (p *Parser) parseDropExternalResourcePoolStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropExternalResourcePoolStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "DROP",
@@ -290,7 +290,7 @@ func (p *Parser) parseDropExternalResourcePoolStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterResourceGovernorStmt parses ALTER RESOURCE GOVERNOR.
@@ -306,7 +306,7 @@ func (p *Parser) parseDropExternalResourcePoolStmt() *nodes.SecurityStmt {
 //	                [ [ , ] MAX_OUTSTANDING_IO_PER_VOLUME = value ]
 //	              )
 //	    }
-func (p *Parser) parseAlterResourceGovernorStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterResourceGovernorStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "ALTER",
@@ -316,7 +316,7 @@ func (p *Parser) parseAlterResourceGovernorStmt() *nodes.SecurityStmt {
 
 	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseResourceGovernorOptions consumes the remaining tokens of a Resource Governor
@@ -558,7 +558,7 @@ func (p *Parser) parseResourceGovernorRangeSpec() string {
 //	    [ [ , ] START_TIME = 'HH:MM' ]
 //	    [ [ , ] END_TIME = 'HH:MM' ]
 //	    [ [ , ] IMPORTANCE = { LOW | BELOW_NORMAL | NORMAL | ABOVE_NORMAL | HIGH } ] )
-func (p *Parser) parseCreateWorkloadClassifierStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateWorkloadClassifierStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "CREATE",
@@ -574,7 +574,7 @@ func (p *Parser) parseCreateWorkloadClassifierStmt() *nodes.SecurityStmt {
 
 	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterWorkloadClassifierStmt parses ALTER WORKLOAD CLASSIFIER.
@@ -590,7 +590,7 @@ func (p *Parser) parseCreateWorkloadClassifierStmt() *nodes.SecurityStmt {
 //	    [ [ , ] START_TIME = 'HH:MM' ]
 //	    [ [ , ] END_TIME = 'HH:MM' ]
 //	    [ [ , ] IMPORTANCE = { LOW | BELOW_NORMAL | NORMAL | ABOVE_NORMAL | HIGH } ] )
-func (p *Parser) parseAlterWorkloadClassifierStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterWorkloadClassifierStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "ALTER",
@@ -606,7 +606,7 @@ func (p *Parser) parseAlterWorkloadClassifierStmt() *nodes.SecurityStmt {
 
 	stmt.Options = p.parseResourceGovernorOptions()
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropWorkloadClassifierStmt parses DROP WORKLOAD CLASSIFIER.
@@ -614,7 +614,7 @@ func (p *Parser) parseAlterWorkloadClassifierStmt() *nodes.SecurityStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-workload-classifier-transact-sql
 //
 //	DROP WORKLOAD CLASSIFIER classifier_name
-func (p *Parser) parseDropWorkloadClassifierStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropWorkloadClassifierStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "DROP",
@@ -629,5 +629,5 @@ func (p *Parser) parseDropWorkloadClassifierStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }

@@ -68,7 +68,7 @@ import (
 //
 //	  <network_subnet_option> ::= 'ip4_address', 'four_part_ipv4_mask'
 //	  <ip_address_option> ::= { 'ip4_address', 'pv4_mask' | 'ipv6_address' }
-func (p *Parser) parseCreateAvailabilityGroupStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateAvailabilityGroupStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// AVAILABILITY GROUP already consumed by caller
 
@@ -87,7 +87,7 @@ func (p *Parser) parseCreateAvailabilityGroupStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseAvailabilityGroupOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterAvailabilityGroupStmt parses ALTER AVAILABILITY GROUP.
@@ -162,7 +162,7 @@ func (p *Parser) parseCreateAvailabilityGroupStmt() *nodes.SecurityStmt {
 //	     | PORT = listener_port
 //	     | REMOVE IP ( 'ipv4_address' | 'ipv6_address')
 //	    }
-func (p *Parser) parseAlterAvailabilityGroupStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterAvailabilityGroupStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// AVAILABILITY GROUP already consumed by caller
 
@@ -181,7 +181,7 @@ func (p *Parser) parseAlterAvailabilityGroupStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseAvailabilityGroupOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropAvailabilityGroupStmt parses DROP AVAILABILITY GROUP.
@@ -191,7 +191,7 @@ func (p *Parser) parseAlterAvailabilityGroupStmt() *nodes.SecurityStmt {
 //
 //	DROP AVAILABILITY GROUP group_name
 //	[ ; ]
-func (p *Parser) parseDropAvailabilityGroupStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropAvailabilityGroupStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// AVAILABILITY GROUP already consumed by caller
 
@@ -208,7 +208,7 @@ func (p *Parser) parseDropAvailabilityGroupStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // newAGOpt creates an AvailabilityGroupOption with the given name, value, and location.

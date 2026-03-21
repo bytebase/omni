@@ -59,7 +59,7 @@ import (
 //	   ]
 //	   [ , ] ROLE = { WITNESS | PARTNER | ALL }
 //	)
-func (p *Parser) parseCreateEndpointStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateEndpointStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// ENDPOINT keyword already consumed by caller
 
@@ -77,7 +77,7 @@ func (p *Parser) parseCreateEndpointStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseEndpointOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterEndpointStmt parses ALTER ENDPOINT.
@@ -92,7 +92,7 @@ func (p *Parser) parseCreateEndpointStmt() *nodes.SecurityStmt {
 //	    [ FOR { TSQL | SERVICE_BROKER | DATABASE_MIRRORING } (
 //	        <language_specific_arguments>
 //	    ) ]
-func (p *Parser) parseAlterEndpointStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterEndpointStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// ENDPOINT keyword already consumed by caller
 
@@ -110,7 +110,7 @@ func (p *Parser) parseAlterEndpointStmt() *nodes.SecurityStmt {
 	stmt.Options = p.parseEndpointOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropEndpointStmt parses DROP ENDPOINT.
@@ -118,7 +118,7 @@ func (p *Parser) parseAlterEndpointStmt() *nodes.SecurityStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-endpoint-transact-sql
 //
 //	DROP ENDPOINT endPointName
-func (p *Parser) parseDropEndpointStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropEndpointStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// ENDPOINT keyword already consumed by caller
 
@@ -134,7 +134,7 @@ func (p *Parser) parseDropEndpointStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseEndpointOptions parses AUTHORIZATION, STATE, AS <protocol>, FOR <payload> clauses

@@ -324,21 +324,25 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 			}
 			// SEND ON CONVERSATION ... (service broker)
 			if matchesKeywordCI(p.cur.Str, "SEND") {
-				return p.parseSendStmt()
+				stmt, _ := p.parseSendStmt()
+				return stmt
 			}
 			// RECEIVE (service broker)
 			if matchesKeywordCI(p.cur.Str, "RECEIVE") {
-				return p.parseReceiveStmt()
+				stmt, _ := p.parseReceiveStmt()
+				return stmt
 			}
 			// END CONVERSATION (service broker) - must check next token
 			if matchesKeywordCI(p.cur.Str, "END") &&
 				next.Str != "" && matchesKeywordCI(next.Str, "CONVERSATION") {
-				return p.parseEndConversationStmt()
+				stmt, _ := p.parseEndConversationStmt()
+				return stmt
 			}
 			// GET CONVERSATION GROUP (service broker)
 			if matchesKeywordCI(p.cur.Str, "GET") &&
 				next.Str != "" && matchesKeywordCI(next.Str, "CONVERSATION") {
-				return p.parseGetConversationGroupStmt()
+				stmt, _ := p.parseGetConversationGroupStmt()
+				return stmt
 			}
 			// ENABLE TRIGGER
 			if matchesKeywordCI(p.cur.Str, "ENABLE") &&
@@ -355,7 +359,8 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 			// MOVE CONVERSATION (service broker)
 			if matchesKeywordCI(p.cur.Str, "MOVE") &&
 				next.Str != "" && matchesKeywordCI(next.Str, "CONVERSATION") {
-				return p.parseMoveConversationStmt()
+				stmt, _ := p.parseMoveConversationStmt()
+				return stmt
 			}
 			// COPY INTO (Azure Synapse/Fabric bulk load)
 			if matchesKeywordCI(p.cur.Str, "COPY") &&
@@ -792,7 +797,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			p.advance() // consume MESSAGE
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TYPE") {
 				p.advance() // consume TYPE
-				stmt := p.parseCreateMessageTypeStmt()
+				stmt, _ := p.parseCreateMessageTypeStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -801,35 +806,35 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		// CREATE CONTRACT (service broker)
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CONTRACT") {
 			p.advance() // consume CONTRACT
-			stmt := p.parseCreateContractStmt()
+			stmt, _ := p.parseCreateContractStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		// CREATE QUEUE (service broker)
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "QUEUE") {
 			p.advance() // consume QUEUE
-			stmt := p.parseCreateQueueStmt()
+			stmt, _ := p.parseCreateQueueStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		// CREATE SERVICE (service broker)
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVICE") {
 			p.advance() // consume SERVICE
-			stmt := p.parseCreateServiceStmt()
+			stmt, _ := p.parseCreateServiceStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		// CREATE ROUTE (service broker)
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ROUTE") {
 			p.advance() // consume ROUTE
-			stmt := p.parseCreateRouteStmt()
+			stmt, _ := p.parseCreateRouteStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		// CREATE ENDPOINT
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ENDPOINT") {
 			p.advance() // consume ENDPOINT
-			stmt := p.parseCreateEndpointStmt()
+			stmt, _ := p.parseCreateEndpointStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -849,7 +854,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "BINDING") {
 				p.advance() // consume BINDING
 			}
-			stmt := p.parseCreateRemoteServiceBindingStmt()
+			stmt, _ := p.parseCreateRemoteServiceBindingStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -926,7 +931,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POOL") {
 					p.advance() // consume POOL
 				}
-				stmt := p.parseCreateExternalResourcePoolStmt()
+				stmt, _ := p.parseCreateExternalResourcePoolStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -971,7 +976,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "GROUP") {
 				p.advance() // consume GROUP
 			}
-			stmt := p.parseCreateAvailabilityGroupStmt()
+			stmt, _ := p.parseCreateAvailabilityGroupStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -981,7 +986,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PRIORITY") {
 				p.advance() // consume PRIORITY
 			}
-			stmt := p.parseCreateBrokerPriorityStmt()
+			stmt, _ := p.parseCreateBrokerPriorityStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -990,14 +995,14 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			p.advance() // consume WORKLOAD
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CLASSIFIER") {
 				p.advance() // consume CLASSIFIER
-				stmt := p.parseCreateWorkloadClassifierStmt()
+				stmt, _ := p.parseCreateWorkloadClassifierStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "GROUP") {
 				p.advance() // consume GROUP
 			}
-			stmt := p.parseCreateWorkloadGroupStmt()
+			stmt, _ := p.parseCreateWorkloadGroupStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1006,7 +1011,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			p.advance() // consume RESOURCE
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POOL") {
 				p.advance() // consume POOL
-				stmt := p.parseCreateResourcePoolStmt()
+				stmt, _ := p.parseCreateResourcePoolStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1247,7 +1252,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		// ALTER ENDPOINT
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ENDPOINT") {
 			p.advance() // consume ENDPOINT
-			stmt := p.parseAlterEndpointStmt()
+			stmt, _ := p.parseAlterEndpointStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1293,7 +1298,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		// ALTER QUEUE (service broker)
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "QUEUE") {
 			p.advance() // consume QUEUE
-			stmt := p.parseAlterQueueStmt()
+			stmt, _ := p.parseAlterQueueStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1312,14 +1317,14 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 				return stmt
 			}
 			p.advance() // consume SERVICE
-			stmt := p.parseAlterServiceStmt()
+			stmt, _ := p.parseAlterServiceStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		// ALTER ROUTE (service broker)
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ROUTE") {
 			p.advance() // consume ROUTE
-			stmt := p.parseAlterRouteStmt()
+			stmt, _ := p.parseAlterRouteStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1332,7 +1337,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "BINDING") {
 				p.advance() // consume BINDING
 			}
-			stmt := p.parseAlterRemoteServiceBindingStmt()
+			stmt, _ := p.parseAlterRemoteServiceBindingStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1342,7 +1347,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PRIORITY") {
 				p.advance() // consume PRIORITY
 			}
-			stmt := p.parseAlterBrokerPriorityStmt()
+			stmt, _ := p.parseAlterBrokerPriorityStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1363,14 +1368,14 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TYPE") {
 				p.advance() // consume TYPE
 			}
-			stmt := p.parseAlterMessageTypeStmt()
+			stmt, _ := p.parseAlterMessageTypeStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		// ALTER CONTRACT (service broker)
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CONTRACT") {
 			p.advance() // consume CONTRACT
-			stmt := p.parseAlterContractStmt()
+			stmt, _ := p.parseAlterContractStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1405,7 +1410,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POOL") {
 					p.advance() // consume POOL
 				}
-				stmt := p.parseAlterExternalResourcePoolStmt()
+				stmt, _ := p.parseAlterExternalResourcePoolStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1435,7 +1440,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "GROUP") {
 				p.advance() // consume GROUP
 			}
-			stmt := p.parseAlterAvailabilityGroupStmt()
+			stmt, _ := p.parseAlterAvailabilityGroupStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1444,14 +1449,14 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			p.advance() // consume WORKLOAD
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CLASSIFIER") {
 				p.advance() // consume CLASSIFIER
-				stmt := p.parseAlterWorkloadClassifierStmt()
+				stmt, _ := p.parseAlterWorkloadClassifierStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "GROUP") {
 				p.advance() // consume GROUP
 			}
-			stmt := p.parseAlterWorkloadGroupStmt()
+			stmt, _ := p.parseAlterWorkloadGroupStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1460,13 +1465,13 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			p.advance() // consume RESOURCE
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POOL") {
 				p.advance() // consume POOL
-				stmt := p.parseAlterResourcePoolStmt()
+				stmt, _ := p.parseAlterResourcePoolStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "GOVERNOR") {
 				p.advance() // consume GOVERNOR
-				stmt := p.parseAlterResourceGovernorStmt()
+				stmt, _ := p.parseAlterResourceGovernorStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1589,7 +1594,7 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "ENDPOINT") {
 			p.advance() // consume DROP
 			p.advance() // consume ENDPOINT
-			stmt := p.parseDropEndpointStmt()
+			stmt, _ := p.parseDropEndpointStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1624,35 +1629,35 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TYPE") {
 				p.advance() // consume TYPE
 			}
-			stmt := p.parseDropServiceBrokerStmt("MESSAGE TYPE")
+			stmt, _ := p.parseDropServiceBrokerStmt("MESSAGE TYPE")
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "CONTRACT") {
 			p.advance() // consume DROP
 			p.advance() // consume CONTRACT
-			stmt := p.parseDropServiceBrokerStmt("CONTRACT")
+			stmt, _ := p.parseDropServiceBrokerStmt("CONTRACT")
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "QUEUE") {
 			p.advance() // consume DROP
 			p.advance() // consume QUEUE
-			stmt := p.parseDropServiceBrokerStmt("QUEUE")
+			stmt, _ := p.parseDropServiceBrokerStmt("QUEUE")
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "SERVICE") {
 			p.advance() // consume DROP
 			p.advance() // consume SERVICE
-			stmt := p.parseDropServiceBrokerStmt("SERVICE")
+			stmt, _ := p.parseDropServiceBrokerStmt("SERVICE")
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "ROUTE") {
 			p.advance() // consume DROP
 			p.advance() // consume ROUTE
-			stmt := p.parseDropServiceBrokerStmt("ROUTE")
+			stmt, _ := p.parseDropServiceBrokerStmt("ROUTE")
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1665,7 +1670,7 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "BINDING") {
 				p.advance() // consume BINDING
 			}
-			stmt := p.parseDropServiceBrokerStmt("REMOTE SERVICE BINDING")
+			stmt, _ := p.parseDropServiceBrokerStmt("REMOTE SERVICE BINDING")
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1675,7 +1680,7 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PRIORITY") {
 				p.advance() // consume PRIORITY
 			}
-			stmt := p.parseDropServiceBrokerStmt("BROKER PRIORITY")
+			stmt, _ := p.parseDropServiceBrokerStmt("BROKER PRIORITY")
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1694,7 +1699,7 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "GROUP") {
 				p.advance() // consume GROUP
 			}
-			stmt := p.parseDropAvailabilityGroupStmt()
+			stmt, _ := p.parseDropAvailabilityGroupStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1729,14 +1734,14 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			p.advance() // consume WORKLOAD
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CLASSIFIER") {
 				p.advance() // consume CLASSIFIER
-				stmt := p.parseDropWorkloadClassifierStmt()
+				stmt, _ := p.parseDropWorkloadClassifierStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "GROUP") {
 				p.advance() // consume GROUP
 			}
-			stmt := p.parseDropWorkloadGroupStmt()
+			stmt, _ := p.parseDropWorkloadGroupStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1746,7 +1751,7 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			p.advance() // consume RESOURCE
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POOL") {
 				p.advance() // consume POOL
-				stmt := p.parseDropResourcePoolStmt()
+				stmt, _ := p.parseDropResourcePoolStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}

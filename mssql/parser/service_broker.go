@@ -18,7 +18,7 @@ import (
 //	                    | WELL_FORMED_XML
 //	                    | VALID_XML WITH SCHEMA COLLECTION schema_collection_name
 //	                   } ]
-func (p *Parser) parseCreateMessageTypeStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseCreateMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// TYPE keyword already consumed by caller
 
@@ -81,7 +81,7 @@ func (p *Parser) parseCreateMessageTypeStmt() *nodes.ServiceBrokerStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateContractStmt parses CREATE CONTRACT.
@@ -93,7 +93,7 @@ func (p *Parser) parseCreateMessageTypeStmt() *nodes.ServiceBrokerStmt {
 //	      (  {   { message_type_name | [ DEFAULT ] }
 //	          SENT BY { INITIATOR | TARGET | ANY }
 //	       } [ ,...n] )
-func (p *Parser) parseCreateContractStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseCreateContractStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// CONTRACT keyword already consumed by caller
 
@@ -157,7 +157,7 @@ func (p *Parser) parseCreateContractStmt() *nodes.ServiceBrokerStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateQueueStmt parses CREATE QUEUE.
@@ -184,7 +184,7 @@ func (p *Parser) parseCreateContractStmt() *nodes.ServiceBrokerStmt {
 //
 //	<procedure> ::=
 //	{ database_name.schema_name.stored_procedure_name | schema_name.stored_procedure_name | stored_procedure_name }
-func (p *Parser) parseCreateQueueStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseCreateQueueStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// QUEUE keyword already consumed by caller
 
@@ -221,7 +221,7 @@ func (p *Parser) parseCreateQueueStmt() *nodes.ServiceBrokerStmt {
 		stmt.Options = &nodes.List{Items: opts}
 	}
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseQueueWithClause parses the WITH clause options for CREATE/ALTER QUEUE.
@@ -363,7 +363,7 @@ func (p *Parser) parseQueueActivationClause(opts []nodes.Node) []nodes.Node {
 //	   [ AUTHORIZATION owner_name ]
 //	   ON QUEUE [ schema_name. ]queue_name
 //	   [ ( contract_name | [DEFAULT][ ,...n ] ) ]
-func (p *Parser) parseCreateServiceStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseCreateServiceStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// SERVICE keyword already consumed by caller
 
@@ -380,7 +380,7 @@ func (p *Parser) parseCreateServiceStmt() *nodes.ServiceBrokerStmt {
 
 	stmt.Options = p.parseServiceBrokerOptions()
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseSendStmt parses SEND ON CONVERSATION.
@@ -391,7 +391,7 @@ func (p *Parser) parseCreateServiceStmt() *nodes.ServiceBrokerStmt {
 //	   ON CONVERSATION [(]conversation_handle [,.. @conversation_handle_n][)]
 //	   [ MESSAGE TYPE message_type_name ]
 //	   [ ( message_body_expression ) ]
-func (p *Parser) parseSendStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseSendStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	p.advance() // consume SEND
 
@@ -450,7 +450,7 @@ func (p *Parser) parseSendStmt() *nodes.ServiceBrokerStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseReceiveStmt parses RECEIVE.
@@ -472,7 +472,7 @@ func (p *Parser) parseSendStmt() *nodes.ServiceBrokerStmt {
 //
 //	<queue> ::=
 //	{ database_name.schema_name.queue_name | schema_name.queue_name | queue_name }
-func (p *Parser) parseReceiveStmt() *nodes.ReceiveStmt {
+func (p *Parser) parseReceiveStmt() (*nodes.ReceiveStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RECEIVE
 
@@ -556,7 +556,7 @@ func (p *Parser) parseReceiveStmt() *nodes.ReceiveStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseBeginConversationStmt parses BEGIN DIALOG CONVERSATION.
@@ -574,7 +574,7 @@ func (p *Parser) parseReceiveStmt() *nodes.ReceiveStmt {
 //	        [ [ , ] LIFETIME = dialog_lifetime ]
 //	        [ [ , ] ENCRYPTION = { ON | OFF } ]
 //	    ]
-func (p *Parser) parseBeginConversationStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// already consumed BEGIN, and DIALOG has been consumed by caller
 
@@ -698,7 +698,7 @@ func (p *Parser) parseBeginConversationStmt() *nodes.ServiceBrokerStmt {
 		stmt.Options = &nodes.List{Items: opts}
 	}
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseEndConversationStmt parses END CONVERSATION.
@@ -709,7 +709,7 @@ func (p *Parser) parseBeginConversationStmt() *nodes.ServiceBrokerStmt {
 //	    [   [ WITH ERROR = failure_code DESCRIPTION = 'failure_text' ]
 //	      | [ WITH CLEANUP ]
 //	    ]
-func (p *Parser) parseEndConversationStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseEndConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	p.advance() // consume END
 	// consume CONVERSATION
@@ -773,7 +773,7 @@ func (p *Parser) parseEndConversationStmt() *nodes.ServiceBrokerStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateRouteStmt parses CREATE ROUTE.
@@ -788,7 +788,7 @@ func (p *Parser) parseEndConversationStmt() *nodes.ServiceBrokerStmt {
 //	    [ LIFETIME = route_lifetime , ]
 //	    ADDRESS = 'next_hop_address'
 //	    [ , MIRROR_ADDRESS = 'next_hop_mirror_address' ]
-func (p *Parser) parseCreateRouteStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseCreateRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// ROUTE keyword already consumed by caller
 
@@ -850,7 +850,7 @@ func (p *Parser) parseCreateRouteStmt() *nodes.ServiceBrokerStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateRemoteServiceBindingStmt parses CREATE REMOTE SERVICE BINDING.
@@ -861,7 +861,7 @@ func (p *Parser) parseCreateRouteStmt() *nodes.ServiceBrokerStmt {
 //	    [ AUTHORIZATION owner_name ]
 //	    TO SERVICE 'service_name'
 //	    WITH USER = user_name [ , ANONYMOUS = { ON | OFF } ]
-func (p *Parser) parseCreateRemoteServiceBindingStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseCreateRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// REMOTE SERVICE BINDING keywords already consumed by caller
 
@@ -939,7 +939,7 @@ func (p *Parser) parseCreateRemoteServiceBindingStmt() *nodes.ServiceBrokerStmt 
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseGetConversationGroupStmt parses GET CONVERSATION GROUP.
@@ -950,7 +950,7 @@ func (p *Parser) parseCreateRemoteServiceBindingStmt() *nodes.ServiceBrokerStmt 
 //	    GET CONVERSATION GROUP @conversation_group_id
 //	        FROM <queue>
 //	[ ) ] [ , TIMEOUT timeout ]
-func (p *Parser) parseGetConversationGroupStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseGetConversationGroupStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	p.advance() // consume GET
 
@@ -986,7 +986,7 @@ func (p *Parser) parseGetConversationGroupStmt() *nodes.ServiceBrokerStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseServiceBrokerOptions consumes a generic WITH options clause.
@@ -1141,7 +1141,7 @@ func (p *Parser) parseServiceBrokerOptions() *nodes.List {
 //	{
 //	   ( MAXDOP = max_degree_of_parallelism )
 //	}
-func (p *Parser) parseAlterQueueStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseAlterQueueStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// QUEUE keyword already consumed by caller
 
@@ -1233,7 +1233,7 @@ func (p *Parser) parseAlterQueueStmt() *nodes.ServiceBrokerStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterServiceStmt parses ALTER SERVICE.
@@ -1246,7 +1246,7 @@ func (p *Parser) parseAlterQueueStmt() *nodes.ServiceBrokerStmt {
 //
 //	<opt_arg> ::=
 //	   ADD CONTRACT contract_name | DROP CONTRACT contract_name
-func (p *Parser) parseAlterServiceStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseAlterServiceStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// SERVICE keyword already consumed by caller
 
@@ -1313,7 +1313,7 @@ func (p *Parser) parseAlterServiceStmt() *nodes.ServiceBrokerStmt {
 		stmt.Options = &nodes.List{Items: opts}
 	}
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterRouteStmt parses ALTER ROUTE.
@@ -1327,7 +1327,7 @@ func (p *Parser) parseAlterServiceStmt() *nodes.ServiceBrokerStmt {
 //	    [ LIFETIME = route_lifetime , ]
 //	    ADDRESS = 'next_hop_address'
 //	    [ , MIRROR_ADDRESS = 'next_hop_mirror_address' ]
-func (p *Parser) parseAlterRouteStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseAlterRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// ROUTE keyword already consumed by caller
 
@@ -1380,7 +1380,7 @@ func (p *Parser) parseAlterRouteStmt() *nodes.ServiceBrokerStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterRemoteServiceBindingStmt parses ALTER REMOTE SERVICE BINDING.
@@ -1389,7 +1389,7 @@ func (p *Parser) parseAlterRouteStmt() *nodes.ServiceBrokerStmt {
 //
 //	ALTER REMOTE SERVICE BINDING binding_name
 //	    WITH USER = user_name [ , ANONYMOUS = { ON | OFF } ]
-func (p *Parser) parseAlterRemoteServiceBindingStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseAlterRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// REMOTE SERVICE BINDING keywords already consumed by caller
 
@@ -1440,7 +1440,7 @@ func (p *Parser) parseAlterRemoteServiceBindingStmt() *nodes.ServiceBrokerStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterMessageTypeStmt parses ALTER MESSAGE TYPE.
@@ -1453,7 +1453,7 @@ func (p *Parser) parseAlterRemoteServiceBindingStmt() *nodes.ServiceBrokerStmt {
 //	     | EMPTY
 //	     | WELL_FORMED_XML
 //	     | VALID_XML WITH SCHEMA COLLECTION schema_collection_name }
-func (p *Parser) parseAlterMessageTypeStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseAlterMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// MESSAGE TYPE keywords already consumed by caller
 
@@ -1510,7 +1510,7 @@ func (p *Parser) parseAlterMessageTypeStmt() *nodes.ServiceBrokerStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterContractStmt parses ALTER CONTRACT.
@@ -1522,7 +1522,7 @@ func (p *Parser) parseAlterMessageTypeStmt() *nodes.ServiceBrokerStmt {
 //	ALTER CONTRACT contract_name
 //	    [ ADD MESSAGE TYPE message_type_name SENT BY { INITIATOR | TARGET | ANY } ]
 //	    [ DROP MESSAGE TYPE message_type_name ]
-func (p *Parser) parseAlterContractStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseAlterContractStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// CONTRACT keyword already consumed by caller
 
@@ -1595,7 +1595,7 @@ func (p *Parser) parseAlterContractStmt() *nodes.ServiceBrokerStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropServiceBrokerStmt parses DROP for Service Broker objects.
@@ -1609,7 +1609,7 @@ func (p *Parser) parseAlterContractStmt() *nodes.ServiceBrokerStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-broker-priority-transact-sql
 //
 //	DROP { MESSAGE TYPE | CONTRACT | QUEUE | SERVICE | ROUTE | REMOTE SERVICE BINDING | BROKER PRIORITY } name
-func (p *Parser) parseDropServiceBrokerStmt(objectType string) *nodes.ServiceBrokerStmt {
+func (p *Parser) parseDropServiceBrokerStmt(objectType string) (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 
 	stmt := &nodes.ServiceBrokerStmt{
@@ -1629,7 +1629,7 @@ func (p *Parser) parseDropServiceBrokerStmt(objectType string) *nodes.ServiceBro
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCreateBrokerPriorityStmt parses CREATE BROKER PRIORITY.
@@ -1644,7 +1644,7 @@ func (p *Parser) parseDropServiceBrokerStmt(objectType string) *nodes.ServiceBro
 //	        [ [ , ] REMOTE_SERVICE_NAME = { 'RemoteServiceName' | ANY } ]
 //	        [ [ , ] PRIORITY_LEVEL = { PriorityValue | DEFAULT } ]
 //	    ) ]
-func (p *Parser) parseCreateBrokerPriorityStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseCreateBrokerPriorityStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// BROKER PRIORITY keywords already consumed by caller
 
@@ -1670,7 +1670,7 @@ func (p *Parser) parseCreateBrokerPriorityStmt() *nodes.ServiceBrokerStmt {
 	stmt.Options = p.parseBrokerPrioritySetOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterBrokerPriorityStmt parses ALTER BROKER PRIORITY.
@@ -1685,7 +1685,7 @@ func (p *Parser) parseCreateBrokerPriorityStmt() *nodes.ServiceBrokerStmt {
 //	        [ [ , ] REMOTE_SERVICE_NAME = { 'RemoteServiceName' | ANY } ]
 //	        [ [ , ] PRIORITY_LEVEL = { PriorityValue | DEFAULT } ]
 //	    )
-func (p *Parser) parseAlterBrokerPriorityStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseAlterBrokerPriorityStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	// BROKER PRIORITY keywords already consumed by caller
 
@@ -1711,7 +1711,7 @@ func (p *Parser) parseAlterBrokerPriorityStmt() *nodes.ServiceBrokerStmt {
 	stmt.Options = p.parseBrokerPrioritySetOptions()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseBrokerPrioritySetOptions parses SET ( key=value, ... ) for BROKER PRIORITY statements.
@@ -1763,7 +1763,7 @@ func (p *Parser) parseBrokerPrioritySetOptions() *nodes.List {
 //
 //	MOVE CONVERSATION conversation_handle
 //	    TO conversation_group_id
-func (p *Parser) parseMoveConversationStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseMoveConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 	loc := p.pos()
 	p.advance() // consume MOVE
 
@@ -1797,7 +1797,7 @@ func (p *Parser) parseMoveConversationStmt() *nodes.ServiceBrokerStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseBeginConversationTimerStmt parses a BEGIN CONVERSATION TIMER statement.
@@ -1807,7 +1807,7 @@ func (p *Parser) parseMoveConversationStmt() *nodes.ServiceBrokerStmt {
 //	BEGIN CONVERSATION TIMER ( conversation_handle )
 //	   TIMEOUT = timeout
 //	[ ; ]
-func (p *Parser) parseBeginConversationTimerStmt() *nodes.ServiceBrokerStmt {
+func (p *Parser) parseBeginConversationTimerStmt() (*nodes.ServiceBrokerStmt, error) {
 	// BEGIN and CONVERSATION TIMER already consumed by caller
 
 	stmt := &nodes.ServiceBrokerStmt{
@@ -1843,5 +1843,5 @@ func (p *Parser) parseBeginConversationTimerStmt() *nodes.ServiceBrokerStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
