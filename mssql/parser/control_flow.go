@@ -15,7 +15,7 @@ import (
 //	    { sql_statement | statement_block }
 //	[ ELSE
 //	    { sql_statement | statement_block } ]
-func (p *Parser) parseIfStmt() *nodes.IfStmt {
+func (p *Parser) parseIfStmt() (*nodes.IfStmt, error) {
 	loc := p.pos()
 	p.advance() // consume IF
 
@@ -32,7 +32,7 @@ func (p *Parser) parseIfStmt() *nodes.IfStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseWhileStmt parses a WHILE loop.
@@ -41,7 +41,7 @@ func (p *Parser) parseIfStmt() *nodes.IfStmt {
 //
 //	WHILE boolean_expression
 //	    { sql_statement | statement_block | BREAK | CONTINUE }
-func (p *Parser) parseWhileStmt() *nodes.WhileStmt {
+func (p *Parser) parseWhileStmt() (*nodes.WhileStmt, error) {
 	loc := p.pos()
 	p.advance() // consume WHILE
 
@@ -53,7 +53,7 @@ func (p *Parser) parseWhileStmt() *nodes.WhileStmt {
 	stmt.Body = p.parseStmt()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseBeginStmt parses BEGIN...END, BEGIN TRY...END TRY BEGIN CATCH...END CATCH,
@@ -64,23 +64,26 @@ func (p *Parser) parseWhileStmt() *nodes.WhileStmt {
 //	BEGIN [ ; ]
 //	    { sql_statement | statement_block }
 //	END [ ; ]
-func (p *Parser) parseBeginStmt() nodes.StmtNode {
+func (p *Parser) parseBeginStmt() (nodes.StmtNode, error) {
 	loc := p.pos()
 
 	// Check for BEGIN TRY
 	next := p.peekNext()
 	if next.Type == kwTRY {
-		return p.parseTryCatchStmt()
+		stmt, err := p.parseTryCatchStmt()
+		return stmt, err
 	}
 
 	// Check for BEGIN DISTRIBUTED TRAN/TRANSACTION
 	if next.Type == kwDISTRIBUTED {
-		return p.parseBeginDistributedTransStmt()
+		stmt, err := p.parseBeginDistributedTransStmt()
+		return stmt, err
 	}
 
 	// Check for BEGIN TRAN/TRANSACTION
 	if next.Type == kwTRAN || next.Type == kwTRANSACTION {
-		return p.parseBeginTransStmt()
+		stmt, err := p.parseBeginTransStmt()
+		return stmt, err
 	}
 
 	// Check for BEGIN CONVERSATION TIMER (service broker)
@@ -92,7 +95,7 @@ func (p *Parser) parseBeginStmt() nodes.StmtNode {
 			stmt := p.parseBeginConversationTimerStmt()
 			stmt.Loc = nodes.Loc{Start: loc}
 			stmt.Loc.End = p.pos()
-			return stmt
+			return stmt, nil
 		}
 		// Not a valid statement; fall through to BEGIN...END block parsing
 		// (BEGIN already consumed above, skip the p.advance() below)
@@ -109,7 +112,7 @@ func (p *Parser) parseBeginStmt() nodes.StmtNode {
 		}
 		stmt := p.parseBeginConversationStmt()
 		stmt.Loc.Start = loc
-		return stmt
+		return stmt, nil
 	}
 
 	p.advance() // consume BEGIN
@@ -133,7 +136,7 @@ parseBlock:
 	return &nodes.BeginEndStmt{
 		Stmts: &nodes.List{Items: stmts},
 		Loc:   nodes.Loc{Start: loc, End: p.pos()},
-	}
+	}, nil
 }
 
 // parseTryCatchStmt parses BEGIN TRY...END TRY BEGIN CATCH...END CATCH.
@@ -147,7 +150,7 @@ parseBlock:
 //	    [ { sql_statement | statement_block } ]
 //	END CATCH
 //	[ ; ]
-func (p *Parser) parseTryCatchStmt() *nodes.TryCatchStmt {
+func (p *Parser) parseTryCatchStmt() (*nodes.TryCatchStmt, error) {
 	loc := p.pos()
 	p.advance() // consume BEGIN
 	p.advance() // consume TRY
@@ -199,7 +202,7 @@ func (p *Parser) parseTryCatchStmt() *nodes.TryCatchStmt {
 	p.match(kwCATCH)
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseReturnStmt parses a RETURN statement.
@@ -207,7 +210,7 @@ func (p *Parser) parseTryCatchStmt() *nodes.TryCatchStmt {
 // BNF: mssql/parser/bnf/return-transact-sql.bnf
 //
 //	RETURN [ integer_expression ]
-func (p *Parser) parseReturnStmt() *nodes.ReturnStmt {
+func (p *Parser) parseReturnStmt() (*nodes.ReturnStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RETURN
 
@@ -222,7 +225,7 @@ func (p *Parser) parseReturnStmt() *nodes.ReturnStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseBreakStmt parses a BREAK statement.
@@ -230,12 +233,12 @@ func (p *Parser) parseReturnStmt() *nodes.ReturnStmt {
 // BNF: mssql/parser/bnf/break-transact-sql.bnf
 //
 //	BREAK
-func (p *Parser) parseBreakStmt() *nodes.BreakStmt {
+func (p *Parser) parseBreakStmt() (*nodes.BreakStmt, error) {
 	loc := p.pos()
 	p.advance() // consume BREAK
 	return &nodes.BreakStmt{
 		Loc: nodes.Loc{Start: loc, End: p.pos()},
-	}
+	}, nil
 }
 
 // parseContinueStmt parses a CONTINUE statement.
@@ -243,12 +246,12 @@ func (p *Parser) parseBreakStmt() *nodes.BreakStmt {
 // BNF: mssql/parser/bnf/continue-transact-sql.bnf
 //
 //	CONTINUE
-func (p *Parser) parseContinueStmt() *nodes.ContinueStmt {
+func (p *Parser) parseContinueStmt() (*nodes.ContinueStmt, error) {
 	loc := p.pos()
 	p.advance() // consume CONTINUE
 	return &nodes.ContinueStmt{
 		Loc: nodes.Loc{Start: loc, End: p.pos()},
-	}
+	}, nil
 }
 
 // parseGotoStmt parses a GOTO label statement.
@@ -256,7 +259,7 @@ func (p *Parser) parseContinueStmt() *nodes.ContinueStmt {
 // BNF: mssql/parser/bnf/goto-transact-sql.bnf
 //
 //	GOTO label
-func (p *Parser) parseGotoStmt() *nodes.GotoStmt {
+func (p *Parser) parseGotoStmt() (*nodes.GotoStmt, error) {
 	loc := p.pos()
 	p.advance() // consume GOTO
 
@@ -269,7 +272,7 @@ func (p *Parser) parseGotoStmt() *nodes.GotoStmt {
 	return &nodes.GotoStmt{
 		Label: label,
 		Loc:   nodes.Loc{Start: loc, End: p.pos()},
-	}
+	}, nil
 }
 
 // parseWaitForStmt parses a WAITFOR statement.
@@ -283,7 +286,7 @@ func (p *Parser) parseGotoStmt() *nodes.GotoStmt {
 //	  | [ ( receive_statement ) | ( get_conversation_group_statement ) ]
 //	    [ , TIMEOUT timeout ]
 //	}
-func (p *Parser) parseWaitForStmt() *nodes.WaitForStmt {
+func (p *Parser) parseWaitForStmt() (*nodes.WaitForStmt, error) {
 	loc := p.pos()
 	p.advance() // consume WAITFOR
 
@@ -314,5 +317,5 @@ func (p *Parser) parseWaitForStmt() *nodes.WaitForStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }

@@ -17,7 +17,7 @@ import (
 //	  | { @cursor_variable_name CURSOR }
 //	  | { @table_variable_name [AS] TABLE ( { <column_definition> | <table_constraint> | <table_index> } [ , ...n ] ) }
 //	} [ , ...n ]
-func (p *Parser) parseDeclareStmt() *nodes.DeclareStmt {
+func (p *Parser) parseDeclareStmt() (*nodes.DeclareStmt, error) {
 	loc := p.pos()
 	p.advance() // consume DECLARE
 
@@ -27,7 +27,7 @@ func (p *Parser) parseDeclareStmt() *nodes.DeclareStmt {
 
 	var vars []nodes.Node
 	for {
-		vd := p.parseVariableDecl()
+		vd, _ := p.parseVariableDecl()
 		if vd == nil {
 			break
 		}
@@ -39,7 +39,7 @@ func (p *Parser) parseDeclareStmt() *nodes.DeclareStmt {
 	stmt.Variables = &nodes.List{Items: vars}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseVariableDecl parses a single variable declaration.
@@ -49,9 +49,9 @@ func (p *Parser) parseDeclareStmt() *nodes.DeclareStmt {
 //	@local_variable [AS] data_type [ = value ]
 //	| @cursor_variable_name CURSOR
 //	| @table_variable_name [AS] TABLE ( { <column_definition> | <table_constraint> | <table_index> } [ , ...n ] )
-func (p *Parser) parseVariableDecl() *nodes.VariableDecl {
+func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 	if p.cur.Type != tokVARIABLE {
-		return nil
+		return nil, nil
 	}
 
 	loc := p.pos()
@@ -84,7 +84,7 @@ func (p *Parser) parseVariableDecl() *nodes.VariableDecl {
 			vd.TableDef = &nodes.List{Items: cols}
 		}
 		vd.Loc.End = p.pos()
-		return vd
+		return vd, nil
 	}
 
 	// CURSOR type
@@ -92,7 +92,7 @@ func (p *Parser) parseVariableDecl() *nodes.VariableDecl {
 		p.advance()
 		vd.IsCursor = true
 		vd.Loc.End = p.pos()
-		return vd
+		return vd, nil
 	}
 
 	// Data type
@@ -105,7 +105,7 @@ func (p *Parser) parseVariableDecl() *nodes.VariableDecl {
 	}
 
 	vd.Loc.End = p.pos()
-	return vd
+	return vd, nil
 }
 
 // parseSetStmt parses a SET statement.
@@ -126,7 +126,7 @@ func (p *Parser) parseVariableDecl() *nodes.VariableDecl {
 //	SET { option_name } { ON | OFF | value }
 //	SET IDENTITY_INSERT table_name { ON | OFF }
 //	SET STATISTICS { IO | TIME | PROFILE | XML } { ON | OFF }
-func (p *Parser) parseSetStmt() nodes.StmtNode {
+func (p *Parser) parseSetStmt() (nodes.StmtNode, error) {
 	loc := p.pos()
 	p.advance() // consume SET
 
@@ -146,11 +146,12 @@ func (p *Parser) parseSetStmt() nodes.StmtNode {
 			stmt.Value, _ = p.parseExpr()
 		}
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// SET session option
-	return p.parseSetOptionStmt(loc)
+	stmt, err := p.parseSetOptionStmt(loc)
+	return stmt, err
 }
 
 // parseSetOptionStmt parses SET session option statements.
@@ -162,7 +163,7 @@ func (p *Parser) parseSetStmt() nodes.StmtNode {
 //	    { READ UNCOMMITTED | READ COMMITTED | REPEATABLE READ | SNAPSHOT | SERIALIZABLE }
 //	SET IDENTITY_INSERT table_name { ON | OFF }
 //	SET { option_name } { ON | OFF | value }
-func (p *Parser) parseSetOptionStmt(loc int) *nodes.SetOptionStmt {
+func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 	stmt := &nodes.SetOptionStmt{
 		Loc: nodes.Loc{Start: loc},
 	}
@@ -208,7 +209,7 @@ func (p *Parser) parseSetOptionStmt(loc int) *nodes.SetOptionStmt {
 		}
 		stmt.Value = &nodes.ColumnRef{Column: level, Loc: nodes.Loc{Start: valLoc, End: p.pos()}}
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// IDENTITY_INSERT table ON|OFF
@@ -238,7 +239,7 @@ func (p *Parser) parseSetOptionStmt(loc int) *nodes.SetOptionStmt {
 		}
 		stmt.Value = &nodes.ColumnRef{Column: tableName + " " + onoff, Loc: nodes.Loc{Start: valLoc}}
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// SET OFFSETS keyword_list { ON | OFF }
@@ -278,7 +279,7 @@ func (p *Parser) parseSetOptionStmt(loc int) *nodes.SetOptionStmt {
 			stmt.Value = &nodes.ColumnRef{Column: "OFF", Loc: nodes.Loc{Start: offLoc}}
 		}
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// Generic option name
@@ -309,5 +310,5 @@ func (p *Parser) parseSetOptionStmt(loc int) *nodes.SetOptionStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }

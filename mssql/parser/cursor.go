@@ -26,7 +26,7 @@ import (
 //	    [ TYPE_WARNING ]
 //	    FOR select_statement
 //	    [ FOR UPDATE [ OF column_name [ , ...n ] ] ]
-func (p *Parser) parseDeclareCursorStmt() *nodes.DeclareCursorStmt {
+func (p *Parser) parseDeclareCursorStmt() (*nodes.DeclareCursorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume DECLARE
 
@@ -37,7 +37,7 @@ func (p *Parser) parseDeclareCursorStmt() *nodes.DeclareCursorStmt {
 	// Parse cursor name (plain identifier, not @variable)
 	name, ok := p.parseIdentifier()
 	if !ok {
-		return stmt
+		return stmt, nil
 	}
 	stmt.Name = name
 
@@ -61,7 +61,7 @@ func (p *Parser) parseDeclareCursorStmt() *nodes.DeclareCursorStmt {
 	// Expect CURSOR keyword
 	if _, ok := p.match(kwCURSOR); !ok {
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// If we already saw INSENSITIVE or SCROLL (ISO syntax), skip to FOR.
@@ -105,7 +105,7 @@ func (p *Parser) parseDeclareCursorStmt() *nodes.DeclareCursorStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCursorOptions parses T-SQL extended cursor options after CURSOR keyword.
@@ -164,7 +164,7 @@ func (p *Parser) parseCursorOptions(stmt *nodes.DeclareCursorStmt) {
 // BNF: mssql/parser/bnf/open-transact-sql.bnf
 //
 //	OPEN { { [ GLOBAL ] cursor_name } | cursor_variable_name }
-func (p *Parser) parseOpenCursorStmt() *nodes.OpenCursorStmt {
+func (p *Parser) parseOpenCursorStmt() (*nodes.OpenCursorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume OPEN
 
@@ -177,7 +177,7 @@ func (p *Parser) parseOpenCursorStmt() *nodes.OpenCursorStmt {
 		stmt.Name = p.cur.Str
 		p.advance()
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// [ GLOBAL ] cursor_name
@@ -189,7 +189,7 @@ func (p *Parser) parseOpenCursorStmt() *nodes.OpenCursorStmt {
 	stmt.Name = name
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseFetchCursorStmt parses a FETCH cursor statement.
@@ -205,7 +205,7 @@ func (p *Parser) parseOpenCursorStmt() *nodes.OpenCursorStmt {
 //	    ]
 //	{ { [ GLOBAL ] cursor_name } | @cursor_variable_name }
 //	[ INTO @variable_name [ ,...n ] ]
-func (p *Parser) parseFetchCursorStmt() *nodes.FetchCursorStmt {
+func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume FETCH
 
@@ -277,7 +277,7 @@ func (p *Parser) parseFetchCursorStmt() *nodes.FetchCursorStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCloseCursorStmt parses a CLOSE cursor statement.
@@ -285,7 +285,7 @@ func (p *Parser) parseFetchCursorStmt() *nodes.FetchCursorStmt {
 // BNF: mssql/parser/bnf/close-transact-sql.bnf
 //
 //	CLOSE { { [ GLOBAL ] cursor_name } | cursor_variable_name }
-func (p *Parser) parseCloseCursorStmt() *nodes.CloseCursorStmt {
+func (p *Parser) parseCloseCursorStmt() (*nodes.CloseCursorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume CLOSE
 
@@ -298,7 +298,7 @@ func (p *Parser) parseCloseCursorStmt() *nodes.CloseCursorStmt {
 		stmt.Name = p.cur.Str
 		p.advance()
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// [ GLOBAL ] cursor_name
@@ -310,7 +310,7 @@ func (p *Parser) parseCloseCursorStmt() *nodes.CloseCursorStmt {
 	stmt.Name = name
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDeallocateCursorStmt parses a DEALLOCATE cursor statement.
@@ -318,7 +318,7 @@ func (p *Parser) parseCloseCursorStmt() *nodes.CloseCursorStmt {
 // BNF: mssql/parser/bnf/deallocate-transact-sql.bnf
 //
 //	DEALLOCATE { { [ GLOBAL ] cursor_name } | @cursor_variable_name }
-func (p *Parser) parseDeallocateCursorStmt() *nodes.DeallocateCursorStmt {
+func (p *Parser) parseDeallocateCursorStmt() (*nodes.DeallocateCursorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume DEALLOCATE
 
@@ -331,7 +331,7 @@ func (p *Parser) parseDeallocateCursorStmt() *nodes.DeallocateCursorStmt {
 		stmt.Name = p.cur.Str
 		p.advance()
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// [ GLOBAL ] cursor_name
@@ -343,7 +343,7 @@ func (p *Parser) parseDeallocateCursorStmt() *nodes.DeallocateCursorStmt {
 	stmt.Name = name
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // matchIdentCI checks if the current token is an identifier-like token matching

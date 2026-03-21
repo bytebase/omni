@@ -16,7 +16,7 @@ import (
 //	      [ WITH MARK [ 'description' ] ]
 //	    ]
 //	[ ; ]
-func (p *Parser) parseBeginTransStmt() *nodes.BeginTransStmt {
+func (p *Parser) parseBeginTransStmt() (*nodes.BeginTransStmt, error) {
 	loc := p.pos()
 	p.advance() // consume BEGIN
 
@@ -47,7 +47,7 @@ func (p *Parser) parseBeginTransStmt() *nodes.BeginTransStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseBeginDistributedTransStmt parses a BEGIN DISTRIBUTED TRAN[SACTION] statement.
@@ -57,7 +57,7 @@ func (p *Parser) parseBeginTransStmt() *nodes.BeginTransStmt {
 //	BEGIN DISTRIBUTED { TRAN | TRANSACTION }
 //	    [ transaction_name | @tran_name_variable ]
 //	[ ; ]
-func (p *Parser) parseBeginDistributedTransStmt() *nodes.BeginDistributedTransStmt {
+func (p *Parser) parseBeginDistributedTransStmt() (*nodes.BeginDistributedTransStmt, error) {
 	loc := p.pos()
 	p.advance() // consume BEGIN
 	p.advance() // consume DISTRIBUTED
@@ -77,7 +77,7 @@ func (p *Parser) parseBeginDistributedTransStmt() *nodes.BeginDistributedTransSt
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseCommitStmt parses a COMMIT [TRAN/TRANSACTION] statement.
@@ -88,7 +88,7 @@ func (p *Parser) parseBeginDistributedTransStmt() *nodes.BeginDistributedTransSt
 //	    [ transaction_name | @tran_name_variable ] ]
 //	    [ WITH ( DELAYED_DURABILITY = { OFF | ON } ) ]
 //	[ ; ]
-func (p *Parser) parseCommitStmt() *nodes.CommitTransStmt {
+func (p *Parser) parseCommitStmt() (*nodes.CommitTransStmt, error) {
 	loc := p.pos()
 	p.advance() // consume COMMIT
 
@@ -124,7 +124,7 @@ func (p *Parser) parseCommitStmt() *nodes.CommitTransStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseRollbackStmt parses a ROLLBACK [TRAN/TRANSACTION] statement.
@@ -135,7 +135,7 @@ func (p *Parser) parseCommitStmt() *nodes.CommitTransStmt {
 //	    [ transaction_name | @tran_name_variable
 //	    | savepoint_name | @savepoint_variable ]
 //	[ ; ]
-func (p *Parser) parseRollbackStmt() *nodes.RollbackTransStmt {
+func (p *Parser) parseRollbackStmt() (*nodes.RollbackTransStmt, error) {
 	loc := p.pos()
 	p.advance() // consume ROLLBACK
 
@@ -157,7 +157,7 @@ func (p *Parser) parseRollbackStmt() *nodes.RollbackTransStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseSaveTransStmt parses a SAVE TRAN/TRANSACTION statement.
@@ -166,7 +166,7 @@ func (p *Parser) parseRollbackStmt() *nodes.RollbackTransStmt {
 //
 //	SAVE { TRAN | TRANSACTION } { savepoint_name | @savepoint_variable }
 //	[ ; ]
-func (p *Parser) parseSaveTransStmt() *nodes.SaveTransStmt {
+func (p *Parser) parseSaveTransStmt() (*nodes.SaveTransStmt, error) {
 	loc := p.pos()
 	p.advance() // consume SAVE
 
@@ -185,5 +185,5 @@ func (p *Parser) parseSaveTransStmt() *nodes.SaveTransStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }

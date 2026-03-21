@@ -111,7 +111,8 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 		}
 		stmt.Source = sel
 	case p.cur.Type == kwEXEC || p.cur.Type == kwEXECUTE:
-		stmt.Source = p.parseExecStmt()
+		execStmt, _ := p.parseExecStmt()
+		stmt.Source = execStmt
 	case p.cur.Type == kwDEFAULT:
 		// DEFAULT VALUES
 		defLoc := p.pos()

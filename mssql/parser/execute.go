@@ -65,7 +65,7 @@ import (
 //	    | AS TYPE [ schema_name.]table_type_name
 //	    | AS FOR XML
 //	}
-func (p *Parser) parseExecStmt() *nodes.ExecStmt {
+func (p *Parser) parseExecStmt() (*nodes.ExecStmt, error) {
 	loc := p.pos()
 	p.advance() // consume EXEC or EXECUTE
 
@@ -84,7 +84,7 @@ func (p *Parser) parseExecStmt() *nodes.ExecStmt {
 		p.parseExecAtClause(stmt)
 
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// Check for @return_var = proc_name
@@ -136,7 +136,7 @@ func (p *Parser) parseExecStmt() *nodes.ExecStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseExecString parses the EXEC ('string' + ...) form.
