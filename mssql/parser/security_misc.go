@@ -22,7 +22,7 @@ import (
 //	<block_dml_operation>
 //	    [ { AFTER { INSERT | UPDATE } }
 //	    | { BEFORE { UPDATE | DELETE } } ]
-func (p *Parser) parseCreateSecurityPolicyStmt() *nodes.SecurityPolicyStmt {
+func (p *Parser) parseCreateSecurityPolicyStmt() (*nodes.SecurityPolicyStmt, error) {
 	loc := p.pos()
 	// POLICY keyword already consumed by caller
 
@@ -53,7 +53,7 @@ func (p *Parser) parseCreateSecurityPolicyStmt() *nodes.SecurityPolicyStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterSecurityPolicyStmt parses an ALTER SECURITY POLICY statement.
@@ -76,7 +76,7 @@ func (p *Parser) parseCreateSecurityPolicyStmt() *nodes.SecurityPolicyStmt {
 //	<block_dml_operation>
 //	    [ { AFTER { INSERT | UPDATE } }
 //	    | { BEFORE { UPDATE | DELETE } } ]
-func (p *Parser) parseAlterSecurityPolicyStmt() *nodes.SecurityPolicyStmt {
+func (p *Parser) parseAlterSecurityPolicyStmt() (*nodes.SecurityPolicyStmt, error) {
 	loc := p.pos()
 	// POLICY keyword already consumed by caller
 
@@ -107,7 +107,7 @@ func (p *Parser) parseAlterSecurityPolicyStmt() *nodes.SecurityPolicyStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropSecurityPolicyStmt parses a DROP SECURITY POLICY statement.
@@ -115,7 +115,7 @@ func (p *Parser) parseAlterSecurityPolicyStmt() *nodes.SecurityPolicyStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-security-policy-transact-sql
 //
 //	DROP SECURITY POLICY [ IF EXISTS ] [schema_name.] security_policy_name
-func (p *Parser) parseDropSecurityPolicyStmt() *nodes.SecurityPolicyStmt {
+func (p *Parser) parseDropSecurityPolicyStmt() (*nodes.SecurityPolicyStmt, error) {
 	loc := p.pos()
 	// POLICY keyword already consumed by caller
 
@@ -135,7 +135,7 @@ func (p *Parser) parseDropSecurityPolicyStmt() *nodes.SecurityPolicyStmt {
 	stmt.Name , _ = p.parseTableRef()
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseSecurityPredicateList parses a comma-separated list of security predicates.
@@ -311,7 +311,7 @@ func (p *Parser) parseSecurityPolicyWithOptions(stmt *nodes.SecurityPolicyStmt) 
 //	    INFORMATION_TYPE = string |
 //	    INFORMATION_TYPE_ID = guidOrString |
 //	    RANK = NONE | LOW | MEDIUM | HIGH | CRITICAL
-func (p *Parser) parseAddSensitivityClassificationStmt() *nodes.SensitivityClassificationStmt {
+func (p *Parser) parseAddSensitivityClassificationStmt() (*nodes.SensitivityClassificationStmt, error) {
 	loc := p.pos()
 	// CLASSIFICATION keyword already consumed by caller
 
@@ -380,7 +380,7 @@ func (p *Parser) parseAddSensitivityClassificationStmt() *nodes.SensitivityClass
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropSensitivityClassificationStmt parses a DROP SENSITIVITY CLASSIFICATION statement.
@@ -391,7 +391,7 @@ func (p *Parser) parseAddSensitivityClassificationStmt() *nodes.SensitivityClass
 //	    <object_name> [ , ...n ]
 //
 //	<object_name> ::= [ schema_name. ] table_name.column_name
-func (p *Parser) parseDropSensitivityClassificationStmt() *nodes.SensitivityClassificationStmt {
+func (p *Parser) parseDropSensitivityClassificationStmt() (*nodes.SensitivityClassificationStmt, error) {
 	loc := p.pos()
 	// CLASSIFICATION keyword already consumed by caller
 
@@ -421,7 +421,7 @@ func (p *Parser) parseDropSensitivityClassificationStmt() *nodes.SensitivityClas
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseSignatureStmt parses ADD/DROP [COUNTER] SIGNATURE statement.
@@ -441,7 +441,7 @@ func (p *Parser) parseDropSensitivityClassificationStmt() *nodes.SensitivityClas
 //	    | ASYMMETRIC KEY Asym_Key_Name
 //	    | ASYMMETRIC KEY Asym_Key_Name [ WITH PASSWORD = 'password' ]
 //	    | ASYMMETRIC KEY Asym_Key_Name WITH SIGNATURE = signed_blob
-func (p *Parser) parseSignatureStmt(action string) *nodes.SignatureStmt {
+func (p *Parser) parseSignatureStmt(action string) (*nodes.SignatureStmt, error) {
 	loc := p.pos()
 	// SIGNATURE keyword already consumed by caller
 
@@ -515,7 +515,7 @@ func (p *Parser) parseSignatureStmt(action string) *nodes.SignatureStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseSignatureCryptoItem parses a single crypto reference in a SIGNATURE BY clause.

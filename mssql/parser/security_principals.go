@@ -33,7 +33,7 @@ import (
 //	  | NAME = new_user_name
 //	  | LOGIN = new_login_name
 //	  | SID = sid
-func (p *Parser) parseSecurityUserStmt(action string) *nodes.SecurityStmt {
+func (p *Parser) parseSecurityUserStmt(action string) (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     action,
@@ -130,7 +130,7 @@ func (p *Parser) parseSecurityUserStmt(action string) *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseSecurityLoginStmt parses CREATE/ALTER/DROP LOGIN.
@@ -163,7 +163,7 @@ func (p *Parser) parseSecurityUserStmt(action string) *nodes.SecurityStmt {
 //	    | DROP CREDENTIAL credential_name
 //	    }
 //	DROP LOGIN login_name
-func (p *Parser) parseSecurityLoginStmt(action string) *nodes.SecurityStmt {
+func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     action,
@@ -297,7 +297,7 @@ func (p *Parser) parseSecurityLoginStmt(action string) *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseSecurityRoleStmt parses CREATE/ALTER/DROP ROLE and ADD/DROP ROLE MEMBER.
@@ -309,7 +309,7 @@ func (p *Parser) parseSecurityLoginStmt(action string) *nodes.SecurityStmt {
 //	CREATE ROLE role_name [ AUTHORIZATION owner_name ]
 //	ALTER  ROLE role_name { ADD MEMBER member_name | DROP MEMBER member_name | WITH NAME = new_name }
 //	DROP   ROLE [ IF EXISTS ] role_name
-func (p *Parser) parseSecurityRoleStmt(action string) *nodes.SecurityStmt {
+func (p *Parser) parseSecurityRoleStmt(action string) (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     action,
@@ -387,7 +387,7 @@ func (p *Parser) parseSecurityRoleStmt(action string) *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseSecurityApplicationRoleStmt parses CREATE/ALTER/DROP APPLICATION ROLE.
@@ -397,7 +397,7 @@ func (p *Parser) parseSecurityRoleStmt(action string) *nodes.SecurityStmt {
 //	CREATE APPLICATION ROLE role_name WITH PASSWORD = 'password' [ , DEFAULT_SCHEMA = schema_name ]
 //	ALTER  APPLICATION ROLE role_name WITH NAME = new_name | PASSWORD = '...' | DEFAULT_SCHEMA = ...
 //	DROP   APPLICATION ROLE role_name
-func (p *Parser) parseSecurityApplicationRoleStmt(action string) *nodes.SecurityStmt {
+func (p *Parser) parseSecurityApplicationRoleStmt(action string) (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// APPLICATION keyword already consumed by caller
 	// Consume ROLE
@@ -431,7 +431,7 @@ func (p *Parser) parseSecurityApplicationRoleStmt(action string) *nodes.Security
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseSecurityPrincipalWithOptions parses comma-separated key=value options
@@ -546,7 +546,7 @@ func (p *Parser) parseSecurityPrincipalWithOptions() []nodes.Node {
 //
 //	EXECUTE AS { LOGIN | USER | CALLER | SELF | OWNER } [ = 'name' ]
 //	    [ WITH { NO REVERT | COOKIE INTO @cookie_variable } ]
-func (p *Parser) parseExecuteAsStmt() *nodes.SecurityStmt {
+func (p *Parser) parseExecuteAsStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	p.advance() // consume EXECUTE
 	p.advance() // consume AS
@@ -567,17 +567,17 @@ func (p *Parser) parseExecuteAsStmt() *nodes.SecurityStmt {
 		stmt.ObjectType = "CALLER"
 		p.advance()
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SELF") {
 		stmt.ObjectType = "SELF"
 		p.advance()
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "OWNER") {
 		stmt.ObjectType = "OWNER"
 		p.advance()
 		stmt.Loc.End = p.pos()
-		return stmt
+		return stmt, nil
 	}
 
 	// = 'name'
@@ -615,7 +615,7 @@ func (p *Parser) parseExecuteAsStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseRevertStmt parses the REVERT statement.
@@ -623,7 +623,7 @@ func (p *Parser) parseExecuteAsStmt() *nodes.SecurityStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/revert-transact-sql
 //
 //	REVERT [ WITH COOKIE = @cookie_variable ]
-func (p *Parser) parseRevertStmt() *nodes.SecurityStmt {
+func (p *Parser) parseRevertStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	p.advance() // consume REVERT
 
@@ -651,7 +651,7 @@ func (p *Parser) parseRevertStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterAuthorizationStmt parses ALTER AUTHORIZATION.
@@ -668,7 +668,7 @@ func (p *Parser) parseRevertStmt() *nodes.SecurityStmt {
 //	    | MESSAGE TYPE | REMOTE SERVICE BINDING | ROLE | ROUTE
 //	    | SCHEMA | SEARCH PROPERTY LIST | SERVER ROLE | SERVICE
 //	    | SYMMETRIC KEY | TYPE | XML SCHEMA COLLECTION }
-func (p *Parser) parseAlterAuthorizationStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterAuthorizationStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// AUTHORIZATION keyword already consumed by caller
 
@@ -716,7 +716,7 @@ func (p *Parser) parseAlterAuthorizationStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // tryParseAlterAuthEntityType checks if the current position has an entity_type :: pattern.

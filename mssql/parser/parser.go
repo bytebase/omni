@@ -143,16 +143,20 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 		if p.cur.Type == kwEXECUTE {
 			next := p.peekNext()
 			if next.Type == kwAS {
-				return p.parseExecuteAsStmt()
+				stmt, _ := p.parseExecuteAsStmt()
+				return stmt
 			}
 		}
 		return p.parseExecStmt()
 	case kwGRANT:
-		return p.parseGrantStmt()
+		stmt, _ := p.parseGrantStmt()
+		return stmt
 	case kwREVOKE:
-		return p.parseRevokeStmt()
+		stmt, _ := p.parseRevokeStmt()
+		return stmt
 	case kwDENY:
-		return p.parseDenyStmt()
+		stmt, _ := p.parseDenyStmt()
+		return stmt
 	case kwUSE:
 		// Check for USE FEDERATION
 		{
@@ -181,10 +185,12 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 		// Check for OPEN SYMMETRIC KEY / OPEN MASTER KEY vs OPEN cursor
 		next := p.peekNext()
 		if next.Str != "" && matchesKeywordCI(next.Str, "SYMMETRIC") {
-			return p.parseOpenSymmetricKeyStmt()
+			stmt, _ := p.parseOpenSymmetricKeyStmt()
+			return stmt
 		}
 		if next.Str != "" && matchesKeywordCI(next.Str, "MASTER") {
-			return p.parseOpenMasterKeyStmt()
+			stmt, _ := p.parseOpenMasterKeyStmt()
+			return stmt
 		}
 		return p.parseOpenCursorStmt()
 	case kwFETCH:
@@ -193,11 +199,13 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 		// Check for CLOSE SYMMETRIC KEY / CLOSE ALL SYMMETRIC KEYS / CLOSE MASTER KEY vs CLOSE cursor
 		next := p.peekNext()
 		if next.Str != "" && matchesKeywordCI(next.Str, "MASTER") {
-			return p.parseCloseMasterKeyStmt()
+			stmt, _ := p.parseCloseMasterKeyStmt()
+			return stmt
 		}
 		if (next.Str != "" && matchesKeywordCI(next.Str, "SYMMETRIC")) ||
 			next.Type == kwALL {
-			return p.parseCloseSymmetricKeyStmt()
+			stmt, _ := p.parseCloseSymmetricKeyStmt()
+			return stmt
 		}
 		return p.parseCloseCursorStmt()
 	case kwDEALLOCATE:
@@ -234,17 +242,20 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 		if (next.Str != "" && matchesKeywordCI(next.Str, "CERTIFICATE")) ||
 			(next.Str != "" && matchesKeywordCI(next.Str, "MASTER")) ||
 			(next.Str != "" && matchesKeywordCI(next.Str, "SYMMETRIC")) {
-			return p.parseBackupCertificateStmt()
+			stmt, _ := p.parseBackupCertificateStmt()
+			return stmt
 		}
 		return p.parseBackupStmt()
 	case kwRESTORE:
 		// Check for RESTORE MASTER KEY / RESTORE SYMMETRIC KEY / RESTORE SERVICE MASTER KEY
 		next := p.peekNext()
 		if next.Str != "" && matchesKeywordCI(next.Str, "MASTER") {
-			return p.parseRestoreMasterKeyStmt()
+			stmt, _ := p.parseRestoreMasterKeyStmt()
+			return stmt
 		}
 		if next.Str != "" && matchesKeywordCI(next.Str, "SYMMETRIC") {
-			return p.parseRestoreSymmetricKeyStmt()
+			stmt, _ := p.parseRestoreSymmetricKeyStmt()
+			return stmt
 		}
 		if next.Str != "" && matchesKeywordCI(next.Str, "SERVICE") {
 			loc := p.pos()
@@ -340,7 +351,8 @@ func (p *Parser) parseStmt() nodes.StmtNode {
 			}
 			// REVERT (security context)
 			if matchesKeywordCI(p.cur.Str, "REVERT") {
-				return p.parseRevertStmt()
+				stmt, _ := p.parseRevertStmt()
+				return stmt
 			}
 			// PREDICT (ML scoring)
 			if matchesKeywordCI(p.cur.Str, "PREDICT") {
@@ -374,7 +386,7 @@ func (p *Parser) parseAddStmt() nodes.StmtNode {
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CLASSIFICATION") {
 			p.advance() // consume CLASSIFICATION
 		}
-		stmt := p.parseAddSensitivityClassificationStmt()
+		stmt, _ := p.parseAddSensitivityClassificationStmt()
 		stmt.Loc.Start = loc
 		return stmt
 	}
@@ -387,7 +399,7 @@ func (p *Parser) parseAddStmt() nodes.StmtNode {
 	}
 	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SIGNATURE") {
 		p.advance() // consume SIGNATURE
-		stmt := p.parseSignatureStmt("ADD")
+		stmt, _ := p.parseSignatureStmt("ADD")
 		stmt.IsCounter = isCounter
 		stmt.Loc.Start = loc
 		return stmt
@@ -522,7 +534,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 	case kwCOLUMN:
 		// CREATE COLUMN ENCRYPTION KEY / CREATE COLUMN MASTER KEY
 		p.advance() // consume COLUMN
-		stmt := p.parseSecurityKeyStmtColumn("CREATE")
+		stmt, _ := p.parseSecurityKeyStmtColumn("CREATE")
 		stmt.Loc.Start = loc
 		return stmt
 	case kwDATABASE:
@@ -535,14 +547,14 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SPECIFICATION") {
 					p.advance() // consume SPECIFICATION
 				}
-				stmt := p.parseCreateDatabaseAuditSpecStmt()
+				stmt, _ := p.parseCreateDatabaseAuditSpecStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
 			// CREATE DATABASE ENCRYPTION KEY / CREATE DATABASE SCOPED CREDENTIAL
 			if next.Str != "" && (matchesKeywordCI(next.Str, "ENCRYPTION") || matchesKeywordCI(next.Str, "SCOPED")) {
 				p.advance() // consume DATABASE
-				stmt := p.parseSecurityKeyStmtDatabaseEncryption("CREATE")
+				stmt, _ := p.parseSecurityKeyStmtDatabaseEncryption("CREATE")
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -568,17 +580,17 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		return stmt
 	case kwUSER:
 		p.advance() // consume USER
-		stmt := p.parseSecurityUserStmt("CREATE")
+		stmt, _ := p.parseSecurityUserStmt("CREATE")
 		stmt.Loc.Start = loc
 		return stmt
 	case kwLOGIN:
 		p.advance() // consume LOGIN
-		stmt := p.parseSecurityLoginStmt("CREATE")
+		stmt, _ := p.parseSecurityLoginStmt("CREATE")
 		stmt.Loc.Start = loc
 		return stmt
 	case kwROLE:
 		p.advance() // consume ROLE
-		stmt := p.parseSecurityRoleStmt("CREATE")
+		stmt, _ := p.parseSecurityRoleStmt("CREATE")
 		stmt.Loc.Start = loc
 		return stmt
 	default:
@@ -598,7 +610,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			return stmt
 		}
 		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MASTER") {
-			stmt := p.parseSecurityKeyStmt("CREATE")
+			stmt, _ := p.parseSecurityKeyStmt("CREATE")
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -607,7 +619,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			matchesKeywordCI(p.cur.Str, "CERTIFICATE") ||
 			matchesKeywordCI(p.cur.Str, "CREDENTIAL") ||
 			matchesKeywordCI(p.cur.Str, "CRYPTOGRAPHIC")) {
-			stmt := p.parseSecurityKeyStmt("CREATE")
+			stmt, _ := p.parseSecurityKeyStmt("CREATE")
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -616,7 +628,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			next := p.peekNext()
 			if next.Type == kwROLE || (next.Type >= kwADD && matchesKeywordCI(next.Str, "ROLE")) {
 				p.advance() // consume APPLICATION
-				stmt := p.parseSecurityApplicationRoleStmt("CREATE")
+				stmt, _ := p.parseSecurityApplicationRoleStmt("CREATE")
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -736,7 +748,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			p.advance() // consume SECURITY
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POLICY") {
 				p.advance() // consume POLICY
-				stmt := p.parseCreateSecurityPolicyStmt()
+				stmt, _ := p.parseCreateSecurityPolicyStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -829,11 +841,11 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				p.advance() // consume AUDIT
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SPECIFICATION") {
 					p.advance() // consume SPECIFICATION
-					stmt := p.parseCreateServerAuditSpecStmt()
+					stmt, _ := p.parseCreateServerAuditSpecStmt()
 					stmt.Loc.Start = loc
 					return stmt
 				}
-				stmt := p.parseCreateServerAuditStmt()
+				stmt, _ := p.parseCreateServerAuditStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1006,7 +1018,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 	case kwCOLUMN:
 		// ALTER COLUMN ENCRYPTION KEY / ALTER COLUMN MASTER KEY
 		p.advance() // consume COLUMN
-		stmt := p.parseSecurityKeyStmtColumn("ALTER")
+		stmt, _ := p.parseSecurityKeyStmtColumn("ALTER")
 		stmt.Loc.Start = loc
 		return stmt
 	case kwDATABASE:
@@ -1019,7 +1031,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SPECIFICATION") {
 					p.advance() // consume SPECIFICATION
 				}
-				stmt := p.parseAlterDatabaseAuditSpecStmt()
+				stmt, _ := p.parseAlterDatabaseAuditSpecStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1053,7 +1065,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			}
 			if next.Str != "" && matchesKeywordCI(next.Str, "ENCRYPTION") {
 				p.advance() // consume DATABASE
-				stmt := p.parseSecurityKeyStmtDatabaseEncryption("ALTER")
+				stmt, _ := p.parseSecurityKeyStmtDatabaseEncryption("ALTER")
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1104,17 +1116,17 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		return stmt
 	case kwUSER:
 		p.advance() // consume USER
-		stmt := p.parseSecurityUserStmt("ALTER")
+		stmt, _ := p.parseSecurityUserStmt("ALTER")
 		stmt.Loc.Start = loc
 		return stmt
 	case kwLOGIN:
 		p.advance() // consume LOGIN
-		stmt := p.parseSecurityLoginStmt("ALTER")
+		stmt, _ := p.parseSecurityLoginStmt("ALTER")
 		stmt.Loc.Start = loc
 		return stmt
 	case kwROLE:
 		p.advance() // consume ROLE
-		stmt := p.parseSecurityRoleStmt("ALTER")
+		stmt, _ := p.parseSecurityRoleStmt("ALTER")
 		stmt.Loc.Start = loc
 		return stmt
 	default:
@@ -1134,7 +1146,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			matchesKeywordCI(p.cur.Str, "CERTIFICATE") ||
 			matchesKeywordCI(p.cur.Str, "CREDENTIAL") ||
 			matchesKeywordCI(p.cur.Str, "CRYPTOGRAPHIC")) {
-			stmt := p.parseSecurityKeyStmt("ALTER")
+			stmt, _ := p.parseSecurityKeyStmt("ALTER")
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1143,7 +1155,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			next := p.peekNext()
 			if next.Type == kwROLE || (next.Type >= kwADD && matchesKeywordCI(next.Str, "ROLE")) {
 				p.advance() // consume APPLICATION
-				stmt := p.parseSecurityApplicationRoleStmt("ALTER")
+				stmt, _ := p.parseSecurityApplicationRoleStmt("ALTER")
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1193,7 +1205,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 			p.advance() // consume SECURITY
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POLICY") {
 				p.advance() // consume POLICY
-				stmt := p.parseAlterSecurityPolicyStmt()
+				stmt, _ := p.parseAlterSecurityPolicyStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1228,11 +1240,11 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 				p.advance() // consume AUDIT
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SPECIFICATION") {
 					p.advance() // consume SPECIFICATION
-					stmt := p.parseAlterServerAuditSpecStmt()
+					stmt, _ := p.parseAlterServerAuditSpecStmt()
 					stmt.Loc.Start = loc
 					return stmt
 				}
-				stmt := p.parseAlterServerAuditStmt()
+				stmt, _ := p.parseAlterServerAuditStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1255,7 +1267,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		// ALTER AUTHORIZATION
 		if p.cur.Type == kwAUTHORIZATION {
 			p.advance() // consume AUTHORIZATION
-			stmt := p.parseAlterAuthorizationStmt()
+			stmt, _ := p.parseAlterAuthorizationStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1470,7 +1482,7 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 		// DROP COLUMN ENCRYPTION KEY / DROP COLUMN MASTER KEY
 		p.advance() // consume DROP
 		p.advance() // consume COLUMN
-		stmt := p.parseSecurityKeyStmtColumn("DROP")
+		stmt, _ := p.parseSecurityKeyStmtColumn("DROP")
 		stmt.Loc.Start = loc
 		return stmt
 	case kwDATABASE:
@@ -1483,13 +1495,13 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SPECIFICATION") {
 				p.advance() // consume SPECIFICATION
 			}
-			stmt := p.parseDropDatabaseAuditSpecStmt()
+			stmt, _ := p.parseDropDatabaseAuditSpecStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		// DROP DATABASE ENCRYPTION KEY / DROP DATABASE SCOPED CREDENTIAL
 		if p.isIdentLike() && (matchesKeywordCI(p.cur.Str, "ENCRYPTION") || matchesKeywordCI(p.cur.Str, "SCOPED")) {
-			stmt := p.parseSecurityKeyStmtDatabaseEncryption("DROP")
+			stmt, _ := p.parseSecurityKeyStmtDatabaseEncryption("DROP")
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1523,19 +1535,19 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 	case kwUSER:
 		p.advance() // consume DROP
 		p.advance() // consume USER
-		stmt := p.parseSecurityUserStmt("DROP")
+		stmt, _ := p.parseSecurityUserStmt("DROP")
 		stmt.Loc.Start = loc
 		return stmt
 	case kwLOGIN:
 		p.advance() // consume DROP
 		p.advance() // consume LOGIN
-		stmt := p.parseSecurityLoginStmt("DROP")
+		stmt, _ := p.parseSecurityLoginStmt("DROP")
 		stmt.Loc.Start = loc
 		return stmt
 	case kwROLE:
 		p.advance() // consume DROP
 		p.advance() // consume ROLE
-		stmt := p.parseSecurityRoleStmt("DROP")
+		stmt, _ := p.parseSecurityRoleStmt("DROP")
 		stmt.Loc.Start = loc
 		return stmt
 	case kwSTATISTICS:
@@ -1550,7 +1562,7 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "APPLICATION") {
 			p.advance() // consume DROP
 			p.advance() // consume APPLICATION
-			stmt := p.parseSecurityApplicationRoleStmt("DROP")
+			stmt, _ := p.parseSecurityApplicationRoleStmt("DROP")
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1570,11 +1582,11 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 				p.advance() // consume AUDIT
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SPECIFICATION") {
 					p.advance() // consume SPECIFICATION
-					stmt := p.parseDropServerAuditSpecStmt()
+					stmt, _ := p.parseDropServerAuditSpecStmt()
 					stmt.Loc.Start = loc
 					return stmt
 				}
-				stmt := p.parseDropServerAuditStmt()
+				stmt, _ := p.parseDropServerAuditStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1688,7 +1700,7 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 		// DROP CRYPTOGRAPHIC PROVIDER
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "CRYPTOGRAPHIC") {
 			p.advance() // consume DROP
-			stmt := p.parseSecurityKeyStmt("DROP")
+			stmt, _ := p.parseSecurityKeyStmt("DROP")
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1727,7 +1739,7 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			p.advance() // consume SECURITY
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POLICY") {
 				p.advance() // consume POLICY
-				stmt := p.parseDropSecurityPolicyStmt()
+				stmt, _ := p.parseDropSecurityPolicyStmt()
 				stmt.Loc.Start = loc
 				return stmt
 			}
@@ -1740,7 +1752,7 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CLASSIFICATION") {
 				p.advance() // consume CLASSIFICATION
 			}
-			stmt := p.parseDropSensitivityClassificationStmt()
+			stmt, _ := p.parseDropSensitivityClassificationStmt()
 			stmt.Loc.Start = loc
 			return stmt
 		}
@@ -1755,7 +1767,7 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SIGNATURE") {
 				p.advance() // consume SIGNATURE
-				stmt := p.parseSignatureStmt("DROP")
+				stmt, _ := p.parseSignatureStmt("DROP")
 				stmt.IsCounter = isCounter
 				stmt.Loc.Start = loc
 				return stmt
@@ -1843,35 +1855,35 @@ func (p *Parser) parseDropOrSecurityStmt() nodes.StmtNode {
 		// DROP MASTER KEY
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "MASTER") {
 			p.advance() // consume DROP
-			stmt := p.parseSecurityKeyStmt("DROP")
+			stmt, _ := p.parseSecurityKeyStmt("DROP")
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		// DROP SYMMETRIC KEY
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "SYMMETRIC") {
 			p.advance() // consume DROP
-			stmt := p.parseSecurityKeyStmt("DROP")
+			stmt, _ := p.parseSecurityKeyStmt("DROP")
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		// DROP ASYMMETRIC KEY
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "ASYMMETRIC") {
 			p.advance() // consume DROP
-			stmt := p.parseSecurityKeyStmt("DROP")
+			stmt, _ := p.parseSecurityKeyStmt("DROP")
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		// DROP CERTIFICATE
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "CERTIFICATE") {
 			p.advance() // consume DROP
-			stmt := p.parseSecurityKeyStmt("DROP")
+			stmt, _ := p.parseSecurityKeyStmt("DROP")
 			stmt.Loc.Start = loc
 			return stmt
 		}
 		// DROP CREDENTIAL
 		if (next.Type == tokIDENT || (next.Type >= kwADD && next.Str != "")) && matchesKeywordCI(next.Str, "CREDENTIAL") {
 			p.advance() // consume DROP
-			stmt := p.parseSecurityKeyStmt("DROP")
+			stmt, _ := p.parseSecurityKeyStmt("DROP")
 			stmt.Loc.Start = loc
 			return stmt
 		}

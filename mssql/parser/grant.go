@@ -25,7 +25,7 @@ import (
 //	  | SERVER | SERVER ROLE | SERVICE | SYMMETRIC KEY | TYPE
 //	  | XML SCHEMA COLLECTION | AVAILABILITY GROUP
 //	}
-func (p *Parser) parseGrantStmt() *nodes.GrantStmt {
+func (p *Parser) parseGrantStmt() (*nodes.GrantStmt, error) {
 	loc := p.pos()
 	p.advance() // consume GRANT
 
@@ -70,7 +70,7 @@ func (p *Parser) parseGrantStmt() *nodes.GrantStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseRevokeStmt parses a REVOKE statement.
@@ -83,7 +83,7 @@ func (p *Parser) parseGrantStmt() *nodes.GrantStmt {
 //	      [ ON [ class :: ] securable ]
 //	      { TO | FROM } principal [ , ...n ]
 //	      [ CASCADE ] [ AS principal ]
-func (p *Parser) parseRevokeStmt() *nodes.GrantStmt {
+func (p *Parser) parseRevokeStmt() (*nodes.GrantStmt, error) {
 	loc := p.pos()
 	p.advance() // consume REVOKE
 
@@ -135,7 +135,7 @@ func (p *Parser) parseRevokeStmt() *nodes.GrantStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDenyStmt parses a DENY statement.
@@ -146,7 +146,7 @@ func (p *Parser) parseRevokeStmt() *nodes.GrantStmt {
 //	     | permission [ ( column [ , ...n ] ) ] [ , ...n ]
 //	     [ ON [ class :: ] securable ] TO principal [ , ...n ]
 //	     [ CASCADE ] [ AS principal ]
-func (p *Parser) parseDenyStmt() *nodes.GrantStmt {
+func (p *Parser) parseDenyStmt() (*nodes.GrantStmt, error) {
 	loc := p.pos()
 	p.advance() // consume DENY
 
@@ -183,7 +183,7 @@ func (p *Parser) parseDenyStmt() *nodes.GrantStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseGrantOnClause parses ON [ class :: ] securable.
