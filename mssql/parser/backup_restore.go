@@ -82,7 +82,7 @@ import (
 //	backupEncryptor:
 //	    dekEncryptorType EqualsSign identifier
 //	    ;
-func (p *Parser) parseBackupStmt() *nodes.BackupStmt {
+func (p *Parser) parseBackupStmt() (*nodes.BackupStmt, error) {
 	loc := p.pos()
 	p.advance() // consume BACKUP
 
@@ -152,7 +152,7 @@ func (p *Parser) parseBackupStmt() *nodes.BackupStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseRestoreStmt parses a RESTORE DATABASE / LOG / HEADERONLY / FILELISTONLY statement.
@@ -214,7 +214,7 @@ func (p *Parser) parseBackupStmt() *nodes.BackupStmt {
 //	    ;
 //
 //	-- Also: RESTORE DATABASE db FROM DATABASE_SNAPSHOT = snapshot_name
-func (p *Parser) parseRestoreStmt() *nodes.RestoreStmt {
+func (p *Parser) parseRestoreStmt() (*nodes.RestoreStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RESTORE
 
@@ -301,7 +301,7 @@ func (p *Parser) parseRestoreStmt() *nodes.RestoreStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseBackupRestoreFileList parses the optional file/filegroup list.

@@ -14,7 +14,7 @@ import (
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-server-role-transact-sql
 //
 //	CREATE SERVER ROLE role_name [ AUTHORIZATION server_principal ]
-func (p *Parser) parseCreateServerRoleStmt() *nodes.SecurityStmt {
+func (p *Parser) parseCreateServerRoleStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "CREATE",
@@ -39,7 +39,7 @@ func (p *Parser) parseCreateServerRoleStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterServerRoleStmt parses ALTER SERVER ROLE.
@@ -52,7 +52,7 @@ func (p *Parser) parseCreateServerRoleStmt() *nodes.SecurityStmt {
 //	  | [ DROP MEMBER server_principal ]
 //	  | [ WITH NAME = new_server_role_name ]
 //	}
-func (p *Parser) parseAlterServerRoleStmt() *nodes.SecurityStmt {
+func (p *Parser) parseAlterServerRoleStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "ALTER",
@@ -114,7 +114,7 @@ func (p *Parser) parseAlterServerRoleStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseDropServerRoleStmt parses DROP SERVER ROLE.
@@ -122,7 +122,7 @@ func (p *Parser) parseAlterServerRoleStmt() *nodes.SecurityStmt {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-server-role-transact-sql
 //
 //	DROP SERVER ROLE role_name
-func (p *Parser) parseDropServerRoleStmt() *nodes.SecurityStmt {
+func (p *Parser) parseDropServerRoleStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	stmt := &nodes.SecurityStmt{
 		Action:     "DROP",
@@ -135,7 +135,7 @@ func (p *Parser) parseDropServerRoleStmt() *nodes.SecurityStmt {
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseAlterServerConfigurationStmt parses ALTER SERVER CONFIGURATION SET <optionspec>.
@@ -178,7 +178,7 @@ func (p *Parser) parseDropServerRoleStmt() *nodes.SecurityStmt {
 //
 //	<size_spec> ::=
 //	    { size [ KB | MB | GB ] }
-func (p *Parser) parseAlterServerConfigurationStmt() *nodes.AlterServerConfigurationStmt {
+func (p *Parser) parseAlterServerConfigurationStmt() (*nodes.AlterServerConfigurationStmt, error) {
 	loc := p.pos()
 	// ALTER, SERVER, CONFIGURATION already consumed by caller
 	// Consume SET
@@ -279,7 +279,7 @@ func (p *Parser) parseAlterServerConfigurationStmt() *nodes.AlterServerConfigura
 	}
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseServerConfigProcessAffinity parses PROCESS AFFINITY options.
@@ -787,7 +787,7 @@ func (p *Parser) parseServerConfigExternalAuthentication() []nodes.Node {
 //	    { WITH OLD_ACCOUNT = 'account_name' , OLD_PASSWORD = 'password' }
 //	    |
 //	    { WITH NEW_ACCOUNT = 'account_name' , NEW_PASSWORD = 'password' }
-func (p *Parser) parseAlterServiceMasterKeyStmt() *nodes.SecurityKeyStmt {
+func (p *Parser) parseAlterServiceMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	// SERVICE MASTER KEY already consumed by caller
 	stmt := &nodes.SecurityKeyStmt{
@@ -799,7 +799,7 @@ func (p *Parser) parseAlterServiceMasterKeyStmt() *nodes.SecurityKeyStmt {
 	p.parseSecurityKeyOptions(stmt)
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseBackupServiceMasterKeyStmt parses BACKUP SERVICE MASTER KEY.
@@ -808,7 +808,7 @@ func (p *Parser) parseAlterServiceMasterKeyStmt() *nodes.SecurityKeyStmt {
 //
 //	BACKUP SERVICE MASTER KEY TO FILE = 'path_to_file'
 //	    ENCRYPTION BY PASSWORD = 'password'
-func (p *Parser) parseBackupServiceMasterKeyStmt() *nodes.SecurityKeyStmt {
+func (p *Parser) parseBackupServiceMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	// BACKUP already consumed, SERVICE MASTER KEY consumed by caller
 	stmt := &nodes.SecurityKeyStmt{
@@ -820,7 +820,7 @@ func (p *Parser) parseBackupServiceMasterKeyStmt() *nodes.SecurityKeyStmt {
 	p.parseSecurityKeyOptions(stmt)
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
 
 // parseRestoreServiceMasterKeyStmt parses RESTORE SERVICE MASTER KEY.
@@ -829,7 +829,7 @@ func (p *Parser) parseBackupServiceMasterKeyStmt() *nodes.SecurityKeyStmt {
 //
 //	RESTORE SERVICE MASTER KEY FROM FILE = 'path_to_file'
 //	    DECRYPTION BY PASSWORD = 'password' [FORCE]
-func (p *Parser) parseRestoreServiceMasterKeyStmt() *nodes.SecurityKeyStmt {
+func (p *Parser) parseRestoreServiceMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	loc := p.pos()
 	// RESTORE already consumed, SERVICE MASTER KEY consumed by caller
 	stmt := &nodes.SecurityKeyStmt{
@@ -841,5 +841,5 @@ func (p *Parser) parseRestoreServiceMasterKeyStmt() *nodes.SecurityKeyStmt {
 	p.parseSecurityKeyOptions(stmt)
 
 	stmt.Loc.End = p.pos()
-	return stmt
+	return stmt, nil
 }
