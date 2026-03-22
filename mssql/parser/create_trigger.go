@@ -213,7 +213,11 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 		stmt.ExternalName = joinDots(parts)
 	} else {
 		// Body: parse statement(s)
-		stmt.Body = p.parseStmt()
+		body, err := p.parseStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Body = body
 	}
 
 	stmt.Loc.End = p.pos()

@@ -24,11 +24,19 @@ func (p *Parser) parseIfStmt() (*nodes.IfStmt, error) {
 	}
 
 	stmt.Condition, _ = p.parseExpr()
-	stmt.Then = p.parseStmt()
+	then, err := p.parseStmt()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Then = then
 
 	// ELSE
 	if _, ok := p.match(kwELSE); ok {
-		stmt.Else = p.parseStmt()
+		elseStmt, err := p.parseStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Else = elseStmt
 	}
 
 	stmt.Loc.End = p.pos()
@@ -50,7 +58,11 @@ func (p *Parser) parseWhileStmt() (*nodes.WhileStmt, error) {
 	}
 
 	stmt.Condition, _ = p.parseExpr()
-	stmt.Body = p.parseStmt()
+	body, err := p.parseStmt()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Body = body
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil
@@ -131,7 +143,10 @@ parseBlock:
 			p.advance()
 			continue
 		}
-		s := p.parseStmt()
+		s, err := p.parseStmt()
+		if err != nil {
+			return nil, err
+		}
 		if s == nil {
 			break
 		}
@@ -172,7 +187,10 @@ func (p *Parser) parseTryCatchStmt() (*nodes.TryCatchStmt, error) {
 			p.advance()
 			continue
 		}
-		s := p.parseStmt()
+		s, err := p.parseStmt()
+		if err != nil {
+			return nil, err
+		}
 		if s == nil {
 			break
 		}
@@ -195,7 +213,10 @@ func (p *Parser) parseTryCatchStmt() (*nodes.TryCatchStmt, error) {
 			p.advance()
 			continue
 		}
-		s := p.parseStmt()
+		s, err := p.parseStmt()
+		if err != nil {
+			return nil, err
+		}
 		if s == nil {
 			break
 		}
@@ -311,7 +332,11 @@ func (p *Parser) parseWaitForStmt() (*nodes.WaitForStmt, error) {
 	} else if p.cur.Type == '(' {
 		// Parenthesized form: WAITFOR ( receive_statement | get_conversation_group_statement )
 		p.advance() // consume '('
-		stmt.InnerStmt = p.parseStmt()
+		innerStmt, err := p.parseStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.InnerStmt = innerStmt
 		_, _ = p.expect(')')
 		// Optional: , TIMEOUT timeout
 		if _, ok := p.match(','); ok {

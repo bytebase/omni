@@ -914,7 +914,10 @@ func (p *Parser) parseExists() (nodes.ExprNode, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	query := p.parseStmt()
+	query, err := p.parseStmt()
+	if err != nil {
+		return nil, err
+	}
 	_, _ = p.expect(')')
 	return &nodes.ExistsExpr{
 		Subquery: query,

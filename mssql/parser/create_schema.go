@@ -41,15 +41,19 @@ func (p *Parser) parseCreateSchemaStmt() (*nodes.CreateSchemaStmt, error) {
 	var elements []nodes.Node
 	for {
 		var elem nodes.StmtNode
+		var err error
 		switch p.cur.Type {
 		case kwCREATE:
-			elem = p.parseCreateStmt()
+			elem, err = p.parseCreateStmt()
 		case kwGRANT:
-			elem, _ = p.parseGrantStmt()
+			elem, err = p.parseGrantStmt()
 		case kwREVOKE:
-			elem, _ = p.parseRevokeStmt()
+			elem, err = p.parseRevokeStmt()
 		case kwDENY:
-			elem, _ = p.parseDenyStmt()
+			elem, err = p.parseDenyStmt()
+		}
+		if err != nil {
+			return nil, err
 		}
 		if elem == nil {
 			break
