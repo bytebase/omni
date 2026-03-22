@@ -31,6 +31,9 @@ func (p *Parser) parseOr() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if right == nil {
+			return nil, p.unexpectedToken()
+		}
 		left = &nodes.BinaryExpr{
 			Op:    nodes.BinOpOr,
 			Left:  left,
@@ -56,6 +59,9 @@ func (p *Parser) parseAnd() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if right == nil {
+			return nil, p.unexpectedToken()
+		}
 		left = &nodes.BinaryExpr{
 			Op:    nodes.BinOpAnd,
 			Left:  left,
@@ -76,6 +82,9 @@ func (p *Parser) parseNot() (nodes.ExprNode, error) {
 		operand, err := p.parseNot()
 		if err != nil {
 			return nil, err
+		}
+		if operand == nil {
+			return nil, p.unexpectedToken()
 		}
 		return &nodes.UnaryExpr{
 			Op:      nodes.UnaryNot,
@@ -139,12 +148,18 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if low == nil {
+			return nil, p.unexpectedToken()
+		}
 		if _, err := p.expect(kwAND); err != nil {
-			return left, nil
+			return nil, err
 		}
 		high, err := p.parseAddition()
 		if err != nil {
 			return nil, err
+		}
+		if high == nil {
+			return nil, p.unexpectedToken()
 		}
 		return &nodes.BetweenExpr{
 			Expr: left,
@@ -182,6 +197,9 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			}, nil
 		}
 		var items []nodes.Node
+		if p.cur.Type == tokEOF {
+			return nil, p.unexpectedToken()
+		}
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
 			expr, err := p.parseExpr()
 			if err != nil {
@@ -213,6 +231,9 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 		pattern, err := p.parseAddition()
 		if err != nil {
 			return nil, err
+		}
+		if pattern == nil {
+			return nil, p.unexpectedToken()
 		}
 		var escape nodes.ExprNode
 		if p.cur.Type == kwESCAPE {
@@ -261,6 +282,9 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 		right, err := p.parseAddition()
 		if err != nil {
 			return nil, err
+		}
+		if right == nil {
+			return nil, p.unexpectedToken()
 		}
 		return &nodes.BinaryExpr{
 			Op:    op,
@@ -324,6 +348,9 @@ func (p *Parser) parseAddition() (nodes.ExprNode, error) {
 		right, err := p.parseMultiplication()
 		if err != nil {
 			return nil, err
+		}
+		if right == nil {
+			return nil, p.unexpectedToken()
 		}
 		left = &nodes.BinaryExpr{
 			Op:    op,
@@ -438,6 +465,9 @@ func (p *Parser) parseMultiplication() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if right == nil {
+			return nil, p.unexpectedToken()
+		}
 		left = &nodes.BinaryExpr{
 			Op:    op,
 			Left:  left,
@@ -467,6 +497,9 @@ func (p *Parser) parseUnary() (nodes.ExprNode, error) {
 		operand, err := p.parseUnary()
 		if err != nil {
 			return nil, err
+		}
+		if operand == nil {
+			return nil, p.unexpectedToken()
 		}
 		return &nodes.UnaryExpr{
 			Op:      op,

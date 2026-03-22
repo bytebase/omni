@@ -152,30 +152,30 @@ After dual return is in place, add nil checks after advance+parse patterns. Each
 
 ### 2.1 expr.go — Binary Operators
 
-- [ ] `SELECT 1 OR` — OR consumed, no right operand → error
-- [ ] `SELECT 1 AND` — AND consumed, no right operand → error
-- [ ] `SELECT 1 <` — less-than consumed, no right operand → error
-- [ ] `SELECT 1 >` — greater-than consumed, no right operand → error
-- [ ] `SELECT 1 =` — equals consumed, no right operand → error
-- [ ] `SELECT 1 <=` — LESS_EQUALS consumed, no right → error
-- [ ] `SELECT 1 >=` — GREATER_EQUALS consumed, no right → error
-- [ ] `SELECT 1 <>` — NOT_EQUALS consumed, no right → error
-- [ ] `SELECT 1 +` — plus consumed, no right → error
-- [ ] `SELECT 1 -` — minus consumed, no right → error
-- [ ] `SELECT 1 *` — multiply consumed, no right → error
-- [ ] `SELECT 1 /` — divide consumed, no right → error
-- [ ] `SELECT 1 %` — modulo consumed, no right → error
+- [x] `SELECT 1 OR` — OR consumed, no right operand → error
+- [x] `SELECT 1 AND` — AND consumed, no right operand → error
+- [x] `SELECT 1 <` — less-than consumed, no right operand → error
+- [x] `SELECT 1 >` — greater-than consumed, no right operand → error
+- [x] `SELECT 1 =` — equals consumed, no right operand → error
+- [x] `SELECT 1 <=` — LESS_EQUALS consumed, no right → error
+- [x] `SELECT 1 >=` — GREATER_EQUALS consumed, no right → error
+- [x] `SELECT 1 <>` — NOT_EQUALS consumed, no right → error
+- [x] `SELECT 1 +` — plus consumed, no right → error
+- [x] `SELECT 1 -` — minus consumed, no right → error
+- [x] `SELECT 1 *` — multiply consumed, no right → error
+- [x] `SELECT 1 /` — divide consumed, no right → error
+- [x] `SELECT 1 %` — modulo consumed, no right → error
 
 ### 2.2 expr.go — Pattern Matching & Special Expressions
 
-- [ ] `SELECT 1 BETWEEN` — BETWEEN consumed, no lower bound → error
-- [ ] `SELECT 1 BETWEEN 0 AND` — lower bound parsed, AND consumed, no upper → error
-- [ ] `SELECT 1 NOT BETWEEN` — NOT BETWEEN consumed, no lower → error
-- [ ] `SELECT 'a' LIKE` — LIKE consumed, no pattern → error
-- [ ] `SELECT 'a' NOT LIKE` — NOT LIKE consumed, no pattern → error
-- [ ] `SELECT 1 IN (` — IN ( consumed, no expression list → error
-- [ ] `SELECT 1 NOT IN (` — NOT IN ( consumed, no expression list → error
-- [ ] `SELECT NOT` — NOT consumed, no operand → error
+- [x] `SELECT 1 BETWEEN` — BETWEEN consumed, no lower bound → error
+- [x] `SELECT 1 BETWEEN 0 AND` — lower bound parsed, AND consumed, no upper → error
+- [x] `SELECT 1 NOT BETWEEN` — NOT BETWEEN consumed, no lower → error
+- [x] `SELECT 'a' LIKE` — LIKE consumed, no pattern → error
+- [x] `SELECT 'a' NOT LIKE` — NOT LIKE consumed, no pattern → error
+- [x] `SELECT 1 IN (` — IN ( consumed, no expression list → error
+- [x] `SELECT 1 NOT IN (` — NOT IN ( consumed, no expression list → error
+- [x] `SELECT NOT` — NOT consumed, no operand → error
 
 ### 2.3 expr.go — CAST, CONVERT & Function Calls
 
