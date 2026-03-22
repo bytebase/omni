@@ -93,6 +93,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		if err != nil {
 			return nil, err
 		}
+		if stmt.FromClause == nil || len(stmt.FromClause.Items) == 0 {
+			return nil, p.unexpectedToken()
+		}
 	}
 
 	// WHERE
@@ -100,6 +103,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		stmt.WhereClause, err = p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if stmt.WhereClause == nil {
+			return nil, p.unexpectedToken()
 		}
 	}
 
@@ -114,6 +120,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 			if err != nil {
 				return nil, err
 			}
+			if stmt.GroupByClause == nil || len(stmt.GroupByClause.Items) == 0 {
+				return nil, p.unexpectedToken()
+			}
 		}
 	}
 
@@ -122,6 +131,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		stmt.HavingClause, err = p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if stmt.HavingClause == nil {
+			return nil, p.unexpectedToken()
 		}
 	}
 
@@ -140,6 +152,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 			stmt.OrderByClause, err = p.parseOrderByList()
 			if err != nil {
 				return nil, err
+			}
+			if stmt.OrderByClause == nil || len(stmt.OrderByClause.Items) == 0 {
+				return nil, p.unexpectedToken()
 			}
 		}
 	}
@@ -231,6 +246,9 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, e
 	right, err := p.parseSelectStmt()
 	if err != nil {
 		return nil, err
+	}
+	if right == nil {
+		return nil, p.unexpectedToken()
 	}
 	return &nodes.SelectStmt{
 		Op:   op,
@@ -380,6 +398,9 @@ func (p *Parser) parseCTE() (*nodes.CommonTableExpr, error) {
 	if err != nil {
 		return nil, err
 	}
+	if cte.Query == nil {
+		return nil, p.unexpectedToken()
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -407,6 +428,9 @@ func (p *Parser) parseTopClause() (*nodes.TopClause, error) {
 		if err != nil {
 			return nil, err
 		}
+		if tc.Count == nil {
+			return nil, p.unexpectedToken()
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -414,6 +438,9 @@ func (p *Parser) parseTopClause() (*nodes.TopClause, error) {
 		tc.Count, err = p.parsePrimary()
 		if err != nil {
 			return nil, err
+		}
+		if tc.Count == nil {
+			return nil, p.unexpectedToken()
 		}
 	}
 
@@ -510,6 +537,9 @@ func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 		if err != nil {
 			return nil, err
 		}
+		if right == nil {
+			return nil, p.unexpectedToken()
+		}
 		join := &nodes.JoinClause{
 			Type:  jt,
 			Left:  left,
@@ -522,6 +552,9 @@ func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 				join.Condition, err = p.parseExpr()
 				if err != nil {
 					return nil, err
+				}
+				if join.Condition == nil {
+					return nil, p.unexpectedToken()
 				}
 			}
 		}
@@ -540,6 +573,9 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		sub, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
+		}
+		if sub == nil {
+			return nil, p.unexpectedToken()
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err

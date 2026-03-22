@@ -201,26 +201,26 @@ After dual return is in place, add nil checks after advance+parse patterns. Each
 
 ### 2.5 select.go — FROM, JOIN, WHERE, GROUP BY
 
-- [ ] `SELECT * FROM` — FROM consumed, no table source → error
-- [ ] `SELECT * FROM t JOIN` — JOIN consumed, no right table → error
-- [ ] `SELECT * FROM t LEFT JOIN` — LEFT JOIN consumed, no right table → error
-- [ ] `SELECT * FROM t CROSS JOIN` — CROSS JOIN consumed, no right table → error
-- [ ] `SELECT * FROM t JOIN t2 ON` — ON consumed, no join condition → error
-- [ ] `SELECT * FROM t WHERE` — WHERE consumed, no condition → error
-- [ ] `SELECT * FROM t GROUP BY` — GROUP BY consumed, no grouping expressions → error
-- [ ] `SELECT * FROM t HAVING` — HAVING consumed, no condition → error
-- [ ] `SELECT * FROM t ORDER BY` — ORDER BY consumed, no sort expressions → error
-- [ ] `SELECT TOP` — TOP consumed, no count → error
-- [ ] `SELECT TOP (` — TOP ( consumed, no expression → error
+- [x] `SELECT * FROM` — FROM consumed, no table source → error
+- [x] `SELECT * FROM t JOIN` — JOIN consumed, no right table → error
+- [x] `SELECT * FROM t LEFT JOIN` — LEFT JOIN consumed, no right table → error
+- [x] `SELECT * FROM t CROSS JOIN` — CROSS JOIN consumed, no right table → error
+- [x] `SELECT * FROM t JOIN t2 ON` — ON consumed, no join condition → error
+- [x] `SELECT * FROM t WHERE` — WHERE consumed, no condition → error
+- [x] `SELECT * FROM t GROUP BY` — GROUP BY consumed, no grouping expressions → error
+- [x] `SELECT * FROM t HAVING` — HAVING consumed, no condition → error
+- [x] `SELECT * FROM t ORDER BY` — ORDER BY consumed, no sort expressions → error
+- [x] `SELECT TOP` — TOP consumed, no count → error
+- [x] `SELECT TOP (` — TOP ( consumed, no expression → error
 
 ### 2.6 select.go — Subquery, CTE, UNION
 
-- [ ] `SELECT * FROM (` — subquery FROM consumed, no content → error
-- [ ] `WITH cte AS (` — CTE AS consumed, no query → error
-- [ ] `WITH cte AS (SELECT 1) SELECT 1 UNION` — UNION consumed, no right query → error
-- [ ] `WITH cte AS (SELECT 1) SELECT 1 EXCEPT` — EXCEPT consumed, no right query → error
-- [ ] `WITH cte AS (SELECT 1) SELECT 1 INTERSECT` — INTERSECT consumed, no right query → error
-- [ ] `SELECT 1 UNION ALL` — UNION ALL consumed, no right query → error
+- [x] `SELECT * FROM (` — subquery FROM consumed, no content → error
+- [x] `WITH cte AS (` — CTE AS consumed, no query → error
+- [x] `WITH cte AS (SELECT 1) SELECT 1 UNION` — UNION consumed, no right query → error
+- [x] `WITH cte AS (SELECT 1) SELECT 1 EXCEPT` — EXCEPT consumed, no right query → error
+- [x] `WITH cte AS (SELECT 1) SELECT 1 INTERSECT` — INTERSECT consumed, no right query → error
+- [x] `SELECT 1 UNION ALL` — UNION ALL consumed, no right query → error
 
 ### 2.7 DML: INSERT, UPDATE, DELETE, MERGE Truncations
 
