@@ -186,7 +186,9 @@ func (p *Parser) parseIndexColumnList() (*nodes.List, error) {
 			break
 		}
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.List{Items: items}, nil
 }
 

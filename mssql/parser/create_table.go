@@ -42,6 +42,9 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	if err != nil {
 		return nil, err
 	}
+	if stmt.Name == nil {
+		return nil, p.unexpectedToken()
+	}
 
 	// AS NODE | AS EDGE (graph tables) | AS FILETABLE
 	// Note: AS CLONE OF is handled at the dispatch level (parser.go)
@@ -133,7 +136,9 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 			break
 		}
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	if len(cols) > 0 {
 		stmt.Columns = &nodes.List{Items: cols}
@@ -599,6 +604,9 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 			if defErr != nil {
 				return nil, defErr
 			}
+			if defExpr == nil {
+				return nil, p.unexpectedToken()
+			}
 			col.DefaultExpr = defExpr
 			consumed = true
 		}
@@ -829,7 +837,10 @@ func (p *Parser) parseIdentitySpec() (*nodes.IdentitySpec, error) {
 // parseColumnConstraint parses CONSTRAINT name followed by constraint type.
 func (p *Parser) parseColumnConstraint() (*nodes.ConstraintDef, error) {
 	p.advance() // consume CONSTRAINT
-	name, _ := p.parseIdentifier()
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.unexpectedToken()
+	}
 	return p.parseInlineConstraint(name)
 }
 
@@ -862,7 +873,9 @@ func (p *Parser) parseInlineConstraint(name string) (*nodes.ConstraintDef, error
 	switch p.cur.Type {
 	case kwPRIMARY:
 		p.advance() // PRIMARY
-		p.match(kwKEY)
+		if _, err := p.expect(kwKEY); err != nil {
+			return nil, err
+		}
 		cd.Type = nodes.ConstraintPrimaryKey
 		p.parseClusteredOption(cd)
 		p.parseConstraintWithOptions(cd)
@@ -891,6 +904,9 @@ func (p *Parser) parseInlineConstraint(name string) (*nodes.ConstraintDef, error
 			if exprErr != nil {
 				return nil, exprErr
 			}
+			if cd.Expr == nil {
+				return nil, p.unexpectedToken()
+			}
 			_, _ = p.expect(')')
 		}
 	case kwDEFAULT:
@@ -901,6 +917,9 @@ func (p *Parser) parseInlineConstraint(name string) (*nodes.ConstraintDef, error
 		if exprErr != nil {
 			return nil, exprErr
 		}
+		if cd.Expr == nil {
+			return nil, p.unexpectedToken()
+		}
 	case kwREFERENCES:
 		p.advance()
 		cd.Type = nodes.ConstraintForeignKey
@@ -908,6 +927,9 @@ func (p *Parser) parseInlineConstraint(name string) (*nodes.ConstraintDef, error
 		cd.RefTable, refErr = p.parseTableRef()
 		if refErr != nil {
 			return nil, refErr
+		}
+		if cd.RefTable == nil {
+			return nil, p.unexpectedToken()
 		}
 		if p.cur.Type == '(' {
 			var pilErr error

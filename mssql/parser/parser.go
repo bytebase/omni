@@ -17,6 +17,7 @@ type Parser struct {
 	prev    Token // previous token (for error reporting)
 	nextBuf Token // buffered next token for 2-token lookahead
 	hasNext bool  // whether nextBuf is valid
+	err     error // sticky error from sub-parsers (checked in Parse loop)
 }
 
 // Parse parses a T-SQL string into an AST list.
@@ -36,6 +37,9 @@ func Parse(sql string) (*nodes.List, error) {
 			continue
 		}
 		stmt := p.parseStmt()
+		if p.err != nil {
+			return nil, p.err
+		}
 		if stmt == nil {
 			if p.cur.Type != tokEOF {
 				return nil, &ParseError{
@@ -455,7 +459,11 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 		p.prev = savedPrev
 		p.nextBuf = savedNextBuf
 		p.hasNext = savedHasNext
-		stmt, _ := p.parseCreateTableStmt()
+		stmt, err := p.parseCreateTableStmt()
+		if err != nil {
+			p.err = err
+			return nil
+		}
 		stmt.Loc.Start = loc
 		return stmt
 	case kwINDEX, kwCLUSTERED, kwNONCLUSTERED, kwCOLUMNSTORE:

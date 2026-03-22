@@ -237,16 +237,16 @@ After dual return is in place, add nil checks after advance+parse patterns. Each
 
 ### 2.8 DDL: CREATE TABLE Truncations
 
-- [ ] `CREATE TABLE` — CREATE TABLE with no name → error
-- [ ] `CREATE TABLE t (` — open paren, no columns → error
-- [ ] `CREATE TABLE t (a` — column name, no type → error
-- [ ] `CREATE TABLE t (a INT,` — trailing comma, no next column → error
-- [ ] `CREATE TABLE t (a INT CONSTRAINT` — CONSTRAINT consumed, no name → error
-- [ ] `CREATE TABLE t (a INT PRIMARY` — PRIMARY consumed, no KEY → error
-- [ ] `CREATE TABLE t (a INT REFERENCES` — REFERENCES consumed, no table → error
-- [ ] `CREATE TABLE t (a INT DEFAULT` — DEFAULT consumed, no value → error
-- [ ] `CREATE TABLE t (a INT CHECK (` — CHECK ( consumed, no condition → error
-- [ ] `CREATE TABLE t (CONSTRAINT pk PRIMARY KEY (` — PK ( consumed, no columns → error
+- [x] `CREATE TABLE` — CREATE TABLE with no name → error
+- [x] `CREATE TABLE t (` — open paren, no columns → error
+- [x] `CREATE TABLE t (a` — column name, no type → error
+- [x] `CREATE TABLE t (a INT,` — trailing comma, no next column → error
+- [x] `CREATE TABLE t (a INT CONSTRAINT` — CONSTRAINT consumed, no name → error
+- [x] `CREATE TABLE t (a INT PRIMARY` — PRIMARY consumed, no KEY → error
+- [x] `CREATE TABLE t (a INT REFERENCES` — REFERENCES consumed, no table → error
+- [x] `CREATE TABLE t (a INT DEFAULT` — DEFAULT consumed, no value → error
+- [x] `CREATE TABLE t (a INT CHECK (` — CHECK ( consumed, no condition → error
+- [x] `CREATE TABLE t (CONSTRAINT pk PRIMARY KEY (` — PK ( consumed, no columns → error
 
 ### 2.9 DDL: ALTER TABLE, CREATE INDEX Truncations
 
