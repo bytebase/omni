@@ -98,7 +98,17 @@ func (p *Parser) parseExecStmt() (*nodes.ExecStmt, error) {
 	}
 
 	// Procedure name
-	stmt.Name , _ = p.parseTableRef()
+	name, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	if name == nil {
+		return nil, &ParseError{
+			Message:  "expected procedure name after EXEC",
+			Position: p.cur.Loc,
+		}
+	}
+	stmt.Name = name
 
 	// Optional procedure number: ;number (EXEC sp_test;1)
 	if p.cur.Type == ';' {

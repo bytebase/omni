@@ -262,16 +262,16 @@ After dual return is in place, add nil checks after advance+parse patterns. Each
 
 ### 2.10 Control Flow & Declaration Truncations
 
-- [ ] `IF` — IF with no condition → error
-- [ ] `IF 1=1` — no BEGIN or statement body → error (or accepted as valid depending on T-SQL rules)
-- [ ] `WHILE` — WHILE with no condition → error
-- [ ] `DECLARE @v` — variable declared, no type → error
-- [ ] `SET @v =` — = consumed, no value → error
-- [ ] `RETURN` — valid (RETURN with no value is legal in T-SQL procedures)
-- [ ] `EXEC` — EXEC with no procedure name → error
-- [ ] `BEGIN TRANSACTION` — valid (no name required)
-- [ ] `PRINT` — PRINT with no expression → error
-- [ ] `THROW` — valid (re-throw with no args is legal in T-SQL CATCH blocks)
+- [x] `IF` — IF with no condition → error
+- [x] `IF 1=1` — no BEGIN or statement body → error (or accepted as valid depending on T-SQL rules)
+- [x] `WHILE` — WHILE with no condition → error
+- [x] `DECLARE @v` — variable declared, no type → error
+- [x] `SET @v =` — = consumed, no value → error
+- [x] `RETURN` — valid (RETURN with no value is legal in T-SQL procedures)
+- [x] `EXEC` — EXEC with no procedure name → error
+- [x] `BEGIN TRANSACTION` — valid (no name required)
+- [x] `PRINT` — PRINT with no expression → error
+- [x] `THROW` — valid (re-throw with no args is legal in T-SQL CATCH blocks)
 
 ---
 

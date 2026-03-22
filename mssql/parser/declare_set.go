@@ -27,7 +27,10 @@ func (p *Parser) parseDeclareStmt() (*nodes.DeclareStmt, error) {
 
 	var vars []nodes.Node
 	for {
-		vd, _ := p.parseVariableDecl()
+		vd, err := p.parseVariableDecl()
+		if err != nil {
+			return nil, err
+		}
 		if vd == nil {
 			break
 		}
@@ -96,7 +99,17 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 	}
 
 	// Data type
-	vd.DataType , _ = p.parseDataType()
+	dt, err := p.parseDataType()
+	if err != nil {
+		return nil, err
+	}
+	if dt == nil {
+		return nil, &ParseError{
+			Message:  "expected data type in variable declaration",
+			Position: p.cur.Loc,
+		}
+	}
+	vd.DataType = dt
 
 	// Optional default value
 	if p.cur.Type == '=' {
@@ -141,9 +154,29 @@ func (p *Parser) parseSetStmt() (nodes.StmtNode, error) {
 		if op := p.isCompoundAssign(); op != "" {
 			stmt.Operator = op
 			p.advance()
-			stmt.Value, _ = p.parseExpr()
+			val, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if val == nil {
+				return nil, &ParseError{
+					Message:  "expected expression after SET assignment operator",
+					Position: p.cur.Loc,
+				}
+			}
+			stmt.Value = val
 		} else if _, err := p.expect('='); err == nil {
-			stmt.Value, _ = p.parseExpr()
+			val, err2 := p.parseExpr()
+			if err2 != nil {
+				return nil, err2
+			}
+			if val == nil {
+				return nil, &ParseError{
+					Message:  "expected expression after SET =",
+					Position: p.cur.Loc,
+				}
+			}
+			stmt.Value = val
 		}
 		stmt.Loc.End = p.pos()
 		return stmt, nil
