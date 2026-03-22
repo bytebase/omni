@@ -17,6 +17,7 @@ type Parser struct {
 	prev    Token // previous token (for error reporting)
 	nextBuf Token // buffered next token for 2-token lookahead
 	hasNext bool  // whether nextBuf is valid
+	err     error // first error encountered during parsing
 }
 
 // Parse parses a T-SQL string into an AST list.
@@ -48,6 +49,9 @@ func Parse(sql string) (*nodes.List, error) {
 		stmts = append(stmts, stmt)
 	}
 
+	if p.err != nil {
+		return nil, p.err
+	}
 	if len(stmts) == 0 {
 		return &nodes.List{}, nil
 	}
@@ -58,10 +62,16 @@ func Parse(sql string) (*nodes.List, error) {
 func (p *Parser) parseStmt() nodes.StmtNode {
 	switch p.cur.Type {
 	case kwSELECT:
-		stmt, _ := p.parseSelectStmt()
+		stmt, err := p.parseSelectStmt()
+		if err != nil && p.err == nil {
+			p.err = err
+		}
 		return stmt
 	case kwWITH:
-		stmt, _ := p.parseSelectStmt()
+		stmt, err := p.parseSelectStmt()
+		if err != nil && p.err == nil {
+			p.err = err
+		}
 		return stmt
 	case kwINSERT:
 		// Check for INSERT BULK

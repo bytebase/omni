@@ -193,11 +193,11 @@ After dual return is in place, add nil checks after advance+parse patterns. Each
 
 ### 2.4 expr.go — Collate, AT TIME ZONE, Unary
 
-- [ ] `SELECT 'a' COLLATE` — COLLATE consumed, no collation → error
-- [ ] `SELECT GETDATE() AT TIME ZONE` — AT TIME ZONE consumed, no zone → error
-- [ ] `SELECT -` — unary minus, no operand → error
-- [ ] `SELECT +` — unary plus, no operand → error
-- [ ] `SELECT ~` — bitwise NOT, no operand → error
+- [x] `SELECT 'a' COLLATE` — COLLATE consumed, no collation → error
+- [x] `SELECT GETDATE() AT TIME ZONE` — AT TIME ZONE consumed, no zone → error
+- [x] `SELECT -` — unary minus, no operand → error
+- [x] `SELECT +` — unary plus, no operand → error
+- [x] `SELECT ~` — bitwise NOT, no operand → error
 
 ### 2.5 select.go — FROM, JOIN, WHERE, GROUP BY
 
