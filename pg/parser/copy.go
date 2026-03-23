@@ -204,8 +204,9 @@ func (p *Parser) parseCopyOptItem() *nodes.DefElem {
 		if p.cur.Type == QUOTE {
 			p.advance()
 			if p.cur.Type == '*' {
+				starLoc := p.pos()
 				p.advance()
-				return &nodes.DefElem{Defname: "force_quote", Arg: &nodes.A_Star{}, Loc: nodes.NoLoc()}
+				return &nodes.DefElem{Defname: "force_quote", Arg: &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}, Loc: nodes.NoLoc()}
 			}
 			cols := p.parseColumnList()
 			return &nodes.DefElem{Defname: "force_quote", Arg: cols, Loc: nodes.NoLoc()}
@@ -214,8 +215,9 @@ func (p *Parser) parseCopyOptItem() *nodes.DefElem {
 			p.advance()
 			p.expect(NULL_P)
 			if p.cur.Type == '*' {
+				starLoc := p.pos()
 				p.advance()
-				return &nodes.DefElem{Defname: "force_not_null", Arg: &nodes.A_Star{}, Loc: nodes.NoLoc()}
+				return &nodes.DefElem{Defname: "force_not_null", Arg: &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}, Loc: nodes.NoLoc()}
 			}
 			cols := p.parseColumnList()
 			return &nodes.DefElem{Defname: "force_not_null", Arg: cols, Loc: nodes.NoLoc()}
@@ -223,8 +225,9 @@ func (p *Parser) parseCopyOptItem() *nodes.DefElem {
 		if p.cur.Type == NULL_P {
 			p.advance()
 			if p.cur.Type == '*' {
+				starLoc := p.pos()
 				p.advance()
-				return &nodes.DefElem{Defname: "force_null", Arg: &nodes.A_Star{}, Loc: nodes.NoLoc()}
+				return &nodes.DefElem{Defname: "force_null", Arg: &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}, Loc: nodes.NoLoc()}
 			}
 			cols := p.parseColumnList()
 			return &nodes.DefElem{Defname: "force_null", Arg: cols, Loc: nodes.NoLoc()}

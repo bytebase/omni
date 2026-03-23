@@ -856,6 +856,7 @@ func (p *Parser) parseAtTimeZone(left nodes.Node) (nodes.Node, error) {
 
 // parseSubscript handles array subscript and slice: expr[idx] or expr[lo:hi].
 func (p *Parser) parseSubscript(left nodes.Node) (nodes.Node, error) {
+	bracketLoc := p.pos()
 	p.advance() // consume '['
 
 	// Check for empty lower bound followed by ':'
@@ -872,9 +873,11 @@ func (p *Parser) parseSubscript(left nodes.Node) (nodes.Node, error) {
 		if _, err := p.expect(']'); err != nil {
 			return nil, err
 		}
+		indLoc := nodes.Loc{Start: bracketLoc, End: p.prev.End}
 		return &nodes.A_Indirection{
 			Arg:         left,
-			Indirection: &nodes.List{Items: []nodes.Node{&nodes.A_Indices{IsSlice: true, Uidx: uidx}}},
+			Indirection: &nodes.List{Items: []nodes.Node{&nodes.A_Indices{IsSlice: true, Uidx: uidx, Loc: indLoc}}},
+			Loc:         nodes.Loc{Start: nodes.NodeLoc(left).Start, End: p.prev.End},
 		}, nil
 	}
 
@@ -896,9 +899,11 @@ func (p *Parser) parseSubscript(left nodes.Node) (nodes.Node, error) {
 		if _, err := p.expect(']'); err != nil {
 			return nil, err
 		}
+		indLoc := nodes.Loc{Start: bracketLoc, End: p.prev.End}
 		return &nodes.A_Indirection{
 			Arg:         left,
-			Indirection: &nodes.List{Items: []nodes.Node{&nodes.A_Indices{IsSlice: true, Lidx: idx, Uidx: uidx}}},
+			Indirection: &nodes.List{Items: []nodes.Node{&nodes.A_Indices{IsSlice: true, Lidx: idx, Uidx: uidx, Loc: indLoc}}},
+			Loc:         nodes.Loc{Start: nodes.NodeLoc(left).Start, End: p.prev.End},
 		}, nil
 	}
 
@@ -906,9 +911,11 @@ func (p *Parser) parseSubscript(left nodes.Node) (nodes.Node, error) {
 	if _, err := p.expect(']'); err != nil {
 		return nil, err
 	}
+	indLoc := nodes.Loc{Start: bracketLoc, End: p.prev.End}
 	return &nodes.A_Indirection{
 		Arg:         left,
-		Indirection: &nodes.List{Items: []nodes.Node{&nodes.A_Indices{Uidx: idx}}},
+		Indirection: &nodes.List{Items: []nodes.Node{&nodes.A_Indices{Uidx: idx, Loc: indLoc}}},
+		Loc:         nodes.Loc{Start: nodes.NodeLoc(left).Start, End: p.prev.End},
 	}, nil
 }
 
@@ -1213,12 +1220,13 @@ func (p *Parser) parseCExprInner() (nodes.Node, error) {
 	case PARAM:
 		tok := p.advance()
 		ref := &nodes.ParamRef{Number: int(tok.Ival)}
+		indirStart := p.pos()
 		indir, err := p.parseOptIndirection()
 		if err != nil {
 			return nil, err
 		}
 		if indir != nil && len(indir.Items) > 0 {
-			return &nodes.A_Indirection{Arg: ref, Indirection: indir}, nil
+			return &nodes.A_Indirection{Arg: ref, Indirection: indir, Loc: nodes.Loc{Start: indirStart, End: p.prev.End}}, nil
 		}
 		return ref, nil
 
@@ -1387,6 +1395,7 @@ func (p *Parser) parseParenExprOrRow() (nodes.Node, error) {
 		}
 		// Check for indirection after subquery
 		if p.cur.Type == '.' || p.cur.Type == '[' {
+			indirStart := p.pos()
 			indir, err := p.parseIndirection()
 			if err == nil && indir != nil && len(indir.Items) > 0 {
 				sub := &nodes.SubLink{
@@ -1394,7 +1403,7 @@ func (p *Parser) parseParenExprOrRow() (nodes.Node, error) {
 					Subselect:   subquery,
 					Loc: nodes.NoLoc(),
 				}
-				return &nodes.A_Indirection{Arg: sub, Indirection: indir}, nil
+				return &nodes.A_Indirection{Arg: sub, Indirection: indir, Loc: nodes.Loc{Start: indirStart, End: p.prev.End}}, nil
 			}
 		}
 		return &nodes.SubLink{
@@ -1440,12 +1449,13 @@ func (p *Parser) parseParenExprOrRow() (nodes.Node, error) {
 		return nil, err
 	}
 	// Check for indirection
+	indirStart := p.pos()
 	indir, err := p.parseOptIndirection()
 	if err != nil {
 		return nil, err
 	}
 	if indir != nil && len(indir.Items) > 0 {
-		return &nodes.A_Indirection{Arg: first, Indirection: indir}, nil
+		return &nodes.A_Indirection{Arg: first, Indirection: indir, Loc: nodes.Loc{Start: indirStart, End: p.prev.End}}, nil
 	}
 	return first, nil
 }
@@ -2344,9 +2354,10 @@ func (p *Parser) parseColumnRefOrFuncCall() (nodes.Node, error) {
 		}
 		if p.cur.Type == '*' {
 			// schema.*
+			starLoc := p.pos()
 			p.advance()
 			return &nodes.ColumnRef{
-				Fields:   &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}, &nodes.A_Star{}}},
+				Fields:   &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}, &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}}},
 			}, nil
 		}
 
@@ -2384,9 +2395,10 @@ func (p *Parser) parseColumnRefOrFuncCall() (nodes.Node, error) {
 				p.addRuleCandidate("columnref")
 			}
 			if p.cur.Type == '*' {
+				starLoc := p.pos()
 				p.advance()
 				return &nodes.ColumnRef{
-					Fields:   &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}, &nodes.String{Str: attr}, &nodes.A_Star{}}},
+					Fields:   &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}, &nodes.String{Str: attr}, &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}}},
 				}, nil
 			}
 			attr2, err := p.parseAttrName()
@@ -2400,8 +2412,9 @@ func (p *Parser) parseColumnRefOrFuncCall() (nodes.Node, error) {
 			for p.cur.Type == '.' {
 				p.advance()
 				if p.cur.Type == '*' {
+					starLoc := p.pos()
 					p.advance()
-					fields = append(fields, &nodes.A_Star{})
+					fields = append(fields, &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}})
 					return &nodes.ColumnRef{
 						Fields: &nodes.List{Items: fields},
 					}, nil
@@ -3076,9 +3089,10 @@ func (p *Parser) parseTargetEl() (nodes.Node, error) {
 	if p.cur.Type == '*' {
 		p.advance()
 		end := p.pos()
+		starEnd := p.prev.End
 		return &nodes.ResTarget{
 			Val: &nodes.ColumnRef{
-				Fields: &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}},
+				Fields: &nodes.List{Items: []nodes.Node{&nodes.A_Star{Loc: nodes.Loc{Start: loc, End: starEnd}}}},
 				Loc:    nodes.Loc{Start: loc, End: end},
 			},
 			Loc: nodes.Loc{Start: loc, End: end},

@@ -83,7 +83,7 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 			Recursive: true,
 		}
 		cr := &nodes.ColumnRef{
-			Fields:   &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}},
+			Fields:   &nodes.List{Items: []nodes.Node{&nodes.A_Star{Loc: nodes.NoLoc()}}},
 			Loc: nodes.NoLoc(),
 		}
 		rt := &nodes.ResTarget{Val: cr, Loc: nodes.NoLoc()}

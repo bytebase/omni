@@ -422,6 +422,7 @@ func (p *Parser) parseSetClause() ([]nodes.Node, error) {
 				Source:   expr,
 				Colno:    i + 1,
 				Ncolumns: ncolumns,
+				Loc:      nodes.NodeLoc(expr),
 			}
 			result = append(result, rt)
 		}

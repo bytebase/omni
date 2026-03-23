@@ -265,6 +265,7 @@ type MultiAssignRef struct {
 	Source   Node // the row-valued expression
 	Colno    int  // column number for this target (1..n)
 	Ncolumns int  // number of targets in the construct
+	Loc      Loc  // token location
 }
 
 func (n *MultiAssignRef) Tag() NodeTag { return T_MultiAssignRef }
@@ -569,7 +570,9 @@ type LockingClause struct {
 func (n *LockingClause) Tag() NodeTag { return T_LockingClause }
 
 // A_Star represents '*' appearing in expression.
-type A_Star struct{}
+type A_Star struct {
+	Loc Loc // token location
+}
 
 func (n *A_Star) Tag() NodeTag { return T_A_Star }
 
@@ -578,6 +581,7 @@ type A_Indices struct {
 	IsSlice bool // true if slice (i.e., [ : ])
 	Lidx    Node // slice lower bound, if any
 	Uidx    Node // subscript, or slice upper bound if any
+	Loc     Loc  // token location
 }
 
 func (n *A_Indices) Tag() NodeTag { return T_A_Indices }
@@ -586,6 +590,7 @@ func (n *A_Indices) Tag() NodeTag { return T_A_Indices }
 type A_Indirection struct {
 	Arg         Node  // the thing being selected from
 	Indirection *List // subscripts and/or field names and/or *
+	Loc         Loc   // token location
 }
 
 func (n *A_Indirection) Tag() NodeTag { return T_A_Indirection }
@@ -761,6 +766,7 @@ type TableLikeClause struct {
 	RelationOid   Oid       // set during parse analysis to the OID of the relation
 	Columns       *List     // list of ColumnDef nodes
 	AncillaryData *List     // list of DefElem nodes for INDEX etc
+	Loc           Loc       // token location
 }
 
 func (n *TableLikeClause) Tag() NodeTag { return T_TableLikeClause }
@@ -934,6 +940,7 @@ type MergeWhenClause struct {
 	Values      *List          // VALUES for INSERT (NULL for UPDATE/DELETE)
 	Override    OverridingKind // OVERRIDING clause for INSERT
 	CommandType CmdType        // INSERT/UPDATE/DELETE
+	Loc         Loc            // token location
 }
 
 // MergeMatchKind represents the match kind for MERGE.

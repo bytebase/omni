@@ -392,7 +392,7 @@ func (p *Parser) parseTableCmd() (*nodes.SelectStmt, error) {
 		return nil, err
 	}
 	cr := &nodes.ColumnRef{
-		Fields: &nodes.List{Items: []nodes.Node{&nodes.A_Star{}}},
+		Fields: &nodes.List{Items: []nodes.Node{&nodes.A_Star{Loc: nodes.NoLoc()}}},
 		Loc:    nodes.NoLoc(),
 	}
 	rt := &nodes.ResTarget{

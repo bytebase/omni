@@ -310,6 +310,7 @@ func (p *Parser) parseMergeWhenList() (*nodes.List, error) {
 //	    | merge_when_tgt_matched opt_merge_when_condition THEN DO NOTHING
 //	    | merge_when_tgt_not_matched opt_merge_when_condition THEN DO NOTHING
 func (p *Parser) parseMergeWhenClause() (*nodes.MergeWhenClause, error) {
+	whenLoc := p.pos()
 	p.advance() // consume WHEN
 
 	// Determine match kind
@@ -380,6 +381,7 @@ func (p *Parser) parseMergeWhenClause() (*nodes.MergeWhenClause, error) {
 			CommandType: nodes.CMD_UPDATE,
 			Override:    nodes.OVERRIDING_NOT_SET,
 			TargetList:  targetList,
+			Loc:         nodes.Loc{Start: whenLoc, End: p.prev.End},
 		}, nil
 
 	case DELETE_P:
@@ -390,11 +392,12 @@ func (p *Parser) parseMergeWhenClause() (*nodes.MergeWhenClause, error) {
 			Condition:   condition,
 			CommandType: nodes.CMD_DELETE,
 			Override:    nodes.OVERRIDING_NOT_SET,
+			Loc:         nodes.Loc{Start: whenLoc, End: p.prev.End},
 		}, nil
 
 	case INSERT:
 		// merge_insert
-		return p.parseMergeInsert(kind, condition)
+		return p.parseMergeInsert(whenLoc, kind, condition)
 
 	case DO:
 		// DO NOTHING
@@ -406,12 +409,14 @@ func (p *Parser) parseMergeWhenClause() (*nodes.MergeWhenClause, error) {
 			Kind:        kind,
 			Condition:   condition,
 			CommandType: nodes.CMD_NOTHING,
+			Loc:         nodes.Loc{Start: whenLoc, End: p.prev.End},
 		}, nil
 
 	default:
 		return &nodes.MergeWhenClause{
 			Kind:      kind,
 			Condition: condition,
+			Loc:       nodes.Loc{Start: whenLoc, End: p.prev.End},
 		}, nil
 	}
 }
@@ -424,7 +429,7 @@ func (p *Parser) parseMergeWhenClause() (*nodes.MergeWhenClause, error) {
 //	    | INSERT '(' insert_column_list ')' merge_values_clause
 //	    | INSERT '(' insert_column_list ')' OVERRIDING override_kind VALUE merge_values_clause
 //	    | INSERT DEFAULT VALUES
-func (p *Parser) parseMergeInsert(kind nodes.MergeMatchKind, condition nodes.Node) (*nodes.MergeWhenClause, error) {
+func (p *Parser) parseMergeInsert(whenLoc int, kind nodes.MergeMatchKind, condition nodes.Node) (*nodes.MergeWhenClause, error) {
 	p.advance() // consume INSERT
 
 	clause := &nodes.MergeWhenClause{
@@ -441,6 +446,7 @@ func (p *Parser) parseMergeInsert(kind nodes.MergeMatchKind, condition nodes.Nod
 		if _, err := p.expect(VALUES); err != nil {
 			return nil, err
 		}
+		clause.Loc = nodes.Loc{Start: whenLoc, End: p.prev.End}
 		return clause, nil
 
 	case '(':
@@ -464,6 +470,7 @@ func (p *Parser) parseMergeInsert(kind nodes.MergeMatchKind, condition nodes.Nod
 		if err != nil {
 			return nil, err
 		}
+		clause.Loc = nodes.Loc{Start: whenLoc, End: p.prev.End}
 		return clause, nil
 
 	case OVERRIDING:
@@ -477,6 +484,7 @@ func (p *Parser) parseMergeInsert(kind nodes.MergeMatchKind, condition nodes.Nod
 		if err != nil {
 			return nil, err
 		}
+		clause.Loc = nodes.Loc{Start: whenLoc, End: p.prev.End}
 		return clause, nil
 
 	default:
@@ -486,6 +494,7 @@ func (p *Parser) parseMergeInsert(kind nodes.MergeMatchKind, condition nodes.Nod
 		if err != nil {
 			return nil, err
 		}
+		clause.Loc = nodes.Loc{Start: whenLoc, End: p.prev.End}
 		return clause, nil
 	}
 }

@@ -950,6 +950,7 @@ func (p *Parser) parseWhereClauseOpt() nodes.Node {
 //
 //	TableLikeClause: LIKE qualified_name TableLikeOptionList?
 func (p *Parser) parseTableLikeClause() (*nodes.TableLikeClause, error) {
+	likeLoc := p.pos()
 	p.advance() // LIKE
 	names, err := p.parseQualifiedName()
 	if err != nil {
@@ -973,6 +974,7 @@ func (p *Parser) parseTableLikeClause() (*nodes.TableLikeClause, error) {
 	return &nodes.TableLikeClause{
 		Relation: rv,
 		Options:  opts,
+		Loc:      nodes.Loc{Start: likeLoc, End: p.prev.End},
 	}, nil
 }
 

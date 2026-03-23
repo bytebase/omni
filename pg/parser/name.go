@@ -288,6 +288,7 @@ func (p *Parser) parseColumnRef() (nodes.Node, error) {
 	}
 
 	// Parse indirection
+	indirStart := p.pos()
 	indir, err := p.parseIndirection()
 	if err != nil {
 		return nil, err
@@ -320,7 +321,7 @@ func (p *Parser) parseColumnRef() (nodes.Node, error) {
 
 	// Split: field selections before subscript go to ColumnRef.Fields,
 	// subscript and after go to A_Indirection.Indirection
-	ind := &nodes.A_Indirection{}
+	ind := &nodes.A_Indirection{Loc: nodes.Loc{Start: indirStart, End: p.prev.End}}
 	if firstSubscript == 0 {
 		cr.Fields = &nodes.List{Items: []nodes.Node{&nodes.String{Str: id}}}
 		ind.Indirection = indir
@@ -371,8 +372,9 @@ func (p *Parser) parseIndirectionEl() (nodes.Node, error) {
 	if p.cur.Type == '.' {
 		p.advance()
 		if p.cur.Type == '*' {
+			starLoc := p.pos()
 			p.advance()
-			return &nodes.A_Star{}, nil
+			return &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}, nil
 		}
 		name, err := p.parseAttrName()
 		if err != nil {
@@ -382,6 +384,7 @@ func (p *Parser) parseIndirectionEl() (nodes.Node, error) {
 	}
 
 	if p.cur.Type == '[' {
+		idxLoc := p.pos()
 		p.advance()
 
 		// Check for empty lower bound followed by ':'
@@ -399,7 +402,7 @@ func (p *Parser) parseIndirectionEl() (nodes.Node, error) {
 			if _, err := p.expect(']'); err != nil {
 				return nil, err
 			}
-			return &nodes.A_Indices{IsSlice: true, Uidx: uidx}, nil
+			return &nodes.A_Indices{IsSlice: true, Uidx: uidx, Loc: nodes.Loc{Start: idxLoc, End: p.prev.End}}, nil
 		}
 
 		// Parse first expression
@@ -421,14 +424,14 @@ func (p *Parser) parseIndirectionEl() (nodes.Node, error) {
 			if _, err := p.expect(']'); err != nil {
 				return nil, err
 			}
-			return &nodes.A_Indices{IsSlice: true, Lidx: expr, Uidx: uidx}, nil
+			return &nodes.A_Indices{IsSlice: true, Lidx: expr, Uidx: uidx, Loc: nodes.Loc{Start: idxLoc, End: p.prev.End}}, nil
 		}
 
 		// Simple subscript: [ expr ]
 		if _, err := p.expect(']'); err != nil {
 			return nil, err
 		}
-		return &nodes.A_Indices{Uidx: expr}, nil
+		return &nodes.A_Indices{Uidx: expr, Loc: nodes.Loc{Start: idxLoc, End: p.prev.End}}, nil
 	}
 
 	return nil, p.syntaxErrorAtCur()

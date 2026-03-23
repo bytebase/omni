@@ -488,7 +488,11 @@ func writeAlias(sb *strings.Builder, n *Alias) {
 }
 
 func writeAStar(sb *strings.Builder, n *A_Star) {
-	sb.WriteString("{A_STAR}")
+	sb.WriteString("{A_STAR")
+	if n.Loc.Start != 0 || n.Loc.End != 0 {
+		sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
+	}
+	sb.WriteString("}")
 }
 
 func writeBoolExpr(sb *strings.Builder, n *BoolExpr) {

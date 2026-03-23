@@ -188,6 +188,18 @@ func NodeLoc(n Node) Loc {
 	// --- Section 1.1: FROM/Join nodes ---
 
 	// --- Section 1.2: Expression helper nodes ---
+	case *A_Indices:
+		return v.Loc
+	case *A_Indirection:
+		return v.Loc
+	case *A_Star:
+		return v.Loc
+	case *MergeWhenClause:
+		return v.Loc
+	case *MultiAssignRef:
+		return v.Loc
+	case *TableLikeClause:
+		return v.Loc
 
 	// --- Section 1.3: JSON nodes ---
 

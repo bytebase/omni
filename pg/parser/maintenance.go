@@ -405,8 +405,9 @@ func (p *Parser) parseUtilityOptionName() string {
 func (p *Parser) parseUtilityOptionArg() nodes.Node {
 	switch p.cur.Type {
 	case '*':
+		starLoc := p.pos()
 		p.advance()
-		return &nodes.A_Star{}
+		return &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}
 	case DEFAULT:
 		p.advance()
 		return &nodes.String{Str: "default"}
