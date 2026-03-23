@@ -15,7 +15,7 @@ import (
 //	    | CREATE SCHEMA IF_P NOT EXISTS ColId OptSchemaEltList
 //
 // The CREATE keyword has already been consumed. Current token is SCHEMA.
-func (p *Parser) parseCreateSchemaStmt() (nodes.Node, error) {
+func (p *Parser) parseCreateSchemaStmt(stmtLoc int) (nodes.Node, error) {
 	p.advance() // consume SCHEMA
 
 	stmt := &nodes.CreateSchemaStmt{}
@@ -40,6 +40,7 @@ func (p *Parser) parseCreateSchemaStmt() (nodes.Node, error) {
 			return nil, err
 		}
 		stmt.SchemaElts = elts
+		stmt.Loc = nodes.Loc{Start: stmtLoc, End: p.prev.End}
 		return stmt, nil
 	}
 
@@ -59,6 +60,7 @@ func (p *Parser) parseCreateSchemaStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	stmt.SchemaElts = elts
+	stmt.Loc = nodes.Loc{Start: stmtLoc, End: p.prev.End}
 	return stmt, nil
 }
 
@@ -120,7 +122,7 @@ func (p *Parser) parseSchemaStmt() (nodes.Node, error) {
 //	    [ OWNER { new_owner | CURRENT_ROLE | CURRENT_USER | SESSION_USER } ]
 //	    LOCATION 'directory'
 //	    [ WITH ( tablespace_option = value [, ... ] ) ]
-func (p *Parser) parseCreateTableSpaceStmt() (nodes.Node, error) {
+func (p *Parser) parseCreateTableSpaceStmt(stmtLoc int) (nodes.Node, error) {
 	p.advance() // consume TABLESPACE
 	name, err := p.parseName()
 	if err != nil {
@@ -152,6 +154,7 @@ func (p *Parser) parseCreateTableSpaceStmt() (nodes.Node, error) {
 		Owner:          owner,
 		Location:       loc,
 		Options:        options,
+		Loc:            nodes.Loc{Start: stmtLoc, End: p.prev.End},
 	}, nil
 }
 

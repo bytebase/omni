@@ -21,7 +21,7 @@ import (
 //	    | DROP FOREIGN DATA WRAPPER [IF EXISTS] name_list opt_drop_behavior
 //	    | DROP SERVER [IF EXISTS] name_list opt_drop_behavior
 //	    | DROP OWNED BY name_list opt_drop_behavior
-func (p *Parser) parseDropStmt() (nodes.Node, error) {
+func (p *Parser) parseDropStmt(stmtLoc int) (nodes.Node, error) {
 	switch p.cur.Type {
 	case TABLE, SEQUENCE, VIEW, INDEX, COLLATION, CONVERSION_P, STATISTICS:
 		return p.parseDropObjectTypeAnyName()
@@ -77,7 +77,7 @@ func (p *Parser) parseDropStmt() (nodes.Node, error) {
 	case OWNED:
 		return p.parseDropOwned()
 	case DATABASE:
-		return p.parseDropdbStmt()
+		return p.parseDropdbStmt(stmtLoc)
 	case ROLE, GROUP_P:
 		return p.parseDropRoleStmt()
 	case USER:

@@ -10,7 +10,7 @@ import (
 // Ref: gram.y CreatedbStmt
 //
 //	CREATE DATABASE name opt_with createdb_opt_list
-func (p *Parser) parseCreatedbStmt() (nodes.Node, error) {
+func (p *Parser) parseCreatedbStmt(stmtLoc int) (nodes.Node, error) {
 	p.advance() // consume DATABASE
 
 	name, err := p.parseName()
@@ -28,6 +28,7 @@ func (p *Parser) parseCreatedbStmt() (nodes.Node, error) {
 	return &nodes.CreatedbStmt{
 		Dbname:  name,
 		Options: options,
+		Loc:     nodes.Loc{Start: stmtLoc, End: p.prev.End},
 	}, nil
 }
 
@@ -136,7 +137,7 @@ func (p *Parser) parseCreatedbOptName() string {
 //   - AlterDatabaseStmt (ALTER DATABASE name SET TABLESPACE name)
 //   - AlterDatabaseSetStmt (ALTER DATABASE name SET/RESET ...)
 //   - AlterDatabaseStmt (ALTER DATABASE name CONNECTION LIMIT ...)
-func (p *Parser) parseAlterDatabaseDispatch() (nodes.Node, error) {
+func (p *Parser) parseAlterDatabaseDispatch(stmtLoc int) (nodes.Node, error) {
 	p.advance() // consume DATABASE
 
 	name, err := p.parseName()
@@ -188,14 +189,15 @@ func (p *Parser) parseAlterDatabaseDispatch() (nodes.Node, error) {
 			return &nodes.AlterDatabaseStmt{
 				Dbname:  name,
 				Options: &nodes.List{Items: []nodes.Node{makeDefElem("tablespace", &nodes.String{Str: tbsName})}},
+				Loc:     nodes.Loc{Start: stmtLoc, End: p.prev.End},
 			}, nil
 		}
 		// ALTER DATABASE name SET variable = value (SetResetClause)
-		return p.parseAlterDatabaseSetStmt(name), nil
+		return p.parseAlterDatabaseSetStmt(name, stmtLoc), nil
 
 	case RESET:
 		// ALTER DATABASE name RESET ... (SetResetClause)
-		return p.parseAlterDatabaseSetStmt(name), nil
+		return p.parseAlterDatabaseSetStmt(name, stmtLoc), nil
 
 	case WITH:
 		// ALTER DATABASE name WITH createdb_opt_list
@@ -204,6 +206,7 @@ func (p *Parser) parseAlterDatabaseDispatch() (nodes.Node, error) {
 		return &nodes.AlterDatabaseStmt{
 			Dbname:  name,
 			Options: options,
+			Loc:     nodes.Loc{Start: stmtLoc, End: p.prev.End},
 		}, nil
 
 	case CONNECTION:
@@ -212,6 +215,7 @@ func (p *Parser) parseAlterDatabaseDispatch() (nodes.Node, error) {
 		return &nodes.AlterDatabaseStmt{
 			Dbname:  name,
 			Options: options,
+			Loc:     nodes.Loc{Start: stmtLoc, End: p.prev.End},
 		}, nil
 
 	default:
@@ -220,17 +224,19 @@ func (p *Parser) parseAlterDatabaseDispatch() (nodes.Node, error) {
 		return &nodes.AlterDatabaseStmt{
 			Dbname:  name,
 			Options: options,
+			Loc:     nodes.Loc{Start: stmtLoc, End: p.prev.End},
 		}, nil
 	}
 }
 
 // parseAlterDatabaseSetStmt parses ALTER DATABASE name SET/RESET ... .
 // The name has already been parsed. Current token is SET or RESET.
-func (p *Parser) parseAlterDatabaseSetStmt(dbname string) nodes.Node {
+func (p *Parser) parseAlterDatabaseSetStmt(dbname string, stmtLoc int) nodes.Node {
 	setstmt := p.parseSetResetClause()
 	return &nodes.AlterDatabaseSetStmt{
 		Dbname:  dbname,
 		Setstmt: setstmt,
+		Loc:     nodes.Loc{Start: stmtLoc, End: p.prev.End},
 	}
 }
 
@@ -315,7 +321,7 @@ func (p *Parser) parseResetRest() nodes.Node {
 //	| DROP DATABASE IF_P EXISTS name
 //	| DROP DATABASE name opt_with '(' drop_option_list ')'
 //	| DROP DATABASE IF_P EXISTS name opt_with '(' drop_option_list ')'
-func (p *Parser) parseDropdbStmt() (nodes.Node, error) {
+func (p *Parser) parseDropdbStmt(stmtLoc int) (nodes.Node, error) {
 	p.advance() // consume DATABASE
 
 	missingOk := false
@@ -349,6 +355,7 @@ func (p *Parser) parseDropdbStmt() (nodes.Node, error) {
 		Dbname:    name,
 		MissingOk: missingOk,
 		Options:   options,
+		Loc:       nodes.Loc{Start: stmtLoc, End: p.prev.End},
 	}, nil
 }
 

@@ -25,6 +25,24 @@ func NodeLoc(n Node) Loc {
 	case *DeallocateStmt:
 		return v.Loc
 
+	// --- Section 4.1: Database & schema nodes ---
+	case *CreatedbStmt:
+		return v.Loc
+	case *DropdbStmt:
+		return v.Loc
+	case *AlterDatabaseStmt:
+		return v.Loc
+	case *AlterDatabaseSetStmt:
+		return v.Loc
+	case *CreateSchemaStmt:
+		return v.Loc
+	case *CreateTableSpaceStmt:
+		return v.Loc
+	case *CommentStmt:
+		return v.Loc
+	case *SecLabelStmt:
+		return v.Loc
+
 	// Expression nodes
 	case *A_Expr:
 		return v.Loc
