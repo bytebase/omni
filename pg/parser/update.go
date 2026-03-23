@@ -37,6 +37,7 @@ func (p *Parser) parseUpdateStmt(withClause *nodes.WithClause) (*nodes.UpdateStm
 			return nil, err
 		}
 		rv.Alias = &nodes.Alias{Aliasname: name, Loc: nodes.Loc{Start: aliasLoc, End: p.prev.End}}
+		rv.Loc.End = p.prev.End
 	} else if p.isColId() && p.cur.Type != SET {
 		aliasLoc := p.pos()
 		name, err := p.parseColId()
@@ -44,6 +45,7 @@ func (p *Parser) parseUpdateStmt(withClause *nodes.WithClause) (*nodes.UpdateStm
 			return nil, err
 		}
 		rv.Alias = &nodes.Alias{Aliasname: name, Loc: nodes.Loc{Start: aliasLoc, End: p.prev.End}}
+		rv.Loc.End = p.prev.End
 	}
 
 	// SET set_clause_list

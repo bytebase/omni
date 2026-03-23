@@ -1501,6 +1501,7 @@ func (p *Parser) parseRelationExprWithAlias() (nodes.Node, error) {
 	alias := p.parseOptAliasClause()
 	if rel != nil && alias != nil {
 		rel.Alias = alias
+		rel.Loc.End = alias.Loc.End
 	}
 	return rel, nil
 }
@@ -1590,6 +1591,7 @@ func (p *Parser) parseRelationExprOptAlias() (*nodes.RangeVar, error) {
 			return nil, err
 		}
 		rv.Alias = &nodes.Alias{Aliasname: name, Loc: nodes.Loc{Start: aliasLoc, End: p.prev.End}}
+		rv.Loc.End = p.prev.End
 	} else if p.isColId() && !p.isReservedForClause() && !p.isJoinKeyword() {
 		aliasLoc := p.pos()
 		name, err := p.parseColId()
@@ -1597,6 +1599,7 @@ func (p *Parser) parseRelationExprOptAlias() (*nodes.RangeVar, error) {
 			return nil, err
 		}
 		rv.Alias = &nodes.Alias{Aliasname: name, Loc: nodes.Loc{Start: aliasLoc, End: p.prev.End}}
+		rv.Loc.End = p.prev.End
 	}
 
 	return rv, nil
