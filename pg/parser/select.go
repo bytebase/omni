@@ -1104,6 +1104,7 @@ func (p *Parser) parseTableRefPrimary() (nodes.Node, error) {
 		alias := p.parseOptAliasClause()
 		if alias != nil {
 			n.Alias = alias
+			n.Loc.End = alias.Loc.End
 		}
 		return n, nil
 	case JSON_TABLE:
@@ -1114,6 +1115,7 @@ func (p *Parser) parseTableRefPrimary() (nodes.Node, error) {
 		alias := p.parseOptAliasClause()
 		if n != nil && alias != nil {
 			n.Alias = alias
+			n.Loc.End = alias.Loc.End
 		}
 		return n, nil
 	default:
@@ -1188,6 +1190,7 @@ func (p *Parser) parseParenTableRef() (nodes.Node, error) {
 	alias := p.parseOptAliasClause()
 	if j, ok := inner.(*nodes.JoinExpr); ok && alias != nil {
 		j.Alias = alias
+		j.Loc.End = alias.Loc.End
 	}
 	return inner, nil
 }
@@ -1242,6 +1245,7 @@ func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 		alias := p.parseOptAliasClause()
 		if alias != nil {
 			n.Alias = alias
+			n.Loc.End = alias.Loc.End
 		}
 		return n, nil
 	}
@@ -1257,6 +1261,7 @@ func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 			alias := p.parseOptAliasClause()
 			if alias != nil {
 				n.Alias = alias
+				n.Loc.End = alias.Loc.End
 			}
 		}
 		return n, nil
@@ -1467,6 +1472,7 @@ func (p *Parser) finishRelationTable(rel *nodes.RangeVar) nodes.Node {
 	alias := p.parseOptAliasClause()
 	if alias != nil {
 		rel.Alias = alias
+		rel.Loc.End = alias.Loc.End
 	}
 
 	// TABLESAMPLE clause
