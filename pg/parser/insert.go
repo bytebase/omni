@@ -45,12 +45,13 @@ func (p *Parser) parseInsertStmt(withClause *nodes.WithClause) (*nodes.InsertStm
 	}
 	rv := makeRangeVarFromNames(names)
 	if p.cur.Type == AS {
+		aliasLoc := p.pos()
 		p.advance()
 		alias, err := p.parseColId()
 		if err != nil {
 			return nil, err
 		}
-		rv.Alias = &nodes.Alias{Aliasname: alias}
+		rv.Alias = &nodes.Alias{Aliasname: alias, Loc: nodes.Loc{Start: aliasLoc, End: p.prev.End}}
 	}
 	rv.Loc = nodes.Loc{Start: rvLoc, End: p.pos()}
 

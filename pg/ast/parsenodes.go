@@ -221,6 +221,7 @@ func (n *RangeVar) Tag() NodeTag { return T_RangeVar }
 type Alias struct {
 	Aliasname string // aliased rel name
 	Colnames  *List  // optional list of column aliases
+	Loc       Loc    // token location covering the alias text (including column list if present)
 }
 
 func (n *Alias) Tag() NodeTag { return T_Alias }

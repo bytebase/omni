@@ -306,3 +306,212 @@ func TestLocRelationExtraction(t *testing.T) {
 		t.Errorf("relation = %q, want prefix %q", got, want)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Alias.Loc tests — verify that the new Loc field on Alias correctly spans
+// the alias text (including AS keyword when present).
+
+func TestLocAliasUpdateWithAS(t *testing.T) {
+	sql := "UPDATE test AS t1 SET name = 'new'"
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := list.Items[0].(*nodes.RawStmt)
+	stmt := raw.Stmt.(*nodes.UpdateStmt)
+
+	if stmt.Relation.Alias == nil {
+		t.Fatal("expected Alias to be set")
+	}
+	alias := stmt.Relation.Alias
+	got := sql[alias.Loc.Start:alias.Loc.End]
+	if got != "AS t1" {
+		t.Errorf("alias text = %q, want %q", got, "AS t1")
+	}
+
+	// Combined: relation + alias
+	full := sql[stmt.Relation.Loc.Start:alias.Loc.End]
+	if full != "test AS t1" {
+		t.Errorf("relation+alias text = %q, want %q", full, "test AS t1")
+	}
+}
+
+func TestLocAliasUpdateBare(t *testing.T) {
+	sql := "UPDATE test t1 SET name = 'new'"
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := list.Items[0].(*nodes.RawStmt)
+	stmt := raw.Stmt.(*nodes.UpdateStmt)
+
+	if stmt.Relation.Alias == nil {
+		t.Fatal("expected Alias to be set")
+	}
+	alias := stmt.Relation.Alias
+	got := sql[alias.Loc.Start:alias.Loc.End]
+	if got != "t1" {
+		t.Errorf("alias text = %q, want %q", got, "t1")
+	}
+
+	// Combined: relation + alias
+	full := sql[stmt.Relation.Loc.Start:alias.Loc.End]
+	if full != "test t1" {
+		t.Errorf("relation+alias text = %q, want %q", full, "test t1")
+	}
+}
+
+func TestLocAliasDeleteWithAS(t *testing.T) {
+	sql := "DELETE FROM test AS t1 WHERE t1.id = 1"
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := list.Items[0].(*nodes.RawStmt)
+	stmt := raw.Stmt.(*nodes.DeleteStmt)
+
+	if stmt.Relation.Alias == nil {
+		t.Fatal("expected Alias to be set")
+	}
+	alias := stmt.Relation.Alias
+	got := sql[alias.Loc.Start:alias.Loc.End]
+	if got != "AS t1" {
+		t.Errorf("alias text = %q, want %q", got, "AS t1")
+	}
+}
+
+func TestLocAliasDeleteBare(t *testing.T) {
+	sql := "DELETE FROM test t1 WHERE t1.id = 1"
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := list.Items[0].(*nodes.RawStmt)
+	stmt := raw.Stmt.(*nodes.DeleteStmt)
+
+	if stmt.Relation.Alias == nil {
+		t.Fatal("expected Alias to be set")
+	}
+	alias := stmt.Relation.Alias
+	got := sql[alias.Loc.Start:alias.Loc.End]
+	if got != "t1" {
+		t.Errorf("alias text = %q, want %q", got, "t1")
+	}
+}
+
+func TestLocAliasInsertWithAS(t *testing.T) {
+	sql := "INSERT INTO test AS t1 VALUES (1)"
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := list.Items[0].(*nodes.RawStmt)
+	stmt := raw.Stmt.(*nodes.InsertStmt)
+
+	if stmt.Relation.Alias == nil {
+		t.Fatal("expected Alias to be set")
+	}
+	alias := stmt.Relation.Alias
+	got := sql[alias.Loc.Start:alias.Loc.End]
+	if got != "AS t1" {
+		t.Errorf("alias text = %q, want %q", got, "AS t1")
+	}
+}
+
+func TestLocAliasMergeWithAS(t *testing.T) {
+	sql := "MERGE INTO target AS t USING source AS s ON t.id = s.id WHEN MATCHED THEN UPDATE SET col = s.col"
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := list.Items[0].(*nodes.RawStmt)
+	stmt := raw.Stmt.(*nodes.MergeStmt)
+
+	if stmt.Relation.Alias == nil {
+		t.Fatal("expected target Alias to be set")
+	}
+	got := sql[stmt.Relation.Alias.Loc.Start:stmt.Relation.Alias.Loc.End]
+	if got != "AS t" {
+		t.Errorf("target alias text = %q, want %q", got, "AS t")
+	}
+}
+
+func TestLocAliasSelectFromWithAS(t *testing.T) {
+	sql := "SELECT * FROM users AS u WHERE u.id = 1"
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := list.Items[0].(*nodes.RawStmt)
+	sel := raw.Stmt.(*nodes.SelectStmt)
+
+	if sel.FromClause == nil || len(sel.FromClause.Items) == 0 {
+		t.Fatal("expected FROM clause")
+	}
+	rv := sel.FromClause.Items[0].(*nodes.RangeVar)
+	if rv.Alias == nil {
+		t.Fatal("expected Alias to be set")
+	}
+	got := sql[rv.Alias.Loc.Start:rv.Alias.Loc.End]
+	if got != "AS u" {
+		t.Errorf("alias text = %q, want %q", got, "AS u")
+	}
+
+	// Combined: relation + alias
+	full := sql[rv.Loc.Start:rv.Alias.Loc.End]
+	if full != "users AS u" {
+		t.Errorf("relation+alias text = %q, want %q", full, "users AS u")
+	}
+}
+
+func TestLocAliasSelectFromBare(t *testing.T) {
+	sql := "SELECT * FROM users u WHERE u.id = 1"
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := list.Items[0].(*nodes.RawStmt)
+	sel := raw.Stmt.(*nodes.SelectStmt)
+
+	rv := sel.FromClause.Items[0].(*nodes.RangeVar)
+	if rv.Alias == nil {
+		t.Fatal("expected Alias to be set")
+	}
+	got := sql[rv.Alias.Loc.Start:rv.Alias.Loc.End]
+	if got != "u" {
+		t.Errorf("alias text = %q, want %q", got, "u")
+	}
+}
+
+func TestLocAliasSelectFromWithColumnAliases(t *testing.T) {
+	sql := "SELECT * FROM users AS u(id, name)"
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := list.Items[0].(*nodes.RawStmt)
+	sel := raw.Stmt.(*nodes.SelectStmt)
+
+	rv := sel.FromClause.Items[0].(*nodes.RangeVar)
+	if rv.Alias == nil {
+		t.Fatal("expected Alias to be set")
+	}
+	got := sql[rv.Alias.Loc.Start:rv.Alias.Loc.End]
+	if got != "AS u(id, name)" {
+		t.Errorf("alias text = %q, want %q", got, "AS u(id, name)")
+	}
+}
+
+func TestLocAliasNoAlias(t *testing.T) {
+	sql := "UPDATE test SET name = 'new'"
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := list.Items[0].(*nodes.RawStmt)
+	stmt := raw.Stmt.(*nodes.UpdateStmt)
+
+	if stmt.Relation.Alias != nil {
+		t.Errorf("expected no alias, got %+v", stmt.Relation.Alias)
+	}
+}

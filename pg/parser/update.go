@@ -30,18 +30,20 @@ func (p *Parser) parseUpdateStmt(withClause *nodes.WithClause) (*nodes.UpdateStm
 		return nil, nil // collect-mode: parseRelationExpr already emitted rule candidates
 	}
 	if p.cur.Type == AS {
+		aliasLoc := p.pos()
 		p.advance()
 		name, err := p.parseColId()
 		if err != nil {
 			return nil, err
 		}
-		rv.Alias = &nodes.Alias{Aliasname: name}
+		rv.Alias = &nodes.Alias{Aliasname: name, Loc: nodes.Loc{Start: aliasLoc, End: p.prev.End}}
 	} else if p.isColId() && p.cur.Type != SET {
+		aliasLoc := p.pos()
 		name, err := p.parseColId()
 		if err != nil {
 			return nil, err
 		}
-		rv.Alias = &nodes.Alias{Aliasname: name}
+		rv.Alias = &nodes.Alias{Aliasname: name, Loc: nodes.Loc{Start: aliasLoc, End: p.prev.End}}
 	}
 
 	// SET set_clause_list

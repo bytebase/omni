@@ -1569,18 +1569,20 @@ func (p *Parser) parseRelationExprOptAlias() (*nodes.RangeVar, error) {
 	}
 
 	if p.cur.Type == AS {
+		aliasLoc := p.pos()
 		p.advance()
 		name, err := p.parseColId()
 		if err != nil {
 			return nil, err
 		}
-		rv.Alias = &nodes.Alias{Aliasname: name}
+		rv.Alias = &nodes.Alias{Aliasname: name, Loc: nodes.Loc{Start: aliasLoc, End: p.prev.End}}
 	} else if p.isColId() && !p.isReservedForClause() && !p.isJoinKeyword() {
+		aliasLoc := p.pos()
 		name, err := p.parseColId()
 		if err != nil {
 			return nil, err
 		}
-		rv.Alias = &nodes.Alias{Aliasname: name}
+		rv.Alias = &nodes.Alias{Aliasname: name, Loc: nodes.Loc{Start: aliasLoc, End: p.prev.End}}
 	}
 
 	return rv, nil
@@ -1595,6 +1597,7 @@ func (p *Parser) parseRelationExprOptAlias() (*nodes.RangeVar, error) {
 //	    alias_clause | EMPTY
 func (p *Parser) parseOptAliasClause() *nodes.Alias {
 	if p.cur.Type == AS {
+		aliasLoc := p.pos()
 		p.advance()
 		name, err := p.parseColId()
 		if err != nil {
@@ -1607,11 +1610,13 @@ func (p *Parser) parseOptAliasClause() *nodes.Alias {
 			p.expect(')')
 			alias.Colnames = colnames
 		}
+		alias.Loc = nodes.Loc{Start: aliasLoc, End: p.prev.End}
 		return alias
 	}
 
 	// ColId (without AS) - but only if it's not a reserved keyword that starts a clause
 	if p.isColId() && !p.isReservedForClause() && !p.isJoinKeyword() {
+		aliasLoc := p.pos()
 		name, _ := p.parseColId()
 		alias := &nodes.Alias{Aliasname: name}
 		if p.cur.Type == '(' {
@@ -1620,6 +1625,7 @@ func (p *Parser) parseOptAliasClause() *nodes.Alias {
 			p.expect(')')
 			alias.Colnames = colnames
 		}
+		alias.Loc = nodes.Loc{Start: aliasLoc, End: p.prev.End}
 		return alias
 	}
 
@@ -1648,6 +1654,7 @@ func (p *Parser) parseFuncAliasClause(rf *nodes.RangeFunction) {
 			rf.Coldeflist = colDef
 			return
 		}
+		aliasLoc := p.pos() // AS token start
 		p.advance() // AS
 		name, _ := p.parseColId()
 		rf.Alias = &nodes.Alias{Aliasname: name}
@@ -1656,10 +1663,12 @@ func (p *Parser) parseFuncAliasClause(rf *nodes.RangeFunction) {
 			p.parseFuncAliasParenContents(rf)
 			p.expect(')')
 		}
+		rf.Alias.Loc = nodes.Loc{Start: aliasLoc, End: p.prev.End}
 		return
 	}
 
 	if p.isColId() && !p.isReservedForClause() && !p.isJoinKeyword() {
+		aliasLoc := p.pos()
 		name, _ := p.parseColId()
 		rf.Alias = &nodes.Alias{Aliasname: name}
 		if p.cur.Type == '(' {
@@ -1667,6 +1676,7 @@ func (p *Parser) parseFuncAliasClause(rf *nodes.RangeFunction) {
 			p.parseFuncAliasParenContents(rf)
 			p.expect(')')
 		}
+		rf.Alias.Loc = nodes.Loc{Start: aliasLoc, End: p.prev.End}
 	}
 }
 
@@ -1899,12 +1909,13 @@ func (p *Parser) parseJoinQual(j *nodes.JoinExpr) error {
 
 		// join_using_alias: AS ColId | EMPTY
 		if p.cur.Type == AS {
+			aliasLoc := p.pos()
 			p.advance()
 			aliasName, err := p.parseColId()
 			if err != nil {
 				return err
 			}
-			j.JoinUsing = &nodes.Alias{Aliasname: aliasName}
+			j.JoinUsing = &nodes.Alias{Aliasname: aliasName, Loc: nodes.Loc{Start: aliasLoc, End: p.prev.End}}
 		}
 	} else if p.cur.Type == ON {
 		p.advance()

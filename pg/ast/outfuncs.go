@@ -446,6 +446,9 @@ func writeAlias(sb *strings.Builder, n *Alias) {
 		sb.WriteString(" :colnames ")
 		writeNode(sb, n.Colnames)
 	}
+	if n.Loc.Start != 0 || n.Loc.End != 0 {
+		sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
+	}
 	sb.WriteString("}")
 }
 
