@@ -14,8 +14,9 @@ import (
 //	    copy_options where_clause
 //	| COPY '(' PreparableStmt ')' TO opt_program copy_file_name copy_opt_with copy_options
 func (p *Parser) parseCopyStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // COPY already consumed by caller
 	if p.cur.Type == '(' {
-		return p.parseCopyQueryStmt()
+		return p.parseCopyQueryStmt(loc)
 	}
 	optBin := p.parseCopyOptBinary()
 	rel, _ := p.parseRelationExpr()
@@ -44,11 +45,12 @@ func (p *Parser) parseCopyStmt() (nodes.Node, error) {
 	}
 	opts = concatNodeLists(opts, options)
 	stmt.Options = opts
+	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 	return stmt, nil
 }
 
 // parseCopyQueryStmt parses COPY '(' PreparableStmt ')' TO ...
-func (p *Parser) parseCopyQueryStmt() (nodes.Node, error) {
+func (p *Parser) parseCopyQueryStmt(loc int) (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
@@ -72,6 +74,7 @@ func (p *Parser) parseCopyQueryStmt() (nodes.Node, error) {
 		IsProgram: isProgram,
 		Filename:  filename,
 		Options:   options,
+		Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 

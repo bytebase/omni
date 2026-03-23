@@ -157,6 +157,22 @@ func NodeLoc(n Node) Loc {
 	case *PublicationObjSpec:
 		return v.Loc
 
+	// --- Section 4.5: Cursor, prepare & IO nodes ---
+	case *DeclareCursorStmt:
+		return v.Loc
+	case *FetchStmt:
+		return v.Loc
+	case *ClosePortalStmt:
+		return v.Loc
+	case *PrepareStmt:
+		return v.Loc
+	case *ExecuteStmt:
+		return v.Loc
+	case *CopyStmt:
+		return v.Loc
+	case *LockStmt:
+		return v.Loc
+
 	default:
 		return NoLoc()
 	}

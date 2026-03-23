@@ -11,6 +11,7 @@ import (
 //
 //	PREPARE name prep_type_clause AS PreparableStmt
 func (p *Parser) parsePrepareStmt() (nodes.Node, error) {
+	loc := p.pos()
 	p.advance() // consume PREPARE
 
 	name, err := p.parseName()
@@ -45,6 +46,7 @@ func (p *Parser) parsePrepareStmt() (nodes.Node, error) {
 		Name:     name,
 		Argtypes: argtypes,
 		Query:    query,
+		Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
@@ -55,6 +57,7 @@ func (p *Parser) parsePrepareStmt() (nodes.Node, error) {
 //
 //	EXECUTE name execute_param_clause
 func (p *Parser) parseExecuteStmt() (nodes.Node, error) {
+	loc := p.pos()
 	p.advance() // consume EXECUTE
 
 	name, err := p.parseName()
@@ -66,6 +69,7 @@ func (p *Parser) parseExecuteStmt() (nodes.Node, error) {
 	return &nodes.ExecuteStmt{
 		Name:   name,
 		Params: params,
+		Loc:    nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 

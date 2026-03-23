@@ -34,6 +34,7 @@ import nodes "github.com/bytebase/omni/pg/ast"
 //	NOWAIT  -> true
 //	| /* EMPTY */ -> false
 func (p *Parser) parseLockStmt() (nodes.Node, error) {
+	loc := p.pos()
 	p.advance() // consume LOCK_P
 
 	// opt_table
@@ -57,6 +58,7 @@ func (p *Parser) parseLockStmt() (nodes.Node, error) {
 		Relations: relations,
 		Mode:      mode,
 		Nowait:    nowait,
+		Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 

@@ -11,6 +11,7 @@ import (
 //	DeclareCursorStmt:
 //	    DECLARE cursor_name cursor_options CURSOR opt_hold FOR SelectStmt
 func (p *Parser) parseDeclareCursorStmt() (*nodes.DeclareCursorStmt, error) {
+	loc := p.pos()
 	p.advance() // consume DECLARE
 
 	name, err := p.parseCursorName()
@@ -39,6 +40,7 @@ func (p *Parser) parseDeclareCursorStmt() (*nodes.DeclareCursorStmt, error) {
 		Portalname: name,
 		Options:    int(options | hold | nodes.CURSOR_OPT_FAST_PLAN),
 		Query:      query,
+		Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
@@ -105,6 +107,7 @@ func (p *Parser) parseOptHold() int {
 //	    FETCH fetch_args
 //	    | MOVE fetch_args
 func (p *Parser) parseFetchStmt() (*nodes.FetchStmt, error) {
+	loc := p.pos()
 	ismove := p.cur.Type == MOVE
 	p.advance() // consume FETCH or MOVE
 
@@ -114,6 +117,7 @@ func (p *Parser) parseFetchStmt() (*nodes.FetchStmt, error) {
 	}
 	if stmt != nil {
 		stmt.Ismove = ismove
+		stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 	}
 	return stmt, nil
 }
@@ -358,16 +362,17 @@ func (p *Parser) parseOptFromIn() {
 //	    CLOSE cursor_name
 //	    | CLOSE ALL
 func (p *Parser) parseClosePortalStmt() (*nodes.ClosePortalStmt, error) {
+	loc := p.pos()
 	p.advance() // consume CLOSE
 
 	if p.cur.Type == ALL {
 		p.advance()
-		return &nodes.ClosePortalStmt{Portalname: ""}, nil
+		return &nodes.ClosePortalStmt{Portalname: "", Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
 
 	name, err := p.parseCursorName()
 	if err != nil {
 		return nil, err
 	}
-	return &nodes.ClosePortalStmt{Portalname: name}, nil
+	return &nodes.ClosePortalStmt{Portalname: name, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
