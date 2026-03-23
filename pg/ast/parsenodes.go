@@ -1174,6 +1174,7 @@ type CopyStmt struct {
 	Filename  string    // filename, or NULL for stdin/stdout
 	Options   *List     // list of DefElem
 	WhereClause Node    // WHERE condition (COPY FROM only)
+	Loc       Loc       // token location
 }
 
 func (n *CopyStmt) Tag() NodeTag { return T_CopyStmt }
@@ -1260,6 +1261,7 @@ type PrepareStmt struct {
 	Name     string    // name of plan
 	Argtypes *List     // list of TypeName
 	Query    Node      // the query itself
+	Loc      Loc       // token location
 }
 
 func (n *PrepareStmt) Tag() NodeTag { return T_PrepareStmt }
@@ -1268,6 +1270,7 @@ func (n *PrepareStmt) Tag() NodeTag { return T_PrepareStmt }
 type ExecuteStmt struct {
 	Name   string // name of plan
 	Params *List  // list of expressions for parameter values
+	Loc    Loc    // token location
 }
 
 func (n *ExecuteStmt) Tag() NodeTag { return T_ExecuteStmt }
@@ -1286,6 +1289,7 @@ type LockStmt struct {
 	Relations *List    // list of RangeVar
 	Mode      int      // lock mode
 	Nowait    bool     // no wait option
+	Loc       Loc      // token location
 }
 
 func (n *LockStmt) Tag() NodeTag { return T_LockStmt }
@@ -1434,6 +1438,7 @@ func (n *LoadStmt) Tag() NodeTag { return T_LoadStmt }
 // ClosePortalStmt - CLOSE cursor
 type ClosePortalStmt struct {
 	Portalname string // empty string means CLOSE ALL
+	Loc        Loc    // token location
 }
 
 func (n *ClosePortalStmt) Tag() NodeTag { return T_ClosePortalStmt }
@@ -1468,6 +1473,7 @@ type DeclareCursorStmt struct {
 	Portalname string // name of the portal (cursor)
 	Options    int    // bitmask of CURSOR_OPT_*
 	Query      Node   // the query (SelectStmt)
+	Loc        Loc    // token location
 }
 
 func (n *DeclareCursorStmt) Tag() NodeTag { return T_DeclareCursorStmt }
@@ -1478,6 +1484,7 @@ type FetchStmt struct {
 	HowMany   int64          // number of rows, or FETCH_ALL
 	Portalname string         // name of portal (cursor)
 	Ismove     bool           // true if MOVE
+	Loc        Loc            // token location
 }
 
 func (n *FetchStmt) Tag() NodeTag { return T_FetchStmt }
