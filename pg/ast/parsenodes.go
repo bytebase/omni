@@ -1044,6 +1044,7 @@ type AlterEnumStmt struct {
 	NewvalNeighbor    string // neighboring enum value for ADD
 	NewvalIsAfter     bool   // place new value after neighbor?
 	SkipIfNewvalExists bool  // no error if new val exists?
+	Loc               Loc    // token location
 }
 
 func (n *AlterEnumStmt) Tag() NodeTag { return T_AlterEnumStmt }
@@ -1066,6 +1067,7 @@ type AlterDomainStmt struct {
 	Def         Node         // definition of default or constraint
 	Behavior    DropBehavior // cascade behavior
 	MissingOk   bool         // skip if domain doesn't exist?
+	Loc         Loc          // token location
 }
 
 func (n *AlterDomainStmt) Tag() NodeTag { return T_AlterDomainStmt }
@@ -1292,6 +1294,7 @@ type AlterObjectSchemaStmt struct {
 	Object     Node       // qualified name of object
 	Newschema  string     // new schema name
 	MissingOk  bool       // skip error if missing?
+	Loc        Loc        // token location
 }
 
 func (n *AlterObjectSchemaStmt) Tag() NodeTag { return T_AlterObjectSchemaStmt }
@@ -1302,6 +1305,7 @@ type AlterOwnerStmt struct {
 	Relation   *RangeVar  // for relation types
 	Object     Node       // qualified name of object
 	Newowner   *RoleSpec  // new owner
+	Loc        Loc        // token location
 }
 
 func (n *AlterOwnerStmt) Tag() NodeTag { return T_AlterOwnerStmt }
@@ -1536,6 +1540,7 @@ func (n *AlterSystemStmt) Tag() NodeTag { return T_AlterSystemStmt }
 // AlterCollationStmt represents ALTER COLLATION ... REFRESH VERSION.
 type AlterCollationStmt struct {
 	Collname *List // qualified name (list of String)
+	Loc      Loc   // token location
 }
 
 func (n *AlterCollationStmt) Tag() NodeTag { return T_AlterCollationStmt }
@@ -1584,6 +1589,7 @@ type AlterFunctionStmt struct {
 	Objtype ObjectType      // OBJECT_FUNCTION, OBJECT_PROCEDURE, OBJECT_ROUTINE
 	Func    *ObjectWithArgs // function with args
 	Actions *List           // list of DefElem
+	Loc     Loc             // token location
 }
 
 func (n *AlterFunctionStmt) Tag() NodeTag { return T_AlterFunctionStmt }
@@ -1602,6 +1608,7 @@ func (n *CreateEventTrigStmt) Tag() NodeTag { return T_CreateEventTrigStmt }
 type AlterEventTrigStmt struct {
 	Trigname  string // trigger name
 	Tgenabled byte   // 'O'=enable, 'D'=disable, 'R'=replica, 'A'=always
+	Loc       Loc    // token location
 }
 
 func (n *AlterEventTrigStmt) Tag() NodeTag { return T_AlterEventTrigStmt }
@@ -1779,6 +1786,7 @@ type AlterTableSpaceOptionsStmt struct {
 	Tablespacename string // name of the tablespace
 	Options        *List  // list of DefElem
 	IsReset        bool   // true for RESET, false for SET
+	Loc            Loc    // token location
 }
 
 func (n *AlterTableSpaceOptionsStmt) Tag() NodeTag { return T_AlterTableSpaceOptionsStmt }
@@ -1893,6 +1901,7 @@ type AlterObjectDependsStmt struct {
 	Object     Node       // qualified name of object
 	Extname    Node       // extension name (String node)
 	Remove     bool       // true if NO DEPENDS
+	Loc        Loc        // token location
 }
 
 func (n *AlterObjectDependsStmt) Tag() NodeTag { return T_AlterObjectDependsStmt }
@@ -1909,6 +1918,7 @@ func (n *AlterOperatorStmt) Tag() NodeTag { return T_AlterOperatorStmt }
 type AlterTypeStmt struct {
 	TypeName *List // qualified name (list of String)
 	Options  *List // list of DefElem
+	Loc      Loc   // token location
 }
 
 func (n *AlterTypeStmt) Tag() NodeTag { return T_AlterTypeStmt }
@@ -1925,6 +1935,7 @@ func (n *AlterDefaultPrivilegesStmt) Tag() NodeTag { return T_AlterDefaultPrivil
 type AlterTSDictionaryStmt struct {
 	Dictname *List // qualified name
 	Options  *List // definition list
+	Loc      Loc   // token location
 }
 
 func (n *AlterTSDictionaryStmt) Tag() NodeTag { return T_AlterTSDictionaryStmt }
@@ -1938,6 +1949,7 @@ type AlterTSConfigurationStmt struct {
 	Override  bool              // if ALTER MAPPING
 	Replace   bool              // if replacing dicts
 	MissingOk bool              // for IF EXISTS
+	Loc       Loc               // token location
 }
 
 func (n *AlterTSConfigurationStmt) Tag() NodeTag { return T_AlterTSConfigurationStmt }

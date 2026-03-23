@@ -46,6 +46,8 @@ func (p *Parser) parseAlterTableStmt() (nodes.Node, error) {
 
 // parseAlterTable handles ALTER TABLE ...
 func (p *Parser) parseAlterTable() (nodes.Node, error) {
+	loc := p.prev.Loc // start of ALTER
+	_ = loc
 	p.advance() // consume TABLE
 
 	// ALTER TABLE ALL IN TABLESPACE ...
@@ -81,6 +83,7 @@ func (p *Parser) parseAlterTable() (nodes.Node, error) {
 			Relation:   rel,
 			Newschema:  newschema,
 			MissingOk:  missingOk,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	}
 

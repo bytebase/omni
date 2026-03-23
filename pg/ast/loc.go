@@ -157,6 +157,32 @@ func NodeLoc(n Node) Loc {
 	case *PublicationObjSpec:
 		return v.Loc
 
+	// --- Section 3.1: General ALTER nodes ---
+	case *AlterCollationStmt:
+		return v.Loc
+	case *AlterDomainStmt:
+		return v.Loc
+	case *AlterEnumStmt:
+		return v.Loc
+	case *AlterEventTrigStmt:
+		return v.Loc
+	case *AlterFunctionStmt:
+		return v.Loc
+	case *AlterObjectDependsStmt:
+		return v.Loc
+	case *AlterObjectSchemaStmt:
+		return v.Loc
+	case *AlterOwnerStmt:
+		return v.Loc
+	case *AlterTableSpaceOptionsStmt:
+		return v.Loc
+	case *AlterTSConfigurationStmt:
+		return v.Loc
+	case *AlterTSDictionaryStmt:
+		return v.Loc
+	case *AlterTypeStmt:
+		return v.Loc
+
 	default:
 		return NoLoc()
 	}

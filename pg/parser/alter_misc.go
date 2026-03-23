@@ -11,6 +11,7 @@ import (
 // parseAlterFunctionStmt parses ALTER FUNCTION/PROCEDURE/ROUTINE ...
 // ALTER has already been consumed. Current token is FUNCTION/PROCEDURE/ROUTINE.
 func (p *Parser) parseAlterFunctionStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // start of ALTER
 	var objtype nodes.ObjectType
 	switch p.cur.Type {
 	case FUNCTION:
@@ -53,6 +54,7 @@ func (p *Parser) parseAlterFunctionStmt() (nodes.Node, error) {
 			ObjectType: objtype,
 			Object:     fwa,
 			Newowner:   roleSpec,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case SET:
 		next := p.peekNext()
@@ -67,6 +69,7 @@ func (p *Parser) parseAlterFunctionStmt() (nodes.Node, error) {
 				ObjectType: objtype,
 				Object:     fwa,
 				Newschema:  newschema,
+				Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		// Otherwise it's alterfunc_opt_list (e.g., SET search_path ...)
@@ -76,6 +79,7 @@ func (p *Parser) parseAlterFunctionStmt() (nodes.Node, error) {
 			Objtype: objtype,
 			Func:    fwa,
 			Actions: actions,
+			Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case NO, DEPENDS:
 		remove := p.parseOptNo()
@@ -97,6 +101,7 @@ func (p *Parser) parseAlterFunctionStmt() (nodes.Node, error) {
 			Object:     fwa,
 			Extname:    &nodes.String{Str: extname},
 			Remove:     remove,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	default:
 		// alterfunc_opt_list opt_restrict (e.g., IMMUTABLE, STABLE, etc.)
@@ -106,6 +111,7 @@ func (p *Parser) parseAlterFunctionStmt() (nodes.Node, error) {
 			Objtype: objtype,
 			Func:    fwa,
 			Actions: actions,
+			Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	}
 }
@@ -150,6 +156,7 @@ func (p *Parser) parseOptNo() bool {
 // parseAlterTypeStmt parses ALTER TYPE ...
 // ALTER has already been consumed. Current token is TYPE_P.
 func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // start of ALTER
 	p.advance() // consume TYPE
 	names, err := p.parseAnyName()
 	if err != nil {
@@ -161,7 +168,11 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 		// ALTER TYPE name ADD VALUE ...
 		next := p.peekNext()
 		if next.Type == VALUE_P {
-			return p.parseAlterEnumAddValue(names)
+			stmt, err := p.parseAlterEnumAddValue(names)
+			if stmt != nil {
+				stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			}
+			return stmt, err
 		}
 		// ALTER TYPE name ADD ATTRIBUTE ... (AlterCompositeTypeStmt)
 		return p.parseAlterCompositeType(names)
@@ -199,6 +210,7 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 				Typname: names,
 				Oldval:  oldval,
 				Newval:  newval,
+				Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		case ATTRIBUTE:
 			// ALTER TYPE name RENAME ATTRIBUTE name TO name opt_drop_behavior
@@ -216,6 +228,7 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_TYPE,
 			Object:     names,
 			Newowner:   roleSpec,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case SET:
 		next := p.peekNext()
@@ -230,6 +243,7 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 				ObjectType: nodes.OBJECT_TYPE,
 				Object:     names,
 				Newschema:  newschema,
+				Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		// ALTER TYPE name SET (operator_def_list) -> AlterTypeStmt
@@ -247,6 +261,7 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 		return &nodes.AlterTypeStmt{
 			TypeName: names,
 			Options:  opts,
+			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	default:
 		return nil, nil
@@ -474,6 +489,7 @@ func (p *Parser) parseAlterTypeCmd() (*nodes.AlterTableCmd, error) {
 // parseAlterDomainOwnerOrOther parses ALTER DOMAIN ...
 // ALTER has already been consumed. Current token is DOMAIN_P.
 func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
+	loc := p.prev.Loc // start of ALTER
 	p.advance() // consume DOMAIN
 
 	names, err := p.parseAnyName()
@@ -495,6 +511,7 @@ func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 				ObjectType: nodes.OBJECT_DOMAIN,
 				Object:     names,
 				Newschema:  newschema,
+				Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		if next.Type == NOT {
@@ -507,6 +524,7 @@ func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 			return &nodes.AlterDomainStmt{
 				Subtype: 'O',
 				Typname: names,
+				Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		if next.Type == DEFAULT {
@@ -521,6 +539,7 @@ func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 				Subtype: 'T',
 				Typname: names,
 				Def:     expr,
+				Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		return nil, p.syntaxErrorAtCur()
@@ -535,6 +554,7 @@ func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 			return &nodes.AlterDomainStmt{
 				Subtype: 'N',
 				Typname: names,
+				Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		if p.cur.Type == DEFAULT {
@@ -543,6 +563,7 @@ func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 			return &nodes.AlterDomainStmt{
 				Subtype: 'T',
 				Typname: names,
+				Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		if p.cur.Type == CONSTRAINT {
@@ -567,6 +588,7 @@ func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 				Name:      cname,
 				Behavior:  nodes.DropBehavior(behavior),
 				MissingOk: missingOk,
+				Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		return nil, p.syntaxErrorAtCur()
@@ -576,6 +598,9 @@ func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 		result, err := p.parseDomainConstraintForAlter(names)
 		if err != nil {
 			return nil, err
+		}
+		if result != nil {
+			result.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 		}
 		return result, nil
 	case VALIDATE:
@@ -591,6 +616,7 @@ func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 			Subtype: 'V',
 			Typname: names,
 			Name:    cname,
+			Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case OWNER:
 		p.advance()
@@ -602,6 +628,7 @@ func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_DOMAIN,
 			Object:     names,
 			Newowner:   roleSpec,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case RENAME:
 		p.advance()
@@ -690,6 +717,7 @@ func (p *Parser) parseDomainConstraintForAlter(typname *nodes.List) (*nodes.Alte
 // parseAlterSchemaOwner parses ALTER SCHEMA ...
 // ALTER has already been consumed. Current token is SCHEMA.
 func (p *Parser) parseAlterSchemaOwner() (nodes.Node, error) {
+	loc := p.prev.Loc // start of ALTER
 	p.advance() // consume SCHEMA
 	name, err := p.parseName()
 	if err != nil {
@@ -707,6 +735,7 @@ func (p *Parser) parseAlterSchemaOwner() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_SCHEMA,
 			Object:     &nodes.String{Str: name},
 			Newowner:   roleSpec,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case RENAME:
 		p.advance()
@@ -734,6 +763,7 @@ func (p *Parser) parseAlterSchemaOwner() (nodes.Node, error) {
 // parseAlterCollationStmt parses ALTER COLLATION ...
 // ALTER has already been consumed. Current token is COLLATION.
 func (p *Parser) parseAlterCollationStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // start of ALTER
 	p.advance() // consume COLLATION
 	names, err := p.parseAnyName()
 	if err != nil {
@@ -746,7 +776,7 @@ func (p *Parser) parseAlterCollationStmt() (nodes.Node, error) {
 		if _, err := p.expect(VERSION_P); err != nil {
 			return nil, err
 		}
-		return &nodes.AlterCollationStmt{Collname: names}, nil
+		return &nodes.AlterCollationStmt{Collname: names, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	case RENAME:
 		p.advance()
 		if _, err := p.expect(TO); err != nil {
@@ -771,6 +801,7 @@ func (p *Parser) parseAlterCollationStmt() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_COLLATION,
 			Object:     names,
 			Newowner:   roleSpec,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case SET:
 		p.advance()
@@ -785,6 +816,7 @@ func (p *Parser) parseAlterCollationStmt() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_COLLATION,
 			Object:     names,
 			Newschema:  newschema,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	default:
 		return nil, nil
@@ -798,6 +830,7 @@ func (p *Parser) parseAlterCollationStmt() (nodes.Node, error) {
 // parseAlterConversionStmt parses ALTER CONVERSION ...
 // ALTER has already been consumed. Current token is CONVERSION_P.
 func (p *Parser) parseAlterConversionStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // start of ALTER
 	p.advance() // consume CONVERSION
 	names, err := p.parseAnyName()
 	if err != nil {
@@ -829,6 +862,7 @@ func (p *Parser) parseAlterConversionStmt() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_CONVERSION,
 			Object:     names,
 			Newowner:   roleSpec,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case SET:
 		p.advance()
@@ -843,6 +877,7 @@ func (p *Parser) parseAlterConversionStmt() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_CONVERSION,
 			Object:     names,
 			Newschema:  newschema,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	default:
 		return nil, nil
@@ -856,6 +891,7 @@ func (p *Parser) parseAlterConversionStmt() (nodes.Node, error) {
 // parseAlterAggregateStmt parses ALTER AGGREGATE ...
 // ALTER has already been consumed. Current token is AGGREGATE.
 func (p *Parser) parseAlterAggregateStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // start of ALTER
 	p.advance() // consume AGGREGATE
 	agg, err := p.parseAggregateWithArgtypesLocal()
 	if err != nil {
@@ -887,6 +923,7 @@ func (p *Parser) parseAlterAggregateStmt() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_AGGREGATE,
 			Object:     agg,
 			Newowner:   roleSpec,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case SET:
 		p.advance()
@@ -901,6 +938,7 @@ func (p *Parser) parseAlterAggregateStmt() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_AGGREGATE,
 			Object:     agg,
 			Newschema:  newschema,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	default:
 		return nil, nil
@@ -948,6 +986,7 @@ func extractAggrArgTypesLocal(args *nodes.List) *nodes.List {
 // parseAlterTextSearchStmt parses ALTER TEXT SEARCH ...
 // ALTER has already been consumed. Current token is TEXT_P.
 func (p *Parser) parseAlterTextSearchStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // start of ALTER
 	p.advance() // consume TEXT
 	if _, err := p.expect(SEARCH); err != nil {
 		return nil, err
@@ -955,20 +994,20 @@ func (p *Parser) parseAlterTextSearchStmt() (nodes.Node, error) {
 
 	switch p.cur.Type {
 	case DICTIONARY:
-		return p.parseAlterTSDictionary()
+		return p.parseAlterTSDictionary(loc)
 	case CONFIGURATION:
-		return p.parseAlterTSConfiguration()
+		return p.parseAlterTSConfiguration(loc)
 	case PARSER:
-		return p.parseAlterTSParserOrTemplate(nodes.OBJECT_TSPARSER)
+		return p.parseAlterTSParserOrTemplate(nodes.OBJECT_TSPARSER, loc)
 	case TEMPLATE:
-		return p.parseAlterTSParserOrTemplate(nodes.OBJECT_TSTEMPLATE)
+		return p.parseAlterTSParserOrTemplate(nodes.OBJECT_TSTEMPLATE, loc)
 	default:
 		return nil, nil
 	}
 }
 
 // parseAlterTSDictionary parses ALTER TEXT SEARCH DICTIONARY ...
-func (p *Parser) parseAlterTSDictionary() (nodes.Node, error) {
+func (p *Parser) parseAlterTSDictionary(loc int) (nodes.Node, error) {
 	p.advance() // consume DICTIONARY
 	names, err := p.parseAnyName()
 	if err != nil {
@@ -985,6 +1024,7 @@ func (p *Parser) parseAlterTSDictionary() (nodes.Node, error) {
 		return &nodes.AlterTSDictionaryStmt{
 			Dictname: names,
 			Options:  def,
+			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case RENAME:
 		p.advance()
@@ -1010,6 +1050,7 @@ func (p *Parser) parseAlterTSDictionary() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_TSDICTIONARY,
 			Object:     names,
 			Newowner:   roleSpec,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case SET:
 		p.advance()
@@ -1024,6 +1065,7 @@ func (p *Parser) parseAlterTSDictionary() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_TSDICTIONARY,
 			Object:     names,
 			Newschema:  newschema,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	default:
 		return nil, nil
@@ -1031,7 +1073,7 @@ func (p *Parser) parseAlterTSDictionary() (nodes.Node, error) {
 }
 
 // parseAlterTSConfiguration parses ALTER TEXT SEARCH CONFIGURATION ...
-func (p *Parser) parseAlterTSConfiguration() (nodes.Node, error) {
+func (p *Parser) parseAlterTSConfiguration(loc int) (nodes.Node, error) {
 	p.advance() // consume CONFIGURATION
 	cfgname, err := p.parseAnyName()
 	if err != nil {
@@ -1064,6 +1106,7 @@ func (p *Parser) parseAlterTSConfiguration() (nodes.Node, error) {
 			Cfgname:   cfgname,
 			Tokentype: tokentype,
 			Dicts:     dicts,
+			Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case ALTER:
 		// ALTER MAPPING ...
@@ -1090,6 +1133,7 @@ func (p *Parser) parseAlterTSConfiguration() (nodes.Node, error) {
 					Tokentype: tokentype,
 					Dicts:     dicts,
 					Override:  true,
+					Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 				}, nil
 			}
 			// ALTER MAPPING FOR name_list REPLACE any_name WITH any_name
@@ -1113,6 +1157,7 @@ func (p *Parser) parseAlterTSConfiguration() (nodes.Node, error) {
 				Tokentype: tokentype,
 				Dicts:     &nodes.List{Items: []nodes.Node{oldDict, newDict}},
 				Replace:   true,
+				Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		// ALTER MAPPING REPLACE any_name WITH any_name
@@ -1135,6 +1180,7 @@ func (p *Parser) parseAlterTSConfiguration() (nodes.Node, error) {
 			Cfgname: cfgname,
 			Dicts:   &nodes.List{Items: []nodes.Node{oldDict, newDict}},
 			Replace: true,
+			Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case DROP:
 		// DROP MAPPING [IF EXISTS] FOR name_list
@@ -1162,6 +1208,7 @@ func (p *Parser) parseAlterTSConfiguration() (nodes.Node, error) {
 			Cfgname:   cfgname,
 			Tokentype: tokentype,
 			MissingOk: missingOk,
+			Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case RENAME:
 		p.advance()
@@ -1187,6 +1234,7 @@ func (p *Parser) parseAlterTSConfiguration() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_TSCONFIGURATION,
 			Object:     cfgname,
 			Newowner:   roleSpec,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case SET:
 		p.advance()
@@ -1201,6 +1249,7 @@ func (p *Parser) parseAlterTSConfiguration() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_TSCONFIGURATION,
 			Object:     cfgname,
 			Newschema:  newschema,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	default:
 		return nil, nil
@@ -1208,7 +1257,7 @@ func (p *Parser) parseAlterTSConfiguration() (nodes.Node, error) {
 }
 
 // parseAlterTSParserOrTemplate parses ALTER TEXT SEARCH PARSER/TEMPLATE ...
-func (p *Parser) parseAlterTSParserOrTemplate(objtype nodes.ObjectType) (nodes.Node, error) {
+func (p *Parser) parseAlterTSParserOrTemplate(objtype nodes.ObjectType, loc int) (nodes.Node, error) {
 	p.advance() // consume PARSER or TEMPLATE
 	names, err := p.parseAnyName()
 	if err != nil {
@@ -1243,6 +1292,7 @@ func (p *Parser) parseAlterTSParserOrTemplate(objtype nodes.ObjectType) (nodes.N
 			ObjectType: objtype,
 			Object:     names,
 			Newschema:  newschema,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	default:
 		return nil, nil
@@ -1256,6 +1306,7 @@ func (p *Parser) parseAlterTSParserOrTemplate(objtype nodes.ObjectType) (nodes.N
 // parseAlterLanguageStmt parses ALTER [PROCEDURAL] LANGUAGE ...
 // ALTER has already been consumed. Current token is LANGUAGE or PROCEDURAL.
 func (p *Parser) parseAlterLanguageStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // start of ALTER
 	if p.cur.Type == PROCEDURAL {
 		p.advance() // consume PROCEDURAL
 	}
@@ -1290,6 +1341,7 @@ func (p *Parser) parseAlterLanguageStmt() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_LANGUAGE,
 			Object:     &nodes.String{Str: name},
 			Newowner:   roleSpec,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	default:
 		return nil, nil
@@ -1303,6 +1355,7 @@ func (p *Parser) parseAlterLanguageStmt() (nodes.Node, error) {
 // parseAlterLargeObjectStmt parses ALTER LARGE OBJECT ...
 // ALTER has already been consumed. Current token is LARGE_P.
 func (p *Parser) parseAlterLargeObjectStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // start of ALTER
 	p.advance() // consume LARGE
 	if _, err := p.expect(OBJECT_P); err != nil {
 		return nil, err
@@ -1319,6 +1372,7 @@ func (p *Parser) parseAlterLargeObjectStmt() (nodes.Node, error) {
 		ObjectType: nodes.OBJECT_LARGEOBJECT,
 		Object:     numVal,
 		Newowner:   roleSpec,
+		Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
@@ -1329,6 +1383,7 @@ func (p *Parser) parseAlterLargeObjectStmt() (nodes.Node, error) {
 // parseAlterEventTriggerOwner parses ALTER EVENT TRIGGER ...
 // ALTER has already been consumed. Current token is EVENT.
 func (p *Parser) parseAlterEventTriggerOwner() (nodes.Node, error) {
+	loc := p.prev.Loc // start of ALTER
 	p.advance() // consume EVENT
 	if _, err := p.expect(TRIGGER); err != nil {
 		return nil, err
@@ -1349,6 +1404,7 @@ func (p *Parser) parseAlterEventTriggerOwner() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_EVENT_TRIGGER,
 			Object:     &nodes.String{Str: name},
 			Newowner:   roleSpec,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case RENAME:
 		p.advance()
@@ -1377,12 +1433,14 @@ func (p *Parser) parseAlterEventTriggerOwner() (nodes.Node, error) {
 		return &nodes.AlterEventTrigStmt{
 			Trigname:  name,
 			Tgenabled: tgenabled,
+			Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case DISABLE_P:
 		p.advance()
 		return &nodes.AlterEventTrigStmt{
 			Trigname:  name,
 			Tgenabled: 'D',
+			Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	default:
 		return nil, nil
@@ -1396,6 +1454,7 @@ func (p *Parser) parseAlterEventTriggerOwner() (nodes.Node, error) {
 // parseAlterTablespaceOwner parses ALTER TABLESPACE ...
 // ALTER has already been consumed. Current token is TABLESPACE.
 func (p *Parser) parseAlterTablespaceOwner() (nodes.Node, error) {
+	loc := p.prev.Loc // start of ALTER
 	p.advance() // consume TABLESPACE
 	name, err := p.parseName()
 	if err != nil {
@@ -1413,6 +1472,7 @@ func (p *Parser) parseAlterTablespaceOwner() (nodes.Node, error) {
 			ObjectType: nodes.OBJECT_TABLESPACE,
 			Object:     &nodes.String{Str: name},
 			Newowner:   roleSpec,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case RENAME:
 		p.advance()
@@ -1435,6 +1495,7 @@ func (p *Parser) parseAlterTablespaceOwner() (nodes.Node, error) {
 			Tablespacename: name,
 			Options:        opts,
 			IsReset:        false,
+			Loc:            nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case RESET:
 		p.advance()
@@ -1443,6 +1504,7 @@ func (p *Parser) parseAlterTablespaceOwner() (nodes.Node, error) {
 			Tablespacename: name,
 			Options:        opts,
 			IsReset:        true,
+			Loc:            nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	default:
 		return nil, nil
@@ -1461,6 +1523,7 @@ func (p *Parser) parseAlterTablespaceOwner() (nodes.Node, error) {
 //	ALTER TRIGGER name ON table_name RENAME TO new_name
 //	ALTER TRIGGER name ON table_name [ NO ] DEPENDS ON EXTENSION extension_name
 func (p *Parser) parseAlterTriggerDependsOnExtension() (nodes.Node, error) {
+	loc := p.prev.Loc // start of ALTER
 	p.advance() // consume TRIGGER
 	trigname, err := p.parseName()
 	if err != nil {
@@ -1515,6 +1578,7 @@ func (p *Parser) parseAlterTriggerDependsOnExtension() (nodes.Node, error) {
 		Object:     &nodes.List{Items: []nodes.Node{&nodes.String{Str: trigname}}},
 		Extname:    &nodes.String{Str: extname},
 		Remove:     remove,
+		Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
