@@ -153,6 +153,26 @@ func NodeLoc(n Node) Loc {
 	case *JsonIsPredicate:
 		return v.Loc
 
+	// --- Section 3.3: Grant & role nodes ---
+	case *GrantStmt:
+		return v.Loc
+	case *GrantRoleStmt:
+		return v.Loc
+	case *CreateRoleStmt:
+		return v.Loc
+	case *AlterRoleStmt:
+		return v.Loc
+	case *AlterRoleSetStmt:
+		return v.Loc
+	case *AlterPolicyStmt:
+		return v.Loc
+	case *CreatePolicyStmt:
+		return v.Loc
+	case *DropRoleStmt:
+		return v.Loc
+	case *AccessPriv:
+		return v.Loc
+
 	// Publication
 	case *PublicationObjSpec:
 		return v.Loc
