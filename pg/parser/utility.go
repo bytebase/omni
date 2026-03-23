@@ -84,8 +84,11 @@ func (p *Parser) parseExplainableStmt() (nodes.Node, error) {
 	case DECLARE:
 		return p.parseDeclareCursorStmt()
 	case REFRESH:
+		loc := p.pos()
 		p.advance()
-		return p.parseRefreshMatViewStmt()
+		stmt, err := p.parseRefreshMatViewStmt()
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	default:
 		return nil, nil
 	}

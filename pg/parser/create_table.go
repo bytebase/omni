@@ -16,6 +16,7 @@ import (
 //	    | CREATE OptTemp TABLE qualified_name PARTITION OF qualified_name ...
 //	    | CREATE OptTemp TABLE qualified_name OF any_name ...
 func (p *Parser) parseCreateStmt() (*nodes.CreateStmt, error) {
+	loc := p.pos()
 	p.advance() // consume CREATE
 
 	// OptTemp
@@ -95,6 +96,7 @@ func (p *Parser) parseCreateStmt() (*nodes.CreateStmt, error) {
 	// OptTableSpace
 	stmt.Tablespacename = p.parseOptTableSpace()
 
+	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 	return stmt, nil
 }
 

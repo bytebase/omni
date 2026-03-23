@@ -163,6 +163,7 @@ func (p *Parser) parseIndexElem() *nodes.IndexElem {
 		p.addTokenCandidate('(')
 		return nil
 	}
+	loc := p.pos()
 	elem := &nodes.IndexElem{}
 
 	if p.cur.Type == '(' {
@@ -202,6 +203,7 @@ func (p *Parser) parseIndexElem() *nodes.IndexElem {
 		elem.NullsOrdering = nodes.SortByNulls(p.parseOptNullsOrder())
 	}
 
+	elem.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 	return elem
 }
 

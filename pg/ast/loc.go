@@ -157,6 +157,26 @@ func NodeLoc(n Node) Loc {
 	case *PublicationObjSpec:
 		return v.Loc
 
+	// --- Section 4.3: Trigger, index & view nodes ---
+	case *CreateTrigStmt:
+		return v.Loc
+	case *CreateEventTrigStmt:
+		return v.Loc
+	case *TriggerTransition:
+		return v.Loc
+	case *IndexStmt:
+		return v.Loc
+	case *IndexElem:
+		return v.Loc
+	case *ViewStmt:
+		return v.Loc
+	case *CreateTableAsStmt:
+		return v.Loc
+	case *RefreshMatViewStmt:
+		return v.Loc
+	case *CreateStmt:
+		return v.Loc
+
 	default:
 		return NoLoc()
 	}

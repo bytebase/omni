@@ -91,21 +91,30 @@ func (p *Parser) parseSchemaStmt() (nodes.Node, error) {
 	case TABLE:
 		return p.parseCreateOrCTAS()
 	case INDEX, UNIQUE:
+		loc := p.pos()
 		p.advance() // consume CREATE
-		return p.parseIndexStmt()
+		stmt, err := p.parseIndexStmt()
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	case SEQUENCE:
 		p.advance() // consume CREATE
 		return p.parseCreateSeqStmt(byte(nodes.RELPERSISTENCE_PERMANENT))
 	case VIEW:
+		loc := p.pos()
 		p.advance() // consume CREATE
-		return p.parseViewStmt(false)
+		stmt, err := p.parseViewStmt(false)
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	case OR:
+		loc := p.pos()
 		p.advance() // consume CREATE
 		p.advance() // consume OR
 		if _, err := p.expect(REPLACE); err != nil {
 			return nil, err
 		}
-		return p.parseViewStmt(true)
+		stmt, err := p.parseViewStmt(true)
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	default:
 		return nil, nil
 	}

@@ -167,6 +167,7 @@ func (p *Parser) parseTriggerReferencing() *nodes.List {
 }
 
 func (p *Parser) parseTriggerTransition() (*nodes.TriggerTransition, error) {
+	loc := p.pos()
 	var isNew bool
 	switch p.cur.Type {
 	case NEW: isNew = true; p.advance()
@@ -177,7 +178,7 @@ func (p *Parser) parseTriggerTransition() (*nodes.TriggerTransition, error) {
 	if p.cur.Type == TABLE { isTable = true; p.advance() } else if p.cur.Type == ROW { p.advance() }
 	if p.cur.Type == AS { p.advance() }
 	name, _ := p.parseColId()
-	return &nodes.TriggerTransition{Name: name, IsNew: isNew, IsTable: isTable}, nil
+	return &nodes.TriggerTransition{Name: name, IsNew: isNew, IsTable: isTable, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
 
 func (p *Parser) parseTriggerForSpec() bool {
