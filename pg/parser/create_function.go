@@ -20,7 +20,7 @@ import (
 //
 // The CREATE and optional OR REPLACE have already been consumed.
 // isReplace indicates whether OR REPLACE was present.
-func (p *Parser) parseCreateFunctionStmt(isReplace bool) (*nodes.CreateFunctionStmt, error) {
+func (p *Parser) parseCreateFunctionStmt(startLoc int, isReplace bool) (*nodes.CreateFunctionStmt, error) {
 	isProcedure := false
 	if p.cur.Type == PROCEDURE {
 		isProcedure = true
@@ -68,6 +68,7 @@ func (p *Parser) parseCreateFunctionStmt(isReplace bool) (*nodes.CreateFunctionS
 		} else {
 			stmt.Options.Items = append(stmt.Options.Items, procDef)
 		}
+		stmt.Loc = nodes.Loc{Start: startLoc, End: p.prev.End}
 		return stmt, nil
 	}
 
@@ -118,6 +119,7 @@ func (p *Parser) parseCreateFunctionStmt(isReplace bool) (*nodes.CreateFunctionS
 		return nil, err
 	}
 	stmt.SqlBody = sqlBody
+	stmt.Loc = nodes.Loc{Start: startLoc, End: p.prev.End}
 	return stmt, nil
 }
 
@@ -190,6 +192,7 @@ func (p *Parser) parseFuncArgWithDefault() (*nodes.FunctionParameter, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		fp.Defexpr = expr
+		fp.Loc.End = p.prev.End
 	} else if p.cur.Type == '=' {
 		p.advance()
 		expr, err := p.parseAExpr(0)
@@ -200,6 +203,7 @@ func (p *Parser) parseFuncArgWithDefault() (*nodes.FunctionParameter, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		fp.Defexpr = expr
+		fp.Loc.End = p.prev.End
 	}
 	return fp, nil
 }
@@ -213,6 +217,7 @@ func (p *Parser) parseFuncArgWithDefault() (*nodes.FunctionParameter, error) {
 //	    | arg_class func_type
 //	    | func_type
 func (p *Parser) parseFuncArg() *nodes.FunctionParameter {
+	paramLoc := p.pos()
 	// This is complex because we need to distinguish between:
 	// 1. arg_class param_name func_type  (IN x integer)
 	// 2. param_name arg_class func_type  (x IN integer)
@@ -289,6 +294,7 @@ func (p *Parser) parseFuncArg() *nodes.FunctionParameter {
 		Name:    name,
 		ArgType: argType,
 		Mode:    mode,
+		Loc:     nodes.Loc{Start: paramLoc, End: p.prev.End},
 	}
 }
 
@@ -359,12 +365,14 @@ func (p *Parser) parseTableFuncColumnList() *nodes.List {
 //	table_func_column:
 //	    param_name func_type
 func (p *Parser) parseTableFuncColumn() *nodes.FunctionParameter {
+	colLoc := p.pos()
 	name, _ := p.parseTypeFunctionName()
 	argType, _ := p.parseFuncType()
 	return &nodes.FunctionParameter{
 		Name:    name,
 		ArgType: argType,
 		Mode:    nodes.FUNC_PARAM_TABLE,
+		Loc:     nodes.Loc{Start: colLoc, End: p.prev.End},
 	}
 }
 
@@ -594,6 +602,7 @@ func (p *Parser) parseCommonFuncOptItem() *nodes.DefElem {
 //	    | /* EMPTY */
 func (p *Parser) parseOptRoutineBody() (nodes.Node, error) {
 	if p.cur.Type == RETURN {
+		retLoc := p.pos()
 		p.advance()
 		expr, err := p.parseAExpr(0)
 		if err != nil {
@@ -602,7 +611,7 @@ func (p *Parser) parseOptRoutineBody() (nodes.Node, error) {
 		if expr == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
-		return &nodes.ReturnStmt{Returnval: expr}, nil
+		return &nodes.ReturnStmt{Returnval: expr, Loc: nodes.Loc{Start: retLoc, End: p.prev.End}}, nil
 	}
 	if p.cur.Type == BEGIN_P {
 		p.advance() // consume BEGIN
@@ -613,9 +622,10 @@ func (p *Parser) parseOptRoutineBody() (nodes.Node, error) {
 		for p.cur.Type != END_P && p.cur.Type != 0 {
 			var stmt nodes.Node
 			if p.cur.Type == RETURN {
+				innerRetLoc := p.pos()
 				p.advance()
 				expr, _ := p.parseAExpr(0)
-				stmt = &nodes.ReturnStmt{Returnval: expr}
+				stmt = &nodes.ReturnStmt{Returnval: expr, Loc: nodes.Loc{Start: innerRetLoc, End: p.prev.End}}
 			} else {
 				stmt, _ = p.parseStmt()
 			}

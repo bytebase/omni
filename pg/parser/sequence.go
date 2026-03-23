@@ -11,7 +11,7 @@ import (
 //	CreateSeqStmt:
 //	    CREATE OptTemp SEQUENCE qualified_name OptSeqOptList
 //	    | CREATE OptTemp SEQUENCE IF NOT EXISTS qualified_name OptSeqOptList
-func (p *Parser) parseCreateSeqStmt(relpersistence byte) (nodes.Node, error) {
+func (p *Parser) parseCreateSeqStmt(startLoc int, relpersistence byte) (nodes.Node, error) {
 	if _, err := p.expect(SEQUENCE); err != nil {
 		return nil, err
 	}
@@ -44,6 +44,7 @@ func (p *Parser) parseCreateSeqStmt(relpersistence byte) (nodes.Node, error) {
 		Sequence:    rv,
 		Options:     options,
 		IfNotExists: ifNotExists,
+		Loc:         nodes.Loc{Start: startLoc, End: p.prev.End},
 	}, nil
 }
 
@@ -74,7 +75,7 @@ func (p *Parser) isSeqOptStart() bool {
 //
 //	CreateDomainStmt:
 //	    CREATE DOMAIN any_name opt_as Typename opt_column_constraints
-func (p *Parser) parseCreateDomainStmt() (nodes.Node, error) {
+func (p *Parser) parseCreateDomainStmt(startLoc int) (nodes.Node, error) {
 	p.advance() // consume DOMAIN
 
 	domainname, err := p.parseAnyName()
@@ -101,6 +102,7 @@ func (p *Parser) parseCreateDomainStmt() (nodes.Node, error) {
 		Domainname:  domainname,
 		Typname:     typname,
 		Constraints: constraints,
+		Loc:         nodes.Loc{Start: startLoc, End: p.prev.End},
 	}, nil
 }
 

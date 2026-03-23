@@ -96,8 +96,9 @@ func (p *Parser) parseSchemaStmt() (nodes.Node, error) {
 		p.advance() // consume CREATE
 		return p.parseIndexStmt()
 	case SEQUENCE:
+		loc := p.pos()
 		p.advance() // consume CREATE
-		return p.parseCreateSeqStmt(byte(nodes.RELPERSISTENCE_PERMANENT))
+		return p.parseCreateSeqStmt(loc, byte(nodes.RELPERSISTENCE_PERMANENT))
 	case VIEW:
 		p.advance() // consume CREATE
 		return p.parseViewStmt(false)

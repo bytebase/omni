@@ -360,6 +360,16 @@ func NodeLoc(n Node) Loc {
 	// --- Section 4.1: Database & schema nodes ---
 
 	// --- Section 4.2: Sequence, function & domain nodes ---
+	case *CreateSeqStmt:
+		return v.Loc
+	case *CreateDomainStmt:
+		return v.Loc
+	case *CreateFunctionStmt:
+		return v.Loc
+	case *FunctionParameter:
+		return v.Loc
+	case *ReturnStmt:
+		return v.Loc
 
 	// --- Section 4.3: Trigger, index & view nodes ---
 
