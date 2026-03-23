@@ -153,6 +153,20 @@ func NodeLoc(n Node) Loc {
 	case *JsonIsPredicate:
 		return v.Loc
 
+	// --- Section 1.1: FROM/Join nodes ---
+	case *JoinExpr:
+		return v.Loc
+	case *RangeSubselect:
+		return v.Loc
+	case *RangeFunction:
+		return v.Loc
+	case *CurrentOfExpr:
+		return v.Loc
+	case *LockingClause:
+		return v.Loc
+	case *IntoClause:
+		return v.Loc
+
 	// Publication
 	case *PublicationObjSpec:
 		return v.Loc

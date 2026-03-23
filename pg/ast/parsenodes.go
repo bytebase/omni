@@ -236,6 +236,7 @@ type IntoClause struct {
 	TableSpaceName string         // table space to use, or NULL
 	ViewQuery      Node           // materialized view's SELECT query
 	SkipData       bool           // true for WITH NO DATA
+	Loc            Loc            // token location
 }
 
 func (n *IntoClause) Tag() NodeTag { return T_IntoClause }
@@ -562,6 +563,7 @@ type LockingClause struct {
 	LockedRels *List // FOR UPDATE/SHARE relations
 	Strength   int   // LockClauseStrength
 	WaitPolicy int   // LockWaitPolicy
+	Loc        Loc   // token location
 }
 
 func (n *LockingClause) Tag() NodeTag { return T_LockingClause }
@@ -613,6 +615,7 @@ type JoinExpr struct {
 	Quals       Node     // qualifications on join, if any
 	Alias       *Alias   // user-written alias clause, if any
 	Rtindex     int      // RT index assigned for join, or 0
+	Loc         Loc      // token location
 }
 
 func (n *JoinExpr) Tag() NodeTag { return T_JoinExpr }
@@ -649,9 +652,10 @@ func (n *ParamRef) Tag() NodeTag { return T_ParamRef }
 
 // CurrentOfExpr represents WHERE CURRENT OF cursor_name.
 type CurrentOfExpr struct {
-	CvarNo     int    // RT index of target relation
-	CursorName string // name of referenced cursor
-	CursorParam int   // refcursor parameter number
+	CvarNo      int    // RT index of target relation
+	CursorName  string // name of referenced cursor
+	CursorParam int    // refcursor parameter number
+	Loc         Loc    // token location
 }
 
 func (n *CurrentOfExpr) Tag() NodeTag { return T_CurrentOfExpr }
@@ -721,6 +725,7 @@ type RangeSubselect struct {
 	Lateral  bool   // does it have LATERAL prefix?
 	Subquery Node   // the untransformed sub-select clause
 	Alias    *Alias // table alias & optional column aliases
+	Loc      Loc    // token location
 }
 
 func (n *RangeSubselect) Tag() NodeTag { return T_RangeSubselect }
@@ -733,6 +738,7 @@ type RangeFunction struct {
 	Functions  *List  // list of RangeFunction items
 	Alias      *Alias // table alias & optional column aliases
 	Coldeflist *List  // list of ColumnDef nodes for ROWS FROM()
+	Loc        Loc    // token location
 }
 
 func (n *RangeFunction) Tag() NodeTag { return T_RangeFunction }

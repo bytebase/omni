@@ -559,6 +559,10 @@ func writeJoinExpr(sb *strings.Builder, n *JoinExpr) {
 		writeNode(sb, n.Alias)
 	}
 	sb.WriteString(fmt.Sprintf(" :rtindex %d", n.Rtindex))
+	// --- Section 1.1: FROM/Join nodes ---
+	if n.Loc.Start != 0 || n.Loc.End != 0 {
+		sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
+	}
 	sb.WriteString("}")
 }
 

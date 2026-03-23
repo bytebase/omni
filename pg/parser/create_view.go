@@ -224,6 +224,7 @@ func (p *Parser) parseCreateTableAsStmt(relpersistence byte, ifNotExists bool) (
 //	create_as_target:
 //	    qualified_name opt_column_list OptAccessMethod OptWith OnCommitOption OptTableSpace
 func (p *Parser) parseCreateAsTarget() (*nodes.IntoClause, error) {
+	loc := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
@@ -243,6 +244,7 @@ func (p *Parser) parseCreateAsTarget() (*nodes.IntoClause, error) {
 		Options:        options,
 		OnCommit:       onCommit,
 		TableSpaceName: tableSpace,
+		Loc:            nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
@@ -305,6 +307,7 @@ func (p *Parser) parseCreateMatViewStmt(relpersistence byte) (*nodes.CreateTable
 //	create_mv_target:
 //	    qualified_name opt_column_list OptAccessMethod opt_reloptions OptTableSpace
 func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
+	loc := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
@@ -322,6 +325,7 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 		AccessMethod:   accessMethod,
 		Options:        options,
 		TableSpaceName: tableSpace,
+		Loc:            nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 

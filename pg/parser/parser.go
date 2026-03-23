@@ -908,6 +908,7 @@ func (p *Parser) finishCTAS(names *nodes.List, colNames *nodes.List, relpersiste
 		OnCommit:       onCommit,
 		TableSpaceName: tableSpace,
 		SkipData:       !withData,
+		Loc:            rv.Loc,
 	}
 
 	return &nodes.CreateTableAsStmt{

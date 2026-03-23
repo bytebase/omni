@@ -620,6 +620,7 @@ func (p *Parser) parseForLockingClause() (*nodes.List, error) {
 //	for_locking_item:
 //	    for_locking_strength locked_rels_list opt_nowait_or_skip
 func (p *Parser) parseForLockingItem() (*nodes.LockingClause, error) {
+	forLoc := p.pos()
 	strength := p.parseForLockingStrength()
 	if strength < 0 {
 		return nil, nil
@@ -653,6 +654,7 @@ func (p *Parser) parseForLockingItem() (*nodes.LockingClause, error) {
 		lc.WaitPolicy = int(nodes.LockWaitBlock)
 	}
 
+	lc.Loc = nodes.Loc{Start: forLoc, End: p.prev.End}
 	return lc, nil
 }
 
@@ -938,6 +940,7 @@ func (p *Parser) parseOptCycleClause() (nodes.Node, error) {
 //	into_clause:
 //	    INTO OptTempTableName
 func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
+	intoLoc := p.pos()
 	p.advance() // consume INTO
 
 	rv, err := p.parseOptTempTableName()
@@ -947,6 +950,7 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 	return &nodes.IntoClause{
 		Rel:      rv,
 		OnCommit: nodes.ONCOMMIT_NOOP,
+		Loc:      nodes.Loc{Start: intoLoc, End: p.prev.End},
 	}, nil
 }
 
@@ -1130,11 +1134,12 @@ func (p *Parser) parseTableRefPrimary() (nodes.Node, error) {
 		// matches func_expr_windowless, which includes func_expr_common_subexpr.
 		// For example, SELECT * FROM user parses USER as CURRENT_USER via this path.
 		if p.isFuncExprCommonSubexprStart() {
+			funcLoc := p.pos()
 			funcExpr, err := p.parseFuncExprWindowless()
 			if err != nil {
 				return nil, err
 			}
-			return p.finishFuncTable(funcExpr), nil
+			return p.finishFuncTable(funcExpr, funcLoc), nil
 		}
 		return nil, nil
 	}
@@ -1145,6 +1150,7 @@ func (p *Parser) parseTableRefPrimary() (nodes.Node, error) {
 func (p *Parser) parseParenTableRef() (nodes.Node, error) {
 	// Peek to see if this is a subquery or joined table
 	// If next token after '(' is SELECT/VALUES/WITH/TABLE, it's a subquery
+	loc := p.pos()
 	next := p.peekNext()
 	if next.Type == SELECT || next.Type == VALUES || next.Type == WITH || next.Type == TABLE || next.Type == '(' {
 		// Could be select_with_parens → subquery
@@ -1156,6 +1162,7 @@ func (p *Parser) parseParenTableRef() (nodes.Node, error) {
 		return &nodes.RangeSubselect{
 			Subquery: stmt,
 			Alias:    alias,
+			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	}
 
@@ -1194,6 +1201,7 @@ func (p *Parser) parseParenTableRef() (nodes.Node, error) {
 //	| LATERAL_P xmltable opt_alias_clause
 //	| LATERAL_P json_table opt_alias_clause
 func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
+	lateralLoc := p.pos()
 	p.advance() // consume LATERAL
 
 	if p.cur.Type == '(' {
@@ -1207,6 +1215,7 @@ func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 			Lateral:  true,
 			Subquery: stmt,
 			Alias:    alias,
+			Loc:      nodes.Loc{Start: lateralLoc, End: p.prev.End},
 		}, nil
 	}
 
@@ -1217,6 +1226,7 @@ func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 		}
 		if rf, ok := rf.(*nodes.RangeFunction); ok {
 			rf.Lateral = true
+			rf.Loc.Start = lateralLoc // extend Loc to include LATERAL keyword
 		}
 		return rf, nil
 	}
@@ -1263,11 +1273,13 @@ func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 	}
 	p.parseOptOrdinality(rf)
 	p.parseFuncAliasClause(rf)
+	rf.Loc = nodes.Loc{Start: lateralLoc, End: p.prev.End}
 	return rf, nil
 }
 
 // parseRowsFromTable parses ROWS FROM (...) [WITH ORDINALITY].
 func (p *Parser) parseRowsFromTable() (nodes.Node, error) {
+	rowsLoc := p.pos()
 	p.advance() // consume ROWS
 	if _, err := p.expect(FROM); err != nil {
 		return nil, err
@@ -1318,6 +1330,7 @@ func (p *Parser) parseRowsFromTable() (nodes.Node, error) {
 		Functions:  &nodes.List{Items: items},
 	}
 	p.parseFuncAliasClause(rf)
+	rf.Loc = nodes.Loc{Start: rowsLoc, End: p.prev.End}
 	return rf, nil
 }
 
@@ -1352,7 +1365,7 @@ func (p *Parser) parseRelationOrFuncTable() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return p.finishFuncTable(funcExpr), nil
+		return p.finishFuncTable(funcExpr, loc), nil
 	}
 
 	// name.something
@@ -1376,7 +1389,7 @@ func (p *Parser) parseRelationOrFuncTable() (nodes.Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			return p.finishFuncTable(funcExpr), nil
+			return p.finishFuncTable(funcExpr, loc), nil
 		}
 
 		// catalog.schema.name
@@ -1402,7 +1415,7 @@ func (p *Parser) parseRelationOrFuncTable() (nodes.Node, error) {
 				if err != nil {
 					return nil, err
 				}
-				return p.finishFuncTable(funcExpr), nil
+				return p.finishFuncTable(funcExpr, loc), nil
 			}
 
 			// 3-part qualified relation name
@@ -1439,12 +1452,13 @@ func (p *Parser) parseRelationOrFuncTable() (nodes.Node, error) {
 
 // finishFuncTable wraps a parsed function expression as a RangeFunction (func_table)
 // and parses opt_ordinality and func_alias_clause.
-func (p *Parser) finishFuncTable(funcExpr nodes.Node) nodes.Node {
+func (p *Parser) finishFuncTable(funcExpr nodes.Node, startLoc int) nodes.Node {
 	rf := &nodes.RangeFunction{
 		Functions: &nodes.List{Items: []nodes.Node{&nodes.List{Items: []nodes.Node{funcExpr}}}},
 	}
 	p.parseOptOrdinality(rf)
 	p.parseFuncAliasClause(rf)
+	rf.Loc = nodes.Loc{Start: startLoc, End: p.prev.End}
 	return rf
 }
 
@@ -1722,6 +1736,7 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 			Jointype: nodes.JOIN_INNER,
 			Larg:     left,
 			Rarg:     right,
+			Loc:      nodes.Loc{Start: nodes.NodeLoc(left).Start, End: p.prev.End},
 		}, nil
 
 	case JOIN:
@@ -1742,6 +1757,7 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 		if err := p.parseJoinQual(j); err != nil {
 			return nil, err
 		}
+		j.Loc = nodes.Loc{Start: nodes.NodeLoc(left).Start, End: p.prev.End}
 		return j, nil
 
 	case INNER_P:
@@ -1764,6 +1780,7 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 		if err := p.parseJoinQual(j); err != nil {
 			return nil, err
 		}
+		j.Loc = nodes.Loc{Start: nodes.NodeLoc(left).Start, End: p.prev.End}
 		return j, nil
 
 	case LEFT:
@@ -1787,6 +1804,7 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 		if err := p.parseJoinQual(j); err != nil {
 			return nil, err
 		}
+		j.Loc = nodes.Loc{Start: nodes.NodeLoc(left).Start, End: p.prev.End}
 		return j, nil
 
 	case RIGHT:
@@ -1810,6 +1828,7 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 		if err := p.parseJoinQual(j); err != nil {
 			return nil, err
 		}
+		j.Loc = nodes.Loc{Start: nodes.NodeLoc(left).Start, End: p.prev.End}
 		return j, nil
 
 	case FULL:
@@ -1833,6 +1852,7 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 		if err := p.parseJoinQual(j); err != nil {
 			return nil, err
 		}
+		j.Loc = nodes.Loc{Start: nodes.NodeLoc(left).Start, End: p.prev.End}
 		return j, nil
 
 	case NATURAL:
@@ -1869,6 +1889,7 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 			IsNatural: true,
 			Larg:      left,
 			Rarg:      right,
+			Loc:       nodes.Loc{Start: nodes.NodeLoc(left).Start, End: p.prev.End},
 		}, nil
 
 	default:
@@ -2110,6 +2131,7 @@ func (p *Parser) parseWhereOrCurrentClause() (nodes.Node, error) {
 	if p.cur.Type == CURRENT_P {
 		next := p.peekNext()
 		if next.Type == OF {
+			currentLoc := p.pos()
 			p.advance() // CURRENT
 			p.advance() // OF
 			name, err := p.parseCursorName()
@@ -2118,6 +2140,7 @@ func (p *Parser) parseWhereOrCurrentClause() (nodes.Node, error) {
 			}
 			return &nodes.CurrentOfExpr{
 				CursorName: name,
+				Loc:        nodes.Loc{Start: currentLoc, End: p.prev.End},
 			}, nil
 		}
 	}
