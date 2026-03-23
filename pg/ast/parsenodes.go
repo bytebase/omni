@@ -1024,6 +1024,7 @@ func (n *FunctionParameter) Tag() NodeTag { return T_FunctionParameter }
 // DoStmt represents a DO statement (anonymous code block).
 type DoStmt struct {
 	Args *List // list of DefElem
+	Loc  Loc   // token location
 }
 
 func (n *DoStmt) Tag() NodeTag { return T_DoStmt }
@@ -1141,6 +1142,7 @@ func (n *CopyStmt) Tag() NodeTag { return T_CopyStmt }
 type ExplainStmt struct {
 	Query   Node  // the query
 	Options *List // list of DefElem
+	Loc     Loc   // token location
 }
 
 func (n *ExplainStmt) Tag() NodeTag { return T_ExplainStmt }
@@ -1338,6 +1340,7 @@ func (n *ReindexStmt) Tag() NodeTag { return T_ReindexStmt }
 
 // CheckPointStmt - CHECKPOINT
 type CheckPointStmt struct {
+	Loc Loc // token location
 }
 
 func (n *CheckPointStmt) Tag() NodeTag { return T_CheckPointStmt }
@@ -1345,6 +1348,7 @@ func (n *CheckPointStmt) Tag() NodeTag { return T_CheckPointStmt }
 // DiscardStmt - DISCARD
 type DiscardStmt struct {
 	Target DiscardMode
+	Loc    Loc // token location
 }
 
 func (n *DiscardStmt) Tag() NodeTag { return T_DiscardStmt }
@@ -1352,6 +1356,7 @@ func (n *DiscardStmt) Tag() NodeTag { return T_DiscardStmt }
 // ListenStmt - LISTEN
 type ListenStmt struct {
 	Conditionname string
+	Loc           Loc // token location
 }
 
 func (n *ListenStmt) Tag() NodeTag { return T_ListenStmt }
@@ -1359,6 +1364,7 @@ func (n *ListenStmt) Tag() NodeTag { return T_ListenStmt }
 // UnlistenStmt - UNLISTEN
 type UnlistenStmt struct {
 	Conditionname string // empty string means UNLISTEN *
+	Loc           Loc    // token location
 }
 
 func (n *UnlistenStmt) Tag() NodeTag { return T_UnlistenStmt }
@@ -1367,6 +1373,7 @@ func (n *UnlistenStmt) Tag() NodeTag { return T_UnlistenStmt }
 type NotifyStmt struct {
 	Conditionname string
 	Payload       string
+	Loc           Loc // token location
 }
 
 func (n *NotifyStmt) Tag() NodeTag { return T_NotifyStmt }
@@ -1374,6 +1381,7 @@ func (n *NotifyStmt) Tag() NodeTag { return T_NotifyStmt }
 // LoadStmt - LOAD
 type LoadStmt struct {
 	Filename string
+	Loc      Loc // token location
 }
 
 func (n *LoadStmt) Tag() NodeTag { return T_LoadStmt }
@@ -1432,6 +1440,7 @@ func (n *FetchStmt) Tag() NodeTag { return T_FetchStmt }
 // CallStmt represents a CALL statement.
 type CallStmt struct {
 	Funccall *FuncCall // the function call
+	Loc      Loc       // token location
 }
 
 func (n *CallStmt) Tag() NodeTag { return T_CallStmt }
@@ -2058,6 +2067,7 @@ func (n *DropOwnedStmt) Tag() NodeTag { return T_DropOwnedStmt }
 type ReassignOwnedStmt struct {
 	Roles   *List     // list of RoleSpec
 	Newrole *RoleSpec // new owner
+	Loc     Loc       // token location
 }
 
 func (n *ReassignOwnedStmt) Tag() NodeTag { return T_ReassignOwnedStmt }

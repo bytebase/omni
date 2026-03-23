@@ -25,6 +25,28 @@ func NodeLoc(n Node) Loc {
 	case *DeallocateStmt:
 		return v.Loc
 
+	// --- Section 4.4: Utility statement nodes ---
+	case *ExplainStmt:
+		return v.Loc
+	case *CallStmt:
+		return v.Loc
+	case *DoStmt:
+		return v.Loc
+	case *CheckPointStmt:
+		return v.Loc
+	case *DiscardStmt:
+		return v.Loc
+	case *ListenStmt:
+		return v.Loc
+	case *NotifyStmt:
+		return v.Loc
+	case *UnlistenStmt:
+		return v.Loc
+	case *LoadStmt:
+		return v.Loc
+	case *ReassignOwnedStmt:
+		return v.Loc
+
 	// Expression nodes
 	case *A_Expr:
 		return v.Loc
