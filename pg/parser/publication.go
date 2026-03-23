@@ -16,7 +16,8 @@ import (
 //	    | CREATE PUBLICATION name FOR ALL TABLES opt_definition
 //	    | CREATE PUBLICATION name FOR pub_obj_list opt_definition
 func (p *Parser) parseCreatePublicationStmt() (nodes.Node, error) {
-	p.advance() // consume PUBLICATION
+	loc := p.prev.Loc // start of CREATE
+	p.advance()       // consume PUBLICATION
 
 	name, err := p.parseName()
 	if err != nil {
@@ -38,6 +39,7 @@ func (p *Parser) parseCreatePublicationStmt() (nodes.Node, error) {
 				Pubname:      name,
 				Options:      options,
 				ForAllTables: true,
+				Loc:          nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 
@@ -48,6 +50,7 @@ func (p *Parser) parseCreatePublicationStmt() (nodes.Node, error) {
 			Pubname:    name,
 			Options:    options,
 			Pubobjects: pubobjects,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	}
 
@@ -56,6 +59,7 @@ func (p *Parser) parseCreatePublicationStmt() (nodes.Node, error) {
 	return &nodes.CreatePublicationStmt{
 		Pubname: name,
 		Options: options,
+		Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
@@ -72,7 +76,8 @@ func (p *Parser) parseCreatePublicationStmt() (nodes.Node, error) {
 //	    | ALTER PUBLICATION name SET pub_obj_list
 //	    | ALTER PUBLICATION name DROP pub_obj_list
 func (p *Parser) parseAlterPublicationStmt() (nodes.Node, error) {
-	p.advance() // consume PUBLICATION
+	loc := p.prev.Loc // start of ALTER
+	p.advance()       // consume PUBLICATION
 
 	name, err := p.parseName()
 	if err != nil {
@@ -122,6 +127,7 @@ func (p *Parser) parseAlterPublicationStmt() (nodes.Node, error) {
 			return &nodes.AlterPublicationStmt{
 				Pubname: name,
 				Options: list,
+				Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		// SET pub_obj_list
@@ -131,6 +137,7 @@ func (p *Parser) parseAlterPublicationStmt() (nodes.Node, error) {
 			Pubname:    name,
 			Pubobjects: pubobjects,
 			Action:     nodes.DEFELEM_SET,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case ADD_P:
 		p.advance() // consume ADD
@@ -139,6 +146,7 @@ func (p *Parser) parseAlterPublicationStmt() (nodes.Node, error) {
 			Pubname:    name,
 			Pubobjects: pubobjects,
 			Action:     nodes.DEFELEM_ADD,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case DROP:
 		p.advance() // consume DROP
@@ -147,6 +155,7 @@ func (p *Parser) parseAlterPublicationStmt() (nodes.Node, error) {
 			Pubname:    name,
 			Pubobjects: pubobjects,
 			Action:     nodes.DEFELEM_DROP,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	default:
 		return nil, nil
@@ -186,20 +195,23 @@ func (p *Parser) parsePublicationObjSpec() *nodes.PublicationObjSpec {
 
 	if p.cur.Type == TABLE {
 		p.advance() // consume TABLE
+		ptLoc := p.pos()
 		rel, _ := p.parseRelationExpr()
 		cols, _ := p.parseOptColumnList()
 		where := p.parseOptWhereClausePub()
 		pt := &nodes.PublicationTable{
 			Relation: rel,
 			Columns:  cols,
+			Loc:      nodes.Loc{Start: ptLoc, End: p.prev.End},
 		}
 		if where != nil {
 			pt.WhereClause = where
+			pt.Loc.End = p.prev.End
 		}
 		return &nodes.PublicationObjSpec{
 			Pubobjtype: nodes.PUBLICATIONOBJ_TABLE,
 			Pubtable:   pt,
-			Loc: nodes.Loc{Start: loc, End: -1},
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}
 	}
 
@@ -211,14 +223,14 @@ func (p *Parser) parsePublicationObjSpec() *nodes.PublicationObjSpec {
 			p.advance()
 			return &nodes.PublicationObjSpec{
 				Pubobjtype: nodes.PUBLICATIONOBJ_TABLES_IN_CUR_SCHEMA,
-				Loc: nodes.Loc{Start: loc, End: -1},
+				Loc: nodes.Loc{Start: loc, End: p.prev.End},
 			}
 		}
 		schemaName, _ := p.parseColId()
 		return &nodes.PublicationObjSpec{
 			Pubobjtype: nodes.PUBLICATIONOBJ_TABLES_IN_SCHEMA,
 			Name:       schemaName,
-			Loc: nodes.Loc{Start: loc, End: -1},
+			Loc: nodes.Loc{Start: loc, End: p.prev.End},
 		}
 	}
 
@@ -226,25 +238,28 @@ func (p *Parser) parsePublicationObjSpec() *nodes.PublicationObjSpec {
 		p.advance()
 		return &nodes.PublicationObjSpec{
 			Pubobjtype: nodes.PUBLICATIONOBJ_CONTINUATION,
-			Loc: nodes.Loc{Start: loc, End: -1},
+			Loc: nodes.Loc{Start: loc, End: p.prev.End},
 		}
 	}
 
 	// CONTINUATION: relation_expr opt_column_list OptWhereClause
+	ptLoc := p.pos()
 	rel, _ := p.parseRelationExpr()
 	cols, _ := p.parseOptColumnList()
 	where := p.parseOptWhereClausePub()
 	pt := &nodes.PublicationTable{
 		Relation: rel,
 		Columns:  cols,
+		Loc:      nodes.Loc{Start: ptLoc, End: p.prev.End},
 	}
 	if where != nil {
 		pt.WhereClause = where
+		pt.Loc.End = p.prev.End
 	}
 	return &nodes.PublicationObjSpec{
 		Pubobjtype: nodes.PUBLICATIONOBJ_CONTINUATION,
 		Pubtable:   pt,
-		Loc: nodes.Loc{Start: loc, End: -1},
+		Loc: nodes.Loc{Start: loc, End: p.prev.End},
 	}
 }
 
@@ -272,7 +287,8 @@ func (p *Parser) parseOptWhereClausePub() nodes.Node {
 //	CreateSubscriptionStmt:
 //	    CREATE SUBSCRIPTION name CONNECTION Sconst PUBLICATION name_list opt_definition
 func (p *Parser) parseCreateSubscriptionStmt() (nodes.Node, error) {
-	p.advance() // consume SUBSCRIPTION
+	loc := p.prev.Loc // start of CREATE
+	p.advance()       // consume SUBSCRIPTION
 
 	name, err := p.parseName()
 	if err != nil {
@@ -299,6 +315,7 @@ func (p *Parser) parseCreateSubscriptionStmt() (nodes.Node, error) {
 		Conninfo:    conninfo,
 		Publication: pubList,
 		Options:     options,
+		Loc:         nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
@@ -320,7 +337,8 @@ func (p *Parser) parseCreateSubscriptionStmt() (nodes.Node, error) {
 //	    | ALTER SUBSCRIPTION name DISABLE_P
 //	    | ALTER SUBSCRIPTION name SKIP definition
 func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
-	p.advance() // consume SUBSCRIPTION
+	loc := p.prev.Loc // start of ALTER
+	p.advance()       // consume SUBSCRIPTION
 
 	name, err := p.parseName()
 	if err != nil {
@@ -364,6 +382,7 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 			Kind:     nodes.ALTER_SUBSCRIPTION_CONNECTION,
 			Subname:  name,
 			Conninfo: conninfo,
+			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 
 	case REFRESH:
@@ -376,6 +395,7 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 			Kind:    nodes.ALTER_SUBSCRIPTION_REFRESH,
 			Subname: name,
 			Options: options,
+			Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 
 	case ENABLE_P:
@@ -386,6 +406,7 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 			Options: &nodes.List{Items: []nodes.Node{
 				makeDefElem("enabled", &nodes.Boolean{Boolval: true}),
 			}},
+			Loc: nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 
 	case DISABLE_P:
@@ -396,6 +417,7 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 			Options: &nodes.List{Items: []nodes.Node{
 				makeDefElem("enabled", &nodes.Boolean{Boolval: false}),
 			}},
+			Loc: nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 
 	case SKIP:
@@ -414,6 +436,7 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 			Kind:    nodes.ALTER_SUBSCRIPTION_SKIP,
 			Subname: name,
 			Options: list,
+			Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 
 	case SET:
@@ -434,6 +457,7 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 				Kind:    nodes.ALTER_SUBSCRIPTION_OPTIONS,
 				Subname: name,
 				Options: list,
+				Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		if next.Type == PUBLICATION {
@@ -449,6 +473,7 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 				Subname:     name,
 				Publication: pubList,
 				Options:     options,
+				Loc:         nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		return nil, nil
@@ -468,6 +493,7 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 			Subname:     name,
 			Publication: pubList,
 			Options:     options,
+			Loc:         nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 
 	case DROP:
@@ -484,6 +510,7 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 			Kind:        nodes.ALTER_SUBSCRIPTION_DROP_PUBLICATION,
 			Subname:     name,
 			Publication: pubList,
+			Loc:         nodes.Loc{Start: loc, End: p.prev.End},
 			Options:     options,
 		}, nil
 
@@ -504,7 +531,7 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 //	    CREATE opt_or_replace RULE name AS
 //	    ON event TO qualified_name where_clause
 //	    DO opt_instead RuleActionList
-func (p *Parser) parseCreateRuleStmt(replace bool) (nodes.Node, error) {
+func (p *Parser) parseCreateRuleStmt(replace bool, stmtLoc int) (nodes.Node, error) {
 	p.advance() // consume RULE
 
 	name, err := p.parseName()
@@ -563,6 +590,7 @@ func (p *Parser) parseCreateRuleStmt(replace bool) (nodes.Node, error) {
 		Event:       nodes.CmdType(event),
 		Instead:     instead,
 		Actions:     actions,
+		Loc:         nodes.Loc{Start: stmtLoc, End: p.prev.End},
 	}, nil
 }
 
