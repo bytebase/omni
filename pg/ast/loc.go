@@ -41,6 +41,7 @@ func NodeLoc(n Node) Loc {
 	case *CommentStmt:
 		return v.Loc
 	case *SecLabelStmt:
+
 		return v.Loc
 
 	// Expression nodes

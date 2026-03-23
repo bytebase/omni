@@ -7,6 +7,7 @@ import (
 // parseExplainStmt parses an EXPLAIN statement.
 // The EXPLAIN keyword has already been consumed.
 func (p *Parser) parseExplainStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // EXPLAIN already consumed
 	if p.cur.Type == '(' {
 		p.advance()
 		opts := p.parseUtilityOptionList()
@@ -17,7 +18,7 @@ func (p *Parser) parseExplainStmt() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &nodes.ExplainStmt{Query: query, Options: opts}, nil
+		return &nodes.ExplainStmt{Query: query, Options: opts, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
 	if p.cur.Type == ANALYZE || p.cur.Type == ANALYSE {
 		p.advance()
@@ -33,6 +34,7 @@ func (p *Parser) parseExplainStmt() (nodes.Node, error) {
 					&nodes.DefElem{Defname: "analyze", Loc: nodes.NoLoc()},
 					&nodes.DefElem{Defname: "verbose", Loc: nodes.NoLoc()},
 				}},
+				Loc: nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		query, err := p.parseExplainableStmt()
@@ -42,6 +44,7 @@ func (p *Parser) parseExplainStmt() (nodes.Node, error) {
 		return &nodes.ExplainStmt{
 			Query:   query,
 			Options: &nodes.List{Items: []nodes.Node{&nodes.DefElem{Defname: "analyze", Loc: nodes.NoLoc()}}},
+			Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	}
 	if p.cur.Type == VERBOSE {
@@ -53,13 +56,14 @@ func (p *Parser) parseExplainStmt() (nodes.Node, error) {
 		return &nodes.ExplainStmt{
 			Query:   query,
 			Options: &nodes.List{Items: []nodes.Node{&nodes.DefElem{Defname: "verbose", Loc: nodes.NoLoc()}}},
+			Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	}
 	query, err := p.parseExplainableStmt()
 	if err != nil {
 		return nil, err
 	}
-	return &nodes.ExplainStmt{Query: query}, nil
+	return &nodes.ExplainStmt{Query: query, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
 
 // parseExplainableStmt parses the statement that can follow EXPLAIN.
@@ -96,11 +100,12 @@ func (p *Parser) parseExplainableStmt() (nodes.Node, error) {
 
 // parseDoStmt parses a DO statement. The DO keyword has already been consumed.
 func (p *Parser) parseDoStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // DO already consumed
 	items := []nodes.Node{p.parseDostmtOptItem()}
 	for p.cur.Type == SCONST || p.cur.Type == LANGUAGE {
 		items = append(items, p.parseDostmtOptItem())
 	}
-	return &nodes.DoStmt{Args: &nodes.List{Items: items}}, nil
+	return &nodes.DoStmt{Args: &nodes.List{Items: items}, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
 
 // parseDostmtOptItem parses dostmt_opt_item.
@@ -118,27 +123,28 @@ func (p *Parser) parseDostmtOptItem() *nodes.DefElem {
 
 // parseCheckPointStmt parses a CHECKPOINT statement.
 func (p *Parser) parseCheckPointStmt() (nodes.Node, error) {
-	return &nodes.CheckPointStmt{}, nil
+	return &nodes.CheckPointStmt{Loc: nodes.Loc{Start: p.prev.Loc, End: p.prev.End}}, nil
 }
 
 // parseDiscardStmt parses a DISCARD statement.
 func (p *Parser) parseDiscardStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // DISCARD already consumed
 	switch p.cur.Type {
 	case ALL:
 		p.advance()
-		return &nodes.DiscardStmt{Target: nodes.DISCARD_ALL}, nil
+		return &nodes.DiscardStmt{Target: nodes.DISCARD_ALL, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	case TEMP:
 		p.advance()
-		return &nodes.DiscardStmt{Target: nodes.DISCARD_TEMP}, nil
+		return &nodes.DiscardStmt{Target: nodes.DISCARD_TEMP, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	case TEMPORARY:
 		p.advance()
-		return &nodes.DiscardStmt{Target: nodes.DISCARD_TEMP}, nil
+		return &nodes.DiscardStmt{Target: nodes.DISCARD_TEMP, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	case PLANS:
 		p.advance()
-		return &nodes.DiscardStmt{Target: nodes.DISCARD_PLANS}, nil
+		return &nodes.DiscardStmt{Target: nodes.DISCARD_PLANS, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	case SEQUENCES:
 		p.advance()
-		return &nodes.DiscardStmt{Target: nodes.DISCARD_SEQUENCES}, nil
+		return &nodes.DiscardStmt{Target: nodes.DISCARD_SEQUENCES, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	default:
 		return nil, nil
 	}
@@ -146,28 +152,31 @@ func (p *Parser) parseDiscardStmt() (nodes.Node, error) {
 
 // parseListenStmt parses a LISTEN statement.
 func (p *Parser) parseListenStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // LISTEN already consumed
 	name, err := p.parseColId()
 	if err != nil {
 		return nil, err
 	}
-	return &nodes.ListenStmt{Conditionname: name}, nil
+	return &nodes.ListenStmt{Conditionname: name, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
 
 // parseUnlistenStmt parses an UNLISTEN statement.
 func (p *Parser) parseUnlistenStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // UNLISTEN already consumed
 	if p.cur.Type == '*' {
 		p.advance()
-		return &nodes.UnlistenStmt{Conditionname: ""}, nil
+		return &nodes.UnlistenStmt{Conditionname: "", Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
 	name, err := p.parseColId()
 	if err != nil {
 		return nil, err
 	}
-	return &nodes.UnlistenStmt{Conditionname: name}, nil
+	return &nodes.UnlistenStmt{Conditionname: name, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
 
 // parseNotifyStmt parses a NOTIFY statement.
 func (p *Parser) parseNotifyStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // NOTIFY already consumed
 	name, err := p.parseColId()
 	if err != nil {
 		return nil, err
@@ -180,16 +189,17 @@ func (p *Parser) parseNotifyStmt() (nodes.Node, error) {
 			return nil, err
 		}
 	}
-	return &nodes.NotifyStmt{Conditionname: name, Payload: payload}, nil
+	return &nodes.NotifyStmt{Conditionname: name, Payload: payload, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
 
 // parseLoadStmt parses a LOAD statement.
 func (p *Parser) parseLoadStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // LOAD already consumed
 	filename := p.cur.Str
 	if _, err := p.expect(SCONST); err != nil {
 		return nil, err
 	}
-	return &nodes.LoadStmt{Filename: filename}, nil
+	return &nodes.LoadStmt{Filename: filename, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
 
 // parseCallStmt parses a CALL statement.
@@ -199,6 +209,7 @@ func (p *Parser) parseLoadStmt() (nodes.Node, error) {
 //
 //	CALL name ( [ argument ] [, ...] )
 func (p *Parser) parseCallStmt() (nodes.Node, error) {
+	stmtLoc := p.prev.Loc // CALL already consumed
 	funcName, err := p.parseFuncName()
 	if err != nil {
 		return nil, err
@@ -213,11 +224,13 @@ func (p *Parser) parseCallStmt() (nodes.Node, error) {
 	}
 	return &nodes.CallStmt{
 		Funccall: fc.(*nodes.FuncCall),
+		Loc:      nodes.Loc{Start: stmtLoc, End: p.prev.End},
 	}, nil
 }
 
 // parseReassignOwnedStmt parses a REASSIGN OWNED BY statement.
 func (p *Parser) parseReassignOwnedStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // REASSIGN already consumed
 	if _, err := p.expect(OWNED); err != nil {
 		return nil, err
 	}
@@ -229,5 +242,5 @@ func (p *Parser) parseReassignOwnedStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	newrole := p.parseRoleSpec()
-	return &nodes.ReassignOwnedStmt{Roles: roles, Newrole: newrole}, nil
+	return &nodes.ReassignOwnedStmt{Roles: roles, Newrole: newrole, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
