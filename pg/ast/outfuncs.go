@@ -600,6 +600,10 @@ func writeCreateStmt(sb *strings.Builder, n *CreateStmt) {
 		sb.WriteString("\"")
 	}
 	sb.WriteString(fmt.Sprintf(" :if_not_exists %t", n.IfNotExists))
+	// --- Section 4.3: Trigger, index & view nodes ---
+	if n.Loc.Start != 0 || n.Loc.End != 0 {
+		sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
+	}
 	sb.WriteString("}")
 }
 
@@ -722,6 +726,10 @@ func writeIndexStmt(sb *strings.Builder, n *IndexStmt) {
 	sb.WriteString(fmt.Sprintf(" :initdeferred %t", n.Initdeferred))
 	sb.WriteString(fmt.Sprintf(" :concurrent %t", n.Concurrent))
 	sb.WriteString(fmt.Sprintf(" :if_not_exists %t", n.IfNotExists))
+	// --- Section 4.3: Trigger, index & view nodes ---
+	if n.Loc.Start != 0 || n.Loc.End != 0 {
+		sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
+	}
 	sb.WriteString("}")
 }
 
@@ -745,6 +753,10 @@ func writeViewStmt(sb *strings.Builder, n *ViewStmt) {
 		writeNode(sb, n.Options)
 	}
 	sb.WriteString(fmt.Sprintf(" :withCheckOption %d", n.WithCheckOption))
+	// --- Section 4.3: Trigger, index & view nodes ---
+	if n.Loc.Start != 0 || n.Loc.End != 0 {
+		sb.WriteString(fmt.Sprintf(" :location %d %d", n.Loc.Start, n.Loc.End))
+	}
 	sb.WriteString("}")
 }
 

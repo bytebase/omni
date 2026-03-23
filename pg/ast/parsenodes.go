@@ -103,6 +103,7 @@ type CreateStmt struct {
 	Tablespacename string         // table space to use, or NULL
 	AccessMethod   string         // table access method
 	IfNotExists    bool           // just do nothing if it already exists?
+	Loc            Loc            // token location
 }
 
 func (n *CreateStmt) Tag() NodeTag { return T_CreateStmt }
@@ -115,6 +116,7 @@ type ViewStmt struct {
 	Replace         bool      // replace an existing view?
 	Options         *List     // options from WITH clause
 	WithCheckOption int       // WITH CHECK OPTION
+	Loc             Loc       // token location
 }
 
 func (n *ViewStmt) Tag() NodeTag { return T_ViewStmt }
@@ -145,6 +147,7 @@ type IndexStmt struct {
 	Concurrent     bool      // should this be a concurrent index build?
 	IfNotExists    bool      // just do nothing if index already exists?
 	ResetDefaultTblspc bool  // reset default_tablespace prior to executing
+	Loc            Loc       // token location
 }
 
 func (n *IndexStmt) Tag() NodeTag { return T_IndexStmt }
@@ -648,6 +651,7 @@ type IndexElem struct {
 	Opclassopts   *List       // operator class parameters
 	Ordering      SortByDir   // ASC/DESC/default
 	NullsOrdering SortByNulls // FIRST/LAST/default
+	Loc           Loc         // token location
 }
 
 func (n *IndexElem) Tag() NodeTag { return T_IndexElem }
@@ -1120,6 +1124,7 @@ type CreateTrigStmt struct {
 	Deferrable    bool      // constraint trigger is deferrable?
 	Initdeferred  bool      // constraint trigger is initially deferred?
 	Constrrel     *RangeVar // constraint's referenced rel, for FK
+	Loc           Loc       // token location
 }
 
 func (n *CreateTrigStmt) Tag() NodeTag { return T_CreateTrigStmt }
@@ -1187,6 +1192,7 @@ type CreateTableAsStmt struct {
 	Objtype      ObjectType  // OBJECT_TABLE or OBJECT_MATVIEW
 	IsSelectInto bool        // was SELECT INTO
 	IfNotExists  bool        // just do nothing if table exists?
+	Loc          Loc         // token location
 }
 
 func (n *CreateTableAsStmt) Tag() NodeTag { return T_CreateTableAsStmt }
@@ -1196,6 +1202,7 @@ type RefreshMatViewStmt struct {
 	Concurrent bool      // allow concurrent access?
 	SkipData   bool      // don't run SELECT query
 	Relation   *RangeVar // relation to refresh
+	Loc        Loc       // token location
 }
 
 func (n *RefreshMatViewStmt) Tag() NodeTag { return T_RefreshMatViewStmt }
@@ -1647,6 +1654,7 @@ type CreateEventTrigStmt struct {
 	Eventname  string // event name (e.g., ddl_command_start)
 	Whenclause *List  // list of DefElem (tag filters)
 	Funcname   *List  // qualified function name
+	Loc        Loc    // token location
 }
 
 func (n *CreateEventTrigStmt) Tag() NodeTag { return T_CreateEventTrigStmt }
@@ -1692,6 +1700,7 @@ type TriggerTransition struct {
 	Name    string // transition relation name
 	IsNew   bool   // is it NEW TABLE or OLD TABLE?
 	IsTable bool   // is it TABLE or ROW?
+	Loc     Loc    // token location
 }
 
 func (n *TriggerTransition) Tag() NodeTag { return T_TriggerTransition }

@@ -217,8 +217,11 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 			return p.parseAlterTableStmt()
 		}
 	case REFRESH:
+		loc := p.pos()
 		p.advance() // consume REFRESH
-		return p.parseRefreshMatViewStmt()
+		stmt, err := p.parseRefreshMatViewStmt()
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	case BEGIN_P, START, COMMIT, END_P, ABORT_P, SAVEPOINT, RELEASE:
 		return p.parseTransactionStmt()
 	case ROLLBACK:
@@ -370,12 +373,15 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		createLoc := p.pos() // position of CREATE
 		p.advance()          // consume CREATE
 		p.advance()          // consume OR
+
 		p.expect(REPLACE)
 		switch p.cur.Type {
 		case FUNCTION, PROCEDURE:
 			return p.parseCreateFunctionStmt(createLoc, true)
 		case TRIGGER, CONSTRAINT:
-			return p.parseCreateTrigStmt(true)
+			stmt, err := p.parseCreateTrigStmt(true)
+			if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+			return stmt, err
 		case TRUSTED, PROCEDURAL, LANGUAGE:
 			return p.parseCreatePLangStmt(true)
 		case RULE:
@@ -385,22 +391,33 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		case TRANSFORM:
 			return p.parseCreateTransformStmt(true, createLoc)
 		default:
-			return p.parseViewStmt(true)
+			stmt, err := p.parseViewStmt(true)
+			if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+			return stmt, err
 		}
 	case VIEW:
 		// CREATE VIEW ...
+		loc := p.pos()
 		p.advance() // consume CREATE
-		return p.parseViewStmt(false)
+		stmt, err := p.parseViewStmt(false)
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	case RECURSIVE:
 		// CREATE RECURSIVE VIEW ...
+		loc := p.pos()
 		p.advance() // consume CREATE
-		return p.parseViewStmt(false)
+		stmt, err := p.parseViewStmt(false)
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	case MATERIALIZED:
 		// CREATE MATERIALIZED VIEW ...
+		loc := p.pos()
 		p.advance() // consume CREATE
 		relpersistence := byte(nodes.RELPERSISTENCE_PERMANENT)
 		p.advance() // consume MATERIALIZED
-		return p.parseCreateMatViewStmt(relpersistence)
+		stmt, err := p.parseCreateMatViewStmt(relpersistence)
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	case TABLE:
 		// CREATE TABLE ... (could be regular CREATE TABLE or CREATE TABLE AS)
 		return p.parseCreateOrCTAS()
@@ -415,12 +432,18 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return p.parseCreateUnloggedDispatch()
 	case UNIQUE:
 		// CREATE UNIQUE INDEX ...
+		loc := p.pos()
 		p.advance() // consume CREATE
-		return p.parseIndexStmt()
+		stmt, err := p.parseIndexStmt()
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	case INDEX:
 		// CREATE INDEX ...
+		loc := p.pos()
 		p.advance() // consume CREATE
-		return p.parseIndexStmt()
+		stmt, err := p.parseIndexStmt()
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	case SEQUENCE:
 		// CREATE SEQUENCE ...
 		loc := p.pos()
@@ -489,17 +512,26 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return p.parseCreatePolicyStmt()
 	case TRIGGER:
 		// CREATE TRIGGER ...
+		loc := p.pos()
 		p.advance() // consume CREATE
-		return p.parseCreateTrigStmt(false)
+		stmt, err := p.parseCreateTrigStmt(false)
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	case CONSTRAINT:
 		// CREATE CONSTRAINT TRIGGER ...
+		loc := p.pos()
 		p.advance() // consume CREATE
-		return p.parseCreateTrigStmt(false)
+		stmt, err := p.parseCreateTrigStmt(false)
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	case EVENT:
 		// CREATE EVENT TRIGGER ...
+		loc := p.pos()
 		p.advance() // consume CREATE
 		p.advance() // consume EVENT
-		return p.parseCreateEventTrigStmt()
+		stmt, err := p.parseCreateEventTrigStmt()
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	case FOREIGN:
 		// CREATE FOREIGN DATA WRAPPER or CREATE FOREIGN TABLE
 		p.advance() // consume CREATE
@@ -597,6 +629,7 @@ func (p *Parser) parseCreateTempDispatch() (nodes.Node, error) {
 		}
 		if stmt != nil {
 			stmt.View.Relpersistence = relpersistence
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 		}
 		return stmt, nil
 	}
@@ -623,31 +656,46 @@ func (p *Parser) parseCreateTempDispatch() (nodes.Node, error) {
 	}
 
 	// Determine if this is CTAS or regular CREATE TABLE.
-	// CTAS: no '(' for column defs, just optional column list then AS.
-	// Regular: has '(' for column defs, or PARTITION OF, or OF.
 	if p.cur.Type == '(' {
-		return p.parseCreateTableOrCTASAfterParen(names, relpersistence, ifNotExists)
+		node, err := p.parseCreateTableOrCTASAfterParen(names, relpersistence, ifNotExists)
+		if err != nil { return node, err }
+		if node != nil {
+			switch n := node.(type) {
+			case *nodes.CreateStmt:
+				n.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			case *nodes.CreateTableAsStmt:
+				n.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			}
+		}
+		return node, nil
 	}
 
 	// No '(' - check for AS (CTAS with no column list), PARTITION, OF
 	if p.cur.Type == AS || p.cur.Type == USING {
-		return p.finishCTAS(names, nil, relpersistence, ifNotExists)
+		stmt, err := p.finishCTAS(names, nil, relpersistence, ifNotExists)
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	}
 
 	// Must be PARTITION OF, OF, or error
-	return p.finishCreateStmt(names, relpersistence, ifNotExists)
+	stmt, err := p.finishCreateStmt(names, relpersistence, ifNotExists)
+	if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+	return stmt, err
 }
 
 // parseCreateUnloggedDispatch dispatches CREATE UNLOGGED ... statements.
 // The CREATE keyword has NOT been consumed yet.
 func (p *Parser) parseCreateUnloggedDispatch() (nodes.Node, error) {
+	loc := p.pos()
 	p.advance() // consume CREATE
 	p.advance() // consume UNLOGGED
 	relpersistence := byte(nodes.RELPERSISTENCE_UNLOGGED)
 
 	if p.cur.Type == MATERIALIZED {
 		p.advance() // consume MATERIALIZED
-		return p.parseCreateMatViewStmt(relpersistence)
+		stmt, err := p.parseCreateMatViewStmt(relpersistence)
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	}
 
 	if p.cur.Type == VIEW || p.cur.Type == RECURSIVE {
@@ -658,6 +706,7 @@ func (p *Parser) parseCreateUnloggedDispatch() (nodes.Node, error) {
 		}
 		if stmt != nil {
 			stmt.View.Relpersistence = relpersistence
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 		}
 		return stmt, nil
 	}
@@ -679,20 +728,35 @@ func (p *Parser) parseCreateUnloggedDispatch() (nodes.Node, error) {
 	}
 
 	if p.cur.Type == '(' {
-		return p.parseCreateTableOrCTASAfterParen(names, relpersistence, ifNotExists)
+		node, err := p.parseCreateTableOrCTASAfterParen(names, relpersistence, ifNotExists)
+		if err != nil { return node, err }
+		if node != nil {
+			switch n := node.(type) {
+			case *nodes.CreateStmt:
+				n.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			case *nodes.CreateTableAsStmt:
+				n.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			}
+		}
+		return node, nil
 	}
 
 	if p.cur.Type == AS || p.cur.Type == USING {
-		return p.finishCTAS(names, nil, relpersistence, ifNotExists)
+		stmt, err := p.finishCTAS(names, nil, relpersistence, ifNotExists)
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	}
 
-	return p.finishCreateStmt(names, relpersistence, ifNotExists)
+	stmt, err := p.finishCreateStmt(names, relpersistence, ifNotExists)
+	if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+	return stmt, err
 }
 
 // parseCreateOrCTAS parses CREATE TABLE ... which could be either a regular
 // CREATE TABLE or a CREATE TABLE AS (CTAS) statement.
 // The CREATE keyword has NOT been consumed yet.
 func (p *Parser) parseCreateOrCTAS() (nodes.Node, error) {
+	loc := p.pos()
 	p.advance() // consume CREATE
 	relpersistence := byte(nodes.RELPERSISTENCE_PERMANENT)
 	p.expect(TABLE)
@@ -712,16 +776,30 @@ func (p *Parser) parseCreateOrCTAS() (nodes.Node, error) {
 
 	// Determine if this is CTAS or regular CREATE TABLE.
 	if p.cur.Type == '(' {
-		return p.parseCreateTableOrCTASAfterParen(names, relpersistence, ifNotExists)
+		node, err := p.parseCreateTableOrCTASAfterParen(names, relpersistence, ifNotExists)
+		if err != nil { return node, err }
+		if node != nil {
+			switch n := node.(type) {
+			case *nodes.CreateStmt:
+				n.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			case *nodes.CreateTableAsStmt:
+				n.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			}
+		}
+		return node, nil
 	}
 
 	// No '(' - check for AS or USING (CTAS with no column list)
 	if p.cur.Type == AS || p.cur.Type == USING {
-		return p.finishCTAS(names, nil, relpersistence, ifNotExists)
+		stmt, err := p.finishCTAS(names, nil, relpersistence, ifNotExists)
+		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		return stmt, err
 	}
 
 	// PARTITION OF, OF, etc.
-	return p.finishCreateStmt(names, relpersistence, ifNotExists)
+	stmt, err := p.finishCreateStmt(names, relpersistence, ifNotExists)
+	if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+	return stmt, err
 }
 
 // parseCreateTableOrCTASAfterParen handles the ambiguous case where we see '('

@@ -381,6 +381,7 @@ func NodeLoc(n Node) Loc {
 
 	// --- Section 5.1: Investigation nodes ---
 
+
 	default:
 		return NoLoc()
 	}
