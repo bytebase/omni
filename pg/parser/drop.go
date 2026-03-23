@@ -22,6 +22,29 @@ import (
 //	    | DROP SERVER [IF EXISTS] name_list opt_drop_behavior
 //	    | DROP OWNED BY name_list opt_drop_behavior
 func (p *Parser) parseDropStmt(stmtLoc int) (nodes.Node, error) {
+	result, err := p.parseDropStmtInner()
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, nil
+	}
+	endPos := p.prev.End
+	// Set Loc on whichever type was returned
+	switch n := result.(type) {
+	case *nodes.DropStmt:
+		n.Loc = nodes.Loc{Start: stmtLoc, End: endPos}
+	case *nodes.DropOwnedStmt:
+		n.Loc = nodes.Loc{Start: stmtLoc, End: endPos}
+	case *nodes.DropSubscriptionStmt:
+		n.Loc = nodes.Loc{Start: stmtLoc, End: endPos}
+	case *nodes.DropTableSpaceStmt:
+		n.Loc = nodes.Loc{Start: stmtLoc, End: endPos}
+	}
+	return result, nil
+}
+
+func (p *Parser) parseDropStmtInner() (nodes.Node, error) {
 	switch p.cur.Type {
 	case TABLE, SEQUENCE, VIEW, INDEX, COLLATION, CONVERSION_P, STATISTICS:
 		return p.parseDropObjectTypeAnyName()
@@ -77,7 +100,7 @@ func (p *Parser) parseDropStmt(stmtLoc int) (nodes.Node, error) {
 	case OWNED:
 		return p.parseDropOwned()
 	case DATABASE:
-		return p.parseDropdbStmt(stmtLoc)
+		return p.parseDropdbStmt(p.stmtStart)
 	case ROLE, GROUP_P:
 		return p.parseDropRoleStmt()
 	case USER:
@@ -468,6 +491,8 @@ func makeNameListAsAnyNameList(nameList *nodes.List) *nodes.List {
 //	TruncateStmt:
 //	    TRUNCATE opt_table relation_expr_list opt_restart_seqs opt_drop_behavior
 func (p *Parser) parseTruncateStmt() (nodes.Node, error) {
+	loc := p.prev.Loc // TRUNCATE was already consumed
+
 	// opt_table
 	if p.cur.Type == TABLE {
 		p.advance()
@@ -486,6 +511,7 @@ func (p *Parser) parseTruncateStmt() (nodes.Node, error) {
 		Relations:   relations,
 		RestartSeqs: restartSeqs,
 		Behavior:    nodes.DropBehavior(behavior),
+		Loc:         nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 

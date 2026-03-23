@@ -159,6 +159,7 @@ type DropStmt struct {
 	Behavior   int    // RESTRICT or CASCADE behavior (DropBehavior)
 	Missing_ok bool   // skip error if object is missing?
 	Concurrent bool   // drop index concurrently?
+	Loc        Loc    // token location
 }
 
 func (n *DropStmt) Tag() NodeTag { return T_DropStmt }
@@ -968,6 +969,7 @@ type TruncateStmt struct {
 	Relations   *List          // list of relation names to truncate
 	RestartSeqs bool           // restart owned sequences?
 	Behavior    DropBehavior   // RESTRICT or CASCADE behavior
+	Loc         Loc            // token location
 }
 
 func (n *TruncateStmt) Tag() NodeTag { return T_TruncateStmt }
@@ -1215,6 +1217,7 @@ type VacuumStmt struct {
 	Options  *List // list of DefElem
 	Rels     *List // list of VacuumRelation, or NIL for all
 	IsVacuumCmd bool // true for VACUUM, false for ANALYZE
+	Loc      Loc   // token location
 }
 
 func (n *VacuumStmt) Tag() NodeTag { return T_VacuumStmt }
@@ -1224,6 +1227,7 @@ type VacuumRelation struct {
 	Relation  *RangeVar // relation to process, or NULL for current database
 	Oid       Oid       // OID of relation to process (filled in later)
 	VaCols    *List     // list of column names, or NIL for all
+	Loc       Loc       // token location
 }
 
 func (n *VacuumRelation) Tag() NodeTag { return T_VacuumRelation }
@@ -1362,6 +1366,7 @@ type ClusterStmt struct {
 	Relation  *RangeVar // table to cluster
 	Indexname string    // name of index to use, or NULL
 	Params    *List     // list of DefElem nodes (PG17+)
+	Loc       Loc       // token location
 }
 
 func (n *ClusterStmt) Tag() NodeTag { return T_ClusterStmt }
@@ -1372,6 +1377,7 @@ type ReindexStmt struct {
 	Relation  *RangeVar         // table or index to reindex
 	Name      string            // name of database/schema to reindex
 	Params    *List             // list of DefElem
+	Loc       Loc               // token location
 }
 
 // ReindexObjectType represents the type of object to reindex.
@@ -1447,6 +1453,7 @@ func (n *ClosePortalStmt) Tag() NodeTag { return T_ClosePortalStmt }
 type ConstraintsSetStmt struct {
 	Constraints *List
 	Deferred    bool
+	Loc         Loc // token location
 }
 
 func (n *ConstraintsSetStmt) Tag() NodeTag { return T_ConstraintsSetStmt }
@@ -1457,6 +1464,7 @@ type VariableSetStmt struct {
 	Name    string
 	Args    *List
 	IsLocal bool
+	Loc     Loc // token location
 }
 
 func (n *VariableSetStmt) Tag() NodeTag { return T_VariableSetStmt }
@@ -1464,6 +1472,7 @@ func (n *VariableSetStmt) Tag() NodeTag { return T_VariableSetStmt }
 // VariableShowStmt - SHOW variable
 type VariableShowStmt struct {
 	Name string
+	Loc  Loc // token location
 }
 
 func (n *VariableShowStmt) Tag() NodeTag { return T_VariableShowStmt }
@@ -1600,6 +1609,7 @@ func (n *DropdbStmt) Tag() NodeTag { return T_DropdbStmt }
 // AlterSystemStmt - ALTER SYSTEM SET/RESET
 type AlterSystemStmt struct {
 	Setstmt *VariableSetStmt
+	Loc     Loc // token location
 }
 
 func (n *AlterSystemStmt) Tag() NodeTag { return T_AlterSystemStmt }
@@ -1864,6 +1874,7 @@ func (n *CreateTableSpaceStmt) Tag() NodeTag { return T_CreateTableSpaceStmt }
 type DropTableSpaceStmt struct {
 	Tablespacename string // name of the tablespace to drop
 	MissingOk      bool   // skip error if missing?
+	Loc            Loc    // token location
 }
 
 func (n *DropTableSpaceStmt) Tag() NodeTag { return T_DropTableSpaceStmt }
@@ -1985,6 +1996,7 @@ type DropSubscriptionStmt struct {
 	Subname   string       // subscription name
 	MissingOk bool         // skip error if missing?
 	Behavior  DropBehavior // RESTRICT or CASCADE
+	Loc       Loc          // token location
 }
 
 func (n *DropSubscriptionStmt) Tag() NodeTag { return T_DropSubscriptionStmt }
@@ -2169,6 +2181,7 @@ func (n *CreateConversionStmt) Tag() NodeTag { return T_CreateConversionStmt }
 type DropOwnedStmt struct {
 	Roles    *List        // list of RoleSpec
 	Behavior DropBehavior // RESTRICT or CASCADE
+	Loc      Loc          // token location
 }
 
 func (n *DropOwnedStmt) Tag() NodeTag { return T_DropOwnedStmt }

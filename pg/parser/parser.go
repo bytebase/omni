@@ -380,7 +380,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			return p.parseCreateFunctionStmt(createLoc, true)
 		case TRIGGER, CONSTRAINT:
 			stmt, err := p.parseCreateTrigStmt(true)
-			if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+			if stmt != nil { stmt.Loc = nodes.Loc{Start: createLoc, End: p.prev.End} }
 			return stmt, err
 		case TRUSTED, PROCEDURAL, LANGUAGE:
 			return p.parseCreatePLangStmt(true)
@@ -392,7 +392,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			return p.parseCreateTransformStmt(true, createLoc)
 		default:
 			stmt, err := p.parseViewStmt(true)
-			if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+			if stmt != nil { stmt.Loc = nodes.Loc{Start: createLoc, End: p.prev.End} }
 			return stmt, err
 		}
 	case VIEW:

@@ -373,14 +373,93 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 
 	// --- Section 4.3: Trigger, index & view nodes ---
+	case *CreateTrigStmt:
+		return v.Loc
+	case *CreateEventTrigStmt:
+		return v.Loc
+	case *TriggerTransition:
+		return v.Loc
+	case *IndexStmt:
+		return v.Loc
+	case *IndexElem:
+		return v.Loc
+	case *ViewStmt:
+		return v.Loc
+	case *CreateTableAsStmt:
+		return v.Loc
+	case *RefreshMatViewStmt:
+		return v.Loc
+	case *CreateStmt:
+		return v.Loc
 
 	// --- Section 4.4: Utility statement nodes ---
+	case *ExplainStmt:
+		return v.Loc
+	case *CallStmt:
+		return v.Loc
+	case *DoStmt:
+		return v.Loc
+	case *CheckPointStmt:
+		return v.Loc
+	case *DiscardStmt:
+		return v.Loc
+	case *ListenStmt:
+		return v.Loc
+	case *NotifyStmt:
+		return v.Loc
+	case *UnlistenStmt:
+		return v.Loc
+	case *LoadStmt:
+		return v.Loc
+	case *ReassignOwnedStmt:
+		return v.Loc
 
 	// --- Section 4.5: Cursor, prepare & IO nodes ---
+	case *DeclareCursorStmt:
+		return v.Loc
+	case *FetchStmt:
+		return v.Loc
+	case *ClosePortalStmt:
+		return v.Loc
+	case *PrepareStmt:
+		return v.Loc
+	case *ExecuteStmt:
+		return v.Loc
+	case *CopyStmt:
+		return v.Loc
+	case *LockStmt:
+		return v.Loc
 
 	// --- Section 4.6: Maintenance & SET nodes ---
+	case *VacuumStmt:
+		return v.Loc
+	case *VacuumRelation:
+		return v.Loc
+	case *ClusterStmt:
+		return v.Loc
+	case *ReindexStmt:
+		return v.Loc
+	case *VariableSetStmt:
+		return v.Loc
+	case *VariableShowStmt:
+		return v.Loc
+	case *AlterSystemStmt:
+		return v.Loc
+	case *ConstraintsSetStmt:
+		return v.Loc
+	case *DropStmt:
+		return v.Loc
+	case *DropOwnedStmt:
+		return v.Loc
+	case *DropSubscriptionStmt:
+		return v.Loc
+	case *DropTableSpaceStmt:
+		return v.Loc
+	case *TruncateStmt:
+		return v.Loc
 
 	// --- Section 5.1: Investigation nodes ---
+
 
 
 

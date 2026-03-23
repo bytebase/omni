@@ -10,6 +10,7 @@ import (
 //	    VACUUM opt_full opt_freeze opt_verbose opt_analyze opt_vacuum_relation_list
 //	    | VACUUM '(' utility_option_list ')' opt_vacuum_relation_list
 func (p *Parser) parseVacuumStmt() (nodes.Node, error) {
+	loc := p.pos()
 	p.advance() // consume VACUUM
 
 	// VACUUM '(' utility_option_list ')' opt_vacuum_relation_list
@@ -24,6 +25,7 @@ func (p *Parser) parseVacuumStmt() (nodes.Node, error) {
 			Options:     opts,
 			Rels:        rels,
 			IsVacuumCmd: true,
+			Loc:         nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	}
 
@@ -59,6 +61,7 @@ func (p *Parser) parseVacuumStmt() (nodes.Node, error) {
 	}
 
 	n.Rels = p.parseOptVacuumRelationList()
+	n.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 	return n, nil
 }
 
@@ -68,6 +71,7 @@ func (p *Parser) parseVacuumStmt() (nodes.Node, error) {
 //	    analyze_keyword opt_verbose opt_vacuum_relation_list
 //	    | analyze_keyword '(' utility_option_list ')' opt_vacuum_relation_list
 func (p *Parser) parseAnalyzeStmt() (nodes.Node, error) {
+	loc := p.pos()
 	p.advance() // consume ANALYZE/ANALYSE
 
 	// analyze_keyword '(' utility_option_list ')' opt_vacuum_relation_list
@@ -82,6 +86,7 @@ func (p *Parser) parseAnalyzeStmt() (nodes.Node, error) {
 			Options:     opts,
 			Rels:        rels,
 			IsVacuumCmd: false,
+			Loc:         nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	}
 
@@ -95,6 +100,7 @@ func (p *Parser) parseAnalyzeStmt() (nodes.Node, error) {
 	}
 
 	n.Rels = p.parseOptVacuumRelationList()
+	n.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 	return n, nil
 }
 
@@ -137,6 +143,7 @@ func (p *Parser) parseVacuumRelationList() *nodes.List {
 //	vacuum_relation:
 //	    qualified_name opt_column_list
 func (p *Parser) parseVacuumRelation() *nodes.VacuumRelation {
+	loc := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil
@@ -146,6 +153,7 @@ func (p *Parser) parseVacuumRelation() *nodes.VacuumRelation {
 	return &nodes.VacuumRelation{
 		Relation: rv,
 		VaCols:   cols,
+		Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 	}
 }
 
@@ -158,6 +166,7 @@ func (p *Parser) parseVacuumRelation() *nodes.VacuumRelation {
 //	    | CLUSTER opt_verbose
 //	    | CLUSTER opt_verbose name ON qualified_name
 func (p *Parser) parseClusterStmt() (nodes.Node, error) {
+	loc := p.pos()
 	p.advance() // consume CLUSTER
 
 	// CLUSTER '(' utility_option_list ')' [qualified_name cluster_index_specification]
@@ -172,7 +181,7 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 		if p.isColId() {
 			names, err := p.parseQualifiedName()
 			if err != nil {
-				return &nodes.ClusterStmt{Params: params}, nil
+				return &nodes.ClusterStmt{Params: params, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 			}
 			rv := makeRangeVarFromNames(names)
 			idxName := p.parseClusterIndexSpecification()
@@ -180,9 +189,10 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 				Relation:  rv,
 				Indexname: idxName,
 				Params:    params,
+				Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
-		return &nodes.ClusterStmt{Params: params}, nil
+		return &nodes.ClusterStmt{Params: params, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
 
 	// opt_verbose
@@ -195,7 +205,7 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 	// Check if we have a qualified_name
 	if !p.isColId() {
 		// CLUSTER opt_verbose (no table)
-		n := &nodes.ClusterStmt{}
+		n := &nodes.ClusterStmt{Loc: nodes.Loc{Start: loc, End: p.prev.End}}
 		if verbose {
 			n.Params = &nodes.List{Items: []nodes.Node{makeDefElem("verbose", nil)}}
 		}
@@ -211,7 +221,7 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 
 	names, err := p.parseQualifiedName()
 	if err != nil {
-		n := &nodes.ClusterStmt{}
+		n := &nodes.ClusterStmt{Loc: nodes.Loc{Start: loc, End: p.prev.End}}
 		if verbose {
 			n.Params = &nodes.List{Items: []nodes.Node{makeDefElem("verbose", nil)}}
 		}
@@ -234,6 +244,7 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 		n := &nodes.ClusterStmt{
 			Relation:  rv,
 			Indexname: indexName,
+			Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 		}
 		if verbose {
 			n.Params = &nodes.List{Items: []nodes.Node{makeDefElem("verbose", nil)}}
@@ -247,6 +258,7 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 	n := &nodes.ClusterStmt{
 		Relation:  rv,
 		Indexname: idxName,
+		Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 	}
 	if verbose {
 		n.Params = &nodes.List{Items: []nodes.Node{makeDefElem("verbose", nil)}}
@@ -275,6 +287,7 @@ func (p *Parser) parseClusterIndexSpecification() string {
 //	    | REINDEX opt_reindex_option_list SCHEMA opt_concurrently name
 //	    | REINDEX opt_reindex_option_list reindex_target_multitable opt_concurrently name
 func (p *Parser) parseReindexStmt() (nodes.Node, error) {
+	loc := p.pos()
 	p.advance() // consume REINDEX
 
 	// opt_reindex_option_list: '(' utility_option_list ')' | /* EMPTY */
@@ -311,6 +324,7 @@ func (p *Parser) parseReindexStmt() (nodes.Node, error) {
 			Kind:     kind,
 			Relation: rv,
 			Params:   params,
+			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 
 	case SCHEMA:
@@ -327,6 +341,7 @@ func (p *Parser) parseReindexStmt() (nodes.Node, error) {
 			Kind:   nodes.REINDEX_OBJECT_SCHEMA,
 			Name:   name,
 			Params: params,
+			Loc:    nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 
 	case SYSTEM_P, DATABASE:
@@ -348,6 +363,7 @@ func (p *Parser) parseReindexStmt() (nodes.Node, error) {
 			Kind:   kind,
 			Name:   name,
 			Params: params,
+			Loc:    nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 
 	default:
