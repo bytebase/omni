@@ -1761,6 +1761,7 @@ type CreateExtensionStmt struct {
 	Extname     string // name of the extension to create
 	IfNotExists bool   // just do nothing if it already exists?
 	Options     *List  // list of DefElem nodes
+	Loc         Loc    // token location
 }
 
 func (n *CreateExtensionStmt) Tag() NodeTag { return T_CreateExtensionStmt }
@@ -1769,6 +1770,7 @@ func (n *CreateExtensionStmt) Tag() NodeTag { return T_CreateExtensionStmt }
 type AlterExtensionStmt struct {
 	Extname string // name of the extension to alter
 	Options *List  // list of DefElem nodes
+	Loc     Loc    // token location
 }
 
 func (n *AlterExtensionStmt) Tag() NodeTag { return T_AlterExtensionStmt }
@@ -1779,6 +1781,7 @@ type AlterExtensionContentsStmt struct {
 	Action  int        // +1 = ADD, -1 = DROP
 	Objtype ObjectType // object type
 	Object  Node       // qualified name of the object
+	Loc     Loc        // token location
 }
 
 func (n *AlterExtensionContentsStmt) Tag() NodeTag { return T_AlterExtensionContentsStmt }
@@ -1815,6 +1818,7 @@ type CreateAmStmt struct {
 	Amname      string // access method name
 	HandlerName *List  // handler function name
 	Amtype      byte   // 'i' for INDEX, 't' for TABLE
+	Loc         Loc    // token location
 }
 
 func (n *CreateAmStmt) Tag() NodeTag { return T_CreateAmStmt }
@@ -2056,6 +2060,7 @@ type CreateCastStmt struct {
 	Func       *ObjectWithArgs // cast function, or NULL
 	Context    CoercionContext // cast context
 	Inout      bool            // WITH INOUT
+	Loc        Loc             // token location
 }
 
 func (n *CreateCastStmt) Tag() NodeTag { return T_CreateCastStmt }
@@ -2067,6 +2072,7 @@ type CreateTransformStmt struct {
 	Lang     string          // language name
 	Fromsql  *ObjectWithArgs // FROM SQL function
 	Tosql    *ObjectWithArgs // TO SQL function
+	Loc      Loc             // token location
 }
 
 func (n *CreateTransformStmt) Tag() NodeTag { return T_CreateTransformStmt }

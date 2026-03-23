@@ -6,7 +6,8 @@ import (
 
 // parseCreateExtensionStmt parses a CREATE EXTENSION statement.
 func (p *Parser) parseCreateExtensionStmt() (nodes.Node, error) {
-	p.advance() // consume EXTENSION
+	loc := p.prev.Loc // start of CREATE
+	p.advance()       // consume EXTENSION
 
 	ifNotExists := false
 	if p.cur.Type == IF_P {
@@ -32,6 +33,7 @@ func (p *Parser) parseCreateExtensionStmt() (nodes.Node, error) {
 		Extname:     name,
 		IfNotExists: ifNotExists,
 		Options:     opts,
+		Loc:         nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
@@ -70,7 +72,8 @@ func (p *Parser) parseCreateExtensionOptItem() *nodes.DefElem {
 
 // parseAlterExtensionStmt parses ALTER EXTENSION statements.
 func (p *Parser) parseAlterExtensionStmt() (nodes.Node, error) {
-	p.advance() // consume EXTENSION
+	loc := p.prev.Loc // start of ALTER
+	p.advance()       // consume EXTENSION
 
 	name, _ := p.parseName()
 
@@ -81,13 +84,14 @@ func (p *Parser) parseAlterExtensionStmt() (nodes.Node, error) {
 		return &nodes.AlterExtensionStmt{
 			Extname: name,
 			Options: opts,
+			Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case ADD_P:
 		p.advance()
-		return p.parseAlterExtensionContents(name, 1)
+		return p.parseAlterExtensionContents(loc, name, 1)
 	case DROP:
 		p.advance()
-		return p.parseAlterExtensionContents(name, -1)
+		return p.parseAlterExtensionContents(loc, name, -1)
 	case SET:
 		p.advance()
 		if _, err := p.expect(SCHEMA); err != nil {
@@ -128,7 +132,7 @@ func (p *Parser) parseAlterExtensionOptItem() *nodes.DefElem {
 	return nil
 }
 
-func (p *Parser) parseAlterExtensionContents(extname string, action int) (nodes.Node, error) {
+func (p *Parser) parseAlterExtensionContents(loc int, extname string, action int) (nodes.Node, error) {
 	switch p.cur.Type {
 	case AGGREGATE:
 		p.advance()
@@ -136,6 +140,7 @@ func (p *Parser) parseAlterExtensionContents(extname string, action int) (nodes.
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_AGGREGATE, Object: obj,
+			Loc: nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case FUNCTION:
 		p.advance()
@@ -143,6 +148,7 @@ func (p *Parser) parseAlterExtensionContents(extname string, action int) (nodes.
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_FUNCTION, Object: obj,
+			Loc: nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case PROCEDURE:
 		p.advance()
@@ -150,6 +156,7 @@ func (p *Parser) parseAlterExtensionContents(extname string, action int) (nodes.
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_PROCEDURE, Object: obj,
+			Loc: nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case ROUTINE:
 		p.advance()
@@ -157,6 +164,7 @@ func (p *Parser) parseAlterExtensionContents(extname string, action int) (nodes.
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_ROUTINE, Object: obj,
+			Loc: nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case OPERATOR:
 		p.advance()
@@ -169,6 +177,7 @@ func (p *Parser) parseAlterExtensionContents(extname string, action int) (nodes.
 			return &nodes.AlterExtensionContentsStmt{
 				Extname: extname, Action: action,
 				Objtype: nodes.OBJECT_OPCLASS, Object: obj,
+				Loc: nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		if p.cur.Type == FAMILY {
@@ -180,12 +189,14 @@ func (p *Parser) parseAlterExtensionContents(extname string, action int) (nodes.
 			return &nodes.AlterExtensionContentsStmt{
 				Extname: extname, Action: action,
 				Objtype: nodes.OBJECT_OPFAMILY, Object: obj,
+				Loc: nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		obj := p.parseExtOperWithArgtypes()
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_OPERATOR, Object: obj,
+			Loc: nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case DOMAIN_P:
 		p.advance()
@@ -196,6 +207,7 @@ func (p *Parser) parseAlterExtensionContents(extname string, action int) (nodes.
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_DOMAIN, Object: tn,
+			Loc: nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	case TYPE_P:
 		p.advance()
@@ -206,6 +218,7 @@ func (p *Parser) parseAlterExtensionContents(extname string, action int) (nodes.
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_TYPE, Object: tn,
+			Loc: nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	default:
 		objType, ok := p.tryParseExtObjTypeName()
@@ -214,6 +227,7 @@ func (p *Parser) parseAlterExtensionContents(extname string, action int) (nodes.
 			return &nodes.AlterExtensionContentsStmt{
 				Extname: extname, Action: action,
 				Objtype: objType, Object: &nodes.String{Str: objName},
+				Loc: nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		}
 		objType = p.parseObjectTypeAnyName()
@@ -221,6 +235,7 @@ func (p *Parser) parseAlterExtensionContents(extname string, action int) (nodes.
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: objType, Object: anyName,
+			Loc: nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	}
 }
@@ -379,7 +394,8 @@ func extExtractAggrArgTypes(args *nodes.List) *nodes.List {
 
 // parseCreateAmStmt parses CREATE ACCESS METHOD statement.
 func (p *Parser) parseCreateAmStmt() (nodes.Node, error) {
-	p.advance() // consume ACCESS
+	loc := p.prev.Loc // start of CREATE
+	p.advance()       // consume ACCESS
 	if _, err := p.expect(METHOD); err != nil {
 		return nil, err
 	}
@@ -394,6 +410,7 @@ func (p *Parser) parseCreateAmStmt() (nodes.Node, error) {
 	handlerName := p.parseExtHandlerName()
 	return &nodes.CreateAmStmt{
 		Amname: name, HandlerName: handlerName, Amtype: amtype,
+		Loc: nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
@@ -425,7 +442,8 @@ func (p *Parser) parseExtHandlerName() *nodes.List {
 
 // parseCreateCastStmt parses CREATE CAST statement.
 func (p *Parser) parseCreateCastStmt() (nodes.Node, error) {
-	p.advance() // consume CAST
+	loc := p.prev.Loc // start of CREATE
+	p.advance()       // consume CAST
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
@@ -446,6 +464,7 @@ func (p *Parser) parseCreateCastStmt() (nodes.Node, error) {
 			return nil, err
 		}
 		stmt.Context = p.parseCastContext()
+		stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 		return stmt, nil
 	}
 	if _, err := p.expect(WITH); err != nil {
@@ -455,6 +474,7 @@ func (p *Parser) parseCreateCastStmt() (nodes.Node, error) {
 		p.advance()
 		stmt.Context = p.parseCastContext()
 		stmt.Inout = true
+		stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 		return stmt, nil
 	}
 	if _, err := p.expect(FUNCTION); err != nil {
@@ -462,6 +482,7 @@ func (p *Parser) parseCreateCastStmt() (nodes.Node, error) {
 	}
 	stmt.Func = p.parseExtFuncWithArgtypes()
 	stmt.Context = p.parseCastContext()
+	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 	return stmt, nil
 }
 
@@ -506,7 +527,7 @@ func (p *Parser) parseDropCastStmt() (nodes.Node, error) {
 }
 
 // parseCreateTransformStmt parses CREATE [OR REPLACE] TRANSFORM statement.
-func (p *Parser) parseCreateTransformStmt(replace bool) (nodes.Node, error) {
+func (p *Parser) parseCreateTransformStmt(replace bool, loc int) (nodes.Node, error) {
 	p.advance() // consume TRANSFORM
 	if _, err := p.expect(FOR); err != nil {
 		return nil, err
@@ -526,6 +547,7 @@ func (p *Parser) parseCreateTransformStmt(replace bool) (nodes.Node, error) {
 	return &nodes.CreateTransformStmt{
 		Replace: replace, TypeName: typeName, Lang: lang,
 		Fromsql: fromsql, Tosql: tosql,
+		Loc: nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
