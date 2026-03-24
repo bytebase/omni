@@ -170,13 +170,5 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	return &MigrationPlan{Ops: ops}
 }
 
-// ---------------------------------------------------------------------------
-// Stub generators — each will be implemented in subsequent sections.
-// ---------------------------------------------------------------------------
-
-func generateSchemaDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp { return nil }
-// generateTableDDL is implemented in migration_table.go.
-// generateColumnDDL is implemented in migration_column.go.
-// generateConstraintDDL is implemented in migration_constraint.go.
-// generateIndexDDL is implemented in migration_index.go.
+// Stub generators — will be implemented in subsequent sections.
 func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp { return nil }
