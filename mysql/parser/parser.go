@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"fmt"
+
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
@@ -113,8 +115,85 @@ func (p *Parser) inputText(start, end int) string {
 type ParseError struct {
 	Message  string
 	Position int
+	Line     int // 1-based line number
+	Column   int // 1-based column number
 }
 
 func (e *ParseError) Error() string {
+	if e.Line > 0 {
+		return fmt.Sprintf("%s (line %d, column %d)", e.Message, e.Line, e.Column)
+	}
 	return e.Message
 }
+
+// syntaxErrorAtCur returns a ParseError describing a syntax error at the current token.
+// If the current token is EOF, the message says "at end of input".
+// Otherwise it says "at or near" with the token text.
+func (p *Parser) syntaxErrorAtCur() *ParseError {
+	return p.syntaxErrorAtTok(p.cur)
+}
+
+// syntaxErrorAtTok returns a ParseError describing a syntax error at the given token.
+func (p *Parser) syntaxErrorAtTok(tok Token) *ParseError {
+	line, col := p.lineCol(tok.Loc)
+	var msg string
+	if tok.Type == tokEOF {
+		msg = "syntax error at end of input"
+	} else {
+		text := tok.Str
+		if text == "" {
+			text = string(rune(tok.Type))
+		}
+		msg = fmt.Sprintf("syntax error at or near %q", text)
+	}
+	return &ParseError{
+		Message:  msg,
+		Position: tok.Loc,
+		Line:     line,
+		Column:   col,
+	}
+}
+
+// lineCol computes the 1-based line and column for a byte offset in the input.
+func (p *Parser) lineCol(offset int) (int, int) {
+	input := p.lexer.input
+	if offset > len(input) {
+		offset = len(input)
+	}
+	line := 1
+	lastNewline := -1
+	for i := 0; i < offset; i++ {
+		if input[i] == '\n' {
+			line++
+			lastNewline = i
+		}
+	}
+	col := offset - lastNewline
+	return line, col
+}
+
+// lineColStatic computes line and column from raw input (for use outside a Parser).
+func lineColStatic(input string, offset int) (int, int) {
+	if offset > len(input) {
+		offset = len(input)
+	}
+	line := 1
+	lastNewline := -1
+	for i := 0; i < offset; i++ {
+		if input[i] == '\n' {
+			line++
+			lastNewline = i
+		}
+	}
+	col := offset - lastNewline
+	return line, col
+}
+
+// enrichError fills in Line/Column on a ParseError using the parser's input.
+func (p *Parser) enrichError(err error) error {
+	if pe, ok := err.(*ParseError); ok && pe.Line == 0 {
+		pe.Line, pe.Column = p.lineCol(pe.Position)
+	}
+	return err
+}
+
