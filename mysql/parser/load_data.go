@@ -99,16 +99,18 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	if p.cur.Type == kwCHARACTER {
 		p.advance()
 		p.match(kwSET)
-		if p.isIdentToken() {
-			name, _, _ := p.parseIdentifier()
-			stmt.CharacterSet = name
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
 		}
+		stmt.CharacterSet = name
 	} else if p.cur.Type == kwCHARSET {
 		p.advance()
-		if p.isIdentToken() {
-			name, _, _ := p.parseIdentifier()
-			stmt.CharacterSet = name
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
 		}
+		stmt.CharacterSet = name
 	}
 
 	// [ROWS IDENTIFIED BY '<tagname>'] (LOAD XML only)

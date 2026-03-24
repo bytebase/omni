@@ -660,7 +660,11 @@ func (p *Parser) parseOverClause() (*nodes.WindowDef, error) {
 	// Optional window_name reference
 	if p.isIdentToken() && p.cur.Type != kwPARTITION && p.cur.Type != kwORDER &&
 		p.cur.Type != kwROWS && p.cur.Type != kwRANGE && p.cur.Type != kwGROUPS {
-		wd.RefName, _, _ = p.parseIdentifier()
+		var err error
+		wd.RefName, _, err = p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// PARTITION BY

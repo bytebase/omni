@@ -462,7 +462,10 @@ func (p *Parser) parseStartReplicaStmt(start int) (*nodes.StartReplicaStmt, erro
 			if eqFold(untilName, "SOURCE_LOG_FILE") || eqFold(untilName, "MASTER_LOG_FILE") || eqFold(untilName, "RELAY_LOG_FILE") {
 				if p.cur.Type == ',' {
 					p.advance() // consume ','
-					posName, _, _ := p.parseIdentifier()
+					posName, _, err := p.parseIdentifier()
+					if err != nil {
+						return nil, err
+					}
 					_ = posName // SOURCE_LOG_POS, MASTER_LOG_POS, RELAY_LOG_POS
 					p.match('=')
 					if p.cur.Type == tokICONST {

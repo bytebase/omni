@@ -614,7 +614,10 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 		alias = name
 	} else if p.isIdentToken() && !p.isSelectTerminator() {
 		// Implicit alias (identifier without AS), but not if it's a keyword that starts the next clause
-		alias, _, _ = p.parseIdentifier()
+		alias, _, err = p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if alias != "" {
@@ -791,10 +794,16 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 
 		// Optional alias: [AS] alias
 		if _, ok := p.match(kwAS); ok {
-			alias, _, _ := p.parseIdentifier()
+			alias, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
 			sub.Alias = alias
 		} else if p.isIdentToken() && !p.isSelectTerminator() {
-			alias, _, _ := p.parseIdentifier()
+			alias, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
 			sub.Alias = alias
 		}
 
@@ -823,10 +832,16 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 
 			// Optional alias: [AS] alias
 			if _, ok := p.match(kwAS); ok {
-				alias, _, _ := p.parseIdentifier()
+				alias, _, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
 				sub.Alias = alias
 			} else if p.isIdentToken() && !p.isSelectTerminator() {
-				alias, _, _ := p.parseIdentifier()
+				alias, _, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
 				sub.Alias = alias
 			}
 
@@ -916,11 +931,11 @@ func (p *Parser) parseJsonTable() (nodes.TableExpr, error) {
 		return nil, err
 	}
 
-	// [AS] alias (required)
+	// [AS] alias (required for JSON_TABLE)
 	p.match(kwAS)
-	alias := ""
-	if p.isIdentToken() {
-		alias, _, _ = p.parseIdentifier()
+	alias, _, aErr := p.parseIdentifier()
+	if aErr != nil {
+		return nil, aErr
 	}
 
 	return &nodes.JsonTableExpr{
@@ -1245,14 +1260,18 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 		if p.cur.Type == kwCHARACTER {
 			p.advance()
 			p.match(kwSET)
-			if p.isIdentToken() || p.cur.Type == tokSCONST {
-				into.Charset, _, _ = p.parseIdentifier()
+			charset, _, csErr := p.parseIdentifier()
+			if csErr != nil {
+				return nil, csErr
 			}
+			into.Charset = charset
 		} else if p.cur.Type == kwCHARSET {
 			p.advance()
-			if p.isIdentToken() || p.cur.Type == tokSCONST {
-				into.Charset, _, _ = p.parseIdentifier()
+			charset, _, csErr := p.parseIdentifier()
+			if csErr != nil {
+				return nil, csErr
 			}
+			into.Charset = charset
 		}
 
 		// [{FIELDS | COLUMNS} ...]
@@ -1494,7 +1513,11 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 		// Optional reference to existing window
 		if p.isIdentToken() && p.cur.Type != kwPARTITION && p.cur.Type != kwORDER &&
 			p.cur.Type != kwROWS && p.cur.Type != kwRANGE && p.cur.Type != kwGROUPS {
-			wd.RefName, _, _ = p.parseIdentifier()
+			var refErr error
+			wd.RefName, _, refErr = p.parseIdentifier()
+			if refErr != nil {
+				return nil, refErr
+			}
 		}
 
 		if p.cur.Type == kwPARTITION {

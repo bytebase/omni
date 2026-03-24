@@ -159,7 +159,10 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 				stmt.AsUser += "@" + p.cur.Str
 				p.advance()
 			} else if p.isIdentToken() {
-				host, _, _ := p.parseIdentifier()
+				host, _, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
 				stmt.AsUser += "@" + host
 			}
 		}
@@ -859,7 +862,9 @@ func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
 		// user_func_auth_option: IDENTIFIED BY 'auth_string' [REPLACE ...] [RETAIN ...] | DISCARD OLD PASSWORD
 		userSpec := &nodes.UserSpec{Loc: nodes.Loc{Start: start}, Name: "USER()"}
 		if p.cur.Type == kwIDENTIFIED {
-			p.parseUserAuthOption(userSpec)
+			if err := p.parseUserAuthOption(userSpec); err != nil {
+				return nil, err
+			}
 		}
 		// [REPLACE 'current_auth_string']
 		if p.cur.Type == kwREPLACE {
@@ -1091,7 +1096,9 @@ func (p *Parser) parseFactorOps() ([]*nodes.FactorOp, error) {
 
 		// For ADD and MODIFY: parse factor_auth_option
 		if op.Action != "DROP" {
-			p.parseFactorAuthOption(op)
+			if err := p.parseFactorAuthOption(op); err != nil {
+				return nil, err
+			}
 		}
 
 		op.Loc.End = p.pos()
@@ -1107,9 +1114,9 @@ func (p *Parser) parseFactorOps() ([]*nodes.FactorOp, error) {
 //	IDENTIFIED WITH auth_plugin BY 'auth_string'
 //	IDENTIFIED WITH auth_plugin BY RANDOM PASSWORD
 //	IDENTIFIED WITH auth_plugin AS 'auth_string'
-func (p *Parser) parseFactorAuthOption(op *nodes.FactorOp) {
+func (p *Parser) parseFactorAuthOption(op *nodes.FactorOp) error {
 	if p.cur.Type != kwIDENTIFIED {
-		return
+		return nil
 	}
 	p.advance() // consume IDENTIFIED
 
@@ -1126,8 +1133,13 @@ func (p *Parser) parseFactorAuthOption(op *nodes.FactorOp) {
 	} else if p.cur.Type == kwWITH {
 		p.advance()
 		if p.isIdentToken() {
-			plugin, _, _ := p.parseIdentifier()
+			plugin, _, err := p.parseIdentifier()
+			if err != nil {
+				return err
+			}
 			op.AuthPlugin = plugin
+		} else {
+			return p.syntaxErrorAtCur()
 		}
 		if p.cur.Type == kwBY {
 			p.advance()
@@ -1147,6 +1159,7 @@ func (p *Parser) parseFactorAuthOption(op *nodes.FactorOp) {
 			}
 		}
 	}
+	return nil
 }
 
 // parseUserSpec parses a user specification.
@@ -1205,7 +1218,9 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 
 	// Optional IDENTIFIED BY/WITH
 	if p.cur.Type == kwIDENTIFIED {
-		p.parseUserAuthOption(spec)
+		if err := p.parseUserAuthOption(spec); err != nil {
+			return nil, err
+		}
 	}
 
 	// [REPLACE 'current_auth_string'] (ALTER USER)
@@ -1241,7 +1256,9 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 		}
 		p.advance() // consume AND
 		factor := &nodes.UserSpec{Loc: nodes.Loc{Start: p.pos()}}
-		p.parseUserAuthOption(factor)
+		if err := p.parseUserAuthOption(factor); err != nil {
+			return nil, err
+		}
 		factor.Loc.End = p.pos()
 		spec.AuthFactors = append(spec.AuthFactors, factor)
 	}
@@ -1267,8 +1284,13 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 				} else if p.cur.Type == kwWITH {
 					p.advance() // consume WITH
 					if p.isIdentToken() {
-						plugin, _, _ := p.parseIdentifier()
+						plugin, _, err := p.parseIdentifier()
+						if err != nil {
+							return nil, err
+						}
 						spec.InitialAuthPlugin = plugin
+					} else {
+						return nil, p.syntaxErrorAtCur()
 					}
 					if p.cur.Type == kwAS {
 						p.advance()
@@ -1343,7 +1365,7 @@ func (p *Parser) parseDropRoleStmt() (*nodes.DropRoleStmt, error) {
 
 // parseUserAuthOption parses the IDENTIFIED BY/WITH portion of a user spec.
 // Caller has verified p.cur.Type == kwIDENTIFIED.
-func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec) {
+func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec) error {
 	p.advance() // consume IDENTIFIED
 	if p.cur.Type == kwBY {
 		// IDENTIFIED BY 'password' | IDENTIFIED BY RANDOM PASSWORD
@@ -1360,8 +1382,13 @@ func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec) {
 		// IDENTIFIED WITH auth_plugin [BY 'password' | BY RANDOM PASSWORD | AS 'hash']
 		p.advance()
 		if p.isIdentToken() {
-			plugin, _, _ := p.parseIdentifier()
+			plugin, _, err := p.parseIdentifier()
+			if err != nil {
+				return err
+			}
 			spec.AuthPlugin = plugin
+		} else {
+			return p.syntaxErrorAtCur()
 		}
 		if p.cur.Type == kwBY {
 			p.advance()
@@ -1381,6 +1408,7 @@ func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec) {
 			}
 		}
 	}
+	return nil
 }
 
 // parseSetDefaultRoleStmt parses a SET DEFAULT ROLE statement.
@@ -1476,13 +1504,20 @@ func (p *Parser) parseRenameUserStmt(start int) (*nodes.RenameUserStmt, error) {
 		pair := &nodes.RenameUserPair{Loc: nodes.Loc{Start: pairStart}}
 
 		// old_user — can be 'user'@'host' or identifier@identifier
-		pair.OldUser, pair.OldHost = p.parseRenameUserPart()
+		var err error
+		pair.OldUser, pair.OldHost, err = p.parseRenameUserPart()
+		if err != nil {
+			return nil, err
+		}
 
 		// TO
 		p.match(kwTO)
 
 		// new_user
-		pair.NewUser, pair.NewHost = p.parseRenameUserPart()
+		pair.NewUser, pair.NewHost, err = p.parseRenameUserPart()
+		if err != nil {
+			return nil, err
+		}
 
 		pair.Loc.End = p.pos()
 		stmt.Pairs = append(stmt.Pairs, pair)
@@ -1499,13 +1534,19 @@ func (p *Parser) parseRenameUserStmt(start int) (*nodes.RenameUserStmt, error) {
 
 // parseRenameUserPart parses a user part (name[@host]) in a RENAME USER statement.
 // Supports both quoted and unquoted user names.
-func (p *Parser) parseRenameUserPart() (string, string) {
+func (p *Parser) parseRenameUserPart() (string, string, error) {
 	var name, host string
 	if p.cur.Type == tokSCONST {
 		name = p.cur.Str
 		p.advance()
 	} else if p.isIdentToken() {
-		name, _, _ = p.parseIdentifier()
+		var err error
+		name, _, err = p.parseIdentifier()
+		if err != nil {
+			return "", "", err
+		}
+	} else {
+		return "", "", p.syntaxErrorAtCur()
 	}
 	if p.cur.Type == tokIDENT && p.cur.Str == "@" {
 		p.advance()
@@ -1513,10 +1554,14 @@ func (p *Parser) parseRenameUserPart() (string, string) {
 			host = p.cur.Str
 			p.advance()
 		} else if p.isIdentToken() {
-			host, _, _ = p.parseIdentifier()
+			var err error
+			host, _, err = p.parseIdentifier()
+			if err != nil {
+				return "", "", err
+			}
 		}
 	}
-	return name, host
+	return name, host, nil
 }
 
 // parseRequireClause parses a REQUIRE clause for TLS options.

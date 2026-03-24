@@ -178,6 +178,55 @@ func TestParseError_Section_1_3_DDLIgnoredErrors(t *testing.T) {
 	}
 }
 
+func TestParseError_Section_1_4_DMLIgnoredErrors(t *testing.T) {
+	// Section 1.4: Verify that truncated DML & other file inputs where
+	// parseIdentifier() errors were previously discarded now produce proper errors.
+	cases := []struct {
+		name     string
+		sql      string
+		contains string
+	}{
+		// select.go: table alias parseIdentifier (2 sites — subquery AS at EOF)
+		{"subquery_as_trunc", "SELECT * FROM (SELECT 1) AS", "expected identifier"},
+		{"lateral_subquery_as_trunc", "SELECT * FROM t, LATERAL (SELECT 1) AS", "expected identifier"},
+		// select.go: JSON_TABLE alias (required) at EOF
+		{"json_table_alias_trunc", "SELECT * FROM JSON_TABLE('[1]', '$[*]' COLUMNS (a INT PATH '$.a')) AS", "expected identifier"},
+		// select.go: INTO OUTFILE charset at EOF
+		{"outfile_charset_trunc", "SELECT 1 INTO OUTFILE 'f' CHARACTER SET", "expected identifier"},
+		{"outfile_charset_short_trunc", "SELECT 1 INTO OUTFILE 'f' CHARSET", "expected identifier"},
+		// set_show.go -> grant.go: SET DEFAULT ROLE at EOF (already errors)
+		{"set_default_role_trunc", "SET DEFAULT ROLE", "expected"},
+		// set_show.go -> grant.go: SET ROLE at EOF (already errors)
+		{"set_role_trunc", "SET ROLE", "expected"},
+		// grant.go: IDENTIFIED WITH at EOF (4 sites)
+		{"create_user_with_trunc", "CREATE USER u IDENTIFIED WITH", "at end of input"},
+		{"alter_user_with_trunc", "ALTER USER u IDENTIFIED WITH", "at end of input"},
+		{"grant_host_at_trunc", "SET DEFAULT ROLE role1 TO user@", "expected"},
+		{"rename_user_trunc", "RENAME USER", "at end of input"},
+		// load_data.go: charset/file identifier (2 sites)
+		{"load_data_charset_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARACTER SET", "expected identifier"},
+		{"load_data_charset_short_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARSET", "expected identifier"},
+		// replication.go: channel identifier (UNTIL pos name)
+		{"repl_until_pos_trunc", "START REPLICA UNTIL SOURCE_LOG_FILE = 'f',", "expected identifier"},
+		// utility.go: identifier (2 sites — RESET bare, HELP bare)
+		{"reset_bare", "RESET", "at end of input"},
+		{"help_bare", "HELP", "at end of input"},
+		// expr.go: window spec identifier — truncated WINDOW clause definition
+		{"window_clause_trunc", "SELECT 1 WINDOW w AS (", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatalf("expected error for %q, got nil", tc.sql)
+			}
+			if tc.contains != "" && !strings.Contains(err.Error(), tc.contains) {
+				t.Errorf("error %q does not contain %q (sql: %q)", err.Error(), tc.contains, tc.sql)
+			}
+		})
+	}
+}
+
 func TestLineCol(t *testing.T) {
 	p := &Parser{lexer: NewLexer("SELECT\n  1 + 2")}
 	// offset 0 -> line 1, col 1

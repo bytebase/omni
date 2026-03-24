@@ -301,13 +301,20 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 
 	// Fall through to generic RESET (re-assemble the FlushStmt from utility.go)
 	// Options may be multi-word (e.g. RESET QUERY CACHE) or comma-separated.
+	// Require at least one reset option.
+	if p.cur.Type == tokEOF || p.cur.Type == ';' {
+		return nil, p.syntaxErrorAtCur()
+	}
 	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}}
 	for {
 		if p.cur.Type == tokEOF || p.cur.Type == ';' {
 			break
 		}
 		if p.isIdentToken() {
-			name, _, _ := p.parseIdentifier()
+			name, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
 			stmt.Options = append(stmt.Options, name)
 		} else {
 			break

@@ -446,12 +446,20 @@ func (p *Parser) parseResetStmt() (*nodes.FlushStmt, error) {
 
 	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}}
 
+	// Require at least one reset option
+	if p.cur.Type == tokEOF || p.cur.Type == ';' {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	for {
 		if p.cur.Type == tokEOF || p.cur.Type == ';' {
 			break
 		}
 		if p.isIdentToken() {
-			name, _, _ := p.parseIdentifier()
+			name, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
 			stmt.Options = append(stmt.Options, name)
 		} else {
 			break
@@ -2253,8 +2261,13 @@ func (p *Parser) parseHelpStmt() (*nodes.HelpStmt, error) {
 		stmt.Topic = p.cur.Str
 		p.advance()
 	} else if p.isIdentToken() {
-		name, _, _ := p.parseIdentifier()
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
 		stmt.Topic = name
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.pos()
