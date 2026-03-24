@@ -188,6 +188,7 @@ func (d *SchemaDiff) IsEmpty() bool {
 // The from catalog represents the old state and to represents the new state.
 func Diff(from, to *Catalog) *SchemaDiff {
 	return &SchemaDiff{
-		Schemas: diffSchemas(from, to),
+		Schemas:   diffSchemas(from, to),
+		Relations: diffRelations(from, to),
 	}
 }
