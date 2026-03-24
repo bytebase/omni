@@ -397,10 +397,7 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 			return p.parseIdentExpr()
 		}
 
-		return nil, &ParseError{
-			Message:  "expected expression",
-			Position: p.cur.Loc,
-		}
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 

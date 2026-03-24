@@ -245,3 +245,30 @@ func TestLineCol(t *testing.T) {
 		t.Errorf("offset 9: got line %d col %d, want 2 3", l, c)
 	}
 }
+
+func TestParseError_Section_2_1_ArithmeticOperators(t *testing.T) {
+	cases := []struct {
+		name     string
+		sql      string
+		contains string
+	}{
+		{"plus_eof", "SELECT 1 +", "at end of input"},
+		{"minus_eof", "SELECT 1 -", "at end of input"},
+		{"star_eof", "SELECT 1 *", "at end of input"},
+		{"slash_eof", "SELECT 1 /", "at end of input"},
+		{"mod_eof", "SELECT 1 %", "at end of input"},
+		{"div_eof", "SELECT 1 DIV", "at end of input"},
+		{"mod_kw_eof", "SELECT 1 MOD", "at end of input"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.contains) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.contains)
+			}
+		})
+	}
+}
