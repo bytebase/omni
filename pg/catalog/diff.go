@@ -187,8 +187,15 @@ func (d *SchemaDiff) IsEmpty() bool {
 // Diff compares two catalog states and returns all differences.
 // The from catalog represents the old state and to represents the new state.
 func Diff(from, to *Catalog) *SchemaDiff {
+	relations := diffRelations(from, to)
+	relations = append(relations, diffViews(from, to)...)
 	return &SchemaDiff{
 		Schemas:   diffSchemas(from, to),
-		Relations: diffRelations(from, to),
+		Relations: relations,
+		Sequences: diffSequences(from, to),
+		Functions: diffFunctions(from, to),
+		Enums:     diffEnums(from, to),
+		Domains:   diffDomains(from, to),
+		Ranges:    diffRanges(from, to),
 	}
 }
