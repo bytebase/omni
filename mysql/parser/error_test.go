@@ -142,6 +142,42 @@ func TestParseError_Section_1_2_StmtDispatch(t *testing.T) {
 	}
 }
 
+func TestParseError_Section_1_3_DDLIgnoredErrors(t *testing.T) {
+	// Section 1.3: Verify that truncated DDL inputs where parseIdentifier()
+	// errors were previously discarded now produce proper errors.
+	cases := []struct {
+		name     string
+		sql      string
+		contains string
+	}{
+		// create_function.go: LANGUAGE identifier
+		{"func_language_trunc", "CREATE FUNCTION f() RETURNS INT LANGUAGE", "expected identifier"},
+		// create_function.go: SQL SECURITY identifier
+		{"func_sql_security_trunc", "CREATE FUNCTION f() RETURNS INT SQL SECURITY", "expected identifier"},
+		// create_table.go: column COLLATE identifier
+		{"col_collate_trunc", "CREATE TABLE t (a INT COLLATE)", "expected identifier"},
+		// create_database.go: CHARACTER SET identifier
+		{"db_charset_trunc", "CREATE DATABASE db CHARACTER SET", "expected identifier"},
+		// create_database.go: CHARSET identifier
+		{"db_charset_short_trunc", "CREATE DATABASE db CHARSET", "expected identifier"},
+		// create_database.go: COLLATE identifier
+		{"db_collate_trunc", "CREATE DATABASE db COLLATE", "expected identifier"},
+		// alter_table.go: AFTER column identifier
+		{"alter_after_trunc", "ALTER TABLE t ADD COLUMN c INT AFTER", "expected identifier"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatalf("expected error for %q, got nil", tc.sql)
+			}
+			if !strings.Contains(err.Error(), tc.contains) {
+				t.Errorf("error %q does not contain %q (sql: %q)", err.Error(), tc.contains, tc.sql)
+			}
+		})
+	}
+}
+
 func TestLineCol(t *testing.T) {
 	p := &Parser{lexer: NewLexer("SELECT\n  1 + 2")}
 	// offset 0 -> line 1, col 1

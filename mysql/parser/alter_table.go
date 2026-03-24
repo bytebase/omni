@@ -392,7 +392,9 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 	cmd.Column = col
 
 	// FIRST | AFTER col_name
-	p.parseColumnPositioning(cmd)
+	if err := p.parseColumnPositioning(cmd); err != nil {
+		return nil, err
+	}
 
 	cmd.Loc.End = p.pos()
 	return cmd, nil
@@ -507,7 +509,9 @@ func (p *Parser) parseAlterModify(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	cmd.Column = col
 	cmd.Name = col.Name
 
-	p.parseColumnPositioning(cmd)
+	if err := p.parseColumnPositioning(cmd); err != nil {
+		return nil, err
+	}
 
 	cmd.Loc.End = p.pos()
 	return cmd, nil
@@ -534,7 +538,9 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	cmd.Column = col
 	cmd.NewName = col.Name
 
-	p.parseColumnPositioning(cmd)
+	if err := p.parseColumnPositioning(cmd); err != nil {
+		return nil, err
+	}
 
 	cmd.Loc.End = p.pos()
 	return cmd, nil
@@ -893,11 +899,15 @@ func (p *Parser) parseAlterExchangePartition(cmd *nodes.AlterTableCmd) (*nodes.A
 }
 
 // parseColumnPositioning parses optional FIRST | AFTER col_name.
-func (p *Parser) parseColumnPositioning(cmd *nodes.AlterTableCmd) {
+func (p *Parser) parseColumnPositioning(cmd *nodes.AlterTableCmd) error {
 	if _, ok := p.match(kwFIRST); ok {
 		cmd.First = true
 	} else if _, ok := p.match(kwAFTER); ok {
-		name, _, _ := p.parseIdentifier()
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return err
+		}
 		cmd.After = name
 	}
+	return nil
 }

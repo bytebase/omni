@@ -239,7 +239,11 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 
 	// Column constraints and options
 	for {
-		if !p.parseColumnOption(col) {
+		ok, err := p.parseColumnOption(col)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
 			break
 		}
 	}
@@ -267,7 +271,7 @@ func (p *Parser) isColumnConstraintStart() bool {
 
 // parseColumnOption parses a single column option/constraint.
 // Returns false if no option was found.
-func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
+func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	start := p.pos()
 
 	switch p.cur.Type {
@@ -278,7 +282,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrNotNull,
 		})
-		return true
+		return true, nil
 
 	case kwNULL:
 		p.advance()
@@ -286,13 +290,13 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrNull,
 		})
-		return true
+		return true, nil
 
 	case kwDEFAULT:
 		p.advance()
 		expr, err := p.parseDefaultValue()
 		if err != nil {
-			return false
+			return false, err
 		}
 		col.DefaultValue = expr
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
@@ -300,7 +304,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			Type: nodes.ColConstrDefault,
 			Expr: expr,
 		})
-		return true
+		return true, nil
 
 	case kwAUTO_INCREMENT:
 		p.advance()
@@ -309,7 +313,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrAutoIncrement,
 		})
-		return true
+		return true, nil
 
 	case kwUNIQUE:
 		p.advance()
@@ -318,7 +322,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrUnique,
 		})
-		return true
+		return true, nil
 
 	case kwPRIMARY:
 		p.advance()
@@ -327,7 +331,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrPrimaryKey,
 		})
-		return true
+		return true, nil
 
 	case kwKEY:
 		// Bare KEY means PRIMARY KEY
@@ -336,7 +340,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrPrimaryKey,
 		})
-		return true
+		return true, nil
 
 	case kwCOMMENT:
 		p.advance()
@@ -348,27 +352,28 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrComment,
 		})
-		return true
+		return true, nil
 
 	case kwCOLLATE:
 		p.advance()
-		if p.isIdentToken() {
-			collName, _, _ := p.parseIdentifier()
-			col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-				Loc:  nodes.Loc{Start: start, End: p.pos()},
-				Type: nodes.ColConstrCollate,
-				Name: collName,
-			})
+		collName, _, err := p.parseIdentifier()
+		if err != nil {
+			return false, err
 		}
-		return true
+		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
+			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Type: nodes.ColConstrCollate,
+			Name: collName,
+		})
+		return true, nil
 
 	case kwREFERENCES:
 		constr, err := p.parseReferenceDefinition(start)
 		if err != nil {
-			return false
+			return false, err
 		}
 		col.Constraints = append(col.Constraints, constr)
-		return true
+		return true, nil
 
 	case kwVISIBLE:
 		p.advance()
@@ -376,7 +381,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrVisible,
 		})
-		return true
+		return true, nil
 
 	case kwINVISIBLE:
 		p.advance()
@@ -384,19 +389,19 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrInvisible,
 		})
-		return true
+		return true, nil
 
 	case kwCHECK:
 		p.advance()
 		if _, err := p.expect('('); err != nil {
-			return false
+			return false, err
 		}
 		expr, err := p.parseExpr()
 		if err != nil {
-			return false
+			return false, err
 		}
 		if _, err := p.expect(')'); err != nil {
-			return false
+			return false, err
 		}
 		cc := &nodes.ColumnConstraint{
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
@@ -415,27 +420,27 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 		}
 		cc.Loc.End = p.pos()
 		col.Constraints = append(col.Constraints, cc)
-		return true
+		return true, nil
 
 	case kwGENERATED:
 		gen, err := p.parseGeneratedColumn()
 		if err != nil {
-			return false
+			return false, err
 		}
 		col.Generated = gen
-		return true
+		return true, nil
 
 	case kwAS:
 		// AS (expr) [VIRTUAL|STORED] — shorthand for GENERATED ALWAYS AS (expr)
 		if p.peekNext().Type == '(' {
 			gen, err := p.parseGeneratedColumnShorthand()
 			if err != nil {
-				return false
+				return false, err
 			}
 			col.Generated = gen
-			return true
+			return true, nil
 		}
-		return false
+		return false, nil
 
 	case kwON:
 		// ON UPDATE CURRENT_TIMESTAMP
@@ -444,12 +449,12 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			p.advance() // consume UPDATE
 			expr, err := p.parseExpr()
 			if err != nil {
-				return false
+				return false, err
 			}
 			col.OnUpdate = expr
-			return true
+			return true, nil
 		}
-		return false
+		return false, nil
 
 	case kwCOLUMN_FORMAT:
 		// COLUMN_FORMAT {FIXED | DYNAMIC | DEFAULT}
@@ -466,7 +471,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			val = "DEFAULT"
 			p.advance()
 		default:
-			return false
+			return false, nil
 		}
 		col.ColumnFormat = val
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
@@ -474,7 +479,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			Type: nodes.ColConstrColumnFormat,
 			Name: val,
 		})
-		return true
+		return true, nil
 
 	case kwSTORAGE:
 		// STORAGE {DISK | MEMORY}
@@ -488,7 +493,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			val = "MEMORY"
 			p.advance()
 		default:
-			return false
+			return false, nil
 		}
 		col.Storage = val
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
@@ -496,7 +501,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 			Type: nodes.ColConstrStorage,
 			Name: val,
 		})
-		return true
+		return true, nil
 	}
 
 	// Handle identifier-based column options: ENGINE_ATTRIBUTE, SECONDARY_ENGINE_ATTRIBUTE
@@ -516,16 +521,16 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 				Type: nodes.ColConstrEngineAttribute,
 				Name: val,
 			})
-			return true
+			return true, nil
 		}
 		if eqFold(optName, "srid") {
 			p.advance()
 			if p.cur.Type != tokICONST {
-				return false
+				return false, nil
 			}
 			col.TypeName.SRID = int(p.cur.Ival)
 			p.advance()
-			return true
+			return true, nil
 		}
 		if eqFold(optName, "secondary_engine_attribute") {
 			p.advance()
@@ -541,11 +546,11 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) bool {
 				Type: nodes.ColConstrSecondaryEngineAttribute,
 				Name: val,
 			})
-			return true
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 }
 
 // parseDefaultValue parses a DEFAULT value expression.

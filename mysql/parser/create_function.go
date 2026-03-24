@@ -143,7 +143,10 @@ func (p *Parser) parseCreateFunctionStmt(isProcedure bool) (*nodes.CreateFunctio
 
 	// Characteristics
 	for {
-		ch, ok := p.parseRoutineCharacteristic()
+		ch, ok, err := p.parseRoutineCharacteristic()
+		if err != nil {
+			return nil, err
+		}
 		if !ok {
 			break
 		}
@@ -222,7 +225,7 @@ func (p *Parser) parseFuncParam(isProcedure bool) (*nodes.FuncParam, error) {
 }
 
 // parseRoutineCharacteristic parses a routine characteristic.
-func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, bool) {
+func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, bool, error) {
 	start := p.pos()
 
 	switch {
@@ -233,22 +236,25 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 			p.advance()
 			return &nodes.RoutineCharacteristic{
 				Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "COMMENT", Value: val,
-			}, true
+			}, true, nil
 		}
-		return nil, false
+		return nil, false, nil
 
 	case p.cur.Type == kwLANGUAGE:
 		p.advance()
-		name, _, _ := p.parseIdentifier()
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, false, err
+		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "LANGUAGE", Value: name,
-		}, true
+		}, true, nil
 
 	case p.cur.Type == kwDETERMINISTIC || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "deterministic")):
 		p.advance()
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DETERMINISTIC", Value: "YES",
-		}, true
+		}, true, nil
 
 	case p.cur.Type == kwNOT:
 		// NOT DETERMINISTIC
@@ -258,27 +264,30 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 			p.advance()
 			return &nodes.RoutineCharacteristic{
 				Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DETERMINISTIC", Value: "NO",
-			}, true
+			}, true, nil
 		}
-		return nil, false
+		return nil, false, nil
 
 	case p.cur.Type == kwSQL:
 		p.advance()
 		if p.cur.Type == kwSECURITY || (p.cur.Type == tokIDENT && eqFold(p.cur.Str, "security")) {
 			p.advance()
-			name, _, _ := p.parseIdentifier()
+			name, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, false, err
+			}
 			return &nodes.RoutineCharacteristic{
 				Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "SQL SECURITY", Value: name,
-			}, true
+			}, true, nil
 		}
-		return nil, false
+		return nil, false, nil
 
 	case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "contains"):
 		p.advance()
 		p.match(kwSQL)
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DATA ACCESS", Value: "CONTAINS SQL",
-		}, true
+		}, true, nil
 
 	case p.cur.Type == kwNO:
 		if next := p.peekNext(); next.Type == kwSQL {
@@ -286,9 +295,9 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 			p.advance()
 			return &nodes.RoutineCharacteristic{
 				Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DATA ACCESS", Value: "NO SQL",
-			}, true
+			}, true, nil
 		}
-		return nil, false
+		return nil, false, nil
 
 	case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "reads"):
 		p.advance()
@@ -298,7 +307,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DATA ACCESS", Value: "READS SQL DATA",
-		}, true
+		}, true, nil
 
 	case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "modifies"):
 		p.advance()
@@ -308,8 +317,8 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 		}
 		return &nodes.RoutineCharacteristic{
 			Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DATA ACCESS", Value: "MODIFIES SQL DATA",
-		}, true
+		}, true, nil
 	}
 
-	return nil, false
+	return nil, false, nil
 }

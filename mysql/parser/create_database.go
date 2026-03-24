@@ -38,7 +38,10 @@ func (p *Parser) parseCreateDatabaseStmt() (*nodes.CreateDatabaseStmt, error) {
 
 	// Options
 	for {
-		opt, ok := p.parseDatabaseOption()
+		opt, ok, err := p.parseDatabaseOption()
+		if err != nil {
+			return nil, err
+		}
 		if !ok {
 			break
 		}
@@ -72,7 +75,10 @@ func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
 
 	// Options
 	for {
-		opt, ok := p.parseDatabaseOption()
+		opt, ok, err := p.parseDatabaseOption()
+		if err != nil {
+			return nil, err
+		}
 		if !ok {
 			break
 		}
@@ -119,7 +125,7 @@ func (p *Parser) parseDropDatabaseStmt() (*nodes.DropDatabaseStmt, error) {
 //	  | [DEFAULT] COLLATE [=] collation_name
 //	  | [DEFAULT] ENCRYPTION [=] {'Y' | 'N'}
 //	  | READ ONLY [=] {DEFAULT | 0 | 1}        (ALTER DATABASE only)
-func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool) {
+func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 	start := p.pos()
 
 	// READ ONLY [=] {DEFAULT | 0 | 1}  (no DEFAULT prefix)
@@ -133,7 +139,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool) {
 				Loc:   nodes.Loc{Start: start, End: p.pos()},
 				Name:  "READ ONLY",
 				Value: val,
-			}, true
+			}, true, nil
 		}
 	}
 
@@ -145,37 +151,40 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool) {
 		p.advance()
 		if _, ok := p.match(kwSET); ok {
 			p.match('=') // optional =
-			if p.isIdentToken() {
-				val, _, _ := p.parseIdentifier()
-				return &nodes.DatabaseOption{
-					Loc:   nodes.Loc{Start: start, End: p.pos()},
-					Name:  "CHARACTER SET",
-					Value: val,
-				}, true
+			val, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, false, err
 			}
-		}
-	case p.cur.Type == kwCHARSET:
-		p.advance()
-		p.match('=') // optional =
-		if p.isIdentToken() {
-			val, _, _ := p.parseIdentifier()
 			return &nodes.DatabaseOption{
 				Loc:   nodes.Loc{Start: start, End: p.pos()},
 				Name:  "CHARACTER SET",
 				Value: val,
-			}, true
+			}, true, nil
 		}
+	case p.cur.Type == kwCHARSET:
+		p.advance()
+		p.match('=') // optional =
+		val, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.DatabaseOption{
+			Loc:   nodes.Loc{Start: start, End: p.pos()},
+			Name:  "CHARACTER SET",
+			Value: val,
+		}, true, nil
 	case p.cur.Type == kwCOLLATE:
 		p.advance()
 		p.match('=') // optional =
-		if p.isIdentToken() {
-			val, _, _ := p.parseIdentifier()
-			return &nodes.DatabaseOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
-				Name:  "COLLATE",
-				Value: val,
-			}, true
+		val, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, false, err
 		}
+		return &nodes.DatabaseOption{
+			Loc:   nodes.Loc{Start: start, End: p.pos()},
+			Name:  "COLLATE",
+			Value: val,
+		}, true, nil
 	case p.cur.Type == kwENCRYPTION:
 		p.advance()
 		p.match('=') // optional =
@@ -186,9 +195,9 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool) {
 				Loc:   nodes.Loc{Start: start, End: p.pos()},
 				Name:  "ENCRYPTION",
 				Value: val,
-			}, true
+			}, true, nil
 		}
 	}
 
-	return nil, false
+	return nil, false, nil
 }

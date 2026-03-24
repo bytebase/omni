@@ -283,7 +283,10 @@ func (p *Parser) parseAlterRoutineStmt(isProcedure bool) (*nodes.AlterRoutineStm
 
 	// Characteristics
 	for {
-		ch, ok := p.parseRoutineCharacteristic()
+		ch, ok, err := p.parseRoutineCharacteristic()
+		if err != nil {
+			return nil, err
+		}
 		if !ok {
 			break
 		}
