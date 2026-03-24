@@ -250,8 +250,14 @@ func (c *Catalog) resolveGrantObject(objTypeCode byte, obj nodes.Node) (uint32, 
 		}
 		return candidates[0].OID, nil
 	case 'n':
-		// Schema: obj is a *String.
-		name := stringVal(obj)
+		// Schema: obj may be a *String or a *List wrapping a single *String.
+		// pg grammar: GRANT ... ON SCHEMA name_list produces List nodes.
+		var name string
+		if lst, ok := obj.(*nodes.List); ok && len(lst.Items) > 0 {
+			name = stringVal(lst.Items[len(lst.Items)-1])
+		} else {
+			name = stringVal(obj)
+		}
 		s := c.schemaByName[name]
 		if s == nil {
 			return 0, errUndefinedSchema(name)

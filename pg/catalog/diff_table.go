@@ -98,6 +98,24 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 	if from.Owner != to.Owner {
 		changed = true
 	}
+	if from.RelKind != to.RelKind {
+		changed = true
+	}
+
+	// Partition info comparison.
+	if !partitionInfoEqual(from.PartitionInfo, to.PartitionInfo) {
+		changed = true
+	}
+
+	// Partition bound comparison.
+	if !partitionBoundEqual(from.PartitionBound, to.PartitionBound) {
+		changed = true
+	}
+
+	// Inheritance parents comparison.
+	if !inhParentsEqual(fromCat, toCat, from.InhParents, to.InhParents) {
+		changed = true
+	}
 
 	// Column sub-diff.
 	cols := diffColumns(fromCat, toCat, from, to)
@@ -123,11 +141,24 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 		changed = true
 	}
 
+	// Policy sub-diff.
+	polDiffs := diffPolicies(fromCat, toCat, from.OID, to.OID)
+	if len(polDiffs) > 0 {
+		changed = true
+	}
+
+	// RLS flag changes.
+	var rlsChanged bool
+	if from.RowSecurity != to.RowSecurity || from.ForceRowSecurity != to.ForceRowSecurity {
+		rlsChanged = true
+		changed = true
+	}
+
 	if !changed {
 		return RelationDiffEntry{}, false
 	}
 
-	return RelationDiffEntry{
+	entry := RelationDiffEntry{
 		Action:      DiffModify,
 		SchemaName:  key.schema,
 		Name:        key.name,
@@ -137,5 +168,78 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 		Constraints: conDiffs,
 		Indexes:     idxDiffs,
 		Triggers:    trigDiffs,
-	}, true
+		Policies:    polDiffs,
+	}
+	if rlsChanged {
+		entry.RLSChanged = true
+		entry.RLSEnabled = to.RowSecurity
+		entry.ForceRLSEnabled = to.ForceRowSecurity
+	}
+	return entry, true
+}
+
+// partitionInfoEqual returns true if two PartitionInfo values are equivalent.
+func partitionInfoEqual(a, b *PartitionInfo) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	if a.Strategy != b.Strategy || a.NKeyAttrs != b.NKeyAttrs {
+		return false
+	}
+	if len(a.KeyAttNums) != len(b.KeyAttNums) {
+		return false
+	}
+	for i := range a.KeyAttNums {
+		if a.KeyAttNums[i] != b.KeyAttNums[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// partitionBoundEqual returns true if two PartitionBound values are equivalent.
+func partitionBoundEqual(a, b *PartitionBound) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	if a.Strategy != b.Strategy || a.IsDefault != b.IsDefault {
+		return false
+	}
+	if !stringSliceEqual(a.ListValues, b.ListValues) {
+		return false
+	}
+	if !stringSliceEqual(a.LowerBound, b.LowerBound) {
+		return false
+	}
+	if !stringSliceEqual(a.UpperBound, b.UpperBound) {
+		return false
+	}
+	if a.Modulus != b.Modulus || a.Remainder != b.Remainder {
+		return false
+	}
+	return true
+}
+
+// inhParentsEqual compares inheritance parent lists by resolving OIDs to names.
+func inhParentsEqual(fromCat, toCat *Catalog, fromOIDs, toOIDs []uint32) bool {
+	fromNames := resolveRelNames(fromCat, fromOIDs)
+	toNames := resolveRelNames(toCat, toOIDs)
+	return stringSliceEqual(fromNames, toNames)
+}
+
+// resolveRelNames resolves a list of relation OIDs to qualified names.
+func resolveRelNames(c *Catalog, oids []uint32) []string {
+	names := make([]string, 0, len(oids))
+	for _, oid := range oids {
+		if rel := c.GetRelationByOID(oid); rel != nil && rel.Schema != nil {
+			names = append(names, rel.Schema.Name+"."+rel.Name)
+		}
+	}
+	return names
 }

@@ -190,12 +190,15 @@ func Diff(from, to *Catalog) *SchemaDiff {
 	relations := diffRelations(from, to)
 	relations = append(relations, diffViews(from, to)...)
 	return &SchemaDiff{
-		Schemas:   diffSchemas(from, to),
-		Relations: relations,
-		Sequences: diffSequences(from, to),
-		Functions: diffFunctions(from, to),
-		Enums:     diffEnums(from, to),
-		Domains:   diffDomains(from, to),
-		Ranges:    diffRanges(from, to),
+		Schemas:    diffSchemas(from, to),
+		Relations:  relations,
+		Sequences:  diffSequences(from, to),
+		Functions:  diffFunctions(from, to),
+		Enums:      diffEnums(from, to),
+		Domains:    diffDomains(from, to),
+		Ranges:     diffRanges(from, to),
+		Extensions: diffExtensions(from, to),
+		Comments:   diffComments(from, to),
+		Grants:     diffGrants(from, to),
 	}
 }
