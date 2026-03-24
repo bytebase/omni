@@ -1414,6 +1414,9 @@ func (p *Parser) parseSetOpWithPrecedence(left *nodes.SelectStmt, minPrec int) (
 		}
 
 		if p.cur.Type != kwSELECT && p.cur.Type != '(' {
+			if p.cur.Type == tokEOF {
+				return nil, p.syntaxErrorAtCur()
+			}
 			return nil, &ParseError{
 				Message:  "expected SELECT after set operation",
 				Position: p.cur.Loc,

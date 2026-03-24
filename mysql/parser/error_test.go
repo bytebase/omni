@@ -433,3 +433,115 @@ func TestParseError_Section_3_3_MidTokenErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestParseError_Section_4_1_SELECTClauses(t *testing.T) {
+	cases := []struct {
+		name     string
+		sql      string
+		contains string
+	}{
+		{"join_eof", "SELECT * FROM t JOIN", "at end of input"},
+		{"left_join_eof", "SELECT * FROM t LEFT JOIN", "at end of input"},
+		{"join_on_eof", "SELECT * FROM t JOIN t2 ON", "at end of input"},
+		{"where_eof", "SELECT * FROM t WHERE", "at end of input"},
+		{"group_by_eof", "SELECT * FROM t GROUP BY", "at end of input"},
+		{"group_by_comma_eof", "SELECT * FROM t GROUP BY a,", "at end of input"},
+		{"having_eof", "SELECT * FROM t HAVING", "at end of input"},
+		{"order_by_eof", "SELECT * FROM t ORDER BY", "at end of input"},
+		{"order_by_comma_eof", "SELECT * FROM t ORDER BY a,", "at end of input"},
+		{"limit_eof", "SELECT * FROM t LIMIT", "at end of input"},
+		{"union_eof", "SELECT 1 UNION", "at end of input"},
+		{"union_all_eof", "SELECT 1 UNION ALL", "at end of input"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.contains) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.contains)
+			}
+		})
+	}
+}
+
+func TestParseError_Section_4_2_CTESubqueries(t *testing.T) {
+	cases := []struct {
+		name     string
+		sql      string
+		contains string
+	}{
+		{"with_eof", "WITH", "at end of input"},
+		{"with_cte_as_paren_eof", "WITH cte AS (", "at end of input"},
+		{"select_exists_paren_eof", "SELECT EXISTS (", "at end of input"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.contains) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.contains)
+			}
+		})
+	}
+}
+
+func TestParseError_Section_4_3_DDLTruncation(t *testing.T) {
+	cases := []struct {
+		name     string
+		sql      string
+		contains string
+	}{
+		{"create_table_default_eof", "CREATE TABLE t (a INT DEFAULT", "at end of input"},
+		{"create_table_references_eof", "CREATE TABLE t (a INT REFERENCES", "at end of input"},
+		{"create_table_check_paren_eof", "CREATE TABLE t (a INT CHECK (", "at end of input"},
+		{"alter_table_add_column_eof", "ALTER TABLE t ADD COLUMN", "at end of input"},
+		{"alter_table_drop_column_eof", "ALTER TABLE t DROP COLUMN", "at end of input"},
+		{"alter_table_rename_to_eof", "ALTER TABLE t RENAME TO", "at end of input"},
+		{"create_index_on_eof", "CREATE INDEX idx ON", "at end of input"},
+		{"create_view_as_eof", "CREATE VIEW v AS", "at end of input"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.contains) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.contains)
+			}
+		})
+	}
+}
+
+func TestParseError_Section_4_4_DMLTruncation(t *testing.T) {
+	cases := []struct {
+		name     string
+		sql      string
+		contains string
+	}{
+		{"insert_values_paren_eof", "INSERT INTO t VALUES (", "at end of input"},
+		{"insert_cols_paren_eof", "INSERT INTO t (", "at end of input"},
+		{"insert_on_dup_key_eof", "INSERT INTO t VALUES (1) ON DUPLICATE KEY UPDATE a =", "at end of input"},
+		{"update_set_eof", "UPDATE t SET", "at end of input"},
+		{"update_set_eq_eof", "UPDATE t SET a =", "at end of input"},
+		{"delete_where_eof", "DELETE FROM t WHERE", "at end of input"},
+		{"set_var_eq_eof", "SET @x =", "at end of input"},
+		{"use_eof", "USE", "at end of input"},
+		{"drop_table_eof", "DROP TABLE", "at end of input"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.contains) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.contains)
+			}
+		})
+	}
+}
