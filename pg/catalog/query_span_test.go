@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	nodes "github.com/bytebase/omni/pg/ast"
 	pg "github.com/bytebase/omni/pg"
+	nodes "github.com/bytebase/omni/pg/ast"
 )
 
 // columnLineage represents a source column reference, matching QuerySpan's ColumnResource.
@@ -134,7 +134,7 @@ func walkExpr(c *Catalog, q *Query, expr AnalyzedExpr, seen map[columnLineage]bo
 		walkExpr(c, q, v.Right, seen, result)
 	case *CollateExprQ:
 		walkExpr(c, q, v.Arg, seen, result)
-	// ConstExpr, ParamExpr, etc. — no column references, skip.
+		// ConstExpr, ParamExpr, etc. — no column references, skip.
 	}
 }
 
@@ -549,7 +549,19 @@ func TestQuerySpan_JoinWithUsing(t *testing.T) {
 		t.Logf("  [%d] name=%q plain=%v sources=%v", i, r.Name, r.IsPlainField, lineageStrings(r.SourceCols))
 	}
 
-	// At minimum, all columns should trace back to public.t
+	if len(results) != 7 {
+		t.Fatalf("expected 7 columns (USING deduplicates 'a'), got %d", len(results))
+	}
+
+	// Verify column names: a, b, c, d, b, c, d
+	expectedNames := []string{"a", "b", "c", "d", "b", "c", "d"}
+	for i, expected := range expectedNames {
+		if results[i].Name != expected {
+			t.Errorf("column %d: expected name %q, got %q", i, expected, results[i].Name)
+		}
+	}
+
+	// All columns should trace back to public.t
 	for _, r := range results {
 		for _, col := range r.SourceCols {
 			if col.Table != "t" || col.Schema != "public" {

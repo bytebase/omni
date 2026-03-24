@@ -345,13 +345,13 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt) (*Query, error) {
 
 // analyzeCtx holds state during query analysis.
 type analyzeCtx struct {
-	catalog            *Catalog
-	query              *Query
-	parent             *analyzeCtx // for correlated subqueries
-	domainConstraint   bool        // true when analyzing a domain CHECK constraint
-	domainBaseTypeOID  uint32      // base type OID for domain VALUE keyword
-	domainBaseTypMod   int32       // base type modifier for domain VALUE keyword
-	domainBaseCollation uint32     // base type collation for domain VALUE keyword
+	catalog             *Catalog
+	query               *Query
+	parent              *analyzeCtx // for correlated subqueries
+	domainConstraint    bool        // true when analyzing a domain CHECK constraint
+	domainBaseTypeOID   uint32      // base type OID for domain VALUE keyword
+	domainBaseTypMod    int32       // base type modifier for domain VALUE keyword
+	domainBaseCollation uint32      // base type collation for domain VALUE keyword
 }
 
 // transformFromClauseItem processes a FROM clause item.
@@ -463,26 +463,6 @@ func (ac *analyzeCtx) transformJoinExpr(je *nodes.JoinExpr) (JoinNode, error) {
 
 	jt := convertJoinType(je.Jointype, je.IsNatural)
 
-	// Create RTE for the join itself.
-	var colNames []string
-	var colTypes []uint32
-	var colTypMods []int32
-	var colCollations []uint32
-	collectJoinColumns(ac.query.RangeTable, left, &colNames, &colTypes, &colTypMods, &colCollations)
-	collectJoinColumns(ac.query.RangeTable, right, &colNames, &colTypes, &colTypMods, &colCollations)
-
-	rtIdx := len(ac.query.RangeTable)
-	rte := &RangeTableEntry{
-		Kind:          RTEJoin,
-		JoinType:      jt,
-		ERef:          "",
-		ColNames:      colNames,
-		ColTypes:      colTypes,
-		ColTypMods:    colTypMods,
-		ColCollations: colCollations,
-	}
-	ac.query.RangeTable = append(ac.query.RangeTable, rte)
-
 	// Transform ON clause or USING clause.
 	// pg: src/backend/parser/parse_clause.c — transformFromClauseItem (USING handling)
 	var quals AnalyzedExpr
@@ -502,6 +482,34 @@ func (ac *analyzeCtx) transformJoinExpr(je *nodes.JoinExpr) (JoinNode, error) {
 			return nil, err
 		}
 	}
+
+	// Create RTE for the join itself.
+	// Per SQL standard and PostgreSQL behavior, USING columns appear once
+	// (coalesced from both sides). We collect all left columns, then collect
+	// right columns excluding any that are named in the USING clause.
+	// pg: src/backend/parser/parse_clause.c — extractRemainingColumns
+	var colNames []string
+	var colTypes []uint32
+	var colTypMods []int32
+	var colCollations []uint32
+	collectJoinColumns(ac.query.RangeTable, left, &colNames, &colTypes, &colTypMods, &colCollations)
+	if len(usingClause) > 0 {
+		collectJoinColumnsExcluding(ac.query.RangeTable, right, &colNames, &colTypes, &colTypMods, &colCollations, usingClause)
+	} else {
+		collectJoinColumns(ac.query.RangeTable, right, &colNames, &colTypes, &colTypMods, &colCollations)
+	}
+
+	rtIdx := len(ac.query.RangeTable)
+	rte := &RangeTableEntry{
+		Kind:          RTEJoin,
+		JoinType:      jt,
+		ERef:          "",
+		ColNames:      colNames,
+		ColTypes:      colTypes,
+		ColTypMods:    colTypMods,
+		ColCollations: colCollations,
+	}
+	ac.query.RangeTable = append(ac.query.RangeTable, rte)
 
 	return &JoinExprNode{
 		JoinType:    jt,
@@ -851,35 +859,46 @@ func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEn
 	tableName := starTableName(cr)
 
 	var entries []*TargetEntry
-	for rtIdx, rte := range ac.query.RangeTable {
-		if rte.Kind == RTEJoin {
-			continue // skip join RTEs for unqualified star
+
+	if tableName == "" && ac.query.JoinTree != nil {
+		// Unqualified *: walk the join tree so that JOIN USING deduplication
+		// is respected. Each top-level FROM item contributes its columns;
+		// for JoinExprNode the RTE already has the correct (deduplicated) list.
+		for _, jn := range ac.query.JoinTree.FromList {
+			ac.expandStarFromJoinNode(jn, &entries, startIdx)
 		}
-		if tableName != "" && rte.ERef != tableName {
-			continue
-		}
-		for colIdx, colName := range rte.ColNames {
-			var coll uint32
-			if colIdx < len(rte.ColCollations) {
-				coll = rte.ColCollations[colIdx]
+	} else {
+		// Qualified table.* or no join tree: iterate RTEs directly.
+		for rtIdx, rte := range ac.query.RangeTable {
+			if rte.Kind == RTEJoin {
+				continue
 			}
-			te := &TargetEntry{
-				Expr: &VarExpr{
-					RangeIdx:  rtIdx,
-					AttNum:    int16(colIdx + 1),
-					TypeOID:   rte.ColTypes[colIdx],
-					TypeMod:   rte.ColTypMods[colIdx],
-					Collation: coll,
-				},
-				ResNo:      int16(startIdx + len(entries) + 1),
-				ResName:    colName,
-				ResOrigTbl: rte.RelOID,
-				ResOrigCol: int16(colIdx + 1),
+			if tableName != "" && rte.ERef != tableName {
+				continue
 			}
-			entries = append(entries, te)
-		}
-		if tableName != "" {
-			break // found the specific table
+			for colIdx, colName := range rte.ColNames {
+				var coll uint32
+				if colIdx < len(rte.ColCollations) {
+					coll = rte.ColCollations[colIdx]
+				}
+				te := &TargetEntry{
+					Expr: &VarExpr{
+						RangeIdx:  rtIdx,
+						AttNum:    int16(colIdx + 1),
+						TypeOID:   rte.ColTypes[colIdx],
+						TypeMod:   rte.ColTypMods[colIdx],
+						Collation: coll,
+					},
+					ResNo:      int16(startIdx + len(entries) + 1),
+					ResName:    colName,
+					ResOrigTbl: rte.RelOID,
+					ResOrigCol: int16(colIdx + 1),
+				}
+				entries = append(entries, te)
+			}
+			if tableName != "" {
+				break
+			}
 		}
 	}
 
@@ -891,6 +910,69 @@ func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEn
 	}
 
 	return entries, nil
+}
+
+// expandStarFromJoinNode expands columns from a JoinNode for unqualified *.
+// For JoinExprNode with USING, the left side is expanded fully and the right
+// side skips USING columns, matching PostgreSQL's behavior. Vars still point
+// to the base table RTEs so that lineage tracking is preserved.
+func (ac *analyzeCtx) expandStarFromJoinNode(jn JoinNode, entries *[]*TargetEntry, startIdx int) {
+	switch v := jn.(type) {
+	case *RangeTableRef:
+		rte := ac.query.RangeTable[v.RTIndex]
+		for colIdx, colName := range rte.ColNames {
+			var coll uint32
+			if colIdx < len(rte.ColCollations) {
+				coll = rte.ColCollations[colIdx]
+			}
+			te := &TargetEntry{
+				Expr: &VarExpr{
+					RangeIdx:  v.RTIndex,
+					AttNum:    int16(colIdx + 1),
+					TypeOID:   rte.ColTypes[colIdx],
+					TypeMod:   rte.ColTypMods[colIdx],
+					Collation: coll,
+				},
+				ResNo:      int16(startIdx + len(*entries) + 1),
+				ResName:    colName,
+				ResOrigTbl: rte.RelOID,
+				ResOrigCol: int16(colIdx + 1),
+			}
+			*entries = append(*entries, te)
+		}
+	case *JoinExprNode:
+		// Expand left side fully.
+		ac.expandStarFromJoinNode(v.Left, entries, startIdx)
+		if len(v.UsingClause) > 0 {
+			// JOIN USING: expand right side but skip USING columns.
+			ac.expandStarFromJoinNodeExcluding(v.Right, entries, startIdx, v.UsingClause)
+		} else {
+			// JOIN ON or CROSS JOIN: expand right side normally.
+			ac.expandStarFromJoinNode(v.Right, entries, startIdx)
+		}
+	}
+}
+
+// expandStarFromJoinNodeExcluding expands columns from a JoinNode, skipping
+// the first occurrence of each column name in the exclude list. This implements
+// the PostgreSQL behavior where USING columns from the right side are omitted.
+func (ac *analyzeCtx) expandStarFromJoinNodeExcluding(jn JoinNode, entries *[]*TargetEntry, startIdx int, exclude []string) {
+	// Collect all entries from this node first, then filter.
+	var rightEntries []*TargetEntry
+	ac.expandStarFromJoinNode(jn, &rightEntries, startIdx)
+
+	excludeSet := make(map[string]bool, len(exclude))
+	for _, name := range exclude {
+		excludeSet[name] = true
+	}
+	for _, te := range rightEntries {
+		if excludeSet[te.ResName] {
+			delete(excludeSet, te.ResName)
+			continue
+		}
+		te.ResNo = int16(startIdx + len(*entries) + 1)
+		*entries = append(*entries, te)
+	}
 }
 
 // transformExpr transforms a raw expression node into an analyzed expression.
@@ -3394,8 +3476,46 @@ func collectJoinColumns(rangeTable []*RangeTableEntry, jn JoinNode, names *[]str
 			*colls = append(*colls, rte.ColCollations...)
 		}
 	case *JoinExprNode:
-		collectJoinColumns(rangeTable, v.Left, names, types, typMods, colls)
-		collectJoinColumns(rangeTable, v.Right, names, types, typMods, colls)
+		// Use the RTE's already-computed column list, which correctly
+		// excludes deduplicated USING columns for JOIN USING.
+		rte := rangeTable[v.RTIndex]
+		*names = append(*names, rte.ColNames...)
+		*types = append(*types, rte.ColTypes...)
+		*typMods = append(*typMods, rte.ColTypMods...)
+		if colls != nil {
+			*colls = append(*colls, rte.ColCollations...)
+		}
+	}
+}
+
+// collectJoinColumnsExcluding collects columns from a join node, skipping
+// columns whose names appear in the exclude list. This implements the
+// PostgreSQL behavior where USING columns from the right side are omitted.
+// pg: src/backend/parser/parse_clause.c — extractRemainingColumns
+func collectJoinColumnsExcluding(rangeTable []*RangeTableEntry, jn JoinNode, names *[]string, types *[]uint32, typMods *[]int32, colls *[]uint32, exclude []string) {
+	excludeSet := make(map[string]bool, len(exclude))
+	for _, name := range exclude {
+		excludeSet[name] = true
+	}
+
+	var allNames []string
+	var allTypes []uint32
+	var allTypMods []int32
+	var allColls []uint32
+	collectJoinColumns(rangeTable, jn, &allNames, &allTypes, &allTypMods, &allColls)
+
+	for i, name := range allNames {
+		if excludeSet[name] {
+			// Skip this USING column (only skip the first occurrence).
+			delete(excludeSet, name)
+			continue
+		}
+		*names = append(*names, name)
+		*types = append(*types, allTypes[i])
+		*typMods = append(*typMods, allTypMods[i])
+		if colls != nil && i < len(allColls) {
+			*colls = append(*colls, allColls[i])
+		}
 	}
 }
 
