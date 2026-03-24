@@ -44,7 +44,7 @@ func diffRelations(from, to *Catalog) []RelationDiffEntry {
 		}
 
 		// Both exist — check for modifications.
-		if entry, changed := compareRelation(key, fromRel, toRel); changed {
+		if entry, changed := compareRelation(from, to, key, fromRel, toRel); changed {
 			result = append(result, entry)
 		}
 	}
@@ -79,8 +79,8 @@ func buildRelationMap(c *Catalog) map[relKey]*Relation {
 }
 
 // compareRelation checks whether two relations with the same identity differ
-// in table-level properties. Column/constraint/index sub-diffs are not yet implemented.
-func compareRelation(key relKey, from, to *Relation) (RelationDiffEntry, bool) {
+// in table-level properties or sub-objects (columns).
+func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (RelationDiffEntry, bool) {
 	changed := false
 
 	if from.Persistence != to.Persistence {
@@ -99,15 +99,36 @@ func compareRelation(key relKey, from, to *Relation) (RelationDiffEntry, bool) {
 		changed = true
 	}
 
+	// Column sub-diff.
+	cols := diffColumns(fromCat, toCat, from, to)
+	if len(cols) > 0 {
+		changed = true
+	}
+
+	// Constraint sub-diff.
+	conDiffs := diffConstraints(fromCat, toCat, from.OID, to.OID)
+	if len(conDiffs) > 0 {
+		changed = true
+	}
+
+	// Index sub-diff.
+	idxDiffs := diffIndexes(fromCat, toCat, from.OID, to.OID)
+	if len(idxDiffs) > 0 {
+		changed = true
+	}
+
 	if !changed {
 		return RelationDiffEntry{}, false
 	}
 
 	return RelationDiffEntry{
-		Action:     DiffModify,
-		SchemaName: key.schema,
-		Name:       key.name,
-		From:       from,
-		To:         to,
+		Action:      DiffModify,
+		SchemaName:  key.schema,
+		Name:        key.name,
+		From:        from,
+		To:          to,
+		Columns:     cols,
+		Constraints: conDiffs,
+		Indexes:     idxDiffs,
 	}, true
 }
