@@ -305,6 +305,8 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 					Position: p.cur.Loc,
 				}
 			}
+		} else if p.cur.Type == tokEOF {
+			return nil, p.syntaxErrorAtCur()
 		} else {
 			return nil, &ParseError{
 				Message:  "expected data type",

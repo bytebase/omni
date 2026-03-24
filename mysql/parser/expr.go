@@ -1109,6 +1109,8 @@ func (p *Parser) parseIsExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "unknown") {
 			is.Test = nodes.IsUnknown
 			p.advance()
+		} else if p.cur.Type == tokEOF {
+			return nil, p.syntaxErrorAtCur()
 		} else {
 			return nil, &ParseError{
 				Message:  "expected NULL, TRUE, FALSE, or UNKNOWN after IS",

@@ -86,6 +86,9 @@ func (p *Parser) expect(tokenType int) (Token, error) {
 	if p.cur.Type == tokenType {
 		return p.advance(), nil
 	}
+	if p.cur.Type == tokEOF {
+		return Token{}, p.syntaxErrorAtCur()
+	}
 	return Token{}, &ParseError{
 		Message:  "unexpected token",
 		Position: p.cur.Loc,

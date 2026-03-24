@@ -23,6 +23,9 @@ func (p *Parser) parseIdentifier() (string, int, error) {
 		tok := p.advance()
 		return tok.Str, tok.Loc, nil
 	}
+	if p.cur.Type == tokEOF {
+		return "", 0, p.syntaxErrorAtCur()
+	}
 	return "", 0, &ParseError{
 		Message:  "expected identifier",
 		Position: p.cur.Loc,

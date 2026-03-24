@@ -109,25 +109,25 @@ func TestParseError_Section_1_2_StmtDispatch(t *testing.T) {
 		contains string
 	}{
 		// parseChangeMasterStmtInner — truncated after MASTER (needs TO + options)
-		{"change_master_trunc", "CHANGE MASTER TO", "expected identifier"},
+		{"change_master_trunc", "CHANGE MASTER TO", "at end of input"},
 		// parseStartReplicaStmt — truncated mid-clause (FOR without CHANNEL name)
-		{"start_replica_for_trunc", "START REPLICA FOR", "expected identifier"},
+		{"start_replica_for_trunc", "START REPLICA FOR", "at end of input"},
 		// parseStartGroupReplicationStmt — valid as standalone; test CHANGE REPLICATION with no target
 		{"change_replication_trunc", "CHANGE REPLICATION", "expected SOURCE or FILTER"},
 		// parseStopReplicaStmt — truncated mid-clause (FOR without CHANNEL name)
-		{"stop_replica_for_trunc", "STOP REPLICA FOR", "expected identifier"},
+		{"stop_replica_for_trunc", "STOP REPLICA FOR", "at end of input"},
 		// parseStopGroupReplicationStmt is always valid; test STOP without valid keyword
 		{"stop_no_keyword", "STOP", "expected REPLICA"},
 		// parseLoadIndexIntoCacheStmt — truncated after CACHE (needs table ref)
-		{"load_index_trunc", "LOAD INDEX INTO CACHE", "expected identifier"},
+		{"load_index_trunc", "LOAD INDEX INTO CACHE", "at end of input"},
 		// parseCreateResourceGroupStmt — truncated after GROUP (needs name)
-		{"create_resource_group_trunc", "CREATE RESOURCE GROUP", "expected identifier"},
+		{"create_resource_group_trunc", "CREATE RESOURCE GROUP", "at end of input"},
 		// parseAlterResourceGroupStmt — truncated after GROUP (needs name)
-		{"alter_resource_group_trunc", "ALTER RESOURCE GROUP", "expected identifier"},
+		{"alter_resource_group_trunc", "ALTER RESOURCE GROUP", "at end of input"},
 		// parseDropSpatialRefSysStmt — truncated after SPATIAL (needs REFERENCE SYSTEM)
 		{"drop_spatial_trunc", "DROP SPATIAL", "expected REFERENCE"},
 		// parseDropResourceGroupStmt — truncated after GROUP (needs name)
-		{"drop_resource_group_trunc", "DROP RESOURCE GROUP", "expected identifier"},
+		{"drop_resource_group_trunc", "DROP RESOURCE GROUP", "at end of input"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -151,19 +151,19 @@ func TestParseError_Section_1_3_DDLIgnoredErrors(t *testing.T) {
 		contains string
 	}{
 		// create_function.go: LANGUAGE identifier
-		{"func_language_trunc", "CREATE FUNCTION f() RETURNS INT LANGUAGE", "expected identifier"},
+		{"func_language_trunc", "CREATE FUNCTION f() RETURNS INT LANGUAGE", "at end of input"},
 		// create_function.go: SQL SECURITY identifier
-		{"func_sql_security_trunc", "CREATE FUNCTION f() RETURNS INT SQL SECURITY", "expected identifier"},
+		{"func_sql_security_trunc", "CREATE FUNCTION f() RETURNS INT SQL SECURITY", "at end of input"},
 		// create_table.go: column COLLATE identifier
 		{"col_collate_trunc", "CREATE TABLE t (a INT COLLATE)", "expected identifier"},
 		// create_database.go: CHARACTER SET identifier
-		{"db_charset_trunc", "CREATE DATABASE db CHARACTER SET", "expected identifier"},
+		{"db_charset_trunc", "CREATE DATABASE db CHARACTER SET", "at end of input"},
 		// create_database.go: CHARSET identifier
-		{"db_charset_short_trunc", "CREATE DATABASE db CHARSET", "expected identifier"},
+		{"db_charset_short_trunc", "CREATE DATABASE db CHARSET", "at end of input"},
 		// create_database.go: COLLATE identifier
-		{"db_collate_trunc", "CREATE DATABASE db COLLATE", "expected identifier"},
+		{"db_collate_trunc", "CREATE DATABASE db COLLATE", "at end of input"},
 		// alter_table.go: AFTER column identifier
-		{"alter_after_trunc", "ALTER TABLE t ADD COLUMN c INT AFTER", "expected identifier"},
+		{"alter_after_trunc", "ALTER TABLE t ADD COLUMN c INT AFTER", "at end of input"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -187,13 +187,13 @@ func TestParseError_Section_1_4_DMLIgnoredErrors(t *testing.T) {
 		contains string
 	}{
 		// select.go: table alias parseIdentifier (2 sites — subquery AS at EOF)
-		{"subquery_as_trunc", "SELECT * FROM (SELECT 1) AS", "expected identifier"},
-		{"lateral_subquery_as_trunc", "SELECT * FROM t, LATERAL (SELECT 1) AS", "expected identifier"},
+		{"subquery_as_trunc", "SELECT * FROM (SELECT 1) AS", "at end of input"},
+		{"lateral_subquery_as_trunc", "SELECT * FROM t, LATERAL (SELECT 1) AS", "at end of input"},
 		// select.go: JSON_TABLE alias (required) at EOF
-		{"json_table_alias_trunc", "SELECT * FROM JSON_TABLE('[1]', '$[*]' COLUMNS (a INT PATH '$.a')) AS", "expected identifier"},
+		{"json_table_alias_trunc", "SELECT * FROM JSON_TABLE('[1]', '$[*]' COLUMNS (a INT PATH '$.a')) AS", "at end of input"},
 		// select.go: INTO OUTFILE charset at EOF
-		{"outfile_charset_trunc", "SELECT 1 INTO OUTFILE 'f' CHARACTER SET", "expected identifier"},
-		{"outfile_charset_short_trunc", "SELECT 1 INTO OUTFILE 'f' CHARSET", "expected identifier"},
+		{"outfile_charset_trunc", "SELECT 1 INTO OUTFILE 'f' CHARACTER SET", "at end of input"},
+		{"outfile_charset_short_trunc", "SELECT 1 INTO OUTFILE 'f' CHARSET", "at end of input"},
 		// set_show.go -> grant.go: SET DEFAULT ROLE at EOF (already errors)
 		{"set_default_role_trunc", "SET DEFAULT ROLE", "expected"},
 		// set_show.go -> grant.go: SET ROLE at EOF (already errors)
@@ -204,10 +204,10 @@ func TestParseError_Section_1_4_DMLIgnoredErrors(t *testing.T) {
 		{"grant_host_at_trunc", "SET DEFAULT ROLE role1 TO user@", "expected"},
 		{"rename_user_trunc", "RENAME USER", "at end of input"},
 		// load_data.go: charset/file identifier (2 sites)
-		{"load_data_charset_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARACTER SET", "expected identifier"},
-		{"load_data_charset_short_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARSET", "expected identifier"},
+		{"load_data_charset_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARACTER SET", "at end of input"},
+		{"load_data_charset_short_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARSET", "at end of input"},
 		// replication.go: channel identifier (UNTIL pos name)
-		{"repl_until_pos_trunc", "START REPLICA UNTIL SOURCE_LOG_FILE = 'f',", "expected identifier"},
+		{"repl_until_pos_trunc", "START REPLICA UNTIL SOURCE_LOG_FILE = 'f',", "at end of input"},
 		// utility.go: identifier (2 sites — RESET bare, HELP bare)
 		{"reset_bare", "RESET", "at end of input"},
 		{"help_bare", "HELP", "at end of input"},
@@ -339,6 +339,87 @@ func TestParseError_Section_2_4_UnaryPrefixOperators(t *testing.T) {
 		{"neg_eof", "SELECT -", "at end of input"},
 		{"bitnot_eof", "SELECT ~", "at end of input"},
 		{"bang_eof", "SELECT !", "at end of input"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.contains) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.contains)
+			}
+		})
+	}
+}
+
+func TestParseError_Section_3_1_BetweenLikeInRegexp(t *testing.T) {
+	cases := []struct {
+		name     string
+		sql      string
+		contains string
+	}{
+		{"between_eof", "SELECT 1 BETWEEN", "at end of input"},
+		{"between_and_eof", "SELECT 1 BETWEEN 0 AND", "at end of input"},
+		{"not_between_eof", "SELECT 1 NOT BETWEEN", "at end of input"},
+		{"like_eof", "SELECT 'a' LIKE", "at end of input"},
+		{"like_escape_eof", "SELECT 'a' LIKE 'b' ESCAPE", "at end of input"},
+		{"not_like_eof", "SELECT 'a' NOT LIKE", "at end of input"},
+		{"in_paren_eof", "SELECT 1 IN (", "at end of input"},
+		{"in_comma_eof", "SELECT 1 IN (1,", "at end of input"},
+		{"regexp_eof", "SELECT 1 REGEXP", "at end of input"},
+		{"not_regexp_eof", "SELECT 1 NOT REGEXP", "at end of input"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.contains) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.contains)
+			}
+		})
+	}
+}
+
+func TestParseError_Section_3_2_CaseCastIsCollate(t *testing.T) {
+	cases := []struct {
+		name     string
+		sql      string
+		contains string
+	}{
+		{"case_when_eof", "SELECT CASE WHEN", "at end of input"},
+		{"case_when_then_eof", "SELECT CASE WHEN 1 THEN", "at end of input"},
+		{"cast_as_eof", "SELECT CAST(1 AS", "at end of input"},
+		{"convert_using_eof", "SELECT CONVERT(1 USING", "at end of input"},
+		{"is_eof", "SELECT 1 IS", "at end of input"},
+		{"is_not_eof", "SELECT 1 IS NOT", "at end of input"},
+		{"collate_eof", "SELECT a COLLATE", "at end of input"},
+		{"sounds_eof", "SELECT a SOUNDS", "at end of input"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.contains) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.contains)
+			}
+		})
+	}
+}
+
+func TestParseError_Section_3_3_MidTokenErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		sql      string
+		contains string
+	}{
+		{"cast_plus_close_paren", "SELECT CAST(1 + )", "at or near"},
+		{"plus_close_paren", "SELECT 1 + )", "at or near"},
+		{"plus_semicolon", "SELECT 1 + ;", "at or near"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
