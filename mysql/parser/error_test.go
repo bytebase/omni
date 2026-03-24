@@ -272,3 +272,83 @@ func TestParseError_Section_2_1_ArithmeticOperators(t *testing.T) {
 		})
 	}
 }
+
+func TestParseError_Section_2_2_ComparisonOperators(t *testing.T) {
+	cases := []struct {
+		name     string
+		sql      string
+		contains string
+	}{
+		{"eq_eof", "SELECT 1 =", "at end of input"},
+		{"lt_eof", "SELECT 1 <", "at end of input"},
+		{"gt_eof", "SELECT 1 >", "at end of input"},
+		{"lte_eof", "SELECT 1 <=", "at end of input"},
+		{"gte_eof", "SELECT 1 >=", "at end of input"},
+		{"neq_eof", "SELECT 1 <>", "at end of input"},
+		{"neq_bang_eof", "SELECT 1 !=", "at end of input"},
+		{"spaceship_eof", "SELECT 1 <=>", "at end of input"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.contains) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.contains)
+			}
+		})
+	}
+}
+
+func TestParseError_Section_2_3_LogicalBitwiseOperators(t *testing.T) {
+	cases := []struct {
+		name     string
+		sql      string
+		contains string
+	}{
+		{"and_eof", "SELECT 1 AND", "at end of input"},
+		{"or_eof", "SELECT 1 OR", "at end of input"},
+		{"xor_eof", "SELECT 1 XOR", "at end of input"},
+		{"bitor_eof", "SELECT 1 |", "at end of input"},
+		{"bitand_eof", "SELECT 1 &", "at end of input"},
+		{"bitxor_eof", "SELECT 1 ^", "at end of input"},
+		{"lshift_eof", "SELECT 1 <<", "at end of input"},
+		{"rshift_eof", "SELECT 1 >>", "at end of input"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.contains) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.contains)
+			}
+		})
+	}
+}
+
+func TestParseError_Section_2_4_UnaryPrefixOperators(t *testing.T) {
+	cases := []struct {
+		name     string
+		sql      string
+		contains string
+	}{
+		{"not_eof", "SELECT NOT", "at end of input"},
+		{"neg_eof", "SELECT -", "at end of input"},
+		{"bitnot_eof", "SELECT ~", "at end of input"},
+		{"bang_eof", "SELECT !", "at end of input"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.contains) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.contains)
+			}
+		})
+	}
+}
