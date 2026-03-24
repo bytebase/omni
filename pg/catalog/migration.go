@@ -176,6 +176,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	ops = append(ops, generatePartitionDDL(from, to, diff)...)
 	ops = append(ops, generateTriggerDDL(from, to, diff)...)
 	ops = append(ops, generatePolicyDDL(from, to, diff)...)
+	ops = append(ops, generateCommentDDL(from, to, diff)...)
 
 	return &MigrationPlan{Ops: ops}
 }
