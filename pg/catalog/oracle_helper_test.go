@@ -471,7 +471,7 @@ func (o *pgOracle) queryComments(t *testing.T, schema string) []commentRow {
 		FROM pg_description d
 		JOIN (
 			SELECT objoid, classoid,
-			       CASE WHEN classoid = 'pg_class'::regclass THEN objoid
+			       CASE WHEN classoid = 'pg_class'::regclass THEN (SELECT relnamespace FROM pg_class WHERE oid = objoid)
 			            WHEN classoid = 'pg_type'::regclass THEN (SELECT typnamespace FROM pg_type WHERE oid = objoid)
 			            WHEN classoid = 'pg_proc'::regclass THEN (SELECT pronamespace FROM pg_proc WHERE oid = objoid)
 			            WHEN classoid = 'pg_namespace'::regclass THEN objoid
@@ -686,9 +686,12 @@ func compareSlices[T any](category string, a, b []T, keyFn func(T) string, detai
 
 // compareIndexes compares indexes, normalizing schema names in index definitions.
 func compareIndexes(schemaA, schemaB string, a, b []indexRow) []string {
-	// Normalize index definitions by replacing schema-specific references
+	// Normalize index definitions by replacing schema-specific references.
+	// PG may output schema names quoted or unquoted depending on the name.
 	normalize := func(def, schema string) string {
-		return strings.ReplaceAll(def, fmt.Sprintf("%q.", schema), "")
+		def = strings.ReplaceAll(def, fmt.Sprintf("%q.", schema), "")
+		def = strings.ReplaceAll(def, schema+".", "")
+		return def
 	}
 	var diffs []string
 	mapA := make(map[string]string, len(a))
@@ -730,7 +733,9 @@ func compareIndexes(schemaA, schemaB string, a, b []indexRow) []string {
 // compareTriggers compares triggers, normalizing schema names in definitions.
 func compareTriggers(schemaA, schemaB string, a, b []triggerRow) []string {
 	normalize := func(def, schema string) string {
-		return strings.ReplaceAll(def, fmt.Sprintf("%q.", schema), "")
+		def = strings.ReplaceAll(def, fmt.Sprintf("%q.", schema), "")
+		def = strings.ReplaceAll(def, schema+".", "")
+		return def
 	}
 	var diffs []string
 	mapA := make(map[string]string, len(a))
@@ -817,7 +822,10 @@ func assertOracleRoundtrip(t *testing.T, o *pgOracle, beforeDDL, afterDDL string
 	plan := GenerateMigration(fromCat, toCat, diff)
 
 	// 3. Apply migration to PG.
+	// Strip explicit "public." schema qualifiers since we're running in a test schema.
 	migrationSQL := plan.SQL()
+	migrationSQL = strings.ReplaceAll(migrationSQL, "public.", "")
+	migrationSQL = strings.ReplaceAll(migrationSQL, `"public".`, "")
 	if migrationSQL != "" {
 		o.execInSchema(t, migrated, migrationSQL)
 	}
