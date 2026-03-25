@@ -51,8 +51,23 @@ func LoadSDL(sql string) (*Catalog, error) {
 		return nil, err
 	}
 
+	// Pre-create shell types (and their array types) for all composite types.
+	// This resolves mutual references between composite types (e.g., type A
+	// referencing type B[] and vice versa) by ensuring all type names exist
+	// before any full definition.
+	for _, stmt := range ordered {
+		if ct, ok := stmt.(*nodes.CompositeTypeStmt); ok && ct.Typevar != nil {
+			c.createCompositeShellType(ct.Typevar)
+		}
+	}
+
 	// Execute in topologically sorted order.
 	for _, stmt := range ordered {
+		// Before executing a CompositeTypeStmt, remove its shell type so
+		// DefineRelation does not see a conflicting type name.
+		if ct, ok := stmt.(*nodes.CompositeTypeStmt); ok && ct.Typevar != nil {
+			c.removeShellType(ct.Typevar)
+		}
 		if err := c.ProcessUtility(stmt); err != nil {
 			return c, err
 		}
@@ -216,6 +231,104 @@ func typeNameQualified(tn *nodes.TypeName) string {
 	return strings.Join(parts, ".")
 }
 
+// createCompositeShellType creates a shell type and its array type for a composite type.
+// This allows mutual composite type references via arrays to be resolved.
+func (c *Catalog) createCompositeShellType(rv *nodes.RangeVar) {
+	schemaName := rv.Schemaname
+	if schemaName == "" {
+		schemaName = "public"
+	}
+	schema := c.schemaByName[schemaName]
+	if schema == nil {
+		return
+	}
+	name := rv.Relname
+	key := typeKey{ns: schema.OID, name: name}
+	if c.typeByName[key] != nil {
+		return // already exists
+	}
+
+	// Create shell type.
+	shellOID := c.oidGen.Next()
+	shellType := &BuiltinType{
+		OID:       shellOID,
+		TypeName:  name,
+		Namespace: schema.OID,
+		Len:       -1,
+		ByVal:     false,
+		Type:      'c',
+		Category:  'C',
+		IsDefined: false,
+		Delim:     ',',
+		Align:     'd',
+		Storage:   'x',
+		TypeMod:   -1,
+	}
+	c.typeByOID[shellOID] = shellType
+	c.typeByName[key] = shellType
+
+	// Create array type (_name) so references like "name[]" resolve.
+	arrayOID := c.oidGen.Next()
+	arrayName := "_" + name
+	arrayType := &BuiltinType{
+		OID:       arrayOID,
+		TypeName:  arrayName,
+		Namespace: schema.OID,
+		Len:       -1,
+		ByVal:     false,
+		Type:      'b',
+		Category:  'A',
+		IsDefined: false,
+		Delim:     ',',
+		Elem:      shellOID,
+		Align:     'd',
+		Storage:   'x',
+		TypeMod:   -1,
+	}
+	shellType.Array = arrayOID
+	c.typeByOID[arrayOID] = arrayType
+	c.typeByName[typeKey{ns: schema.OID, name: arrayName}] = arrayType
+}
+
+// removeShellType removes an undefined shell type entry (and its array type)
+// for a composite type so that DefineRelation does not see a conflict.
+func (c *Catalog) removeShellType(rv *nodes.RangeVar) {
+	schemaName := rv.Schemaname
+	if schemaName == "" {
+		schemaName = "public"
+	}
+	schema := c.schemaByName[schemaName]
+	if schema == nil {
+		return
+	}
+	key := typeKey{ns: schema.OID, name: rv.Relname}
+	t := c.typeByName[key]
+	if t == nil || t.IsDefined {
+		return
+	}
+	// Remove the array type if it exists and is also a shell.
+	if t.Array != 0 {
+		arrayKey := typeKey{ns: schema.OID, name: "_" + rv.Relname}
+		if at := c.typeByName[arrayKey]; at != nil && !at.IsDefined {
+			delete(c.typeByName, arrayKey)
+			delete(c.typeByOID, at.OID)
+		}
+	}
+	delete(c.typeByName, key)
+	delete(c.typeByOID, t.OID)
+}
+
+// rangeVarToNameList converts a RangeVar to a List of String nodes
+// suitable for DefineStmt.Defnames.
+func rangeVarToNameList(rv *nodes.RangeVar) *nodes.List {
+	var items []nodes.Node
+	if rv.Schemaname != "" {
+		items = append(items, &nodes.String{Str: rv.Schemaname})
+	}
+	items = append(items, &nodes.String{Str: rv.Relname})
+	return &nodes.List{Items: items}
+}
+
 // RangeVar is an alias used in this file for convenience.
 type RangeVar = nodes.RangeVar
 
@@ -225,8 +338,9 @@ type RangeVar = nodes.RangeVar
 
 // dep represents a dependency: statement at index `from` depends on statement at index `to`.
 type dep struct {
-	from int // index of the dependent statement
-	to   int // index of the dependency
+	from int  // index of the dependent statement
+	to   int  // index of the dependency
+	isFK bool // true if this dep originates from a FK constraint (deferred, not in within-layer sort)
 }
 
 // stmtPriority assigns a priority layer to each statement type for ordering.
@@ -331,10 +445,15 @@ func extractDeps(stmts []nodes.Node, declared map[string]bool) []dep {
 
 	var deps []dep
 	for i, stmt := range stmts {
-		refs := extractRefs(stmt, declared)
+		refs, fkRefs := extractRefs(stmt, declared)
 		for _, ref := range refs {
 			if j, ok := nameToIdx[ref]; ok && j != i {
 				deps = append(deps, dep{from: i, to: j})
+			}
+		}
+		for _, ref := range fkRefs {
+			if j, ok := nameToIdx[ref]; ok && j != i {
+				deps = append(deps, dep{from: i, to: j, isFK: true})
 			}
 		}
 	}
@@ -342,11 +461,17 @@ func extractDeps(stmts []nodes.Node, declared map[string]bool) []dep {
 }
 
 // extractRefs returns the set of declared object names that a statement references.
-func extractRefs(stmt nodes.Node, declared map[string]bool) []string {
-	var refs []string
+// It returns two slices: regular refs and FK-only refs. FK refs are separated because
+// FK constraints are deferred and should not contribute to within-layer cycle detection.
+func extractRefs(stmt nodes.Node, declared map[string]bool) (refs []string, fkRefs []string) {
 	addRef := func(name string) {
 		if name != "" && declared[name] {
 			refs = append(refs, name)
+		}
+	}
+	addFKRef := func(name string) {
+		if name != "" && declared[name] {
+			fkRefs = append(fkRefs, name)
 		}
 	}
 
@@ -379,26 +504,24 @@ func extractRefs(stmt nodes.Node, declared map[string]bool) []string {
 				if col, ok := elt.(*nodes.ColumnDef); ok && col.TypeName != nil {
 					addRef(typeNameQualified(col.TypeName))
 				}
-				// Inline FK constraint on column.
+				// Inline FK constraint on column — FK refs go to fkRefs.
 				if col, ok := elt.(*nodes.ColumnDef); ok && col.Constraints != nil {
 					for _, c := range col.Constraints.Items {
 						if cons, ok := c.(*nodes.Constraint); ok {
 							if cons.Contype == nodes.CONSTR_FOREIGN && cons.Pktable != nil {
-								// FK refs are handled via deferral, but we still record
-								// the dep for topoSort awareness.
-								addRef(qualifiedRangeVar(cons.Pktable))
+								addFKRef(qualifiedRangeVar(cons.Pktable))
 							}
 						}
 					}
 				}
 			}
 		}
-		// Table-level constraints (non-FK: for FK, deps are deferred).
+		// Table-level constraints: FK deps go to fkRefs.
 		if s.Constraints != nil {
 			for _, item := range s.Constraints.Items {
 				if cons, ok := item.(*nodes.Constraint); ok {
 					if cons.Contype == nodes.CONSTR_FOREIGN && cons.Pktable != nil {
-						addRef(qualifiedRangeVar(cons.Pktable))
+						addFKRef(qualifiedRangeVar(cons.Pktable))
 					}
 				}
 			}
@@ -509,7 +632,7 @@ func extractRefs(stmt nodes.Node, declared map[string]bool) []string {
 		// Grants go in the last priority layer.
 	}
 
-	return refs
+	return refs, fkRefs
 }
 
 // extractSelectRefs extracts top-level RangeVar references from a SelectStmt's FromClause.
@@ -556,9 +679,13 @@ func topoSort(stmts []nodes.Node, declared map[string]bool, deps []dep) ([]nodes
 
 	// Build adjacency for deps within same priority.
 	// dep.from depends on dep.to (dep.to must come first).
+	// FK deps are excluded because FK constraints are deferred to a later pass.
 	adjWithin := make(map[int][]int)   // to → [from...]
 	inDegree := make(map[int]int)      // from → count of deps
 	for _, d := range deps {
+		if d.isFK {
+			continue // FK deps are deferred, don't create within-layer edges.
+		}
 		if stmtPriority(stmts[d.from]) == stmtPriority(stmts[d.to]) {
 			adjWithin[d.to] = append(adjWithin[d.to], d.from)
 			inDegree[d.from]++
@@ -622,7 +749,32 @@ func topoSort(stmts []nodes.Node, declared map[string]bool, deps []dep) ([]nodes
 
 		// Check for cycles within this group.
 		if len(sorted) != len(group) {
-			return nil, nil, fmt.Errorf("SDL dependency cycle detected in priority layer %d", p)
+			// If the remaining unsorted nodes are all composite types, they
+			// can be broken by shell types (pre-created before execution).
+			// Append them in index order — shell types ensure names exist.
+			allComposite := true
+			var remaining []int
+			for _, idx := range group {
+				found := false
+				for _, s := range sorted {
+					if s == idx {
+						found = true
+						break
+					}
+				}
+				if !found {
+					remaining = append(remaining, idx)
+					if _, ok := stmts[idx].(*nodes.CompositeTypeStmt); !ok {
+						allComposite = false
+					}
+				}
+			}
+			if allComposite && len(remaining) > 0 {
+				sort.Ints(remaining)
+				sorted = append(sorted, remaining...)
+			} else {
+				return nil, nil, fmt.Errorf("SDL dependency cycle detected in priority layer %d", p)
+			}
 		}
 
 		// Add sorted statements, extracting FK constraints for deferral.
