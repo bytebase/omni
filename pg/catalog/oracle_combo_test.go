@@ -424,3 +424,243 @@ CREATE TABLE b (
 		assertOracleRoundtripSDL(t, oracle, "", afterSDL)
 	})
 }
+
+// ---------------------------------------------------------------------------
+// Group 1: Identifier Quoting Edge Cases
+// ---------------------------------------------------------------------------
+
+func TestOracleIdentifierQuoting(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test: requires Docker")
+	}
+	oracle := startPGOracle(t)
+
+	t.Run("camelCase_column_names", func(t *testing.T) {
+		before := `
+CREATE TABLE users (
+    "userId" integer PRIMARY KEY,
+    name text
+);`
+		after := `
+CREATE TABLE users (
+    "userId" integer PRIMARY KEY,
+    name text,
+    "isVerified" boolean
+);`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+
+	t.Run("reserved_word_table_name", func(t *testing.T) {
+		before := `
+CREATE TABLE "order" (
+    id integer PRIMARY KEY
+);`
+		after := `
+CREATE TABLE "order" (
+    id integer PRIMARY KEY,
+    total numeric(10,2)
+);`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+
+	t.Run("reserved_word_column_name", func(t *testing.T) {
+		before := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    "select" text
+);`
+		after := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    "select" varchar(200)
+);`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+
+	t.Run("camelCase_in_constraint", func(t *testing.T) {
+		before := `
+CREATE TABLE users (
+    "userId" integer NOT NULL,
+    name text
+);`
+		after := `
+CREATE TABLE users (
+    "userId" integer NOT NULL,
+    name text,
+    CONSTRAINT "userPK" PRIMARY KEY ("userId")
+);`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+
+	t.Run("camelCase_in_index", func(t *testing.T) {
+		before := `
+CREATE TABLE users (
+    "userId" integer PRIMARY KEY,
+    name text
+);`
+		after := `
+CREATE TABLE users (
+    "userId" integer PRIMARY KEY,
+    name text
+);
+CREATE INDEX "idxUserId" ON users("userId");`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+
+	t.Run("reserved_word_in_fk", func(t *testing.T) {
+		before := `
+CREATE TABLE "user" (
+    id integer PRIMARY KEY
+);
+CREATE TABLE "order" (
+    id integer PRIMARY KEY,
+    user_id integer
+);`
+		after := `
+CREATE TABLE "user" (
+    id integer PRIMARY KEY
+);
+CREATE TABLE "order" (
+    id integer PRIMARY KEY,
+    user_id integer,
+    CONSTRAINT "order_user_fk" FOREIGN KEY (user_id) REFERENCES "user"(id)
+);`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Group 4: Multi-Column and Cross-Schema
+// ---------------------------------------------------------------------------
+
+func TestOracleMultiColumnAndCrossSchema(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test: requires Docker")
+	}
+	oracle := startPGOracle(t)
+
+	t.Run("multi_column_primary_key", func(t *testing.T) {
+		before := `
+CREATE TABLE t1 (
+    col1 integer NOT NULL,
+    col2 integer NOT NULL,
+    data text
+);`
+		after := `
+CREATE TABLE t1 (
+    col1 integer NOT NULL,
+    col2 integer NOT NULL,
+    data text,
+    CONSTRAINT t1_pkey PRIMARY KEY (col1, col2)
+);`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+
+	t.Run("multi_column_foreign_key", func(t *testing.T) {
+		before := `
+CREATE TABLE parent (
+    a integer NOT NULL,
+    b integer NOT NULL,
+    CONSTRAINT parent_pkey PRIMARY KEY (a, b)
+);
+CREATE TABLE child (
+    id integer PRIMARY KEY,
+    a integer,
+    b integer
+);`
+		after := `
+CREATE TABLE parent (
+    a integer NOT NULL,
+    b integer NOT NULL,
+    CONSTRAINT parent_pkey PRIMARY KEY (a, b)
+);
+CREATE TABLE child (
+    id integer PRIMARY KEY,
+    a integer,
+    b integer,
+    CONSTRAINT child_parent_fk FOREIGN KEY (a, b) REFERENCES parent(a, b)
+);`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+
+	t.Run("composite_fk_column_order", func(t *testing.T) {
+		// Verify FK columns match referenced columns in correct order
+		before := ``
+		after := `
+CREATE TABLE parent (
+    x integer NOT NULL,
+    y integer NOT NULL,
+    CONSTRAINT parent_pkey PRIMARY KEY (x, y)
+);
+CREATE TABLE child (
+    id integer PRIMARY KEY,
+    cx integer,
+    cy integer,
+    CONSTRAINT child_parent_fk FOREIGN KEY (cx, cy) REFERENCES parent(x, y)
+);`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+
+	t.Run("cross_schema_fk", func(t *testing.T) {
+		// Cross-schema tests can't use assertOracleRoundtrip because CREATE SCHEMA
+		// creates schemas at the database level, not inside the test schema.
+		// We test via plan inspection + direct PG execution.
+		beforeDDL := `
+CREATE SCHEMA s1;
+CREATE SCHEMA s2;
+CREATE TABLE s1.parent (
+    id integer PRIMARY KEY
+);`
+		afterDDL := `
+CREATE SCHEMA s1;
+CREATE SCHEMA s2;
+CREATE TABLE s1.parent (
+    id integer PRIMARY KEY
+);
+CREATE TABLE s2.child (
+    id integer PRIMARY KEY,
+    pid integer,
+    CONSTRAINT child_parent_fk FOREIGN KEY (pid) REFERENCES s1.parent(id)
+);`
+		migSQL := generateMigrationSQL(t, beforeDDL, afterDDL)
+		if migSQL == "" {
+			t.Fatal("expected non-empty migration SQL for cross-schema FK")
+		}
+		upper := strings.ToUpper(migSQL)
+		if !strings.Contains(upper, "CREATE TABLE") {
+			t.Errorf("expected CREATE TABLE in migration SQL, got:\n%s", migSQL)
+		}
+		// Execute on PG to verify it's valid SQL.
+		oracle.execSQL(t, `CREATE SCHEMA IF NOT EXISTS s1; CREATE SCHEMA IF NOT EXISTS s2`)
+		oracle.execSQL(t, `CREATE TABLE IF NOT EXISTS s1.parent (id integer PRIMARY KEY)`)
+		t.Cleanup(func() {
+			oracle.execSQL(t, `DROP TABLE IF EXISTS s2.child CASCADE`)
+			oracle.execSQL(t, `DROP TABLE IF EXISTS s1.parent CASCADE`)
+			oracle.execSQL(t, `DROP SCHEMA IF EXISTS s1 CASCADE`)
+			oracle.execSQL(t, `DROP SCHEMA IF EXISTS s2 CASCADE`)
+		})
+		oracle.execSQL(t, migSQL)
+	})
+
+	t.Run("cross_schema_type_reference", func(t *testing.T) {
+		// Cross-schema tests: verify via plan inspection.
+		afterDDL := `
+CREATE SCHEMA s1;
+CREATE TYPE s1.status AS ENUM ('active', 'inactive', 'pending');
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    s s1.status DEFAULT 'active'
+);`
+		migSQL := generateMigrationSQL(t, "", afterDDL)
+		if migSQL == "" {
+			t.Fatal("expected non-empty migration SQL for cross-schema type reference")
+		}
+		upper := strings.ToUpper(migSQL)
+		if !strings.Contains(upper, "CREATE SCHEMA") {
+			t.Errorf("expected CREATE SCHEMA in migration SQL, got:\n%s", migSQL)
+		}
+		if !strings.Contains(upper, "CREATE TYPE") {
+			t.Errorf("expected CREATE TYPE in migration SQL, got:\n%s", migSQL)
+		}
+	})
+}

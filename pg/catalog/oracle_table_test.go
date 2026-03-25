@@ -1476,3 +1476,185 @@ CREATE POLICY t1_pub ON t1 FOR SELECT TO PUBLIC USING (true);
 		assertOracleRoundtrip(t, oracle, before, after)
 	})
 }
+
+// ---------------------------------------------------------------------------
+// Group 2: Policy ALTER Variants
+// ---------------------------------------------------------------------------
+
+func TestOracleTable_PolicyAlterVariants(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test: requires Docker")
+	}
+	oracle := startPGOracle(t)
+
+	t.Run("alter_policy_change_using_expression", func(t *testing.T) {
+		before := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    active boolean DEFAULT true,
+    verified boolean DEFAULT false
+);
+ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
+CREATE POLICY t1_sel ON t1 FOR SELECT USING (active);
+`
+		after := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    active boolean DEFAULT true,
+    verified boolean DEFAULT false
+);
+ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
+CREATE POLICY t1_sel ON t1 FOR SELECT USING (active AND verified);
+`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+
+	t.Run("alter_policy_change_with_check", func(t *testing.T) {
+		before := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    score integer DEFAULT 0
+);
+ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
+CREATE POLICY t1_ins ON t1 FOR INSERT WITH CHECK (true);
+`
+		after := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    score integer DEFAULT 0
+);
+ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
+CREATE POLICY t1_ins ON t1 FOR INSERT WITH CHECK (score > 0);
+`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+
+	t.Run("alter_policy_change_command_type", func(t *testing.T) {
+		before := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    active boolean DEFAULT true
+);
+ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
+CREATE POLICY t1_pol ON t1 FOR SELECT USING (active);
+`
+		after := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    active boolean DEFAULT true
+);
+ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
+CREATE POLICY t1_pol ON t1 FOR ALL USING (active);
+`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+
+	t.Run("alter_policy_change_using_expression_different", func(t *testing.T) {
+		// Tests altering USING expression without changing roles
+		before := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    active boolean DEFAULT true
+);
+ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
+CREATE POLICY t1_sel ON t1 FOR SELECT TO PUBLIC USING (true);
+`
+		after := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    active boolean DEFAULT true
+);
+ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
+CREATE POLICY t1_sel ON t1 FOR SELECT TO PUBLIC USING (active);
+`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+
+	t.Run("force_row_level_security", func(t *testing.T) {
+		before := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    active boolean DEFAULT true
+);
+ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
+`
+		after := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    active boolean DEFAULT true
+);
+ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
+ALTER TABLE t1 FORCE ROW LEVEL SECURITY;
+`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+
+	t.Run("no_force_row_level_security", func(t *testing.T) {
+		before := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    active boolean DEFAULT true
+);
+ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
+ALTER TABLE t1 FORCE ROW LEVEL SECURITY;
+`
+		after := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    active boolean DEFAULT true
+);
+ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
+`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Group 5: Constraint Trigger and TABLE LIKE
+// ---------------------------------------------------------------------------
+
+func TestOracleTable_ConstraintTriggerAndLike(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test: requires Docker")
+	}
+	oracle := startPGOracle(t)
+
+	t.Run("constraint_trigger_deferrable", func(t *testing.T) {
+		// BUG: Constraint triggers are not properly supported by the migration
+		// engine. It generates "ALTER TABLE ADD CONSTRAINT ... /* unsupported type t */"
+		// instead of CREATE CONSTRAINT TRIGGER ... DEFERRABLE INITIALLY DEFERRED.
+		before := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    val integer
+);
+CREATE FUNCTION check_fn() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END';
+`
+		after := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    val integer
+);
+CREATE FUNCTION check_fn() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END';
+CREATE CONSTRAINT TRIGGER t1_check AFTER INSERT ON t1
+    DEFERRABLE INITIALLY DEFERRED
+    FOR EACH ROW EXECUTE FUNCTION check_fn();
+`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+
+	t.Run("table_like_including_all", func(t *testing.T) {
+		// BUG: TABLE LIKE INCLUDING ALL is CREATE TABLE syntax sugar. LoadSQL
+		// doesn't expand it, so constraints from t1 don't carry over to t2
+		// in the catalog. The migration creates t2 without constraints.
+		before := ``
+		after := `
+CREATE TABLE t1 (
+    id integer PRIMARY KEY,
+    name text NOT NULL
+);
+CREATE TABLE t2 (LIKE t1 INCLUDING ALL);
+`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+}

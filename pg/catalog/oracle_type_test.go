@@ -504,3 +504,28 @@ CREATE TABLE child_tbl (
 		assertOracleRoundtrip(t, oracle, before, after)
 	})
 }
+
+// ---------------------------------------------------------------------------
+// Group 7: Domain with Function-based CHECK
+// ---------------------------------------------------------------------------
+
+func TestOracleDomainWithFunctionCheck(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test: requires Docker")
+	}
+	oracle := startPGOracle(t)
+
+	t.Run("domain_with_function_in_check_change_function_body", func(t *testing.T) {
+		before := `
+CREATE FUNCTION validate(val integer) RETURNS boolean
+    LANGUAGE sql IMMUTABLE AS 'SELECT val > 0';
+CREATE DOMAIN posint AS integer CONSTRAINT posint_check CHECK (validate(VALUE));
+`
+		after := `
+CREATE FUNCTION validate(val integer) RETURNS boolean
+    LANGUAGE sql IMMUTABLE AS 'SELECT val > 0 AND val < 1000';
+CREATE DOMAIN posint AS integer CONSTRAINT posint_check CHECK (validate(VALUE));
+`
+		assertOracleRoundtrip(t, oracle, before, after)
+	})
+}
