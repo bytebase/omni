@@ -640,5 +640,11 @@ func (p *Parser) parseNull() (ast.Node, error) {
 	}, nil
 }
 
+// Parse parses a PL/pgSQL function body and returns the root block.
+func Parse(body string) (*ast.PLBlock, error) {
+	p := newParser(body)
+	return p.parse()
+}
+
 // parseAssignOrCall, parseReturn, parsePerform, parseExecSQL are implemented in stmt.go
 // parseDynExecute is implemented in execute.go

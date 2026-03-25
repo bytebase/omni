@@ -30,9 +30,3 @@ func parseErr(t *testing.T, body string, wantContains string) {
 		t.Fatalf("Parse(%q): error %q does not contain %q", body, err.Error(), wantContains)
 	}
 }
-
-// Parse is the public entry point for parsing a PL/pgSQL function body.
-func Parse(body string) (*ast.PLBlock, error) {
-	p := newParser(body)
-	return p.parse()
-}
