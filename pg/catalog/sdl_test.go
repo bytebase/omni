@@ -3,6 +3,9 @@ package catalog
 import (
 	"strings"
 	"testing"
+
+	nodes "github.com/bytebase/omni/pg/ast"
+	pgparser "github.com/bytebase/omni/pg/parser"
 )
 
 func TestSDLValidation(t *testing.T) {
@@ -178,4 +181,114 @@ CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION trg_fn();`,
 			}
 		})
 	}
+}
+
+// TestSDLNameResolution tests section 1.3: declared object collection and name resolution.
+func TestSDLNameResolution(t *testing.T) {
+	// Helper: parse SQL into bare statements.
+	parseStmts := func(t *testing.T, sql string) []nodes.Node {
+		t.Helper()
+		list, err := pgparser.Parse(sql)
+		if err != nil {
+			t.Fatal(err)
+		}
+		stmts := make([]nodes.Node, 0, len(list.Items))
+		for _, item := range list.Items {
+			if raw, ok := item.(*nodes.RawStmt); ok {
+				stmts = append(stmts, raw.Stmt)
+			} else {
+				stmts = append(stmts, item)
+			}
+		}
+		return stmts
+	}
+
+	t.Run("unqualified names default to public schema", func(t *testing.T) {
+		stmts := parseStmts(t, "CREATE TABLE users (id int);")
+		declared := collectDeclaredObjects(stmts)
+		if !declared["public.users"] {
+			t.Fatalf("expected public.users in declared set, got %v", declared)
+		}
+	})
+
+	t.Run("schema-qualified names preserved", func(t *testing.T) {
+		stmts := parseStmts(t, "CREATE SCHEMA myapp; CREATE TABLE myapp.users (id int);")
+		declared := collectDeclaredObjects(stmts)
+		if !declared["myapp.users"] {
+			t.Fatalf("expected myapp.users in declared set, got %v", declared)
+		}
+	})
+
+	t.Run("same name in different schemas treated as distinct", func(t *testing.T) {
+		stmts := parseStmts(t, `
+			CREATE SCHEMA a;
+			CREATE SCHEMA b;
+			CREATE TABLE a.t (id int);
+			CREATE TABLE b.t (id int);
+		`)
+		declared := collectDeclaredObjects(stmts)
+		if !declared["a.t"] {
+			t.Fatalf("expected a.t in declared set, got %v", declared)
+		}
+		if !declared["b.t"] {
+			t.Fatalf("expected b.t in declared set, got %v", declared)
+		}
+		// They should be distinct entries.
+		if declared["a.t"] == declared["b.t"] {
+			// Both true, which is correct — they are different keys.
+		}
+	})
+
+	t.Run("function identity includes argument types", func(t *testing.T) {
+		stmts := parseStmts(t, `
+			CREATE FUNCTION myfunc(integer, text) RETURNS void AS $$ BEGIN END; $$ LANGUAGE plpgsql;
+			CREATE FUNCTION myfunc(text) RETURNS void AS $$ BEGIN END; $$ LANGUAGE plpgsql;
+		`)
+		declared := collectDeclaredObjects(stmts)
+		if !declared["public.myfunc(int4,text)"] {
+			t.Fatalf("expected public.myfunc(int4,text) in declared set, got %v", declared)
+		}
+		if !declared["public.myfunc(text)"] {
+			t.Fatalf("expected public.myfunc(text) in declared set, got %v", declared)
+		}
+	})
+
+	t.Run("built-in function not in declared set", func(t *testing.T) {
+		// now() and count() are built-in functions — they should NOT appear in declared set.
+		stmts := parseStmts(t, "CREATE TABLE t (id int, created_at timestamptz DEFAULT now());")
+		declared := collectDeclaredObjects(stmts)
+		for k := range declared {
+			if strings.Contains(k, "now") || strings.Contains(k, "count") {
+				t.Fatalf("built-in function should not be in declared set: %s", k)
+			}
+		}
+	})
+
+	t.Run("built-in type not in declared set", func(t *testing.T) {
+		// integer, text are built-in types — should NOT appear in declared set.
+		stmts := parseStmts(t, "CREATE TABLE t (id integer, name text);")
+		declared := collectDeclaredObjects(stmts)
+		for k := range declared {
+			if k == "pg_catalog.int4" || k == "pg_catalog.text" || k == "public.integer" || k == "public.text" {
+				t.Fatalf("built-in type should not be in declared set: %s", k)
+			}
+		}
+	})
+
+	t.Run("undeclared reference passes through to ProcessUtility", func(t *testing.T) {
+		// A table references an undeclared type — should not error in collectDeclaredObjects.
+		// The error should come from ProcessUtility if the type doesn't exist.
+		stmts := parseStmts(t, `
+			CREATE TABLE t (id integer, status mood);
+		`)
+		declared := collectDeclaredObjects(stmts)
+		// "mood" is not declared, so it should not be in the set.
+		if declared["public.mood"] {
+			t.Fatalf("undeclared type 'mood' should not be in declared set")
+		}
+		// Only the table should be declared.
+		if !declared["public.t"] {
+			t.Fatalf("expected public.t in declared set")
+		}
+	})
 }
