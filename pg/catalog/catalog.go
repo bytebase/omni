@@ -285,6 +285,11 @@ func (c *Catalog) GetRelationByOID(oid uint32) *Relation {
 	return c.relationByOID[oid]
 }
 
+// GetUserProcByOID returns the user-defined function/procedure with the given OID, or nil.
+func (c *Catalog) GetUserProcByOID(oid uint32) *UserProc {
+	return c.userProcs[oid]
+}
+
 // GetRelation returns the relation in the given schema, or nil.
 // If schema is empty, the search path is used.
 func (c *Catalog) GetRelation(schema, name string) *Relation {
