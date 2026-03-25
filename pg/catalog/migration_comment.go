@@ -13,7 +13,7 @@ func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	for _, entry := range diff.Comments {
 		switch entry.Action {
 		case DiffAdd, DiffModify:
-			sql := formatCommentSQL(entry.ObjType, entry.ObjDescription, entry.SubID, entry.To)
+			sql := formatCommentSQL(to, entry.ObjType, entry.ObjDescription, entry.SubID, entry.To)
 			if sql != "" {
 				ops = append(ops, MigrationOp{
 					Type:          OpComment,
@@ -23,7 +23,7 @@ func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				})
 			}
 		case DiffDrop:
-			sql := formatCommentSQL(entry.ObjType, entry.ObjDescription, entry.SubID, "")
+			sql := formatCommentSQL(from, entry.ObjType, entry.ObjDescription, entry.SubID, "")
 			if sql != "" {
 				ops = append(ops, MigrationOp{
 					Type:          OpComment,
@@ -44,8 +44,8 @@ func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 }
 
 // formatCommentSQL generates a COMMENT ON ... IS '...' or COMMENT ON ... IS NULL statement.
-func formatCommentSQL(objType byte, objDescription string, subID int16, text string) string {
-	objTarget := commentObjectTarget(objType, objDescription, subID)
+func formatCommentSQL(c *Catalog, objType byte, objDescription string, subID int16, text string) string {
+	objTarget := commentObjectTarget(c, objType, objDescription, subID)
 	if objTarget == "" {
 		return ""
 	}
@@ -57,33 +57,30 @@ func formatCommentSQL(objType byte, objDescription string, subID int16, text str
 }
 
 // commentObjectTarget returns the COMMENT ON target string (e.g. "TABLE \"public\".\"t\"").
-func commentObjectTarget(objType byte, objDescription string, subID int16) string {
+// The catalog c is used to resolve relation kind (view, matview) and function kind (procedure).
+func commentObjectTarget(c *Catalog, objType byte, objDescription string, subID int16) string {
 	switch objType {
 	case 'r': // relation (table, view, matview)
 		if subID != 0 {
-			// Column comment. Description is "schema.table".
-			// We need to find the column name from the subID — but we only have
-			// the description. For migration, the diff_comment resolves the column
-			// attnum as SubID, and the description is "schema.table".
-			// We handle this by looking up column in a different way:
-			// For the migration DDL, the column description isn't directly available
-			// from CommentDiffEntry, so we format as COLUMN schema.table.colname.
-			// However, the diff_comment stores the description as "schema.table" and
-			// subID as the attnum. We cannot resolve attnum to name here without the catalog.
-			// Instead, we'll need to pass through the column name. But the current diff
-			// structure only has SubID. We'll format with the available info.
-			// Actually, looking at the diff_comment code, for columns the description
-			// is "schema.table" and SubID is the attnum. We can't resolve it.
-			// So let's return COLUMN with the schema.table and subID annotation.
-			// The proper fix would be to include column name in the diff entry,
-			// but for now we'll handle this in the higher-level code.
 			return fmt.Sprintf("COLUMN %s", formatQualifiedDescription(objDescription))
 		}
-		return fmt.Sprintf("TABLE %s", formatQualifiedDescription(objDescription))
+		// Determine relation kind from the catalog.
+		relKind := resolveRelKindFromDescription(c, objDescription)
+		switch relKind {
+		case 'v':
+			return fmt.Sprintf("VIEW %s", formatQualifiedDescription(objDescription))
+		case 'm':
+			return fmt.Sprintf("MATERIALIZED VIEW %s", formatQualifiedDescription(objDescription))
+		default:
+			return fmt.Sprintf("TABLE %s", formatQualifiedDescription(objDescription))
+		}
 	case 'i': // index
 		return fmt.Sprintf("INDEX %s", formatQualifiedDescription(objDescription))
-	case 'f': // function
-		// Description is the full identity like "schema.funcname(arg1type, arg2type)"
+	case 'f': // function/procedure
+		// Determine if this is a procedure from the catalog.
+		if resolveIsProcedure(c, objDescription) {
+			return fmt.Sprintf("PROCEDURE %s", objDescription)
+		}
 		return fmt.Sprintf("FUNCTION %s", objDescription)
 	case 'n': // schema
 		return fmt.Sprintf("SCHEMA %s", quoteIdentAlways(objDescription))
@@ -100,6 +97,37 @@ func commentObjectTarget(objType byte, objDescription string, subID int16) strin
 	default:
 		return ""
 	}
+}
+
+// resolveRelKindFromDescription looks up a relation by "schema.name" description
+// and returns its RelKind. Returns 0 if not found.
+func resolveRelKindFromDescription(c *Catalog, desc string) byte {
+	if c == nil {
+		return 0
+	}
+	parts := strings.SplitN(desc, ".", 2)
+	if len(parts) != 2 {
+		return 0
+	}
+	rel := c.GetRelation(parts[0], parts[1])
+	if rel == nil {
+		return 0
+	}
+	return rel.RelKind
+}
+
+// resolveIsProcedure checks if a function identity (e.g. "schema.name(argtypes)")
+// refers to a procedure (Kind='p') in the catalog.
+func resolveIsProcedure(c *Catalog, identity string) bool {
+	if c == nil {
+		return false
+	}
+	for _, up := range c.userProcs {
+		if up != nil && up.Kind == 'p' && funcIdentity(c, up) == identity {
+			return true
+		}
+	}
+	return false
 }
 
 // formatQualifiedDescription formats a "schema.name" description into

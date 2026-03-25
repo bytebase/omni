@@ -226,7 +226,7 @@ func TestMigrationFunction(t *testing.T) {
 			},
 		},
 		{
-			name: "Modified procedure as DROP + CREATE",
+			name: "Modified procedure body-only as CREATE OR REPLACE PROCEDURE",
 			fromSQL: `
 				CREATE PROCEDURE public.do_work(x integer)
 				LANGUAGE plpgsql
@@ -238,22 +238,49 @@ func TestMigrationFunction(t *testing.T) {
 				AS $$ BEGIN RAISE NOTICE 'done'; END; $$;
 			`,
 			check: func(t *testing.T, plan *MigrationPlan) {
+				ops := filterOps(plan, OpAlterFunction)
+				if len(ops) != 1 {
+					t.Fatalf("expected 1 AlterFunction op for modified procedure, got %d; all ops: %v", len(ops), plan.Ops)
+				}
+				sql := ops[0].SQL
+				if !strings.Contains(sql, "CREATE OR REPLACE PROCEDURE") {
+					t.Errorf("missing CREATE OR REPLACE PROCEDURE: %s", sql)
+				}
+				if !strings.Contains(sql, "RAISE NOTICE") {
+					t.Errorf("missing new body: %s", sql)
+				}
+				// Should NOT have RETURNS clause.
+				if strings.Contains(sql, "RETURNS") {
+					t.Errorf("procedure should not have RETURNS: %s", sql)
+				}
+			},
+		},
+		{
+			name: "Modified procedure with signature change as DROP + CREATE",
+			fromSQL: `
+				CREATE PROCEDURE public.do_work(x integer)
+				LANGUAGE plpgsql
+				AS $$ BEGIN NULL; END; $$;
+			`,
+			toSQL: `
+				CREATE PROCEDURE public.do_work(x integer, y integer)
+				LANGUAGE plpgsql
+				AS $$ BEGIN RAISE NOTICE 'done'; END; $$;
+			`,
+			check: func(t *testing.T, plan *MigrationPlan) {
 				dropOps := filterOps(plan, OpDropFunction)
 				createOps := filterOps(plan, OpCreateFunction)
 				if len(dropOps) != 1 {
-					t.Fatalf("expected 1 DropFunction op for modified procedure, got %d", len(dropOps))
+					t.Fatalf("expected 1 DropFunction op for signature-changed procedure, got %d", len(dropOps))
 				}
 				if len(createOps) != 1 {
-					t.Fatalf("expected 1 CreateFunction op for modified procedure, got %d", len(createOps))
+					t.Fatalf("expected 1 CreateFunction op for signature-changed procedure, got %d", len(createOps))
 				}
 				if !strings.Contains(dropOps[0].SQL, "DROP PROCEDURE") {
 					t.Errorf("missing DROP PROCEDURE: %s", dropOps[0].SQL)
 				}
 				if !strings.Contains(createOps[0].SQL, "CREATE PROCEDURE") {
 					t.Errorf("missing CREATE PROCEDURE: %s", createOps[0].SQL)
-				}
-				if !strings.Contains(createOps[0].SQL, "RAISE NOTICE") {
-					t.Errorf("missing new body in CREATE: %s", createOps[0].SQL)
 				}
 			},
 		},

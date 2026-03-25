@@ -207,4 +207,106 @@ func TestMigrationComment(t *testing.T) {
 			t.Errorf("COMMENT op (idx %d) should appear after CREATE TABLE (idx %d)", commentIdx, createIdx)
 		}
 	})
+
+	t.Run("COMMENT ON VIEW uses VIEW not TABLE", func(t *testing.T) {
+		fromSQL := `CREATE VIEW v AS SELECT 1 AS id;`
+		toSQL := `
+			CREATE VIEW v AS SELECT 1 AS id;
+			COMMENT ON VIEW v IS 'This is a view';
+		`
+		from, err := LoadSQL(fromSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		to, err := LoadSQL(toSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		diff := Diff(from, to)
+		plan := GenerateMigration(from, to, diff)
+		found := false
+		for _, op := range plan.Ops {
+			if op.Type == OpComment {
+				found = true
+				if !strings.Contains(op.SQL, "COMMENT ON VIEW") {
+					t.Errorf("expected COMMENT ON VIEW, got: %s", op.SQL)
+				}
+				if strings.Contains(op.SQL, "COMMENT ON TABLE") {
+					t.Errorf("should not use TABLE for view comment: %s", op.SQL)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no COMMENT op found; ops: %v", opsSQL(plan))
+		}
+	})
+
+	t.Run("COMMENT ON MATERIALIZED VIEW uses MATERIALIZED VIEW", func(t *testing.T) {
+		fromSQL := `CREATE MATERIALIZED VIEW mv AS SELECT 1 AS id;`
+		toSQL := `
+			CREATE MATERIALIZED VIEW mv AS SELECT 1 AS id;
+			COMMENT ON MATERIALIZED VIEW mv IS 'This is a matview';
+		`
+		from, err := LoadSQL(fromSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		to, err := LoadSQL(toSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		diff := Diff(from, to)
+		plan := GenerateMigration(from, to, diff)
+		found := false
+		for _, op := range plan.Ops {
+			if op.Type == OpComment {
+				found = true
+				if !strings.Contains(op.SQL, "COMMENT ON MATERIALIZED VIEW") {
+					t.Errorf("expected COMMENT ON MATERIALIZED VIEW, got: %s", op.SQL)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no COMMENT op found; ops: %v", opsSQL(plan))
+		}
+	})
+
+	t.Run("COMMENT ON PROCEDURE uses PROCEDURE not FUNCTION", func(t *testing.T) {
+		fromSQL := `
+			CREATE PROCEDURE do_work(x integer)
+			LANGUAGE plpgsql
+			AS $$ BEGIN NULL; END; $$;
+		`
+		toSQL := `
+			CREATE PROCEDURE do_work(x integer)
+			LANGUAGE plpgsql
+			AS $$ BEGIN NULL; END; $$;
+			COMMENT ON PROCEDURE do_work(integer) IS 'A procedure';
+		`
+		from, err := LoadSQL(fromSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		to, err := LoadSQL(toSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		diff := Diff(from, to)
+		plan := GenerateMigration(from, to, diff)
+		found := false
+		for _, op := range plan.Ops {
+			if op.Type == OpComment {
+				found = true
+				if !strings.Contains(op.SQL, "COMMENT ON PROCEDURE") {
+					t.Errorf("expected COMMENT ON PROCEDURE, got: %s", op.SQL)
+				}
+				if strings.Contains(op.SQL, "COMMENT ON FUNCTION") {
+					t.Errorf("should not use FUNCTION for procedure comment: %s", op.SQL)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no COMMENT op found; ops: %v", opsSQL(plan))
+		}
+	})
 }

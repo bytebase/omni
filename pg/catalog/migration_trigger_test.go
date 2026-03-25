@@ -166,6 +166,46 @@ func TestMigrationTrigger(t *testing.T) {
 		}
 	})
 
+	t.Run("CREATE TRIGGER with UPDATE OF columns", func(t *testing.T) {
+		fromSQL := `
+			CREATE TABLE t (id int, name text, val text);
+			CREATE FUNCTION trig_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
+		`
+		toSQL := `
+			CREATE TABLE t (id int, name text, val text);
+			CREATE FUNCTION trig_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
+			CREATE TRIGGER my_trig BEFORE UPDATE OF name, val ON t FOR EACH ROW EXECUTE FUNCTION trig_fn();
+		`
+		from, err := LoadSQL(fromSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		to, err := LoadSQL(toSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		diff := Diff(from, to)
+		plan := GenerateMigration(from, to, diff)
+		found := false
+		for _, op := range plan.Ops {
+			if op.Type == OpCreateTrigger {
+				found = true
+				if !strings.Contains(op.SQL, "UPDATE OF") {
+					t.Errorf("expected UPDATE OF, got: %s", op.SQL)
+				}
+				if !strings.Contains(op.SQL, `"name"`) {
+					t.Errorf("expected column name in UPDATE OF, got: %s", op.SQL)
+				}
+				if !strings.Contains(op.SQL, `"val"`) {
+					t.Errorf("expected column val in UPDATE OF, got: %s", op.SQL)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no CREATE TRIGGER op found; ops: %v", opsSQL(plan))
+		}
+	})
+
 	t.Run("modified trigger as DROP plus CREATE", func(t *testing.T) {
 		fromSQL := `
 			CREATE TABLE t (id int);

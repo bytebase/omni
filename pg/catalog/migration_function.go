@@ -28,12 +28,15 @@ func generateFunctionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 			if entry.From == nil || entry.To == nil {
 				continue
 			}
-			if entry.To.Kind == 'p' {
-				// Procedures: DROP + CREATE (no CREATE OR REPLACE PROCEDURE in older PG).
+			if signatureChanged(from, entry.From, to, entry.To) {
+				// Signature changed → must DROP + CREATE.
 				ops = append(ops, buildDropFunctionOp(from, entry))
 				ops = append(ops, buildCreateFunctionOp(to, entry))
+			} else if entry.To.Kind == 'p' {
+				// Procedure body-only change → CREATE OR REPLACE PROCEDURE.
+				ops = append(ops, buildReplaceProcedureOp(to, entry))
 			} else {
-				// Functions: CREATE OR REPLACE.
+				// Function body-only change → CREATE OR REPLACE FUNCTION.
 				ops = append(ops, buildReplaceeFunctionOp(to, entry))
 			}
 		}
@@ -280,6 +283,58 @@ func formatFuncAttributes(proc *UserProc) string {
 		return ""
 	}
 	return "\n" + strings.Join(parts, "\n")
+}
+
+// buildReplaceProcedureOp generates a CREATE OR REPLACE PROCEDURE op.
+func buildReplaceProcedureOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
+	proc := entry.To
+	var b strings.Builder
+
+	b.WriteString("CREATE OR REPLACE PROCEDURE ")
+	b.WriteString(migrationQualifiedName(entry.SchemaName, proc.Name))
+	b.WriteString("(")
+	b.WriteString(formatFuncParams(c, proc))
+	b.WriteString(")")
+
+	b.WriteString("\nLANGUAGE ")
+	b.WriteString(proc.Language)
+
+	b.WriteString("\nAS ")
+	b.WriteString(dollarQuote(proc.Body))
+
+	return MigrationOp{
+		Type:          OpAlterFunction,
+		SchemaName:    entry.SchemaName,
+		ObjectName:    entry.Identity,
+		SQL:           b.String(),
+		Transactional: true,
+	}
+}
+
+// signatureChanged returns true if the function/procedure signature differs
+// between two versions (kind, argument types, return type, or setof).
+func signatureChanged(fromCat *Catalog, from *UserProc, toCat *Catalog, to *UserProc) bool {
+	if from.Kind != to.Kind {
+		return true
+	}
+	if len(from.ArgTypes) != len(to.ArgTypes) {
+		return true
+	}
+	for i := range from.ArgTypes {
+		if fromCat.FormatType(from.ArgTypes[i], -1) != toCat.FormatType(to.ArgTypes[i], -1) {
+			return true
+		}
+	}
+	if from.Kind != 'p' {
+		// Only functions have return types.
+		if fromCat.FormatType(from.RetType, -1) != toCat.FormatType(to.RetType, -1) {
+			return true
+		}
+		if from.RetSet != to.RetSet {
+			return true
+		}
+	}
+	return false
 }
 
 // dollarQuote wraps a function body in dollar-quoting.

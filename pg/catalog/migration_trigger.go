@@ -110,7 +110,28 @@ func buildCreateTriggerOp(c *Catalog, schemaName, tableName string, trig *Trigge
 		events = append(events, "INSERT")
 	}
 	if trig.Events&TriggerEventUpdate != 0 {
-		events = append(events, "UPDATE")
+		if len(trig.Columns) > 0 {
+			// Resolve column attnums to names from the relation.
+			rel := c.GetRelation(schemaName, tableName)
+			var cols []string
+			for _, attnum := range trig.Columns {
+				if rel != nil {
+					for _, col := range rel.Columns {
+						if col.AttNum == attnum {
+							cols = append(cols, quoteIdentAlways(col.Name))
+							break
+						}
+					}
+				}
+			}
+			if len(cols) > 0 {
+				events = append(events, "UPDATE OF "+strings.Join(cols, ", "))
+			} else {
+				events = append(events, "UPDATE")
+			}
+		} else {
+			events = append(events, "UPDATE")
+		}
 	}
 	if trig.Events&TriggerEventDelete != 0 {
 		events = append(events, "DELETE")
