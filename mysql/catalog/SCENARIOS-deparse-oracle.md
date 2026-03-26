@@ -213,11 +213,11 @@ Status legend: `[ ]` pending, `[x]` passing, `[~]` partial
 ### 5.3 Column & Alias Patterns
 
 ```
-[ ] `SELECT a AS col1, b col2 FROM t` — explicit alias AS vs space (both output AS)
-[ ] `SELECT a + b AS sum_col FROM t` — expression with explicit alias
-[ ] `SELECT 1 FROM t` — literal auto-alias
-[ ] `SELECT * FROM t` — star expansion (all columns listed)
-[ ] `SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a = t2.a` — same-name columns from different tables
+[x] `SELECT a AS col1, b col2 FROM t` — explicit alias AS vs space (both output AS)
+[x] `SELECT a + b AS sum_col FROM t` — expression with explicit alias
+[x] `SELECT 1 FROM t` — literal auto-alias
+[x] `SELECT * FROM t` — star expansion (all columns listed)
+[~] `SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a = t2.a` — same-name columns from different tables (MySQL 8.0 rejects: duplicate column name in view)
 ```
 
 ## Phase 6: Subqueries & CTEs

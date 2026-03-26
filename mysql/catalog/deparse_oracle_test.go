@@ -1809,3 +1809,126 @@ func TestDeparseOracle_5_2_SetOperations(t *testing.T) {
 		})
 	}
 }
+
+// TestDeparseOracle_5_3_ColumnAliasPatterns verifies column and alias patterns
+// against MySQL 8.0 SHOW CREATE VIEW output.
+func TestDeparseOracle_5_3_ColumnAliasPatterns(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	// Setup: create base tables on MySQL 8.0
+	if err := oracle.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
+		t.Fatalf("failed to create table t on MySQL: %v", err)
+	}
+	if err := oracle.execSQLDirect("CREATE TABLE IF NOT EXISTS t1 (a INT, b INT)"); err != nil {
+		t.Fatalf("failed to create table t1 on MySQL: %v", err)
+	}
+	if err := oracle.execSQLDirect("CREATE TABLE IF NOT EXISTS t2 (a INT, b INT)"); err != nil {
+		t.Fatalf("failed to create table t2 on MySQL: %v", err)
+	}
+
+	cases := []struct {
+		name     string
+		viewName string
+		viewSQL  string
+		tables   string // extra tables for omni catalog (beyond t, t1, t2)
+		partial  bool
+	}{
+		{
+			"explicit_alias_as_vs_space",
+			"v_alias_as_space",
+			"CREATE VIEW v_alias_as_space AS SELECT a AS col1, b col2 FROM t",
+			"",
+			false,
+		},
+		{
+			"expression_explicit_alias",
+			"v_expr_alias",
+			"CREATE VIEW v_expr_alias AS SELECT a + b AS sum_col FROM t",
+			"",
+			false,
+		},
+		{
+			"literal_auto_alias",
+			"v_lit_auto",
+			"CREATE VIEW v_lit_auto AS SELECT 1 FROM t",
+			"",
+			false,
+		},
+		{
+			"star_expansion",
+			"v_star",
+			"CREATE VIEW v_star AS SELECT * FROM t",
+			"",
+			false,
+		},
+		{
+			"same_name_columns_join",
+			"v_same_name_join",
+			"CREATE VIEW v_same_name_join AS SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a = t2.a",
+			"",
+			false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// --- MySQL 8.0 side ---
+			oracle.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
+			if err := oracle.execSQLDirect(tc.viewSQL); err != nil {
+				t.Skipf("MySQL 8.0 rejected: %v", err)
+				return
+			}
+			mysqlOutput, err := oracle.showCreateView(tc.viewName)
+			if err != nil {
+				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+			}
+			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+
+			// --- Omni catalog side ---
+			cat := New()
+			cat.Exec("CREATE DATABASE test", nil)
+			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
+			cat.Exec("CREATE TABLE t1 (a INT, b INT)", nil)
+			cat.Exec("CREATE TABLE t2 (a INT, b INT)", nil)
+			if tc.tables != "" {
+				cat.Exec(tc.tables, nil)
+			}
+			results, _ := cat.Exec(tc.viewSQL, nil)
+			if len(results) == 0 {
+				if tc.partial {
+					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
+				}
+				t.Fatalf("CREATE VIEW on catalog returned no results")
+			}
+			if results[0].Error != nil {
+				if tc.partial {
+					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+				}
+				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
+			}
+			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			if omniOutput == "" {
+				if tc.partial {
+					t.Skip("ShowCreateView returned empty (expected partial)")
+				}
+				t.Fatal("ShowCreateView returned empty")
+			}
+			omniBody := extractSelectBody(omniOutput)
+
+			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("Omni body:   %s", omniBody)
+
+			if mysqlBody != omniBody {
+				if tc.partial {
+					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+				}
+				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			}
+		})
+	}
+}
