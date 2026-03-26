@@ -110,15 +110,24 @@ func TestComplete_2_1_CandidateTypeEnum(t *testing.T) {
 
 func TestComplete_2_1_NilCatalog(t *testing.T) {
 	// Scenario: Complete with nil catalog returns keyword-only candidates
+	// (plus built-in function names, which are always available regardless of catalog).
 	candidates := Complete("SELECT ", 7, nil)
 	for _, c := range candidates {
-		if c.Type != CandidateKeyword {
-			t.Errorf("with nil catalog, got non-keyword candidate: %+v", c)
+		if c.Type != CandidateKeyword && c.Type != CandidateFunction {
+			t.Errorf("with nil catalog, got unexpected candidate type: %+v", c)
 		}
 	}
 	// Should still return some keywords (e.g., DISTINCT, ALL from SELECT context).
 	if len(candidates) == 0 {
 		t.Error("expected some keyword candidates with nil catalog")
+	}
+	// No catalog-dependent types should appear.
+	for _, c := range candidates {
+		switch c.Type {
+		case CandidateTable, CandidateView, CandidateColumn, CandidateDatabase,
+			CandidateProcedure, CandidateIndex, CandidateTrigger, CandidateEvent:
+			t.Errorf("with nil catalog, got catalog-dependent candidate: %+v", c)
+		}
 	}
 }
 
@@ -179,5 +188,216 @@ func TestComplete_2_1_Deduplication(t *testing.T) {
 	candidates2 := Complete("SELECT ", 7, nil)
 	if hasDuplicates(candidates2) {
 		t.Error("found duplicate candidates in SELECT context")
+	}
+}
+
+// --- Section 2.2: Candidate Resolution ---
+
+// setupCatalog creates a catalog with a test database for resolution tests.
+func setupCatalog(t *testing.T) *catalog.Catalog {
+	t.Helper()
+	cat := catalog.New()
+	mustExec(t, cat, "CREATE DATABASE testdb")
+	cat.SetCurrentDatabase("testdb")
+	mustExec(t, cat, "CREATE TABLE users (id INT, name VARCHAR(100), email VARCHAR(200))")
+	mustExec(t, cat, "CREATE TABLE orders (id INT, user_id INT, total DECIMAL(10,2))")
+	mustExec(t, cat, "CREATE INDEX idx_name ON users (name)")
+	mustExec(t, cat, "CREATE INDEX idx_user_id ON orders (user_id)")
+	mustExec(t, cat, "CREATE VIEW active_users AS SELECT * FROM users WHERE id > 0")
+	mustExec(t, cat, "CREATE FUNCTION my_func() RETURNS INT DETERMINISTIC RETURN 1")
+	mustExec(t, cat, "CREATE PROCEDURE my_proc() BEGIN SELECT 1; END")
+	mustExec(t, cat, "CREATE TRIGGER my_trig BEFORE INSERT ON users FOR EACH ROW SET NEW.name = UPPER(NEW.name)")
+	// Event creation requires schedule — use Exec directly.
+	mustExec(t, cat, "CREATE EVENT my_event ON SCHEDULE EVERY 1 HOUR DO SELECT 1")
+	return cat
+}
+
+// mustExec executes SQL on the catalog, failing the test on error.
+func mustExec(t *testing.T, cat *catalog.Catalog, sql string) {
+	t.Helper()
+	if _, err := cat.Exec(sql, nil); err != nil {
+		t.Fatalf("Exec(%q) failed: %v", sql, err)
+	}
+}
+
+func TestResolve_2_2_TokenCandidatesKeywords(t *testing.T) {
+	// Scenario: Token candidates -> keyword strings (from token type mapping)
+	// Tested via Complete — empty SQL yields token-only candidates resolved as keywords.
+	candidates := Complete("", 0, nil)
+	if len(candidates) == 0 {
+		t.Fatal("expected keyword candidates")
+	}
+	for _, c := range candidates {
+		if c.Type != CandidateKeyword {
+			t.Errorf("expected keyword type, got %d for %q", c.Type, c.Text)
+		}
+	}
+}
+
+func TestResolve_2_2_TableRef(t *testing.T) {
+	// Scenario: "table_ref" rule -> catalog tables + views
+	cat := setupCatalog(t)
+	candidates := resolveRule("table_ref", cat)
+	if !containsCandidate(candidates, "users", CandidateTable) {
+		t.Error("missing table 'users'")
+	}
+	if !containsCandidate(candidates, "orders", CandidateTable) {
+		t.Error("missing table 'orders'")
+	}
+	if !containsCandidate(candidates, "active_users", CandidateView) {
+		t.Error("missing view 'active_users'")
+	}
+}
+
+func TestResolve_2_2_ColumnRef(t *testing.T) {
+	// Scenario: "columnref" rule -> columns from tables in scope
+	// For now, returns all columns from all tables in current database.
+	cat := setupCatalog(t)
+	candidates := resolveRule("columnref", cat)
+	// users: id, name, email
+	if !containsCandidate(candidates, "id", CandidateColumn) {
+		t.Error("missing column 'id'")
+	}
+	if !containsCandidate(candidates, "name", CandidateColumn) {
+		t.Error("missing column 'name'")
+	}
+	if !containsCandidate(candidates, "email", CandidateColumn) {
+		t.Error("missing column 'email'")
+	}
+	// orders: user_id, total (id is deduped)
+	if !containsCandidate(candidates, "user_id", CandidateColumn) {
+		t.Error("missing column 'user_id'")
+	}
+	if !containsCandidate(candidates, "total", CandidateColumn) {
+		t.Error("missing column 'total'")
+	}
+}
+
+func TestResolve_2_2_DatabaseRef(t *testing.T) {
+	// Scenario: "database_ref" rule -> catalog databases
+	cat := setupCatalog(t)
+	// Add another database.
+	mustExec(t, cat, "CREATE DATABASE otherdb")
+	candidates := resolveRule("database_ref", cat)
+	if !containsCandidate(candidates, "testdb", CandidateDatabase) {
+		t.Error("missing database 'testdb'")
+	}
+	if !containsCandidate(candidates, "otherdb", CandidateDatabase) {
+		t.Error("missing database 'otherdb'")
+	}
+}
+
+func TestResolve_2_2_FunctionRef(t *testing.T) {
+	// Scenario: "function_ref" / "func_name" rule -> catalog functions + built-in names
+	cat := setupCatalog(t)
+	for _, rule := range []string{"function_ref", "func_name"} {
+		candidates := resolveRule(rule, cat)
+		// Should include built-in functions.
+		if !containsCandidate(candidates, "COUNT", CandidateFunction) {
+			t.Errorf("[%s] missing built-in function COUNT", rule)
+		}
+		if !containsCandidate(candidates, "CONCAT", CandidateFunction) {
+			t.Errorf("[%s] missing built-in function CONCAT", rule)
+		}
+		if !containsCandidate(candidates, "NOW", CandidateFunction) {
+			t.Errorf("[%s] missing built-in function NOW", rule)
+		}
+		// Should include catalog function.
+		if !containsCandidate(candidates, "my_func", CandidateFunction) {
+			t.Errorf("[%s] missing catalog function 'my_func'", rule)
+		}
+	}
+}
+
+func TestResolve_2_2_ProcedureRef(t *testing.T) {
+	// Scenario: "procedure_ref" rule -> catalog procedures
+	cat := setupCatalog(t)
+	candidates := resolveRule("procedure_ref", cat)
+	if !containsCandidate(candidates, "my_proc", CandidateProcedure) {
+		t.Error("missing procedure 'my_proc'")
+	}
+}
+
+func TestResolve_2_2_IndexRef(t *testing.T) {
+	// Scenario: "index_ref" rule -> indexes from relevant table
+	cat := setupCatalog(t)
+	candidates := resolveRule("index_ref", cat)
+	if !containsCandidate(candidates, "idx_name", CandidateIndex) {
+		t.Error("missing index 'idx_name'")
+	}
+	if !containsCandidate(candidates, "idx_user_id", CandidateIndex) {
+		t.Error("missing index 'idx_user_id'")
+	}
+}
+
+func TestResolve_2_2_TriggerRef(t *testing.T) {
+	// Scenario: "trigger_ref" rule -> catalog triggers
+	cat := setupCatalog(t)
+	candidates := resolveRule("trigger_ref", cat)
+	if !containsCandidate(candidates, "my_trig", CandidateTrigger) {
+		t.Error("missing trigger 'my_trig'")
+	}
+}
+
+func TestResolve_2_2_EventRef(t *testing.T) {
+	// Scenario: "event_ref" rule -> catalog events
+	cat := setupCatalog(t)
+	candidates := resolveRule("event_ref", cat)
+	if !containsCandidate(candidates, "my_event", CandidateEvent) {
+		t.Error("missing event 'my_event'")
+	}
+}
+
+func TestResolve_2_2_ViewRef(t *testing.T) {
+	// Scenario: "view_ref" rule -> catalog views
+	cat := setupCatalog(t)
+	candidates := resolveRule("view_ref", cat)
+	if !containsCandidate(candidates, "active_users", CandidateView) {
+		t.Error("missing view 'active_users'")
+	}
+}
+
+func TestResolve_2_2_Charset(t *testing.T) {
+	// Scenario: "charset" rule -> known charset names
+	candidates := resolveRule("charset", nil)
+	for _, cs := range []string{"utf8mb4", "latin1", "utf8", "ascii", "binary"} {
+		if !containsCandidate(candidates, cs, CandidateCharset) {
+			t.Errorf("missing charset %q", cs)
+		}
+	}
+}
+
+func TestResolve_2_2_Engine(t *testing.T) {
+	// Scenario: "engine" rule -> known engine names
+	candidates := resolveRule("engine", nil)
+	for _, eng := range []string{"InnoDB", "MyISAM", "MEMORY", "CSV", "ARCHIVE"} {
+		if !containsCandidate(candidates, eng, CandidateEngine) {
+			t.Errorf("missing engine %q", eng)
+		}
+	}
+}
+
+func TestResolve_2_2_TypeName(t *testing.T) {
+	// Scenario: "type_name" rule -> MySQL type keywords
+	candidates := resolveRule("type_name", nil)
+	for _, typ := range []string{"INT", "VARCHAR", "TEXT", "BLOB", "DATE", "DATETIME", "DECIMAL", "JSON", "ENUM"} {
+		if !containsCandidate(candidates, typ, CandidateType_) {
+			t.Errorf("missing type %q", typ)
+		}
+	}
+}
+
+func TestResolve_2_2_NilCatalogSafety(t *testing.T) {
+	// All catalog-dependent rules should handle nil catalog gracefully.
+	for _, rule := range []string{"table_ref", "columnref", "database_ref", "procedure_ref", "index_ref", "trigger_ref", "event_ref", "view_ref"} {
+		candidates := resolveRule(rule, nil)
+		if candidates != nil && len(candidates) > 0 {
+			t.Errorf("[%s] expected no candidates with nil catalog, got %d", rule, len(candidates))
+		}
+	}
+	// function_ref/func_name still return built-ins with nil catalog.
+	candidates := resolveRule("func_name", nil)
+	if len(candidates) == 0 {
+		t.Error("func_name should return built-in functions even with nil catalog")
 	}
 }

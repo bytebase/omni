@@ -121,9 +121,8 @@ func trickyComplete(sql string, cursorOffset int, cat *catalog.Catalog) []Candid
 }
 
 // resolve converts parser CandidateSet into typed Candidate values.
-// For now, only token candidates (keywords) are resolved. Rule resolution
-// (catalog objects) will be added in section 2.2.
-func resolve(cs *parser.CandidateSet, _ *catalog.Catalog, _ string, _ int) []Candidate {
+// Token candidates become keywords; rule candidates are resolved against the catalog.
+func resolve(cs *parser.CandidateSet, cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
 	if cs == nil {
 		return nil
 	}
@@ -138,7 +137,8 @@ func resolve(cs *parser.CandidateSet, _ *catalog.Catalog, _ string, _ int) []Can
 		result = append(result, Candidate{Text: name, Type: CandidateKeyword})
 	}
 
-	// Rule candidates will be resolved against catalog in 2.2.
+	// Rule candidates -> catalog objects
+	result = append(result, resolveRules(cs, cat, sql, cursorOffset)...)
 
 	return dedup(result)
 }

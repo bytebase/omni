@@ -46,32 +46,32 @@ so that Phase 3+ instrumentation can be tested end-to-end.
 ### 2.1 Public API & Core Logic
 
 ```
-[ ] Complete(sql, cursorOffset, catalog) returns []Candidate
-[ ] Candidate struct has Text, Type, Definition, Comment fields
-[ ] CandidateType enum: Keyword, Database, Table, View, Column, Function, Procedure, Index, Trigger, Event, Variable, Charset, Engine, Type
-[ ] Complete with nil catalog returns keyword-only candidates
-[ ] Complete with empty sql returns top-level statement keywords
-[ ] Prefix filtering: `SEL|` matches SELECT keyword
-[ ] Prefix filtering is case-insensitive
-[ ] Deduplication: same candidate not returned twice
+[x] Complete(sql, cursorOffset, catalog) returns []Candidate
+[x] Candidate struct has Text, Type, Definition, Comment fields
+[x] CandidateType enum: Keyword, Database, Table, View, Column, Function, Procedure, Index, Trigger, Event, Variable, Charset, Engine, Type
+[x] Complete with nil catalog returns keyword-only candidates
+[x] Complete with empty sql returns top-level statement keywords
+[x] Prefix filtering: `SEL|` matches SELECT keyword
+[x] Prefix filtering is case-insensitive
+[x] Deduplication: same candidate not returned twice
 ```
 
 ### 2.2 Candidate Resolution
 
 ```
-[ ] Token candidates → keyword strings (from token type mapping)
-[ ] "table_ref" rule → catalog tables + views
-[ ] "columnref" rule → columns from tables in scope
-[ ] "database_ref" rule → catalog databases
-[ ] "function_ref" / "func_name" rule → catalog functions + built-in function names
-[ ] "procedure_ref" rule → catalog procedures
-[ ] "index_ref" rule → indexes from relevant table
-[ ] "trigger_ref" rule → catalog triggers
-[ ] "event_ref" rule → catalog events
-[ ] "view_ref" rule → catalog views
-[ ] "charset" rule → known charset names (utf8mb4, latin1, utf8, ascii, binary)
-[ ] "engine" rule → known engine names (InnoDB, MyISAM, MEMORY, CSV, ARCHIVE)
-[ ] "type_name" rule → MySQL type keywords (INT, VARCHAR, TEXT, BLOB, DATE, etc.)
+[x] Token candidates → keyword strings (from token type mapping)
+[x] "table_ref" rule → catalog tables + views
+[x] "columnref" rule → columns from tables in scope
+[x] "database_ref" rule → catalog databases
+[x] "function_ref" / "func_name" rule → catalog functions + built-in function names
+[x] "procedure_ref" rule → catalog procedures
+[x] "index_ref" rule → indexes from relevant table
+[x] "trigger_ref" rule → catalog triggers
+[x] "event_ref" rule → catalog events
+[x] "view_ref" rule → catalog views
+[x] "charset" rule → known charset names (utf8mb4, latin1, utf8, ascii, binary)
+[x] "engine" rule → known engine names (InnoDB, MyISAM, MEMORY, CSV, ARCHIVE)
+[x] "type_name" rule → MySQL type keywords (INT, VARCHAR, TEXT, BLOB, DATE, etc.)
 ```
 
 ### 2.3 Table Reference Extraction
