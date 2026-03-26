@@ -332,6 +332,7 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		fc := &nodes.FuncCallExpr{Loc: nodes.Loc{Start: tok.Loc}, Name: name}
 		// Optional parentheses with optional fsp argument
 		if p.cur.Type == '(' {
+			fc.HasParens = true
 			p.advance()
 			if p.cur.Type != ')' {
 				// Parse arguments (e.g., fractional seconds precision)
@@ -493,9 +494,10 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	p.advance() // consume '('
 
 	fc := &nodes.FuncCallExpr{
-		Loc:    nodes.Loc{Start: start},
-		Schema: schema,
-		Name:   strings.ToUpper(name),
+		Loc:       nodes.Loc{Start: start},
+		Schema:    schema,
+		Name:      strings.ToUpper(name),
+		HasParens: true,
 	}
 
 	// Handle special function forms
@@ -1629,9 +1631,10 @@ func (p *Parser) parseValuesFunc() (nodes.ExprNode, error) {
 	}
 
 	fc := &nodes.FuncCallExpr{
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
-		Name: "VALUES",
-		Args: []nodes.ExprNode{col},
+		Loc:       nodes.Loc{Start: start, End: p.pos()},
+		Name:      "VALUES",
+		HasParens: true,
+		Args:      []nodes.ExprNode{col},
 	}
 	return fc, nil
 }

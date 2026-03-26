@@ -63,15 +63,15 @@ Status legend: `[ ]` pending, `[x]` passing, `[~]` partial
 ### 2.1 Function Name Rewrites
 
 ```
-[ ] `SELECT SUBSTRING('abc', 1, 2) FROM t` — SUBSTRING → substr
-[ ] `SELECT CURRENT_TIMESTAMP FROM t` — CURRENT_TIMESTAMP → now()
-[ ] `SELECT CURRENT_TIMESTAMP() FROM t` — CURRENT_TIMESTAMP() → now()
-[ ] `SELECT CURRENT_DATE FROM t` — CURRENT_DATE → curdate()
-[ ] `SELECT CURRENT_TIME FROM t` — CURRENT_TIME → curtime()
-[ ] `SELECT CURRENT_USER FROM t` — CURRENT_USER → current_user()
-[ ] `SELECT NOW() FROM t` — now() stays lowercase
-[ ] `SELECT COUNT(*) FROM t` — COUNT(*) → count(0)
-[ ] `SELECT COUNT(DISTINCT a) FROM t` — count(distinct ...)
+[x] `SELECT SUBSTRING('abc', 1, 2) FROM t` — SUBSTRING → substr
+[x] `SELECT CURRENT_TIMESTAMP FROM t` — CURRENT_TIMESTAMP → now()
+[x] `SELECT CURRENT_TIMESTAMP() FROM t` — CURRENT_TIMESTAMP() → now()
+[x] `SELECT CURRENT_DATE FROM t` — CURRENT_DATE → curdate()
+[x] `SELECT CURRENT_TIME FROM t` — CURRENT_TIME → curtime()
+[x] `SELECT CURRENT_USER FROM t` — CURRENT_USER → current_user()
+[x] `SELECT NOW() FROM t` — now() stays lowercase
+[x] `SELECT COUNT(*) FROM t` — COUNT(*) → count(0)
+[x] `SELECT COUNT(DISTINCT a) FROM t` — count(distinct ...)
 ```
 
 ### 2.2 Regular Functions & Aggregates

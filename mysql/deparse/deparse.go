@@ -474,13 +474,19 @@ func deparseExprAlias(node ast.ExprNode) string {
 			}
 			return result
 		}
+		// Zero-arg keyword functions without explicit parens: alias is just the keyword name.
+		// e.g., CURRENT_TIMESTAMP → alias "CURRENT_TIMESTAMP" (no parens).
+		// With parens: CURRENT_TIMESTAMP() → alias "CURRENT_TIMESTAMP()".
+		if len(n.Args) == 0 && !n.HasParens {
+			return name
+		}
 		args := make([]string, len(n.Args))
 		for i, arg := range n.Args {
 			args[i] = deparseExprAlias(arg)
 		}
 		var result string
 		if n.Distinct {
-			result = name + "(distinct " + strings.Join(args, ", ") + ")"
+			result = name + "(DISTINCT " + strings.Join(args, ", ") + ")"
 		} else {
 			result = name + "(" + strings.Join(args, ", ") + ")"
 		}

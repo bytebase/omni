@@ -901,3 +901,78 @@ func TestDeparseOracle_1_2_LogicalBitwiseIS(t *testing.T) {
 		})
 	}
 }
+
+// TestDeparseOracle_Section_2_1_FunctionNameRewrites verifies that function name
+// rewrites match MySQL 8.0 SHOW CREATE VIEW output.
+// Covers: SUBSTRING->substr, CURRENT_TIMESTAMP->now(), CURRENT_DATE->curdate(),
+// CURRENT_TIME->curtime(), CURRENT_USER->current_user(), NOW()->now(),
+// COUNT(*)->count(0), COUNT(DISTINCT).
+func TestDeparseOracle_Section_2_1_FunctionNameRewrites(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	// Setup: create base table on MySQL 8.0
+	if err := oracle.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
+		t.Fatalf("failed to create table on MySQL: %v", err)
+	}
+
+	cases := []struct {
+		name     string
+		viewName string
+		viewSQL  string
+	}{
+		{"substring_rewrite", "v_substr", "CREATE VIEW v_substr AS SELECT SUBSTRING('abc', 1, 2) FROM t"},
+		{"current_timestamp_kw", "v_cur_ts", "CREATE VIEW v_cur_ts AS SELECT CURRENT_TIMESTAMP FROM t"},
+		{"current_timestamp_fn", "v_cur_ts_fn", "CREATE VIEW v_cur_ts_fn AS SELECT CURRENT_TIMESTAMP() FROM t"},
+		{"current_date_kw", "v_cur_date", "CREATE VIEW v_cur_date AS SELECT CURRENT_DATE FROM t"},
+		{"current_time_kw", "v_cur_time", "CREATE VIEW v_cur_time AS SELECT CURRENT_TIME FROM t"},
+		{"current_user_kw", "v_cur_user", "CREATE VIEW v_cur_user AS SELECT CURRENT_USER FROM t"},
+		{"now_func", "v_now", "CREATE VIEW v_now AS SELECT NOW() FROM t"},
+		{"count_star", "v_count_star", "CREATE VIEW v_count_star AS SELECT COUNT(*) FROM t"},
+		{"count_distinct", "v_count_dist", "CREATE VIEW v_count_dist AS SELECT COUNT(DISTINCT a) FROM t"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// --- MySQL 8.0 side ---
+			oracle.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
+			if err := oracle.execSQLDirect(tc.viewSQL); err != nil {
+				t.Skipf("MySQL 8.0 rejected: %v", err)
+				return
+			}
+			mysqlOutput, err := oracle.showCreateView(tc.viewName)
+			if err != nil {
+				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+			}
+			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+
+			// --- Omni catalog side ---
+			cat := New()
+			cat.Exec("CREATE DATABASE test", nil)
+			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
+			results, _ := cat.Exec(tc.viewSQL, nil)
+			if len(results) == 0 {
+				t.Fatalf("CREATE VIEW on catalog returned no results")
+			}
+			if results[0].Error != nil {
+				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
+			}
+			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			if omniOutput == "" {
+				t.Fatal("ShowCreateView returned empty")
+			}
+			omniBody := extractSelectBody(omniOutput)
+
+			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("Omni body:   %s", omniBody)
+
+			if mysqlBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			}
+		})
+	}
+}

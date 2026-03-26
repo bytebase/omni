@@ -621,6 +621,7 @@ type FuncCallExpr struct {
 	Args      []ExprNode
 	Distinct  bool // COUNT(DISTINCT ...)
 	Star      bool // COUNT(*)
+	HasParens bool // true if explicit parentheses were written (e.g., NOW() vs CURRENT_TIMESTAMP)
 	OrderBy   []*OrderByItem
 	Over      *WindowDef // OVER clause for window functions
 	Separator ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
