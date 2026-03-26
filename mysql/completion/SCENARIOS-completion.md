@@ -115,12 +115,12 @@ so that Phase 3+ instrumentation can be tested end-to-end.
 ### 3.2 FROM Clause
 
 ```
-[ ] `SELECT * FROM |` → table_ref (tables, views, databases)
-[ ] `SELECT * FROM db.|` → table_ref qualified with database
-[ ] `SELECT * FROM t1, |` → table_ref after comma (multi-table)
-[ ] `SELECT * FROM (SELECT * FROM |)` → table_ref in derived table
-[ ] `SELECT * FROM t |` → keyword candidates (WHERE, JOIN, LEFT, RIGHT, CROSS, NATURAL, STRAIGHT_JOIN, ORDER, GROUP, HAVING, LIMIT, UNION, FOR)
-[ ] `SELECT * FROM t AS |` → no specific candidates (alias context)
+[x] `SELECT * FROM |` → table_ref (tables, views, databases)
+[x] `SELECT * FROM db.|` → table_ref qualified with database
+[x] `SELECT * FROM t1, |` → table_ref after comma (multi-table)
+[x] `SELECT * FROM (SELECT * FROM |)` → table_ref in derived table
+[x] `SELECT * FROM t |` → keyword candidates (WHERE, JOIN, LEFT, RIGHT, CROSS, NATURAL, STRAIGHT_JOIN, ORDER, GROUP, HAVING, LIMIT, UNION, FOR)
+[x] `SELECT * FROM t AS |` → no specific candidates (alias context)
 ```
 
 ### 3.3 JOIN Clauses

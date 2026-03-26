@@ -676,6 +676,14 @@ func (p *Parser) parseTableReferenceList() ([]nodes.TableExpr, error) {
 	var refs []nodes.TableExpr
 
 	for {
+		// Completion: at the start of each table reference, offer table_ref candidates.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			p.addRuleCandidate("database_ref")
+			return nil, &ParseError{Message: "collecting"}
+		}
+
 		ref, err := p.parseTableReference()
 		if err != nil {
 			return nil, err
@@ -695,6 +703,26 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 	left, err := p.parseTableFactor()
 	if err != nil {
 		return nil, err
+	}
+
+	// Completion: after a table factor, offer join keywords and post-FROM keywords.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwWHERE)
+		p.addTokenCandidate(kwJOIN)
+		p.addTokenCandidate(kwLEFT)
+		p.addTokenCandidate(kwRIGHT)
+		p.addTokenCandidate(kwCROSS)
+		p.addTokenCandidate(kwNATURAL)
+		p.addTokenCandidate(kwINNER)
+		p.addTokenCandidate(kwSTRAIGHT_JOIN)
+		p.addTokenCandidate(kwORDER)
+		p.addTokenCandidate(kwGROUP)
+		p.addTokenCandidate(kwHAVING)
+		p.addTokenCandidate(kwLIMIT)
+		p.addTokenCandidate(kwUNION)
+		p.addTokenCandidate(kwFOR)
+		return nil, &ParseError{Message: "collecting"}
 	}
 
 	// Parse joins

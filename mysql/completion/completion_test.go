@@ -641,3 +641,128 @@ func TestComplete_3_1_SelectTargetList(t *testing.T) {
 		})
 	}
 }
+
+// --- Section 3.2: FROM Clause ---
+
+func TestComplete_3_2_FromClause(t *testing.T) {
+	cat := catalog.New()
+	mustExec(t, cat, "CREATE DATABASE test")
+	mustExec(t, cat, "CREATE DATABASE testdb2")
+	cat.SetCurrentDatabase("test")
+	mustExec(t, cat, "CREATE TABLE t (a INT, b INT, c INT)")
+	mustExec(t, cat, "CREATE TABLE t1 (x INT, y INT)")
+	mustExec(t, cat, "CREATE TABLE t2 (p INT, q INT)")
+	mustExec(t, cat, "CREATE VIEW v1 AS SELECT * FROM t")
+
+	cases := []struct {
+		name       string
+		sql        string
+		cursor     int
+		wantType   CandidateType
+		wantText   string // expected candidate text (or "" to skip check)
+		wantAbsent string // text that should NOT appear (or "" to skip)
+		absentType CandidateType
+	}{
+		{
+			// Scenario 1: SELECT * FROM | → table_ref (tables, views, databases)
+			name:     "from_table_ref",
+			sql:      "SELECT * FROM ",
+			cursor:   14,
+			wantType: CandidateTable,
+			wantText: "t",
+		},
+		{
+			// Scenario 1 continued: views should also appear
+			name:     "from_view_ref",
+			sql:      "SELECT * FROM ",
+			cursor:   14,
+			wantType: CandidateView,
+			wantText: "v1",
+		},
+		{
+			// Scenario 2: SELECT * FROM db.| → table_ref qualified with database
+			name:     "from_qualified_table_ref",
+			sql:      "SELECT * FROM test.",
+			cursor:   19,
+			wantType: CandidateTable,
+			wantText: "t",
+		},
+		{
+			// Scenario 3: SELECT * FROM t1, | → table_ref after comma
+			name:     "from_comma_table_ref",
+			sql:      "SELECT * FROM t1, ",
+			cursor:   18,
+			wantType: CandidateTable,
+			wantText: "t2",
+		},
+		{
+			// Scenario 4: SELECT * FROM (SELECT * FROM |) → table_ref in derived table
+			name:     "from_derived_table_ref",
+			sql:      "SELECT * FROM (SELECT * FROM ",
+			cursor:   29,
+			wantType: CandidateTable,
+			wantText: "t",
+		},
+		{
+			// Scenario 5: SELECT * FROM t | → keyword candidates
+			name:     "from_after_table_keywords",
+			sql:      "SELECT * FROM t ",
+			cursor:   16,
+			wantType: CandidateKeyword,
+			wantText: "WHERE",
+		},
+		{
+			// Scenario 5 continued: JOIN keyword should appear
+			name:     "from_after_table_join",
+			sql:      "SELECT * FROM t ",
+			cursor:   16,
+			wantType: CandidateKeyword,
+			wantText: "JOIN",
+		},
+		{
+			// Scenario 5 continued: LEFT keyword should appear
+			name:     "from_after_table_left",
+			sql:      "SELECT * FROM t ",
+			cursor:   16,
+			wantType: CandidateKeyword,
+			wantText: "LEFT",
+		},
+		{
+			// Scenario 5 continued: RIGHT keyword should appear
+			name:     "from_after_table_right",
+			sql:      "SELECT * FROM t ",
+			cursor:   16,
+			wantType: CandidateKeyword,
+			wantText: "RIGHT",
+		},
+		{
+			// Scenario 6: SELECT * FROM t AS | → no specific candidates (alias context)
+			// Tables/views should NOT appear since we're in an alias context.
+			name:       "from_alias_no_table",
+			sql:        "SELECT * FROM t AS ",
+			cursor:     19,
+			wantType:   CandidateTable,
+			wantText:   "",
+			wantAbsent: "t",
+			absentType: CandidateTable,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			candidates := Complete(tc.sql, tc.cursor, cat)
+
+			if tc.wantText != "" {
+				if !containsCandidate(candidates, tc.wantText, tc.wantType) {
+					t.Errorf("missing candidate %q of type %d; got %v", tc.wantText, tc.wantType, candidates)
+				}
+			}
+
+			if tc.wantAbsent != "" {
+				if containsCandidate(candidates, tc.wantAbsent, tc.absentType) {
+					t.Errorf("unexpected candidate %q of type %d should not appear", tc.wantAbsent, tc.absentType)
+				}
+			}
+		})
+	}
+}

@@ -129,6 +129,14 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 	// Check for schema.table
 	if p.cur.Type == '.' {
 		p.advance() // consume '.'
+
+		// Completion: after "db.", offer table_ref qualified with database.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			return nil, &ParseError{Message: "collecting"}
+		}
+
 		name2, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
