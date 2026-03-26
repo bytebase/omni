@@ -295,7 +295,7 @@ func deparseCTEs(ctes []*ast.CommonTableExpr) string {
 
 	for i, cte := range ctes {
 		if i > 0 {
-			b.WriteString(",")
+			b.WriteString(", ")
 		}
 		b.WriteString("`")
 		b.WriteString(cte.Name)

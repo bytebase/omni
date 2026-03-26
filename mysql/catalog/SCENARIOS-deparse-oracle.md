@@ -235,11 +235,11 @@ Status legend: `[ ]` pending, `[x]` passing, `[~]` partial
 ### 6.2 CTE Patterns
 
 ```
-[ ] `WITH cte AS (SELECT a FROM t) SELECT * FROM cte` — simple CTE
-[ ] `WITH cte(x) AS (SELECT a FROM t) SELECT x FROM cte` — CTE with column list
-[ ] `WITH RECURSIVE cte AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM cte WHERE n < 10) SELECT * FROM cte` — recursive CTE
-[ ] `WITH c1 AS (SELECT a FROM t), c2 AS (SELECT b FROM t) SELECT c1.a, c2.b FROM c1, c2` — multiple CTEs
-[ ] `WITH cte AS (SELECT a FROM t) SELECT * FROM cte UNION SELECT * FROM cte` — CTE used in UNION
+[x] `WITH cte AS (SELECT a FROM t) SELECT * FROM cte` — simple CTE
+[x] `WITH cte(x) AS (SELECT a FROM t) SELECT x FROM cte` — CTE with column list
+[~] `WITH RECURSIVE cte AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM cte WHERE n < 10) SELECT * FROM cte` — recursive CTE (resolver doesn't qualify self-referencing CTE column refs with table prefix)
+[x] `WITH c1 AS (SELECT a FROM t), c2 AS (SELECT b FROM t) SELECT c1.a, c2.b FROM c1, c2` — multiple CTEs
+[x] `WITH cte AS (SELECT a FROM t) SELECT * FROM cte UNION SELECT * FROM cte` — CTE used in UNION
 ```
 
 ## Phase 7: Window Functions

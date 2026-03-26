@@ -1259,7 +1259,7 @@ func TestDeparseSelect_Section_5_7_CTE(t *testing.T) {
 		{
 			"multiple_ctes",
 			"WITH c1 AS (SELECT 1), c2 AS (SELECT 2) SELECT a FROM c1, c2",
-			"with `c1` as (select 1 AS `1`),`c2` as (select 2 AS `2`) select `a` AS `a` from (`c1` join `c2`)",
+			"with `c1` as (select 1 AS `1`), `c2` as (select 2 AS `2`) select `a` AS `a` from (`c1` join `c2`)",
 		},
 	}
 

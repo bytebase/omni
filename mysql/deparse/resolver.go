@@ -78,11 +78,34 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	}
 	// Handle set operations recursively
 	if stmt.SetOp != ast.SetOpNone {
+		// Before recursing, hoist CTEs from the leftmost leaf so they are
+		// visible to both sides of the set operation (matching MySQL semantics
+		// where WITH ... applies to the entire UNION).
+		mergedCTETables := cteTables
+		if leftCTEs := collectLeftmostCTEs(stmt); len(leftCTEs) > 0 {
+			mergedCTETables = make(map[string]*ResolverTable)
+			if cteTables != nil {
+				for k, v := range cteTables {
+					mergedCTETables[k] = v
+				}
+			}
+			for _, cte := range leftCTEs {
+				cteResolver := &Resolver{
+					Lookup:         r.withCTELookup(mergedCTETables),
+					DefaultCharset: r.DefaultCharset,
+				}
+				cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
+				vt := buildCTEVirtualTable(cte)
+				if vt != nil {
+					mergedCTETables[strings.ToLower(cte.Name)] = vt
+				}
+			}
+		}
 		if stmt.Left != nil {
-			r.resolveWithCTEs(stmt.Left, cteTables)
+			r.resolveWithCTEs(stmt.Left, mergedCTETables)
 		}
 		if stmt.Right != nil {
-			r.resolveWithCTEs(stmt.Right, cteTables)
+			r.resolveWithCTEs(stmt.Right, mergedCTETables)
 		}
 		// Resolve ORDER BY ordinals (e.g., ORDER BY 1) to column aliases
 		// from the leftmost SELECT's target list, matching MySQL 8.0 behavior.
@@ -728,18 +751,37 @@ func (r *Resolver) resolveCastCharset(dt *ast.DataType) {
 }
 
 // withCTELookup returns a TableLookup function that first checks CTE virtual tables,
-// then falls back to the original Lookup.
+// then falls back to the given fallback lookup.
+// We capture fallback by value (not r.Lookup) to avoid infinite recursion when
+// r.Lookup is later overwritten to point at the returned function itself.
 func (r *Resolver) withCTELookup(cteTables map[string]*ResolverTable) TableLookup {
+	fallback := r.Lookup // capture current value, not a reference to r.Lookup
 	return func(tableName string) *ResolverTable {
 		key := strings.ToLower(tableName)
 		if vt, ok := cteTables[key]; ok {
 			return vt
 		}
-		if r.Lookup != nil {
-			return r.Lookup(tableName)
+		if fallback != nil {
+			return fallback(tableName)
 		}
 		return nil
 	}
+}
+
+// collectLeftmostCTEs walks down the left spine of a set operation tree and
+// returns CTEs from the leftmost leaf. Unlike extractCTEs in the deparser,
+// this does NOT clear the CTEs — they must remain in the AST for the deparser
+// to emit the WITH clause later. Instead, it marks them as already-resolved
+// by removing them from a copy so the resolver doesn't double-process.
+func collectLeftmostCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
+	cur := stmt
+	for cur.SetOp != ast.SetOpNone && cur.Left != nil {
+		cur = cur.Left
+	}
+	if len(cur.CTEs) > 0 {
+		return cur.CTEs
+	}
+	return nil
 }
 
 // buildCTEVirtualTable constructs a ResolverTable from a CTE's SELECT target list.

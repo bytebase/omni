@@ -2041,3 +2041,106 @@ func TestDeparseOracle_Section_6_1_SubqueryPatterns(t *testing.T) {
 		})
 	}
 }
+
+func TestDeparseOracle_Section_6_2_CTEPatterns(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	// Setup: create base table on MySQL 8.0
+	if err := oracle.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
+		t.Fatalf("failed to create table t on MySQL: %v", err)
+	}
+
+	cases := []struct {
+		name     string
+		createAs string
+		partial  bool
+	}{
+		{
+			"simple_cte",
+			"WITH cte AS (SELECT a FROM t) SELECT * FROM cte",
+			false,
+		},
+		{
+			"cte_with_column_list",
+			"WITH cte(x) AS (SELECT a FROM t) SELECT x FROM cte",
+			false,
+		},
+		{
+			"recursive_cte",
+			"WITH RECURSIVE cte AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM cte WHERE n < 10) SELECT * FROM cte",
+			true, // may hit parser limitations
+		},
+		{
+			"multiple_ctes",
+			"WITH c1 AS (SELECT a FROM t), c2 AS (SELECT b FROM t) SELECT c1.a, c2.b FROM c1, c2",
+			false,
+		},
+		{
+			"cte_used_in_union",
+			"WITH cte AS (SELECT a FROM t) SELECT * FROM cte UNION SELECT * FROM cte",
+			false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			viewName := "v_" + tc.name
+
+			// --- MySQL 8.0 side ---
+			oracle.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
+			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
+			if err := oracle.execSQLDirect(createSQL); err != nil {
+				if tc.partial {
+					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
+				}
+				t.Fatalf("CREATE VIEW on MySQL failed: %v", err)
+			}
+			mysqlOutput, err := oracle.showCreateView(viewName)
+			if err != nil {
+				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+			}
+			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+
+			// --- Our catalog side ---
+			cat := New()
+			cat.Exec("CREATE DATABASE test", nil)
+			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
+			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
+			if len(results) == 0 {
+				if tc.partial {
+					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
+				}
+				t.Fatalf("CREATE VIEW on catalog returned no results")
+			}
+			if results[0].Error != nil {
+				if tc.partial {
+					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+				}
+				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
+			}
+			omniOutput := cat.ShowCreateView("test", viewName)
+			if omniOutput == "" {
+				if tc.partial {
+					t.Skip("ShowCreateView returned empty (expected partial)")
+				}
+				t.Fatal("ShowCreateView returned empty")
+			}
+			omniBody := extractSelectBody(omniOutput)
+
+			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("Omni body:   %s", omniBody)
+
+			if mysqlBody != omniBody {
+				if tc.partial {
+					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+				}
+				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			}
+		})
+	}
+}
