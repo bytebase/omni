@@ -237,7 +237,7 @@ func TestResolve_2_2_TokenCandidatesKeywords(t *testing.T) {
 func TestResolve_2_2_TableRef(t *testing.T) {
 	// Scenario: "table_ref" rule -> catalog tables + views
 	cat := setupCatalog(t)
-	candidates := resolveRule("table_ref", cat)
+	candidates := resolveRule("table_ref", cat, "", 0)
 	if !containsCandidate(candidates, "users", CandidateTable) {
 		t.Error("missing table 'users'")
 	}
@@ -253,7 +253,7 @@ func TestResolve_2_2_ColumnRef(t *testing.T) {
 	// Scenario: "columnref" rule -> columns from tables in scope
 	// For now, returns all columns from all tables in current database.
 	cat := setupCatalog(t)
-	candidates := resolveRule("columnref", cat)
+	candidates := resolveRule("columnref", cat, "", 0)
 	// users: id, name, email
 	if !containsCandidate(candidates, "id", CandidateColumn) {
 		t.Error("missing column 'id'")
@@ -278,7 +278,7 @@ func TestResolve_2_2_DatabaseRef(t *testing.T) {
 	cat := setupCatalog(t)
 	// Add another database.
 	mustExec(t, cat, "CREATE DATABASE otherdb")
-	candidates := resolveRule("database_ref", cat)
+	candidates := resolveRule("database_ref", cat, "", 0)
 	if !containsCandidate(candidates, "testdb", CandidateDatabase) {
 		t.Error("missing database 'testdb'")
 	}
@@ -291,7 +291,7 @@ func TestResolve_2_2_FunctionRef(t *testing.T) {
 	// Scenario: "function_ref" / "func_name" rule -> catalog functions + built-in names
 	cat := setupCatalog(t)
 	for _, rule := range []string{"function_ref", "func_name"} {
-		candidates := resolveRule(rule, cat)
+		candidates := resolveRule(rule, cat, "", 0)
 		// Should include built-in functions.
 		if !containsCandidate(candidates, "COUNT", CandidateFunction) {
 			t.Errorf("[%s] missing built-in function COUNT", rule)
@@ -312,7 +312,7 @@ func TestResolve_2_2_FunctionRef(t *testing.T) {
 func TestResolve_2_2_ProcedureRef(t *testing.T) {
 	// Scenario: "procedure_ref" rule -> catalog procedures
 	cat := setupCatalog(t)
-	candidates := resolveRule("procedure_ref", cat)
+	candidates := resolveRule("procedure_ref", cat, "", 0)
 	if !containsCandidate(candidates, "my_proc", CandidateProcedure) {
 		t.Error("missing procedure 'my_proc'")
 	}
@@ -321,7 +321,7 @@ func TestResolve_2_2_ProcedureRef(t *testing.T) {
 func TestResolve_2_2_IndexRef(t *testing.T) {
 	// Scenario: "index_ref" rule -> indexes from relevant table
 	cat := setupCatalog(t)
-	candidates := resolveRule("index_ref", cat)
+	candidates := resolveRule("index_ref", cat, "", 0)
 	if !containsCandidate(candidates, "idx_name", CandidateIndex) {
 		t.Error("missing index 'idx_name'")
 	}
@@ -333,7 +333,7 @@ func TestResolve_2_2_IndexRef(t *testing.T) {
 func TestResolve_2_2_TriggerRef(t *testing.T) {
 	// Scenario: "trigger_ref" rule -> catalog triggers
 	cat := setupCatalog(t)
-	candidates := resolveRule("trigger_ref", cat)
+	candidates := resolveRule("trigger_ref", cat, "", 0)
 	if !containsCandidate(candidates, "my_trig", CandidateTrigger) {
 		t.Error("missing trigger 'my_trig'")
 	}
@@ -342,7 +342,7 @@ func TestResolve_2_2_TriggerRef(t *testing.T) {
 func TestResolve_2_2_EventRef(t *testing.T) {
 	// Scenario: "event_ref" rule -> catalog events
 	cat := setupCatalog(t)
-	candidates := resolveRule("event_ref", cat)
+	candidates := resolveRule("event_ref", cat, "", 0)
 	if !containsCandidate(candidates, "my_event", CandidateEvent) {
 		t.Error("missing event 'my_event'")
 	}
@@ -351,7 +351,7 @@ func TestResolve_2_2_EventRef(t *testing.T) {
 func TestResolve_2_2_ViewRef(t *testing.T) {
 	// Scenario: "view_ref" rule -> catalog views
 	cat := setupCatalog(t)
-	candidates := resolveRule("view_ref", cat)
+	candidates := resolveRule("view_ref", cat, "", 0)
 	if !containsCandidate(candidates, "active_users", CandidateView) {
 		t.Error("missing view 'active_users'")
 	}
@@ -359,7 +359,7 @@ func TestResolve_2_2_ViewRef(t *testing.T) {
 
 func TestResolve_2_2_Charset(t *testing.T) {
 	// Scenario: "charset" rule -> known charset names
-	candidates := resolveRule("charset", nil)
+	candidates := resolveRule("charset", nil, "", 0)
 	for _, cs := range []string{"utf8mb4", "latin1", "utf8", "ascii", "binary"} {
 		if !containsCandidate(candidates, cs, CandidateCharset) {
 			t.Errorf("missing charset %q", cs)
@@ -369,7 +369,7 @@ func TestResolve_2_2_Charset(t *testing.T) {
 
 func TestResolve_2_2_Engine(t *testing.T) {
 	// Scenario: "engine" rule -> known engine names
-	candidates := resolveRule("engine", nil)
+	candidates := resolveRule("engine", nil, "", 0)
 	for _, eng := range []string{"InnoDB", "MyISAM", "MEMORY", "CSV", "ARCHIVE"} {
 		if !containsCandidate(candidates, eng, CandidateEngine) {
 			t.Errorf("missing engine %q", eng)
@@ -379,7 +379,7 @@ func TestResolve_2_2_Engine(t *testing.T) {
 
 func TestResolve_2_2_TypeName(t *testing.T) {
 	// Scenario: "type_name" rule -> MySQL type keywords
-	candidates := resolveRule("type_name", nil)
+	candidates := resolveRule("type_name", nil, "", 0)
 	for _, typ := range []string{"INT", "VARCHAR", "TEXT", "BLOB", "DATE", "DATETIME", "DECIMAL", "JSON", "ENUM"} {
 		if !containsCandidate(candidates, typ, CandidateType_) {
 			t.Errorf("missing type %q", typ)
@@ -390,13 +390,13 @@ func TestResolve_2_2_TypeName(t *testing.T) {
 func TestResolve_2_2_NilCatalogSafety(t *testing.T) {
 	// All catalog-dependent rules should handle nil catalog gracefully.
 	for _, rule := range []string{"table_ref", "columnref", "database_ref", "procedure_ref", "index_ref", "trigger_ref", "event_ref", "view_ref"} {
-		candidates := resolveRule(rule, nil)
+		candidates := resolveRule(rule, nil, "", 0)
 		if candidates != nil && len(candidates) > 0 {
 			t.Errorf("[%s] expected no candidates with nil catalog, got %d", rule, len(candidates))
 		}
 	}
 	// function_ref/func_name still return built-ins with nil catalog.
-	candidates := resolveRule("func_name", nil)
+	candidates := resolveRule("func_name", nil, "", 0)
 	if len(candidates) == 0 {
 		t.Error("func_name should return built-in functions even with nil catalog")
 	}

@@ -146,3 +146,38 @@ func (p *Parser) addRuleCandidate(r string) {
 		p.candidates.addRule(r)
 	}
 }
+
+// IsIdentTokenType reports whether a token type can be used as an identifier
+// (IDENT or non-reserved keyword).
+func IsIdentTokenType(typ int) bool {
+	return typ == tokIDENT || typ >= 700
+}
+
+// Exported token type constants for use by the completion package.
+const (
+	SELECT  = kwSELECT
+	INSERT  = kwINSERT
+	UPDATE  = kwUPDATE
+	DELETE  = kwDELETE
+	FROM    = kwFROM
+	WHERE   = kwWHERE
+	SET     = kwSET
+	INTO    = kwINTO
+	VALUES  = kwVALUES
+	AS      = kwAS
+	ON      = kwON
+	USING   = kwUSING
+	JOIN    = kwJOIN
+	INNER   = kwINNER
+	LEFT    = kwLEFT
+	RIGHT   = kwRIGHT
+	CROSS   = kwCROSS
+	NATURAL = kwNATURAL
+	ORDER   = kwORDER
+	GROUP   = kwGROUP
+	HAVING  = kwHAVING
+	LIMIT   = kwLIMIT
+	UNION   = kwUNION
+	FOR     = kwFOR
+	REPLACE = kwREPLACE
+)

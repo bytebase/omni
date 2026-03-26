@@ -77,15 +77,15 @@ so that Phase 3+ instrumentation can be tested end-to-end.
 ### 2.3 Table Reference Extraction
 
 ```
-[ ] Extract table refs from simple SELECT: `SELECT * FROM t` → [{Table: "t"}]
-[ ] Extract table refs with alias: `SELECT * FROM t AS x` → [{Table: "t", Alias: "x"}]
-[ ] Extract table refs from JOIN: `FROM t1 JOIN t2 ON ...` → [{Table: "t1"}, {Table: "t2"}]
-[ ] Extract table refs with database: `FROM db.t` → [{Database: "db", Table: "t"}]
-[ ] Extract table refs from subquery: inner tables don't leak to outer scope
-[ ] Extract table refs from UPDATE: `UPDATE t SET ...` → [{Table: "t"}]
-[ ] Extract table refs from INSERT: `INSERT INTO t ...` → [{Table: "t"}]
-[ ] Extract table refs from DELETE: `DELETE FROM t ...` → [{Table: "t"}]
-[ ] Fallback to lexer-based extraction when AST parsing fails (incomplete SQL)
+[x] Extract table refs from simple SELECT: `SELECT * FROM t` → [{Table: "t"}]
+[x] Extract table refs with alias: `SELECT * FROM t AS x` → [{Table: "t", Alias: "x"}]
+[x] Extract table refs from JOIN: `FROM t1 JOIN t2 ON ...` → [{Table: "t1"}, {Table: "t2"}]
+[x] Extract table refs with database: `FROM db.t` → [{Database: "db", Table: "t"}]
+[x] Extract table refs from subquery: inner tables don't leak to outer scope
+[x] Extract table refs from UPDATE: `UPDATE t SET ...` → [{Table: "t"}]
+[x] Extract table refs from INSERT: `INSERT INTO t ...` → [{Table: "t"}]
+[x] Extract table refs from DELETE: `DELETE FROM t ...` → [{Table: "t"}]
+[x] Fallback to lexer-based extraction when AST parsing fails (incomplete SQL)
 ```
 
 ### 2.4 Tricky Completion (Fallback)

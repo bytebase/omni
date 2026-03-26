@@ -104,24 +104,24 @@ var typeKeywords = []string{
 
 // resolveRules converts parser rule candidates into typed Candidate values
 // using the catalog for name resolution.
-func resolveRules(cs *parser.CandidateSet, cat *catalog.Catalog, _ string, _ int) []Candidate {
+func resolveRules(cs *parser.CandidateSet, cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
 	if cs == nil {
 		return nil
 	}
 	var result []Candidate
 	for _, rc := range cs.Rules {
-		result = append(result, resolveRule(rc.Rule, cat)...)
+		result = append(result, resolveRule(rc.Rule, cat, sql, cursorOffset)...)
 	}
 	return result
 }
 
 // resolveRule resolves a single grammar rule name into completion candidates.
-func resolveRule(rule string, cat *catalog.Catalog) []Candidate {
+func resolveRule(rule string, cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
 	switch rule {
 	case "table_ref":
 		return resolveTableRef(cat)
 	case "columnref":
-		return resolveColumnRef(cat)
+		return resolveColumnRefScoped(cat, sql, cursorOffset)
 	case "database_ref":
 		return resolveDatabaseRef(cat)
 	case "function_ref", "func_name":
@@ -165,8 +165,68 @@ func resolveTableRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
+// resolveColumnRefScoped returns columns scoped to the tables referenced in
+// the SQL statement. If no table refs are found, falls back to all columns
+// in the current database.
+func resolveColumnRefScoped(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
+	if cat == nil {
+		return nil
+	}
+	db := currentDB(cat)
+	if db == nil {
+		return nil
+	}
+
+	refs := extractTableRefs(sql, cursorOffset)
+	if len(refs) == 0 {
+		return resolveColumnRef(cat)
+	}
+
+	seen := make(map[string]bool)
+	var result []Candidate
+	for _, ref := range refs {
+		// Resolve table in the appropriate database.
+		targetDB := db
+		if ref.Database != "" {
+			targetDB = cat.GetDatabase(ref.Database)
+			if targetDB == nil {
+				continue
+			}
+		}
+		// Look up the table.
+		for _, t := range targetDB.Tables {
+			if t.Name == ref.Table {
+				for _, col := range t.Columns {
+					if !seen[col.Name] {
+						seen[col.Name] = true
+						result = append(result, Candidate{Text: col.Name, Type: CandidateColumn})
+					}
+				}
+				break
+			}
+		}
+		// Also check views.
+		for _, v := range targetDB.Views {
+			if v.Name == ref.Table {
+				for _, colName := range v.Columns {
+					if !seen[colName] {
+						seen[colName] = true
+						result = append(result, Candidate{Text: colName, Type: CandidateColumn})
+					}
+				}
+				break
+			}
+		}
+	}
+	// If we found refs but couldn't resolve any columns (e.g. CTE name not
+	// matching any catalog table), fall back to all columns.
+	if len(result) == 0 {
+		return resolveColumnRef(cat)
+	}
+	return result
+}
+
 // resolveColumnRef returns columns from all tables in the current database.
-// Table-scoped resolution is deferred to 2.3 (refs.go).
 func resolveColumnRef(cat *catalog.Catalog) []Candidate {
 	if cat == nil {
 		return nil
