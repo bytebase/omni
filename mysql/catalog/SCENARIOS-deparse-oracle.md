@@ -165,14 +165,14 @@ Status legend: `[ ]` pending, `[x]` passing, `[~]` partial
 ### 4.1 All JOIN Types
 
 ```
-[ ] `SELECT t1.a, t2.b FROM t1 JOIN t2 ON t1.a = t2.a` — INNER JOIN
-[ ] `SELECT t1.a, t2.b FROM t1 LEFT JOIN t2 ON t1.a = t2.a` — LEFT JOIN
-[ ] `SELECT t1.a, t2.b FROM t1 RIGHT JOIN t2 ON t1.a = t2.a` — RIGHT → LEFT swap
-[ ] `SELECT t1.a, t2.b FROM t1 CROSS JOIN t2` — CROSS → join (no ON)
-[ ] `SELECT * FROM t1 NATURAL JOIN t2` — NATURAL expanded to ON conditions
-[ ] `SELECT t1.a, t2.b FROM t1 STRAIGHT_JOIN t2 ON t1.a = t2.a` — straight_join
-[ ] `SELECT t1.a, t2.b FROM t1 JOIN t2 USING (a)` — USING expanded to ON
-[ ] `SELECT t1.a, t2.b FROM t1, t2 WHERE t1.a = t2.a` — comma → explicit join
+[x] `SELECT t1.a, t2.b FROM t1 JOIN t2 ON t1.a = t2.a` — INNER JOIN
+[x] `SELECT t1.a, t2.b FROM t1 LEFT JOIN t2 ON t1.a = t2.a` — LEFT JOIN
+[x] `SELECT t1.a, t2.b FROM t1 RIGHT JOIN t2 ON t1.a = t2.a` — RIGHT → LEFT swap
+[x] `SELECT t1.a, t2.b FROM t1 CROSS JOIN t2` — CROSS → join (no ON)
+[x] `SELECT * FROM t1 NATURAL JOIN t2` — NATURAL expanded to ON conditions
+[x] `SELECT t1.a, t2.b FROM t1 STRAIGHT_JOIN t2 ON t1.a = t2.a` — straight_join
+[x] `SELECT t1.a, t2.b FROM t1 JOIN t2 USING (a)` — USING expanded to ON
+[x] `SELECT t1.a, t2.b FROM t1, t2 WHERE t1.a = t2.a` — comma → explicit join
 ```
 
 ### 4.2 Multi-Table & Derived Tables

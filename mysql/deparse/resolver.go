@@ -53,6 +53,9 @@ type scope struct {
 	tables map[string]*ResolverTable
 	// order preserves insertion order for deterministic star expansion.
 	order []scopeEntry
+	// coalescedCols tracks columns from the right side of NATURAL JOIN or USING
+	// that should be excluded from star expansion. Key format: "tableName.colName" (lowercase).
+	coalescedCols map[string]bool
 }
 
 type scopeEntry struct {
@@ -115,6 +118,10 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	sc := r.buildScope(stmt.From)
 	r.Lookup = origLookup
 
+	// Resolve JOIN ON conditions (walk FROM clause) BEFORE target list resolution
+	// so that NATURAL JOIN expansion can mark coalesced columns for star expansion.
+	r.resolveFromExprs(stmt.From, sc)
+
 	// Resolve target list (may expand stars)
 	stmt.TargetList = r.resolveTargetList(stmt.TargetList, sc)
 
@@ -137,9 +144,6 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	for _, item := range stmt.OrderBy {
 		item.Expr = r.resolveExpr(item.Expr, sc)
 	}
-
-	// Resolve JOIN ON conditions (walk FROM clause)
-	r.resolveFromExprs(stmt.From, sc)
 
 	return stmt
 }
@@ -234,11 +238,17 @@ func (r *Resolver) resolveTarget(target ast.ExprNode, sc *scope, position int) [
 }
 
 // expandStar expands * to all columns from all tables in scope order.
+// Columns marked as coalesced (from NATURAL JOIN / USING) are excluded.
 func (r *Resolver) expandStar(sc *scope) []ast.ExprNode {
 	var result []ast.ExprNode
 	for _, entry := range sc.order {
 		cols := sortedResolverColumns(entry.table)
 		for _, col := range cols {
+			// Skip columns coalesced by NATURAL JOIN or USING
+			key := strings.ToLower(entry.name) + "." + strings.ToLower(col.Name)
+			if sc.coalescedCols != nil && sc.coalescedCols[key] {
+				continue
+			}
 			result = append(result, &ast.ResTarget{
 				Name: col.Name,
 				Val: &ast.ColumnRef{
@@ -474,7 +484,7 @@ func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *scope) {
 
 		// Expand NATURAL JOIN → find common columns → build ON condition
 		if t.Type == ast.JoinNatural || t.Type == ast.JoinNaturalLeft || t.Type == ast.JoinNaturalRight {
-			r.expandNaturalJoin(t)
+			r.expandNaturalJoin(t, sc)
 		}
 
 		// Expand USING → build ON condition with qualified column refs
@@ -497,7 +507,7 @@ func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *scope) {
 //   - NATURAL JOIN → JoinInner
 //   - NATURAL LEFT JOIN → JoinLeft
 //   - NATURAL RIGHT JOIN → JoinRight (deparse will then swap to LEFT)
-func (r *Resolver) expandNaturalJoin(j *ast.JoinClause) {
+func (r *Resolver) expandNaturalJoin(j *ast.JoinClause, sc *scope) {
 	leftTable := r.lookupTableExpr(j.Left)
 	rightTable := r.lookupTableExpr(j.Right)
 	if leftTable == nil || rightTable == nil {
@@ -531,6 +541,18 @@ func (r *Resolver) expandNaturalJoin(j *ast.JoinClause) {
 	if len(commonCols) > 0 {
 		j.Condition = &ast.OnCondition{
 			Expr: buildColumnEqualityChain(commonCols, leftName, rightName),
+		}
+	}
+
+	// Mark common columns from the right table as coalesced for star expansion.
+	// In NATURAL JOIN, common columns appear only once (from the left table).
+	if sc != nil && len(commonCols) > 0 {
+		if sc.coalescedCols == nil {
+			sc.coalescedCols = make(map[string]bool)
+		}
+		for _, col := range commonCols {
+			key := strings.ToLower(rightName) + "." + strings.ToLower(col)
+			sc.coalescedCols[key] = true
 		}
 	}
 
