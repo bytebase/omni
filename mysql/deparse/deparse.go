@@ -358,6 +358,9 @@ func autoAlias(expr ast.ExprNode, exprStr string, position int) string {
 	case *ast.FloatLit:
 		return n.Value
 	case *ast.StringLit:
+		if n.Value == "" {
+			return fmt.Sprintf("Name_exp_%d", position)
+		}
 		return n.Value
 	case *ast.NullLit:
 		return "NULL"
@@ -366,8 +369,24 @@ func autoAlias(expr ast.ExprNode, exprStr string, position int) string {
 			return "TRUE"
 		}
 		return "FALSE"
+	case *ast.HexLit:
+		// MySQL 8.0 preserves original literal form in auto-alias.
+		// 0xFF stays as "0xFF"; X'FF' form stored as "FF" → "X'FF'"
+		val := n.Value
+		if strings.HasPrefix(val, "0x") || strings.HasPrefix(val, "0X") {
+			return val // preserve original case: 0xFF
+		}
+		return "X'" + val + "'"
+	case *ast.BitLit:
+		// MySQL 8.0 preserves original literal form in auto-alias.
+		// 0b1010 stays as "0b1010"; b'1010' form stored as "1010" → "b'1010'"
+		val := n.Value
+		if strings.HasPrefix(val, "0b") || strings.HasPrefix(val, "0B") {
+			return val
+		}
+		return "b'" + val + "'"
 	case *ast.TemporalLit:
-		return n.Type + "'" + n.Value + "'"
+		return n.Type + " '" + n.Value + "'"
 	default:
 		// For expressions: generate a human-readable alias text without backtick quoting.
 		// MySQL 8.0 uses the original expression text for the alias.
@@ -408,8 +427,20 @@ func deparseExprAlias(node ast.ExprNode) string {
 			return "TRUE"
 		}
 		return "FALSE"
+	case *ast.HexLit:
+		val := n.Value
+		if strings.HasPrefix(val, "0x") || strings.HasPrefix(val, "0X") {
+			return val
+		}
+		return "X'" + val + "'"
+	case *ast.BitLit:
+		val := n.Value
+		if strings.HasPrefix(val, "0b") || strings.HasPrefix(val, "0B") {
+			return val
+		}
+		return "b'" + val + "'"
 	case *ast.TemporalLit:
-		return n.Type + "'" + n.Value + "'"
+		return n.Type + " '" + n.Value + "'"
 	case *ast.BinaryExpr:
 		left := deparseExprAlias(n.Left)
 		right := deparseExprAlias(n.Right)
@@ -525,7 +556,7 @@ func deparseExprAlias(node ast.ExprNode) string {
 		for i, item := range n.List {
 			items[i] = deparseExprAlias(item)
 		}
-		return expr + " " + keyword + " (" + strings.Join(items, ",") + ")"
+		return expr + " " + keyword + " (" + strings.Join(items, ", ") + ")"
 	case *ast.BetweenExpr:
 		expr := deparseExprAlias(n.Expr)
 		low := deparseExprAlias(n.Low)

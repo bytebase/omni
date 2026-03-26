@@ -739,6 +739,94 @@ func TestDeparse_Section_7_3_ExpressionViews(t *testing.T) {
 		})
 	}
 }
+// TestDeparseOracle_1_3_LiteralsSpacing verifies literals and spacing rules
+// against MySQL 8.0 SHOW CREATE VIEW output.
+func TestDeparseOracle_1_3_LiteralsSpacing(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	// Setup: create base table on MySQL 8.0
+	if err := oracle.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
+		t.Fatalf("failed to create table on MySQL: %v", err)
+	}
+
+	cases := []struct {
+		name     string
+		viewName string
+		viewSQL  string
+		partial  bool // mark [~] if parser limitation
+	}{
+		{"basic_literals", "v_basic_lit", "CREATE VIEW v_basic_lit AS SELECT 1, 1.5, 'hello', NULL, TRUE, FALSE FROM t", false},
+		{"hex_bit_literals", "v_hex_bit", "CREATE VIEW v_hex_bit AS SELECT 0xFF, X'FF', 0b1010, b'1010' FROM t", false},
+		{"charset_introducers", "v_charset", "CREATE VIEW v_charset AS SELECT _utf8mb4'hello', _latin1'world' FROM t", false},
+		{"empty_string", "v_empty_str", "CREATE VIEW v_empty_str AS SELECT '' FROM t", false},
+		{"escaped_quotes", "v_esc_quotes", "CREATE VIEW v_esc_quotes AS SELECT 'it''s' FROM t", false},
+		{"escaped_backslash", "v_esc_bslash", "CREATE VIEW v_esc_bslash AS SELECT 'back\\\\slash' FROM t", false},
+		{"temporal_literals", "v_temporal", "CREATE VIEW v_temporal AS SELECT DATE '2024-01-01', TIME '12:00:00', TIMESTAMP '2024-01-01 12:00:00' FROM t", false},
+		{"func_args_no_space", "v_func_args", "CREATE VIEW v_func_args AS SELECT CONCAT(a, b, c) FROM t", false},
+		{"in_list_no_space", "v_in_list", "CREATE VIEW v_in_list AS SELECT a IN (1, 2, 3) FROM t", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// --- MySQL 8.0 side ---
+			oracle.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
+			if err := oracle.execSQLDirect(tc.viewSQL); err != nil {
+				if tc.partial {
+					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
+				}
+				t.Skipf("MySQL 8.0 rejected: %v", err)
+				return
+			}
+			mysqlOutput, err := oracle.showCreateView(tc.viewName)
+			if err != nil {
+				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+			}
+			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+
+			// --- Omni catalog side ---
+			cat := New()
+			cat.Exec("CREATE DATABASE test", nil)
+			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
+			results, _ := cat.Exec(tc.viewSQL, nil)
+			if len(results) == 0 {
+				if tc.partial {
+					t.Skipf("CREATE VIEW on catalog returned no results (expected partial — parser limitation)")
+				}
+				t.Fatalf("CREATE VIEW on catalog returned no results")
+			}
+			if results[0].Error != nil {
+				if tc.partial {
+					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
+				}
+				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
+			}
+			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			if omniOutput == "" {
+				if tc.partial {
+					t.Skip("ShowCreateView returned empty (expected partial)")
+				}
+				t.Fatal("ShowCreateView returned empty")
+			}
+			omniBody := extractSelectBody(omniOutput)
+
+			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("Omni body:   %s", omniBody)
+
+			if mysqlBody != omniBody {
+				if tc.partial {
+					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+				}
+				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			}
+		})
+	}
+}
+
 // TestDeparseOracle_1_2_LogicalBitwiseIS verifies logical, bitwise, and IS operators
 // against MySQL 8.0 SHOW CREATE VIEW output.
 func TestDeparseOracle_1_2_LogicalBitwiseIS(t *testing.T) {

@@ -47,15 +47,15 @@ Status legend: `[ ]` pending, `[x]` passing, `[~]` partial
 ### 1.3 Literals & Spacing Rules
 
 ```
-[ ] `SELECT 1, 1.5, 'hello', NULL, TRUE, FALSE FROM t` — all basic literal types
-[ ] `SELECT 0xFF, X'FF', 0b1010, b'1010' FROM t` — hex/bit literals
-[ ] `SELECT _utf8mb4'hello', _latin1'world' FROM t` — charset introducers
-[ ] `SELECT '' FROM t` — empty string
-[ ] `SELECT 'it''s' FROM t` — escaped quotes
-[ ] `SELECT 'back\\slash' FROM t` — escaped backslash
-[ ] `SELECT DATE '2024-01-01', TIME '12:00:00', TIMESTAMP '2024-01-01 12:00:00' FROM t` — temporal literals
-[ ] `SELECT CONCAT(a, b, c) FROM t` — no spaces after commas in function args
-[ ] `SELECT a IN (1, 2, 3) FROM t` — no spaces after commas in IN list
+[x] `SELECT 1, 1.5, 'hello', NULL, TRUE, FALSE FROM t` — all basic literal types
+[x] `SELECT 0xFF, X'FF', 0b1010, b'1010' FROM t` — hex/bit literals
+[x] `SELECT _utf8mb4'hello', _latin1'world' FROM t` — charset introducers
+[x] `SELECT '' FROM t` — empty string
+[x] `SELECT 'it''s' FROM t` — escaped quotes
+[x] `SELECT 'back\\slash' FROM t` — escaped backslash
+[x] `SELECT DATE '2024-01-01', TIME '12:00:00', TIMESTAMP '2024-01-01 12:00:00' FROM t` — temporal literals
+[x] `SELECT CONCAT(a, b, c) FROM t` — no spaces after commas in function args
+[x] `SELECT a IN (1, 2, 3) FROM t` — no spaces after commas in IN list
 ```
 
 ## Phase 2: Functions & Rewrites
