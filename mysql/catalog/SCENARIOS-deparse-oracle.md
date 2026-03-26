@@ -271,15 +271,15 @@ Status legend: `[ ]` pending, `[x]` passing, `[~]` partial
 ### 8.2 Expression Edge Cases & Stress Tests
 
 ```
-[ ] `SELECT CAST(a + b AS CHAR) FROM t` — CAST with expression (not just column)
-[ ] `SELECT a COLLATE utf8mb4_unicode_ci FROM t` — COLLATE expression
-[ ] `SELECT INTERVAL 1 DAY + a FROM t` — INTERVAL arithmetic
-[ ] `SELECT a SOUNDS LIKE b FROM t` — SOUNDS LIKE operator
-[ ] `SELECT -a, +a FROM t` — unary operators (minus preserved, plus dropped)
-[ ] Long expression auto-alias: `SELECT CASE WHEN a > 0 THEN CONCAT(a, b, c) WHEN a < 0 THEN CONCAT(c, b, a) ELSE NULL END FROM t` — Name_exp_N pattern
-[ ] Reserved word as column name: `SELECT a FROM t` where column is named `select` (table has reserved word column)
-[ ] `SELECT a + b, NOT (a > 0), CAST(a AS CHAR), COUNT(*), a REGEXP 'x' FROM t GROUP BY a, b HAVING COUNT(*) > 1` — multiple rewrites in one view
-[ ] `SELECT a AND b, a OR b, NOT a, a XOR b, !a FROM t` — all logical operators with wrapping
-[ ] `SELECT IFNULL(a, 0) AND COALESCE(b, 0) FROM t` — function results in boolean context
-[ ] `SELECT (a > 0) AND (b + 1) OR (c IS NULL) FROM t` — mixed boolean/non-boolean precedence
+[x] `SELECT CAST(a + b AS CHAR) FROM t` — CAST with expression (not just column)
+[x] `SELECT a COLLATE utf8mb4_unicode_ci FROM t` — COLLATE expression
+[x] `SELECT INTERVAL 1 DAY + a FROM t` — INTERVAL arithmetic
+[x] `SELECT a SOUNDS LIKE b FROM t` — SOUNDS LIKE operator
+[x] `SELECT -a, +a FROM t` — unary operators (minus preserved, plus dropped)
+[x] Long expression auto-alias: `SELECT CASE WHEN a > 0 THEN CONCAT(a, b, c) WHEN a < 0 THEN CONCAT(c, b, a) ELSE NULL END FROM t` — Name_exp_N pattern
+[x] Reserved word as column name: `SELECT a FROM t` where column is named `select` (table has reserved word column)
+[x] `SELECT a + b, NOT (a > 0), CAST(a AS CHAR), COUNT(*), a REGEXP 'x' FROM t GROUP BY a, b HAVING COUNT(*) > 1` — multiple rewrites in one view
+[x] `SELECT a AND b, a OR b, NOT a, a XOR b, !a FROM t` — all logical operators with wrapping
+[x] `SELECT IFNULL(a, 0) AND COALESCE(b, 0) FROM t` — function results in boolean context
+[x] `SELECT (a > 0) AND (b + 1) OR (c IS NULL) FROM t` — mixed boolean/non-boolean precedence
 ```

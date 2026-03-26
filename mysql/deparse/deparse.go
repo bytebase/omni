@@ -506,6 +506,8 @@ func deparseExprAlias(node ast.ExprNode) string {
 			return left + "->" + right
 		case ast.BinOpJsonUnquote:
 			return left + "->>" + right
+		case ast.BinOpSoundsLike:
+			return left + " SOUNDS LIKE " + right
 		}
 		op := binaryOpToStringAlias(n.Op)
 		// Use original operator text for alias when available (e.g., "MOD" instead of "%", "!=" instead of "<>")
@@ -693,6 +695,12 @@ func deparseExprAlias(node ast.ExprNode) string {
 			return "(" + deparseSelectStmtAlias(n.Select) + ")"
 		}
 		return "(/* subquery */)"
+	case *ast.CollateExpr:
+		// MySQL 8.0 auto-alias: "a COLLATE utf8mb4_unicode_ci" — uppercase COLLATE, no parens.
+		return deparseExprAlias(n.Expr) + " COLLATE " + n.Collation
+	case *ast.IntervalExpr:
+		// MySQL 8.0 auto-alias: "INTERVAL 1 DAY" — uppercase keywords.
+		return "INTERVAL " + deparseExprAlias(n.Value) + " " + strings.ToUpper(n.Unit)
 	default:
 		// Fallback: use the regular deparsed text
 		return deparseExpr(node)
@@ -1204,7 +1212,13 @@ func deparseUnaryExpr(n *ast.UnaryExpr) string {
 	operand := deparseExpr(n.Operand)
 	switch n.Op {
 	case ast.UnaryMinus:
-		return "-" + operand
+		// MySQL 8.0 wraps non-literal operands in parens: -(`t`.`a`) but keeps -5
+		switch n.Operand.(type) {
+		case *ast.IntLit, *ast.FloatLit:
+			return "-" + operand
+		default:
+			return "-(" + operand + ")"
+		}
 	case ast.UnaryPlus:
 		// MySQL drops unary plus entirely
 		return operand

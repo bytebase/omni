@@ -29,6 +29,24 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 	case *ast.BinaryExpr:
 		n.Left = rewriteExpr(n.Left)
 		n.Right = rewriteExpr(n.Right)
+		// MySQL 8.0 rewrites SOUNDS LIKE to soundex(left) = soundex(right)
+		if n.Op == ast.BinOpSoundsLike {
+			return &ast.ParenExpr{
+				Expr: &ast.BinaryExpr{
+					Op: ast.BinOpEq,
+					Left: &ast.FuncCallExpr{
+						Name:      "soundex",
+						HasParens: true,
+						Args:      []ast.ExprNode{n.Left},
+					},
+					Right: &ast.FuncCallExpr{
+						Name:      "soundex",
+						HasParens: true,
+						Args:      []ast.ExprNode{n.Right},
+					},
+				},
+			}
+		}
 		// Boolean context wrapping: AND/OR/XOR operands that are not boolean
 		// expressions get wrapped in (0 <> expr).
 		if n.Op == ast.BinOpAnd || n.Op == ast.BinOpOr || n.Op == ast.BinOpXor {

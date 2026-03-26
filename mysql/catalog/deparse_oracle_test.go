@@ -2358,3 +2358,138 @@ func TestDeparseOracle_8_1_ViewOfViewComplexStructures(t *testing.T) {
 		})
 	}
 }
+
+// TestDeparseOracle_8_2_ExpressionEdgeCases verifies expression edge cases and stress tests
+// against real MySQL 8.0 SHOW CREATE VIEW output.
+func TestDeparseOracle_8_2_ExpressionEdgeCases(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	// Setup: create base tables on MySQL 8.0
+	if err := oracle.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
+		t.Fatalf("failed to create table t on MySQL: %v", err)
+	}
+	if err := oracle.execSQLDirect("CREATE TABLE IF NOT EXISTS t_rw (`select` INT, b INT)"); err != nil {
+		t.Fatalf("failed to create table t_rw on MySQL: %v", err)
+	}
+	if err := oracle.execSQLDirect("CREATE TABLE IF NOT EXISTS tc (a VARCHAR(50), b INT, c INT)"); err != nil {
+		t.Fatalf("failed to create table tc on MySQL: %v", err)
+	}
+
+	cases := []struct {
+		name       string
+		setupTable string // which table(s) to create on omni side ("t", "t_rw", "tc")
+		createAs   string // the SELECT portion after CREATE VIEW v AS
+	}{
+		{
+			"cast_with_expression",
+			"t",
+			"SELECT CAST(a + b AS CHAR) FROM t",
+		},
+		{
+			"collate_expression",
+			"tc",
+			"SELECT a COLLATE utf8mb4_unicode_ci FROM tc",
+		},
+		{
+			"interval_arithmetic",
+			"t",
+			"SELECT INTERVAL 1 DAY + a FROM t",
+		},
+		{
+			"sounds_like",
+			"tc",
+			"SELECT a SOUNDS LIKE b FROM tc",
+		},
+		{
+			"unary_operators",
+			"t",
+			"SELECT -a, +a FROM t",
+		},
+		{
+			"long_expression_auto_alias",
+			"t",
+			"SELECT CASE WHEN a > 0 THEN CONCAT(a, b, c) WHEN a < 0 THEN CONCAT(c, b, a) ELSE NULL END FROM t",
+		},
+		{
+			"reserved_word_column",
+			"t_rw",
+			"SELECT `select` FROM t_rw",
+		},
+		{
+			"multiple_rewrites",
+			"t",
+			"SELECT a + b, NOT (a > 0), CAST(a AS CHAR), COUNT(*), a REGEXP 'x' FROM t GROUP BY a, b HAVING COUNT(*) > 1",
+		},
+		{
+			"all_logical_operators",
+			"t",
+			"SELECT a AND b, a OR b, NOT a, a XOR b, !a FROM t",
+		},
+		{
+			"function_boolean_context",
+			"t",
+			"SELECT IFNULL(a, 0) AND COALESCE(b, 0) FROM t",
+		},
+		{
+			"mixed_boolean_precedence",
+			"t",
+			"SELECT (a > 0) AND (b + 1) OR (c IS NULL) FROM t",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			viewName := "v_82_" + tc.name
+
+			// --- MySQL 8.0 side ---
+			oracle.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
+			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
+			if err := oracle.execSQLDirect(createSQL); err != nil {
+				t.Skipf("MySQL 8.0 rejected: %v", err)
+				return
+			}
+			mysqlOutput, err := oracle.showCreateView(viewName)
+			if err != nil {
+				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+			}
+			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+
+			// --- Our catalog side ---
+			cat := New()
+			cat.Exec("CREATE DATABASE test", nil)
+			cat.SetCurrentDatabase("test")
+			// Create the appropriate table(s)
+			switch tc.setupTable {
+			case "t":
+				cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
+			case "t_rw":
+				cat.Exec("CREATE TABLE t_rw (`select` INT, b INT)", nil)
+			case "tc":
+				cat.Exec("CREATE TABLE tc (a VARCHAR(50), b INT, c INT)", nil)
+			}
+			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
+			if len(results) == 0 {
+				t.Fatalf("CREATE VIEW on catalog returned no results")
+			}
+			if results[0].Error != nil {
+				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
+			}
+			omniOutput := cat.ShowCreateView("test", viewName)
+			if omniOutput == "" {
+				t.Fatal("ShowCreateView returned empty")
+			}
+			omniBody := extractSelectBody(omniOutput)
+
+			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("Omni body:   %s", omniBody)
+
+			if mysqlBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			}
+		})
+	}
+}

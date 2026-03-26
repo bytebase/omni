@@ -169,7 +169,7 @@ func TestDeparse_Section_2_1_ArithmeticUnary(t *testing.T) {
 		{"left_assoc_chain", "a + b + c", "((`a` + `b`) + `c`)"},
 
 		// Unary minus (with column ref operand)
-		{"unary_minus", "-a", "-`a`"},
+		{"unary_minus", "-a", "-(`a`)"},
 
 		// Unary plus — parser drops it entirely, so +a parses as just ColumnRef
 		{"unary_plus", "+a", "`a`"},
