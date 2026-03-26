@@ -409,34 +409,34 @@ so that Phase 3+ instrumentation can be tested end-to-end.
 ### 9.1 Multi-Table Schema Tests
 
 ```
-[ ] Column completion scoped to correct table in JOIN: `SELECT t1.| FROM t1 JOIN t2 ON ...` → only t1 columns
-[ ] Column completion from all tables when unqualified: `SELECT | FROM t1 JOIN t2 ON ...` → columns from both tables
-[ ] Table alias completion: `SELECT x.| FROM t AS x` → columns of t via alias x
-[ ] View column completion: `SELECT | FROM v` → columns of view v
-[ ] CTE column completion: `WITH cte AS (SELECT a FROM t) SELECT | FROM cte` → column a
-[ ] Database-qualified table: `SELECT * FROM db.| ` → tables in database db
+[x] Column completion scoped to correct table in JOIN: `SELECT t1.| FROM t1 JOIN t2 ON ...` → only t1 columns
+[x] Column completion from all tables when unqualified: `SELECT | FROM t1 JOIN t2 ON ...` → columns from both tables
+[x] Table alias completion: `SELECT x.| FROM t AS x` → columns of t via alias x
+[x] View column completion: `SELECT | FROM v` → columns of view v
+[x] CTE column completion: `WITH cte AS (SELECT a FROM t) SELECT | FROM cte` → column a
+[x] Database-qualified table: `SELECT * FROM db.| ` → tables in database db
 ```
 
 ### 9.2 Edge Cases
 
 ```
-[ ] Cursor at beginning of SQL: `|SELECT * FROM t` → top-level keywords
-[ ] Cursor in middle of identifier: `SELECT us|ers FROM t` → prefix "us" filters candidates
-[ ] Cursor after semicolon (multi-statement): `SELECT 1; SELECT |` → new statement context
-[ ] Empty SQL: `|` → top-level keywords
-[ ] Whitespace only: `   |` → top-level keywords
-[ ] Very long SQL with cursor in middle
-[ ] SQL with syntax errors before cursor: completion still works for valid prefix
-[ ] Backtick-quoted identifiers: `SELECT \`| FROM t` → column candidates
+[x] Cursor at beginning of SQL: `|SELECT * FROM t` → top-level keywords
+[x] Cursor in middle of identifier: `SELECT us|ers FROM t` → prefix "us" filters candidates
+[x] Cursor after semicolon (multi-statement): `SELECT 1; SELECT |` → new statement context
+[x] Empty SQL: `|` → top-level keywords
+[x] Whitespace only: `   |` → top-level keywords
+[x] Very long SQL with cursor in middle
+[x] SQL with syntax errors before cursor: completion still works for valid prefix
+[x] Backtick-quoted identifiers: `SELECT \`| FROM t` → column candidates
 ```
 
 ### 9.3 Complex SQL Patterns
 
 ```
-[ ] Nested subquery column completion: `SELECT * FROM t WHERE a IN (SELECT | FROM t2)` → t2 columns
-[ ] Correlated subquery: `SELECT *, (SELECT | FROM t2 WHERE t2.a = t1.a) FROM t1` → t2 columns
-[ ] UNION: `SELECT a FROM t1 UNION SELECT | FROM t2` → t2 columns
-[ ] Multiple JOINs: `SELECT | FROM t1 JOIN t2 ON ... JOIN t3 ON ...` → columns from all 3 tables
-[ ] INSERT ... SELECT: `INSERT INTO t1 SELECT | FROM t2` → t2 columns
-[ ] Complex ALTER: `ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (|) REFERENCES ...` → t columns
+[x] Nested subquery column completion: `SELECT * FROM t WHERE a IN (SELECT | FROM t2)` → t2 columns
+[x] Correlated subquery: `SELECT *, (SELECT | FROM t2 WHERE t2.a = t1.a) FROM t1` → t2 columns
+[x] UNION: `SELECT a FROM t1 UNION SELECT | FROM t2` → t2 columns
+[x] Multiple JOINs: `SELECT | FROM t1 JOIN t2 ON ... JOIN t3 ON ...` → columns from all 3 tables
+[x] INSERT ... SELECT: `INSERT INTO t1 SELECT | FROM t2` → t2 columns
+[x] Complex ALTER: `ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (|) REFERENCES ...` → t columns
 ```
