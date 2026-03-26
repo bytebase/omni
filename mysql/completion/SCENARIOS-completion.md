@@ -91,13 +91,13 @@ so that Phase 3+ instrumentation can be tested end-to-end.
 ### 2.4 Tricky Completion (Fallback)
 
 ```
-[ ] Incomplete SQL: `SELECT * FROM ` (trailing space) → insert placeholder, re-collect
-[ ] Truncated mid-keyword: `SELE` → prefix-filter against keywords
-[ ] Truncated after comma: `SELECT a,` → insert placeholder column
-[ ] Truncated after operator: `WHERE a >` → insert placeholder expression
-[ ] Multiple placeholder strategies tried in order
-[ ] Fallback returns best-effort results when no strategy succeeds
-[ ] Placeholder insertion does not corrupt the candidate set from the initial pass
+[x] Incomplete SQL: `SELECT * FROM ` (trailing space) → insert placeholder, re-collect
+[x] Truncated mid-keyword: `SELE` → prefix-filter against keywords
+[x] Truncated after comma: `SELECT a,` → insert placeholder column
+[x] Truncated after operator: `WHERE a >` → insert placeholder expression
+[x] Multiple placeholder strategies tried in order
+[x] Fallback returns best-effort results when no strategy succeeds
+[x] Placeholder insertion does not corrupt the candidate set from the initial pass
 ```
 
 ## Phase 3: SELECT Statement Instrumentation

@@ -109,11 +109,17 @@ func Collect(sql string, cursorOffset int) *CandidateSet {
 		if p.cur.Type == tokEOF && !p.collectMode() {
 			break
 		}
+		prevLoc := p.cur.Loc
 		p.parseStmt() //nolint:errcheck
 		// After parseStmt returns (either normally or with collecting error),
 		// if we've reached EOF or we've finished collecting, stop.
 		if p.cur.Type == tokEOF || p.collectMode() {
 			break
+		}
+		// If parseStmt made no progress (e.g., unrecognized token), skip the
+		// current token to avoid an infinite loop.
+		if p.cur.Loc == prevLoc {
+			p.advance()
 		}
 	}
 	return cs
