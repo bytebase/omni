@@ -514,6 +514,13 @@ func (p *Parser) parseCallStmt() (*nodes.CallStmt, error) {
 	start := p.pos()
 	p.advance() // consume CALL
 
+	// Completion: after CALL keyword, offer procedure_ref candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("procedure_ref")
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	name, err := p.parseTableRef()
 	if err != nil {
 		return nil, err

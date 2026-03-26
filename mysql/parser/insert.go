@@ -66,6 +66,14 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 	// Optional INTO
 	p.match(kwINTO)
 
+	// Completion: after INSERT [INTO], offer table_ref candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("table_ref")
+		p.addRuleCandidate("database_ref")
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	// Parse table name
 	tbl, err := p.parseTableRef()
 	if err != nil {
@@ -81,6 +89,16 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 			return nil, err
 		}
 		stmt.Partitions = parts
+	}
+
+	// Completion: after table name, offer VALUES, SET, SELECT, PARTITION keywords.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwVALUES)
+		p.addTokenCandidate(kwSET)
+		p.addTokenCandidate(kwSELECT)
+		p.addTokenCandidate(kwPARTITION)
+		return nil, &ParseError{Message: "collecting"}
 	}
 
 	// Optional column list: (col1, col2, ...)
@@ -210,6 +228,13 @@ func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 
 	var cols []*nodes.ColumnRef
 	for {
+		// Completion: inside column list, offer columnref candidates.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return nil, &ParseError{Message: "collecting"}
+		}
+
 		ref, err := p.parseColumnRef()
 		if err != nil {
 			return nil, err

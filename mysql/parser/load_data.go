@@ -79,6 +79,15 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	// INTO TABLE tbl_name
 	p.match(kwINTO)
 	p.match(kwTABLE)
+
+	// Completion: after INTO TABLE, offer table_ref candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("table_ref")
+		p.addRuleCandidate("database_ref")
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	ref, err := p.parseTableRef()
 	if err != nil {
 		return nil, err

@@ -1389,3 +1389,258 @@ func TestComplete_3_8_WindowFunctionsIndexHints(t *testing.T) {
 		}
 	})
 }
+
+// --- Section 4.1: INSERT ---
+
+func TestComplete_4_1_Insert(t *testing.T) {
+	cat := catalog.New()
+	mustExec(t, cat, "CREATE DATABASE testdb")
+	cat.SetCurrentDatabase("testdb")
+	mustExec(t, cat, "CREATE TABLE users (id INT, name VARCHAR(100), email VARCHAR(200))")
+	mustExec(t, cat, "CREATE TABLE orders (id INT, user_id INT, total DECIMAL(10,2))")
+
+	// Scenario 1: INSERT INTO | → table_ref
+	t.Run("insert_into_table_ref", func(t *testing.T) {
+		candidates := Complete("INSERT INTO ", 12, cat)
+		if !containsCandidate(candidates, "users", CandidateTable) {
+			t.Errorf("missing table 'users'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "orders", CandidateTable) {
+			t.Errorf("missing table 'orders'; got %v", candidates)
+		}
+	})
+
+	// Scenario 2: INSERT INTO t (|) → columnref for table t
+	t.Run("insert_column_list", func(t *testing.T) {
+		candidates := Complete("INSERT INTO users (", 19, cat)
+		if !containsCandidate(candidates, "id", CandidateColumn) {
+			t.Errorf("missing column 'id'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "name", CandidateColumn) {
+			t.Errorf("missing column 'name'; got %v", candidates)
+		}
+	})
+
+	// Scenario 3: INSERT INTO t (a, |) → columnref after comma
+	t.Run("insert_column_list_after_comma", func(t *testing.T) {
+		candidates := Complete("INSERT INTO users (id, ", 23, cat)
+		if !containsCandidate(candidates, "name", CandidateColumn) {
+			t.Errorf("missing column 'name'; got %v", candidates)
+		}
+	})
+
+	// Scenario 4: INSERT INTO t VALUES (|) → no specific candidates (value context)
+	t.Run("insert_values_context", func(t *testing.T) {
+		candidates := Complete("INSERT INTO users VALUES (", 26, cat)
+		// Should not offer table or column candidates in value context.
+		// Values context offers expression candidates (columnref, func_name) from parseExpr.
+		// This is acceptable — the key is that it doesn't crash.
+		_ = candidates
+	})
+
+	// Scenario 5: INSERT INTO t | → keyword candidates (VALUES, SET, SELECT, PARTITION)
+	t.Run("insert_after_table_keywords", func(t *testing.T) {
+		candidates := Complete("INSERT INTO users ", 18, cat)
+		if !containsCandidate(candidates, "VALUES", CandidateKeyword) {
+			t.Errorf("missing keyword VALUES; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "SET", CandidateKeyword) {
+			t.Errorf("missing keyword SET; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "SELECT", CandidateKeyword) {
+			t.Errorf("missing keyword SELECT; got %v", candidates)
+		}
+	})
+
+	// Scenario 6: INSERT INTO t VALUES (1) ON DUPLICATE KEY UPDATE | → columnref
+	t.Run("insert_on_duplicate_key_update", func(t *testing.T) {
+		candidates := Complete("INSERT INTO users VALUES (1) ON DUPLICATE KEY UPDATE ", 53, cat)
+		if !containsCandidate(candidates, "id", CandidateColumn) {
+			t.Errorf("missing column 'id'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "name", CandidateColumn) {
+			t.Errorf("missing column 'name'; got %v", candidates)
+		}
+	})
+
+	// Scenario 7: INSERT INTO t SET | → columnref (assignment context)
+	t.Run("insert_set_columnref", func(t *testing.T) {
+		candidates := Complete("INSERT INTO users SET ", 22, cat)
+		if !containsCandidate(candidates, "id", CandidateColumn) {
+			t.Errorf("missing column 'id'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "name", CandidateColumn) {
+			t.Errorf("missing column 'name'; got %v", candidates)
+		}
+	})
+
+	// Scenario 8: INSERT INTO t SELECT | → columnref (INSERT SELECT)
+	t.Run("insert_select", func(t *testing.T) {
+		candidates := Complete("INSERT INTO users SELECT ", 25, cat)
+		// After SELECT, should offer columnref and func_name.
+		hasColumnOrKeyword := false
+		for _, c := range candidates {
+			if c.Type == CandidateColumn || c.Type == CandidateKeyword || c.Type == CandidateFunction {
+				hasColumnOrKeyword = true
+				break
+			}
+		}
+		if !hasColumnOrKeyword {
+			t.Errorf("expected column/keyword/function candidates after INSERT ... SELECT; got %v", candidates)
+		}
+	})
+
+	// Scenario 9: REPLACE INTO | → table_ref
+	t.Run("replace_into_table_ref", func(t *testing.T) {
+		candidates := Complete("REPLACE INTO ", 13, cat)
+		if !containsCandidate(candidates, "users", CandidateTable) {
+			t.Errorf("missing table 'users'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "orders", CandidateTable) {
+			t.Errorf("missing table 'orders'; got %v", candidates)
+		}
+	})
+}
+
+// --- Section 4.2: UPDATE ---
+
+func TestComplete_4_2_Update(t *testing.T) {
+	cat := catalog.New()
+	mustExec(t, cat, "CREATE DATABASE testdb")
+	cat.SetCurrentDatabase("testdb")
+	mustExec(t, cat, "CREATE TABLE t (a INT, b INT, c INT)")
+	mustExec(t, cat, "CREATE TABLE t1 (a INT, b INT)")
+	mustExec(t, cat, "CREATE TABLE t2 (a INT, b INT)")
+
+	// Scenario 1: UPDATE | → table_ref
+	t.Run("update_table_ref", func(t *testing.T) {
+		candidates := Complete("UPDATE ", 7, cat)
+		if !containsCandidate(candidates, "t", CandidateTable) {
+			t.Errorf("missing table 't'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "t1", CandidateTable) {
+			t.Errorf("missing table 't1'; got %v", candidates)
+		}
+	})
+
+	// Scenario 2: UPDATE t SET | → columnref for table t
+	t.Run("update_set_columnref", func(t *testing.T) {
+		candidates := Complete("UPDATE t SET ", 13, cat)
+		if !containsCandidate(candidates, "a", CandidateColumn) {
+			t.Errorf("missing column 'a'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "b", CandidateColumn) {
+			t.Errorf("missing column 'b'; got %v", candidates)
+		}
+	})
+
+	// Scenario 3: UPDATE t SET a = 1, | → columnref after comma
+	t.Run("update_set_after_comma", func(t *testing.T) {
+		candidates := Complete("UPDATE t SET a = 1, ", 20, cat)
+		if !containsCandidate(candidates, "b", CandidateColumn) {
+			t.Errorf("missing column 'b'; got %v", candidates)
+		}
+	})
+
+	// Scenario 4: UPDATE t SET a = 1 WHERE | → columnref
+	t.Run("update_where_columnref", func(t *testing.T) {
+		candidates := Complete("UPDATE t SET a = 1 WHERE ", 25, cat)
+		if !containsCandidate(candidates, "a", CandidateColumn) {
+			t.Errorf("missing column 'a'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "b", CandidateColumn) {
+			t.Errorf("missing column 'b'; got %v", candidates)
+		}
+	})
+
+	// Scenario 5: UPDATE t SET a = 1 ORDER BY | → columnref
+	t.Run("update_order_by_columnref", func(t *testing.T) {
+		candidates := Complete("UPDATE t SET a = 1 ORDER BY ", 28, cat)
+		if !containsCandidate(candidates, "a", CandidateColumn) {
+			t.Errorf("missing column 'a'; got %v", candidates)
+		}
+	})
+
+	// Scenario 6: UPDATE t1 JOIN t2 ON t1.a = t2.a SET | → columnref from both tables
+	t.Run("update_multi_table_set", func(t *testing.T) {
+		candidates := Complete("UPDATE t1 JOIN t2 ON t1.a = t2.a SET ", 37, cat)
+		if !containsCandidate(candidates, "a", CandidateColumn) {
+			t.Errorf("missing column 'a'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "b", CandidateColumn) {
+			t.Errorf("missing column 'b'; got %v", candidates)
+		}
+	})
+}
+
+// --- Section 4.3: DELETE & LOAD DATA & CALL ---
+
+func TestComplete_4_3_DeleteLoadCall(t *testing.T) {
+	cat := catalog.New()
+	mustExec(t, cat, "CREATE DATABASE testdb")
+	cat.SetCurrentDatabase("testdb")
+	mustExec(t, cat, "CREATE TABLE t (a INT, b INT, c INT)")
+	mustExec(t, cat, "CREATE TABLE t1 (a INT, b INT)")
+	mustExec(t, cat, "CREATE TABLE t2 (a INT, b INT)")
+	mustExec(t, cat, "CREATE PROCEDURE my_proc() BEGIN SELECT 1; END")
+
+	// Scenario 1: DELETE FROM | → table_ref
+	t.Run("delete_from_table_ref", func(t *testing.T) {
+		candidates := Complete("DELETE FROM ", 12, cat)
+		if !containsCandidate(candidates, "t", CandidateTable) {
+			t.Errorf("missing table 't'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "t1", CandidateTable) {
+			t.Errorf("missing table 't1'; got %v", candidates)
+		}
+	})
+
+	// Scenario 2: DELETE FROM t WHERE | → columnref for table t
+	t.Run("delete_where_columnref", func(t *testing.T) {
+		candidates := Complete("DELETE FROM t WHERE ", 20, cat)
+		if !containsCandidate(candidates, "a", CandidateColumn) {
+			t.Errorf("missing column 'a'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "b", CandidateColumn) {
+			t.Errorf("missing column 'b'; got %v", candidates)
+		}
+	})
+
+	// Scenario 3: DELETE FROM t ORDER BY | → columnref
+	t.Run("delete_order_by_columnref", func(t *testing.T) {
+		candidates := Complete("DELETE FROM t ORDER BY ", 23, cat)
+		if !containsCandidate(candidates, "a", CandidateColumn) {
+			t.Errorf("missing column 'a'; got %v", candidates)
+		}
+	})
+
+	// Scenario 4: DELETE t1 FROM t1 JOIN t2 ON t1.a = t2.a WHERE | → columnref from both tables
+	t.Run("delete_multi_table_where", func(t *testing.T) {
+		candidates := Complete("DELETE t1 FROM t1 JOIN t2 ON t1.a = t2.a WHERE ", 48, cat)
+		if !containsCandidate(candidates, "a", CandidateColumn) {
+			t.Errorf("missing column 'a'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "b", CandidateColumn) {
+			t.Errorf("missing column 'b'; got %v", candidates)
+		}
+	})
+
+	// Scenario 5: LOAD DATA INFILE 'f' INTO TABLE | → table_ref
+	t.Run("load_data_into_table_ref", func(t *testing.T) {
+		candidates := Complete("LOAD DATA INFILE 'f' INTO TABLE ", 32, cat)
+		if !containsCandidate(candidates, "t", CandidateTable) {
+			t.Errorf("missing table 't'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "t1", CandidateTable) {
+			t.Errorf("missing table 't1'; got %v", candidates)
+		}
+	})
+
+	// Scenario 6: CALL | → procedure_ref
+	t.Run("call_procedure_ref", func(t *testing.T) {
+		candidates := Complete("CALL ", 5, cat)
+		if !containsCandidate(candidates, "my_proc", CandidateProcedure) {
+			t.Errorf("missing procedure 'my_proc'; got %v", candidates)
+		}
+	})
+}

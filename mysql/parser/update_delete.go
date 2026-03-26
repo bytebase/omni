@@ -25,6 +25,14 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 	start := p.pos()
 	p.advance() // consume UPDATE
 
+	// Completion: after UPDATE keyword, offer table_ref candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("table_ref")
+		p.addRuleCandidate("database_ref")
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	stmt := &nodes.UpdateStmt{Loc: nodes.Loc{Start: start}}
 
 	// Optional modifiers
@@ -253,6 +261,13 @@ func (p *Parser) parseAssignmentList() ([]*nodes.Assignment, error) {
 
 // parseAssignment parses a single col_name = value assignment.
 func (p *Parser) parseAssignment() (*nodes.Assignment, error) {
+	// Completion: at the start of an assignment, offer columnref candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	start := p.pos()
 
 	col, err := p.parseColumnRef()
@@ -282,6 +297,14 @@ func (p *Parser) parseDeleteTableList() ([]nodes.TableExpr, error) {
 	var tables []nodes.TableExpr
 
 	for {
+		// Completion: at the start of each table name, offer table_ref candidates.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			p.addRuleCandidate("database_ref")
+			return nil, &ParseError{Message: "collecting"}
+		}
+
 		ref, err := p.parseDeleteTableName()
 		if err != nil {
 			return nil, err

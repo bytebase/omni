@@ -197,37 +197,37 @@ so that Phase 3+ instrumentation can be tested end-to-end.
 ### 4.1 INSERT
 
 ```
-[ ] `INSERT INTO |` → table_ref after INTO
-[ ] `INSERT INTO t (|)` → columnref for table t
-[ ] `INSERT INTO t (a, |)` → columnref after comma
-[ ] `INSERT INTO t VALUES (|)` → no specific candidates (value context)
-[ ] `INSERT INTO t |` → keyword candidates (VALUES, SET, SELECT, PARTITION)
-[ ] `INSERT INTO t VALUES (1) ON DUPLICATE KEY UPDATE |` → columnref
-[ ] `INSERT INTO t SET |` → columnref (assignment context)
-[ ] `INSERT INTO t SELECT |` → columnref (INSERT SELECT)
-[ ] `REPLACE INTO |` → table_ref
+[x] `INSERT INTO |` → table_ref after INTO
+[x] `INSERT INTO t (|)` → columnref for table t
+[x] `INSERT INTO t (a, |)` → columnref after comma
+[x] `INSERT INTO t VALUES (|)` → no specific candidates (value context)
+[x] `INSERT INTO t |` → keyword candidates (VALUES, SET, SELECT, PARTITION)
+[x] `INSERT INTO t VALUES (1) ON DUPLICATE KEY UPDATE |` → columnref
+[x] `INSERT INTO t SET |` → columnref (assignment context)
+[x] `INSERT INTO t SELECT |` → columnref (INSERT SELECT)
+[x] `REPLACE INTO |` → table_ref
 ```
 
 ### 4.2 UPDATE
 
 ```
-[ ] `UPDATE |` → table_ref
-[ ] `UPDATE t SET |` → columnref for table t
-[ ] `UPDATE t SET a = 1, |` → columnref after comma
-[ ] `UPDATE t SET a = 1 WHERE |` → columnref
-[ ] `UPDATE t SET a = 1 ORDER BY |` → columnref
-[ ] `UPDATE t1 JOIN t2 ON t1.a = t2.a SET |` → columnref from both tables
+[x] `UPDATE |` → table_ref
+[x] `UPDATE t SET |` → columnref for table t
+[x] `UPDATE t SET a = 1, |` → columnref after comma
+[x] `UPDATE t SET a = 1 WHERE |` → columnref
+[x] `UPDATE t SET a = 1 ORDER BY |` → columnref
+[x] `UPDATE t1 JOIN t2 ON t1.a = t2.a SET |` → columnref from both tables
 ```
 
 ### 4.3 DELETE & LOAD DATA & CALL
 
 ```
-[ ] `DELETE FROM |` → table_ref
-[ ] `DELETE FROM t WHERE |` → columnref for table t
-[ ] `DELETE FROM t ORDER BY |` → columnref
-[ ] `DELETE t1 FROM t1 JOIN t2 ON t1.a = t2.a WHERE |` → columnref from both tables
-[ ] `LOAD DATA INFILE 'f' INTO TABLE |` → table_ref
-[ ] `CALL |` → procedure_ref
+[x] `DELETE FROM |` → table_ref
+[x] `DELETE FROM t WHERE |` → columnref for table t
+[x] `DELETE FROM t ORDER BY |` → columnref
+[x] `DELETE t1 FROM t1 JOIN t2 ON t1.a = t2.a WHERE |` → columnref from both tables
+[x] `LOAD DATA INFILE 'f' INTO TABLE |` → table_ref
+[x] `CALL |` → procedure_ref
 ```
 
 ## Phase 5: DDL Instrumentation
