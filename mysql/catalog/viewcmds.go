@@ -31,17 +31,25 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
-	definition := c.deparseViewSelect(stmt.Select, stmt.SelectText, db)
+	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, db)
+
+	// Use explicit column list if provided, otherwise derive from SELECT target list.
+	hasExplicit := len(stmt.Columns) > 0
+	viewCols := stmt.Columns
+	if !hasExplicit {
+		viewCols = derivedCols
+	}
 
 	db.Views[key] = &View{
-		Name:        stmt.Name.Name,
-		Database:    db,
-		Definition:  definition,
-		Algorithm:   stmt.Algorithm,
-		Definer:     definer,
-		SqlSecurity: stmt.SqlSecurity,
-		CheckOption: stmt.CheckOption,
-		Columns:     stmt.Columns,
+		Name:            stmt.Name.Name,
+		Database:        db,
+		Definition:      definition,
+		Algorithm:       stmt.Algorithm,
+		Definer:         definer,
+		SqlSecurity:     stmt.SqlSecurity,
+		CheckOption:     stmt.CheckOption,
+		Columns:         viewCols,
+		ExplicitColumns: hasExplicit,
 	}
 	return nil
 }
@@ -64,17 +72,25 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt) error {
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
-	definition := c.deparseViewSelect(stmt.Select, stmt.SelectText, db)
+	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, db)
+
+	// Use explicit column list if provided, otherwise derive from SELECT target list.
+	hasExplicit := len(stmt.Columns) > 0
+	viewCols := stmt.Columns
+	if !hasExplicit {
+		viewCols = derivedCols
+	}
 
 	db.Views[key] = &View{
-		Name:        stmt.Name.Name,
-		Database:    db,
-		Definition:  definition,
-		Algorithm:   stmt.Algorithm,
-		Definer:     definer,
-		SqlSecurity: stmt.SqlSecurity,
-		CheckOption: stmt.CheckOption,
-		Columns:     stmt.Columns,
+		Name:            stmt.Name.Name,
+		Database:        db,
+		Definition:      definition,
+		Algorithm:       stmt.Algorithm,
+		Definer:         definer,
+		SqlSecurity:     stmt.SqlSecurity,
+		CheckOption:     stmt.CheckOption,
+		Columns:         viewCols,
+		ExplicitColumns: hasExplicit,
 	}
 	return nil
 }
@@ -102,9 +118,11 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 
 // deparseViewSelect resolves, rewrites, and deparses the SELECT AST for a view.
 // If the AST is nil (parser didn't produce one), falls back to the raw SelectText.
-func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText string, db *Database) string {
+// Returns the deparsed definition and the derived column names from the resolved
+// SELECT target list (used when no explicit column list is specified).
+func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText string, db *Database) (string, []string) {
 	if sel == nil {
-		return rawText
+		return rawText, nil
 	}
 
 	// Build a TableLookup that resolves table names from this database.
@@ -123,32 +141,73 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText string, db *D
 	}
 	resolver.Resolve(sel)
 
+	// Extract column names from the resolved target list.
+	derivedCols := extractViewColumns(sel)
+
 	// Rewrite: NOT folding, boolean context wrapping.
 	deparse.RewriteSelectStmt(sel)
 
 	// Deparse: AST → canonical SQL text.
-	return deparse.DeparseSelect(sel)
+	return deparse.DeparseSelect(sel), derivedCols
+}
+
+// extractViewColumns extracts column names from a resolved SELECT target list.
+// This produces the column list that MySQL would derive for a view.
+func extractViewColumns(sel *nodes.SelectStmt) []string {
+	if sel == nil {
+		return nil
+	}
+	var cols []string
+	for _, target := range sel.TargetList {
+		rt, ok := target.(*nodes.ResTarget)
+		if !ok {
+			continue
+		}
+		if rt.Name != "" {
+			cols = append(cols, rt.Name)
+		} else if cr, ok := rt.Val.(*nodes.ColumnRef); ok {
+			cols = append(cols, cr.Column)
+		}
+	}
+	return cols
 }
 
 // tableLookupForDB returns a deparse.TableLookup function that resolves table
-// names from the given database's Tables map.
+// and view names from the given database's Tables and Views maps.
 func tableLookupForDB(db *Database) deparse.TableLookup {
 	return func(tableName string) *deparse.ResolverTable {
-		tbl := db.Tables[toLower(tableName)]
-		if tbl == nil {
-			return nil
-		}
-		cols := make([]deparse.ResolverColumn, len(tbl.Columns))
-		for i, c := range tbl.Columns {
-			cols[i] = deparse.ResolverColumn{
-				Name:     c.Name,
-				Position: c.Position,
+		key := toLower(tableName)
+		// Try tables first.
+		tbl := db.Tables[key]
+		if tbl != nil {
+			cols := make([]deparse.ResolverColumn, len(tbl.Columns))
+			for i, c := range tbl.Columns {
+				cols[i] = deparse.ResolverColumn{
+					Name:     c.Name,
+					Position: c.Position,
+				}
+			}
+			return &deparse.ResolverTable{
+				Name:    tbl.Name,
+				Columns: cols,
 			}
 		}
-		return &deparse.ResolverTable{
-			Name:    tbl.Name,
-			Columns: cols,
+		// Fall back to views.
+		v := db.Views[key]
+		if v != nil {
+			cols := make([]deparse.ResolverColumn, len(v.Columns))
+			for i, colName := range v.Columns {
+				cols[i] = deparse.ResolverColumn{
+					Name:     colName,
+					Position: i + 1,
+				}
+			}
+			return &deparse.ResolverTable{
+				Name:    v.Name,
+				Columns: cols,
+			}
 		}
+		return nil
 	}
 }
 
@@ -217,8 +276,8 @@ func showCreateView(v *View) string {
 	// VIEW name
 	b.WriteString(fmt.Sprintf(" VIEW `%s`", v.Name))
 
-	// Column list (if specified).
-	if len(v.Columns) > 0 {
+	// Column list (only if explicitly specified by user in CREATE VIEW).
+	if v.ExplicitColumns && len(v.Columns) > 0 {
 		cols := make([]string, len(v.Columns))
 		for i, c := range v.Columns {
 			cols[i] = fmt.Sprintf("`%s`", c)

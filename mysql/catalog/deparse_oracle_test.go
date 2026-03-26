@@ -2232,3 +2232,129 @@ func TestDeparseOracle_Section_6_2_CTEPatterns(t *testing.T) {
 		})
 	}
 }
+
+// TestDeparseOracle_8_1_ViewOfViewComplexStructures verifies view-of-view,
+// many-column views, reserved word aliases, CASE without ELSE, and BETWEEN
+// with column bounds against MySQL 8.0.
+func TestDeparseOracle_8_1_ViewOfViewComplexStructures(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	// Setup: create base table on MySQL 8.0
+	if err := oracle.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
+		t.Fatalf("failed to create table t on MySQL: %v", err)
+	}
+
+	// --- Test 1: View referencing another view ---
+	t.Run("view_of_view", func(t *testing.T) {
+		// MySQL side: create v1, then v2 referencing v1
+		oracle.execSQLDirect("DROP VIEW IF EXISTS v2_vov")
+		oracle.execSQLDirect("DROP VIEW IF EXISTS v1_vov")
+		if err := oracle.execSQLDirect("CREATE VIEW v1_vov AS SELECT a FROM t"); err != nil {
+			t.Fatalf("CREATE VIEW v1_vov on MySQL failed: %v", err)
+		}
+		if err := oracle.execSQLDirect("CREATE VIEW v2_vov AS SELECT * FROM v1_vov"); err != nil {
+			t.Fatalf("CREATE VIEW v2_vov on MySQL failed: %v", err)
+		}
+		mysqlOutput, err := oracle.showCreateView("v2_vov")
+		if err != nil {
+			t.Fatalf("SHOW CREATE VIEW v2_vov on MySQL failed: %v", err)
+		}
+		mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+
+		// Omni side
+		cat := New()
+		cat.Exec("CREATE DATABASE test", nil)
+		cat.SetCurrentDatabase("test")
+		cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
+		results, _ := cat.Exec("CREATE VIEW v1_vov AS SELECT a FROM t", nil)
+		if len(results) > 0 && results[0].Error != nil {
+			t.Fatalf("CREATE VIEW v1_vov on catalog failed: %v", results[0].Error)
+		}
+		results, _ = cat.Exec("CREATE VIEW v2_vov AS SELECT * FROM v1_vov", nil)
+		if len(results) > 0 && results[0].Error != nil {
+			t.Fatalf("CREATE VIEW v2_vov on catalog failed: %v", results[0].Error)
+		}
+		omniOutput := cat.ShowCreateView("test", "v2_vov")
+		if omniOutput == "" {
+			t.Fatal("ShowCreateView returned empty for v2_vov")
+		}
+		omniBody := extractSelectBody(omniOutput)
+
+		t.Logf("MySQL body:  %s", mysqlBody)
+		t.Logf("Omni body:   %s", omniBody)
+
+		if mysqlBody != omniBody {
+			t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+		}
+	})
+
+	// --- Tests 2-5: table-driven ---
+	cases := []struct {
+		name     string
+		createAs string
+	}{
+		{
+			"ten_plus_columns",
+			"SELECT a, b, c, a + 1, b + 1, c + 1, a * b, b * c, a * c, a + b + c FROM t",
+		},
+		{
+			"reserved_word_aliases",
+			"SELECT a AS `select`, b AS `from`, c AS `where` FROM t",
+		},
+		{
+			"case_without_else",
+			"SELECT CASE WHEN a > 0 THEN 'pos' WHEN a < 0 THEN 'neg' END FROM t",
+		},
+		{
+			"between_column_bounds",
+			"SELECT a BETWEEN b AND c FROM t",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			viewName := "v_" + tc.name
+
+			// --- MySQL 8.0 side ---
+			oracle.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
+			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
+			if err := oracle.execSQLDirect(createSQL); err != nil {
+				t.Fatalf("CREATE VIEW on MySQL failed: %v", err)
+			}
+			mysqlOutput, err := oracle.showCreateView(viewName)
+			if err != nil {
+				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+			}
+			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+
+			// --- Our catalog side ---
+			cat := New()
+			cat.Exec("CREATE DATABASE test", nil)
+			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
+			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
+			if len(results) == 0 {
+				t.Fatalf("CREATE VIEW on catalog returned no results")
+			}
+			if results[0].Error != nil {
+				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
+			}
+			omniOutput := cat.ShowCreateView("test", viewName)
+			if omniOutput == "" {
+				t.Fatal("ShowCreateView returned empty")
+			}
+			omniBody := extractSelectBody(omniOutput)
+
+			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("Omni body:   %s", omniBody)
+
+			if mysqlBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			}
+		})
+	}
+}

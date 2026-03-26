@@ -261,11 +261,11 @@ Status legend: `[ ]` pending, `[x]` passing, `[~]` partial
 ### 8.1 View-of-View & Complex Structures
 
 ```
-[ ] View referencing another view: `CREATE VIEW v1 AS SELECT a FROM t; CREATE VIEW v2 AS SELECT * FROM v1`
-[ ] View with 10+ columns: `SELECT a, b, c, a+1, b+1, c+1, a*b, b*c, a*c, a+b+c FROM t`
-[ ] View with reserved word aliases: `SELECT a AS `select`, b AS `from`, c AS `where` FROM t`
-[ ] View with CASE without ELSE: `SELECT CASE WHEN a > 0 THEN 'pos' WHEN a < 0 THEN 'neg' END FROM t`
-[ ] View with BETWEEN using column bounds: `SELECT a BETWEEN b AND c FROM t`
+[x] View referencing another view: `CREATE VIEW v1 AS SELECT a FROM t; CREATE VIEW v2 AS SELECT * FROM v1`
+[x] View with 10+ columns: `SELECT a, b, c, a+1, b+1, c+1, a*b, b*c, a*c, a+b+c FROM t`
+[x] View with reserved word aliases: `SELECT a AS `select`, b AS `from`, c AS `where` FROM t`
+[x] View with CASE without ELSE: `SELECT CASE WHEN a > 0 THEN 'pos' WHEN a < 0 THEN 'neg' END FROM t`
+[x] View with BETWEEN using column bounds: `SELECT a BETWEEN b AND c FROM t`
 ```
 
 ### 8.2 Expression Edge Cases & Stress Tests

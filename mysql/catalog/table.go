@@ -75,14 +75,15 @@ type GeneratedColumnInfo struct {
 }
 
 type View struct {
-	Name        string
-	Database    *Database
-	Definition  string
-	Algorithm   string
-	Definer     string
-	SqlSecurity string
-	CheckOption string
-	Columns     []string
+	Name            string
+	Database        *Database
+	Definition      string
+	Algorithm       string
+	Definer         string
+	SqlSecurity     string
+	CheckOption     string
+	Columns         []string // All column names (explicit or derived from SELECT)
+	ExplicitColumns bool     // true if the user specified a column list in CREATE VIEW
 }
 
 // Routine represents a stored function or procedure in the catalog.
