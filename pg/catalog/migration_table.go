@@ -149,6 +149,17 @@ func FormatCreateTable(c *Catalog, schemaName string, rel *Relation) string {
 func formatColumnDef(c *Catalog, col *Column) string {
 	var parts []string
 	parts = append(parts, quoteIdentAlways(col.Name))
+
+	// Detect serial pattern: integer/bigint/smallint with nextval default owned by this column.
+	// Output "serial"/"bigserial"/"smallserial" instead of "integer DEFAULT nextval(...)".
+	if serialType := detectSerialType(c, col); serialType != "" {
+		parts = append(parts, serialType)
+		if col.NotNull {
+			parts = append(parts, "NOT NULL")
+		}
+		return strings.Join(parts, " ")
+	}
+
 	parts = append(parts, c.FormatType(col.TypeOID, col.TypeMod))
 
 	if col.NotNull {
@@ -176,6 +187,69 @@ func formatColumnDef(c *Catalog, col *Column) string {
 	}
 
 	return strings.Join(parts, " ")
+}
+
+// detectSerialType checks if a column should be output as serial/bigserial/smallserial.
+// A serial column has a nextval default on an owned sequence (OwnerRelOID != 0).
+func detectSerialType(c *Catalog, col *Column) string {
+	if col.Identity != 0 || col.Generated != 0 {
+		return ""
+	}
+	if !col.HasDefault || col.Default == "" {
+		return ""
+	}
+	if !strings.Contains(col.Default, "nextval(") {
+		return ""
+	}
+
+	// Check the type: serial = int4, bigserial = int8, smallserial = int2
+	typeName := c.FormatType(col.TypeOID, col.TypeMod)
+	var serialType string
+	switch typeName {
+	case "integer":
+		serialType = "serial"
+	case "bigint":
+		serialType = "bigserial"
+	case "smallint":
+		serialType = "smallserial"
+	default:
+		return ""
+	}
+
+	// Extract sequence name from nextval('seqname'::regclass) and check if it's owned
+	seqName := extractSeqNameFromDefault(col.Default)
+	if seqName == "" {
+		return ""
+	}
+
+	// Look up the sequence in the catalog — check if it's owned (OwnerRelOID != 0)
+	for _, s := range c.UserSchemas() {
+		if seq, ok := s.Sequences[seqName]; ok && seq.OwnerRelOID != 0 {
+			return serialType
+		}
+	}
+
+	return ""
+}
+
+// extractSeqNameFromDefault extracts a sequence name from "nextval('seqname'::regclass)".
+func extractSeqNameFromDefault(def string) string {
+	// Pattern: nextval('seqname'::regclass)
+	start := strings.Index(def, "nextval('")
+	if start < 0 {
+		return ""
+	}
+	start += len("nextval('")
+	end := strings.Index(def[start:], "'")
+	if end < 0 {
+		return ""
+	}
+	name := def[start : start+end]
+	// Handle schema-qualified: public.seqname -> seqname
+	if dot := strings.LastIndex(name, "."); dot >= 0 {
+		name = name[dot+1:]
+	}
+	return name
 }
 
 // formatPKConstraint formats a PRIMARY KEY constraint clause.
