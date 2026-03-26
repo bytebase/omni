@@ -1174,9 +1174,10 @@ func TestDeparseSelect_Section_5_6_Subqueries(t *testing.T) {
 		expected string
 	}{
 		// Scalar subquery in SELECT list
-		// Auto-alias uses deparsed form (lowercase function names, backtick-quoted columns)
+		// MySQL 8.0 omits column aliases inside scalar subquery body.
+		// Auto-alias uses uppercase keywords and unqualified column names.
 		{"scalar_subquery", "SELECT (SELECT MAX(a) FROM t) FROM t",
-			"select (select max(`a`) AS `MAX(a)` from `t`) AS `(select max(`a`) AS `MAX(a)` from `t`)` from `t`"},
+			"select (select max(`a`) from `t`) AS `(SELECT MAX(a) FROM t)` from `t`"},
 		// IN subquery in WHERE — MySQL 8.0 omits outer parens and aliases in subquery target list
 		{"in_subquery", "SELECT a FROM t WHERE a IN (SELECT a FROM t)",
 			"select `a` AS `a` from `t` where `a` in (select `a` from `t`)"},

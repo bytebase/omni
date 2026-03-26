@@ -531,7 +531,7 @@ func deparseExprAlias(node ast.ExprNode) string {
 		}
 		return result
 	case *ast.ParenExpr:
-		return deparseExprAlias(n.Expr)
+		return "(" + deparseExprAlias(n.Expr) + ")"
 	case *ast.CastExpr:
 		// MySQL 8.0 auto-alias: "CAST(a AS CHAR)" — uppercase keywords, no charset.
 		return "CAST(" + deparseExprAlias(n.Expr) + " AS " + deparseDataTypeAlias(n.TypeName) + ")"
@@ -621,9 +621,64 @@ func deparseExprAlias(node ast.ExprNode) string {
 			result += " ESCAPE " + deparseExprAlias(n.Escape)
 		}
 		return result
+	case *ast.SubqueryExpr:
+		// MySQL 8.0 auto-alias for subquery: "(SELECT MAX(a) FROM t)" — uppercase keywords,
+		// unqualified column names, no backtick quoting, no column aliases.
+		if n.Select != nil {
+			return "(" + deparseSelectStmtAlias(n.Select) + ")"
+		}
+		return "(/* subquery */)"
 	default:
 		// Fallback: use the regular deparsed text
 		return deparseExpr(node)
+	}
+}
+
+// deparseSelectStmtAlias generates a human-readable SELECT statement for auto-alias purposes.
+// MySQL 8.0 uses uppercase keywords, unqualified column names, and no column aliases.
+func deparseSelectStmtAlias(stmt *ast.SelectStmt) string {
+	var b strings.Builder
+	b.WriteString("SELECT ")
+
+	// Target list (no aliases)
+	for i, target := range stmt.TargetList {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		if rt, ok := target.(*ast.ResTarget); ok {
+			b.WriteString(deparseExprAlias(rt.Val))
+		} else {
+			b.WriteString(deparseExprAlias(target))
+		}
+	}
+
+	// FROM clause
+	if len(stmt.From) > 0 {
+		b.WriteString(" FROM ")
+		for i, tbl := range stmt.From {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(deparseTableExprAlias(tbl))
+		}
+	}
+
+	// WHERE clause
+	if stmt.Where != nil {
+		b.WriteString(" WHERE ")
+		b.WriteString(deparseExprAlias(stmt.Where))
+	}
+
+	return b.String()
+}
+
+// deparseTableExprAlias formats a table expression for auto-alias purposes.
+func deparseTableExprAlias(tbl ast.TableExpr) string {
+	switch t := tbl.(type) {
+	case *ast.TableRef:
+		return t.Name
+	default:
+		return deparseExprAlias(tbl.(ast.ExprNode))
 	}
 }
 
@@ -1496,10 +1551,11 @@ func deparseExistsExpr(n *ast.ExistsExpr) string {
 }
 
 // deparseSubqueryExpr formats a subquery expression.
-// MySQL 8.0 format: (select ...)
+// MySQL 8.0 format: (select ...) — scalar subqueries in expression context
+// omit column aliases (AS `...`).
 func deparseSubqueryExpr(n *ast.SubqueryExpr) string {
 	if n.Select != nil {
-		return "(" + deparseSelectStmt(n.Select) + ")"
+		return "(" + deparseSelectStmtNoAlias(n.Select) + ")"
 	}
 	return "(/* subquery */)"
 }

@@ -120,20 +120,20 @@ Status legend: `[ ]` pending, `[x]` passing, `[~]` partial
 ### 3.1 Boolean Context Wrapping
 
 ```
-[ ] `SELECT a AND b FROM t` — column refs get (0 <> ...) wrapping
-[ ] `SELECT (a + 1) AND b FROM t` — arithmetic expression in AND
-[ ] `SELECT (a > 0) AND (b + 1) FROM t` — comparison + expression mixed
-[ ] `SELECT (a > 0) AND (b > 0) FROM t` — comparisons NOT wrapped
-[ ] `SELECT ABS(a) AND b FROM t` — function result in AND
-[ ] `SELECT CASE WHEN a > 0 THEN 1 ELSE 0 END AND b FROM t` — CASE in AND
-[ ] `SELECT IF(a > 0, 1, 0) AND b FROM t` — IF in AND
-[ ] `SELECT (SELECT MAX(a) FROM t) AND b FROM t` — subquery in AND
-[ ] `SELECT 'hello' AND 1 FROM t` — string literal in AND
-[ ] `SELECT IFNULL(a, 0) AND b FROM t` — IFNULL in AND
-[ ] `SELECT COALESCE(a, b) AND 1 FROM t` — COALESCE in AND
-[ ] `SELECT NULLIF(a, 0) AND b FROM t` — NULLIF in AND
-[ ] `SELECT GREATEST(a, b) AND 1 FROM t` — GREATEST in AND
-[ ] `SELECT LEAST(a, b) AND 1 FROM t` — LEAST in AND
+[x] `SELECT a AND b FROM t` — column refs get (0 <> ...) wrapping
+[x] `SELECT (a + 1) AND b FROM t` — arithmetic expression in AND
+[x] `SELECT (a > 0) AND (b + 1) FROM t` — comparison + expression mixed
+[x] `SELECT (a > 0) AND (b > 0) FROM t` — comparisons NOT wrapped
+[x] `SELECT ABS(a) AND b FROM t` — function result in AND
+[x] `SELECT CASE WHEN a > 0 THEN 1 ELSE 0 END AND b FROM t` — CASE in AND
+[x] `SELECT IF(a > 0, 1, 0) AND b FROM t` — IF in AND
+[x] `SELECT (SELECT MAX(a) FROM t) AND b FROM t` — subquery in AND
+[x] `SELECT 'hello' AND 1 FROM t` — string literal in AND
+[x] `SELECT IFNULL(a, 0) AND b FROM t` — IFNULL in AND
+[x] `SELECT COALESCE(a, b) AND 1 FROM t` — COALESCE in AND
+[x] `SELECT NULLIF(a, 0) AND b FROM t` — NULLIF in AND
+[x] `SELECT GREATEST(a, b) AND 1 FROM t` — GREATEST in AND
+[x] `SELECT LEAST(a, b) AND 1 FROM t` — LEAST in AND
 ```
 
 ### 3.2 NOT Folding & No-Double-Wrapping

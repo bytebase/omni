@@ -1222,3 +1222,81 @@ func TestDeparseOracle_2_3_SpecialFunctions(t *testing.T) {
 		})
 	}
 }
+
+// TestDeparseOracle_3_1_BooleanContextWrapping verifies that non-boolean expressions
+// in boolean context (AND/OR) get (0 <> ...) wrapping to match MySQL 8.0's
+// SHOW CREATE VIEW output.
+func TestDeparseOracle_3_1_BooleanContextWrapping(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test in short mode")
+	}
+	oracle, cleanup := startOracle(t)
+	defer cleanup()
+
+	// Setup: create base table on MySQL 8.0
+	if err := oracle.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
+		t.Fatalf("failed to create table on MySQL: %v", err)
+	}
+
+	cases := []struct {
+		name     string
+		viewName string
+		viewSQL  string
+	}{
+		{"col_and_col", "v_bool_cc", "CREATE VIEW v_bool_cc AS SELECT a AND b FROM t"},
+		{"arith_and_col", "v_bool_ac", "CREATE VIEW v_bool_ac AS SELECT (a + 1) AND b FROM t"},
+		{"cmp_and_arith", "v_bool_ca", "CREATE VIEW v_bool_ca AS SELECT (a > 0) AND (b + 1) FROM t"},
+		{"cmp_and_cmp", "v_bool_cmpx2", "CREATE VIEW v_bool_cmpx2 AS SELECT (a > 0) AND (b > 0) FROM t"},
+		{"abs_and_col", "v_bool_abs", "CREATE VIEW v_bool_abs AS SELECT ABS(a) AND b FROM t"},
+		{"case_and_col", "v_bool_case", "CREATE VIEW v_bool_case AS SELECT CASE WHEN a > 0 THEN 1 ELSE 0 END AND b FROM t"},
+		{"if_and_col", "v_bool_if", "CREATE VIEW v_bool_if AS SELECT IF(a > 0, 1, 0) AND b FROM t"},
+		{"subquery_and_col", "v_bool_subq", "CREATE VIEW v_bool_subq AS SELECT (SELECT MAX(a) FROM t) AND b FROM t"},
+		{"string_and_int", "v_bool_str", "CREATE VIEW v_bool_str AS SELECT 'hello' AND 1 FROM t"},
+		{"ifnull_and_col", "v_bool_ifnull", "CREATE VIEW v_bool_ifnull AS SELECT IFNULL(a, 0) AND b FROM t"},
+		{"coalesce_and_int", "v_bool_coal", "CREATE VIEW v_bool_coal AS SELECT COALESCE(a, b) AND 1 FROM t"},
+		{"nullif_and_col", "v_bool_nullif", "CREATE VIEW v_bool_nullif AS SELECT NULLIF(a, 0) AND b FROM t"},
+		{"greatest_and_int", "v_bool_great", "CREATE VIEW v_bool_great AS SELECT GREATEST(a, b) AND 1 FROM t"},
+		{"least_and_int", "v_bool_least", "CREATE VIEW v_bool_least AS SELECT LEAST(a, b) AND 1 FROM t"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// --- MySQL 8.0 side ---
+			oracle.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
+			if err := oracle.execSQLDirect(tc.viewSQL); err != nil {
+				t.Skipf("MySQL 8.0 rejected: %v", err)
+				return
+			}
+			mysqlOutput, err := oracle.showCreateView(tc.viewName)
+			if err != nil {
+				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+			}
+			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+
+			// --- Omni catalog side ---
+			cat := New()
+			cat.Exec("CREATE DATABASE test", nil)
+			cat.SetCurrentDatabase("test")
+			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
+			results, _ := cat.Exec(tc.viewSQL, nil)
+			if len(results) == 0 {
+				t.Fatalf("CREATE VIEW on catalog returned no results")
+			}
+			if results[0].Error != nil {
+				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
+			}
+			omniOutput := cat.ShowCreateView("test", tc.viewName)
+			if omniOutput == "" {
+				t.Fatal("ShowCreateView returned empty")
+			}
+			omniBody := extractSelectBody(omniOutput)
+
+			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("Omni body:   %s", omniBody)
+
+			if mysqlBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			}
+		})
+	}
+}
