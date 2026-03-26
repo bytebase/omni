@@ -75,7 +75,8 @@ type Query struct {
 	CTEList      []*CommonTableExprQ // WITH clause CTEs
 	WindowClause []*WindowClauseQ    // WINDOW clause
 	IsRecursive  bool                // WITH RECURSIVE
-	GroupingSets []*GroupingSetQ      // GROUPING SETS/ROLLUP/CUBE (nil for plain GROUP BY)
+	GroupingSets    []*GroupingSetQ      // GROUPING SETS/ROLLUP/CUBE (nil for plain GROUP BY)
+	LockingClauses []*LockingClauseQ    // FOR UPDATE/SHARE clauses
 }
 
 // TargetEntry represents a column in the SELECT list.
@@ -986,6 +987,161 @@ type XmlExprQ struct {
 func (x *XmlExprQ) exprType() uint32      { return x.TypeOID }
 func (x *XmlExprQ) exprTypMod() int32     { return x.TypeMod }
 func (x *XmlExprQ) exprCollation() uint32 { return 0 }
+
+// --- JSON Expression Types (PG16+) ---
+
+// JsonConstructorType identifies the kind of JSON constructor.
+type JsonConstructorType int
+
+const (
+	JsonConstructorObject JsonConstructorType = iota
+	JsonConstructorArray
+	JsonConstructorScalar
+	JsonConstructorParse
+	JsonConstructorSerialize
+)
+
+// JsonConstructorExprQ represents JSON_OBJECT(...) or JSON_ARRAY(...) constructors.
+//
+// pg: src/include/nodes/primnodes.h — JsonConstructorExpr (PG16+)
+type JsonConstructorExprQ struct {
+	ConstructorType JsonConstructorType
+	Args            []AnalyzedExpr
+	ResultType      uint32
+	Collation       uint32
+}
+
+func (j *JsonConstructorExprQ) exprType() uint32      { return j.ResultType }
+func (j *JsonConstructorExprQ) exprTypMod() int32      { return -1 }
+func (j *JsonConstructorExprQ) exprCollation() uint32 { return j.Collation }
+
+// JsonExprOp identifies the kind of JSON function expression.
+type JsonExprOpQ int
+
+const (
+	JsonExprExists JsonExprOpQ = iota
+	JsonExprQuery
+	JsonExprValue
+)
+
+// JsonExprQ represents JSON_VALUE(...), JSON_QUERY(...), JSON_EXISTS(...).
+//
+// pg: src/include/nodes/primnodes.h — JsonExpr (PG16+)
+type JsonExprQ struct {
+	Op         JsonExprOpQ
+	Expr       AnalyzedExpr   // context item expression
+	Path       string         // JSON path string
+	ResultType uint32
+	Collation  uint32
+}
+
+func (j *JsonExprQ) exprType() uint32      { return j.ResultType }
+func (j *JsonExprQ) exprTypMod() int32      { return -1 }
+func (j *JsonExprQ) exprCollation() uint32 { return j.Collation }
+
+// JsonIsPredicateExpr represents expr IS [NOT] JSON [OBJECT|ARRAY|SCALAR].
+//
+// pg: src/include/nodes/primnodes.h — JsonIsPredicate (PG16+)
+type JsonIsPredicateExpr struct {
+	Expr       AnalyzedExpr
+	ItemType   int  // 0=ANY, 1=OBJECT, 2=ARRAY, 3=SCALAR
+	UniqueKeys bool
+	IsNot      bool
+}
+
+func (j *JsonIsPredicateExpr) exprType() uint32      { return BOOLOID }
+func (j *JsonIsPredicateExpr) exprTypMod() int32      { return -1 }
+func (j *JsonIsPredicateExpr) exprCollation() uint32 { return 0 }
+
+// JsonValueExprQ represents a JSON value expression with optional FORMAT clause.
+//
+// pg: src/include/nodes/primnodes.h — JsonValueExpr (PG16+)
+type JsonValueExprQ struct {
+	Expr       AnalyzedExpr
+	ResultType uint32
+}
+
+func (j *JsonValueExprQ) exprType() uint32      { return j.ResultType }
+func (j *JsonValueExprQ) exprTypMod() int32      { return -1 }
+func (j *JsonValueExprQ) exprCollation() uint32 { return 0 }
+
+// --- FOR UPDATE/SHARE Locking ---
+
+// LockClauseStrength identifies the lock strength.
+type LockClauseStrength int
+
+const (
+	LockNone         LockClauseStrength = iota
+	LockForKeyShare
+	LockForShare
+	LockForNoKeyUpdate
+	LockForUpdate
+)
+
+// LockWaitPolicy identifies the wait policy.
+type LockWaitPolicy int
+
+const (
+	LockWaitBlock    LockWaitPolicy = iota // default: wait for lock
+	LockWaitSkip                           // SKIP LOCKED
+	LockWaitError                          // NOWAIT
+)
+
+// LockingClauseQ represents a FOR UPDATE/SHARE clause.
+//
+// pg: src/include/nodes/parsenodes.h — LockingClause
+type LockingClauseQ struct {
+	Strength   LockClauseStrength
+	WaitPolicy LockWaitPolicy
+	Tables     []string // table names (empty = all tables)
+}
+
+// --- Plan-Internal Stubs ---
+
+// SubPlanExpr is a plan-internal stub (never in user DDL).
+type SubPlanExpr struct{}
+
+func (s *SubPlanExpr) exprType() uint32      { return UNKNOWNOID }
+func (s *SubPlanExpr) exprTypMod() int32      { return -1 }
+func (s *SubPlanExpr) exprCollation() uint32 { return 0 }
+
+// AlternativeSubPlanExpr is a plan-internal stub (never in user DDL).
+type AlternativeSubPlanExpr struct{}
+
+func (a *AlternativeSubPlanExpr) exprType() uint32      { return UNKNOWNOID }
+func (a *AlternativeSubPlanExpr) exprTypMod() int32      { return -1 }
+func (a *AlternativeSubPlanExpr) exprCollation() uint32 { return 0 }
+
+// MergeSupportFuncExpr is a plan-internal stub for MERGE actions.
+type MergeSupportFuncExpr struct {
+	ResultType uint32
+}
+
+func (m *MergeSupportFuncExpr) exprType() uint32      { return m.ResultType }
+func (m *MergeSupportFuncExpr) exprTypMod() int32      { return -1 }
+func (m *MergeSupportFuncExpr) exprCollation() uint32 { return 0 }
+
+// InferenceElemExpr is a plan-internal stub for ON CONFLICT inference.
+type InferenceElemExpr struct {
+	Expr       AnalyzedExpr
+	ResultType uint32
+}
+
+func (i *InferenceElemExpr) exprType() uint32      { return i.ResultType }
+func (i *InferenceElemExpr) exprTypMod() int32      { return -1 }
+func (i *InferenceElemExpr) exprCollation() uint32 { return 0 }
+
+// PartitionBoundSpecExpr is a plan-internal stub for partition bound specs.
+type PartitionBoundSpecExpr struct {
+	Strategy   byte           // 'r' range, 'l' list, 'h' hash
+	LowerBound []AnalyzedExpr
+	UpperBound []AnalyzedExpr
+	ListValues []AnalyzedExpr
+}
+
+func (p *PartitionBoundSpecExpr) exprType() uint32      { return UNKNOWNOID }
+func (p *PartitionBoundSpecExpr) exprTypMod() int32      { return -1 }
+func (p *PartitionBoundSpecExpr) exprCollation() uint32 { return 0 }
 
 // isPolymorphic returns true if the given OID is a polymorphic pseudo-type.
 func isPolymorphic(oid uint32) bool {

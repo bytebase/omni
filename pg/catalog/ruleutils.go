@@ -251,6 +251,11 @@ func (d *deparseCtx) getBasicSelectQuery(query *Query) {
 		d.getRuleExpr(query.LimitCount, false)
 	}
 
+	// FOR UPDATE/SHARE.
+	for _, lc := range query.LockingClauses {
+		d.getLockingClause(lc)
+	}
+
 	if d.prettyIndent {
 		d.indentLevel -= prettyIndentStd
 	}
@@ -662,6 +667,26 @@ func (d *deparseCtx) getRuleExpr(expr AnalyzedExpr, showImplicit bool) {
 		d.getGroupingFunc(v)
 	case *XmlExprQ:
 		d.getXmlExpr(v)
+	// --- JSON Expression Types (PG16+) ---
+	case *JsonConstructorExprQ:
+		d.getJsonConstructorExpr(v)
+	case *JsonExprQ:
+		d.getJsonExpr(v)
+	case *JsonIsPredicateExpr:
+		d.getJsonIsPredicate(v)
+	case *JsonValueExprQ:
+		d.getRuleExpr(v.Expr, showImplicit)
+	// --- Plan-Internal Stubs ---
+	case *SubPlanExpr:
+		d.buf.WriteString("/* SubPlan */")
+	case *AlternativeSubPlanExpr:
+		d.buf.WriteString("/* AlternativeSubPlan */")
+	case *MergeSupportFuncExpr:
+		d.buf.WriteString("merge_action()")
+	case *InferenceElemExpr:
+		d.getRuleExpr(v.Expr, showImplicit)
+	case *PartitionBoundSpecExpr:
+		d.getPartitionBoundSpec(v)
 	default:
 		d.buf.WriteString("???")
 	}
@@ -1950,7 +1975,7 @@ func isSimpleNode(expr AnalyzedExpr, parent AnalyzedExpr, prettyParen bool) bool
 	case *ArrayExprQ, *RowExprQ, *CoalesceExprQ, *MinMaxExprQ,
 		*NullIfExprQ, *AggExpr, *WindowFuncExpr, *FuncCallExpr,
 		*SubscriptingRefExpr, *NextValueExprQ, *GroupingFuncExpr,
-		*XmlExprQ:
+		*XmlExprQ, *JsonConstructorExprQ, *JsonExprQ:
 		// function-like: name(..) or name[..] — always simple
 		return true
 
@@ -2420,6 +2445,182 @@ func isReservedWord(name string) bool {
 		return true
 	}
 	return false
+}
+
+// --- JSON Expression deparse methods ---
+
+// getJsonConstructorExpr deparses JSON_OBJECT(...) or JSON_ARRAY(...).
+//
+// pg: src/backend/utils/adt/ruleutils.c — JsonConstructorExpr case
+func (d *deparseCtx) getJsonConstructorExpr(j *JsonConstructorExprQ) {
+	switch j.ConstructorType {
+	case JsonConstructorObject:
+		d.buf.WriteString("JSON_OBJECT(")
+		for i, arg := range j.Args {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			d.getRuleExpr(arg, true)
+		}
+		d.buf.WriteByte(')')
+	case JsonConstructorArray:
+		d.buf.WriteString("JSON_ARRAY(")
+		for i, arg := range j.Args {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			d.getRuleExpr(arg, true)
+		}
+		d.buf.WriteByte(')')
+	case JsonConstructorScalar:
+		d.buf.WriteString("JSON_SCALAR(")
+		if len(j.Args) > 0 {
+			d.getRuleExpr(j.Args[0], true)
+		}
+		d.buf.WriteByte(')')
+	case JsonConstructorParse:
+		d.buf.WriteString("JSON(")
+		if len(j.Args) > 0 {
+			d.getRuleExpr(j.Args[0], true)
+		}
+		d.buf.WriteByte(')')
+	case JsonConstructorSerialize:
+		d.buf.WriteString("JSON_SERIALIZE(")
+		if len(j.Args) > 0 {
+			d.getRuleExpr(j.Args[0], true)
+		}
+		d.buf.WriteByte(')')
+	default:
+		d.buf.WriteString("JSON_OBJECT()")
+	}
+}
+
+// getJsonExpr deparses JSON_VALUE(...), JSON_QUERY(...), JSON_EXISTS(...).
+//
+// pg: src/backend/utils/adt/ruleutils.c — JsonExpr case
+func (d *deparseCtx) getJsonExpr(j *JsonExprQ) {
+	switch j.Op {
+	case JsonExprValue:
+		d.buf.WriteString("JSON_VALUE(")
+	case JsonExprQuery:
+		d.buf.WriteString("JSON_QUERY(")
+	case JsonExprExists:
+		d.buf.WriteString("JSON_EXISTS(")
+	}
+	if j.Expr != nil {
+		d.getRuleExpr(j.Expr, true)
+	}
+	if j.Path != "" {
+		d.buf.WriteString(", ")
+		simpleQuoteLiteral(d.buf, j.Path)
+	}
+	d.buf.WriteByte(')')
+}
+
+// getJsonIsPredicate deparses expr IS [NOT] JSON [OBJECT|ARRAY|SCALAR].
+//
+// pg: src/backend/utils/adt/ruleutils.c — JsonIsPredicate case
+func (d *deparseCtx) getJsonIsPredicate(j *JsonIsPredicateExpr) {
+	if !d.prettyParen {
+		d.buf.WriteByte('(')
+	}
+	if j.Expr != nil {
+		d.getRuleExprParen(j.Expr, true, j)
+	}
+	if j.IsNot {
+		d.buf.WriteString(" IS NOT JSON")
+	} else {
+		d.buf.WriteString(" IS JSON")
+	}
+	switch j.ItemType {
+	case 1: // OBJECT
+		d.buf.WriteString(" OBJECT")
+	case 2: // ARRAY
+		d.buf.WriteString(" ARRAY")
+	case 3: // SCALAR
+		d.buf.WriteString(" SCALAR")
+	}
+	if j.UniqueKeys {
+		d.buf.WriteString(" WITH UNIQUE KEYS")
+	}
+	if !d.prettyParen {
+		d.buf.WriteByte(')')
+	}
+}
+
+// getPartitionBoundSpec deparses a partition bound specification.
+func (d *deparseCtx) getPartitionBoundSpec(p *PartitionBoundSpecExpr) {
+	switch p.Strategy {
+	case 'l': // list
+		d.buf.WriteString("FOR VALUES IN (")
+		for i, v := range p.ListValues {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			d.getRuleExpr(v, true)
+		}
+		d.buf.WriteByte(')')
+	case 'r': // range
+		d.buf.WriteString("FOR VALUES FROM (")
+		for i, v := range p.LowerBound {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			d.getRuleExpr(v, true)
+		}
+		d.buf.WriteString(") TO (")
+		for i, v := range p.UpperBound {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			d.getRuleExpr(v, true)
+		}
+		d.buf.WriteByte(')')
+	case 'h': // hash
+		d.buf.WriteString("FOR VALUES WITH (")
+		for i, v := range p.ListValues {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			d.getRuleExpr(v, true)
+		}
+		d.buf.WriteByte(')')
+	default:
+		d.buf.WriteString("/* PartitionBoundSpec */")
+	}
+}
+
+// getLockingClause deparses a FOR UPDATE/SHARE clause.
+//
+// pg: src/backend/utils/adt/ruleutils.c — get_select_query_def (locking part)
+func (d *deparseCtx) getLockingClause(lc *LockingClauseQ) {
+	switch lc.Strength {
+	case LockForUpdate:
+		d.appendContextKeyword(" FOR UPDATE", -prettyIndentStd, prettyIndentStd, 0)
+	case LockForNoKeyUpdate:
+		d.appendContextKeyword(" FOR NO KEY UPDATE", -prettyIndentStd, prettyIndentStd, 0)
+	case LockForShare:
+		d.appendContextKeyword(" FOR SHARE", -prettyIndentStd, prettyIndentStd, 0)
+	case LockForKeyShare:
+		d.appendContextKeyword(" FOR KEY SHARE", -prettyIndentStd, prettyIndentStd, 0)
+	default:
+		return
+	}
+	if len(lc.Tables) > 0 {
+		d.buf.WriteString(" OF ")
+		for i, t := range lc.Tables {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			d.buf.WriteString(quoteIdentifier(t))
+		}
+	}
+	switch lc.WaitPolicy {
+	case LockWaitError:
+		d.buf.WriteString(" NOWAIT")
+	case LockWaitSkip:
+		d.buf.WriteString(" SKIP LOCKED")
+	}
 }
 
 // simpleQuoteLiteral writes a single-quoted literal string.

@@ -359,6 +359,28 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt) (*Query, error) {
 		}
 	}
 
+	// 9. FOR UPDATE/SHARE (LockingClause).
+	if stmt.LockingClause != nil {
+		for _, item := range stmt.LockingClause.Items {
+			lc, ok := item.(*nodes.LockingClause)
+			if !ok || lc == nil {
+				continue
+			}
+			lcq := &LockingClauseQ{
+				Strength:   LockClauseStrength(lc.Strength),
+				WaitPolicy: LockWaitPolicy(lc.WaitPolicy),
+			}
+			if lc.LockedRels != nil {
+				for _, rel := range lc.LockedRels.Items {
+					if rv, ok := rel.(*nodes.RangeVar); ok && rv != nil {
+						lcq.Tables = append(lcq.Tables, rv.Relname)
+					}
+				}
+			}
+			q.LockingClauses = append(q.LockingClauses, lcq)
+		}
+	}
+
 	return q, nil
 }
 
@@ -1059,6 +1081,22 @@ func (ac *analyzeCtx) transformExpr(n nodes.Node) (AnalyzedExpr, error) {
 		return ac.transformXmlExpr(v)
 	case *nodes.XmlSerialize:
 		return ac.transformXmlSerialize(v)
+	case *nodes.JsonIsPredicate:
+		return ac.transformJsonIsPredicate(v)
+	case *nodes.JsonFuncExpr:
+		return ac.transformJsonFuncExpr(v)
+	case *nodes.JsonObjectConstructor:
+		return ac.transformJsonObjectConstructor(v)
+	case *nodes.JsonArrayConstructor:
+		return ac.transformJsonArrayConstructor(v)
+	case *nodes.JsonValueExpr:
+		return ac.transformJsonValueExpr(v)
+	case *nodes.JsonScalarExpr:
+		return ac.transformJsonScalarExpr(v)
+	case *nodes.JsonParseExpr:
+		return ac.transformJsonParseExpr(v)
+	case *nodes.JsonSerializeExpr:
+		return ac.transformJsonSerializeExpr(v)
 	default:
 		return &ConstExpr{TypeOID: UNKNOWNOID, TypeMod: -1, IsNull: true}, nil
 	}
@@ -4374,4 +4412,192 @@ func setOpKeyword(op nodes.SetOperation) string {
 	default:
 		return "SET"
 	}
+}
+
+// --- JSON Expression Transformers (PG16+) ---
+
+// transformJsonIsPredicate transforms expr IS [NOT] JSON [OBJECT|ARRAY|SCALAR].
+//
+// pg: src/backend/parser/parse_expr.c — transformJsonIsPredicate
+func (ac *analyzeCtx) transformJsonIsPredicate(n *nodes.JsonIsPredicate) (AnalyzedExpr, error) {
+	expr, err := ac.transformExpr(n.Expr)
+	if err != nil {
+		return nil, err
+	}
+	return &JsonIsPredicateExpr{
+		Expr:       expr,
+		ItemType:   int(n.ItemType),
+		UniqueKeys: n.UniqueKeys,
+		IsNot:      false, // PG wraps NOT externally via BoolExpr
+	}, nil
+}
+
+// transformJsonFuncExpr transforms JSON_VALUE, JSON_QUERY, JSON_EXISTS.
+//
+// pg: src/backend/parser/parse_expr.c — transformJsonFuncExpr
+func (ac *analyzeCtx) transformJsonFuncExpr(n *nodes.JsonFuncExpr) (AnalyzedExpr, error) {
+	var expr AnalyzedExpr
+	if n.ContextItem != nil {
+		var err error
+		expr, err = ac.transformExpr(n.ContextItem.RawExpr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var pathStr string
+	if n.Pathspec != nil {
+		if s, ok := n.Pathspec.(*nodes.A_Const); ok && s.Val != nil {
+			if sv, ok := s.Val.(*nodes.String); ok {
+				pathStr = sv.Str
+			}
+		}
+		// Also try JsonTablePathSpec
+		if ps, ok := n.Pathspec.(*nodes.JsonTablePathSpec); ok && ps.String != nil {
+			if s, ok := ps.String.(*nodes.A_Const); ok && s.Val != nil {
+				if sv, ok := s.Val.(*nodes.String); ok {
+					pathStr = sv.Str
+				}
+			}
+		}
+	}
+
+	var op JsonExprOpQ
+	var resultType uint32
+	switch n.Op {
+	case nodes.JSON_EXISTS_OP:
+		op = JsonExprExists
+		resultType = BOOLOID
+	case nodes.JSON_QUERY_OP:
+		op = JsonExprQuery
+		resultType = JSONBOID
+	case nodes.JSON_VALUE_OP:
+		op = JsonExprValue
+		resultType = TEXTOID
+	default:
+		resultType = TEXTOID
+	}
+
+	return &JsonExprQ{
+		Op:         op,
+		Expr:       expr,
+		Path:       pathStr,
+		ResultType: resultType,
+	}, nil
+}
+
+// transformJsonObjectConstructor transforms JSON_OBJECT(...).
+func (ac *analyzeCtx) transformJsonObjectConstructor(n *nodes.JsonObjectConstructor) (AnalyzedExpr, error) {
+	var args []AnalyzedExpr
+	if n.Exprs != nil {
+		for _, item := range n.Exprs.Items {
+			if kv, ok := item.(*nodes.JsonKeyValue); ok {
+				// Transform key
+				keyExpr, err := ac.transformExpr(kv.Key)
+				if err != nil {
+					return nil, err
+				}
+				args = append(args, keyExpr)
+				// Transform value
+				if kv.Value != nil {
+					valExpr, err := ac.transformExpr(kv.Value.RawExpr)
+					if err != nil {
+						return nil, err
+					}
+					args = append(args, valExpr)
+				}
+			}
+		}
+	}
+	return &JsonConstructorExprQ{
+		ConstructorType: JsonConstructorObject,
+		Args:            args,
+		ResultType:      JSONOID,
+	}, nil
+}
+
+// transformJsonArrayConstructor transforms JSON_ARRAY(...).
+func (ac *analyzeCtx) transformJsonArrayConstructor(n *nodes.JsonArrayConstructor) (AnalyzedExpr, error) {
+	var args []AnalyzedExpr
+	if n.Exprs != nil {
+		for _, item := range n.Exprs.Items {
+			if jve, ok := item.(*nodes.JsonValueExpr); ok {
+				expr, err := ac.transformExpr(jve.RawExpr)
+				if err != nil {
+					return nil, err
+				}
+				args = append(args, expr)
+			} else {
+				expr, err := ac.transformExpr(item)
+				if err != nil {
+					return nil, err
+				}
+				args = append(args, expr)
+			}
+		}
+	}
+	return &JsonConstructorExprQ{
+		ConstructorType: JsonConstructorArray,
+		Args:            args,
+		ResultType:      JSONOID,
+	}, nil
+}
+
+// transformJsonValueExpr transforms a JsonValueExpr (inner expression).
+func (ac *analyzeCtx) transformJsonValueExpr(n *nodes.JsonValueExpr) (AnalyzedExpr, error) {
+	expr, err := ac.transformExpr(n.RawExpr)
+	if err != nil {
+		return nil, err
+	}
+	return &JsonValueExprQ{
+		Expr:       expr,
+		ResultType: expr.exprType(),
+	}, nil
+}
+
+// transformJsonScalarExpr transforms JSON_SCALAR().
+func (ac *analyzeCtx) transformJsonScalarExpr(n *nodes.JsonScalarExpr) (AnalyzedExpr, error) {
+	expr, err := ac.transformExpr(n.Expr)
+	if err != nil {
+		return nil, err
+	}
+	return &JsonConstructorExprQ{
+		ConstructorType: JsonConstructorScalar,
+		Args:            []AnalyzedExpr{expr},
+		ResultType:      JSONOID,
+	}, nil
+}
+
+// transformJsonParseExpr transforms JSON() parse expression.
+func (ac *analyzeCtx) transformJsonParseExpr(n *nodes.JsonParseExpr) (AnalyzedExpr, error) {
+	var inner AnalyzedExpr
+	if n.Expr != nil {
+		var err error
+		inner, err = ac.transformExpr(n.Expr.RawExpr)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &JsonConstructorExprQ{
+		ConstructorType: JsonConstructorParse,
+		Args:            []AnalyzedExpr{inner},
+		ResultType:      JSONOID,
+	}, nil
+}
+
+// transformJsonSerializeExpr transforms JSON_SERIALIZE().
+func (ac *analyzeCtx) transformJsonSerializeExpr(n *nodes.JsonSerializeExpr) (AnalyzedExpr, error) {
+	var inner AnalyzedExpr
+	if n.Expr != nil {
+		var err error
+		inner, err = ac.transformExpr(n.Expr.RawExpr)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &JsonConstructorExprQ{
+		ConstructorType: JsonConstructorSerialize,
+		Args:            []AnalyzedExpr{inner},
+		ResultType:      TEXTOID,
+	}, nil
 }
