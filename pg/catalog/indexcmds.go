@@ -120,7 +120,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 						rte := c.buildRelationRTE(rel)
 						exprTexts = append(exprTexts, c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, true))
 					} else {
-						exprTexts = append(exprTexts, deparseExprNode(elem.Expr))
+						return fmt.Errorf("failed to analyze index expression: %w", aErr)
 					}
 				}
 			} else {
@@ -219,7 +219,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 			rte := c.buildRelationRTE(rel)
 			whereClause = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, true)
 		} else {
-			whereClause = deparseExprNode(stmt.WhereClause)
+			return fmt.Errorf("failed to analyze index WHERE clause: %w", aErr)
 		}
 	}
 

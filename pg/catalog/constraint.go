@@ -372,9 +372,10 @@ func (c *Catalog) addCheckConstraint(rel *Relation, def ConstraintDef) error {
 	// Analyze the CHECK expression if we have the raw AST node.
 	// pg: src/backend/commands/tablecmds.c — cookConstraint (CHECK analysis)
 	if def.RawCheckExpr != nil {
-		analyzed, err := c.AnalyzeStandaloneExpr(def.RawCheckExpr, rel)
-		if err == nil && analyzed != nil {
+		if analyzed, err := c.AnalyzeStandaloneExpr(def.RawCheckExpr, rel); err == nil && analyzed != nil {
 			con.CheckAnalyzed = analyzed
+			rte := c.buildRelationRTE(rel)
+			con.CheckExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 		}
 	}
 

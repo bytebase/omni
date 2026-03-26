@@ -170,8 +170,7 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 			newRTE.ERef = "new"
 			whenExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{oldRTE, newRTE}, true)
 		} else {
-			// Fallback to raw deparse if analysis fails.
-			whenExpr = deparseExprNode(stmt.WhenClause)
+			return fmt.Errorf("failed to analyze trigger WHEN clause: %w", err)
 		}
 	}
 

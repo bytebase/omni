@@ -66,8 +66,6 @@ func (c *Catalog) CreatePolicy(stmt *nodes.CreatePolicyStmt) error {
 	}
 
 	roles := extractRoleNames(stmt.Roles)
-	usingExpr := deparseExprNode(stmt.Qual)
-	checkExpr := deparseExprNode(stmt.WithCheck)
 
 	policy := &Policy{
 		OID:        c.oidGen.Next(),
@@ -76,19 +74,21 @@ func (c *Catalog) CreatePolicy(stmt *nodes.CreatePolicyStmt) error {
 		CmdType:    cmdType,
 		Permissive: stmt.Permissive,
 		Roles:      roles,
-		UsingExpr:  usingExpr,
-		CheckExpr:  checkExpr,
 	}
 
-	// Analyze USING/CHECK expressions using Tier 2 pipeline.
+	// Analyze USING/CHECK expressions using Tier 2 pipeline, then deparse.
 	if stmt.Qual != nil {
 		if analyzed, err := c.AnalyzeStandaloneExpr(stmt.Qual, rel); err == nil && analyzed != nil {
 			policy.UsingAnalyzed = analyzed
+			rte := c.buildRelationRTE(rel)
+			policy.UsingExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 		}
 	}
 	if stmt.WithCheck != nil {
 		if analyzed, err := c.AnalyzeStandaloneExpr(stmt.WithCheck, rel); err == nil && analyzed != nil {
 			policy.CheckAnalyzed = analyzed
+			rte := c.buildRelationRTE(rel)
+			policy.CheckExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 		}
 	}
 
@@ -142,15 +142,17 @@ func (c *Catalog) AlterPolicy(stmt *nodes.AlterPolicyStmt) error {
 		policy.Roles = extractRoleNames(stmt.Roles)
 	}
 	if stmt.Qual != nil {
-		policy.UsingExpr = deparseExprNode(stmt.Qual)
 		if analyzed, err := c.AnalyzeStandaloneExpr(stmt.Qual, rel); err == nil && analyzed != nil {
 			policy.UsingAnalyzed = analyzed
+			rte := c.buildRelationRTE(rel)
+			policy.UsingExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 		}
 	}
 	if stmt.WithCheck != nil {
-		policy.CheckExpr = deparseExprNode(stmt.WithCheck)
 		if analyzed, err := c.AnalyzeStandaloneExpr(stmt.WithCheck, rel); err == nil && analyzed != nil {
 			policy.CheckAnalyzed = analyzed
+			rte := c.buildRelationRTE(rel)
+			policy.CheckExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 		}
 	}
 

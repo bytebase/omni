@@ -150,6 +150,10 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			tcd := &colDefs[typeIdx]
 			tcd.NotNull = ucd.NotNull
 			tcd.Default = ucd.Default
+			tcd.RawDefault = ucd.RawDefault
+			tcd.Generated = ucd.Generated
+			tcd.GenerationExpr = ucd.GenerationExpr
+			tcd.RawGenExpr = ucd.RawGenExpr
 			tcd.IsFromType = false
 			tcd.IsLocal = true
 		}
@@ -530,7 +534,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 
 	// Store column defaults, generated expressions, and identity.
 	for i, cd := range colDefs {
-		if cd.Default != "" {
+		if cd.Default != "" || cd.RawDefault != nil {
 			columns[i].HasDefault = true
 			columns[i].Default = cd.Default
 		}
@@ -729,24 +733,28 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	// pg: src/backend/commands/tablecmds.c — cookDefault / cookConstraint
 	for i, cd := range colDefs {
 		if cd.RawDefault != nil && columns[i].HasDefault {
-			analyzed, err := c.AnalyzeStandaloneExpr(cd.RawDefault, rel)
-			if err == nil && analyzed != nil {
+			if analyzed, err := c.AnalyzeStandaloneExpr(cd.RawDefault, rel); err == nil && analyzed != nil {
 				// pg: cookDefault uses COERCE_IMPLICIT_CAST ('i') as display format
 				coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), columns[i].TypeOID, 'i')
 				if cerr == nil && coerced != nil {
 					analyzed = coerced
 				}
 				columns[i].DefaultAnalyzed = analyzed
+				rte := c.buildRelationRTE(rel)
+				columns[i].Default = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 			}
 		}
 		if cd.RawGenExpr != nil && columns[i].Generated == 's' {
-			analyzed, err := c.AnalyzeStandaloneExpr(cd.RawGenExpr, rel)
-			if err == nil && analyzed != nil {
+			if analyzed, err := c.AnalyzeStandaloneExpr(cd.RawGenExpr, rel); err == nil && analyzed != nil {
 				coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), columns[i].TypeOID, 'i')
 				if cerr == nil && coerced != nil {
 					analyzed = coerced
 				}
 				columns[i].DefaultAnalyzed = analyzed
+				rte := c.buildRelationRTE(rel)
+				genExpr := c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
+				columns[i].GenerationExpr = genExpr
+				columns[i].Default = genExpr
 			}
 		}
 	}
@@ -924,13 +932,12 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 		result.CollationName = stringVal(cd.CollClause.Collname.Items[len(cd.CollClause.Collname.Items)-1])
 	}
 
-	// Handle DEFAULT expression.
+	// Handle DEFAULT expression — raw text will be overwritten by DeparseExpr
+	// after AnalyzeStandaloneExpr in DefineRelation.
 	if cd.RawDefault != nil {
-		result.Default = deparseExprNode(cd.RawDefault)
 		result.RawDefault = cd.RawDefault
 	}
 	if cd.CookedDefault != nil {
-		result.Default = deparseExprNode(cd.CookedDefault)
 		result.RawDefault = cd.CookedDefault
 	}
 
@@ -957,7 +964,6 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 				result.NotNull = true
 			case nodes.CONSTR_DEFAULT:
 				if con.RawExpr != nil {
-					result.Default = deparseExprNode(con.RawExpr)
 					result.RawDefault = con.RawExpr
 				}
 				if con.CookedExpr != "" {
@@ -968,7 +974,6 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 			case nodes.CONSTR_GENERATED:
 				result.Generated = 's'
 				if con.RawExpr != nil {
-					result.GenerationExpr = deparseExprNode(con.RawExpr)
 					result.RawGenExpr = con.RawExpr
 				}
 				if con.CookedExpr != "" {
@@ -987,10 +992,9 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 					Columns: []string{cd.Colname},
 				})
 			case nodes.CONSTR_CHECK:
-				checkExpr := deparseExprNode(con.RawExpr)
-				if con.CookedExpr != "" {
-					checkExpr = con.CookedExpr
-				}
+				checkExpr := con.CookedExpr
+				// Raw check expression text will be filled from AnalyzeStandaloneExpr + DeparseExpr
+				// in addCheckConstraint.
 				cons = append(cons, ConstraintDef{
 					Name:         con.Conname,
 					Type:         ConstraintCheck,

@@ -1018,6 +1018,14 @@ func (ac *analyzeCtx) transformExpr(n nodes.Node) (AnalyzedExpr, error) {
 		return ac.transformRowExpr(v)
 	case *nodes.CollateClause:
 		return ac.transformCollateClause(v)
+	case *nodes.Integer:
+		return ac.transformAConst(&nodes.A_Const{Val: v})
+	case *nodes.Float:
+		return ac.transformAConst(&nodes.A_Const{Val: v})
+	case *nodes.String:
+		return ac.transformAConst(&nodes.A_Const{Val: v})
+	case *nodes.Boolean:
+		return ac.transformAConst(&nodes.A_Const{Val: v})
 	default:
 		return &ConstExpr{TypeOID: UNKNOWNOID, TypeMod: -1, IsNull: true}, nil
 	}

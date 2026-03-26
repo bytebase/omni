@@ -345,6 +345,7 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 	var typNotNull bool
 	var sawDefault bool
 	var defaultExpr string
+	var defaultRawExpr nodes.Node
 	type domCheckDef struct {
 		name    string
 		expr    string
@@ -387,19 +388,17 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 						Message: "multiple default expressions"}
 				}
 				sawDefault = true
-				defaultExpr = deparseExprNode(con.RawExpr)
 				if con.CookedExpr != "" {
 					defaultExpr = con.CookedExpr
+				} else if con.RawExpr != nil {
+					defaultRawExpr = con.RawExpr
 				}
 			case nodes.CONSTR_CHECK:
 				// pg: src/backend/commands/typecmds.c — DefineDomain (NO INHERIT rejection)
 				if con.IsNoInherit {
 					return errInvalidObjectDefinition("check constraints for domains cannot be marked NO INHERIT")
 				}
-				expr := deparseExprNode(con.RawExpr)
-				if con.CookedExpr != "" {
-					expr = con.CookedExpr
-				}
+				expr := con.CookedExpr
 				checkDefs = append(checkDefs, domCheckDef{name: con.Conname, expr: expr, rawExpr: con.RawExpr})
 			case nodes.CONSTR_UNIQUE:
 				return &Error{Code: CodeSyntaxError,
@@ -526,6 +525,13 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 	c.typeByOID[arrayOID] = arrayType
 	c.typeByName[typeKey{ns: schema.OID, name: arrayType.TypeName}] = arrayType
 
+	// Analyze and deparse the DEFAULT expression if raw.
+	if defaultRawExpr != nil {
+		if analyzed, err := c.AnalyzeDomainExpr(defaultRawExpr, baseOID, baseMod); err == nil && analyzed != nil {
+			defaultExpr = c.DeparseExpr(analyzed, nil, false)
+		}
+	}
+
 	// Create domain metadata.
 	dt := &DomainType{
 		TypeOID:     typeOID,
@@ -553,10 +559,11 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 			CheckExpr:    chk.expr,
 			ConValidated: true, // pg: CREATE DOMAIN always creates validated constraints
 		}
-		// Analyze the CHECK expression using Tier 2 pipeline.
+		// Analyze the CHECK expression using Tier 2 pipeline, then deparse.
 		if chk.rawExpr != nil {
 			if analyzed, err := c.AnalyzeDomainExpr(chk.rawExpr, baseOID, baseMod); err == nil && analyzed != nil {
 				dc.CheckAnalyzed = analyzed
+				dc.CheckExpr = c.DeparseExpr(analyzed, nil, true)
 				// pg: src/backend/catalog/pg_constraint.c:370-380
 				// Record dependencies from constraint to referenced functions/operators.
 				c.recordDependencyOnExpr('c', dc.OID, analyzed, DepNormal)
@@ -600,9 +607,13 @@ func (c *Catalog) AlterDomainStmt(stmt *nodes.AlterDomainStmt) error {
 	switch stmt.Subtype {
 	case 'T': // SET DEFAULT or DROP DEFAULT
 		if stmt.Def != nil {
-			setDefault := deparseExprNode(stmt.Def)
+			var setDefault string
 			if con, ok := stmt.Def.(*nodes.Constraint); ok && con.CookedExpr != "" {
 				setDefault = con.CookedExpr
+			} else {
+				if analyzed, err := c.AnalyzeDomainExpr(stmt.Def, dt.BaseTypeOID, dt.BaseTypMod); err == nil && analyzed != nil {
+					setDefault = c.DeparseExpr(analyzed, nil, false)
+				}
 			}
 			dt.Default = setDefault
 		} else {
@@ -624,10 +635,7 @@ func (c *Catalog) AlterDomainStmt(stmt *nodes.AlterDomainStmt) error {
 				return &Error{Code: CodeSyntaxError,
 					Message: "only CHECK constraints can be added to domains"}
 			}
-			addCheckExpr := deparseExprNode(con.RawExpr)
-			if con.CookedExpr != "" {
-				addCheckExpr = con.CookedExpr
-			}
+			addCheckExpr := con.CookedExpr
 			addCheckName := con.Conname
 			conName := addCheckName
 			if conName == "" {
@@ -649,6 +657,7 @@ func (c *Catalog) AlterDomainStmt(stmt *nodes.AlterDomainStmt) error {
 			if con.RawExpr != nil {
 				if analyzed, err := c.AnalyzeDomainExpr(con.RawExpr, dt.BaseTypeOID, dt.BaseTypMod); err == nil && analyzed != nil {
 					dc.CheckAnalyzed = analyzed
+					dc.CheckExpr = c.DeparseExpr(analyzed, nil, true)
 					// pg: src/backend/catalog/pg_constraint.c:370-380
 					c.recordDependencyOnExpr('c', dc.OID, analyzed, DepNormal)
 				}

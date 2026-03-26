@@ -187,13 +187,27 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		// Coerce to column type to match PG's cookDefault (COERCE_IMPLICIT_CAST format).
 		if colDef.RawDefault != nil {
 			col := rel.Columns[len(rel.Columns)-1]
-			if col.HasDefault {
-				if analyzed, err := c.AnalyzeStandaloneExpr(colDef.RawDefault, rel); err == nil && analyzed != nil {
-					if coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), col.TypeOID, 'i'); cerr == nil && coerced != nil {
-						analyzed = coerced
-					}
-					col.DefaultAnalyzed = analyzed
+			col.HasDefault = true
+			if analyzed, err := c.AnalyzeStandaloneExpr(colDef.RawDefault, rel); err == nil && analyzed != nil {
+				if coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), col.TypeOID, 'i'); cerr == nil && coerced != nil {
+					analyzed = coerced
 				}
+				col.DefaultAnalyzed = analyzed
+				rte := c.buildRelationRTE(rel)
+				col.Default = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
+			}
+		}
+		if colDef.RawGenExpr != nil && colDef.Generated == 's' {
+			col := rel.Columns[len(rel.Columns)-1]
+			if analyzed, err := c.AnalyzeStandaloneExpr(colDef.RawGenExpr, rel); err == nil && analyzed != nil {
+				if coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), col.TypeOID, 'i'); cerr == nil && coerced != nil {
+					analyzed = coerced
+				}
+				col.DefaultAnalyzed = analyzed
+				rte := c.buildRelationRTE(rel)
+				genExpr := c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
+				col.GenerationExpr = genExpr
+				col.Default = genExpr
 			}
 		}
 		for _, con := range inlineCons {
@@ -205,29 +219,31 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 
 	case nodes.AT_ColumnDefault:
 		if atc.Def != nil {
-			defStr := deparseExprNode(atc.Def)
 			rawExpr := atc.Def
 			if con, ok := atc.Def.(*nodes.Constraint); ok {
 				if con.CookedExpr != "" {
-					defStr = con.CookedExpr
+					if err := c.atSetDefault(rel, atc.Name, con.CookedExpr); err != nil {
+						return err
+					}
+					return nil
 				}
 				if con.RawExpr != nil {
 					rawExpr = con.RawExpr
 				}
 			}
-			if err := c.atSetDefault(rel, atc.Name, defStr); err != nil {
-				return err
-			}
 			// Analyze the default expression and coerce to column type.
 			// pg: cookDefault uses COERCE_IMPLICIT_CAST ('i') as display format
-			if rawExpr != nil {
-				if analyzed, err := c.AnalyzeStandaloneExpr(rawExpr, rel); err == nil && analyzed != nil {
-					if idx, exists := rel.colByName[atc.Name]; exists {
-						if coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), rel.Columns[idx].TypeOID, 'i'); cerr == nil && coerced != nil {
-							analyzed = coerced
-						}
-						rel.Columns[idx].DefaultAnalyzed = analyzed
+			if analyzed, err := c.AnalyzeStandaloneExpr(rawExpr, rel); err == nil && analyzed != nil {
+				if idx, exists := rel.colByName[atc.Name]; exists {
+					if coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), rel.Columns[idx].TypeOID, 'i'); cerr == nil && coerced != nil {
+						analyzed = coerced
 					}
+					rel.Columns[idx].DefaultAnalyzed = analyzed
+				}
+				rte := c.buildRelationRTE(rel)
+				defStr := c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
+				if err := c.atSetDefault(rel, atc.Name, defStr); err != nil {
+					return err
 				}
 			}
 			return nil
@@ -920,9 +936,14 @@ func (c *Catalog) atAddColumn(rel *Relation, colDef ColumnDef) error {
 		Storage:   typ.Storage,
 		Collation: typ.Collation,
 	}
-	if colDef.Default != "" {
+	if colDef.Default != "" || colDef.RawDefault != nil {
 		col.HasDefault = true
 		col.Default = colDef.Default
+	}
+	if colDef.Generated == 's' {
+		col.Generated = 's'
+		col.HasDefault = true
+		col.Default = colDef.GenerationExpr
 	}
 
 	rel.Columns = append(rel.Columns, col)
@@ -1919,8 +1940,15 @@ func (c *Catalog) atSetExpression(rel *Relation, colName string, expr nodes.Node
 	if col.Generated != 's' {
 		return errInvalidObjectDefinition(fmt.Sprintf("column %q of relation %q is not a generated column", colName, rel.Name))
 	}
-	col.GenerationExpr = deparseExprNode(expr)
-	col.Default = col.GenerationExpr
+	if analyzed, err := c.AnalyzeStandaloneExpr(expr, rel); err == nil && analyzed != nil {
+		if coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), col.TypeOID, 'i'); cerr == nil && coerced != nil {
+			analyzed = coerced
+		}
+		col.DefaultAnalyzed = analyzed
+		rte := c.buildRelationRTE(rel)
+		col.GenerationExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
+		col.Default = col.GenerationExpr
+	}
 	return nil
 }
 
