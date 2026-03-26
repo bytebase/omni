@@ -2420,3 +2420,416 @@ func TestComplete_6_3_TransactionLockMaintenance(t *testing.T) {
 		}
 	})
 }
+
+// =============================================================================
+// Phase 7: Session/Utility Instrumentation
+// =============================================================================
+
+func TestComplete_7_1_SetAndShow(t *testing.T) {
+	cat := setupCatalog(t)
+
+	// Scenario 1: SET | → variable/keyword candidates
+	t.Run("set_candidates", func(t *testing.T) {
+		candidates := Complete("SET ", 4, cat)
+		if !containsCandidate(candidates, "GLOBAL", CandidateKeyword) {
+			t.Errorf("missing keyword 'GLOBAL'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "SESSION", CandidateKeyword) {
+			t.Errorf("missing keyword 'SESSION'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "CHARACTER", CandidateKeyword) {
+			t.Errorf("missing keyword 'CHARACTER'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "NAMES", CandidateVariable) {
+			t.Errorf("missing variable 'NAMES'; got %v", candidates)
+		}
+	})
+
+	// Scenario 2: SET GLOBAL | → variable candidates
+	t.Run("set_global_variable", func(t *testing.T) {
+		candidates := Complete("SET GLOBAL ", 11, cat)
+		if !containsCandidate(candidates, "@@max_connections", CandidateVariable) {
+			t.Errorf("missing variable '@@max_connections'; got %v", candidates)
+		}
+	})
+
+	// Scenario 3: SET SESSION | → variable candidates
+	t.Run("set_session_variable", func(t *testing.T) {
+		candidates := Complete("SET SESSION ", 12, cat)
+		if !containsCandidate(candidates, "@@sql_mode", CandidateVariable) {
+			t.Errorf("missing variable '@@sql_mode'; got %v", candidates)
+		}
+	})
+
+	// Scenario 4: SET NAMES | → charset candidates
+	t.Run("set_names_charset", func(t *testing.T) {
+		candidates := Complete("SET NAMES ", 10, cat)
+		if !containsCandidate(candidates, "utf8mb4", CandidateCharset) {
+			t.Errorf("missing charset 'utf8mb4'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "latin1", CandidateCharset) {
+			t.Errorf("missing charset 'latin1'; got %v", candidates)
+		}
+	})
+
+	// Scenario 5: SET CHARACTER SET | → charset candidates
+	t.Run("set_character_set_charset", func(t *testing.T) {
+		candidates := Complete("SET CHARACTER SET ", 18, cat)
+		if !containsCandidate(candidates, "utf8mb4", CandidateCharset) {
+			t.Errorf("missing charset 'utf8mb4'; got %v", candidates)
+		}
+	})
+
+	// Scenario 6: SHOW | → keyword candidates
+	t.Run("show_keywords", func(t *testing.T) {
+		candidates := Complete("SHOW ", 5, cat)
+		if !containsCandidate(candidates, "TABLES", CandidateKeyword) {
+			t.Errorf("missing keyword 'TABLES'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "COLUMNS", CandidateKeyword) {
+			t.Errorf("missing keyword 'COLUMNS'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "INDEX", CandidateKeyword) {
+			t.Errorf("missing keyword 'INDEX'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "DATABASES", CandidateKeyword) {
+			t.Errorf("missing keyword 'DATABASES'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "CREATE", CandidateKeyword) {
+			t.Errorf("missing keyword 'CREATE'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "STATUS", CandidateKeyword) {
+			t.Errorf("missing keyword 'STATUS'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "VARIABLES", CandidateKeyword) {
+			t.Errorf("missing keyword 'VARIABLES'; got %v", candidates)
+		}
+	})
+
+	// Scenario 7: SHOW CREATE TABLE | → table_ref
+	t.Run("show_create_table_ref", func(t *testing.T) {
+		candidates := Complete("SHOW CREATE TABLE ", 18, cat)
+		if !containsCandidate(candidates, "users", CandidateTable) {
+			t.Errorf("missing table 'users'; got %v", candidates)
+		}
+	})
+
+	// Scenario 8: SHOW CREATE VIEW | → view_ref
+	t.Run("show_create_view_ref", func(t *testing.T) {
+		candidates := Complete("SHOW CREATE VIEW ", 17, cat)
+		if !containsCandidate(candidates, "active_users", CandidateView) {
+			t.Errorf("missing view 'active_users'; got %v", candidates)
+		}
+	})
+
+	// Scenario 9: SHOW CREATE FUNCTION | → function_ref
+	t.Run("show_create_function_ref", func(t *testing.T) {
+		candidates := Complete("SHOW CREATE FUNCTION ", 21, cat)
+		if !containsCandidate(candidates, "my_func", CandidateFunction) {
+			t.Errorf("missing function 'my_func'; got %v", candidates)
+		}
+	})
+
+	// Scenario 10: SHOW CREATE PROCEDURE | → procedure_ref
+	t.Run("show_create_procedure_ref", func(t *testing.T) {
+		candidates := Complete("SHOW CREATE PROCEDURE ", 22, cat)
+		if !containsCandidate(candidates, "my_proc", CandidateProcedure) {
+			t.Errorf("missing procedure 'my_proc'; got %v", candidates)
+		}
+	})
+
+	// Scenario 11: SHOW COLUMNS FROM | → table_ref
+	t.Run("show_columns_from_table_ref", func(t *testing.T) {
+		candidates := Complete("SHOW COLUMNS FROM ", 18, cat)
+		if !containsCandidate(candidates, "users", CandidateTable) {
+			t.Errorf("missing table 'users'; got %v", candidates)
+		}
+	})
+
+	// Scenario 12: SHOW INDEX FROM | → table_ref
+	t.Run("show_index_from_table_ref", func(t *testing.T) {
+		candidates := Complete("SHOW INDEX FROM ", 16, cat)
+		if !containsCandidate(candidates, "users", CandidateTable) {
+			t.Errorf("missing table 'users'; got %v", candidates)
+		}
+	})
+
+	// Scenario 13: SHOW TABLES FROM | → database_ref
+	t.Run("show_tables_from_database_ref", func(t *testing.T) {
+		candidates := Complete("SHOW TABLES FROM ", 17, cat)
+		if !containsCandidate(candidates, "testdb", CandidateDatabase) {
+			t.Errorf("missing database 'testdb'; got %v", candidates)
+		}
+	})
+}
+
+func TestComplete_7_2_UseGrantExplain(t *testing.T) {
+	cat := setupCatalog(t)
+
+	// Scenario 1: USE | → database_ref
+	t.Run("use_database_ref", func(t *testing.T) {
+		candidates := Complete("USE ", 4, cat)
+		if !containsCandidate(candidates, "testdb", CandidateDatabase) {
+			t.Errorf("missing database 'testdb'; got %v", candidates)
+		}
+	})
+
+	// Scenario 2: GRANT | → privilege keywords
+	t.Run("grant_privilege_keywords", func(t *testing.T) {
+		candidates := Complete("GRANT ", 6, cat)
+		if !containsCandidate(candidates, "ALL", CandidateKeyword) {
+			t.Errorf("missing keyword 'ALL'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "SELECT", CandidateKeyword) {
+			t.Errorf("missing keyword 'SELECT'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "INSERT", CandidateKeyword) {
+			t.Errorf("missing keyword 'INSERT'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "UPDATE", CandidateKeyword) {
+			t.Errorf("missing keyword 'UPDATE'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "DELETE", CandidateKeyword) {
+			t.Errorf("missing keyword 'DELETE'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "CREATE", CandidateKeyword) {
+			t.Errorf("missing keyword 'CREATE'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "ALTER", CandidateKeyword) {
+			t.Errorf("missing keyword 'ALTER'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "DROP", CandidateKeyword) {
+			t.Errorf("missing keyword 'DROP'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "EXECUTE", CandidateKeyword) {
+			t.Errorf("missing keyword 'EXECUTE'; got %v", candidates)
+		}
+	})
+
+	// Scenario 3: GRANT SELECT ON | → table_ref
+	t.Run("grant_on_table_ref", func(t *testing.T) {
+		candidates := Complete("GRANT SELECT ON ", 16, cat)
+		if !containsCandidate(candidates, "users", CandidateTable) {
+			t.Errorf("missing table 'users'; got %v", candidates)
+		}
+	})
+
+	// Scenario 4: GRANT SELECT ON t TO | → user context (no specific resolution needed)
+	t.Run("grant_to_user", func(t *testing.T) {
+		candidates := Complete("GRANT SELECT ON users TO ", 25, cat)
+		// Just verify no panic; user context is not resolved via catalog
+		_ = candidates
+	})
+
+	// Scenario 5: REVOKE SELECT ON | → table_ref
+	t.Run("revoke_on_table_ref", func(t *testing.T) {
+		candidates := Complete("REVOKE SELECT ON ", 17, cat)
+		if !containsCandidate(candidates, "users", CandidateTable) {
+			t.Errorf("missing table 'users'; got %v", candidates)
+		}
+	})
+
+	// Scenario 6: EXPLAIN | → keyword candidates
+	t.Run("explain_keywords", func(t *testing.T) {
+		candidates := Complete("EXPLAIN ", 8, cat)
+		if !containsCandidate(candidates, "SELECT", CandidateKeyword) {
+			t.Errorf("missing keyword 'SELECT'; got %v", candidates)
+		}
+	})
+
+	// Scenario 7: EXPLAIN SELECT | → same as SELECT instrumentation
+	t.Run("explain_select", func(t *testing.T) {
+		candidates := Complete("EXPLAIN SELECT ", 15, cat)
+		if !containsCandidate(candidates, "id", CandidateColumn) {
+			// Columns may or may not be offered depending on context,
+			// but func_name should be offered
+			if !containsCandidate(candidates, "COUNT", CandidateFunction) {
+				t.Errorf("missing function 'COUNT' or column 'id'; got %v", candidates)
+			}
+		}
+	})
+
+	// Scenario 8: PREPARE stmt FROM | → string context (no specific candidates)
+	t.Run("prepare_from", func(t *testing.T) {
+		candidates := Complete("PREPARE stmt FROM ", 18, cat)
+		// Just verify no panic; string context is not resolved via catalog
+		_ = candidates
+	})
+
+	// Scenario 9: EXECUTE | → prepared statement name (no specific candidates — identifier)
+	t.Run("execute_stmt", func(t *testing.T) {
+		candidates := Complete("EXECUTE ", 8, cat)
+		// Just verify no panic; prepared statement names are not in catalog
+		_ = candidates
+	})
+
+	// Scenario 10: DEALLOCATE PREPARE | → prepared statement name
+	t.Run("deallocate_prepare", func(t *testing.T) {
+		candidates := Complete("DEALLOCATE PREPARE ", 19, cat)
+		// Just verify no panic
+		_ = candidates
+	})
+
+	// Scenario 11: DO | → expression context (columnref, func_name)
+	t.Run("do_expression", func(t *testing.T) {
+		candidates := Complete("DO ", 3, cat)
+		if !containsCandidate(candidates, "COUNT", CandidateFunction) {
+			t.Errorf("missing function 'COUNT'; got %v", candidates)
+		}
+	})
+}
+
+// =============================================================================
+// Phase 8: Expression Instrumentation
+// =============================================================================
+
+func TestComplete_8_1_FunctionAndTypeNames(t *testing.T) {
+	cat := setupCatalog(t)
+
+	// Scenario 1: SELECT |() context → func_name candidates
+	t.Run("func_name_candidates", func(t *testing.T) {
+		candidates := Complete("SELECT ", 7, cat)
+		if !containsCandidate(candidates, "COUNT", CandidateFunction) {
+			t.Errorf("missing function 'COUNT'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "SUM", CandidateFunction) {
+			t.Errorf("missing function 'SUM'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "CONCAT", CandidateFunction) {
+			t.Errorf("missing function 'CONCAT'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "NOW", CandidateFunction) {
+			t.Errorf("missing function 'NOW'; got %v", candidates)
+		}
+	})
+
+	// Scenario 2: SELECT CAST(a AS |) → type candidates
+	t.Run("cast_as_type", func(t *testing.T) {
+		candidates := Complete("SELECT CAST(a AS ", 17, cat)
+		if !containsCandidate(candidates, "CHAR", CandidateType_) {
+			t.Errorf("missing type 'CHAR'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "DATE", CandidateType_) {
+			t.Errorf("missing type 'DATE'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "DECIMAL", CandidateType_) {
+			t.Errorf("missing type 'DECIMAL'; got %v", candidates)
+		}
+	})
+
+	// Scenario 3: SELECT CONVERT(a, |) → type candidates
+	t.Run("convert_type", func(t *testing.T) {
+		candidates := Complete("SELECT CONVERT(a, ", 18, cat)
+		if !containsCandidate(candidates, "CHAR", CandidateType_) {
+			t.Errorf("missing type 'CHAR'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "DATE", CandidateType_) {
+			t.Errorf("missing type 'DATE'; got %v", candidates)
+		}
+	})
+
+	// Scenario 4: SELECT CONVERT(a USING |) → charset candidates
+	t.Run("convert_using_charset", func(t *testing.T) {
+		candidates := Complete("SELECT CONVERT(a USING ", 23, cat)
+		if !containsCandidate(candidates, "utf8mb4", CandidateCharset) {
+			t.Errorf("missing charset 'utf8mb4'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "latin1", CandidateCharset) {
+			t.Errorf("missing charset 'latin1'; got %v", candidates)
+		}
+	})
+}
+
+func TestComplete_8_2_ExpressionContexts(t *testing.T) {
+	cat := setupCatalog(t)
+
+	// Scenario 1: SELECT a + | → columnref, func_name
+	t.Run("expr_continuation", func(t *testing.T) {
+		candidates := Complete("SELECT a + ", 11, cat)
+		if !containsCandidate(candidates, "COUNT", CandidateFunction) {
+			t.Errorf("missing function 'COUNT'; got %v", candidates)
+		}
+	})
+
+	// Scenario 2: SELECT CASE WHEN | → columnref
+	t.Run("case_when_condition", func(t *testing.T) {
+		candidates := Complete("SELECT CASE WHEN ", 17, cat)
+		if !containsCandidate(candidates, "COUNT", CandidateFunction) {
+			t.Errorf("missing function 'COUNT'; got %v", candidates)
+		}
+	})
+
+	// Scenario 3: SELECT CASE WHEN a THEN | → columnref, literal
+	t.Run("case_then_result", func(t *testing.T) {
+		candidates := Complete("SELECT CASE WHEN a THEN ", 24, cat)
+		if !containsCandidate(candidates, "COUNT", CandidateFunction) {
+			t.Errorf("missing function 'COUNT'; got %v", candidates)
+		}
+	})
+
+	// Scenario 4: SELECT CASE a WHEN | → literal context
+	t.Run("case_when_value", func(t *testing.T) {
+		candidates := Complete("SELECT CASE a WHEN ", 19, cat)
+		// In a simple CASE, WHEN values go through parseExpr, so func_name/columnref are available
+		if !containsCandidate(candidates, "COUNT", CandidateFunction) {
+			t.Errorf("missing function 'COUNT'; got %v", candidates)
+		}
+	})
+
+	// Scenario 5: SELECT * FROM t WHERE a IN (|) → columnref, literal
+	t.Run("in_list", func(t *testing.T) {
+		candidates := Complete("SELECT * FROM users WHERE id IN (", 33, cat)
+		// After (, the parser may see SELECT or try parseExpr
+		hasFunc := containsCandidate(candidates, "COUNT", CandidateFunction)
+		hasCol := containsCandidate(candidates, "id", CandidateColumn)
+		hasSelect := containsCandidate(candidates, "SELECT", CandidateKeyword)
+		if !hasFunc && !hasCol && !hasSelect {
+			t.Errorf("missing completion candidates in IN list; got %v", candidates)
+		}
+	})
+
+	// Scenario 6: SELECT * FROM t WHERE a BETWEEN | → columnref, literal
+	t.Run("between_lower", func(t *testing.T) {
+		candidates := Complete("SELECT * FROM users WHERE id BETWEEN ", 37, cat)
+		hasFunc := containsCandidate(candidates, "COUNT", CandidateFunction)
+		hasCol := containsCandidate(candidates, "id", CandidateColumn)
+		if !hasFunc && !hasCol {
+			t.Errorf("missing completion candidates in BETWEEN; got %v", candidates)
+		}
+	})
+
+	// Scenario 7: SELECT * FROM t WHERE a BETWEEN 1 AND | → columnref, literal
+	t.Run("between_upper", func(t *testing.T) {
+		candidates := Complete("SELECT * FROM users WHERE id BETWEEN 1 AND ", 44, cat)
+		hasFunc := containsCandidate(candidates, "COUNT", CandidateFunction)
+		hasCol := containsCandidate(candidates, "id", CandidateColumn)
+		if !hasFunc && !hasCol {
+			t.Errorf("missing completion candidates in BETWEEN AND; got %v", candidates)
+		}
+	})
+
+	// Scenario 8: SELECT * FROM t WHERE EXISTS (|) → keyword candidate (SELECT)
+	t.Run("exists_select", func(t *testing.T) {
+		candidates := Complete("SELECT * FROM users WHERE EXISTS (", 34, cat)
+		if !containsCandidate(candidates, "SELECT", CandidateKeyword) {
+			t.Errorf("missing keyword 'SELECT'; got %v", candidates)
+		}
+	})
+
+	// Scenario 9: SELECT * FROM t WHERE a IS | → keyword candidates (NULL, NOT, TRUE, FALSE)
+	t.Run("is_keywords", func(t *testing.T) {
+		candidates := Complete("SELECT * FROM users WHERE id IS ", 32, cat)
+		if !containsCandidate(candidates, "NULL", CandidateKeyword) {
+			t.Errorf("missing keyword 'NULL'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "NOT", CandidateKeyword) {
+			t.Errorf("missing keyword 'NOT'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "TRUE", CandidateKeyword) {
+			t.Errorf("missing keyword 'TRUE'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "FALSE", CandidateKeyword) {
+			t.Errorf("missing keyword 'FALSE'; got %v", candidates)
+		}
+	})
+}

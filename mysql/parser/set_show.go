@@ -20,12 +20,29 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume SET
 
+	// Completion: after SET, offer variable/scope candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwGLOBAL)
+		p.addTokenCandidate(kwSESSION)
+		p.addTokenCandidate(kwCHARACTER)
+		p.addRuleCandidate("variable")
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	stmt := &nodes.SetStmt{Loc: nodes.Loc{Start: start}}
 
 	// Check for NAMES special form
 	// SET NAMES {charset_name [COLLATE collation_name] | DEFAULT}
 	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "names") {
 		p.advance() // consume NAMES
+
+		// Completion: after SET NAMES, offer charset candidates.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("charset")
+			return nil, &ParseError{Message: "collecting"}
+		}
 		// Parse charset name or DEFAULT
 		charsetLoc := p.pos()
 		var charset string
@@ -70,6 +87,14 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 			if !isCharset {
 				p.advance() // consume SET
 			}
+
+			// Completion: after SET CHARACTER SET, offer charset candidates.
+			p.checkCursor()
+			if p.collectMode() {
+				p.addRuleCandidate("charset")
+				return nil, &ParseError{Message: "collecting"}
+			}
+
 			charsetLoc := p.pos()
 			var charset string
 			if p.cur.Type == kwDEFAULT {
@@ -137,6 +162,15 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "persist_only") {
 			scope = "PERSIST_ONLY"
 			p.advance()
+		}
+	}
+
+	// Completion: after SET GLOBAL/SESSION, offer variable candidates.
+	if scope != "" {
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("variable")
+			return nil, &ParseError{Message: "collecting"}
 		}
 	}
 
@@ -304,6 +338,20 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 	start := p.pos()
 	p.advance() // consume SHOW
 
+	// Completion: after SHOW, offer keyword candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		for _, t := range []int{
+			kwTABLES, kwCOLUMNS, kwINDEX, kwDATABASES,
+			kwCREATE, kwSTATUS, kwVARIABLES, kwPROCESSLIST,
+			kwWARNINGS, kwERRORS, kwENGINE, kwENGINES,
+			kwGLOBAL, kwSESSION, kwFULL, kwBINARY,
+		} {
+			p.addTokenCandidate(t)
+		}
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	stmt := &nodes.ShowStmt{Loc: nodes.Loc{Start: start}}
 
 	// SHOW COUNT(*) ERRORS | SHOW COUNT(*) WARNINGS
@@ -336,6 +384,12 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		p.advance()
 		// Optional FROM|IN db
 		if p.matchFromOrIn() {
+			// Completion: after SHOW TABLES FROM, offer database_ref.
+			p.checkCursor()
+			if p.collectMode() {
+				p.addRuleCandidate("database_ref")
+				return nil, &ParseError{Message: "collecting"}
+			}
 			ref, err := p.parseTableRef()
 			if err != nil {
 				return nil, err
@@ -398,6 +452,12 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		if _, err := p.expectFromOrIn(); err != nil {
 			return nil, err
 		}
+		// Completion: after SHOW COLUMNS FROM, offer table_ref.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			return nil, &ParseError{Message: "collecting"}
+		}
 		ref, err := p.parseTableRef()
 		if err != nil {
 			return nil, err
@@ -421,6 +481,12 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		case kwTABLE:
 			stmt.Type = "CREATE TABLE"
 			p.advance()
+			// Completion: after SHOW CREATE TABLE, offer table_ref.
+			p.checkCursor()
+			if p.collectMode() {
+				p.addRuleCandidate("table_ref")
+				return nil, &ParseError{Message: "collecting"}
+			}
 			ref, err := p.parseTableRef()
 			if err != nil {
 				return nil, err
@@ -444,6 +510,12 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		case kwVIEW:
 			stmt.Type = "CREATE VIEW"
 			p.advance()
+			// Completion: after SHOW CREATE VIEW, offer view_ref.
+			p.checkCursor()
+			if p.collectMode() {
+				p.addRuleCandidate("view_ref")
+				return nil, &ParseError{Message: "collecting"}
+			}
 			ref, err := p.parseTableRef()
 			if err != nil {
 				return nil, err
@@ -452,6 +524,12 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		case kwPROCEDURE:
 			stmt.Type = "CREATE PROCEDURE"
 			p.advance()
+			// Completion: after SHOW CREATE PROCEDURE, offer procedure_ref.
+			p.checkCursor()
+			if p.collectMode() {
+				p.addRuleCandidate("procedure_ref")
+				return nil, &ParseError{Message: "collecting"}
+			}
 			ref, err := p.parseTableRef()
 			if err != nil {
 				return nil, err
@@ -460,6 +538,12 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		case kwFUNCTION:
 			stmt.Type = "CREATE FUNCTION"
 			p.advance()
+			// Completion: after SHOW CREATE FUNCTION, offer function_ref.
+			p.checkCursor()
+			if p.collectMode() {
+				p.addRuleCandidate("function_ref")
+				return nil, &ParseError{Message: "collecting"}
+			}
 			ref, err := p.parseTableRef()
 			if err != nil {
 				return nil, err
@@ -612,6 +696,12 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		// FROM|IN tbl
 		if _, err := p.expectFromOrIn(); err != nil {
 			return nil, err
+		}
+		// Completion: after SHOW INDEX FROM, offer table_ref.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			return nil, &ParseError{Message: "collecting"}
 		}
 		ref, err := p.parseTableRef()
 		if err != nil {
@@ -1298,6 +1388,13 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 	start := p.pos()
 	p.advance() // consume USE
 
+	// Completion: after USE, offer database_ref.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("database_ref")
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	name, _, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
@@ -1404,6 +1501,15 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		}
 		stmt.Loc.End = p.pos()
 		return stmt, nil
+	}
+
+	// Completion: after EXPLAIN [options], offer explainable statement keywords.
+	p.checkCursor()
+	if p.collectMode() {
+		for _, t := range []int{kwSELECT, kwINSERT, kwUPDATE, kwDELETE} {
+			p.addTokenCandidate(t)
+		}
+		return nil, &ParseError{Message: "collecting"}
 	}
 
 	// Parse the explainable statement

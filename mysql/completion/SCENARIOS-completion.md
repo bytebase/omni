@@ -348,35 +348,35 @@ so that Phase 3+ instrumentation can be tested end-to-end.
 ### 7.1 SET & SHOW
 
 ```
-[ ] `SET |` → variable candidates (@@, @, GLOBAL, SESSION, NAMES, CHARACTER, PASSWORD) + keyword candidates
-[ ] `SET GLOBAL |` → variable candidates (system variables)
-[ ] `SET SESSION |` → variable candidates
-[ ] `SET NAMES |` → charset candidates
-[ ] `SET CHARACTER SET |` → charset candidates
-[ ] `SHOW |` → keyword candidates (TABLES, COLUMNS, INDEX, DATABASES, CREATE, STATUS, VARIABLES, PROCESSLIST, GRANTS, WARNINGS, ERRORS, ENGINE, etc.)
-[ ] `SHOW CREATE TABLE |` → table_ref
-[ ] `SHOW CREATE VIEW |` → view_ref
-[ ] `SHOW CREATE FUNCTION |` → function_ref
-[ ] `SHOW CREATE PROCEDURE |` → procedure_ref
-[ ] `SHOW COLUMNS FROM |` → table_ref
-[ ] `SHOW INDEX FROM |` → table_ref
-[ ] `SHOW TABLES FROM |` → database_ref
+[x] `SET |` → variable candidates (@@, @, GLOBAL, SESSION, NAMES, CHARACTER, PASSWORD) + keyword candidates
+[x] `SET GLOBAL |` → variable candidates (system variables)
+[x] `SET SESSION |` → variable candidates
+[x] `SET NAMES |` → charset candidates
+[x] `SET CHARACTER SET |` → charset candidates
+[x] `SHOW |` → keyword candidates (TABLES, COLUMNS, INDEX, DATABASES, CREATE, STATUS, VARIABLES, PROCESSLIST, GRANTS, WARNINGS, ERRORS, ENGINE, etc.)
+[x] `SHOW CREATE TABLE |` → table_ref
+[x] `SHOW CREATE VIEW |` → view_ref
+[x] `SHOW CREATE FUNCTION |` → function_ref
+[x] `SHOW CREATE PROCEDURE |` → procedure_ref
+[x] `SHOW COLUMNS FROM |` → table_ref
+[x] `SHOW INDEX FROM |` → table_ref
+[x] `SHOW TABLES FROM |` → database_ref
 ```
 
 ### 7.2 USE, GRANT, EXPLAIN
 
 ```
-[ ] `USE |` → database_ref
-[ ] `GRANT |` → keyword candidates (ALL, SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, INDEX, EXECUTE, etc.)
-[ ] `GRANT SELECT ON |` → table_ref (or database.*)
-[ ] `GRANT SELECT ON t TO |` → user context
-[ ] `REVOKE SELECT ON |` → table_ref
-[ ] `EXPLAIN |` → keyword candidates (SELECT, INSERT, UPDATE, DELETE, FORMAT)
-[ ] `EXPLAIN SELECT |` → same as SELECT instrumentation
-[ ] `PREPARE stmt FROM |` → string context
-[ ] `EXECUTE |` → prepared statement name
-[ ] `DEALLOCATE PREPARE |` → prepared statement name
-[ ] `DO |` → expression context (columnref, func_name)
+[x] `USE |` → database_ref
+[x] `GRANT |` → keyword candidates (ALL, SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, INDEX, EXECUTE, etc.)
+[x] `GRANT SELECT ON |` → table_ref (or database.*)
+[x] `GRANT SELECT ON t TO |` → user context
+[x] `REVOKE SELECT ON |` → table_ref
+[x] `EXPLAIN |` → keyword candidates (SELECT, INSERT, UPDATE, DELETE, FORMAT)
+[x] `EXPLAIN SELECT |` → same as SELECT instrumentation
+[x] `PREPARE stmt FROM |` → string context
+[x] `EXECUTE |` → prepared statement name
+[x] `DEALLOCATE PREPARE |` → prepared statement name
+[x] `DO |` → expression context (columnref, func_name)
 ```
 
 ## Phase 8: Expression Instrumentation
@@ -384,24 +384,24 @@ so that Phase 3+ instrumentation can be tested end-to-end.
 ### 8.1 Function & Type Names
 
 ```
-[ ] `SELECT |()` context → func_name candidates (built-in functions: COUNT, SUM, AVG, MAX, MIN, CONCAT, SUBSTRING, TRIM, NOW, IF, IFNULL, COALESCE, CAST, CONVERT, etc.)
-[ ] `SELECT CAST(a AS |)` → type candidates (CHAR, SIGNED, UNSIGNED, DECIMAL, DATE, DATETIME, TIME, JSON, BINARY)
-[ ] `SELECT CONVERT(a, |)` → type candidates
-[ ] `SELECT CONVERT(a USING |)` → charset candidates
+[x] `SELECT |()` context → func_name candidates (built-in functions: COUNT, SUM, AVG, MAX, MIN, CONCAT, SUBSTRING, TRIM, NOW, IF, IFNULL, COALESCE, CAST, CONVERT, etc.)
+[x] `SELECT CAST(a AS |)` → type candidates (CHAR, SIGNED, UNSIGNED, DECIMAL, DATE, DATETIME, TIME, JSON, BINARY)
+[x] `SELECT CONVERT(a, |)` → type candidates
+[x] `SELECT CONVERT(a USING |)` → charset candidates
 ```
 
 ### 8.2 Expression Contexts
 
 ```
-[ ] `SELECT a + |` → columnref, func_name (expression continuation)
-[ ] `SELECT CASE WHEN |` → columnref (CASE WHEN condition)
-[ ] `SELECT CASE WHEN a THEN |` → columnref, literal (CASE THEN result)
-[ ] `SELECT CASE a WHEN |` → literal context (CASE WHEN value)
-[ ] `SELECT * FROM t WHERE a IN (|)` → columnref, literal (IN list or subquery)
-[ ] `SELECT * FROM t WHERE a BETWEEN |` → columnref, literal (BETWEEN lower bound)
-[ ] `SELECT * FROM t WHERE a BETWEEN 1 AND |` → columnref, literal (BETWEEN upper bound)
-[ ] `SELECT * FROM t WHERE EXISTS (|)` → keyword candidate (SELECT)
-[ ] `SELECT * FROM t WHERE a IS |` → keyword candidates (NULL, NOT, TRUE, FALSE, UNKNOWN)
+[x] `SELECT a + |` → columnref, func_name (expression continuation)
+[x] `SELECT CASE WHEN |` → columnref (CASE WHEN condition)
+[x] `SELECT CASE WHEN a THEN |` → columnref, literal (CASE THEN result)
+[x] `SELECT CASE a WHEN |` → literal context (CASE WHEN value)
+[x] `SELECT * FROM t WHERE a IN (|)` → columnref, literal (IN list or subquery)
+[x] `SELECT * FROM t WHERE a BETWEEN |` → columnref, literal (BETWEEN lower bound)
+[x] `SELECT * FROM t WHERE a BETWEEN 1 AND |` → columnref, literal (BETWEEN upper bound)
+[x] `SELECT * FROM t WHERE EXISTS (|)` → keyword candidate (SELECT)
+[x] `SELECT * FROM t WHERE a IS |` → keyword candidates (NULL, NOT, TRUE, FALSE, UNKNOWN)
 ```
 
 ## Phase 9: Integration Tests

@@ -18,6 +18,15 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume GRANT
 
+	// Completion: after GRANT, offer privilege keyword candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		for _, t := range []int{kwALL, kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwCREATE, kwALTER, kwDROP, kwINDEX, kwEXECUTE} {
+			p.addTokenCandidate(t)
+		}
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	// Parse the names (could be privileges or roles).
 	// We distinguish by looking for ON (privilege grant) vs TO (role grant).
 	privs, allPriv, err := p.parsePrivilegeList()
@@ -553,6 +562,13 @@ func (p *Parser) parsePrivilegeName() (string, error) {
 func (p *Parser) parseGrantTarget() (*nodes.GrantTarget, error) {
 	start := p.pos()
 	target := &nodes.GrantTarget{Loc: nodes.Loc{Start: start}}
+
+	// Completion: after ON, offer table_ref candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("table_ref")
+		return nil, &ParseError{Message: "collecting"}
+	}
 
 	// Optional object type
 	switch p.cur.Type {

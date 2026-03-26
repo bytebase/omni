@@ -144,6 +144,8 @@ func resolveRule(rule string, cat *catalog.Catalog, sql string, cursorOffset int
 		return resolveEngine()
 	case "type_name":
 		return resolveTypeName()
+	case "variable":
+		return resolveVariable()
 	}
 	return nil
 }
@@ -420,6 +422,23 @@ func resolveTypeName() []Candidate {
 	result := make([]Candidate, len(typeKeywords))
 	for i, name := range typeKeywords {
 		result[i] = Candidate{Text: name, Type: CandidateType_}
+	}
+	return result
+}
+
+// resolveVariable returns common MySQL system variable names.
+func resolveVariable() []Candidate {
+	vars := []string{
+		"@@autocommit", "@@character_set_client", "@@character_set_connection",
+		"@@character_set_results", "@@collation_connection", "@@max_connections",
+		"@@wait_timeout", "@@interactive_timeout", "@@sql_mode",
+		"@@time_zone", "@@tx_isolation", "@@innodb_buffer_pool_size",
+		"@@global.max_connections", "@@session.sql_mode",
+		"NAMES", "CHARACTER SET", "PASSWORD",
+	}
+	result := make([]Candidate, len(vars))
+	for i, name := range vars {
+		result[i] = Candidate{Text: name, Type: CandidateVariable}
 	}
 	return result
 }

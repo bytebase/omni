@@ -1054,6 +1054,13 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 // parseCastDataType parses data types valid in CAST expressions.
 // CAST supports a subset of types: BINARY, CHAR, DATE, DATETIME, DECIMAL, SIGNED, UNSIGNED, TIME, JSON, etc.
 func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
+	// Completion: offer CAST/CONVERT type candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("type_name")
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	start := p.pos()
 
 	// SIGNED [INTEGER]
@@ -1101,6 +1108,12 @@ func (p *Parser) parseConvertExpr() (nodes.ExprNode, error) {
 
 	if p.cur.Type == kwUSING {
 		p.advance()
+		// Completion: after CONVERT(... USING, offer charset candidates.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("charset")
+			return nil, &ParseError{Message: "collecting"}
+		}
 		charset, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
@@ -1127,6 +1140,16 @@ func (p *Parser) parseConvertExpr() (nodes.ExprNode, error) {
 func (p *Parser) parseIsExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume IS
+
+	// Completion: after IS, offer NULL/NOT/TRUE/FALSE/UNKNOWN.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwNULL)
+		p.addTokenCandidate(kwNOT)
+		p.addTokenCandidate(kwTRUE)
+		p.addTokenCandidate(kwFALSE)
+		return nil, &ParseError{Message: "collecting"}
+	}
 
 	not := false
 	if _, ok := p.match(kwNOT); ok {
@@ -1390,6 +1413,13 @@ func (p *Parser) parseExistsExpr() (nodes.ExprNode, error) {
 
 	if _, err := p.expect('('); err != nil {
 		return nil, err
+	}
+
+	// Completion: after EXISTS (, offer SELECT keyword.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwSELECT)
+		return nil, &ParseError{Message: "collecting"}
 	}
 
 	sub, err := p.parseSubqueryExpr()
