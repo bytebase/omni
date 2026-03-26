@@ -189,7 +189,15 @@ func (d *deparseCtx) getBasicSelectQuery(query *Query) {
 	}
 
 	// GROUP BY.
-	if len(query.GroupClause) > 0 {
+	if len(query.GroupingSets) > 0 {
+		d.appendContextKeyword(" GROUP BY ", -prettyIndentStd, prettyIndentStd, 1)
+		for i, gs := range query.GroupingSets {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			d.getGroupingSet(gs, query.TargetList)
+		}
+	} else if len(query.GroupClause) > 0 {
 		d.appendContextKeyword(" GROUP BY ", -prettyIndentStd, prettyIndentStd, 1)
 		for i, grp := range query.GroupClause {
 			if i > 0 {
@@ -453,6 +461,9 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 				d.buf.WriteByte(' ')
 				d.buf.WriteString(quoteIdentifier(rte.Alias))
 			}
+			if rte.Tablesample != nil {
+				d.getTablesample(rte.Tablesample)
+			}
 		case RTESubquery:
 			d.buf.WriteByte('(')
 			subCtx := d.subContext()
@@ -647,6 +658,10 @@ func (d *deparseCtx) getRuleExpr(expr AnalyzedExpr, showImplicit bool) {
 		d.getRuleExpr(v.Arg, showImplicit)
 	case *FieldStoreExprQ:
 		d.getFieldStore(v)
+	case *GroupingFuncExpr:
+		d.getGroupingFunc(v)
+	case *XmlExprQ:
+		d.getXmlExpr(v)
 	default:
 		d.buf.WriteString("???")
 	}
@@ -1686,6 +1701,224 @@ func (d *deparseCtx) getFieldStore(f *FieldStoreExprQ) {
 	d.buf.WriteByte(')')
 }
 
+// getGroupingFunc deparses a GROUPING(col1, col2, ...) expression.
+//
+// pg: src/backend/utils/adt/ruleutils.c — GroupingFunc case
+func (d *deparseCtx) getGroupingFunc(g *GroupingFuncExpr) {
+	d.buf.WriteString("GROUPING(")
+	for i, arg := range g.Args {
+		if i > 0 {
+			d.buf.WriteString(", ")
+		}
+		d.getRuleExpr(arg, true)
+	}
+	d.buf.WriteByte(')')
+}
+
+// getGroupingSet deparses a GROUPING SETS / ROLLUP / CUBE clause.
+//
+// pg: src/backend/utils/adt/ruleutils.c — get_rule_groupingset
+func (d *deparseCtx) getGroupingSet(gs *GroupingSetQ, tlist []*TargetEntry) {
+	switch gs.Kind {
+	case GroupingSetSimple:
+		if len(gs.Content) == 0 {
+			// Empty grouping set: ()
+			d.buf.WriteString("()")
+		} else if len(gs.Content) == 1 {
+			d.getSortGroupClause(gs.Content[0], tlist, false)
+		} else {
+			d.buf.WriteByte('(')
+			for i, sgc := range gs.Content {
+				if i > 0 {
+					d.buf.WriteString(", ")
+				}
+				d.getSortGroupClause(sgc, tlist, false)
+			}
+			d.buf.WriteByte(')')
+		}
+	case GroupingSetRollup:
+		d.buf.WriteString("ROLLUP(")
+		for i, sgc := range gs.Content {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			d.getSortGroupClause(sgc, tlist, false)
+		}
+		d.buf.WriteByte(')')
+	case GroupingSetCube:
+		d.buf.WriteString("CUBE(")
+		for i, sgc := range gs.Content {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			d.getSortGroupClause(sgc, tlist, false)
+		}
+		d.buf.WriteByte(')')
+	case GroupingSetSets:
+		d.buf.WriteString("GROUPING SETS(")
+		for i, sub := range gs.Sets {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			d.getGroupingSet(sub, tlist)
+		}
+		d.buf.WriteByte(')')
+	}
+}
+
+// getXmlExpr deparses an XML expression.
+//
+// pg: src/backend/utils/adt/ruleutils.c — XmlExpr case
+func (d *deparseCtx) getXmlExpr(x *XmlExprQ) {
+	switch x.Op {
+	case XmlOpConcat:
+		d.buf.WriteString("XMLCONCAT(")
+		for i, arg := range x.Args {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			d.getRuleExpr(arg, true)
+		}
+		d.buf.WriteByte(')')
+
+	case XmlOpElement:
+		d.buf.WriteString("XMLELEMENT(NAME ")
+		d.buf.WriteString(quoteIdentifier(x.Name))
+		// XMLATTRIBUTES
+		if len(x.NamedArgs) > 0 {
+			d.buf.WriteString(", XMLATTRIBUTES(")
+			for i, na := range x.NamedArgs {
+				if i > 0 {
+					d.buf.WriteString(", ")
+				}
+				d.getRuleExpr(na, true)
+				if i < len(x.ArgNames) && x.ArgNames[i] != "" {
+					d.buf.WriteString(" AS ")
+					d.buf.WriteString(quoteIdentifier(x.ArgNames[i]))
+				}
+			}
+			d.buf.WriteByte(')')
+		}
+		// Content args
+		for _, arg := range x.Args {
+			d.buf.WriteString(", ")
+			d.getRuleExpr(arg, true)
+		}
+		d.buf.WriteByte(')')
+
+	case XmlOpForest:
+		d.buf.WriteString("XMLFOREST(")
+		for i, na := range x.NamedArgs {
+			if i > 0 {
+				d.buf.WriteString(", ")
+			}
+			d.getRuleExpr(na, true)
+			if i < len(x.ArgNames) && x.ArgNames[i] != "" {
+				d.buf.WriteString(" AS ")
+				d.buf.WriteString(quoteIdentifier(x.ArgNames[i]))
+			}
+		}
+		d.buf.WriteByte(')')
+
+	case XmlOpParse:
+		d.buf.WriteString("XMLPARSE(")
+		if x.Xmloption == XmlOptionDocument {
+			d.buf.WriteString("DOCUMENT ")
+		} else {
+			d.buf.WriteString("CONTENT ")
+		}
+		if len(x.Args) > 0 {
+			d.getRuleExpr(x.Args[0], false)
+		}
+		d.buf.WriteByte(')')
+
+	case XmlOpPI:
+		d.buf.WriteString("XMLPI(NAME ")
+		d.buf.WriteString(quoteIdentifier(x.Name))
+		if len(x.Args) > 0 {
+			d.buf.WriteString(", ")
+			d.getRuleExpr(x.Args[0], true)
+		}
+		d.buf.WriteByte(')')
+
+	case XmlOpRoot:
+		d.buf.WriteString("XMLROOT(")
+		if len(x.Args) > 0 {
+			d.getRuleExpr(x.Args[0], true)
+		}
+		if len(x.Args) > 1 {
+			d.buf.WriteString(", VERSION ")
+			// PG uses VERSION NO VALUE for null
+			if c, ok := x.Args[1].(*ConstExpr); ok && c.IsNull {
+				d.buf.WriteString("NO VALUE")
+			} else {
+				d.getRuleExpr(x.Args[1], false)
+			}
+		}
+		if len(x.Args) > 2 {
+			if c, ok := x.Args[2].(*ConstExpr); ok && !c.IsNull {
+				switch c.Value {
+				case "0":
+					d.buf.WriteString(", STANDALONE YES")
+				case "1":
+					d.buf.WriteString(", STANDALONE NO")
+				case "2":
+					d.buf.WriteString(", STANDALONE NO VALUE")
+				}
+			}
+		}
+		d.buf.WriteByte(')')
+
+	case XmlOpSerialize:
+		d.buf.WriteString("XMLSERIALIZE(")
+		if x.Xmloption == XmlOptionDocument {
+			d.buf.WriteString("DOCUMENT ")
+		} else {
+			d.buf.WriteString("CONTENT ")
+		}
+		if len(x.Args) > 0 {
+			d.getRuleExpr(x.Args[0], false)
+		}
+		d.buf.WriteString(" AS ")
+		d.buf.WriteString(d.catalog.formatType(x.TypeOID, x.TypeMod))
+		d.buf.WriteByte(')')
+
+	case XmlOpDocument:
+		// expr IS DOCUMENT
+		if !d.prettyParen {
+			d.buf.WriteByte('(')
+		}
+		if len(x.Args) > 0 {
+			d.getRuleExprParen(x.Args[0], true, x)
+		}
+		d.buf.WriteString(" IS DOCUMENT")
+		if !d.prettyParen {
+			d.buf.WriteByte(')')
+		}
+	}
+}
+
+// getTablesample deparses a TABLESAMPLE clause.
+//
+// pg: src/backend/utils/adt/ruleutils.c — get_tablesample_def
+func (d *deparseCtx) getTablesample(ts *TablesampleClauseQ) {
+	d.buf.WriteString(" TABLESAMPLE ")
+	d.buf.WriteString(ts.Method)
+	d.buf.WriteByte('(')
+	for i, arg := range ts.Args {
+		if i > 0 {
+			d.buf.WriteString(", ")
+		}
+		d.getRuleExpr(arg, false)
+	}
+	d.buf.WriteByte(')')
+	if ts.Repeatable != nil {
+		d.buf.WriteString(" REPEATABLE (")
+		d.getRuleExpr(ts.Repeatable, false)
+		d.buf.WriteByte(')')
+	}
+}
+
 // getRuleExprParen wraps expression in parentheses if needed.
 //
 // pg: src/backend/utils/adt/ruleutils.c — get_rule_expr_paren
@@ -1716,7 +1949,8 @@ func isSimpleNode(expr AnalyzedExpr, parent AnalyzedExpr, prettyParen bool) bool
 
 	case *ArrayExprQ, *RowExprQ, *CoalesceExprQ, *MinMaxExprQ,
 		*NullIfExprQ, *AggExpr, *WindowFuncExpr, *FuncCallExpr,
-		*SubscriptingRefExpr, *NextValueExprQ:
+		*SubscriptingRefExpr, *NextValueExprQ, *GroupingFuncExpr,
+		*XmlExprQ:
 		// function-like: name(..) or name[..] — always simple
 		return true
 

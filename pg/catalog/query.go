@@ -75,6 +75,7 @@ type Query struct {
 	CTEList      []*CommonTableExprQ // WITH clause CTEs
 	WindowClause []*WindowClauseQ    // WINDOW clause
 	IsRecursive  bool                // WITH RECURSIVE
+	GroupingSets []*GroupingSetQ      // GROUPING SETS/ROLLUP/CUBE (nil for plain GROUP BY)
 }
 
 // TargetEntry represents a column in the SELECT list.
@@ -623,6 +624,16 @@ type RangeTableEntry struct {
 	CTEIndex      int       // for RTECTE: index into Query.CTEList
 	FuncExprs     []AnalyzedExpr // for RTEFunction: function call expressions
 	Ordinality    bool           // for RTEFunction: WITH ORDINALITY
+	Tablesample   *TablesampleClauseQ // for RTERelation: TABLESAMPLE clause
+}
+
+// TablesampleClauseQ represents a TABLESAMPLE clause on a relation.
+//
+// pg: src/include/nodes/parsenodes.h — TableSampleClause
+type TablesampleClauseQ struct {
+	Method     string         // sampling method name (e.g. "bernoulli", "system")
+	Args       []AnalyzedExpr // arguments for sampling method
+	Repeatable AnalyzedExpr   // REPEATABLE expression (nil if none)
 }
 
 // JoinTree represents the FROM clause structure.
@@ -926,6 +937,55 @@ type FieldStoreExprQ struct {
 func (f *FieldStoreExprQ) exprType() uint32      { return f.ResultType }
 func (f *FieldStoreExprQ) exprTypMod() int32     { return -1 }
 func (f *FieldStoreExprQ) exprCollation() uint32 { return 0 }
+
+// GroupingFuncExpr represents a GROUPING(col1, col2, ...) expression.
+//
+// pg: src/include/nodes/primnodes.h — GroupingFunc
+type GroupingFuncExpr struct {
+	Args    []AnalyzedExpr // arguments (column references)
+	Refs    []int          // ressortgrouprefs of arguments
+	TypeOID uint32
+}
+
+func (g *GroupingFuncExpr) exprType() uint32      { return INT4OID }
+func (g *GroupingFuncExpr) exprTypMod() int32     { return -1 }
+func (g *GroupingFuncExpr) exprCollation() uint32 { return 0 }
+
+// XmlExprOp identifies the type of XML expression.
+const (
+	XmlOpConcat    = 0 // XMLCONCAT(args)
+	XmlOpElement   = 1 // XMLELEMENT(name, args)
+	XmlOpForest    = 2 // XMLFOREST(args)
+	XmlOpParse     = 3 // XMLPARSE(DOCUMENT|CONTENT expr)
+	XmlOpPI        = 4 // XMLPI(name [, args])
+	XmlOpRoot      = 5 // XMLROOT(xml, version, standalone)
+	XmlOpSerialize = 6 // XMLSERIALIZE(DOCUMENT|CONTENT expr AS type)
+	XmlOpDocument  = 7 // expr IS DOCUMENT
+)
+
+// XmlOptionType identifies DOCUMENT vs CONTENT.
+const (
+	XmlOptionDocument = 1
+	XmlOptionContent  = 2
+)
+
+// XmlExprQ represents various SQL/XML functions.
+//
+// pg: src/include/nodes/primnodes.h — XmlExpr
+type XmlExprQ struct {
+	Op         int            // XmlOp* constant
+	Name       string         // name in xml(NAME foo ...) syntaxes
+	NamedArgs  []AnalyzedExpr // non-XML expressions for xml_attributes
+	ArgNames   []string       // parallel list of attribute names
+	Args       []AnalyzedExpr // list of expressions
+	Xmloption  int            // DOCUMENT or CONTENT
+	TypeOID    uint32         // result type
+	TypeMod    int32          // result type modifier
+}
+
+func (x *XmlExprQ) exprType() uint32      { return x.TypeOID }
+func (x *XmlExprQ) exprTypMod() int32     { return x.TypeMod }
+func (x *XmlExprQ) exprCollation() uint32 { return 0 }
 
 // isPolymorphic returns true if the given OID is a polymorphic pseudo-type.
 func isPolymorphic(oid uint32) bool {

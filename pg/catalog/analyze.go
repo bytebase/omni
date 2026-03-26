@@ -199,24 +199,43 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt) (*Query, error) {
 	//
 	// pg: src/backend/parser/parse_clause.c — transformGroupClause
 	if stmt.GroupClause != nil {
+		hasGroupingSets := false
 		for _, item := range stmt.GroupClause.Items {
-			tle, err := ac.findTargetlistEntry(item, q.TargetList)
-			if err != nil {
-				return nil, err
+			if _, ok := item.(*nodes.GroupingSet); ok {
+				hasGroupingSets = true
+				break
 			}
-			ref := ac.assignSortGroupRef(tle, q.TargetList)
-			// Check for duplicate GROUP BY entries.
-			isDup := false
-			for _, existing := range q.GroupClause {
-				if existing.TLESortGroupRef == ref {
-					isDup = true
-					break
+		}
+		if hasGroupingSets {
+			for _, item := range stmt.GroupClause.Items {
+				gs, err := ac.transformGroupingSet(item, q.TargetList)
+				if err != nil {
+					return nil, err
 				}
+				q.GroupingSets = append(q.GroupingSets, gs)
+				// Also add flat refs to GroupClause for deparse of simple columns.
+				ac.flattenGroupingSetRefs(gs, q)
 			}
-			if !isDup {
-				q.GroupClause = append(q.GroupClause, &SortGroupClause{
-					TLESortGroupRef: ref,
-				})
+		} else {
+			for _, item := range stmt.GroupClause.Items {
+				tle, err := ac.findTargetlistEntry(item, q.TargetList)
+				if err != nil {
+					return nil, err
+				}
+				ref := ac.assignSortGroupRef(tle, q.TargetList)
+				// Check for duplicate GROUP BY entries.
+				isDup := false
+				for _, existing := range q.GroupClause {
+					if existing.TLESortGroupRef == ref {
+						isDup = true
+						break
+					}
+				}
+				if !isDup {
+					q.GroupClause = append(q.GroupClause, &SortGroupClause{
+						TLESortGroupRef: ref,
+					})
+				}
 			}
 		}
 	}
@@ -367,6 +386,8 @@ func (ac *analyzeCtx) transformFromClauseItem(n nodes.Node) (JoinNode, error) {
 		return ac.transformRangeSubselect(v)
 	case *nodes.RangeFunction:
 		return ac.transformRangeFunction(v)
+	case *nodes.RangeTableSample:
+		return ac.transformRangeTableSampleItem(v)
 	default:
 		return nil, fmt.Errorf("unsupported FROM clause item: %T", n)
 	}
@@ -1032,6 +1053,12 @@ func (ac *analyzeCtx) transformExpr(n nodes.Node) (AnalyzedExpr, error) {
 		return ac.transformNamedArgExpr(v)
 	case *nodes.ParamRef:
 		return ac.transformParamRef(v)
+	case *nodes.GroupingFunc:
+		return ac.transformGroupingFunc(v)
+	case *nodes.XmlExpr:
+		return ac.transformXmlExpr(v)
+	case *nodes.XmlSerialize:
+		return ac.transformXmlSerialize(v)
 	default:
 		return &ConstExpr{TypeOID: UNKNOWNOID, TypeMod: -1, IsNull: true}, nil
 	}
@@ -1850,21 +1877,39 @@ func (ac *analyzeCtx) analyzeSubSelect(stmt *nodes.SelectStmt) (*Query, error) {
 
 	// GROUP BY.
 	if stmt.GroupClause != nil {
+		hasGroupingSets := false
 		for _, item := range stmt.GroupClause.Items {
-			tle, err := subAc.findTargetlistEntry(item, q.TargetList)
-			if err != nil {
-				return nil, err
+			if _, ok := item.(*nodes.GroupingSet); ok {
+				hasGroupingSets = true
+				break
 			}
-			ref := subAc.assignSortGroupRef(tle, q.TargetList)
-			isDup := false
-			for _, existing := range q.GroupClause {
-				if existing.TLESortGroupRef == ref {
-					isDup = true
-					break
+		}
+		if hasGroupingSets {
+			for _, item := range stmt.GroupClause.Items {
+				gs, err := subAc.transformGroupingSet(item, q.TargetList)
+				if err != nil {
+					return nil, err
 				}
+				q.GroupingSets = append(q.GroupingSets, gs)
+				subAc.flattenGroupingSetRefs(gs, q)
 			}
-			if !isDup {
-				q.GroupClause = append(q.GroupClause, &SortGroupClause{TLESortGroupRef: ref})
+		} else {
+			for _, item := range stmt.GroupClause.Items {
+				tle, err := subAc.findTargetlistEntry(item, q.TargetList)
+				if err != nil {
+					return nil, err
+				}
+				ref := subAc.assignSortGroupRef(tle, q.TargetList)
+				isDup := false
+				for _, existing := range q.GroupClause {
+					if existing.TLESortGroupRef == ref {
+						isDup = true
+						break
+					}
+				}
+				if !isDup {
+					q.GroupClause = append(q.GroupClause, &SortGroupClause{TLESortGroupRef: ref})
+				}
 			}
 		}
 	}
@@ -4045,6 +4090,276 @@ func (c *Catalog) buildRelationRTE(rel *Relation) *RangeTableEntry {
 		rte.ColCollations = append(rte.ColCollations, col.Collation)
 	}
 	return rte
+}
+
+// transformGroupingSet transforms a GroupingSet or plain column reference into a GroupingSetQ.
+//
+// pg: src/backend/parser/parse_clause.c — transformGroupingSet
+func (ac *analyzeCtx) transformGroupingSet(n nodes.Node, tlist []*TargetEntry) (*GroupingSetQ, error) {
+	gs, ok := n.(*nodes.GroupingSet)
+	if !ok {
+		// Plain column reference — wrap as GroupingSetSimple.
+		tle, err := ac.findTargetlistEntry(n, tlist)
+		if err != nil {
+			return nil, err
+		}
+		ref := ac.assignSortGroupRef(tle, tlist)
+		return &GroupingSetQ{
+			Kind:    GroupingSetSimple,
+			Content: []*SortGroupClause{{TLESortGroupRef: ref}},
+		}, nil
+	}
+
+	switch gs.Kind {
+	case nodes.GROUPING_SET_ROLLUP:
+		gsq := &GroupingSetQ{Kind: GroupingSetRollup}
+		if gs.Content != nil {
+			for _, item := range gs.Content.Items {
+				tle, err := ac.findTargetlistEntry(item, tlist)
+				if err != nil {
+					return nil, err
+				}
+				ref := ac.assignSortGroupRef(tle, tlist)
+				gsq.Content = append(gsq.Content, &SortGroupClause{TLESortGroupRef: ref})
+			}
+		}
+		return gsq, nil
+	case nodes.GROUPING_SET_CUBE:
+		gsq := &GroupingSetQ{Kind: GroupingSetCube}
+		if gs.Content != nil {
+			for _, item := range gs.Content.Items {
+				tle, err := ac.findTargetlistEntry(item, tlist)
+				if err != nil {
+					return nil, err
+				}
+				ref := ac.assignSortGroupRef(tle, tlist)
+				gsq.Content = append(gsq.Content, &SortGroupClause{TLESortGroupRef: ref})
+			}
+		}
+		return gsq, nil
+	case nodes.GROUPING_SET_SETS:
+		gsq := &GroupingSetQ{Kind: GroupingSetSets}
+		if gs.Content != nil {
+			for _, item := range gs.Content.Items {
+				sub, err := ac.transformGroupingSet(item, tlist)
+				if err != nil {
+					return nil, err
+				}
+				gsq.Sets = append(gsq.Sets, sub)
+			}
+		}
+		return gsq, nil
+	case nodes.GROUPING_SET_EMPTY:
+		return &GroupingSetQ{Kind: GroupingSetSimple}, nil
+	default:
+		// GROUPING_SET_SIMPLE — plain column
+		gsq := &GroupingSetQ{Kind: GroupingSetSimple}
+		if gs.Content != nil {
+			for _, item := range gs.Content.Items {
+				tle, err := ac.findTargetlistEntry(item, tlist)
+				if err != nil {
+					return nil, err
+				}
+				ref := ac.assignSortGroupRef(tle, tlist)
+				gsq.Content = append(gsq.Content, &SortGroupClause{TLESortGroupRef: ref})
+			}
+		}
+		return gsq, nil
+	}
+}
+
+// flattenGroupingSetRefs adds all column refs from a GroupingSetQ to the
+// query's GroupClause for target list resolution.
+func (ac *analyzeCtx) flattenGroupingSetRefs(gs *GroupingSetQ, q *Query) {
+	for _, sgc := range gs.Content {
+		isDup := false
+		for _, existing := range q.GroupClause {
+			if existing.TLESortGroupRef == sgc.TLESortGroupRef {
+				isDup = true
+				break
+			}
+		}
+		if !isDup {
+			q.GroupClause = append(q.GroupClause, sgc)
+		}
+	}
+	for _, sub := range gs.Sets {
+		ac.flattenGroupingSetRefs(sub, q)
+	}
+}
+
+// transformGroupingFunc transforms a GROUPING(...) expression.
+//
+// pg: src/backend/parser/parse_expr.c — transformGroupingFunc
+func (ac *analyzeCtx) transformGroupingFunc(gf *nodes.GroupingFunc) (AnalyzedExpr, error) {
+	var args []AnalyzedExpr
+	var refs []int
+	if gf.Args != nil {
+		for _, a := range gf.Args.Items {
+			expr, err := ac.transformExpr(a)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, expr)
+		}
+	}
+	if gf.Refs != nil {
+		for _, r := range gf.Refs.Items {
+			if iv, ok := r.(*nodes.Integer); ok {
+				refs = append(refs, int(iv.Ival))
+			}
+		}
+	}
+	return &GroupingFuncExpr{
+		Args: args,
+		Refs: refs,
+	}, nil
+}
+
+// transformXmlExpr transforms a XmlExpr node into an analyzed XmlExprQ.
+//
+// pg: src/backend/parser/parse_expr.c — transformXmlExpr
+func (ac *analyzeCtx) transformXmlExpr(xe *nodes.XmlExpr) (AnalyzedExpr, error) {
+	result := &XmlExprQ{
+		Op:        int(xe.Op),
+		Name:      xe.Name,
+		Xmloption: int(xe.Xmloption),
+		TypeOID:   XMLOID,
+		TypeMod:   -1,
+	}
+
+	// IS DOCUMENT returns boolean.
+	if xe.Op == nodes.IS_XMLSERIALIZE {
+		if xe.Type != 0 {
+			result.TypeOID = uint32(xe.Type)
+		} else {
+			result.TypeOID = TEXTOID
+		}
+		result.TypeMod = xe.Typmod
+	}
+
+	// Named args (xml_attributes).
+	if xe.NamedArgs != nil {
+		for _, a := range xe.NamedArgs.Items {
+			expr, err := ac.transformExpr(a)
+			if err != nil {
+				return nil, err
+			}
+			result.NamedArgs = append(result.NamedArgs, expr)
+		}
+	}
+
+	// Arg names.
+	if xe.ArgNames != nil {
+		for _, a := range xe.ArgNames.Items {
+			if s, ok := a.(*nodes.String); ok {
+				result.ArgNames = append(result.ArgNames, s.Str)
+			}
+		}
+	}
+
+	// Args.
+	if xe.Args != nil {
+		for _, a := range xe.Args.Items {
+			expr, err := ac.transformExpr(a)
+			if err != nil {
+				return nil, err
+			}
+			result.Args = append(result.Args, expr)
+		}
+	}
+
+	return result, nil
+}
+
+// transformXmlSerialize transforms an XMLSERIALIZE expression into an XmlExprQ.
+//
+// pg: src/backend/parser/parse_expr.c — transformXmlSerialize
+func (ac *analyzeCtx) transformXmlSerialize(xs *nodes.XmlSerialize) (AnalyzedExpr, error) {
+	// Transform the inner expression.
+	arg, err := ac.transformExpr(xs.Expr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Resolve target type.
+	var typeOID uint32 = TEXTOID
+	var typMod int32 = -1
+	if xs.TypeName != nil {
+		typeOID, typMod, err = ac.catalog.resolveTypeName(xs.TypeName)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &XmlExprQ{
+		Op:        XmlOpSerialize,
+		Xmloption: int(xs.Xmloption),
+		Args:      []AnalyzedExpr{arg},
+		TypeOID:   typeOID,
+		TypeMod:   typMod,
+	}, nil
+}
+
+// transformRangeTableSampleItem processes a RangeTableSample FROM clause item.
+// It first transforms the relation, then attaches the tablesample clause.
+//
+// pg: src/backend/parser/parse_clause.c — transformRangeTableSample
+func (ac *analyzeCtx) transformRangeTableSampleItem(rts *nodes.RangeTableSample) (JoinNode, error) {
+	// Transform the inner relation.
+	jn, err := ac.transformFromClauseItem(rts.Relation)
+	if err != nil {
+		return nil, err
+	}
+	// The inner item should be a RangeTableRef.
+	rtRef, ok := jn.(*RangeTableRef)
+	if !ok {
+		return nil, fmt.Errorf("TABLESAMPLE on non-table item")
+	}
+	rte := ac.query.RangeTable[rtRef.RTIndex]
+	if err := ac.transformRangeTableSample(rts, rte); err != nil {
+		return nil, err
+	}
+	return jn, nil
+}
+
+// transformRangeTableSample processes a TABLESAMPLE clause and attaches it to the RTE.
+//
+// pg: src/backend/parser/parse_clause.c — transformRangeTableSample
+func (ac *analyzeCtx) transformRangeTableSample(rts *nodes.RangeTableSample, rte *RangeTableEntry) error {
+	ts := &TablesampleClauseQ{}
+
+	// Method name.
+	if rts.Method != nil {
+		for _, item := range rts.Method.Items {
+			if s, ok := item.(*nodes.String); ok {
+				ts.Method = s.Str
+			}
+		}
+	}
+
+	// Args.
+	if rts.Args != nil {
+		for _, a := range rts.Args.Items {
+			expr, err := ac.transformExpr(a)
+			if err != nil {
+				return err
+			}
+			ts.Args = append(ts.Args, expr)
+		}
+	}
+
+	// REPEATABLE.
+	if rts.Repeatable != nil {
+		expr, err := ac.transformExpr(rts.Repeatable)
+		if err != nil {
+			return err
+		}
+		ts.Repeatable = expr
+	}
+
+	rte.Tablesample = ts
+	return nil
 }
 
 // setOpKeyword returns the SQL keyword for a set operation.

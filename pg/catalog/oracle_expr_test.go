@@ -642,3 +642,59 @@ func TestOracleExprPhase1CoreTypes(t *testing.T) {
 		)
 	})
 }
+
+// ---------------------------------------------------------------------------
+// Phase 2 Ruleutils: GroupingFunc, GROUPING SETS, XmlExpr, TABLESAMPLE
+// ---------------------------------------------------------------------------
+
+func TestOracleExprPhase2Ruleutils(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping oracle test: requires Docker")
+	}
+	oracle := startPGOracle(t)
+
+	// GROUP BY ROLLUP
+	t.Run("group_by_rollup", func(t *testing.T) {
+		assertOracleRoundtrip(t, oracle,
+			`CREATE TABLE t (dept text, amount int);`,
+			`CREATE TABLE t (dept text, amount int);
+			 CREATE VIEW v AS SELECT dept, sum(amount) FROM t GROUP BY ROLLUP(dept);`,
+		)
+	})
+
+	// GROUP BY CUBE
+	t.Run("group_by_cube", func(t *testing.T) {
+		assertOracleRoundtrip(t, oracle,
+			`CREATE TABLE t (dept text, product text, amount int);`,
+			`CREATE TABLE t (dept text, product text, amount int);
+			 CREATE VIEW v AS SELECT dept, product, sum(amount) FROM t GROUP BY CUBE(dept, product);`,
+		)
+	})
+
+	// GROUPING function
+	t.Run("grouping_func", func(t *testing.T) {
+		assertOracleRoundtrip(t, oracle,
+			`CREATE TABLE t (dept text, amount int);`,
+			`CREATE TABLE t (dept text, amount int);
+			 CREATE VIEW v AS SELECT dept, GROUPING(dept), sum(amount) FROM t GROUP BY ROLLUP(dept);`,
+		)
+	})
+
+	// XMLELEMENT
+	t.Run("xmlelement", func(t *testing.T) {
+		assertOracleRoundtrip(t, oracle,
+			`CREATE TABLE t (name text);`,
+			`CREATE TABLE t (name text);
+			 CREATE VIEW v AS SELECT xmlelement(name "row", name) FROM t;`,
+		)
+	})
+
+	// TABLESAMPLE BERNOULLI
+	t.Run("tablesample_bernoulli", func(t *testing.T) {
+		assertOracleRoundtrip(t, oracle,
+			`CREATE TABLE t (id int);`,
+			`CREATE TABLE t (id int);
+			 CREATE VIEW v AS SELECT * FROM t TABLESAMPLE BERNOULLI(10);`,
+		)
+	})
+}
