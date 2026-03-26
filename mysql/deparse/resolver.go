@@ -177,6 +177,18 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *scope) {
 	case *ast.JoinClause:
 		r.addTableExprToScope(t.Left, sc)
 		r.addTableExprToScope(t.Right, sc)
+	case *ast.SubqueryExpr:
+		// Derived table: resolve the inner SELECT, then build a virtual table
+		// from its target list so outer queries can reference derived columns.
+		if t.Select != nil {
+			r.Resolve(t.Select)
+			vt := buildDerivedVirtualTable(t)
+			if vt != nil && t.Alias != "" {
+				key := strings.ToLower(t.Alias)
+				sc.tables[key] = vt
+				sc.order = append(sc.order, scopeEntry{name: t.Alias, table: vt})
+			}
+		}
 	}
 }
 
@@ -753,6 +765,30 @@ func cteColumnName(target ast.ExprNode, position int) string {
 		return col.Column
 	}
 	return fmt.Sprintf("Name_exp_%d", position)
+}
+
+// buildDerivedVirtualTable constructs a ResolverTable from a derived table's SELECT target list.
+// This allows the outer query to resolve column references to derived table columns.
+func buildDerivedVirtualTable(sub *ast.SubqueryExpr) *ResolverTable {
+	if sub.Select == nil || sub.Alias == "" {
+		return nil
+	}
+
+	sel := sub.Select
+	// For set operations, use the left side's target list
+	for sel.SetOp != ast.SetOpNone && sel.Left != nil {
+		sel = sel.Left
+	}
+
+	var cols []ResolverColumn
+	for i, target := range sel.TargetList {
+		name := cteColumnName(target, i+1)
+		cols = append(cols, ResolverColumn{Name: name, Position: i + 1})
+	}
+	if len(cols) == 0 {
+		return nil
+	}
+	return &ResolverTable{Name: sub.Alias, Columns: cols}
 }
 
 // AmbiguousColumnError is returned when a column reference matches multiple tables.

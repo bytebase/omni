@@ -178,12 +178,12 @@ Status legend: `[ ]` pending, `[x]` passing, `[~]` partial
 ### 4.2 Multi-Table & Derived Tables
 
 ```
-[ ] `SELECT t1.a, t2.b, t3.c FROM t1 JOIN t2 ON t1.a = t2.a JOIN t3 ON t2.b = t3.b` — 3-table JOIN
-[ ] `SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a = t2.a LEFT JOIN t3 ON t1.a = t3.a` — chained LEFT JOINs
-[ ] `SELECT d.x FROM (SELECT a AS x FROM t) d` — derived table
-[ ] `SELECT d.x FROM (SELECT a AS x FROM t WHERE a > 0) AS d WHERE d.x < 10` — derived with WHERE
-[ ] `SELECT x.a FROM t AS x` — table alias (no AS in output)
-[ ] `SELECT x.a FROM t x` — table alias without AS (same output)
+[x] `SELECT t1.a, t2.b, t3.c FROM t1 JOIN t2 ON t1.a = t2.a JOIN t3 ON t2.b = t3.b` — 3-table JOIN
+[x] `SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a = t2.a LEFT JOIN t3 ON t1.a = t3.a` — chained LEFT JOINs
+[x] `SELECT d.x FROM (SELECT a AS x FROM t) d` — derived table
+[x] `SELECT d.x FROM (SELECT a AS x FROM t WHERE a > 0) AS d WHERE d.x < 10` — derived with WHERE
+[x] `SELECT x.a FROM t AS x` — table alias (no AS in output)
+[x] `SELECT x.a FROM t x` — table alias without AS (same output)
 ```
 
 ## Phase 5: SELECT Clauses
