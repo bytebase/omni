@@ -146,17 +146,42 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		}
 	}
 	for _, cte := range stmt.CTEs {
-		// Resolve the CTE's SELECT (with any previously defined CTEs available)
-		cteResolver := &Resolver{
-			Lookup:         r.withCTELookup(localCTETables),
-			DefaultCharset: r.DefaultCharset,
-		}
-		cteResolver.resolveWithCTEs(cte.Select, localCTETables)
+		if cte.Recursive && cte.Select != nil && cte.Select.SetOp != ast.SetOpNone {
+			// Recursive CTE: resolve left (non-recursive) branch first to get column info,
+			// then add CTE to scope, then resolve right (recursive) branch.
+			sel := cte.Select
 
-		// Build a virtual table from the CTE's resolved target list
-		vt := buildCTEVirtualTable(cte)
-		if vt != nil {
-			localCTETables[strings.ToLower(cte.Name)] = vt
+			// Step 1: Resolve the non-recursive (left) branch
+			leftResolver := &Resolver{
+				Lookup:         r.withCTELookup(localCTETables),
+				DefaultCharset: r.DefaultCharset,
+			}
+			leftResolver.resolveWithCTEs(sel.Left, localCTETables)
+
+			// Step 2: Build virtual table from left branch's target list and add CTE to scope
+			vt := buildCTEVirtualTableFromSelect(cte.Name, cte.Columns, sel.Left)
+			if vt != nil {
+				localCTETables[strings.ToLower(cte.Name)] = vt
+			}
+
+			// Step 3: Resolve the recursive (right) branch — CTE is now in scope
+			rightResolver := &Resolver{
+				Lookup:         r.withCTELookup(localCTETables),
+				DefaultCharset: r.DefaultCharset,
+			}
+			rightResolver.resolveWithCTEs(sel.Right, localCTETables)
+		} else {
+			// Non-recursive CTE: resolve entire SELECT, then build virtual table
+			cteResolver := &Resolver{
+				Lookup:         r.withCTELookup(localCTETables),
+				DefaultCharset: r.DefaultCharset,
+			}
+			cteResolver.resolveWithCTEs(cte.Select, localCTETables)
+
+			vt := buildCTEVirtualTable(cte)
+			if vt != nil {
+				localCTETables[strings.ToLower(cte.Name)] = vt
+			}
 		}
 	}
 
@@ -792,6 +817,39 @@ func collectLeftmostCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
 		return cur.CTEs
 	}
 	return nil
+}
+
+// buildCTEVirtualTableFromSelect constructs a ResolverTable from a specific SELECT branch.
+// Used for recursive CTEs where we need to build the virtual table from the non-recursive
+// (left) branch before resolving the recursive (right) branch.
+func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *ast.SelectStmt) *ResolverTable {
+	if sel == nil {
+		return nil
+	}
+
+	// If the CTE has an explicit column list, use those names
+	if len(cteColumns) > 0 {
+		cols := make([]ResolverColumn, len(cteColumns))
+		for i, name := range cteColumns {
+			cols[i] = ResolverColumn{Name: name, Position: i + 1}
+		}
+		return &ResolverTable{Name: cteName, Columns: cols}
+	}
+
+	// Walk down to the leftmost leaf for set operations
+	for sel.SetOp != ast.SetOpNone && sel.Left != nil {
+		sel = sel.Left
+	}
+
+	var cols []ResolverColumn
+	for i, target := range sel.TargetList {
+		name := cteColumnName(target, i+1)
+		cols = append(cols, ResolverColumn{Name: name, Position: i + 1})
+	}
+	if len(cols) == 0 {
+		return nil
+	}
+	return &ResolverTable{Name: cteName, Columns: cols}
 }
 
 // buildCTEVirtualTable constructs a ResolverTable from a CTE's SELECT target list.

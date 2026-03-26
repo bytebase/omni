@@ -2160,7 +2160,7 @@ func TestDeparseOracle_Section_6_2_CTEPatterns(t *testing.T) {
 		{
 			"recursive_cte",
 			"WITH RECURSIVE cte AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM cte WHERE n < 10) SELECT * FROM cte",
-			true, // may hit parser limitations
+			false,
 		},
 		{
 			"multiple_ctes",
