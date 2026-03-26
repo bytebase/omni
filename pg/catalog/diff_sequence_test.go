@@ -230,3 +230,61 @@ func TestDiffSequence(t *testing.T) {
 		})
 	}
 }
+
+func TestDiffSequenceSerialAbsorption(t *testing.T) {
+	// FROM: independent sequence + table using nextval (how metadata DDL looks)
+	from, err := LoadSQL(`
+		CREATE SEQUENCE users_id_seq;
+		CREATE TABLE users (id integer NOT NULL DEFAULT nextval('users_id_seq'));
+		ALTER SEQUENCE users_id_seq OWNED BY users.id;
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// TO: SERIAL absorbs the sequence (how user SDL looks)
+	to, err := LoadSQL(`
+		CREATE TABLE users (id serial NOT NULL);
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	diff := Diff(from, to)
+
+	// The sequence should NOT appear as dropped — it was absorbed into SERIAL
+	for _, seq := range diff.Sequences {
+		if seq.Action == DiffDrop && seq.Name == "users_id_seq" {
+			t.Errorf("users_id_seq should not be reported as dropped (absorbed into SERIAL)")
+		}
+	}
+}
+
+func TestDiffSequenceSerialAbsorptionWithoutOwnedBy(t *testing.T) {
+	// FROM: independent sequence WITHOUT OWNED BY (metadata DDL might omit it)
+	from, err := LoadSQL(`
+		CREATE SEQUENCE users_id_seq;
+		CREATE TABLE users (id integer NOT NULL DEFAULT nextval('users_id_seq'));
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// TO: SERIAL absorbs the sequence
+	to, err := LoadSQL(`
+		CREATE TABLE users (id serial NOT NULL);
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	diff := Diff(from, to)
+
+	// Without OWNED BY, the from sequence has OwnerRelOID=0, but to has it owned.
+	// The sequence should NOT appear as dropped.
+	for _, seq := range diff.Sequences {
+		if seq.Action == DiffDrop && seq.Name == "users_id_seq" {
+			t.Errorf("users_id_seq should not be reported as dropped (absorbed into SERIAL)")
+		}
+	}
+}

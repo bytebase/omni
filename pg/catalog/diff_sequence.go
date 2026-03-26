@@ -38,6 +38,11 @@ func diffSequences(from, to *Catalog) []SequenceDiffEntry {
 	// Dropped: in from but not in to.
 	for key, fromSeq := range fromMap {
 		if _, ok := toMap[key]; !ok {
+			// Check if the sequence exists in `to` as an owned sequence
+			// (absorbed into SERIAL/IDENTITY). If so, it wasn't truly dropped.
+			if seqExistsAsOwned(to, key.schema, key.name) {
+				continue
+			}
 			result = append(result, SequenceDiffEntry{
 				Action:     DiffDrop,
 				SchemaName: key.schema,
@@ -51,6 +56,11 @@ func diffSequences(from, to *Catalog) []SequenceDiffEntry {
 	for key, toSeq := range toMap {
 		fromSeq, ok := fromMap[key]
 		if !ok {
+			// Check if the sequence exists in `from` as an owned sequence
+			// (was SERIAL/IDENTITY, now standalone). If so, it wasn't truly added.
+			if seqExistsAsOwned(from, key.schema, key.name) {
+				continue
+			}
 			result = append(result, SequenceDiffEntry{
 				Action:     DiffAdd,
 				SchemaName: key.schema,
@@ -81,6 +91,20 @@ func diffSequences(from, to *Catalog) []SequenceDiffEntry {
 	})
 
 	return result
+}
+
+// seqExistsAsOwned checks if a sequence with the given name exists in the
+// catalog as an owned sequence (OwnerRelOID != 0). This happens when a SERIAL
+// or IDENTITY column absorbs the sequence into the table definition.
+func seqExistsAsOwned(c *Catalog, schemaName, seqName string) bool {
+	s := c.GetSchema(schemaName)
+	if s == nil {
+		return false
+	}
+	if seq, ok := s.Sequences[seqName]; ok && seq.OwnerRelOID != 0 {
+		return true
+	}
+	return false
 }
 
 // sequencesChanged returns true if any compared property differs.
