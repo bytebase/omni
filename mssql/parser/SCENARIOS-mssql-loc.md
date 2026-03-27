@@ -40,7 +40,7 @@ Lexer and parser infrastructure changes that all subsequent phases depend on.
 - [x] Loc struct uses -1 for "unknown" (not 0)
 - [x] `NoLoc()` helper returns `Loc{Start: -1, End: -1}`
 - [x] Existing AST node Loc defaults updated (0 → -1 where "not set")
-- [~] Nodes that never get explicit Loc assignment use Go zero-value `Loc{}` which equals `NoLoc()` (-1, -1) — impossible: Go zero-value is `{0,0}`, not `{-1,-1}`; use explicit `NoLoc()` where needed
+- [x] Nodes that never get explicit Loc assignment — all Loc creation sites now use explicit Start/End values (never rely on Go zero-value), consistent with PG behavior
 - [x] All existing tests pass with new sentinel value
 
 ### 1.3 Parser Prev.End Infrastructure
