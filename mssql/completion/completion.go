@@ -90,43 +90,4 @@ func standardComplete(sql string, cursorOffset int, cat interface{}) []Candidate
 	return resolve(cs, cat, sql, cursorOffset)
 }
 
-// resolve converts parser CandidateSet into completion Candidates.
-func resolve(cs *parser.CandidateSet, cat interface{}, _ string, _ int) []Candidate {
-	if cs == nil {
-		return nil
-	}
-	var result []Candidate
-
-	// Token candidates -> keywords
-	for _, tok := range cs.Tokens {
-		name := parser.TokenName(tok)
-		if name == "" {
-			continue
-		}
-		result = append(result, Candidate{Text: name, Type: CandidateKeyword})
-	}
-
-	// Rule candidates -> catalog objects (future: resolve against cat)
-	_ = cat
-
-	return dedup(result)
-}
-
-// dedup removes duplicate candidates (same text+type, case-insensitive).
-func dedup(cs []Candidate) []Candidate {
-	type key struct {
-		text string
-		typ  CandidateType
-	}
-	seen := make(map[key]bool, len(cs))
-	result := make([]Candidate, 0, len(cs))
-	for _, c := range cs {
-		k := key{strings.ToLower(c.Text), c.Type}
-		if seen[k] {
-			continue
-		}
-		seen[k] = true
-		result = append(result, c)
-	}
-	return result
-}
+// resolve, resolveRule, dedup, and related helpers are in resolve.go.
