@@ -19,6 +19,13 @@ type Parser struct {
 	prev    Token  // previous token (for error reporting)
 	nextBuf Token  // buffered next token for 2-token lookahead
 	hasNext bool   // whether nextBuf is valid
+
+	// Completion mode fields.
+	completing bool          // true when running in completion mode
+	cursorOff  int           // byte offset of the cursor
+	candidates *CandidateSet // collected candidates
+	collecting bool          // true once cursor position has been reached
+	maxCollect int           // max candidates before stopping
 }
 
 // Parse parses a T-SQL string into an AST list.
@@ -2417,6 +2424,9 @@ func (p *Parser) advance() Token {
 		p.hasNext = false
 	} else {
 		p.cur = p.lexer.NextToken()
+	}
+	if p.completing {
+		p.checkCursor()
 	}
 	return p.prev
 }
