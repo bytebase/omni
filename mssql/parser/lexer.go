@@ -354,6 +354,7 @@ type Token struct {
 	Str  string // String value for identifiers, string literals, operators
 	Ival int64  // Integer value for tokICONST
 	Loc  int    // Byte offset in the source text
+	End  int    // Exclusive byte offset past token end
 }
 
 // Lexer implements a T-SQL lexer.
@@ -371,6 +372,13 @@ func NewLexer(input string) *Lexer {
 
 // NextToken returns the next token from the input.
 func (l *Lexer) NextToken() Token {
+	tok := l.nextTokenInner()
+	tok.End = l.pos
+	return tok
+}
+
+// nextTokenInner performs the actual lexing. NextToken wraps this to set tok.End.
+func (l *Lexer) nextTokenInner() Token {
 	l.skipWhitespace()
 	if l.pos >= len(l.input) {
 		return Token{Type: tokEOF, Loc: l.pos}
@@ -382,13 +390,13 @@ func (l *Lexer) NextToken() Token {
 	// Line comment: --
 	if ch == '-' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '-' {
 		l.skipLineComment()
-		return l.NextToken()
+		return l.nextTokenInner()
 	}
 
 	// Block comment: /* ... */
 	if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
 		l.skipBlockComment()
-		return l.NextToken()
+		return l.nextTokenInner()
 	}
 
 	// N'...' nvarchar string literal
