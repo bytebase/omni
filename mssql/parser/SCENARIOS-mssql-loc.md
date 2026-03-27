@@ -173,38 +173,38 @@ Migrate `.End = p.pos()` → `.End = p.prevEnd()` across DML and expression file
 
 ### 5.1 Statement & Position Types
 
-- [ ] `mssql/parse.go` exists with `Statement` struct (Text, AST, ByteStart, ByteEnd, Start, End)
-- [ ] `Position` struct with `Line int` (1-based) and `Column int` (1-based, byte offset)
-- [ ] `Statement.Text` contains the SQL text for one statement (including trailing semicolon)
-- [ ] `Statement.AST` contains the parsed AST node
-- [ ] `Statement.ByteStart` is inclusive start byte offset in original SQL
-- [ ] `Statement.ByteEnd` is exclusive end byte offset in original SQL
+- [x] `mssql/parse.go` exists with `Statement` struct (Text, AST, ByteStart, ByteEnd, Start, End)
+- [x] `Position` struct with `Line int` (1-based) and `Column int` (1-based, byte offset)
+- [x] `Statement.Text` contains the SQL text for one statement (including trailing semicolon)
+- [x] `Statement.AST` contains the parsed AST node
+- [x] `Statement.ByteStart` is inclusive start byte offset in original SQL
+- [x] `Statement.ByteEnd` is exclusive end byte offset in original SQL
 
 ### 5.2 Line Index Infrastructure
 
-- [ ] `buildLineIndex(sql)` returns slice of byte offsets where each line starts
-- [ ] Line index handles empty string (single entry: 0)
-- [ ] Line index handles no newlines (single entry: 0)
-- [ ] Line index handles multiple newlines (`\n` at various positions)
-- [ ] Line index handles trailing newline
-- [ ] `offsetToPosition(idx, offset)` returns correct Position via binary search
-- [ ] Offset 0 → `Position{Line: 1, Column: 1}`
-- [ ] Offset at start of line N → `Position{Line: N, Column: 1}`
-- [ ] Offset mid-line → correct column calculation
-- [ ] Offset past end of input → reasonable behavior (last line, past-end column)
+- [x] `buildLineIndex(sql)` returns slice of byte offsets where each line starts
+- [x] Line index handles empty string (single entry: 0)
+- [x] Line index handles no newlines (single entry: 0)
+- [x] Line index handles multiple newlines (`\n` at various positions)
+- [x] Line index handles trailing newline
+- [x] `offsetToPosition(idx, offset)` returns correct Position via binary search
+- [x] Offset 0 → `Position{Line: 1, Column: 1}`
+- [x] Offset at start of line N → `Position{Line: N, Column: 1}`
+- [x] Offset mid-line → correct column calculation
+- [x] Offset past end of input → reasonable behavior (last line, past-end column)
 
 ### 5.3 Parse() Function
 
-- [ ] `Parse(sql string) ([]Statement, error)` is the public entry point
-- [ ] Calls `parser.Parse()` internally
-- [ ] Builds line index once for entire SQL input
-- [ ] Each statement gets correct ByteStart/ByteEnd from AST Loc
-- [ ] Each statement gets correct Start/End Position (line:column)
-- [ ] Multi-statement SQL splits correctly (`SELECT 1; SELECT 2`)
-- [ ] Statement.Text includes trailing semicolon when present
-- [ ] Empty input returns empty slice, no error
-- [ ] Single statement without semicolon works
-- [ ] Error from parser is propagated correctly
+- [x] `Parse(sql string) ([]Statement, error)` is the public entry point
+- [x] Calls `parser.Parse()` internally
+- [x] Builds line index once for entire SQL input
+- [x] Each statement gets correct ByteStart/ByteEnd from AST Loc
+- [x] Each statement gets correct Start/End Position (line:column)
+- [x] Multi-statement SQL splits correctly (`SELECT 1; SELECT 2`)
+- [x] Statement.Text includes trailing semicolon when present
+- [x] Empty input returns empty slice, no error
+- [x] Single statement without semicolon works
+- [x] Error from parser is propagated correctly
 
 ---
 
@@ -212,58 +212,58 @@ Migrate `.End = p.pos()` → `.End = p.prevEnd()` across DML and expression file
 
 ### 6.1 DML Loc Verification
 
-- [ ] `SELECT col FROM t` — SelectStmt Loc spans full statement
-- [ ] `SELECT a, b FROM t WHERE x = 1 ORDER BY a` — SelectStmt Loc spans full statement
-- [ ] `INSERT INTO t (a) VALUES (1)` — InsertStmt Loc spans full statement
-- [ ] `UPDATE t SET a = 1 WHERE b = 2` — UpdateStmt Loc spans full statement
-- [ ] `DELETE FROM t WHERE a = 1` — DeleteStmt Loc spans full statement
-- [ ] `MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET a = s.a` — MergeStmt Loc spans full statement
-- [ ] `WITH cte AS (SELECT 1) SELECT * FROM cte` — top-level Loc spans full CTE+SELECT
-- [ ] `SELECT * FROM t1 JOIN t2 ON t1.id = t2.id` — JoinExpr Loc spans join clause
+- [x] `SELECT col FROM t` — SelectStmt Loc spans full statement
+- [x] `SELECT a, b FROM t WHERE x = 1 ORDER BY a` — SelectStmt Loc spans full statement
+- [x] `INSERT INTO t (a) VALUES (1)` — InsertStmt Loc spans full statement
+- [x] `UPDATE t SET a = 1 WHERE b = 2` — UpdateStmt Loc spans full statement
+- [x] `DELETE FROM t WHERE a = 1` — DeleteStmt Loc spans full statement
+- [x] `MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET a = s.a` — MergeStmt Loc spans full statement
+- [x] `WITH cte AS (SELECT 1) SELECT * FROM cte` — top-level Loc spans full CTE+SELECT
+- [~] `SELECT * FROM t1 JOIN t2 ON t1.id = t2.id` — JoinClause Loc.Start valid, Loc.End not yet accurate
 
 ### 6.2 DDL Loc Verification
 
-- [ ] `CREATE TABLE t (a INT, b VARCHAR(50))` — CreateTableStmt Loc spans full statement
-- [ ] `CREATE INDEX ix ON t (a)` — CreateIndexStmt Loc spans full statement
-- [ ] `CREATE VIEW v AS SELECT 1` — CreateViewStmt Loc spans full statement
-- [ ] `CREATE PROCEDURE p AS SELECT 1` — CreateProcedureStmt Loc spans full statement
-- [ ] `ALTER TABLE t ADD c INT` — AlterTableStmt Loc spans full statement
-- [ ] `DROP TABLE t` — DropStmt Loc spans full statement
-- [ ] `CREATE FUNCTION f() RETURNS INT AS BEGIN RETURN 1 END` — CreateFunctionStmt Loc spans full statement
-- [ ] `CREATE TRIGGER tr ON t FOR INSERT AS SELECT 1` — CreateTriggerStmt Loc spans full statement
-- [ ] `TRUNCATE TABLE t` — TruncateStmt Loc spans full statement
+- [x] `CREATE TABLE t (a INT, b VARCHAR(50))` — CreateTableStmt Loc spans full statement
+- [x] `CREATE INDEX ix ON t (a)` — CreateIndexStmt Loc spans full statement
+- [x] `CREATE VIEW v AS SELECT 1` — CreateViewStmt Loc spans full statement
+- [x] `CREATE PROCEDURE p AS SELECT 1` — CreateProcedureStmt Loc spans full statement
+- [x] `ALTER TABLE t ADD c INT` — AlterTableStmt Loc spans full statement
+- [x] `DROP TABLE t` — DropStmt Loc spans full statement
+- [x] `CREATE FUNCTION f() RETURNS INT AS BEGIN RETURN 1 END` — CreateFunctionStmt Loc spans full statement
+- [x] `CREATE TRIGGER tr ON t FOR INSERT AS SELECT 1` — CreateTriggerStmt Loc spans full statement
+- [x] `TRUNCATE TABLE t` — TruncateStmt Loc spans full statement
 
 ### 6.3 Expression & Sub-node Loc Verification
 
-- [ ] `SELECT CAST(1 AS INT)` — CastExpr Loc spans `CAST(1 AS INT)`
-- [ ] `SELECT CASE WHEN 1=1 THEN 'a' ELSE 'b' END` — CaseExpr Loc spans CASE..END
-- [ ] `SELECT a + b` — BinaryExpr Loc spans `a + b`
-- [ ] `SELECT -x` — UnaryExpr Loc spans `-x`
-- [ ] `SELECT COALESCE(a, b, c)` — FuncCall Loc spans full call
-- [ ] `SELECT * FROM t WHERE EXISTS (SELECT 1)` — ExistsExpr Loc spans `EXISTS (...)`
-- [ ] `SELECT CONVERT(INT, '1')` — ConvertExpr Loc spans `CONVERT(INT, '1')`
-- [ ] `SELECT TRY_CAST(1 AS VARCHAR)` — TryCastExpr Loc spans full expression
-- [ ] `SELECT TRY_CONVERT(INT, '1')` — TryConvertExpr Loc spans full expression
+- [~] `SELECT CAST(1 AS INT)` — CastExpr Loc.Start valid, Loc.End not yet accurate
+- [~] `SELECT CASE WHEN 1=1 THEN 'a' ELSE 'b' END` — CaseExpr Loc.Start valid, Loc.End not yet accurate
+- [~] `SELECT a + b` — BinaryExpr Loc.Start valid, Loc.End not yet accurate
+- [~] `SELECT -x` — UnaryExpr Loc.Start valid, Loc.End not yet accurate
+- [~] `SELECT COALESCE(a, b, c)` — CoalesceExpr Loc.Start valid, Loc.End not yet accurate
+- [~] `SELECT * FROM t WHERE EXISTS (SELECT 1)` — ExistsExpr Loc.Start valid, Loc.End not yet accurate
+- [~] `SELECT CONVERT(INT, '1')` — ConvertExpr Loc.Start valid, Loc.End not yet accurate
+- [~] `SELECT TRY_CAST(1 AS VARCHAR)` — TryCastExpr Loc.Start valid, Loc.End not yet accurate
+- [~] `SELECT TRY_CONVERT(INT, '1')` — TryConvertExpr Loc.Start valid, Loc.End not yet accurate
 
 ### 6.4 Multi-Statement & Edge Cases
 
-- [ ] `SELECT 1; SELECT 2` — each statement has non-overlapping Loc ranges
-- [ ] Multi-line SQL — Loc byte offsets account for newlines correctly
-- [ ] Statement with leading whitespace — Loc.Start points to first keyword, not whitespace
-- [ ] Statement with trailing semicolon — Loc.End points past the semicolon or past the last token (consistent choice)
-- [ ] Empty statement (bare semicolons `;;`) — handled without panic
-- [ ] Very long single-line SQL — positions remain accurate
-- [ ] Statement ending with block comment — `SELECT 1 /* comment */; SELECT 2` — Loc.End behavior is consistent
-- [ ] GO batch separator — Loc tracking works correctly across GO-separated batches
-- [ ] Error-path Loc — nodes parsed before a syntax error have valid Loc; incomplete nodes get NoLoc
+- [x] `SELECT 1; SELECT 2` — each statement has non-overlapping Loc ranges
+- [x] Multi-line SQL — Loc byte offsets account for newlines correctly
+- [x] Statement with leading whitespace — Loc.Start points to first keyword, not whitespace
+- [x] Statement with trailing semicolon — Loc.End points past the semicolon or past the last token (consistent choice)
+- [x] Empty statement (bare semicolons `;;`) — handled without panic
+- [x] Very long single-line SQL — positions remain accurate
+- [x] Statement ending with block comment — `SELECT 1 /* comment */; SELECT 2` — Loc.End behavior is consistent
+- [x] GO batch separator — Loc tracking works correctly across GO-separated batches
+- [x] Error-path Loc — nodes parsed before a syntax error have valid Loc; incomplete nodes get NoLoc
 
 ### 6.5 Public API Line:Column Tests
 
-- [ ] Single-line `SELECT 1` → Start = {1,1}, End past statement
-- [ ] Two-line `SELECT\n1` → correct line breaks
-- [ ] Multi-statement multi-line → each statement has correct Start/End positions
-- [ ] Tab characters count as 1 column (byte-based, not visual)
-- [ ] Unicode content — column is byte offset, not character count
-- [ ] `Parse("")` returns empty slice with no error
-- [ ] `Parse("SELECT 1")` returns one Statement with correct positions
-- [ ] `Parse("SELECT 1; SELECT 2; SELECT 3")` returns three Statements
+- [x] Single-line `SELECT 1` → Start = {1,1}, End past statement
+- [x] Two-line `SELECT\n1` → correct line breaks
+- [x] Multi-statement multi-line → each statement has correct Start/End positions
+- [x] Tab characters count as 1 column (byte-based, not visual)
+- [x] Unicode content — column is byte offset, not character count
+- [x] `Parse("")` returns empty slice with no error
+- [x] `Parse("SELECT 1")` returns one Statement with correct positions
+- [x] `Parse("SELECT 1; SELECT 2; SELECT 3")` returns three Statements
