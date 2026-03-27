@@ -49,7 +49,7 @@ func (p *Parser) parseIfStmt() (*nodes.IfStmt, error) {
 		stmt.Else = elseStmt
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -84,7 +84,7 @@ func (p *Parser) parseWhileStmt() (*nodes.WhileStmt, error) {
 	}
 	stmt.Body = body
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -129,7 +129,7 @@ func (p *Parser) parseBeginStmt() (nodes.StmtNode, error) {
 				return nil, err
 			}
 			stmt.Loc = nodes.Loc{Start: loc}
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prevEnd()
 			return stmt, nil
 		}
 		// Not a valid statement; fall through to BEGIN...END block parsing
@@ -176,7 +176,7 @@ parseBlock:
 
 	return &nodes.BeginEndStmt{
 		Stmts: &nodes.List{Items: stmts},
-		Loc:   nodes.Loc{Start: loc, End: p.pos()},
+		Loc:   nodes.Loc{Start: loc, End: p.prevEnd()},
 	}, nil
 }
 
@@ -248,7 +248,7 @@ func (p *Parser) parseTryCatchStmt() (*nodes.TryCatchStmt, error) {
 	p.match(kwEND)
 	p.match(kwCATCH)
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -271,7 +271,7 @@ func (p *Parser) parseReturnStmt() (*nodes.ReturnStmt, error) {
 		stmt.Value, _ = p.parseExpr()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -284,7 +284,7 @@ func (p *Parser) parseBreakStmt() (*nodes.BreakStmt, error) {
 	loc := p.pos()
 	p.advance() // consume BREAK
 	return &nodes.BreakStmt{
-		Loc: nodes.Loc{Start: loc, End: p.pos()},
+		Loc: nodes.Loc{Start: loc, End: p.prevEnd()},
 	}, nil
 }
 
@@ -297,7 +297,7 @@ func (p *Parser) parseContinueStmt() (*nodes.ContinueStmt, error) {
 	loc := p.pos()
 	p.advance() // consume CONTINUE
 	return &nodes.ContinueStmt{
-		Loc: nodes.Loc{Start: loc, End: p.pos()},
+		Loc: nodes.Loc{Start: loc, End: p.prevEnd()},
 	}, nil
 }
 
@@ -318,7 +318,7 @@ func (p *Parser) parseGotoStmt() (*nodes.GotoStmt, error) {
 
 	return &nodes.GotoStmt{
 		Label: label,
-		Loc:   nodes.Loc{Start: loc, End: p.pos()},
+		Loc:   nodes.Loc{Start: loc, End: p.prevEnd()},
 	}, nil
 }
 
@@ -367,6 +367,6 @@ func (p *Parser) parseWaitForStmt() (*nodes.WaitForStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }

@@ -171,7 +171,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -408,7 +408,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -517,7 +517,7 @@ func (p *Parser) parseCreateFulltextCatalogStmt() (*nodes.CreateFulltextCatalogS
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -578,7 +578,7 @@ func (p *Parser) parseCreateFulltextStoplistStmt() (*nodes.CreateFulltextStoplis
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -665,7 +665,7 @@ func (p *Parser) parseAlterFulltextStoplistStmt() (*nodes.AlterFulltextStoplistS
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -687,7 +687,7 @@ func (p *Parser) parseDropFulltextStoplistStmt() (*nodes.DropFulltextStoplistStm
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -740,7 +740,7 @@ func (p *Parser) parseCreateSearchPropertyListStmt() (*nodes.CreateSearchPropert
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -834,7 +834,7 @@ func (p *Parser) parseAlterSearchPropertyListStmt() (*nodes.AlterSearchPropertyL
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -856,7 +856,7 @@ func (p *Parser) parseDropSearchPropertyListStmt() (*nodes.DropSearchPropertyLis
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -911,6 +911,6 @@ func (p *Parser) parseAlterFulltextCatalogStmt() (*nodes.AlterFulltextCatalogStm
 		stmt.Action = action
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }

@@ -163,7 +163,7 @@ func (p *Parser) parseCreateIndexStmt(unique bool) (*nodes.CreateIndexStmt, erro
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -266,7 +266,7 @@ func (p *Parser) parseCreateXmlIndexStmt(primary bool) (*nodes.CreateXmlIndexStm
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -345,7 +345,7 @@ func (p *Parser) parseCreateSelectiveXmlIndexStmt() (*nodes.CreateSelectiveXmlIn
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -420,7 +420,7 @@ func (p *Parser) parseCreateSpatialIndexStmt() (*nodes.CreateSpatialIndexStmt, e
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -512,7 +512,7 @@ func (p *Parser) parseCreateAggregateStmt() (*nodes.CreateAggregateStmt, error) 
 		stmt.ExternalName = joinDots(parts)
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -539,7 +539,7 @@ func (p *Parser) parseDropAggregateStmt() (*nodes.DropAggregateStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -648,7 +648,7 @@ func (p *Parser) parseCreateJsonIndexStmt() (*nodes.CreateJsonIndexStmt, error) 
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -712,7 +712,7 @@ func (p *Parser) parseCreateVectorIndexStmt() (*nodes.CreateVectorIndexStmt, err
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 

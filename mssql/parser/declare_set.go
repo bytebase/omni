@@ -41,7 +41,7 @@ func (p *Parser) parseDeclareStmt() (*nodes.DeclareStmt, error) {
 	}
 	stmt.Variables = &nodes.List{Items: vars}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -86,7 +86,7 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 			_, _ = p.expect(')')
 			vd.TableDef = &nodes.List{Items: cols}
 		}
-		vd.Loc.End = p.pos()
+		vd.Loc.End = p.prevEnd()
 		return vd, nil
 	}
 
@@ -94,7 +94,7 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 	if p.cur.Type == kwCURSOR {
 		p.advance()
 		vd.IsCursor = true
-		vd.Loc.End = p.pos()
+		vd.Loc.End = p.prevEnd()
 		return vd, nil
 	}
 
@@ -114,7 +114,7 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 		vd.Default, _ = p.parseExpr()
 	}
 
-	vd.Loc.End = p.pos()
+	vd.Loc.End = p.prevEnd()
 	return vd, nil
 }
 
@@ -169,7 +169,7 @@ func (p *Parser) parseSetStmt() (nodes.StmtNode, error) {
 			}
 			stmt.Value = val
 		}
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
@@ -231,8 +231,8 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 			p.advance()
 			level = "SNAPSHOT"
 		}
-		stmt.Value = &nodes.ColumnRef{Column: level, Loc: nodes.Loc{Start: valLoc, End: p.pos()}}
-		stmt.Loc.End = p.pos()
+		stmt.Value = &nodes.ColumnRef{Column: level, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}}
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
@@ -262,7 +262,7 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 			}
 		}
 		stmt.Value = &nodes.ColumnRef{Column: tableName + " " + onoff, Loc: nodes.Loc{Start: valLoc}}
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
@@ -302,7 +302,7 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 			p.advance()
 			stmt.Value = &nodes.ColumnRef{Column: "OFF", Loc: nodes.Loc{Start: offLoc}}
 		}
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
@@ -333,6 +333,6 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }

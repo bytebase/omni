@@ -76,7 +76,7 @@ func (p *Parser) parseCreateEndpointStmt() (*nodes.SecurityStmt, error) {
 
 	stmt.Options = p.parseEndpointOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -109,7 +109,7 @@ func (p *Parser) parseAlterEndpointStmt() (*nodes.SecurityStmt, error) {
 
 	stmt.Options = p.parseEndpointOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -133,7 +133,7 @@ func (p *Parser) parseDropEndpointStmt() (*nodes.SecurityStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -153,7 +153,7 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 			optLoc := p.pos()
 			p.advance()
 			if p.isIdentLike() {
-				opts = append(opts, &nodes.EndpointOption{Name: "AUTHORIZATION", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.EndpointOption{Name: "AUTHORIZATION", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 
@@ -164,7 +164,7 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 				p.advance()
 			}
 			if p.isIdentLike() {
-				opts = append(opts, &nodes.EndpointOption{Name: "STATE", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.EndpointOption{Name: "STATE", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 
@@ -172,16 +172,16 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 			optLoc := p.pos()
 			p.advance()
 			if p.isIdentLike() && strings.EqualFold(p.cur.Str, "TCP") {
-				opts = append(opts, &nodes.EndpointOption{Name: "AS", Value: "TCP", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.EndpointOption{Name: "AS", Value: "TCP", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 				p.parseEndpointProtocolTCPOptions(&opts)
 			} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "HTTP") {
-				opts = append(opts, &nodes.EndpointOption{Name: "AS", Value: "HTTP", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.EndpointOption{Name: "AS", Value: "HTTP", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 				p.parseEndpointProtocolHTTPOptions(&opts)
 			} else if p.isIdentLike() {
 				// Unknown protocol - parse as generic key=value options
-				opts = append(opts, &nodes.EndpointOption{Name: "AS", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.EndpointOption{Name: "AS", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 				p.parseEndpointGenericProtocolOptions(&opts)
 			}
@@ -208,7 +208,7 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 					// TSQL or other single-word type
 					p.advance()
 				}
-				opts = append(opts, &nodes.EndpointOption{Name: "FOR", Value: payloadType, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.EndpointOption{Name: "FOR", Value: payloadType, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.parseEndpointPayloadOptions(payloadType, &opts)
 			}
 
@@ -227,11 +227,11 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 						} else if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 							val = p.cur.Str
 						}
-						opts = append(opts, &nodes.EndpointOption{Name: key, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+						opts = append(opts, &nodes.EndpointOption{Name: key, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 						p.advance()
 					}
 				} else {
-					opts = append(opts, &nodes.EndpointOption{Name: key, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+					opts = append(opts, &nodes.EndpointOption{Name: key, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				}
 			} else {
 				p.advance()
@@ -268,7 +268,7 @@ func (p *Parser) parseEndpointProtocolTCPOptions(opts *[]nodes.Node) {
 				p.advance()
 			}
 			if p.cur.Type == tokICONST || p.isIdentLike() {
-				*opts = append(*opts, &nodes.EndpointOption{Name: "LISTENER_PORT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				*opts = append(*opts, &nodes.EndpointOption{Name: "LISTENER_PORT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 		} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "LISTENER_IP") {
@@ -278,18 +278,18 @@ func (p *Parser) parseEndpointProtocolTCPOptions(opts *[]nodes.Node) {
 				p.advance()
 			}
 			if p.isIdentLike() && strings.EqualFold(p.cur.Str, "ALL") {
-				*opts = append(*opts, &nodes.EndpointOption{Name: "LISTENER_IP", Value: "ALL", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				*opts = append(*opts, &nodes.EndpointOption{Name: "LISTENER_IP", Value: "ALL", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			} else if p.cur.Type == '(' {
 				// ( ip_address ) or ( 'ipv6' )
 				p.advance()
 				if p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.isIdentLike() {
 					ip := p.parseEndpointIPAddress()
-					*opts = append(*opts, &nodes.EndpointOption{Name: "LISTENER_IP", Value: ip, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+					*opts = append(*opts, &nodes.EndpointOption{Name: "LISTENER_IP", Value: ip, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				}
 				p.match(')')
 			} else if p.isIdentLike() || p.cur.Type == tokSCONST {
-				*opts = append(*opts, &nodes.EndpointOption{Name: "LISTENER_IP", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				*opts = append(*opts, &nodes.EndpointOption{Name: "LISTENER_IP", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 		} else {
@@ -345,7 +345,7 @@ func (p *Parser) parseEndpointGenericProtocolOptions(opts *[]nodes.Node) {
 						}
 					}
 					p.match(')') // consume ')'
-					*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: strings.Join(vals, ","), Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+					*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: strings.Join(vals, ","), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				} else if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 					val := strings.ToUpper(p.cur.Str)
 					if p.cur.Type == tokSCONST {
@@ -353,11 +353,11 @@ func (p *Parser) parseEndpointGenericProtocolOptions(opts *[]nodes.Node) {
 					} else if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 						val = p.cur.Str
 					}
-					*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+					*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 					p.advance()
 				}
 			} else {
-				*opts = append(*opts, &nodes.EndpointOption{Name: key, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				*opts = append(*opts, &nodes.EndpointOption{Name: key, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			}
 		} else {
 			p.advance()
@@ -403,7 +403,7 @@ func (p *Parser) parseEndpointProtocolHTTPOptions(opts *[]nodes.Node) {
 		p.advance()
 
 		if p.cur.Type != '=' {
-			*opts = append(*opts, &nodes.EndpointOption{Name: key, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+			*opts = append(*opts, &nodes.EndpointOption{Name: key, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			continue
 		}
 		p.advance() // consume '='
@@ -427,21 +427,21 @@ func (p *Parser) parseEndpointProtocolHTTPOptions(opts *[]nodes.Node) {
 					}
 				}
 				p.match(')') // consume ')'
-				*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: strings.Join(vals, ","), Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: strings.Join(vals, ","), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			} else if p.isIdentLike() || p.cur.Type == tokSCONST {
-				*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 		default:
 			// Simple KEY = VALUE (string, number, or identifier)
 			if p.cur.Type == tokSCONST {
-				*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: "'" + p.cur.Str + "'", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: "'" + p.cur.Str + "'", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			} else if p.cur.Type == tokICONST {
-				*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			} else if p.isIdentLike() {
-				*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 		}
@@ -495,7 +495,7 @@ func (p *Parser) parseEndpointPayloadOptions(payloadType string, opts *[]nodes.N
 				p.advance()
 			}
 			authStr := p.parseEndpointAuthentication()
-			*opts = append(*opts, &nodes.EndpointOption{Name: "AUTHENTICATION", Value: authStr, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+			*opts = append(*opts, &nodes.EndpointOption{Name: "AUTHENTICATION", Value: authStr, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 
 		case p.isIdentLike() && strings.EqualFold(p.cur.Str, "ENCRYPTION"):
 			optLoc := p.pos()
@@ -504,7 +504,7 @@ func (p *Parser) parseEndpointPayloadOptions(payloadType string, opts *[]nodes.N
 				p.advance()
 			}
 			encStr := p.parseEndpointEncryption(payloadType)
-			*opts = append(*opts, &nodes.EndpointOption{Name: "ENCRYPTION", Value: encStr, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+			*opts = append(*opts, &nodes.EndpointOption{Name: "ENCRYPTION", Value: encStr, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 
 		case p.isIdentLike() && strings.EqualFold(p.cur.Str, "MESSAGE_FORWARDING"):
 			optLoc := p.pos()
@@ -513,7 +513,7 @@ func (p *Parser) parseEndpointPayloadOptions(payloadType string, opts *[]nodes.N
 				p.advance()
 			}
 			if p.isIdentLike() {
-				*opts = append(*opts, &nodes.EndpointOption{Name: "MESSAGE_FORWARDING", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				*opts = append(*opts, &nodes.EndpointOption{Name: "MESSAGE_FORWARDING", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 
@@ -524,7 +524,7 @@ func (p *Parser) parseEndpointPayloadOptions(payloadType string, opts *[]nodes.N
 				p.advance()
 			}
 			if p.cur.Type == tokICONST || p.isIdentLike() {
-				*opts = append(*opts, &nodes.EndpointOption{Name: "MESSAGE_FORWARD_SIZE", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				*opts = append(*opts, &nodes.EndpointOption{Name: "MESSAGE_FORWARD_SIZE", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 
@@ -536,7 +536,7 @@ func (p *Parser) parseEndpointPayloadOptions(payloadType string, opts *[]nodes.N
 			}
 			if p.isIdentLike() || p.cur.Type == kwALL {
 				val := strings.ToUpper(p.cur.Str)
-				*opts = append(*opts, &nodes.EndpointOption{Name: "ROLE", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				*opts = append(*opts, &nodes.EndpointOption{Name: "ROLE", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 
@@ -555,11 +555,11 @@ func (p *Parser) parseEndpointPayloadOptions(payloadType string, opts *[]nodes.N
 						} else if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 							val = p.cur.Str
 						}
-						*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+						*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 						p.advance()
 					}
 				} else {
-					*opts = append(*opts, &nodes.EndpointOption{Name: key, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+					*opts = append(*opts, &nodes.EndpointOption{Name: key, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				}
 			} else {
 				p.advance()

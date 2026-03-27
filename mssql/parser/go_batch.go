@@ -23,6 +23,6 @@ func (p *Parser) parseGoStmt() (*nodes.GoStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }

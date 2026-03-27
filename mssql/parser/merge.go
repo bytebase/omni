@@ -138,7 +138,7 @@ func (p *Parser) parseMergeStmt() (*nodes.MergeStmt, error) {
 		stmt.OptionClause = oc
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -219,7 +219,7 @@ func (p *Parser) parseMergeWhenClause() (*nodes.MergeWhenClause, error) {
 		wc.Action = action
 	}
 
-	wc.Loc.End = p.pos()
+	wc.Loc.End = p.prevEnd()
 	return wc, nil
 }
 
@@ -274,6 +274,6 @@ func (p *Parser) parseMergeInsertAction() (*nodes.MergeInsertAction, error) {
 		}
 	}
 
-	action.Loc.End = p.pos()
+	action.Loc.End = p.prevEnd()
 	return action, nil
 }

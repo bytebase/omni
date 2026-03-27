@@ -63,7 +63,7 @@ func (p *Parser) parseCreateServerAuditStmt() (*nodes.SecurityStmt, error) {
 	// Consume rest of statement (TO, WITH, WHERE clauses)
 	stmt.Options, stmt.WhereClause = p.parseAuditOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -106,7 +106,7 @@ func (p *Parser) parseAlterServerAuditStmt() (*nodes.SecurityStmt, error) {
 
 	stmt.Options, stmt.WhereClause = p.parseAuditOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -130,7 +130,7 @@ func (p *Parser) parseDropServerAuditStmt() (*nodes.SecurityStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -159,7 +159,7 @@ func (p *Parser) parseCreateServerAuditSpecStmt() (*nodes.SecurityStmt, error) {
 
 	stmt.Options = p.parseAuditSpecOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -188,7 +188,7 @@ func (p *Parser) parseAlterServerAuditSpecStmt() (*nodes.SecurityStmt, error) {
 
 	stmt.Options = p.parseAuditSpecOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -209,7 +209,7 @@ func (p *Parser) parseDropServerAuditSpecStmt() (*nodes.SecurityStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -242,7 +242,7 @@ func (p *Parser) parseCreateDatabaseAuditSpecStmt() (*nodes.SecurityStmt, error)
 
 	stmt.Options = p.parseAuditSpecOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -268,7 +268,7 @@ func (p *Parser) parseAlterDatabaseAuditSpecStmt() (*nodes.SecurityStmt, error) 
 
 	stmt.Options = p.parseAuditSpecOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -289,7 +289,7 @@ func (p *Parser) parseDropDatabaseAuditSpecStmt() (*nodes.SecurityStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -551,7 +551,7 @@ func (p *Parser) parseAuditSpecAction() *nodes.AuditSpecAction {
 	}
 
 	if p.cur.Type != '(' {
-		node.Loc.End = p.pos()
+		node.Loc.End = p.prevEnd()
 		return node
 	}
 	p.advance()
@@ -640,6 +640,6 @@ func (p *Parser) parseAuditSpecAction() *nodes.AuditSpecAction {
 	}
 
 	p.match(')')
-	node.Loc.End = p.pos()
+	node.Loc.End = p.prevEnd()
 	return node
 }

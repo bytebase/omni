@@ -40,7 +40,7 @@ func (p *Parser) parseCreateExternalDataSourceStmt() (*nodes.SecurityStmt, error
 	// WITH ( options )
 	stmt.Options = p.parseExternalWithOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -78,7 +78,7 @@ func (p *Parser) parseAlterExternalDataSourceStmt() (*nodes.SecurityStmt, error)
 
 	stmt.Options = p.parseExternalSetOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -163,7 +163,7 @@ func (p *Parser) parseDropExternalStmt() (*nodes.SecurityStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -250,7 +250,7 @@ func (p *Parser) parseCreateExternalTableStmt() (*nodes.SecurityStmt, error) {
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -336,7 +336,7 @@ func (p *Parser) parseCreateExternalFileFormatStmt() (*nodes.SecurityStmt, error
 	// WITH ( options )
 	stmt.Options = p.parseExternalWithOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -404,7 +404,7 @@ func (p *Parser) parseCreateExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 	if len(allOpts) > 0 {
 		stmt.Options = &nodes.List{Items: allOpts}
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -468,7 +468,7 @@ func (p *Parser) parseAlterExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 	if len(allOpts) > 0 {
 		stmt.Options = &nodes.List{Items: allOpts}
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -535,7 +535,7 @@ func (p *Parser) parseCreateExternalLanguageStmt() (*nodes.SecurityStmt, error) 
 	if len(fileSpecOpts) > 0 {
 		stmt.Options = &nodes.List{Items: fileSpecOpts}
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -605,7 +605,7 @@ func (p *Parser) parseAlterExternalLanguageStmt() (*nodes.SecurityStmt, error) {
 	if len(fileSpecOpts) > 0 {
 		stmt.Options = &nodes.List{Items: fileSpecOpts}
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -638,7 +638,7 @@ func (p *Parser) parseDropExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -662,7 +662,7 @@ func (p *Parser) parseDropExternalLanguageStmt() (*nodes.SecurityStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -689,7 +689,7 @@ func (p *Parser) parseExternalSetOptions() *nodes.List {
 			opts = append(opts, &nodes.ExternalOption{
 				Key:   key,
 				Value: val,
-				Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+				Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 			})
 		} else {
 			break
@@ -850,7 +850,7 @@ func (p *Parser) parseCreateExternalModelStmt() (*nodes.SecurityStmt, error) {
 	// WITH ( options )
 	stmt.Options = p.parseExternalWithOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -917,7 +917,7 @@ func (p *Parser) parseAlterExternalModelStmt() (*nodes.SecurityStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -942,7 +942,7 @@ func (p *Parser) parseDropExternalModelStmt() (*nodes.SecurityStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -977,7 +977,7 @@ func (p *Parser) parseCreateExternalStreamStmt() (*nodes.SecurityStmt, error) {
 	// WITH ( options )
 	stmt.Options = p.parseExternalWithOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1014,7 +1014,7 @@ func (p *Parser) parseCreateExternalStreamingJobStmt() (*nodes.SecurityStmt, err
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 

@@ -151,7 +151,7 @@ func (p *Parser) parseBackupStmt() (*nodes.BackupStmt, error) {
 		stmt.Options, _ = p.parseBackupRestoreOptions()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -300,7 +300,7 @@ func (p *Parser) parseRestoreStmt() (*nodes.RestoreStmt, error) {
 		stmt.Options, _ = p.parseBackupRestoreOptions()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -633,7 +633,7 @@ func (p *Parser) parseOneBackupRestoreOption() (*nodes.BackupRestoreOption, erro
 				p.advance()
 			}
 		}
-		opt.Loc.End = p.pos()
+		opt.Loc.End = p.prevEnd()
 		return opt, nil
 	}
 
@@ -642,7 +642,7 @@ func (p *Parser) parseOneBackupRestoreOption() (*nodes.BackupRestoreOption, erro
 		p.advance()
 		return &nodes.BackupRestoreOption{
 			Name: name,
-			Loc:  nodes.Loc{Start: optLoc, End: p.pos()},
+			Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
 		}, nil
 	}
 
@@ -673,7 +673,7 @@ func (p *Parser) parseOneBackupRestoreOption() (*nodes.BackupRestoreOption, erro
 				}
 			}
 		}
-		opt.Loc.End = p.pos()
+		opt.Loc.End = p.prevEnd()
 		return opt, nil
 	}
 
@@ -694,7 +694,7 @@ func (p *Parser) parseOneBackupRestoreOption() (*nodes.BackupRestoreOption, erro
 			p.advance()
 		}
 	}
-	opt.Loc.End = p.pos()
+	opt.Loc.End = p.prevEnd()
 	return opt, nil
 }
 
@@ -712,7 +712,7 @@ func (p *Parser) parseBackupEncryptionOption() (*nodes.BackupRestoreOption, erro
 	}
 
 	if p.cur.Type != '(' {
-		opt.Loc.End = p.pos()
+		opt.Loc.End = p.prevEnd()
 		return opt, nil
 	}
 	p.advance() // consume (
@@ -764,7 +764,7 @@ func (p *Parser) parseBackupEncryptionOption() (*nodes.BackupRestoreOption, erro
 		p.advance()
 	}
 
-	opt.Loc.End = p.pos()
+	opt.Loc.End = p.prevEnd()
 	return opt, nil
 }
 
@@ -795,7 +795,7 @@ func (p *Parser) parseRestoreMoveOption() (*nodes.BackupRestoreOption, error) {
 		p.advance()
 	}
 
-	opt.Loc.End = p.pos()
+	opt.Loc.End = p.prevEnd()
 	return opt, nil
 }
 
@@ -810,7 +810,7 @@ func (p *Parser) parseRestoreFilestreamOption() (*nodes.BackupRestoreOption, err
 	}
 
 	if p.cur.Type != '(' {
-		opt.Loc.End = p.pos()
+		opt.Loc.End = p.prevEnd()
 		return opt, nil
 	}
 	p.advance() // consume (
@@ -833,6 +833,6 @@ func (p *Parser) parseRestoreFilestreamOption() (*nodes.BackupRestoreOption, err
 		p.advance()
 	}
 
-	opt.Loc.End = p.pos()
+	opt.Loc.End = p.prevEnd()
 	return opt, nil
 }

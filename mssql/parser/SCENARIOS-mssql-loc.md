@@ -45,10 +45,10 @@ Lexer and parser infrastructure changes that all subsequent phases depend on.
 
 ### 1.3 Parser Prev.End Infrastructure
 
-- [ ] Parser `advance()` preserves full Token (including End) in `p.prev`
-- [ ] New `p.prevEnd()` helper returns `p.prev.End`
-- [ ] `p.pos()` still returns `p.cur.Loc` (start of current token, unchanged)
-- [ ] Build passes with infrastructure in place
+- [x] Parser `advance()` preserves full Token (including End) in `p.prev`
+- [x] New `p.prevEnd()` helper returns `p.prev.End`
+- [x] `p.pos()` still returns `p.cur.Loc` (start of current token, unchanged)
+- [x] Build passes with infrastructure in place
 
 ---
 
@@ -58,32 +58,32 @@ Migrate `.End = p.pos()` → `.End = p.prevEnd()` across DML and expression file
 
 ### 2.1 Core Expressions
 
-- [ ] expr.go — 7 sites migrated to `p.prevEnd()`
-- [ ] name.go — 3 sites migrated
-- [ ] type.go — 1 site migrated
-- [ ] rowset_functions.go — Loc.End sites migrated (if any `.End = p.pos()` exist)
-- [ ] Build passes after 2.1
+- [x] expr.go — 7 sites migrated to `p.prevEnd()`
+- [x] name.go — 3 sites migrated
+- [x] type.go — 1 site migrated
+- [x] rowset_functions.go — Loc.End sites migrated (if any `.End = p.pos()` exist)
+- [x] Build passes after 2.1
 
 ### 2.2 SELECT & Related
 
-- [ ] select.go — 25 sites migrated to `p.prevEnd()`
-- [ ] cursor.go — 9 sites migrated
-- [ ] Build passes after 2.2
+- [x] select.go — 25 sites migrated to `p.prevEnd()`
+- [x] cursor.go — 9 sites migrated
+- [x] Build passes after 2.2
 
 ### 2.3 DML: INSERT, UPDATE, DELETE, MERGE
 
-- [ ] insert.go — 3 sites migrated
-- [ ] update_delete.go — 4 sites migrated
-- [ ] merge.go — 3 sites migrated
-- [ ] Build passes after 2.3
+- [x] insert.go — 3 sites migrated
+- [x] update_delete.go — 4 sites migrated
+- [x] merge.go — 3 sites migrated
+- [x] Build passes after 2.3
 
 ### 2.4 Control Flow & Declarations
 
-- [ ] control_flow.go — 6 sites migrated
-- [ ] declare_set.go — 9 sites migrated
-- [ ] execute.go — 5 sites migrated
-- [ ] transaction.go — 5 sites migrated
-- [ ] Build passes after 2.4
+- [x] control_flow.go — 6 sites migrated
+- [x] declare_set.go — 9 sites migrated
+- [x] execute.go — 5 sites migrated
+- [x] transaction.go — 5 sites migrated
+- [x] Build passes after 2.4
 
 ---
 
@@ -91,44 +91,44 @@ Migrate `.End = p.pos()` → `.End = p.prevEnd()` across DML and expression file
 
 ### 3.1 CREATE: Tables, Indexes, Views
 
-- [ ] create_table.go — 21 sites migrated to `p.prevEnd()`
-- [ ] create_index.go — 8 sites migrated
-- [ ] create_view.go — 3 sites migrated
-- [ ] Build passes after 3.1
+- [x] create_table.go — 21 sites migrated to `p.prevEnd()`
+- [x] create_index.go — 8 sites migrated
+- [x] create_view.go — 3 sites migrated
+- [x] Build passes after 3.1
 
 ### 3.2 CREATE: Procs, Triggers, Types, Sequences
 
-- [ ] create_proc.go — 5 sites migrated
-- [ ] create_trigger.go — 2 sites migrated
-- [ ] create_type.go — 3 sites migrated
-- [ ] create_sequence.go — 2 sites migrated
-- [ ] create_statistics.go — 3 sites migrated
-- [ ] create_synonym.go — 1 site migrated
-- [ ] Build passes after 3.2
+- [x] create_proc.go — 5 sites migrated
+- [x] create_trigger.go — 2 sites migrated
+- [x] create_type.go — 3 sites migrated
+- [x] create_sequence.go — 2 sites migrated
+- [x] create_statistics.go — 3 sites migrated
+- [x] create_synonym.go — 1 site migrated
+- [x] Build passes after 3.2
 
 ### 3.3 CREATE: Database, Schema, Other
 
-- [ ] create_database.go — 7 sites migrated
-- [ ] create_schema.go — 2 sites migrated
-- [ ] assembly.go — 2 sites migrated
-- [ ] partition.go — 4 sites migrated
-- [ ] xml_schema.go — 2 sites migrated
-- [ ] Build passes after 3.3
+- [x] create_database.go — 7 sites migrated
+- [x] create_schema.go — 2 sites migrated
+- [x] assembly.go — 2 sites migrated
+- [x] partition.go — 4 sites migrated
+- [x] xml_schema.go — 2 sites migrated
+- [x] Build passes after 3.3
 
 ### 3.4 ALTER
 
-- [ ] alter_table.go — 20 sites migrated
-- [ ] alter_objects.go — 2 sites migrated
-- [ ] Build passes after 3.4
+- [x] alter_table.go — 20 sites migrated
+- [x] alter_objects.go — 2 sites migrated
+- [x] Build passes after 3.4
 
 ### 3.5 DROP & Utility
 
-- [ ] drop.go — 1 site migrated
-- [ ] utility.go — 36 sites migrated
-- [ ] dbcc.go — 1 site migrated
-- [ ] bulk_insert.go — 1 site migrated
-- [ ] go_batch.go — 1 site migrated
-- [ ] Build passes after 3.5
+- [x] drop.go — 1 site migrated
+- [x] utility.go — 36 sites migrated
+- [x] dbcc.go — 1 site migrated
+- [x] bulk_insert.go — 1 site migrated
+- [x] go_batch.go — 1 site migrated
+- [x] Build passes after 3.5
 
 ---
 
@@ -136,36 +136,36 @@ Migrate `.End = p.pos()` → `.End = p.prevEnd()` across DML and expression file
 
 ### 4.1 Security
 
-- [ ] grant.go — 3 sites migrated
-- [ ] security_principals.go — 11 sites migrated
-- [ ] security_misc.go — 9 sites migrated
-- [ ] security_keys.go — 13 sites migrated
-- [ ] security_audit.go — 11 sites migrated
-- [ ] Build passes after 4.1
+- [x] grant.go — 3 sites migrated
+- [x] security_principals.go — 11 sites migrated
+- [x] security_misc.go — 9 sites migrated
+- [x] security_keys.go — 13 sites migrated
+- [x] security_audit.go — 11 sites migrated
+- [x] Build passes after 4.1
 
 ### 4.2 Server & Admin
 
-- [ ] server.go — 7 sites migrated
-- [ ] backup_restore.go — 10 sites migrated
-- [ ] service_broker.go — 23 sites migrated
-- [ ] resource_governor.go — 13 sites migrated
-- [ ] Build passes after 4.2
+- [x] server.go — 7 sites migrated
+- [x] backup_restore.go — 10 sites migrated
+- [x] service_broker.go — 23 sites migrated
+- [x] resource_governor.go — 13 sites migrated
+- [x] Build passes after 4.2
 
 ### 4.3 Network & External
 
-- [ ] endpoint.go — 3 sites migrated
-- [ ] availability.go — 3 sites migrated
-- [ ] external.go — 16 sites migrated
-- [ ] event.go — 6 sites migrated
-- [ ] fulltext.go — 10 sites migrated
-- [ ] Build passes after 4.3
+- [x] endpoint.go — 3 sites migrated
+- [x] availability.go — 3 sites migrated
+- [x] external.go — 16 sites migrated
+- [x] event.go — 6 sites migrated
+- [x] fulltext.go — 10 sites migrated
+- [x] Build passes after 4.3
 
 ### 4.4 Top-Level Dispatch
 
-- [ ] parser.go — 3 sites migrated (top-level parse loop Loc.End)
-- [ ] All 348 `.End = p.pos()` sites across 48 files now use `p.prevEnd()`
-- [ ] Full test suite passes
-- [ ] Build passes after 4.4
+- [x] parser.go — 3 sites migrated (top-level parse loop Loc.End)
+- [x] All 348 `.End = p.pos()` sites across 48 files now use `p.prevEnd()`
+- [x] Full test suite passes
+- [x] Build passes after 4.4
 
 ---
 

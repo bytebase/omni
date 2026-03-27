@@ -200,7 +200,7 @@ func (p *Parser) parseSecurityKeyStmt(action string) (*nodes.SecurityKeyStmt, er
 		name, _ := p.parseIdentifier()
 		stmt.Name = name
 	default:
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
@@ -214,7 +214,7 @@ func (p *Parser) parseSecurityKeyStmt(action string) (*nodes.SecurityKeyStmt, er
 		p.parseSecurityKeyOptions(stmt)
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -425,7 +425,7 @@ func (p *Parser) parseSecurityKeyStmtColumn(action string) (*nodes.SecurityKeySt
 		p.match(kwKEY)
 		stmt.ObjectType = "COLUMN MASTER KEY"
 	} else {
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
@@ -464,7 +464,7 @@ func (p *Parser) parseSecurityKeyStmtColumn(action string) (*nodes.SecurityKeySt
 		p.parseSecurityKeyOptions(stmt)
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -521,14 +521,14 @@ func (p *Parser) parseSecurityKeyStmtDatabaseEncryption(action string) (*nodes.S
 		name, _ := p.parseIdentifier()
 		stmt.Name = name
 	} else {
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
 	// Consume remaining tokens as options
 	p.parseSecurityKeyOptions(stmt)
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -560,7 +560,7 @@ func (p *Parser) parseOpenSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) {
 
 	p.parseSecurityKeyOptions(stmt)
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -589,7 +589,7 @@ func (p *Parser) parseCloseSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) {
 		stmt.Name = name
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -639,7 +639,7 @@ func (p *Parser) parseBackupCertificateStmt() (*nodes.SecurityKeyStmt, error) {
 
 	p.parseSecurityKeyOptions(stmt)
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -659,7 +659,7 @@ func (p *Parser) parseOpenMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	}
 
 	p.parseSecurityKeyOptions(stmt)
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -678,7 +678,7 @@ func (p *Parser) parseCloseMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 		p.match(kwKEY)
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -705,7 +705,7 @@ func (p *Parser) parseRestoreMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	}
 
 	p.parseSecurityKeyOptions(stmt)
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -739,7 +739,7 @@ func (p *Parser) parseRestoreSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) 
 	stmt.Name = name
 
 	p.parseSecurityKeyOptions(stmt)
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 

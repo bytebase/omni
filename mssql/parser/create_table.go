@@ -67,7 +67,7 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 
 	// Column and constraint definitions
 	if _, err := p.expect('('); err != nil {
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
@@ -207,7 +207,7 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -276,7 +276,7 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 
 	// Expect '='
 	if p.cur.Type != '=' {
-		opt.Loc.End = p.pos()
+		opt.Loc.End = p.prevEnd()
 		return opt, nil
 	}
 	p.advance()
@@ -359,7 +359,7 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 		}
 	}
 
-	opt.Loc.End = p.pos()
+	opt.Loc.End = p.prevEnd()
 	return opt, nil
 }
 
@@ -454,7 +454,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 				col.Constraints.Items = append(col.Constraints.Items, constraint)
 			}
 		}
-		col.Loc.End = p.pos()
+		col.Loc.End = p.prevEnd()
 		return col, nil
 	}
 
@@ -476,7 +476,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 			p.advance()
 		}
 		col.IsColumnSet = true
-		col.Loc.End = p.pos()
+		col.Loc.End = p.prevEnd()
 		return col, nil
 	}
 
@@ -686,7 +686,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		}
 	}
 
-	col.Loc.End = p.pos()
+	col.Loc.End = p.prevEnd()
 	return col, nil
 }
 
@@ -706,13 +706,13 @@ func (p *Parser) parseEncryptedWith() (*nodes.EncryptedWithSpec, error) {
 	}
 
 	if p.cur.Type != kwWITH {
-		spec.Loc.End = p.pos()
+		spec.Loc.End = p.prevEnd()
 		return spec, nil
 	}
 	p.advance() // WITH
 
 	if p.cur.Type != '(' {
-		spec.Loc.End = p.pos()
+		spec.Loc.End = p.prevEnd()
 		return spec, nil
 	}
 	p.advance()
@@ -754,7 +754,7 @@ func (p *Parser) parseEncryptedWith() (*nodes.EncryptedWithSpec, error) {
 		return nil, err
 	}
 
-	spec.Loc.End = p.pos()
+	spec.Loc.End = p.prevEnd()
 	return spec, nil
 }
 
@@ -800,7 +800,7 @@ func (p *Parser) parseGeneratedAlways() (*nodes.GeneratedAlwaysSpec, error) {
 		p.advance()
 	}
 
-	spec.Loc.End = p.pos()
+	spec.Loc.End = p.prevEnd()
 	return spec, nil
 }
 
@@ -830,7 +830,7 @@ func (p *Parser) parseIdentitySpec() (*nodes.IdentitySpec, error) {
 		_, _ = p.expect(')')
 	}
 
-	spec.Loc.End = p.pos()
+	spec.Loc.End = p.prevEnd()
 	return spec, nil
 }
 
@@ -952,7 +952,7 @@ func (p *Parser) parseInlineConstraint(name string) (*nodes.ConstraintDef, error
 		return nil, nil
 	}
 
-	cd.Loc.End = p.pos()
+	cd.Loc.End = p.prevEnd()
 	return cd, nil
 }
 
@@ -1141,7 +1141,7 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 		}
 	}
 
-	cd.Loc.End = p.pos()
+	cd.Loc.End = p.prevEnd()
 	return cd, nil
 }
 
@@ -1172,7 +1172,7 @@ func (p *Parser) parseEdgeConstraintConnections() (*nodes.List, error) {
 		conn := &nodes.EdgeConnectionDef{
 			FromTable: fromTable,
 			ToTable:   toTable,
-			Loc:       nodes.Loc{Start: loc, End: p.pos()},
+			Loc:       nodes.Loc{Start: loc, End: p.prevEnd()},
 		}
 		conns = append(conns, conn)
 		if _, ok := p.match(','); !ok {
@@ -1385,7 +1385,7 @@ trailingOptions:
 		}
 	}
 
-	idx.Loc.End = p.pos()
+	idx.Loc.End = p.prevEnd()
 	return idx, nil
 }
 
@@ -1518,7 +1518,7 @@ func (p *Parser) parseCreateTableAsSelectStmt() (*nodes.CreateTableAsSelectStmt,
 	// Optional OPTION ( query_hint )
 	// This is already handled inside parseSelectStmt via parseOptionClause
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1591,7 +1591,7 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 					opt.Value = "ORDER(" + strings.Join(cols, ", ") + ")"
 				}
 			}
-			opt.Loc.End = p.pos()
+			opt.Loc.End = p.prevEnd()
 			return opt, nil
 		}
 		// CLUSTERED INDEX ( col [ASC|DESC], ... )
@@ -1626,7 +1626,7 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 				p.expect(')')
 				opt.Value = strings.Join(parts, ", ")
 			}
-			opt.Loc.End = p.pos()
+			opt.Loc.End = p.prevEnd()
 			return opt, nil
 		}
 	}
@@ -1638,7 +1638,7 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 			Name: "HEAP",
 			Loc:  nodes.Loc{Start: loc},
 		}
-		opt.Loc.End = p.pos()
+		opt.Loc.End = p.prevEnd()
 		return opt, nil
 	}
 
@@ -1705,7 +1705,7 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 			}
 			p.expect(')')
 		}
-		opt.Loc.End = p.pos()
+		opt.Loc.End = p.prevEnd()
 		return opt, nil
 	}
 
@@ -1741,7 +1741,7 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 				opt.Value = distType
 			}
 		}
-		opt.Loc.End = p.pos()
+		opt.Loc.End = p.prevEnd()
 		return opt, nil
 	}
 

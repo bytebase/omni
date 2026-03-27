@@ -85,7 +85,7 @@ func (p *Parser) parseBulkInsertStmt() (*nodes.BulkInsertStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 

@@ -67,6 +67,6 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		}
 	}
 
-	dt.Loc.End = p.pos()
+	dt.Loc.End = p.prevEnd()
 	return dt, nil
 }

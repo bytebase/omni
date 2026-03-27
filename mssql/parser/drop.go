@@ -247,6 +247,6 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }

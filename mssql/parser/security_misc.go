@@ -52,7 +52,7 @@ func (p *Parser) parseCreateSecurityPolicyStmt() (*nodes.SecurityPolicyStmt, err
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -106,7 +106,7 @@ func (p *Parser) parseAlterSecurityPolicyStmt() (*nodes.SecurityPolicyStmt, erro
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -134,7 +134,7 @@ func (p *Parser) parseDropSecurityPolicyStmt() (*nodes.SecurityPolicyStmt, error
 	// [schema_name.] policy_name
 	stmt.Name , _ = p.parseTableRef()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -197,7 +197,7 @@ func (p *Parser) parseSecurityPredicate() *nodes.SecurityPredicate {
 			p.advance()
 			pred.Table , _ = p.parseTableRef()
 		}
-		pred.Loc.End = p.pos()
+		pred.Loc.End = p.prevEnd()
 		return pred
 	}
 
@@ -239,7 +239,7 @@ func (p *Parser) parseSecurityPredicate() *nodes.SecurityPredicate {
 		}
 	}
 
-	pred.Loc.End = p.pos()
+	pred.Loc.End = p.prevEnd()
 	return pred
 }
 
@@ -365,7 +365,7 @@ func (p *Parser) parseAddSensitivityClassificationStmt() (*nodes.SensitivityClas
 					opts = append(opts, &nodes.SensitivityOption{
 						Key:   key,
 						Value: val,
-						Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+						Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 					})
 				}
 				if _, ok := p.match(','); !ok {
@@ -379,7 +379,7 @@ func (p *Parser) parseAddSensitivityClassificationStmt() (*nodes.SensitivityClas
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -420,7 +420,7 @@ func (p *Parser) parseDropSensitivityClassificationStmt() (*nodes.SensitivityCla
 		stmt.Columns = &nodes.List{Items: cols}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -514,7 +514,7 @@ func (p *Parser) parseSignatureStmt(action string) (*nodes.SignatureStmt, error)
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -580,6 +580,6 @@ func (p *Parser) parseSignatureCryptoItem() *nodes.CryptoItem {
 		}
 	}
 
-	item.Loc.End = p.pos()
+	item.Loc.End = p.prevEnd()
 	return item
 }

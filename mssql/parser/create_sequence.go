@@ -36,7 +36,7 @@ func (p *Parser) parseCreateSequenceStmt() (*nodes.CreateSequenceStmt, error) {
 	if err := p.parseSequenceOptions(stmt, false); err != nil {
 		return nil, err
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -72,7 +72,7 @@ func (p *Parser) parseAlterSequenceStmt() (*nodes.AlterSequenceStmt, error) {
 	stmt.Cycle = tmp.Cycle
 	stmt.Cache = tmp.Cache
 	stmt.NoCache = tmp.NoCache
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 

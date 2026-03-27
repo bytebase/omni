@@ -86,7 +86,7 @@ func (p *Parser) parseCreateAvailabilityGroupStmt() (*nodes.SecurityStmt, error)
 
 	stmt.Options = p.parseAvailabilityGroupOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -180,7 +180,7 @@ func (p *Parser) parseAlterAvailabilityGroupStmt() (*nodes.SecurityStmt, error) 
 
 	stmt.Options = p.parseAvailabilityGroupOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -207,7 +207,7 @@ func (p *Parser) parseDropAvailabilityGroupStmt() (*nodes.SecurityStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -233,7 +233,7 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 
 		case p.cur.Type == kwWITH:
 			p.advance()
-			opts = append(opts, newAGOpt("WITH", "", nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt("WITH", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 
 		case p.cur.Type == kwFOR:
 			p.advance()
@@ -247,9 +247,9 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 						p.advance()
 					}
 				}
-				opts = append(opts, newAGOpt("FOR DATABASE", strings.Join(dbs, ", "), nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("FOR DATABASE", strings.Join(dbs, ", "), nodes.Loc{Start: start, End: p.prevEnd()}))
 			} else {
-				opts = append(opts, newAGOpt("FOR", "", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("FOR", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 			}
 
 		case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REPLICA"):
@@ -257,7 +257,7 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 			if p.cur.Type == kwON {
 				p.advance() // consume ON
 			}
-			opts = append(opts, newAGOpt("REPLICA ON", "", nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt("REPLICA ON", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 
 		case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AVAILABILITY"):
 			p.advance() // consume AVAILABILITY
@@ -267,16 +267,16 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 			if p.cur.Type == kwON {
 				p.advance() // consume ON
 			}
-			opts = append(opts, newAGOpt("AVAILABILITY GROUP ON", "", nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt("AVAILABILITY GROUP ON", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 
 		case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LISTENER"):
 			p.advance() // consume LISTENER
 			name := p.consumeAGListenerName()
-			opts = append(opts, newAGOpt("LISTENER", p.agQuoteName(name), nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt("LISTENER", p.agQuoteName(name), nodes.Loc{Start: start, End: p.prevEnd()}))
 
 		case p.cur.Type == kwSET:
 			p.advance()
-			opts = append(opts, newAGOpt("SET", "", nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt("SET", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 
 		case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ADD"):
 			p.advance() // consume ADD
@@ -285,20 +285,20 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 				if p.isIdentLike() || p.cur.Type == tokSCONST {
 					dbName := p.cur.Str
 					p.advance()
-					opts = append(opts, newAGOpt("ADD DATABASE", dbName, nodes.Loc{Start: start, End: p.pos()}))
+					opts = append(opts, newAGOpt("ADD DATABASE", dbName, nodes.Loc{Start: start, End: p.prevEnd()}))
 				}
 			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REPLICA") {
 				p.advance() // consume REPLICA
 				if p.cur.Type == kwON {
 					p.advance() // consume ON
 				}
-				opts = append(opts, newAGOpt("ADD REPLICA ON", "", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("ADD REPLICA ON", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LISTENER") {
 				p.advance() // consume LISTENER
 				name := p.consumeAGListenerName()
-				opts = append(opts, newAGOpt("ADD LISTENER", p.agQuoteName(name), nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("ADD LISTENER", p.agQuoteName(name), nodes.Loc{Start: start, End: p.prevEnd()}))
 			} else {
-				opts = append(opts, newAGOpt("ADD", "", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("ADD", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 			}
 
 		case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REMOVE"):
@@ -308,20 +308,20 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 				if p.isIdentLike() || p.cur.Type == tokSCONST {
 					dbName := p.cur.Str
 					p.advance()
-					opts = append(opts, newAGOpt("REMOVE DATABASE", dbName, nodes.Loc{Start: start, End: p.pos()}))
+					opts = append(opts, newAGOpt("REMOVE DATABASE", dbName, nodes.Loc{Start: start, End: p.prevEnd()}))
 				}
 			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REPLICA") {
 				p.advance() // consume REPLICA
 				if p.cur.Type == kwON {
 					p.advance() // consume ON
 				}
-				opts = append(opts, newAGOpt("REMOVE REPLICA ON", "", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("REMOVE REPLICA ON", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LISTENER") {
 				p.advance() // consume LISTENER
 				name := p.consumeAGListenerName()
-				opts = append(opts, newAGOpt("REMOVE LISTENER", p.agQuoteName(name), nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("REMOVE LISTENER", p.agQuoteName(name), nodes.Loc{Start: start, End: p.prevEnd()}))
 			} else {
-				opts = append(opts, newAGOpt("REMOVE", "", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("REMOVE", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 			}
 
 		case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MODIFY"):
@@ -331,11 +331,11 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 				if p.cur.Type == kwON {
 					p.advance() // consume ON
 				}
-				opts = append(opts, newAGOpt("MODIFY REPLICA ON", "", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("MODIFY REPLICA ON", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LISTENER") {
 				p.advance() // consume LISTENER
 				name := p.consumeAGListenerName()
-				opts = append(opts, newAGOpt("MODIFY LISTENER", p.agQuoteName(name), nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("MODIFY LISTENER", p.agQuoteName(name), nodes.Loc{Start: start, End: p.prevEnd()}))
 			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AVAILABILITY") {
 				p.advance() // consume AVAILABILITY
 				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "GROUP") {
@@ -344,9 +344,9 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 				if p.cur.Type == kwON {
 					p.advance() // consume ON
 				}
-				opts = append(opts, newAGOpt("MODIFY AVAILABILITY GROUP ON", "", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("MODIFY AVAILABILITY GROUP ON", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 			} else {
-				opts = append(opts, newAGOpt("MODIFY", "", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("MODIFY", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 			}
 
 		case p.cur.Type == kwJOIN:
@@ -360,46 +360,46 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 				if p.cur.Type == kwON {
 					p.advance() // consume ON
 				}
-				opts = append(opts, newAGOpt("JOIN AVAILABILITY GROUP ON", "", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("JOIN AVAILABILITY GROUP ON", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 			} else {
-				opts = append(opts, newAGOpt("JOIN", "", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("JOIN", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 			}
 
 		case p.cur.Type == kwGRANT:
 			p.advance() // consume GRANT
 			p.consumeAGCreateAnyDatabase()
-			opts = append(opts, newAGOpt("GRANT CREATE ANY DATABASE", "", nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt("GRANT CREATE ANY DATABASE", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 
 		case p.cur.Type == kwDENY:
 			p.advance() // consume DENY
 			p.consumeAGCreateAnyDatabase()
-			opts = append(opts, newAGOpt("DENY CREATE ANY DATABASE", "", nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt("DENY CREATE ANY DATABASE", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 
 		case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FAILOVER"):
 			p.advance()
-			opts = append(opts, newAGOpt("FAILOVER", "", nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt("FAILOVER", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 
 		case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FORCE_FAILOVER_ALLOW_DATA_LOSS"):
 			p.advance()
-			opts = append(opts, newAGOpt("FORCE_FAILOVER_ALLOW_DATA_LOSS", "", nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt("FORCE_FAILOVER_ALLOW_DATA_LOSS", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 
 		case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "OFFLINE"):
 			p.advance()
-			opts = append(opts, newAGOpt("OFFLINE", "", nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt("OFFLINE", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 
 		case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "RESTART"):
 			p.advance() // consume RESTART
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LISTENER") {
 				p.advance() // consume LISTENER
 				name := p.consumeAGListenerName()
-				opts = append(opts, newAGOpt("RESTART LISTENER", p.agQuoteName(name), nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("RESTART LISTENER", p.agQuoteName(name), nodes.Loc{Start: start, End: p.prevEnd()}))
 			} else {
-				opts = append(opts, newAGOpt("RESTART", "", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("RESTART", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 			}
 
 		case p.cur.Type == kwON:
 			p.advance()
-			opts = append(opts, newAGOpt("ON", "", nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt("ON", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 
 		case p.cur.Type == ',':
 			p.advance() // skip commas
@@ -419,18 +419,18 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 						val = "'" + p.cur.Str + "'"
 					}
 					p.advance()
-					opts = append(opts, newAGOpt(key, val, nodes.Loc{Start: start, End: p.pos()}))
+					opts = append(opts, newAGOpt(key, val, nodes.Loc{Start: start, End: p.prevEnd()}))
 				} else {
-					opts = append(opts, newAGOpt(key, "", nodes.Loc{Start: start, End: p.pos()}))
+					opts = append(opts, newAGOpt(key, "", nodes.Loc{Start: start, End: p.prevEnd()}))
 				}
 			} else {
-				opts = append(opts, newAGOpt(key, "", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt(key, "", nodes.Loc{Start: start, End: p.prevEnd()}))
 			}
 
 		default:
 			// Record unexpected token instead of silently skipping
 			p.advance()
-			opts = append(opts, newAGOpt("UNEXPECTED_TOKEN", p.cur.Str, nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt("UNEXPECTED_TOKEN", p.cur.Str, nodes.Loc{Start: start, End: p.prevEnd()}))
 		}
 	}
 
@@ -502,7 +502,7 @@ func (p *Parser) parseParenthesizedAGOptions() []nodes.Node {
 		if p.cur.Type == '(' {
 			tupleStr := p.parseAGParenTuple()
 			if tupleStr != "" {
-				opts = append(opts, newAGOpt("", "("+tupleStr+")", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt("", "("+tupleStr+")", nodes.Loc{Start: start, End: p.prevEnd()}))
 			}
 			continue
 		}
@@ -510,7 +510,7 @@ func (p *Parser) parseParenthesizedAGOptions() []nodes.Node {
 		// Must be an identifier, string, number, or keyword
 		if !p.isAGOptionToken() {
 			p.advance()
-			opts = append(opts, newAGOpt("UNEXPECTED_TOKEN", p.cur.Str, nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt("UNEXPECTED_TOKEN", p.cur.Str, nodes.Loc{Start: start, End: p.prevEnd()}))
 			continue
 		}
 
@@ -527,13 +527,13 @@ func (p *Parser) parseParenthesizedAGOptions() []nodes.Node {
 				for _, o := range subOpts {
 					parts = append(parts, agOptDisplayStr(o))
 				}
-				opts = append(opts, newAGOpt(key, "("+strings.Join(parts, ", ")+")", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt(key, "("+strings.Join(parts, ", ")+")", nodes.Loc{Start: start, End: p.prevEnd()}))
 			} else if p.isAGOptionToken() {
 				val := p.agOptionTokenString()
 				p.advance()
-				opts = append(opts, newAGOpt(key, val, nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt(key, val, nodes.Loc{Start: start, End: p.prevEnd()}))
 			} else {
-				opts = append(opts, newAGOpt(key, "", nodes.Loc{Start: start, End: p.pos()}))
+				opts = append(opts, newAGOpt(key, "", nodes.Loc{Start: start, End: p.prevEnd()}))
 			}
 		case p.cur.Type == '(':
 			// Nested parens without '=': SECONDARY_ROLE(...), PRIMARY_ROLE(...), IP(...), ON(...)
@@ -543,9 +543,9 @@ func (p *Parser) parseParenthesizedAGOptions() []nodes.Node {
 			for _, o := range subOpts {
 				parts = append(parts, agOptDisplayStr(o))
 			}
-			opts = append(opts, newAGOpt(key+"("+strings.Join(parts, ", ")+")", "", nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt(key+"("+strings.Join(parts, ", ")+")", "", nodes.Loc{Start: start, End: p.prevEnd()}))
 		default:
-			opts = append(opts, newAGOpt(key, "", nodes.Loc{Start: start, End: p.pos()}))
+			opts = append(opts, newAGOpt(key, "", nodes.Loc{Start: start, End: p.prevEnd()}))
 		}
 	}
 

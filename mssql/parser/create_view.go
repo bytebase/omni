@@ -102,7 +102,7 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) (*nodes.CreateViewStmt, error
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -202,7 +202,7 @@ func (p *Parser) parseCreateMaterializedViewStmt() (*nodes.CreateMaterializedVie
 	}
 	stmt.Query = query
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -234,6 +234,6 @@ func (p *Parser) parseAlterMaterializedViewStmt() (*nodes.AlterMaterializedViewS
 		stmt.Action = action
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }

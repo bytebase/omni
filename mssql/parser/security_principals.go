@@ -69,7 +69,7 @@ func (p *Parser) parseSecurityUserStmt(action string) (*nodes.SecurityStmt, erro
 					opts = append(opts, &nodes.SecurityPrincipalOption{
 						Name:  "CERTIFICATE",
 						Value: name,
-						Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+						Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 					})
 				}
 			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ASYMMETRIC") {
@@ -81,7 +81,7 @@ func (p *Parser) parseSecurityUserStmt(action string) (*nodes.SecurityStmt, erro
 					opts = append(opts, &nodes.SecurityPrincipalOption{
 						Name:  "ASYMMETRIC KEY",
 						Value: name,
-						Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+						Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 					})
 				}
 			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "EXTERNAL") {
@@ -91,7 +91,7 @@ func (p *Parser) parseSecurityUserStmt(action string) (*nodes.SecurityStmt, erro
 				}
 				opts = append(opts, &nodes.SecurityPrincipalOption{
 					Name: "EXTERNAL PROVIDER",
-					Loc:  nodes.Loc{Start: optLoc, End: p.pos()},
+					Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
 				})
 			} else {
 				// LOGIN (explicit or implicit)
@@ -102,7 +102,7 @@ func (p *Parser) parseSecurityUserStmt(action string) (*nodes.SecurityStmt, erro
 					opts = append(opts, &nodes.SecurityPrincipalOption{
 						Name:  "LOGIN",
 						Value: name,
-						Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+						Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 					})
 				}
 			}
@@ -114,7 +114,7 @@ func (p *Parser) parseSecurityUserStmt(action string) (*nodes.SecurityStmt, erro
 			}
 			opts = append(opts, &nodes.SecurityPrincipalOption{
 				Name: "WITHOUT LOGIN",
-				Loc:  nodes.Loc{Start: optLoc, End: p.pos()},
+				Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
 			})
 		}
 	}
@@ -129,7 +129,7 @@ func (p *Parser) parseSecurityUserStmt(action string) (*nodes.SecurityStmt, erro
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -185,14 +185,14 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 			p.advance()
 			opts = append(opts, &nodes.SecurityPrincipalOption{
 				Name: "ENABLE",
-				Loc:  nodes.Loc{Start: optLoc, End: p.pos()},
+				Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
 			})
 		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "DISABLE") {
 			optLoc := p.pos()
 			p.advance()
 			opts = append(opts, &nodes.SecurityPrincipalOption{
 				Name: "DISABLE",
-				Loc:  nodes.Loc{Start: optLoc, End: p.pos()},
+				Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
 			})
 		} else if p.cur.Type == kwADD {
 			optLoc := p.pos()
@@ -203,7 +203,7 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 					opts = append(opts, &nodes.SecurityPrincipalOption{
 						Name:  "ADD CREDENTIAL",
 						Value: name,
-						Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+						Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 					})
 				}
 			}
@@ -216,7 +216,7 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 					opts = append(opts, &nodes.SecurityPrincipalOption{
 						Name:  "DROP CREDENTIAL",
 						Value: name,
-						Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+						Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 					})
 				}
 			}
@@ -238,7 +238,7 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 				opts = append(opts, &nodes.SecurityPrincipalOption{
 					Name:  "FROM",
 					Value: "WINDOWS",
-					Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 				})
 			case "CERTIFICATE":
 				p.advance()
@@ -249,7 +249,7 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 				opts = append(opts, &nodes.SecurityPrincipalOption{
 					Name:  "FROM",
 					Value: "CERTIFICATE " + certName,
-					Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 				})
 			case "ASYMMETRIC":
 				p.advance() // consume ASYMMETRIC
@@ -263,7 +263,7 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 				opts = append(opts, &nodes.SecurityPrincipalOption{
 					Name:  "FROM",
 					Value: "ASYMMETRIC KEY " + keyName,
-					Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 				})
 			case "EXTERNAL":
 				p.advance() // consume EXTERNAL
@@ -273,7 +273,7 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 				opts = append(opts, &nodes.SecurityPrincipalOption{
 					Name:  "FROM",
 					Value: "EXTERNAL PROVIDER",
-					Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 				})
 			default:
 				// unknown FROM source
@@ -281,7 +281,7 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 				opts = append(opts, &nodes.SecurityPrincipalOption{
 					Name:  "FROM",
 					Value: src,
-					Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 				})
 			}
 		}
@@ -296,7 +296,7 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -344,7 +344,7 @@ func (p *Parser) parseSecurityRoleStmt(action string) (*nodes.SecurityStmt, erro
 				opts = append(opts, &nodes.SecurityPrincipalOption{
 					Name:  "AUTHORIZATION",
 					Value: owner,
-					Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 				})
 			}
 		}
@@ -360,7 +360,7 @@ func (p *Parser) parseSecurityRoleStmt(action string) (*nodes.SecurityStmt, erro
 				opts = append(opts, &nodes.SecurityPrincipalOption{
 					Name:  "ADD MEMBER",
 					Value: member,
-					Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 				})
 			}
 		} else if p.cur.Type == kwDROP {
@@ -373,7 +373,7 @@ func (p *Parser) parseSecurityRoleStmt(action string) (*nodes.SecurityStmt, erro
 				opts = append(opts, &nodes.SecurityPrincipalOption{
 					Name:  "DROP MEMBER",
 					Value: member,
-					Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+					Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 				})
 			}
 		} else if p.cur.Type == kwWITH {
@@ -386,7 +386,7 @@ func (p *Parser) parseSecurityRoleStmt(action string) (*nodes.SecurityStmt, erro
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -430,7 +430,7 @@ func (p *Parser) parseSecurityApplicationRoleStmt(action string) (*nodes.Securit
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -527,7 +527,7 @@ func (p *Parser) parseSecurityPrincipalWithOptions() []nodes.Node {
 			p.advance() // consume CREDENTIAL
 		}
 
-		opt.Loc.End = p.pos()
+		opt.Loc.End = p.prevEnd()
 		opts = append(opts, opt)
 
 		if p.cur.Type == ',' {
@@ -566,17 +566,17 @@ func (p *Parser) parseExecuteAsStmt() (*nodes.SecurityStmt, error) {
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CALLER") {
 		stmt.ObjectType = "CALLER"
 		p.advance()
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SELF") {
 		stmt.ObjectType = "SELF"
 		p.advance()
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "OWNER") {
 		stmt.ObjectType = "OWNER"
 		p.advance()
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
@@ -614,7 +614,7 @@ func (p *Parser) parseExecuteAsStmt() (*nodes.SecurityStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -650,7 +650,7 @@ func (p *Parser) parseRevertStmt() (*nodes.SecurityStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -715,7 +715,7 @@ func (p *Parser) parseAlterAuthorizationStmt() (*nodes.SecurityStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 

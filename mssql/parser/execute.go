@@ -83,7 +83,7 @@ func (p *Parser) parseExecStmt() (*nodes.ExecStmt, error) {
 		// AT linked_server_name | AT DATA_SOURCE data_source_name
 		p.parseExecAtClause(stmt)
 
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
@@ -142,7 +142,7 @@ func (p *Parser) parseExecStmt() (*nodes.ExecStmt, error) {
 		stmt.WithOptions = p.parseExecOptionList()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -301,7 +301,7 @@ func (p *Parser) parseExecArg() *nodes.ExecArg {
 	if p.cur.Type == kwDEFAULT {
 		arg.IsDefault = true
 		p.advance()
-		arg.Loc.End = p.pos()
+		arg.Loc.End = p.prevEnd()
 		return arg
 	}
 
@@ -316,7 +316,7 @@ func (p *Parser) parseExecArg() *nodes.ExecArg {
 			if p.cur.Type == kwDEFAULT {
 				arg.IsDefault = true
 				p.advance()
-				arg.Loc.End = p.pos()
+				arg.Loc.End = p.prevEnd()
 				return arg
 			}
 		}
@@ -334,7 +334,7 @@ func (p *Parser) parseExecArg() *nodes.ExecArg {
 		p.advance()
 	}
 
-	arg.Loc.End = p.pos()
+	arg.Loc.End = p.prevEnd()
 	return arg
 }
 

@@ -89,7 +89,7 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 		ref.Object = parts[3]
 	}
 
-	ref.Loc.End = p.pos()
+	ref.Loc.End = p.prevEnd()
 	return ref, nil
 }
 
@@ -139,7 +139,7 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 				return nil, err
 			}
 		}
-		mc.Loc.End = p.pos()
+		mc.Loc.End = p.prevEnd()
 		return mc, nil
 	}
 
@@ -227,7 +227,7 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 						return nil, err
 					}
 				}
-				mc.Loc.End = p.pos()
+				mc.Loc.End = p.prevEnd()
 				return mc, nil
 			}
 

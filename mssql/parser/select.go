@@ -221,7 +221,7 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		return p.parseSetOperation(stmt)
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -299,7 +299,7 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 		}
 	}
 	wc.CTEs = &nodes.List{Items: ctes}
-	wc.Loc.End = p.pos()
+	wc.Loc.End = p.prevEnd()
 	return wc, nil
 }
 
@@ -336,7 +336,7 @@ func (p *Parser) parseXmlNamespaces() (*nodes.List, error) {
 				}
 			}
 		}
-		decl.Loc.End = p.pos()
+		decl.Loc.End = p.prevEnd()
 		decls = append(decls, decl)
 
 		if _, ok := p.match(','); !ok {
@@ -405,7 +405,7 @@ func (p *Parser) parseCTE() (*nodes.CommonTableExpr, error) {
 		return nil, err
 	}
 
-	cte.Loc.End = p.pos()
+	cte.Loc.End = p.prevEnd()
 	return cte, nil
 }
 
@@ -459,7 +459,7 @@ func (p *Parser) parseTopClause() (*nodes.TopClause, error) {
 		}
 	}
 
-	tc.Loc.End = p.pos()
+	tc.Loc.End = p.prevEnd()
 	return tc, nil
 }
 
@@ -489,7 +489,7 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 			target.Name = p.cur.Str
 			p.advance()
 		}
-		target.Loc.End = p.pos()
+		target.Loc.End = p.prevEnd()
 		targets = append(targets, target)
 		if _, ok := p.match(','); !ok {
 			break
@@ -733,7 +733,7 @@ func (p *Parser) parsePivotExpr(source nodes.TableExpr) (*nodes.PivotExpr, error
 	alias := p.parseOptionalAlias()
 	pivot.Alias = alias
 
-	pivot.Loc.End = p.pos()
+	pivot.Loc.End = p.prevEnd()
 	return pivot, nil
 }
 
@@ -790,7 +790,7 @@ func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) (*nodes.UnpivotExpr, e
 	alias := p.parseOptionalAlias()
 	unpivot.Alias = alias
 
-	unpivot.Loc.End = p.pos()
+	unpivot.Loc.End = p.prevEnd()
 	return unpivot, nil
 }
 
@@ -837,7 +837,7 @@ func (p *Parser) parseTableSampleClause() (*nodes.TableSampleClause, error) {
 		}
 	}
 
-	ts.Loc.End = p.pos()
+	ts.Loc.End = p.prevEnd()
 	return ts, nil
 }
 
@@ -1011,7 +1011,7 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 	if p.cur.Type == kwBROWSE {
 		fc.Mode = nodes.ForBrowse
 		p.advance()
-		fc.Loc.End = p.pos()
+		fc.Loc.End = p.prevEnd()
 		return fc, nil
 	}
 
@@ -1048,7 +1048,7 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 		p.parseForJsonOptions(fc)
 	}
 
-	fc.Loc.End = p.pos()
+	fc.Loc.End = p.prevEnd()
 	return fc, nil
 }
 
@@ -1185,7 +1185,7 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 					}
 					items = append(items, &nodes.GroupingSetsExpr{
 						Sets: &nodes.List{Items: sets},
-						Loc:  nodes.Loc{Start: loc, End: p.pos()},
+						Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
 					})
 				}
 				if _, ok := p.match(','); !ok {
@@ -1208,7 +1208,7 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 				}
 				items = append(items, &nodes.RollupExpr{
 					Args: args,
-					Loc:  nodes.Loc{Start: loc, End: p.pos()},
+					Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
 				})
 			}
 			if _, ok := p.match(','); !ok {
@@ -1230,7 +1230,7 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 				}
 				items = append(items, &nodes.CubeExpr{
 					Args: args,
-					Loc:  nodes.Loc{Start: loc, End: p.pos()},
+					Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
 				})
 			}
 			if _, ok := p.match(','); !ok {
@@ -1378,7 +1378,7 @@ func (p *Parser) parseWindowClause() (*nodes.List, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		def.Loc.End = p.pos()
+		def.Loc.End = p.prevEnd()
 		defs = append(defs, def)
 
 		if _, ok := p.match(','); !ok {
@@ -1529,7 +1529,7 @@ func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 			}
 			hint.IndexValues = &nodes.List{Items: vals}
 		}
-		hint.Loc.End = p.pos()
+		hint.Loc.End = p.prevEnd()
 		return hint, nil
 	}
 
@@ -1537,13 +1537,13 @@ func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 	switch p.cur.Type {
 	case kwHOLDLOCK:
 		p.advance()
-		return &nodes.TableHint{Name: "HOLDLOCK", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.TableHint{Name: "HOLDLOCK", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 	case kwNOLOCK:
 		p.advance()
-		return &nodes.TableHint{Name: "NOLOCK", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.TableHint{Name: "NOLOCK", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 	case kwNOWAIT:
 		p.advance()
-		return &nodes.TableHint{Name: "NOWAIT", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.TableHint{Name: "NOWAIT", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 	}
 
 	// All remaining hints are identifiers (not lexer keywords)
@@ -1589,7 +1589,7 @@ func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 				return nil, err
 			}
 		}
-		hint.Loc.End = p.pos()
+		hint.Loc.End = p.prevEnd()
 		return hint, nil
 
 	case "SPATIAL_WINDOW_MAX_CELLS":
@@ -1605,7 +1605,7 @@ func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 				return nil, err
 			}
 		}
-		hint.Loc.End = p.pos()
+		hint.Loc.End = p.prevEnd()
 		return hint, nil
 
 	case "FORCESCAN", "NOEXPAND",
@@ -1615,7 +1615,7 @@ func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 		"TABLOCK", "TABLOCKX", "UPDLOCK", "XLOCK",
 		"KEEPIDENTITY", "KEEPDEFAULTS", "IGNORE_CONSTRAINTS", "IGNORE_TRIGGERS":
 		p.advance()
-		return &nodes.TableHint{Name: name, Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.TableHint{Name: name, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
 	default:
 		return nil, nil
@@ -1732,7 +1732,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 	switch {
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "RECOMPILE"):
 		p.advance()
-		return &nodes.QueryHint{Kind: "RECOMPILE", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.QueryHint{Kind: "RECOMPILE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "OPTIMIZE"):
 		p.advance()
@@ -1740,7 +1740,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 			p.advance()
 			if p.isIdentLike() && strings.EqualFold(p.cur.Str, "UNKNOWN") {
 				p.advance()
-				return &nodes.QueryHint{Kind: "OPTIMIZE FOR UNKNOWN", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+				return &nodes.QueryHint{Kind: "OPTIMIZE FOR UNKNOWN", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 			}
 			if p.cur.Type == '(' {
 				p.advance()
@@ -1760,14 +1760,14 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 				if _, err := p.expect(')'); err != nil {
 					return nil, err
 				}
-				hint := &nodes.QueryHint{Kind: "OPTIMIZE FOR", Loc: nodes.Loc{Start: loc, End: p.pos()}}
+				hint := &nodes.QueryHint{Kind: "OPTIMIZE FOR", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
 				if len(params) > 0 {
 					hint.Params = &nodes.List{Items: params}
 				}
 				return hint, nil
 			}
 		}
-		return &nodes.QueryHint{Kind: "OPTIMIZE", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.QueryHint{Kind: "OPTIMIZE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
 	case p.isIdentLike() && (strings.EqualFold(p.cur.Str, "LOOP") ||
 		strings.EqualFold(p.cur.Str, "HASH") ||
@@ -1776,43 +1776,43 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 		p.advance()
 		if p.cur.Type == kwJOIN {
 			p.advance()
-			return &nodes.QueryHint{Kind: prefix + " JOIN", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+			return &nodes.QueryHint{Kind: prefix + " JOIN", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		} else if p.cur.Type == kwUNION {
 			p.advance()
-			return &nodes.QueryHint{Kind: prefix + " UNION", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+			return &nodes.QueryHint{Kind: prefix + " UNION", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		} else if p.cur.Type == kwGROUP {
 			p.advance()
-			return &nodes.QueryHint{Kind: prefix + " GROUP", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+			return &nodes.QueryHint{Kind: prefix + " GROUP", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: prefix, Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.QueryHint{Kind: prefix, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "CONCAT"):
 		p.advance()
 		if p.cur.Type == kwUNION {
 			p.advance()
-			return &nodes.QueryHint{Kind: "CONCAT UNION", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+			return &nodes.QueryHint{Kind: "CONCAT UNION", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "CONCAT", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.QueryHint{Kind: "CONCAT", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
 	case p.cur.Type == kwORDER:
 		p.advance()
 		if p.cur.Type == kwGROUP {
 			p.advance()
-			return &nodes.QueryHint{Kind: "ORDER GROUP", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+			return &nodes.QueryHint{Kind: "ORDER GROUP", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "ORDER", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.QueryHint{Kind: "ORDER", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "FORCE"):
 		p.advance()
 		if p.cur.Type == kwORDER {
 			p.advance()
-			return &nodes.QueryHint{Kind: "FORCE ORDER", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+			return &nodes.QueryHint{Kind: "FORCE ORDER", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		} else if p.isIdentLike() {
 			suffix := strings.ToUpper(p.cur.Str)
 			p.advance()
-			return &nodes.QueryHint{Kind: "FORCE " + suffix, Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+			return &nodes.QueryHint{Kind: "FORCE " + suffix, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "FORCE", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.QueryHint{Kind: "FORCE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "MAXDOP"):
 		p.advance()
@@ -1824,7 +1824,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 				return nil, err
 			}
 		}
-		hint.Loc.End = p.pos()
+		hint.Loc.End = p.prevEnd()
 		return hint, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "MAXRECURSION"):
@@ -1837,7 +1837,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 				return nil, err
 			}
 		}
-		hint.Loc.End = p.pos()
+		hint.Loc.End = p.prevEnd()
 		return hint, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "FAST"):
@@ -1850,7 +1850,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 				return nil, err
 			}
 		}
-		hint.Loc.End = p.pos()
+		hint.Loc.End = p.prevEnd()
 		return hint, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "QUERYTRACEON"):
@@ -1863,40 +1863,40 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 				return nil, err
 			}
 		}
-		hint.Loc.End = p.pos()
+		hint.Loc.End = p.prevEnd()
 		return hint, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "EXPAND"):
 		p.advance()
 		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "VIEWS") {
 			p.advance()
-			return &nodes.QueryHint{Kind: "EXPAND VIEWS", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+			return &nodes.QueryHint{Kind: "EXPAND VIEWS", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "EXPAND", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.QueryHint{Kind: "EXPAND", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "KEEP"):
 		p.advance()
 		if p.cur.Type == kwPLAN {
 			p.advance()
-			return &nodes.QueryHint{Kind: "KEEP PLAN", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+			return &nodes.QueryHint{Kind: "KEEP PLAN", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "KEEP", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.QueryHint{Kind: "KEEP", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "KEEPFIXED"):
 		p.advance()
 		if p.cur.Type == kwPLAN {
 			p.advance()
-			return &nodes.QueryHint{Kind: "KEEPFIXED PLAN", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+			return &nodes.QueryHint{Kind: "KEEPFIXED PLAN", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "KEEPFIXED", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.QueryHint{Kind: "KEEPFIXED", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "ROBUST"):
 		p.advance()
 		if p.cur.Type == kwPLAN {
 			p.advance()
-			return &nodes.QueryHint{Kind: "ROBUST PLAN", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+			return &nodes.QueryHint{Kind: "ROBUST PLAN", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "ROBUST", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.QueryHint{Kind: "ROBUST", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "PARAMETERIZATION"):
 		p.advance()
@@ -1905,7 +1905,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 			hint.StrValue = strings.ToUpper(p.cur.Str)
 			p.advance()
 		}
-		hint.Loc.End = p.pos()
+		hint.Loc.End = p.prevEnd()
 		return hint, nil
 
 	case p.cur.Type == kwUSE:
@@ -1930,7 +1930,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 					hint.Params = &nodes.List{Items: hintNames}
 				}
 			}
-			hint.Loc.End = p.pos()
+			hint.Loc.End = p.prevEnd()
 			return hint, nil
 		} else if p.cur.Type == kwPLAN {
 			p.advance()
@@ -1939,19 +1939,19 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 				hint.StrValue = p.cur.Str
 				p.advance()
 			}
-			hint.Loc.End = p.pos()
+			hint.Loc.End = p.prevEnd()
 			return hint, nil
 		}
-		return &nodes.QueryHint{Kind: "USE", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.QueryHint{Kind: "USE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
 	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "DISABLE"):
 		p.advance()
 		if p.isIdentLike() {
 			suffix := strings.ToUpper(p.cur.Str)
 			p.advance()
-			return &nodes.QueryHint{Kind: "DISABLE " + suffix, Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+			return &nodes.QueryHint{Kind: "DISABLE " + suffix, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		return &nodes.QueryHint{Kind: "DISABLE", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.QueryHint{Kind: "DISABLE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
 	case p.cur.Type == kwTABLE:
 		p.advance()
@@ -1985,10 +1985,10 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 					return nil, err
 				}
 			}
-			hint.Loc.End = p.pos()
+			hint.Loc.End = p.prevEnd()
 			return hint, nil
 		}
-		return &nodes.QueryHint{Kind: "TABLE", Loc: nodes.Loc{Start: loc, End: p.pos()}}, nil
+		return &nodes.QueryHint{Kind: "TABLE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
 	default:
 		// Unknown hint with name = value pattern (e.g., MAX_GRANT_PERCENT = 10)
@@ -2004,7 +2004,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 					return nil, err
 				}
 			}
-			hint.Loc.End = p.pos()
+			hint.Loc.End = p.prevEnd()
 			return hint, nil
 		}
 		return nil, nil
@@ -2035,6 +2035,6 @@ func (p *Parser) parseOptimizeForParam() (*nodes.OptimizeForParam, error) {
 		param.Unknown = true
 		p.advance()
 	}
-	param.Loc.End = p.pos()
+	param.Loc.End = p.prevEnd()
 	return param, nil
 }

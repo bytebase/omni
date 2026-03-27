@@ -70,9 +70,9 @@ func (p *Parser) parseCreateMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) 
 						schemaName = ref.Object
 					}
 				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: "VALID_XML WITH SCHEMA COLLECTION " + schemaName, Loc: nodes.Loc{Start: valLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: "VALID_XML WITH SCHEMA COLLECTION " + schemaName, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}})
 			} else {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: valType, Loc: nodes.Loc{Start: valLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: valType, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}})
 			}
 		}
 		if len(opts) > 0 {
@@ -80,7 +80,7 @@ func (p *Parser) parseCreateMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) 
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -144,7 +144,7 @@ func (p *Parser) parseCreateContractStmt() (*nodes.ServiceBrokerStmt, error) {
 				}
 			}
 			if msgTypeName != "" {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: msgTypeName, Value: "SENT BY " + sentBy, Loc: nodes.Loc{Start: entryLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: msgTypeName, Value: "SENT BY " + sentBy, Loc: nodes.Loc{Start: entryLoc, End: p.prevEnd()}})
 			}
 			if _, ok := p.match(','); !ok {
 				break
@@ -156,7 +156,7 @@ func (p *Parser) parseCreateContractStmt() (*nodes.ServiceBrokerStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -220,7 +220,7 @@ func (p *Parser) parseCreateQueueStmt() (*nodes.ServiceBrokerStmt, error) {
 	if len(opts) > 0 {
 		stmt.Options = &nodes.List{Items: opts}
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -239,7 +239,7 @@ func (p *Parser) parseQueueWithClause(opts []nodes.Node) []nodes.Node {
 				p.advance()
 			}
 			if p.cur.Type == kwON || p.cur.Type == kwOFF {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "STATUS", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "STATUS", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "RETENTION") {
@@ -249,7 +249,7 @@ func (p *Parser) parseQueueWithClause(opts []nodes.Node) []nodes.Node {
 				p.advance()
 			}
 			if p.cur.Type == kwON || p.cur.Type == kwOFF {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "RETENTION", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "RETENTION", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ACTIVATION") {
@@ -266,7 +266,7 @@ func (p *Parser) parseQueueWithClause(opts []nodes.Node) []nodes.Node {
 						p.advance()
 					}
 					if p.cur.Type == kwON || p.cur.Type == kwOFF {
-						opts = append(opts, &nodes.ServiceBrokerOption{Name: "POISON_MESSAGE_HANDLING", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+						opts = append(opts, &nodes.ServiceBrokerOption{Name: "POISON_MESSAGE_HANDLING", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 						p.advance()
 					}
 				}
@@ -298,7 +298,7 @@ func (p *Parser) parseQueueActivationClause(opts []nodes.Node) []nodes.Node {
 				p.advance()
 			}
 			if p.cur.Type == kwON || p.cur.Type == kwOFF {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:STATUS", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:STATUS", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PROCEDURE_NAME") {
@@ -316,7 +316,7 @@ func (p *Parser) parseQueueActivationClause(opts []nodes.Node) []nodes.Node {
 				if ref.Database != "" {
 					name = ref.Database + "." + name
 				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:PROCEDURE_NAME", Value: name, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:PROCEDURE_NAME", Value: name, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			}
 		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MAX_QUEUE_READERS") {
 			p.advance()
@@ -324,7 +324,7 @@ func (p *Parser) parseQueueActivationClause(opts []nodes.Node) []nodes.Node {
 				p.advance()
 			}
 			if p.cur.Type == tokICONST {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:MAX_QUEUE_READERS", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:MAX_QUEUE_READERS", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 		} else if p.cur.Type == kwEXECUTE || (p.isIdentLike() && matchesKeywordCI(p.cur.Str, "EXECUTE")) {
@@ -333,17 +333,17 @@ func (p *Parser) parseQueueActivationClause(opts []nodes.Node) []nodes.Node {
 				p.advance()
 			}
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SELF") {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:EXECUTE AS", Value: "SELF", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:EXECUTE AS", Value: "SELF", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "OWNER") {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:EXECUTE AS", Value: "OWNER", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:EXECUTE AS", Value: "OWNER", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			} else if p.cur.Type == tokSCONST {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:EXECUTE AS", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:EXECUTE AS", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "DROP") {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:DROP", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ACTIVATION:DROP", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		} else {
 			break
@@ -379,7 +379,7 @@ func (p *Parser) parseCreateServiceStmt() (*nodes.ServiceBrokerStmt, error) {
 	}
 
 	stmt.Options = p.parseServiceBrokerOptions()
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -449,7 +449,7 @@ func (p *Parser) parseSendStmt() (*nodes.ServiceBrokerStmt, error) {
 		p.match(')')
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -502,7 +502,7 @@ func (p *Parser) parseReceiveStmt() (*nodes.ReceiveStmt, error) {
 			}
 			// Parse column expression (simple: column_name or expression)
 			if p.isIdentLike() || p.cur.Type == tokVARIABLE {
-				col.Expr = &nodes.ColumnRef{Column: p.cur.Str, Loc: nodes.Loc{Start: p.pos(), End: p.pos() + len(p.cur.Str)}}
+				col.Expr = &nodes.ColumnRef{Column: p.cur.Str, Loc: nodes.Loc{Start: p.pos(), End: p.prevEnd() + len(p.cur.Str)}}
 				p.advance()
 			} else {
 				col.Expr, _ = p.parseExpr()
@@ -519,7 +519,7 @@ func (p *Parser) parseReceiveStmt() (*nodes.ReceiveStmt, error) {
 				col.Alias = p.cur.Str
 				p.advance()
 			}
-			col.Loc.End = p.pos()
+			col.Loc.End = p.prevEnd()
 			if col.Expr != nil {
 				cols = append(cols, col)
 			}
@@ -555,7 +555,7 @@ func (p *Parser) parseReceiveStmt() (*nodes.ReceiveStmt, error) {
 		stmt.WhereClause, _ = p.parseExpr()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -605,7 +605,7 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 			p.advance()
 		}
 		if p.isIdentLike() || p.cur.Type == tokSCONST {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "FROM SERVICE", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "FROM SERVICE", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		}
 	}
@@ -618,14 +618,14 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 			p.advance()
 		}
 		if p.cur.Type == tokSCONST || p.isIdentLike() {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "TO SERVICE", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "TO SERVICE", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		}
 		// optional broker guid
 		if _, ok := p.match(','); ok {
 			biLoc := p.pos()
 			if p.cur.Type == tokSCONST || p.isIdentLike() {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "BROKER_INSTANCE", Value: p.cur.Str, Loc: nodes.Loc{Start: biLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "BROKER_INSTANCE", Value: p.cur.Str, Loc: nodes.Loc{Start: biLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 		}
@@ -639,7 +639,7 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 			p.advance()
 		}
 		if p.isIdentLike() || p.cur.Type == tokSCONST {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ON CONTRACT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ON CONTRACT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		}
 	}
@@ -655,7 +655,7 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 					p.advance()
 				}
 				if p.cur.Type == tokVARIABLE || p.isIdentLike() || p.cur.Type == tokSCONST {
-					opts = append(opts, &nodes.ServiceBrokerOption{Name: "RELATED_CONVERSATION_GROUP", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+					opts = append(opts, &nodes.ServiceBrokerOption{Name: "RELATED_CONVERSATION_GROUP", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 					p.advance()
 				}
 			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "RELATED_CONVERSATION") {
@@ -664,7 +664,7 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 					p.advance()
 				}
 				if p.cur.Type == tokVARIABLE || p.isIdentLike() || p.cur.Type == tokSCONST {
-					opts = append(opts, &nodes.ServiceBrokerOption{Name: "RELATED_CONVERSATION", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+					opts = append(opts, &nodes.ServiceBrokerOption{Name: "RELATED_CONVERSATION", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 					p.advance()
 				}
 			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LIFETIME") {
@@ -673,7 +673,7 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 					p.advance()
 				}
 				if p.cur.Type == tokICONST || p.cur.Type == tokVARIABLE || p.isIdentLike() {
-					opts = append(opts, &nodes.ServiceBrokerOption{Name: "LIFETIME", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+					opts = append(opts, &nodes.ServiceBrokerOption{Name: "LIFETIME", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 					p.advance()
 				}
 			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ENCRYPTION") {
@@ -682,7 +682,7 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 					p.advance()
 				}
 				if p.cur.Type == kwON || p.cur.Type == kwOFF {
-					opts = append(opts, &nodes.ServiceBrokerOption{Name: "ENCRYPTION", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+					opts = append(opts, &nodes.ServiceBrokerOption{Name: "ENCRYPTION", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 					p.advance()
 				}
 			} else {
@@ -697,7 +697,7 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 	if len(opts) > 0 {
 		stmt.Options = &nodes.List{Items: opts}
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -746,7 +746,7 @@ func (p *Parser) parseEndConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 				errorCode = p.cur.Str
 				p.advance()
 			}
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ERROR", Value: errorCode, Loc: nodes.Loc{Start: errLoc, End: p.pos()}})
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ERROR", Value: errorCode, Loc: nodes.Loc{Start: errLoc, End: p.prevEnd()}})
 
 			// DESCRIPTION = 'failure_text'
 			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "DESCRIPTION") {
@@ -760,11 +760,11 @@ func (p *Parser) parseEndConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 					descVal = p.cur.Str
 					p.advance()
 				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "DESCRIPTION", Value: descVal, Loc: nodes.Loc{Start: descLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "DESCRIPTION", Value: descVal, Loc: nodes.Loc{Start: descLoc, End: p.prevEnd()}})
 			}
 		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CLEANUP") {
 			cleanLoc := p.pos()
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "CLEANUP", Loc: nodes.Loc{Start: cleanLoc, End: p.pos()}})
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "CLEANUP", Loc: nodes.Loc{Start: cleanLoc, End: p.prevEnd()}})
 			p.advance()
 		}
 		if len(opts) > 0 {
@@ -772,7 +772,7 @@ func (p *Parser) parseEndConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -836,9 +836,9 @@ func (p *Parser) parseCreateRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 					val = p.cur.Str
 					p.advance()
 				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			} else {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			}
 			if _, ok := p.match(','); !ok {
 				break
@@ -849,7 +849,7 @@ func (p *Parser) parseCreateRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -895,7 +895,7 @@ func (p *Parser) parseCreateRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt
 			p.advance()
 		}
 		if p.cur.Type == tokSCONST {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "SERVICE", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "SERVICE", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		}
 	}
@@ -926,7 +926,7 @@ func (p *Parser) parseCreateRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt
 					val = p.cur.Str
 					p.advance()
 				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			}
 			if _, ok := p.match(','); !ok {
 				break
@@ -938,7 +938,7 @@ func (p *Parser) parseCreateRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -980,12 +980,12 @@ func (p *Parser) parseGetConversationGroupStmt() (*nodes.ServiceBrokerStmt, erro
 		ref , _ := p.parseTableRef()
 		if ref != nil {
 			var opts []nodes.Node
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "QUEUE", Value: ref.Object, Loc: nodes.Loc{Start: qLoc, End: p.pos()}})
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "QUEUE", Value: ref.Object, Loc: nodes.Loc{Start: qLoc, End: p.prevEnd()}})
 			stmt.Options = &nodes.List{Items: opts}
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1002,7 +1002,7 @@ func (p *Parser) parseServiceBrokerOptions() *nodes.List {
 		optLoc := p.pos()
 		p.advance()
 		if p.isIdentLike() {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "AUTHORIZATION", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "AUTHORIZATION", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		}
 	}
@@ -1014,7 +1014,7 @@ func (p *Parser) parseServiceBrokerOptions() *nodes.List {
 			p.advance()
 			ref , _ := p.parseTableRef()
 			if ref != nil {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "QUEUE", Value: ref.Object, Loc: nodes.Loc{Start: qLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "QUEUE", Value: ref.Object, Loc: nodes.Loc{Start: qLoc, End: p.prevEnd()}})
 			}
 		}
 	}
@@ -1048,9 +1048,9 @@ func (p *Parser) parseServiceBrokerOptions() *nodes.List {
 							val = p.cur.Str
 							p.advance()
 						}
-						opts = append(opts, &nodes.ServiceBrokerOption{Name: opt, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+						opts = append(opts, &nodes.ServiceBrokerOption{Name: opt, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 					} else {
-						opts = append(opts, &nodes.ServiceBrokerOption{Name: opt, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+						opts = append(opts, &nodes.ServiceBrokerOption{Name: opt, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 					}
 				} else {
 					// Skip unexpected tokens
@@ -1076,7 +1076,7 @@ func (p *Parser) parseServiceBrokerOptions() *nodes.List {
 						p.advance()
 					}
 				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: opt, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: opt, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				if _, ok := p.match(','); !ok {
 					break
 				}
@@ -1090,7 +1090,7 @@ func (p *Parser) parseServiceBrokerOptions() *nodes.List {
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
 			if p.isIdentLike() || p.cur.Type == kwDEFAULT {
 				optLoc := p.pos()
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
 			if _, ok := p.match(','); !ok {
@@ -1186,7 +1186,7 @@ func (p *Parser) parseAlterQueueStmt() (*nodes.ServiceBrokerStmt, error) {
 				p.match(')')
 			}
 		}
-		opts = append(opts, &nodes.ServiceBrokerOption{Name: "REBUILD", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+		opts = append(opts, &nodes.ServiceBrokerOption{Name: "REBUILD", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REORGANIZE") {
 		optLoc := p.pos()
 		p.advance()
@@ -1209,7 +1209,7 @@ func (p *Parser) parseAlterQueueStmt() (*nodes.ServiceBrokerStmt, error) {
 				p.match(')')
 			}
 		}
-		opts = append(opts, &nodes.ServiceBrokerOption{Name: "REORGANIZE", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+		opts = append(opts, &nodes.ServiceBrokerOption{Name: "REORGANIZE", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MOVE") {
 		optLoc := p.pos()
 		p.advance()
@@ -1222,7 +1222,7 @@ func (p *Parser) parseAlterQueueStmt() (*nodes.ServiceBrokerStmt, error) {
 			val = p.cur.Str
 			p.advance()
 		}
-		opts = append(opts, &nodes.ServiceBrokerOption{Name: "MOVE TO", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+		opts = append(opts, &nodes.ServiceBrokerOption{Name: "MOVE TO", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 	} else {
 		// queue_settings: WITH clause
 		opts = p.parseQueueWithClause(opts)
@@ -1232,7 +1232,7 @@ func (p *Parser) parseAlterQueueStmt() (*nodes.ServiceBrokerStmt, error) {
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1271,7 +1271,7 @@ func (p *Parser) parseAlterServiceStmt() (*nodes.ServiceBrokerStmt, error) {
 			p.advance()
 			ref , _ := p.parseTableRef()
 			if ref != nil {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "QUEUE", Value: ref.Object, Loc: nodes.Loc{Start: qLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "QUEUE", Value: ref.Object, Loc: nodes.Loc{Start: qLoc, End: p.prevEnd()}})
 			}
 		}
 	}
@@ -1287,7 +1287,7 @@ func (p *Parser) parseAlterServiceStmt() (*nodes.ServiceBrokerStmt, error) {
 					p.advance()
 				}
 				if p.isIdentLike() || p.cur.Type == tokSCONST {
-					opts = append(opts, &nodes.ServiceBrokerOption{Name: "ADD CONTRACT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+					opts = append(opts, &nodes.ServiceBrokerOption{Name: "ADD CONTRACT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 					p.advance()
 				}
 			} else if p.cur.Type == kwDROP {
@@ -1296,7 +1296,7 @@ func (p *Parser) parseAlterServiceStmt() (*nodes.ServiceBrokerStmt, error) {
 					p.advance()
 				}
 				if p.isIdentLike() || p.cur.Type == tokSCONST {
-					opts = append(opts, &nodes.ServiceBrokerOption{Name: "DROP CONTRACT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+					opts = append(opts, &nodes.ServiceBrokerOption{Name: "DROP CONTRACT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 					p.advance()
 				}
 			} else {
@@ -1312,7 +1312,7 @@ func (p *Parser) parseAlterServiceStmt() (*nodes.ServiceBrokerStmt, error) {
 	if len(opts) > 0 {
 		stmt.Options = &nodes.List{Items: opts}
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1366,9 +1366,9 @@ func (p *Parser) parseAlterRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 					val = p.cur.Str
 					p.advance()
 				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			} else {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			}
 			if _, ok := p.match(','); !ok {
 				break
@@ -1379,7 +1379,7 @@ func (p *Parser) parseAlterRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1428,7 +1428,7 @@ func (p *Parser) parseAlterRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt,
 					val = p.cur.Str
 					p.advance()
 				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			}
 			if _, ok := p.match(','); !ok {
 				break
@@ -1439,7 +1439,7 @@ func (p *Parser) parseAlterRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt,
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1499,9 +1499,9 @@ func (p *Parser) parseAlterMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) {
 						schemaName = ref.Object
 					}
 				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: "VALID_XML WITH SCHEMA COLLECTION " + schemaName, Loc: nodes.Loc{Start: valLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: "VALID_XML WITH SCHEMA COLLECTION " + schemaName, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}})
 			} else {
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: valType, Loc: nodes.Loc{Start: valLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: valType, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}})
 			}
 		}
 		if len(opts) > 0 {
@@ -1509,7 +1509,7 @@ func (p *Parser) parseAlterMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1570,7 +1570,7 @@ func (p *Parser) parseAlterContractStmt() (*nodes.ServiceBrokerStmt, error) {
 			if sentBy != "" {
 				val += " SENT BY " + sentBy
 			}
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ADD", Value: val, Loc: nodes.Loc{Start: addLoc, End: p.pos()}})
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ADD", Value: val, Loc: nodes.Loc{Start: addLoc, End: p.prevEnd()}})
 		}
 	}
 
@@ -1585,7 +1585,7 @@ func (p *Parser) parseAlterContractStmt() (*nodes.ServiceBrokerStmt, error) {
 			}
 		}
 		if p.isIdentLike() || p.cur.Type == tokSCONST {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "DROP", Value: p.cur.Str, Loc: nodes.Loc{Start: dropLoc, End: p.pos()}})
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "DROP", Value: p.cur.Str, Loc: nodes.Loc{Start: dropLoc, End: p.prevEnd()}})
 			p.advance()
 		}
 	}
@@ -1594,7 +1594,7 @@ func (p *Parser) parseAlterContractStmt() (*nodes.ServiceBrokerStmt, error) {
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1628,7 +1628,7 @@ func (p *Parser) parseDropServiceBrokerStmt(objectType string) (*nodes.ServiceBr
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1669,7 +1669,7 @@ func (p *Parser) parseCreateBrokerPriorityStmt() (*nodes.ServiceBrokerStmt, erro
 
 	stmt.Options = p.parseBrokerPrioritySetOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1710,7 +1710,7 @@ func (p *Parser) parseAlterBrokerPriorityStmt() (*nodes.ServiceBrokerStmt, error
 
 	stmt.Options = p.parseBrokerPrioritySetOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1743,7 +1743,7 @@ func (p *Parser) parseBrokerPrioritySetOptions() *nodes.List {
 					val = p.cur.Str
 					p.advance()
 				}
-				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+				opts = append(opts, &nodes.ServiceBrokerOption{Name: optName, Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			}
 		} else {
 			p.advance()
@@ -1790,13 +1790,13 @@ func (p *Parser) parseMoveConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 		p.advance()
 		if p.cur.Type == tokVARIABLE || p.isIdentLike() || p.cur.Type == tokSCONST {
 			var opts []nodes.Node
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "TO", Value: p.cur.Str, Loc: nodes.Loc{Start: toLoc, End: p.pos()}})
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "TO", Value: p.cur.Str, Loc: nodes.Loc{Start: toLoc, End: p.prevEnd()}})
 			stmt.Options = &nodes.List{Items: opts}
 			p.advance()
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1823,7 +1823,7 @@ func (p *Parser) parseBeginConversationTimerStmt() (*nodes.ServiceBrokerStmt, er
 		p.advance()
 		handle, _ := p.parseExpr()
 		if handle != nil {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "HANDLE", Value: nodes.NodeToString(handle), Loc: nodes.Loc{Start: hLoc, End: p.pos()}})
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "HANDLE", Value: nodes.NodeToString(handle), Loc: nodes.Loc{Start: hLoc, End: p.prevEnd()}})
 		}
 		p.match(')')
 	}
@@ -1834,7 +1834,7 @@ func (p *Parser) parseBeginConversationTimerStmt() (*nodes.ServiceBrokerStmt, er
 		p.match('=')
 		timeout, _ := p.parseExpr()
 		if timeout != nil {
-			opts = append(opts, &nodes.ServiceBrokerOption{Name: "TIMEOUT", Value: nodes.NodeToString(timeout), Loc: nodes.Loc{Start: tLoc, End: p.pos()}})
+			opts = append(opts, &nodes.ServiceBrokerOption{Name: "TIMEOUT", Value: nodes.NodeToString(timeout), Loc: nodes.Loc{Start: tLoc, End: p.prevEnd()}})
 		}
 	}
 
@@ -1842,6 +1842,6 @@ func (p *Parser) parseBeginConversationTimerStmt() (*nodes.ServiceBrokerStmt, er
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }

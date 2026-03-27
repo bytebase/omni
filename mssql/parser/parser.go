@@ -1279,7 +1279,7 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 					name, _ := p.parseIdentifier()
 					stmtKey.Name = name
 					p.parseSecurityKeyOptions(stmtKey)
-					stmtKey.Loc.End = p.pos()
+					stmtKey.Loc.End = p.prevEnd()
 					return stmtKey, nil
 				}
 				return nil, nil
@@ -1913,7 +1913,7 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 		if len(nameItems) > 0 {
 			dropStmt.Names = &nodes.List{Items: nameItems}
 		}
-		dropStmt.Loc.End = p.pos()
+		dropStmt.Loc.End = p.prevEnd()
 		return dropStmt, nil
 	case kwUSER:
 		p.advance() // consume DROP
@@ -2296,7 +2296,7 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 			if len(nameItems) > 0 {
 				dropStmt.Names = &nodes.List{Items: nameItems}
 			}
-			dropStmt.Loc.End = p.pos()
+			dropStmt.Loc.End = p.prevEnd()
 			return dropStmt, nil
 		}
 		// DROP AGGREGATE
@@ -2405,7 +2405,7 @@ func (p *Parser) parseLabelStmt() (*nodes.LabelStmt, error) {
 	p.advance() // consume :
 	return &nodes.LabelStmt{
 		Label: label,
-		Loc:   nodes.Loc{Start: loc, End: p.pos()},
+		Loc:   nodes.Loc{Start: loc, End: p.prevEnd()},
 	}, nil
 }
 

@@ -35,7 +35,7 @@ func (p *Parser) parseCreateEventNotificationStmt() (*nodes.SecurityStmt, error)
 	// Consume rest of statement (ON, WITH FAN_IN, FOR, TO SERVICE clauses)
 	stmt.Options = p.parseEventNotificationOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -64,7 +64,7 @@ func (p *Parser) parseDropEventNotificationStmt() (*nodes.SecurityStmt, error) {
 	// Consume rest: optional additional names and ON clause
 	stmt.Options = p.parseEventNotificationOptions()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -154,7 +154,7 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 		}
 	}
 
-	opt.Loc.End = p.pos()
+	opt.Loc.End = p.prevEnd()
 	return &nodes.List{Items: []nodes.Node{opt}}
 }
 
@@ -212,7 +212,7 @@ func (p *Parser) parseCreateEventSessionStmt() (*nodes.SecurityStmt, error) {
 	// Consume rest of statement (ON, ADD EVENT, ADD TARGET, WITH)
 	stmt.Options = p.parseEventSessionBody()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -256,7 +256,7 @@ func (p *Parser) parseAlterEventSessionStmt() (*nodes.SecurityStmt, error) {
 	// Consume rest of statement
 	stmt.Options = p.parseEventSessionBody()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -285,7 +285,7 @@ func (p *Parser) parseDropEventSessionStmt() (*nodes.SecurityStmt, error) {
 	// ON { SERVER | DATABASE }
 	stmt.Options = p.parseEventSessionBody()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 

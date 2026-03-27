@@ -69,7 +69,7 @@ func (p *Parser) parseGrantStmt() (*nodes.GrantStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -134,7 +134,7 @@ func (p *Parser) parseRevokeStmt() (*nodes.GrantStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -182,7 +182,7 @@ func (p *Parser) parseDenyStmt() (*nodes.GrantStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 

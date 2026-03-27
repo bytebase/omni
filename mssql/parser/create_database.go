@@ -232,7 +232,7 @@ func (p *Parser) parseCreateDatabaseStmt() (*nodes.CreateDatabaseStmt, error) {
 		stmt.WithOptions = p.parseDatabaseWithOptions()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -303,7 +303,7 @@ func (p *Parser) parseDatabaseFileSpec() *nodes.DatabaseFileSpec {
 	}
 
 	p.match(')') // consume ')'
-	spec.Loc.End = p.pos()
+	spec.Loc.End = p.prevEnd()
 	return spec
 }
 
@@ -321,7 +321,7 @@ func (p *Parser) parseSizeValue() *nodes.SizeValue {
 		// Could be a bare identifier like a number
 		sv.Value = p.cur.Str
 		p.advance()
-		sv.Loc.End = p.pos()
+		sv.Loc.End = p.prevEnd()
 		return sv
 	}
 
@@ -337,7 +337,7 @@ func (p *Parser) parseSizeValue() *nodes.SizeValue {
 			p.advance()
 		}
 	}
-	sv.Loc.End = p.pos()
+	sv.Loc.End = p.prevEnd()
 	return sv
 }
 
@@ -392,7 +392,7 @@ func (p *Parser) parseDatabaseFilegroup() *nodes.DatabaseFilegroup {
 		fg.Files = &nodes.List{Items: files}
 	}
 
-	fg.Loc.End = p.pos()
+	fg.Loc.End = p.prevEnd()
 	return fg
 }
 
@@ -497,7 +497,7 @@ func (p *Parser) parseOneDatabaseOption() *nodes.DatabaseOption {
 		p.match(')')
 	}
 
-	opt.Loc.End = p.pos()
+	opt.Loc.End = p.prevEnd()
 	return opt
 }
 
@@ -555,7 +555,7 @@ func (p *Parser) parseDatabaseFilestreamOption() *nodes.DatabaseOption {
 		p.match(')')
 	}
 
-	opt.Loc.End = p.pos()
+	opt.Loc.End = p.prevEnd()
 	return opt
 }
 
@@ -611,7 +611,7 @@ func (p *Parser) parseDatabaseAttachOptions() *nodes.List {
 			p.advance()
 			opts = append(opts, &nodes.DatabaseOption{
 				Name: key,
-				Loc:  nodes.Loc{Start: optLoc, End: p.pos()},
+				Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
 			})
 		case "FILESTREAM":
 			opts = append(opts, p.parseDatabaseFilestreamOption())
@@ -621,7 +621,7 @@ func (p *Parser) parseDatabaseAttachOptions() *nodes.List {
 			p.advance()
 			opts = append(opts, &nodes.DatabaseOption{
 				Name: key,
-				Loc:  nodes.Loc{Start: optLoc, End: p.pos()},
+				Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
 			})
 		}
 		if p.cur.Type == ',' {

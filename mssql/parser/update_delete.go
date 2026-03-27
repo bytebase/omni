@@ -131,7 +131,7 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 		stmt.OptionClause = oc
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -237,7 +237,7 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		stmt.OptionClause = oc
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -267,7 +267,7 @@ func (p *Parser) parseWhereClauseBody() (nodes.ExprNode, error) {
 			return &nodes.CurrentOfExpr{
 				CursorName: cursorName,
 				Global:     global,
-				Loc:        nodes.Loc{Start: loc, End: p.pos()},
+				Loc:        nodes.Loc{Start: loc, End: p.prevEnd()},
 			}, nil
 		}
 	}
@@ -365,7 +365,7 @@ func (p *Parser) parseSetClause() (*nodes.SetExpr, error) {
 						return nil, err
 					}
 					se.Value = fc
-					se.Loc.End = p.pos()
+					se.Loc.End = p.prevEnd()
 					return se, nil
 				}
 			}
@@ -388,7 +388,7 @@ func (p *Parser) parseSetClause() (*nodes.SetExpr, error) {
 		return nil, p.newParseError(p.cur.Loc, "expected expression after =")
 	}
 	se.Value = val
-	se.Loc.End = p.pos()
+	se.Loc.End = p.prevEnd()
 	return se, nil
 }
 

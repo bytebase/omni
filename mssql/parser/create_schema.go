@@ -67,7 +67,7 @@ func (p *Parser) parseCreateSchemaStmt() (*nodes.CreateSchemaStmt, error) {
 		stmt.Elements = &nodes.List{Items: elements}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -128,6 +128,6 @@ func (p *Parser) parseAlterSchemaStmt() (*nodes.AlterSchemaStmt, error) {
 		stmt.TransferEntity = strings.Join(securableParts, ".")
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }

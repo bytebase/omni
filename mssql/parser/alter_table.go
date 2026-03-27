@@ -204,7 +204,7 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 	}
 
 	stmt.Actions = &nodes.List{Items: actions}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -257,7 +257,7 @@ func (p *Parser) parseAlterTableAdd() ([]nodes.Node, error) {
 			}
 		}
 
-		action.Loc.End = p.pos()
+		action.Loc.End = p.prevEnd()
 		actions = append(actions, action)
 
 		if _, ok := p.match(','); !ok {
@@ -304,7 +304,7 @@ func (p *Parser) parseAlterTableAddPeriod() ([]nodes.Node, error) {
 		action.Names = &nodes.List{Items: names}
 	}
 
-	action.Loc.End = p.pos()
+	action.Loc.End = p.prevEnd()
 	return []nodes.Node{action}, nil
 }
 
@@ -335,7 +335,7 @@ func (p *Parser) parseAlterTableDrop() ([]nodes.Node, error) {
 			Type: nodes.ATDropPeriod,
 			Loc:  nodes.Loc{Start: loc},
 		}
-		action.Loc.End = p.pos()
+		action.Loc.End = p.prevEnd()
 		return []nodes.Node{action}, nil
 	}
 
@@ -364,7 +364,7 @@ func (p *Parser) parseAlterTableDrop() ([]nodes.Node, error) {
 				return nil, p.unexpectedToken()
 			}
 			action.ColName = name
-			action.Loc.End = p.pos()
+			action.Loc.End = p.prevEnd()
 			actions = append(actions, action)
 			if _, ok := p.match(','); !ok {
 				break
@@ -395,7 +395,7 @@ func (p *Parser) parseAlterTableDrop() ([]nodes.Node, error) {
 			}
 			name, _ := p.parseIdentifier()
 			action.Constraint.Name = name
-			action.Constraint.Loc.End = p.pos()
+			action.Constraint.Loc.End = p.prevEnd()
 			// Optional WITH ( <drop_clustered_constraint_option> [,...n] )
 			if p.cur.Type == kwWITH {
 				p.advance() // consume WITH
@@ -407,7 +407,7 @@ func (p *Parser) parseAlterTableDrop() ([]nodes.Node, error) {
 					}
 				}
 			}
-			action.Loc.End = p.pos()
+			action.Loc.End = p.prevEnd()
 			actions = append(actions, action)
 			if _, ok := p.match(','); !ok {
 				break
@@ -436,7 +436,7 @@ func (p *Parser) parseAlterTableDrop() ([]nodes.Node, error) {
 		}
 		name, _ := p.parseIdentifier()
 		action.Constraint.Name = name
-		action.Constraint.Loc.End = p.pos()
+		action.Constraint.Loc.End = p.prevEnd()
 		// Optional WITH ( <drop_clustered_constraint_option> [,...n] )
 		if p.cur.Type == kwWITH {
 			p.advance() // consume WITH
@@ -448,7 +448,7 @@ func (p *Parser) parseAlterTableDrop() ([]nodes.Node, error) {
 				}
 			}
 		}
-		action.Loc.End = p.pos()
+		action.Loc.End = p.prevEnd()
 		actions = append(actions, action)
 	}
 
@@ -535,7 +535,7 @@ func (p *Parser) parseAlterTableAlterColumn() (*nodes.AlterTableAction, error) {
 		}
 	}
 
-	action.Loc.End = p.pos()
+	action.Loc.End = p.prevEnd()
 	return action, nil
 }
 
@@ -622,9 +622,9 @@ func (p *Parser) parseAlterColumnAddDrop(loc int, colName string) (*nodes.AlterT
 		}
 	}
 
-	opt.Loc.End = p.pos()
+	opt.Loc.End = p.prevEnd()
 	action.Options = &nodes.List{Items: []nodes.Node{opt}}
-	action.Loc.End = p.pos()
+	action.Loc.End = p.prevEnd()
 	return action, nil
 }
 
@@ -664,7 +664,7 @@ func (p *Parser) parseAlterTableCheckConstraint(withCheck string, isCheck bool) 
 	}
 	action.Names = &nodes.List{Items: names}
 
-	action.Loc.End = p.pos()
+	action.Loc.End = p.prevEnd()
 	return action, nil
 }
 
@@ -722,7 +722,7 @@ func (p *Parser) parseAlterTableEnableDisableTrigger(loc int, enable bool) (*nod
 	}
 	action.Names = &nodes.List{Items: names}
 
-	action.Loc.End = p.pos()
+	action.Loc.End = p.prevEnd()
 	return action, nil
 }
 
@@ -751,7 +751,7 @@ func (p *Parser) parseAlterTableChangeTracking(loc int, enable bool) (*nodes.Alt
 		}
 	}
 
-	action.Loc.End = p.pos()
+	action.Loc.End = p.prevEnd()
 	return action, nil
 }
 
@@ -804,7 +804,7 @@ func (p *Parser) parseAlterTableSwitch() (*nodes.AlterTableAction, error) {
 		}
 	}
 
-	action.Loc.End = p.pos()
+	action.Loc.End = p.prevEnd()
 	return action, nil
 }
 
@@ -847,7 +847,7 @@ func (p *Parser) parseAlterTableRebuild() (*nodes.AlterTableAction, error) {
 		}
 	}
 
-	action.Loc.End = p.pos()
+	action.Loc.End = p.prevEnd()
 	return action, nil
 }
 
@@ -884,7 +884,7 @@ func (p *Parser) parseAlterTableSplitMergeRange(isSplit bool) (*nodes.AlterTable
 		}
 	}
 
-	action.Loc.End = p.pos()
+	action.Loc.End = p.prevEnd()
 	return action, nil
 }
 
@@ -911,7 +911,7 @@ func (p *Parser) parseAlterTableSet() (*nodes.AlterTableAction, error) {
 		}
 	}
 
-	action.Loc.End = p.pos()
+	action.Loc.End = p.prevEnd()
 	return action, nil
 }
 
@@ -929,7 +929,7 @@ func (p *Parser) parseAlterTableFiletableNamespace(loc int, enable bool) (*nodes
 	}
 	p.advance() // consume FILETABLE_NAMESPACE
 
-	action.Loc.End = p.pos()
+	action.Loc.End = p.prevEnd()
 	return action, nil
 }
 

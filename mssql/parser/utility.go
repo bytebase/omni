@@ -24,7 +24,7 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -50,7 +50,7 @@ func (p *Parser) parsePrintStmt() (*nodes.PrintStmt, error) {
 	}
 	stmt.Expr = expr
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -121,7 +121,7 @@ func (p *Parser) parseRaiseErrorStmt() (*nodes.RaiseErrorStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -144,7 +144,7 @@ func (p *Parser) parseThrowStmt() (*nodes.ThrowStmt, error) {
 	// THROW without arguments = rethrow
 	if p.cur.Type == ';' || p.cur.Type == tokEOF || p.cur.Type == kwEND ||
 		p.isStatementStart() {
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
@@ -161,7 +161,7 @@ func (p *Parser) parseThrowStmt() (*nodes.ThrowStmt, error) {
 		stmt.State, _ = p.parseExpr()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -183,7 +183,7 @@ func (p *Parser) parseCheckpointStmt() (*nodes.CheckpointStmt, error) {
 		stmt.Duration, _ = p.parseExpr()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -210,7 +210,7 @@ func (p *Parser) parseReconfigureStmt() (*nodes.ReconfigureStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -236,7 +236,7 @@ func (p *Parser) parseShutdownStmt() (*nodes.ShutdownStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -289,7 +289,7 @@ func (p *Parser) parseKillStmt() (nodes.StmtNode, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -308,7 +308,7 @@ func (p *Parser) parseKillStatsJobStmt(loc int) (*nodes.KillStatsJobStmt, error)
 
 	stmt.JobID, _ = p.parseExpr()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -338,7 +338,7 @@ func (p *Parser) parseKillQueryNotificationStmt(loc int) (*nodes.KillQueryNotifi
 		stmt.SubscriptionID, _ = p.parseExpr()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -370,12 +370,12 @@ func (p *Parser) parseReadtextStmt() (*nodes.ReadtextStmt, error) {
 			stmt.Column = &nodes.ColumnRef{
 				Table:  table,
 				Column: col,
-				Loc:    nodes.Loc{Start: colLoc, End: p.pos()},
+				Loc:    nodes.Loc{Start: colLoc, End: p.prevEnd()},
 			}
 		} else {
 			stmt.Column = &nodes.ColumnRef{
 				Column: table,
-				Loc:    nodes.Loc{Start: colLoc, End: p.pos()},
+				Loc:    nodes.Loc{Start: colLoc, End: p.prevEnd()},
 			}
 		}
 	}
@@ -393,7 +393,7 @@ func (p *Parser) parseReadtextStmt() (*nodes.ReadtextStmt, error) {
 		stmt.HoldLock = true
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -450,7 +450,7 @@ func (p *Parser) parseWritetextStmt() (*nodes.WritetextStmt, error) {
 	// data
 	stmt.Data, _ = p.parseExpr()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -517,7 +517,7 @@ func (p *Parser) parseUpdatetextStmt() (*nodes.UpdatetextStmt, error) {
 		stmt.InsertedData, _ = p.parseExpr()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -576,7 +576,7 @@ func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -625,7 +625,7 @@ func (p *Parser) parseCreateDefaultStmt() (*nodes.SecurityStmt, error) {
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -673,7 +673,7 @@ func (p *Parser) parseCreateRuleStmt() (*nodes.SecurityStmt, error) {
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -800,12 +800,12 @@ func (p *Parser) parseAlterDatabaseScopedConfigStmt() (*nodes.SecurityStmt, erro
 					opts = append(opts, &nodes.SecurityPrincipalOption{
 						Name:  key,
 						Value: val,
-						Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+						Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 					})
 				} else {
 					opts = append(opts, &nodes.SecurityPrincipalOption{
 						Name: key,
-						Loc:  nodes.Loc{Start: optLoc, End: p.pos()},
+						Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
 					})
 				}
 			} else if p.cur.Type == ',' {
@@ -820,7 +820,7 @@ func (p *Parser) parseAlterDatabaseScopedConfigStmt() (*nodes.SecurityStmt, erro
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -887,7 +887,7 @@ func (p *Parser) parseEnableDisableTriggerStmt(enable bool) (*nodes.EnableDisabl
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -922,7 +922,7 @@ func (p *Parser) parseSetuserStmt() (*nodes.SecurityStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -991,7 +991,7 @@ func (p *Parser) parseCopyIntoStmt() (*nodes.CopyIntoStmt, error) {
 					p.advance()
 				}
 
-				col.Loc.End = p.pos()
+				col.Loc.End = p.prevEnd()
 				cols = append(cols, col)
 			} else {
 				// unexpected token in column list - break to avoid silent consumption
@@ -1050,7 +1050,7 @@ func (p *Parser) parseCopyIntoStmt() (*nodes.CopyIntoStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1163,7 +1163,7 @@ func (p *Parser) parseRenameStmt() (*nodes.RenameStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1249,7 +1249,7 @@ func (p *Parser) parseCreateExternalTableAsSelectStmt() (*nodes.CreateExternalTa
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1288,7 +1288,7 @@ func (p *Parser) parseCreateTableCloneStmt(name *nodes.TableRef) (*nodes.CreateT
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1390,7 +1390,7 @@ func (p *Parser) parsePredictStmt() (*nodes.PredictStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1428,14 +1428,14 @@ func (p *Parser) parsePredictColumnDef() *nodes.ColumnDef {
 		p.advance()
 		if p.cur.Type == kwNULL {
 			p.advance()
-			col.Nullable = &nodes.NullableSpec{NotNull: true, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+			col.Nullable = &nodes.NullableSpec{NotNull: true, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
 		}
 	} else if p.cur.Type == kwNULL {
 		p.advance()
-		col.Nullable = &nodes.NullableSpec{NotNull: false, Loc: nodes.Loc{Start: loc, End: p.pos()}}
+		col.Nullable = &nodes.NullableSpec{NotNull: false, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
 	}
 
-	col.Loc.End = p.pos()
+	col.Loc.End = p.prevEnd()
 	return col
 }
 
@@ -1509,7 +1509,7 @@ func (p *Parser) parseCreateRemoteTableAsSelectStmt() (*nodes.CreateRemoteTableA
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1541,7 +1541,7 @@ func (p *Parser) parseCreateFederationStmt() (*nodes.CreateFederationStmt, error
 	p.matchIdentCI("RANGE")
 	p.match(')')
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1588,7 +1588,7 @@ func (p *Parser) parseAlterFederationStmt() (*nodes.AlterFederationStmt, error) 
 		p.match('=')
 		stmt.Boundary, _ = p.parseExpr()
 		p.match(')')
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
@@ -1601,7 +1601,7 @@ func (p *Parser) parseAlterFederationStmt() (*nodes.AlterFederationStmt, error) 
 	stmt.Boundary, _ = p.parseExpr()
 	p.match(')')
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1619,7 +1619,7 @@ func (p *Parser) parseDropFederationStmt() (*nodes.DropFederationStmt, error) {
 		stmt.Name = name
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1674,7 +1674,7 @@ func (p *Parser) parseUseFederationStmt() (*nodes.UseFederationStmt, error) {
 	// RESET
 	p.matchIdentCI("RESET")
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1736,7 +1736,7 @@ func (p *Parser) parseInsertBulkStmt() (*nodes.InsertBulkStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -1766,7 +1766,7 @@ func (p *Parser) parseInsertBulkColumnDef() *nodes.InsertBulkColumnDef {
 		col.Nullable = &t
 	}
 
-	col.Loc.End = p.pos()
+	col.Loc.End = p.prevEnd()
 	return col
 }
 
@@ -1788,6 +1788,6 @@ func (p *Parser) parseLinenoStmt() (*nodes.LinenoStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }

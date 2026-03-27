@@ -46,7 +46,7 @@ func (p *Parser) parseBeginTransStmt() (*nodes.BeginTransStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -76,7 +76,7 @@ func (p *Parser) parseBeginDistributedTransStmt() (*nodes.BeginDistributedTransS
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -123,7 +123,7 @@ func (p *Parser) parseCommitStmt() (*nodes.CommitTransStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -156,7 +156,7 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackTransStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -184,6 +184,6 @@ func (p *Parser) parseSaveTransStmt() (*nodes.SaveTransStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }

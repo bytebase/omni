@@ -83,7 +83,7 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 
 	// ON clause
 	if _, ok := p.match(kwON); !ok {
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
@@ -141,19 +141,19 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 	for {
 		evtLoc := p.pos()
 		if p.cur.Type == kwINSERT {
-			events = append(events, &nodes.TriggerEvent{Name: "INSERT", Loc: nodes.Loc{Start: evtLoc, End: p.pos()}})
+			events = append(events, &nodes.TriggerEvent{Name: "INSERT", Loc: nodes.Loc{Start: evtLoc, End: p.prevEnd()}})
 			p.advance()
 		} else if p.cur.Type == kwUPDATE {
-			events = append(events, &nodes.TriggerEvent{Name: "UPDATE", Loc: nodes.Loc{Start: evtLoc, End: p.pos()}})
+			events = append(events, &nodes.TriggerEvent{Name: "UPDATE", Loc: nodes.Loc{Start: evtLoc, End: p.prevEnd()}})
 			p.advance()
 		} else if p.cur.Type == kwDELETE {
-			events = append(events, &nodes.TriggerEvent{Name: "DELETE", Loc: nodes.Loc{Start: evtLoc, End: p.pos()}})
+			events = append(events, &nodes.TriggerEvent{Name: "DELETE", Loc: nodes.Loc{Start: evtLoc, End: p.prevEnd()}})
 			p.advance()
 		} else if p.matchIdentCI("LOGON") {
-			events = append(events, &nodes.TriggerEvent{Name: "LOGON", Loc: nodes.Loc{Start: evtLoc, End: p.pos()}})
+			events = append(events, &nodes.TriggerEvent{Name: "LOGON", Loc: nodes.Loc{Start: evtLoc, End: p.prevEnd()}})
 		} else if p.isIdentLike() {
 			// DDL event type or event group (e.g., CREATE_TABLE, DDL_TABLE_EVENTS)
-			events = append(events, &nodes.TriggerEvent{Name: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: evtLoc, End: p.pos()}})
+			events = append(events, &nodes.TriggerEvent{Name: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: evtLoc, End: p.prevEnd()}})
 			p.advance()
 		} else {
 			break
@@ -220,7 +220,7 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 		stmt.Body = body
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -246,7 +246,7 @@ func (p *Parser) parseTriggerWithOptions() *nodes.List {
 
 		optLoc := p.pos()
 		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "ENCRYPTION") {
-			items = append(items, &nodes.TriggerOption{Name: "ENCRYPTION", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+			items = append(items, &nodes.TriggerOption{Name: "ENCRYPTION", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		} else if p.cur.Type == kwEXEC || p.cur.Type == kwEXECUTE {
 			p.advance() // consume EXECUTE/EXEC
@@ -262,12 +262,12 @@ func (p *Parser) parseTriggerWithOptions() *nodes.List {
 				asVal = strings.ToUpper(p.cur.Str)
 				p.advance()
 			}
-			items = append(items, &nodes.TriggerOption{Name: "EXECUTE AS", Value: asVal, Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+			items = append(items, &nodes.TriggerOption{Name: "EXECUTE AS", Value: asVal, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 		} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "NATIVE_COMPILATION") {
-			items = append(items, &nodes.TriggerOption{Name: "NATIVE_COMPILATION", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+			items = append(items, &nodes.TriggerOption{Name: "NATIVE_COMPILATION", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		} else if p.cur.Type == kwSCHEMABINDING {
-			items = append(items, &nodes.TriggerOption{Name: "SCHEMABINDING", Loc: nodes.Loc{Start: optLoc, End: p.pos()}})
+			items = append(items, &nodes.TriggerOption{Name: "SCHEMABINDING", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		} else {
 			// Unknown option — break to avoid infinite loop

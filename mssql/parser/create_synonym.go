@@ -30,6 +30,6 @@ func (p *Parser) parseCreateSynonymStmt() (*nodes.CreateSynonymStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }

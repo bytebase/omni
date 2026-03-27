@@ -138,7 +138,7 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 		stmt.OptionClause = oc
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -171,7 +171,7 @@ func (p *Parser) parseValuesClause() (*nodes.ValuesClause, error) {
 		}
 	}
 	vc.Rows = &nodes.List{Items: rows}
-	vc.Loc.End = p.pos()
+	vc.Loc.End = p.prevEnd()
 	return vc, nil
 }
 
@@ -201,7 +201,7 @@ func (p *Parser) parseOutputClause() (*nodes.OutputClause, error) {
 			// @table_variable
 			oc.IntoTable = &nodes.TableRef{
 				Object: p.cur.Str,
-				Loc:    nodes.Loc{Start: p.pos(), End: p.pos()},
+				Loc:    nodes.Loc{Start: p.pos(), End: p.prevEnd()},
 			}
 			p.advance()
 		} else {
@@ -232,7 +232,7 @@ func (p *Parser) parseOutputClause() (*nodes.OutputClause, error) {
 		}
 	}
 
-	oc.Loc.End = p.pos()
+	oc.Loc.End = p.prevEnd()
 	return oc, nil
 }
 

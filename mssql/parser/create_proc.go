@@ -128,7 +128,7 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) (*nodes.CreateProcedureS
 		stmt.Body = body
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -287,7 +287,7 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 				}
 				stmt.ReturnsTable.Columns = &nodes.List{Items: cols}
 			}
-			stmt.ReturnsTable.Loc.End = p.pos()
+			stmt.ReturnsTable.Loc.End = p.prevEnd()
 		} else if p.cur.Type == tokVARIABLE {
 			// RETURNS @var TABLE (...)
 			varName := p.cur.Str
@@ -318,7 +318,7 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 					}
 					stmt.ReturnsTable.Columns = &nodes.List{Items: cols}
 				}
-				stmt.ReturnsTable.Loc.End = p.pos()
+				stmt.ReturnsTable.Loc.End = p.prevEnd()
 			}
 		} else {
 			dt, err := p.parseDataType()
@@ -396,7 +396,7 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 		stmt.Body = body
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -482,7 +482,7 @@ func (p *Parser) parseParamDef() (*nodes.ParamDef, error) {
 		p.advance()
 	}
 
-	param.Loc.End = p.pos()
+	param.Loc.End = p.prevEnd()
 	return param, nil
 }
 

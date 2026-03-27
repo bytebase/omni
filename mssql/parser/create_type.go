@@ -125,7 +125,7 @@ func (p *Parser) parseCreateTypeStmt() (*nodes.CreateTypeStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -189,7 +189,7 @@ func (p *Parser) parseTableTypeIndex() (*nodes.TableTypeIndex, error) {
 				col.SortDir = nodes.SortDesc
 				p.advance()
 			}
-			col.Loc.End = p.pos()
+			col.Loc.End = p.prevEnd()
 			cols = append(cols, col)
 			if _, ok := p.match(','); !ok {
 				break
@@ -220,6 +220,6 @@ func (p *Parser) parseTableTypeIndex() (*nodes.TableTypeIndex, error) {
 		}
 	}
 
-	idx.Loc.End = p.pos()
+	idx.Loc.End = p.prevEnd()
 	return idx, nil
 }

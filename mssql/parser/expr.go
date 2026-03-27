@@ -405,7 +405,7 @@ func (p *Parser) parseCollateExpr(expr nodes.ExprNode) (nodes.ExprNode, error) {
 		Collation: collation,
 		Loc:       nodes.Loc{Start: loc},
 	}
-	node.Loc.End = p.pos()
+	node.Loc.End = p.prevEnd()
 	return node, nil
 }
 
@@ -440,7 +440,7 @@ func (p *Parser) parseAtTimeZoneExpr(expr nodes.ExprNode) (nodes.ExprNode, error
 		TimeZone: tz,
 		Loc:      nodes.Loc{Start: loc},
 	}
-	node.Loc.End = p.pos()
+	node.Loc.End = p.prevEnd()
 	return node, nil
 }
 
@@ -1175,10 +1175,10 @@ func (p *Parser) parseOverClause() (*nodes.OverClause, error) {
 	if p.cur.Type != '(' && p.isIdentLike() {
 		over := &nodes.OverClause{
 			WindowName: p.cur.Str,
-			Loc:        nodes.Loc{Start: loc, End: p.pos()},
+			Loc:        nodes.Loc{Start: loc, End: p.prevEnd()},
 		}
 		p.advance()
-		over.Loc.End = p.pos()
+		over.Loc.End = p.prevEnd()
 		return over, nil
 	}
 
@@ -1249,7 +1249,7 @@ func (p *Parser) parseOverClause() (*nodes.OverClause, error) {
 		}
 	}
 
-	over.Loc.End = p.pos()
+	over.Loc.End = p.prevEnd()
 	_, _ = p.expect(')')
 	return over, nil
 }
@@ -1286,7 +1286,7 @@ func (p *Parser) parseWindowFrame() (*nodes.WindowFrame, error) {
 			return nil, err
 		}
 		if _, err := p.expect(kwAND); err != nil {
-			frame.Loc.End = p.pos()
+			frame.Loc.End = p.prevEnd()
 			return frame, nil
 		}
 		frame.End, err = p.parseWindowFrameBound()
@@ -1302,7 +1302,7 @@ func (p *Parser) parseWindowFrame() (*nodes.WindowFrame, error) {
 		}
 	}
 
-	frame.Loc.End = p.pos()
+	frame.Loc.End = p.prevEnd()
 	return frame, nil
 }
 
@@ -1346,6 +1346,6 @@ func (p *Parser) parseWindowFrameBound() (*nodes.WindowBound, error) {
 		}
 	}
 
-	bound.Loc.End = p.pos()
+	bound.Loc.End = p.prevEnd()
 	return bound, nil
 }

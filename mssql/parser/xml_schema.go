@@ -27,7 +27,7 @@ func (p *Parser) parseCreateXmlSchemaCollectionStmt() (*nodes.CreateXmlSchemaCol
 	}
 	stmt.XmlSchemaNamespaces, _ = p.parseExpr()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -52,6 +52,6 @@ func (p *Parser) parseAlterXmlSchemaCollectionStmt() (*nodes.AlterXmlSchemaColle
 		stmt.XmlSchemaNamespaces, _ = p.parseExpr()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }

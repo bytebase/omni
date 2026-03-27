@@ -65,7 +65,7 @@ func (p *Parser) parseDbccStmt() (*nodes.DbccStmt, error) {
 				p.advance()
 				opts = append(opts, &nodes.DbccOption{
 					Name: optName,
-					Loc:  nodes.Loc{Start: optLoc, End: p.pos()},
+					Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
 				})
 			} else {
 				break
@@ -79,6 +79,6 @@ func (p *Parser) parseDbccStmt() (*nodes.DbccStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }

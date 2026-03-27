@@ -41,7 +41,7 @@ func (p *Parser) parseCreateWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	stmt.Options = p.parseResourceGovernorOptions()
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -76,7 +76,7 @@ func (p *Parser) parseAlterWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	stmt.Options = p.parseResourceGovernorOptions()
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -99,7 +99,7 @@ func (p *Parser) parseDropWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -145,7 +145,7 @@ func (p *Parser) parseCreateResourcePoolStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	stmt.Options = p.parseResourceGovernorOptions()
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -183,7 +183,7 @@ func (p *Parser) parseAlterResourcePoolStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	stmt.Options = p.parseResourceGovernorOptions()
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -206,7 +206,7 @@ func (p *Parser) parseDropResourcePoolStmt() (*nodes.SecurityStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -236,7 +236,7 @@ func (p *Parser) parseCreateExternalResourcePoolStmt() (*nodes.SecurityStmt, err
 	}
 
 	stmt.Options = p.parseResourceGovernorOptions()
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -266,7 +266,7 @@ func (p *Parser) parseAlterExternalResourcePoolStmt() (*nodes.SecurityStmt, erro
 	}
 
 	stmt.Options = p.parseResourceGovernorOptions()
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -289,7 +289,7 @@ func (p *Parser) parseDropExternalResourcePoolStmt() (*nodes.SecurityStmt, error
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -315,7 +315,7 @@ func (p *Parser) parseAlterResourceGovernorStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	stmt.Options = p.parseResourceGovernorOptions()
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -387,7 +387,7 @@ func (p *Parser) parseResourceGovernorOptions() *nodes.List {
 			opts = append(opts, &nodes.ResourceGovernorOption{
 				Name:  name,
 				Value: val,
-				Loc:   nodes.Loc{Start: optLoc, End: p.pos()},
+				Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 			})
 			if p.cur.Type == ',' {
 				p.advance()
@@ -573,7 +573,7 @@ func (p *Parser) parseCreateWorkloadClassifierStmt() (*nodes.SecurityStmt, error
 	}
 
 	stmt.Options = p.parseResourceGovernorOptions()
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -605,7 +605,7 @@ func (p *Parser) parseAlterWorkloadClassifierStmt() (*nodes.SecurityStmt, error)
 	}
 
 	stmt.Options = p.parseResourceGovernorOptions()
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
@@ -628,6 +628,6 @@ func (p *Parser) parseDropWorkloadClassifierStmt() (*nodes.SecurityStmt, error) 
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
