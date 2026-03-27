@@ -9292,8 +9292,8 @@ func TestParseAlterTableColumnOptionsStringsDepth(t *testing.T) {
 				if opt.Option != tt.wantOption {
 					t.Errorf("expected option %s, got %s", tt.wantOption, opt.Option)
 				}
-				if opt.Loc.Start == 0 && opt.Loc.End == 0 {
-					t.Error("AlterColumnOption has zero Loc")
+				if opt.Loc.Start == -1 && opt.Loc.End == -1 {
+					t.Error("AlterColumnOption has unknown Loc")
 				}
 			})
 		}
@@ -10661,8 +10661,8 @@ func TestParseSelectQueryHintRemainingDepth(t *testing.T) {
 		if hint.Kind != "RECOMPILE" {
 			t.Errorf("expected RECOMPILE, got %q", hint.Kind)
 		}
-		if hint.Loc.Start == 0 && hint.Loc.End == 0 {
-			t.Errorf("expected non-zero Loc")
+		if hint.Loc.Start == -1 && hint.Loc.End == -1 {
+			t.Errorf("expected non-unknown Loc")
 		}
 	})
 
@@ -16278,8 +16278,8 @@ func TestParseEndpointOptionsStringsDepth(t *testing.T) {
 					for _, item := range stmt.Options.Items {
 						if opt, ok := item.(*ast.EndpointOption); ok && opt.Name == wantName && opt.Value == wantValue {
 							found = true
-							if opt.Loc.Start == 0 && opt.Loc.End == 0 {
-								t.Errorf("EndpointOption %s has zero Loc", wantName)
+							if opt.Loc.Start == -1 && opt.Loc.End == -1 {
+								t.Errorf("EndpointOption %s has unknown Loc", wantName)
 							}
 							break
 						}

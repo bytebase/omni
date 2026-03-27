@@ -26,10 +26,15 @@ type StmtNode interface {
 }
 
 // Loc represents a source location range (byte offsets).
-// Zero values indicate that the position was not recorded.
+// -1 means "unknown" for either field.
 type Loc struct {
-	Start int // inclusive start byte offset (0 if not set)
-	End   int // exclusive end byte offset (0 if not set)
+	Start int // inclusive start byte offset (-1 if unknown)
+	End   int // exclusive end byte offset (-1 if unknown)
+}
+
+// NoLoc returns a Loc with both Start and End set to -1 (unknown).
+func NoLoc() Loc {
+	return Loc{Start: -1, End: -1}
 }
 
 // List represents a generic list of nodes.
