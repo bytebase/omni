@@ -62,6 +62,8 @@ func resolveRule(rule string, cat interface{}, sql string, cursorOffset int) []C
 	case "table_ref":
 		return resolveCatalogRule(cat, CandidateTable)
 	case "columnref":
+		// Extract table refs visible at cursor for context-aware column completion.
+		_ = extractTableRefs(sql, cursorOffset)
 		return resolveCatalogRule(cat, CandidateColumn)
 	case "schema_ref":
 		return resolveCatalogRule(cat, CandidateSchema)
