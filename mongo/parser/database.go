@@ -90,7 +90,7 @@ func (p *Parser) parseDbStatement() (ast.Node, error) {
 	identTok := p.cur
 	identName := identTok.Str
 
-	// Check for getMongo — could be encryption chain or connection chain
+	// Check for getMongo — could be encryption chain, connection chain, or standalone
 	if identTok.Type == kwGetMongo {
 		p.advance() // consume getMongo
 		// Parse getMongo()
@@ -105,6 +105,25 @@ func (p *Parser) parseDbStatement() (ast.Node, error) {
 			if next.Type == kwGetKeyVault || next.Type == kwGetClientEncryption {
 				return p.parseEncryptionStatement(stmtStart)
 			}
+		}
+
+		// If followed by .method() chain, treat as connection statement
+		if p.cur.Type == '.' {
+			var chain []ast.MethodCall
+			for p.cur.Type == '.' {
+				p.advance() // consume '.'
+				mc, err := p.parseMethodCall()
+				if err != nil {
+					return nil, err
+				}
+				chain = append(chain, *mc)
+			}
+			return &ast.ConnectionStatement{
+				Constructor:    "db.getMongo",
+				Args:           args,
+				ChainedMethods: chain,
+				Loc:            ast.Loc{Start: stmtStart, End: p.prev.End},
+			}, nil
 		}
 
 		// Otherwise it's a database method call

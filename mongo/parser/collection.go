@@ -21,16 +21,25 @@ func (p *Parser) parseCollectionStatement(collName string, collLoc ast.Loc, acce
 	if p.cur.Type == kwExplain {
 		explain = true
 		p.advance() // consume 'explain'
-		args, err := p.parseArguments()
+		eArgs, err := p.parseArguments()
 		if err != nil {
 			return nil, err
 		}
-		explainArgs = args
+		explainArgs = eArgs
 
-		// After explain(), expect '.' then the actual method
-		if _, err := p.expect('.'); err != nil {
-			return nil, err
+		// After explain(), if no '.', this is a standalone explain call
+		if p.cur.Type != '.' {
+			return &ast.CollectionStatement{
+				Collection:    collName,
+				CollectionLoc: collLoc,
+				AccessMethod:  accessMethod,
+				Method:        "explain",
+				Args:          explainArgs,
+				Explain:       false,
+				Loc:           ast.Loc{Start: stmtStart, End: p.prev.End},
+			}, nil
 		}
+		p.advance() // consume '.'
 	}
 
 	// Parse primary method: consume method name

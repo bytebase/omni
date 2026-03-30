@@ -7,9 +7,49 @@ import (
 	"github.com/bytebase/omni/mongo/ast"
 )
 
-// parseExpression parses a value expression (document, array, literal, helper, identifier).
+// parseExpression parses a value expression (document, array, literal, helper, identifier),
+// including optional postfix .method(args) chains (e.g., Binary.createFromBase64("...")).
 func (p *Parser) parseExpression() (ast.Node, error) {
-	return p.parseValue()
+	node, err := p.parseValue()
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle postfix .method(args) chains on identifiers/helpers
+	for p.cur.Type == '.' {
+		// Check that what follows is identifier + '(' (a method call)
+		next := p.peekNext()
+		if !p.isIdentLike(next.Type) {
+			break
+		}
+		p.advance() // consume '.'
+		mc, err := p.parseMethodCall()
+		if err != nil {
+			return nil, err
+		}
+		// Wrap as a HelperCall with qualified name
+		start := node.GetLoc().Start
+		name := nodeToName(node) + "." + mc.Name
+		node = &ast.HelperCall{
+			Name: name,
+			Args: mc.Args,
+			Loc:  ast.Loc{Start: start, End: mc.Loc.End},
+		}
+	}
+
+	return node, nil
+}
+
+// nodeToName extracts a name string from an AST node for building qualified names.
+func nodeToName(n ast.Node) string {
+	switch v := n.(type) {
+	case *ast.Identifier:
+		return v.Name
+	case *ast.HelperCall:
+		return v.Name
+	default:
+		return "?"
+	}
 }
 
 // parseValue parses a value expression (document, array, literal, helper, identifier).
