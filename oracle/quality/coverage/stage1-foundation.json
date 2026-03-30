@@ -1,0 +1,20 @@
+{
+  "stage": 1,
+  "surface": "foundation",
+  "status": "eval_complete",
+  "items": [
+    {"id": "noloc", "description": "NoLoc() returns Loc{-1,-1}", "tested": true},
+    {"id": "loc_sentinel", "description": "Loc zero-value vs NoLoc sentinel", "tested": true},
+    {"id": "token_end", "description": "Token.End field exists and is correct", "tested": true},
+    {"id": "parse_error_severity", "description": "ParseError.Severity field", "tested": true},
+    {"id": "parse_error_code", "description": "ParseError.Code field", "tested": true},
+    {"id": "parse_error_format", "description": "ParseError.Error() format matches PG", "tested": true},
+    {"id": "parser_source", "description": "Parser.source field stores SQL input", "tested": true},
+    {"id": "rawstmt_loc", "description": "RawStmt uses Loc field instead of StmtLocation/StmtLen", "tested": true},
+    {"id": "nodeloc", "description": "NodeLoc() extracts location from any node", "tested": true},
+    {"id": "listspan", "description": "ListSpan() returns span of list elements", "tested": true}
+  ],
+  "total": 10,
+  "tested": 10,
+  "gaps": []
+}
