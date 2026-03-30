@@ -62,6 +62,11 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 	parts := []string{name}
 	for p.cur.Type == '.' {
 		p.advance() // consume .
+		// Completion: after dot in qualified name → table_ref (schema-qualified)
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			return nil, errCollecting
+		}
 		part, ok := p.parseIdentifier()
 		if !ok {
 			// Handle trailing dot (e.g., "db..object" means db.dbo.object with empty schema)

@@ -27,6 +27,12 @@ func (p *Parser) parseOr() (nodes.ExprNode, error) {
 	for p.cur.Type == kwOR {
 		loc := p.pos()
 		p.advance()
+		// Completion: after OR → columnref, func_name
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		right, err := p.parseAnd()
 		if err != nil {
 			return nil, err
@@ -55,6 +61,12 @@ func (p *Parser) parseAnd() (nodes.ExprNode, error) {
 	for p.cur.Type == kwAND {
 		loc := p.pos()
 		p.advance()
+		// Completion: after AND → columnref, func_name
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		right, err := p.parseNot()
 		if err != nil {
 			return nil, err
@@ -1186,6 +1198,13 @@ func (p *Parser) parseOverClause() (*nodes.OverClause, error) {
 		return nil, err
 	}
 
+	// Completion: inside OVER (...) → PARTITION, ORDER
+	if p.collectMode() {
+		p.addTokenCandidate(kwPARTITION)
+		p.addTokenCandidate(kwORDER)
+		return nil, errCollecting
+	}
+
 	over := &nodes.OverClause{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
@@ -1195,6 +1214,12 @@ func (p *Parser) parseOverClause() (*nodes.OverClause, error) {
 		p.advance()
 		if _, err := p.expect(kwBY); err != nil {
 			return over, nil
+		}
+		// Completion: after PARTITION BY → columnref
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
 		}
 		var parts []nodes.Node
 		for {
@@ -1215,6 +1240,12 @@ func (p *Parser) parseOverClause() (*nodes.OverClause, error) {
 		p.advance()
 		if _, err := p.expect(kwBY); err != nil {
 			return over, nil
+		}
+		// Completion: after ORDER BY in OVER → columnref
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
 		}
 		var orders []nodes.Node
 		for {
@@ -1276,6 +1307,14 @@ func (p *Parser) parseWindowFrame() (*nodes.WindowFrame, error) {
 		frame.Type = nodes.FrameGroups
 	}
 	p.advance()
+
+	// Completion: after ROWS/RANGE/GROUPS → BETWEEN, UNBOUNDED, CURRENT
+	if p.collectMode() {
+		p.addTokenCandidate(kwBETWEEN)
+		p.addTokenCandidate(kwUNBOUNDED)
+		p.addTokenCandidate(kwCURRENT)
+		return nil, errCollecting
+	}
 
 	if p.cur.Type == kwBETWEEN {
 		// BETWEEN <bound> AND <bound>

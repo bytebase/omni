@@ -51,6 +51,17 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 	}
 	p.advance() // consume SELECT
 
+	// Completion: after SELECT keyword → target list candidates
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		p.addTokenCandidate(kwDISTINCT)
+		p.addTokenCandidate(kwTOP)
+		p.addTokenCandidate(kwALL)
+		p.addTokenCandidate('*')
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.SelectStmt{
 		WithClause: withClause,
 		Loc:        nodes.Loc{Start: loc, End: -1},
@@ -59,6 +70,13 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 	// ALL | DISTINCT
 	if _, ok := p.match(kwDISTINCT); ok {
 		stmt.Distinct = true
+		// Completion: after DISTINCT → columnref context
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			p.addTokenCandidate('*')
+			return nil, errCollecting
+		}
 	} else if _, ok := p.match(kwALL); ok {
 		stmt.All = true
 	}
@@ -69,6 +87,13 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		stmt.Top, err = p.parseTopClause()
 		if err != nil {
 			return nil, err
+		}
+		// Completion: after TOP N → columnref context
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			p.addTokenCandidate('*')
+			return nil, errCollecting
 		}
 	}
 
@@ -89,6 +114,11 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 
 	// FROM
 	if _, ok := p.match(kwFROM); ok {
+		// Completion: after FROM → table_ref context
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			return nil, errCollecting
+		}
 		stmt.FromClause, err = p.parseFromClause()
 		if err != nil {
 			return nil, err
@@ -96,10 +126,37 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		if stmt.FromClause == nil || len(stmt.FromClause.Items) == 0 {
 			return nil, p.unexpectedToken()
 		}
+		// Completion: after FROM clause (before WHERE/JOIN/ORDER etc.)
+		if p.collectMode() {
+			p.addTokenCandidate(kwWHERE)
+			p.addTokenCandidate(kwJOIN)
+			p.addTokenCandidate(kwINNER)
+			p.addTokenCandidate(kwLEFT)
+			p.addTokenCandidate(kwRIGHT)
+			p.addTokenCandidate(kwCROSS)
+			p.addTokenCandidate(kwFULL)
+			p.addTokenCandidate(kwOUTER)
+			p.addTokenCandidate(kwAPPLY)
+			p.addTokenCandidate(kwORDER)
+			p.addTokenCandidate(kwGROUP)
+			p.addTokenCandidate(kwHAVING)
+			p.addTokenCandidate(kwUNION)
+			p.addTokenCandidate(kwFOR)
+			p.addTokenCandidate(kwOPTION)
+			p.addTokenCandidate(kwPIVOT)
+			p.addTokenCandidate(kwUNPIVOT)
+			return nil, errCollecting
+		}
 	}
 
 	// WHERE
 	if _, ok := p.match(kwWHERE); ok {
+		// Completion: after WHERE → columnref context
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		stmt.WhereClause, err = p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -113,6 +170,12 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 	if p.cur.Type == kwGROUP {
 		p.advance()
 		if _, err := p.expect(kwBY); err == nil {
+			// Completion: after GROUP BY → columnref context
+			if p.collectMode() {
+				p.addRuleCandidate("columnref")
+				p.addRuleCandidate("func_name")
+				return nil, errCollecting
+			}
 			if _, ok := p.match(kwALL); ok {
 				stmt.GroupByAll = true
 			}
@@ -123,11 +186,28 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 			if stmt.GroupByClause == nil || len(stmt.GroupByClause.Items) == 0 {
 				return nil, p.unexpectedToken()
 			}
+			// Completion: after GROUP BY list → clause keywords
+			if p.collectMode() {
+				p.addTokenCandidate(kwHAVING)
+				p.addTokenCandidate(kwORDER)
+				p.addTokenCandidate(kwFOR)
+				p.addTokenCandidate(kwOPTION)
+				p.addTokenCandidate(kwUNION)
+				p.addTokenCandidate(kwINTERSECT)
+				p.addTokenCandidate(kwEXCEPT)
+				return nil, errCollecting
+			}
 		}
 	}
 
 	// HAVING
 	if _, ok := p.match(kwHAVING); ok {
+		// Completion: after HAVING → columnref context
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		stmt.HavingClause, err = p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -149,6 +229,12 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 	if p.cur.Type == kwORDER {
 		p.advance()
 		if _, err := p.expect(kwBY); err == nil {
+			// Completion: after ORDER BY → columnref context
+			if p.collectMode() {
+				p.addRuleCandidate("columnref")
+				p.addRuleCandidate("func_name")
+				return nil, errCollecting
+			}
 			stmt.OrderByClause, err = p.parseOrderByList()
 			if err != nil {
 				return nil, err
@@ -156,12 +242,22 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 			if stmt.OrderByClause == nil || len(stmt.OrderByClause.Items) == 0 {
 				return nil, p.unexpectedToken()
 			}
+			// Completion: after ORDER BY list → sort direction, OFFSET, etc.
+			if p.collectMode() {
+				p.addTokenCandidate(kwASC)
+				p.addTokenCandidate(kwDESC)
+				p.addTokenCandidate(kwOFFSET)
+				p.addTokenCandidate(kwFOR)
+				p.addTokenCandidate(kwOPTION)
+				return nil, errCollecting
+			}
 		}
 	}
 
 	// OFFSET ... FETCH
 	if p.cur.Type == kwOFFSET {
 		p.advance()
+		// Completion: after OFFSET → numeric context (no specific candidates)
 		stmt.OffsetClause, err = p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -208,6 +304,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		}
 	}
 
+	// Completion: after OPTION clause or FOR clause position
+	// This is checked here in case we fall through without FOR/OPTION.
+
 	// OPTION clause
 	if p.cur.Type == kwOPTION {
 		stmt.OptionClause, err = p.parseOptionClause()
@@ -238,9 +337,21 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, e
 	}
 	p.advance()
 
+	// Completion: after UNION/INTERSECT/EXCEPT → ALL, SELECT
+	if p.collectMode() {
+		p.addTokenCandidate(kwALL)
+		p.addTokenCandidate(kwSELECT)
+		return nil, errCollecting
+	}
+
 	all := false
 	if _, ok := p.match(kwALL); ok {
 		all = true
+		// Completion: after UNION ALL → SELECT
+		if p.collectMode() {
+			p.addTokenCandidate(kwSELECT)
+			return nil, errCollecting
+		}
 	}
 
 	right, err := p.parseSelectStmt()
@@ -268,7 +379,17 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, e
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/with-common-table-expression-transact-sql
 func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 	loc := p.pos()
+	// Record CTE position for completion module
+	if p.completing {
+		p.addCTEPosition(loc)
+	}
 	p.advance() // consume WITH
+
+	// Completion: after WITH → identifier context for CTE name
+	if p.collectMode() {
+		p.addRuleCandidate("cte_name")
+		return nil, errCollecting
+	}
 
 	wc := &nodes.WithClause{
 		Loc: nodes.Loc{Start: loc, End: -1},
@@ -369,6 +490,11 @@ func (p *Parser) parseCTE() (*nodes.CommonTableExpr, error) {
 	// Optional column list
 	if p.cur.Type == '(' {
 		p.advance()
+		// Completion: WITH cte (|) → identifier context for column names
+		if p.collectMode() {
+			p.addRuleCandidate("cte_column_name")
+			return nil, errCollecting
+		}
 		var cols []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
 			colName, ok := p.parseIdentifier()
@@ -393,6 +519,12 @@ func (p *Parser) parseCTE() (*nodes.CommonTableExpr, error) {
 		return nil, err
 	}
 
+	// Completion: WITH cte AS (|) → SELECT keyword
+	if p.collectMode() {
+		p.addTokenCandidate(kwSELECT)
+		return nil, errCollecting
+	}
+
 	var err error
 	cte.Query, err = p.parseSelectStmt()
 	if err != nil {
@@ -415,6 +547,9 @@ func (p *Parser) parseCTE() (*nodes.CommonTableExpr, error) {
 func (p *Parser) parseTopClause() (*nodes.TopClause, error) {
 	loc := p.pos()
 	p.advance() // consume TOP
+
+	// Completion: after TOP → numeric context (no specific rule candidates)
+	// Just return without candidates since this is a numeric context.
 
 	tc := &nodes.TopClause{
 		Loc: nodes.Loc{Start: loc, End: -1},
@@ -467,6 +602,13 @@ func (p *Parser) parseTopClause() (*nodes.TopClause, error) {
 func (p *Parser) parseTargetList() (*nodes.List, error) {
 	var targets []nodes.Node
 	for {
+		// Completion: at start of each target list item → columnref, func_name
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			p.addTokenCandidate('*')
+			return nil, errCollecting
+		}
 		targetLoc := p.pos()
 		expr, err := p.parseExpr()
 		if err != nil {
@@ -494,6 +636,13 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 		if _, ok := p.match(','); !ok {
 			break
 		}
+		// Completion: after comma in target list → columnref, func_name
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			p.addTokenCandidate('*')
+			return nil, errCollecting
+		}
 	}
 	return &nodes.List{Items: targets}, nil
 }
@@ -513,6 +662,11 @@ func (p *Parser) parseFromClause() (*nodes.List, error) {
 		if _, ok := p.match(','); !ok {
 			break
 		}
+		// Completion: after comma in FROM list → table_ref
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			return nil, errCollecting
+		}
 	}
 	return &nodes.List{Items: sources}, nil
 }
@@ -527,12 +681,37 @@ func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 		return nil, nil
 	}
 
+	// Completion: after primary table source → JOIN keyword candidates
+	if p.collectMode() {
+		p.addTokenCandidate(kwJOIN)
+		p.addTokenCandidate(kwINNER)
+		p.addTokenCandidate(kwLEFT)
+		p.addTokenCandidate(kwRIGHT)
+		p.addTokenCandidate(kwCROSS)
+		p.addTokenCandidate(kwFULL)
+		p.addTokenCandidate(kwOUTER)
+		p.addTokenCandidate(kwWHERE)
+		p.addTokenCandidate(kwORDER)
+		p.addTokenCandidate(kwGROUP)
+		p.addTokenCandidate(kwHAVING)
+		p.addTokenCandidate(kwUNION)
+		p.addTokenCandidate(kwFOR)
+		p.addTokenCandidate(kwOPTION)
+		p.addTokenCandidate(kwAPPLY)
+		return nil, errCollecting
+	}
+
 	// Parse joins
 	for {
 		joinLoc := p.pos()
 		jt, ok := p.matchJoinType()
 		if !ok {
 			break
+		}
+		// Completion: after JOIN keyword → table_ref
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			return nil, errCollecting
 		}
 		right, err := p.parsePrimaryTableSource()
 		if err != nil {
@@ -550,6 +729,12 @@ func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 		// ON condition (not for CROSS JOIN / CROSS APPLY / OUTER APPLY)
 		if jt != nodes.JoinCross && jt != nodes.JoinCrossApply && jt != nodes.JoinOuterApply {
 			if _, ok := p.match(kwON); ok {
+				// Completion: after ON → columnref
+				if p.collectMode() {
+					p.addRuleCandidate("columnref")
+					p.addRuleCandidate("func_name")
+					return nil, errCollecting
+				}
 				join.Condition, err = p.parseExpr()
 				if err != nil {
 					return nil, err
@@ -568,6 +753,12 @@ func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 
 // parsePrimaryTableSource parses a base table, subquery, or function call as table source.
 func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
+	// Completion: at start of primary table source → table_ref
+	if p.collectMode() {
+		p.addRuleCandidate("table_ref")
+		return nil, errCollecting
+	}
+
 	// Subquery: (SELECT ...)
 	if p.cur.Type == '(' {
 		loc := p.pos()
@@ -694,6 +885,12 @@ func (p *Parser) parsePivotExpr(source nodes.TableExpr) (*nodes.PivotExpr, error
 		return nil, err
 	}
 
+	// Completion: inside PIVOT (...) → aggregate function context
+	if p.collectMode() {
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
+
 	// Parse aggregate function call
 	var err error
 	pivot.AggFunc, err = p.parseExpr()
@@ -751,6 +948,12 @@ func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) (*nodes.UnpivotExpr, e
 
 	if _, err := p.expect('('); err != nil {
 		return nil, err
+	}
+
+	// Completion: inside UNPIVOT (...) → column context
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		return nil, errCollecting
 	}
 
 	// value column name
@@ -1006,6 +1209,14 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 	loc := p.pos()
 	p.advance() // consume FOR
 
+	// Completion: after FOR → XML, JSON, BROWSE
+	if p.collectMode() {
+		p.addTokenCandidate(kwXML)
+		p.addTokenCandidate(kwJSON)
+		p.addTokenCandidate(kwBROWSE)
+		return nil, errCollecting
+	}
+
 	fc := &nodes.ForClause{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
@@ -1020,6 +1231,11 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 	if p.cur.Type == kwXML {
 		fc.Mode = nodes.ForXML
 		p.advance()
+		// Completion: after FOR XML → PATH, RAW, AUTO, EXPLICIT
+		if p.collectMode() {
+			p.addRuleCandidate("xml_mode") // PATH, RAW, AUTO, EXPLICIT
+			return nil, errCollecting
+		}
 		// RAW, AUTO, EXPLICIT, PATH
 		if p.isIdentLike() || p.cur.Type == kwRAW || p.cur.Type == kwPATH {
 			fc.SubMode = strings.ToUpper(p.cur.Str)
@@ -1041,6 +1257,11 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 	} else if p.cur.Type == kwJSON {
 		fc.Mode = nodes.ForJSON
 		p.advance()
+		// Completion: after FOR JSON → PATH, AUTO
+		if p.collectMode() {
+			p.addRuleCandidate("json_mode") // PATH, AUTO
+			return nil, errCollecting
+		}
 		// AUTO or PATH
 		if p.isIdentLike() || p.cur.Type == kwPATH {
 			fc.SubMode = strings.ToUpper(p.cur.Str)
@@ -1252,6 +1473,12 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 		if _, ok := p.match(','); !ok {
 			break
 		}
+		// Completion: after comma in GROUP BY → columnref
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 	}
 	return &nodes.List{Items: items}, nil
 }
@@ -1398,6 +1625,12 @@ func (p *Parser) parseWindowClause() (*nodes.List, error) {
 func (p *Parser) parseOrderByList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
+		// Completion: at start of each ORDER BY item → columnref
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		oloc := p.pos()
 		expr, err := p.parseExpr()
 		if err != nil {
@@ -1412,6 +1645,15 @@ func (p *Parser) parseOrderByList() (*nodes.List, error) {
 		} else if _, ok := p.match(kwDESC); ok {
 			dir = nodes.SortDesc
 		}
+		// Completion: after ORDER BY item (direction) → next valid keywords
+		if p.collectMode() {
+			p.addTokenCandidate(kwASC)
+			p.addTokenCandidate(kwDESC)
+			p.addTokenCandidate(kwOFFSET)
+			p.addTokenCandidate(kwFOR)
+			p.addTokenCandidate(kwOPTION)
+			return nil, errCollecting
+		}
 		items = append(items, &nodes.OrderByItem{
 			Expr:    expr,
 			SortDir: dir,
@@ -1419,6 +1661,12 @@ func (p *Parser) parseOrderByList() (*nodes.List, error) {
 		})
 		if _, ok := p.match(','); !ok {
 			break
+		}
+		// Completion: after comma in ORDER BY → columnref
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
 		}
 	}
 	return &nodes.List{Items: items}, nil
@@ -1459,8 +1707,19 @@ func (p *Parser) parseTableHints() (*nodes.List, error) {
 		return nil, err
 	}
 
+	// Completion: inside WITH (...) → table hint keywords
+	if p.collectMode() {
+		p.addRuleCandidate("table_hint")
+		return nil, errCollecting
+	}
+
 	var hints []nodes.Node
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		// Completion: after comma in table hints → table hint keywords
+		if p.collectMode() {
+			p.addRuleCandidate("table_hint")
+			return nil, errCollecting
+		}
 		hint, err := p.parseTableHint()
 		if err != nil {
 			return nil, err
@@ -1470,7 +1729,13 @@ func (p *Parser) parseTableHints() (*nodes.List, error) {
 		}
 		hints = append(hints, hint)
 		// Optional comma between hints
-		p.match(',')
+		if _, ok := p.match(','); ok {
+			// Completion: after comma in table hints → table hint keywords
+			if p.collectMode() {
+				p.addRuleCandidate("table_hint")
+				return nil, errCollecting
+			}
+		}
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -1673,6 +1938,12 @@ func (p *Parser) parseOptionClause() (*nodes.List, error) {
 	p.advance() // consume OPTION
 	if _, err := p.expect('('); err != nil {
 		return nil, err
+	}
+
+	// Completion: inside OPTION (...) → query hint keywords
+	if p.collectMode() {
+		p.addRuleCandidate("query_hint")
+		return nil, errCollecting
 	}
 
 	var hints []nodes.Node
