@@ -5286,11 +5286,11 @@ func TestParseInfrastructureLocTracking(t *testing.T) {
 		t.Fatalf("expected 1 statement, got %d", result.Len())
 	}
 	raw := result.Items[0].(*ast.RawStmt)
-	if raw.StmtLocation != 0 {
-		t.Errorf("expected StmtLocation=0, got %d", raw.StmtLocation)
+	if raw.Loc.Start != 0 {
+		t.Errorf("expected Loc.Start=0, got %d", raw.Loc.Start)
 	}
-	if raw.StmtLen <= 0 {
-		t.Errorf("expected StmtLen>0, got %d", raw.StmtLen)
+	if raw.Loc.End <= 0 {
+		t.Errorf("expected Loc.End>0, got %d", raw.Loc.End)
 	}
 }
 

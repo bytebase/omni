@@ -33,6 +33,11 @@ type Loc struct {
 	End   int // exclusive end byte offset; 0 means unknown/unset, -1 means unknown
 }
 
+// NoLoc returns a Loc with both Start and End set to -1 (unknown).
+func NoLoc() Loc {
+	return Loc{Start: -1, End: -1}
+}
+
 // List represents a generic list of nodes.
 type List struct {
 	Items []Node

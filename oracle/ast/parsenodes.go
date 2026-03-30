@@ -294,9 +294,8 @@ const (
 
 // RawStmt wraps a raw (unparsed) statement with position info.
 type RawStmt struct {
-	Stmt         StmtNode // raw statement
-	StmtLocation int      // start location (byte offset)
-	StmtLen      int      // length in bytes; 0 means "rest of string"
+	Stmt StmtNode // raw statement
+	Loc  Loc      // source location range (Start = start offset, End = start + length)
 }
 
 func (n *RawStmt) nodeTag() {}

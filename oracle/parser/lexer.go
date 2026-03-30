@@ -41,6 +41,7 @@ type Token struct {
 	Str  string // string value
 	Ival int64  // integer value
 	Loc  int    // byte offset in source
+	End  int    // exclusive end byte offset
 }
 
 // Lexer implements an Oracle SQL/PL/SQL lexer.
@@ -64,11 +65,16 @@ func NewLexer(input string) *Lexer {
 // NextToken returns the next token from the input.
 func (l *Lexer) NextToken() Token {
 	if l.pos >= len(l.input) {
-		return Token{Type: tokEOF, Loc: l.pos}
+		return Token{Type: tokEOF, Loc: l.pos, End: l.pos}
 	}
 
 	l.start = l.pos
-	return l.lexInitial()
+	tok := l.lexInitial()
+	// Set End to current position after token has been fully consumed.
+	// For recursive calls (e.g., skipping comments), the inner NextToken
+	// sets End correctly on its own returned token.
+	tok.End = l.pos
+	return tok
 }
 
 // lexInitial handles tokens in the initial state.

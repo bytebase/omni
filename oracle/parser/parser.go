@@ -12,17 +12,19 @@ import (
 // Parser is a recursive descent parser for Oracle SQL/PL/SQL.
 type Parser struct {
 	lexer   *Lexer
-	cur     Token // current token
-	prev    Token // previous token (for error reporting)
-	nextBuf Token // buffered next token for 2-token lookahead
-	hasNext bool  // whether nextBuf is valid
+	source  string // original SQL input
+	cur     Token  // current token
+	prev    Token  // previous token (for error reporting)
+	nextBuf Token  // buffered next token for 2-token lookahead
+	hasNext bool   // whether nextBuf is valid
 }
 
 // Parse parses a SQL string into an AST list.
 // Each statement is wrapped in a *RawStmt.
 func Parse(sql string) (*nodes.List, error) {
 	p := &Parser{
-		lexer: NewLexer(sql),
+		lexer:  NewLexer(sql),
+		source: sql,
 	}
 	p.advance()
 
@@ -47,9 +49,8 @@ func Parse(sql string) (*nodes.List, error) {
 		}
 
 		raw := &nodes.RawStmt{
-			Stmt:         stmt,
-			StmtLocation: stmtLoc,
-			StmtLen:      p.pos() - stmtLoc,
+			Stmt: stmt,
+			Loc:  nodes.Loc{Start: stmtLoc, End: p.pos()},
 		}
 		stmts = append(stmts, raw)
 	}
@@ -223,10 +224,20 @@ func (p *Parser) matchKeyword(kw int) (Token, bool) {
 
 // ParseError represents a parse error with position information.
 type ParseError struct {
+	Severity string // e.g., "ERROR", "WARNING"; defaults to "ERROR"
+	Code     string // SQLSTATE code; defaults to "42601"
 	Message  string
 	Position int
 }
 
 func (e *ParseError) Error() string {
-	return e.Message
+	sev := e.Severity
+	if sev == "" {
+		sev = "ERROR"
+	}
+	code := e.Code
+	if code == "" {
+		code = "42601"
+	}
+	return fmt.Sprintf("%s: %s (SQLSTATE %s)", sev, e.Message, code)
 }

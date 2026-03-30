@@ -2135,8 +2135,8 @@ func writeRawStmt(sb *strings.Builder, n *RawStmt) {
 		sb.WriteString(" :stmt ")
 		writeNode(sb, n.Stmt)
 	}
-	sb.WriteString(fmt.Sprintf(" :stmt_location %d", n.StmtLocation))
-	sb.WriteString(fmt.Sprintf(" :stmt_len %d", n.StmtLen))
+	sb.WriteString(fmt.Sprintf(" :stmt_location %d", n.Loc.Start))
+	sb.WriteString(fmt.Sprintf(" :stmt_len %d", n.Loc.End-n.Loc.Start))
 	sb.WriteString("}")
 }
 
