@@ -583,7 +583,7 @@ func (p *Parser) parseCommonFuncOptItem() *nodes.DefElem {
 	case SET:
 		// SET set_rest_more
 		p.advance() // consume SET
-		arg := p.parseSetRestMore()
+		arg, _ := p.parseSetRestMore()
 		return &nodes.DefElem{Defname: "set", Arg: arg}
 	case RESET:
 		// VariableResetStmt (RESET reset_rest)

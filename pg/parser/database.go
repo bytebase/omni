@@ -248,7 +248,7 @@ func (p *Parser) parseAlterDatabaseSetStmt(dbname string, stmtLoc int) nodes.Nod
 func (p *Parser) parseSetResetClause() *nodes.VariableSetStmt {
 	if p.cur.Type == SET {
 		p.advance() // consume SET
-		result := p.parseSetRest()
+		result, _ := p.parseSetRest()
 		if vs, ok := result.(*nodes.VariableSetStmt); ok {
 			return vs
 		}

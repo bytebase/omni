@@ -152,3 +152,21 @@ func TestSetRoleEquals(t *testing.T) {
 		})
 	}
 }
+
+// TestSetMissingValue tests that SET var = (with no value) produces an error.
+func TestSetMissingValue(t *testing.T) {
+	tests := []string{
+		"SET role =",
+		"SET role TO",
+		"SET search_path =",
+		"SET work_mem =",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			_, err := Parse(sql)
+			if err == nil {
+				t.Fatalf("Parse(%q): expected error, got nil", sql)
+			}
+		})
+	}
+}

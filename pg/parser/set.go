@@ -41,7 +41,10 @@ func (p *Parser) parseVariableSetStmt() (nodes.Node, error) {
 		}
 	}
 
-	stmt := p.parseSetRest()
+	stmt, err := p.parseSetRest()
+	if err != nil {
+		return nil, err
+	}
 	if stmt == nil {
 		return nil, nil
 	}
@@ -61,7 +64,7 @@ func (p *Parser) parseVariableSetStmt() (nodes.Node, error) {
 //	TRANSACTION transaction_mode_list
 //	| SESSION CHARACTERISTICS AS TRANSACTION transaction_mode_list
 //	| set_rest_more
-func (p *Parser) parseSetRest() nodes.Node {
+func (p *Parser) parseSetRest() (nodes.Node, error) {
 	switch p.cur.Type {
 	case TRANSACTION:
 		p.advance() // consume TRANSACTION
@@ -70,7 +73,7 @@ func (p *Parser) parseSetRest() nodes.Node {
 			Kind: nodes.VAR_SET_MULTI,
 			Name: "TRANSACTION",
 			Args: modes,
-		}
+		}, nil
 
 	case SESSION:
 		// SESSION CHARACTERISTICS AS TRANSACTION transaction_mode_list
@@ -85,7 +88,7 @@ func (p *Parser) parseSetRest() nodes.Node {
 				Kind: nodes.VAR_SET_MULTI,
 				Name: "SESSION CHARACTERISTICS",
 				Args: modes,
-			}
+			}, nil
 		}
 		// SESSION AUTHORIZATION ... (handled in set_rest_more via parseSetRestMore)
 		return p.parseSetRestMore()
@@ -110,7 +113,7 @@ func (p *Parser) parseSetRest() nodes.Node {
 //	| SESSION AUTHORIZATION DEFAULT
 //	| XML_P OPTION document_or_content
 //	| TRANSACTION SNAPSHOT Sconst
-func (p *Parser) parseSetRestMore() nodes.Node {
+func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 	switch p.cur.Type {
 	case TIME:
 		p.advance() // consume TIME
@@ -125,7 +128,7 @@ func (p *Parser) parseSetRestMore() nodes.Node {
 		} else {
 			n.Kind = nodes.VAR_SET_DEFAULT
 		}
-		return n
+		return n, nil
 
 	case CATALOG_P:
 		// SET CATALOG Sconst — SQL-standard syntax to change the current database.
@@ -137,7 +140,7 @@ func (p *Parser) parseSetRestMore() nodes.Node {
 			Kind: nodes.VAR_SET_VALUE,
 			Name: "catalog",
 			Args: &nodes.List{Items: []nodes.Node{makeStringConst(s)}},
-		}
+		}, nil
 
 	case SCHEMA:
 		p.advance() // consume SCHEMA
@@ -147,7 +150,7 @@ func (p *Parser) parseSetRestMore() nodes.Node {
 			Kind: nodes.VAR_SET_VALUE,
 			Name: "search_path",
 			Args: &nodes.List{Items: []nodes.Node{makeStringConst(s)}},
-		}
+		}, nil
 
 	case NAMES:
 		p.advance() // consume NAMES
@@ -161,7 +164,7 @@ func (p *Parser) parseSetRestMore() nodes.Node {
 		} else {
 			n.Kind = nodes.VAR_SET_DEFAULT
 		}
-		return n
+		return n, nil
 
 	case ROLE:
 		// If next token is '=' or TO, this is generic_set (e.g. SET role = 'admin').
@@ -175,7 +178,7 @@ func (p *Parser) parseSetRestMore() nodes.Node {
 			Kind: nodes.VAR_SET_VALUE,
 			Name: "role",
 			Args: &nodes.List{Items: []nodes.Node{makeStringConst(val)}},
-		}
+		}, nil
 
 	case SESSION:
 		// SESSION AUTHORIZATION NonReservedWord_or_Sconst | SESSION AUTHORIZATION DEFAULT
@@ -186,14 +189,14 @@ func (p *Parser) parseSetRestMore() nodes.Node {
 			return &nodes.VariableSetStmt{
 				Kind: nodes.VAR_SET_DEFAULT,
 				Name: "session_authorization",
-			}
+			}, nil
 		}
 		val := p.parseNonReservedWordOrSconst()
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_SET_VALUE,
 			Name: "session_authorization",
 			Args: &nodes.List{Items: []nodes.Node{makeStringConst(val)}},
-		}
+		}, nil
 
 	case XML_P:
 		p.advance() // consume XML
@@ -209,7 +212,7 @@ func (p *Parser) parseSetRestMore() nodes.Node {
 			Kind: nodes.VAR_SET_VALUE,
 			Name: "xmloption",
 			Args: &nodes.List{Items: []nodes.Node{makeStringConst(val)}},
-		}
+		}, nil
 
 	case TRANSACTION:
 		// TRANSACTION SNAPSHOT Sconst
@@ -221,7 +224,7 @@ func (p *Parser) parseSetRestMore() nodes.Node {
 			Kind: nodes.VAR_SET_MULTI,
 			Name: "TRANSACTION SNAPSHOT",
 			Args: &nodes.List{Items: []nodes.Node{makeStringConst(s)}},
-		}
+		}, nil
 
 	default:
 		// generic_set or var_name FROM CURRENT_P
@@ -241,10 +244,10 @@ func (p *Parser) parseSetRestMore() nodes.Node {
 // Also:
 //
 //	var_name FROM CURRENT_P
-func (p *Parser) parseGenericSetOrFromCurrent() nodes.Node {
+func (p *Parser) parseGenericSetOrFromCurrent() (nodes.Node, error) {
 	varName := p.parseVarName()
 	if varName == "" {
-		return nil
+		return nil, nil
 	}
 
 	switch p.cur.Type {
@@ -255,7 +258,7 @@ func (p *Parser) parseGenericSetOrFromCurrent() nodes.Node {
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_SET_CURRENT,
 			Name: varName,
-		}
+		}, nil
 
 	case TO, '=':
 		p.advance() // consume TO or '='
@@ -264,17 +267,20 @@ func (p *Parser) parseGenericSetOrFromCurrent() nodes.Node {
 			return &nodes.VariableSetStmt{
 				Kind: nodes.VAR_SET_DEFAULT,
 				Name: varName,
-			}
+			}, nil
 		}
 		args := p.parseVarList()
+		if args == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_SET_VALUE,
 			Name: varName,
 			Args: args,
-		}
+		}, nil
 
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
@@ -712,7 +718,10 @@ func (p *Parser) parseAlterSystemStmt() (nodes.Node, error) {
 	switch p.cur.Type {
 	case SET:
 		p.advance() // consume SET
-		setstmt := p.parseGenericSetOrFromCurrent()
+		setstmt, err := p.parseGenericSetOrFromCurrent()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterSystemStmt{
 			Setstmt: setstmt.(*nodes.VariableSetStmt),
 			Loc:     nodes.Loc{Start: loc, End: p.prev.End},
