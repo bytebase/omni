@@ -69,6 +69,12 @@ func (p *Parser) parseExecStmt() (*nodes.ExecStmt, error) {
 	loc := p.pos()
 	p.advance() // consume EXEC or EXECUTE
 
+	// Completion: after EXEC/EXECUTE → proc_ref
+	if p.collectMode() {
+		p.addRuleCandidate("proc_ref")
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.ExecStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
@@ -312,6 +318,12 @@ func (p *Parser) parseExecArg() *nodes.ExecArg {
 			arg.Name = p.cur.Str
 			p.advance() // consume @param
 			p.advance() // consume =
+			// Completion: after EXEC p @param = → expression context
+			if p.collectMode() {
+				p.addRuleCandidate("columnref")
+				p.addRuleCandidate("func_name")
+				return nil
+			}
 			// Check for DEFAULT after @param =
 			if p.cur.Type == kwDEFAULT {
 				arg.IsDefault = true

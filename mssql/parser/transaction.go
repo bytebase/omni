@@ -24,6 +24,12 @@ func (p *Parser) parseBeginTransStmt() (*nodes.BeginTransStmt, error) {
 	p.match(kwTRAN)
 	p.match(kwTRANSACTION)
 
+	// Completion: after BEGIN TRANSACTION → identifier (optional name)
+	if p.collectMode() {
+		p.addRuleCandidate("identifier")
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.BeginTransStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
@@ -92,6 +98,12 @@ func (p *Parser) parseCommitStmt() (*nodes.CommitTransStmt, error) {
 	loc := p.pos()
 	p.advance() // consume COMMIT
 
+	// Completion: after COMMIT → TRANSACTION, WORK
+	if p.collectMode() {
+		p.addTokenCandidate(kwTRANSACTION)
+		return nil, errCollecting
+	}
+
 	// Optional WORK (ignored, just skip)
 	p.matchIdentCI("WORK")
 
@@ -139,6 +151,12 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackTransStmt, error) {
 	loc := p.pos()
 	p.advance() // consume ROLLBACK
 
+	// Completion: after ROLLBACK → TRANSACTION, WORK
+	if p.collectMode() {
+		p.addTokenCandidate(kwTRANSACTION)
+		return nil, errCollecting
+	}
+
 	// Optional WORK (ignored, just skip)
 	p.matchIdentCI("WORK")
 
@@ -173,6 +191,12 @@ func (p *Parser) parseSaveTransStmt() (*nodes.SaveTransStmt, error) {
 	// TRAN or TRANSACTION
 	p.match(kwTRAN)
 	p.match(kwTRANSACTION)
+
+	// Completion: after SAVE TRANSACTION → identifier
+	if p.collectMode() {
+		p.addRuleCandidate("identifier")
+		return nil, errCollecting
+	}
 
 	stmt := &nodes.SaveTransStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},

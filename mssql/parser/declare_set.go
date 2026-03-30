@@ -21,6 +21,12 @@ func (p *Parser) parseDeclareStmt() (*nodes.DeclareStmt, error) {
 	loc := p.pos()
 	p.advance() // consume DECLARE
 
+	// Completion: after DECLARE → @ variable
+	if p.collectMode() {
+		p.addRuleCandidate("@variable")
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.DeclareStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
@@ -63,6 +69,12 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 		Loc:  nodes.Loc{Start: loc, End: -1},
 	}
 	p.advance() // consume @var
+
+	// Completion: after DECLARE @v → type_name
+	if p.collectMode() {
+		p.addRuleCandidate("type_name")
+		return nil, errCollecting
+	}
 
 	// Optional AS keyword
 	p.match(kwAS)
@@ -140,6 +152,14 @@ func (p *Parser) parseSetStmt() (nodes.StmtNode, error) {
 	loc := p.pos()
 	p.advance() // consume SET
 
+	// Completion: after SET → @variable, session option keywords
+	if p.collectMode() {
+		p.addRuleCandidate("@variable")
+		p.addTokenCandidate(kwNOCOUNT)
+		p.addTokenCandidate(kwXACT_ABORT)
+		return nil, errCollecting
+	}
+
 	if p.cur.Type == tokVARIABLE {
 		// SET @var { = | += | -= | *= | /= | %= | &= | ^= | |= } expr
 		stmt := &nodes.SetStmt{
@@ -147,6 +167,25 @@ func (p *Parser) parseSetStmt() (nodes.StmtNode, error) {
 		}
 		stmt.Variable = p.cur.Str
 		p.advance()
+		// Completion: after SET @v = → expression context
+		if p.cur.Type == '=' {
+			p.advance()
+			if p.collectMode() {
+				p.addRuleCandidate("columnref")
+				p.addRuleCandidate("func_name")
+				return nil, errCollecting
+			}
+			val, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if val == nil {
+				return nil, p.newParseError(p.cur.Loc, "expected expression after SET =")
+			}
+			stmt.Value = val
+			stmt.Loc.End = p.prevEnd()
+			return stmt, nil
+		}
 		// Check for compound assignment operators or simple =
 		if op := p.isCompoundAssign(); op != "" {
 			stmt.Operator = op

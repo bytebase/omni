@@ -86,6 +86,12 @@ func (p *Parser) parseBackupStmt() (*nodes.BackupStmt, error) {
 	loc := p.pos()
 	p.advance() // consume BACKUP
 
+	// Completion: after BACKUP → DATABASE keyword
+	if p.collectMode() {
+		p.addTokenCandidate(kwDATABASE)
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.BackupStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
@@ -102,6 +108,12 @@ func (p *Parser) parseBackupStmt() (*nodes.BackupStmt, error) {
 		p.advance()
 	} else {
 		stmt.Type = "DATABASE"
+	}
+
+	// Completion: after BACKUP DATABASE → database_ref
+	if p.collectMode() {
+		p.addRuleCandidate("database_ref")
+		return nil, errCollecting
 	}
 
 	// Database name (not for CERTIFICATE)
@@ -218,6 +230,12 @@ func (p *Parser) parseRestoreStmt() (*nodes.RestoreStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RESTORE
 
+	// Completion: after RESTORE → DATABASE keyword
+	if p.collectMode() {
+		p.addTokenCandidate(kwDATABASE)
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.RestoreStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
@@ -252,6 +270,12 @@ func (p *Parser) parseRestoreStmt() (*nodes.RestoreStmt, error) {
 		}
 	} else {
 		stmt.Type = "DATABASE"
+	}
+
+	// Completion: after RESTORE DATABASE → database_ref
+	if p.collectMode() {
+		p.addRuleCandidate("database_ref")
+		return nil, errCollecting
 	}
 
 	// Database name (optional for HEADERONLY/FILELISTONLY/VERIFYONLY/LABELONLY)

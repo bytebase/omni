@@ -19,6 +19,13 @@ func (p *Parser) parseIfStmt() (*nodes.IfStmt, error) {
 	loc := p.pos()
 	p.advance() // consume IF
 
+	// Completion: after IF → expression context
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.IfStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
@@ -62,6 +69,13 @@ func (p *Parser) parseIfStmt() (*nodes.IfStmt, error) {
 func (p *Parser) parseWhileStmt() (*nodes.WhileStmt, error) {
 	loc := p.pos()
 	p.advance() // consume WHILE
+
+	// Completion: after WHILE → expression context
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
 
 	stmt := &nodes.WhileStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
@@ -155,6 +169,16 @@ func (p *Parser) parseBeginStmt() (nodes.StmtNode, error) {
 
 	p.advance() // consume BEGIN
 
+	// Completion: after BEGIN → TRANSACTION, TRY, plus statement keywords
+	if p.collectMode() {
+		p.addTokenCandidate(kwTRANSACTION)
+		p.addTokenCandidate(kwTRY)
+		for _, t := range topLevelKeywords {
+			p.addTokenCandidate(t)
+		}
+		return nil, errCollecting
+	}
+
 parseBlock:
 	// Parse statements until END
 	var stmts []nodes.Node
@@ -200,6 +224,14 @@ func (p *Parser) parseTryCatchStmt() (*nodes.TryCatchStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
+	// Completion: after BEGIN TRY → statement keywords
+	if p.collectMode() {
+		for _, t := range topLevelKeywords {
+			p.addTokenCandidate(t)
+		}
+		return nil, errCollecting
+	}
+
 	// TRY block
 	var tryStmts []nodes.Node
 	for p.cur.Type != kwEND && p.cur.Type != tokEOF {
@@ -225,6 +257,14 @@ func (p *Parser) parseTryCatchStmt() (*nodes.TryCatchStmt, error) {
 	// BEGIN CATCH
 	p.match(kwBEGIN)
 	p.match(kwCATCH)
+
+	// Completion: after BEGIN CATCH → statement keywords
+	if p.collectMode() {
+		for _, t := range topLevelKeywords {
+			p.addTokenCandidate(t)
+		}
+		return nil, errCollecting
+	}
 
 	// CATCH block
 	var catchStmts []nodes.Node
@@ -260,6 +300,13 @@ func (p *Parser) parseTryCatchStmt() (*nodes.TryCatchStmt, error) {
 func (p *Parser) parseReturnStmt() (*nodes.ReturnStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RETURN
+
+	// Completion: after RETURN → expression context
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
 
 	stmt := &nodes.ReturnStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
@@ -336,6 +383,13 @@ func (p *Parser) parseGotoStmt() (*nodes.GotoStmt, error) {
 func (p *Parser) parseWaitForStmt() (*nodes.WaitForStmt, error) {
 	loc := p.pos()
 	p.advance() // consume WAITFOR
+
+	// Completion: after WAITFOR → DELAY, TIME
+	if p.collectMode() {
+		p.addTokenCandidate(kwDELAY)
+		p.addTokenCandidate(kwTIME)
+		return nil, errCollecting
+	}
 
 	stmt := &nodes.WaitForStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},

@@ -29,6 +29,20 @@ func (p *Parser) parseGrantStmt() (*nodes.GrantStmt, error) {
 	loc := p.pos()
 	p.advance() // consume GRANT
 
+	// Completion: after GRANT → permission keywords
+	if p.collectMode() {
+		p.addTokenCandidate(kwSELECT)
+		p.addTokenCandidate(kwINSERT)
+		p.addTokenCandidate(kwUPDATE)
+		p.addTokenCandidate(kwDELETE)
+		p.addTokenCandidate(kwEXECUTE)
+		p.addTokenCandidate(kwALTER)
+		p.addTokenCandidate(kwREFERENCES)
+		p.addTokenCandidate(kwALL)
+		p.addRuleCandidate("permission")
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.GrantStmt{
 		StmtType: nodes.GrantTypeGrant,
 		Loc:      nodes.Loc{Start: loc, End: -1},
@@ -39,11 +53,22 @@ func (p *Parser) parseGrantStmt() (*nodes.GrantStmt, error) {
 
 	// ON [class ::] securable
 	if _, ok := p.match(kwON); ok {
+		// Completion: after GRANT ... ON → table_ref
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			return nil, errCollecting
+		}
 		p.parseGrantOnClause(stmt)
 	}
 
 	// TO principals
 	if _, ok := p.match(kwTO); ok {
+		// Completion: after GRANT ... ON t TO → user_ref / role_ref
+		if p.collectMode() {
+			p.addRuleCandidate("user_ref")
+			p.addRuleCandidate("role_ref")
+			return nil, errCollecting
+		}
 		stmt.Principals = p.parsePrincipalList()
 	}
 
@@ -86,6 +111,20 @@ func (p *Parser) parseGrantStmt() (*nodes.GrantStmt, error) {
 func (p *Parser) parseRevokeStmt() (*nodes.GrantStmt, error) {
 	loc := p.pos()
 	p.advance() // consume REVOKE
+
+	// Completion: after REVOKE → permission keywords
+	if p.collectMode() {
+		p.addTokenCandidate(kwSELECT)
+		p.addTokenCandidate(kwINSERT)
+		p.addTokenCandidate(kwUPDATE)
+		p.addTokenCandidate(kwDELETE)
+		p.addTokenCandidate(kwEXECUTE)
+		p.addTokenCandidate(kwALTER)
+		p.addTokenCandidate(kwREFERENCES)
+		p.addTokenCandidate(kwALL)
+		p.addRuleCandidate("permission")
+		return nil, errCollecting
+	}
 
 	stmt := &nodes.GrantStmt{
 		StmtType: nodes.GrantTypeRevoke,
@@ -149,6 +188,20 @@ func (p *Parser) parseRevokeStmt() (*nodes.GrantStmt, error) {
 func (p *Parser) parseDenyStmt() (*nodes.GrantStmt, error) {
 	loc := p.pos()
 	p.advance() // consume DENY
+
+	// Completion: after DENY → permission keywords
+	if p.collectMode() {
+		p.addTokenCandidate(kwSELECT)
+		p.addTokenCandidate(kwINSERT)
+		p.addTokenCandidate(kwUPDATE)
+		p.addTokenCandidate(kwDELETE)
+		p.addTokenCandidate(kwEXECUTE)
+		p.addTokenCandidate(kwALTER)
+		p.addTokenCandidate(kwREFERENCES)
+		p.addTokenCandidate(kwALL)
+		p.addRuleCandidate("permission")
+		return nil, errCollecting
+	}
 
 	stmt := &nodes.GrantStmt{
 		StmtType: nodes.GrantTypeDeny,

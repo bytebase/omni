@@ -30,6 +30,12 @@ func (p *Parser) parseDeclareCursorStmt() (*nodes.DeclareCursorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume DECLARE
 
+	// Completion: after DECLARE → @ variable (also covers cursor name context)
+	if p.collectMode() {
+		p.addRuleCandidate("@variable")
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.DeclareCursorStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
@@ -73,6 +79,11 @@ func (p *Parser) parseDeclareCursorStmt() (*nodes.DeclareCursorStmt, error) {
 
 	// FOR select_statement
 	if _, ok := p.match(kwFOR); ok {
+		// Completion: after DECLARE c CURSOR FOR → SELECT
+		if p.collectMode() {
+			p.addTokenCandidate(kwSELECT)
+			return nil, errCollecting
+		}
 		stmt.Query, _ = p.parseSelectStmt()
 	}
 
@@ -168,6 +179,12 @@ func (p *Parser) parseOpenCursorStmt() (*nodes.OpenCursorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume OPEN
 
+	// Completion: after OPEN → cursor name
+	if p.collectMode() {
+		p.addRuleCandidate("cursor_name")
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.OpenCursorStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
@@ -246,6 +263,12 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 		p.match(kwFROM) // optional FROM
 	}
 
+	// Completion: after FETCH [NEXT] FROM → cursor name
+	if p.collectMode() {
+		p.addRuleCandidate("cursor_name")
+		return nil, errCollecting
+	}
+
 	// Parse cursor reference: [ GLOBAL ] cursor_name | @cursor_variable
 	if p.cur.Type == tokVARIABLE {
 		stmt.Name = p.cur.Str
@@ -289,6 +312,12 @@ func (p *Parser) parseCloseCursorStmt() (*nodes.CloseCursorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume CLOSE
 
+	// Completion: after CLOSE → cursor name
+	if p.collectMode() {
+		p.addRuleCandidate("cursor_name")
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.CloseCursorStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
@@ -321,6 +350,12 @@ func (p *Parser) parseCloseCursorStmt() (*nodes.CloseCursorStmt, error) {
 func (p *Parser) parseDeallocateCursorStmt() (*nodes.DeallocateCursorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume DEALLOCATE
+
+	// Completion: after DEALLOCATE → cursor name
+	if p.collectMode() {
+		p.addRuleCandidate("cursor_name")
+		return nil, errCollecting
+	}
 
 	stmt := &nodes.DeallocateCursorStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},

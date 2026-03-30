@@ -15,6 +15,12 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 	loc := p.pos()
 	p.advance() // consume USE
 
+	// Completion: after USE → database_ref
+	if p.collectMode() {
+		p.addRuleCandidate("database_ref")
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.UseStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
@@ -36,6 +42,13 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 func (p *Parser) parsePrintStmt() (*nodes.PrintStmt, error) {
 	loc := p.pos()
 	p.advance() // consume PRINT
+
+	// Completion: after PRINT → expression context
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
 
 	stmt := &nodes.PrintStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
@@ -66,12 +79,25 @@ func (p *Parser) parseRaiseErrorStmt() (*nodes.RaiseErrorStmt, error) {
 	loc := p.pos()
 	p.advance() // consume RAISERROR
 
+	// Completion: after RAISERROR( → expression context
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.RaiseErrorStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
 	// RAISERROR can use parens or not: RAISERROR('msg', 16, 1)
 	if _, err := p.expect('('); err == nil {
+		// Completion: after RAISERROR( → expression context
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		// Message
 		stmt.Message, _ = p.parseExpr()
 
@@ -136,6 +162,13 @@ func (p *Parser) parseRaiseErrorStmt() (*nodes.RaiseErrorStmt, error) {
 func (p *Parser) parseThrowStmt() (*nodes.ThrowStmt, error) {
 	loc := p.pos()
 	p.advance() // consume THROW
+
+	// Completion: after THROW → expression context
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
 
 	stmt := &nodes.ThrowStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
@@ -538,6 +571,12 @@ func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 
 	// TABLE
 	p.match(kwTABLE)
+
+	// Completion: after TRUNCATE TABLE → table_ref
+	if p.collectMode() {
+		p.addRuleCandidate("table_ref")
+		return nil, errCollecting
+	}
 
 	stmt := &nodes.TruncateStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
