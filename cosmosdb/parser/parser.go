@@ -65,6 +65,11 @@ func (p *Parser) advance() {
 		p.hasNext = false
 	} else {
 		p.cur = p.lexer.Next()
+		if p.lexer.Err != nil && p.cur.Type == tokEOF {
+			// Surface the lexer error rather than letting the parser
+			// produce a confusing "unexpected EOF" message.
+			p.cur = Token{Type: tokEOF, Str: p.lexer.Err.Error(), Loc: p.cur.Loc}
+		}
 	}
 }
 

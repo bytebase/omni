@@ -182,7 +182,10 @@ func (p *Parser) parseContainerExpr() (nodes.TableExpr, error) {
 	return base, nil
 }
 
-// parseBracketIndex parses the index inside [...]: string literal, integer, or @param.
+// parseBracketIndex parses the index inside [...] in FROM context.
+// The grammar's container_expression alt4 restricts this to string literals,
+// array indexes (integers), and parameter names. The scalar_expression version
+// (in expr.go) is more permissive and allows any expression.
 func (p *Parser) parseBracketIndex() (nodes.ExprNode, error) {
 	switch p.cur.Type {
 	case tokSCONST:
@@ -231,6 +234,7 @@ func exprFromTableExpr(te nodes.TableExpr) nodes.ExprNode {
 }
 
 // tableExprStart returns the start location of a TableExpr.
+// NOTE: When adding new TableExpr types, add a case here.
 func tableExprStart(te nodes.TableExpr) int {
 	switch t := te.(type) {
 	case *nodes.ContainerRef:

@@ -613,6 +613,7 @@ func (p *Parser) parseIdentExprOrFuncCall() (nodes.ExprNode, error) {
 }
 
 // locStart extracts the start position from any ExprNode.
+// NOTE: When adding new ExprNode types, add a case here.
 func locStart(e nodes.ExprNode) int {
 	switch n := e.(type) {
 	case *nodes.ColumnRef:
