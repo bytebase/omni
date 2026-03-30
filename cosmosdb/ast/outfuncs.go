@@ -16,13 +16,13 @@ func NodeToString(node Node) string {
 }
 
 func indent(sb *strings.Builder, level int) {
-	for i := 0; i < level; i++ {
+	for range level {
 		sb.WriteString("  ")
 	}
 }
 
 func writeLoc(sb *strings.Builder, loc Loc) {
-	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", loc.Start, loc.End))
+	fmt.Fprintf(sb, " :loc_start %d :loc_end %d", loc.Start, loc.End)
 }
 
 func writeNode(sb *strings.Builder, node Node, level int) {
@@ -44,15 +44,15 @@ func writeNode(sb *strings.Builder, node Node, level int) {
 
 	// Literals
 	case *StringLit:
-		sb.WriteString(fmt.Sprintf("{STRLIT :val %q", n.Val))
+		fmt.Fprintf(sb, "{STRLIT :val %q", n.Val)
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
 	case *NumberLit:
-		sb.WriteString(fmt.Sprintf("{NUMLIT :val %q", n.Val))
+		fmt.Fprintf(sb, "{NUMLIT :val %q", n.Val)
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
 	case *BoolLit:
-		sb.WriteString(fmt.Sprintf("{BOOLLIT :val %t", n.Val))
+		fmt.Fprintf(sb, "{BOOLLIT :val %t", n.Val)
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
 	case *NullLit:
@@ -75,7 +75,7 @@ func writeNode(sb *strings.Builder, node Node, level int) {
 	// Wrapper
 	case *RawStmt:
 		sb.WriteString("{RAWSTMT")
-		sb.WriteString(fmt.Sprintf(" :stmt_location %d :stmt_len %d", n.StmtLocation, n.StmtLen))
+		fmt.Fprintf(sb, " :stmt_location %d :stmt_len %d", n.StmtLocation, n.StmtLen)
 		sb.WriteString("\n")
 		indent(sb, level+1)
 		sb.WriteString(":stmt ")
@@ -91,7 +91,7 @@ func writeNode(sb *strings.Builder, node Node, level int) {
 		sb.WriteString("{TARGET :expr ")
 		writeNode(sb, n.Expr, level)
 		if n.Alias != nil {
-			sb.WriteString(fmt.Sprintf(" :alias %q", *n.Alias))
+			fmt.Fprintf(sb, " :alias %q", *n.Alias)
 		}
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
@@ -124,18 +124,18 @@ func writeNode(sb *strings.Builder, node Node, level int) {
 		if n.Root {
 			sb.WriteString("{CONTAINER :root true")
 		} else {
-			sb.WriteString(fmt.Sprintf("{CONTAINER :name %q", n.Name))
+			fmt.Fprintf(sb, "{CONTAINER :name %q", n.Name)
 		}
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
 	case *AliasedTableExpr:
 		sb.WriteString("{ALIASED :source ")
 		writeNode(sb, n.Source, level)
-		sb.WriteString(fmt.Sprintf(" :alias %q", n.Alias))
+		fmt.Fprintf(sb, " :alias %q", n.Alias)
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
 	case *ArrayIterationExpr:
-		sb.WriteString(fmt.Sprintf("{ARRAYITER :alias %q :source ", n.Alias))
+		fmt.Fprintf(sb, "{ARRAYITER :alias %q :source ", n.Alias)
 		writeNode(sb, n.Source, level)
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
@@ -149,13 +149,13 @@ func writeNode(sb *strings.Builder, node Node, level int) {
 
 	// Expression nodes
 	case *ColumnRef:
-		sb.WriteString(fmt.Sprintf("{COLREF :name %q", n.Name))
+		fmt.Fprintf(sb, "{COLREF :name %q", n.Name)
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
 	case *DotAccessExpr:
 		sb.WriteString("{DOT :expr ")
 		writeNode(sb, n.Expr, level)
-		sb.WriteString(fmt.Sprintf(" :property %q", n.Property))
+		fmt.Fprintf(sb, " :property %q", n.Property)
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
 	case *BracketAccessExpr:
@@ -166,14 +166,14 @@ func writeNode(sb *strings.Builder, node Node, level int) {
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
 	case *BinaryExpr:
-		sb.WriteString(fmt.Sprintf("{BINEXPR :op %q :left ", n.Op))
+		fmt.Fprintf(sb, "{BINEXPR :op %q :left ", n.Op)
 		writeNode(sb, n.Left, level)
 		sb.WriteString(" :right ")
 		writeNode(sb, n.Right, level)
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
 	case *UnaryExpr:
-		sb.WriteString(fmt.Sprintf("{UNARYEXPR :op %q :operand ", n.Op))
+		fmt.Fprintf(sb, "{UNARYEXPR :op %q :operand ", n.Op)
 		writeNode(sb, n.Operand, level)
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
@@ -232,7 +232,7 @@ func writeNode(sb *strings.Builder, node Node, level int) {
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
 	case *FuncCall:
-		sb.WriteString(fmt.Sprintf("{FUNCCALL :name %q", n.Name))
+		fmt.Fprintf(sb, "{FUNCCALL :name %q", n.Name)
 		if n.Star {
 			sb.WriteString(" :star true")
 		}
@@ -249,7 +249,7 @@ func writeNode(sb *strings.Builder, node Node, level int) {
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
 	case *UDFCall:
-		sb.WriteString(fmt.Sprintf("{UDFCALL :name %q", n.Name))
+		fmt.Fprintf(sb, "{UDFCALL :name %q", n.Name)
 		if len(n.Args) > 0 {
 			sb.WriteString(" :args (")
 			for i, arg := range n.Args {
@@ -299,12 +299,12 @@ func writeNode(sb *strings.Builder, node Node, level int) {
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
 	case *ObjectFieldPair:
-		sb.WriteString(fmt.Sprintf("{FIELD :key %q :value ", n.Key))
+		fmt.Fprintf(sb, "{FIELD :key %q :value ", n.Key)
 		writeNode(sb, n.Value, level)
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
 	case *ParamRef:
-		sb.WriteString(fmt.Sprintf("{PARAM :name %q", n.Name))
+		fmt.Fprintf(sb, "{PARAM :name %q", n.Name)
 		writeLoc(sb, n.Loc)
 		sb.WriteString("}")
 	case *SubLink:
@@ -316,14 +316,14 @@ func writeNode(sb *strings.Builder, node Node, level int) {
 		sb.WriteString("}")
 
 	default:
-		sb.WriteString(fmt.Sprintf("{UNKNOWN %T}", node))
+		fmt.Fprintf(sb, "{UNKNOWN %T}", node)
 	}
 }
 
 func writeSelectStmt(sb *strings.Builder, n *SelectStmt, level int) {
 	sb.WriteString("{SELECT")
 	if n.Top != nil {
-		sb.WriteString(fmt.Sprintf(" :top %d", *n.Top))
+		fmt.Fprintf(sb, " :top %d", *n.Top)
 	}
 	if n.Distinct {
 		sb.WriteString(" :distinct true")
