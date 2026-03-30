@@ -128,10 +128,21 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 	if p.cur.Type == kwIS {
 		loc := p.pos()
 		p.advance()
+		// Completion: after IS → NULL, NOT
+		if p.collectMode() {
+			p.addTokenCandidate(kwNULL)
+			p.addTokenCandidate(kwNOT)
+			return nil, errCollecting
+		}
 		not := false
 		if p.cur.Type == kwNOT {
 			not = true
 			p.advance()
+			// Completion: after IS NOT → NULL
+			if p.collectMode() {
+				p.addTokenCandidate(kwNULL)
+				return nil, errCollecting
+			}
 		}
 		if p.cur.Type == kwNULL {
 			p.advance()
@@ -156,6 +167,12 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			p.advance()
 		}
 		p.advance() // consume BETWEEN
+		// Completion: after BETWEEN → columnref, func_name
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		low, err := p.parseAddition()
 		if err != nil {
 			return nil, err
@@ -165,6 +182,12 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 		}
 		if _, err := p.expect(kwAND); err != nil {
 			return nil, err
+		}
+		// Completion: after BETWEEN x AND → columnref, func_name
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
 		}
 		high, err := p.parseAddition()
 		if err != nil {
@@ -193,6 +216,13 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 		p.advance() // consume IN
 		if _, err := p.expect('('); err != nil {
 			return left, nil
+		}
+		// Completion: after IN ( → columnref, func_name, SELECT
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			p.addTokenCandidate(kwSELECT)
+			return nil, errCollecting
 		}
 		// Check for subquery: IN (SELECT ...)
 		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
@@ -240,6 +270,12 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			p.advance()
 		}
 		p.advance() // consume LIKE
+		// Completion: after LIKE → columnref, func_name
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		pattern, err := p.parseAddition()
 		if err != nil {
 			return nil, err
@@ -269,6 +305,13 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 	if ok {
 		loc := p.pos()
 		p.advance()
+
+		// Completion: after comparison operator → columnref, func_name
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 
 		// Check for ANY/SOME/ALL subquery comparison
 		if p.cur.Type == kwALL || p.cur.Type == kwSOME || p.cur.Type == kwANY {
@@ -605,6 +648,13 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	case '(':
 		loc := p.pos()
 		p.advance()
+		// Completion: after ( in expression → columnref, func_name, subquery keywords
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			p.addTokenCandidate(kwSELECT)
+			return nil, errCollecting
+		}
 		// Scalar subquery: (SELECT ...)
 		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
 			sub, err := p.parseSelectStmt()
@@ -669,6 +719,12 @@ func (p *Parser) parseCast() (nodes.ExprNode, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
+	// Completion: after CAST( → columnref, func_name
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
@@ -678,6 +734,11 @@ func (p *Parser) parseCast() (nodes.ExprNode, error) {
 	}
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
+	}
+	// Completion: after CAST(x AS → type_name
+	if p.collectMode() {
+		p.addRuleCandidate("type_name")
+		return nil, errCollecting
 	}
 	dt, err := p.parseDataType()
 	if err != nil {
@@ -705,6 +766,12 @@ func (p *Parser) parseTryCast() (nodes.ExprNode, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
+	// Completion: after TRY_CAST( → columnref, func_name
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
@@ -714,6 +781,11 @@ func (p *Parser) parseTryCast() (nodes.ExprNode, error) {
 	}
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
+	}
+	// Completion: after TRY_CAST(x AS → type_name
+	if p.collectMode() {
+		p.addRuleCandidate("type_name")
+		return nil, errCollecting
 	}
 	dt, err := p.parseDataType()
 	if err != nil {
@@ -740,6 +812,11 @@ func (p *Parser) parseConvert() (nodes.ExprNode, error) {
 	p.advance() // consume CONVERT
 	if _, err := p.expect('('); err != nil {
 		return nil, err
+	}
+	// Completion: after CONVERT( → type_name
+	if p.collectMode() {
+		p.addRuleCandidate("type_name")
+		return nil, errCollecting
 	}
 	dt, err := p.parseDataType()
 	if err != nil {
@@ -781,6 +858,11 @@ func (p *Parser) parseTryConvert() (nodes.ExprNode, error) {
 	p.advance() // consume TRY_CONVERT
 	if _, err := p.expect('('); err != nil {
 		return nil, err
+	}
+	// Completion: after TRY_CONVERT( → type_name
+	if p.collectMode() {
+		p.addRuleCandidate("type_name")
+		return nil, errCollecting
 	}
 	dt, err := p.parseDataType()
 	if err != nil {
@@ -835,6 +917,12 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 	for p.cur.Type == kwWHEN {
 		wloc := p.pos()
 		p.advance() // consume WHEN
+		// Completion: after CASE [expr] WHEN → columnref, func_name
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		cond, err := p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -844,6 +932,12 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 		}
 		if _, err := p.expect(kwTHEN); err != nil {
 			break
+		}
+		// Completion: after CASE WHEN x THEN → columnref, func_name
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
 		}
 		result, err := p.parseExpr()
 		if err != nil {
@@ -861,6 +955,12 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 
 	var elseExpr nodes.ExprNode
 	if _, ok := p.match(kwELSE); ok {
+		// Completion: after ELSE → columnref, func_name
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		var err error
 		elseExpr, err = p.parseExpr()
 		if err != nil {
@@ -888,6 +988,12 @@ func (p *Parser) parseCoalesce() (nodes.ExprNode, error) {
 	p.advance() // consume COALESCE
 	if _, err := p.expect('('); err != nil {
 		return nil, err
+	}
+	// Completion: after COALESCE( → columnref, func_name
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
 	}
 	var args []nodes.Node
 	for {
@@ -921,6 +1027,12 @@ func (p *Parser) parseNullif() (nodes.ExprNode, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
+	// Completion: after NULLIF( → columnref, func_name
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
 	left, err := p.parseExpr()
 	if err != nil {
 		return nil, err
@@ -953,6 +1065,12 @@ func (p *Parser) parseIif() (nodes.ExprNode, error) {
 	p.advance() // consume IIF
 	if _, err := p.expect('('); err != nil {
 		return nil, err
+	}
+	// Completion: after IIF( → columnref, func_name
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
 	}
 	cond, err := p.parseExpr()
 	if err != nil {
@@ -994,6 +1112,11 @@ func (p *Parser) parseExists() (nodes.ExprNode, error) {
 	p.advance() // consume EXISTS
 	if _, err := p.expect('('); err != nil {
 		return nil, err
+	}
+	// Completion: after EXISTS( → SELECT
+	if p.collectMode() {
+		p.addTokenCandidate(kwSELECT)
+		return nil, errCollecting
 	}
 	query, err := p.parseStmt()
 	if err != nil {
