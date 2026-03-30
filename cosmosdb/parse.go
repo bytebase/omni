@@ -3,6 +3,7 @@ package cosmosdb
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/bytebase/omni/cosmosdb/ast"
 	"github.com/bytebase/omni/cosmosdb/parser"
@@ -27,6 +28,10 @@ func (s Statement) Empty() bool {
 }
 
 func Parse(sql string) ([]Statement, error) {
+	// Return empty result for blank input rather than a parse error.
+	if strings.TrimSpace(sql) == "" {
+		return nil, nil
+	}
 	list, err := parser.Parse(sql)
 	if err != nil {
 		return nil, err
