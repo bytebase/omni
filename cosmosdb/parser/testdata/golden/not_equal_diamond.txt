@@ -1,0 +1,4 @@
+({RAWSTMT :stmt_location 0 :stmt_len 40
+  :stmt {SELECT :star true
+    :from {CONTAINER :name "c" :loc_start 14 :loc_end 15}
+    :where {BINEXPR :op "<>" :left {DOT :expr {COLREF :name "c" :loc_start 22 :loc_end 23} :property "status" :loc_start 22 :loc_end 30} :right {STRLIT :val "active" :loc_start 34 :loc_end 40} :loc_start 22 :loc_end 40} :loc_start 0 :loc_end 40}})

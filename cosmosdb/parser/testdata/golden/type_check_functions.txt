@@ -1,0 +1,4 @@
+({RAWSTMT :stmt_location 0 :stmt_len 112
+  :stmt {SELECT
+    :targets ({TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 7 :loc_end 8} :property "name" :loc_start 7 :loc_end 13} :loc_start 7 :loc_end 13} {TARGET :expr {FUNCCALL :name "IS_STRING" :args ({DOT :expr {COLREF :name "c" :loc_start 25 :loc_end 26} :property "name" :loc_start 25 :loc_end 31}) :loc_start 15 :loc_end 32} :alias "isStr" :loc_start 15 :loc_end 41} {TARGET :expr {FUNCCALL :name "IS_NUMBER" :args ({DOT :expr {COLREF :name "c" :loc_start 53 :loc_end 54} :property "population" :loc_start 53 :loc_end 65}) :loc_start 43 :loc_end 66} :alias "isNum" :loc_start 43 :loc_end 75} {TARGET :expr {FUNCCALL :name "IS_DEFINED" :args ({DOT :expr {COLREF :name "c" :loc_start 88 :loc_end 89} :property "extra" :loc_start 88 :loc_end 95}) :loc_start 77 :loc_end 96} :alias "isDef" :loc_start 77 :loc_end 105})
+    :from {CONTAINER :name "c" :loc_start 111 :loc_end 112} :loc_start 0 :loc_end 112}})

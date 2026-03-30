@@ -1,0 +1,4 @@
+({RAWSTMT :stmt_location 0 :stmt_len 35
+  :stmt {SELECT :star true
+    :from {ALIASED :source {CONTAINER :root true :loc_start 14 :loc_end 18} :alias "r" :loc_start 14 :loc_end 20}
+    :where {BINEXPR :op "=" :left {DOT :expr {COLREF :name "r" :loc_start 27 :loc_end 28} :property "id" :loc_start 27 :loc_end 31} :right {STRLIT :val "1" :loc_start 34 :loc_end 35} :loc_start 27 :loc_end 35} :loc_start 0 :loc_end 35}})

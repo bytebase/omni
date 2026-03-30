@@ -1,0 +1,6 @@
+({RAWSTMT :stmt_location 0 :stmt_len 147
+  :stmt {SELECT :top 10
+    :targets ({TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 14 :loc_end 15} :property "name" :loc_start 14 :loc_end 20} :loc_start 14 :loc_end 20} {TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 22 :loc_end 23} :property "description" :loc_start 22 :loc_end 35} :loc_start 22 :loc_end 35})
+    :from {CONTAINER :name "c" :loc_start 41 :loc_end 42}
+    :where {FUNCCALL :name "FullTextContains" :args ({DOT :expr {COLREF :name "c" :loc_start 66 :loc_end 67} :property "description" :loc_start 66 :loc_end 79} {STRLIT :val "bicycle" :loc_start 81 :loc_end 88}) :loc_start 49 :loc_end 91}
+    :order_by ({SORT :expr {FUNCCALL :name "FullTextScore" :args ({DOT :expr {COLREF :name "c" :loc_start 120 :loc_end 121} :property "description" :loc_start 120 :loc_end 133} {CREATEARRAY :elements ({STRLIT :val "bicycle" :loc_start 136 :loc_end 143}) :loc_start 135 :loc_end 146}) :loc_start 106 :loc_end 147} :rank true :loc_start 101 :loc_end 147}) :loc_start 0 :loc_end 147}})

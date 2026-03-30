@@ -1,0 +1,5 @@
+({RAWSTMT :stmt_location 0 :stmt_len 55
+  :stmt {SELECT
+    :targets ({TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 7 :loc_end 8} :property "_ts" :loc_start 7 :loc_end 12} :loc_start 7 :loc_end 12} {TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 14 :loc_end 15} :property "_etag" :loc_start 14 :loc_end 21} :loc_start 14 :loc_end 21} {TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 23 :loc_end 24} :property "_rid" :loc_start 23 :loc_end 29} :loc_start 23 :loc_end 29})
+    :from {CONTAINER :name "c" :loc_start 35 :loc_end 36}
+    :where {BINEXPR :op ">" :left {DOT :expr {COLREF :name "c" :loc_start 43 :loc_end 44} :property "_ts" :loc_start 43 :loc_end 48} :right {NUMLIT :val "1000" :loc_start 51 :loc_end 55} :loc_start 43 :loc_end 55} :loc_start 0 :loc_end 55}})

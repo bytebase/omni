@@ -1,0 +1,4 @@
+({RAWSTMT :stmt_location 0 :stmt_len 44
+  :stmt {SELECT :distinct true :value true
+    :targets ({TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 22 :loc_end 23} :property "countryRegion" :loc_start 22 :loc_end 37} :loc_start 22 :loc_end 37})
+    :from {CONTAINER :name "c" :loc_start 43 :loc_end 44} :loc_start 0 :loc_end 44}})

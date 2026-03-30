@@ -1,0 +1,4 @@
+({RAWSTMT :stmt_location 0 :stmt_len 46
+  :stmt {SELECT
+    :targets ({TARGET :expr {BRACKET :expr {DOT :expr {COLREF :name "e" :loc_start 11 :loc_end 12} :property "addresses" :loc_start 11 :loc_end 22} :index {NUMLIT :val "1" :loc_start 23 :loc_end 24} :loc_start 11 :loc_end 25} :loc_start 11 :loc_end 25})
+    :from {ALIASED :source {CONTAINER :name "employees" :loc_start 35 :loc_end 44} :alias "e" :loc_start 35 :loc_end 46} :loc_start 0 :loc_end 46}})

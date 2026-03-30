@@ -1,0 +1,5 @@
+({RAWSTMT :stmt_location 0 :stmt_len 49
+  :stmt {SELECT :star true
+    :from {CONTAINER :name "c" :loc_start 14 :loc_end 15}
+    :order_by ({SORT :expr {DOT :expr {COLREF :name "c" :loc_start 25 :loc_end 26} :property "name" :loc_start 25 :loc_end 31} :loc_start 25 :loc_end 31})
+    :offset_limit {OFFSETLIMIT :offset {NUMLIT :val "0" :loc_start 39 :loc_end 40} :limit {NUMLIT :val "10" :loc_start 47 :loc_end 49} :loc_start 32 :loc_end 49} :loc_start 0 :loc_end 49}})

@@ -1,0 +1,4 @@
+({RAWSTMT :stmt_location 0 :stmt_len 117
+  :stmt {SELECT
+    :targets ({TARGET :expr {FUNCCALL :name "CONCAT" :args ({DOT :expr {COLREF :name "c" :loc_start 14 :loc_end 15} :property "name" :loc_start 14 :loc_end 20} {STRLIT :val " - " :loc_start 22 :loc_end 25} {DOT :expr {COLREF :name "c" :loc_start 29 :loc_end 30} :property "country" :loc_start 29 :loc_end 38}) :loc_start 7 :loc_end 39} :alias "label" :loc_start 7 :loc_end 48} {TARGET :expr {BINEXPR :op "/" :left {FUNCCALL :name "StringToNumber" :args ({DOT :expr {COLREF :name "c" :loc_start 65 :loc_end 66} :property "population" :loc_start 65 :loc_end 77}) :loc_start 50 :loc_end 78} :right {NUMLIT :val "1000" :loc_start 81 :loc_end 85} :loc_start 50 :loc_end 85} :alias "populationInThousands" :loc_start 50 :loc_end 110})
+    :from {CONTAINER :name "c" :loc_start 116 :loc_end 117} :loc_start 0 :loc_end 117}})

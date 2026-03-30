@@ -1,0 +1,5 @@
+({RAWSTMT :stmt_location 0 :stmt_len 61
+  :stmt {SELECT
+    :targets ({TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 7 :loc_end 8} :property "name" :loc_start 7 :loc_end 13} :loc_start 7 :loc_end 13} {TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 15 :loc_end 16} :property "population" :loc_start 15 :loc_end 27} :loc_start 15 :loc_end 27})
+    :from {CONTAINER :name "c" :loc_start 33 :loc_end 34}
+    :order_by ({SORT :expr {DOT :expr {COLREF :name "c" :loc_start 44 :loc_end 45} :property "population" :loc_start 44 :loc_end 56} :desc true :loc_start 44 :loc_end 61}) :loc_start 0 :loc_end 61}})

@@ -1,0 +1,5 @@
+({RAWSTMT :stmt_location 0 :stmt_len 65
+  :stmt {SELECT
+    :targets ({TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 7 :loc_end 8} :property "country" :loc_start 7 :loc_end 16} :loc_start 7 :loc_end 16} {TARGET :expr {FUNCCALL :name "COUNT" :args ({NUMLIT :val "1" :loc_start 24 :loc_end 25}) :loc_start 18 :loc_end 26} :alias "cityCount" :loc_start 18 :loc_end 39})
+    :from {CONTAINER :name "c" :loc_start 45 :loc_end 46}
+    :group_by ({DOT :expr {COLREF :name "c" :loc_start 56 :loc_end 57} :property "country" :loc_start 56 :loc_end 65}) :loc_start 0 :loc_end 65}})
