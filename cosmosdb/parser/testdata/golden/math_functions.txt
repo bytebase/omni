@@ -1,0 +1,4 @@
+({RAWSTMT :stmt_location 0 :stmt_len 62
+  :stmt {SELECT
+    :targets ({TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 7 :loc_end 8} :property "name" :loc_start 7 :loc_end 13} :loc_start 7 :loc_end 13} {TARGET :expr {FUNCCALL :name "ROUND" :args ({FUNCCALL :name "StringToNumber" :args ({DOT :expr {COLREF :name "c" :loc_start 36 :loc_end 37} :property "latitude" :loc_start 36 :loc_end 46}) :loc_start 21 :loc_end 47}) :loc_start 15 :loc_end 48} :alias "lat" :loc_start 15 :loc_end 55})
+    :from {CONTAINER :name "c" :loc_start 61 :loc_end 62} :loc_start 0 :loc_end 62}})

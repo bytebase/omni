@@ -1,0 +1,7 @@
+({RAWSTMT :stmt_location 0 :stmt_len 58
+  :stmt {SELECT
+    :targets ({TARGET :expr {DOT :expr {COLREF :name "sub" :loc_start 7 :loc_end 10} :property "name" :loc_start 7 :loc_end 15} :loc_start 7 :loc_end 15})
+    :from {ALIASED :source {SUBQUERY
+      :select {SELECT
+        :targets ({TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 29 :loc_end 30} :property "name" :loc_start 29 :loc_end 35} :loc_start 29 :loc_end 35} {TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 37 :loc_end 38} :property "city" :loc_start 37 :loc_end 43} :loc_start 37 :loc_end 43})
+        :from {CONTAINER :name "c" :loc_start 49 :loc_end 50} :loc_start 22 :loc_end 50} :loc_start 21 :loc_end 51} :alias "sub" :loc_start 21 :loc_end 58} :loc_start 0 :loc_end 58}})

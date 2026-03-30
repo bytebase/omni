@@ -1,0 +1,8 @@
+({RAWSTMT :stmt_location 0 :stmt_len 96
+  :stmt {SELECT
+    :targets ({TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 7 :loc_end 8} :property "name" :loc_start 7 :loc_end 13} :loc_start 7 :loc_end 13} {TARGET :expr {ARRAY
+      :select {SELECT :value true
+        :targets ({TARGET :expr {COLREF :name "t" :loc_start 34 :loc_end 35} :loc_start 34 :loc_end 35})
+        :from {ARRAYITER :alias "t" :source {DOT :expr {COLREF :name "c" :loc_start 46 :loc_end 47} :property "tags" :loc_start 46 :loc_end 52} :loc_start 41 :loc_end 52}
+        :where {BINEXPR :op "=" :left {DOT :expr {COLREF :name "t" :loc_start 59 :loc_end 60} :property "active" :loc_start 59 :loc_end 67} :right {BOOLLIT :val true :loc_start 70 :loc_end 74} :loc_start 59 :loc_end 74} :loc_start 21 :loc_end 74} :loc_start 15 :loc_end 75} :alias "activeTags" :loc_start 15 :loc_end 89})
+    :from {CONTAINER :name "c" :loc_start 95 :loc_end 96} :loc_start 0 :loc_end 96}})

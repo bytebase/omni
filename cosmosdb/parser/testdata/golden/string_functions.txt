@@ -1,0 +1,4 @@
+({RAWSTMT :stmt_location 0 :stmt_len 101
+  :stmt {SELECT
+    :targets ({TARGET :expr {FUNCCALL :name "UPPER" :args ({DOT :expr {COLREF :name "c" :loc_start 13 :loc_end 14} :property "name" :loc_start 13 :loc_end 19}) :loc_start 7 :loc_end 20} :alias "upperName" :loc_start 7 :loc_end 33} {TARGET :expr {FUNCCALL :name "LOWER" :args ({DOT :expr {COLREF :name "c" :loc_start 41 :loc_end 42} :property "country" :loc_start 41 :loc_end 50}) :loc_start 35 :loc_end 51} :alias "lowerCountry" :loc_start 35 :loc_end 67} {TARGET :expr {FUNCCALL :name "LENGTH" :args ({DOT :expr {COLREF :name "c" :loc_start 76 :loc_end 77} :property "name" :loc_start 76 :loc_end 82}) :loc_start 69 :loc_end 83} :alias "nameLen" :loc_start 69 :loc_end 94})
+    :from {CONTAINER :name "c" :loc_start 100 :loc_end 101} :loc_start 0 :loc_end 101}})

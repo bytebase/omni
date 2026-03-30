@@ -1,0 +1,5 @@
+({RAWSTMT :stmt_location 0 :stmt_len 83
+  :stmt {SELECT
+    :targets ({TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 7 :loc_end 8} :property "id" :loc_start 7 :loc_end 11} :loc_start 7 :loc_end 11} {TARGET :expr {BRACKET :expr {COLREF :name "c" :loc_start 13 :loc_end 14} :index {PARAM :name "fieldName" :loc_start 15 :loc_end 24} :loc_start 13 :loc_end 26} :alias "fieldValue" :loc_start 13 :loc_end 40})
+    :from {CONTAINER :name "c" :loc_start 46 :loc_end 47}
+    :where {BINEXPR :op "=" :left {BRACKET :expr {COLREF :name "c" :loc_start 54 :loc_end 55} :index {PARAM :name "filterField" :loc_start 56 :loc_end 67} :loc_start 54 :loc_end 69} :right {PARAM :name "filterValue" :loc_start 72 :loc_end 83} :loc_start 54 :loc_end 83} :loc_start 0 :loc_end 83}})

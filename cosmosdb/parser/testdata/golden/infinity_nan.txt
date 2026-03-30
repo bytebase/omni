@@ -1,0 +1,4 @@
+({RAWSTMT :stmt_location 0 :stmt_len 82
+  :stmt {SELECT
+    :targets ({TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 7 :loc_end 8} :property "name" :loc_start 7 :loc_end 13} :loc_start 7 :loc_end 13} {TARGET :expr {BINEXPR :op "=" :left {DOT :expr {COLREF :name "c" :loc_start 15 :loc_end 16} :property "value" :loc_start 15 :loc_end 22} :right {INFINITY :loc_start 25 :loc_end 33} :loc_start 15 :loc_end 33} :alias "isInfinite" :loc_start 15 :loc_end 47} {TARGET :expr {FUNCCALL :name "IS_NUMBER" :args ({NAN :loc_start 59 :loc_end 62}) :loc_start 49 :loc_end 63} :alias "nanCheck" :loc_start 49 :loc_end 75})
+    :from {CONTAINER :name "c" :loc_start 81 :loc_end 82} :loc_start 0 :loc_end 82}})

@@ -1,0 +1,5 @@
+({RAWSTMT :stmt_location 0 :stmt_len 47
+  :stmt {SELECT :value true
+    :targets ({TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 13 :loc_end 14} :property "name" :loc_start 13 :loc_end 19} :loc_start 13 :loc_end 19})
+    :from {CONTAINER :name "c" :loc_start 25 :loc_end 26}
+    :where {BINEXPR :op "=" :left {DOT :expr {COLREF :name "c" :loc_start 33 :loc_end 34} :property "country" :loc_start 33 :loc_end 42} :right {STRLIT :val "AE" :loc_start 45 :loc_end 47} :loc_start 33 :loc_end 47} :loc_start 0 :loc_end 47}})

@@ -1,0 +1,4 @@
+({RAWSTMT :stmt_location 0 :stmt_len 38
+  :stmt {SELECT
+    :targets ({TARGET :expr {FUNCCALL :name "COUNT" :args ({NUMLIT :val "1" :loc_start 13 :loc_end 14}) :loc_start 7 :loc_end 15} :alias "totalRecords" :loc_start 7 :loc_end 31})
+    :from {CONTAINER :name "c" :loc_start 37 :loc_end 38} :loc_start 0 :loc_end 38}})

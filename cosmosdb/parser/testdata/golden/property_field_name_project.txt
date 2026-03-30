@@ -1,0 +1,4 @@
+({RAWSTMT :stmt_location 0 :stmt_len 58
+  :stmt {SELECT
+    :targets ({TARGET :expr {DOT :expr {COLREF :name "e" :loc_start 11 :loc_end 12} :property "name" :loc_start 11 :loc_end 17} :loc_start 11 :loc_end 17} {TARGET :expr {DOT :expr {COLREF :name "e" :loc_start 23 :loc_end 24} :property "workLocation" :loc_start 23 :loc_end 37} :loc_start 23 :loc_end 37})
+    :from {ALIASED :source {CONTAINER :name "employees" :loc_start 47 :loc_end 56} :alias "e" :loc_start 47 :loc_end 58} :loc_start 0 :loc_end 58}})

@@ -1,0 +1,5 @@
+({RAWSTMT :stmt_location 0 :stmt_len 55
+  :stmt {SELECT :value true
+    :targets ({TARGET :expr {COLREF :name "s" :loc_start 13 :loc_end 14} :loc_start 13 :loc_end 14})
+    :from {ARRAYITER :alias "s" :source {DOT :expr {COLREF :name "products" :loc_start 25 :loc_end 33} :property "sizes" :loc_start 25 :loc_end 39} :loc_start 20 :loc_end 39}
+    :where {BINEXPR :op "=" :left {DOT :expr {COLREF :name "s" :loc_start 46 :loc_end 47} :property "key" :loc_start 46 :loc_end 51} :right {STRLIT :val "l" :loc_start 54 :loc_end 55} :loc_start 46 :loc_end 55} :loc_start 0 :loc_end 55}})

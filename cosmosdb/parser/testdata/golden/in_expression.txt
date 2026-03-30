@@ -1,0 +1,4 @@
+({RAWSTMT :stmt_location 0 :stmt_len 53
+  :stmt {SELECT :star true
+    :from {CONTAINER :name "c" :loc_start 14 :loc_end 15}
+    :where {IN :expr {DOT :expr {COLREF :name "c" :loc_start 22 :loc_end 23} :property "country" :loc_start 22 :loc_end 31} :list ({STRLIT :val "US" :loc_start 36 :loc_end 38} {STRLIT :val "UK" :loc_start 42 :loc_end 44} {STRLIT :val "CA" :loc_start 48 :loc_end 50}) :loc_start 22 :loc_end 53} :loc_start 0 :loc_end 53}})

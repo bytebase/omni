@@ -1,0 +1,4 @@
+({RAWSTMT :stmt_location 0 :stmt_len 61
+  :stmt {SELECT :star true
+    :from {CONTAINER :name "c" :loc_start 14 :loc_end 15}
+    :where {BETWEEN :expr {DOT :expr {COLREF :name "c" :loc_start 22 :loc_end 23} :property "population" :loc_start 22 :loc_end 34} :low {NUMLIT :val "100000" :loc_start 43 :loc_end 49} :high {NUMLIT :val "5000000" :loc_start 54 :loc_end 61} :loc_start 22 :loc_end 61} :loc_start 0 :loc_end 61}})

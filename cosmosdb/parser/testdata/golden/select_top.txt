@@ -1,0 +1,3 @@
+({RAWSTMT :stmt_location 0 :stmt_len 22
+  :stmt {SELECT :top 10 :star true
+    :from {CONTAINER :name "c" :loc_start 21 :loc_end 22} :loc_start 0 :loc_end 22}})
