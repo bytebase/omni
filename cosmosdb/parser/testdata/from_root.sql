@@ -1,0 +1,1 @@
+SELECT * FROM ROOT r WHERE r.id = '1'

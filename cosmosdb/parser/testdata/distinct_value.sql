@@ -1,0 +1,1 @@
+SELECT DISTINCT VALUE c.countryRegion FROM c
