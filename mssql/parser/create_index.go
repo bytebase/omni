@@ -70,6 +70,11 @@ func (p *Parser) parseCreateIndexStmt(unique bool) (*nodes.CreateIndexStmt, erro
 
 	// ON table
 	if _, ok := p.match(kwON); ok {
+		// Completion: after CREATE INDEX ... ON → table_ref
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			return nil, errCollecting
+		}
 		var err error
 		stmt.Table, err = p.parseTableRef()
 		if err != nil {
@@ -170,6 +175,11 @@ func (p *Parser) parseCreateIndexStmt(unique bool) (*nodes.CreateIndexStmt, erro
 // parseIndexColumnList parses (col [ASC|DESC], ...).
 func (p *Parser) parseIndexColumnList() (*nodes.List, error) {
 	p.advance() // consume (
+	// Completion: inside index column list → columnref
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		return nil, errCollecting
+	}
 	var items []nodes.Node
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
 		loc := p.pos()

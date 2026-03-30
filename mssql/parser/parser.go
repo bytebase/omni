@@ -483,6 +483,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		savedPrev := p.prev
 		savedNextBuf := p.nextBuf
 		savedHasNext := p.hasNext
+		savedCollecting := p.collecting
 		tableName, err := p.parseTableRef()
 		if err != nil {
 			return nil, err
@@ -515,6 +516,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			p.prev = savedPrev
 			p.nextBuf = savedNextBuf
 			p.hasNext = savedHasNext
+			p.collecting = savedCollecting
 			ctasStmt, err := p.parseCreateTableAsSelectStmt()
 			if err != nil {
 				return nil, err
@@ -529,6 +531,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		p.prev = savedPrev
 		p.nextBuf = savedNextBuf
 		p.hasNext = savedHasNext
+		p.collecting = savedCollecting
 		stmt, err := p.parseCreateTableStmt()
 		if err != nil {
 			return nil, err
@@ -1976,6 +1979,11 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 			p.advance()
 			p.match(kwEXISTS)
 			dropStmt.IfExists = true
+		}
+		// Completion: after DROP DATABASE [IF EXISTS] → database_ref
+		if p.collectMode() {
+			p.addRuleCandidate("database_ref")
+			return nil, errCollecting
 		}
 		var nameItems []nodes.Node
 		for {

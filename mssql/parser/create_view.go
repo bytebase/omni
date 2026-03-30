@@ -25,6 +25,16 @@ import (
 func (p *Parser) parseCreateViewStmt(orAlter bool) (*nodes.CreateViewStmt, error) {
 	loc := p.pos()
 
+	// Completion: after CREATE/ALTER VIEW → identifier or view name
+	if p.collectMode() {
+		if orAlter {
+			p.addRuleCandidate("view_name")
+		} else {
+			p.addRuleCandidate("identifier")
+		}
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.CreateViewStmt{
 		OrAlter: orAlter,
 		Loc:     nodes.Loc{Start: loc, End: -1},
@@ -80,6 +90,12 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) (*nodes.CreateViewStmt, error
 
 	// AS
 	p.match(kwAS)
+
+	// Completion: after CREATE/ALTER VIEW v AS → SELECT
+	if p.collectMode() {
+		p.addTokenCandidate(kwSELECT)
+		return nil, errCollecting
+	}
 
 	// SELECT query
 	query, err := p.parseSelectStmt()

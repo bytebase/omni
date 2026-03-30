@@ -91,6 +91,12 @@ import (
 func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 	loc := p.pos()
 
+	// Completion: after ALTER TABLE → table_ref
+	if p.collectMode() {
+		p.addRuleCandidate("table_ref")
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.AlterTableStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
@@ -103,6 +109,22 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 	}
 	if stmt.Name == nil {
 		return nil, p.unexpectedToken()
+	}
+
+	// Completion: after ALTER TABLE t → action keywords
+	if p.collectMode() {
+		p.addTokenCandidate(kwADD)
+		p.addTokenCandidate(kwDROP)
+		p.addTokenCandidate(kwALTER)
+		p.addTokenCandidate(kwSET)
+		p.addTokenCandidate(kwWITH)
+		p.addTokenCandidate(kwCHECK)
+		p.addTokenCandidate(kwNOCHECK)
+		p.addRuleCandidate("ENABLE")
+		p.addRuleCandidate("DISABLE")
+		p.addRuleCandidate("SWITCH")
+		p.addRuleCandidate("REBUILD")
+		return nil, errCollecting
 	}
 
 	// Parse optional WITH { CHECK | NOCHECK } prefix
@@ -216,6 +238,20 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 func (p *Parser) parseAlterTableAdd() ([]nodes.Node, error) {
 	p.advance() // consume ADD
 
+	// Completion: after ALTER TABLE t ADD → add candidates
+	if p.collectMode() {
+		p.addTokenCandidate(kwCOLUMN)
+		p.addTokenCandidate(kwCONSTRAINT)
+		p.addTokenCandidate(kwPRIMARY)
+		p.addTokenCandidate(kwUNIQUE)
+		p.addTokenCandidate(kwFOREIGN)
+		p.addTokenCandidate(kwCHECK)
+		p.addTokenCandidate(kwDEFAULT)
+		p.addTokenCandidate(kwINDEX)
+		p.addRuleCandidate("identifier")
+		return nil, errCollecting
+	}
+
 	// ADD PERIOD FOR SYSTEM_TIME (start_col, end_col)
 	if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "PERIOD") {
 		return p.parseAlterTableAddPeriod()
@@ -246,6 +282,15 @@ func (p *Parser) parseAlterTableAdd() ([]nodes.Node, error) {
 				return nil, err
 			}
 		} else {
+			// Optional COLUMN keyword before column definition
+			if p.cur.Type == kwCOLUMN {
+				p.advance()
+				// Completion: after ALTER TABLE t ADD COLUMN → identifier
+				if p.collectMode() {
+					p.addRuleCandidate("identifier")
+					return nil, errCollecting
+				}
+			}
 			action.Type = nodes.ATAddColumn
 			var err error
 			action.Column, err = p.parseColumnDef()
@@ -319,6 +364,15 @@ func (p *Parser) parseAlterTableAddPeriod() ([]nodes.Node, error) {
 //	} [ ,...n ] ]
 func (p *Parser) parseAlterTableDrop() ([]nodes.Node, error) {
 	p.advance() // consume DROP
+
+	// Completion: after ALTER TABLE t DROP → COLUMN/CONSTRAINT/INDEX
+	if p.collectMode() {
+		p.addTokenCandidate(kwCOLUMN)
+		p.addTokenCandidate(kwCONSTRAINT)
+		p.addTokenCandidate(kwINDEX)
+		return nil, errCollecting
+	}
+
 	var actions []nodes.Node
 
 	// DROP PERIOD FOR SYSTEM_TIME
@@ -341,6 +395,11 @@ func (p *Parser) parseAlterTableDrop() ([]nodes.Node, error) {
 
 	if p.cur.Type == kwCOLUMN {
 		p.advance() // consume COLUMN
+		// Completion: after ALTER TABLE t DROP COLUMN → columnref
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return nil, errCollecting
+		}
 		// IF EXISTS
 		ifExists := false
 		if p.cur.Type == kwIF {
@@ -372,6 +431,11 @@ func (p *Parser) parseAlterTableDrop() ([]nodes.Node, error) {
 		}
 	} else if p.cur.Type == kwCONSTRAINT {
 		p.advance() // consume CONSTRAINT
+		// Completion: after ALTER TABLE t DROP CONSTRAINT → constraint_name
+		if p.collectMode() {
+			p.addRuleCandidate("constraint_name")
+			return nil, errCollecting
+		}
 		// IF EXISTS
 		ifExists := false
 		if p.cur.Type == kwIF {
@@ -475,9 +539,21 @@ func (p *Parser) parseAlterTableAlterColumn() (*nodes.AlterTableAction, error) {
 		p.advance() // consume COLUMN
 	}
 
+	// Completion: after ALTER TABLE t ALTER COLUMN → columnref
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		return nil, errCollecting
+	}
+
 	name, nameOK := p.parseIdentifier()
 	if !nameOK {
 		return nil, p.unexpectedToken()
+	}
+
+	// Completion: after ALTER TABLE t ALTER COLUMN a → type_name
+	if p.collectMode() {
+		p.addRuleCandidate("type_name")
+		return nil, errCollecting
 	}
 
 	// Check if this is ADD/DROP form (alter column attribute)
@@ -705,6 +781,13 @@ func (p *Parser) parseAlterTableEnableDisableTrigger(loc int, enable bool) (*nod
 		action.Type = nodes.ATDisableTrigger
 	}
 	p.advance() // consume TRIGGER
+
+	// Completion: after ENABLE/DISABLE TRIGGER → trigger_ref/ALL
+	if p.collectMode() {
+		p.addRuleCandidate("trigger_ref")
+		p.addTokenCandidate(kwALL)
+		return nil, errCollecting
+	}
 
 	// ALL or trigger_name list
 	var names []nodes.Node

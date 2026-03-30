@@ -22,6 +22,12 @@ import (
 //	    { table_definition | view_definition | grant_statement |
 //	      revoke_statement | deny_statement }
 func (p *Parser) parseCreateSchemaStmt() (*nodes.CreateSchemaStmt, error) {
+	// Completion: after CREATE SCHEMA → identifier (new schema name)
+	if p.collectMode() {
+		p.addRuleCandidate("identifier")
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.CreateSchemaStmt{}
 
 	if p.cur.Type == kwAUTHORIZATION {

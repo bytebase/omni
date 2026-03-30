@@ -173,6 +173,29 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 		}
 	}
 
+	// Completion: after DROP <type> [IF EXISTS] → appropriate rule
+	if p.collectMode() {
+		switch stmt.ObjectType {
+		case nodes.DropTable:
+			p.addRuleCandidate("table_ref")
+		case nodes.DropView, nodes.DropMaterializedView:
+			p.addRuleCandidate("view_name")
+		case nodes.DropIndex:
+			p.addRuleCandidate("index_name")
+		case nodes.DropProcedure:
+			p.addRuleCandidate("proc_name")
+		case nodes.DropFunction:
+			p.addRuleCandidate("func_name")
+		case nodes.DropDatabase:
+			p.addRuleCandidate("database_ref")
+		case nodes.DropTrigger:
+			p.addRuleCandidate("trigger_name")
+		default:
+			p.addRuleCandidate("identifier")
+		}
+		return nil, errCollecting
+	}
+
 	// Names (comma-separated)
 	var names []nodes.Node
 

@@ -41,6 +41,16 @@ import (
 func (p *Parser) parseCreateProcedureStmt(orAlter bool) (*nodes.CreateProcedureStmt, error) {
 	loc := p.pos()
 
+	// Completion: after CREATE/ALTER PROCEDURE → identifier or proc name
+	if p.collectMode() {
+		if orAlter {
+			p.addRuleCandidate("proc_name")
+		} else {
+			p.addRuleCandidate("identifier")
+		}
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.CreateProcedureStmt{
 		OrAlter: orAlter,
 		Loc:     nodes.Loc{Start: loc, End: -1},
@@ -86,6 +96,13 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) (*nodes.CreateProcedureS
 		stmt.Params = params
 	}
 
+	// Completion: after CREATE PROCEDURE p [params] → AS/WITH
+	if p.collectMode() {
+		p.addTokenCandidate(kwAS)
+		p.addTokenCandidate(kwWITH)
+		return nil, errCollecting
+	}
+
 	// WITH <procedure_option> [,...n]
 	if p.cur.Type == kwWITH {
 		next := p.peekNext()
@@ -111,6 +128,14 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) (*nodes.CreateProcedureS
 
 	// AS
 	p.match(kwAS)
+
+	// Completion: after CREATE PROCEDURE p AS → statement keywords
+	if p.collectMode() {
+		for _, kw := range topLevelKeywords {
+			p.addTokenCandidate(kw)
+		}
+		return nil, errCollecting
+	}
 
 	// EXTERNAL NAME assembly.class.method (CLR)
 	if p.cur.Type == kwEXTERNAL {
@@ -232,6 +257,16 @@ func (p *Parser) parseMethodSpecifier() string {
 func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStmt, error) {
 	loc := p.pos()
 
+	// Completion: after CREATE/ALTER FUNCTION → identifier or func name
+	if p.collectMode() {
+		if orAlter {
+			p.addRuleCandidate("func_name")
+		} else {
+			p.addRuleCandidate("identifier")
+		}
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.CreateFunctionStmt{
 		OrAlter: orAlter,
 		Loc:     nodes.Loc{Start: loc, End: -1},
@@ -247,6 +282,11 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 	// Parameters in parentheses
 	if p.cur.Type == '(' {
 		p.advance()
+		// Completion: inside function params → @ variable
+		if p.collectMode() {
+			p.addRuleCandidate("variable")
+			return nil, errCollecting
+		}
 		if p.cur.Type != ')' {
 			params, err := p.parseParamDefList()
 			if err != nil {
@@ -261,6 +301,12 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 
 	// RETURNS type or RETURNS TABLE
 	if _, ok := p.match(kwRETURNS); ok {
+		// Completion: after RETURNS → type_name
+		if p.collectMode() {
+			p.addRuleCandidate("type_name")
+			p.addTokenCandidate(kwTABLE)
+			return nil, errCollecting
+		}
 		if p.cur.Type == kwTABLE {
 			p.advance()
 			stmt.ReturnsTable = &nodes.ReturnsTableDef{

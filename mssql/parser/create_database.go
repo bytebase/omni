@@ -92,6 +92,12 @@ import (
 func (p *Parser) parseCreateDatabaseStmt() (*nodes.CreateDatabaseStmt, error) {
 	loc := p.pos()
 
+	// Completion: after CREATE DATABASE → identifier (new database name)
+	if p.collectMode() {
+		p.addRuleCandidate("identifier")
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.CreateDatabaseStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}

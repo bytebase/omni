@@ -32,6 +32,12 @@ import (
 func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	loc := p.pos()
 
+	// Completion: after CREATE TABLE → identifier (new table name)
+	if p.collectMode() {
+		p.addRuleCandidate("identifier")
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.CreateTableStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
@@ -69,6 +75,18 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	if _, err := p.expect('('); err != nil {
 		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
+	}
+
+	// Completion: inside CREATE TABLE column list → constraint keywords / columnref
+	if p.collectMode() {
+		p.addRuleCandidate("identifier")
+		p.addTokenCandidate(kwCONSTRAINT)
+		p.addTokenCandidate(kwPRIMARY)
+		p.addTokenCandidate(kwUNIQUE)
+		p.addTokenCandidate(kwFOREIGN)
+		p.addTokenCandidate(kwCHECK)
+		p.addTokenCandidate(kwINDEX)
+		return nil, errCollecting
 	}
 
 	var cols []nodes.Node
@@ -135,6 +153,17 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 		if _, ok := p.match(','); !ok {
 			break
 		}
+		// Completion: after comma inside CREATE TABLE → constraint keywords / columnref
+		if p.collectMode() {
+			p.addRuleCandidate("identifier")
+			p.addTokenCandidate(kwCONSTRAINT)
+			p.addTokenCandidate(kwPRIMARY)
+			p.addTokenCandidate(kwUNIQUE)
+			p.addTokenCandidate(kwFOREIGN)
+			p.addTokenCandidate(kwCHECK)
+			p.addTokenCandidate(kwINDEX)
+			return nil, errCollecting
+		}
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -145,6 +174,14 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	}
 	if len(constraints) > 0 {
 		stmt.Constraints = &nodes.List{Items: constraints}
+	}
+
+	// Completion: after closing paren → ON/WITH/;
+	if p.collectMode() {
+		p.addTokenCandidate(kwON)
+		p.addTokenCandidate(kwWITH)
+		p.addTokenCandidate(';')
+		return nil, errCollecting
 	}
 
 	// ON { partition_scheme_name ( partition_column_name ) | filegroup | "default" }
@@ -408,6 +445,12 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		Loc:  nodes.Loc{Start: loc, End: -1},
 	}
 
+	// Completion: after column name → type_name
+	if p.collectMode() {
+		p.addRuleCandidate("type_name")
+		return nil, errCollecting
+	}
+
 	// Check for computed column: name AS expr [ PERSISTED [ NOT NULL ] ]
 	if p.cur.Type == kwAS {
 		p.advance()
@@ -463,6 +506,22 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	col.DataType, dtErr = p.parseDataType()
 	if dtErr != nil {
 		return nil, dtErr
+	}
+
+	// Completion: after column data type → column option keywords
+	if p.collectMode() {
+		p.addTokenCandidate(kwNULL)
+		p.addTokenCandidate(kwNOT)
+		p.addTokenCandidate(kwDEFAULT)
+		p.addTokenCandidate(kwIDENTITY)
+		p.addTokenCandidate(kwPRIMARY)
+		p.addTokenCandidate(kwUNIQUE)
+		p.addTokenCandidate(kwCHECK)
+		p.addTokenCandidate(kwREFERENCES)
+		p.addTokenCandidate(kwCONSTRAINT)
+		p.addTokenCandidate(kwCOLLATE)
+		p.addTokenCandidate(kwROWGUIDCOL)
+		return nil, errCollecting
 	}
 
 	// column_set_definition: column_set_name XML COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -600,6 +659,11 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		// DEFAULT
 		if p.cur.Type == kwDEFAULT {
 			p.advance()
+			// Completion: after DEFAULT → expression
+			if p.collectMode() {
+				p.addRuleCandidate("expression")
+				return nil, errCollecting
+			}
 			defExpr, defErr := p.parseExpr()
 			if defErr != nil {
 				return nil, defErr
@@ -817,6 +881,11 @@ func (p *Parser) parseIdentitySpec() (*nodes.IdentitySpec, error) {
 
 	if p.cur.Type == '(' {
 		p.advance()
+		// Completion: inside IDENTITY( → numeric
+		if p.collectMode() {
+			p.addRuleCandidate("numeric")
+			return nil, errCollecting
+		}
 		if p.cur.Type == tokICONST {
 			spec.Seed = p.cur.Ival
 			p.advance()
@@ -922,6 +991,11 @@ func (p *Parser) parseInlineConstraint(name string) (*nodes.ConstraintDef, error
 		}
 	case kwREFERENCES:
 		p.advance()
+		// Completion: after REFERENCES → table_ref
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			return nil, errCollecting
+		}
 		cd.Type = nodes.ConstraintForeignKey
 		var refErr error
 		cd.RefTable, refErr = p.parseTableRef()

@@ -69,6 +69,16 @@ import (
 func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt, error) {
 	loc := p.pos()
 
+	// Completion: after CREATE/ALTER TRIGGER → identifier or trigger name
+	if p.collectMode() {
+		if orAlter {
+			p.addRuleCandidate("trigger_name")
+		} else {
+			p.addRuleCandidate("identifier")
+		}
+		return nil, errCollecting
+	}
+
 	stmt := &nodes.CreateTriggerStmt{
 		OrAlter: orAlter,
 		Loc:     nodes.Loc{Start: loc, End: -1},
@@ -85,6 +95,12 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 	if _, ok := p.match(kwON); !ok {
 		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
+	}
+
+	// Completion: after CREATE TRIGGER tr ON → table_ref
+	if p.collectMode() {
+		p.addRuleCandidate("table_ref")
+		return nil, errCollecting
 	}
 
 	// Determine target: table/view, DATABASE, or ALL SERVER
@@ -104,6 +120,15 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 			return nil, err
 		}
 		stmt.Table = tbl
+	}
+
+	// Completion: after CREATE TRIGGER tr ON t → FOR/AFTER/INSTEAD OF
+	if p.collectMode() {
+		p.addTokenCandidate(kwFOR)
+		p.addRuleCandidate("AFTER")
+		p.addRuleCandidate("INSTEAD OF")
+		p.addTokenCandidate(kwWITH)
+		return nil, errCollecting
 	}
 
 	// Optional WITH clause (trigger options: ENCRYPTION, EXECUTE AS, NATIVE_COMPILATION, SCHEMABINDING)
@@ -134,6 +159,14 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 		// INSTEAD OF
 		p.match(kwOF)
 		stmt.TriggerType = "INSTEAD OF"
+	}
+
+	// Completion: after FOR/AFTER/INSTEAD OF → INSERT/UPDATE/DELETE
+	if p.collectMode() {
+		p.addTokenCandidate(kwINSERT)
+		p.addTokenCandidate(kwUPDATE)
+		p.addTokenCandidate(kwDELETE)
+		return nil, errCollecting
 	}
 
 	// Parse event list
