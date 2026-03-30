@@ -60,16 +60,10 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 		return p.parseConnectionStatement()
 	case kwConnect:
 		return p.parseConnectionStatement()
-	case kwUse:
-		return p.parseUseCommand()
 	default:
-		// Check for native functions
-		if p.isNativeFunction() {
+		// Check for native functions: identifier-like token followed by '('
+		if p.isIdentLike(p.cur.Type) && p.peekNext().Type == '(' {
 			return p.parseNativeFunctionCall()
-		}
-		// Check for identifiers that might be collection access via variable
-		if p.cur.Type == tokIdent {
-			return p.parseIdentStatement()
 		}
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -116,16 +110,16 @@ func (p *Parser) match(types ...int) (Token, bool) {
 	return Token{}, false
 }
 
-// isIdentLike returns true if the current token is an identifier or a keyword
+// isIdentLike returns true if the given token type is an identifier or a keyword
 // that can be used as an identifier in certain contexts (e.g., method names).
-func (p *Parser) isIdentLike() bool {
-	return p.cur.Type == tokIdent || p.cur.Type >= 700
+func (p *Parser) isIdentLike(tokenType int) bool {
+	return tokenType == tokIdent || tokenType >= 700
 }
 
 // expectIdent consumes the current token if it's an identifier or keyword-as-identifier.
 // Returns the token string and an error if not identifier-like.
 func (p *Parser) expectIdent() (string, Token, error) {
-	if p.isIdentLike() {
+	if p.isIdentLike(p.cur.Type) {
 		tok := p.advance()
 		return tok.Str, tok, nil
 	}

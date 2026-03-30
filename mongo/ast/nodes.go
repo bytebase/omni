@@ -18,8 +18,8 @@ type Node interface {
 
 // ShowCommand represents show dbs, show collections, show profile, etc.
 type ShowCommand struct {
-	Command string // e.g. "dbs", "collections", "profile"
-	Loc     Loc
+	Target string // e.g. "dbs", "collections", "profile"
+	Loc    Loc
 }
 
 func (n *ShowCommand) GetLoc() Loc { return n.Loc }
@@ -27,85 +27,92 @@ func (n *ShowCommand) GetLoc() Loc { return n.Loc }
 // CollectionStatement represents db.collection.method().cursor()...
 // This is the most complex and common statement type.
 type CollectionStatement struct {
-	Database       string         // explicit db name or "" for implicit
-	Collection     string         // collection name
-	Method         *MethodCall    // primary method (find, insert, etc.)
-	CursorMethods  []CursorMethod // chained cursor modifiers (.sort, .limit, etc.)
-	Loc            Loc
+	Collection    string         // collection name
+	CollectionLoc Loc            // location of the collection name token
+	AccessMethod  string         // how the collection was accessed: "dot" or "getCollection"
+	Method        string         // primary method name (find, insert, etc.)
+	Args          []Node         // arguments to the primary method
+	CursorMethods []CursorMethod // chained cursor modifiers (.sort, .limit, etc.)
+	Explain       bool           // whether .explain() wraps the statement
+	ExplainArgs   []Node         // arguments to explain()
+	Loc           Loc
 }
 
 func (n *CollectionStatement) GetLoc() Loc { return n.Loc }
 
 // DatabaseStatement represents db.method() calls (e.g. db.getCollectionNames()).
 type DatabaseStatement struct {
-	Database string      // explicit db name or "" for implicit
-	Method   *MethodCall // method call
-	Loc      Loc
+	Method string // method name
+	Args   []Node // arguments
+	Loc    Loc
 }
 
 func (n *DatabaseStatement) GetLoc() Loc { return n.Loc }
 
 // BulkStatement represents db.collection.initializeOrderedBulkOp()/initializeUnorderedBulkOp() chains.
 type BulkStatement struct {
-	Database   string          // explicit db name or "" for implicit
-	Collection string          // collection name
-	Ordered    bool            // true for initializeOrderedBulkOp
-	Operations []BulkOperation // chained operations
-	Execute    bool            // whether .execute() was called
-	Loc        Loc
+	Collection   string          // collection name
+	AccessMethod string          // how the collection was accessed: "dot" or "getCollection"
+	Ordered      bool            // true for initializeOrderedBulkOp
+	Operations   []BulkOperation // chained operations
+	Loc          Loc
 }
 
 func (n *BulkStatement) GetLoc() Loc { return n.Loc }
 
 // ConnectionStatement represents Mongo(), connect(), db.getMongo() chains.
 type ConnectionStatement struct {
-	Method *MethodCall   // the connection method
-	Chain  []*MethodCall // chained methods
-	Loc    Loc
+	Constructor    string       // "Mongo", "connect", or "db.getMongo"
+	Args           []Node       // arguments to the constructor
+	ChainedMethods []MethodCall // chained methods
+	Loc            Loc
 }
 
 func (n *ConnectionStatement) GetLoc() Loc { return n.Loc }
 
 // RsStatement represents rs.method() calls (replica set).
 type RsStatement struct {
-	Method *MethodCall // method call
-	Loc    Loc
+	MethodName string // method name
+	Args       []Node // arguments
+	Loc        Loc
 }
 
 func (n *RsStatement) GetLoc() Loc { return n.Loc }
 
 // ShStatement represents sh.method() calls (sharding).
 type ShStatement struct {
-	Method *MethodCall // method call
-	Loc    Loc
+	MethodName string // method name
+	Args       []Node // arguments
+	Loc        Loc
 }
 
 func (n *ShStatement) GetLoc() Loc { return n.Loc }
 
 // EncryptionStatement represents db.getMongo().getKeyVault()/getClientEncryption() chains.
 type EncryptionStatement struct {
-	Database string        // explicit db name or "" for implicit
-	Chain    []*MethodCall // method chain
-	Loc      Loc
+	Target         string       // "keyVault" or "clientEncryption"
+	ChainedMethods []MethodCall // method chain after getKeyVault()/getClientEncryption()
+	Loc            Loc
 }
 
 func (n *EncryptionStatement) GetLoc() Loc { return n.Loc }
 
 // PlanCacheStatement represents db.collection.getPlanCache() chains.
 type PlanCacheStatement struct {
-	Database   string      // explicit db name or "" for implicit
-	Collection string      // collection name
-	Method     *MethodCall // plan cache method (clear, list, etc.)
-	Loc        Loc
+	Collection     string       // collection name
+	AccessMethod   string       // how the collection was accessed: "dot" or "getCollection"
+	ChainedMethods []MethodCall // plan cache method chain (clear, list, etc.)
+	Loc            Loc
 }
 
 func (n *PlanCacheStatement) GetLoc() Loc { return n.Loc }
 
 // SpStatement represents sp.method() or sp.x.method() calls (query planner).
 type SpStatement struct {
-	Namespace string      // sub-namespace (e.g. "x" in sp.x.method())
-	Method    *MethodCall // method call
-	Loc       Loc
+	MethodName string // method name
+	SubMethod  string // sub-method (e.g. "x" in sp.x.method())
+	Args       []Node // arguments
+	Loc        Loc
 }
 
 func (n *SpStatement) GetLoc() Loc { return n.Loc }
@@ -125,9 +132,9 @@ func (n *NativeFunctionCall) GetLoc() Loc { return n.Loc }
 
 // CursorMethod represents a chained cursor modifier like .sort({x:1}).
 type CursorMethod struct {
-	Name string // method name (sort, limit, skip, etc.)
-	Args []Node // arguments
-	Loc  Loc
+	Method string // method name (sort, limit, skip, etc.)
+	Args   []Node // arguments
+	Loc    Loc
 }
 
 // MethodCall represents a method call with name and arguments.
@@ -141,9 +148,9 @@ func (n *MethodCall) GetLoc() Loc { return n.Loc }
 
 // BulkOperation represents a single operation in a bulk chain.
 type BulkOperation struct {
-	Name string // operation name (insert, find, update, etc.)
-	Args []Node // arguments
-	Loc  Loc
+	Method string // operation name (insert, find, update, etc.)
+	Args   []Node // arguments
+	Loc    Loc
 }
 
 // ---------------------------------------------------------------------------
@@ -163,10 +170,7 @@ type KeyValue struct {
 	Key    string // field name
 	KeyLoc Loc    // location of the key
 	Value  Node   // value expression
-	Loc    Loc
 }
-
-func (n *KeyValue) GetLoc() Loc { return n.Loc }
 
 // Array represents a JSON/BSON array literal [ ... ].
 type Array struct {
@@ -186,8 +190,9 @@ func (n *StringLiteral) GetLoc() Loc { return n.Loc }
 
 // NumberLiteral represents a numeric value (integer or float).
 type NumberLiteral struct {
-	Value string // raw text of the number
-	Loc   Loc
+	Value   string // raw text of the number
+	IsFloat bool   // true if the number contains a decimal point or exponent
+	Loc     Loc
 }
 
 func (n *NumberLiteral) GetLoc() Loc { return n.Loc }

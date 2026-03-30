@@ -324,7 +324,6 @@ const (
 	kwCls              // cls
 	kwHelp             // help
 	kwIt               // it
-	kwUse              // use
 	kwNumberIsNaN      // Number.isNaN
 	kwIsNaN            // isNaN
 	kwIsFinite         // isFinite
@@ -631,7 +630,6 @@ var keywords = map[string]int{
 	"cls":                  kwCls,
 	"help":                 kwHelp,
 	"it":                   kwIt,
-	"use":                  kwUse,
 	"isNaN":                kwIsNaN,
 	"isFinite":             kwIsFinite,
 	"parseInt":             kwParseInt,
