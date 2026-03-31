@@ -91,6 +91,7 @@ func startOracleDB(t *testing.T) *oracleDB {
 		}
 
 		oracleInst = &oracleDB{db: db, ctx: ctx}
+		setupOracleSchema(oracleInst)
 		// Container cleanup happens when the process exits.
 	})
 
@@ -139,6 +140,63 @@ func (o *oracleDB) execSQL(t *testing.T, sqlStr string) {
 	_, err := o.db.ExecContext(o.ctx, sqlStr)
 	if err != nil {
 		t.Fatalf("Oracle exec failed: %v\nSQL: %s", err, truncateOracleSQL(sqlStr, 500))
+	}
+}
+
+// setupOracleSchema creates tables and objects needed by the SQL corpus
+// so that EXPLAIN PLAN / DBMS_SQL.PARSE can validate statements that
+// reference these objects. Without this, most DML/queries get rejected
+// with ORA-00942 (table or view does not exist).
+func setupOracleSchema(o *oracleDB) {
+	ddls := []string{
+		// HR-style schema used by most corpus statements
+		`CREATE TABLE departments (
+			department_id NUMBER PRIMARY KEY,
+			department_name VARCHAR2(100),
+			location_id NUMBER
+		)`,
+		`CREATE TABLE employees (
+			employee_id NUMBER PRIMARY KEY,
+			first_name VARCHAR2(50),
+			last_name VARCHAR2(100) NOT NULL,
+			email VARCHAR2(100),
+			salary NUMBER(10,2),
+			commission_pct NUMBER(4,2),
+			department_id NUMBER REFERENCES departments(department_id),
+			manager_id NUMBER,
+			job_id VARCHAR2(20),
+			created_date DATE DEFAULT SYSDATE
+		)`,
+		`CREATE TABLE customers (
+			customer_id NUMBER PRIMARY KEY,
+			name VARCHAR2(200)
+		)`,
+		`CREATE TABLE orders (
+			order_id NUMBER PRIMARY KEY,
+			customer_id NUMBER REFERENCES customers(customer_id),
+			order_date DATE,
+			amount NUMBER(10,2)
+		)`,
+		// Tables referenced in DML corpus
+		`CREATE TABLE emp_backup AS SELECT * FROM employees WHERE 1=0`,
+		`CREATE TABLE high_earners AS SELECT * FROM employees WHERE 1=0`,
+		`CREATE TABLE mid_earners AS SELECT * FROM employees WHERE 1=0`,
+		`CREATE TABLE low_earners AS SELECT * FROM employees WHERE 1=0`,
+		`CREATE TABLE sales (prod_id NUMBER, amount NUMBER)`,
+		`CREATE TABLE employee_bonuses (employee_id NUMBER, bonus NUMBER)`,
+		// Tables referenced in admin corpus
+		`CREATE TABLE temp_results (id NUMBER, result VARCHAR2(200))`,
+		`CREATE TABLE temp_data (id NUMBER)`,
+		`CREATE TABLE old_table (id NUMBER)`,
+		`CREATE TABLE test_table (id NUMBER)`,
+		// Views/objects for advanced queries
+		`CREATE VIEW sales_view AS SELECT 'US' AS country, 'Bounce' AS product, 2023 AS year, 1000 AS sales FROM dual`,
+		`CREATE TABLE j_purchaseorder (po_document CLOB)`,
+	}
+
+	for _, ddl := range ddls {
+		_, _ = o.db.ExecContext(o.ctx, ddl)
+		// Ignore errors (table may already exist from a previous run)
 	}
 }
 

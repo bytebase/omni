@@ -1,11 +1,13 @@
--- Oracle PL/SQL statement corpus
-
 -- @name: anonymous block
+-- @valid: true
+-- @source: Oracle SQL Reference
 BEGIN
   NULL;
 END;
 
 -- @name: block with variable
+-- @valid: true
+-- @source: Oracle SQL Reference
 DECLARE
   v_count NUMBER;
 BEGIN
@@ -13,6 +15,8 @@ BEGIN
 END;
 
 -- @name: block with if
+-- @valid: true
+-- @source: Oracle SQL Reference
 DECLARE
   v_sal NUMBER;
 BEGIN
@@ -27,6 +31,8 @@ BEGIN
 END;
 
 -- @name: block with loop
+-- @valid: true
+-- @source: Oracle SQL Reference
 BEGIN
   FOR i IN 1..10 LOOP
     NULL;
@@ -34,6 +40,8 @@ BEGIN
 END;
 
 -- @name: block with cursor loop
+-- @valid: true
+-- @source: Oracle SQL Reference
 DECLARE
   CURSOR c_emp IS SELECT employee_id, salary FROM employees;
 BEGIN
@@ -43,6 +51,8 @@ BEGIN
 END;
 
 -- @name: block with exception
+-- @valid: true
+-- @source: Oracle SQL Reference
 BEGIN
   SELECT 1 INTO :x FROM dual;
 EXCEPTION
@@ -53,6 +63,8 @@ EXCEPTION
 END;
 
 -- @name: create procedure
+-- @valid: true
+-- @source: Oracle SQL Reference
 CREATE PROCEDURE update_salary(
   p_emp_id IN NUMBER,
   p_pct IN NUMBER DEFAULT 10
@@ -63,6 +75,8 @@ BEGIN
 END;
 
 -- @name: create function
+-- @valid: true
+-- @source: Oracle SQL Reference
 CREATE FUNCTION get_dept_count(p_dept_id IN NUMBER) RETURN NUMBER IS
   v_count NUMBER;
 BEGIN
@@ -71,12 +85,16 @@ BEGIN
 END;
 
 -- @name: create package spec
+-- @valid: true
+-- @source: Oracle SQL Reference
 CREATE PACKAGE emp_pkg IS
   PROCEDURE hire_employee(p_name VARCHAR2, p_dept NUMBER);
   FUNCTION get_salary(p_emp_id NUMBER) RETURN NUMBER;
 END emp_pkg;
 
 -- @name: create package body
+-- @valid: true
+-- @source: Oracle SQL Reference
 CREATE PACKAGE BODY emp_pkg IS
   PROCEDURE hire_employee(p_name VARCHAR2, p_dept NUMBER) IS
   BEGIN
@@ -89,6 +107,8 @@ CREATE PACKAGE BODY emp_pkg IS
 END emp_pkg;
 
 -- @name: create trigger
+-- @valid: true
+-- @source: Oracle SQL Reference
 CREATE TRIGGER trg_emp_audit
 BEFORE INSERT OR UPDATE ON employees
 FOR EACH ROW
