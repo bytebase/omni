@@ -1,4 +1,4 @@
-({RAWSTMT :stmt_location 0 :stmt_len 51
+({RAWSTMT :stmt_location 0 :stmt_len 53
   :stmt {SELECT :star true
     :from {CONTAINER :name "c" :loc_start 14 :loc_end 15}
-    :where {LIKE :expr {DOT :expr {COLREF :name "c" :loc_start 22 :loc_end 23} :property "name" :loc_start 22 :loc_end 28} :pattern {STRLIT :val "%20^%%" :loc_start 34 :loc_end 40} :escape {STRLIT :val "^" :loc_start 50 :loc_end 51} :loc_start 22 :loc_end 51} :loc_start 0 :loc_end 51}})
+    :where {LIKE :expr {DOT :expr {COLREF :name "c" :loc_start 22 :loc_end 23} :property "name" :loc_start 22 :loc_end 28} :pattern {STRLIT :val "%20^%%" :loc_start 34 :loc_end 42} :escape {STRLIT :val "^" :loc_start 50 :loc_end 53} :loc_start 22 :loc_end 53} :loc_start 0 :loc_end 53}})

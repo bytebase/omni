@@ -275,7 +275,7 @@ func (p *Parser) parseSelect() (*nodes.SelectStmt, error) {
 		stmt.OffsetLimit = ol
 	}
 
-	endLoc := p.prev.Loc + len(p.prev.Str)
+	endLoc := p.prev.End
 	stmt.Loc = nodes.Loc{Start: startLoc, End: endLoc}
 	return stmt, nil
 }

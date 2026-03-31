@@ -39,7 +39,7 @@ func (p *Parser) parseTargetEntry() (*nodes.TargetEntry, error) {
 	}
 
 	entry := &nodes.TargetEntry{Expr: expr}
-	endLoc := p.prev.Loc + len(p.prev.Str)
+	endLoc := p.prev.End
 
 	// Optional alias: AS identifier or just identifier (if not a clause start).
 	if p.cur.Type == tokAS {
@@ -49,7 +49,7 @@ func (p *Parser) parseTargetEntry() (*nodes.TargetEntry, error) {
 			return nil, err
 		}
 		entry.Alias = &name
-		endLoc = p.prev.Loc + len(p.prev.Str)
+		endLoc = p.prev.End
 	} else if p.cur.Type == tokIDENT {
 		// Implicit alias (no AS keyword) - only if it looks like an alias, not a clause keyword.
 		name := p.cur.Str
@@ -116,7 +116,7 @@ func (p *Parser) parseSortExpr() (*nodes.SortExpr, error) {
 		if err != nil {
 			return nil, err
 		}
-		endLoc := p.prev.Loc + len(p.prev.Str)
+		endLoc := p.prev.End
 		return &nodes.SortExpr{
 			Expr: expr,
 			Rank: true,
@@ -128,16 +128,16 @@ func (p *Parser) parseSortExpr() (*nodes.SortExpr, error) {
 	if err != nil {
 		return nil, err
 	}
-	endLoc := p.prev.Loc + len(p.prev.Str)
+	endLoc := p.prev.End
 
 	se := &nodes.SortExpr{Expr: expr}
 	if p.cur.Type == tokASC {
 		p.advance()
-		endLoc = p.prev.Loc + len(p.prev.Str)
+		endLoc = p.prev.End
 	} else if p.cur.Type == tokDESC {
 		se.Desc = true
 		p.advance()
-		endLoc = p.prev.Loc + len(p.prev.Str)
+		endLoc = p.prev.End
 	}
 
 	se.Loc = nodes.Loc{Start: startLoc, End: endLoc}
@@ -163,7 +163,7 @@ func (p *Parser) parseOffsetLimit() (*nodes.OffsetLimitClause, error) {
 		return nil, err
 	}
 
-	endLoc := p.prev.Loc + len(p.prev.Str)
+	endLoc := p.prev.End
 	return &nodes.OffsetLimitClause{
 		Offset: offset,
 		Limit:  limit,

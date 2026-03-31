@@ -84,19 +84,19 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 		val := p.cur.Str
 		loc := p.cur.Loc
 		p.advance()
-		return &nodes.StringLit{Val: val, Loc: nodes.Loc{Start: loc, End: p.prev.Loc + len(p.prev.Str)}}, nil
+		return &nodes.StringLit{Val: val, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 
 	case tokDCONST:
 		val := p.cur.Str
 		loc := p.cur.Loc
 		p.advance()
-		return &nodes.StringLit{Val: val, Loc: nodes.Loc{Start: loc, End: p.prev.Loc + len(p.prev.Str)}}, nil
+		return &nodes.StringLit{Val: val, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 
 	case tokPARAM:
 		name := p.cur.Str
 		loc := p.cur.Loc
 		p.advance()
-		return &nodes.ParamRef{Name: name, Loc: nodes.Loc{Start: loc, End: p.prev.Loc + len(p.prev.Str)}}, nil
+		return &nodes.ParamRef{Name: name, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 
 	// Unary operators.
 	case tokNOT:
@@ -106,7 +106,7 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
-		endLoc := p.prev.Loc + len(p.prev.Str)
+		endLoc := p.prev.End
 		return &nodes.UnaryExpr{Op: "NOT", Operand: operand, Loc: nodes.Loc{Start: loc, End: endLoc}}, nil
 
 	case tokBITNOT:
@@ -116,7 +116,7 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
-		endLoc := p.prev.Loc + len(p.prev.Str)
+		endLoc := p.prev.End
 		return &nodes.UnaryExpr{Op: "~", Operand: operand, Loc: nodes.Loc{Start: loc, End: endLoc}}, nil
 
 	case tokPLUS:
@@ -126,7 +126,7 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
-		endLoc := p.prev.Loc + len(p.prev.Str)
+		endLoc := p.prev.End
 		return &nodes.UnaryExpr{Op: "+", Operand: operand, Loc: nodes.Loc{Start: loc, End: endLoc}}, nil
 
 	case tokMINUS:
@@ -136,7 +136,7 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
-		endLoc := p.prev.Loc + len(p.prev.Str)
+		endLoc := p.prev.End
 		return &nodes.UnaryExpr{Op: "-", Operand: operand, Loc: nodes.Loc{Start: loc, End: endLoc}}, nil
 
 	// EXISTS(SELECT ...)
@@ -248,7 +248,7 @@ func (p *Parser) parseInfixExpr(left nodes.ExprNode, prec int) (nodes.ExprNode, 
 		if err != nil {
 			return nil, err
 		}
-		endLoc := p.prev.Loc + len(p.prev.Str)
+		endLoc := p.prev.End
 		return &nodes.TernaryExpr{
 			Cond: left, Then: thenExpr, Else: elseExpr,
 			Loc: nodes.Loc{Start: startLoc, End: endLoc},
@@ -286,7 +286,7 @@ func (p *Parser) parseInfixExpr(left nodes.ExprNode, prec int) (nodes.ExprNode, 
 		if err != nil {
 			return nil, err
 		}
-		endLoc := p.prev.Loc + len(p.prev.Str)
+		endLoc := p.prev.End
 		return &nodes.DotAccessExpr{
 			Expr: left, Property: prop,
 			Loc: nodes.Loc{Start: startLoc, End: endLoc},
@@ -335,7 +335,7 @@ func (p *Parser) parseInfixExpr(left nodes.ExprNode, prec int) (nodes.ExprNode, 
 		if err != nil {
 			return nil, err
 		}
-		endLoc := p.prev.Loc + len(p.prev.Str)
+		endLoc := p.prev.End
 		return &nodes.BinaryExpr{
 			Op: op, Left: left, Right: right,
 			Loc: nodes.Loc{Start: startLoc, End: endLoc},
@@ -394,7 +394,7 @@ func (p *Parser) parseBetweenExpr(left nodes.ExprNode, not bool, startLoc int) (
 		return nil, err
 	}
 
-	endLoc := p.prev.Loc + len(p.prev.Str)
+	endLoc := p.prev.End
 	return &nodes.BetweenExpr{
 		Expr: left, Low: low, High: high, Not: not,
 		Loc: nodes.Loc{Start: startLoc, End: endLoc},
@@ -419,7 +419,7 @@ func (p *Parser) parseLikeExpr(left nodes.ExprNode, not bool, startLoc int) (nod
 		}
 	}
 
-	endLoc := p.prev.Loc + len(p.prev.Str)
+	endLoc := p.prev.End
 	return &nodes.LikeExpr{
 		Expr: left, Pattern: pattern, Escape: escape, Not: not,
 		Loc: nodes.Loc{Start: startLoc, End: endLoc},
@@ -587,7 +587,7 @@ func (p *Parser) parseObjectFieldPair() (*nodes.ObjectFieldPair, error) {
 		return nil, err
 	}
 
-	endLoc := p.prev.Loc + len(p.prev.Str)
+	endLoc := p.prev.End
 	return &nodes.ObjectFieldPair{
 		Key: key, Value: value,
 		Loc: nodes.Loc{Start: startLoc, End: endLoc},

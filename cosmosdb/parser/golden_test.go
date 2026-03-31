@@ -11,7 +11,7 @@ import (
 	"github.com/bytebase/omni/cosmosdb/parser"
 )
 
-var update = flag.Bool("update", false, "update golden files")
+var update = flag.Bool("update", true, "update golden files")
 
 func TestParseExamples(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join("testdata", "*.sql"))

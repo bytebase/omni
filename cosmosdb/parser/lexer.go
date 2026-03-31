@@ -136,7 +136,8 @@ var keywords = map[string]int{
 type Token struct {
 	Type int
 	Str  string
-	Loc  int // byte offset in original input
+	Loc  int // start byte offset in original input
+	End  int // exclusive end byte offset in original input
 }
 
 // Lexer is the hand-written tokenizer for Cosmos DB SQL.
@@ -156,37 +157,32 @@ func NewLexer(input string) *Lexer {
 func (l *Lexer) Next() Token {
 	l.skipWhitespaceAndComments()
 	if l.pos >= len(l.input) {
-		return Token{Type: tokEOF, Loc: l.pos}
+		return Token{Type: tokEOF, Loc: l.pos, End: l.pos}
 	}
 
 	l.start = l.pos
 	ch := l.input[l.pos]
 
-	// String literals.
-	if ch == '\'' {
-		return l.scanString('\'', tokSCONST)
+	var tok Token
+	switch {
+	case ch == '\'':
+		tok = l.scanString('\'', tokSCONST)
+	case ch == '"':
+		tok = l.scanString('"', tokDCONST)
+	case ch == '@':
+		tok = l.scanParam()
+	case ch >= '0' && ch <= '9':
+		tok = l.scanNumber()
+	case isIdentStart(ch):
+		tok = l.scanIdentOrKeyword()
+	default:
+		tok = l.scanOperator()
 	}
-	if ch == '"' {
-		return l.scanString('"', tokDCONST)
-	}
-
-	// Parameter reference.
-	if ch == '@' {
-		return l.scanParam()
-	}
-
-	// Numbers: digit or hex 0x.
-	if ch >= '0' && ch <= '9' {
-		return l.scanNumber()
-	}
-
-	// Identifiers and keywords.
-	if isIdentStart(ch) {
-		return l.scanIdentOrKeyword()
-	}
-
-	// Operators.
-	return l.scanOperator()
+	// Set End from the lexer's current position, which always points past
+	// the last byte of the token just scanned. This is correct even for
+	// string literals where Str holds the unescaped value.
+	tok.End = l.pos
+	return tok
 }
 
 func (l *Lexer) skipWhitespaceAndComments() {

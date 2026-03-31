@@ -1,5 +1,5 @@
-({RAWSTMT :stmt_location 0 :stmt_len 52
+({RAWSTMT :stmt_location 0 :stmt_len 54
   :stmt {SELECT
     :targets ({TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 7 :loc_end 8} :property "name" :loc_start 7 :loc_end 13} :loc_start 7 :loc_end 13} {TARGET :expr {DOT :expr {COLREF :name "c" :loc_start 15 :loc_end 16} :property "city" :loc_start 15 :loc_end 21} :loc_start 15 :loc_end 21})
     :from {CONTAINER :name "c" :loc_start 27 :loc_end 28}
-    :where {BINEXPR :op "=" :left {DOT :expr {COLREF :name "c" :loc_start 35 :loc_end 36} :property "city" :loc_start 35 :loc_end 41} :right {STRLIT :val "New York" :loc_start 44 :loc_end 52} :loc_start 35 :loc_end 52} :loc_start 0 :loc_end 52}})
+    :where {BINEXPR :op "=" :left {DOT :expr {COLREF :name "c" :loc_start 35 :loc_end 36} :property "city" :loc_start 35 :loc_end 41} :right {STRLIT :val "New York" :loc_start 44 :loc_end 54} :loc_start 35 :loc_end 54} :loc_start 0 :loc_end 54}})
