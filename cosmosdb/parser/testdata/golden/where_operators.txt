@@ -1,4 +1,4 @@
 ({RAWSTMT :stmt_location 0 :stmt_len 67
   :stmt {SELECT :star true
     :from {CONTAINER :name "c" :loc_start 14 :loc_end 15}
-    :where {BINEXPR :op "AND" :left {BINEXPR :op "!=" :left {DOT :expr {COLREF :name "c" :loc_start 22 :loc_end 23} :property "countryRegion" :loc_start 22 :loc_end 37} :right {STRLIT :val "4" :loc_start 41 :loc_end 42} :loc_start 22 :loc_end 42} :right {BINEXPR :op ">" :left {DOT :expr {COLREF :name "c" :loc_start 49 :loc_end 50} :property "_ts" :loc_start 49 :loc_end 54} :right {NUMLIT :val "1743702439" :loc_start 57 :loc_end 67} :loc_start 49 :loc_end 67} :loc_start 22 :loc_end 67} :loc_start 0 :loc_end 67}})
+    :where {BINEXPR :op "AND" :left {BINEXPR :op "!=" :left {DOT :expr {COLREF :name "c" :loc_start 22 :loc_end 23} :property "countryRegion" :loc_start 22 :loc_end 37} :right {STRLIT :val "4" :loc_start 41 :loc_end 44} :loc_start 22 :loc_end 44} :right {BINEXPR :op ">" :left {DOT :expr {COLREF :name "c" :loc_start 49 :loc_end 50} :property "_ts" :loc_start 49 :loc_end 54} :right {NUMLIT :val "1743702439" :loc_start 57 :loc_end 67} :loc_start 49 :loc_end 67} :loc_start 22 :loc_end 67} :loc_start 0 :loc_end 67}})

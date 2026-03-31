@@ -1,4 +1,4 @@
 ({RAWSTMT :stmt_location 0 :stmt_len 49
   :stmt {SELECT
-    :targets ({TARGET :expr {BRACKET :expr {DOT :expr {COLREF :name "category" :loc_start 11 :loc_end 19} :property "name" :loc_start 11 :loc_end 24} :index {STRLIT :val "en" :loc_start 25 :loc_end 27} :loc_start 11 :loc_end 30} :loc_start 11 :loc_end 30})
+    :targets ({TARGET :expr {BRACKET :expr {DOT :expr {COLREF :name "category" :loc_start 11 :loc_end 19} :property "name" :loc_start 11 :loc_end 24} :index {STRLIT :val "en" :loc_start 25 :loc_end 29} :loc_start 11 :loc_end 30} :loc_start 11 :loc_end 30})
     :from {CONTAINER :name "container" :loc_start 40 :loc_end 49} :loc_start 0 :loc_end 49}})

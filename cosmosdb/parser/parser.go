@@ -41,6 +41,13 @@ func Parse(sql string) (*nodes.List, error) {
 		return nil, err
 	}
 
+	if p.lexer.Err != nil {
+		return nil, &ParseError{
+			Message: p.lexer.Err.Error(),
+			Pos:     p.cur.Loc,
+		}
+	}
+
 	if p.cur.Type != tokEOF {
 		return nil, &ParseError{
 			Message: fmt.Sprintf("unexpected token %q after statement", p.cur.Str),
@@ -275,7 +282,7 @@ func (p *Parser) parseSelect() (*nodes.SelectStmt, error) {
 		stmt.OffsetLimit = ol
 	}
 
-	endLoc := p.prev.Loc + len(p.prev.Str)
+	endLoc := p.prev.End
 	stmt.Loc = nodes.Loc{Start: startLoc, End: endLoc}
 	return stmt, nil
 }

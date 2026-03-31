@@ -39,7 +39,7 @@ func (p *Parser) parseJoinClause() (*nodes.JoinExpr, error) {
 		return nil, err
 	}
 
-	endLoc := p.prev.Loc + len(p.prev.Str)
+	endLoc := p.prev.End
 	return &nodes.JoinExpr{
 		Source: source,
 		Loc:    nodes.Loc{Start: startLoc, End: endLoc},
@@ -61,7 +61,7 @@ func (p *Parser) parseFromSource() (nodes.TableExpr, error) {
 		if err != nil {
 			return nil, err
 		}
-		endLoc := p.prev.Loc + len(p.prev.Str)
+		endLoc := p.prev.End
 		return &nodes.ArrayIterationExpr{
 			Alias:  alias,
 			Source: container,
@@ -82,7 +82,7 @@ func (p *Parser) parseFromSource() (nodes.TableExpr, error) {
 		if err != nil {
 			return nil, err
 		}
-		endLoc := p.prev.Loc + len(p.prev.Str)
+		endLoc := p.prev.End
 		return &nodes.AliasedTableExpr{
 			Source: container,
 			Alias:  name,
@@ -92,7 +92,7 @@ func (p *Parser) parseFromSource() (nodes.TableExpr, error) {
 	if isIdentLike(p.cur.Type) && !isClauseStart(p.cur.Type) {
 		name := p.cur.Str
 		p.advance()
-		endLoc := p.prev.Loc + len(p.prev.Str)
+		endLoc := p.prev.End
 		return &nodes.AliasedTableExpr{
 			Source: container,
 			Alias:  name,
@@ -113,7 +113,7 @@ func (p *Parser) parseContainerExpr() (nodes.TableExpr, error) {
 		p.advance()
 		base = &nodes.ContainerRef{
 			Root: true,
-			Loc:  nodes.Loc{Start: startLoc, End: p.prev.Loc + len(p.prev.Str)},
+			Loc:  nodes.Loc{Start: startLoc, End: p.prev.End},
 		}
 	case tokLPAREN:
 		// Subquery: (SELECT ...)
@@ -141,7 +141,7 @@ func (p *Parser) parseContainerExpr() (nodes.TableExpr, error) {
 		p.advance()
 		base = &nodes.ContainerRef{
 			Name: name,
-			Loc:  nodes.Loc{Start: startLoc, End: p.prev.Loc + len(p.prev.Str)},
+			Loc:  nodes.Loc{Start: startLoc, End: p.prev.End},
 		}
 	}
 
@@ -153,7 +153,7 @@ func (p *Parser) parseContainerExpr() (nodes.TableExpr, error) {
 			if err != nil {
 				return nil, err
 			}
-			endLoc := p.prev.Loc + len(p.prev.Str)
+			endLoc := p.prev.End
 			base = &nodes.DotAccessExpr{
 				Expr:     exprFromTableExpr(base),
 				Property: prop,
@@ -192,22 +192,22 @@ func (p *Parser) parseBracketIndex() (nodes.ExprNode, error) {
 		val := p.cur.Str
 		loc := p.cur.Loc
 		p.advance()
-		return &nodes.StringLit{Val: val, Loc: nodes.Loc{Start: loc, End: p.prev.Loc + len(p.prev.Str)}}, nil
+		return &nodes.StringLit{Val: val, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	case tokDCONST:
 		val := p.cur.Str
 		loc := p.cur.Loc
 		p.advance()
-		return &nodes.StringLit{Val: val, Loc: nodes.Loc{Start: loc, End: p.prev.Loc + len(p.prev.Str)}}, nil
+		return &nodes.StringLit{Val: val, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	case tokICONST:
 		val := p.cur.Str
 		loc := p.cur.Loc
 		p.advance()
-		return &nodes.NumberLit{Val: val, Loc: nodes.Loc{Start: loc, End: p.prev.Loc + len(p.prev.Str)}}, nil
+		return &nodes.NumberLit{Val: val, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	case tokPARAM:
 		name := p.cur.Str
 		loc := p.cur.Loc
 		p.advance()
-		return &nodes.ParamRef{Name: name, Loc: nodes.Loc{Start: loc, End: p.prev.Loc + len(p.prev.Str)}}, nil
+		return &nodes.ParamRef{Name: name, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	default:
 		return nil, &ParseError{
 			Message: fmt.Sprintf("expected string, integer, or parameter in bracket index, got %q", p.cur.Str),
