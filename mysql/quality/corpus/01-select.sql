@@ -152,3 +152,47 @@ SELECT ((1 + 2))
 -- @valid: true
 -- @source: SCENARIOS-mysql-strict.md section 3.1
 SELECT * FROM (SELECT 1) AS sub
+
+-- ============================================================
+-- Section 3.2: Binary operator right-operand
+-- ============================================================
+
+-- @name: missing right operand for + rejected
+-- @valid: false
+-- @source: SCENARIOS-mysql-strict.md section 3.2
+SELECT 1 +
+
+-- @name: missing right operand for * rejected
+-- @valid: false
+-- @source: SCENARIOS-mysql-strict.md section 3.2
+SELECT 1 *
+
+-- @name: missing right operand for = rejected
+-- @valid: false
+-- @source: SCENARIOS-mysql-strict.md section 3.2
+SELECT * FROM t WHERE a =
+
+-- @name: missing right operand for AND rejected
+-- @valid: false
+-- @source: SCENARIOS-mysql-strict.md section 3.2
+SELECT * FROM t WHERE a AND
+
+-- @name: missing right operand for OR rejected
+-- @valid: false
+-- @source: SCENARIOS-mysql-strict.md section 3.2
+SELECT * FROM t WHERE a OR
+
+-- @name: missing operand for NOT rejected
+-- @valid: false
+-- @source: SCENARIOS-mysql-strict.md section 3.2
+SELECT * FROM t WHERE NOT
+
+-- @name: complete binary expression accepted
+-- @valid: true
+-- @source: SCENARIOS-mysql-strict.md section 3.2
+SELECT 1 + 2
+
+-- @name: complete compound condition accepted
+-- @valid: true
+-- @source: SCENARIOS-mysql-strict.md section 3.2
+SELECT * FROM t WHERE a = 1 AND b = 2
