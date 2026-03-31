@@ -108,3 +108,47 @@ SELECT 1
 -- @valid: true
 -- @source: 2.2 clause-validation
 SELECT * FROM t WHERE x = 1
+
+-- ============================================================
+-- Section 3.1: Parenthesis balance
+-- ============================================================
+
+-- @name: unclosed parenthesis in expression rejected
+-- @valid: false
+-- @source: SCENARIOS-mysql-strict.md section 3.1
+SELECT (1 + 2 FROM t
+
+-- @name: unclosed nested parenthesis rejected
+-- @valid: false
+-- @source: SCENARIOS-mysql-strict.md section 3.1
+SELECT ((1 + 2) FROM t
+
+-- @name: unclosed parenthesis in WHERE rejected
+-- @valid: false
+-- @source: SCENARIOS-mysql-strict.md section 3.1
+SELECT * FROM t WHERE (a = 1 AND b = 2
+
+-- @name: unclosed subquery parenthesis rejected
+-- @valid: false
+-- @source: SCENARIOS-mysql-strict.md section 3.1
+SELECT * FROM (SELECT 1
+
+-- @name: unclosed function call parenthesis rejected
+-- @valid: false
+-- @source: SCENARIOS-mysql-strict.md section 3.1
+SELECT COUNT(
+
+-- @name: balanced parentheses accepted
+-- @valid: true
+-- @source: SCENARIOS-mysql-strict.md section 3.1
+SELECT (1 + 2)
+
+-- @name: nested balanced parentheses accepted
+-- @valid: true
+-- @source: SCENARIOS-mysql-strict.md section 3.1
+SELECT ((1 + 2))
+
+-- @name: subquery with closing paren accepted
+-- @valid: true
+-- @source: SCENARIOS-mysql-strict.md section 3.1
+SELECT * FROM (SELECT 1) AS sub
