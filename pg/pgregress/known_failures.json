@@ -1,10 +1,4 @@
 {
-  "aggregates.sql": [
-    502,
-    503,
-    504,
-    505
-  ],
   "alter_table.sql": [
     1043,
     1044,
@@ -121,7 +115,6 @@
     27,
     28,
     32,
-    36,
     37,
     39,
     40,
@@ -192,9 +185,6 @@
     44,
     79,
     117
-  ],
-  "groupingsets.sql": [
-    161
   ],
   "horology.sql": [
     176,
@@ -426,10 +416,6 @@
   "rules.sql": [
     68
   ],
-  "select_distinct.sql": [
-    26,
-    27
-  ],
   "select_parallel.sql": [
     229
   ],
@@ -505,8 +491,6 @@
     6
   ],
   "subselect.sql": [
-    6,
-    7,
     8,
     9
   ],
@@ -557,15 +541,6 @@
   ],
   "tuplesort.sql": [
     50
-  ],
-  "union.sql": [
-    35,
-    36,
-    37,
-    38,
-    102,
-    105,
-    109
   ],
   "update.sql": [
     94,
