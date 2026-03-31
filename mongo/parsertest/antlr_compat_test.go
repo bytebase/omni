@@ -15,7 +15,7 @@ import (
 //  2. At least one statement is produced.
 //  3. Every statement has valid position tracking.
 func TestANTLRExampleFiles(t *testing.T) {
-	dir := "/Users/h3n4l/OpenSource/parser/mongodb/examples"
+	dir := filepath.Join("testdata")
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
