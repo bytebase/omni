@@ -1649,6 +1649,43 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 			NullsNotDistinct: idx.NullsNotDistinct,
 		}
 
+		// If the source index backs a constraint, clone the constraint too.
+		// pg: same logic as cloneIndexesToPartition — PK/UNIQUE constraints
+		// are backed by indexes and must be cloned together.
+		if idx.ConstraintOID != 0 {
+			srcCon := c.constraints[idx.ConstraintOID]
+			if srcCon != nil {
+				conOID := c.oidGen.Next()
+				conAttnums := c.mapColumnAttnums(src, dst, srcCon.Columns)
+				if conAttnums == nil {
+					conAttnums = dstAttnums
+				}
+
+				// PG naming: replace source table prefix with destination table name.
+				// e.g. t1_pkey -> t2_pkey
+				conName := srcCon.Name
+				if strings.HasPrefix(srcCon.Name, src.Name) {
+					conName = dst.Name + srcCon.Name[len(src.Name):]
+				}
+
+				newCon := &Constraint{
+					OID:        conOID,
+					Name:       conName,
+					Type:       srcCon.Type,
+					RelOID:     dst.OID,
+					Namespace:  schema.OID,
+					Columns:    conAttnums,
+					IndexOID:   newIdx.OID,
+					Validated:  true,
+					ConIsLocal: true,
+				}
+
+				newIdx.ConstraintOID = conOID
+				c.registerConstraint(dst.OID, newCon)
+				c.recordDependency('c', conOID, 0, 'r', dst.OID, 0, DepAuto)
+			}
+		}
+
 		c.registerIndex(schema, newIdx)
 		c.recordDependency('i', newIdx.OID, 0, 'r', dst.OID, 0, DepAuto)
 
