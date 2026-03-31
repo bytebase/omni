@@ -255,3 +255,32 @@ SELECT * FROM t WHERE id NOT BETWEEN 1 AND 10
 -- @valid: true
 -- @source: SCENARIOS-mysql-strict.md section 3.3
 SELECT * FROM t WHERE name LIKE '%foo%'
+
+-- ============================================================
+-- Section 3.4: CASE expression completeness
+-- ============================================================
+
+-- @name: CASE missing THEN and END rejected
+-- @valid: false
+-- @source: SCENARIOS-mysql-strict.md section 3.4
+SELECT CASE WHEN 1 FROM t
+
+-- @name: CASE missing END rejected
+-- @valid: false
+-- @source: SCENARIOS-mysql-strict.md section 3.4
+SELECT CASE WHEN 1 THEN 'a'
+
+-- @name: CASE missing WHEN clause rejected
+-- @valid: false
+-- @source: SCENARIOS-mysql-strict.md section 3.4
+SELECT CASE END
+
+-- @name: CASE WHEN THEN END accepted
+-- @valid: true
+-- @source: SCENARIOS-mysql-strict.md section 3.4
+SELECT CASE WHEN 1 THEN 'a' END
+
+-- @name: simple CASE with ELSE accepted
+-- @valid: true
+-- @source: SCENARIOS-mysql-strict.md section 3.4
+SELECT CASE x WHEN 1 THEN 'a' ELSE 'b' END
