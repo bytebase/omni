@@ -88,7 +88,7 @@ type MigrationOp struct {
 	Transactional bool
 	ParentObject  string // optional, for FK deferred creation
 
-	// Metadata for dependency-driven ordering (populated but not yet used by GenerateMigration).
+	// Metadata for dependency-driven ordering (used by sortMigrationOps).
 	Phase    MigrationPhase // PhasePre, PhaseMain, or PhasePost
 	ObjType  byte           // 'r'=relation, 'f'=function, 'i'=index, 'c'=constraint, 't'=type, 'S'=sequence, 'n'=schema, 'T'=trigger, 'p'=policy, 'e'=extension
 	ObjOID   uint32         // OID in source catalog (from for DROP, to for CREATE)
@@ -487,9 +487,12 @@ func liftDepToOp(c *Catalog, objType byte, objOID uint32, oidToIdx map[depKey][]
 // For reverse (DROP) sorting (reverse=true): if dep says A depends on B, A comes before B
 // (drop dependents first). Priority tie-break is negated so higher-priority objects
 // (views=8, triggers=10) are dropped before lower-priority ones (tables=5).
-func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) []MigrationOp {
+//
+// Returns (sorted, deferred): sorted ops in dependency order, and any ops that
+// were deferred to PhasePost to break cycles (e.g., CHECK constraints).
+func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) (sorted []MigrationOp, deferred []MigrationOp) {
 	if len(ops) == 0 {
-		return nil
+		return nil, nil
 	}
 	n := len(ops)
 
@@ -563,10 +566,10 @@ func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) []MigrationOp {
 	}
 	heap.Init(&h)
 
-	sorted := make([]int, 0, n)
+	sortedIdxs := make([]int, 0, n)
 	for h.Len() > 0 {
 		e := heap.Pop(&h).(migPQEntry)
-		sorted = append(sorted, e.idx)
+		sortedIdxs = append(sortedIdxs, e.idx)
 		for _, next := range adj[e.idx] {
 			inDegree[next]--
 			if inDegree[next] == 0 {
@@ -575,10 +578,16 @@ func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) []MigrationOp {
 		}
 	}
 
+	// Convert sorted indices to ops.
+	sorted = make([]MigrationOp, 0, len(sortedIdxs))
+	for _, idx := range sortedIdxs {
+		sorted = append(sorted, ops[idx])
+	}
+
 	// Cycle detection: if Kahn's didn't consume all ops, there is a cycle.
-	if len(sorted) < n {
-		sortedSet := make(map[int]bool, len(sorted))
-		for _, idx := range sorted {
+	if len(sortedIdxs) < n {
+		sortedSet := make(map[int]bool, len(sortedIdxs))
+		for _, idx := range sortedIdxs {
 			sortedSet[idx] = true
 		}
 		var remaining []int
@@ -588,53 +597,45 @@ func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) []MigrationOp {
 			}
 		}
 		// Try to break cycle by deferring CHECK constraints to PhasePost.
-		var deferred []int
+		var deferredIdxs []int
 		var stillRemaining []int
 		for _, idx := range remaining {
 			op := ops[idx]
 			if op.Type == OpAddConstraint && op.ObjType == 'c' && op.Phase == PhaseMain {
-				deferred = append(deferred, idx)
+				deferredIdxs = append(deferredIdxs, idx)
 			} else {
 				stillRemaining = append(stillRemaining, idx)
 			}
 		}
-		if len(deferred) > 0 && len(stillRemaining) == 0 {
-			// All remaining ops are deferrable CHECK constraints — mark them
-			// as deferred. They will be moved to PhasePost by the caller.
-			for _, idx := range deferred {
-				ops[idx].Phase = PhasePost
-				ops[idx].Priority = PriorityFKDeferred
+		if len(deferredIdxs) > 0 && len(stillRemaining) == 0 {
+			// All remaining ops are deferrable CHECK constraints.
+			for _, idx := range deferredIdxs {
+				op := ops[idx]
+				op.Phase = PhasePost
+				op.Priority = PriorityFKDeferred
+				deferred = append(deferred, op)
 			}
-			// Return only the sorted portion; deferred ops excluded.
-			result := make([]MigrationOp, 0, n)
-			for _, idx := range sorted {
-				result = append(result, ops[idx])
-			}
-			return result
-		}
-		// Unresolvable cycle: append remaining ops sorted by priority with a
-		// warning so that the migration still produces output (best-effort).
-		sort.Slice(remaining, func(a, b int) bool {
-			pa, pb := ops[remaining[a]].Priority, ops[remaining[b]].Priority
-			if pa != pb {
-				return pa < pb
-			}
-			return remaining[a] < remaining[b]
-		})
-		// Tag remaining ops with a cycle warning.
-		for _, idx := range remaining {
-			if ops[idx].Warning == "" {
-				ops[idx].Warning = "unresolvable dependency cycle detected"
+		} else {
+			// Unresolvable cycle: append remaining ops sorted by priority with a
+			// warning so that the migration still produces output (best-effort).
+			sort.Slice(remaining, func(a, b int) bool {
+				pa, pb := ops[remaining[a]].Priority, ops[remaining[b]].Priority
+				if pa != pb {
+					return pa < pb
+				}
+				return remaining[a] < remaining[b]
+			})
+			for _, idx := range remaining {
+				op := ops[idx]
+				if op.Warning == "" {
+					op.Warning = "unresolvable dependency cycle detected"
+				}
+				sorted = append(sorted, op)
 			}
 		}
-		sorted = append(sorted, remaining...)
 	}
 
-	result := make([]MigrationOp, n)
-	for i, idx := range sorted {
-		result[i] = ops[idx]
-	}
-	return result
+	return sorted, deferred
 }
 
 // sortMigrationOps separates ops into phases and sorts each phase.
@@ -660,35 +661,12 @@ func sortMigrationOps(from, to *Catalog, ops []MigrationOp) []MigrationOp {
 
 	// PhasePre: reverse topological sort using from catalog deps.
 	// Dependents are dropped before the objects they depend on.
-	preOps = topoSortOps(from, preOps, true)
+	preOps, _ = topoSortOps(from, preOps, true)
 
 	// PhaseMain: topological sort using to catalog deps.
-	// topoSortOps may reclassify ops to PhasePost to break cycles.
-	mainSorted := topoSortOps(to, mainOps, false)
-
-	// Collect any ops that were reclassified to PhasePost during cycle breaking.
-	var actualMain []MigrationOp
-	for _, op := range mainSorted {
-		if op.Phase == PhasePost {
-			postOps = append(postOps, op)
-		} else {
-			actualMain = append(actualMain, op)
-		}
-	}
-	// Also check the original mainOps for any that were mutated in-place
-	// by topoSortOps but not included in mainSorted (deferred ops excluded
-	// from the sorted result).
-	mainSortedSet := make(map[uint32]bool)
-	for _, op := range mainSorted {
-		if op.ObjOID != 0 {
-			mainSortedSet[op.ObjOID] = true
-		}
-	}
-	for _, op := range mainOps {
-		if op.Phase == PhasePost && op.ObjOID != 0 && !mainSortedSet[op.ObjOID] {
-			postOps = append(postOps, op)
-		}
-	}
+	// topoSortOps returns deferred ops (cycle-breaking) separately.
+	mainSorted, mainDeferred := topoSortOps(to, mainOps, false)
+	postOps = append(postOps, mainDeferred...)
 
 	// PhasePost: sort by name for determinism.
 	sort.SliceStable(postOps, func(i, j int) bool {
@@ -697,7 +675,7 @@ func sortMigrationOps(from, to *Catalog, ops []MigrationOp) []MigrationOp {
 
 	result := make([]MigrationOp, 0, len(ops))
 	result = append(result, preOps...)
-	result = append(result, actualMain...)
+	result = append(result, mainSorted...)
 	result = append(result, postOps...)
 	return result
 }

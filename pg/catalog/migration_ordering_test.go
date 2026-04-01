@@ -1527,7 +1527,7 @@ func TestMigrationOrdering(t *testing.T) {
 			{Type: OpCreateTable, ObjOID: 0, ObjType: 'r', Priority: PriorityTable},
 			{Type: OpCreateFunction, ObjOID: 12345, ObjType: 'f', Priority: PriorityFunction},
 		}
-		sorted := topoSortOps(to, synOps, false)
+		sorted, _ := topoSortOps(to, synOps, false)
 		if len(sorted) != 2 {
 			t.Fatalf("expected 2 sorted ops, got %d", len(sorted))
 		}
