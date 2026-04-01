@@ -305,6 +305,111 @@ func TestSDLTopoSortWithinLayers(t *testing.T) {
 				// Verify by loading SDL without error.
 			},
 		},
+		// --- Cross-layer dependency tests (global topo sort) ---
+		{
+			name: "function with column-level CHECK — function created before table",
+			sql: `
+				CREATE TABLE t (
+					id int,
+					val int CONSTRAINT val_positive CHECK (validate_val(val))
+				);
+				CREATE FUNCTION validate_val(integer) RETURNS boolean
+					LANGUAGE sql IMMUTABLE AS $$SELECT $1 > 0$$;
+			`,
+			check: func(t *testing.T, c *Catalog) {
+				if c.GetRelation("public", "t") == nil {
+					t.Fatal("table t not found")
+				}
+			},
+		},
+		{
+			name: "multiple functions referenced by same table",
+			sql: `
+				CREATE TABLE t (
+					id int DEFAULT gen_id(),
+					val int CONSTRAINT val_ok CHECK (is_valid(val))
+				);
+				CREATE FUNCTION gen_id() RETURNS int
+					LANGUAGE sql AS $$SELECT 1$$;
+				CREATE FUNCTION is_valid(integer) RETURNS boolean
+					LANGUAGE sql IMMUTABLE AS $$SELECT $1 > 0$$;
+			`,
+			check: func(t *testing.T, c *Catalog) {
+				if c.GetRelation("public", "t") == nil {
+					t.Fatal("table t not found")
+				}
+			},
+		},
+		{
+			name: "cross-layer chain: view → table → function (CHECK)",
+			sql: `
+				CREATE VIEW v AS SELECT * FROM t;
+				CREATE TABLE t (
+					id int,
+					val int CHECK (positive(val))
+				);
+				CREATE FUNCTION positive(integer) RETURNS boolean
+					LANGUAGE sql IMMUTABLE AS $$SELECT $1 > 0$$;
+			`,
+			check: func(t *testing.T, c *Catalog) {
+				if c.GetRelation("public", "v") == nil {
+					t.Fatal("view v not found")
+				}
+				if c.GetRelation("public", "t") == nil {
+					t.Fatal("table t not found")
+				}
+			},
+		},
+		{
+			name: "trigger function + CHECK function on same table — both created before table",
+			sql: `
+				CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION trg_fn();
+				CREATE TABLE t (
+					id int,
+					val int CHECK (chk_fn(val))
+				);
+				CREATE FUNCTION trg_fn() RETURNS trigger
+					LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$;
+				CREATE FUNCTION chk_fn(integer) RETURNS boolean
+					LANGUAGE sql IMMUTABLE AS $$SELECT $1 > 0$$;
+			`,
+			check: func(t *testing.T, c *Catalog) {
+				if c.GetRelation("public", "t") == nil {
+					t.Fatal("table t not found")
+				}
+			},
+		},
+		{
+			name: "domain with CHECK referencing function",
+			sql: `
+				CREATE DOMAIN positive_int AS integer
+					CONSTRAINT positive_check CHECK (is_pos(VALUE));
+				CREATE FUNCTION is_pos(integer) RETURNS boolean
+					LANGUAGE sql IMMUTABLE AS $$SELECT $1 > 0$$;
+			`,
+			check: func(t *testing.T, c *Catalog) {
+				// Domain should be created successfully.
+			},
+		},
+		{
+			name: "no cross-layer dep — priority ordering preserved",
+			sql: `
+				CREATE VIEW v AS SELECT * FROM t;
+				CREATE TABLE t (id int);
+				CREATE FUNCTION standalone() RETURNS int
+					LANGUAGE sql AS $$SELECT 1$$;
+			`,
+			check: func(t *testing.T, c *Catalog) {
+				// All should be created. Table before view, function anywhere
+				// (no dependency to table, so priority order is fine).
+				if c.GetRelation("public", "t") == nil {
+					t.Fatal("table t not found")
+				}
+				if c.GetRelation("public", "v") == nil {
+					t.Fatal("view v not found")
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
