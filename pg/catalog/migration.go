@@ -540,6 +540,15 @@ func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) (sorted []Migratio
 				if depIdx == refIdx {
 					continue // self-reference
 				}
+				// Skip edges between ops that share the same owning object
+				// (same ObjType + ObjOID). Multiple ops on the same table
+				// (e.g., AddColumn + ALTER TABLE ENABLE RLS) would otherwise
+				// form false bidirectional edges via deps that reference the
+				// table from both sides (e.g., a constraint's DepAuto on its
+				// own table lifted to two distinct op indices).
+				if ops[depIdx].ObjType == ops[refIdx].ObjType && ops[depIdx].ObjOID == ops[refIdx].ObjOID {
+					continue
+				}
 				var from, to int
 				if reverse {
 					from, to = depIdx, refIdx

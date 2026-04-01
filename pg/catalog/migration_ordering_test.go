@@ -2708,6 +2708,71 @@ func TestMigrationOrdering(t *testing.T) {
 		}
 	})
 
+	t.Run("4.2 multi-tenant RLS no false cycle warning", func(t *testing.T) {
+		// Bug #10: combining ALTER TABLE ENABLE RLS + AddColumn + CreatePolicy
+		// on the same tables should NOT produce "unresolvable dependency cycle"
+		// warnings. The false cycle arises because multiple ops share the same
+		// table OID and liftDepToOp creates edges between them via catalog deps.
+		fromSQL := `
+			CREATE TABLE users (id int PRIMARY KEY, name text);
+			CREATE TABLE posts (id int PRIMARY KEY, title text, user_id int REFERENCES users(id));
+			CREATE TABLE comments (id int PRIMARY KEY, body text, post_id int REFERENCES posts(id));
+		`
+		toSQL := `
+			CREATE FUNCTION current_tenant() RETURNS int LANGUAGE sql AS $$ SELECT 1 $$;
+			CREATE TABLE users (id int PRIMARY KEY, name text, tenant_id int NOT NULL DEFAULT current_tenant());
+			ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+			CREATE POLICY tenant_users ON users USING (tenant_id = current_tenant());
+			CREATE TABLE posts (id int PRIMARY KEY, title text, user_id int REFERENCES users(id), tenant_id int NOT NULL DEFAULT current_tenant());
+			ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+			CREATE POLICY tenant_posts ON posts USING (tenant_id = current_tenant());
+			CREATE TABLE comments (id int PRIMARY KEY, body text, post_id int REFERENCES posts(id), tenant_id int NOT NULL DEFAULT current_tenant());
+			ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+			CREATE POLICY tenant_comments ON comments USING (tenant_id = current_tenant());
+		`
+		from, err := LoadSQL(fromSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		to, err := LoadSQL(toSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		diff := Diff(from, to)
+		plan := GenerateMigration(from, to, diff)
+		for _, op := range plan.Ops {
+			if strings.Contains(op.Warning, "cycle") {
+				t.Errorf("false cycle warning on %s %s: %s", op.Type, op.ObjectName, op.Warning)
+			}
+		}
+		// Verify the expected ops exist.
+		var hasRLS, hasColumn, hasPolicy, hasFunc bool
+		for _, op := range plan.Ops {
+			switch {
+			case op.Type == OpAlterTable && strings.Contains(op.SQL, "ROW LEVEL SECURITY"):
+				hasRLS = true
+			case op.Type == OpAddColumn && strings.Contains(op.SQL, "tenant_id"):
+				hasColumn = true
+			case op.Type == OpCreatePolicy:
+				hasPolicy = true
+			case op.Type == OpCreateFunction:
+				hasFunc = true
+			}
+		}
+		if !hasRLS {
+			t.Errorf("expected ENABLE RLS op; ops: %v", opsSQL(plan))
+		}
+		if !hasColumn {
+			t.Errorf("expected AddColumn tenant_id op; ops: %v", opsSQL(plan))
+		}
+		if !hasPolicy {
+			t.Errorf("expected CreatePolicy op; ops: %v", opsSQL(plan))
+		}
+		if !hasFunc {
+			t.Errorf("expected CreateFunction op; ops: %v", opsSQL(plan))
+		}
+	})
+
 	t.Run("4.2 all existing TestMigrationOrdering tests still pass", func(t *testing.T) {
 		// This is a meta-test: if we reach this point, all preceding subtests passed.
 		// Just verify a basic migration still works end-to-end.
