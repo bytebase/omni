@@ -456,6 +456,8 @@ const (
 	kwRANDOM
 	kwRETAIN
 	kwOLD
+	kwREAL
+	kwDEC
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -562,8 +564,10 @@ var keywords = map[string]int{
 	"bigint":              kwBIGINT,
 	"float":               kwFLOAT,
 	"double":              kwDOUBLE,
+	"real":                kwREAL,
 	"decimal":             kwDECIMAL,
 	"numeric":             kwNUMERIC,
+	"dec":                 kwDEC,
 	"varchar":             kwVARCHAR,
 	"char":                kwCHAR,
 	"text":                kwTEXT,

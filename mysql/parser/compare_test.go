@@ -550,6 +550,31 @@ func TestParseDataTypes(t *testing.T) {
 
 		// JSON
 		{"JSON", "{DATATYPE :loc 0 :name JSON}"},
+
+		// Type synonyms — Numeric (section 1.1)
+		// REAL → DOUBLE
+		{"REAL", "{DATATYPE :loc 0 :name DOUBLE}"},
+		{"REAL(10,2)", "{DATATYPE :loc 0 :name DOUBLE :len 10 :scale 2}"},
+		{"REAL UNSIGNED", "{DATATYPE :loc 0 :name DOUBLE :unsigned true}"},
+		// DEC → DECIMAL
+		{"DEC", "{DATATYPE :loc 0 :name DECIMAL}"},
+		{"DEC(10,2)", "{DATATYPE :loc 0 :name DECIMAL :len 10 :scale 2}"},
+		{"DEC UNSIGNED", "{DATATYPE :loc 0 :name DECIMAL :unsigned true}"},
+		// FIXED → DECIMAL
+		{"FIXED", "{DATATYPE :loc 0 :name DECIMAL}"},
+		{"FIXED(10,2)", "{DATATYPE :loc 0 :name DECIMAL :len 10 :scale 2}"},
+		{"FIXED UNSIGNED ZEROFILL", "{DATATYPE :loc 0 :name DECIMAL :unsigned true :zerofill true}"},
+		// INT1..INT8, MIDDLEINT, FLOAT4, FLOAT8
+		{"INT1", "{DATATYPE :loc 0 :name TINYINT}"},
+		{"INT2", "{DATATYPE :loc 0 :name SMALLINT}"},
+		{"INT3", "{DATATYPE :loc 0 :name MEDIUMINT}"},
+		{"INT4", "{DATATYPE :loc 0 :name INT}"},
+		{"INT8", "{DATATYPE :loc 0 :name BIGINT}"},
+		{"MIDDLEINT", "{DATATYPE :loc 0 :name MEDIUMINT}"},
+		{"FLOAT4", "{DATATYPE :loc 0 :name FLOAT}"},
+		{"FLOAT8", "{DATATYPE :loc 0 :name DOUBLE}"},
+		// DOUBLE PRECISION (regression check)
+		{"DOUBLE PRECISION", "{DATATYPE :loc 0 :name DOUBLE}"},
 	}
 
 	for _, tt := range tests {

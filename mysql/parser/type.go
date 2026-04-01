@@ -103,6 +103,13 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		p.parseOptionalPrecision(dt)
 		p.parseUnsignedZerofill(dt)
 
+	case kwREAL:
+		// REAL → DOUBLE synonym
+		dt.Name = "DOUBLE"
+		p.advance()
+		p.parseOptionalPrecision(dt)
+		p.parseUnsignedZerofill(dt)
+
 	// Decimal types
 	case kwDECIMAL, kwNUMERIC:
 		if p.cur.Type == kwDECIMAL {
@@ -110,6 +117,13 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		} else {
 			dt.Name = "NUMERIC"
 		}
+		p.advance()
+		p.parseOptionalPrecision(dt)
+		p.parseUnsignedZerofill(dt)
+
+	case kwDEC, kwFIXED:
+		// DEC and FIXED → DECIMAL synonyms
+		dt.Name = "DECIMAL"
 		p.advance()
 		p.parseOptionalPrecision(dt)
 		p.parseUnsignedZerofill(dt)
@@ -299,6 +313,46 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 				p.advance()
 				p.parseOptionalLength(dt)
 				p.parseCharsetCollate(dt)
+			case eqFold(name, "int1"):
+				dt.Name = "TINYINT"
+				p.advance()
+				p.parseOptionalLength(dt)
+				p.parseUnsignedZerofill(dt)
+			case eqFold(name, "int2"):
+				dt.Name = "SMALLINT"
+				p.advance()
+				p.parseOptionalLength(dt)
+				p.parseUnsignedZerofill(dt)
+			case eqFold(name, "int3"):
+				dt.Name = "MEDIUMINT"
+				p.advance()
+				p.parseOptionalLength(dt)
+				p.parseUnsignedZerofill(dt)
+			case eqFold(name, "int4"):
+				dt.Name = "INT"
+				p.advance()
+				p.parseOptionalLength(dt)
+				p.parseUnsignedZerofill(dt)
+			case eqFold(name, "int8"):
+				dt.Name = "BIGINT"
+				p.advance()
+				p.parseOptionalLength(dt)
+				p.parseUnsignedZerofill(dt)
+			case eqFold(name, "middleint"):
+				dt.Name = "MEDIUMINT"
+				p.advance()
+				p.parseOptionalLength(dt)
+				p.parseUnsignedZerofill(dt)
+			case eqFold(name, "float4"):
+				dt.Name = "FLOAT"
+				p.advance()
+				p.parseOptionalPrecision(dt)
+				p.parseUnsignedZerofill(dt)
+			case eqFold(name, "float8"):
+				dt.Name = "DOUBLE"
+				p.advance()
+				p.parseOptionalPrecision(dt)
+				p.parseUnsignedZerofill(dt)
 			default:
 				return nil, &ParseError{
 					Message:  "expected data type",
