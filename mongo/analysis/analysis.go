@@ -94,27 +94,146 @@ func Analyze(node ast.Node) *StatementAnalysis {
 	case *ast.CollectionStatement:
 		return analyzeCollection(n)
 	case *ast.DatabaseStatement:
-		return &StatementAnalysis{Operation: OpInfo, MethodName: n.Method}
+		return analyzeDatabase(n)
 	case *ast.ShowCommand:
 		return &StatementAnalysis{Operation: OpInfo, MethodName: "show"}
 	case *ast.BulkStatement:
 		return &StatementAnalysis{Operation: OpWrite, MethodName: "bulkOp", Collection: n.Collection}
 	case *ast.RsStatement:
-		return &StatementAnalysis{Operation: OpWrite, MethodName: n.MethodName}
+		return analyzeRs(n)
 	case *ast.ShStatement:
-		return &StatementAnalysis{Operation: OpWrite, MethodName: n.MethodName}
+		return analyzeSh(n)
 	case *ast.EncryptionStatement:
-		return &StatementAnalysis{Operation: OpWrite, MethodName: n.Target}
+		return analyzeEncryption(n)
 	case *ast.PlanCacheStatement:
-		return &StatementAnalysis{Operation: OpWrite, MethodName: "getPlanCache", Collection: n.Collection}
+		return analyzePlanCache(n)
 	case *ast.SpStatement:
-		return &StatementAnalysis{Operation: OpWrite, MethodName: n.MethodName}
+		return analyzeSp(n)
 	case *ast.ConnectionStatement:
 		return &StatementAnalysis{Operation: OpWrite, MethodName: n.Constructor}
 	case *ast.NativeFunctionCall:
 		return &StatementAnalysis{Operation: OpWrite, MethodName: n.Name}
 	}
 	return nil
+}
+
+func analyzeDatabase(s *ast.DatabaseStatement) *StatementAnalysis {
+	a := &StatementAnalysis{MethodName: s.Method}
+	switch s.Method {
+	case "dropDatabase", "createCollection", "createView":
+		a.Operation = OpAdmin
+	case "getCollectionNames", "getCollectionInfos", "serverStatus",
+		"serverBuildInfo", "version", "hostInfo", "getName",
+		"listCommands", "stats":
+		a.Operation = OpInfo
+	case "runCommand", "adminCommand":
+		a.Operation = classifyCommandArgs(s.Args)
+	case "getSiblingDB", "getMongo":
+		a.Operation = OpWrite
+	default:
+		a.Operation = OpInfo
+	}
+	return a
+}
+
+func classifyCommandArgs(args []ast.Node) Operation {
+	if len(args) == 0 {
+		return OpWrite
+	}
+	doc, ok := args[0].(*ast.Document)
+	if !ok || len(doc.Pairs) == 0 {
+		return OpWrite
+	}
+	switch doc.Pairs[0].Key {
+	case "find", "aggregate", "count", "distinct":
+		return OpRead
+	case "serverStatus", "listCollections", "listIndexes", "listDatabases",
+		"collStats", "dbStats", "hostInfo", "buildInfo", "connectionStatus":
+		return OpInfo
+	case "create", "drop", "createIndexes", "dropIndexes", "renameCollection", "collMod":
+		return OpAdmin
+	default:
+		return OpWrite
+	}
+}
+
+func analyzeRs(s *ast.RsStatement) *StatementAnalysis {
+	a := &StatementAnalysis{MethodName: s.MethodName}
+	switch s.MethodName {
+	case "status", "conf", "config", "printReplicationInfo", "printSecondaryReplicationInfo":
+		a.Operation = OpInfo
+	default:
+		a.Operation = OpWrite
+	}
+	return a
+}
+
+func analyzeSh(s *ast.ShStatement) *StatementAnalysis {
+	a := &StatementAnalysis{MethodName: s.MethodName}
+	switch s.MethodName {
+	case "status", "getBalancerState", "isBalancerRunning":
+		a.Operation = OpInfo
+	default:
+		a.Operation = OpWrite
+	}
+	return a
+}
+
+func analyzeEncryption(s *ast.EncryptionStatement) *StatementAnalysis {
+	a := &StatementAnalysis{MethodName: s.Target}
+	if len(s.ChainedMethods) > 0 {
+		last := s.ChainedMethods[len(s.ChainedMethods)-1]
+		a.MethodName = last.Name
+		switch last.Name {
+		case "getKey", "getKeyByAltName", "getKeys", "decrypt", "encrypt", "encryptExpression":
+			a.Operation = OpInfo
+		default:
+			a.Operation = OpWrite
+		}
+	} else {
+		a.Operation = OpWrite
+	}
+	return a
+}
+
+func analyzePlanCache(s *ast.PlanCacheStatement) *StatementAnalysis {
+	a := &StatementAnalysis{
+		MethodName: "getPlanCache",
+		Collection: s.Collection,
+	}
+	if len(s.ChainedMethods) > 0 {
+		last := s.ChainedMethods[len(s.ChainedMethods)-1]
+		a.MethodName = last.Name
+		switch last.Name {
+		case "list", "help":
+			a.Operation = OpInfo
+		default:
+			a.Operation = OpWrite
+		}
+	} else {
+		a.Operation = OpWrite
+	}
+	return a
+}
+
+func analyzeSp(s *ast.SpStatement) *StatementAnalysis {
+	a := &StatementAnalysis{MethodName: s.MethodName}
+	if s.SubMethod != "" {
+		switch s.SubMethod {
+		case "stats", "sample":
+			a.Operation = OpInfo
+		default:
+			a.Operation = OpWrite
+		}
+	} else {
+		switch s.MethodName {
+		case "listConnections", "listStreamProcessors":
+			a.Operation = OpInfo
+		default:
+			a.Operation = OpWrite
+		}
+	}
+	return a
 }
 
 func analyzeCollection(s *ast.CollectionStatement) *StatementAnalysis {

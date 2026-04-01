@@ -391,3 +391,187 @@ func TestPipelineMatchLogicalOps(t *testing.T) {
 	}
 	assertPredicateFields(t, sa, []string{"age", "name"})
 }
+
+// ---------------------------------------------------------------------------
+// Non-collection statement tests
+// ---------------------------------------------------------------------------
+
+func TestAnalyzeShowDbs(t *testing.T) {
+	sa := mustAnalyze(t, `show dbs`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpInfo {
+		t.Errorf("got %v, want OpInfo", sa.Operation)
+	}
+}
+
+func TestAnalyzeShowCollections(t *testing.T) {
+	sa := mustAnalyze(t, `show collections`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpInfo {
+		t.Errorf("got %v, want OpInfo", sa.Operation)
+	}
+}
+
+func TestAnalyzeDatabaseDropDatabase(t *testing.T) {
+	sa := mustAnalyze(t, `db.dropDatabase()`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpAdmin {
+		t.Errorf("got %v, want OpAdmin", sa.Operation)
+	}
+}
+
+func TestAnalyzeDatabaseCreateCollection(t *testing.T) {
+	sa := mustAnalyze(t, `db.createCollection("test")`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpAdmin {
+		t.Errorf("got %v, want OpAdmin", sa.Operation)
+	}
+}
+
+func TestAnalyzeDatabaseGetCollectionNames(t *testing.T) {
+	sa := mustAnalyze(t, `db.getCollectionNames()`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpInfo {
+		t.Errorf("got %v, want OpInfo", sa.Operation)
+	}
+}
+
+func TestAnalyzeDatabaseServerStatus(t *testing.T) {
+	sa := mustAnalyze(t, `db.serverStatus()`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpInfo {
+		t.Errorf("got %v, want OpInfo", sa.Operation)
+	}
+}
+
+func TestAnalyzeRsStatus(t *testing.T) {
+	sa := mustAnalyze(t, `rs.status()`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpInfo {
+		t.Errorf("got %v, want OpInfo", sa.Operation)
+	}
+}
+
+func TestAnalyzeRsInitiate(t *testing.T) {
+	sa := mustAnalyze(t, `rs.initiate()`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpWrite {
+		t.Errorf("got %v, want OpWrite", sa.Operation)
+	}
+}
+
+func TestAnalyzeShStatus(t *testing.T) {
+	sa := mustAnalyze(t, `sh.status()`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpInfo {
+		t.Errorf("got %v, want OpInfo", sa.Operation)
+	}
+}
+
+func TestAnalyzeShAddShard(t *testing.T) {
+	sa := mustAnalyze(t, `sh.addShard("shard1/host:port")`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpWrite {
+		t.Errorf("got %v, want OpWrite", sa.Operation)
+	}
+}
+
+func TestAnalyzeBulkStatement(t *testing.T) {
+	sa := mustAnalyze(t, `db.users.initializeOrderedBulkOp().insert({name: "alice"}).execute()`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpWrite {
+		t.Errorf("got %v, want OpWrite", sa.Operation)
+	}
+	if sa.Collection != "users" {
+		t.Errorf("Collection = %q, want %q", sa.Collection, "users")
+	}
+}
+
+func TestAnalyzeNativeFunction(t *testing.T) {
+	sa := mustAnalyze(t, `sleep(1000)`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpWrite {
+		t.Errorf("got %v, want OpWrite", sa.Operation)
+	}
+}
+
+func TestAnalyzeNil(t *testing.T) {
+	sa := analysis.Analyze(nil)
+	if sa != nil {
+		t.Errorf("got %v, want nil", sa)
+	}
+}
+
+func TestAnalyzeRunCommandFind(t *testing.T) {
+	sa := mustAnalyze(t, `db.runCommand({find: "users", filter: {status: "active"}})`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpRead {
+		t.Errorf("got %v, want OpRead", sa.Operation)
+	}
+}
+
+func TestAnalyzeRunCommandCreate(t *testing.T) {
+	sa := mustAnalyze(t, `db.runCommand({create: "newCollection"})`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpAdmin {
+		t.Errorf("got %v, want OpAdmin", sa.Operation)
+	}
+}
+
+func TestAnalyzeRunCommandInsert(t *testing.T) {
+	sa := mustAnalyze(t, `db.runCommand({insert: "users", documents: [{name: "alice"}]})`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpWrite {
+		t.Errorf("got %v, want OpWrite", sa.Operation)
+	}
+}
+
+func TestAnalyzeRunCommandServerStatus(t *testing.T) {
+	sa := mustAnalyze(t, `db.runCommand({serverStatus: 1})`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpInfo {
+		t.Errorf("got %v, want OpInfo", sa.Operation)
+	}
+}
+
+func TestAnalyzeAdminCommand(t *testing.T) {
+	sa := mustAnalyze(t, `db.adminCommand({listDatabases: 1})`)
+	if sa == nil {
+		t.Fatal("nil")
+	}
+	if sa.Operation != analysis.OpInfo {
+		t.Errorf("got %v, want OpInfo", sa.Operation)
+	}
+}
