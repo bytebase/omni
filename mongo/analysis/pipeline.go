@@ -28,20 +28,27 @@ func analyzePipelineInto(args []ast.Node, a *StatementAnalysis) {
 		return
 	}
 
+	fields := make(map[string]struct{})
+
 	arr, ok := args[0].(*ast.Array)
 	if !ok {
 		a.UnsupportedStage = "unknown"
+		if len(fields) > 0 {
+			a.PredicateFields = sortedKeys(fields)
+		}
 		return
 	}
 
 	a.ShapePreserving = true
-	fields := make(map[string]struct{})
 
 	for _, elem := range arr.Elements {
 		doc, ok := elem.(*ast.Document)
 		if !ok || len(doc.Pairs) == 0 {
 			a.UnsupportedStage = "unknown"
 			a.ShapePreserving = false
+			if len(fields) > 0 {
+				a.PredicateFields = sortedKeys(fields)
+			}
 			return
 		}
 
@@ -63,6 +70,9 @@ func analyzePipelineInto(args []ast.Node, a *StatementAnalysis) {
 			if unsupported {
 				a.UnsupportedStage = "$lookup"
 				a.ShapePreserving = false
+				if len(fields) > 0 {
+					a.PredicateFields = sortedKeys(fields)
+				}
 				return
 			}
 			if join != nil {
@@ -82,6 +92,9 @@ func analyzePipelineInto(args []ast.Node, a *StatementAnalysis) {
 		// Not shape-preserving and not a join stage
 		a.UnsupportedStage = stageName
 		a.ShapePreserving = false
+		if len(fields) > 0 {
+			a.PredicateFields = sortedKeys(fields)
+		}
 		return
 	}
 

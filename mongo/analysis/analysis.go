@@ -110,8 +110,12 @@ func Analyze(node ast.Node) *StatementAnalysis {
 	case *ast.SpStatement:
 		return analyzeSp(n)
 	case *ast.ConnectionStatement:
+		// Connection constructors (e.g. connect, Mongo) are not read/info/admin;
+		// default to OpWrite to match existing Bytebase behavior for unclassified statements.
 		return &StatementAnalysis{Operation: OpWrite, MethodName: n.Constructor}
 	case *ast.NativeFunctionCall:
+		// Native shell functions (e.g. load, sleep) are not read/info/admin;
+		// default to OpWrite to match existing Bytebase behavior for unclassified statements.
 		return &StatementAnalysis{Operation: OpWrite, MethodName: n.Name}
 	}
 	return nil
@@ -129,6 +133,8 @@ func analyzeDatabase(s *ast.DatabaseStatement) *StatementAnalysis {
 	case "runCommand", "adminCommand":
 		a.Operation = classifyCommandArgs(s.Args)
 	case "getSiblingDB", "getMongo":
+		// These return a database handle for further chaining; they are not
+		// read/info/admin so default to OpWrite per existing Bytebase behavior.
 		a.Operation = OpWrite
 	default:
 		a.Operation = OpInfo

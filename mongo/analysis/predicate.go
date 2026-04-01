@@ -26,6 +26,10 @@ func extractPredicateFields(args []ast.Node) []string {
 }
 
 // collectFromDocument walks a document and collects field paths into fields.
+// For nested documents like {contact: {phone: "123"}}, both "contact" and
+// "contact.phone" are emitted as predicate fields. This intentional
+// conservative over-reporting ensures all potentially accessed sub-paths are
+// included, which is safer for masking decisions.
 func collectFromDocument(doc *ast.Document, prefix string, fields map[string]struct{}) {
 	for _, kv := range doc.Pairs {
 		key := kv.Key
@@ -58,16 +62,7 @@ func collectFromValue(node ast.Node, prefix string, fields map[string]struct{}) 
 
 // collectFromLogicalOp handles $and/$or/$nor operator values.
 func collectFromLogicalOp(node ast.Node, prefix string, fields map[string]struct{}) {
-	switch v := node.(type) {
-	case *ast.Document:
-		collectFromDocument(v, prefix, fields)
-	case *ast.Array:
-		for _, elem := range v.Elements {
-			if d, ok := elem.(*ast.Document); ok {
-				collectFromDocument(d, prefix, fields)
-			}
-		}
-	}
+	collectFromValue(node, prefix, fields)
 }
 
 // isLogicalOperator returns true for $and, $or, $nor.
