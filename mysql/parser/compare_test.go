@@ -11381,3 +11381,34 @@ func TestParseCreateTableIndexDirectory(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Section 1.4: Reserved Word Registration
+// ---------------------------------------------------------------------------
+
+// TestParseReservedWordDUAL tests DUAL as keyword in FROM clause.
+func TestParseReservedWordDUAL(t *testing.T) {
+	ParseAndCheck(t, "SELECT 1 FROM DUAL")
+	ParseAndCheck(t, "SELECT 1 + 2 FROM DUAL")
+	ParseAndCheck(t, "SELECT NOW() FROM DUAL")
+}
+
+// TestParseReservedWordMAXVALUE tests MAXVALUE recognized in partition definitions.
+func TestParseReservedWordMAXVALUE(t *testing.T) {
+	// MAXVALUE in parentheses
+	ParseAndCheck(t, "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (100), PARTITION p1 VALUES LESS THAN (MAXVALUE))")
+	// MAXVALUE without parentheses (bare form)
+	ParseAndCheck(t, "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (100), PARTITION p1 VALUES LESS THAN MAXVALUE)")
+}
+
+// TestParseReservedWordGROUPING tests GROUPING function with ROLLUP.
+func TestParseReservedWordGROUPING(t *testing.T) {
+	ParseAndCheck(t, "SELECT GROUPING(a) FROM t GROUP BY a WITH ROLLUP")
+	ParseAndCheck(t, "SELECT a, b, GROUPING(a, b) FROM t GROUP BY a, b WITH ROLLUP")
+}
+
+// TestParseReservedWordVALUE tests VALUE as a column name in SELECT.
+func TestParseReservedWordVALUE(t *testing.T) {
+	ParseAndCheck(t, "SELECT VALUE FROM t")
+	ParseAndCheck(t, "SELECT t.VALUE FROM t")
+}
