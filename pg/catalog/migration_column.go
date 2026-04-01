@@ -3,6 +3,8 @@ package catalog
 import (
 	"fmt"
 	"sort"
+	"strings"
+	"unicode"
 )
 
 // generateColumnDDL produces ALTER TABLE … ADD/DROP/ALTER COLUMN operations
@@ -140,6 +142,37 @@ func columnModifyOps(from, to *Catalog, tableName, schemaName, relName string, c
 	// default first, then change the type, then re-set the new default.
 	needDefaultSandwich := typeChanged && oldCol.HasDefault && oldCol.Default != ""
 
+	// When type changes, find CHECK constraints on the table that reference
+	// the column. PG requires dropping CHECK constraints before ALTER TYPE.
+	var checkConstraints []*Constraint
+	if typeChanged {
+		fromRel := from.GetRelation(schemaName, relName)
+		if fromRel != nil {
+			for _, con := range from.ConstraintsOf(fromRel.OID) {
+				if con.Type != ConstraintCheck {
+					continue
+				}
+				// Check if the constraint expression references this column name.
+				// A simple heuristic: the CHECK expression text contains the column name.
+				// This covers cases like "val > 0" for column "val".
+				if containsColumnRef(con.CheckExpr, oldCol.Name) {
+					checkConstraints = append(checkConstraints, con)
+				}
+			}
+		}
+	}
+
+	// --- DROP CHECK constraints before type change ---
+	for _, con := range checkConstraints {
+		ops = append(ops, MigrationOp{
+			Type:          OpDropConstraint,
+			SchemaName:    schemaName,
+			ObjectName:    relName,
+			SQL:           fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", tableName, quoteIdentifier(con.Name)),
+			Transactional: true,
+		})
+	}
+
 	// --- DROP DEFAULT before type change (if sandwich) ---
 	if needDefaultSandwich {
 		ops = append(ops, MigrationOp{
@@ -179,6 +212,29 @@ func columnModifyOps(from, to *Catalog, tableName, schemaName, relName string, c
 			SchemaName:    schemaName,
 			ObjectName:    relName,
 			SQL:           fmt.Sprintf("%s SET DEFAULT %s", colRef, newCol.Default),
+			Transactional: true,
+		})
+	}
+
+	// --- Re-add CHECK constraints after type change ---
+	// Use the target catalog's constraint expressions (which may reference the new type).
+	for _, oldCon := range checkConstraints {
+		checkExpr := oldCon.CheckExpr
+		// Look up the constraint in the target catalog for the updated expression.
+		toRel := to.GetRelation(schemaName, relName)
+		if toRel != nil {
+			for _, newCon := range to.ConstraintsOf(toRel.OID) {
+				if newCon.Type == ConstraintCheck && newCon.Name == oldCon.Name {
+					checkExpr = newCon.CheckExpr
+					break
+				}
+			}
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpAddConstraint,
+			SchemaName:    schemaName,
+			ObjectName:    relName,
+			SQL:           fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s CHECK (%s)", tableName, quoteIdentifier(oldCon.Name), checkExpr),
 			Transactional: true,
 		})
 	}
@@ -262,4 +318,33 @@ func columnModifyOps(from, to *Catalog, tableName, schemaName, relName string, c
 	}
 
 	return ops
+}
+
+// containsColumnRef checks whether a CHECK expression text references the
+// given column name as a word boundary (not as a substring of another identifier).
+func containsColumnRef(expr, colName string) bool {
+	lower := strings.ToLower(expr)
+	target := strings.ToLower(colName)
+	idx := 0
+	for {
+		pos := strings.Index(lower[idx:], target)
+		if pos < 0 {
+			return false
+		}
+		pos += idx
+		// Check word boundaries: character before and after must not be alphanumeric/underscore.
+		before := pos - 1
+		after := pos + len(target)
+		leftOK := before < 0 || !isIdentChar(rune(lower[before]))
+		rightOK := after >= len(lower) || !isIdentChar(rune(lower[after]))
+		if leftOK && rightOK {
+			return true
+		}
+		idx = pos + 1
+	}
+}
+
+// isIdentChar returns true if the rune can be part of an SQL identifier.
+func isIdentChar(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
 }

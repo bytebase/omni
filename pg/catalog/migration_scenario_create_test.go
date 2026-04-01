@@ -134,7 +134,6 @@ func TestMigrationScenarioCreate(t *testing.T) {
 	})
 
 	t.Run("1.2.6 RLS policy creation", func(t *testing.T) {
-		t.Skip("[~] migration does not emit ALTER TABLE ENABLE ROW LEVEL SECURITY")
 		before := ``
 		after := `
 			CREATE TABLE docs (
@@ -179,7 +178,6 @@ func TestMigrationScenarioCreate(t *testing.T) {
 	})
 
 	t.Run("1.3.2 five level chain schema-func-domain-table-index", func(t *testing.T) {
-		t.Skip("[~] migration orders domain before function it depends on in CHECK")
 		before := ``
 		after := `
 			CREATE SCHEMA core;
@@ -390,7 +388,6 @@ func TestMigrationScenarioCreate(t *testing.T) {
 	})
 
 	t.Run("1.5.2 multi-tenant schema", func(t *testing.T) {
-		t.Skip("[~] migration does not emit ALTER TABLE ENABLE ROW LEVEL SECURITY")
 		before := ``
 		after := `
 			CREATE SCHEMA tenant;
@@ -569,7 +566,6 @@ func TestMigrationScenarioCreate(t *testing.T) {
 	})
 
 	t.Run("1.5.10 full stack schema enum domain func table view trigger policy", func(t *testing.T) {
-		t.Skip("[~] migration does not emit ALTER TABLE ENABLE ROW LEVEL SECURITY")
 		before := ``
 		after := `
 			CREATE SCHEMA app;

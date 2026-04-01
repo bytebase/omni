@@ -239,25 +239,31 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 // The ops are appended (not manually positioned); sortMigrationOps handles
 // ordering via the dependency graph.
 func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops []MigrationOp) []MigrationOp {
-	// Find OIDs of tables that have column type changes.
+	// Find OIDs of tables that have column type changes or column drops.
 	tableOIDs := make(map[uint32]bool)
 	for _, rel := range diff.Relations {
 		if rel.Action != DiffModify {
 			continue
 		}
-		hasTypeChange := false
+		needsViewWrap := false
 		for _, col := range rel.Columns {
+			// Column drop: PG cannot drop a column when a view depends on the table.
+			if col.Action == DiffDrop {
+				needsViewWrap = true
+				break
+			}
+			// Column type change.
 			if col.Action != DiffModify || col.From == nil || col.To == nil {
 				continue
 			}
 			oldType := from.FormatType(col.From.TypeOID, col.From.TypeMod)
 			newType := to.FormatType(col.To.TypeOID, col.To.TypeMod)
 			if oldType != newType {
-				hasTypeChange = true
+				needsViewWrap = true
 				break
 			}
 		}
-		if hasTypeChange {
+		if needsViewWrap {
 			// Look up the table OID from the `from` catalog (where deps are recorded).
 			r := from.GetRelation(rel.SchemaName, rel.Name)
 			if r != nil {
@@ -459,6 +465,14 @@ func liftDepToOp(c *Catalog, objType byte, objOID uint32, oidToIdx map[depKey][]
 	if objType == 'c' {
 		if con, ok := c.constraints[objOID]; ok {
 			return oidToIdx[depKey{'r', con.RelOID}]
+		}
+		// Lift domain constraint → owning domain type.
+		for _, dt := range c.domainTypes {
+			for _, dc := range dt.Constraints {
+				if dc.OID == objOID {
+					return oidToIdx[depKey{'t', dt.TypeOID}]
+				}
+			}
 		}
 	}
 	// Lift index → owning table.

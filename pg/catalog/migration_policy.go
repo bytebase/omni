@@ -79,8 +79,37 @@ func generatePolicyDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 		case DiffModify:
 			ops = append(ops, policyOpsForRelation(rel.SchemaName, rel.Name, rel.Policies)...)
 		case DiffAdd:
-			// For newly added relations, policies come from the target catalog.
+			// For newly added relations, emit ENABLE ROW LEVEL SECURITY / FORCE ROW LEVEL SECURITY
+			// if the target table has RLS enabled.
 			if rel.To != nil {
+				if rel.To.RowSecurity {
+					ops = append(ops, MigrationOp{
+						Type:          OpAlterTable,
+						SchemaName:    rel.SchemaName,
+						ObjectName:    rel.Name,
+						SQL:           fmt.Sprintf("ALTER TABLE %s ENABLE ROW LEVEL SECURITY", qualifiedTable),
+						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       'r',
+						ObjOID:        rel.To.OID,
+						Priority:      PriorityTable,
+					})
+				}
+				if rel.To.ForceRowSecurity {
+					ops = append(ops, MigrationOp{
+						Type:          OpAlterTable,
+						SchemaName:    rel.SchemaName,
+						ObjectName:    rel.Name,
+						SQL:           fmt.Sprintf("ALTER TABLE %s FORCE ROW LEVEL SECURITY", qualifiedTable),
+						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       'r',
+						ObjOID:        rel.To.OID,
+						Priority:      PriorityTable,
+					})
+				}
+
+				// Policies come from the target catalog.
 				policies := to.policiesByRel[rel.To.OID]
 				for _, p := range policies {
 					ops = append(ops, buildCreatePolicyOp(rel.SchemaName, rel.Name, p))

@@ -24,7 +24,7 @@ func TestMigrationScenarios(t *testing.T) {
 	// A complete schema created from scratch — validates forward ordering.
 	// -----------------------------------------------------------------------
 	t.Run("greenfield e-commerce schema", func(t *testing.T) {
-		t.Skip("roundtrip fails: domain constraint migration + RLS not fully emitted — known production gaps")
+		t.Skip("roundtrip fails: CHECK constraint on table using function produces empty CHECK expression — pre-existing bug")
 		before := ``
 		after := `
 			CREATE TYPE order_status AS ENUM ('pending', 'confirmed', 'shipped', 'delivered');
@@ -353,7 +353,6 @@ func TestMigrationScenarios(t *testing.T) {
 	// Domain, function, and table form a dependency triangle.
 	// -----------------------------------------------------------------------
 	t.Run("domain with function-based constraint", func(t *testing.T) {
-		t.Skip("roundtrip fails: domain constraint not fully migrated — known production gap")
 		before := ``
 		after := `
 			CREATE FUNCTION check_range(val int) RETURNS boolean
@@ -426,7 +425,6 @@ func TestMigrationScenarios(t *testing.T) {
 	// Policy expression references a function that must exist first.
 	// -----------------------------------------------------------------------
 	t.Run("RLS policy with function", func(t *testing.T) {
-		t.Skip("roundtrip fails: ENABLE ROW LEVEL SECURITY not emitted in migration — known production gap")
 		before := ``
 		after := `
 			CREATE FUNCTION current_tenant_id() RETURNS int

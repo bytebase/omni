@@ -223,7 +223,6 @@ func TestMigrationScenarioDrop(t *testing.T) {
 	})
 
 	t.Run("2.3 remove column from table with dependent view", func(t *testing.T) {
-		t.Skip("[~] DROP COLUMN does not handle dependent view recreation — production bug")
 		before := `
 			CREATE TABLE t (id int, name text, extra int);
 			CREATE VIEW v AS SELECT id, name FROM t;

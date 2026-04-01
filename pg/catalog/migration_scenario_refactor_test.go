@@ -20,9 +20,6 @@ func TestMigrationScenarioRefactor(t *testing.T) {
 	})
 
 	t.Run("3.1 drop column from table with dependent view", func(t *testing.T) {
-		// [~] Production bug: migration generates DROP COLUMN without
-		// dropping/recreating the dependent view first.
-		t.Skip("production bug: DROP COLUMN does not cascade to dependent views")
 		before := `
 			CREATE TABLE t (id int PRIMARY KEY, name text, email text);
 			CREATE VIEW v AS SELECT id, name FROM t;
@@ -75,9 +72,6 @@ func TestMigrationScenarioRefactor(t *testing.T) {
 	})
 
 	t.Run("3.1 change column type with dependent CHECK constraint", func(t *testing.T) {
-		// [~] Production bug: ALTER COLUMN TYPE does not handle
-		// dependent CHECK constraint recreation.
-		t.Skip("production bug: ALTER COLUMN TYPE fails when CHECK constraint depends on column")
 		before := `
 			CREATE TABLE t (id int PRIMARY KEY, val int CHECK (val > 0));
 		`
