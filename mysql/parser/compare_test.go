@@ -489,6 +489,14 @@ func TestParseDataTypes(t *testing.T) {
 		{"BIGINT", "{DATATYPE :loc 0 :name BIGINT}"},
 		{"BIGINT(20) UNSIGNED", "{DATATYPE :loc 0 :name BIGINT :len 20 :unsigned true}"},
 
+		// SIGNED modifier (accepted and ignored — SIGNED is the default)
+		{"INT SIGNED", "{DATATYPE :loc 0 :name INT}"},
+		{"BIGINT SIGNED", "{DATATYPE :loc 0 :name BIGINT}"},
+		{"TINYINT SIGNED", "{DATATYPE :loc 0 :name TINYINT}"},
+		{"SMALLINT SIGNED", "{DATATYPE :loc 0 :name SMALLINT}"},
+		{"MEDIUMINT SIGNED", "{DATATYPE :loc 0 :name MEDIUMINT}"},
+		{"DECIMAL SIGNED", "{DATATYPE :loc 0 :name DECIMAL}"},
+
 		// Float types
 		{"FLOAT", "{DATATYPE :loc 0 :name FLOAT}"},
 		{"FLOAT(10)", "{DATATYPE :loc 0 :name FLOAT :len 10}"},
@@ -11456,4 +11464,48 @@ func TestParseReservedWordGROUPING(t *testing.T) {
 func TestParseReservedWordVALUE(t *testing.T) {
 	ParseAndCheck(t, "SELECT VALUE FROM t")
 	ParseAndCheck(t, "SELECT t.VALUE FROM t")
+}
+
+// --- Section 1.3: SIGNED modifier ---
+
+// TestParseSIGNEDModifier tests that SIGNED is accepted on numeric types in CREATE TABLE.
+func TestParseSIGNEDModifier(t *testing.T) {
+	// SIGNED on various integer types in CREATE TABLE context
+	tests := []string{
+		"CREATE TABLE t (a INT SIGNED)",
+		"CREATE TABLE t (a BIGINT SIGNED)",
+		"CREATE TABLE t (a TINYINT SIGNED)",
+		"CREATE TABLE t (a SMALLINT SIGNED)",
+		"CREATE TABLE t (a MEDIUMINT SIGNED)",
+		"CREATE TABLE t (a TINYINT SIGNED NOT NULL)",
+		"CREATE TABLE t (a DECIMAL SIGNED)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// TestParseCastSIGNEDRegression tests that CAST(x AS SIGNED) still works.
+func TestParseCastSIGNEDRegression(t *testing.T) {
+	tests := []struct {
+		input    string
+		typeName string
+	}{
+		{"CAST(x AS SIGNED)", "SIGNED"},
+		{"CAST(x AS SIGNED INTEGER)", "SIGNED"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			expr := parseExpr(t, tt.input)
+			ce, ok := expr.(*ast.CastExpr)
+			if !ok {
+				t.Fatalf("expected *ast.CastExpr, got %T", expr)
+			}
+			if ce.TypeName.Name != tt.typeName {
+				t.Errorf("TypeName = %s, want %s", ce.TypeName.Name, tt.typeName)
+			}
+		})
+	}
 }

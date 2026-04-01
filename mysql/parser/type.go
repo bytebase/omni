@@ -422,9 +422,13 @@ func (p *Parser) parseOptionalPrecision(dt *nodes.DataType) {
 	}
 }
 
-// parseUnsignedZerofill parses optional UNSIGNED and ZEROFILL modifiers.
+// parseUnsignedZerofill parses optional SIGNED, UNSIGNED, and ZEROFILL modifiers.
+// SIGNED is the default for all numeric types, so we accept and ignore it.
 func (p *Parser) parseUnsignedZerofill(dt *nodes.DataType) {
-	if _, ok := p.match(kwUNSIGNED); ok {
+	// SIGNED is not a keyword — it appears as tokIDENT.
+	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "signed") {
+		p.advance()
+	} else if _, ok := p.match(kwUNSIGNED); ok {
 		dt.Unsigned = true
 	}
 	if _, ok := p.match(kwZEROFILL); ok {
