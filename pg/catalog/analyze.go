@@ -3760,6 +3760,36 @@ func figureColName(n nodes.Node) string {
 		return "row"
 	case *nodes.CollateClause:
 		return figureColName(v.Arg)
+	case *nodes.XmlExpr:
+		switch v.Op {
+		case nodes.IS_XMLCONCAT:
+			return "xmlconcat"
+		case nodes.IS_XMLELEMENT:
+			return "xmlelement"
+		case nodes.IS_XMLFOREST:
+			return "xmlforest"
+		case nodes.IS_XMLPARSE:
+			return "xmlparse"
+		case nodes.IS_XMLPI:
+			return "xmlpi"
+		case nodes.IS_XMLROOT:
+			return "xmlroot"
+		case nodes.IS_XMLSERIALIZE:
+			return "xmlserialize"
+		}
+		return "?column?"
+	case *nodes.XmlSerialize:
+		return "xmlserialize"
+	case *nodes.GroupingFunc:
+		return "grouping"
+	case *nodes.A_Indirection:
+		if v.Indirection != nil && len(v.Indirection.Items) > 0 {
+			last := v.Indirection.Items[len(v.Indirection.Items)-1]
+			if s, ok := last.(*nodes.String); ok {
+				return s.Str
+			}
+		}
+		return "?column?"
 	default:
 		return "?column?"
 	}

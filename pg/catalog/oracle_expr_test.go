@@ -689,6 +689,42 @@ func TestOracleExprPhase2Ruleutils(t *testing.T) {
 		)
 	})
 
+	// XMLFOREST
+	t.Run("xmlforest", func(t *testing.T) {
+		assertOracleRoundtrip(t, oracle,
+			`CREATE TABLE t (name text, city text);`,
+			`CREATE TABLE t (name text, city text);
+			 CREATE VIEW v AS SELECT xmlforest(name, city) FROM t;`,
+		)
+	})
+
+	// XMLCONCAT
+	t.Run("xmlconcat", func(t *testing.T) {
+		assertOracleRoundtrip(t, oracle,
+			`CREATE TABLE t (x xml, y xml);`,
+			`CREATE TABLE t (x xml, y xml);
+			 CREATE VIEW v AS SELECT xmlconcat(x, y) FROM t;`,
+		)
+	})
+
+	// XMLPARSE
+	t.Run("xmlparse", func(t *testing.T) {
+		assertOracleRoundtrip(t, oracle,
+			`CREATE TABLE t (doc text);`,
+			`CREATE TABLE t (doc text);
+			 CREATE VIEW v AS SELECT xmlparse(document doc) FROM t;`,
+		)
+	})
+
+	// XMLPI
+	t.Run("xmlpi", func(t *testing.T) {
+		assertOracleRoundtrip(t, oracle,
+			`CREATE TABLE t (id int);`,
+			`CREATE TABLE t (id int);
+			 CREATE VIEW v AS SELECT xmlpi(name php, 'echo "hi";') FROM t;`,
+		)
+	})
+
 	// TABLESAMPLE BERNOULLI
 	t.Run("tablesample_bernoulli", func(t *testing.T) {
 		assertOracleRoundtrip(t, oracle,
