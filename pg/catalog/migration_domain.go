@@ -23,16 +23,28 @@ func generateDomainDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjectName:    entry.Name,
 				SQL:           formatCreateDomain(to, entry.SchemaName, entry.Name, entry.To),
 				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       't',
+				ObjOID:        entry.To.TypeOID,
+				Priority:      PriorityType,
 			})
 
 		case DiffDrop:
 			qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+			var typeOID uint32
+			if entry.From != nil {
+				typeOID = entry.From.TypeOID
+			}
 			ops = append(ops, MigrationOp{
 				Type:          OpDropType,
 				SchemaName:    entry.SchemaName,
 				ObjectName:    entry.Name,
 				SQL:           fmt.Sprintf("DROP DOMAIN %s", qn),
 				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       't',
+				ObjOID:        typeOID,
+				Priority:      PriorityType,
 			})
 
 		case DiffModify:
@@ -109,6 +121,7 @@ func generateDomainAlterOps(from, to *Catalog, entry DomainDiffEntry) []Migratio
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
 	d0 := entry.From
 	d1 := entry.To
+	typeOID := d1.TypeOID
 
 	// Base type change: cannot ALTER DOMAIN type — emit warning with DROP+CREATE.
 	fromType := from.FormatType(d0.BaseTypeOID, d0.BaseTypMod)
@@ -244,5 +257,12 @@ func generateDomainAlterOps(from, to *Catalog, entry DomainDiffEntry) []Migratio
 		})
 	}
 
+	// Set metadata on all domain alter ops.
+	for i := range ops {
+		ops[i].Phase = PhaseMain
+		ops[i].ObjType = 't'
+		ops[i].ObjOID = typeOID
+		ops[i].Priority = PriorityType
+	}
 	return ops
 }

@@ -6,6 +6,35 @@ import (
 	"strings"
 )
 
+// MigrationPhase classifies when a DDL operation should be executed
+// relative to other operations.
+type MigrationPhase int
+
+const (
+	PhasePre  MigrationPhase = iota // DROP operations
+	PhaseMain                       // CREATE + ALTER operations
+	PhasePost                       // Deferred (FK constraints)
+)
+
+// Priority constants for tie-breaking within a phase during topological sort.
+// Lower values are executed earlier.
+const (
+	PrioritySchema     = 0
+	PriorityExtension  = 1
+	PriorityType       = 2  // Enum/Domain/Range/Composite
+	PrioritySequence   = 3
+	PriorityFunction   = 4
+	PriorityTable      = 5
+	PriorityColumn     = 6  // uses parent table OID
+	PriorityConstraint = 7  // non-FK
+	PriorityView       = 8
+	PriorityIndex      = 9
+	PriorityTrigger    = 10
+	PriorityPolicy     = 11
+	PriorityMetadata   = 12 // Comment/Grant/Revoke
+	PriorityFKDeferred = 99 // FK constraint (PhasePost)
+)
+
 // MigrationOpType classifies a single DDL operation.
 type MigrationOpType string
 
@@ -57,6 +86,12 @@ type MigrationOp struct {
 	Warning       string
 	Transactional bool
 	ParentObject  string // optional, for FK deferred creation
+
+	// Metadata for dependency-driven ordering (populated but not yet used by GenerateMigration).
+	Phase    MigrationPhase // PhasePre, PhaseMain, or PhasePost
+	ObjType  byte           // 'r'=relation, 'f'=function, 'i'=index, 'c'=constraint, 't'=type, 'S'=sequence, 'n'=schema, 'T'=trigger, 'p'=policy, 'e'=extension
+	ObjOID   uint32         // OID in source catalog (from for DROP, to for CREATE)
+	Priority int            // tie-breaker for topo sort (lower = earlier)
 }
 
 // MigrationPlan holds an ordered list of DDL operations that transform
@@ -326,12 +361,22 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 	var dropOps, createOps []MigrationOp
 	for _, v := range viewsToDrop {
 		qn := migrationQualifiedName(v.schema, v.name)
+		// Resolve view OID for metadata.
+		var viewOID uint32
+		rel := to.GetRelation(v.schema, v.name)
+		if rel != nil {
+			viewOID = rel.OID
+		}
 		dropOps = append(dropOps, MigrationOp{
 			Type:          OpDropView,
 			SchemaName:    v.schema,
 			ObjectName:    v.name,
 			SQL:           fmt.Sprintf("DROP VIEW IF EXISTS %s", qn),
 			Transactional: true,
+			Phase:         PhasePre,
+			ObjType:       'r',
+			ObjOID:        viewOID,
+			Priority:      PriorityView,
 		})
 
 		def, _ := to.GetViewDefinition(v.schema, v.name)
@@ -341,6 +386,10 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			ObjectName:    v.name,
 			SQL:           fmt.Sprintf("CREATE VIEW %s AS %s", qn, strings.TrimRight(def, " \t\n\r;")),
 			Transactional: true,
+			Phase:         PhaseMain,
+			ObjType:       'r',
+			ObjOID:        viewOID,
+			Priority:      PriorityView,
 		})
 	}
 
@@ -367,5 +416,31 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 	result = append(result, filteredOps...)
 	result = append(result, createOps...)
 	return result
+}
+
+// resolveTypeOIDByName looks up a type OID by schema + name from a catalog.
+// Returns 0 if not found.
+func resolveTypeOIDByName(c *Catalog, schemaName, typeName string) uint32 {
+	if c == nil {
+		return 0
+	}
+	schema := c.schemaByName[schemaName]
+	if schema == nil {
+		return 0
+	}
+	oid, _, err := c.ResolveType(TypeName{Schema: schemaName, Name: typeName, TypeMod: -1})
+	if err != nil {
+		return 0
+	}
+	return oid
+}
+
+// phaseForOpType returns the migration phase for a given op type.
+func phaseForOpType(opType MigrationOpType) MigrationPhase {
+	s := string(opType)
+	if strings.HasPrefix(s, "Drop") {
+		return PhasePre
+	}
+	return PhaseMain
 }
 

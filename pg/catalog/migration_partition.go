@@ -115,6 +115,10 @@ func generatePartitionChildDDL(c *Catalog, entry RelationDiffEntry) []MigrationO
 		ObjectName:    entry.Name,
 		SQL:           b.String(),
 		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'r',
+		ObjOID:        rel.OID,
+		Priority:      PriorityTable,
 	}}
 }
 
@@ -158,6 +162,10 @@ func generateReplicaIdentityDDL(c *Catalog, entry RelationDiffEntry) []Migration
 		ObjectName:    entry.Name,
 		SQL:           fmt.Sprintf("ALTER TABLE %s REPLICA IDENTITY %s", qn, clause),
 		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'r',
+		ObjOID:        entry.To.OID,
+		Priority:      PriorityTable,
 	}}
 }
 

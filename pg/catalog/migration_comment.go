@@ -20,6 +20,9 @@ func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					ObjectName:    entry.ObjDescription,
 					SQL:           sql,
 					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       entry.ObjType,
+					Priority:      PriorityMetadata,
 				})
 			}
 		case DiffDrop:
@@ -30,6 +33,9 @@ func generateCommentDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					ObjectName:    entry.ObjDescription,
 					SQL:           sql,
 					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       entry.ObjType,
+					Priority:      PriorityMetadata,
 				})
 			}
 		}

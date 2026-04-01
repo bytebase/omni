@@ -24,6 +24,10 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjectName:    entry.Name,
 				SQL:           sql,
 				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       't',
+				ObjOID:        entry.To.OID,
+				Priority:      PriorityType,
 			})
 		case DiffDrop:
 			if entry.From == nil {
@@ -36,6 +40,10 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjectName:    entry.Name,
 				SQL:           fmt.Sprintf("DROP TYPE %s", qualName),
 				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       't',
+				ObjOID:        entry.From.OID,
+				Priority:      PriorityType,
 			})
 		case DiffModify:
 			if entry.From == nil || entry.To == nil {
@@ -51,6 +59,10 @@ func generateRangeDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				SQL:           fmt.Sprintf("-- range type %s subtype changed from %s to %s; requires DROP + CREATE", qualName, fromSubType, toSubType),
 				Warning:       fmt.Sprintf("range type %s cannot be ALTERed in place: subtype changed from %s to %s; DROP + CREATE would break dependent columns", qualName, fromSubType, toSubType),
 				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       't',
+				ObjOID:        entry.To.OID,
+				Priority:      PriorityType,
 			})
 		}
 	}

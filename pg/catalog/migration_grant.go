@@ -21,6 +21,10 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjectName:    objName,
 				SQL:           sql,
 				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       g.ObjType,
+				ObjOID:        g.ObjOID,
+				Priority:      PriorityMetadata,
 			})
 
 		case DiffDrop:
@@ -32,6 +36,10 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjectName:    objName,
 				SQL:           sql,
 				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       g.ObjType,
+				ObjOID:        g.ObjOID,
+				Priority:      PriorityMetadata,
 			})
 
 		case DiffModify:
@@ -45,12 +53,20 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjectName:    objNameFrom,
 				SQL:           formatRevokeSQL(gFrom, objNameFrom),
 				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       gFrom.ObjType,
+				ObjOID:        gFrom.ObjOID,
+				Priority:      PriorityMetadata,
 			})
 			ops = append(ops, MigrationOp{
 				Type:          OpGrant,
 				ObjectName:    objNameTo,
 				SQL:           formatGrantSQL(gTo, objNameTo),
 				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       gTo.ObjType,
+				ObjOID:        gTo.ObjOID,
+				Priority:      PriorityMetadata,
 			})
 		}
 	}

@@ -42,6 +42,10 @@ func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjectName:    entry.Name,
 				SQL:           ddl,
 				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'r',
+				ObjOID:        entry.To.OID,
+				Priority:      PriorityTable,
 			})
 
 		case DiffDrop:
@@ -59,6 +63,10 @@ func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjectName:    entry.Name,
 				SQL:           fmt.Sprintf("DROP TABLE %s CASCADE", qn),
 				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       'r',
+				ObjOID:        entry.From.OID,
+				Priority:      PriorityTable,
 			})
 		}
 	}

@@ -56,11 +56,11 @@ func triggerOpsForRelation(to *Catalog, schemaName, tableName string, triggers [
 			if te.From == nil {
 				continue
 			}
-			ops = append(ops, buildDropTriggerOp(schemaName, tableName, te.From.Name))
+			ops = append(ops, buildDropTriggerOp(schemaName, tableName, te.From.Name, te.From.OID))
 		case DiffModify:
 			// Modified trigger = DROP old + CREATE new.
 			if te.From != nil {
-				ops = append(ops, buildDropTriggerOp(schemaName, tableName, te.From.Name))
+				ops = append(ops, buildDropTriggerOp(schemaName, tableName, te.From.Name, te.From.OID))
 			}
 			if te.To != nil {
 				ops = append(ops, buildCreateTriggerOp(to, schemaName, tableName, te.To))
@@ -72,7 +72,7 @@ func triggerOpsForRelation(to *Catalog, schemaName, tableName string, triggers [
 }
 
 // buildDropTriggerOp creates a DROP TRIGGER operation.
-func buildDropTriggerOp(schemaName, tableName, trigName string) MigrationOp {
+func buildDropTriggerOp(schemaName, tableName, trigName string, trigOID uint32) MigrationOp {
 	qualifiedTable := migrationQualifiedName(schemaName, tableName)
 	return MigrationOp{
 		Type:          OpDropTrigger,
@@ -81,6 +81,10 @@ func buildDropTriggerOp(schemaName, tableName, trigName string) MigrationOp {
 		ParentObject:  tableName,
 		SQL:           fmt.Sprintf("DROP TRIGGER %s ON %s", quoteIdentAlways(trigName), qualifiedTable),
 		Transactional: true,
+		Phase:         PhasePre,
+		ObjType:       'T',
+		ObjOID:        trigOID,
+		Priority:      PriorityTrigger,
 	}
 }
 
@@ -200,5 +204,9 @@ func buildCreateTriggerOp(c *Catalog, schemaName, tableName string, trig *Trigge
 		ParentObject:  tableName,
 		SQL:           b.String(),
 		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'T',
+		ObjOID:        trig.OID,
+		Priority:      PriorityTrigger,
 	}
 }

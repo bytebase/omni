@@ -110,6 +110,10 @@ func buildCreateFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 		ObjectName:    entry.Identity,
 		SQL:           b.String(),
 		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'f',
+		ObjOID:        entry.To.OID,
+		Priority:      PriorityFunction,
 	}
 }
 
@@ -149,6 +153,10 @@ func buildReplaceeFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 		ObjectName:    entry.Identity,
 		SQL:           b.String(),
 		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'f',
+		ObjOID:        entry.To.OID,
+		Priority:      PriorityFunction,
 	}
 }
 
@@ -174,6 +182,10 @@ func buildDropFunctionOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 		ObjectName:    entry.Identity,
 		SQL:           b.String(),
 		Transactional: true,
+		Phase:         PhasePre,
+		ObjType:       'f',
+		ObjOID:        entry.From.OID,
+		Priority:      PriorityFunction,
 	}
 }
 
@@ -323,6 +335,10 @@ func buildReplaceProcedureOp(c *Catalog, entry FunctionDiffEntry) MigrationOp {
 		ObjectName:    entry.Identity,
 		SQL:           b.String(),
 		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'f',
+		ObjOID:        entry.To.OID,
+		Priority:      PriorityFunction,
 	}
 }
 

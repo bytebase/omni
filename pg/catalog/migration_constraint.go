@@ -97,6 +97,9 @@ func buildDropConstraintOp(schemaName, tableName, conName string) MigrationOp {
 		ObjectName:   conName,
 		ParentObject: tableName,
 		SQL:          fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", qualifiedTable, quoteIdentifier(conName)),
+		Phase:        PhasePre,
+		ObjType:      'c',
+		Priority:     PriorityConstraint,
 	}
 }
 
@@ -205,12 +208,24 @@ func buildAddConstraintOp(to *Catalog, schemaName, tableName string, con *Constr
 		sql += " NOT VALID"
 	}
 
+	// FK constraints are deferred to PhasePost; all others are PhaseMain.
+	phase := PhaseMain
+	priority := PriorityConstraint
+	if con.Type == ConstraintFK {
+		phase = PhasePost
+		priority = PriorityFKDeferred
+	}
+
 	return MigrationOp{
 		Type:         OpAddConstraint,
 		SchemaName:   schemaName,
 		ObjectName:   con.Name,
 		ParentObject: tableName,
 		SQL:          sql,
+		Phase:        phase,
+		ObjType:      'c',
+		ObjOID:       con.OID,
+		Priority:     priority,
 	}
 }
 

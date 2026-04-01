@@ -13,19 +13,35 @@ func generateExtensionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	for _, entry := range diff.Extensions {
 		switch entry.Action {
 		case DiffAdd:
+			var extOID uint32
+			if entry.To != nil {
+				extOID = entry.To.OID
+			}
 			ops = append(ops, MigrationOp{
 				Type:          OpCreateExtension,
 				ObjectName:    entry.Name,
 				SQL:           fmt.Sprintf("CREATE EXTENSION %s", quoteIdentAlways(entry.Name)),
 				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'e',
+				ObjOID:        extOID,
+				Priority:      PriorityExtension,
 			})
 
 		case DiffDrop:
+			var extOID uint32
+			if entry.From != nil {
+				extOID = entry.From.OID
+			}
 			ops = append(ops, MigrationOp{
 				Type:          OpDropExtension,
 				ObjectName:    entry.Name,
 				SQL:           fmt.Sprintf("DROP EXTENSION %s", quoteIdentAlways(entry.Name)),
 				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       'e',
+				ObjOID:        extOID,
+				Priority:      PriorityExtension,
 			})
 
 		case DiffModify:
@@ -41,6 +57,10 @@ func generateExtensionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						ObjectName:    entry.Name,
 						SQL:           fmt.Sprintf("ALTER EXTENSION %s SET SCHEMA %s", quoteIdentAlways(entry.Name), quoteIdentAlways(schemaName)),
 						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       'e',
+						ObjOID:        entry.To.OID,
+						Priority:      PriorityExtension,
 					})
 				}
 			}

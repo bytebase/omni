@@ -25,10 +25,23 @@ func generateColumnDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 
 		tableName := fmt.Sprintf("%s.%s", quoteIdentifier(rel.SchemaName), quoteIdentifier(rel.Name))
 
+		// Resolve the owning relation OID for column metadata.
+		var relOID uint32
+		if rel.To != nil {
+			relOID = rel.To.OID
+		}
+
 		for _, col := range rel.Columns {
 			switch col.Action {
 			case DiffAdd:
-				ops = append(ops, columnAddOps(to, tableName, rel.SchemaName, rel.Name, col)...)
+				colOps := columnAddOps(to, tableName, rel.SchemaName, rel.Name, col)
+				for i := range colOps {
+					colOps[i].Phase = PhaseMain
+					colOps[i].ObjType = 'r'
+					colOps[i].ObjOID = relOID
+					colOps[i].Priority = PriorityColumn
+				}
+				ops = append(ops, colOps...)
 			case DiffDrop:
 				ops = append(ops, MigrationOp{
 					Type:          OpDropColumn,
@@ -36,9 +49,20 @@ func generateColumnDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					ObjectName:    rel.Name,
 					SQL:           fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", tableName, quoteIdentifier(col.Name)),
 					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'r',
+					ObjOID:        relOID,
+					Priority:      PriorityColumn,
 				})
 			case DiffModify:
-				ops = append(ops, columnModifyOps(from, to, tableName, rel.SchemaName, rel.Name, col)...)
+				modOps := columnModifyOps(from, to, tableName, rel.SchemaName, rel.Name, col)
+				for i := range modOps {
+					modOps[i].Phase = PhaseMain
+					modOps[i].ObjType = 'r'
+					modOps[i].ObjOID = relOID
+					modOps[i].Priority = PriorityColumn
+				}
+				ops = append(ops, modOps...)
 			}
 		}
 	}

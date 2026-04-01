@@ -27,6 +27,10 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						ObjectName:    idx.Name,
 						SQL:           sql,
 						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       'i',
+						ObjOID:        idx.OID,
+						Priority:      PriorityIndex,
 					})
 				}
 			}
@@ -46,6 +50,10 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						ObjectName:    idx.Name,
 						SQL:           sql,
 						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       'i',
+						ObjOID:        idx.OID,
+						Priority:      PriorityIndex,
 					})
 				case DiffDrop:
 					idx := idxEntry.From
@@ -61,6 +69,10 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						ObjectName:    idx.Name,
 						SQL:           sql,
 						Transactional: true,
+						Phase:         PhasePre,
+						ObjType:       'i',
+						ObjOID:        idx.OID,
+						Priority:      PriorityIndex,
 					})
 				case DiffModify:
 					idxFrom := idxEntry.From
@@ -78,6 +90,10 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						ObjectName:    idxFrom.Name,
 						SQL:           dropSQL,
 						Transactional: true,
+						Phase:         PhasePre,
+						ObjType:       'i',
+						ObjOID:        idxFrom.OID,
+						Priority:      PriorityIndex,
 					})
 					createSQL := buildCreateIndexSQL(idxTo, relEntry.To, relEntry.SchemaName)
 					ops = append(ops, MigrationOp{
@@ -86,6 +102,10 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						ObjectName:    idxTo.Name,
 						SQL:           createSQL,
 						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       'i',
+						ObjOID:        idxTo.OID,
+						Priority:      PriorityIndex,
 					})
 				}
 			}

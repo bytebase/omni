@@ -37,6 +37,10 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					ObjectName:    entry.Name,
 					SQL:           fmt.Sprintf("DROP VIEW %s", qn),
 					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'r',
+					ObjOID:        entry.From.OID,
+					Priority:      PriorityView,
 				})
 			case 'm':
 				qn := migrationQualifiedName(entry.SchemaName, entry.Name)
@@ -46,6 +50,10 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					ObjectName:    entry.Name,
 					SQL:           fmt.Sprintf("DROP MATERIALIZED VIEW %s", qn),
 					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'r',
+					ObjOID:        entry.From.OID,
+					Priority:      PriorityView,
 				})
 			}
 
@@ -64,6 +72,10 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						ObjectName:    entry.Name,
 						SQL:           fmt.Sprintf("DROP VIEW %s", qn),
 						Transactional: true,
+						Phase:         PhasePre,
+						ObjType:       'r',
+						ObjOID:        entry.From.OID,
+						Priority:      PriorityView,
 					})
 					ops = append(ops, buildCreateViewOp(to, entry))
 				} else {
@@ -116,6 +128,10 @@ func buildCreateViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
 		ObjectName:    entry.Name,
 		SQL:           b.String(),
 		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'r',
+		ObjOID:        entry.To.OID,
+		Priority:      PriorityView,
 	}
 }
 
@@ -133,6 +149,10 @@ func buildCreateMatViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
 		ObjectName:    entry.Name,
 		SQL:           sql,
 		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'r',
+		ObjOID:        entry.To.OID,
+		Priority:      PriorityView,
 	}
 }
 
@@ -157,6 +177,10 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 			SQL:           "", // no SQL — warning only
 			Warning:       fmt.Sprintf("view %s has dependent views that may need recreation: %s", migrationQualifiedName(entry.SchemaName, entry.Name), strings.Join(names, ", ")),
 			Transactional: true,
+			Phase:         PhaseMain,
+			ObjType:       'r',
+			ObjOID:        entry.To.OID,
+			Priority:      PriorityView,
 		})
 	}
 
@@ -182,6 +206,10 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 		ObjectName:    entry.Name,
 		SQL:           b.String(),
 		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'r',
+		ObjOID:        entry.To.OID,
+		Priority:      PriorityView,
 	})
 
 	return ops
@@ -199,6 +227,10 @@ func buildModifyMatViewOps(to *Catalog, entry RelationDiffEntry) []MigrationOp {
 		ObjectName:    entry.Name,
 		SQL:           fmt.Sprintf("DROP MATERIALIZED VIEW %s", qn),
 		Transactional: true,
+		Phase:         PhasePre,
+		ObjType:       'r',
+		ObjOID:        entry.From.OID,
+		Priority:      PriorityView,
 	}
 
 	createSQL := fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s",
@@ -210,6 +242,10 @@ func buildModifyMatViewOps(to *Catalog, entry RelationDiffEntry) []MigrationOp {
 		ObjectName:    entry.Name,
 		SQL:           createSQL,
 		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'r',
+		ObjOID:        entry.To.OID,
+		Priority:      PriorityView,
 	}
 
 	return []MigrationOp{dropOp, createOp}

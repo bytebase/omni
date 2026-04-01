@@ -25,6 +25,10 @@ func generatePolicyDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 							ObjectName:    rel.Name,
 							SQL:           fmt.Sprintf("ALTER TABLE %s ENABLE ROW LEVEL SECURITY", qualifiedTable),
 							Transactional: true,
+							Phase:         PhaseMain,
+							ObjType:       'r',
+							ObjOID:        rel.To.OID,
+							Priority:      PriorityTable,
 						})
 					} else {
 						ops = append(ops, MigrationOp{
@@ -33,6 +37,10 @@ func generatePolicyDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 							ObjectName:    rel.Name,
 							SQL:           fmt.Sprintf("ALTER TABLE %s DISABLE ROW LEVEL SECURITY", qualifiedTable),
 							Transactional: true,
+							Phase:         PhaseMain,
+							ObjType:       'r',
+							ObjOID:        rel.To.OID,
+							Priority:      PriorityTable,
 						})
 					}
 				}
@@ -44,6 +52,10 @@ func generatePolicyDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 							ObjectName:    rel.Name,
 							SQL:           fmt.Sprintf("ALTER TABLE %s FORCE ROW LEVEL SECURITY", qualifiedTable),
 							Transactional: true,
+							Phase:         PhaseMain,
+							ObjType:       'r',
+							ObjOID:        rel.To.OID,
+							Priority:      PriorityTable,
 						})
 					} else {
 						ops = append(ops, MigrationOp{
@@ -52,6 +64,10 @@ func generatePolicyDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 							ObjectName:    rel.Name,
 							SQL:           fmt.Sprintf("ALTER TABLE %s NO FORCE ROW LEVEL SECURITY", qualifiedTable),
 							Transactional: true,
+							Phase:         PhaseMain,
+							ObjType:       'r',
+							ObjOID:        rel.To.OID,
+							Priority:      PriorityTable,
 						})
 					}
 				}
@@ -102,14 +118,14 @@ func policyOpsForRelation(schemaName, tableName string, policies []PolicyDiffEnt
 			if pe.From == nil {
 				continue
 			}
-			ops = append(ops, buildDropPolicyOp(schemaName, tableName, pe.From.Name))
+			ops = append(ops, buildDropPolicyOp(schemaName, tableName, pe.From.Name, pe.From.OID))
 		case DiffModify:
 			if pe.From == nil || pe.To == nil {
 				continue
 			}
 			// If CmdType or Permissive changed, it's a complex change: DROP + CREATE.
 			if pe.From.CmdType != pe.To.CmdType || pe.From.Permissive != pe.To.Permissive {
-				ops = append(ops, buildDropPolicyOp(schemaName, tableName, pe.From.Name))
+				ops = append(ops, buildDropPolicyOp(schemaName, tableName, pe.From.Name, pe.From.OID))
 				ops = append(ops, buildCreatePolicyOp(schemaName, tableName, pe.To))
 			} else {
 				// Simple change: ALTER POLICY.
@@ -168,11 +184,15 @@ func buildCreatePolicyOp(schemaName, tableName string, p *Policy) MigrationOp {
 		ParentObject:  tableName,
 		SQL:           b.String(),
 		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'p',
+		ObjOID:        p.OID,
+		Priority:      PriorityPolicy,
 	}
 }
 
 // buildDropPolicyOp creates a DROP POLICY operation.
-func buildDropPolicyOp(schemaName, tableName, policyName string) MigrationOp {
+func buildDropPolicyOp(schemaName, tableName, policyName string, policyOID uint32) MigrationOp {
 	qualifiedTable := migrationQualifiedName(schemaName, tableName)
 	return MigrationOp{
 		Type:          OpDropPolicy,
@@ -181,6 +201,10 @@ func buildDropPolicyOp(schemaName, tableName, policyName string) MigrationOp {
 		ParentObject:  tableName,
 		SQL:           fmt.Sprintf("DROP POLICY %s ON %s", quoteIdentAlways(policyName), qualifiedTable),
 		Transactional: true,
+		Phase:         PhasePre,
+		ObjType:       'p',
+		ObjOID:        policyOID,
+		Priority:      PriorityPolicy,
 	}
 }
 
@@ -220,6 +244,10 @@ func buildAlterPolicyOp(schemaName, tableName string, from, to *Policy) Migratio
 		ParentObject:  tableName,
 		SQL:           b.String(),
 		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'p',
+		ObjOID:        to.OID,
+		Priority:      PriorityPolicy,
 	}
 }
 

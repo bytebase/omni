@@ -26,6 +26,10 @@ func generateEnumDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjectName:    entry.Name,
 				SQL:           sql,
 				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       't',
+				ObjOID:        resolveTypeOIDByName(to, entry.SchemaName, entry.Name),
+				Priority:      PriorityType,
 			})
 
 		case DiffDrop:
@@ -36,10 +40,14 @@ func generateEnumDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjectName:    entry.Name,
 				SQL:           fmt.Sprintf("DROP TYPE %s", qn),
 				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       't',
+				ObjOID:        resolveTypeOIDByName(from, entry.SchemaName, entry.Name),
+				Priority:      PriorityType,
 			})
 
 		case DiffModify:
-			ops = append(ops, generateEnumModifyOps(entry)...)
+			ops = append(ops, generateEnumModifyOps(to, entry)...)
 		}
 	}
 
@@ -72,9 +80,10 @@ func enumOpOrder(t MigrationOpType) int {
 
 // generateEnumModifyOps produces ALTER TYPE ADD VALUE ops for new enum values
 // and warning ops for removed values.
-func generateEnumModifyOps(entry EnumDiffEntry) []MigrationOp {
+func generateEnumModifyOps(cat *Catalog, entry EnumDiffEntry) []MigrationOp {
 	var ops []MigrationOp
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+	typeOID := resolveTypeOIDByName(cat, entry.SchemaName, entry.Name)
 
 	// Build set of old values for quick lookup.
 	fromSet := make(map[string]bool, len(entry.FromValues))
@@ -98,6 +107,10 @@ func generateEnumModifyOps(entry EnumDiffEntry) []MigrationOp {
 				SQL:           fmt.Sprintf("-- cannot remove enum value %s from %s", singleQuote(v), qn),
 				Warning:       fmt.Sprintf("PostgreSQL does not support removing enum value %s from type %s", singleQuote(v), qn),
 				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       't',
+				ObjOID:        typeOID,
+				Priority:      PriorityType,
 			})
 		}
 	}
@@ -119,6 +132,10 @@ func generateEnumModifyOps(entry EnumDiffEntry) []MigrationOp {
 			ObjectName:    entry.Name,
 			SQL:           sql,
 			Transactional: false,
+			Phase:         PhaseMain,
+			ObjType:       't',
+			ObjOID:        typeOID,
+			Priority:      PriorityType,
 		})
 	}
 

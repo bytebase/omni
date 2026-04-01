@@ -29,6 +29,10 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjectName:    entry.Name,
 				SQL:           formatCreateSequence(entry.SchemaName, entry.To),
 				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'S',
+				ObjOID:        entry.To.OID,
+				Priority:      PrioritySequence,
 			})
 
 		case DiffDrop:
@@ -47,6 +51,10 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				ObjectName:    entry.Name,
 				SQL:           fmt.Sprintf("DROP SEQUENCE %s", qn),
 				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       'S',
+				ObjOID:        entry.From.OID,
+				Priority:      PrioritySequence,
 			})
 
 		case DiffModify:
@@ -61,6 +69,10 @@ func generateSequenceDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					ObjectName:    entry.Name,
 					SQL:           sql,
 					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'S',
+					ObjOID:        entry.To.OID,
+					Priority:      PrioritySequence,
 				})
 			}
 		}
