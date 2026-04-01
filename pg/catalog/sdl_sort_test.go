@@ -263,6 +263,38 @@ func TestSDLTopoSortWithinLayers(t *testing.T) {
 			},
 		},
 		{
+			name: "function created before table with CHECK referencing it",
+			sql: `
+				CREATE TABLE items (
+					id int,
+					qty int,
+					CONSTRAINT items_qty_check CHECK (is_positive(qty))
+				);
+				CREATE FUNCTION is_positive(integer) RETURNS boolean
+					LANGUAGE sql IMMUTABLE AS $$SELECT $1 > 0$$;
+			`,
+			check: func(t *testing.T, c *Catalog) {
+				if c.GetRelation("public", "items") == nil {
+					t.Fatal("table items not found")
+				}
+			},
+		},
+		{
+			name: "function created before table with DEFAULT referencing it",
+			sql: `
+				CREATE TABLE t (
+					id int DEFAULT next_id()
+				);
+				CREATE FUNCTION next_id() RETURNS int
+					LANGUAGE sql AS $$SELECT 1$$;
+			`,
+			check: func(t *testing.T, c *Catalog) {
+				if c.GetRelation("public", "t") == nil {
+					t.Fatal("table t not found")
+				}
+			},
+		},
+		{
 			name: "composite type A references type B — B created first",
 			sql: `
 				CREATE TYPE type_a AS (b_field type_b);

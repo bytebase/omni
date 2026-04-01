@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"container/heap"
 	"fmt"
 	"sort"
 	"strings"
@@ -659,147 +660,134 @@ func extractSelectRefs(sel *nodes.SelectStmt, declared map[string]bool, refs *[]
 	}
 }
 
-// topoSort sorts statements by priority layers, then topologically within each layer.
-// It also extracts FK constraints from CreateStmts and defers them.
+// topoSort sorts statements using global topological sorting (Kahn's algorithm).
+// Cross-layer dependencies (e.g., table CHECK → function) take precedence over
+// default priority ordering. When no dependency constrains order, statements are
+// ordered by (stmtPriority, original_index) for determinism.
+// FK constraints are extracted from CreateStmts and deferred.
 // Returns the ordered statements and the deferred FK ALTER TABLE statements.
 func topoSort(stmts []nodes.Node, declared map[string]bool, deps []dep) ([]nodes.Node, []nodes.Node, error) {
-	// Group statements by priority.
-	type entry struct {
-		idx      int
-		priority int
-	}
-	entries := make([]entry, len(stmts))
+	n := len(stmts)
+
+	// Compute priority for each statement.
+	priority := make([]int, n)
 	for i, stmt := range stmts {
-		entries[i] = entry{idx: i, priority: stmtPriority(stmt)}
+		priority[i] = stmtPriority(stmt)
 	}
 
-	// Collect all priority levels.
-	prioritySet := make(map[int]bool)
-	for _, e := range entries {
-		prioritySet[e.priority] = true
-	}
-	priorities := make([]int, 0, len(prioritySet))
-	for p := range prioritySet {
-		priorities = append(priorities, p)
-	}
-	sort.Ints(priorities)
-
-	// Build adjacency for deps within same priority.
-	// dep.from depends on dep.to (dep.to must come first).
-	// FK deps are excluded because FK constraints are deferred to a later pass.
-	adjWithin := make(map[int][]int)   // to → [from...]
-	inDegree := make(map[int]int)      // from → count of deps
+	// Build adjacency from ALL non-FK deps.
+	// dep.from depends on dep.to → edge from dep.to to dep.from (dep.to must come first).
+	adj := make([][]int, n)
+	inDegree := make([]int, n)
 	for _, d := range deps {
 		if d.isFK {
-			continue // FK deps are deferred, don't create within-layer edges.
+			continue
 		}
-		if stmtPriority(stmts[d.from]) == stmtPriority(stmts[d.to]) {
-			adjWithin[d.to] = append(adjWithin[d.to], d.from)
-			inDegree[d.from]++
+		adj[d.to] = append(adj[d.to], d.from)
+		inDegree[d.from]++
+	}
+
+	// Kahn's algorithm with priority queue.
+	// Tie-break by (stmtPriority, original_index) for determinism.
+	// Use a heap for efficient min extraction.
+	h := make(pqHeap, 0, n)
+	for i := 0; i < n; i++ {
+		if inDegree[i] == 0 {
+			h = append(h, pqEntry{idx: i, pri: priority[i]})
+		}
+	}
+	heap.Init(&h)
+
+	sorted := make([]int, 0, n)
+	for h.Len() > 0 {
+		e := heap.Pop(&h).(pqEntry)
+		sorted = append(sorted, e.idx)
+		for _, next := range adj[e.idx] {
+			inDegree[next]--
+			if inDegree[next] == 0 {
+				heap.Push(&h, pqEntry{idx: next, pri: priority[next]})
+			}
 		}
 	}
 
+	// Handle cycles: if not all nodes were visited, check for composite type cycles.
+	if len(sorted) != n {
+		sortedSet := make(map[int]bool, len(sorted))
+		for _, idx := range sorted {
+			sortedSet[idx] = true
+		}
+		allComposite := true
+		var remaining []int
+		for i := 0; i < n; i++ {
+			if !sortedSet[i] {
+				remaining = append(remaining, i)
+				if _, ok := stmts[i].(*nodes.CompositeTypeStmt); !ok {
+					allComposite = false
+				}
+			}
+		}
+		if allComposite && len(remaining) > 0 {
+			// Composite type cycles can be resolved via shell types.
+			// Sort by (priority, index) for determinism.
+			sort.Slice(remaining, func(a, b int) bool {
+				pa, pb := priority[remaining[a]], priority[remaining[b]]
+				if pa != pb {
+					return pa < pb
+				}
+				return remaining[a] < remaining[b]
+			})
+			sorted = append(sorted, remaining...)
+		} else {
+			return nil, nil, fmt.Errorf("SDL dependency cycle detected")
+		}
+	}
+
+	// Build ordered result, extracting FK constraints for deferral.
 	var ordered []nodes.Node
 	var deferredFKs []nodes.Node
-
-	for _, p := range priorities {
-		// Collect indices in this priority group.
-		var group []int
-		for _, e := range entries {
-			if e.priority == p {
-				group = append(group, e.idx)
+	for _, idx := range sorted {
+		stmt := stmts[idx]
+		if cs, ok := stmt.(*nodes.CreateStmt); ok {
+			stripped, fks := extractForeignKeys(cs)
+			ordered = append(ordered, stripped)
+			for _, fk := range fks {
+				deferredFKs = append(deferredFKs, buildAlterTableAddConstraint(cs.Relation, fk))
 			}
-		}
-
-		// Kahn's algorithm within the group.
-		groupSet := make(map[int]bool, len(group))
-		for _, idx := range group {
-			groupSet[idx] = true
-		}
-
-		var queue []int
-		for _, idx := range group {
-			if inDegree[idx] == 0 {
-				queue = append(queue, idx)
-			}
-		}
-		// Sort the initial queue for determinism.
-		sort.Ints(queue)
-
-		var sorted []int
-		for len(queue) > 0 {
-			idx := queue[0]
-			queue = queue[1:]
-			sorted = append(sorted, idx)
-			for _, next := range adjWithin[idx] {
-				if !groupSet[next] {
-					continue
-				}
-				inDegree[next]--
-				if inDegree[next] == 0 {
-					// Insert in sorted order for determinism.
-					inserted := false
-					for qi := range queue {
-						if next < queue[qi] {
-							queue = append(queue[:qi+1], queue[qi:]...)
-							queue[qi] = next
-							inserted = true
-							break
-						}
-					}
-					if !inserted {
-						queue = append(queue, next)
-					}
-				}
-			}
-		}
-
-		// Check for cycles within this group.
-		if len(sorted) != len(group) {
-			// If the remaining unsorted nodes are all composite types, they
-			// can be broken by shell types (pre-created before execution).
-			// Append them in index order — shell types ensure names exist.
-			allComposite := true
-			var remaining []int
-			for _, idx := range group {
-				found := false
-				for _, s := range sorted {
-					if s == idx {
-						found = true
-						break
-					}
-				}
-				if !found {
-					remaining = append(remaining, idx)
-					if _, ok := stmts[idx].(*nodes.CompositeTypeStmt); !ok {
-						allComposite = false
-					}
-				}
-			}
-			if allComposite && len(remaining) > 0 {
-				sort.Ints(remaining)
-				sorted = append(sorted, remaining...)
-			} else {
-				return nil, nil, fmt.Errorf("SDL dependency cycle detected in priority layer %d", p)
-			}
-		}
-
-		// Add sorted statements, extracting FK constraints for deferral.
-		for _, idx := range sorted {
-			stmt := stmts[idx]
-			if cs, ok := stmt.(*nodes.CreateStmt); ok {
-				stripped, fks := extractForeignKeys(cs)
-				ordered = append(ordered, stripped)
-				for _, fk := range fks {
-					deferredFKs = append(deferredFKs, buildAlterTableAddConstraint(cs.Relation, fk))
-				}
-			} else {
-				ordered = append(ordered, stmt)
-			}
+		} else {
+			ordered = append(ordered, stmt)
 		}
 	}
 
 	return ordered, deferredFKs, nil
+}
+
+// pqEntry is an entry in the priority queue for topological sorting.
+type pqEntry struct {
+	idx int
+	pri int // stmtPriority
+}
+
+// pqHeap implements heap.Interface for Kahn's algorithm priority queue.
+// Orders by (stmtPriority ASC, original index ASC).
+type pqHeap []pqEntry
+
+func (h pqHeap) Len() int      { return len(h) }
+func (h pqHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
+func (h pqHeap) Less(i, j int) bool {
+	if h[i].pri != h[j].pri {
+		return h[i].pri < h[j].pri
+	}
+	return h[i].idx < h[j].idx
+}
+func (h *pqHeap) Push(x interface{}) {
+	*h = append(*h, x.(pqEntry))
+}
+func (h *pqHeap) Pop() interface{} {
+	old := *h
+	n := len(old)
+	e := old[n-1]
+	*h = old[:n-1]
+	return e
 }
 
 // extractForeignKeys removes FK constraints from a CreateStmt and returns
