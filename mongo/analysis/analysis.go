@@ -87,6 +87,74 @@ type JoinInfo struct {
 // Analyze extracts structural information from a single parsed MongoDB AST node.
 // Returns nil for unrecognizable nodes.
 func Analyze(node ast.Node) *StatementAnalysis {
-	_ = node
+	if node == nil {
+		return nil
+	}
+	switch n := node.(type) {
+	case *ast.CollectionStatement:
+		return analyzeCollection(n)
+	case *ast.DatabaseStatement:
+		return &StatementAnalysis{Operation: OpInfo, MethodName: n.Method}
+	case *ast.ShowCommand:
+		return &StatementAnalysis{Operation: OpInfo, MethodName: "show"}
+	case *ast.BulkStatement:
+		return &StatementAnalysis{Operation: OpWrite, MethodName: "bulkOp", Collection: n.Collection}
+	case *ast.RsStatement:
+		return &StatementAnalysis{Operation: OpWrite, MethodName: n.MethodName}
+	case *ast.ShStatement:
+		return &StatementAnalysis{Operation: OpWrite, MethodName: n.MethodName}
+	case *ast.EncryptionStatement:
+		return &StatementAnalysis{Operation: OpWrite, MethodName: n.Target}
+	case *ast.PlanCacheStatement:
+		return &StatementAnalysis{Operation: OpWrite, MethodName: "getPlanCache", Collection: n.Collection}
+	case *ast.SpStatement:
+		return &StatementAnalysis{Operation: OpWrite, MethodName: n.MethodName}
+	case *ast.ConnectionStatement:
+		return &StatementAnalysis{Operation: OpWrite, MethodName: n.Constructor}
+	case *ast.NativeFunctionCall:
+		return &StatementAnalysis{Operation: OpWrite, MethodName: n.Name}
+	}
 	return nil
+}
+
+func analyzeCollection(s *ast.CollectionStatement) *StatementAnalysis {
+	a := &StatementAnalysis{
+		MethodName: s.Method,
+		Collection: s.Collection,
+	}
+
+	if s.Explain {
+		a.Operation = OpExplain
+		return a
+	}
+
+	switch s.Method {
+	case "find":
+		a.Operation = OpFind
+		a.PredicateFields = extractPredicateFields(s.Args)
+	case "findOne":
+		a.Operation = OpFindOne
+		a.PredicateFields = extractPredicateFields(s.Args)
+	case "aggregate":
+		a.Operation = OpAggregate
+		analyzePipelineInto(s.Args, a)
+	case "countDocuments", "estimatedDocumentCount", "count":
+		a.Operation = OpCount
+	case "distinct":
+		a.Operation = OpDistinct
+	case "insertOne", "insertMany", "updateOne", "updateMany", "deleteOne", "deleteMany",
+		"replaceOne", "findOneAndUpdate", "findOneAndReplace", "findOneAndDelete",
+		"bulkWrite", "mapReduce":
+		a.Operation = OpWrite
+	case "createIndex", "createIndexes", "dropIndex", "dropIndexes", "drop",
+		"renameCollection", "reIndex":
+		a.Operation = OpAdmin
+	case "getIndexes", "stats", "storageSize", "totalIndexSize", "totalSize",
+		"dataSize", "validate", "latencyStats", "getShardDistribution":
+		a.Operation = OpRead
+	default:
+		a.Operation = OpUnknown
+	}
+
+	return a
 }
