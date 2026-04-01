@@ -515,6 +515,14 @@ func topoSortOps(c *Catalog, ops []MigrationOp, reverse bool) (sorted []Migratio
 			continue
 		}
 
+		// Skip FK constraint deps — FK ops are already in PhasePost and their
+		// deps should not create edges in the PhaseMain graph.
+		if d.ObjType == 'c' {
+			if con, ok := c.constraints[d.ObjOID]; ok && con.Type == ConstraintFK {
+				continue
+			}
+		}
+
 		// Find ops for the dependent object (lift constraint/index → table).
 		depIdxs := liftDepToOp(c, d.ObjType, d.ObjOID, oidToIdx)
 		// Find ops for the referenced object (lift constraint/index → table).
