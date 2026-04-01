@@ -11487,6 +11487,143 @@ func TestParseSIGNEDModifier(t *testing.T) {
 	}
 }
 
+// Section 1.5: Numeric Type Shorthands in Combinations
+// ============================================================================
+
+func TestNumericShorthandCombinations(t *testing.T) {
+	// Scenario 1: INT1 UNSIGNED ZEROFILL — full modifier chain on shorthand
+	t.Run("INT1 UNSIGNED ZEROFILL", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("INT1 UNSIGNED ZEROFILL")}
+		p.advance()
+		dt, err := p.parseDataType()
+		if err != nil {
+			t.Fatalf("parseDataType error: %v", err)
+		}
+		got := ast.NodeToString(dt)
+		want := "{DATATYPE :loc 0 :name TINYINT :unsigned true :zerofill true}"
+		if got != want {
+			t.Errorf("got:  %s\nwant: %s", got, want)
+		}
+	})
+
+	// Scenario 2: INT4(11) UNSIGNED — display width on shorthand
+	t.Run("INT4(11) UNSIGNED", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("INT4(11) UNSIGNED")}
+		p.advance()
+		dt, err := p.parseDataType()
+		if err != nil {
+			t.Fatalf("parseDataType error: %v", err)
+		}
+		got := ast.NodeToString(dt)
+		want := "{DATATYPE :loc 0 :name INT :len 11 :unsigned true}"
+		if got != want {
+			t.Errorf("got:  %s\nwant: %s", got, want)
+		}
+	})
+
+	// Scenario 3: ALTER TABLE t ADD COLUMN b REAL DEFAULT 0.0 — type synonym in ALTER TABLE
+	t.Run("ALTER TABLE ADD COLUMN REAL", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ADD COLUMN b REAL DEFAULT 0.0")
+		if len(stmt.Commands) != 1 {
+			t.Fatalf("Commands count = %d, want 1", len(stmt.Commands))
+		}
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATAddColumn {
+			t.Errorf("Type = %d, want ATAddColumn", cmd.Type)
+		}
+		if cmd.Column == nil {
+			t.Fatal("Column is nil")
+		}
+		if cmd.Column.Name != "b" {
+			t.Errorf("Column.Name = %s, want b", cmd.Column.Name)
+		}
+		if cmd.Column.TypeName == nil || cmd.Column.TypeName.Name != "DOUBLE" {
+			t.Errorf("TypeName.Name = %v, want DOUBLE", cmd.Column.TypeName)
+		}
+	})
+
+	// Scenario 4: ALTER TABLE t MODIFY c DEC(10,2) NOT NULL — type synonym in MODIFY COLUMN
+	t.Run("ALTER TABLE MODIFY DEC", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t MODIFY c DEC(10,2) NOT NULL")
+		if len(stmt.Commands) != 1 {
+			t.Fatalf("Commands count = %d, want 1", len(stmt.Commands))
+		}
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATModifyColumn {
+			t.Errorf("Type = %d, want ATModifyColumn", cmd.Type)
+		}
+		if cmd.Name != "c" {
+			t.Errorf("Name = %s, want c", cmd.Name)
+		}
+		if cmd.Column == nil {
+			t.Fatal("Column is nil")
+		}
+		if cmd.Column.TypeName == nil || cmd.Column.TypeName.Name != "DECIMAL" {
+			t.Errorf("TypeName.Name = %v, want DECIMAL", cmd.Column.TypeName)
+		}
+		if cmd.Column.TypeName.Length != 10 {
+			t.Errorf("TypeName.Length = %d, want 10", cmd.Column.TypeName.Length)
+		}
+		if cmd.Column.TypeName.Scale != 2 {
+			t.Errorf("TypeName.Scale = %d, want 2", cmd.Column.TypeName.Scale)
+		}
+	})
+
+	// Scenario 5: all shorthands in one table
+	t.Run("all shorthands in one table", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE TABLE t (a FLOAT4, b FLOAT8, c INT1, d INT2, e INT3, f INT4, g INT8)")
+		if result.Len() == 0 {
+			t.Fatal("empty result")
+		}
+		ct, ok := result.Items[0].(*ast.CreateTableStmt)
+		if !ok {
+			t.Fatalf("expected *ast.CreateTableStmt, got %T", result.Items[0])
+		}
+		expected := []struct {
+			name     string
+			typeName string
+		}{
+			{"a", "FLOAT"},
+			{"b", "DOUBLE"},
+			{"c", "TINYINT"},
+			{"d", "SMALLINT"},
+			{"e", "MEDIUMINT"},
+			{"f", "INT"},
+			{"g", "BIGINT"},
+		}
+		if len(ct.Columns) != len(expected) {
+			t.Fatalf("Columns count = %d, want %d", len(ct.Columns), len(expected))
+		}
+		for i, exp := range expected {
+			col := ct.Columns[i]
+			if col.Name != exp.name {
+				t.Errorf("Columns[%d].Name = %s, want %s", i, col.Name, exp.name)
+			}
+			if col.TypeName == nil || col.TypeName.Name != exp.typeName {
+				t.Errorf("Columns[%d].TypeName.Name = %v, want %s", i, col.TypeName, exp.typeName)
+			}
+		}
+	})
+
+	// Scenario 6: SERIAL type (existing, regression check)
+	t.Run("SERIAL regression", func(t *testing.T) {
+		result := ParseAndCheck(t, "CREATE TABLE t (a SERIAL)")
+		if result.Len() == 0 {
+			t.Fatal("empty result")
+		}
+		ct, ok := result.Items[0].(*ast.CreateTableStmt)
+		if !ok {
+			t.Fatalf("expected *ast.CreateTableStmt, got %T", result.Items[0])
+		}
+		if len(ct.Columns) != 1 {
+			t.Fatalf("Columns count = %d, want 1", len(ct.Columns))
+		}
+		if ct.Columns[0].TypeName == nil || ct.Columns[0].TypeName.Name != "SERIAL" {
+			t.Errorf("TypeName.Name = %v, want SERIAL", ct.Columns[0].TypeName)
+		}
+	})
+}
+
 // TestParseCastSIGNEDRegression tests that CAST(x AS SIGNED) still works.
 func TestParseCastSIGNEDRegression(t *testing.T) {
 	tests := []struct {
