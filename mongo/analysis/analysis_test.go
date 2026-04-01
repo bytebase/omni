@@ -575,3 +575,250 @@ func TestAnalyzeAdminCommand(t *testing.T) {
 		t.Errorf("got %v, want OpInfo", sa.Operation)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Masking parity integration tests
+// ---------------------------------------------------------------------------
+
+func TestAnalyzeMaskingParity(t *testing.T) {
+	tests := []struct {
+		name            string
+		input           string
+		wantOp          analysis.Operation
+		wantMethod      string
+		wantCollection  string
+		wantPredicates  []string
+		wantShapePres   bool
+		wantUnsupported string
+		wantJoins       []analysis.JoinInfo
+		wantNil         bool
+	}{
+		{
+			name:           "find with predicate",
+			input:          `db.users.find({email: "alice@example.com"})`,
+			wantOp:         analysis.OpFind,
+			wantMethod:     "find",
+			wantCollection: "users",
+			wantPredicates: []string{"email"},
+		},
+		{
+			name:           "findOne with dot path key",
+			input:          `db.users.findOne({"contact.phone": "123"})`,
+			wantOp:         analysis.OpFindOne,
+			wantMethod:     "findOne",
+			wantCollection: "users",
+			wantPredicates: []string{"contact.phone"},
+		},
+		{
+			name:           "getCollection access",
+			input:          `db.getCollection("users").find({email: "x"})`,
+			wantOp:         analysis.OpFind,
+			wantMethod:     "find",
+			wantCollection: "users",
+			wantPredicates: []string{"email"},
+		},
+		{
+			name: "find with logical operators",
+			input: `db.getCollection("users").find({
+				$or: [
+					{email: "a@example.com"},
+					{contact: {phone: "123"}}
+				],
+				$and: [
+					{"profile.ssn": "111"},
+					{name: "alice"}
+				],
+				$nor: [{status: "inactive"}]
+			})`,
+			wantOp:         analysis.OpFind,
+			wantMethod:     "find",
+			wantCollection: "users",
+			wantPredicates: []string{"contact", "contact.phone", "email", "name", "profile.ssn", "status"},
+		},
+		{
+			name:           "aggregate shape-preserving",
+			input:          `db.users.aggregate([{$match: {name: "alice"}}])`,
+			wantOp:         analysis.OpAggregate,
+			wantMethod:     "aggregate",
+			wantCollection: "users",
+			wantPredicates: []string{"name"},
+			wantShapePres:  true,
+		},
+		{
+			name:           "aggregate multiple shape-preserving stages",
+			input:          `db.users.aggregate([{$match: {status: "active"}}, {$sort: {name: 1}}, {$limit: 10}])`,
+			wantOp:         analysis.OpAggregate,
+			wantCollection: "users",
+			wantPredicates: []string{"status"},
+			wantShapePres:  true,
+		},
+		{
+			name:           "aggregate match with logical operators",
+			input:          `db.users.aggregate([{$match: {$or: [{age: {$gt: 18}}, {name: "alice"}]}}])`,
+			wantOp:         analysis.OpAggregate,
+			wantCollection: "users",
+			wantPredicates: []string{"age", "name"},
+			wantShapePres:  true,
+		},
+		{
+			name:           "aggregate addFields and unset",
+			input:          `db.users.aggregate([{$addFields: {fullName: "test"}}, {$unset: "ssn"}])`,
+			wantOp:         analysis.OpAggregate,
+			wantCollection: "users",
+			wantShapePres:  true,
+		},
+		{
+			name:           "aggregate empty pipeline",
+			input:          `db.users.aggregate([])`,
+			wantOp:         analysis.OpAggregate,
+			wantCollection: "users",
+			wantShapePres:  true,
+		},
+		{
+			name:           "aggregate no arguments",
+			input:          `db.users.aggregate()`,
+			wantOp:         analysis.OpAggregate,
+			wantCollection: "users",
+			wantShapePres:  true,
+		},
+		{
+			name:            "aggregate $group unsupported",
+			input:           `db.users.aggregate([{$group: {_id: "$status"}}])`,
+			wantOp:          analysis.OpAggregate,
+			wantCollection:  "users",
+			wantUnsupported: "$group",
+		},
+		{
+			name:            "aggregate $project unsupported",
+			input:           `db.users.aggregate([{$match: {name: "alice"}}, {$project: {name: 1}}])`,
+			wantOp:          analysis.OpAggregate,
+			wantCollection:  "users",
+			wantUnsupported: "$project",
+		},
+		{
+			name:           "aggregate $lookup simple",
+			input:          `db.users.aggregate([{$lookup: {from: "orders", localField: "_id", foreignField: "userId", as: "orders"}}])`,
+			wantOp:         analysis.OpAggregate,
+			wantCollection: "users",
+			wantShapePres:  true,
+			wantJoins:      []analysis.JoinInfo{{Collection: "orders", AsField: "orders"}},
+		},
+		{
+			name:            "aggregate $lookup pipeline form unsupported",
+			input:           `db.users.aggregate([{$lookup: {from: "orders", pipeline: [{$match: {status: "active"}}], as: "orders"}}])`,
+			wantOp:          analysis.OpAggregate,
+			wantCollection:  "users",
+			wantUnsupported: "$lookup",
+		},
+		{
+			name:           "aggregate $graphLookup",
+			input:          `db.users.aggregate([{$graphLookup: {from: "employees", startWith: "$reportsTo", connectFromField: "reportsTo", connectToField: "name", as: "reportingHierarchy"}}])`,
+			wantOp:         analysis.OpAggregate,
+			wantCollection: "users",
+			wantShapePres:  true,
+			wantJoins:      []analysis.JoinInfo{{Collection: "employees", AsField: "reportingHierarchy"}},
+		},
+		{
+			name:            "aggregate $out unsupported",
+			input:           `db.users.aggregate([{$match: {status: "active"}}, {$out: "activeUsers"}])`,
+			wantOp:          analysis.OpAggregate,
+			wantCollection:  "users",
+			wantUnsupported: "$out",
+		},
+		{
+			name:           "aggregate $unwind shape-preserving",
+			input:          `db.users.aggregate([{$unwind: "$tags"}])`,
+			wantOp:         analysis.OpAggregate,
+			wantCollection: "users",
+			wantShapePres:  true,
+		},
+		{
+			name:           "aggregate $match and $unwind",
+			input:          `db.users.aggregate([{$match: {status: "active"}}, {$unwind: "$tags"}])`,
+			wantOp:         analysis.OpAggregate,
+			wantCollection: "users",
+			wantPredicates: []string{"status"},
+			wantShapePres:  true,
+		},
+		{
+			name:            "aggregate $replaceRoot unsupported",
+			input:           `db.users.aggregate([{$replaceRoot: {newRoot: "$contact"}}])`,
+			wantOp:          analysis.OpAggregate,
+			wantCollection:  "users",
+			wantUnsupported: "$replaceRoot",
+		},
+		{
+			name:            "aggregate $count unsupported",
+			input:           `db.users.aggregate([{$count: "total"}])`,
+			wantOp:          analysis.OpAggregate,
+			wantCollection:  "users",
+			wantUnsupported: "$count",
+		},
+		{
+			name:           "countDocuments unsupported read",
+			input:          `db.users.countDocuments({})`,
+			wantOp:         analysis.OpCount,
+			wantMethod:     "countDocuments",
+			wantCollection: "users",
+		},
+		{
+			name:           "distinct unsupported read",
+			input:          `db.users.distinct("name")`,
+			wantOp:         analysis.OpDistinct,
+			wantMethod:     "distinct",
+			wantCollection: "users",
+		},
+		{
+			name:           "write method returns non-nil",
+			input:          `db.users.insertOne({name: "alice"})`,
+			wantOp:         analysis.OpWrite,
+			wantCollection: "users",
+		},
+		{
+			name:   "show dbs",
+			input:  `show dbs`,
+			wantOp: analysis.OpInfo,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			sa := mustAnalyze(t, tc.input)
+			if tc.wantNil {
+				if sa != nil {
+					t.Fatalf("got %+v, want nil", sa)
+				}
+				return
+			}
+			if sa == nil {
+				t.Fatal("Analyze returned nil")
+			}
+			if sa.Operation != tc.wantOp {
+				t.Errorf("Operation = %v, want %v", sa.Operation, tc.wantOp)
+			}
+			if tc.wantMethod != "" && sa.MethodName != tc.wantMethod {
+				t.Errorf("MethodName = %q, want %q", sa.MethodName, tc.wantMethod)
+			}
+			if tc.wantCollection != "" && sa.Collection != tc.wantCollection {
+				t.Errorf("Collection = %q, want %q", sa.Collection, tc.wantCollection)
+			}
+			if tc.wantPredicates != nil {
+				slices.Sort(tc.wantPredicates)
+				if !slices.Equal(sa.PredicateFields, tc.wantPredicates) {
+					t.Errorf("PredicateFields = %v, want %v", sa.PredicateFields, tc.wantPredicates)
+				}
+			}
+			if sa.ShapePreserving != tc.wantShapePres {
+				t.Errorf("ShapePreserving = %v, want %v", sa.ShapePreserving, tc.wantShapePres)
+			}
+			if sa.UnsupportedStage != tc.wantUnsupported {
+				t.Errorf("UnsupportedStage = %q, want %q", sa.UnsupportedStage, tc.wantUnsupported)
+			}
+			if tc.wantJoins != nil {
+				if !slices.Equal(sa.Joins, tc.wantJoins) {
+					t.Errorf("Joins = %v, want %v", sa.Joins, tc.wantJoins)
+				}
+			}
+		})
+	}
+}
