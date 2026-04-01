@@ -4,6 +4,78 @@ import (
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
+// reservedKeywords is the set of MySQL 8.0 reserved words that cannot be used
+// as unquoted identifiers. These must be backtick-quoted when used as names.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/keywords.html
+var reservedKeywords = map[int]bool{
+	kwSELECT:    true,
+	kwINSERT:    true,
+	kwUPDATE:    true,
+	kwDELETE:    true,
+	kwFROM:      true,
+	kwWHERE:     true,
+	kwCREATE:    true,
+	kwDROP:      true,
+	kwALTER:     true,
+	kwTABLE:     true,
+	kwINTO:      true,
+	kwVALUES:    true,
+	kwSET:       true,
+	kwJOIN:      true,
+	kwLEFT:      true,
+	kwRIGHT:     true,
+	kwINNER:     true,
+	kwOUTER:     true,
+	kwON:        true,
+	kwAND:       true,
+	kwOR:        true,
+	kwNOT:       true,
+	kwNULL:      true,
+	kwTRUE:      true,
+	kwFALSE:     true,
+	kwIN:        true,
+	kwBETWEEN:   true,
+	kwLIKE:      true,
+	kwORDER:     true,
+	kwGROUP:     true,
+	kwBY:        true,
+	kwHAVING:    true,
+	kwLIMIT:     true,
+	kwAS:        true,
+	kwIS:        true,
+	kwEXISTS_KW: true,
+	kwCASE:      true,
+	kwWHEN:      true,
+	kwTHEN:      true,
+	kwELSE:      true,
+	kwEND:       true,
+	kwIF:        true,
+	kwFOR:       true,
+	kwWHILE:     true,
+	kwINDEX:     true,
+	kwKEY:       true,
+	kwPRIMARY:   true,
+	kwFOREIGN:   true,
+	kwREFERENCES: true,
+	kwCONSTRAINT: true,
+	kwUNIQUE:    true,
+	kwCHECK:     true,
+	kwDEFAULT:   true,
+	kwCOLUMN:    true,
+	kwADD:       true,
+	kwCHANGE:    true,
+	kwMODIFY:    true,
+	kwRENAME:    true,
+	kwGRANT:     true,
+	kwREVOKE:    true,
+	kwALL:       true,
+	kwDISTINCT:  true,
+	kwUNION:     true,
+	kwINTERSECT: true,
+	kwEXCEPT:    true,
+}
+
 // parseIdentifier parses a plain identifier (unquoted or backtick-quoted).
 // Returns the identifier string and its start position.
 //
@@ -18,8 +90,8 @@ func (p *Parser) parseIdentifier() (string, int, error) {
 		return tok.Str, tok.Loc, nil
 	}
 	// Many MySQL keywords can also be used as identifiers in certain contexts.
-	// Accept any keyword token as an identifier (non-reserved keyword handling).
-	if p.cur.Type >= 700 {
+	// Accept non-reserved keyword tokens as identifiers, but reject reserved words.
+	if p.cur.Type >= 700 && !reservedKeywords[p.cur.Type] {
 		tok := p.advance()
 		return tok.Str, tok.Loc, nil
 	}
@@ -272,7 +344,7 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 
 // isIdentToken returns true if the current token can be used as an identifier.
 func (p *Parser) isIdentToken() bool {
-	return p.cur.Type == tokIDENT || p.cur.Type >= 700
+	return p.cur.Type == tokIDENT || (p.cur.Type >= 700 && !reservedKeywords[p.cur.Type])
 }
 
 // isVariableRef returns true if the current token is a variable reference.

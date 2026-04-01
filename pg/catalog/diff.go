@@ -119,6 +119,15 @@ type RangeDiffEntry struct {
 	To         *RangeType
 }
 
+// CompositeTypeDiffEntry describes a composite type change.
+type CompositeTypeDiffEntry struct {
+	Action     DiffAction
+	SchemaName string
+	Name       string
+	From       *Relation // RelKind='c'
+	To         *Relation // RelKind='c'
+}
+
 // ExtensionDiffEntry describes an extension change.
 type ExtensionDiffEntry struct {
 	Action DiffAction
@@ -158,16 +167,17 @@ type GrantDiffEntry struct {
 
 // SchemaDiff holds all differences between two catalog states.
 type SchemaDiff struct {
-	Schemas    []SchemaDiffEntry
-	Relations  []RelationDiffEntry
-	Sequences  []SequenceDiffEntry
-	Functions  []FunctionDiffEntry
-	Enums      []EnumDiffEntry
-	Domains    []DomainDiffEntry
-	Ranges     []RangeDiffEntry
-	Extensions []ExtensionDiffEntry
-	Comments   []CommentDiffEntry
-	Grants     []GrantDiffEntry
+	Schemas        []SchemaDiffEntry
+	Relations      []RelationDiffEntry
+	Sequences      []SequenceDiffEntry
+	Functions      []FunctionDiffEntry
+	Enums          []EnumDiffEntry
+	Domains        []DomainDiffEntry
+	Ranges         []RangeDiffEntry
+	CompositeTypes []CompositeTypeDiffEntry
+	Extensions     []ExtensionDiffEntry
+	Comments       []CommentDiffEntry
+	Grants         []GrantDiffEntry
 }
 
 // IsEmpty returns true if there are no differences.
@@ -179,6 +189,7 @@ func (d *SchemaDiff) IsEmpty() bool {
 		len(d.Enums) == 0 &&
 		len(d.Domains) == 0 &&
 		len(d.Ranges) == 0 &&
+		len(d.CompositeTypes) == 0 &&
 		len(d.Extensions) == 0 &&
 		len(d.Comments) == 0 &&
 		len(d.Grants) == 0
@@ -190,15 +201,16 @@ func Diff(from, to *Catalog) *SchemaDiff {
 	relations := diffRelations(from, to)
 	relations = append(relations, diffViews(from, to)...)
 	return &SchemaDiff{
-		Schemas:    diffSchemas(from, to),
-		Relations:  relations,
-		Sequences:  diffSequences(from, to),
-		Functions:  diffFunctions(from, to),
-		Enums:      diffEnums(from, to),
-		Domains:    diffDomains(from, to),
-		Ranges:     diffRanges(from, to),
-		Extensions: diffExtensions(from, to),
-		Comments:   diffComments(from, to),
-		Grants:     diffGrants(from, to),
+		Schemas:        diffSchemas(from, to),
+		Relations:      relations,
+		Sequences:      diffSequences(from, to),
+		Functions:      diffFunctions(from, to),
+		Enums:          diffEnums(from, to),
+		Domains:        diffDomains(from, to),
+		Ranges:         diffRanges(from, to),
+		CompositeTypes: diffComposites(from, to),
+		Extensions:     diffExtensions(from, to),
+		Comments:       diffComments(from, to),
+		Grants:         diffGrants(from, to),
 	}
 }

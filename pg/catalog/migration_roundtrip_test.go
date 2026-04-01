@@ -86,6 +86,42 @@ func TestMigrationRoundtrip(t *testing.T) {
 		`
 		assertRoundtrip(t, fromSQL, toSQL)
 	})
+
+	t.Run("roundtrip create composite type from empty", func(t *testing.T) {
+		fromSQL := ``
+		toSQL := `CREATE TYPE address AS (street text, city text, zip varchar(10));`
+		assertRoundtrip(t, fromSQL, toSQL)
+	})
+
+	t.Run("roundtrip composite type add field", func(t *testing.T) {
+		fromSQL := `CREATE TYPE address AS (street text, city text);`
+		toSQL := `CREATE TYPE address AS (street text, city text, zip varchar(10));`
+		assertRoundtrip(t, fromSQL, toSQL)
+	})
+
+	t.Run("roundtrip composite type drop field", func(t *testing.T) {
+		fromSQL := `CREATE TYPE address AS (street text, city text, zip varchar(10));`
+		toSQL := `CREATE TYPE address AS (street text, city text);`
+		assertRoundtrip(t, fromSQL, toSQL)
+	})
+
+	t.Run("roundtrip composite type chain", func(t *testing.T) {
+		fromSQL := ``
+		toSQL := `
+			CREATE TYPE address AS (street text, city text);
+			CREATE TYPE person AS (name text, home address);
+		`
+		assertRoundtrip(t, fromSQL, toSQL)
+	})
+
+	t.Run("roundtrip composite type with table column", func(t *testing.T) {
+		fromSQL := ``
+		toSQL := `
+			CREATE TYPE address AS (street text, city text);
+			CREATE TABLE contacts (id int PRIMARY KEY, addr address);
+		`
+		assertRoundtrip(t, fromSQL, toSQL)
+	})
 }
 
 // assertRoundtrip verifies that applying the migration SQL to the `from`
@@ -160,6 +196,9 @@ func assertRoundtrip(t *testing.T, fromSQL, toSQL string) {
 		}
 		if len(diff2.Ranges) > 0 {
 			diffs = append(diffs, fmt.Sprintf("ranges: %d", len(diff2.Ranges)))
+		}
+		if len(diff2.CompositeTypes) > 0 {
+			diffs = append(diffs, fmt.Sprintf("compositeTypes: %d", len(diff2.CompositeTypes)))
 		}
 		if len(diff2.Extensions) > 0 {
 			diffs = append(diffs, fmt.Sprintf("extensions: %d", len(diff2.Extensions)))

@@ -202,6 +202,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	ops = append(ops, generateEnumDDL(from, to, diff)...)
 	ops = append(ops, generateDomainDDL(from, to, diff)...)
 	ops = append(ops, generateRangeDDL(from, to, diff)...)
+	ops = append(ops, generateCompositeDDL(from, to, diff)...)
 	ops = append(ops, generateSequenceDDL(from, to, diff)...)
 
 	// Function ordering is handled by the dependency-driven topological sort:
