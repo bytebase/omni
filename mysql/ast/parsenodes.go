@@ -210,6 +210,7 @@ const (
 	ATAlterCheckEnforced
 	ATSecondaryLoad
 	ATSecondaryUnload
+	ATPartitionBy
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
@@ -232,7 +233,8 @@ type AlterTableCmd struct {
 	Number         int             // for COALESCE PARTITION number
 	ExchangeTable  *TableRef       // for EXCHANGE PARTITION ... WITH TABLE
 	WithValidation *bool           // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
-	OrderByItems   []*OrderByItem  // for ORDER BY operation
+	OrderByItems   []*OrderByItem    // for ORDER BY operation
+	PartitionBy    *PartitionClause // for PARTITION BY (repartition)
 }
 
 func (c *AlterTableCmd) nodeTag() {}

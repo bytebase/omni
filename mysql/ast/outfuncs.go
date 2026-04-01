@@ -2853,6 +2853,10 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 		}
 		sb.WriteString(")")
 	}
+	if n.PartitionBy != nil {
+		sb.WriteString(" :partition_by ")
+		writeNode(sb, n.PartitionBy)
+	}
 	sb.WriteString("}")
 }
 

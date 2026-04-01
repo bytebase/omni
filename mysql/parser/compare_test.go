@@ -11646,3 +11646,101 @@ func TestParseCastSIGNEDRegression(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Section 2.1: ALTER TABLE PARTITION BY
+// ============================================================================
+
+func TestAlterTablePartitionBy(t *testing.T) {
+	t.Run("basic hash repartition", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t PARTITION BY HASH(id) PARTITIONS 4")
+		if len(stmt.Commands) != 1 {
+			t.Fatalf("Commands count = %d, want 1", len(stmt.Commands))
+		}
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATPartitionBy {
+			t.Errorf("Type = %d, want ATPartitionBy", cmd.Type)
+		}
+		if cmd.PartitionBy == nil {
+			t.Fatal("PartitionBy is nil")
+		}
+		if cmd.PartitionBy.Type != ast.PartitionHash {
+			t.Errorf("PartitionBy.Type = %d, want PartitionHash", cmd.PartitionBy.Type)
+		}
+		if cmd.PartitionBy.NumParts != 4 {
+			t.Errorf("NumParts = %d, want 4", cmd.PartitionBy.NumParts)
+		}
+	})
+
+	t.Run("key repartition", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t PARTITION BY KEY(id) PARTITIONS 4")
+		cmd := stmt.Commands[0]
+		if cmd.Type != ast.ATPartitionBy {
+			t.Errorf("Type = %d, want ATPartitionBy", cmd.Type)
+		}
+		if cmd.PartitionBy.Type != ast.PartitionKey {
+			t.Errorf("PartitionBy.Type = %d, want PartitionKey", cmd.PartitionBy.Type)
+		}
+	})
+
+	t.Run("range repartition", func(t *testing.T) {
+		ParseAndCheck(t, "ALTER TABLE t PARTITION BY RANGE(id) (PARTITION p0 VALUES LESS THAN (100), PARTITION p1 VALUES LESS THAN (MAXVALUE))")
+	})
+
+	t.Run("list repartition", func(t *testing.T) {
+		ParseAndCheck(t, "ALTER TABLE t PARTITION BY LIST(status) (PARTITION p0 VALUES IN (1,2), PARTITION p1 VALUES IN (3,4))")
+	})
+
+	t.Run("range columns", func(t *testing.T) {
+		ParseAndCheck(t, "ALTER TABLE t PARTITION BY RANGE COLUMNS(created_at) (PARTITION p0 VALUES LESS THAN ('2024-01-01'))")
+	})
+
+	t.Run("linear hash", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t PARTITION BY LINEAR HASH(id) PARTITIONS 8")
+		cmd := stmt.Commands[0]
+		if cmd.PartitionBy == nil {
+			t.Fatal("PartitionBy is nil")
+		}
+		if !cmd.PartitionBy.Linear {
+			t.Errorf("Linear = false, want true")
+		}
+		if cmd.PartitionBy.NumParts != 8 {
+			t.Errorf("NumParts = %d, want 8", cmd.PartitionBy.NumParts)
+		}
+	})
+
+	t.Run("with subpartition", func(t *testing.T) {
+		ParseAndCheck(t, "ALTER TABLE t PARTITION BY HASH(id) PARTITIONS 4 SUBPARTITION BY KEY(name) SUBPARTITIONS 2")
+	})
+
+	t.Run("KEY with algorithm", func(t *testing.T) {
+		ParseAndCheck(t, "ALTER TABLE t PARTITION BY KEY ALGORITHM=2 (id) PARTITIONS 4")
+	})
+
+	t.Run("combined with ALTER TABLE options", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t PARTITION BY HASH(id) PARTITIONS 4, ALGORITHM=INPLACE")
+		if len(stmt.Commands) != 2 {
+			t.Fatalf("Commands count = %d, want 2", len(stmt.Commands))
+		}
+		if stmt.Commands[0].Type != ast.ATPartitionBy {
+			t.Errorf("first cmd Type = %d, want ATPartitionBy", stmt.Commands[0].Type)
+		}
+		if stmt.Commands[1].Type != ast.ATAlgorithm {
+			t.Errorf("second cmd Type = %d, want ATAlgorithm", stmt.Commands[1].Type)
+		}
+	})
+
+	t.Run("rejected: missing partition specification", func(t *testing.T) {
+		ParseExpectError(t, "ALTER TABLE t PARTITION BY")
+	})
+
+	t.Run("REMOVE PARTITIONING regression", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t REMOVE PARTITIONING")
+		if len(stmt.Commands) != 1 {
+			t.Fatalf("Commands count = %d, want 1", len(stmt.Commands))
+		}
+		if stmt.Commands[0].Type != ast.ATRemovePartitioning {
+			t.Errorf("Type = %d, want ATRemovePartitioning", stmt.Commands[0].Type)
+		}
+	})
+}

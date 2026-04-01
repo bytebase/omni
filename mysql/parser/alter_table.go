@@ -84,7 +84,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	// Completion: offer ALTER TABLE operation keywords.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwADD, kwDROP, kwMODIFY, kwCHANGE, kwRENAME, kwALTER, kwCONVERT, kwENGINE, kwDEFAULT, kwORDER, kwALGORITHM, kwLOCK, kwFORCE} {
+		for _, t := range []int{kwADD, kwDROP, kwMODIFY, kwCHANGE, kwRENAME, kwALTER, kwCONVERT, kwENGINE, kwDEFAULT, kwORDER, kwALGORITHM, kwLOCK, kwFORCE, kwPARTITION} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -308,6 +308,23 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		cmd.Type = nodes.ATWithoutValidation
 		cmd.Loc.End = p.pos()
 		return cmd, nil
+
+	case kwPARTITION:
+		// PARTITION BY ... (repartition)
+		if p.peekNext().Type == kwBY {
+			part, err := p.parsePartitionClause()
+			if err != nil {
+				return nil, err
+			}
+			cmd.Type = nodes.ATPartitionBy
+			cmd.PartitionBy = part
+			cmd.Loc.End = p.pos()
+			return cmd, nil
+		}
+		return nil, &ParseError{
+			Message:  "expected BY after PARTITION",
+			Position: p.cur.Loc,
+		}
 
 	case kwREMOVE:
 		// REMOVE PARTITIONING
