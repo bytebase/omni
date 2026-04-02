@@ -285,6 +285,59 @@ func TestLexerKeywords(t *testing.T) {
 	}
 }
 
+// TestLexerDotContext verifies that keyword lookup is suppressed after '.',
+// matching MySQL 8.0 behaviour (sql_lex.cc MY_LEX_IDENT_START state).
+// Any word after a dot must be returned as tokIDENT, even if it is a reserved word.
+func TestLexerDotContext(t *testing.T) {
+	// Lexer-level: after '.', the next identifier must be tokIDENT.
+	reservedWords := []string{
+		"select", "from", "table", "where", "key", "index", "group", "order",
+	}
+	for _, kw := range reservedWords {
+		t.Run("lex_dot_"+kw, func(t *testing.T) {
+			lex := NewLexer("t." + kw)
+			tok1 := lex.NextToken() // t
+			if tok1.Type != tokIDENT {
+				t.Fatalf("expected tokIDENT for 't', got %d", tok1.Type)
+			}
+			tok2 := lex.NextToken() // .
+			if tok2.Type != '.' {
+				t.Fatalf("expected '.' token, got %d", tok2.Type)
+			}
+			tok3 := lex.NextToken() // keyword-as-ident
+			if tok3.Type != tokIDENT {
+				t.Errorf("after dot, %q should be tokIDENT (%d), got %d", kw, tokIDENT, tok3.Type)
+			}
+		})
+	}
+
+	// Parser-level: full SELECT statements with reserved words after dot.
+	parserTests := []struct {
+		name  string
+		input string
+	}{
+		{"select", "SELECT t.select FROM t"},
+		{"from", "SELECT t.from FROM t"},
+		{"table", "SELECT t.table FROM t"},
+		{"where", "SELECT t.where FROM t"},
+		{"key", "SELECT t.key FROM t"},
+		{"index", "SELECT t.index FROM t"},
+		{"group", "SELECT t.group FROM t"},
+		{"order", "SELECT t.order FROM t"},
+		{"schema_qual", "SELECT db.select FROM db.select"},
+		{"three_part", "SELECT a.b.c FROM t a"},
+		{"backtick_after_dot", "SELECT t.`select` FROM t"},
+	}
+	for _, tt := range parserTests {
+		t.Run("parse_"+tt.name, func(t *testing.T) {
+			_, err := Parse(tt.input)
+			if err != nil {
+				t.Fatalf("Parse(%q) failed: %v", tt.input, err)
+			}
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Batch 1: names — identifiers, qualified names, variable refs
 // ---------------------------------------------------------------------------
