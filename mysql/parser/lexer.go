@@ -588,6 +588,8 @@ const (
 	kwTLS
 	kwSTREAM
 	kwGENERATE
+	kwPROCESS
+	kwRELOAD
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1137,6 +1139,8 @@ var keywords = map[string]int{
 	"tls":                 kwTLS,
 	"stream":              kwSTREAM,
 	"generate":            kwGENERATE,
+	"process":             kwPROCESS,
+	"reload":              kwRELOAD,
 }
 
 // Token represents a lexical token.

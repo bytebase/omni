@@ -67,7 +67,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwWHEN:       kwCatReserved,
 	kwTHEN:       kwCatReserved,
 	kwELSE:       kwCatReserved,
-	kwEND:        kwCatReserved,
+	kwEND:        kwCatAmbiguous2, // demoted from reserved — MySQL 8.0 ambiguous_2 (not label)
 	kwIF:         kwCatReserved,
 	kwFOR:        kwCatReserved,
 	kwWHILE:      kwCatReserved,
@@ -264,6 +264,36 @@ var keywordCategories = map[int]keywordCategory{
 	kwTLS:                kwCatUnambiguous,
 	kwSTREAM:             kwCatUnambiguous,
 	kwGENERATE:           kwCatUnambiguous,
+	// Section 1.5: Ambiguous category classifications
+	// Ambiguous 1 (not label, not role)
+	kwEXECUTE:     kwCatAmbiguous1,
+	// Ambiguous 2 (not label)
+	kwBEGIN:       kwCatAmbiguous2,
+	kwCOMMIT:      kwCatAmbiguous2,
+	kwCONTAINS:    kwCatAmbiguous2,
+	kwDO:          kwCatAmbiguous2,
+	kwFLUSH:       kwCatAmbiguous2,
+	kwFOLLOWS:     kwCatAmbiguous2,
+	kwPRECEDES:    kwCatAmbiguous2,
+	kwPREPARE:     kwCatAmbiguous2,
+	kwREPAIR:      kwCatAmbiguous2,
+	kwRESET:       kwCatAmbiguous2,
+	kwROLLBACK:    kwCatAmbiguous2,
+	kwSAVEPOINT:   kwCatAmbiguous2,
+	kwSLAVE:       kwCatAmbiguous2,
+	kwSTART:       kwCatAmbiguous2,
+	kwSTOP:        kwCatAmbiguous2,
+	kwTRUNCATE:    kwCatAmbiguous2,
+	kwXA:          kwCatAmbiguous2,
+	// Ambiguous 3 (not role)
+	kwEVENT:       kwCatAmbiguous3,
+	kwPROCESS:     kwCatAmbiguous3,
+	kwRELOAD:      kwCatAmbiguous3,
+	kwREPLICATION: kwCatAmbiguous3,
+	// Ambiguous 4 (not lvalue)
+	kwGLOBAL:      kwCatAmbiguous4,
+	kwSESSION:     kwCatAmbiguous4,
+	kwLOCAL:       kwCatAmbiguous4,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot
