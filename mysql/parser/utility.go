@@ -431,6 +431,9 @@ func (p *Parser) parseFlushOption(stmt *nodes.FlushStmt) string {
 	case kwPRIVILEGES:
 		p.advance()
 		return "PRIVILEGES"
+	case kwOPTIMIZER_COSTS:
+		p.advance()
+		return "OPTIMIZER_COSTS"
 	}
 
 	if !p.isIdentToken() {

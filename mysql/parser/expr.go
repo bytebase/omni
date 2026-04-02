@@ -391,6 +391,21 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	case kwVALUES:
 		return p.parseValuesFunc()
 
+	// Window functions and GROUPING — reserved keywords used as function calls.
+	// After registration as reserved keywords, they no longer match isIdentToken(),
+	// so we dispatch them here to parseFuncCall explicitly.
+	case kwRANK, kwDENSE_RANK, kwROW_NUMBER, kwNTILE,
+		kwLAG, kwLEAD, kwFIRST_VALUE, kwLAST_VALUE, kwNTH_VALUE,
+		kwPERCENT_RANK, kwCUME_DIST, kwGROUPING:
+		start := p.pos()
+		tok := p.advance()
+		name := strings.ToUpper(tok.Str)
+		if p.cur.Type == '(' {
+			return p.parseFuncCall(start, "", name)
+		}
+		// Not followed by '(' — syntax error (these are reserved and can't be identifiers)
+		return nil, p.syntaxErrorAtCur()
+
 	default:
 		// Variable reference
 		if p.isVariableRef() {
@@ -635,7 +650,7 @@ func (p *Parser) parseMemberOfExpr(value nodes.ExprNode) (nodes.ExprNode, error)
 	p.advance() // consume MEMBER
 
 	// Expect OF
-	if p.cur.Type != tokIDENT || !eqFold(p.cur.Str, "of") {
+	if p.cur.Type != kwOF {
 		return nil, &ParseError{
 			Message:  "expected OF after MEMBER",
 			Position: p.cur.Loc,

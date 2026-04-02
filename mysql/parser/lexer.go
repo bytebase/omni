@@ -458,6 +458,29 @@ const (
 	kwOLD
 	kwREAL
 	kwDEC
+	kwACCESSIBLE
+	kwASENSITIVE
+	kwCUBE
+	kwCUME_DIST
+	kwDENSE_RANK
+	kwDUAL
+	kwFIRST_VALUE
+	kwGROUPING
+	kwINSENSITIVE
+	kwLAG
+	kwLAST_VALUE
+	kwLEAD
+	kwNTH_VALUE
+	kwNTILE
+	kwOF
+	kwOPTIMIZER_COSTS
+	kwPERCENT_RANK
+	kwRANK
+	kwROW_NUMBER
+	kwSENSITIVE
+	kwSPECIFIC
+	kwUSAGE
+	kwVARYING
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -877,6 +900,29 @@ var keywords = map[string]int{
 	"random":              kwRANDOM,
 	"retain":              kwRETAIN,
 	"old":                 kwOLD,
+	"accessible":          kwACCESSIBLE,
+	"asensitive":          kwASENSITIVE,
+	"cube":                kwCUBE,
+	"cume_dist":           kwCUME_DIST,
+	"dense_rank":          kwDENSE_RANK,
+	"dual":                kwDUAL,
+	"first_value":         kwFIRST_VALUE,
+	"grouping":            kwGROUPING,
+	"insensitive":         kwINSENSITIVE,
+	"lag":                 kwLAG,
+	"last_value":          kwLAST_VALUE,
+	"lead":                kwLEAD,
+	"nth_value":           kwNTH_VALUE,
+	"ntile":               kwNTILE,
+	"of":                  kwOF,
+	"optimizer_costs":     kwOPTIMIZER_COSTS,
+	"percent_rank":        kwPERCENT_RANK,
+	"rank":                kwRANK,
+	"row_number":          kwROW_NUMBER,
+	"sensitive":           kwSENSITIVE,
+	"specific":            kwSPECIFIC,
+	"usage":               kwUSAGE,
+	"varying":             kwVARYING,
 }
 
 // Token represents a lexical token.

@@ -1098,6 +1098,17 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 		return p.parseJsonTable()
 	}
 
+	// DUAL — MySQL reserved keyword used as a dummy table in FROM clause.
+	// After registration as a reserved keyword, parseIdentifier rejects it,
+	// so we handle it explicitly here.
+	if p.cur.Type == kwDUAL {
+		tok := p.advance()
+		return &nodes.TableRef{
+			Loc:  nodes.Loc{Start: tok.Loc, End: p.pos()},
+			Name: "dual",
+		}, nil
+	}
+
 	// Regular table reference with alias
 	return p.parseTableRefWithAlias()
 }
@@ -1433,7 +1444,7 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 	}
 
 	// OF table_list
-	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "of") {
+	if p.cur.Type == kwOF {
 		p.advance()
 		for {
 			ref, err := p.parseTableRef()
