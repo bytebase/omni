@@ -963,12 +963,8 @@ func TestNoEqFoldForRegisteredKeywords(t *testing.T) {
 	// This list should shrink to zero as eqFold patterns are migrated.
 	// Each entry is the lowercase string matched by eqFold.
 	eqFoldStrings := []string{
-		// grant.go — privilege matching on post-parse string array (Phase 4)
-		"proxy",
 		// replication.go — legacy alias (not a registered keyword)
 		"master_log_file",
-		// stmt.go — definer parsing (Phase 4)
-		"current_user",
 	}
 
 	violations := 0

@@ -818,10 +818,11 @@ func (p *Parser) parseDefinerValue() string {
 
 	// Parse user part: identifier, string literal, or CURRENT_USER
 	var user string
+	isCurUser := p.cur.Type == kwCURRENT_USER
 	if p.cur.Type == tokSCONST {
 		user = "'" + p.cur.Str + "'"
 		p.advance()
-	} else if p.cur.Type == kwCURRENT_USER {
+	} else if isCurUser {
 		user = "CURRENT_USER"
 		p.advance()
 	} else if p.isIdentToken() {
@@ -831,7 +832,7 @@ func (p *Parser) parseDefinerValue() string {
 	}
 
 	// Handle CURRENT_USER()
-	if eqFold(user, "current_user") && p.cur.Type == '(' {
+	if isCurUser && p.cur.Type == '(' {
 		p.advance() // consume (
 		p.match(')')
 		return "CURRENT_USER()"

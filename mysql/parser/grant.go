@@ -27,6 +27,10 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	// Detect PROXY keyword token before parsing the privilege list so we can
+	// avoid an eqFold string comparison after the fact.
+	isProxy := p.cur.Type == kwPROXY
+
 	// Parse the names (could be privileges or roles).
 	// We distinguish by looking for ON (privilege grant) vs TO (role grant).
 	privs, allPriv, err := p.parsePrivilegeList()
@@ -68,7 +72,7 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	stmt.AllPriv = allPriv
 
 	// GRANT PROXY ON user TO user [WITH GRANT OPTION]
-	if len(privs) == 1 && eqFold(privs[0], "PROXY") && p.cur.Type == kwON {
+	if len(privs) == 1 && isProxy && p.cur.Type == kwON {
 		p.advance() // consume ON
 		proxyUser, err := p.parseUserName()
 		if err != nil {
@@ -251,6 +255,10 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		ifExists = true
 	}
 
+	// Detect PROXY keyword token before parsing the privilege list so we can
+	// avoid an eqFold string comparison after the fact.
+	isProxy := p.cur.Type == kwPROXY
+
 	// Parse the names (could be privileges or roles).
 	privs, allPriv, err := p.parsePrivilegeList()
 	if err != nil {
@@ -325,7 +333,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	}
 
 	// REVOKE PROXY ON user FROM user
-	if len(privs) == 1 && eqFold(privs[0], "PROXY") && p.cur.Type == kwON {
+	if len(privs) == 1 && isProxy && p.cur.Type == kwON {
 		p.advance() // consume ON
 		proxyUser, err := p.parseUserName()
 		if err != nil {
