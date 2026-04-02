@@ -198,6 +198,13 @@ func TestLexerStrings(t *testing.T) {
 		{`"double"`, "double"},
 		{`'back\\slash'`, "back\\slash"},
 		{`'new\nline'`, "new\nline"},
+		{`'tab\there'`, "tab\there"},
+		{`'cr\rhere'`, "cr\rhere"},
+		{`'null\0here'`, "null\x00here"},
+		{`'bs\bhere'`, "bs\x08here"},
+		{`'ctrlz\Zhere'`, "ctrlz\x1ahere"},
+		{`'like\_pattern'`, `like\_pattern`},
+		{`'like\%pattern'`, `like\%pattern`},
 	}
 
 	for _, tt := range tests {

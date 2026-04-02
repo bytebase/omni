@@ -1153,9 +1153,10 @@ type Token struct {
 
 // Lexer implements a MySQL SQL lexer.
 type Lexer struct {
-	input string
-	pos   int
-	start int
+	input     string
+	pos       int
+	start     int
+	prevToken int // type of the previously emitted token
 }
 
 // NewLexer creates a new MySQL lexer for the given input.
@@ -1165,6 +1166,12 @@ func NewLexer(input string) *Lexer {
 
 // NextToken returns the next token from the input.
 func (l *Lexer) NextToken() Token {
+	tok := l.nextToken()
+	l.prevToken = tok.Type
+	return tok
+}
+
+func (l *Lexer) nextToken() Token {
 	l.skipWhitespaceAndComments()
 
 	if l.pos >= len(l.input) {
@@ -1458,6 +1465,16 @@ func (l *Lexer) scanString(quote byte) Token {
 					sb.WriteByte('\'')
 				case '"':
 					sb.WriteByte('"')
+				case 'b':
+					sb.WriteByte(0x08) // backspace
+				case 'Z':
+					sb.WriteByte(0x1A) // Ctrl-Z
+				case '_':
+					sb.WriteByte('\\')
+					sb.WriteByte('_') // preserve backslash for LIKE patterns
+				case '%':
+					sb.WriteByte('\\')
+					sb.WriteByte('%') // preserve backslash for LIKE patterns
 				default:
 					sb.WriteByte(esc)
 				}
@@ -1537,8 +1554,14 @@ func (l *Lexer) scanIdentOrKeyword() Token {
 		l.pos++
 	}
 	word := l.input[start:l.pos]
-	lower := strings.ToLower(word)
 
+	// After '.', suppress keyword lookup — MySQL treats any word after dot as
+	// a plain identifier (sql_lex.cc MY_LEX_IDENT_START state).
+	if l.prevToken == '.' {
+		return Token{Type: tokIDENT, Str: word, Loc: start}
+	}
+
+	lower := strings.ToLower(word)
 	if kwType, ok := keywords[lower]; ok {
 		return Token{Type: kwType, Str: word, Loc: start}
 	}
