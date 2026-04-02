@@ -30,7 +30,7 @@ func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
 	var ctes []*nodes.CommonTableExpr
 	for {
 		start := p.pos()
-		name, _, err := p.parseIdentifier()
+		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
 		}
@@ -757,14 +757,14 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 	// Check for AS alias or implicit alias
 	var alias string
 	if _, ok := p.match(kwAS); ok {
-		name, _, err := p.parseIdentifier()
+		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
 		}
 		alias = name
 	} else if p.isIdentToken() && !p.isSelectTerminator() {
 		// Implicit alias (identifier without AS), but not if it's a keyword that starts the next clause
-		alias, _, err = p.parseIdentifier()
+		alias, _, err = p.parseIdent()
 		if err != nil {
 			return nil, err
 		}
@@ -908,7 +908,7 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 			}
 			var cols []string
 			for {
-				name, _, err := p.parseIdentifier()
+				name, _, err := p.parseIdent()
 				if err != nil {
 					return nil, err
 				}
@@ -1027,13 +1027,13 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 
 		// Optional alias: [AS] alias
 		if _, ok := p.match(kwAS); ok {
-			alias, _, err := p.parseIdentifier()
+			alias, _, err := p.parseIdent()
 			if err != nil {
 				return nil, err
 			}
 			sub.Alias = alias
 		} else if p.isIdentToken() && !p.isSelectTerminator() {
-			alias, _, err := p.parseIdentifier()
+			alias, _, err := p.parseIdent()
 			if err != nil {
 				return nil, err
 			}
@@ -1065,13 +1065,13 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 
 			// Optional alias: [AS] alias
 			if _, ok := p.match(kwAS); ok {
-				alias, _, err := p.parseIdentifier()
+				alias, _, err := p.parseIdent()
 				if err != nil {
 					return nil, err
 				}
 				sub.Alias = alias
 			} else if p.isIdentToken() && !p.isSelectTerminator() {
-				alias, _, err := p.parseIdentifier()
+				alias, _, err := p.parseIdent()
 				if err != nil {
 					return nil, err
 				}
@@ -1099,7 +1099,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	}
 
 	// DUAL — MySQL reserved keyword used as a dummy table in FROM clause.
-	// After registration as a reserved keyword, parseIdentifier rejects it,
+	// After registration as a reserved keyword, parseIdent rejects it,
 	// so we handle it explicitly here.
 	if p.cur.Type == kwDUAL {
 		tok := p.advance()
@@ -1177,7 +1177,7 @@ func (p *Parser) parseJsonTable() (nodes.TableExpr, error) {
 
 	// [AS] alias (required for JSON_TABLE)
 	p.match(kwAS)
-	alias, _, aErr := p.parseIdentifier()
+	alias, _, aErr := p.parseIdent()
 	if aErr != nil {
 		return nil, aErr
 	}
@@ -1247,7 +1247,7 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 	}
 
 	// name FOR ORDINALITY | name type PATH path | name type EXISTS PATH path
-	name, _, err := p.parseIdentifier()
+	name, _, err := p.parseIdent()
 	if err != nil {
 		return nil, err
 	}
@@ -1530,14 +1530,14 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 		if p.cur.Type == kwCHARACTER {
 			p.advance()
 			p.match(kwSET)
-			charset, _, csErr := p.parseIdentifier()
+			charset, _, csErr := p.parseIdent()
 			if csErr != nil {
 				return nil, csErr
 			}
 			into.Charset = charset
 		} else if p.cur.Type == kwCHARSET {
 			p.advance()
-			charset, _, csErr := p.parseIdentifier()
+			charset, _, csErr := p.parseIdent()
 			if csErr != nil {
 				return nil, csErr
 			}
@@ -1767,7 +1767,7 @@ func (p *Parser) parseParenIdentList() ([]string, error) {
 
 	var names []string
 	for {
-		name, _, err := p.parseIdentifier()
+		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
 		}
@@ -1807,7 +1807,7 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 	var defs []*nodes.WindowDef
 	for {
 		start := p.pos()
-		name, _, err := p.parseIdentifier()
+		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
 		}
@@ -1824,7 +1824,7 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 		if p.isIdentToken() && p.cur.Type != kwPARTITION && p.cur.Type != kwORDER &&
 			p.cur.Type != kwROWS && p.cur.Type != kwRANGE && p.cur.Type != kwGROUPS {
 			var refErr error
-			wd.RefName, _, refErr = p.parseIdentifier()
+			wd.RefName, _, refErr = p.parseIdent()
 			if refErr != nil {
 				return nil, refErr
 			}
@@ -2124,7 +2124,7 @@ func (p *Parser) parseIndexHint() (*nodes.IndexHint, error) {
 	if p.cur.Type != ')' {
 		// Parse comma-separated index names
 		for {
-			name, _, err := p.parseIdentifier()
+			name, _, err := p.parseIdent()
 			if err != nil {
 				return nil, err
 			}

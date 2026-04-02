@@ -55,209 +55,210 @@ Register MySQL 8.0 reserved keywords missing from lexer. These are words declare
 
 ### 1.3 Register Reserved Keywords — Compound Interval & Temporal
 
-- [ ] Register `day_hour` (reserved)
-- [ ] Register `day_microsecond` (reserved)
-- [ ] Register `day_minute` (reserved)
-- [ ] Register `day_second` (reserved)
-- [ ] Register `hour_microsecond` (reserved)
-- [ ] Register `hour_minute` (reserved)
-- [ ] Register `hour_second` (reserved)
-- [ ] Register `minute_microsecond` (reserved)
-- [ ] Register `minute_second` (reserved)
-- [ ] Register `second_microsecond` (reserved)
-- [ ] Register `year_month` (reserved)
-- [ ] Register `utc_date` (reserved)
-- [ ] Register `utc_time` (reserved)
-- [ ] Register `utc_timestamp` (reserved)
-- [ ] Register `maxvalue` (reserved)
-- [ ] Register `no_write_to_binlog` (reserved)
-- [ ] Register `io_after_gtids` (reserved)
-- [ ] Register `io_before_gtids` (reserved)
-- [ ] Register `sqlexception` (reserved)
-- [ ] Register `sqlstate` (reserved)
-- [ ] Register `sqlwarning` (reserved)
-- [ ] INTERVAL expressions still work with keyword tokens as unit names
-- [ ] UTC functions still work when lexed as keyword tokens
+- [x] Register `day_hour` (reserved)
+- [x] Register `day_microsecond` (reserved)
+- [x] Register `day_minute` (reserved)
+- [x] Register `day_second` (reserved)
+- [x] Register `hour_microsecond` (reserved)
+- [x] Register `hour_minute` (reserved)
+- [x] Register `hour_second` (reserved)
+- [x] Register `minute_microsecond` (reserved)
+- [x] Register `minute_second` (reserved)
+- [x] Register `second_microsecond` (reserved)
+- [x] Register `year_month` (reserved)
+- [x] Register `utc_date` (reserved)
+- [x] Register `utc_time` (reserved)
+- [x] Register `utc_timestamp` (reserved)
+- [x] Register `maxvalue` (reserved)
+- [x] Register `no_write_to_binlog` (reserved)
+- [x] Register `io_after_gtids` (reserved)
+- [x] Register `io_before_gtids` (reserved)
+- [x] Register `sqlexception` (reserved)
+- [x] Register `sqlstate` (reserved)
+- [x] Register `sqlwarning` (reserved)
+- [x] INTERVAL expressions still work with keyword tokens as unit names
+- [x] UTC functions still work when lexed as keyword tokens
 
 ### 1.4 Classify Existing Keywords — Move to Reserved
 
 Existing keywords in lexer.go that are MySQL 8.0 reserved but missing from reservedKeywords map.
 
-- [ ] Classify kwCROSS as reserved
-- [ ] Classify kwNATURAL as reserved
-- [ ] Classify kwUSING as reserved
-- [ ] Classify kwASC as reserved
-- [ ] Classify kwDESC as reserved
-- [ ] Classify kwTO as reserved
-- [ ] Classify kwDIV as reserved
-- [ ] Classify kwMOD as reserved
-- [ ] Classify kwXOR as reserved
-- [ ] Classify kwREGEXP as reserved
-- [ ] Classify kwBINARY as reserved
-- [ ] Classify kwINTERVAL as reserved
-- [ ] Classify kwMATCH as reserved
-- [ ] Classify kwCURRENT_DATE as reserved
-- [ ] Classify kwCURRENT_TIME as reserved
-- [ ] Classify kwCURRENT_TIMESTAMP as reserved
-- [ ] Classify kwCURRENT_USER as reserved
-- [ ] Classify kwDATABASE as reserved
-- [ ] Classify kwFUNCTION as reserved
-- [ ] Classify kwPROCEDURE as reserved
-- [ ] Classify kwTRIGGER as reserved
-- [ ] Classify kwPARTITION as reserved
-- [ ] Classify kwRANGE as reserved
-- [ ] Classify kwROW as reserved
-- [ ] Classify kwROWS as reserved
-- [ ] Classify kwOVER as reserved
-- [ ] Classify kwWINDOW as reserved
-- [ ] Classify kwFORCE as reserved
-- [ ] Classify kwCONVERT as reserved
-- [ ] Classify kwCAST as reserved
-- [ ] Classify kwWITH as reserved
-- [ ] Classify kwREPLACE as reserved
-- [ ] Classify kwIGNORE as reserved
-- [ ] Classify kwLOAD as reserved
-- [ ] Classify kwUSE as reserved
-- [ ] Classify kwKILL as reserved
-- [ ] Classify kwEXPLAIN as reserved
-- [ ] Classify kwSPATIAL as reserved
-- [ ] Classify kwFULLTEXT as reserved
-- [ ] Classify kwOUTFILE as reserved
-- [ ] All existing tests still pass (no behavior change yet — reservedKeywords map not enforced differently until Phase 2)
+- [x] Classify kwCROSS as reserved
+- [x] Classify kwNATURAL as reserved
+- [x] Classify kwUSING as reserved
+- [x] Classify kwASC as reserved
+- [x] Classify kwDESC as reserved
+- [x] Classify kwTO as reserved
+- [x] Classify kwDIV as reserved
+- [x] Classify kwMOD as reserved
+- [x] Classify kwXOR as reserved
+- [x] Classify kwREGEXP as reserved
+- [x] Classify kwBINARY as reserved
+- [x] Classify kwINTERVAL as reserved
+- [x] Classify kwMATCH as reserved
+- [x] Classify kwCURRENT_DATE as reserved
+- [x] Classify kwCURRENT_TIME as reserved
+- [x] Classify kwCURRENT_TIMESTAMP as reserved
+- [x] Classify kwCURRENT_USER as reserved
+- [x] Classify kwDATABASE as reserved
+- [x] Classify kwFUNCTION as reserved
+- [x] Classify kwPROCEDURE as reserved
+- [x] Classify kwTRIGGER as reserved
+- [x] Classify kwPARTITION as reserved
+- [x] Classify kwRANGE as reserved
+- [x] Classify kwROW as reserved
+- [x] Classify kwROWS as reserved
+- [x] Classify kwOVER as reserved
+- [x] Classify kwWINDOW as reserved
+- [x] Classify kwFORCE as reserved
+- [x] Classify kwCONVERT as reserved
+- [x] Classify kwCAST as reserved
+- [x] Classify kwWITH as reserved
+- [x] Classify kwREPLACE as reserved
+- [x] Classify kwIGNORE as reserved
+- [x] Classify kwLOAD as reserved
+- [x] Classify kwUSE as reserved
+- [x] Classify kwKILL as reserved
+- [x] Classify kwEXPLAIN as reserved
+- [x] Classify kwSPATIAL as reserved
+- [x] Classify kwFULLTEXT as reserved
+- [x] Classify kwOUTFILE as reserved
+- [x] All existing tests still pass (no behavior change yet — reservedKeywords map not enforced differently until Phase 2)
 
 ### 1.5 Classify Existing Keywords — Ambiguous Categories
 
 Existing keywords that are MySQL 8.0 non-reserved with specific ambiguous classification.
 
-- [ ] Classify kwEXECUTE as ambiguous_1 (not label, not role)
-- [ ] Classify kwBEGIN as ambiguous_2 (not label)
-- [ ] Classify kwCOMMIT as ambiguous_2 (not label)
-- [ ] Classify kwEND as ambiguous_2 (not label) — demote from current reserved status
-- [ ] Classify kwCONTAINS as ambiguous_2 (not label)
-- [ ] Classify kwDO as ambiguous_2 (not label)
-- [ ] Classify kwFLUSH as ambiguous_2 (not label)
-- [ ] Classify kwFOLLOWS as ambiguous_2 (not label)
-- [ ] Classify kwPRECEDES as ambiguous_2 (not label)
-- [ ] Classify kwPREPARE as ambiguous_2 (not label)
-- [ ] Classify kwREPAIR as ambiguous_2 (not label)
-- [ ] Classify kwRESET as ambiguous_2 (not label)
-- [ ] Classify kwROLLBACK as ambiguous_2 (not label)
-- [ ] Classify kwSAVEPOINT as ambiguous_2 (not label)
-- [ ] Classify kwSIGNED as ambiguous_2 (not label)
-- [ ] Classify kwSLAVE as ambiguous_2 (not label)
-- [ ] Classify kwSTART as ambiguous_2 (not label)
-- [ ] Classify kwSTOP as ambiguous_2 (not label)
-- [ ] Classify kwTRUNCATE as ambiguous_2 (not label)
-- [ ] Classify kwXA as ambiguous_2 (not label)
-- [ ] Classify kwEVENT as ambiguous_3 (not role)
-- [ ] Classify kwPROCESS as ambiguous_3 (not role)
-- [ ] Classify kwRELOAD as ambiguous_3 (not role)
-- [ ] Classify kwREPLICATION as ambiguous_3 (not role)
-- [ ] Classify kwGLOBAL as ambiguous_4 (not lvalue)
-- [ ] Classify kwSESSION as ambiguous_4 (not lvalue)
-- [ ] Classify kwLOCAL as ambiguous_4 (not lvalue)
-- [ ] All remaining existing keywords classified as unambiguous (default)
+- [x] Classify kwEXECUTE as ambiguous_1 (not label, not role)
+- [x] Classify kwBEGIN as ambiguous_2 (not label)
+- [x] Classify kwCOMMIT as ambiguous_2 (not label)
+- [x] Classify kwEND as ambiguous_2 (not label) — demote from current reserved status
+- [x] Classify kwCONTAINS as ambiguous_2 (not label)
+- [x] Classify kwDO as ambiguous_2 (not label)
+- [x] Classify kwFLUSH as ambiguous_2 (not label)
+- [x] Classify kwFOLLOWS as ambiguous_2 (not label)
+- [x] Classify kwPRECEDES as ambiguous_2 (not label)
+- [x] Classify kwPREPARE as ambiguous_2 (not label)
+- [x] Classify kwREPAIR as ambiguous_2 (not label)
+- [x] Classify kwRESET as ambiguous_2 (not label)
+- [x] Classify kwROLLBACK as ambiguous_2 (not label)
+- [x] Classify kwSAVEPOINT as ambiguous_2 (not label)
+- [x] Classify kwSIGNED as ambiguous_2 (not label)
+- [x] Classify kwSLAVE as ambiguous_2 (not label)
+- [x] Classify kwSTART as ambiguous_2 (not label)
+- [x] Classify kwSTOP as ambiguous_2 (not label)
+- [x] Classify kwTRUNCATE as ambiguous_2 (not label)
+- [x] Classify kwXA as ambiguous_2 (not label)
+- [x] Classify kwEVENT as ambiguous_3 (not role)
+- [x] Classify kwPROCESS as ambiguous_3 (not role)
+- [x] Classify kwRELOAD as ambiguous_3 (not role)
+- [x] Classify kwREPLICATION as ambiguous_3 (not role)
+- [x] Classify kwGLOBAL as ambiguous_4 (not lvalue)
+- [x] Classify kwSESSION as ambiguous_4 (not lvalue)
+- [x] Classify kwLOCAL as ambiguous_4 (not lvalue)
+- [x] All remaining existing keywords classified as unambiguous (default)
 
 ### 1.6 Register Non-Reserved Keywords — Type & Spatial
 
 Register MySQL 8.0 non-reserved keywords currently handled via eqFold.
 
-- [ ] Register `geometry` as unambiguous
-- [ ] Register `point` as unambiguous
-- [ ] Register `linestring` as unambiguous
-- [ ] Register `polygon` as unambiguous
-- [ ] Register `multipoint` as unambiguous
-- [ ] Register `multilinestring` as unambiguous
-- [ ] Register `multipolygon` as unambiguous
-- [ ] Register `geometrycollection` as unambiguous
-- [ ] Register `serial` as unambiguous
-- [ ] Register `national` as unambiguous
-- [ ] Register `nchar` as unambiguous
-- [ ] Register `nvarchar` as unambiguous
-- [ ] Classify existing kwSIGNED as ambiguous_2 (per MySQL classification — already registered, needs reclassification only)
-- [ ] Register `precision` as unambiguous
-- [ ] Register `boolean` if not already registered (unambiguous)
-- [ ] Register `srid` as unambiguous
+- [x] Register `geometry` as unambiguous
+- [x] Register `point` as unambiguous
+- [x] Register `linestring` as unambiguous
+- [x] Register `polygon` as unambiguous
+- [x] Register `multipoint` as unambiguous
+- [x] Register `multilinestring` as unambiguous
+- [x] Register `multipolygon` as unambiguous
+- [x] Register `geometrycollection` as unambiguous
+- [x] Register `serial` as unambiguous
+- [x] Register `national` as unambiguous
+- [x] Register `nchar` as unambiguous
+- [x] Register `nvarchar` as unambiguous
+- [x] Classify existing kwSIGNED as ambiguous_2 (per MySQL classification — already registered, needs reclassification only)
+- [x] Register `precision` as unambiguous
+- [x] Register `boolean` if not already registered (unambiguous)
+- [x] Register `srid` as unambiguous
 
 ### 1.7 Register Non-Reserved Keywords — DDL & DML Options
 
-- [ ] Register `enforced` as unambiguous
-- [ ] Register `less` as unambiguous
-- [ ] Register `than` as unambiguous
-- [ ] Register `subpartitions` as unambiguous
-- [ ] Register `leaves` as unambiguous
-- [ ] Register `parser` as unambiguous
-- [ ] Register `compression` as unambiguous
-- [ ] Register `insert_method` as unambiguous
-- [ ] Register `action` as unambiguous
-- [ ] Register `partial` as unambiguous
-- [ ] Register `format` as unambiguous
-- [ ] Register `xml` as unambiguous
-- [ ] Register `concurrent` as unambiguous
-- [ ] Register `work` as unambiguous
-- [ ] Register `export` as unambiguous
-- [ ] Register `upgrade` as unambiguous
-- [ ] Register `fast` as unambiguous
-- [ ] Register `medium` as unambiguous
-- [ ] Register `changed` as unambiguous
-- [ ] Register `code` as unambiguous
+- [x] Register `enforced` as unambiguous
+- [x] Register `less` as unambiguous
+- [x] Register `than` as unambiguous
+- [x] Register `subpartitions` as unambiguous
+- [x] Register `leaves` as unambiguous
+- [x] Register `parser` as unambiguous
+- [x] Register `compression` as unambiguous
+- [x] Register `insert_method` as unambiguous
+- [x] Register `action` as unambiguous
+- [x] Register `partial` as unambiguous
+- [x] Register `format` as unambiguous
+- [x] Register `xml` as unambiguous
+- [x] Register `concurrent` as unambiguous
+- [x] Register `work` as unambiguous
+- [x] Register `xid` as unambiguous
+- [x] Register `export` as unambiguous
+- [x] Register `upgrade` as unambiguous
+- [x] Register `fast` as unambiguous
+- [x] Register `medium` as unambiguous
+- [x] Register `changed` as unambiguous
+- [x] Register `code` as unambiguous
 
 ### 1.8 Register Non-Reserved Keywords — SHOW/SET/Grant/Auth
 
-- [ ] Register `events` as unambiguous
-- [ ] Register `indexes` as unambiguous
-- [ ] Register `grants` as unambiguous
-- [ ] Register `triggers` as unambiguous
-- [ ] Register `schemas` as unambiguous
-- [ ] Register `partitions` as unambiguous
-- [ ] Register `hosts` as unambiguous
-- [ ] Register `mutex` as unambiguous
-- [ ] Register `profile` as unambiguous
-- [ ] Register `replicas` as unambiguous
-- [ ] Register `names` as unambiguous
-- [ ] Register `account` as unambiguous
-- [ ] Register `option` as unambiguous
-- [ ] Register `proxy` as ambiguous_3 (per MySQL: not role)
-- [ ] Register `routine` as unambiguous
-- [ ] Register `expire` as unambiguous
-- [ ] Register `never` as unambiguous
-- [ ] Register `day` as unambiguous
-- [ ] Register `history` as unambiguous
-- [ ] Register `reuse` as unambiguous
-- [ ] Register `optional` as unambiguous
-- [ ] Register `x509` as unambiguous
-- [ ] Register `issuer` as unambiguous
-- [ ] Register `subject` as unambiguous
-- [ ] Register `cipher` as unambiguous
+- [x] Register `events` as unambiguous
+- [x] Register `indexes` as unambiguous
+- [x] Register `grants` as unambiguous
+- [x] Register `triggers` as unambiguous
+- [x] Register `schemas` as unambiguous
+- [x] Register `partitions` as unambiguous
+- [x] Register `hosts` as unambiguous
+- [x] Register `mutex` as unambiguous
+- [x] Register `profile` as unambiguous
+- [x] Register `replicas` as unambiguous
+- [x] Register `names` as unambiguous
+- [x] Register `account` as unambiguous
+- [x] Register `option` as unambiguous
+- [x] Register `proxy` as ambiguous_3 (per MySQL: not role)
+- [x] Register `routine` as unambiguous
+- [x] Register `expire` as unambiguous
+- [x] Register `never` as unambiguous
+- [x] Register `day` as unambiguous
+- [x] Register `history` as unambiguous
+- [x] Register `reuse` as unambiguous
+- [x] Register `optional` as unambiguous
+- [x] Register `x509` as unambiguous
+- [x] Register `issuer` as unambiguous
+- [x] Register `subject` as unambiguous
+- [x] Register `cipher` as unambiguous
 
 ### 1.9 Register Non-Reserved Keywords — Scheduling & Misc
 
-- [ ] Register `schedule` as unambiguous
-- [ ] Register `completion` as unambiguous
-- [ ] Register `preserve` as unambiguous
-- [ ] Register `every` as unambiguous
-- [ ] Register `starts` as unambiguous
-- [ ] Register `ends` as unambiguous
-- [ ] Register `value` as unambiguous
-- [ ] Register `stacked` as unambiguous
-- [ ] Register `unknown` as unambiguous
-- [ ] Register `wait` as unambiguous
-- [ ] Register `active` as unambiguous
-- [ ] Register `inactive` as unambiguous
-- [ ] Register `attribute` as unambiguous
-- [ ] Register `admin` as unambiguous
-- [ ] Register `description` as unambiguous
-- [ ] Register `organization` as unambiguous
-- [ ] Register `reference` as unambiguous
-- [ ] Register `definition` as unambiguous
-- [ ] Register `name` as unambiguous
-- [ ] Register `system` as unambiguous
-- [ ] Register `rotate` as unambiguous
-- [ ] Register `keyring` as unambiguous
-- [ ] Register `tls` as unambiguous
-- [ ] Register `stream` as unambiguous
-- [ ] Register `generate` as unambiguous
-- [ ] Completeness: all MySQL 8.0 keywords that appear in omni's eqFold patterns are now registered
+- [x] Register `schedule` as unambiguous
+- [x] Register `completion` as unambiguous
+- [x] Register `preserve` as unambiguous
+- [x] Register `every` as unambiguous
+- [x] Register `starts` as unambiguous
+- [x] Register `ends` as unambiguous
+- [x] Register `value` as unambiguous
+- [x] Register `stacked` as unambiguous
+- [x] Register `unknown` as unambiguous
+- [x] Register `wait` as unambiguous
+- [x] Register `active` as unambiguous
+- [x] Register `inactive` as unambiguous
+- [x] Register `attribute` as unambiguous
+- [x] Register `admin` as unambiguous
+- [x] Register `description` as unambiguous
+- [x] Register `organization` as unambiguous
+- [x] Register `reference` as unambiguous
+- [x] Register `definition` as unambiguous
+- [x] Register `name` as unambiguous
+- [x] Register `system` as unambiguous
+- [x] Register `rotate` as unambiguous
+- [x] Register `keyring` as unambiguous
+- [x] Register `tls` as unambiguous
+- [x] Register `stream` as unambiguous
+- [x] Register `generate` as unambiguous
+- [x] Completeness: all MySQL 8.0 keywords that appear in omni's eqFold patterns are now registered
 
 ---
 
@@ -269,27 +270,27 @@ Create context-dependent identifier parsing functions and migrate all call sites
 
 Create 5 identifier parsing functions matching MySQL's grammar hierarchy.
 
-- [ ] `parseIdent()` — accepts tokIDENT + all 5 non-reserved keyword categories (ident rule)
-- [ ] `parseLabelIdent()` — accepts tokIDENT + unambiguous + ambiguous_3 + ambiguous_4 (label_ident rule)
-- [ ] `parseRoleIdent()` — accepts tokIDENT + unambiguous + ambiguous_2 + ambiguous_4 (role_ident rule)
-- [ ] `parseLvalueIdent()` — accepts tokIDENT + unambiguous + ambiguous_1 + ambiguous_2 + ambiguous_3 (lvalue_ident rule)
-- [ ] `parseKeywordOrIdent()` — accepts tokIDENT + ANY keyword token (for option values, enum values, action words)
-- [ ] Existing `parseIdentifier()` becomes an alias for `parseIdent()` (gradual migration)
-- [ ] `parseTableRef()` and `parseColumnRef()` use `parseIdent()` internally
-- [ ] `isIdentToken()` updated to match `parseIdent()` semantics
-- [ ] All existing tests still pass after function creation (no call site changes yet)
+- [x] `parseIdent()` — accepts tokIDENT + all 5 non-reserved keyword categories (ident rule)
+- [x] `parseLabelIdent()` — accepts tokIDENT + unambiguous + ambiguous_3 + ambiguous_4 (label_ident rule)
+- [x] `parseRoleIdent()` — accepts tokIDENT + unambiguous + ambiguous_2 + ambiguous_4 (role_ident rule)
+- [x] `parseLvalueIdent()` — accepts tokIDENT + unambiguous + ambiguous_1 + ambiguous_2 + ambiguous_3 (lvalue_ident rule)
+- [x] `parseKeywordOrIdent()` — accepts tokIDENT + ANY keyword token (for option values, enum values, action words)
+- [x] Existing `parseIdentifier()` becomes an alias for `parseIdent()` (gradual migration)
+- [x] `parseTableRef()` and `parseColumnRef()` use `parseIdent()` internally
+- [x] `isIdentToken()` updated to match `parseIdent()` semantics
+- [x] All existing tests still pass after function creation (no call site changes yet)
 
 ### 2.2 Migrate General Ident Call Sites — select.go
 
-- [ ] CTE name uses parseIdent
-- [ ] SELECT alias (after AS) uses parseIdent
-- [ ] SELECT implicit alias uses parseIdent
-- [ ] JOIN USING column uses parseIdent
-- [ ] Derived table alias uses parseIdent
-- [ ] WINDOW name uses parseIdent
-- [ ] Index hint name uses parseIdent
-- [ ] INTO OUTFILE charset uses parseIdent
-- [ ] All existing SELECT tests still pass
+- [x] CTE name uses parseIdent
+- [x] SELECT alias (after AS) uses parseIdent
+- [x] SELECT implicit alias uses parseIdent
+- [x] JOIN USING column uses parseIdent
+- [x] Derived table alias uses parseIdent
+- [x] WINDOW name uses parseIdent
+- [x] Index hint name uses parseIdent
+- [x] INTO OUTFILE charset uses parseIdent
+- [x] All existing SELECT tests still pass
 
 ### 2.3 Migrate General Ident Call Sites — DDL files
 
