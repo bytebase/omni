@@ -349,6 +349,18 @@ const (
 	kwNaN           // NaN
 )
 
+// Exported token type constants for use by external packages (e.g., completion).
+const (
+	TokEOF    = tokEOF
+	TokString = tokString
+	TokIdent  = tokIdent
+)
+
+// IsWord returns true if the token is an identifier or keyword (a "word" token).
+func (t Token) IsWord() bool {
+	return t.Type == tokIdent || t.Type >= 700
+}
+
 // keywords maps keyword strings to their token types.
 // mongosh keywords are case-sensitive.
 var keywords = map[string]int{
