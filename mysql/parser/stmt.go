@@ -820,6 +820,9 @@ func (p *Parser) parseDefinerValue() string {
 	if p.cur.Type == tokSCONST {
 		user = "'" + p.cur.Str + "'"
 		p.advance()
+	} else if p.cur.Type == kwCURRENT_USER {
+		user = "CURRENT_USER"
+		p.advance()
 	} else if p.isIdentToken() {
 		user, _, _ = p.parseIdentifier()
 	} else {
