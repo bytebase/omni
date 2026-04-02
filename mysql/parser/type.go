@@ -312,78 +312,68 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		p.parseOptionalLength(dt)
 		p.parseCharsetCollate(dt)
 
-	default:
-		// Handle identifier-based types: INT1-INT8, MIDDLEINT, FLOAT4/8, LONG
-		if p.cur.Type == tokIDENT {
-			name := p.cur.Str
-			switch {
-			case eqFold(name, "int1"):
-				dt.Name = "TINYINT"
-				p.advance()
-				p.parseOptionalLength(dt)
-				p.parseUnsignedZerofill(dt)
-			case eqFold(name, "int2"):
-				dt.Name = "SMALLINT"
-				p.advance()
-				p.parseOptionalLength(dt)
-				p.parseUnsignedZerofill(dt)
-			case eqFold(name, "int3"):
-				dt.Name = "MEDIUMINT"
-				p.advance()
-				p.parseOptionalLength(dt)
-				p.parseUnsignedZerofill(dt)
-			case eqFold(name, "int4"):
-				dt.Name = "INT"
-				p.advance()
-				p.parseOptionalLength(dt)
-				p.parseUnsignedZerofill(dt)
-			case eqFold(name, "int8"):
-				dt.Name = "BIGINT"
-				p.advance()
-				p.parseOptionalLength(dt)
-				p.parseUnsignedZerofill(dt)
-			case eqFold(name, "middleint"):
-				dt.Name = "MEDIUMINT"
-				p.advance()
-				p.parseOptionalLength(dt)
-				p.parseUnsignedZerofill(dt)
-			case eqFold(name, "float4"):
-				dt.Name = "FLOAT"
-				p.advance()
-				p.parseOptionalPrecision(dt)
-				p.parseUnsignedZerofill(dt)
-			case eqFold(name, "float8"):
-				dt.Name = "DOUBLE"
-				p.advance()
-				p.parseOptionalPrecision(dt)
-				p.parseUnsignedZerofill(dt)
-			case eqFold(name, "long"):
-				// LONG / LONG VARCHAR → MEDIUMTEXT, LONG VARBINARY → MEDIUMBLOB
-				p.advance()
-				if p.cur.Type == kwVARCHAR {
-					p.advance()
-					dt.Name = "MEDIUMTEXT"
-					p.parseCharsetCollate(dt)
-				} else if p.cur.Type == kwVARBINARY {
-					p.advance()
-					dt.Name = "MEDIUMBLOB"
-				} else {
-					dt.Name = "MEDIUMTEXT"
-					p.parseCharsetCollate(dt)
-				}
-			default:
-				return nil, &ParseError{
-					Message:  "expected data type",
-					Position: p.cur.Loc,
-				}
-			}
-		} else if p.cur.Type == tokEOF {
-			return nil, p.syntaxErrorAtCur()
+	case kwINT1:
+		dt.Name = "TINYINT"
+		p.advance()
+		p.parseOptionalLength(dt)
+		p.parseUnsignedZerofill(dt)
+	case kwINT2:
+		dt.Name = "SMALLINT"
+		p.advance()
+		p.parseOptionalLength(dt)
+		p.parseUnsignedZerofill(dt)
+	case kwINT3:
+		dt.Name = "MEDIUMINT"
+		p.advance()
+		p.parseOptionalLength(dt)
+		p.parseUnsignedZerofill(dt)
+	case kwINT4:
+		dt.Name = "INT"
+		p.advance()
+		p.parseOptionalLength(dt)
+		p.parseUnsignedZerofill(dt)
+	case kwINT8:
+		dt.Name = "BIGINT"
+		p.advance()
+		p.parseOptionalLength(dt)
+		p.parseUnsignedZerofill(dt)
+	case kwMIDDLEINT:
+		dt.Name = "MEDIUMINT"
+		p.advance()
+		p.parseOptionalLength(dt)
+		p.parseUnsignedZerofill(dt)
+	case kwFLOAT4:
+		dt.Name = "FLOAT"
+		p.advance()
+		p.parseOptionalPrecision(dt)
+		p.parseUnsignedZerofill(dt)
+	case kwFLOAT8:
+		dt.Name = "DOUBLE"
+		p.advance()
+		p.parseOptionalPrecision(dt)
+		p.parseUnsignedZerofill(dt)
+	case kwLONG:
+		// LONG / LONG VARCHAR → MEDIUMTEXT, LONG VARBINARY → MEDIUMBLOB
+		p.advance()
+		if p.cur.Type == kwVARCHAR {
+			p.advance()
+			dt.Name = "MEDIUMTEXT"
+			p.parseCharsetCollate(dt)
+		} else if p.cur.Type == kwVARBINARY {
+			p.advance()
+			dt.Name = "MEDIUMBLOB"
 		} else {
-			return nil, &ParseError{
-				Message:  "expected data type",
-				Position: p.cur.Loc,
-			}
+			dt.Name = "MEDIUMTEXT"
+			p.parseCharsetCollate(dt)
+		}
+
+	default:
+		if p.cur.Type == tokEOF {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return nil, &ParseError{
+			Message:  "expected data type",
+			Position: p.cur.Loc,
 		}
 	}
 

@@ -240,7 +240,7 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 	start := p.pos()
 
 	switch {
-	case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "KEY_BLOCK_SIZE"):
+	case p.cur.Type == kwKEY_BLOCK_SIZE:
 		p.advance()
 		p.match('=') // optional =
 		if p.cur.Type == tokICONST {
@@ -319,7 +319,7 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			Name: "INVISIBLE",
 		}, true, nil
 
-	case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "ENGINE_ATTRIBUTE"):
+	case p.cur.Type == kwENGINE_ATTRIBUTE:
 		p.advance()
 		p.match('=')
 		if p.cur.Type == tokSCONST {
@@ -333,7 +333,7 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 		}
 		return nil, false, &ParseError{Message: "expected string after ENGINE_ATTRIBUTE", Position: p.cur.Loc}
 
-	case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "SECONDARY_ENGINE_ATTRIBUTE"):
+	case p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE:
 		p.advance()
 		p.match('=')
 		if p.cur.Type == tokSCONST {

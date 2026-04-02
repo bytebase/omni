@@ -158,11 +158,10 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	case kwPERSIST:
 		scope = "PERSIST"
 		p.advance()
+	case kwPERSIST_ONLY:
+		scope = "PERSIST_ONLY"
+		p.advance()
 	default:
-		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "persist_only") {
-			scope = "PERSIST_ONLY"
-			p.advance()
-		}
 	}
 
 	// Completion: after SET GLOBAL/SESSION, offer variable candidates.
@@ -1326,16 +1325,16 @@ func (p *Parser) parseShowProfileType() string {
 		p.advance()
 		return "ALL"
 	}
-	// Handle profile types that may be keywords or identifiers
-	if p.isIdentLike("cpu") {
+	// Handle profile types (now registered as keyword tokens)
+	if p.cur.Type == kwCPU {
 		p.advance()
 		return "CPU"
 	}
-	if p.isIdentLike("ipc") {
+	if p.cur.Type == kwIPC {
 		p.advance()
 		return "IPC"
 	}
-	if p.isIdentLike("memory") || p.cur.Type == kwMEMORY {
+	if p.cur.Type == kwMEMORY {
 		p.advance()
 		return "MEMORY"
 	}
@@ -1343,27 +1342,27 @@ func (p *Parser) parseShowProfileType() string {
 		p.advance()
 		return "SOURCE"
 	}
-	if p.isIdentLike("swaps") {
+	if p.cur.Type == kwSWAPS {
 		p.advance()
 		return "SWAPS"
 	}
-	if p.isIdentLike("block") {
+	if p.cur.Type == kwBLOCK {
 		p.advance() // consume BLOCK
-		if p.isIdentLike("io") {
+		if p.cur.Type == kwIO {
 			p.advance()
 		}
 		return "BLOCK_IO"
 	}
-	if p.isIdentLike("context") {
+	if p.cur.Type == kwCONTEXT {
 		p.advance() // consume CONTEXT
-		if p.isIdentLike("switches") {
+		if p.cur.Type == kwSWITCHES {
 			p.advance()
 		}
 		return "CONTEXT_SWITCHES"
 	}
-	if p.isIdentLike("page") {
+	if p.cur.Type == kwPAGE {
 		p.advance() // consume PAGE
-		if p.isIdentLike("faults") {
+		if p.cur.Type == kwFAULTS {
 			p.advance()
 		}
 		return "PAGE_FAULTS"
@@ -1374,7 +1373,14 @@ func (p *Parser) parseShowProfileType() string {
 // isIdentLike checks if the current token is an identifier (or unreserved keyword)
 // matching the given name (case-insensitive).
 func (p *Parser) isIdentLike(name string) bool {
-	return p.cur.Type == tokIDENT && eqFold(p.cur.Str, name)
+	if p.cur.Type == tokIDENT {
+		return eqFold(p.cur.Str, name)
+	}
+	// Also match non-reserved keyword tokens by their string value
+	if p.cur.Type >= 700 && !isReserved(p.cur.Type) {
+		return eqFold(p.cur.Str, name)
+	}
+	return false
 }
 
 // expectFromOrIn expects FROM or IN keyword (both are equivalent in SHOW statements).

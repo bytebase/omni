@@ -293,7 +293,53 @@ var keywordCategories = map[int]keywordCategory{
 	// Ambiguous 4 (not lvalue)
 	kwGLOBAL:      kwCatAmbiguous4,
 	kwSESSION:     kwCatAmbiguous4,
-	kwLOCAL:       kwCatAmbiguous4,
+	kwLOCAL:               kwCatAmbiguous4,
+	// --- 253 missing keyword categories (non-unambiguous only) ---
+	kwASCII:               kwCatAmbiguous2,
+	kwBIT_AND:             kwCatReserved,
+	kwBIT_OR:              kwCatReserved,
+	kwBIT_XOR:             kwCatReserved,
+	kwBYTE:                kwCatAmbiguous2,
+	kwCURDATE:             kwCatReserved,
+	kwCURTIME:             kwCatReserved,
+	kwDATE_ADD:            kwCatReserved,
+	kwDATE_SUB:            kwCatReserved,
+	kwEXTERNAL:            kwCatReserved,
+	kwFILE:                kwCatAmbiguous3,
+	kwFLOAT4:              kwCatReserved,
+	kwFLOAT8:              kwCatReserved,
+	kwINT1:                kwCatReserved,
+	kwINT2:                kwCatReserved,
+	kwINT3:                kwCatReserved,
+	kwINT4:                kwCatReserved,
+	kwINT8:                kwCatReserved,
+	kwJSON_ARRAYAGG:       kwCatReserved,
+	kwJSON_DUALITY_OBJECT: kwCatReserved,
+	kwJSON_OBJECTAGG:      kwCatReserved,
+	kwLIBRARY:             kwCatReserved,
+	kwLONG:                kwCatReserved,
+	kwMANUAL:              kwCatReserved,
+	kwMID:                 kwCatReserved,
+	kwMIDDLEINT:           kwCatReserved,
+	kwNOW:                 kwCatReserved,
+	kwPARALLEL:            kwCatReserved,
+	kwPERSIST_ONLY:        kwCatAmbiguous4,
+	kwQUALIFY:             kwCatReserved,
+	kwREAD_WRITE:          kwCatReserved,
+	kwSETS:                kwCatReserved,
+	kwSTD:                 kwCatReserved,
+	kwSTDDEV:              kwCatReserved,
+	kwSTDDEV_POP:          kwCatReserved,
+	kwSTDDEV_SAMP:         kwCatReserved,
+	kwSUBSTR:              kwCatReserved,
+	kwSUPER:               kwCatAmbiguous3,
+	kwSYSDATE:             kwCatReserved,
+	kwTABLESAMPLE:         kwCatReserved,
+	kwUNICODE:             kwCatAmbiguous2,
+	kwVAR_POP:             kwCatReserved,
+	kwVAR_SAMP:            kwCatReserved,
+	kwVARCHARACTER:        kwCatReserved,
+	kwVARIANCE:            kwCatReserved,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot
@@ -666,7 +712,7 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 		// Check for scope prefix: @@GLOBAL.var, @@SESSION.var, @@LOCAL.var, @@PERSIST.var
 		isScopeKeyword := p.cur.Type == kwGLOBAL || p.cur.Type == kwSESSION ||
 			p.cur.Type == kwLOCAL || p.cur.Type == kwPERSIST ||
-			(p.cur.Type == tokIDENT && eqFold(p.cur.Str, "persist_only"))
+			p.cur.Type == kwPERSIST_ONLY
 		if isScopeKeyword {
 			// Look ahead for '.' to distinguish scope from plain variable name
 			next := p.peekNext()

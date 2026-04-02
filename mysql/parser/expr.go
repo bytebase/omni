@@ -397,7 +397,14 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	// so we dispatch them here to parseFuncCall explicitly.
 	case kwRANK, kwDENSE_RANK, kwROW_NUMBER, kwNTILE,
 		kwLAG, kwLEAD, kwFIRST_VALUE, kwLAST_VALUE, kwNTH_VALUE,
-		kwPERCENT_RANK, kwCUME_DIST, kwGROUPING:
+		kwPERCENT_RANK, kwCUME_DIST, kwGROUPING,
+		// Reserved function-name keywords registered in Phase 2
+		kwNOW, kwCURDATE, kwCURTIME, kwSYSDATE,
+		kwDATE_ADD, kwDATE_SUB, kwMID, kwSUBSTR,
+		kwSTD, kwSTDDEV, kwSTDDEV_POP, kwSTDDEV_SAMP,
+		kwBIT_AND, kwBIT_OR, kwBIT_XOR,
+		kwJSON_ARRAYAGG, kwJSON_OBJECTAGG, kwJSON_DUALITY_OBJECT,
+		kwVAR_POP, kwVAR_SAMP, kwVARIANCE:
 		start := p.pos()
 		tok := p.advance()
 		name := strings.ToUpper(tok.Str)

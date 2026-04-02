@@ -62,7 +62,7 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 	// UPDATE HISTOGRAM ON col [, col] [WITH N BUCKETS] | [USING DATA 'json_data']
 	if p.cur.Type == kwUPDATE {
 		p.advance()
-		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "histogram") {
+		if p.cur.Type == kwHISTOGRAM {
 			p.advance()
 		}
 		stmt.HistogramOp = "UPDATE"
@@ -88,7 +88,7 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 				p.advance()
 			}
 			// BUCKETS keyword
-			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "buckets") {
+			if p.cur.Type == kwBUCKETS {
 				p.advance()
 			}
 		}
@@ -108,7 +108,7 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 	// DROP HISTOGRAM ON col [, col]
 	if p.cur.Type == kwDROP {
 		p.advance()
-		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "histogram") {
+		if p.cur.Type == kwHISTOGRAM {
 			p.advance()
 		}
 		stmt.HistogramOp = "DROP"
@@ -282,7 +282,7 @@ func (p *Parser) parseRepairTableStmt() (*nodes.RepairTableStmt, error) {
 		} else if p.cur.Type == kwEXTENDED {
 			stmt.Extended = true
 			p.advance()
-		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "use_frm") {
+		} else if p.cur.Type == kwUSE_FRM {
 			stmt.UseFrm = true
 			p.advance()
 		} else {
@@ -1209,11 +1209,11 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 			}
 			stmt.DataFile = p.cur.Str
 			p.advance()
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "autoextend_size"):
+		case p.cur.Type == kwAUTOEXTEND_SIZE:
 			p.advance()
 			p.match('=')
 			stmt.AutoextendSize = p.parseSizeValue()
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "file_block_size"):
+		case p.cur.Type == kwFILE_BLOCK_SIZE:
 			p.advance()
 			p.match('=')
 			stmt.FileBlockSize = p.cur.Str
@@ -1234,19 +1234,19 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 				return nil, err
 			}
 			stmt.UseLogfileGroup = lg
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "extent_size"):
+		case p.cur.Type == kwEXTENT_SIZE:
 			p.advance()
 			p.match('=')
 			stmt.ExtentSize = p.parseSizeValue()
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "initial_size"):
+		case p.cur.Type == kwINITIAL_SIZE:
 			p.advance()
 			p.match('=')
 			stmt.InitialSize = p.parseSizeValue()
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "max_size"):
+		case p.cur.Type == kwMAX_SIZE:
 			p.advance()
 			p.match('=')
 			stmt.MaxSize = p.parseSizeValue()
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "nodegroup"):
+		case p.cur.Type == kwNODEGROUP:
 			p.advance()
 			p.match('=')
 			stmt.NodeGroup = p.cur.Str
@@ -1269,7 +1269,7 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 				return nil, err
 			}
 			stmt.Engine = ename
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "engine_attribute"):
+		case p.cur.Type == kwENGINE_ATTRIBUTE:
 			p.advance()
 			p.match('=')
 			if p.cur.Type == tokSCONST {
@@ -1339,7 +1339,7 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 			}
 			stmt.DropDataFile = p.cur.Str
 			p.advance()
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "initial_size"):
+		case p.cur.Type == kwINITIAL_SIZE:
 			p.advance()
 			p.match('=')
 			stmt.InitialSize = p.parseSizeValue()
@@ -1354,7 +1354,7 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 				return nil, err
 			}
 			stmt.RenameTo = rn
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "autoextend_size"):
+		case p.cur.Type == kwAUTOEXTEND_SIZE:
 			p.advance()
 			p.match('=')
 			stmt.AutoextendSize = p.parseSizeValue()
@@ -1382,7 +1382,7 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 				return nil, err
 			}
 			stmt.Engine = ename
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "engine_attribute"):
+		case p.cur.Type == kwENGINE_ATTRIBUTE:
 			p.advance()
 			p.match('=')
 			if p.cur.Type == tokSCONST {
@@ -1792,13 +1792,13 @@ func (p *Parser) parseVCPUSpecs() ([]nodes.VCPUSpec, error) {
 func (p *Parser) parseResourceGroupOptions(vcpus *[]nodes.VCPUSpec, threadPriority **int64, enable **bool) error {
 	for p.cur.Type != tokEOF && p.cur.Type != ';' {
 		switch {
-		case p.isIdentToken() && eqFold(p.cur.Str, "vcpu"):
+		case p.cur.Type == kwVCPU:
 			specs, err := p.parseVCPUSpecs()
 			if err != nil {
 				return err
 			}
 			*vcpus = specs
-		case p.isIdentToken() && eqFold(p.cur.Str, "thread_priority"):
+		case p.cur.Type == kwTHREAD_PRIORITY:
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
@@ -2372,7 +2372,7 @@ func (p *Parser) parseCreateLogfileGroupStmt(start int) (*nodes.CreateLogfileGro
 	// ADD UNDOFILE 'file_name'
 	if p.cur.Type == kwADD {
 		p.advance() // consume ADD
-		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "undofile") {
+		if p.cur.Type == kwUNDOFILE {
 			p.advance()
 		}
 		if p.cur.Type == tokSCONST {
@@ -2384,25 +2384,25 @@ func (p *Parser) parseCreateLogfileGroupStmt(start int) (*nodes.CreateLogfileGro
 	// Parse optional clauses
 	for p.cur.Type != tokEOF && p.cur.Type != ';' {
 		switch {
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "initial_size"):
+		case p.cur.Type == kwINITIAL_SIZE:
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 			}
 			stmt.InitialSize = p.parseSizeValue()
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "undo_buffer_size"):
+		case p.cur.Type == kwUNDO_BUFFER_SIZE:
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 			}
 			stmt.UndoBufferSize = p.parseSizeValue()
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "redo_buffer_size"):
+		case p.cur.Type == kwREDO_BUFFER_SIZE:
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 			}
 			stmt.RedoBufferSize = p.parseSizeValue()
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "nodegroup"):
+		case p.cur.Type == kwNODEGROUP:
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
@@ -2466,7 +2466,7 @@ func (p *Parser) parseAlterLogfileGroupStmt(start int) (*nodes.AlterLogfileGroup
 	// ADD UNDOFILE 'file_name'
 	if p.cur.Type == kwADD {
 		p.advance() // consume ADD
-		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "undofile") {
+		if p.cur.Type == kwUNDOFILE {
 			p.advance()
 		}
 		if p.cur.Type == tokSCONST {
@@ -2478,7 +2478,7 @@ func (p *Parser) parseAlterLogfileGroupStmt(start int) (*nodes.AlterLogfileGroup
 	// Parse optional clauses
 	for p.cur.Type != tokEOF && p.cur.Type != ';' {
 		switch {
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "initial_size"):
+		case p.cur.Type == kwINITIAL_SIZE:
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()

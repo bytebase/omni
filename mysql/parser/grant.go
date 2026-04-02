@@ -521,7 +521,7 @@ func (p *Parser) parsePrivilegeName() (string, error) {
 		}
 	case "REPLICATION":
 		// REPLICATION CLIENT, REPLICATION SLAVE
-		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "client") {
+		if p.cur.Type == kwCLIENT {
 			p.advance()
 			name = "REPLICATION CLIENT"
 		} else if p.cur.Type == kwSLAVE {
@@ -921,7 +921,7 @@ func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
 	// Check for registration_option after user: {2|3} FACTOR ...
 	if p.cur.Type == tokICONST && (p.cur.Str == "2" || p.cur.Str == "3") {
 		next := p.peekNext()
-		if next.Type == tokIDENT && eqFold(next.Str, "factor") {
+		if next.Type == kwFACTOR {
 			op, err := p.parseRegistrationOption()
 			if err != nil {
 				return nil, err
@@ -1035,29 +1035,29 @@ func (p *Parser) parseRegistrationOption() (*nodes.RegistrationOp, error) {
 		p.advance()
 	}
 	// FACTOR
-	if p.isIdentToken() && eqFold(p.cur.Str, "factor") {
+	if p.cur.Type == kwFACTOR {
 		p.advance()
 	}
 
 	// INITIATE REGISTRATION | FINISH REGISTRATION ... | UNREGISTER
-	if p.isIdentToken() && eqFold(p.cur.Str, "initiate") {
+	if p.cur.Type == kwINITIATE {
 		op.Action = "INITIATE"
 		p.advance()
 		// REGISTRATION
-		if p.isIdentToken() && eqFold(p.cur.Str, "registration") {
+		if p.cur.Type == kwREGISTRATION {
 			p.advance()
 		}
-	} else if p.isIdentToken() && eqFold(p.cur.Str, "finish") {
+	} else if p.cur.Type == kwFINISH {
 		op.Action = "FINISH"
 		p.advance()
 		// REGISTRATION
-		if p.isIdentToken() && eqFold(p.cur.Str, "registration") {
+		if p.cur.Type == kwREGISTRATION {
 			p.advance()
 		}
 		// SET CHALLENGE_RESPONSE AS 'auth_string'
 		if p.cur.Type == kwSET {
 			p.advance()
-			if p.isIdentToken() && eqFold(p.cur.Str, "challenge_response") {
+			if p.cur.Type == kwCHALLENGE_RESPONSE {
 				p.advance()
 			}
 			p.match(kwAS)
@@ -1066,7 +1066,7 @@ func (p *Parser) parseRegistrationOption() (*nodes.RegistrationOp, error) {
 				p.advance()
 			}
 		}
-	} else if p.isIdentToken() && eqFold(p.cur.Str, "unregister") {
+	} else if p.cur.Type == kwUNREGISTER {
 		op.Action = "UNREGISTER"
 		p.advance()
 	}
@@ -1106,7 +1106,7 @@ func (p *Parser) parseFactorOps() ([]*nodes.FactorOp, error) {
 			p.advance()
 		}
 		// FACTOR
-		if p.isIdentToken() && eqFold(p.cur.Str, "factor") {
+		if p.cur.Type == kwFACTOR {
 			p.advance()
 		}
 
@@ -1280,9 +1280,9 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 	}
 
 	// [INITIAL AUTHENTICATION ...]
-	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "initial") {
+	if p.cur.Type == kwINITIAL {
 		next := p.peekNext()
-		if next.Type == tokIDENT && eqFold(next.Str, "authentication") {
+		if next.Type == kwAUTHENTICATION {
 			p.advance() // consume INITIAL
 			p.advance() // consume AUTHENTICATION
 			if p.cur.Type == kwIDENTIFIED {
@@ -1649,39 +1649,34 @@ func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 //	}
 func (p *Parser) parseResourceOptions() *nodes.ResourceOption {
 	var res *nodes.ResourceOption
-	for p.cur.Type == tokIDENT {
-		if !eqFold(p.cur.Str, "max_queries_per_hour") &&
-			!eqFold(p.cur.Str, "max_updates_per_hour") &&
-			!eqFold(p.cur.Str, "max_connections_per_hour") &&
-			!eqFold(p.cur.Str, "max_user_connections") {
-			break
-		}
+	for p.cur.Type == kwMAX_QUERIES_PER_HOUR || p.cur.Type == kwMAX_UPDATES_PER_HOUR ||
+		p.cur.Type == kwMAX_CONNECTIONS_PER_HOUR || p.cur.Type == kwMAX_USER_CONNECTIONS {
 		if res == nil {
 			res = &nodes.ResourceOption{Loc: nodes.Loc{Start: p.pos()}}
 		}
-		switch {
-		case eqFold(p.cur.Str, "max_queries_per_hour"):
+		switch p.cur.Type {
+		case kwMAX_QUERIES_PER_HOUR:
 			p.advance()
 			if p.cur.Type == tokICONST {
 				res.MaxQueriesPerHour = int(p.cur.Ival)
 				res.HasMaxQueries = true
 				p.advance()
 			}
-		case eqFold(p.cur.Str, "max_updates_per_hour"):
+		case kwMAX_UPDATES_PER_HOUR:
 			p.advance()
 			if p.cur.Type == tokICONST {
 				res.MaxUpdatesPerHour = int(p.cur.Ival)
 				res.HasMaxUpdates = true
 				p.advance()
 			}
-		case eqFold(p.cur.Str, "max_connections_per_hour"):
+		case kwMAX_CONNECTIONS_PER_HOUR:
 			p.advance()
 			if p.cur.Type == tokICONST {
 				res.MaxConnectionsPerHour = int(p.cur.Ival)
 				res.HasMaxConnections = true
 				p.advance()
 			}
-		case eqFold(p.cur.Str, "max_user_connections"):
+		case kwMAX_USER_CONNECTIONS:
 			p.advance()
 			if p.cur.Type == tokICONST {
 				res.MaxUserConnections = int(p.cur.Ival)
@@ -1802,7 +1797,7 @@ func (p *Parser) parseUserAccountOptions(
 				return
 			}
 
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "failed_login_attempts"):
+		case p.cur.Type == kwFAILED_LOGIN_ATTEMPTS:
 			p.advance()
 			if p.cur.Type == tokICONST {
 				*failedLoginAttempts = int(p.cur.Ival)
@@ -1810,7 +1805,7 @@ func (p *Parser) parseUserAccountOptions(
 				p.advance()
 			}
 
-		case p.cur.Type == tokIDENT && eqFold(p.cur.Str, "password_lock_time"):
+		case p.cur.Type == kwPASSWORD_LOCK_TIME:
 			p.advance()
 			if p.cur.Type == tokICONST {
 				*passwordLockTime = strconv.FormatInt(p.cur.Ival, 10)

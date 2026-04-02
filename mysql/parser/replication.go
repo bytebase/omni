@@ -104,6 +104,7 @@ func (p *Parser) parseReplicationSourceOption() (*nodes.ReplicationOption, error
 
 	// The option name is an identifier (e.g., SOURCE_HOST, SOURCE_PORT, etc.)
 	// Must accept any keyword since option names may collide with registered keywords.
+	optTokType := p.cur.Type
 	name, _, err := p.parseKeywordOrIdent()
 	if err != nil {
 		return nil, err
@@ -114,7 +115,7 @@ func (p *Parser) parseReplicationSourceOption() (*nodes.ReplicationOption, error
 	p.match('=')
 
 	// Special case: IGNORE_SERVER_IDS = (id_list)
-	if eqFold(name, "IGNORE_SERVER_IDS") {
+	if optTokType == kwIGNORE_SERVER_IDS {
 		p.match('(')
 		if p.cur.Type != ')' {
 			for {
@@ -328,6 +329,7 @@ func (p *Parser) parseReplicationFilter() (*nodes.ReplicationFilter, error) {
 
 	// Filter type is an identifier like REPLICATE_DO_DB.
 	// Must accept any keyword since filter type names may collide with registered keywords.
+	filterTokType := p.cur.Type
 	name, _, err := p.parseKeywordOrIdent()
 	if err != nil {
 		return nil, err
@@ -341,7 +343,7 @@ func (p *Parser) parseReplicationFilter() (*nodes.ReplicationFilter, error) {
 	p.match('(')
 
 	// Special case for REPLICATE_REWRITE_DB: (from_db, to_db)[, ...]
-	if eqFold(f.Type, "REPLICATE_REWRITE_DB") {
+	if filterTokType == kwREPLICATE_REWRITE_DB {
 		if p.cur.Type != ')' {
 			for {
 				p.match('(') // inner paren
@@ -439,13 +441,14 @@ func (p *Parser) parseStartReplicaStmt(start int) (*nodes.StartReplicaStmt, erro
 	// Optional UNTIL
 	if p.cur.Type == kwUNTIL {
 		p.advance() // consume UNTIL
+		untilTokType := p.cur.Type
 		untilName, _, err := p.parseKeywordOrIdent()
 		if err != nil {
 			return nil, err
 		}
 		stmt.UntilType = untilName
 
-		if eqFold(untilName, "SQL_AFTER_MTS_GAPS") {
+		if untilTokType == kwSQL_AFTER_MTS_GAPS {
 			// no value needed
 		} else {
 			// consume '='
@@ -462,7 +465,7 @@ func (p *Parser) parseStartReplicaStmt(start int) (*nodes.StartReplicaStmt, erro
 				stmt.UntilValue = val
 			}
 			// For log file modes, also consume the POS part
-			if eqFold(untilName, "SOURCE_LOG_FILE") || eqFold(untilName, "MASTER_LOG_FILE") || eqFold(untilName, "RELAY_LOG_FILE") {
+			if untilTokType == kwSOURCE_LOG_FILE || eqFold(untilName, "MASTER_LOG_FILE") || untilTokType == kwRELAY_LOG_FILE {
 				if p.cur.Type == ',' {
 					p.advance() // consume ','
 					posName, _, err := p.parseKeywordOrIdent()
@@ -482,24 +485,25 @@ func (p *Parser) parseStartReplicaStmt(start int) (*nodes.StartReplicaStmt, erro
 	}
 
 	// Optional connection options
-	for p.isIdentToken() || p.cur.Type == kwUSER || p.cur.Type == kwPASSWORD {
-		switch {
-		case p.cur.Type == kwUSER:
+	for p.isIdentToken() || p.cur.Type == kwUSER || p.cur.Type == kwPASSWORD ||
+		p.cur.Type == kwDEFAULT_AUTH || p.cur.Type == kwPLUGIN_DIR {
+		switch p.cur.Type {
+		case kwUSER:
 			p.advance()
 			p.match('=')
 			stmt.User = p.cur.Str
 			p.advance()
-		case p.cur.Type == kwPASSWORD:
+		case kwPASSWORD:
 			p.advance()
 			p.match('=')
 			stmt.Password = p.cur.Str
 			p.advance()
-		case eqFold(p.cur.Str, "DEFAULT_AUTH"):
+		case kwDEFAULT_AUTH:
 			p.advance()
 			p.match('=')
 			stmt.DefaultAuth = p.cur.Str
 			p.advance()
-		case eqFold(p.cur.Str, "PLUGIN_DIR"):
+		case kwPLUGIN_DIR:
 			p.advance()
 			p.match('=')
 			stmt.PluginDir = p.cur.Str
@@ -527,8 +531,8 @@ doneConnOpts:
 
 // parseThreadTypes parses optional IO_THREAD, SQL_THREAD for START/STOP REPLICA.
 func (p *Parser) parseThreadTypes(stmt interface{}) {
-	for p.isIdentToken() {
-		if eqFold(p.cur.Str, "IO_THREAD") {
+	for p.cur.Type == kwIO_THREAD || p.cur.Type == kwSQL_THREAD {
+		if p.cur.Type == kwIO_THREAD {
 			switch s := stmt.(type) {
 			case *nodes.StartReplicaStmt:
 				s.IOThread = true
@@ -539,7 +543,7 @@ func (p *Parser) parseThreadTypes(stmt interface{}) {
 			if p.cur.Type == ',' {
 				p.advance()
 			}
-		} else if eqFold(p.cur.Str, "SQL_THREAD") {
+		} else if p.cur.Type == kwSQL_THREAD {
 			switch s := stmt.(type) {
 			case *nodes.StartReplicaStmt:
 				s.SQLThread = true
@@ -707,19 +711,19 @@ func (p *Parser) parseStartGroupReplicationStmt(start int) (*nodes.StartGroupRep
 	}
 
 	// Optional connection options
-	for p.isIdentToken() || p.cur.Type == kwUSER || p.cur.Type == kwPASSWORD {
-		switch {
-		case p.cur.Type == kwUSER:
+	for p.isIdentToken() || p.cur.Type == kwUSER || p.cur.Type == kwPASSWORD || p.cur.Type == kwDEFAULT_AUTH {
+		switch p.cur.Type {
+		case kwUSER:
 			p.advance()
 			p.match('=')
 			stmt.User = p.cur.Str
 			p.advance()
-		case p.cur.Type == kwPASSWORD:
+		case kwPASSWORD:
 			p.advance()
 			p.match('=')
 			stmt.Password = p.cur.Str
 			p.advance()
-		case eqFold(p.cur.Str, "DEFAULT_AUTH"):
+		case kwDEFAULT_AUTH:
 			p.advance()
 			p.match('=')
 			stmt.DefaultAuth = p.cur.Str

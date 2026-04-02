@@ -963,42 +963,14 @@ func TestNoEqFoldForRegisteredKeywords(t *testing.T) {
 	// This list should shrink to zero as eqFold patterns are migrated.
 	// Each entry is the lowercase string matched by eqFold.
 	eqFoldStrings := []string{
-		// name.go — @@variable scope parsing (operates on substring, cannot migrate)
+		// name.go — @@variable scope parsing (Phase 4, cannot migrate without lex change)
 		"global", "session", "local",
-		// grant.go — privilege matching on string array
+		// grant.go — privilege matching on post-parse string array (Phase 4)
 		"proxy",
-		// grant.go — auth options
-		"client", "factor", "initiate", "registration", "finish",
-		"challenge_response", "unregister", "initial", "authentication",
-		"max_queries_per_hour", "max_updates_per_hour",
-		"max_connections_per_hour", "max_user_connections",
-		"failed_login_attempts", "password_lock_time",
-		// create_table.go — table option name dispatch (post-parse string matching)
-		"key_block_size", "stats_auto_recalc", "stats_persistent",
-		"stats_sample_pages", "max_rows", "min_rows", "avg_row_length",
-		"pack_keys", "delay_key_write", "secondary_engine",
-		"secondary_engine_attribute", "autoextend_size", "engine_attribute",
-		// create_index.go — index option name dispatch
-		// utility.go — tablespace/logfile options
-		"histogram", "buckets", "use_frm",
-		"extent_size", "initial_size", "max_size", "file_block_size",
-		"nodegroup", "undo_buffer_size", "redo_buffer_size", "undofile",
-		"vcpu", "thread_priority",
-		// alter_table.go — secondary load/unload
-		"secondary_load", "secondary_unload",
-		// replication.go — replication options
-		"ignore_server_ids", "replicate_rewrite_db",
-		"sql_after_mts_gaps", "source_log_file", "relay_log_file",
-		"default_auth", "plugin_dir", "io_thread", "sql_thread",
-		// replication.go — legacy alias
+		// replication.go — legacy alias (not a registered keyword)
 		"master_log_file",
-		// stmt.go
-		"group_replication", "current_user",
-		// set_show.go
-		"persist_only",
-		// type.go — type aliases (MySQL maps to same token, not separate keywords)
-		"int1", "int2", "int3", "int4", "int8",
-		"middleint", "float4", "float8", "long",
+		// stmt.go — definer parsing (Phase 4)
+		"current_user",
 	}
 
 	violations := 0

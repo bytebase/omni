@@ -334,22 +334,19 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		cmd.Loc.End = p.pos()
 		return cmd, nil
 
+	case kwSECONDARY_LOAD:
+		p.advance()
+		cmd.Type = nodes.ATSecondaryLoad
+		cmd.Loc.End = p.pos()
+		return cmd, nil
+
+	case kwSECONDARY_UNLOAD:
+		p.advance()
+		cmd.Type = nodes.ATSecondaryUnload
+		cmd.Loc.End = p.pos()
+		return cmd, nil
+
 	default:
-		// Handle identifier-based actions: SECONDARY_LOAD, SECONDARY_UNLOAD
-		if p.cur.Type == tokIDENT {
-			if eqFold(p.cur.Str, "secondary_load") {
-				p.advance()
-				cmd.Type = nodes.ATSecondaryLoad
-				cmd.Loc.End = p.pos()
-				return cmd, nil
-			}
-			if eqFold(p.cur.Str, "secondary_unload") {
-				p.advance()
-				cmd.Type = nodes.ATSecondaryUnload
-				cmd.Loc.End = p.pos()
-				return cmd, nil
-			}
-		}
 		// Try table options: ENGINE, CHARSET, etc.
 		opt, ok, err := p.parseTableOption()
 		if err != nil {

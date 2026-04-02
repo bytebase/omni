@@ -591,6 +591,260 @@ const (
 	kwGENERATE
 	kwPROCESS
 	kwRELOAD
+	// --- 253 missing MySQL 8.0 keywords (appended in one pass) ---
+	kwABSENT
+	kwADDDATE
+	kwALLOW_MISSING_FILES
+	kwANY
+	kwARRAY
+	kwASCII
+	kwASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+	kwAUTHENTICATION
+	kwAUTO
+	kwAUTO_REFRESH
+	kwAUTO_REFRESH_SOURCE
+	kwAUTOEXTEND_SIZE
+	kwAVG_ROW_LENGTH
+	kwBERNOULLI
+	kwBIT_AND
+	kwBIT_OR
+	kwBIT_XOR
+	kwBLOCK
+	kwBUCKETS
+	kwBULK
+	kwBYTE
+	kwCATALOG_NAME
+	kwCHALLENGE_RESPONSE
+	kwCLASS_ORIGIN
+	kwCLIENT
+	kwCOLUMN_NAME
+	kwCONSTRAINT_CATALOG
+	kwCONSTRAINT_NAME
+	kwCONSTRAINT_SCHEMA
+	kwCONTEXT
+	kwCPU
+	kwCURDATE
+	kwCURSOR_NAME
+	kwCURTIME
+	kwDATE_ADD
+	kwDATE_SUB
+	kwDEFAULT_AUTH
+	kwDELAY_KEY_WRITE
+	kwDUALITY
+	kwENGINE_ATTRIBUTE
+	kwEXCLUDE
+	kwEXTENT_SIZE
+	kwEXTERNAL
+	kwEXTERNAL_FORMAT
+	kwFACTOR
+	kwFAILED_LOGIN_ATTEMPTS
+	kwFAULTS
+	kwFILE
+	kwFILE_BLOCK_SIZE
+	kwFILE_FORMAT
+	kwFILE_NAME
+	kwFILE_PATTERN
+	kwFILE_PREFIX
+	kwFILES
+	kwFINISH
+	kwFLOAT4
+	kwFLOAT8
+	kwGENERAL
+	kwGEOMCOLLECTION
+	kwGET_FORMAT
+	kwGET_SOURCE_PUBLIC_KEY
+	kwGROUP_REPLICATION
+	kwGTID_ONLY
+	kwGTIDS
+	kwGUIDED
+	kwHEADER
+	kwHISTOGRAM
+	kwHOST
+	kwHOUR
+	kwIGNORE_SERVER_IDS
+	kwINITIAL
+	kwINITIAL_SIZE
+	kwINITIATE
+	kwINT1
+	kwINT2
+	kwINT3
+	kwINT4
+	kwINT8
+	kwIO
+	kwIO_THREAD
+	kwIPC
+	kwJSON_ARRAYAGG
+	kwJSON_DUALITY_OBJECT
+	kwJSON_OBJECTAGG
+	kwJSON_VALUE
+	kwKEY_BLOCK_SIZE
+	kwLIBRARY
+	kwLOCKS
+	kwLOG
+	kwLONG
+	kwMANUAL
+	kwMATERIALIZED
+	kwMAX_CONNECTIONS_PER_HOUR
+	kwMAX_QUERIES_PER_HOUR
+	kwMAX_ROWS
+	kwMAX_SIZE
+	kwMAX_UPDATES_PER_HOUR
+	kwMAX_USER_CONNECTIONS
+	kwMESSAGE_TEXT
+	kwMICROSECOND
+	kwMID
+	kwMIDDLEINT
+	kwMIN_ROWS
+	kwMINUTE
+	kwMONTH
+	kwMYSQL_ERRNO
+	kwNDB
+	kwNDBCLUSTER
+	kwNETWORK_NAMESPACE
+	kwNEW
+	kwNO_WAIT
+	kwNODEGROUP
+	kwNOW
+	kwNUMBER
+	kwOFF
+	kwOJ
+	kwOTHERS
+	kwOWNER
+	kwPACK_KEYS
+	kwPAGE
+	kwPARALLEL
+	kwPARAMETERS
+	kwPARSE_TREE
+	kwPASSWORD_LOCK_TIME
+	kwPERSIST_ONLY
+	kwPLUGIN_DIR
+	kwPORT
+	kwPRIVILEGE_CHECKS_USER
+	kwQUALIFY
+	kwQUARTER
+	kwREAD_ONLY
+	kwREAD_WRITE
+	kwREDO_BUFFER_SIZE
+	kwREGISTRATION
+	kwRELATIONAL
+	kwRELAY
+	kwRELAY_LOG_FILE
+	kwRELAY_LOG_POS
+	kwRELAY_THREAD
+	kwREPLICATE_DO_DB
+	kwREPLICATE_DO_TABLE
+	kwREPLICATE_IGNORE_DB
+	kwREPLICATE_IGNORE_TABLE
+	kwREPLICATE_REWRITE_DB
+	kwREPLICATE_WILD_DO_TABLE
+	kwREPLICATE_WILD_IGNORE_TABLE
+	kwREQUIRE_ROW_FORMAT
+	kwREQUIRE_TABLE_PRIMARY_KEY_CHECK
+	kwRESPECT
+	kwRESTORE
+	kwRETURNED_SQLSTATE
+	kwRETURNING
+	kwREVERSE
+	kwROW_COUNT
+	kwRTREE
+	kwS3
+	kwSCHEMA_NAME
+	kwSECOND
+	kwSECONDARY
+	kwSECONDARY_ENGINE
+	kwSECONDARY_ENGINE_ATTRIBUTE
+	kwSECONDARY_LOAD
+	kwSECONDARY_UNLOAD
+	kwSESSION_USER
+	kwSETS
+	kwSIMPLE
+	kwSLOW
+	kwSOCKET
+	kwSOME
+	kwSOURCE_AUTO_POSITION
+	kwSOURCE_BIND
+	kwSOURCE_COMPRESSION_ALGORITHMS
+	kwSOURCE_CONNECT_RETRY
+	kwSOURCE_CONNECTION_AUTO_FAILOVER
+	kwSOURCE_DELAY
+	kwSOURCE_HEARTBEAT_PERIOD
+	kwSOURCE_HOST
+	kwSOURCE_LOG_FILE
+	kwSOURCE_LOG_POS
+	kwSOURCE_PASSWORD
+	kwSOURCE_PORT
+	kwSOURCE_PUBLIC_KEY_PATH
+	kwSOURCE_RETRY_COUNT
+	kwSOURCE_SSL
+	kwSOURCE_SSL_CA
+	kwSOURCE_SSL_CAPATH
+	kwSOURCE_SSL_CERT
+	kwSOURCE_SSL_CIPHER
+	kwSOURCE_SSL_CRL
+	kwSOURCE_SSL_CRLPATH
+	kwSOURCE_SSL_KEY
+	kwSOURCE_SSL_VERIFY_SERVER_CERT
+	kwSOURCE_TLS_CIPHERSUITES
+	kwSOURCE_TLS_VERSION
+	kwSOURCE_USER
+	kwSOURCE_ZSTD_COMPRESSION_LEVEL
+	kwSQL_AFTER_GTIDS
+	kwSQL_AFTER_MTS_GAPS
+	kwSQL_BEFORE_GTIDS
+	kwSQL_THREAD
+	kwSQL_TSI_DAY
+	kwSQL_TSI_HOUR
+	kwSQL_TSI_MINUTE
+	kwSQL_TSI_MONTH
+	kwSQL_TSI_QUARTER
+	kwSQL_TSI_SECOND
+	kwSQL_TSI_WEEK
+	kwSQL_TSI_YEAR
+	kwST_COLLECT
+	kwSTATS_AUTO_RECALC
+	kwSTATS_PERSISTENT
+	kwSTATS_SAMPLE_PAGES
+	kwSTD
+	kwSTDDEV
+	kwSTDDEV_POP
+	kwSTDDEV_SAMP
+	kwSTRICT_LOAD
+	kwSTRING
+	kwSUBCLASS_ORIGIN
+	kwSUBDATE
+	kwSUBSTR
+	kwSUPER
+	kwSWAPS
+	kwSWITCHES
+	kwSYSDATE
+	kwSYSTEM_USER
+	kwTABLE_CHECKSUM
+	kwTABLE_NAME
+	kwTABLESAMPLE
+	kwTHREAD_PRIORITY
+	kwTIES
+	kwTIMESTAMPADD
+	kwTIMESTAMPDIFF
+	kwTYPES
+	kwUNDO_BUFFER_SIZE
+	kwUNDOFILE
+	kwUNICODE
+	kwUNREGISTER
+	kwURI
+	kwURL
+	kwUSE_FRM
+	kwUSER_RESOURCES
+	kwVALIDATE
+	kwVAR_POP
+	kwVAR_SAMP
+	kwVARCHARACTER
+	kwVARIANCE
+	kwVCPU
+	kwVECTOR
+	kwVERIFY_KEY_CONSTRAINTS
+	kwWEEK
+	kwWEIGHT_STRING
+	kwZONE
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1141,7 +1395,261 @@ var keywords = map[string]int{
 	"stream":              kwSTREAM,
 	"generate":            kwGENERATE,
 	"process":             kwPROCESS,
-	"reload":              kwRELOAD,
+	"reload":                                kwRELOAD,
+	// --- 253 missing MySQL 8.0 keywords ---
+	"absent":                                kwABSENT,
+	"adddate":                               kwADDDATE,
+	"allow_missing_files":                   kwALLOW_MISSING_FILES,
+	"any":                                   kwANY,
+	"array":                                 kwARRAY,
+	"ascii":                                 kwASCII,
+	"assign_gtids_to_anonymous_transactions": kwASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS,
+	"authentication":                        kwAUTHENTICATION,
+	"auto":                                  kwAUTO,
+	"auto_refresh":                          kwAUTO_REFRESH,
+	"auto_refresh_source":                   kwAUTO_REFRESH_SOURCE,
+	"autoextend_size":                       kwAUTOEXTEND_SIZE,
+	"avg_row_length":                        kwAVG_ROW_LENGTH,
+	"bernoulli":                             kwBERNOULLI,
+	"bit_and":                               kwBIT_AND,
+	"bit_or":                                kwBIT_OR,
+	"bit_xor":                               kwBIT_XOR,
+	"block":                                 kwBLOCK,
+	"buckets":                               kwBUCKETS,
+	"bulk":                                  kwBULK,
+	"byte":                                  kwBYTE,
+	"catalog_name":                          kwCATALOG_NAME,
+	"challenge_response":                    kwCHALLENGE_RESPONSE,
+	"class_origin":                          kwCLASS_ORIGIN,
+	"client":                                kwCLIENT,
+	"column_name":                           kwCOLUMN_NAME,
+	"constraint_catalog":                    kwCONSTRAINT_CATALOG,
+	"constraint_name":                       kwCONSTRAINT_NAME,
+	"constraint_schema":                     kwCONSTRAINT_SCHEMA,
+	"context":                               kwCONTEXT,
+	"cpu":                                   kwCPU,
+	"curdate":                               kwCURDATE,
+	"cursor_name":                           kwCURSOR_NAME,
+	"curtime":                               kwCURTIME,
+	"date_add":                              kwDATE_ADD,
+	"date_sub":                              kwDATE_SUB,
+	"default_auth":                          kwDEFAULT_AUTH,
+	"delay_key_write":                       kwDELAY_KEY_WRITE,
+	"duality":                               kwDUALITY,
+	"engine_attribute":                      kwENGINE_ATTRIBUTE,
+	"exclude":                               kwEXCLUDE,
+	"extent_size":                           kwEXTENT_SIZE,
+	"external":                              kwEXTERNAL,
+	"external_format":                       kwEXTERNAL_FORMAT,
+	"factor":                                kwFACTOR,
+	"failed_login_attempts":                 kwFAILED_LOGIN_ATTEMPTS,
+	"faults":                                kwFAULTS,
+	"file":                                  kwFILE,
+	"file_block_size":                       kwFILE_BLOCK_SIZE,
+	"file_format":                           kwFILE_FORMAT,
+	"file_name":                             kwFILE_NAME,
+	"file_pattern":                          kwFILE_PATTERN,
+	"file_prefix":                           kwFILE_PREFIX,
+	"files":                                 kwFILES,
+	"finish":                                kwFINISH,
+	"float4":                                kwFLOAT4,
+	"float8":                                kwFLOAT8,
+	"general":                               kwGENERAL,
+	"geomcollection":                        kwGEOMCOLLECTION,
+	"get_format":                            kwGET_FORMAT,
+	"get_source_public_key":                 kwGET_SOURCE_PUBLIC_KEY,
+	"group_replication":                     kwGROUP_REPLICATION,
+	"gtid_only":                             kwGTID_ONLY,
+	"gtids":                                 kwGTIDS,
+	"guided":                                kwGUIDED,
+	"header":                                kwHEADER,
+	"histogram":                             kwHISTOGRAM,
+	"host":                                  kwHOST,
+	"hour":                                  kwHOUR,
+	"ignore_server_ids":                     kwIGNORE_SERVER_IDS,
+	"initial":                               kwINITIAL,
+	"initial_size":                          kwINITIAL_SIZE,
+	"initiate":                              kwINITIATE,
+	"int1":                                  kwINT1,
+	"int2":                                  kwINT2,
+	"int3":                                  kwINT3,
+	"int4":                                  kwINT4,
+	"int8":                                  kwINT8,
+	"io":                                    kwIO,
+	"io_thread":                             kwIO_THREAD,
+	"ipc":                                   kwIPC,
+	"json_arrayagg":                         kwJSON_ARRAYAGG,
+	"json_duality_object":                   kwJSON_DUALITY_OBJECT,
+	"json_objectagg":                        kwJSON_OBJECTAGG,
+	"json_value":                            kwJSON_VALUE,
+	"key_block_size":                        kwKEY_BLOCK_SIZE,
+	"library":                               kwLIBRARY,
+	"locks":                                 kwLOCKS,
+	"log":                                   kwLOG,
+	"long":                                  kwLONG,
+	"manual":                                kwMANUAL,
+	"materialized":                          kwMATERIALIZED,
+	"max_connections_per_hour":              kwMAX_CONNECTIONS_PER_HOUR,
+	"max_queries_per_hour":                  kwMAX_QUERIES_PER_HOUR,
+	"max_rows":                              kwMAX_ROWS,
+	"max_size":                              kwMAX_SIZE,
+	"max_updates_per_hour":                  kwMAX_UPDATES_PER_HOUR,
+	"max_user_connections":                  kwMAX_USER_CONNECTIONS,
+	"message_text":                          kwMESSAGE_TEXT,
+	"microsecond":                           kwMICROSECOND,
+	"mid":                                   kwMID,
+	"middleint":                             kwMIDDLEINT,
+	"min_rows":                              kwMIN_ROWS,
+	"minute":                                kwMINUTE,
+	"month":                                 kwMONTH,
+	"mysql_errno":                           kwMYSQL_ERRNO,
+	"ndb":                                   kwNDB,
+	"ndbcluster":                            kwNDBCLUSTER,
+	"network_namespace":                     kwNETWORK_NAMESPACE,
+	"new":                                   kwNEW,
+	"no_wait":                               kwNO_WAIT,
+	"nodegroup":                             kwNODEGROUP,
+	"now":                                   kwNOW,
+	"number":                                kwNUMBER,
+	"off":                                   kwOFF,
+	"oj":                                    kwOJ,
+	"others":                                kwOTHERS,
+	"owner":                                 kwOWNER,
+	"pack_keys":                             kwPACK_KEYS,
+	"page":                                  kwPAGE,
+	"parallel":                              kwPARALLEL,
+	"parameters":                            kwPARAMETERS,
+	"parse_tree":                            kwPARSE_TREE,
+	"password_lock_time":                    kwPASSWORD_LOCK_TIME,
+	"persist_only":                          kwPERSIST_ONLY,
+	"plugin_dir":                            kwPLUGIN_DIR,
+	"port":                                  kwPORT,
+	"privilege_checks_user":                 kwPRIVILEGE_CHECKS_USER,
+	"qualify":                               kwQUALIFY,
+	"quarter":                               kwQUARTER,
+	"read_only":                             kwREAD_ONLY,
+	"read_write":                            kwREAD_WRITE,
+	"redo_buffer_size":                      kwREDO_BUFFER_SIZE,
+	"registration":                          kwREGISTRATION,
+	"relational":                            kwRELATIONAL,
+	"relay":                                 kwRELAY,
+	"relay_log_file":                        kwRELAY_LOG_FILE,
+	"relay_log_pos":                         kwRELAY_LOG_POS,
+	"relay_thread":                          kwRELAY_THREAD,
+	"replicate_do_db":                       kwREPLICATE_DO_DB,
+	"replicate_do_table":                    kwREPLICATE_DO_TABLE,
+	"replicate_ignore_db":                   kwREPLICATE_IGNORE_DB,
+	"replicate_ignore_table":                kwREPLICATE_IGNORE_TABLE,
+	"replicate_rewrite_db":                  kwREPLICATE_REWRITE_DB,
+	"replicate_wild_do_table":               kwREPLICATE_WILD_DO_TABLE,
+	"replicate_wild_ignore_table":           kwREPLICATE_WILD_IGNORE_TABLE,
+	"require_row_format":                    kwREQUIRE_ROW_FORMAT,
+	"require_table_primary_key_check":       kwREQUIRE_TABLE_PRIMARY_KEY_CHECK,
+	"respect":                               kwRESPECT,
+	"restore":                               kwRESTORE,
+	"returned_sqlstate":                     kwRETURNED_SQLSTATE,
+	"returning":                             kwRETURNING,
+	"reverse":                               kwREVERSE,
+	"row_count":                             kwROW_COUNT,
+	"rtree":                                 kwRTREE,
+	"s3":                                    kwS3,
+	"schema_name":                           kwSCHEMA_NAME,
+	"second":                                kwSECOND,
+	"secondary":                             kwSECONDARY,
+	"secondary_engine":                      kwSECONDARY_ENGINE,
+	"secondary_engine_attribute":            kwSECONDARY_ENGINE_ATTRIBUTE,
+	"secondary_load":                        kwSECONDARY_LOAD,
+	"secondary_unload":                      kwSECONDARY_UNLOAD,
+	"session_user":                          kwSESSION_USER,
+	"sets":                                  kwSETS,
+	"simple":                                kwSIMPLE,
+	"slow":                                  kwSLOW,
+	"socket":                                kwSOCKET,
+	"some":                                  kwSOME,
+	"source_auto_position":                  kwSOURCE_AUTO_POSITION,
+	"source_bind":                           kwSOURCE_BIND,
+	"source_compression_algorithms":         kwSOURCE_COMPRESSION_ALGORITHMS,
+	"source_connect_retry":                  kwSOURCE_CONNECT_RETRY,
+	"source_connection_auto_failover":       kwSOURCE_CONNECTION_AUTO_FAILOVER,
+	"source_delay":                          kwSOURCE_DELAY,
+	"source_heartbeat_period":               kwSOURCE_HEARTBEAT_PERIOD,
+	"source_host":                           kwSOURCE_HOST,
+	"source_log_file":                       kwSOURCE_LOG_FILE,
+	"source_log_pos":                        kwSOURCE_LOG_POS,
+	"source_password":                       kwSOURCE_PASSWORD,
+	"source_port":                           kwSOURCE_PORT,
+	"source_public_key_path":                kwSOURCE_PUBLIC_KEY_PATH,
+	"source_retry_count":                    kwSOURCE_RETRY_COUNT,
+	"source_ssl":                            kwSOURCE_SSL,
+	"source_ssl_ca":                         kwSOURCE_SSL_CA,
+	"source_ssl_capath":                     kwSOURCE_SSL_CAPATH,
+	"source_ssl_cert":                       kwSOURCE_SSL_CERT,
+	"source_ssl_cipher":                     kwSOURCE_SSL_CIPHER,
+	"source_ssl_crl":                        kwSOURCE_SSL_CRL,
+	"source_ssl_crlpath":                    kwSOURCE_SSL_CRLPATH,
+	"source_ssl_key":                        kwSOURCE_SSL_KEY,
+	"source_ssl_verify_server_cert":         kwSOURCE_SSL_VERIFY_SERVER_CERT,
+	"source_tls_ciphersuites":               kwSOURCE_TLS_CIPHERSUITES,
+	"source_tls_version":                    kwSOURCE_TLS_VERSION,
+	"source_user":                           kwSOURCE_USER,
+	"source_zstd_compression_level":         kwSOURCE_ZSTD_COMPRESSION_LEVEL,
+	"sql_after_gtids":                       kwSQL_AFTER_GTIDS,
+	"sql_after_mts_gaps":                    kwSQL_AFTER_MTS_GAPS,
+	"sql_before_gtids":                      kwSQL_BEFORE_GTIDS,
+	"sql_thread":                            kwSQL_THREAD,
+	"sql_tsi_day":                           kwSQL_TSI_DAY,
+	"sql_tsi_hour":                          kwSQL_TSI_HOUR,
+	"sql_tsi_minute":                        kwSQL_TSI_MINUTE,
+	"sql_tsi_month":                         kwSQL_TSI_MONTH,
+	"sql_tsi_quarter":                       kwSQL_TSI_QUARTER,
+	"sql_tsi_second":                        kwSQL_TSI_SECOND,
+	"sql_tsi_week":                          kwSQL_TSI_WEEK,
+	"sql_tsi_year":                          kwSQL_TSI_YEAR,
+	"st_collect":                            kwST_COLLECT,
+	"stats_auto_recalc":                     kwSTATS_AUTO_RECALC,
+	"stats_persistent":                      kwSTATS_PERSISTENT,
+	"stats_sample_pages":                    kwSTATS_SAMPLE_PAGES,
+	"std":                                   kwSTD,
+	"stddev":                                kwSTDDEV,
+	"stddev_pop":                            kwSTDDEV_POP,
+	"stddev_samp":                           kwSTDDEV_SAMP,
+	"strict_load":                           kwSTRICT_LOAD,
+	"string":                                kwSTRING,
+	"subclass_origin":                       kwSUBCLASS_ORIGIN,
+	"subdate":                               kwSUBDATE,
+	"substr":                                kwSUBSTR,
+	"super":                                 kwSUPER,
+	"swaps":                                 kwSWAPS,
+	"switches":                              kwSWITCHES,
+	"sysdate":                               kwSYSDATE,
+	"system_user":                           kwSYSTEM_USER,
+	"table_checksum":                        kwTABLE_CHECKSUM,
+	"table_name":                            kwTABLE_NAME,
+	"tablesample":                           kwTABLESAMPLE,
+	"thread_priority":                       kwTHREAD_PRIORITY,
+	"ties":                                  kwTIES,
+	"timestampadd":                          kwTIMESTAMPADD,
+	"timestampdiff":                         kwTIMESTAMPDIFF,
+	"types":                                 kwTYPES,
+	"undo_buffer_size":                      kwUNDO_BUFFER_SIZE,
+	"undofile":                              kwUNDOFILE,
+	"unicode":                               kwUNICODE,
+	"unregister":                            kwUNREGISTER,
+	"uri":                                   kwURI,
+	"url":                                   kwURL,
+	"use_frm":                               kwUSE_FRM,
+	"user_resources":                        kwUSER_RESOURCES,
+	"validate":                              kwVALIDATE,
+	"var_pop":                               kwVAR_POP,
+	"var_samp":                              kwVAR_SAMP,
+	"varcharacter":                          kwVARCHARACTER,
+	"variance":                              kwVARIANCE,
+	"vcpu":                                  kwVCPU,
+	"vector":                                kwVECTOR,
+	"verify_key_constraints":                kwVERIFY_KEY_CONSTRAINTS,
+	"week":                                  kwWEEK,
+	"weight_string":                         kwWEIGHT_STRING,
+	"zone":                                  kwZONE,
 }
 
 // Token represents a lexical token.

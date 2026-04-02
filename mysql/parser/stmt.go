@@ -271,7 +271,7 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 		return p.parseStartReplicaStmt(start)
 	}
 
-	if p.isIdentToken() && eqFold(p.cur.Str, "GROUP_REPLICATION") {
+	if p.cur.Type == kwGROUP_REPLICATION {
 		p.advance() // consume GROUP_REPLICATION
 		return p.parseStartGroupReplicationStmt(start)
 	}
@@ -371,7 +371,7 @@ func (p *Parser) parseStopDispatch() (nodes.Node, error) {
 		return p.parseStopReplicaStmt(start)
 	}
 
-	if p.isIdentToken() && eqFold(p.cur.Str, "GROUP_REPLICATION") {
+	if p.cur.Type == kwGROUP_REPLICATION {
 		p.advance() // consume GROUP_REPLICATION
 		return p.parseStopGroupReplicationStmt(start)
 	}

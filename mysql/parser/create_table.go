@@ -296,10 +296,8 @@ func (p *Parser) isColumnConstraintStart() bool {
 		kwCOLUMN_FORMAT, kwSTORAGE:
 		return true
 	}
-	if p.cur.Type == tokIDENT {
-		if eqFold(p.cur.Str, "engine_attribute") || eqFold(p.cur.Str, "secondary_engine_attribute") {
-			return true
-		}
+	if p.cur.Type == kwENGINE_ATTRIBUTE || p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE {
+		return true
 	}
 	if p.cur.Type == kwSRID {
 		return true
@@ -555,41 +553,38 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		return true, nil
 	}
 
-	// Handle identifier-based column options: ENGINE_ATTRIBUTE, SECONDARY_ENGINE_ATTRIBUTE
-	if p.cur.Type == tokIDENT {
-		optName := p.cur.Str
-		if eqFold(optName, "engine_attribute") {
+	// Handle ENGINE_ATTRIBUTE, SECONDARY_ENGINE_ATTRIBUTE column options
+	if p.cur.Type == kwENGINE_ATTRIBUTE {
+		p.advance()
+		p.match('=')
+		val := ""
+		if p.cur.Type == tokSCONST {
+			val = p.cur.Str
 			p.advance()
-			p.match('=')
-			val := ""
-			if p.cur.Type == tokSCONST {
-				val = p.cur.Str
-				p.advance()
-			}
-			col.EngineAttribute = val
-			col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-				Loc:  nodes.Loc{Start: start, End: p.pos()},
-				Type: nodes.ColConstrEngineAttribute,
-				Name: val,
-			})
-			return true, nil
 		}
-		if eqFold(optName, "secondary_engine_attribute") {
+		col.EngineAttribute = val
+		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
+			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Type: nodes.ColConstrEngineAttribute,
+			Name: val,
+		})
+		return true, nil
+	}
+	if p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE {
+		p.advance()
+		p.match('=')
+		val := ""
+		if p.cur.Type == tokSCONST {
+			val = p.cur.Str
 			p.advance()
-			p.match('=')
-			val := ""
-			if p.cur.Type == tokSCONST {
-				val = p.cur.Str
-				p.advance()
-			}
-			col.SecondaryEngineAttribute = val
-			col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-				Loc:  nodes.Loc{Start: start, End: p.pos()},
-				Type: nodes.ColConstrSecondaryEngineAttribute,
-				Name: val,
-			})
-			return true, nil
 		}
+		col.SecondaryEngineAttribute = val
+		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
+			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Type: nodes.ColConstrSecondaryEngineAttribute,
+			Name: val,
+		})
+		return true, nil
 	}
 
 	// SRID column option (now lexes as kwSRID keyword token)
@@ -1257,30 +1252,19 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	}
 
 	// Handle identifier-based options: KEY_BLOCK_SIZE, STATS_AUTO_RECALC, etc.
-	if p.cur.Type == tokIDENT {
+	switch p.cur.Type {
+	case kwKEY_BLOCK_SIZE, kwSTATS_AUTO_RECALC, kwSTATS_PERSISTENT,
+		kwSTATS_SAMPLE_PAGES, kwMAX_ROWS, kwMIN_ROWS, kwAVG_ROW_LENGTH,
+		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
+		kwSECONDARY_ENGINE_ATTRIBUTE, kwAUTOEXTEND_SIZE, kwENGINE_ATTRIBUTE:
 		optName := p.cur.Str
-		switch {
-		case eqFold(optName, "key_block_size"),
-			eqFold(optName, "stats_auto_recalc"),
-			eqFold(optName, "stats_persistent"),
-			eqFold(optName, "stats_sample_pages"),
-			eqFold(optName, "max_rows"),
-			eqFold(optName, "min_rows"),
-			eqFold(optName, "avg_row_length"),
-			eqFold(optName, "pack_keys"),
-			eqFold(optName, "delay_key_write"),
-			eqFold(optName, "secondary_engine"),
-			eqFold(optName, "secondary_engine_attribute"),
-			eqFold(optName, "autoextend_size"),
-			eqFold(optName, "engine_attribute"):
-			p.advance()
-			p.match('=')
-			val, err := p.consumeOptionValue()
-			if err != nil {
-				return nil, false, err
-			}
-			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: optName, Value: val}, true, nil
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
 		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: optName, Value: val}, true, nil
 	}
 
 	return nil, false, nil
