@@ -40,7 +40,7 @@ import (
 //	    [(field_name_or_user_var [, field_name_or_user_var] ...)]
 //	    [SET col_name={expr | DEFAULT} [, col_name={expr | DEFAULT}] ...]
 func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
-	isXML := p.cur.Type == tokIDENT && eqFold(p.cur.Str, "XML")
+	isXML := p.cur.Type == kwXML
 	p.advance() // consume DATA or XML
 
 	stmt := &nodes.LoadDataStmt{Loc: nodes.Loc{Start: start}, IsXML: isXML}
@@ -49,7 +49,7 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	if p.cur.Type == kwLOW_PRIORITY {
 		stmt.LowPriority = true
 		p.advance()
-	} else if p.isIdentToken() && eqFold(p.cur.Str, "CONCURRENT") {
+	} else if p.cur.Type == kwCONCURRENT {
 		stmt.Concurrent = true
 		p.advance()
 	}

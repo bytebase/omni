@@ -517,6 +517,27 @@ const (
 	kwSIGNED
 	kwPRECISION
 	kwSRID
+	kwENFORCED
+	kwLESS
+	kwTHAN
+	kwSUBPARTITIONS
+	kwLEAVES
+	kwPARSER
+	kwCOMPRESSION
+	kwINSERT_METHOD
+	kwACTION
+	kwPARTIAL
+	kwFORMAT
+	kwXML
+	kwCONCURRENT
+	kwWORK
+	kwXID
+	kwEXPORT
+	kwUPGRADE
+	kwFAST
+	kwMEDIUM
+	kwCHANGED
+	kwCODE
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -995,6 +1016,27 @@ var keywords = map[string]int{
 	"signed":              kwSIGNED,
 	"precision":           kwPRECISION,
 	"srid":                kwSRID,
+	"enforced":            kwENFORCED,
+	"less":                kwLESS,
+	"than":                kwTHAN,
+	"subpartitions":       kwSUBPARTITIONS,
+	"leaves":              kwLEAVES,
+	"parser":              kwPARSER,
+	"compression":         kwCOMPRESSION,
+	"insert_method":       kwINSERT_METHOD,
+	"action":              kwACTION,
+	"partial":             kwPARTIAL,
+	"format":              kwFORMAT,
+	"xml":                 kwXML,
+	"concurrent":          kwCONCURRENT,
+	"work":                kwWORK,
+	"xid":                 kwXID,
+	"export":              kwEXPORT,
+	"upgrade":             kwUPGRADE,
+	"fast":                kwFAST,
+	"medium":              kwMEDIUM,
+	"changed":             kwCHANGED,
+	"code":                kwCODE,
 }
 
 // Token represents a lexical token.

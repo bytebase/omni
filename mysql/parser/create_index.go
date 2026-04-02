@@ -277,7 +277,7 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 
 	case p.cur.Type == kwWITH:
 		next := p.peekNext()
-		if next.Type == tokIDENT && eqFold(next.Str, "PARSER") {
+		if next.Type == kwPARSER {
 			p.advance() // consume WITH
 			p.advance() // consume PARSER
 			parserName, _, err := p.parseIdentifier()

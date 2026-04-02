@@ -705,11 +705,11 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		cmd.Type = nodes.ATAlterCheckEnforced
 		if p.cur.Type == kwNOT {
 			p.advance()
-			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "enforced") {
+			if p.cur.Type == kwENFORCED {
 				p.advance()
 			}
 			cmd.NewName = "NOT ENFORCED"
-		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "enforced") {
+		} else if p.cur.Type == kwENFORCED {
 			p.advance()
 			cmd.NewName = "ENFORCED"
 		}
@@ -728,11 +728,11 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		cmd.Type = nodes.ATAlterCheckEnforced
 		if p.cur.Type == kwNOT {
 			p.advance()
-			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "enforced") {
+			if p.cur.Type == kwENFORCED {
 				p.advance()
 			}
 			cmd.NewName = "NOT ENFORCED"
-		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "enforced") {
+		} else if p.cur.Type == kwENFORCED {
 			p.advance()
 			cmd.NewName = "ENFORCED"
 		}

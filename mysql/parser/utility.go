@@ -212,7 +212,7 @@ func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
 	for {
 		if p.cur.Type == kwFOR {
 			p.advance()
-			if p.isIdentToken() && eqFold(p.cur.Str, "upgrade") {
+			if p.cur.Type == kwUPGRADE {
 				stmt.Options = append(stmt.Options, "FOR UPGRADE")
 				p.advance()
 			}
@@ -222,8 +222,7 @@ func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
 		} else if p.cur.Type == kwEXTENDED {
 			stmt.Options = append(stmt.Options, "EXTENDED")
 			p.advance()
-		} else if p.cur.Type == tokIDENT &&
-			(eqFold(p.cur.Str, "fast") || eqFold(p.cur.Str, "medium") || eqFold(p.cur.Str, "changed")) {
+		} else if p.cur.Type == kwFAST || p.cur.Type == kwMEDIUM || p.cur.Type == kwCHANGED {
 			stmt.Options = append(stmt.Options, strings.ToUpper(p.cur.Str))
 			p.advance()
 		} else {
@@ -384,7 +383,7 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 		// FOR EXPORT
 		if p.cur.Type == kwFOR {
 			p.advance()
-			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "export") {
+			if p.cur.Type == kwEXPORT {
 				p.advance()
 			}
 			stmt.ForExport = true
@@ -2252,7 +2251,7 @@ func (p *Parser) parseLoadIndexIntoCacheStmt(start int) (*nodes.LoadIndexIntoCac
 		// [IGNORE LEAVES]
 		if p.cur.Type == kwIGNORE {
 			p.advance()
-			if p.isIdentToken() && eqFold(p.cur.Str, "LEAVES") {
+			if p.cur.Type == kwLEAVES {
 				p.advance()
 			}
 			entry.IgnoreLeaves = true

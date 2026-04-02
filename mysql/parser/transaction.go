@@ -55,7 +55,7 @@ func (p *Parser) parseBeginStmt() (*nodes.BeginStmt, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "work") {
+		if p.cur.Type == kwWORK {
 			p.advance()
 		}
 	}
@@ -83,7 +83,7 @@ func (p *Parser) parseCommitStmt() (*nodes.CommitStmt, error) {
 	stmt := &nodes.CommitStmt{Loc: nodes.Loc{Start: start}}
 
 	// Optional WORK
-	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "work") {
+	if p.cur.Type == kwWORK {
 		p.advance()
 	}
 
@@ -131,7 +131,7 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackStmt, error) {
 	stmt := &nodes.RollbackStmt{Loc: nodes.Loc{Start: start}}
 
 	// Optional WORK
-	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "work") {
+	if p.cur.Type == kwWORK {
 		p.advance()
 	}
 
@@ -477,7 +477,7 @@ func (p *Parser) parseXAStmt() (*nodes.XAStmt, error) {
 		p.advance()
 		if _, ok := p.match(kwCONVERT); ok {
 			// CONVERT XID
-			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "xid") {
+			if p.cur.Type == kwXID {
 				p.advance()
 			}
 			stmt.Convert = true

@@ -462,11 +462,11 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		// [[NOT] ENFORCED]
 		if p.cur.Type == kwNOT {
 			p.advance()
-			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "enforced") {
+			if p.cur.Type == kwENFORCED {
 				p.advance()
 				cc.NotEnforced = true
 			}
-		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "enforced") {
+		} else if p.cur.Type == kwENFORCED {
 			p.advance()
 		}
 		cc.Loc.End = p.pos()
@@ -707,7 +707,7 @@ func (p *Parser) parseReferenceAction() nodes.ReferenceAction {
 		return nodes.RefActNone
 	case kwNO:
 		p.advance()
-		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "action") {
+		if p.cur.Type == kwACTION {
 			p.advance()
 		}
 		return nodes.RefActNoAction
@@ -929,11 +929,11 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		// [[NOT] ENFORCED]
 		if p.cur.Type == kwNOT {
 			p.advance()
-			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "enforced") {
+			if p.cur.Type == kwENFORCED {
 				p.advance()
 				constr.NotEnforced = true
 			}
-		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "enforced") {
+		} else if p.cur.Type == kwENFORCED {
 			p.advance()
 		}
 
@@ -1244,6 +1244,18 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return nil, false, nil
 	}
 
+	// Handle keyword-token-based table options: COMPRESSION, INSERT_METHOD.
+	if p.cur.Type == kwCOMPRESSION || p.cur.Type == kwINSERT_METHOD {
+		optName := p.cur.Str
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: optName, Value: val}, true, nil
+	}
+
 	// Handle identifier-based options: KEY_BLOCK_SIZE, STATS_AUTO_RECALC, etc.
 	if p.cur.Type == tokIDENT {
 		optName := p.cur.Str
@@ -1257,8 +1269,6 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			eqFold(optName, "avg_row_length"),
 			eqFold(optName, "pack_keys"),
 			eqFold(optName, "delay_key_write"),
-			eqFold(optName, "compression"),
-			eqFold(optName, "insert_method"),
 			eqFold(optName, "secondary_engine"),
 			eqFold(optName, "secondary_engine_attribute"),
 			eqFold(optName, "autoextend_size"),
@@ -1499,7 +1509,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 
 		// SUBPARTITIONS num
-		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "subpartitions") {
+		if p.cur.Type == kwSUBPARTITIONS {
 			p.advance()
 			if p.cur.Type == tokICONST {
 				part.NumSubParts = int(p.cur.Ival)
@@ -1557,9 +1567,9 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 
 	// VALUES LESS THAN or VALUES IN
 	if _, ok := p.match(kwVALUES); ok {
-		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "less") {
+		if p.cur.Type == kwLESS {
 			p.advance() // LESS
-			if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "than") {
+			if p.cur.Type == kwTHAN {
 				p.advance() // THAN
 			}
 			if p.cur.Type == '(' {

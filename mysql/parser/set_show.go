@@ -966,7 +966,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
-		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "code") {
+		} else if p.cur.Type == kwCODE {
 			stmt.Type = "PROCEDURE CODE"
 			p.advance() // consume CODE
 			ref, err := p.parseTableRef()
@@ -984,7 +984,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
-		} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "code") {
+		} else if p.cur.Type == kwCODE {
 			stmt.Type = "FUNCTION CODE"
 			p.advance() // consume CODE
 			ref, err := p.parseTableRef()
@@ -1476,7 +1476,7 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	}
 
 	// Check for FORMAT = value
-	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "format") {
+	if p.cur.Type == kwFORMAT {
 		p.advance() // consume FORMAT
 		if _, err := p.expect('='); err != nil {
 			return nil, err
