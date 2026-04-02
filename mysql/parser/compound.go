@@ -844,10 +844,10 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 		return nil, err
 	}
 
-	// var_name [, var_name] ...
+	// var_name [, var_name] ... — lvalue context (assignment target)
 	var vars []string
 	for {
-		v, _, err := p.parseIdentifier()
+		v, _, err := p.parseLvalueIdent()
 		if err != nil {
 			return nil, err
 		}

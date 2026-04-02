@@ -2285,8 +2285,8 @@ func (p *Parser) parseResetPersistStmt(start int) (*nodes.ResetPersistStmt, erro
 		stmt.IfExists = true
 	}
 
-	if p.isIdentToken() {
-		name, _, _ := p.parseIdentifier()
+	if p.isLvalueIdentToken() {
+		name, _, _ := p.parseLvalueIdent()
 		stmt.Variable = name
 	}
 

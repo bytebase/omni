@@ -11980,3 +11980,87 @@ func TestUTCTemporalFunctions(t *testing.T) {
 		})
 	}
 }
+
+// TestLvalueIdentRejectsAmbiguous4 verifies that ambiguous_4 keywords (like GLOBAL)
+// cannot be used as SET variable names. GLOBAL is allowed as a general identifier
+// (e.g., CREATE TABLE global) but NOT as a lvalue_ident (SET target).
+func TestLvalueIdentRejectsAmbiguous4(t *testing.T) {
+	// GLOBAL as a table name should work (general ident context).
+	ParseAndCheck(t, "CREATE TABLE global (a INT)")
+
+	// SET global = 1 should fail — GLOBAL is ambiguous_4 (scope modifier, not variable).
+	// In MySQL, `SET global = 1` is parsed as `SET GLOBAL = 1` which is incomplete
+	// (missing variable name after scope), so it's an error.
+	t.Run("SET global = 1 rejected", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("SET global = 1")}
+		p.advance()
+		_, err := p.parseSetStmt()
+		if err == nil {
+			t.Fatal("expected error for SET global = 1 (GLOBAL is ambiguous_4, consumed as scope modifier)")
+		}
+	})
+
+	// SET begin = 1 should succeed — BEGIN is ambiguous_2 (allowed as lvalue).
+	t.Run("SET begin = 1 accepted", func(t *testing.T) {
+		ParseAndCheck(t, "SET begin = 1")
+	})
+
+	// RESET PERSIST global should fail — GLOBAL is ambiguous_4 (not lvalue).
+	t.Run("RESET PERSIST global not consumed as variable", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("RESET PERSIST global")}
+		p.advance()
+		stmt, err := p.parseStmt()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// The RESET PERSIST should parse with no variable name since GLOBAL
+		// is not accepted by isLvalueIdentToken.
+		rp, ok := stmt.(*ast.ResetPersistStmt)
+		if !ok {
+			t.Fatalf("expected ResetPersistStmt, got %T", stmt)
+		}
+		if rp.Variable != "" {
+			t.Fatalf("expected empty variable (GLOBAL should not be consumed as lvalue), got %q", rp.Variable)
+		}
+	})
+
+	// RESET PERSIST begin should succeed — BEGIN is ambiguous_2 (allowed as lvalue).
+	t.Run("RESET PERSIST begin accepted", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("RESET PERSIST begin")}
+		p.advance()
+		stmt, err := p.parseStmt()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		rp, ok := stmt.(*ast.ResetPersistStmt)
+		if !ok {
+			t.Fatalf("expected ResetPersistStmt, got %T", stmt)
+		}
+		if rp.Variable != "begin" {
+			t.Fatalf("expected variable 'begin', got %q", rp.Variable)
+		}
+	})
+
+	// FETCH INTO with lvalue context — BEGIN (ambiguous_2) is allowed.
+	t.Run("FETCH INTO begin accepted", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("FETCH cur INTO begin")}
+		p.advance()
+		stmt, err := p.parseFetchCursorStmt()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(stmt.Into) != 1 || stmt.Into[0] != "begin" {
+			t.Fatalf("expected INTO [begin], got %v", stmt.Into)
+		}
+	})
+
+	// FETCH INTO with lvalue context — GLOBAL (ambiguous_4) is NOT allowed.
+	t.Run("FETCH INTO global rejected", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("FETCH cur INTO global")}
+		p.advance()
+		_, err := p.parseFetchCursorStmt()
+		if err == nil {
+			t.Fatal("expected error for FETCH INTO global (GLOBAL is ambiguous_4, not allowed as lvalue)")
+		}
+	})
+}

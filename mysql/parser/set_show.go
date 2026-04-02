@@ -304,11 +304,28 @@ func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 			Column: prefix + vref.Name,
 		}
 	} else {
-		var err error
-		col, err = p.parseColumnRef()
+		// SET variable names use lvalue_ident context: excludes ambiguous_4
+		// keywords (GLOBAL, SESSION, LOCAL) which are scope modifiers, not variables.
+		colStart := p.pos()
+		name, _, err := p.parseLvalueIdent()
 		if err != nil {
 			return nil, err
 		}
+		col = &nodes.ColumnRef{
+			Loc:    nodes.Loc{Start: colStart},
+			Column: name,
+		}
+		// Support dot-qualified variable names: schema.var
+		if p.cur.Type == '.' {
+			p.advance()
+			name2, _, err := p.parseLvalueIdent()
+			if err != nil {
+				return nil, err
+			}
+			col.Table = name
+			col.Column = name2
+		}
+		col.Loc.End = p.pos()
 	}
 
 	// Expect '=' or ':='

@@ -725,6 +725,13 @@ func (p *Parser) isLabelIdentToken() bool {
 	return p.cur.Type == tokIDENT || (p.cur.Type >= 700 && isLabelKeyword(p.cur.Type))
 }
 
+// isLvalueIdentToken returns true if the current token can be used as an lvalue identifier.
+// This matches MySQL's lvalue_ident rule: tokIDENT + unambiguous + ambiguous_1 + ambiguous_2 + ambiguous_3.
+// Excludes ambiguous_4 keywords (GLOBAL, SESSION, LOCAL).
+func (p *Parser) isLvalueIdentToken() bool {
+	return p.cur.Type == tokIDENT || (p.cur.Type >= 700 && isLvalueKeyword(p.cur.Type))
+}
+
 // isVariableRef returns true if the current token is a variable reference.
 func (p *Parser) isVariableRef() bool {
 	if p.cur.Type != tokIDENT {

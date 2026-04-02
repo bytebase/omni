@@ -307,15 +307,15 @@ Create 5 identifier parsing functions matching MySQL's grammar hierarchy.
 
 ### 2.4 Migrate General Ident Call Sites — DML & Other files
 
-- [ ] INSERT table alias uses parseIdent
-- [ ] DELETE table alias uses parseIdent
-- [ ] UPDATE SET target uses parseIdent (via parseColumnRef)
-- [ ] PREPARE/EXECUTE statement name uses parseIdent
-- [ ] SAVEPOINT name uses parseIdent
-- [ ] DECLARE variable/cursor name uses parseIdent
-- [ ] GRANT user/host name uses parseIdent
-- [ ] COLLATE collation name uses parseIdent
-- [ ] All DML tests still pass
+- [x] INSERT table alias uses parseIdent
+- [x] DELETE table alias uses parseIdent
+- [x] UPDATE SET target uses parseIdent (via parseColumnRef)
+- [x] PREPARE/EXECUTE statement name uses parseIdent
+- [x] SAVEPOINT name uses parseIdent
+- [x] DECLARE variable/cursor name uses parseIdent
+- [x] GRANT user/host name uses parseIdent
+- [x] COLLATE collation name uses parseIdent
+- [x] All DML tests still pass
 
 ### 2.5 Migrate Label Ident Call Sites
 
@@ -335,11 +335,11 @@ Create 5 identifier parsing functions matching MySQL's grammar hierarchy.
 
 ### 2.7 Migrate Lvalue Ident Call Sites
 
-- [ ] SET variable name uses parseLvalueIdent
-- [ ] RESET PERSIST variable name uses parseLvalueIdent
-- [ ] `SET global = 1` rejected — GLOBAL is ambiguous_4 (not allowed as lvalue)
-- [ ] `SET begin = 1` accepted — BEGIN is ambiguous_2 (allowed as lvalue)
-- [ ] All SET tests still pass
+- [x] SET variable name uses parseLvalueIdent
+- [x] RESET PERSIST variable name uses parseLvalueIdent
+- [x] `SET global = 1` rejected — GLOBAL is ambiguous_4 (not allowed as lvalue)
+- [x] `SET begin = 1` accepted — BEGIN is ambiguous_2 (allowed as lvalue)
+- [x] All SET tests still pass
 
 ### 2.8 Migrate Any-Keyword Call Sites — DDL Options
 
