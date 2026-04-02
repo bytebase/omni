@@ -341,8 +341,9 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 		if p.cur.Type == tokEOF || p.cur.Type == ';' {
 			break
 		}
-		if p.isIdentToken() {
-			name, _, err := p.parseIdentifier()
+		// Reset option words must accept any keyword (e.g., QUERY CACHE).
+		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
+			name, _, err := p.parseKeywordOrIdent()
 			if err != nil {
 				return nil, err
 			}

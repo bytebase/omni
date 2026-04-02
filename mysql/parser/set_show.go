@@ -1499,7 +1499,8 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			return nil, err
 		}
 		// Parse format value: TRADITIONAL, JSON, TREE
-		formatName, _, err := p.parseIdentifier()
+		// Must accept any keyword since format values may be registered keywords.
+		formatName, _, err := p.parseKeywordOrIdent()
 		if err != nil {
 			return nil, err
 		}

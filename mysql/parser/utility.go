@@ -495,8 +495,9 @@ func (p *Parser) parseResetStmt() (*nodes.FlushStmt, error) {
 		if p.cur.Type == tokEOF || p.cur.Type == ';' {
 			break
 		}
-		if p.isIdentToken() {
-			name, _, err := p.parseIdentifier()
+		// Reset option words must accept any keyword (e.g., QUERY CACHE).
+		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
+			name, _, err := p.parseKeywordOrIdent()
 			if err != nil {
 				return nil, err
 			}
@@ -1443,9 +1444,11 @@ func (p *Parser) parseServerOptions() ([]string, error) {
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
 		// Each option is: keyword value
 		// e.g., HOST 'host_name', DATABASE 'db_name', USER 'user_name', etc.
+		// Must accept any keyword since option names (HOST, DATABASE, USER, etc.)
+		// may be registered keywords.
 		var optStr string
-		if p.isIdentToken() {
-			optName, _, _ := p.parseIdentifier()
+		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
+			optName, _, _ := p.parseKeywordOrIdent()
 			optStr = optName
 		} else {
 			optStr = p.cur.Str
@@ -2307,8 +2310,9 @@ func (p *Parser) parseHelpStmt() (*nodes.HelpStmt, error) {
 	if p.cur.Type == tokSCONST {
 		stmt.Topic = p.cur.Str
 		p.advance()
-	} else if p.isIdentToken() {
-		name, _, err := p.parseIdentifier()
+	} else if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
+		// HELP topic should accept any keyword (e.g., HELP SELECT, HELP CREATE).
+		name, _, err := p.parseKeywordOrIdent()
 		if err != nil {
 			return nil, err
 		}

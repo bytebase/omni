@@ -103,7 +103,8 @@ func (p *Parser) parseReplicationSourceOption() (*nodes.ReplicationOption, error
 	opt := &nodes.ReplicationOption{Loc: nodes.Loc{Start: start}}
 
 	// The option name is an identifier (e.g., SOURCE_HOST, SOURCE_PORT, etc.)
-	name, _, err := p.parseIdentifier()
+	// Must accept any keyword since option names may collide with registered keywords.
+	name, _, err := p.parseKeywordOrIdent()
 	if err != nil {
 		return nil, err
 	}
@@ -325,8 +326,9 @@ func (p *Parser) parseReplicationFilter() (*nodes.ReplicationFilter, error) {
 	start := p.pos()
 	f := &nodes.ReplicationFilter{Loc: nodes.Loc{Start: start}}
 
-	// Filter type is an identifier like REPLICATE_DO_DB
-	name, _, err := p.parseIdentifier()
+	// Filter type is an identifier like REPLICATE_DO_DB.
+	// Must accept any keyword since filter type names may collide with registered keywords.
+	name, _, err := p.parseKeywordOrIdent()
 	if err != nil {
 		return nil, err
 	}
