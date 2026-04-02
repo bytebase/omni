@@ -340,7 +340,8 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	case kwDEFAULT:
 		return p.parseDefaultExpr()
 
-	case kwCURRENT_DATE, kwCURRENT_TIME, kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwLOCALTIME, kwLOCALTIMESTAMP:
+	case kwCURRENT_DATE, kwCURRENT_TIME, kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwLOCALTIME, kwLOCALTIMESTAMP,
+		kwUTC_DATE, kwUTC_TIME, kwUTC_TIMESTAMP:
 		tok := p.advance()
 		name := strings.ToUpper(tok.Str)
 		fc := &nodes.FuncCallExpr{Loc: nodes.Loc{Start: tok.Loc}, Name: name}
@@ -1509,7 +1510,9 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 	}
 
 	// Parse unit: DAY, HOUR, MINUTE, SECOND, MONTH, YEAR, etc.
-	unit, _, err := p.parseIdentifier()
+	// Use parseKeywordOrIdent because compound interval units (DAY_HOUR, etc.)
+	// are registered as reserved keywords.
+	unit, _, err := p.parseKeywordOrIdent()
 	if err != nil {
 		return nil, err
 	}

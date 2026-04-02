@@ -31,7 +31,7 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 	if p.cur.Type == kwLOCAL {
 		stmt.NoWriteToBinlog = true
 		p.advance()
-	} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "no_write_to_binlog") {
+	} else if p.cur.Type == kwNO_WRITE_TO_BINLOG {
 		stmt.NoWriteToBinlog = true
 		p.advance()
 	}
@@ -146,7 +146,7 @@ func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 	if p.cur.Type == kwLOCAL {
 		stmt.NoWriteToBinlog = true
 		p.advance()
-	} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "no_write_to_binlog") {
+	} else if p.cur.Type == kwNO_WRITE_TO_BINLOG {
 		stmt.NoWriteToBinlog = true
 		p.advance()
 	}
@@ -249,7 +249,7 @@ func (p *Parser) parseRepairTableStmt() (*nodes.RepairTableStmt, error) {
 	if p.cur.Type == kwLOCAL {
 		stmt.NoWriteToBinlog = true
 		p.advance()
-	} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "no_write_to_binlog") {
+	} else if p.cur.Type == kwNO_WRITE_TO_BINLOG {
 		stmt.NoWriteToBinlog = true
 		p.advance()
 	}
@@ -347,7 +347,7 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 	if p.cur.Type == kwLOCAL {
 		stmt.NoWriteToBinlog = true
 		p.advance()
-	} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "no_write_to_binlog") {
+	} else if p.cur.Type == kwNO_WRITE_TO_BINLOG {
 		stmt.NoWriteToBinlog = true
 		p.advance()
 	}

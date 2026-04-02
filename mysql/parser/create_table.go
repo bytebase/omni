@@ -1560,7 +1560,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 			}
 			if p.cur.Type == '(' {
 				p.advance()
-				if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "maxvalue") {
+				if p.cur.Type == kwMAXVALUE {
 					pd.Values = &nodes.String{Str: "MAXVALUE"}
 					p.advance()
 				} else {
@@ -1571,7 +1571,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 					pd.Values = expr
 				}
 				p.match(')')
-			} else if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "maxvalue") {
+			} else if p.cur.Type == kwMAXVALUE {
 				pd.Values = &nodes.String{Str: "MAXVALUE"}
 				p.advance()
 			}

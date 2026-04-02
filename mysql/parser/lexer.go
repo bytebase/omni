@@ -481,6 +481,27 @@ const (
 	kwSPECIFIC
 	kwUSAGE
 	kwVARYING
+	kwDAY_HOUR
+	kwDAY_MICROSECOND
+	kwDAY_MINUTE
+	kwDAY_SECOND
+	kwHOUR_MICROSECOND
+	kwHOUR_MINUTE
+	kwHOUR_SECOND
+	kwMINUTE_MICROSECOND
+	kwMINUTE_SECOND
+	kwSECOND_MICROSECOND
+	kwYEAR_MONTH
+	kwUTC_DATE
+	kwUTC_TIME
+	kwUTC_TIMESTAMP
+	kwMAXVALUE
+	kwNO_WRITE_TO_BINLOG
+	kwIO_AFTER_GTIDS
+	kwIO_BEFORE_GTIDS
+	kwSQLEXCEPTION
+	kwSQLSTATE
+	kwSQLWARNING
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -923,6 +944,27 @@ var keywords = map[string]int{
 	"specific":            kwSPECIFIC,
 	"usage":               kwUSAGE,
 	"varying":             kwVARYING,
+	"day_hour":            kwDAY_HOUR,
+	"day_microsecond":     kwDAY_MICROSECOND,
+	"day_minute":          kwDAY_MINUTE,
+	"day_second":          kwDAY_SECOND,
+	"hour_microsecond":    kwHOUR_MICROSECOND,
+	"hour_minute":         kwHOUR_MINUTE,
+	"hour_second":         kwHOUR_SECOND,
+	"minute_microsecond":  kwMINUTE_MICROSECOND,
+	"minute_second":       kwMINUTE_SECOND,
+	"second_microsecond":  kwSECOND_MICROSECOND,
+	"year_month":          kwYEAR_MONTH,
+	"utc_date":            kwUTC_DATE,
+	"utc_time":            kwUTC_TIME,
+	"utc_timestamp":       kwUTC_TIMESTAMP,
+	"maxvalue":            kwMAXVALUE,
+	"no_write_to_binlog":  kwNO_WRITE_TO_BINLOG,
+	"io_after_gtids":      kwIO_AFTER_GTIDS,
+	"io_before_gtids":     kwIO_BEFORE_GTIDS,
+	"sqlexception":        kwSQLEXCEPTION,
+	"sqlstate":            kwSQLSTATE,
+	"sqlwarning":          kwSQLWARNING,
 }
 
 // Token represents a lexical token.

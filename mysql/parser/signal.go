@@ -99,13 +99,13 @@ func (p *Parser) parseResignalStmt() (*nodes.ResignalStmt, error) {
 	// Optional condition_value
 	// condition_value starts with SQLSTATE or an identifier (condition_name)
 	// but NOT SET (which starts the SET clause)
-	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "SQLSTATE") {
+	if p.cur.Type == kwSQLSTATE {
 		condVal, err := p.parseSignalConditionValue()
 		if err != nil {
 			return nil, err
 		}
 		stmt.ConditionValue = condVal
-	} else if p.cur.Type == tokIDENT && !eqFold(p.cur.Str, "SET") {
+	} else if p.cur.Type == tokIDENT {
 		// condition_name — a plain identifier that is not SET
 		condVal, err := p.parseSignalConditionValue()
 		if err != nil {
@@ -227,7 +227,7 @@ func (p *Parser) parseGetDiagnosticsStmt() (*nodes.GetDiagnosticsStmt, error) {
 //	}
 func (p *Parser) parseSignalConditionValue() (string, error) {
 	// SQLSTATE [VALUE] 'sqlstate_value'
-	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "SQLSTATE") {
+	if p.cur.Type == kwSQLSTATE {
 		p.advance() // consume SQLSTATE
 
 		// Optional VALUE keyword

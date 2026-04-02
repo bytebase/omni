@@ -354,7 +354,7 @@ func (p *Parser) parseDeclareCursorStmt(start int, name string) (*nodes.DeclareC
 //	  | SQLEXCEPTION
 func (p *Parser) parseHandlerConditionValue() (string, error) {
 	// SQLSTATE [VALUE] 'sqlstate_value'
-	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "SQLSTATE") {
+	if p.cur.Type == kwSQLSTATE {
 		p.advance()
 		// Optional VALUE
 		if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "VALUE") {
@@ -372,13 +372,13 @@ func (p *Parser) parseHandlerConditionValue() (string, error) {
 	}
 
 	// SQLWARNING
-	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "SQLWARNING") {
+	if p.cur.Type == kwSQLWARNING {
 		p.advance()
 		return "SQLWARNING", nil
 	}
 
 	// SQLEXCEPTION
-	if p.cur.Type == tokIDENT && eqFold(p.cur.Str, "SQLEXCEPTION") {
+	if p.cur.Type == kwSQLEXCEPTION {
 		p.advance()
 		return "SQLEXCEPTION", nil
 	}
