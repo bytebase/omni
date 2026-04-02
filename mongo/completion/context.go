@@ -162,6 +162,10 @@ func classifyDotContext(tokens []parser.Token) completionContext {
 		}
 	}
 
+	// Default: treat unrecognized patterns ending in "." as cursor chain.
+	// In mongosh, arbitrary expressions are commonly chained with dots
+	// (e.g., result.length, cursor.next()), so cursor methods are the
+	// most useful default when we can't determine a more specific context.
 	return contextCursorChain
 }
 

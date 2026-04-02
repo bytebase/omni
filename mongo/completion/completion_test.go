@@ -524,6 +524,36 @@ func TestCompleteBracketWithCatalogQuote(t *testing.T) {
 	}
 }
 
+// --- Additional edge case tests ---
+
+func TestCompleteMultiStatement(t *testing.T) {
+	// Completion in a second statement after semicolon.
+	input := "db.users.find(); db."
+	results := Complete(input, len(input), nil)
+	if !hasCandidateWithType(results, "getName", CandidateDbMethod) {
+		t.Error("expected db methods after semicolon in multi-statement input")
+	}
+}
+
+func TestCompleteDeepNestedQueryOperator(t *testing.T) {
+	// Deeply nested query operator context.
+	input := `db.users.find({$and: [{age: {$`
+	results := Complete(input, len(input), nil)
+	if !hasCandidateWithType(results, "$gt", CandidateQueryOperator) {
+		t.Errorf("expected query operators in deeply nested context, got %v", candidateTexts(results))
+	}
+}
+
+func TestCompleteDocumentKeyAfterColon(t *testing.T) {
+	// After colon inside a document (typing a value).
+	input := "db.users.find({name: "
+	results := Complete(input, len(input), nil)
+	// Should offer BSON helpers and literals for value position.
+	if !hasCandidate(results, "true") {
+		t.Error("expected 'true' in document key context after colon")
+	}
+}
+
 // --- Negative tests ---
 
 func TestCompleteNegativeCases(t *testing.T) {
