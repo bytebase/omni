@@ -2,6 +2,8 @@ package completion
 
 import (
 	"testing"
+
+	"github.com/bytebase/omni/mongo/catalog"
 )
 
 // detectContextFromInput is a test helper that simulates what Complete() does:
@@ -239,4 +241,311 @@ func TestDetectContextDocumentKey(t *testing.T) {
 			}
 		})
 	}
+}
+
+// --- Test helpers ---
+
+func newTestCatalog(names ...string) *catalog.Catalog {
+	cat := catalog.New()
+	for _, name := range names {
+		cat.AddCollection(name)
+	}
+	return cat
+}
+
+func candidateTexts(candidates []Candidate) []string {
+	texts := make([]string, len(candidates))
+	for i, c := range candidates {
+		texts[i] = c.Text
+	}
+	return texts
+}
+
+func hasCandidate(candidates []Candidate, text string) bool {
+	for _, c := range candidates {
+		if c.Text == text {
+			return true
+		}
+	}
+	return false
+}
+
+func hasCandidateWithType(candidates []Candidate, text string, typ CandidateType) bool {
+	for _, c := range candidates {
+		if c.Text == text && c.Type == typ {
+			return true
+		}
+	}
+	return false
+}
+
+// --- extractPrefix tests ---
+
+func TestExtractPrefix(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		offset int
+		want   string
+	}{
+		{"db dot", "db.", 3, ""},
+		{"db dot partial", "db.us", 5, "us"},
+		{"cursor chain prefix", "db.users.find().s", 17, "s"},
+		{"dollar prefix", "{age: {$g", 9, "$g"},
+		{"empty input", "", 0, ""},
+		{"show prefix", "show d", 6, "d"},
+		{"full word", "db", 2, "db"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractPrefix(tt.input, tt.offset)
+			if got != tt.want {
+				t.Errorf("extractPrefix(%q, %d) = %q, want %q", tt.input, tt.offset, got, tt.want)
+			}
+		})
+	}
+}
+
+// --- filterByPrefix tests ---
+
+func TestFilterByPrefix(t *testing.T) {
+	candidates := []Candidate{
+		{Text: "find", Type: CandidateMethod},
+		{Text: "findOne", Type: CandidateMethod},
+		{Text: "aggregate", Type: CandidateMethod},
+		{Text: "$gt", Type: CandidateQueryOperator},
+		{Text: "$gte", Type: CandidateQueryOperator},
+	}
+
+	t.Run("empty prefix returns all", func(t *testing.T) {
+		got := filterByPrefix(candidates, "")
+		if len(got) != len(candidates) {
+			t.Errorf("filterByPrefix with empty prefix returned %d candidates, want %d", len(got), len(candidates))
+		}
+	})
+
+	t.Run("case sensitive", func(t *testing.T) {
+		got := filterByPrefix(candidates, "F")
+		if len(got) != 0 {
+			t.Errorf("filterByPrefix with prefix 'F' returned %d candidates, want 0 (case-sensitive)", len(got))
+		}
+	})
+
+	t.Run("dollar prefix", func(t *testing.T) {
+		got := filterByPrefix(candidates, "$g")
+		if len(got) != 2 {
+			t.Errorf("filterByPrefix with prefix '$g' returned %d candidates, want 2", len(got))
+		}
+		for _, c := range got {
+			if c.Text != "$gt" && c.Text != "$gte" {
+				t.Errorf("unexpected candidate %q for prefix '$g'", c.Text)
+			}
+		}
+	})
+
+	t.Run("prefix f", func(t *testing.T) {
+		got := filterByPrefix(candidates, "f")
+		if len(got) != 2 {
+			t.Errorf("filterByPrefix with prefix 'f' returned %d candidates, want 2", len(got))
+		}
+	})
+}
+
+// --- Complete end-to-end tests ---
+
+func TestCompleteAfterDbDot(t *testing.T) {
+	cat := newTestCatalog("users", "orders")
+	results := Complete("db.", 3, cat)
+
+	// Should include collection names.
+	if !hasCandidateWithType(results, "users", CandidateCollection) {
+		t.Error("expected collection 'users' in results")
+	}
+	if !hasCandidateWithType(results, "orders", CandidateCollection) {
+		t.Error("expected collection 'orders' in results")
+	}
+	// Should include db methods.
+	if !hasCandidateWithType(results, "getName", CandidateDbMethod) {
+		t.Error("expected db method 'getName' in results")
+	}
+	if !hasCandidateWithType(results, "runCommand", CandidateDbMethod) {
+		t.Error("expected db method 'runCommand' in results")
+	}
+}
+
+func TestCompleteCollectionMethodPrefix(t *testing.T) {
+	results := Complete("db.users.f", 10, nil)
+
+	expected := []string{"find", "findOne", "findOneAndDelete", "findOneAndReplace", "findOneAndUpdate"}
+	for _, e := range expected {
+		if !hasCandidateWithType(results, e, CandidateMethod) {
+			t.Errorf("expected method %q in results", e)
+		}
+	}
+}
+
+func TestCompleteCursorChainPrefix(t *testing.T) {
+	results := Complete("db.users.find().s", 17, nil)
+
+	expected := []string{"sort", "skip", "size", "showRecordId"}
+	for _, e := range expected {
+		if !hasCandidateWithType(results, e, CandidateCursorMethod) {
+			t.Errorf("expected cursor method %q in results", e)
+		}
+	}
+}
+
+func TestCompleteAggStage(t *testing.T) {
+	results := Complete("db.users.aggregate([{$m", 23, nil)
+
+	expected := []string{"$match", "$merge"}
+	for _, e := range expected {
+		if !hasCandidateWithType(results, e, CandidateAggStage) {
+			t.Errorf("expected agg stage %q in results", e)
+		}
+	}
+}
+
+func TestCompleteQueryOperator(t *testing.T) {
+	results := Complete("db.users.find({age: {$g", 23, nil)
+
+	expected := []string{"$gt", "$gte", "$geoWithin", "$geoIntersects"}
+	for _, e := range expected {
+		if !hasCandidateWithType(results, e, CandidateQueryOperator) {
+			t.Errorf("expected query operator %q in results", e)
+		}
+	}
+}
+
+func TestCompleteBracketWithCatalog(t *testing.T) {
+	cat := newTestCatalog("system.profile", "users", "system.views")
+	results := Complete(`db["sys`, 7, cat)
+
+	if !hasCandidateWithType(results, "system.profile", CandidateCollection) {
+		t.Error("expected 'system.profile' in results")
+	}
+	if !hasCandidateWithType(results, "system.views", CandidateCollection) {
+		t.Error("expected 'system.views' in results")
+	}
+	if hasCandidate(results, "users") {
+		t.Error("should NOT include 'users' for prefix 'sys'")
+	}
+}
+
+func TestCompleteShowTarget(t *testing.T) {
+	results := Complete("show d", 6, nil)
+
+	expected := []string{"dbs", "databases"}
+	for _, e := range expected {
+		if !hasCandidateWithType(results, e, CandidateShowTarget) {
+			t.Errorf("expected show target %q in results", e)
+		}
+	}
+}
+
+func TestCompleteRsMethods(t *testing.T) {
+	results := Complete("rs.", 3, nil)
+
+	expected := []string{"status", "conf", "initiate"}
+	for _, e := range expected {
+		if !hasCandidateWithType(results, e, CandidateRsMethod) {
+			t.Errorf("expected rs method %q in results", e)
+		}
+	}
+}
+
+func TestCompleteShMethods(t *testing.T) {
+	results := Complete("sh.", 3, nil)
+
+	expected := []string{"addShard", "enableSharding", "status"}
+	for _, e := range expected {
+		if !hasCandidateWithType(results, e, CandidateShMethod) {
+			t.Errorf("expected sh method %q in results", e)
+		}
+	}
+}
+
+func TestCompleteTopLevelEmpty(t *testing.T) {
+	results := Complete("", 0, nil)
+
+	expected := []string{"db", "rs", "sh", "show"}
+	for _, e := range expected {
+		if !hasCandidateWithType(results, e, CandidateKeyword) {
+			t.Errorf("expected keyword %q in results", e)
+		}
+	}
+}
+
+func TestCompleteGetCollection(t *testing.T) {
+	results := Complete(`db.getCollection("users").f`, 27, nil)
+
+	expected := []string{"find", "findOne"}
+	for _, e := range expected {
+		if !hasCandidateWithType(results, e, CandidateMethod) {
+			t.Errorf("expected method %q in results", e)
+		}
+	}
+}
+
+// --- Edge case tests ---
+
+func TestCompleteNilCatalog(t *testing.T) {
+	results := Complete("db.", 3, nil)
+
+	// Should still have db methods.
+	if !hasCandidateWithType(results, "getName", CandidateDbMethod) {
+		t.Error("expected db method 'getName' with nil catalog")
+	}
+	// Should NOT have any collection candidates.
+	for _, c := range results {
+		if c.Type == CandidateCollection {
+			t.Errorf("unexpected collection candidate %q with nil catalog", c.Text)
+		}
+	}
+}
+
+func TestCompleteCursorOvershoot(t *testing.T) {
+	// Should not panic when cursor offset exceeds input length.
+	results := Complete("db.", 100, nil)
+	if !hasCandidateWithType(results, "getName", CandidateDbMethod) {
+		t.Error("expected db method 'getName' with overshooting cursor")
+	}
+}
+
+func TestCompleteBracketWithCatalogQuote(t *testing.T) {
+	cat := newTestCatalog("users", "orders")
+	results := Complete(`db["`, 4, cat)
+
+	if !hasCandidateWithType(results, "users", CandidateCollection) {
+		t.Error("expected 'users' in bracket completion")
+	}
+	if !hasCandidateWithType(results, "orders", CandidateCollection) {
+		t.Error("expected 'orders' in bracket completion")
+	}
+}
+
+// --- Negative tests ---
+
+func TestCompleteNegativeCases(t *testing.T) {
+	t.Run("collection method prefix should not include unrelated", func(t *testing.T) {
+		results := Complete("db.users.f", 10, nil)
+
+		if hasCandidate(results, "aggregate") {
+			t.Error("should NOT include 'aggregate' for prefix 'f'")
+		}
+		if hasCandidate(results, "sort") {
+			t.Error("should NOT include cursor method 'sort' in collection methods")
+		}
+	})
+
+	t.Run("case sensitivity", func(t *testing.T) {
+		results := Complete("db.users.F", 10, nil)
+
+		if hasCandidate(results, "find") {
+			t.Error("should NOT match 'find' for prefix 'F' (case-sensitive)")
+		}
+		if hasCandidate(results, "findOne") {
+			t.Error("should NOT match 'findOne' for prefix 'F' (case-sensitive)")
+		}
+	})
 }
