@@ -47,7 +47,7 @@ func (p *Parser) parseCreateIndexStmt(unique bool, fulltext bool, spatial bool) 
 	// Optional index_type: USING {BTREE | HASH}
 	if p.cur.Type == kwUSING {
 		p.advance()
-		typeName, _, err := p.parseIdentifier()
+		typeName, _, err := p.parseKeywordOrIdent()
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +105,7 @@ func (p *Parser) parseCreateIndexStmt(unique bool, fulltext bool, spatial bool) 
 		if p.cur.Type == kwALGORITHM {
 			p.advance()
 			p.match('=') // optional =
-			val, _, err := p.parseIdentifier()
+			val, _, err := p.parseKeywordOrIdent()
 			if err != nil {
 				return nil, err
 			}
@@ -113,7 +113,7 @@ func (p *Parser) parseCreateIndexStmt(unique bool, fulltext bool, spatial bool) 
 		} else if p.cur.Type == kwLOCK {
 			p.advance()
 			p.match('=') // optional =
-			val, _, err := p.parseIdentifier()
+			val, _, err := p.parseKeywordOrIdent()
 			if err != nil {
 				return nil, err
 			}
@@ -265,7 +265,7 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 
 	case p.cur.Type == kwUSING:
 		p.advance()
-		typeName, _, err := p.parseIdentifier()
+		typeName, _, err := p.parseKeywordOrIdent()
 		if err != nil {
 			return nil, false, err
 		}

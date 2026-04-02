@@ -47,7 +47,7 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 	if _, err := p.expect(kwRETURNS); err != nil {
 		return nil, err
 	}
-	retType, _, err := p.parseIdentifier()
+	retType, _, err := p.parseKeywordOrIdent()
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +280,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 
 	case p.cur.Type == kwLANGUAGE:
 		p.advance()
-		name, _, err := p.parseIdentifier()
+		name, _, err := p.parseKeywordOrIdent()
 		if err != nil {
 			return nil, false, err
 		}
@@ -310,7 +310,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 		p.advance()
 		if p.cur.Type == kwSECURITY {
 			p.advance()
-			name, _, err := p.parseIdentifier()
+			name, _, err := p.parseKeywordOrIdent()
 			if err != nil {
 				return nil, false, err
 			}

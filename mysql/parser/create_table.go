@@ -663,9 +663,9 @@ func (p *Parser) parseReferenceDefinition(start int) (*nodes.ColumnConstraint, e
 
 	// MATCH
 	if _, ok := p.match(kwMATCH); ok {
-		if p.isIdentToken() {
+		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
 			// FULL, PARTIAL, SIMPLE
-			constr.Match, _, _ = p.parseIdentifier()
+			constr.Match, _, _ = p.parseKeywordOrIdent()
 		}
 	}
 
@@ -895,8 +895,8 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 			}
 			// MATCH
 			if _, ok := p.match(kwMATCH); ok {
-				if p.isIdentToken() {
-					constr.Match, _, _ = p.parseIdentifier()
+				if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
+					constr.Match, _, _ = p.parseKeywordOrIdent()
 				}
 			}
 			// ON DELETE / ON UPDATE
@@ -1009,8 +1009,8 @@ func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) {
 func (p *Parser) parseIndexTypeClause(constr *nodes.Constraint) {
 	if p.cur.Type == kwUSING {
 		p.advance()
-		if p.isIdentToken() {
-			constr.IndexType, _, _ = p.parseIdentifier()
+		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
+			constr.IndexType, _, _ = p.parseKeywordOrIdent()
 		}
 	}
 }
@@ -1302,8 +1302,8 @@ func (p *Parser) consumeOptionValue() (string, error) {
 		p.advance()
 		return val, nil
 	default:
-		if p.isIdentToken() {
-			name, _, err := p.parseIdentifier()
+		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
+			name, _, err := p.parseKeywordOrIdent()
 			if err != nil {
 				return "", err
 			}

@@ -32,7 +32,7 @@ func (p *Parser) parseCreateViewStmt(orReplace bool) (*nodes.CreateViewStmt, err
 		if _, err := p.expect('='); err != nil {
 			return nil, err
 		}
-		name, _, err := p.parseIdentifier()
+		name, _, err := p.parseKeywordOrIdent()
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +54,7 @@ func (p *Parser) parseCreateViewStmt(orReplace bool) (*nodes.CreateViewStmt, err
 			}
 		}
 		p.advance()
-		name, _, err := p.parseIdentifier()
+		name, _, err := p.parseKeywordOrIdent()
 		if err != nil {
 			return nil, err
 		}

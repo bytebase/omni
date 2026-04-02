@@ -1869,8 +1869,8 @@ func (p *Parser) parseCreateResourceGroupStmt(start int) (*nodes.CreateResourceG
 		if p.cur.Type == '=' {
 			p.advance()
 		}
-		if p.isIdentToken() {
-			typeName, _, _ := p.parseIdentifier()
+		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
+			typeName, _, _ := p.parseKeywordOrIdent()
 			stmt.Type = typeName
 		}
 	}
