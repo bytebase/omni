@@ -986,3 +986,125 @@ func TestNoEqFoldForRegisteredKeywords(t *testing.T) {
 		t.Errorf("%d eqFold patterns match registered keywords", violations)
 	}
 }
+
+// mysql8KeywordFunction represents a MySQL 8.0 keyword that is also used as a function name.
+// Extracted from mysql-server sql/sql_yacc.yy function_call_keyword, function_call_nonkeyword,
+// function_call_conflict, sum_expr, window_func_call, and grouping_operation rules.
+type mysql8KeywordFunction struct {
+	SQL       string // lowercase function name
+	TestSQL   string // a minimal SELECT statement that calls this function
+	Reserved  bool   // true if this keyword is reserved in MySQL 8.0
+}
+
+// mysql8KeywordFunctions is the golden list of ALL MySQL 8.0 keywords that are also function names.
+// Each entry includes a minimal SQL statement that exercises the function call.
+// The test verifies that omni can parse each statement without error.
+//
+// Special-syntax functions (CAST, CONVERT, EXTRACT, CASE, MATCH, etc.) are excluded —
+// they have dedicated parse paths and are already well-tested. This list covers only
+// functions that use regular call syntax: FUNC(...) or FUNC().
+var mysql8KeywordFunctions = []mysql8KeywordFunction{
+	// function_call_keyword
+	{"char", "SELECT CHAR(65)", true},
+	{"current_user", "SELECT CURRENT_USER()", true},
+	{"date", "SELECT DATE('2024-01-01 12:00:00')", false},
+	{"day", "SELECT DAY('2024-01-01')", false},
+	{"hour", "SELECT HOUR('12:30:00')", false},
+	{"insert", "SELECT INSERT('hello', 2, 3, 'XYZ')", true},
+	{"left", "SELECT LEFT('hello', 3)", true},
+	{"minute", "SELECT MINUTE('12:30:00')", false},
+	{"month", "SELECT MONTH('2024-01-01')", false},
+	{"right", "SELECT RIGHT('hello', 3)", true},
+	{"second", "SELECT SECOND('12:30:45')", false},
+	{"time", "SELECT TIME('2024-01-01 12:30:00')", false},
+	{"timestamp", "SELECT TIMESTAMP('2024-01-01')", false},
+	{"trim", "SELECT TRIM('  hello  ')", true},
+	{"user", "SELECT USER()", false},
+	{"year", "SELECT YEAR('2024-01-01')", false},
+
+	// function_call_nonkeyword (reserved function-name keywords)
+	{"adddate", "SELECT ADDDATE('2024-01-01', 31)", false},
+	{"curdate", "SELECT CURDATE()", true},
+	{"curtime", "SELECT CURTIME()", true},
+	{"now", "SELECT NOW()", true},
+	{"sysdate", "SELECT SYSDATE()", true},
+	{"utc_date", "SELECT UTC_DATE()", true},
+	{"utc_time", "SELECT UTC_TIME()", true},
+	{"utc_timestamp", "SELECT UTC_TIMESTAMP()", true},
+	{"subdate", "SELECT SUBDATE('2024-01-01', 31)", false},
+	{"timestampadd", "SELECT TIMESTAMPADD(MINUTE, 30, '2024-01-01 12:00:00')", false},
+	{"timestampdiff", "SELECT TIMESTAMPDIFF(HOUR, '2024-01-01', '2024-01-02')", false},
+
+	// function_call_conflict
+	{"ascii", "SELECT ASCII('A')", false},
+	{"coalesce", "SELECT COALESCE(NULL, 1)", false},
+	{"collation", "SELECT COLLATION('hello')", false},
+	{"database", "SELECT DATABASE()", true},
+	{"if", "SELECT IF(1 > 0, 'yes', 'no')", true},
+	{"format", "SELECT FORMAT(12345.6789, 2)", false},
+	{"microsecond", "SELECT MICROSECOND('12:30:00.123456')", false},
+	{"mod", "SELECT MOD(10, 3)", true},
+	{"quarter", "SELECT QUARTER('2024-06-15')", false},
+	{"repeat", "SELECT REPEAT('ab', 3)", true},
+	{"replace", "SELECT REPLACE('hello', 'l', 'r')", true},
+	{"reverse", "SELECT REVERSE('hello')", false},
+	{"row_count", "SELECT ROW_COUNT()", false},
+	{"truncate", "SELECT TRUNCATE(1.234, 2)", false},
+	{"week", "SELECT WEEK('2024-01-15')", false},
+
+	// sum_expr / aggregates
+	{"count", "SELECT COUNT(*) FROM (SELECT 1) t", true},
+	{"sum", "SELECT SUM(1)", true},
+	{"min", "SELECT MIN(1)", true},
+	{"max", "SELECT MAX(1)", true},
+	{"avg", "SELECT AVG(1)", false},
+	{"group_concat", "SELECT GROUP_CONCAT('a')", true},
+	{"bit_and", "SELECT BIT_AND(1)", true},
+	{"bit_or", "SELECT BIT_OR(1)", true},
+	{"bit_xor", "SELECT BIT_XOR(1)", true},
+	{"std", "SELECT STD(1)", true},
+	{"stddev", "SELECT STDDEV(1)", true},
+	{"stddev_pop", "SELECT STDDEV_POP(1)", true},
+	{"stddev_samp", "SELECT STDDEV_SAMP(1)", true},
+	{"variance", "SELECT VARIANCE(1)", true},
+	{"var_pop", "SELECT VAR_POP(1)", true},
+	{"var_samp", "SELECT VAR_SAMP(1)", true},
+	{"json_arrayagg", "SELECT JSON_ARRAYAGG(1)", true},
+	{"json_objectagg", "SELECT JSON_OBJECTAGG('k', 'v')", true},
+
+	// window functions
+	{"row_number", "SELECT ROW_NUMBER() OVER ()", true},
+	{"rank", "SELECT RANK() OVER (ORDER BY 1)", true},
+	{"dense_rank", "SELECT DENSE_RANK() OVER (ORDER BY 1)", true},
+	{"cume_dist", "SELECT CUME_DIST() OVER (ORDER BY 1)", true},
+	{"percent_rank", "SELECT PERCENT_RANK() OVER (ORDER BY 1)", true},
+	{"ntile", "SELECT NTILE(4) OVER (ORDER BY 1)", true},
+	{"lead", "SELECT LEAD(1) OVER (ORDER BY 1)", true},
+	{"lag", "SELECT LAG(1) OVER (ORDER BY 1)", true},
+	{"first_value", "SELECT FIRST_VALUE(1) OVER (ORDER BY 1)", true},
+	{"last_value", "SELECT LAST_VALUE(1) OVER (ORDER BY 1)", true},
+	{"nth_value", "SELECT NTH_VALUE(1, 1) OVER (ORDER BY 1)", true},
+
+	// grouping
+	{"grouping", "SELECT GROUPING(1)", true},
+
+	// geometry constructors
+	{"point", "SELECT POINT(1, 2)", false},
+	{"linestring", "SELECT LINESTRING(POINT(0,0), POINT(1,1))", false},
+}
+
+// TestKeywordFunctions verifies that every MySQL 8.0 keyword-named function
+// can be called in a SELECT statement. This catches regressions where marking
+// a keyword as reserved breaks its function-call form.
+func TestKeywordFunctions(t *testing.T) {
+	failures := 0
+	for _, fn := range mysql8KeywordFunctions {
+		t.Run(fn.SQL, func(t *testing.T) {
+			_, err := Parse(fn.TestSQL)
+			if err != nil {
+				t.Errorf("keyword function %q failed to parse: %s\n  SQL: %s", fn.SQL, err, fn.TestSQL)
+				failures++
+			}
+		})
+	}
+}
