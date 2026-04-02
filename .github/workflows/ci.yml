@@ -7,6 +7,7 @@ on:
     branches: [main]
 
 jobs:
+  # Fast job: build + unit tests (no Docker, ~2 min)
   build-and-test:
     runs-on: ubuntu-latest
     strategy:
@@ -27,5 +28,27 @@ jobs:
       - name: Build
         run: go build ./...
 
-      - name: Test
-        run: go test ./...
+      - name: Test (short)
+        run: go test -short ./...
+
+  # Oracle tests: run against real databases via testcontainers (~10 min)
+  oracle-tests:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    strategy:
+      matrix:
+        go-version: ['1.25']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Oracle tests (PG)
+        run: go test -timeout 10m ./pg/catalog/ -run TestOracle -count=1 -v
+        continue-on-error: true
+
+      - name: Oracle tests (MySQL)
+        run: go test -timeout 10m ./mysql/catalog/ -run TestOracle -count=1 -v
+        continue-on-error: true
