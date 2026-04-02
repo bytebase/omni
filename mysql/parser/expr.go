@@ -409,7 +409,10 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		kwCOUNT, kwSUM, kwMIN, kwMAX, kwGROUP_CONCAT,
 		kwSUBSTRING, kwTRIM, kwPOSITION,
 		// IF(cond, val, val) — reserved keyword also used as function
-		kwIF:
+		kwIF,
+		// Reserved keywords that are also function names (function_call_keyword / function_call_conflict)
+		kwCHAR, kwINSERT, kwLEFT, kwRIGHT, kwDATABASE,
+		kwMOD, kwREPEAT, kwREPLACE:
 		start := p.pos()
 		tok := p.advance()
 		name := strings.ToUpper(tok.Str)
