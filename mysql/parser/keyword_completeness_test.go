@@ -1005,24 +1005,13 @@ func TestNoEqFoldForRegisteredKeywords(t *testing.T) {
 	for _, s := range eqFoldStrings {
 		lower := strings.ToLower(s)
 		if _, ok := keywords[lower]; ok {
-			// Check if this is an intentional survivor (known exception)
-			switch lower {
-			case "global", "session", "local":
-				// @@variable scope — operates on substring of tokIDENT, cannot migrate
-				continue
-			case "proxy":
-				// Matched against string array, not current token
-				continue
-			case "current_user":
-				// Matched against parsed string, not current token
-				continue
-			case "persist_only":
-				// SET scope handling — special context
-				continue
-			case "group_replication":
-				// Compound identifier check
-				continue
-			}
+			// No exceptions — all eqFold patterns for registered keywords must be migrated.
+			// MySQL's parser uses keyword tokens for all 5 cases:
+			// - @@global.var: lexer emits @ @ GLOBAL_SYM . ident (5 tokens)
+			// - PROXY: PROXY_SYM keyword token in grammar
+			// - CURRENT_USER: reserved keyword token in user rule
+			// - PERSIST_ONLY: PERSIST_ONLY_SYM keyword token
+			// - GROUP_REPLICATION: single keyword token
 			t.Errorf("eqFold matches registered keyword %q — should use keyword token check instead", lower)
 			violations++
 		}
