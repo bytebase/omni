@@ -130,14 +130,18 @@ func (p *Parser) inputText(start, end int) string {
 
 // ParseError represents a parse error with position information.
 type ParseError struct {
-	Message  string
-	Position int
-	Line     int // 1-based line number
-	Column   int // 1-based column number
+	Message     string
+	Position    int
+	Line        int    // 1-based line number
+	Column      int    // 1-based column number
+	RelatedText string // source text of the line where the error occurred
 }
 
 func (e *ParseError) Error() string {
 	if e.Line > 0 {
+		if e.RelatedText != "" {
+			return fmt.Sprintf("%s (line %d, column %d)\nrelated text: %s", e.Message, e.Line, e.Column, e.RelatedText)
+		}
 		return fmt.Sprintf("%s (line %d, column %d)", e.Message, e.Line, e.Column)
 	}
 	return e.Message
@@ -206,11 +210,40 @@ func lineColStatic(input string, offset int) (int, int) {
 	return line, col
 }
 
-// enrichError fills in Line/Column on a ParseError using the parser's input.
+// enrichError fills in Line/Column and RelatedText on a ParseError using the parser's input.
 func (p *Parser) enrichError(err error) error {
-	if pe, ok := err.(*ParseError); ok && pe.Line == 0 {
-		pe.Line, pe.Column = p.lineCol(pe.Position)
+	if pe, ok := err.(*ParseError); ok {
+		if pe.Line == 0 {
+			pe.Line, pe.Column = p.lineCol(pe.Position)
+		}
+		if pe.RelatedText == "" {
+			pe.RelatedText = p.extractLine(pe.Position)
+		}
 	}
 	return err
+}
+
+// extractLine returns the source line containing the given byte offset.
+func (p *Parser) extractLine(offset int) string {
+	input := p.lexer.input
+	if offset < 0 || offset > len(input) {
+		return ""
+	}
+	// Find start of line
+	start := offset
+	for start > 0 && input[start-1] != '\n' {
+		start--
+	}
+	// Find end of line
+	end := offset
+	for end < len(input) && input[end] != '\n' {
+		end++
+	}
+	line := input[start:end]
+	// Trim to reasonable length
+	if len(line) > 200 {
+		line = line[:200] + "..."
+	}
+	return line
 }
 
