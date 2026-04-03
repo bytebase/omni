@@ -2,6 +2,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
@@ -68,9 +70,9 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) (*nodes.CreateViewStmt, error
 	// WITH <view_attribute> [,...n]
 	if p.cur.Type == kwWITH {
 		next := p.peekNext()
-		if p.isRoutineOption(next) {
+		if p.isViewOption(next) {
 			p.advance() // consume WITH
-			opts, err := p.parseRoutineOptionList()
+			opts, err := p.parseViewOptionList()
 			if err != nil {
 				return nil, err
 			}
@@ -86,8 +88,10 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) (*nodes.CreateViewStmt, error
 		}
 	}
 
-	// AS
-	p.match(kwAS)
+	// AS (required in CREATE VIEW syntax)
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
+	}
 
 	// Completion: after CREATE/ALTER VIEW v AS → SELECT
 	if p.collectMode() {
@@ -219,6 +223,66 @@ func (p *Parser) parseCreateMaterializedViewStmt() (*nodes.CreateMaterializedVie
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// isViewOption checks if a token is a valid CREATE VIEW option.
+// Valid view options per SqlScriptDOM ViewOptionHelper:
+//   - ENCRYPTION
+//   - SCHEMABINDING
+//   - VIEW_METADATA
+func (p *Parser) isViewOption(tok Token) bool {
+	switch tok.Type {
+	case kwENCRYPTION, kwSCHEMABINDING:
+		return true
+	}
+	if tok.Str != "" {
+		switch strings.ToUpper(tok.Str) {
+		case "ENCRYPTION", "SCHEMABINDING", "VIEW_METADATA":
+			return true
+		}
+	}
+	return false
+}
+
+// parseViewOptionList parses a comma-separated list of view options.
+// Only ENCRYPTION, SCHEMABINDING, and VIEW_METADATA are valid.
+func (p *Parser) parseViewOptionList() (*nodes.List, error) {
+	var items []nodes.Node
+	for {
+		opt := p.parseViewOption()
+		if opt == nil {
+			break
+		}
+		items = append(items, opt)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	return &nodes.List{Items: items}, nil
+}
+
+// parseViewOption parses a single view option.
+func (p *Parser) parseViewOption() *nodes.String {
+	// SCHEMABINDING as keyword token
+	if p.cur.Type == kwSCHEMABINDING {
+		p.advance()
+		return &nodes.String{Str: "SCHEMABINDING"}
+	}
+	// ENCRYPTION as keyword token
+	if p.cur.Type == kwENCRYPTION {
+		p.advance()
+		return &nodes.String{Str: "ENCRYPTION"}
+	}
+	// VIEW_METADATA as identifier
+	if p.cur.Type == tokIDENT {
+		s := strings.ToUpper(p.cur.Str)
+		switch s {
+		case "VIEW_METADATA":
+			p.advance()
+			return &nodes.String{Str: s}
+		}
+	}
+	return nil
 }
 
 // parseAlterMaterializedViewStmt parses an ALTER MATERIALIZED VIEW statement.
