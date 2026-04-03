@@ -608,10 +608,37 @@ func (p *Parser) parseAGParenTuple() string {
 	return strings.Join(parts, ", ")
 }
 
+// agOptionKeywords defines keywords that are valid in availability group option positions
+// (both as option names and values). Core keywords like SELECT, FROM, WHERE etc. are excluded.
+// Identifiers (tokIDENT) are always accepted since most AG option names (ENDPOINT_URL,
+// AVAILABILITY_MODE, etc.) are unregistered as keywords.
+var agOptionKeywords = map[int]bool{
+	// Option names that are registered keywords
+	kwROLE:        true, // ALTER AG SET (ROLE = SECONDARY)
+	kwDISTRIBUTED: true, // CREATE AG WITH (DISTRIBUTED)
+	kwADD:         true, // MODIFY LISTENER (...ADD IP...)
+	kwREMOVE:      true, // MODIFY LISTENER (...REMOVE IP...)
+
+	// Option values that are registered keywords
+	kwNONE:      true, // DTC_SUPPORT = NONE, CLUSTER_TYPE = NONE
+	kwNO:        true, // ALLOW_CONNECTIONS = NO
+	kwALL:       true, // ALLOW_CONNECTIONS = ALL
+	kwPRIMARY:   true, // AUTOMATED_BACKUP_PREFERENCE = PRIMARY
+	kwSECONDARY: true, // AUTOMATED_BACKUP_PREFERENCE = SECONDARY
+	kwMANUAL:    true, // FAILOVER_MODE = MANUAL, SEEDING_MODE = MANUAL
+	kwREAD_ONLY: true, // ALLOW_CONNECTIONS = READ_ONLY
+	kwEXTERNAL:  true, // FAILOVER_MODE = EXTERNAL, CLUSTER_TYPE = EXTERNAL
+}
+
 // isAGOptionToken returns true if the current token can be part of an AG option key or value.
 func (p *Parser) isAGOptionToken() bool {
-	return p.isAnyKeywordIdent() ||
-		p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST ||
+	if p.cur.Type == tokIDENT {
+		return true
+	}
+	if agOptionKeywords[p.cur.Type] {
+		return true
+	}
+	return p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST ||
 		p.cur.Type == tokICONST || p.cur.Type == tokFCONST ||
 		p.cur.Type == kwON || p.cur.Type == kwOFF ||
 		p.cur.Type == kwNULL || p.cur.Type == kwWITH ||
