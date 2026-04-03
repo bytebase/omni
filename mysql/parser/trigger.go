@@ -149,7 +149,7 @@ func (p *Parser) parseCreateTriggerStmt() (*nodes.CreateTriggerStmt, error) {
 	}
 	bodyEnd := p.pos()
 	if bodyEnd > bodyStart {
-		stmt.Body = p.lexer.input[bodyStart:bodyEnd]
+		stmt.Body = p.inputText(bodyStart, bodyEnd)
 	}
 
 	stmt.Loc.End = p.pos()
@@ -287,7 +287,7 @@ func (p *Parser) parseCreateEventStmt() (*nodes.CreateEventStmt, error) {
 	}
 	bodyEnd := p.pos()
 	if bodyEnd > bodyStart {
-		stmt.Body = p.lexer.input[bodyStart:bodyEnd]
+		stmt.Body = p.inputText(bodyStart, bodyEnd)
 	}
 
 	stmt.Loc.End = p.pos()
@@ -344,7 +344,7 @@ func (p *Parser) parseEventSchedule() (*nodes.EventSchedule, error) {
 	}
 
 	sched.Loc.End = p.pos()
-	sched.RawText = strings.TrimSpace(p.lexer.input[start:sched.Loc.End])
+	sched.RawText = strings.TrimSpace(p.inputText(start, sched.Loc.End))
 	return sched, nil
 }
 

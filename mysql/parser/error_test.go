@@ -419,7 +419,7 @@ func TestParseError_Section_3_3_MidTokenErrors(t *testing.T) {
 	}{
 		{"cast_plus_close_paren", "SELECT CAST(1 + )", "at or near"},
 		{"plus_close_paren", "SELECT 1 + )", "at or near"},
-		{"plus_semicolon", "SELECT 1 + ;", "at or near"},
+		{"plus_semicolon", "SELECT 1 + ;", "at end of input"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

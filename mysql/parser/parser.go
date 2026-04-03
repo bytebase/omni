@@ -23,10 +23,40 @@ type Parser struct {
 }
 
 // Parse parses a SQL string into an AST list.
-// Returns a list of statement nodes.
+// It uses Split() internally to handle DELIMITER directives and compound blocks,
+// then parses each segment individually.
 func Parse(sql string) (*nodes.List, error) {
+	segments := Split(sql)
+	if len(segments) == 0 {
+		return &nodes.List{}, nil
+	}
+	var allStmts []nodes.Node
+	for _, seg := range segments {
+		if seg.Empty() {
+			continue
+		}
+		list, err := parseSingle(seg.Text, seg.ByteStart)
+		if err != nil {
+			// Re-enrich error with full SQL for correct absolute line/col.
+			if pe, ok := err.(*ParseError); ok {
+				pe.Line, pe.Column = lineColStatic(sql, pe.Position)
+				pe.RelatedText = extractLineStatic(sql, pe.Position)
+			}
+			return nil, err
+		}
+		allStmts = append(allStmts, list.Items...)
+	}
+	if len(allStmts) == 0 {
+		return &nodes.List{}, nil
+	}
+	return &nodes.List{Items: allStmts}, nil
+}
+
+// parseSingle parses a single SQL segment (without DELIMITER directives) into an AST list.
+// baseOffset is added to all token positions so Loc values are absolute within the original input.
+func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 	p := &Parser{
-		lexer: NewLexer(sql),
+		lexer: NewLexerWithOffset(sql, baseOffset),
 	}
 	p.advance()
 
@@ -115,7 +145,10 @@ func (p *Parser) pos() int {
 }
 
 // inputText returns a substring of the original input between start and end byte positions.
+// start and end are absolute (include baseOffset), so we subtract it to index into the segment text.
 func (p *Parser) inputText(start, end int) string {
+	start -= p.lexer.baseOffset
+	end -= p.lexer.baseOffset
 	if start < 0 {
 		start = 0
 	}
@@ -176,8 +209,13 @@ func (p *Parser) syntaxErrorAtTok(tok Token) *ParseError {
 }
 
 // lineCol computes the 1-based line and column for a byte offset in the input.
+// The offset is absolute (includes baseOffset), so we subtract it to index into segment text.
 func (p *Parser) lineCol(offset int) (int, int) {
+	offset -= p.lexer.baseOffset
 	input := p.lexer.input
+	if offset < 0 {
+		offset = 0
+	}
 	if offset > len(input) {
 		offset = len(input)
 	}
@@ -224,7 +262,9 @@ func (p *Parser) enrichError(err error) error {
 }
 
 // extractLine returns the source line containing the given byte offset.
+// The offset is absolute (includes baseOffset), so we subtract it to index into segment text.
 func (p *Parser) extractLine(offset int) string {
+	offset -= p.lexer.baseOffset
 	input := p.lexer.input
 	if offset < 0 || offset > len(input) {
 		return ""
@@ -241,6 +281,26 @@ func (p *Parser) extractLine(offset int) string {
 	}
 	line := input[start:end]
 	// Trim to reasonable length
+	if len(line) > 200 {
+		line = line[:200] + "..."
+	}
+	return line
+}
+
+// extractLineStatic returns the source line containing the given byte offset (for use outside a Parser).
+func extractLineStatic(input string, offset int) string {
+	if offset < 0 || offset > len(input) {
+		return ""
+	}
+	start := offset
+	for start > 0 && input[start-1] != '\n' {
+		start--
+	}
+	end := offset
+	for end < len(input) && input[end] != '\n' {
+		end++
+	}
+	line := input[start:end]
 	if len(line) > 200 {
 		line = line[:200] + "..."
 	}

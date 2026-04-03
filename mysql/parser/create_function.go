@@ -216,7 +216,7 @@ func (p *Parser) parseCreateFunctionStmt(isProcedure bool) (*nodes.CreateFunctio
 	}
 	bodyEnd := p.pos()
 	if bodyEnd > bodyStart {
-		stmt.Body = p.lexer.input[bodyStart:bodyEnd]
+		stmt.Body = p.inputText(bodyStart, bodyEnd)
 	}
 
 	stmt.Loc.End = p.pos()
