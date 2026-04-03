@@ -336,6 +336,7 @@ var sqlServerContextKeywords = []string{
 	"kb",
 	"keep",
 	"keepfixed",
+	"keys",
 	"language",
 	"level",
 	"library",
