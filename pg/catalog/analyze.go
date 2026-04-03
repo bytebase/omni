@@ -4288,10 +4288,16 @@ func (ac *analyzeCtx) transformGroupingFunc(gf *nodes.GroupingFunc) (AnalyzedExp
 //
 // pg: src/backend/parser/parse_expr.c — transformXmlExpr
 func (ac *analyzeCtx) transformXmlExpr(xe *nodes.XmlExpr) (AnalyzedExpr, error) {
+	// Translate AST XmlOptionType (0=DOCUMENT,1=CONTENT) to catalog constants.
+	xmlopt := XmlOptionContent
+	if xe.Xmloption == nodes.XMLOPTION_DOCUMENT {
+		xmlopt = XmlOptionDocument
+	}
+
 	result := &XmlExprQ{
 		Op:        int(xe.Op),
 		Name:      xe.Name,
-		Xmloption: int(xe.Xmloption),
+		Xmloption: xmlopt,
 		TypeOID:   XMLOID,
 		TypeMod:   -1,
 	}
@@ -4306,18 +4312,30 @@ func (ac *analyzeCtx) transformXmlExpr(xe *nodes.XmlExpr) (AnalyzedExpr, error) 
 		result.TypeMod = xe.Typmod
 	}
 
-	// Named args (xml_attributes).
+	// Named args (xml_attributes / XMLFOREST elements).
+	// Parser stores these as ResTarget nodes; extract the expression and
+	// the AS alias (ResTarget.Name) so ArgNames stays in sync.
 	if xe.NamedArgs != nil {
 		for _, a := range xe.NamedArgs.Items {
-			expr, err := ac.transformExpr(a)
-			if err != nil {
-				return nil, err
+			if rt, ok := a.(*nodes.ResTarget); ok {
+				expr, err := ac.transformExpr(rt.Val)
+				if err != nil {
+					return nil, err
+				}
+				result.NamedArgs = append(result.NamedArgs, expr)
+				result.ArgNames = append(result.ArgNames, rt.Name)
+			} else {
+				expr, err := ac.transformExpr(a)
+				if err != nil {
+					return nil, err
+				}
+				result.NamedArgs = append(result.NamedArgs, expr)
+				result.ArgNames = append(result.ArgNames, "")
 			}
-			result.NamedArgs = append(result.NamedArgs, expr)
 		}
 	}
 
-	// Arg names.
+	// Arg names (populated from AST when parser fills ArgNames directly).
 	if xe.ArgNames != nil {
 		for _, a := range xe.ArgNames.Items {
 			if s, ok := a.(*nodes.String); ok {
@@ -4360,9 +4378,15 @@ func (ac *analyzeCtx) transformXmlSerialize(xs *nodes.XmlSerialize) (AnalyzedExp
 		}
 	}
 
+	// Translate AST XmlOptionType to catalog constants.
+	serializeOpt := XmlOptionContent
+	if xs.Xmloption == nodes.XMLOPTION_DOCUMENT {
+		serializeOpt = XmlOptionDocument
+	}
+
 	return &XmlExprQ{
 		Op:        XmlOpSerialize,
-		Xmloption: int(xs.Xmloption),
+		Xmloption: serializeOpt,
 		Args:      []AnalyzedExpr{arg},
 		TypeOID:   typeOID,
 		TypeMod:   typMod,
