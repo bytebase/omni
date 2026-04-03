@@ -44,6 +44,123 @@ func (s Segment) Empty() bool {
 	return true
 }
 
+// isIdentByte returns true if b is a valid identifier byte [a-zA-Z0-9_].
+func isIdentByte(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_'
+}
+
+// matchWord performs a case-insensitive keyword match at position i in sql,
+// ensuring word boundaries on both sides. kw must be uppercase.
+func matchWord(sql string, i int, kw string) bool {
+	// Check left boundary: must be start of string or non-ident byte.
+	if i > 0 && isIdentByte(sql[i-1]) {
+		return false
+	}
+	// Check length.
+	if i+len(kw) > len(sql) {
+		return false
+	}
+	// Case-insensitive compare.
+	for j := 0; j < len(kw); j++ {
+		c := sql[i+j]
+		// Uppercase the byte.
+		if c >= 'a' && c <= 'z' {
+			c -= 'a' - 'A'
+		}
+		if c != kw[j] {
+			return false
+		}
+	}
+	// Check right boundary: must be end of string or non-ident byte.
+	if i+len(kw) < len(sql) && isIdentByte(sql[i+len(kw)]) {
+		return false
+	}
+	return true
+}
+
+// skipToEndOfWord advances past identifier bytes starting at position i.
+func skipToEndOfWord(sql string, i int) int {
+	for i < len(sql) && isIdentByte(sql[i]) {
+		i++
+	}
+	return i
+}
+
+// skipWhitespace skips spaces, tabs, and newlines (NOT comments).
+func skipWhitespace(sql string, i int) int {
+	for i < len(sql) {
+		b := sql[i]
+		if b == ' ' || b == '\t' || b == '\n' || b == '\r' {
+			i++
+		} else {
+			break
+		}
+	}
+	return i
+}
+
+// nextWordAfter skips whitespace after pos, reads the next word, and returns it uppercase.
+// Returns "" if no word follows.
+func nextWordAfter(sql string, pos int) string {
+	j := skipWhitespace(sql, pos)
+	if j >= len(sql) || !isIdentByte(sql[j]) {
+		return ""
+	}
+	start := j
+	j = skipToEndOfWord(sql, j)
+	// Uppercase the word.
+	word := make([]byte, j-start)
+	for k := start; k < j; k++ {
+		c := sql[k]
+		if c >= 'a' && c <= 'z' {
+			c -= 'a' - 'A'
+		}
+		word[k-start] = c
+	}
+	return string(word)
+}
+
+// prevWord finds the last word before position i (skipping trailing whitespace backwards)
+// and returns it uppercase. Returns "" if no word is found.
+func prevWord(sql string, i int) string {
+	// Skip whitespace backwards.
+	j := i - 1
+	for j >= 0 {
+		b := sql[j]
+		if b == ' ' || b == '\t' || b == '\n' || b == '\r' {
+			j--
+		} else {
+			break
+		}
+	}
+	if j < 0 || !isIdentByte(sql[j]) {
+		return ""
+	}
+	end := j + 1
+	for j >= 0 && isIdentByte(sql[j]) {
+		j--
+	}
+	start := j + 1
+	word := make([]byte, end-start)
+	for k := start; k < end; k++ {
+		c := sql[k]
+		if c >= 'a' && c <= 'z' {
+			c -= 'a' - 'A'
+		}
+		word[k-start] = c
+	}
+	return string(word)
+}
+
+// nextNonSpaceChar returns the next non-whitespace character after pos, or 0 if none.
+func nextNonSpaceChar(sql string, pos int) byte {
+	j := skipWhitespace(sql, pos)
+	if j >= len(sql) {
+		return 0
+	}
+	return sql[j]
+}
+
 // Split splits SQL text into segments at top-level semicolons.
 // It is a pure lexical scanner that does not parse SQL, so it works
 // on both valid and invalid SQL. Segments do NOT include the trailing
@@ -57,6 +174,7 @@ func Split(sql string) []Segment {
 	var segments []Segment
 	start := 0
 	i := 0
+	depth := 0 // compound block nesting depth
 
 	for i < len(sql) {
 		b := sql[i]
@@ -86,8 +204,72 @@ func Split(sql string) []Segment {
 		case b == '#':
 			i = skipHashComment(sql, i)
 
-		// Top-level semicolon — split here.
-		case b == ';':
+		// BEGIN — increment depth unless it's a transaction (BEGIN WORK, BEGIN alone, XA BEGIN).
+		case (b == 'b' || b == 'B') && matchWord(sql, i, "BEGIN"):
+			endOfWord := skipToEndOfWord(sql, i)
+			next := nextWordAfter(sql, endOfWord)
+			prev := prevWord(sql, i)
+			// BEGIN WORK => transaction, not compound.
+			// BEGIN at EOF or followed by ; => transaction.
+			// XA BEGIN => transaction.
+			if next != "WORK" && prev != "XA" && nextNonSpaceChar(sql, endOfWord) != ';' && nextNonSpaceChar(sql, endOfWord) != 0 {
+				depth++
+			}
+			i = endOfWord
+
+		// IF — increment depth unless preceded by END, followed by EXISTS, or followed by '('.
+		case (b == 'i' || b == 'I') && matchWord(sql, i, "IF"):
+			endOfWord := skipToEndOfWord(sql, i)
+			prev := prevWord(sql, i)
+			next := nextWordAfter(sql, endOfWord)
+			if prev != "END" && next != "EXISTS" && nextNonSpaceChar(sql, endOfWord) != '(' {
+				depth++
+			}
+			i = endOfWord
+
+		// CASE — increment depth unless preceded by END.
+		case (b == 'c' || b == 'C') && matchWord(sql, i, "CASE"):
+			endOfWord := skipToEndOfWord(sql, i)
+			if prevWord(sql, i) != "END" {
+				depth++
+			}
+			i = endOfWord
+
+		// WHILE — increment depth unless preceded by END.
+		case (b == 'w' || b == 'W') && matchWord(sql, i, "WHILE"):
+			endOfWord := skipToEndOfWord(sql, i)
+			if prevWord(sql, i) != "END" {
+				depth++
+			}
+			i = endOfWord
+
+		// LOOP — increment depth unless preceded by END.
+		case (b == 'l' || b == 'L') && matchWord(sql, i, "LOOP"):
+			endOfWord := skipToEndOfWord(sql, i)
+			if prevWord(sql, i) != "END" {
+				depth++
+			}
+			i = endOfWord
+
+		// REPEAT — increment depth unless preceded by END or followed by '('.
+		case (b == 'r' || b == 'R') && matchWord(sql, i, "REPEAT"):
+			endOfWord := skipToEndOfWord(sql, i)
+			prev := prevWord(sql, i)
+			if prev != "END" && nextNonSpaceChar(sql, endOfWord) != '(' {
+				depth++
+			}
+			i = endOfWord
+
+		// END — decrement depth (if > 0), skip if preceded by XA.
+		case (b == 'e' || b == 'E') && matchWord(sql, i, "END"):
+			endOfWord := skipToEndOfWord(sql, i)
+			if depth > 0 && prevWord(sql, i) != "XA" {
+				depth--
+			}
+			i = endOfWord
+
+		// Top-level semicolon — split here (only when not inside compound block).
+		case b == ';' && depth == 0:
 			seg := Segment{
 				Text:      sql[start:i],
 				ByteStart: start,
