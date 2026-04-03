@@ -86,6 +86,11 @@ func (p *Parser) parseCreateAvailabilityGroupStmt() (*nodes.SecurityStmt, error)
 
 	stmt.Options = p.parseAvailabilityGroupOptions()
 
+	// Reject if tokens remain unconsumed (e.g., invalid option names like SELECT).
+	if p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
@@ -404,7 +409,7 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 		case p.cur.Type == ',':
 			p.advance() // skip commas
 
-		case p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST || p.cur.Type == tokICONST:
+		case p.isAGOptionToken():
 			key := strings.ToUpper(p.cur.Str)
 			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
 				key = "'" + p.cur.Str + "'"
@@ -412,8 +417,7 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance() // consume '='
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.cur.Type == tokFCONST ||
-					p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwNULL {
+				if p.isAGOptionToken() {
 					val := strings.ToUpper(p.cur.Str)
 					if p.cur.Type == tokSCONST {
 						val = "'" + p.cur.Str + "'"
@@ -428,9 +432,11 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 			}
 
 		default:
-			// Record unexpected token instead of silently skipping
-			p.advance()
-			opts = append(opts, newAGOpt("UNEXPECTED_TOKEN", p.cur.Str, nodes.Loc{Start: start, End: p.prevEnd()}))
+			// Stop parsing on unrecognized tokens — let caller detect leftover tokens.
+			if len(opts) == 0 {
+				return nil
+			}
+			return &nodes.List{Items: opts}
 		}
 	}
 
@@ -509,9 +515,7 @@ func (p *Parser) parseParenthesizedAGOptions() []nodes.Node {
 
 		// Must be an identifier, string, number, or keyword
 		if !p.isAGOptionToken() {
-			p.advance()
-			opts = append(opts, newAGOpt("UNEXPECTED_TOKEN", p.cur.Str, nodes.Loc{Start: start, End: p.prevEnd()}))
-			continue
+			return opts
 		}
 
 		key := p.agOptionTokenString()
