@@ -137,11 +137,18 @@ func (p *Parser) parseDropEndpointStmt() (*nodes.SecurityStmt, error) {
 	return stmt, nil
 }
 
+// endpointTopOptions defines the valid top-level endpoint options that are NOT
+// handled by explicit switch cases (AUTHORIZATION, STATE, AS, FOR are handled
+// explicitly). Only AFFINITY is a valid additional top-level option per the
+// SqlScriptDOM grammar (endpointOption = endpointState | endpointAffinity).
+var endpointTopOptions = newOptionSet(kwAFFINITY)
+
 // parseEndpointOptions parses AUTHORIZATION, STATE, AS <protocol>, FOR <payload> clauses
 // for CREATE/ALTER ENDPOINT statements.
 //
 //	[ AUTHORIZATION login ]
 //	[ STATE = { STARTED | STOPPED | DISABLED } ]
+//	[ AFFINITY = { NONE | ADMIN | integer } ]
 //	[ AS { TCP } ( <protocol_specific_arguments> ) ]
 //	[ FOR { TSQL | SERVICE_BROKER | DATABASE_MIRRORING } ( <language_specific_arguments> ) ]
 func (p *Parser) parseEndpointOptions() *nodes.List {
@@ -213,8 +220,10 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 			}
 
 		default:
-			// Unknown top-level option as KEY = VALUE or bare keyword
-			if p.isAnyKeywordIdent() {
+			// Check for additional valid top-level endpoint options (e.g., AFFINITY).
+			// Reject any keyword/identifier not in the valid set to prevent accepting
+			// invalid options like SELECT = STARTED.
+			if p.isValidOption(endpointTopOptions) {
 				optLoc := p.pos()
 				key := strings.ToUpper(p.cur.Str)
 				p.advance()
@@ -233,12 +242,19 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 				} else {
 					opts = append(opts, &nodes.EndpointOption{Name: key, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				}
+			} else if p.isAnyKeywordIdent() {
+				// Unknown keyword — not a valid endpoint option; stop parsing.
+				goto done
+			} else if p.cur.Type == ',' {
+				// Comma between endpoint options (STATE = X, AFFINITY = Y)
+				p.advance()
 			} else {
 				p.advance()
 			}
 		}
 	}
 
+done:
 	if len(opts) == 0 {
 		return nil
 	}
