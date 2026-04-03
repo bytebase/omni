@@ -370,8 +370,9 @@ SELECT 3;`,
 
 // TestSplitConditionalComments tests MySQL version-conditional comments
 // which are common in mysqldump output.
-// At the Split (lexical) level, conditional comments /*!...*/ are treated
-// as block comments — their content is handled by the Lexer/Parser, not Split.
+// Conditional comments /*!...*/ contain executable SQL and must NOT be
+// treated as empty. Split preserves them as segments; the Lexer/Parser
+// expands their content downstream.
 func TestSplitConditionalComments(t *testing.T) {
 	tests := []struct {
 		name string
@@ -379,10 +380,9 @@ func TestSplitConditionalComments(t *testing.T) {
 		want int
 	}{
 		{
-			name: "conditional comment alone is empty",
-			// /*!...*/ by itself is treated as a comment — segment is empty.
+			name: "conditional comment standalone is not empty",
 			sql:  "/*!50000 SET @a = 1; SET @b = 2; */; SELECT 1;",
-			want: 1,
+			want: 2,
 		},
 		{
 			name: "conditional comment as part of CREATE TABLE",
@@ -390,14 +390,19 @@ func TestSplitConditionalComments(t *testing.T) {
 			want: 2,
 		},
 		{
-			name: "mysqldump SET with conditional is empty",
+			name: "mysqldump SET with conditional is not empty",
 			sql:  "/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */; SELECT 1;",
-			want: 1,
+			want: 2,
 		},
 		{
 			name: "semicolons inside conditional comment dont split",
 			sql:  "SELECT /*!50000 1, 2; */ 3; SELECT 4;",
 			want: 2,
+		},
+		{
+			name: "regular block comment is still empty",
+			sql:  "/* just a comment */; SELECT 1;",
+			want: 1,
 		},
 	}
 	for _, tt := range tests {

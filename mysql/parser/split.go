@@ -28,12 +28,15 @@ func (s Segment) Empty() bool {
 			i = skipHashComment(t, i)
 			continue
 		}
-		// Skip block comments (including /*!...*/).
+		// Skip block comments, but NOT conditional comments /*!...*/.
+		// Conditional comments contain executable SQL — segment is not empty.
 		if b == '/' && i+1 < len(t) && t[i+1] == '*' {
+			if i+2 < len(t) && t[i+2] == '!' {
+				return false
+			}
 			prev := i
 			i = skipBlockCommentMySQL(t, i)
 			if i == prev {
-				// Shouldn't happen, but guard against infinite loop.
 				return false
 			}
 			continue
