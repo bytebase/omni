@@ -152,6 +152,14 @@ func prevWord(sql string, i int) string {
 	return string(word)
 }
 
+// matchDelimiter returns true if sql[i:] starts with the given delimiter string.
+func matchDelimiter(sql string, i int, delim string) bool {
+	if i+len(delim) > len(sql) {
+		return false
+	}
+	return sql[i:i+len(delim)] == delim
+}
+
 // nextNonSpaceChar returns the next non-whitespace character after pos, or 0 if none.
 func nextNonSpaceChar(sql string, pos int) byte {
 	j := skipWhitespace(sql, pos)
@@ -172,11 +180,38 @@ func Split(sql string) []Segment {
 	}
 
 	var segments []Segment
-	start := 0
+	stmtStart := 0
 	i := 0
-	depth := 0 // compound block nesting depth
+	depth := 0  // compound block nesting depth
+	delim := ";" // active delimiter
 
 	for i < len(sql) {
+		// Check for DELIMITER directive.
+		if matchWord(sql, i, "DELIMITER") {
+			j := skipToEndOfWord(sql, i)
+			j = skipWhitespace(sql, j)
+			delimStart := j
+			for j < len(sql) && sql[j] != '\n' && sql[j] != '\r' {
+				j++
+			}
+			delimEnd := j
+			for delimEnd > delimStart && (sql[delimEnd-1] == ' ' || sql[delimEnd-1] == '\t') {
+				delimEnd--
+			}
+			if delimEnd > delimStart {
+				delim = sql[delimStart:delimEnd]
+			}
+			if j < len(sql) && sql[j] == '\r' {
+				j++
+			}
+			if j < len(sql) && sql[j] == '\n' {
+				j++
+			}
+			i = j
+			stmtStart = i
+			continue
+		}
+
 		b := sql[i]
 
 		switch {
@@ -268,29 +303,30 @@ func Split(sql string) []Segment {
 			}
 			i = endOfWord
 
-		// Top-level semicolon — split here (only when not inside compound block).
-		case b == ';' && depth == 0:
-			seg := Segment{
-				Text:      sql[start:i],
-				ByteStart: start,
-				ByteEnd:   i,
-			}
-			if !seg.Empty() {
-				segments = append(segments, seg)
-			}
-			i++
-			start = i
-
 		default:
-			i++
+			// Check for delimiter match at current position (only at top level).
+			if depth == 0 && matchDelimiter(sql, i, delim) {
+				seg := Segment{
+					Text:      sql[stmtStart:i],
+					ByteStart: stmtStart,
+					ByteEnd:   i,
+				}
+				if !seg.Empty() {
+					segments = append(segments, seg)
+				}
+				i += len(delim)
+				stmtStart = i
+			} else {
+				i++
+			}
 		}
 	}
 
-	// Trailing content after the last semicolon.
-	if start < len(sql) {
+	// Trailing content after the last delimiter.
+	if stmtStart < len(sql) {
 		seg := Segment{
-			Text:      sql[start:],
-			ByteStart: start,
+			Text:      sql[stmtStart:],
+			ByteStart: stmtStart,
 			ByteEnd:   len(sql),
 		}
 		if !seg.Empty() {
