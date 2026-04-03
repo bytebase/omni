@@ -7,6 +7,21 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// validationValues is the set of valid values for MESSAGE TYPE VALIDATION.
+// BNF: VALIDATION = { NONE | EMPTY | WELL_FORMED_XML | VALID_XML WITH SCHEMA COLLECTION ... }
+var validationValues = newOptionSet(kwNONE).withIdents("EMPTY", "WELL_FORMED_XML", "VALID_XML")
+
+// brokerWithOptions is the set of valid WITH option names for service broker statements.
+// Covers CREATE/ALTER ROUTE, REMOTE SERVICE BINDING, and generic broker WITH clauses.
+var brokerWithOptions = newOptionSet(
+	kwENCRYPTION,
+	kwSTATUS,
+).withIdents(
+	"SERVICE_NAME", "BROKER_INSTANCE", "LIFETIME", "ADDRESS",
+	"MIRROR_ADDRESS", "CLASSIFIER_FUNCTION",
+	"USER", "ANONYMOUS",
+)
+
 // parseCreateMessageTypeStmt parses CREATE MESSAGE TYPE.
 //
 // BNF: mssql/parser/bnf/create-message-type-transact-sql.bnf
@@ -49,7 +64,7 @@ func (p *Parser) parseCreateMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) 
 			p.advance()
 		}
 		var opts []nodes.Node
-		if p.isAnyKeywordIdent() {
+		if p.isValidOption(validationValues) {
 			valType := strings.ToUpper(p.cur.Str)
 			p.advance()
 			if valType == "VALID_XML" && p.cur.Type == kwWITH {
@@ -74,6 +89,8 @@ func (p *Parser) parseCreateMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) 
 			} else {
 				opts = append(opts, &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: valType, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}})
 			}
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if len(opts) > 0 {
 			stmt.Options = &nodes.List{Items: opts}
@@ -127,7 +144,7 @@ func (p *Parser) parseCreateContractStmt() (*nodes.ServiceBrokerStmt, error) {
 			if p.cur.Type == kwDEFAULT {
 				msgTypeName = "DEFAULT"
 				p.advance()
-			} else if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			} else if p.isIdentLike() || p.cur.Type == tokSCONST {
 				msgTypeName = p.cur.Str
 				p.advance()
 			}
@@ -817,7 +834,7 @@ func (p *Parser) parseCreateRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 		p.advance()
 		var opts []nodes.Node
 		for {
-			if !p.isAnyKeywordIdent() && p.cur.Type != tokSCONST {
+			if !p.isIdentLike() && p.cur.Type != tokSCONST {
 				break
 			}
 			optLoc := p.pos()
@@ -832,7 +849,7 @@ func (p *Parser) parseCreateRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 				} else if p.cur.Type == tokICONST {
 					val = p.cur.Str
 					p.advance()
-				} else if p.isAnyKeywordIdent() {
+				} else if p.isIdentLike() {
 					val = p.cur.Str
 					p.advance()
 				}
@@ -904,7 +921,7 @@ func (p *Parser) parseCreateRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt
 	if p.cur.Type == kwWITH {
 		p.advance()
 		for {
-			if !p.isAnyKeywordIdent() && p.cur.Type != kwUSER {
+			if !p.isIdentLike() && p.cur.Type != kwUSER {
 				break
 			}
 			optLoc := p.pos()
@@ -919,7 +936,7 @@ func (p *Parser) parseCreateRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt
 				} else if p.cur.Type == kwOFF {
 					val = "OFF"
 					p.advance()
-				} else if p.isAnyKeywordIdent() {
+				} else if p.isIdentLike() {
 					val = p.cur.Str
 					p.advance()
 				} else if p.cur.Type == tokSCONST {
@@ -1001,7 +1018,7 @@ func (p *Parser) parseServiceBrokerOptions() *nodes.List {
 	if p.cur.Type == kwAUTHORIZATION {
 		optLoc := p.pos()
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			opts = append(opts, &nodes.ServiceBrokerOption{Name: "AUTHORIZATION", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		}
@@ -1025,7 +1042,7 @@ func (p *Parser) parseServiceBrokerOptions() *nodes.List {
 			p.advance()
 			// Structured parsing of parenthesized key=value options
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if p.isAnyKeywordIdent() || p.cur.Type == kwUSER {
+				if p.isIdentLike() || p.cur.Type == kwUSER {
 					optLoc := p.pos()
 					opt := strings.ToUpper(p.cur.Str)
 					p.advance()
@@ -1044,7 +1061,7 @@ func (p *Parser) parseServiceBrokerOptions() *nodes.List {
 						} else if p.cur.Type == kwOFF {
 							val = "OFF"
 							p.advance()
-						} else if p.isAnyKeywordIdent() {
+						} else if p.isIdentLike() {
 							val = p.cur.Str
 							p.advance()
 						}
@@ -1054,7 +1071,7 @@ func (p *Parser) parseServiceBrokerOptions() *nodes.List {
 					}
 				} else {
 					// Skip unexpected tokens
-					p.advance()
+					break
 				}
 				if _, ok := p.match(','); !ok {
 					if p.cur.Type != ')' {
@@ -1064,14 +1081,14 @@ func (p *Parser) parseServiceBrokerOptions() *nodes.List {
 			}
 			p.match(')')
 		} else {
-			for p.isAnyKeywordIdent() {
+			for p.isIdentLike() {
 				optLoc := p.pos()
 				opt := strings.ToUpper(p.cur.Str)
 				p.advance()
 				val := ""
 				if p.cur.Type == '=' {
 					p.advance()
-					if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+					if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 						val = strings.ToUpper(p.cur.Str)
 						p.advance()
 					}
@@ -1088,7 +1105,7 @@ func (p *Parser) parseServiceBrokerOptions() *nodes.List {
 	if p.cur.Type == '(' {
 		p.advance()
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isAnyKeywordIdent() || p.cur.Type == kwDEFAULT {
+			if p.isIdentLike() || p.cur.Type == kwDEFAULT {
 				optLoc := p.pos()
 				opts = append(opts, &nodes.ServiceBrokerOption{Name: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
@@ -1347,7 +1364,7 @@ func (p *Parser) parseAlterRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 		p.advance()
 		var opts []nodes.Node
 		for {
-			if !p.isAnyKeywordIdent() && p.cur.Type != tokSCONST {
+			if !p.isIdentLike() && p.cur.Type != tokSCONST {
 				break
 			}
 			optLoc := p.pos()
@@ -1362,7 +1379,7 @@ func (p *Parser) parseAlterRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 				} else if p.cur.Type == tokICONST {
 					val = p.cur.Str
 					p.advance()
-				} else if p.isAnyKeywordIdent() {
+				} else if p.isIdentLike() {
 					val = p.cur.Str
 					p.advance()
 				}
@@ -1409,7 +1426,7 @@ func (p *Parser) parseAlterRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt,
 	if p.cur.Type == kwWITH {
 		p.advance()
 		for {
-			if !p.isAnyKeywordIdent() && p.cur.Type != kwUSER {
+			if !p.isIdentLike() && p.cur.Type != kwUSER {
 				break
 			}
 			optLoc := p.pos()
@@ -1424,7 +1441,7 @@ func (p *Parser) parseAlterRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt,
 				} else if p.cur.Type == kwOFF {
 					val = "OFF"
 					p.advance()
-				} else if p.isAnyKeywordIdent() {
+				} else if p.isIdentLike() {
 					val = p.cur.Str
 					p.advance()
 				}
@@ -1477,7 +1494,7 @@ func (p *Parser) parseAlterMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) {
 		}
 		var opts []nodes.Node
 		// Consume the validation value (NONE, EMPTY, WELL_FORMED_XML, or VALID_XML)
-		if p.isAnyKeywordIdent() {
+		if p.isValidOption(validationValues) {
 			valType := strings.ToUpper(p.cur.Str)
 			p.advance()
 			// Check for VALID_XML WITH SCHEMA COLLECTION name
@@ -1503,6 +1520,8 @@ func (p *Parser) parseAlterMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) {
 			} else {
 				opts = append(opts, &nodes.ServiceBrokerOption{Name: "VALIDATION", Value: valType, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}})
 			}
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if len(opts) > 0 {
 			stmt.Options = &nodes.List{Items: opts}
