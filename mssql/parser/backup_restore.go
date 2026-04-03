@@ -160,7 +160,12 @@ func (p *Parser) parseBackupStmt() (*nodes.BackupStmt, error) {
 	// WITH options — structured parsing
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
-		stmt.Options, _ = p.parseBackupRestoreOptions()
+		var err error
+		stmt.Options, err = p.parseBackupRestoreOptions()
+		if err != nil {
+			stmt.Loc.End = p.prevEnd()
+			return stmt, err
+		}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -321,7 +326,12 @@ func (p *Parser) parseRestoreStmt() (*nodes.RestoreStmt, error) {
 	// WITH options — structured parsing
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
-		stmt.Options, _ = p.parseBackupRestoreOptions()
+		var err error
+		stmt.Options, err = p.parseBackupRestoreOptions()
+		if err != nil {
+			stmt.Loc.End = p.prevEnd()
+			return stmt, err
+		}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -558,8 +568,13 @@ func extractDevicePath(dev string) string {
 func (p *Parser) parseBackupRestoreOptions() (*nodes.List, error) {
 	var opts []nodes.Node
 
+	// After WITH, at least one valid option is required.
+	if !p.isBackupRestoreOption() {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	for {
-		if p.cur.Type == tokEOF || p.cur.Type == ';' || !p.isAnyKeywordIdent() {
+		if p.cur.Type == tokEOF || p.cur.Type == ';' || !p.isBackupRestoreOption() {
 			break
 		}
 
@@ -615,9 +630,23 @@ var backupRestoreKVOptions = map[string]bool{
 	"FILE": true, "DBNAME": true,
 }
 
+// backupRestoreSpecialOptions lists option names handled by dedicated parsers.
+var backupRestoreSpecialOptions = map[string]bool{
+	"ENCRYPTION": true, "MOVE": true, "FILESTREAM": true, "STATS": true,
+}
+
+// isBackupRestoreOption checks whether the current token is a valid backup/restore option name.
+func (p *Parser) isBackupRestoreOption() bool {
+	if !p.isAnyKeywordIdent() {
+		return false
+	}
+	name := strings.ToUpper(p.cur.Str)
+	return backupRestoreFlagOptions[name] || backupRestoreKVOptions[name] || backupRestoreSpecialOptions[name]
+}
+
 // parseOneBackupRestoreOption parses a single BACKUP/RESTORE WITH option.
 func (p *Parser) parseOneBackupRestoreOption() (*nodes.BackupRestoreOption, error) {
-	if !p.isAnyKeywordIdent() {
+	if !p.isBackupRestoreOption() {
 		return nil, nil
 	}
 
