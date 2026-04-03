@@ -707,7 +707,7 @@ func (l *Lexer) lexIdent() Token {
 	// Check for multi-word keywords like TRY_CAST, TRY_CONVERT, etc.
 	tok := lookupKeyword(ident)
 	if tok != tokIDENT {
-		return Token{Type: tok, Str: strings.ToLower(ident), Loc: l.start}
+		return Token{Type: tok, Str: ident, Loc: l.start}
 	}
 
 	return Token{Type: tokIDENT, Str: ident, Loc: l.start}
