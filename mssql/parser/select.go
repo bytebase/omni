@@ -627,7 +627,7 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 				target.Name = p.cur.Str
 				p.advance()
 			}
-		} else if p.cur.Type == tokIDENT {
+		} else if p.isIdentLike() && !p.isBareAliasExcluded() {
 			target.Name = p.cur.Str
 			p.advance()
 		}
@@ -1098,8 +1098,8 @@ func (p *Parser) parseOptionalAlias() string {
 		}
 		return ""
 	}
-	// Bare alias - only if it's an identifier and NOT a clause keyword
-	if p.cur.Type == tokIDENT && !p.isSelectClauseIdent() {
+	// Bare alias - accept identifiers and context keywords, but NOT clause/statement keywords
+	if p.isIdentLike() && !p.isSelectClauseIdent() && !p.isBareAliasExcluded() {
 		name := p.cur.Str
 		p.advance()
 		return name
@@ -1107,14 +1107,21 @@ func (p *Parser) parseOptionalAlias() string {
 	return ""
 }
 
-// isSelectClauseIdent returns true if the current identifier token is a contextual
+// isSelectClauseIdent returns true if the current token is a contextual
 // keyword that starts a SELECT clause and should not be consumed as a bare alias.
 func (p *Parser) isSelectClauseIdent() bool {
-	if p.cur.Type != tokIDENT {
-		return false
+	return p.cur.Type == kwWINDOW
+}
+
+// isBareAliasExcluded returns true if the current token is a context keyword
+// that should NOT be consumed as a bare alias because it starts a new statement
+// or has special meaning at statement boundaries.
+func (p *Parser) isBareAliasExcluded() bool {
+	switch p.cur.Type {
+	case kwGO:
+		return true
 	}
-	upper := strings.ToUpper(p.cur.Str)
-	return upper == "WINDOW"
+	return false
 }
 
 // matchJoinType matches and consumes a join keyword sequence, returning the join type.
