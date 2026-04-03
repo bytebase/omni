@@ -324,7 +324,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 	var opts []nodes.Node
 
 	// REMOVE WHERE (ALTER only)
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REMOVE") {
+	if p.cur.Type == kwREMOVE {
 		p.advance()
 		if p.cur.Type == kwWHERE {
 			p.advance()
@@ -337,9 +337,9 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 	}
 
 	// MODIFY NAME = new_name (ALTER only)
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MODIFY") {
+	if p.cur.Type == kwMODIFY {
 		p.advance()
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "NAME") {
+		if p.cur.Type == kwNAME {
 			p.advance()
 		}
 		if p.cur.Type == '=' {
@@ -358,7 +358,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 	// TO clause
 	if p.cur.Type == kwTO {
 		p.advance()
-		if p.isIdentLike() && (matchesKeywordCI(p.cur.Str, "FILE") || matchesKeywordCI(p.cur.Str, "URL")) {
+		if p.cur.Type == kwFILE || p.cur.Type == kwURL {
 			target := strings.ToUpper(p.cur.Str)
 			p.advance()
 			opts = append(opts, &nodes.String{Str: "TO=" + target})
@@ -383,9 +383,9 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 								val = p.cur.Str
 								p.advance()
 								// MAXSIZE may have MB|GB|TB suffix
-								if p.isIdentLike() && (matchesKeywordCI(p.cur.Str, "MB") ||
-									matchesKeywordCI(p.cur.Str, "GB") ||
-									matchesKeywordCI(p.cur.Str, "TB")) {
+								if p.cur.Type == kwMB ||
+									p.cur.Type == kwGB ||
+									p.cur.Type == kwTB {
 									val += strings.ToUpper(p.cur.Str)
 									p.advance()
 								}
@@ -479,11 +479,11 @@ func (p *Parser) parseAuditSpecOptions() *nodes.List {
 	if p.cur.Type == kwFOR {
 		p.advance()
 		// SERVER
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVER") {
+		if p.cur.Type == kwSERVER {
 			p.advance()
 		}
 		// AUDIT
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AUDIT") {
+		if p.cur.Type == kwAUDIT {
 			p.advance()
 		}
 		// audit_name
@@ -618,7 +618,7 @@ func (p *Parser) parseAuditSpecAction() *nodes.AuditSpecAction {
 		}
 
 		// BY principal [,...n]
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "BY") {
+		if p.cur.Type == kwBY {
 			p.advance()
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
 				if p.isIdentLike() || p.cur.Type == kwPUBLIC {

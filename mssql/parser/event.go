@@ -84,13 +84,13 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 		switch {
 		case p.cur.Type == kwON:
 			p.advance()
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVER") {
+			if p.cur.Type == kwSERVER {
 				opt.Scope = "SERVER"
 				p.advance()
 			} else if p.cur.Type == kwDATABASE {
 				opt.Scope = "DATABASE"
 				p.advance()
-			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "QUEUE") {
+			} else if p.cur.Type == kwQUEUE {
 				opt.Scope = "QUEUE"
 				p.advance()
 				queueName := ""
@@ -109,7 +109,7 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 			}
 		case p.cur.Type == kwWITH:
 			p.advance()
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FAN_IN") {
+			if p.cur.Type == kwFAN_IN {
 				opt.FanIn = true
 				p.advance()
 			}
@@ -126,7 +126,7 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 			}
 		case p.cur.Type == kwTO:
 			p.advance()
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVICE") {
+			if p.cur.Type == kwSERVICE {
 				p.advance()
 			}
 			if p.cur.Type == tokSCONST {
@@ -296,7 +296,7 @@ func (p *Parser) parseEventSessionBody() *nodes.List {
 	// ON { SERVER | DATABASE }
 	if p.cur.Type == kwON {
 		p.advance()
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERVER") {
+		if p.cur.Type == kwSERVER {
 			opts = append(opts, &nodes.String{Str: "ON=SERVER"})
 			p.advance()
 		} else if p.cur.Type == kwDATABASE {
@@ -309,10 +309,10 @@ func (p *Parser) parseEventSessionBody() *nodes.List {
 	for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
 		if p.cur.Type == kwADD {
 			p.advance()
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "EVENT") {
+			if p.cur.Type == kwEVENT {
 				p.advance()
 				opts = append(opts, p.parseEventSessionEventSpec("ADD EVENT")...)
-			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TARGET") {
+			} else if p.cur.Type == kwTARGET {
 				p.advance()
 				opts = append(opts, p.parseEventSessionTargetSpec("ADD TARGET")...)
 			}
@@ -323,11 +323,11 @@ func (p *Parser) parseEventSessionBody() *nodes.List {
 			}
 		} else if p.cur.Type == kwDROP {
 			p.advance()
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "EVENT") {
+			if p.cur.Type == kwEVENT {
 				p.advance()
 				eventName := p.parseEventSessionDottedName()
 				opts = append(opts, &nodes.String{Str: "DROP EVENT=" + eventName})
-			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TARGET") {
+			} else if p.cur.Type == kwTARGET {
 				p.advance()
 				targetName := p.parseEventSessionDottedName()
 				opts = append(opts, &nodes.String{Str: "DROP TARGET=" + targetName})
@@ -337,7 +337,7 @@ func (p *Parser) parseEventSessionBody() *nodes.List {
 				p.advance()
 				continue
 			}
-		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STATE") {
+		} else if p.cur.Type == kwSTATE {
 			p.advance()
 			p.match('=')
 			if p.isIdentLike() {
@@ -362,9 +362,9 @@ func (p *Parser) parseEventSessionBody() *nodes.List {
 								p.advance()
 							}
 							// Check for unit suffix (KB, MB, SECONDS, etc.)
-							if p.isIdentLike() && (matchesKeywordCI(p.cur.Str, "KB") || matchesKeywordCI(p.cur.Str, "MB") ||
-								matchesKeywordCI(p.cur.Str, "SECONDS") || matchesKeywordCI(p.cur.Str, "MINUTES") ||
-								matchesKeywordCI(p.cur.Str, "HOURS") || matchesKeywordCI(p.cur.Str, "DAYS")) {
+							if p.cur.Type == kwKB || p.cur.Type == kwMB ||
+								p.cur.Type == kwSECONDS || p.cur.Type == kwMINUTES ||
+								p.cur.Type == kwHOURS || p.cur.Type == kwDAYS {
 								val += " " + strings.ToUpper(p.cur.Str)
 								p.advance()
 							}
@@ -425,11 +425,11 @@ func (p *Parser) parseEventSessionEventSpec(prefix string) []nodes.Node {
 						break
 					}
 					// Stop if next token is ACTION or WHERE (not another SET pair)
-					if p.isIdentLike() && (matchesKeywordCI(p.cur.Str, "ACTION") || matchesKeywordCI(p.cur.Str, "WHERE")) {
+					if p.cur.Type == kwACTION || p.cur.Type == kwWHERE {
 						break
 					}
 				}
-			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ACTION") {
+			} else if p.cur.Type == kwACTION {
 				// ACTION ( { package.action_name [ , ...n ] } )
 				p.advance()
 				if p.cur.Type == '(' {

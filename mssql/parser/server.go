@@ -93,7 +93,7 @@ func (p *Parser) parseAlterServerRoleStmt() (*nodes.SecurityStmt, error) {
 				break
 			}
 			optLoc := p.pos()
-			key := p.cur.Str
+			key := strings.ToUpper(p.cur.Str)
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()

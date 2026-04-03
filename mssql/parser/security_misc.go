@@ -43,10 +43,10 @@ func (p *Parser) parseCreateSecurityPolicyStmt() (*nodes.SecurityPolicyStmt, err
 	// NOT FOR REPLICATION
 	if p.cur.Type == kwNOT {
 		p.advance()
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FOR") {
+		if p.cur.Type == kwFOR {
 			p.advance()
 		}
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REPLICATION") {
+		if p.cur.Type == kwREPLICATION {
 			p.advance()
 			stmt.NotForReplication = true
 		}
@@ -97,10 +97,10 @@ func (p *Parser) parseAlterSecurityPolicyStmt() (*nodes.SecurityPolicyStmt, erro
 	// NOT FOR REPLICATION
 	if p.cur.Type == kwNOT {
 		p.advance()
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FOR") {
+		if p.cur.Type == kwFOR {
 			p.advance()
 		}
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REPLICATION") {
+		if p.cur.Type == kwREPLICATION {
 			p.advance()
 			stmt.NotForReplication = true
 		}
@@ -180,13 +180,13 @@ func (p *Parser) parseSecurityPredicate() *nodes.SecurityPredicate {
 	}
 
 	// FILTER or BLOCK
-	if p.isIdentLike() && (matchesKeywordCI(p.cur.Str, "FILTER") || matchesKeywordCI(p.cur.Str, "BLOCK")) {
+	if p.cur.Type == kwFILTER || p.cur.Type == kwBLOCK {
 		pred.PredicateType = strings.ToUpper(p.cur.Str)
 		p.advance()
 	}
 
 	// PREDICATE
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PREDICATE") {
+	if p.cur.Type == kwPREDICATE {
 		p.advance()
 	}
 
@@ -230,7 +230,7 @@ func (p *Parser) parseSecurityPredicate() *nodes.SecurityPredicate {
 	}
 
 	// Optional block_dml_operation: AFTER INSERT|UPDATE, BEFORE UPDATE|DELETE
-	if p.isIdentLike() && (matchesKeywordCI(p.cur.Str, "AFTER") || matchesKeywordCI(p.cur.Str, "BEFORE")) {
+	if p.cur.Type == kwAFTER || p.cur.Type == kwBEFORE {
 		timing := strings.ToUpper(p.cur.Str)
 		p.advance()
 		if p.cur.Type == kwINSERT || p.cur.Type == kwUPDATE || p.cur.Type == kwDELETE {
@@ -321,7 +321,7 @@ func (p *Parser) parseAddSensitivityClassificationStmt() (*nodes.SensitivityClas
 	}
 
 	// TO
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TO") {
+	if p.cur.Type == kwTO {
 		p.advance()
 	}
 
@@ -451,7 +451,7 @@ func (p *Parser) parseSignatureStmt(action string) (*nodes.SignatureStmt, error)
 	}
 
 	// TO (for ADD) or FROM (for DROP)
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TO") {
+	if p.cur.Type == kwTO {
 		p.advance()
 	} else if p.cur.Type == kwFROM {
 		p.advance()
@@ -496,7 +496,7 @@ func (p *Parser) parseSignatureStmt(action string) (*nodes.SignatureStmt, error)
 	}
 
 	// BY <crypto_list>
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "BY") {
+	if p.cur.Type == kwBY {
 		p.advance()
 		var cryptos []nodes.Node
 		for {
@@ -532,14 +532,14 @@ func (p *Parser) parseSignatureCryptoItem() *nodes.CryptoItem {
 	item := &nodes.CryptoItem{Loc: nodes.Loc{Start: loc, End: -1}}
 
 	// CERTIFICATE cert_name or ASYMMETRIC KEY key_name
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CERTIFICATE") {
+	if p.cur.Type == kwCERTIFICATE {
 		item.Mechanism = "CERTIFICATE"
 		p.advance()
 		if p.isIdentLike() {
 			item.Name = p.cur.Str
 			p.advance()
 		}
-	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ASYMMETRIC") {
+	} else if p.cur.Type == kwASYMMETRIC {
 		item.Mechanism = "ASYMMETRIC KEY"
 		p.advance()
 		if p.cur.Type == kwKEY {
@@ -556,7 +556,7 @@ func (p *Parser) parseSignatureCryptoItem() *nodes.CryptoItem {
 	// Optional: WITH PASSWORD = 'password' or WITH SIGNATURE = hex_blob
 	if p.cur.Type == kwWITH {
 		p.advance()
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PASSWORD") {
+		if p.cur.Type == kwPASSWORD {
 			item.WithType = "PASSWORD"
 			p.advance()
 			if p.cur.Type == '=' {
@@ -566,7 +566,7 @@ func (p *Parser) parseSignatureCryptoItem() *nodes.CryptoItem {
 				item.WithValue = p.cur.Str
 				p.advance()
 			}
-		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SIGNATURE") {
+		} else if p.cur.Type == kwSIGNATURE {
 			item.WithType = "SIGNATURE"
 			p.advance()
 			if p.cur.Type == '=' {
