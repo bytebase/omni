@@ -70,6 +70,33 @@ func (cs *CandidateSet) HasRule(r string) bool {
 // Collect runs the parser in completion mode and returns the set of token
 // and rule candidates at the given cursor offset.
 func Collect(sql string, cursorOffset int) *CandidateSet {
+	// Use Split to find the segment containing the cursor.
+	segments := Split(sql)
+	for _, seg := range segments {
+		if seg.Empty() {
+			continue
+		}
+		if cursorOffset >= seg.ByteStart && cursorOffset <= seg.ByteEnd {
+			return collectSingle(seg.Text, cursorOffset-seg.ByteStart)
+		}
+	}
+	// Cursor is past all segments — collect on trailing text after last segment.
+	if len(segments) > 0 {
+		last := segments[len(segments)-1]
+		trailing := sql[last.ByteEnd:]
+		if len(trailing) > 0 {
+			localCursor := cursorOffset - last.ByteEnd
+			if localCursor >= 0 {
+				return collectSingle(trailing, localCursor)
+			}
+		}
+	}
+	// Fallback: collect on the whole input.
+	return collectSingle(sql, cursorOffset)
+}
+
+// collectSingle runs completion on a single segment (the original Collect logic).
+func collectSingle(sql string, cursorOffset int) *CandidateSet {
 	cs := newCandidateSet()
 	p := &Parser{
 		lexer:      NewLexer(sql),
@@ -91,33 +118,24 @@ func Collect(sql string, cursorOffset int) *CandidateSet {
 		recover() //nolint:errcheck
 	}()
 
-	// Parse statements in a loop (mirroring Parse) so that multi-statement
-	// input with semicolons works.
+	// Parse statements in a loop so that multi-statement
+	// input with semicolons works within a segment.
 	for {
 		if p.cur.Type == ';' {
 			p.advance()
-			// After a semicolon, if we're at/past the cursor, enable collecting
-			// so the next parseStmt call sees collectMode() == true.
 			if p.completing && !p.collecting && p.cur.Loc >= p.cursorOff {
 				p.collecting = true
 			}
 			continue
 		}
-		// Call parseStmt — in collectMode it will add candidates and return
-		// an error, which we ignore. When not in collect mode and at EOF,
-		// we break out.
 		if p.cur.Type == tokEOF && !p.collectMode() {
 			break
 		}
 		prevLoc := p.cur.Loc
 		p.parseStmt() //nolint:errcheck
-		// After parseStmt returns (either normally or with collecting error),
-		// if we've reached EOF or we've finished collecting, stop.
 		if p.cur.Type == tokEOF || p.collectMode() {
 			break
 		}
-		// If parseStmt made no progress (e.g., unrecognized token), skip the
-		// current token to avoid an infinite loop.
 		if p.cur.Loc == prevLoc {
 			p.advance()
 		}
