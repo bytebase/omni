@@ -63,7 +63,7 @@ func (p *Parser) parseSecurityUserStmt(action string) (*nodes.SecurityStmt, erro
 		if p.cur.Type == kwFOR || p.cur.Type == kwFROM {
 			optLoc := p.pos()
 			p.advance() // consume FOR / FROM
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CERTIFICATE") {
+			if p.cur.Type == kwCERTIFICATE {
 				p.advance() // consume CERTIFICATE
 				if name, ok := p.parseIdentifier(); ok {
 					opts = append(opts, &nodes.SecurityPrincipalOption{
@@ -72,7 +72,7 @@ func (p *Parser) parseSecurityUserStmt(action string) (*nodes.SecurityStmt, erro
 						Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 					})
 				}
-			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ASYMMETRIC") {
+			} else if p.cur.Type == kwASYMMETRIC {
 				p.advance() // consume ASYMMETRIC
 				if p.cur.Type == kwKEY {
 					p.advance() // consume KEY
@@ -84,9 +84,9 @@ func (p *Parser) parseSecurityUserStmt(action string) (*nodes.SecurityStmt, erro
 						Loc:   nodes.Loc{Start: optLoc, End: p.prevEnd()},
 					})
 				}
-			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "EXTERNAL") {
+			} else if p.cur.Type == kwEXTERNAL {
 				p.advance() // consume EXTERNAL
-				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PROVIDER") {
+				if p.cur.Type == kwPROVIDER {
 					p.advance() // consume PROVIDER
 				}
 				opts = append(opts, &nodes.SecurityPrincipalOption{
@@ -95,7 +95,7 @@ func (p *Parser) parseSecurityUserStmt(action string) (*nodes.SecurityStmt, erro
 				})
 			} else {
 				// LOGIN (explicit or implicit)
-				if p.isIdentLike() && (matchesKeywordCI(p.cur.Str, "LOGIN") || p.cur.Type == kwLOGIN) {
+				if p.cur.Type == kwLOGIN {
 					p.advance() // consume LOGIN
 				}
 				if name, ok := p.parseIdentifier(); ok {
@@ -106,10 +106,10 @@ func (p *Parser) parseSecurityUserStmt(action string) (*nodes.SecurityStmt, erro
 					})
 				}
 			}
-		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "WITHOUT") {
+		} else if p.cur.Type == kwWITHOUT {
 			optLoc := p.pos()
 			p.advance() // consume WITHOUT
-			if p.isIdentLike() && (matchesKeywordCI(p.cur.Str, "LOGIN") || p.cur.Type == kwLOGIN) {
+			if p.cur.Type == kwLOGIN {
 				p.advance() // consume LOGIN
 			}
 			opts = append(opts, &nodes.SecurityPrincipalOption{
@@ -180,14 +180,14 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 
 	// ENABLE / DISABLE / ADD CREDENTIAL / DROP CREDENTIAL (ALTER LOGIN)
 	if action == "ALTER" {
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ENABLE") {
+		if p.cur.Type == kwENABLE {
 			optLoc := p.pos()
 			p.advance()
 			opts = append(opts, &nodes.SecurityPrincipalOption{
 				Name: "ENABLE",
 				Loc:  nodes.Loc{Start: optLoc, End: p.prevEnd()},
 			})
-		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "DISABLE") {
+		} else if p.cur.Type == kwDISABLE {
 			optLoc := p.pos()
 			p.advance()
 			opts = append(opts, &nodes.SecurityPrincipalOption{
@@ -197,7 +197,7 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 		} else if p.cur.Type == kwADD {
 			optLoc := p.pos()
 			p.advance() // consume ADD
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CREDENTIAL") {
+			if p.cur.Type == kwCREDENTIAL {
 				p.advance() // consume CREDENTIAL
 				if name, ok := p.parseIdentifier(); ok {
 					opts = append(opts, &nodes.SecurityPrincipalOption{
@@ -210,7 +210,7 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 		} else if p.cur.Type == kwDROP {
 			optLoc := p.pos()
 			p.advance() // consume DROP
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CREDENTIAL") {
+			if p.cur.Type == kwCREDENTIAL {
 				p.advance() // consume CREDENTIAL
 				if name, ok := p.parseIdentifier(); ok {
 					opts = append(opts, &nodes.SecurityPrincipalOption{
@@ -267,7 +267,7 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 				})
 			case "EXTERNAL":
 				p.advance() // consume EXTERNAL
-				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PROVIDER") {
+				if p.cur.Type == kwPROVIDER {
 					p.advance()
 				}
 				opts = append(opts, &nodes.SecurityPrincipalOption{
@@ -337,7 +337,7 @@ func (p *Parser) parseSecurityRoleStmt(action string) (*nodes.SecurityStmt, erro
 
 	if action == "CREATE" {
 		// AUTHORIZATION owner_name
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AUTHORIZATION") {
+		if p.cur.Type == kwAUTHORIZATION {
 			optLoc := p.pos()
 			p.advance()
 			if owner, ok := p.parseIdentifier(); ok {
@@ -353,7 +353,7 @@ func (p *Parser) parseSecurityRoleStmt(action string) (*nodes.SecurityStmt, erro
 		if p.cur.Type == kwADD {
 			optLoc := p.pos()
 			p.advance() // consume ADD
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MEMBER") {
+			if p.cur.Type == kwMEMBER {
 				p.advance() // consume MEMBER
 			}
 			if member, ok := p.parseIdentifier(); ok {
@@ -366,7 +366,7 @@ func (p *Parser) parseSecurityRoleStmt(action string) (*nodes.SecurityStmt, erro
 		} else if p.cur.Type == kwDROP {
 			optLoc := p.pos()
 			p.advance() // consume DROP
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MEMBER") {
+			if p.cur.Type == kwMEMBER {
 				p.advance() // consume MEMBER
 			}
 			if member, ok := p.parseIdentifier(); ok {
@@ -401,9 +401,7 @@ func (p *Parser) parseSecurityApplicationRoleStmt(action string) (*nodes.Securit
 	loc := p.pos()
 	// APPLICATION keyword already consumed by caller
 	// Consume ROLE
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ROLE") {
-		p.advance()
-	} else if p.cur.Type == kwROLE {
+	if p.cur.Type == kwROLE {
 		p.advance()
 	}
 
@@ -497,16 +495,16 @@ func (p *Parser) parseSecurityPrincipalWithOptions() []nodes.Node {
 		// PASSWORD sub-options: HASHED, MUST_CHANGE, UNLOCK, OLD_PASSWORD
 		if key == "PASSWORD" {
 			for {
-				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "HASHED") {
+				if p.cur.Type == kwHASHED {
 					opt.Hashed = true
 					p.advance()
-				} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MUST_CHANGE") {
+				} else if p.cur.Type == kwMUST_CHANGE {
 					opt.MustChange = true
 					p.advance()
-				} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "UNLOCK") {
+				} else if p.cur.Type == kwUNLOCK {
 					opt.Unlock = true
 					p.advance()
-				} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "OLD_PASSWORD") {
+				} else if p.cur.Type == kwOLD_PASSWORD {
 					p.advance() // consume OLD_PASSWORD
 					if p.cur.Type == '=' {
 						p.advance()
@@ -522,7 +520,7 @@ func (p *Parser) parseSecurityPrincipalWithOptions() []nodes.Node {
 		}
 
 		// Handle NO CREDENTIAL (two-word option in ALTER LOGIN WITH)
-		if key == "NO" && p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CREDENTIAL") {
+		if key == "NO" && p.cur.Type == kwCREDENTIAL {
 			opt.Name = "NO CREDENTIAL"
 			p.advance() // consume CREDENTIAL
 		}
@@ -563,17 +561,17 @@ func (p *Parser) parseExecuteAsStmt() (*nodes.SecurityStmt, error) {
 	} else if p.cur.Type == kwUSER {
 		stmt.ObjectType = "USER"
 		p.advance()
-	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CALLER") {
+	} else if p.cur.Type == kwCALLER {
 		stmt.ObjectType = "CALLER"
 		p.advance()
 		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
-	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SELF") {
+	} else if p.cur.Type == kwSELF {
 		stmt.ObjectType = "SELF"
 		p.advance()
 		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
-	} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "OWNER") {
+	} else if p.cur.Type == kwOWNER {
 		stmt.ObjectType = "OWNER"
 		p.advance()
 		stmt.Loc.End = p.prevEnd()
@@ -593,13 +591,13 @@ func (p *Parser) parseExecuteAsStmt() (*nodes.SecurityStmt, error) {
 	if p.cur.Type == kwWITH {
 		p.advance()
 		var opts []nodes.Node
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "NO") {
+		if p.cur.Type == kwNO {
 			p.advance()
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REVERT") {
+			if p.cur.Type == kwREVERT {
 				p.advance()
 				opts = append(opts, &nodes.String{Str: "NO REVERT"})
 			}
-		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "COOKIE") {
+		} else if p.cur.Type == kwCOOKIE {
 			p.advance()
 			if p.cur.Type == kwINTO {
 				p.advance()
@@ -636,7 +634,7 @@ func (p *Parser) parseRevertStmt() (*nodes.SecurityStmt, error) {
 	// WITH COOKIE = @cookie_variable
 	if p.cur.Type == kwWITH {
 		p.advance()
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "COOKIE") {
+		if p.cur.Type == kwCOOKIE {
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
@@ -697,12 +695,12 @@ func (p *Parser) parseAlterAuthorizationStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// TO { principal_name | SCHEMA OWNER }
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TO") {
+	if p.cur.Type == kwTO {
 		p.advance()
 		var opts []nodes.Node
 		if p.cur.Type == kwSCHEMA {
 			p.advance()
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "OWNER") {
+			if p.cur.Type == kwOWNER {
 				p.advance()
 				opts = append(opts, &nodes.String{Str: "SCHEMA OWNER"})
 			}
@@ -749,7 +747,7 @@ func (p *Parser) tryParseAlterAuthEntityType() string {
 			return p.tryParseMultiWordEntityType(first, []string{"SERVICE", "BINDING"})
 		case "FULLTEXT":
 			next := p.peekNext()
-			if matchesKeywordCI(next.Str, "CATALOG") || matchesKeywordCI(next.Str, "STOPLIST") {
+			if next.Type == kwCATALOG || next.Type == kwSTOPLIST {
 				return p.tryParseMultiWordEntityType(first, []string{strings.ToUpper(next.Str)})
 			}
 		case "SEARCH":
@@ -773,7 +771,7 @@ func (p *Parser) tryParseMultiWordEntityType(first string, remaining []string) s
 	}
 	// Peek to confirm next token matches first remaining word
 	next := p.peekNext()
-	if !matchesKeywordCI(next.Str, remaining[0]) {
+	if !strings.EqualFold(next.Str, remaining[0]) {
 		return ""
 	}
 
@@ -782,7 +780,7 @@ func (p *Parser) tryParseMultiWordEntityType(first string, remaining []string) s
 	parts := []string{first}
 	for _, word := range remaining {
 		if (p.isIdentLike() || p.cur.Type == kwSCHEMA || p.cur.Type == kwTYPE) &&
-			matchesKeywordCI(p.cur.Str, word) {
+			strings.EqualFold(p.cur.Str, word) {
 			parts = append(parts, strings.ToUpper(p.cur.Str))
 			p.advance()
 		} else {
@@ -796,7 +794,7 @@ func (p *Parser) tryParseMultiWordEntityType(first string, remaining []string) s
 func (p *Parser) parseAlterAuthEntityName() string {
 	var parts []string
 	for p.cur.Type != tokEOF && p.cur.Type != ';' {
-		if p.cur.Type == kwTO || (p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TO")) {
+		if p.cur.Type == kwTO {
 			break
 		}
 		if p.isIdentLike() || p.cur.Type == kwDATABASE || p.cur.Type == kwXML ||
