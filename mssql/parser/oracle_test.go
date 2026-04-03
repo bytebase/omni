@@ -185,9 +185,10 @@ func TestKeywordOracleOptionPositions(t *testing.T) {
 
 		// ================================================================
 		// 12. Bulk insert options: BULK INSERT t FROM 'x' WITH (<option>)
+		// NOTE: SQL Server's SET PARSEONLY ON rejects all BULK INSERT statements
+		// regardless of option validity, so "valid" cases cannot be oracle-tested.
+		// Only invalid-option cases are tested (both omni and SQL Server reject).
 		// ================================================================
-		{"bulk_insert/FIELDTERMINATOR_valid", "BULK INSERT dbo.t FROM '/tmp/data.csv' WITH (FIELDTERMINATOR = ',')"},
-		{"bulk_insert/ROWTERMINATOR_valid", "BULK INSERT dbo.t FROM '/tmp/data.csv' WITH (ROWTERMINATOR = '\\n')"},
 		{"bulk_insert/SELECT_invalid", "BULK INSERT dbo.t FROM '/tmp/data.csv' WITH (SELECT = 1)"},
 		{"bulk_insert/FROM_invalid", "BULK INSERT dbo.t FROM '/tmp/data.csv' WITH (FROM = 1)"},
 

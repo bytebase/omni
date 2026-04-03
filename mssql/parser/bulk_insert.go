@@ -7,6 +7,40 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// bulkInsertOptions defines the valid option names for BULK INSERT WITH (...).
+// Sourced from SqlScriptDOM BulkInsertFlagOptionsHelper, BulkInsertIntOptionHelper,
+// and BulkInsertStringOptionHelper.
+var bulkInsertOptions = newOptionSet(
+	// Registered keywords that are valid bulk insert options:
+	kwORDER,       // ORDER ( column [ASC|DESC] ... )
+	kwDATA_SOURCE, // DATA_SOURCE = '...'
+	kwFORMAT,      // FORMAT = 'CSV'
+).withIdents(
+	// Flag options (BulkInsertFlagOptionsHelper):
+	"CHECK_CONSTRAINTS",
+	"FIRE_TRIGGERS",
+	"KEEPIDENTITY",
+	"KEEPNULLS",
+	"TABLOCK",
+	// Int options (BulkInsertIntOptionHelper):
+	"BATCHSIZE",
+	"FIRSTROW",
+	"KILOBYTES_PER_BATCH",
+	"LASTROW",
+	"MAXERRORS",
+	"ROWS_PER_BATCH",
+	// String options (BulkInsertStringOptionHelper):
+	"CODEPAGE",
+	"DATAFILETYPE",
+	"ERRORFILE",
+	"ERRORFILE_DATA_SOURCE",
+	"FIELDQUOTE",
+	"FIELDTERMINATOR",
+	"FORMATFILE",
+	"FORMATFILE_DATA_SOURCE",
+	"ROWTERMINATOR",
+)
+
 // parseBulkInsertStmt parses a BULK INSERT statement.
 //
 // BNF: mssql/parser/bnf/bulk-insert-transact-sql.bnf
@@ -96,7 +130,7 @@ func (p *Parser) parseBulkInsertStmt() (*nodes.BulkInsertStmt, error) {
 //   - KEY = 'string_value'
 //   - ORDER ( column [ ASC | DESC ] [ ,...n ] )
 func (p *Parser) parseBulkInsertOption() nodes.Node {
-	if !p.isAnyKeywordIdent() && p.cur.Type != kwFILE {
+	if !p.isValidOption(bulkInsertOptions) {
 		return nil
 	}
 
