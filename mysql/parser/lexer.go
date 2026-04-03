@@ -1662,10 +1662,11 @@ type Token struct {
 
 // Lexer implements a MySQL SQL lexer.
 type Lexer struct {
-	input     string
-	pos       int
-	start     int
-	prevToken int // type of the previously emitted token
+	input      string
+	pos        int
+	start      int
+	prevToken  int // type of the previously emitted token
+	baseOffset int // added to all token Loc values for absolute positioning
 }
 
 // NewLexer creates a new MySQL lexer for the given input.
@@ -1673,9 +1674,16 @@ func NewLexer(input string) *Lexer {
 	return &Lexer{input: input}
 }
 
+// NewLexerWithOffset creates a Lexer whose tokens have Loc = localOffset + baseOffset.
+// This allows parsing a segment of a larger SQL string while producing absolute byte positions.
+func NewLexerWithOffset(input string, baseOffset int) *Lexer {
+	return &Lexer{input: input, baseOffset: baseOffset}
+}
+
 // NextToken returns the next token from the input.
 func (l *Lexer) NextToken() Token {
 	tok := l.nextToken()
+	tok.Loc += l.baseOffset // apply base offset for absolute positioning
 	l.prevToken = tok.Type
 	return tok
 }
