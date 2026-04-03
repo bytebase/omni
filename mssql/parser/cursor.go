@@ -5,6 +5,16 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// cursorOptions is the set of valid T-SQL cursor option keywords (13 options).
+// Matches SqlScriptDOM CursorOptionsHelper.
+var cursorOptions = newOptionSet(
+	kwLOCAL, kwGLOBAL,
+	kwFORWARD_ONLY, kwSCROLL,
+	kwSTATIC, kwKEYSET, kwDYNAMIC, kwFAST_FORWARD,
+	kwREAD_ONLY, kwREADONLY, kwSCROLL_LOCKS, kwOPTIMISTIC,
+	kwTYPE_WARNING,
+)
+
 // parseDeclareCursorStmt parses a DECLARE cursor_name CURSOR statement.
 //
 // BNF: mssql/parser/bnf/declare-cursor-transact-sql.bnf
@@ -72,7 +82,9 @@ func (p *Parser) parseDeclareCursorStmt() (*nodes.DeclareCursorStmt, error) {
 	// Otherwise, parse T-SQL extended options between CURSOR and FOR.
 	if !stmt.Insensitive && !stmt.Scroll {
 		// T-SQL extended syntax: parse options after CURSOR
-		p.parseCursorOptions(stmt)
+		if err := p.parseCursorOptions(stmt); err != nil {
+			return stmt, err
+		}
 	}
 
 	// FOR select_statement
@@ -124,7 +136,9 @@ func (p *Parser) parseDeclareCursorStmt() (*nodes.DeclareCursorStmt, error) {
 //	[ STATIC | KEYSET | DYNAMIC | FAST_FORWARD ]
 //	[ READ_ONLY | SCROLL_LOCKS | OPTIMISTIC ]
 //	[ TYPE_WARNING ]
-func (p *Parser) parseCursorOptions(stmt *nodes.DeclareCursorStmt) {
+//
+// Returns an error if an invalid keyword appears in the options position.
+func (p *Parser) parseCursorOptions(stmt *nodes.DeclareCursorStmt) error {
 	// LOCAL | GLOBAL
 	if p.matchIdentCI("LOCAL") {
 		stmt.Scope = "LOCAL"
@@ -166,6 +180,18 @@ func (p *Parser) parseCursorOptions(stmt *nodes.DeclareCursorStmt) {
 	if p.matchIdentCI("TYPE_WARNING") {
 		stmt.TypeWarning = true
 	}
+
+	// Reject invalid keywords in the cursor options position.
+	// After consuming all valid options, the next token should be FOR or EOF/semicolon.
+	// If it's a keyword or identifier that is NOT a valid cursor option and NOT FOR,
+	// it's an error (e.g., DECLARE c CURSOR SELECT FOR SELECT 1).
+	if p.cur.Type == kwFOR || p.cur.Type == tokEOF || p.cur.Type == ';' {
+		return nil
+	}
+	if p.isAnyKeywordIdent() && !p.isValidOption(cursorOptions) {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
 }
 
 // parseOpenCursorStmt parses an OPEN cursor statement.
