@@ -232,41 +232,41 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 	}
 
 	// TRANSACTION ISOLATION LEVEL
-	if p.cur.Type == kwTRANSACTION || (p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TRANSACTION")) {
+	if p.cur.Type == kwTRANSACTION {
 		p.advance() // consume TRANSACTION
 		// ISOLATION
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ISOLATION") {
+		if p.cur.Type == kwISOLATION {
 			p.advance()
 		}
 		// LEVEL
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LEVEL") {
+		if p.cur.Type == kwLEVEL {
 			p.advance()
 		}
 		// isolation level name: READ UNCOMMITTED / READ COMMITTED / REPEATABLE READ / SNAPSHOT / SERIALIZABLE
 		stmt.Option = "TRANSACTION ISOLATION LEVEL"
 		valLoc := p.pos()
 		var level string
-		if p.cur.Type == kwREAD || (p.isIdentLike() && matchesKeywordCI(p.cur.Str, "READ")) {
+		if p.cur.Type == kwREAD {
 			p.advance() // consume READ
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "UNCOMMITTED") {
+			if p.cur.Type == kwUNCOMMITTED {
 				p.advance()
 				level = "READ UNCOMMITTED"
-			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "COMMITTED") {
+			} else if p.cur.Type == kwCOMMITTED {
 				p.advance()
 				level = "READ COMMITTED"
 			} else {
 				level = "READ"
 			}
-		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REPEATABLE") {
+		} else if p.cur.Type == kwREPEATABLE {
 			p.advance() // consume REPEATABLE
-			if p.cur.Type == kwREAD || (p.isIdentLike() && matchesKeywordCI(p.cur.Str, "READ")) {
+			if p.cur.Type == kwREAD {
 				p.advance()
 			}
 			level = "REPEATABLE READ"
-		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SERIALIZABLE") {
+		} else if p.cur.Type == kwSERIALIZABLE {
 			p.advance()
 			level = "SERIALIZABLE"
-		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SNAPSHOT") {
+		} else if p.cur.Type == kwSNAPSHOT {
 			p.advance()
 			level = "SNAPSHOT"
 		}
@@ -280,7 +280,7 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 		p.advance() // consume IDENTITY_INSERT
 		stmt.Option = "IDENTITY_INSERT"
 		// table name
-		tableRef , _ := p.parseTableRef()
+		tableRef, _ := p.parseTableRef()
 		// ON or OFF
 		var onoff string
 		if p.cur.Type == kwON {
@@ -310,7 +310,7 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 	//
 	//	SET OFFSETS keyword_list { ON | OFF }
 	//	keyword_list: SELECT, FROM, ORDER, COMPUTE, TABLE, PROCEDURE, STATEMENT, PARAM, EXECUTE
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "OFFSETS") {
+	if p.cur.Type == kwOFFSETS {
 		p.advance() // consume OFFSETS
 		stmt.Option = "OFFSETS"
 		// Collect comma-separated keyword list
@@ -353,7 +353,7 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 		p.advance()
 
 		// STATISTICS IO|TIME|PROFILE|XML (multi-word option)
-		if strings.EqualFold(stmt.Option, "STATISTICS") && p.isIdentLike() {
+		if stmt.Option == "STATISTICS" && p.isIdentLike() {
 			stmt.Option = stmt.Option + " " + strings.ToUpper(p.cur.Str)
 			p.advance()
 		}

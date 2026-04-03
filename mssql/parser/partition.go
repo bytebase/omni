@@ -31,29 +31,27 @@ func (p *Parser) parseCreatePartitionFunctionStmt() (*nodes.CreatePartitionFunct
 	// ( input_parameter_type )
 	if p.cur.Type == '(' {
 		p.advance()
-		stmt.InputType , _ = p.parseDataType()
+		stmt.InputType, _ = p.parseDataType()
 		p.match(')')
 	}
 
 	// AS RANGE [LEFT|RIGHT]
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AS") {
+	if p.cur.Type == kwAS {
 		p.advance()
 	}
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "RANGE") {
+	if p.cur.Type == kwRANGE {
 		p.advance()
 	}
-	if p.isIdentLike() || p.cur.Type == kwLEFT || p.cur.Type == kwRIGHT {
-		if matchesKeywordCI(p.cur.Str, "LEFT") || matchesKeywordCI(p.cur.Str, "RIGHT") {
-			stmt.Range = strings.ToUpper(p.cur.Str)
-			p.advance()
-		}
+	if p.cur.Type == kwLEFT || p.cur.Type == kwRIGHT {
+		stmt.Range = strings.ToUpper(p.cur.Str)
+		p.advance()
 	}
 
 	// FOR VALUES ( boundary_value [,...n] )
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FOR") {
+	if p.cur.Type == kwFOR {
 		p.advance()
 	}
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "VALUES") {
+	if p.cur.Type == kwVALUES {
 		p.advance()
 	}
 	if p.cur.Type == '(' {
@@ -109,7 +107,7 @@ func (p *Parser) parseAlterPartitionFunctionStmt() (*nodes.AlterPartitionFunctio
 	}
 
 	// RANGE ( boundary_value )
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "RANGE") {
+	if p.cur.Type == kwRANGE {
 		p.advance()
 	}
 	if p.cur.Type == '(' {
@@ -144,7 +142,7 @@ func (p *Parser) parseCreatePartitionSchemeStmt() (*nodes.CreatePartitionSchemeS
 	}
 
 	// AS PARTITION function_name
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AS") {
+	if p.cur.Type == kwAS {
 		p.advance()
 	}
 	if p.cur.Type == kwPARTITION {
@@ -161,7 +159,7 @@ func (p *Parser) parseCreatePartitionSchemeStmt() (*nodes.CreatePartitionSchemeS
 		p.advance()
 		allTo = true
 	}
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TO") {
+	if p.cur.Type == kwTO {
 		p.advance()
 	}
 
@@ -212,10 +210,10 @@ func (p *Parser) parseAlterPartitionSchemeStmt() (*nodes.AlterPartitionSchemeStm
 	}
 
 	// NEXT USED [filegroup_name]
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "NEXT") {
+	if p.cur.Type == kwNEXT {
 		p.advance()
 	}
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "USED") {
+	if p.cur.Type == kwUSED {
 		p.advance()
 	}
 	if p.isIdentLike() {

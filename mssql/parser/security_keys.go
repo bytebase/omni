@@ -169,33 +169,39 @@ func (p *Parser) parseSecurityKeyStmt(action string) (*nodes.SecurityKeyStmt, er
 
 	// Determine object type
 	switch {
-	case p.matchIdentCI("MASTER"):
+	case p.cur.Type == kwMASTER:
 		// MASTER KEY
+		p.advance()
 		p.match(kwKEY)
 		stmt.ObjectType = "MASTER KEY"
-	case p.matchIdentCI("SYMMETRIC"):
+	case p.cur.Type == kwSYMMETRIC:
 		// SYMMETRIC KEY key_name
+		p.advance()
 		p.match(kwKEY)
 		stmt.ObjectType = "SYMMETRIC KEY"
 		name, _ := p.parseIdentifier()
 		stmt.Name = name
-	case p.matchIdentCI("ASYMMETRIC"):
+	case p.cur.Type == kwASYMMETRIC:
 		// ASYMMETRIC KEY key_name
+		p.advance()
 		p.match(kwKEY)
 		stmt.ObjectType = "ASYMMETRIC KEY"
 		name, _ := p.parseIdentifier()
 		stmt.Name = name
-	case p.matchIdentCI("CERTIFICATE"):
+	case p.cur.Type == kwCERTIFICATE:
+		p.advance()
 		stmt.ObjectType = "CERTIFICATE"
 		name, _ := p.parseIdentifier()
 		stmt.Name = name
-	case p.matchIdentCI("CREDENTIAL"):
+	case p.cur.Type == kwCREDENTIAL:
+		p.advance()
 		stmt.ObjectType = "CREDENTIAL"
 		name, _ := p.parseIdentifier()
 		stmt.Name = name
-	case p.matchIdentCI("CRYPTOGRAPHIC"):
+	case p.cur.Type == kwCRYPTOGRAPHIC:
 		// CRYPTOGRAPHIC PROVIDER provider_name
-		p.matchIdentCI("PROVIDER")
+		p.advance()
+		p.match(kwPROVIDER)
 		stmt.ObjectType = "CRYPTOGRAPHIC PROVIDER"
 		name, _ := p.parseIdentifier()
 		stmt.Name = name
@@ -241,7 +247,7 @@ func (p *Parser) parseAlterSymmetricKeyOptions(stmt *nodes.SecurityKeyStmt) {
 	if op != "" {
 		items = append(items, &nodes.String{Str: op})
 		// ENCRYPTION BY
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ENCRYPTION") {
+		if p.cur.Type == kwENCRYPTION {
 			p.advance()
 		}
 		if p.cur.Type == kwBY {
@@ -277,19 +283,19 @@ func (p *Parser) parseAlterMasterKeyOptions(stmt *nodes.SecurityKeyStmt) {
 	var items []nodes.Node
 
 	// Check for [FORCE] REGENERATE
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FORCE") {
+	if p.cur.Type == kwFORCE {
 		items = append(items, &nodes.String{Str: "FORCE"})
 		p.advance()
 	}
 
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "REGENERATE") {
+	if p.cur.Type == kwREGENERATE {
 		items = append(items, &nodes.String{Str: "REGENERATE"})
 		p.advance()
 		// WITH ENCRYPTION BY PASSWORD = 'password'
 		if p.cur.Type == kwWITH {
 			p.advance()
 		}
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ENCRYPTION") {
+		if p.cur.Type == kwENCRYPTION {
 			p.advance()
 		}
 		if p.cur.Type == kwBY {
@@ -308,7 +314,7 @@ func (p *Parser) parseAlterMasterKeyOptions(stmt *nodes.SecurityKeyStmt) {
 		p.advance()
 		items = append(items, &nodes.String{Str: op})
 
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ENCRYPTION") {
+		if p.cur.Type == kwENCRYPTION {
 			p.advance()
 		}
 		if p.cur.Type == kwBY {
@@ -331,40 +337,40 @@ func (p *Parser) parseAlterMasterKeyOptions(stmt *nodes.SecurityKeyStmt) {
 //	| SYMMETRIC KEY symmetric_key_name | ASYMMETRIC KEY asym_key_name
 //	| SERVICE MASTER KEY
 func (p *Parser) parseEncryptingMechanism() string {
-	if p.matchIdentCI("CERTIFICATE") {
+	if _, ok := p.match(kwCERTIFICATE); ok {
 		name, _ := p.parseIdentifier()
 		return "CERTIFICATE " + name
 	}
-	if p.matchIdentCI("PASSWORD") {
+	if _, ok := p.match(kwPASSWORD); ok {
 		if p.cur.Type == '=' {
 			p.advance()
 		}
 		pwd := p.consumeAnyIdent()
 		return "PASSWORD = " + pwd
 	}
-	if p.matchIdentCI("SYMMETRIC") {
+	if _, ok := p.match(kwSYMMETRIC); ok {
 		p.match(kwKEY)
 		name, _ := p.parseIdentifier()
 		return "SYMMETRIC KEY " + name
 	}
-	if p.matchIdentCI("ASYMMETRIC") {
+	if _, ok := p.match(kwASYMMETRIC); ok {
 		p.match(kwKEY)
 		name, _ := p.parseIdentifier()
 		return "ASYMMETRIC KEY " + name
 	}
-	if p.matchIdentCI("SERVICE") {
+	if _, ok := p.match(kwSERVICE); ok {
 		// SERVICE MASTER KEY
-		p.matchIdentCI("MASTER")
+		p.match(kwMASTER)
 		p.match(kwKEY)
 		return "SERVICE MASTER KEY"
 	}
-	if p.matchIdentCI("SERVER") {
+	if _, ok := p.match(kwSERVER); ok {
 		// SERVER CERTIFICATE name or SERVER ASYMMETRIC KEY name
-		if p.matchIdentCI("CERTIFICATE") {
+		if _, ok := p.match(kwCERTIFICATE); ok {
 			name, _ := p.parseIdentifier()
 			return "SERVER CERTIFICATE " + name
 		}
-		if p.matchIdentCI("ASYMMETRIC") {
+		if _, ok := p.match(kwASYMMETRIC); ok {
 			p.match(kwKEY)
 			name, _ := p.parseIdentifier()
 			return "SERVER ASYMMETRIC KEY " + name
@@ -418,10 +424,10 @@ func (p *Parser) parseSecurityKeyStmtColumn(action string) (*nodes.SecurityKeySt
 	}
 
 	// Determine COLUMN ENCRYPTION KEY or COLUMN MASTER KEY
-	if p.matchIdentCI("ENCRYPTION") {
+	if _, ok := p.match(kwENCRYPTION); ok {
 		p.match(kwKEY)
 		stmt.ObjectType = "COLUMN ENCRYPTION KEY"
-	} else if p.matchIdentCI("MASTER") {
+	} else if _, ok := p.match(kwMASTER); ok {
 		p.match(kwKEY)
 		stmt.ObjectType = "COLUMN MASTER KEY"
 	} else {
@@ -445,7 +451,7 @@ func (p *Parser) parseSecurityKeyStmtColumn(action string) (*nodes.SecurityKeySt
 			prefixItems = append(prefixItems, &nodes.String{Str: "DROP"})
 			p.advance()
 		}
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "VALUE") {
+		if p.cur.Type == kwVALUE {
 			prefixItems = append(prefixItems, &nodes.String{Str: "VALUE"})
 			p.advance()
 		}
@@ -509,14 +515,14 @@ func (p *Parser) parseSecurityKeyStmtDatabaseEncryption(action string) (*nodes.S
 		Loc:    nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.matchIdentCI("ENCRYPTION") {
+	if _, ok := p.match(kwENCRYPTION); ok {
 		// DATABASE ENCRYPTION KEY
 		p.match(kwKEY)
 		stmt.ObjectType = "DATABASE ENCRYPTION KEY"
 		// No name for database encryption key
-	} else if p.matchIdentCI("SCOPED") {
+	} else if _, ok := p.match(kwSCOPED); ok {
 		// DATABASE SCOPED CREDENTIAL credential_name
-		p.matchIdentCI("CREDENTIAL")
+		p.match(kwCREDENTIAL)
 		stmt.ObjectType = "DATABASE SCOPED CREDENTIAL"
 		name, _ := p.parseIdentifier()
 		stmt.Name = name
@@ -550,7 +556,7 @@ func (p *Parser) parseOpenSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) {
 		Loc:    nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.matchIdentCI("SYMMETRIC") {
+	if _, ok := p.match(kwSYMMETRIC); ok {
 		p.match(kwKEY)
 		stmt.ObjectType = "SYMMETRIC KEY"
 	}
@@ -579,10 +585,10 @@ func (p *Parser) parseCloseSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) {
 
 	if p.cur.Type == kwALL {
 		p.advance() // consume ALL
-		p.matchIdentCI("SYMMETRIC")
-		p.matchIdentCI("KEYS")
+		p.match(kwSYMMETRIC)
+		p.match(kwKEYS)
 		stmt.ObjectType = "ALL SYMMETRIC KEYS"
-	} else if p.matchIdentCI("SYMMETRIC") {
+	} else if _, ok := p.match(kwSYMMETRIC); ok {
 		p.match(kwKEY)
 		stmt.ObjectType = "SYMMETRIC KEY"
 		name, _ := p.parseIdentifier()
@@ -623,16 +629,16 @@ func (p *Parser) parseBackupCertificateStmt() (*nodes.SecurityKeyStmt, error) {
 		Loc:    nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.matchIdentCI("CERTIFICATE") {
+	if _, ok := p.match(kwCERTIFICATE); ok {
 		stmt.ObjectType = "CERTIFICATE"
 		name, _ := p.parseIdentifier()
 		stmt.Name = name
-	} else if p.matchIdentCI("SYMMETRIC") {
+	} else if _, ok := p.match(kwSYMMETRIC); ok {
 		p.match(kwKEY)
 		stmt.ObjectType = "SYMMETRIC KEY"
 		name, _ := p.parseIdentifier()
 		stmt.Name = name
-	} else if p.matchIdentCI("MASTER") {
+	} else if _, ok := p.match(kwMASTER); ok {
 		p.match(kwKEY)
 		stmt.ObjectType = "MASTER KEY"
 	}
@@ -654,7 +660,7 @@ func (p *Parser) parseOpenMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	}
 
 	// consume MASTER KEY
-	if p.matchIdentCI("MASTER") {
+	if _, ok := p.match(kwMASTER); ok {
 		p.match(kwKEY)
 	}
 
@@ -674,7 +680,7 @@ func (p *Parser) parseCloseMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	}
 
 	// consume MASTER KEY
-	if p.matchIdentCI("MASTER") {
+	if _, ok := p.match(kwMASTER); ok {
 		p.match(kwKEY)
 	}
 
@@ -700,7 +706,7 @@ func (p *Parser) parseRestoreMasterKeyStmt() (*nodes.SecurityKeyStmt, error) {
 	}
 
 	// consume MASTER KEY
-	if p.matchIdentCI("MASTER") {
+	if _, ok := p.match(kwMASTER); ok {
 		p.match(kwKEY)
 	}
 
@@ -730,7 +736,7 @@ func (p *Parser) parseRestoreSymmetricKeyStmt() (*nodes.SecurityKeyStmt, error) 
 	}
 
 	// consume SYMMETRIC KEY
-	if p.matchIdentCI("SYMMETRIC") {
+	if _, ok := p.match(kwSYMMETRIC); ok {
 		p.match(kwKEY)
 	}
 
@@ -782,8 +788,7 @@ func (p *Parser) parseSecurityKeyOptions(stmt *nodes.SecurityKeyStmt) {
 		}
 
 		// ENCRYPTION BY / DECRYPTION BY / FROM / TO patterns
-		if p.isIdentLike() && (strings.EqualFold(p.cur.Str, "ENCRYPTION") ||
-			strings.EqualFold(p.cur.Str, "DECRYPTION")) {
+		if p.cur.Type == kwENCRYPTION || p.cur.Type == kwDECRYPTION {
 			keyword := strings.ToUpper(p.cur.Str)
 			p.advance()
 			if p.cur.Type == kwBY {
@@ -802,8 +807,7 @@ func (p *Parser) parseSecurityKeyOptions(stmt *nodes.SecurityKeyStmt) {
 					break
 				}
 				// After comma, check if next token is another mechanism or a different clause
-				if p.isIdentLike() && (strings.EqualFold(p.cur.Str, "ENCRYPTION") ||
-					strings.EqualFold(p.cur.Str, "DECRYPTION")) {
+				if p.cur.Type == kwENCRYPTION || p.cur.Type == kwDECRYPTION {
 					break
 				}
 				if p.cur.Type == kwWITH || p.cur.Type == tokEOF || p.cur.Type == ';' {

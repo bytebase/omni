@@ -251,6 +251,7 @@ const (
 	kwKEEP
 	kwKEEPFIXED
 	kwKEY
+	kwKEYS
 	kwKILL
 	kwLANGUAGE
 	kwLEFT
@@ -608,7 +609,7 @@ func init() {
 		"instead": kwINSTEAD, "intersect": kwINTERSECT, "into": kwINTO, "is": kwIS,
 		"isolation": kwISOLATION,
 		"job": kwJOB, "join": kwJOIN, "json": kwJSON,
-		"kb": kwKB, "keep": kwKEEP, "keepfixed": kwKEEPFIXED, "key": kwKEY,
+		"kb": kwKB, "keep": kwKEEP, "keepfixed": kwKEEPFIXED, "key": kwKEY, "keys": kwKEYS,
 		"kill": kwKILL,
 		"language": kwLANGUAGE, "left": kwLEFT, "level": kwLEVEL, "library": kwLIBRARY,
 		"lifetime": kwLIFETIME, "like": kwLIKE, "lineno": kwLINENO, "list": kwLIST,
@@ -924,7 +925,8 @@ var keywordClassification = map[int]Keyword{
 		kwKB: {Name: "KB", Token: kwKB, Category: ContextKeyword},
 		kwKEEP: {Name: "KEEP", Token: kwKEEP, Category: ContextKeyword},
 		kwKEEPFIXED: {Name: "KEEPFIXED", Token: kwKEEPFIXED, Category: ContextKeyword},
-		kwKEY: {Name: "KEY", Token: kwKEY, Category: CoreKeyword},
+		kwKEY:  {Name: "KEY", Token: kwKEY, Category: CoreKeyword},
+		kwKEYS: {Name: "KEYS", Token: kwKEYS, Category: ContextKeyword},
 		kwKILL: {Name: "KILL", Token: kwKILL, Category: CoreKeyword},
 		kwLANGUAGE: {Name: "LANGUAGE", Token: kwLANGUAGE, Category: ContextKeyword},
 		kwLEFT: {Name: "LEFT", Token: kwLEFT, Category: CoreKeyword},

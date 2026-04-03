@@ -703,7 +703,13 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		return p.parseIdentExpr()
 	case kwTRY_CONVERT:
 		return p.parseTryConvert()
-	case tokIDENT:
+	case tokIDENT,
+		// Non-reserved keywords usable as identifiers in expression context.
+		kwASYMMETRIC, kwCERTIFICATE, kwCOMMITTED, kwCREDENTIAL, kwCRYPTOGRAPHIC,
+		kwDECRYPTION, kwENCRYPTION, kwFORCE, kwISOLATION, kwKEYS, kwLEVEL,
+		kwMASTER, kwNEXT, kwPASSWORD, kwPROVIDER, kwREGENERATE, kwREPEATABLE,
+		kwSCOPED, kwSERIALIZABLE, kwSERVER, kwSERVICE, kwSNAPSHOT, kwSYMMETRIC,
+		kwUNCOMMITTED, kwUSED, kwVALUE:
 		return p.parseIdentExpr()
 	default:
 		// Context keywords can be used as identifiers in T-SQL.
