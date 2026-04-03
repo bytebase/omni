@@ -14,6 +14,7 @@ type ExecOptions struct {
 type ExecResult struct {
 	Index   int
 	SQL     string
+	Line    int // 1-based start line in the original SQL
 	Skipped bool
 	Error   error
 }
@@ -27,6 +28,8 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 		return nil, nil
 	}
 
+	lineIndex := buildLineIndex(sql)
+
 	continueOnError := false
 	if opts != nil {
 		continueOnError = opts.ContinueOnError
@@ -34,7 +37,11 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 
 	results := make([]ExecResult, 0, len(list.Items))
 	for i, item := range list.Items {
-		result := ExecResult{Index: i}
+		locStart := stmtLocStart(item)
+		result := ExecResult{
+			Index: i,
+			Line:  offsetToLine(lineIndex, locStart),
+		}
 
 		if isDML(item) {
 			result.Skipped = true
@@ -174,5 +181,94 @@ func (c *Catalog) processUtility(stmt nodes.Node) error {
 		return c.execSet(s)
 	default:
 		return nil
+	}
+}
+
+// buildLineIndex returns the byte offset of each line start.
+func buildLineIndex(sql string) []int {
+	index := []int{0}
+	for i := 0; i < len(sql); i++ {
+		if sql[i] == '\n' {
+			index = append(index, i+1)
+		}
+	}
+	return index
+}
+
+// offsetToLine converts a byte offset to a 1-based line number.
+func offsetToLine(lineIndex []int, offset int) int {
+	lo, hi := 0, len(lineIndex)-1
+	for lo < hi {
+		mid := (lo + hi + 1) / 2
+		if lineIndex[mid] <= offset {
+			lo = mid
+		} else {
+			hi = mid - 1
+		}
+	}
+	return lo + 1
+}
+
+// stmtLocStart extracts Loc.Start from a statement node.
+// Uses a type switch over the statement types handled by processUtility,
+// plus common DML types. All have a Loc field set by the parser.
+func stmtLocStart(node nodes.Node) int {
+	switch s := node.(type) {
+	case *nodes.CreateDatabaseStmt:
+		return s.Loc.Start
+	case *nodes.CreateTableStmt:
+		return s.Loc.Start
+	case *nodes.CreateIndexStmt:
+		return s.Loc.Start
+	case *nodes.CreateViewStmt:
+		return s.Loc.Start
+	case *nodes.AlterViewStmt:
+		return s.Loc.Start
+	case *nodes.AlterTableStmt:
+		return s.Loc.Start
+	case *nodes.AlterDatabaseStmt:
+		return s.Loc.Start
+	case *nodes.DropTableStmt:
+		return s.Loc.Start
+	case *nodes.DropDatabaseStmt:
+		return s.Loc.Start
+	case *nodes.DropIndexStmt:
+		return s.Loc.Start
+	case *nodes.DropViewStmt:
+		return s.Loc.Start
+	case *nodes.RenameTableStmt:
+		return s.Loc.Start
+	case *nodes.TruncateStmt:
+		return s.Loc.Start
+	case *nodes.UseStmt:
+		return s.Loc.Start
+	case *nodes.CreateFunctionStmt:
+		return s.Loc.Start
+	case *nodes.DropRoutineStmt:
+		return s.Loc.Start
+	case *nodes.AlterRoutineStmt:
+		return s.Loc.Start
+	case *nodes.CreateTriggerStmt:
+		return s.Loc.Start
+	case *nodes.DropTriggerStmt:
+		return s.Loc.Start
+	case *nodes.CreateEventStmt:
+		return s.Loc.Start
+	case *nodes.AlterEventStmt:
+		return s.Loc.Start
+	case *nodes.DropEventStmt:
+		return s.Loc.Start
+	case *nodes.SetStmt:
+		return s.Loc.Start
+	case *nodes.SelectStmt:
+		return s.Loc.Start
+	case *nodes.InsertStmt:
+		return s.Loc.Start
+	case *nodes.UpdateStmt:
+		return s.Loc.Start
+	case *nodes.DeleteStmt:
+		return s.Loc.Start
+	default:
+		return 0
 	}
 }
