@@ -104,16 +104,17 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) (*nodes.CreateProcedureS
 	}
 
 	// WITH <procedure_option> [,...n]
+	// In CREATE PROC context, WITH always introduces procedure options (never a CTE).
 	if p.cur.Type == kwWITH {
-		next := p.peekNext()
-		if p.isRoutineOption(next) {
-			p.advance() // consume WITH
-			opts, err := p.parseRoutineOptionList()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Options = opts
+		p.advance() // consume WITH
+		opts, err := p.parseRoutineOptionList()
+		if err != nil {
+			return nil, err
 		}
+		if opts == nil || len(opts.Items) == 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Options = opts
 	}
 
 	// FOR REPLICATION
