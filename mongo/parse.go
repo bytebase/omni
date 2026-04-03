@@ -37,27 +37,42 @@ func (s *Statement) Empty() bool {
 	return s.AST == nil
 }
 
+// ParseResult holds the outcome of a best-effort parse.
+type ParseResult struct {
+	Statements []Statement
+	Errors     []*parser.ParseError
+}
+
 // Parse splits and parses a mongosh input string into statements.
 // Each statement includes the text, AST, and byte/line positions.
+//
+// On syntax error the parser recovers by skipping to the next statement
+// boundary and continues parsing. Returns a non-nil error only when no
+// statements could be parsed at all. Use ParseBestEffort for both partial
+// results and errors.
 func Parse(input string) ([]Statement, error) {
-	nodes, err := parser.Parse(input)
-	if err != nil {
-		return nil, err
+	result := ParseBestEffort(input)
+	if len(result.Statements) == 0 && len(result.Errors) > 0 {
+		return nil, result.Errors[0]
 	}
-	if len(nodes) == 0 {
-		return nil, nil
+	return result.Statements, nil
+}
+
+// ParseBestEffort splits and parses a mongosh input string, recovering from
+// errors. It always returns as many successfully parsed statements as possible,
+// along with any errors encountered.
+func ParseBestEffort(input string) *ParseResult {
+	pr := parser.ParseBestEffort(input)
+	result := &ParseResult{Errors: pr.Errors}
+	if len(pr.Nodes) == 0 {
+		return result
 	}
 
 	lineIndex := buildLineIndex(input)
-
-	var stmts []Statement
-	for _, node := range nodes {
+	for _, node := range pr.Nodes {
 		loc := node.GetLoc()
-
-		// Determine text boundaries — expand to include trailing semicolons/whitespace
 		start := loc.Start
 		end := loc.End
-		// Scan past trailing whitespace to find semicolon
 		j := end
 		for j < len(input) && isSpace(input[j]) {
 			j++
@@ -65,8 +80,7 @@ func Parse(input string) ([]Statement, error) {
 		if j < len(input) && input[j] == ';' {
 			end = j + 1
 		}
-
-		stmts = append(stmts, Statement{
+		result.Statements = append(result.Statements, Statement{
 			Text:      input[start:end],
 			AST:       node,
 			ByteStart: start,
@@ -75,7 +89,7 @@ func Parse(input string) ([]Statement, error) {
 			End:       offsetToPosition(lineIndex, end),
 		})
 	}
-	return stmts, nil
+	return result
 }
 
 func isSpace(c byte) bool {

@@ -83,14 +83,24 @@ func TestErrorPosition(t *testing.T) {
 
 func TestErrorOnSecondLine(t *testing.T) {
 	input := "show dbs\nfoobar"
-	_, err := parser.Parse(input)
-	if err == nil {
-		t.Fatal("expected error")
+	// Parse recovers: returns the valid "show dbs" statement, error is nil.
+	nodes, err := parser.Parse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	var pe *parser.ParseError
-	if !errors.As(err, &pe) {
-		t.Fatalf("expected *parser.ParseError, got %T", err)
+	if len(nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(nodes))
 	}
+
+	// ParseBestEffort exposes the error for "foobar".
+	result := parser.ParseBestEffort(input)
+	if len(result.Nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(result.Nodes))
+	}
+	if len(result.Errors) != 1 {
+		t.Fatalf("expected 1 error, got %d", len(result.Errors))
+	}
+	pe := result.Errors[0]
 	if pe.Line != 2 {
 		t.Errorf("expected line 2, got %d", pe.Line)
 	}
