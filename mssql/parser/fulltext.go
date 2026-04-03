@@ -54,9 +54,9 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 				col := p.cur.Str
 				p.advance()
 				// TYPE COLUMN type_col_name
-				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TYPE") {
+				if p.cur.Type == kwTYPE {
 					p.advance()
-					if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "COLUMN") {
+					if p.cur.Type == kwCOLUMN {
 						p.advance()
 					}
 					if p.isIdentLike() {
@@ -64,14 +64,14 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 					}
 				}
 				// LANGUAGE term
-				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LANGUAGE") {
+				if p.cur.Type == kwLANGUAGE {
 					p.advance()
 					if p.isIdentLike() || p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
 						p.advance()
 					}
 				}
 				// STATISTICAL_SEMANTICS
-				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STATISTICAL_SEMANTICS") {
+				if p.cur.Type == kwSTATISTICAL_SEMANTICS {
 					p.advance()
 				}
 				cols = append(cols, &nodes.String{Str: col})
@@ -85,7 +85,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 	}
 
 	// KEY INDEX index_name
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "KEY") {
+	if p.cur.Type == kwKEY {
 		p.advance()
 		if p.cur.Type == kwINDEX {
 			p.advance()
@@ -106,7 +106,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 		if p.cur.Type == '(' {
 			// Parenthesized form
 			p.advance()
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FILEGROUP") {
+			if p.cur.Type == kwFILEGROUP {
 				p.advance()
 				if p.isIdentLike() {
 					p.advance() // filegroup name (not captured in AST)
@@ -121,7 +121,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 				stmt.CatalogName = p.cur.Str
 				p.advance()
 				if _, ok := p.match(','); ok {
-					if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FILEGROUP") {
+					if p.cur.Type == kwFILEGROUP {
 						p.advance()
 						if p.isIdentLike() {
 							p.advance() // filegroup name
@@ -210,32 +210,32 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 
 	// Action dispatch
 	switch {
-	case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ENABLE"):
+	case p.cur.Type == kwENABLE:
 		stmt.Action = "ENABLE"
 		p.advance()
 
-	case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "DISABLE"):
+	case p.cur.Type == kwDISABLE:
 		stmt.Action = "DISABLE"
 		p.advance()
 
 	case p.cur.Type == kwSET:
 		stmt.Action = "SET"
 		p.advance()
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CHANGE_TRACKING") {
+		if p.cur.Type == kwCHANGE_TRACKING {
 			// SET CHANGE_TRACKING [ = ] { MANUAL | AUTO | OFF }
 			p.advance()
 			p.match('=') // optional =
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "MANUAL") {
+			if p.cur.Type == kwMANUAL {
 				stmt.ChangeTracking = "MANUAL"
 				p.advance()
-			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AUTO") {
+			} else if p.cur.Type == kwAUTO {
 				stmt.ChangeTracking = "AUTO"
 				p.advance()
 			} else if p.cur.Type == kwOFF {
 				stmt.ChangeTracking = "OFF"
 				p.advance()
 			}
-		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STOPLIST") {
+		} else if p.cur.Type == kwSTOPLIST {
 			// SET STOPLIST [ = ] { OFF | SYSTEM | stoplist_name } [ WITH NO POPULATION ]
 			p.advance()
 			p.match('=') // optional =
@@ -243,7 +243,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 			if p.cur.Type == kwOFF {
 				opts = append(opts, &nodes.String{Str: "STOPLIST=OFF"})
 				p.advance()
-			} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SYSTEM") {
+			} else if p.cur.Type == kwSYSTEM {
 				opts = append(opts, &nodes.String{Str: "STOPLIST=SYSTEM"})
 				p.advance()
 			} else if p.isIdentLike() {
@@ -254,13 +254,13 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 				stmt.Options = &nodes.List{Items: opts}
 			}
 			stmt.WithNoPopulation = p.parseWithNoPopulation()
-		} else if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SEARCH") {
+		} else if p.cur.Type == kwSEARCH {
 			// SET SEARCH PROPERTY LIST [ = ] { OFF | property_list_name } [ WITH NO POPULATION ]
 			p.advance() // consume SEARCH
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PROPERTY") {
+			if p.cur.Type == kwPROPERTY {
 				p.advance()
 			}
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LIST") {
+			if p.cur.Type == kwLIST {
 				p.advance()
 			}
 			p.match('=') // optional =
@@ -290,9 +290,9 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 					col := p.cur.Str
 					p.advance()
 					// TYPE COLUMN type_col_name
-					if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TYPE") {
+					if p.cur.Type == kwTYPE {
 						p.advance()
-						if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "COLUMN") {
+						if p.cur.Type == kwCOLUMN {
 							p.advance()
 						}
 						if p.isIdentLike() {
@@ -300,14 +300,14 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 						}
 					}
 					// LANGUAGE term
-					if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LANGUAGE") {
+					if p.cur.Type == kwLANGUAGE {
 						p.advance()
 						if p.isIdentLike() || p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
 							p.advance()
 						}
 					}
 					// STATISTICAL_SEMANTICS
-					if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STATISTICAL_SEMANTICS") {
+					if p.cur.Type == kwSTATISTICAL_SEMANTICS {
 						p.advance()
 					}
 					cols = append(cols, &nodes.String{Str: col})
@@ -328,7 +328,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 		stmt.Action = "ALTER"
 		p.advance()
 		// COLUMN column_name { ADD | DROP } STATISTICAL_SEMANTICS
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "COLUMN") {
+		if p.cur.Type == kwCOLUMN {
 			p.advance()
 			if p.isIdentLike() {
 				stmt.ColumnName = p.cur.Str
@@ -342,7 +342,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 				p.advance()
 			}
 			// STATISTICAL_SEMANTICS
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STATISTICAL_SEMANTICS") {
+			if p.cur.Type == kwSTATISTICAL_SEMANTICS {
 				p.advance()
 			}
 		}
@@ -373,7 +373,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 		// WITH NO POPULATION
 		stmt.WithNoPopulation = p.parseWithNoPopulation()
 
-	case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "START"):
+	case p.cur.Type == kwSTART:
 		stmt.Action = "START"
 		p.advance()
 		// { FULL | INCREMENTAL | UPDATE } POPULATION
@@ -382,28 +382,28 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 			p.advance()
 		}
 		// POPULATION
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POPULATION") {
+		if p.cur.Type == kwPOPULATION {
 			p.advance()
 		}
 
-	case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STOP"):
+	case p.cur.Type == kwSTOP:
 		stmt.Action = "STOP"
 		p.advance()
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POPULATION") {
+		if p.cur.Type == kwPOPULATION {
 			p.advance()
 		}
 
-	case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PAUSE"):
+	case p.cur.Type == kwPAUSE:
 		stmt.Action = "PAUSE"
 		p.advance()
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POPULATION") {
+		if p.cur.Type == kwPOPULATION {
 			p.advance()
 		}
 
-	case p.isIdentLike() && matchesKeywordCI(p.cur.Str, "RESUME"):
+	case p.cur.Type == kwRESUME:
 		stmt.Action = "RESUME"
 		p.advance()
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POPULATION") {
+		if p.cur.Type == kwPOPULATION {
 			p.advance()
 		}
 	}
@@ -416,10 +416,10 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 func (p *Parser) parseWithNoPopulation() bool {
 	if p.cur.Type == kwWITH {
 		next := p.peekNext()
-		if p.isIdentLikeToken(next) && matchesKeywordCI(next.Str, "NO") {
+		if next.Type == kwNO {
 			p.advance() // consume WITH
 			p.advance() // consume NO
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "POPULATION") {
+			if p.cur.Type == kwPOPULATION {
 				p.advance()
 			}
 			return true
@@ -457,7 +457,7 @@ func (p *Parser) parseCreateFulltextCatalogStmt() (*nodes.CreateFulltextCatalogS
 	// ON FILEGROUP
 	if p.cur.Type == kwON {
 		p.advance()
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "FILEGROUP") {
+		if p.cur.Type == kwFILEGROUP {
 			p.advance()
 			if p.isIdentLike() {
 				opts = append(opts, &nodes.String{Str: "FILEGROUP=" + p.cur.Str})
@@ -467,9 +467,9 @@ func (p *Parser) parseCreateFulltextCatalogStmt() (*nodes.CreateFulltextCatalogS
 	}
 
 	// IN PATH
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "IN") {
+	if p.cur.Type == kwIN {
 		p.advance()
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "PATH") {
+		if p.cur.Type == kwPATH {
 			p.advance()
 		}
 		if p.cur.Type == tokSCONST {
@@ -496,9 +496,9 @@ func (p *Parser) parseCreateFulltextCatalogStmt() (*nodes.CreateFulltextCatalogS
 	}
 
 	// AS DEFAULT
-	if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "AS") {
+	if p.cur.Type == kwAS {
 		p.advance()
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "DEFAULT") {
+		if p.cur.Type == kwDEFAULT {
 			p.advance()
 			opts = append(opts, &nodes.String{Str: "AS DEFAULT"})
 		}
@@ -546,9 +546,9 @@ func (p *Parser) parseCreateFulltextStoplistStmt() (*nodes.CreateFulltextStoplis
 	if p.cur.Type == kwFROM {
 		p.advance()
 		// SYSTEM STOPLIST
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "SYSTEM") {
+		if p.cur.Type == kwSYSTEM {
 			p.advance()
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "STOPLIST") {
+			if p.cur.Type == kwSTOPLIST {
 				p.advance()
 			}
 			stmt.SystemStoplist = true
@@ -626,7 +626,7 @@ func (p *Parser) parseAlterFulltextStoplistStmt() (*nodes.AlterFulltextStoplistS
 		}
 
 		// LANGUAGE language_term
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LANGUAGE") {
+		if p.cur.Type == kwLANGUAGE {
 			p.advance()
 			if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
 				stmt.Language = p.cur.Str
@@ -644,7 +644,7 @@ func (p *Parser) parseAlterFulltextStoplistStmt() (*nodes.AlterFulltextStoplistS
 			}
 			stmt.Stopword = p.cur.Str
 			p.advance()
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LANGUAGE") {
+			if p.cur.Type == kwLANGUAGE {
 				p.advance()
 				if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
 					stmt.Language = p.cur.Str
@@ -655,7 +655,7 @@ func (p *Parser) parseAlterFulltextStoplistStmt() (*nodes.AlterFulltextStoplistS
 			p.advance()
 			stmt.DropAll = true
 			// ALL LANGUAGE language_term  or just ALL
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "LANGUAGE") {
+			if p.cur.Type == kwLANGUAGE {
 				p.advance()
 				if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
 					stmt.Language = p.cur.Str
@@ -887,14 +887,14 @@ func (p *Parser) parseAlterFulltextCatalogStmt() (*nodes.AlterFulltextCatalogStm
 	if p.isIdentLike() {
 		action := strings.ToUpper(p.cur.Str)
 		p.advance()
-		if action == "AS" && p.isIdentLike() && matchesKeywordCI(p.cur.Str, "DEFAULT") {
+		if action == "AS" && p.cur.Type == kwDEFAULT {
 			action = "AS DEFAULT"
 			p.advance()
 		} else if action == "REBUILD" {
 			// WITH ACCENT_SENSITIVITY = { ON | OFF }
 			if p.cur.Type == kwWITH {
 				p.advance()
-				if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "ACCENT_SENSITIVITY") {
+				if p.cur.Type == kwACCENT_SENSITIVITY {
 					optName := strings.ToUpper(p.cur.Str)
 					p.advance()
 					if p.cur.Type == '=' {

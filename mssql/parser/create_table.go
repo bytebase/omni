@@ -56,15 +56,15 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	// Note: AS CLONE OF is handled at the dispatch level (parser.go)
 	if p.cur.Type == kwAS {
 		next := p.peekNext()
-		if p.isIdentLikeToken(next) && strings.EqualFold(next.Str, "node") {
+		if next.Type == kwNODE {
 			p.advance() // AS
 			p.advance() // NODE
 			stmt.IsNode = true
-		} else if p.isIdentLikeToken(next) && strings.EqualFold(next.Str, "edge") {
+		} else if next.Type == kwEDGE {
 			p.advance() // AS
 			p.advance() // EDGE
 			stmt.IsEdge = true
-		} else if p.isIdentLikeToken(next) && strings.EqualFold(next.Str, "filetable") {
+		} else if next.Type == kwFILETABLE {
 			p.advance() // AS
 			p.advance() // FILETABLE
 			stmt.IsFileTable = true
@@ -94,12 +94,12 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
 		// Check for PERIOD FOR SYSTEM_TIME
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "period") {
+		if p.cur.Type == kwPERIOD {
 			if p.peekNext().Type == kwFOR {
 				p.advance() // PERIOD
 				p.advance() // FOR
 				// SYSTEM_TIME
-				if p.isIdentLike() && strings.EqualFold(p.cur.Str, "system_time") {
+				if p.cur.Type == kwSYSTEM_TIME {
 					p.advance()
 				}
 				// ( start_col , end_col )
@@ -203,7 +203,7 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	}
 
 	// TEXTIMAGE_ON filegroup
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "textimage_on") {
+	if p.cur.Type == kwTEXTIMAGE_ON {
 		p.advance()
 		if p.isIdentLike() {
 			stmt.TextImageOn = p.cur.Str
@@ -212,7 +212,7 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	}
 
 	// FILESTREAM_ON filegroup
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "filestream_on") {
+	if p.cur.Type == kwFILESTREAM_ON {
 		p.advance()
 		if p.isIdentLike() {
 			stmt.FilestreamOn = p.cur.Str
@@ -233,11 +233,11 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	// AS NODE | AS EDGE (graph tables) -- can also appear after closing paren
 	if !stmt.IsNode && !stmt.IsEdge && !stmt.IsFileTable && p.cur.Type == kwAS {
 		next := p.peekNext()
-		if p.isIdentLikeToken(next) && strings.EqualFold(next.Str, "node") {
+		if next.Type == kwNODE {
 			p.advance() // AS
 			p.advance() // NODE
 			stmt.IsNode = true
-		} else if p.isIdentLikeToken(next) && strings.EqualFold(next.Str, "edge") {
+		} else if next.Type == kwEDGE {
 			p.advance() // AS
 			p.advance() // EDGE
 			stmt.IsEdge = true
@@ -461,7 +461,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		}
 		persisted := false
 		notNull := false
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "persisted") {
+		if p.cur.Type == kwPERSISTED {
 			persisted = true
 			p.advance()
 			// [ NOT NULL ]
@@ -526,12 +526,12 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 
 	// column_set_definition: column_set_name XML COLUMN_SET FOR ALL_SPARSE_COLUMNS
 	if col.DataType != nil && strings.EqualFold(col.DataType.Name, "xml") &&
-		p.isIdentLike() && strings.EqualFold(p.cur.Str, "column_set") {
+		p.cur.Type == kwCOLUMN_SET {
 		p.advance() // COLUMN_SET
 		if p.cur.Type == kwFOR {
 			p.advance() // FOR
 		}
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "all_sparse_columns") {
+		if p.cur.Type == kwALL_SPARSE_COLUMNS {
 			p.advance()
 		}
 		col.IsColumnSet = true
@@ -544,14 +544,14 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		consumed := false
 
 		// FILESTREAM
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "filestream") {
+		if p.cur.Type == kwFILESTREAM {
 			col.Filestream = true
 			p.advance()
 			consumed = true
 		}
 
 		// SPARSE
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "sparse") {
+		if p.cur.Type == kwSPARSE {
 			col.Sparse = true
 			p.advance()
 			consumed = true
@@ -565,21 +565,21 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		}
 
 		// HIDDEN (standalone, not after GENERATED ALWAYS)
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "hidden") {
+		if p.cur.Type == kwHIDDEN {
 			col.Hidden = true
 			p.advance()
 			consumed = true
 		}
 
 		// MASKED WITH (FUNCTION = 'mask_function')
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "masked") {
+		if p.cur.Type == kwMASKED {
 			p.advance() // MASKED
 			if p.cur.Type == kwWITH {
 				p.advance() // WITH
 				if p.cur.Type == '(' {
 					p.advance()
 					// FUNCTION = 'value'
-					if p.isIdentLike() && strings.EqualFold(p.cur.Str, "function") {
+					if p.cur.Type == kwFUNCTION {
 						p.advance()
 						if p.cur.Type == '=' {
 							p.advance()
@@ -596,7 +596,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		}
 
 		// ENCRYPTED WITH (...)
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "encrypted") {
+		if p.cur.Type == kwENCRYPTED {
 			encWith, encErr := p.parseEncryptedWith()
 			if encErr != nil {
 				return nil, encErr
@@ -606,14 +606,14 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		}
 
 		// GENERATED ALWAYS AS { ROW | TRANSACTION_ID | SEQUENCE_NUMBER } { START | END } [ HIDDEN ]
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "generated") {
+		if p.cur.Type == kwGENERATED {
 			genAlways, genErr := p.parseGeneratedAlways()
 			if genErr != nil {
 				return nil, genErr
 			}
 			col.GeneratedAlways = genAlways
 			// GENERATED ALWAYS ... HIDDEN
-			if p.isIdentLike() && strings.EqualFold(p.cur.Str, "hidden") {
+			if p.cur.Type == kwHIDDEN {
 				col.Hidden = true
 				p.advance()
 			}
@@ -834,7 +834,7 @@ func (p *Parser) parseGeneratedAlways() (*nodes.GeneratedAlwaysSpec, error) {
 	}
 
 	// ALWAYS
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "always") {
+	if p.cur.Type == kwALWAYS {
 		p.advance()
 	}
 
@@ -1038,7 +1038,7 @@ func (p *Parser) parseConstraintWithOptions(cd *nodes.ConstraintDef) {
 	p.advance()
 	if p.cur.Type == '(' {
 		cd.IndexOptions, _ = p.parseAlterIndexOptions()
-	} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "FILLFACTOR") {
+	} else if p.cur.Type == kwFILLFACTOR {
 		p.advance()
 		if p.cur.Type == '=' {
 			p.advance()
@@ -1202,7 +1202,7 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 		}
 	default:
 		// Check for EDGE CONSTRAINT: CONSTRAINT name CONNECTION (...)
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "CONNECTION") {
+		if p.cur.Type == kwCONNECTION {
 			cd.Type = nodes.ConstraintEdge
 			var ecErr error
 			cd.EdgeConnections, ecErr = p.parseEdgeConstraintConnections()
@@ -1304,9 +1304,9 @@ func (p *Parser) parseRefAction() nodes.ReferentialAction {
 		}
 	}
 	// NO ACTION
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "no") {
+	if p.cur.Type == kwNO {
 		p.advance()
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "action") {
+		if p.cur.Type == kwACTION {
 			p.advance()
 		}
 		return nodes.RefActNoAction
@@ -1358,7 +1358,7 @@ func (p *Parser) parseInlineTableIndex() (*nodes.InlineIndexDef, error) {
 		if p.cur.Type == kwCOLUMNSTORE {
 			p.advance()
 			idx.Columnstore = true
-			if p.cur.Type == kwORDER || (p.isIdentLike() && strings.EqualFold(p.cur.Str, "ORDER")) {
+			if p.cur.Type == kwORDER {
 				p.advance()
 				if p.cur.Type == '(' {
 					var err error
@@ -1451,7 +1451,7 @@ trailingOptions:
 	}
 
 	// [ FILESTREAM_ON { ... } ]
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "filestream_on") {
+	if p.cur.Type == kwFILESTREAM_ON {
 		p.advance()
 		if p.isIdentLike() {
 			idx.FilestreamOn = p.cur.Str
@@ -1646,7 +1646,7 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 				Loc:  nodes.Loc{Start: loc, End: -1},
 			}
 			// Optional ORDER (col, ...)
-			if p.cur.Type == kwORDER || (p.isIdentLike() && strings.EqualFold(p.cur.Str, "ORDER")) {
+			if p.cur.Type == kwORDER {
 				p.advance() // consume ORDER
 				if p.cur.Type == '(' {
 					var cols []string
@@ -1706,7 +1706,7 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 	}
 
 	// HEAP
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "HEAP") {
+	if p.cur.Type == kwHEAP {
 		p.advance()
 		opt := &nodes.TableOption{
 			Name: "HEAP",
@@ -1717,7 +1717,7 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 	}
 
 	// PARTITION ( col RANGE [LEFT|RIGHT] FOR VALUES ( ... ) )
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "PARTITION") {
+	if p.cur.Type == kwPARTITION {
 		p.advance() // consume PARTITION
 		opt := &nodes.TableOption{
 			Name: "PARTITION",
@@ -1731,7 +1731,7 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 
 			// RANGE [LEFT|RIGHT]
 			rangeDir := ""
-			if p.isIdentLike() && strings.EqualFold(p.cur.Str, "RANGE") {
+			if p.cur.Type == kwRANGE {
 				p.advance()
 				if p.cur.Type == kwLEFT {
 					rangeDir = "LEFT"
@@ -1750,7 +1750,7 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 			// FOR VALUES ( value, ... )
 			if p.cur.Type == kwFOR {
 				p.advance() // consume FOR
-				if p.isIdentLike() && strings.EqualFold(p.cur.Str, "VALUES") {
+				if p.cur.Type == kwVALUES {
 					p.advance() // consume VALUES
 				}
 				if p.cur.Type == '(' {
@@ -1784,7 +1784,7 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 	}
 
 	// DISTRIBUTION = HASH(col [,...]) | ROUND_ROBIN | REPLICATE
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "DISTRIBUTION") {
+	if p.cur.Type == kwDISTRIBUTION {
 		p.advance() // consume DISTRIBUTION
 		opt := &nodes.TableOption{
 			Name: "DISTRIBUTION",

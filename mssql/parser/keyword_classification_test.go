@@ -600,7 +600,9 @@ func TestNoStringKeywordMatch(t *testing.T) {
 		name string
 		re   *regexp.Regexp
 	}{
-		{"strings.EqualFold", regexp.MustCompile(`strings\.EqualFold`)},
+		// Match EqualFold on parser token fields (p.cur.Str, next.Str, etc.)
+		// but NOT on AST fields like col.DataType.Name which are legitimate.
+		{"strings.EqualFold", regexp.MustCompile(`strings\.EqualFold\(p\.|strings\.EqualFold\(next\.|strings\.EqualFold\(upper`)},
 		{"matchesKeywordCI", regexp.MustCompile(`matchesKeywordCI`)},
 	}
 

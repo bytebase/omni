@@ -141,7 +141,7 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 	if p.cur.Type == kwWITH {
 		next := p.peekNext()
 		// Distinguish WITH ENCRYPTION/EXECUTE AS from WITH APPEND
-		if next.Type != tokIDENT || !strings.EqualFold(next.Str, "APPEND") {
+		if next.Type != kwAPPEND {
 			p.advance() // consume WITH
 			stmt.TriggerOptions = p.parseTriggerWithOptions()
 		}
@@ -202,7 +202,7 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 	// [ WITH APPEND ] (for DML triggers)
 	if p.cur.Type == kwWITH {
 		next := p.peekNext()
-		if p.isIdentLikeToken(next) && strings.EqualFold(next.Str, "APPEND") {
+		if next.Type == kwAPPEND {
 			p.advance() // WITH
 			p.advance() // APPEND
 			stmt.WithAppend = true
@@ -227,7 +227,7 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 	// EXTERNAL NAME assembly_name.class_name.method_name (CLR trigger)
 	if p.cur.Type == kwEXTERNAL {
 		p.advance() // consume EXTERNAL
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "NAME") {
+		if p.cur.Type == kwNAME {
 			p.advance() // consume NAME
 		}
 		var parts []string
@@ -273,12 +273,12 @@ func (p *Parser) parseTriggerWithOptions() *nodes.List {
 			break
 		}
 		// Check for AFTER / INSTEAD which mark end of options
-		if p.isIdentLike() && (strings.EqualFold(p.cur.Str, "AFTER") || strings.EqualFold(p.cur.Str, "INSTEAD")) {
+		if p.cur.Type == kwAFTER || p.cur.Type == kwINSTEAD {
 			break
 		}
 
 		optLoc := p.pos()
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "ENCRYPTION") {
+		if p.cur.Type == kwENCRYPTION {
 			items = append(items, &nodes.TriggerOption{Name: "ENCRYPTION", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		} else if p.cur.Type == kwEXEC || p.cur.Type == kwEXECUTE {
@@ -296,7 +296,7 @@ func (p *Parser) parseTriggerWithOptions() *nodes.List {
 				p.advance()
 			}
 			items = append(items, &nodes.TriggerOption{Name: "EXECUTE AS", Value: asVal, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-		} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "NATIVE_COMPILATION") {
+		} else if p.cur.Type == kwNATIVE_COMPILATION {
 			items = append(items, &nodes.TriggerOption{Name: "NATIVE_COMPILATION", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		} else if p.cur.Type == kwSCHEMABINDING {

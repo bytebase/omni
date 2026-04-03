@@ -100,10 +100,10 @@ func (p *Parser) parseBackupStmt() (*nodes.BackupStmt, error) {
 	if p.cur.Type == kwDATABASE {
 		stmt.Type = "DATABASE"
 		p.advance()
-	} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "LOG") {
+	} else if p.cur.Type == kwLOG {
 		stmt.Type = "LOG"
 		p.advance()
-	} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "CERTIFICATE") {
+	} else if p.cur.Type == kwCERTIFICATE {
 		stmt.Type = "CERTIFICATE"
 		p.advance()
 	} else {
@@ -142,7 +142,7 @@ func (p *Parser) parseBackupStmt() (*nodes.BackupStmt, error) {
 		}
 
 		// MIRROR TO devList (may repeat)
-		for p.isIdentLike() && strings.EqualFold(p.cur.Str, "MIRROR") {
+		for p.cur.Type == kwMIRROR {
 			stmt.MirrorTo = true
 			p.advance() // consume MIRROR
 			if p.cur.Type == kwTO {
@@ -299,7 +299,7 @@ func (p *Parser) parseRestoreStmt() (*nodes.RestoreStmt, error) {
 		p.advance() // consume FROM
 
 		// DATABASE_SNAPSHOT = snapshot_name
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "DATABASE_SNAPSHOT") {
+		if p.cur.Type == kwDATABASE_SNAPSHOT {
 			p.advance() // consume DATABASE_SNAPSHOT
 			if _, ok := p.match('='); ok {
 				if p.isIdentLike() || p.cur.Type == tokSCONST {
@@ -347,21 +347,21 @@ func (p *Parser) parseBackupRestoreFileList() (*nodes.List, error) {
 				spec += p.parseFileSpecValue()
 			}
 			specs = append(specs, &nodes.String{Str: spec})
-		} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "FILEGROUP") {
+		} else if p.cur.Type == kwFILEGROUP {
 			spec := "FILEGROUP="
 			p.advance() // consume FILEGROUP
 			if _, ok := p.match('='); ok {
 				spec += p.parseFileSpecValue()
 			}
 			specs = append(specs, &nodes.String{Str: spec})
-		} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "PAGE") {
+		} else if p.cur.Type == kwPAGE {
 			spec := "PAGE="
 			p.advance() // consume PAGE
 			if _, ok := p.match('='); ok {
 				spec += p.parseFileSpecValue()
 			}
 			specs = append(specs, &nodes.String{Str: spec})
-		} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "READ_WRITE_FILEGROUPS") {
+		} else if p.cur.Type == kwREAD_WRITE_FILEGROUPS {
 			specs = append(specs, &nodes.String{Str: "READ_WRITE_FILEGROUPS"})
 			p.advance()
 		} else {
@@ -374,9 +374,9 @@ func (p *Parser) parseBackupRestoreFileList() (*nodes.List, error) {
 			// If next token after comma is FILE, FILEGROUP, PAGE, READ_WRITE_FILEGROUPS, consume comma
 			next := p.peekNext()
 			if next.Type == kwFILE ||
-				(p.isIdentLikeToken(next) && (strings.EqualFold(next.Str, "FILEGROUP") ||
-					strings.EqualFold(next.Str, "PAGE") ||
-					strings.EqualFold(next.Str, "READ_WRITE_FILEGROUPS"))) {
+				next.Type == kwFILEGROUP ||
+				next.Type == kwPAGE ||
+				next.Type == kwREAD_WRITE_FILEGROUPS {
 				p.advance() // consume comma
 			} else {
 				break
@@ -652,7 +652,7 @@ func (p *Parser) parseOneBackupRestoreOption() (*nodes.BackupRestoreOption, erro
 		if p.cur.Type == '=' {
 			p.advance()
 			if p.cur.Type == tokICONST || p.cur.Type == tokFCONST ||
-				p.cur.Type == tokSCONST || (p.isIdentLike() && p.cur.Str[0] == '@') {
+				p.cur.Type == tokSCONST || (p.cur.Type == tokIDENT && p.cur.Str[0] == '@') {
 				opt.Value = p.cur.Str
 				p.advance()
 			}
@@ -689,7 +689,7 @@ func (p *Parser) parseOneBackupRestoreOption() (*nodes.BackupRestoreOption, erro
 			}
 			// For STOPATMARK / STOPBEFOREMARK: optional AFTER 'datetime'
 			if (name == "STOPATMARK" || name == "STOPBEFOREMARK") &&
-				p.isIdentLike() && strings.EqualFold(p.cur.Str, "AFTER") {
+				p.cur.Type == kwAFTER {
 				p.advance()
 				if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
 					opt.Value = opt.Value + " AFTER " + p.cur.Str
@@ -742,7 +742,7 @@ func (p *Parser) parseBackupEncryptionOption() (*nodes.BackupRestoreOption, erro
 	p.advance() // consume (
 
 	// ALGORITHM = alg
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "ALGORITHM") {
+	if p.cur.Type == kwALGORITHM {
 		p.advance() // consume ALGORITHM
 		if _, ok := p.match('='); ok {
 			if p.isIdentLike() {
@@ -758,7 +758,7 @@ func (p *Parser) parseBackupEncryptionOption() (*nodes.BackupRestoreOption, erro
 	}
 
 	// SERVER CERTIFICATE = name | SERVER ASYMMETRIC KEY = name
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "SERVER") {
+	if p.cur.Type == kwSERVER {
 		p.advance() // consume SERVER
 		if p.isIdentLike() {
 			upper := strings.ToUpper(p.cur.Str)
@@ -840,7 +840,7 @@ func (p *Parser) parseRestoreFilestreamOption() (*nodes.BackupRestoreOption, err
 	p.advance() // consume (
 
 	// DIRECTORY_NAME = directory_name
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "DIRECTORY_NAME") {
+	if p.cur.Type == kwDIRECTORY_NAME {
 		p.advance() // consume DIRECTORY_NAME
 		if _, ok := p.match('='); ok {
 			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {

@@ -205,13 +205,13 @@ func (p *Parser) parseExecAtClause(stmt *nodes.ExecStmt) {
 	}
 	p.advance() // consume AT
 	// DATA_SOURCE keyword
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "DATA_SOURCE") {
+	if p.cur.Type == kwDATA_SOURCE {
 		p.advance() // consume DATA_SOURCE
-		if p.isIdentLike() {
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
 			stmt.AtDataSource = p.cur.Str
 			p.advance()
 		}
-	} else if p.isIdentLike() {
+	} else if p.isIdentLike() || p.cur.Type == tokIDENT {
 		stmt.AtServer = p.cur.Str
 		p.advance()
 	}
@@ -253,21 +253,21 @@ func (p *Parser) parseExecOptionList() *nodes.List {
 //	RECOMPILE | RESULT SETS UNDEFINED | RESULT SETS NONE
 //	| RESULT SETS ( <result_sets_definition> [,...n] )
 func (p *Parser) parseExecOption() *nodes.String {
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "RECOMPILE") {
+	if p.cur.Type == kwRECOMPILE {
 		p.advance()
 		return &nodes.String{Str: "RECOMPILE"}
 	}
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "RESULT") {
+	if p.cur.Type == kwRESULT {
 		p.advance() // consume RESULT
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "SETS") {
+		if p.cur.Type == kwSETS {
 			p.advance() // consume SETS
 		}
 		// UNDEFINED | NONE | ( ... )
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "UNDEFINED") {
+		if p.cur.Type == kwUNDEFINED {
 			p.advance()
 			return &nodes.String{Str: "RESULT SETS UNDEFINED"}
 		}
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "NONE") {
+		if p.cur.Type == kwNONE {
 			p.advance()
 			return &nodes.String{Str: "RESULT SETS NONE"}
 		}
@@ -341,7 +341,7 @@ func (p *Parser) parseExecArg() *nodes.ExecArg {
 	}
 
 	// Check for OUTPUT/OUT
-	if p.cur.Type == kwOUTPUT || (p.isIdentLike() && strings.EqualFold(p.cur.Str, "out")) {
+	if p.cur.Type == kwOUTPUT || p.cur.Type == kwOUT {
 		arg.Output = true
 		p.advance()
 	}

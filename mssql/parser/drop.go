@@ -140,12 +140,12 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 			}
 		}
 		// Check for FULLTEXT INDEX/CATALOG
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "FULLTEXT") {
+		if p.cur.Type == kwFULLTEXT {
 			p.advance()
 			if p.cur.Type == kwINDEX {
 				stmt.ObjectType = nodes.DropFulltextIndex
 				p.advance()
-			} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "CATALOG") {
+			} else if p.cur.Type == kwCATALOG {
 				stmt.ObjectType = nodes.DropFulltextCatalog
 				p.advance()
 			}
@@ -153,9 +153,9 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 		// Check for XML SCHEMA COLLECTION
 		if p.cur.Type == kwXML {
 			p.advance()
-			if p.isIdentLike() && strings.EqualFold(p.cur.Str, "SCHEMA") {
+			if p.cur.Type == kwSCHEMA {
 				p.advance()
-				if p.isIdentLike() && strings.EqualFold(p.cur.Str, "COLLECTION") {
+				if p.cur.Type == kwCOLLECTION {
 					stmt.ObjectType = nodes.DropXmlSchemaCollection
 					p.advance()
 				}
@@ -252,9 +252,9 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 	// DROP ASSEMBLY ... WITH NO DEPENDENTS
 	if stmt.ObjectType == nodes.DropAssembly && p.cur.Type == kwWITH {
 		p.advance() // consume WITH
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "NO") {
+		if p.cur.Type == kwNO {
 			p.advance() // consume NO
-			if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "DEPENDENTS") {
+			if p.cur.Type == kwDEPENDENTS {
 				p.advance() // consume DEPENDENTS
 				stmt.NoDependents = true
 			}
@@ -266,7 +266,7 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 		p.advance()
 	} else if p.cur.Type == kwRESTRICT {
 		p.advance()
-	} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "cascade") {
+	} else if p.cur.Type == kwCASCADE {
 		p.advance()
 	}
 

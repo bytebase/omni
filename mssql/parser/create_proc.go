@@ -140,7 +140,7 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) (*nodes.CreateProcedureS
 	// EXTERNAL NAME assembly.class.method (CLR)
 	if p.cur.Type == kwEXTERNAL {
 		p.advance() // consume EXTERNAL
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "NAME") {
+		if p.cur.Type == kwNAME {
 			p.advance() // consume NAME
 		}
 		stmt.ExternalName = p.parseMethodSpecifier()
@@ -161,7 +161,7 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) (*nodes.CreateProcedureS
 func (p *Parser) parseMethodSpecifier() string {
 	var parts []string
 	for {
-		if p.isIdentLike() {
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
 			parts = append(parts, p.cur.Str)
 			p.advance()
 		} else {
@@ -410,7 +410,7 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 	// EXTERNAL NAME assembly.class.method (CLR)
 	if p.cur.Type == kwEXTERNAL {
 		p.advance() // consume EXTERNAL
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "NAME") {
+		if p.cur.Type == kwNAME {
 			p.advance() // consume NAME
 		}
 		stmt.ExternalName = p.parseMethodSpecifier()
@@ -517,7 +517,7 @@ func (p *Parser) parseParamDef() (*nodes.ParamDef, error) {
 	}
 
 	// OUTPUT / OUT
-	if p.cur.Type == kwOUTPUT || (p.isIdentLike() && strings.EqualFold(p.cur.Str, "out")) {
+	if p.cur.Type == kwOUTPUT || p.cur.Type == kwOUT {
 		param.Output = true
 		p.advance()
 	}
@@ -613,7 +613,7 @@ func (p *Parser) parseRoutineOption() *nodes.String {
 			if p.cur.Type == kwNULL {
 				p.advance() // NULL
 			}
-			if p.isIdentLike() && strings.EqualFold(p.cur.Str, "INPUT") {
+			if p.cur.Type == kwINPUT {
 				p.advance() // INPUT
 			}
 			return &nodes.String{Str: "RETURNS NULL ON NULL INPUT"}
@@ -622,7 +622,7 @@ func (p *Parser) parseRoutineOption() *nodes.String {
 	}
 
 	// CALLED ON NULL INPUT
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "CALLED") {
+	if p.cur.Type == kwCALLED {
 		p.advance() // CALLED
 		if p.cur.Type == kwON {
 			p.advance() // ON
@@ -630,7 +630,7 @@ func (p *Parser) parseRoutineOption() *nodes.String {
 		if p.cur.Type == kwNULL {
 			p.advance() // NULL
 		}
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "INPUT") {
+		if p.cur.Type == kwINPUT {
 			p.advance() // INPUT
 		}
 		return &nodes.String{Str: "CALLED ON NULL INPUT"}

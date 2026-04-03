@@ -2,8 +2,6 @@
 package parser
 
 import (
-	"strings"
-
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
@@ -80,7 +78,7 @@ func (p *Parser) parseAlterSequenceStmt() (*nodes.AlterSequenceStmt, error) {
 // Options can appear in any order per the BNF grammar.
 func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt, isAlter bool) error {
 	for {
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "NO") {
+		if p.cur.Type == kwNO {
 			// NO { MINVALUE | MAXVALUE | CYCLE | CACHE }
 			if p.isNextIdentCI("MINVALUE") {
 				p.advance()
@@ -161,6 +159,5 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt, isAlter bo
 // token matching the given string case-insensitively, without consuming tokens.
 func (p *Parser) isNextIdentCI(s string) bool {
 	next := p.peekNext()
-	return p.isIdentLikeToken(next) &&
-		strings.EqualFold(next.Str, s)
+	return next.Type == lookupKeyword(s)
 }

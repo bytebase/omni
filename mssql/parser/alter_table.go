@@ -181,7 +181,7 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 			return nil, err
 		}
 		actions = append(actions, action)
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "ENABLE"):
+	case p.cur.Type == kwENABLE:
 		action, err := p.parseAlterTableEnableDisable(true)
 		if err != nil {
 			return nil, err
@@ -189,7 +189,7 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 		if action != nil {
 			actions = append(actions, action)
 		}
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "DISABLE"):
+	case p.cur.Type == kwDISABLE:
 		action, err := p.parseAlterTableEnableDisable(false)
 		if err != nil {
 			return nil, err
@@ -197,19 +197,19 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 		if action != nil {
 			actions = append(actions, action)
 		}
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "SWITCH"):
+	case p.cur.Type == kwSWITCH:
 		action, err := p.parseAlterTableSwitch()
 		if err != nil {
 			return nil, err
 		}
 		actions = append(actions, action)
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "REBUILD"):
+	case p.cur.Type == kwREBUILD:
 		action, err := p.parseAlterTableRebuild()
 		if err != nil {
 			return nil, err
 		}
 		actions = append(actions, action)
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "SPLIT"):
+	case p.cur.Type == kwSPLIT:
 		action, err := p.parseAlterTableSplitMergeRange(true)
 		if err != nil {
 			return nil, err
@@ -253,7 +253,7 @@ func (p *Parser) parseAlterTableAdd() ([]nodes.Node, error) {
 	}
 
 	// ADD PERIOD FOR SYSTEM_TIME (start_col, end_col)
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "PERIOD") {
+	if p.cur.Type == kwPERIOD {
 		return p.parseAlterTableAddPeriod()
 	}
 
@@ -325,7 +325,7 @@ func (p *Parser) parseAlterTableAddPeriod() ([]nodes.Node, error) {
 		p.advance() // consume FOR
 	}
 	// SYSTEM_TIME
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "SYSTEM_TIME") {
+	if p.cur.Type == kwSYSTEM_TIME {
 		p.advance()
 	}
 
@@ -376,13 +376,13 @@ func (p *Parser) parseAlterTableDrop() ([]nodes.Node, error) {
 	var actions []nodes.Node
 
 	// DROP PERIOD FOR SYSTEM_TIME
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "PERIOD") {
+	if p.cur.Type == kwPERIOD {
 		loc := p.pos()
 		p.advance() // consume PERIOD
 		if p.cur.Type == kwFOR {
 			p.advance() // consume FOR
 		}
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "SYSTEM_TIME") {
+		if p.cur.Type == kwSYSTEM_TIME {
 			p.advance()
 		}
 		action := &nodes.AlterTableAction{
@@ -596,7 +596,7 @@ func (p *Parser) parseAlterTableAlterColumn() (*nodes.AlterTableAction, error) {
 	}
 
 	// SPARSE (optional after NULL/NOT NULL)
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "SPARSE") {
+	if p.cur.Type == kwSPARSE {
 		p.advance()
 	}
 
@@ -640,16 +640,16 @@ func (p *Parser) parseAlterColumnAddDrop(loc int, colName string) (*nodes.AlterT
 	case p.cur.Type == kwROWGUIDCOL:
 		opt.Option = "ROWGUIDCOL"
 		p.advance()
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "PERSISTED"):
+	case p.cur.Type == kwPERSISTED:
 		opt.Option = "PERSISTED"
 		p.advance()
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "SPARSE"):
+	case p.cur.Type == kwSPARSE:
 		opt.Option = "SPARSE"
 		p.advance()
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "HIDDEN"):
+	case p.cur.Type == kwHIDDEN:
 		opt.Option = "HIDDEN"
 		p.advance()
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "MASKED"):
+	case p.cur.Type == kwMASKED:
 		opt.Option = "MASKED"
 		p.advance()
 		// WITH ( FUNCTION = 'mask_function' )
@@ -659,7 +659,7 @@ func (p *Parser) parseAlterColumnAddDrop(loc int, colName string) (*nodes.AlterT
 				p.advance() // consume (
 				// Parse FUNCTION = 'mask_function'
 				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					if p.isIdentLike() && strings.EqualFold(p.cur.Str, "FUNCTION") {
+					if p.cur.Type == kwFUNCTION {
 						p.advance() // consume FUNCTION
 						if p.cur.Type == '=' {
 							p.advance() // consume =
@@ -758,11 +758,11 @@ func (p *Parser) parseAlterTableEnableDisable(enable bool) (*nodes.AlterTableAct
 		return p.parseAlterTableEnableDisableTrigger(loc, enable)
 	}
 	// CHANGE_TRACKING
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "CHANGE_TRACKING") {
+	if p.cur.Type == kwCHANGE_TRACKING {
 		return p.parseAlterTableChangeTracking(loc, enable)
 	}
 	// FILETABLE_NAMESPACE
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "FILETABLE_NAMESPACE") {
+	if p.cur.Type == kwFILETABLE_NAMESPACE {
 		return p.parseAlterTableFiletableNamespace(loc, enable)
 	}
 
@@ -950,7 +950,7 @@ func (p *Parser) parseAlterTableSplitMergeRange(isSplit bool) (*nodes.AlterTable
 	p.advance() // consume SPLIT/MERGE
 
 	// RANGE keyword
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "RANGE") {
+	if p.cur.Type == kwRANGE {
 		p.advance()
 	}
 
@@ -1086,10 +1086,6 @@ func (p *Parser) consumeAnyIdent() string {
 	}
 	if p.cur.Str != "" {
 		s = p.cur.Str
-		// Keyword tokens store Str as lowercase; uppercase to match SQL convention.
-		if p.cur.Type >= kwADD {
-			s = strings.ToUpper(s)
-		}
 	} else {
 		// Map keyword token back to string
 		switch p.cur.Type {

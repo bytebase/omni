@@ -218,7 +218,7 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 	}
 
 	// WINDOW clause (named window definitions)
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "WINDOW") {
+	if p.cur.Type == kwWINDOW {
 		stmt.WindowClause, err = p.parseWindowClause()
 		if err != nil {
 			return nil, err
@@ -263,7 +263,7 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 			return nil, err
 		}
 		// Consume optional ROWS/ROW
-		if p.cur.Type == kwROWS || (p.isIdentLike() && strings.EqualFold(p.cur.Str, "row")) {
+		if p.cur.Type == kwROWS || p.cur.Type == kwROW {
 			p.advance()
 		}
 		// FETCH NEXT n ROWS ONLY
@@ -271,7 +271,7 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 			fetchLoc := p.pos()
 			p.advance()
 			// NEXT or FIRST
-			if p.isIdentLike() && (strings.EqualFold(p.cur.Str, "next") || strings.EqualFold(p.cur.Str, "first")) {
+			if p.cur.Type == kwNEXT || p.cur.Type == kwFIRST {
 				p.advance()
 			}
 			count, err := p.parseExpr()
@@ -279,11 +279,11 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 				return nil, err
 			}
 			// ROWS/ROW
-			if p.cur.Type == kwROWS || (p.isIdentLike() && strings.EqualFold(p.cur.Str, "row")) {
+			if p.cur.Type == kwROWS || p.cur.Type == kwROW {
 				p.advance()
 			}
 			// ONLY
-			if p.isIdentLike() && strings.EqualFold(p.cur.Str, "only") {
+			if p.cur.Type == kwONLY {
 				p.advance()
 			}
 			stmt.FetchClause = &nodes.FetchClause{
@@ -396,7 +396,7 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 	}
 
 	// Optional XMLNAMESPACES (...)
-	if p.isIdentLike() && strings.EqualFold(p.cur.Str, "XMLNAMESPACES") {
+	if p.cur.Type == kwXMLNAMESPACES {
 		var err error
 		wc.XmlNamespaces, err = p.parseXmlNamespaces()
 		if err != nil {
@@ -587,7 +587,7 @@ func (p *Parser) parseTopClause() (*nodes.TopClause, error) {
 	// WITH TIES
 	if p.cur.Type == kwWITH {
 		next := p.peekNext()
-		if p.isIdentLikeToken(next) && strings.EqualFold(next.Str, "ties") {
+		if next.Type == kwTIES {
 			p.advance() // consume WITH
 			p.advance() // consume TIES
 			tc.WithTies = true
@@ -627,7 +627,7 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 				target.Name = p.cur.Str
 				p.advance()
 			}
-		} else if p.isIdentLike() && !p.isStatementStart() && !p.isSelectClauseIdent() {
+		} else if p.cur.Type == tokIDENT {
 			target.Name = p.cur.Str
 			p.advance()
 		}
@@ -1099,7 +1099,7 @@ func (p *Parser) parseOptionalAlias() string {
 		return ""
 	}
 	// Bare alias - only if it's an identifier and NOT a clause keyword
-	if p.isIdentLike() && !p.isSelectClauseIdent() {
+	if p.cur.Type == tokIDENT && !p.isSelectClauseIdent() {
 		name := p.cur.Str
 		p.advance()
 		return name
@@ -1110,10 +1110,6 @@ func (p *Parser) parseOptionalAlias() string {
 // isSelectClauseIdent returns true if the current identifier token is a contextual
 // keyword that starts a SELECT clause and should not be consumed as a bare alias.
 func (p *Parser) isSelectClauseIdent() bool {
-	// Check for WINDOW keyword token or identifier
-	if p.cur.Type == kwWINDOW {
-		return true
-	}
 	if p.cur.Type != tokIDENT {
 		return false
 	}
@@ -1389,9 +1385,9 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
 		// GROUPING SETS (...)
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "GROUPING") {
+		if p.cur.Type == kwGROUPING {
 			next := p.peekNext()
-			if p.isIdentLikeToken(next) && strings.EqualFold(next.Str, "SETS") {
+			if next.Type == kwSETS {
 				loc := p.pos()
 				p.advance() // consume GROUPING
 				p.advance() // consume SETS
@@ -1422,7 +1418,7 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 			}
 		}
 		// ROLLUP (...)
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "ROLLUP") {
+		if p.cur.Type == kwROLLUP {
 			loc := p.pos()
 			p.advance() // consume ROLLUP
 			if _, err := p.expect('('); err == nil {
@@ -1444,7 +1440,7 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 			continue
 		}
 		// CUBE (...)
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "CUBE") {
+		if p.cur.Type == kwCUBE {
 			loc := p.pos()
 			p.advance() // consume CUBE
 			if _, err := p.expect('('); err == nil {
@@ -1555,23 +1551,16 @@ func (p *Parser) parseWindowClause() (*nodes.List, error) {
 		}
 
 		// Optional existing_window_name (must be an ident not followed by keyword like PARTITION, ORDER)
-		if p.isIdentLike() && p.cur.Type != kwPARTITION && p.cur.Type != kwORDER &&
-			p.cur.Type != kwROWS && p.cur.Type != kwRANGE && p.cur.Type != kwGROUPS {
-			// Check if this looks like a reference name (ident not a keyword)
-			if !strings.EqualFold(p.cur.Str, "PARTITION") &&
-				!strings.EqualFold(p.cur.Str, "ORDER") &&
-				!strings.EqualFold(p.cur.Str, "ROWS") &&
-				!strings.EqualFold(p.cur.Str, "RANGE") &&
-				!strings.EqualFold(p.cur.Str, "GROUPS") &&
-				p.cur.Type != ')' {
-				next := p.peekNext()
-				// If next token is a clause keyword or ), this is a refname
-				if next.Type == kwPARTITION || next.Type == kwORDER ||
-					next.Type == kwROWS || next.Type == kwRANGE || next.Type == kwGROUPS ||
-					next.Type == ')' {
-					def.RefName = p.cur.Str
-					p.advance()
-				}
+		if p.cur.Type != kwPARTITION && p.cur.Type != kwORDER &&
+			p.cur.Type != kwROWS && p.cur.Type != kwRANGE && p.cur.Type != kwGROUPS &&
+			p.cur.Type != ')' && p.isIdentLike() {
+			next := p.peekNext()
+			// If next token is a clause keyword or ), this is a refname
+			if next.Type == kwPARTITION || next.Type == kwORDER ||
+				next.Type == kwROWS || next.Type == kwRANGE || next.Type == kwGROUPS ||
+				next.Type == ')' {
+				def.RefName = p.cur.Str
+				p.advance()
 			}
 		}
 
@@ -2007,15 +1996,15 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 	loc := p.pos()
 
 	switch {
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "RECOMPILE"):
+	case p.cur.Type == kwRECOMPILE:
 		p.advance()
 		return &nodes.QueryHint{Kind: "RECOMPILE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "OPTIMIZE"):
+	case p.cur.Type == kwOPTIMIZE:
 		p.advance()
 		if p.cur.Type == kwFOR {
 			p.advance()
-			if p.isIdentLike() && strings.EqualFold(p.cur.Str, "UNKNOWN") {
+			if p.cur.Type == kwUNKNOWN {
 				p.advance()
 				return &nodes.QueryHint{Kind: "OPTIMIZE FOR UNKNOWN", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 			}
@@ -2046,9 +2035,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 		}
 		return &nodes.QueryHint{Kind: "OPTIMIZE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
-	case p.isIdentLike() && (strings.EqualFold(p.cur.Str, "LOOP") ||
-		strings.EqualFold(p.cur.Str, "HASH") ||
-		strings.EqualFold(p.cur.Str, "MERGE")):
+	case p.cur.Type == kwLOOP || p.cur.Type == kwHASH || p.cur.Type == kwMERGE:
 		prefix := strings.ToUpper(p.cur.Str)
 		p.advance()
 		if p.cur.Type == kwJOIN {
@@ -2063,7 +2050,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 		}
 		return &nodes.QueryHint{Kind: prefix, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "CONCAT"):
+	case p.cur.Type == kwCONCAT:
 		p.advance()
 		if p.cur.Type == kwUNION {
 			p.advance()
@@ -2079,7 +2066,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 		}
 		return &nodes.QueryHint{Kind: "ORDER", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "FORCE"):
+	case p.cur.Type == kwFORCE:
 		p.advance()
 		if p.cur.Type == kwORDER {
 			p.advance()
@@ -2091,7 +2078,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 		}
 		return &nodes.QueryHint{Kind: "FORCE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "MAXDOP"):
+	case p.cur.Type == kwMAXDOP:
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "MAXDOP", Loc: nodes.Loc{Start: loc, End: -1}}
 		if p.cur.Type == tokICONST {
@@ -2104,7 +2091,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 		hint.Loc.End = p.prevEnd()
 		return hint, nil
 
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "MAXRECURSION"):
+	case p.cur.Type == kwMAXRECURSION:
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "MAXRECURSION", Loc: nodes.Loc{Start: loc, End: -1}}
 		if p.cur.Type == tokICONST {
@@ -2117,7 +2104,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 		hint.Loc.End = p.prevEnd()
 		return hint, nil
 
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "FAST"):
+	case p.cur.Type == kwFAST:
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "FAST", Loc: nodes.Loc{Start: loc, End: -1}}
 		if p.cur.Type == tokICONST {
@@ -2130,7 +2117,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 		hint.Loc.End = p.prevEnd()
 		return hint, nil
 
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "QUERYTRACEON"):
+	case p.cur.Type == kwQUERYTRACEON:
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "QUERYTRACEON", Loc: nodes.Loc{Start: loc, End: -1}}
 		if p.cur.Type == tokICONST {
@@ -2143,15 +2130,15 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 		hint.Loc.End = p.prevEnd()
 		return hint, nil
 
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "EXPAND"):
+	case p.cur.Type == kwEXPAND:
 		p.advance()
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "VIEWS") {
+		if p.cur.Type == kwVIEWS {
 			p.advance()
 			return &nodes.QueryHint{Kind: "EXPAND VIEWS", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
 		return &nodes.QueryHint{Kind: "EXPAND", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "KEEP"):
+	case p.cur.Type == kwKEEP:
 		p.advance()
 		if p.cur.Type == kwPLAN {
 			p.advance()
@@ -2159,7 +2146,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 		}
 		return &nodes.QueryHint{Kind: "KEEP", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "KEEPFIXED"):
+	case p.cur.Type == kwKEEPFIXED:
 		p.advance()
 		if p.cur.Type == kwPLAN {
 			p.advance()
@@ -2167,7 +2154,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 		}
 		return &nodes.QueryHint{Kind: "KEEPFIXED", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "ROBUST"):
+	case p.cur.Type == kwROBUST:
 		p.advance()
 		if p.cur.Type == kwPLAN {
 			p.advance()
@@ -2175,7 +2162,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 		}
 		return &nodes.QueryHint{Kind: "ROBUST", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "PARAMETERIZATION"):
+	case p.cur.Type == kwPARAMETERIZATION:
 		p.advance()
 		hint := &nodes.QueryHint{Kind: "PARAMETERIZATION", Loc: nodes.Loc{Start: loc, End: -1}}
 		if p.isIdentLike() {
@@ -2187,7 +2174,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 
 	case p.cur.Type == kwUSE:
 		p.advance()
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "HINT") {
+		if p.cur.Type == kwHINT {
 			p.advance()
 			hint := &nodes.QueryHint{Kind: "USE HINT", Loc: nodes.Loc{Start: loc, End: -1}}
 			if p.cur.Type == '(' {
@@ -2221,7 +2208,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 		}
 		return &nodes.QueryHint{Kind: "USE", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 
-	case p.isIdentLike() && strings.EqualFold(p.cur.Str, "DISABLE"):
+	case p.cur.Type == kwDISABLE:
 		p.advance()
 		if p.isIdentLike() {
 			suffix := strings.ToUpper(p.cur.Str)
@@ -2232,7 +2219,7 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 
 	case p.cur.Type == kwTABLE:
 		p.advance()
-		if p.isIdentLike() && strings.EqualFold(p.cur.Str, "HINT") {
+		if p.cur.Type == kwHINT {
 			p.advance()
 			hint := &nodes.QueryHint{Kind: "TABLE HINT", Loc: nodes.Loc{Start: loc, End: -1}}
 			if p.cur.Type == '(' {
@@ -2308,7 +2295,7 @@ func (p *Parser) parseOptimizeForParam() (*nodes.OptimizeForParam, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else if p.isIdentLike() && strings.EqualFold(p.cur.Str, "UNKNOWN") {
+	} else if p.cur.Type == kwUNKNOWN {
 		param.Unknown = true
 		p.advance()
 	}

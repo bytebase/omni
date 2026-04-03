@@ -2,8 +2,6 @@
 package parser
 
 import (
-	"strings"
-
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
@@ -384,9 +382,13 @@ func (p *Parser) parseDeallocateCursorStmt() (*nodes.DeallocateCursorStmt, error
 // matchIdentCI checks if the current token is an identifier-like token matching
 // the given string (case-insensitive). If it matches, consume and return true.
 func (p *Parser) matchIdentCI(s string) bool {
-	if p.isAnyKeywordIdent() && strings.EqualFold(p.cur.Str, s) {
-		p.advance()
-		return true
+	expected := lookupKeyword(s)
+	if expected != tokIDENT {
+		if p.cur.Type == expected {
+			p.advance()
+			return true
+		}
+		return false
 	}
 	return false
 }

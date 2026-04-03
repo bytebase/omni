@@ -2,8 +2,6 @@
 package parser
 
 import (
-	"strings"
-
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
@@ -133,10 +131,10 @@ func (p *Parser) parseBeginStmt() (nodes.StmtNode, error) {
 	}
 
 	// Check for BEGIN CONVERSATION TIMER (service broker)
-	if next.Str != "" && matchesKeywordCI(next.Str, "CONVERSATION") {
+	if next.Type == kwCONVERSATION {
 		p.advance() // consume BEGIN
 		p.advance() // consume CONVERSATION
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "TIMER") {
+		if p.cur.Type == kwTIMER {
 			p.advance() // consume TIMER
 			stmt, err := p.parseBeginConversationTimerStmt()
 			if err != nil {
@@ -152,11 +150,11 @@ func (p *Parser) parseBeginStmt() (nodes.StmtNode, error) {
 	}
 
 	// Check for BEGIN DIALOG [CONVERSATION] (service broker)
-	if next.Str != "" && matchesKeywordCI(next.Str, "DIALOG") {
+	if next.Type == kwDIALOG {
 		p.advance() // consume BEGIN
 		p.advance() // consume DIALOG
 		// optionally consume CONVERSATION
-		if p.isIdentLike() && matchesKeywordCI(p.cur.Str, "CONVERSATION") {
+		if p.cur.Type == kwCONVERSATION {
 			p.advance()
 		}
 		stmt, err := p.parseBeginConversationStmt()
@@ -399,7 +397,7 @@ func (p *Parser) parseWaitForStmt() (*nodes.WaitForStmt, error) {
 		stmt.WaitType = "DELAY"
 		p.advance()
 		stmt.Value, _ = p.parseExpr()
-	} else if p.cur.Type == kwTIME || (p.isIdentLike() && strings.EqualFold(p.cur.Str, "time")) {
+	} else if p.cur.Type == kwTIME {
 		stmt.WaitType = "TIME"
 		p.advance()
 		stmt.Value, _ = p.parseExpr()
@@ -414,7 +412,7 @@ func (p *Parser) parseWaitForStmt() (*nodes.WaitForStmt, error) {
 		_, _ = p.expect(')')
 		// Optional: , TIMEOUT timeout
 		if _, ok := p.match(','); ok {
-			if p.isIdentLike() && strings.EqualFold(p.cur.Str, "TIMEOUT") {
+			if p.cur.Type == kwTIMEOUT {
 				p.advance()
 				stmt.Timeout, _ = p.parseExpr()
 			}

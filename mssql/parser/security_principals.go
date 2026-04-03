@@ -771,7 +771,7 @@ func (p *Parser) tryParseMultiWordEntityType(first string, remaining []string) s
 	}
 	// Peek to confirm next token matches first remaining word
 	next := p.peekNext()
-	if !strings.EqualFold(next.Str, remaining[0]) {
+	if next.Type != lookupKeyword(remaining[0]) {
 		return ""
 	}
 
@@ -780,7 +780,7 @@ func (p *Parser) tryParseMultiWordEntityType(first string, remaining []string) s
 	parts := []string{first}
 	for _, word := range remaining {
 		if (p.isIdentLike() || p.cur.Type == kwSCHEMA || p.cur.Type == kwTYPE) &&
-			strings.EqualFold(p.cur.Str, word) {
+			p.cur.Type == lookupKeyword(word) {
 			parts = append(parts, strings.ToUpper(p.cur.Str))
 			p.advance()
 		} else {
@@ -810,24 +810,3 @@ func (p *Parser) parseAlterAuthEntityName() string {
 	return strings.Join(parts, " ")
 }
 
-// matchesKeywordCI returns true if s case-insensitively equals keyword.
-// Helper used to check string tokens against context-sensitive keywords.
-func matchesKeywordCI(s, keyword string) bool {
-	if len(s) != len(keyword) {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		k := keyword[i]
-		if c >= 'a' && c <= 'z' {
-			c -= 32
-		}
-		if k >= 'a' && k <= 'z' {
-			k -= 32
-		}
-		if c != k {
-			return false
-		}
-	}
-	return true
-}

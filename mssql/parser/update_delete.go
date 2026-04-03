@@ -2,8 +2,6 @@
 package parser
 
 import (
-	"strings"
-
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
@@ -390,9 +388,9 @@ func (p *Parser) parseSetClause() (*nodes.SetExpr, error) {
 		}
 
 		// Check for .WRITE(expression, @Offset, @Length) form
-		if p.cur.Type == '.' && p.isIdentLikeToken(p.peekNext()) {
+		if p.cur.Type == '.' && p.peekNext().Type == kwWRITE {
 			next := p.peekNext()
-			if strings.EqualFold(next.Str, "WRITE") {
+			if next.Type == kwWRITE {
 				p.advance() // consume .
 				writeLoc := p.pos()
 				p.advance() // consume WRITE
@@ -450,7 +448,7 @@ func (p *Parser) parseSetTarget() (*nodes.ColumnRef, error) {
 	if p.cur.Type == '.' {
 		next := p.peekNext()
 		// Don't consume if it's .WRITE (handled separately)
-		if p.isIdentLikeToken(next) && strings.EqualFold(next.Str, "WRITE") {
+		if next.Type == kwWRITE {
 			return ref, nil
 		}
 		p.advance()
