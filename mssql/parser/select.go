@@ -1260,7 +1260,9 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 			}
 		}
 		// Parse comma-separated XML options
-		p.parseForXmlOptions(fc)
+		if err := p.parseForXmlOptions(fc); err != nil {
+			return nil, err
+		}
 	} else if p.cur.Type == kwJSON {
 		fc.Mode = nodes.ForJSON
 		p.advance()
@@ -1275,12 +1277,21 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 			p.advance()
 		}
 		// Parse comma-separated JSON options
-		p.parseForJsonOptions(fc)
+		if err := p.parseForJsonOptions(fc); err != nil {
+			return nil, err
+		}
 	}
 
 	fc.Loc.End = p.prevEnd()
 	return fc, nil
 }
+
+// forXmlOptions defines the valid options for FOR XML clauses.
+// Matches SqlScriptDOM XmlForClauseOptionsHelper: BINARY, TYPE, ROOT,
+// XMLDATA, XMLSCHEMA, ELEMENTS.
+var forXmlOptions = newOptionSet(
+	kwBINARY, kwTYPE, kwROOT, kwXMLDATA, kwXMLSCHEMA, kwELEMENTS,
+)
 
 // parseForXmlOptions parses the comma-separated options after FOR XML {RAW|AUTO|EXPLICIT|PATH}.
 //
@@ -1289,11 +1300,17 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 //	[ , ROOT [ ( 'RootName' ) ] ]
 //	[ , { XMLDATA | XMLSCHEMA [ ( 'TargetNameSpaceURI' ) ] } ]
 //	[ , ELEMENTS [ XSINIL | ABSENT ] ]
-func (p *Parser) parseForXmlOptions(fc *nodes.ForClause) {
+func (p *Parser) parseForXmlOptions(fc *nodes.ForClause) error {
 	for {
-		if _, ok := p.match(','); !ok {
-			return
+		if p.cur.Type != ',' {
+			return nil
 		}
+		// Peek: after the comma, validate that the next token is a known FOR XML option.
+		next := p.peekNext()
+		if !p.isValidOptionToken(forXmlOptions, next) {
+			return nil
+		}
+		p.advance() // consume comma
 		switch {
 		case p.matchIdentCI("BINARY"):
 			// BINARY BASE64
@@ -1332,21 +1349,34 @@ func (p *Parser) parseForXmlOptions(fc *nodes.ForClause) {
 				fc.ElementsMode = "ABSENT"
 			}
 		default:
-			return
+			return nil
 		}
 	}
 }
+
+// forJsonOptions defines the valid options for FOR JSON clauses.
+// Matches SqlScriptDOM JsonForClauseOptionsHelper: ROOT, INCLUDE_NULL_VALUES,
+// WITHOUT_ARRAY_WRAPPER.
+var forJsonOptions = newOptionSet(
+	kwROOT, kwINCLUDE_NULL_VALUES, kwWITHOUT_ARRAY_WRAPPER,
+)
 
 // parseForJsonOptions parses the comma-separated options after FOR JSON {AUTO|PATH}.
 //
 //	[ , ROOT [ ( 'RootName' ) ] ]
 //	[ , INCLUDE_NULL_VALUES ]
 //	[ , WITHOUT_ARRAY_WRAPPER ]
-func (p *Parser) parseForJsonOptions(fc *nodes.ForClause) {
+func (p *Parser) parseForJsonOptions(fc *nodes.ForClause) error {
 	for {
-		if _, ok := p.match(','); !ok {
-			return
+		if p.cur.Type != ',' {
+			return nil
 		}
+		// Peek: after the comma, validate that the next token is a known FOR JSON option.
+		next := p.peekNext()
+		if !p.isValidOptionToken(forJsonOptions, next) {
+			return nil
+		}
+		p.advance() // consume comma
 		switch {
 		case p.matchIdentCI("ROOT"):
 			fc.Root = true
@@ -1363,7 +1393,7 @@ func (p *Parser) parseForJsonOptions(fc *nodes.ForClause) {
 		case p.matchIdentCI("WITHOUT_ARRAY_WRAPPER"):
 			fc.WithoutArrayWrapper = true
 		default:
-			return
+			return nil
 		}
 	}
 }

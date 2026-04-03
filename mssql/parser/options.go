@@ -72,6 +72,25 @@ func (p *Parser) isValidOption(opts optionSet) bool {
 	return false
 }
 
+// isValidOptionToken checks whether the given token (not necessarily the current
+// token) is a valid option name according to the given optionSet. This is useful
+// for peeking ahead without advancing the parser.
+func (p *Parser) isValidOptionToken(opts optionSet, tok Token) bool {
+	if opts.tokens[tok.Type] {
+		return true
+	}
+	if tok.Type == tokIDENT {
+		kw := lookupKeyword(tok.Str)
+		if kw != tokIDENT && opts.tokens[kw] {
+			return true
+		}
+		if len(opts.idents) > 0 && opts.idents[strings.ToUpper(tok.Str)] {
+			return true
+		}
+	}
+	return false
+}
+
 // expectOption consumes the current token if it is a valid option name
 // according to the given optionSet, returning the uppercase option name.
 // Returns a syntax error if the current token is not a valid option.
