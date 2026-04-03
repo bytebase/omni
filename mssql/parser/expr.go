@@ -677,7 +677,10 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 			Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
 		}, nil
 	case kwCAST:
-		return p.parseCast()
+		if p.peekNext().Type == '(' {
+			return p.parseCast()
+		}
+		return p.parseIdentExpr()
 	case kwCONVERT:
 		return p.parseConvert()
 	case kwCASE:
@@ -687,22 +690,25 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	case kwNULLIF:
 		return p.parseNullif()
 	case kwIIF:
-		return p.parseIif()
+		if p.peekNext().Type == '(' {
+			return p.parseIif()
+		}
+		return p.parseIdentExpr()
 	case kwEXISTS:
 		return p.parseExists()
 	case kwTRY_CAST:
-		return p.parseTryCast()
+		if p.peekNext().Type == '(' {
+			return p.parseTryCast()
+		}
+		return p.parseIdentExpr()
 	case kwTRY_CONVERT:
 		return p.parseTryConvert()
 	case tokIDENT:
 		return p.parseIdentExpr()
 	default:
-		// Many keywords can also be used as identifiers or function names in T-SQL.
+		// Context keywords can be used as identifiers in T-SQL.
 		if p.isIdentLike() {
-			next := p.peekNext()
-			if next.Type == '(' || next.Type == '.' || next.Type == '=' {
-				return p.parseIdentExpr()
-			}
+			return p.parseIdentExpr()
 		}
 		return nil, nil
 	}

@@ -12,7 +12,19 @@ func (p *Parser) isIdentLike() bool {
 	if p.cur.Type == tokIDENT {
 		return true
 	}
-	// Keywords with non-empty Str can be used as identifiers.
+	return isContextKeyword(p.cur.Type)
+}
+
+// isAnyKeywordIdent returns true if the current token can be used as a label or alias.
+// Like PG's isColLabel(), some positions (explicit aliases after AS, column labels)
+// should accept ALL keywords including Core keywords.
+// This is the old isIdentLike behavior — needed for positions where SQL Server allows
+// reserved words as aliases (e.g., SELECT 1 AS select).
+func (p *Parser) isAnyKeywordIdent() bool {
+	if p.cur.Type == tokIDENT {
+		return true
+	}
+	// Any keyword token can be used as a label/alias
 	return p.cur.Type >= kwADD && p.cur.Str != ""
 }
 
@@ -27,8 +39,7 @@ func (p *Parser) parseIdentifier() (string, bool) {
 		p.advance()
 		return name, true
 	}
-	// Allow keywords as identifiers
-	if p.cur.Type >= kwADD && p.cur.Str != "" {
+	if isContextKeyword(p.cur.Type) {
 		name := p.cur.Str
 		p.advance()
 		return name, true
