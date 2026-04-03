@@ -260,7 +260,8 @@ func Split(sql string) []Segment {
 			endOfWord := skipToEndOfWord(sql, i)
 			prev := prevWord(sql, i)
 			next := nextWordAfter(sql, endOfWord)
-			if prev != "END" && next != "EXISTS" && nextNonSpaceChar(sql, endOfWord) != '(' {
+			isExistsClause := next == "EXISTS" || (next == "NOT" && nextWordAfter(sql, skipToEndOfWord(sql, skipWhitespace(sql, endOfWord))) == "EXISTS")
+			if prev != "END" && !isExistsClause && nextNonSpaceChar(sql, endOfWord) != '(' {
 				depth++
 			}
 			i = endOfWord
