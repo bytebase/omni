@@ -217,8 +217,12 @@ func (c *Catalog) addFKConstraint(schema *Schema, rel *Relation, def ConstraintD
 		}
 	}
 
-	// Verify PK/UNIQUE constraint on referenced columns.
-	if c.lookupUniqueConstraint(refRel.OID, refAttnums) == nil {
+	// Verify PK/UNIQUE constraint or non-partial unique index on referenced columns.
+	// pg: src/backend/commands/tablecmds.c — transformFkeyCheckAttrs
+	// PostgreSQL accepts a unique index as a FK referential target even when
+	// no explicit UNIQUE constraint exists. pg_dump relies on this and emits
+	// CREATE UNIQUE INDEX as a separate statement after CREATE TABLE.
+	if c.lookupFKSupportingIndex(refRel.OID, refAttnums) == 0 {
 		return errInvalidFK(fmt.Sprintf("there is no unique constraint matching given keys for referenced table %q", def.RefTable))
 	}
 
@@ -312,9 +316,8 @@ func (c *Catalog) addFKConstraint(schema *Schema, rel *Relation, def ConstraintD
 
 	// FK depends on the supporting unique/PK index of the referenced table.
 	// pg: src/backend/commands/tablecmds.c — ATAddForeignKeyConstraint
-	refCon := c.lookupUniqueConstraint(refRel.OID, refAttnums)
-	if refCon != nil && refCon.IndexOID != 0 {
-		c.recordDependency('c', con.OID, 0, 'r', refCon.IndexOID, 0, DepNormal)
+	if refIdxOID := c.lookupFKSupportingIndex(refRel.OID, refAttnums); refIdxOID != 0 {
+		c.recordDependency('c', con.OID, 0, 'r', refIdxOID, 0, DepNormal)
 	}
 
 	return nil
@@ -595,6 +598,70 @@ func (c *Catalog) lookupUniqueConstraint(relOID uint32, cols []int16) *Constrain
 		}
 	}
 	return nil
+}
+
+// lookupFKSupportingIndex finds an index suitable to back a foreign-key
+// reference to (relOID, cols). It returns the index OID, or 0 if none qualifies.
+//
+// Resolution order:
+//  1. A PK or explicit UNIQUE constraint over exactly the referenced columns —
+//     the constraint's backing index OID is returned.
+//  2. A standalone unique index over exactly the referenced columns. PostgreSQL
+//     accepts a unique index as a FK target if it is unique, non-partial,
+//     contains no expression key columns, and has no INCLUDE columns. pg_dump
+//     relies on this when it emits CREATE UNIQUE INDEX as a separate statement
+//     after the owning CREATE TABLE.
+//
+// pg: src/backend/commands/tablecmds.c — transformFkeyCheckAttrs
+func (c *Catalog) lookupFKSupportingIndex(relOID uint32, cols []int16) uint32 {
+	if con := c.lookupUniqueConstraint(relOID, cols); con != nil {
+		return con.IndexOID
+	}
+
+	for _, idx := range c.indexesByRel[relOID] {
+		if !idx.IsUnique {
+			continue
+		}
+		// Skip partial indexes — a partial unique index does not enforce
+		// uniqueness over the whole relation.
+		if idx.WhereClause != "" {
+			continue
+		}
+		// Skip indexes with deparsed expression columns.
+		if len(idx.Exprs) > 0 {
+			continue
+		}
+		// Compare key columns only (excluding INCLUDE columns).
+		nKey := idx.NKeyColumns
+		if nKey == 0 {
+			nKey = len(idx.Columns)
+		}
+		if nKey != len(cols) {
+			continue
+		}
+		// Reject indexes that have any expression key columns (attnum=0).
+		hasExprKey := false
+		for i := 0; i < nKey; i++ {
+			if idx.Columns[i] == 0 {
+				hasExprKey = true
+				break
+			}
+		}
+		if hasExprKey {
+			continue
+		}
+		match := true
+		for i := 0; i < nKey; i++ {
+			if idx.Columns[i] != cols[i] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return idx.OID
+		}
+	}
+	return 0
 }
 
 // dropDependents drops all objects that have a DepNormal dependency on the given referent.

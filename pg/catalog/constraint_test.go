@@ -203,6 +203,68 @@ func TestFKEmptyRefColumnsUsesPK(t *testing.T) {
 	}
 }
 
+// TestFKReferencesStandaloneUniqueIndex covers the pg_dump pattern: a unique
+// index defined as a separate CREATE UNIQUE INDEX statement (not as an inline
+// UNIQUE constraint) must be accepted as a FK referential target.
+//
+// pg: src/backend/commands/tablecmds.c — transformFkeyCheckAttrs
+// PostgreSQL accepts a non-partial unique index over the referenced columns
+// regardless of whether an explicit UNIQUE constraint exists. pg_dump relies
+// on this when emitting CREATE UNIQUE INDEX as a separate statement.
+func TestFKReferencesStandaloneUniqueIndex(t *testing.T) {
+	c := New()
+
+	// Referenced table has only a PK on a different column.
+	c.DefineRelation(makeCreateTableStmt("", "principal", []ColumnDef{
+		{Name: "id", Type: TypeName{Name: "integer", TypeMod: -1}},
+		{Name: "email", Type: TypeName{Name: "text", TypeMod: -1}},
+	}, []ConstraintDef{
+		{Type: ConstraintPK, Columns: []string{"id"}},
+	}, false), 'r')
+
+	// Standalone CREATE UNIQUE INDEX on email — no UNIQUE constraint object.
+	if err := c.DefineIndex(makeIndexStmt("", "principal", "idx_principal_email", []string{"email"}, true, false)); err != nil {
+		t.Fatal(err)
+	}
+
+	// FK references principal(email) — should be accepted because the unique
+	// index satisfies the referential target requirement.
+	err := c.DefineRelation(makeCreateTableStmt("", "session", []ColumnDef{
+		{Name: "user_email", Type: TypeName{Name: "text", TypeMod: -1}},
+	}, []ConstraintDef{
+		{Type: ConstraintFK, Columns: []string{"user_email"}, RefTable: "principal", RefColumns: []string{"email"}},
+	}, false), 'r')
+	if err != nil {
+		t.Fatalf("FK against standalone unique index should be accepted, got: %v", err)
+	}
+}
+
+// TestFKRejectsNonUniqueIndex confirms that a plain (non-unique) index over
+// the referenced columns does NOT satisfy the FK target requirement, matching
+// PostgreSQL's behavior.
+func TestFKRejectsNonUniqueIndex(t *testing.T) {
+	c := New()
+
+	c.DefineRelation(makeCreateTableStmt("", "parents", []ColumnDef{
+		{Name: "id", Type: TypeName{Name: "integer", TypeMod: -1}},
+		{Name: "label", Type: TypeName{Name: "text", TypeMod: -1}},
+	}, []ConstraintDef{
+		{Type: ConstraintPK, Columns: []string{"id"}},
+	}, false), 'r')
+
+	// Non-unique index on label.
+	if err := c.DefineIndex(makeIndexStmt("", "parents", "idx_parents_label", []string{"label"}, false, false)); err != nil {
+		t.Fatal(err)
+	}
+
+	err := c.DefineRelation(makeCreateTableStmt("", "children", []ColumnDef{
+		{Name: "parent_label", Type: TypeName{Name: "text", TypeMod: -1}},
+	}, []ConstraintDef{
+		{Type: ConstraintFK, Columns: []string{"parent_label"}, RefTable: "parents", RefColumns: []string{"label"}},
+	}, false), 'r')
+	assertErrorCode(t, err, CodeInvalidFK)
+}
+
 func TestCheckConstraint(t *testing.T) {
 	c := New()
 
