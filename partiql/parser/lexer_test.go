@@ -122,6 +122,98 @@ func TestLexer_Tokens(t *testing.T) {
 			`"FoO"`,
 			[]Token{{tokIDENT_QUOTED, "FoO", ast.Loc{Start: 0, End: 5}}},
 		},
+
+		// =============================================================
+		// Unquoted identifiers (Task 7)
+		// =============================================================
+		{
+			"unquoted_ident_simple",
+			"foo",
+			[]Token{{tokIDENT, "foo", ast.Loc{Start: 0, End: 3}}},
+		},
+		{
+			"unquoted_ident_with_underscore",
+			"_foo",
+			[]Token{{tokIDENT, "_foo", ast.Loc{Start: 0, End: 4}}},
+		},
+		{
+			"unquoted_ident_with_dollar",
+			"x$y",
+			[]Token{{tokIDENT, "x$y", ast.Loc{Start: 0, End: 3}}},
+		},
+		{
+			"unquoted_ident_with_digit_in_middle",
+			"a1b2",
+			[]Token{{tokIDENT, "a1b2", ast.Loc{Start: 0, End: 4}}},
+		},
+		{
+			"unquoted_ident_uppercase_preserved",
+			"FOO",
+			[]Token{{tokIDENT, "FOO", ast.Loc{Start: 0, End: 3}}},
+		},
+
+		// =============================================================
+		// Keywords (case-insensitive lookup, raw text preserved) (Task 7)
+		// =============================================================
+		{
+			"keyword_select_lower",
+			"select",
+			[]Token{{tokSELECT, "select", ast.Loc{Start: 0, End: 6}}},
+		},
+		{
+			"keyword_select_upper",
+			"SELECT",
+			[]Token{{tokSELECT, "SELECT", ast.Loc{Start: 0, End: 6}}},
+		},
+		{
+			"keyword_select_mixed",
+			"Select",
+			[]Token{{tokSELECT, "Select", ast.Loc{Start: 0, End: 6}}},
+		},
+		{
+			"keyword_from",
+			"FROM",
+			[]Token{{tokFROM, "FROM", ast.Loc{Start: 0, End: 4}}},
+		},
+		{
+			"keyword_where",
+			"WHERE",
+			[]Token{{tokWHERE, "WHERE", ast.Loc{Start: 0, End: 5}}},
+		},
+		{
+			"keyword_pivot_partiql_unique",
+			"PIVOT",
+			[]Token{{tokPIVOT, "PIVOT", ast.Loc{Start: 0, End: 5}}},
+		},
+		{
+			"keyword_missing_partiql_unique",
+			"MISSING",
+			[]Token{{tokMISSING, "MISSING", ast.Loc{Start: 0, End: 7}}},
+		},
+		{
+			"keyword_bag_data_type",
+			"BAG",
+			[]Token{{tokBAG, "BAG", ast.Loc{Start: 0, End: 3}}},
+		},
+		{
+			"keyword_can_lossless_cast_underscored",
+			"CAN_LOSSLESS_CAST",
+			[]Token{{tokCAN_LOSSLESS_CAST, "CAN_LOSSLESS_CAST", ast.Loc{Start: 0, End: 17}}},
+		},
+
+		// =============================================================
+		// Identifier vs keyword cases after whitespace/comments (Task 7)
+		// =============================================================
+		{
+			"ident_after_line_comment",
+			"-- skipped\nfoo",
+			[]Token{{tokIDENT, "foo", ast.Loc{Start: 11, End: 14}}},
+		},
+		{
+			"ident_after_block_comment",
+			"/* x */ foo",
+			[]Token{{tokIDENT, "foo", ast.Loc{Start: 8, End: 11}}},
+		},
 	}
 
 	for _, tc := range cases {

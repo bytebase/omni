@@ -130,7 +130,7 @@ func isDigit(ch byte) bool {
 }
 
 // ============================================================================
-// Scan helpers — string literals and quoted identifiers (Task 6).
+// Scan helpers — strings, quoted identifiers, and keywords (Tasks 6-7).
 // ============================================================================
 
 // scanString scans a single-quoted PartiQL string literal and returns a
@@ -196,18 +196,45 @@ func (l *Lexer) scanQuotedIdent() Token {
 	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
 }
 
+// scanIdentOrKeyword consumes an unquoted identifier and looks it up in
+// the keywords map. If the lowercased text matches a keyword, returns
+// that keyword token; otherwise returns tokIDENT.
+//
+// Token.Str preserves the original case (so the parser/AST can render
+// identifiers as written). Keyword matching is case-insensitive per
+// PartiQLLexer.g4 caseInsensitive=true.
+//
+// Grammar: IDENTIFIER : [A-Z$_][A-Z0-9$_]*;
+//
+//	(with caseInsensitive=true expanding to [a-zA-Z$_][a-zA-Z0-9$_]*)
+func (l *Lexer) scanIdentOrKeyword() Token {
+	for l.pos < len(l.input) && isIdentContinue(l.input[l.pos]) {
+		l.pos++
+	}
+	raw := l.input[l.start:l.pos]
+	lower := strings.ToLower(raw)
+	if tt, ok := keywords[lower]; ok {
+		return Token{
+			Type: tt,
+			Str:  raw,
+			Loc:  ast.Loc{Start: l.start, End: l.pos},
+		}
+	}
+	return Token{
+		Type: tokIDENT,
+		Str:  raw,
+		Loc:  ast.Loc{Start: l.start, End: l.pos},
+	}
+}
+
 // ============================================================================
-// Remaining stubs — replaced by Tasks 7-10.
+// Remaining stubs — replaced by Tasks 8-10.
 //
 // These return tokEOF and set l.Err so the package builds. Each subsequent
 // task removes one stub and adds the real implementation alongside its
-// tests. Task 6 already replaced scanString and scanQuotedIdent.
+// tests. Tasks 6-7 already replaced scanString, scanQuotedIdent, and
+// scanIdentOrKeyword.
 // ============================================================================
-
-func (l *Lexer) scanIdentOrKeyword() Token {
-	l.Err = fmt.Errorf("scanIdentOrKeyword not yet implemented (stub from Task 5)")
-	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
-}
 
 func (l *Lexer) scanNumber() Token {
 	l.Err = fmt.Errorf("scanNumber not yet implemented (stub from Task 5)")
