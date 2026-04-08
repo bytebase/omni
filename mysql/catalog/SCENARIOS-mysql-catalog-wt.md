@@ -53,37 +53,37 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 
 ### 2.1 FK Backing Index Management
 
-- [ ] CREATE TABLE with named FK, no explicit index — implicit index uses constraint name
-- [ ] CREATE TABLE with unnamed FK — implicit index uses first column name
-- [ ] CREATE TABLE with explicit index on FK columns, then named FK — no duplicate index created
-- [ ] CREATE TABLE with FK on column already in UNIQUE KEY — no duplicate index created
-- [ ] CREATE TABLE with FK on column already in PRIMARY KEY — no duplicate index created
-- [ ] CREATE TABLE with multi-column FK, partial index exists — implicit index still created (partial doesn't cover)
-- [ ] ALTER TABLE ADD FK when column already has index — no duplicate index
-- [ ] ALTER TABLE ADD FK when column has no index — implicit index created
-- [ ] ALTER TABLE DROP FOREIGN KEY — FK removed but backing index remains (MySQL behavior)
-- [ ] ALTER TABLE DROP FOREIGN KEY, DROP INDEX fk_name — explicit index cleanup after FK drop
+- [x] CREATE TABLE with named FK, no explicit index — implicit index uses constraint name
+- [x] CREATE TABLE with unnamed FK — implicit index uses first column name
+- [x] CREATE TABLE with explicit index on FK columns, then named FK — no duplicate index created
+- [x] CREATE TABLE with FK on column already in UNIQUE KEY — no duplicate index created
+- [x] CREATE TABLE with FK on column already in PRIMARY KEY — no duplicate index created
+- [x] CREATE TABLE with multi-column FK, partial index exists — implicit index still created (partial doesn't cover)
+- [x] ALTER TABLE ADD FK when column already has index — no duplicate index
+- [x] ALTER TABLE ADD FK when column has no index — implicit index created
+- [x] ALTER TABLE DROP FOREIGN KEY — FK removed but backing index remains (MySQL behavior)
+- [x] ALTER TABLE DROP FOREIGN KEY, DROP INDEX fk_name — explicit index cleanup after FK drop
 
 ### 2.2 FK Validation Matrix
 
-- [ ] DROP TABLE parent when child FK exists, foreign_key_checks=1 — error 3730
-- [ ] DROP TABLE parent when child FK exists, foreign_key_checks=0 — succeeds, child FK becomes orphan
-- [ ] DROP TABLE child then parent, foreign_key_checks=1 — succeeds (child dropped first)
-- [ ] DROP COLUMN used in FK on same table, foreign_key_checks=1 — error 1828
-- [ ] CREATE TABLE with FK referencing nonexistent table, foreign_key_checks=0 — succeeds
-- [ ] CREATE TABLE with FK referencing nonexistent column, foreign_key_checks=0 — succeeds
-- [ ] ALTER TABLE ADD FK with type mismatch (INT vs VARCHAR), foreign_key_checks=1 — error
-- [ ] ALTER TABLE ADD FK where referenced table has no index on referenced columns — error 1822
-- [ ] SET foreign_key_checks=0 then CREATE circular FKs then SET foreign_key_checks=1 — both tables valid
-- [ ] Self-referencing FK (table references itself) — column references own table PK
-- [ ] FK column count mismatch (single-column FK referencing composite PK) — error
-- [ ] Cross-database FK: FOREIGN KEY (col) REFERENCES other_db.parent(id) — stored and rendered correctly
+- [x] DROP TABLE parent when child FK exists, foreign_key_checks=1 — error 3730
+- [x] DROP TABLE parent when child FK exists, foreign_key_checks=0 — succeeds, child FK becomes orphan
+- [x] DROP TABLE child then parent, foreign_key_checks=1 — succeeds (child dropped first)
+- [x] DROP COLUMN used in FK on same table, foreign_key_checks=1 — error 1828
+- [x] CREATE TABLE with FK referencing nonexistent table, foreign_key_checks=0 — succeeds
+- [x] CREATE TABLE with FK referencing nonexistent column, foreign_key_checks=0 — succeeds
+- [x] ALTER TABLE ADD FK with type mismatch (INT vs VARCHAR), foreign_key_checks=1 — error
+- [x] ALTER TABLE ADD FK where referenced table has no index on referenced columns — error 1822
+- [x] SET foreign_key_checks=0 then CREATE circular FKs then SET foreign_key_checks=1 — both tables valid
+- [x] Self-referencing FK (table references itself) — column references own table PK
+- [x] FK column count mismatch (single-column FK referencing composite PK) — error
+- [x] Cross-database FK: FOREIGN KEY (col) REFERENCES other_db.parent(id) — stored and rendered correctly
 
 ### 2.3 FK Actions Rendering
 
-- [ ] FK with ON DELETE CASCADE ON UPDATE SET NULL — both actions rendered in SHOW CREATE
-- [ ] FK with no action specified — defaults rendered correctly (RESTRICT/NO ACTION omitted in SHOW CREATE)
-- [ ] Multi-column FK with actions — actions on composite FK rendered correctly
+- [x] FK with ON DELETE CASCADE ON UPDATE SET NULL — both actions rendered in SHOW CREATE
+- [x] FK with no action specified — defaults rendered correctly (RESTRICT/NO ACTION omitted in SHOW CREATE)
+- [x] Multi-column FK with actions — actions on composite FK rendered correctly
 
 ---
 
