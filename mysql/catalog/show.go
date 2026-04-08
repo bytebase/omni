@@ -393,7 +393,11 @@ func showConstraint(con *Constraint) string {
 			cols = append(cols, fmt.Sprintf("`%s`", c))
 		}
 		b.WriteString(strings.Join(cols, ", "))
-		b.WriteString(fmt.Sprintf(") REFERENCES `%s` (", con.RefTable))
+		if con.RefDatabase != "" {
+			b.WriteString(fmt.Sprintf(") REFERENCES `%s`.`%s` (", con.RefDatabase, con.RefTable))
+		} else {
+			b.WriteString(fmt.Sprintf(") REFERENCES `%s` (", con.RefTable))
+		}
 		refCols := make([]string, 0, len(con.RefColumns))
 		for _, c := range con.RefColumns {
 			refCols = append(refCols, fmt.Sprintf("`%s`", c))
