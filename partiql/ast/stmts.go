@@ -204,14 +204,24 @@ func (n *ExplainStmt) GetLoc() Loc { return n.Loc }
 func (*ExplainStmt) stmtNode()     {}
 
 // InsertStmt represents `INSERT INTO target [AS alias] VALUE expr
-// [ON CONFLICT ...] [RETURNING ...]`. Covers both legacy
-// (INSERT INTO p VALUE …) and RFC 0011 (INSERT INTO c AS a VALUE …) forms.
+// [AT pos] [ON CONFLICT ...] [RETURNING ...]`. Covers both legacy
+// (INSERT INTO p VALUE … [AT pos]) and RFC 0011 (INSERT INTO c AS a VALUE …)
+// forms.
+//
+// Mutual exclusion between the two forms:
+//   - Legacy form (insertCommand#InsertLegacy, insertCommandReturning):
+//     AsAlias is nil; Pos may be set.
+//   - RFC 0011 form (insertCommand#Insert): AsAlias may be set; Pos is nil.
+//   - The grammar's `insertCommandReturning` (line 130–131) is the only
+//     alternative that allows `RETURNING`; on `insertCommand#InsertLegacy`
+//     (line 134) and `insertCommand#Insert` (line 136), Returning is nil.
 //
 // Grammar: insertCommand#InsertLegacy, insertCommand#Insert, insertCommandReturning
 type InsertStmt struct {
 	Target     TableExpr
 	AsAlias    *string
 	Value      ExprNode
+	Pos        ExprNode // legacy `AT pos` clause; nil for RFC 0011 form
 	OnConflict *OnConflict
 	Returning  *ReturningClause
 	Loc        Loc
@@ -350,11 +360,14 @@ func (*DropIndexStmt) nodeTag()      {}
 func (n *DropIndexStmt) GetLoc() Loc { return n.Loc }
 func (*DropIndexStmt) stmtNode()     {}
 
-// ExecStmt represents `EXEC name [arg, arg, ...]`.
+// ExecStmt represents `EXEC name [arg, arg, ...]`. Per the grammar
+// (PartiQLParser.g4 line 65: `EXEC name=expr ...`), the procedure name
+// is itself an expression — typically a VarRef but may be any ExprNode
+// (e.g., a parameter `?`) so the AST keeps the full breadth.
 //
 // Grammar: execCommand
 type ExecStmt struct {
-	Name string
+	Name ExprNode
 	Args []ExprNode
 	Loc  Loc
 }

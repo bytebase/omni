@@ -177,7 +177,7 @@ Each type maps to one alternative of the `literal` rule in `PartiQLParser.g4` li
 | `SelectStmt` | `Quantifier`, `Star`, `Value`, `Pivot *PivotProjection`, `Targets []*TargetEntry`, `From TableExpr`, `Let []*LetBinding`, `Where`, `GroupBy *GroupByClause`, `Having`, `OrderBy []*OrderByItem`, `Limit`, `Offset` |
 | `SetOpStmt` | `Op SetOpKind` (UNION/INTERSECT/EXCEPT), `Quantifier QuantifierKind`, `Outer bool`, `Left StmtNode`, `Right StmtNode` |
 | `ExplainStmt` | `Inner StmtNode` |
-| `InsertStmt` | `Target TableExpr`, `AsAlias *string`, `Value ExprNode`, `OnConflict *OnConflict`, `Returning *ReturningClause` |
+| `InsertStmt` | `Target TableExpr`, `AsAlias *string`, `Value ExprNode`, `Pos ExprNode` (legacy `AT pos` clause), `OnConflict *OnConflict`, `Returning *ReturningClause` |
 | `UpdateStmt` | `Source TableExpr`, `Sets []*SetAssignment`, `Where`, `Returning` |
 | `DeleteStmt` | `Source TableExpr`, `Where`, `Returning` |
 | `UpsertStmt` | (same shape as `InsertStmt`) |
@@ -187,7 +187,7 @@ Each type maps to one alternative of the `literal` rule in `PartiQLParser.g4` li
 | `CreateIndexStmt` | `Table *VarRef`, `Paths []*PathExpr` |
 | `DropTableStmt` | `Name *VarRef` |
 | `DropIndexStmt` | `Index *VarRef`, `Table *VarRef` |
-| `ExecStmt` | `Name string`, `Args []ExprNode` |
+| `ExecStmt` | `Name ExprNode`, `Args []ExprNode` (the procedure name is itself an expression per the grammar `EXEC name=expr ...`) |
 
 ### `stmts.go` — SELECT clause helpers (regular `Node`)
 

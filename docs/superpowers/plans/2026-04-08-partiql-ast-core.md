@@ -1929,14 +1929,24 @@ func (n *ExplainStmt) GetLoc() Loc { return n.Loc }
 func (*ExplainStmt) stmtNode()     {}
 
 // InsertStmt represents `INSERT INTO target [AS alias] VALUE expr
-// [ON CONFLICT ...] [RETURNING ...]`. Covers both legacy
-// (INSERT INTO p VALUE …) and RFC 0011 (INSERT INTO c AS a VALUE …) forms.
+// [AT pos] [ON CONFLICT ...] [RETURNING ...]`. Covers both legacy
+// (INSERT INTO p VALUE … [AT pos]) and RFC 0011 (INSERT INTO c AS a VALUE …)
+// forms.
+//
+// Mutual exclusion between the two forms:
+//   - Legacy form (insertCommand#InsertLegacy, insertCommandReturning):
+//     AsAlias is nil; Pos may be set.
+//   - RFC 0011 form (insertCommand#Insert): AsAlias may be set; Pos is nil.
+//   - The grammar's `insertCommandReturning` (line 130–131) is the only
+//     alternative that allows `RETURNING`; on `insertCommand#InsertLegacy`
+//     (line 134) and `insertCommand#Insert` (line 136), Returning is nil.
 //
 // Grammar: insertCommand#InsertLegacy, insertCommand#Insert, insertCommandReturning
 type InsertStmt struct {
 	Target     TableExpr
 	AsAlias    *string
 	Value      ExprNode
+	Pos        ExprNode // legacy `AT pos` clause; nil for RFC 0011 form
 	OnConflict *OnConflict
 	Returning  *ReturningClause
 	Loc        Loc
@@ -2075,11 +2085,14 @@ func (*DropIndexStmt) nodeTag()      {}
 func (n *DropIndexStmt) GetLoc() Loc { return n.Loc }
 func (*DropIndexStmt) stmtNode()     {}
 
-// ExecStmt represents `EXEC name [arg, arg, ...]`.
+// ExecStmt represents `EXEC name [arg, arg, ...]`. Per the grammar
+// (PartiQLParser.g4 line 65: `EXEC name=expr ...`), the procedure name
+// is itself an expression — typically a VarRef but may be any ExprNode
+// (e.g., a parameter `?`) so the AST keeps the full breadth.
 //
 // Grammar: execCommand
 type ExecStmt struct {
-	Name string
+	Name ExprNode
 	Args []ExprNode
 	Loc  Loc
 }
@@ -3254,7 +3267,7 @@ func writeNode(sb *strings.Builder, n Node) {
 		writeNode(sb, v.Inner)
 		sb.WriteString("}")
 	case *InsertStmt:
-		writeDmlStmt(sb, "InsertStmt", v.Target, v.AsAlias, v.Value, v.OnConflict, v.Returning)
+		writeDmlStmt(sb, "InsertStmt", v.Target, v.AsAlias, v.Value, v.Pos, v.OnConflict, v.Returning)
 	case *UpdateStmt:
 		sb.WriteString("UpdateStmt{Source:")
 		writeNode(sb, v.Source)
@@ -3288,9 +3301,9 @@ func writeNode(sb *strings.Builder, n Node) {
 		}
 		sb.WriteString("}")
 	case *UpsertStmt:
-		writeDmlStmt(sb, "UpsertStmt", v.Target, v.AsAlias, v.Value, v.OnConflict, v.Returning)
+		writeDmlStmt(sb, "UpsertStmt", v.Target, v.AsAlias, v.Value, nil, v.OnConflict, v.Returning)
 	case *ReplaceStmt:
-		writeDmlStmt(sb, "ReplaceStmt", v.Target, v.AsAlias, v.Value, v.OnConflict, v.Returning)
+		writeDmlStmt(sb, "ReplaceStmt", v.Target, v.AsAlias, v.Value, nil, v.OnConflict, v.Returning)
 	case *RemoveStmt:
 		sb.WriteString("RemoveStmt{Path:")
 		writeNode(sb, v.Path)
@@ -3321,7 +3334,9 @@ func writeNode(sb *strings.Builder, n Node) {
 		writeNode(sb, v.Table)
 		sb.WriteString("}")
 	case *ExecStmt:
-		fmt.Fprintf(sb, "ExecStmt{Name:%s Args:[", v.Name)
+		sb.WriteString("ExecStmt{Name:")
+		writeNode(sb, v.Name)
+		sb.WriteString(" Args:[")
 		for i, a := range v.Args {
 			if i > 0 {
 				sb.WriteString(" ")
@@ -3598,13 +3613,20 @@ func writeSelectStmt(sb *strings.Builder, s *SelectStmt) {
 }
 
 // writeDmlStmt is shared by InsertStmt, UpsertStmt, and ReplaceStmt — they
-// have the same shape (target, alias, value, on-conflict, returning).
-func writeDmlStmt(sb *strings.Builder, name string, target TableExpr, alias *string, value ExprNode, oc *OnConflict, ret *ReturningClause) {
+// have nearly the same shape (target, alias, value, pos, on-conflict,
+// returning). For UpsertStmt and ReplaceStmt, callers pass nil for pos
+// because the grammar's `replaceCommand` (line 121) and `upsertCommand`
+// (line 125) do not have an `AT pos` clause.
+func writeDmlStmt(sb *strings.Builder, name string, target TableExpr, alias *string, value ExprNode, pos ExprNode, oc *OnConflict, ret *ReturningClause) {
 	fmt.Fprintf(sb, "%s{Target:", name)
 	writeNode(sb, target)
 	writeOptString(sb, " AsAlias:", alias)
 	sb.WriteString(" Value:")
 	writeNode(sb, value)
+	if pos != nil {
+		sb.WriteString(" Pos:")
+		writeNode(sb, pos)
+	}
 	if oc != nil {
 		sb.WriteString(" OnConflict:")
 		writeNode(sb, oc)
