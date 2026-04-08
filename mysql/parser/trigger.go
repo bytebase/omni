@@ -350,7 +350,11 @@ func (p *Parser) parseEventSchedule() (*nodes.EventSchedule, error) {
 
 // isIntervalUnitToken returns true if the token represents a MySQL interval unit keyword.
 func isIntervalUnitToken(tok Token) bool {
-	if tok.Type == kwYEAR {
+	switch tok.Type {
+	case kwYEAR, kwHOUR, kwDAY, kwMINUTE, kwSECOND, kwWEEK, kwMONTH, kwQUARTER,
+		kwHOUR_MINUTE, kwHOUR_SECOND, kwHOUR_MICROSECOND,
+		kwDAY_HOUR, kwDAY_MINUTE, kwDAY_SECOND, kwDAY_MICROSECOND,
+		kwMINUTE_SECOND, kwMINUTE_MICROSECOND, kwSECOND_MICROSECOND:
 		return true
 	}
 	if tok.Type == tokIDENT {
