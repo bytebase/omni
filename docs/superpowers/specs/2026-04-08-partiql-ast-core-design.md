@@ -434,11 +434,52 @@ Missed grammar features are caught the first time an example fails — there is 
 
 `ast-core` has nothing to validate against these corpora because no parser exists yet. But the AST shape decided here directly determines what golden snapshots are possible — so the corpus policy is recorded alongside the type design rather than buried in a parser-foundation spec written weeks later. Subsequent parser node specs reference back to this section instead of re-deriving the policy.
 
+## Known follow-up items for parser DAG nodes
+
+The Task 12 grammar cross-check (against `bytebase/parser/partiql/PartiQLParser.g4`) found four
+expression-position rules and two graph-pattern shape items that are not yet
+explicitly mapped to AST nodes. None block the `ast-core` migration — they all
+land in later parser DAG nodes — but they are recorded here so the next implementer
+does not have to re-discover them.
+
+### Expression-position constructs (decision deferred to `parser-foundation`)
+
+| Grammar rule | Lines | Suggested AST representation |
+|---|---|---|
+| `sequenceConstructor` (`LIST(...)` / `SEXP(...)`) | 569–570 | Use `FuncCall{Name:"LIST"}` / `FuncCall{Name:"SEXP"}`. Consistent with D6: `FuncCall` is the catch-all for special syntactic forms with ordinary call shape. |
+| `values` (SQL `VALUES (1,2),(3,4)` row-list constructor) | 560–561 | Open question. Option A: reuse `BagLit{Items: [ListLit, ListLit, ...]}`. Option B: introduce a `ValuesExpr` with `Rows [][]ExprNode`. Option B preserves the syntactic distinction `VALUES(...)` vs `<<...>>` which may matter for round-trip fidelity. |
+| `valueRow` (parenthesized `(expr, expr, ...)` row body inside `VALUES`) | 563–564 | Pairs with `values`. If `ValuesExpr` is added, this is just an entry in `Rows`. If `BagLit`/`ListLit` reuse is chosen, this is one inner `ListLit`. |
+| `valueList` (row constructor `(a, b)` with ≥2 elements, used in row-IN tests like `(a,b) IN ((1,2),(3,4))`) | 566–567 | Open question. Option A: reuse `ListLit`. Option B: introduce a `RowExpr{Items []ExprNode}` (matches PostgreSQL's `RowExpr`). Option B is the only way to preserve the distinction `(a,b)` (row) vs `[a,b]` (PartiQL list literal). |
+
+**Decision rule:** when `parser-foundation` reaches these productions, pick the
+option that preserves the source-text distinction needed by golden tests. If a
+new node type is added (`ValuesExpr` and/or `RowExpr`), update this spec, the
+plan, and all four test groups in `ast_test.go` (interface assertion, `TestGetLoc`
+row, `TestNodeToString` golden if representative, and `allNodesForCoverageTest`).
+
+### Graph-pattern shape items (decision deferred to `parser-graph`, DAG node 16)
+
+1. **`pattern` rule grouped sub-pattern form** (lines 350–353): the grammar's
+   `( restrictor? var? graphPart+ where? ) quantifier?` form attaches a
+   `where=whereClause?` and a `quantifier=patternQuantifier?` to a grouped
+   pattern. `GraphPattern` currently has neither `Where` nor `Quantifier`
+   fields. Add them when `parser-graph` lands, or document that grouped
+   patterns are unwrapped into the parent.
+2. **`tableBaseReference#TableBaseRefMatch`** (line 405): `source=exprGraphMatchOne asIdent? atIdent? byIdent?`
+   parses a `MATCH` expression in `FROM` position. `MatchExpr` only implements
+   `ExprNode`, not `TableExpr`. To support this faithfully, `MatchExpr` should
+   become multi-interface (like `PathExpr`, `VarRef`, `SubLink`) — add
+   `func (*MatchExpr) tableExpr() {}` when `parser-graph` lands.
+
+The `patterns.go` file header already notes that GPML field shapes may be
+refined when `parser-graph` is implemented; this section spells out the two
+specific items.
+
 ## Acceptance criteria
 
 The `ast-core` DAG node is **done** when:
 
-1. All ~72 node types defined across `node.go`, `literals.go`, `stmts.go`, `exprs.go`, `tableexprs.go`, `types.go`, `patterns.go`, and `outfuncs.go`
+1. All ~73 node types (8 thematic + 1 List in `node.go`) defined across `node.go`, `literals.go`, `stmts.go`, `exprs.go`, `tableexprs.go`, `types.go`, `patterns.go`, and `outfuncs.go`
 2. Every node has a doc comment naming the grammar rule(s) from `analysis.md` that it represents
 3. Every node implements `nodeTag()` and `GetLoc() Loc`
 4. Every node implements at least one sub-interface (`StmtNode`, `ExprNode`, `TableExpr`, `PathStep`, `TypeName`, `PatternNode`) — except small clause helpers (`TargetEntry`, `CaseWhen`, `LetBinding`, `GroupByClause`, `GroupByItem`, `OrderByItem`, `SetAssignment`, `OnConflict`, `OnConflictTarget`, `ReturningClause`, `ReturningItem`, `WindowSpec`, `TuplePair`, `PivotProjection`, `PatternQuantifier`, `PatternSelector`) which are bare `Node`
