@@ -3,6 +3,7 @@ package parser
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/partiql/ast"
@@ -474,4 +475,60 @@ func TestLexer_AWSCorpus(t *testing.T) {
 		lexed++
 	}
 	t.Logf("AWS corpus: %d files lexed, %d skipped", lexed, skipped)
+}
+
+// TestLexer_Errors covers the 5 error triggers in the lexer. Each case
+// drains Next() until tokEOF and asserts l.Err is set with the expected
+// error message substring.
+func TestLexer_Errors(t *testing.T) {
+	cases := []struct {
+		name      string
+		input     string
+		wantErrIn string // substring of the expected error message
+	}{
+		{
+			name:      "unterminated_string",
+			input:     "'hello",
+			wantErrIn: "unterminated string literal",
+		},
+		{
+			name:      "unterminated_quoted_ident",
+			input:     `"foo`,
+			wantErrIn: "unterminated quoted identifier",
+		},
+		{
+			name:      "unterminated_ion_literal",
+			input:     "`abc",
+			wantErrIn: "unterminated Ion literal",
+		},
+		{
+			name:      "unterminated_block_comment",
+			input:     "/* nope",
+			wantErrIn: "unterminated block comment",
+		},
+		{
+			name:      "unexpected_character_lone_bang",
+			input:     "! 1",
+			wantErrIn: "unexpected character",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			l := NewLexer(tc.input)
+			for {
+				tok := l.Next()
+				if tok.Type == tokEOF {
+					break
+				}
+			}
+			if l.Err == nil {
+				t.Errorf("expected error, got nil")
+				return
+			}
+			if !strings.Contains(l.Err.Error(), tc.wantErrIn) {
+				t.Errorf("error mismatch\n got: %v\nwant substring: %q", l.Err, tc.wantErrIn)
+			}
+		})
+	}
 }
