@@ -130,7 +130,7 @@ func isDigit(ch byte) bool {
 }
 
 // ============================================================================
-// Scan helpers — strings, quoted identifiers, keywords, numbers, and operators (Tasks 6-9).
+// Scan helpers (Tasks 6-10).
 // ============================================================================
 
 // scanString scans a single-quoted PartiQL string literal and returns a
@@ -377,16 +377,39 @@ func (l *Lexer) scanOperator() Token {
 	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
 }
 
-// ============================================================================
-// Remaining stubs — replaced by Task 10.
+// scanIonLiteral consumes a backtick-delimited Ion blob: `...`.
 //
-// These return tokEOF and set l.Err so the package builds. Each subsequent
-// task removes one stub and adds the real implementation alongside its
-// tests. Tasks 6-9 already replaced scanString, scanQuotedIdent,
-// scanIdentOrKeyword, scanNumber, and scanOperator.
-// ============================================================================
-
+// SIMPLIFIED BASE BEHAVIOR: scans byte-to-byte from the opening
+// backtick to the next backtick. The captured Token.Str is the
+// verbatim inner content (no decoding); Token.Loc covers the entire
+// `...` range including both backticks.
+//
+// KNOWN LIMITATION: Ion mode in PartiQLLexer.g4 has special handling
+// for backticks inside Ion strings (single-quoted symbols, double-quoted
+// short strings, triple-quoted long strings) that prevents premature
+// literal closure. This naive scan does NOT respect those rules. The
+// full Ion-mode-aware implementation is deferred to DAG node 17
+// (parser-ion-literals).
+//
+// The AWS DynamoDB PartiQL corpus has zero real Ion literals; the
+// only 2 backtick uses are in select-001.partiql and insert-002.partiql
+// (syntax skeletons with placeholder backticks), both filtered out
+// of the corpus smoke test.
 func (l *Lexer) scanIonLiteral() Token {
-	l.Err = fmt.Errorf("scanIonLiteral not yet implemented (stub from Task 5)")
+	l.pos++ // skip opening backtick
+	contentStart := l.pos
+	for l.pos < len(l.input) {
+		if l.input[l.pos] == '`' {
+			content := l.input[contentStart:l.pos]
+			l.pos++ // skip closing backtick
+			return Token{
+				Type: tokION_LITERAL,
+				Str:  content,
+				Loc:  ast.Loc{Start: l.start, End: l.pos},
+			}
+		}
+		l.pos++
+	}
+	l.Err = fmt.Errorf("unterminated Ion literal at position %d", l.start)
 	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
 }

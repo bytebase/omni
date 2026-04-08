@@ -374,6 +374,25 @@ func TestLexer_Tokens(t *testing.T) {
 				{tokIDENT, "foo", ast.Loc{Start: 2, End: 5}},
 			},
 		},
+
+		// =============================================================
+		// Ion literals — base lexer (Task 10)
+		// =============================================================
+		{
+			"ion_simple",
+			"`{a: 1}`",
+			[]Token{{tokION_LITERAL, "{a: 1}", ast.Loc{Start: 0, End: 8}}},
+		},
+		{
+			"ion_empty",
+			"``",
+			[]Token{{tokION_LITERAL, "", ast.Loc{Start: 0, End: 2}}},
+		},
+		{
+			"ion_with_whitespace",
+			"`  abc  `",
+			[]Token{{tokION_LITERAL, "  abc  ", ast.Loc{Start: 0, End: 9}}},
+		},
 	}
 
 	for _, tc := range cases {
