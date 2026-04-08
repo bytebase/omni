@@ -51,6 +51,8 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 			return err
 		}
 	}
+	// Clear transient cleanup tracking after successful multi-command ALTER.
+	tbl.droppedByCleanup = nil
 	return nil
 }
 
@@ -247,7 +249,13 @@ func cleanupIndexesForDroppedColumn(tbl *Table, colName string) {
 		}
 		if len(newCols) == 0 {
 			// Index has no columns left — remove it.
-			removedIndexNames[toLower(idx.Name)] = true
+			nameKey := toLower(idx.Name)
+			removedIndexNames[nameKey] = true
+			// Track for multi-command ALTER so explicit DROP INDEX succeeds.
+			if tbl.droppedByCleanup == nil {
+				tbl.droppedByCleanup = make(map[string]bool)
+			}
+			tbl.droppedByCleanup[nameKey] = true
 			continue
 		}
 		idx.Columns = newCols
@@ -517,6 +525,11 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	}
 	if !found {
 		if cmd.IfExists {
+			return nil
+		}
+		// If the index was auto-removed by DROP COLUMN cleanup in this
+		// multi-command ALTER, treat as success (matches MySQL 8.0 behavior).
+		if tbl.droppedByCleanup[key] {
 			return nil
 		}
 		return errCantDropKey(name)

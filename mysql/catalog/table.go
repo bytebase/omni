@@ -16,6 +16,11 @@ type Table struct {
 	RowFormat     string
 	KeyBlockSize  int
 	Partitioning  *PartitionInfo
+
+	// droppedByCleanup tracks indexes auto-removed by DROP COLUMN cleanup
+	// during multi-command ALTER TABLE. This allows a subsequent explicit
+	// DROP INDEX in the same ALTER to succeed (matching MySQL 8.0 behavior).
+	droppedByCleanup map[string]bool
 }
 
 // PartitionInfo holds partition metadata for a table.
