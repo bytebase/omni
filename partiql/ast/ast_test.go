@@ -61,6 +61,12 @@ var _ PathStep = (*AllFieldsStep)(nil)
 var _ PathStep = (*IndexStep)(nil)
 var _ PathStep = (*WildcardStep)(nil)
 
+// Table expression nodes (tableexprs.go).
+var _ TableExpr = (*TableRef)(nil)
+var _ TableExpr = (*AliasedSource)(nil)
+var _ TableExpr = (*JoinExpr)(nil)
+var _ TableExpr = (*UnpivotExpr)(nil)
+
 // ---------------------------------------------------------------------------
 // TestGetLoc — table-driven Loc round-trip.
 //
@@ -110,6 +116,10 @@ func TestGetLoc(t *testing.T) {
 		{"AllFieldsStep", &AllFieldsStep{Loc: Loc{Start: 10, End: 20}}},
 		{"IndexStep", &IndexStep{Loc: Loc{Start: 10, End: 20}}},
 		{"WildcardStep", &WildcardStep{Loc: Loc{Start: 10, End: 20}}},
+		{"TableRef", &TableRef{Loc: Loc{Start: 10, End: 20}}},
+		{"AliasedSource", &AliasedSource{Loc: Loc{Start: 10, End: 20}}},
+		{"JoinExpr", &JoinExpr{Loc: Loc{Start: 10, End: 20}}},
+		{"UnpivotExpr", &UnpivotExpr{Loc: Loc{Start: 10, End: 20}}},
 	}
 
 	for _, tc := range cases {
