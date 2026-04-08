@@ -40,7 +40,7 @@ Every node struct in this package follows the same shape:
 ```go
 // <NodeName> represents <grammar feature>.
 //
-// Grammar: <PartiQLParser.g4 rule reference>
+// Grammar: <rule or rule#Label reference from PartiQLParser.g4>
 type <NodeName> struct {
     <fields...>
     Loc Loc
@@ -52,7 +52,7 @@ func (n *<NodeName>) GetLoc() Loc   { return n.Loc }
 func (*<NodeName>) exprNode()       {}
 ```
 
-**Doc comments are required** for every node and must mention which grammar rule(s) the node represents (acceptance criterion 2 in the spec). Copy the rule name from `analysis.md`'s grammar coverage tables.
+**Doc comments are required** for every node and must mention which grammar rule(s) the node represents (acceptance criterion 2 in the spec).
 
 **Pointer receivers** for `nodeTag` / `GetLoc` / sub-interface tag methods (matches `cosmosdb/ast`).
 
@@ -61,6 +61,8 @@ func (*<NodeName>) exprNode()       {}
 **No constructor functions.** Tests and parsers build nodes with struct literals (acceptance criterion: no smart constructors).
 
 **Enum types** are declared as `type Foo int` with `const ( FooA Foo = iota; FooB; ... )` blocks. Enums get a `String() string` method that returns the canonical name (used by `NodeToString`).
+
+**Grammar reference convention.** Every `// Grammar:` comment in this package uses `rule#Label` for labeled ANTLR alternatives in `bytebase/parser/partiql/PartiQLParser.g4`, and bare `rule` for unlabeled rules. **Verify each name against the grammar file before committing — invented rule names are a regression risk that already cost one fix-up commit on `literals.go`.** When a file sources types from multiple grammar rules, its file-level header should list each rule with its line range; individual node doc comments should cite their specific `rule#Label`.
 
 ---
 
@@ -89,8 +91,8 @@ Tasks 1–10 build the AST in dependency order (foundation → leaves → branch
 //
 // PartiQL is the SQL++-flavored query language used by AWS DynamoDB and
 // Azure Cosmos DB. This package mirrors the legacy bytebase/parser/partiql
-// ANTLR grammar's full coverage scope (see docs/migration/partiql/analysis.md
-// and docs/migration/partiql/dag.md).
+// ANTLR grammar's full coverage scope as defined in
+// bytebase/parser/partiql/PartiQLParser.g4.
 //
 // AST style: sealed sub-interfaces. Every node implements Node; most also
 // implement one or more of StmtNode, ExprNode, TableExpr, PathStep, TypeName,
@@ -506,9 +508,31 @@ package ast
 //   3. Paths, variables, parameters, subqueries, collection literals,
 //      window spec, path steps
 //
-// Grammar reference: PartiQLParser.g4 expression rules (`expr`, `exprOr`,
-// `exprAnd`, `exprNot`, `exprPredicate`, `mathOp00/01/02`, `valueExpr`,
-// `exprPrimary`, etc.). See docs/migration/partiql/analysis.md.
+// Grammar: PartiQLParser.g4 — sourced from rules:
+//   exprOr            (lines 469–472)
+//   exprAnd           (lines 474–477)
+//   exprNot           (lines 479–482)
+//   exprPredicate     (lines 484–492)
+//   mathOp00/01/02    (lines 494–507)
+//   valueExpr         (lines 509–512)
+//   exprPrimary       (lines 514–534)
+//   exprTerm          (lines 542–549)
+//   functionCall      (lines 611–616)
+//   caseExpr          (lines 557–558)
+//   cast/canCast/canLosslessCast (lines 593–600)
+//   extract           (lines 602–603)
+//   trimFunction      (lines 605–606)
+//   substring         (lines 572–575)
+//   coalesce          (lines 554–555)
+//   nullIf            (lines 551–552)
+//   aggregate         (lines 577–580)
+//   windowFunction    (lines 589–591)
+//   over              (lines 276–278)
+//   array/bag/tuple/pair (lines 649–659)
+//   pathStep          (lines 618–623)
+//   varRefExpr        (lines 635–636)
+//   parameter         (lines 632–633)
+// Each type below cites its specific rule#Label.
 // ---------------------------------------------------------------------------
 
 // ===========================================================================
@@ -627,8 +651,8 @@ func (t IsType) String() string {
 
 // BinaryExpr represents a binary operator application.
 //
-// Grammar: exprOr, exprAnd, mathOp00/01/02, exprPredicate (comparison forms),
-// valueExpr (concat).
+// Grammar: exprOr#Or, exprAnd#And, exprPredicate#PredicateComparison,
+//          mathOp00 (CONCAT), mathOp01 (PLUS/MINUS), mathOp02 (PERCENT/ASTERISK/SLASH_FORWARD)
 type BinaryExpr struct {
 	Op    BinOp
 	Left  ExprNode
@@ -642,7 +666,7 @@ func (*BinaryExpr) exprNode()     {}
 
 // UnaryExpr represents a unary operator application.
 //
-// Grammar: exprNot (NOT), valueExpr (unary +/-)
+// Grammar: exprNot#Not, valueExpr (unary PLUS/MINUS)
 type UnaryExpr struct {
 	Op      UnOp
 	Operand ExprNode
@@ -660,7 +684,7 @@ func (*UnaryExpr) exprNode()     {}
 // InExpr represents `expr [NOT] IN (…)` — either a parenthesized expression
 // list or a subquery.
 //
-// Grammar: exprPredicate predicateIn
+// Grammar: exprPredicate#PredicateIn
 type InExpr struct {
 	Expr     ExprNode
 	List     []ExprNode // populated when the RHS is an expression list
@@ -675,7 +699,7 @@ func (*InExpr) exprNode()     {}
 
 // BetweenExpr represents `expr [NOT] BETWEEN low AND high`.
 //
-// Grammar: exprPredicate predicateBetween
+// Grammar: exprPredicate#PredicateBetween
 type BetweenExpr struct {
 	Expr ExprNode
 	Low  ExprNode
@@ -690,7 +714,7 @@ func (*BetweenExpr) exprNode()     {}
 
 // LikeExpr represents `expr [NOT] LIKE pattern [ESCAPE escape]`.
 //
-// Grammar: exprPredicate predicateLike
+// Grammar: exprPredicate#PredicateLike
 type LikeExpr struct {
 	Expr    ExprNode
 	Pattern ExprNode
@@ -705,7 +729,7 @@ func (*LikeExpr) exprNode()     {}
 
 // IsExpr represents `expr IS [NOT] (NULL|MISSING|TRUE|FALSE)`.
 //
-// Grammar: exprPredicate predicateIs
+// Grammar: exprPredicate#PredicateIs
 type IsExpr struct {
 	Expr ExprNode
 	Type IsType
@@ -876,8 +900,9 @@ func (s TrimSpec) String() string {
 // (LAG/LEAD with an OVER clause). The Quantifier, Star, and Over fields
 // determine which flavor a particular instance is.
 //
-// Grammar: functionCall, functionCallIdent, functionCallReserved,
-//          aggregat, windowFunction
+// Grammar: functionCall#FunctionCallReserved, functionCall#FunctionCallIdent,
+//          aggregate#CountAll, aggregate#AggregateBase,
+//          windowFunction#LagLeadFunction
 type FuncCall struct {
 	Name       string
 	Args       []ExprNode
@@ -920,7 +945,7 @@ func (n *CaseWhen) GetLoc() Loc { return n.Loc }
 
 // CastExpr covers CAST, CAN_CAST, and CAN_LOSSLESS_CAST.
 //
-// Grammar: cast | canCast | canLosslessCast
+// Grammar: cast, canCast, canLosslessCast
 type CastExpr struct {
 	Kind   CastKind
 	Expr   ExprNode
@@ -1004,7 +1029,7 @@ func (*NullIfExpr) exprNode()     {}
 // WindowSpec represents the body of an OVER (...) clause attached to
 // a window function call. Bare Node — appears only inside FuncCall.Over.
 //
-// Grammar: over (PARTITION BY ... ORDER BY ...)
+// Grammar: over
 type WindowSpec struct {
 	PartitionBy []ExprNode
 	OrderBy     []*OrderByItem // OrderByItem defined in stmts.go
@@ -1144,7 +1169,7 @@ Add after the `WindowSpec` block:
 // Root is the base expression (typically a VarRef); Steps are the chained
 // path operations from PathStep.
 //
-// Grammar: pathExpr (root path step+)
+// Grammar: exprPrimary#ExprPrimaryPath (exprPrimary pathStep+)
 type PathExpr struct {
 	Root  ExprNode
 	Steps []PathStep
@@ -1188,7 +1213,7 @@ func (*ParamRef) exprNode()     {}
 // or as a FROM source. Stmt is the inner statement (a SelectStmt or
 // SetOpStmt).
 //
-// Grammar: exprPrimary parenthesized SELECT
+// Grammar: exprTerm#ExprTermWrappedQuery (PAREN_LEFT expr PAREN_RIGHT)
 type SubLink struct {
 	Stmt StmtNode
 	Loc  Loc
@@ -1259,7 +1284,7 @@ func (n *TuplePair) GetLoc() Loc { return n.Loc }
 // DotStep represents `.field`. CaseSensitive is true for `."Field"`
 // (the field name was quoted) and false for unquoted `.field`.
 //
-// Grammar: pathStepDotExpr
+// Grammar: pathStep#PathStepDotExpr
 type DotStep struct {
 	Field         string
 	CaseSensitive bool
@@ -1272,7 +1297,7 @@ func (*DotStep) pathStep()     {}
 
 // AllFieldsStep represents `.*` — the all-fields wildcard.
 //
-// Grammar: pathStepDotAll (or equivalent)
+// Grammar: pathStep#PathStepDotAll
 type AllFieldsStep struct {
 	Loc Loc
 }
@@ -1283,7 +1308,7 @@ func (*AllFieldsStep) pathStep()     {}
 
 // IndexStep represents `[expr]` — index/key by an expression.
 //
-// Grammar: pathStepIndexExpr
+// Grammar: pathStep#PathStepIndexExpr
 type IndexStep struct {
 	Index ExprNode
 	Loc   Loc
@@ -1295,7 +1320,7 @@ func (*IndexStep) pathStep()     {}
 
 // WildcardStep represents `[*]` — all-elements wildcard.
 //
-// Grammar: pathStepIndexAll (or equivalent)
+// Grammar: pathStep#PathStepIndexAll
 type WildcardStep struct {
 	Loc Loc
 }
@@ -1400,9 +1425,17 @@ package ast
 // ---------------------------------------------------------------------------
 // Table expression nodes — implement TableExpr.
 //
-// Grammar: PartiQLParser.g4 fromClause / tableReference / joinClause /
-// unpivotClause. See docs/migration/partiql/analysis.md "Joins" and
-// "FROM Clause Extensions".
+// Grammar: PartiQLParser.g4 — sourced from rules:
+//   fromClause         (lines 297–298)
+//   tableReference     (lines 389–395)
+//   tableNonJoin       (lines 397–400)
+//   tableBaseReference (lines 402–406)
+//   tableUnpivot       (lines 408–409)
+//   joinRhs            (lines 411–414)
+//   joinSpec           (lines 416–417)
+//   joinType           (lines 419–425)
+//   fromClauseSimple   (lines 202–205)
+// Each type below cites its specific rule#Label.
 //
 // IMPORTANT: PathExpr, VarRef, and SubLink (defined in exprs.go) also
 // implement TableExpr. They are not re-listed here as their primary home
@@ -1446,7 +1479,7 @@ func (k JoinKind) String() string {
 // populated only when the reference uses dotted form `schema.table`.
 // CaseSensitive is true for double-quoted identifiers.
 //
-// Grammar: tableBaseReference
+// Grammar: tableBaseReference#TableBaseRefSymbol, tableBaseReference#TableBaseRefClauses
 type TableRef struct {
 	Name          string
 	Schema        string
@@ -1462,7 +1495,8 @@ func (*TableRef) tableExpr()    {}
 // BY key` aliasing form. PartiQL-unique because of the AT/BY positional
 // and key aliases.
 //
-// Grammar: tableUnpivot, fromClauseSimpleExplicit
+// Grammar: tableBaseReference#TableBaseRefClauses, tableBaseReference#TableBaseRefMatch,
+//          tableUnpivot, fromClauseSimple#FromClauseSimpleExplicit
 type AliasedSource struct {
 	Source TableExpr
 	As     *string // optional row alias
@@ -1478,7 +1512,8 @@ func (*AliasedSource) tableExpr()    {}
 // JoinExpr represents a JOIN clause: left JOIN right ON condition.
 // Kind selects the JOIN flavor; On is nil for CROSS JOIN.
 //
-// Grammar: joinRhs / fromClause join chain
+// Grammar: tableReference#TableCrossJoin, tableReference#TableQualifiedJoin
+//          (join-type modifier from joinType; joinRhs for right-hand side)
 type JoinExpr struct {
 	Kind  JoinKind
 	Left  TableExpr
@@ -1495,7 +1530,7 @@ func (*JoinExpr) tableExpr()    {}
 // PartiQL-unique. The Source is an expression (not a TableExpr) because
 // the grammar nests an arbitrary expression here.
 //
-// Grammar: unpivotClause
+// Grammar: tableUnpivot
 type UnpivotExpr struct {
 	Source ExprNode
 	As     *string
@@ -1587,8 +1622,13 @@ package ast
 // modifiers (Args for parameterized types, WithTimeZone for TIME/TIMESTAMP),
 // so the AST mirrors that shape.
 //
-// Grammar: PartiQLParser.g4 type / typeAtomic / typeArgSingle / typeArgDouble /
-// typeTimeZone. See docs/migration/partiql/analysis.md "Type System".
+// Grammar: PartiQLParser.g4 — sourced from rules:
+//   type#TypeAtomic    (lines 675–680)
+//   type#TypeArgSingle (line 681)
+//   type#TypeVarChar   (line 682)
+//   type#TypeArgDouble (line 683)
+//   type#TypeTimeZone  (line 684)
+//   type#TypeCustom    (line 685)
 // ---------------------------------------------------------------------------
 
 // TypeRef represents any PartiQL type reference, used by CAST and DDL.
@@ -1695,8 +1735,28 @@ package ast
 //   2. Clause helpers: TargetEntry, GroupBy, OrderBy, OnConflict, Returning,
 //      etc. (Task 9 — appended below).
 //
-// Grammar reference: PartiQLParser.g4 dql/dml/ddl/execCommand rules. See
-// docs/migration/partiql/analysis.md.
+// Grammar: PartiQLParser.g4 — sourced from rules:
+//   root                   (lines 17–18)
+//   statement              (lines 20–25)
+//   dql                    (lines 55–56)
+//   dml                    (lines 94–100)
+//   dmlBaseCommand         (lines 102–108)
+//   ddl                    (lines 73–76)
+//   createCommand          (lines 78–81)
+//   dropCommand            (lines 83–86)
+//   execCommand            (lines 64–65)
+//   selectClause           (lines 216–221)
+//   exprBagOp              (lines 449–454)
+//   exprSelect             (lines 456–467)
+//   insertCommand          (lines 133–137)
+//   insertCommandReturning (lines 130–131)
+//   updateClause           (lines 182–183)
+//   deleteCommand          (lines 191–192)
+//   upsertCommand          (lines 124–125)
+//   replaceCommand         (lines 120–121)
+//   removeCommand          (lines 127–128)
+//   setCommand             (lines 185–186)
+// Each type below cites its specific rule#Label.
 // ---------------------------------------------------------------------------
 
 // ===========================================================================
@@ -1728,8 +1788,8 @@ func (k SetOpKind) String() string {
 
 // OnConflictAction discriminates the body of an ON CONFLICT clause.
 // PartiQL's legacy ANTLR grammar leaves DO REPLACE/UPDATE as stubs that
-// only accept the EXCLUDED keyword (analysis.md gap notes); the omni AST
-// matches that scope.
+// only accept the EXCLUDED keyword (see doReplace/doUpdate rules in
+// PartiQLParser.g4 lines 168–180); the omni AST matches that scope.
 type OnConflictAction int
 
 const (
@@ -1814,7 +1874,8 @@ func (m ReturningMapping) String() string {
 // `SELECT VALUE expr`. Pivot holds the PIVOT projection. At most one of
 // (Star, Value != nil, Pivot != nil, len(Targets) > 0) is set per instance.
 //
-// Grammar: dql, selectClause, projectionItems, projectionPivot, projectionValue
+// Grammar: exprSelect#SfwQuery (with selectClause#SelectAll / selectClause#SelectItems /
+//          selectClause#SelectValue / selectClause#SelectPivot)
 type SelectStmt struct {
 	Quantifier QuantifierKind   // NONE / DISTINCT / ALL
 	Star       bool             // SELECT *
@@ -1841,7 +1902,7 @@ func (*SelectStmt) stmtNode()     {}
 // PartiQL-specific OUTER variant. Both Left and Right may themselves
 // be SetOpStmt nodes for nested set operations.
 //
-// Grammar: bagOpExpr
+// Grammar: exprBagOp#Union, exprBagOp#Intersect, exprBagOp#Except
 type SetOpStmt struct {
 	Op         SetOpKind
 	Quantifier QuantifierKind
@@ -1857,7 +1918,7 @@ func (*SetOpStmt) stmtNode()     {}
 
 // ExplainStmt wraps any other StmtNode with an EXPLAIN prefix.
 //
-// Grammar: root EXPLAIN
+// Grammar: root (EXPLAIN prefix on the root rule)
 type ExplainStmt struct {
 	Inner StmtNode
 	Loc   Loc
@@ -1871,7 +1932,7 @@ func (*ExplainStmt) stmtNode()     {}
 // [ON CONFLICT ...] [RETURNING ...]`. Covers both legacy
 // (INSERT INTO p VALUE …) and RFC 0011 (INSERT INTO c AS a VALUE …) forms.
 //
-// Grammar: insertCommandReturning, insertStatement
+// Grammar: insertCommand#InsertLegacy, insertCommand#Insert, insertCommandReturning
 type InsertStmt struct {
 	Target     TableExpr
 	AsAlias    *string
@@ -1888,7 +1949,7 @@ func (*InsertStmt) stmtNode()     {}
 // UpdateStmt represents `UPDATE source SET ... [WHERE ...] [RETURNING ...]`
 // and the equivalent `FROM source SET ...` form.
 //
-// Grammar: updateClause, dmlBaseWrapper update head
+// Grammar: updateClause, dml#DmlBaseWrapper (with dmlBaseCommand containing setCommand)
 type UpdateStmt struct {
 	Source    TableExpr
 	Sets      []*SetAssignment
@@ -1966,7 +2027,7 @@ func (*RemoveStmt) stmtNode()     {}
 // CreateTableStmt represents `CREATE TABLE name`. PartiQL DDL has no
 // column definitions or constraints — just the table name.
 //
-// Grammar: createTable
+// Grammar: createCommand#CreateTable
 type CreateTableStmt struct {
 	Name *VarRef
 	Loc  Loc
@@ -1978,7 +2039,7 @@ func (*CreateTableStmt) stmtNode()     {}
 
 // CreateIndexStmt represents `CREATE INDEX ON table (path, path, ...)`.
 //
-// Grammar: createIndex
+// Grammar: createCommand#CreateIndex
 type CreateIndexStmt struct {
 	Table *VarRef
 	Paths []*PathExpr
@@ -1991,7 +2052,7 @@ func (*CreateIndexStmt) stmtNode()     {}
 
 // DropTableStmt represents `DROP TABLE name`.
 //
-// Grammar: dropTable
+// Grammar: dropCommand#DropTable
 type DropTableStmt struct {
 	Name *VarRef
 	Loc  Loc
@@ -2003,7 +2064,7 @@ func (*DropTableStmt) stmtNode()     {}
 
 // DropIndexStmt represents `DROP INDEX index ON table`.
 //
-// Grammar: dropIndex
+// Grammar: dropCommand#DropIndex
 type DropIndexStmt struct {
 	Index *VarRef
 	Table *VarRef
@@ -2268,7 +2329,7 @@ func (n *TargetEntry) GetLoc() Loc { return n.Loc }
 // PivotProjection represents the body of a `PIVOT v AT k` projection.
 // Used as SelectStmt.Pivot. PartiQL-unique.
 //
-// Grammar: projectionPivot
+// Grammar: selectClause#SelectPivot
 type PivotProjection struct {
 	Value ExprNode
 	At    ExprNode
@@ -2352,7 +2413,7 @@ func (n *SetAssignment) GetLoc() Loc { return n.Loc }
 // OnConflict represents the body of an ON CONFLICT clause:
 // `ON CONFLICT [target] [WHERE expr] action`.
 //
-// Grammar: onConflict, onConflictLegacy
+// Grammar: onConflictClause#OnConflict, onConflictClause#OnConflictLegacy
 type OnConflict struct {
 	Target *OnConflictTarget
 	Action OnConflictAction
@@ -2392,7 +2453,7 @@ func (n *ReturningClause) GetLoc() Loc { return n.Loc }
 // in a RETURNING clause. Star is true for the `*` form; otherwise Expr
 // holds the projection expression.
 //
-// Grammar: returningElem, returningColumn
+// Grammar: returningColumn
 type ReturningItem struct {
 	Status  ReturningStatus
 	Mapping ReturningMapping
@@ -2506,13 +2567,29 @@ package ast
 //
 // PartiQL has a graph pattern matching extension based on GPML. The full
 // shape of the field set inside NodePattern/EdgePattern may be refined when
-// the parser-graph DAG node (node 16) is implemented and we read
-// PartiQLParser.g4 lines 314–382 carefully. The marker interface, the node
-// names, and the multi-interface relationship to ExprNode are stable in
-// this initial pass.
+// the parser-graph DAG node (node 16) is implemented and we read the grammar
+// more carefully. The marker interface, the node names, and the multi-interface
+// relationship to ExprNode are stable in this initial pass.
 //
-// Grammar: PartiQLParser.g4 graphMatchPattern, gpmlPattern, matchPattern,
-// nodePattern, edgePattern, etc.
+// Grammar: PartiQLParser.g4 — sourced from rules:
+//   gpmlPattern          (lines 315–316)
+//   gpmlPatternList      (lines 318–319)
+//   matchPattern         (lines 321–322)
+//   graphPart            (lines 324–328)
+//   matchSelector        (lines 330–334)
+//   patternPathVariable  (lines 336–337)
+//   patternRestrictor    (lines 339–340)
+//   node                 (lines 342–343)
+//   edge                 (lines 345–348)
+//   pattern              (lines 350–353)
+//   patternQuantifier    (lines 355–358)
+//   edgeWSpec            (lines 360–368)
+//   edgeSpec             (lines 370–371)
+//   patternPartLabel     (lines 373–374)
+//   edgeAbbrev           (lines 376–381)
+//   exprGraphMatchOne    (lines 628–629)
+//   exprGraphMatchMany   (lines 625–626)
+// Each type below cites its specific rule#Label.
 // ---------------------------------------------------------------------------
 
 // EdgeDirection identifies the direction of an edge pattern.
@@ -2630,7 +2707,7 @@ func (*GraphPattern) patternNode()  {}
 // NodePattern represents `(var:Label WHERE …)`. Variable, Labels, and
 // Where are all optional.
 //
-// Grammar: nodePattern
+// Grammar: node
 type NodePattern struct {
 	Variable *VarRef
 	Labels   []string
@@ -2645,7 +2722,8 @@ func (*NodePattern) patternNode()  {}
 // EdgePattern represents `-[var:Label]->`, `<-[]-`, `~[]~`, etc.
 // Direction is required; Variable, Labels, Where, and Quantifier are optional.
 //
-// Grammar: edgePattern, edgeWSpec
+// Grammar: edge#EdgeWithSpec, edge#EdgeAbbreviated
+//          (direction comes from edgeWSpec labels / edgeAbbrev; body from edgeSpec)
 type EdgePattern struct {
 	Direction  EdgeDirection
 	Variable   *VarRef
@@ -2676,7 +2754,7 @@ func (n *PatternQuantifier) GetLoc() Loc { return n.Loc }
 // pattern: `ANY`, `ALL SHORTEST`, or `SHORTEST k`. K is non-zero only for
 // SHORTEST K.
 //
-// Grammar: patternPathVariable selector
+// Grammar: matchSelector#SelectorBasic, matchSelector#SelectorAny, matchSelector#SelectorShortest
 type PatternSelector struct {
 	Kind SelectorKind
 	K    int
