@@ -135,7 +135,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			}
 
 			// MySQL converts string types with CHARACTER SET binary to binary types.
-			if strings.EqualFold(col.Charset, "binary") && isStringType(col.DataType) {
+			// ENUM and SET are not converted — they keep CHARACTER SET binary annotation.
+			if strings.EqualFold(col.Charset, "binary") && isStringType(col.DataType) && !isEnumSetType(col.DataType) {
 				col = convertToBinaryType(col, colDef.TypeName)
 			}
 		}
