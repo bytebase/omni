@@ -238,17 +238,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					OnDelete:   refActionToString(cc.OnDelete),
 					OnUpdate:   refActionToString(cc.OnUpdate),
 				})
-				// Add implicit backing index for FK only if no existing index covers the column.
-				if !hasIndexCoveringColumns(tbl, []string{colDef.Name}) {
-					idxName := allocIndexName(tbl, colDef.Name)
-					tbl.Indexes = append(tbl.Indexes, &Index{
-						Name:      idxName,
-						Table:     tbl,
-						Columns:   []*IndexColumn{{Name: colDef.Name}},
-						Unique:    false,
-						Visible:   true,
-					})
-				}
+				// Add implicit backing index for FK if needed.
+				ensureFKBackingIndex(tbl, []string{colDef.Name}, []*IndexColumn{{Name: colDef.Name}})
 			case nodes.ColConstrVisible:
 				col.Invisible = false
 			case nodes.ColConstrInvisible:
@@ -412,18 +403,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				OnDelete:   refActionToString(con.OnDelete),
 				OnUpdate:   refActionToString(con.OnUpdate),
 			})
-			// Add implicit backing index for FK only if no existing index covers the FK columns.
-			if !hasIndexCoveringColumns(tbl, cols) {
-				idxName := allocIndexName(tbl, cols[0])
-				idxCols := buildIndexColumns(con)
-				tbl.Indexes = append(tbl.Indexes, &Index{
-					Name:      idxName,
-					Table:     tbl,
-					Columns:   idxCols,
-					IndexType: "",
-					Visible:   true,
-				})
-			}
+			// Add implicit backing index for FK if needed.
+			ensureFKBackingIndex(tbl, cols, buildIndexColumns(con))
 
 		case nodes.ConstrCheck:
 			conName := con.Name
@@ -798,6 +779,21 @@ func hasIndexCoveringColumns(tbl *Table, fkCols []string) bool {
 		}
 	}
 	return false
+}
+
+// ensureFKBackingIndex creates an implicit backing index for FK columns
+// if no existing index already covers them (MySQL 8.0 behavior).
+func ensureFKBackingIndex(tbl *Table, cols []string, idxCols []*IndexColumn) {
+	if hasIndexCoveringColumns(tbl, cols) {
+		return
+	}
+	idxName := allocIndexName(tbl, cols[0])
+	tbl.Indexes = append(tbl.Indexes, &Index{
+		Name:    idxName,
+		Table:   tbl,
+		Columns: idxCols,
+		Visible: true,
+	})
 }
 
 func indexNameExists(tbl *Table, name string) bool {

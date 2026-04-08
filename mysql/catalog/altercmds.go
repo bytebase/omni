@@ -117,27 +117,9 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
-
-	// Determine position.
-	if first {
-		// Insert at position 0.
-		tbl.Columns = append([]*Column{col}, tbl.Columns...)
-	} else if after != "" {
-		afterIdx, ok := tbl.colByName[toLower(after)]
-		if !ok {
-			return errNoSuchColumn(after, tbl.Name)
-		}
-		// Insert after afterIdx.
-		pos := afterIdx + 1
-		tbl.Columns = append(tbl.Columns, nil)
-		copy(tbl.Columns[pos+1:], tbl.Columns[pos:])
-		tbl.Columns[pos] = col
-	} else {
-		// Append at end.
-		tbl.Columns = append(tbl.Columns, col)
+	if err := insertColumn(tbl, col, first, after); err != nil {
+		return err
 	}
-
-	rebuildColIndex(tbl)
 
 	// Process column-level constraints that produce indexes/constraints.
 	for _, cc := range colDef.Constraints {
@@ -278,52 +260,24 @@ func cleanupIndexesForDroppedColumn(tbl *Table, colName string) {
 
 // alterModifyColumn replaces a column definition in-place (same name).
 func (c *Catalog) alterModifyColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
-	colDef := cmd.Column
-	if colDef == nil {
+	if cmd.Column == nil {
 		return nil
 	}
-
-	colKey := toLower(colDef.Name)
-	idx, exists := tbl.colByName[colKey]
-	if !exists {
-		return errNoSuchColumn(colDef.Name, tbl.Name)
-	}
-
-	col := buildColumnFromDef(tbl, colDef)
-	col.Position = idx + 1
-	tbl.Columns[idx] = col
-
-	// Handle repositioning.
-	if cmd.First || cmd.After != "" {
-		// Remove from current position and rebuild index.
-		tbl.Columns = append(tbl.Columns[:idx], tbl.Columns[idx+1:]...)
-		rebuildColIndex(tbl)
-		if cmd.First {
-			tbl.Columns = append([]*Column{col}, tbl.Columns...)
-		} else {
-			afterIdx, ok := tbl.colByName[toLower(cmd.After)]
-			if !ok {
-				return errNoSuchColumn(cmd.After, tbl.Name)
-			}
-			pos := afterIdx + 1
-			tbl.Columns = append(tbl.Columns, nil)
-			copy(tbl.Columns[pos+1:], tbl.Columns[pos:])
-			tbl.Columns[pos] = col
-		}
-		rebuildColIndex(tbl)
-	}
-
-	return nil
+	return c.alterReplaceColumn(tbl, cmd.Column.Name, cmd)
 }
 
 // alterChangeColumn replaces a column (old name -> new name + new definition).
 func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
-	colDef := cmd.Column
-	if colDef == nil {
+	if cmd.Column == nil {
 		return nil
 	}
+	return c.alterReplaceColumn(tbl, cmd.Name, cmd)
+}
 
-	oldName := cmd.Name
+// alterReplaceColumn is the shared implementation for MODIFY and CHANGE COLUMN.
+// oldName is the existing column to replace; cmd.Column defines the new column.
+func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.AlterTableCmd) error {
+	colDef := cmd.Column
 	oldKey := toLower(oldName)
 	idx, exists := tbl.colByName[oldKey]
 	if !exists {
@@ -351,21 +305,13 @@ func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	if cmd.First || cmd.After != "" {
 		tbl.Columns = append(tbl.Columns[:idx], tbl.Columns[idx+1:]...)
 		rebuildColIndex(tbl)
-		if cmd.First {
-			tbl.Columns = append([]*Column{col}, tbl.Columns...)
-		} else {
-			afterIdx, ok := tbl.colByName[toLower(cmd.After)]
-			if !ok {
-				return errNoSuchColumn(cmd.After, tbl.Name)
-			}
-			pos := afterIdx + 1
-			tbl.Columns = append(tbl.Columns, nil)
-			copy(tbl.Columns[pos+1:], tbl.Columns[pos:])
-			tbl.Columns[pos] = col
+		if err := insertColumn(tbl, col, cmd.First, cmd.After); err != nil {
+			return err
 		}
+	} else {
+		rebuildColIndex(tbl)
 	}
 
-	rebuildColIndex(tbl)
 	return nil
 }
 
@@ -465,18 +411,8 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
-		// Add implicit backing index only if no existing index covers the FK columns.
-		if !hasIndexCoveringColumns(tbl, cols) {
-			idxName := allocIndexName(tbl, cols[0])
-			idxCols := buildIndexColumns(con)
-			tbl.Indexes = append(tbl.Indexes, &Index{
-				Name:      idxName,
-				Table:     tbl,
-				Columns:   idxCols,
-				IndexType: "",
-				Visible:   true,
-			})
-		}
+		// Add implicit backing index for FK if needed.
+		ensureFKBackingIndex(tbl, cols, buildIndexColumns(con))
 
 	case nodes.ConstrCheck:
 		conName := con.Name
@@ -756,6 +692,27 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 		SQLState: sqlState(ErrDupKeyName),
 		Message:  fmt.Sprintf("Key '%s' doesn't exist in table '%s'", cmd.Name, tbl.Name),
 	}
+}
+
+// insertColumn inserts col into tbl at the position specified by first/after.
+// If neither first nor after is set, appends at end. Always rebuilds the column index.
+func insertColumn(tbl *Table, col *Column, first bool, after string) error {
+	if first {
+		tbl.Columns = append([]*Column{col}, tbl.Columns...)
+	} else if after != "" {
+		afterIdx, ok := tbl.colByName[toLower(after)]
+		if !ok {
+			return errNoSuchColumn(after, tbl.Name)
+		}
+		pos := afterIdx + 1
+		tbl.Columns = append(tbl.Columns, nil)
+		copy(tbl.Columns[pos+1:], tbl.Columns[pos:])
+		tbl.Columns[pos] = col
+	} else {
+		tbl.Columns = append(tbl.Columns, col)
+	}
+	rebuildColIndex(tbl)
+	return nil
 }
 
 // rebuildColIndex rebuilds tbl.colByName and updates Position fields.
