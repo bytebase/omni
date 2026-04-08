@@ -239,7 +239,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					OnUpdate:   refActionToString(cc.OnUpdate),
 				})
 				// Add implicit backing index for FK if needed.
-				ensureFKBackingIndex(tbl, []string{colDef.Name}, []*IndexColumn{{Name: colDef.Name}})
+				ensureFKBackingIndex(tbl, cc.Name, []string{colDef.Name}, []*IndexColumn{{Name: colDef.Name}})
 			case nodes.ColConstrVisible:
 				col.Invisible = false
 			case nodes.ColConstrInvisible:
@@ -404,7 +404,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				OnUpdate:   refActionToString(con.OnUpdate),
 			})
 			// Add implicit backing index for FK if needed.
-			ensureFKBackingIndex(tbl, cols, buildIndexColumns(con))
+			ensureFKBackingIndex(tbl, con.Name, cols, buildIndexColumns(con))
 
 		case nodes.ConstrCheck:
 			conName := con.Name
@@ -783,11 +783,16 @@ func hasIndexCoveringColumns(tbl *Table, fkCols []string) bool {
 
 // ensureFKBackingIndex creates an implicit backing index for FK columns
 // if no existing index already covers them (MySQL 8.0 behavior).
-func ensureFKBackingIndex(tbl *Table, cols []string, idxCols []*IndexColumn) {
+// MySQL uses the constraint name as the index name when provided;
+// otherwise falls back to the first column name via allocIndexName.
+func ensureFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*IndexColumn) {
 	if hasIndexCoveringColumns(tbl, cols) {
 		return
 	}
-	idxName := allocIndexName(tbl, cols[0])
+	idxName := conName
+	if idxName == "" {
+		idxName = allocIndexName(tbl, cols[0])
+	}
 	tbl.Indexes = append(tbl.Indexes, &Index{
 		Name:    idxName,
 		Table:   tbl,
