@@ -393,6 +393,44 @@ Walks every exported type in the package, checks it implements `Node`, and calls
 - Zero external dependencies — standard library only
 - Target ~100% line coverage on `outfuncs.go`
 
+## Test corpus (project-wide forward reference)
+
+**This section describes the test strategy for the PartiQL migration as a whole, not just `ast-core`.** `ast-core` itself only tests its type system (the four test groups above) — there is nothing parser-related to validate yet because no parser exists. The project-wide corpus policy is recorded here so it is visible from this spec and need not be re-derived for every later parser DAG node.
+
+Per the test strategy decision (made during brainstorming for `ast-core` and applicable to all subsequent parser DAG nodes), parser nodes build their regression test corpora from **two authoritative sources**:
+
+### 1. Legacy ANTLR test fixtures (parity check)
+
+Every input from the legacy `bytebase/parser` and bytebase wrapper test corpora is re-run against the new omni parser to verify behavioral parity. This catches any case where the new parser accepts/rejects a statement differently from the ANTLR baseline:
+
+- `bytebase/parser/partiql/parser_test.go` — basic ANTLR parse-tree assertions and the `simple.sql` smoke fixture
+- `bytebase/backend/plugin/parser/partiql/test-data/test_split.yaml` — statement-splitting fixtures (drives `parser-foundation`'s splitter)
+- `bytebase/backend/plugin/parser/partiql/test-data/test_completion.yaml` — auto-complete fixtures (drives the `completion` DAG node)
+- `bytebase/backend/plugin/parser/partiql/split_test.go` and `completion_test.go` — additional Go-level test cases beyond the YAML fixtures
+
+### 2. AWS DynamoDB PartiQL reference examples (coverage corpus)
+
+Every PartiQL example published under `docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.html` and its sub-pages, recursively. **Already crawled and assembled** during this brainstorming session by an explicit sub-agent task: 63 examples across 19 pages, covering SELECT (with key/non-key/IN/BETWEEN/OR/ORDER BY/document paths/indexes), INSERT (legacy + RFC 0011 with tuple value literals), UPDATE (multi-SET, `list_append`, REMOVE, `set_add`, RETURNING ALL OLD/NEW), DELETE (with RETURNING), and all six built-in functions (`size`, `exists`, `attribute_type`, `begins_with`, `contains`, `missing`). Bag literals (`<<…>>`), nested document paths (`a.b.c[0]`), parameterized statements (`?`), and the `IS MISSING` predicate are all represented.
+
+Output paths (currently in the main worktree, to be brought into the parser worktrees as needed):
+- `partiql/parser/testdata/aws-corpus/index.json` — manifest with id, label, source URL, sql for each example
+- `partiql/parser/testdata/aws-corpus/<id>.partiql` — one file per example (63 files)
+
+Two entries (`select-001`, `insert-002`) are syntax skeletons with backticks/brackets and are not valid PartiQL — they are flagged in the index for filtering when running through a parser.
+
+### Wiring rule for parser DAG nodes
+
+Each parser DAG node (`parser-foundation` and onwards) is responsible for adding golden tests that load both corpora as inputs. A grammar feature is considered "covered by omni" only when:
+
+- the legacy fixture inputs that exercise it parse without error and the AST matches the expected snapshot, **and**
+- the AWS reference examples that exercise it parse without error and the AST matches the expected snapshot.
+
+Missed grammar features are caught the first time an example fails — there is no need to maintain a parallel hand-written checklist.
+
+### Why this lives in the `ast-core` spec
+
+`ast-core` has nothing to validate against these corpora because no parser exists yet. But the AST shape decided here directly determines what golden snapshots are possible — so the corpus policy is recorded alongside the type design rather than buried in a parser-foundation spec written weeks later. Subsequent parser node specs reference back to this section instead of re-deriving the policy.
+
 ## Acceptance criteria
 
 The `ast-core` DAG node is **done** when:
@@ -414,7 +452,7 @@ The `ast-core` DAG node is **done** when:
 - **No semantic analysis or type checking**
 - **No `Walker` / `Visitor` interface** — Go type switches are sufficient; cosmosdb doesn't ship one and we have no consumer that needs one. Add later only if/when a real consumer requires it.
 - **No smart constructors / builder helpers** — parsers and tests construct nodes directly with struct literals. Less indirection, less to maintain.
-- **No round-trip tests against the AWS DynamoDB PartiQL corpus** — that's gated by `parser-foundation`. The corpus already exists at `partiql/parser/testdata/aws-corpus/` (63 examples) for use by parser DAG nodes.
+- **No round-trip tests against either test corpus** (legacy ANTLR fixtures or the AWS PartiQL reference examples) — that is gated by `parser-foundation`. See "Test corpus (project-wide forward reference)" above for the full strategy.
 - **Graph-pattern AST shape may be refined** when `parser-graph` (DAG node 16) is implemented. The marker interface (`PatternNode`), node names, and multi-interface relationship to `ExprNode` are stable; only field shapes inside `NodePattern`/`EdgePattern` are at risk.
 - **No `Loc` line/column** — only byte offsets. Conversion happens at the public `partiql/parse.go` boundary.
 
