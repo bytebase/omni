@@ -3308,7 +3308,7 @@ grep -c '^\ttok[A-Z]' partiql/parser/token.go
 # Should print 302
 
 # Sanity: count keywords map entries
-grep -cE '^\t"[a-z_-]+":' partiql/parser/keywords.go
+grep -cE '^\t"[a-z0-9_-]+":' partiql/parser/keywords.go
 # Should print 266
 
 # Sanity: count tokenName arms
