@@ -295,19 +295,15 @@ func (c *Catalog) alterModifyColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 
 	// Handle repositioning.
 	if cmd.First || cmd.After != "" {
-		// Remove from current position.
+		// Remove from current position and rebuild index.
 		tbl.Columns = append(tbl.Columns[:idx], tbl.Columns[idx+1:]...)
+		rebuildColIndex(tbl)
 		if cmd.First {
 			tbl.Columns = append([]*Column{col}, tbl.Columns...)
 		} else {
 			afterIdx, ok := tbl.colByName[toLower(cmd.After)]
 			if !ok {
-				// Rebuild first since we removed.
-				rebuildColIndex(tbl)
-				afterIdx, ok = tbl.colByName[toLower(cmd.After)]
-				if !ok {
-					return errNoSuchColumn(cmd.After, tbl.Name)
-				}
+				return errNoSuchColumn(cmd.After, tbl.Name)
 			}
 			pos := afterIdx + 1
 			tbl.Columns = append(tbl.Columns, nil)

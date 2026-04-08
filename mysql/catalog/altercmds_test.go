@@ -124,6 +124,26 @@ func TestAlterTableModifyColumn(t *testing.T) {
 	}
 }
 
+func TestAlterTableModifyColumnAfterLater(t *testing.T) {
+	// Regression: MODIFY COLUMN ... AFTER <col> panicked with slice bounds
+	// out of range when the AFTER column was positioned after the modified column.
+	c := setupTestTable(t)
+	// t1 has: id(1), name(2), age(3)
+	// Move id AFTER age → name(1), age(2), id(3)
+	mustExec(t, c, "ALTER TABLE t1 MODIFY COLUMN id INT NOT NULL AFTER age")
+
+	tbl := c.GetDatabase("test").GetTable("t1")
+	if tbl.Columns[0].Name != "name" {
+		t.Errorf("expected column 0 to be 'name', got %q", tbl.Columns[0].Name)
+	}
+	if tbl.Columns[1].Name != "age" {
+		t.Errorf("expected column 1 to be 'age', got %q", tbl.Columns[1].Name)
+	}
+	if tbl.Columns[2].Name != "id" {
+		t.Errorf("expected column 2 to be 'id', got %q", tbl.Columns[2].Name)
+	}
+}
+
 func TestAlterTableChangeColumn(t *testing.T) {
 	c := setupTestTable(t)
 	mustExec(t, c, "ALTER TABLE t1 CHANGE COLUMN name full_name VARCHAR(200)")
