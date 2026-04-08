@@ -22,7 +22,6 @@ var _ ExprNode = (*NullLit)(nil)
 var _ ExprNode = (*MissingLit)(nil)
 var _ ExprNode = (*DateLit)(nil)
 var _ ExprNode = (*TimeLit)(nil)
-var _ ExprNode = (*TimestampLit)(nil)
 var _ ExprNode = (*IonLit)(nil)
 
 // ---------------------------------------------------------------------------
@@ -45,7 +44,6 @@ func TestGetLoc(t *testing.T) {
 		{"MissingLit", &MissingLit{Loc: Loc{Start: 10, End: 20}}},
 		{"DateLit", &DateLit{Loc: Loc{Start: 10, End: 20}}},
 		{"TimeLit", &TimeLit{Loc: Loc{Start: 10, End: 20}}},
-		{"TimestampLit", &TimestampLit{Loc: Loc{Start: 10, End: 20}}},
 		{"IonLit", &IonLit{Loc: Loc{Start: 10, End: 20}}},
 	}
 
