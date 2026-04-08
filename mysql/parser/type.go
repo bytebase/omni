@@ -433,23 +433,25 @@ func (p *Parser) parseUnsignedZerofill(dt *nodes.DataType) {
 // parseCharsetCollate parses optional CHARACTER SET and COLLATE clauses.
 func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
 	// CHARACTER SET charset_name | CHARSET charset_name
+	// charset/collation names can be `binary`, which is a reserved keyword,
+	// so we use parseKeywordOrIdent to accept keyword tokens as names.
 	if _, ok := p.match(kwCHARSET); ok {
-		if p.isIdentToken() {
-			dt.Charset, _, _ = p.parseIdent()
+		if p.isIdentToken() || p.cur.Type == kwBINARY {
+			dt.Charset, _, _ = p.parseKeywordOrIdent()
 		}
 	} else if p.cur.Type == kwCHARACTER {
 		p.advance()
 		if _, ok := p.match(kwSET); ok {
-			if p.isIdentToken() {
-				dt.Charset, _, _ = p.parseIdent()
+			if p.isIdentToken() || p.cur.Type == kwBINARY {
+				dt.Charset, _, _ = p.parseKeywordOrIdent()
 			}
 		}
 	}
 
 	// COLLATE collation_name
 	if _, ok := p.match(kwCOLLATE); ok {
-		if p.isIdentToken() {
-			dt.Collate, _, _ = p.parseIdent()
+		if p.isIdentToken() || p.cur.Type == kwBINARY {
+			dt.Collate, _, _ = p.parseKeywordOrIdent()
 		}
 	}
 }
