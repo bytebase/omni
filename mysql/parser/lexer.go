@@ -1658,6 +1658,7 @@ type Token struct {
 	Str  string // string value for identifiers, operators, string literals
 	Ival int64  // integer value for ICONST
 	Loc  int    // byte offset in source text
+	End  int    // byte offset past the end of the token in the source text
 }
 
 // Lexer implements a MySQL SQL lexer.
@@ -1683,7 +1684,8 @@ func NewLexerWithOffset(input string, baseOffset int) *Lexer {
 // NextToken returns the next token from the input.
 func (l *Lexer) NextToken() Token {
 	tok := l.nextToken()
-	tok.Loc += l.baseOffset // apply base offset for absolute positioning
+	tok.End = l.pos + l.baseOffset // set end position before returning
+	tok.Loc += l.baseOffset        // apply base offset for absolute positioning
 	l.prevToken = tok.Type
 	return tok
 }

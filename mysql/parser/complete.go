@@ -17,6 +17,21 @@ func TokenName(tokenType int) string {
 	return ""
 }
 
+// Tokenize runs the lexer on sql and returns all non-EOF tokens.
+// Useful for walking the token stream without a full parse.
+func Tokenize(sql string) []Token {
+	lex := NewLexer(sql)
+	var tokens []Token
+	for {
+		tok := lex.NextToken()
+		if tok.Type == tokEOF {
+			break
+		}
+		tokens = append(tokens, tok)
+	}
+	return tokens
+}
+
 // CandidateSet holds the token and rule candidates collected during a
 // completion-mode parse.
 type CandidateSet struct {
@@ -24,6 +39,16 @@ type CandidateSet struct {
 	Rules  []RuleCandidate // grammar rule candidates
 	seen   map[int]bool    // dedup tokens
 	seenR  map[string]bool // dedup rules
+
+	// CTEPositions holds the byte offsets of WITH clause starts encountered
+	// before the cursor. Bytebase uses these to re-parse CTE definitions
+	// and extract virtual table names/columns for completion.
+	CTEPositions []int
+
+	// SelectAliasPositions holds the byte offsets of SELECT item alias
+	// positions encountered before the cursor. Bytebase uses these to
+	// extract alias names for ORDER BY / GROUP BY completion.
+	SelectAliasPositions []int
 }
 
 // RuleCandidate represents a grammar rule that is a completion candidate.
@@ -168,6 +193,20 @@ func (p *Parser) addTokenCandidate(t int) {
 func (p *Parser) addRuleCandidate(r string) {
 	if p.candidates != nil {
 		p.candidates.addRule(r)
+	}
+}
+
+// addCTEPosition records a WITH clause byte offset in the candidate set.
+func (p *Parser) addCTEPosition(pos int) {
+	if p.candidates != nil {
+		p.candidates.CTEPositions = append(p.candidates.CTEPositions, pos)
+	}
+}
+
+// addSelectAliasPosition records a SELECT alias byte offset in the candidate set.
+func (p *Parser) addSelectAliasPosition(pos int) {
+	if p.candidates != nil {
+		p.candidates.SelectAliasPositions = append(p.candidates.SelectAliasPositions, pos)
 	}
 }
 

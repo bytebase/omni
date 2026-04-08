@@ -13,6 +13,10 @@ import (
 //	        cte_name [(col_name [, col_name] ...)] AS (subquery)
 //	        [, cte_name [(col_name [, col_name] ...)] AS (subquery)] ...
 func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
+	// Record CTE position for completion context (before consuming WITH).
+	if p.completing {
+		p.addCTEPosition(p.pos())
+	}
 	p.advance() // consume WITH
 
 	// Completion: after WITH keyword, offer RECURSIVE and identifier context for CTE name.
@@ -721,16 +725,24 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 	// Check for AS alias or implicit alias
 	var alias string
 	if _, ok := p.match(kwAS); ok {
+		aliasLoc := p.pos()
 		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
 		}
 		alias = name
+		if p.completing {
+			p.addSelectAliasPosition(aliasLoc)
+		}
 	} else if p.isIdentToken() && !p.isSelectTerminator() {
 		// Implicit alias (identifier without AS), but not if it's a keyword that starts the next clause
+		aliasLoc := p.pos()
 		alias, _, err = p.parseIdent()
 		if err != nil {
 			return nil, err
+		}
+		if p.completing {
+			p.addSelectAliasPosition(aliasLoc)
 		}
 	}
 
