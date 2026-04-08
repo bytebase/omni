@@ -242,3 +242,229 @@ type IsExpr struct {
 func (*IsExpr) nodeTag()      {}
 func (n *IsExpr) GetLoc() Loc { return n.Loc }
 func (*IsExpr) exprNode()     {}
+
+// ===========================================================================
+// Special-form expressions
+//
+// Function calls, CASE, CAST, and the keyword-bearing built-ins (EXTRACT,
+// TRIM, SUBSTRING) get dedicated nodes because their grammar uses keywords
+// inside parens or non-comma argument syntax. COALESCE and NULLIF also get
+// dedicated nodes because they appear as ANTLR rules. Built-ins with
+// ordinary `name(arg, arg, …)` syntax (DATE_ADD, DATE_DIFF, SIZE, EXISTS, …)
+// use plain FuncCall.
+// ===========================================================================
+
+// QuantifierKind covers the [DISTINCT|ALL] modifier on aggregates and
+// set operations. Although the spec listed it under stmts.go, it is
+// declared here because FuncCall (defined first in implementation order)
+// is its first user. SetOpStmt in stmts.go references it as ast.QuantifierKind.
+type QuantifierKind int
+
+const (
+	QuantifierNone QuantifierKind = iota
+	QuantifierAll
+	QuantifierDistinct
+)
+
+func (q QuantifierKind) String() string {
+	switch q {
+	case QuantifierAll:
+		return "ALL"
+	case QuantifierDistinct:
+		return "DISTINCT"
+	default:
+		return ""
+	}
+}
+
+// CastKind discriminates the three CAST-family operators.
+type CastKind int
+
+const (
+	CastKindInvalid CastKind = iota
+	CastKindCast
+	CastKindCanCast
+	CastKindCanLosslessCast
+)
+
+func (k CastKind) String() string {
+	switch k {
+	case CastKindCast:
+		return "CAST"
+	case CastKindCanCast:
+		return "CAN_CAST"
+	case CastKindCanLosslessCast:
+		return "CAN_LOSSLESS_CAST"
+	default:
+		return "INVALID"
+	}
+}
+
+// TrimSpec covers the optional LEADING/TRAILING/BOTH keyword inside TRIM.
+type TrimSpec int
+
+const (
+	TrimSpecNone TrimSpec = iota
+	TrimSpecLeading
+	TrimSpecTrailing
+	TrimSpecBoth
+)
+
+func (s TrimSpec) String() string {
+	switch s {
+	case TrimSpecLeading:
+		return "LEADING"
+	case TrimSpecTrailing:
+		return "TRAILING"
+	case TrimSpecBoth:
+		return "BOTH"
+	default:
+		return ""
+	}
+}
+
+// FuncCall is the generic function-call node — used for ordinary function
+// calls (DATE_ADD, SIZE, ...), aggregates (COUNT/SUM/AVG/MIN/MAX with the
+// optional DISTINCT/ALL modifier and COUNT(*) form), and window calls
+// (LAG/LEAD with an OVER clause). The Quantifier, Star, and Over fields
+// determine which flavor a particular instance is.
+//
+// Grammar: functionCall#FunctionCallReserved, functionCall#FunctionCallIdent,
+//
+//	aggregate#CountAll, aggregate#AggregateBase,
+//	windowFunction#LagLeadFunction
+type FuncCall struct {
+	Name       string
+	Args       []ExprNode
+	Quantifier QuantifierKind // NONE/DISTINCT/ALL — populated for aggregates
+	Star       bool           // true for COUNT(*)
+	Over       *WindowSpec    // non-nil for window calls
+	Loc        Loc
+}
+
+func (*FuncCall) nodeTag()      {}
+func (n *FuncCall) GetLoc() Loc { return n.Loc }
+func (*FuncCall) exprNode()     {}
+
+// CaseExpr covers both `CASE WHEN … THEN …` (searched) and
+// `CASE expr WHEN … THEN …` (simple) forms. Operand is nil for the
+// searched form.
+//
+// Grammar: caseExpr
+type CaseExpr struct {
+	Operand ExprNode // nil for searched CASE
+	Whens   []*CaseWhen
+	Else    ExprNode // nil if no ELSE clause
+	Loc     Loc
+}
+
+func (*CaseExpr) nodeTag()      {}
+func (n *CaseExpr) GetLoc() Loc { return n.Loc }
+func (*CaseExpr) exprNode()     {}
+
+// CaseWhen represents one `WHEN expr THEN expr` arm. Bare Node — does not
+// implement ExprNode because it cannot stand alone in scalar position.
+type CaseWhen struct {
+	When ExprNode
+	Then ExprNode
+	Loc  Loc
+}
+
+func (*CaseWhen) nodeTag()      {}
+func (n *CaseWhen) GetLoc() Loc { return n.Loc }
+
+// CastExpr covers CAST, CAN_CAST, and CAN_LOSSLESS_CAST.
+//
+// Grammar: cast, canCast, canLosslessCast
+type CastExpr struct {
+	Kind   CastKind
+	Expr   ExprNode
+	AsType TypeName
+	Loc    Loc
+}
+
+func (*CastExpr) nodeTag()      {}
+func (n *CastExpr) GetLoc() Loc { return n.Loc }
+func (*CastExpr) exprNode()     {}
+
+// ExtractExpr represents `EXTRACT(<field> FROM <expr>)`. Field is the
+// keyword (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, ...) — stored as the
+// raw uppercase keyword string.
+//
+// Grammar: extract
+type ExtractExpr struct {
+	Field string
+	From  ExprNode
+	Loc   Loc
+}
+
+func (*ExtractExpr) nodeTag()      {}
+func (n *ExtractExpr) GetLoc() Loc { return n.Loc }
+func (*ExtractExpr) exprNode()     {}
+
+// TrimExpr represents `TRIM([LEADING|TRAILING|BOTH] [sub] FROM target)`.
+//
+// Grammar: trimFunction
+type TrimExpr struct {
+	Spec TrimSpec
+	Sub  ExprNode // optional substring to trim; nil for default whitespace
+	From ExprNode
+	Loc  Loc
+}
+
+func (*TrimExpr) nodeTag()      {}
+func (n *TrimExpr) GetLoc() Loc { return n.Loc }
+func (*TrimExpr) exprNode()     {}
+
+// SubstringExpr represents `SUBSTRING(expr FROM start [FOR length])` and
+// the equivalent comma form `SUBSTRING(expr, start[, length])`.
+//
+// Grammar: substring
+type SubstringExpr struct {
+	Expr ExprNode
+	From ExprNode
+	For  ExprNode // optional length
+	Loc  Loc
+}
+
+func (*SubstringExpr) nodeTag()      {}
+func (n *SubstringExpr) GetLoc() Loc { return n.Loc }
+func (*SubstringExpr) exprNode()     {}
+
+// CoalesceExpr represents `COALESCE(expr, expr, …)`.
+//
+// Grammar: coalesce
+type CoalesceExpr struct {
+	Args []ExprNode
+	Loc  Loc
+}
+
+func (*CoalesceExpr) nodeTag()      {}
+func (n *CoalesceExpr) GetLoc() Loc { return n.Loc }
+func (*CoalesceExpr) exprNode()     {}
+
+// NullIfExpr represents `NULLIF(expr, expr)`.
+//
+// Grammar: nullIf
+type NullIfExpr struct {
+	Left  ExprNode
+	Right ExprNode
+	Loc   Loc
+}
+
+func (*NullIfExpr) nodeTag()      {}
+func (n *NullIfExpr) GetLoc() Loc { return n.Loc }
+func (*NullIfExpr) exprNode()     {}
+
+// WindowSpec represents the body of an OVER (...) clause attached to
+// a window function call. Bare Node — appears only inside FuncCall.Over.
+//
+// Grammar: over
+type WindowSpec struct {
+	PartitionBy []ExprNode
+	OrderBy     []*OrderByItem // OrderByItem defined in stmts.go
+	Loc         Loc
+}
+
+func (*WindowSpec) nodeTag()      {}
+func (n *WindowSpec) GetLoc() Loc { return n.Loc }

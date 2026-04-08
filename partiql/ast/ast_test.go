@@ -32,6 +32,18 @@ var _ ExprNode = (*BetweenExpr)(nil)
 var _ ExprNode = (*LikeExpr)(nil)
 var _ ExprNode = (*IsExpr)(nil)
 
+// Special-form expressions (exprs.go).
+var _ ExprNode = (*FuncCall)(nil)
+var _ ExprNode = (*CaseExpr)(nil)
+var _ Node = (*CaseWhen)(nil)
+var _ ExprNode = (*CastExpr)(nil)
+var _ ExprNode = (*ExtractExpr)(nil)
+var _ ExprNode = (*TrimExpr)(nil)
+var _ ExprNode = (*SubstringExpr)(nil)
+var _ ExprNode = (*CoalesceExpr)(nil)
+var _ ExprNode = (*NullIfExpr)(nil)
+var _ Node = (*WindowSpec)(nil)
+
 // ---------------------------------------------------------------------------
 // TestGetLoc — table-driven Loc round-trip.
 //
@@ -59,6 +71,16 @@ func TestGetLoc(t *testing.T) {
 		{"BetweenExpr", &BetweenExpr{Loc: Loc{Start: 10, End: 20}}},
 		{"LikeExpr", &LikeExpr{Loc: Loc{Start: 10, End: 20}}},
 		{"IsExpr", &IsExpr{Loc: Loc{Start: 10, End: 20}}},
+		{"FuncCall", &FuncCall{Loc: Loc{Start: 10, End: 20}}},
+		{"CaseExpr", &CaseExpr{Loc: Loc{Start: 10, End: 20}}},
+		{"CaseWhen", &CaseWhen{Loc: Loc{Start: 10, End: 20}}},
+		{"CastExpr", &CastExpr{Loc: Loc{Start: 10, End: 20}}},
+		{"ExtractExpr", &ExtractExpr{Loc: Loc{Start: 10, End: 20}}},
+		{"TrimExpr", &TrimExpr{Loc: Loc{Start: 10, End: 20}}},
+		{"SubstringExpr", &SubstringExpr{Loc: Loc{Start: 10, End: 20}}},
+		{"CoalesceExpr", &CoalesceExpr{Loc: Loc{Start: 10, End: 20}}},
+		{"NullIfExpr", &NullIfExpr{Loc: Loc{Start: 10, End: 20}}},
+		{"WindowSpec", &WindowSpec{Loc: Loc{Start: 10, End: 20}}},
 	}
 
 	for _, tc := range cases {
