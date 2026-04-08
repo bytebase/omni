@@ -537,7 +537,14 @@ func TestLexer_Errors(t *testing.T) {
 // and asserts tokenName returns a non-empty string. If a future
 // contributor adds a new tok* constant without wiring it into tokenName,
 // this test fails.
+//
+// LIMITATION: this list is a manual mirror of token.go. The length check
+// catches slice drift, and the loop catches missing tokenName arms — but
+// neither catches a constant that was added to BOTH token.go and tokenName
+// without being added here. New tok* constants must be added to all three
+// places.
 func TestTokenName_AllCovered(t *testing.T) {
+	// Total: 2 specials + 6 literals + 28 operators/punctuation + 266 keywords = 302.
 	all := []int{
 		// Specials.
 		tokEOF, tokInvalid,
@@ -608,12 +615,19 @@ func TestTokenName_AllCovered(t *testing.T) {
 
 // TestKeywords_LenMatchesConstants asserts that the keywords map in
 // keywords.go has exactly 266 entries — the same number as the keyword
-// constants in token.go. If a future contributor adds or removes a
-// tok* keyword constant without updating the map (or vice versa),
-// this test fails.
+// constants in token.go — and that every map value resolves to a
+// non-empty tokenName. The length check catches add/remove drift; the
+// per-value check catches the case where a keyword maps to a deleted
+// or renamed constant (which leaves the lengths equal but the mapping
+// stale).
 func TestKeywords_LenMatchesConstants(t *testing.T) {
 	const expectedKeywordCount = 266
 	if got := len(keywords); got != expectedKeywordCount {
 		t.Errorf("len(keywords) = %d, want %d — did a tok* keyword constant get added or removed without updating the keywords map?", got, expectedKeywordCount)
+	}
+	for word, tt := range keywords {
+		if tokenName(tt) == "" {
+			t.Errorf("keywords[%q] = %d has no tokenName entry", word, tt)
+		}
 	}
 }
