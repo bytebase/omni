@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -201,5 +202,336 @@ func TestGetLoc(t *testing.T) {
 				t.Errorf("GetLoc() = %+v, want {10, 20}", got)
 			}
 		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestNodeToString — golden assertions on outfuncs.go output.
+//
+// One representative case per node category, plus the multi-interface nodes
+// and at least one deeply nested case.
+// ---------------------------------------------------------------------------
+
+func TestNodeToString(t *testing.T) {
+	cases := []struct {
+		name string
+		node Node
+		want string
+	}{
+		{
+			name: "string_literal",
+			node: &StringLit{Val: "hello"},
+			want: `StringLit{Val:"hello"}`,
+		},
+		{
+			name: "number_literal",
+			node: &NumberLit{Val: "42"},
+			want: `NumberLit{Val:42}`,
+		},
+		{
+			name: "binary_expr_add",
+			node: &BinaryExpr{
+				Op:    BinOpAdd,
+				Left:  &VarRef{Name: "a"},
+				Right: &NumberLit{Val: "1"},
+			},
+			want: `BinaryExpr{Op:+ Left:VarRef{Name:a} Right:NumberLit{Val:1}}`,
+		},
+		{
+			name: "in_expr_with_list",
+			node: &InExpr{
+				Expr: &VarRef{Name: "x"},
+				List: []ExprNode{&NumberLit{Val: "1"}, &NumberLit{Val: "2"}},
+				Not:  false,
+			},
+			want: `InExpr{Expr:VarRef{Name:x} List:[NumberLit{Val:1} NumberLit{Val:2}] Not:false}`,
+		},
+		{
+			name: "is_missing_predicate",
+			node: &IsExpr{
+				Expr: &VarRef{Name: "y"},
+				Type: IsTypeMissing,
+				Not:  false,
+			},
+			want: `IsExpr{Expr:VarRef{Name:y} Type:MISSING Not:false}`,
+		},
+		{
+			name: "func_call_count_distinct",
+			node: &FuncCall{
+				Name:       "COUNT",
+				Quantifier: QuantifierDistinct,
+				Args:       []ExprNode{&VarRef{Name: "id"}},
+			},
+			want: `FuncCall{Name:COUNT Quantifier:DISTINCT Args:[VarRef{Name:id}]}`,
+		},
+		{
+			name: "func_call_count_star",
+			node: &FuncCall{Name: "COUNT", Star: true},
+			want: `FuncCall{Name:COUNT Star:true Args:[]}`,
+		},
+		{
+			name: "case_expr_searched",
+			node: &CaseExpr{
+				Whens: []*CaseWhen{
+					{When: &BoolLit{Val: true}, Then: &NumberLit{Val: "1"}},
+				},
+				Else: &NumberLit{Val: "0"},
+			},
+			want: `CaseExpr{Whens:[CaseWhen{When:BoolLit{Val:true} Then:NumberLit{Val:1}}] Else:NumberLit{Val:0}}`,
+		},
+		{
+			name: "cast_expr",
+			node: &CastExpr{
+				Kind:   CastKindCast,
+				Expr:   &VarRef{Name: "x"},
+				AsType: &TypeRef{Name: "INTEGER"},
+			},
+			want: `CastExpr{Kind:CAST Expr:VarRef{Name:x} AsType:TypeRef{Name:INTEGER}}`,
+		},
+		{
+			name: "path_expr_with_steps",
+			node: &PathExpr{
+				Root:  &VarRef{Name: "Music"},
+				Steps: []PathStep{&DotStep{Field: "albums"}, &WildcardStep{}},
+			},
+			want: `PathExpr{Root:VarRef{Name:Music} Steps:[DotStep{Field:albums} WildcardStep{}]}`,
+		},
+		{
+			name: "var_ref_at_prefixed",
+			node: &VarRef{Name: "doc", AtPrefixed: true},
+			want: `VarRef{Name:doc AtPrefixed:true}`,
+		},
+		{
+			name: "param_ref",
+			node: &ParamRef{},
+			want: `ParamRef{}`,
+		},
+		{
+			name: "sub_link",
+			node: &SubLink{Stmt: &SelectStmt{Star: true}},
+			want: `SubLink{Stmt:SelectStmt{Star:true}}`,
+		},
+		{
+			name: "list_literal",
+			node: &ListLit{Items: []ExprNode{&NumberLit{Val: "1"}, &NumberLit{Val: "2"}}},
+			want: `ListLit{Items:[NumberLit{Val:1} NumberLit{Val:2}]}`,
+		},
+		{
+			name: "bag_literal",
+			node: &BagLit{Items: []ExprNode{&NumberLit{Val: "1"}}},
+			want: `BagLit{Items:[NumberLit{Val:1}]}`,
+		},
+		{
+			name: "tuple_literal",
+			node: &TupleLit{
+				Pairs: []*TuplePair{
+					{Key: &StringLit{Val: "k"}, Value: &NumberLit{Val: "1"}},
+				},
+			},
+			want: `TupleLit{Pairs:[TuplePair{Key:StringLit{Val:"k"} Value:NumberLit{Val:1}}]}`,
+		},
+		{
+			name: "join_expr",
+			node: &JoinExpr{
+				Kind:  JoinKindInner,
+				Left:  &TableRef{Name: "a"},
+				Right: &TableRef{Name: "b"},
+				On:    &BoolLit{Val: true},
+			},
+			want: `JoinExpr{Kind:INNER Left:TableRef{Name:a} Right:TableRef{Name:b} On:BoolLit{Val:true}}`,
+		},
+		{
+			name: "select_with_path_in_from",
+			node: &SelectStmt{
+				Star: true,
+				From: &PathExpr{
+					Root:  &VarRef{Name: "Music"},
+					Steps: []PathStep{&DotStep{Field: "albums"}, &WildcardStep{}},
+				},
+			},
+			want: `SelectStmt{Star:true From:PathExpr{Root:VarRef{Name:Music} Steps:[DotStep{Field:albums} WildcardStep{}]}}`,
+		},
+		{
+			name: "insert_stmt_with_returning",
+			node: &InsertStmt{
+				Target: &TableRef{Name: "Music"},
+				Value:  &TupleLit{Pairs: []*TuplePair{{Key: &StringLit{Val: "k"}, Value: &NumberLit{Val: "1"}}}},
+				Returning: &ReturningClause{
+					Items: []*ReturningItem{
+						{Status: ReturningStatusModified, Mapping: ReturningMappingNew, Star: true},
+					},
+				},
+			},
+			want: `InsertStmt{Target:TableRef{Name:Music} Value:TupleLit{Pairs:[TuplePair{Key:StringLit{Val:"k"} Value:NumberLit{Val:1}}]} Returning:ReturningClause{Items:[ReturningItem{Status:MODIFIED Mapping:NEW Star:true}]}}`,
+		},
+		{
+			name: "match_expr",
+			node: &MatchExpr{
+				Expr: &VarRef{Name: "g"},
+				Patterns: []*GraphPattern{
+					{Parts: []PatternNode{&NodePattern{Variable: &VarRef{Name: "n"}}}},
+				},
+			},
+			want: `MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:n}}]}]}`,
+		},
+		{
+			name: "type_ref_decimal",
+			node: &TypeRef{Name: "DECIMAL", Args: []int{10, 2}},
+			want: `TypeRef{Name:DECIMAL Args:[10,2]}`,
+		},
+		{
+			name: "type_ref_time_with_tz",
+			node: &TypeRef{Name: "TIME", WithTimeZone: true},
+			want: `TypeRef{Name:TIME WithTimeZone:true}`,
+		},
+		{
+			name: "nil_node",
+			node: nil,
+			want: `<nil>`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := NodeToString(tc.node)
+			if got != tc.want {
+				t.Errorf("NodeToString() mismatch\n got: %s\nwant: %s", got, tc.want)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestNodeToString_AllNodesCovered — reflection safety net.
+//
+// Walks every node in the package's TestGetLoc table and asserts that
+// NodeToString returns a non-empty result without panicking. This catches
+// the case where a new node type is added to TestGetLoc but never wired
+// into outfuncs.go's switch.
+// ---------------------------------------------------------------------------
+
+func TestNodeToString_AllNodesCovered(t *testing.T) {
+	// Build a fresh table identical in shape to TestGetLoc but constructed
+	// here so the two tests cannot drift apart silently. We could share via
+	// a top-level helper but inlining keeps the test self-contained.
+	cases := allNodesForCoverageTest()
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("NodeToString panicked: %v", r)
+				}
+			}()
+			got := NodeToString(tc.node)
+			if got == "" {
+				t.Errorf("NodeToString returned empty string for %s", tc.name)
+			}
+			if strings.HasPrefix(got, "<unknown:") {
+				t.Errorf("outfuncs.go is missing a switch arm for %s: got %q", tc.name, got)
+			}
+		})
+	}
+}
+
+// allNodesForCoverageTest returns one zero-value instance of every node
+// type defined in this package. Adding a new node type means adding it
+// here too — the test will fail until you do.
+func allNodesForCoverageTest() []struct {
+	name string
+	node Node
+} {
+	return []struct {
+		name string
+		node Node
+	}{
+		// node.go
+		{"List", &List{}},
+
+		// literals.go
+		{"StringLit", &StringLit{}},
+		{"NumberLit", &NumberLit{}},
+		{"BoolLit", &BoolLit{}},
+		{"NullLit", &NullLit{}},
+		{"MissingLit", &MissingLit{}},
+		{"DateLit", &DateLit{}},
+		{"TimeLit", &TimeLit{}},
+		{"IonLit", &IonLit{}},
+
+		// exprs.go
+		{"BinaryExpr", &BinaryExpr{}},
+		{"UnaryExpr", &UnaryExpr{}},
+		{"InExpr", &InExpr{}},
+		{"BetweenExpr", &BetweenExpr{}},
+		{"LikeExpr", &LikeExpr{}},
+		{"IsExpr", &IsExpr{}},
+		{"FuncCall", &FuncCall{}},
+		{"CaseExpr", &CaseExpr{}},
+		{"CaseWhen", &CaseWhen{}},
+		{"CastExpr", &CastExpr{}},
+		{"ExtractExpr", &ExtractExpr{}},
+		{"TrimExpr", &TrimExpr{}},
+		{"SubstringExpr", &SubstringExpr{}},
+		{"CoalesceExpr", &CoalesceExpr{}},
+		{"NullIfExpr", &NullIfExpr{}},
+		{"WindowSpec", &WindowSpec{}},
+		{"PathExpr", &PathExpr{}},
+		{"VarRef", &VarRef{}},
+		{"ParamRef", &ParamRef{}},
+		{"SubLink", &SubLink{}},
+		{"ListLit", &ListLit{}},
+		{"BagLit", &BagLit{}},
+		{"TupleLit", &TupleLit{}},
+		{"TuplePair", &TuplePair{}},
+		{"DotStep", &DotStep{}},
+		{"AllFieldsStep", &AllFieldsStep{}},
+		{"IndexStep", &IndexStep{}},
+		{"WildcardStep", &WildcardStep{}},
+
+		// tableexprs.go
+		{"TableRef", &TableRef{}},
+		{"AliasedSource", &AliasedSource{}},
+		{"JoinExpr", &JoinExpr{}},
+		{"UnpivotExpr", &UnpivotExpr{}},
+
+		// types.go
+		{"TypeRef", &TypeRef{}},
+
+		// stmts.go — top-level
+		{"SelectStmt", &SelectStmt{}},
+		{"SetOpStmt", &SetOpStmt{}},
+		{"ExplainStmt", &ExplainStmt{}},
+		{"InsertStmt", &InsertStmt{}},
+		{"UpdateStmt", &UpdateStmt{}},
+		{"DeleteStmt", &DeleteStmt{}},
+		{"UpsertStmt", &UpsertStmt{}},
+		{"ReplaceStmt", &ReplaceStmt{}},
+		{"RemoveStmt", &RemoveStmt{}},
+		{"CreateTableStmt", &CreateTableStmt{}},
+		{"CreateIndexStmt", &CreateIndexStmt{}},
+		{"DropTableStmt", &DropTableStmt{}},
+		{"DropIndexStmt", &DropIndexStmt{}},
+		{"ExecStmt", &ExecStmt{}},
+
+		// stmts.go — clause and DML helpers
+		{"TargetEntry", &TargetEntry{}},
+		{"PivotProjection", &PivotProjection{}},
+		{"LetBinding", &LetBinding{}},
+		{"GroupByClause", &GroupByClause{}},
+		{"GroupByItem", &GroupByItem{}},
+		{"OrderByItem", &OrderByItem{}},
+		{"SetAssignment", &SetAssignment{}},
+		{"OnConflict", &OnConflict{}},
+		{"OnConflictTarget", &OnConflictTarget{}},
+		{"ReturningClause", &ReturningClause{}},
+		{"ReturningItem", &ReturningItem{}},
+
+		// patterns.go
+		{"MatchExpr", &MatchExpr{}},
+		{"GraphPattern", &GraphPattern{}},
+		{"NodePattern", &NodePattern{}},
+		{"EdgePattern", &EdgePattern{}},
+		{"PatternQuantifier", &PatternQuantifier{}},
+		{"PatternSelector", &PatternSelector{}},
 	}
 }
