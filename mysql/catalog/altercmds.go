@@ -91,11 +91,26 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 
 // alterAddColumn adds a new column to the table.
 func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	// Handle multi-column parenthesized form: ADD (col1 INT, col2 INT, ...)
+	if len(cmd.Columns) > 0 {
+		for _, colDef := range cmd.Columns {
+			if err := c.addSingleColumn(tbl, colDef, false, ""); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	colDef := cmd.Column
 	if colDef == nil {
 		return nil
 	}
 
+	return c.addSingleColumn(tbl, colDef, cmd.First, cmd.After)
+}
+
+// addSingleColumn adds one column definition to the table.
+func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string) error {
 	colKey := toLower(colDef.Name)
 	if _, exists := tbl.colByName[colKey]; exists {
 		return errDupColumn(colDef.Name)
@@ -104,13 +119,13 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	col := buildColumnFromDef(tbl, colDef)
 
 	// Determine position.
-	if cmd.First {
+	if first {
 		// Insert at position 0.
 		tbl.Columns = append([]*Column{col}, tbl.Columns...)
-	} else if cmd.After != "" {
-		afterIdx, ok := tbl.colByName[toLower(cmd.After)]
+	} else if after != "" {
+		afterIdx, ok := tbl.colByName[toLower(after)]
 		if !ok {
-			return errNoSuchColumn(cmd.After, tbl.Name)
+			return errNoSuchColumn(after, tbl.Name)
 		}
 		// Insert after afterIdx.
 		pos := afterIdx + 1

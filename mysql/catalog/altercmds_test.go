@@ -48,6 +48,32 @@ func TestAlterTableAddColumn(t *testing.T) {
 	}
 }
 
+func TestAlterTableAddColumnMulti(t *testing.T) {
+	c := setupTestTable(t)
+	mustExec(t, c, "ALTER TABLE t1 ADD COLUMN (email VARCHAR(255) NOT NULL, score INT)")
+
+	tbl := c.GetDatabase("test").GetTable("t1")
+	if len(tbl.Columns) != 5 {
+		t.Fatalf("expected 5 columns, got %d", len(tbl.Columns))
+	}
+
+	col := tbl.GetColumn("email")
+	if col == nil {
+		t.Fatal("column email not found")
+	}
+	if col.Nullable {
+		t.Error("email should not be nullable")
+	}
+	if col.ColumnType != "varchar(255)" {
+		t.Errorf("expected column type 'varchar(255)', got %q", col.ColumnType)
+	}
+
+	col2 := tbl.GetColumn("score")
+	if col2 == nil {
+		t.Fatal("column score not found")
+	}
+}
+
 func TestAlterTableDropColumn(t *testing.T) {
 	c := setupTestTable(t)
 	mustExec(t, c, "ALTER TABLE t1 DROP COLUMN age")
