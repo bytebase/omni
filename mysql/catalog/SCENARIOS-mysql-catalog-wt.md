@@ -91,46 +91,46 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 
 ### 3.1 RANGE Partitioning
 
-- [ ] CREATE TABLE PARTITION BY RANGE (expr) with 3 partitions + MAXVALUE — SHOW CREATE matches MySQL
-- [ ] CREATE TABLE PARTITION BY RANGE COLUMNS (col) — single column, SHOW CREATE matches
-- [ ] CREATE TABLE PARTITION BY RANGE COLUMNS (col1, col2) — multi-column range
-- [ ] ALTER TABLE ADD PARTITION to RANGE table — new partition appended
-- [ ] ALTER TABLE DROP PARTITION from RANGE table — partition removed, others unchanged
-- [ ] ALTER TABLE REORGANIZE PARTITION p3 INTO (p3a, p3b) — split one range into two
-- [ ] ALTER TABLE REORGANIZE PARTITION p1, p2 INTO (p_merged) — merge two ranges into one
-- [ ] RANGE partition with date expression (YEAR(col)) — expression rendering
+- [x] CREATE TABLE PARTITION BY RANGE (expr) with 3 partitions + MAXVALUE — SHOW CREATE matches MySQL
+- [x] CREATE TABLE PARTITION BY RANGE COLUMNS (col) — single column, SHOW CREATE matches
+- [x] CREATE TABLE PARTITION BY RANGE COLUMNS (col1, col2) — multi-column range
+- [x] ALTER TABLE ADD PARTITION to RANGE table — new partition appended
+- [x] ALTER TABLE DROP PARTITION from RANGE table — partition removed, others unchanged
+- [x] ALTER TABLE REORGANIZE PARTITION p3 INTO (p3a, p3b) — split one range into two
+- [x] ALTER TABLE REORGANIZE PARTITION p1, p2 INTO (p_merged) — merge two ranges into one
+- [x] RANGE partition with date expression (YEAR(col)) — expression rendering
 
 ### 3.2 LIST Partitioning
 
-- [ ] CREATE TABLE PARTITION BY LIST (expr) with VALUES IN — SHOW CREATE matches MySQL
-- [ ] CREATE TABLE PARTITION BY LIST COLUMNS (col) — single column list
-- [ ] CREATE TABLE PARTITION BY LIST COLUMNS (col1, col2) — multi-column list
-- [ ] ALTER TABLE ADD PARTITION with new VALUES IN — partition added
-- [ ] ALTER TABLE DROP PARTITION from LIST table — partition removed
-- [ ] ALTER TABLE REORGANIZE PARTITION in LIST table — values redistributed
+- [x] CREATE TABLE PARTITION BY LIST (expr) with VALUES IN — SHOW CREATE matches MySQL
+- [x] CREATE TABLE PARTITION BY LIST COLUMNS (col) — single column list
+- [~] CREATE TABLE PARTITION BY LIST COLUMNS (col1, col2) — multi-column list (parser lacks tuple syntax)
+- [x] ALTER TABLE ADD PARTITION with new VALUES IN — partition added
+- [x] ALTER TABLE DROP PARTITION from LIST table — partition removed
+- [x] ALTER TABLE REORGANIZE PARTITION in LIST table — values redistributed
 
 ### 3.3 HASH and KEY Partitioning
 
-- [ ] CREATE TABLE PARTITION BY HASH (expr) PARTITIONS 4 — implicit partition defs
-- [ ] CREATE TABLE PARTITION BY LINEAR HASH (expr) PARTITIONS 4 — LINEAR keyword rendered
-- [ ] CREATE TABLE PARTITION BY KEY (col) PARTITIONS 4 — KEY partition
-- [ ] CREATE TABLE PARTITION BY KEY () PARTITIONS 4 — KEY with empty column list (uses PK)
-- [ ] CREATE TABLE PARTITION BY KEY (col) ALGORITHM=2 PARTITIONS 4 — ALGORITHM rendered
-- [ ] ALTER TABLE COALESCE PARTITION 2 on HASH table with 4 partitions — reduces to 2
-- [ ] ALTER TABLE COALESCE PARTITION on KEY table — same behavior as HASH
-- [ ] ALTER TABLE ADD PARTITION on HASH table — error in MySQL (HASH does not support ADD PARTITION)
-- [ ] ALTER TABLE REMOVE PARTITIONING on partitioned table — table becomes unpartitioned
+- [x] CREATE TABLE PARTITION BY HASH (expr) PARTITIONS 4 — implicit partition defs
+- [x] CREATE TABLE PARTITION BY LINEAR HASH (expr) PARTITIONS 4 — LINEAR keyword rendered
+- [x] CREATE TABLE PARTITION BY KEY (col) PARTITIONS 4 — KEY partition
+- [~] CREATE TABLE PARTITION BY KEY () PARTITIONS 4 — KEY with empty column list (parser gap)
+- [x] CREATE TABLE PARTITION BY KEY (col) ALGORITHM=2 PARTITIONS 4 — ALGORITHM rendered
+- [x] ALTER TABLE COALESCE PARTITION 2 on HASH table with 4 partitions — reduces to 2
+- [x] ALTER TABLE COALESCE PARTITION on KEY table — same behavior as HASH
+- [x] ALTER TABLE ADD PARTITION on HASH table — error in MySQL (HASH does not support ADD PARTITION)
+- [x] ALTER TABLE REMOVE PARTITIONING on partitioned table — table becomes unpartitioned
 
 ### 3.4 Subpartitions and Partition Options
 
-- [ ] CREATE TABLE RANGE partitions with SUBPARTITION BY HASH — subpartition rendering
-- [ ] CREATE TABLE RANGE partitions with SUBPARTITION BY KEY — KEY subpartitions
-- [ ] Explicit subpartition definitions with names — SUBPARTITION sp1, sp2
-- [ ] Partition with ENGINE option — ENGINE=InnoDB per partition
-- [ ] Partition with COMMENT option — COMMENT='desc' per partition
-- [ ] SUBPARTITIONS N count without explicit defs — count rendering
-- [ ] ALTER TABLE TRUNCATE PARTITION p1 — no structural change, SHOW CREATE unchanged
-- [ ] ALTER TABLE EXCHANGE PARTITION p1 WITH TABLE t2 — validation only, structure unchanged
+- [x] CREATE TABLE RANGE partitions with SUBPARTITION BY HASH — subpartition rendering
+- [x] CREATE TABLE RANGE partitions with SUBPARTITION BY KEY — KEY subpartitions
+- [x] Explicit subpartition definitions with names — SUBPARTITION sp1, sp2
+- [x] Partition with ENGINE option — ENGINE=InnoDB per partition
+- [x] Partition with COMMENT option — COMMENT='desc' per partition
+- [x] SUBPARTITIONS N count without explicit defs — count rendering
+- [x] ALTER TABLE TRUNCATE PARTITION p1 — no structural change, SHOW CREATE unchanged
+- [x] ALTER TABLE EXCHANGE PARTITION p1 WITH TABLE t2 — validation only, structure unchanged
 
 ---
 
