@@ -1562,17 +1562,35 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 			}
 			if p.cur.Type == '(' {
 				p.advance()
-				if p.cur.Type == kwMAXVALUE {
-					pd.Values = &nodes.String{Str: "MAXVALUE"}
-					p.advance()
-				} else {
-					expr, err := p.parseExpr()
-					if err != nil {
-						return nil, err
+				// Parse comma-separated list of values (may include MAXVALUE tokens and expressions).
+				var items []nodes.Node
+				allMax := true
+				for {
+					if p.cur.Type == kwMAXVALUE {
+						items = append(items, &nodes.String{Str: "MAXVALUE"})
+						p.advance()
+					} else {
+						allMax = false
+						expr, err := p.parseExpr()
+						if err != nil {
+							return nil, err
+						}
+						items = append(items, expr)
 					}
-					pd.Values = expr
+					if p.cur.Type != ',' {
+						break
+					}
+					p.advance()
 				}
 				p.match(')')
+				if allMax && len(items) > 0 {
+					// All MAXVALUE — store as single string marker
+					pd.Values = &nodes.String{Str: "MAXVALUE"}
+				} else if len(items) == 1 {
+					pd.Values = items[0]
+				} else {
+					pd.Values = &nodes.List{Items: items}
+				}
 			} else if p.cur.Type == kwMAXVALUE {
 				pd.Values = &nodes.String{Str: "MAXVALUE"}
 				p.advance()
