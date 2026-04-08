@@ -249,14 +249,14 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 
 ### 8.1 Prefix and Expression Index Rendering
 
-- [ ] KEY idx (col(10)) — prefix length rendered in SHOW CREATE
-- [ ] KEY idx (col1(10), col2(20)) — multi-column prefix index
-- [ ] KEY idx (col(10), col2) — mixed prefix and full column
-- [ ] KEY idx ((UPPER(col))) — expression index with function
-- [ ] KEY idx ((col1 + col2)) — expression index with arithmetic
-- [ ] UNIQUE KEY idx ((UPPER(col))) — unique expression index
-- [ ] KEY idx (col1, (UPPER(col2))) — mixed regular and expression columns
-- [ ] KEY idx (col DESC) — descending index column
+- [x] KEY idx (col(10)) — prefix length rendered in SHOW CREATE
+- [x] KEY idx (col1(10), col2(20)) — multi-column prefix index
+- [x] KEY idx (col(10), col2) — mixed prefix and full column
+- [x] KEY idx ((UPPER(col))) — expression index with function
+- [x] KEY idx ((col1 + col2)) — expression index with arithmetic
+- [x] UNIQUE KEY idx ((UPPER(col))) — unique expression index
+- [x] KEY idx (col1, (UPPER(col2))) — mixed regular and expression columns
+- [x] KEY idx (col DESC) — descending index column
 
 ### 8.2 Index Rendering in SHOW CREATE TABLE
 
