@@ -70,6 +70,22 @@ var _ TableExpr = (*UnpivotExpr)(nil)
 // Type names (types.go).
 var _ TypeName = (*TypeRef)(nil)
 
+// Top-level statements (stmts.go).
+var _ StmtNode = (*SelectStmt)(nil)
+var _ StmtNode = (*SetOpStmt)(nil)
+var _ StmtNode = (*ExplainStmt)(nil)
+var _ StmtNode = (*InsertStmt)(nil)
+var _ StmtNode = (*UpdateStmt)(nil)
+var _ StmtNode = (*DeleteStmt)(nil)
+var _ StmtNode = (*UpsertStmt)(nil)
+var _ StmtNode = (*ReplaceStmt)(nil)
+var _ StmtNode = (*RemoveStmt)(nil)
+var _ StmtNode = (*CreateTableStmt)(nil)
+var _ StmtNode = (*CreateIndexStmt)(nil)
+var _ StmtNode = (*DropTableStmt)(nil)
+var _ StmtNode = (*DropIndexStmt)(nil)
+var _ StmtNode = (*ExecStmt)(nil)
+
 // ---------------------------------------------------------------------------
 // TestGetLoc — table-driven Loc round-trip.
 //
@@ -124,6 +140,20 @@ func TestGetLoc(t *testing.T) {
 		{"JoinExpr", &JoinExpr{Loc: Loc{Start: 10, End: 20}}},
 		{"UnpivotExpr", &UnpivotExpr{Loc: Loc{Start: 10, End: 20}}},
 		{"TypeRef", &TypeRef{Loc: Loc{Start: 10, End: 20}}},
+		{"SelectStmt", &SelectStmt{Loc: Loc{Start: 10, End: 20}}},
+		{"SetOpStmt", &SetOpStmt{Loc: Loc{Start: 10, End: 20}}},
+		{"ExplainStmt", &ExplainStmt{Loc: Loc{Start: 10, End: 20}}},
+		{"InsertStmt", &InsertStmt{Loc: Loc{Start: 10, End: 20}}},
+		{"UpdateStmt", &UpdateStmt{Loc: Loc{Start: 10, End: 20}}},
+		{"DeleteStmt", &DeleteStmt{Loc: Loc{Start: 10, End: 20}}},
+		{"UpsertStmt", &UpsertStmt{Loc: Loc{Start: 10, End: 20}}},
+		{"ReplaceStmt", &ReplaceStmt{Loc: Loc{Start: 10, End: 20}}},
+		{"RemoveStmt", &RemoveStmt{Loc: Loc{Start: 10, End: 20}}},
+		{"CreateTableStmt", &CreateTableStmt{Loc: Loc{Start: 10, End: 20}}},
+		{"CreateIndexStmt", &CreateIndexStmt{Loc: Loc{Start: 10, End: 20}}},
+		{"DropTableStmt", &DropTableStmt{Loc: Loc{Start: 10, End: 20}}},
+		{"DropIndexStmt", &DropIndexStmt{Loc: Loc{Start: 10, End: 20}}},
+		{"ExecStmt", &ExecStmt{Loc: Loc{Start: 10, End: 20}}},
 	}
 
 	for _, tc := range cases {
