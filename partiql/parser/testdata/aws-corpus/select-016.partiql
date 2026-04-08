@@ -1,0 +1,1 @@
+SELECT Devices  FROM WatchList  WHERE Devices.FireStick.DateWatched[0] >= '12/24/19'

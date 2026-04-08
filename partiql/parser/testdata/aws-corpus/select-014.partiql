@@ -1,0 +1,1 @@
+SELECT OrderID, Total  FROM "Orders"  WHERE Total BETWEEN 500 AND 600

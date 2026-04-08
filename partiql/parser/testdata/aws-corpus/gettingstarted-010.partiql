@@ -1,0 +1,3 @@
+UPDATE Music
+SET BandMembers =set_add(BandMembers, <<'newmember'>>)
+WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'

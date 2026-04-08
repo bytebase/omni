@@ -1,0 +1,1 @@
+SELECT `expression`  [, ...]  FROM `table`[.`index`] [ WHERE `condition` ] [ [ORDER BY `key` [DESC|ASC] , ...]

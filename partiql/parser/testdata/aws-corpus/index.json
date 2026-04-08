@@ -1,0 +1,405 @@
+{
+  "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.html",
+  "fetched_at": "2026-04-07T10:02:43Z",
+  "examples": [
+    {
+      "id": "gettingstarted-001",
+      "label": "Console Query Example - SELECT with WHERE AND",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-gettingstarted.html",
+      "sql": "SELECT *\nFROM Music\nWHERE Artist='Acme Band' AND SongTitle='Happy Day'"
+    },
+    {
+      "id": "gettingstarted-002",
+      "label": "NoSQL Workbench parameterized SELECT",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-gettingstarted.html",
+      "sql": "SELECT *\nFROM Music\nWHERE Artist=? and SongTitle=?"
+    },
+    {
+      "id": "gettingstarted-003",
+      "label": "INSERT statement with tuple value",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-gettingstarted.html",
+      "sql": "INSERT INTO Music\nVALUE\n{'Artist':'Acme Band','SongTitle':'PartiQL Rocks'}"
+    },
+    {
+      "id": "gettingstarted-004",
+      "label": "Basic SELECT statement",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-gettingstarted.html",
+      "sql": "SELECT * FROM Music\nWHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "gettingstarted-005",
+      "label": "UPDATE with two SET clauses",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-gettingstarted.html",
+      "sql": "UPDATE Music\nSET AwardsWon=1\nSET AwardDetail={'Grammys':[2020, 2018]}\nWHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "gettingstarted-006",
+      "label": "UPDATE with list_append function",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-gettingstarted.html",
+      "sql": "UPDATE Music\nSET AwardDetail.Grammys =list_append(AwardDetail.Grammys,[2016])\nWHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "gettingstarted-007",
+      "label": "UPDATE with REMOVE list element",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-gettingstarted.html",
+      "sql": "UPDATE Music\nREMOVE AwardDetail.Grammys[2]\nWHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "gettingstarted-008",
+      "label": "UPDATE adding new map member",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-gettingstarted.html",
+      "sql": "UPDATE Music\nSET AwardDetail.BillBoard=[2020]\nWHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "gettingstarted-009",
+      "label": "UPDATE with bag/string set literal",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-gettingstarted.html",
+      "sql": "UPDATE Music\nSET BandMembers =<<'member1', 'member2'>>\nWHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "gettingstarted-010",
+      "label": "UPDATE with set_add function",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-gettingstarted.html",
+      "sql": "UPDATE Music\nSET BandMembers =set_add(BandMembers, <<'newmember'>>)\nWHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "gettingstarted-011",
+      "label": "DELETE statement",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-gettingstarted.html",
+      "sql": "DELETE\nFROM Music\nWHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "gettingstarted-012",
+      "label": "Parameterized SELECT with quoted table name",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-gettingstarted.html",
+      "sql": "SELECT * FROM \"Music\" WHERE Artist=? AND SongTitle=?"
+    },
+    {
+      "id": "gettingstarted-013",
+      "label": "Parameterized SELECT (unquoted table name)",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-gettingstarted.html",
+      "sql": "SELECT * FROM Music WHERE Artist=? AND SongTitle=?"
+    },
+    {
+      "id": "datatypes-001",
+      "label": "INSERT exercising all data types (map, list, number set, string set)",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.data-types.html",
+      "sql": "INSERT INTO TypesTable value {'primarykey':'1',  'NumberType':1, 'MapType' : {'entryname1': 'value', 'entryname2': 4},  'ListType': [1,'stringval'],  'NumberSetType':<<1,34,32,4.5>>,  'StringSetType':<<'stringval','stringval2'>> }"
+    },
+    {
+      "id": "datatypes-002",
+      "label": "UPDATE adding elements across all data types",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.data-types.html",
+      "sql": "UPDATE TypesTable  SET NumberType=NumberType + 100  SET MapType.NewMapEntry=[2020, 'stringvalue', 2.4] SET ListType = LIST_APPEND(ListType, [4, <<'string1', 'string2'>>]) SET NumberSetType= SET_ADD(NumberSetType, <<345, 48.4>>) SET StringSetType = SET_ADD(StringSetType, <<'stringsetvalue1', 'stringsetvalue2'>>) WHERE primarykey='1'"
+    },
+    {
+      "id": "datatypes-003",
+      "label": "UPDATE removing elements across all data types",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.data-types.html",
+      "sql": "UPDATE TypesTable  SET NumberType=NumberType - 1 REMOVE ListType[1] REMOVE MapType.NewMapEntry SET NumberSetType = SET_DELETE( NumberSetType, <<345>>) SET StringSetType = SET_DELETE( StringSetType, <<'stringsetvalue1'>>) WHERE primarykey='1'"
+    },
+    {
+      "id": "select-001",
+      "label": "SELECT syntax skeleton",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT `expression`  [, ...]  FROM `table`[.`index`] [ WHERE `condition` ] [ [ORDER BY `key` [DESC|ASC] , ...]"
+    },
+    {
+      "id": "select-002",
+      "label": "SELECT * with partition key equality",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT *  FROM \"Orders\"  WHERE OrderID = 100"
+    },
+    {
+      "id": "select-003",
+      "label": "SELECT * partition key + non-key AND",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT *  FROM \"Orders\"  WHERE OrderID = 100 and Address='some address'"
+    },
+    {
+      "id": "select-004",
+      "label": "SELECT * partition key OR partition key",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT *  FROM \"Orders\"  WHERE OrderID = 100 or OrderID = 200"
+    },
+    {
+      "id": "select-005",
+      "label": "SELECT * with IN list",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT *  FROM \"Orders\"  WHERE OrderID IN [100, 300, 234]"
+    },
+    {
+      "id": "select-006",
+      "label": "SELECT * with greater-than condition",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT *  FROM \"Orders\"  WHERE OrderID > 1"
+    },
+    {
+      "id": "select-007",
+      "label": "SELECT * with non-key WHERE",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT *  FROM \"Orders\"  WHERE Address='some address'"
+    },
+    {
+      "id": "select-008",
+      "label": "SELECT * with OR across key and non-key",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT *  FROM \"Orders\"  WHERE OrderID = 100 OR Address='some address'"
+    },
+    {
+      "id": "select-009",
+      "label": "SELECT projected columns with key equality",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT OrderID, Total FROM \"Orders\" WHERE OrderID = 1"
+    },
+    {
+      "id": "select-010",
+      "label": "SELECT projected columns with OR",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT OrderID, Total FROM \"Orders\" WHERE OrderID = 1 OR OrderID = 2"
+    },
+    {
+      "id": "select-011",
+      "label": "SELECT projected columns with IN and ORDER BY DESC",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT OrderID, Total FROM \"Orders\" WHERE OrderID IN [1, 2, 3] ORDER BY OrderID DESC"
+    },
+    {
+      "id": "select-012",
+      "label": "SELECT projected columns with greater-than non-key",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT OrderID, Total  FROM \"Orders\" WHERE Total > 500"
+    },
+    {
+      "id": "select-013",
+      "label": "SELECT projected columns with IN literal list",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT OrderID, Total  FROM \"Orders\" WHERE Total IN [500, 600]"
+    },
+    {
+      "id": "select-014",
+      "label": "SELECT projected columns with BETWEEN",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT OrderID, Total  FROM \"Orders\"  WHERE Total BETWEEN 500 AND 600"
+    },
+    {
+      "id": "select-015",
+      "label": "SELECT using nested document path",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT Devices.FireStick.DateWatched[0]  FROM WatchList  WHERE CustomerID= 'C1' AND MovieID= 'M1'"
+    },
+    {
+      "id": "select-016",
+      "label": "SELECT with WHERE on nested document path",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT Devices  FROM WatchList  WHERE Devices.FireStick.DateWatched[0] >= '12/24/19'"
+    },
+    {
+      "id": "select-017",
+      "label": "SELECT querying a secondary index",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+      "sql": "SELECT *  FROM \"TableName\".\"IndexName\""
+    },
+    {
+      "id": "insert-001",
+      "label": "INSERT with quoted table name",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.insert.html",
+      "sql": "INSERT INTO \"Music\" value {'Artist' : 'Acme Band','SongTitle' : 'PartiQL Rocks'}"
+    },
+    {
+      "id": "insert-002",
+      "label": "INSERT syntax skeleton",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.insert.html",
+      "sql": "INSERT INTO `table` VALUE `item`"
+    },
+    {
+      "id": "update-001",
+      "label": "UPDATE with two SET clauses (quoted table)",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.update.html",
+      "sql": "UPDATE \"Music\"  SET AwardsWon=1  SET AwardDetail={'Grammys':[2020, 2018]}   WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "update-002",
+      "label": "UPDATE with RETURNING ALL OLD *",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.update.html",
+      "sql": "UPDATE \"Music\"  SET AwardsWon=1  SET AwardDetail={'Grammys':[2020, 2018]}   WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks' RETURNING ALL OLD *"
+    },
+    {
+      "id": "update-003",
+      "label": "UPDATE with RETURNING ALL NEW *",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.update.html",
+      "sql": "UPDATE \"Music\"  SET AwardsWon=1  SET AwardDetail={'Grammys':[2020, 2018]}   WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks' RETURNING ALL NEW *"
+    },
+    {
+      "id": "update-004",
+      "label": "UPDATE with list_append function (quoted table)",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.update.html",
+      "sql": "UPDATE \"Music\"  SET AwardDetail.Grammys =list_append(AwardDetail.Grammys,[2016])   WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "update-005",
+      "label": "UPDATE REMOVE list element (quoted table)",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.update.html",
+      "sql": "UPDATE \"Music\"  REMOVE AwardDetail.Grammys[2]    WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "update-006",
+      "label": "UPDATE adding map member (quoted table)",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.update.html",
+      "sql": "UPDATE \"Music\"  SET AwardDetail.BillBoard=[2020]  WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "update-007",
+      "label": "UPDATE with bag/string set literal (quoted table)",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.update.html",
+      "sql": "UPDATE \"Music\"  SET BandMembers =<<'member1', 'member2'>>  WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "update-008",
+      "label": "UPDATE with set_add function (quoted table)",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.update.html",
+      "sql": "UPDATE \"Music\"  SET BandMembers =set_add(BandMembers, <<'newbandmember'>>)  WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "delete-001",
+      "label": "Basic DELETE with quoted identifiers",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.delete.html",
+      "sql": "DELETE FROM \"Music\" WHERE \"Artist\" = 'Acme Band' AND \"SongTitle\" = 'PartiQL Rocks'"
+    },
+    {
+      "id": "delete-002",
+      "label": "DELETE with RETURNING ALL OLD *",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.delete.html",
+      "sql": "DELETE FROM \"Music\" WHERE \"Artist\" = 'Acme Band' AND \"SongTitle\" = 'PartiQL Rocks' RETURNING ALL OLD *"
+    },
+    {
+      "id": "function-size-001",
+      "label": "SELECT using SIZE function",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.size.html",
+      "sql": "SELECT * FROM \"Orders\" WHERE \"OrderID\"=1 AND size(\"Image\") >300"
+    },
+    {
+      "id": "function-exists-001",
+      "label": "EXISTS function wrapping a SELECT",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.exists.html",
+      "sql": "EXISTS(     SELECT * FROM \"Music\"      WHERE \"Artist\" = 'Acme Band' AND \"SongTitle\" = 'PartiQL Rocks')"
+    },
+    {
+      "id": "function-attribute-type-001",
+      "label": "SELECT using attribute_type function",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.attribute_type.html",
+      "sql": "SELECT * FROM \"Music\" WHERE attribute_type(\"Artist\", 'S')"
+    },
+    {
+      "id": "function-begins-with-001",
+      "label": "SELECT using begins_with function",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.beginswith.html",
+      "sql": "SELECT * FROM \"Orders\" WHERE \"OrderID\"=1 AND begins_with(\"Address\", '7834 24th')"
+    },
+    {
+      "id": "function-contains-001",
+      "label": "SELECT using contains function",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.contains.html",
+      "sql": "SELECT * FROM \"Orders\" WHERE \"OrderID\"=1 AND contains(\"Address\", 'Kirkland')"
+    },
+    {
+      "id": "function-missing-001",
+      "label": "SELECT using IS MISSING",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.missing.html",
+      "sql": "SELECT * FROM Music WHERE \"Awards\" is MISSING"
+    },
+    {
+      "id": "transactions-001",
+      "label": "EXISTS condition check with IS MISSING",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.multiplestatements.transactions.html",
+      "sql": "EXISTS(SELECT * FROM \"Music\" where Artist='No One You Know' and SongTitle='Call Me Today' and Awards is  MISSING)"
+    },
+    {
+      "id": "transactions-002",
+      "label": "Parameterized INSERT (single param)",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.multiplestatements.transactions.html",
+      "sql": "INSERT INTO Music value {'Artist':?,'SongTitle':'?'}"
+    },
+    {
+      "id": "transactions-003",
+      "label": "UPDATE inside transaction (quoted table)",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.multiplestatements.transactions.html",
+      "sql": "UPDATE \"Music\" SET AwardsWon=1 SET AwardDetail={'Grammys':[2020, 2018]}  where Artist='Acme Band' and SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "transactions-004",
+      "label": "SELECT (item exists, all attributes)",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.multiplestatements.transactions.html",
+      "sql": "SELECT * FROM \"Music\" WHERE Artist='No One You Know' and SongTitle='Call Me Today'"
+    },
+    {
+      "id": "transactions-005",
+      "label": "SELECT non-existent projected attribute",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.multiplestatements.transactions.html",
+      "sql": "SELECT non_existent_projected_attribute FROM \"Music\" WHERE Artist='No One You Know' and SongTitle='Call Me Today'"
+    },
+    {
+      "id": "transactions-006",
+      "label": "SELECT non-existent item",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.multiplestatements.transactions.html",
+      "sql": "SELECT * FROM \"Music\" WHERE Artist='No One I Know' and SongTitle='Call You Today'"
+    },
+    {
+      "id": "batching-001",
+      "label": "Batch SELECT first item",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.multiplestatements.batching.html",
+      "sql": "SELECT pk FROM ProblemSet WHERE pk = 'p#9StkWHYTxm7x2AqSXcrfu7' AND sk = 'info'"
+    },
+    {
+      "id": "batching-002",
+      "label": "Batch SELECT second item",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.multiplestatements.batching.html",
+      "sql": "SELECT pk FROM ProblemSet WHERE pk = 'p#isC2ChceGbxHgESc4szoTE' AND sk = 'info'"
+    },
+    {
+      "id": "batching-003",
+      "label": "Batch parameterized INSERT",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.multiplestatements.batching.html",
+      "sql": "INSERT INTO Music VALUE {'Artist':?,'SongTitle':?}"
+    },
+    {
+      "id": "batching-004",
+      "label": "Batch UPDATE with comma-separated SET",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.multiplestatements.batching.html",
+      "sql": "UPDATE Music SET AwardsWon=1, AwardDetail={'Grammys':[2020, 2018]} WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'"
+    },
+    {
+      "id": "batching-005",
+      "label": "Batch INSERT (Java SDK example) with literal tuple",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.multiplestatements.batching.html",
+      "sql": "INSERT INTO Music value {'Artist':'Acme Band','SongTitle':'PartiQL Rocks'}"
+    },
+    {
+      "id": "batching-006",
+      "label": "Batch UPDATE (Java SDK example) lowercase keywords",
+      "source_url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.multiplestatements.batching.html",
+      "sql": "UPDATE Music set AwardDetail.BillBoard=[2020] where Artist='Acme Band' and SongTitle='PartiQL Rocks'"
+    }
+  ],
+  "pages_crawled": [
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-gettingstarted.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.data-types.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.statements.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.select.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.insert.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.update.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.delete.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.size.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.exists.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.attribute_type.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.beginswith.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.contains.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.missing.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-operators.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.multiplestatements.transactions.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.multiplestatements.batching.html",
+    "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-iam.html"
+  ]
+}

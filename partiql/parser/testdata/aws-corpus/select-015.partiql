@@ -1,0 +1,1 @@
+SELECT Devices.FireStick.DateWatched[0]  FROM WatchList  WHERE CustomerID= 'C1' AND MovieID= 'M1'

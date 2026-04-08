@@ -1,0 +1,1 @@
+SELECT pk FROM ProblemSet WHERE pk = 'p#9StkWHYTxm7x2AqSXcrfu7' AND sk = 'info'

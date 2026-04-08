@@ -1,0 +1,1 @@
+SELECT OrderID, Total FROM "Orders" WHERE OrderID IN [1, 2, 3] ORDER BY OrderID DESC
