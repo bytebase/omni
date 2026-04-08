@@ -211,13 +211,13 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 
 ### 6.2 LIKE Edge Cases
 
-- [ ] LIKE copies generated columns — expression and VIRTUAL/STORED preserved
-- [ ] LIKE copies INVISIBLE columns — invisibility preserved
-- [ ] LIKE does NOT copy partitioning — target table is unpartitioned (MySQL behavior)
-- [ ] LIKE from table with prefix index — prefix length preserved
-- [ ] LIKE into TEMPORARY TABLE — target is temporary
-- [ ] LIKE cross-database — source in different database
-- [ ] LIKE then ALTER TABLE ADD COLUMN — verify table is independently modifiable
+- [x] LIKE copies generated columns — expression and VIRTUAL/STORED preserved
+- [x] LIKE copies INVISIBLE columns — invisibility preserved
+- [x] LIKE does NOT copy partitioning — target table is unpartitioned (MySQL behavior)
+- [x] LIKE from table with prefix index — prefix length preserved
+- [x] LIKE into TEMPORARY TABLE — target is temporary
+- [x] LIKE cross-database — source in different database
+- [x] LIKE then ALTER TABLE ADD COLUMN — verify table is independently modifiable
 
 ---
 
