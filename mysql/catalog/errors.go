@@ -35,11 +35,12 @@ const (
 	ErrNoSuchProcedure         = 1305
 	ErrDupFunction             = 1304
 	ErrDupProcedure            = 1304
-	ErrNoSuchTrigger                    = 1360
-	ErrDupTrigger                       = 1359
-	ErrNoSuchEvent                      = 1539
-	ErrDupEvent                         = 1537
+	ErrNoSuchTrigger                     = 1360
+	ErrDupTrigger                        = 1359
+	ErrNoSuchEvent                       = 1539
+	ErrDupEvent                          = 1537
 	ErrUnsupportedGeneratedStorageChange = 3106
+	ErrDependentByGenCol                 = 3108
 )
 
 var sqlStateMap = map[int]string{
@@ -66,6 +67,7 @@ var sqlStateMap = map[int]string{
 	ErrNoSuchEvent:                      "HY000",
 	ErrDupEvent:                         "HY000",
 	ErrUnsupportedGeneratedStorageChange: "HY000",
+	ErrDependentByGenCol:                "HY000",
 }
 
 func sqlState(code int) string {
@@ -193,4 +195,9 @@ func errNoSuchEvent(db, name string) error {
 func errUnsupportedGeneratedStorageChange(col, table string) error {
 	return &Error{Code: ErrUnsupportedGeneratedStorageChange, SQLState: sqlState(ErrUnsupportedGeneratedStorageChange),
 		Message: fmt.Sprintf("'Changing the STORED status' is not supported for generated columns.")}
+}
+
+func errDependentByGeneratedColumn(column, genColumn, table string) error {
+	return &Error{Code: ErrDependentByGenCol, SQLState: sqlState(ErrDependentByGenCol),
+		Message: fmt.Sprintf("Column '%s' has a generated column dependency and cannot be dropped or renamed. A generated column '%s' refers to this column in table '%s'.", column, genColumn, table)}
 }

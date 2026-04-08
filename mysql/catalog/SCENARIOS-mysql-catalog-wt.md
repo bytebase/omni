@@ -186,12 +186,12 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 
 ### 5.2 Generated Column Dependencies
 
-- [ ] DROP COLUMN referenced by VIRTUAL generated column — MySQL 8.0 error (verify omni behavior)
-- [ ] DROP COLUMN referenced by STORED generated column — MySQL 8.0 error (verify omni behavior)
-- [ ] MODIFY base column type when generated column uses it — expression preserved, no validation error
-- [ ] Generated column referencing another generated column — verify creation and SHOW CREATE
-- [ ] Index on generated column — index created, rendered correctly
-- [ ] UNIQUE index on generated column — unique constraint on generated column
+- [x] DROP COLUMN referenced by VIRTUAL generated column — MySQL 8.0 error (verify omni behavior)
+- [x] DROP COLUMN referenced by STORED generated column — MySQL 8.0 error (verify omni behavior)
+- [x] MODIFY base column type when generated column uses it — expression preserved, no validation error
+- [x] Generated column referencing another generated column — verify creation and SHOW CREATE
+- [x] Index on generated column — index created, rendered correctly
+- [x] UNIQUE index on generated column — unique constraint on generated column
 
 ---
 

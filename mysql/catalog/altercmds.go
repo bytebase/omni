@@ -209,6 +209,13 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		return errCantDropKey(cmd.Name)
 	}
 
+	// Check if column is referenced by a generated column expression.
+	for _, col := range tbl.Columns {
+		if col.Generated != nil && generatedExprReferencesColumn(col.Generated.Expr, cmd.Name) {
+			return errDependentByGeneratedColumn(cmd.Name, col.Name, tbl.Name)
+		}
+	}
+
 	// Check if column is referenced by a foreign key constraint.
 	for _, con := range tbl.Constraints {
 		if con.Type == ConForeignKey {
@@ -1101,4 +1108,12 @@ func partitionTypeFromString(t string) nodes.PartitionType {
 	default:
 		return nodes.PartitionRange
 	}
+}
+
+// generatedExprReferencesColumn checks if a generated column expression
+// references a column by name. The expression uses backtick-quoted identifiers
+// (e.g., `col_name`), so we search for the backtick-quoted form.
+func generatedExprReferencesColumn(expr, colName string) bool {
+	target := "`" + strings.ToLower(colName) + "`"
+	return strings.Contains(strings.ToLower(expr), target)
 }
