@@ -151,6 +151,11 @@ func TestLexer_Tokens(t *testing.T) {
 			"FOO",
 			[]Token{{tokIDENT, "FOO", ast.Loc{Start: 0, End: 3}}},
 		},
+		{
+			"unquoted_ident_leading_dollar",
+			"$rowid",
+			[]Token{{tokIDENT, "$rowid", ast.Loc{Start: 0, End: 6}}},
+		},
 
 		// =============================================================
 		// Keywords (case-insensitive lookup, raw text preserved) (Task 7)
@@ -199,6 +204,11 @@ func TestLexer_Tokens(t *testing.T) {
 			"keyword_can_lossless_cast_underscored",
 			"CAN_LOSSLESS_CAST",
 			[]Token{{tokCAN_LOSSLESS_CAST, "CAN_LOSSLESS_CAST", ast.Loc{Start: 0, End: 17}}},
+		},
+		{
+			"keyword_can_lossless_cast_mixed_case",
+			"Can_Lossless_Cast",
+			[]Token{{tokCAN_LOSSLESS_CAST, "Can_Lossless_Cast", ast.Loc{Start: 0, End: 17}}},
 		},
 
 		// =============================================================
