@@ -225,23 +225,23 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 
 ### 7.1 Catalog State Isolation
 
-- [ ] Execute DDL on catalog A, verify catalog B (separate New()) is unaffected
-- [ ] Create table, get reference, execute DROP — reference should not be reusable on new table with same name
-- [ ] Two Exec() calls building up state incrementally — state accumulates correctly
-- [ ] Exec with ContinueOnError — successful statements applied, failed ones not
-- [ ] Exec empty string — no state change, no error
-- [ ] Exec with only DML — no state change, statements skipped
-- [ ] DROP DATABASE cascade — all tables, views, routines, triggers, events removed
-- [ ] Operations across two databases — CREATE TABLE in db1 and db2 independently
+- [x] Execute DDL on catalog A, verify catalog B (separate New()) is unaffected
+- [x] Create table, get reference, execute DROP — reference should not be reusable on new table with same name
+- [x] Two Exec() calls building up state incrementally — state accumulates correctly
+- [x] Exec with ContinueOnError — successful statements applied, failed ones not
+- [x] Exec empty string — no state change, no error
+- [x] Exec with only DML — no state change, statements skipped
+- [x] DROP DATABASE cascade — all tables, views, routines, triggers, events removed
+- [x] Operations across two databases — CREATE TABLE in db1 and db2 independently
 
 ### 7.2 Table State Consistency
 
 - [x] After ADD COLUMN, all column positions are sequential (1-based, no gaps)
-- [ ] After DROP COLUMN, remaining column positions are resequenced
-- [ ] After MODIFY COLUMN FIRST, positions reflect new order
-- [ ] After RENAME COLUMN, index column references updated
-- [ ] After DROP INDEX, remaining indexes unaffected
-- [ ] colByName index is consistent after every ALTER TABLE operation
+- [x] After DROP COLUMN, remaining column positions are resequenced
+- [x] After MODIFY COLUMN FIRST, positions reflect new order
+- [x] After RENAME COLUMN, index column references updated
+- [x] After DROP INDEX, remaining indexes unaffected
+- [x] colByName index is consistent after every ALTER TABLE operation
 
 ---
 
