@@ -855,8 +855,11 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 		case "INVISIBLE":
 			idx.Visible = false
 		case "KEY_BLOCK_SIZE":
-			if n, ok := opt.Value.(*nodes.Integer); ok {
+			switch n := opt.Value.(type) {
+			case *nodes.Integer:
 				idx.KeyBlockSize = int(n.Ival)
+			case *nodes.IntLit:
+				idx.KeyBlockSize = int(n.Value)
 			}
 		}
 	}

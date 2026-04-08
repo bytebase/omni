@@ -260,13 +260,13 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 
 ### 8.2 Index Rendering in SHOW CREATE TABLE
 
-- [ ] Table with PK + UNIQUE + KEY + FULLTEXT + SPATIAL — verify rendering order matches MySQL 8.0
-- [ ] Table with regular index + expression index — verify relative ordering matches MySQL 8.0
-- [ ] Index with COMMENT — COMMENT rendered in index definition
-- [ ] Index with INVISIBLE — rendered with version comment /*!80000 INVISIBLE */
-- [ ] Index with KEY_BLOCK_SIZE — rendered in index definition
-- [ ] Index with USING BTREE — rendered when non-default for index type
-- [ ] Index with USING HASH — rendered for MEMORY engine indexes
+- [x] Table with PK + UNIQUE + KEY + FULLTEXT + SPATIAL — verify rendering order matches MySQL 8.0
+- [x] Table with regular index + expression index — verify relative ordering matches MySQL 8.0
+- [x] Index with COMMENT — COMMENT rendered in index definition
+- [x] Index with INVISIBLE — rendered with version comment /*!80000 INVISIBLE */
+- [x] Index with KEY_BLOCK_SIZE — rendered in index definition
+- [x] Index with USING BTREE — rendered when non-default for index type
+- [x] Index with USING HASH — rendered for MEMORY engine indexes
 
 ---
 
