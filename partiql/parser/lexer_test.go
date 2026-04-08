@@ -224,6 +224,60 @@ func TestLexer_Tokens(t *testing.T) {
 			"/* x */ foo",
 			[]Token{{tokIDENT, "foo", ast.Loc{Start: 8, End: 11}}},
 		},
+
+		// =============================================================
+		// Numeric literals (Task 8)
+		// =============================================================
+		{
+			"integer",
+			"42",
+			[]Token{{tokICONST, "42", ast.Loc{Start: 0, End: 2}}},
+		},
+		{
+			"integer_zero",
+			"0",
+			[]Token{{tokICONST, "0", ast.Loc{Start: 0, End: 1}}},
+		},
+		{
+			"integer_large",
+			"1234567890",
+			[]Token{{tokICONST, "1234567890", ast.Loc{Start: 0, End: 10}}},
+		},
+		{
+			"decimal_dot",
+			"3.14",
+			[]Token{{tokFCONST, "3.14", ast.Loc{Start: 0, End: 4}}},
+		},
+		{
+			"decimal_leading_dot",
+			".5",
+			[]Token{{tokFCONST, ".5", ast.Loc{Start: 0, End: 2}}},
+		},
+		{
+			"decimal_trailing_dot",
+			"42.",
+			[]Token{{tokFCONST, "42.", ast.Loc{Start: 0, End: 3}}},
+		},
+		{
+			"decimal_scientific_lower_e",
+			"1e10",
+			[]Token{{tokFCONST, "1e10", ast.Loc{Start: 0, End: 4}}},
+		},
+		{
+			"decimal_scientific_upper_e",
+			"1E10",
+			[]Token{{tokFCONST, "1E10", ast.Loc{Start: 0, End: 4}}},
+		},
+		{
+			"decimal_scientific_negative_exp",
+			"1.5e-3",
+			[]Token{{tokFCONST, "1.5e-3", ast.Loc{Start: 0, End: 6}}},
+		},
+		{
+			"decimal_scientific_positive_exp",
+			"2.5e+4",
+			[]Token{{tokFCONST, "2.5e+4", ast.Loc{Start: 0, End: 6}}},
+		},
 	}
 
 	for _, tc := range cases {

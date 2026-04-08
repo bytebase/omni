@@ -130,7 +130,7 @@ func isDigit(ch byte) bool {
 }
 
 // ============================================================================
-// Scan helpers — strings, quoted identifiers, and keywords (Tasks 6-7).
+// Scan helpers — strings, quoted identifiers, keywords, and numbers (Tasks 6-8).
 // ============================================================================
 
 // scanString scans a single-quoted PartiQL string literal and returns a
@@ -227,19 +227,76 @@ func (l *Lexer) scanIdentOrKeyword() Token {
 	}
 }
 
+// scanNumber consumes an integer or decimal literal. Returns tokICONST
+// for plain integers and tokFCONST for any number with a decimal point
+// or scientific exponent. Token.Str is the raw source text.
+//
+// Grammar:
+//
+//	LITERAL_INTEGER : DIGIT+;
+//	LITERAL_DECIMAL :
+//	    DIGIT+ '.' DIGIT* ([e] [+-]? DIGIT+)?
+//	  | '.' DIGIT+ ([e] [+-]? DIGIT+)?
+//	  | DIGIT+ ([e] [+-]? DIGIT+)?
+//	  ;
+//
+// (caseInsensitive=true means [e] matches both 'e' and 'E'.)
+func (l *Lexer) scanNumber() Token {
+	isFloat := false
+
+	// Leading-dot form (.5).
+	if l.input[l.pos] == '.' {
+		isFloat = true
+		l.pos++
+		for l.pos < len(l.input) && isDigit(l.input[l.pos]) {
+			l.pos++
+		}
+	} else {
+		// Integer part.
+		for l.pos < len(l.input) && isDigit(l.input[l.pos]) {
+			l.pos++
+		}
+		// Optional fraction.
+		if l.pos < len(l.input) && l.input[l.pos] == '.' {
+			isFloat = true
+			l.pos++
+			for l.pos < len(l.input) && isDigit(l.input[l.pos]) {
+				l.pos++
+			}
+		}
+	}
+
+	// Optional scientific exponent.
+	if l.pos < len(l.input) && (l.input[l.pos] == 'e' || l.input[l.pos] == 'E') {
+		isFloat = true
+		l.pos++
+		if l.pos < len(l.input) && (l.input[l.pos] == '+' || l.input[l.pos] == '-') {
+			l.pos++
+		}
+		for l.pos < len(l.input) && isDigit(l.input[l.pos]) {
+			l.pos++
+		}
+	}
+
+	tt := tokICONST
+	if isFloat {
+		tt = tokFCONST
+	}
+	return Token{
+		Type: tt,
+		Str:  l.input[l.start:l.pos],
+		Loc:  ast.Loc{Start: l.start, End: l.pos},
+	}
+}
+
 // ============================================================================
-// Remaining stubs — replaced by Tasks 8-10.
+// Remaining stubs — replaced by Tasks 9-10.
 //
 // These return tokEOF and set l.Err so the package builds. Each subsequent
 // task removes one stub and adds the real implementation alongside its
-// tests. Tasks 6-7 already replaced scanString, scanQuotedIdent, and
-// scanIdentOrKeyword.
+// tests. Tasks 6-8 already replaced scanString, scanQuotedIdent,
+// scanIdentOrKeyword, and scanNumber.
 // ============================================================================
-
-func (l *Lexer) scanNumber() Token {
-	l.Err = fmt.Errorf("scanNumber not yet implemented (stub from Task 5)")
-	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
-}
 
 func (l *Lexer) scanOperator() Token {
 	l.Err = fmt.Errorf("scanOperator not yet implemented (stub from Task 5)")
