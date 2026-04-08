@@ -1,0 +1,1 @@
+SELECT OrderID, Total FROM "Orders" WHERE OrderID = 1

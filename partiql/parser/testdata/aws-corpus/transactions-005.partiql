@@ -1,0 +1,1 @@
+SELECT non_existent_projected_attribute FROM "Music" WHERE Artist='No One You Know' and SongTitle='Call Me Today'

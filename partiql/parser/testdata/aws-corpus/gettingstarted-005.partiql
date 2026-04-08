@@ -1,0 +1,4 @@
+UPDATE Music
+SET AwardsWon=1
+SET AwardDetail={'Grammys':[2020, 2018]}
+WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'

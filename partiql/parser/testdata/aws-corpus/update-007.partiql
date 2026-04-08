@@ -1,0 +1,1 @@
+UPDATE "Music"  SET BandMembers =<<'member1', 'member2'>>  WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'

@@ -1,0 +1,1 @@
+UPDATE TypesTable  SET NumberType=NumberType - 1 REMOVE ListType[1] REMOVE MapType.NewMapEntry SET NumberSetType = SET_DELETE( NumberSetType, <<345>>) SET StringSetType = SET_DELETE( StringSetType, <<'stringsetvalue1'>>) WHERE primarykey='1'

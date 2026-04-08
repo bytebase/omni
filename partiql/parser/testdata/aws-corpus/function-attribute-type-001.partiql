@@ -1,0 +1,1 @@
+SELECT * FROM "Music" WHERE attribute_type("Artist", 'S')

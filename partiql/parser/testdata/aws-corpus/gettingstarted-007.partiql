@@ -1,0 +1,3 @@
+UPDATE Music
+REMOVE AwardDetail.Grammys[2]
+WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'

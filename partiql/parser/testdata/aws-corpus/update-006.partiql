@@ -1,0 +1,1 @@
+UPDATE "Music"  SET AwardDetail.BillBoard=[2020]  WHERE Artist='Acme Band' AND SongTitle='PartiQL Rocks'

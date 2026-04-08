@@ -1,0 +1,3 @@
+SELECT *
+FROM Music
+WHERE Artist=? and SongTitle=?

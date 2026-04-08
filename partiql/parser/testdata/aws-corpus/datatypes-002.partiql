@@ -1,0 +1,1 @@
+UPDATE TypesTable  SET NumberType=NumberType + 100  SET MapType.NewMapEntry=[2020, 'stringvalue', 2.4] SET ListType = LIST_APPEND(ListType, [4, <<'string1', 'string2'>>]) SET NumberSetType= SET_ADD(NumberSetType, <<345, 48.4>>) SET StringSetType = SET_ADD(StringSetType, <<'stringsetvalue1', 'stringsetvalue2'>>) WHERE primarykey='1'
