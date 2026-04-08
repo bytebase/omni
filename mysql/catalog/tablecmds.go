@@ -1329,8 +1329,11 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		tbl.Indexes = append(tbl.Indexes, idx)
 	}
 
-	// Copy constraints.
+	// Copy constraints (skip FK — MySQL 8.0 does not copy FKs with LIKE).
 	for _, srcCon := range srcTbl.Constraints {
+		if srcCon.Type == ConForeignKey {
+			continue
+		}
 		con := &Constraint{
 			Name:        srcCon.Name,
 			Type:        srcCon.Type,

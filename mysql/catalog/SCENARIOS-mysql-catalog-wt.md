@@ -199,15 +199,15 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 
 ### 6.1 Basic LIKE Completeness
 
-- [ ] LIKE copies all column definitions (name, type, nullability, default, comment) — verify each attribute
-- [ ] LIKE copies PRIMARY KEY — constraint and index present
-- [ ] LIKE copies UNIQUE KEYs — all unique indexes copied
-- [ ] LIKE copies regular indexes — all non-unique indexes copied
-- [ ] LIKE copies FULLTEXT indexes — fulltext index copied
-- [ ] LIKE copies CHECK constraints — check constraint copied with expression
-- [ ] LIKE does NOT copy FOREIGN KEY constraints — MySQL 8.0 behavior, FKs excluded
-- [ ] LIKE copies AUTO_INCREMENT column attribute — but counter resets to 0
-- [ ] LIKE copies ENGINE, CHARSET, COLLATION, COMMENT — table options preserved
+- [x] LIKE copies all column definitions (name, type, nullability, default, comment) — verify each attribute
+- [x] LIKE copies PRIMARY KEY — constraint and index present
+- [x] LIKE copies UNIQUE KEYs — all unique indexes copied
+- [x] LIKE copies regular indexes — all non-unique indexes copied
+- [x] LIKE copies FULLTEXT indexes — fulltext index copied
+- [x] LIKE copies CHECK constraints — check constraint copied with expression
+- [x] LIKE does NOT copy FOREIGN KEY constraints — MySQL 8.0 behavior, FKs excluded
+- [x] LIKE copies AUTO_INCREMENT column attribute — but counter resets to 0
+- [x] LIKE copies ENGINE, CHARSET, COLLATION, COMMENT — table options preserved
 
 ### 6.2 LIKE Edge Cases
 
