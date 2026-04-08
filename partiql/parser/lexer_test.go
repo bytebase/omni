@@ -1,0 +1,121 @@
+package parser
+
+import (
+	"reflect"
+	"testing"
+
+	"github.com/bytebase/omni/partiql/ast"
+)
+
+// tokenStreamCase is one row in the TestLexer_Tokens table.
+type tokenStreamCase struct {
+	name   string
+	input  string
+	tokens []Token // expected, excluding the trailing EOF
+}
+
+// runTokenStreamCase drains l.Next() until tokEOF and asserts the captured
+// stream matches tc.tokens via reflect.DeepEqual. Asserts l.Err == nil.
+func runTokenStreamCase(t *testing.T, tc tokenStreamCase) {
+	t.Helper()
+	l := NewLexer(tc.input)
+	var got []Token
+	for {
+		tok := l.Next()
+		if tok.Type == tokEOF {
+			break
+		}
+		got = append(got, tok)
+	}
+	if l.Err != nil {
+		t.Fatalf("unexpected error: %v", l.Err)
+	}
+	if !reflect.DeepEqual(got, tc.tokens) {
+		t.Errorf("token stream mismatch\n got: %+v\nwant: %+v", got, tc.tokens)
+	}
+}
+
+// TestLexer_Tokens is the master golden-test table for the lexer.
+// Tasks 6-10 each append a section of cases as their scan helper lands.
+//
+// All cases assert reflect.DeepEqual on the full token slice and l.Err == nil.
+func TestLexer_Tokens(t *testing.T) {
+	cases := []tokenStreamCase{
+		// =============================================================
+		// Empty input + whitespace + comments
+		// =============================================================
+		{"empty", "", nil},
+		{"whitespace_spaces", "   ", nil},
+		{"whitespace_tabs", "\t\t", nil},
+		{"whitespace_newlines", "\n\n", nil},
+		{"whitespace_mixed", " \t\n\r ", nil},
+		{"line_comment_only", "-- a comment\n", nil},
+		{"line_comment_at_eof", "-- a comment without newline", nil},
+		{"block_comment_only", "/* a comment */", nil},
+		{"block_comment_multiline", "/*\nmulti\nline\n*/", nil},
+
+		// =============================================================
+		// String literals (Task 6)
+		// =============================================================
+		{
+			"string_simple",
+			"'hello'",
+			[]Token{{tokSCONST, "hello", ast.Loc{Start: 0, End: 7}}},
+		},
+		{
+			"string_empty",
+			"''",
+			[]Token{{tokSCONST, "", ast.Loc{Start: 0, End: 2}}},
+		},
+		{
+			"string_doubled_quote",
+			"'it''s'",
+			[]Token{{tokSCONST, "it's", ast.Loc{Start: 0, End: 7}}},
+		},
+		{
+			"string_with_whitespace",
+			"'  '",
+			[]Token{{tokSCONST, "  ", ast.Loc{Start: 0, End: 4}}},
+		},
+		{
+			"string_with_special_chars",
+			"'a!@#%^&*()'",
+			[]Token{{tokSCONST, "a!@#%^&*()", ast.Loc{Start: 0, End: 12}}},
+		},
+
+		// =============================================================
+		// Quoted identifiers (Task 6)
+		// =============================================================
+		{
+			"quoted_ident_simple",
+			`"Foo"`,
+			[]Token{{tokIDENT_QUOTED, "Foo", ast.Loc{Start: 0, End: 5}}},
+		},
+		{
+			"quoted_ident_empty",
+			`""`,
+			[]Token{{tokIDENT_QUOTED, "", ast.Loc{Start: 0, End: 2}}},
+		},
+		{
+			"quoted_ident_doubled_quote",
+			`"a""b"`,
+			[]Token{{tokIDENT_QUOTED, `a"b`, ast.Loc{Start: 0, End: 6}}},
+		},
+		{
+			"quoted_ident_with_space",
+			`"Foo Bar"`,
+			[]Token{{tokIDENT_QUOTED, "Foo Bar", ast.Loc{Start: 0, End: 9}}},
+		},
+		{
+			"quoted_ident_case_preserved",
+			`"FoO"`,
+			[]Token{{tokIDENT_QUOTED, "FoO", ast.Loc{Start: 0, End: 5}}},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			runTokenStreamCase(t, tc)
+		})
+	}
+}

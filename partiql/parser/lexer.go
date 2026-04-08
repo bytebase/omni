@@ -137,13 +137,66 @@ func isDigit(ch byte) bool {
 // implementation alongside its tests.
 // ============================================================================
 
+// scanString scans a single-quoted PartiQL string literal and returns a
+// tokSCONST token. The only escape mechanism in PartiQL strings is the
+// doubled-apostrophe form: two consecutive apostrophes in a row stand for
+// a single apostrophe in the decoded value. There are no backslash escapes.
+// Token.Str holds the fully decoded string content (without the surrounding
+// quotes). Next() has already set l.start to the offset of the opening quote
+// before calling this function, so scanString must not modify l.start.
 func (l *Lexer) scanString() Token {
-	l.Err = fmt.Errorf("scanString not yet implemented (stub from Task 5)")
+	l.pos++ // skip the opening apostrophe
+	var buf strings.Builder
+	for l.pos < len(l.input) {
+		ch := l.input[l.pos]
+		if ch == '\'' {
+			// Two apostrophes in a row encode a single apostrophe.
+			if l.pos+1 < len(l.input) && l.input[l.pos+1] == '\'' {
+				buf.WriteByte('\'')
+				l.pos += 2
+				continue
+			}
+			// Single closing apostrophe — end of the literal.
+			l.pos++
+			return Token{Type: tokSCONST, Str: buf.String(), Loc: ast.Loc{Start: l.start, End: l.pos}}
+		}
+		buf.WriteByte(ch)
+		l.pos++
+	}
+	// Reached end of input without finding the closing apostrophe.
+	l.Err = fmt.Errorf("unterminated string literal at position %d", l.start)
 	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
 }
 
+// scanQuotedIdent scans a double-quoted PartiQL identifier and returns a
+// tokIDENT_QUOTED token. Quoted identifiers preserve case and are NOT looked
+// up in the keyword map — they are always identifiers, never keywords. The
+// only escape mechanism is the doubled double-quote form: "" within the
+// identifier stands for a single " in the decoded name. Token.Str holds the
+// decoded identifier text (without the surrounding quotes). Next() has
+// already set l.start to the offset of the opening quote before calling this
+// function, so scanQuotedIdent must not modify l.start.
 func (l *Lexer) scanQuotedIdent() Token {
-	l.Err = fmt.Errorf("scanQuotedIdent not yet implemented (stub from Task 5)")
+	l.pos++ // skip the opening double-quote
+	var buf strings.Builder
+	for l.pos < len(l.input) {
+		ch := l.input[l.pos]
+		if ch == '"' {
+			// Two double-quotes in a row encode a single double-quote.
+			if l.pos+1 < len(l.input) && l.input[l.pos+1] == '"' {
+				buf.WriteByte('"')
+				l.pos += 2
+				continue
+			}
+			// Single closing double-quote — end of the identifier.
+			l.pos++
+			return Token{Type: tokIDENT_QUOTED, Str: buf.String(), Loc: ast.Loc{Start: l.start, End: l.pos}}
+		}
+		buf.WriteByte(ch)
+		l.pos++
+	}
+	// Reached end of input without finding the closing double-quote.
+	l.Err = fmt.Errorf("unterminated quoted identifier at position %d", l.start)
 	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
 }
 
@@ -166,9 +219,3 @@ func (l *Lexer) scanIonLiteral() Token {
 	l.Err = fmt.Errorf("scanIonLiteral not yet implemented (stub from Task 5)")
 	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
 }
-
-// strings is imported but only used by the stubs above (and by future
-// scan helpers). Avoid the unused-import error during early tasks by
-// keeping a no-op reference. Remove this line in Task 7 when
-// scanIdentOrKeyword adds the real strings.ToLower call.
-var _ = strings.ToLower
