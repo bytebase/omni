@@ -138,33 +138,33 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 
 ### 4.1 Inheritance Chain
 
-- [ ] CREATE DATABASE with CHARSET utf8mb4 → CREATE TABLE (no charset) → column inherits utf8mb4
-- [ ] CREATE DATABASE with CHARSET latin1 → CREATE TABLE CHARSET utf8mb4 → column inherits utf8mb4 (table overrides DB)
-- [ ] Table with CHARSET utf8mb4 → ADD COLUMN VARCHAR (no charset) → column inherits table charset
-- [ ] Table with CHARSET utf8mb4 → ADD COLUMN VARCHAR CHARSET latin1 → column overrides
-- [ ] CREATE DATABASE CHARSET utf8mb4 → table inherits → SHOW CREATE TABLE shows DEFAULT CHARSET=utf8mb4
-- [ ] CREATE TABLE with CHARSET only (no COLLATE) — default collation derived from charset
-- [ ] CREATE TABLE with COLLATE only (no CHARSET) — charset derived from collation
+- [x] CREATE DATABASE with CHARSET utf8mb4 → CREATE TABLE (no charset) → column inherits utf8mb4
+- [x] CREATE DATABASE with CHARSET latin1 → CREATE TABLE CHARSET utf8mb4 → column inherits utf8mb4 (table overrides DB)
+- [x] Table with CHARSET utf8mb4 → ADD COLUMN VARCHAR (no charset) → column inherits table charset
+- [x] Table with CHARSET utf8mb4 → ADD COLUMN VARCHAR CHARSET latin1 → column overrides
+- [x] CREATE DATABASE CHARSET utf8mb4 → table inherits → SHOW CREATE TABLE shows DEFAULT CHARSET=utf8mb4
+- [x] CREATE TABLE with CHARSET only (no COLLATE) — default collation derived from charset
+- [x] CREATE TABLE with COLLATE only (no CHARSET) — charset derived from collation
 
 ### 4.2 ALTER CHARACTER SET and CONVERT
 
-- [ ] ALTER TABLE DEFAULT CHARACTER SET latin1 — table default changes but existing column charsets unchanged
-- [ ] CONVERT TO CHARACTER SET utf8mb4 — table + all VARCHAR/TEXT/ENUM columns updated
-- [ ] CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci — non-default collation
-- [ ] CONVERT TO CHARACTER SET on table with INT columns — INT columns unchanged
-- [ ] CONVERT TO CHARACTER SET on table with mixed column types — only string types updated
-- [ ] CONVERT when column already has explicit charset — column charset overwritten
-- [ ] CONVERT then SHOW CREATE TABLE — column charsets not shown when matching table default
+- [x] ALTER TABLE DEFAULT CHARACTER SET latin1 — table default changes but existing column charsets unchanged
+- [x] CONVERT TO CHARACTER SET utf8mb4 — table + all VARCHAR/TEXT/ENUM columns updated
+- [x] CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci — non-default collation
+- [x] CONVERT TO CHARACTER SET on table with INT columns — INT columns unchanged
+- [x] CONVERT TO CHARACTER SET on table with mixed column types — only string types updated
+- [x] CONVERT when column already has explicit charset — column charset overwritten
+- [x] CONVERT then SHOW CREATE TABLE — column charsets not shown when matching table default
 
 ### 4.3 SHOW CREATE TABLE Charset Rendering
 
-- [ ] Column charset same as table — CHARACTER SET not shown in column def
-- [ ] Column charset differs from table — CHARACTER SET shown in column def
-- [ ] Column collation is non-default for its charset but same as table — COLLATE shown
-- [ ] Column collation differs from table — both CHARACTER SET and COLLATE shown
-- [ ] Table with utf8mb4 default collation — COLLATE always shown for utf8mb4 (MySQL 8.0 behavior)
-- [ ] Table with latin1 and default collation — COLLATE not shown (latin1_swedish_ci is default)
-- [ ] BINARY charset on column — rendered as CHARACTER SET binary
+- [x] Column charset same as table — CHARACTER SET not shown in column def
+- [x] Column charset differs from table — CHARACTER SET shown in column def
+- [x] Column collation is non-default for its charset but same as table — COLLATE shown
+- [x] Column collation differs from table — both CHARACTER SET and COLLATE shown
+- [x] Table with utf8mb4 default collation — COLLATE always shown for utf8mb4 (MySQL 8.0 behavior)
+- [x] Table with latin1 and default collation — COLLATE not shown (latin1_swedish_ci is default)
+- [x] BINARY charset on column — rendered as CHARACTER SET binary
 
 ---
 
