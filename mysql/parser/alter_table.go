@@ -57,6 +57,15 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 	}
 	stmt.Table = ref
 
+	// Completion: after ALTER TABLE table-name, offer sub-command keywords.
+	p.checkCursor()
+	if p.collectMode() {
+		for _, tok := range []int{kwADD, kwDROP, kwMODIFY, kwCHANGE, kwRENAME, kwALTER, kwCONVERT, kwENGINE, kwDEFAULT, kwALGORITHM, kwLOCK, kwFORCE} {
+			p.addTokenCandidate(tok)
+		}
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	// Parse comma-separated alter operations
 	for {
 		if p.cur.Type == tokEOF || p.cur.Type == ';' {

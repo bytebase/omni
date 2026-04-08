@@ -238,6 +238,15 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 	}
 	stmt.TargetList = targets
 
+	// Completion: after select target list, offer clause keywords.
+	p.checkCursor()
+	if p.collectMode() {
+		for _, tok := range []int{kwINTO, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR} {
+			p.addTokenCandidate(tok)
+		}
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	// INTO clause (position 1: after select_expr, before FROM)
 	if p.cur.Type == kwINTO {
 		p.advance()
@@ -510,6 +519,15 @@ func (p *Parser) parseSelectStmtBase() (*nodes.SelectStmt, error) {
 		return nil, err
 	}
 	stmt.TargetList = targets
+
+	// Completion: after select target list, offer clause keywords.
+	p.checkCursor()
+	if p.collectMode() {
+		for _, tok := range []int{kwINTO, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR} {
+			p.addTokenCandidate(tok)
+		}
+		return nil, &ParseError{Message: "collecting"}
+	}
 
 	// INTO clause (position 1: after select_expr, before FROM)
 	if p.cur.Type == kwINTO {

@@ -61,6 +61,15 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 	}
 	stmt.SetList = setList
 
+	// Completion: after SET clause, offer WHERE/ORDER/LIMIT.
+	p.checkCursor()
+	if p.collectMode() {
+		for _, tok := range []int{kwWHERE, kwORDER, kwLIMIT} {
+			p.addTokenCandidate(tok)
+		}
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	// WHERE clause (optional)
 	if _, ok := p.match(kwWHERE); ok {
 		where, err := p.parseExpr()
@@ -173,6 +182,15 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 					tblRef.Loc.End = p.pos()
 				}
 			}
+		}
+
+		// Completion: after DELETE FROM table, offer WHERE/ORDER/LIMIT/USING.
+		p.checkCursor()
+		if p.collectMode() {
+			for _, tok := range []int{kwWHERE, kwORDER, kwLIMIT, kwUSING} {
+				p.addTokenCandidate(tok)
+			}
+			return nil, &ParseError{Message: "collecting"}
 		}
 
 		// Check for USING (multi-table syntax 2)
