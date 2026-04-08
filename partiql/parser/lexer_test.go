@@ -532,3 +532,88 @@ func TestLexer_Errors(t *testing.T) {
 		})
 	}
 }
+
+// TestTokenName_AllCovered walks every tok* constant declared in token.go
+// and asserts tokenName returns a non-empty string. If a future
+// contributor adds a new tok* constant without wiring it into tokenName,
+// this test fails.
+func TestTokenName_AllCovered(t *testing.T) {
+	all := []int{
+		// Specials.
+		tokEOF, tokInvalid,
+		// Literals.
+		tokSCONST, tokICONST, tokFCONST, tokIDENT, tokIDENT_QUOTED, tokION_LITERAL,
+		// Operators / punctuation.
+		tokPLUS, tokMINUS, tokASTERISK, tokSLASH_FORWARD, tokPERCENT,
+		tokCARET, tokTILDE, tokAT_SIGN, tokEQ, tokNEQ, tokLT, tokGT,
+		tokLT_EQ, tokGT_EQ, tokCONCAT, tokANGLE_DOUBLE_LEFT, tokANGLE_DOUBLE_RIGHT,
+		tokPAREN_LEFT, tokPAREN_RIGHT, tokBRACKET_LEFT, tokBRACKET_RIGHT,
+		tokBRACE_LEFT, tokBRACE_RIGHT, tokCOLON, tokCOLON_SEMI, tokCOMMA,
+		tokPERIOD, tokQUESTION_MARK,
+		// Keywords (alphabetical).
+		tokABSOLUTE, tokACTION, tokADD, tokALL, tokALLOCATE, tokALTER, tokAND,
+		tokANY, tokARE, tokAS, tokASC, tokASSERTION, tokAT, tokAUTHORIZATION,
+		tokAVG, tokBAG, tokBEGIN, tokBETWEEN, tokBIGINT, tokBIT, tokBIT_LENGTH,
+		tokBLOB, tokBOOL, tokBOOLEAN, tokBY, tokCAN_CAST, tokCAN_LOSSLESS_CAST,
+		tokCASCADE, tokCASCADED, tokCASE, tokCAST, tokCATALOG, tokCHAR,
+		tokCHAR_LENGTH, tokCHARACTER, tokCHARACTER_LENGTH, tokCHECK, tokCLOB,
+		tokCLOSE, tokCOALESCE, tokCOLLATE, tokCOLLATION, tokCOLUMN, tokCOMMIT,
+		tokCONFLICT, tokCONNECT, tokCONNECTION, tokCONSTRAINT, tokCONSTRAINTS,
+		tokCONTINUE, tokCONVERT, tokCORRESPONDING, tokCOUNT, tokCREATE, tokCROSS,
+		tokCURRENT, tokCURRENT_DATE, tokCURRENT_TIME, tokCURRENT_TIMESTAMP,
+		tokCURRENT_USER, tokCURSOR, tokDATE, tokDATE_ADD, tokDATE_DIFF,
+		tokDEALLOCATE, tokDEC, tokDECIMAL, tokDECLARE, tokDEFAULT, tokDEFERRABLE,
+		tokDEFERRED, tokDELETE, tokDESC, tokDESCRIBE, tokDESCRIPTOR,
+		tokDIAGNOSTICS, tokDISCONNECT, tokDISTINCT, tokDO, tokDOMAIN, tokDOUBLE,
+		tokDROP, tokELSE, tokEND, tokEND_EXEC, tokESCAPE, tokEXCEPT, tokEXCEPTION,
+		tokEXCLUDED, tokEXEC, tokEXECUTE, tokEXISTS, tokEXPLAIN, tokEXTERNAL,
+		tokEXTRACT, tokFALSE, tokFETCH, tokFIRST, tokFLOAT, tokFOR, tokFOREIGN,
+		tokFOUND, tokFROM, tokFULL, tokGET, tokGLOBAL, tokGO, tokGOTO, tokGRANT,
+		tokGROUP, tokHAVING, tokIDENTITY, tokIMMEDIATE, tokIN, tokINDEX,
+		tokINDICATOR, tokINITIALLY, tokINNER, tokINPUT, tokINSENSITIVE, tokINSERT,
+		tokINT, tokINT2, tokINT4, tokINT8, tokINTEGER, tokINTEGER2, tokINTEGER4,
+		tokINTEGER8, tokINTERSECT, tokINTERVAL, tokINTO, tokIS, tokISOLATION,
+		tokJOIN, tokKEY, tokLAG, tokLANGUAGE, tokLAST, tokLATERAL, tokLEAD,
+		tokLEFT, tokLET, tokLEVEL, tokLIKE, tokLIMIT, tokLIST, tokLOCAL, tokLOWER,
+		tokMATCH, tokMAX, tokMIN, tokMISSING, tokMODIFIED, tokMODULE, tokNAMES,
+		tokNATIONAL, tokNATURAL, tokNCHAR, tokNEW, tokNEXT, tokNO, tokNOT,
+		tokNOTHING, tokNULL, tokNULLIF, tokNULLS, tokNUMERIC, tokOCTET_LENGTH,
+		tokOF, tokOFFSET, tokOLD, tokON, tokONLY, tokOPEN, tokOPTION, tokOR,
+		tokORDER, tokOUTER, tokOUTPUT, tokOVER, tokOVERLAPS, tokOVERLAY, tokPAD,
+		tokPARTIAL, tokPARTITION, tokPIVOT, tokPLACING, tokPOSITION, tokPRECISION,
+		tokPREPARE, tokPRESERVE, tokPRIMARY, tokPRIOR, tokPRIVILEGES, tokPROCEDURE,
+		tokPUBLIC, tokREAD, tokREAL, tokREFERENCES, tokRELATIVE, tokREMOVE,
+		tokREPLACE, tokRESTRICT, tokRETURNING, tokREVOKE, tokRIGHT, tokROLLBACK,
+		tokROWS, tokSCHEMA, tokSCROLL, tokSECTION, tokSELECT, tokSESSION,
+		tokSESSION_USER, tokSET, tokSEXP, tokSHORTEST, tokSIZE, tokSMALLINT,
+		tokSOME, tokSPACE, tokSQL, tokSQLCODE, tokSQLERROR, tokSQLSTATE, tokSTRING,
+		tokSTRUCT, tokSUBSTRING, tokSUM, tokSYMBOL, tokSYSTEM_USER, tokTABLE,
+		tokTEMPORARY, tokTHEN, tokTIME, tokTIMESTAMP, tokTO, tokTRANSACTION,
+		tokTRANSLATE, tokTRANSLATION, tokTRIM, tokTRUE, tokTUPLE, tokUNION,
+		tokUNIQUE, tokUNKNOWN, tokUNPIVOT, tokUPDATE, tokUPPER, tokUPSERT,
+		tokUSAGE, tokUSER, tokUSING, tokVALUE, tokVALUES, tokVARCHAR, tokVARYING,
+		tokVIEW, tokWHEN, tokWHENEVER, tokWHERE, tokWITH, tokWORK, tokWRITE,
+		tokZONE,
+	}
+	if got := len(all); got != 302 {
+		t.Errorf("test list has %d entries, want 302 — did a tok* constant get added or removed without updating this test?", got)
+	}
+	for _, tt := range all {
+		name := tokenName(tt)
+		if name == "" {
+			t.Errorf("tokenName(%d) returned empty string — missing switch arm in token.go?", tt)
+		}
+	}
+}
+
+// TestKeywords_LenMatchesConstants asserts that the keywords map in
+// keywords.go has exactly 266 entries — the same number as the keyword
+// constants in token.go. If a future contributor adds or removes a
+// tok* keyword constant without updating the map (or vice versa),
+// this test fails.
+func TestKeywords_LenMatchesConstants(t *testing.T) {
+	const expectedKeywordCount = 266
+	if got := len(keywords); got != expectedKeywordCount {
+		t.Errorf("len(keywords) = %d, want %d — did a tok* keyword constant get added or removed without updating the keywords map?", got, expectedKeywordCount)
+	}
+}
