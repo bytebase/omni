@@ -356,6 +356,24 @@ func TestLexer_Tokens(t *testing.T) {
 				{tokANGLE_DOUBLE_RIGHT, ">>", ast.Loc{Start: 9, End: 11}},
 			},
 		},
+		{
+			"two_char_op_in_expr",
+			"a<=5",
+			[]Token{
+				{tokIDENT, "a", ast.Loc{Start: 0, End: 1}},
+				{tokLT_EQ, "<=", ast.Loc{Start: 1, End: 3}},
+				{tokICONST, "5", ast.Loc{Start: 3, End: 4}},
+			},
+		},
+		{
+			"path_expression_dot",
+			"t.foo",
+			[]Token{
+				{tokIDENT, "t", ast.Loc{Start: 0, End: 1}},
+				{tokPERIOD, ".", ast.Loc{Start: 1, End: 2}},
+				{tokIDENT, "foo", ast.Loc{Start: 2, End: 5}},
+			},
+		},
 	}
 
 	for _, tc := range cases {
