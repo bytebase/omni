@@ -790,7 +790,15 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			col.Charset = tbl.Charset
 		}
 		if col.Collation == "" {
-			col.Collation = tbl.Collation
+			// If column charset differs from table charset, use the default
+			// collation for the column's charset, not the table's collation.
+			if !strings.EqualFold(col.Charset, tbl.Charset) {
+				if dc, ok := defaultCollationForCharset[toLower(col.Charset)]; ok {
+					col.Collation = dc
+				}
+			} else {
+				col.Collation = tbl.Collation
+			}
 		}
 	}
 

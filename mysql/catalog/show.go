@@ -6,6 +6,29 @@ import (
 	"strings"
 )
 
+// charsetForCollation derives the charset name from a collation name.
+// MySQL collation names are prefixed with the charset name (e.g. latin1_swedish_ci → latin1).
+func charsetForCollation(collation string) string {
+	collation = toLower(collation)
+	// Try known charsets from longest to shortest to handle prefixes like utf8mb4 vs utf8.
+	knownCharsets := []string{
+		"utf8mb4", "utf8mb3", "utf16le", "gb18030", "geostd8", "armscii8",
+		"eucjpms", "cp1252", "gb2312", "euckr", "utf16", "utf32",
+		"latin1", "ascii", "binary", "cp932", "tis620", "hebrew",
+		"greek", "sjis", "big5", "ucs2", "utf8", "gbk",
+	}
+	for _, cs := range knownCharsets {
+		if strings.HasPrefix(collation, cs+"_") || collation == cs {
+			return cs
+		}
+	}
+	// Fallback: take prefix before first underscore.
+	if idx := strings.IndexByte(collation, '_'); idx > 0 {
+		return collation[:idx]
+	}
+	return ""
+}
+
 // defaultCollationForCharset returns the default collation for common MySQL charsets.
 var defaultCollationForCharset = map[string]string{
 	"utf8mb4":  "utf8mb4_0900_ai_ci",

@@ -84,6 +84,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			tbl.Collation = dc
 		}
 	}
+	// When collation is specified without explicit charset, derive the charset from collation.
+	if tblCollationExplicit && !tblCharsetExplicit {
+		if cs := charsetForCollation(tbl.Collation); cs != "" {
+			tbl.Charset = cs
+		}
+	}
 	// Track whether we have a primary key (to detect multiple PKs).
 	hasPK := false
 
