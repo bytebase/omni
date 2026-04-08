@@ -106,6 +106,9 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return c.alterReorganizePartition(tbl, cmd)
 	case nodes.ATExchangePartition:
 		return c.alterExchangePartition(db, tbl, cmd)
+	case nodes.ATRemovePartitioning:
+		tbl.Partitioning = nil
+		return nil
 	default:
 		// Unsupported alter command; silently ignore.
 		return nil
