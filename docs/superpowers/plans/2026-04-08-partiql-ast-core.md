@@ -773,7 +773,7 @@ Append rows to the `cases` slice in `TestGetLoc`:
 go test ./partiql/ast/...
 ```
 
-Expected: `ok` with 16 `TestGetLoc` sub-tests passing (10 prior + 6 new).
+Expected: `ok` with 15 `TestGetLoc` sub-tests passing (9 prior + 6 new).
 
 - [ ] **Step 4: Run vet and gofmt**
 
@@ -1114,7 +1114,7 @@ go build ./partiql/ast/...
 go test ./partiql/ast/...
 ```
 
-Expected: ok, all 26 `TestGetLoc` sub-tests passing (16 prior + 10 new). Note that we are intentionally NOT adding `OrderByItem` to the test table in this task — that happens in Task 9 when the real type lands.
+Expected: ok, all 25 `TestGetLoc` sub-tests passing (15 prior + 10 new). Note that we are intentionally NOT adding `OrderByItem` to the test table in this task — that happens in Task 9 when the real type lands.
 
 - [ ] **Step 6: Run vet and gofmt**
 
@@ -1379,7 +1379,7 @@ go build ./partiql/ast/...
 go test ./partiql/ast/...
 ```
 
-Expected: ok, 38 `TestGetLoc` sub-tests passing.
+Expected: ok, 37 `TestGetLoc` sub-tests passing.
 
 - [ ] **Step 4: Run vet and gofmt**
 
@@ -1572,7 +1572,7 @@ go build ./partiql/ast/...
 go test ./partiql/ast/...
 ```
 
-Expected: ok, 42 sub-tests passing.
+Expected: ok, 41 sub-tests passing.
 
 - [ ] **Step 4: Run vet and gofmt**
 
@@ -1683,7 +1683,7 @@ go build ./partiql/ast/...
 go test ./partiql/ast/...
 ```
 
-Expected: ok, 43 sub-tests passing.
+Expected: ok, 42 sub-tests passing.
 
 - [ ] **Step 4: Run vet and gofmt**
 
@@ -2249,7 +2249,7 @@ go build ./partiql/ast/...
 go test ./partiql/ast/...
 ```
 
-Expected: ok, 57 sub-tests passing (43 prior + 14 new statements).
+Expected: ok, 56 sub-tests passing (42 prior + 14 new statements).
 
 - [ ] **Step 4: Run vet and gofmt**
 
@@ -2517,7 +2517,7 @@ go build ./partiql/ast/...
 go test ./partiql/ast/...
 ```
 
-Expected: ok, 68 sub-tests passing (57 prior + 11 new).
+Expected: ok, 67 sub-tests passing (56 prior + 11 new).
 
 - [ ] **Step 4: Run vet and gofmt**
 
@@ -2797,7 +2797,7 @@ go build ./partiql/ast/...
 go test ./partiql/ast/...
 ```
 
-Expected: ok, 74 sub-tests passing.
+Expected: ok, 73 sub-tests passing.
 
 - [ ] **Step 4: Run vet and gofmt**
 
@@ -3992,7 +3992,7 @@ import (
 go test -run TestNodeToString_AllNodesCovered ./partiql/ast/...
 ```
 
-Expected: ok, 74 sub-tests passing. If any sub-test fails with `outfuncs.go is missing a switch arm for X`, add the missing case to `writeNode` in `outfuncs.go` and re-run.
+Expected: ok, 73 sub-tests passing. If any sub-test fails with `outfuncs.go is missing a switch arm for X`, add the missing case to `writeNode` in `outfuncs.go` and re-run.
 
 - [ ] **Step 6: Run the full test suite**
 
@@ -4000,7 +4000,7 @@ Expected: ok, 74 sub-tests passing. If any sub-test fails with `outfuncs.go is m
 go test ./partiql/ast/...
 ```
 
-Expected: ok, all tests pass (`TestGetLoc` 74 sub-tests + `TestNodeToString` 23 sub-tests + `TestNodeToString_AllNodesCovered` 74 sub-tests = 171 sub-tests across 3 test functions).
+Expected: ok, all tests pass (`TestGetLoc` 73 sub-tests + `TestNodeToString` 23 sub-tests + `TestNodeToString_AllNodesCovered` 73 sub-tests = 169 sub-tests across 3 test functions).
 
 - [ ] **Step 7: Run vet and gofmt**
 
@@ -4019,7 +4019,7 @@ git commit -m "$(cat <<'EOF'
 feat(partiql/ast): add NodeToString and reflection safety net
 
 outfuncs.go: NodeToString writes a deterministic Go-struct-like dump
-of any AST node. Switch covers all 74 node types. Loc fields are
+of any AST node. Switch covers all 73 node types. Loc fields are
 omitted (positions are tested separately). Helpers writeSelectStmt
 and writeDmlStmt extract the bigger arms.
 
@@ -4088,14 +4088,14 @@ grep -c '^func (\*\w\+) nodeTag()' partiql/ast/*.go
 # partiql/ast/tableexprs.go:4
 # partiql/ast/types.go:1
 #
-# Total ~74. If your count differs, investigate before proceeding.
+# Total ~73. If your count differs, investigate before proceeding.
 
 # Sanity: every node has GetLoc
 grep -c 'GetLoc() Loc { return n.Loc }' partiql/ast/*.go
 
 # Sanity: outfuncs.go switch has a case for every type
 grep -c '^	case \*' partiql/ast/outfuncs.go
-# Should be ~74 (one per node type).
+# Should be ~73 (one per node type).
 ```
 
 If any number is off, look for the missing types using diff between the file lists and the switch arms.
@@ -4205,8 +4205,8 @@ After `finishing-a-development-branch` completes successfully:
 2. Confirm `dag.md` on `main` shows ast-core as `done`
 3. Report to the user:
    - Which DAG node was completed
-   - How many node types were added (~74)
-   - Test pass count (~171 sub-tests)
+   - How many node types were added (~73)
+   - Test pass count (~169 sub-tests)
    - The next actionable nodes per the DAG (node 2 `lexer` should now be unblocked, node 3 `catalog` was already unblocked)
 
 ---
