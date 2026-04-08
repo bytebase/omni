@@ -35,10 +35,11 @@ const (
 	ErrNoSuchProcedure         = 1305
 	ErrDupFunction             = 1304
 	ErrDupProcedure            = 1304
-	ErrNoSuchTrigger           = 1360
-	ErrDupTrigger              = 1359
-	ErrNoSuchEvent             = 1539
-	ErrDupEvent                = 1537
+	ErrNoSuchTrigger                    = 1360
+	ErrDupTrigger                       = 1359
+	ErrNoSuchEvent                      = 1539
+	ErrDupEvent                         = 1537
+	ErrUnsupportedGeneratedStorageChange = 3106
 )
 
 var sqlStateMap = map[int]string{
@@ -62,8 +63,9 @@ var sqlStateMap = map[int]string{
 	ErrFKIncompatibleColumns:   "HY000",
 	ErrNoSuchFunction:          "42000",
 	ErrDupFunction:             "HY000",
-	ErrNoSuchEvent:             "HY000",
-	ErrDupEvent:                "HY000",
+	ErrNoSuchEvent:                      "HY000",
+	ErrDupEvent:                         "HY000",
+	ErrUnsupportedGeneratedStorageChange: "HY000",
 }
 
 func sqlState(code int) string {
@@ -186,4 +188,9 @@ func errDupEvent(name string) error {
 func errNoSuchEvent(db, name string) error {
 	return &Error{Code: ErrNoSuchEvent, SQLState: sqlState(ErrNoSuchEvent),
 		Message: fmt.Sprintf("Unknown event '%s'", name)}
+}
+
+func errUnsupportedGeneratedStorageChange(col, table string) error {
+	return &Error{Code: ErrUnsupportedGeneratedStorageChange, SQLState: sqlState(ErrUnsupportedGeneratedStorageChange),
+		Message: fmt.Sprintf("'Changing the STORED status' is not supported for generated columns.")}
 }

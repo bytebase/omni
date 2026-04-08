@@ -986,6 +986,13 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 	case *nodes.BinaryExpr:
 		left := nodeToSQLGenerated(n.Left, charset)
 		right := nodeToSQLGenerated(n.Right, charset)
+		// MySQL rewrites JSON operators to function calls in generated column expressions.
+		switch n.Op {
+		case nodes.BinOpJsonExtract:
+			return "json_extract(" + left + "," + right + ")"
+		case nodes.BinOpJsonUnquote:
+			return "json_unquote(json_extract(" + left + "," + right + "))"
+		}
 		op := binaryOpToString(n.Op)
 		return "(" + left + " " + op + " " + right + ")"
 	case *nodes.UnaryExpr:

@@ -324,6 +324,14 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 		}
 	}
 
+	// Check for VIRTUAL<->STORED storage type change (MySQL 8.0 error 3106).
+	oldCol := tbl.Columns[idx]
+	if oldCol.Generated != nil && colDef.Generated != nil {
+		if oldCol.Generated.Stored != colDef.Generated.Stored {
+			return errUnsupportedGeneratedStorageChange(colDef.Name, tbl.Name)
+		}
+	}
+
 	col := buildColumnFromDef(tbl, colDef)
 	col.Position = idx + 1
 	tbl.Columns[idx] = col
@@ -819,7 +827,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	}
 	if colDef.Generated != nil {
 		col.Generated = &GeneratedColumnInfo{
-			Expr:   nodeToSQL(colDef.Generated.Expr),
+			Expr:   nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
 			Stored: colDef.Generated.Stored,
 		}
 	}

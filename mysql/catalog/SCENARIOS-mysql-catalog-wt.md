@@ -172,17 +172,17 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 
 ### 5.1 Generated Column CRUD
 
-- [ ] CREATE TABLE with VIRTUAL generated column (arithmetic) — SHOW CREATE matches
-- [ ] CREATE TABLE with STORED generated column (arithmetic) — SHOW CREATE matches
-- [ ] CREATE TABLE with VIRTUAL generated column (string function: CONCAT) — expression rendering
-- [ ] CREATE TABLE with STORED generated column + NOT NULL — NOT NULL after STORED keyword
-- [ ] CREATE TABLE with generated column + COMMENT — COMMENT rendered after STORED/VIRTUAL
-- [ ] CREATE TABLE with generated column + INVISIBLE — INVISIBLE rendered
-- [ ] CREATE TABLE with generated column using JSON_EXTRACT — JSON expression rendering
-- [ ] ALTER TABLE ADD COLUMN with GENERATED ALWAYS AS — column added with generation info
-- [ ] MODIFY COLUMN to change generated expression — expression updated
-- [ ] ALTER TABLE MODIFY generated column to regular column — generation info removed
-- [ ] ALTER TABLE MODIFY VIRTUAL to STORED — MySQL 8.0 error (cannot change storage type in-place)
+- [x] CREATE TABLE with VIRTUAL generated column (arithmetic) — SHOW CREATE matches
+- [x] CREATE TABLE with STORED generated column (arithmetic) — SHOW CREATE matches
+- [x] CREATE TABLE with VIRTUAL generated column (string function: CONCAT) — expression rendering
+- [x] CREATE TABLE with STORED generated column + NOT NULL — NOT NULL after STORED keyword
+- [x] CREATE TABLE with generated column + COMMENT — COMMENT rendered after STORED/VIRTUAL
+- [x] CREATE TABLE with generated column + INVISIBLE — INVISIBLE rendered
+- [x] CREATE TABLE with generated column using JSON_EXTRACT — JSON expression rendering
+- [x] ALTER TABLE ADD COLUMN with GENERATED ALWAYS AS — column added with generation info
+- [x] MODIFY COLUMN to change generated expression — expression updated
+- [x] ALTER TABLE MODIFY generated column to regular column — generation info removed
+- [x] ALTER TABLE MODIFY VIRTUAL to STORED — MySQL 8.0 error (cannot change storage type in-place)
 
 ### 5.2 Generated Column Dependencies
 
