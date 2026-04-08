@@ -45,7 +45,9 @@ func runTokenStreamCase(t *testing.T, tc tokenStreamCase) {
 }
 
 // TestLexer_Tokens is the master golden-test table for the lexer.
-// Tasks 6-10 each append a section of cases as their scan helper lands.
+// Sections cover whitespace/comments, string literals, quoted identifiers,
+// unquoted identifiers, keywords, numeric literals, operators, punctuation,
+// multi-token integration sequences, and Ion literals.
 //
 // All cases assert token-by-token equality and l.Err == nil.
 func TestLexer_Tokens(t *testing.T) {

@@ -144,7 +144,7 @@ func (l *Lexer) loc() ast.Loc {
 }
 
 // ============================================================================
-// Scan helpers (Tasks 6-10).
+// Scan helpers — one per leading-character class dispatched by Next().
 // ============================================================================
 
 // scanString scans a single-quoted PartiQL string literal and returns a
