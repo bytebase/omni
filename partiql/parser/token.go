@@ -50,8 +50,13 @@ const (
 // ===========================================================================
 // Operator and punctuation tokens — group 2000.
 //
-// Names follow PartiQLLexer.g4 rule names verbatim for traceability against
-// the grammar.
+// Names generally follow PartiQLLexer.g4 rule names verbatim for traceability
+// against the grammar; tokLT and tokGT substitute for the grammar's
+// ANGLE_LEFT and ANGLE_RIGHT for readability and SQL-parser idiom.
+//
+// Ordering is semantic (arithmetic, then comparison, then concat, then the
+// PartiQL bag-bracket pair, then paired delimiters, then punctuation) rather
+// than the grammar's lexer-rule declaration order.
 // ===========================================================================
 
 const (
