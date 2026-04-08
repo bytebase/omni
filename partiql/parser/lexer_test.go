@@ -278,6 +278,84 @@ func TestLexer_Tokens(t *testing.T) {
 			"2.5e+4",
 			[]Token{{tokFCONST, "2.5e+4", ast.Loc{Start: 0, End: 6}}},
 		},
+
+		// =============================================================
+		// Single-character operators (Task 9)
+		// =============================================================
+		{"op_plus", "+", []Token{{tokPLUS, "+", ast.Loc{Start: 0, End: 1}}}},
+		{"op_minus", "-", []Token{{tokMINUS, "-", ast.Loc{Start: 0, End: 1}}}},
+		{"op_asterisk", "*", []Token{{tokASTERISK, "*", ast.Loc{Start: 0, End: 1}}}},
+		{"op_slash_forward", "/", []Token{{tokSLASH_FORWARD, "/", ast.Loc{Start: 0, End: 1}}}},
+		{"op_percent", "%", []Token{{tokPERCENT, "%", ast.Loc{Start: 0, End: 1}}}},
+		{"op_caret", "^", []Token{{tokCARET, "^", ast.Loc{Start: 0, End: 1}}}},
+		{"op_tilde", "~", []Token{{tokTILDE, "~", ast.Loc{Start: 0, End: 1}}}},
+		{"op_at_sign", "@", []Token{{tokAT_SIGN, "@", ast.Loc{Start: 0, End: 1}}}},
+		{"op_eq", "=", []Token{{tokEQ, "=", ast.Loc{Start: 0, End: 1}}}},
+		{"op_lt", "<", []Token{{tokLT, "<", ast.Loc{Start: 0, End: 1}}}},
+		{"op_gt", ">", []Token{{tokGT, ">", ast.Loc{Start: 0, End: 1}}}},
+
+		// =============================================================
+		// Punctuation (Task 9)
+		// =============================================================
+		{"punct_paren_left", "(", []Token{{tokPAREN_LEFT, "(", ast.Loc{Start: 0, End: 1}}}},
+		{"punct_paren_right", ")", []Token{{tokPAREN_RIGHT, ")", ast.Loc{Start: 0, End: 1}}}},
+		{"punct_bracket_left", "[", []Token{{tokBRACKET_LEFT, "[", ast.Loc{Start: 0, End: 1}}}},
+		{"punct_bracket_right", "]", []Token{{tokBRACKET_RIGHT, "]", ast.Loc{Start: 0, End: 1}}}},
+		{"punct_brace_left", "{", []Token{{tokBRACE_LEFT, "{", ast.Loc{Start: 0, End: 1}}}},
+		{"punct_brace_right", "}", []Token{{tokBRACE_RIGHT, "}", ast.Loc{Start: 0, End: 1}}}},
+		{"punct_colon", ":", []Token{{tokCOLON, ":", ast.Loc{Start: 0, End: 1}}}},
+		{"punct_colon_semi", ";", []Token{{tokCOLON_SEMI, ";", ast.Loc{Start: 0, End: 1}}}},
+		{"punct_comma", ",", []Token{{tokCOMMA, ",", ast.Loc{Start: 0, End: 1}}}},
+		{"punct_period", ".", []Token{{tokPERIOD, ".", ast.Loc{Start: 0, End: 1}}}},
+		{"punct_question_mark", "?", []Token{{tokQUESTION_MARK, "?", ast.Loc{Start: 0, End: 1}}}},
+
+		// =============================================================
+		// Two-character operators (Task 9)
+		// =============================================================
+		{"op_lt_eq", "<=", []Token{{tokLT_EQ, "<=", ast.Loc{Start: 0, End: 2}}}},
+		{"op_gt_eq", ">=", []Token{{tokGT_EQ, ">=", ast.Loc{Start: 0, End: 2}}}},
+		{"op_neq_angle", "<>", []Token{{tokNEQ, "<>", ast.Loc{Start: 0, End: 2}}}},
+		{"op_neq_bang", "!=", []Token{{tokNEQ, "!=", ast.Loc{Start: 0, End: 2}}}},
+		{"op_concat", "||", []Token{{tokCONCAT, "||", ast.Loc{Start: 0, End: 2}}}},
+		{"op_angle_double_left", "<<", []Token{{tokANGLE_DOUBLE_LEFT, "<<", ast.Loc{Start: 0, End: 2}}}},
+		{"op_angle_double_right", ">>", []Token{{tokANGLE_DOUBLE_RIGHT, ">>", ast.Loc{Start: 0, End: 2}}}},
+
+		// =============================================================
+		// Multi-token integration sequences (Task 9)
+		// =============================================================
+		{
+			"select_star_from_table",
+			"SELECT * FROM Music",
+			[]Token{
+				{tokSELECT, "SELECT", ast.Loc{Start: 0, End: 6}},
+				{tokASTERISK, "*", ast.Loc{Start: 7, End: 8}},
+				{tokFROM, "FROM", ast.Loc{Start: 9, End: 13}},
+				{tokIDENT, "Music", ast.Loc{Start: 14, End: 19}},
+			},
+		},
+		{
+			"where_with_string_literal",
+			"WHERE Artist='Pink Floyd'",
+			[]Token{
+				{tokWHERE, "WHERE", ast.Loc{Start: 0, End: 5}},
+				{tokIDENT, "Artist", ast.Loc{Start: 6, End: 12}},
+				{tokEQ, "=", ast.Loc{Start: 12, End: 13}},
+				{tokSCONST, "Pink Floyd", ast.Loc{Start: 13, End: 25}},
+			},
+		},
+		{
+			"bag_literal",
+			"<<1, 2, 3>>",
+			[]Token{
+				{tokANGLE_DOUBLE_LEFT, "<<", ast.Loc{Start: 0, End: 2}},
+				{tokICONST, "1", ast.Loc{Start: 2, End: 3}},
+				{tokCOMMA, ",", ast.Loc{Start: 3, End: 4}},
+				{tokICONST, "2", ast.Loc{Start: 5, End: 6}},
+				{tokCOMMA, ",", ast.Loc{Start: 6, End: 7}},
+				{tokICONST, "3", ast.Loc{Start: 8, End: 9}},
+				{tokANGLE_DOUBLE_RIGHT, ">>", ast.Loc{Start: 9, End: 11}},
+			},
+		},
 	}
 
 	for _, tc := range cases {

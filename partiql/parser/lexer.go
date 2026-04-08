@@ -130,7 +130,7 @@ func isDigit(ch byte) bool {
 }
 
 // ============================================================================
-// Scan helpers — strings, quoted identifiers, keywords, and numbers (Tasks 6-8).
+// Scan helpers — strings, quoted identifiers, keywords, numbers, and operators (Tasks 6-9).
 // ============================================================================
 
 // scanString scans a single-quoted PartiQL string literal and returns a
@@ -289,19 +289,102 @@ func (l *Lexer) scanNumber() Token {
 	}
 }
 
+// scanOperator consumes a one or two-character operator or punctuation
+// token. Two-character operators (<=, >=, <>, <<, >>, ||, !=) are
+// matched first via lookahead; otherwise the single-character cases
+// fall through. Unrecognized characters set l.Err.
+func (l *Lexer) scanOperator() Token {
+	ch := l.input[l.pos]
+	l.pos++
+
+	// Two-character lookahead.
+	if l.pos < len(l.input) {
+		next := l.input[l.pos]
+		switch {
+		case ch == '<' && next == '=':
+			l.pos++
+			return Token{Type: tokLT_EQ, Str: "<=", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		case ch == '<' && next == '>':
+			l.pos++
+			return Token{Type: tokNEQ, Str: "<>", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		case ch == '<' && next == '<':
+			l.pos++
+			return Token{Type: tokANGLE_DOUBLE_LEFT, Str: "<<", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		case ch == '>' && next == '=':
+			l.pos++
+			return Token{Type: tokGT_EQ, Str: ">=", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		case ch == '>' && next == '>':
+			l.pos++
+			return Token{Type: tokANGLE_DOUBLE_RIGHT, Str: ">>", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		case ch == '|' && next == '|':
+			l.pos++
+			return Token{Type: tokCONCAT, Str: "||", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		case ch == '!' && next == '=':
+			l.pos++
+			return Token{Type: tokNEQ, Str: "!=", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		}
+	}
+
+	// Single-character operators / punctuation.
+	switch ch {
+	case '+':
+		return Token{Type: tokPLUS, Str: "+", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '-':
+		return Token{Type: tokMINUS, Str: "-", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '*':
+		return Token{Type: tokASTERISK, Str: "*", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '/':
+		return Token{Type: tokSLASH_FORWARD, Str: "/", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '%':
+		return Token{Type: tokPERCENT, Str: "%", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '^':
+		return Token{Type: tokCARET, Str: "^", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '~':
+		return Token{Type: tokTILDE, Str: "~", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '@':
+		return Token{Type: tokAT_SIGN, Str: "@", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '=':
+		return Token{Type: tokEQ, Str: "=", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '<':
+		return Token{Type: tokLT, Str: "<", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '>':
+		return Token{Type: tokGT, Str: ">", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '(':
+		return Token{Type: tokPAREN_LEFT, Str: "(", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case ')':
+		return Token{Type: tokPAREN_RIGHT, Str: ")", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '[':
+		return Token{Type: tokBRACKET_LEFT, Str: "[", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case ']':
+		return Token{Type: tokBRACKET_RIGHT, Str: "]", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '{':
+		return Token{Type: tokBRACE_LEFT, Str: "{", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '}':
+		return Token{Type: tokBRACE_RIGHT, Str: "}", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case ':':
+		return Token{Type: tokCOLON, Str: ":", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case ';':
+		return Token{Type: tokCOLON_SEMI, Str: ";", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case ',':
+		return Token{Type: tokCOMMA, Str: ",", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '.':
+		return Token{Type: tokPERIOD, Str: ".", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	case '?':
+		return Token{Type: tokQUESTION_MARK, Str: "?", Loc: ast.Loc{Start: l.start, End: l.pos}}
+	}
+
+	l.Err = fmt.Errorf("unexpected character %q at position %d", ch, l.start)
+	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
+}
+
 // ============================================================================
-// Remaining stubs — replaced by Tasks 9-10.
+// Remaining stubs — replaced by Task 10.
 //
 // These return tokEOF and set l.Err so the package builds. Each subsequent
 // task removes one stub and adds the real implementation alongside its
-// tests. Tasks 6-8 already replaced scanString, scanQuotedIdent,
-// scanIdentOrKeyword, and scanNumber.
+// tests. Tasks 6-9 already replaced scanString, scanQuotedIdent,
+// scanIdentOrKeyword, scanNumber, and scanOperator.
 // ============================================================================
-
-func (l *Lexer) scanOperator() Token {
-	l.Err = fmt.Errorf("scanOperator not yet implemented (stub from Task 5)")
-	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
-}
 
 func (l *Lexer) scanIonLiteral() Token {
 	l.Err = fmt.Errorf("scanIonLiteral not yet implemented (stub from Task 5)")
