@@ -469,19 +469,18 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
-		// Add implicit backing index.
-		idxName := con.Name
-		if idxName == "" && len(cols) > 0 {
-			idxName = allocIndexName(tbl, cols[0])
+		// Add implicit backing index only if no existing index covers the FK columns.
+		if !hasIndexCoveringColumns(tbl, cols) {
+			idxName := allocIndexName(tbl, cols[0])
+			idxCols := buildIndexColumns(con)
+			tbl.Indexes = append(tbl.Indexes, &Index{
+				Name:      idxName,
+				Table:     tbl,
+				Columns:   idxCols,
+				IndexType: "",
+				Visible:   true,
+			})
 		}
-		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
-			Name:      idxName,
-			Table:     tbl,
-			Columns:   idxCols,
-			IndexType: "",
-			Visible:   true,
-		})
 
 	case nodes.ConstrCheck:
 		conName := con.Name

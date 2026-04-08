@@ -292,10 +292,10 @@ func TestCreateTableWithFK(t *testing.T) {
 		t.Errorf("expected ON DELETE CASCADE, got %q", fk.OnDelete)
 	}
 
-	// Check that FK has a backing index.
+	// Check that FK has a backing index (MySQL uses column name, not constraint name).
 	var fkIdx *Index
 	for _, idx := range tbl.Indexes {
-		if idx.Name == "fk_dept" {
+		if idx.Name == "dept_id" {
 			fkIdx = idx
 			break
 		}

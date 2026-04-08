@@ -238,15 +238,17 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					OnDelete:   refActionToString(cc.OnDelete),
 					OnUpdate:   refActionToString(cc.OnUpdate),
 				})
-				// Add implicit backing index for FK.
-				idxName := allocIndexName(tbl, colDef.Name)
-				tbl.Indexes = append(tbl.Indexes, &Index{
-					Name:      idxName,
-					Table:     tbl,
-					Columns:   []*IndexColumn{{Name: colDef.Name}},
-					Unique:    false,
-					Visible:   true,
-				})
+				// Add implicit backing index for FK only if no existing index covers the column.
+				if !hasIndexCoveringColumns(tbl, []string{colDef.Name}) {
+					idxName := allocIndexName(tbl, colDef.Name)
+					tbl.Indexes = append(tbl.Indexes, &Index{
+						Name:      idxName,
+						Table:     tbl,
+						Columns:   []*IndexColumn{{Name: colDef.Name}},
+						Unique:    false,
+						Visible:   true,
+					})
+				}
 			case nodes.ColConstrVisible:
 				col.Invisible = false
 			case nodes.ColConstrInvisible:
@@ -410,19 +412,18 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				OnDelete:   refActionToString(con.OnDelete),
 				OnUpdate:   refActionToString(con.OnUpdate),
 			})
-			// Add implicit backing index for FK.
-			idxName := con.Name
-			if idxName == "" && len(cols) > 0 {
-				idxName = allocIndexName(tbl, cols[0])
+			// Add implicit backing index for FK only if no existing index covers the FK columns.
+			if !hasIndexCoveringColumns(tbl, cols) {
+				idxName := allocIndexName(tbl, cols[0])
+				idxCols := buildIndexColumns(con)
+				tbl.Indexes = append(tbl.Indexes, &Index{
+					Name:      idxName,
+					Table:     tbl,
+					Columns:   idxCols,
+					IndexType: "",
+					Visible:   true,
+				})
 			}
-			idxCols := buildIndexColumns(con)
-			tbl.Indexes = append(tbl.Indexes, &Index{
-				Name:      idxName,
-				Table:     tbl,
-				Columns:   idxCols,
-				IndexType: "",
-				Visible:   true,
-			})
 
 		case nodes.ConstrCheck:
 			conName := con.Name
@@ -775,6 +776,28 @@ func allocIndexName(tbl *Table, baseName string) string {
 		suffix++
 	}
 	return candidate
+}
+
+// hasIndexCoveringColumns returns true if the table already has an index whose
+// leading columns match the given FK columns (left-prefix match). MySQL 8.0
+// reuses such an index instead of creating an implicit backing index for the FK.
+func hasIndexCoveringColumns(tbl *Table, fkCols []string) bool {
+	for _, idx := range tbl.Indexes {
+		if len(idx.Columns) < len(fkCols) {
+			continue
+		}
+		match := true
+		for i, col := range fkCols {
+			if !strings.EqualFold(idx.Columns[i].Name, col) {
+				match = false
+				break
+			}
+		}
+		if match {
+			return true
+		}
+	}
+	return false
 }
 
 func indexNameExists(tbl *Table, name string) bool {
