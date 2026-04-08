@@ -104,7 +104,7 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 
 - [x] CREATE TABLE PARTITION BY LIST (expr) with VALUES IN — SHOW CREATE matches MySQL
 - [x] CREATE TABLE PARTITION BY LIST COLUMNS (col) — single column list
-- [~] CREATE TABLE PARTITION BY LIST COLUMNS (col1, col2) — multi-column list (parser lacks tuple syntax)
+- [x] CREATE TABLE PARTITION BY LIST COLUMNS (col1, col2) — multi-column list
 - [x] ALTER TABLE ADD PARTITION with new VALUES IN — partition added
 - [x] ALTER TABLE DROP PARTITION from LIST table — partition removed
 - [x] ALTER TABLE REORGANIZE PARTITION in LIST table — values redistributed
@@ -114,7 +114,7 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 - [x] CREATE TABLE PARTITION BY HASH (expr) PARTITIONS 4 — implicit partition defs
 - [x] CREATE TABLE PARTITION BY LINEAR HASH (expr) PARTITIONS 4 — LINEAR keyword rendered
 - [x] CREATE TABLE PARTITION BY KEY (col) PARTITIONS 4 — KEY partition
-- [~] CREATE TABLE PARTITION BY KEY () PARTITIONS 4 — KEY with empty column list (parser gap)
+- [x] CREATE TABLE PARTITION BY KEY () PARTITIONS 4 — KEY with empty column list (uses PK)
 - [x] CREATE TABLE PARTITION BY KEY (col) ALGORITHM=2 PARTITIONS 4 — ALGORITHM rendered
 - [x] ALTER TABLE COALESCE PARTITION 2 on HASH table with 4 partitions — reduces to 2
 - [x] ALTER TABLE COALESCE PARTITION on KEY table — same behavior as HASH

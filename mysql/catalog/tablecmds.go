@@ -592,7 +592,16 @@ func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 	case *nodes.List:
 		parts := make([]string, len(n.Items))
 		for i, item := range n.Items {
-			parts[i] = nodeToSQL(item.(nodes.ExprNode))
+			if subList, ok := item.(*nodes.List); ok {
+				// Tuple: (val1, val2) for multi-column LIST COLUMNS
+				subParts := make([]string, len(subList.Items))
+				for j, sub := range subList.Items {
+					subParts[j] = nodeToSQL(sub.(nodes.ExprNode))
+				}
+				parts[i] = "(" + strings.Join(subParts, ",") + ")"
+			} else {
+				parts[i] = nodeToSQL(item.(nodes.ExprNode))
+			}
 		}
 		return strings.Join(parts, ",")
 	case nodes.ExprNode:

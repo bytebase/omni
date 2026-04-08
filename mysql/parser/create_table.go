@@ -1354,11 +1354,17 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			}
 		}
 		if p.cur.Type == '(' {
-			cols, err := p.parseParenIdentList()
-			if err != nil {
-				return nil, err
+			// KEY () with empty column list means "use PK columns".
+			if p.peekNext().Type == ')' {
+				p.advance() // consume '('
+				p.advance() // consume ')'
+			} else {
+				cols, err := p.parseParenIdentList()
+				if err != nil {
+					return nil, err
+				}
+				part.Columns = cols
 			}
-			part.Columns = cols
 		}
 
 	case kwRANGE:
@@ -1456,11 +1462,17 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 					p.advance()
 				}
 			}
-			cols, err := p.parseParenIdentList()
-			if err != nil {
-				return nil, err
+			// KEY () with empty column list means "use PK columns".
+			if p.cur.Type == '(' && p.peekNext().Type == ')' {
+				p.advance() // consume '('
+				p.advance() // consume ')'
+			} else {
+				cols, err := p.parseParenIdentList()
+				if err != nil {
+					return nil, err
+				}
+				part.SubPartColumns = cols
 			}
-			part.SubPartColumns = cols
 		case p.cur.Type == kwLINEAR:
 			p.advance() // LINEAR
 			if p.cur.Type == kwHASH {
@@ -1598,24 +1610,40 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 		} else if _, ok := p.match(kwIN); ok {
 			if p.cur.Type == '(' {
 				p.advance()
-				var vals []nodes.ExprNode
+				var items []nodes.Node
 				for {
-					expr, err := p.parseExpr()
-					if err != nil {
-						return nil, err
+					if p.cur.Type == '(' {
+						// Tuple: (val1, val2, ...) for multi-column LIST COLUMNS
+						p.advance()
+						var tupleVals []nodes.Node
+						for {
+							expr, err := p.parseExpr()
+							if err != nil {
+								return nil, err
+							}
+							tupleVals = append(tupleVals, expr)
+							if p.cur.Type != ',' {
+								break
+							}
+							p.advance()
+						}
+						if _, err := p.expect(')'); err != nil {
+							return nil, err
+						}
+						items = append(items, &nodes.List{Items: tupleVals})
+					} else {
+						expr, err := p.parseExpr()
+						if err != nil {
+							return nil, err
+						}
+						items = append(items, expr)
 					}
-					vals = append(vals, expr)
 					if p.cur.Type != ',' {
 						break
 					}
 					p.advance()
 				}
 				p.match(')')
-				// Store as List node
-				items := make([]nodes.Node, len(vals))
-				for i, v := range vals {
-					items[i] = v
-				}
 				pd.Values = &nodes.List{Items: items}
 			}
 		}
