@@ -274,13 +274,13 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 
 ### 9.1 SET Variable Effects
 
-- [ ] SET foreign_key_checks = 0 then CREATE TABLE with invalid FK — succeeds
-- [ ] SET foreign_key_checks = 1 then CREATE TABLE with invalid FK — fails
-- [ ] SET foreign_key_checks = OFF — accepts OFF as 0
-- [ ] SET NAMES utf8mb4 — silently accepted, no catalog state change
-- [ ] SET CHARACTER SET latin1 — silently accepted
-- [ ] SET sql_mode = 'STRICT_TRANS_TABLES' — silently accepted
-- [ ] SET unknown_variable = 'value' — silently accepted (MySQL session variable)
+- [x] SET foreign_key_checks = 0 then CREATE TABLE with invalid FK — succeeds
+- [x] SET foreign_key_checks = 1 then CREATE TABLE with invalid FK — fails
+- [x] SET foreign_key_checks = OFF — accepts OFF as 0
+- [x] SET NAMES utf8mb4 — silently accepted, no catalog state change
+- [x] SET CHARACTER SET latin1 — silently accepted
+- [x] SET sql_mode = 'STRICT_TRANS_TABLES' — silently accepted
+- [x] SET unknown_variable = 'value' — silently accepted (MySQL session variable)
 
 ### 9.2 SHOW CREATE TABLE Fidelity
 
