@@ -2606,17 +2606,21 @@ package ast
 // ---------------------------------------------------------------------------
 
 // EdgeDirection identifies the direction of an edge pattern.
+//
+// Enumerates the seven edge alternatives from PartiQLParser.g4 `edgeWSpec`
+// (lines 360–368) and `edgeAbbrev` (lines 376–381). Each value maps to the
+// bare grammar symbol via String().
 type EdgeDirection int
 
 const (
-	EdgeDirInvalid EdgeDirection = iota
-	EdgeDirRight              // ->
-	EdgeDirLeft               // <-
-	EdgeDirUndirected         // ~
-	EdgeDirLeftOrRight        // <-> (left or right)
-	EdgeDirLeftOrUndirected   // <~
-	EdgeDirRightOrUndirected  // ~>
-	EdgeDirAny                // any direction
+	EdgeDirInvalid                 EdgeDirection = iota
+	EdgeDirRight                                 // ->          edgeWSpec#EdgeSpecRight
+	EdgeDirLeft                                  // <-          edgeWSpec#EdgeSpecLeft
+	EdgeDirUndirected                            // ~           edgeWSpec#EdgeSpecUndirected
+	EdgeDirLeftOrRight                           // <->         edgeWSpec#EdgeSpecBidirectional
+	EdgeDirLeftOrUndirected                      // <~          edgeWSpec#EdgeSpecUndirectedLeft
+	EdgeDirRightOrUndirected                     // ~>          edgeWSpec#EdgeSpecUndirectedRight
+	EdgeDirUndirectedBidirectional               // -           edgeWSpec#EdgeSpecUndirectedBidirectional (any of right/left/undirected)
 )
 
 func (d EdgeDirection) String() string {
@@ -2633,8 +2637,8 @@ func (d EdgeDirection) String() string {
 		return "<~"
 	case EdgeDirRightOrUndirected:
 		return "~>"
-	case EdgeDirAny:
-		return "any"
+	case EdgeDirUndirectedBidirectional:
+		return "-"
 	default:
 		return "INVALID"
 	}
