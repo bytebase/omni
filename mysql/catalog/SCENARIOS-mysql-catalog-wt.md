@@ -236,7 +236,7 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 
 ### 7.2 Table State Consistency
 
-- [ ] After ADD COLUMN, all column positions are sequential (1-based, no gaps)
+- [x] After ADD COLUMN, all column positions are sequential (1-based, no gaps)
 - [ ] After DROP COLUMN, remaining column positions are resequenced
 - [ ] After MODIFY COLUMN FIRST, positions reflect new order
 - [ ] After RENAME COLUMN, index column references updated
@@ -284,12 +284,12 @@ Status: [ ] pending, [x] passing, [~] partial (needs upstream change)
 
 ### 9.2 SHOW CREATE TABLE Fidelity
 
-- [ ] Table with no explicit options — ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 rendered
-- [ ] Table with ROW_FORMAT=DYNAMIC — ROW_FORMAT rendered
-- [ ] Table with KEY_BLOCK_SIZE=8 — KEY_BLOCK_SIZE rendered
-- [ ] Table with COMMENT='description' — COMMENT rendered with proper quoting
-- [ ] Table with AUTO_INCREMENT=1000 — AUTO_INCREMENT rendered
-- [ ] TEMPORARY TABLE — SHOW CREATE TABLE works (no special rendering difference)
-- [ ] Table with all column types (INT, BIGINT, DECIMAL, VARCHAR, TEXT, BLOB, JSON, ENUM, SET, DATE, DATETIME, TIMESTAMP) — all types rendered correctly
-- [ ] Column with ON UPDATE CURRENT_TIMESTAMP — rendered correctly
-- [ ] Column DEFAULT expression (CURRENT_TIMESTAMP, literal, NULL) — all default types rendered
+- [x] Table with no explicit options — ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 rendered
+- [x] Table with ROW_FORMAT=DYNAMIC — ROW_FORMAT rendered
+- [x] Table with KEY_BLOCK_SIZE=8 — KEY_BLOCK_SIZE rendered
+- [x] Table with COMMENT='description' — COMMENT rendered with proper quoting
+- [x] Table with AUTO_INCREMENT=1000 — AUTO_INCREMENT rendered
+- [x] TEMPORARY TABLE — SHOW CREATE TABLE works (no special rendering difference)
+- [x] Table with all column types (INT, BIGINT, DECIMAL, VARCHAR, TEXT, BLOB, JSON, ENUM, SET, DATE, DATETIME, TIMESTAMP) — all types rendered correctly
+- [x] Column with ON UPDATE CURRENT_TIMESTAMP — rendered correctly
+- [x] Column DEFAULT expression (CURRENT_TIMESTAMP, literal, NULL) — all default types rendered
