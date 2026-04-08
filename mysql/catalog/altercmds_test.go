@@ -346,3 +346,48 @@ func TestAlterTableAddColumnAfter(t *testing.T) {
 		t.Errorf("expected age at position 4, got %d", age.Position)
 	}
 }
+
+func TestAlterTableMultiCommandRollback(t *testing.T) {
+	c := setupTestTable(t)
+	// t1 has: id INT NOT NULL, name VARCHAR(100), age INT
+
+	// Multi-command ALTER where second command fails (duplicate column).
+	// MySQL rolls back the entire ALTER — first ADD should also be undone.
+	results, _ := c.Exec(
+		"ALTER TABLE t1 ADD COLUMN email VARCHAR(255), ADD COLUMN name VARCHAR(50)",
+		&ExecOptions{ContinueOnError: true},
+	)
+	if results[0].Error == nil {
+		t.Fatal("expected duplicate column error")
+	}
+
+	tbl := c.GetDatabase("test").GetTable("t1")
+
+	// Verify rollback: email should NOT have been added.
+	if tbl.GetColumn("email") != nil {
+		t.Error("column 'email' should not exist after rollback")
+	}
+
+	// Original columns should be intact.
+	if len(tbl.Columns) != 3 {
+		t.Errorf("expected 3 columns after rollback, got %d", len(tbl.Columns))
+	}
+}
+
+func TestAlterTableMultiCommandSuccess(t *testing.T) {
+	c := setupTestTable(t)
+
+	// Multi-command ALTER that succeeds — all changes should apply.
+	mustExec(t, c, "ALTER TABLE t1 ADD COLUMN email VARCHAR(255), ADD COLUMN score INT")
+
+	tbl := c.GetDatabase("test").GetTable("t1")
+	if len(tbl.Columns) != 5 {
+		t.Fatalf("expected 5 columns, got %d", len(tbl.Columns))
+	}
+	if tbl.GetColumn("email") == nil {
+		t.Error("column 'email' not found")
+	}
+	if tbl.GetColumn("score") == nil {
+		t.Error("column 'score' not found")
+	}
+}

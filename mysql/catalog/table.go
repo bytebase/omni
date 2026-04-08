@@ -135,6 +135,78 @@ type Event struct {
 	Body         string
 }
 
+// cloneTable returns a deep copy of the table's mutable state.
+// The returned Table shares the same Name, Database pointer, and scalar fields,
+// but has independent slices and maps so that mutations do not affect the original.
+func cloneTable(src *Table) Table {
+	dst := *src // shallow copy of all scalar fields
+
+	// Deep copy columns.
+	dst.Columns = make([]*Column, len(src.Columns))
+	for i, sc := range src.Columns {
+		col := *sc
+		if sc.Default != nil {
+			def := *sc.Default
+			col.Default = &def
+		}
+		if sc.Generated != nil {
+			gen := *sc.Generated
+			col.Generated = &gen
+		}
+		dst.Columns[i] = &col
+	}
+
+	// Deep copy colByName.
+	dst.colByName = make(map[string]int, len(src.colByName))
+	for k, v := range src.colByName {
+		dst.colByName[k] = v
+	}
+
+	// Deep copy indexes.
+	dst.Indexes = make([]*Index, len(src.Indexes))
+	for i, si := range src.Indexes {
+		idx := *si
+		idx.Table = src // keep pointing to the original table pointer
+		cols := make([]*IndexColumn, len(si.Columns))
+		for j, sc := range si.Columns {
+			ic := *sc
+			cols[j] = &ic
+		}
+		idx.Columns = cols
+		dst.Indexes[i] = &idx
+	}
+
+	// Deep copy constraints.
+	dst.Constraints = make([]*Constraint, len(src.Constraints))
+	for i, sc := range src.Constraints {
+		con := *sc
+		con.Table = src
+		con.Columns = append([]string{}, sc.Columns...)
+		con.RefColumns = append([]string{}, sc.RefColumns...)
+		dst.Constraints[i] = &con
+	}
+
+	// Deep copy partitioning.
+	if src.Partitioning != nil {
+		pi := *src.Partitioning
+		pi.Columns = append([]string{}, src.Partitioning.Columns...)
+		pi.SubColumns = append([]string{}, src.Partitioning.SubColumns...)
+		pi.Partitions = make([]*PartitionDefInfo, len(src.Partitioning.Partitions))
+		for i, sp := range src.Partitioning.Partitions {
+			pd := *sp
+			pd.SubPartitions = make([]*SubPartitionDefInfo, len(sp.SubPartitions))
+			for j, ss := range sp.SubPartitions {
+				sd := *ss
+				pd.SubPartitions[j] = &sd
+			}
+			pi.Partitions[i] = &pd
+		}
+		dst.Partitioning = &pi
+	}
+
+	return dst
+}
+
 func (t *Table) GetColumn(name string) *Column {
 	idx, ok := t.colByName[toLower(name)]
 	if !ok {

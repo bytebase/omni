@@ -25,8 +25,29 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
+	if len(stmt.Commands) <= 1 {
+		// Single command: no rollback needed.
+		if len(stmt.Commands) == 1 {
+			return c.execAlterCmd(db, tbl, stmt.Commands[0])
+		}
+		return nil
+	}
+
+	// Multi-command ALTER: MySQL treats this as atomic.
+	// Snapshot the table so we can rollback on any sub-command failure.
+	snapshot := cloneTable(tbl)
+	origKey := key
+
 	for _, cmd := range stmt.Commands {
 		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
+			// Rollback: if a RENAME changed the map key, undo it.
+			newKey := toLower(tbl.Name)
+			if newKey != origKey {
+				delete(db.Tables, newKey)
+				db.Tables[origKey] = tbl
+			}
+			// Restore all table fields from snapshot.
+			*tbl = snapshot
 			return err
 		}
 	}
