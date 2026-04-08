@@ -9,7 +9,7 @@ import (
 // SHOW CREATE VIEW output to discover MySQL 8.0's exact deparsing/formatting rules.
 // This is a research test — it asserts nothing, only logs results.
 func TestMySQL_DeparseRules(t *testing.T) {
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// Create base tables used by the views.
@@ -18,7 +18,7 @@ func TestMySQL_DeparseRules(t *testing.T) {
 		CREATE TABLE t1 (a INT, b INT);
 		CREATE TABLE t2 (a INT, b INT);
 	`
-	if err := oracle.execSQL(setupSQL); err != nil {
+	if err := ctr.execSQL(setupSQL); err != nil {
 		t.Fatalf("setup tables: %v", err)
 	}
 
@@ -315,14 +315,14 @@ func TestMySQL_DeparseRules(t *testing.T) {
 		for _, vt := range cat.views {
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", vt.name, vt.createAs)
 
-			if err := oracle.execSQLDirect(createSQL); err != nil {
+			if err := ctr.execSQLDirect(createSQL); err != nil {
 				t.Logf("  [%s] CREATE failed: %v", vt.name, err)
 				t.Logf("    INPUT:  %s", createSQL)
 				t.Logf("")
 				continue
 			}
 
-			output, err := oracle.showCreateView(vt.name)
+			output, err := ctr.showCreateView(vt.name)
 			if err != nil {
 				t.Logf("  [%s] SHOW CREATE VIEW failed: %v", vt.name, err)
 				t.Logf("    INPUT:  %s", createSQL)

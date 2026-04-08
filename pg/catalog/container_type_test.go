@@ -5,33 +5,33 @@ import (
 	"testing"
 )
 
-// TestOracleType covers section 2.6: Type/Sequence/Extension Changes.
-func TestOracleType(t *testing.T) {
+// TestContainerType covers section 2.6: Type/Sequence/Extension Changes.
+func TestContainerType(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	// -----------------------------------------------------------------------
 	// Enum changes
 	// -----------------------------------------------------------------------
 
 	t.Run("enum_add_value_at_end", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE TYPE color AS ENUM ('red', 'green', 'blue');`,
 			`CREATE TYPE color AS ENUM ('red', 'green', 'blue', 'yellow');`,
 		)
 	})
 
 	t.Run("enum_add_value_with_before", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE TYPE color AS ENUM ('red', 'green', 'blue');`,
 			`CREATE TYPE color AS ENUM ('red', 'yellow', 'green', 'blue');`,
 		)
 	})
 
 	t.Run("enum_add_value_with_after", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE TYPE color AS ENUM ('red', 'green', 'blue');`,
 			`CREATE TYPE color AS ENUM ('red', 'green', 'cyan', 'blue');`,
 		)
@@ -42,21 +42,21 @@ func TestOracleType(t *testing.T) {
 	// -----------------------------------------------------------------------
 
 	t.Run("domain_change_default", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE DOMAIN score AS integer DEFAULT 0;`,
 			`CREATE DOMAIN score AS integer DEFAULT 100;`,
 		)
 	})
 
 	t.Run("domain_change_not_null", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE DOMAIN score AS integer;`,
 			`CREATE DOMAIN score AS integer NOT NULL;`,
 		)
 	})
 
 	t.Run("domain_add_constraint", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE DOMAIN score AS integer;`,
 			`CREATE DOMAIN score AS integer CONSTRAINT score_positive CHECK (VALUE >= 0);`,
 		)
@@ -67,14 +67,14 @@ func TestOracleType(t *testing.T) {
 	// -----------------------------------------------------------------------
 
 	t.Run("sequence_change_increment", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE SEQUENCE my_seq INCREMENT 1 MINVALUE 1 MAXVALUE 1000 START 1 CACHE 1 NO CYCLE;`,
 			`CREATE SEQUENCE my_seq INCREMENT 5 MINVALUE 1 MAXVALUE 1000 START 1 CACHE 1 NO CYCLE;`,
 		)
 	})
 
 	t.Run("sequence_change_cycle", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE SEQUENCE my_seq INCREMENT 1 MINVALUE 1 MAXVALUE 1000 START 1 CACHE 1 NO CYCLE;`,
 			`CREATE SEQUENCE my_seq INCREMENT 1 MINVALUE 1 MAXVALUE 1000 START 1 CACHE 1 CYCLE;`,
 		)
@@ -85,14 +85,14 @@ func TestOracleType(t *testing.T) {
 	// -----------------------------------------------------------------------
 
 	t.Run("add_new_enum_type", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			``,
 			`CREATE TYPE mood AS ENUM ('happy', 'sad', 'neutral');`,
 		)
 	})
 
 	t.Run("drop_enum_type", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE TYPE mood AS ENUM ('happy', 'sad', 'neutral');`,
 			``,
 		)
@@ -103,21 +103,21 @@ func TestOracleType(t *testing.T) {
 	// -----------------------------------------------------------------------
 
 	t.Run("composite_add_column", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE TYPE address AS (street text, city text);`,
 			`CREATE TYPE address AS (street text, city text, zip varchar(10));`,
 		)
 	})
 
 	t.Run("composite_drop_column", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE TYPE address AS (street text, city text, zip varchar(10));`,
 			`CREATE TYPE address AS (street text, city text);`,
 		)
 	})
 
 	t.Run("composite_modify_column", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE TYPE address AS (street text, city text, zip varchar(5));`,
 			`CREATE TYPE address AS (street text, city text, zip varchar(10));`,
 		)
@@ -191,18 +191,18 @@ func TestOracleType(t *testing.T) {
 		}
 
 		// Verify the SQL executes on PG.
-		schema := oracle.freshSchema(t)
+		schema := ctr.freshSchema(t)
 		migrationSQL := plan.SQL()
 		// The migration creates a schema named "extra", execute it directly.
-		oracle.execSQL(t, migrationSQL)
+		ctr.execSQL(t, migrationSQL)
 		// Clean up the extra schema.
 		t.Cleanup(func() {
-			oracle.execSQL(t, `DROP SCHEMA IF EXISTS "extra" CASCADE`)
+			ctr.execSQL(t, `DROP SCHEMA IF EXISTS "extra" CASCADE`)
 		})
 
 		// Verify schema exists.
 		var count int
-		err = oracle.db.QueryRowContext(oracle.ctx,
+		err = ctr.db.QueryRowContext(ctr.ctx,
 			`SELECT count(*) FROM pg_namespace WHERE nspname = 'extra'`).Scan(&count)
 		if err != nil {
 			t.Fatal(err)
@@ -239,13 +239,13 @@ func TestOracleType(t *testing.T) {
 		}
 
 		// Create the schema first, then apply the migration.
-		oracle.execSQL(t, `CREATE SCHEMA IF NOT EXISTS "extra"`)
+		ctr.execSQL(t, `CREATE SCHEMA IF NOT EXISTS "extra"`)
 		migrationSQL := plan.SQL()
-		oracle.execSQL(t, migrationSQL)
+		ctr.execSQL(t, migrationSQL)
 
 		// Verify schema no longer exists.
 		var count int
-		err = oracle.db.QueryRowContext(oracle.ctx,
+		err = ctr.db.QueryRowContext(ctr.ctx,
 			`SELECT count(*) FROM pg_namespace WHERE nspname = 'extra'`).Scan(&count)
 		if err != nil {
 			t.Fatal(err)
@@ -260,7 +260,7 @@ func TestOracleType(t *testing.T) {
 	// -----------------------------------------------------------------------
 
 	t.Run("grant_select_on_table", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE TABLE items (id integer PRIMARY KEY);`,
 			`CREATE TABLE items (id integer PRIMARY KEY);
 			 GRANT SELECT ON items TO PUBLIC;`,
@@ -268,7 +268,7 @@ func TestOracleType(t *testing.T) {
 	})
 
 	t.Run("revoke_privilege", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE TABLE items (id integer PRIMARY KEY);
 			 GRANT SELECT ON items TO PUBLIC;`,
 			`CREATE TABLE items (id integer PRIMARY KEY);`,
@@ -280,7 +280,7 @@ func TestOracleType(t *testing.T) {
 	// -----------------------------------------------------------------------
 
 	t.Run("partitioned_table", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			``,
 			`CREATE TABLE events (
 				id integer NOT NULL,
@@ -291,7 +291,7 @@ func TestOracleType(t *testing.T) {
 	})
 
 	t.Run("partition_child", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle,
+		assertOracleRoundtrip(t, ctr,
 			`CREATE TABLE events (
 				id integer NOT NULL,
 				event_date date NOT NULL,
@@ -312,11 +312,11 @@ func TestOracleType(t *testing.T) {
 // Comment Coverage Gaps
 // ---------------------------------------------------------------------------
 
-func TestOracleCommentGaps(t *testing.T) {
+func TestContainerCommentGaps(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	// --- COMMENT ON INDEX ---
 	t.Run("comment_on_index", func(t *testing.T) {
@@ -335,7 +335,7 @@ CREATE TABLE t1 (
 CREATE INDEX idx_name ON t1(name);
 COMMENT ON INDEX idx_name IS 'Name lookup index';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- COMMENT ON TYPE ---
@@ -343,7 +343,7 @@ COMMENT ON INDEX idx_name IS 'Name lookup index';
 		before := `CREATE TYPE color AS ENUM ('red', 'green', 'blue');`
 		after := `CREATE TYPE color AS ENUM ('red', 'green', 'blue');
 COMMENT ON TYPE color IS 'Available colors';`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- COMMENT ON SEQUENCE ---
@@ -351,7 +351,7 @@ COMMENT ON TYPE color IS 'Available colors';`
 		before := `CREATE SEQUENCE my_seq INCREMENT 1 MINVALUE 1 MAXVALUE 1000 START 1 CACHE 1 NO CYCLE;`
 		after := `CREATE SEQUENCE my_seq INCREMENT 1 MINVALUE 1 MAXVALUE 1000 START 1 CACHE 1 NO CYCLE;
 COMMENT ON SEQUENCE my_seq IS 'Auto-increment sequence';`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- COMMENT ON CONSTRAINT ---
@@ -371,7 +371,7 @@ CREATE TABLE t1 (
 );
 COMMENT ON CONSTRAINT t1_pkey ON t1 IS 'Primary key constraint';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- COMMENT ON TRIGGER ---
@@ -393,7 +393,7 @@ CREATE TABLE t1 (
 CREATE TRIGGER t1_trig BEFORE UPDATE ON t1 FOR EACH ROW EXECUTE FUNCTION trig_fn();
 COMMENT ON TRIGGER t1_trig ON t1 IS 'Update trigger';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- COMMENT ON SCHEMA ---
@@ -431,11 +431,11 @@ COMMENT ON TRIGGER t1_trig ON t1 IS 'Update trigger';
 // Index Type Coverage Gaps
 // ---------------------------------------------------------------------------
 
-func TestOracleIndexGaps(t *testing.T) {
+func TestContainerIndexGaps(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	// --- Index USING hash ---
 	t.Run("index_using_hash", func(t *testing.T) {
@@ -452,7 +452,7 @@ CREATE TABLE t1 (
 );
 CREATE INDEX idx_name_hash ON t1 USING hash (name);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Index USING brin ---
@@ -470,7 +470,7 @@ CREATE TABLE t1 (
 );
 CREATE INDEX idx_created_brin ON t1 USING brin (created_at);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 }
 
@@ -478,11 +478,11 @@ CREATE INDEX idx_created_brin ON t1 USING brin (created_at);
 // Table INHERITS Coverage Gap
 // ---------------------------------------------------------------------------
 
-func TestOracleInherits(t *testing.T) {
+func TestContainerInherits(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	// --- Table INHERITS ---
 	t.Run("table_inherits", func(t *testing.T) {
@@ -501,7 +501,7 @@ CREATE TABLE child_tbl (
     extra text
 ) INHERITS (parent_tbl);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 }
 
@@ -509,11 +509,11 @@ CREATE TABLE child_tbl (
 // Group 7: Domain with Function-based CHECK
 // ---------------------------------------------------------------------------
 
-func TestOracleDomainWithFunctionCheck(t *testing.T) {
+func TestContainerDomainWithFunctionCheck(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	t.Run("domain_with_function_in_check_change_function_body", func(t *testing.T) {
 		before := `
@@ -526,6 +526,6 @@ CREATE FUNCTION validate(val integer) RETURNS boolean
     LANGUAGE sql IMMUTABLE AS 'SELECT val > 0 AND val < 1000';
 CREATE DOMAIN posint AS integer CONSTRAINT posint_check CHECK (validate(VALUE));
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 }

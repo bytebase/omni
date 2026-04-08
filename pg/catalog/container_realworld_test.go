@@ -331,22 +331,22 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 CREATE POLICY users_see_own ON users FOR SELECT USING (active = true);
 `
 
-func TestOracleRealWorld(t *testing.T) {
+func TestContainerRealWorld(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	// -------------------------------------------------------------------
 	// 4.1 Complete Schema Lifecycle
 	// -------------------------------------------------------------------
 
 	t.Run("lifecycle_empty_to_complex", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle, "", complexSchemaDDLSimplified)
+		assertOracleRoundtrip(t, ctr, "", complexSchemaDDLSimplified)
 	})
 
 	t.Run("lifecycle_complex_to_modified", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle, complexSchemaDDLSimplified, complexSchemaModifiedDDL)
+		assertOracleRoundtrip(t, ctr, complexSchemaDDLSimplified, complexSchemaModifiedDDL)
 	})
 
 	t.Run("lifecycle_complex_to_empty", func(t *testing.T) {
@@ -374,15 +374,15 @@ CREATE TRIGGER products_audit AFTER INSERT ON products
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 CREATE POLICY users_see_own ON users FOR SELECT USING (active = true);
 `
-		assertOracleRoundtrip(t, oracle, simplifiedForDrop, "")
+		assertOracleRoundtrip(t, ctr, simplifiedForDrop, "")
 	})
 
 	t.Run("lifecycle_migration_matches_direct_creation", func(t *testing.T) {
 		// Verify that:
 		// 1. Empty → complex via migration produces same result as direct creation
 		// 2. Diff(migrated, direct) is empty
-		migrated := oracle.freshSchema(t)
-		expected := oracle.freshSchema(t)
+		migrated := ctr.freshSchema(t)
+		expected := ctr.freshSchema(t)
 
 		// Generate migration from empty to complex.
 		fromCat := New()
@@ -397,14 +397,14 @@ CREATE POLICY users_see_own ON users FOR SELECT USING (active = true);
 		migrationSQL = strings.ReplaceAll(migrationSQL, "public.", "")
 		migrationSQL = strings.ReplaceAll(migrationSQL, `"public".`, "")
 		if migrationSQL != "" {
-			oracle.execInSchema(t, migrated, migrationSQL)
+			ctr.execInSchema(t, migrated, migrationSQL)
 		}
 
 		// Apply directly.
-		oracle.execInSchema(t, expected, complexSchemaDDLSimplified)
+		ctr.execInSchema(t, expected, complexSchemaDDLSimplified)
 
 		// Compare schemas — they must match.
-		oracle.assertSchemasEqual(t, migrated, expected)
+		ctr.assertSchemasEqual(t, migrated, expected)
 
 		// Now verify that Diff(migrated_catalog, direct_catalog) is empty.
 		// Load both resulting schemas into catalogs via LoadSQL (with same DDL)
@@ -462,7 +462,7 @@ CREATE TRIGGER items_stamp AFTER INSERT ON items
     FOR EACH ROW EXECUTE FUNCTION stamp_fn();
 CREATE VIEW active_items AS SELECT id, name FROM items WHERE in_stock = true;
 `
-		assertOracleRoundtripSDL(t, oracle, "", afterSDL, expectedDDL)
+		assertOracleRoundtripSDL(t, ctr, "", afterSDL, expectedDDL)
 	})
 
 	t.Run("sdl_circular_fk", func(t *testing.T) {
@@ -483,7 +483,7 @@ CREATE TABLE member (
     CONSTRAINT member_team_fk FOREIGN KEY (team_id) REFERENCES team(id)
 );
 `
-		assertOracleRoundtripSDL(t, oracle, "", afterSDL)
+		assertOracleRoundtripSDL(t, ctr, "", afterSDL)
 	})
 
 	t.Run("sdl_function_used_by_check_view_trigger", func(t *testing.T) {
@@ -514,6 +514,6 @@ CREATE FUNCTION on_insert() RETURNS trigger
 CREATE TRIGGER items_validate BEFORE INSERT ON items
     FOR EACH ROW EXECUTE FUNCTION on_insert();
 `
-		assertOracleRoundtripSDL(t, oracle, "", afterSDL)
+		assertOracleRoundtripSDL(t, ctr, "", afterSDL)
 	})
 }

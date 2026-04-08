@@ -13,7 +13,7 @@ import (
 // for the "after" catalog (to test SDL forward-reference resolution).
 // expectedDDL is PG-executable DDL in correct dependency order for the
 // expected schema. If empty, afterDDL is used directly (must be valid PG order).
-func assertOracleRoundtripSDL(t *testing.T, o *pgOracle, beforeDDL, afterDDL string, expectedDDL ...string) {
+func assertOracleRoundtripSDL(t *testing.T, o *pgContainer, beforeDDL, afterDDL string, expectedDDL ...string) {
 	t.Helper()
 
 	migrated := o.freshSchema(t)
@@ -104,11 +104,11 @@ func generateMigrationSQL(t *testing.T, beforeDDL, afterDDL string) string {
 // 3.1 Multi-Attribute Simultaneous Changes
 // ---------------------------------------------------------------------------
 
-func TestOracleCombo(t *testing.T) {
+func TestContainerCombo(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	// -------------------------------------------------------------------
 	// 3.1 Multi-Attribute Simultaneous Changes
@@ -131,7 +131,7 @@ CREATE TABLE t (
     phone text,
     CONSTRAINT t_pkey PRIMARY KEY (id)
 );`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("multi_attr_function_body_volatility_parallel", func(t *testing.T) {
@@ -147,7 +147,7 @@ CREATE FUNCTION f(x integer) RETURNS integer
     STABLE
     PARALLEL SAFE
     AS 'SELECT x * 2';`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("multi_attr_table_add_index_trigger_policy", func(t *testing.T) {
@@ -174,7 +174,7 @@ CREATE TRIGGER t_stamp BEFORE INSERT ON t
     FOR EACH ROW EXECUTE FUNCTION stamp();
 ALTER TABLE t ENABLE ROW LEVEL SECURITY;
 CREATE POLICY t_sel ON t FOR SELECT USING (active = true);`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("multi_attr_multiple_tables_changed", func(t *testing.T) {
@@ -184,7 +184,7 @@ CREATE TABLE t2 (id integer NOT NULL, CONSTRAINT t2_pkey PRIMARY KEY (id));`
 		after := `
 CREATE TABLE t1 (id integer NOT NULL, name text, CONSTRAINT t1_pkey PRIMARY KEY (id));
 CREATE TABLE t2 (id integer NOT NULL, email text, CONSTRAINT t2_pkey PRIMARY KEY (id));`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// -------------------------------------------------------------------
@@ -210,7 +210,7 @@ CREATE TABLE t (
     CONSTRAINT t_pkey PRIMARY KEY (id),
     CONSTRAINT age_check CHECK (check_age(age))
 );`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("cross_modify_function_used_by_trigger", func(t *testing.T) {
@@ -226,7 +226,7 @@ CREATE FUNCTION on_change() RETURNS trigger
     LANGUAGE plpgsql AS $$BEGIN NEW.name = upper(NEW.name); RETURN NEW; END;$$;
 CREATE TRIGGER t_change BEFORE UPDATE ON t
     FOR EACH ROW EXECUTE FUNCTION on_change();`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("cross_modify_function_used_by_view", func(t *testing.T) {
@@ -240,7 +240,7 @@ CREATE TABLE t (id integer NOT NULL, name text, CONSTRAINT t_pkey PRIMARY KEY (i
 CREATE FUNCTION format_name(n text) RETURNS text
     LANGUAGE sql IMMUTABLE AS 'SELECT lower(n)';
 CREATE VIEW v AS SELECT id, format_name(name) AS formatted FROM t;`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("cross_add_enum_and_column_using_it", func(t *testing.T) {
@@ -249,7 +249,7 @@ CREATE TABLE t (id integer NOT NULL, CONSTRAINT t_pkey PRIMARY KEY (id));`
 		after := `
 CREATE TYPE status AS ENUM ('active', 'inactive');
 CREATE TABLE t (id integer NOT NULL, s status, CONSTRAINT t_pkey PRIMARY KEY (id));`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("cross_drop_table_with_fk", func(t *testing.T) {
@@ -262,7 +262,7 @@ CREATE TABLE child (
     CONSTRAINT child_pid_fk FOREIGN KEY (pid) REFERENCES parent(id)
 );`
 		after := ``
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("cross_modify_column_type_used_by_view", func(t *testing.T) {
@@ -275,7 +275,7 @@ CREATE VIEW v AS SELECT id, name FROM t;`
 		after := `
 CREATE TABLE t (id integer NOT NULL, name varchar(100), CONSTRAINT t_pkey PRIMARY KEY (id));
 CREATE VIEW v AS SELECT id, name FROM t;`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// -------------------------------------------------------------------
@@ -298,7 +298,7 @@ COMMENT ON VIEW v IS 'test view comment';`
 		if strings.Contains(strings.ToUpper(migSQL), "COMMENT ON TABLE") {
 			t.Errorf("migration SQL should NOT contain COMMENT ON TABLE, got:\n%s", migSQL)
 		}
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("regression_matview_comment", func(t *testing.T) {
@@ -313,7 +313,7 @@ COMMENT ON MATERIALIZED VIEW mv IS 'test matview comment';`
 		if !strings.Contains(strings.ToUpper(migSQL), "MATERIALIZED VIEW") {
 			t.Errorf("expected COMMENT ON MATERIALIZED VIEW in migration SQL, got:\n%s", migSQL)
 		}
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("regression_procedure_comment", func(t *testing.T) {
@@ -331,7 +331,7 @@ COMMENT ON PROCEDURE do_thing() IS 'does a thing';`
 		if !strings.Contains(upper, "COMMENT ON") {
 			t.Errorf("expected COMMENT ON in migration SQL, got:\n%s", migSQL)
 		}
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("regression_procedure_body_change", func(t *testing.T) {
@@ -348,7 +348,7 @@ CREATE PROCEDURE do_thing()
 		if !strings.Contains(upper, "CREATE OR REPLACE") {
 			t.Errorf("expected CREATE OR REPLACE in migration SQL, got:\n%s", migSQL)
 		}
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("regression_trigger_update_of_columns", func(t *testing.T) {
@@ -374,7 +374,7 @@ CREATE FUNCTION stamp() RETURNS trigger
     LANGUAGE plpgsql AS $$BEGIN RETURN NEW; END;$$;
 CREATE TRIGGER t_upd BEFORE UPDATE OF name, email ON t
     FOR EACH ROW EXECUTE FUNCTION stamp();`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("regression_sequence_alter_not_recreate", func(t *testing.T) {
@@ -385,7 +385,7 @@ CREATE TRIGGER t_upd BEFORE UPDATE OF name, email ON t
 		if !strings.Contains(upper, "ALTER SEQUENCE") {
 			t.Errorf("expected ALTER SEQUENCE in migration SQL, got:\n%s", migSQL)
 		}
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("regression_fk_forward_reference_sdl", func(t *testing.T) {
@@ -401,7 +401,7 @@ CREATE TABLE orders (
     CONSTRAINT orders_pkey PRIMARY KEY (id),
     CONSTRAINT orders_user_fk FOREIGN KEY (user_id) REFERENCES users(id)
 );`
-		assertOracleRoundtripSDL(t, oracle, "", afterSDL)
+		assertOracleRoundtripSDL(t, ctr, "", afterSDL)
 	})
 
 	t.Run("regression_mutual_fk_deferred", func(t *testing.T) {
@@ -421,7 +421,7 @@ CREATE TABLE b (
     CONSTRAINT b_pkey PRIMARY KEY (id),
     CONSTRAINT b_a_fk FOREIGN KEY (a_id) REFERENCES a(id)
 );`
-		assertOracleRoundtripSDL(t, oracle, "", afterSDL)
+		assertOracleRoundtripSDL(t, ctr, "", afterSDL)
 	})
 }
 
@@ -429,11 +429,11 @@ CREATE TABLE b (
 // Group 1: Identifier Quoting Edge Cases
 // ---------------------------------------------------------------------------
 
-func TestOracleIdentifierQuoting(t *testing.T) {
+func TestContainerIdentifierQuoting(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	t.Run("camelCase_column_names", func(t *testing.T) {
 		before := `
@@ -447,7 +447,7 @@ CREATE TABLE users (
     name text,
     "isVerified" boolean
 );`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("reserved_word_table_name", func(t *testing.T) {
@@ -460,7 +460,7 @@ CREATE TABLE "order" (
     id integer PRIMARY KEY,
     total numeric(10,2)
 );`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("reserved_word_column_name", func(t *testing.T) {
@@ -474,7 +474,7 @@ CREATE TABLE t1 (
     id integer PRIMARY KEY,
     "select" varchar(200)
 );`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("camelCase_in_constraint", func(t *testing.T) {
@@ -489,7 +489,7 @@ CREATE TABLE users (
     name text,
     CONSTRAINT "userPK" PRIMARY KEY ("userId")
 );`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("camelCase_in_index", func(t *testing.T) {
@@ -504,7 +504,7 @@ CREATE TABLE users (
     name text
 );
 CREATE INDEX "idxUserId" ON users("userId");`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("reserved_word_in_fk", func(t *testing.T) {
@@ -525,7 +525,7 @@ CREATE TABLE "order" (
     user_id integer,
     CONSTRAINT "order_user_fk" FOREIGN KEY (user_id) REFERENCES "user"(id)
 );`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 }
 
@@ -533,11 +533,11 @@ CREATE TABLE "order" (
 // Group 4: Multi-Column and Cross-Schema
 // ---------------------------------------------------------------------------
 
-func TestOracleMultiColumnAndCrossSchema(t *testing.T) {
+func TestContainerMultiColumnAndCrossSchema(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	t.Run("multi_column_primary_key", func(t *testing.T) {
 		before := `
@@ -553,7 +553,7 @@ CREATE TABLE t1 (
     data text,
     CONSTRAINT t1_pkey PRIMARY KEY (col1, col2)
 );`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("multi_column_foreign_key", func(t *testing.T) {
@@ -580,7 +580,7 @@ CREATE TABLE child (
     b integer,
     CONSTRAINT child_parent_fk FOREIGN KEY (a, b) REFERENCES parent(a, b)
 );`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("composite_fk_column_order", func(t *testing.T) {
@@ -598,7 +598,7 @@ CREATE TABLE child (
     cy integer,
     CONSTRAINT child_parent_fk FOREIGN KEY (cx, cy) REFERENCES parent(x, y)
 );`
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("cross_schema_fk", func(t *testing.T) {
@@ -631,15 +631,15 @@ CREATE TABLE s2.child (
 			t.Errorf("expected CREATE TABLE in migration SQL, got:\n%s", migSQL)
 		}
 		// Execute on PG to verify it's valid SQL.
-		oracle.execSQL(t, `CREATE SCHEMA IF NOT EXISTS s1; CREATE SCHEMA IF NOT EXISTS s2`)
-		oracle.execSQL(t, `CREATE TABLE IF NOT EXISTS s1.parent (id integer PRIMARY KEY)`)
+		ctr.execSQL(t, `CREATE SCHEMA IF NOT EXISTS s1; CREATE SCHEMA IF NOT EXISTS s2`)
+		ctr.execSQL(t, `CREATE TABLE IF NOT EXISTS s1.parent (id integer PRIMARY KEY)`)
 		t.Cleanup(func() {
-			oracle.execSQL(t, `DROP TABLE IF EXISTS s2.child CASCADE`)
-			oracle.execSQL(t, `DROP TABLE IF EXISTS s1.parent CASCADE`)
-			oracle.execSQL(t, `DROP SCHEMA IF EXISTS s1 CASCADE`)
-			oracle.execSQL(t, `DROP SCHEMA IF EXISTS s2 CASCADE`)
+			ctr.execSQL(t, `DROP TABLE IF EXISTS s2.child CASCADE`)
+			ctr.execSQL(t, `DROP TABLE IF EXISTS s1.parent CASCADE`)
+			ctr.execSQL(t, `DROP SCHEMA IF EXISTS s1 CASCADE`)
+			ctr.execSQL(t, `DROP SCHEMA IF EXISTS s2 CASCADE`)
 		})
-		oracle.execSQL(t, migSQL)
+		ctr.execSQL(t, migSQL)
 	})
 
 	t.Run("cross_schema_type_reference", func(t *testing.T) {

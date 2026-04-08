@@ -8,18 +8,18 @@ import (
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
 
-// TestOracle_ReservedKeywordAcceptance systematically tests whether omni
+// TestContainer_ReservedKeywordAcceptance systematically tests whether omni
 // and MySQL 8.0 agree on which reserved keywords are accepted in various
 // syntactic "name" positions. A mismatch (MySQL accepts, omni rejects)
 // reveals a parser bug where isIdentToken/parseIdent is too restrictive.
 //
 // This is a diagnostic test — it reports all mismatches rather than failing
 // on the first one, so we get a complete gap picture.
-func TestOracle_ReservedKeywordAcceptance(t *testing.T) {
+func TestContainer_ReservedKeywordAcceptance(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// All reserved keywords from mysql/parser/name.go.
@@ -35,7 +35,7 @@ func TestOracle_ReservedKeywordAcceptance(t *testing.T) {
 	// We use backtick-quoting in setup SQL to avoid interfering.
 	type namePosition struct {
 		name     string
-		setup    string // SQL to run before the test (on both oracle and omni)
+		setup    string // SQL to run before the test (on both container and omni)
 		template string // SQL with %s for the keyword being tested
 		cleanup  string // SQL to run after each keyword attempt
 	}
@@ -89,8 +89,8 @@ func TestOracle_ReservedKeywordAcceptance(t *testing.T) {
 		t.Run(pos.name, func(t *testing.T) {
 			// Setup
 			if pos.setup != "" {
-				if err := oracle.execSQL(pos.setup); err != nil {
-					t.Fatalf("oracle setup: %v", err)
+				if err := ctr.execSQL(pos.setup); err != nil {
+					t.Fatalf("container setup: %v", err)
 				}
 			}
 
@@ -100,21 +100,21 @@ func TestOracle_ReservedKeywordAcceptance(t *testing.T) {
 				sql := fmt.Sprintf(pos.template, kw)
 
 				// Try on MySQL 8.0
-				oracleErr := oracle.execSQL(sql)
+				ctrErr := ctr.execSQL(sql)
 
 				// Try on omni (parse-only — we just check if it parses)
 				_, omniErr := mysqlparser.Parse(sql)
 
-				// Cleanup on oracle
+				// Cleanup on container
 				if pos.cleanup != "" {
 					cleanSQL := fmt.Sprintf(pos.cleanup, kw)
-					oracle.execSQL(cleanSQL) //nolint:errcheck
+					ctr.execSQL(cleanSQL) //nolint:errcheck
 				}
 
-				oracleOK := oracleErr == nil
+				ctrOK := ctrErr == nil
 				omniOK := omniErr == nil
 
-				if oracleOK && !omniOK {
+				if ctrOK && !omniOK {
 					mismatches = append(mismatches, fmt.Sprintf(
 						"  %s: MySQL accepts, omni rejects — %v", kw, omniErr))
 				}

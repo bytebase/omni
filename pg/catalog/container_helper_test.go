@@ -16,24 +16,24 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// pgOracle wraps a real PostgreSQL container connection for oracle testing.
-type pgOracle struct {
+// pgContainer wraps a real PostgreSQL container connection for container testing.
+type pgContainer struct {
 	db  *sql.DB
 	ctx context.Context
 }
 
 var (
-	pgOracleOnce    sync.Once
-	pgOracleInst    *pgOracle
-	pgOracleCleanup func()
+	pgContainerOnce    sync.Once
+	pgContainerInst    *pgContainer
+	pgContainerCleanup func()
 	pgSchemaCounter atomic.Int64
 )
 
-// startPGOracle starts a shared PostgreSQL 16 container. The container is reused
+// startPGContainer starts a shared PostgreSQL 16 container. The container is reused
 // across all tests via sync.Once; individual tests get schema-level isolation.
-func startPGOracle(t *testing.T) *pgOracle {
+func startPGContainer(t *testing.T) *pgContainer {
 	t.Helper()
-	pgOracleOnce.Do(func() {
+	pgContainerOnce.Do(func() {
 		ctx := context.Background()
 		container, err := tcpg.Run(ctx, "postgres:16-alpine",
 			tcpg.WithDatabase("omni_test"),
@@ -65,8 +65,8 @@ func startPGOracle(t *testing.T) *pgOracle {
 			panic(fmt.Sprintf("failed to ping: %v", err))
 		}
 
-		pgOracleInst = &pgOracle{db: db, ctx: ctx}
-		pgOracleCleanup = func() {
+		pgContainerInst = &pgContainer{db: db, ctx: ctx}
+		pgContainerCleanup = func() {
 			db.Close()
 			_ = testcontainers.TerminateContainer(container)
 		}
@@ -75,11 +75,11 @@ func startPGOracle(t *testing.T) *pgOracle {
 		// Don't cleanup here — container shared across tests.
 		// Will be cleaned up when process exits.
 	})
-	return pgOracleInst
+	return pgContainerInst
 }
 
 // execSQL executes a SQL statement on the PG container.
-func (o *pgOracle) execSQL(t *testing.T, sqlStr string) {
+func (o *pgContainer) execSQL(t *testing.T, sqlStr string) {
 	t.Helper()
 	_, err := o.db.ExecContext(o.ctx, sqlStr)
 	if err != nil {
@@ -99,7 +99,7 @@ func truncateSQL(sqlStr string, maxLen int) string {
 // ---------------------------------------------------------------------------
 
 // freshSchema creates a new uniquely-named schema and registers cleanup.
-func (o *pgOracle) freshSchema(t *testing.T) string {
+func (o *pgContainer) freshSchema(t *testing.T) string {
 	t.Helper()
 	n := pgSchemaCounter.Add(1)
 	name := fmt.Sprintf("test_%d", n)
@@ -112,7 +112,7 @@ func (o *pgOracle) freshSchema(t *testing.T) string {
 }
 
 // execInSchema sets the search_path and executes DDL.
-func (o *pgOracle) execInSchema(t *testing.T, schema, ddl string) {
+func (o *pgContainer) execInSchema(t *testing.T, schema, ddl string) {
 	t.Helper()
 	sqlStr := fmt.Sprintf("SET search_path TO %q, public;\n%s", schema, ddl)
 	o.execSQL(t, sqlStr)
@@ -210,7 +210,7 @@ type policyRow struct {
 // Schema query functions
 // ---------------------------------------------------------------------------
 
-func (o *pgOracle) queryTables(t *testing.T, schema string) []tableRow {
+func (o *pgContainer) queryTables(t *testing.T, schema string) []tableRow {
 	t.Helper()
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT c.relname, c.relkind::text
@@ -234,7 +234,7 @@ func (o *pgOracle) queryTables(t *testing.T, schema string) []tableRow {
 	return result
 }
 
-func (o *pgOracle) queryColumns(t *testing.T, schema string) []columnRow {
+func (o *pgContainer) queryColumns(t *testing.T, schema string) []columnRow {
 	t.Helper()
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT table_name, column_name, data_type, is_nullable,
@@ -259,7 +259,7 @@ func (o *pgOracle) queryColumns(t *testing.T, schema string) []columnRow {
 	return result
 }
 
-func (o *pgOracle) queryIndexes(t *testing.T, schema string) []indexRow {
+func (o *pgContainer) queryIndexes(t *testing.T, schema string) []indexRow {
 	t.Helper()
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT indexname, indexdef
@@ -281,7 +281,7 @@ func (o *pgOracle) queryIndexes(t *testing.T, schema string) []indexRow {
 	return result
 }
 
-func (o *pgOracle) queryConstraints(t *testing.T, schema string) []constraintRow {
+func (o *pgContainer) queryConstraints(t *testing.T, schema string) []constraintRow {
 	t.Helper()
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT con.conname, con.contype::text,
@@ -307,7 +307,7 @@ func (o *pgOracle) queryConstraints(t *testing.T, schema string) []constraintRow
 	return result
 }
 
-func (o *pgOracle) queryFunctions(t *testing.T, schema string) []functionRow {
+func (o *pgContainer) queryFunctions(t *testing.T, schema string) []functionRow {
 	t.Helper()
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT p.proname,
@@ -342,7 +342,7 @@ func (o *pgOracle) queryFunctions(t *testing.T, schema string) []functionRow {
 	return result
 }
 
-func (o *pgOracle) queryTriggers(t *testing.T, schema string) []triggerRow {
+func (o *pgContainer) queryTriggers(t *testing.T, schema string) []triggerRow {
 	t.Helper()
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT tg.tgname, c.relname,
@@ -368,7 +368,7 @@ func (o *pgOracle) queryTriggers(t *testing.T, schema string) []triggerRow {
 	return result
 }
 
-func (o *pgOracle) querySequences(t *testing.T, schema string) []sequenceRow {
+func (o *pgContainer) querySequences(t *testing.T, schema string) []sequenceRow {
 	t.Helper()
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT s.sequencename, s.data_type,
@@ -393,7 +393,7 @@ func (o *pgOracle) querySequences(t *testing.T, schema string) []sequenceRow {
 	return result
 }
 
-func (o *pgOracle) queryEnumTypes(t *testing.T, schema string) []enumRow {
+func (o *pgContainer) queryEnumTypes(t *testing.T, schema string) []enumRow {
 	t.Helper()
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT t.typname,
@@ -419,7 +419,7 @@ func (o *pgOracle) queryEnumTypes(t *testing.T, schema string) []enumRow {
 	return result
 }
 
-func (o *pgOracle) queryViews(t *testing.T, schema string) []viewRow {
+func (o *pgContainer) queryViews(t *testing.T, schema string) []viewRow {
 	t.Helper()
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT viewname, definition, NULL::text
@@ -441,7 +441,7 @@ func (o *pgOracle) queryViews(t *testing.T, schema string) []viewRow {
 	return result
 }
 
-func (o *pgOracle) queryComments(t *testing.T, schema string) []commentRow {
+func (o *pgContainer) queryComments(t *testing.T, schema string) []commentRow {
 	t.Helper()
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT
@@ -503,7 +503,7 @@ func (o *pgOracle) queryComments(t *testing.T, schema string) []commentRow {
 	return result
 }
 
-func (o *pgOracle) queryColumnComments(t *testing.T, schema string) []commentRow {
+func (o *pgContainer) queryColumnComments(t *testing.T, schema string) []commentRow {
 	t.Helper()
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT 'COLUMN' AS object_type,
@@ -532,7 +532,7 @@ func (o *pgOracle) queryColumnComments(t *testing.T, schema string) []commentRow
 	return result
 }
 
-func (o *pgOracle) queryPolicies(t *testing.T, schema string) []policyRow {
+func (o *pgContainer) queryPolicies(t *testing.T, schema string) []policyRow {
 	t.Helper()
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT pol.polname, c.relname,
@@ -568,7 +568,7 @@ func (o *pgOracle) queryPolicies(t *testing.T, schema string) []policyRow {
 // Schema comparison
 // ---------------------------------------------------------------------------
 
-func (o *pgOracle) compareSchemas(t *testing.T, schemaA, schemaB string) []string {
+func (o *pgContainer) compareSchemas(t *testing.T, schemaA, schemaB string) []string {
 	t.Helper()
 	var diffs []string
 
@@ -978,7 +978,7 @@ func compareFunctions(schemaA, schemaB string, a, b []functionRow) []string {
 	return diffs
 }
 
-func (o *pgOracle) assertSchemasEqual(t *testing.T, schemaA, schemaB string) {
+func (o *pgContainer) assertSchemasEqual(t *testing.T, schemaA, schemaB string) {
 	t.Helper()
 	diffs := o.compareSchemas(t, schemaA, schemaB)
 	if len(diffs) > 0 {
@@ -992,7 +992,7 @@ func (o *pgOracle) assertSchemasEqual(t *testing.T, schemaA, schemaB string) {
 
 // assertOracleRoundtrip tests that omni's generated migration produces the same
 // schema state as applying the "after" DDL directly.
-func assertOracleRoundtrip(t *testing.T, o *pgOracle, beforeDDL, afterDDL string) {
+func assertOracleRoundtrip(t *testing.T, o *pgContainer, beforeDDL, afterDDL string) {
 	t.Helper()
 
 	migrated := o.freshSchema(t)

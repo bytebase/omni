@@ -178,21 +178,21 @@ const allTypesDDL = typeEnumDDL + "\n" +
 // Tests
 // ---------------------------------------------------------------------------
 
-func TestOracleFullyLoaded(t *testing.T) {
+func TestContainerFullyLoaded(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	// -----------------------------------------------------------------------
 	// 1.2 Fully-Loaded Table
 	// -----------------------------------------------------------------------
 
 	t.Run("create_loaded_table", func(t *testing.T) {
-		schema := oracle.freshSchema(t)
-		oracle.execInSchema(t, schema, fullTableDDL)
+		schema := ctr.freshSchema(t)
+		ctr.execInSchema(t, schema, fullTableDDL)
 		// Verify table exists
-		tables := oracle.queryTables(t, schema)
+		tables := ctr.queryTables(t, schema)
 		found := false
 		for _, tbl := range tables {
 			if tbl.name == "users" {
@@ -203,32 +203,32 @@ func TestOracleFullyLoaded(t *testing.T) {
 			t.Fatal("users table not found after creation")
 		}
 		// Verify indexes
-		idxs := oracle.queryIndexes(t, schema)
+		idxs := ctr.queryIndexes(t, schema)
 		if len(idxs) < 3 {
 			t.Errorf("expected at least 3 indexes, got %d", len(idxs))
 		}
 		// Verify constraints
-		cons := oracle.queryConstraints(t, schema)
+		cons := ctr.queryConstraints(t, schema)
 		if len(cons) < 2 {
 			t.Errorf("expected at least 2 constraints, got %d", len(cons))
 		}
 		// Verify comments
-		cmts := oracle.queryComments(t, schema)
+		cmts := ctr.queryComments(t, schema)
 		if len(cmts) == 0 {
 			t.Error("expected comments")
 		}
 		// Verify policies
-		pols := oracle.queryPolicies(t, schema)
+		pols := ctr.queryPolicies(t, schema)
 		if len(pols) == 0 {
 			t.Error("expected policies")
 		}
 	})
 
 	t.Run("drop_loaded_table", func(t *testing.T) {
-		schema := oracle.freshSchema(t)
-		oracle.execInSchema(t, schema, fullTableDDL)
-		oracle.execInSchema(t, schema, `DROP TABLE users CASCADE;`)
-		tables := oracle.queryTables(t, schema)
+		schema := ctr.freshSchema(t)
+		ctr.execInSchema(t, schema, fullTableDDL)
+		ctr.execInSchema(t, schema, `DROP TABLE users CASCADE;`)
+		tables := ctr.queryTables(t, schema)
 		for _, tbl := range tables {
 			if tbl.name == "users" {
 				t.Fatal("users table still exists after DROP CASCADE")
@@ -237,7 +237,7 @@ func TestOracleFullyLoaded(t *testing.T) {
 	})
 
 	t.Run("empty_to_loaded_migration", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle, "", roundtripTableDDL)
+		assertOracleRoundtrip(t, ctr, "", roundtripTableDDL)
 	})
 
 	t.Run("loaded_to_empty_migration", func(t *testing.T) {
@@ -254,11 +254,11 @@ CREATE TABLE users (
 );
 CREATE INDEX idx_users_name ON users(name);
 `
-		assertOracleRoundtrip(t, oracle, simpleDDL, "")
+		assertOracleRoundtrip(t, ctr, simpleDDL, "")
 	})
 
 	t.Run("loaded_roundtrip", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle, "", roundtripTableDDL)
+		assertOracleRoundtrip(t, ctr, "", roundtripTableDDL)
 	})
 
 	// -----------------------------------------------------------------------
@@ -266,9 +266,9 @@ CREATE INDEX idx_users_name ON users(name);
 	// -----------------------------------------------------------------------
 
 	t.Run("create_loaded_function", func(t *testing.T) {
-		schema := oracle.freshSchema(t)
-		oracle.execInSchema(t, schema, fullTableDDL+loadedFunctionDDL)
-		funcs := oracle.queryFunctions(t, schema)
+		schema := ctr.freshSchema(t)
+		ctr.execInSchema(t, schema, fullTableDDL+loadedFunctionDDL)
+		funcs := ctr.queryFunctions(t, schema)
 		found := false
 		for _, f := range funcs {
 			if f.name == "get_user_count" {
@@ -293,9 +293,9 @@ CREATE INDEX idx_users_name ON users(name);
 	})
 
 	t.Run("create_loaded_procedure", func(t *testing.T) {
-		schema := oracle.freshSchema(t)
-		oracle.execInSchema(t, schema, fullTableDDL+loadedProcedureDDL)
-		funcs := oracle.queryFunctions(t, schema)
+		schema := ctr.freshSchema(t)
+		ctr.execInSchema(t, schema, fullTableDDL+loadedProcedureDDL)
+		funcs := ctr.queryFunctions(t, schema)
 		found := false
 		for _, f := range funcs {
 			if f.name == "cleanup_inactive" {
@@ -314,9 +314,9 @@ CREATE INDEX idx_users_name ON users(name);
 	})
 
 	t.Run("create_loaded_view", func(t *testing.T) {
-		schema := oracle.freshSchema(t)
-		oracle.execInSchema(t, schema, fullTableDDL+loadedViewDDL)
-		views := oracle.queryViews(t, schema)
+		schema := ctr.freshSchema(t)
+		ctr.execInSchema(t, schema, fullTableDDL+loadedViewDDL)
+		views := ctr.queryViews(t, schema)
 		found := false
 		for _, v := range views {
 			if v.name == "active_users" {
@@ -326,7 +326,7 @@ CREATE INDEX idx_users_name ON users(name);
 		if !found {
 			t.Fatal("active_users view not found")
 		}
-		cmts := oracle.queryComments(t, schema)
+		cmts := ctr.queryComments(t, schema)
 		foundCmt := false
 		for _, c := range cmts {
 			if c.objectName == "active_users" && c.comment == "Only active users" {
@@ -339,9 +339,9 @@ CREATE INDEX idx_users_name ON users(name);
 	})
 
 	t.Run("create_loaded_matview", func(t *testing.T) {
-		schema := oracle.freshSchema(t)
-		oracle.execInSchema(t, schema, fullTableDDL+loadedMatviewDDL)
-		tables := oracle.queryTables(t, schema)
+		schema := ctr.freshSchema(t)
+		ctr.execInSchema(t, schema, fullTableDDL+loadedMatviewDDL)
+		tables := ctr.queryTables(t, schema)
 		found := false
 		for _, tbl := range tables {
 			if tbl.name == "user_stats" && tbl.relkind == "m" {
@@ -351,7 +351,7 @@ CREATE INDEX idx_users_name ON users(name);
 		if !found {
 			t.Fatal("user_stats materialized view not found")
 		}
-		idxs := oracle.queryIndexes(t, schema)
+		idxs := ctr.queryIndexes(t, schema)
 		foundIdx := false
 		for _, idx := range idxs {
 			if idx.name == "idx_user_stats_status" {
@@ -364,9 +364,9 @@ CREATE INDEX idx_users_name ON users(name);
 	})
 
 	t.Run("create_loaded_trigger", func(t *testing.T) {
-		schema := oracle.freshSchema(t)
-		oracle.execInSchema(t, schema, fullTableDDL+loadedTriggerFuncDDL+loadedTriggerDDL)
-		trigs := oracle.queryTriggers(t, schema)
+		schema := ctr.freshSchema(t)
+		ctr.execInSchema(t, schema, fullTableDDL+loadedTriggerFuncDDL+loadedTriggerDDL)
+		trigs := ctr.queryTriggers(t, schema)
 		found := false
 		for _, tr := range trigs {
 			if tr.name == "users_update_ts" {
@@ -379,7 +379,7 @@ CREATE INDEX idx_users_name ON users(name);
 	})
 
 	t.Run("empty_to_all_objects_migration", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle, "", roundtripAllObjectsDDL)
+		assertOracleRoundtrip(t, ctr, "", roundtripAllObjectsDDL)
 	})
 
 	// -----------------------------------------------------------------------
@@ -387,9 +387,9 @@ CREATE INDEX idx_users_name ON users(name);
 	// -----------------------------------------------------------------------
 
 	t.Run("create_enum", func(t *testing.T) {
-		schema := oracle.freshSchema(t)
-		oracle.execInSchema(t, schema, typeEnumDDL)
-		enums := oracle.queryEnumTypes(t, schema)
+		schema := ctr.freshSchema(t)
+		ctr.execInSchema(t, schema, typeEnumDDL)
+		enums := ctr.queryEnumTypes(t, schema)
 		if len(enums) == 0 {
 			t.Fatal("no enum types found")
 		}
@@ -408,11 +408,11 @@ CREATE INDEX idx_users_name ON users(name);
 	})
 
 	t.Run("create_domain", func(t *testing.T) {
-		schema := oracle.freshSchema(t)
-		oracle.execInSchema(t, schema, typeDomainDDL)
+		schema := ctr.freshSchema(t)
+		ctr.execInSchema(t, schema, typeDomainDDL)
 		// Verify domain exists via pg_type
 		var count int
-		err := oracle.db.QueryRowContext(oracle.ctx, `
+		err := ctr.db.QueryRowContext(ctr.ctx, `
 			SELECT count(*) FROM pg_type t
 			JOIN pg_namespace n ON n.oid = t.typnamespace
 			WHERE n.nspname = $1 AND t.typname = 'email_addr' AND t.typtype = 'd'
@@ -426,10 +426,10 @@ CREATE INDEX idx_users_name ON users(name);
 	})
 
 	t.Run("create_composite", func(t *testing.T) {
-		schema := oracle.freshSchema(t)
-		oracle.execInSchema(t, schema, typeCompositeDDL)
+		schema := ctr.freshSchema(t)
+		ctr.execInSchema(t, schema, typeCompositeDDL)
 		var count int
-		err := oracle.db.QueryRowContext(oracle.ctx, `
+		err := ctr.db.QueryRowContext(ctr.ctx, `
 			SELECT count(*) FROM pg_type t
 			JOIN pg_namespace n ON n.oid = t.typnamespace
 			WHERE n.nspname = $1 AND t.typname = 'address' AND t.typtype = 'c'
@@ -443,10 +443,10 @@ CREATE INDEX idx_users_name ON users(name);
 	})
 
 	t.Run("create_range", func(t *testing.T) {
-		schema := oracle.freshSchema(t)
-		oracle.execInSchema(t, schema, typeRangeDDL)
+		schema := ctr.freshSchema(t)
+		ctr.execInSchema(t, schema, typeRangeDDL)
 		var count int
-		err := oracle.db.QueryRowContext(oracle.ctx, `
+		err := ctr.db.QueryRowContext(ctr.ctx, `
 			SELECT count(*) FROM pg_type t
 			JOIN pg_namespace n ON n.oid = t.typnamespace
 			WHERE n.nspname = $1 AND t.typname = 'float_range' AND t.typtype = 'r'
@@ -460,9 +460,9 @@ CREATE INDEX idx_users_name ON users(name);
 	})
 
 	t.Run("create_sequence", func(t *testing.T) {
-		schema := oracle.freshSchema(t)
-		oracle.execInSchema(t, schema, typeSequenceDDL)
-		seqs := oracle.querySequences(t, schema)
+		schema := ctr.freshSchema(t)
+		ctr.execInSchema(t, schema, typeSequenceDDL)
+		seqs := ctr.querySequences(t, schema)
 		found := false
 		for _, s := range seqs {
 			if s.name == "global_seq" {
@@ -486,14 +486,14 @@ CREATE INDEX idx_users_name ON users(name);
 	t.Run("create_extension", func(t *testing.T) {
 		// Extensions are created in the public schema (not in test schemas).
 		// We test IF NOT EXISTS to avoid errors if already loaded.
-		_, err := oracle.db.ExecContext(oracle.ctx, `CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`)
+		_, err := ctr.db.ExecContext(ctr.ctx, `CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`)
 		if err != nil {
 			// Some minimal PG images may not have uuid-ossp; skip if unavailable.
 			t.Skipf("skipping extension test: %v", err)
 		}
 		// Verify extension exists
 		var count int
-		err = oracle.db.QueryRowContext(oracle.ctx,
+		err = ctr.db.QueryRowContext(ctr.ctx,
 			`SELECT count(*) FROM pg_extension WHERE extname = 'uuid-ossp'`).Scan(&count)
 		if err != nil {
 			t.Fatal(err)
@@ -504,6 +504,6 @@ CREATE INDEX idx_users_name ON users(name);
 	})
 
 	t.Run("empty_to_types_migration", func(t *testing.T) {
-		assertOracleRoundtrip(t, oracle, "", allTypesDDL)
+		assertOracleRoundtrip(t, ctr, "", allTypesDDL)
 	})
 }

@@ -1,6 +1,6 @@
 # MySQL Deparser Oracle Verification Scenarios
 
-> Goal: Comprehensive end-to-end oracle testing of the MySQL deparser against real MySQL 8.0 SHOW CREATE VIEW output
+> Goal: Comprehensive end-to-end container testing of the MySQL deparser against real MySQL 8.0 SHOW CREATE VIEW output
 > Verification: Create views on both MySQL 8.0 (testcontainers) and omni catalog, compare SELECT body from SHOW CREATE VIEW
 > Reference: Real MySQL 8.0 output is authoritative
 > Notes: (1) Oracle mismatches may require deparser fixes — tracked inline. (2) INTERSECT/EXCEPT require MySQL 8.0.31+. (3) Recursive CTEs and correlated subqueries may hit parser limitations — mark [~] if so.

@@ -8,11 +8,11 @@ import (
 	mysqldriver "github.com/go-sql-driver/mysql"
 )
 
-func TestOracle_Section_1_2_StringTypes(t *testing.T) {
+func TestContainer_Section_1_2_StringTypes(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -41,11 +41,11 @@ func TestOracle_Section_1_2_StringTypes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -59,19 +59,19 @@ func TestOracle_Section_1_2_StringTypes(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_4_DateTimeTypes(t *testing.T) {
+func TestContainer_Section_1_4_DateTimeTypes(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -92,11 +92,11 @@ func TestOracle_Section_1_4_DateTimeTypes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -110,19 +110,19 @@ func TestOracle_Section_1_4_DateTimeTypes(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_1_NumericTypes(t *testing.T) {
+func TestContainer_Section_1_1_NumericTypes(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -158,11 +158,11 @@ func TestOracle_Section_1_1_NumericTypes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -173,19 +173,19 @@ func TestOracle_Section_1_1_NumericTypes(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_10_ColumnAttributesCombination(t *testing.T) {
+func TestContainer_Section_1_10_ColumnAttributesCombination(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -205,11 +205,11 @@ func TestOracle_Section_1_10_ColumnAttributesCombination(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -223,19 +223,19 @@ func TestOracle_Section_1_10_ColumnAttributesCombination(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_7_DefaultValues(t *testing.T) {
+func TestContainer_Section_1_7_DefaultValues(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -270,11 +270,11 @@ func TestOracle_Section_1_7_DefaultValues(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -288,19 +288,19 @@ func TestOracle_Section_1_7_DefaultValues(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_11_PrimaryKey(t *testing.T) {
+func TestContainer_Section_1_11_PrimaryKey(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -318,11 +318,11 @@ func TestOracle_Section_1_11_PrimaryKey(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -336,19 +336,19 @@ func TestOracle_Section_1_11_PrimaryKey(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_13_RegularIndexes(t *testing.T) {
+func TestContainer_Section_1_13_RegularIndexes(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -368,11 +368,11 @@ func TestOracle_Section_1_13_RegularIndexes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -386,19 +386,19 @@ func TestOracle_Section_1_13_RegularIndexes(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_17_ForeignKeys(t *testing.T) {
+func TestContainer_Section_1_17_ForeignKeys(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -511,18 +511,18 @@ func TestOracle_Section_1_17_ForeignKeys(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Cleanup from prior runs.
-			oracle.execSQL(tc.cleanup)
+			ctr.execSQL(tc.cleanup)
 
 			// Setup parent tables.
 			if tc.setup != "" {
-				if err := oracle.execSQL(tc.setup); err != nil {
-					t.Fatalf("oracle setup: %v", err)
+				if err := ctr.execSQL(tc.setup); err != nil {
+					t.Fatalf("container setup: %v", err)
 				}
 			}
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -548,19 +548,19 @@ func TestOracle_Section_1_17_ForeignKeys(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_12_UniqueKeys(t *testing.T) {
+func TestContainer_Section_1_12_UniqueKeys(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -577,11 +577,11 @@ func TestOracle_Section_1_12_UniqueKeys(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -595,19 +595,19 @@ func TestOracle_Section_1_12_UniqueKeys(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_18_CheckConstraints(t *testing.T) {
+func TestContainer_Section_1_18_CheckConstraints(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -625,11 +625,11 @@ func TestOracle_Section_1_18_CheckConstraints(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -643,19 +643,19 @@ func TestOracle_Section_1_18_CheckConstraints(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_19_TableOptions(t *testing.T) {
+func TestContainer_Section_1_19_TableOptions(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -680,11 +680,11 @@ func TestOracle_Section_1_19_TableOptions(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -698,19 +698,19 @@ func TestOracle_Section_1_19_TableOptions(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_8_OnUpdate(t *testing.T) {
+func TestContainer_Section_1_8_OnUpdate(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -726,11 +726,11 @@ func TestOracle_Section_1_8_OnUpdate(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -744,19 +744,19 @@ func TestOracle_Section_1_8_OnUpdate(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_20_CharsetCollationInheritance(t *testing.T) {
+func TestContainer_Section_1_20_CharsetCollationInheritance(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -813,16 +813,16 @@ func TestOracle_Section_1_20_CharsetCollationInheritance(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.setupSQL != "" {
-				if err := oracle.execSQL(tc.setupSQL); err != nil {
-					t.Fatalf("oracle setup: %v", err)
+				if err := ctr.execSQL(tc.setupSQL); err != nil {
+					t.Fatalf("container setup: %v", err)
 				}
 			}
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, err := oracle.showCreateTable(tc.table)
+			ctrDDL, err := ctr.showCreateTable(tc.table)
 			if err != nil {
-				t.Fatalf("oracle show create: %v", err)
+				t.Fatalf("container show create: %v", err)
 			}
 
 			c := New()
@@ -846,19 +846,19 @@ func TestOracle_Section_1_20_CharsetCollationInheritance(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable(tc.database, tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_9_GeneratedColumns(t *testing.T) {
+func TestContainer_Section_1_9_GeneratedColumns(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -905,11 +905,11 @@ func TestOracle_Section_1_9_GeneratedColumns(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -923,19 +923,19 @@ func TestOracle_Section_1_9_GeneratedColumns(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_3_BinaryTypes(t *testing.T) {
+func TestContainer_Section_1_3_BinaryTypes(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -955,11 +955,11 @@ func TestOracle_Section_1_3_BinaryTypes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -973,19 +973,19 @@ func TestOracle_Section_1_3_BinaryTypes(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_6_JSONType(t *testing.T) {
+func TestContainer_Section_1_6_JSONType(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -999,11 +999,11 @@ func TestOracle_Section_1_6_JSONType(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -1017,19 +1017,19 @@ func TestOracle_Section_1_6_JSONType(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_5_SpatialTypes(t *testing.T) {
+func TestContainer_Section_1_5_SpatialTypes(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -1052,11 +1052,11 @@ func TestOracle_Section_1_5_SpatialTypes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -1070,19 +1070,19 @@ func TestOracle_Section_1_5_SpatialTypes(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_14_FulltextSpatialIndexes(t *testing.T) {
+func TestContainer_Section_1_14_FulltextSpatialIndexes(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -1098,11 +1098,11 @@ func TestOracle_Section_1_14_FulltextSpatialIndexes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -1116,19 +1116,19 @@ func TestOracle_Section_1_14_FulltextSpatialIndexes(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_15_ExpressionIndexes(t *testing.T) {
+func TestContainer_Section_1_15_ExpressionIndexes(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -1144,11 +1144,11 @@ func TestOracle_Section_1_15_ExpressionIndexes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -1162,19 +1162,19 @@ func TestOracle_Section_1_15_ExpressionIndexes(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_1_16_IndexOptions(t *testing.T) {
+func TestContainer_Section_1_16_IndexOptions(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -1190,11 +1190,11 @@ func TestOracle_Section_1_16_IndexOptions(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -1208,29 +1208,29 @@ func TestOracle_Section_1_16_IndexOptions(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_2_1_CreateTableVariants(t *testing.T) {
+func TestContainer_Section_2_1_CreateTableVariants(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	t.Run("if_not_exists_no_error", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_ine")
-		oracle.execSQL("CREATE TABLE t_ine (id INT)")
+		ctr.execSQL("DROP TABLE IF EXISTS t_ine")
+		ctr.execSQL("CREATE TABLE t_ine (id INT)")
 
-		// Second CREATE with IF NOT EXISTS should not error on oracle.
-		oracleErr := oracle.execSQL("CREATE TABLE IF NOT EXISTS t_ine (id INT)")
-		if oracleErr != nil {
-			t.Fatalf("oracle error on IF NOT EXISTS: %v", oracleErr)
+		// Second CREATE with IF NOT EXISTS should not error on ctr.
+		ctrErr := ctr.execSQL("CREATE TABLE IF NOT EXISTS t_ine (id INT)")
+		if ctrErr != nil {
+			t.Fatalf("container error on IF NOT EXISTS: %v", ctrErr)
 		}
 
 		// Omni should also not error.
@@ -1244,24 +1244,24 @@ func TestOracle_Section_2_1_CreateTableVariants(t *testing.T) {
 		}
 
 		// Compare SHOW CREATE TABLE.
-		oracleDDL, _ := oracle.showCreateTable("t_ine")
+		ctrDDL, _ := ctr.showCreateTable("t_ine")
 		omniDDL := c.ShowCreateTable("test", "t_ine")
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("temporary_table", func(t *testing.T) {
 		// MySQL SHOW CREATE TABLE for temporary tables shows "CREATE TEMPORARY TABLE".
-		oracle.execSQL("DROP TEMPORARY TABLE IF EXISTS t_temp")
-		err := oracle.execSQL("CREATE TEMPORARY TABLE t_temp (id INT, name VARCHAR(50))")
+		ctr.execSQL("DROP TEMPORARY TABLE IF EXISTS t_temp")
+		err := ctr.execSQL("CREATE TEMPORARY TABLE t_temp (id INT, name VARCHAR(50))")
 		if err != nil {
-			t.Fatalf("oracle exec: %v", err)
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateTable("t_temp")
+		ctrDDL, err := ctr.showCreateTable("t_temp")
 		if err != nil {
-			t.Fatalf("oracle show create: %v", err)
+			t.Fatalf("container show create: %v", err)
 		}
 
 		c := New()
@@ -1273,21 +1273,21 @@ func TestOracle_Section_2_1_CreateTableVariants(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_temp")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("create_table_like", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_like_dst")
-		oracle.execSQL("DROP TABLE IF EXISTS t_like_src")
-		oracle.execSQL("CREATE TABLE t_like_src (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL DEFAULT '', score DECIMAL(10,2))")
-		err := oracle.execSQL("CREATE TABLE t_like_dst LIKE t_like_src")
+		ctr.execSQL("DROP TABLE IF EXISTS t_like_dst")
+		ctr.execSQL("DROP TABLE IF EXISTS t_like_src")
+		ctr.execSQL("CREATE TABLE t_like_src (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL DEFAULT '', score DECIMAL(10,2))")
+		err := ctr.execSQL("CREATE TABLE t_like_dst LIKE t_like_src")
 		if err != nil {
-			t.Fatalf("oracle exec: %v", err)
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("t_like_dst")
+		ctrDDL, _ := ctr.showCreateTable("t_like_dst")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -1299,20 +1299,20 @@ func TestOracle_Section_2_1_CreateTableVariants(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_like_dst")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("create_table_with_view_name_conflict", func(t *testing.T) {
 		// Creating a table with same name as an existing view should error.
-		oracle.execSQL("DROP TABLE IF EXISTS t_view_conflict")
-		oracle.execSQL("DROP VIEW IF EXISTS t_view_conflict")
-		oracle.execSQL("CREATE VIEW t_view_conflict AS SELECT 1 AS a")
-		oracleErr := oracle.execSQL("CREATE TABLE t_view_conflict (id INT)")
-		if oracleErr == nil {
-			t.Fatal("expected oracle error when creating table with same name as view")
+		ctr.execSQL("DROP TABLE IF EXISTS t_view_conflict")
+		ctr.execSQL("DROP VIEW IF EXISTS t_view_conflict")
+		ctr.execSQL("CREATE VIEW t_view_conflict AS SELECT 1 AS a")
+		ctrErr := ctr.execSQL("CREATE TABLE t_view_conflict (id INT)")
+		if ctrErr == nil {
+			t.Fatal("expected container error when creating table with same name as view")
 		}
 
 		c := New()
@@ -1326,12 +1326,12 @@ func TestOracle_Section_2_1_CreateTableVariants(t *testing.T) {
 	})
 
 	t.Run("reserved_word_as_name", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS `select`")
-		err := oracle.execSQL("CREATE TABLE `select` (`from` INT, `where` VARCHAR(50))")
+		ctr.execSQL("DROP TABLE IF EXISTS `select`")
+		err := ctr.execSQL("CREATE TABLE `select` (`from` INT, `where` VARCHAR(50))")
 		if err != nil {
-			t.Fatalf("oracle exec: %v", err)
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("`select`")
+		ctrDDL, _ := ctr.showCreateTable("`select`")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -1342,18 +1342,18 @@ func TestOracle_Section_2_1_CreateTableVariants(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "select")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 }
 
-func TestOracle_Section_2_2_AlterTableColumnOps(t *testing.T) {
+func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// DDL-comparison tests: run setup + alter, compare SHOW CREATE TABLE.
@@ -1514,16 +1514,16 @@ func TestOracle_Section_2_2_AlterTableColumnOps(t *testing.T) {
 	for _, tc := range ddlCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Oracle: setup + alter.
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.setup); err != nil {
-				t.Fatalf("oracle setup: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.setup); err != nil {
+				t.Fatalf("container setup: %v", err)
 			}
-			if err := oracle.execSQL(tc.alter); err != nil {
-				t.Fatalf("oracle alter: %v", err)
+			if err := ctr.execSQL(tc.alter); err != nil {
+				t.Fatalf("container alter: %v", err)
 			}
-			oracleDDL, err := oracle.showCreateTable(tc.table)
+			ctrDDL, err := ctr.showCreateTable(tc.table)
 			if err != nil {
-				t.Fatalf("oracle show create: %v", err)
+				t.Fatalf("container show create: %v", err)
 			}
 
 			// Omni: setup + alter.
@@ -1542,9 +1542,9 @@ func TestOracle_Section_2_2_AlterTableColumnOps(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
@@ -1569,14 +1569,14 @@ func TestOracle_Section_2_2_AlterTableColumnOps(t *testing.T) {
 	for _, tc := range errCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Clean up tables first.
-			oracle.execSQL("DROP TABLE IF EXISTS t_fk_child")
-			oracle.execSQL("DROP TABLE IF EXISTS t_fk_parent")
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			ctr.execSQL("DROP TABLE IF EXISTS t_fk_child")
+			ctr.execSQL("DROP TABLE IF EXISTS t_fk_parent")
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
 
-			if err := oracle.execSQL(tc.setup); err != nil {
-				t.Fatalf("oracle setup: %v", err)
+			if err := ctr.execSQL(tc.setup); err != nil {
+				t.Fatalf("container setup: %v", err)
 			}
-			oracleErr := oracle.execSQL(tc.alter)
+			ctrErr := ctr.execSQL(tc.alter)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -1592,16 +1592,16 @@ func TestOracle_Section_2_2_AlterTableColumnOps(t *testing.T) {
 			}
 
 			if tc.wantErr {
-				if oracleErr == nil {
-					t.Fatal("expected oracle error but got nil")
+				if ctrErr == nil {
+					t.Fatal("expected container error but got nil")
 				}
 				if omniErr == nil {
-					t.Fatalf("expected omni error but got nil (oracle error: %v)", oracleErr)
+					t.Fatalf("expected omni error but got nil (container error: %v)", ctrErr)
 				}
-				t.Logf("both errored as expected — oracle: %v, omni: %v", oracleErr, omniErr)
+				t.Logf("both errored as expected — container: %v, omni: %v", ctrErr, omniErr)
 			} else {
-				if oracleErr != nil {
-					t.Fatalf("unexpected oracle error: %v", oracleErr)
+				if ctrErr != nil {
+					t.Fatalf("unexpected container error: %v", ctrErr)
 				}
 				if omniErr != nil {
 					t.Fatalf("unexpected omni error: %v", omniErr)
@@ -1611,11 +1611,11 @@ func TestOracle_Section_2_2_AlterTableColumnOps(t *testing.T) {
 	}
 }
 
-func TestOracle_Section_2_3_AlterTableIndexOps(t *testing.T) {
+func TestContainer_Section_2_3_AlterTableIndexOps(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// DDL-comparison tests: run setup + alter, compare SHOW CREATE TABLE.
@@ -1685,16 +1685,16 @@ func TestOracle_Section_2_3_AlterTableIndexOps(t *testing.T) {
 
 	for _, tc := range ddlCases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.setup); err != nil {
-				t.Fatalf("oracle setup: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.setup); err != nil {
+				t.Fatalf("container setup: %v", err)
 			}
-			if err := oracle.execSQL(tc.alter); err != nil {
-				t.Fatalf("oracle alter: %v", err)
+			if err := ctr.execSQL(tc.alter); err != nil {
+				t.Fatalf("container alter: %v", err)
 			}
-			oracleDDL, err := oracle.showCreateTable(tc.table)
+			ctrDDL, err := ctr.showCreateTable(tc.table)
 			if err != nil {
-				t.Fatalf("oracle SHOW CREATE TABLE: %v", err)
+				t.Fatalf("container SHOW CREATE TABLE: %v", err)
 			}
 
 			c := New()
@@ -1716,9 +1716,9 @@ func TestOracle_Section_2_3_AlterTableIndexOps(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
@@ -1742,11 +1742,11 @@ func TestOracle_Section_2_3_AlterTableIndexOps(t *testing.T) {
 
 	for _, tc := range errCases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.setup); err != nil {
-				t.Fatalf("oracle setup: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.setup); err != nil {
+				t.Fatalf("container setup: %v", err)
 			}
-			oracleErr := oracle.execSQL(tc.alter)
+			ctrErr := ctr.execSQL(tc.alter)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -1762,23 +1762,23 @@ func TestOracle_Section_2_3_AlterTableIndexOps(t *testing.T) {
 			}
 
 			if tc.wantErr {
-				if oracleErr == nil {
-					t.Fatal("expected oracle error but got nil")
+				if ctrErr == nil {
+					t.Fatal("expected container error but got nil")
 				}
 				if omniErr == nil {
-					t.Fatalf("expected omni error but got nil (oracle error: %v)", oracleErr)
+					t.Fatalf("expected omni error but got nil (container error: %v)", ctrErr)
 				}
-				t.Logf("both errored as expected — oracle: %v, omni: %v", oracleErr, omniErr)
+				t.Logf("both errored as expected — container: %v, omni: %v", ctrErr, omniErr)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_2_4_AlterTableConstraintOps(t *testing.T) {
+func TestContainer_Section_2_4_AlterTableConstraintOps(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// DDL-comparison tests: run setup + alter, compare SHOW CREATE TABLE.
@@ -1844,17 +1844,17 @@ func TestOracle_Section_2_4_AlterTableConstraintOps(t *testing.T) {
 				"t_chk_ne",
 				"t_chk_enf",
 			} {
-				oracle.execSQL("DROP TABLE IF EXISTS " + tName)
+				ctr.execSQL("DROP TABLE IF EXISTS " + tName)
 			}
-			if err := oracle.execSQL(tc.setup); err != nil {
-				t.Fatalf("oracle setup: %v", err)
+			if err := ctr.execSQL(tc.setup); err != nil {
+				t.Fatalf("container setup: %v", err)
 			}
-			if err := oracle.execSQL(tc.alter); err != nil {
-				t.Fatalf("oracle alter: %v", err)
+			if err := ctr.execSQL(tc.alter); err != nil {
+				t.Fatalf("container alter: %v", err)
 			}
-			oracleDDL, err := oracle.showCreateTable(tc.table)
+			ctrDDL, err := ctr.showCreateTable(tc.table)
 			if err != nil {
-				t.Fatalf("oracle SHOW CREATE TABLE: %v", err)
+				t.Fatalf("container SHOW CREATE TABLE: %v", err)
 			}
 
 			c := New()
@@ -1876,19 +1876,19 @@ func TestOracle_Section_2_4_AlterTableConstraintOps(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_2_5_AlterTableTableLevel(t *testing.T) {
+func TestContainer_Section_2_5_AlterTableTableLevel(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -1953,17 +1953,17 @@ func TestOracle_Section_2_5_AlterTableTableLevel(t *testing.T) {
 				"t_autoinc",
 				"t_rowfmt",
 			} {
-				oracle.execSQL("DROP TABLE IF EXISTS " + tName)
+				ctr.execSQL("DROP TABLE IF EXISTS " + tName)
 			}
-			if err := oracle.execSQL(tc.setup); err != nil {
-				t.Fatalf("oracle setup: %v", err)
+			if err := ctr.execSQL(tc.setup); err != nil {
+				t.Fatalf("container setup: %v", err)
 			}
-			if err := oracle.execSQL(tc.alter); err != nil {
-				t.Fatalf("oracle alter: %v", err)
+			if err := ctr.execSQL(tc.alter); err != nil {
+				t.Fatalf("container alter: %v", err)
 			}
-			oracleDDL, err := oracle.showCreateTable(tc.table)
+			ctrDDL, err := ctr.showCreateTable(tc.table)
 			if err != nil {
-				t.Fatalf("oracle SHOW CREATE TABLE: %v", err)
+				t.Fatalf("container SHOW CREATE TABLE: %v", err)
 			}
 
 			c := New()
@@ -1985,33 +1985,33 @@ func TestOracle_Section_2_5_AlterTableTableLevel(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestOracle_Section_2_6_DropTable(t *testing.T) {
+func TestContainer_Section_2_6_DropTable(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	t.Run("drop_table_basic", func(t *testing.T) {
 		// Setup: create a table, then drop it. Verify it's gone.
-		oracle.execSQL("DROP TABLE IF EXISTS t_drop1")
-		oracle.execSQL("CREATE TABLE t_drop1 (id INT PRIMARY KEY, name VARCHAR(100))")
+		ctr.execSQL("DROP TABLE IF EXISTS t_drop1")
+		ctr.execSQL("CREATE TABLE t_drop1 (id INT PRIMARY KEY, name VARCHAR(100))")
 
-		oracleErr := oracle.execSQL("DROP TABLE t_drop1")
-		if oracleErr != nil {
-			t.Fatalf("oracle DROP TABLE error: %v", oracleErr)
+		ctrErr := ctr.execSQL("DROP TABLE t_drop1")
+		if ctrErr != nil {
+			t.Fatalf("container DROP TABLE error: %v", ctrErr)
 		}
-		_, oracleShowErr := oracle.showCreateTable("t_drop1")
-		if oracleShowErr == nil {
-			t.Fatal("oracle: table still exists after DROP TABLE")
+		_, ctrShowErr := ctr.showCreateTable("t_drop1")
+		if ctrShowErr == nil {
+			t.Fatal("container: table still exists after DROP TABLE")
 		}
 
 		c := New()
@@ -2030,11 +2030,11 @@ func TestOracle_Section_2_6_DropTable(t *testing.T) {
 
 	t.Run("drop_table_if_exists", func(t *testing.T) {
 		// DROP TABLE IF EXISTS on a nonexistent table should not error.
-		oracle.execSQL("DROP TABLE IF EXISTS t_drop_ine")
+		ctr.execSQL("DROP TABLE IF EXISTS t_drop_ine")
 
-		oracleErr := oracle.execSQL("DROP TABLE IF EXISTS t_drop_ine")
-		if oracleErr != nil {
-			t.Fatalf("oracle DROP TABLE IF EXISTS error: %v", oracleErr)
+		ctrErr := ctr.execSQL("DROP TABLE IF EXISTS t_drop_ine")
+		if ctrErr != nil {
+			t.Fatalf("container DROP TABLE IF EXISTS error: %v", ctrErr)
 		}
 
 		c := New()
@@ -2048,20 +2048,20 @@ func TestOracle_Section_2_6_DropTable(t *testing.T) {
 
 	t.Run("drop_table_multi", func(t *testing.T) {
 		// DROP TABLE t1, t2, t3 — multi-table drop.
-		oracle.execSQL("DROP TABLE IF EXISTS t_dm1")
-		oracle.execSQL("DROP TABLE IF EXISTS t_dm2")
-		oracle.execSQL("DROP TABLE IF EXISTS t_dm3")
-		oracle.execSQL("CREATE TABLE t_dm1 (id INT)")
-		oracle.execSQL("CREATE TABLE t_dm2 (id INT)")
-		oracle.execSQL("CREATE TABLE t_dm3 (id INT)")
+		ctr.execSQL("DROP TABLE IF EXISTS t_dm1")
+		ctr.execSQL("DROP TABLE IF EXISTS t_dm2")
+		ctr.execSQL("DROP TABLE IF EXISTS t_dm3")
+		ctr.execSQL("CREATE TABLE t_dm1 (id INT)")
+		ctr.execSQL("CREATE TABLE t_dm2 (id INT)")
+		ctr.execSQL("CREATE TABLE t_dm3 (id INT)")
 
-		oracleErr := oracle.execSQL("DROP TABLE t_dm1, t_dm2, t_dm3")
-		if oracleErr != nil {
-			t.Fatalf("oracle DROP TABLE multi error: %v", oracleErr)
+		ctrErr := ctr.execSQL("DROP TABLE t_dm1, t_dm2, t_dm3")
+		if ctrErr != nil {
+			t.Fatalf("container DROP TABLE multi error: %v", ctrErr)
 		}
 		for _, tbl := range []string{"t_dm1", "t_dm2", "t_dm3"} {
-			if _, err := oracle.showCreateTable(tbl); err == nil {
-				t.Errorf("oracle: table %s still exists after multi-drop", tbl)
+			if _, err := ctr.showCreateTable(tbl); err == nil {
+				t.Errorf("container: table %s still exists after multi-drop", tbl)
 			}
 		}
 
@@ -2085,10 +2085,10 @@ func TestOracle_Section_2_6_DropTable(t *testing.T) {
 
 	t.Run("drop_table_nonexistent_error", func(t *testing.T) {
 		// DROP TABLE on nonexistent table should produce error 1051.
-		oracle.execSQL("DROP TABLE IF EXISTS t_noexist")
-		oracleErr := oracle.execSQL("DROP TABLE t_noexist")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for DROP nonexistent table")
+		ctr.execSQL("DROP TABLE IF EXISTS t_noexist")
+		ctrErr := ctr.execSQL("DROP TABLE t_noexist")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for DROP nonexistent table")
 		}
 
 		c := New()
@@ -2110,15 +2110,15 @@ func TestOracle_Section_2_6_DropTable(t *testing.T) {
 
 	t.Run("drop_temporary_table", func(t *testing.T) {
 		// DROP TEMPORARY TABLE should work.
-		oracle.execSQL("DROP TEMPORARY TABLE IF EXISTS t_temp_drop")
-		oracle.execSQL("CREATE TEMPORARY TABLE t_temp_drop (id INT, val VARCHAR(50))")
-		oracleErr := oracle.execSQL("DROP TEMPORARY TABLE t_temp_drop")
-		if oracleErr != nil {
-			t.Fatalf("oracle DROP TEMPORARY TABLE error: %v", oracleErr)
+		ctr.execSQL("DROP TEMPORARY TABLE IF EXISTS t_temp_drop")
+		ctr.execSQL("CREATE TEMPORARY TABLE t_temp_drop (id INT, val VARCHAR(50))")
+		ctrErr := ctr.execSQL("DROP TEMPORARY TABLE t_temp_drop")
+		if ctrErr != nil {
+			t.Fatalf("container DROP TEMPORARY TABLE error: %v", ctrErr)
 		}
-		_, oracleShowErr := oracle.showCreateTable("t_temp_drop")
-		if oracleShowErr == nil {
-			t.Fatal("oracle: temp table still exists after DROP TEMPORARY TABLE")
+		_, ctrShowErr := ctr.showCreateTable("t_temp_drop")
+		if ctrShowErr == nil {
+			t.Fatal("container: temp table still exists after DROP TEMPORARY TABLE")
 		}
 
 		c := New()
@@ -2137,14 +2137,14 @@ func TestOracle_Section_2_6_DropTable(t *testing.T) {
 
 	t.Run("drop_table_fk_referenced", func(t *testing.T) {
 		// DROP TABLE that has FK references should error (with foreign_key_checks=1, the default).
-		oracle.execSQL("DROP TABLE IF EXISTS t_fk_child")
-		oracle.execSQL("DROP TABLE IF EXISTS t_fk_parent")
-		oracle.execSQL("CREATE TABLE t_fk_parent (id INT PRIMARY KEY)")
-		oracle.execSQL("CREATE TABLE t_fk_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES t_fk_parent(id))")
+		ctr.execSQL("DROP TABLE IF EXISTS t_fk_child")
+		ctr.execSQL("DROP TABLE IF EXISTS t_fk_parent")
+		ctr.execSQL("CREATE TABLE t_fk_parent (id INT PRIMARY KEY)")
+		ctr.execSQL("CREATE TABLE t_fk_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES t_fk_parent(id))")
 
-		oracleErr := oracle.execSQL("DROP TABLE t_fk_parent")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error when dropping FK-referenced table")
+		ctrErr := ctr.execSQL("DROP TABLE t_fk_parent")
+		if ctrErr == nil {
+			t.Fatal("container: expected error when dropping FK-referenced table")
 		}
 
 		c := New()
@@ -2166,23 +2166,23 @@ func TestOracle_Section_2_6_DropTable(t *testing.T) {
 	})
 }
 
-func TestOracle_Section_2_7_TruncateTable(t *testing.T) {
+func TestContainer_Section_2_7_TruncateTable(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// Scenario 1: TRUNCATE TABLE t1 — table structure preserved
 	t.Run("truncate_basic", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_trunc1")
-		if err := oracle.execSQL("CREATE TABLE t_trunc1 (id INT PRIMARY KEY, name VARCHAR(100))"); err != nil {
-			t.Fatalf("oracle create: %v", err)
+		ctr.execSQL("DROP TABLE IF EXISTS t_trunc1")
+		if err := ctr.execSQL("CREATE TABLE t_trunc1 (id INT PRIMARY KEY, name VARCHAR(100))"); err != nil {
+			t.Fatalf("container create: %v", err)
 		}
-		if err := oracle.execSQL("TRUNCATE TABLE t_trunc1"); err != nil {
-			t.Fatalf("oracle truncate: %v", err)
+		if err := ctr.execSQL("TRUNCATE TABLE t_trunc1"); err != nil {
+			t.Fatalf("container truncate: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("t_trunc1")
+		ctrDDL, _ := ctr.showCreateTable("t_trunc1")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -2194,27 +2194,27 @@ func TestOracle_Section_2_7_TruncateTable(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_trunc1")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// Scenario 2: TRUNCATE resets AUTO_INCREMENT
 	t.Run("truncate_resets_auto_increment", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_trunc_ai")
-		if err := oracle.execSQL("CREATE TABLE t_trunc_ai (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100)) AUTO_INCREMENT=1000"); err != nil {
-			t.Fatalf("oracle create: %v", err)
+		ctr.execSQL("DROP TABLE IF EXISTS t_trunc_ai")
+		if err := ctr.execSQL("CREATE TABLE t_trunc_ai (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100)) AUTO_INCREMENT=1000"); err != nil {
+			t.Fatalf("container create: %v", err)
 		}
 		// Verify AUTO_INCREMENT is shown before truncate
-		oracleBefore, _ := oracle.showCreateTable("t_trunc_ai")
-		if !strings.Contains(oracleBefore, "AUTO_INCREMENT=") {
-			t.Logf("oracle before truncate (no AUTO_INCREMENT shown): %s", oracleBefore)
+		ctrBefore, _ := ctr.showCreateTable("t_trunc_ai")
+		if !strings.Contains(ctrBefore, "AUTO_INCREMENT=") {
+			t.Logf("container before truncate (no AUTO_INCREMENT shown): %s", ctrBefore)
 		}
-		if err := oracle.execSQL("TRUNCATE TABLE t_trunc_ai"); err != nil {
-			t.Fatalf("oracle truncate: %v", err)
+		if err := ctr.execSQL("TRUNCATE TABLE t_trunc_ai"); err != nil {
+			t.Fatalf("container truncate: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("t_trunc_ai")
+		ctrDDL, _ := ctr.showCreateTable("t_trunc_ai")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -2223,18 +2223,18 @@ func TestOracle_Section_2_7_TruncateTable(t *testing.T) {
 		c.Exec("TRUNCATE TABLE t_trunc_ai", nil)
 		omniDDL := c.ShowCreateTable("test", "t_trunc_ai")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// Scenario 3: TRUNCATE nonexistent table → error
 	t.Run("truncate_nonexistent", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_trunc_noexist")
-		oracleErr := oracle.execSQL("TRUNCATE TABLE t_trunc_noexist")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for TRUNCATE nonexistent table")
+		ctr.execSQL("DROP TABLE IF EXISTS t_trunc_noexist")
+		ctrErr := ctr.execSQL("TRUNCATE TABLE t_trunc_noexist")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for TRUNCATE nonexistent table")
 		}
 
 		c := New()
@@ -2248,21 +2248,21 @@ func TestOracle_Section_2_7_TruncateTable(t *testing.T) {
 	})
 }
 
-func TestOracle_Section_2_8_CreateDropIndex(t *testing.T) {
+func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// Scenario 1: CREATE INDEX idx ON t (col)
 	t.Run("create_index_basic", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_ci1")
-		oracle.execSQL("CREATE TABLE t_ci1 (id INT PRIMARY KEY, name VARCHAR(100))")
-		if err := oracle.execSQL("CREATE INDEX idx_name ON t_ci1 (name)"); err != nil {
-			t.Fatalf("oracle CREATE INDEX error: %v", err)
+		ctr.execSQL("DROP TABLE IF EXISTS t_ci1")
+		ctr.execSQL("CREATE TABLE t_ci1 (id INT PRIMARY KEY, name VARCHAR(100))")
+		if err := ctr.execSQL("CREATE INDEX idx_name ON t_ci1 (name)"); err != nil {
+			t.Fatalf("container CREATE INDEX error: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("t_ci1")
+		ctrDDL, _ := ctr.showCreateTable("t_ci1")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -2274,20 +2274,20 @@ func TestOracle_Section_2_8_CreateDropIndex(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_ci1")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// Scenario 2: CREATE UNIQUE INDEX
 	t.Run("create_unique_index", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_ci2")
-		oracle.execSQL("CREATE TABLE t_ci2 (id INT PRIMARY KEY, email VARCHAR(255))")
-		if err := oracle.execSQL("CREATE UNIQUE INDEX idx_email ON t_ci2 (email)"); err != nil {
-			t.Fatalf("oracle CREATE UNIQUE INDEX error: %v", err)
+		ctr.execSQL("DROP TABLE IF EXISTS t_ci2")
+		ctr.execSQL("CREATE TABLE t_ci2 (id INT PRIMARY KEY, email VARCHAR(255))")
+		if err := ctr.execSQL("CREATE UNIQUE INDEX idx_email ON t_ci2 (email)"); err != nil {
+			t.Fatalf("container CREATE UNIQUE INDEX error: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("t_ci2")
+		ctrDDL, _ := ctr.showCreateTable("t_ci2")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -2299,20 +2299,20 @@ func TestOracle_Section_2_8_CreateDropIndex(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_ci2")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// Scenario 3: CREATE FULLTEXT INDEX
 	t.Run("create_fulltext_index", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_ci3")
-		oracle.execSQL("CREATE TABLE t_ci3 (id INT PRIMARY KEY, content TEXT)")
-		if err := oracle.execSQL("CREATE FULLTEXT INDEX idx_ft ON t_ci3 (content)"); err != nil {
-			t.Fatalf("oracle CREATE FULLTEXT INDEX error: %v", err)
+		ctr.execSQL("DROP TABLE IF EXISTS t_ci3")
+		ctr.execSQL("CREATE TABLE t_ci3 (id INT PRIMARY KEY, content TEXT)")
+		if err := ctr.execSQL("CREATE FULLTEXT INDEX idx_ft ON t_ci3 (content)"); err != nil {
+			t.Fatalf("container CREATE FULLTEXT INDEX error: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("t_ci3")
+		ctrDDL, _ := ctr.showCreateTable("t_ci3")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -2324,20 +2324,20 @@ func TestOracle_Section_2_8_CreateDropIndex(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_ci3")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// Scenario 4: CREATE SPATIAL INDEX
 	t.Run("create_spatial_index", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_ci4")
-		oracle.execSQL("CREATE TABLE t_ci4 (id INT PRIMARY KEY, geo GEOMETRY NOT NULL)")
-		if err := oracle.execSQL("CREATE SPATIAL INDEX idx_sp ON t_ci4 (geo)"); err != nil {
-			t.Fatalf("oracle CREATE SPATIAL INDEX error: %v", err)
+		ctr.execSQL("DROP TABLE IF EXISTS t_ci4")
+		ctr.execSQL("CREATE TABLE t_ci4 (id INT PRIMARY KEY, geo GEOMETRY NOT NULL)")
+		if err := ctr.execSQL("CREATE SPATIAL INDEX idx_sp ON t_ci4 (geo)"); err != nil {
+			t.Fatalf("container CREATE SPATIAL INDEX error: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("t_ci4")
+		ctrDDL, _ := ctr.showCreateTable("t_ci4")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -2349,9 +2349,9 @@ func TestOracle_Section_2_8_CreateDropIndex(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_ci4")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
@@ -2361,14 +2361,14 @@ func TestOracle_Section_2_8_CreateDropIndex(t *testing.T) {
 	// This is marked [~] partial — omni is more permissive than MySQL 8.0 here.
 	t.Run("create_index_if_not_exists", func(t *testing.T) {
 		// Verify MySQL 8.0 rejects this syntax.
-		oracle.execSQL("DROP TABLE IF EXISTS t_ci5")
-		oracle.execSQL("CREATE TABLE t_ci5 (id INT PRIMARY KEY, val INT)")
-		oracle.execSQL("CREATE INDEX idx_val ON t_ci5 (val)")
-		oracleErr := oracle.execSQL("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected syntax error for CREATE INDEX IF NOT EXISTS in MySQL 8.0")
+		ctr.execSQL("DROP TABLE IF EXISTS t_ci5")
+		ctr.execSQL("CREATE TABLE t_ci5 (id INT PRIMARY KEY, val INT)")
+		ctr.execSQL("CREATE INDEX idx_val ON t_ci5 (val)")
+		ctrErr := ctr.execSQL("CREATE INDEX IF NOT EXISTS idx_val ON t_ci5 (val)")
+		if ctrErr == nil {
+			t.Fatal("container: expected syntax error for CREATE INDEX IF NOT EXISTS in MySQL 8.0")
 		}
-		t.Logf("oracle correctly rejects CREATE INDEX IF NOT EXISTS: %v", oracleErr)
+		t.Logf("container correctly rejects CREATE INDEX IF NOT EXISTS: %v", ctrErr)
 
 		// Omni accepts IF NOT EXISTS as an extension — verify it doesn't error.
 		c := New()
@@ -2385,12 +2385,12 @@ func TestOracle_Section_2_8_CreateDropIndex(t *testing.T) {
 
 	// Scenario 6: CREATE INDEX — duplicate name → error 1061
 	t.Run("create_index_duplicate_error", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_ci6")
-		oracle.execSQL("CREATE TABLE t_ci6 (id INT PRIMARY KEY, a INT, b INT)")
-		oracle.execSQL("CREATE INDEX idx_a ON t_ci6 (a)")
-		oracleErr := oracle.execSQL("CREATE INDEX idx_a ON t_ci6 (b)")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for duplicate index name")
+		ctr.execSQL("DROP TABLE IF EXISTS t_ci6")
+		ctr.execSQL("CREATE TABLE t_ci6 (id INT PRIMARY KEY, a INT, b INT)")
+		ctr.execSQL("CREATE INDEX idx_a ON t_ci6 (a)")
+		ctrErr := ctr.execSQL("CREATE INDEX idx_a ON t_ci6 (b)")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for duplicate index name")
 		}
 
 		c := New()
@@ -2414,12 +2414,12 @@ func TestOracle_Section_2_8_CreateDropIndex(t *testing.T) {
 
 	// Scenario 7: DROP INDEX idx ON t
 	t.Run("drop_index_basic", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_di1")
-		oracle.execSQL("CREATE TABLE t_di1 (id INT PRIMARY KEY, name VARCHAR(100), KEY idx_name (name))")
-		if err := oracle.execSQL("DROP INDEX idx_name ON t_di1"); err != nil {
-			t.Fatalf("oracle DROP INDEX error: %v", err)
+		ctr.execSQL("DROP TABLE IF EXISTS t_di1")
+		ctr.execSQL("CREATE TABLE t_di1 (id INT PRIMARY KEY, name VARCHAR(100), KEY idx_name (name))")
+		if err := ctr.execSQL("DROP INDEX idx_name ON t_di1"); err != nil {
+			t.Fatalf("container DROP INDEX error: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("t_di1")
+		ctrDDL, _ := ctr.showCreateTable("t_di1")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -2431,19 +2431,19 @@ func TestOracle_Section_2_8_CreateDropIndex(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_di1")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// Scenario 8: DROP INDEX nonexistent → error 1091
 	t.Run("drop_index_nonexistent_error", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_di2")
-		oracle.execSQL("CREATE TABLE t_di2 (id INT PRIMARY KEY)")
-		oracleErr := oracle.execSQL("DROP INDEX idx_noexist ON t_di2")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for DROP nonexistent index")
+		ctr.execSQL("DROP TABLE IF EXISTS t_di2")
+		ctr.execSQL("CREATE TABLE t_di2 (id INT PRIMARY KEY)")
+		ctrErr := ctr.execSQL("DROP INDEX idx_noexist ON t_di2")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for DROP nonexistent index")
 		}
 
 		c := New()
@@ -2465,25 +2465,25 @@ func TestOracle_Section_2_8_CreateDropIndex(t *testing.T) {
 	})
 }
 
-func TestOracle_Section_2_9_RenameTable(t *testing.T) {
+func TestContainer_Section_2_9_RenameTable(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	t.Run("rename_basic", func(t *testing.T) {
 		// RENAME TABLE t1 TO t2
-		oracle.execSQL("DROP TABLE IF EXISTS t_ren1")
-		oracle.execSQL("DROP TABLE IF EXISTS t_ren2")
-		oracle.execSQL("CREATE TABLE t_ren1 (id INT PRIMARY KEY, name VARCHAR(100))")
+		ctr.execSQL("DROP TABLE IF EXISTS t_ren1")
+		ctr.execSQL("DROP TABLE IF EXISTS t_ren2")
+		ctr.execSQL("CREATE TABLE t_ren1 (id INT PRIMARY KEY, name VARCHAR(100))")
 
-		if err := oracle.execSQL("RENAME TABLE t_ren1 TO t_ren2"); err != nil {
-			t.Fatalf("oracle RENAME TABLE error: %v", err)
+		if err := ctr.execSQL("RENAME TABLE t_ren1 TO t_ren2"); err != nil {
+			t.Fatalf("container RENAME TABLE error: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateTable("t_ren2")
+		ctrDDL, err := ctr.showCreateTable("t_ren2")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE TABLE t_ren2 error: %v", err)
+			t.Fatalf("container SHOW CREATE TABLE t_ren2 error: %v", err)
 		}
 
 		c := New()
@@ -2496,8 +2496,8 @@ func TestOracle_Section_2_9_RenameTable(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_ren2")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s", oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
 		}
 		// Old table should not exist
 		if c.ShowCreateTable("test", "t_ren1") != "" {
@@ -2507,17 +2507,17 @@ func TestOracle_Section_2_9_RenameTable(t *testing.T) {
 
 	t.Run("rename_cross_database", func(t *testing.T) {
 		// RENAME TABLE t1 TO db2.t1 (cross-database)
-		oracle.execSQL("DROP TABLE IF EXISTS t_ren_cross")
-		oracle.execSQL("CREATE DATABASE IF NOT EXISTS test2")
-		oracle.execSQL("DROP TABLE IF EXISTS test2.t_ren_cross")
-		oracle.execSQL("CREATE TABLE t_ren_cross (id INT PRIMARY KEY, val VARCHAR(50) NOT NULL DEFAULT '')")
+		ctr.execSQL("DROP TABLE IF EXISTS t_ren_cross")
+		ctr.execSQL("CREATE DATABASE IF NOT EXISTS test2")
+		ctr.execSQL("DROP TABLE IF EXISTS test2.t_ren_cross")
+		ctr.execSQL("CREATE TABLE t_ren_cross (id INT PRIMARY KEY, val VARCHAR(50) NOT NULL DEFAULT '')")
 
-		if err := oracle.execSQL("RENAME TABLE t_ren_cross TO test2.t_ren_cross"); err != nil {
-			t.Fatalf("oracle RENAME TABLE cross-db error: %v", err)
+		if err := ctr.execSQL("RENAME TABLE t_ren_cross TO test2.t_ren_cross"); err != nil {
+			t.Fatalf("container RENAME TABLE cross-db error: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateTable("test2.t_ren_cross")
+		ctrDDL, err := ctr.showCreateTable("test2.t_ren_cross")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE TABLE test2.t_ren_cross error: %v", err)
+			t.Fatalf("container SHOW CREATE TABLE test2.t_ren_cross error: %v", err)
 		}
 
 		c := New()
@@ -2531,8 +2531,8 @@ func TestOracle_Section_2_9_RenameTable(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test2", "t_ren_cross")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s", oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
 		}
 		// Old table should not exist in test
 		if c.ShowCreateTable("test", "t_ren_cross") != "" {
@@ -2542,23 +2542,23 @@ func TestOracle_Section_2_9_RenameTable(t *testing.T) {
 
 	t.Run("rename_multi_pair", func(t *testing.T) {
 		// RENAME TABLE t1 TO t2, t3 TO t4 (multi-pair)
-		oracle.execSQL("DROP TABLE IF EXISTS t_mp1")
-		oracle.execSQL("DROP TABLE IF EXISTS t_mp2")
-		oracle.execSQL("DROP TABLE IF EXISTS t_mp3")
-		oracle.execSQL("DROP TABLE IF EXISTS t_mp4")
-		oracle.execSQL("CREATE TABLE t_mp1 (id INT PRIMARY KEY)")
-		oracle.execSQL("CREATE TABLE t_mp3 (val VARCHAR(100))")
+		ctr.execSQL("DROP TABLE IF EXISTS t_mp1")
+		ctr.execSQL("DROP TABLE IF EXISTS t_mp2")
+		ctr.execSQL("DROP TABLE IF EXISTS t_mp3")
+		ctr.execSQL("DROP TABLE IF EXISTS t_mp4")
+		ctr.execSQL("CREATE TABLE t_mp1 (id INT PRIMARY KEY)")
+		ctr.execSQL("CREATE TABLE t_mp3 (val VARCHAR(100))")
 
-		if err := oracle.execSQL("RENAME TABLE t_mp1 TO t_mp2, t_mp3 TO t_mp4"); err != nil {
-			t.Fatalf("oracle RENAME TABLE multi-pair error: %v", err)
+		if err := ctr.execSQL("RENAME TABLE t_mp1 TO t_mp2, t_mp3 TO t_mp4"); err != nil {
+			t.Fatalf("container RENAME TABLE multi-pair error: %v", err)
 		}
-		oracleDDL2, err := oracle.showCreateTable("t_mp2")
+		ctrDDL2, err := ctr.showCreateTable("t_mp2")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE TABLE t_mp2 error: %v", err)
+			t.Fatalf("container SHOW CREATE TABLE t_mp2 error: %v", err)
 		}
-		oracleDDL4, err := oracle.showCreateTable("t_mp4")
+		ctrDDL4, err := ctr.showCreateTable("t_mp4")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE TABLE t_mp4 error: %v", err)
+			t.Fatalf("container SHOW CREATE TABLE t_mp4 error: %v", err)
 		}
 
 		c := New()
@@ -2573,11 +2573,11 @@ func TestOracle_Section_2_9_RenameTable(t *testing.T) {
 		omniDDL2 := c.ShowCreateTable("test", "t_mp2")
 		omniDDL4 := c.ShowCreateTable("test", "t_mp4")
 
-		if normalizeWhitespace(oracleDDL2) != normalizeWhitespace(omniDDL2) {
-			t.Errorf("t_mp2 mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s", oracleDDL2, omniDDL2)
+		if normalizeWhitespace(ctrDDL2) != normalizeWhitespace(omniDDL2) {
+			t.Errorf("t_mp2 mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL2, omniDDL2)
 		}
-		if normalizeWhitespace(oracleDDL4) != normalizeWhitespace(omniDDL4) {
-			t.Errorf("t_mp4 mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s", oracleDDL4, omniDDL4)
+		if normalizeWhitespace(ctrDDL4) != normalizeWhitespace(omniDDL4) {
+			t.Errorf("t_mp4 mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL4, omniDDL4)
 		}
 		// Old tables should be gone
 		if c.ShowCreateTable("test", "t_mp1") != "" {
@@ -2590,10 +2590,10 @@ func TestOracle_Section_2_9_RenameTable(t *testing.T) {
 
 	t.Run("rename_nonexistent_error", func(t *testing.T) {
 		// RENAME TABLE nonexistent → error
-		oracle.execSQL("DROP TABLE IF EXISTS t_noexist_ren")
-		oracleErr := oracle.execSQL("RENAME TABLE t_noexist_ren TO t_noexist_ren2")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for RENAME nonexistent table")
+		ctr.execSQL("DROP TABLE IF EXISTS t_noexist_ren")
+		ctrErr := ctr.execSQL("RENAME TABLE t_noexist_ren TO t_noexist_ren2")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for RENAME nonexistent table")
 		}
 
 		c := New()
@@ -2608,14 +2608,14 @@ func TestOracle_Section_2_9_RenameTable(t *testing.T) {
 
 	t.Run("rename_to_existing_error", func(t *testing.T) {
 		// RENAME TABLE to existing name → error
-		oracle.execSQL("DROP TABLE IF EXISTS t_ren_exist1")
-		oracle.execSQL("DROP TABLE IF EXISTS t_ren_exist2")
-		oracle.execSQL("CREATE TABLE t_ren_exist1 (id INT)")
-		oracle.execSQL("CREATE TABLE t_ren_exist2 (id INT)")
+		ctr.execSQL("DROP TABLE IF EXISTS t_ren_exist1")
+		ctr.execSQL("DROP TABLE IF EXISTS t_ren_exist2")
+		ctr.execSQL("CREATE TABLE t_ren_exist1 (id INT)")
+		ctr.execSQL("CREATE TABLE t_ren_exist2 (id INT)")
 
-		oracleErr := oracle.execSQL("RENAME TABLE t_ren_exist1 TO t_ren_exist2")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for RENAME to existing table name")
+		ctrErr := ctr.execSQL("RENAME TABLE t_ren_exist1 TO t_ren_exist2")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for RENAME to existing table name")
 		}
 
 		c := New()
@@ -2631,19 +2631,19 @@ func TestOracle_Section_2_9_RenameTable(t *testing.T) {
 	})
 }
 
-func TestOracle_Section_2_10_CreateDropView(t *testing.T) {
+func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	t.Run("create_view_basic", func(t *testing.T) {
 		// CREATE VIEW v AS SELECT ...
-		oracle.execSQL("DROP VIEW IF EXISTS v_basic")
-		oracleErr := oracle.execSQL("CREATE VIEW v_basic AS SELECT 1 AS a")
-		if oracleErr != nil {
-			t.Fatalf("oracle CREATE VIEW error: %v", oracleErr)
+		ctr.execSQL("DROP VIEW IF EXISTS v_basic")
+		ctrErr := ctr.execSQL("CREATE VIEW v_basic AS SELECT 1 AS a")
+		if ctrErr != nil {
+			t.Fatalf("container CREATE VIEW error: %v", ctrErr)
 		}
 
 		c := New()
@@ -2661,11 +2661,11 @@ func TestOracle_Section_2_10_CreateDropView(t *testing.T) {
 
 	t.Run("create_or_replace_view", func(t *testing.T) {
 		// CREATE OR REPLACE VIEW
-		oracle.execSQL("DROP VIEW IF EXISTS v_replace")
-		oracle.execSQL("CREATE VIEW v_replace AS SELECT 1 AS a")
-		oracleErr := oracle.execSQL("CREATE OR REPLACE VIEW v_replace AS SELECT 2 AS b")
-		if oracleErr != nil {
-			t.Fatalf("oracle CREATE OR REPLACE VIEW error: %v", oracleErr)
+		ctr.execSQL("DROP VIEW IF EXISTS v_replace")
+		ctr.execSQL("CREATE VIEW v_replace AS SELECT 1 AS a")
+		ctrErr := ctr.execSQL("CREATE OR REPLACE VIEW v_replace AS SELECT 2 AS b")
+		if ctrErr != nil {
+			t.Fatalf("container CREATE OR REPLACE VIEW error: %v", ctrErr)
 		}
 
 		c := New()
@@ -2684,10 +2684,10 @@ func TestOracle_Section_2_10_CreateDropView(t *testing.T) {
 
 	t.Run("create_view_with_columns", func(t *testing.T) {
 		// CREATE VIEW with column list
-		oracle.execSQL("DROP VIEW IF EXISTS v_cols")
-		oracleErr := oracle.execSQL("CREATE VIEW v_cols (x, y) AS SELECT 1, 2")
-		if oracleErr != nil {
-			t.Fatalf("oracle CREATE VIEW with columns error: %v", oracleErr)
+		ctr.execSQL("DROP VIEW IF EXISTS v_cols")
+		ctrErr := ctr.execSQL("CREATE VIEW v_cols (x, y) AS SELECT 1, 2")
+		if ctrErr != nil {
+			t.Fatalf("container CREATE VIEW with columns error: %v", ctrErr)
 		}
 
 		c := New()
@@ -2709,10 +2709,10 @@ func TestOracle_Section_2_10_CreateDropView(t *testing.T) {
 
 	t.Run("create_view_with_options", func(t *testing.T) {
 		// CREATE VIEW with ALGORITHM, DEFINER, SQL_SECURITY
-		oracle.execSQL("DROP VIEW IF EXISTS v_opts")
-		oracleErr := oracle.execSQL("CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW v_opts AS SELECT 1 AS a")
-		if oracleErr != nil {
-			t.Fatalf("oracle CREATE VIEW with options error: %v", oracleErr)
+		ctr.execSQL("DROP VIEW IF EXISTS v_opts")
+		ctrErr := ctr.execSQL("CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW v_opts AS SELECT 1 AS a")
+		if ctrErr != nil {
+			t.Fatalf("container CREATE VIEW with options error: %v", ctrErr)
 		}
 
 		c := New()
@@ -2737,12 +2737,12 @@ func TestOracle_Section_2_10_CreateDropView(t *testing.T) {
 
 	t.Run("create_view_with_check_option", func(t *testing.T) {
 		// CREATE VIEW with CHECK OPTION
-		oracle.execSQL("DROP VIEW IF EXISTS v_chk")
-		oracle.execSQL("DROP TABLE IF EXISTS t_chk_view")
-		oracle.execSQL("CREATE TABLE t_chk_view (id INT, val INT)")
-		oracleErr := oracle.execSQL("CREATE VIEW v_chk AS SELECT * FROM t_chk_view WHERE val > 0 WITH CASCADED CHECK OPTION")
-		if oracleErr != nil {
-			t.Fatalf("oracle CREATE VIEW WITH CHECK OPTION error: %v", oracleErr)
+		ctr.execSQL("DROP VIEW IF EXISTS v_chk")
+		ctr.execSQL("DROP TABLE IF EXISTS t_chk_view")
+		ctr.execSQL("CREATE TABLE t_chk_view (id INT, val INT)")
+		ctrErr := ctr.execSQL("CREATE VIEW v_chk AS SELECT * FROM t_chk_view WHERE val > 0 WITH CASCADED CHECK OPTION")
+		if ctrErr != nil {
+			t.Fatalf("container CREATE VIEW WITH CHECK OPTION error: %v", ctrErr)
 		}
 
 		c := New()
@@ -2765,11 +2765,11 @@ func TestOracle_Section_2_10_CreateDropView(t *testing.T) {
 
 	t.Run("drop_view_basic", func(t *testing.T) {
 		// DROP VIEW v
-		oracle.execSQL("DROP VIEW IF EXISTS v_drop1")
-		oracle.execSQL("CREATE VIEW v_drop1 AS SELECT 1 AS a")
-		oracleErr := oracle.execSQL("DROP VIEW v_drop1")
-		if oracleErr != nil {
-			t.Fatalf("oracle DROP VIEW error: %v", oracleErr)
+		ctr.execSQL("DROP VIEW IF EXISTS v_drop1")
+		ctr.execSQL("CREATE VIEW v_drop1 AS SELECT 1 AS a")
+		ctrErr := ctr.execSQL("DROP VIEW v_drop1")
+		if ctrErr != nil {
+			t.Fatalf("container DROP VIEW error: %v", ctrErr)
 		}
 
 		c := New()
@@ -2788,10 +2788,10 @@ func TestOracle_Section_2_10_CreateDropView(t *testing.T) {
 
 	t.Run("drop_view_if_exists", func(t *testing.T) {
 		// DROP VIEW IF EXISTS on nonexistent view — no error
-		oracle.execSQL("DROP VIEW IF EXISTS v_noexist")
-		oracleErr := oracle.execSQL("DROP VIEW IF EXISTS v_noexist")
-		if oracleErr != nil {
-			t.Fatalf("oracle DROP VIEW IF EXISTS error: %v", oracleErr)
+		ctr.execSQL("DROP VIEW IF EXISTS v_noexist")
+		ctrErr := ctr.execSQL("DROP VIEW IF EXISTS v_noexist")
+		if ctrErr != nil {
+			t.Fatalf("container DROP VIEW IF EXISTS error: %v", ctrErr)
 		}
 
 		c := New()
@@ -2805,13 +2805,13 @@ func TestOracle_Section_2_10_CreateDropView(t *testing.T) {
 
 	t.Run("drop_view_multi", func(t *testing.T) {
 		// DROP VIEW v1, v2 (multi-view)
-		oracle.execSQL("DROP VIEW IF EXISTS v_m1")
-		oracle.execSQL("DROP VIEW IF EXISTS v_m2")
-		oracle.execSQL("CREATE VIEW v_m1 AS SELECT 1 AS a")
-		oracle.execSQL("CREATE VIEW v_m2 AS SELECT 2 AS b")
-		oracleErr := oracle.execSQL("DROP VIEW v_m1, v_m2")
-		if oracleErr != nil {
-			t.Fatalf("oracle DROP VIEW multi error: %v", oracleErr)
+		ctr.execSQL("DROP VIEW IF EXISTS v_m1")
+		ctr.execSQL("DROP VIEW IF EXISTS v_m2")
+		ctr.execSQL("CREATE VIEW v_m1 AS SELECT 1 AS a")
+		ctr.execSQL("CREATE VIEW v_m2 AS SELECT 2 AS b")
+		ctrErr := ctr.execSQL("DROP VIEW v_m1, v_m2")
+		if ctrErr != nil {
+			t.Fatalf("container DROP VIEW multi error: %v", ctrErr)
 		}
 
 		c := New()
@@ -2834,11 +2834,11 @@ func TestOracle_Section_2_10_CreateDropView(t *testing.T) {
 
 	// Extra: CREATE VIEW duplicate (no OR REPLACE) should error
 	t.Run("create_view_duplicate_error", func(t *testing.T) {
-		oracle.execSQL("DROP VIEW IF EXISTS v_dup")
-		oracle.execSQL("CREATE VIEW v_dup AS SELECT 1 AS a")
-		oracleErr := oracle.execSQL("CREATE VIEW v_dup AS SELECT 2 AS b")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for duplicate view")
+		ctr.execSQL("DROP VIEW IF EXISTS v_dup")
+		ctr.execSQL("CREATE VIEW v_dup AS SELECT 1 AS a")
+		ctrErr := ctr.execSQL("CREATE VIEW v_dup AS SELECT 2 AS b")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for duplicate view")
 		}
 
 		c := New()
@@ -2853,12 +2853,12 @@ func TestOracle_Section_2_10_CreateDropView(t *testing.T) {
 
 	// Extra: CREATE VIEW with same name as existing table should error
 	t.Run("create_view_table_conflict", func(t *testing.T) {
-		oracle.execSQL("DROP VIEW IF EXISTS v_tbl_conflict")
-		oracle.execSQL("DROP TABLE IF EXISTS v_tbl_conflict")
-		oracle.execSQL("CREATE TABLE v_tbl_conflict (id INT)")
-		oracleErr := oracle.execSQL("CREATE VIEW v_tbl_conflict AS SELECT 1 AS a")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for view with same name as table")
+		ctr.execSQL("DROP VIEW IF EXISTS v_tbl_conflict")
+		ctr.execSQL("DROP TABLE IF EXISTS v_tbl_conflict")
+		ctr.execSQL("CREATE TABLE v_tbl_conflict (id INT)")
+		ctrErr := ctr.execSQL("CREATE VIEW v_tbl_conflict AS SELECT 1 AS a")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for view with same name as table")
 		}
 
 		c := New()
@@ -2873,10 +2873,10 @@ func TestOracle_Section_2_10_CreateDropView(t *testing.T) {
 
 	// Extra: DROP VIEW on nonexistent view (no IF EXISTS) should error
 	t.Run("drop_view_nonexistent_error", func(t *testing.T) {
-		oracle.execSQL("DROP VIEW IF EXISTS v_nonexist_err")
-		oracleErr := oracle.execSQL("DROP VIEW v_nonexist_err")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for DROP VIEW on nonexistent view")
+		ctr.execSQL("DROP VIEW IF EXISTS v_nonexist_err")
+		ctrErr := ctr.execSQL("DROP VIEW v_nonexist_err")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for DROP VIEW on nonexistent view")
 		}
 
 		c := New()
@@ -2889,22 +2889,22 @@ func TestOracle_Section_2_10_CreateDropView(t *testing.T) {
 	})
 }
 
-func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
+func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	t.Run("create_database", func(t *testing.T) {
-		oracle.execSQL("DROP DATABASE IF EXISTS db_create1")
-		oracleErr := oracle.execSQL("CREATE DATABASE db_create1")
-		if oracleErr != nil {
-			t.Fatalf("oracle CREATE DATABASE error: %v", oracleErr)
+		ctr.execSQL("DROP DATABASE IF EXISTS db_create1")
+		ctrErr := ctr.execSQL("CREATE DATABASE db_create1")
+		if ctrErr != nil {
+			t.Fatalf("container CREATE DATABASE error: %v", ctrErr)
 		}
-		oracleDDL, err := oracle.showCreateDatabase("db_create1")
+		ctrDDL, err := ctr.showCreateDatabase("db_create1")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE DATABASE error: %v", err)
+			t.Fatalf("container SHOW CREATE DATABASE error: %v", err)
 		}
 
 		c := New()
@@ -2916,10 +2916,10 @@ func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db == nil {
 			t.Fatal("omni: database not found after CREATE DATABASE")
 		}
-		// Verify charset/collation defaults match oracle.
+		// Verify charset/collation defaults match ctr.
 		// Oracle returns something like: CREATE DATABASE `db_create1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
-		if !strings.Contains(oracleDDL, "utf8mb4") {
-			t.Logf("oracle DDL: %s", oracleDDL)
+		if !strings.Contains(ctrDDL, "utf8mb4") {
+			t.Logf("container DDL: %s", ctrDDL)
 		}
 		if db.Charset != "utf8mb4" {
 			t.Errorf("omni charset mismatch: got %q, want utf8mb4", db.Charset)
@@ -2927,17 +2927,17 @@ func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db.Collation != "utf8mb4_0900_ai_ci" {
 			t.Errorf("omni collation mismatch: got %q, want utf8mb4_0900_ai_ci", db.Collation)
 		}
-		oracle.execSQL("DROP DATABASE IF EXISTS db_create1")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_create1")
 	})
 
 	t.Run("create_database_if_not_exists", func(t *testing.T) {
-		oracle.execSQL("DROP DATABASE IF EXISTS db_ine")
-		oracle.execSQL("CREATE DATABASE db_ine")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_ine")
+		ctr.execSQL("CREATE DATABASE db_ine")
 
 		// CREATE DATABASE IF NOT EXISTS on existing db should succeed (no error).
-		oracleErr := oracle.execSQL("CREATE DATABASE IF NOT EXISTS db_ine")
-		if oracleErr != nil {
-			t.Fatalf("oracle CREATE DATABASE IF NOT EXISTS error: %v", oracleErr)
+		ctrErr := ctr.execSQL("CREATE DATABASE IF NOT EXISTS db_ine")
+		if ctrErr != nil {
+			t.Fatalf("container CREATE DATABASE IF NOT EXISTS error: %v", ctrErr)
 		}
 
 		c := New()
@@ -2946,16 +2946,16 @@ func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if results[0].Error != nil {
 			t.Fatalf("omni CREATE DATABASE IF NOT EXISTS error: %v", results[0].Error)
 		}
-		oracle.execSQL("DROP DATABASE IF EXISTS db_ine")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_ine")
 	})
 
 	t.Run("create_database_charset", func(t *testing.T) {
-		oracle.execSQL("DROP DATABASE IF EXISTS db_cs")
-		oracleErr := oracle.execSQL("CREATE DATABASE db_cs CHARACTER SET latin1")
-		if oracleErr != nil {
-			t.Fatalf("oracle CREATE DATABASE with charset error: %v", oracleErr)
+		ctr.execSQL("DROP DATABASE IF EXISTS db_cs")
+		ctrErr := ctr.execSQL("CREATE DATABASE db_cs CHARACTER SET latin1")
+		if ctrErr != nil {
+			t.Fatalf("container CREATE DATABASE with charset error: %v", ctrErr)
 		}
-		oracleDDL, _ := oracle.showCreateDatabase("db_cs")
+		ctrDDL, _ := ctr.showCreateDatabase("db_cs")
 
 		c := New()
 		results, _ := c.Exec("CREATE DATABASE db_cs CHARACTER SET latin1", nil)
@@ -2967,8 +2967,8 @@ func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 			t.Fatal("omni: database not found")
 		}
 		// Oracle should show latin1 charset
-		if !strings.Contains(oracleDDL, "latin1") {
-			t.Errorf("oracle DDL missing latin1: %s", oracleDDL)
+		if !strings.Contains(ctrDDL, "latin1") {
+			t.Errorf("container DDL missing latin1: %s", ctrDDL)
 		}
 		if db.Charset != "latin1" {
 			t.Errorf("omni charset: got %q, want latin1", db.Charset)
@@ -2977,16 +2977,16 @@ func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db.Collation != "latin1_swedish_ci" {
 			t.Errorf("omni collation: got %q, want latin1_swedish_ci", db.Collation)
 		}
-		oracle.execSQL("DROP DATABASE IF EXISTS db_cs")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_cs")
 	})
 
 	t.Run("create_database_collate", func(t *testing.T) {
-		oracle.execSQL("DROP DATABASE IF EXISTS db_coll")
-		oracleErr := oracle.execSQL("CREATE DATABASE db_coll COLLATE utf8mb4_unicode_ci")
-		if oracleErr != nil {
-			t.Fatalf("oracle CREATE DATABASE with collate error: %v", oracleErr)
+		ctr.execSQL("DROP DATABASE IF EXISTS db_coll")
+		ctrErr := ctr.execSQL("CREATE DATABASE db_coll COLLATE utf8mb4_unicode_ci")
+		if ctrErr != nil {
+			t.Fatalf("container CREATE DATABASE with collate error: %v", ctrErr)
 		}
-		oracleDDL, _ := oracle.showCreateDatabase("db_coll")
+		ctrDDL, _ := ctr.showCreateDatabase("db_coll")
 
 		c := New()
 		results, _ := c.Exec("CREATE DATABASE db_coll COLLATE utf8mb4_unicode_ci", nil)
@@ -2997,27 +2997,27 @@ func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db == nil {
 			t.Fatal("omni: database not found")
 		}
-		if !strings.Contains(oracleDDL, "utf8mb4_unicode_ci") {
-			t.Errorf("oracle DDL missing utf8mb4_unicode_ci: %s", oracleDDL)
+		if !strings.Contains(ctrDDL, "utf8mb4_unicode_ci") {
+			t.Errorf("container DDL missing utf8mb4_unicode_ci: %s", ctrDDL)
 		}
 		if db.Collation != "utf8mb4_unicode_ci" {
 			t.Errorf("omni collation: got %q, want utf8mb4_unicode_ci", db.Collation)
 		}
-		oracle.execSQL("DROP DATABASE IF EXISTS db_coll")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_coll")
 	})
 
 	t.Run("drop_database", func(t *testing.T) {
-		oracle.execSQL("DROP DATABASE IF EXISTS db_drop1")
-		oracle.execSQL("CREATE DATABASE db_drop1")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_drop1")
+		ctr.execSQL("CREATE DATABASE db_drop1")
 
-		oracleErr := oracle.execSQL("DROP DATABASE db_drop1")
-		if oracleErr != nil {
-			t.Fatalf("oracle DROP DATABASE error: %v", oracleErr)
+		ctrErr := ctr.execSQL("DROP DATABASE db_drop1")
+		if ctrErr != nil {
+			t.Fatalf("container DROP DATABASE error: %v", ctrErr)
 		}
 		// Verify it's gone.
-		_, showErr := oracle.showCreateDatabase("db_drop1")
+		_, showErr := ctr.showCreateDatabase("db_drop1")
 		if showErr == nil {
-			t.Fatal("oracle: database still exists after DROP DATABASE")
+			t.Fatal("container: database still exists after DROP DATABASE")
 		}
 
 		c := New()
@@ -3032,11 +3032,11 @@ func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 	})
 
 	t.Run("drop_database_if_exists", func(t *testing.T) {
-		oracle.execSQL("DROP DATABASE IF EXISTS db_drop_ine")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_drop_ine")
 		// DROP DATABASE IF EXISTS on nonexistent db should not error.
-		oracleErr := oracle.execSQL("DROP DATABASE IF EXISTS db_drop_ine")
-		if oracleErr != nil {
-			t.Fatalf("oracle DROP DATABASE IF EXISTS error: %v", oracleErr)
+		ctrErr := ctr.execSQL("DROP DATABASE IF EXISTS db_drop_ine")
+		if ctrErr != nil {
+			t.Fatalf("container DROP DATABASE IF EXISTS error: %v", ctrErr)
 		}
 
 		c := New()
@@ -3047,14 +3047,14 @@ func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 	})
 
 	t.Run("alter_database_charset", func(t *testing.T) {
-		oracle.execSQL("DROP DATABASE IF EXISTS db_alter_cs")
-		oracle.execSQL("CREATE DATABASE db_alter_cs")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_alter_cs")
+		ctr.execSQL("CREATE DATABASE db_alter_cs")
 
-		oracleErr := oracle.execSQL("ALTER DATABASE db_alter_cs CHARACTER SET utf8mb4")
-		if oracleErr != nil {
-			t.Fatalf("oracle ALTER DATABASE charset error: %v", oracleErr)
+		ctrErr := ctr.execSQL("ALTER DATABASE db_alter_cs CHARACTER SET utf8mb4")
+		if ctrErr != nil {
+			t.Fatalf("container ALTER DATABASE charset error: %v", ctrErr)
 		}
-		oracleDDL, _ := oracle.showCreateDatabase("db_alter_cs")
+		ctrDDL, _ := ctr.showCreateDatabase("db_alter_cs")
 
 		c := New()
 		c.Exec("CREATE DATABASE db_alter_cs", nil)
@@ -3066,8 +3066,8 @@ func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db == nil {
 			t.Fatal("omni: database not found")
 		}
-		if !strings.Contains(oracleDDL, "utf8mb4") {
-			t.Errorf("oracle DDL missing utf8mb4: %s", oracleDDL)
+		if !strings.Contains(ctrDDL, "utf8mb4") {
+			t.Errorf("container DDL missing utf8mb4: %s", ctrDDL)
 		}
 		if db.Charset != "utf8mb4" {
 			t.Errorf("omni charset: got %q, want utf8mb4", db.Charset)
@@ -3075,18 +3075,18 @@ func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db.Collation != "utf8mb4_0900_ai_ci" {
 			t.Errorf("omni collation: got %q, want utf8mb4_0900_ai_ci", db.Collation)
 		}
-		oracle.execSQL("DROP DATABASE IF EXISTS db_alter_cs")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_alter_cs")
 	})
 
 	t.Run("alter_database_collate", func(t *testing.T) {
-		oracle.execSQL("DROP DATABASE IF EXISTS db_alter_coll")
-		oracle.execSQL("CREATE DATABASE db_alter_coll")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_alter_coll")
+		ctr.execSQL("CREATE DATABASE db_alter_coll")
 
-		oracleErr := oracle.execSQL("ALTER DATABASE db_alter_coll COLLATE utf8mb4_unicode_ci")
-		if oracleErr != nil {
-			t.Fatalf("oracle ALTER DATABASE collate error: %v", oracleErr)
+		ctrErr := ctr.execSQL("ALTER DATABASE db_alter_coll COLLATE utf8mb4_unicode_ci")
+		if ctrErr != nil {
+			t.Fatalf("container ALTER DATABASE collate error: %v", ctrErr)
 		}
-		oracleDDL, _ := oracle.showCreateDatabase("db_alter_coll")
+		ctrDDL, _ := ctr.showCreateDatabase("db_alter_coll")
 
 		c := New()
 		c.Exec("CREATE DATABASE db_alter_coll", nil)
@@ -3098,21 +3098,21 @@ func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db == nil {
 			t.Fatal("omni: database not found")
 		}
-		if !strings.Contains(oracleDDL, "utf8mb4_unicode_ci") {
-			t.Errorf("oracle DDL missing utf8mb4_unicode_ci: %s", oracleDDL)
+		if !strings.Contains(ctrDDL, "utf8mb4_unicode_ci") {
+			t.Errorf("container DDL missing utf8mb4_unicode_ci: %s", ctrDDL)
 		}
 		if db.Collation != "utf8mb4_unicode_ci" {
 			t.Errorf("omni collation: got %q, want utf8mb4_unicode_ci", db.Collation)
 		}
-		oracle.execSQL("DROP DATABASE IF EXISTS db_alter_coll")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_alter_coll")
 	})
 
 	t.Run("ops_on_nonexistent_database", func(t *testing.T) {
 		// DROP DATABASE on nonexistent db should error.
-		oracle.execSQL("DROP DATABASE IF EXISTS db_nonexist_xyz")
-		oracleDropErr := oracle.execSQL("DROP DATABASE db_nonexist_xyz")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_nonexist_xyz")
+		oracleDropErr := ctr.execSQL("DROP DATABASE db_nonexist_xyz")
 		if oracleDropErr == nil {
-			t.Fatal("oracle: expected error for DROP nonexistent database")
+			t.Fatal("container: expected error for DROP nonexistent database")
 		}
 
 		c := New()
@@ -3129,9 +3129,9 @@ func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		}
 
 		// ALTER DATABASE on nonexistent db should error.
-		oracleAlterErr := oracle.execSQL("ALTER DATABASE db_nonexist_xyz CHARACTER SET utf8mb4")
+		oracleAlterErr := ctr.execSQL("ALTER DATABASE db_nonexist_xyz CHARACTER SET utf8mb4")
 		if oracleAlterErr == nil {
-			t.Fatal("oracle: expected error for ALTER nonexistent database")
+			t.Fatal("container: expected error for ALTER nonexistent database")
 		}
 
 		c2 := New()
@@ -3164,11 +3164,11 @@ func TestOracle_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 	})
 }
 
-func TestOracle_Section_3_1_DatabaseErrors(t *testing.T) {
+func TestContainer_Section_3_1_DatabaseErrors(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// Helper to extract MySQL error code and message from go-sql-driver error.
@@ -3182,18 +3182,18 @@ func TestOracle_Section_3_1_DatabaseErrors(t *testing.T) {
 
 	t.Run("1007_dup_database", func(t *testing.T) {
 		// Setup: create the database first, then try to create it again.
-		oracle.execSQL("DROP DATABASE IF EXISTS db_err_dup")
-		oracle.execSQL("CREATE DATABASE db_err_dup")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_err_dup")
+		ctr.execSQL("CREATE DATABASE db_err_dup")
 
-		oracleErr := oracle.execSQL("CREATE DATABASE db_err_dup")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for duplicate CREATE DATABASE")
+		ctrErr := ctr.execSQL("CREATE DATABASE db_err_dup")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for duplicate CREATE DATABASE")
 		}
-		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if oracleCode != 1007 {
-			t.Fatalf("oracle: expected error code 1007, got %d", oracleCode)
+		if ctrCode != 1007 {
+			t.Fatalf("container: expected error code 1007, got %d", ctrCode)
 		}
 
 		// Run on omni.
@@ -3209,46 +3209,46 @@ func TestOracle_Section_3_1_DatabaseErrors(t *testing.T) {
 		}
 
 		// Compare error code.
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
 		// Compare SQLSTATE.
-		if catErr.SQLState != oracleState {
-			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		if catErr.SQLState != ctrState {
+			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
 		}
 		// Compare error message format.
 		// Oracle: "Can't create database 'db_err_dup'; database exists"
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 
-		oracle.execSQL("DROP DATABASE IF EXISTS db_err_dup")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_err_dup")
 	})
 
 	t.Run("1049_unknown_database", func(t *testing.T) {
-		// USE a nonexistent database on oracle.
-		oracle.execSQL("DROP DATABASE IF EXISTS db_err_unknown_xyz")
-		oracleErr := oracle.execSQL("USE db_err_unknown_xyz")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for USE nonexistent database")
+		// USE a nonexistent database on ctr.
+		ctr.execSQL("DROP DATABASE IF EXISTS db_err_unknown_xyz")
+		ctrErr := ctr.execSQL("USE db_err_unknown_xyz")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for USE nonexistent database")
 		}
-		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if oracleCode != 1049 {
-			t.Fatalf("oracle: expected error code 1049, got %d", oracleCode)
+		if ctrCode != 1049 {
+			t.Fatalf("container: expected error code 1049, got %d", ctrCode)
 		}
 
 		// Run on omni: DROP DATABASE on nonexistent db triggers 1008, but
 		// we need to test the "Unknown database" error (1049).
 		// Use DROP DATABASE which should return 1008 in MySQL...
 		// Actually, let's check what MySQL returns for DROP DATABASE on nonexistent:
-		oracleErr2 := oracle.execSQL("DROP DATABASE db_err_unknown_xyz")
-		if oracleErr2 == nil {
-			t.Fatal("oracle: expected error for DROP nonexistent database")
+		ctrErr2 := ctr.execSQL("DROP DATABASE db_err_unknown_xyz")
+		if ctrErr2 == nil {
+			t.Fatal("container: expected error for DROP nonexistent database")
 		}
-		oracleCode2, _, _ := extractMySQLErr(oracleErr2)
-		t.Logf("oracle DROP error code: %d", oracleCode2)
+		ctrCode2, _, _ := extractMySQLErr(ctrErr2)
+		t.Logf("container DROP error code: %d", ctrCode2)
 
 		// For omni, test USE nonexistent database.
 		c := New()
@@ -3262,28 +3262,28 @@ func TestOracle_Section_3_1_DatabaseErrors(t *testing.T) {
 		}
 
 		// Compare error code.
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
 		// Compare SQLSTATE.
-		if catErr.SQLState != oracleState {
-			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		if catErr.SQLState != ctrState {
+			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
 		}
 		// Compare error message format.
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 	})
 
 	t.Run("1046_no_database_selected", func(t *testing.T) {
-		// On oracle, try to CREATE TABLE without selecting a database.
+		// On ctr, try to CREATE TABLE without selecting a database.
 		// We need a fresh connection with no default database.
-		// The oracle connection defaults to "test" database, so we'll
+		// The container connection defaults to "test" database, so we'll
 		// test omni behavior and verify the error code/SQLSTATE/message match MySQL's known format.
 
 		// First verify MySQL's behavior: SELECT DATABASE() after no USE should work,
 		// but CREATE TABLE without database should fail.
-		// Since our oracle connection defaults to 'test' db, we verify omni matches MySQL's
+		// Since our container connection defaults to 'test' db, we verify omni matches MySQL's
 		// documented error format: ERROR 1046 (3D000): No database selected
 
 		// Run on omni with no current database.
@@ -3315,11 +3315,11 @@ func TestOracle_Section_3_1_DatabaseErrors(t *testing.T) {
 	})
 }
 
-func TestOracle_Section_3_2_TableErrors(t *testing.T) {
+func TestContainer_Section_3_2_TableErrors(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// Helper to extract MySQL error code and message from go-sql-driver error.
@@ -3333,18 +3333,18 @@ func TestOracle_Section_3_2_TableErrors(t *testing.T) {
 
 	t.Run("1050_table_already_exists", func(t *testing.T) {
 		// Setup: create a table, then try to create it again.
-		oracle.execSQL("DROP TABLE IF EXISTS t_err_dup")
-		oracle.execSQL("CREATE TABLE t_err_dup (id INT)")
+		ctr.execSQL("DROP TABLE IF EXISTS t_err_dup")
+		ctr.execSQL("CREATE TABLE t_err_dup (id INT)")
 
-		oracleErr := oracle.execSQL("CREATE TABLE t_err_dup (id INT)")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for duplicate CREATE TABLE")
+		ctrErr := ctr.execSQL("CREATE TABLE t_err_dup (id INT)")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for duplicate CREATE TABLE")
 		}
-		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if oracleCode != 1050 {
-			t.Fatalf("oracle: expected error code 1050, got %d", oracleCode)
+		if ctrCode != 1050 {
+			t.Fatalf("container: expected error code 1050, got %d", ctrCode)
 		}
 
 		// Run on omni.
@@ -3362,34 +3362,34 @@ func TestOracle_Section_3_2_TableErrors(t *testing.T) {
 		}
 
 		// Compare error code.
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
 		// Compare SQLSTATE.
-		if catErr.SQLState != oracleState {
-			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		if catErr.SQLState != ctrState {
+			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
 		}
 		// Compare error message format.
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 
-		oracle.execSQL("DROP TABLE IF EXISTS t_err_dup")
+		ctr.execSQL("DROP TABLE IF EXISTS t_err_dup")
 	})
 
 	t.Run("1051_unknown_table_drop", func(t *testing.T) {
 		// DROP TABLE on a nonexistent table should return 1051.
-		oracle.execSQL("DROP TABLE IF EXISTS t_err_noexist")
+		ctr.execSQL("DROP TABLE IF EXISTS t_err_noexist")
 
-		oracleErr := oracle.execSQL("DROP TABLE t_err_noexist")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for DROP nonexistent table")
+		ctrErr := ctr.execSQL("DROP TABLE t_err_noexist")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for DROP nonexistent table")
 		}
-		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if oracleCode != 1051 {
-			t.Fatalf("oracle: expected error code 1051, got %d", oracleCode)
+		if ctrCode != 1051 {
+			t.Fatalf("container: expected error code 1051, got %d", ctrCode)
 		}
 
 		// Run on omni.
@@ -3406,32 +3406,32 @@ func TestOracle_Section_3_2_TableErrors(t *testing.T) {
 		}
 
 		// Compare error code.
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
 		// Compare SQLSTATE.
-		if catErr.SQLState != oracleState {
-			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		if catErr.SQLState != ctrState {
+			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
 		}
 		// Compare error message format.
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 	})
 
 	t.Run("1146_table_doesnt_exist", func(t *testing.T) {
 		// ALTER TABLE on a nonexistent table should return 1146.
-		oracle.execSQL("DROP TABLE IF EXISTS t_err_noexist2")
+		ctr.execSQL("DROP TABLE IF EXISTS t_err_noexist2")
 
-		oracleErr := oracle.execSQL("ALTER TABLE t_err_noexist2 ADD COLUMN x INT")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for ALTER nonexistent table")
+		ctrErr := ctr.execSQL("ALTER TABLE t_err_noexist2 ADD COLUMN x INT")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for ALTER nonexistent table")
 		}
-		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if oracleCode != 1146 {
-			t.Fatalf("oracle: expected error code 1146, got %d", oracleCode)
+		if ctrCode != 1146 {
+			t.Fatalf("container: expected error code 1146, got %d", ctrCode)
 		}
 
 		// Run on omni.
@@ -3448,25 +3448,25 @@ func TestOracle_Section_3_2_TableErrors(t *testing.T) {
 		}
 
 		// Compare error code.
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
 		// Compare SQLSTATE.
-		if catErr.SQLState != oracleState {
-			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		if catErr.SQLState != ctrState {
+			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
 		}
 		// Compare error message format.
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 	})
 }
 
-func TestOracle_Section_3_3_ColumnErrors(t *testing.T) {
+func TestContainer_Section_3_3_ColumnErrors(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// Helper to extract MySQL error code and message from go-sql-driver error.
@@ -3481,18 +3481,18 @@ func TestOracle_Section_3_3_ColumnErrors(t *testing.T) {
 	t.Run("1054_unknown_column", func(t *testing.T) {
 		// ALTER TABLE ... MODIFY COLUMN AFTER nonexistent_col triggers 1054
 		// "Unknown column 'col' in 'table definition'"
-		oracle.execSQL("DROP TABLE IF EXISTS t_err_nocol")
-		oracle.execSQL("CREATE TABLE t_err_nocol (id INT, name VARCHAR(50))")
+		ctr.execSQL("DROP TABLE IF EXISTS t_err_nocol")
+		ctr.execSQL("CREATE TABLE t_err_nocol (id INT, name VARCHAR(50))")
 
-		oracleErr := oracle.execSQL("ALTER TABLE t_err_nocol MODIFY COLUMN name VARCHAR(50) AFTER nonexistent")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for unknown column in AFTER clause")
+		ctrErr := ctr.execSQL("ALTER TABLE t_err_nocol MODIFY COLUMN name VARCHAR(50) AFTER nonexistent")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for unknown column in AFTER clause")
 		}
-		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if oracleCode != 1054 {
-			t.Fatalf("oracle: expected error code 1054, got %d", oracleCode)
+		if ctrCode != 1054 {
+			t.Fatalf("container: expected error code 1054, got %d", ctrCode)
 		}
 
 		// Run on omni.
@@ -3510,34 +3510,34 @@ func TestOracle_Section_3_3_ColumnErrors(t *testing.T) {
 		}
 
 		// Compare error code.
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
 		// Compare SQLSTATE.
-		if catErr.SQLState != oracleState {
-			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		if catErr.SQLState != ctrState {
+			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
 		}
 		// Compare error message format.
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 
-		oracle.execSQL("DROP TABLE IF EXISTS t_err_nocol")
+		ctr.execSQL("DROP TABLE IF EXISTS t_err_nocol")
 	})
 
 	t.Run("1060_duplicate_column", func(t *testing.T) {
 		// CREATE TABLE with two columns of the same name.
-		oracle.execSQL("DROP TABLE IF EXISTS t_err_dupcol")
+		ctr.execSQL("DROP TABLE IF EXISTS t_err_dupcol")
 
-		oracleErr := oracle.execSQL("CREATE TABLE t_err_dupcol (a INT, a VARCHAR(10))")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for duplicate column name")
+		ctrErr := ctr.execSQL("CREATE TABLE t_err_dupcol (a INT, a VARCHAR(10))")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for duplicate column name")
 		}
-		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if oracleCode != 1060 {
-			t.Fatalf("oracle: expected error code 1060, got %d", oracleCode)
+		if ctrCode != 1060 {
+			t.Fatalf("container: expected error code 1060, got %d", ctrCode)
 		}
 
 		// Run on omni.
@@ -3554,32 +3554,32 @@ func TestOracle_Section_3_3_ColumnErrors(t *testing.T) {
 		}
 
 		// Compare error code.
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
 		// Compare SQLSTATE.
-		if catErr.SQLState != oracleState {
-			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		if catErr.SQLState != ctrState {
+			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
 		}
 		// Compare error message format.
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 	})
 
 	t.Run("1068_multiple_primary_key", func(t *testing.T) {
 		// CREATE TABLE with two PRIMARY KEY definitions.
-		oracle.execSQL("DROP TABLE IF EXISTS t_err_multipk")
+		ctr.execSQL("DROP TABLE IF EXISTS t_err_multipk")
 
-		oracleErr := oracle.execSQL("CREATE TABLE t_err_multipk (a INT, b INT, PRIMARY KEY (a), PRIMARY KEY (b))")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for multiple primary key")
+		ctrErr := ctr.execSQL("CREATE TABLE t_err_multipk (a INT, b INT, PRIMARY KEY (a), PRIMARY KEY (b))")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for multiple primary key")
 		}
-		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if oracleCode != 1068 {
-			t.Fatalf("oracle: expected error code 1068, got %d", oracleCode)
+		if ctrCode != 1068 {
+			t.Fatalf("container: expected error code 1068, got %d", ctrCode)
 		}
 
 		// Run on omni.
@@ -3596,25 +3596,25 @@ func TestOracle_Section_3_3_ColumnErrors(t *testing.T) {
 		}
 
 		// Compare error code.
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
 		// Compare SQLSTATE.
-		if catErr.SQLState != oracleState {
-			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		if catErr.SQLState != ctrState {
+			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
 		}
 		// Compare error message format.
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 	})
 }
 
-func TestOracle_Section_3_4_IndexKeyErrors(t *testing.T) {
+func TestContainer_Section_3_4_IndexKeyErrors(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// Helper to extract MySQL error code and message from go-sql-driver error.
@@ -3628,18 +3628,18 @@ func TestOracle_Section_3_4_IndexKeyErrors(t *testing.T) {
 
 	t.Run("1061_dup_key_name", func(t *testing.T) {
 		// Setup: create a table with an index, then try to add another index with the same name.
-		oracle.execSQL("DROP TABLE IF EXISTS t_dup_key")
-		oracle.execSQL("CREATE TABLE t_dup_key (a INT, b INT, KEY idx_a (a))")
+		ctr.execSQL("DROP TABLE IF EXISTS t_dup_key")
+		ctr.execSQL("CREATE TABLE t_dup_key (a INT, b INT, KEY idx_a (a))")
 
-		oracleErr := oracle.execSQL("ALTER TABLE t_dup_key ADD INDEX idx_a (b)")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for duplicate key name")
+		ctrErr := ctr.execSQL("ALTER TABLE t_dup_key ADD INDEX idx_a (b)")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for duplicate key name")
 		}
-		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if oracleCode != 1061 {
-			t.Fatalf("oracle: expected error code 1061, got %d", oracleCode)
+		if ctrCode != 1061 {
+			t.Fatalf("container: expected error code 1061, got %d", ctrCode)
 		}
 
 		// Run on omni.
@@ -3657,35 +3657,35 @@ func TestOracle_Section_3_4_IndexKeyErrors(t *testing.T) {
 		}
 
 		// Compare error code.
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
 		// Compare SQLSTATE.
-		if catErr.SQLState != oracleState {
-			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		if catErr.SQLState != ctrState {
+			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
 		}
 		// Compare error message format.
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 
-		oracle.execSQL("DROP TABLE IF EXISTS t_dup_key")
+		ctr.execSQL("DROP TABLE IF EXISTS t_dup_key")
 	})
 
 	t.Run("1091_cant_drop_key", func(t *testing.T) {
 		// Setup: create a table, then try to drop a nonexistent index.
-		oracle.execSQL("DROP TABLE IF EXISTS t_drop_key")
-		oracle.execSQL("CREATE TABLE t_drop_key (a INT)")
+		ctr.execSQL("DROP TABLE IF EXISTS t_drop_key")
+		ctr.execSQL("CREATE TABLE t_drop_key (a INT)")
 
-		oracleErr := oracle.execSQL("ALTER TABLE t_drop_key DROP INDEX idx_nonexistent")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for dropping nonexistent key")
+		ctrErr := ctr.execSQL("ALTER TABLE t_drop_key DROP INDEX idx_nonexistent")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for dropping nonexistent key")
 		}
-		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if oracleCode != 1091 {
-			t.Fatalf("oracle: expected error code 1091, got %d", oracleCode)
+		if ctrCode != 1091 {
+			t.Fatalf("container: expected error code 1091, got %d", ctrCode)
 		}
 
 		// Run on omni.
@@ -3703,27 +3703,27 @@ func TestOracle_Section_3_4_IndexKeyErrors(t *testing.T) {
 		}
 
 		// Compare error code.
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
 		// Compare SQLSTATE.
-		if catErr.SQLState != oracleState {
-			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		if catErr.SQLState != ctrState {
+			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
 		}
 		// Compare error message format.
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 
-		oracle.execSQL("DROP TABLE IF EXISTS t_drop_key")
+		ctr.execSQL("DROP TABLE IF EXISTS t_drop_key")
 	})
 }
 
-func TestOracle_Section_3_5_FKErrors(t *testing.T) {
+func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// Helper to extract MySQL error code and message from go-sql-driver error.
@@ -3737,18 +3737,18 @@ func TestOracle_Section_3_5_FKErrors(t *testing.T) {
 
 	t.Run("1824_fk_ref_table_not_found", func(t *testing.T) {
 		// Try to create a table with FK referencing a nonexistent table.
-		oracle.execSQL("DROP TABLE IF EXISTS t_fk_noref")
-		oracle.execSQL("DROP TABLE IF EXISTS t_nonexistent_parent")
+		ctr.execSQL("DROP TABLE IF EXISTS t_fk_noref")
+		ctr.execSQL("DROP TABLE IF EXISTS t_nonexistent_parent")
 
-		oracleErr := oracle.execSQL("CREATE TABLE t_fk_noref (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_nonexistent_parent(id))")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for FK referencing nonexistent table")
+		ctrErr := ctr.execSQL("CREATE TABLE t_fk_noref (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_nonexistent_parent(id))")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for FK referencing nonexistent table")
 		}
-		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if oracleCode != 1824 {
-			t.Fatalf("oracle: expected error code 1824, got %d", oracleCode)
+		if ctrCode != 1824 {
+			t.Fatalf("container: expected error code 1824, got %d", ctrCode)
 		}
 
 		// Run on omni.
@@ -3765,35 +3765,35 @@ func TestOracle_Section_3_5_FKErrors(t *testing.T) {
 		}
 
 		// Compare error code.
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
 		// Compare SQLSTATE.
-		if catErr.SQLState != oracleState {
-			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		if catErr.SQLState != ctrState {
+			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
 		}
 		// Compare error message format.
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 	})
 
 	t.Run("1822_fk_missing_index_on_ref_table", func(t *testing.T) {
 		// Create a parent table without a key on the referenced column,
 		// then try to create a child with FK referencing that column.
-		oracle.execSQL("DROP TABLE IF EXISTS t_fk_child_nokey")
-		oracle.execSQL("DROP TABLE IF EXISTS t_fk_parent_nokey")
-		oracle.execSQL("CREATE TABLE t_fk_parent_nokey (id INT, val INT)")
+		ctr.execSQL("DROP TABLE IF EXISTS t_fk_child_nokey")
+		ctr.execSQL("DROP TABLE IF EXISTS t_fk_parent_nokey")
+		ctr.execSQL("CREATE TABLE t_fk_parent_nokey (id INT, val INT)")
 
-		oracleErr := oracle.execSQL("CREATE TABLE t_fk_child_nokey (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_fk_parent_nokey(val))")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for FK referencing column without index")
+		ctrErr := ctr.execSQL("CREATE TABLE t_fk_child_nokey (id INT, pid INT, FOREIGN KEY (pid) REFERENCES t_fk_parent_nokey(val))")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for FK referencing column without index")
 		}
-		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if oracleCode != 1822 {
-			t.Fatalf("oracle: expected error code 1822, got %d", oracleCode)
+		if ctrCode != 1822 {
+			t.Fatalf("container: expected error code 1822, got %d", ctrCode)
 		}
 
 		// Run on omni.
@@ -3811,34 +3811,34 @@ func TestOracle_Section_3_5_FKErrors(t *testing.T) {
 		}
 
 		// Compare error code.
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
 		// Compare SQLSTATE.
-		if catErr.SQLState != oracleState {
-			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		if catErr.SQLState != ctrState {
+			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
 		}
 		// Compare error message format.
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 
-		oracle.execSQL("DROP TABLE IF EXISTS t_fk_child_nokey")
-		oracle.execSQL("DROP TABLE IF EXISTS t_fk_parent_nokey")
+		ctr.execSQL("DROP TABLE IF EXISTS t_fk_child_nokey")
+		ctr.execSQL("DROP TABLE IF EXISTS t_fk_parent_nokey")
 	})
 
 	t.Run("3780_fk_column_type_mismatch", func(t *testing.T) {
 		// Create parent with INT PK, then try to create child with VARCHAR FK column.
-		oracle.execSQL("DROP TABLE IF EXISTS t_fk_child_mismatch")
-		oracle.execSQL("DROP TABLE IF EXISTS t_fk_parent_mismatch")
-		oracle.execSQL("CREATE TABLE t_fk_parent_mismatch (id INT PRIMARY KEY)")
+		ctr.execSQL("DROP TABLE IF EXISTS t_fk_child_mismatch")
+		ctr.execSQL("DROP TABLE IF EXISTS t_fk_parent_mismatch")
+		ctr.execSQL("CREATE TABLE t_fk_parent_mismatch (id INT PRIMARY KEY)")
 
-		oracleErr := oracle.execSQL("CREATE TABLE t_fk_child_mismatch (id INT, pid VARCHAR(50), FOREIGN KEY (pid) REFERENCES t_fk_parent_mismatch(id))")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for FK column type mismatch")
+		ctrErr := ctr.execSQL("CREATE TABLE t_fk_child_mismatch (id INT, pid VARCHAR(50), FOREIGN KEY (pid) REFERENCES t_fk_parent_mismatch(id))")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for FK column type mismatch")
 		}
-		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
 		// Run on omni.
 		c := New()
@@ -3855,28 +3855,28 @@ func TestOracle_Section_3_5_FKErrors(t *testing.T) {
 		}
 
 		// Compare error code.
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
 		// Compare SQLSTATE.
-		if catErr.SQLState != oracleState {
-			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		if catErr.SQLState != ctrState {
+			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
 		}
 		// Compare error message format.
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 
-		oracle.execSQL("DROP TABLE IF EXISTS t_fk_child_mismatch")
-		oracle.execSQL("DROP TABLE IF EXISTS t_fk_parent_mismatch")
+		ctr.execSQL("DROP TABLE IF EXISTS t_fk_child_mismatch")
+		ctr.execSQL("DROP TABLE IF EXISTS t_fk_parent_mismatch")
 	})
 }
 
-func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
+func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// Helper to extract MySQL error code and message from go-sql-driver error.
@@ -3893,14 +3893,14 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 	// Test a variety of error types and compare message format exactly.
 	t.Run("identifier_quoting", func(t *testing.T) {
 		// 1a: Duplicate database — quotes around db name
-		oracle.execSQL("DROP DATABASE IF EXISTS db_quote_test")
-		oracle.execSQL("CREATE DATABASE db_quote_test")
-		oracleErr := oracle.execSQL("CREATE DATABASE db_quote_test")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_quote_test")
+		ctr.execSQL("CREATE DATABASE db_quote_test")
+		ctrErr := ctr.execSQL("CREATE DATABASE db_quote_test")
+		if ctrErr == nil {
+			t.Fatal("container: expected error")
 		}
-		oracleCode, _, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle dup db: %d %s", oracleCode, oracleMsg)
+		ctrCode, _, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container dup db: %d %s", ctrCode, ctrMsg)
 
 		c := New()
 		c.Exec("CREATE DATABASE db_quote_test", nil)
@@ -3909,19 +3909,19 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		if !ok {
 			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
 		}
-		if catErr.Message != oracleMsg {
-			t.Errorf("dup db message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("dup db message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 
 		// 1b: Duplicate table — quotes around table name
-		oracle.execSQL("DROP TABLE IF EXISTS t_quote_test")
-		oracle.execSQL("CREATE TABLE t_quote_test (id INT)")
-		oracleErr = oracle.execSQL("CREATE TABLE t_quote_test (id INT)")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error")
+		ctr.execSQL("DROP TABLE IF EXISTS t_quote_test")
+		ctr.execSQL("CREATE TABLE t_quote_test (id INT)")
+		ctrErr = ctr.execSQL("CREATE TABLE t_quote_test (id INT)")
+		if ctrErr == nil {
+			t.Fatal("container: expected error")
 		}
-		oracleCode, _, oracleMsg = extractMySQLErr(oracleErr)
-		t.Logf("oracle dup table: %d %s", oracleCode, oracleMsg)
+		ctrCode, _, ctrMsg = extractMySQLErr(ctrErr)
+		t.Logf("container dup table: %d %s", ctrCode, ctrMsg)
 
 		c2 := New()
 		c2.Exec("CREATE DATABASE test", nil)
@@ -3932,19 +3932,19 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		if !ok {
 			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
 		}
-		if catErr.Message != oracleMsg {
-			t.Errorf("dup table message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("dup table message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 
 		// 1c: Unknown column — quotes around column name and context
-		oracle.execSQL("DROP TABLE IF EXISTS t_col_quote")
-		oracle.execSQL("CREATE TABLE t_col_quote (id INT)")
-		oracleErr = oracle.execSQL("ALTER TABLE t_col_quote DROP COLUMN nonexistent")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error")
+		ctr.execSQL("DROP TABLE IF EXISTS t_col_quote")
+		ctr.execSQL("CREATE TABLE t_col_quote (id INT)")
+		ctrErr = ctr.execSQL("ALTER TABLE t_col_quote DROP COLUMN nonexistent")
+		if ctrErr == nil {
+			t.Fatal("container: expected error")
 		}
-		oracleCode, _, oracleMsg = extractMySQLErr(oracleErr)
-		t.Logf("oracle unknown col: %d %s", oracleCode, oracleMsg)
+		ctrCode, _, ctrMsg = extractMySQLErr(ctrErr)
+		t.Logf("container unknown col: %d %s", ctrCode, ctrMsg)
 
 		c3 := New()
 		c3.Exec("CREATE DATABASE test", nil)
@@ -3955,19 +3955,19 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		if !ok {
 			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
 		}
-		if catErr.Message != oracleMsg {
-			t.Errorf("unknown col message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("unknown col message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 
 		// 1d: Duplicate key name — quotes around key name
-		oracle.execSQL("DROP TABLE IF EXISTS t_key_quote")
-		oracle.execSQL("CREATE TABLE t_key_quote (id INT, val INT, KEY idx_val (val))")
-		oracleErr = oracle.execSQL("ALTER TABLE t_key_quote ADD INDEX idx_val (id)")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error")
+		ctr.execSQL("DROP TABLE IF EXISTS t_key_quote")
+		ctr.execSQL("CREATE TABLE t_key_quote (id INT, val INT, KEY idx_val (val))")
+		ctrErr = ctr.execSQL("ALTER TABLE t_key_quote ADD INDEX idx_val (id)")
+		if ctrErr == nil {
+			t.Fatal("container: expected error")
 		}
-		oracleCode, _, oracleMsg = extractMySQLErr(oracleErr)
-		t.Logf("oracle dup key: %d %s", oracleCode, oracleMsg)
+		ctrCode, _, ctrMsg = extractMySQLErr(ctrErr)
+		t.Logf("container dup key: %d %s", ctrCode, ctrMsg)
 
 		c4 := New()
 		c4.Exec("CREATE DATABASE test", nil)
@@ -3978,19 +3978,19 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		if !ok {
 			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
 		}
-		if catErr.Message != oracleMsg {
-			t.Errorf("dup key message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("dup key message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 
 		// 1e: Can't drop key — quotes around key name
-		oracle.execSQL("DROP TABLE IF EXISTS t_dropkey_quote")
-		oracle.execSQL("CREATE TABLE t_dropkey_quote (id INT)")
-		oracleErr = oracle.execSQL("ALTER TABLE t_dropkey_quote DROP INDEX nokey")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error")
+		ctr.execSQL("DROP TABLE IF EXISTS t_dropkey_quote")
+		ctr.execSQL("CREATE TABLE t_dropkey_quote (id INT)")
+		ctrErr = ctr.execSQL("ALTER TABLE t_dropkey_quote DROP INDEX nokey")
+		if ctrErr == nil {
+			t.Fatal("container: expected error")
 		}
-		oracleCode, _, oracleMsg = extractMySQLErr(oracleErr)
-		t.Logf("oracle can't drop key: %d %s", oracleCode, oracleMsg)
+		ctrCode, _, ctrMsg = extractMySQLErr(ctrErr)
+		t.Logf("container can't drop key: %d %s", ctrCode, ctrMsg)
 
 		c5 := New()
 		c5.Exec("CREATE DATABASE test", nil)
@@ -4001,18 +4001,18 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		if !ok {
 			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
 		}
-		if catErr.Message != oracleMsg {
-			t.Errorf("can't drop key message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("can't drop key message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 
 		// 1f: Unknown table (DROP TABLE) — quotes around db.table
-		oracle.execSQL("DROP TABLE IF EXISTS t_unknown_quote")
-		oracleErr = oracle.execSQL("DROP TABLE t_unknown_quote")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error")
+		ctr.execSQL("DROP TABLE IF EXISTS t_unknown_quote")
+		ctrErr = ctr.execSQL("DROP TABLE t_unknown_quote")
+		if ctrErr == nil {
+			t.Fatal("container: expected error")
 		}
-		oracleCode, _, oracleMsg = extractMySQLErr(oracleErr)
-		t.Logf("oracle unknown table: %d %s", oracleCode, oracleMsg)
+		ctrCode, _, ctrMsg = extractMySQLErr(ctrErr)
+		t.Logf("container unknown table: %d %s", ctrCode, ctrMsg)
 
 		c6 := New()
 		c6.Exec("CREATE DATABASE test", nil)
@@ -4022,16 +4022,16 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		if !ok {
 			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
 		}
-		if catErr.Message != oracleMsg {
-			t.Errorf("unknown table message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("unknown table message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 
 		// Cleanup
-		oracle.execSQL("DROP TABLE IF EXISTS t_quote_test")
-		oracle.execSQL("DROP TABLE IF EXISTS t_col_quote")
-		oracle.execSQL("DROP TABLE IF EXISTS t_key_quote")
-		oracle.execSQL("DROP TABLE IF EXISTS t_dropkey_quote")
-		oracle.execSQL("DROP DATABASE IF EXISTS db_quote_test")
+		ctr.execSQL("DROP TABLE IF EXISTS t_quote_test")
+		ctr.execSQL("DROP TABLE IF EXISTS t_col_quote")
+		ctr.execSQL("DROP TABLE IF EXISTS t_key_quote")
+		ctr.execSQL("DROP TABLE IF EXISTS t_dropkey_quote")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_quote_test")
 	})
 
 	// Scenario 2: Error position (index) for multi-statement SQL
@@ -4072,18 +4072,18 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 			t.Errorf("error code: want 1050, got %d", catErr.Code)
 		}
 
-		// Also verify on oracle: same 3-statement SQL, error on 3rd.
-		oracle.execSQL("DROP TABLE IF EXISTS t_pos1")
-		oracle.execSQL("DROP TABLE IF EXISTS t_pos2")
-		oracle.execSQL("CREATE TABLE t_pos1 (id INT)")
-		oracle.execSQL("CREATE TABLE t_pos2 (id INT)")
-		oracleErr := oracle.execSQL("CREATE TABLE t_pos1 (id INT)")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for duplicate table")
+		// Also verify on container: same 3-statement SQL, error on 3rd.
+		ctr.execSQL("DROP TABLE IF EXISTS t_pos1")
+		ctr.execSQL("DROP TABLE IF EXISTS t_pos2")
+		ctr.execSQL("CREATE TABLE t_pos1 (id INT)")
+		ctr.execSQL("CREATE TABLE t_pos2 (id INT)")
+		ctrErr := ctr.execSQL("CREATE TABLE t_pos1 (id INT)")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for duplicate table")
 		}
-		oracleCode, _, _ := extractMySQLErr(oracleErr)
-		if oracleCode != 1050 {
-			t.Errorf("oracle error code: want 1050, got %d", oracleCode)
+		ctrCode, _, _ := extractMySQLErr(ctrErr)
+		if ctrCode != 1050 {
+			t.Errorf("container error code: want 1050, got %d", ctrCode)
 		}
 
 		// Second test: error on the 1st statement of multi-statement batch.
@@ -4104,17 +4104,17 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		}
 
 		// Cleanup
-		oracle.execSQL("DROP TABLE IF EXISTS t_pos1")
-		oracle.execSQL("DROP TABLE IF EXISTS t_pos2")
+		ctr.execSQL("DROP TABLE IF EXISTS t_pos1")
+		ctr.execSQL("DROP TABLE IF EXISTS t_pos2")
 	})
 
 	// Scenario 3: IF EXISTS suppresses errors correctly
 	t.Run("if_exists_suppresses_errors", func(t *testing.T) {
 		// 3a: DROP TABLE IF EXISTS on nonexistent table — no error on both.
-		oracle.execSQL("DROP TABLE IF EXISTS t_ifexists_none")
-		oracleErr := oracle.execSQL("DROP TABLE IF EXISTS t_ifexists_none")
-		if oracleErr != nil {
-			t.Fatalf("oracle DROP TABLE IF EXISTS error: %v", oracleErr)
+		ctr.execSQL("DROP TABLE IF EXISTS t_ifexists_none")
+		ctrErr := ctr.execSQL("DROP TABLE IF EXISTS t_ifexists_none")
+		if ctrErr != nil {
+			t.Fatalf("container DROP TABLE IF EXISTS error: %v", ctrErr)
 		}
 
 		c := New()
@@ -4126,10 +4126,10 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		}
 
 		// 3b: DROP DATABASE IF EXISTS on nonexistent database — no error on both.
-		oracle.execSQL("DROP DATABASE IF EXISTS db_ifexists_none")
-		oracleErr = oracle.execSQL("DROP DATABASE IF EXISTS db_ifexists_none")
-		if oracleErr != nil {
-			t.Fatalf("oracle DROP DATABASE IF EXISTS error: %v", oracleErr)
+		ctr.execSQL("DROP DATABASE IF EXISTS db_ifexists_none")
+		ctrErr = ctr.execSQL("DROP DATABASE IF EXISTS db_ifexists_none")
+		if ctrErr != nil {
+			t.Fatalf("container DROP DATABASE IF EXISTS error: %v", ctrErr)
 		}
 
 		c2 := New()
@@ -4139,10 +4139,10 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		}
 
 		// 3c: DROP VIEW IF EXISTS on nonexistent view — no error on both.
-		oracle.execSQL("DROP VIEW IF EXISTS v_ifexists_none")
-		oracleErr = oracle.execSQL("DROP VIEW IF EXISTS v_ifexists_none")
-		if oracleErr != nil {
-			t.Fatalf("oracle DROP VIEW IF EXISTS error: %v", oracleErr)
+		ctr.execSQL("DROP VIEW IF EXISTS v_ifexists_none")
+		ctrErr = ctr.execSQL("DROP VIEW IF EXISTS v_ifexists_none")
+		if ctrErr != nil {
+			t.Fatalf("container DROP VIEW IF EXISTS error: %v", ctrErr)
 		}
 
 		c3 := New()
@@ -4154,11 +4154,11 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		}
 
 		// 3d: DROP TABLE IF EXISTS on existing table — should succeed (table is dropped).
-		oracle.execSQL("DROP TABLE IF EXISTS t_ifexists_real")
-		oracle.execSQL("CREATE TABLE t_ifexists_real (id INT)")
-		oracleErr = oracle.execSQL("DROP TABLE IF EXISTS t_ifexists_real")
-		if oracleErr != nil {
-			t.Fatalf("oracle DROP TABLE IF EXISTS (existing) error: %v", oracleErr)
+		ctr.execSQL("DROP TABLE IF EXISTS t_ifexists_real")
+		ctr.execSQL("CREATE TABLE t_ifexists_real (id INT)")
+		ctrErr = ctr.execSQL("DROP TABLE IF EXISTS t_ifexists_real")
+		if ctrErr != nil {
+			t.Fatalf("container DROP TABLE IF EXISTS (existing) error: %v", ctrErr)
 		}
 
 		c4 := New()
@@ -4176,12 +4176,12 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		}
 
 		// 3e: Without IF EXISTS, DROP TABLE on nonexistent table — must error.
-		oracle.execSQL("DROP TABLE IF EXISTS t_noifexists")
-		oracleErr = oracle.execSQL("DROP TABLE t_noifexists")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for DROP TABLE without IF EXISTS")
+		ctr.execSQL("DROP TABLE IF EXISTS t_noifexists")
+		ctrErr = ctr.execSQL("DROP TABLE t_noifexists")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for DROP TABLE without IF EXISTS")
 		}
-		oracleCode, _, oracleMsg := extractMySQLErr(oracleErr)
+		ctrCode, _, ctrMsg := extractMySQLErr(ctrErr)
 
 		c5 := New()
 		c5.Exec("CREATE DATABASE test", nil)
@@ -4194,22 +4194,22 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		if !ok {
 			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
 		}
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 	})
 
 	// Scenario 4: IF NOT EXISTS suppresses errors correctly
 	t.Run("if_not_exists_suppresses_errors", func(t *testing.T) {
 		// 4a: CREATE DATABASE IF NOT EXISTS on existing database — no error.
-		oracle.execSQL("DROP DATABASE IF EXISTS db_ifne")
-		oracle.execSQL("CREATE DATABASE db_ifne")
-		oracleErr := oracle.execSQL("CREATE DATABASE IF NOT EXISTS db_ifne")
-		if oracleErr != nil {
-			t.Fatalf("oracle CREATE DATABASE IF NOT EXISTS error: %v", oracleErr)
+		ctr.execSQL("DROP DATABASE IF EXISTS db_ifne")
+		ctr.execSQL("CREATE DATABASE db_ifne")
+		ctrErr := ctr.execSQL("CREATE DATABASE IF NOT EXISTS db_ifne")
+		if ctrErr != nil {
+			t.Fatalf("container CREATE DATABASE IF NOT EXISTS error: %v", ctrErr)
 		}
 
 		c := New()
@@ -4220,16 +4220,16 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		}
 
 		// 4b: CREATE TABLE IF NOT EXISTS on existing table — no error, original preserved.
-		oracle.execSQL("DROP TABLE IF EXISTS t_ifne")
-		oracle.execSQL("CREATE TABLE t_ifne (id INT)")
-		oracleErr = oracle.execSQL("CREATE TABLE IF NOT EXISTS t_ifne (val VARCHAR(100))")
-		if oracleErr != nil {
-			t.Fatalf("oracle CREATE TABLE IF NOT EXISTS error: %v", oracleErr)
+		ctr.execSQL("DROP TABLE IF EXISTS t_ifne")
+		ctr.execSQL("CREATE TABLE t_ifne (id INT)")
+		ctrErr = ctr.execSQL("CREATE TABLE IF NOT EXISTS t_ifne (val VARCHAR(100))")
+		if ctrErr != nil {
+			t.Fatalf("container CREATE TABLE IF NOT EXISTS error: %v", ctrErr)
 		}
 		// Verify original table is unchanged.
-		oracleDDL, _ := oracle.showCreateTable("t_ifne")
-		if !strings.Contains(oracleDDL, "`id`") {
-			t.Errorf("oracle: original table structure should be preserved, got: %s", oracleDDL)
+		ctrDDL, _ := ctr.showCreateTable("t_ifne")
+		if !strings.Contains(ctrDDL, "`id`") {
+			t.Errorf("container: original table structure should be preserved, got: %s", ctrDDL)
 		}
 
 		c2 := New()
@@ -4247,13 +4247,13 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		}
 
 		// 4c: Without IF NOT EXISTS, CREATE TABLE on existing table — must error.
-		oracle.execSQL("DROP TABLE IF EXISTS t_no_ifne")
-		oracle.execSQL("CREATE TABLE t_no_ifne (id INT)")
-		oracleErr = oracle.execSQL("CREATE TABLE t_no_ifne (id INT)")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for CREATE TABLE without IF NOT EXISTS")
+		ctr.execSQL("DROP TABLE IF EXISTS t_no_ifne")
+		ctr.execSQL("CREATE TABLE t_no_ifne (id INT)")
+		ctrErr = ctr.execSQL("CREATE TABLE t_no_ifne (id INT)")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for CREATE TABLE without IF NOT EXISTS")
 		}
-		oracleCode, _, oracleMsg := extractMySQLErr(oracleErr)
+		ctrCode, _, ctrMsg := extractMySQLErr(ctrErr)
 
 		c3 := New()
 		c3.Exec("CREATE DATABASE test", nil)
@@ -4267,25 +4267,25 @@ func TestOracle_Section_3_6_ErrorContext(t *testing.T) {
 		if !ok {
 			t.Fatalf("omni: expected *Error, got %T", results[0].Error)
 		}
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 
 		// Cleanup
-		oracle.execSQL("DROP TABLE IF EXISTS t_ifne")
-		oracle.execSQL("DROP TABLE IF EXISTS t_no_ifne")
-		oracle.execSQL("DROP DATABASE IF EXISTS db_ifne")
+		ctr.execSQL("DROP TABLE IF EXISTS t_ifne")
+		ctr.execSQL("DROP TABLE IF EXISTS t_no_ifne")
+		ctr.execSQL("DROP DATABASE IF EXISTS db_ifne")
 	})
 }
 
-func TestOracle_Section_4_1_Partitioning(t *testing.T) {
+func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -4381,11 +4381,11 @@ func TestOracle_Section_4_1_Partitioning(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -4396,16 +4396,16 @@ func TestOracle_Section_4_1_Partitioning(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 
 	// ALTER TABLE partition tests — multi-step
 	t.Run("alter_add_partition", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_alter_addp")
+		ctr.execSQL("DROP TABLE IF EXISTS t_alter_addp")
 		setupSQL := `CREATE TABLE t_alter_addp (
 			id INT NOT NULL,
 			val INT NOT NULL
@@ -4413,14 +4413,14 @@ func TestOracle_Section_4_1_Partitioning(t *testing.T) {
 			PARTITION p0 VALUES LESS THAN (10),
 			PARTITION p1 VALUES LESS THAN (20)
 		)`
-		if err := oracle.execSQL(setupSQL); err != nil {
-			t.Fatalf("oracle setup: %v", err)
+		if err := ctr.execSQL(setupSQL); err != nil {
+			t.Fatalf("container setup: %v", err)
 		}
 		alterSQL := "ALTER TABLE t_alter_addp ADD PARTITION (PARTITION p2 VALUES LESS THAN (30))"
-		if err := oracle.execSQL(alterSQL); err != nil {
-			t.Fatalf("oracle alter: %v", err)
+		if err := ctr.execSQL(alterSQL); err != nil {
+			t.Fatalf("container alter: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("t_alter_addp")
+		ctrDDL, _ := ctr.showCreateTable("t_alter_addp")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -4432,14 +4432,14 @@ func TestOracle_Section_4_1_Partitioning(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_alter_addp")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("alter_drop_partition", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_alter_dropp")
+		ctr.execSQL("DROP TABLE IF EXISTS t_alter_dropp")
 		setupSQL := `CREATE TABLE t_alter_dropp (
 			id INT NOT NULL,
 			val INT NOT NULL
@@ -4448,14 +4448,14 @@ func TestOracle_Section_4_1_Partitioning(t *testing.T) {
 			PARTITION p1 VALUES LESS THAN (20),
 			PARTITION p2 VALUES LESS THAN MAXVALUE
 		)`
-		if err := oracle.execSQL(setupSQL); err != nil {
-			t.Fatalf("oracle setup: %v", err)
+		if err := ctr.execSQL(setupSQL); err != nil {
+			t.Fatalf("container setup: %v", err)
 		}
 		alterSQL := "ALTER TABLE t_alter_dropp DROP PARTITION p1"
-		if err := oracle.execSQL(alterSQL); err != nil {
-			t.Fatalf("oracle alter: %v", err)
+		if err := ctr.execSQL(alterSQL); err != nil {
+			t.Fatalf("container alter: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("t_alter_dropp")
+		ctrDDL, _ := ctr.showCreateTable("t_alter_dropp")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -4467,14 +4467,14 @@ func TestOracle_Section_4_1_Partitioning(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_alter_dropp")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("alter_reorganize_partition", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_alter_reorgp")
+		ctr.execSQL("DROP TABLE IF EXISTS t_alter_reorgp")
 		setupSQL := `CREATE TABLE t_alter_reorgp (
 			id INT NOT NULL,
 			val INT NOT NULL
@@ -4482,17 +4482,17 @@ func TestOracle_Section_4_1_Partitioning(t *testing.T) {
 			PARTITION p0 VALUES LESS THAN (10),
 			PARTITION p1 VALUES LESS THAN (30)
 		)`
-		if err := oracle.execSQL(setupSQL); err != nil {
-			t.Fatalf("oracle setup: %v", err)
+		if err := ctr.execSQL(setupSQL); err != nil {
+			t.Fatalf("container setup: %v", err)
 		}
 		alterSQL := `ALTER TABLE t_alter_reorgp REORGANIZE PARTITION p1 INTO (
 			PARTITION p1a VALUES LESS THAN (20),
 			PARTITION p1b VALUES LESS THAN (30)
 		)`
-		if err := oracle.execSQL(alterSQL); err != nil {
-			t.Fatalf("oracle alter: %v", err)
+		if err := ctr.execSQL(alterSQL); err != nil {
+			t.Fatalf("container alter: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("t_alter_reorgp")
+		ctrDDL, _ := ctr.showCreateTable("t_alter_reorgp")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -4504,14 +4504,14 @@ func TestOracle_Section_4_1_Partitioning(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_alter_reorgp")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("alter_truncate_partition", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_alter_truncp")
+		ctr.execSQL("DROP TABLE IF EXISTS t_alter_truncp")
 		setupSQL := `CREATE TABLE t_alter_truncp (
 			id INT NOT NULL,
 			val INT NOT NULL
@@ -4519,14 +4519,14 @@ func TestOracle_Section_4_1_Partitioning(t *testing.T) {
 			PARTITION p0 VALUES LESS THAN (10),
 			PARTITION p1 VALUES LESS THAN MAXVALUE
 		)`
-		if err := oracle.execSQL(setupSQL); err != nil {
-			t.Fatalf("oracle setup: %v", err)
+		if err := ctr.execSQL(setupSQL); err != nil {
+			t.Fatalf("container setup: %v", err)
 		}
 		alterSQL := "ALTER TABLE t_alter_truncp TRUNCATE PARTITION p0"
-		if err := oracle.execSQL(alterSQL); err != nil {
-			t.Fatalf("oracle alter: %v", err)
+		if err := ctr.execSQL(alterSQL); err != nil {
+			t.Fatalf("container alter: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("t_alter_truncp")
+		ctrDDL, _ := ctr.showCreateTable("t_alter_truncp")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -4538,25 +4538,25 @@ func TestOracle_Section_4_1_Partitioning(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_alter_truncp")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("alter_coalesce_partition", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_alter_coalp")
+		ctr.execSQL("DROP TABLE IF EXISTS t_alter_coalp")
 		setupSQL := `CREATE TABLE t_alter_coalp (
 			id INT NOT NULL
 		) PARTITION BY HASH (id) PARTITIONS 4`
-		if err := oracle.execSQL(setupSQL); err != nil {
-			t.Fatalf("oracle setup: %v", err)
+		if err := ctr.execSQL(setupSQL); err != nil {
+			t.Fatalf("container setup: %v", err)
 		}
 		alterSQL := "ALTER TABLE t_alter_coalp COALESCE PARTITION 2"
-		if err := oracle.execSQL(alterSQL); err != nil {
-			t.Fatalf("oracle alter: %v", err)
+		if err := ctr.execSQL(alterSQL); err != nil {
+			t.Fatalf("container alter: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("t_alter_coalp")
+		ctrDDL, _ := ctr.showCreateTable("t_alter_coalp")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -4568,15 +4568,15 @@ func TestOracle_Section_4_1_Partitioning(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_alter_coalp")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("alter_exchange_partition", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_alter_exchp")
-		oracle.execSQL("DROP TABLE IF EXISTS t_alter_exchp_swap")
+		ctr.execSQL("DROP TABLE IF EXISTS t_alter_exchp")
+		ctr.execSQL("DROP TABLE IF EXISTS t_alter_exchp_swap")
 		setupSQL := `CREATE TABLE t_alter_exchp (
 			id INT NOT NULL,
 			val INT NOT NULL
@@ -4588,17 +4588,17 @@ func TestOracle_Section_4_1_Partitioning(t *testing.T) {
 			id INT NOT NULL,
 			val INT NOT NULL
 		)`
-		if err := oracle.execSQL(setupSQL); err != nil {
-			t.Fatalf("oracle setup: %v", err)
+		if err := ctr.execSQL(setupSQL); err != nil {
+			t.Fatalf("container setup: %v", err)
 		}
-		if err := oracle.execSQL(swapSQL); err != nil {
-			t.Fatalf("oracle swap table setup: %v", err)
+		if err := ctr.execSQL(swapSQL); err != nil {
+			t.Fatalf("container swap table setup: %v", err)
 		}
 		alterSQL := "ALTER TABLE t_alter_exchp EXCHANGE PARTITION p0 WITH TABLE t_alter_exchp_swap"
-		if err := oracle.execSQL(alterSQL); err != nil {
-			t.Fatalf("oracle alter: %v", err)
+		if err := ctr.execSQL(alterSQL); err != nil {
+			t.Fatalf("container alter: %v", err)
 		}
-		oracleDDL, _ := oracle.showCreateTable("t_alter_exchp")
+		ctrDDL, _ := ctr.showCreateTable("t_alter_exchp")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -4611,30 +4611,30 @@ func TestOracle_Section_4_1_Partitioning(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_alter_exchp")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 }
 
-func TestOracle_Section_4_2_StoredRoutines(t *testing.T) {
+func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// 4.2.1: CREATE FUNCTION — store metadata (name, params, return type, body)
 	t.Run("create_function", func(t *testing.T) {
-		oracle.execSQL("DROP FUNCTION IF EXISTS fn_add")
+		ctr.execSQL("DROP FUNCTION IF EXISTS fn_add")
 		createSQL := "CREATE FUNCTION fn_add(a INT, b INT) RETURNS INT DETERMINISTIC RETURN a + b"
-		if err := oracle.execSQL(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQL(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateFunction("fn_add")
+		ctrDDL, err := ctr.showCreateFunction("fn_add")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE FUNCTION: %v", err)
+			t.Fatalf("container SHOW CREATE FUNCTION: %v", err)
 		}
 
 		c := New()
@@ -4649,22 +4649,22 @@ func TestOracle_Section_4_2_StoredRoutines(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateFunction("test", "fn_add")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// 4.2.2: CREATE PROCEDURE — store metadata
 	t.Run("create_procedure", func(t *testing.T) {
-		oracle.execSQLDirect("DROP PROCEDURE IF EXISTS sp_greet")
+		ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_greet")
 		createSQL := "CREATE PROCEDURE sp_greet(IN name VARCHAR(100)) BEGIN SELECT CONCAT('Hello, ', name); END"
-		if err := oracle.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateProcedure("sp_greet")
+		ctrDDL, err := ctr.showCreateProcedure("sp_greet")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE PROCEDURE: %v", err)
+			t.Fatalf("container SHOW CREATE PROCEDURE: %v", err)
 		}
 
 		c := New()
@@ -4679,25 +4679,25 @@ func TestOracle_Section_4_2_StoredRoutines(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateProcedure("test", "sp_greet")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// 4.2.3: DROP FUNCTION / PROCEDURE
 	t.Run("drop_function", func(t *testing.T) {
-		oracle.execSQL("DROP FUNCTION IF EXISTS fn_drop_test")
-		oracle.execSQL("CREATE FUNCTION fn_drop_test() RETURNS INT DETERMINISTIC RETURN 1")
+		ctr.execSQL("DROP FUNCTION IF EXISTS fn_drop_test")
+		ctr.execSQL("CREATE FUNCTION fn_drop_test() RETURNS INT DETERMINISTIC RETURN 1")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
 		c.SetCurrentDatabase("test")
 		c.Exec("CREATE FUNCTION fn_drop_test() RETURNS INT DETERMINISTIC RETURN 1", nil)
 
-		// Drop on oracle
-		if err := oracle.execSQL("DROP FUNCTION fn_drop_test"); err != nil {
-			t.Fatalf("oracle DROP FUNCTION: %v", err)
+		// Drop on container
+		if err := ctr.execSQL("DROP FUNCTION fn_drop_test"); err != nil {
+			t.Fatalf("container DROP FUNCTION: %v", err)
 		}
 		// Drop on omni
 		results, _ := c.Exec("DROP FUNCTION fn_drop_test", nil)
@@ -4706,11 +4706,11 @@ func TestOracle_Section_4_2_StoredRoutines(t *testing.T) {
 		}
 
 		// Both should now error on SHOW CREATE FUNCTION
-		_, oracleErr := oracle.showCreateFunction("fn_drop_test")
+		_, ctrErr := ctr.showCreateFunction("fn_drop_test")
 		omniDDL := c.ShowCreateFunction("test", "fn_drop_test")
 
-		if oracleErr == nil {
-			t.Error("expected oracle error after DROP FUNCTION")
+		if ctrErr == nil {
+			t.Error("expected container error after DROP FUNCTION")
 		}
 		if omniDDL != "" {
 			t.Error("expected empty omni DDL after DROP FUNCTION")
@@ -4718,17 +4718,17 @@ func TestOracle_Section_4_2_StoredRoutines(t *testing.T) {
 	})
 
 	t.Run("drop_procedure", func(t *testing.T) {
-		oracle.execSQLDirect("DROP PROCEDURE IF EXISTS sp_drop_test")
-		oracle.execSQLDirect("CREATE PROCEDURE sp_drop_test() BEGIN SELECT 1; END")
+		ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_drop_test")
+		ctr.execSQLDirect("CREATE PROCEDURE sp_drop_test() BEGIN SELECT 1; END")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
 		c.SetCurrentDatabase("test")
 		c.Exec("CREATE PROCEDURE sp_drop_test() BEGIN SELECT 1; END", nil)
 
-		// Drop on oracle
-		if err := oracle.execSQL("DROP PROCEDURE sp_drop_test"); err != nil {
-			t.Fatalf("oracle DROP PROCEDURE: %v", err)
+		// Drop on container
+		if err := ctr.execSQL("DROP PROCEDURE sp_drop_test"); err != nil {
+			t.Fatalf("container DROP PROCEDURE: %v", err)
 		}
 		// Drop on omni
 		results, _ := c.Exec("DROP PROCEDURE sp_drop_test", nil)
@@ -4736,11 +4736,11 @@ func TestOracle_Section_4_2_StoredRoutines(t *testing.T) {
 			t.Fatalf("omni DROP PROCEDURE error: %v", results[0].Error)
 		}
 
-		_, oracleErr := oracle.showCreateProcedure("sp_drop_test")
+		_, ctrErr := ctr.showCreateProcedure("sp_drop_test")
 		omniDDL := c.ShowCreateProcedure("test", "sp_drop_test")
 
-		if oracleErr == nil {
-			t.Error("expected oracle error after DROP PROCEDURE")
+		if ctrErr == nil {
+			t.Error("expected container error after DROP PROCEDURE")
 		}
 		if omniDDL != "" {
 			t.Error("expected empty omni DDL after DROP PROCEDURE")
@@ -4749,7 +4749,7 @@ func TestOracle_Section_4_2_StoredRoutines(t *testing.T) {
 
 	// 4.2.4: DROP FUNCTION IF EXISTS — no error for nonexistent
 	t.Run("drop_function_if_exists", func(t *testing.T) {
-		oracle.execSQL("DROP FUNCTION IF EXISTS fn_nonexistent_xyz")
+		ctr.execSQL("DROP FUNCTION IF EXISTS fn_nonexistent_xyz")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -4762,15 +4762,15 @@ func TestOracle_Section_4_2_StoredRoutines(t *testing.T) {
 
 	// 4.2.5: DROP FUNCTION nonexistent — error
 	t.Run("drop_function_nonexistent_error", func(t *testing.T) {
-		oracleErr := oracle.execSQL("DROP FUNCTION fn_totally_nonexistent")
+		ctrErr := ctr.execSQL("DROP FUNCTION fn_totally_nonexistent")
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
 		c.SetCurrentDatabase("test")
 		results, _ := c.Exec("DROP FUNCTION fn_totally_nonexistent", nil)
 
-		if oracleErr == nil {
-			t.Fatal("expected oracle error for DROP nonexistent FUNCTION")
+		if ctrErr == nil {
+			t.Fatal("expected container error for DROP nonexistent FUNCTION")
 		}
 		if results[0].Error == nil {
 			t.Fatal("expected omni error for DROP nonexistent FUNCTION")
@@ -4778,10 +4778,10 @@ func TestOracle_Section_4_2_StoredRoutines(t *testing.T) {
 
 		// Both should produce error code 1305
 		var mysqlErr *mysqldriver.MySQLError
-		if errors.As(oracleErr, &mysqlErr) {
+		if errors.As(ctrErr, &mysqlErr) {
 			if catErr, ok := results[0].Error.(*Error); ok {
 				if catErr.Code != int(mysqlErr.Number) {
-					t.Errorf("error code mismatch: oracle=%d omni=%d", mysqlErr.Number, catErr.Code)
+					t.Errorf("error code mismatch: container=%d omni=%d", mysqlErr.Number, catErr.Code)
 				}
 			}
 		}
@@ -4789,14 +4789,14 @@ func TestOracle_Section_4_2_StoredRoutines(t *testing.T) {
 
 	// 4.2.6: ALTER ROUTINE (characteristics only)
 	t.Run("alter_function_comment", func(t *testing.T) {
-		oracle.execSQL("DROP FUNCTION IF EXISTS fn_alter_test")
-		oracle.execSQL("CREATE FUNCTION fn_alter_test() RETURNS INT DETERMINISTIC RETURN 42")
-		if err := oracle.execSQL("ALTER FUNCTION fn_alter_test COMMENT 'test comment'"); err != nil {
-			t.Fatalf("oracle ALTER FUNCTION: %v", err)
+		ctr.execSQL("DROP FUNCTION IF EXISTS fn_alter_test")
+		ctr.execSQL("CREATE FUNCTION fn_alter_test() RETURNS INT DETERMINISTIC RETURN 42")
+		if err := ctr.execSQL("ALTER FUNCTION fn_alter_test COMMENT 'test comment'"); err != nil {
+			t.Fatalf("container ALTER FUNCTION: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateFunction("fn_alter_test")
+		ctrDDL, err := ctr.showCreateFunction("fn_alter_test")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE FUNCTION: %v", err)
+			t.Fatalf("container SHOW CREATE FUNCTION: %v", err)
 		}
 
 		c := New()
@@ -4809,21 +4809,21 @@ func TestOracle_Section_4_2_StoredRoutines(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateFunction("test", "fn_alter_test")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("alter_procedure_sql_security", func(t *testing.T) {
-		oracle.execSQLDirect("DROP PROCEDURE IF EXISTS sp_alter_test")
-		oracle.execSQLDirect("CREATE PROCEDURE sp_alter_test() BEGIN SELECT 1; END")
-		if err := oracle.execSQLDirect("ALTER PROCEDURE sp_alter_test SQL SECURITY INVOKER"); err != nil {
-			t.Fatalf("oracle ALTER PROCEDURE: %v", err)
+		ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_alter_test")
+		ctr.execSQLDirect("CREATE PROCEDURE sp_alter_test() BEGIN SELECT 1; END")
+		if err := ctr.execSQLDirect("ALTER PROCEDURE sp_alter_test SQL SECURITY INVOKER"); err != nil {
+			t.Fatalf("container ALTER PROCEDURE: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateProcedure("sp_alter_test")
+		ctrDDL, err := ctr.showCreateProcedure("sp_alter_test")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE PROCEDURE: %v", err)
+			t.Fatalf("container SHOW CREATE PROCEDURE: %v", err)
 		}
 
 		c := New()
@@ -4836,22 +4836,22 @@ func TestOracle_Section_4_2_StoredRoutines(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateProcedure("test", "sp_alter_test")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// 4.2.7: SHOW CREATE FUNCTION output
 	t.Run("show_create_function_output", func(t *testing.T) {
-		oracle.execSQL("DROP FUNCTION IF EXISTS fn_show_test")
+		ctr.execSQL("DROP FUNCTION IF EXISTS fn_show_test")
 		createSQL := "CREATE FUNCTION fn_show_test(x INT) RETURNS VARCHAR(100) DETERMINISTIC RETURN CONCAT('val=', x)"
-		if err := oracle.execSQL(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQL(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateFunction("fn_show_test")
+		ctrDDL, err := ctr.showCreateFunction("fn_show_test")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE FUNCTION: %v", err)
+			t.Fatalf("container SHOW CREATE FUNCTION: %v", err)
 		}
 
 		c := New()
@@ -4866,22 +4866,22 @@ func TestOracle_Section_4_2_StoredRoutines(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateFunction("test", "fn_show_test")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// 4.2.8: SHOW CREATE PROCEDURE output
 	t.Run("show_create_procedure_output", func(t *testing.T) {
-		oracle.execSQLDirect("DROP PROCEDURE IF EXISTS sp_show_test")
+		ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_show_test")
 		createSQL := "CREATE PROCEDURE sp_show_test(IN id INT, OUT result VARCHAR(100)) BEGIN SET result = CONCAT('id=', id); END"
-		if err := oracle.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateProcedure("sp_show_test")
+		ctrDDL, err := ctr.showCreateProcedure("sp_show_test")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE PROCEDURE: %v", err)
+			t.Fatalf("container SHOW CREATE PROCEDURE: %v", err)
 		}
 
 		c := New()
@@ -4896,36 +4896,36 @@ func TestOracle_Section_4_2_StoredRoutines(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateProcedure("test", "sp_show_test")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 }
 
-func TestOracle_Section_4_3_Triggers(t *testing.T) {
+func TestContainer_Section_4_3_Triggers(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// Setup: create a table that triggers can reference.
-	oracle.execSQL("DROP TABLE IF EXISTS t_trigger")
-	if err := oracle.execSQL("CREATE TABLE t_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, name VARCHAR(100))"); err != nil {
-		t.Fatalf("oracle setup table: %v", err)
+	ctr.execSQL("DROP TABLE IF EXISTS t_trigger")
+	if err := ctr.execSQL("CREATE TABLE t_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, name VARCHAR(100))"); err != nil {
+		t.Fatalf("container setup table: %v", err)
 	}
 
 	// 4.3.1: CREATE TRIGGER — store metadata (name, timing, event, table, body)
 	t.Run("create_trigger_before_insert", func(t *testing.T) {
-		oracle.execSQL("DROP TRIGGER IF EXISTS tr_before_insert")
+		ctr.execSQL("DROP TRIGGER IF EXISTS tr_before_insert")
 		createSQL := "CREATE TRIGGER tr_before_insert BEFORE INSERT ON t_trigger FOR EACH ROW SET NEW.val = NEW.val + 1"
-		if err := oracle.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateTrigger("tr_before_insert")
+		ctrDDL, err := ctr.showCreateTrigger("tr_before_insert")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE TRIGGER: %v", err)
+			t.Fatalf("container SHOW CREATE TRIGGER: %v", err)
 		}
 
 		c := New()
@@ -4941,21 +4941,21 @@ func TestOracle_Section_4_3_Triggers(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTrigger("test", "tr_before_insert")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("create_trigger_after_update", func(t *testing.T) {
-		oracle.execSQL("DROP TRIGGER IF EXISTS tr_after_update")
+		ctr.execSQL("DROP TRIGGER IF EXISTS tr_after_update")
 		createSQL := "CREATE TRIGGER tr_after_update AFTER UPDATE ON t_trigger FOR EACH ROW SET @updated = @updated + 1"
-		if err := oracle.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateTrigger("tr_after_update")
+		ctrDDL, err := ctr.showCreateTrigger("tr_after_update")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE TRIGGER: %v", err)
+			t.Fatalf("container SHOW CREATE TRIGGER: %v", err)
 		}
 
 		c := New()
@@ -4971,21 +4971,21 @@ func TestOracle_Section_4_3_Triggers(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTrigger("test", "tr_after_update")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("create_trigger_before_delete", func(t *testing.T) {
-		oracle.execSQL("DROP TRIGGER IF EXISTS tr_before_delete")
+		ctr.execSQL("DROP TRIGGER IF EXISTS tr_before_delete")
 		createSQL := "CREATE TRIGGER tr_before_delete BEFORE DELETE ON t_trigger FOR EACH ROW SET @deleted = OLD.id"
-		if err := oracle.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateTrigger("tr_before_delete")
+		ctrDDL, err := ctr.showCreateTrigger("tr_before_delete")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE TRIGGER: %v", err)
+			t.Fatalf("container SHOW CREATE TRIGGER: %v", err)
 		}
 
 		c := New()
@@ -5001,18 +5001,18 @@ func TestOracle_Section_4_3_Triggers(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTrigger("test", "tr_before_delete")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// 4.3.2: DROP TRIGGER
 	t.Run("drop_trigger", func(t *testing.T) {
-		oracle.execSQL("DROP TRIGGER IF EXISTS tr_drop_test")
-		oracle.execSQLDirect("CREATE TRIGGER tr_drop_test BEFORE INSERT ON t_trigger FOR EACH ROW SET NEW.val = 0")
-		if err := oracle.execSQL("DROP TRIGGER tr_drop_test"); err != nil {
-			t.Fatalf("oracle DROP TRIGGER: %v", err)
+		ctr.execSQL("DROP TRIGGER IF EXISTS tr_drop_test")
+		ctr.execSQLDirect("CREATE TRIGGER tr_drop_test BEFORE INSERT ON t_trigger FOR EACH ROW SET NEW.val = 0")
+		if err := ctr.execSQL("DROP TRIGGER tr_drop_test"); err != nil {
+			t.Fatalf("container DROP TRIGGER: %v", err)
 		}
 
 		c := New()
@@ -5033,9 +5033,9 @@ func TestOracle_Section_4_3_Triggers(t *testing.T) {
 	})
 
 	t.Run("drop_trigger_if_exists", func(t *testing.T) {
-		oracle.execSQL("DROP TRIGGER IF EXISTS tr_nonexistent_drop")
-		if err := oracle.execSQL("DROP TRIGGER IF EXISTS tr_nonexistent_drop"); err != nil {
-			t.Fatalf("oracle DROP TRIGGER IF EXISTS: %v", err)
+		ctr.execSQL("DROP TRIGGER IF EXISTS tr_nonexistent_drop")
+		if err := ctr.execSQL("DROP TRIGGER IF EXISTS tr_nonexistent_drop"); err != nil {
+			t.Fatalf("container DROP TRIGGER IF EXISTS: %v", err)
 		}
 
 		c := New()
@@ -5048,10 +5048,10 @@ func TestOracle_Section_4_3_Triggers(t *testing.T) {
 	})
 
 	t.Run("drop_trigger_not_exist_error", func(t *testing.T) {
-		oracle.execSQL("DROP TRIGGER IF EXISTS tr_no_exist")
-		oracleErr := oracle.execSQL("DROP TRIGGER tr_no_exist")
-		if oracleErr == nil {
-			t.Fatal("expected oracle error for DROP TRIGGER on nonexistent trigger")
+		ctr.execSQL("DROP TRIGGER IF EXISTS tr_no_exist")
+		ctrErr := ctr.execSQL("DROP TRIGGER tr_no_exist")
+		if ctrErr == nil {
+			t.Fatal("expected container error for DROP TRIGGER on nonexistent trigger")
 		}
 
 		c := New()
@@ -5070,14 +5070,14 @@ func TestOracle_Section_4_3_Triggers(t *testing.T) {
 
 	// 4.3.3: SHOW CREATE TRIGGER output
 	t.Run("show_create_trigger_output", func(t *testing.T) {
-		oracle.execSQL("DROP TRIGGER IF EXISTS tr_show_test")
+		ctr.execSQL("DROP TRIGGER IF EXISTS tr_show_test")
 		createSQL := "CREATE TRIGGER tr_show_test AFTER INSERT ON t_trigger FOR EACH ROW SET @last_insert = NEW.id"
-		if err := oracle.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateTrigger("tr_show_test")
+		ctrDDL, err := ctr.showCreateTrigger("tr_show_test")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE TRIGGER: %v", err)
+			t.Fatalf("container SHOW CREATE TRIGGER: %v", err)
 		}
 
 		c := New()
@@ -5093,32 +5093,32 @@ func TestOracle_Section_4_3_Triggers(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTrigger("test", "tr_show_test")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// 4.3.4: Multiple triggers per table/event (MySQL 8.0 supports ordering)
 	t.Run("multiple_triggers_ordering", func(t *testing.T) {
-		oracle.execSQL("DROP TRIGGER IF EXISTS tr_multi_2")
-		oracle.execSQL("DROP TRIGGER IF EXISTS tr_multi_1")
+		ctr.execSQL("DROP TRIGGER IF EXISTS tr_multi_2")
+		ctr.execSQL("DROP TRIGGER IF EXISTS tr_multi_1")
 		create1 := "CREATE TRIGGER tr_multi_1 BEFORE INSERT ON t_trigger FOR EACH ROW SET NEW.val = NEW.val + 10"
 		create2 := "CREATE TRIGGER tr_multi_2 BEFORE INSERT ON t_trigger FOR EACH ROW FOLLOWS tr_multi_1 SET NEW.val = NEW.val + 20"
-		if err := oracle.execSQLDirect(create1); err != nil {
-			t.Fatalf("oracle exec trigger 1: %v", err)
+		if err := ctr.execSQLDirect(create1); err != nil {
+			t.Fatalf("container exec trigger 1: %v", err)
 		}
-		if err := oracle.execSQLDirect(create2); err != nil {
-			t.Fatalf("oracle exec trigger 2: %v", err)
+		if err := ctr.execSQLDirect(create2); err != nil {
+			t.Fatalf("container exec trigger 2: %v", err)
 		}
 
-		oracleDDL1, err := oracle.showCreateTrigger("tr_multi_1")
+		ctrDDL1, err := ctr.showCreateTrigger("tr_multi_1")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE TRIGGER tr_multi_1: %v", err)
+			t.Fatalf("container SHOW CREATE TRIGGER tr_multi_1: %v", err)
 		}
-		oracleDDL2, err := oracle.showCreateTrigger("tr_multi_2")
+		ctrDDL2, err := ctr.showCreateTrigger("tr_multi_2")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE TRIGGER tr_multi_2: %v", err)
+			t.Fatalf("container SHOW CREATE TRIGGER tr_multi_2: %v", err)
 		}
 
 		c := New()
@@ -5137,13 +5137,13 @@ func TestOracle_Section_4_3_Triggers(t *testing.T) {
 		omniDDL1 := c.ShowCreateTrigger("test", "tr_multi_1")
 		omniDDL2 := c.ShowCreateTrigger("test", "tr_multi_2")
 
-		if normalizeWhitespace(oracleDDL1) != normalizeWhitespace(omniDDL1) {
-			t.Errorf("trigger 1 mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL1, omniDDL1)
+		if normalizeWhitespace(ctrDDL1) != normalizeWhitespace(omniDDL1) {
+			t.Errorf("trigger 1 mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL1, omniDDL1)
 		}
-		if normalizeWhitespace(oracleDDL2) != normalizeWhitespace(omniDDL2) {
-			t.Errorf("trigger 2 mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL2, omniDDL2)
+		if normalizeWhitespace(ctrDDL2) != normalizeWhitespace(omniDDL2) {
+			t.Errorf("trigger 2 mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL2, omniDDL2)
 		}
 	})
 }
@@ -5172,25 +5172,25 @@ func normalizeEventDDL(ddl string) string {
 	return s
 }
 
-func TestOracle_Section_4_4_Events(t *testing.T) {
+func TestContainer_Section_4_4_Events(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// 4.4.1: CREATE EVENT — store metadata
 	t.Run("create_event_every", func(t *testing.T) {
-		oracle.execSQL("DROP EVENT IF EXISTS ev_test_every")
+		ctr.execSQL("DROP EVENT IF EXISTS ev_test_every")
 		createSQL := "CREATE EVENT ev_test_every ON SCHEDULE EVERY 1 HOUR DO SELECT 1"
-		if err := oracle.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateEvent("ev_test_every")
+		ctrDDL, err := ctr.showCreateEvent("ev_test_every")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE EVENT: %v", err)
+			t.Fatalf("container SHOW CREATE EVENT: %v", err)
 		}
-		t.Logf("oracle SHOW CREATE EVENT:\n%s", oracleDDL)
+		t.Logf("container SHOW CREATE EVENT:\n%s", ctrDDL)
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -5205,23 +5205,23 @@ func TestOracle_Section_4_4_Events(t *testing.T) {
 		omniDDL := c.ShowCreateEvent("test", "ev_test_every")
 
 		// Compare with normalized DDL (MySQL adds auto-STARTS timestamp for EVERY schedules)
-		if normalizeEventDDL(oracleDDL) != normalizeEventDDL(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle (normalized) ---\n%s\n--- omni (normalized) ---\n%s\n--- oracle (raw) ---\n%s\n--- omni (raw) ---\n%s",
-				normalizeEventDDL(oracleDDL), normalizeEventDDL(omniDDL), oracleDDL, omniDDL)
+		if normalizeEventDDL(ctrDDL) != normalizeEventDDL(omniDDL) {
+			t.Errorf("mismatch:\n--- container (normalized) ---\n%s\n--- omni (normalized) ---\n%s\n--- container (raw) ---\n%s\n--- omni (raw) ---\n%s",
+				normalizeEventDDL(ctrDDL), normalizeEventDDL(omniDDL), ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("create_event_at_timestamp", func(t *testing.T) {
-		oracle.execSQL("DROP EVENT IF EXISTS ev_test_at")
+		ctr.execSQL("DROP EVENT IF EXISTS ev_test_at")
 		createSQL := "CREATE EVENT ev_test_at ON SCHEDULE AT '2035-01-01 00:00:00' DO SELECT 1"
-		if err := oracle.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateEvent("ev_test_at")
+		ctrDDL, err := ctr.showCreateEvent("ev_test_at")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE EVENT: %v", err)
+			t.Fatalf("container SHOW CREATE EVENT: %v", err)
 		}
-		t.Logf("oracle SHOW CREATE EVENT:\n%s", oracleDDL)
+		t.Logf("container SHOW CREATE EVENT:\n%s", ctrDDL)
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -5235,26 +5235,26 @@ func TestOracle_Section_4_4_Events(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateEvent("test", "ev_test_at")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("create_event_with_options", func(t *testing.T) {
-		oracle.execSQL("DROP EVENT IF EXISTS ev_test_opts")
+		ctr.execSQL("DROP EVENT IF EXISTS ev_test_opts")
 		createSQL := "CREATE EVENT ev_test_opts ON SCHEDULE EVERY 1 DAY ON COMPLETION PRESERVE ENABLE COMMENT 'daily cleanup' DO DELETE FROM t_trigger WHERE id < 0"
 		// Need a table for the body to reference
-		oracle.execSQL("DROP TABLE IF EXISTS t_trigger")
-		oracle.execSQL("CREATE TABLE t_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, name VARCHAR(100))")
-		if err := oracle.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		ctr.execSQL("DROP TABLE IF EXISTS t_trigger")
+		ctr.execSQL("CREATE TABLE t_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, name VARCHAR(100))")
+		if err := ctr.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateEvent("ev_test_opts")
+		ctrDDL, err := ctr.showCreateEvent("ev_test_opts")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE EVENT: %v", err)
+			t.Fatalf("container SHOW CREATE EVENT: %v", err)
 		}
-		t.Logf("oracle SHOW CREATE EVENT:\n%s", oracleDDL)
+		t.Logf("container SHOW CREATE EVENT:\n%s", ctrDDL)
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -5270,23 +5270,23 @@ func TestOracle_Section_4_4_Events(t *testing.T) {
 		omniDDL := c.ShowCreateEvent("test", "ev_test_opts")
 
 		// Compare with normalized DDL (MySQL adds auto-STARTS timestamp for EVERY schedules)
-		if normalizeEventDDL(oracleDDL) != normalizeEventDDL(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle (normalized) ---\n%s\n--- omni (normalized) ---\n%s\n--- oracle (raw) ---\n%s\n--- omni (raw) ---\n%s",
-				normalizeEventDDL(oracleDDL), normalizeEventDDL(omniDDL), oracleDDL, omniDDL)
+		if normalizeEventDDL(ctrDDL) != normalizeEventDDL(omniDDL) {
+			t.Errorf("mismatch:\n--- container (normalized) ---\n%s\n--- omni (normalized) ---\n%s\n--- container (raw) ---\n%s\n--- omni (raw) ---\n%s",
+				normalizeEventDDL(ctrDDL), normalizeEventDDL(omniDDL), ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("create_event_disabled", func(t *testing.T) {
-		oracle.execSQL("DROP EVENT IF EXISTS ev_test_disabled")
+		ctr.execSQL("DROP EVENT IF EXISTS ev_test_disabled")
 		createSQL := "CREATE EVENT ev_test_disabled ON SCHEDULE EVERY 1 HOUR DISABLE DO SELECT 1"
-		if err := oracle.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateEvent("ev_test_disabled")
+		ctrDDL, err := ctr.showCreateEvent("ev_test_disabled")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE EVENT: %v", err)
+			t.Fatalf("container SHOW CREATE EVENT: %v", err)
 		}
-		t.Logf("oracle SHOW CREATE EVENT:\n%s", oracleDDL)
+		t.Logf("container SHOW CREATE EVENT:\n%s", ctrDDL)
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -5301,24 +5301,24 @@ func TestOracle_Section_4_4_Events(t *testing.T) {
 		omniDDL := c.ShowCreateEvent("test", "ev_test_disabled")
 
 		// Compare with normalized DDL (MySQL adds auto-STARTS timestamp for EVERY schedules)
-		if normalizeEventDDL(oracleDDL) != normalizeEventDDL(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle (normalized) ---\n%s\n--- omni (normalized) ---\n%s\n--- oracle (raw) ---\n%s\n--- omni (raw) ---\n%s",
-				normalizeEventDDL(oracleDDL), normalizeEventDDL(omniDDL), oracleDDL, omniDDL)
+		if normalizeEventDDL(ctrDDL) != normalizeEventDDL(omniDDL) {
+			t.Errorf("mismatch:\n--- container (normalized) ---\n%s\n--- omni (normalized) ---\n%s\n--- container (raw) ---\n%s\n--- omni (raw) ---\n%s",
+				normalizeEventDDL(ctrDDL), normalizeEventDDL(omniDDL), ctrDDL, omniDDL)
 		}
 	})
 
 	// 4.4.2: ALTER EVENT
 	t.Run("alter_event_disable", func(t *testing.T) {
-		oracle.execSQL("DROP EVENT IF EXISTS ev_alter_test")
-		oracle.execSQLDirect("CREATE EVENT ev_alter_test ON SCHEDULE EVERY 1 HOUR DO SELECT 1")
-		if err := oracle.execSQLDirect("ALTER EVENT ev_alter_test DISABLE"); err != nil {
-			t.Fatalf("oracle ALTER EVENT: %v", err)
+		ctr.execSQL("DROP EVENT IF EXISTS ev_alter_test")
+		ctr.execSQLDirect("CREATE EVENT ev_alter_test ON SCHEDULE EVERY 1 HOUR DO SELECT 1")
+		if err := ctr.execSQLDirect("ALTER EVENT ev_alter_test DISABLE"); err != nil {
+			t.Fatalf("container ALTER EVENT: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateEvent("ev_alter_test")
+		ctrDDL, err := ctr.showCreateEvent("ev_alter_test")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE EVENT: %v", err)
+			t.Fatalf("container SHOW CREATE EVENT: %v", err)
 		}
-		t.Logf("oracle SHOW CREATE EVENT after ALTER:\n%s", oracleDDL)
+		t.Logf("container SHOW CREATE EVENT after ALTER:\n%s", ctrDDL)
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -5331,24 +5331,24 @@ func TestOracle_Section_4_4_Events(t *testing.T) {
 		omniDDL := c.ShowCreateEvent("test", "ev_alter_test")
 
 		// Compare with normalized DDL (MySQL adds auto-STARTS timestamp for EVERY schedules)
-		if normalizeEventDDL(oracleDDL) != normalizeEventDDL(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle (normalized) ---\n%s\n--- omni (normalized) ---\n%s\n--- oracle (raw) ---\n%s\n--- omni (raw) ---\n%s",
-				normalizeEventDDL(oracleDDL), normalizeEventDDL(omniDDL), oracleDDL, omniDDL)
+		if normalizeEventDDL(ctrDDL) != normalizeEventDDL(omniDDL) {
+			t.Errorf("mismatch:\n--- container (normalized) ---\n%s\n--- omni (normalized) ---\n%s\n--- container (raw) ---\n%s\n--- omni (raw) ---\n%s",
+				normalizeEventDDL(ctrDDL), normalizeEventDDL(omniDDL), ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("alter_event_rename", func(t *testing.T) {
-		oracle.execSQL("DROP EVENT IF EXISTS ev_rename_old")
-		oracle.execSQL("DROP EVENT IF EXISTS ev_rename_new")
-		oracle.execSQLDirect("CREATE EVENT ev_rename_old ON SCHEDULE EVERY 1 HOUR DO SELECT 1")
-		if err := oracle.execSQLDirect("ALTER EVENT ev_rename_old RENAME TO ev_rename_new"); err != nil {
-			t.Fatalf("oracle ALTER EVENT RENAME: %v", err)
+		ctr.execSQL("DROP EVENT IF EXISTS ev_rename_old")
+		ctr.execSQL("DROP EVENT IF EXISTS ev_rename_new")
+		ctr.execSQLDirect("CREATE EVENT ev_rename_old ON SCHEDULE EVERY 1 HOUR DO SELECT 1")
+		if err := ctr.execSQLDirect("ALTER EVENT ev_rename_old RENAME TO ev_rename_new"); err != nil {
+			t.Fatalf("container ALTER EVENT RENAME: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateEvent("ev_rename_new")
+		ctrDDL, err := ctr.showCreateEvent("ev_rename_new")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE EVENT: %v", err)
+			t.Fatalf("container SHOW CREATE EVENT: %v", err)
 		}
-		t.Logf("oracle SHOW CREATE EVENT after RENAME:\n%s", oracleDDL)
+		t.Logf("container SHOW CREATE EVENT after RENAME:\n%s", ctrDDL)
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -5361,9 +5361,9 @@ func TestOracle_Section_4_4_Events(t *testing.T) {
 		omniDDL := c.ShowCreateEvent("test", "ev_rename_new")
 
 		// Compare with normalized DDL (MySQL adds auto-STARTS timestamp for EVERY schedules)
-		if normalizeEventDDL(oracleDDL) != normalizeEventDDL(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle (normalized) ---\n%s\n--- omni (normalized) ---\n%s\n--- oracle (raw) ---\n%s\n--- omni (raw) ---\n%s",
-				normalizeEventDDL(oracleDDL), normalizeEventDDL(omniDDL), oracleDDL, omniDDL)
+		if normalizeEventDDL(ctrDDL) != normalizeEventDDL(omniDDL) {
+			t.Errorf("mismatch:\n--- container (normalized) ---\n%s\n--- omni (normalized) ---\n%s\n--- container (raw) ---\n%s\n--- omni (raw) ---\n%s",
+				normalizeEventDDL(ctrDDL), normalizeEventDDL(omniDDL), ctrDDL, omniDDL)
 		}
 
 		// Verify old name is gone
@@ -5375,10 +5375,10 @@ func TestOracle_Section_4_4_Events(t *testing.T) {
 
 	// 4.4.3: DROP EVENT
 	t.Run("drop_event", func(t *testing.T) {
-		oracle.execSQL("DROP EVENT IF EXISTS ev_drop_test")
-		oracle.execSQLDirect("CREATE EVENT ev_drop_test ON SCHEDULE EVERY 1 HOUR DO SELECT 1")
-		if err := oracle.execSQL("DROP EVENT ev_drop_test"); err != nil {
-			t.Fatalf("oracle DROP EVENT: %v", err)
+		ctr.execSQL("DROP EVENT IF EXISTS ev_drop_test")
+		ctr.execSQLDirect("CREATE EVENT ev_drop_test ON SCHEDULE EVERY 1 HOUR DO SELECT 1")
+		if err := ctr.execSQL("DROP EVENT ev_drop_test"); err != nil {
+			t.Fatalf("container DROP EVENT: %v", err)
 		}
 
 		c := New()
@@ -5398,8 +5398,8 @@ func TestOracle_Section_4_4_Events(t *testing.T) {
 	})
 
 	t.Run("drop_event_if_exists", func(t *testing.T) {
-		if err := oracle.execSQL("DROP EVENT IF EXISTS ev_nonexistent"); err != nil {
-			t.Fatalf("oracle DROP EVENT IF EXISTS: %v", err)
+		if err := ctr.execSQL("DROP EVENT IF EXISTS ev_nonexistent"); err != nil {
+			t.Fatalf("container DROP EVENT IF EXISTS: %v", err)
 		}
 
 		c := New()
@@ -5412,10 +5412,10 @@ func TestOracle_Section_4_4_Events(t *testing.T) {
 	})
 
 	t.Run("drop_event_not_exist_error", func(t *testing.T) {
-		oracle.execSQL("DROP EVENT IF EXISTS ev_no_exist")
-		oracleErr := oracle.execSQL("DROP EVENT ev_no_exist")
-		if oracleErr == nil {
-			t.Fatal("expected oracle error for DROP EVENT on nonexistent event")
+		ctr.execSQL("DROP EVENT IF EXISTS ev_no_exist")
+		ctrErr := ctr.execSQL("DROP EVENT ev_no_exist")
+		if ctrErr == nil {
+			t.Fatal("expected container error for DROP EVENT on nonexistent event")
 		}
 
 		c := New()
@@ -5434,16 +5434,16 @@ func TestOracle_Section_4_4_Events(t *testing.T) {
 
 	// 4.4.4: SHOW CREATE EVENT output
 	t.Run("show_create_event_basic", func(t *testing.T) {
-		oracle.execSQL("DROP EVENT IF EXISTS ev_show_test")
+		ctr.execSQL("DROP EVENT IF EXISTS ev_show_test")
 		createSQL := "CREATE EVENT ev_show_test ON SCHEDULE EVERY 1 HOUR COMMENT 'test event' DO SELECT 1"
-		if err := oracle.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateEvent("ev_show_test")
+		ctrDDL, err := ctr.showCreateEvent("ev_show_test")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE EVENT: %v", err)
+			t.Fatalf("container SHOW CREATE EVENT: %v", err)
 		}
-		t.Logf("oracle SHOW CREATE EVENT:\n%s", oracleDDL)
+		t.Logf("container SHOW CREATE EVENT:\n%s", ctrDDL)
 
 		c := New()
 		c.Exec("CREATE DATABASE test", nil)
@@ -5458,9 +5458,9 @@ func TestOracle_Section_4_4_Events(t *testing.T) {
 		omniDDL := c.ShowCreateEvent("test", "ev_show_test")
 
 		// Compare with normalized DDL (MySQL adds auto-STARTS timestamp for EVERY schedules)
-		if normalizeEventDDL(oracleDDL) != normalizeEventDDL(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle (normalized) ---\n%s\n--- omni (normalized) ---\n%s\n--- oracle (raw) ---\n%s\n--- omni (raw) ---\n%s",
-				normalizeEventDDL(oracleDDL), normalizeEventDDL(omniDDL), oracleDDL, omniDDL)
+		if normalizeEventDDL(ctrDDL) != normalizeEventDDL(omniDDL) {
+			t.Errorf("mismatch:\n--- container (normalized) ---\n%s\n--- omni (normalized) ---\n%s\n--- container (raw) ---\n%s\n--- omni (raw) ---\n%s",
+				normalizeEventDDL(ctrDDL), normalizeEventDDL(omniDDL), ctrDDL, omniDDL)
 		}
 	})
 }
@@ -5475,26 +5475,26 @@ func extractViewPreamble(ddl string) string {
 	return normalizeWhitespace(ddl[:idx+4])
 }
 
-func TestOracle_Section_4_5_ViewsDeep(t *testing.T) {
+func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	t.Run("alter_view", func(t *testing.T) {
 		// ALTER VIEW changes the view definition.
-		// Verify both oracle and omni accept ALTER VIEW and update the view.
-		oracle.execSQL("DROP VIEW IF EXISTS v_alter_test")
-		oracle.execSQL("CREATE VIEW v_alter_test AS SELECT 1 AS a")
-		oracleErr := oracle.execSQL("ALTER VIEW v_alter_test AS SELECT 2 AS b, 3 AS c")
-		if oracleErr != nil {
-			t.Fatalf("oracle ALTER VIEW error: %v", oracleErr)
+		// Verify both container and omni accept ALTER VIEW and update the view.
+		ctr.execSQL("DROP VIEW IF EXISTS v_alter_test")
+		ctr.execSQL("CREATE VIEW v_alter_test AS SELECT 1 AS a")
+		ctrErr := ctr.execSQL("ALTER VIEW v_alter_test AS SELECT 2 AS b, 3 AS c")
+		if ctrErr != nil {
+			t.Fatalf("container ALTER VIEW error: %v", ctrErr)
 		}
-		// Verify oracle view was updated.
-		oracleDDL, _ := oracle.showCreateView("v_alter_test")
-		if !strings.Contains(oracleDDL, "v_alter_test") {
-			t.Fatalf("oracle: view not found after ALTER VIEW")
+		// Verify container view was updated.
+		ctrDDL, _ := ctr.showCreateView("v_alter_test")
+		if !strings.Contains(ctrDDL, "v_alter_test") {
+			t.Fatalf("container: view not found after ALTER VIEW")
 		}
 
 		c := New()
@@ -5516,10 +5516,10 @@ func TestOracle_Section_4_5_ViewsDeep(t *testing.T) {
 		}
 
 		// ALTER VIEW on nonexistent view should error on both.
-		oracle.execSQL("DROP VIEW IF EXISTS v_alter_noexist")
-		oracleErr = oracle.execSQL("ALTER VIEW v_alter_noexist AS SELECT 1")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for ALTER VIEW on nonexistent view")
+		ctr.execSQL("DROP VIEW IF EXISTS v_alter_noexist")
+		ctrErr = ctr.execSQL("ALTER VIEW v_alter_noexist AS SELECT 1")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for ALTER VIEW on nonexistent view")
 		}
 
 		c2 := New()
@@ -5534,21 +5534,21 @@ func TestOracle_Section_4_5_ViewsDeep(t *testing.T) {
 	t.Run("view_dependency_tracking", func(t *testing.T) {
 		// In MySQL, dropping a base table does NOT drop the view.
 		// The view still exists but errors when queried.
-		oracle.execSQL("DROP VIEW IF EXISTS v_dep_test")
-		oracle.execSQL("DROP TABLE IF EXISTS t_dep_base")
-		oracle.execSQL("CREATE TABLE t_dep_base (id INT, val VARCHAR(100))")
-		oracle.execSQL("CREATE VIEW v_dep_test AS SELECT id, val FROM t_dep_base")
+		ctr.execSQL("DROP VIEW IF EXISTS v_dep_test")
+		ctr.execSQL("DROP TABLE IF EXISTS t_dep_base")
+		ctr.execSQL("CREATE TABLE t_dep_base (id INT, val VARCHAR(100))")
+		ctr.execSQL("CREATE VIEW v_dep_test AS SELECT id, val FROM t_dep_base")
 
 		// Drop the base table
-		oracleErr := oracle.execSQL("DROP TABLE t_dep_base")
-		if oracleErr != nil {
-			t.Fatalf("oracle DROP TABLE error: %v", oracleErr)
+		ctrErr := ctr.execSQL("DROP TABLE t_dep_base")
+		if ctrErr != nil {
+			t.Fatalf("container DROP TABLE error: %v", ctrErr)
 		}
 
-		// View should still exist in oracle
-		_, showErr := oracle.showCreateView("v_dep_test")
+		// View should still exist in container
+		_, showErr := ctr.showCreateView("v_dep_test")
 		if showErr != nil {
-			t.Fatalf("oracle: view should still exist after base table drop, got: %v", showErr)
+			t.Fatalf("container: view should still exist after base table drop, got: %v", showErr)
 		}
 
 		// Omni: same behavior
@@ -5565,19 +5565,19 @@ func TestOracle_Section_4_5_ViewsDeep(t *testing.T) {
 			t.Error("omni: view v_dep_test should still exist after base table drop")
 		}
 
-		// Cleanup oracle
-		oracle.execSQL("DROP VIEW IF EXISTS v_dep_test")
+		// Cleanup container
+		ctr.execSQL("DROP VIEW IF EXISTS v_dep_test")
 	})
 
 	t.Run("show_create_view_basic", func(t *testing.T) {
 		// SHOW CREATE VIEW output format — verify structural elements.
 		// Note: MySQL rewrites the SELECT text (lowercases keywords, backtick-quotes aliases)
 		// which requires a full SQL deparser. We verify the CREATE VIEW preamble matches.
-		oracle.execSQL("DROP VIEW IF EXISTS v_show_basic")
-		oracle.execSQL("CREATE VIEW v_show_basic AS SELECT 1 AS a, 2 AS b")
-		oracleDDL, err := oracle.showCreateView("v_show_basic")
+		ctr.execSQL("DROP VIEW IF EXISTS v_show_basic")
+		ctr.execSQL("CREATE VIEW v_show_basic AS SELECT 1 AS a, 2 AS b")
+		ctrDDL, err := ctr.showCreateView("v_show_basic")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE VIEW error: %v", err)
+			t.Fatalf("container SHOW CREATE VIEW error: %v", err)
 		}
 
 		c := New()
@@ -5593,22 +5593,22 @@ func TestOracle_Section_4_5_ViewsDeep(t *testing.T) {
 		omniDDL := c.ShowCreateView("test", "v_show_basic")
 
 		// Verify structural preamble matches.
-		oraclePreamble := extractViewPreamble(oracleDDL)
+		oraclePreamble := extractViewPreamble(ctrDDL)
 		omniPreamble := extractViewPreamble(omniDDL)
 		if oraclePreamble != omniPreamble {
-			t.Errorf("preamble mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s\n--- oracle full ---\n%s\n--- omni full ---\n%s",
-				oraclePreamble, omniPreamble, oracleDDL, omniDDL)
+			t.Errorf("preamble mismatch:\n--- container ---\n%s\n--- omni ---\n%s\n--- container full ---\n%s\n--- omni full ---\n%s",
+				oraclePreamble, omniPreamble, ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("show_create_view_with_options", func(t *testing.T) {
 		// SHOW CREATE VIEW with SQL SECURITY INVOKER.
 		// Note: MySQL normalizes ALGORITHM to UNDEFINED for simple views even if MERGE was specified.
-		oracle.execSQL("DROP VIEW IF EXISTS v_show_opts")
-		oracle.execSQL("CREATE SQL SECURITY INVOKER VIEW v_show_opts AS SELECT 1 AS x")
-		oracleDDL, err := oracle.showCreateView("v_show_opts")
+		ctr.execSQL("DROP VIEW IF EXISTS v_show_opts")
+		ctr.execSQL("CREATE SQL SECURITY INVOKER VIEW v_show_opts AS SELECT 1 AS x")
+		ctrDDL, err := ctr.showCreateView("v_show_opts")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE VIEW error: %v", err)
+			t.Fatalf("container SHOW CREATE VIEW error: %v", err)
 		}
 
 		c := New()
@@ -5621,21 +5621,21 @@ func TestOracle_Section_4_5_ViewsDeep(t *testing.T) {
 		omniDDL := c.ShowCreateView("test", "v_show_opts")
 
 		// Verify structural preamble matches (up to and including AS).
-		oraclePreamble := extractViewPreamble(oracleDDL)
+		oraclePreamble := extractViewPreamble(ctrDDL)
 		omniPreamble := extractViewPreamble(omniDDL)
 		if oraclePreamble != omniPreamble {
-			t.Errorf("preamble mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s\n--- oracle full ---\n%s\n--- omni full ---\n%s",
-				oraclePreamble, omniPreamble, oracleDDL, omniDDL)
+			t.Errorf("preamble mismatch:\n--- container ---\n%s\n--- omni ---\n%s\n--- container full ---\n%s\n--- omni full ---\n%s",
+				oraclePreamble, omniPreamble, ctrDDL, omniDDL)
 		}
 	})
 
 	t.Run("view_with_column_aliases", func(t *testing.T) {
 		// View with column list — verify columns are stored and preamble matches.
-		oracle.execSQL("DROP VIEW IF EXISTS v_col_aliases")
-		oracle.execSQL("CREATE VIEW v_col_aliases (x, y, z) AS SELECT 1, 2, 3")
-		oracleDDL, err := oracle.showCreateView("v_col_aliases")
+		ctr.execSQL("DROP VIEW IF EXISTS v_col_aliases")
+		ctr.execSQL("CREATE VIEW v_col_aliases (x, y, z) AS SELECT 1, 2, 3")
+		ctrDDL, err := ctr.showCreateView("v_col_aliases")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE VIEW error: %v", err)
+			t.Fatalf("container SHOW CREATE VIEW error: %v", err)
 		}
 
 		c := New()
@@ -5648,16 +5648,16 @@ func TestOracle_Section_4_5_ViewsDeep(t *testing.T) {
 		omniDDL := c.ShowCreateView("test", "v_col_aliases")
 
 		// Verify columns are present in SHOW CREATE VIEW output.
-		oraclePreamble := extractViewPreamble(oracleDDL)
+		oraclePreamble := extractViewPreamble(ctrDDL)
 		omniPreamble := extractViewPreamble(omniDDL)
 		if oraclePreamble != omniPreamble {
-			t.Errorf("preamble mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s\n--- oracle full ---\n%s\n--- omni full ---\n%s",
-				oraclePreamble, omniPreamble, oracleDDL, omniDDL)
+			t.Errorf("preamble mismatch:\n--- container ---\n%s\n--- omni ---\n%s\n--- container full ---\n%s\n--- omni full ---\n%s",
+				oraclePreamble, omniPreamble, ctrDDL, omniDDL)
 		}
 
 		// Verify column list appears in both outputs.
-		if !strings.Contains(oracleDDL, "`x`") || !strings.Contains(oracleDDL, "`y`") || !strings.Contains(oracleDDL, "`z`") {
-			t.Errorf("oracle DDL missing column aliases: %s", oracleDDL)
+		if !strings.Contains(ctrDDL, "`x`") || !strings.Contains(ctrDDL, "`y`") || !strings.Contains(ctrDDL, "`z`") {
+			t.Errorf("container DDL missing column aliases: %s", ctrDDL)
 		}
 		if !strings.Contains(omniDDL, "`x`") || !strings.Contains(omniDDL, "`y`") || !strings.Contains(omniDDL, "`z`") {
 			t.Errorf("omni DDL missing column aliases: %s", omniDDL)
@@ -5665,11 +5665,11 @@ func TestOracle_Section_4_5_ViewsDeep(t *testing.T) {
 	})
 }
 
-func TestOracle_Section_5_1_UseStatement(t *testing.T) {
+func TestContainer_Section_5_1_UseStatement(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// Helper to extract MySQL error code from go-sql-driver error.
@@ -5682,19 +5682,19 @@ func TestOracle_Section_5_1_UseStatement(t *testing.T) {
 	}
 
 	t.Run("use_db_sets_current_database", func(t *testing.T) {
-		// On oracle: create a separate database, USE it, then CREATE TABLE without qualifying.
-		oracle.execSQL("DROP DATABASE IF EXISTS use_test_db")
-		oracle.execSQL("CREATE DATABASE use_test_db")
-		if err := oracle.execSQL("USE use_test_db"); err != nil {
-			t.Fatalf("oracle USE: %v", err)
+		// On container: create a separate database, USE it, then CREATE TABLE without qualifying.
+		ctr.execSQL("DROP DATABASE IF EXISTS use_test_db")
+		ctr.execSQL("CREATE DATABASE use_test_db")
+		if err := ctr.execSQL("USE use_test_db"); err != nil {
+			t.Fatalf("container USE: %v", err)
 		}
-		oracle.execSQL("DROP TABLE IF EXISTS t_use_check")
-		if err := oracle.execSQL("CREATE TABLE t_use_check (id INT PRIMARY KEY)"); err != nil {
-			t.Fatalf("oracle CREATE TABLE: %v", err)
+		ctr.execSQL("DROP TABLE IF EXISTS t_use_check")
+		if err := ctr.execSQL("CREATE TABLE t_use_check (id INT PRIMARY KEY)"); err != nil {
+			t.Fatalf("container CREATE TABLE: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateTable("t_use_check")
+		ctrDDL, err := ctr.showCreateTable("t_use_check")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE TABLE: %v", err)
+			t.Fatalf("container SHOW CREATE TABLE: %v", err)
 		}
 
 		// On omni: same sequence via Exec.
@@ -5715,27 +5715,27 @@ func TestOracle_Section_5_1_UseStatement(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("use_test_db", "t_use_check")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 
-		// Cleanup oracle.
-		oracle.execSQL("DROP DATABASE IF EXISTS use_test_db")
+		// Cleanup ctr.
+		ctr.execSQL("DROP DATABASE IF EXISTS use_test_db")
 	})
 
 	t.Run("use_nonexistent_error_1049", func(t *testing.T) {
-		// On oracle: USE a nonexistent database.
-		oracle.execSQL("DROP DATABASE IF EXISTS use_nonexistent_db")
-		oracleErr := oracle.execSQL("USE use_nonexistent_db")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error for USE nonexistent database")
+		// On container: USE a nonexistent database.
+		ctr.execSQL("DROP DATABASE IF EXISTS use_nonexistent_db")
+		ctrErr := ctr.execSQL("USE use_nonexistent_db")
+		if ctrErr == nil {
+			t.Fatal("container: expected error for USE nonexistent database")
 		}
-		oracleCode, oracleState, oracleMsg := extractMySQLErr(oracleErr)
-		t.Logf("oracle error: %d (%s) %s", oracleCode, oracleState, oracleMsg)
+		ctrCode, ctrState, ctrMsg := extractMySQLErr(ctrErr)
+		t.Logf("container error: %d (%s) %s", ctrCode, ctrState, ctrMsg)
 
-		if oracleCode != 1049 {
-			t.Fatalf("oracle: expected error code 1049, got %d", oracleCode)
+		if ctrCode != 1049 {
+			t.Fatalf("container: expected error code 1049, got %d", ctrCode)
 		}
 
 		// On omni: USE a nonexistent database.
@@ -5750,39 +5750,39 @@ func TestOracle_Section_5_1_UseStatement(t *testing.T) {
 		}
 
 		// Compare error code.
-		if catErr.Code != int(oracleCode) {
-			t.Errorf("error code mismatch: oracle=%d omni=%d", oracleCode, catErr.Code)
+		if catErr.Code != int(ctrCode) {
+			t.Errorf("error code mismatch: container=%d omni=%d", ctrCode, catErr.Code)
 		}
 		// Compare SQLSTATE.
-		if catErr.SQLState != oracleState {
-			t.Errorf("SQLSTATE mismatch: oracle=%q omni=%q", oracleState, catErr.SQLState)
+		if catErr.SQLState != ctrState {
+			t.Errorf("SQLSTATE mismatch: container=%q omni=%q", ctrState, catErr.SQLState)
 		}
 		// Compare error message.
-		if catErr.Message != oracleMsg {
-			t.Errorf("message mismatch:\n  oracle: %s\n  omni:   %s", oracleMsg, catErr.Message)
+		if catErr.Message != ctrMsg {
+			t.Errorf("message mismatch:\n  container: %s\n  omni:   %s", ctrMsg, catErr.Message)
 		}
 	})
 }
 
-func TestOracle_Section_5_2_SetVariables(t *testing.T) {
+func TestContainer_Section_5_2_SetVariables(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// Scenario: SET foreign_key_checks = 0 — skip FK validation on CREATE TABLE
 	t.Run("fk_checks_off_create", func(t *testing.T) {
-		oracle.execSQL("DROP TABLE IF EXISTS t_fkoff_child")
-		oracle.execSQL("SET foreign_key_checks = 0")
-		oracleErr := oracle.execSQL("CREATE TABLE t_fkoff_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES nonexistent_parent(id))")
-		oracle.execSQL("SET foreign_key_checks = 1")
-		if oracleErr != nil {
-			t.Fatalf("oracle: unexpected error with FK checks off: %v", oracleErr)
+		ctr.execSQL("DROP TABLE IF EXISTS t_fkoff_child")
+		ctr.execSQL("SET foreign_key_checks = 0")
+		ctrErr := ctr.execSQL("CREATE TABLE t_fkoff_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES nonexistent_parent(id))")
+		ctr.execSQL("SET foreign_key_checks = 1")
+		if ctrErr != nil {
+			t.Fatalf("container: unexpected error with FK checks off: %v", ctrErr)
 		}
-		oracleDDL, err := oracle.showCreateTable("t_fkoff_child")
+		ctrDDL, err := ctr.showCreateTable("t_fkoff_child")
 		if err != nil {
-			t.Fatalf("oracle: SHOW CREATE TABLE: %v", err)
+			t.Fatalf("container: SHOW CREATE TABLE: %v", err)
 		}
 
 		c := New()
@@ -5795,24 +5795,24 @@ func TestOracle_Section_5_2_SetVariables(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTable("test", "t_fkoff_child")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s", oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
 		}
 	})
 
 	// Scenario: SET foreign_key_checks = 0 — drop table with FK references
 	t.Run("fk_checks_off_drop", func(t *testing.T) {
-		oracle.execSQL("SET foreign_key_checks = 0")
-		oracle.execSQL("DROP TABLE IF EXISTS t_fkdrop_child")
-		oracle.execSQL("DROP TABLE IF EXISTS t_fkdrop_parent")
-		oracle.execSQL("SET foreign_key_checks = 1")
-		oracle.execSQL("CREATE TABLE t_fkdrop_parent (id INT PRIMARY KEY)")
-		oracle.execSQL("CREATE TABLE t_fkdrop_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES t_fkdrop_parent(id))")
-		oracle.execSQL("SET foreign_key_checks = 0")
-		oracleErr := oracle.execSQL("DROP TABLE t_fkdrop_parent")
-		oracle.execSQL("SET foreign_key_checks = 1")
-		if oracleErr != nil {
-			t.Fatalf("oracle: unexpected error dropping FK-referenced table with checks off: %v", oracleErr)
+		ctr.execSQL("SET foreign_key_checks = 0")
+		ctr.execSQL("DROP TABLE IF EXISTS t_fkdrop_child")
+		ctr.execSQL("DROP TABLE IF EXISTS t_fkdrop_parent")
+		ctr.execSQL("SET foreign_key_checks = 1")
+		ctr.execSQL("CREATE TABLE t_fkdrop_parent (id INT PRIMARY KEY)")
+		ctr.execSQL("CREATE TABLE t_fkdrop_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES t_fkdrop_parent(id))")
+		ctr.execSQL("SET foreign_key_checks = 0")
+		ctrErr := ctr.execSQL("DROP TABLE t_fkdrop_parent")
+		ctr.execSQL("SET foreign_key_checks = 1")
+		if ctrErr != nil {
+			t.Fatalf("container: unexpected error dropping FK-referenced table with checks off: %v", ctrErr)
 		}
 
 		c := New()
@@ -5833,12 +5833,12 @@ func TestOracle_Section_5_2_SetVariables(t *testing.T) {
 
 	// Scenario: SET foreign_key_checks = 1 — enforce FK validation
 	t.Run("fk_checks_on_enforce", func(t *testing.T) {
-		oracle.execSQL("SET foreign_key_checks = 0")
-		oracle.execSQL("DROP TABLE IF EXISTS t_fkon_child")
-		oracle.execSQL("SET foreign_key_checks = 1")
-		oracleErr := oracle.execSQL("CREATE TABLE t_fkon_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES nonexistent_on_parent(id))")
-		if oracleErr == nil {
-			t.Fatal("oracle: expected error with FK checks on, referencing non-existent table")
+		ctr.execSQL("SET foreign_key_checks = 0")
+		ctr.execSQL("DROP TABLE IF EXISTS t_fkon_child")
+		ctr.execSQL("SET foreign_key_checks = 1")
+		ctrErr := ctr.execSQL("CREATE TABLE t_fkon_child (id INT, parent_id INT, FOREIGN KEY (parent_id) REFERENCES nonexistent_on_parent(id))")
+		if ctrErr == nil {
+			t.Fatal("container: expected error with FK checks on, referencing non-existent table")
 		}
 
 		c := New()
@@ -5853,9 +5853,9 @@ func TestOracle_Section_5_2_SetVariables(t *testing.T) {
 
 	// Scenario: SET NAMES utf8mb4 — silently accepted
 	t.Run("set_names", func(t *testing.T) {
-		oracleErr := oracle.execSQL("SET NAMES utf8mb4")
-		if oracleErr != nil {
-			t.Fatalf("oracle: SET NAMES error: %v", oracleErr)
+		ctrErr := ctr.execSQL("SET NAMES utf8mb4")
+		if ctrErr != nil {
+			t.Fatalf("container: SET NAMES error: %v", ctrErr)
 		}
 
 		c := New()
@@ -5870,9 +5870,9 @@ func TestOracle_Section_5_2_SetVariables(t *testing.T) {
 
 	// Scenario: SET CHARACTER SET utf8mb4 — silently accepted
 	t.Run("set_character_set", func(t *testing.T) {
-		oracleErr := oracle.execSQL("SET CHARACTER SET utf8mb4")
-		if oracleErr != nil {
-			t.Fatalf("oracle: SET CHARACTER SET error: %v", oracleErr)
+		ctrErr := ctr.execSQL("SET CHARACTER SET utf8mb4")
+		if ctrErr != nil {
+			t.Fatalf("container: SET CHARACTER SET error: %v", ctrErr)
 		}
 
 		c := New()
@@ -5887,9 +5887,9 @@ func TestOracle_Section_5_2_SetVariables(t *testing.T) {
 
 	// Scenario: SET sql_mode — silently accepted
 	t.Run("set_sql_mode", func(t *testing.T) {
-		oracleErr := oracle.execSQL("SET sql_mode = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION'")
-		if oracleErr != nil {
-			t.Fatalf("oracle: SET sql_mode error: %v", oracleErr)
+		ctrErr := ctr.execSQL("SET sql_mode = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION'")
+		if ctrErr != nil {
+			t.Fatalf("container: SET sql_mode error: %v", ctrErr)
 		}
 
 		c := New()
@@ -5903,22 +5903,22 @@ func TestOracle_Section_5_2_SetVariables(t *testing.T) {
 	})
 }
 
-// TestOracle_Section_5_3_UserRoleManagement verifies that user/role management
+// TestContainer_Section_5_3_UserRoleManagement verifies that user/role management
 // statements are accepted by both MySQL and omni without error.
 // These are marked [~] partial because the in-memory catalog does not actually
 // store users, roles, or privileges — it just silently accepts them.
-func TestOracle_Section_5_3_UserRoleManagement(t *testing.T) {
+func TestContainer_Section_5_3_UserRoleManagement(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
 		name    string
-		setup   string // SQL to run before the main statement (on oracle only)
+		setup   string // SQL to run before the main statement (on container only)
 		sql     string // main statement to test
-		cleanup string // SQL to run after the test (on oracle only)
+		cleanup string // SQL to run after the test (on container only)
 	}{
 		{
 			"create_user",
@@ -5966,22 +5966,22 @@ func TestOracle_Section_5_3_UserRoleManagement(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Setup on oracle
+			// Setup on container
 			if tc.setup != "" {
-				if err := oracle.execSQL(tc.setup); err != nil {
-					t.Fatalf("oracle setup: %v", err)
+				if err := ctr.execSQL(tc.setup); err != nil {
+					t.Fatalf("container setup: %v", err)
 				}
 			}
 
-			// Run on oracle — must succeed
-			oracleErr := oracle.execSQL(tc.sql)
-			if oracleErr != nil {
-				t.Fatalf("oracle exec: %v", oracleErr)
+			// Run on container — must succeed
+			ctrErr := ctr.execSQL(tc.sql)
+			if ctrErr != nil {
+				t.Fatalf("container exec: %v", ctrErr)
 			}
 
-			// Cleanup on oracle
+			// Cleanup on container
 			if tc.cleanup != "" {
-				_ = oracle.execSQL(tc.cleanup)
+				_ = ctr.execSQL(tc.cleanup)
 			}
 
 			// Run on omni — must parse and not return a parse error.
@@ -6002,11 +6002,11 @@ func TestOracle_Section_5_3_UserRoleManagement(t *testing.T) {
 	}
 }
 
-func TestOracle_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
+func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -6177,21 +6177,21 @@ func TestOracle_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Clean up in proper order (child before parent)
 			if tc.table == "t_all_constraints" {
-				oracle.execSQL("DROP TABLE IF EXISTS t_all_constraints")
+				ctr.execSQL("DROP TABLE IF EXISTS t_all_constraints")
 			}
 			if tc.table == "t_parent" {
-				oracle.execSQL("DROP TABLE IF EXISTS t_all_constraints")
-				oracle.execSQL("DROP TABLE IF EXISTS t_parent")
+				ctr.execSQL("DROP TABLE IF EXISTS t_all_constraints")
+				ctr.execSQL("DROP TABLE IF EXISTS t_parent")
 			}
 			if tc.table != "t_all_constraints" && tc.table != "t_parent" {
-				oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
+				ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
 			}
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, err := oracle.showCreateTable(tc.table)
+			ctrDDL, err := ctr.showCreateTable(tc.table)
 			if err != nil {
-				t.Fatalf("oracle showCreateTable: %v", err)
+				t.Fatalf("container showCreateTable: %v", err)
 			}
 
 			c := New()
@@ -6210,33 +6210,33 @@ func TestOracle_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 			}
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-// TestOracle_Section_6_2_ShowCreateOtherObjects tests SHOW CREATE VIEW/FUNCTION/PROCEDURE/TRIGGER/EVENT
+// TestContainer_Section_6_2_ShowCreateOtherObjects tests SHOW CREATE VIEW/FUNCTION/PROCEDURE/TRIGGER/EVENT
 // output against real MySQL 8.0. This complements sections 4.2-4.5 by testing additional patterns
 // and verifying SHOW CREATE as a query API surface.
-func TestOracle_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
+func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// --- SHOW CREATE VIEW ---
 	t.Run("show_create_view", func(t *testing.T) {
 		// Test SHOW CREATE VIEW with default options.
 		// MySQL rewrites SELECT text, so we compare preamble only.
-		oracle.execSQL("DROP VIEW IF EXISTS v_sc_basic")
-		oracle.execSQL("CREATE VIEW v_sc_basic AS SELECT 1 AS col1, 2 AS col2")
-		oracleDDL, err := oracle.showCreateView("v_sc_basic")
+		ctr.execSQL("DROP VIEW IF EXISTS v_sc_basic")
+		ctr.execSQL("CREATE VIEW v_sc_basic AS SELECT 1 AS col1, 2 AS col2")
+		ctrDDL, err := ctr.showCreateView("v_sc_basic")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE VIEW: %v", err)
+			t.Fatalf("container SHOW CREATE VIEW: %v", err)
 		}
 
 		c := New()
@@ -6252,17 +6252,17 @@ func TestOracle_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		omniDDL := c.ShowCreateView("test", "v_sc_basic")
 
 		// Compare preamble (up to AS) — SELECT text may differ due to MySQL rewriting.
-		oraclePreamble := extractViewPreamble(oracleDDL)
+		oraclePreamble := extractViewPreamble(ctrDDL)
 		omniPreamble := extractViewPreamble(omniDDL)
 		if oraclePreamble != omniPreamble {
-			t.Errorf("preamble mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s\n--- oracle full ---\n%s\n--- omni full ---\n%s",
-				oraclePreamble, omniPreamble, oracleDDL, omniDDL)
+			t.Errorf("preamble mismatch:\n--- container ---\n%s\n--- omni ---\n%s\n--- container full ---\n%s\n--- omni full ---\n%s",
+				oraclePreamble, omniPreamble, ctrDDL, omniDDL)
 		}
 
 		// Verify both contain the key structural elements.
 		for _, substr := range []string{"ALGORITHM=", "DEFINER=", "SQL SECURITY", "VIEW", "v_sc_basic", " AS "} {
-			if !strings.Contains(oracleDDL, substr) {
-				t.Errorf("oracle DDL missing %q: %s", substr, oracleDDL)
+			if !strings.Contains(ctrDDL, substr) {
+				t.Errorf("container DDL missing %q: %s", substr, ctrDDL)
 			}
 			if !strings.Contains(omniDDL, substr) {
 				t.Errorf("omni DDL missing %q: %s", substr, omniDDL)
@@ -6273,14 +6273,14 @@ func TestOracle_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 	// --- SHOW CREATE FUNCTION ---
 	t.Run("show_create_function", func(t *testing.T) {
 		// Test SHOW CREATE FUNCTION with various characteristics.
-		oracle.execSQL("DROP FUNCTION IF EXISTS fn_sc_multiply")
+		ctr.execSQL("DROP FUNCTION IF EXISTS fn_sc_multiply")
 		createSQL := "CREATE FUNCTION fn_sc_multiply(x INT, y INT) RETURNS INT DETERMINISTIC RETURN x * y"
-		if err := oracle.execSQL(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQL(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateFunction("fn_sc_multiply")
+		ctrDDL, err := ctr.showCreateFunction("fn_sc_multiply")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE FUNCTION: %v", err)
+			t.Fatalf("container SHOW CREATE FUNCTION: %v", err)
 		}
 
 		c := New()
@@ -6295,23 +6295,23 @@ func TestOracle_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateFunction("test", "fn_sc_multiply")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// --- SHOW CREATE PROCEDURE ---
 	t.Run("show_create_procedure", func(t *testing.T) {
 		// Test SHOW CREATE PROCEDURE with INOUT params.
-		oracle.execSQLDirect("DROP PROCEDURE IF EXISTS sp_sc_swap")
+		ctr.execSQLDirect("DROP PROCEDURE IF EXISTS sp_sc_swap")
 		createSQL := "CREATE PROCEDURE sp_sc_swap(INOUT a INT, INOUT b INT) BEGIN DECLARE tmp INT; SET tmp = a; SET a = b; SET b = tmp; END"
-		if err := oracle.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateProcedure("sp_sc_swap")
+		ctrDDL, err := ctr.showCreateProcedure("sp_sc_swap")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE PROCEDURE: %v", err)
+			t.Fatalf("container SHOW CREATE PROCEDURE: %v", err)
 		}
 
 		c := New()
@@ -6326,27 +6326,27 @@ func TestOracle_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateProcedure("test", "sp_sc_swap")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// --- SHOW CREATE TRIGGER ---
 	t.Run("show_create_trigger", func(t *testing.T) {
 		// Setup table for triggers.
-		oracle.execSQL("DROP TRIGGER IF EXISTS tr_sc_audit")
-		oracle.execSQL("DROP TABLE IF EXISTS t_sc_trigger")
-		if err := oracle.execSQL("CREATE TABLE t_sc_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, updated_at DATETIME)"); err != nil {
-			t.Fatalf("oracle setup table: %v", err)
+		ctr.execSQL("DROP TRIGGER IF EXISTS tr_sc_audit")
+		ctr.execSQL("DROP TABLE IF EXISTS t_sc_trigger")
+		if err := ctr.execSQL("CREATE TABLE t_sc_trigger (id INT AUTO_INCREMENT PRIMARY KEY, val INT, updated_at DATETIME)"); err != nil {
+			t.Fatalf("container setup table: %v", err)
 		}
 		createSQL := "CREATE TRIGGER tr_sc_audit AFTER INSERT ON t_sc_trigger FOR EACH ROW SET @last_insert_id = NEW.id"
-		if err := oracle.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateTrigger("tr_sc_audit")
+		ctrDDL, err := ctr.showCreateTrigger("tr_sc_audit")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE TRIGGER: %v", err)
+			t.Fatalf("container SHOW CREATE TRIGGER: %v", err)
 		}
 
 		c := New()
@@ -6362,23 +6362,23 @@ func TestOracle_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateTrigger("test", "tr_sc_audit")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 
 	// --- SHOW CREATE EVENT ---
 	t.Run("show_create_event", func(t *testing.T) {
 		// Test SHOW CREATE EVENT with AT schedule (exact timestamp, no auto-STARTS issue).
-		oracle.execSQL("DROP EVENT IF EXISTS ev_sc_onetime")
+		ctr.execSQL("DROP EVENT IF EXISTS ev_sc_onetime")
 		createSQL := "CREATE EVENT ev_sc_onetime ON SCHEDULE AT '2035-06-15 12:00:00' ON COMPLETION PRESERVE COMMENT 'one-time event' DO SELECT 1"
-		if err := oracle.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("oracle exec: %v", err)
+		if err := ctr.execSQLDirect(createSQL); err != nil {
+			t.Fatalf("container exec: %v", err)
 		}
-		oracleDDL, err := oracle.showCreateEvent("ev_sc_onetime")
+		ctrDDL, err := ctr.showCreateEvent("ev_sc_onetime")
 		if err != nil {
-			t.Fatalf("oracle SHOW CREATE EVENT: %v", err)
+			t.Fatalf("container SHOW CREATE EVENT: %v", err)
 		}
 
 		c := New()
@@ -6393,14 +6393,14 @@ func TestOracle_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateEvent("test", "ev_sc_onetime")
 
-		if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-			t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-				oracleDDL, omniDDL)
+		if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+			t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+				ctrDDL, omniDDL)
 		}
 	})
 }
 
-// TestOracle_Section_6_3_InformationSchemaConsistency verifies that the catalog's
+// TestContainer_Section_6_3_InformationSchemaConsistency verifies that the catalog's
 // internal state is consistent with what MySQL 8.0 reports via INFORMATION_SCHEMA.
 //
 // The omni catalog does not support INFORMATION_SCHEMA SQL queries (SELECT is
@@ -6410,11 +6410,11 @@ func TestOracle_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 // All scenarios are marked [~] partial because the catalog lacks an
 // INFORMATION_SCHEMA query engine — users cannot run SELECT ... FROM
 // INFORMATION_SCHEMA.* against the in-memory catalog.
-func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
+func TestContainer_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// Setup SQL: a table with various column types, indexes, FK, and CHECK constraints.
@@ -6434,14 +6434,14 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 		CONSTRAINT chk_price CHECK (price >= 0)
 	) ENGINE=InnoDB`
 
-	// Setup on oracle.
-	oracle.execSQL("DROP TABLE IF EXISTS t_is_test")
-	oracle.execSQL("DROP TABLE IF EXISTS t_is_parent")
-	if err := oracle.execSQL(parentSQL); err != nil {
-		t.Fatalf("oracle parent table: %v", err)
+	// Setup on ctr.
+	ctr.execSQL("DROP TABLE IF EXISTS t_is_test")
+	ctr.execSQL("DROP TABLE IF EXISTS t_is_parent")
+	if err := ctr.execSQL(parentSQL); err != nil {
+		t.Fatalf("container parent table: %v", err)
 	}
-	if err := oracle.execSQL(setupSQL); err != nil {
-		t.Fatalf("oracle setup: %v", err)
+	if err := ctr.execSQL(setupSQL); err != nil {
+		t.Fatalf("container setup: %v", err)
 	}
 
 	// Setup on omni.
@@ -6460,27 +6460,27 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 
 	// 6.3.1: INFORMATION_SCHEMA.COLUMNS matches catalog state
 	t.Run("columns_match", func(t *testing.T) {
-		oracleCols, err := oracle.queryColumns("test", "t_is_test")
+		oracleCols, err := ctr.queryColumns("test", "t_is_test")
 		if err != nil {
-			t.Fatalf("oracle queryColumns: %v", err)
+			t.Fatalf("container queryColumns: %v", err)
 		}
 		if len(oracleCols) != len(tbl.Columns) {
-			t.Fatalf("column count: oracle=%d omni=%d", len(oracleCols), len(tbl.Columns))
+			t.Fatalf("column count: container=%d omni=%d", len(oracleCols), len(tbl.Columns))
 		}
 		for i, oc := range oracleCols {
 			omniCol := tbl.Columns[i]
 			if oc.Name != omniCol.Name {
-				t.Errorf("col[%d] name: oracle=%q omni=%q", i, oc.Name, omniCol.Name)
+				t.Errorf("col[%d] name: container=%q omni=%q", i, oc.Name, omniCol.Name)
 			}
 			if oc.Position != omniCol.Position {
-				t.Errorf("col[%d] position: oracle=%d omni=%d", i, oc.Position, omniCol.Position)
+				t.Errorf("col[%d] position: container=%d omni=%d", i, oc.Position, omniCol.Position)
 			}
 			wantNullable := "YES"
 			if !omniCol.Nullable {
 				wantNullable = "NO"
 			}
 			if oc.Nullable != wantNullable {
-				t.Errorf("col[%d] %s nullable: oracle=%q omni=%q", i, oc.Name, oc.Nullable, wantNullable)
+				t.Errorf("col[%d] %s nullable: container=%q omni=%q", i, oc.Name, oc.Nullable, wantNullable)
 			}
 		}
 		t.Log("[~] partial: catalog internal state matches, but INFORMATION_SCHEMA SQL queries require query engine")
@@ -6488,9 +6488,9 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 
 	// 6.3.2: INFORMATION_SCHEMA.STATISTICS matches catalog indexes
 	t.Run("statistics_match", func(t *testing.T) {
-		oracleIdxs, err := oracle.queryIndexes("test", "t_is_test")
+		oracleIdxs, err := ctr.queryIndexes("test", "t_is_test")
 		if err != nil {
-			t.Fatalf("oracle queryIndexes: %v", err)
+			t.Fatalf("container queryIndexes: %v", err)
 		}
 		// Build omni index column map: indexName -> []columnName
 		omniIdxCols := make(map[string][]string)
@@ -6499,7 +6499,7 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 				omniIdxCols[idx.Name] = append(omniIdxCols[idx.Name], ic.Name)
 			}
 		}
-		// Build oracle index column map.
+		// Build container index column map.
 		oracleIdxCols := make(map[string][]string)
 		for _, oi := range oracleIdxs {
 			oracleIdxCols[oi.Name] = append(oracleIdxCols[oi.Name], oi.ColumnName)
@@ -6508,22 +6508,22 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 		for name, oracleCols := range oracleIdxCols {
 			omniCols, ok := omniIdxCols[name]
 			if !ok {
-				t.Errorf("index %q exists in oracle but not in omni", name)
+				t.Errorf("index %q exists in container but not in omni", name)
 				continue
 			}
 			if len(oracleCols) != len(omniCols) {
-				t.Errorf("index %q column count: oracle=%d omni=%d", name, len(oracleCols), len(omniCols))
+				t.Errorf("index %q column count: container=%d omni=%d", name, len(oracleCols), len(omniCols))
 				continue
 			}
 			for j := range oracleCols {
 				if oracleCols[j] != omniCols[j] {
-					t.Errorf("index %q col[%d]: oracle=%q omni=%q", name, j, oracleCols[j], omniCols[j])
+					t.Errorf("index %q col[%d]: container=%q omni=%q", name, j, oracleCols[j], omniCols[j])
 				}
 			}
 		}
 		for name := range omniIdxCols {
 			if _, ok := oracleIdxCols[name]; !ok {
-				t.Errorf("index %q exists in omni but not in oracle", name)
+				t.Errorf("index %q exists in omni but not in container", name)
 			}
 		}
 		t.Log("[~] partial: catalog internal state matches, but INFORMATION_SCHEMA SQL queries require query engine")
@@ -6531,9 +6531,9 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 
 	// 6.3.3: INFORMATION_SCHEMA.TABLE_CONSTRAINTS matches
 	t.Run("table_constraints_match", func(t *testing.T) {
-		oracleCons, err := oracle.queryConstraints("test", "t_is_test")
+		oracleCons, err := ctr.queryConstraints("test", "t_is_test")
 		if err != nil {
-			t.Fatalf("oracle queryConstraints: %v", err)
+			t.Fatalf("container queryConstraints: %v", err)
 		}
 		// Build omni constraint map.
 		omniCons := make(map[string]string) // name -> type
@@ -6551,7 +6551,7 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 			}
 			omniCons[con.Name] = typeName
 		}
-		// Build oracle constraint map.
+		// Build container constraint map.
 		oracleConsMap := make(map[string]string)
 		for _, oc := range oracleCons {
 			oracleConsMap[oc.Name] = oc.Type
@@ -6559,16 +6559,16 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 		for name, oType := range oracleConsMap {
 			omniType, ok := omniCons[name]
 			if !ok {
-				t.Errorf("constraint %q (%s) in oracle but not omni", name, oType)
+				t.Errorf("constraint %q (%s) in container but not omni", name, oType)
 				continue
 			}
 			if oType != omniType {
-				t.Errorf("constraint %q type: oracle=%q omni=%q", name, oType, omniType)
+				t.Errorf("constraint %q type: container=%q omni=%q", name, oType, omniType)
 			}
 		}
 		for name := range omniCons {
 			if _, ok := oracleConsMap[name]; !ok {
-				t.Errorf("constraint %q in omni but not oracle", name)
+				t.Errorf("constraint %q in omni but not container", name)
 			}
 		}
 		t.Log("[~] partial: catalog internal state matches, but INFORMATION_SCHEMA SQL queries require query engine")
@@ -6576,14 +6576,14 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 
 	// 6.3.4: INFORMATION_SCHEMA.KEY_COLUMN_USAGE matches
 	t.Run("key_column_usage_match", func(t *testing.T) {
-		rows, err := oracle.db.QueryContext(oracle.ctx, `
+		rows, err := ctr.db.QueryContext(ctr.ctx, `
 			SELECT CONSTRAINT_NAME, COLUMN_NAME, ORDINAL_POSITION,
 			       REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
 			FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
 			WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't_is_test'
 			ORDER BY CONSTRAINT_NAME, ORDINAL_POSITION`)
 		if err != nil {
-			t.Fatalf("oracle KEY_COLUMN_USAGE query: %v", err)
+			t.Fatalf("container KEY_COLUMN_USAGE query: %v", err)
 		}
 		defer rows.Close()
 
@@ -6615,12 +6615,12 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 		for _, okcu := range oracleKCU {
 			cols, ok := omniKCU[okcu.constraintName]
 			if !ok {
-				t.Errorf("constraint %q in oracle KEY_COLUMN_USAGE but not omni", okcu.constraintName)
+				t.Errorf("constraint %q in container KEY_COLUMN_USAGE but not omni", okcu.constraintName)
 				continue
 			}
 			idx := okcu.ordinalPos - 1
 			if idx < len(cols) && cols[idx] != okcu.columnName {
-				t.Errorf("constraint %q col[%d]: oracle=%q omni=%q",
+				t.Errorf("constraint %q col[%d]: container=%q omni=%q",
 					okcu.constraintName, idx, okcu.columnName, cols[idx])
 			}
 		}
@@ -6633,7 +6633,7 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 			for _, okcu := range oracleKCU {
 				if okcu.constraintName == con.Name && okcu.refTable != nil {
 					if *okcu.refTable != con.RefTable {
-						t.Errorf("FK %q ref table: oracle=%q omni=%q", con.Name, *okcu.refTable, con.RefTable)
+						t.Errorf("FK %q ref table: container=%q omni=%q", con.Name, *okcu.refTable, con.RefTable)
 					}
 				}
 			}
@@ -6643,7 +6643,7 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 
 	// 6.3.5: INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS matches
 	t.Run("referential_constraints_match", func(t *testing.T) {
-		rows, err := oracle.db.QueryContext(oracle.ctx, `
+		rows, err := ctr.db.QueryContext(ctr.ctx, `
 			SELECT CONSTRAINT_NAME, UNIQUE_CONSTRAINT_NAME,
 			       MATCH_OPTION, UPDATE_RULE, DELETE_RULE,
 			       REFERENCED_TABLE_NAME
@@ -6651,7 +6651,7 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 			WHERE CONSTRAINT_SCHEMA = 'test' AND TABLE_NAME = 't_is_test'
 			ORDER BY CONSTRAINT_NAME`)
 		if err != nil {
-			t.Fatalf("oracle REFERENTIAL_CONSTRAINTS query: %v", err)
+			t.Fatalf("container REFERENTIAL_CONSTRAINTS query: %v", err)
 		}
 		defer rows.Close()
 
@@ -6677,11 +6677,11 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 				}
 			}
 			if found == nil {
-				t.Errorf("FK %q in oracle REFERENTIAL_CONSTRAINTS but not omni", oref.name)
+				t.Errorf("FK %q in container REFERENTIAL_CONSTRAINTS but not omni", oref.name)
 				continue
 			}
 			if oref.refTable != found.RefTable {
-				t.Errorf("FK %q ref table: oracle=%q omni=%q", oref.name, oref.refTable, found.RefTable)
+				t.Errorf("FK %q ref table: container=%q omni=%q", oref.name, oref.refTable, found.RefTable)
 			}
 			// Normalize action names for comparison.
 			oracleDelete := oref.deleteRule
@@ -6690,7 +6690,7 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 				omniDelete = "RESTRICT" // MySQL default
 			}
 			if oracleDelete != omniDelete {
-				t.Errorf("FK %q delete rule: oracle=%q omni=%q", oref.name, oracleDelete, omniDelete)
+				t.Errorf("FK %q delete rule: container=%q omni=%q", oref.name, oracleDelete, omniDelete)
 			}
 		}
 		t.Log("[~] partial: catalog internal state matches, but INFORMATION_SCHEMA SQL queries require query engine")
@@ -6698,13 +6698,13 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 
 	// 6.3.6: INFORMATION_SCHEMA.CHECK_CONSTRAINTS matches
 	t.Run("check_constraints_match", func(t *testing.T) {
-		rows, err := oracle.db.QueryContext(oracle.ctx, `
+		rows, err := ctr.db.QueryContext(ctr.ctx, `
 			SELECT CONSTRAINT_NAME, CHECK_CLAUSE
 			FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS
 			WHERE CONSTRAINT_SCHEMA = 'test'
 			ORDER BY CONSTRAINT_NAME`)
 		if err != nil {
-			t.Fatalf("oracle CHECK_CONSTRAINTS query: %v", err)
+			t.Fatalf("container CHECK_CONSTRAINTS query: %v", err)
 		}
 		defer rows.Close()
 
@@ -6739,7 +6739,7 @@ func TestOracle_Section_6_3_InformationSchemaConsistency(t *testing.T) {
 			omniNorm := normalizeWhitespace(omniExpr)
 			if oracleNorm != omniNorm {
 				// Log but don't fail — expression format may differ slightly.
-				t.Logf("check %q clause: oracle=%q omni=%q (expression format may differ)", oc.name, oracleNorm, omniNorm)
+				t.Logf("check %q clause: container=%q omni=%q (expression format may differ)", oc.name, oracleNorm, omniNorm)
 			}
 		}
 		t.Log("[~] partial: catalog internal state matches, but INFORMATION_SCHEMA SQL queries require query engine")

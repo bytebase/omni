@@ -29,11 +29,11 @@ COMMENT ON TABLE t1 IS 'Test table';
 // 2.1 Column Changes
 // ---------------------------------------------------------------------------
 
-func TestOracleTable_ColumnChanges(t *testing.T) {
+func TestContainerTable_ColumnChanges(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	// --- Change column type: varchar(100) → varchar(200) ---
 	t.Run("change_varchar_length", func(t *testing.T) {
@@ -54,7 +54,7 @@ CREATE TABLE t1 (
 CREATE INDEX idx_name ON t1(name);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Change column type: integer → bigint ---
@@ -76,7 +76,7 @@ CREATE TABLE t1 (
 CREATE INDEX idx_name ON t1(name);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Change column type: text → user enum (with USING) ---
@@ -111,7 +111,7 @@ CREATE TABLE t1 (
 CREATE INDEX idx_name ON t1(name);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add NOT NULL to existing column ---
@@ -133,7 +133,7 @@ CREATE TABLE t1 (
 CREATE INDEX idx_name ON t1(name);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Drop NOT NULL from existing column ---
@@ -155,7 +155,7 @@ CREATE TABLE t1 (
 CREATE INDEX idx_name ON t1(name);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add DEFAULT to column ---
@@ -177,7 +177,7 @@ CREATE TABLE t1 (
 CREATE INDEX idx_name ON t1(name);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Change DEFAULT value ---
@@ -199,7 +199,7 @@ CREATE TABLE t1 (
 CREATE INDEX idx_name ON t1(name);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Drop DEFAULT from column ---
@@ -221,7 +221,7 @@ CREATE TABLE t1 (
 CREATE INDEX idx_name ON t1(name);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add new column with all attributes ---
@@ -244,7 +244,7 @@ CREATE TABLE t1 (
 CREATE INDEX idx_name ON t1(name);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Drop existing column ---
@@ -265,7 +265,7 @@ CREATE TABLE t1 (
 CREATE INDEX idx_name ON t1(name);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add GENERATED ALWAYS AS IDENTITY ---
@@ -283,7 +283,7 @@ CREATE TABLE t1 (
     name varchar(100) NOT NULL DEFAULT 'anon'
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Drop identity from column ---
@@ -300,7 +300,7 @@ CREATE TABLE t1 (
     name varchar(100) NOT NULL DEFAULT 'anon'
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Change column collation ---
@@ -317,7 +317,7 @@ CREATE TABLE t1 (
     name text COLLATE "POSIX" NOT NULL DEFAULT 'anon'
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add GENERATED ALWAYS AS (expr) STORED column ---
@@ -337,7 +337,7 @@ CREATE TABLE t1 (
     total numeric GENERATED ALWAYS AS (price + tax) STORED
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Drop generated column ---
@@ -357,7 +357,7 @@ CREATE TABLE t1 (
     tax numeric(10,2) DEFAULT 0.0
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Table UNLOGGED → permanent (persistence change) ---
@@ -374,7 +374,7 @@ CREATE TABLE t1 (
     name varchar(100) NOT NULL DEFAULT 'anon'
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 }
 
@@ -382,11 +382,11 @@ CREATE TABLE t1 (
 // 2.2 Constraint Changes
 // ---------------------------------------------------------------------------
 
-func TestOracleTable_ConstraintChanges(t *testing.T) {
+func TestContainerTable_ConstraintChanges(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	// --- Add PRIMARY KEY ---
 	t.Run("add_primary_key", func(t *testing.T) {
@@ -405,7 +405,7 @@ CREATE TABLE t1 (
     CONSTRAINT t1_pkey PRIMARY KEY (id)
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Drop PRIMARY KEY ---
@@ -425,7 +425,7 @@ CREATE TABLE t1 (
     email text
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add UNIQUE constraint ---
@@ -447,7 +447,7 @@ CREATE TABLE t1 (
 CREATE INDEX idx_name ON t1(name);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Drop UNIQUE constraint ---
@@ -466,7 +466,7 @@ CREATE TABLE t1 (
     email text
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add CHECK constraint (with function call) ---
@@ -488,7 +488,7 @@ CREATE TABLE t1 (
     CONSTRAINT age_positive CHECK (check_positive(age))
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Drop CHECK constraint ---
@@ -508,7 +508,7 @@ CREATE TABLE t1 (
     age integer
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Change CHECK expression ---
@@ -527,7 +527,7 @@ CREATE TABLE t1 (
     CONSTRAINT age_valid CHECK (age > 0 AND age < 200)
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add FOREIGN KEY ---
@@ -551,7 +551,7 @@ CREATE TABLE t1 (
     CONSTRAINT t1_parent_fk FOREIGN KEY (parent_id) REFERENCES parent(id)
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Drop FOREIGN KEY ---
@@ -575,7 +575,7 @@ CREATE TABLE t1 (
     parent_id integer
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Change FK ON DELETE action (CASCADE → SET NULL) ---
@@ -600,7 +600,7 @@ CREATE TABLE t1 (
     CONSTRAINT t1_parent_fk FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE SET NULL
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add DEFERRABLE constraint ---
@@ -618,7 +618,7 @@ CREATE TABLE t1 (
     CONSTRAINT name_unique UNIQUE (name) DEFERRABLE INITIALLY DEFERRED
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add EXCLUDE constraint ---
@@ -636,7 +636,7 @@ CREATE TABLE t1 (
     CONSTRAINT t1_range_excl EXCLUDE USING gist (range_col WITH &&)
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Drop EXCLUDE constraint ---
@@ -654,7 +654,7 @@ CREATE TABLE t1 (
     range_col int4range
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Change FK ON UPDATE action ---
@@ -679,7 +679,7 @@ CREATE TABLE t1 (
     CONSTRAINT t1_parent_fk FOREIGN KEY (parent_id) REFERENCES parent(id) ON UPDATE SET NULL
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 }
 
@@ -687,11 +687,11 @@ CREATE TABLE t1 (
 // 2.3 Attached Object Changes
 // ---------------------------------------------------------------------------
 
-func TestOracleTable_AttachedObjectChanges(t *testing.T) {
+func TestContainerTable_AttachedObjectChanges(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	// --- Add standalone index ---
 	t.Run("add_index", func(t *testing.T) {
@@ -713,7 +713,7 @@ CREATE INDEX idx_name ON t1(name);
 CREATE INDEX idx_email ON t1(email);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Drop standalone index ---
@@ -734,7 +734,7 @@ CREATE TABLE t1 (
 );
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add partial index (WHERE clause) ---
@@ -757,7 +757,7 @@ CREATE INDEX idx_name ON t1(name);
 CREATE INDEX idx_active_score ON t1(score) WHERE active = true;
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add expression index ---
@@ -780,7 +780,7 @@ CREATE INDEX idx_name ON t1(name);
 CREATE INDEX idx_lower_email ON t1(lower(email));
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add index with INCLUDE columns ---
@@ -803,7 +803,7 @@ CREATE INDEX idx_name ON t1(name);
 CREATE INDEX idx_name_incl ON t1(name) INCLUDE (email);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add index with DESC/NULLS FIRST ---
@@ -826,7 +826,7 @@ CREATE INDEX idx_name ON t1(name);
 CREATE INDEX idx_score_desc ON t1(score DESC NULLS FIRST);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add GIN index ---
@@ -846,7 +846,7 @@ CREATE TABLE t1 (
 );
 CREATE INDEX idx_data_gin ON t1 USING gin (data);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Change index (columns changed) → DROP + CREATE ---
@@ -868,7 +868,7 @@ CREATE TABLE t1 (
 CREATE INDEX idx_name ON t1(name, email);
 COMMENT ON TABLE t1 IS 'Test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add trigger with UPDATE OF columns ---
@@ -893,7 +893,7 @@ CREATE TRIGGER t1_before_update
     FOR EACH ROW
     EXECUTE FUNCTION trig_fn();
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Drop trigger ---
@@ -918,7 +918,7 @@ CREATE TABLE t1 (
     email text
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Change trigger (WHEN clause changed) → DROP + CREATE ---
@@ -948,7 +948,7 @@ CREATE TRIGGER t1_before_update
     WHEN (OLD.name IS DISTINCT FROM NEW.name)
     EXECUTE FUNCTION trig_fn();
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add RLS policy with USING and WITH CHECK ---
@@ -970,7 +970,7 @@ CREATE TABLE t1 (
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 CREATE POLICY t1_select ON t1 FOR SELECT USING (active = true);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Drop policy ---
@@ -992,7 +992,7 @@ CREATE TABLE t1 (
 );
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Enable ROW LEVEL SECURITY ---
@@ -1012,7 +1012,7 @@ CREATE TABLE t1 (
 );
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Disable ROW LEVEL SECURITY ---
@@ -1032,7 +1032,7 @@ CREATE TABLE t1 (
     active boolean DEFAULT true
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add table comment ---
@@ -1050,7 +1050,7 @@ CREATE TABLE t1 (
 );
 COMMENT ON TABLE t1 IS 'A test table';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Add column comment ---
@@ -1068,7 +1068,7 @@ CREATE TABLE t1 (
 );
 COMMENT ON COLUMN t1.name IS 'Display name';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Change table comment ---
@@ -1087,7 +1087,7 @@ CREATE TABLE t1 (
 );
 COMMENT ON TABLE t1 IS 'New comment';
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Drop table comment (set NULL) ---
@@ -1105,7 +1105,7 @@ CREATE TABLE t1 (
     name varchar(100) NOT NULL DEFAULT 'anon'
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- ALTER TABLE REPLICA IDENTITY FULL ---
@@ -1123,7 +1123,7 @@ CREATE TABLE t1 (
 );
 ALTER TABLE t1 REPLICA IDENTITY FULL;
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- FK ON DELETE RESTRICT ---
@@ -1148,7 +1148,7 @@ CREATE TABLE t1 (
     CONSTRAINT t1_parent_fk FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE RESTRICT
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- FK ON DELETE SET DEFAULT ---
@@ -1173,7 +1173,7 @@ CREATE TABLE t1 (
     CONSTRAINT t1_parent_fk FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE SET DEFAULT
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- FK ON UPDATE RESTRICT ---
@@ -1198,7 +1198,7 @@ CREATE TABLE t1 (
     CONSTRAINT t1_parent_fk FOREIGN KEY (parent_id) REFERENCES parent(id) ON UPDATE RESTRICT
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- DEFERRABLE INITIALLY IMMEDIATE ---
@@ -1217,7 +1217,7 @@ CREATE TABLE t1 (
     CONSTRAINT name_unique UNIQUE (name) DEFERRABLE INITIALLY IMMEDIATE
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- GENERATED BY DEFAULT AS IDENTITY ---
@@ -1234,7 +1234,7 @@ CREATE TABLE t1 (
     name varchar(100) NOT NULL DEFAULT 'anon'
 );
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 }
 
@@ -1242,11 +1242,11 @@ CREATE TABLE t1 (
 // 3.1 Trigger Coverage Gaps
 // ---------------------------------------------------------------------------
 
-func TestOracleTable_TriggerGaps(t *testing.T) {
+func TestContainerTable_TriggerGaps(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	// --- Trigger BEFORE DELETE ---
 	t.Run("trigger_before_delete", func(t *testing.T) {
@@ -1268,7 +1268,7 @@ CREATE TRIGGER t1_before_delete
     FOR EACH ROW
     EXECUTE FUNCTION trig_fn();
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Trigger FOR EACH STATEMENT ---
@@ -1291,7 +1291,7 @@ CREATE TRIGGER t1_after_insert_stmt
     FOR EACH STATEMENT
     EXECUTE FUNCTION trig_fn();
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- INSTEAD OF trigger on view ---
@@ -1316,7 +1316,7 @@ CREATE TRIGGER v1_instead_of_insert
     FOR EACH ROW
     EXECUTE FUNCTION trig_fn();
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Trigger with REFERENCING OLD TABLE AS ---
@@ -1340,7 +1340,7 @@ CREATE TRIGGER t1_after_delete_ref
     FOR EACH STATEMENT
     EXECUTE FUNCTION trig_fn();
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 }
 
@@ -1348,11 +1348,11 @@ CREATE TRIGGER t1_after_delete_ref
 // 3.2 Policy Coverage Gaps
 // ---------------------------------------------------------------------------
 
-func TestOracleTable_PolicyGaps(t *testing.T) {
+func TestContainerTable_PolicyGaps(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	// --- Policy AS RESTRICTIVE ---
 	t.Run("policy_restrictive", func(t *testing.T) {
@@ -1371,7 +1371,7 @@ CREATE TABLE t1 (
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 CREATE POLICY t1_restrict ON t1 AS RESTRICTIVE FOR SELECT USING (true);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Policy FOR INSERT ---
@@ -1391,7 +1391,7 @@ CREATE TABLE t1 (
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 CREATE POLICY t1_ins ON t1 FOR INSERT WITH CHECK (col > 0);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Policy FOR UPDATE ---
@@ -1411,7 +1411,7 @@ CREATE TABLE t1 (
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 CREATE POLICY t1_upd ON t1 FOR UPDATE USING (true) WITH CHECK (col > 0);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Policy FOR DELETE ---
@@ -1431,7 +1431,7 @@ CREATE TABLE t1 (
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 CREATE POLICY t1_del ON t1 FOR DELETE USING (col > 0);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Policy WITH CHECK expression (complex) ---
@@ -1453,7 +1453,7 @@ CREATE TABLE t1 (
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 CREATE POLICY t1_validate ON t1 FOR INSERT WITH CHECK (col > 0 AND name IS NOT NULL);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	// --- Policy with specific roles (PUBLIC) ---
@@ -1473,7 +1473,7 @@ CREATE TABLE t1 (
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 CREATE POLICY t1_pub ON t1 FOR SELECT TO PUBLIC USING (true);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 }
 
@@ -1481,11 +1481,11 @@ CREATE POLICY t1_pub ON t1 FOR SELECT TO PUBLIC USING (true);
 // Group 2: Policy ALTER Variants
 // ---------------------------------------------------------------------------
 
-func TestOracleTable_PolicyAlterVariants(t *testing.T) {
+func TestContainerTable_PolicyAlterVariants(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	t.Run("alter_policy_change_using_expression", func(t *testing.T) {
 		before := `
@@ -1506,7 +1506,7 @@ CREATE TABLE t1 (
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 CREATE POLICY t1_sel ON t1 FOR SELECT USING (active AND verified);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("alter_policy_change_with_check", func(t *testing.T) {
@@ -1526,7 +1526,7 @@ CREATE TABLE t1 (
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 CREATE POLICY t1_ins ON t1 FOR INSERT WITH CHECK (score > 0);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("alter_policy_change_command_type", func(t *testing.T) {
@@ -1546,7 +1546,7 @@ CREATE TABLE t1 (
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 CREATE POLICY t1_pol ON t1 FOR ALL USING (active);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("alter_policy_change_using_expression_different", func(t *testing.T) {
@@ -1567,7 +1567,7 @@ CREATE TABLE t1 (
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 CREATE POLICY t1_sel ON t1 FOR SELECT TO PUBLIC USING (active);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("force_row_level_security", func(t *testing.T) {
@@ -1586,7 +1586,7 @@ CREATE TABLE t1 (
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 ALTER TABLE t1 FORCE ROW LEVEL SECURITY;
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("no_force_row_level_security", func(t *testing.T) {
@@ -1605,7 +1605,7 @@ CREATE TABLE t1 (
 );
 ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 }
 
@@ -1613,11 +1613,11 @@ ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 // Group 5: Constraint Trigger and TABLE LIKE
 // ---------------------------------------------------------------------------
 
-func TestOracleTable_ConstraintTriggerAndLike(t *testing.T) {
+func TestContainerTable_ConstraintTriggerAndLike(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test: requires Docker")
+		t.Skip("skipping container test: requires Docker")
 	}
-	oracle := startPGOracle(t)
+	ctr := startPGContainer(t)
 
 	t.Run("constraint_trigger_deferrable", func(t *testing.T) {
 		// BUG: Constraint triggers are not properly supported by the migration
@@ -1640,7 +1640,7 @@ CREATE CONSTRAINT TRIGGER t1_check AFTER INSERT ON t1
     DEFERRABLE INITIALLY DEFERRED
     FOR EACH ROW EXECUTE FUNCTION check_fn();
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 
 	t.Run("table_like_including_all", func(t *testing.T) {
@@ -1655,6 +1655,6 @@ CREATE TABLE t1 (
 );
 CREATE TABLE t2 (LIKE t1 INCLUDING ALL);
 `
-		assertOracleRoundtrip(t, oracle, before, after)
+		assertOracleRoundtrip(t, ctr, before, after)
 	})
 }

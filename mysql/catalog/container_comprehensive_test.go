@@ -2,11 +2,11 @@ package catalog
 
 import "testing"
 
-func TestDDLWorkflow_Oracle(t *testing.T) {
+func TestDDLWorkflow_Container(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	steps := []struct {
@@ -30,8 +30,8 @@ func TestDDLWorkflow_Oracle(t *testing.T) {
 
 	for _, step := range steps {
 		t.Run(step.name, func(t *testing.T) {
-			if err := oracle.execSQL(step.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			if err := ctr.execSQL(step.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
 			results, err := c.Exec(step.sql, nil)
 			if err != nil {
@@ -45,25 +45,25 @@ func TestDDLWorkflow_Oracle(t *testing.T) {
 				return
 			}
 
-			oracleDDL, err := oracle.showCreateTable(step.check)
+			ctrDDL, err := ctr.showCreateTable(step.check)
 			if err != nil {
-				t.Fatalf("oracle show create: %v", err)
+				t.Fatalf("container show create: %v", err)
 			}
 			omniDDL := c.ShowCreateTable("test", step.check)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("SHOW CREATE TABLE mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s",
-					oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("SHOW CREATE TABLE mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
+					ctrDDL, omniDDL)
 			}
 		})
 	}
 }
 
-func TestShowCreateTable_OracleComparison(t *testing.T) {
+func TestShowCreateTable_ContainerComparison(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	cases := []struct {
@@ -80,11 +80,11 @@ func TestShowCreateTable_OracleComparison(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			oracle.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := oracle.execSQL(tc.sql); err != nil {
-				t.Fatalf("oracle exec: %v", err)
+			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
+			if err := ctr.execSQL(tc.sql); err != nil {
+				t.Fatalf("container exec: %v", err)
 			}
-			oracleDDL, _ := oracle.showCreateTable(tc.table)
+			ctrDDL, _ := ctr.showCreateTable(tc.table)
 
 			c := New()
 			c.Exec("CREATE DATABASE test", nil)
@@ -92,8 +92,8 @@ func TestShowCreateTable_OracleComparison(t *testing.T) {
 			c.Exec(tc.sql, nil)
 			omniDDL := c.ShowCreateTable("test", tc.table)
 
-			if normalizeWhitespace(oracleDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- oracle ---\n%s\n--- omni ---\n%s", oracleDDL, omniDDL)
+			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
 			}
 		})
 	}

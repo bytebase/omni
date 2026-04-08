@@ -12,8 +12,8 @@ import (
 	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
 )
 
-// mysqlOracle wraps a real MySQL 8.0 container connection for oracle testing.
-type mysqlOracle struct {
+// mysqlContainer wraps a real MySQL 8.0 container connection for container testing.
+type mysqlContainer struct {
 	db  *sql.DB
 	ctx context.Context
 }
@@ -38,9 +38,9 @@ type constraintInfo struct {
 	Name, Type string
 }
 
-// startOracle starts a MySQL 8.0 container and returns an oracle handle plus
+// startContainer starts a MySQL 8.0 container and returns an container handle plus
 // a cleanup function. The caller must defer the cleanup function.
-func startOracle(t *testing.T) (*mysqlOracle, func()) {
+func startContainer(t *testing.T) (*mysqlContainer, func()) {
 	t.Helper()
 	ctx := context.Background()
 
@@ -76,12 +76,12 @@ func startOracle(t *testing.T) (*mysqlOracle, func()) {
 		_ = testcontainers.TerminateContainer(container)
 	}
 
-	return &mysqlOracle{db: db, ctx: ctx}, cleanup
+	return &mysqlContainer{db: db, ctx: ctx}, cleanup
 }
 
 // execSQL executes one or more SQL statements separated by semicolons.
 // It respects quoted strings when splitting.
-func (o *mysqlOracle) execSQL(sqlStr string) error {
+func (o *mysqlContainer) execSQL(sqlStr string) error {
 	stmts := splitStatements(sqlStr)
 	for _, stmt := range stmts {
 		stmt = strings.TrimSpace(stmt)
@@ -97,13 +97,13 @@ func (o *mysqlOracle) execSQL(sqlStr string) error {
 
 // execSQLDirect executes a single SQL statement directly without splitting on semicolons.
 // This is needed for CREATE PROCEDURE/FUNCTION with BEGIN...END blocks.
-func (o *mysqlOracle) execSQLDirect(sqlStr string) error {
+func (o *mysqlContainer) execSQLDirect(sqlStr string) error {
 	_, err := o.db.ExecContext(o.ctx, sqlStr)
 	return err
 }
 
 // showCreateDatabase runs SHOW CREATE DATABASE and returns the CREATE DATABASE statement.
-func (o *mysqlOracle) showCreateDatabase(database string) (string, error) {
+func (o *mysqlContainer) showCreateDatabase(database string) (string, error) {
 	var dbName, createStmt string
 	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE DATABASE "+database).Scan(&dbName, &createStmt)
 	if err != nil {
@@ -113,7 +113,7 @@ func (o *mysqlOracle) showCreateDatabase(database string) (string, error) {
 }
 
 // showCreateTable runs SHOW CREATE TABLE and returns the CREATE TABLE statement.
-func (o *mysqlOracle) showCreateTable(table string) (string, error) {
+func (o *mysqlContainer) showCreateTable(table string) (string, error) {
 	var tableName, createStmt string
 	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE TABLE "+table).Scan(&tableName, &createStmt)
 	if err != nil {
@@ -123,7 +123,7 @@ func (o *mysqlOracle) showCreateTable(table string) (string, error) {
 }
 
 // showCreateFunction runs SHOW CREATE FUNCTION and returns the CREATE FUNCTION statement.
-func (o *mysqlOracle) showCreateFunction(name string) (string, error) {
+func (o *mysqlContainer) showCreateFunction(name string) (string, error) {
 	var funcName, sqlMode, createStmt, charSetClient, collConn, dbCollation string
 	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE FUNCTION "+name).Scan(
 		&funcName, &sqlMode, &createStmt, &charSetClient, &collConn, &dbCollation)
@@ -134,7 +134,7 @@ func (o *mysqlOracle) showCreateFunction(name string) (string, error) {
 }
 
 // showCreateProcedure runs SHOW CREATE PROCEDURE and returns the CREATE PROCEDURE statement.
-func (o *mysqlOracle) showCreateProcedure(name string) (string, error) {
+func (o *mysqlContainer) showCreateProcedure(name string) (string, error) {
 	var procName, sqlMode, createStmt, charSetClient, collConn, dbCollation string
 	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE PROCEDURE "+name).Scan(
 		&procName, &sqlMode, &createStmt, &charSetClient, &collConn, &dbCollation)
@@ -145,7 +145,7 @@ func (o *mysqlOracle) showCreateProcedure(name string) (string, error) {
 }
 
 // showCreateTrigger runs SHOW CREATE TRIGGER and returns the SQL Original Statement field.
-func (o *mysqlOracle) showCreateTrigger(name string) (string, error) {
+func (o *mysqlContainer) showCreateTrigger(name string) (string, error) {
 	var trigName, sqlMode, createStmt, charSetClient, collConn, dbCollation string
 	var created sql.NullString
 	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE TRIGGER "+name).Scan(
@@ -157,7 +157,7 @@ func (o *mysqlOracle) showCreateTrigger(name string) (string, error) {
 }
 
 // showCreateView runs SHOW CREATE VIEW and returns the CREATE VIEW statement.
-func (o *mysqlOracle) showCreateView(name string) (string, error) {
+func (o *mysqlContainer) showCreateView(name string) (string, error) {
 	var viewName, createStmt, charSetClient, collConn string
 	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE VIEW "+name).Scan(
 		&viewName, &createStmt, &charSetClient, &collConn)
@@ -168,7 +168,7 @@ func (o *mysqlOracle) showCreateView(name string) (string, error) {
 }
 
 // showCreateEvent runs SHOW CREATE EVENT and returns the CREATE EVENT statement.
-func (o *mysqlOracle) showCreateEvent(name string) (string, error) {
+func (o *mysqlContainer) showCreateEvent(name string) (string, error) {
 	var eventName, sqlMode, tz, createStmt, charSetClient, collConn, dbCollation string
 	err := o.db.QueryRowContext(o.ctx, "SHOW CREATE EVENT "+name).Scan(
 		&eventName, &sqlMode, &tz, &createStmt, &charSetClient, &collConn, &dbCollation)
@@ -179,7 +179,7 @@ func (o *mysqlOracle) showCreateEvent(name string) (string, error) {
 }
 
 // queryColumns queries INFORMATION_SCHEMA.COLUMNS for the given table.
-func (o *mysqlOracle) queryColumns(database, table string) ([]columnInfo, error) {
+func (o *mysqlContainer) queryColumns(database, table string) ([]columnInfo, error) {
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT COLUMN_NAME, ORDINAL_POSITION, DATA_TYPE, COLUMN_TYPE,
 		       IS_NULLABLE, COLUMN_DEFAULT, COLUMN_KEY, EXTRA,
@@ -211,7 +211,7 @@ func (o *mysqlOracle) queryColumns(database, table string) ([]columnInfo, error)
 }
 
 // queryIndexes queries INFORMATION_SCHEMA.STATISTICS for the given table.
-func (o *mysqlOracle) queryIndexes(database, table string) ([]indexInfo, error) {
+func (o *mysqlContainer) queryIndexes(database, table string) ([]indexInfo, error) {
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT INDEX_NAME, SEQ_IN_INDEX, COLUMN_NAME, COLLATION,
 		       NON_UNIQUE, INDEX_TYPE, NULLABLE
@@ -239,7 +239,7 @@ func (o *mysqlOracle) queryIndexes(database, table string) ([]indexInfo, error) 
 }
 
 // queryConstraints queries INFORMATION_SCHEMA.TABLE_CONSTRAINTS for the given table.
-func (o *mysqlOracle) queryConstraints(database, table string) ([]constraintInfo, error) {
+func (o *mysqlContainer) queryConstraints(database, table string) ([]constraintInfo, error) {
 	rows, err := o.db.QueryContext(o.ctx, `
 		SELECT CONSTRAINT_NAME, CONSTRAINT_TYPE
 		FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
@@ -306,22 +306,22 @@ func normalizeWhitespace(s string) string {
 	return strings.Join(fields, " ")
 }
 
-func TestOracleSmoke(t *testing.T) {
+func TestContainerSmoke(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
+		t.Skip("skipping container test in short mode")
 	}
 
-	oracle, cleanup := startOracle(t)
+	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
 	// Create a simple table.
-	err := oracle.execSQL("CREATE TABLE t1 (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL)")
+	err := ctr.execSQL("CREATE TABLE t1 (id INT PRIMARY KEY, name VARCHAR(100) NOT NULL)")
 	if err != nil {
 		t.Fatalf("failed to create table: %v", err)
 	}
 
 	// Verify SHOW CREATE TABLE works.
-	createStmt, err := oracle.showCreateTable("t1")
+	createStmt, err := ctr.showCreateTable("t1")
 	if err != nil {
 		t.Fatalf("SHOW CREATE TABLE failed: %v", err)
 	}
@@ -331,7 +331,7 @@ func TestOracleSmoke(t *testing.T) {
 	t.Logf("SHOW CREATE TABLE t1:\n%s", createStmt)
 
 	// Verify queryColumns works.
-	cols, err := oracle.queryColumns("test", "t1")
+	cols, err := ctr.queryColumns("test", "t1")
 	if err != nil {
 		t.Fatalf("queryColumns failed: %v", err)
 	}

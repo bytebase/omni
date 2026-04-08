@@ -416,7 +416,7 @@ The following rules are distilled from PG experience and **must be strictly foll
 | `SCENARIOS-pg-loc.md` | 137 | 98.5% | AST node position tracking |
 | `SCENARIOS-pg-diff.md` | 131 | 100% | Schema diff detection |
 | `SCENARIOS-pg-migration.md` | 120 | 98.3% | DDL migration generation |
-| `SCENARIOS-pg-oracle.md` | 110 | 90% | Real PG verification |
+| `SCENARIOS-pg-container.md` | 110 | 90% | Real PG verification |
 | `SCENARIOS-pg-sdl.md` | 82 | 100% | Declarative schema loading |
 | `SCENARIOS-pg-expr.md` | 61 | 29.5% | Expression deparsing |
 | `SCENARIOS-pg-ruleutils.md` | 52 | 0% | ruleutils alignment |
