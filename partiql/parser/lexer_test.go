@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/bytebase/omni/partiql/ast"
@@ -15,7 +14,7 @@ type tokenStreamCase struct {
 }
 
 // runTokenStreamCase drains l.Next() until tokEOF and asserts the captured
-// stream matches tc.tokens via reflect.DeepEqual. Asserts l.Err == nil.
+// stream matches tc.tokens token-by-token. Asserts l.Err == nil.
 func runTokenStreamCase(t *testing.T, tc tokenStreamCase) {
 	t.Helper()
 	l := NewLexer(tc.input)
@@ -30,15 +29,22 @@ func runTokenStreamCase(t *testing.T, tc tokenStreamCase) {
 	if l.Err != nil {
 		t.Fatalf("unexpected error: %v", l.Err)
 	}
-	if !reflect.DeepEqual(got, tc.tokens) {
-		t.Errorf("token stream mismatch\n got: %+v\nwant: %+v", got, tc.tokens)
+	if len(got) != len(tc.tokens) {
+		t.Errorf("token count mismatch: got %d tokens, want %d\n got: %+v\nwant: %+v",
+			len(got), len(tc.tokens), got, tc.tokens)
+		return
+	}
+	for i := range got {
+		if got[i] != tc.tokens[i] {
+			t.Errorf("token[%d] mismatch:\n got: %+v\nwant: %+v", i, got[i], tc.tokens[i])
+		}
 	}
 }
 
 // TestLexer_Tokens is the master golden-test table for the lexer.
 // Tasks 6-10 each append a section of cases as their scan helper lands.
 //
-// All cases assert reflect.DeepEqual on the full token slice and l.Err == nil.
+// All cases assert token-by-token equality and l.Err == nil.
 func TestLexer_Tokens(t *testing.T) {
 	cases := []tokenStreamCase{
 		// =============================================================
@@ -81,6 +87,11 @@ func TestLexer_Tokens(t *testing.T) {
 			"string_with_special_chars",
 			"'a!@#%^&*()'",
 			[]Token{{tokSCONST, "a!@#%^&*()", ast.Loc{Start: 0, End: 12}}},
+		},
+		{
+			"string_only_doubled_quotes",
+			"''''''",
+			[]Token{{tokSCONST, "''", ast.Loc{Start: 0, End: 6}}},
 		},
 
 		// =============================================================

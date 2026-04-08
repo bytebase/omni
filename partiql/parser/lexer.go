@@ -130,11 +130,7 @@ func isDigit(ch byte) bool {
 }
 
 // ============================================================================
-// STUBS — replaced by Tasks 6–10.
-//
-// These return tokEOF and set l.Err so the package builds at the end of
-// Task 5. Each subsequent task removes one stub and adds the real
-// implementation alongside its tests.
+// Scan helpers — string literals and quoted identifiers (Task 6).
 // ============================================================================
 
 // scanString scans a single-quoted PartiQL string literal and returns a
@@ -199,6 +195,14 @@ func (l *Lexer) scanQuotedIdent() Token {
 	l.Err = fmt.Errorf("unterminated quoted identifier at position %d", l.start)
 	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
 }
+
+// ============================================================================
+// Remaining stubs — replaced by Tasks 7-10.
+//
+// These return tokEOF and set l.Err so the package builds. Each subsequent
+// task removes one stub and adds the real implementation alongside its
+// tests. Task 6 already replaced scanString and scanQuotedIdent.
+// ============================================================================
 
 func (l *Lexer) scanIdentOrKeyword() Token {
 	l.Err = fmt.Errorf("scanIdentOrKeyword not yet implemented (stub from Task 5)")
