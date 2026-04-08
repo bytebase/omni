@@ -393,6 +393,16 @@ func TestLexer_Tokens(t *testing.T) {
 			"`  abc  `",
 			[]Token{{tokION_LITERAL, "  abc  ", ast.Loc{Start: 0, End: 9}}},
 		},
+		// Pins the simplified scanner's behavior on Ion content containing
+		// a single quote. Once Ion-mode-aware scanning lands (DAG node 17),
+		// this case will continue to pass — the inner ' characters are not
+		// the literal terminator. Documents the current behavior in
+		// executable form for the future refactor.
+		{
+			"ion_with_single_quote_known_limitation",
+			"`'hello'`",
+			[]Token{{tokION_LITERAL, "'hello'", ast.Loc{Start: 0, End: 9}}},
+		},
 	}
 
 	for _, tc := range cases {

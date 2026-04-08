@@ -29,6 +29,9 @@ func NewLexer(input string) *Lexer {
 // At end of input or after a lex error, returns Token{Type: tokEOF, ...}.
 // After Err is set, all subsequent calls return tokEOF.
 func (l *Lexer) Next() Token {
+	// EOF tokens use l.pos for both Start and End: no token is under
+	// construction yet, so l.start may still reflect the previous call.
+	// Scan helpers use l.loc() for the {l.start, l.pos} range instead.
 	if l.Err != nil {
 		return Token{Type: tokEOF, Loc: ast.Loc{Start: l.pos, End: l.pos}}
 	}
@@ -130,6 +133,17 @@ func isDigit(ch byte) bool {
 }
 
 // ============================================================================
+// Token location helper.
+// ============================================================================
+
+// loc returns an ast.Loc covering the byte range [l.start, l.pos).
+// This is the standard "current token" range used by every scan helper
+// when constructing the returned Token.
+func (l *Lexer) loc() ast.Loc {
+	return ast.Loc{Start: l.start, End: l.pos}
+}
+
+// ============================================================================
 // Scan helpers (Tasks 6-10).
 // ============================================================================
 
@@ -154,7 +168,7 @@ func (l *Lexer) scanString() Token {
 			}
 			// Single closing apostrophe — end of the literal.
 			l.pos++
-			return Token{Type: tokSCONST, Str: buf.String(), Loc: ast.Loc{Start: l.start, End: l.pos}}
+			return Token{Type: tokSCONST, Str: buf.String(), Loc: l.loc()}
 		}
 		buf.WriteByte(ch)
 		l.pos++
@@ -186,7 +200,7 @@ func (l *Lexer) scanQuotedIdent() Token {
 			}
 			// Single closing double-quote — end of the identifier.
 			l.pos++
-			return Token{Type: tokIDENT_QUOTED, Str: buf.String(), Loc: ast.Loc{Start: l.start, End: l.pos}}
+			return Token{Type: tokIDENT_QUOTED, Str: buf.String(), Loc: l.loc()}
 		}
 		buf.WriteByte(ch)
 		l.pos++
@@ -217,13 +231,13 @@ func (l *Lexer) scanIdentOrKeyword() Token {
 		return Token{
 			Type: tt,
 			Str:  raw,
-			Loc:  ast.Loc{Start: l.start, End: l.pos},
+			Loc:  l.loc(),
 		}
 	}
 	return Token{
 		Type: tokIDENT,
 		Str:  raw,
-		Loc:  ast.Loc{Start: l.start, End: l.pos},
+		Loc:  l.loc(),
 	}
 }
 
@@ -285,7 +299,7 @@ func (l *Lexer) scanNumber() Token {
 	return Token{
 		Type: tt,
 		Str:  l.input[l.start:l.pos],
-		Loc:  ast.Loc{Start: l.start, End: l.pos},
+		Loc:  l.loc(),
 	}
 }
 
@@ -303,74 +317,74 @@ func (l *Lexer) scanOperator() Token {
 		switch {
 		case ch == '<' && next == '=':
 			l.pos++
-			return Token{Type: tokLT_EQ, Str: "<=", Loc: ast.Loc{Start: l.start, End: l.pos}}
+			return Token{Type: tokLT_EQ, Str: "<=", Loc: l.loc()}
 		case ch == '<' && next == '>':
 			l.pos++
-			return Token{Type: tokNEQ, Str: "<>", Loc: ast.Loc{Start: l.start, End: l.pos}}
+			return Token{Type: tokNEQ, Str: "<>", Loc: l.loc()}
 		case ch == '<' && next == '<':
 			l.pos++
-			return Token{Type: tokANGLE_DOUBLE_LEFT, Str: "<<", Loc: ast.Loc{Start: l.start, End: l.pos}}
+			return Token{Type: tokANGLE_DOUBLE_LEFT, Str: "<<", Loc: l.loc()}
 		case ch == '>' && next == '=':
 			l.pos++
-			return Token{Type: tokGT_EQ, Str: ">=", Loc: ast.Loc{Start: l.start, End: l.pos}}
+			return Token{Type: tokGT_EQ, Str: ">=", Loc: l.loc()}
 		case ch == '>' && next == '>':
 			l.pos++
-			return Token{Type: tokANGLE_DOUBLE_RIGHT, Str: ">>", Loc: ast.Loc{Start: l.start, End: l.pos}}
+			return Token{Type: tokANGLE_DOUBLE_RIGHT, Str: ">>", Loc: l.loc()}
 		case ch == '|' && next == '|':
 			l.pos++
-			return Token{Type: tokCONCAT, Str: "||", Loc: ast.Loc{Start: l.start, End: l.pos}}
+			return Token{Type: tokCONCAT, Str: "||", Loc: l.loc()}
 		case ch == '!' && next == '=':
 			l.pos++
-			return Token{Type: tokNEQ, Str: "!=", Loc: ast.Loc{Start: l.start, End: l.pos}}
+			return Token{Type: tokNEQ, Str: "!=", Loc: l.loc()}
 		}
 	}
 
 	// Single-character operators / punctuation.
 	switch ch {
 	case '+':
-		return Token{Type: tokPLUS, Str: "+", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokPLUS, Str: "+", Loc: l.loc()}
 	case '-':
-		return Token{Type: tokMINUS, Str: "-", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokMINUS, Str: "-", Loc: l.loc()}
 	case '*':
-		return Token{Type: tokASTERISK, Str: "*", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokASTERISK, Str: "*", Loc: l.loc()}
 	case '/':
-		return Token{Type: tokSLASH_FORWARD, Str: "/", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokSLASH_FORWARD, Str: "/", Loc: l.loc()}
 	case '%':
-		return Token{Type: tokPERCENT, Str: "%", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokPERCENT, Str: "%", Loc: l.loc()}
 	case '^':
-		return Token{Type: tokCARET, Str: "^", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokCARET, Str: "^", Loc: l.loc()}
 	case '~':
-		return Token{Type: tokTILDE, Str: "~", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokTILDE, Str: "~", Loc: l.loc()}
 	case '@':
-		return Token{Type: tokAT_SIGN, Str: "@", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokAT_SIGN, Str: "@", Loc: l.loc()}
 	case '=':
-		return Token{Type: tokEQ, Str: "=", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokEQ, Str: "=", Loc: l.loc()}
 	case '<':
-		return Token{Type: tokLT, Str: "<", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokLT, Str: "<", Loc: l.loc()}
 	case '>':
-		return Token{Type: tokGT, Str: ">", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokGT, Str: ">", Loc: l.loc()}
 	case '(':
-		return Token{Type: tokPAREN_LEFT, Str: "(", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokPAREN_LEFT, Str: "(", Loc: l.loc()}
 	case ')':
-		return Token{Type: tokPAREN_RIGHT, Str: ")", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokPAREN_RIGHT, Str: ")", Loc: l.loc()}
 	case '[':
-		return Token{Type: tokBRACKET_LEFT, Str: "[", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokBRACKET_LEFT, Str: "[", Loc: l.loc()}
 	case ']':
-		return Token{Type: tokBRACKET_RIGHT, Str: "]", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokBRACKET_RIGHT, Str: "]", Loc: l.loc()}
 	case '{':
-		return Token{Type: tokBRACE_LEFT, Str: "{", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokBRACE_LEFT, Str: "{", Loc: l.loc()}
 	case '}':
-		return Token{Type: tokBRACE_RIGHT, Str: "}", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokBRACE_RIGHT, Str: "}", Loc: l.loc()}
 	case ':':
-		return Token{Type: tokCOLON, Str: ":", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokCOLON, Str: ":", Loc: l.loc()}
 	case ';':
-		return Token{Type: tokCOLON_SEMI, Str: ";", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokCOLON_SEMI, Str: ";", Loc: l.loc()}
 	case ',':
-		return Token{Type: tokCOMMA, Str: ",", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokCOMMA, Str: ",", Loc: l.loc()}
 	case '.':
-		return Token{Type: tokPERIOD, Str: ".", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokPERIOD, Str: ".", Loc: l.loc()}
 	case '?':
-		return Token{Type: tokQUESTION_MARK, Str: "?", Loc: ast.Loc{Start: l.start, End: l.pos}}
+		return Token{Type: tokQUESTION_MARK, Str: "?", Loc: l.loc()}
 	}
 
 	l.Err = fmt.Errorf("unexpected character %q at position %d", ch, l.start)
@@ -405,7 +419,7 @@ func (l *Lexer) scanIonLiteral() Token {
 			return Token{
 				Type: tokION_LITERAL,
 				Str:  content,
-				Loc:  ast.Loc{Start: l.start, End: l.pos},
+				Loc:  l.loc(),
 			}
 		}
 		l.pos++
