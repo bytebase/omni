@@ -86,6 +86,19 @@ var _ StmtNode = (*DropTableStmt)(nil)
 var _ StmtNode = (*DropIndexStmt)(nil)
 var _ StmtNode = (*ExecStmt)(nil)
 
+// Clause and DML helpers (stmts.go).
+var _ Node = (*TargetEntry)(nil)
+var _ Node = (*PivotProjection)(nil)
+var _ Node = (*LetBinding)(nil)
+var _ Node = (*GroupByClause)(nil)
+var _ Node = (*GroupByItem)(nil)
+var _ Node = (*OrderByItem)(nil)
+var _ Node = (*SetAssignment)(nil)
+var _ Node = (*OnConflict)(nil)
+var _ Node = (*OnConflictTarget)(nil)
+var _ Node = (*ReturningClause)(nil)
+var _ Node = (*ReturningItem)(nil)
+
 // ---------------------------------------------------------------------------
 // TestGetLoc — table-driven Loc round-trip.
 //
@@ -154,6 +167,17 @@ func TestGetLoc(t *testing.T) {
 		{"DropTableStmt", &DropTableStmt{Loc: Loc{Start: 10, End: 20}}},
 		{"DropIndexStmt", &DropIndexStmt{Loc: Loc{Start: 10, End: 20}}},
 		{"ExecStmt", &ExecStmt{Loc: Loc{Start: 10, End: 20}}},
+		{"TargetEntry", &TargetEntry{Loc: Loc{Start: 10, End: 20}}},
+		{"PivotProjection", &PivotProjection{Loc: Loc{Start: 10, End: 20}}},
+		{"LetBinding", &LetBinding{Loc: Loc{Start: 10, End: 20}}},
+		{"GroupByClause", &GroupByClause{Loc: Loc{Start: 10, End: 20}}},
+		{"GroupByItem", &GroupByItem{Loc: Loc{Start: 10, End: 20}}},
+		{"OrderByItem", &OrderByItem{Loc: Loc{Start: 10, End: 20}}},
+		{"SetAssignment", &SetAssignment{Loc: Loc{Start: 10, End: 20}}},
+		{"OnConflict", &OnConflict{Loc: Loc{Start: 10, End: 20}}},
+		{"OnConflictTarget", &OnConflictTarget{Loc: Loc{Start: 10, End: 20}}},
+		{"ReturningClause", &ReturningClause{Loc: Loc{Start: 10, End: 20}}},
+		{"ReturningItem", &ReturningItem{Loc: Loc{Start: 10, End: 20}}},
 	}
 
 	for _, tc := range cases {

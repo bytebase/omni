@@ -376,20 +376,83 @@ func (*ExecStmt) nodeTag()      {}
 func (n *ExecStmt) GetLoc() Loc { return n.Loc }
 func (*ExecStmt) stmtNode()     {}
 
-// ---------------------------------------------------------------------------
-// PLACEHOLDERS — replaced in Task 9.
+// ===========================================================================
+// SELECT clause helpers — bare Node (no sub-interface marker).
 //
-// These are forward-declared minimal stubs so the package builds at the
-// end of Task 8 even though the real types live in the next task. Each
-// stub is a bare struct with the Loc field plus the methods Node requires.
-// Task 9 deletes this entire block and replaces it with the full type
-// definitions of the clause helpers and DML helpers.
-//
-// IMPORTANT: This block also INCLUDES the OrderByItem placeholder
-// originally added in Task 4 — DO NOT remove it during the wholesale
-// stmts.go rewrite, or exprs.go (WindowSpec.OrderBy) will fail to build.
-// ---------------------------------------------------------------------------
+// These types appear only as fields/elements inside SelectStmt and never
+// stand alone in scalar/statement/table-expr position, so they don't need
+// a sub-interface marker.
+// ===========================================================================
 
+// TargetEntry represents one item in a SELECT projection list:
+// `expr [AS alias]`.
+//
+// Grammar: projectionItem
+type TargetEntry struct {
+	Expr  ExprNode
+	Alias *string
+	Loc   Loc
+}
+
+func (*TargetEntry) nodeTag()      {}
+func (n *TargetEntry) GetLoc() Loc { return n.Loc }
+
+// PivotProjection represents the body of a `PIVOT v AT k` projection.
+// Used as SelectStmt.Pivot. PartiQL-unique.
+//
+// Grammar: selectClause#SelectPivot
+type PivotProjection struct {
+	Value ExprNode
+	At    ExprNode
+	Loc   Loc
+}
+
+func (*PivotProjection) nodeTag()      {}
+func (n *PivotProjection) GetLoc() Loc { return n.Loc }
+
+// LetBinding represents one `expr AS alias` binding inside a LET clause.
+// PartiQL-unique.
+//
+// Grammar: letBinding
+type LetBinding struct {
+	Expr  ExprNode
+	Alias string
+	Loc   Loc
+}
+
+func (*LetBinding) nodeTag()      {}
+func (n *LetBinding) GetLoc() Loc { return n.Loc }
+
+// GroupByClause represents `GROUP [PARTIAL] BY items [GROUP AS alias]`.
+//
+// Grammar: groupClause
+type GroupByClause struct {
+	Partial bool
+	Items   []*GroupByItem
+	GroupAs *string
+	Loc     Loc
+}
+
+func (*GroupByClause) nodeTag()      {}
+func (n *GroupByClause) GetLoc() Loc { return n.Loc }
+
+// GroupByItem represents one `expr [AS alias]` item in a GROUP BY list.
+//
+// Grammar: groupKey
+type GroupByItem struct {
+	Expr  ExprNode
+	Alias *string
+	Loc   Loc
+}
+
+func (*GroupByItem) nodeTag()      {}
+func (n *GroupByItem) GetLoc() Loc { return n.Loc }
+
+// OrderByItem represents one `expr [ASC|DESC] [NULLS FIRST|LAST]` item
+// in an ORDER BY list. NullsExplicit is true when the source text included
+// a NULLS clause; NullsFirst is the resulting setting when it did.
+//
+// Grammar: orderSortSpec
 type OrderByItem struct {
 	Expr          ExprNode
 	Desc          bool
@@ -401,52 +464,14 @@ type OrderByItem struct {
 func (*OrderByItem) nodeTag()      {}
 func (n *OrderByItem) GetLoc() Loc { return n.Loc }
 
-type TargetEntry struct {
-	Expr  ExprNode
-	Alias *string
-	Loc   Loc
-}
+// ===========================================================================
+// DML helpers — bare Node.
+// ===========================================================================
 
-func (*TargetEntry) nodeTag()      {}
-func (n *TargetEntry) GetLoc() Loc { return n.Loc }
-
-type PivotProjection struct {
-	Value ExprNode
-	At    ExprNode
-	Loc   Loc
-}
-
-func (*PivotProjection) nodeTag()      {}
-func (n *PivotProjection) GetLoc() Loc { return n.Loc }
-
-type LetBinding struct {
-	Expr  ExprNode
-	Alias string
-	Loc   Loc
-}
-
-func (*LetBinding) nodeTag()      {}
-func (n *LetBinding) GetLoc() Loc { return n.Loc }
-
-type GroupByClause struct {
-	Partial bool
-	Items   []*GroupByItem
-	GroupAs *string
-	Loc     Loc
-}
-
-func (*GroupByClause) nodeTag()      {}
-func (n *GroupByClause) GetLoc() Loc { return n.Loc }
-
-type GroupByItem struct {
-	Expr  ExprNode
-	Alias *string
-	Loc   Loc
-}
-
-func (*GroupByItem) nodeTag()      {}
-func (n *GroupByItem) GetLoc() Loc { return n.Loc }
-
+// SetAssignment represents one `target = value` assignment in an UPDATE
+// SET clause (or in a chained-DML SET op).
+//
+// Grammar: setAssignment
 type SetAssignment struct {
 	Target *PathExpr
 	Value  ExprNode
@@ -456,6 +481,10 @@ type SetAssignment struct {
 func (*SetAssignment) nodeTag()      {}
 func (n *SetAssignment) GetLoc() Loc { return n.Loc }
 
+// OnConflict represents the body of an ON CONFLICT clause:
+// `ON CONFLICT [target] [WHERE expr] action`.
+//
+// Grammar: onConflictClause#OnConflict, onConflictClause#OnConflictLegacy
 type OnConflict struct {
 	Target *OnConflictTarget
 	Action OnConflictAction
@@ -466,6 +495,11 @@ type OnConflict struct {
 func (*OnConflict) nodeTag()      {}
 func (n *OnConflict) GetLoc() Loc { return n.Loc }
 
+// OnConflictTarget represents the target of an ON CONFLICT clause —
+// either a list of column references `(col, col, ...)` or
+// `ON CONSTRAINT name`. Exactly one of Cols/ConstraintName is set.
+//
+// Grammar: conflictTarget
 type OnConflictTarget struct {
 	Cols           []*VarRef
 	ConstraintName string
@@ -475,6 +509,9 @@ type OnConflictTarget struct {
 func (*OnConflictTarget) nodeTag()      {}
 func (n *OnConflictTarget) GetLoc() Loc { return n.Loc }
 
+// ReturningClause represents `RETURNING item, item, …`.
+//
+// Grammar: returningClause
 type ReturningClause struct {
 	Items []*ReturningItem
 	Loc   Loc
@@ -483,6 +520,11 @@ type ReturningClause struct {
 func (*ReturningClause) nodeTag()      {}
 func (n *ReturningClause) GetLoc() Loc { return n.Loc }
 
+// ReturningItem represents one `(MODIFIED|ALL) (OLD|NEW) (* | expr)` entry
+// in a RETURNING clause. Star is true for the `*` form; otherwise Expr
+// holds the projection expression.
+//
+// Grammar: returningColumn
 type ReturningItem struct {
 	Status  ReturningStatus
 	Mapping ReturningMapping
