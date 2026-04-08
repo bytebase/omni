@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/bytebase/omni/partiql/ast"
@@ -410,4 +412,66 @@ func TestLexer_Tokens(t *testing.T) {
 			runTokenStreamCase(t, tc)
 		})
 	}
+}
+
+// TestLexer_AWSCorpus loads every .partiql file from
+// partiql/parser/testdata/aws-corpus/, filters out the 2 known-bad
+// syntax-skeleton files, and asserts each one lexes to a non-error
+// token stream ending with tokEOF. Catches "does the lexer tokenize
+// at all" regressions on real AWS DynamoDB PartiQL examples.
+//
+// Skipped files:
+//   - select-001.partiql: SELECT syntax skeleton with bracket placeholders
+//   - insert-002.partiql: INSERT syntax skeleton with backtick placeholder
+//
+// Both are flagged in testdata/aws-corpus/index.json as not-real-PartiQL.
+// The skip list is hard-coded here for clarity.
+func TestLexer_AWSCorpus(t *testing.T) {
+	skip := map[string]bool{
+		"select-001.partiql": true,
+		"insert-002.partiql": true,
+	}
+
+	files, err := filepath.Glob("testdata/aws-corpus/*.partiql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) == 0 {
+		t.Fatal("no corpus files found — testdata/aws-corpus/ missing or empty?")
+	}
+
+	var lexed, skipped int
+	for _, f := range files {
+		name := filepath.Base(f)
+		if skip[name] {
+			skipped++
+			continue
+		}
+		t.Run(name, func(t *testing.T) {
+			data, err := os.ReadFile(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			l := NewLexer(string(data))
+			tokens := 0
+			for {
+				tok := l.Next()
+				if tok.Type == tokEOF {
+					break
+				}
+				tokens++
+				if tokens > 100000 {
+					t.Fatalf("token stream did not terminate after %d tokens", tokens)
+				}
+			}
+			if l.Err != nil {
+				t.Errorf("lexer error: %v", l.Err)
+			}
+			if tokens == 0 {
+				t.Errorf("lexed to zero tokens")
+			}
+		})
+		lexed++
+	}
+	t.Logf("AWS corpus: %d files lexed, %d skipped", lexed, skipped)
 }
