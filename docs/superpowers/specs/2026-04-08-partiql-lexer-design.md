@@ -81,6 +81,8 @@ The `scanIonLiteral` helper does a byte-to-byte scan from `` ` `` to the next ``
 
 ## Token type taxonomy
 
+**Approximate total:** 240–250 token constants (2 specials + 6 literals + 28 operators + ~210 keywords). The exact count is pinned by the implementation plan after enumerating `PartiQLLexer.g4` line by line.
+
 ### File: `token.go`
 
 ```go
@@ -143,14 +145,14 @@ const (
     tokQUESTION_MARK            // ?
 )
 
-// ===== Keyword tokens — group 3000 (~200 entries, alphabetical) =====
+// ===== Keyword tokens — group 3000 (~210 entries, alphabetical) =====
 const (
     tokABSOLUTE = iota + 3000
     tokACTION
     tokADD
     tokALL
     tokALLOCATE
-    // ... 195+ more, one per uppercase keyword rule in PartiQLLexer.g4 lines 13–295
+    // ... ~205 more, one per uppercase keyword rule in PartiQLLexer.g4 lines 13–295
     // Including window keywords (LAG, LEAD, OVER, PARTITION),
     // PartiQL extension keywords (CAN_CAST, CAN_LOSSLESS_CAST, MISSING, PIVOT, UNPIVOT,
     // LIMIT, OFFSET, REMOVE, INDEX, LET, CONFLICT, DO, RETURNING, MODIFIED, NEW, OLD, NOTHING),
@@ -173,7 +175,7 @@ func tokenName(t int) string {
 }
 ```
 
-**Total token constants:** approximately 227 (2 specials + 6 literals + 28 operators + ~200 keywords). Exact count is determined during implementation by enumerating `PartiQLLexer.g4` keyword rules; documented in the implementation plan.
+**Total token constants:** approximately 240–250 (2 specials + 6 literals + 28 operators + ~210 keywords). Exact count is determined during implementation by enumerating `PartiQLLexer.g4` keyword rules; pinned in the implementation plan.
 
 ### File: `keywords.go`
 
@@ -490,7 +492,7 @@ The exact `expectedKeywordCount` is set during implementation by counting `tok*`
 The `lexer` DAG node is **done** when:
 
 1. Three source files exist: `partiql/parser/token.go`, `partiql/parser/keywords.go`, `partiql/parser/lexer.go` (plus `partiql/parser/lexer_test.go`)
-2. ~227 unexported `tok*` constants defined across the 4 iota groups (specials at 0/1, literals at 1000+, operators at 2000+, keywords at 3000+) — exact count documented in the implementation plan and asserted by `TestKeywords_LenMatchesConstants`
+2. ~240–250 unexported `tok*` constants defined across the 4 iota groups (specials at 0/1, literals at 1000+, operators at 2000+, keywords at 3000+) — exact count pinned in the implementation plan and asserted by `TestKeywords_LenMatchesConstants`
 3. `tokenName(int) string` returns a non-empty canonical name for every constant — verified by `TestTokenName_AllCovered`
 4. `keywords` map has one entry per `tok*` keyword constant — verified by `TestKeywords_LenMatchesConstants`
 5. `Lexer.Next()` produces correct tokens for every test case in `TestLexer_Tokens` (~55 cases)
