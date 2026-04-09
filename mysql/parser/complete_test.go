@@ -2,6 +2,8 @@ package parser
 
 import (
 	"testing"
+
+	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
 func TestCollect_1_2_EmptyInput(t *testing.T) {
@@ -560,25 +562,55 @@ func TestCollectInsertEmptyParens(t *testing.T) {
 
 func TestParseDerivedTableColumnAlias(t *testing.T) {
 	sql := "SELECT * FROM (SELECT c1, c2 FROM t1) AS dt(a, b)"
-	_, err := Parse(sql)
+	list, err := Parse(sql)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
+	}
+	if len(list.Items) == 0 {
+		t.Fatal("no statements parsed")
+	}
+	sel := list.Items[0].(*nodes.SelectStmt)
+	sub := sel.From[0].(*nodes.SubqueryExpr)
+	if sub.Alias != "dt" {
+		t.Errorf("expected alias 'dt', got %q", sub.Alias)
+	}
+	if len(sub.Columns) != 2 || sub.Columns[0] != "a" || sub.Columns[1] != "b" {
+		t.Errorf("expected columns [a b], got %v", sub.Columns)
 	}
 }
 
 func TestParseDerivedTableColumnAliasSingle(t *testing.T) {
 	sql := "SELECT * FROM (SELECT 1) AS t(x)"
-	_, err := Parse(sql)
+	list, err := Parse(sql)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
+	}
+	sel := list.Items[0].(*nodes.SelectStmt)
+	sub := sel.From[0].(*nodes.SubqueryExpr)
+	if sub.Alias != "t" {
+		t.Errorf("expected alias 't', got %q", sub.Alias)
+	}
+	if len(sub.Columns) != 1 || sub.Columns[0] != "x" {
+		t.Errorf("expected columns [x], got %v", sub.Columns)
 	}
 }
 
 func TestParseLateralDerivedColumnAlias(t *testing.T) {
 	sql := "SELECT * FROM t1, LATERAL (SELECT c1 FROM t2) AS dt(a)"
-	_, err := Parse(sql)
+	list, err := Parse(sql)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
+	}
+	sel := list.Items[0].(*nodes.SelectStmt)
+	sub := sel.From[1].(*nodes.SubqueryExpr)
+	if !sub.Lateral {
+		t.Error("expected Lateral=true")
+	}
+	if sub.Alias != "dt" {
+		t.Errorf("expected alias 'dt', got %q", sub.Alias)
+	}
+	if len(sub.Columns) != 1 || sub.Columns[0] != "a" {
+		t.Errorf("expected columns [a], got %v", sub.Columns)
 	}
 }
 
