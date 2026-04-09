@@ -591,6 +591,88 @@ func TestCollectAfterSchemaDot(t *testing.T) {
 	}
 }
 
+// --- Function empty args ---
+
+func TestCollectFuncEmptyArgs(t *testing.T) {
+	// "SELECT COUNT(|) FROM t" — cursor inside empty function args
+	cs := Collect("SELECT COUNT() FROM t", 13)
+	if cs == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	if !cs.HasRule("columnref") {
+		t.Error("expected columnref inside empty function args")
+	}
+}
+
+// --- DELETE FROM dot ---
+
+func TestCollectDeleteFromDot(t *testing.T) {
+	// "DELETE FROM db.|" — cursor after schema dot
+	cs := Collect("DELETE FROM db.", 15)
+	if cs == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	if !cs.HasRule("table_ref") {
+		t.Error("expected table_ref after DELETE FROM db.")
+	}
+}
+
+// --- FK column lists ---
+
+func TestCollectForeignKeyCols(t *testing.T) {
+	// FOREIGN KEY (|) — cursor inside FK column list
+	sql := "CREATE TABLE t (a INT, FOREIGN KEY () REFERENCES t2(c1))"
+	cs := Collect(sql, 36)
+	if cs == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	if !cs.HasRule("columnref") {
+		t.Error("expected columnref inside FK column list")
+	}
+}
+
+func TestCollectReferencesCols(t *testing.T) {
+	// REFERENCES t2(|) — cursor inside REFERENCES column list
+	sql := "CREATE TABLE t (a INT, FOREIGN KEY (a) REFERENCES t2())"
+	cs := Collect(sql, 53)
+	if cs == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	if !cs.HasRule("columnref") {
+		t.Error("expected columnref inside REFERENCES column list")
+	}
+}
+
+// --- Lexer dot+keyword adjacency ---
+
+func TestLexerDotKeywordAdjacent(t *testing.T) {
+	// "a.from" — dot adjacent, "from" should be IDENT
+	tokens := Tokenize("a.from")
+	if len(tokens) != 3 || tokens[2].Type != tokIDENT {
+		t.Errorf("expected 'from' as IDENT after adjacent dot, got tokens=%v", tokens)
+	}
+}
+
+func TestLexerDotKeywordWithSpace(t *testing.T) {
+	// "a. from" — dot has whitespace, "from" should be kwFROM
+	tokens := Tokenize("a. from")
+	if len(tokens) != 3 || tokens[2].Type != kwFROM {
+		t.Errorf("expected 'from' as kwFROM after spaced dot, got tokens=%v", tokens)
+	}
+}
+
+func TestCollectAfterDotWithKeyword(t *testing.T) {
+	// "SELECT t. FROM x" — cursor after dot, before space+FROM keyword
+	// Should still offer columnref (the FROM is the FROM clause keyword)
+	cs := Collect("SELECT t. FROM x", 9)
+	if cs == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	if !cs.HasRule("columnref") {
+		t.Error("expected columnref after t. when next non-whitespace is FROM keyword")
+	}
+}
+
 // --- INSERT empty parens ---
 
 func TestCollectInsertEmptyParens(t *testing.T) {

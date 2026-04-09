@@ -373,6 +373,12 @@ func (p *Parser) parseDeleteTableName() (*nodes.TableRef, error) {
 		}
 		// schema.table or schema.table.*
 		p.advance() // consume '.'
+		// Completion: after "db.", offer table_ref.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			return nil, &ParseError{Message: "collecting"}
+		}
 		name2, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err

@@ -665,7 +665,7 @@ func (p *Parser) parseReferenceDefinition(start int) (*nodes.ColumnConstraint, e
 
 	// Optional column list
 	if p.cur.Type == '(' {
-		cols, err := p.parseParenIdentList()
+		cols, err := p.parseParenIdentListWithCompletion("columnref")
 		if err != nil {
 			return nil, err
 		}
@@ -888,7 +888,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		if p.isIdentToken() && p.cur.Type != '(' {
 			constr.Name, _, _ = p.parseIdent()
 		}
-		cols, err := p.parseParenIdentList()
+		cols, err := p.parseParenIdentListWithCompletion("columnref")
 		if err != nil {
 			return nil, err
 		}
@@ -908,7 +908,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 			}
 			constr.RefTable = ref
 			if p.cur.Type == '(' {
-				refCols, err := p.parseParenIdentList()
+				refCols, err := p.parseParenIdentListWithCompletion("columnref")
 				if err != nil {
 					return nil, err
 				}

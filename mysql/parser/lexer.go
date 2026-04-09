@@ -1663,11 +1663,12 @@ type Token struct {
 
 // Lexer implements a MySQL SQL lexer.
 type Lexer struct {
-	input      string
-	pos        int
-	start      int
-	prevToken  int // type of the previously emitted token
-	baseOffset int // added to all token Loc values for absolute positioning
+	input        string
+	pos          int
+	start        int
+	prevToken    int // type of the previously emitted token
+	prevTokenEnd int // end position of the previously emitted token (for adjacency checks)
+	baseOffset   int // added to all token Loc values for absolute positioning
 }
 
 // NewLexer creates a new MySQL lexer for the given input.
@@ -1687,6 +1688,7 @@ func (l *Lexer) NextToken() Token {
 	tok.End = l.pos + l.baseOffset // set end position before returning
 	tok.Loc += l.baseOffset        // apply base offset for absolute positioning
 	l.prevToken = tok.Type
+	l.prevTokenEnd = l.pos // local position (without baseOffset) for adjacency checks
 	return tok
 }
 
@@ -2071,9 +2073,12 @@ func (l *Lexer) scanIdentOrKeyword() Token {
 	}
 	word := l.input[start:l.pos]
 
-	// After '.', suppress keyword lookup — MySQL treats any word after dot as
-	// a plain identifier (sql_lex.cc MY_LEX_IDENT_START state).
-	if l.prevToken == '.' {
+	// After '.' (with no whitespace between), suppress keyword lookup — MySQL
+	// treats any word adjacent to a dot as a plain identifier (sql_lex.cc
+	// MY_LEX_IDENT_START state). When whitespace separates the dot and the
+	// word, the parser still accepts non-reserved keywords as identifiers via
+	// parseIdent(), so we don't need to force tokIDENT here.
+	if l.prevToken == '.' && l.prevTokenEnd == start {
 		return Token{Type: tokIDENT, Str: word, Loc: start}
 	}
 

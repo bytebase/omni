@@ -600,6 +600,15 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		return p.parseGroupConcatFunc(fc)
 	}
 
+	// Completion: at the start of the function argument list (including
+	// empty parens), offer columnref/func_name candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	// Empty argument list
 	if p.cur.Type == ')' {
 		p.advance()

@@ -1857,12 +1857,28 @@ func (p *Parser) parseSetOpWithPrecedence(left *nodes.SelectStmt, minPrec int) (
 
 // parseParenIdentList parses a parenthesized comma-separated list of identifiers.
 func (p *Parser) parseParenIdentList() ([]string, error) {
+	return p.parseParenIdentListWithCompletion("")
+}
+
+// parseParenIdentListWithCompletion is like parseParenIdentList but emits the
+// given completion rule (e.g. "columnref") at each identifier position. Pass ""
+// to disable completion candidate emission.
+func (p *Parser) parseParenIdentListWithCompletion(completionRule string) ([]string, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
 
 	var names []string
 	for {
+		// Completion: at each identifier position (including empty parens).
+		if completionRule != "" {
+			p.checkCursor()
+			if p.collectMode() {
+				p.addRuleCandidate(completionRule)
+				return nil, &ParseError{Message: "collecting"}
+			}
+		}
+
 		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
