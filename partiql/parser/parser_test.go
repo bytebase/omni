@@ -363,3 +363,38 @@ func TestParser_Goldens(t *testing.T) {
 		})
 	}
 }
+
+// TestParser_Stubs_Task9 locks in the deferred-feature error messages
+// for SELECT and UNION — the two stubs added in Task 9. Later tasks
+// will add more stub error cases and Task 12 consolidates them all
+// into TestParser_Errors.
+func TestParser_Stubs_Task9(t *testing.T) {
+	cases := []struct {
+		name      string
+		input     string
+		wantErrIn string
+	}{
+		{
+			name:      "select_stub",
+			input:     "SELECT * FROM t",
+			wantErrIn: "SELECT is deferred to parser-select (DAG node 5)",
+		},
+		{
+			name:      "union_stub",
+			input:     "a UNION b",
+			wantErrIn: "UNION is deferred to parser-select (DAG node 5)",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewParser(tc.input)
+			_, err := p.ParseExpr()
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.wantErrIn) {
+				t.Errorf("error = %q, want to contain %q", err.Error(), tc.wantErrIn)
+			}
+		})
+	}
+}

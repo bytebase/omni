@@ -450,3 +450,47 @@ func (p *Parser) parseNot() (ast.ExprNode, error) {
 	}
 	return p.parsePredicate()
 }
+
+// parseBagOp handles UNION/INTERSECT/EXCEPT at the top of the
+// precedence ladder. Foundation stubs this — if the caller's input
+// contains UNION, INTERSECT, or EXCEPT after the first selectExpr,
+// the parser returns a deferred-feature error pointing at
+// parser-select (DAG node 5).
+//
+// Node 5 will replace this body with real left-associative
+// parseSelectExpr-combining logic.
+//
+// Grammar: exprBagOp (lines 449-454).
+func (p *Parser) parseBagOp() (ast.ExprNode, error) {
+	left, err := p.parseSelectExpr()
+	if err != nil {
+		return nil, err
+	}
+	// If we see a bag-op keyword after the first selectExpr, stub.
+	if p.cur.Type == tokUNION {
+		return nil, p.deferredFeature("UNION", "parser-select (DAG node 5)")
+	}
+	if p.cur.Type == tokINTERSECT {
+		return nil, p.deferredFeature("INTERSECT", "parser-select (DAG node 5)")
+	}
+	if p.cur.Type == tokEXCEPT {
+		return nil, p.deferredFeature("EXCEPT", "parser-select (DAG node 5)")
+	}
+	return left, nil
+}
+
+// parseSelectExpr handles the SELECT-shaped query (SfwQuery form) and
+// otherwise delegates to parseOr. Foundation stubs SELECT — if the
+// first token is SELECT, the parser returns a deferred-feature error.
+//
+// Node 5 will replace the SELECT-detection branch with real SFW query
+// parsing that produces ast.SelectStmt (via ast.StmtNode wrapped in a
+// SubLink if used inside an expression).
+//
+// Grammar: exprSelect (lines 456-467).
+func (p *Parser) parseSelectExpr() (ast.ExprNode, error) {
+	if p.cur.Type == tokSELECT {
+		return nil, p.deferredFeature("SELECT", "parser-select (DAG node 5)")
+	}
+	return p.parseOr()
+}
