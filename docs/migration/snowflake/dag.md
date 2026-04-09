@@ -27,7 +27,7 @@ snowflake/
 | ID | Node | Package | Depends On | Parallel With | Tier | Priority | Status |
 |----|------|---------|------------|---------------|------|----------|--------|
 | **F1** | ast-core | `snowflake/ast` | — | F2, C1, C2 | 0 | P0 | **done** (PR #14) |
-| **F2** | lexer | `snowflake/parser` | F1 | C1, C2 | 0 | P0 | not started |
+| **F2** | lexer | `snowflake/parser` | F1 | C1, C2 | 0 | P0 | **done** (PR #17) |
 | **F3** | statement-splitter | `snowflake/parser` | F2 | F4 | 0 | P0 | not started |
 | **F4** | parser-entry + walker | `snowflake/parser` | F1, F2 | F3 | 0 | P0 | not started |
 | **C1** | corpus-legacy (lift 27 SQL files) | `snowflake/parser/testdata/legacy` | — | F1–F4, C2 | 0 | P0 | **done** |
