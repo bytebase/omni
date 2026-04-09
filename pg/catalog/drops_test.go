@@ -1193,6 +1193,122 @@ func TestDropsFromDiff_DropSequence_SkipsIdentity(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Task 19: dropsForExtensions
+// ---------------------------------------------------------------------------
+
+func TestDropsFromDiff_DropExtension(t *testing.T) {
+	RegisterExtensionSQL("pgcrypto", "")
+	from, err := LoadSQL("CREATE EXTENSION pgcrypto;")
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	diff := Diff(from, to)
+	plan := DropsFromDiff(from, to, diff)
+
+	drops := plan.Filter(func(op MigrationOp) bool {
+		return op.Type == OpDropExtension
+	}).Ops
+	if len(drops) != 1 {
+		t.Fatalf("expected 1 OpDropExtension, got %d", len(drops))
+	}
+	op := drops[0]
+	if op.ObjectName != "pgcrypto" {
+		t.Errorf("expected ObjectName=pgcrypto, got %q", op.ObjectName)
+	}
+	if op.SQL != "" {
+		t.Errorf("expected empty SQL")
+	}
+	if op.Phase != PhasePre {
+		t.Errorf("expected PhasePre")
+	}
+	if op.ObjType != 'e' {
+		t.Errorf("expected ObjType='e', got %c", op.ObjType)
+	}
+	if op.Priority != PriorityExtension {
+		t.Errorf("expected PriorityExtension")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Task 20: dropsForIndexes
+// ---------------------------------------------------------------------------
+
+func TestDropsFromDiff_DropIndex(t *testing.T) {
+	from, err := LoadSQL(`
+		CREATE TABLE t (id integer, val integer);
+		CREATE INDEX idx_t_val ON t (val);
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id integer, val integer);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diff := Diff(from, to)
+	plan := DropsFromDiff(from, to, diff)
+
+	drops := plan.Filter(func(op MigrationOp) bool {
+		return op.Type == OpDropIndex
+	}).Ops
+	if len(drops) != 1 {
+		t.Fatalf("expected 1 OpDropIndex, got %d", len(drops))
+	}
+	op := drops[0]
+	if op.ObjectName != "idx_t_val" {
+		t.Errorf("expected ObjectName=idx_t_val, got %q", op.ObjectName)
+	}
+	if op.ObjType != 'i' {
+		t.Errorf("expected ObjType='i', got %c", op.ObjType)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Task 21: dropsForPolicies
+// ---------------------------------------------------------------------------
+
+func TestDropsFromDiff_DropPolicy(t *testing.T) {
+	from, err := LoadSQL(`
+		CREATE TABLE t (id integer);
+		ALTER TABLE t ENABLE ROW LEVEL SECURITY;
+		CREATE POLICY read_all ON t FOR SELECT USING (true);
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`
+		CREATE TABLE t (id integer);
+		ALTER TABLE t ENABLE ROW LEVEL SECURITY;
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diff := Diff(from, to)
+	plan := DropsFromDiff(from, to, diff)
+
+	drops := plan.Filter(func(op MigrationOp) bool {
+		return op.Type == OpDropPolicy
+	}).Ops
+	if len(drops) != 1 {
+		t.Fatalf("expected 1 OpDropPolicy, got %d", len(drops))
+	}
+	op := drops[0]
+	if op.ObjectName != "read_all" {
+		t.Errorf("expected ObjectName=read_all, got %q", op.ObjectName)
+	}
+	if op.ParentObject != "t" {
+		t.Errorf("expected ParentObject=t, got %q", op.ParentObject)
+	}
+	if op.ObjType != 'p' {
+		t.Errorf("expected ObjType='p', got %c", op.ObjType)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Task 18: Differential test — DropsFromDiff vs GenerateMigration
 // ---------------------------------------------------------------------------
 
@@ -1207,11 +1323,15 @@ func TestDropsFromDiff_DifferentialAgainstGenerateMigration(t *testing.T) {
 	// drops the entire reporting schema (covering OpDropSchema, OpDropTable,
 	// OpDropView, OpDropFunction, OpDropType, OpDropSequence), changes
 	// public.t1.val from integer to text (covering OpDropConstraint via CHECK
-	// cascade, and OpDropView via dependent-view cascade), modifies the matview
-	// query (covering matview OpDropView), and drops the trigger (covering
-	// OpDropTrigger).
+	// cascade, OpDropIndex for the index on val, and OpDropView via
+	// dependent-view cascade), modifies the matview query (covering matview
+	// OpDropView), drops the trigger (covering OpDropTrigger), drops the
+	// extension (covering OpDropExtension), and drops the policy (covering
+	// OpDropPolicy).
+	RegisterExtensionSQL("pgcrypto", "")
 	from, err := LoadSQL(`
 		CREATE SCHEMA reporting;
+		CREATE EXTENSION pgcrypto;
 		CREATE TABLE reporting.users (id integer, name text, val integer);
 		ALTER TABLE reporting.users ADD CONSTRAINT users_val_check CHECK (val > 0);
 		CREATE TABLE reporting.orders (id integer);
@@ -1221,10 +1341,13 @@ func TestDropsFromDiff_DifferentialAgainstGenerateMigration(t *testing.T) {
 		CREATE SEQUENCE reporting.seq;
 		CREATE TABLE public.t1 (id integer, val integer);
 		ALTER TABLE public.t1 ADD CONSTRAINT t1_val_positive CHECK (val > 0);
+		CREATE INDEX idx_t1_val ON public.t1 (val);
 		CREATE VIEW public.v1 AS SELECT id, val FROM public.t1;
 		CREATE MATERIALIZED VIEW public.mv1 AS SELECT id FROM public.t1;
 		CREATE FUNCTION public.trig_fn() RETURNS trigger AS $$ BEGIN RETURN NEW; END $$ LANGUAGE plpgsql;
 		CREATE TRIGGER trg BEFORE INSERT ON public.t1 FOR EACH ROW EXECUTE FUNCTION public.trig_fn();
+		ALTER TABLE public.t1 ENABLE ROW LEVEL SECURITY;
+		CREATE POLICY read_all ON public.t1 FOR SELECT USING (true);
 	`)
 	if err != nil {
 		t.Fatal(err)
@@ -1287,8 +1410,8 @@ func TestDropsFromDiff_DifferentialAgainstGenerateMigration(t *testing.T) {
 	for _, op := range gmDrops {
 		categories[op.Type] = true
 	}
-	if len(categories) < 5 {
-		t.Errorf("expected at least 5 drop categories exercised, got %d: %v", len(categories), categories)
+	if len(categories) < 8 {
+		t.Errorf("expected at least 8 drop categories exercised, got %d: %v", len(categories), categories)
 	}
 	t.Logf("differential test passed: %d drop ops compared across %d categories", len(gmDrops), len(categories))
 }

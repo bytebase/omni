@@ -4,9 +4,11 @@ import "sort"
 
 // DropsFromDiff returns a MigrationPlan containing only the destructive
 // (DROP*) operations that GenerateMigration would produce for the same
-// inputs, in the same form, with two differences:
+// inputs, in the same form, with three differences:
 //
 //   - SQL is always empty. Callers needing DDL text must call GenerateMigration.
+//   - Warning is always empty. GenerateMigration populates warnings on some
+//     destructive ops (e.g., table recreates); DropsFromDiff omits them.
 //   - Operations are sorted by a deterministic lexicographic key
 //     (SchemaName, ObjectName, ParentObject, Type) — see sortDropOps — not
 //     topologically.
@@ -31,6 +33,7 @@ func DropsFromDiff(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	// All helpers take the same (from, to, diff) signature for call-site
 	// uniformity, even when a particular helper does not need from or to.
 	ops = append(ops, dropsForSchemas(from, to, diff)...)
+	ops = append(ops, dropsForExtensions(from, to, diff)...)
 	ops = append(ops, dropsForEnums(from, to, diff)...)
 	ops = append(ops, dropsForDomains(from, to, diff)...)
 	ops = append(ops, dropsForRanges(from, to, diff)...)
@@ -43,7 +46,9 @@ func DropsFromDiff(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	ops = append(ops, dropsForCheckCascades(from, to, diff)...)
 	ops = append(ops, dropsForConstraints(from, to, diff)...)
 	ops = append(ops, dropsForViews(from, to, diff)...)
+	ops = append(ops, dropsForIndexes(from, to, diff)...)
 	ops = append(ops, dropsForTriggers(from, to, diff)...)
+	ops = append(ops, dropsForPolicies(from, to, diff)...)
 	ops = append(ops, dropsForDependentViews(from, to, diff, ops)...)
 
 	sortDropOps(ops)
@@ -74,6 +79,35 @@ func dropsForSchemas(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
 			ObjType:       'n',
 			ObjOID:        schemaOID,
 			Priority:      PrioritySchema,
+		})
+	}
+	return ops
+}
+
+// dropsForExtensions mirrors the DiffDrop arm of generateExtensionDDL in
+// migration_extension.go. Extensions are top-level objects: SchemaName is
+// empty, ObjectName holds the extension name.
+//
+// from and to are unused (the OID lives on entry.From) but kept for
+// signature uniformity across all dropsForX helpers — see DropsFromDiff.
+func dropsForExtensions(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
+	var ops []MigrationOp
+	for _, entry := range diff.Extensions {
+		if entry.Action != DiffDrop {
+			continue
+		}
+		var extOID uint32
+		if entry.From != nil {
+			extOID = entry.From.OID
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpDropExtension,
+			ObjectName:    entry.Name,
+			Transactional: true,
+			Phase:         PhasePre,
+			ObjType:       'e',
+			ObjOID:        extOID,
+			Priority:      PriorityExtension,
 		})
 	}
 	return ops
@@ -587,6 +621,59 @@ func dropsForViews(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
 	return ops
 }
 
+// dropsForIndexes mirrors the DiffDrop and DiffModify arms of
+// generateIndexDDL in migration_index.go. Walks diff.Relations for
+// DiffModify entries, then walks relEntry.Indexes. Both DiffDrop and
+// DiffModify on indexes emit drops (modified indexes = DROP old + CREATE
+// new). Indexes where ConstraintOID != 0 are skipped (managed by
+// constraint DDL).
+//
+// from and to are unused but kept for signature uniformity — see DropsFromDiff.
+func dropsForIndexes(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
+	var ops []MigrationOp
+	for _, relEntry := range diff.Relations {
+		if relEntry.Action != DiffModify {
+			continue
+		}
+		for _, idxEntry := range relEntry.Indexes {
+			switch idxEntry.Action {
+			case DiffDrop:
+				idx := idxEntry.From
+				if idx.ConstraintOID != 0 {
+					continue
+				}
+				ops = append(ops, MigrationOp{
+					Type:          OpDropIndex,
+					SchemaName:    relEntry.SchemaName,
+					ObjectName:    idx.Name,
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'i',
+					ObjOID:        idx.OID,
+					Priority:      PriorityIndex,
+				})
+			case DiffModify:
+				idxFrom := idxEntry.From
+				idxTo := idxEntry.To
+				if idxFrom.ConstraintOID != 0 || idxTo.ConstraintOID != 0 {
+					continue
+				}
+				ops = append(ops, MigrationOp{
+					Type:          OpDropIndex,
+					SchemaName:    relEntry.SchemaName,
+					ObjectName:    idxFrom.Name,
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'i',
+					ObjOID:        idxFrom.OID,
+					Priority:      PriorityIndex,
+				})
+			}
+		}
+	}
+	return ops
+}
+
 // dropsForTriggers mirrors the DiffDrop and DiffModify arms of
 // triggerOpsForRelation in migration_trigger.go. Both DiffDrop and DiffModify
 // emit drops (modify = DROP old + CREATE new).
@@ -631,6 +718,60 @@ func dropsForTriggers(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
 					ObjOID:        te.From.OID,
 					Priority:      PriorityTrigger,
 				})
+			}
+		}
+	}
+	return ops
+}
+
+// dropsForPolicies mirrors the DiffDrop and DiffModify arms of
+// policyOpsForRelation in migration_policy.go. Walks diff.Relations for
+// DiffModify entries, then walks rel.Policies. Emits drops for DiffDrop
+// (always) and DiffModify (only when CmdType or Permissive changed,
+// which forces DROP + CREATE).
+//
+// ObjectName is the POLICY name; ParentObject is the TABLE name (unqualified).
+// from and to are unused but kept for signature uniformity — see DropsFromDiff.
+func dropsForPolicies(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
+	var ops []MigrationOp
+	for _, rel := range diff.Relations {
+		if rel.Action != DiffModify {
+			continue
+		}
+		for _, pe := range rel.Policies {
+			switch pe.Action {
+			case DiffDrop:
+				if pe.From == nil {
+					continue
+				}
+				ops = append(ops, MigrationOp{
+					Type:          OpDropPolicy,
+					SchemaName:    rel.SchemaName,
+					ObjectName:    pe.From.Name,
+					ParentObject:  rel.Name,
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'p',
+					ObjOID:        pe.From.OID,
+					Priority:      PriorityPolicy,
+				})
+			case DiffModify:
+				if pe.From == nil || pe.To == nil {
+					continue
+				}
+				if pe.From.CmdType != pe.To.CmdType || pe.From.Permissive != pe.To.Permissive {
+					ops = append(ops, MigrationOp{
+						Type:          OpDropPolicy,
+						SchemaName:    rel.SchemaName,
+						ObjectName:    pe.From.Name,
+						ParentObject:  rel.Name,
+						Transactional: true,
+						Phase:         PhasePre,
+						ObjType:       'p',
+						ObjOID:        pe.From.OID,
+						Priority:      PriorityPolicy,
+					})
+				}
 			}
 		}
 	}
