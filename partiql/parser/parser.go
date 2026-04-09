@@ -176,7 +176,10 @@ func (p *Parser) parseSymbolPrimitive() (name string, caseSensitive bool, loc as
 	}
 }
 
-// ParseExpr parses a single expression from the parser's input.
+// ParseExpr parses a single expression from the parser's input and
+// asserts that the entire input was consumed. Trailing tokens after
+// the expression produce an "unexpected token" error — callers cannot
+// silently drop input.
 //
 // This is the foundation-level public entry point. Nodes 5-8 will
 // add ParseStatement and ParseScript (SelectStmt-producing forms).
@@ -196,7 +199,17 @@ func (p *Parser) ParseExpr() (ast.ExprNode, error) {
 	if err := p.checkLexerErr(); err != nil {
 		return nil, err
 	}
-	return p.parseLiteral()
+	expr, err := p.parseLiteral()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type != tokEOF {
+		return nil, &ParseError{
+			Message: fmt.Sprintf("unexpected token %q after expression", p.cur.Str),
+			Loc:     p.cur.Loc,
+		}
+	}
+	return expr, nil
 }
 
 // parseVarRef handles optional @-prefix plus symbolPrimitive. Matches
