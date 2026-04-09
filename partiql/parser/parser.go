@@ -14,6 +14,7 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/bytebase/omni/partiql/ast"
 )
@@ -235,4 +236,299 @@ func (p *Parser) parseVarRef() (ast.ExprNode, error) {
 		CaseSensitive: caseSensitive,
 		Loc:           ast.Loc{Start: start, End: nameLoc.End},
 	}, nil
+}
+
+// parseType consumes one of the PartiQL type forms and returns a
+// *ast.TypeRef. Handles:
+//
+//   - Atomic types: NULL, BOOL, BOOLEAN, SMALLINT, INT/INT2/INT4/INT8,
+//     INTEGER/INTEGER2/INTEGER4/INTEGER8, BIGINT, REAL, TIMESTAMP,
+//     CHAR, CHARACTER, MISSING, STRING, SYMBOL, BLOB, CLOB, DATE,
+//     STRUCT, TUPLE, LIST, SEXP, BAG, ANY
+//   - DOUBLE PRECISION (two-token form)
+//   - Parameterized single-arg: CHAR(n), CHARACTER(n), FLOAT(p), VARCHAR(n)
+//   - CHARACTER VARYING [(n)]
+//   - Parameterized two-arg: DECIMAL(p,s), DEC(p,s), NUMERIC(p,s)
+//   - TIME [(p)] [WITH TIME ZONE]
+//   - Custom: any symbolPrimitive identifier (fallback)
+//
+// Grammar: type (PartiQLParser.g4 lines 674-686).
+//
+// Foundation ships parseType even though CAST is stubbed so that
+// parser-ddl (DAG node 7) and parser-builtins (DAG node 15) can each
+// consume it without coupling.
+func (p *Parser) parseType() (*ast.TypeRef, error) {
+	start := p.cur.Loc.Start
+
+	// DOUBLE PRECISION is a two-token form.
+	if p.cur.Type == tokDOUBLE {
+		p.advance()
+		if p.cur.Type != tokPRECISION {
+			return nil, &ParseError{
+				Message: fmt.Sprintf("expected PRECISION after DOUBLE, got %q", p.cur.Str),
+				Loc:     p.cur.Loc,
+			}
+		}
+		end := p.cur.Loc.End
+		p.advance()
+		return &ast.TypeRef{
+			Name: "DOUBLE PRECISION",
+			Loc:  ast.Loc{Start: start, End: end},
+		}, nil
+	}
+
+	// CHARACTER VARYING is another two-token form that also takes an
+	// optional (n) argument.
+	if p.cur.Type == tokCHARACTER && p.peekNext().Type == tokVARYING {
+		p.advance() // CHARACTER
+		p.advance() // VARYING
+		end := p.prev.Loc.End
+		args, argsEnd, err := p.parseOptionalTypeArgs(1)
+		if err != nil {
+			return nil, err
+		}
+		if argsEnd > 0 {
+			end = argsEnd
+		}
+		return &ast.TypeRef{
+			Name: "CHARACTER VARYING",
+			Args: args,
+			Loc:  ast.Loc{Start: start, End: end},
+		}, nil
+	}
+
+	// TIME [(p)] [WITH TIME ZONE] — TIME requires a tailored parse path
+	// because it supports both a precision arg and the WITH TIME ZONE
+	// trailing keywords.
+	if p.cur.Type == tokTIME {
+		p.advance()
+		end := p.prev.Loc.End
+		args, argsEnd, err := p.parseOptionalTypeArgs(1)
+		if err != nil {
+			return nil, err
+		}
+		if argsEnd > 0 {
+			end = argsEnd
+		}
+		withTZ := false
+		if p.cur.Type == tokWITH && p.peekNext().Type == tokTIME {
+			// WITH TIME ZONE
+			p.advance() // WITH
+			p.advance() // TIME
+			if p.cur.Type != tokZONE {
+				return nil, &ParseError{
+					Message: fmt.Sprintf("expected ZONE after WITH TIME, got %q", p.cur.Str),
+					Loc:     p.cur.Loc,
+				}
+			}
+			withTZ = true
+			end = p.cur.Loc.End
+			p.advance() // ZONE
+		}
+		return &ast.TypeRef{
+			Name:         "TIME",
+			Args:         args,
+			WithTimeZone: withTZ,
+			Loc:          ast.Loc{Start: start, End: end},
+		}, nil
+	}
+
+	// Atomic types (no args). Map the keyword token to its canonical
+	// uppercase name. This switch handles the "bare keyword" cases from
+	// the grammar's TypeAtomic alternative (lines 675-680).
+	atomicName := ""
+	switch p.cur.Type {
+	case tokNULL:
+		atomicName = "NULL"
+	case tokBOOL:
+		atomicName = "BOOL"
+	case tokBOOLEAN:
+		atomicName = "BOOLEAN"
+	case tokSMALLINT:
+		atomicName = "SMALLINT"
+	case tokINT2:
+		atomicName = "INT2"
+	case tokINTEGER2:
+		atomicName = "INTEGER2"
+	case tokINT4:
+		atomicName = "INT4"
+	case tokINTEGER4:
+		atomicName = "INTEGER4"
+	case tokINT8:
+		atomicName = "INT8"
+	case tokINTEGER8:
+		atomicName = "INTEGER8"
+	case tokINT:
+		atomicName = "INT"
+	case tokINTEGER:
+		atomicName = "INTEGER"
+	case tokBIGINT:
+		atomicName = "BIGINT"
+	case tokREAL:
+		atomicName = "REAL"
+	case tokTIMESTAMP:
+		atomicName = "TIMESTAMP"
+	case tokMISSING:
+		atomicName = "MISSING"
+	case tokSTRING:
+		atomicName = "STRING"
+	case tokSYMBOL:
+		atomicName = "SYMBOL"
+	case tokBLOB:
+		atomicName = "BLOB"
+	case tokCLOB:
+		atomicName = "CLOB"
+	case tokDATE:
+		atomicName = "DATE"
+	case tokSTRUCT:
+		atomicName = "STRUCT"
+	case tokTUPLE:
+		atomicName = "TUPLE"
+	case tokLIST:
+		atomicName = "LIST"
+	case tokSEXP:
+		atomicName = "SEXP"
+	case tokBAG:
+		atomicName = "BAG"
+	case tokANY:
+		atomicName = "ANY"
+	}
+	if atomicName != "" {
+		end := p.cur.Loc.End
+		p.advance()
+		return &ast.TypeRef{
+			Name: atomicName,
+			Loc:  ast.Loc{Start: start, End: end},
+		}, nil
+	}
+
+	// Parameterized single-arg: CHAR(n), CHARACTER(n), FLOAT(p), VARCHAR(n).
+	switch p.cur.Type {
+	case tokCHAR:
+		return p.parseTypeWithArgs(start, "CHAR", 1, 1)
+	case tokCHARACTER:
+		// Note: CHARACTER VARYING already handled above via peekNext.
+		return p.parseTypeWithArgs(start, "CHARACTER", 1, 1)
+	case tokFLOAT:
+		return p.parseTypeWithArgs(start, "FLOAT", 1, 1)
+	case tokVARCHAR:
+		return p.parseTypeWithArgs(start, "VARCHAR", 1, 1)
+	}
+
+	// Parameterized two-arg: DECIMAL(p,s), DEC(p,s), NUMERIC(p,s).
+	switch p.cur.Type {
+	case tokDECIMAL:
+		return p.parseTypeWithArgs(start, "DECIMAL", 1, 2)
+	case tokDEC:
+		return p.parseTypeWithArgs(start, "DEC", 1, 2)
+	case tokNUMERIC:
+		return p.parseTypeWithArgs(start, "NUMERIC", 1, 2)
+	}
+
+	// Custom type: any symbolPrimitive. The grammar calls this
+	// TypeCustom (line 685).
+	if p.cur.Type == tokIDENT || p.cur.Type == tokIDENT_QUOTED {
+		name, _, nameLoc, err := p.parseSymbolPrimitive()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.TypeRef{
+			Name: name,
+			Loc:  ast.Loc{Start: start, End: nameLoc.End},
+		}, nil
+	}
+
+	return nil, &ParseError{
+		Message: fmt.Sprintf("expected type, got %q", p.cur.Str),
+		Loc:     p.cur.Loc,
+	}
+}
+
+// parseTypeWithArgs consumes a type keyword followed by an optional
+// parenthesized argument list of integers. Used by CHAR(n), FLOAT(p),
+// VARCHAR(n), DECIMAL(p,s), and related forms.
+//
+//   - name:    canonical type name (e.g. "DECIMAL")
+//   - minArgs: minimum number of integer args if the parenthesized
+//     list is present (0 for optional, 1 if required when parens are present)
+//   - maxArgs: maximum number of integer args
+func (p *Parser) parseTypeWithArgs(start int, name string, minArgs, maxArgs int) (*ast.TypeRef, error) {
+	// Consume the type keyword.
+	end := p.cur.Loc.End
+	p.advance()
+	args, argsEnd, err := p.parseOptionalTypeArgs(maxArgs)
+	if err != nil {
+		return nil, err
+	}
+	if argsEnd > 0 {
+		end = argsEnd
+		if len(args) < minArgs {
+			return nil, &ParseError{
+				Message: fmt.Sprintf("%s: expected at least %d argument(s), got %d", name, minArgs, len(args)),
+				Loc:     ast.Loc{Start: start, End: end},
+			}
+		}
+	}
+	return &ast.TypeRef{
+		Name: name,
+		Args: args,
+		Loc:  ast.Loc{Start: start, End: end},
+	}, nil
+}
+
+// parseOptionalTypeArgs consumes an optional (n[, n]*) argument list
+// bounded by parentheses. If cur is not PAREN_LEFT, returns
+// (nil, 0, nil) without consuming anything. Otherwise consumes the
+// parenthesized comma-separated integer list and returns the parsed
+// args plus the End position of the closing paren.
+//
+// maxArgs is the hard limit on the number of integers; exceeding it
+// yields a ParseError.
+func (p *Parser) parseOptionalTypeArgs(maxArgs int) (args []int, end int, err error) {
+	if p.cur.Type != tokPAREN_LEFT {
+		return nil, 0, nil
+	}
+	p.advance() // consume (
+	for {
+		if p.cur.Type != tokICONST {
+			return nil, 0, &ParseError{
+				Message: fmt.Sprintf("expected integer argument, got %q", p.cur.Str),
+				Loc:     p.cur.Loc,
+			}
+		}
+		n, perr := parseIntLiteral(p.cur.Str)
+		if perr != nil {
+			return nil, 0, &ParseError{
+				Message: fmt.Sprintf("invalid integer argument %q: %v", p.cur.Str, perr),
+				Loc:     p.cur.Loc,
+			}
+		}
+		args = append(args, n)
+		p.advance()
+		if len(args) > maxArgs {
+			return nil, 0, &ParseError{
+				Message: fmt.Sprintf("too many type arguments (max %d)", maxArgs),
+				Loc:     p.cur.Loc,
+			}
+		}
+		if p.cur.Type == tokCOMMA {
+			p.advance()
+			continue
+		}
+		break
+	}
+	rp, perr := p.expect(tokPAREN_RIGHT)
+	if perr != nil {
+		return nil, 0, perr
+	}
+	return args, rp.Loc.End, nil
+}
+
+// parseIntLiteral converts a token's Str (raw source text for an
+// integer literal) into an int. We use strconv.Atoi directly because
+// PartiQL integer literals are plain decimal digits per the grammar
+// LITERAL_INTEGER rule (no hex, no underscores, no sign — signs come
+// from the unary-minus operator).
+func parseIntLiteral(s string) (int, error) {
+	return strconv.Atoi(s)
 }

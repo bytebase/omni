@@ -211,6 +211,114 @@ func TestParser_Machinery(t *testing.T) {
 	})
 }
 
+// TestParseType exhaustively tests parseType across the 30+ type
+// forms in PartiQLParser.g4's `type` rule. Uses direct table-driven
+// assertions because TypeRef is a leaf node (no child recursion) and
+// inline expected values are clearer than filesystem goldens for
+// exhaustive enumeration.
+func TestParseType(t *testing.T) {
+	cases := []struct {
+		name       string
+		input      string
+		wantName   string
+		wantArgs   []int
+		wantWithTZ bool
+	}{
+		// Atomic types.
+		{"null", "NULL", "NULL", nil, false},
+		{"bool", "BOOL", "BOOL", nil, false},
+		{"boolean", "BOOLEAN", "BOOLEAN", nil, false},
+		{"smallint", "SMALLINT", "SMALLINT", nil, false},
+		{"int2", "INT2", "INT2", nil, false},
+		{"integer2", "INTEGER2", "INTEGER2", nil, false},
+		{"int4", "INT4", "INT4", nil, false},
+		{"integer4", "INTEGER4", "INTEGER4", nil, false},
+		{"int8", "INT8", "INT8", nil, false},
+		{"integer8", "INTEGER8", "INTEGER8", nil, false},
+		{"int", "INT", "INT", nil, false},
+		{"integer", "INTEGER", "INTEGER", nil, false},
+		{"bigint", "BIGINT", "BIGINT", nil, false},
+		{"real", "REAL", "REAL", nil, false},
+		{"timestamp", "TIMESTAMP", "TIMESTAMP", nil, false},
+		{"missing", "MISSING", "MISSING", nil, false},
+		{"string", "STRING", "STRING", nil, false},
+		{"symbol", "SYMBOL", "SYMBOL", nil, false},
+		{"blob", "BLOB", "BLOB", nil, false},
+		{"clob", "CLOB", "CLOB", nil, false},
+		{"date", "DATE", "DATE", nil, false},
+		{"struct", "STRUCT", "STRUCT", nil, false},
+		{"tuple", "TUPLE", "TUPLE", nil, false},
+		{"list", "LIST", "LIST", nil, false},
+		{"sexp", "SEXP", "SEXP", nil, false},
+		{"bag", "BAG", "BAG", nil, false},
+		{"any", "ANY", "ANY", nil, false},
+
+		// Two-token DOUBLE PRECISION.
+		{"double_precision", "DOUBLE PRECISION", "DOUBLE PRECISION", nil, false},
+
+		// Parameterized single-arg types.
+		{"char", "CHAR", "CHAR", nil, false},
+		{"char_n", "CHAR(10)", "CHAR", []int{10}, false},
+		{"character_n", "CHARACTER(20)", "CHARACTER", []int{20}, false},
+		{"varchar", "VARCHAR", "VARCHAR", nil, false},
+		{"varchar_n", "VARCHAR(255)", "VARCHAR", []int{255}, false},
+		{"float", "FLOAT", "FLOAT", nil, false},
+		{"float_p", "FLOAT(53)", "FLOAT", []int{53}, false},
+
+		// CHARACTER VARYING two-token form.
+		{"character_varying", "CHARACTER VARYING", "CHARACTER VARYING", nil, false},
+		{"character_varying_n", "CHARACTER VARYING(80)", "CHARACTER VARYING", []int{80}, false},
+
+		// Parameterized two-arg types.
+		{"decimal", "DECIMAL", "DECIMAL", nil, false},
+		{"decimal_p", "DECIMAL(10)", "DECIMAL", []int{10}, false},
+		{"decimal_p_s", "DECIMAL(10,2)", "DECIMAL", []int{10, 2}, false},
+		{"dec_p_s", "DEC(5,0)", "DEC", []int{5, 0}, false},
+		{"numeric_p_s", "NUMERIC(18,4)", "NUMERIC", []int{18, 4}, false},
+
+		// TIME with precision and WITH TIME ZONE.
+		{"time", "TIME", "TIME", nil, false},
+		{"time_p", "TIME(6)", "TIME", []int{6}, false},
+		{"time_wtz", "TIME WITH TIME ZONE", "TIME", nil, true},
+		{"time_p_wtz", "TIME(3) WITH TIME ZONE", "TIME", []int{3}, true},
+
+		// Custom types (symbolPrimitive fallback).
+		{"custom_ident", "MyType", "MyType", nil, false},
+		{"custom_quoted", `"MyType"`, "MyType", nil, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewParser(tc.input)
+			typeRef, err := p.parseType()
+			if err != nil {
+				t.Fatalf("parseType error: %v", err)
+			}
+			if typeRef.Name != tc.wantName {
+				t.Errorf("Name = %q, want %q", typeRef.Name, tc.wantName)
+			}
+			if !intSliceEq(typeRef.Args, tc.wantArgs) {
+				t.Errorf("Args = %v, want %v", typeRef.Args, tc.wantArgs)
+			}
+			if typeRef.WithTimeZone != tc.wantWithTZ {
+				t.Errorf("WithTimeZone = %v, want %v", typeRef.WithTimeZone, tc.wantWithTZ)
+			}
+		})
+	}
+}
+
+func intSliceEq(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // TestParser_Goldens iterates every .partiql file under
 // testdata/parser-foundation/ and compares the parser's pretty-printed
 // output (via ast.NodeToString) against the matching .golden file.
