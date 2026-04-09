@@ -227,7 +227,7 @@ func (p *Parser) ParseExpr() (ast.ExprNode, error) {
 //	Task 8: parseExprTop → parseOr
 //	Task 9: parseExprTop → parseBagOp
 func (p *Parser) parseExprTop() (ast.ExprNode, error) {
-	return p.parseMathOp00()
+	return p.parsePredicate()
 }
 
 // parseVarRef handles optional @-prefix plus symbolPrimitive. Matches

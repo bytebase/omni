@@ -1,0 +1,1 @@
+LikeExpr{Expr:VarRef{Name:s} Pattern:StringLit{Val:"foo%"} Not:false}
