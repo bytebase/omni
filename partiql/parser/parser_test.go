@@ -364,75 +364,6 @@ func TestParser_Goldens(t *testing.T) {
 	}
 }
 
-// TestParser_Stubs_Task9 locks in the deferred-feature error messages
-// for SELECT and UNION — the two stubs added in Task 9. Later tasks
-// will add more stub error cases and Task 12 consolidates them all
-// into TestParser_Errors.
-func TestParser_Stubs_Task9(t *testing.T) {
-	cases := []struct {
-		name      string
-		input     string
-		wantErrIn string
-	}{
-		{
-			name:      "select_stub",
-			input:     "SELECT * FROM t",
-			wantErrIn: "SELECT is deferred to parser-select (DAG node 5)",
-		},
-		{
-			name:      "union_stub",
-			input:     "a UNION b",
-			wantErrIn: "UNION is deferred to parser-select (DAG node 5)",
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			p := NewParser(tc.input)
-			_, err := p.ParseExpr()
-			if err == nil {
-				t.Fatal("expected error, got nil")
-			}
-			if !strings.Contains(err.Error(), tc.wantErrIn) {
-				t.Errorf("error = %q, want to contain %q", err.Error(), tc.wantErrIn)
-			}
-		})
-	}
-}
-
-// TestParser_Stubs_Task10 locks in the deferred-feature error messages
-// for function calls and graph MATCH — the two stubs upgraded in
-// Task 10.
-func TestParser_Stubs_Task10(t *testing.T) {
-	cases := []struct {
-		name      string
-		input     string
-		wantErrIn string
-	}{
-		{
-			name:      "funcall_stub",
-			input:     "foo(x)",
-			wantErrIn: `function call "foo" is deferred to parser-builtins (DAG node 15)`,
-		},
-		{
-			name:      "graph_match_stub",
-			input:     "(a MATCH (b))",
-			wantErrIn: "graph MATCH expression is deferred to parser-graph (DAG node 16)",
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			p := NewParser(tc.input)
-			_, err := p.ParseExpr()
-			if err == nil {
-				t.Fatal("expected error, got nil")
-			}
-			if !strings.Contains(err.Error(), tc.wantErrIn) {
-				t.Errorf("error = %q, want to contain %q", err.Error(), tc.wantErrIn)
-			}
-		})
-	}
-}
-
 // TestParser_AWSCorpus loads every .partiql file from
 // testdata/aws-corpus/, filters out the 2 known-bad syntax-skeleton
 // files, and asserts each one either (a) fully parses or (b) hits a
@@ -481,4 +412,174 @@ func TestParser_AWSCorpus(t *testing.T) {
 	}
 	t.Logf("AWS corpus: %d fully parsed, %d stubbed, %d skipped",
 		fullyParsed, stubbed, skipped)
+}
+
+// TestParser_Errors is the consolidated error-case test. It covers:
+//
+//  1. Deferred-feature stubs — one case per stub owner node, locking
+//     in the exact error message for the grep contract (future DAG
+//     node implementers grep for "deferred to parser-<name>" to find
+//     their work items).
+//  2. Real syntax errors — malformed inputs the parser must reject.
+//
+// This test replaces the per-task TestParser_Stubs_Task9 and
+// TestParser_Stubs_Task10 stubs from earlier in the plan.
+func TestParser_Errors(t *testing.T) {
+	cases := []struct {
+		name      string
+		input     string
+		wantErrIn string
+	}{
+		// --- Deferred-feature stubs (one per owner node) ---
+		{
+			name:      "select_stub",
+			input:     "SELECT * FROM t",
+			wantErrIn: "SELECT is deferred to parser-select (DAG node 5)",
+		},
+		{
+			name:      "union_stub",
+			input:     "a UNION b",
+			wantErrIn: "UNION is deferred to parser-select (DAG node 5)",
+		},
+		{
+			name:      "insert_stub",
+			input:     "INSERT INTO t VALUE 1",
+			wantErrIn: "INSERT is deferred to parser-dml (DAG node 6)",
+		},
+		{
+			name:      "update_stub",
+			input:     "UPDATE t SET x = 1",
+			wantErrIn: "UPDATE is deferred to parser-dml (DAG node 6)",
+		},
+		{
+			name:      "delete_stub",
+			input:     "DELETE FROM t",
+			wantErrIn: "DELETE is deferred to parser-dml (DAG node 6)",
+		},
+		{
+			name:      "values_stub",
+			input:     "VALUES (1, 2)",
+			wantErrIn: "VALUES is deferred to parser-dml (DAG node 6)",
+		},
+		{
+			name:      "valuelist_stub",
+			input:     "(1, 2, 3)",
+			wantErrIn: "valueList is deferred to parser-dml (DAG node 6)",
+		},
+		{
+			name:      "lag_stub",
+			input:     "LAG(x)",
+			wantErrIn: "LAG() window is deferred to parser-window (DAG node 13)",
+		},
+		{
+			name:      "count_stub",
+			input:     "COUNT(x)",
+			wantErrIn: "COUNT() aggregate is deferred to parser-aggregates (DAG node 14)",
+		},
+		{
+			name:      "cast_stub",
+			input:     "CAST(x AS INT)",
+			wantErrIn: "CAST is deferred to parser-builtins (DAG node 15)",
+		},
+		{
+			name:      "case_stub",
+			input:     "CASE WHEN a THEN 1 END",
+			wantErrIn: "CASE is deferred to parser-builtins (DAG node 15)",
+		},
+		{
+			name:      "substring_stub",
+			input:     "SUBSTRING(s, 1, 2)",
+			wantErrIn: "SUBSTRING is deferred to parser-builtins (DAG node 15)",
+		},
+		{
+			name:      "coalesce_stub",
+			input:     "COALESCE(a, b)",
+			wantErrIn: "COALESCE is deferred to parser-builtins (DAG node 15)",
+		},
+		{
+			name:      "char_length_stub",
+			input:     "CHAR_LENGTH('abc')",
+			wantErrIn: "CHAR_LENGTH is deferred to parser-builtins (DAG node 15)",
+		},
+		{
+			name:      "list_constructor_stub",
+			input:     "LIST(1, 2, 3)",
+			wantErrIn: "LIST() constructor is deferred to parser-builtins (DAG node 15)",
+		},
+		{
+			name:      "graph_match_stub",
+			input:     "(a MATCH (b))",
+			wantErrIn: "graph MATCH expression is deferred to parser-graph (DAG node 16)",
+		},
+		{
+			name:      "funcall_stub",
+			input:     "foo(x)",
+			wantErrIn: `function call "foo" is deferred to parser-builtins (DAG node 15)`,
+		},
+		{
+			name:      "date_literal_stub",
+			input:     "DATE '2026-01-01'",
+			wantErrIn: "DATE literal is deferred to parser-datetime-literals (DAG node 18)",
+		},
+		{
+			name:      "time_literal_stub",
+			input:     "TIME '12:00:00'",
+			wantErrIn: "TIME literal is deferred to parser-datetime-literals (DAG node 18)",
+		},
+
+		// --- Real syntax errors ---
+		{
+			name:      "unclosed_paren",
+			input:     "(1 + 2",
+			wantErrIn: "expected PAREN_RIGHT",
+		},
+		{
+			name:      "unclosed_array",
+			input:     "[1, 2",
+			wantErrIn: "expected BRACKET_RIGHT",
+		},
+		{
+			name:      "unclosed_bag",
+			input:     "<<1, 2",
+			wantErrIn: "expected ANGLE_DOUBLE_RIGHT",
+		},
+		{
+			name:      "unclosed_tuple",
+			input:     "{'a': 1",
+			wantErrIn: "expected BRACE_RIGHT",
+		},
+		{
+			name:      "tuple_missing_colon",
+			input:     "{'a' 1}",
+			wantErrIn: "expected COLON",
+		},
+		{
+			name:      "between_missing_and",
+			input:     "a BETWEEN 1 10",
+			wantErrIn: "expected AND",
+		},
+		{
+			name:      "is_invalid_type",
+			input:     "a IS INT",
+			wantErrIn: "IS predicate requires NULL, MISSING, TRUE, or FALSE",
+		},
+		{
+			name:      "bare_comma",
+			input:     ",",
+			wantErrIn: "unexpected token",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewParser(tc.input)
+			_, err := p.ParseExpr()
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.wantErrIn) {
+				t.Errorf("error = %q, want to contain %q", err.Error(), tc.wantErrIn)
+			}
+		})
+	}
 }
