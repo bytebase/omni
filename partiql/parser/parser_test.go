@@ -180,7 +180,10 @@ func TestParser_Machinery(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parseVarRef error: %v", err)
 		}
-		v := expr.(*ast.VarRef)
+		v, ok := expr.(*ast.VarRef)
+		if !ok {
+			t.Fatalf("parseVarRef returned %T, want *ast.VarRef", expr)
+		}
 		if v.Name != "x" || !v.AtPrefixed {
 			t.Errorf("VarRef = %+v, want {Name:x AtPrefixed:true}", v)
 		}
@@ -192,7 +195,10 @@ func TestParser_Machinery(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parseVarRef error: %v", err)
 		}
-		v := expr.(*ast.VarRef)
+		v, ok := expr.(*ast.VarRef)
+		if !ok {
+			t.Fatalf("parseVarRef returned %T, want *ast.VarRef", expr)
+		}
 		if v.Name != "Foo" || !v.CaseSensitive {
 			t.Errorf("VarRef = %+v, want {Name:Foo CaseSensitive:true}", v)
 		}

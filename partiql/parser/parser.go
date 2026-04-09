@@ -20,9 +20,12 @@ import (
 
 // ParseError represents a syntax error during parsing.
 //
-// Loc points at the offending token (Start = End = token start). The
-// parser uses fail-fast semantics — the first ParseError aborts the
-// parse and is returned to the caller.
+// Loc is the full byte range of the current (offending) token when the
+// error was raised. Using the full token span rather than a zero-width
+// point lets future error-rendering code highlight the problematic
+// region rather than a bare position marker. The parser uses fail-fast
+// semantics — the first ParseError aborts the parse and is returned to
+// the caller.
 type ParseError struct {
 	Message string
 	Loc     ast.Loc
@@ -58,8 +61,11 @@ func NewParser(input string) *Parser {
 }
 
 // advance moves cur to prev and reads the next token from the lexer.
-// If the lexer has already errored, the returned token is tokEOF with
-// the lexer error message embedded in Str so the caller can surface it.
+// When the lexer's first-error-and-stop contract fires, subsequent
+// calls produce tokEOF with a nil Str — callers must invoke
+// checkLexerErr() at strategic points (function entry, after expect)
+// to surface the lexer error. This function does NOT embed the error
+// message in cur.Str.
 func (p *Parser) advance() {
 	p.prev = p.cur
 	if p.hasNext {
@@ -109,7 +115,7 @@ func (p *Parser) expect(tokenType int) (Token, error) {
 	}
 	return Token{}, &ParseError{
 		Message: fmt.Sprintf("expected %s, got %q", tokenName(tokenType), p.cur.Str),
-		Loc:     ast.Loc{Start: p.cur.Loc.Start, End: p.cur.Loc.Start},
+		Loc:     p.cur.Loc,
 	}
 }
 
@@ -120,7 +126,7 @@ func (p *Parser) checkLexerErr() error {
 	if p.lexer.Err != nil {
 		return &ParseError{
 			Message: p.lexer.Err.Error(),
-			Loc:     ast.Loc{Start: p.cur.Loc.Start, End: p.cur.Loc.Start},
+			Loc:     p.cur.Loc,
 		}
 	}
 	return nil
@@ -140,7 +146,7 @@ func (p *Parser) checkLexerErr() error {
 func (p *Parser) deferredFeature(feature, ownerNode string) error {
 	return &ParseError{
 		Message: fmt.Sprintf("%s is deferred to %s", feature, ownerNode),
-		Loc:     ast.Loc{Start: p.cur.Loc.Start, End: p.cur.Loc.End},
+		Loc:     p.cur.Loc,
 	}
 }
 
@@ -164,7 +170,7 @@ func (p *Parser) parseSymbolPrimitive() (name string, caseSensitive bool, loc as
 	default:
 		err = &ParseError{
 			Message: fmt.Sprintf("expected identifier, got %q", p.cur.Str),
-			Loc:     ast.Loc{Start: p.cur.Loc.Start, End: p.cur.Loc.Start},
+			Loc:     p.cur.Loc,
 		}
 		return
 	}
