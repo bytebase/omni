@@ -38,6 +38,13 @@ func DropsFromDiff(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	ops = append(ops, dropsForSequences(from, to, diff)...)
 	ops = append(ops, dropsForFunctions(from, to, diff)...)
 	ops = append(ops, dropsForTables(from, to, diff)...)
+	ops = append(ops, dropsForTableRecreates(from, to, diff)...)
+	ops = append(ops, dropsForColumns(from, to, diff)...)
+	ops = append(ops, dropsForCheckCascades(from, to, diff)...)
+	ops = append(ops, dropsForConstraints(from, to, diff)...)
+	ops = append(ops, dropsForViews(from, to, diff)...)
+	ops = append(ops, dropsForTriggers(from, to, diff)...)
+	ops = append(ops, dropsForDependentViews(from, to, diff, ops)...)
 
 	sortDropOps(ops)
 	return &MigrationPlan{Ops: ops}
@@ -284,6 +291,478 @@ func dropsForTables(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
 			ObjType:       'r',
 			ObjOID:        entry.From.OID,
 			Priority:      PriorityTable,
+		})
+	}
+	return ops
+}
+
+// dropsForTableRecreates mirrors the DiffModify arm of generatePartitionDDL
+// in migration_partition.go where a table must be recreated via DROP+CREATE
+// because PostgreSQL does not support in-place RelKind changes (e.g.,
+// regular → partitioned) or inheritance changes.
+//
+// Only the OpDropTable half of buildTableRecreateOps is emitted; the
+// OpCreateTable and OpCreateIndex halves are not drops.
+//
+// Both from and to catalogs are required for inhParentsEqual.
+func dropsForTableRecreates(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
+	var ops []MigrationOp
+	for _, entry := range diff.Relations {
+		if entry.Action != DiffModify {
+			continue
+		}
+		if entry.From == nil || entry.To == nil {
+			continue
+		}
+		fromIsTable := entry.From.RelKind == 'r' || entry.From.RelKind == 'p'
+		toIsTable := entry.To.RelKind == 'r' || entry.To.RelKind == 'p'
+		if !fromIsTable || !toIsTable {
+			continue
+		}
+
+		needsRecreate := false
+		if entry.From.RelKind != entry.To.RelKind {
+			needsRecreate = true
+		}
+		if !needsRecreate && !inhParentsEqual(from, to, entry.From.InhParents, entry.To.InhParents) {
+			needsRecreate = true
+		}
+		if !needsRecreate {
+			continue
+		}
+
+		ops = append(ops, MigrationOp{
+			Type:          OpDropTable,
+			SchemaName:    entry.SchemaName,
+			ObjectName:    entry.Name,
+			Transactional: true,
+			Phase:         PhasePre,
+			ObjType:       'r',
+			ObjOID:        entry.From.OID,
+			Priority:      PriorityTable,
+		})
+	}
+	return ops
+}
+
+// dropsForColumns mirrors the DiffDrop arm of generateColumnDDL in
+// migration_column.go. Column drops live inside DiffModify relation entries
+// (not as top-level diff entries). Views and matviews are skipped because
+// column changes there are handled by view DDL.
+//
+// ObjectName is the TABLE name (not the column name) — this is omni's
+// established convention for OpDropColumn.
+func dropsForColumns(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
+	var ops []MigrationOp
+	for _, rel := range diff.Relations {
+		if rel.Action != DiffModify {
+			continue
+		}
+		if len(rel.Columns) == 0 {
+			continue
+		}
+		if rel.To != nil && (rel.To.RelKind == 'v' || rel.To.RelKind == 'm') {
+			continue
+		}
+
+		var relOID uint32
+		if rel.To != nil {
+			relOID = rel.To.OID
+		}
+
+		for _, col := range rel.Columns {
+			if col.Action != DiffDrop {
+				continue
+			}
+			ops = append(ops, MigrationOp{
+				Type:          OpDropColumn,
+				SchemaName:    rel.SchemaName,
+				ObjectName:    rel.Name,
+				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       'r',
+				ObjOID:        relOID,
+				Priority:      PriorityColumn,
+			})
+		}
+	}
+	return ops
+}
+
+// dropsForCheckCascades mirrors the CHECK-constraint cascade logic inside
+// columnModifyOps in migration_column.go (lines 147-174). When a column's
+// type changes, CHECK constraints referencing that column must be dropped
+// first (PG requirement). The outer loop in generateColumnDDL overrides
+// Phase to PhaseMain and Priority to PriorityColumn.
+func dropsForCheckCascades(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
+	var ops []MigrationOp
+	for _, rel := range diff.Relations {
+		if rel.Action != DiffModify {
+			continue
+		}
+		if len(rel.Columns) == 0 {
+			continue
+		}
+		if rel.To != nil && (rel.To.RelKind == 'v' || rel.To.RelKind == 'm') {
+			continue
+		}
+
+		var relOID uint32
+		if rel.To != nil {
+			relOID = rel.To.OID
+		}
+
+		for _, col := range rel.Columns {
+			if col.Action != DiffModify {
+				continue
+			}
+			if col.From == nil || col.To == nil {
+				continue
+			}
+			typeChanged := from.FormatType(col.From.TypeOID, col.From.TypeMod) !=
+				to.FormatType(col.To.TypeOID, col.To.TypeMod)
+			if !typeChanged {
+				continue
+			}
+			fromRel := from.GetRelation(rel.SchemaName, rel.Name)
+			if fromRel == nil {
+				continue
+			}
+			for _, con := range from.ConstraintsOf(fromRel.OID) {
+				if con.Type != ConstraintCheck {
+					continue
+				}
+				if !containsColumnRef(con.CheckExpr, col.From.Name) {
+					continue
+				}
+				ops = append(ops, MigrationOp{
+					Type:          OpDropConstraint,
+					SchemaName:    rel.SchemaName,
+					ObjectName:    rel.Name,
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       'r',
+					ObjOID:        relOID,
+					Priority:      PriorityColumn,
+				})
+			}
+		}
+	}
+	return ops
+}
+
+// dropsForConstraints mirrors the DiffDrop and DiffModify arms of
+// constraintOpsForRelation in migration_constraint.go. Both DiffDrop and
+// DiffModify emit drops (modify = DROP old + ADD new). Constraint-trigger
+// types are skipped (handled by trigger DDL).
+//
+// ObjectName is the CONSTRAINT name; ParentObject is the TABLE name.
+// ObjOID is NOT set (zero), matching buildDropConstraintOp.
+func dropsForConstraints(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
+	var ops []MigrationOp
+	for _, rel := range diff.Relations {
+		if rel.Action != DiffModify {
+			continue
+		}
+		for _, ce := range rel.Constraints {
+			if (ce.To != nil && ce.To.Type == ConstraintTrigger) ||
+				(ce.From != nil && ce.From.Type == ConstraintTrigger) {
+				continue
+			}
+			switch ce.Action {
+			case DiffDrop:
+				if ce.From == nil {
+					continue
+				}
+				ops = append(ops, MigrationOp{
+					Type:         OpDropConstraint,
+					SchemaName:   rel.SchemaName,
+					ObjectName:   ce.From.Name,
+					ParentObject: rel.Name,
+					Phase:        PhasePre,
+					ObjType:      'c',
+					Priority:     PriorityConstraint,
+				})
+			case DiffModify:
+				if ce.From == nil {
+					continue
+				}
+				ops = append(ops, MigrationOp{
+					Type:         OpDropConstraint,
+					SchemaName:   rel.SchemaName,
+					ObjectName:   ce.From.Name,
+					ParentObject: rel.Name,
+					Phase:        PhasePre,
+					ObjType:      'c',
+					Priority:     PriorityConstraint,
+				})
+			}
+		}
+	}
+	return ops
+}
+
+// dropsForViews mirrors the drop-emission sites in generateViewDDL in
+// migration_view.go. There are five sites:
+//
+//  1. DiffDrop view (RelKind 'v')
+//  2. DiffDrop matview (RelKind 'm')
+//  3. DiffModify RelKind flip (view↔matview)
+//  4. DiffModify regular view with viewColumnsChanged
+//  5. DiffModify matview (all modifications — matviews don't support ALTER)
+func dropsForViews(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
+	var ops []MigrationOp
+	for _, entry := range diff.Relations {
+		switch entry.Action {
+		case DiffDrop:
+			if entry.From == nil {
+				continue
+			}
+			if entry.From.RelKind != 'v' && entry.From.RelKind != 'm' {
+				continue
+			}
+			ops = append(ops, MigrationOp{
+				Type:          OpDropView,
+				SchemaName:    entry.SchemaName,
+				ObjectName:    entry.Name,
+				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       'r',
+				ObjOID:        entry.From.OID,
+				Priority:      PriorityView,
+			})
+
+		case DiffModify:
+			if entry.From == nil || entry.To == nil {
+				continue
+			}
+			fromIsView := entry.From.RelKind == 'v' || entry.From.RelKind == 'm'
+			toIsView := entry.To.RelKind == 'v' || entry.To.RelKind == 'm'
+
+			// Site 3: RelKind flip (view↔matview).
+			if (fromIsView || toIsView) && entry.From.RelKind != entry.To.RelKind {
+				ops = append(ops, MigrationOp{
+					Type:          OpDropView,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    entry.Name,
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'r',
+					ObjOID:        entry.From.OID,
+					Priority:      PriorityView,
+				})
+				continue
+			}
+
+			switch entry.To.RelKind {
+			case 'v':
+				// Site 4: view with incompatible column changes.
+				if viewColumnsChanged(entry) {
+					ops = append(ops, MigrationOp{
+						Type:          OpDropView,
+						SchemaName:    entry.SchemaName,
+						ObjectName:    entry.Name,
+						Transactional: true,
+						Phase:         PhasePre,
+						ObjType:       'r',
+						ObjOID:        entry.From.OID,
+						Priority:      PriorityView,
+					})
+				}
+			case 'm':
+				// Site 5: ALL matview modifications emit drop.
+				ops = append(ops, MigrationOp{
+					Type:          OpDropView,
+					SchemaName:    entry.SchemaName,
+					ObjectName:    entry.Name,
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'r',
+					ObjOID:        entry.From.OID,
+					Priority:      PriorityView,
+				})
+			}
+		}
+	}
+	return ops
+}
+
+// dropsForTriggers mirrors the DiffDrop and DiffModify arms of
+// triggerOpsForRelation in migration_trigger.go. Both DiffDrop and DiffModify
+// emit drops (modify = DROP old + CREATE new).
+//
+// ObjectName is the TRIGGER name; ParentObject is the TABLE name.
+// ObjType is 'T' (capital T).
+func dropsForTriggers(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
+	var ops []MigrationOp
+	for _, rel := range diff.Relations {
+		if rel.Action != DiffModify {
+			continue
+		}
+		for _, te := range rel.Triggers {
+			switch te.Action {
+			case DiffDrop:
+				if te.From == nil {
+					continue
+				}
+				ops = append(ops, MigrationOp{
+					Type:          OpDropTrigger,
+					SchemaName:    rel.SchemaName,
+					ObjectName:    te.From.Name,
+					ParentObject:  rel.Name,
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'T',
+					ObjOID:        te.From.OID,
+					Priority:      PriorityTrigger,
+				})
+			case DiffModify:
+				if te.From == nil {
+					continue
+				}
+				ops = append(ops, MigrationOp{
+					Type:          OpDropTrigger,
+					SchemaName:    rel.SchemaName,
+					ObjectName:    te.From.Name,
+					ParentObject:  rel.Name,
+					Transactional: true,
+					Phase:         PhasePre,
+					ObjType:       'T',
+					ObjOID:        te.From.OID,
+					Priority:      PriorityTrigger,
+				})
+			}
+		}
+	}
+	return ops
+}
+
+// dropsForDependentViews mirrors wrapColumnTypeChangesWithViewOps in
+// migration.go:241-401. When a table's columns are dropped, retyped, or
+// the table undergoes a RelKind/inheritance change, PostgreSQL requires
+// dependent views to be dropped first. This helper walks from.deps via
+// BFS to find all transitively dependent views and emits OpDropView ops
+// for each, deduplicating against existingOps so views already handled
+// by dropsForViews are not double-counted.
+//
+// Only regular views (RelKind 'v') are considered — matviews have their
+// own handling in buildModifyMatViewOps.
+func dropsForDependentViews(from, to *Catalog, diff *SchemaDiff, existingOps []MigrationOp) []MigrationOp {
+	// Step 1: Find OIDs of tables that need dependent-view wrapping.
+	tableOIDs := make(map[uint32]bool)
+	for _, rel := range diff.Relations {
+		if rel.Action != DiffModify {
+			continue
+		}
+		needsViewWrap := false
+
+		if rel.From != nil && rel.To != nil {
+			if rel.From.RelKind != rel.To.RelKind {
+				needsViewWrap = true
+			}
+			if !inhParentsEqual(from, to, rel.From.InhParents, rel.To.InhParents) {
+				needsViewWrap = true
+			}
+		}
+
+		if !needsViewWrap {
+			for _, col := range rel.Columns {
+				if col.Action == DiffDrop {
+					needsViewWrap = true
+					break
+				}
+				if col.Action != DiffModify || col.From == nil || col.To == nil {
+					continue
+				}
+				if from.FormatType(col.From.TypeOID, col.From.TypeMod) != to.FormatType(col.To.TypeOID, col.To.TypeMod) {
+					needsViewWrap = true
+					break
+				}
+			}
+		}
+		if needsViewWrap {
+			r := from.GetRelation(rel.SchemaName, rel.Name)
+			if r != nil {
+				tableOIDs[r.OID] = true
+			}
+		}
+	}
+	if len(tableOIDs) == 0 {
+		return nil
+	}
+
+	// Step 2: BFS over from.deps to find dependent views transitively.
+	type viewInfo struct {
+		schema string
+		name   string
+		oid    uint32
+	}
+	seen := make(map[uint32]bool)
+	var viewsToDrop []viewInfo
+
+	queue := make([]uint32, 0, len(tableOIDs))
+	for oid := range tableOIDs {
+		queue = append(queue, oid)
+	}
+	for len(queue) > 0 {
+		refOID := queue[0]
+		queue = queue[1:]
+		for _, d := range from.deps {
+			if d.RefType != 'r' || d.RefOID != refOID || d.ObjType != 'r' {
+				continue
+			}
+			if seen[d.ObjOID] {
+				continue
+			}
+			rel := from.GetRelationByOID(d.ObjOID)
+			if rel == nil || rel.RelKind != 'v' {
+				continue
+			}
+			seen[d.ObjOID] = true
+			if rel.Schema == nil {
+				continue
+			}
+			viewsToDrop = append(viewsToDrop, viewInfo{schema: rel.Schema.Name, name: rel.Name, oid: rel.OID})
+			queue = append(queue, d.ObjOID)
+		}
+	}
+
+	if len(viewsToDrop) == 0 {
+		return nil
+	}
+
+	// Step 3: Sort for determinism.
+	sort.Slice(viewsToDrop, func(i, j int) bool {
+		if viewsToDrop[i].schema != viewsToDrop[j].schema {
+			return viewsToDrop[i].schema < viewsToDrop[j].schema
+		}
+		return viewsToDrop[i].name < viewsToDrop[j].name
+	})
+
+	// Step 4: Build dedup set from existing ops.
+	existing := make(map[string]bool)
+	for _, op := range existingOps {
+		if op.Type == OpDropView || op.Type == OpCreateView || op.Type == OpAlterView {
+			existing[op.SchemaName+"."+op.ObjectName] = true
+		}
+	}
+
+	// Step 5: Emit OpDropView for each dependent view not already covered.
+	var ops []MigrationOp
+	for _, v := range viewsToDrop {
+		key := v.schema + "." + v.name
+		if existing[key] {
+			continue
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpDropView,
+			SchemaName:    v.schema,
+			ObjectName:    v.name,
+			Transactional: true,
+			Phase:         PhasePre,
+			ObjType:       'r',
+			ObjOID:        v.oid,
+			Priority:      PriorityView,
 		})
 	}
 	return ops
