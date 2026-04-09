@@ -210,22 +210,19 @@ func (p *Parser) ParseExpr() (ast.ExprNode, error) {
 }
 
 // parseExprTop is the internal expression entry point. It dispatches
-// to the CURRENT top of the precedence ladder. Each task that extends
-// the ladder updates this single function; internal callers that need
-// a sub-expression (inside array literals, tuple pairs, parentheses,
-// bracket-index steps) always call parseExprTop and never need updating.
+// to the top of the precedence ladder (parseBagOp) without the EOF
+// check that ParseExpr adds.
 //
-// This indirection exists to prevent a footgun: if every internal
-// caller called parsePrimary directly, Tasks 6-9 would need to touch
-// every call site as the ladder grows. parseExprTop keeps the fix in
-// one place.
+// Internal callers that parse a sub-expression embedded inside a
+// larger construct (array items, tuple keys/values, parenthesized
+// expressions, bracket-index steps) call parseExprTop rather than
+// ParseExpr because they must not assert EOF — their closing
+// delimiter is the next token after the sub-expression.
 //
-//	Task 2: parseExprTop → parseLiteral
-//	Task 5: parseExprTop → parsePrimary (this task)
-//	Task 6: parseExprTop → parseMathOp00
-//	Task 7: parseExprTop → parsePredicate
-//	Task 8: parseExprTop → parseOr
-//	Task 9: parseExprTop → parseBagOp
+// Future DAG nodes that extend the precedence ladder (e.g. node 5
+// replacing parseBagOp/parseSelectExpr with real SELECT/UNION
+// handling) only need to touch the bodies of those functions;
+// parseExprTop's single-line dispatch stays the same.
 func (p *Parser) parseExprTop() (ast.ExprNode, error) {
 	return p.parseBagOp()
 }

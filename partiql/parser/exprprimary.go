@@ -166,14 +166,10 @@ func (p *Parser) parsePrimaryBase() (ast.ExprNode, error) {
 // parseParenExpr handles tokPAREN_LEFT dispatch for primary expressions:
 //
 //	(expr)             → plain parenthesized expression, returns inner expr
-//	(SELECT ...)       → STUB via parseSelectExpr (Task 9 adds stub)
-//	(expr, expr, ...)  → STUB: valueList deferred to parser-dml (no AST node)
-//	(expr MATCH ...)   → STUB: graph match deferred to parser-graph (node 16)
-//
-// At this task, SELECT is not yet stubbed (Task 9 does that). If the
-// caller writes `(SELECT ...)`, the parser will try to parse SELECT as
-// an expression and fall through to the default "unexpected token" error
-// in parsePrimaryBase. Task 9 tightens this.
+//	(SELECT ...)       → routes through parseSelectExpr, which returns the
+//	                     parser-select (DAG node 5) stub error
+//	(expr, expr, ...)  → STUB: valueList deferred to parser-dml (DAG node 6)
+//	(expr MATCH ...)   → STUB: graph match deferred to parser-graph (DAG node 16)
 //
 // Grammar: exprTerm#ExprTermWrappedQuery (line 543) + exprGraphMatchMany
 // (lines 625-626).
