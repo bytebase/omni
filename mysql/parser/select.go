@@ -717,6 +717,14 @@ func (p *Parser) parseSelectExprList() ([]nodes.ExprNode, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
+		// Soft-fail: if the current token is a core clause keyword (e.g. FROM in
+		// "SELECT FROM t"), return what we have so far instead of erroring.
+		// This allows completion to work on subsequent clauses.
+		// Use a narrow set — exclude LEFT/RIGHT/etc. which are also function names.
+		if p.isClauseKeyword() {
+			break
+		}
+
 		target, err := p.parseSelectExpr()
 		if err != nil {
 			return nil, err
@@ -796,6 +804,20 @@ func (p *Parser) parseDerivedColumnList() ([]string, error) {
 		return nil, err
 	}
 	return cols, nil
+}
+
+// isClauseKeyword returns true if the current token is a core SQL clause keyword
+// that cannot start an expression. Used for soft-fail in parseSelectExprList to
+// allow completion on subsequent clauses when the target list is missing.
+// This is narrower than isSelectTerminator — it excludes LEFT/RIGHT/etc. which
+// are also valid function names.
+func (p *Parser) isClauseKeyword() bool {
+	switch p.cur.Type {
+	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR, kwINTO,
+		kwUNION, kwINTERSECT, kwEXCEPT:
+		return true
+	}
+	return false
 }
 
 // isSelectTerminator returns true if the current token starts a clause that terminates

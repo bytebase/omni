@@ -521,6 +521,52 @@ func TestCollectAlterTableRenameIndex(t *testing.T) {
 	}
 }
 
+// --- SELECT FROM soft-fail ---
+
+func TestCollectSelectFromNoExpr(t *testing.T) {
+	// "SELECT FROM " — missing select expressions, should still offer table_ref
+	cs := Collect("SELECT FROM ", 12)
+	if cs == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	if !cs.HasRule("table_ref") {
+		t.Error("expected table_ref rule after SELECT FROM")
+	}
+	if !cs.HasRule("database_ref") {
+		t.Error("expected database_ref rule after SELECT FROM")
+	}
+}
+
+func TestCollectSelectFromWhereNoExpr(t *testing.T) {
+	cs := Collect("SELECT FROM t WHERE ", 20)
+	if cs == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	if !cs.HasRule("columnref") {
+		t.Error("expected columnref in WHERE after SELECT FROM t")
+	}
+}
+
+func TestCollectSelectFromOrderByNoExpr(t *testing.T) {
+	cs := Collect("SELECT FROM t ORDER BY ", 23)
+	if cs == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	if !cs.HasRule("columnref") {
+		t.Error("expected columnref in ORDER BY after SELECT FROM t")
+	}
+}
+
+func TestCollectSelectFromJoinNoExpr(t *testing.T) {
+	cs := Collect("SELECT FROM t1 JOIN ", 20)
+	if cs == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	if !cs.HasRule("table_ref") {
+		t.Error("expected table_ref after JOIN in SELECT FROM")
+	}
+}
+
 // --- Dot-qualified completion ---
 
 func TestCollectAfterDot(t *testing.T) {
