@@ -189,7 +189,7 @@ func (p *Parser) parseParenExpr() (ast.ExprNode, error) {
 		}
 	}
 
-	first, err := p.parsePrimary()
+	first, err := p.parseExprTop()
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func (p *Parser) parseArrayLit() (*ast.ListLit, error) {
 	var items []ast.ExprNode
 	if p.cur.Type != tokBRACKET_RIGHT {
 		for {
-			item, err := p.parsePrimary()
+			item, err := p.parseExprTop()
 			if err != nil {
 				return nil, err
 			}
@@ -254,7 +254,7 @@ func (p *Parser) parseBagLit() (*ast.BagLit, error) {
 	var items []ast.ExprNode
 	if p.cur.Type != tokANGLE_DOUBLE_RIGHT {
 		for {
-			item, err := p.parsePrimary()
+			item, err := p.parseExprTop()
 			if err != nil {
 				return nil, err
 			}
@@ -308,14 +308,14 @@ func (p *Parser) parseTupleLit() (*ast.TupleLit, error) {
 
 // parseTuplePair parses one `key: value` entry inside a tuple literal.
 func (p *Parser) parseTuplePair() (*ast.TuplePair, error) {
-	key, err := p.parsePrimary()
+	key, err := p.parseExprTop()
 	if err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(tokCOLON); err != nil {
 		return nil, err
 	}
-	value, err := p.parsePrimary()
+	value, err := p.parseExprTop()
 	if err != nil {
 		return nil, err
 	}

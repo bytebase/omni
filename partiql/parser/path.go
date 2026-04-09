@@ -91,7 +91,7 @@ func (p *Parser) parsePathStep() (ast.PathStep, error) {
 			}, nil
 		}
 		// Bracket-expr: [expr]
-		idx, err := p.parsePrimary()
+		idx, err := p.parseExprTop()
 		if err != nil {
 			return nil, err
 		}

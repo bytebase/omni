@@ -186,21 +186,17 @@ func (p *Parser) parseSymbolPrimitive() (name string, caseSensitive bool, loc as
 // add ParseStatement and ParseScript (SelectStmt-producing forms).
 // Node 8 will add the top-level Parse(sql) function.
 //
-// At this milestone (Task 2), ParseExpr only handles literal tokens.
-// Each subsequent task extends ParseExpr's dispatch target as the
-// precedence ladder grows:
-//
-//	Task 2 (this): ParseExpr → parseLiteral
-//	Task 5:        ParseExpr → parsePrimary
-//	Task 6:        ParseExpr → parseMathOp00
-//	Task 7:        ParseExpr → parsePredicate
-//	Task 8:        ParseExpr → parseOr
-//	Task 9:        ParseExpr → parseBagOp
+// ParseExpr delegates to parseExprTop for the actual parse (wrapping
+// with a lexer-error check and an EOF check). Internal callers that
+// parse an expression embedded in a larger construct (array items,
+// tuple keys/values, parenthesized expressions, bracket-index steps)
+// call parseExprTop directly because they must not assert EOF —
+// their closing delimiter is the next token after the expression.
 func (p *Parser) ParseExpr() (ast.ExprNode, error) {
 	if err := p.checkLexerErr(); err != nil {
 		return nil, err
 	}
-	expr, err := p.parsePrimary()
+	expr, err := p.parseExprTop()
 	if err != nil {
 		return nil, err
 	}
@@ -211,6 +207,27 @@ func (p *Parser) ParseExpr() (ast.ExprNode, error) {
 		}
 	}
 	return expr, nil
+}
+
+// parseExprTop is the internal expression entry point. It dispatches
+// to the CURRENT top of the precedence ladder. Each task that extends
+// the ladder updates this single function; internal callers that need
+// a sub-expression (inside array literals, tuple pairs, parentheses,
+// bracket-index steps) always call parseExprTop and never need updating.
+//
+// This indirection exists to prevent a footgun: if every internal
+// caller called parsePrimary directly, Tasks 6-9 would need to touch
+// every call site as the ladder grows. parseExprTop keeps the fix in
+// one place.
+//
+//	Task 2: parseExprTop → parseLiteral
+//	Task 5: parseExprTop → parsePrimary (this task)
+//	Task 6: parseExprTop → parseMathOp00
+//	Task 7: parseExprTop → parsePredicate
+//	Task 8: parseExprTop → parseOr
+//	Task 9: parseExprTop → parseBagOp
+func (p *Parser) parseExprTop() (ast.ExprNode, error) {
+	return p.parsePrimary()
 }
 
 // parseVarRef handles optional @-prefix plus symbolPrimitive. Matches
