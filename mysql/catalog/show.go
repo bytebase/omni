@@ -371,10 +371,11 @@ func showIndex(idx *Index) string {
 		b.WriteString(fmt.Sprintf(" USING %s", strings.ToUpper(idx.IndexType)))
 	}
 
-	// KEY_BLOCK_SIZE.
-	if idx.KeyBlockSize > 0 {
-		b.WriteString(fmt.Sprintf(" KEY_BLOCK_SIZE=%d", idx.KeyBlockSize))
-	}
+	// KEY_BLOCK_SIZE is intentionally NOT rendered here: MySQL 8.0 parses
+	// the index-level KEY_BLOCK_SIZE option but does not include it in
+	// SHOW CREATE TABLE output (only the table-level KEY_BLOCK_SIZE is
+	// shown). The catalog still preserves the value for programmatic
+	// access.
 
 	// Comment.
 	if idx.Comment != "" {

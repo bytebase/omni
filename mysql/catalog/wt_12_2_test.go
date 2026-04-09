@@ -114,6 +114,9 @@ func TestWalkThrough_12_2(t *testing.T) {
 
 	t.Run("index_with_key_block_size", func(t *testing.T) {
 		// Scenario 5: Index with KEY_BLOCK_SIZE
+		// MySQL 8.0 parses index-level KEY_BLOCK_SIZE but does not render
+		// it in SHOW CREATE TABLE output. Verify the catalog matches this
+		// behavior by NOT including KEY_BLOCK_SIZE on the index line.
 		c := wtSetup(t)
 		wtExec(t, c, `CREATE TABLE t (
 			id INT NOT NULL,
@@ -123,7 +126,10 @@ func TestWalkThrough_12_2(t *testing.T) {
 		)`)
 
 		got := c.ShowCreateTable("testdb", "t")
-		assertContains(t, got, "KEY `idx_name` (`name`) KEY_BLOCK_SIZE=4")
+		assertContains(t, got, "KEY `idx_name` (`name`)")
+		if strings.Contains(got, "KEY_BLOCK_SIZE") {
+			t.Errorf("expected SHOW CREATE TABLE to omit index-level KEY_BLOCK_SIZE (MySQL 8.0 behavior), got:\n%s", got)
+		}
 	})
 
 	t.Run("index_with_using_btree", func(t *testing.T) {
