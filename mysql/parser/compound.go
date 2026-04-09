@@ -229,6 +229,9 @@ func (p *Parser) parseDeclareVarStmt(start int, firstName string) (*nodes.Declar
 		if err != nil {
 			return nil, err
 		}
+		if !p.collectMode() && val == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmt.Default = val
 	}
 
@@ -450,6 +453,9 @@ func (p *Parser) parseIfStmt() (*nodes.IfStmt, error) {
 	if err != nil {
 		return nil, err
 	}
+	if cond == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// THEN
 	if _, err := p.expect(kwTHEN); err != nil {
@@ -476,6 +482,9 @@ func (p *Parser) parseIfStmt() (*nodes.IfStmt, error) {
 		eiCond, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if eiCond == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		if _, err := p.expect(kwTHEN); err != nil {
@@ -544,6 +553,9 @@ func (p *Parser) parseCaseStmt() (*nodes.CaseStmtNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if !p.collectMode() && operand == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmt.Operand = operand
 	}
 
@@ -555,6 +567,9 @@ func (p *Parser) parseCaseStmt() (*nodes.CaseStmtNode, error) {
 		whenCond, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if whenCond == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		if _, err := p.expect(kwTHEN); err != nil {
@@ -612,6 +627,9 @@ func (p *Parser) parseWhileStmt(labelName string, labelStart int) (*nodes.WhileS
 	cond, err := p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if cond == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// DO
@@ -677,6 +695,9 @@ func (p *Parser) parseRepeatStmt(labelName string, labelStart int) (*nodes.Repea
 	cond, err := p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if cond == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// END REPEAT
@@ -790,6 +811,9 @@ func (p *Parser) parseReturnStmt() (*nodes.ReturnStmt, error) {
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if !p.collectMode() && expr == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	return &nodes.ReturnStmt{

@@ -765,6 +765,9 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 				if err != nil {
 					return nil, err
 				}
+				if expr == nil {
+					return nil, p.syntaxErrorAtCur()
+				}
 				if _, err := p.expect(')'); err != nil {
 					return nil, err
 				}
@@ -773,6 +776,9 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 				expr, err := p.parseExpr()
 				if err != nil {
 					return nil, err
+				}
+				if expr == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
 				cmd.DefaultExpr = expr
 			}

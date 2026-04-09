@@ -197,6 +197,9 @@ func (p *Parser) parseGetDiagnosticsStmt() (*nodes.GetDiagnosticsStmt, error) {
 		if err != nil {
 			return nil, err
 		}
+		if !p.collectMode() && condNum == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmt.ConditionNumber = condNum
 
 		// condition_information_item [, condition_information_item] ...
@@ -302,6 +305,9 @@ func (p *Parser) parseSignalInfoItem() (*nodes.SignalInfoItem, error) {
 	val, err := p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if val == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	return &nodes.SignalInfoItem{

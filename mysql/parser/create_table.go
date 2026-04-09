@@ -449,6 +449,9 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		if err != nil {
 			return false, err
 		}
+		if expr == nil {
+			return false, p.syntaxErrorAtCur()
+		}
 		if _, err := p.expect(')'); err != nil {
 			return false, err
 		}
@@ -499,6 +502,9 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			expr, err := p.parseExpr()
 			if err != nil {
 				return false, err
+			}
+			if expr == nil {
+				return false, p.syntaxErrorAtCur()
 			}
 			col.OnUpdate = expr
 			return true, nil
@@ -612,12 +618,22 @@ func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
 		return &nodes.ParenExpr{Loc: nodes.Loc{Start: start, End: p.pos()}, Expr: expr}, nil
 	}
-	return p.parseExpr()
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return expr, nil
 }
 
 // parseReferenceDefinition parses a REFERENCES clause.
@@ -740,6 +756,9 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 	if err != nil {
 		return nil, err
 	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -780,6 +799,9 @@ func (p *Parser) parseGeneratedColumnShorthand() (*nodes.GeneratedColumn, error)
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -920,6 +942,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		constr.Expr = expr
 		if _, err := p.expect(')'); err != nil {
@@ -1336,6 +1361,9 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		if err != nil {
 			return nil, err
 		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		part.Expr = expr
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -1384,6 +1412,9 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			if err != nil {
 				return nil, err
 			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 			part.Expr = expr
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
@@ -1406,6 +1437,9 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			expr, err := p.parseExpr()
 			if err != nil {
 				return nil, err
+			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 			part.Expr = expr
 			if _, err := p.expect(')'); err != nil {
@@ -1446,6 +1480,9 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			if err != nil {
 				return nil, err
 			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 			part.SubPartExpr = expr
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
@@ -1484,6 +1521,9 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 				expr, err := p.parseExpr()
 				if err != nil {
 					return nil, err
+				}
+				if expr == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
 				part.SubPartExpr = expr
 				if _, err := p.expect(')'); err != nil {
@@ -1587,6 +1627,9 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						if err != nil {
 							return nil, err
 						}
+						if expr == nil {
+							return nil, p.syntaxErrorAtCur()
+						}
 						items = append(items, expr)
 					}
 					if p.cur.Type != ',' {
@@ -1621,6 +1664,9 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 							if err != nil {
 								return nil, err
 							}
+							if expr == nil {
+								return nil, p.syntaxErrorAtCur()
+							}
 							tupleVals = append(tupleVals, expr)
 							if p.cur.Type != ',' {
 								break
@@ -1635,6 +1681,9 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						expr, err := p.parseExpr()
 						if err != nil {
 							return nil, err
+						}
+						if expr == nil {
+							return nil, p.syntaxErrorAtCur()
 						}
 						items = append(items, expr)
 					}

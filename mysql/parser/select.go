@@ -273,6 +273,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		if err != nil {
 			return nil, err
 		}
+		if !p.collectMode() && where == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmt.Where = where
 
 		// Reject duplicate WHERE
@@ -329,6 +332,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		having, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if !p.collectMode() && having == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		stmt.Having = having
 	}
@@ -555,6 +561,9 @@ func (p *Parser) parseSelectStmtBase() (*nodes.SelectStmt, error) {
 		if err != nil {
 			return nil, err
 		}
+		if !p.collectMode() && where == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmt.Where = where
 
 		// Reject duplicate WHERE
@@ -611,6 +620,9 @@ func (p *Parser) parseSelectStmtBase() (*nodes.SelectStmt, error) {
 		having, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if !p.collectMode() && having == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		stmt.Having = having
 	}
@@ -717,17 +729,20 @@ func (p *Parser) parseSelectExprList() ([]nodes.ExprNode, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		// Soft-fail: if the current token is a core clause keyword (e.g. FROM in
-		// "SELECT FROM t"), return what we have so far instead of erroring.
-		// This allows completion to work on subsequent clauses.
-		// Use a narrow set — exclude LEFT/RIGHT/etc. which are also function names.
-		if p.isClauseKeyword() {
+		// Soft-fail: if the current token is a clause keyword (e.g. FROM in
+		// "SELECT FROM t"), return what we have instead of parsing it as an
+		// identifier. MySQL keywords are non-reserved and would otherwise be
+		// consumed as column names, preventing completion on subsequent clauses.
+		if p.completing && p.isClauseKeyword() {
 			break
 		}
 
 		target, err := p.parseSelectExpr()
 		if err != nil {
 			return nil, err
+		}
+		if target == nil {
+			break // soft-fail: no expression found, return what we have
 		}
 		list = append(list, target)
 		if p.cur.Type != ',' {
@@ -746,6 +761,9 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if expr == nil {
+		return nil, nil // soft-fail: no expression found (e.g. SELECT FROM)
 	}
 
 	// Check for AS alias or implicit alias
@@ -806,11 +824,11 @@ func (p *Parser) parseDerivedColumnList() ([]string, error) {
 	return cols, nil
 }
 
-// isClauseKeyword returns true if the current token is a core SQL clause keyword
-// that cannot start an expression. Used for soft-fail in parseSelectExprList to
-// allow completion on subsequent clauses when the target list is missing.
-// This is narrower than isSelectTerminator — it excludes LEFT/RIGHT/etc. which
-// are also valid function names.
+// isClauseKeyword returns true if the current token is a core SQL clause keyword.
+// In MySQL, these keywords are non-reserved (can be used as identifiers), so the
+// bottom-level expression parser won't soft-fail on them. This check is needed in
+// completion mode to prevent clause keywords from being consumed as column names
+// when the SELECT expression list is empty (e.g. "SELECT FROM t").
 func (p *Parser) isClauseKeyword() bool {
 	switch p.cur.Type {
 	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR, kwINTO,
@@ -929,6 +947,9 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 			cond, err := p.parseExpr()
 			if err != nil {
 				return nil, err
+			}
+			if cond == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 			join.Condition = &nodes.OnCondition{
 				Loc:  nodes.Loc{Start: condStart, End: p.pos()},
@@ -1206,6 +1227,9 @@ func (p *Parser) parseJsonTable() (nodes.TableExpr, error) {
 	if err != nil {
 		return nil, err
 	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	if _, err := p.expect(','); err != nil {
 		return nil, err
@@ -1215,6 +1239,9 @@ func (p *Parser) parseJsonTable() (nodes.TableExpr, error) {
 	path, err := p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if path == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// COLUMNS
@@ -1393,6 +1420,9 @@ func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
 		if err != nil {
 			return nil, err
 		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 
 		item := &nodes.OrderByItem{
 			Loc:  nodes.Loc{Start: start},
@@ -1435,6 +1465,9 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 	if err != nil {
 		return nil, err
 	}
+	if count == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	limit := &nodes.Limit{
 		Loc:   nodes.Loc{Start: start},
@@ -1448,6 +1481,9 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 		if err != nil {
 			return nil, err
 		}
+		if count2 == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		// In MySQL, LIMIT offset, count — first is offset, second is count
 		limit.Offset = limit.Count
 		limit.Count = count2
@@ -1458,6 +1494,9 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 		offset, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if offset == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		limit.Offset = offset
 	}

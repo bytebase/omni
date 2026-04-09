@@ -356,6 +356,9 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 					if err != nil {
 						return nil, err
 					}
+					if arg == nil {
+						return nil, p.syntaxErrorAtCur()
+					}
 					fc.Args = append(fc.Args, arg)
 					if p.cur.Type != ',' {
 						break
@@ -609,6 +612,9 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		if err != nil {
 			return nil, err
 		}
+		if arg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		fc.Args = append(fc.Args, arg)
 		if p.cur.Type != ',' {
 			break
@@ -695,6 +701,9 @@ func (p *Parser) parseMemberOfExpr(value nodes.ExprNode) (nodes.ExprNode, error)
 	array, err := p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if array == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -871,6 +880,9 @@ func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
 		if err != nil {
 			return nil, err
 		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		bound.Offset = expr
 		if _, ok := p.match(kwPRECEDING); ok {
 			bound.Type = nodes.BoundPreceding
@@ -901,6 +913,9 @@ func (p *Parser) parseTrimFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	if arg == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	if p.cur.Type == kwFROM {
 		p.advance()
@@ -908,6 +923,9 @@ func (p *Parser) parseTrimFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
 		str, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if str == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = []nodes.ExprNode{arg, str}
 	} else {
@@ -927,6 +945,9 @@ func (p *Parser) parseSubstringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 	if err != nil {
 		return nil, err
 	}
+	if arg == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 	fc.Args = append(fc.Args, arg)
 
 	if p.cur.Type == kwFROM {
@@ -934,6 +955,9 @@ func (p *Parser) parseSubstringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 		pos, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if pos == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = append(fc.Args, pos)
 
@@ -943,6 +967,9 @@ func (p *Parser) parseSubstringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 			if err != nil {
 				return nil, err
 			}
+			if length == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 			fc.Args = append(fc.Args, length)
 		}
 	} else if p.cur.Type == ',' {
@@ -951,6 +978,9 @@ func (p *Parser) parseSubstringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 		if err != nil {
 			return nil, err
 		}
+		if pos == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		fc.Args = append(fc.Args, pos)
 
 		if p.cur.Type == ',' {
@@ -958,6 +988,9 @@ func (p *Parser) parseSubstringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 			length, err := p.parseExpr()
 			if err != nil {
 				return nil, err
+			}
+			if length == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 			fc.Args = append(fc.Args, length)
 		}
@@ -983,6 +1016,9 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 		arg, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if arg == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = append(fc.Args, arg)
 
@@ -1018,6 +1054,9 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 		if err != nil {
 			return nil, err
 		}
+		if sep == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		fc.Separator = sep
 	}
 
@@ -1051,6 +1090,9 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -1078,6 +1120,9 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if _, err := p.expect(kwAS); err != nil {
@@ -1126,6 +1171,9 @@ func (p *Parser) parseExtractExpr() (nodes.ExprNode, error) {
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if _, err := p.expect(')'); err != nil {
@@ -1187,6 +1235,9 @@ func (p *Parser) parseConvertExpr() (nodes.ExprNode, error) {
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	conv := &nodes.ConvertExpr{
@@ -1350,6 +1401,9 @@ func (p *Parser) parseInExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if val == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		inExpr.List = append(inExpr.List, val)
 		if p.cur.Type != ',' {
 			break
@@ -1452,6 +1506,9 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if operand == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		ce.Operand = operand
 	}
 
@@ -1463,12 +1520,18 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if cond == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if _, err := p.expect(kwTHEN); err != nil {
 			return nil, err
 		}
 		result, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if result == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		ce.Whens = append(ce.Whens, &nodes.CaseWhen{
 			Loc:    nodes.Loc{Start: whenStart, End: p.pos()},
@@ -1482,6 +1545,9 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 		def, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if def == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		ce.Default = def
 	}
@@ -1747,6 +1813,9 @@ func (p *Parser) parseRowConstructor() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		row.Items = append(row.Items, expr)
 		if p.cur.Type != ',' {
 			break
@@ -1816,6 +1885,9 @@ func (p *Parser) parseValuesFunc() (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	if col == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -1837,6 +1909,9 @@ func (p *Parser) parseExprList() ([]nodes.ExprNode, error) {
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		list = append(list, expr)
 		if p.cur.Type != ',' {

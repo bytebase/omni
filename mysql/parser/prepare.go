@@ -69,6 +69,9 @@ func (p *Parser) parseExecuteStmt() (*nodes.ExecuteStmt, error) {
 			if err != nil {
 				return nil, err
 			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 			stmt.Params = append(stmt.Params, expr)
 			if p.cur.Type != ',' {
 				break

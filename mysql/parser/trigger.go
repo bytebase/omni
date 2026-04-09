@@ -308,12 +308,18 @@ func (p *Parser) parseEventSchedule() (*nodes.EventSchedule, error) {
 		if err != nil {
 			return nil, err
 		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		sched.At = expr
 	} else if p.cur.Type == kwEVERY {
 		p.advance()
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		sched.Every = expr
 		// Consume optional interval unit (HOUR, DAY, MINUTE, SECOND, WEEK, MONTH, YEAR, QUARTER)
@@ -329,6 +335,9 @@ func (p *Parser) parseEventSchedule() (*nodes.EventSchedule, error) {
 			if err != nil {
 				return nil, err
 			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 			sched.Starts = expr
 		}
 
@@ -338,6 +347,9 @@ func (p *Parser) parseEventSchedule() (*nodes.EventSchedule, error) {
 			expr, err := p.parseExpr()
 			if err != nil {
 				return nil, err
+			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 			sched.Ends = expr
 		}

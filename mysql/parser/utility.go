@@ -539,6 +539,9 @@ func (p *Parser) parseKillStmt() (*nodes.KillStmt, error) {
 	if err != nil {
 		return nil, err
 	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 	stmt.ConnectionID = expr
 
 	stmt.Loc.End = p.pos()
@@ -580,6 +583,9 @@ func (p *Parser) parseCallStmt() (*nodes.CallStmt, error) {
 				arg, err := p.parseExpr()
 				if err != nil {
 					return nil, err
+				}
+				if arg == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
 				stmt.Args = append(stmt.Args, arg)
 				if p.cur.Type != ',' {
@@ -710,6 +716,9 @@ func (p *Parser) parseHandlerReadStmt(start int, table *nodes.TableRef) (*nodes.
 		if err != nil {
 			return nil, err
 		}
+		if !p.collectMode() && where == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmt.Where = where
 	}
 
@@ -791,6 +800,9 @@ func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		stmt.Exprs = append(stmt.Exprs, expr)
 		if p.cur.Type != ',' {

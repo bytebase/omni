@@ -502,6 +502,9 @@ func (p *Parser) parseXid() ([]nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	if gtrid == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 	parts = append(parts, gtrid)
 
 	if p.cur.Type == ',' {
@@ -510,6 +513,9 @@ func (p *Parser) parseXid() ([]nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if bqual == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		parts = append(parts, bqual)
 
 		if p.cur.Type == ',' {
@@ -517,6 +523,9 @@ func (p *Parser) parseXid() ([]nodes.ExprNode, error) {
 			formatID, err := p.parseExpr()
 			if err != nil {
 				return nil, err
+			}
+			if formatID == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 			parts = append(parts, formatID)
 		}

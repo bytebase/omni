@@ -152,6 +152,9 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 		if err != nil {
 			return nil, err
 		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}

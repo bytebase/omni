@@ -76,6 +76,9 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 		if err != nil {
 			return nil, err
 		}
+		if !p.collectMode() && where == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmt.Where = where
 	}
 
@@ -226,6 +229,9 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		if err != nil {
 			return nil, err
 		}
+		if !p.collectMode() && where == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmt.Where = where
 	}
 
@@ -300,6 +306,9 @@ func (p *Parser) parseAssignment() (*nodes.Assignment, error) {
 	val, err := p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if val == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	return &nodes.Assignment{

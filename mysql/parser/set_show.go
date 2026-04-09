@@ -339,6 +339,9 @@ func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 	if err != nil {
 		return nil, err
 	}
+	if val == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	return &nodes.Assignment{
 		Loc:    nodes.Loc{Start: start, End: p.pos()},
@@ -776,11 +779,17 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err != nil {
 				return nil, err
 			}
+			if first == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 			if p.cur.Type == ',' {
 				p.advance() // consume ','
 				count, err := p.parseExpr()
 				if err != nil {
 					return nil, err
+				}
+				if count == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
 				stmt.LimitOffset = first
 				stmt.LimitCount = count
@@ -798,11 +807,17 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err != nil {
 				return nil, err
 			}
+			if first == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 			if p.cur.Type == ',' {
 				p.advance() // consume ','
 				count, err := p.parseExpr()
 				if err != nil {
 					return nil, err
+				}
+				if count == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
 				stmt.LimitOffset = first
 				stmt.LimitCount = count
@@ -919,6 +934,9 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err != nil {
 				return nil, err
 			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 			stmt.Like = expr
 		}
 		// Optional FROM pos
@@ -926,6 +944,9 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			expr, err := p.parseExpr()
 			if err != nil {
 				return nil, err
+			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 			stmt.FromPos = expr
 		}
@@ -935,11 +956,17 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err != nil {
 				return nil, err
 			}
+			if first == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 			if p.cur.Type == ',' {
 				p.advance() // consume ','
 				count, err := p.parseExpr()
 				if err != nil {
 					return nil, err
+				}
+				if count == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
 				stmt.LimitOffset = first
 				stmt.LimitCount = count
@@ -1041,6 +1068,9 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err != nil {
 				return nil, err
 			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 			stmt.Like = expr
 		}
 		// Optional FROM pos
@@ -1048,6 +1078,9 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			expr, err := p.parseExpr()
 			if err != nil {
 				return nil, err
+			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 			stmt.FromPos = expr
 		}
@@ -1057,11 +1090,17 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err != nil {
 				return nil, err
 			}
+			if first == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 			if p.cur.Type == ',' {
 				p.advance() // consume ','
 				count, err := p.parseExpr()
 				if err != nil {
 					return nil, err
+				}
+				if count == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
 				stmt.LimitOffset = first
 				stmt.LimitCount = count
@@ -1227,12 +1266,18 @@ func (p *Parser) parseShowLikeOrWhere(stmt *nodes.ShowStmt) error {
 		if err != nil {
 			return err
 		}
+		if expr == nil {
+			return p.syntaxErrorAtCur()
+		}
 		stmt.Like = expr
 	} else if p.cur.Type == kwWHERE {
 		p.advance()
 		expr, err := p.parseExpr()
 		if err != nil {
 			return err
+		}
+		if expr == nil {
+			return p.syntaxErrorAtCur()
 		}
 		stmt.Where = expr
 	}
@@ -1294,6 +1339,9 @@ func (p *Parser) parseShowProfileOptions(stmt *nodes.ShowStmt) error {
 			if err != nil {
 				return err
 			}
+			if expr == nil {
+				return p.syntaxErrorAtCur()
+			}
 			stmt.ForQuery = expr
 		}
 	}
@@ -1304,12 +1352,18 @@ func (p *Parser) parseShowProfileOptions(stmt *nodes.ShowStmt) error {
 		if err != nil {
 			return err
 		}
+		if count == nil {
+			return p.syntaxErrorAtCur()
+		}
 		stmt.LimitCount = count
 		if p.cur.Type == kwOFFSET {
 			p.advance() // consume OFFSET
 			off, err := p.parseExpr()
 			if err != nil {
 				return err
+			}
+			if off == nil {
+				return p.syntaxErrorAtCur()
 			}
 			stmt.LimitOffset = off
 		}
@@ -1470,6 +1524,9 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			if err != nil {
 				return nil, err
 			}
+			if colExpr == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 			showStmt.Like = colExpr
 		}
 		showStmt.Loc.End = p.pos()
@@ -1590,6 +1647,9 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			colExpr, err := p.parseExpr()
 			if err != nil {
 				return nil, err
+			}
+			if colExpr == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 			showStmt.Like = colExpr
 		}
