@@ -319,6 +319,73 @@ func intSliceEq(a, b []int) bool {
 	return true
 }
 
+// TestParser_PathUnit exercises parsePathSteps directly by constructing
+// a base VarRef and then calling parsePathSteps. This bypasses the
+// ParseExpr dispatch (which doesn't yet route through parsePrimary at
+// this task). Task 5 removes this test and replaces its coverage with
+// file-based path goldens consumed by TestParser_Goldens.
+func TestParser_PathUnit(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string // path suffix only — the base is a fixed VarRef
+		want  string // expected NodeToString output
+	}{
+		{
+			name:  "dot",
+			input: ".foo",
+			want:  `PathExpr{Root:VarRef{Name:t} Steps:[DotStep{Field:foo}]}`,
+		},
+		{
+			name:  "dot_quoted",
+			input: `."Foo"`,
+			want:  `PathExpr{Root:VarRef{Name:t} Steps:[DotStep{Field:Foo CaseSensitive:true}]}`,
+		},
+		{
+			name:  "dot_star",
+			input: ".*",
+			want:  `PathExpr{Root:VarRef{Name:t} Steps:[AllFieldsStep{}]}`,
+		},
+		{
+			name:  "index_int",
+			input: "[0]",
+			want:  `PathExpr{Root:VarRef{Name:t} Steps:[IndexStep{Index:NumberLit{Val:0}}]}`,
+		},
+		{
+			name:  "index_wildcard",
+			input: "[*]",
+			want:  `PathExpr{Root:VarRef{Name:t} Steps:[WildcardStep{}]}`,
+		},
+		{
+			name:  "chain_dot_dot",
+			input: ".foo.bar",
+			want:  `PathExpr{Root:VarRef{Name:t} Steps:[DotStep{Field:foo} DotStep{Field:bar}]}`,
+		},
+		{
+			name:  "chain_mixed",
+			input: ".foo[0].*[*]",
+			want:  `PathExpr{Root:VarRef{Name:t} Steps:[DotStep{Field:foo} IndexStep{Index:NumberLit{Val:0}} AllFieldsStep{} WildcardStep{}]}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewParser(tc.input)
+			base := &ast.VarRef{Name: "t", Loc: ast.Loc{Start: -1, End: -1}}
+			if !isPathStepStart(p.cur.Type) {
+				t.Fatalf("expected path step start, got %d", p.cur.Type)
+			}
+			got, err := p.parsePathSteps(base)
+			if err != nil {
+				t.Fatalf("parsePathSteps error: %v", err)
+			}
+			gotStr := ast.NodeToString(got)
+			if gotStr != tc.want {
+				t.Errorf("got: %s\nwant: %s", gotStr, tc.want)
+			}
+		})
+	}
+}
+
 // TestParser_Goldens iterates every .partiql file under
 // testdata/parser-foundation/ and compares the parser's pretty-printed
 // output (via ast.NodeToString) against the matching .golden file.
