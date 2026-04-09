@@ -637,9 +637,10 @@ func (e *FuncCallExpr) exprNode() {}
 type SubqueryExpr struct {
 	Loc     Loc
 	Select  *SelectStmt
-	Exists  bool   // EXISTS (SELECT ...)
-	Lateral bool   // LATERAL derived table
-	Alias   string // AS alias (for derived tables)
+	Exists  bool     // EXISTS (SELECT ...)
+	Lateral bool     // LATERAL derived table
+	Alias   string   // AS alias (for derived tables)
+	Columns []string // derived table column alias list: (SELECT ...) AS t(c1, c2)
 }
 
 func (e *SubqueryExpr) nodeTag()   {}

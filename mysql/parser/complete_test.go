@@ -519,6 +519,69 @@ func TestCollectAlterTableRenameIndex(t *testing.T) {
 	}
 }
 
+// --- Dot-qualified completion ---
+
+func TestCollectAfterDot(t *testing.T) {
+	// "SELECT t." — should offer columnref after dot
+	cs := Collect("SELECT t.", 9)
+	if cs == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	if !cs.HasRule("columnref") {
+		t.Error("expected columnref rule after table dot")
+	}
+}
+
+func TestCollectAfterSchemaDot(t *testing.T) {
+	// "SELECT s.t." — should offer columnref after schema.table.
+	cs := Collect("SELECT s.t.", 11)
+	if cs == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	if !cs.HasRule("columnref") {
+		t.Error("expected columnref rule after schema.table dot")
+	}
+}
+
+// --- INSERT empty parens ---
+
+func TestCollectInsertEmptyParens(t *testing.T) {
+	// "INSERT INTO t1()" — cursor between ( and ) should offer columnref
+	cs := Collect("INSERT INTO t1()", 15)
+	if cs == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	if !cs.HasRule("columnref") {
+		t.Error("expected columnref inside empty parens")
+	}
+}
+
+// --- Derived table column alias ---
+
+func TestParseDerivedTableColumnAlias(t *testing.T) {
+	sql := "SELECT * FROM (SELECT c1, c2 FROM t1) AS dt(a, b)"
+	_, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+}
+
+func TestParseDerivedTableColumnAliasSingle(t *testing.T) {
+	sql := "SELECT * FROM (SELECT 1) AS t(x)"
+	_, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+}
+
+func TestParseLateralDerivedColumnAlias(t *testing.T) {
+	sql := "SELECT * FROM t1, LATERAL (SELECT c1 FROM t2) AS dt(a)"
+	_, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+}
+
 // --- Tokenize and Token.End ---
 
 func TestTokenize(t *testing.T) {

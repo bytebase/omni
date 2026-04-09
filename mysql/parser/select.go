@@ -775,6 +775,29 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 	return expr, nil
 }
 
+// parseDerivedColumnList parses an optional parenthesized column alias list
+// for derived tables: (col1, col2, ...).
+// MySQL 8.0.14+ syntax: (SELECT ...) AS alias(c1, c2).
+func (p *Parser) parseDerivedColumnList() ([]string, error) {
+	p.advance() // consume '('
+	var cols []string
+	for {
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		cols = append(cols, name)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return cols, nil
+}
+
 // isSelectTerminator returns true if the current token starts a clause that terminates
 // the select expression list. Used to avoid consuming clause keywords as aliases.
 func (p *Parser) isSelectTerminator() bool {
@@ -1034,6 +1057,15 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 			sub.Alias = alias
 		}
 
+		// Optional derived column alias list: AS t(c1, c2)
+		if sub.Alias != "" && p.cur.Type == '(' {
+			cols, err := p.parseDerivedColumnList()
+			if err != nil {
+				return nil, err
+			}
+			sub.Columns = cols
+		}
+
 		sub.Loc.End = p.pos()
 		return sub, nil
 	}
@@ -1070,6 +1102,15 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 					return nil, err
 				}
 				sub.Alias = alias
+			}
+
+			// Optional derived column alias list: AS t(c1, c2)
+			if sub.Alias != "" && p.cur.Type == '(' {
+				cols, err := p.parseDerivedColumnList()
+				if err != nil {
+					return nil, err
+				}
+				sub.Columns = cols
 			}
 
 			sub.Loc.End = p.pos()

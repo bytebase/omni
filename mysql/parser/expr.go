@@ -478,6 +478,13 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	if p.cur.Type == '.' {
 		p.advance()
 
+		// Completion: after "table.", offer columnref
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return nil, &ParseError{Message: "collecting"}
+		}
+
 		// table.*
 		if p.cur.Type == '*' {
 			p.advance()
@@ -501,6 +508,14 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 		// Check for third part: schema.table.col or schema.table.*
 		if p.cur.Type == '.' {
 			p.advance()
+
+			// Completion: after "schema.table.", offer columnref
+			p.checkCursor()
+			if p.collectMode() {
+				p.addRuleCandidate("columnref")
+				return nil, &ParseError{Message: "collecting"}
+			}
+
 			if p.cur.Type == '*' {
 				p.advance()
 				return &nodes.ColumnRef{

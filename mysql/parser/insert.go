@@ -226,6 +226,19 @@ func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 		return nil, err
 	}
 
+	// Completion: inside column list (including empty parens), offer columnref.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		return nil, &ParseError{Message: "collecting"}
+	}
+
+	// Empty column list: ()
+	if p.cur.Type == ')' {
+		p.advance()
+		return nil, nil
+	}
+
 	var cols []*nodes.ColumnRef
 	for {
 		// Completion: inside column list, offer columnref candidates.
