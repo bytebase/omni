@@ -60,7 +60,7 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 	// Completion: after ALTER TABLE table-name, offer sub-command keywords.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, tok := range []int{kwADD, kwDROP, kwMODIFY, kwCHANGE, kwRENAME, kwALTER, kwCONVERT, kwENGINE, kwDEFAULT, kwALGORITHM, kwLOCK, kwFORCE} {
+		for _, tok := range []int{kwADD, kwDROP, kwMODIFY, kwCHANGE, kwRENAME, kwALTER, kwCONVERT, kwENGINE, kwDEFAULT, kwORDER, kwALGORITHM, kwLOCK, kwFORCE} {
 			p.addTokenCandidate(tok)
 		}
 		return nil, &ParseError{Message: "collecting"}
