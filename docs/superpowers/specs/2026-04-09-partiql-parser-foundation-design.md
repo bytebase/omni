@@ -285,30 +285,30 @@ func (p *Parser) parsePrimary() (ast.ExprNode, error) {
 `parsePrimaryBase` dispatches on the current token across 16 grammar alternatives. Real cases (foundation-owned):
 
 - Literals: TRUE, FALSE, NULL, MISSING, SCONST, ICONST, FCONST, ION_LITERAL, DATE, TIME → `parseLiteral()` (date/time are stubbed inside parseLiteral itself)
-- `tokPAREN_LEFT` → `parseParenOrValueList()`
+- `tokPAREN_LEFT` → `parseParenExpr()` — plain parenthesized expression; `(SELECT …)` subquery routes to the node-5 stub; `(expr, …)` valueList routes to the node-6 stub (no AST support yet)
 - `tokBRACKET_LEFT` → `parseArrayLit()`
 - `tokANGLE_DOUBLE_LEFT` → `parseBagLit()`
 - `tokBRACE_LEFT` → `parseTupleLit()`
 - `tokQUESTION_MARK` → `parseParamRef()`
 - `tokAT_SIGN`, `tokIDENT`, `tokIDENT_QUOTED` → `parseVarRef()`
-- `tokVALUES` → `parseValues()`
+- `tokVALUES` → STUB: deferred to parser-dml (DAG node 6) — no AST node for VALUES row lists exists yet in ast-core
 
 All other primary-expression alternatives are stubbed with `p.deferredFeature(...)` errors pointing at the owning DAG node.
 
 ### 5.2 exprTerm alternatives (foundation-owned)
 
 ```go
-// parseParenOrValueList disambiguates parenthesis-wrapped forms:
-//   (expr)            → parenthesized expression
-//   (SELECT ...)      → SubLink [STUB: routes to node 5]
-//   (expr, expr, ...) → valueList
-//   (expr MATCH ...)  → graph match wrapper [STUB: routes to node 16]
-func (p *Parser) parseParenOrValueList() (ast.ExprNode, error)
+// parseParenExpr disambiguates parenthesis-wrapped forms:
+//   (expr)            → parenthesized expression (returns the inner expr)
+//   (SELECT ...)      → STUB: deferred to parser-select (DAG node 5)
+//   (expr, expr, ...) → STUB: deferred to parser-dml (DAG node 6) — valueList has
+//                       no AST node yet
+//   (expr MATCH ...)  → STUB: deferred to parser-graph (DAG node 16)
+func (p *Parser) parseParenExpr() (ast.ExprNode, error)
 
 func (p *Parser) parseArrayLit() (*ast.ListLit, error)   // [expr, ...]
 func (p *Parser) parseBagLit() (*ast.BagLit, error)      // <<expr, ...>>
 func (p *Parser) parseTupleLit() (*ast.TupleLit, error)  // {key: value, ...}
-func (p *Parser) parseValues() (ast.ExprNode, error)     // VALUES (row), (row), ...
 func (p *Parser) parseParamRef() (*ast.ParamRef, error)  // ?
 ```
 
@@ -400,7 +400,11 @@ func (p *Parser) deferredFeature(feature, ownerNode string) error {
 **Node 5 (parser-select):**
 - `parseBagOp` — UNION/INTERSECT/EXCEPT dispatch (expr.go)
 - `parseSelectExpr` — SFW query (expr.go)
-- `SubLink` case in `parseParenOrValueList` — `(SELECT ...)` subquery
+- `SubLink` case in `parseParenExpr` — `(SELECT ...)` subquery
+
+**Node 6 (parser-dml):**
+- `tokVALUES` case in parsePrimaryBase — no AST node for VALUES row lists yet
+- `(expr, expr, ...)` valueList case in `parseParenExpr` — same rationale
 
 **Node 13 (parser-window):**
 - `tokLAG`, `tokLEAD` in parsePrimaryBase
@@ -420,7 +424,7 @@ func (p *Parser) deferredFeature(feature, ownerNode string) error {
 - Generic `functionCall` — triggered by `IDENT PAREN_LEFT` lookahead in parseVarRef
 
 **Node 16 (parser-graph):**
-- `exprGraphMatchMany` — detected via `MATCH` after an expression in parseParenOrValueList
+- `exprGraphMatchMany` — detected via `MATCH` after an expression in `parseParenExpr`
 
 **Node 18 (parser-datetime-literals):**
 - `tokDATE` literal body in parseLiteral
@@ -449,6 +453,8 @@ and get an exact list of call sites they need to replace. Each stub's doc commen
 | `DATE '2026-01-01'` | `DATE literal is deferred to parser-datetime-literals (DAG node 18)` |
 | `foo(x)` | `function call "foo" is deferred to parser-builtins (DAG node 15)` |
 | `LIST(1,2,3)` | `LIST() constructor is deferred to parser-builtins (DAG node 15)` |
+| `VALUES (1,2)` | `VALUES is deferred to parser-dml (DAG node 6)` |
+| `(1, 2, 3)` | `valueList is deferred to parser-dml (DAG node 6)` |
 
 ---
 
@@ -487,7 +493,7 @@ func TestParser_Goldens(t *testing.T) {
 }
 ```
 
-### 8.2 Golden corpus (~45 inputs)
+### 8.2 Golden corpus (~43 inputs)
 
 Committed under `testdata/parser-foundation/`:
 
@@ -505,7 +511,7 @@ Committed under `testdata/parser-foundation/`:
 
 **Predicates (8 cases):** IS NULL, IS NOT NULL, IN list, NOT IN, LIKE, LIKE ESCAPE, BETWEEN, NOT BETWEEN
 
-**Parentheses and values (3 cases):** `(1+2)`, `VALUES (1,2,3)`, `VALUES (1,2),(3,4)`, `(1,2,3)` non-SELECT list
+**Parentheses (1 case):** `(1+2)` plain parenthesized expression (VALUES and valueList are stubbed, not tested as goldens)
 
 **Stress (1 case):** `a.b.c + (d.e[0] * f[*]) - g`
 
@@ -565,24 +571,23 @@ Table-driven tests for every type form in `parseType`: atomic types, parameteriz
 
 ---
 
-## 9. Implementation Order (14 tasks)
+## 9. Implementation Order (13 tasks)
 
-1. **parser.go scaffold** — Parser struct, ParseError, constructor, token buffer helpers, parseSymbolPrimitive, parseVarRef (bare, no function call detection yet). Tests: TestParser_Machinery (~6 cases).
-2. **literals.go** — parseLiteral switch for the 6 base forms + date/time stubs. Tests: 10 goldens (`literal_*.partiql`).
-3. **parser.go parseType** — all 30+ type forms. Tests: TestParseType (~20 cases).
-4. **path.go** — parsePathSteps, parsePathStep, isPathStepStart. Tests: 7 path goldens. Does NOT wire into parsePrimary yet.
-5. **exprprimary.go parsePrimaryBase + exprTerm cases** — paren, paramRef, varRef (bare), array, bag, tuple, values. All deferred-feature stubs present. Wires parsePathSteps. Tests: ~15 goldens + stub error tests.
-6. **expr.go parseMathOp02/01/00 and parseValueExpr** — mult, add, concat, unary sign. Tests: 6 precedence goldens including the quirky `||`.
-7. **expr.go parsePredicate** — comparison, IS, IN, LIKE, BETWEEN. Tests: 8 predicate goldens.
-8. **expr.go parseNot, parseAnd, parseOr** — logical layers. Tests: 3 precedence goldens.
-9. **expr.go parseBagOp and parseSelectExpr stubs** — top-of-ladder dispatch. Tests: 2 stub error tests.
-10. **parseVarRef upgrade for function call detection + graph match stub** — `IDENT PAREN_LEFT` and `MATCH` detection. Tests: funcall_stub, graph_match_stub error tests.
-11. **TestParser_Goldens runner + -update flag** — golden harness. Wires all prior golden files.
-12. **TestParser_AWSCorpus** — corpus smoke test.
-13. **TestParser_Errors** — 18 error cases.
-14. **Final verification + DAG bookkeeping + finishing branch** — full test run, grammar cross-check, gofmt/vet, mark node 4 done, invoke finishing-a-development-branch.
+1. **parser.go scaffold + TestParser_Machinery** — Parser struct, ParseError, constructor, token buffer helpers, parseSymbolPrimitive, parseVarRef (bare, no function call detection yet). Tests: TestParser_Machinery (~6 cases).
+2. **literals.go + TestParser_Goldens runner + 10 literal goldens** — parseLiteral switch for the 6 base forms + date/time stubs. Sets up the golden harness with `-update` flag so all subsequent tasks can use it.
+3. **parser.go parseType + TestParseType** — all 30+ type forms. Table-driven tests (not goldens; TypeRef is a leaf node and table-driven is more explicit).
+4. **path.go + 7 path goldens** — parsePathSteps, parsePathStep, isPathStepStart. Does NOT wire into parsePrimary yet (no parsePrimary exists at this point).
+5. **exprprimary.go parsePrimaryBase + exprTerm cases + ~13 goldens** — paren (plain expr), paramRef, varRef (bare), array, bag, tuple. All deferred-feature stubs present (including VALUES/valueList/SubLink/graph-match). Wires parsePathSteps into parsePrimary.
+6. **expr.go parseMathOp02/01/00 and parseValueExpr + 6 precedence goldens** — mult, add, concat, unary sign. Includes the quirky `||` precedence case.
+7. **expr.go parsePredicate + 8 predicate goldens** — comparison, IS, IN, LIKE, BETWEEN.
+8. **expr.go parseNot, parseAnd, parseOr + 3 logic goldens** — logical layers.
+9. **expr.go parseBagOp and parseSelectExpr stubs + error tests** — top-of-ladder dispatch.
+10. **parseVarRef upgrade for function call detection + graph match stub** — `IDENT PAREN_LEFT` and `MATCH` detection.
+11. **TestParser_AWSCorpus** — corpus smoke test against the 61 AWS corpus files.
+12. **TestParser_Errors** — consolidated error-case table covering deferred-feature stubs and real syntax errors.
+13. **Final verification + DAG bookkeeping + finishing branch** — full test run, grammar cross-check, gofmt/vet, mark node 4 done, invoke finishing-a-development-branch.
 
-Estimated delta: ~1240 lines production + ~350 lines test + ~90 small golden files.
+Estimated delta: ~1180 lines production + ~350 lines test + ~43 golden pairs.
 
 ---
 
@@ -596,6 +601,6 @@ Estimated delta: ~1240 lines production + ~350 lines test + ~90 small golden fil
 
 **D4. Test strategy — filesystem goldens + corpus smoke + errors.** Matches `cosmosdb/parser/golden_test.go` pattern. Leverages `ast.NodeToString` from ast-core. Regeneration via `go test -update` flag. Avoids hand-written Go struct literal goldens (verbose, painful to maintain across AST shape changes).
 
-**D5. parseType + valueList/values in foundation.** `parseType` is ~80 lines of grammar-driven switch; keeping it in foundation decouples node 7 (DDL) and node 15 (builtins) — either can ship without the other. `valueList`/`values` are leaf utilities that belong with the rest of primary-expression parsing.
+**D5. parseType in foundation; valueList/values deferred to parser-dml.** `parseType` is ~80 lines of grammar-driven switch; keeping it in foundation decouples node 7 (DDL) and node 15 (builtins) — either can ship without the other. `valueList`/`values` were originally slated for foundation during brainstorming, but plan-time review found no AST representation for them (no `ValuesExpr`, no `ValueList`, no `RowExpr` in `partiql/ast`), so they are stubbed to parser-dml (DAG node 6) which owns VALUES as an INSERT source. Adding the AST nodes is out of scope for parser-foundation.
 
 **D6. Precedence ladder — one function per grammar layer, not a Pratt table.** PartiQL's grammar is explicitly layered (lines 445-512); mirroring it 1:1 makes the code easier to cross-check against the spec and matches how maintainers read the grammar file. No hidden precedence table to drift.
