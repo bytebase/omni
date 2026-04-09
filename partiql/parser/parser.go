@@ -449,9 +449,13 @@ func (p *Parser) parseType() (*ast.TypeRef, error) {
 // VARCHAR(n), DECIMAL(p,s), and related forms.
 //
 //   - name:    canonical type name (e.g. "DECIMAL")
-//   - minArgs: minimum number of integer args if the parenthesized
-//     list is present (0 for optional, 1 if required when parens are present)
-//   - maxArgs: maximum number of integer args
+//   - minArgs: minimum number of integer args when the parenthesized
+//     list is present. Parens themselves are always optional (every
+//     caller allows the bare form, e.g. CHAR or DECIMAL), so the
+//     min-args enforcement is nested inside the paren-present branch.
+//     If the grammar ever grows a type where parens are REQUIRED,
+//     callers will need a separate enforcement path.
+//   - maxArgs: maximum number of integer args when parens are present.
 func (p *Parser) parseTypeWithArgs(start int, name string, minArgs, maxArgs int) (*ast.TypeRef, error) {
 	// Consume the type keyword.
 	end := p.cur.Loc.End
@@ -490,6 +494,22 @@ func (p *Parser) parseOptionalTypeArgs(maxArgs int) (args []int, end int, err er
 	}
 	p.advance() // consume (
 	for {
+		// Targeted error for empty arg list (e.g. `DECIMAL()`) and
+		// trailing comma (e.g. `DECIMAL(10,)`). Without these guards,
+		// the integer-check below would fire "expected integer argument,
+		// got ')'" which misattributes the error to the closing paren.
+		if p.cur.Type == tokPAREN_RIGHT {
+			if len(args) == 0 {
+				return nil, 0, &ParseError{
+					Message: "empty type argument list",
+					Loc:     p.cur.Loc,
+				}
+			}
+			return nil, 0, &ParseError{
+				Message: "unexpected trailing comma in type arguments",
+				Loc:     p.cur.Loc,
+			}
+		}
 		if p.cur.Type != tokICONST {
 			return nil, 0, &ParseError{
 				Message: fmt.Sprintf("expected integer argument, got %q", p.cur.Str),
