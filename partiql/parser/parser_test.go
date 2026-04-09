@@ -398,3 +398,37 @@ func TestParser_Stubs_Task9(t *testing.T) {
 		})
 	}
 }
+
+// TestParser_Stubs_Task10 locks in the deferred-feature error messages
+// for function calls and graph MATCH — the two stubs upgraded in
+// Task 10.
+func TestParser_Stubs_Task10(t *testing.T) {
+	cases := []struct {
+		name      string
+		input     string
+		wantErrIn string
+	}{
+		{
+			name:      "funcall_stub",
+			input:     "foo(x)",
+			wantErrIn: `function call "foo" is deferred to parser-builtins (DAG node 15)`,
+		},
+		{
+			name:      "graph_match_stub",
+			input:     "(a MATCH (b))",
+			wantErrIn: "graph MATCH expression is deferred to parser-graph (DAG node 16)",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewParser(tc.input)
+			_, err := p.ParseExpr()
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.wantErrIn) {
+				t.Errorf("error = %q, want to contain %q", err.Error(), tc.wantErrIn)
+			}
+		})
+	}
+}

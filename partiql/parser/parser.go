@@ -230,12 +230,15 @@ func (p *Parser) parseExprTop() (ast.ExprNode, error) {
 	return p.parseBagOp()
 }
 
-// parseVarRef handles optional @-prefix plus symbolPrimitive. Matches
-// grammar rule varRefExpr (lines 635-636).
+// parseVarRef handles optional @-prefix plus symbolPrimitive, and
+// detects the function-call form `IDENT PAREN_LEFT ...`. Matches
+// grammar rules varRefExpr (635-636) and functionCall#FunctionCallIdent
+// (615).
 //
-// NOTE: Task 10 upgrades this function to detect IDENT followed by
-// PAREN_LEFT (function call form) and return a deferred-feature stub
-// error. The Task 1 version handles only bare varref.
+// Because PartiQL's grammar allows any symbolPrimitive as a function
+// name, a bare identifier followed by `(` is always a function call.
+// Foundation stubs this with "function call NAME is deferred to
+// parser-builtins (DAG node 15)".
 func (p *Parser) parseVarRef() (ast.ExprNode, error) {
 	start := p.cur.Loc.Start
 	atPrefixed := false
@@ -246,6 +249,15 @@ func (p *Parser) parseVarRef() (ast.ExprNode, error) {
 	name, caseSensitive, nameLoc, err := p.parseSymbolPrimitive()
 	if err != nil {
 		return nil, err
+	}
+	// Function call lookahead: <name> ( ... )
+	// Applies to BOTH the plain `foo(...)` and `@foo(...)` forms (the
+	// latter is unusual but grammar-legal).
+	if p.cur.Type == tokPAREN_LEFT {
+		return nil, &ParseError{
+			Message: fmt.Sprintf("function call %q is deferred to parser-builtins (DAG node 15)", name),
+			Loc:     ast.Loc{Start: start, End: p.cur.Loc.End},
+		}
 	}
 	return &ast.VarRef{
 		Name:          name,
