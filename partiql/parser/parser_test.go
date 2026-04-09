@@ -1,0 +1,200 @@
+package parser
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/bytebase/omni/partiql/ast"
+)
+
+// TestParser_Machinery verifies the low-level token buffer helpers
+// without any expression parsing. Each case constructs a Parser
+// directly and drives the helpers through their state transitions.
+func TestParser_Machinery(t *testing.T) {
+	t.Run("new_parser_primes_cur", func(t *testing.T) {
+		p := NewParser("foo")
+		if p.cur.Type != tokIDENT {
+			t.Errorf("cur.Type = %d, want tokIDENT", p.cur.Type)
+		}
+		if p.cur.Str != "foo" {
+			t.Errorf("cur.Str = %q, want %q", p.cur.Str, "foo")
+		}
+	})
+
+	t.Run("advance_moves_cur_forward", func(t *testing.T) {
+		p := NewParser("foo bar")
+		if p.peek().Str != "foo" {
+			t.Errorf("first peek() = %q, want foo", p.peek().Str)
+		}
+		p.advance()
+		if p.peek().Str != "bar" {
+			t.Errorf("second peek() = %q, want bar", p.peek().Str)
+		}
+		if p.prev.Str != "foo" {
+			t.Errorf("prev.Str = %q, want foo", p.prev.Str)
+		}
+	})
+
+	t.Run("peek_next_lookahead", func(t *testing.T) {
+		p := NewParser("foo bar baz")
+		if p.peek().Str != "foo" {
+			t.Errorf("peek() = %q, want foo", p.peek().Str)
+		}
+		if p.peekNext().Str != "bar" {
+			t.Errorf("peekNext() = %q, want bar", p.peekNext().Str)
+		}
+		if p.peek().Str != "foo" {
+			t.Errorf("peek() after peekNext = %q, want foo", p.peek().Str)
+		}
+		if p.peekNext().Str != "bar" {
+			t.Errorf("second peekNext() = %q, want bar", p.peekNext().Str)
+		}
+		p.advance()
+		if p.peek().Str != "bar" {
+			t.Errorf("peek() after advance = %q, want bar", p.peek().Str)
+		}
+		if p.peekNext().Str != "baz" {
+			t.Errorf("peekNext() after advance = %q, want baz", p.peekNext().Str)
+		}
+	})
+
+	t.Run("match_consumes_on_hit", func(t *testing.T) {
+		p := NewParser("AND OR")
+		if !p.match(tokAND) {
+			t.Errorf("match(tokAND) returned false")
+		}
+		if p.cur.Type != tokOR {
+			t.Errorf("cur.Type after match = %d, want tokOR", p.cur.Type)
+		}
+		if p.match(tokAND) {
+			t.Errorf("match(tokAND) returned true for non-matching token")
+		}
+		if p.match(tokOR, tokAND) {
+			if p.cur.Type != tokEOF {
+				t.Errorf("cur.Type after match = %d, want tokEOF", p.cur.Type)
+			}
+		} else {
+			t.Errorf("match(tokOR, tokAND) returned false when tokOR was cur")
+		}
+	})
+
+	t.Run("expect_returns_error_on_miss", func(t *testing.T) {
+		p := NewParser("foo")
+		_, err := p.expect(tokCOMMA)
+		if err == nil {
+			t.Fatal("expect(tokCOMMA) returned nil error on non-matching token")
+		}
+		perr, ok := err.(*ParseError)
+		if !ok {
+			t.Fatalf("error type = %T, want *ParseError", err)
+		}
+		if !strings.Contains(perr.Message, "expected") {
+			t.Errorf("error message = %q, want to contain 'expected'", perr.Message)
+		}
+		if perr.Loc.Start != 0 {
+			t.Errorf("error Loc.Start = %d, want 0", perr.Loc.Start)
+		}
+	})
+
+	t.Run("expect_consumes_on_hit", func(t *testing.T) {
+		p := NewParser("foo, bar")
+		tok, err := p.expect(tokIDENT)
+		if err != nil {
+			t.Fatalf("expect(tokIDENT) error: %v", err)
+		}
+		if tok.Str != "foo" {
+			t.Errorf("expect returned %q, want foo", tok.Str)
+		}
+		if p.cur.Type != tokCOMMA {
+			t.Errorf("cur.Type after expect = %d, want tokCOMMA", p.cur.Type)
+		}
+	})
+
+	t.Run("lexer_error_propagation", func(t *testing.T) {
+		p := NewParser("'unclosed")
+		if p.cur.Type != tokEOF {
+			t.Errorf("cur.Type = %d, want tokEOF for unterminated string", p.cur.Type)
+		}
+		err := p.checkLexerErr()
+		if err == nil {
+			t.Fatal("checkLexerErr returned nil, want lexer error")
+		}
+		perr, ok := err.(*ParseError)
+		if !ok {
+			t.Fatalf("error type = %T, want *ParseError", err)
+		}
+		if !strings.Contains(perr.Message, "unterminated string literal") {
+			t.Errorf("error message = %q, want to contain 'unterminated string literal'", perr.Message)
+		}
+	})
+
+	t.Run("parse_symbol_primitive_bare", func(t *testing.T) {
+		p := NewParser("foo")
+		name, caseSensitive, loc, err := p.parseSymbolPrimitive()
+		if err != nil {
+			t.Fatalf("parseSymbolPrimitive error: %v", err)
+		}
+		if name != "foo" {
+			t.Errorf("name = %q, want foo", name)
+		}
+		if caseSensitive {
+			t.Error("caseSensitive = true, want false for bare ident")
+		}
+		if loc.Start != 0 || loc.End != 3 {
+			t.Errorf("loc = %+v, want {0, 3}", loc)
+		}
+	})
+
+	t.Run("parse_symbol_primitive_quoted", func(t *testing.T) {
+		p := NewParser(`"Foo"`)
+		name, caseSensitive, _, err := p.parseSymbolPrimitive()
+		if err != nil {
+			t.Fatalf("parseSymbolPrimitive error: %v", err)
+		}
+		if name != "Foo" {
+			t.Errorf("name = %q, want Foo", name)
+		}
+		if !caseSensitive {
+			t.Error("caseSensitive = false, want true for quoted ident")
+		}
+	})
+
+	t.Run("parse_var_ref_bare", func(t *testing.T) {
+		p := NewParser("foo")
+		expr, err := p.parseVarRef()
+		if err != nil {
+			t.Fatalf("parseVarRef error: %v", err)
+		}
+		v, ok := expr.(*ast.VarRef)
+		if !ok {
+			t.Fatalf("parseVarRef returned %T, want *ast.VarRef", expr)
+		}
+		if v.Name != "foo" || v.AtPrefixed || v.CaseSensitive {
+			t.Errorf("VarRef = %+v, want {Name:foo AtPrefixed:false CaseSensitive:false}", v)
+		}
+	})
+
+	t.Run("parse_var_ref_at_prefixed", func(t *testing.T) {
+		p := NewParser("@x")
+		expr, err := p.parseVarRef()
+		if err != nil {
+			t.Fatalf("parseVarRef error: %v", err)
+		}
+		v := expr.(*ast.VarRef)
+		if v.Name != "x" || !v.AtPrefixed {
+			t.Errorf("VarRef = %+v, want {Name:x AtPrefixed:true}", v)
+		}
+	})
+
+	t.Run("parse_var_ref_quoted", func(t *testing.T) {
+		p := NewParser(`"Foo"`)
+		expr, err := p.parseVarRef()
+		if err != nil {
+			t.Fatalf("parseVarRef error: %v", err)
+		}
+		v := expr.(*ast.VarRef)
+		if v.Name != "Foo" || !v.CaseSensitive {
+			t.Errorf("VarRef = %+v, want {Name:Foo CaseSensitive:true}", v)
+		}
+	})
+}
