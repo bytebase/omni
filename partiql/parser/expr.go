@@ -373,3 +373,80 @@ func (p *Parser) parseBetweenBody(left ast.ExprNode, not bool, startLoc int) (*a
 		Loc:  ast.Loc{Start: startLoc, End: upper.GetLoc().End},
 	}, nil
 }
+
+// parseOr parses the OR layer (left-associative).
+//
+// Grammar: exprOr (lines 469-472):
+//
+//	lhs=exprOr OR rhs=exprAnd
+//	| parent_=exprAnd
+func (p *Parser) parseOr() (ast.ExprNode, error) {
+	left, err := p.parseAnd()
+	if err != nil {
+		return nil, err
+	}
+	for p.cur.Type == tokOR {
+		p.advance()
+		right, err := p.parseAnd()
+		if err != nil {
+			return nil, err
+		}
+		left = &ast.BinaryExpr{
+			Op:    ast.BinOpOr,
+			Left:  left,
+			Right: right,
+			Loc:   ast.Loc{Start: left.GetLoc().Start, End: right.GetLoc().End},
+		}
+	}
+	return left, nil
+}
+
+// parseAnd parses the AND layer (left-associative).
+//
+// Grammar: exprAnd (lines 474-477):
+//
+//	lhs=exprAnd AND rhs=exprNot
+//	| parent_=exprNot
+func (p *Parser) parseAnd() (ast.ExprNode, error) {
+	left, err := p.parseNot()
+	if err != nil {
+		return nil, err
+	}
+	for p.cur.Type == tokAND {
+		p.advance()
+		right, err := p.parseNot()
+		if err != nil {
+			return nil, err
+		}
+		left = &ast.BinaryExpr{
+			Op:    ast.BinOpAnd,
+			Left:  left,
+			Right: right,
+			Loc:   ast.Loc{Start: left.GetLoc().Start, End: right.GetLoc().End},
+		}
+	}
+	return left, nil
+}
+
+// parseNot parses the NOT layer (right-associative prefix).
+//
+// Grammar: exprNot (lines 479-482):
+//
+//	<assoc=right> NOT rhs=exprNot
+//	| parent_=exprPredicate
+func (p *Parser) parseNot() (ast.ExprNode, error) {
+	if p.cur.Type == tokNOT {
+		start := p.cur.Loc.Start
+		p.advance()
+		operand, err := p.parseNot() // right-associative recursion
+		if err != nil {
+			return nil, err
+		}
+		return &ast.UnaryExpr{
+			Op:      ast.UnOpNot,
+			Operand: operand,
+			Loc:     ast.Loc{Start: start, End: operand.GetLoc().End},
+		}, nil
+	}
+	return p.parsePredicate()
+}
