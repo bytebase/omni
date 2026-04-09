@@ -281,3 +281,71 @@ func TestLexer_CommentsBetweenTokens(t *testing.T) {
 		t.Errorf("expected [SELECT, FROM, EOF], got %+v", tokens)
 	}
 }
+
+func TestLexer_NewLexerWithOffset(t *testing.T) {
+	// Tokenize "   SELECT   " with baseOffset=100. The kwSELECT token
+	// should report Loc.Start = 103, Loc.End = 109 (positions shifted
+	// by 100 relative to the segment's local positions 3..9).
+	tokens, errs := TokenizeWithOffset("   SELECT   ", 100)
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %+v", errs)
+	}
+	// Find the kwSELECT token.
+	var selectTok *Token
+	for i, tok := range tokens {
+		if tok.Type == kwSELECT {
+			selectTok = &tokens[i]
+			break
+		}
+	}
+	if selectTok == nil {
+		t.Fatalf("kwSELECT not found in tokens: %+v", tokens)
+	}
+	if selectTok.Loc.Start != 103 || selectTok.Loc.End != 109 {
+		t.Errorf("kwSELECT Loc = %+v, want {103, 109}", selectTok.Loc)
+	}
+}
+
+func TestLexer_NewLexerWithOffset_LexErrors(t *testing.T) {
+	// An unterminated string should produce a LexError whose Loc is
+	// shifted by baseOffset.
+	_, errs := TokenizeWithOffset("'unterminated", 50)
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 lex error, got %d: %+v", len(errs), errs)
+	}
+	// The error's Loc.Start should be 50 (the position of the opening
+	// quote in the full document).
+	if errs[0].Loc.Start != 50 {
+		t.Errorf("lex error Loc.Start = %d, want 50", errs[0].Loc.Start)
+	}
+}
+
+func TestLexer_NewLexer_UnchangedBehavior(t *testing.T) {
+	// Regression check: the existing NewLexer should produce zero-based
+	// positions, same as before the baseOffset refactor.
+	tokens, errs := Tokenize("SELECT")
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %+v", errs)
+	}
+	if len(tokens) < 1 || tokens[0].Type != kwSELECT {
+		t.Fatalf("expected first token kwSELECT, got %+v", tokens)
+	}
+	if tokens[0].Loc.Start != 0 || tokens[0].Loc.End != 6 {
+		t.Errorf("kwSELECT Loc = %+v, want {0, 6}", tokens[0].Loc)
+	}
+}
+
+// TokenizeWithOffset is a test helper: one-shot tokenize with a base
+// offset. Mirrors the existing Tokenize helper but constructs via
+// NewLexerWithOffset.
+func TokenizeWithOffset(input string, baseOffset int) (tokens []Token, errors []LexError) {
+	l := NewLexerWithOffset(input, baseOffset)
+	for {
+		tok := l.NextToken()
+		tokens = append(tokens, tok)
+		if tok.Type == tokEOF {
+			break
+		}
+	}
+	return tokens, l.Errors()
+}
