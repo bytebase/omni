@@ -233,12 +233,6 @@ func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// Empty column list: ()
-	if p.cur.Type == ')' {
-		p.advance()
-		return nil, nil
-	}
-
 	var cols []*nodes.ColumnRef
 	for {
 		// Completion: inside column list, offer columnref candidates.
