@@ -416,9 +416,19 @@ func keywordName(t int) (string, bool) {
 	return name, ok
 }
 
-// keywordReserved marks the ~99 reserved keywords seeded from the legacy
+// keywordReserved marks the 82 reserved keywords seeded from the legacy
 // build_id_contains_non_reserved_keywords.py script. These cannot be used
 // as unquoted identifiers without quoting.
+//
+// The legacy Python file declares 91 reserved keywords, but 9 of those
+// (CURRENT_USER, FOLLOWING, GSCLUSTER, ISSUE, LOCALTIME, LOCALTIMESTAMP,
+// REGEXP, TRIGGER, WHENEVER) do NOT appear as token rules in the current
+// SnowflakeLexer.g4 — two are commented out (CURRENT_USER, TRIGGER) and
+// the other seven were never added. The omni lexer can only mark a
+// keyword as reserved if it has a corresponding kw* token, so these 9
+// phantoms are dropped here. Their absence is a deliberate divergence
+// from the stale Python source. The keyword_completeness_test.go drift
+// detector knows about these 9 names and skips them.
 var keywordReserved = map[int]bool{
 	kwACCOUNT:           true,
 	kwALL:               true,
@@ -441,7 +451,6 @@ var keywordReserved = map[int]bool{
 	kwCURRENT_DATE:      true,
 	kwCURRENT_TIME:      true,
 	kwCURRENT_TIMESTAMP: true,
-	kwCURRENT_USER:      true,
 	kwDATABASE:          true,
 	kwDELETE:            true,
 	kwDISTINCT:          true,
@@ -449,13 +458,11 @@ var keywordReserved = map[int]bool{
 	kwELSE:              true,
 	kwEXISTS:            true,
 	kwFALSE:             true,
-	kwFOLLOWING:         true,
 	kwFOR:               true,
 	kwFROM:              true,
 	kwFULL:              true,
 	kwGRANT:             true,
 	kwGROUP:             true,
-	kwGSCLUSTER:         true,
 	kwHAVING:            true,
 	kwILIKE:             true,
 	kwIN:                true,
@@ -465,13 +472,10 @@ var keywordReserved = map[int]bool{
 	kwINTERSECT:         true,
 	kwINTO:              true,
 	kwIS:                true,
-	kwISSUE:             true,
 	kwJOIN:              true,
 	kwLATERAL:           true,
 	kwLEFT:              true,
 	kwLIKE:              true,
-	kwLOCALTIME:         true,
-	kwLOCALTIMESTAMP:    true,
 	kwMINUS:             true,
 	kwNATURAL:           true,
 	kwNOT:               true,
@@ -482,7 +486,6 @@ var keywordReserved = map[int]bool{
 	kwORDER:             true,
 	kwORGANIZATION:      true,
 	kwQUALIFY:           true,
-	kwREGEXP:            true,
 	kwREVOKE:            true,
 	kwRIGHT:             true,
 	kwRLIKE:             true,
@@ -498,7 +501,6 @@ var keywordReserved = map[int]bool{
 	kwTABLESAMPLE:       true,
 	kwTHEN:              true,
 	kwTO:                true,
-	kwTRIGGER:           true,
 	kwTRUE:              true,
 	kwTRY_CAST:          true,
 	kwUNION:             true,
@@ -508,7 +510,6 @@ var keywordReserved = map[int]bool{
 	kwVALUES:            true,
 	kwVIEW:              true,
 	kwWHEN:              true,
-	kwWHENEVER:          true,
 	kwWHERE:             true,
 	kwWITH:              true,
 }
@@ -2246,13 +2247,34 @@ func TestKeywordCompleteness(t *testing.T) {
 
 // TestReservedKeywordsCompleteness asserts that every keyword in the legacy
 // build_id_contains_non_reserved_keywords.py snowflake_reserved_keyword dict
-// is present in keywordReserved.
+// is present in keywordReserved, EXCEPT for a known set of phantoms that
+// the legacy Python script reserves but the legacy SnowflakeLexer.g4 does
+// not actually emit as token rules. The omni lexer cannot mark a keyword
+// as reserved if it has no kw* token, so these phantoms are deliberately
+// excluded from keywordReserved (see the comment in keywords.go).
 //
 // Skips with t.Skip if the script is missing.
 func TestReservedKeywordsCompleteness(t *testing.T) {
 	data, err := os.ReadFile(legacyReservedScript)
 	if err != nil {
 		t.Skipf("legacy reserved-keyword script not available at %s: %v", legacyReservedScript, err)
+	}
+
+	// knownPhantoms are keyword names that the Python reserved-set file
+	// declares but the legacy SnowflakeLexer.g4 does not emit as a token
+	// rule (two are commented out, seven are entirely absent). Verified
+	// 2026-04-07. If a future grammar update adds any of these, drop the
+	// entry from this set and add it to keywordReserved in keywords.go.
+	knownPhantoms := map[string]bool{
+		"CURRENT_USER":   true, // commented out in lexer grammar
+		"FOLLOWING":      true, // not in lexer grammar
+		"GSCLUSTER":      true, // not in lexer grammar
+		"ISSUE":          true, // not in lexer grammar
+		"LOCALTIME":      true, // not in lexer grammar
+		"LOCALTIMESTAMP": true, // not in lexer grammar
+		"REGEXP":         true, // not in lexer grammar
+		"TRIGGER":        true, // commented out in lexer grammar
+		"WHENEVER":       true, // not in lexer grammar
 	}
 
 	// Match lines like:    "ACCOUNT": True,
@@ -2264,19 +2286,25 @@ func TestReservedKeywordsCompleteness(t *testing.T) {
 	}
 
 	missing := []string{}
+	skipped := 0
 	for _, m := range matches {
 		kw := m[1]
+		if knownPhantoms[kw] {
+			skipped++
+			continue
+		}
 		if !IsReservedKeyword(kw) {
 			missing = append(missing, kw)
 		}
 	}
 
 	if len(missing) > 0 {
-		t.Errorf("%d reserved keywords missing from keywordReserved: %v",
+		t.Errorf("%d reserved keywords missing from keywordReserved (not in known-phantom set): %v",
 			len(missing), missing)
 	}
 
-	t.Logf("checked %d reserved keywords from legacy script; %d missing", len(matches), len(missing))
+	t.Logf("checked %d reserved keywords from legacy script; %d skipped as known phantoms; %d missing",
+		len(matches), skipped, len(missing))
 }
 
 func min(a, b int) int {

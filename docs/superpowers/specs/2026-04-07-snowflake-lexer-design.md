@@ -297,7 +297,7 @@ Snowflake's three comment forms — `--`, `//`, `/* ... */` — are dropped sile
 
 `scanString` handles both single-quoted strings and `$$...$$` double-dollar strings (the latter reached via `scanDollar`):
 
-- `'...'` form: read until matching `'`, treating `\\<char>` as an escape and `''` as a doubled-quote escape (literal single quote). The `Token.Str` field contains the unescaped content.
+- `'...'` form: read until matching `'`, treating `\\<char>` as an escape and `''` as a doubled-quote escape (literal single quote). Recognized escape sequences: `\n` (newline), `\t` (tab), `\r` (carriage return), `\0` (NUL), `\b` (backspace, 0x08), `\\` (backslash), `\'` (single quote), `\"` (double quote). Any other `\<char>` sequence is reduced to the literal `<char>`. The `Token.Str` field contains the unescaped content.
 - `$$...$$` form: read until next `$$`, no escapes. The `Token.Str` field contains the raw content between the delimiters.
 
 Unterminated strings produce a `LexError` and a `tokInvalid` token covering the bad span; the lexer advances to the end of input or to a newline (whichever comes first) and continues.
