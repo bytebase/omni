@@ -200,7 +200,7 @@ func (p *Parser) ParseExpr() (ast.ExprNode, error) {
 	if err := p.checkLexerErr(); err != nil {
 		return nil, err
 	}
-	expr, err := p.parseLiteral()
+	expr, err := p.parsePrimary()
 	if err != nil {
 		return nil, err
 	}

@@ -91,10 +91,7 @@ func (p *Parser) parsePathStep() (ast.PathStep, error) {
 			}, nil
 		}
 		// Bracket-expr: [expr]
-		// NOTE: calls parseLiteral directly (not ParseExpr) because ParseExpr
-		// has an EOF check that would fail on the trailing ]. Task 5 will
-		// refactor this to call parsePrimary once parsePrimary exists.
-		idx, err := p.parseLiteral()
+		idx, err := p.parsePrimary()
 		if err != nil {
 			return nil, err
 		}
