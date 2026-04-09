@@ -432,3 +432,53 @@ func TestParser_Stubs_Task10(t *testing.T) {
 		})
 	}
 }
+
+// TestParser_AWSCorpus loads every .partiql file from
+// testdata/aws-corpus/, filters out the 2 known-bad syntax-skeleton
+// files, and asserts each one either (a) fully parses or (b) hits a
+// deferred-feature stub error. Any other error (or a panic) indicates
+// a parser bug.
+//
+// At foundation milestone (DAG node 4), most corpus files start with
+// SELECT and hit the parser-select stub — that's expected. The
+// summary log reports how many fully parsed vs stubbed.
+func TestParser_AWSCorpus(t *testing.T) {
+	skip := map[string]bool{
+		"select-001.partiql": true, // syntax skeleton (bracket placeholders)
+		"insert-002.partiql": true, // syntax skeleton (backtick placeholders)
+	}
+	files, err := filepath.Glob("testdata/aws-corpus/*.partiql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) == 0 {
+		t.Fatal("no AWS corpus files found under testdata/aws-corpus/")
+	}
+	var fullyParsed, stubbed, skipped int
+	for _, f := range files {
+		name := filepath.Base(f)
+		if skip[name] {
+			skipped++
+			continue
+		}
+		t.Run(name, func(t *testing.T) {
+			data, err := os.ReadFile(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := NewParser(string(data))
+			_, err = p.ParseExpr()
+			if err == nil {
+				fullyParsed++
+				return
+			}
+			if !strings.Contains(err.Error(), "deferred to") {
+				t.Errorf("unexpected parse error (not a deferred-feature stub): %v", err)
+				return
+			}
+			stubbed++
+		})
+	}
+	t.Logf("AWS corpus: %d fully parsed, %d stubbed, %d skipped",
+		fullyParsed, stubbed, skipped)
+}

@@ -483,14 +483,26 @@ func (p *Parser) parseBagOp() (ast.ExprNode, error) {
 // otherwise delegates to parseOr. Foundation stubs SELECT — if the
 // first token is SELECT, the parser returns a deferred-feature error.
 //
+// DML statements (INSERT, UPDATE, DELETE) are also statement-level
+// constructs that cannot appear as expressions in the foundation.
+// They are stubbed here so the AWS corpus smoke test can verify the
+// parser handles them gracefully rather than crashing.
+//
 // Node 5 will replace the SELECT-detection branch with real SFW query
 // parsing that produces ast.SelectStmt (via ast.StmtNode wrapped in a
 // SubLink if used inside an expression).
 //
 // Grammar: exprSelect (lines 456-467).
 func (p *Parser) parseSelectExpr() (ast.ExprNode, error) {
-	if p.cur.Type == tokSELECT {
+	switch p.cur.Type {
+	case tokSELECT:
 		return nil, p.deferredFeature("SELECT", "parser-select (DAG node 5)")
+	case tokINSERT:
+		return nil, p.deferredFeature("INSERT", "parser-dml (DAG node 6)")
+	case tokUPDATE:
+		return nil, p.deferredFeature("UPDATE", "parser-dml (DAG node 6)")
+	case tokDELETE:
+		return nil, p.deferredFeature("DELETE", "parser-dml (DAG node 6)")
 	}
 	return p.parseOr()
 }
