@@ -7,28 +7,62 @@ import (
 	"github.com/bytebase/omni/snowflake/ast"
 )
 
-// Lexer is a Snowflake SQL tokenizer. Construct via NewLexer and call
-// NextToken until it returns Token{Type: tokEOF}. Lex errors are collected
-// in a slice (Errors); each error is accompanied by a synthetic tokInvalid
-// token at the failure site so consumers can choose to halt on the first
-// error or proceed with best-effort parsing.
+// Lexer is a Snowflake SQL tokenizer. Construct via NewLexer (or
+// NewLexerWithOffset when tokenizing a substring of a larger document)
+// and call NextToken until it returns Token{Type: tokEOF}. Lex errors
+// are collected in a slice (Errors); each error is accompanied by a
+// synthetic tokInvalid token at the failure site so consumers can
+// choose to halt on the first error or proceed with best-effort parsing.
 type Lexer struct {
-	input  string
-	pos    int // current byte offset (one past the last consumed byte)
-	start  int // start byte of the token currently being scanned
-	errors []LexError
+	input      string
+	pos        int // current byte offset (one past the last consumed byte)
+	start      int // start byte of the token currently being scanned
+	errors     []LexError
+	baseOffset int // added to token Loc.Start/End and error Loc.Start/End when returned via public API
 }
 
-// NewLexer constructs a Lexer for the given input.
+// NewLexer constructs a Lexer for the given input. Token positions are
+// zero-based byte offsets into input.
 func NewLexer(input string) *Lexer {
 	return &Lexer{input: input}
+}
+
+// NewLexerWithOffset constructs a Lexer whose emitted token Loc values
+// are shifted by baseOffset. Use this when tokenizing a substring of a
+// larger document and you want Loc values to refer to positions in the
+// larger document rather than the substring. The F4 parser-entry uses
+// this to plumb absolute positions through F3's split-then-parse
+// pipeline.
+//
+// The shift is applied lazily when tokens and errors leave the Lexer
+// via NextToken() and Errors(). Internal scan helpers continue to use
+// local (unshifted) positions against input.
+func NewLexerWithOffset(input string, baseOffset int) *Lexer {
+	return &Lexer{input: input, baseOffset: baseOffset}
 }
 
 // Errors returns all lex errors collected so far. Errors are appended in
 // source order; each error is accompanied by a tokInvalid token in the
 // stream.
+//
+// If the Lexer was constructed with NewLexerWithOffset, the returned
+// errors have Loc values shifted by baseOffset. The internal l.errors
+// slice retains unshifted local positions.
 func (l *Lexer) Errors() []LexError {
-	return l.errors
+	if l.baseOffset == 0 {
+		return l.errors
+	}
+	shifted := make([]LexError, len(l.errors))
+	for i, e := range l.errors {
+		shifted[i] = LexError{
+			Loc: ast.Loc{
+				Start: e.Loc.Start + l.baseOffset,
+				End:   e.Loc.End + l.baseOffset,
+			},
+			Msg: e.Msg,
+		}
+	}
+	return shifted
 }
 
 // Tokenize is a one-shot convenience that runs a lexer to EOF and returns
@@ -48,7 +82,22 @@ func Tokenize(input string) (tokens []Token, errors []LexError) {
 
 // NextToken advances the lexer and returns the next token. At end of input
 // it returns Token{Type: tokEOF}; subsequent calls continue to return EOF.
+//
+// If the Lexer was constructed with NewLexerWithOffset, the returned
+// token's Loc values are shifted by baseOffset.
 func (l *Lexer) NextToken() Token {
+	tok := l.nextTokenInner()
+	if l.baseOffset != 0 {
+		tok.Loc.Start += l.baseOffset
+		tok.Loc.End += l.baseOffset
+	}
+	return tok
+}
+
+// nextTokenInner returns the next token with LOCAL (unshifted) positions.
+// It is the original body of the lexer dispatch — the public NextToken
+// above is a thin wrapper that applies baseOffset before returning.
+func (l *Lexer) nextTokenInner() Token {
 	l.skipWhitespaceAndComments()
 	if l.pos >= len(l.input) {
 		return Token{Type: tokEOF, Loc: ast.Loc{Start: l.pos, End: l.pos}}

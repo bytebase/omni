@@ -23,3 +23,21 @@ const (
 	errUnterminatedQuoted  = "unterminated quoted identifier"
 	errInvalidByte         = "invalid byte"
 )
+
+// ParseError describes a single parse error with its source location.
+//
+// Loc uses the same shape as LexError so consumers can handle both
+// uniformly. Line/column conversion is a caller-side concern via
+// LineTable (defined in linetable.go).
+type ParseError struct {
+	Loc ast.Loc
+	Msg string
+}
+
+// Error implements the error interface. Returns just the message — line
+// and column are omitted here to keep ParseError a pure data carrier.
+// Callers that want formatted "msg (line N, col M)" output should use a
+// LineTable to convert Loc.Start into a (line, col) pair.
+func (e *ParseError) Error() string {
+	return e.Msg
+}
