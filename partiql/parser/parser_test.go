@@ -1,11 +1,17 @@
 package parser
 
 import (
+	"flag"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/partiql/ast"
 )
+
+// update regenerates golden files. Run with -update to refresh.
+var update = flag.Bool("update", false, "update golden files")
 
 // TestParser_Machinery verifies the low-level token buffer helpers
 // without any expression parsing. Each case constructs a Parser
@@ -203,4 +209,49 @@ func TestParser_Machinery(t *testing.T) {
 			t.Errorf("VarRef = %+v, want {Name:Foo CaseSensitive:true}", v)
 		}
 	})
+}
+
+// TestParser_Goldens iterates every .partiql file under
+// testdata/parser-foundation/ and compares the parser's pretty-printed
+// output (via ast.NodeToString) against the matching .golden file.
+//
+// Run with `go test -update -run TestParser_Goldens ./partiql/parser/...`
+// to regenerate goldens after intentional AST shape changes.
+func TestParser_Goldens(t *testing.T) {
+	files, err := filepath.Glob("testdata/parser-foundation/*.partiql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) == 0 {
+		t.Fatal("no golden inputs found under testdata/parser-foundation/")
+	}
+	for _, inPath := range files {
+		name := strings.TrimSuffix(filepath.Base(inPath), ".partiql")
+		t.Run(name, func(t *testing.T) {
+			input, err := os.ReadFile(inPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := NewParser(string(input))
+			expr, err := p.ParseExpr()
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			got := ast.NodeToString(expr)
+			goldenPath := strings.TrimSuffix(inPath, ".partiql") + ".golden"
+			if *update {
+				if err := os.WriteFile(goldenPath, []byte(got+"\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			want, err := os.ReadFile(goldenPath)
+			if err != nil {
+				t.Fatalf("golden file missing: %s (run with -update to create)", goldenPath)
+			}
+			if got+"\n" != string(want) {
+				t.Errorf("AST mismatch\ngot:\n%s\nwant:\n%s", got, string(want))
+			}
+		})
+	}
 }

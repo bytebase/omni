@@ -176,6 +176,29 @@ func (p *Parser) parseSymbolPrimitive() (name string, caseSensitive bool, loc as
 	}
 }
 
+// ParseExpr parses a single expression from the parser's input.
+//
+// This is the foundation-level public entry point. Nodes 5-8 will
+// add ParseStatement and ParseScript (SelectStmt-producing forms).
+// Node 8 will add the top-level Parse(sql) function.
+//
+// At this milestone (Task 2), ParseExpr only handles literal tokens.
+// Each subsequent task extends ParseExpr's dispatch target as the
+// precedence ladder grows:
+//
+//	Task 2 (this): ParseExpr → parseLiteral
+//	Task 5:        ParseExpr → parsePrimary
+//	Task 6:        ParseExpr → parseMathOp00
+//	Task 7:        ParseExpr → parsePredicate
+//	Task 8:        ParseExpr → parseOr
+//	Task 9:        ParseExpr → parseBagOp
+func (p *Parser) ParseExpr() (ast.ExprNode, error) {
+	if err := p.checkLexerErr(); err != nil {
+		return nil, err
+	}
+	return p.parseLiteral()
+}
+
 // parseVarRef handles optional @-prefix plus symbolPrimitive. Matches
 // grammar rule varRefExpr (lines 635-636).
 //
