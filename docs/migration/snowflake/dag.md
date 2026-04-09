@@ -29,7 +29,7 @@ snowflake/
 | **F1** | ast-core | `snowflake/ast` | — | F2, C1, C2 | 0 | P0 | **done** (PR #14) |
 | **F2** | lexer | `snowflake/parser` | F1 | C1, C2 | 0 | P0 | **done** (PR #17) |
 | **F3** | statement-splitter | `snowflake/parser` | F2 | F4 | 0 | P0 | **done** (PR #18) |
-| **F4** | parser-entry + walker | `snowflake/parser` | F1, F2 | F3 | 0 | P0 | not started |
+| **F4** | parser-entry + walker | `snowflake/parser` | F1, F2 | F3 | 0 | P0 | **done** (PR #19) |
 | **C1** | corpus-legacy (lift 27 SQL files) | `snowflake/parser/testdata/legacy` | — | F1–F4, C2 | 0 | P0 | **done** |
 | **C2** | corpus-official (scrape docs.snowflake.com) | `snowflake/parser/testdata/official` | — | F1–F4, C1 | 0 | P0 | not started |
 | **T1.1** | identifiers + qualified names + normalization helpers | `snowflake/parser` | F4 | — | 1 | P0 | not started |
