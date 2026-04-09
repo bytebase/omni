@@ -405,6 +405,9 @@ func (p *Parser) deferredFeature(feature, ownerNode string) error {
 **Node 6 (parser-dml):**
 - `tokVALUES` case in parsePrimaryBase — no AST node for VALUES row lists yet
 - `(expr, expr, ...)` valueList case in `parseParenExpr` — same rationale
+- `tokINSERT` case in `parseSelectExpr` — INSERT statement top-level dispatch
+- `tokUPDATE` case in `parseSelectExpr` — UPDATE statement top-level dispatch
+- `tokDELETE` case in `parseSelectExpr` — DELETE statement top-level dispatch
 
 **Node 13 (parser-window):**
 - `tokLAG`, `tokLEAD` in parsePrimaryBase
