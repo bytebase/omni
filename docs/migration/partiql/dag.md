@@ -32,8 +32,8 @@ Conventions follow `cosmosdb/` and `mongo/`:
 | 6 | parser-dml | `partiql/parser` (dml.go) | parser-foundation | parser-select, parser-ddl (logically — same files conflict) | **P0** | done |
 | 7 | parser-ddl | `partiql/parser` (ddl.go) | parser-foundation | parser-select, parser-dml (logically — same files conflict) | **P0** | done |
 | 8 | parse-entry | `partiql/parser` (parse.go, exec.go, parse_test.go) | parser-foundation | parser-select/dml/ddl (entry can land before they all complete) | **P0** | done |
-| 9 | analysis | `partiql/analysis` | ast-core, parse-entry | catalog, completion-foundation | **P0** | not started |
-| 10 | completion | `partiql/completion` | parse-entry, catalog | analysis | **P0** | not started |
+| 9 | analysis | `partiql/analysis` | ast-core, parse-entry | catalog, completion-foundation | **P0** | done |
+| 10 | completion | `partiql/completion` | parse-entry, catalog | analysis | **P0** | done |
 | 11 | bytebase-switch | bytebase wrapper rewrite | parse-entry, analysis, completion | — | **P0** | not started |
 | 12 | parser-let-pivot | `partiql/parser` (select.go) | parser-select | parser-window, parser-aggregates, parser-builtins, parser-graph, parser-ion-literals, parser-datetime-literals | **P1** | not started |
 | 13 | parser-window | `partiql/parser` (expr.go, function.go) | parser-foundation | parser-let-pivot, parser-aggregates, parser-builtins, parser-graph, parser-ion-literals, parser-datetime-literals | **P1** | not started |
