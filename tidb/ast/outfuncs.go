@@ -2689,6 +2689,13 @@ func writeColumnConstraint(sb *strings.Builder, n *ColumnConstraint) {
 	if n.NotEnforced {
 		sb.WriteString(" :not_enforced true")
 	}
+	if n.Clustered != nil {
+		if *n.Clustered {
+			sb.WriteString(" :clustered t")
+		} else {
+			sb.WriteString(" :clustered f")
+		}
+	}
 	sb.WriteString("}")
 }
 
@@ -2746,6 +2753,13 @@ func writeConstraint(sb *strings.Builder, n *Constraint) {
 	}
 	if n.NotEnforced {
 		sb.WriteString(" :not_enforced true")
+	}
+	if n.Clustered != nil {
+		if *n.Clustered {
+			sb.WriteString(" :clustered t")
+		} else {
+			sb.WriteString(" :clustered f")
+		}
 	}
 	sb.WriteString("}")
 }

@@ -107,6 +107,57 @@ func TestParseTTLExpression(t *testing.T) {
 	}
 }
 
+func TestParseClusteredPK(t *testing.T) {
+	trueVal := true
+	falseVal := false
+	tests := []struct {
+		name      string
+		sql       string
+		clustered *bool
+	}{
+		{"clustered", "CREATE TABLE t (id INT, PRIMARY KEY (id) CLUSTERED)", &trueVal},
+		{"nonclustered", "CREATE TABLE t (id INT, PRIMARY KEY (id) NONCLUSTERED)", &falseVal},
+		{"default", "CREATE TABLE t (id INT, PRIMARY KEY (id))", nil},
+		{"inline clustered", "CREATE TABLE t (id INT PRIMARY KEY CLUSTERED)", &trueVal},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			list, err := Parse(tt.sql)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			stmt := list.Items[0].(*nodes.CreateTableStmt)
+			// Check table-level constraints
+			for _, c := range stmt.Constraints {
+				if c.Type == nodes.ConstrPrimaryKey {
+					if tt.clustered == nil && c.Clustered != nil {
+						t.Errorf("expected nil Clustered, got %v", *c.Clustered)
+					}
+					if tt.clustered != nil && (c.Clustered == nil || *c.Clustered != *tt.clustered) {
+						t.Errorf("Clustered mismatch")
+					}
+					return
+				}
+			}
+			// Check column-level constraints (for inline PK)
+			for _, col := range stmt.Columns {
+				for _, cc := range col.Constraints {
+					if cc.Type == nodes.ColConstrPrimaryKey {
+						if tt.clustered == nil && cc.Clustered != nil {
+							t.Errorf("expected nil Clustered, got %v", *cc.Clustered)
+						}
+						if tt.clustered != nil && (cc.Clustered == nil || *cc.Clustered != *tt.clustered) {
+							t.Errorf("Clustered mismatch")
+						}
+						return
+					}
+				}
+			}
+			t.Error("no PRIMARY KEY found")
+		})
+	}
+}
+
 func TestParseDatabasePlacementPolicy(t *testing.T) {
 	tests := []struct {
 		name string

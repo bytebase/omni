@@ -423,6 +423,7 @@ type ColumnConstraint struct {
 	OnDelete    ReferenceAction
 	OnUpdate    ReferenceAction
 	NotEnforced bool // for CHECK ... NOT ENFORCED
+	Clustered   *bool // TiDB: for PRIMARY KEY column constraint
 }
 
 func (c *ColumnConstraint) nodeTag() {}
@@ -456,6 +457,7 @@ type Constraint struct {
 	OnUpdate     ReferenceAction
 	Match        string // FULL, PARTIAL, SIMPLE
 	NotEnforced  bool   // for CHECK ... NOT ENFORCED
+	Clustered    *bool  // TiDB: nil=unset, true=CLUSTERED, false=NONCLUSTERED
 }
 
 func (c *Constraint) nodeTag() {}

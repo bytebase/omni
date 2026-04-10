@@ -401,19 +401,45 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		if _, err := p.expect(kwKEY); err != nil {
 			return false, err
 		}
-		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
+		cc := &nodes.ColumnConstraint{
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrPrimaryKey,
-		})
+		}
+		// TiDB: CLUSTERED/NONCLUSTERED
+		if p.cur.Type == kwCLUSTERED {
+			p.advance()
+			b := true
+			cc.Clustered = &b
+			cc.Loc.End = p.pos()
+		} else if p.cur.Type == kwNONCLUSTERED {
+			p.advance()
+			b := false
+			cc.Clustered = &b
+			cc.Loc.End = p.pos()
+		}
+		col.Constraints = append(col.Constraints, cc)
 		return true, nil
 
 	case kwKEY:
 		// Bare KEY means PRIMARY KEY
 		p.advance()
-		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
+		cc := &nodes.ColumnConstraint{
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrPrimaryKey,
-		})
+		}
+		// TiDB: CLUSTERED/NONCLUSTERED
+		if p.cur.Type == kwCLUSTERED {
+			p.advance()
+			b := true
+			cc.Clustered = &b
+			cc.Loc.End = p.pos()
+		} else if p.cur.Type == kwNONCLUSTERED {
+			p.advance()
+			b := false
+			cc.Clustered = &b
+			cc.Loc.End = p.pos()
+		}
+		col.Constraints = append(col.Constraints, cc)
 		return true, nil
 
 	case kwCOMMENT:
@@ -886,6 +912,16 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
 		p.parseConstraintIndexOptions(constr)
+		// TiDB: CLUSTERED/NONCLUSTERED
+		if p.cur.Type == kwCLUSTERED {
+			p.advance()
+			b := true
+			constr.Clustered = &b
+		} else if p.cur.Type == kwNONCLUSTERED {
+			p.advance()
+			b := false
+			constr.Clustered = &b
+		}
 
 	case kwUNIQUE:
 		p.advance()
