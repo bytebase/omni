@@ -1,0 +1,1 @@
+SHOW GRANTS TO SNOWFLAKE.CORE.BUDGET ROLE cost.budgets.my_budget!ADMIN;

@@ -1,0 +1,1 @@
+INSERT INTO tt1 VALUES(3,4);

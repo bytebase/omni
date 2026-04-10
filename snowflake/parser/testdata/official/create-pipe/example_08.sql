@@ -1,0 +1,3 @@
+CREATE OR REPLACE PIPE my_streaming_pipe
+AS COPY INTO my_table
+  FROM (SELECT $1, $1:c1, $1:ts FROM TABLE(DATA_SOURCE(TYPE => 'STREAMING')));

@@ -1,0 +1,5 @@
+CREATE OR ALTER DYNAMIC TABLE my_dynamic_table
+  TARGET_LAG = DOWNSTREAM
+  WAREHOUSE = mywh
+  AS
+    SELECT a, b FROM t;

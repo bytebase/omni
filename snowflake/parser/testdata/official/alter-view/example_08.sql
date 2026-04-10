@@ -1,0 +1,2 @@
+ALTER VIEW v1
+  ADD ROW ACCESS POLICY rap_v1 ON (empl_id);

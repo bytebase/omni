@@ -1,0 +1,1 @@
+SELECT c1 FROM testtable LIMIT 3 OFFSET 3;

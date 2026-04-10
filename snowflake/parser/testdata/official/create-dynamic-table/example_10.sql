@@ -1,0 +1,7 @@
+CREATE OR ALTER DYNAMIC TABLE my_dynamic_table
+ TARGET_LAG = '5 minutes'
+ WAREHOUSE = my_other_wh
+ DATA_RETENTION_TIME_IN_DAYS = 2
+ CLUSTER BY (a)
+ AS
+   SELECT a, b FROM t;

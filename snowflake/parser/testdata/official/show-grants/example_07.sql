@@ -1,0 +1,1 @@
+SHOW FUTURE GRANTS IN SCHEMA sales.public;

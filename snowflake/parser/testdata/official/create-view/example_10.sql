@@ -1,0 +1,1 @@
+CREATE OR ALTER VIEW v2(one) AS SELECT a FROM my_table;

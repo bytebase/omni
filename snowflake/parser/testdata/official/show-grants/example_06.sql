@@ -1,0 +1,1 @@
+SHOW GRANTS OF ROLE analyst;

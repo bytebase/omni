@@ -1,0 +1,1 @@
+CREATE OR REPLACE TABLE table1 (product_id NUMBER);

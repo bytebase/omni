@@ -1,0 +1,1 @@
+SET stmt = $$ SELECT PI(); $$;

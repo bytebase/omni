@@ -1,0 +1,2 @@
+ALTER WAREHOUSE my_wh RESUME;
+ALTER WAREHOUSE my_wh SET warehouse_size=MEDIUM;

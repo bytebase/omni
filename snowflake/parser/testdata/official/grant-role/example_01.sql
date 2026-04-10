@@ -1,0 +1,1 @@
+GRANT ROLE analyst TO ROLE SYSADMIN;

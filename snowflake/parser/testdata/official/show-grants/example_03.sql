@@ -1,0 +1,1 @@
+SHOW GRANTS TO ROLE public;

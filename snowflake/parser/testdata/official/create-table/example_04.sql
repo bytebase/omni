@@ -1,0 +1,3 @@
+CREATE TABLE mytable_copy2 AS SELECT b+1 AS c FROM mytable_copy;
+DESC TABLE mytable_copy2;
+SELECT * FROM mytable_copy2;

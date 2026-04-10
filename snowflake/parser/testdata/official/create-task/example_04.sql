@@ -1,0 +1,5 @@
+CREATE TASK mytask_minute
+  WAREHOUSE = mywh
+  SCHEDULE = '5 MINUTES'
+  AS
+    INSERT INTO mytable(ts) VALUES(CURRENT_TIMESTAMP);

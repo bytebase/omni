@@ -1,0 +1,2 @@
+CREATE TABLE mytable (i INTEGER);
+CREATE TEMP TABLE demo_temp (i INTEGER);

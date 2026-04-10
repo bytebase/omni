@@ -1,0 +1,4 @@
+CREATE TASK task5
+  AFTER task2, task3, task4
+AS
+  INSERT INTO t1(ts) VALUES(CURRENT_TIMESTAMP);

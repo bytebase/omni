@@ -1,0 +1,2 @@
+REVOKE ALL PRIVILEGES ON PROCEDURE clean_schema(string)
+  FROM DATABASE ROLE mydb.dr1;

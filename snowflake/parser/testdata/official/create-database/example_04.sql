@@ -1,0 +1,1 @@
+CREATE DATABASE snow_sales FROM SHARE ab67890.sales_s;

@@ -1,0 +1,2 @@
+GRANT SELECT ON ALL TABLES IN SCHEMA mydb.myschema
+  TO DATABASE ROLE mydb.dr1;

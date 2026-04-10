@@ -1,0 +1,8 @@
+CREATE OR REPLACE PROCEDURE sp_pi()
+    RETURNS FLOAT NOT NULL
+    LANGUAGE JAVASCRIPT
+    AS
+    $$
+    return 3.1415926;
+    $$
+    ;

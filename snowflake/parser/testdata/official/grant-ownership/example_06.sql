@@ -1,0 +1,3 @@
+GRANT OWNERSHIP ON TABLE mydb.public.mytable
+  TO ROLE mydb.dr1
+  COPY CURRENT GRANTS;

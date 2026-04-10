@@ -1,0 +1,4 @@
+CREATE OR REPLACE TABLE mytable (
+  col1 DATE,
+  col2 TIMESTAMP_NTZ,
+  col3 TIMESTAMP_NTZ);

@@ -1,0 +1,3 @@
+COPY INTO @my_stage
+  FROM (SELECT * FROM orderstiny LIMIT 5)
+  VALIDATION_MODE='RETURN_ROWS';

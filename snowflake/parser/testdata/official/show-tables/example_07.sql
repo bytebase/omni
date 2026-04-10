@@ -1,0 +1,1 @@
+SHOW TERSE TABLES ->> SELECT * FROM $1 ORDER BY "created_on" DESC;

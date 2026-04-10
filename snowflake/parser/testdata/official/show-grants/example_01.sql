@@ -1,0 +1,1 @@
+SHOW GRANTS ON DATABASE sales;

@@ -1,0 +1,1 @@
+GRANT OWNERSHIP ON TABLE mydb.public.mytable TO ROLE analyst COPY CURRENT GRANTS;

@@ -1,0 +1,5 @@
+CREATE STORAGE INTEGRATION gcs_int
+  TYPE = EXTERNAL_STAGE
+  STORAGE_PROVIDER = 'GCS'
+  ENABLED = TRUE
+  STORAGE_ALLOWED_LOCATIONS = ('gcs://mybucket1/path1/', 'gcs://mybucket2/path2/');

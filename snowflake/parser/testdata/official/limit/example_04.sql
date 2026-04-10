@@ -1,0 +1,1 @@
+SELECT c1 FROM testtable ORDER BY c1 LIMIT 3 OFFSET 3;

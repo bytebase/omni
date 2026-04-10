@@ -1,0 +1,1 @@
+ALTER VIEW user_info_v MODIFY COLUMN ssn_number UNSET MASKING POLICY;

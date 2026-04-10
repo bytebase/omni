@@ -1,0 +1,13 @@
+CREATE PROCEDURE execute_immediate_local_variable()
+RETURNS VARCHAR
+AS
+DECLARE
+  v1 VARCHAR DEFAULT 'CREATE TABLE temporary1 (i INTEGER)';
+  v2 VARCHAR DEFAULT 'INSERT INTO temporary1 (i) VALUES (76)';
+  result INTEGER DEFAULT 0;
+BEGIN
+  EXECUTE IMMEDIATE v1;
+  EXECUTE IMMEDIATE v2 || ',(80)' || ',(84)';
+  result := (SELECT SUM(i) FROM temporary1);
+  RETURN result::VARCHAR;
+END;

@@ -1,0 +1,3 @@
+USE ROLE ACCOUNTADMIN;
+GRANT CREATE SNOWFLAKE.CORE.BUDGET ON SCHEMA budgets_db.budgets_schema
+  TO ROLE budget_admin;

@@ -1,0 +1,2 @@
+CREATE SCHEMA myschema;
+SHOW SCHEMAS;

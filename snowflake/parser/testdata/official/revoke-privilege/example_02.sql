@@ -1,0 +1,1 @@
+REVOKE OPERATE ON WAREHOUSE report_wh FROM ROLE analyst;

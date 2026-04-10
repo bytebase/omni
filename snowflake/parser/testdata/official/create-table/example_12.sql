@@ -1,0 +1,1 @@
+CREATE OR ALTER TABLE my_table(a INT);

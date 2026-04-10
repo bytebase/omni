@@ -1,0 +1,1 @@
+REVOKE ALL PRIVILEGES ON PROCEDURE clean_schema(string) FROM ROLE analyst;

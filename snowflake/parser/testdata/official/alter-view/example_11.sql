@@ -1,0 +1,2 @@
+ALTER VIEW join_view
+  SET JOIN POLICY jp1;

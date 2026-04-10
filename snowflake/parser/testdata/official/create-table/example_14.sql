@@ -1,0 +1,5 @@
+CREATE OR ALTER TABLE my_table(
+    a INT PRIMARY KEY,
+    c VARCHAR(200)
+  )
+  DEFAULT_DDL_COLLATION = 'de';

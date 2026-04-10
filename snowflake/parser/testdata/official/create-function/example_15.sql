@@ -1,0 +1,3 @@
+CREATE OR ALTER FUNCTION multiply(a NUMBER, b NUMBER)
+  RETURNS NUMBER
+  AS 'a * b';

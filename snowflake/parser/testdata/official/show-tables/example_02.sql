@@ -1,0 +1,1 @@
+SHOW TERSE TABLES LIKE '%PART%' IN tpch_sf1;

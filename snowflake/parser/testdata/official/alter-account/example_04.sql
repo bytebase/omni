@@ -1,0 +1,1 @@
+ALTER ACCOUNT SET PACKAGES POLICY packages_policy_prod_1 FORCE;

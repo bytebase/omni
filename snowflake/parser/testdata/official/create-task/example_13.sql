@@ -1,0 +1,5 @@
+CREATE OR ALTER TASK my_task
+  WAREHOUSE = my_warehouse
+  SCHEDULE = '60 MINUTES'
+  AS
+    SELECT PI();

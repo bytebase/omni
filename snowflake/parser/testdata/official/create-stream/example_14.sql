@@ -1,0 +1,1 @@
+ALTER STAGE mystage REFRESH;

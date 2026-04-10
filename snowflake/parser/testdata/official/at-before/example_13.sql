@@ -1,0 +1,3 @@
+WITH mycte AS
+  (SELECT mytable.* FROM mytable)
+SELECT * FROM mycte AT(TIMESTAMP => '2024-03-13 13:56:09.553 +0100'::TIMESTAMP_TZ);

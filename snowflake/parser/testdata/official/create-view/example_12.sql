@@ -1,0 +1,1 @@
+CREATE OR ALTER VIEW v2(one COMMENT 'bar') COMMENT='foo' AS SELECT a FROM my_table;
