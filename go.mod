@@ -4,6 +4,7 @@ go 1.25.7
 
 require (
 	github.com/go-sql-driver/mysql v1.9.3
+	github.com/hjson/hjson-go/v4 v4.6.0
 	github.com/jackc/pgx/v5 v5.9.1
 	github.com/microsoft/go-mssqldb v1.9.8
 	github.com/sijms/go-ora/v2 v2.9.0
