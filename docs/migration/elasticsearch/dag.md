@@ -31,8 +31,8 @@ The four wrapper functions (splitter, statement-ranges, diagnose, query-span, cl
 | ID | Node | Package | Depends On | Parallel With | Tier | Status |
 |----|------|---------|------------|---------------|------|--------|
 | **F0** | bootstrap (skeleton + hjson dep + parsertest harness) | `elasticsearch/`, `elasticsearch/parsertest/` | — | F2 | 0 | **done** (PR #23) |
-| **F1** | parser core (state machine, single-request happy path, byte offsets, comments, hjson, error recovery, multi-request, multi-document) | `elasticsearch/parser` | F0 | F2 | 1 | not started |
-| **F2** | request classification (URL pattern tables, `ClassifyRequest`) | `elasticsearch/analysis` (or `elasticsearch/querytype`) | F0 | F1, F3, F4, F5, F6a | 1 | not started |
+| **F1** | parser core (state machine, single-request happy path, byte offsets, comments, hjson, error recovery, multi-request, multi-document) | `elasticsearch/parser` | F0 | F2 | 1 | **done** (PR #25) |
+| **F2** | request classification (URL pattern tables, `ClassifyRequest`) | `elasticsearch/querytype.go` | F0 | F1, F3, F4, F5, F6a | 1 | **done** (PR #24) |
 | **F3** | splitter wrapper (`SplitMultiSQL` → `[]base.Statement` equivalent) | `elasticsearch/` | F1 | F4, F5, F6a, F6b | 2 | not started |
 | **F4** | statement ranges wrapper (LSP UTF-16 `Position`, BMP surrogate-aware) | `elasticsearch/` | F1 | F3, F5, F6a, F6b | 2 | not started |
 | **F5** | diagnose wrapper (parse errors → `base.Diagnostic`) | `elasticsearch/` | F1 | F3, F4, F6a, F6b | 2 | not started |
