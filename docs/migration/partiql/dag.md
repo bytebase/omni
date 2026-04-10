@@ -26,12 +26,12 @@ Conventions follow `cosmosdb/` and `mongo/`:
 |---|------|---------|------------|----------------------|----------|--------|
 | 1 | ast-core | `partiql/ast` | (none) | lexer, catalog | **P0** | done |
 | 2 | lexer | `partiql/parser` (lexer.go, token.go, keywords.go) | ast-core | catalog | **P0** | done |
-| 3 | catalog | `partiql/catalog` | (none) | ast-core, lexer | **P0** | not started |
+| 3 | catalog | `partiql/catalog` | (none) | ast-core, lexer | **P0** | done |
 | 4 | parser-foundation | `partiql/parser` (parser.go, expr.go, exprprimary.go, path.go, literals.go) | ast-core, lexer | — | **P0** | done |
 | 5 | parser-select | `partiql/parser` (select.go, from.go) | parser-foundation | parser-dml, parser-ddl (logically — same files conflict) | **P0** | done |
 | 6 | parser-dml | `partiql/parser` (dml.go) | parser-foundation | parser-select, parser-ddl (logically — same files conflict) | **P0** | done |
 | 7 | parser-ddl | `partiql/parser` (ddl.go) | parser-foundation | parser-select, parser-dml (logically — same files conflict) | **P0** | done |
-| 8 | parse-entry | `partiql/parse.go` + `partiql/parse_test.go` | parser-foundation | parser-select/dml/ddl (entry can land before they all complete) | **P0** | not started |
+| 8 | parse-entry | `partiql/parser` (parse.go, exec.go, parse_test.go) | parser-foundation | parser-select/dml/ddl (entry can land before they all complete) | **P0** | done |
 | 9 | analysis | `partiql/analysis` | ast-core, parse-entry | catalog, completion-foundation | **P0** | not started |
 | 10 | completion | `partiql/completion` | parse-entry, catalog | analysis | **P0** | not started |
 | 11 | bytebase-switch | bytebase wrapper rewrite | parse-entry, analysis, completion | — | **P0** | not started |
