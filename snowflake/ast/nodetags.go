@@ -21,6 +21,9 @@ const (
 
 	// T_ObjectName is the tag for *ObjectName, a qualified 1/2/3-part name.
 	T_ObjectName
+
+	// T_TypeName is the tag for *TypeName, a data type reference.
+	T_TypeName
 )
 
 // String returns a human-readable representation of the tag.
@@ -32,6 +35,8 @@ func (t NodeTag) String() string {
 		return "File"
 	case T_ObjectName:
 		return "ObjectName"
+	case T_TypeName:
+		return "TypeName"
 	default:
 		return "Unknown"
 	}

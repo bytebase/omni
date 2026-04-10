@@ -14,6 +14,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *ObjectName:
 		return v.Loc
+	case *TypeName:
+		return v.Loc
 	default:
 		return NoLoc()
 	}
