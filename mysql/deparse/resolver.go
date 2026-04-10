@@ -9,30 +9,14 @@ import (
 	"strings"
 
 	ast "github.com/bytebase/omni/mysql/ast"
+	scopepkg "github.com/bytebase/omni/mysql/scope"
 )
 
-// ResolverColumn represents a column in a table, used by the resolver.
-type ResolverColumn struct {
-	Name     string
-	Position int
-}
+// ResolverColumn is a type alias for scope.Column, preserving backward compatibility.
+type ResolverColumn = scopepkg.Column
 
-// ResolverTable represents a table in the catalog, used by the resolver.
-type ResolverTable struct {
-	Name    string
-	Columns []ResolverColumn
-}
-
-// GetColumn returns a column by name (case-insensitive), or nil if not found.
-func (t *ResolverTable) GetColumn(name string) *ResolverColumn {
-	lower := strings.ToLower(name)
-	for i := range t.Columns {
-		if strings.ToLower(t.Columns[i].Name) == lower {
-			return &t.Columns[i]
-		}
-	}
-	return nil
-}
+// ResolverTable is a type alias for scope.Table, preserving backward compatibility.
+type ResolverTable = scopepkg.Table
 
 // TableLookup is a function that looks up a table by name in the catalog.
 // Returns nil if the table is not found.
@@ -45,22 +29,6 @@ type Resolver struct {
 	// Used to populate CAST(... AS CHAR) charset when not explicitly specified.
 	// If empty, defaults to "utf8mb4".
 	DefaultCharset string
-}
-
-// scope maps table alias/name → *ResolverTable for the current FROM clause.
-type scope struct {
-	// tables maps effective name (alias if present, else table name) → *ResolverTable.
-	tables map[string]*ResolverTable
-	// order preserves insertion order for deterministic star expansion.
-	order []scopeEntry
-	// coalescedCols tracks columns from the right side of NATURAL JOIN or USING
-	// that should be excluded from star expansion. Key format: "tableName.colName" (lowercase).
-	coalescedCols map[string]bool
-}
-
-type scopeEntry struct {
-	name  string // effective name (alias or table name)
-	table *ResolverTable
 }
 
 // Resolve takes a SelectStmt and returns a new SelectStmt with all column
@@ -197,6 +165,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	// so that NATURAL JOIN expansion can mark coalesced columns for star expansion.
 	r.resolveFromExprs(stmt.From, sc)
 
+
 	// Resolve target list (may expand stars)
 	stmt.TargetList = r.resolveTargetList(stmt.TargetList, sc)
 
@@ -234,10 +203,8 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 }
 
 // buildScope constructs a scope from the FROM clause table expressions.
-func (r *Resolver) buildScope(from []ast.TableExpr) *scope {
-	sc := &scope{
-		tables: make(map[string]*ResolverTable),
-	}
+func (r *Resolver) buildScope(from []ast.TableExpr) *scopepkg.Scope {
+	sc := scopepkg.New()
 	for _, tbl := range from {
 		r.addTableExprToScope(tbl, sc)
 	}
@@ -245,7 +212,7 @@ func (r *Resolver) buildScope(from []ast.TableExpr) *scope {
 }
 
 // addTableExprToScope recursively adds table references from a table expression to the scope.
-func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *scope) {
+func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *scopepkg.Scope) {
 	switch t := tbl.(type) {
 	case *ast.TableRef:
 		table := r.Lookup(t.Name)
@@ -256,9 +223,7 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *scope) {
 		if t.Alias != "" {
 			effectiveName = t.Alias
 		}
-		key := strings.ToLower(effectiveName)
-		sc.tables[key] = table
-		sc.order = append(sc.order, scopeEntry{name: effectiveName, table: table})
+		sc.Add(effectiveName, table)
 	case *ast.JoinClause:
 		r.addTableExprToScope(t.Left, sc)
 		r.addTableExprToScope(t.Right, sc)
@@ -269,16 +234,14 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *scope) {
 			r.Resolve(t.Select)
 			vt := buildDerivedVirtualTable(t)
 			if vt != nil && t.Alias != "" {
-				key := strings.ToLower(t.Alias)
-				sc.tables[key] = vt
-				sc.order = append(sc.order, scopeEntry{name: t.Alias, table: vt})
+				sc.Add(t.Alias, vt)
 			}
 		}
 	}
 }
 
 // resolveTargetList resolves all target list entries, expanding qualified stars.
-func (r *Resolver) resolveTargetList(targets []ast.ExprNode, sc *scope) []ast.ExprNode {
+func (r *Resolver) resolveTargetList(targets []ast.ExprNode, sc *scopepkg.Scope) []ast.ExprNode {
 	var result []ast.ExprNode
 	for i, target := range targets {
 		expanded := r.resolveTarget(target, sc, i+1)
@@ -289,7 +252,7 @@ func (r *Resolver) resolveTargetList(targets []ast.ExprNode, sc *scope) []ast.Ex
 
 // resolveTarget resolves a single target list entry. Returns a slice because
 // star expansion can produce multiple entries.
-func (r *Resolver) resolveTarget(target ast.ExprNode, sc *scope, position int) []ast.ExprNode {
+func (r *Resolver) resolveTarget(target ast.ExprNode, sc *scopepkg.Scope, position int) []ast.ExprNode {
 	rt, isRT := target.(*ast.ResTarget)
 
 	var expr ast.ExprNode
@@ -336,20 +299,19 @@ func (r *Resolver) resolveTarget(target ast.ExprNode, sc *scope, position int) [
 
 // expandStar expands * to all columns from all tables in scope order.
 // Columns marked as coalesced (from NATURAL JOIN / USING) are excluded.
-func (r *Resolver) expandStar(sc *scope) []ast.ExprNode {
+func (r *Resolver) expandStar(sc *scopepkg.Scope) []ast.ExprNode {
 	var result []ast.ExprNode
-	for _, entry := range sc.order {
-		cols := sortedResolverColumns(entry.table)
+	for _, entry := range sc.AllEntries() {
+		cols := sortedResolverColumns(entry.Table)
 		for _, col := range cols {
 			// Skip columns coalesced by NATURAL JOIN or USING
-			key := strings.ToLower(entry.name) + "." + strings.ToLower(col.Name)
-			if sc.coalescedCols != nil && sc.coalescedCols[key] {
+			if sc.IsCoalesced(entry.Name, col.Name) {
 				continue
 			}
 			result = append(result, &ast.ResTarget{
 				Name: col.Name,
 				Val: &ast.ColumnRef{
-					Table:  entry.name,
+					Table:  entry.Name,
 					Column: col.Name,
 				},
 			})
@@ -359,21 +321,20 @@ func (r *Resolver) expandStar(sc *scope) []ast.ExprNode {
 }
 
 // expandQualifiedStar expands t1.* to all columns of table t1.
-func (r *Resolver) expandQualifiedStar(tableName string, sc *scope) []ast.ExprNode {
-	key := strings.ToLower(tableName)
-	table, ok := sc.tables[key]
-	if !ok {
+func (r *Resolver) expandQualifiedStar(tableName string, sc *scopepkg.Scope) []ast.ExprNode {
+	table := sc.GetTable(tableName)
+	if table == nil {
 		// Table not found in scope; return as-is
 		return []ast.ExprNode{&ast.ResTarget{
 			Val: &ast.ColumnRef{Table: tableName, Star: true},
 		}}
 	}
 
-	// Find the effective name from scope order (preserves alias casing)
+	// Find the effective name from scope entries (preserves alias casing)
 	effectiveName := tableName
-	for _, entry := range sc.order {
-		if strings.EqualFold(entry.name, tableName) {
-			effectiveName = entry.name
+	for _, entry := range sc.AllEntries() {
+		if strings.EqualFold(entry.Name, tableName) {
+			effectiveName = entry.Name
 			break
 		}
 	}
@@ -403,7 +364,7 @@ func sortedResolverColumns(table *ResolverTable) []ResolverColumn {
 }
 
 // resolveExpr resolves column references in an expression.
-func (r *Resolver) resolveExpr(node ast.ExprNode, sc *scope) ast.ExprNode {
+func (r *Resolver) resolveExpr(node ast.ExprNode, sc *scopepkg.Scope) ast.ExprNode {
 	if node == nil {
 		return nil
 	}
@@ -509,16 +470,15 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *scope) ast.ExprNode {
 
 // resolveColumnRef qualifies an unqualified column reference by finding which
 // table in scope contains the column.
-func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *scope) ast.ExprNode {
+func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *scopepkg.Scope) ast.ExprNode {
 	// Already qualified — just validate the table name maps to an alias
 	if col.Table != "" {
 		// Check if this table name is in scope (might be an alias)
-		key := strings.ToLower(col.Table)
-		if _, ok := sc.tables[key]; ok {
+		if sc.GetTable(col.Table) != nil {
 			// Find the effective name from scope (preserves case)
-			for _, entry := range sc.order {
-				if strings.EqualFold(entry.name, col.Table) {
-					col.Table = entry.name
+			for _, entry := range sc.AllEntries() {
+				if strings.EqualFold(entry.Name, col.Table) {
+					col.Table = entry.Name
 					break
 				}
 			}
@@ -529,10 +489,10 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *scope) ast.ExprNode 
 	// Unqualified — search all tables in scope
 	var matchTable string
 	var matchCount int
-	for _, entry := range sc.order {
-		if entry.table.GetColumn(col.Column) != nil {
+	for _, entry := range sc.AllEntries() {
+		if entry.Table.GetColumn(col.Column) != nil {
 			if matchCount == 0 {
-				matchTable = entry.name
+				matchTable = entry.Name
 			}
 			matchCount++
 		}
@@ -553,7 +513,7 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *scope) ast.ExprNode 
 }
 
 // resolveWindowDef resolves column references in a window definition.
-func (r *Resolver) resolveWindowDef(wd *ast.WindowDef, sc *scope) {
+func (r *Resolver) resolveWindowDef(wd *ast.WindowDef, sc *scopepkg.Scope) {
 	for i, expr := range wd.PartitionBy {
 		wd.PartitionBy[i] = r.resolveExpr(expr, sc)
 	}
@@ -564,7 +524,7 @@ func (r *Resolver) resolveWindowDef(wd *ast.WindowDef, sc *scope) {
 
 // resolveFromExprs walks FROM clause table expressions and resolves
 // ON condition expressions in JoinClauses.
-func (r *Resolver) resolveFromExprs(from []ast.TableExpr, sc *scope) {
+func (r *Resolver) resolveFromExprs(from []ast.TableExpr, sc *scopepkg.Scope) {
 	for _, tbl := range from {
 		r.resolveTableExpr(tbl, sc)
 	}
@@ -573,7 +533,7 @@ func (r *Resolver) resolveFromExprs(from []ast.TableExpr, sc *scope) {
 // resolveTableExpr resolves expressions within a table expression (e.g., ON conditions).
 // For NATURAL JOINs, it expands the join by finding common columns between both tables
 // and building an ON condition. For USING clauses, it resolves column references.
-func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *scope) {
+func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *scopepkg.Scope) {
 	switch t := tbl.(type) {
 	case *ast.JoinClause:
 		r.resolveTableExpr(t.Left, sc)
@@ -604,7 +564,7 @@ func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *scope) {
 //   - NATURAL JOIN → JoinInner
 //   - NATURAL LEFT JOIN → JoinLeft
 //   - NATURAL RIGHT JOIN → JoinRight (deparse will then swap to LEFT)
-func (r *Resolver) expandNaturalJoin(j *ast.JoinClause, sc *scope) {
+func (r *Resolver) expandNaturalJoin(j *ast.JoinClause, sc *scopepkg.Scope) {
 	leftTable := r.lookupTableExpr(j.Left)
 	rightTable := r.lookupTableExpr(j.Right)
 	if leftTable == nil || rightTable == nil {
@@ -644,12 +604,8 @@ func (r *Resolver) expandNaturalJoin(j *ast.JoinClause, sc *scope) {
 	// Mark common columns from the right table as coalesced for star expansion.
 	// In NATURAL JOIN, common columns appear only once (from the left table).
 	if sc != nil && len(commonCols) > 0 {
-		if sc.coalescedCols == nil {
-			sc.coalescedCols = make(map[string]bool)
-		}
 		for _, col := range commonCols {
-			key := strings.ToLower(rightName) + "." + strings.ToLower(col)
-			sc.coalescedCols[key] = true
+			sc.MarkCoalesced(rightName, col)
 		}
 	}
 

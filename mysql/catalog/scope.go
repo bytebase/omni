@@ -3,121 +3,99 @@ package catalog
 import (
 	"fmt"
 	"strings"
+
+	"github.com/bytebase/omni/mysql/scope"
 )
 
-// analyzerScope tracks the set of visible table/view references during
-// semantic analysis, supporting column resolution by name.
+// analyzerScope wraps scope.Scope and adds analyzer-specific features:
+// parent chain for correlated subqueries, and rteIdx mapping.
 type analyzerScope struct {
-	entries       []scopeEntry
-	byName        map[string]int    // lowered name -> index into entries
-	coalescedCols map[string]bool   // "tablename.colname" (lowered) -> true; columns hidden by USING/NATURAL
-	parent        *analyzerScope    // enclosing query's scope (for correlated subquery refs)
-}
-
-// scopeEntry is one named table reference visible in the current scope.
-type scopeEntry struct {
-	name    string    // lowered effective reference name (alias or table name)
-	rteIdx  int       // index into Query.RangeTable
-	columns []*Column // columns available from this entry
+	base   *scope.Scope
+	rteMap []int       // parallel to base entries: entry index -> RTE index in Query.RangeTable
+	cols   [][]*Column // parallel to base entries: entry index -> catalog Column pointers
+	parent *analyzerScope
 }
 
 func newScope() *analyzerScope {
 	return &analyzerScope{
-		byName:        make(map[string]int),
-		coalescedCols: make(map[string]bool),
+		base: scope.New(),
 	}
 }
 
 // newScopeWithParent creates a new scope with a parent scope for correlated subquery resolution.
 func newScopeWithParent(parent *analyzerScope) *analyzerScope {
 	return &analyzerScope{
-		byName:        make(map[string]int),
-		coalescedCols: make(map[string]bool),
-		parent:        parent,
+		base:   scope.New(),
+		parent: parent,
 	}
 }
 
 // markCoalesced marks a column from a table as coalesced (hidden during star expansion).
 func (s *analyzerScope) markCoalesced(tableName, colName string) {
-	key := strings.ToLower(tableName) + "." + strings.ToLower(colName)
-	s.coalescedCols[key] = true
+	s.base.MarkCoalesced(tableName, colName)
 }
 
 // isCoalesced returns true if the given table.column is coalesced away by USING/NATURAL.
 func (s *analyzerScope) isCoalesced(tableName, colName string) bool {
-	key := strings.ToLower(tableName) + "." + strings.ToLower(colName)
-	return s.coalescedCols[key]
+	return s.base.IsCoalesced(tableName, colName)
 }
 
 // add registers a table reference in the scope.
 func (s *analyzerScope) add(name string, rteIdx int, columns []*Column) {
-	lower := strings.ToLower(name)
-	s.byName[lower] = len(s.entries)
-	s.entries = append(s.entries, scopeEntry{
-		name:    lower,
-		rteIdx:  rteIdx,
-		columns: columns,
-	})
+	scopeCols := make([]scope.Column, len(columns))
+	for i, c := range columns {
+		scopeCols[i] = scope.Column{Name: c.Name, Position: i + 1}
+	}
+	s.base.Add(name, &scope.Table{Name: name, Columns: scopeCols})
+	s.rteMap = append(s.rteMap, rteIdx)
+	s.cols = append(s.cols, columns)
 }
 
 // resolveColumn finds an unqualified column name across all scope entries.
 // Returns the RTE index and 1-based attribute number.
 // Error 1052 for ambiguous, 1054 for unknown.
 func (s *analyzerScope) resolveColumn(colName string) (int, int, error) {
-	lower := strings.ToLower(colName)
-	var foundRTE, foundAtt int
-	found := 0
-	for _, e := range s.entries {
-		for i, c := range e.columns {
-			if strings.ToLower(c.Name) == lower {
-				found++
-				foundRTE = e.rteIdx
-				foundAtt = i + 1 // 1-based
-				if found > 1 {
-					return 0, 0, &Error{
-						Code:     1052,
-						SQLState: "23000",
-						Message:  fmt.Sprintf("Column '%s' in field list is ambiguous", colName),
-					}
-				}
+	entryIdx, pos, err := s.base.ResolveColumn(colName)
+	if err != nil {
+		if strings.Contains(err.Error(), "ambiguous") {
+			return 0, 0, &Error{
+				Code:     1052,
+				SQLState: "23000",
+				Message:  fmt.Sprintf("Column '%s' in field list is ambiguous", colName),
 			}
 		}
-	}
-	if found == 0 {
 		return 0, 0, errNoSuchColumn(colName, "field list")
 	}
-	return foundRTE, foundAtt, nil
+	return s.rteMap[entryIdx], pos, nil
 }
 
 // resolveQualifiedColumn finds a column qualified by table name or alias.
 // Returns the RTE index and 1-based attribute number.
 func (s *analyzerScope) resolveQualifiedColumn(tableName, colName string) (int, int, error) {
-	lowerTable := strings.ToLower(tableName)
-	idx, ok := s.byName[lowerTable]
-	if !ok {
-		return 0, 0, &Error{
-			Code:     ErrUnknownTable,
-			SQLState: sqlState(ErrUnknownTable),
-			Message:  fmt.Sprintf("Unknown table '%s'", tableName),
+	entryIdx, pos, err := s.base.ResolveQualifiedColumn(tableName, colName)
+	if err != nil {
+		if strings.Contains(err.Error(), "unknown table") {
+			return 0, 0, &Error{
+				Code:     ErrUnknownTable,
+				SQLState: sqlState(ErrUnknownTable),
+				Message:  fmt.Sprintf("Unknown table '%s'", tableName),
+			}
 		}
+		return 0, 0, errNoSuchColumn(colName, "field list")
 	}
-	e := s.entries[idx]
-	lowerCol := strings.ToLower(colName)
-	for i, c := range e.columns {
-		if strings.ToLower(c.Name) == lowerCol {
-			return e.rteIdx, i + 1, nil
-		}
-	}
-	return 0, 0, errNoSuchColumn(colName, "field list")
+	return s.rteMap[entryIdx], pos, nil
 }
 
 // getColumns returns the columns for a named table reference, or nil if not found.
 func (s *analyzerScope) getColumns(tableName string) []*Column {
-	idx, ok := s.byName[strings.ToLower(tableName)]
-	if !ok {
-		return nil
+	entries := s.base.AllEntries()
+	lower := strings.ToLower(tableName)
+	for i, e := range entries {
+		if strings.ToLower(e.Name) == lower {
+			return s.cols[i]
+		}
 	}
-	return s.entries[idx].columns
+	return nil
 }
 
 // resolveColumnFull resolves an unqualified column, trying parent scopes
@@ -153,6 +131,25 @@ func (s *analyzerScope) resolveQualifiedColumnFull(tableName, colName string) (i
 }
 
 // allEntries returns all scope entries in registration order.
+// This returns a slice of the internal scopeEntry type for backward compatibility
+// with the analyzer code that needs rteIdx and catalog column pointers.
 func (s *analyzerScope) allEntries() []scopeEntry {
-	return s.entries
+	entries := s.base.AllEntries()
+	result := make([]scopeEntry, len(entries))
+	for i, e := range entries {
+		result[i] = scopeEntry{
+			name:    e.Name,
+			rteIdx:  s.rteMap[i],
+			columns: s.cols[i],
+		}
+	}
+	return result
+}
+
+// scopeEntry is one named table reference visible in the current scope.
+// Kept for backward compatibility with analyzer code that accesses rteIdx and columns.
+type scopeEntry struct {
+	name    string    // effective reference name (alias or table name)
+	rteIdx  int       // index into Query.RangeTable
+	columns []*Column // columns available from this entry
 }
