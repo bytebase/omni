@@ -1,0 +1,1 @@
+InsertStmt{Target:PathExpr{Root:VarRef{Name:t} Steps:[]} Value:NumberLit{Val:1} OnConflict:OnConflict{Action:DO_NOTHING}}

@@ -1,0 +1,1 @@
+RemoveStmt{Path:PathExpr{Root:VarRef{Name:t} Steps:[DotStep{Field:a}]}}

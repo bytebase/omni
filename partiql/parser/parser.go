@@ -581,11 +581,11 @@ func parseIntLiteral(s string) (int, error) {
 
 // ParseStatement parses a single top-level statement and asserts that
 // the entire input was consumed. Supports DDL (CREATE/DROP TABLE/INDEX)
-// directly; defers DML (INSERT/UPDATE/DELETE/REPLACE/UPSERT/REMOVE) to
-// parser-dml (DAG node 6) and EXEC to parse-entry (DAG node 8). DQL
-// (SELECT and set-ops) falls through to parseExprTop; if the result is
-// already a StmtNode it is returned, otherwise the bare-expression form
-// is deferred to parse-entry (DAG node 8).
+// and DML (INSERT/UPDATE/DELETE/REPLACE/UPSERT/REMOVE) directly; defers
+// EXEC to parse-entry (DAG node 8). DQL (SELECT and set-ops) falls
+// through to parseExprTop; if the result is already a StmtNode it is
+// returned, otherwise the bare-expression form is deferred to
+// parse-entry (DAG node 8).
 func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 	if err := p.checkLexerErr(); err != nil {
 		return nil, err
@@ -598,17 +598,17 @@ func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 	case tokDROP:
 		stmt, err = p.parseDropCommand()
 	case tokINSERT:
-		return nil, p.deferredFeature("INSERT", "parser-dml (DAG node 6)")
+		stmt, err = p.parseInsertStmt()
 	case tokUPDATE:
-		return nil, p.deferredFeature("UPDATE", "parser-dml (DAG node 6)")
+		stmt, err = p.parseUpdateStmt()
 	case tokDELETE:
-		return nil, p.deferredFeature("DELETE", "parser-dml (DAG node 6)")
+		stmt, err = p.parseDeleteStmt()
 	case tokREPLACE:
-		return nil, p.deferredFeature("REPLACE", "parser-dml (DAG node 6)")
+		stmt, err = p.parseReplaceStmt()
 	case tokUPSERT:
-		return nil, p.deferredFeature("UPSERT", "parser-dml (DAG node 6)")
+		stmt, err = p.parseUpsertStmt()
 	case tokREMOVE:
-		return nil, p.deferredFeature("REMOVE", "parser-dml (DAG node 6)")
+		stmt, err = p.parseRemoveStmt()
 	case tokEXEC, tokEXECUTE:
 		return nil, p.deferredFeature("EXEC", "parse-entry (DAG node 8)")
 	default:

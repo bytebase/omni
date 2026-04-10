@@ -1,0 +1,1 @@
+InsertStmt{Target:PathExpr{Root:VarRef{Name:MyTable CaseSensitive:true} Steps:[]} Value:TupleLit{Pairs:[TuplePair{Key:StringLit{Val:"a"} Value:NumberLit{Val:1}}]}}

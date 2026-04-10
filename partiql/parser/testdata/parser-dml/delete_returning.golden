@@ -1,0 +1,1 @@
+DeleteStmt{Source:PathExpr{Root:VarRef{Name:t} Steps:[]} Where:BinaryExpr{Op:= Left:VarRef{Name:x} Right:NumberLit{Val:1}} Returning:ReturningClause{Items:[ReturningItem{Status:ALL Mapping:OLD Star:true}]}}
