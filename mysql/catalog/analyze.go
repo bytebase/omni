@@ -10,26 +10,62 @@ import (
 // AnalyzeSelectStmt performs semantic analysis on a parsed SELECT statement,
 // returning a resolved Query IR.
 func (c *Catalog) AnalyzeSelectStmt(stmt *nodes.SelectStmt) (*Query, error) {
+	return c.analyzeSelectStmtInternal(stmt, nil)
+}
+
+// analyzeSelectStmtInternal is the core analysis routine. parentScope is non-nil
+// when analyzing a subquery (for correlated column resolution).
+func (c *Catalog) analyzeSelectStmtInternal(stmt *nodes.SelectStmt, parentScope *analyzerScope) (*Query, error) {
+	return c.analyzeSelectStmtWithCTEs(stmt, parentScope, nil)
+}
+
+// analyzeSelectStmtWithCTEs is the full internal analysis routine.
+// inheritedCTEMap provides CTE definitions inherited from an enclosing context
+// (e.g., a recursive CTE body referencing itself).
+func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
+	// Handle set operations (UNION/INTERSECT/EXCEPT).
+	if stmt.SetOp != nodes.SetOpNone {
+		return c.analyzeSetOpWithCTEs(stmt, parentScope, inheritedCTEMap)
+	}
+
 	q := &Query{
 		CommandType: CmdSelect,
 		JoinTree:    &JoinTreeQ{},
 	}
 
-	scope := newScope()
+	scope := newScopeWithParent(parentScope)
+
+	// Step 0: Process CTEs (WITH clause).
+	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope)
+	if err != nil {
+		return nil, err
+	}
+
+	// Merge inherited CTE map (for recursive CTE self-references).
+	if inheritedCTEMap != nil {
+		if cteMap == nil {
+			cteMap = make(map[string]*CommonTableExprQ)
+		}
+		for k, v := range inheritedCTEMap {
+			if _, exists := cteMap[k]; !exists {
+				cteMap[k] = v
+			}
+		}
+	}
 
 	// Step 1: Analyze FROM clause → populate RangeTable and scope.
-	if err := analyzeFromClause(c, stmt.From, q, scope); err != nil {
+	if err := analyzeFromClause(c, stmt.From, q, scope, cteMap); err != nil {
 		return nil, err
 	}
 
 	// Step 2: Analyze target list (SELECT expressions).
-	if err := analyzeTargetList(stmt.TargetList, q, scope); err != nil {
+	if err := analyzeTargetList(c, stmt.TargetList, q, scope); err != nil {
 		return nil, err
 	}
 
 	// Step 3: Analyze WHERE clause.
 	if stmt.Where != nil {
-		analyzed, err := analyzeExpr(stmt.Where, scope)
+		analyzed, err := analyzeExpr(c, stmt.Where, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -45,7 +81,7 @@ func (c *Catalog) AnalyzeSelectStmt(stmt *nodes.SelectStmt) (*Query, error) {
 
 	// Step 5: HAVING
 	if stmt.Having != nil {
-		analyzed, err := analyzeExpr(stmt.Having, scope)
+		analyzed, err := analyzeExpr(c, stmt.Having, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -77,9 +113,9 @@ func (c *Catalog) AnalyzeSelectStmt(stmt *nodes.SelectStmt) (*Query, error) {
 
 // analyzeFromClause processes the FROM clause, populating the query's
 // RangeTable, JoinTree.FromList, and the scope for column resolution.
-func analyzeFromClause(c *Catalog, from []nodes.TableExpr, q *Query, scope *analyzerScope) error {
+func analyzeFromClause(c *Catalog, from []nodes.TableExpr, q *Query, scope *analyzerScope, cteMap map[string]*CommonTableExprQ) error {
 	for _, te := range from {
-		joinNode, err := analyzeTableExpr(c, te, q, scope)
+		joinNode, err := analyzeTableExpr(c, te, q, scope, cteMap)
 		if err != nil {
 			return err
 		}
@@ -91,9 +127,16 @@ func analyzeFromClause(c *Catalog, from []nodes.TableExpr, q *Query, scope *anal
 // analyzeTableExpr recursively processes a table expression (TableRef,
 // JoinClause, or SubqueryExpr used as a derived table), creating RTEs and
 // scope entries as appropriate, and returning a JoinNode for the join tree.
-func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerScope) (JoinNode, error) {
+func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerScope, cteMap map[string]*CommonTableExprQ) (JoinNode, error) {
 	switch ref := te.(type) {
 	case *nodes.TableRef:
+		// Check if this references a CTE before looking up catalog tables.
+		if cteMap != nil && ref.Schema == "" {
+			lower := strings.ToLower(ref.Name)
+			if cteQ, ok := cteMap[lower]; ok {
+				return analyzeCTERef(ref, cteQ, q, scope)
+			}
+		}
 		rte, cols, err := analyzeTableRef(c, ref)
 		if err != nil {
 			return nil, err
@@ -104,7 +147,7 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		return &RangeTableRefQ{RTIndex: idx}, nil
 
 	case *nodes.JoinClause:
-		return analyzeJoinClause(c, ref, q, scope)
+		return analyzeJoinClause(c, ref, q, scope, cteMap)
 
 	case *nodes.SubqueryExpr:
 		return analyzeFromSubquery(c, ref, q, scope)
@@ -116,13 +159,13 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 
 // analyzeJoinClause processes a JOIN clause, creating RTEs for the join and
 // its children, and returning a JoinExprNodeQ.
-func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyzerScope) (JoinNode, error) {
+func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyzerScope, cteMap map[string]*CommonTableExprQ) (JoinNode, error) {
 	// Recursively process left and right sides.
-	left, err := analyzeTableExpr(c, jc.Left, q, scope)
+	left, err := analyzeTableExpr(c, jc.Left, q, scope, cteMap)
 	if err != nil {
 		return nil, err
 	}
-	right, err := analyzeTableExpr(c, jc.Right, q, scope)
+	right, err := analyzeTableExpr(c, jc.Right, q, scope, cteMap)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +206,7 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 
 	switch cond := jc.Condition.(type) {
 	case *nodes.OnCondition:
-		quals, err = analyzeExpr(cond.Expr, scope)
+		quals, err = analyzeExpr(c, cond.Expr, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -304,8 +347,13 @@ func markCoalescedInNode(node JoinNode, q *Query, scope *analyzerScope, usingSet
 
 // analyzeFromSubquery processes a subquery used as a derived table in FROM.
 func analyzeFromSubquery(c *Catalog, subq *nodes.SubqueryExpr, q *Query, scope *analyzerScope) (JoinNode, error) {
-	// Recursively analyze the inner SELECT.
-	innerQ, err := c.AnalyzeSelectStmt(subq.Select)
+	// Recursively analyze the inner SELECT. FROM subqueries are not correlated,
+	// so we pass nil as parent scope (unless LATERAL).
+	var parentScope *analyzerScope
+	if subq.Lateral {
+		parentScope = scope
+	}
+	innerQ, err := c.analyzeSelectStmtInternal(subq.Select, parentScope)
 	if err != nil {
 		return nil, err
 	}
@@ -447,7 +495,7 @@ func (c *Catalog) analyzeGroupBy(groupBy []nodes.ExprNode, q *Query, scope *anal
 			})
 		case *nodes.ColumnRef:
 			// Resolve the column ref, then find matching target entry.
-			analyzed, err := analyzeExpr(n, scope)
+			analyzed, err := analyzeExpr(c, n, scope)
 			if err != nil {
 				return err
 			}
@@ -472,7 +520,7 @@ func (c *Catalog) analyzeGroupBy(groupBy []nodes.ExprNode, q *Query, scope *anal
 			})
 		default:
 			// General expression — analyze and try to match to target list.
-			analyzed, err := analyzeExpr(expr, scope)
+			analyzed, err := analyzeExpr(c, expr, scope)
 			if err != nil {
 				return err
 			}
@@ -607,7 +655,7 @@ func (c *Catalog) analyzeOrderBy(orderBy []*nodes.OrderByItem, q *Query, scope *
 			})
 		case *nodes.ColumnRef:
 			// Resolve the column ref, then find matching target entry.
-			analyzed, err := analyzeExpr(n, scope)
+			analyzed, err := analyzeExpr(c, n, scope)
 			if err != nil {
 				return err
 			}
@@ -634,7 +682,7 @@ func (c *Catalog) analyzeOrderBy(orderBy []*nodes.OrderByItem, q *Query, scope *
 			})
 		default:
 			// General expression — analyze and try to match to target list.
-			analyzed, err := analyzeExpr(item.Expr, scope)
+			analyzed, err := analyzeExpr(c, item.Expr, scope)
 			if err != nil {
 				return err
 			}
@@ -668,18 +716,280 @@ func (c *Catalog) analyzeOrderBy(orderBy []*nodes.OrderByItem, q *Query, scope *
 // q.LimitCount and q.LimitOffset.
 func (c *Catalog) analyzeLimitOffset(limit *nodes.Limit, q *Query, scope *analyzerScope) error {
 	if limit.Count != nil {
-		analyzed, err := analyzeExpr(limit.Count, scope)
+		analyzed, err := analyzeExpr(c, limit.Count, scope)
 		if err != nil {
 			return err
 		}
 		q.LimitCount = analyzed
 	}
 	if limit.Offset != nil {
-		analyzed, err := analyzeExpr(limit.Offset, scope)
+		analyzed, err := analyzeExpr(c, limit.Offset, scope)
 		if err != nil {
 			return err
 		}
 		q.LimitOffset = analyzed
 	}
 	return nil
+}
+
+// analyzeCTEs processes WITH clause CTEs, returning a map for CTE name lookup.
+func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentScope *analyzerScope) (map[string]*CommonTableExprQ, error) {
+	if len(ctes) == 0 {
+		return nil, nil
+	}
+
+	cteMap := make(map[string]*CommonTableExprQ)
+	for i, cte := range ctes {
+		if cte.Recursive {
+			q.IsRecursive = true
+		}
+
+		var innerQ *Query
+		var err error
+
+		if cte.Recursive && cte.Select.SetOp != nodes.SetOpNone {
+			// Recursive CTE: analyze the left arm first to establish columns,
+			// then register the CTE, then analyze the right arm.
+			innerQ, err = c.analyzeRecursiveCTE(cte, parentScope, cteMap)
+		} else {
+			innerQ, err = c.analyzeSelectStmtInternal(cte.Select, parentScope)
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		// Derive column names.
+		colNames := cte.Columns
+		if len(colNames) == 0 {
+			for _, te := range innerQ.TargetList {
+				if !te.ResJunk {
+					colNames = append(colNames, te.ResName)
+				}
+			}
+		}
+
+		cteQ := &CommonTableExprQ{
+			Name:        cte.Name,
+			ColumnNames: colNames,
+			Query:       innerQ,
+			Recursive:   cte.Recursive,
+		}
+		q.CTEList = append(q.CTEList, cteQ)
+		cteMap[strings.ToLower(cte.Name)] = cteQ
+		_ = i
+	}
+	return cteMap, nil
+}
+
+// analyzeRecursiveCTE handles WITH RECURSIVE where the CTE body is a set
+// operation. The left arm establishes column signatures; the right arm may
+// reference the CTE itself.
+func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *analyzerScope, cteMap map[string]*CommonTableExprQ) (*Query, error) {
+	stmt := cte.Select
+
+	// Analyze left arm to establish base columns.
+	larg, err := c.analyzeSelectStmtInternal(stmt.Left, parentScope)
+	if err != nil {
+		return nil, err
+	}
+
+	// Derive column names from left arm (or explicit column list).
+	colNames := cte.Columns
+	if len(colNames) == 0 {
+		for _, te := range larg.TargetList {
+			if !te.ResJunk {
+				colNames = append(colNames, te.ResName)
+			}
+		}
+	}
+
+	// Register a temporary CTE entry so the right arm can reference it.
+	tempCTE := &CommonTableExprQ{
+		Name:        cte.Name,
+		ColumnNames: colNames,
+		Query:       larg, // temporary — will be replaced
+		Recursive:   true,
+	}
+	cteMap[strings.ToLower(cte.Name)] = tempCTE
+
+	// Analyze right arm with the CTE visible via inherited CTE map.
+	rarg, err := c.analyzeSelectStmtWithCTEs(stmt.Right, parentScope, cteMap)
+	if err != nil {
+		return nil, err
+	}
+
+	// Map SetOperation to SetOpType.
+	var setOp SetOpType
+	switch stmt.SetOp {
+	case nodes.SetOpUnion:
+		setOp = SetOpUnion
+	case nodes.SetOpIntersect:
+		setOp = SetOpIntersect
+	case nodes.SetOpExcept:
+		setOp = SetOpExcept
+	}
+
+	// Build result columns from left arm.
+	targetList := make([]*TargetEntryQ, 0, len(larg.TargetList))
+	for _, te := range larg.TargetList {
+		if !te.ResJunk {
+			targetList = append(targetList, &TargetEntryQ{
+				Expr:    te.Expr,
+				ResNo:   te.ResNo,
+				ResName: te.ResName,
+			})
+		}
+	}
+
+	q := &Query{
+		CommandType: CmdSelect,
+		SetOp:       setOp,
+		AllSetOp:    stmt.SetAll,
+		LArg:        larg,
+		RArg:        rarg,
+		TargetList:  targetList,
+		JoinTree:    &JoinTreeQ{},
+	}
+	return q, nil
+}
+
+// analyzeCTERef creates an RTE and scope entry for a CTE reference in FROM.
+func analyzeCTERef(ref *nodes.TableRef, cteQ *CommonTableExprQ, q *Query, scope *analyzerScope) (JoinNode, error) {
+	eref := ref.Name
+	if ref.Alias != "" {
+		eref = ref.Alias
+	}
+
+	// Find the CTE's index in the current query's CTEList.
+	cteIndex := -1
+	for i, c := range q.CTEList {
+		if strings.EqualFold(c.Name, cteQ.Name) {
+			cteIndex = i
+			break
+		}
+	}
+	if cteIndex < 0 {
+		cteIndex = 0 // fallback for recursive self-ref during analysis
+	}
+
+	colNames := cteQ.ColumnNames
+
+	rte := &RangeTableEntryQ{
+		Kind:     RTECTE,
+		Alias:    ref.Alias,
+		ERef:     eref,
+		ColNames: colNames,
+		CTEIndex: cteIndex,
+		CTEName:  cteQ.Name,
+		Subquery: cteQ.Query,
+	}
+
+	idx := len(q.RangeTable)
+	q.RangeTable = append(q.RangeTable, rte)
+
+	// Build stub columns for scope resolution.
+	cols := make([]*Column, len(colNames))
+	for i, name := range colNames {
+		cols[i] = &Column{Position: i + 1, Name: name}
+	}
+	scope.add(eref, idx, cols)
+
+	return &RangeTableRefQ{RTIndex: idx}, nil
+}
+
+// analyzeSetOp processes a set operation (UNION/INTERSECT/EXCEPT).
+func (c *Catalog) analyzeSetOp(stmt *nodes.SelectStmt, parentScope *analyzerScope) (*Query, error) {
+	return c.analyzeSetOpWithCTEs(stmt, parentScope, nil)
+}
+
+// analyzeSetOpWithCTEs processes a set operation with inherited CTE definitions.
+func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
+	// Process CTEs if present on the outer set-op node.
+	q := &Query{
+		CommandType: CmdSelect,
+		JoinTree:    &JoinTreeQ{},
+	}
+
+	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope)
+	if err != nil {
+		return nil, err
+	}
+
+	// Merge inherited CTEs.
+	if inheritedCTEMap != nil {
+		if cteMap == nil {
+			cteMap = make(map[string]*CommonTableExprQ)
+		}
+		for k, v := range inheritedCTEMap {
+			if _, exists := cteMap[k]; !exists {
+				cteMap[k] = v
+			}
+		}
+	}
+
+	larg, err := c.analyzeSelectStmtWithCTEs(stmt.Left, parentScope, cteMap)
+	if err != nil {
+		return nil, err
+	}
+	rarg, err := c.analyzeSelectStmtWithCTEs(stmt.Right, parentScope, cteMap)
+	if err != nil {
+		return nil, err
+	}
+
+	// Map SetOperation to SetOpType.
+	var setOp SetOpType
+	switch stmt.SetOp {
+	case nodes.SetOpUnion:
+		setOp = SetOpUnion
+	case nodes.SetOpIntersect:
+		setOp = SetOpIntersect
+	case nodes.SetOpExcept:
+		setOp = SetOpExcept
+	}
+
+	// Result columns come from the left arm (MySQL convention).
+	targetList := make([]*TargetEntryQ, 0, len(larg.TargetList))
+	for _, te := range larg.TargetList {
+		if !te.ResJunk {
+			targetList = append(targetList, &TargetEntryQ{
+				Expr:    te.Expr,
+				ResNo:   te.ResNo,
+				ResName: te.ResName,
+			})
+		}
+	}
+
+	q.SetOp = setOp
+	q.AllSetOp = stmt.SetAll
+	q.LArg = larg
+	q.RArg = rarg
+	q.TargetList = targetList
+
+	// Handle ORDER BY / LIMIT on the outer set-op query using a
+	// scope built from result columns.
+	if len(stmt.OrderBy) > 0 || stmt.Limit != nil {
+		setScope := newScope()
+		// Build stub columns from target list for ORDER BY resolution.
+		cols := make([]*Column, len(targetList))
+		colNames := make([]string, len(targetList))
+		for i, te := range targetList {
+			cols[i] = &Column{Position: i + 1, Name: te.ResName}
+			colNames[i] = te.ResName
+		}
+		// Add a virtual table entry for unqualified column resolution.
+		setScope.add("__setop__", 0, cols)
+
+		if len(stmt.OrderBy) > 0 {
+			if err := c.analyzeOrderBy(stmt.OrderBy, q, setScope); err != nil {
+				return nil, err
+			}
+		}
+		if stmt.Limit != nil {
+			if err := c.analyzeLimitOffset(stmt.Limit, q, setScope); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return q, nil
 }

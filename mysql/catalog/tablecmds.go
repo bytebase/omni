@@ -1129,6 +1129,20 @@ func binaryOpToString(op nodes.BinaryOp) string {
 		return ">>"
 	case nodes.BinOpDivInt:
 		return "DIV"
+	case nodes.BinOpXor:
+		return "XOR"
+	case nodes.BinOpRegexp:
+		return "REGEXP"
+	case nodes.BinOpLikeEscape:
+		return "LIKE"
+	case nodes.BinOpNullSafeEq:
+		return "<=>"
+	case nodes.BinOpJsonExtract:
+		return "->"
+	case nodes.BinOpJsonUnquote:
+		return "->>"
+	case nodes.BinOpSoundsLike:
+		return "SOUNDS LIKE"
 	default:
 		return "?"
 	}

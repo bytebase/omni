@@ -11,6 +11,7 @@ type analyzerScope struct {
 	entries       []scopeEntry
 	byName        map[string]int    // lowered name -> index into entries
 	coalescedCols map[string]bool   // "tablename.colname" (lowered) -> true; columns hidden by USING/NATURAL
+	parent        *analyzerScope    // enclosing query's scope (for correlated subquery refs)
 }
 
 // scopeEntry is one named table reference visible in the current scope.
@@ -24,6 +25,15 @@ func newScope() *analyzerScope {
 	return &analyzerScope{
 		byName:        make(map[string]int),
 		coalescedCols: make(map[string]bool),
+	}
+}
+
+// newScopeWithParent creates a new scope with a parent scope for correlated subquery resolution.
+func newScopeWithParent(parent *analyzerScope) *analyzerScope {
+	return &analyzerScope{
+		byName:        make(map[string]int),
+		coalescedCols: make(map[string]bool),
+		parent:        parent,
 	}
 }
 
@@ -108,6 +118,38 @@ func (s *analyzerScope) getColumns(tableName string) []*Column {
 		return nil
 	}
 	return s.entries[idx].columns
+}
+
+// resolveColumnFull resolves an unqualified column, trying parent scopes
+// if not found locally. Returns (rteIdx, attNum, levelsUp, error).
+func (s *analyzerScope) resolveColumnFull(colName string) (int, int, int, error) {
+	rteIdx, attNum, err := s.resolveColumn(colName)
+	if err == nil {
+		return rteIdx, attNum, 0, nil
+	}
+	if s.parent != nil {
+		rteIdx, attNum, parentLevels, parentErr := s.parent.resolveColumnFull(colName)
+		if parentErr == nil {
+			return rteIdx, attNum, parentLevels + 1, nil
+		}
+	}
+	return 0, 0, 0, err
+}
+
+// resolveQualifiedColumnFull resolves a qualified column, trying parent scopes
+// if not found locally. Returns (rteIdx, attNum, levelsUp, error).
+func (s *analyzerScope) resolveQualifiedColumnFull(tableName, colName string) (int, int, int, error) {
+	rteIdx, attNum, err := s.resolveQualifiedColumn(tableName, colName)
+	if err == nil {
+		return rteIdx, attNum, 0, nil
+	}
+	if s.parent != nil {
+		rteIdx, attNum, parentLevels, parentErr := s.parent.resolveQualifiedColumnFull(tableName, colName)
+		if parentErr == nil {
+			return rteIdx, attNum, parentLevels + 1, nil
+		}
+	}
+	return 0, 0, 0, err
 }
 
 // allEntries returns all scope entries in registration order.

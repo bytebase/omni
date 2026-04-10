@@ -8,7 +8,7 @@ import (
 )
 
 // analyzeExpr is the main expression analysis dispatcher.
-func analyzeExpr(expr nodes.ExprNode, scope *analyzerScope) (AnalyzedExpr, error) {
+func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (AnalyzedExpr, error) {
 	switch n := expr.(type) {
 	case *nodes.ColumnRef:
 		return analyzeColumnRef(n, scope)
@@ -26,23 +26,27 @@ func analyzeExpr(expr nodes.ExprNode, scope *analyzerScope) (AnalyzedExpr, error
 		}
 		return &ConstExprQ{Value: "FALSE"}, nil
 	case *nodes.FuncCallExpr:
-		return analyzeFuncCall(n, scope)
+		return analyzeFuncCall(c, n, scope)
 	case *nodes.ParenExpr:
-		return analyzeExpr(n.Expr, scope)
+		return analyzeExpr(c, n.Expr, scope)
 	case *nodes.BinaryExpr:
-		return analyzeBinaryExpr(n, scope)
+		return analyzeBinaryExpr(c, n, scope)
 	case *nodes.UnaryExpr:
-		return analyzeUnaryExpr(n, scope)
+		return analyzeUnaryExpr(c, n, scope)
 	case *nodes.InExpr:
-		return analyzeInExpr(n, scope)
+		return analyzeInExpr(c, n, scope)
 	case *nodes.BetweenExpr:
-		return analyzeBetweenExpr(n, scope)
+		return analyzeBetweenExpr(c, n, scope)
 	case *nodes.IsExpr:
-		return analyzeIsExpr(n, scope)
+		return analyzeIsExpr(c, n, scope)
 	case *nodes.CaseExpr:
-		return analyzeCaseExpr(n, scope)
+		return analyzeCaseExpr(c, n, scope)
 	case *nodes.CastExpr:
-		return analyzeCastExpr(n, scope)
+		return analyzeCastExpr(c, n, scope)
+	case *nodes.SubqueryExpr:
+		return analyzeScalarSubquery(c, n, scope)
+	case *nodes.ExistsExpr:
+		return analyzeExistsSubquery(c, n, scope)
 	default:
 		return nil, &Error{
 			Code:     0,
@@ -53,26 +57,28 @@ func analyzeExpr(expr nodes.ExprNode, scope *analyzerScope) (AnalyzedExpr, error
 }
 
 // analyzeColumnRef resolves a column reference against the scope.
+// Uses the Full resolution methods to support correlated subquery references
+// (setting LevelsUp > 0 when the column comes from a parent scope).
 func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr, error) {
 	if ref.Table != "" {
-		rteIdx, attNum, err := scope.resolveQualifiedColumn(ref.Table, ref.Column)
+		rteIdx, attNum, levelsUp, err := scope.resolveQualifiedColumnFull(ref.Table, ref.Column)
 		if err != nil {
 			return nil, err
 		}
-		return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum}, nil
+		return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil
 	}
-	rteIdx, attNum, err := scope.resolveColumn(ref.Column)
+	rteIdx, attNum, levelsUp, err := scope.resolveColumnFull(ref.Column)
 	if err != nil {
 		return nil, err
 	}
-	return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum}, nil
+	return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil
 }
 
 // analyzeFuncCall resolves a function call expression.
-func analyzeFuncCall(fc *nodes.FuncCallExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (AnalyzedExpr, error) {
 	args := make([]AnalyzedExpr, 0, len(fc.Args))
 	for _, arg := range fc.Args {
-		a, err := analyzeExpr(arg, scope)
+		a, err := analyzeExpr(c, arg, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -91,12 +97,12 @@ func analyzeFuncCall(fc *nodes.FuncCallExpr, scope *analyzerScope) (AnalyzedExpr
 }
 
 // analyzeBinaryExpr resolves a binary expression.
-func analyzeBinaryExpr(expr *nodes.BinaryExpr, scope *analyzerScope) (AnalyzedExpr, error) {
-	left, err := analyzeExpr(expr.Left, scope)
+func analyzeBinaryExpr(c *Catalog, expr *nodes.BinaryExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	left, err := analyzeExpr(c, expr.Left, scope)
 	if err != nil {
 		return nil, err
 	}
-	right, err := analyzeExpr(expr.Right, scope)
+	right, err := analyzeExpr(c, expr.Right, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -112,8 +118,8 @@ func analyzeBinaryExpr(expr *nodes.BinaryExpr, scope *analyzerScope) (AnalyzedEx
 }
 
 // analyzeUnaryExpr resolves a unary expression.
-func analyzeUnaryExpr(expr *nodes.UnaryExpr, scope *analyzerScope) (AnalyzedExpr, error) {
-	operand, err := analyzeExpr(expr.Operand, scope)
+func analyzeUnaryExpr(c *Catalog, expr *nodes.UnaryExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	operand, err := analyzeExpr(c, expr.Operand, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -139,23 +145,33 @@ func analyzeUnaryExpr(expr *nodes.UnaryExpr, scope *analyzerScope) (AnalyzedExpr
 }
 
 // analyzeInExpr resolves an IN expression.
-func analyzeInExpr(expr *nodes.InExpr, scope *analyzerScope) (AnalyzedExpr, error) {
-	arg, err := analyzeExpr(expr.Expr, scope)
+func analyzeInExpr(c *Catalog, expr *nodes.InExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	arg, err := analyzeExpr(c, expr.Expr, scope)
 	if err != nil {
 		return nil, err
 	}
 
 	if expr.Select != nil {
-		return nil, &Error{
-			Code:     0,
-			SQLState: "HY000",
-			Message:  "subquery in IN expression not yet supported",
+		// IN (SELECT ...) / NOT IN (SELECT ...)
+		innerQ, err := c.analyzeSelectStmtInternal(expr.Select, scope)
+		if err != nil {
+			return nil, err
 		}
+		subLink := &SubLinkExprQ{
+			Kind:     SubLinkIn,
+			TestExpr: arg,
+			Op:       "=",
+			Subquery: innerQ,
+		}
+		if expr.Not {
+			return &BoolExprQ{Op: BoolNot, Args: []AnalyzedExpr{subLink}}, nil
+		}
+		return subLink, nil
 	}
 
 	list := make([]AnalyzedExpr, 0, len(expr.List))
 	for _, item := range expr.List {
-		a, err := analyzeExpr(item, scope)
+		a, err := analyzeExpr(c, item, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -166,16 +182,16 @@ func analyzeInExpr(expr *nodes.InExpr, scope *analyzerScope) (AnalyzedExpr, erro
 }
 
 // analyzeBetweenExpr resolves a BETWEEN expression.
-func analyzeBetweenExpr(expr *nodes.BetweenExpr, scope *analyzerScope) (AnalyzedExpr, error) {
-	arg, err := analyzeExpr(expr.Expr, scope)
+func analyzeBetweenExpr(c *Catalog, expr *nodes.BetweenExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	arg, err := analyzeExpr(c, expr.Expr, scope)
 	if err != nil {
 		return nil, err
 	}
-	lower, err := analyzeExpr(expr.Low, scope)
+	lower, err := analyzeExpr(c, expr.Low, scope)
 	if err != nil {
 		return nil, err
 	}
-	upper, err := analyzeExpr(expr.High, scope)
+	upper, err := analyzeExpr(c, expr.High, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -184,8 +200,8 @@ func analyzeBetweenExpr(expr *nodes.BetweenExpr, scope *analyzerScope) (Analyzed
 }
 
 // analyzeIsExpr resolves an IS expression.
-func analyzeIsExpr(expr *nodes.IsExpr, scope *analyzerScope) (AnalyzedExpr, error) {
-	arg, err := analyzeExpr(expr.Expr, scope)
+func analyzeIsExpr(c *Catalog, expr *nodes.IsExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	arg, err := analyzeExpr(c, expr.Expr, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -221,11 +237,11 @@ func analyzeIsExpr(expr *nodes.IsExpr, scope *analyzerScope) (AnalyzedExpr, erro
 }
 
 // analyzeCaseExpr resolves a CASE expression.
-func analyzeCaseExpr(expr *nodes.CaseExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+func analyzeCaseExpr(c *Catalog, expr *nodes.CaseExpr, scope *analyzerScope) (AnalyzedExpr, error) {
 	var testExpr AnalyzedExpr
 	if expr.Operand != nil {
 		var err error
-		testExpr, err = analyzeExpr(expr.Operand, scope)
+		testExpr, err = analyzeExpr(c, expr.Operand, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -233,11 +249,11 @@ func analyzeCaseExpr(expr *nodes.CaseExpr, scope *analyzerScope) (AnalyzedExpr, 
 
 	whens := make([]*CaseWhenQ, 0, len(expr.Whens))
 	for _, w := range expr.Whens {
-		cond, err := analyzeExpr(w.Cond, scope)
+		cond, err := analyzeExpr(c, w.Cond, scope)
 		if err != nil {
 			return nil, err
 		}
-		then, err := analyzeExpr(w.Result, scope)
+		then, err := analyzeExpr(c, w.Result, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -247,7 +263,7 @@ func analyzeCaseExpr(expr *nodes.CaseExpr, scope *analyzerScope) (AnalyzedExpr, 
 	var def AnalyzedExpr
 	if expr.Default != nil {
 		var err error
-		def, err = analyzeExpr(expr.Default, scope)
+		def, err = analyzeExpr(c, expr.Default, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -257,8 +273,8 @@ func analyzeCaseExpr(expr *nodes.CaseExpr, scope *analyzerScope) (AnalyzedExpr, 
 }
 
 // analyzeCastExpr resolves a CAST expression.
-func analyzeCastExpr(expr *nodes.CastExpr, scope *analyzerScope) (AnalyzedExpr, error) {
-	arg, err := analyzeExpr(expr.Expr, scope)
+func analyzeCastExpr(c *Catalog, expr *nodes.CastExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	arg, err := analyzeExpr(c, expr.Expr, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -308,6 +324,30 @@ func dataTypeToResolvedType(dt *nodes.DataType) *ResolvedType {
 	default:
 		return &ResolvedType{BaseType: BaseTypeUnknown}
 	}
+}
+
+// analyzeScalarSubquery resolves a scalar subquery expression: (SELECT ...).
+func analyzeScalarSubquery(c *Catalog, subq *nodes.SubqueryExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	innerQ, err := c.analyzeSelectStmtInternal(subq.Select, scope)
+	if err != nil {
+		return nil, err
+	}
+	return &SubLinkExprQ{
+		Kind:     SubLinkScalar,
+		Subquery: innerQ,
+	}, nil
+}
+
+// analyzeExistsSubquery resolves an EXISTS (SELECT ...) expression.
+func analyzeExistsSubquery(c *Catalog, expr *nodes.ExistsExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	innerQ, err := c.analyzeSelectStmtInternal(expr.Select, scope)
+	if err != nil {
+		return nil, err
+	}
+	return &SubLinkExprQ{
+		Kind:     SubLinkExists,
+		Subquery: innerQ,
+	}, nil
 }
 
 // isAggregateFunc returns true if the function name is a known aggregate.

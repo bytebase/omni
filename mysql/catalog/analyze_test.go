@@ -1573,6 +1573,7 @@ const projectsTableDDL = `CREATE TABLE projects (
 	id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	name VARCHAR(100) NOT NULL,
 	department_id INT NOT NULL,
+	lead_id INT,
 	start_date DATE
 )`
 
@@ -2030,4 +2031,506 @@ func TestAnalyze_10_3_AmbiguousColumn(t *testing.T) {
 	sel := parseSelect(t, `SELECT name FROM employees e JOIN departments d ON e.department_id = d.id`)
 	_, err := c.AnalyzeSelectStmt(sel)
 	assertError(t, err, 1052) // ambiguous column
+}
+
+// ---------------------------------------------------------------------------
+// Phase 1c — Batches 11-13: WHERE subqueries, CTEs, set operations
+// ---------------------------------------------------------------------------
+
+// --- Batch 11: WHERE subqueries ---
+
+// TestAnalyze_11_1_ScalarSubqueryInWhere tests WHERE salary > (SELECT AVG(salary) FROM employees).
+func TestAnalyze_11_1_ScalarSubqueryInWhere(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT name FROM employees WHERE salary > (SELECT AVG(salary) FROM employees)`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// WHERE should be an OpExprQ with ">" operator.
+	op, ok := q.JoinTree.Quals.(*OpExprQ)
+	if !ok {
+		t.Fatalf("Quals: want *OpExprQ, got %T", q.JoinTree.Quals)
+	}
+	if op.Op != ">" {
+		t.Errorf("Op: want >, got %s", op.Op)
+	}
+
+	// Left side: VarExprQ for salary.
+	if _, ok := op.Left.(*VarExprQ); !ok {
+		t.Errorf("Left: want *VarExprQ, got %T", op.Left)
+	}
+
+	// Right side: SubLinkExprQ (scalar subquery).
+	subLink, ok := op.Right.(*SubLinkExprQ)
+	if !ok {
+		t.Fatalf("Right: want *SubLinkExprQ, got %T", op.Right)
+	}
+	if subLink.Kind != SubLinkScalar {
+		t.Errorf("Kind: want SubLinkScalar, got %d", subLink.Kind)
+	}
+	if subLink.Subquery == nil {
+		t.Fatal("Subquery: want non-nil, got nil")
+	}
+	if !subLink.Subquery.HasAggs {
+		t.Errorf("Subquery.HasAggs: want true, got false")
+	}
+}
+
+// TestAnalyze_11_2_InSubquery tests WHERE department_id IN (SELECT id FROM departments WHERE budget > 100000).
+func TestAnalyze_11_2_InSubquery(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT name FROM employees WHERE department_id IN (SELECT id FROM departments WHERE budget > 100000)`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// WHERE should be a SubLinkExprQ with Kind=SubLinkIn.
+	subLink, ok := q.JoinTree.Quals.(*SubLinkExprQ)
+	if !ok {
+		t.Fatalf("Quals: want *SubLinkExprQ, got %T", q.JoinTree.Quals)
+	}
+	if subLink.Kind != SubLinkIn {
+		t.Errorf("Kind: want SubLinkIn, got %d", subLink.Kind)
+	}
+	if subLink.Op != "=" {
+		t.Errorf("Op: want =, got %s", subLink.Op)
+	}
+
+	// TestExpr: VarExprQ for department_id (AttNum=4).
+	testVar, ok := subLink.TestExpr.(*VarExprQ)
+	if !ok {
+		t.Fatalf("TestExpr: want *VarExprQ, got %T", subLink.TestExpr)
+	}
+	if testVar.AttNum != 4 {
+		t.Errorf("TestExpr.AttNum: want 4, got %d", testVar.AttNum)
+	}
+
+	// Subquery should have a WHERE qual.
+	if subLink.Subquery == nil {
+		t.Fatal("Subquery: want non-nil, got nil")
+	}
+	if subLink.Subquery.JoinTree.Quals == nil {
+		t.Error("Subquery WHERE: want non-nil, got nil")
+	}
+}
+
+// TestAnalyze_11_3_ExistsCorrelated tests EXISTS with a correlated subquery.
+func TestAnalyze_11_3_ExistsCorrelated(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT name FROM employees e WHERE EXISTS (SELECT 1 FROM projects p WHERE p.lead_id = e.id)`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// WHERE should be SubLinkExprQ with Kind=SubLinkExists.
+	subLink, ok := q.JoinTree.Quals.(*SubLinkExprQ)
+	if !ok {
+		t.Fatalf("Quals: want *SubLinkExprQ, got %T", q.JoinTree.Quals)
+	}
+	if subLink.Kind != SubLinkExists {
+		t.Errorf("Kind: want SubLinkExists, got %d", subLink.Kind)
+	}
+	if subLink.TestExpr != nil {
+		t.Errorf("TestExpr: want nil for EXISTS, got %v", subLink.TestExpr)
+	}
+
+	// Inner query WHERE should reference outer scope.
+	innerQ := subLink.Subquery
+	if innerQ == nil {
+		t.Fatal("Subquery: want non-nil, got nil")
+	}
+	innerQuals := innerQ.JoinTree.Quals
+	if innerQuals == nil {
+		t.Fatal("inner Quals: want non-nil, got nil")
+	}
+
+	// Should be OpExprQ: p.lead_id = e.id
+	innerOp, ok := innerQuals.(*OpExprQ)
+	if !ok {
+		t.Fatalf("inner Quals: want *OpExprQ, got %T", innerQuals)
+	}
+
+	// One side should have LevelsUp=1 (correlated reference to outer e.id).
+	leftVar, leftOk := innerOp.Left.(*VarExprQ)
+	rightVar, rightOk := innerOp.Right.(*VarExprQ)
+	if !leftOk || !rightOk {
+		t.Fatalf("inner Op sides: want both *VarExprQ, got %T and %T", innerOp.Left, innerOp.Right)
+	}
+
+	// e.id is from the outer scope (LevelsUp=1); p.lead_id is from inner scope (LevelsUp=0).
+	if leftVar.LevelsUp == 0 && rightVar.LevelsUp == 1 {
+		// right is correlated
+		if rightVar.AttNum != 1 { // e.id is column 1
+			t.Errorf("correlated ref AttNum: want 1 (id), got %d", rightVar.AttNum)
+		}
+	} else if leftVar.LevelsUp == 1 && rightVar.LevelsUp == 0 {
+		// left is correlated
+		if leftVar.AttNum != 1 {
+			t.Errorf("correlated ref AttNum: want 1 (id), got %d", leftVar.AttNum)
+		}
+	} else {
+		t.Errorf("expected one LevelsUp=1 (correlated), got left=%d right=%d", leftVar.LevelsUp, rightVar.LevelsUp)
+	}
+}
+
+// TestAnalyze_11_4_NotInSubquery tests NOT IN (SELECT ...).
+func TestAnalyze_11_4_NotInSubquery(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT name FROM employees WHERE department_id NOT IN (SELECT department_id FROM projects)`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// NOT IN subquery is represented as BoolExprQ{BoolNot, [SubLinkExprQ{SubLinkIn}]}.
+	boolExpr, ok := q.JoinTree.Quals.(*BoolExprQ)
+	if !ok {
+		t.Fatalf("Quals: want *BoolExprQ, got %T", q.JoinTree.Quals)
+	}
+	if boolExpr.Op != BoolNot {
+		t.Errorf("BoolOp: want BoolNot, got %d", boolExpr.Op)
+	}
+	if len(boolExpr.Args) != 1 {
+		t.Fatalf("BoolExpr.Args: want 1, got %d", len(boolExpr.Args))
+	}
+
+	subLink, ok := boolExpr.Args[0].(*SubLinkExprQ)
+	if !ok {
+		t.Fatalf("BoolExpr.Args[0]: want *SubLinkExprQ, got %T", boolExpr.Args[0])
+	}
+	if subLink.Kind != SubLinkIn {
+		t.Errorf("Kind: want SubLinkIn, got %d", subLink.Kind)
+	}
+}
+
+// TestAnalyze_11_5_ScalarSubqueryInSelect tests a scalar subquery in the SELECT list.
+func TestAnalyze_11_5_ScalarSubqueryInSelect(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT name, (SELECT COUNT(*) FROM projects p WHERE p.lead_id = e.id) AS project_count FROM employees e`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.TargetList) != 2 {
+		t.Fatalf("TargetList: want 2, got %d", len(q.TargetList))
+	}
+
+	// Second column should be a SubLinkExprQ.
+	subLink, ok := q.TargetList[1].Expr.(*SubLinkExprQ)
+	if !ok {
+		t.Fatalf("TargetList[1].Expr: want *SubLinkExprQ, got %T", q.TargetList[1].Expr)
+	}
+	if subLink.Kind != SubLinkScalar {
+		t.Errorf("Kind: want SubLinkScalar, got %d", subLink.Kind)
+	}
+	if q.TargetList[1].ResName != "project_count" {
+		t.Errorf("ResName: want project_count, got %s", q.TargetList[1].ResName)
+	}
+
+	// Inner query should have HasAggs=true (COUNT).
+	if !subLink.Subquery.HasAggs {
+		t.Errorf("Subquery.HasAggs: want true, got false")
+	}
+}
+
+// --- Batch 12: CTEs ---
+
+// TestAnalyze_12_1_SimpleCTE tests a simple CTE with WITH clause.
+func TestAnalyze_12_1_SimpleCTE(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `WITH dept_stats AS (SELECT department_id, COUNT(*) AS cnt FROM employees GROUP BY department_id) SELECT * FROM dept_stats`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// CTEList should have 1 entry.
+	if len(q.CTEList) != 1 {
+		t.Fatalf("CTEList: want 1, got %d", len(q.CTEList))
+	}
+	cte := q.CTEList[0]
+	if cte.Name != "dept_stats" {
+		t.Errorf("CTE Name: want dept_stats, got %s", cte.Name)
+	}
+	if cte.Recursive {
+		t.Errorf("CTE Recursive: want false, got true")
+	}
+	if cte.Query == nil {
+		t.Fatal("CTE Query: want non-nil, got nil")
+	}
+
+	// RangeTable should have an RTECTE entry.
+	if len(q.RangeTable) != 1 {
+		t.Fatalf("RangeTable: want 1, got %d", len(q.RangeTable))
+	}
+	rte := q.RangeTable[0]
+	if rte.Kind != RTECTE {
+		t.Errorf("RTE Kind: want RTECTE, got %d", rte.Kind)
+	}
+	if rte.CTEName != "dept_stats" {
+		t.Errorf("RTE CTEName: want dept_stats, got %s", rte.CTEName)
+	}
+	if rte.CTEIndex != 0 {
+		t.Errorf("RTE CTEIndex: want 0, got %d", rte.CTEIndex)
+	}
+
+	// Star expansion from CTE should produce columns from the CTE body.
+	if len(q.TargetList) != 2 {
+		t.Errorf("TargetList: want 2, got %d", len(q.TargetList))
+	}
+}
+
+// TestAnalyze_12_2_MultipleCTEs tests multiple CTEs.
+func TestAnalyze_12_2_MultipleCTEs(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `
+		WITH
+			active_emps AS (SELECT id, name FROM employees WHERE is_active = 1),
+			big_depts AS (SELECT id, name FROM departments WHERE budget > 100000)
+		SELECT a.name, b.name AS dept_name FROM active_emps a JOIN big_depts b ON a.id = b.id`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.CTEList) != 2 {
+		t.Fatalf("CTEList: want 2, got %d", len(q.CTEList))
+	}
+	if q.CTEList[0].Name != "active_emps" {
+		t.Errorf("CTE[0].Name: want active_emps, got %s", q.CTEList[0].Name)
+	}
+	if q.CTEList[1].Name != "big_depts" {
+		t.Errorf("CTE[1].Name: want big_depts, got %s", q.CTEList[1].Name)
+	}
+
+	// RangeTable: 2 RTECTE + 1 RTEJoin = 3.
+	if len(q.RangeTable) != 3 {
+		t.Fatalf("RangeTable: want 3, got %d", len(q.RangeTable))
+	}
+	if q.RangeTable[0].Kind != RTECTE {
+		t.Errorf("RTE[0]: want RTECTE, got %d", q.RangeTable[0].Kind)
+	}
+	if q.RangeTable[1].Kind != RTECTE {
+		t.Errorf("RTE[1]: want RTECTE, got %d", q.RangeTable[1].Kind)
+	}
+
+	if len(q.TargetList) != 2 {
+		t.Errorf("TargetList: want 2, got %d", len(q.TargetList))
+	}
+}
+
+// TestAnalyze_12_3_CTEWithExplicitColumns tests CTE with explicit column aliases.
+func TestAnalyze_12_3_CTEWithExplicitColumns(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `WITH emp_summary(dept, cnt) AS (SELECT department_id, COUNT(*) FROM employees GROUP BY department_id) SELECT dept, cnt FROM emp_summary`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.CTEList) != 1 {
+		t.Fatalf("CTEList: want 1, got %d", len(q.CTEList))
+	}
+	cte := q.CTEList[0]
+	if len(cte.ColumnNames) != 2 || cte.ColumnNames[0] != "dept" || cte.ColumnNames[1] != "cnt" {
+		t.Errorf("CTE ColumnNames: want [dept, cnt], got %v", cte.ColumnNames)
+	}
+
+	// RTECTE should use the explicit column names.
+	rte := q.RangeTable[0]
+	if rte.Kind != RTECTE {
+		t.Fatalf("RTE Kind: want RTECTE, got %d", rte.Kind)
+	}
+	if len(rte.ColNames) != 2 || rte.ColNames[0] != "dept" || rte.ColNames[1] != "cnt" {
+		t.Errorf("RTE ColNames: want [dept, cnt], got %v", rte.ColNames)
+	}
+
+	// TargetList should resolve dept and cnt.
+	if len(q.TargetList) != 2 {
+		t.Fatalf("TargetList: want 2, got %d", len(q.TargetList))
+	}
+	if q.TargetList[0].ResName != "dept" {
+		t.Errorf("TargetList[0].ResName: want dept, got %s", q.TargetList[0].ResName)
+	}
+	if q.TargetList[1].ResName != "cnt" {
+		t.Errorf("TargetList[1].ResName: want cnt, got %s", q.TargetList[1].ResName)
+	}
+}
+
+// TestAnalyze_12_4_CTEReferencedTwice tests a CTE referenced twice in the FROM clause.
+func TestAnalyze_12_4_CTEReferencedTwice(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `WITH emp_ids AS (SELECT id, name FROM employees) SELECT a.name, b.name FROM emp_ids a JOIN emp_ids b ON a.id = b.id`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.CTEList) != 1 {
+		t.Fatalf("CTEList: want 1, got %d", len(q.CTEList))
+	}
+
+	// Two RTECTE entries (one per reference), plus one RTEJoin.
+	if len(q.RangeTable) != 3 {
+		t.Fatalf("RangeTable: want 3, got %d", len(q.RangeTable))
+	}
+	if q.RangeTable[0].Kind != RTECTE {
+		t.Errorf("RTE[0]: want RTECTE, got %d", q.RangeTable[0].Kind)
+	}
+	if q.RangeTable[1].Kind != RTECTE {
+		t.Errorf("RTE[1]: want RTECTE, got %d", q.RangeTable[1].Kind)
+	}
+	// Both should reference CTEIndex=0.
+	if q.RangeTable[0].CTEIndex != 0 {
+		t.Errorf("RTE[0].CTEIndex: want 0, got %d", q.RangeTable[0].CTEIndex)
+	}
+	if q.RangeTable[1].CTEIndex != 0 {
+		t.Errorf("RTE[1].CTEIndex: want 0, got %d", q.RangeTable[1].CTEIndex)
+	}
+}
+
+// TestAnalyze_12_5_RecursiveCTE tests WITH RECURSIVE.
+func TestAnalyze_12_5_RecursiveCTE(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `CREATE TABLE categories (id INT PRIMARY KEY, name VARCHAR(100), parent_id INT)`)
+
+	sel := parseSelect(t, `
+		WITH RECURSIVE cat_tree(id, name, parent_id) AS (
+			SELECT id, name, parent_id FROM categories WHERE parent_id IS NULL
+			UNION ALL
+			SELECT c.id, c.name, c.parent_id FROM categories c INNER JOIN cat_tree ct ON c.parent_id = ct.id
+		)
+		SELECT * FROM cat_tree`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if !q.IsRecursive {
+		t.Errorf("IsRecursive: want true, got false")
+	}
+	if len(q.CTEList) != 1 {
+		t.Fatalf("CTEList: want 1, got %d", len(q.CTEList))
+	}
+	cte := q.CTEList[0]
+	if !cte.Recursive {
+		t.Errorf("CTE Recursive: want true, got false")
+	}
+
+	// CTE body should be a set-op query.
+	if cte.Query.SetOp != SetOpUnion {
+		t.Errorf("CTE SetOp: want SetOpUnion, got %d", cte.Query.SetOp)
+	}
+	if !cte.Query.AllSetOp {
+		t.Errorf("CTE AllSetOp: want true, got false")
+	}
+
+	// RTECTE in main query.
+	if len(q.RangeTable) != 1 {
+		t.Fatalf("RangeTable: want 1, got %d", len(q.RangeTable))
+	}
+	if q.RangeTable[0].Kind != RTECTE {
+		t.Errorf("RTE Kind: want RTECTE, got %d", q.RangeTable[0].Kind)
+	}
+
+	// Star expansion: 3 columns from the CTE.
+	if len(q.TargetList) != 3 {
+		t.Errorf("TargetList: want 3, got %d", len(q.TargetList))
+	}
+}
+
+// --- Batch 13: Set operations ---
+
+// TestAnalyze_13_1_Union tests UNION (without ALL).
+func TestAnalyze_13_1_Union(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT name FROM employees UNION SELECT name FROM departments`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if q.SetOp != SetOpUnion {
+		t.Errorf("SetOp: want SetOpUnion, got %d", q.SetOp)
+	}
+	if q.AllSetOp {
+		t.Errorf("AllSetOp: want false, got true")
+	}
+	if q.LArg == nil {
+		t.Fatal("LArg: want non-nil, got nil")
+	}
+	if q.RArg == nil {
+		t.Fatal("RArg: want non-nil, got nil")
+	}
+
+	// Result columns from left arm.
+	if len(q.TargetList) != 1 {
+		t.Fatalf("TargetList: want 1, got %d", len(q.TargetList))
+	}
+	if q.TargetList[0].ResName != "name" {
+		t.Errorf("TargetList[0].ResName: want name, got %s", q.TargetList[0].ResName)
+	}
+}
+
+// TestAnalyze_13_2_UnionAll tests UNION ALL.
+func TestAnalyze_13_2_UnionAll(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT name FROM employees UNION ALL SELECT name FROM departments`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if q.SetOp != SetOpUnion {
+		t.Errorf("SetOp: want SetOpUnion, got %d", q.SetOp)
+	}
+	if !q.AllSetOp {
+		t.Errorf("AllSetOp: want true, got false")
+	}
+}
+
+// TestAnalyze_13_3_Intersect tests INTERSECT.
+func TestAnalyze_13_3_Intersect(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT name FROM employees INTERSECT SELECT name FROM departments`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if q.SetOp != SetOpIntersect {
+		t.Errorf("SetOp: want SetOpIntersect, got %d", q.SetOp)
+	}
+	if q.AllSetOp {
+		t.Errorf("AllSetOp: want false, got true")
+	}
+	if q.LArg == nil || q.RArg == nil {
+		t.Fatal("LArg/RArg: want non-nil")
+	}
+}
+
+// TestAnalyze_13_4_Except tests EXCEPT.
+func TestAnalyze_13_4_Except(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT name FROM employees EXCEPT SELECT name FROM departments`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if q.SetOp != SetOpExcept {
+		t.Errorf("SetOp: want SetOpExcept, got %d", q.SetOp)
+	}
+	if q.AllSetOp {
+		t.Errorf("AllSetOp: want false, got true")
+	}
+}
+
+// TestAnalyze_13_5_UnionAllOrderByLimit tests UNION ALL with ORDER BY and LIMIT.
+func TestAnalyze_13_5_UnionAllOrderByLimit(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT name FROM employees UNION ALL SELECT name FROM departments ORDER BY name LIMIT 10`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if q.SetOp != SetOpUnion {
+		t.Errorf("SetOp: want SetOpUnion, got %d", q.SetOp)
+	}
+	if !q.AllSetOp {
+		t.Errorf("AllSetOp: want true, got false")
+	}
+
+	// ORDER BY should be populated.
+	if len(q.SortClause) != 1 {
+		t.Fatalf("SortClause: want 1, got %d", len(q.SortClause))
+	}
+
+	// LIMIT should be populated.
+	if q.LimitCount == nil {
+		t.Error("LimitCount: want non-nil, got nil")
+	}
+	constExpr, ok := q.LimitCount.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("LimitCount: want *ConstExprQ, got %T", q.LimitCount)
+	}
+	if constExpr.Value != "10" {
+		t.Errorf("LimitCount value: want 10, got %s", constExpr.Value)
+	}
 }

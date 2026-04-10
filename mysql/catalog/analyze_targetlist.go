@@ -8,10 +8,10 @@ import (
 )
 
 // analyzeTargetList processes the SELECT list, populating q.TargetList.
-func analyzeTargetList(targetList []nodes.ExprNode, q *Query, scope *analyzerScope) error {
+func analyzeTargetList(c *Catalog, targetList []nodes.ExprNode, q *Query, scope *analyzerScope) error {
 	resNo := 1
 	for _, item := range targetList {
-		entries, err := analyzeTargetEntry(item, q, scope, &resNo)
+		entries, err := analyzeTargetEntry(c, item, q, scope, &resNo)
 		if err != nil {
 			return err
 		}
@@ -22,11 +22,11 @@ func analyzeTargetList(targetList []nodes.ExprNode, q *Query, scope *analyzerSco
 
 // analyzeTargetEntry processes one item from the SELECT list. It may return
 // multiple TargetEntryQ values when expanding star expressions.
-func analyzeTargetEntry(item nodes.ExprNode, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
+func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
 	switch n := item.(type) {
 	case *nodes.ResTarget:
 		// Aliased expression: SELECT expr AS alias
-		analyzed, err := analyzeExpr(n.Val, scope)
+		analyzed, err := analyzeExpr(c, n.Val, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -49,7 +49,7 @@ func analyzeTargetEntry(item nodes.ExprNode, q *Query, scope *analyzerScope, res
 			return expandStar(n.Table, q, scope, resNo)
 		}
 		// Bare column reference: SELECT col
-		analyzed, err := analyzeExpr(item, scope)
+		analyzed, err := analyzeExpr(c, item, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +64,7 @@ func analyzeTargetEntry(item nodes.ExprNode, q *Query, scope *analyzerScope, res
 
 	default:
 		// Bare expression (literal, function call, etc.)
-		analyzed, err := analyzeExpr(item, scope)
+		analyzed, err := analyzeExpr(c, item, scope)
 		if err != nil {
 			return nil, err
 		}
