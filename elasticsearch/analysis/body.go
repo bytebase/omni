@@ -22,7 +22,7 @@ func analyzeRequestBody(body string) *RequestAnalysis {
 	result.HighlightFields = extractHighlightFields(parsed)
 	result.SortFields = extractSortFields(parsed)
 	result.HasInnerHits = containsKey(parsed, "inner_hits")
-	// PredicateFields left empty — F6b will populate via extractPredicateFields.
+	result.PredicateFields = extractPredicateFields(parsed)
 
 	return result
 }
