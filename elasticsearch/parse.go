@@ -26,6 +26,6 @@ type SyntaxError struct {
 
 // Position represents a location in source text.
 type Position struct {
-	Line   int `yaml:"line"`
-	Column int `yaml:"column"`
+	Line   int `yaml:"line"`   // 1-based
+	Column int `yaml:"column"` // 1-based, bytes
 }
