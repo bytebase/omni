@@ -1,0 +1,14 @@
+-- Statement: ALTER TABLESPACE
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/alter-tablespace.html
+
+ALTER [UNDO] TABLESPACE tablespace_name
+    [ADD DATAFILE 'file_name']
+    [DROP DATAFILE 'file_name']
+    [INITIAL_SIZE [=] size]
+    [WAIT]
+    [RENAME TO tablespace_name]
+    [AUTOEXTEND_SIZE [=] 'value']
+    [SET {ACTIVE | INACTIVE}]
+    [ENCRYPTION [=] {'Y' | 'N'}]
+    [ENGINE [=] engine_name]
+    [ENGINE_ATTRIBUTE [=] 'string']

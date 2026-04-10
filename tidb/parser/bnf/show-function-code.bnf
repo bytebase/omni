@@ -1,0 +1,4 @@
+-- Statement: SHOW FUNCTION CODE
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/show-function-code.html
+
+SHOW FUNCTION CODE func_name

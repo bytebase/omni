@@ -1,0 +1,19 @@
+-- Statement: COMMIT
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/commit.html
+
+START TRANSACTION
+    [transaction_characteristic [, transaction_characteristic] ...]
+
+transaction_characteristic: {
+    WITH CONSISTENT SNAPSHOT
+  | READ WRITE
+  | READ ONLY
+}
+
+BEGIN [WORK]
+
+COMMIT [WORK] [AND [NO] CHAIN] [[NO] RELEASE]
+
+ROLLBACK [WORK] [AND [NO] CHAIN] [[NO] RELEASE]
+
+SET autocommit = {0 | 1}

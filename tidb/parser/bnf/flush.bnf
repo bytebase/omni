@@ -1,0 +1,35 @@
+-- Statement: FLUSH
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/flush.html
+
+FLUSH [NO_WRITE_TO_BINLOG | LOCAL] {
+    flush_option [, flush_option] ...
+  | tables_option
+}
+
+flush_option: {
+    BINARY LOGS
+  | ENGINE LOGS
+  | ERROR LOGS
+  | GENERAL LOGS
+  | HOSTS
+  | LOGS
+  | PRIVILEGES
+  | OPTIMIZER_COSTS
+  | RELAY LOGS [FOR CHANNEL channel]
+  | SLOW LOGS
+  | STATUS
+  | USER_RESOURCES
+}
+
+tables_option: {
+    table_synonym
+  | table_synonym tbl_name [, tbl_name] ...
+  | table_synonym WITH READ LOCK
+  | table_synonym tbl_name [, tbl_name] ... WITH READ LOCK
+  | table_synonym tbl_name [, tbl_name] ... FOR EXPORT
+}
+
+table_synonym: {
+    TABLE
+  | TABLES
+}

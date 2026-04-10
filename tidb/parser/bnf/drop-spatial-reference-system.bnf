@@ -1,0 +1,8 @@
+-- Statement: DROP SPATIAL REFERENCE SYSTEM
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/drop-spatial-reference-system.html
+
+DROP SPATIAL REFERENCE SYSTEM
+    [IF EXISTS]
+    srid
+
+srid: 32-bit unsigned integer

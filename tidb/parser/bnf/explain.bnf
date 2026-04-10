@@ -1,0 +1,30 @@
+-- Statement: EXPLAIN
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/explain.html
+
+{EXPLAIN | DESCRIBE | DESC}
+    tbl_name [col_name | wild]
+
+{EXPLAIN | DESCRIBE | DESC}
+    [explain_type]
+    {explainable_stmt | FOR CONNECTION connection_id}
+
+{EXPLAIN | DESCRIBE | DESC} ANALYZE [explain_type] select_stmt
+
+explain_type: {
+    FORMAT = format_name
+}
+
+format_name: {
+    TRADITIONAL
+  | JSON
+  | TREE
+}
+
+explainable_stmt: {
+    SELECT ...
+  | TABLE ...
+  | DELETE ...
+  | INSERT ...
+  | REPLACE ...
+  | UPDATE ...
+}

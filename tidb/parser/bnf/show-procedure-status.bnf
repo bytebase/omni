@@ -1,0 +1,5 @@
+-- Statement: SHOW PROCEDURE STATUS
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/show-procedure-status.html
+
+SHOW PROCEDURE STATUS
+    [LIKE 'pattern' | WHERE expr]
