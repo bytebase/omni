@@ -617,6 +617,9 @@ func dropsForIndexes(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
 			switch idxEntry.Action {
 			case DiffDrop:
 				idx := idxEntry.From
+				if idx == nil {
+					continue
+				}
 				if idx.ConstraintOID != 0 {
 					continue
 				}
