@@ -6,7 +6,7 @@
 //
 // Usage:
 //
-//	go run ./mysql/ast/cmd/genwalker
+//	go run ./tidb/ast/cmd/genwalker
 package main
 
 import (

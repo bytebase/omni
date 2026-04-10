@@ -20,7 +20,7 @@ import (
 //  3. Loc  — all AST nodes must have valid Loc (Start >= 0, End > Start)
 //  4. Error — if @valid: false, error position must be reasonable (>= 0)
 //
-// Corpus files live in mysql/quality/corpus/*.sql with annotations:
+// Corpus files live in tidb/quality/corpus/*.sql with annotations:
 //
 //	-- @name: descriptive name
 //	-- @valid: true|false       (expected parse result; omit = just check no crash)
@@ -28,12 +28,12 @@ import (
 //
 // Run:
 //
-//	go test ./mysql/parser/ -run TestVerifyCorpus -count=1 -v
+//	go test ./tidb/parser/ -run TestVerifyCorpus -count=1 -v
 func TestVerifyCorpus(t *testing.T) {
 	corpusDir := filepath.Join("..", "quality", "corpus")
 	entries, err := os.ReadDir(corpusDir)
 	if err != nil {
-		corpusDir = filepath.Join("mysql", "quality", "corpus")
+		corpusDir = filepath.Join("tidb", "quality", "corpus")
 		entries, err = os.ReadDir(corpusDir)
 		if err != nil {
 			t.Fatalf("Cannot read corpus directory: %v", err)
@@ -47,7 +47,7 @@ func TestVerifyCorpus(t *testing.T) {
 		}
 	}
 	if len(corpusFiles) == 0 {
-		t.Skip("No corpus files found in mysql/quality/corpus/")
+		t.Skip("No corpus files found in tidb/quality/corpus/")
 	}
 
 	var stats corpusVerifyStats
