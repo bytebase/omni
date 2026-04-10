@@ -8,6 +8,30 @@ import (
 	"unicode/utf8"
 )
 
+// tidbSupportedFeatures lists TiDB v8.5 feature IDs recognized in /*T![feature] */ comments.
+var tidbSupportedFeatures = map[string]bool{
+	"auto_rand":       true,
+	"auto_id_cache":   true,
+	"auto_rand_base":  true,
+	"clustered_index": true,
+	"placement":       true,
+	"ttl":             true,
+}
+
+// allTiDBFeaturesSupported checks if all comma-separated feature IDs are supported.
+func allTiDBFeaturesSupported(featureStr string) bool {
+	for _, f := range strings.Split(featureStr, ",") {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
+		}
+		if !tidbSupportedFeatures[f] {
+			return false
+		}
+	}
+	return true
+}
+
 // Token type constants for literals and operators.
 const (
 	tokEOF = 0
@@ -845,6 +869,21 @@ const (
 	kwWEEK
 	kwWEIGHT_STRING
 	kwZONE
+
+	// TiDB-specific keywords.
+	kwAUTO_RANDOM
+	kwAUTO_RANDOM_BASE
+	kwSHARD_ROW_ID_BITS
+	kwPRE_SPLIT_REGIONS
+	kwAUTO_ID_CACHE
+	kwCLUSTERED
+	kwNONCLUSTERED
+	kwTIFLASH
+	kwTTL
+	kwTTL_ENABLE
+	kwTTL_JOB_INTERVAL
+	kwPLACEMENT
+	kwPOLICY
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1650,6 +1689,21 @@ var keywords = map[string]int{
 	"week":                                  kwWEEK,
 	"weight_string":                         kwWEIGHT_STRING,
 	"zone":                                  kwZONE,
+
+	// TiDB-specific keywords.
+	"auto_random":       kwAUTO_RANDOM,
+	"auto_random_base":  kwAUTO_RANDOM_BASE,
+	"shard_row_id_bits": kwSHARD_ROW_ID_BITS,
+	"pre_split_regions": kwPRE_SPLIT_REGIONS,
+	"auto_id_cache":     kwAUTO_ID_CACHE,
+	"clustered":         kwCLUSTERED,
+	"nonclustered":      kwNONCLUSTERED,
+	"tiflash":           kwTIFLASH,
+	"ttl":               kwTTL,
+	"ttl_enable":        kwTTL_ENABLE,
+	"ttl_job_interval":  kwTTL_JOB_INTERVAL,
+	"placement":         kwPLACEMENT,
+	"policy":            kwPOLICY,
 }
 
 // Token represents a lexical token.
@@ -1833,6 +1887,81 @@ func (l *Lexer) skipWhitespaceAndComments() {
 
 		// Block comment: /* ... */
 		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+			// TiDB comments: /*T! ... */ or /*T![feature] ... */
+			if l.pos+3 < len(l.input) && l.input[l.pos+2] == 'T' && l.input[l.pos+3] == '!' {
+				innerStart := l.pos + 4 // after /*T!
+
+				// Check for feature bracket: /*T![feature_id]
+				if innerStart < len(l.input) && l.input[innerStart] == '[' {
+					bracketEnd := innerStart + 1
+					for bracketEnd < len(l.input) && l.input[bracketEnd] != ']' {
+						bracketEnd++
+					}
+					if bracketEnd >= len(l.input) {
+						// Malformed: no closing bracket, skip as regular comment.
+						l.pos += 2
+						depth := 1
+						for l.pos < len(l.input) && depth > 0 {
+							if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
+								depth--
+								l.pos += 2
+							} else if l.input[l.pos] == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+								depth++
+								l.pos += 2
+							} else {
+								l.pos++
+							}
+						}
+						continue
+					}
+					featureStr := l.input[innerStart+1 : bracketEnd]
+					if !allTiDBFeaturesSupported(featureStr) {
+						// Unsupported feature — skip entire comment.
+						l.pos += 2
+						depth := 1
+						for l.pos < len(l.input) && depth > 0 {
+							if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
+								depth--
+								l.pos += 2
+							} else if l.input[l.pos] == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+								depth++
+								l.pos += 2
+							} else {
+								l.pos++
+							}
+						}
+						continue
+					}
+					innerStart = bracketEnd + 1 // SQL starts after ]
+				}
+
+				// Find matching */
+				end := innerStart
+				depth := 1
+				for end < len(l.input) && depth > 0 {
+					if l.input[end] == '*' && end+1 < len(l.input) && l.input[end+1] == '/' {
+						depth--
+						if depth == 0 {
+							break
+						}
+						end += 2
+					} else if l.input[end] == '/' && end+1 < len(l.input) && l.input[end+1] == '*' {
+						depth++
+						end += 2
+					} else {
+						end++
+					}
+				}
+				// If comment is unclosed (no matching */), treat as regular block comment.
+				if depth > 0 {
+					l.pos = len(l.input)
+					continue
+				}
+				inner := l.input[innerStart:end]
+				l.input = l.input[:l.pos] + inner + l.input[end+2:]
+				continue
+			}
+
 			// MySQL conditional comments: /*!NNNNN ... */ or /*! ... */
 			// These should be parsed as SQL, not skipped.
 			if l.pos+2 < len(l.input) && l.input[l.pos+2] == '!' {

@@ -336,12 +336,39 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		}
 
 	case kwREMOVE:
-		// REMOVE PARTITIONING
 		p.advance()
+		if p.cur.Type == kwTTL {
+			// TiDB: REMOVE TTL
+			p.advance()
+			cmd.Type = nodes.ATRemoveTTL
+			cmd.Loc.End = p.pos()
+			return cmd, nil
+		}
+		// REMOVE PARTITIONING
 		p.match(kwPARTITIONING)
 		cmd.Type = nodes.ATRemovePartitioning
 		cmd.Loc.End = p.pos()
 		return cmd, nil
+
+	case kwSET:
+		// TiDB: SET TIFLASH REPLICA n
+		p.advance()
+		if p.cur.Type == kwTIFLASH {
+			p.advance()
+			if _, ok := p.match(kwREPLICA); !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			count := int(p.cur.Ival)
+			p.advance()
+			cmd.Type = nodes.ATSetTiFlashReplica
+			cmd.TiFlashReplica = count
+			cmd.Loc.End = p.pos()
+			return cmd, nil
+		}
+		return nil, p.syntaxErrorAtCur()
 
 	case kwSECONDARY_LOAD:
 		p.advance()

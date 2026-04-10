@@ -34,6 +34,10 @@ func (s Segment) Empty() bool {
 			if i+2 < len(t) && t[i+2] == '!' {
 				return false
 			}
+			// TiDB-specific comments also contain executable SQL.
+			if i+3 < len(t) && t[i+2] == 'T' && t[i+3] == '!' {
+				return false
+			}
 			prev := i
 			i = skipBlockCommentMySQL(t, i)
 			if i == prev {

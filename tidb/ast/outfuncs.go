@@ -2599,6 +2599,15 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 	if n.AutoIncrement {
 		sb.WriteString(" :auto_increment true")
 	}
+	if n.AutoRandom {
+		sb.WriteString(" :auto_random t")
+		if n.AutoRandomShardBits > 0 {
+			fmt.Fprintf(sb, " :auto_random_shard_bits %d", n.AutoRandomShardBits)
+		}
+		if n.AutoRandomRangeBits > 0 {
+			fmt.Fprintf(sb, " :auto_random_range_bits %d", n.AutoRandomRangeBits)
+		}
+	}
 	if n.DefaultValue != nil {
 		sb.WriteString(" :default ")
 		writeNode(sb, n.DefaultValue)
@@ -2680,6 +2689,13 @@ func writeColumnConstraint(sb *strings.Builder, n *ColumnConstraint) {
 	if n.NotEnforced {
 		sb.WriteString(" :not_enforced true")
 	}
+	if n.Clustered != nil {
+		if *n.Clustered {
+			sb.WriteString(" :clustered t")
+		} else {
+			sb.WriteString(" :clustered f")
+		}
+	}
 	sb.WriteString("}")
 }
 
@@ -2737,6 +2753,13 @@ func writeConstraint(sb *strings.Builder, n *Constraint) {
 	}
 	if n.NotEnforced {
 		sb.WriteString(" :not_enforced true")
+	}
+	if n.Clustered != nil {
+		if *n.Clustered {
+			sb.WriteString(" :clustered t")
+		} else {
+			sb.WriteString(" :clustered f")
+		}
 	}
 	sb.WriteString("}")
 }
@@ -2865,6 +2888,9 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	if n.PartitionBy != nil {
 		sb.WriteString(" :partition_by ")
 		writeNode(sb, n.PartitionBy)
+	}
+	if n.Type == ATSetTiFlashReplica {
+		fmt.Fprintf(sb, " :tiflash_replica %d", n.TiFlashReplica)
 	}
 	sb.WriteString("}")
 }
