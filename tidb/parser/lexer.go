@@ -845,6 +845,21 @@ const (
 	kwWEEK
 	kwWEIGHT_STRING
 	kwZONE
+
+	// TiDB-specific keywords.
+	kwAUTO_RANDOM
+	kwAUTO_RANDOM_BASE
+	kwSHARD_ROW_ID_BITS
+	kwPRE_SPLIT_REGIONS
+	kwAUTO_ID_CACHE
+	kwCLUSTERED
+	kwNONCLUSTERED
+	kwTIFLASH
+	kwTTL
+	kwTTL_ENABLE
+	kwTTL_JOB_INTERVAL
+	kwPLACEMENT
+	kwPOLICY
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1650,6 +1665,21 @@ var keywords = map[string]int{
 	"week":                                  kwWEEK,
 	"weight_string":                         kwWEIGHT_STRING,
 	"zone":                                  kwZONE,
+
+	// TiDB-specific keywords.
+	"auto_random":       kwAUTO_RANDOM,
+	"auto_random_base":  kwAUTO_RANDOM_BASE,
+	"shard_row_id_bits": kwSHARD_ROW_ID_BITS,
+	"pre_split_regions": kwPRE_SPLIT_REGIONS,
+	"auto_id_cache":     kwAUTO_ID_CACHE,
+	"clustered":         kwCLUSTERED,
+	"nonclustered":      kwNONCLUSTERED,
+	"tiflash":           kwTIFLASH,
+	"ttl":               kwTTL,
+	"ttl_enable":        kwTTL_ENABLE,
+	"ttl_job_interval":  kwTTL_JOB_INTERVAL,
+	"placement":         kwPLACEMENT,
+	"policy":            kwPOLICY,
 }
 
 // Token represents a lexical token.
