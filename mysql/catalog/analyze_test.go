@@ -357,3 +357,1204 @@ func TestAnalyze_1_5_QualifiedStar(t *testing.T) {
 		}
 	}
 }
+
+// employeesTableDDL is the shared DDL for the employees table used across Batch 2 tests.
+const employeesTableDDL = `CREATE TABLE employees (
+	id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	name VARCHAR(100) NOT NULL,
+	email VARCHAR(200),
+	department_id INT NOT NULL,
+	salary DECIMAL(10,2) NOT NULL,
+	hire_date DATE NOT NULL,
+	is_active TINYINT(1) NOT NULL DEFAULT 1,
+	notes TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`
+
+// TestAnalyze_2_1_WhereSimpleEquality tests WHERE id = 1.
+func TestAnalyze_2_1_WhereSimpleEquality(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT name FROM employees WHERE id = 1")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if q.JoinTree == nil {
+		t.Fatal("JoinTree: want non-nil, got nil")
+	}
+	if q.JoinTree.Quals == nil {
+		t.Fatal("JoinTree.Quals: want non-nil, got nil")
+	}
+
+	opExpr, ok := q.JoinTree.Quals.(*OpExprQ)
+	if !ok {
+		t.Fatalf("Quals: want *OpExprQ, got %T", q.JoinTree.Quals)
+	}
+	if opExpr.Op != "=" {
+		t.Errorf("OpExprQ.Op: want %q, got %q", "=", opExpr.Op)
+	}
+
+	leftVar, ok := opExpr.Left.(*VarExprQ)
+	if !ok {
+		t.Fatalf("OpExprQ.Left: want *VarExprQ, got %T", opExpr.Left)
+	}
+	if leftVar.AttNum != 1 {
+		t.Errorf("Left.AttNum: want 1, got %d", leftVar.AttNum)
+	}
+
+	rightConst, ok := opExpr.Right.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("OpExprQ.Right: want *ConstExprQ, got %T", opExpr.Right)
+	}
+	if rightConst.Value != "1" {
+		t.Errorf("Right.Value: want %q, got %q", "1", rightConst.Value)
+	}
+}
+
+// TestAnalyze_2_2_WhereAndOr tests WHERE is_active = 1 AND (department_id = 1 OR department_id = 2).
+func TestAnalyze_2_2_WhereAndOr(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT name FROM employees WHERE is_active = 1 AND (department_id = 1 OR department_id = 2)")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if q.JoinTree == nil || q.JoinTree.Quals == nil {
+		t.Fatal("JoinTree.Quals: want non-nil")
+	}
+
+	// Top level: BoolExprQ with BoolAnd
+	andExpr, ok := q.JoinTree.Quals.(*BoolExprQ)
+	if !ok {
+		t.Fatalf("Quals: want *BoolExprQ, got %T", q.JoinTree.Quals)
+	}
+	if andExpr.Op != BoolAnd {
+		t.Errorf("BoolExprQ.Op: want BoolAnd, got %v", andExpr.Op)
+	}
+	if len(andExpr.Args) != 2 {
+		t.Fatalf("BoolExprQ.Args: want 2 entries, got %d", len(andExpr.Args))
+	}
+
+	// Left: is_active = 1
+	leftOp, ok := andExpr.Args[0].(*OpExprQ)
+	if !ok {
+		t.Fatalf("Args[0]: want *OpExprQ, got %T", andExpr.Args[0])
+	}
+	if leftOp.Op != "=" {
+		t.Errorf("Args[0].Op: want %q, got %q", "=", leftOp.Op)
+	}
+
+	// Right: BoolExprQ with BoolOr
+	orExpr, ok := andExpr.Args[1].(*BoolExprQ)
+	if !ok {
+		t.Fatalf("Args[1]: want *BoolExprQ, got %T", andExpr.Args[1])
+	}
+	if orExpr.Op != BoolOr {
+		t.Errorf("Args[1].Op: want BoolOr, got %v", orExpr.Op)
+	}
+	if len(orExpr.Args) != 2 {
+		t.Fatalf("BoolOr.Args: want 2 entries, got %d", len(orExpr.Args))
+	}
+
+	// Each OR arg should be OpExprQ with "="
+	for i, arg := range orExpr.Args {
+		op, ok := arg.(*OpExprQ)
+		if !ok {
+			t.Fatalf("BoolOr.Args[%d]: want *OpExprQ, got %T", i, arg)
+		}
+		if op.Op != "=" {
+			t.Errorf("BoolOr.Args[%d].Op: want %q, got %q", i, "=", op.Op)
+		}
+	}
+}
+
+// TestAnalyze_2_3_WhereIn tests WHERE department_id IN (1, 2, 3).
+func TestAnalyze_2_3_WhereIn(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT name FROM employees WHERE department_id IN (1, 2, 3)")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if q.JoinTree == nil || q.JoinTree.Quals == nil {
+		t.Fatal("JoinTree.Quals: want non-nil")
+	}
+
+	inExpr, ok := q.JoinTree.Quals.(*InListExprQ)
+	if !ok {
+		t.Fatalf("Quals: want *InListExprQ, got %T", q.JoinTree.Quals)
+	}
+
+	argVar, ok := inExpr.Arg.(*VarExprQ)
+	if !ok {
+		t.Fatalf("InListExprQ.Arg: want *VarExprQ, got %T", inExpr.Arg)
+	}
+	if argVar.AttNum != 4 {
+		t.Errorf("Arg.AttNum: want 4, got %d", argVar.AttNum)
+	}
+
+	if len(inExpr.List) != 3 {
+		t.Fatalf("InListExprQ.List: want 3 entries, got %d", len(inExpr.List))
+	}
+	for i, item := range inExpr.List {
+		if _, ok := item.(*ConstExprQ); !ok {
+			t.Errorf("List[%d]: want *ConstExprQ, got %T", i, item)
+		}
+	}
+
+	if inExpr.Negated {
+		t.Errorf("InListExprQ.Negated: want false, got true")
+	}
+}
+
+// TestAnalyze_2_4_WhereBetween tests WHERE salary BETWEEN 50000 AND 100000.
+func TestAnalyze_2_4_WhereBetween(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT name FROM employees WHERE salary BETWEEN 50000 AND 100000")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if q.JoinTree == nil || q.JoinTree.Quals == nil {
+		t.Fatal("JoinTree.Quals: want non-nil")
+	}
+
+	betExpr, ok := q.JoinTree.Quals.(*BetweenExprQ)
+	if !ok {
+		t.Fatalf("Quals: want *BetweenExprQ, got %T", q.JoinTree.Quals)
+	}
+
+	argVar, ok := betExpr.Arg.(*VarExprQ)
+	if !ok {
+		t.Fatalf("BetweenExprQ.Arg: want *VarExprQ, got %T", betExpr.Arg)
+	}
+	if argVar.AttNum != 5 {
+		t.Errorf("Arg.AttNum: want 5, got %d", argVar.AttNum)
+	}
+
+	lowerConst, ok := betExpr.Lower.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("BetweenExprQ.Lower: want *ConstExprQ, got %T", betExpr.Lower)
+	}
+	if lowerConst.Value != "50000" {
+		t.Errorf("Lower.Value: want %q, got %q", "50000", lowerConst.Value)
+	}
+
+	upperConst, ok := betExpr.Upper.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("BetweenExprQ.Upper: want *ConstExprQ, got %T", betExpr.Upper)
+	}
+	if upperConst.Value != "100000" {
+		t.Errorf("Upper.Value: want %q, got %q", "100000", upperConst.Value)
+	}
+
+	if betExpr.Negated {
+		t.Errorf("BetweenExprQ.Negated: want false, got true")
+	}
+}
+
+// TestAnalyze_2_5_WhereIsNull tests WHERE email IS NOT NULL AND notes IS NULL.
+func TestAnalyze_2_5_WhereIsNull(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT name FROM employees WHERE email IS NOT NULL AND notes IS NULL")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if q.JoinTree == nil || q.JoinTree.Quals == nil {
+		t.Fatal("JoinTree.Quals: want non-nil")
+	}
+
+	andExpr, ok := q.JoinTree.Quals.(*BoolExprQ)
+	if !ok {
+		t.Fatalf("Quals: want *BoolExprQ, got %T", q.JoinTree.Quals)
+	}
+	if andExpr.Op != BoolAnd {
+		t.Errorf("BoolExprQ.Op: want BoolAnd, got %v", andExpr.Op)
+	}
+	if len(andExpr.Args) != 2 {
+		t.Fatalf("BoolExprQ.Args: want 2 entries, got %d", len(andExpr.Args))
+	}
+
+	// Args[0]: email IS NOT NULL → NullTestExprQ{IsNull: false}
+	nt0, ok := andExpr.Args[0].(*NullTestExprQ)
+	if !ok {
+		t.Fatalf("Args[0]: want *NullTestExprQ, got %T", andExpr.Args[0])
+	}
+	if nt0.IsNull {
+		t.Errorf("Args[0].IsNull: want false, got true")
+	}
+
+	// Args[1]: notes IS NULL → NullTestExprQ{IsNull: true}
+	nt1, ok := andExpr.Args[1].(*NullTestExprQ)
+	if !ok {
+		t.Fatalf("Args[1]: want *NullTestExprQ, got %T", andExpr.Args[1])
+	}
+	if !nt1.IsNull {
+		t.Errorf("Args[1].IsNull: want true, got false")
+	}
+}
+
+// TestAnalyze_3_1_GroupByColumn tests GROUP BY with a column reference.
+func TestAnalyze_3_1_GroupByColumn(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT department_id, COUNT(*) FROM employees GROUP BY department_id")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// TargetList: 2 entries
+	if len(q.TargetList) != 2 {
+		t.Fatalf("TargetList: want 2 entries, got %d", len(q.TargetList))
+	}
+
+	// TargetList[0]: department_id → VarExprQ{AttNum:4}
+	te0 := q.TargetList[0]
+	v0, ok := te0.Expr.(*VarExprQ)
+	if !ok {
+		t.Fatalf("TargetList[0].Expr: want *VarExprQ, got %T", te0.Expr)
+	}
+	if v0.AttNum != 4 {
+		t.Errorf("TargetList[0] AttNum: want 4, got %d", v0.AttNum)
+	}
+	if te0.ResName != "department_id" {
+		t.Errorf("TargetList[0] ResName: want %q, got %q", "department_id", te0.ResName)
+	}
+
+	// TargetList[1]: COUNT(*) → FuncCallExprQ with IsAggregate=true
+	te1 := q.TargetList[1]
+	fc1, ok := te1.Expr.(*FuncCallExprQ)
+	if !ok {
+		t.Fatalf("TargetList[1].Expr: want *FuncCallExprQ, got %T", te1.Expr)
+	}
+	if fc1.Name != "count" {
+		t.Errorf("FuncCallExprQ.Name: want %q, got %q", "count", fc1.Name)
+	}
+	if !fc1.IsAggregate {
+		t.Errorf("FuncCallExprQ.IsAggregate: want true, got false")
+	}
+
+	// GroupClause: 1 entry referencing TargetIdx=1
+	if len(q.GroupClause) != 1 {
+		t.Fatalf("GroupClause: want 1 entry, got %d", len(q.GroupClause))
+	}
+	if q.GroupClause[0].TargetIdx != 1 {
+		t.Errorf("GroupClause[0].TargetIdx: want 1, got %d", q.GroupClause[0].TargetIdx)
+	}
+
+	// HasAggs = true
+	if !q.HasAggs {
+		t.Errorf("HasAggs: want true, got false")
+	}
+}
+
+// TestAnalyze_3_2_GroupByMultipleAggregates tests GROUP BY with multiple aggregates.
+func TestAnalyze_3_2_GroupByMultipleAggregates(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT department_id, COUNT(*) AS cnt, SUM(salary) AS total_salary, AVG(salary) AS avg_salary FROM employees GROUP BY department_id")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// TargetList: 4 entries
+	if len(q.TargetList) != 4 {
+		t.Fatalf("TargetList: want 4 entries, got %d", len(q.TargetList))
+	}
+
+	// TargetList[0]: department_id
+	if _, ok := q.TargetList[0].Expr.(*VarExprQ); !ok {
+		t.Fatalf("TargetList[0].Expr: want *VarExprQ, got %T", q.TargetList[0].Expr)
+	}
+
+	// TargetList[1..3]: all FuncCallExprQ with IsAggregate=true
+	for i := 1; i <= 3; i++ {
+		fc, ok := q.TargetList[i].Expr.(*FuncCallExprQ)
+		if !ok {
+			t.Fatalf("TargetList[%d].Expr: want *FuncCallExprQ, got %T", i, q.TargetList[i].Expr)
+		}
+		if !fc.IsAggregate {
+			t.Errorf("TargetList[%d] IsAggregate: want true, got false", i)
+		}
+	}
+
+	// GroupClause references TargetIdx=1
+	if len(q.GroupClause) != 1 {
+		t.Fatalf("GroupClause: want 1 entry, got %d", len(q.GroupClause))
+	}
+	if q.GroupClause[0].TargetIdx != 1 {
+		t.Errorf("GroupClause[0].TargetIdx: want 1, got %d", q.GroupClause[0].TargetIdx)
+	}
+}
+
+// TestAnalyze_3_3_Having tests HAVING clause with aggregate condition.
+func TestAnalyze_3_3_Having(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT department_id, COUNT(*) AS cnt FROM employees GROUP BY department_id HAVING COUNT(*) > 5")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// HavingQual should be OpExprQ{Op:">", Left:FuncCallExprQ, Right:ConstExprQ}
+	if q.HavingQual == nil {
+		t.Fatal("HavingQual: want non-nil, got nil")
+	}
+	opExpr, ok := q.HavingQual.(*OpExprQ)
+	if !ok {
+		t.Fatalf("HavingQual: want *OpExprQ, got %T", q.HavingQual)
+	}
+	if opExpr.Op != ">" {
+		t.Errorf("OpExprQ.Op: want %q, got %q", ">", opExpr.Op)
+	}
+
+	leftFC, ok := opExpr.Left.(*FuncCallExprQ)
+	if !ok {
+		t.Fatalf("OpExprQ.Left: want *FuncCallExprQ, got %T", opExpr.Left)
+	}
+	if !leftFC.IsAggregate {
+		t.Errorf("Left.IsAggregate: want true, got false")
+	}
+
+	rightConst, ok := opExpr.Right.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("OpExprQ.Right: want *ConstExprQ, got %T", opExpr.Right)
+	}
+	if rightConst.Value != "5" {
+		t.Errorf("Right.Value: want %q, got %q", "5", rightConst.Value)
+	}
+
+	// HasAggs should be true
+	if !q.HasAggs {
+		t.Errorf("HasAggs: want true, got false")
+	}
+}
+
+// TestAnalyze_3_4_CountDistinct tests COUNT(DISTINCT column).
+func TestAnalyze_3_4_CountDistinct(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT COUNT(DISTINCT department_id) FROM employees")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.TargetList) != 1 {
+		t.Fatalf("TargetList: want 1 entry, got %d", len(q.TargetList))
+	}
+
+	fc, ok := q.TargetList[0].Expr.(*FuncCallExprQ)
+	if !ok {
+		t.Fatalf("TargetList[0].Expr: want *FuncCallExprQ, got %T", q.TargetList[0].Expr)
+	}
+	if fc.Name != "count" {
+		t.Errorf("FuncCallExprQ.Name: want %q, got %q", "count", fc.Name)
+	}
+	if !fc.IsAggregate {
+		t.Errorf("FuncCallExprQ.IsAggregate: want true, got false")
+	}
+	if !fc.Distinct {
+		t.Errorf("FuncCallExprQ.Distinct: want true, got false")
+	}
+
+	// Args should contain one VarExprQ with AttNum=4 (department_id)
+	if len(fc.Args) != 1 {
+		t.Fatalf("FuncCallExprQ.Args: want 1 entry, got %d", len(fc.Args))
+	}
+	argVar, ok := fc.Args[0].(*VarExprQ)
+	if !ok {
+		t.Fatalf("Args[0]: want *VarExprQ, got %T", fc.Args[0])
+	}
+	if argVar.AttNum != 4 {
+		t.Errorf("Args[0].AttNum: want 4, got %d", argVar.AttNum)
+	}
+
+	// HasAggs should be true
+	if !q.HasAggs {
+		t.Errorf("HasAggs: want true, got false")
+	}
+}
+
+// TestAnalyze_3_5_GroupByOrdinal tests GROUP BY with ordinal reference.
+func TestAnalyze_3_5_GroupByOrdinal(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT department_id, COUNT(*) FROM employees GROUP BY 1")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// GroupClause: 1 entry referencing TargetIdx=1 (ordinal 1 → first target entry)
+	if len(q.GroupClause) != 1 {
+		t.Fatalf("GroupClause: want 1 entry, got %d", len(q.GroupClause))
+	}
+	if q.GroupClause[0].TargetIdx != 1 {
+		t.Errorf("GroupClause[0].TargetIdx: want 1, got %d", q.GroupClause[0].TargetIdx)
+	}
+
+	// HasAggs should be true
+	if !q.HasAggs {
+		t.Errorf("HasAggs: want true, got false")
+	}
+}
+
+// TestAnalyze_5_1_ArithmeticAlias tests SELECT name, salary * 12 AS annual_salary FROM employees.
+func TestAnalyze_5_1_ArithmeticAlias(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT name, salary * 12 AS annual_salary FROM employees")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.TargetList) != 2 {
+		t.Fatalf("TargetList: want 2 entries, got %d", len(q.TargetList))
+	}
+
+	te := q.TargetList[1]
+	if te.ResName != "annual_salary" {
+		t.Errorf("ResName: want %q, got %q", "annual_salary", te.ResName)
+	}
+	// Computed column: no provenance
+	if te.ResOrigDB != "" {
+		t.Errorf("ResOrigDB: want empty, got %q", te.ResOrigDB)
+	}
+	if te.ResOrigTable != "" {
+		t.Errorf("ResOrigTable: want empty, got %q", te.ResOrigTable)
+	}
+	if te.ResOrigCol != "" {
+		t.Errorf("ResOrigCol: want empty, got %q", te.ResOrigCol)
+	}
+
+	opExpr, ok := te.Expr.(*OpExprQ)
+	if !ok {
+		t.Fatalf("Expr: want *OpExprQ, got %T", te.Expr)
+	}
+	if opExpr.Op != "*" {
+		t.Errorf("OpExprQ.Op: want %q, got %q", "*", opExpr.Op)
+	}
+	left, ok := opExpr.Left.(*VarExprQ)
+	if !ok {
+		t.Fatalf("Left: want *VarExprQ, got %T", opExpr.Left)
+	}
+	if left.AttNum != 5 {
+		t.Errorf("Left.AttNum: want 5, got %d", left.AttNum)
+	}
+	right, ok := opExpr.Right.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("Right: want *ConstExprQ, got %T", opExpr.Right)
+	}
+	if right.Value != "12" {
+		t.Errorf("Right.Value: want %q, got %q", "12", right.Value)
+	}
+}
+
+// TestAnalyze_5_2_ConcatFunc tests SELECT CONCAT(name, ' <', email, '>') AS display FROM employees.
+func TestAnalyze_5_2_ConcatFunc(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT CONCAT(name, ' <', email, '>') AS display FROM employees")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.TargetList) != 1 {
+		t.Fatalf("TargetList: want 1 entry, got %d", len(q.TargetList))
+	}
+
+	te := q.TargetList[0]
+	if te.ResName != "display" {
+		t.Errorf("ResName: want %q, got %q", "display", te.ResName)
+	}
+
+	fc, ok := te.Expr.(*FuncCallExprQ)
+	if !ok {
+		t.Fatalf("Expr: want *FuncCallExprQ, got %T", te.Expr)
+	}
+	if fc.Name != "concat" {
+		t.Errorf("FuncCallExprQ.Name: want %q, got %q", "concat", fc.Name)
+	}
+	if fc.IsAggregate {
+		t.Errorf("FuncCallExprQ.IsAggregate: want false, got true")
+	}
+	if len(fc.Args) != 4 {
+		t.Fatalf("FuncCallExprQ.Args: want 4 entries, got %d", len(fc.Args))
+	}
+
+	// Args[0]: VarExprQ (name)
+	if _, ok := fc.Args[0].(*VarExprQ); !ok {
+		t.Errorf("Args[0]: want *VarExprQ, got %T", fc.Args[0])
+	}
+	// Args[1]: ConstExprQ (' <')
+	if c1, ok := fc.Args[1].(*ConstExprQ); !ok {
+		t.Errorf("Args[1]: want *ConstExprQ, got %T", fc.Args[1])
+	} else if c1.Value != " <" {
+		t.Errorf("Args[1].Value: want %q, got %q", " <", c1.Value)
+	}
+	// Args[2]: VarExprQ (email)
+	if _, ok := fc.Args[2].(*VarExprQ); !ok {
+		t.Errorf("Args[2]: want *VarExprQ, got %T", fc.Args[2])
+	}
+	// Args[3]: ConstExprQ ('>')
+	if c3, ok := fc.Args[3].(*ConstExprQ); !ok {
+		t.Errorf("Args[3]: want *ConstExprQ, got %T", fc.Args[3])
+	} else if c3.Value != ">" {
+		t.Errorf("Args[3].Value: want %q, got %q", ">", c3.Value)
+	}
+}
+
+// TestAnalyze_5_3_SearchedCase tests searched CASE WHEN with ELSE.
+func TestAnalyze_5_3_SearchedCase(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT name, CASE WHEN salary > 100000 THEN 'high' WHEN salary > 50000 THEN 'mid' ELSE 'low' END AS salary_band FROM employees")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.TargetList) != 2 {
+		t.Fatalf("TargetList: want 2 entries, got %d", len(q.TargetList))
+	}
+
+	te := q.TargetList[1]
+	if te.ResName != "salary_band" {
+		t.Errorf("ResName: want %q, got %q", "salary_band", te.ResName)
+	}
+
+	caseExpr, ok := te.Expr.(*CaseExprQ)
+	if !ok {
+		t.Fatalf("Expr: want *CaseExprQ, got %T", te.Expr)
+	}
+	if caseExpr.TestExpr != nil {
+		t.Errorf("TestExpr: want nil (searched CASE), got %T", caseExpr.TestExpr)
+	}
+	if len(caseExpr.Args) != 2 {
+		t.Fatalf("Args: want 2 CaseWhenQs, got %d", len(caseExpr.Args))
+	}
+
+	// WHEN salary > 100000 THEN 'high'
+	w0 := caseExpr.Args[0]
+	if _, ok := w0.Cond.(*OpExprQ); !ok {
+		t.Errorf("Args[0].Cond: want *OpExprQ, got %T", w0.Cond)
+	}
+	if then0, ok := w0.Then.(*ConstExprQ); !ok {
+		t.Errorf("Args[0].Then: want *ConstExprQ, got %T", w0.Then)
+	} else if then0.Value != "high" {
+		t.Errorf("Args[0].Then.Value: want %q, got %q", "high", then0.Value)
+	}
+
+	// WHEN salary > 50000 THEN 'mid'
+	w1 := caseExpr.Args[1]
+	if _, ok := w1.Cond.(*OpExprQ); !ok {
+		t.Errorf("Args[1].Cond: want *OpExprQ, got %T", w1.Cond)
+	}
+	if then1, ok := w1.Then.(*ConstExprQ); !ok {
+		t.Errorf("Args[1].Then: want *ConstExprQ, got %T", w1.Then)
+	} else if then1.Value != "mid" {
+		t.Errorf("Args[1].Then.Value: want %q, got %q", "mid", then1.Value)
+	}
+
+	// ELSE 'low'
+	if caseExpr.Default == nil {
+		t.Fatal("Default: want non-nil, got nil")
+	}
+	defConst, ok := caseExpr.Default.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("Default: want *ConstExprQ, got %T", caseExpr.Default)
+	}
+	if defConst.Value != "low" {
+		t.Errorf("Default.Value: want %q, got %q", "low", defConst.Value)
+	}
+}
+
+// TestAnalyze_5_4_SimpleCase tests simple CASE with operand and no ELSE.
+func TestAnalyze_5_4_SimpleCase(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT CASE department_id WHEN 1 THEN 'eng' WHEN 2 THEN 'sales' END FROM employees")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.TargetList) != 1 {
+		t.Fatalf("TargetList: want 1 entry, got %d", len(q.TargetList))
+	}
+
+	te := q.TargetList[0]
+	caseExpr, ok := te.Expr.(*CaseExprQ)
+	if !ok {
+		t.Fatalf("Expr: want *CaseExprQ, got %T", te.Expr)
+	}
+
+	// TestExpr: VarExprQ for department_id (attnum=4)
+	testVar, ok := caseExpr.TestExpr.(*VarExprQ)
+	if !ok {
+		t.Fatalf("TestExpr: want *VarExprQ, got %T", caseExpr.TestExpr)
+	}
+	if testVar.AttNum != 4 {
+		t.Errorf("TestExpr.AttNum: want 4, got %d", testVar.AttNum)
+	}
+
+	if len(caseExpr.Args) != 2 {
+		t.Fatalf("Args: want 2 CaseWhenQs, got %d", len(caseExpr.Args))
+	}
+
+	// WHEN 1 THEN 'eng'
+	if c0, ok := caseExpr.Args[0].Cond.(*ConstExprQ); !ok {
+		t.Errorf("Args[0].Cond: want *ConstExprQ, got %T", caseExpr.Args[0].Cond)
+	} else if c0.Value != "1" {
+		t.Errorf("Args[0].Cond.Value: want %q, got %q", "1", c0.Value)
+	}
+	if t0, ok := caseExpr.Args[0].Then.(*ConstExprQ); !ok {
+		t.Errorf("Args[0].Then: want *ConstExprQ, got %T", caseExpr.Args[0].Then)
+	} else if t0.Value != "eng" {
+		t.Errorf("Args[0].Then.Value: want %q, got %q", "eng", t0.Value)
+	}
+
+	// No ELSE
+	if caseExpr.Default != nil {
+		t.Errorf("Default: want nil, got %T", caseExpr.Default)
+	}
+}
+
+// TestAnalyze_5_5_CoalesceIfnull tests COALESCE and IFNULL producing CoalesceExprQ.
+func TestAnalyze_5_5_CoalesceIfnull(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT COALESCE(email, 'no-email') AS email, IFNULL(notes, '') AS notes FROM employees")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.TargetList) != 2 {
+		t.Fatalf("TargetList: want 2 entries, got %d", len(q.TargetList))
+	}
+
+	// TargetList[0]: COALESCE(email, 'no-email')
+	te0 := q.TargetList[0]
+	if te0.ResName != "email" {
+		t.Errorf("TargetList[0].ResName: want %q, got %q", "email", te0.ResName)
+	}
+	coal0, ok := te0.Expr.(*CoalesceExprQ)
+	if !ok {
+		t.Fatalf("TargetList[0].Expr: want *CoalesceExprQ, got %T", te0.Expr)
+	}
+	if len(coal0.Args) != 2 {
+		t.Fatalf("coal0.Args: want 2 entries, got %d", len(coal0.Args))
+	}
+	if v, ok := coal0.Args[0].(*VarExprQ); !ok {
+		t.Errorf("coal0.Args[0]: want *VarExprQ, got %T", coal0.Args[0])
+	} else if v.AttNum != 3 {
+		t.Errorf("coal0.Args[0].AttNum: want 3, got %d", v.AttNum)
+	}
+	if c0, ok := coal0.Args[1].(*ConstExprQ); !ok {
+		t.Errorf("coal0.Args[1]: want *ConstExprQ, got %T", coal0.Args[1])
+	} else if c0.Value != "no-email" {
+		t.Errorf("coal0.Args[1].Value: want %q, got %q", "no-email", c0.Value)
+	}
+
+	// TargetList[1]: IFNULL(notes, '')
+	te1 := q.TargetList[1]
+	if te1.ResName != "notes" {
+		t.Errorf("TargetList[1].ResName: want %q, got %q", "notes", te1.ResName)
+	}
+	coal1, ok := te1.Expr.(*CoalesceExprQ)
+	if !ok {
+		t.Fatalf("TargetList[1].Expr: want *CoalesceExprQ, got %T", te1.Expr)
+	}
+	if len(coal1.Args) != 2 {
+		t.Fatalf("coal1.Args: want 2 entries, got %d", len(coal1.Args))
+	}
+	if v, ok := coal1.Args[0].(*VarExprQ); !ok {
+		t.Errorf("coal1.Args[0]: want *VarExprQ, got %T", coal1.Args[0])
+	} else if v.AttNum != 8 {
+		t.Errorf("coal1.Args[0].AttNum: want 8, got %d", v.AttNum)
+	}
+	if c1, ok := coal1.Args[1].(*ConstExprQ); !ok {
+		t.Errorf("coal1.Args[1]: want *ConstExprQ, got %T", coal1.Args[1])
+	} else if c1.Value != "" {
+		t.Errorf("coal1.Args[1].Value: want %q, got %q", "", c1.Value)
+	}
+}
+
+// TestAnalyze_5_6_CastSigned tests CAST(salary AS SIGNED) producing CastExprQ.
+func TestAnalyze_5_6_CastSigned(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT CAST(salary AS SIGNED) AS salary_int FROM employees")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.TargetList) != 1 {
+		t.Fatalf("TargetList: want 1 entry, got %d", len(q.TargetList))
+	}
+
+	te := q.TargetList[0]
+	if te.ResName != "salary_int" {
+		t.Errorf("ResName: want %q, got %q", "salary_int", te.ResName)
+	}
+
+	castExpr, ok := te.Expr.(*CastExprQ)
+	if !ok {
+		t.Fatalf("Expr: want *CastExprQ, got %T", te.Expr)
+	}
+
+	// Arg: VarExprQ for salary (attnum=5)
+	argVar, ok := castExpr.Arg.(*VarExprQ)
+	if !ok {
+		t.Fatalf("Arg: want *VarExprQ, got %T", castExpr.Arg)
+	}
+	if argVar.AttNum != 5 {
+		t.Errorf("Arg.AttNum: want 5, got %d", argVar.AttNum)
+	}
+
+	// TargetType: SIGNED -> BaseTypeBigInt
+	if castExpr.TargetType == nil {
+		t.Fatal("TargetType: want non-nil, got nil")
+	}
+	if castExpr.TargetType.BaseType != BaseTypeBigInt {
+		t.Errorf("TargetType.BaseType: want BaseTypeBigInt, got %v", castExpr.TargetType.BaseType)
+	}
+}
+
+// TestAnalyze_4_1_OrderByDesc tests ORDER BY with DESC on a column in the SELECT list.
+func TestAnalyze_4_1_OrderByDesc(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `CREATE TABLE employees (
+		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		name VARCHAR(100) NOT NULL,
+		email VARCHAR(200),
+		department_id INT NOT NULL,
+		salary DECIMAL(10,2) NOT NULL,
+		hire_date DATE NOT NULL,
+		is_active TINYINT(1) NOT NULL DEFAULT 1,
+		notes TEXT,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`)
+
+	sel := parseSelect(t, "SELECT name, salary FROM employees ORDER BY salary DESC")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// TargetList: 2 entries (no junk needed since salary is in SELECT list).
+	if len(q.TargetList) != 2 {
+		t.Fatalf("TargetList: want 2 entries, got %d", len(q.TargetList))
+	}
+
+	// SortClause: 1 entry.
+	if len(q.SortClause) != 1 {
+		t.Fatalf("SortClause: want 1 entry, got %d", len(q.SortClause))
+	}
+	sc := q.SortClause[0]
+	if sc.TargetIdx != 2 {
+		t.Errorf("SortClause[0].TargetIdx: want 2, got %d", sc.TargetIdx)
+	}
+	if !sc.Descending {
+		t.Errorf("SortClause[0].Descending: want true, got false")
+	}
+	// DESC → NullsFirst=false (MySQL default).
+	if sc.NullsFirst {
+		t.Errorf("SortClause[0].NullsFirst: want false, got true")
+	}
+}
+
+// TestAnalyze_4_2_OrderByJunk tests ORDER BY a column NOT in the SELECT list.
+func TestAnalyze_4_2_OrderByJunk(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `CREATE TABLE employees (
+		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		name VARCHAR(100) NOT NULL,
+		email VARCHAR(200),
+		department_id INT NOT NULL,
+		salary DECIMAL(10,2) NOT NULL,
+		hire_date DATE NOT NULL,
+		is_active TINYINT(1) NOT NULL DEFAULT 1,
+		notes TEXT,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`)
+
+	sel := parseSelect(t, "SELECT name FROM employees ORDER BY salary")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// TargetList: 2 entries — name (non-junk) + salary (junk).
+	if len(q.TargetList) != 2 {
+		t.Fatalf("TargetList: want 2 entries, got %d", len(q.TargetList))
+	}
+
+	te0 := q.TargetList[0]
+	if te0.ResName != "name" {
+		t.Errorf("TargetList[0].ResName: want %q, got %q", "name", te0.ResName)
+	}
+	if te0.ResJunk {
+		t.Errorf("TargetList[0].ResJunk: want false, got true")
+	}
+
+	te1 := q.TargetList[1]
+	if te1.ResName != "salary" {
+		t.Errorf("TargetList[1].ResName: want %q, got %q", "salary", te1.ResName)
+	}
+	if !te1.ResJunk {
+		t.Errorf("TargetList[1].ResJunk: want true, got false")
+	}
+
+	// SortClause: 1 entry pointing to junk target.
+	if len(q.SortClause) != 1 {
+		t.Fatalf("SortClause: want 1 entry, got %d", len(q.SortClause))
+	}
+	sc := q.SortClause[0]
+	if sc.TargetIdx != 2 {
+		t.Errorf("SortClause[0].TargetIdx: want 2, got %d", sc.TargetIdx)
+	}
+	// ASC default → NullsFirst=true.
+	if !sc.NullsFirst {
+		t.Errorf("SortClause[0].NullsFirst: want true, got false")
+	}
+}
+
+// TestAnalyze_4_3_OrderByLimitOffset tests ORDER BY + LIMIT + OFFSET.
+func TestAnalyze_4_3_OrderByLimitOffset(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `CREATE TABLE employees (
+		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		name VARCHAR(100) NOT NULL,
+		email VARCHAR(200),
+		department_id INT NOT NULL,
+		salary DECIMAL(10,2) NOT NULL,
+		hire_date DATE NOT NULL,
+		is_active TINYINT(1) NOT NULL DEFAULT 1,
+		notes TEXT,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`)
+
+	sel := parseSelect(t, "SELECT name FROM employees ORDER BY id LIMIT 10 OFFSET 20")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// LimitCount = ConstExprQ{Value:"10"}
+	if q.LimitCount == nil {
+		t.Fatal("LimitCount: want non-nil, got nil")
+	}
+	lc, ok := q.LimitCount.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("LimitCount: want *ConstExprQ, got %T", q.LimitCount)
+	}
+	if lc.Value != "10" {
+		t.Errorf("LimitCount.Value: want %q, got %q", "10", lc.Value)
+	}
+
+	// LimitOffset = ConstExprQ{Value:"20"}
+	if q.LimitOffset == nil {
+		t.Fatal("LimitOffset: want non-nil, got nil")
+	}
+	lo, ok := q.LimitOffset.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("LimitOffset: want *ConstExprQ, got %T", q.LimitOffset)
+	}
+	if lo.Value != "20" {
+		t.Errorf("LimitOffset.Value: want %q, got %q", "20", lo.Value)
+	}
+}
+
+// TestAnalyze_4_4_LimitComma tests LIMIT offset,count syntax.
+func TestAnalyze_4_4_LimitComma(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `CREATE TABLE employees (
+		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		name VARCHAR(100) NOT NULL,
+		email VARCHAR(200),
+		department_id INT NOT NULL,
+		salary DECIMAL(10,2) NOT NULL,
+		hire_date DATE NOT NULL,
+		is_active TINYINT(1) NOT NULL DEFAULT 1,
+		notes TEXT,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`)
+
+	sel := parseSelect(t, "SELECT name FROM employees LIMIT 20, 10")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// Parser normalizes LIMIT 20,10 to Count=10, Offset=20.
+	if q.LimitCount == nil {
+		t.Fatal("LimitCount: want non-nil, got nil")
+	}
+	lc, ok := q.LimitCount.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("LimitCount: want *ConstExprQ, got %T", q.LimitCount)
+	}
+	if lc.Value != "10" {
+		t.Errorf("LimitCount.Value: want %q, got %q", "10", lc.Value)
+	}
+
+	if q.LimitOffset == nil {
+		t.Fatal("LimitOffset: want non-nil, got nil")
+	}
+	lo, ok := q.LimitOffset.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("LimitOffset: want *ConstExprQ, got %T", q.LimitOffset)
+	}
+	if lo.Value != "20" {
+		t.Errorf("LimitOffset.Value: want %q, got %q", "20", lo.Value)
+	}
+}
+
+// TestAnalyze_4_5_Distinct tests SELECT DISTINCT.
+func TestAnalyze_4_5_Distinct(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `CREATE TABLE employees (
+		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		name VARCHAR(100) NOT NULL,
+		email VARCHAR(200),
+		department_id INT NOT NULL,
+		salary DECIMAL(10,2) NOT NULL,
+		hire_date DATE NOT NULL,
+		is_active TINYINT(1) NOT NULL DEFAULT 1,
+		notes TEXT,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`)
+
+	sel := parseSelect(t, "SELECT DISTINCT department_id FROM employees")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// Distinct should be true.
+	if !q.Distinct {
+		t.Errorf("Distinct: want true, got false")
+	}
+
+	// TargetList: 1 non-junk entry.
+	if len(q.TargetList) != 1 {
+		t.Fatalf("TargetList: want 1 entry, got %d", len(q.TargetList))
+	}
+	te := q.TargetList[0]
+	if te.ResJunk {
+		t.Errorf("TargetList[0].ResJunk: want false, got true")
+	}
+	if te.ResName != "department_id" {
+		t.Errorf("TargetList[0].ResName: want %q, got %q", "department_id", te.ResName)
+	}
+}
+
+// TestAnalyze_6_1_ColumnAliasAmbiguity tests that WHERE resolves against base columns, not SELECT aliases.
+func TestAnalyze_6_1_ColumnAliasAmbiguity(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT name AS id FROM employees WHERE id = 1")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// TargetList[0]: name column aliased as "id"
+	if len(q.TargetList) != 1 {
+		t.Fatalf("TargetList: want 1 entry, got %d", len(q.TargetList))
+	}
+	te := q.TargetList[0]
+	if te.ResName != "id" {
+		t.Errorf("ResName: want %q, got %q", "id", te.ResName)
+	}
+	varExpr, ok := te.Expr.(*VarExprQ)
+	if !ok {
+		t.Fatalf("Expr: want *VarExprQ, got %T", te.Expr)
+	}
+	if varExpr.AttNum != 2 {
+		t.Errorf("TargetList[0] AttNum: want 2 (name column), got %d", varExpr.AttNum)
+	}
+
+	// WHERE id = 1: id must resolve to the base column id (AttNum 1), not the alias.
+	if q.JoinTree == nil || q.JoinTree.Quals == nil {
+		t.Fatal("JoinTree.Quals: want non-nil")
+	}
+	opExpr, ok := q.JoinTree.Quals.(*OpExprQ)
+	if !ok {
+		t.Fatalf("Quals: want *OpExprQ, got %T", q.JoinTree.Quals)
+	}
+	leftVar, ok := opExpr.Left.(*VarExprQ)
+	if !ok {
+		t.Fatalf("Left: want *VarExprQ, got %T", opExpr.Left)
+	}
+	if leftVar.AttNum != 1 {
+		t.Errorf("WHERE id AttNum: want 1 (base column id), got %d", leftVar.AttNum)
+	}
+}
+
+// TestAnalyze_6_2_SameColumnTwice tests SELECT referencing the same column twice.
+func TestAnalyze_6_2_SameColumnTwice(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT salary, salary + 1000 AS raised FROM employees")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.TargetList) != 2 {
+		t.Fatalf("TargetList: want 2 entries, got %d", len(q.TargetList))
+	}
+
+	// TargetList[0]: plain salary column
+	v0, ok := q.TargetList[0].Expr.(*VarExprQ)
+	if !ok {
+		t.Fatalf("TargetList[0].Expr: want *VarExprQ, got %T", q.TargetList[0].Expr)
+	}
+	if v0.RangeIdx != 0 {
+		t.Errorf("TargetList[0] RangeIdx: want 0, got %d", v0.RangeIdx)
+	}
+	if v0.AttNum != 5 {
+		t.Errorf("TargetList[0] AttNum: want 5, got %d", v0.AttNum)
+	}
+
+	// TargetList[1]: salary + 1000
+	opExpr, ok := q.TargetList[1].Expr.(*OpExprQ)
+	if !ok {
+		t.Fatalf("TargetList[1].Expr: want *OpExprQ, got %T", q.TargetList[1].Expr)
+	}
+	if opExpr.Op != "+" {
+		t.Errorf("OpExprQ.Op: want %q, got %q", "+", opExpr.Op)
+	}
+
+	leftVar, ok := opExpr.Left.(*VarExprQ)
+	if !ok {
+		t.Fatalf("Left: want *VarExprQ, got %T", opExpr.Left)
+	}
+	if leftVar.RangeIdx != 0 {
+		t.Errorf("Left.RangeIdx: want 0, got %d", leftVar.RangeIdx)
+	}
+	if leftVar.AttNum != 5 {
+		t.Errorf("Left.AttNum: want 5, got %d", leftVar.AttNum)
+	}
+
+	rightConst, ok := opExpr.Right.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("Right: want *ConstExprQ, got %T", opExpr.Right)
+	}
+	if rightConst.Value != "1000" {
+		t.Errorf("Right.Value: want %q, got %q", "1000", rightConst.Value)
+	}
+
+	// The two VarExprQ references to salary should be distinct pointers but same RangeIdx/AttNum.
+	if v0 == leftVar {
+		t.Errorf("VarExprQ pointers: want distinct objects, got same pointer")
+	}
+	if v0.RangeIdx != leftVar.RangeIdx || v0.AttNum != leftVar.AttNum {
+		t.Errorf("VarExprQ values: want same RangeIdx/AttNum, got (%d,%d) vs (%d,%d)",
+			v0.RangeIdx, v0.AttNum, leftVar.RangeIdx, leftVar.AttNum)
+	}
+}
+
+// TestAnalyze_6_3_ThreePartQualified tests three-part column qualification: schema.table.column.
+func TestAnalyze_6_3_ThreePartQualified(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+
+	sel := parseSelect(t, "SELECT testdb.employees.name FROM testdb.employees")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// RangeTable: 1 entry with DBName="testdb", TableName="employees"
+	if len(q.RangeTable) != 1 {
+		t.Fatalf("RangeTable: want 1 entry, got %d", len(q.RangeTable))
+	}
+	rte := q.RangeTable[0]
+	if rte.DBName != "testdb" {
+		t.Errorf("RTE.DBName: want %q, got %q", "testdb", rte.DBName)
+	}
+	if rte.TableName != "employees" {
+		t.Errorf("RTE.TableName: want %q, got %q", "employees", rte.TableName)
+	}
+
+	// TargetList: 1 entry — name resolves to AttNum 2
+	if len(q.TargetList) != 1 {
+		t.Fatalf("TargetList: want 1 entry, got %d", len(q.TargetList))
+	}
+	varExpr, ok := q.TargetList[0].Expr.(*VarExprQ)
+	if !ok {
+		t.Fatalf("Expr: want *VarExprQ, got %T", q.TargetList[0].Expr)
+	}
+	if varExpr.RangeIdx != 0 {
+		t.Errorf("RangeIdx: want 0, got %d", varExpr.RangeIdx)
+	}
+	if varExpr.AttNum != 2 {
+		t.Errorf("AttNum: want 2, got %d", varExpr.AttNum)
+	}
+}
+
+// TestAnalyze_6_4_NoFromClause tests SELECT with no FROM clause — pure expressions.
+func TestAnalyze_6_4_NoFromClause(t *testing.T) {
+	c := wtSetup(t)
+
+	sel := parseSelect(t, "SELECT 1 + 2, 'hello', NOW()")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// RangeTable empty
+	if len(q.RangeTable) != 0 {
+		t.Errorf("RangeTable: want 0 entries, got %d", len(q.RangeTable))
+	}
+
+	// JoinTree.FromList empty
+	if q.JoinTree == nil {
+		t.Fatal("JoinTree: want non-nil, got nil")
+	}
+	if len(q.JoinTree.FromList) != 0 {
+		t.Errorf("JoinTree.FromList: want 0 entries, got %d", len(q.JoinTree.FromList))
+	}
+
+	// TargetList: 3 entries
+	if len(q.TargetList) != 3 {
+		t.Fatalf("TargetList: want 3 entries, got %d", len(q.TargetList))
+	}
+
+	// [0]: 1 + 2 → OpExprQ
+	opExpr, ok := q.TargetList[0].Expr.(*OpExprQ)
+	if !ok {
+		t.Fatalf("TargetList[0].Expr: want *OpExprQ, got %T", q.TargetList[0].Expr)
+	}
+	if opExpr.Op != "+" {
+		t.Errorf("OpExprQ.Op: want %q, got %q", "+", opExpr.Op)
+	}
+	leftConst, ok := opExpr.Left.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("Left: want *ConstExprQ, got %T", opExpr.Left)
+	}
+	if leftConst.Value != "1" {
+		t.Errorf("Left.Value: want %q, got %q", "1", leftConst.Value)
+	}
+	rightConst, ok := opExpr.Right.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("Right: want *ConstExprQ, got %T", opExpr.Right)
+	}
+	if rightConst.Value != "2" {
+		t.Errorf("Right.Value: want %q, got %q", "2", rightConst.Value)
+	}
+
+	// [1]: 'hello' → ConstExprQ
+	strConst, ok := q.TargetList[1].Expr.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("TargetList[1].Expr: want *ConstExprQ, got %T", q.TargetList[1].Expr)
+	}
+	if strConst.Value != "hello" {
+		t.Errorf("ConstExprQ.Value: want %q, got %q", "hello", strConst.Value)
+	}
+
+	// [2]: NOW() → FuncCallExprQ
+	fc, ok := q.TargetList[2].Expr.(*FuncCallExprQ)
+	if !ok {
+		t.Fatalf("TargetList[2].Expr: want *FuncCallExprQ, got %T", q.TargetList[2].Expr)
+	}
+	if fc.Name != "now" {
+		t.Errorf("FuncCallExprQ.Name: want %q, got %q", "now", fc.Name)
+	}
+	if len(fc.Args) != 0 {
+		t.Errorf("FuncCallExprQ.Args: want 0 entries, got %d", len(fc.Args))
+	}
+	if fc.IsAggregate {
+		t.Errorf("FuncCallExprQ.IsAggregate: want false, got true")
+	}
+}

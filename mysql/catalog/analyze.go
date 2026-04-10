@@ -36,6 +36,42 @@ func (c *Catalog) AnalyzeSelectStmt(stmt *nodes.SelectStmt) (*Query, error) {
 		q.JoinTree.Quals = analyzed
 	}
 
+	// Step 4: GROUP BY
+	if len(stmt.GroupBy) > 0 {
+		if err := c.analyzeGroupBy(stmt.GroupBy, q, scope); err != nil {
+			return nil, err
+		}
+	}
+
+	// Step 5: HAVING
+	if stmt.Having != nil {
+		analyzed, err := analyzeExpr(stmt.Having, scope)
+		if err != nil {
+			return nil, err
+		}
+		q.HavingQual = analyzed
+	}
+
+	// Step 6: Detect aggregates in target list and having
+	q.HasAggs = detectAggregates(q)
+
+	// Step 7: ORDER BY
+	if len(stmt.OrderBy) > 0 {
+		if err := c.analyzeOrderBy(stmt.OrderBy, q, scope); err != nil {
+			return nil, err
+		}
+	}
+
+	// Step 8: LIMIT / OFFSET
+	if stmt.Limit != nil {
+		if err := c.analyzeLimitOffset(stmt.Limit, q, scope); err != nil {
+			return nil, err
+		}
+	}
+
+	// Step 9: DISTINCT
+	q.Distinct = stmt.DistinctKind != nodes.DistinctNone && stmt.DistinctKind != nodes.DistinctAll
+
 	return q, nil
 }
 
@@ -143,4 +179,256 @@ func viewAlgorithmFromString(s string) ViewAlgorithm {
 	default:
 		return ViewAlgUndefined
 	}
+}
+
+// analyzeGroupBy processes the GROUP BY clause, populating q.GroupClause.
+func (c *Catalog) analyzeGroupBy(groupBy []nodes.ExprNode, q *Query, scope *analyzerScope) error {
+	for _, expr := range groupBy {
+		switch n := expr.(type) {
+		case *nodes.IntLit:
+			// Ordinal reference: GROUP BY 1 means first SELECT column.
+			idx := int(n.Value)
+			if idx < 1 || idx > len(q.TargetList) {
+				return fmt.Errorf("GROUP BY position %d is not in select list", idx)
+			}
+			q.GroupClause = append(q.GroupClause, &SortGroupClauseQ{
+				TargetIdx: idx,
+			})
+		case *nodes.ColumnRef:
+			// Resolve the column ref, then find matching target entry.
+			analyzed, err := analyzeExpr(n, scope)
+			if err != nil {
+				return err
+			}
+			varExpr, ok := analyzed.(*VarExprQ)
+			if !ok {
+				return fmt.Errorf("GROUP BY column reference resolved to unexpected type %T", analyzed)
+			}
+			targetIdx := findMatchingTarget(q.TargetList, varExpr)
+			if targetIdx == 0 {
+				// Not found in target list — add as junk entry.
+				te := &TargetEntryQ{
+					Expr:    varExpr,
+					ResNo:   len(q.TargetList) + 1,
+					ResName: n.Column,
+					ResJunk: true,
+				}
+				q.TargetList = append(q.TargetList, te)
+				targetIdx = te.ResNo
+			}
+			q.GroupClause = append(q.GroupClause, &SortGroupClauseQ{
+				TargetIdx: targetIdx,
+			})
+		default:
+			// General expression — analyze and try to match to target list.
+			analyzed, err := analyzeExpr(expr, scope)
+			if err != nil {
+				return err
+			}
+			targetIdx := 0
+			for _, te := range q.TargetList {
+				if exprEqual(te.Expr, analyzed) {
+					targetIdx = te.ResNo
+					break
+				}
+			}
+			if targetIdx == 0 {
+				te := &TargetEntryQ{
+					Expr:    analyzed,
+					ResNo:   len(q.TargetList) + 1,
+					ResJunk: true,
+				}
+				q.TargetList = append(q.TargetList, te)
+				targetIdx = te.ResNo
+			}
+			q.GroupClause = append(q.GroupClause, &SortGroupClauseQ{
+				TargetIdx: targetIdx,
+			})
+		}
+	}
+	return nil
+}
+
+// findMatchingTarget finds a TargetEntryQ whose Expr is a VarExprQ matching
+// the given VarExprQ (same RangeIdx and AttNum). Returns ResNo (1-based) or 0.
+func findMatchingTarget(tl []*TargetEntryQ, v *VarExprQ) int {
+	for _, te := range tl {
+		if tv, ok := te.Expr.(*VarExprQ); ok {
+			if tv.RangeIdx == v.RangeIdx && tv.AttNum == v.AttNum {
+				return te.ResNo
+			}
+		}
+	}
+	return 0
+}
+
+// exprEqual compares two AnalyzedExpr values for structural equality.
+// Phase 1a: only VarExprQ is compared; other types return false.
+func exprEqual(a, b AnalyzedExpr) bool {
+	va, okA := a.(*VarExprQ)
+	vb, okB := b.(*VarExprQ)
+	if okA && okB {
+		return va.RangeIdx == vb.RangeIdx && va.AttNum == vb.AttNum
+	}
+	return false
+}
+
+// detectAggregates returns true if any aggregate function call exists in the
+// query's TargetList or HavingQual.
+func detectAggregates(q *Query) bool {
+	for _, te := range q.TargetList {
+		if exprContainsAggregate(te.Expr) {
+			return true
+		}
+	}
+	if q.HavingQual != nil {
+		return exprContainsAggregate(q.HavingQual)
+	}
+	return false
+}
+
+// exprContainsAggregate recursively walks an AnalyzedExpr looking for
+// FuncCallExprQ with IsAggregate=true.
+func exprContainsAggregate(expr AnalyzedExpr) bool {
+	if expr == nil {
+		return false
+	}
+	switch e := expr.(type) {
+	case *FuncCallExprQ:
+		if e.IsAggregate {
+			return true
+		}
+		for _, arg := range e.Args {
+			if exprContainsAggregate(arg) {
+				return true
+			}
+		}
+	case *OpExprQ:
+		return exprContainsAggregate(e.Left) || exprContainsAggregate(e.Right)
+	case *BoolExprQ:
+		for _, arg := range e.Args {
+			if exprContainsAggregate(arg) {
+				return true
+			}
+		}
+	case *InListExprQ:
+		if exprContainsAggregate(e.Arg) {
+			return true
+		}
+		for _, item := range e.List {
+			if exprContainsAggregate(item) {
+				return true
+			}
+		}
+	case *BetweenExprQ:
+		return exprContainsAggregate(e.Arg) || exprContainsAggregate(e.Lower) || exprContainsAggregate(e.Upper)
+	case *NullTestExprQ:
+		return exprContainsAggregate(e.Arg)
+	case *VarExprQ, *ConstExprQ:
+		return false
+	}
+	return false
+}
+
+// analyzeOrderBy processes the ORDER BY clause, populating q.SortClause.
+// When an ORDER BY expression is not in the SELECT list, a junk TargetEntryQ
+// is added (ResJunk=true).
+func (c *Catalog) analyzeOrderBy(orderBy []*nodes.OrderByItem, q *Query, scope *analyzerScope) error {
+	for _, item := range orderBy {
+		desc := item.Desc
+		// MySQL default: ASC → NullsFirst=true, DESC → NullsFirst=false.
+		nullsFirst := !desc
+		if item.NullsFirst != nil {
+			nullsFirst = *item.NullsFirst
+		}
+
+		switch n := item.Expr.(type) {
+		case *nodes.IntLit:
+			// Ordinal reference: ORDER BY 1 means first SELECT column.
+			idx := int(n.Value)
+			if idx < 1 || idx > len(q.TargetList) {
+				return fmt.Errorf("ORDER BY position %d is not in select list", idx)
+			}
+			q.SortClause = append(q.SortClause, &SortGroupClauseQ{
+				TargetIdx:  idx,
+				Descending: desc,
+				NullsFirst: nullsFirst,
+			})
+		case *nodes.ColumnRef:
+			// Resolve the column ref, then find matching target entry.
+			analyzed, err := analyzeExpr(n, scope)
+			if err != nil {
+				return err
+			}
+			varExpr, ok := analyzed.(*VarExprQ)
+			if !ok {
+				return fmt.Errorf("ORDER BY column reference resolved to unexpected type %T", analyzed)
+			}
+			targetIdx := findMatchingTarget(q.TargetList, varExpr)
+			if targetIdx == 0 {
+				// Not found in target list — add as junk entry.
+				te := &TargetEntryQ{
+					Expr:    varExpr,
+					ResNo:   len(q.TargetList) + 1,
+					ResName: n.Column,
+					ResJunk: true,
+				}
+				q.TargetList = append(q.TargetList, te)
+				targetIdx = te.ResNo
+			}
+			q.SortClause = append(q.SortClause, &SortGroupClauseQ{
+				TargetIdx:  targetIdx,
+				Descending: desc,
+				NullsFirst: nullsFirst,
+			})
+		default:
+			// General expression — analyze and try to match to target list.
+			analyzed, err := analyzeExpr(item.Expr, scope)
+			if err != nil {
+				return err
+			}
+			targetIdx := 0
+			for _, te := range q.TargetList {
+				if exprEqual(te.Expr, analyzed) {
+					targetIdx = te.ResNo
+					break
+				}
+			}
+			if targetIdx == 0 {
+				te := &TargetEntryQ{
+					Expr:    analyzed,
+					ResNo:   len(q.TargetList) + 1,
+					ResJunk: true,
+				}
+				q.TargetList = append(q.TargetList, te)
+				targetIdx = te.ResNo
+			}
+			q.SortClause = append(q.SortClause, &SortGroupClauseQ{
+				TargetIdx:  targetIdx,
+				Descending: desc,
+				NullsFirst: nullsFirst,
+			})
+		}
+	}
+	return nil
+}
+
+// analyzeLimitOffset processes the LIMIT/OFFSET clause, populating
+// q.LimitCount and q.LimitOffset.
+func (c *Catalog) analyzeLimitOffset(limit *nodes.Limit, q *Query, scope *analyzerScope) error {
+	if limit.Count != nil {
+		analyzed, err := analyzeExpr(limit.Count, scope)
+		if err != nil {
+			return err
+		}
+		q.LimitCount = analyzed
+	}
+	if limit.Offset != nil {
+		analyzed, err := analyzeExpr(limit.Offset, scope)
+		if err != nil {
+			return err
+		}
+		q.LimitOffset = analyzed
+	}
+	return nil
 }
