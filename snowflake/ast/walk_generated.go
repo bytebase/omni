@@ -8,5 +8,9 @@ func walkChildren(v Visitor, node Node) {
 	switch n := node.(type) {
 	case *File:
 		walkNodes(v, n.Stmts)
+	case *TypeName:
+		if n.ElementType != nil {
+			Walk(v, n.ElementType)
+		}
 	}
 }

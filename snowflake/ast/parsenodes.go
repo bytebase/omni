@@ -159,3 +159,118 @@ func (n ObjectName) Matches(other ObjectName) bool {
 	}
 	return n.Database.Normalize() == other.Database.Normalize()
 }
+
+// ---------------------------------------------------------------------------
+// Data type types
+// ---------------------------------------------------------------------------
+
+// TypeKind classifies Snowflake data types into categories for fast
+// switch dispatch by downstream consumers. The Name field on TypeName
+// carries the exact source text for round-tripping; Kind carries the
+// category for semantic analysis.
+type TypeKind int
+
+const (
+	TypeUnknown      TypeKind = iota
+	TypeInt                   // INT, INTEGER, SMALLINT, TINYINT, BYTEINT, BIGINT
+	TypeNumber                // NUMBER, NUMERIC, DECIMAL — may have (precision, scale)
+	TypeFloat                 // FLOAT, FLOAT4, FLOAT8, DOUBLE, DOUBLE PRECISION, REAL
+	TypeBoolean               // BOOLEAN
+	TypeDate                  // DATE
+	TypeDateTime              // DATETIME — may have (precision)
+	TypeTime                  // TIME — may have (precision)
+	TypeTimestamp             // TIMESTAMP — may have (precision)
+	TypeTimestampLTZ          // TIMESTAMP_LTZ — may have (precision)
+	TypeTimestampNTZ          // TIMESTAMP_NTZ — may have (precision)
+	TypeTimestampTZ           // TIMESTAMP_TZ — may have (precision)
+	TypeChar                  // CHAR, NCHAR, CHARACTER — may have (length)
+	TypeVarchar               // VARCHAR, CHAR VARYING, NCHAR VARYING, NVARCHAR, NVARCHAR2, STRING, TEXT
+	TypeBinary                // BINARY — may have (length)
+	TypeVarbinary             // VARBINARY — may have (length)
+	TypeVariant               // VARIANT
+	TypeObject                // OBJECT
+	TypeArray                 // ARRAY — may have ElementType
+	TypeGeography             // GEOGRAPHY
+	TypeGeometry              // GEOMETRY
+	TypeVector                // VECTOR — has ElementType + VectorDim
+)
+
+// String returns the human-readable name of the TypeKind.
+func (k TypeKind) String() string {
+	switch k {
+	case TypeUnknown:
+		return "Unknown"
+	case TypeInt:
+		return "Int"
+	case TypeNumber:
+		return "Number"
+	case TypeFloat:
+		return "Float"
+	case TypeBoolean:
+		return "Boolean"
+	case TypeDate:
+		return "Date"
+	case TypeDateTime:
+		return "DateTime"
+	case TypeTime:
+		return "Time"
+	case TypeTimestamp:
+		return "Timestamp"
+	case TypeTimestampLTZ:
+		return "TimestampLTZ"
+	case TypeTimestampNTZ:
+		return "TimestampNTZ"
+	case TypeTimestampTZ:
+		return "TimestampTZ"
+	case TypeChar:
+		return "Char"
+	case TypeVarchar:
+		return "Varchar"
+	case TypeBinary:
+		return "Binary"
+	case TypeVarbinary:
+		return "Varbinary"
+	case TypeVariant:
+		return "Variant"
+	case TypeObject:
+		return "Object"
+	case TypeArray:
+		return "Array"
+	case TypeGeography:
+		return "Geography"
+	case TypeGeometry:
+		return "Geometry"
+	case TypeVector:
+		return "Vector"
+	default:
+		return "Unknown"
+	}
+}
+
+// TypeName represents a Snowflake data type as it appears in SQL source.
+//
+// Examples:
+//
+//	INT                  → Kind=TypeInt, Name="INT", Params=nil
+//	NUMBER(38, 0)        → Kind=TypeNumber, Name="NUMBER", Params=[38, 0]
+//	VARCHAR(100)         → Kind=TypeVarchar, Name="VARCHAR", Params=[100]
+//	TIMESTAMP_LTZ(9)     → Kind=TypeTimestampLTZ, Name="TIMESTAMP_LTZ", Params=[9]
+//	DOUBLE PRECISION     → Kind=TypeFloat, Name="DOUBLE PRECISION", Params=nil
+//	ARRAY(VARCHAR)       → Kind=TypeArray, Name="ARRAY", ElementType=&TypeName{...}
+//	VECTOR(INT, 256)     → Kind=TypeVector, Name="VECTOR", ElementType=&TypeName{...}, VectorDim=256
+//
+// TypeName is a Node. The walker descends into ElementType when non-nil.
+type TypeName struct {
+	Kind        TypeKind  // classified type category
+	Name        string    // source text of the type name for round-tripping
+	Params      []int     // numeric type parameters; nil if absent
+	ElementType *TypeName // element type for ARRAY and VECTOR; nil otherwise
+	VectorDim   int       // dimension for VECTOR(type, dim); -1 if not VECTOR
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *TypeName) Tag() NodeTag { return T_TypeName }
+
+// Compile-time assertion that *TypeName satisfies Node.
+var _ Node = (*TypeName)(nil)
