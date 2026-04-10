@@ -610,7 +610,8 @@ func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 	case tokREMOVE:
 		stmt, err = p.parseRemoveStmt()
 	case tokEXEC, tokEXECUTE:
-		return nil, p.deferredFeature("EXEC", "parse-entry (DAG node 8)")
+		p.advance() // consume EXEC/EXECUTE
+		stmt, err = p.parseExecCommand()
 	default:
 		// DQL fallback: parse as expression. If the result implements
 		// StmtNode (e.g. SelectStmt after node 5), return it. Otherwise
