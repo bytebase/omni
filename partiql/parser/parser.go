@@ -578,3 +578,62 @@ func (p *Parser) parseOptionalTypeArgs(maxArgs int) (args []int, end int, err er
 func parseIntLiteral(s string) (int, error) {
 	return strconv.Atoi(s)
 }
+
+// ParseStatement parses a single top-level statement and asserts that
+// the entire input was consumed. Supports DDL (CREATE/DROP TABLE/INDEX)
+// directly; defers DML (INSERT/UPDATE/DELETE/REPLACE/UPSERT/REMOVE) to
+// parser-dml (DAG node 6) and EXEC to parse-entry (DAG node 8). DQL
+// (SELECT and set-ops) falls through to parseExprTop; if the result is
+// already a StmtNode it is returned, otherwise the bare-expression form
+// is deferred to parse-entry (DAG node 8).
+func (p *Parser) ParseStatement() (ast.StmtNode, error) {
+	if err := p.checkLexerErr(); err != nil {
+		return nil, err
+	}
+	var stmt ast.StmtNode
+	var err error
+	switch p.cur.Type {
+	case tokCREATE:
+		stmt, err = p.parseCreateCommand()
+	case tokDROP:
+		stmt, err = p.parseDropCommand()
+	case tokINSERT:
+		return nil, p.deferredFeature("INSERT", "parser-dml (DAG node 6)")
+	case tokUPDATE:
+		return nil, p.deferredFeature("UPDATE", "parser-dml (DAG node 6)")
+	case tokDELETE:
+		return nil, p.deferredFeature("DELETE", "parser-dml (DAG node 6)")
+	case tokREPLACE:
+		return nil, p.deferredFeature("REPLACE", "parser-dml (DAG node 6)")
+	case tokUPSERT:
+		return nil, p.deferredFeature("UPSERT", "parser-dml (DAG node 6)")
+	case tokREMOVE:
+		return nil, p.deferredFeature("REMOVE", "parser-dml (DAG node 6)")
+	case tokEXEC, tokEXECUTE:
+		return nil, p.deferredFeature("EXEC", "parse-entry (DAG node 8)")
+	default:
+		// DQL fallback: parse as expression. If the result implements
+		// StmtNode (e.g. SelectStmt after node 5), return it. Otherwise
+		// defer bare-expression-as-statement to parse-entry (node 8).
+		var expr ast.ExprNode
+		expr, err = p.parseExprTop()
+		if err != nil {
+			return nil, err
+		}
+		if sn, ok := expr.(ast.StmtNode); ok {
+			stmt = sn
+		} else {
+			return nil, p.deferredFeature("bare expression as statement", "parse-entry (DAG node 8)")
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type != tokEOF {
+		return nil, &ParseError{
+			Message: fmt.Sprintf("unexpected token %q after statement", p.cur.Str),
+			Loc:     p.cur.Loc,
+		}
+	}
+	return stmt, nil
+}

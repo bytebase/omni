@@ -414,6 +414,105 @@ func TestParser_AWSCorpus(t *testing.T) {
 		fullyParsed, stubbed, skipped)
 }
 
+// TestParser_StmtGoldens iterates every .partiql file under
+// testdata/parser-ddl/ and compares ParseStatement output (via
+// ast.NodeToString) against the matching .golden file.
+//
+// Run with `go test -update -run TestParser_StmtGoldens ./partiql/parser/...`
+// to regenerate goldens after intentional AST shape changes.
+func TestParser_StmtGoldens(t *testing.T) {
+	files, err := filepath.Glob("testdata/parser-ddl/*.partiql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) == 0 {
+		t.Fatal("no golden inputs found under testdata/parser-ddl/")
+	}
+	for _, inPath := range files {
+		name := strings.TrimSuffix(filepath.Base(inPath), ".partiql")
+		t.Run(name, func(t *testing.T) {
+			input, err := os.ReadFile(inPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := NewParser(string(input))
+			stmt, err := p.ParseStatement()
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			got := ast.NodeToString(stmt)
+			goldenPath := strings.TrimSuffix(inPath, ".partiql") + ".golden"
+			if *update {
+				if err := os.WriteFile(goldenPath, []byte(got+"\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			want, err := os.ReadFile(goldenPath)
+			if err != nil {
+				t.Fatalf("golden file missing: %s (run with -update to create)", goldenPath)
+			}
+			if got+"\n" != string(want) {
+				t.Errorf("AST mismatch\ngot:\n%s\nwant:\n%s", got, string(want))
+			}
+		})
+	}
+}
+
+// TestParser_DDLErrors verifies that malformed DDL statements produce
+// the expected parse errors.
+func TestParser_DDLErrors(t *testing.T) {
+	cases := []struct {
+		name      string
+		input     string
+		wantErrIn string
+	}{
+		{
+			name:      "create_alone",
+			input:     "CREATE",
+			wantErrIn: "expected TABLE or INDEX after CREATE",
+		},
+		{
+			name:      "create_unknown_keyword",
+			input:     "CREATE SLAB t",
+			wantErrIn: "expected TABLE or INDEX after CREATE",
+		},
+		{
+			name:      "drop_alone",
+			input:     "DROP",
+			wantErrIn: "expected TABLE or INDEX after DROP",
+		},
+		{
+			name:      "drop_unknown_keyword",
+			input:     "DROP SLAB t",
+			wantErrIn: "expected TABLE or INDEX after DROP",
+		},
+		{
+			name:      "drop_index_missing_on",
+			input:     "DROP INDEX idx t",
+			wantErrIn: "expected ON",
+		},
+		{
+			name:      "create_index_missing_paren",
+			input:     "CREATE INDEX ON t name",
+			wantErrIn: "expected PAREN_LEFT",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewParser(tc.input)
+			_, err := p.ParseStatement()
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.wantErrIn) {
+				t.Errorf("error = %q, want to contain %q", err.Error(), tc.wantErrIn)
+			}
+		})
+	}
+}
+
 // TestParser_Errors is the consolidated error-case test. It covers:
 //
 //  1. Deferred-feature stubs — one case per stub owner node, locking
