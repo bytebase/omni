@@ -77,9 +77,11 @@ func (p *Parser) aExprInfixPrec() int {
 		return precComparison
 	case BETWEEN, IN_P, LIKE, ILIKE, SIMILAR:
 		return precIn
+	case OVERLAPS:
+		return precComparison
 	case NOT_LA:
 		return precIn
-	case Op:
+	case Op, OPERATOR:
 		return precOp
 	case '+', '-':
 		return precAdd
@@ -135,6 +137,26 @@ func (p *Parser) parseAExprAtom() (nodes.Node, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		n := doNegate(arg)
+		setNodeLoc(n, loc, p.pos())
+		return n, nil
+	case Op:
+		// Unary prefix operators: qual_Op a_expr  %prec UMINUS
+		// pg: src/backend/parser/gram.y — any Op token can be used as a
+		// prefix operator. The parser accepts it unconditionally; semantic
+		// validation happens later in the analyzer.
+		tok := p.advance()
+		arg, err := p.parseAExpr(precUnary)
+		if err != nil {
+			return nil, err
+		}
+		if arg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		n := &nodes.A_Expr{
+			Kind:  nodes.AEXPR_OP,
+			Name:  &nodes.List{Items: []nodes.Node{&nodes.String{Str: tok.Str}}},
+			Rexpr: arg,
+		}
 		setNodeLoc(n, loc, p.pos())
 		return n, nil
 	default:
@@ -246,6 +268,22 @@ func (p *Parser) parseAExprInfix(left nodes.Node, prec int) (nodes.Node, error) 
 		return p.parseIlikeExpr(left, false)
 	case SIMILAR:
 		return p.parseSimilarExpr(left, false)
+	case OVERLAPS:
+		// pg: src/backend/parser/gram.y — a_expr OVERLAPS a_expr
+		p.advance()
+		right, err := p.parseAExpr(prec + 1)
+		if err != nil {
+			return nil, err
+		}
+		if right == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return &nodes.A_Expr{
+			Kind:  nodes.AEXPR_OVERLAPS,
+			Name:  &nodes.List{Items: []nodes.Node{&nodes.String{Str: "OVERLAPS"}}},
+			Lexpr: left,
+			Rexpr: right,
+		}, nil
 	case NOT_LA:
 		// NOT_LA means NOT followed by BETWEEN/IN/LIKE/ILIKE/SIMILAR
 		p.advance() // consume NOT
@@ -269,6 +307,32 @@ func (p *Parser) parseAExprInfix(left nodes.Node, prec int) (nodes.Node, error) 
 		tok := p.advance()
 		opName := &nodes.List{Items: []nodes.Node{&nodes.String{Str: tok.Str}}}
 		// Check for subquery_Op sub_type pattern: expr Op ANY/ALL/SOME (subquery_or_expr)
+		if p.cur.Type == ANY || p.cur.Type == SOME || p.cur.Type == ALL {
+			return p.parseSubqueryOp(left, opName)
+		}
+		right, err := p.parseAExpr(prec + 1)
+		if err != nil {
+			return nil, err
+		}
+		if right == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return &nodes.A_Expr{Kind: nodes.AEXPR_OP, Name: opName, Lexpr: left, Rexpr: right}, nil
+
+	case OPERATOR:
+		// pg: a_expr OPERATOR '(' any_operator ')' a_expr
+		p.advance() // consume OPERATOR
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		opName, err := p.parseAnyOperator()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		// Check for subquery_Op sub_type
 		if p.cur.Type == ANY || p.cur.Type == SOME || p.cur.Type == ALL {
 			return p.parseSubqueryOp(left, opName)
 		}
@@ -949,6 +1013,7 @@ func (p *Parser) parseBExpr(minPrec int) (nodes.Node, error) {
 
 // parseBExprAtom handles prefix operators for b_expr.
 func (p *Parser) parseBExprAtom() (nodes.Node, error) {
+	loc := p.pos()
 	switch p.cur.Type {
 	case '+':
 		p.advance()
@@ -963,6 +1028,23 @@ func (p *Parser) parseBExprAtom() (nodes.Node, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		return doNegate(arg), nil
+	case Op:
+		// qual_Op b_expr  %prec UMINUS
+		tok := p.advance()
+		arg, err := p.parseBExpr(precUnary)
+		if err != nil {
+			return nil, err
+		}
+		if arg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		n := &nodes.A_Expr{
+			Kind:  nodes.AEXPR_OP,
+			Name:  &nodes.List{Items: []nodes.Node{&nodes.String{Str: tok.Str}}},
+			Rexpr: arg,
+		}
+		setNodeLoc(n, loc, p.pos())
+		return n, nil
 	default:
 		return p.parseCExpr()
 	}
@@ -977,7 +1059,7 @@ func (p *Parser) bExprInfixPrec() int {
 		return precComparison
 	case LESS_EQUALS, GREATER_EQUALS, NOT_EQUALS:
 		return precComparison
-	case Op:
+	case Op, OPERATOR:
 		return precOp
 	case '+', '-':
 		return precAdd
@@ -1079,6 +1161,27 @@ func (p *Parser) parseBExprInfix(left nodes.Node, prec int) (nodes.Node, error) 
 	case Op:
 		tok := p.advance()
 		opName := &nodes.List{Items: []nodes.Node{&nodes.String{Str: tok.Str}}}
+		right, err := p.parseBExpr(prec + 1)
+		if err != nil {
+			return nil, err
+		}
+		if right == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return &nodes.A_Expr{Kind: nodes.AEXPR_OP, Name: opName, Lexpr: left, Rexpr: right}, nil
+	case OPERATOR:
+		// b_expr OPERATOR '(' any_operator ')' b_expr
+		p.advance()
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		opName, err := p.parseAnyOperator()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		right, err := p.parseBExpr(prec + 1)
 		if err != nil {
 			return nil, err

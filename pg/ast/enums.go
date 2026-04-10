@@ -103,6 +103,7 @@ const (
 	AEXPR_NOT_BETWEEN                    // name must be "NOT BETWEEN"
 	AEXPR_BETWEEN_SYM                    // name must be "BETWEEN SYMMETRIC"
 	AEXPR_NOT_BETWEEN_SYM                // name must be "NOT BETWEEN SYMMETRIC"
+	AEXPR_OVERLAPS                       // OVERLAPS
 )
 
 // QuerySource represents possible sources of a Query.

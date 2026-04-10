@@ -405,7 +405,10 @@ func (p *Parser) parseExecuteParamClause() (*nodes.List, error) {
 		return nil, nil
 	}
 	p.advance() // '('
-	list := p.parseExprList()
+	list, err := p.parseExprListFull()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}

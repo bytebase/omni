@@ -93,7 +93,10 @@ func (p *Parser) parseXmlExists() (nodes.Node, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	xpath, err := p.parseCExpr()
+	xpath, err := p.parseAExpr(0)
+	if err != nil {
+		return nil, err
+	}
 	arg, err := p.parseXmlExistsArgument()
 	if err != nil {
 		return nil, err
@@ -413,7 +416,7 @@ func (p *Parser) parseXmlWhitespaceOption() (int64, error) {
 	return 0, nil
 }
 
-// parseXmlExistsArgument parses PASSING [BY {REF|VALUE}] c_expr [BY {REF|VALUE}].
+// parseXmlExistsArgument parses PASSING [BY {REF|VALUE}] a_expr [BY {REF|VALUE}].
 func (p *Parser) parseXmlExistsArgument() (nodes.Node, error) {
 	if _, err := p.expect(PASSING); err != nil {
 		return nil, err
@@ -422,7 +425,7 @@ func (p *Parser) parseXmlExistsArgument() (nodes.Node, error) {
 	if p.cur.Type == BY {
 		p.parseXmlPassingMech()
 	}
-	expr, err := p.parseCExpr()
+	expr, err := p.parseAExpr(0)
 	if err != nil {
 		return nil, err
 	}
@@ -473,7 +476,10 @@ func (p *Parser) parseXmlTable() (nodes.Node, error) {
 		}
 	}
 
-	rowExpr, err := p.parseCExpr()
+	rowExpr, err := p.parseAExpr(0)
+	if err != nil {
+		return nil, err
+	}
 	docExpr, err := p.parseXmlExistsArgument()
 	if err != nil {
 		return nil, err
