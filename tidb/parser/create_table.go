@@ -362,6 +362,31 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		})
 		return true, nil
 
+	case kwAUTO_RANDOM:
+		p.advance()
+		col.AutoRandom = true
+		// Optional (shard_bits[, range_bits])
+		if p.cur.Type == '(' {
+			p.advance()
+			if p.cur.Type != tokICONST {
+				return false, p.syntaxErrorAtCur()
+			}
+			col.AutoRandomShardBits = int(p.cur.Ival)
+			p.advance()
+			if p.cur.Type == ',' {
+				p.advance()
+				if p.cur.Type != tokICONST {
+					return false, p.syntaxErrorAtCur()
+				}
+				col.AutoRandomRangeBits = int(p.cur.Ival)
+				p.advance()
+			}
+			if _, ok := p.match(')'); !ok {
+				return false, p.syntaxErrorAtCur()
+			}
+		}
+		return true, nil
+
 	case kwUNIQUE:
 		p.advance()
 		p.match(kwKEY) // optional KEY

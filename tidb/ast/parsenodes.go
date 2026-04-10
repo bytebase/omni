@@ -367,6 +367,9 @@ type ColumnDef struct {
 	DefaultValue             ExprNode
 	Comment                  string
 	AutoIncrement            bool
+	AutoRandom               bool // TiDB: AUTO_RANDOM attribute
+	AutoRandomShardBits      int  // TiDB: AUTO_RANDOM(shard_bits[, range])
+	AutoRandomRangeBits      int  // TiDB: AUTO_RANDOM(shard_bits, range_bits)
 	OnUpdate                 ExprNode // ON UPDATE CURRENT_TIMESTAMP
 	Generated                *GeneratedColumn
 	ColumnFormat             string // COLUMN_FORMAT {FIXED | DYNAMIC | DEFAULT}

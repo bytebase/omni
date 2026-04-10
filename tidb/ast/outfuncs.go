@@ -2599,6 +2599,15 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 	if n.AutoIncrement {
 		sb.WriteString(" :auto_increment true")
 	}
+	if n.AutoRandom {
+		sb.WriteString(" :auto_random t")
+		if n.AutoRandomShardBits > 0 {
+			fmt.Fprintf(sb, " :auto_random_shard_bits %d", n.AutoRandomShardBits)
+		}
+		if n.AutoRandomRangeBits > 0 {
+			fmt.Fprintf(sb, " :auto_random_range_bits %d", n.AutoRandomRangeBits)
+		}
+	}
 	if n.DefaultValue != nil {
 		sb.WriteString(" :default ")
 		writeNode(sb, n.DefaultValue)
