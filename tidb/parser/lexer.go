@@ -8,6 +8,30 @@ import (
 	"unicode/utf8"
 )
 
+// tidbSupportedFeatures lists TiDB v8.5 feature IDs recognized in /*T![feature] */ comments.
+var tidbSupportedFeatures = map[string]bool{
+	"auto_rand":       true,
+	"auto_id_cache":   true,
+	"auto_rand_base":  true,
+	"clustered_index": true,
+	"placement":       true,
+	"ttl":             true,
+}
+
+// allTiDBFeaturesSupported checks if all comma-separated feature IDs are supported.
+func allTiDBFeaturesSupported(featureStr string) bool {
+	for _, f := range strings.Split(featureStr, ",") {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
+		}
+		if !tidbSupportedFeatures[f] {
+			return false
+		}
+	}
+	return true
+}
+
 // Token type constants for literals and operators.
 const (
 	tokEOF = 0
@@ -1863,6 +1887,76 @@ func (l *Lexer) skipWhitespaceAndComments() {
 
 		// Block comment: /* ... */
 		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+			// TiDB comments: /*T! ... */ or /*T![feature] ... */
+			if l.pos+3 < len(l.input) && l.input[l.pos+2] == 'T' && l.input[l.pos+3] == '!' {
+				innerStart := l.pos + 4 // after /*T!
+
+				// Check for feature bracket: /*T![feature_id]
+				if innerStart < len(l.input) && l.input[innerStart] == '[' {
+					bracketEnd := innerStart + 1
+					for bracketEnd < len(l.input) && l.input[bracketEnd] != ']' {
+						bracketEnd++
+					}
+					if bracketEnd >= len(l.input) {
+						// Malformed: no closing bracket, skip as regular comment.
+						l.pos += 2
+						depth := 1
+						for l.pos < len(l.input) && depth > 0 {
+							if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
+								depth--
+								l.pos += 2
+							} else if l.input[l.pos] == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+								depth++
+								l.pos += 2
+							} else {
+								l.pos++
+							}
+						}
+						continue
+					}
+					featureStr := l.input[innerStart+1 : bracketEnd]
+					if !allTiDBFeaturesSupported(featureStr) {
+						// Unsupported feature — skip entire comment.
+						l.pos += 2
+						depth := 1
+						for l.pos < len(l.input) && depth > 0 {
+							if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
+								depth--
+								l.pos += 2
+							} else if l.input[l.pos] == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+								depth++
+								l.pos += 2
+							} else {
+								l.pos++
+							}
+						}
+						continue
+					}
+					innerStart = bracketEnd + 1 // SQL starts after ]
+				}
+
+				// Find matching */
+				end := innerStart
+				depth := 1
+				for end < len(l.input) && depth > 0 {
+					if l.input[end] == '*' && end+1 < len(l.input) && l.input[end+1] == '/' {
+						depth--
+						if depth == 0 {
+							break
+						}
+						end += 2
+					} else if l.input[end] == '/' && end+1 < len(l.input) && l.input[end+1] == '*' {
+						depth++
+						end += 2
+					} else {
+						end++
+					}
+				}
+				inner := l.input[innerStart:end]
+				l.input = l.input[:l.pos] + inner + l.input[end+2:]
+				continue
+			}
+
 			// MySQL conditional comments: /*!NNNNN ... */ or /*! ... */
 			// These should be parsed as SQL, not skipped.
 			if l.pos+2 < len(l.input) && l.input[l.pos+2] == '!' {
