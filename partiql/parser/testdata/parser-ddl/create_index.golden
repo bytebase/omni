@@ -1,0 +1,1 @@
+CreateIndexStmt{Table:VarRef{Name:t} Paths:[PathExpr{Root:VarRef{Name:name} Steps:[]}]}

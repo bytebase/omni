@@ -1,0 +1,1 @@
+DropIndexStmt{Index:VarRef{Name:idx} Table:VarRef{Name:t}}

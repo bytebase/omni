@@ -1,0 +1,1 @@
+DropIndexStmt{Index:VarRef{Name:myIdx CaseSensitive:true} Table:VarRef{Name:myTable CaseSensitive:true}}
