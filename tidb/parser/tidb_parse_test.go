@@ -158,6 +158,48 @@ func TestParseClusteredPK(t *testing.T) {
 	}
 }
 
+func TestParseAlterTiFlashReplica(t *testing.T) {
+	tests := []struct {
+		name  string
+		sql   string
+		count int
+	}{
+		{"set 2", "ALTER TABLE t SET TIFLASH REPLICA 2", 2},
+		{"set 0", "ALTER TABLE t SET TIFLASH REPLICA 0", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			list, err := Parse(tt.sql)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			stmt := list.Items[0].(*nodes.AlterTableStmt)
+			if len(stmt.Commands) == 0 {
+				t.Fatal("no commands")
+			}
+			cmd := stmt.Commands[0]
+			if cmd.Type != nodes.ATSetTiFlashReplica {
+				t.Errorf("expected ATSetTiFlashReplica, got %v", cmd.Type)
+			}
+			if cmd.TiFlashReplica != tt.count {
+				t.Errorf("replica count: got %d, want %d", cmd.TiFlashReplica, tt.count)
+			}
+		})
+	}
+}
+
+func TestParseAlterRemoveTTL(t *testing.T) {
+	sql := "ALTER TABLE t REMOVE TTL"
+	list, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	stmt := list.Items[0].(*nodes.AlterTableStmt)
+	if stmt.Commands[0].Type != nodes.ATRemoveTTL {
+		t.Errorf("expected ATRemoveTTL, got %v", stmt.Commands[0].Type)
+	}
+}
+
 func TestParseDatabasePlacementPolicy(t *testing.T) {
 	tests := []struct {
 		name string

@@ -2889,6 +2889,9 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 		sb.WriteString(" :partition_by ")
 		writeNode(sb, n.PartitionBy)
 	}
+	if n.TiFlashReplica > 0 {
+		fmt.Fprintf(sb, " :tiflash_replica %d", n.TiFlashReplica)
+	}
 	sb.WriteString("}")
 }
 

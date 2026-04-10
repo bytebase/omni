@@ -211,6 +211,9 @@ const (
 	ATSecondaryLoad
 	ATSecondaryUnload
 	ATPartitionBy
+	// TiDB-specific ALTER TABLE commands.
+	ATSetTiFlashReplica // SET TIFLASH REPLICA n
+	ATRemoveTTL         // REMOVE TTL
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
@@ -235,6 +238,7 @@ type AlterTableCmd struct {
 	WithValidation *bool           // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
 	OrderByItems   []*OrderByItem    // for ORDER BY operation
 	PartitionBy    *PartitionClause // for PARTITION BY (repartition)
+	TiFlashReplica int              // TiDB: replica count for SET TIFLASH REPLICA
 }
 
 func (c *AlterTableCmd) nodeTag() {}
