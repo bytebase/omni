@@ -33,10 +33,10 @@ The four wrapper functions (splitter, statement-ranges, diagnose, query-span, cl
 | **F0** | bootstrap (skeleton + hjson dep + parsertest harness) | `elasticsearch/`, `elasticsearch/parsertest/` | — | F2 | 0 | **done** (PR #23) |
 | **F1** | parser core (state machine, single-request happy path, byte offsets, comments, hjson, error recovery, multi-request, multi-document) | `elasticsearch/parser` | F0 | F2 | 1 | **done** (PR #25) |
 | **F2** | request classification (URL pattern tables, `ClassifyRequest`) | `elasticsearch/querytype.go` | F0 | F1, F3, F4, F5, F6a | 1 | **done** (PR #24) |
-| **F3** | splitter wrapper (`SplitMultiSQL` → `[]base.Statement` equivalent) | `elasticsearch/` | F1 | F4, F5, F6a, F6b | 2 | not started |
-| **F4** | statement ranges wrapper (LSP UTF-16 `Position`, BMP surrogate-aware) | `elasticsearch/` | F1 | F3, F5, F6a, F6b | 2 | not started |
-| **F5** | diagnose wrapper (parse errors → `base.Diagnostic`) | `elasticsearch/` | F1 | F3, F4, F6a, F6b | 2 | not started |
-| **F6a** | body analysis foundation (`MaskableAPI` URL classification, blocked features catalog, `_source`/`fields`/`highlight`/`sort` extraction, `AnalyzeRequest` skeleton) | `elasticsearch/analysis` | F1, F2 | F3, F4, F5 | 2 | not started |
+| **F3** | splitter wrapper (`SplitMultiSQL` → `[]base.Statement` equivalent) | `elasticsearch/` | F1 | F4, F5, F6a, F6b | 2 | **done** (PR #27) |
+| **F4** | statement ranges wrapper (LSP UTF-16 `Position`, BMP surrogate-aware) | `elasticsearch/` | F1 | F3, F5, F6a, F6b | 2 | **done** (PR #28) |
+| **F5** | diagnose wrapper (parse errors → `base.Diagnostic`) | `elasticsearch/` | F1 | F3, F4, F6a, F6b | 2 | **done** (PR #30) |
+| **F6a** | body analysis foundation (`MaskableAPI` URL classification, blocked features catalog, `_source`/`fields`/`highlight`/`sort` extraction, `AnalyzeRequest` skeleton) | `elasticsearch/analysis` | F1, F2 | F3, F4, F5 | 2 | **done** (PR #29) |
 | **F6b** | predicate walker (recursive walk over `map[string]any` body recognizing the 13+ ES query clause types — match/term/terms/range/exists/prefix/wildcard/regexp/fuzzy/ids/bool/nested/has_child/has_parent — plus the dot-path field extraction) | `elasticsearch/analysis` | F6a | F3, F4, F5 | 3 | not started |
 | **F7** | query span integration (top-level `GetQuerySpan` orchestration, `dotPathToPathAST`, populating `QuerySpan.PredicatePaths` and the omni-internal analysis payload) | `elasticsearch/analysis` (or `elasticsearch/`) | F1, F2, F6b | — | 4 | not started |
 | **M1** | bytebase glue adapter rewrite (all 6 glue files at `bytebase/backend/plugin/parser/elasticsearch/` + driver at `bytebase/backend/plugin/db/elasticsearch/elasticsearch.go:28`; mongo adapter pattern; `init()` blocks stay in bytebase) | bytebase repo | F1–F7 | — | — | not started |
