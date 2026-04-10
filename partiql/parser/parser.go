@@ -620,7 +620,9 @@ func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 		if err != nil {
 			return nil, err
 		}
-		if sn, ok := expr.(ast.StmtNode); ok {
+		if sub, ok := expr.(*ast.SubLink); ok {
+			stmt = sub.Stmt
+		} else if sn, ok := expr.(ast.StmtNode); ok {
 			stmt = sn
 		} else {
 			return nil, p.deferredFeature("bare expression as statement", "parse-entry (DAG node 8)")

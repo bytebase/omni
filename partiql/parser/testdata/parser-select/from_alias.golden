@@ -1,0 +1,1 @@
+SelectStmt{Star:true From:AliasedSource{Source:VarRef{Name:t} As:x}}

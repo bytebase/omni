@@ -1,0 +1,1 @@
+SelectStmt{Star:true From:UnpivotExpr{Source:VarRef{Name:t} As:v At:k}}

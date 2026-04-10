@@ -204,9 +204,19 @@ func (p *Parser) parseParenExpr() (ast.ExprNode, error) {
 	// Note: the returned expression does NOT get a new wrapping node —
 	// parentheses are purely syntactic. The inner expression's Loc is
 	// preserved as-is (we don't extend it to cover the outer parens).
-	if _, err := p.expect(tokPAREN_RIGHT); err != nil {
+	rp, err := p.expect(tokPAREN_RIGHT)
+	if err != nil {
 		return nil, err
 	}
+
+	// If the inner expression is a SubLink (parenthesized SELECT),
+	// update its Loc to span the outer parens and return it directly.
+	// The parens are syntactic but the SubLink carries the query.
+	if sub, ok := first.(*ast.SubLink); ok {
+		sub.Loc = ast.Loc{Start: start, End: rp.Loc.End}
+		return sub, nil
+	}
+
 	return first, nil
 }
 
