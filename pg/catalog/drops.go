@@ -492,6 +492,15 @@ func dropsForCheckCascades(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 //
 // ObjectName is the CONSTRAINT name; ParentObject is the TABLE name.
 // ObjOID is NOT set (zero), matching buildDropConstraintOp.
+//
+// NOTE: this uses a DIFFERENT field convention from dropsForCheckCascades,
+// even though both produce OpDropConstraint. The difference mirrors omni's
+// own inconsistency: buildDropConstraintOp (migration_constraint.go) puts
+// the constraint name in ObjectName and the table in ParentObject;
+// columnModifyOps (migration_column.go) puts the table name in ObjectName
+// with no ParentObject, and the outer loop overrides Phase/Priority. Both
+// conventions are correct per their sources, and the differential test
+// confirms field-level parity with GenerateMigration.
 func dropsForConstraints(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
 	var ops []MigrationOp
 	for _, rel := range diff.Relations {
@@ -503,34 +512,23 @@ func dropsForConstraints(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
 				(ce.From != nil && ce.From.Type == ConstraintTrigger) {
 				continue
 			}
-			switch ce.Action {
-			case DiffDrop:
-				if ce.From == nil {
-					continue
-				}
-				ops = append(ops, MigrationOp{
-					Type:         OpDropConstraint,
-					SchemaName:   rel.SchemaName,
-					ObjectName:   ce.From.Name,
-					ParentObject: rel.Name,
-					Phase:        PhasePre,
-					ObjType:      'c',
-					Priority:     PriorityConstraint,
-				})
-			case DiffModify:
-				if ce.From == nil {
-					continue
-				}
-				ops = append(ops, MigrationOp{
-					Type:         OpDropConstraint,
-					SchemaName:   rel.SchemaName,
-					ObjectName:   ce.From.Name,
-					ParentObject: rel.Name,
-					Phase:        PhasePre,
-					ObjType:      'c',
-					Priority:     PriorityConstraint,
-				})
+			// DiffDrop and DiffModify both produce the same drop op (modify =
+			// DROP old + ADD new in omni; we only emit the drop half).
+			if ce.Action != DiffDrop && ce.Action != DiffModify {
+				continue
 			}
+			if ce.From == nil {
+				continue
+			}
+			ops = append(ops, MigrationOp{
+				Type:         OpDropConstraint,
+				SchemaName:   rel.SchemaName,
+				ObjectName:   ce.From.Name,
+				ParentObject: rel.Name,
+				Phase:        PhasePre,
+				ObjType:      'c',
+				Priority:     PriorityConstraint,
+			})
 		}
 	}
 	return ops
@@ -555,16 +553,7 @@ func dropsForViews(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
 			if entry.From.RelKind != 'v' && entry.From.RelKind != 'm' {
 				continue
 			}
-			ops = append(ops, MigrationOp{
-				Type:          OpDropView,
-				SchemaName:    entry.SchemaName,
-				ObjectName:    entry.Name,
-				Transactional: true,
-				Phase:         PhasePre,
-				ObjType:       'r',
-				ObjOID:        entry.From.OID,
-				Priority:      PriorityView,
-			})
+			ops = append(ops, dropViewOp(entry.SchemaName, entry.Name, entry.From.OID))
 
 		case DiffModify:
 			if entry.From == nil || entry.To == nil {
@@ -575,16 +564,7 @@ func dropsForViews(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
 
 			// Site 3: RelKind flip (view↔matview).
 			if (fromIsView || toIsView) && entry.From.RelKind != entry.To.RelKind {
-				ops = append(ops, MigrationOp{
-					Type:          OpDropView,
-					SchemaName:    entry.SchemaName,
-					ObjectName:    entry.Name,
-					Transactional: true,
-					Phase:         PhasePre,
-					ObjType:       'r',
-					ObjOID:        entry.From.OID,
-					Priority:      PriorityView,
-				})
+				ops = append(ops, dropViewOp(entry.SchemaName, entry.Name, entry.From.OID))
 				continue
 			}
 
@@ -592,33 +572,31 @@ func dropsForViews(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
 			case 'v':
 				// Site 4: view with incompatible column changes.
 				if viewColumnsChanged(entry) {
-					ops = append(ops, MigrationOp{
-						Type:          OpDropView,
-						SchemaName:    entry.SchemaName,
-						ObjectName:    entry.Name,
-						Transactional: true,
-						Phase:         PhasePre,
-						ObjType:       'r',
-						ObjOID:        entry.From.OID,
-						Priority:      PriorityView,
-					})
+					ops = append(ops, dropViewOp(entry.SchemaName, entry.Name, entry.From.OID))
 				}
 			case 'm':
 				// Site 5: ALL matview modifications emit drop.
-				ops = append(ops, MigrationOp{
-					Type:          OpDropView,
-					SchemaName:    entry.SchemaName,
-					ObjectName:    entry.Name,
-					Transactional: true,
-					Phase:         PhasePre,
-					ObjType:       'r',
-					ObjOID:        entry.From.OID,
-					Priority:      PriorityView,
-				})
+				ops = append(ops, dropViewOp(entry.SchemaName, entry.Name, entry.From.OID))
 			}
 		}
 	}
 	return ops
+}
+
+// dropViewOp builds the OpDropView MigrationOp for a view or matview,
+// mirroring the drop struct literals in generateViewDDL and
+// buildModifyMatViewOps in migration_view.go minus SQL.
+func dropViewOp(schemaName, name string, oid uint32) MigrationOp {
+	return MigrationOp{
+		Type:          OpDropView,
+		SchemaName:    schemaName,
+		ObjectName:    name,
+		Transactional: true,
+		Phase:         PhasePre,
+		ObjType:       'r',
+		ObjOID:        oid,
+		Priority:      PriorityView,
+	}
 }
 
 // dropsForIndexes mirrors the DiffDrop and DiffModify arms of
@@ -687,38 +665,25 @@ func dropsForTriggers(_, _ *Catalog, diff *SchemaDiff) []MigrationOp {
 			continue
 		}
 		for _, te := range rel.Triggers {
-			switch te.Action {
-			case DiffDrop:
-				if te.From == nil {
-					continue
-				}
-				ops = append(ops, MigrationOp{
-					Type:          OpDropTrigger,
-					SchemaName:    rel.SchemaName,
-					ObjectName:    te.From.Name,
-					ParentObject:  rel.Name,
-					Transactional: true,
-					Phase:         PhasePre,
-					ObjType:       'T',
-					ObjOID:        te.From.OID,
-					Priority:      PriorityTrigger,
-				})
-			case DiffModify:
-				if te.From == nil {
-					continue
-				}
-				ops = append(ops, MigrationOp{
-					Type:          OpDropTrigger,
-					SchemaName:    rel.SchemaName,
-					ObjectName:    te.From.Name,
-					ParentObject:  rel.Name,
-					Transactional: true,
-					Phase:         PhasePre,
-					ObjType:       'T',
-					ObjOID:        te.From.OID,
-					Priority:      PriorityTrigger,
-				})
+			// DiffDrop and DiffModify both produce the same drop op (modify =
+			// DROP old + CREATE new in omni; we only emit the drop half).
+			if te.Action != DiffDrop && te.Action != DiffModify {
+				continue
 			}
+			if te.From == nil {
+				continue
+			}
+			ops = append(ops, MigrationOp{
+				Type:          OpDropTrigger,
+				SchemaName:    rel.SchemaName,
+				ObjectName:    te.From.Name,
+				ParentObject:  rel.Name,
+				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       'T',
+				ObjOID:        te.From.OID,
+				Priority:      PriorityTrigger,
+			})
 		}
 	}
 	return ops
@@ -895,16 +860,7 @@ func dropsForDependentViews(from, to *Catalog, diff *SchemaDiff, existingOps []M
 		if existing[key] {
 			continue
 		}
-		ops = append(ops, MigrationOp{
-			Type:          OpDropView,
-			SchemaName:    v.schema,
-			ObjectName:    v.name,
-			Transactional: true,
-			Phase:         PhasePre,
-			ObjType:       'r',
-			ObjOID:        v.oid,
-			Priority:      PriorityView,
-		})
+		ops = append(ops, dropViewOp(v.schema, v.name, v.oid))
 	}
 	return ops
 }
