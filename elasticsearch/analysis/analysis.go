@@ -67,7 +67,6 @@ type RequestAnalysis struct {
 	// HasInnerHits is true when any nested inner_hits key was found.
 	HasInnerHits bool
 	// PredicateFields lists field names referenced in the query predicate.
-	// Populated by F6b (predicate walker) — left empty here.
 	PredicateFields []string
 }
 
@@ -187,8 +186,6 @@ func extractIndex(path string) string {
 
 // AnalyzeRequest combines URL classification with body analysis for an ES
 // request.  Body analysis is only performed for search and explain APIs.
-// The PredicateFields field is intentionally left empty — it will be populated
-// by the F6b predicate-walker implementation.
 func AnalyzeRequest(method, url, body string) *RequestAnalysis {
 	api, index := ClassifyMaskableAPI(method, url)
 	result := &RequestAnalysis{
@@ -207,7 +204,7 @@ func AnalyzeRequest(method, url, body string) *RequestAnalysis {
 		result.HighlightFields = bodyResult.HighlightFields
 		result.SortFields = bodyResult.SortFields
 		result.HasInnerHits = bodyResult.HasInnerHits
-		// TODO(F6b): populate PredicateFields via the predicate walker.
+		result.PredicateFields = bodyResult.PredicateFields
 	default:
 		// No body analysis for other API types.
 	}
