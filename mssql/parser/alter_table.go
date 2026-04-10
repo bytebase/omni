@@ -146,7 +146,7 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 	var actions []nodes.Node
 	switch {
 	case p.cur.Type == kwADD:
-		actions, err = p.parseAlterTableAdd()
+		actions, err = p.parseAlterTableAdd(withCheck)
 		if err != nil {
 			return nil, err
 		}
@@ -235,7 +235,7 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 //
 //	ADD { <column_definition> | <table_constraint> } [ ,...n ]
 //	ADD PERIOD FOR SYSTEM_TIME ( start_col , end_col )
-func (p *Parser) parseAlterTableAdd() ([]nodes.Node, error) {
+func (p *Parser) parseAlterTableAdd(withCheck string) ([]nodes.Node, error) {
 	p.advance() // consume ADD
 
 	// Completion: after ALTER TABLE t ADD → add candidates
@@ -267,6 +267,7 @@ func (p *Parser) parseAlterTableAdd() ([]nodes.Node, error) {
 
 		if p.cur.Type == kwCONSTRAINT {
 			action.Type = nodes.ATAddConstraint
+			action.WithCheck = withCheck
 			var err error
 			action.Constraint, err = p.parseTableConstraint()
 			if err != nil {
@@ -276,6 +277,7 @@ func (p *Parser) parseAlterTableAdd() ([]nodes.Node, error) {
 			p.cur.Type == kwFOREIGN || p.cur.Type == kwCHECK || p.cur.Type == kwDEFAULT {
 			// Unnamed constraint
 			action.Type = nodes.ATAddConstraint
+			action.WithCheck = withCheck
 			var err error
 			action.Constraint, err = p.parseTableConstraint()
 			if err != nil {
@@ -561,19 +563,18 @@ func (p *Parser) parseAlterTableAlterColumn() (*nodes.AlterTableAction, error) {
 		return p.parseAlterColumnAddDrop(loc, name)
 	}
 
-	// Type change form
-	action := &nodes.AlterTableAction{
-		Type:    nodes.ATAlterColumn,
-		ColName: name,
-		Loc:     nodes.Loc{Start: loc, End: -1},
+	// Type change form: ALTER COLUMN col type [COLLATE ...] [NULL|NOT NULL] [SPARSE] [WITH (...)]
+	col := &nodes.ColumnDef{
+		Name: name,
+		Loc:  nodes.Loc{Start: loc, End: -1},
 	}
 
 	var err error
-	action.DataType, err = p.parseDataType()
+	col.DataType, err = p.parseDataType()
 	if err != nil {
 		return nil, err
 	}
-	if action.DataType == nil {
+	if col.DataType == nil {
 		return nil, p.unexpectedToken()
 	}
 
@@ -581,23 +582,38 @@ func (p *Parser) parseAlterTableAlterColumn() (*nodes.AlterTableAction, error) {
 	if p.cur.Type == kwCOLLATE {
 		p.advance() // consume COLLATE
 		collation, _ := p.parseIdentifier()
-		action.Collation = collation
+		col.Collation = collation
 	}
 
 	// NULL / NOT NULL
 	if p.cur.Type == kwNULL {
+		col.Nullable = &nodes.NullableSpec{NotNull: false, Loc: nodes.Loc{Start: p.pos(), End: p.prevEnd()}}
 		p.advance()
 	} else if p.cur.Type == kwNOT {
 		next := p.peekNext()
 		if next.Type == kwNULL {
+			nullLoc := p.pos()
 			p.advance() // NOT
 			p.advance() // NULL
+			col.Nullable = &nodes.NullableSpec{NotNull: true, Loc: nodes.Loc{Start: nullLoc, End: p.prevEnd()}}
 		}
 	}
 
 	// SPARSE (optional after NULL/NOT NULL)
 	if p.cur.Type == kwSPARSE {
+		col.Sparse = true
 		p.advance()
+	}
+
+	col.Loc.End = p.prevEnd()
+
+	action := &nodes.AlterTableAction{
+		Type:    nodes.ATAlterColumn,
+		ColName: name,
+		Column:  col,
+		DataType: col.DataType,
+		Collation: col.Collation,
+		Loc:     nodes.Loc{Start: loc, End: -1},
 	}
 
 	// [ WITH ( ONLINE = ON | OFF ) ]
