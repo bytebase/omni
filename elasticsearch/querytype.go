@@ -6,12 +6,12 @@ import "strings"
 type QueryType int
 
 const (
-	QueryTypeUnknown         QueryType = iota
-	QueryTypeSelect                    // Read-only data query
-	QueryTypeSelectInfoSchema          // Read-only cluster/node metadata
-	QueryTypeDML                       // Document write (index, update, delete)
-	QueryTypeDDL                       // Index/alias/mapping management
-	QueryTypeExplain                   // Query explanation
+	QueryTypeUnknown         QueryType = iota // 0
+	QueryTypeSelect                           // 1 — Read-only data query
+	QueryTypeExplain                          // 2 — Query explanation
+	QueryTypeSelectInfoSchema                 // 3 — Read-only cluster/node metadata
+	QueryTypeDDL                              // 4 — Index/alias/mapping management
+	QueryTypeDML                              // 5 — Document write (index, update, delete)
 )
 
 // readOnlyPostEndpoints lists URL patterns that are read-only despite using POST.
