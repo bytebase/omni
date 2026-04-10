@@ -4,6 +4,7 @@ go 1.25.7
 
 require (
 	github.com/go-sql-driver/mysql v1.9.3
+	github.com/hjson/hjson-go/v4 v4.6.0
 	github.com/jackc/pgx/v5 v5.9.1
 	github.com/microsoft/go-mssqldb v1.9.8
 	github.com/sijms/go-ora/v2 v2.9.0
@@ -12,6 +13,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/mssql v0.41.0
 	github.com/testcontainers/testcontainers-go/modules/mysql v0.41.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.41.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -76,5 +78,4 @@ require (
 	golang.org/x/text v0.34.0 // indirect
 	google.golang.org/grpc v1.79.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
