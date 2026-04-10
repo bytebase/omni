@@ -1,0 +1,7 @@
+-- Statement: SHOW BINLOG EVENTS
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/show-binlog-events.html
+
+SHOW BINLOG EVENTS
+    [IN 'log_name']
+    [FROM pos]
+    [LIMIT [offset,] row_count]

@@ -1,0 +1,11 @@
+-- Statement: SHOW RELAYLOG EVENTS
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/show-relaylog-events.html
+
+SHOW RELAYLOG EVENTS
+    [IN 'log_name']
+    [FROM pos]
+    [LIMIT [offset,] row_count]
+    [channel_option]
+
+channel_option:
+    FOR CHANNEL channel

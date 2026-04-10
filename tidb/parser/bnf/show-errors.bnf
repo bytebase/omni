@@ -1,0 +1,6 @@
+-- Statement: SHOW ERRORS
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/show-errors.html
+
+SHOW ERRORS [LIMIT [offset,] row_count]
+
+SHOW COUNT(*) ERRORS

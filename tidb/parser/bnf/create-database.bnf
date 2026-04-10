@@ -1,0 +1,11 @@
+-- Statement: CREATE DATABASE
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/create-database.html
+
+CREATE {DATABASE | SCHEMA} [IF NOT EXISTS] db_name
+    [create_option] ...
+
+create_option: [DEFAULT] {
+    CHARACTER SET [=] charset_name
+  | COLLATE [=] collation_name
+  | ENCRYPTION [=] {'Y' | 'N'}
+}

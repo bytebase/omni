@@ -1,0 +1,4 @@
+-- Statement: DROP SERVER
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/drop-server.html
+
+DROP SERVER [IF EXISTS] server_name

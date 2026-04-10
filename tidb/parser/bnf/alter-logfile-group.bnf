@@ -1,0 +1,8 @@
+-- Statement: ALTER LOGFILE GROUP
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/alter-logfile-group.html
+
+ALTER LOGFILE GROUP logfile_group
+    ADD UNDOFILE 'file_name'
+    [INITIAL_SIZE [=] size]
+    [WAIT]
+    ENGINE [=] engine_name

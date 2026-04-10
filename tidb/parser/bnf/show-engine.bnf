@@ -1,0 +1,4 @@
+-- Statement: SHOW ENGINE
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/show-engine.html
+
+SHOW ENGINE engine_name {STATUS | MUTEX}

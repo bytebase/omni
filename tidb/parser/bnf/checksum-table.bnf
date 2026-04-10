@@ -1,0 +1,4 @@
+-- Statement: CHECKSUM TABLE
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/checksum-table.html
+
+CHECKSUM TABLE tbl_name [, tbl_name] ... [QUICK | EXTENDED]
