@@ -2534,3 +2534,224 @@ func TestAnalyze_13_5_UnionAllOrderByLimit(t *testing.T) {
 		t.Errorf("LimitCount value: want 10, got %s", constExpr.Value)
 	}
 }
+
+// ---------- Phase 3: Standalone expression analysis, function types, DDL hookups ----------
+
+// TestAnalyze_15_1_CheckConstraintAnalyzed tests that CHECK constraint expressions
+// are analyzed and stored as CheckAnalyzed on the Constraint.
+func TestAnalyze_15_1_CheckConstraintAnalyzed(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `CREATE TABLE t (a INT, b INT, CONSTRAINT chk CHECK (a > 0 AND b > 0))`)
+
+	db := c.GetDatabase("testdb")
+	tbl := db.GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t not found")
+	}
+
+	// Find the CHECK constraint named "chk".
+	var con *Constraint
+	for _, cc := range tbl.Constraints {
+		if cc.Type == ConCheck && cc.Name == "chk" {
+			con = cc
+			break
+		}
+	}
+	if con == nil {
+		t.Fatal("CHECK constraint 'chk' not found")
+	}
+	if con.CheckAnalyzed == nil {
+		t.Fatal("CheckAnalyzed: want non-nil, got nil")
+	}
+
+	// Top-level should be BoolExprQ with BoolAnd.
+	boolExpr, ok := con.CheckAnalyzed.(*BoolExprQ)
+	if !ok {
+		t.Fatalf("CheckAnalyzed: want *BoolExprQ, got %T", con.CheckAnalyzed)
+	}
+	if boolExpr.Op != BoolAnd {
+		t.Errorf("BoolExprQ.Op: want BoolAnd, got %v", boolExpr.Op)
+	}
+	if len(boolExpr.Args) != 2 {
+		t.Fatalf("BoolExprQ.Args: want 2, got %d", len(boolExpr.Args))
+	}
+
+	// Each arg should be OpExprQ with Op ">".
+	for i, arg := range boolExpr.Args {
+		opExpr, ok := arg.(*OpExprQ)
+		if !ok {
+			t.Fatalf("Args[%d]: want *OpExprQ, got %T", i, arg)
+		}
+		if opExpr.Op != ">" {
+			t.Errorf("Args[%d].Op: want >, got %s", i, opExpr.Op)
+		}
+	}
+}
+
+// TestAnalyze_15_2_DefaultAnalyzed tests that DEFAULT expressions are analyzed.
+func TestAnalyze_15_2_DefaultAnalyzed(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `CREATE TABLE t (a INT DEFAULT 42, b VARCHAR(100) DEFAULT 'hello')`)
+
+	db := c.GetDatabase("testdb")
+	tbl := db.GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t not found")
+	}
+
+	// Column "a" default: ConstExprQ{Value:"42"}
+	colA := tbl.GetColumn("a")
+	if colA == nil {
+		t.Fatal("column a not found")
+	}
+	if colA.DefaultAnalyzed == nil {
+		t.Fatal("a.DefaultAnalyzed: want non-nil, got nil")
+	}
+	constA, ok := colA.DefaultAnalyzed.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("a.DefaultAnalyzed: want *ConstExprQ, got %T", colA.DefaultAnalyzed)
+	}
+	if constA.Value != "42" {
+		t.Errorf("a.DefaultAnalyzed.Value: want 42, got %s", constA.Value)
+	}
+
+	// Column "b" default: ConstExprQ{Value:"hello"}
+	colB := tbl.GetColumn("b")
+	if colB == nil {
+		t.Fatal("column b not found")
+	}
+	if colB.DefaultAnalyzed == nil {
+		t.Fatal("b.DefaultAnalyzed: want non-nil, got nil")
+	}
+	constB, ok := colB.DefaultAnalyzed.(*ConstExprQ)
+	if !ok {
+		t.Fatalf("b.DefaultAnalyzed: want *ConstExprQ, got %T", colB.DefaultAnalyzed)
+	}
+	if constB.Value != "hello" {
+		t.Errorf("b.DefaultAnalyzed.Value: want hello, got %s", constB.Value)
+	}
+}
+
+// TestAnalyze_15_3_GeneratedAnalyzed tests that GENERATED ALWAYS AS expressions are analyzed.
+func TestAnalyze_15_3_GeneratedAnalyzed(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) STORED)`)
+
+	db := c.GetDatabase("testdb")
+	tbl := db.GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t not found")
+	}
+
+	colC := tbl.GetColumn("c")
+	if colC == nil {
+		t.Fatal("column c not found")
+	}
+	if colC.GeneratedAnalyzed == nil {
+		t.Fatal("c.GeneratedAnalyzed: want non-nil, got nil")
+	}
+
+	opExpr, ok := colC.GeneratedAnalyzed.(*OpExprQ)
+	if !ok {
+		t.Fatalf("c.GeneratedAnalyzed: want *OpExprQ, got %T", colC.GeneratedAnalyzed)
+	}
+	if opExpr.Op != "+" {
+		t.Errorf("OpExprQ.Op: want +, got %s", opExpr.Op)
+	}
+
+	// Left should be VarExprQ for column a (AttNum=1).
+	leftVar, ok := opExpr.Left.(*VarExprQ)
+	if !ok {
+		t.Fatalf("Left: want *VarExprQ, got %T", opExpr.Left)
+	}
+	if leftVar.AttNum != 1 {
+		t.Errorf("Left.AttNum: want 1, got %d", leftVar.AttNum)
+	}
+
+	// Right should be VarExprQ for column b (AttNum=2).
+	rightVar, ok := opExpr.Right.(*VarExprQ)
+	if !ok {
+		t.Fatalf("Right: want *VarExprQ, got %T", opExpr.Right)
+	}
+	if rightVar.AttNum != 2 {
+		t.Errorf("Right.AttNum: want 2, got %d", rightVar.AttNum)
+	}
+}
+
+// TestAnalyze_15_4_FunctionReturnTypes tests that function return types are populated.
+func TestAnalyze_15_4_FunctionReturnTypes(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `CREATE TABLE employees (
+		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		name VARCHAR(100) NOT NULL
+	)`)
+
+	sel := parseSelect(t, "SELECT COUNT(*), CONCAT(name, '!'), NOW() FROM employees")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.TargetList) != 3 {
+		t.Fatalf("TargetList: want 3, got %d", len(q.TargetList))
+	}
+
+	// COUNT(*) -> BaseTypeBigInt
+	fc0, ok := q.TargetList[0].Expr.(*FuncCallExprQ)
+	if !ok {
+		t.Fatalf("TargetList[0].Expr: want *FuncCallExprQ, got %T", q.TargetList[0].Expr)
+	}
+	if fc0.ResultType == nil {
+		t.Fatal("COUNT(*) ResultType: want non-nil, got nil")
+	}
+	if fc0.ResultType.BaseType != BaseTypeBigInt {
+		t.Errorf("COUNT(*) ResultType.BaseType: want BaseTypeBigInt, got %d", fc0.ResultType.BaseType)
+	}
+
+	// CONCAT(name, '!') -> BaseTypeVarchar
+	fc1, ok := q.TargetList[1].Expr.(*FuncCallExprQ)
+	if !ok {
+		t.Fatalf("TargetList[1].Expr: want *FuncCallExprQ, got %T", q.TargetList[1].Expr)
+	}
+	if fc1.ResultType == nil {
+		t.Fatal("CONCAT() ResultType: want non-nil, got nil")
+	}
+	if fc1.ResultType.BaseType != BaseTypeVarchar {
+		t.Errorf("CONCAT() ResultType.BaseType: want BaseTypeVarchar, got %d", fc1.ResultType.BaseType)
+	}
+
+	// NOW() -> BaseTypeDateTime
+	fc2, ok := q.TargetList[2].Expr.(*FuncCallExprQ)
+	if !ok {
+		t.Fatalf("TargetList[2].Expr: want *FuncCallExprQ, got %T", q.TargetList[2].Expr)
+	}
+	if fc2.ResultType == nil {
+		t.Fatal("NOW() ResultType: want non-nil, got nil")
+	}
+	if fc2.ResultType.BaseType != BaseTypeDateTime {
+		t.Errorf("NOW() ResultType.BaseType: want BaseTypeDateTime, got %d", fc2.ResultType.BaseType)
+	}
+}
+
+// TestAnalyze_15_5_ViewFunctionTypeFlow tests that function return types flow through views.
+func TestAnalyze_15_5_ViewFunctionTypeFlow(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `CREATE TABLE t (id INT, name VARCHAR(100))`)
+	wtExec(t, c, `CREATE VIEW v AS SELECT id, name, COUNT(*) OVER () AS cnt FROM t`)
+
+	sel := parseSelect(t, "SELECT * FROM v")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// Should have 3 columns: id, name, cnt
+	if len(q.TargetList) != 3 {
+		t.Fatalf("TargetList: want 3, got %d", len(q.TargetList))
+	}
+	if q.TargetList[0].ResName != "id" {
+		t.Errorf("TargetList[0].ResName: want id, got %s", q.TargetList[0].ResName)
+	}
+	if q.TargetList[1].ResName != "name" {
+		t.Errorf("TargetList[1].ResName: want name, got %s", q.TargetList[1].ResName)
+	}
+	if q.TargetList[2].ResName != "cnt" {
+		t.Errorf("TargetList[2].ResName: want cnt, got %s", q.TargetList[2].ResName)
+	}
+}

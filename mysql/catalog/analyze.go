@@ -993,3 +993,12 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 
 	return q, nil
 }
+
+// AnalyzeStandaloneExpr analyzes an expression in the context of a single table.
+// Used for CHECK constraints, DEFAULT expressions, and GENERATED column expressions.
+func (c *Catalog) AnalyzeStandaloneExpr(expr nodes.ExprNode, table *Table) (AnalyzedExpr, error) {
+	scope := newScope()
+	// Register the table's columns into the scope at RTE index 0.
+	scope.add(table.Name, 0, table.Columns)
+	return analyzeExpr(c, expr, scope)
+}

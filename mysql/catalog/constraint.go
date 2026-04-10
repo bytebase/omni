@@ -21,6 +21,7 @@ type Constraint struct {
 	OnDelete    string
 	OnUpdate    string
 	MatchType   string
-	CheckExpr   string
-	NotEnforced bool
+	CheckExpr     string
+	NotEnforced   bool
+	CheckAnalyzed AnalyzedExpr // Phase 3: analyzed CHECK expression body
 }

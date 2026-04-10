@@ -490,8 +490,83 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		tbl.Partitioning = buildPartitionInfo(stmt.Partitions)
 	}
 
+	// Phase 3: analyze DEFAULT, GENERATED, and CHECK expressions now that all
+	// columns are present in the table.
+	c.analyzeTableExpressions(tbl, stmt)
+
 	db.Tables[key] = tbl
 	return nil
+}
+
+// analyzeTableExpressions performs best-effort semantic analysis on DEFAULT,
+// GENERATED, and CHECK expressions after all columns have been added to the table.
+func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStmt) {
+	// Analyze DEFAULT and GENERATED expressions from column definitions.
+	for i, colDef := range stmt.Columns {
+		if i >= len(tbl.Columns) {
+			break
+		}
+		col := tbl.Columns[i]
+
+		// Top-level DEFAULT.
+		if colDef.DefaultValue != nil {
+			if analyzed, err := c.AnalyzeStandaloneExpr(colDef.DefaultValue, tbl); err == nil {
+				col.DefaultAnalyzed = analyzed
+			}
+		}
+
+		// Column-constraint DEFAULT (may override top-level).
+		for _, cc := range colDef.Constraints {
+			if cc.Type == nodes.ColConstrDefault && cc.Expr != nil {
+				if analyzed, err := c.AnalyzeStandaloneExpr(cc.Expr, tbl); err == nil {
+					col.DefaultAnalyzed = analyzed
+				}
+			}
+		}
+
+		// GENERATED ALWAYS AS.
+		if colDef.Generated != nil {
+			if analyzed, err := c.AnalyzeStandaloneExpr(colDef.Generated.Expr, tbl); err == nil {
+				col.GeneratedAnalyzed = analyzed
+			}
+		}
+	}
+
+	// Analyze CHECK expressions on constraints.
+	// We iterate constraints and match CHECK ones; the AST sources are both
+	// column-level and table-level constraint nodes.
+	checkIdx := 0
+	for _, colDef := range stmt.Columns {
+		for _, cc := range colDef.Constraints {
+			if cc.Type == nodes.ColConstrCheck && cc.Expr != nil {
+				// Find matching CHECK constraint by index.
+				for checkIdx < len(tbl.Constraints) {
+					if tbl.Constraints[checkIdx].Type == ConCheck {
+						if analyzed, err := c.AnalyzeStandaloneExpr(cc.Expr, tbl); err == nil {
+							tbl.Constraints[checkIdx].CheckAnalyzed = analyzed
+						}
+						checkIdx++
+						break
+					}
+					checkIdx++
+				}
+			}
+		}
+	}
+	for _, con := range stmt.Constraints {
+		if con.Type == nodes.ConstrCheck && con.Expr != nil {
+			for checkIdx < len(tbl.Constraints) {
+				if tbl.Constraints[checkIdx].Type == ConCheck {
+					if analyzed, err := c.AnalyzeStandaloneExpr(con.Expr, tbl); err == nil {
+						tbl.Constraints[checkIdx].CheckAnalyzed = analyzed
+					}
+					checkIdx++
+					break
+				}
+				checkIdx++
+			}
+		}
+	}
 }
 
 // buildPartitionInfo converts an AST PartitionClause to a catalog PartitionInfo.

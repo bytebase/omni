@@ -69,9 +69,11 @@ type Column struct {
 	Collation      string
 	Comment        string
 	OnUpdate       string
-	Generated      *GeneratedColumnInfo
-	Invisible      bool
-	SRID           int // Spatial Reference ID (0 = not set)
+	Generated         *GeneratedColumnInfo
+	Invisible         bool
+	SRID              int // Spatial Reference ID (0 = not set)
+	DefaultAnalyzed   AnalyzedExpr // Phase 3: analyzed DEFAULT expression
+	GeneratedAnalyzed AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
 }
 
 type GeneratedColumnInfo struct {

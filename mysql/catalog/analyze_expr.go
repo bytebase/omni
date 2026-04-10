@@ -88,12 +88,15 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 	if lower == "coalesce" || lower == "ifnull" {
 		return &CoalesceExprQ{Args: args}, nil
 	}
-	return &FuncCallExprQ{
+	result := &FuncCallExprQ{
 		Name:        lower,
 		Args:        args,
 		IsAggregate: isAggregateFunc(fc.Name),
 		Distinct:    fc.Distinct,
-	}, nil
+	}
+	// Phase 3: populate return type from function type table.
+	result.ResultType = functionReturnType(result.Name, result.Args)
+	return result, nil
 }
 
 // analyzeBinaryExpr resolves a binary expression.
