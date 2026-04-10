@@ -223,7 +223,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 			return nil, false, p.syntaxErrorAtCur()
 		}
 		p.match('=')
-		val, _, err := p.parseIdent()
+		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
 		}
