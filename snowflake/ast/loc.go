@@ -12,6 +12,8 @@ func NodeLoc(n Node) Loc {
 	switch v := n.(type) {
 	case *File:
 		return v.Loc
+	case *ObjectName:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

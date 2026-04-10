@@ -18,6 +18,9 @@ const (
 	// T_File is the tag for *File, the root statement-list container
 	// returned by F4 (parser-entry).
 	T_File
+
+	// T_ObjectName is the tag for *ObjectName, a qualified 1/2/3-part name.
+	T_ObjectName
 )
 
 // String returns a human-readable representation of the tag.
@@ -27,6 +30,8 @@ func (t NodeTag) String() string {
 		return "Invalid"
 	case T_File:
 		return "File"
+	case T_ObjectName:
+		return "ObjectName"
 	default:
 		return "Unknown"
 	}
