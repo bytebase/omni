@@ -49,6 +49,9 @@ Replace the SELECT and UNION/INTERSECT/EXCEPT deferred-feature stubs from parser
 **exprprimary.go changes:**
 - `parseParenExpr`: after parsing the inner expression, if the result is a SelectStmt (detected via type assertion), wrap it in `ast.SubLink` before returning.
 
+**Note on ParseStatement:**
+Node 5 does NOT introduce `ParseStatement`. SELECT stays entirely within the expression ladder: `parseSelectExpr` dispatches to `parseSFWQuery` when the current token is `tokSELECT` (or `tokPIVOT`). When `ParseStatement` is eventually called (introduced by node 7, parser-ddl), it dispatches DQL through `ParseExpr`, which descends through the expression ladder and reaches `parseSelectExpr` normally. Node 5's changes are purely within `expr.go`, `select.go`, and `from.go`.
+
 ### 3.3 AST nodes produced
 
 All exist in `partiql/ast/stmts.go` and `partiql/ast/tableexprs.go`:
