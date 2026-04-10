@@ -415,20 +415,26 @@ func TestParser_AWSCorpus(t *testing.T) {
 }
 
 // TestParser_StmtGoldens iterates every .partiql file under
-// testdata/parser-ddl/ and compares ParseStatement output (via
-// ast.NodeToString) against the matching .golden file.
+// testdata/parser-ddl/ and testdata/parser-select/ and compares
+// ParseStatement output (via ast.NodeToString) against the matching
+// .golden file.
 //
 // Run with `go test -update -run TestParser_StmtGoldens ./partiql/parser/...`
 // to regenerate goldens after intentional AST shape changes.
 func TestParser_StmtGoldens(t *testing.T) {
-	files, err := filepath.Glob("testdata/parser-ddl/*.partiql")
-	if err != nil {
-		t.Fatal(err)
+	dirs := []string{"testdata/parser-ddl", "testdata/parser-select"}
+	var allFiles []string
+	for _, dir := range dirs {
+		files, err := filepath.Glob(dir + "/*.partiql")
+		if err != nil {
+			t.Fatal(err)
+		}
+		allFiles = append(allFiles, files...)
 	}
-	if len(files) == 0 {
-		t.Fatal("no golden inputs found under testdata/parser-ddl/")
+	if len(allFiles) == 0 {
+		t.Fatal("no golden inputs found")
 	}
-	for _, inPath := range files {
+	for _, inPath := range allFiles {
 		name := strings.TrimSuffix(filepath.Base(inPath), ".partiql")
 		t.Run(name, func(t *testing.T) {
 			input, err := os.ReadFile(inPath)
@@ -530,16 +536,6 @@ func TestParser_Errors(t *testing.T) {
 		wantErrIn string
 	}{
 		// --- Deferred-feature stubs (one per owner node) ---
-		{
-			name:      "select_stub",
-			input:     "SELECT * FROM t",
-			wantErrIn: "SELECT is deferred to parser-select (DAG node 5)",
-		},
-		{
-			name:      "union_stub",
-			input:     "a UNION b",
-			wantErrIn: "UNION is deferred to parser-select (DAG node 5)",
-		},
 		{
 			name:      "insert_stub",
 			input:     "INSERT INTO t VALUE 1",
@@ -673,6 +669,60 @@ func TestParser_Errors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := NewParser(tc.input)
 			_, err := p.ParseExpr()
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.wantErrIn) {
+				t.Errorf("error = %q, want to contain %q", err.Error(), tc.wantErrIn)
+			}
+		})
+	}
+}
+
+// TestParser_SelectErrors verifies that malformed SELECT statements
+// produce the expected parse errors.
+func TestParser_SelectErrors(t *testing.T) {
+	cases := []struct {
+		name      string
+		input     string
+		wantErrIn string
+	}{
+		{
+			name:      "select_missing_from",
+			input:     "SELECT *",
+			wantErrIn: "expected FROM",
+		},
+		{
+			name:      "join_missing_on",
+			input:     "SELECT * FROM t1 INNER JOIN t2",
+			wantErrIn: "expected ON after JOIN",
+		},
+		{
+			name:      "order_by_missing_by",
+			input:     "SELECT * FROM t ORDER a",
+			wantErrIn: "expected BY",
+		},
+		{
+			name:      "nulls_missing_direction",
+			input:     "SELECT * FROM t ORDER BY a NULLS MAYBE",
+			wantErrIn: "expected FIRST or LAST after NULLS",
+		},
+		{
+			name:      "let_deferred",
+			input:     "SELECT * FROM t LET x AS y",
+			wantErrIn: "LET is deferred to parser-let-pivot (DAG node 12)",
+		},
+		{
+			name:      "pivot_deferred",
+			input:     "PIVOT v AT k FROM t",
+			wantErrIn: "PIVOT is deferred to parser-let-pivot (DAG node 12)",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewParser(tc.input)
+			_, err := p.ParseStatement()
 			if err == nil {
 				t.Fatal("expected error, got nil")
 			}

@@ -281,41 +281,52 @@ func (p *Parser) parseIsBody(left ast.ExprNode, not bool, startLoc int) (*ast.Is
 //
 // Grammar: exprPredicate#PredicateIn (lines 487-488).
 //
-// Foundation implements the parenthesized form only (the common case).
-// The un-parenthesized `NOT? IN mathOp00` form is grammar-legal but rare
-// and currently returns a parse error pointing at the missing `(`.
+// Supports two forms:
+//  1. Parenthesized list: `IN (expr, expr, ...)`
+//  2. Expression form: `IN expr` where expr is typically an array
+//     literal like `[1, 2, 3]` or a subquery.
 func (p *Parser) parseInBody(left ast.ExprNode, not bool, startLoc int) (*ast.InExpr, error) {
 	p.advance() // consume IN
-	if p.cur.Type != tokPAREN_LEFT {
-		return nil, &ParseError{
-			Message: "expected ( after IN",
-			Loc:     p.cur.Loc,
-		}
-	}
-	p.advance() // consume (
-	var list []ast.ExprNode
-	if p.cur.Type != tokPAREN_RIGHT {
-		for {
-			item, err := p.parseMathOp00()
-			if err != nil {
-				return nil, err
+
+	// Parenthesized form: IN (expr, expr, ...)
+	if p.cur.Type == tokPAREN_LEFT {
+		p.advance() // consume (
+		var list []ast.ExprNode
+		if p.cur.Type != tokPAREN_RIGHT {
+			for {
+				item, err := p.parseMathOp00()
+				if err != nil {
+					return nil, err
+				}
+				list = append(list, item)
+				if p.cur.Type != tokCOMMA {
+					break
+				}
+				p.advance() // consume ,
 			}
-			list = append(list, item)
-			if p.cur.Type != tokCOMMA {
-				break
-			}
-			p.advance() // consume ,
 		}
+		rp, err := p.expect(tokPAREN_RIGHT)
+		if err != nil {
+			return nil, err
+		}
+		return &ast.InExpr{
+			Expr: left,
+			List: list,
+			Not:  not,
+			Loc:  ast.Loc{Start: startLoc, End: rp.Loc.End},
+		}, nil
 	}
-	rp, err := p.expect(tokPAREN_RIGHT)
+
+	// Expression form: IN expr (e.g., IN [1, 2, 3]).
+	rhs, err := p.parseMathOp00()
 	if err != nil {
 		return nil, err
 	}
 	return &ast.InExpr{
 		Expr: left,
-		List: list,
+		List: []ast.ExprNode{rhs},
 		Not:  not,
-		Loc:  ast.Loc{Start: startLoc, End: rp.Loc.End},
+		Loc:  ast.Loc{Start: startLoc, End: rhs.GetLoc().End},
 	}, nil
 }
 
@@ -452,51 +463,117 @@ func (p *Parser) parseNot() (ast.ExprNode, error) {
 }
 
 // parseBagOp handles UNION/INTERSECT/EXCEPT at the top of the
-// precedence ladder. Foundation stubs this — if the caller's input
-// contains UNION, INTERSECT, or EXCEPT after the first selectExpr,
-// the parser returns a deferred-feature error pointing at
-// parser-select (DAG node 5).
+// precedence ladder. Builds left-associative SetOpStmt chains wrapped
+// in SubLink.
 //
-// Node 5 will replace this body with real left-associative
-// parseSelectExpr-combining logic.
+// Grammar: exprBagOp (lines 449-454):
 //
-// Grammar: exprBagOp (lines 449-454).
+//	lhs=exprBagOp OUTER? EXCEPT (DISTINCT|ALL)? rhs=exprSelect  # Except
+//	lhs=exprBagOp OUTER? UNION (DISTINCT|ALL)? rhs=exprSelect   # Union
+//	lhs=exprBagOp OUTER? INTERSECT (DISTINCT|ALL)? rhs=exprSelect # Intersect
+//	exprSelect                                                    # QueryBase
 func (p *Parser) parseBagOp() (ast.ExprNode, error) {
 	left, err := p.parseSelectExpr()
 	if err != nil {
 		return nil, err
 	}
-	// If we see a bag-op keyword after the first selectExpr, stub.
-	if p.cur.Type == tokUNION {
-		return nil, p.deferredFeature("UNION", "parser-select (DAG node 5)")
+
+	for {
+		outer := false
+		var opKind ast.SetOpKind
+
+		// Check for OUTER prefix before the set-op keyword.
+		if p.cur.Type == tokOUTER {
+			next := p.peekNext()
+			if next.Type == tokUNION || next.Type == tokINTERSECT || next.Type == tokEXCEPT {
+				outer = true
+				p.advance() // consume OUTER
+			} else {
+				break
+			}
+		}
+
+		switch p.cur.Type {
+		case tokUNION:
+			opKind = ast.SetOpUnion
+		case tokINTERSECT:
+			opKind = ast.SetOpIntersect
+		case tokEXCEPT:
+			opKind = ast.SetOpExcept
+		default:
+			break
+		}
+		if opKind == ast.SetOpInvalid {
+			break
+		}
+		p.advance() // consume UNION/INTERSECT/EXCEPT
+
+		// Optional DISTINCT/ALL quantifier.
+		quantifier := ast.QuantifierNone
+		if p.cur.Type == tokDISTINCT {
+			quantifier = ast.QuantifierDistinct
+			p.advance()
+		} else if p.cur.Type == tokALL {
+			quantifier = ast.QuantifierAll
+			p.advance()
+		}
+
+		right, err := p.parseSelectExpr()
+		if err != nil {
+			return nil, err
+		}
+
+		// Extract StmtNode from left and right for SetOpStmt.
+		leftStmt := exprToStmt(left)
+		rightStmt := exprToStmt(right)
+
+		setOp := &ast.SetOpStmt{
+			Op:         opKind,
+			Quantifier: quantifier,
+			Outer:      outer,
+			Left:       leftStmt,
+			Right:      rightStmt,
+			Loc:        ast.Loc{Start: left.GetLoc().Start, End: right.GetLoc().End},
+		}
+		left = &ast.SubLink{
+			Stmt: setOp,
+			Loc:  setOp.Loc,
+		}
 	}
-	if p.cur.Type == tokINTERSECT {
-		return nil, p.deferredFeature("INTERSECT", "parser-select (DAG node 5)")
-	}
-	if p.cur.Type == tokEXCEPT {
-		return nil, p.deferredFeature("EXCEPT", "parser-select (DAG node 5)")
-	}
+
 	return left, nil
 }
 
+// exprToStmt extracts a StmtNode from an ExprNode. If the expression
+// is a SubLink, returns its inner Stmt. Otherwise wraps the expression
+// in a minimal SelectStmt (bare expression as query — for set-op
+// operands that are not SELECT queries but plain expressions).
+func exprToStmt(expr ast.ExprNode) ast.StmtNode {
+	if sub, ok := expr.(*ast.SubLink); ok {
+		return sub.Stmt
+	}
+	// Bare expression used as a set-op operand: wrap in a SelectStmt
+	// with just the Value field (SELECT VALUE expr semantics).
+	return &ast.SelectStmt{
+		Value: expr,
+		Loc:   expr.GetLoc(),
+	}
+}
+
 // parseSelectExpr handles the SELECT-shaped query (SfwQuery form) and
-// otherwise delegates to parseOr. Foundation stubs SELECT — if the
-// first token is SELECT, the parser returns a deferred-feature error.
+// otherwise delegates to parseOr.
 //
 // DML statements (INSERT, UPDATE, DELETE) are also statement-level
-// constructs that cannot appear as expressions in the foundation.
-// They are stubbed here so the AWS corpus smoke test can verify the
-// parser handles them gracefully rather than crashing.
-//
-// Node 5 will replace the SELECT-detection branch with real SFW query
-// parsing that produces ast.SelectStmt (via ast.StmtNode wrapped in a
-// SubLink if used inside an expression).
+// constructs that cannot appear as expressions; they remain stubbed
+// for future parser-dml (DAG node 6).
 //
 // Grammar: exprSelect (lines 456-467).
 func (p *Parser) parseSelectExpr() (ast.ExprNode, error) {
 	switch p.cur.Type {
 	case tokSELECT:
-		return nil, p.deferredFeature("SELECT", "parser-select (DAG node 5)")
+		return p.parseSFWQuery()
+	case tokPIVOT:
+		return nil, p.deferredFeature("PIVOT", "parser-let-pivot (DAG node 12)")
 	case tokINSERT:
 		return nil, p.deferredFeature("INSERT", "parser-dml (DAG node 6)")
 	case tokUPDATE:

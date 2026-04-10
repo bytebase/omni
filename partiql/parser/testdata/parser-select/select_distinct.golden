@@ -1,0 +1,1 @@
+SelectStmt{Quantifier:DISTINCT Star:true From:VarRef{Name:t}}

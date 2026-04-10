@@ -1,0 +1,1 @@
+SetOpStmt{Op:INTERSECT Left:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:a}}] From:VarRef{Name:t1}} Right:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:b}}] From:VarRef{Name:t2}}}

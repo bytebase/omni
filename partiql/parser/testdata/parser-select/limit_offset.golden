@@ -1,0 +1,1 @@
+SelectStmt{Star:true From:VarRef{Name:t} Limit:NumberLit{Val:10} Offset:NumberLit{Val:5}}

@@ -1,0 +1,1 @@
+SelectStmt{Star:true From:JoinExpr{Kind:CROSS Left:VarRef{Name:t1} Right:VarRef{Name:t2}}}

@@ -1,0 +1,1 @@
+SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:k}}] From:VarRef{Name:t} GroupBy:GroupByClause{Items:[GroupByItem{Expr:VarRef{Name:k}}]}}

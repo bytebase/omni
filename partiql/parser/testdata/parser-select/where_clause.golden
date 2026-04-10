@@ -1,0 +1,1 @@
+SelectStmt{Star:true From:VarRef{Name:t} Where:BinaryExpr{Op:> Left:VarRef{Name:a} Right:NumberLit{Val:1}}}

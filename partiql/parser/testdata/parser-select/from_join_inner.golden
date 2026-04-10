@@ -1,0 +1,1 @@
+SelectStmt{Star:true From:JoinExpr{Kind:INNER Left:VarRef{Name:t1} Right:VarRef{Name:t2} On:BinaryExpr{Op:= Left:PathExpr{Root:VarRef{Name:t1} Steps:[DotStep{Field:id}]} Right:PathExpr{Root:VarRef{Name:t2} Steps:[DotStep{Field:id}]}}}}

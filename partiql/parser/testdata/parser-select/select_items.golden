@@ -1,0 +1,1 @@
+SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:a}} TargetEntry{Expr:VarRef{Name:b} Alias:x}] From:VarRef{Name:t}}

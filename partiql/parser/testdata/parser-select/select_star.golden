@@ -1,0 +1,1 @@
+SelectStmt{Star:true From:VarRef{Name:t}}

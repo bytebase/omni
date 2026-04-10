@@ -1,0 +1,1 @@
+SelectStmt{Star:true From:VarRef{Name:t} OrderBy:[OrderByItem{Expr:VarRef{Name:a} Desc:true NullsFirst:false}]}
