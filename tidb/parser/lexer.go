@@ -1952,6 +1952,11 @@ func (l *Lexer) skipWhitespaceAndComments() {
 						end++
 					}
 				}
+				// If comment is unclosed (no matching */), treat as regular block comment.
+				if depth > 0 {
+					l.pos = len(l.input)
+					continue
+				}
 				inner := l.input[innerStart:end]
 				l.input = l.input[:l.pos] + inner + l.input[end+2:]
 				continue

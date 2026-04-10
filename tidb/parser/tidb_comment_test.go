@@ -83,6 +83,35 @@ func TestTiDBCommentEmpty(t *testing.T) {
 	}
 }
 
+func TestTiDBCommentUnclosed(t *testing.T) {
+	// Unclosed TiDB comments must not panic.
+	tests := []struct {
+		sql     string
+		wantErr bool
+	}{
+		{"SELECT /*T! 1", true},          // unclosed, incomplete SQL
+		{"SELECT /*T![ttl] 1", true},     // unclosed with feature gate
+		{"SELECT /*T![auto_rand] col", true}, // unclosed, dangling identifier
+		{"/*T! SELECT 1", false},         // unclosed but inner SQL is valid after injection
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("parser panicked on unclosed TiDB comment: %v", r)
+				}
+			}()
+			_, err := Parse(tt.sql)
+			if tt.wantErr && err == nil {
+				t.Error("expected parse error for unclosed TiDB comment, got nil")
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("expected no error, got: %v", err)
+			}
+		})
+	}
+}
+
 func TestAllTiDBFeaturesSupported(t *testing.T) {
 	tests := []struct {
 		features string

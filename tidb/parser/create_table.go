@@ -405,16 +405,8 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrPrimaryKey,
 		}
-		// TiDB: CLUSTERED/NONCLUSTERED
-		if p.cur.Type == kwCLUSTERED {
-			p.advance()
-			b := true
-			cc.Clustered = &b
-			cc.Loc.End = p.pos()
-		} else if p.cur.Type == kwNONCLUSTERED {
-			p.advance()
-			b := false
-			cc.Clustered = &b
+		if cl := p.parseClusteredAttr(); cl != nil {
+			cc.Clustered = cl
 			cc.Loc.End = p.pos()
 		}
 		col.Constraints = append(col.Constraints, cc)
@@ -427,16 +419,8 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrPrimaryKey,
 		}
-		// TiDB: CLUSTERED/NONCLUSTERED
-		if p.cur.Type == kwCLUSTERED {
-			p.advance()
-			b := true
-			cc.Clustered = &b
-			cc.Loc.End = p.pos()
-		} else if p.cur.Type == kwNONCLUSTERED {
-			p.advance()
-			b := false
-			cc.Clustered = &b
+		if cl := p.parseClusteredAttr(); cl != nil {
+			cc.Clustered = cl
 			cc.Loc.End = p.pos()
 		}
 		col.Constraints = append(col.Constraints, cc)
@@ -912,16 +896,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
 		p.parseConstraintIndexOptions(constr)
-		// TiDB: CLUSTERED/NONCLUSTERED
-		if p.cur.Type == kwCLUSTERED {
-			p.advance()
-			b := true
-			constr.Clustered = &b
-		} else if p.cur.Type == kwNONCLUSTERED {
-			p.advance()
-			b := false
-			constr.Clustered = &b
-		}
+		constr.Clustered = p.parseClusteredAttr()
 
 	case kwUNIQUE:
 		p.advance()
@@ -1110,6 +1085,21 @@ func (p *Parser) parseIndexTypeClause(constr *nodes.Constraint) {
 //	ROW_FORMAT [=] format
 //	KEY_BLOCK_SIZE [=] value
 //	And many more...
+// parseClusteredAttr parses optional CLUSTERED/NONCLUSTERED after PRIMARY KEY.
+// Returns nil if neither keyword is present.
+func (p *Parser) parseClusteredAttr() *bool {
+	if p.cur.Type == kwCLUSTERED {
+		p.advance()
+		b := true
+		return &b
+	} else if p.cur.Type == kwNONCLUSTERED {
+		p.advance()
+		b := false
+		return &b
+	}
+	return nil
+}
+
 func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	// Completion: offer table option keywords.
 	p.checkCursor()
@@ -1396,6 +1386,10 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwTTL:
 		// TTL = column_name + INTERVAL n UNIT
+		// NOTE: TTL expression is consumed as raw tokens joined with spaces.
+		// This works for typical expressions (e.g., "created_at + INTERVAL 1 YEAR")
+		// but may mangle string literals or complex expressions. A proper fix would
+		// use parseExpr() and deparse, but that's deferred for simplicity.
 		p.advance()
 		p.match('=')
 		var ttlParts []string
