@@ -1,0 +1,1 @@
+PathExpr{Root:VarRef{Name:t} Steps:[IndexStep{Index:NumberLit{Val:0}}]}

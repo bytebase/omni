@@ -1,0 +1,1 @@
+PathExpr{Root:VarRef{Name:t} Steps:[DotStep{Field:foo} DotStep{Field:bar} DotStep{Field:baz}]}

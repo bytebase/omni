@@ -1,0 +1,1 @@
+BinaryExpr{Op:+ Left:NumberLit{Val:1} Right:NumberLit{Val:2}}

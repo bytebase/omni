@@ -1,0 +1,1 @@
+PathExpr{Root:NumberLit{Val:42} Steps:[DotStep{Field:foo}]}
