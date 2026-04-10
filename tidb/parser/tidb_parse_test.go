@@ -50,3 +50,77 @@ func TestAutoRandomOutfuncs(t *testing.T) {
 		t.Errorf("outfuncs missing auto_random: %s", out)
 	}
 }
+
+func TestParseTiDBTableOptions(t *testing.T) {
+	tests := []struct {
+		name     string
+		sql      string
+		optName  string
+		optValue string // empty = just verify parse success
+	}{
+		{"shard_row_id_bits", "CREATE TABLE t (id INT) SHARD_ROW_ID_BITS = 4", "SHARD_ROW_ID_BITS", "4"},
+		{"pre_split_regions", "CREATE TABLE t (id INT) PRE_SPLIT_REGIONS = 3", "PRE_SPLIT_REGIONS", "3"},
+		{"auto_id_cache", "CREATE TABLE t (id INT) AUTO_ID_CACHE = 100", "AUTO_ID_CACHE", "100"},
+		{"auto_random_base", "CREATE TABLE t (id BIGINT AUTO_RANDOM PRIMARY KEY) AUTO_RANDOM_BASE = 1000", "AUTO_RANDOM_BASE", "1000"},
+		{"ttl_enable", "CREATE TABLE t (id INT) TTL_ENABLE = 'OFF'", "TTL_ENABLE", ""},
+		{"ttl_job_interval", "CREATE TABLE t (id INT) TTL_JOB_INTERVAL = '1h'", "TTL_JOB_INTERVAL", ""},
+		{"placement_policy", "CREATE TABLE t (id INT) PLACEMENT POLICY = p1", "PLACEMENT POLICY", "p1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			list, err := Parse(tt.sql)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			stmt := list.Items[0].(*nodes.CreateTableStmt)
+			found := false
+			for _, opt := range stmt.Options {
+				if strings.EqualFold(opt.Name, tt.optName) {
+					found = true
+					if tt.optValue != "" && opt.Value != tt.optValue {
+						t.Errorf("option %s: got %q, want %q", tt.optName, opt.Value, tt.optValue)
+					}
+				}
+			}
+			if !found {
+				t.Errorf("option %s not found in parsed options", tt.optName)
+			}
+		})
+	}
+}
+
+func TestParseTTLExpression(t *testing.T) {
+	sql := "CREATE TABLE t (id INT, created_at DATETIME) TTL = created_at + INTERVAL 1 YEAR"
+	list, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	stmt := list.Items[0].(*nodes.CreateTableStmt)
+	found := false
+	for _, opt := range stmt.Options {
+		if opt.Name == "TTL" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("TTL option not found")
+	}
+}
+
+func TestParseDatabasePlacementPolicy(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"create", "CREATE DATABASE d PLACEMENT POLICY = p1"},
+		{"alter", "ALTER DATABASE d PLACEMENT POLICY = p1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Parse(tt.sql)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+		})
+	}
+}

@@ -1291,6 +1291,84 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DATA DIRECTORY", Value: val}, true, nil
 		}
 		return nil, false, nil
+
+	case kwSHARD_ROW_ID_BITS:
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "SHARD_ROW_ID_BITS", Value: val}, true, nil
+
+	case kwPRE_SPLIT_REGIONS:
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "PRE_SPLIT_REGIONS", Value: val}, true, nil
+
+	case kwAUTO_ID_CACHE:
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "AUTO_ID_CACHE", Value: val}, true, nil
+
+	case kwAUTO_RANDOM_BASE:
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "AUTO_RANDOM_BASE", Value: val}, true, nil
+
+	case kwTTL_ENABLE:
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "TTL_ENABLE", Value: val}, true, nil
+
+	case kwTTL_JOB_INTERVAL:
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "TTL_JOB_INTERVAL", Value: val}, true, nil
+
+	case kwPLACEMENT:
+		p.advance()
+		if _, ok := p.match(kwPOLICY); !ok {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "PLACEMENT POLICY", Value: val}, true, nil
+
+	case kwTTL:
+		// TTL = column_name + INTERVAL n UNIT
+		p.advance()
+		p.match('=')
+		var ttlParts []string
+		for p.cur.Type != tokEOF && p.cur.Type != ';' && p.cur.Type != ',' && !p.isTableOptionKeyword() {
+			ttlParts = append(ttlParts, p.cur.Str)
+			p.advance()
+		}
+		val := strings.Join(ttlParts, " ")
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "TTL", Value: val}, true, nil
 	}
 
 	// Handle keyword-token-based table options: COMPRESSION, INSERT_METHOD.
@@ -1349,6 +1427,26 @@ func (p *Parser) consumeOptionValue() (string, error) {
 		}
 		return "", nil
 	}
+}
+
+// isTableOptionKeyword returns true if the current token is a keyword that
+// starts a new table option. Used for TTL expression boundary detection.
+func (p *Parser) isTableOptionKeyword() bool {
+	switch p.cur.Type {
+	case kwENGINE, kwAUTO_INCREMENT, kwDEFAULT, kwCHARSET, kwCHARACTER,
+		kwCOLLATE, kwCOMMENT, kwROW_FORMAT, kwCONNECTION, kwPASSWORD,
+		kwSTORAGE, kwSTART, kwCHECKSUM, kwTABLESPACE, kwENCRYPTION,
+		kwUNION, kwINDEX, kwDATA, kwCOMPRESSION, kwINSERT_METHOD,
+		kwKEY_BLOCK_SIZE, kwSTATS_AUTO_RECALC, kwSTATS_PERSISTENT,
+		kwSTATS_SAMPLE_PAGES, kwMAX_ROWS, kwMIN_ROWS, kwAVG_ROW_LENGTH,
+		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
+		kwSECONDARY_ENGINE_ATTRIBUTE, kwAUTOEXTEND_SIZE, kwENGINE_ATTRIBUTE,
+		kwSHARD_ROW_ID_BITS, kwPRE_SPLIT_REGIONS, kwAUTO_ID_CACHE,
+		kwAUTO_RANDOM_BASE, kwTTL_ENABLE, kwTTL_JOB_INTERVAL, kwPLACEMENT,
+		kwTTL, kwPARTITION:
+		return true
+	}
+	return false
 }
 
 // parsePartitionClause parses a PARTITION BY clause.
