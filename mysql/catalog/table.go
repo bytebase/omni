@@ -89,6 +89,7 @@ type View struct {
 	CheckOption     string
 	Columns         []string // All column names (explicit or derived from SELECT)
 	ExplicitColumns bool     // true if the user specified a column list in CREATE VIEW
+	AnalyzedQuery   *Query   // analyzed view body (populated on CREATE VIEW); nil if analysis failed
 }
 
 // Routine represents a stored function or procedure in the catalog.

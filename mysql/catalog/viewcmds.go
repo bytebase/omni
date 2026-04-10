@@ -30,6 +30,19 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
 		definer = "`root`@`%`"
 	}
 
+	// Analyze the view body for semantic IR (used by lineage, SDL diff).
+	// Done before deparseViewSelect because deparse mutates the AST.
+	var analyzedQuery *Query
+	if stmt.Select != nil {
+		q, err := c.AnalyzeSelectStmt(stmt.Select)
+		if err == nil {
+			analyzedQuery = q
+		}
+		// Swallow error: view analysis may fail for complex views not yet
+		// supported by the analyzer. The view still gets created with
+		// Definition text but without AnalyzedQuery.
+	}
+
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
 	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, db)
 
@@ -50,6 +63,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
 		CheckOption:     stmt.CheckOption,
 		Columns:         viewCols,
 		ExplicitColumns: hasExplicit,
+		AnalyzedQuery:   analyzedQuery,
 	}
 	return nil
 }
@@ -71,6 +85,16 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt) error {
 		definer = "`root`@`%`"
 	}
 
+	// Analyze the view body for semantic IR (used by lineage, SDL diff).
+	// Done before deparseViewSelect because deparse mutates the AST.
+	var analyzedQuery *Query
+	if stmt.Select != nil {
+		q, err := c.AnalyzeSelectStmt(stmt.Select)
+		if err == nil {
+			analyzedQuery = q
+		}
+	}
+
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
 	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, db)
 
@@ -91,6 +115,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt) error {
 		CheckOption:     stmt.CheckOption,
 		Columns:         viewCols,
 		ExplicitColumns: hasExplicit,
+		AnalyzedQuery:   analyzedQuery,
 	}
 	return nil
 }
