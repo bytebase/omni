@@ -1558,3 +1558,476 @@ func TestAnalyze_6_4_NoFromClause(t *testing.T) {
 		t.Errorf("FuncCallExprQ.IsAggregate: want false, got true")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Phase 1b — Batches 7-10: JOINs, USING/NATURAL, FROM subqueries
+// ---------------------------------------------------------------------------
+
+const departmentsTableDDL = `CREATE TABLE departments (
+	id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	name VARCHAR(100) NOT NULL,
+	budget DECIMAL(12,2)
+)`
+
+const projectsTableDDL = `CREATE TABLE projects (
+	id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	name VARCHAR(100) NOT NULL,
+	department_id INT NOT NULL,
+	start_date DATE
+)`
+
+// setupJoinTables creates employees, departments, and projects tables.
+func setupJoinTables(t *testing.T) *Catalog {
+	t.Helper()
+	c := wtSetup(t)
+	wtExec(t, c, employeesTableDDL)
+	wtExec(t, c, departmentsTableDDL)
+	wtExec(t, c, projectsTableDDL)
+	return c
+}
+
+// --- Batch 7: Basic JOINs ---
+
+// TestAnalyze_7_1_InnerJoin tests INNER JOIN with ON condition.
+func TestAnalyze_7_1_InnerJoin(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT e.name, d.name AS dept_name FROM employees e INNER JOIN departments d ON e.department_id = d.id`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// 3 RTEs: employees, departments, RTEJoin
+	if len(q.RangeTable) != 3 {
+		t.Fatalf("RangeTable: want 3 entries, got %d", len(q.RangeTable))
+	}
+	if q.RangeTable[0].Kind != RTERelation || q.RangeTable[0].ERef != "e" {
+		t.Errorf("RTE[0]: want RTERelation 'e', got kind=%d eref=%q", q.RangeTable[0].Kind, q.RangeTable[0].ERef)
+	}
+	if q.RangeTable[1].Kind != RTERelation || q.RangeTable[1].ERef != "d" {
+		t.Errorf("RTE[1]: want RTERelation 'd', got kind=%d eref=%q", q.RangeTable[1].Kind, q.RangeTable[1].ERef)
+	}
+	if q.RangeTable[2].Kind != RTEJoin {
+		t.Errorf("RTE[2]: want RTEJoin, got kind=%d", q.RangeTable[2].Kind)
+	}
+	if q.RangeTable[2].JoinType != JoinInner {
+		t.Errorf("RTE[2].JoinType: want JoinInner, got %d", q.RangeTable[2].JoinType)
+	}
+
+	// JoinTree.FromList should have 1 JoinExprNodeQ.
+	if len(q.JoinTree.FromList) != 1 {
+		t.Fatalf("FromList: want 1 entry, got %d", len(q.JoinTree.FromList))
+	}
+	je, ok := q.JoinTree.FromList[0].(*JoinExprNodeQ)
+	if !ok {
+		t.Fatalf("FromList[0]: want *JoinExprNodeQ, got %T", q.JoinTree.FromList[0])
+	}
+	if je.JoinType != JoinInner {
+		t.Errorf("JoinExprNodeQ.JoinType: want JoinInner, got %d", je.JoinType)
+	}
+	if je.Natural {
+		t.Errorf("JoinExprNodeQ.Natural: want false, got true")
+	}
+	if je.Quals == nil {
+		t.Error("JoinExprNodeQ.Quals: want non-nil ON condition, got nil")
+	}
+	// ON condition should be OpExprQ with "="
+	onOp, ok := je.Quals.(*OpExprQ)
+	if !ok {
+		t.Fatalf("Quals: want *OpExprQ, got %T", je.Quals)
+	}
+	if onOp.Op != "=" {
+		t.Errorf("ON Op: want %q, got %q", "=", onOp.Op)
+	}
+
+	// TargetList: 2 entries.
+	if len(q.TargetList) != 2 {
+		t.Fatalf("TargetList: want 2, got %d", len(q.TargetList))
+	}
+	if q.TargetList[0].ResName != "name" {
+		t.Errorf("TargetList[0].ResName: want %q, got %q", "name", q.TargetList[0].ResName)
+	}
+	if q.TargetList[1].ResName != "dept_name" {
+		t.Errorf("TargetList[1].ResName: want %q, got %q", "dept_name", q.TargetList[1].ResName)
+	}
+}
+
+// TestAnalyze_7_2_LeftJoin tests LEFT JOIN.
+func TestAnalyze_7_2_LeftJoin(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT e.name, d.name AS dept_name FROM employees e LEFT JOIN departments d ON e.department_id = d.id`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.RangeTable) != 3 {
+		t.Fatalf("RangeTable: want 3, got %d", len(q.RangeTable))
+	}
+	if q.RangeTable[2].JoinType != JoinLeft {
+		t.Errorf("RTE[2].JoinType: want JoinLeft, got %d", q.RangeTable[2].JoinType)
+	}
+	je := q.JoinTree.FromList[0].(*JoinExprNodeQ)
+	if je.JoinType != JoinLeft {
+		t.Errorf("JoinExprNodeQ.JoinType: want JoinLeft, got %d", je.JoinType)
+	}
+}
+
+// TestAnalyze_7_3_RightJoin tests RIGHT JOIN.
+func TestAnalyze_7_3_RightJoin(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT e.name, d.name AS dept_name FROM employees e RIGHT JOIN departments d ON e.department_id = d.id`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.RangeTable) != 3 {
+		t.Fatalf("RangeTable: want 3, got %d", len(q.RangeTable))
+	}
+	if q.RangeTable[2].JoinType != JoinRight {
+		t.Errorf("RTE[2].JoinType: want JoinRight, got %d", q.RangeTable[2].JoinType)
+	}
+	je := q.JoinTree.FromList[0].(*JoinExprNodeQ)
+	if je.JoinType != JoinRight {
+		t.Errorf("JoinExprNodeQ.JoinType: want JoinRight, got %d", je.JoinType)
+	}
+}
+
+// TestAnalyze_7_4_CrossJoin tests CROSS JOIN with no condition.
+func TestAnalyze_7_4_CrossJoin(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT e.name, d.name FROM employees e CROSS JOIN departments d`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.RangeTable) != 3 {
+		t.Fatalf("RangeTable: want 3, got %d", len(q.RangeTable))
+	}
+	if q.RangeTable[2].JoinType != JoinCross {
+		t.Errorf("RTE[2].JoinType: want JoinCross, got %d", q.RangeTable[2].JoinType)
+	}
+	je := q.JoinTree.FromList[0].(*JoinExprNodeQ)
+	if je.JoinType != JoinCross {
+		t.Errorf("JoinExprNodeQ.JoinType: want JoinCross, got %d", je.JoinType)
+	}
+	if je.Quals != nil {
+		t.Errorf("JoinExprNodeQ.Quals: want nil for CROSS JOIN, got %v", je.Quals)
+	}
+}
+
+// TestAnalyze_7_5_CommaJoin tests comma-separated tables (implicit cross join).
+func TestAnalyze_7_5_CommaJoin(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT e.name, d.name FROM employees e, departments d WHERE e.department_id = d.id`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// Comma join: 2 RTEs only (no RTEJoin).
+	if len(q.RangeTable) != 2 {
+		t.Fatalf("RangeTable: want 2, got %d", len(q.RangeTable))
+	}
+	if q.RangeTable[0].Kind != RTERelation {
+		t.Errorf("RTE[0]: want RTERelation, got %d", q.RangeTable[0].Kind)
+	}
+	if q.RangeTable[1].Kind != RTERelation {
+		t.Errorf("RTE[1]: want RTERelation, got %d", q.RangeTable[1].Kind)
+	}
+
+	// JoinTree.FromList has 2 RangeTableRefQ entries.
+	if len(q.JoinTree.FromList) != 2 {
+		t.Fatalf("FromList: want 2, got %d", len(q.JoinTree.FromList))
+	}
+	for i, item := range q.JoinTree.FromList {
+		if _, ok := item.(*RangeTableRefQ); !ok {
+			t.Errorf("FromList[%d]: want *RangeTableRefQ, got %T", i, item)
+		}
+	}
+
+	// WHERE in JoinTree.Quals.
+	if q.JoinTree.Quals == nil {
+		t.Error("JoinTree.Quals: want non-nil WHERE, got nil")
+	}
+}
+
+// --- Batch 8: USING/NATURAL ---
+
+// TestAnalyze_8_1_JoinUsing tests JOIN ... USING (col).
+func TestAnalyze_8_1_JoinUsing(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT e.name, p.name AS project_name FROM employees e JOIN projects p USING (department_id)`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.RangeTable) != 3 {
+		t.Fatalf("RangeTable: want 3, got %d", len(q.RangeTable))
+	}
+
+	je := q.JoinTree.FromList[0].(*JoinExprNodeQ)
+	if len(je.UsingClause) != 1 || je.UsingClause[0] != "department_id" {
+		t.Errorf("UsingClause: want [department_id], got %v", je.UsingClause)
+	}
+	if je.Natural {
+		t.Errorf("Natural: want false, got true")
+	}
+
+	// RTEJoin should also have JoinUsing.
+	rteJoin := q.RangeTable[2]
+	if len(rteJoin.JoinUsing) != 1 || rteJoin.JoinUsing[0] != "department_id" {
+		t.Errorf("RTE JoinUsing: want [department_id], got %v", rteJoin.JoinUsing)
+	}
+
+	// TargetList: 2 entries.
+	if len(q.TargetList) != 2 {
+		t.Fatalf("TargetList: want 2, got %d", len(q.TargetList))
+	}
+}
+
+// TestAnalyze_8_2_NaturalJoin tests NATURAL JOIN with star expansion.
+func TestAnalyze_8_2_NaturalJoin(t *testing.T) {
+	c := setupJoinTables(t)
+	// employees has: id, name, email, department_id, salary, hire_date, is_active, notes, created_at (9 cols)
+	// departments has: id, name, budget (3 cols)
+	// Shared columns: id, name → coalesced
+	// Result: id, name (from left), email, department_id, salary, hire_date, is_active, notes, created_at, budget
+	// = 10 columns
+	sel := parseSelect(t, `SELECT * FROM employees e NATURAL JOIN departments d`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	je := q.JoinTree.FromList[0].(*JoinExprNodeQ)
+	if !je.Natural {
+		t.Errorf("Natural: want true, got false")
+	}
+	if je.JoinType != JoinInner {
+		t.Errorf("JoinType: want JoinInner, got %d", je.JoinType)
+	}
+
+	// Check USING columns are the shared ones: id, name.
+	if len(je.UsingClause) != 2 {
+		t.Fatalf("UsingClause: want 2, got %d", len(je.UsingClause))
+	}
+
+	// Star expansion: should produce 10 columns (9 from employees + 1 remaining from departments).
+	// The right-side id and name are coalesced away.
+	if len(q.TargetList) != 10 {
+		t.Errorf("TargetList: want 10 columns (NATURAL JOIN coalesced), got %d", len(q.TargetList))
+	}
+}
+
+// TestAnalyze_8_3_NaturalLeftJoin tests NATURAL LEFT JOIN.
+func TestAnalyze_8_3_NaturalLeftJoin(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT * FROM employees e NATURAL LEFT JOIN departments d`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	je := q.JoinTree.FromList[0].(*JoinExprNodeQ)
+	if !je.Natural {
+		t.Errorf("Natural: want true, got false")
+	}
+	if je.JoinType != JoinLeft {
+		t.Errorf("JoinType: want JoinLeft, got %d", je.JoinType)
+	}
+
+	// Same column count as 8.2: 10 columns.
+	if len(q.TargetList) != 10 {
+		t.Errorf("TargetList: want 10 columns, got %d", len(q.TargetList))
+	}
+}
+
+// TestAnalyze_8_4_JoinUsingMultiple tests USING with multiple columns.
+func TestAnalyze_8_4_JoinUsingMultiple(t *testing.T) {
+	c := setupJoinTables(t)
+	// employees and departments share: id, name. USING (id, name).
+	sel := parseSelect(t, `SELECT * FROM employees e JOIN departments d USING (id, name)`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	je := q.JoinTree.FromList[0].(*JoinExprNodeQ)
+	if len(je.UsingClause) != 2 {
+		t.Fatalf("UsingClause: want 2, got %d", len(je.UsingClause))
+	}
+	if je.UsingClause[0] != "id" || je.UsingClause[1] != "name" {
+		t.Errorf("UsingClause: want [id, name], got %v", je.UsingClause)
+	}
+
+	// Star expansion: 10 columns (same as NATURAL — same shared columns).
+	if len(q.TargetList) != 10 {
+		t.Errorf("TargetList: want 10 columns, got %d", len(q.TargetList))
+	}
+}
+
+// --- Batch 9: FROM subqueries ---
+
+// TestAnalyze_9_1_SimpleSubquery tests FROM (SELECT ...) AS sub.
+func TestAnalyze_9_1_SimpleSubquery(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT sub.total FROM (SELECT COUNT(*) AS total FROM employees) AS sub`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// 1 RTE: RTESubquery.
+	if len(q.RangeTable) != 1 {
+		t.Fatalf("RangeTable: want 1, got %d", len(q.RangeTable))
+	}
+	rte := q.RangeTable[0]
+	if rte.Kind != RTESubquery {
+		t.Errorf("RTE Kind: want RTESubquery, got %d", rte.Kind)
+	}
+	if rte.ERef != "sub" {
+		t.Errorf("RTE ERef: want %q, got %q", "sub", rte.ERef)
+	}
+	if len(rte.ColNames) != 1 || rte.ColNames[0] != "total" {
+		t.Errorf("ColNames: want [total], got %v", rte.ColNames)
+	}
+
+	// Inner query should have HasAggs = true.
+	if rte.Subquery == nil {
+		t.Fatal("Subquery: want non-nil, got nil")
+	}
+	if !rte.Subquery.HasAggs {
+		t.Errorf("Inner Query HasAggs: want true, got false")
+	}
+
+	// Outer TargetList: 1 column.
+	if len(q.TargetList) != 1 {
+		t.Fatalf("TargetList: want 1, got %d", len(q.TargetList))
+	}
+	if q.TargetList[0].ResName != "total" {
+		t.Errorf("ResName: want %q, got %q", "total", q.TargetList[0].ResName)
+	}
+}
+
+// TestAnalyze_9_2_SubqueryWithGroupBy tests FROM subquery with GROUP BY.
+func TestAnalyze_9_2_SubqueryWithGroupBy(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT x.dept, x.cnt FROM (SELECT department_id AS dept, COUNT(*) AS cnt FROM employees GROUP BY department_id) AS x`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.RangeTable) != 1 {
+		t.Fatalf("RangeTable: want 1, got %d", len(q.RangeTable))
+	}
+	rte := q.RangeTable[0]
+	if rte.Kind != RTESubquery {
+		t.Errorf("RTE Kind: want RTESubquery, got %d", rte.Kind)
+	}
+	if len(rte.ColNames) != 2 {
+		t.Fatalf("ColNames: want 2, got %d", len(rte.ColNames))
+	}
+	if rte.ColNames[0] != "dept" || rte.ColNames[1] != "cnt" {
+		t.Errorf("ColNames: want [dept, cnt], got %v", rte.ColNames)
+	}
+
+	// Outer TargetList: 2 columns.
+	if len(q.TargetList) != 2 {
+		t.Fatalf("TargetList: want 2, got %d", len(q.TargetList))
+	}
+}
+
+// TestAnalyze_9_3_SubqueryJoinedWithTable tests JOIN between a table and a FROM subquery.
+func TestAnalyze_9_3_SubqueryJoinedWithTable(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT e.name, sub.avg_sal FROM employees e JOIN (SELECT department_id, AVG(salary) AS avg_sal FROM employees GROUP BY department_id) AS sub ON e.department_id = sub.department_id`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// RTEs: employees (0), RTESubquery (1), RTEJoin (2).
+	if len(q.RangeTable) != 3 {
+		t.Fatalf("RangeTable: want 3, got %d", len(q.RangeTable))
+	}
+	if q.RangeTable[0].Kind != RTERelation {
+		t.Errorf("RTE[0] Kind: want RTERelation, got %d", q.RangeTable[0].Kind)
+	}
+	if q.RangeTable[1].Kind != RTESubquery {
+		t.Errorf("RTE[1] Kind: want RTESubquery, got %d", q.RangeTable[1].Kind)
+	}
+	if q.RangeTable[2].Kind != RTEJoin {
+		t.Errorf("RTE[2] Kind: want RTEJoin, got %d", q.RangeTable[2].Kind)
+	}
+
+	// Inner subquery has 2 columns.
+	subRTE := q.RangeTable[1]
+	if len(subRTE.ColNames) != 2 {
+		t.Fatalf("Sub ColNames: want 2, got %d", len(subRTE.ColNames))
+	}
+
+	// JoinExprNodeQ with ON condition.
+	je := q.JoinTree.FromList[0].(*JoinExprNodeQ)
+	if je.Quals == nil {
+		t.Error("ON condition: want non-nil, got nil")
+	}
+
+	// Outer TargetList: 2 columns.
+	if len(q.TargetList) != 2 {
+		t.Fatalf("TargetList: want 2, got %d", len(q.TargetList))
+	}
+}
+
+// --- Batch 10: Multi-table edges ---
+
+// TestAnalyze_10_1_ThreeWayJoin tests a three-way JOIN.
+func TestAnalyze_10_1_ThreeWayJoin(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT e.name, d.name, p.name FROM employees e INNER JOIN departments d ON e.department_id = d.id INNER JOIN projects p ON d.id = p.department_id`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// 5 RTEs: employees(0), departments(1), RTEJoin for first join(2), projects(3), RTEJoin for second join(4).
+	if len(q.RangeTable) != 5 {
+		t.Fatalf("RangeTable: want 5, got %d", len(q.RangeTable))
+	}
+	if q.RangeTable[0].Kind != RTERelation {
+		t.Errorf("RTE[0]: want RTERelation, got %d", q.RangeTable[0].Kind)
+	}
+	if q.RangeTable[1].Kind != RTERelation {
+		t.Errorf("RTE[1]: want RTERelation, got %d", q.RangeTable[1].Kind)
+	}
+	if q.RangeTable[2].Kind != RTEJoin {
+		t.Errorf("RTE[2]: want RTEJoin, got %d", q.RangeTable[2].Kind)
+	}
+	if q.RangeTable[3].Kind != RTERelation {
+		t.Errorf("RTE[3]: want RTERelation, got %d", q.RangeTable[3].Kind)
+	}
+	if q.RangeTable[4].Kind != RTEJoin {
+		t.Errorf("RTE[4]: want RTEJoin, got %d", q.RangeTable[4].Kind)
+	}
+
+	// JoinTree.FromList should have 1 outer JoinExprNodeQ.
+	if len(q.JoinTree.FromList) != 1 {
+		t.Fatalf("FromList: want 1, got %d", len(q.JoinTree.FromList))
+	}
+	outerJoin, ok := q.JoinTree.FromList[0].(*JoinExprNodeQ)
+	if !ok {
+		t.Fatalf("FromList[0]: want *JoinExprNodeQ, got %T", q.JoinTree.FromList[0])
+	}
+	// The left side of the outer join should be another JoinExprNodeQ (the first join).
+	innerJoin, ok := outerJoin.Left.(*JoinExprNodeQ)
+	if !ok {
+		t.Fatalf("OuterJoin.Left: want *JoinExprNodeQ, got %T", outerJoin.Left)
+	}
+	_ = innerJoin
+
+	// TargetList: 3 columns.
+	if len(q.TargetList) != 3 {
+		t.Fatalf("TargetList: want 3, got %d", len(q.TargetList))
+	}
+}
+
+// TestAnalyze_10_2_StarJoin tests SELECT * with a two-table JOIN.
+func TestAnalyze_10_2_StarJoin(t *testing.T) {
+	c := setupJoinTables(t)
+	// employees: 9 cols, departments: 3 cols → 12 total.
+	sel := parseSelect(t, `SELECT * FROM employees e JOIN departments d ON e.department_id = d.id`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// Star expansion for JOIN without USING: all columns from both tables.
+	// employees(9) + departments(3) = 12.
+	if len(q.TargetList) != 12 {
+		t.Errorf("TargetList: want 12 columns, got %d", len(q.TargetList))
+	}
+}
+
+// TestAnalyze_10_3_AmbiguousColumn tests that unqualified 'name' is ambiguous across two tables.
+func TestAnalyze_10_3_AmbiguousColumn(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT name FROM employees e JOIN departments d ON e.department_id = d.id`)
+	_, err := c.AnalyzeSelectStmt(sel)
+	assertError(t, err, 1052) // ambiguous column
+}

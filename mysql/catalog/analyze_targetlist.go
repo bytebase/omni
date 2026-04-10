@@ -87,7 +87,7 @@ func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([
 	if tableName == "" {
 		// SELECT * — expand all tables in scope order.
 		for _, e := range scope.allEntries() {
-			entries, err := expandScopeEntry(e, q, resNo)
+			entries, err := expandScopeEntry(e, q, scope, resNo)
 			if err != nil {
 				return nil, err
 			}
@@ -99,7 +99,7 @@ func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([
 		found := false
 		for _, e := range scope.allEntries() {
 			if e.name == lower {
-				entries, err := expandScopeEntry(e, q, resNo)
+				entries, err := expandScopeEntry(e, q, scope, resNo)
 				if err != nil {
 					return nil, err
 				}
@@ -123,11 +123,16 @@ func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([
 	return result, nil
 }
 
-// expandScopeEntry expands all columns from a single scope entry.
-func expandScopeEntry(e scopeEntry, q *Query, resNo *int) ([]*TargetEntryQ, error) {
+// expandScopeEntry expands all columns from a single scope entry,
+// skipping columns marked as coalesced by USING/NATURAL.
+func expandScopeEntry(e scopeEntry, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
 	var result []*TargetEntryQ
 	rte := q.RangeTable[e.rteIdx]
 	for i, col := range e.columns {
+		// Skip columns that were coalesced away by USING/NATURAL.
+		if scope.isCoalesced(e.name, col.Name) {
+			continue
+		}
 		te := &TargetEntryQ{
 			Expr: &VarExprQ{
 				RangeIdx: e.rteIdx,

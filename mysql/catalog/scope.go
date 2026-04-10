@@ -8,8 +8,9 @@ import (
 // analyzerScope tracks the set of visible table/view references during
 // semantic analysis, supporting column resolution by name.
 type analyzerScope struct {
-	entries []scopeEntry
-	byName  map[string]int // lowered name -> index into entries
+	entries       []scopeEntry
+	byName        map[string]int    // lowered name -> index into entries
+	coalescedCols map[string]bool   // "tablename.colname" (lowered) -> true; columns hidden by USING/NATURAL
 }
 
 // scopeEntry is one named table reference visible in the current scope.
@@ -21,8 +22,21 @@ type scopeEntry struct {
 
 func newScope() *analyzerScope {
 	return &analyzerScope{
-		byName: make(map[string]int),
+		byName:        make(map[string]int),
+		coalescedCols: make(map[string]bool),
 	}
+}
+
+// markCoalesced marks a column from a table as coalesced (hidden during star expansion).
+func (s *analyzerScope) markCoalesced(tableName, colName string) {
+	key := strings.ToLower(tableName) + "." + strings.ToLower(colName)
+	s.coalescedCols[key] = true
+}
+
+// isCoalesced returns true if the given table.column is coalesced away by USING/NATURAL.
+func (s *analyzerScope) isCoalesced(tableName, colName string) bool {
+	key := strings.ToLower(tableName) + "." + strings.ToLower(colName)
+	return s.coalescedCols[key]
 }
 
 // add registers a table reference in the scope.
