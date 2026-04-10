@@ -415,14 +415,18 @@ func TestParser_AWSCorpus(t *testing.T) {
 }
 
 // TestParser_StmtGoldens iterates every .partiql file under
-// testdata/parser-ddl/ and testdata/parser-select/ and compares
-// ParseStatement output (via ast.NodeToString) against the matching
-// .golden file.
+// testdata/parser-ddl/, testdata/parser-select/, and testdata/parser-dml/
+// and compares ParseStatement output (via ast.NodeToString) against the
+// matching .golden file.
 //
 // Run with `go test -update -run TestParser_StmtGoldens ./partiql/parser/...`
 // to regenerate goldens after intentional AST shape changes.
 func TestParser_StmtGoldens(t *testing.T) {
-	dirs := []string{"testdata/parser-ddl", "testdata/parser-select"}
+	dirs := []string{
+		"testdata/parser-ddl",
+		"testdata/parser-select",
+		"testdata/parser-dml",
+	}
 	var allFiles []string
 	for _, dir := range dirs {
 		files, err := filepath.Glob(dir + "/*.partiql")
@@ -502,6 +506,60 @@ func TestParser_DDLErrors(t *testing.T) {
 			name:      "create_index_missing_paren",
 			input:     "CREATE INDEX ON t name",
 			wantErrIn: "expected PAREN_LEFT",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewParser(tc.input)
+			_, err := p.ParseStatement()
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.wantErrIn) {
+				t.Errorf("error = %q, want to contain %q", err.Error(), tc.wantErrIn)
+			}
+		})
+	}
+}
+
+// TestParser_DMLErrors verifies that malformed DML statements produce
+// the expected parse errors.
+func TestParser_DMLErrors(t *testing.T) {
+	cases := []struct {
+		name      string
+		input     string
+		wantErrIn string
+	}{
+		{
+			name:      "insert_missing_into",
+			input:     "INSERT t VALUE 1",
+			wantErrIn: "expected INTO",
+		},
+		{
+			name:      "insert_missing_value_or_expr",
+			input:     "INSERT INTO",
+			wantErrIn: "expected identifier",
+		},
+		{
+			name:      "delete_missing_from",
+			input:     "DELETE WHERE x = 1",
+			wantErrIn: "expected FROM",
+		},
+		{
+			name:      "update_missing_set",
+			input:     "UPDATE t WHERE x = 1",
+			wantErrIn: "expected SET",
+		},
+		{
+			name:      "replace_missing_into",
+			input:     "REPLACE t {'id': 1}",
+			wantErrIn: "expected INTO",
+		},
+		{
+			name:      "upsert_missing_into",
+			input:     "UPSERT t {'id': 1}",
+			wantErrIn: "expected INTO",
 		},
 	}
 

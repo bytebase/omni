@@ -1,0 +1,1 @@
+UpdateStmt{Source:VarRef{Name:t} Sets:[SetAssignment{Target:PathExpr{Root:VarRef{Name:a} Steps:[]} Value:NumberLit{Val:1}} SetAssignment{Target:PathExpr{Root:VarRef{Name:b} Steps:[]} Value:NumberLit{Val:2}}]}

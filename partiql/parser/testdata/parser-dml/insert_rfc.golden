@@ -1,0 +1,1 @@
+InsertStmt{Target:VarRef{Name:t} AsAlias:alias Value:TupleLit{Pairs:[TuplePair{Key:StringLit{Val:"id"} Value:NumberLit{Val:1}}]}}
