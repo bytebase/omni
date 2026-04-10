@@ -25,9 +25,9 @@ Conventions follow `cosmosdb/` and `mongo/`:
 | # | Node | Package | Depends On | Can Parallelize With | Priority | Status |
 |---|------|---------|------------|----------------------|----------|--------|
 | 1 | ast-core | `partiql/ast` | (none) | lexer, catalog | **P0** | done |
-| 2 | lexer | `partiql/parser` (lexer.go, token.go) | ast-core | catalog | **P0** | not started |
+| 2 | lexer | `partiql/parser` (lexer.go, token.go, keywords.go) | ast-core | catalog | **P0** | done |
 | 3 | catalog | `partiql/catalog` | (none) | ast-core, lexer | **P0** | not started |
-| 4 | parser-foundation | `partiql/parser` (parser.go, expr.go, path.go, literals.go) | ast-core, lexer | — | **P0** | not started |
+| 4 | parser-foundation | `partiql/parser` (parser.go, expr.go, exprprimary.go, path.go, literals.go) | ast-core, lexer | — | **P0** | done |
 | 5 | parser-select | `partiql/parser` (select.go, from.go) | parser-foundation | parser-dml, parser-ddl (logically — same files conflict) | **P0** | not started |
 | 6 | parser-dml | `partiql/parser` (dml.go) | parser-foundation | parser-select, parser-ddl (logically — same files conflict) | **P0** | not started |
 | 7 | parser-ddl | `partiql/parser` (ddl.go) | parser-foundation | parser-select, parser-dml (logically — same files conflict) | **P0** | not started |
