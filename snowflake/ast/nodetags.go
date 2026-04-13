@@ -46,6 +46,7 @@ const (
 	T_LambdaExpr
 	T_SubqueryExpr
 	T_ExistsExpr
+	T_SelectStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -101,6 +102,8 @@ func (t NodeTag) String() string {
 		return "SubqueryExpr"
 	case T_ExistsExpr:
 		return "ExistsExpr"
+	case T_SelectStmt:
+		return "SelectStmt"
 	default:
 		return "Unknown"
 	}

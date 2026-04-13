@@ -1335,31 +1335,39 @@ func TestExpr_Error_UnterminatedBetween(t *testing.T) {
 	}
 }
 
-func TestExpr_Error_SubqueryNotSupported(t *testing.T) {
-	_, err := testParseExpr("(SELECT 1)")
-	if err == nil {
-		t.Fatal("expected error for subquery")
+func TestExpr_SubqueryExpr(t *testing.T) {
+	node, err := testParseExpr("(SELECT 1)")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	pe, ok := err.(*ParseError)
+	subq, ok := node.(*ast.SubqueryExpr)
 	if !ok {
-		t.Fatalf("expected *ParseError, got %T", err)
+		t.Fatalf("expected *ast.SubqueryExpr, got %T", node)
 	}
-	if pe.Msg != "subquery expressions not yet supported" {
-		t.Errorf("Msg = %q, want subquery error", pe.Msg)
+	sel, ok := subq.Query.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("expected *ast.SelectStmt inside SubqueryExpr, got %T", subq.Query)
+	}
+	if len(sel.Targets) != 1 {
+		t.Errorf("targets = %d, want 1", len(sel.Targets))
 	}
 }
 
-func TestExpr_Error_ExistsNotSupported(t *testing.T) {
-	_, err := testParseExpr("EXISTS (SELECT 1)")
-	if err == nil {
-		t.Fatal("expected error for EXISTS")
+func TestExpr_ExistsExpr(t *testing.T) {
+	node, err := testParseExpr("EXISTS (SELECT 1)")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	pe, ok := err.(*ParseError)
+	exists, ok := node.(*ast.ExistsExpr)
 	if !ok {
-		t.Fatalf("expected *ParseError, got %T", err)
+		t.Fatalf("expected *ast.ExistsExpr, got %T", node)
 	}
-	if pe.Msg != "EXISTS subquery expressions not yet supported" {
-		t.Errorf("Msg = %q, want EXISTS error", pe.Msg)
+	sel, ok := exists.Query.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("expected *ast.SelectStmt inside ExistsExpr, got %T", exists.Query)
+	}
+	if len(sel.Targets) != 1 {
+		t.Errorf("targets = %d, want 1", len(sel.Targets))
 	}
 }
 
