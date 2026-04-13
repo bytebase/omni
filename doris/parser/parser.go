@@ -173,19 +173,33 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	switch p.cur.Kind {
 	// DDL
 	case kwCREATE:
-		createTok := p.advance() // consume CREATE
-		if p.cur.Kind == kwINDEX {
+		createTok := p.advance() // consume CREATE; cur is now the object type keyword
+		switch p.cur.Kind {
+		case kwINDEX:
 			return p.parseCreateIndex(createTok.Loc)
+		case kwDATABASE, kwSCHEMA:
+			return p.parseCreateDatabase()
+		default:
+			return p.unsupported("CREATE")
 		}
-		return p.unsupported("CREATE")
 	case kwALTER:
-		return p.unsupported("ALTER")
-	case kwDROP:
-		dropTok := p.advance() // consume DROP
-		if p.cur.Kind == kwINDEX {
-			return p.parseDropIndex(dropTok.Loc)
+		p.advance() // consume ALTER; cur is now the object type keyword
+		switch p.cur.Kind {
+		case kwDATABASE:
+			return p.parseAlterDatabase()
+		default:
+			return p.unsupported("ALTER")
 		}
-		return p.unsupported("DROP")
+	case kwDROP:
+		dropTok := p.advance() // consume DROP; cur is now the object type keyword
+		switch p.cur.Kind {
+		case kwINDEX:
+			return p.parseDropIndex(dropTok.Loc)
+		case kwDATABASE, kwSCHEMA:
+			return p.parseDropDatabase()
+		default:
+			return p.unsupported("DROP")
+		}
 	case kwTRUNCATE:
 		return p.unsupported("TRUNCATE")
 

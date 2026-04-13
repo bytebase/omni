@@ -230,48 +230,4 @@ func (p *Parser) parseIdentifierList() ([]string, error) {
 
 // parseProperties parses a PROPERTIES("key"="value", ...) clause.
 // cur must be kwPROPERTIES on entry; it is consumed here.
-func (p *Parser) parseProperties() ([]*ast.Property, error) {
-	p.advance() // consume PROPERTIES
-
-	if _, err := p.expect(int('(')); err != nil {
-		return nil, err
-	}
-
-	var props []*ast.Property
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-		propLoc := p.cur.Loc
-
-		// Key: string literal or identifier.
-		key, _, err := p.parseIdentifierOrString()
-		if err != nil {
-			return nil, err
-		}
-
-		if _, err := p.expect(int('=')); err != nil {
-			return nil, err
-		}
-
-		// Value: string literal or identifier.
-		value, valueLoc, err := p.parseIdentifierOrString()
-		if err != nil {
-			return nil, err
-		}
-
-		props = append(props, &ast.Property{
-			Key:   key,
-			Value: value,
-			Loc:   ast.Loc{Start: propLoc.Start, End: valueLoc.End},
-		})
-
-		if p.cur.Kind == int(',') {
-			p.advance()
-		} else {
-			break
-		}
-	}
-
-	if _, err := p.expect(int(')')); err != nil {
-		return nil, err
-	}
-	return props, nil
-}
+// parseProperties is defined in database.go and shared by index.go.

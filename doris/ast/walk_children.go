@@ -30,5 +30,22 @@ func walkChildren(v Visitor, node Node) {
 	case *BuildIndexStmt:
 		Walk(v, n.Name)
 		Walk(v, n.Table)
+	case *CreateDatabaseStmt:
+		Walk(v, n.Name)
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterDatabaseStmt:
+		Walk(v, n.Name)
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropDatabaseStmt:
+		Walk(v, n.Name)
+	case *Property:
+		// leaf node, no children
 	}
 }
