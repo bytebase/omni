@@ -74,6 +74,26 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *JoinClause:
 		return v.Loc
+	case *CreateTableStmt:
+		return v.Loc
+	case *ColumnDef:
+		return v.Loc
+	case *IndexDef:
+		return v.Loc
+	case *TableConstraint:
+		return v.Loc
+	case *KeyDesc:
+		return v.Loc
+	case *PartitionDesc:
+		return v.Loc
+	case *PartitionItem:
+		return v.Loc
+	case *DistributionDesc:
+		return v.Loc
+	case *RollupDef:
+		return v.Loc
+	case *RawQuery:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

@@ -179,6 +179,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateIndex(createTok.Loc)
 		case kwDATABASE, kwSCHEMA:
 			return p.parseCreateDatabase()
+		case kwTABLE, kwEXTERNAL, kwTEMPORARY:
+			return p.parseCreateTable()
 		default:
 			return p.unsupported("CREATE")
 		}
