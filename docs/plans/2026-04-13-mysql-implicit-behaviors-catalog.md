@@ -286,9 +286,17 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);
 ### 5.3 Foreign Key MATCH default
 **Source:** `sql/sql_table.cc:6639` and parser  
 **Trigger:** FK without explicit `MATCH` clause  
-**Rule:** `match_opt` defaults to `FK_MATCH_SIMPLE` (or `MATCH SIMPLE` in SQL)  
+**Rule:** `match_opt` defaults to `FK_MATCH_SIMPLE` internally.
+
+**Reporting discrepancy** (spot-check 2026-04-13, same pattern as C5.1):
+- Parser enum: `FK_MATCH_SIMPLE`
+- `information_schema.REFERENTIAL_CONSTRAINTS.MATCH_OPTION` surfaces it as **`NONE`**, not `SIMPLE`
+- `SHOW CREATE TABLE` elides the clause entirely when default
+- Test scenarios asserting against `information_schema` must expect `NONE`
+
 **Observable via:**  
-- `SHOW CREATE TABLE` (if explicitly set)
+- `information_schema.REFERENTIAL_CONSTRAINTS.MATCH_OPTION` = `'NONE'`
+- `SHOW CREATE TABLE` — clause elided when default
 
 ---
 
@@ -920,20 +928,25 @@ Expected: Table charset = utf8mb4 (inherited from database)
 
 ---
 
-### 18.5 DEFAULT CHARSET clause elided unless explicitly specified
+### 18.5 DEFAULT CHARSET clause — almost always rendered
 **Source:** `sql/sql_show.cc:2442-2457` (DEFAULT CHARSET output)  
-**Trigger:** `SHOW CREATE TABLE` with CHARACTER SET or COLLATE clause  
-**Rule:**  
+**Trigger:** `SHOW CREATE TABLE`
+**Rule (original source reading — MAY BE MISLEADING):**
 - If table has charset (share->table_charset is not null):
   - If `create_info_arg == nullptr` OR `(create_info_arg->used_fields & HA_CREATE_USED_DEFAULT_CHARSET)`:
     - SHOW "DEFAULT CHARSET=..." and COLLATE if non-primary or utf8mb4 special case
-  - Else:
-    - ELIDE DEFAULT CHARSET clause
-- Tracks whether user explicitly wrote `CHARACTER SET` or `COLLATE` in original CREATE
+  - Else: elide
 
-**Edge cases:**
-- Table created in DB with implicit charset: `used_fields` may not have flag set → SHOW elides charset
-- Table created with explicit `CREATE TABLE t (...) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`: SHOW includes both
+**Spot-check finding (2026-04-13):** in practice, `HA_CREATE_USED_DEFAULT_CHARSET` appears to be set even when the user did NOT write an explicit `CHARACTER SET` clause. Tested:
+```sql
+CREATE TABLE tnocs (x INT);  -- no CHARACTER SET clause
+SHOW CREATE TABLE tnocs;
+```
+Output included `DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci` — the clause was NOT elided.
+
+**Revised rule (practical):** assume `SHOW CREATE TABLE` ALWAYS includes `DEFAULT CHARSET` and `COLLATE` in MySQL 8.0.45. The "elided unless explicitly specified" claim may only apply in specific mysqldump-style paths or older MySQL versions. **omni's deparse should always render DEFAULT CHARSET/COLLATE** for round-trip fidelity with MySQL 8.0.
+
+**Needs follow-up code trace** to understand exactly when `HA_CREATE_USED_DEFAULT_CHARSET` is NOT set — possibly only via direct DDL replay in mysqldump.
 
 ---
 
@@ -1226,21 +1239,11 @@ Verdict summary:
 
 **Name scope:** CHECK constraint names are **schema-scoped**, not table-scoped (cf. FK which is schema-scoped too, but this is worth re-noting). Collision is detected by `thd->dd_client()->check_constraint_exists(*new_schema, cc_name, &exists)` at line 19595.
 
-**omni status:** **BUG** — `mysql/catalog/tablecmds.go:239,444` calls `nextCheckNumber(tbl)` from the CREATE TABLE path. `nextCheckNumber` (line 1058) scans `tbl.Constraints` and returns the first integer N such that `<table>_chk_<N>` is NOT already a Constraint name on the table. This is **ALTER-style max+1 (actually gap-fill) logic**, not CREATE-style fresh counter logic. Repro:
-```sql
-CREATE TABLE t (
-    a INT,
-    CONSTRAINT t_chk_1 CHECK (a > 0),
-    b INT,
-    CHECK (b < 100)
-);
-```
-- Real MySQL: parser starts counter at 0, first unnamed CC becomes `t_chk_1` → collides with user-named `t_chk_1` → `ER_CHECK_CONSTRAINT_DUP_NAME` (or same-statement duplicate). The statement FAILS.
-- omni: `nextCheckNumber` sees `t_chk_1` already present, returns 2 → unnamed becomes `t_chk_2`. Statement SUCCEEDS.
-
-Mirror of the FK counter bug we just fixed, same file, same shape. `CREATE TABLE LIKE` (if supported) is a separate third rule and should not go through either of these paths.
-
-**Needs Step 2 spot-check:** yes — priority PS1-A (CREATE) and PS1-B (CREATE TABLE LIKE) to confirm MySQL error exactly and what omni currently produces.
+**omni status (Step 2 spot-check verified 2026-04-13):**
+- **CREATE path: FIXED** in commit `3202dab`. `tablecmds.go` now uses a local `unnamedCheckCount` counter matching MySQL's fresh `cc_max_generated_number = 0` semantics. Test: `TestBugFix_CheckCounterCreateTable`.
+- **ALTER path: VERIFIED CORRECT (max+1)** via spot-check sub-test `PS1_CheckCounter_ALTER_open`. Input: `CREATE TABLE tchk2 (a INT, b INT, CONSTRAINT tchk2_chk_20 CHECK(a>0)); ALTER TABLE tchk2 ADD CHECK (b>0)`. Observed: `[tchk2_chk_20, tchk2_chk_21]`. Confirms the CHECK counter is fully symmetric with FK (CREATE=fresh, ALTER=max+1). `altercmds.go:467` uses `nextCheckNumber` which is the ALTER-style gap-scan — this is correct for ALTER, same as `nextFKGeneratedNumber` for FK ALTER.
+- **Collision detection (PS7): NOT IMPLEMENTED**. MySQL errors `ER_CHECK_CONSTRAINT_DUP_NAME` when the generated name collides with a user-named one; omni silently succeeds. Tracked as PS7 follow-up.
+- **CREATE TABLE LIKE (3rd rule): unverified**. Worth a separate test if CTAS/LIKE is in scope.
 
 ## PS2: Index name auto-generation (new, for C-index family)
 
