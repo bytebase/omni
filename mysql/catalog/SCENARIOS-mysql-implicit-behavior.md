@@ -2647,6 +2647,381 @@ push_deprecated_warn(YYTHD, "YEAR(4)", "YEAR");
 
 ---
 
+## Section C17: String function charset / collation propagation
+
+> **New section (Wave 3).** Every string-valued expression in MySQL carries
+> both a charset and a "derivation coercibility" level. When a string
+> function combines several string args (CONCAT, CONCAT_WS, REPLACE, REPEAT,
+> LPAD, RPAD, SUBSTR, INSERT, LOWER, UPPER, TRIM, LEFT, RIGHT, ELT, FIELD,
+> IF/IFNULL on strings, CASE on strings, UNION column merging, comparison,
+> etc.) it must aggregate the input `DTCollation`s into a single result
+> `DTCollation` using the rules encoded in `DTCollation::aggregate()` and
+> the helper `agg_arg_charsets_for_string_result`.
+>
+> **Source anchors:**
+> - Docs: https://dev.mysql.com/doc/refman/8.0/en/charset-collation-coercibility.html
+> - Docs: https://dev.mysql.com/doc/refman/8.0/en/string-functions.html
+> - MySQL 8.0: `sql/item.h` (`DTCollation`, `Derivation` enum, l.150-247)
+> - MySQL 8.0: `sql/item.cc` (`DTCollation::aggregate`, l.2400-2510; `my_coll_agg_error`, l.2513)
+> - MySQL 8.0: `sql/item_strfunc.cc` (`Item_func_concat::resolve_type` l.1109, `Item_func_concat_ws::resolve_type` l.1166, `Item_func_replace::resolve_type` l.1297, `Item_func_repeat::resolve_type` l.2581, `Item_func_rpad::resolve_type` l.2724, `Item_func_lpad::resolve_type` l.2822)
+> - omni: `/Users/rebeliceyang/Github/omni/mysql/catalog/function_types.go` (no per-call collation derivation)
+> - omni: `/Users/rebeliceyang/Github/omni/mysql/catalog/analyze_expr.go` (no collation tracking at all)
+>
+> **Derivation levels** (from `enum Derivation` in `sql/item.h` — lower
+> number = "stronger", wins aggregation):
+>
+> | Level                 | Numeric | Source example                                     |
+> | --------------------- | ------- | -------------------------------------------------- |
+> | `DERIVATION_EXPLICIT` | 0       | `x COLLATE utf8mb4_bin`, `_utf8mb4'foo' COLLATE …` |
+> | `DERIVATION_NONE`     | 1       | result of a prior failed aggregation               |
+> | `DERIVATION_IMPLICIT` | 2       | table columns, view columns, SP vars               |
+> | `DERIVATION_SYSCONST` | 3       | `USER()`, `VERSION()`, `DATABASE()`                |
+> | `DERIVATION_COERCIBLE`| 4       | string literals, `_latin1'x'` without COLLATE      |
+> | `DERIVATION_NUMERIC`  | 5       | numeric-to-string conversions                      |
+> | `DERIVATION_IGNORABLE`| 6       | `NULL`, plain numeric NULL                         |
+>
+> **omni gap summary (applies to every scenario in this section):**
+> `mysql/catalog/analyze_expr.go` and `mysql/catalog/function_types.go` do
+> not track charset, collation, or coercibility on an expression. For every
+> scenario below, omni will currently: parse the statement, assign the
+> function call a `VARCHAR`/`TEXT` type, silently succeed on every
+> illegal-mix case that real MySQL rejects, and record a view column type
+> with no charset metadata, so Phase 3 view-column type derivation cannot
+> reconcile with `information_schema.COLUMNS`. All scenarios in C17 are
+> therefore **omni gaps** — the fix lands in Phase 3's `function_types.go`
+> (new `charsetRule` / `collationRule` side-table) and in `analyze_expr.go`
+> (new `exprCollation` helper that mirrors `DTCollation::aggregate`).
+
+### 17.1 CONCAT of two columns with identical charset/collation
+
+**Priority:** HIGH  **Status:** pending  **Anchor:** `{#c17-1}`
+
+**MySQL source:** `Item_func_concat::resolve_type` (`sql/item_strfunc.cc`
+l.1109) → `agg_arg_charsets_for_string_result(collation, args, arg_count)`.
+
+**Rule:** Two IMPLICIT-level columns with the same charset and collation
+aggregate to that same (charset, collation). Result derivation is IMPLICIT
+(because the result is a function-of-columns, not a literal). Max char
+length is the sum of arg char lengths.
+
+**Oracle fixture:**
+```sql
+DROP DATABASE IF EXISTS testdb; CREATE DATABASE testdb; USE testdb;
+CREATE TABLE t (
+  a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+);
+CREATE VIEW v1 AS SELECT CONCAT(a, b) AS c FROM t;
+
+SELECT CHARACTER_SET_NAME, COLLATION_NAME, CHARACTER_MAXIMUM_LENGTH
+  FROM information_schema.COLUMNS
+ WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='v1' AND COLUMN_NAME='c';
+```
+
+**Expected:** `utf8mb4`, `utf8mb4_0900_ai_ci`, `CHARACTER_MAXIMUM_LENGTH = 20`.
+
+**omni status:** gap. analyze_expr.go produces a bare VARCHAR type for `c`
+with no charset/collation, so a later SDL-diff against a real DB round-trip
+cannot match.
+
+---
+
+### 17.2 CONCAT mixing latin1 + utf8mb4 columns (superset conversion)
+
+**Priority:** HIGH  **Status:** pending  **Anchor:** `{#c17-2}`
+
+**MySQL source:** `DTCollation::aggregate` `MY_COLL_ALLOW_SUPERSET_CONV`
+branch (`sql/item.cc` l.2452). `agg_arg_charsets_for_string_result` always
+passes `MY_COLL_ALLOW_SUPERSET_CONV | MY_COLL_ALLOW_COERCIBLE_CONV`.
+
+**Rule:** ascii-repertoire latin1 values are a subset of utf8mb4. When two
+IMPLICIT-derivation args have different charsets where one is a strict
+superset, the superset charset wins with its default collation of the
+superset side. The other arg is auto-converted at runtime via
+`eval_string_arg`. Result derivation stays IMPLICIT.
+
+**Oracle fixture:**
+```sql
+DROP DATABASE IF EXISTS testdb; CREATE DATABASE testdb; USE testdb;
+CREATE TABLE t (
+  a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  b VARCHAR(10) CHARACTER SET latin1  COLLATE latin1_swedish_ci
+);
+CREATE VIEW v2 AS SELECT CONCAT(a, b) AS c FROM t;
+
+SELECT CHARACTER_SET_NAME, COLLATION_NAME
+  FROM information_schema.COLUMNS
+ WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='v2' AND COLUMN_NAME='c';
+```
+
+**Expected:** `utf8mb4`, `utf8mb4_0900_ai_ci` (utf8mb4 wins as superset).
+Note: this specific pair works because utf8mb4 is treated as the superset
+of latin1 for `agg_arg_charsets_for_string_result`. Verify the exact
+collation the oracle reports.
+
+**omni status:** gap. Same as 17.1 plus the superset computation is absent
+entirely.
+
+---
+
+### 17.3 CONCAT with incompatible collations (ER_CANT_AGGREGATE_2COLLATIONS)
+
+**Priority:** HIGH  **Status:** pending  **Anchor:** `{#c17-3}`
+
+**MySQL source:** `DTCollation::aggregate` fall-through at `sql/item.cc`
+l.2466-2470 → set `DERIVATION_NONE`, then `agg_item_charsets` calls
+`my_coll_agg_error` which raises `ER_CANT_AGGREGATE_2COLLATIONS`. Error
+literal in `sql/item.cc` l.2515.
+
+**Rule:** Two IMPLICIT columns with the same charset (`utf8mb4`) but *two
+different non-binary collations* (e.g. `utf8mb4_0900_ai_ci` and
+`utf8mb4_0900_as_cs`) have no aggregation path: neither is binary, neither
+is the "explicit" level, superset check does not apply (same charset), and
+the coercible-conversion branch is gated on `>= DERIVATION_SYSCONST` — so
+aggregation fails. Result: view creation itself fails at resolve_type time.
+
+**Oracle fixture:**
+```sql
+DROP DATABASE IF EXISTS testdb; CREATE DATABASE testdb; USE testdb;
+CREATE TABLE t (
+  a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs
+);
+-- Expect: ERROR 1267 (HY000): Illegal mix of collations
+--   (utf8mb4_0900_ai_ci,IMPLICIT) and (utf8mb4_0900_as_cs,IMPLICIT)
+--   for operation 'concat'
+CREATE VIEW v3 AS SELECT CONCAT(a, b) AS c FROM t;
+```
+
+**Expected:** `ERROR 1267` at `CREATE VIEW` time. View is NOT created.
+
+**omni status:** **silent-accept gap**. omni has no derivation/aggregation
+logic, so the view parses and analyzes cleanly and the analyzer happily
+assigns `c` a VARCHAR type. This is the most user-visible bug in C17 —
+bytebase query span, SDL diff, and Phase 3 view types all diverge from
+reality on statements that MySQL outright rejects.
+
+---
+
+### 17.4 CONCAT_WS separator charset + NULL skipping
+
+**Priority:** MEDIUM  **Status:** pending  **Anchor:** `{#c17-4}`
+
+**MySQL source:** `Item_func_concat_ws::val_str` (`sql/item_strfunc.cc`
+l.1133) and `Item_func_concat_ws::resolve_type` (l.1166). `resolve_type`
+uses `agg_arg_charsets_for_string_result(collation, args, arg_count)` —
+**the separator (arg 0) participates in aggregation**. `val_str` skips
+NULL args (continue, not return NULL) — unlike CONCAT which returns NULL
+if any arg is NULL.
+
+**Rule:** Result charset is aggregated over **all** args including the
+separator. If the separator is `_utf8mb4','` (COERCIBLE) and the payload
+cols are IMPLICIT utf8mb4, the IMPLICIT cols win and the result is
+utf8mb4/IMPLICIT. Result length is `(arg_count - 2) * sep_len + Σ payload`.
+NULL among payload args does NOT make the output NULL.
+
+**Oracle fixture:**
+```sql
+DROP DATABASE IF EXISTS testdb; CREATE DATABASE testdb; USE testdb;
+CREATE TABLE t (
+  a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+);
+CREATE VIEW v4 AS SELECT CONCAT_WS(',', a, b, NULL) AS c FROM t;
+
+SELECT CHARACTER_SET_NAME, COLLATION_NAME
+  FROM information_schema.COLUMNS
+ WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='v4' AND COLUMN_NAME='c';
+```
+
+**Expected:** `utf8mb4`, `utf8mb4_0900_ai_ci`. Also verify runtime: for
+`INSERT INTO t VALUES (NULL, 'x')`, `SELECT CONCAT(a,b)` returns NULL but
+`SELECT CONCAT_WS(',',a,b)` returns `'x'` (not NULL, not `',x'`).
+
+**omni status:** gap. analyze_expr.go does not differentiate CONCAT vs
+CONCAT_WS for NULL handling in its nullability inference either — a second
+sub-gap worth recording.
+
+---
+
+### 17.5 String literal coercibility: `_utf8mb4'x'` vs bare `'x'`
+
+**Priority:** MEDIUM  **Status:** pending  **Anchor:** `{#c17-5}`
+
+**MySQL source:** `Item_string` constructors in `sql/item.h` l.5317-5490,
+default `Derivation dv = DERIVATION_COERCIBLE`. An introducer `_utf8mb4'x'`
+still constructs at COERCIBLE — the introducer only **pins the charset**,
+it does NOT escalate to EXPLICIT. Only `COLLATE` escalates to EXPLICIT
+(see 17.8).
+
+**Rule:** A bare literal `'x'` is COERCIBLE with the session's
+`character_set_connection`. `_utf8mb4'x'` is COERCIBLE with utf8mb4 no
+matter the session charset. When aggregated against an IMPLICIT table
+column of any other charset, the IMPLICIT column wins (its derivation is
+stronger), so the literal is re-coded into the column's charset. This is
+exactly why `WHERE col = 'x'` almost never fails with illegal mix — the
+literal is coerced.
+
+**Oracle fixture:**
+```sql
+DROP DATABASE IF EXISTS testdb; CREATE DATABASE testdb; USE testdb;
+SET NAMES utf8mb4;
+CREATE TABLE t (a VARCHAR(10) CHARACTER SET latin1 COLLATE latin1_swedish_ci);
+-- Case A: bare literal in session utf8mb4 is still coerced to latin1
+CREATE VIEW v5a AS SELECT CONCAT(a, 'x') AS c FROM t;
+-- Case B: _utf8mb4 introducer still coerces down to latin1 (because
+-- IMPLICIT beats COERCIBLE even across charsets when the coercible side
+-- can be represented).
+CREATE VIEW v5b AS SELECT CONCAT(a, _utf8mb4'x') AS c FROM t;
+
+SELECT TABLE_NAME, COLUMN_NAME, CHARACTER_SET_NAME, COLLATION_NAME
+  FROM information_schema.COLUMNS
+ WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME IN ('v5a','v5b') AND COLUMN_NAME='c';
+```
+
+**Expected:** Both views report `latin1` / `latin1_swedish_ci`. (The
+IMPLICIT column wins over the COERCIBLE literal in both cases.)
+
+**omni status:** gap. omni parses `_utf8mb4'x'` but stores no coercibility
+metadata for literals.
+
+---
+
+### 17.6 REPEAT / LPAD / RPAD pass-through of first-arg charset
+
+**Priority:** MEDIUM  **Status:** pending  **Anchor:** `{#c17-6}`
+
+**MySQL source:**
+- `Item_func_repeat::resolve_type` (`sql/item_strfunc.cc` l.2581) →
+  `agg_arg_charsets_for_string_result(collation, args, 1)` — **only arg[0]**.
+- `Item_func_lpad::resolve_type` (l.2822) and `Item_func_rpad::resolve_type`
+  (l.2724) — same: aggregate over `args[0]` only, then
+  `simplify_string_args(thd, collation, args+2, 1)` converts the pad string
+  into the first arg's charset.
+
+**Rule:** Result charset/collation of `REPEAT(s,n)`, `LPAD(s,n,pad)`,
+`RPAD(s,n,pad)` is **always** taken from `s` (`args[0]`). The pad argument
+can be any compatible charset; if not compatible it gets implicitly
+converted, and if conversion fails at resolve-time you get
+ER_CANT_AGGREGATE_2COLLATIONS from `simplify_string_args` — but the error
+is reported against the pair `(args[0], args[2])`.
+
+**Oracle fixture:**
+```sql
+DROP DATABASE IF EXISTS testdb; CREATE DATABASE testdb; USE testdb;
+CREATE TABLE t (
+  a VARCHAR(10) CHARACTER SET latin1  COLLATE latin1_swedish_ci,
+  b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+);
+CREATE VIEW v6a AS SELECT REPEAT(a, 3) AS c FROM t;              -- latin1
+CREATE VIEW v6b AS SELECT LPAD(a, 20, b) AS c FROM t;            -- latin1 (arg0)
+CREATE VIEW v6c AS SELECT RPAD(b, 20, a) AS c FROM t;            -- utf8mb4 (arg0)
+
+SELECT TABLE_NAME, CHARACTER_SET_NAME, COLLATION_NAME
+  FROM information_schema.COLUMNS
+ WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME IN ('v6a','v6b','v6c') AND COLUMN_NAME='c'
+ ORDER BY TABLE_NAME;
+```
+
+**Expected:** `v6a`→latin1/latin1_swedish_ci,
+`v6b`→latin1/latin1_swedish_ci, `v6c`→utf8mb4/utf8mb4_0900_ai_ci. Directly
+demonstrates the "first-arg pins charset" asymmetry vs CONCAT (17.1/17.2).
+
+**omni status:** gap. This is the closest-to-ready omni fix — add a
+per-function rule "result.collation = args[0].collation" in
+`function_types.go` for the first-arg-only family. Roughly a dozen builtins
+belong to this family (LPAD, RPAD, REPEAT, REVERSE, TRIM, LTRIM, RTRIM,
+LEFT, RIGHT, SUBSTR, SUBSTRING, SUBSTRING_INDEX, INSERT).
+
+---
+
+### 17.7 `CONVERT(x USING charset)` forces the charset
+
+**Priority:** HIGH  **Status:** pending  **Anchor:** `{#c17-7}`
+
+**MySQL source:** `Item_func_conv_charset` (`sql/item_strfunc.cc`, search
+for `Item_func_conv_charset::resolve_type`). It pins `collation` to the
+target charset's default collation at `DERIVATION_IMPLICIT` — **not**
+EXPLICIT, and **not** COERCIBLE. That is, `CONVERT(col USING utf8mb4)` is
+treated like another IMPLICIT column of utf8mb4 for downstream aggregation.
+
+**Rule:** Use `CONVERT(... USING cs)` to sidestep illegal-mix by promoting
+a foreign-charset value to a shared charset. Result derivation is IMPLICIT,
+charset is `cs`, collation is `cs`'s default.
+
+**Oracle fixture:**
+```sql
+DROP DATABASE IF EXISTS testdb; CREATE DATABASE testdb; USE testdb;
+CREATE TABLE t (
+  a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs,
+  b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+);
+-- 17.3 says this would fail:
+--   CREATE VIEW bad AS SELECT CONCAT(a, b) FROM t; -- ER 1267
+-- But CONVERT rescues it:
+CREATE VIEW v7 AS SELECT CONCAT(a, CONVERT(b USING utf8mb4)) AS c FROM t;
+
+SELECT CHARACTER_SET_NAME, COLLATION_NAME
+  FROM information_schema.COLUMNS
+ WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='v7' AND COLUMN_NAME='c';
+```
+
+**Expected:** `utf8mb4` / `utf8mb4_0900_ai_ci` (the default collation for
+the `utf8mb4` charset on MySQL 8.0). VERIFY AT ORACLE: if MySQL actually
+rejects this combination too, update the scenario to wrap BOTH sides in
+CONVERT.
+
+**omni status:** gap. omni parses `CONVERT ... USING ...` but the function
+return type is a plain VARCHAR without charset.
+
+---
+
+### 17.8 `COLLATE` clause is EXPLICIT — highest precedence
+
+**Priority:** HIGH  **Status:** pending  **Anchor:** `{#c17-8}`
+
+**MySQL source:** `Item_func_set_collation` (in `sql/item_strfunc.cc`, grep
+`Item_func_set_collation::resolve_type`). Pins `collation.derivation =
+DERIVATION_EXPLICIT`. In `DTCollation::aggregate`, `DERIVATION_EXPLICIT` is
+numeric 0 — it beats IMPLICIT, COERCIBLE, etc. If both sides are EXPLICIT
+with different collations, the aggregation fails (see l.2479-2481).
+
+**Rule:** `x COLLATE utf8mb4_bin` pins that expression to
+EXPLICIT/utf8mb4_bin. In any aggregation with non-EXPLICIT args, the
+EXPLICIT side's collation wins. Two EXPLICIT args with different collations
+is a hard error.
+
+**Oracle fixture:**
+```sql
+DROP DATABASE IF EXISTS testdb; CREATE DATABASE testdb; USE testdb;
+CREATE TABLE t (
+  a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs
+);
+-- Case A: one side EXPLICIT — wins.
+CREATE VIEW v8a AS SELECT CONCAT(a, b COLLATE utf8mb4_bin) AS c FROM t;
+-- Case B: both sides EXPLICIT with different collations — must fail.
+--   Expect: ERROR 1270 (HY000): Illegal mix of collations
+--   (utf8mb4_bin,EXPLICIT) and (utf8mb4_0900_ai_ci,EXPLICIT) for operation 'concat'
+CREATE VIEW v8b AS SELECT CONCAT(a COLLATE utf8mb4_0900_ai_ci,
+                                 b COLLATE utf8mb4_bin) AS c FROM t;
+
+SELECT CHARACTER_SET_NAME, COLLATION_NAME
+  FROM information_schema.COLUMNS
+ WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='v8a' AND COLUMN_NAME='c';
+```
+
+**Expected:**
+- `v8a` created; column `c` has `utf8mb4` / `utf8mb4_bin`.
+- `v8b` creation fails with ER_CANT_AGGREGATE_2COLLATIONS (error 1270 in
+  some code paths, 1267 in others — oracle-verify to pin the exact error).
+
+**omni status:** gap. omni parses `COLLATE` (accepted as a suffix in
+expressions) but does not track EXPLICIT derivation. `v8b` analyzes cleanly
+today — a soft-silent failure mirroring 17.3.
+
+---
+
 ## Section C18: SHOW CREATE TABLE elision rules
 
 > **Expansion note (Wave 2):** grew from 6 to 15 scenarios via systematic
@@ -3026,14 +3401,743 @@ Expected substrings:
 
 ---
 
-## Section C21: Parser-level defaults
+## Section C19: Virtual / functional indexes
+
+> **New section (Wave 3).** MySQL 8.0.13 introduced **functional key parts**
+> — indexes whose key parts are expressions rather than plain columns, e.g.
+> `INDEX ((LOWER(name)))`. MySQL does not have a native "expression index"
+> storage model: at DDL time, the server synthesizes a **hidden VIRTUAL
+> generated column** over the expression, gives it a generated name (see
+> §1.11/1.12), marks it `HT_HIDDEN_SQL`, and builds an ordinary index over
+> that column. All downstream semantics flow from this rewrite: type
+> inference, `SELECT *` visibility, disallowed function classes, BLOB
+> restrictions, drop/rename cleanup, and replication ordering.
+>
+> omni currently has **zero** handling for functional indexes: there is no
+> path that synthesizes hidden columns, and `mysql/catalog` has no `Hidden`/
+> `HiddenBySystem` flag on `Column`. Paired with §1.11 (auto-name
+> `functional_index[_N]`) and §1.12 (hidden column name
+> `!hidden!{key}!{part}!{count}`), C19 captures the *semantic* obligations
+> that must hold for round-trip DDL, schema sync, and query-span resolution
+> to match MySQL 8.0.
+>
+> **Source anchors (MySQL 8.0 `sql/sql_table.cc`):**
+> `add_functional_index_to_create_list` (L7783-L7900),
+> `make_functional_index_column_name` (L7710-L7743),
+> `Replace_field_processor_arg::replace_field_processor` (L7516-L7550),
+> `handle_drop_functional_index` (L16158-L16195),
+> `handle_rename_functional_index` (L16211+).
+> **Docs:** https://dev.mysql.com/doc/refman/8.0/en/create-index.html#create-index-functional-key-parts
+
+### 19.1 Functional index creates a hidden VIRTUAL generated column
+
+**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-1}`
+
+```sql
+CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
+CREATE INDEX idx_lower ON t ((LOWER(name)));
+
+-- User-visible SHOW COLUMNS does NOT reveal the hidden column:
+SHOW COLUMNS FROM t;
+-- +-------+-------------+------+-----+---------+-------+
+-- | id    | int         | NO   | PRI | NULL    |       |
+-- | name  | varchar(64) | YES  |     | NULL    |       |
+-- +-------+-------------+------+-----+---------+-------+
+
+-- But information_schema.COLUMNS shows nothing extra either, because
+-- HT_HIDDEN_SQL columns are filtered out of I_S.COLUMNS for regular users.
+-- Evidence of the hidden column is instead visible via SHOW CREATE TABLE
+-- (which renders the functional key part as the expression) and via
+-- information_schema.STATISTICS referencing a generated EXPRESSION:
+SELECT INDEX_NAME, COLUMN_NAME, EXPRESSION
+  FROM information_schema.STATISTICS
+ WHERE TABLE_NAME='t' AND INDEX_NAME='idx_lower';
+-- +-----------+-------------+--------------+
+-- | idx_lower | NULL        | lower(`name`)|
+-- +-----------+-------------+--------------+
+
+SHOW CREATE TABLE t;
+-- ... KEY `idx_lower` ((lower(`name`))) ...
+```
+
+**Expected:** The catalog holds an extra column with `hidden =
+HT_HIDDEN_SQL`, `stored_in_db = false` (VIRTUAL), `gcol_info.expr_item =
+LOWER(name)`, auto-named `!hidden!idx_lower!0!0`. `SHOW COLUMNS` and
+user-scoped `I_S.COLUMNS` suppress it. `information_schema.STATISTICS`
+surfaces it as `EXPRESSION` on the key part with `COLUMN_NAME = NULL`.
+
+**omni assertion:** after loading the table, the catalog must expose both
+the hidden column (queryable via an internal API, e.g. `tbl.HiddenColumns()`)
+and an index with exactly one key part that points to that hidden column OR
+carries an expression payload. `SHOW CREATE TABLE` deparse must render the
+functional key part form `((expr))`, not `(hidden_col_name)`.
+
+**MySQL source:**
+- `sql/sql_table.cc:7883` — `cr->hidden = dd::Column::enum_hidden_type::HT_HIDDEN_SQL;`
+- `sql/sql_table.cc:7884` — `cr->stored_in_db = false;`
+- `sql/sql_table.cc:7887-7891` — `Value_generator` built with `set_field_stored(false)`.
+
+**omni gap:** `mysql/catalog/column.go` has no `Hidden` (HT_HIDDEN_SQL) flag
+distinct from `Invisible` (INVISIBLE user flag). The SHOW CREATE TABLE
+deparser has no branch for functional key parts. Both must be added.
+
+---
+
+### 19.2 Hidden column type is inferred from the expression return type
+
+**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-2}`
+
+```sql
+CREATE TABLE t (
+  a INT, b INT,
+  name VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  payload JSON,
+  INDEX k_sum ((a + b)),                       -- hidden col: BIGINT
+  INDEX k_low ((LOWER(name))),                 -- hidden col: VARCHAR(64) utf8mb4_0900_ai_ci
+  INDEX k_cast ((CAST(payload->'$.age' AS UNSIGNED)))   -- hidden col: BIGINT UNSIGNED
+);
+```
+
+**Expected:** MySQL resolves the expression (`kp->resolve_expression(thd)`)
+and calls `generate_create_field(thd, item, &tmp_table)` to materialize a
+`Create_field` whose `sql_type`, `length`, `charset`, `collation`, `flags`
+(nullability, UNSIGNED, …) come from the `Item*`. So the hidden column’s
+type mirrors what you’d get from `SELECT expr FROM t` type-inference.
+
+`information_schema.STATISTICS.COLLATION` and `SHOW INDEX FROM t` will
+reflect those inferred properties, and server-side query planning uses them
+for index matching.
+
+**omni assertion:** the synthesized hidden column’s `DataType` must be the
+result of evaluating the expression type against the table’s other columns.
+Importantly, the hidden column inherits the **expression collation**, not
+the table default. (E.g. `((name))` is rejected by
+ER_FUNCTIONAL_INDEX_ON_FIELD, but `((CONVERT(name USING utf8mb4) COLLATE
+utf8mb4_bin))` produces a column with `utf8mb4_bin`, even if `name` is
+`utf8mb4_0900_ai_ci`.)
+
+**MySQL source:**
+- `sql/sql_table.cc:7860` — `Create_field *cr = generate_create_field(thd, item, &tmp_table);`
+- `sql/sql_table.cc:7864-7868` — `if (is_blob(cr->sql_type)) ER_FUNCTIONAL_INDEX_ON_LOB`.
+- `sql/sql_table.cc:7889` — `gcol_info->set_field_type(cr->sql_type);`
+
+**omni gap:** requires an expression-type resolver in `mysql/catalog` capable
+of producing an effective `DataType`+collation from a parsed expression,
+using the table’s own columns as the symbol table. Functions like `LOWER`,
+arithmetic promotions, and `CAST` must all be supported to at least the
+precision required for the column type.
+
+---
+
+### 19.3 Hidden functional column is invisible to `SELECT *` and user I_S.COLUMNS
+
+**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-3}`
+
+```sql
+CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
+CREATE INDEX idx_lower ON t ((LOWER(name)));
+INSERT INTO t VALUES (1,'Alice'),(2,'BOB');
+
+-- (a) SELECT * skips the hidden column entirely.
+SELECT * FROM t;
+-- +----+-------+
+-- | id | name  |
+-- | 1  | Alice |
+-- | 2  | BOB   |
+-- +----+-------+
+-- (no third column)
+
+-- (b) Hidden column cannot be referenced by name either.
+SELECT `!hidden!idx_lower!0!0` FROM t;
+-- ERROR 1054 (42S22): Unknown column '!hidden!idx_lower!0!0' in 'field list'
+
+-- (c) information_schema.COLUMNS as a non-DBA user does NOT list it.
+SELECT COLUMN_NAME FROM information_schema.COLUMNS
+ WHERE TABLE_NAME='t';
+-- id, name    (no hidden column row)
+
+-- (d) But the key-part expression IS visible via I_S.STATISTICS:
+SELECT INDEX_NAME, SEQ_IN_INDEX, EXPRESSION
+  FROM information_schema.STATISTICS
+ WHERE TABLE_NAME='t';
+```
+
+**Expected:** `HT_HIDDEN_SQL` hides the column from the SQL namespace
+entirely — not just from `SELECT *` expansion, but also from direct name
+reference, `INSERT ... VALUES` positional binding, and the user-scoped
+`I_S.COLUMNS` view. Only server internals and `I_S.STATISTICS.EXPRESSION`
+acknowledge its existence.
+
+**omni assertion:** query-span and completion must treat functional-index
+hidden columns as non-resolvable identifiers. `SELECT *` expansion in the
+advisor must not include them. Schema diffing must not treat the hidden
+column as a user-drift column that needs to be added/dropped explicitly —
+it is an artifact of the index.
+
+**MySQL source:**
+- `sql/sql_base.cc` — `setup_wild` skips `HT_HIDDEN_SQL` fields.
+- `sql/sql_show.cc` — `I_S.COLUMNS` DD view joins on `dd.columns.is_hidden=0` for the user view.
+- `sql/item.cc` — `find_field_in_table` rejects hidden-by-system fields unless `thd->lex->allow_sum_func` / DD access path.
+
+**omni gap:** `mysql/catalog` must tag these columns with a `HiddenBySystem`
+bit distinct from `Invisible`. `SELECT *` expansion and identifier resolution
+paths must consult that bit.
+
+---
+
+### 19.4 Functional expression must be deterministic and pure
+
+**Priority:** P1  **Status:** pending  **Anchor:** `{#c19-4}`
+
+```sql
+-- Rejected: uses non-deterministic function
+CREATE TABLE t (a INT, INDEX ((a + RAND())));
+-- ERROR 3757 (HY000): Expression of functional index 'functional_index'
+--   contains a disallowed function.
+
+-- Rejected: references subquery, stored function, or variable
+CREATE TABLE t (a INT, INDEX ((a + @@global.long_query_time)));
+-- ERROR 3757 (HY000): ... disallowed function.
+
+-- Rejected: DEFAULT() / VALUES() — replace_field_processor path
+CREATE TABLE t (a INT, b INT DEFAULT 5, INDEX ((DEFAULT(b) + a)));
+-- ERROR 3757 (HY000): Expression of functional index 'functional_index'
+--   contains a disallowed function.
+
+-- Rejected: bare field reference — not actually an expression
+CREATE TABLE t (a INT, INDEX ((a)));
+-- ERROR 3756 (HY000): Functional index on a column is not supported.
+--   Consider using a regular index instead.
+
+-- Rejected: result type is BLOB/TEXT
+CREATE TABLE t (payload JSON, INDEX ((payload->'$.name')));
+-- ERROR 3754 (HY000): Cannot create a functional index on an expression
+--   that returns a BLOB or TEXT. Please consider using CAST.
+```
+
+**Expected:** The set of rejections mirrors generated-column rules
+(`pre_validate_value_generator_expr` with `VGS_GENERATED_COLUMN`) plus three
+functional-index-specific errors:
+- `ER_FUNCTIONAL_INDEX_ON_FIELD` (3756) — bare column, not an expression.
+- `ER_FUNCTIONAL_INDEX_ON_LOB` (3754) — inferred type is BLOB/TEXT/JSON.
+- `ER_FUNCTIONAL_INDEX_PRIMARY_KEY` (3752) — declared as PRIMARY KEY.
+- `ER_FUNCTIONAL_INDEX_FUNCTION_IS_NOT_ALLOWED` (3757) — disallowed Item
+  (non-deterministic, session state, subquery, DEFAULT(), VALUES(), etc.).
+
+**omni assertion:** the omni catalog-builder (and eventually schema-diff /
+advisor) must reproduce each of these rejections at load/validation time so
+that invalid SDL is caught before applying. Error code & message should
+match MySQL where practical.
+
+**MySQL source:**
+- `sql/sql_table.cc:7788` — `ER_FUNCTIONAL_INDEX_PRIMARY_KEY`
+- `sql/sql_table.cc:7828` — `ER_FUNCTIONAL_INDEX_ON_FIELD`
+- `sql/sql_table.cc:7871` — `ER_FUNCTIONAL_INDEX_ON_LOB`
+- `sql/sql_table.cc:7529` — `ER_FUNCTIONAL_INDEX_FUNCTION_IS_NOT_ALLOWED`
+- `sql/sql_table.cc:7830-7832` — `pre_validate_value_generator_expr(..., VGS_GENERATED_COLUMN)`
+
+**omni gap:** no validation layer today. A functional-index pipeline should
+reject each class before creating the hidden column.
+
+---
+
+### 19.5 Functional index on JSON path via `(col->>'$.path')`
+
+**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-5}`
+
+```sql
+CREATE TABLE t (
+  id INT PRIMARY KEY,
+  doc JSON,
+  -- ->> returns TEXT, which is BLOB-family → must CAST down to a
+  -- non-LOB type, otherwise ER_FUNCTIONAL_INDEX_ON_LOB.
+  INDEX idx_name ((CAST(doc->>'$.name' AS CHAR(64))))
+);
+
+-- Equivalent via JSON_UNQUOTE(JSON_EXTRACT(...)):
+CREATE INDEX idx_age ON t ((CAST(doc->'$.age' AS UNSIGNED)));
+
+INSERT INTO t VALUES
+  (1, '{"name":"Alice","age":30}'),
+  (2, '{"name":"Bob","age":25}');
+
+-- The optimizer uses the functional index for matching predicates:
+EXPLAIN SELECT * FROM t WHERE CAST(doc->>'$.name' AS CHAR(64)) = 'Alice';
+-- key: idx_name, type: ref
+
+-- Common mistakes:
+CREATE INDEX bad ON t ((doc->>'$.name'));
+-- ERROR 3754 (HY000): ... BLOB or TEXT. Please consider using CAST.
+
+CREATE INDEX bad2 ON t ((doc->'$.name'));
+-- ERROR 3754 (HY000): ... JSON value → treated as LOB.
+```
+
+**Expected:** The single most common real-world use of functional indexes
+is indexing a JSON path. MySQL forces the user to `CAST` because `->>`
+returns `longtext` and `->` returns `json`, both of which are LOB-family.
+Only after the cast does `generate_create_field` produce an acceptable
+hidden column type.
+
+For the optimizer to use the index, the query predicate must use **the
+exact same expression** as the index definition (modulo commutativity);
+MySQL does not normalize `doc->>'$.name'` and
+`JSON_UNQUOTE(JSON_EXTRACT(doc,'$.name'))` for index-matching purposes
+even though they are semantically equivalent.
+
+**omni assertion:** the parser must accept the JSON operator forms inside
+functional key parts. The catalog must recognize `CAST(... AS CHAR(N))` and
+`CAST(... AS UNSIGNED/SIGNED/DECIMAL/DATE/DATETIME)` as valid cast targets,
+and the advisor/query-span engine should match functional indexes against
+predicates that use the identical expression tree.
+
+**MySQL source:**
+- `sql/sql_table.cc:7864` — `is_blob(cr->sql_type)` check.
+- `sql/item_json_func.cc` — `Item_func_json_extract_oneline` returns JSON.
+- `sql/sql_optimizer.cc` — functional-index matching in `substitute_gc()`
+  / `find_func_index_on_expr()`.
+
+**omni gap:** the entire pipeline. Specifically, the catalog’s view of a
+functional index on a JSON path is the key test for round-tripping
+`SHOW CREATE TABLE`: omni must re-emit `((cast(`doc` ->> _utf8mb4'$.name' as char(64))))` byte-exact.
+
+---
+
+### 19.6 DROP INDEX cascades to the hidden generated column
+
+**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-6}`
+
+```sql
+CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
+CREATE INDEX idx_lower ON t ((LOWER(name)));
+
+-- Dropping the index also drops the hidden generated column.
+DROP INDEX idx_lower ON t;
+SHOW CREATE TABLE t;
+-- CREATE TABLE `t` (
+--   `id` int NOT NULL,
+--   `name` varchar(64) DEFAULT NULL,
+--   PRIMARY KEY (`id`)
+-- )   -- no trace of the hidden column
+
+-- You CANNOT drop the hidden column directly.
+CREATE INDEX idx_lower ON t ((LOWER(name)));
+ALTER TABLE t DROP COLUMN `!hidden!idx_lower!0!0`;
+-- ERROR 3108 (HY000): Cannot drop column '!hidden!idx_lower!0!0' because
+--   it is used by a functional index. In order to drop the column, the
+--   functional index must be removed first.
+
+-- RENAME INDEX also cascades: the hidden column is renamed to match the
+-- new index name because the name is derived from the key name.
+ALTER TABLE t RENAME INDEX idx_lower TO idx_lc;
+-- Internally: !hidden!idx_lower!0!0 → !hidden!idx_lc!0!0
+```
+
+**Expected:** `handle_drop_functional_index` walks the `drop_list`; for each
+`Alter_drop::KEY` whose key parts reference `is_field_for_functional_index()`
+columns, it appends synthetic `Alter_drop::COLUMN` entries. The inverse is
+blocked: dropping the hidden column by name yields
+`ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX` (3108). `ALTER TABLE ... RENAME
+INDEX` cascades to a hidden-column rename because the hidden column name is
+derived from the key name (see §1.12).
+
+**omni assertion:** omni’s schema-diff migration generator must:
+1. Emit `DROP INDEX idx_name` *without* an accompanying `DROP COLUMN` for
+   the hidden column (server handles cascade).
+2. Reject any attempt to generate `ALTER TABLE ... DROP COLUMN
+   '!hidden!...'` as a planned migration — this must be caught as a
+   pre-flight validation error.
+3. When diffing a rename (old SDL `idx_a` → new SDL `idx_b`, same
+   expression), prefer `ALTER TABLE ... RENAME INDEX idx_a TO idx_b` over
+   drop+recreate so the hidden column is renamed in place.
+
+**MySQL source:**
+- `sql/sql_table.cc:16158-16195` — `handle_drop_functional_index`
+- `sql/sql_table.cc:16187` — `ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX`
+- `sql/sql_table.cc:16211+` — `handle_rename_functional_index`
+
+**omni gap:** the migration generator has no concept of functional indexes,
+so today it would plan a no-op for the hidden column drift or, worse,
+generate an invalid `DROP COLUMN` statement. Needs a pre-diff normalization
+pass that attaches hidden columns to their parent index.
+
+---
+
+## Section C20: Field-type-specific implicit defaults
+
+> **New section (Wave 3).** C2 (type normalization) is about how the parser
+> rewrites type names (REAL → DOUBLE, SERIAL → BIGINT UNSIGNED NOT NULL
+> AUTO_INCREMENT UNIQUE). C20 is about the **runtime implicit default value**
+> applied when a column has no explicit `DEFAULT` clause and an INSERT either
+> omits the column or writes `DEFAULT` to it. Two distinct layers, both
+> load-bearing for catalog and deparse.
+>
+> **Primary doc:** https://dev.mysql.com/doc/refman/8.0/en/data-type-defaults.html
+> **Primary source:** `sql/field.cc` (per-Field subclass `store_default` /
+> `reset`), `sql/sql_data_change.cc`, `sql/sql_insert.cc` (implicit default
+> fill-in), `sql/sql_table.cc` (BLOB/JSON/GEOMETRY expression-default rules),
+> `sql/field.h` (`m_default_val_expr`).
+>
+> **Why omni cares:**
+> 1. `SHOW CREATE TABLE` round-trip: omni's deparser must render `DEFAULT <x>`
+>    iff the user wrote an explicit default. A column with no explicit default
+>    must NOT render as `DEFAULT 0` / `DEFAULT ''` even though the runtime
+>    would materialize those values.
+> 2. SDL diff semantics: `col INT NOT NULL` vs `col INT NOT NULL DEFAULT 0`
+>    are **different** at the catalog level even if the runtime fallback is
+>    identical.
+> 3. Expression defaults (8.0.13+) are a separate AST category — the parser
+>    stores a parenthesized `Expr` rather than a literal.
+
+### 20.1 Integer column, NOT NULL, no DEFAULT — implicit 0 on INSERT
+
+**Priority:** HIGH  **Status:** pending
+
+```sql
+CREATE TABLE c20_1 (id INT NOT NULL);
+INSERT INTO c20_1 () VALUES ();           -- non-strict: inserts 0
+INSERT INTO c20_1 () VALUES ();           -- strict: ER_NO_DEFAULT_FOR_FIELD (1364)
+SHOW CREATE TABLE c20_1;
+```
+
+**Expected catalog state:**
+- `Column{Name:"id", Type:INT, NotNull:true, Default:nil, DefaultAnalyzed:nil}`
+- `Default` pointer **remains nil** — there is no stored default expression.
+- The implicit `0` is a runtime property of `Field_long::reset()` (field.cc),
+  not a catalog-level default.
+
+**Expected SHOW CREATE TABLE:**
+```
+`id` int NOT NULL
+```
+(No `DEFAULT 0` rendered. Oracle MySQL 8.0 behaves identically.)
+
+**Expected INSERT behavior (oracle):**
+- `sql_mode` without `STRICT_ALL_TABLES`/`STRICT_TRANS_TABLES`: row inserted
+  with `id=0`, warning `1364 Field 'id' doesn't have a default value`.
+- `sql_mode` with strict: error `1364`, no row inserted.
+
+**Oracle verify:** `SHOW CREATE TABLE c20_1` + both strict and non-strict
+INSERT; compare column rendering and post-INSERT `SELECT *`.
+
+---
+
+### 20.2 Integer column, nullable, no DEFAULT — implicit NULL
+
+**Priority:** HIGH  **Status:** pending
+
+```sql
+CREATE TABLE c20_2 (id INT);
+INSERT INTO c20_2 () VALUES ();    -- always succeeds: id=NULL
+SHOW CREATE TABLE c20_2;
+```
+
+**Expected catalog state:**
+- `Column{Name:"id", Type:INT, NotNull:false, Default:nil}`.
+- Note: MySQL's own `SHOW CREATE TABLE` for a nullable int with no default
+  renders `` `id` int DEFAULT NULL ``. This is a **deparse hint** — the
+  catalog did not parse an explicit `DEFAULT NULL`, but MySQL's renderer
+  always appends `DEFAULT NULL` for nullable columns that lack an explicit
+  default AND lack `NOT NULL`.
+- omni deparse MUST match: append `DEFAULT NULL` even when `col.Default == nil`
+  and the column is nullable. This is the one case where omni **adds** a
+  token absent from the catalog.
+
+**Expected SHOW CREATE TABLE:**
+```
+`id` int DEFAULT NULL
+```
+
+**Deparse rule (for /mysql/deparse):**
+```
+if col.NotNull == false && col.Default == nil && !isAutoIncrement(col) {
+    emit(" DEFAULT NULL")
+}
+```
+(Do not emit for TIMESTAMP — that type has its own implicit-default quirk
+handled in C16 / `explicit_defaults_for_timestamp`.)
+
+**Oracle verify:** `SHOW CREATE TABLE` output must contain exactly the
+`DEFAULT NULL` fragment.
+
+---
+
+### 20.3 String column (VARCHAR/CHAR), NOT NULL, no DEFAULT — implicit ''
+
+**Priority:** MEDIUM  **Status:** pending
+
+```sql
+CREATE TABLE c20_3 (name VARCHAR(64) NOT NULL, code CHAR(4) NOT NULL);
+INSERT INTO c20_3 () VALUES ();          -- non-strict: name='', code=''
+SHOW CREATE TABLE c20_3;
+```
+
+**Expected catalog state:**
+- Both columns: `Default:nil, NotNull:true`.
+- No empty-string literal is stored in the catalog.
+
+**Expected SHOW CREATE TABLE:**
+```
+`name` varchar(64) NOT NULL,
+`code` char(4) NOT NULL
+```
+(No `DEFAULT ''` rendered.)
+
+**Runtime implicit default source:** `Field_varstring::reset()` /
+`Field_string::reset()` in `sql/field.cc` zero the value buffer; for char
+columns, `reset()` pads with the fill char (' ').
+
+**Oracle verify:** SHOW CREATE comparison + non-strict INSERT then
+`SELECT HEX(name), HEX(code)` to confirm empty-string materialization.
+
+---
+
+### 20.4 ENUM NOT NULL, no DEFAULT — implicit default = first enum value
+
+**Priority:** HIGH  **Status:** pending
+
+```sql
+CREATE TABLE c20_4 (
+  status ENUM('active','archived','deleted') NOT NULL,
+  kind   ENUM('a','b','c')
+);
+INSERT INTO c20_4 () VALUES ();          -- non-strict: status='active', kind=NULL
+SHOW CREATE TABLE c20_4;
+```
+
+**Expected catalog state:**
+- `status`: `Default:nil, NotNull:true`.
+- `kind` (nullable): `Default:nil, NotNull:false` — implicit default is
+  NULL, **not** 'a'. The "first value" rule only applies when the column is
+  NOT NULL.
+- The first-value behavior lives in `Field_enum::reset()` — it stores the
+  ordinal `1`, which decodes to the first literal. It is **not** a catalog
+  property.
+
+**Expected SHOW CREATE TABLE:**
+```
+`status` enum('active','archived','deleted') NOT NULL,
+`kind` enum('a','b','c') DEFAULT NULL
+```
+(No `DEFAULT 'active'` rendered for `status`. Do render `DEFAULT NULL` for
+the nullable `kind` per rule 20.2.)
+
+**Oracle verify:** Non-strict INSERT + `SELECT status+0, kind FROM c20_4`
+confirms ordinal 1 ('active') and NULL.
+
+---
+
+### 20.5 DATETIME/DATE NOT NULL, no DEFAULT — zero-date vs strict error
+
+**Priority:** HIGH  **Status:** pending
+
+```sql
+CREATE TABLE c20_5 (
+  created_at DATETIME NOT NULL,
+  birthday   DATE     NOT NULL
+);
+-- non-strict, NO_ZERO_DATE off: '0000-00-00 00:00:00' / '0000-00-00'
+-- non-strict, NO_ZERO_DATE on:   warning + zero value
+-- strict + NO_ZERO_DATE on:      ER_NO_DEFAULT_FOR_FIELD (1364)
+INSERT INTO c20_5 () VALUES ();
+SHOW CREATE TABLE c20_5;
+```
+
+**Expected catalog state:**
+- Both columns: `Default:nil, NotNull:true`.
+- omni MUST NOT invent a `DEFAULT '0000-00-00'` — even MySQL's own deparser
+  does not. The zero value is an execution fallback only.
+
+**Expected SHOW CREATE TABLE:**
+```
+`created_at` datetime NOT NULL,
+`birthday` date NOT NULL
+```
+
+**sql_mode interaction:**
+- Default 8.0 `sql_mode` includes `STRICT_TRANS_TABLES,NO_ZERO_DATE` so the
+  naive `INSERT () VALUES ()` errors with 1364 for InnoDB tables.
+- With `sql_mode=''`, the insert succeeds with `'0000-00-00'`.
+- This scenario verifies omni **does not pre-apply** the zero-date — leave
+  fallback to the server at INSERT time.
+
+**Oracle verify:** Both `sql_mode='' ` and default `sql_mode` INSERT paths,
+then SHOW CREATE comparison. The interesting assert is that rendering is
+mode-independent.
+
+---
+
+### 20.6 BLOB/TEXT literal DEFAULT — parser error pre-8.0.13, still illegal
+
+**Priority:** HIGH  **Status:** pending
+
+```sql
+-- All of these must be rejected:
+CREATE TABLE c20_6a (b BLOB DEFAULT 'abc');        -- ER_BLOB_CANT_HAVE_DEFAULT (1101)
+CREATE TABLE c20_6b (t TEXT DEFAULT 'hello');       -- 1101
+CREATE TABLE c20_6c (g GEOMETRY DEFAULT 'x');       -- 1101
+CREATE TABLE c20_6d (j JSON DEFAULT '[]');          -- 1101
+```
+
+**Expected omni behavior:**
+- Parser accepts the grammar (MySQL accepts it at parse time too).
+- `tablecmds.go:CREATE TABLE` application validates: for column types
+  `BLOB/TEXT/LONGBLOB/LONGTEXT/MEDIUMBLOB/MEDIUMTEXT/TINYBLOB/TINYTEXT/
+  GEOMETRY/POINT/LINESTRING/POLYGON/MULTI*/GEOMETRYCOLLECTION/JSON`, if
+  `DefaultValue` is a plain literal (non-parenthesized `Expr`), return
+  `ER_BLOB_CANT_HAVE_DEFAULT` (1101).
+- The error must mention the offending column name, matching MySQL's
+  `"BLOB, TEXT, GEOMETRY or JSON column '%s' can't have a default value"`.
+
+**Expected catalog state:** table creation fails; no row added to catalog.
+
+**Source reference:** `sql/sql_table.cc` `prepare_create_field()` — search
+for `ER_BLOB_CANT_HAVE_DEFAULT`. The check is gated on
+`sql_field->constant_default != nullptr` (literal) and the type being one of
+the blob-family types. Expression defaults (`m_default_val_expr != nullptr`)
+are allowed and take a different code path.
+
+**Oracle verify:** Run all 4 statements on MySQL 8.0; assert error code
+`1101` and compare message text (substring match on column name).
+
+---
+
+### 20.7 JSON / BLOB expression DEFAULT — parenthesized expression OK (8.0.13+)
+
+**Priority:** HIGH  **Status:** pending
+
+```sql
+CREATE TABLE c20_7 (
+  id INT PRIMARY KEY,
+  tags  JSON      DEFAULT (JSON_ARRAY()),
+  meta  JSON      DEFAULT (JSON_OBJECT('v', 1)),
+  blob1 BLOB      DEFAULT (SUBSTRING('abcdef', 1, 3)),
+  pt    POINT     DEFAULT (POINT(0, 0)),
+  uuid  BINARY(16) DEFAULT (UUID_TO_BIN(UUID()))
+);
+SHOW CREATE TABLE c20_7;
+INSERT INTO c20_7 (id) VALUES (1);
+SELECT tags, meta FROM c20_7;
+```
+
+**Parser requirement:**
+- The `(` after `DEFAULT` must open a grammar path that parses a full `Expr`
+  (not a `Literal`). When the parser sees `DEFAULT` followed by `(` at
+  column-option position, it must consume an expression in parens.
+- An unparenthesized call `DEFAULT JSON_ARRAY()` is a **parser error** in
+  MySQL 8.0 — omni must reject it with a syntax error or `ER_INVALID_DEFAULT`
+  (1067). Only the parenthesized form is legal for non-constant defaults on
+  these types.
+
+**Expected catalog state:**
+- `tags.DefaultAnalyzed` holds an analyzed `FuncCall{JSON_ARRAY}` node.
+- `tags.Default` (raw) must preserve that the user wrote a parenthesized
+  expression. Suggested representation: store the inner expression plus a
+  flag `IsExprDefault bool`, or always wrap in parens on deparse when
+  `DefaultAnalyzed.Kind != Literal`.
+- `pt`, `uuid`, `blob1` same pattern.
+
+**Expected SHOW CREATE TABLE rendering:**
+```
+`tags` json DEFAULT (json_array()),
+`meta` json DEFAULT (json_object(_utf8mb4'v',1)),
+...
+```
+(MySQL renders the inner expression back lowercased and fully qualified with
+charset introducers for string literals. Match at the **AST-equivalent**
+level in oracle tests — do not string-compare.)
+
+**Forward-reference constraint:** Expression defaults cannot reference later
+columns with expression defaults or generated columns. Tablecmds application
+must walk `base_columns_map` (mysql-server concept) or its omni equivalent
+and error with `ER_DEFAULT_VAL_GENERATED_REF_AUTO_INC` / `ER_DEFAULT_VAL_
+GENERATED_...` family codes if violated.
+
+**Oracle verify:** SHOW CREATE round-trip + `INSERT (id) VALUES (1)` then
+`SELECT JSON_LENGTH(tags), JSON_EXTRACT(meta,'$.v')` to confirm the
+expression actually materialized its value.
+
+---
+
+### 20.8 Generated column — DEFAULT clause is a grammar error
+
+**Priority:** MEDIUM  **Status:** pending
+
+```sql
+-- ALL invalid:
+CREATE TABLE c20_8a (
+  a INT,
+  b INT AS (a + 1) DEFAULT 0                 -- stored or virtual: illegal
+);
+
+CREATE TABLE c20_8b (
+  a INT,
+  b INT GENERATED ALWAYS AS (a + 1) VIRTUAL DEFAULT 0
+);
+
+CREATE TABLE c20_8c (
+  a INT,
+  b INT GENERATED ALWAYS AS (a + 1) STORED DEFAULT (a * 2)
+);
+```
+
+**Expected omni behavior:**
+- Parser: reject at grammar level. In MySQL's Bison grammar, column options
+  after `GENERATED ALWAYS AS (...) [STORED|VIRTUAL]` are a restricted subset
+  — `DEFAULT` is not in that subset. omni's parser should either produce
+  `ER_PARSE_ERROR` or `ER_WRONG_USAGE` mentioning that generated columns
+  cannot have a DEFAULT clause.
+- If the parser accepts for error-recovery reasons, `tablecmds.go` must
+  reject: if `col.Generated != nil && col.Default != nil`, error with
+  `"A generated column cannot have a default value"`.
+
+**Error code:** MySQL emits `ER_WRONG_USAGE (1221)` with message
+`"Incorrect usage of DEFAULT and generated column"` (or parse error 1064
+depending on position — test both orderings).
+
+**Expected catalog state:** no table created.
+
+**Note on `NOT NULL`:** `NOT NULL` IS allowed on generated columns (it's a
+constraint, not a default), so the test must isolate `DEFAULT` as the
+offending clause.
+
+**Oracle verify:** All three statements against MySQL 8.0; assert error code
+(1064 or 1221) and capture the exact message for omni parity.
+
+---
+
+## Section C21: Parser-level implicit defaults
+
+> **Expansion note (Wave 3):** grew from 1 to 10 scenarios via systematic
+> walk of `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy` grammar
+> action blocks. These are "invisible" grammar-level defaults — the rules
+> fire action code on the empty production and don't appear in reference
+> manual syntax diagrams. Category anchors: `sql_yacc.yy`, `sql_lex.cc`,
+> `sql_cmd_ddl_table.cc`, `sql_view.cc`.
 
 ### 21.1 `DEFAULT` without value on nullable column → DEFAULT NULL
+
+**Priority:** HIGH  **Status:** verified
 
 **Setup:**
 ```sql
 CREATE TABLE t (a INT DEFAULT NULL);
+-- and the inverse (column with no DEFAULT) implicitly yields DEFAULT NULL
+CREATE TABLE t2 (c INT);
 ```
+
+**Grammar rule:** `sql_yacc.yy:7651 opt_default`
+```
+opt_default:
+          %empty {}
+        | DEFAULT_SYM {}
+        ;
+```
+
+`column_attribute` (sql_yacc.yy:7467) has no clause that attaches an implicit
+`DEFAULT NULL` marker — when the column definition omits both `NOT NULL` and
+`DEFAULT <v>`, the column is nullable and the server later materializes
+`DEFAULT NULL` for `INFORMATION_SCHEMA.COLUMNS.COLUMN_DEFAULT`.
 
 **Oracle verification:**
 ```sql
@@ -3042,9 +4146,355 @@ WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='a';
 ```
 Expected: `COLUMN_DEFAULT = NULL`, `IS_NULLABLE = YES`.
 
-**omni assertion:** `tbl.GetColumn("a").Default` is the NULL literal; nullable true.
+**omni assertion:** `tbl.GetColumn("a").Default` is the NULL literal; nullable
+true. `mysql/parser` should treat missing DEFAULT on a nullable column as
+equivalent to `DEFAULT NULL` when computing view/catalog default expressions.
 
 **See catalog:** C21.1.
+
+---
+
+### 21.2 Bare JOIN keyword → INNER JOIN (JTT_INNER)
+
+**Priority:** HIGH  **Status:** pending
+
+**Trigger SQL:**
+```sql
+SELECT * FROM t1 JOIN t2 ON t1.a = t2.a;       -- same as INNER JOIN
+SELECT * FROM t1 INNER JOIN t2 ON t1.a = t2.a;
+SELECT * FROM t1 CROSS JOIN t2;                -- also yields JTT_INNER
+```
+
+**Grammar rule:** `sql_yacc.yy:11975 inner_join_type`
+```
+inner_join_type:
+          JOIN_SYM                         { $$= JTT_INNER; }
+        | INNER_SYM JOIN_SYM               { $$= JTT_INNER; }
+        | CROSS JOIN_SYM                   { $$= JTT_INNER; }
+        | STRAIGHT_JOIN                    { $$= JTT_STRAIGHT_INNER; }
+```
+
+Three textually-different forms (`JOIN`, `INNER JOIN`, `CROSS JOIN`) all
+collapse to the same enum value `JTT_INNER`. Additionally `opt_inner:`
+(sql_yacc.yy:11986) and `opt_outer:` (sql_yacc.yy:11991) are empty-acceptance
+rules that make the `INNER` / `OUTER` keywords purely syntactic noise.
+
+**omni check:** `mysql/parser/select.go` — the AST node for a JOIN should use
+a single canonical `INNER` value for all three forms, or record them
+distinctly only for deparse round-tripping. The semantic IR must normalize.
+
+---
+
+### 21.3 ORDER BY column without direction → ORDER_NOT_RELEVANT (NOT ORDER_ASC)
+
+**Priority:** HIGH  **Status:** pending
+
+**Trigger SQL:**
+```sql
+SELECT * FROM t ORDER BY a;        -- emits ORDER_NOT_RELEVANT
+SELECT * FROM t ORDER BY a ASC;    -- emits ORDER_ASC
+```
+
+**Grammar rule:** `sql_yacc.yy:12606 opt_ordering_direction`
+```
+opt_ordering_direction:
+          %empty { $$= ORDER_NOT_RELEVANT; }
+        | ordering_direction
+        ;
+
+ordering_direction:
+          ASC         { $$= ORDER_ASC; }
+        | DESC        { $$= ORDER_DESC; }
+        ;
+```
+
+**Important correction to starmap description:** Contrary to the plan's claim
+that "ORDER BY without direction → ASC", the **grammar emits a distinct third
+value `ORDER_NOT_RELEVANT`**. The server later treats `ORDER_NOT_RELEVANT` the
+same as `ORDER_ASC` in execution, but the AST preserves the distinction. This
+matters for deparse (`SHOW CREATE VIEW` should reproduce the user's original
+form without injecting `ASC`).
+
+**omni check:** AST ordering-direction field should carry a tri-state, not
+bool. Currently omni may collapse to ASC — verify `mysql/parser/select.go`.
+
+---
+
+### 21.4 LIMIT N without OFFSET → opt_offset = NULL (NOT OFFSET 0)
+
+**Priority:** HIGH  **Status:** pending
+
+**Trigger SQL:**
+```sql
+SELECT * FROM t LIMIT 10;            -- opt_offset = NULL
+SELECT * FROM t LIMIT 10 OFFSET 0;   -- opt_offset = Item_uint(0)
+SELECT * FROM t LIMIT 0, 10;         -- opt_offset = Item_uint(0), is_offset_first=true
+```
+
+**Grammar rule:** `sql_yacc.yy:12628 limit_options`
+```
+limit_options:
+          limit_option
+          {
+            $$.limit= $1;
+            $$.opt_offset= NULL;
+            $$.is_offset_first= false;
+          }
+        | limit_option ',' limit_option
+          {
+            $$.limit= $3;
+            $$.opt_offset= $1;
+            $$.is_offset_first= true;
+          }
+        | limit_option OFFSET_SYM limit_option
+          { ... }
+        ;
+```
+
+**Correction:** The plan says `LIMIT N` → `OFFSET 0`. The grammar emits
+`opt_offset = NULL`. Execution semantics treat NULL as 0, but deparse and
+SHOW CREATE VIEW must preserve the absence. Additionally, `LIMIT a, b` and
+`LIMIT b OFFSET a` are grammatically distinct (tracked by the
+`is_offset_first` bool).
+
+**omni check:** `mysql/parser` LIMIT clause should record offset as optional
+pointer (nullable), not default to 0. Also must track `is_offset_first`.
+
+---
+
+### 21.5 FK ON DELETE omitted → FK_OPTION_UNDEF (NOT FK_OPTION_RESTRICT)
+
+**Priority:** HIGH  **Status:** pending
+
+**Trigger SQL:**
+```sql
+CREATE TABLE child (
+  p INT,
+  FOREIGN KEY (p) REFERENCES parent(id)    -- no ON DELETE, no ON UPDATE
+);
+```
+
+**Grammar rule:** `sql_yacc.yy:7814 opt_on_update_delete`
+```
+opt_on_update_delete:
+          %empty
+          {
+            $$.fk_update_opt= FK_OPTION_UNDEF;
+            $$.fk_delete_opt= FK_OPTION_UNDEF;
+          }
+        | ON_SYM UPDATE_SYM delete_option
+          {
+            $$.fk_update_opt= $3;
+            $$.fk_delete_opt= FK_OPTION_UNDEF;
+          }
+        ...
+```
+
+**Important correction to starmap description:** The plan says the parser
+emits `FK_OPTION_RESTRICT` for omitted clauses. This is **wrong** — the
+grammar emits `FK_OPTION_UNDEF`. The mapping to RESTRICT / NO ACTION happens
+later in InnoDB (`dd::Foreign_key::delete_rule` defaults). The `FK_OPTION_*`
+enum has all five explicit values (sql_yacc.yy:7844) plus `FK_OPTION_UNDEF`
+which is grammar-only. Also note `RESTRICT` and `NO ACTION` parse to
+**distinct enum values**, even though InnoDB treats them identically at
+runtime — another implicit normalization.
+
+**omni check:** FK parser must use a 6-value enum (including UNDEF). Treating
+omitted as RESTRICT will mis-deparse.
+
+---
+
+### 21.6 FK ON DELETE present but ON UPDATE omitted → UPDATE gets FK_OPTION_UNDEF
+
+**Priority:** MEDIUM  **Status:** pending
+
+**Trigger SQL:**
+```sql
+CREATE TABLE child (
+  p INT,
+  FOREIGN KEY (p) REFERENCES parent(id) ON DELETE CASCADE
+);
+-- fk_update_opt = FK_OPTION_UNDEF (NOT inherited from delete rule)
+```
+
+**Grammar rule:** Same `sql_yacc.yy:7814 opt_on_update_delete`, specifically
+the branch:
+```
+        | ON_SYM DELETE_SYM delete_option
+          {
+            $$.fk_update_opt= FK_OPTION_UNDEF;
+            $$.fk_delete_opt= $3;
+          }
+```
+
+The asymmetric branches (four total) mean specifying one action never
+implicitly fills in the other — each clause defaults independently to
+`FK_OPTION_UNDEF`.
+
+**omni check:** Parser must not copy the specified action into the
+unspecified slot.
+
+---
+
+### 21.7 CREATE INDEX without USING clause → nullptr (engine picks default)
+
+**Priority:** MEDIUM  **Status:** pending
+
+**Trigger SQL:**
+```sql
+CREATE TABLE t (a INT, KEY k (a));                 -- no USING, no TYPE
+CREATE TABLE t (a INT, KEY k (a) USING BTREE);     -- explicit
+```
+
+**Grammar rule:** `sql_yacc.yy:8006 opt_index_type_clause`
+```
+opt_index_type_clause:
+          %empty { $$ = nullptr; }
+        | index_type_clause
+        ;
+
+index_type_clause:
+          USING index_type    { $$= NEW_PTN PT_index_type($2); }
+        | TYPE_SYM index_type { $$= NEW_PTN PT_index_type($2); }
+        ;
+
+index_type:                                        (sql_yacc.yy:8021)
+          BTREE_SYM { $$= HA_KEY_ALG_BTREE; }
+        | RTREE_SYM { $$= HA_KEY_ALG_RTREE; }
+        | HASH_SYM  { $$= HA_KEY_ALG_HASH; }
+        ;
+```
+
+The default `nullptr` bubbles up to handler; InnoDB converts
+`HA_KEY_ALG_SE_SPECIFIC` (from `KEY_ALGORITHM_NONE`) to BTREE; MEMORY converts
+to HASH. So "default" is engine-dependent, not constant BTREE.
+
+**omni check:** Parser index node needs a nullable/tri-state field; the
+catalog layer must resolve the engine default, not the parser.
+
+---
+
+### 21.8 INSERT without column list → empty PT_item_list (resolved later)
+
+**Priority:** HIGH  **Status:** pending
+
+**Trigger SQL:**
+```sql
+INSERT INTO t VALUES (1, 2, 3);            -- no column list
+INSERT INTO t () VALUES ();                -- empty column list (MySQL ext)
+INSERT INTO t (a, b, c) VALUES (1, 2, 3);  -- explicit
+```
+
+**Grammar rule:** `sql_yacc.yy:13241 insert_from_constructor`
+```
+insert_from_constructor:
+          insert_values
+          {
+            $$.column_list= NEW_PTN PT_item_list;   // empty list
+            $$.row_value_list= $1;
+          }
+        | '(' ')' insert_values
+          {
+            $$.column_list= NEW_PTN PT_item_list;   // also empty list
+            $$.row_value_list= $3;
+          }
+        | '(' insert_columns ')' insert_values
+          { ... }
+        ;
+```
+
+Notice the first two branches are **grammatically distinct but semantically
+identical** — both produce an empty `PT_item_list`. The parser has no way to
+distinguish `INSERT INTO t VALUES(...)` from `INSERT INTO t () VALUES(...)`
+downstream. The column list is resolved to all columns in their
+table-declared order at name-resolution time. Same pattern mirrored for
+`insert_query_expression` at sql_yacc.yy:13259.
+
+**omni check:** Query-span analysis of INSERT must expand empty column list
+to the full column order from the catalog. Mis-ordering breaks lineage.
+
+---
+
+### 21.9 CREATE VIEW without ALGORITHM → VIEW_ALGORITHM_UNDEFINED
+
+**Priority:** HIGH  **Status:** pending
+
+**Trigger SQL:**
+```sql
+CREATE VIEW v AS SELECT 1;                        -- default
+CREATE ALGORITHM=UNDEFINED VIEW v AS SELECT 1;    -- explicit, same result
+CREATE ALGORITHM=MERGE VIEW v AS SELECT 1;
+```
+
+**Grammar rule + LEX default:** `sql_lex.cc:421`
+```
+create_view_algorithm = VIEW_ALGORITHM_UNDEFINED;
+```
+
+In `sql_yacc.yy:17439 view_algorithm` only explicit forms set a value; the
+`view_replace_or_algorithm` rule (sql_yacc.yy:17425) is itself optional
+because the CREATE VIEW grammar can start without it. The LEX struct is
+zero-initialized and `lex_start()` sets `VIEW_ALGORITHM_UNDEFINED` as the
+default before parsing, meaning a missing ALGORITHM clause is
+indistinguishable from an explicit `ALGORITHM=UNDEFINED`.
+
+Also note `ALTER VIEW` without an explicit algorithm re-asserts the default
+at sql_yacc.yy:8226:
+```
+            lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
+```
+
+Further post-processing in sql_view.cc:942-945 can silently downgrade
+`VIEW_ALGORITHM_MERGE` to `VIEW_ALGORITHM_UNDEFINED` when the view body is
+not mergeable — another implicit behavior the parser cannot see.
+
+**omni check:** View parser should record algorithm as nullable or tri-state;
+deparse should omit the ALGORITHM clause when it's the default.
+
+---
+
+### 21.10 CREATE TABLE without ENGINE → post-parse fill from @@default_storage_engine
+
+**Priority:** HIGH  **Status:** pending
+
+**Trigger SQL:**
+```sql
+CREATE TABLE t (a INT);                  -- no ENGINE=...
+CREATE TABLE t (a INT) ENGINE=InnoDB;    -- explicit
+```
+
+**Grammar:** `opt_create_table_options_etc` (sql_yacc.yy:6237) accepts an
+empty body. The ENGINE clause appears only under `create_table_option` at
+sql_yacc.yy:6705:
+```
+          ENGINE_SYM opt_equal ident_or_text
+```
+No empty alternative sets a default at parse time.
+
+**Post-parse fill:** `sql_cmd_ddl_table.cc:170-178`
+```cpp
+/*
+  If no engine type was given, work out the default now
+  rather than at parse-time.
+*/
+if (!(create_info.used_fields & HA_CREATE_USED_ENGINE))
+  create_info.db_type = create_info.options & HA_LEX_CREATE_TMP_TABLE
+                            ? ha_default_temp_handlerton(thd)
+                            : ha_default_handlerton(thd);
+```
+
+Key implicit behaviors:
+1. `HA_CREATE_USED_ENGINE` bit tells whether ENGINE was explicit.
+2. The default is **not constant InnoDB** — it's `@@default_storage_engine`
+   (session variable).
+3. Temporary tables use a separate `@@default_tmp_storage_engine`.
+4. Fill happens in the *command executor*, not the parser — so the AST
+   produced by yacc has a NULL engine, and only the post-parse layer
+   resolves it.
+
+**omni check:** Parser must leave engine NULL; catalog/advisor logic must
+respect that "no engine" ≠ "ENGINE=InnoDB". Tests for engine defaulting
+must set the session variable.
 
 ---
 
@@ -3635,6 +5085,14 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 16.10 | DATETIME/TIMESTAMP storage bytes by fsp | pending | MED | Wave 1 C16 worker |
 | 16.11 | YEAR(N) deprecated — only YEAR(4) accepted | pending | LOW | Wave 1 C16 worker |
 | 16.12 | TIMESTAMP promotion inherits fsp | pending | MED | Wave 1 C16 worker |
+| 17.1 | CONCAT two cols identical charset/collation | pending | HIGH | Wave 3 C17 worker |
+| 17.2 | CONCAT latin1 + utf8mb4 superset conv | pending | HIGH | Wave 3 C17 worker |
+| 17.3 | CONCAT incompatible collations (ER 1267) | pending | HIGH | Wave 3 C17 worker — silent-accept gap |
+| 17.4 | CONCAT_WS separator charset + NULL skip | pending | MED | Wave 3 C17 worker |
+| 17.5 | String literal coercibility `_utf8mb4'x'` | pending | MED | Wave 3 C17 worker |
+| 17.6 | REPEAT/LPAD/RPAD first-arg pins charset | pending | MED | Wave 3 C17 worker |
+| 17.7 | CONVERT(x USING cs) forces IMPLICIT cs | pending | HIGH | Wave 3 C17 worker |
+| 17.8 | COLLATE clause is EXPLICIT | pending | HIGH | Wave 3 C17 worker |
 | 18.1 | Column charset elision | verified | HIGH | `C4_2_and_C18_1_and_C18_5_charset_inheritance_and_elision` |
 | 18.2 | NOT NULL elision (TIMESTAMP) | verified | HIGH | `C18_2_NotNull_rendering` |
 | 18.3 | ENGINE always rendered | pending | HIGH | |
@@ -3650,7 +5108,30 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 18.13 | PACK_KEYS / CHECKSUM / DELAY_KEY_WRITE elision | pending | HIGH | Wave 2 C18 worker |
 | 18.14 | Per-index COMMENT / KEY_BLOCK_SIZE rendering | pending | HIGH | Wave 2 C18 worker |
 | 18.15 | USING BTREE/HASH emitted only when explicit | pending | HIGH | Wave 2 C18 worker |
-| 21.1 | DEFAULT NULL literal | verified | LOW | `C21_1_Default_NULL` |
+| 19.1 | Functional index hidden VIRTUAL gen col | pending | P0 | Wave 3 C19 worker |
+| 19.2 | Hidden col type inferred from expression | pending | P0 | Wave 3 C19 worker |
+| 19.3 | Hidden col invisible to SELECT * / I_S | pending | P0 | Wave 3 C19 worker |
+| 19.4 | Functional expr must be deterministic/pure | pending | P1 | Wave 3 C19 worker |
+| 19.5 | Functional index on JSON path via CAST | pending | P0 | Wave 3 C19 worker |
+| 19.6 | DROP INDEX cascades to hidden gen col | pending | P0 | Wave 3 C19 worker |
+| 20.1 | INT NOT NULL no DEFAULT → implicit 0 | pending | HIGH | Wave 3 C20 worker |
+| 20.2 | INT nullable no DEFAULT → implicit NULL | pending | HIGH | Wave 3 C20 worker |
+| 20.3 | VARCHAR/CHAR NOT NULL → implicit '' | pending | MED | Wave 3 C20 worker |
+| 20.4 | ENUM NOT NULL → first value default | pending | HIGH | Wave 3 C20 worker |
+| 20.5 | DATETIME/DATE NOT NULL → zero-date | pending | HIGH | Wave 3 C20 worker |
+| 20.6 | BLOB/TEXT literal DEFAULT error 1101 | pending | HIGH | Wave 3 C20 worker |
+| 20.7 | JSON/BLOB expression DEFAULT (8.0.13+) | pending | HIGH | Wave 3 C20 worker |
+| 20.8 | Generated col DEFAULT → grammar error | pending | MED | Wave 3 C20 worker |
+| 21.1 | DEFAULT NULL literal | verified | HIGH | `C21_1_Default_NULL` — Wave 3 C21 worker updated |
+| 21.2 | Bare JOIN → INNER (JTT_INNER) | pending | HIGH | Wave 3 C21 worker |
+| 21.3 | ORDER BY no direction → ORDER_NOT_RELEVANT | pending | HIGH | Wave 3 C21 worker — tri-state |
+| 21.4 | LIMIT N no OFFSET → opt_offset NULL | pending | HIGH | Wave 3 C21 worker — correction |
+| 21.5 | FK clause omitted → FK_OPTION_UNDEF | pending | HIGH | Wave 3 C21 worker — correction |
+| 21.6 | FK asymmetric fill → UPDATE gets UNDEF | pending | MED | Wave 3 C21 worker |
+| 21.7 | CREATE INDEX no USING → nullptr engine-default | pending | MED | Wave 3 C21 worker |
+| 21.8 | INSERT no column list → empty PT_item_list | pending | HIGH | Wave 3 C21 worker |
+| 21.9 | CREATE VIEW no ALGORITHM → UNDEFINED | pending | HIGH | Wave 3 C21 worker |
+| 21.10 | CREATE TABLE no ENGINE → @@default_storage_engine | pending | HIGH | Wave 3 C21 worker |
 | 22.1 | ALGORITHM=DEFAULT picks fastest supported | pending | HIGH | Wave 1 C22 worker |
 | 22.2 | LOCK=DEFAULT picks least restrictive | pending | HIGH | Wave 1 C22 worker |
 | 22.3 | ADD COLUMN nullable trailing is INSTANT | pending | HIGH | Wave 1 C22 worker |
