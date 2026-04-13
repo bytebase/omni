@@ -1190,3 +1190,215 @@ Expected: Table charset = utf8mb4 (inherited from database)
 
 ---
 
+# Round 3 Path-Split Additions (2026-04-13)
+
+Investigation of CREATE vs ALTER code path differences for auto-generation
+behaviors, triggered by the FK name counter discovery (C1.1a/1.1b). Goal:
+for every auto-named / auto-sequenced / auto-initialized value, verify
+BOTH the generator function AND every caller's seed initialization.
+
+Verdict summary:
+- 1 confirmed CREATE/ALTER split with existing omni bug (CHECK counter).
+- 1 confirmed CREATE/ALTER split, symmetric with MySQL in omni (AUTO_INCREMENT ALTER floor).
+- 3 verified symmetric (no split): index name, functional-index hidden column, functional index key name.
+- 1 verified symmetric via parser-level rejection (DEFAULT NOW fsp mismatch is an error, not a silent coercion).
+- 1 partial split (partition auto-names), safe in practice due to HASH-only usage.
+- 1 collision behavior documented (FK / CHECK user-named vs generated).
+
+## PS1: CHECK constraint name counter (refines C1.4)
+
+**Source (CREATE path):**
+- `sql/sql_table.cc:19068` — `prepare_check_constraints_for_create` — initializes `uint cc_max_generated_number = 0`, increments via `++cc_max_generated_number` per unnamed CC.
+- `sql/sql_table.cc:19007` — `generate_check_constraint_name` formats `"<table>_chk_<N>"`.
+- Caller: `sql/sql_table.cc:10138` from `create_table_impl`.
+
+**Source (ALTER path):**
+- `sql/sql_table.cc:~19280` onwards in `prepare_check_constraints_for_alter` — iterates existing `table->table_check_constraint_list`, computes `cc_max_generated_number = max(cc_max_generated_number, N)` ONLY when `dd::is_generated_check_constraint_name(old_table_name, ..., cc_name, ...)` matches the exact generated pattern. Note: this check uses the OLD table name, not the new one, so on RENAME the max-scan still uses old name.
+- ALTER then emits unnamed names via `generate_check_constraint_name(..., ++cc_max_generated_number, ...)` at 19467.
+
+**Source (CREATE TABLE LIKE):**
+- `sql/sql_table.cc:19157` — `prepare_check_constraints_for_create_like_table` starts `uint number = 0` and regenerates ALL names with `++number`, regardless of the source table's generated/user-named status. This means that `CREATE TABLE t2 LIKE t1` may rewrite a user-named CC `my_rule` to `t2_chk_1` in t2 (skip_validation=true since dropped table constraints may have been long). This is distinct from the CREATE behavior.
+
+**Rule difference:** identical shape to FK (C1.1a/1.1b).
+- CREATE: fresh counter, user-named `<table>_chk_<N>` do NOT contribute. First unnamed → `_chk_1`. Collisions with user-named `<table>_chk_1` caught by schema-level DD lookup → `ER_CHECK_CONSTRAINT_DUP_NAME`.
+- ALTER: counter seeded to max of existing generated pattern, next unnamed → max+1.
+- CREATE TABLE LIKE: a THIRD rule — all CC names regenerated from 1.
+
+**Name scope:** CHECK constraint names are **schema-scoped**, not table-scoped (cf. FK which is schema-scoped too, but this is worth re-noting). Collision is detected by `thd->dd_client()->check_constraint_exists(*new_schema, cc_name, &exists)` at line 19595.
+
+**omni status:** **BUG** — `mysql/catalog/tablecmds.go:239,444` calls `nextCheckNumber(tbl)` from the CREATE TABLE path. `nextCheckNumber` (line 1058) scans `tbl.Constraints` and returns the first integer N such that `<table>_chk_<N>` is NOT already a Constraint name on the table. This is **ALTER-style max+1 (actually gap-fill) logic**, not CREATE-style fresh counter logic. Repro:
+```sql
+CREATE TABLE t (
+    a INT,
+    CONSTRAINT t_chk_1 CHECK (a > 0),
+    b INT,
+    CHECK (b < 100)
+);
+```
+- Real MySQL: parser starts counter at 0, first unnamed CC becomes `t_chk_1` → collides with user-named `t_chk_1` → `ER_CHECK_CONSTRAINT_DUP_NAME` (or same-statement duplicate). The statement FAILS.
+- omni: `nextCheckNumber` sees `t_chk_1` already present, returns 2 → unnamed becomes `t_chk_2`. Statement SUCCEEDS.
+
+Mirror of the FK counter bug we just fixed, same file, same shape. `CREATE TABLE LIKE` (if supported) is a separate third rule and should not go through either of these paths.
+
+**Needs Step 2 spot-check:** yes — priority PS1-A (CREATE) and PS1-B (CREATE TABLE LIKE) to confirm MySQL error exactly and what omni currently produces.
+
+## PS2: Index name auto-generation (new, for C-index family)
+
+**Source:** `sql/sql_table.cc:10377` — `make_unique_key_name(field_name, start, end)`:
+- Scans the `key_info_buffer` (i.e. keys processed so far in the *current* prepare pass).
+- If `field_name` is unused and not equal to `PRIMARY`, return `field_name`.
+- Otherwise try `<field_name>_2`, `<field_name>_3`, ... up to `_99`.
+- Called from `sql/sql_table.cc:7254` inside `prepare_key`, which is invoked from `mysql_prepare_create_table` (line 7946).
+
+**Caller paths:**
+- `mysql_prepare_create_table` is called from both `create_table_impl` (CREATE at 8933) and `mysql_prepare_alter_table` → `prepare_fields_and_keys` → `handle_if_exists_options` chain (ALTER at 12597). In the ALTER case, `key_info_buffer` is pre-populated from the existing table's keys before prepare runs, so new index names see existing ones.
+
+**Verdict:** **symmetric**. Single code path, seed comes from the current snapshot of keys regardless of CREATE vs ALTER. The scan is per-table (not per-schema) because index names are unique only within a table.
+
+**Additional nuance:** the loop `for (uint i = 2; i < 100; i++)` means that for a 100+-index naming collision the function returns the literal string `"not_specified"`. In practice MAX_INDEXES is 64 so this is dead code, but it's worth noting — if omni ever raises its per-table index limit or uses a different base naming scheme, this is a landmine.
+
+**omni status:** `mysql/catalog/tablecmds.go:899` (`allocIndexName`) matches the algorithm — always suffix from `_2`, scan current `tbl.Indexes`. Used from both `tablecmds.go` and `altercmds.go`. Matches MySQL.
+
+**Needs spot-check:** low priority — consider one scenario: `CREATE TABLE t (a INT, KEY (a), KEY (a));` → expect indexes `a`, `a_2` (already covered by existing tests). ALTER variant: `CREATE TABLE t (a INT, KEY a_2 (a)); ALTER TABLE t ADD KEY (a);` → expect new key `a` (because `a` is free; `_2` name is already taken but not tried since base name is available). That's the interesting edge.
+
+## PS3: Functional index hidden column name (refines C19.1)
+
+**Source:** `sql/sql_table.cc:7710` — `make_functional_index_column_name(key_name, key_part_number, fields, mem_root)`:
+- Format: `"!hidden!<key_name>!<part_no>!<count>"` where `count` starts at 0 and only increments on collision with an existing Create_field name.
+- Called from `sql/sql_table.cc:7847` inside `add_functional_index_to_create_list` (which is invoked during `mysql_prepare_create_table`, shared CREATE/ALTER).
+- Also called from `sql/sql_table.cc:16240` inside `handle_rename_functional_index` (ALTER-only, rename index path) — this generates a new hidden column name matching the NEW index name and emits a CHANGE COLUMN to rename the old hidden column.
+
+**Functional index KEY name (when user omits):** `sql/sql_table.cc:7796-7808`. Generates `"functional_index"`, `"functional_index_2"`, `"functional_index_3"`, ... scanning only `alter_info->key_list` (the current pass's keys). Same function called from both CREATE and ALTER. Note: this does NOT scan existing keys on an ALTER — `alter_info->key_list` in ALTER is reconstructed from the existing table's keys + new keys, so it effectively does. Symmetric.
+
+**Verdict:** **symmetric**. Both paths share code, seed is fresh per prepare invocation, both scan whatever is currently in-flight (`alter_info->create_list` or `key_list`).
+
+**Subtle gotcha:** `handle_rename_functional_index` uses `key_part_number = k` where `k` is the key-part index in the OLD key. When the rename produces a new hidden column, the old hidden column is NOT removed here — it's only dropped because the CHANGE COLUMN replaces it. If omni ever supports RENAME INDEX of a functional index, the generated hidden column must be renamed in lock-step with the key.
+
+**omni status:** no functional-index support found in `mysql/catalog`. Not a current bug. Flag for future functional-index work: must call an equivalent of `make_functional_index_column_name` at the single code point and must re-invoke it on RENAME INDEX (ALTER-only concern).
+
+## PS4: AUTO_INCREMENT initial value (refines C8.3)
+
+**Source (CREATE path):** `sql/sql_table.cc:10972` — `create_table_impl` sets `local_create_info.auto_increment_value = 0` as a default for certain internal flows; user-supplied value flows via `HA_CREATE_USED_AUTO`. `create_table_info_t::initialize_autoinc` at `storage/innobase/handler/ha_innodb.cc:13593` applies the user value directly via `dict_table_autoinc_initialize`.
+
+**Source (ALTER path):**
+- `sql/sql_table.cc:15323` — `mysql_prepare_alter_table`: if user did NOT specify `AUTO_INCREMENT=` then `create_info->auto_increment_value = table->file->stats.auto_increment_value` (copy current running counter forward).
+- `storage/innobase/handler/handler0alter.cc:6592` — `commit_get_autoinc`: if user DID specify, InnoDB **silently clamps to max+1** when `user_value <= max_value_in_table`. The comment at line 6631 explicitly spells it out:
+  > "Let's say we have a table t1 with existing rows (1), (2), (100), (200), (1000), after `DELETE FROM t1 WHERE a > 200; ALTER TABLE t1 AUTO_INCREMENT = 150;` we expect the next value allocated from 201, but not 150."
+
+**Rule difference:**
+- CREATE: user value is taken at face value (empty table — no clamping needed).
+- ALTER: user value clamps to `max(user, current_max_in_column + 1)`. Silent — no warning, no error.
+- Also, if HA_CREATE_USED_AUTO is not set, ALTER carries over the existing counter value, whereas CREATE starts at 1.
+
+**omni status:** `mysql/catalog/altercmds.go:693` unconditionally writes `tbl.AutoIncrement = opt.Value` from an `auto_increment` option. Since omni doesn't track row data, clamping to column max is impossible. However, when omni starts deparsing `AUTO_INCREMENT=` values in `SHOW CREATE TABLE`, it should be aware that the value stored in the catalog is what **MySQL would report**, which may be HIGHER than what the user wrote in ALTER. **Low-risk** for pure DDL workloads, but worth flagging as "omni will show the user's value, MySQL may show the clamped value" divergence.
+
+**Needs spot-check:** yes — PS4 scenario: `CREATE TABLE t (a INT AUTO_INCREMENT PRIMARY KEY); INSERT INTO t VALUES (10), (20); ALTER TABLE t AUTO_INCREMENT=5; SHOW CREATE TABLE t;` → MySQL shows `AUTO_INCREMENT=21` (clamped), omni will show `AUTO_INCREMENT=5`. Also good for demonstrating that omni is fundamentally a schema engine, not a data engine.
+
+## PS5: DEFAULT NOW()/CURRENT_TIMESTAMP fsp precision (refines C16.x)
+
+**Source:** `sql/sql_parse.cc:5521` — `Alter_info::add_field`:
+```cpp
+uint8 datetime_precision = decimals ? atoi(decimals) : 0;
+...
+if (func->functype() != Item_func::NOW_FUNC ||
+    !real_type_with_now_as_default(type) ||
+    default_value->decimals != datetime_precision) {
+    my_error(ER_INVALID_DEFAULT, MYF(0), field_name->str);
+    return true;
+}
+```
+The same check also applies to `on_update_value` at line 5603.
+
+**Rule:** the `fsp` of `DEFAULT NOW(fsp)` **must equal** the column's declared precision. MySQL does NOT silently adjust. `DATETIME(6) DEFAULT NOW()` → `ER_INVALID_DEFAULT`. User must write `DATETIME(6) DEFAULT NOW(6)` or `DATETIME DEFAULT NOW()` (both precision 0).
+
+**Verdict:** **symmetric**. The check is in the shared column-spec construction in the parser. Both CREATE and ALTER (ADD/MODIFY/CHANGE COLUMN) flow through `add_field`, so both error identically.
+
+**omni status:** `mysql/catalog` does not appear to enforce this check. Verify whether omni's parser or analyzer raises an error for `DATETIME(6) DEFAULT NOW()`. If it accepts it, this is a strictness gap, not a correctness gap (catalog state will not diverge from a valid MySQL table, since MySQL rejects the statement outright).
+
+**Needs spot-check:** yes — PS5 scenario: `CREATE TABLE t (a DATETIME(6) DEFAULT NOW())` should error on MySQL; verify omni behavior.
+
+## PS6: Partition name auto-generation with ADD PARTITION (refines C1.2)
+
+**Source (CREATE path):** `sql/partition_info.cc:302` — initial CREATE with `PARTITION BY HASH PARTITIONS n` → `set_up_defaults_for_partitioning(..., 0U)` → `create_default_partition_names(num_parts, 0)` → `p0, p1, ..., p{n-1}`.
+
+**Source (ALTER ADD PARTITION path):** `sql/sql_partition.cc:4506`:
+```cpp
+alt_part_info->set_up_defaults_for_partitioning(
+    part_handler, nullptr, tab_part_info->num_parts);
+```
+`start_no = tab_part_info->num_parts` — the **count** of existing partitions, not `max + 1` of the numeric suffix on existing names. So if the table currently has `p0, p1, p2` (`num_parts=3`), new unnamed partitions are named starting at `p3`.
+
+**Rule difference:** this is a "count-based" seed, not a "max-based" seed. It mirrors max+1 only when partition names follow the `p0..p{n-1}` contiguous convention (which HASH always does).
+
+**Why this is safe in practice:** ADD PARTITION with an unnamed new partition is only legal for HASH partitioning (per MySQL docs and the logic around `tab_part_info->part_type` checks in `prep_alter_part_table`). HASH partitions cannot be DROPped individually — only `COALESCE PARTITION` removes the last N — so `num_parts` always equals `max_suffix + 1` in well-formed HASH tables. For RANGE/LIST, user must supply explicit names, so auto-gen is not called.
+
+**Edge case (theoretical):** if someone hand-edits the DD, or if a future MySQL version allows named HASH partitions mixed with auto ones, `count` could diverge from `max_suffix + 1` and auto-gen could collide.
+
+**Verdict:** **CREATE/ALTER paths differ** (CREATE starts from 0, ALTER seeds from existing count), but the rule is self-consistent under HASH semantics. Not a bug, but document the distinction.
+
+**omni status:** need to check whether omni supports `ALTER TABLE ... ADD PARTITION` on HASH-partitioned tables and whether its naming logic uses count-based seeding. Grep found no partition ALTER support in current `mysql/catalog/altercmds.go` — likely not a current gap but flag for future.
+
+**Needs spot-check:** low priority — only relevant once omni implements ALTER TABLE ADD PARTITION.
+
+## PS7: Constraint name collision handling — user-named vs generated (refines C1.1, C1.4)
+
+**Source:**
+- FK duplicate check: `sql/sql_table.cc:6614` — in-memory check during CREATE/ALTER prepare. If any two FKs (either user-named or auto-generated) resolve to the same name, `ER_FK_DUP_NAME`.
+- CHECK duplicate check: `sql/sql_table.cc:19594-19601` — uses `dd::check_constraint_exists` to look up the name **in the schema** (not just the current table). `ER_CHECK_CONSTRAINT_DUP_NAME`.
+
+**Repro scenario (FK):**
+```sql
+CREATE TABLE p (id INT PRIMARY KEY);
+CREATE TABLE c (
+    a INT,
+    CONSTRAINT c_ibfk_1 FOREIGN KEY (a) REFERENCES p(id),
+    b INT,
+    FOREIGN KEY (b) REFERENCES p(id)
+);
+```
+CREATE counter starts at 0. First unnamed FK becomes `c_ibfk_1`. This collides with user-named `c_ibfk_1` → `ER_FK_DUP_NAME`. MySQL does NOT "skip to `_2`".
+
+**omni status:** the post-FK-fix CREATE path uses `unnamedFKCount++` which naively generates `c_ibfk_1` — but omni does NOT have a pre-insert collision check of the same shape. omni appends to `tbl.Constraints`, and if a prior `c_ibfk_1` exists, the second gets silently added as a duplicate-named constraint (depending on how constraint uniqueness is enforced in `Table.Constraints`). Grep found no `ER_FK_DUP_NAME` equivalent in `mysql/catalog`. **Potential bug** — omni silently accepts schemas that MySQL rejects.
+
+**Needs spot-check:** yes — PS7 scenario: the CREATE TABLE above should error on MySQL (`ER_FK_DUP_NAME` 1826) and should error on omni. Similarly for CHECK (`ER_CHECK_CONSTRAINT_DUP_NAME`).
+
+## PS8: INSERT-time AUTO_INCREMENT counter mutation (new)
+
+**Source:** `storage/innobase/handler/ha_innodb.cc:7182`, `17513`, `17632` — InnoDB updates the in-memory `dict_table_t::autoinc` counter on each INSERT that allocates a new auto_increment value, and persists it to the DD on next DDL. `SHOW CREATE TABLE` reflects the current counter.
+
+**Rule:** INSERT silently mutates the catalog-visible `AUTO_INCREMENT` value. The observable counter is max(explicit SET, max allocated + 1).
+
+**Verdict:** **true implicit behavior** — affects catalog state, not just query results. omni will never match MySQL's `AUTO_INCREMENT` value after INSERTs because omni does not track row-level allocations. Covered earlier but worth explicitly logging as "MySQL mutates catalog on DML; omni cannot."
+
+**omni status:** divergence is fundamental — not fixable without row data. Should be documented as "known limitation" rather than "bug."
+
+---
+
+## Round 3 summary
+
+| # | Behavior | CREATE=ALTER? | omni status |
+|---|----------|---------------|-------------|
+| PS1 | CHECK counter | **No** (CREATE fresh / ALTER max+1 / LIKE regen) | **BUG** (uses ALTER-style logic in CREATE) |
+| PS2 | Index name | Yes | OK (matches) |
+| PS3 | Func-index hidden col | Yes | N/A (no func index support) |
+| PS4 | AUTO_INCREMENT ALTER clamp | **No** (CREATE raw / ALTER clamped to max+1) | Documented divergence, not a bug |
+| PS5 | DEFAULT NOW() fsp | Yes (parser-level error in both) | Strictness gap to verify |
+| PS6 | Partition ADD auto-name | **No** (CREATE 0 / ALTER count) but safe under HASH | N/A (no partition ALTER support) |
+| PS7 | FK / CHECK collision | Symmetric error | **Potential BUG** — no collision check in omni |
+| PS8 | INSERT bumps AUTO_INC | — | Fundamental divergence (no row data) |
+
+**Splits found (CREATE vs ALTER differ):** 4 (PS1, PS4, PS6, and the previously known C1.1a/1.1b FK).
+
+**omni risks flagged:** 2 active bugs (PS1 CHECK counter, PS7 collision), 2 documented divergences (PS4 autoinc clamp, PS8 insert-mutation), 1 strictness gap (PS5 NOW fsp).
+
+**Step-2 spot-check priorities (in order):**
+1. **PS1** — `CREATE TABLE t (a INT, CONSTRAINT t_chk_1 CHECK (a>0), b INT, CHECK (b<100))` — verify MySQL errors, omni currently succeeds with wrong name. **HIGH — same shape as FK bug.**
+2. **PS7-FK** — `CREATE TABLE c (a INT, CONSTRAINT c_ibfk_1 FK..., b INT, FK...)` — verify MySQL errors (`ER_FK_DUP_NAME`), verify omni behavior.
+3. **PS7-CHECK** — same but with user-named `t_chk_1` and unnamed CHECK (schema-scope check makes this trickier).
+4. **PS4** — AUTO_INCREMENT clamp visible via `SHOW CREATE TABLE` after `ALTER AUTO_INCREMENT=5` on populated table. Documents omni's known limitation.
+5. **PS5** — `CREATE TABLE t (a DATETIME(6) DEFAULT NOW())` — verify MySQL `ER_INVALID_DEFAULT`, verify omni's parser/analyzer rejects similarly.
+
+**Key takeaway:** the FK counter bug pattern (omni uses "scan-existing" logic in a place where MySQL uses "fresh counter" logic) reappears verbatim in the CHECK constraint counter. This suggests a systematic review of every `nextXxxNumber` / `allocXxxName` helper in `mysql/catalog` to check whether it's being called from a context where MySQL's behavior is fresh-counter-based rather than max-scan-based. Candidates to audit next: unique-index name allocation in CREATE paths, partition subpartition naming, any constraint/trigger auto-namers.
+
+---
+
