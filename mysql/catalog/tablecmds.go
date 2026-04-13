@@ -242,7 +242,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				}
 				conName := cc.Name
 				if conName == "" {
-					conName = fmt.Sprintf("%s_ibfk_%d", tableName, countFKConstraints(tbl)+1)
+					conName = fmt.Sprintf("%s_ibfk_%d", tableName, nextFKGeneratedNumber(tbl, tableName))
 				}
 				tbl.Constraints = append(tbl.Constraints, &Constraint{
 					Name:       conName,
@@ -401,7 +401,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case nodes.ConstrForeignKey:
 			conName := con.Name
 			if conName == "" {
-				conName = fmt.Sprintf("%s_ibfk_%d", tableName, countFKConstraints(tbl)+1)
+				conName = fmt.Sprintf("%s_ibfk_%d", tableName, nextFKGeneratedNumber(tbl, tableName))
 			}
 			refDB := ""
 			refTable := ""
@@ -999,6 +999,54 @@ func countFKConstraints(tbl *Table) int {
 		}
 	}
 	return count
+}
+
+// nextFKGeneratedNumber returns the next available counter for an auto-generated
+// InnoDB FK constraint name of the form "<tableName>_ibfk_<N>".
+//
+// This matches MySQL 8.0's behavior in sql/sql_table.cc:5843
+// (get_fk_max_generated_name_number): it scans existing FK constraints on the
+// table, parses any name that looks like "<tableName>_ibfk_<digits>" as a
+// generated name, and returns max(N)+1 (or 1 if no such names exist).
+//
+// Bytebase omni catalog is case-insensitive on table names (we lowercase the
+// prefix before comparison). MySQL's own comparison is case-sensitive on
+// already-lowered names, so this is equivalent for typical use.
+//
+// As in MySQL, pre-4.0.18-style names ("<tableName>_ibfk_0<digits>") are
+// ignored — we skip anything whose counter substring starts with '0'.
+func nextFKGeneratedNumber(tbl *Table, tableName string) int {
+	prefix := toLower(tableName) + "_ibfk_"
+	max := 0
+	for _, con := range tbl.Constraints {
+		if con.Type != ConForeignKey {
+			continue
+		}
+		name := toLower(con.Name)
+		if !strings.HasPrefix(name, prefix) {
+			continue
+		}
+		rest := name[len(prefix):]
+		if rest == "" || rest[0] == '0' {
+			continue
+		}
+		n := 0
+		ok := true
+		for _, ch := range rest {
+			if ch < '0' || ch > '9' {
+				ok = false
+				break
+			}
+			n = n*10 + int(ch-'0')
+		}
+		if !ok {
+			continue
+		}
+		if n > max {
+			max = n
+		}
+	}
+	return max + 1
 }
 
 // nextCheckNumber returns the next available check constraint number for auto-naming.

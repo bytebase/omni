@@ -453,3 +453,94 @@ func TestWalkThrough_3_3_UnnamedConstraintAutoName(t *testing.T) {
 		t.Errorf("expected auto-generated CHECK name %q, got %q", expectedChk, chk.Name)
 	}
 }
+
+// Bug A: Auto-generated FK name counter must use max(existing)+1, not count+1.
+// MySQL reference: sql/sql_table.cc:5843 get_fk_max_generated_name_number().
+// A user explicitly names an FK "child_ibfk_5" then declares an unnamed FK —
+// MySQL returns "child_ibfk_6" (max 5 + 1), not "child_ibfk_2" (count 1 + 1).
+func TestBugFix_FKCounterMaxNotCount(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
+	wtExec(t, c, `CREATE TABLE child (
+		a INT,
+		CONSTRAINT child_ibfk_5 FOREIGN KEY (a) REFERENCES parent(id),
+		b INT,
+		FOREIGN KEY (b) REFERENCES parent(id)
+	)`)
+	tbl := c.GetDatabase("testdb").GetTable("child")
+	if tbl == nil {
+		t.Fatal("table child not found")
+	}
+	var autoGenName string
+	for _, con := range tbl.Constraints {
+		if con.Type != ConForeignKey {
+			continue
+		}
+		if con.Name == "child_ibfk_5" {
+			continue
+		}
+		autoGenName = con.Name
+		break
+	}
+	if autoGenName == "" {
+		t.Fatal("expected a second (auto-named) FK constraint, found none")
+	}
+	if autoGenName != "child_ibfk_6" {
+		t.Errorf("expected child_ibfk_6 (max 5 + 1), got %s", autoGenName)
+	}
+}
+
+// Bug A follow-up: ALTER TABLE ADD FOREIGN KEY also uses nextFKGeneratedNumber,
+// so explicit FK names like "<table>_ibfk_<N>" force the next auto-name to max+1.
+func TestBugFix_FKCounterMaxNotCount_AlterTable(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
+	wtExec(t, c, `CREATE TABLE child (
+		a INT,
+		b INT,
+		CONSTRAINT child_ibfk_20 FOREIGN KEY (a) REFERENCES parent(id)
+	)`)
+	wtExec(t, c, "ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES parent(id)")
+	tbl := c.GetDatabase("testdb").GetTable("child")
+	if tbl == nil {
+		t.Fatal("table child not found")
+	}
+	var autoGenName string
+	for _, con := range tbl.Constraints {
+		if con.Type != ConForeignKey {
+			continue
+		}
+		if con.Name == "child_ibfk_20" {
+			continue
+		}
+		autoGenName = con.Name
+		break
+	}
+	if autoGenName != "child_ibfk_21" {
+		t.Errorf("expected child_ibfk_21 (max 20 + 1), got %s", autoGenName)
+	}
+}
+
+// Bug B: TIMESTAMP first column must NOT be auto-promoted under MySQL 8.0
+// defaults. In 8.0, explicit_defaults_for_timestamp = ON by default, which
+// disables promote_first_timestamp_column() (sql/sql_table.cc:10148). omni
+// catalog matches this default — it never promotes. This test locks in the
+// absence of a stale TIMESTAMP-promotion bug.
+func TestBugFix_TimestampNoAutoPromotion(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE t (ts TIMESTAMP NOT NULL)")
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t not found")
+	}
+	col := tbl.GetColumn("ts")
+	if col == nil {
+		t.Fatal("column ts not found")
+	}
+	if col.Default != nil {
+		t.Errorf("expected no auto-promoted DEFAULT (8.0 default behavior), got Default=%q", *col.Default)
+	}
+	if col.OnUpdate != "" {
+		t.Errorf("expected no auto-promoted ON UPDATE (8.0 default behavior), got OnUpdate=%q", col.OnUpdate)
+	}
+}
