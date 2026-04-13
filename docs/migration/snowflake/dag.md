@@ -33,7 +33,7 @@ snowflake/
 | **C1** | corpus-legacy (lift 27 SQL files) | `snowflake/parser/testdata/legacy` | — | F1–F4, C2 | 0 | P0 | **done** |
 | **C2** | corpus-official (scrape docs.snowflake.com) | `snowflake/parser/testdata/official` | — | F1–F4, C1 | 0 | P0 | **done** (630 SQL files across 78 commands) |
 | **T1.1** | identifiers + qualified names + normalization helpers | `snowflake/parser` | F4 | — | 1 | P0 | **done** (PR #22) |
-| **T1.2** | data types (incl. VARIANT/OBJECT/ARRAY/VECTOR/GEO/TIMESTAMP_*) | `snowflake/parser` | T1.1 | — | 1 | P0 | not started |
+| **T1.2** | data types (incl. VARIANT/OBJECT/ARRAY/VECTOR/GEO/TIMESTAMP_*) | `snowflake/parser` | T1.1 | — | 1 | P0 | **done** (PR #39) |
 | **T1.3** | expressions (operators, function calls, CASE, CAST, JSON path, lambdas, subqueries, IN/BETWEEN/LIKE/RLIKE) | `snowflake/parser` | T1.2 | — | 1 | P0 | not started |
 | **T1.4** | SELECT core (list, FROM, WHERE, GROUP BY incl. CUBE/ROLLUP/GROUPING SETS/ALL, HAVING, QUALIFY, ORDER BY, LIMIT/OFFSET/FETCH/TOP, EXCLUDE) | `snowflake/parser` | T1.3 | — | 1 | P0 | not started |
 | **T1.5** | joins (INNER/LEFT/RIGHT/FULL/CROSS/NATURAL/ASOF/DIRECTED/LATERAL) | `snowflake/parser` | T1.4 | T1.6, T1.7 | 1 | P0 | not started |
