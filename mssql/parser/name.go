@@ -110,6 +110,98 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 	return ref, nil
 }
 
+// parseVariableTableSource parses a T-SQL table variable used as a table source
+// in FROM / JOIN positions. Handles three shapes:
+//
+//	@t                            -> *nodes.TableVarRef
+//	@t [AS] alias                 -> *nodes.TableVarRef with Alias
+//	@v.Method(args) [alias [(c)]] -> *nodes.TableVarMethodCallRef
+//
+// Mirrors SqlScriptDOM variableTableReference + variableMethodCallTableReference.
+// Caller must ensure p.cur.Type == tokVARIABLE.
+func (p *Parser) parseVariableTableSource() (nodes.TableExpr, error) {
+	loc := p.pos()
+	name := p.cur.Str // includes leading '@'
+	p.advance()
+
+	// @v.Method(args) — variable method-call table reference (e.g. XML .nodes()).
+	// Any '.' after @name is necessarily a method call (table variables cannot be
+	// schema-qualified), so we can commit to this branch on sight of the dot.
+	if p.cur.Type == '.' {
+		p.advance() // consume .
+		method, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.unexpectedToken()
+		}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		var args []nodes.ExprNode
+		if p.cur.Type != ')' {
+			for {
+				arg, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				args = append(args, arg)
+				if _, ok := p.match(','); !ok {
+					break
+				}
+			}
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		mc := &nodes.TableVarMethodCallRef{
+			Var:    name,
+			Method: method,
+			Args:   args,
+			Loc:    nodes.Loc{Start: loc, End: p.prevEnd()},
+		}
+		mc.Alias = p.parseOptionalAlias()
+		if p.cur.Type == '(' {
+			p.advance()
+			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+				col, ok := p.parseIdentifier()
+				if !ok {
+					break
+				}
+				mc.Columns = append(mc.Columns, col)
+				if _, ok := p.match(','); !ok {
+					break
+				}
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+		}
+		mc.Loc.End = p.prevEnd()
+		return mc, nil
+	}
+
+	tv := &nodes.TableVarRef{
+		Name: name,
+		Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
+	}
+	tv.Alias = p.parseOptionalAlias()
+	tv.Loc.End = p.prevEnd()
+	return tv, nil
+}
+
+// parseVariableDmlTarget parses a bare table variable as a DML target
+// (INSERT/UPDATE/DELETE/MERGE). Does not accept alias or table hints —
+// mirrors SqlScriptDOM variableDmlTarget.
+// Caller must ensure p.cur.Type == tokVARIABLE.
+func (p *Parser) parseVariableDmlTarget() *nodes.TableVarRef {
+	loc := p.pos()
+	name := p.cur.Str
+	p.advance()
+	return &nodes.TableVarRef{
+		Name: name,
+		Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
+	}
+}
+
 // parseIdentExpr parses an identifier expression (column ref, function call, or qualified name).
 // This handles both simple identifiers and dot-qualified references.
 //

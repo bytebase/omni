@@ -393,9 +393,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Top != nil {
 			Walk(v, n.Top)
 		}
-		if n.Relation != nil {
-			Walk(v, n.Relation)
-		}
+		Walk(v, n.Relation)
 		if n.OutputClause != nil {
 			Walk(v, n.OutputClause)
 		}
@@ -492,9 +490,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Top != nil {
 			Walk(v, n.Top)
 		}
-		if n.Relation != nil {
-			Walk(v, n.Relation)
-		}
+		Walk(v, n.Relation)
 		walkList(v, n.Cols)
 		Walk(v, n.Source)
 		if n.OutputClause != nil {
@@ -532,9 +528,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Top != nil {
 			Walk(v, n.Top)
 		}
-		if n.Target != nil {
-			Walk(v, n.Target)
-		}
+		Walk(v, n.Target)
 		Walk(v, n.Source)
 		Walk(v, n.OnCondition)
 		walkList(v, n.WhenClauses)
@@ -724,6 +718,10 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.BucketCount)
 		walkList(v, n.Columns)
 		walkList(v, n.IncludeCols)
+	case *TableVarMethodCallRef:
+		for _, item := range n.Args {
+			Walk(v, item)
+		}
 	case *ThrowStmt:
 		Walk(v, n.ErrorNumber)
 		Walk(v, n.Message)
@@ -767,9 +765,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Top != nil {
 			Walk(v, n.Top)
 		}
-		if n.Relation != nil {
-			Walk(v, n.Relation)
-		}
+		Walk(v, n.Relation)
 		walkList(v, n.SetClause)
 		if n.OutputClause != nil {
 			Walk(v, n.OutputClause)

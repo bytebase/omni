@@ -167,7 +167,7 @@ func (n *CommonTableExpr) nodeTag() {}
 type InsertStmt struct {
 	WithClause   *WithClause
 	Top          *TopClause
-	Relation     *TableRef
+	Relation     TableExpr // *TableRef or *TableVarRef
 	Cols         *List // column name list
 	Source       Node  // SELECT, VALUES, EXEC, or DEFAULT VALUES
 	OutputClause *OutputClause
@@ -183,7 +183,7 @@ func (n *InsertStmt) stmtNode() {}
 type UpdateStmt struct {
 	WithClause   *WithClause
 	Top          *TopClause
-	Relation     *TableRef
+	Relation     TableExpr // *TableRef or *TableVarRef
 	SetClause    *List // list of SetExpr
 	OutputClause *OutputClause
 	FromClause   *List
@@ -200,7 +200,7 @@ func (n *UpdateStmt) stmtNode() {}
 type DeleteStmt struct {
 	WithClause   *WithClause
 	Top          *TopClause
-	Relation     *TableRef
+	Relation     TableExpr // *TableRef or *TableVarRef
 	OutputClause *OutputClause
 	FromClause   *List
 	WhereClause  ExprNode
@@ -216,7 +216,7 @@ func (n *DeleteStmt) stmtNode() {}
 type MergeStmt struct {
 	WithClause   *WithClause
 	Top          *TopClause
-	Target       *TableRef
+	Target       TableExpr // *TableRef or *TableVarRef
 	Source       TableExpr // table source
 	SourceAlias  string
 	OnCondition  ExprNode
@@ -1928,6 +1928,34 @@ type TableRef struct {
 
 func (n *TableRef) nodeTag()   {}
 func (n *TableRef) tableExpr() {}
+
+// TableVarRef is a T-SQL table variable reference: @name [AS alias].
+// Only legal at DML table-source positions (FROM/JOIN, INSERT/UPDATE/DELETE/MERGE target).
+// Mirrors SqlScriptDOM VariableTableReference (TSql170.g: variableTableReference).
+type TableVarRef struct {
+	Name  string // includes leading '@'
+	Alias string
+	Loc   Loc
+}
+
+func (n *TableVarRef) nodeTag()   {}
+func (n *TableVarRef) tableExpr() {}
+
+// TableVarMethodCallRef is a T-SQL variable method-call table reference:
+// @var.Method(args) [AS alias [(cols)]]. Used for XML column methods like
+// @xmlcol.nodes('/x'). Legal only in FROM/JOIN, not as a DML target.
+// Mirrors SqlScriptDOM VariableMethodCallTableReference.
+type TableVarMethodCallRef struct {
+	Var     string // includes leading '@'
+	Method  string
+	Args    []ExprNode
+	Alias   string
+	Columns []string
+	Loc     Loc
+}
+
+func (n *TableVarMethodCallRef) nodeTag()   {}
+func (n *TableVarMethodCallRef) tableExpr() {}
 
 // DataType represents a T-SQL data type reference.
 type DataType struct {

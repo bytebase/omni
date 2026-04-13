@@ -18362,7 +18362,7 @@ func TestParseDmlBnfReview(t *testing.T) {
 		sql := "INSERT INTO t WITH (TABLOCK) (col1) VALUES (1)"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.InsertStmt)
-		if stmt.Relation.Hints == nil {
+		if stmt.Relation.(*ast.TableRef).Hints == nil {
 			t.Error("expected non-nil Hints on target table")
 		}
 	})
@@ -18392,7 +18392,7 @@ func TestParseDmlBnfReview(t *testing.T) {
 		sql := "UPDATE t WITH (ROWLOCK) SET col1 = 1"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.UpdateStmt)
-		if stmt.Relation.Hints == nil {
+		if stmt.Relation.(*ast.TableRef).Hints == nil {
 			t.Error("expected non-nil Hints on target table")
 		}
 	})
@@ -18470,7 +18470,7 @@ func TestParseDmlBnfReview(t *testing.T) {
 		sql := "DELETE FROM t WITH (ROWLOCK) WHERE id = 1"
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.DeleteStmt)
-		if stmt.Relation.Hints == nil {
+		if stmt.Relation.(*ast.TableRef).Hints == nil {
 			t.Error("expected non-nil Hints on target table")
 		}
 	})
@@ -18505,7 +18505,7 @@ func TestParseDmlBnfReview(t *testing.T) {
 			WHEN MATCHED THEN UPDATE SET t.col1 = s.col1;`
 		result := ParseAndCheck(t, sql)
 		stmt := result.Items[0].(*ast.MergeStmt)
-		if stmt.Target.Hints == nil {
+		if stmt.Target.(*ast.TableRef).Hints == nil {
 			t.Error("expected non-nil Hints on target table")
 		}
 	})

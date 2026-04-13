@@ -56,22 +56,26 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 	}
 
 	// Table name or @table_variable
-	rel, err := p.parseTableRef()
-	if err != nil {
-		return nil, err
-	}
-	if rel == nil {
-		return nil, p.newParseError(p.cur.Loc, "expected table name after INSERT")
-	}
-	stmt.Relation = rel
-
-	// Optional WITH ( <Table_Hint_Limited> ) on target
-	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-		hints, err := p.parseTableHints()
+	if p.cur.Type == tokVARIABLE {
+		stmt.Relation = p.parseVariableDmlTarget()
+	} else {
+		rel, err := p.parseTableRef()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Relation.Hints = hints
+		if rel == nil {
+			return nil, p.newParseError(p.cur.Loc, "expected table name after INSERT")
+		}
+		stmt.Relation = rel
+
+		// Optional WITH ( <Table_Hint_Limited> ) on target — only allowed on named tables.
+		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
+			hints, err := p.parseTableHints()
+			if err != nil {
+				return nil, err
+			}
+			rel.Hints = hints
+		}
 	}
 
 	// Optional column list

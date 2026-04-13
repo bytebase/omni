@@ -53,29 +53,37 @@ func (p *Parser) parseMergeStmt() (*nodes.MergeStmt, error) {
 		return nil, errCollecting
 	}
 
-	// Target table
-	target, err := p.parseTableRef()
-	if err != nil {
-		return nil, err
-	}
-	if target == nil {
-		return nil, p.newParseError(p.cur.Loc, "expected target table after MERGE")
-	}
-	stmt.Target = target
-
-	// Optional WITH ( <merge_hint> ) on target
-	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-		hints, err := p.parseTableHints()
+	// Target table or @table_variable
+	if p.cur.Type == tokVARIABLE {
+		tv := p.parseVariableDmlTarget()
+		// MERGE allows alias after the target even for variable targets
+		// (SqlScriptDOM mergeSpecification parses alias separately from dmlTarget).
+		if alias := p.parseOptionalAlias(); alias != "" {
+			tv.Alias = alias
+		}
+		stmt.Target = tv
+	} else {
+		target, err := p.parseTableRef()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Target.Hints = hints
-	}
+		if target == nil {
+			return nil, p.newParseError(p.cur.Loc, "expected target table after MERGE")
+		}
+		stmt.Target = target
 
-	// Optional alias
-	alias := p.parseOptionalAlias()
-	if alias != "" {
-		stmt.Target.Alias = alias
+		// Optional WITH ( <merge_hint> ) on target — only allowed on named tables.
+		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
+			hints, err := p.parseTableHints()
+			if err != nil {
+				return nil, err
+			}
+			target.Hints = hints
+		}
+
+		if alias := p.parseOptionalAlias(); alias != "" {
+			target.Alias = alias
+		}
 	}
 
 	// USING source (USING is not a reserved keyword)

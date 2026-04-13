@@ -79,9 +79,7 @@ func collectTableRefsFromNode(n ast.Node) []TableRef {
 			return nil
 		}
 		refs = append(refs, collectFromWithClause(v.WithClause)...)
-		if v.Relation != nil {
-			refs = append(refs, astTableRefToRef(v.Relation))
-		}
+		refs = append(refs, collectFromTableExpr(v.Relation)...)
 		if src, ok := v.Source.(ast.Node); ok {
 			refs = append(refs, collectTableRefsFromNode(src)...)
 		}
@@ -91,9 +89,7 @@ func collectTableRefsFromNode(n ast.Node) []TableRef {
 			return nil
 		}
 		refs = append(refs, collectFromWithClause(v.WithClause)...)
-		if v.Relation != nil {
-			refs = append(refs, astTableRefToRef(v.Relation))
-		}
+		refs = append(refs, collectFromTableExpr(v.Relation)...)
 		refs = append(refs, collectFromList(v.FromClause)...)
 
 	case *ast.DeleteStmt:
@@ -101,9 +97,7 @@ func collectTableRefsFromNode(n ast.Node) []TableRef {
 			return nil
 		}
 		refs = append(refs, collectFromWithClause(v.WithClause)...)
-		if v.Relation != nil {
-			refs = append(refs, astTableRefToRef(v.Relation))
-		}
+		refs = append(refs, collectFromTableExpr(v.Relation)...)
 		refs = append(refs, collectFromList(v.FromClause)...)
 
 	case *ast.MergeStmt:
@@ -111,19 +105,29 @@ func collectTableRefsFromNode(n ast.Node) []TableRef {
 			return nil
 		}
 		refs = append(refs, collectFromWithClause(v.WithClause)...)
-		if v.Target != nil {
-			ref := astTableRefToRef(v.Target)
-			// The parser may incorrectly assign "USING" as the target alias.
-			if strings.EqualFold(ref.Alias, "USING") {
-				ref.Alias = ""
+		targetRefs := collectFromTableExpr(v.Target)
+		// The parser may incorrectly assign "USING" as the target alias.
+		for i := range targetRefs {
+			if strings.EqualFold(targetRefs[i].Alias, "USING") {
+				targetRefs[i].Alias = ""
 			}
-			refs = append(refs, ref)
 		}
+		refs = append(refs, targetRefs...)
 		refs = append(refs, collectFromTableExpr(v.Source)...)
 
 	case *ast.TableRef:
 		if v != nil && v.Object != "" {
 			refs = append(refs, astTableRefToRef(v))
+		}
+
+	case *ast.TableVarRef:
+		if v != nil && v.Name != "" {
+			refs = append(refs, TableRef{Table: v.Name, Alias: v.Alias})
+		}
+
+	case *ast.TableVarMethodCallRef:
+		if v != nil && v.Var != "" {
+			refs = append(refs, TableRef{Table: v.Var, Alias: v.Alias})
 		}
 
 	case *ast.JoinClause:

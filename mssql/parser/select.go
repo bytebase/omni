@@ -798,6 +798,11 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		return p.parseRowsetFunction()
 	}
 
+	// T-SQL table variable: @t [alias] or @t.Method(args) [alias (cols)]
+	if p.cur.Type == tokVARIABLE {
+		return p.parseVariableTableSource()
+	}
+
 	// Table reference
 	ref, err := p.parseTableRef()
 	if err != nil {
