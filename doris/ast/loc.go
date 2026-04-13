@@ -22,6 +22,14 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *BuildIndexStmt:
 		return v.Loc
+	case *CreateDatabaseStmt:
+		return v.Loc
+	case *AlterDatabaseStmt:
+		return v.Loc
+	case *DropDatabaseStmt:
+		return v.Loc
+	case *Property:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

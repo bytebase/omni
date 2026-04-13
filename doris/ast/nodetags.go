@@ -35,6 +35,18 @@ const (
 
 	// T_BuildIndexStmt is the tag for *BuildIndexStmt.
 	T_BuildIndexStmt
+
+	// T_CreateDatabaseStmt is the tag for *CreateDatabaseStmt.
+	T_CreateDatabaseStmt
+
+	// T_AlterDatabaseStmt is the tag for *AlterDatabaseStmt.
+	T_AlterDatabaseStmt
+
+	// T_DropDatabaseStmt is the tag for *DropDatabaseStmt.
+	T_DropDatabaseStmt
+
+	// T_Property is the tag for *Property, a key=value pair in PROPERTIES clauses.
+	T_Property
 )
 
 // String returns a human-readable representation of the tag.
@@ -54,6 +66,14 @@ func (t NodeTag) String() string {
 		return "DropIndexStmt"
 	case T_BuildIndexStmt:
 		return "BuildIndexStmt"
+	case T_CreateDatabaseStmt:
+		return "CreateDatabaseStmt"
+	case T_AlterDatabaseStmt:
+		return "AlterDatabaseStmt"
+	case T_DropDatabaseStmt:
+		return "DropDatabaseStmt"
+	case T_Property:
+		return "Property"
 	default:
 		return "Unknown"
 	}
