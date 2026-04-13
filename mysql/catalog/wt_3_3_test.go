@@ -454,11 +454,19 @@ func TestWalkThrough_3_3_UnnamedConstraintAutoName(t *testing.T) {
 	}
 }
 
-// Bug A: Auto-generated FK name counter must use max(existing)+1, not count+1.
-// MySQL reference: sql/sql_table.cc:5843 get_fk_max_generated_name_number().
-// A user explicitly names an FK "child_ibfk_5" then declares an unnamed FK —
-// MySQL returns "child_ibfk_6" (max 5 + 1), not "child_ibfk_2" (count 1 + 1).
-func TestBugFix_FKCounterMaxNotCount(t *testing.T) {
+// Bug A (CREATE path): auto-generated FK name counter increments per unnamed
+// FK, starting from 0, ignoring user-named FKs.
+//
+// MySQL reference: sql/sql_table.cc:9252 initializes the counter to 0 for
+// create_table_impl; sql/sql_table.cc:5912 generate_fk_name uses ++counter.
+// This means user-named FKs do NOT seed the counter during CREATE TABLE.
+//
+// Example: CREATE TABLE child (a INT, CONSTRAINT child_ibfk_5 FK, b INT, FK)
+// Real MySQL: unnamed FK gets "child_ibfk_1" (first auto-named, counter 0 → 1).
+// Spot-check confirmed with real MySQL 8.0 container.
+//
+// NOTE: ALTER TABLE ADD FK uses a different rule (max+1) — see the test below.
+func TestBugFix_FKCounterCreateTable(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
 	wtExec(t, c, `CREATE TABLE child (
@@ -485,14 +493,18 @@ func TestBugFix_FKCounterMaxNotCount(t *testing.T) {
 	if autoGenName == "" {
 		t.Fatal("expected a second (auto-named) FK constraint, found none")
 	}
-	if autoGenName != "child_ibfk_6" {
-		t.Errorf("expected child_ibfk_6 (max 5 + 1), got %s", autoGenName)
+	// Real MySQL 8.0 produces "child_ibfk_1" here (verified by spot-check).
+	// The user-named "child_ibfk_5" does NOT seed the counter during CREATE.
+	if autoGenName != "child_ibfk_1" {
+		t.Errorf("expected child_ibfk_1 (first unnamed FK, ignoring user-named _5), got %s", autoGenName)
 	}
 }
 
-// Bug A follow-up: ALTER TABLE ADD FOREIGN KEY also uses nextFKGeneratedNumber,
-// so explicit FK names like "<table>_ibfk_<N>" force the next auto-name to max+1.
-func TestBugFix_FKCounterMaxNotCount_AlterTable(t *testing.T) {
+// Bug A (ALTER path): ALTER TABLE ADD FOREIGN KEY uses max(existing)+1 logic.
+// MySQL reference: sql/sql_table.cc:14345 (ALTER TABLE) initializes the
+// counter via get_fk_max_generated_name_number(), which scans the existing
+// table definition for the max generated-name counter.
+func TestBugFix_FKCounterAlterTable(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
 	wtExec(t, c, `CREATE TABLE child (

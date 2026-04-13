@@ -11,24 +11,67 @@ A comprehensive catalog of automatic behaviors in MySQL 8.0.45 that occur withou
 ## C1: Name auto-generation
 
 ### 1.1 Foreign Key constraint name
-**Source:** `sql/sql_table.cc:5906-5912` (`generate_fk_name()` buffer version)  
-**Trigger:** `CREATE TABLE` or `ALTER TABLE` with FK that has no explicit `CONSTRAINT name` clause  
-**Rule:**  
-- Name pattern: `{table_name}{suffix}{counter}`
-- `suffix` = InnoDB uses `_ibfk_`, NDB uses `_fk_` (from `handlerton->fk_name_suffix`)
-- `counter` is 1-based per table, computed as `max(existing_generated_counter) + 1`
-- If user has `CONSTRAINT t_ibfk_5 fk1`, next auto-gen is `t_ibfk_6` (not 2)
-- FK names must be unique per schema (not just table)
 
-**Edge cases:**
-- Pre-generated names with old format (pre-4.0.18) are ignored when computing counter (`sql/sql_table.cc:5863-5876`)
-- Name length is checked against `NAME_LEN + MAX_FK_NAME_SUFFIX_LENGTH`
+**IMPORTANT (Spot-check 2026-04-13):** the CREATE and ALTER paths use
+DIFFERENT counter rules. Split into 1.1a and 1.1b below.
 
-**Observable via:**  
+#### 1.1a Foreign Key name — CREATE TABLE path
+**Source:**
+- `sql/sql_table.cc:9252` — `create_table_impl` called with `fk_max_generated_name_number = 0`
+- `sql/sql_table.cc:5912` — `generate_fk_name` uses `++*counter`
+
+**Trigger:** CREATE TABLE with FK that has no explicit `CONSTRAINT name` clause
+
+**Rule:**
+- Name pattern: `{table_name}_ibfk_{N}` for InnoDB
+- Counter is **initialized to 0** and increments by 1 per *unnamed* FK
+- User-named FKs do **NOT** seed the counter — they are ignored
+- First unnamed FK → `_1`, second unnamed FK → `_2`, etc.
+- Collisions with user-named FKs (e.g. user wrote `CONSTRAINT t_ibfk_1` AND an unnamed FK) are detected at `sql/sql_table.cc:6614` and error out
+
+**Example:**
+```sql
+CREATE TABLE child (
+    a INT, CONSTRAINT child_ibfk_5 FOREIGN KEY (a) REFERENCES p(id),
+    b INT, FOREIGN KEY (b) REFERENCES p(id)
+);
+-- Result: ['child_ibfk_1' (unnamed, counter 0→1),
+--          'child_ibfk_5' (user-named)]
+```
+
+**Observable via:**
 - `information_schema.TABLE_CONSTRAINTS` (CONSTRAINT_NAME)
 - `SHOW CREATE TABLE`
 
-**omni risk:** Counter logic must track max across existing FKs, not just count
+#### 1.1b Foreign Key name — ALTER TABLE ADD FOREIGN KEY path
+**Source:**
+- `sql/sql_table.cc:14345` — ALTER TABLE initializes counter via `get_fk_max_generated_name_number()`
+- `sql/sql_table.cc:5843-5877` — `get_fk_max_generated_name_number()` scans existing FKs
+
+**Trigger:** ALTER TABLE ADD FOREIGN KEY with no explicit constraint name
+
+**Rule:**
+- Counter is initialized to `max(existing generated counter)` across all FKs
+  currently stored on the table (user-named `_ibfk_N` patterns DO contribute)
+- Next unnamed FK gets `max+1`
+
+**Edge cases:**
+- Pre-4.0.18 format names are ignored when computing max (`sql/sql_table.cc:5863-5876`)
+- Name length is checked against `NAME_LEN + MAX_FK_NAME_SUFFIX_LENGTH`
+
+**Example:**
+```sql
+CREATE TABLE child (a INT, b INT, CONSTRAINT child_ibfk_20 FOREIGN KEY (a) REFERENCES p(id));
+ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);
+-- Result: second FK named 'child_ibfk_21' (max 20 + 1)
+```
+
+**Observable via:**
+- `information_schema.TABLE_CONSTRAINTS`
+- `SHOW CREATE TABLE`
+
+**omni status:** FIXED 2026-04-13. CREATE uses local `unnamedFKCount` counter
+(`tablecmds.go`); ALTER uses `nextFKGeneratedNumber` (`altercmds.go`).
 
 ---
 
@@ -212,16 +255,22 @@ A comprehensive catalog of automatic behaviors in MySQL 8.0.45 that occur withou
 ### 5.1 Foreign Key ON DELETE default (no action specified)
 **Source:** `sql/sql_table.cc:6637-6639` (field assignment from parsed FK)  
 **Trigger:** FK without explicit `ON DELETE` clause  
-**Rule:**  
-- `delete_opt` = value from parser (default is `FK_OPTION_RESTRICT`)
-- Default behavior matches SQL standard: no cascading action
+**Rule:**
+- `delete_opt` = parser enum default `FK_OPTION_RESTRICT`
+- **IMPORTANT reporting discrepancy** (spot-check 2026-04-13): the parser enum
+  is `RESTRICT`, but `information_schema.REFERENTIAL_CONSTRAINTS.DELETE_RULE`
+  surfaces it as **`NO ACTION`**, and `SHOW CREATE TABLE` **elides** the clause
+  entirely. For InnoDB the two are semantically identical (both mean "fail the
+  operation if any child row references the parent"), but any test scenario
+  that asserts against `information_schema` must expect the string `NO ACTION`.
+- Default behavior: no cascading action; reject modification if referencing rows exist
 
 **Edge cases:**
 - If `ON DELETE SET NULL`, column must be nullable (error if NOT NULL) — checked at line 6682-6686
 
-**Observable via:**  
-- `information_schema.TABLE_CONSTRAINTS` (via DD or SHOW CREATE TABLE)
-- `SHOW CREATE TABLE` (shows FK definition)
+**Observable via:**
+- `information_schema.REFERENTIAL_CONSTRAINTS.DELETE_RULE` = `'NO ACTION'` (not 'RESTRICT')
+- `SHOW CREATE TABLE` — clause is elided when default
 
 ---
 

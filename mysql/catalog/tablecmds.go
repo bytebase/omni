@@ -103,6 +103,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 	var pendingFKs []pendingFK
 
+	// unnamedFKCount counts FKs that received an auto-generated name in this
+	// CREATE TABLE statement. Matches MySQL 8.0's generate_fk_name() counter,
+	// which is initialized to 0 for CREATE TABLE and incremented per unnamed FK,
+	// IGNORING user-named FKs. See sql/sql_table.cc:9252 (create_table_impl
+	// is called with fk_max_generated_name_number = 0) and sql/sql_table.cc:5912
+	// (generate_fk_name uses ++counter).
+	//
+	// Example: CREATE TABLE t (a INT, CONSTRAINT t_ibfk_5 FK, b INT, FK)
+	//   → first unnamed FK gets t_ibfk_1 (not t_ibfk_2 or t_ibfk_6).
+	// This differs from ALTER TABLE ADD FK, where the counter starts at
+	// max(existing) — see altercmds.go.
+	var unnamedFKCount int
+
 	// Process columns.
 	for i, colDef := range stmt.Columns {
 		colKey := toLower(colDef.Name)
@@ -242,7 +255,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				}
 				conName := cc.Name
 				if conName == "" {
-					conName = fmt.Sprintf("%s_ibfk_%d", tableName, nextFKGeneratedNumber(tbl, tableName))
+					unnamedFKCount++
+					conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
 				}
 				tbl.Constraints = append(tbl.Constraints, &Constraint{
 					Name:       conName,
@@ -401,7 +415,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case nodes.ConstrForeignKey:
 			conName := con.Name
 			if conName == "" {
-				conName = fmt.Sprintf("%s_ibfk_%d", tableName, nextFKGeneratedNumber(tbl, tableName))
+				unnamedFKCount++
+				conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
 			}
 			refDB := ""
 			refTable := ""
@@ -988,17 +1003,6 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 			}
 		}
 	}
-}
-
-// countFKConstraints counts the number of foreign key constraints on a table.
-func countFKConstraints(tbl *Table) int {
-	count := 0
-	for _, c := range tbl.Constraints {
-		if c.Type == ConForeignKey {
-			count++
-		}
-	}
-	return count
 }
 
 // nextFKGeneratedNumber returns the next available counter for an auto-generated
