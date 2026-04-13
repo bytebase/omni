@@ -1125,6 +1125,11 @@ to BLOB(M).").
 
 ## Section C3: Nullability & default promotion
 
+> **Expansion note (Wave 4 batch A):** grew from 3 to 8 scenarios via walk of
+> `sql/sql_table.cc` (`promote_first_timestamp_column` L4221-L4245,
+> `mysql_prepare_create_table` NOT_NULL_FLAG propagation for PK/AUTO_INC,
+> gcol nullability at L7886-L7895) and the CREATE TABLE / TIMESTAMP doc pages.
+
 ### 3.1 TIMESTAMP NOT NULL — FIRST column ONLY auto-promotes (omni risk)
 
 **Setup:**
@@ -1140,8 +1145,8 @@ CREATE TABLE t (
 SHOW CREATE TABLE t;
 ```
 Expected:
-- `ts1` → `TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`
-- `ts2` → `TIMESTAMP NOT NULL DEFAULT '0000-00-00 00:00:00'` (NOT promoted)
+- `ts1` -> `TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`
+- `ts2` -> `TIMESTAMP NOT NULL DEFAULT '0000-00-00 00:00:00'` (NOT promoted)
 
 **omni assertion:**
 ```go
@@ -1190,6 +1195,86 @@ Expected: `NO`.
 **See catalog:** C3.3.
 
 ---
+
+### 3.4 Explicit NULL on PRIMARY KEY column is a hard error
+**Priority:** HIGH
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (a INT NULL PRIMARY KEY);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table.html — "A PRIMARY KEY column ... must not contain any NULL values."
+**Source:** `sql/sql_table.cc` — `mysql_prepare_create_table` sets `NOT_NULL_FLAG` when column participates in PK; if `EXPLICIT_NULL_FLAG` also set, raises `ER_PRIMARY_CANT_HAVE_NULL` (`sql/share/messages_to_clients.txt`).
+**Oracle:** MySQL returns error 1171 (`ER_PRIMARY_CANT_HAVE_NULL`).
+**omni pointer:** `mysql/catalog/tablecmds.go` create-path must reject explicit NULL + PK combination; `mysql/catalog/altercmds.go` `alterColumnSetNotNull`. Check if omni currently silently coerces.
+**omni assertion:** `Exec` returns error; catalog unchanged.
+
+---
+
+### 3.5 UNIQUE KEY does NOT imply NOT NULL
+**Priority:** HIGH
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (a INT UNIQUE);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table.html — "a UNIQUE index permits multiple NULL values for columns that can contain NULL."
+**Source:** `sql/sql_table.cc:3904-3932` — UNIQUE NOT NULL only ordered before other UNIQUE keys when NOT NULL flag comes from the column definition, not from the UNIQUE index itself.
+**Oracle:** `IS_NULLABLE = 'YES'` for column `a`; `information_schema.TABLE_CONSTRAINTS` shows UNIQUE; row `(NULL), (NULL)` both succeed.
+**omni pointer:** `mysql/catalog/tablecmds.go` resolveColumnNullable — verify that only PK / AUTO_INC promotion flips `col.Nullable`, not UNIQUE.
+**omni assertion:** `tbl.GetColumn("a").Nullable == true` and UNIQUE index present.
+
+---
+
+### 3.6 Generated column nullability is derived from expression, not declared NOT NULL
+**Priority:** MED
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (
+    a INT NULL,
+    b INT GENERATED ALWAYS AS (a+1) VIRTUAL
+);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html — "A generated column is implicitly nullable if the expression can be NULL; an explicit NOT NULL makes it an error to store NULL."
+**Source:** `sql/sql_table.cc` `prepare_create_field` — for a gcol, NOT_NULL_FLAG follows the expression's `maybe_null`; writing a user NOT NULL on top does not change the inferred nullability until insert time.
+**Oracle:** `IS_NULLABLE = 'YES'` for `b`; insert `(NULL)` into `a` yields `b = NULL`.
+**omni pointer:** `mysql/catalog/table.go:64` Column.Nullable — gcol path in `tablecmds.go` should not silently force NOT NULL from the presence of an expression; must honor the underlying column nullability.
+**omni assertion:** `tbl.GetColumn("b").Nullable == true`.
+
+---
+
+### 3.7 AUTO_INCREMENT on an explicitly NULL column is a hard error
+**Priority:** MED
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (id INT NULL AUTO_INCREMENT, KEY(id));
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/example-auto-increment.html — "an AUTO_INCREMENT column must not contain NULL values."
+**Source:** `sql/sql_table.cc` `mysql_prepare_create_table` — when `AUTO_INCREMENT_FLAG` and `EXPLICIT_NULL_FLAG` both set, raises `ER_INVALID_USE_OF_NULL`.
+**Oracle:** MySQL errors out at CREATE time (1048 / 1263 depending on path).
+**omni pointer:** `mysql/catalog/tablecmds.go` resolveColumnAutoInc must reject explicit NULL.
+**omni assertion:** `Exec` returns error.
+
+---
+
+### 3.8 Second TIMESTAMP column without DEFAULT is implicitly NOT NULL DEFAULT '0000-00-00 00:00:00' under explicit_defaults_for_timestamp=OFF
+**Priority:** LOW
+**Status:** pending
+**Setup:**
+```sql
+SET SESSION explicit_defaults_for_timestamp=OFF;
+CREATE TABLE t (ts1 TIMESTAMP, ts2 TIMESTAMP);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/timestamp-initialization.html — deprecated legacy path when `explicit_defaults_for_timestamp=OFF`.
+**Source:** `sql/sql_table.cc:4221-4245` `promote_first_timestamp_column`: first TIMESTAMP gets DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP; subsequent TIMESTAMPs are forced NOT NULL DEFAULT zero even without explicit NOT NULL.
+**Oracle (legacy mode):** `ts1` NOT NULL CURRENT_TIMESTAMP; `ts2` NOT NULL DEFAULT '0000-00-00 00:00:00'. Note: default 8.0 mode is ON — scenario is LOW because omni targets default session settings.
+**omni pointer:** `mysql/catalog/catalog.go` session var tracking; `tablecmds.go` timestamp defaults. Mostly a known-limitation to document, not fix.
+**omni assertion:** Skip in default mode; if omni adds session var support, match the legacy transform.
+
+---
+
 
 ## Section C4: Charset / collation inheritance
 
@@ -1719,7 +1804,14 @@ validation and for SDL-diff stability on computed-column definitions.
 
 ## Section C5: Constraint defaults
 
-### 5.1 FK ON DELETE default → stored as RESTRICT, reported as NO ACTION, elided in SHOW
+> **Expansion note (Wave 4 batch A):** grew from 3 to 10 scenarios via walk of
+> `sql/sql_table.cc` FK preparation (`prepare_fk_parent_key` L6340-L6500,
+> FK action validation L6672-L6710, gcol FK rejection L6783/L6883/L9464) and
+> CHECK constraint preparation (`prepare_check_constraints_for_create` L19007-L19031,
+> `is_enforced` handling L19180/L19379/L19443/L19512/L19727).
+> Does not duplicate Wave 1 C22 (ALTER algorithm) or Wave 2 C1 (name auto-gen).
+
+### 5.1 FK ON DELETE default -> stored as RESTRICT, reported as NO ACTION, elided in SHOW
 
 **Setup:**
 ```sql
@@ -1781,6 +1873,127 @@ CREATE TABLE c (
 **See catalog:** C5.3.
 
 ---
+
+### 5.4 FK ON UPDATE default is independent of ON DELETE
+**Priority:** HIGH
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE p (id INT PRIMARY KEY);
+CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id) ON DELETE CASCADE);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-foreign-keys.html — "If ON DELETE or ON UPDATE are not specified, the default action is NO ACTION."
+**Source:** `sql/sql_yacc.yy` `opt_on_update_delete` — DELETE and UPDATE options are parsed into independent fields; absence of one does not inherit from the other. `sql/sql_table.cc:6682-6701`.
+**Oracle:** `REFERENTIAL_CONSTRAINTS.UPDATE_RULE = 'NO ACTION'` while `DELETE_RULE = 'CASCADE'`. `SHOW CREATE TABLE` renders `ON DELETE CASCADE` only, no `ON UPDATE` clause.
+**omni pointer:** `mysql/catalog/constraint.go` FK struct — verify OnUpdate is not defaulted from OnDelete in `tablecmds.go` `buildFK`. `mysql/catalog/show.go:443` rendering path.
+**omni assertion:** `fk.OnDelete == "CASCADE"`, `fk.OnUpdate == "" / RESTRICT`; deparse omits ON UPDATE.
+
+---
+
+### 5.5 FK SET DEFAULT is parsed but rejected at runtime (InnoDB limitation)
+**Priority:** HIGH
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE p (id INT PRIMARY KEY);
+CREATE TABLE c (
+    a INT DEFAULT 0,
+    FOREIGN KEY (a) REFERENCES p(id) ON DELETE SET DEFAULT
+);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-foreign-keys.html — "InnoDB parses but rejects SET DEFAULT; it is not supported."
+**Source:** `sql/sql_table.cc:6697-6701` — `FK_OPTION_DEFAULT` is explicitly listed among referential actions that conflict with CHECK constraints. InnoDB handler emits `ER_FK_NO_INDEX_CHILD` / not-supported at handler level.
+**Oracle:** CREATE TABLE succeeds in MySQL 8.0.16+ parser but InnoDB returns an error like `ER_NOT_SUPPORTED_YET` ("ON DELETE SET DEFAULT") or, depending on version, accepts the syntax silently. Exact expected-behavior capture is in spot-check phase.
+**omni pointer:** `mysql/catalog/tablecmds.go` FK options handler — must either reject SET DEFAULT or record it with a documented limitation flag to match InnoDB.
+**omni assertion:** omni should reject SET DEFAULT on CREATE to match InnoDB behavior.
+
+---
+
+### 5.6 FK column type must match referenced column type (size/sign)
+**Priority:** HIGH
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE p (id BIGINT PRIMARY KEY);
+CREATE TABLE c (a INT, FOREIGN KEY (a) REFERENCES p(id));
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-foreign-keys.html — "Corresponding columns in the foreign key and the referenced key must have similar data types. The size and sign of integer types must be the same."
+**Source:** `sql/sql_table.cc` `prepare_fk_parent_key` and InnoDB handler `dict_foreign_find_col` — size/sign mismatch raises `ER_FK_INCOMPATIBLE_COLUMNS`.
+**Oracle:** MySQL error 3780 (`ER_FK_INCOMPATIBLE_COLUMNS`).
+**omni pointer:** `mysql/catalog/tablecmds.go` FK resolution — must compare column type including size and unsigned flag.
+**omni assertion:** `Exec` returns error for mismatched FK types.
+
+---
+
+### 5.7 FK on a VIRTUAL generated column is rejected (CREATE)
+**Priority:** HIGH
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE p (id INT PRIMARY KEY);
+CREATE TABLE c (
+    a INT,
+    b INT GENERATED ALWAYS AS (a+1) VIRTUAL,
+    FOREIGN KEY (b) REFERENCES p(id)
+);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html — "Foreign keys referencing a virtual generated column are not permitted."
+**Source:** `sql/sql_table.cc:6672` / `6783` / `6883` / `9464` all raise `ER_FK_CANNOT_USE_VIRTUAL_COLUMN`.
+**Oracle:** MySQL error 3104. (Note: STORED gcol is also rejected as FK **child**; allowed only as FK **parent** in limited cases — capture separately as spot-check.)
+**omni pointer:** `mysql/catalog/tablecmds.go` FK build — must check the referencing column is not a virtual gcol. Overlaps with C9.2 (kept here for the "which FK actions also conflict" enumeration).
+**omni assertion:** `Exec` returns error; cross-ref to 9.4.
+
+---
+
+### 5.8 CHECK NOT ENFORCED flag defaults to ENFORCED (is_enforced = true)
+**Priority:** HIGH
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (
+    a INT,
+    CONSTRAINT chk_pos CHECK (a > 0)
+);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-check-constraints.html — "If ENFORCED/NOT ENFORCED is omitted, the default is ENFORCED."
+**Source:** `sql/sql_table.cc:19180` — `cc_spec->is_enforced = table_cc.is_enforced()`; parser default is true.
+**Oracle:** `information_schema.CHECK_CONSTRAINTS` row for `chk_pos` exists; `information_schema.TABLE_CONSTRAINTS.ENFORCED = 'YES'`. `SHOW CREATE TABLE` does not render `NOT ENFORCED`.
+**omni pointer:** `mysql/catalog/constraint.go:25` `NotEnforced bool` — zero value (false) matches MySQL default. `mysql/catalog/show.go:443` — only renders `NOT ENFORCED` when flag is true. Already looks correct; scenario is a regression fence.
+**omni assertion:** `con.NotEnforced == false`; deparse omits the clause.
+
+---
+
+### 5.9 CHECK constraint at column level vs table level is equivalent in information_schema
+**Priority:** MED
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t1 (a INT CHECK (a > 0));
+CREATE TABLE t2 (a INT, CHECK (a > 0));
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-check-constraints.html — "A column-level CHECK constraint can reference only that column; otherwise it is stored identically to a table-level CHECK."
+**Source:** `sql/sql_table.cc:19007-19031` `prepare_check_constraints_for_create` — merges column-level and table-level CHECK lists and assigns auto names uniformly.
+**Oracle:** Both tables expose CHECK constraints in `information_schema.CHECK_CONSTRAINTS`; auto-names follow same `tblname_chk_N` scheme. Expression stored post-normalization; both render as `CHECK ((`a` > 0))` in `SHOW CREATE TABLE`.
+**omni pointer:** `mysql/catalog/tablecmds.go` `buildCheckConstraints` / `collectColumnChecks` — ensure column-level CHECKs are merged into the same constraint list before numbering.
+**omni assertion:** Both tables expose a single CHECK with identical serialized expression.
+
+---
+
+### 5.10 Column-level CHECK referencing another column is rejected (column-scope constraint)
+**Priority:** MED
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (a INT CHECK (a > b), b INT);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-check-constraints.html — "A column-level CHECK constraint must refer only to the column on which it is defined. Referring to other columns produces ER_CHECK_CONSTRAINT_REFERS."
+**Source:** `sql/sql_table.cc` `prepare_check_constraints_for_create` — column-scoped CHECK has its referenced columns validated; mismatch raises `ER_CHECK_CONSTRAINT_REFERS` (3823).
+**Oracle:** Error 3823.
+**omni pointer:** `mysql/catalog/tablecmds.go` `buildCheckConstraints` must distinguish column-level vs table-level scope when validating referenced identifiers.
+**omni assertion:** `Exec` returns error. (Note: MySQL allows table-level CHECK to reference any table column — confirm this path still succeeds.)
+
+---
+
 
 ## Section C6: Partition defaults
 
@@ -2154,6 +2367,12 @@ UNIQUE KEY `uk` (`a`)
 
 ## Section C8: Table option defaults
 
+> **Expansion note (Wave 4 batch A):** grew from 3 to 10 scenarios via walk of
+> `sql/sql_table.cc` (create_info option processing), `sql/handler.cc` default
+> populators, and the CREATE TABLE / table_options doc section.
+> Category focuses on **effective values** (what omni stores); see C18 for
+> `SHOW CREATE TABLE` elision rules — a single rule can appear in both.
+
 ### 8.1 Storage engine defaults to InnoDB
 
 **Setup:**
@@ -2212,7 +2431,120 @@ Expected: `AUTO_INCREMENT = 1`; `SHOW CREATE TABLE` ELIDES `AUTO_INCREMENT=` cla
 
 ---
 
+### 8.4 CHARSET defaults to database default when table omits CHARACTER SET
+**Priority:** HIGH
+**Status:** pending
+**Setup:**
+```sql
+CREATE DATABASE d1 CHARACTER SET latin1;
+USE d1;
+CREATE TABLE t (a VARCHAR(10));
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/charset-table.html — "If the CHARACTER SET option is not given, the database character set is used."
+**Source:** `sql/sql_table.cc` `mysql_prepare_create_table` — `create_info->default_table_charset` filled from database default when `HA_CREATE_USED_DEFAULT_CHARSET` is not set.
+**Oracle:** `information_schema.TABLES.TABLE_COLLATION = 'latin1_swedish_ci'`; column `a` is `varchar(10) CHARACTER SET latin1`.
+**omni pointer:** `mysql/catalog/tablecmds.go` `resolveTableCharset` — verify fallback to `db.Charset`; cross-ref C4.1 which covers the **inheritance chain** from server, this focuses on the **effective table-level value**.
+**omni assertion:** `tbl.Charset == "latin1"`.
+
+---
+
+### 8.5 COLLATE independence from CHARSET — specifying COLLATE alone fills CHARSET
+**Priority:** HIGH
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (a INT) COLLATE=latin1_german2_ci;
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/charset-table.html — "If COLLATE is given but CHARACTER SET is not, the character set is derived from the collation's base character set."
+**Source:** `sql/sql_table.cc` table option collapse — `create_info->table_charset` derived from `create_info->default_table_charset->csname` after resolving the named collation.
+**Oracle:** `TABLE_COLLATION = 'latin1_german2_ci'`; derived CHARSET = latin1.
+**omni pointer:** `mysql/catalog/tablecmds.go` — table option path should invoke charset-from-collation resolution (mirrors C4.3 for columns).
+**omni assertion:** `tbl.Charset == "latin1"`, `tbl.Collation == "latin1_german2_ci"`.
+
+---
+
+### 8.6 KEY_BLOCK_SIZE defaults to 0 (engine picks) and is elided in SHOW
+**Priority:** MED
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table.html table_options: "KEY_BLOCK_SIZE = value ... A value of 0 means use the default." https://dev.mysql.com/doc/refman/8.0/en/innodb-file-format.html — default for COMPRESSED format comes from `innodb_page_size/2`.
+**Source:** `sql/handler.cc` HA_CREATE_INFO default — `key_block_size` initialized to 0.
+**Oracle:** `information_schema.TABLES.CREATE_OPTIONS` has no `key_block_size`. `SHOW CREATE TABLE` omits clause. Cross-ref C18.
+**omni pointer:** `mysql/catalog/table.go:17` `KeyBlockSize int` — zero-value is the default; verify `mysql/catalog/show.go` does not render when 0.
+**omni assertion:** `tbl.KeyBlockSize == 0`; deparse omits clause.
+
+---
+
+### 8.7 COMPRESSION defaults to "" (None) and is elided in SHOW
+**Priority:** MED
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table.html — "COMPRESSION [=] {'ZLIB'|'LZ4'|'NONE'}. The default is None."
+**Source:** `sql/handler.cc` HA_CREATE_INFO — `compress` is LEX_CSTRING empty. `sql/sql_table.cc:10990` mentions "Do not keep ENCRYPTION clause for unencrypted table" — parallel elision rule.
+**Oracle:** `SHOW CREATE TABLE` omits `COMPRESSION=`; `information_schema.TABLES.CREATE_OPTIONS` is empty string.
+**omni pointer:** omni Table struct (`mysql/catalog/table.go:3-24`) has **no** `Compression` field — this is an **omni gap**. Either add field or document as unsupported.
+**omni assertion:** CREATE succeeds; compression option parsed and stored (or explicitly documented as dropped).
+
+---
+
+### 8.8 ENCRYPTION defaults depend on server var `default_table_encryption`
+**Priority:** MED
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table.html — "If ENCRYPTION is not specified, the default depends on the default_table_encryption system variable."
+**Source:** `sql/sql_table.cc:9032-9220` ENCRYPTION validation + default application; `sql/sql_table.cc:10990` elides ENCRYPTION from SHOW when unencrypted.
+**Oracle:** With default `default_table_encryption=OFF`, `CREATE_OPTIONS = ''`, `SHOW CREATE TABLE` omits ENCRYPTION.
+**omni pointer:** omni Table has no `Encryption` field — **omni gap**. Document that encryption is not modeled (out of scope for file-format simulation).
+**omni assertion:** CREATE succeeds; option silently dropped or flagged.
+
+---
+
+### 8.9 STATS_PERSISTENT defaults to DEFAULT (engine-level innodb_stats_persistent)
+**Priority:** LOW
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table.html — "STATS_PERSISTENT = {DEFAULT|0|1}; DEFAULT means use innodb_stats_persistent."
+**Source:** `sql/sql_table.cc:15361-15364` — `HA_OPTION_STATS_PERSISTENT` / `HA_OPTION_NO_STATS_PERSISTENT` bits cleared when not explicitly set.
+**Oracle:** `CREATE_OPTIONS` empty; `SHOW CREATE TABLE` omits the clause.
+**omni pointer:** omni Table has no stats fields — **omni gap**. Acceptable since omni does not model row statistics.
+**omni assertion:** CREATE succeeds; option discarded.
+
+---
+
+### 8.10 TABLESPACE defaults to the innodb_file_per_table single-table space (rendered as elided)
+**Priority:** LOW
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table.html — "TABLESPACE tablespace_name [STORAGE {DISK|MEMORY}] ... If omitted, the file_per_table tablespace is used when innodb_file_per_table=ON."
+**Source:** `sql/sql_table.cc:9183-9220` — tablespace option rejection for temporary tables and default application.
+**Oracle:** `information_schema.INNODB_TABLES.SPACE` per-table; `SHOW CREATE TABLE` omits `TABLESPACE=` clause.
+**omni pointer:** omni does not model tablespaces — **omni gap**. Document as explicitly out of scope; scenario is LOW because no observable catalog difference.
+**omni assertion:** CREATE succeeds; no tablespace field stored.
+
+---
+
+
 ## Section C9: Generated column defaults
+
+> **Expansion note (Wave 4 batch A):** grew from 2 to 8 scenarios via walk of
+> `sql/sql_table.cc` generated-column handling (`gcol_info` storage L4232/L4739/L7886-L7890),
+> FK-vs-gcol interactions L6672/L6783/L6883/L9464, ALTER GCOL expression tracking
+> L12108-L12213, and the create-table-generated-columns doc page.
 
 ### 9.1 Generated column stored mode defaults to VIRTUAL
 
@@ -2253,6 +2585,111 @@ CREATE TABLE c (
 **See catalog:** C9.2.
 
 ---
+
+### 9.3 VIRTUAL gcol cannot be part of an InnoDB index unless secondary; STORED has no restriction
+**Priority:** HIGH
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t1 (a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL, KEY (b));
+CREATE TABLE t2 (a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL PRIMARY KEY);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html — "You cannot define a PRIMARY KEY on a virtual generated column."
+**Source:** `sql/sql_table.cc` gcol + key preparation — flags `ER_KEY_BASED_ON_GENERATED_COLUMN` or `ER_WRONG_KEY_COLUMN` when PK contains VIRTUAL gcol. Secondary index is allowed (InnoDB supports indexes on virtual gcols since 5.7).
+**Oracle:** `t1` succeeds with secondary KEY on `b`; `t2` errors.
+**omni pointer:** `mysql/catalog/tablecmds.go` key resolution must reject VIRTUAL gcol in PK but allow in secondary index. Check `allocIndexName` path.
+**omni assertion:** `t1` builds with index; `t2` returns error.
+
+---
+
+### 9.4 Generated column expression must be deterministic — forbids NOW(), UUID(), RAND()
+**Priority:** HIGH
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (a INT, b TIMESTAMP GENERATED ALWAYS AS (NOW()) VIRTUAL);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html — "The generated column expression must be deterministic. Non-deterministic functions such as NOW(), CURRENT_TIMESTAMP, UUID(), RAND() are not permitted."
+**Source:** `sql/sql_table.cc` `prepare_create_field` — calls `Item::walk` to check for `FUNC_NONDETERMINISTIC`; raises `ER_GENERATED_COLUMN_NON_DETERMINISTIC` / `ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED`.
+**Oracle:** Error 3103/3102.
+**omni pointer:** `mysql/catalog/tablecmds.go` gcol expression validation — omni's analyzer (Phase 3 `GeneratedAnalyzed`) must flag non-deterministic functions.
+**omni assertion:** `Exec` returns error.
+
+---
+
+### 9.5 UNIQUE on STORED gcol is allowed; UNIQUE on VIRTUAL gcol is allowed but limited
+**Priority:** MED
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t1 (a INT, b INT GENERATED ALWAYS AS (a+1) STORED UNIQUE);
+CREATE TABLE t2 (a INT, b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html — "UNIQUE constraints and foreign keys referencing generated columns have restrictions depending on storage mode."
+**Source:** `sql/sql_table.cc` — UNIQUE+gcol path accepted for both VIRTUAL and STORED in InnoDB since 5.7; earlier restriction lifted. MyISAM still restricts.
+**Oracle:** Both tables succeed under InnoDB; UNIQUE index present for both.
+**omni pointer:** `mysql/catalog/tablecmds.go` — verify UNIQUE with gcol does not double-reject. Distinguishes from scenario 9.2/9.7 (FK-specific).
+**omni assertion:** Both CREATE succeed; UNIQUE indexes present.
+
+---
+
+### 9.6 Generated column NOT NULL interaction — declared NOT NULL requires expression to never yield NULL
+**Priority:** MED
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (
+    a INT NULL,
+    b INT GENERATED ALWAYS AS (a+1) VIRTUAL NOT NULL
+);
+INSERT INTO t (a) VALUES (NULL);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html — "Declaring a generated column NOT NULL does not change the expression's nullability; it only causes an error if the computed value is NULL."
+**Source:** `sql/sql_table.cc` `prepare_create_field` — sets column NOT_NULL_FLAG from declaration but defers actual NULL check to insert time.
+**Oracle:** CREATE succeeds; INSERT with NULL `a` errors at row time (`ER_BAD_NULL_ERROR`).
+**omni pointer:** `mysql/catalog/tablecmds.go` — gcol NOT NULL must be accepted at CREATE. (Runtime insert check is out of scope; mark as spot-check.)
+**omni assertion:** CREATE succeeds; `tbl.GetColumn("b").Nullable == false`.
+
+---
+
+### 9.7 FK referencing a STORED gcol from another table is allowed (parent side only)
+**Priority:** MED
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE p (
+    a INT,
+    b INT GENERATED ALWAYS AS (a+1) STORED,
+    UNIQUE KEY (b)
+);
+CREATE TABLE c (x INT, FOREIGN KEY (x) REFERENCES p(b));
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html — "A stored generated column can be used as the parent side of a foreign key only if no ON CASCADE / SET NULL / SET DEFAULT action would modify the parent value."
+**Source:** `sql/sql_table.cc:9464` `ER_FK_CANNOT_USE_VIRTUAL_COLUMN` triggers only when **child** is virtual; parent STORED is permitted.
+**Oracle:** CREATE both succeeds. Adding `ON UPDATE CASCADE` would error because the generated column is not user-writable.
+**omni pointer:** `mysql/catalog/tablecmds.go` — FK parent resolution must allow STORED gcol as target; ensure FK action validation rejects cascading updates to gcol parent.
+**omni assertion:** CREATE succeeds; FK registered.
+
+---
+
+### 9.8 Generated column expression charset is derived from expression inputs, not column declaration
+**Priority:** LOW
+**Status:** pending
+**Setup:**
+```sql
+CREATE TABLE t (
+    a VARCHAR(10) CHARACTER SET latin1,
+    b VARCHAR(20) GENERATED ALWAYS AS (CONCAT(a, 'x')) VIRTUAL
+);
+```
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html — "The character set and collation of a generated column are derived from the expression's result type, honoring collation coercibility."
+**Source:** `sql/sql_table.cc:7886-7890` Value_generator initialization; `sql/field.cc` `Field::sql_type` picks up the result charset via Item metadata.
+**Oracle:** `information_schema.COLUMNS.CHARACTER_SET_NAME` for `b` is `latin1` (inherited from `a`), not the table default.
+**omni pointer:** `mysql/catalog/tablecmds.go` gcol column build — `b.Charset` should be resolved from the analyzed expression, not from the table/column declaration path. Check `GeneratedAnalyzed` type propagation.
+**omni assertion:** `tbl.GetColumn("b").Charset == "latin1"`.
+
+---
+
 
 ## Section C10: View metadata defaults
 
@@ -2298,6 +2735,197 @@ Expected: `root@%` (or the connecting user).
 
 ---
 
+### 10.3 View CHECK OPTION default is CASCADED when WITH CHECK OPTION lacks a qualifier
+**Priority:** MED
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/view-check-option.html
+> "The default is CASCADED. WITH CHECK OPTION is equivalent to WITH CASCADED CHECK OPTION."
+**Source:** `sql/sql_yacc.yy` (rule `view_check_option`: `WITH CHECK_SYM OPTION { $$ = VIEW_CHECK_CASCADED; } | WITH LOCAL_SYM CHECK_SYM OPTION { $$ = VIEW_CHECK_LOCAL; } | WITH CASCADED_SYM CHECK_SYM OPTION { $$ = VIEW_CHECK_CASCADED; }`); `sql/sql_view.cc` `mysql_register_view()` persists `view->with_check`.
+**Trigger:** `CREATE VIEW v AS SELECT … WITH CHECK OPTION;` (no LOCAL/CASCADED qualifier).
+**Rule:**
+- Bare `WITH CHECK OPTION` normalizes to `VIEW_CHECK_CASCADED` (value 1), identical to `WITH CASCADED CHECK OPTION`.
+- `WITH LOCAL CHECK OPTION` persists as `VIEW_CHECK_LOCAL` (value 2).
+- Omitting the clause entirely stores `VIEW_CHECK_NONE` (value 0) — distinct from CASCADED; rendered as `CHECK_OPTION='NONE'` in I_S.
+- Observable via `information_schema.VIEWS.CHECK_OPTION` (`NONE` / `LOCAL` / `CASCADED`).
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+CREATE VIEW v1 AS SELECT a FROM t WHERE a > 0 WITH CHECK OPTION;
+CREATE VIEW v2 AS SELECT a FROM t WHERE a > 0 WITH LOCAL CHECK OPTION;
+```
+
+**Oracle verification:**
+```sql
+SELECT TABLE_NAME, CHECK_OPTION FROM information_schema.VIEWS
+WHERE TABLE_SCHEMA='testdb' ORDER BY TABLE_NAME;
+```
+Expected: `v1 → CASCADED`, `v2 → LOCAL`.
+
+**omni pointer:** `mysql/catalog/view.go` must distinguish the three states (`NONE`, `LOCAL`, `CASCADED`) and normalize bare `WITH CHECK OPTION` to CASCADED — do not collapse it to a boolean.
+
+---
+
+### 10.4 ALGORITHM=UNDEFINED resolves to MERGE or TEMPTABLE based on SELECT shape
+**Priority:** MED
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/view-algorithms.html
+> "For UNDEFINED, MySQL chooses which algorithm to use. It prefers MERGE over TEMPTABLE if possible, because MERGE is usually more efficient and because a view cannot be updatable if a temporary table is used. … If the view contains any of … aggregate functions (SUM(), MIN(), MAX(), COUNT(), and so forth), DISTINCT, GROUP BY, HAVING, LIMIT, UNION, subquery in the select list, assignment to user variables, or refers only to literal values — the view becomes a TEMPTABLE."
+**Source:** `sql/sql_view.cc` `mysql_register_view()` → `check_view_mergeable()`; `sql/sql_lex.cc` sets `can_be_merged` flag; resolution stored in view's `algorithm` field on first open.
+**Trigger:** `CREATE ALGORITHM=UNDEFINED VIEW v AS <SELECT with GROUP BY>;` — at CREATE time stays UNDEFINED in `.frm`, but at open/resolve time picks TEMPTABLE because SELECT is non-mergeable.
+**Rule:**
+- The stored `.frm` value remains `UNDEFINED` (or is absent for default) — this is a catalog-layer fact.
+- MERGE eligibility is decided at VIEW open, not CREATE — but the catalog representation must preserve the user-declared algorithm verbatim.
+- Explicit `ALGORITHM=MERGE` on a non-mergeable SELECT → warning `ER_WARN_VIEW_MERGE` and downgrade to UNDEFINED silently in the `.frm`.
+- Explicit `ALGORITHM=TEMPTABLE` forces non-updatable regardless of SELECT shape.
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+CREATE ALGORITHM=UNDEFINED VIEW v_agg AS SELECT COUNT(*) FROM t;
+CREATE ALGORITHM=MERGE VIEW v_merge_bad AS SELECT DISTINCT a FROM t;
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE VIEW v_agg;
+SHOW CREATE VIEW v_merge_bad;
+SHOW WARNINGS;
+```
+Expected:
+- `v_agg` SHOW output contains `ALGORITHM=UNDEFINED`.
+- `v_merge_bad` SHOW output contains `ALGORITHM=UNDEFINED` (downgraded); warning 1354 emitted at CREATE time.
+
+**omni pointer:** omni must (a) record the user's declared algorithm before any downgrade and (b) still accept MERGE declarations on DISTINCT/aggregate SELECTs to match server lenience (warning, not error).
+
+---
+
+### 10.5 View SQL SECURITY defaults to DEFINER
+**Priority:** HIGH
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-view.html
+> "The default SQL SECURITY characteristic is DEFINER."
+**Source:** `sql/sql_yacc.yy` `view_suid` rule (`%empty { $$ = VIEW_SUID_DEFAULT; }`); `sql/sql_view.cc` `mysql_register_view()` — when `view->view_suid == VIEW_SUID_DEFAULT`, persisted as `SQL SECURITY DEFINER` in `.frm`.
+**Trigger:** `CREATE VIEW v AS SELECT …` (no `SQL SECURITY` clause).
+**Rule:**
+- Absent clause → `SECURITY_TYPE = 'DEFINER'` in I_S.
+- Persisted verbatim in `SHOW CREATE VIEW` output.
+- Only DEFINER and INVOKER are legal (no NONE).
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+CREATE VIEW v AS SELECT a FROM t;
+```
+
+**Oracle verification:**
+```sql
+SELECT SECURITY_TYPE FROM information_schema.VIEWS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='v';
+```
+Expected: `DEFINER`.
+
+**omni pointer:** `mysql/catalog/view.go` must default `SqlSecurity` to `DEFINER` on CREATE, not leave empty — matters for deparse round-trip of SHOW CREATE VIEW.
+
+---
+
+### 10.6 View column names default to SELECT expression spelling; expressions get positional aliases
+**Priority:** HIGH
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-view.html
+> "If a view column name is not specified, the name is derived from the SELECT statement. Column names are taken from the select-list names if they are valid MySQL identifiers, or the column aliases if AS clauses are used."
+**Source:** `sql/sql_view.cc` `mysql_register_view()` — walks `THD::lex->query_block->fields`, uses each item's `item_name.ptr()` as column name; `sql/table.cc` `open_and_read_view()` fills `TABLE_SHARE::field` names.
+**Trigger:** View SELECT contains column references vs expressions vs constants without explicit column list.
+**Rule:**
+- Plain column ref `SELECT a FROM t` → view column name = `a`.
+- Expression `SELECT a+1 FROM t` → view column name = `a+1` (literal expression text, not sanitized).
+- Aliased `SELECT a+1 AS s FROM t` → view column name = `s`.
+- Function call `SELECT COUNT(*) FROM t` → view column name = `COUNT(*)`.
+- Explicit list `CREATE VIEW v(x,y) AS SELECT …` wins over any derivation.
+- Name length cap: 64 bytes (`NAME_LEN`). Longer derivations are truncated and warnings issued (`ER_NAME_BECOMES_EMPTY` / `ER_REMOVED_SPACES`).
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+CREATE VIEW v_auto AS SELECT a, a+1, COUNT(*) FROM t GROUP BY a;
+CREATE VIEW v_list (x,y,z) AS SELECT a, a+1, COUNT(*) FROM t GROUP BY a;
+```
+
+**Oracle verification:**
+```sql
+SELECT COLUMN_NAME, ORDINAL_POSITION FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='v_auto' ORDER BY ORDINAL_POSITION;
+```
+Expected: `a`, `a+1`, `COUNT(*)` (exact spelling).
+
+**omni pointer:** `mysql/catalog/view.go` column-name derivation must use the raw expression text (post-parser, pre-resolver), not a mangled form. A placeholder like `Name_exp_2` is wrong.
+
+---
+
+### 10.7 View updatability is derived from SELECT shape, persisted as IS_UPDATABLE
+**Priority:** MED
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/view-updatability.html
+> "Some views are updatable and some are not. For a view to be updatable, there must be a one-to-one relationship between the rows in the view and the rows in the underlying table. There are also certain other constructs that make a view nonupdatable: Aggregate functions, DISTINCT, GROUP BY, HAVING, UNION or UNION ALL, … Subquery in the select list, …"
+**Source:** `sql/sql_view.cc` `mysql_register_view()` sets `view->updatable_view` based on `can_be_merged` + `is_updatable()` on the query block; persisted in `.frm` header.
+**Trigger:** Varies by SELECT shape.
+**Rule:**
+- `SELECT a FROM t` → updatable.
+- `SELECT a FROM t1 JOIN t2 USING(a)` → updatable but columns from only one underlying table are settable per DML.
+- `SELECT DISTINCT a FROM t`, `GROUP BY`, any aggregate → non-updatable.
+- `ALGORITHM=TEMPTABLE` forces non-updatable regardless of shape.
+- Persisted as boolean in `information_schema.VIEWS.IS_UPDATABLE` (`YES`/`NO`).
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+CREATE VIEW v_ok AS SELECT a FROM t;
+CREATE VIEW v_distinct AS SELECT DISTINCT a FROM t;
+CREATE ALGORITHM=TEMPTABLE VIEW v_temp AS SELECT a FROM t;
+```
+
+**Oracle verification:**
+```sql
+SELECT TABLE_NAME, IS_UPDATABLE FROM information_schema.VIEWS
+WHERE TABLE_SCHEMA='testdb' ORDER BY TABLE_NAME;
+```
+Expected: `v_distinct=NO`, `v_ok=YES`, `v_temp=NO`.
+
+**omni pointer:** catalog view representation needs an `IsUpdatable` field; cannot be computed lazily because it depends on parser+resolver analysis that omni may not run.
+
+---
+
+### 10.8 View column nullability is widened vs base columns
+**Priority:** MED
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-view.html (nullability mapping implicit).
+**Source:** `sql/sql_view.cc` `mysql_register_view()` → `Create_field::init_for_tmp_table()` inherits base column `maybe_null`; outer-join/UNION branches force `maybe_null = true`.
+**Trigger:** View built over LEFT JOIN, UNION, or a column reached via an outer-joined table.
+**Rule:**
+- Even if `t.a` is `NOT NULL`, a view `SELECT t2.a FROM t1 LEFT JOIN t2 ON …` produces a nullable view column.
+- `UNION` of two NOT NULL columns stays NOT NULL only if both sides are NOT NULL; UNION with a literal `NULL` column flips to nullable.
+- Aggregates over a NOT NULL column: `COUNT(*)` NOT NULL, `SUM(a)` nullable (returns NULL on empty group), `MIN/MAX` nullable.
+- Observable via `information_schema.COLUMNS.IS_NULLABLE` on the view name.
+
+**Setup:**
+```sql
+CREATE TABLE t1 (id INT NOT NULL, a INT NOT NULL);
+CREATE TABLE t2 (id INT NOT NULL, b INT NOT NULL);
+CREATE VIEW v AS SELECT t1.a, t2.b FROM t1 LEFT JOIN t2 ON t1.id = t2.id;
+```
+
+**Oracle verification:**
+```sql
+SELECT COLUMN_NAME, IS_NULLABLE FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='v' ORDER BY ORDINAL_POSITION;
+```
+Expected: `a → YES` (outer-join side propagates), `b → YES` (optional side).
+
+**omni pointer:** omni's view column resolver must track outer-join nullability, not just copy `NotNull` from the underlying column. A simple "view column inherits base column flags" rule is wrong.
+
+---
+
+
 ## Section C11: Trigger defaults
 
 ### 11.1 Trigger DEFINER defaults to current user
@@ -2321,6 +2949,158 @@ Expected: the session user.
 
 ---
 
+### 11.2 Trigger SQL SECURITY is always DEFINER (no INVOKER option)
+**Priority:** MED
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-trigger.html
+> "Triggers currently are not activated by foreign key actions. … Within the trigger body, CURRENT_USER returns the account used to check privileges at trigger activation time. This is the DEFINER user, not the user whose actions caused the trigger to be activated."
+**Source:** `sql/sql_trigger.cc` `Trigger::create_from_parser()`; unlike views, the CREATE TRIGGER grammar has no `SQL SECURITY` clause — there is no `view_suid` equivalent.
+**Trigger:** `CREATE TRIGGER …` (no way to specify security mode).
+**Rule:**
+- Grammar rejects `SQL SECURITY INVOKER` on triggers — parser error.
+- Trigger always runs with DEFINER privileges; `information_schema.TRIGGERS` has no `SECURITY_TYPE` column for triggers.
+- Catalog representation should not expose a trigger-level `SqlSecurity` field; if present, it must be locked to DEFINER.
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+-- valid
+CREATE DEFINER='root'@'%' TRIGGER trg1 BEFORE INSERT ON t FOR EACH ROW SET NEW.a=1;
+-- invalid grammar:
+-- CREATE TRIGGER trg2 SQL SECURITY INVOKER BEFORE INSERT ON t FOR EACH ROW ...;
+```
+
+**Oracle verification:** the second form fails with `ER_PARSE_ERROR`.
+
+**omni pointer:** omni trigger catalog must NOT carry a nullable SqlSecurity; the value is implicit and uniform.
+
+---
+
+### 11.3 Trigger CHARACTER_SET_CLIENT / COLLATION_CONNECTION / DATABASE_COLLATION snapshot session state at CREATE time
+**Priority:** HIGH
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-trigger.html
+> "MySQL takes the character set and collation of character columns into consideration when performing operations. … These attributes are stored with the trigger and used again each time the trigger is activated."
+**Source:** `sql/sql_trigger.cc` — `Trigger::create_from_parser()` records `thd->variables.character_set_client`, `thd->variables.collation_connection`, and the schema's default collation at the moment of CREATE; persisted in `.TRN`/data-dictionary and surfaced as columns in `information_schema.TRIGGERS`.
+**Trigger:** `CREATE TRIGGER …` under a specific `SET NAMES` session.
+**Rule:**
+- Three separate columns persisted per trigger: `CHARACTER_SET_CLIENT`, `COLLATION_CONNECTION`, `DATABASE_COLLATION`.
+- Default values depend on server config (usually `utf8mb4` / `utf8mb4_0900_ai_ci` / schema default).
+- These matter for SDL diff: if a dump preserves `SET NAMES` before the CREATE TRIGGER, the snapshot is reproducible; if not, the catalog must record them independently.
+
+**Setup:**
+```sql
+SET NAMES utf8mb4;
+CREATE TABLE t (a INT);
+CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET NEW.a = NEW.a;
+```
+
+**Oracle verification:**
+```sql
+SELECT CHARACTER_SET_CLIENT, COLLATION_CONNECTION, DATABASE_COLLATION
+FROM information_schema.TRIGGERS WHERE TRIGGER_NAME='trg';
+```
+Expected: three non-null values reflecting session state at CREATE.
+
+**omni pointer:** `mysql/catalog/trigger.go` must carry these three fields; without them, deparse→reparse can shift character interpretation inside trigger bodies.
+
+---
+
+### 11.4 Trigger ACTION_ORDER defaults to 1, incremented per (table, timing, event) group
+**Priority:** HIGH
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-trigger.html
+> "It is possible to have multiple triggers for a given table that have the same trigger event and action time. … By default, triggers that have the same trigger event and action time activate in the order they were created. To affect trigger order, specify FOLLOWS or PRECEDES."
+**Source:** `sql/sql_trigger.cc` `Trigger::create_from_parser()` — when FOLLOWS/PRECEDES omitted, new trigger gets `action_order = max(existing on same table/timing/event) + 1`; stored in `information_schema.TRIGGERS.ACTION_ORDER`.
+**Trigger:** Multiple `BEFORE INSERT` triggers on the same table without explicit ordering.
+**Rule:**
+- First such trigger: `ACTION_ORDER = 1`.
+- Each subsequent: `max + 1` within the same `(table, timing, event)` tuple.
+- Ordering is per-group: BEFORE INSERT and AFTER INSERT have independent sequences.
+- `FOLLOWS other_trg` / `PRECEDES other_trg` splices into the existing order and shifts later triggers (catalog renumbers `action_order`).
+- `ACTION_ORDER = 0` reserved for "pre-migration" triggers from older MySQL versions (no ordering info).
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+CREATE TRIGGER trg_a BEFORE INSERT ON t FOR EACH ROW SET NEW.a = NEW.a + 1;
+CREATE TRIGGER trg_b BEFORE INSERT ON t FOR EACH ROW SET NEW.a = NEW.a + 2;
+CREATE TRIGGER trg_c BEFORE INSERT ON t FOR EACH ROW PRECEDES trg_a SET NEW.a = NEW.a + 10;
+```
+
+**Oracle verification:**
+```sql
+SELECT TRIGGER_NAME, ACTION_ORDER FROM information_schema.TRIGGERS
+WHERE TRIGGER_SCHEMA='testdb' ORDER BY ACTION_ORDER;
+```
+Expected: `trg_c=1, trg_a=2, trg_b=3` (PRECEDES shifts trg_a and trg_b down).
+
+**omni pointer:** trigger catalog must carry `ActionOrder` and support renumbering on FOLLOWS/PRECEDES. A name-only store cannot round-trip.
+
+---
+
+### 11.5 NEW and OLD pseudo-rows availability depends on event (INSERT/UPDATE/DELETE)
+**Priority:** HIGH
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/trigger-syntax.html
+> "Use the OLD and NEW keywords to access columns in the rows affected by a trigger (OLD and NEW are not case-sensitive). … In an INSERT trigger, only NEW.col_name can be used; there is no old row. In a DELETE trigger, only OLD.col_name can be used; there is no new row. In an UPDATE trigger, you can use OLD.col_name to refer to the columns of a row before it is updated and NEW.col_name to refer to the columns of the row after it is updated."
+**Source:** `sql/sp.cc` trigger body compile phase; `sql/item.cc` `Item_trigger_field::fix_fields()` validates NEW/OLD access against trigger event.
+**Trigger:** Trigger body references `OLD.col` in an INSERT trigger or `NEW.col` in a DELETE trigger.
+**Rule:**
+- `INSERT` trigger: only `NEW.*` legal; `OLD.*` → `ER_TRG_NO_SUCH_ROW_IN_TRG`.
+- `DELETE` trigger: only `OLD.*` legal; `NEW.*` → `ER_TRG_NO_SUCH_ROW_IN_TRG`.
+- `UPDATE` trigger: both `OLD.*` and `NEW.*` legal.
+- BEFORE vs AFTER further restricts writability: `SET NEW.col = …` legal only in BEFORE INSERT / BEFORE UPDATE; AFTER triggers cannot assign `NEW.*` (read-only).
+- `OLD.*` is always read-only.
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+-- legal:
+CREATE TRIGGER t_ins BEFORE INSERT ON t FOR EACH ROW SET NEW.a = NEW.a + 1;
+CREATE TRIGGER t_del BEFORE DELETE ON t FOR EACH ROW SET @x = OLD.a;
+-- illegal (parse-accepted, rejected at CREATE TRIGGER):
+-- CREATE TRIGGER bad BEFORE INSERT ON t FOR EACH ROW SET @x = OLD.a;
+```
+
+**Oracle verification:** the commented-out CREATE fails with `ER_TRG_NO_SUCH_ROW_IN_TRG` (1363).
+
+**omni pointer:** trigger body validator in omni must check NEW/OLD references against trigger event+timing. Without this check, diffing trigger bodies can accept semantically-impossible forms.
+
+---
+
+### 11.6 Trigger on partitioned table is allowed; one trigger fires per affected row regardless of partition
+**Priority:** LOW
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/partitioning-limitations.html
+> "Triggers on partitioned tables are supported. A trigger defined on a partitioned table applies to all partitions."
+**Source:** `sql/sql_trigger.cc` — no partition filter; trigger metadata is stored at table level, not partition level.
+**Trigger:** `CREATE TRIGGER` on a `PARTITION BY HASH` / RANGE / LIST table.
+**Rule:**
+- Trigger definition is accepted and stored once at table level.
+- Catalog must not carry any per-partition trigger metadata — the trigger→table relationship is N:1 where N is any count.
+- `ALTER TABLE … DROP PARTITION` does NOT drop triggers; trigger survives partition churn.
+- `ALTER TABLE … REORGANIZE PARTITION` preserves triggers.
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT, b INT) PARTITION BY HASH(a) PARTITIONS 4;
+CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET NEW.b = NEW.a * 2;
+ALTER TABLE t COALESCE PARTITION 2;
+```
+
+**Oracle verification:**
+```sql
+SELECT TRIGGER_NAME FROM information_schema.TRIGGERS
+WHERE TRIGGER_SCHEMA='testdb' AND EVENT_OBJECT_TABLE='t';
+```
+Expected: `trg` still present after COALESCE.
+
+**omni pointer:** trigger storage must live on the table node, not hang off partition definitions. Confirm that partition mutation paths do not touch trigger lists.
+
+---
+
+
 ## Section C14: Constraint enforcement defaults
 
 ### 14.1 CHECK constraint defaults to ENFORCED
@@ -2342,6 +3122,103 @@ Expected: `YES`.
 **See catalog:** C14.1.
 
 ---
+
+### 14.2 ALTER TABLE … ALTER CHECK … NOT ENFORCED / ENFORCED toggles the flag
+**Priority:** HIGH
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-check-constraints.html
+> "An ALTER TABLE statement that modifies a constraint's enforcement does not rebuild the table. ALTER TABLE tbl ALTER CHECK chk [NOT] ENFORCED;"
+**Source:** `sql/sql_table.cc` `Sql_cmd_alter_table::execute()` — `Alter_column::ALTER_CHECK_CONSTRAINT_ENFORCEMENT` path; INPLACE/INSTANT capable because only metadata flips.
+**Trigger:** `ALTER TABLE t ALTER CHECK c NOT ENFORCED;` and `ALTER TABLE t ALTER CHECK c ENFORCED;`.
+**Rule:**
+- Toggle is metadata-only — no table rebuild, no row re-evaluation of existing data.
+- Flipping to ENFORCED does NOT validate existing rows against the predicate (existing rows can violate).
+- Catalog state changes atomically; both directions supported.
+- `ALTER TABLE t ALTER CONSTRAINT c [NOT] ENFORCED` (new 8.0.16 syntax) is equivalent for CHECK constraints and additionally applies to FK (but FK enforcement is a separate concept).
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT, CONSTRAINT c_pos CHECK (a > 0));
+ALTER TABLE t ALTER CHECK c_pos NOT ENFORCED;
+```
+
+**Oracle verification:**
+```sql
+SELECT ENFORCED FROM information_schema.CHECK_CONSTRAINTS
+WHERE CONSTRAINT_NAME='c_pos';
+```
+Expected: `NO` after the ALTER, `YES` after re-enabling.
+
+**omni pointer:** catalog must expose a mutable `Enforced` flag on CheckConstraint and have an ALTER path that doesn't rebuild the check expression.
+
+---
+
+### 14.3 STORED generated column + CHECK constraint: predicate evaluated at INSERT/UPDATE time on the stored value
+**Priority:** MED
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-check-constraints.html
+> "A constraint expression can refer to any column in the table, including generated columns."
+**Source:** `sql/sql_table.cc` `prepare_check_constraints_for_create()` validates that CHECK expressions referring to generated columns compile; `sql/field.cc` evaluation order guarantees STORED generated columns are computed before CHECK evaluation.
+**Trigger:** `CHECK (gcol > 0)` where `gcol INT AS (a * 2) STORED`.
+**Rule:**
+- Legal: CHECK may reference STORED generated columns; evaluation order is (regular defaults) → (generated columns) → (CHECK).
+- Legal: CHECK may reference VIRTUAL generated columns — MySQL re-evaluates the expression at check time.
+- CHECK expression itself is not allowed to be "generated" — but can reference generated columns.
+- ALTER that toggles a generated column's STORED/VIRTUAL mode is forbidden while a CHECK references it (locks the representation).
+
+**Setup:**
+```sql
+CREATE TABLE t (
+  a INT,
+  g INT AS (a * 2) STORED,
+  CONSTRAINT c_g_nonneg CHECK (g >= 0)
+);
+INSERT INTO t (a) VALUES (5);   -- OK, g=10
+INSERT INTO t (a) VALUES (-1);  -- CHECK violation (g=-2)
+```
+
+**Oracle verification:**
+```sql
+SELECT CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS
+WHERE CONSTRAINT_NAME='c_g_nonneg';
+```
+Expected: clause reads `(`g` >= 0)`; second INSERT fails with `ER_CHECK_CONSTRAINT_VIOLATED` (3819).
+
+**omni pointer:** CHECK expression resolver in omni must walk into generated-column references; simple "is this identifier a plain column?" analysis misses the generated case.
+
+---
+
+### 14.4 CHECK constraint cannot contain a subquery, stored function, or non-deterministic built-in
+**Priority:** HIGH
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table-check-constraints.html
+> "Subqueries are not permitted. Stored functions and loadable functions are not permitted. Stored procedures and function parameters are not permitted. Variables (system, user, and stored program local variables) are not permitted. Nondeterministic functions (such as NOW() or CONNECTION_ID()) are not permitted."
+**Source:** `sql/sql_table.cc` `pre_validate_check_constraint()` walks the parsed expression tree and rejects `Item_subselect`, `Item_func_sp`, `Item_func_udf`, variable refs, and functions whose `used_tables() & RAND_TABLE_BIT` is set.
+**Trigger:** `CHECK` clause containing any of: subquery, stored function, user variable, `NOW()`, `RAND()`, `CONNECTION_ID()`.
+**Rule:**
+- Parse-time errors (not CREATE-time errors — yacc-level rejection in `check_constraint_spec`):
+  - Subquery → `ER_CHECK_CONSTRAINT_NOT_ALLOWED_CONTEXT` (3812) or `ER_CHECK_CONSTRAINT_CONTAINS_SUBQUERY`.
+  - Stored/UDF → `ER_CHECK_CONSTRAINT_FUNCTION_IS_NOT_ALLOWED` (3814).
+  - `NOW()` / `CURRENT_TIMESTAMP` / `RAND()` → `ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED` (3815).
+  - User variable `@v` / system variable `@@v` → `ER_CHECK_CONSTRAINT_VARIABLES` (3813).
+- Deterministic built-ins (`LENGTH`, `CHAR_LENGTH`, arithmetic, string compare, `JSON_VALID`, `REGEXP_LIKE`) are allowed.
+- omni SDL diff must preserve CHECK expression verbatim — cannot rewrite or normalize away deterministic functions.
+
+**Setup:**
+```sql
+CREATE TABLE t1 (a INT, CHECK (CHAR_LENGTH(CAST(a AS CHAR)) < 10));  -- OK
+-- illegal:
+-- CREATE TABLE t2 (a INT, CHECK (a IN (SELECT id FROM other)));    -- 3812
+-- CREATE TABLE t3 (a INT, CHECK (a < NOW()));                      -- 3815
+-- CREATE TABLE t4 (a INT, CHECK (a < @max));                       -- 3813
+```
+
+**Oracle verification:** the four commented-out CREATE statements all fail at parse time with the codes listed above.
+
+**omni pointer:** catalog CHECK validator must classify the expression tree; a string-level accept allows forbidden constructs that bytebase would round-trip and the server would then reject.
+
+---
+
 
 ## Section C15: Column positioning defaults
 
@@ -2366,6 +3243,122 @@ Expected: `a=1, b=2, c=3`.
 **See catalog:** C15.1.
 
 ---
+
+### 15.2 ADD COLUMN … FIRST inserts before column 1, shifting all others down
+**Priority:** HIGH
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
+> "To add a column at a specific position within a table row, use FIRST or AFTER col_name. The default is to add the column last. You can also use FIRST and AFTER in CHANGE or MODIFY operations to reorder columns within a table."
+**Source:** `sql/sql_table.cc` `mysql_prepare_alter_table()` — `Alter_column::ALTER_COLUMN_ORDER` with `after_field == nullptr` and `first` flag set; rebuilds `create_list` with the new column spliced at index 0.
+**Trigger:** `ALTER TABLE t ADD COLUMN x INT FIRST;`.
+**Rule:**
+- New column's `ORDINAL_POSITION = 1`.
+- All existing columns' ordinal positions shift +1.
+- Operation was COPY-only pre-8.0.29; since 8.0.29 it is INSTANT when column count fits into row header reserved bits, INPLACE otherwise.
+- FIRST is rejected with `ER_BAD_FIELD_ERROR` if a column with the target name already exists.
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT, b INT);
+ALTER TABLE t ADD COLUMN c INT FIRST;
+```
+
+**Oracle verification:**
+```sql
+SELECT COLUMN_NAME, ORDINAL_POSITION FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' ORDER BY ORDINAL_POSITION;
+```
+Expected: `c=1, a=2, b=3`.
+
+**omni pointer:** SDL diff for column order must emit `FIRST` rather than a chain of `AFTER` moves when the target is position 1 — otherwise round-trip produces different `.frm` ordering ancestry.
+
+---
+
+### 15.3 ADD COLUMN … AFTER col inserts at col+1
+**Priority:** HIGH
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/alter-table.html (same paragraph as 15.2).
+**Source:** `sql/sql_table.cc` `mysql_prepare_alter_table()` `Alter_column::ALTER_COLUMN_ORDER` branch where `after_field` names an existing column; uses `List_iterator<Create_field>` to splice after the named field.
+**Trigger:** `ALTER TABLE t ADD COLUMN x INT AFTER a;`.
+**Rule:**
+- New column's ORDINAL_POSITION = (position of `a`) + 1.
+- Columns after `a` shift +1.
+- `AFTER unknown_col` → `ER_BAD_FIELD_ERROR` (1054).
+- `AFTER` a column added in the same ALTER (multi-ADD) is legal — the splice is resolved left-to-right.
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT, b INT, c INT);
+ALTER TABLE t ADD COLUMN x INT AFTER a;
+```
+
+**Oracle verification:**
+```sql
+SELECT COLUMN_NAME, ORDINAL_POSITION FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' ORDER BY ORDINAL_POSITION;
+```
+Expected: `a=1, x=2, b=3, c=4`.
+
+**omni pointer:** SDL diff must treat "insert after named col" as the canonical form when the new column is not at position 1.
+
+---
+
+### 15.4 MODIFY col and CHANGE col both retain existing position unless FIRST/AFTER given
+**Priority:** HIGH
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
+> "To change a column's type or attributes, use CHANGE or MODIFY. … If you do not use FIRST or AFTER, the column remains in its original position."
+**Source:** `sql/sql_table.cc` `mysql_prepare_alter_table()` — `Alter_column::ALTER_COLUMN_CHANGE` / `ALTER_COLUMN_MODIFY` default keeps the original ordinal; only if `after_field` or `first` is set does the column move.
+**Trigger:** `ALTER TABLE t MODIFY a BIGINT;` (no position clause).
+**Rule:**
+- Position unchanged — distinguishes MySQL's MODIFY/CHANGE from other DBs where type change can reposition.
+- `CHANGE old new BIGINT FIRST` moves to position 1.
+- `MODIFY a BIGINT AFTER c` moves to position after c.
+- If FIRST/AFTER is supplied, the position move is a separate INSTANT-capable metadata op combined with the type change (which may itself be COPY).
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT, b INT, c INT);
+ALTER TABLE t MODIFY b BIGINT;
+```
+
+**Oracle verification:** ordinal positions remain `a=1, b=2, c=3`.
+
+**omni pointer:** SDL diff must NOT emit a trailing `AFTER a` when the user only changed the type — emitting spurious position hints causes round-trip drift. Check the source column's pre-existing position before adding FIRST/AFTER.
+
+---
+
+### 15.5 Multiple ADD COLUMN in one ALTER: positions resolve left-to-right against the evolving column list
+**Priority:** MED
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
+> "You can perform multiple add, alter, drop, and change operations with a single ALTER TABLE statement, separated by commas. This is a MySQL extension to standard SQL, which permits only one of each clause per ALTER TABLE statement."
+**Source:** `sql/sql_table.cc` `mysql_prepare_alter_table()` iterates `alter_info->create_list` in declaration order; each ADD splices into the current working list, so a later ADD can reference a name added earlier in the same statement.
+**Trigger:** `ALTER TABLE t ADD COLUMN x INT AFTER a, ADD COLUMN y INT AFTER x;`.
+**Rule:**
+- Order of evaluation = lexical order of ADD clauses.
+- Later clauses see earlier-added columns by name.
+- `ADD COLUMN x AFTER x` (self-reference) → `ER_BAD_FIELD_ERROR`.
+- `ADD COLUMN x AFTER y, ADD COLUMN y AFTER a` (forward reference) → `ER_BAD_FIELD_ERROR` (left-to-right, not order-independent).
+- Two `FIRST` clauses in the same ALTER: the second one wins at position 1, the first shifts to position 2.
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT, b INT);
+ALTER TABLE t ADD COLUMN x INT AFTER a, ADD COLUMN y INT AFTER x;
+```
+
+**Oracle verification:**
+```sql
+SELECT COLUMN_NAME, ORDINAL_POSITION FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' ORDER BY ORDINAL_POSITION;
+```
+Expected: `a=1, x=2, y=3, b=4`.
+
+**omni pointer:** omni ALTER batch processor must stream column list mutations left-to-right when computing resulting positions; a naive "apply all ADDs against original list" is wrong.
+
+---
+
 
 ## Section C16: Date/time function precision defaults
 
@@ -4782,6 +5775,81 @@ ALTER TABLE t1 ADD COLUMN c INT, ALGORITHM=INSTANT;
 
 ---
 
+## Section C23: NULL in string context
+
+### 23.1 CONCAT with any NULL argument → NULL result
+
+**Setup:**
+```sql
+CREATE TABLE t (a VARCHAR(10), b VARCHAR(10));
+INSERT INTO t VALUES ('foo', NULL), ('foo', 'bar');
+```
+
+**Oracle verification:**
+```sql
+SELECT CONCAT(a, b) FROM t;
+SELECT CONCAT('x', NULL, 'y');
+SELECT CONCAT('x', '', 'y');             -- empty string is NOT NULL → 'xy'
+```
+Expected: first query → `NULL`, `'foobar'`; literal `CONCAT('x', NULL, 'y')` → `NULL`; empty string → `'xy'`.
+
+**omni assertion:** query-span / nullability analyzer infers `CONCAT(...) IS NULL` when ANY input may be NULL. An empty string argument must NOT be treated as NULL. The resulting column's nullability = OR of all input nullabilities.
+
+**Priority:** MED
+**Status:** pending
+**Source anchors:** `sql/item_strfunc.cc` `Item_func_concat::val_str()` — loops arguments, returns `null_value = true` on first NULL arg; string-functions.html "CONCAT() returns NULL if any argument is NULL."
+
+---
+
+### 23.2 CONCAT_WS skips NULL arguments (separator non-null)
+
+**Setup:**
+```sql
+CREATE TABLE t (a VARCHAR(10), b VARCHAR(10), c VARCHAR(10));
+INSERT INTO t VALUES ('x', NULL, 'z'), (NULL, NULL, NULL);
+```
+
+**Oracle verification:**
+```sql
+SELECT CONCAT_WS(',', a, b, c) FROM t;
+SELECT CONCAT_WS(',', 'x', NULL, 'z');        -- 'x,z' (NULL skipped, NO trailing/double sep)
+SELECT CONCAT_WS(',', NULL, NULL, NULL);      -- '' (empty, NOT NULL)
+SELECT CONCAT_WS(NULL, 'x', 'y');             -- NULL (separator NULL → NULL result)
+```
+Expected: row1 → `'x,z'`, row2 → `''`; literal cases per comments.
+
+**omni assertion:** nullability analyzer must special-case CONCAT_WS: result is NULL iff the separator (arg 0) is NULL. Data args being NULL does NOT make the result NULL. When all data args are NULL, result is empty string.
+
+**Priority:** MED
+**Status:** pending
+**Source anchors:** `sql/item_strfunc.cc` `Item_func_concat_ws::val_str()` — `if (i == 0) { /* sep NULL → null_value */ } else continue;`; string-functions.html "CONCAT_WS() does not skip empty strings. However, it does skip any NULL values after the separator argument." + "If the separator is NULL, the result is NULL."
+
+---
+
+### 23.3 IFNULL / COALESCE as rescue for CONCAT NULL-propagation
+
+**Setup:**
+```sql
+CREATE TABLE t (first_name VARCHAR(20), middle_name VARCHAR(20), last_name VARCHAR(20));
+INSERT INTO t VALUES ('Ada', NULL, 'Lovelace');
+```
+
+**Oracle verification:**
+```sql
+SELECT CONCAT(first_name, ' ', middle_name, ' ', last_name) FROM t;                 -- NULL
+SELECT CONCAT(first_name, ' ', IFNULL(middle_name, ''), ' ', last_name) FROM t;     -- 'Ada  Lovelace'
+SELECT CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) FROM t;   -- 'Ada  Lovelace'
+SELECT CONCAT_WS(' ', first_name, middle_name, last_name) FROM t;                   -- 'Ada Lovelace'
+```
+
+**omni assertion:** nullability analyzer treats `IFNULL(x, literal_not_null)` and `COALESCE(x, literal_not_null, ...)` where at least one non-null literal is present as non-nullable, allowing the enclosing CONCAT to be reported as non-nullable too. CONCAT_WS provides the idiomatic alternative.
+
+**Priority:** LOW
+**Status:** pending
+**Source anchors:** `sql/item_cmpfunc.cc` `Item_func_ifnull::fix_length_and_dec()` sets `maybe_null` based on second arg; `Item_func_coalesce` likewise propagates the intersection of input null-ness.
+
+---
+
 ## Section C24: SHOW CREATE TABLE skip_gipk
 
 ### 24.1 Generated invisible primary key omitted from SHOW CREATE TABLE
@@ -4803,9 +5871,87 @@ SHOW CREATE TABLE t;                 -- my_row_id visible
 
 **omni assertion:** deparse under default session omits `my_row_id`; toggling the visibility flag shows it.
 
-**See catalog:** C13.1 + C24.1. **omni risk** — likely not implemented.
+**Priority:** MED
+**Status:** pending
+**Source anchors:** C13.1 + C24.1. **omni risk** — likely not implemented.
 
 ---
+
+### 24.2 GIPK column spec: name, type, attributes
+
+**Setup:**
+```sql
+SET SESSION sql_generate_invisible_primary_key = ON;
+CREATE TABLE t (a INT);
+SET SESSION show_gipk_in_create_table_and_information_schema = ON;
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t;
+SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, EXTRA, COLUMN_KEY
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t';
+SHOW INDEX FROM t;
+```
+Expected: GIPK column is named exactly `my_row_id`, type `bigint unsigned`, `NOT NULL`, `EXTRA='auto_increment INVISIBLE'`, `COLUMN_KEY='PRI'`. It is the first column of the table. A PRIMARY KEY index on `my_row_id` exists.
+
+**omni assertion:** when the catalog materializes the GIPK, the generated column must be: name `my_row_id`, type `BIGINT UNSIGNED`, NOT NULL, AUTO_INCREMENT, INVISIBLE, and inserted at position 0. A PRIMARY KEY constraint over `(my_row_id)` is added.
+
+**Priority:** MED
+**Status:** pending
+**Source anchors:** `sql/sql_table.cc` `validate_and_generate_invisible_primary_key()` (builds `Create_field` with `PRIMARY_KEY_NAME_STRING`, `AUTO_INCREMENT_FLAG`, `NOT_NULL_FLAG`, `FIELD_IS_INVISIBLE`); create-table-gipks.html "The generated key column has the name `my_row_id`, which means that a table cannot have any existing column named `my_row_id`."
+
+---
+
+### 24.3 GIPK NOT added when table already has a user-defined PK or PK-equivalent
+
+**Setup:**
+```sql
+SET SESSION sql_generate_invisible_primary_key = ON;
+CREATE TABLE t1 (id INT PRIMARY KEY, a INT);
+CREATE TABLE t2 (id INT NOT NULL UNIQUE, a INT);         -- NOT-NULL UNIQUE is not promoted to PK here
+CREATE TABLE t3 (id INT AUTO_INCREMENT, a INT, PRIMARY KEY (id));
+```
+
+**Oracle verification:**
+```sql
+SET SESSION show_gipk_in_create_table_and_information_schema = ON;
+SHOW CREATE TABLE t1;        -- no my_row_id (user PK exists)
+SHOW CREATE TABLE t2;        -- my_row_id PRESENT (UNIQUE NOT NULL does not suppress GIPK)
+SHOW CREATE TABLE t3;        -- no my_row_id (user PK exists)
+```
+
+**omni assertion:** catalog suppresses GIPK only when the CREATE TABLE already declares a `PRIMARY KEY` (column-level or table-level). A `UNIQUE NOT NULL` column does NOT suppress GIPK — unlike the legacy "first UNIQUE NOT NULL becomes the clustered key" behavior used by InnoDB internally, the GIPK generation path tests strictly for a declared PRIMARY KEY.
+
+**Priority:** MED
+**Status:** pending
+**Source anchors:** `sql/sql_table.cc` `is_generated_invisible_primary_key_mode_active()` + `check_generated_invisible_primary_key()` — condition is `!create_info->primary_key` (declared PK), does not inspect UNIQUE keys; create-table-gipks.html "A GIPK is added if the `sql_generate_invisible_primary_key` system variable is enabled and the table being created does not have an explicit primary key."
+
+---
+
+### 24.4 GIPK interaction with column name collision
+
+**Setup:**
+```sql
+SET SESSION sql_generate_invisible_primary_key = ON;
+CREATE TABLE t (my_row_id INT, a INT);
+```
+
+**Oracle verification:**
+```sql
+-- fails at CREATE time
+-- ERROR 4108 (HY000): Failed to generate invisible primary key. Column 'my_row_id' already exists.
+```
+
+**omni assertion:** catalog surface-loads CREATE TABLE with both `sql_generate_invisible_primary_key=ON` and a user-declared `my_row_id` column → hard error (`ER_GIPK_FAILED_AUTOINC_COLUMN_NAME_RESERVED` class). Under `sql_generate_invisible_primary_key=OFF`, the table is created normally with the user's `my_row_id` column. The reservation is only active when GIPK generation is on.
+
+**Priority:** LOW
+**Status:** pending
+**Source anchors:** `sql/sql_table.cc` `check_generated_invisible_primary_key()` — scans `alter_info->create_list` for a column named `my_row_id` and rejects; create-table-gipks.html "A table cannot have any existing column named my_row_id [when GIPK is enabled]."
+
+---
+
 
 ## Section C25: DECIMAL defaults
 
@@ -4825,9 +5971,125 @@ Expected: `decimal(10,0)`, precision=10, scale=0.
 
 **omni assertion:** `tbl.GetColumn("d").Type` renders as `decimal(10,0)`.
 
-**See catalog:** C25.1.
+**Priority:** LOW
+**Status:** verified (`C25_1_decimal_default_10_0`)
+**Source anchors:** `sql/field.cc` `Field_new_decimal`, default `precision=10`, `dec=0`.
 
 ---
+
+### 25.2 DECIMAL precision-only → scale defaults to 0
+
+**Setup:**
+```sql
+CREATE TABLE t (
+  d5     DECIMAL(5),
+  d15    DECIMAL(15),
+  d65    DECIMAL(65)
+);
+```
+
+**Oracle verification:**
+```sql
+SELECT COLUMN_NAME, COLUMN_TYPE, NUMERIC_PRECISION, NUMERIC_SCALE
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t'
+ORDER BY ORDINAL_POSITION;
+```
+Expected: `decimal(5,0)`, `decimal(15,0)`, `decimal(65,0)`. SHOW CREATE TABLE renders `DECIMAL(5,0)`, never `DECIMAL(5)`. NUMERIC_SCALE = 0.
+
+**omni assertion:** parser/catalog stores an explicit `scale=0` when scale is omitted; deparser always emits the `,0` form so round-trip through SDL matches MySQL's canonical SHOW CREATE TABLE output.
+
+**Priority:** MED
+**Status:** pending
+**Source anchors:** `sql/field.cc` Field_new_decimal construction path; fixed-point-types.html "DECIMAL(M): This is a synonym for DECIMAL(M,0)."; precision-math-decimal-characteristics.html "If D is omitted, the default is 0."
+
+---
+
+### 25.3 DECIMAL max precision 65 / max scale 30 / scale > precision
+
+**Setup:**
+```sql
+-- each subcase parsed independently
+CREATE TABLE ok_max_p (d DECIMAL(65, 30));                 -- OK
+CREATE TABLE err_p_gt_65 (d DECIMAL(66, 0));               -- error: precision out of range
+CREATE TABLE err_s_gt_30 (d DECIMAL(40, 31));              -- error: scale out of range
+CREATE TABLE err_s_gt_p  (d DECIMAL(5, 6));                -- error: scale larger than precision
+CREATE TABLE err_neg     (d DECIMAL(-1, 0));               -- parse error
+```
+
+**Oracle verification:**
+```sql
+-- Expected MySQL errors:
+-- ER_TOO_BIG_PRECISION       (1426) for DECIMAL(66,0)    "Too big precision 66 specified for column 'd'. Maximum is 65."
+-- ER_TOO_BIG_SCALE           (1425) for DECIMAL(40,31)   "Too big scale 31 specified for column 'd'. Maximum is 30."
+-- ER_M_BIGGER_THAN_D         (1427) for DECIMAL(5,6)     "For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'd')."
+```
+
+**omni assertion:** parser / catalog validate DECIMAL bounds with the three distinct error codes. The max-allowed `DECIMAL(65,30)` must be accepted as-is (this is a common real-world schema anti-pattern). `DECIMAL(65,30)` stores up to 35 integer digits and 30 fractional digits.
+
+**Priority:** HIGH
+**Status:** pending
+**Source anchors:** `sql/field.cc` Field_new_decimal constants `DECIMAL_MAX_PRECISION=65`, `DECIMAL_MAX_SCALE=30`; `sql/sql_yacc.yy` field_options validation; precision-math-decimal-characteristics.html "The maximum number of digits (M) is 65. The maximum number of decimals (D) is 30. If D is omitted, the default is 0. If M is omitted, the default is 10."
+
+---
+
+### 25.4 UNSIGNED DECIMAL keeps precision/scale, just removes sign bit
+
+**Setup:**
+```sql
+CREATE TABLE t (
+  d1 DECIMAL(10,2) UNSIGNED,
+  d2 DECIMAL(10,2) UNSIGNED ZEROFILL,
+  d3 NUMERIC(10,2) UNSIGNED
+);
+```
+
+**Oracle verification:**
+```sql
+SELECT COLUMN_NAME, COLUMN_TYPE, NUMERIC_PRECISION, NUMERIC_SCALE
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t'
+ORDER BY ORDINAL_POSITION;
+SHOW WARNINGS;                -- ZEROFILL and DISPLAY WIDTH deprecation warnings
+```
+Expected: `decimal(10,2) unsigned`, `decimal(10,2) unsigned zerofill`, `decimal(10,2) unsigned`. NUMERIC_PRECISION=10, NUMERIC_SCALE=2 for all three. Deprecation warning `ER_WARN_DEPRECATED_ZEROFILL_ETC` for `d2`. NUMERIC is a stored-as-DECIMAL synonym and displays as `decimal` in information_schema.
+
+**omni assertion:** catalog stores `Unsigned` flag separately from precision/scale; deparser emits `UNSIGNED` (and `ZEROFILL` if set) in that order AFTER the `(M,D)` spec. Round-trip preserves the NUMERIC vs DECIMAL choice at the token level IF the catalog records the spelled form, otherwise it canonicalizes to DECIMAL (MySQL canonicalizes — the information_schema always reports `decimal`).
+
+**Priority:** LOW
+**Status:** pending
+**Source anchors:** `sql/field.cc` Field_new_decimal `unsigned_flag`; `sql/sql_yacc.yy` `NUMERIC_SYM` reduces to DECIMAL type; fixed-point-types.html "NUMERIC is implemented as DECIMAL, so the following remarks about DECIMAL apply equally to NUMERIC."
+
+---
+
+### 25.5 Zero-scale rendering: DECIMAL(5,0) vs DECIMAL(5) vs DECIMAL
+
+**Setup:**
+```sql
+CREATE TABLE t (
+  a DECIMAL,
+  b DECIMAL(5),
+  c DECIMAL(5,0),
+  d DECIMAL(10,0)
+);
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t;
+SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' ORDER BY ORDINAL_POSITION;
+```
+Expected: SHOW CREATE TABLE renders `decimal(10,0)`, `decimal(5,0)`, `decimal(5,0)`, `decimal(10,0)`. All three input forms for a zero-scale column collapse to the fully-qualified `DECIMAL(M,0)` rendering in both SHOW CREATE TABLE and information_schema.
+
+**omni assertion:** deparser always renders scale explicitly, even zero, even when the original SQL omitted it. SDL diff must therefore treat `DECIMAL`, `DECIMAL(10)`, and `DECIMAL(10,0)` as equivalent — do NOT emit a type-change ALTER when the user source had the short form but the loaded catalog reports the expanded form.
+
+**Priority:** HIGH
+**Status:** pending
+**Source anchors:** `sql/sql_show.cc` `show_create_table` column type printer; `sql/field.cc` `Field_new_decimal::sql_type()` emits `(precision,dec)` unconditionally.
+
+---
+
 
 ## Section PS: Path-split behaviors (CREATE vs ALTER)
 
@@ -4970,6 +6232,382 @@ CREATE TABLE t2 (b INT, CONSTRAINT my_rule CHECK (b > 0));
 **Oracle verification:** Second CREATE errors with `ER_CHECK_CONSTRAINT_DUP_NAME` (check names are schema-scoped).
 
 **omni assertion:** second `Exec` returns an error.
+
+---
+
+## Section AX: ALTER TABLE sub-commands implicit behaviors
+
+### AX.1 ADD COLUMN without FIRST/AFTER → appended at end
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT, b INT, c INT);
+ALTER TABLE t ADD COLUMN d INT;
+ALTER TABLE t ADD COLUMN e INT FIRST;
+ALTER TABLE t ADD COLUMN f INT AFTER a;
+```
+
+**Oracle verification:**
+```sql
+SELECT COLUMN_NAME, ORDINAL_POSITION FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' ORDER BY ORDINAL_POSITION;
+```
+Expected order after all three ALTERs: `e, a, f, b, c, d`. A bare ADD COLUMN with no position clause always appends.
+
+**omni assertion:** catalog's ALTER-apply helper for `ADD COLUMN` must insert at the end of the current column list when no FIRST/AFTER clause is present. FIRST inserts at index 0; AFTER x inserts at `index(x)+1`. The inserted column's ordinal is the new count-1 for the plain append path.
+
+**Priority:** HIGH
+**Status:** pending
+**Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — iterates new_create_list and places Alter_column entries with `after` = NULL → appended; alter-table.html "To add a column at a specific position within a table row, use FIRST or AFTER col_name. The default is to add the column last."
+
+---
+
+### AX.2 DROP COLUMN cascades: removes indexes containing the dropped column
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT, b INT, c INT, INDEX idx_a(a), INDEX idx_ab(a, b), INDEX idx_bc(b, c));
+ALTER TABLE t DROP COLUMN a;
+```
+
+**Oracle verification:**
+```sql
+SHOW INDEX FROM t;
+SELECT INDEX_NAME, COLUMN_NAME, SEQ_IN_INDEX FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' ORDER BY INDEX_NAME, SEQ_IN_INDEX;
+```
+Expected after drop: `idx_a` is gone (single-column index on dropped column). `idx_ab` is also gone — MySQL drops the whole composite index when any of its columns is dropped. `idx_bc` remains intact.
+
+**omni assertion:** catalog's `DROP COLUMN` helper iterates the table's indexes; any index listing the dropped column among its keyparts is removed in entirety (no auto-trim of the composite index to the surviving columns).
+
+**Priority:** HIGH
+**Status:** pending
+**Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — `drop_list` handling for indexes: when `fill_alter_inplace_info` sees a key with a dropped column, the key is added to `dropped_keys`; alter-table.html "If columns are dropped from a table, the columns are also removed from any index of which they are a part. If all columns that make up an index are dropped, the index is dropped as well."
+
+---
+
+### AX.3 DROP COLUMN fails if it would leave the table empty
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+ALTER TABLE t DROP COLUMN a;
+```
+
+**Oracle verification:**
+```sql
+-- ERROR 1090 (42000): ER_CANT_REMOVE_ALL_FIELDS
+-- "You can't delete all columns with ALTER TABLE; use DROP TABLE instead"
+```
+
+**omni assertion:** catalog ALTER-apply rejects a DROP COLUMN that would remove the only remaining column with `ER_CANT_REMOVE_ALL_FIELDS`. Check happens after resolving the drop list, before applying any other sub-commands in the same ALTER (so `ALTER TABLE t DROP COLUMN a, ADD COLUMN b INT` ALSO fails — the final shape has one column but MySQL rejects at prepare time).
+
+**Priority:** MED
+**Status:** pending
+**Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — "if (!new_create_list.elements) { my_error(ER_CANT_REMOVE_ALL_FIELDS, MYF(0)); goto err; }"; alter-table.html "You cannot drop all columns from a table."
+
+---
+
+### AX.4 DROP COLUMN fails if referenced by CHECK or GENERATED column
+
+**Setup:**
+```sql
+CREATE TABLE t1 (a INT, b INT, CHECK (a > 0));
+ALTER TABLE t1 DROP COLUMN a;
+
+CREATE TABLE t2 (a INT, b INT GENERATED ALWAYS AS (a + 1));
+ALTER TABLE t2 DROP COLUMN a;
+```
+
+**Oracle verification:**
+```sql
+-- t1:  ER_CHECK_CONSTRAINT_REFERS (3942)   "Check constraint '...' uses column 'a', hence column cannot be dropped or renamed."
+-- t2:  ER_DEPENDENT_BY_GENERATED_COLUMN (3108)   "Column 'a' has a generated column dependency."
+```
+
+**omni assertion:** catalog's DROP COLUMN helper must scan (a) CHECK constraint expressions and (b) generated column expressions for references to the dropped column, and raise the appropriate error before applying the drop. The check also applies to CHANGE COLUMN that would rename the column — see AX.6.
+
+**Priority:** HIGH
+**Status:** pending
+**Source anchors:** `sql/sql_table.cc` `check_if_field_used_by_generated_column_or_default()` / check-constraint validation in `prepare_check_constraints_for_alter()`; alter-table.html "You cannot drop or rename a column that is referenced by a generated column or CHECK constraint."
+
+---
+
+### AX.5 MODIFY COLUMN preserves unspecified attributes? → NO, it rewrites from the given spec
+
+**Setup:**
+```sql
+CREATE TABLE t (
+  a INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  b INT NOT NULL DEFAULT 5 COMMENT 'x'
+);
+ALTER TABLE t MODIFY COLUMN b BIGINT;
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t;
+SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, COLUMN_COMMENT
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='b';
+```
+Expected: column `b` becomes `bigint DEFAULT NULL` with NO comment, NO NOT NULL, NO default. MODIFY COLUMN treats its spec as the NEW full column definition; attributes absent from the ALTER statement are NOT inherited from the old column.
+
+**omni assertion:** catalog `MODIFY COLUMN` helper replaces the old column spec wholesale with the new one. Attribute inheritance from the prior column is NOT performed. Exception: column position is preserved unless FIRST/AFTER is specified.
+
+**Priority:** HIGH
+**Status:** pending
+**Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — `Alter_info::ALTER_CHANGE_COLUMN` branch constructs a fresh `Create_field` from the new spec; alter-table.html "When you use CHANGE or MODIFY, the column definition must include the data type and all attributes that should apply to the new column, other than index attributes such as PRIMARY KEY or UNIQUE. Attributes present in the original definition but not specified for the new definition are not carried over."
+
+---
+
+### AX.6 CHANGE COLUMN renames + retypes atomically; MODIFY cannot rename
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+ALTER TABLE t CHANGE COLUMN a b BIGINT NOT NULL;    -- rename + retype
+ALTER TABLE t MODIFY COLUMN b b INT;                -- new_name == old_name is fine (retype only)
+-- ALTER TABLE t MODIFY COLUMN b c INT;             -- syntax error: MODIFY takes only one name
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t;
+```
+Expected: column renames work only via CHANGE. MODIFY parses as `MODIFY [COLUMN] col_name column_definition` — exactly one name, no rename.
+
+**omni assertion:** parser accepts `CHANGE old new def` (two names) and `MODIFY col def` (one name). Catalog's CHANGE helper matches on the OLD name and then applies the NEW name + NEW type atomically. If the new name collides with another existing column (not the one being renamed), raise `ER_DUP_FIELDNAME`.
+
+**Priority:** HIGH
+**Status:** pending
+**Source anchors:** `sql/sql_yacc.yy` `alter_list_item: CHANGE ... field_ident field_ident ...` vs `MODIFY ... field_ident ...`; alter-table.html "CHANGE requires two column names and can rename a column. MODIFY does not rename."
+
+---
+
+### AX.7 ADD INDEX without name → auto-generated name (ALTER context)
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT, b INT, INDEX (a));
+ALTER TABLE t ADD INDEX (b);
+ALTER TABLE t ADD INDEX (a, b);
+```
+
+**Oracle verification:**
+```sql
+SHOW INDEX FROM t;
+```
+Expected index names: `a`, `b`, `a_2`. MySQL names a nameless single-column index after the first column. When that name collides it appends `_2`, `_3`, etc. The counter is per-table, per-first-column.
+
+**omni assertion:** catalog's ALTER ADD INDEX helper applies the same naming rule as CREATE TABLE (C1 scenario) but the collision search must include (a) pre-existing indexes on the table AND (b) indexes being added earlier in the same ALTER statement. `_2` is chosen, not `_1`.
+
+**Priority:** HIGH
+**Status:** pending
+**Source anchors:** `sql/sql_table.cc` `prepare_key_column()` / `make_unique_key_name()` — loops appending numeric suffixes; alter-table.html links to CREATE TABLE index-name rules.
+
+---
+
+### AX.8 ADD UNIQUE / ADD KEY / ADD FULLTEXT implicit index types
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT, b VARCHAR(100)) ENGINE=InnoDB;
+ALTER TABLE t ADD UNIQUE (a);
+ALTER TABLE t ADD KEY (b);
+ALTER TABLE t ADD FULLTEXT (b);
+ALTER TABLE t ADD SPATIAL KEY (b);   -- error: SPATIAL requires NOT NULL geometry
+```
+
+**Oracle verification:**
+```sql
+SELECT INDEX_NAME, NON_UNIQUE, INDEX_TYPE FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' ORDER BY INDEX_NAME;
+```
+Expected: UNIQUE index → `NON_UNIQUE=0`, `INDEX_TYPE='BTREE'`. Plain KEY → `NON_UNIQUE=1`, `INDEX_TYPE='BTREE'` (InnoDB). FULLTEXT → `INDEX_TYPE='FULLTEXT'`, `NON_UNIQUE=1`. SPATIAL is rejected on nullable column (`ER_SPATIAL_CANT_HAVE_NULL`).
+
+**omni assertion:** catalog translates each ADD sub-command to its constraint kind: `UNIQUE`, `INDEX`/`KEY`, `FULLTEXT INDEX`, `SPATIAL INDEX`. Default `USING` algorithm is `BTREE` for UNIQUE/KEY on InnoDB, regardless of the `USING` clause optional. FULLTEXT and SPATIAL ignore `USING`.
+
+**Priority:** MED
+**Status:** pending
+**Source anchors:** `sql/sql_table.cc` `mysql_prepare_create_table` key-type mapping; alter-table.html "add_constraint : ADD [CONSTRAINT [symbol]] {PRIMARY KEY | UNIQUE | FOREIGN KEY} ...".
+
+---
+
+### AX.9 ADD FOREIGN KEY: column-level shorthand vs table-level form
+
+**Setup:**
+```sql
+CREATE TABLE parent (id INT PRIMARY KEY);
+CREATE TABLE t1 (a INT);
+ALTER TABLE t1 ADD FOREIGN KEY (a) REFERENCES parent(id);     -- table-level
+-- ALTER TABLE cannot use column-level shorthand — only table-level ADD is accepted
+CREATE TABLE t2 (a INT REFERENCES parent(id));                -- column-level shorthand in CREATE
+```
+
+**Oracle verification:**
+```sql
+SELECT CONSTRAINT_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+FROM information_schema.KEY_COLUMN_USAGE
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME IN ('t1','t2');
+```
+Expected: `t1` has a FK constraint named `t1_ibfk_1` on `(a) → parent(id)`. `t2` has NO FK — MySQL silently ignores column-level `REFERENCES` clauses in CREATE TABLE for non-FEDERATED engines. This is a notorious pitfall.
+
+**omni assertion:** catalog's CREATE/ALTER helpers must drop the column-level `REFERENCES` clause for InnoDB (and MyISAM) without raising an error, matching MySQL's lenient parse-but-ignore semantics. Only a table-level `FOREIGN KEY (col) REFERENCES ...` actually creates an FK. ALTER TABLE does not accept column-level shorthand; a FK must be added via table-level `ADD CONSTRAINT ... FOREIGN KEY`.
+
+**Priority:** HIGH
+**Status:** pending
+**Source anchors:** `sql/sql_table.cc` `add_fk_to_list` and `mysql_prepare_create_table`; create-table-foreign-keys.html "MySQL parses but ignores 'inline REFERENCES specifications' (as defined in the SQL standard) where the references are defined as part of the column specification. MySQL accepts REFERENCES clauses only when specified as part of a separate FOREIGN KEY specification."
+
+---
+
+### AX.10 RENAME COLUMN syntax
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT NOT NULL DEFAULT 5 COMMENT 'hi', INDEX (a));
+ALTER TABLE t RENAME COLUMN a TO aa;
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t;
+SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT, COLUMN_COMMENT FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t';
+SHOW INDEX FROM t;
+```
+Expected: column is renamed to `aa`, all attributes (NOT NULL, DEFAULT 5, COMMENT) PRESERVED (unlike CHANGE/MODIFY, RENAME COLUMN does not rewrite the spec). Index name stays `a` (the index auto-name does NOT track the column rename).
+
+**omni assertion:** catalog `RENAME COLUMN old TO new` helper mutates only the column name; all other attributes are untouched. Indexes referencing the column are updated to use the new name as a keypart but the INDEX NAME itself (if auto-generated from the old column name) is NOT renamed. Check-constraint expressions and generated column expressions are updated to refer to the new column name.
+
+**Priority:** HIGH
+**Status:** pending
+**Source anchors:** `sql/sql_table.cc` `mysql_rename_column` path via Alter_info `flags & ALTER_RENAME_COLUMN`; alter-table.html "RENAME COLUMN old_col_name TO new_col_name. RENAME COLUMN does not otherwise change the column definition."
+
+---
+
+### AX.11 RENAME INDEX syntax
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT, b INT, INDEX old_name (a, b));
+ALTER TABLE t RENAME INDEX old_name TO new_name;
+```
+
+**Oracle verification:**
+```sql
+SHOW INDEX FROM t;
+```
+Expected: index name is `new_name`, columns and order unchanged.
+
+**omni assertion:** catalog supports `RENAME INDEX` as a pure metadata rename. PRIMARY cannot be renamed (error `ER_WRONG_NAME_FOR_INDEX` or similar if user writes `RENAME INDEX PRIMARY TO foo`). Duplicate target name → `ER_DUP_KEYNAME`.
+
+**Priority:** MED
+**Status:** pending
+**Source anchors:** `sql/sql_alter.h` `Alter_info::ALTER_RENAME_INDEX` flag; `sql/sql_table.cc` `rename_index_in_dd_table`; alter-table.html "RENAME {INDEX|KEY} old_index_name TO new_index_name. Renames an index."
+
+---
+
+### AX.12 RENAME TO (table rename via ALTER)
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT);
+ALTER TABLE t RENAME TO t2;
+ALTER TABLE t2 RENAME TO other_db.t3;       -- cross-db move if same filesystem
+```
+
+**Oracle verification:**
+```sql
+SHOW TABLES;
+SHOW TABLES FROM other_db;
+```
+
+**omni assertion:** catalog recognizes `ALTER TABLE ... RENAME TO [db.]new_name` as equivalent to `RENAME TABLE`. FKs pointing at the old name are updated atomically. A cross-database rename is supported when both DBs are on the same filesystem; views, triggers, stored routines referencing the old name are NOT automatically updated.
+
+**Priority:** MED
+**Status:** pending
+**Source anchors:** `sql/sql_table.cc` `mysql_rename_table` invoked from ALTER path when `Alter_info::ALTER_RENAME` flag set; alter-table.html "RENAME [TO|AS] new_tbl_name. Renames the table."
+
+---
+
+### AX.13 ALTER COLUMN SET DEFAULT / DROP DEFAULT / SET VISIBLE / SET INVISIBLE
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT NOT NULL, b INT);
+ALTER TABLE t ALTER COLUMN a SET DEFAULT 5;
+ALTER TABLE t ALTER COLUMN a DROP DEFAULT;
+ALTER TABLE t ALTER COLUMN b SET INVISIBLE;
+ALTER TABLE t ALTER COLUMN b SET VISIBLE;
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t;                                   -- after each step
+SELECT COLUMN_NAME, COLUMN_DEFAULT, EXTRA FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t';
+```
+Expected: SET DEFAULT mutates only the default literal; DROP DEFAULT removes it and (for integer/non-timestamp non-nullable columns) leaves no default — inserting without a value becomes an error in strict mode. SET INVISIBLE / SET VISIBLE toggles the `INVISIBLE` flag in `EXTRA`, no effect on the stored value.
+
+**omni assertion:** catalog's `ALTER COLUMN ... {SET DEFAULT expr | DROP DEFAULT | SET INVISIBLE | SET VISIBLE}` helper performs an in-place metadata patch: no type/nullability changes, no index rebuild, no data rewrite. SET DEFAULT accepts both literals and (as of 8.0.13) expressions wrapped in parentheses.
+
+**Priority:** MED
+**Status:** pending
+**Source anchors:** `sql/sql_alter.h` `Alter_column` class with `m_default_val`, `m_is_set_default`, `m_is_visible`; alter-table.html "ALTER COLUMN col_name {SET DEFAULT literal | (expr) | DROP DEFAULT | SET {VISIBLE | INVISIBLE}}."
+
+---
+
+### AX.14 ALTER INDEX ... VISIBLE / INVISIBLE
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT, b INT, INDEX idx_a (a));
+ALTER TABLE t ALTER INDEX idx_a INVISIBLE;
+```
+
+**Oracle verification:**
+```sql
+SHOW INDEX FROM t;                                      -- Visible column = 'NO'
+SELECT INDEX_NAME, IS_VISIBLE FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t';
+-- PRIMARY cannot be made invisible:
+-- ALTER TABLE t ALTER INDEX `PRIMARY` INVISIBLE;   -- ER_PK_INDEX_CANT_BE_INVISIBLE
+```
+
+**omni assertion:** catalog toggles the `is_visible` flag on the index. Query planner consumers of the catalog must honor visibility (invisible = ignored unless `optimizer_switch='use_invisible_indexes=on'`). PRIMARY KEY's underlying index cannot be made invisible — reject with `ER_PK_INDEX_CANT_BE_INVISIBLE`.
+
+**Priority:** MED
+**Status:** pending
+**Source anchors:** `sql/sql_alter.h` `Alter_index_visibility`; invisible-indexes.html "The PRIMARY (explicit or implicit) cannot be made invisible."; alter-table.html "ALTER {INDEX|KEY} index_name {VISIBLE | INVISIBLE}."
+
+---
+
+### AX.15 Multi-sub-command ALTER: single-pass semantics and ordering
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT, b INT);
+ALTER TABLE t
+  ADD COLUMN c INT AFTER a,
+  DROP COLUMN b,
+  ADD INDEX (c),
+  RENAME COLUMN a TO aa;
+```
+
+**Oracle verification:**
+```sql
+SELECT COLUMN_NAME, ORDINAL_POSITION FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' ORDER BY ORDINAL_POSITION;
+SHOW INDEX FROM t;
+```
+Expected: columns `aa, c`; index `c` exists. All sub-commands apply against the PRE-ALTER schema — so `ADD COLUMN c AFTER a` uses `a` even though a later clause renames it, and `DROP COLUMN b` does not interfere with `ADD COLUMN c`. MySQL evaluates the full sub-command list in one logical pass: drops and adds are resolved against the old schema; the new column list is then computed; the rename applies after the add/drop.
+
+**omni assertion:** catalog's ALTER helper does NOT execute sub-commands one at a time in surface order. Instead it (a) collects drops, adds, changes, renames, (b) builds the new column list by iterating the OLD list, filtering drops, applying renames/changes, and injecting adds with their FIRST/AFTER targets resolved against the OLD-name space, (c) applies index-level sub-commands against the resulting column list. Contradictory combinations (e.g. `ADD COLUMN x, DROP COLUMN x`) are rejected with `ER_CANT_DROP_FIELD_OR_KEY` on the drop side. This single-pass semantics is critical for SDL diff emission — diff must produce ONE ALTER containing all the needed sub-commands, not a sequence.
+
+**Priority:** HIGH
+**Status:** pending
+**Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — builds `new_create_list`, `new_key_list` in a single pass from the old definition + Alter_info lists; alter-table.html "You can issue multiple ADD, ALTER, DROP, and CHANGE clauses in a single ALTER TABLE statement, separated by commas. This is a MySQL extension to standard SQL, which permits only one of each clause per ALTER TABLE statement."
 
 ---
 
@@ -5151,4 +6789,72 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | PS.7 | FK name collision error | verified | HIGH | `PS7_FKNameCollision` — **omni bug** |
 | PS.8 | CHECK schema-scoped dup name error | pending | MED | **potential omni bug** |
 
-**Total scenarios:** 50 (13 pending, 35 verified via spot-check, 2 flagged as omni bugs).
+| 3.4 | Explicit NULL on PK hard error | pending | HIGH | Wave 4 C3 worker |
+| 3.5 | UNIQUE does NOT imply NOT NULL | pending | HIGH | Wave 4 C3 worker |
+| 3.6 | Gcol nullability from expression | pending | MED | Wave 4 C3 worker |
+| 3.7 | AUTO_INCREMENT + explicit NULL error | pending | MED | Wave 4 C3 worker |
+| 3.8 | 2nd TIMESTAMP implicit zero default (legacy) | pending | LOW | Wave 4 C3 worker |
+| 5.4 | FK ON UPDATE independent of ON DELETE | pending | HIGH | Wave 4 C5 worker |
+| 5.5 | FK SET DEFAULT rejected by InnoDB | pending | HIGH | Wave 4 C5 worker |
+| 5.6 | FK column type must match (size/sign) | pending | HIGH | Wave 4 C5 worker |
+| 5.7 | FK on VIRTUAL gcol rejected | pending | HIGH | Wave 4 C5 worker |
+| 5.8 | CHECK NOT ENFORCED defaults ENFORCED | pending | HIGH | Wave 4 C5 worker |
+| 5.9 | Column vs table CHECK equivalent | pending | MED | Wave 4 C5 worker |
+| 5.10 | Column-CHECK cross-col reject | pending | MED | Wave 4 C5 worker |
+| 8.4 | CHARSET defaults from database | pending | HIGH | Wave 4 C8 worker |
+| 8.5 | COLLATE alone fills CHARSET | pending | HIGH | Wave 4 C8 worker |
+| 8.6 | KEY_BLOCK_SIZE default 0 elided | pending | MED | Wave 4 C8 worker |
+| 8.7 | COMPRESSION default None elided | pending | MED | Wave 4 C8 worker |
+| 8.8 | ENCRYPTION default from server var | pending | MED | Wave 4 C8 worker |
+| 8.9 | STATS_PERSISTENT default | pending | LOW | Wave 4 C8 worker |
+| 8.10 | TABLESPACE default | pending | LOW | Wave 4 C8 worker |
+| 9.3 | VIRTUAL gcol PK rejection | pending | HIGH | Wave 4 C9 worker |
+| 9.4 | Gcol expression must be deterministic | pending | HIGH | Wave 4 C9 worker |
+| 9.5 | UNIQUE on STORED/VIRTUAL gcol | pending | MED | Wave 4 C9 worker |
+| 9.6 | Gcol NOT NULL interaction | pending | MED | Wave 4 C9 worker |
+| 9.7 | FK parent STORED gcol allowed | pending | MED | Wave 4 C9 worker |
+| 9.8 | Gcol expression charset derivation | pending | LOW | Wave 4 C9 worker |
+| 10.3 | View CHECK OPTION default CASCADED | pending | MED | Wave 4 C10 worker |
+| 10.4 | ALGORITHM=UNDEFINED resolves MERGE/TEMPTABLE | pending | MED | Wave 4 C10 worker |
+| 10.5 | View SQL SECURITY defaults DEFINER | pending | HIGH | Wave 4 C10 worker |
+| 10.6 | View column names from SELECT | pending | HIGH | Wave 4 C10 worker |
+| 10.7 | View updatability derivation | pending | MED | Wave 4 C10 worker |
+| 10.8 | View column nullability widened | pending | MED | Wave 4 C10 worker |
+| 11.2 | Trigger SQL SECURITY always DEFINER | pending | MED | Wave 4 C11 worker |
+| 11.3 | Trigger charset/collation snapshot | pending | HIGH | Wave 4 C11 worker |
+| 11.4 | Trigger ACTION_ORDER default | pending | HIGH | Wave 4 C11 worker |
+| 11.5 | NEW/OLD pseudo-rows by event | pending | HIGH | Wave 4 C11 worker |
+| 11.6 | Trigger on partitioned table | pending | LOW | Wave 4 C11 worker |
+| 14.2 | ALTER CHECK ENFORCED toggle | pending | HIGH | Wave 4 C14 worker |
+| 14.3 | STORED gcol + CHECK evaluation | pending | MED | Wave 4 C14 worker |
+| 14.4 | CHECK forbidden constructs | pending | HIGH | Wave 4 C14 worker |
+| 15.2 | ADD COLUMN FIRST | pending | HIGH | Wave 4 C15 worker |
+| 15.3 | ADD COLUMN AFTER col | pending | HIGH | Wave 4 C15 worker |
+| 15.4 | MODIFY/CHANGE retains position | pending | HIGH | Wave 4 C15 worker |
+| 15.5 | Multiple ADD COLUMN left-to-right | pending | MED | Wave 4 C15 worker |
+| 23.1 | CONCAT NULL propagation | pending | MED | Wave 4 C23 worker |
+| 23.2 | CONCAT_WS skips NULL args | pending | MED | Wave 4 C23 worker |
+| 23.3 | IFNULL/COALESCE rescue for CONCAT | pending | LOW | Wave 4 C23 worker |
+| 24.2 | GIPK column spec | pending | MED | Wave 4 C24 worker |
+| 24.3 | GIPK suppressed by user PK | pending | MED | Wave 4 C24 worker |
+| 24.4 | GIPK my_row_id collision error | pending | LOW | Wave 4 C24 worker |
+| 25.2 | DECIMAL precision-only scale 0 | pending | MED | Wave 4 C25 worker |
+| 25.3 | DECIMAL max precision/scale | pending | HIGH | Wave 4 C25 worker |
+| 25.4 | UNSIGNED DECIMAL | pending | LOW | Wave 4 C25 worker |
+| 25.5 | DECIMAL zero-scale rendering | pending | HIGH | Wave 4 C25 worker |
+| AX.1 | ADD COLUMN append default | pending | HIGH | Wave 4 AX worker |
+| AX.2 | DROP COLUMN cascades index | pending | HIGH | Wave 4 AX worker |
+| AX.3 | DROP COLUMN last col error | pending | MED | Wave 4 AX worker |
+| AX.4 | DROP COLUMN CHECK/gcol ref error | pending | HIGH | Wave 4 AX worker |
+| AX.5 | MODIFY COLUMN rewrites spec | pending | HIGH | Wave 4 AX worker |
+| AX.6 | CHANGE rename vs MODIFY | pending | HIGH | Wave 4 AX worker |
+| AX.7 | ADD INDEX auto-name in ALTER | pending | HIGH | Wave 4 AX worker |
+| AX.8 | ADD UNIQUE/KEY/FULLTEXT types | pending | MED | Wave 4 AX worker |
+| AX.9 | ADD FOREIGN KEY forms | pending | HIGH | Wave 4 AX worker |
+| AX.10 | RENAME COLUMN syntax | pending | HIGH | Wave 4 AX worker |
+| AX.11 | RENAME INDEX syntax | pending | MED | Wave 4 AX worker |
+| AX.12 | RENAME TO (table rename) | pending | MED | Wave 4 AX worker |
+| AX.13 | ALTER COLUMN default/visibility | pending | MED | Wave 4 AX worker |
+| AX.14 | ALTER INDEX VISIBLE/INVISIBLE | pending | MED | Wave 4 AX worker |
+| AX.15 | Multi-subcommand single-pass | pending | HIGH | Wave 4 AX worker |
+**Total scenarios:** 118 (81 pending, 35 verified via spot-check, 2 flagged as omni bugs).
