@@ -173,10 +173,18 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	switch p.cur.Kind {
 	// DDL
 	case kwCREATE:
+		createTok := p.advance() // consume CREATE
+		if p.cur.Kind == kwINDEX {
+			return p.parseCreateIndex(createTok.Loc)
+		}
 		return p.unsupported("CREATE")
 	case kwALTER:
 		return p.unsupported("ALTER")
 	case kwDROP:
+		dropTok := p.advance() // consume DROP
+		if p.cur.Kind == kwINDEX {
+			return p.parseDropIndex(dropTok.Loc)
+		}
 		return p.unsupported("DROP")
 	case kwTRUNCATE:
 		return p.unsupported("TRUNCATE")
@@ -282,6 +290,14 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// Clean
 	case kwCLEAN:
 		return p.unsupported("CLEAN")
+
+	// Index async build
+	case kwBUILD:
+		buildTok := p.advance() // consume BUILD
+		if p.cur.Kind == kwINDEX {
+			return p.parseBuildIndex(buildTok.Loc)
+		}
+		return p.unsupported("BUILD")
 
 	default:
 		return nil, p.unknownStatementError()
