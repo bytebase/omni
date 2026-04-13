@@ -1,9 +1,14 @@
 package catalog
 
 import (
+	"context"
 	"os"
 	"strings"
+	"sync"
 	"testing"
+	"time"
+
+	"github.com/testcontainers/testcontainers-go"
 )
 
 // This file provides the shared infrastructure used by the "mysql-implicit-behavior"
@@ -226,12 +231,41 @@ func scenariosSkipIfShort(t *testing.T) {
 }
 
 // scenariosSkipIfNoDocker skips the calling test when SKIP_SCENARIO_TESTS=1
-// is set in the environment (used by CI lanes that cannot run docker).
+// is set OR when the Docker daemon is not reachable. Probing the daemon
+// avoids a panic from testcontainers in environments without Docker.
+// (Codex phase review finding.)
 func scenariosSkipIfNoDocker(t *testing.T) {
 	t.Helper()
 	if os.Getenv("SKIP_SCENARIO_TESTS") == "1" {
 		t.Skip("SKIP_SCENARIO_TESTS=1 set; skipping scenario test")
 	}
+	if !dockerAvailable() {
+		t.Skip("Docker daemon not reachable; skipping scenario test")
+	}
+}
+
+var (
+	dockerAvailableOnce sync.Once
+	dockerAvailableVal  bool
+)
+
+func dockerAvailable() bool {
+	dockerAvailableOnce.Do(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		provider, err := testcontainers.NewDockerProvider()
+		if err != nil {
+			dockerAvailableVal = false
+			return
+		}
+		defer provider.Close()
+		if err := provider.Health(ctx); err != nil {
+			dockerAvailableVal = false
+			return
+		}
+		dockerAvailableVal = true
+	})
+	return dockerAvailableVal
 }
 
 // splitStmts splits a possibly multi-statement DDL string into individual
