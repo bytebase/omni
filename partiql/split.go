@@ -45,6 +45,12 @@ func (s Segment) Empty() bool {
 					i++
 				}
 			}
+			if depth > 0 {
+				// Unterminated block comment — this is malformed content,
+				// not an empty segment. Return false so downstream code
+				// surfaces a syntax error instead of silently skipping.
+				return false
+			}
 			continue
 		}
 		return false

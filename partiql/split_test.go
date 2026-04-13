@@ -122,6 +122,13 @@ func TestSplit(t *testing.T) {
 			wantText:  []string{"-- comment\r"},
 			wantEmpty: []bool{true},
 		},
+		{
+			name:      "unterminated_block_comment_not_empty",
+			input:     "/* unterminated",
+			wantN:     1,
+			wantText:  []string{"/* unterminated"},
+			wantEmpty: []bool{false},
+		},
 	}
 
 	for _, tc := range cases {
