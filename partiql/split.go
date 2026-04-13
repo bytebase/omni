@@ -25,7 +25,7 @@ func (s Segment) Empty() bool {
 		// Skip line comments (-- to end of line).
 		if b == '-' && i+1 < len(t) && t[i+1] == '-' {
 			i += 2
-			for i < len(t) && t[i] != '\n' {
+			for i < len(t) && t[i] != '\n' && t[i] != '\r' {
 				i++
 			}
 			continue
@@ -132,9 +132,9 @@ func Split(input string) []Segment {
 			}
 
 		case ch == '-' && i+1 < n && input[i+1] == '-':
-			// Line comment: skip to end of line.
+			// Line comment: skip to end of line (\n or \r).
 			i += 2
-			for i < n && input[i] != '\n' {
+			for i < n && input[i] != '\n' && input[i] != '\r' {
 				i++
 			}
 

@@ -108,6 +108,20 @@ func TestSplit(t *testing.T) {
 			wantText:  []string{"SELECT /* outer /* inner */ still comment */ 1"},
 			wantEmpty: []bool{false},
 		},
+		{
+			name:      "line_comment_cr_line_ending",
+			input:     "SELECT 1 -- comment\r; SELECT 2",
+			wantN:     2,
+			wantText:  []string{"SELECT 1 -- comment\r;", " SELECT 2"},
+			wantEmpty: []bool{false, false},
+		},
+		{
+			name:      "comment_only_cr",
+			input:     "-- comment\r",
+			wantN:     1,
+			wantText:  []string{"-- comment\r"},
+			wantEmpty: []bool{true},
+		},
 	}
 
 	for _, tc := range cases {
