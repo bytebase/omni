@@ -28,6 +28,24 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *CollateExpr:
 		Walk(v, n.Expr)
+	case *ColumnDef:
+		if n.DataType != nil {
+			Walk(v, n.DataType)
+		}
+		Walk(v, n.Default)
+		if n.MaskingPolicy != nil {
+			Walk(v, n.MaskingPolicy)
+		}
+		Walk(v, n.VirtualExpr)
+	case *CreateTableStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		walkNodes(v, n.ClusterBy)
+		Walk(v, n.AsSelect)
+		if n.Like != nil {
+			Walk(v, n.Like)
+		}
 	case *ExistsExpr:
 		Walk(v, n.Query)
 	case *File:

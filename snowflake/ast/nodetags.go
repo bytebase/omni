@@ -50,6 +50,9 @@ const (
 	T_SetOperationStmt
 	T_TableRef
 	T_JoinExpr
+	T_CreateTableStmt
+	T_ColumnDef
+	T_TableConstraint
 )
 
 // String returns a human-readable representation of the tag.
@@ -113,6 +116,12 @@ func (t NodeTag) String() string {
 		return "TableRef"
 	case T_JoinExpr:
 		return "JoinExpr"
+	case T_CreateTableStmt:
+		return "CreateTableStmt"
+	case T_ColumnDef:
+		return "ColumnDef"
+	case T_TableConstraint:
+		return "TableConstraint"
 	default:
 		return "Unknown"
 	}

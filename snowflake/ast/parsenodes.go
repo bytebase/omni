@@ -858,3 +858,149 @@ type SetOperationStmt struct {
 func (n *SetOperationStmt) Tag() NodeTag { return T_SetOperationStmt }
 
 var _ Node = (*SetOperationStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// Constraint enums
+// ---------------------------------------------------------------------------
+
+// ConstraintType enumerates constraint kinds for inline and table-level constraints.
+type ConstraintType int
+
+const (
+	ConstrPrimaryKey ConstraintType = iota
+	ConstrForeignKey
+	ConstrUnique
+)
+
+// String returns the constraint type name.
+func (c ConstraintType) String() string {
+	switch c {
+	case ConstrPrimaryKey:
+		return "PRIMARY KEY"
+	case ConstrForeignKey:
+		return "FOREIGN KEY"
+	case ConstrUnique:
+		return "UNIQUE"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// ReferenceAction enumerates FK referential actions.
+type ReferenceAction int
+
+const (
+	RefActNone       ReferenceAction = iota // not specified
+	RefActCascade                           // CASCADE
+	RefActSetNull                           // SET NULL
+	RefActSetDefault                        // SET DEFAULT
+	RefActRestrict                          // RESTRICT
+	RefActNoAction                          // NO ACTION
+)
+
+// ---------------------------------------------------------------------------
+// Helper structs (not Nodes)
+// ---------------------------------------------------------------------------
+
+// InlineConstraint represents a column-level constraint.
+type InlineConstraint struct {
+	Type       ConstraintType
+	Name       Ident          // CONSTRAINT name; zero if unnamed
+	References *ForeignKeyRef // for FK; nil otherwise
+	Loc        Loc
+}
+
+// ForeignKeyRef holds REFERENCES clause details.
+type ForeignKeyRef struct {
+	Table    *ObjectName
+	Columns  []Ident
+	OnDelete ReferenceAction
+	OnUpdate ReferenceAction
+	Match    string // "FULL"/"PARTIAL"/"SIMPLE"; empty if absent
+}
+
+// IdentitySpec holds IDENTITY/AUTOINCREMENT configuration.
+type IdentitySpec struct {
+	Start     *int64 // START WITH value; nil if default
+	Increment *int64 // INCREMENT BY value; nil if default
+	Order     *bool  // true=ORDER, false=NOORDER, nil=unspecified
+}
+
+// TagAssignment is a single TAG name = 'value' pair.
+type TagAssignment struct {
+	Name  *ObjectName
+	Value string
+}
+
+// CloneSource holds CLONE source with optional time travel.
+type CloneSource struct {
+	Source   *ObjectName
+	AtBefore string // "AT" or "BEFORE"; empty if no time travel
+	Kind     string // "TIMESTAMP"/"OFFSET"/"STATEMENT"
+	Value    string // the time travel value
+}
+
+// ---------------------------------------------------------------------------
+// DDL statement nodes
+// ---------------------------------------------------------------------------
+
+// CreateTableStmt represents CREATE [OR REPLACE] [TRANSIENT|TEMPORARY|VOLATILE] TABLE ...
+type CreateTableStmt struct {
+	OrReplace   bool
+	Transient   bool
+	Temporary   bool
+	Volatile    bool
+	IfNotExists bool
+	Name        *ObjectName
+	Columns     []*ColumnDef
+	Constraints []*TableConstraint
+	ClusterBy   []Node           // CLUSTER BY expressions; nil if absent
+	Linear      bool             // CLUSTER BY LINEAR modifier
+	Comment     *string          // COMMENT = 'text'; nil if absent
+	CopyGrants  bool
+	Tags        []*TagAssignment // WITH TAG (...); nil if absent
+	AsSelect    Node             // CREATE TABLE ... AS SELECT; nil if absent
+	Like        *ObjectName      // CREATE TABLE ... LIKE source; nil if absent
+	Clone       *CloneSource     // CREATE TABLE ... CLONE source; nil if absent
+	Loc         Loc
+}
+
+func (n *CreateTableStmt) Tag() NodeTag { return T_CreateTableStmt }
+
+// ColumnDef represents a column definition in CREATE TABLE.
+type ColumnDef struct {
+	Name             Ident
+	DataType         *TypeName         // nil for virtual columns without explicit type
+	Default          Node              // DEFAULT expr; nil if absent
+	NotNull          bool
+	Nullable         bool              // explicit NULL
+	Identity         *IdentitySpec     // IDENTITY/AUTOINCREMENT; nil if absent
+	Collate          string            // COLLATE 'name'; empty if absent
+	MaskingPolicy    *ObjectName       // WITH MASKING POLICY name; nil if absent
+	InlineConstraint *InlineConstraint // inline PK/FK/UNIQUE; nil if absent
+	Comment          *string           // COMMENT 'text'; nil if absent
+	Tags             []*TagAssignment  // WITH TAG (...); nil if absent
+	VirtualExpr      Node              // AS (expr); nil if absent
+	Loc              Loc
+}
+
+func (n *ColumnDef) Tag() NodeTag { return T_ColumnDef }
+
+// TableConstraint represents a table-level constraint (out-of-line).
+type TableConstraint struct {
+	Type       ConstraintType // ConstrPrimaryKey/ConstrForeignKey/ConstrUnique
+	Name       Ident          // CONSTRAINT name; zero if unnamed
+	Columns    []Ident        // constrained column names
+	References *ForeignKeyRef // FK only; nil otherwise
+	Comment    *string        // inline COMMENT 'text'; nil if absent
+	Loc        Loc
+}
+
+func (n *TableConstraint) Tag() NodeTag { return T_TableConstraint }
+
+// Compile-time assertions.
+var (
+	_ Node = (*CreateTableStmt)(nil)
+	_ Node = (*ColumnDef)(nil)
+	_ Node = (*TableConstraint)(nil)
+)
