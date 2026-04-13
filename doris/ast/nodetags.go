@@ -22,6 +22,19 @@ const (
 	// T_ObjectName is the tag for *ObjectName, a qualified multi-part name
 	// (e.g., catalog.db.table).
 	T_ObjectName
+
+	// T_TypeName is the tag for *TypeName, a Doris data type as it appears in
+	// SQL source (e.g., INT, VARCHAR(255), ARRAY<INT>, MAP<STRING,INT>).
+	T_TypeName
+
+	// T_CreateIndexStmt is the tag for *CreateIndexStmt.
+	T_CreateIndexStmt
+
+	// T_DropIndexStmt is the tag for *DropIndexStmt.
+	T_DropIndexStmt
+
+	// T_BuildIndexStmt is the tag for *BuildIndexStmt.
+	T_BuildIndexStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -33,6 +46,14 @@ func (t NodeTag) String() string {
 		return "File"
 	case T_ObjectName:
 		return "ObjectName"
+	case T_TypeName:
+		return "TypeName"
+	case T_CreateIndexStmt:
+		return "CreateIndexStmt"
+	case T_DropIndexStmt:
+		return "DropIndexStmt"
+	case T_BuildIndexStmt:
+		return "BuildIndexStmt"
 	default:
 		return "Unknown"
 	}
