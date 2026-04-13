@@ -1,0 +1,27 @@
+SELECT Name FROM student WHERE age IN (18,20,25);
+SELECT * EXCEPT(age) FROM student;
+SELECT type, AVG(price) FROM tb_book GROUP BY type;
+SELECT DISTINCT type FROM tb_book;
+SELECT * FROM tb_book ORDER BY id DESC LIMIT 3;
+SELECT * FROM tb_book WHERE name LIKE('_h%');
+SELECT * FROM tb_book ORDER BY price DESC LIMIT 3;
+SELECT id, CONCAT(name, ":", price) AS info, type FROM tb_book;
+SELECT SUM(price) AS total, type FROM tb_book GROUP BY type;
+SELECT *, (price * 0.8) AS "20%" FROM tb_book;
+WITH cte AS (SELECT 1 AS col1, 2 AS col2 UNION ALL SELECT 3, 4) SELECT col1, col2 FROM cte;
+SELECT * FROM t1 LEFT JOIN (t2, t3, t4) ON (t2.a = t1.a AND t3.b = t1.b AND t4.c = t1.c);
+SELECT * FROM t1 LEFT JOIN (t2 CROSS JOIN t3 CROSS JOIN t4) ON (t2.a = t1.a AND t3.b = t1.b AND t4.c = t1.c);
+SELECT t1.name, t2.salary FROM employee AS t1 INNER JOIN info AS t2 ON t1.name = t2.name;
+SELECT t1.name, t2.salary FROM employee t1 INNER JOIN info t2 ON t1.name = t2.name;
+SELECT left_tbl.* FROM left_tbl LEFT JOIN right_tbl ON left_tbl.id = right_tbl.id WHERE right_tbl.id IS NULL;
+SELECT * FROM t1 RIGHT JOIN t2 ON (t1.a = t2.a);
+SELECT * FROM t1 TABLET(10001) TABLESAMPLE(1000 ROWS) REPEATABLE 2 LIMIT 1000;
+SELECT college, region, seed FROM tournament ORDER BY region, seed;
+SELECT college, region AS r, seed AS s FROM tournament ORDER BY r, s;
+SELECT college, region, seed FROM tournament ORDER BY 2, 3;
+SELECT a, COUNT(b) FROM test_table GROUP BY a ORDER BY NULL;
+SELECT COUNT(col1) AS col2 FROM t GROUP BY col2 HAVING col2 = 2;
+SELECT user, MAX(salary) FROM users GROUP BY user HAVING MAX(salary) > 10;
+SELECT * FROM tbl LIMIT 5, 10;
+SELECT * FROM tbl LIMIT 95, 18446744073709551615;
+SELECT * FROM (SELECT age FROM student_01 UNION ALL SELECT age FROM student_02) AS t1 ORDER BY age LIMIT 4

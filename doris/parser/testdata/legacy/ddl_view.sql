@@ -1,0 +1,2 @@
+CREATE VIEW example_db.example_view (k1, k2, k3, v1) AS SELECT c1 AS k1, k2, k3, SUM(v1) FROM example_table WHERE k1 = 20160112 GROUP BY k1, k2, k3;
+CREATE VIEW example_db.example_view(k1 COMMENT "first key", k2 COMMENT "second key", k3 COMMENT "third key", v1 COMMENT "first value") COMMENT "my first view" AS SELECT c1 AS k1, k2, k3, SUM(v1) FROM example_table WHERE k1 = 20160112 GROUP BY k1, k2, k3

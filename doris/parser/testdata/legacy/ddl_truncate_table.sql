@@ -1,0 +1,2 @@
+TRUNCATE TABLE example_db.tbl;
+TRUNCATE TABLE tbl PARTITION(p1, p2)
