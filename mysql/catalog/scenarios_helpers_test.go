@@ -16,9 +16,20 @@ import (
 
 // scenarioContainer wraps startContainer for naming consistency with the
 // scenario helpers. The caller must defer the cleanup func.
+//
+// IMPORTANT: pins the underlying *sql.DB pool to a single connection. Many
+// scenario tests rely on connection-scoped state (USE testdb, SET SESSION
+// explicit_defaults_for_timestamp=0, SET SESSION sql_mode='', etc.) that
+// only affects the current MySQL session. Without pinning, subsequent
+// queries may execute on a different pool connection and silently run
+// against the wrong schema or session settings, producing nondeterministic
+// oracle results. (Codex BATCH 4 review P1/P2.)
 func scenarioContainer(t *testing.T) (*mysqlContainer, func()) {
 	t.Helper()
-	return startContainer(t)
+	mc, cleanup := startContainer(t)
+	mc.db.SetMaxOpenConns(1)
+	mc.db.SetMaxIdleConns(1)
+	return mc, cleanup
 }
 
 // scenarioReset drops and recreates the shared testdb database on the MySQL
