@@ -1,0 +1,39 @@
+package ast
+
+// NodeTag identifies the concrete type of an AST node.
+//
+// Every concrete node type defined under doris/ast must declare a unique
+// NodeTag constant in this file and return it from Tag(). This enables fast
+// switch dispatch and code-generated walker support.
+//
+// The numeric values are NOT stable -- do not persist them. Tags are assigned
+// by source order; reorder freely as the package evolves.
+type NodeTag int
+
+const (
+	// T_Invalid is the zero-value tag, returned only by uninitialized nodes
+	// or test stubs that have no need for a real tag.
+	T_Invalid NodeTag = iota
+
+	// T_File is the tag for *File, the root statement-list container
+	// returned by the parser entry point.
+	T_File
+
+	// T_ObjectName is the tag for *ObjectName, a qualified multi-part name
+	// (e.g., catalog.db.table).
+	T_ObjectName
+)
+
+// String returns a human-readable representation of the tag.
+func (t NodeTag) String() string {
+	switch t {
+	case T_Invalid:
+		return "Invalid"
+	case T_File:
+		return "File"
+	case T_ObjectName:
+		return "ObjectName"
+	default:
+		return "Unknown"
+	}
+}
