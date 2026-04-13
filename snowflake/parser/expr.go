@@ -267,10 +267,25 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 		}, nil
 
 	case kwEXISTS:
-		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "EXISTS subquery expressions not yet supported",
+		existsTok := p.advance()
+		if _, err := p.expect('('); err != nil {
+			return nil, err
 		}
+		var query ast.Node
+		var err error
+		if p.cur.Type == kwWITH {
+			query, err = p.parseWithSelect()
+		} else {
+			query, err = p.parseSelectStmt()
+		}
+		if err != nil {
+			return nil, err
+		}
+		closeTok, err := p.expect(')')
+		if err != nil {
+			return nil, err
+		}
+		return &ast.ExistsExpr{Query: query, Loc: ast.Loc{Start: existsTok.Loc.Start, End: closeTok.Loc.End}}, nil
 
 	default:
 		return p.parsePrimaryExpr()
@@ -578,18 +593,30 @@ func (p *Parser) parseFuncCall(name ast.ObjectName, startLoc ast.Loc) (*ast.Func
 	return fc, nil
 }
 
-// parseParenExpr parses a parenthesized expression. If it encounters
-// SELECT or WITH after the open paren, it returns an error placeholder
-// for subquery support.
+// parseParenExpr parses a parenthesized expression or subquery.
+// If it encounters SELECT or WITH after the open paren, it parses a
+// subquery and wraps it in SubqueryExpr.
 func (p *Parser) parseParenExpr() (ast.Node, error) {
 	openTok := p.advance() // consume '('
+	startLoc := openTok.Loc.Start
 
-	// Subquery placeholder
+	// Subquery: (SELECT ...) or (WITH ... SELECT ...)
 	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "subquery expressions not yet supported",
+		var query ast.Node
+		var err error
+		if p.cur.Type == kwWITH {
+			query, err = p.parseWithSelect()
+		} else {
+			query, err = p.parseSelectStmt()
 		}
+		if err != nil {
+			return nil, err
+		}
+		closeTok, err := p.expect(')')
+		if err != nil {
+			return nil, err
+		}
+		return &ast.SubqueryExpr{Query: query, Loc: ast.Loc{Start: startLoc, End: closeTok.Loc.End}}, nil
 	}
 
 	expr, err := p.parseExpr()
@@ -982,12 +1009,30 @@ func (p *Parser) parseInExpr(left ast.Node) (ast.Node, error) {
 		return nil, err
 	}
 
-	// Subquery placeholder
+	// Subquery: IN (SELECT ...) or IN (WITH ... SELECT ...)
 	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "subquery expressions not yet supported",
+		var query ast.Node
+		var err error
+		if p.cur.Type == kwWITH {
+			query, err = p.parseWithSelect()
+		} else {
+			query, err = p.parseSelectStmt()
 		}
+		if err != nil {
+			return nil, err
+		}
+		closeTok, err := p.expect(')')
+		if err != nil {
+			return nil, err
+		}
+		openLoc := ast.NodeLoc(left).Start
+		subq := &ast.SubqueryExpr{Query: query, Loc: ast.Loc{Start: openLoc, End: closeTok.Loc.End}}
+		return &ast.InExpr{
+			Expr:   left,
+			Values: []ast.Node{subq},
+			Not:    notFlag,
+			Loc:    ast.Loc{Start: ast.NodeLoc(left).Start, End: closeTok.Loc.End},
+		}, nil
 	}
 
 	values, err := p.parseExprList()

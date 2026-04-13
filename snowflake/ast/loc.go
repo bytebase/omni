@@ -58,6 +58,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *ExistsExpr:
 		return v.Loc
+	case *SelectStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/snowflake/ast"
 )
 
 // runParseBestEffortCase is a table-driven helper that asserts the shape
@@ -79,30 +81,27 @@ func TestParse_CommentOnly(t *testing.T) {
 	}
 }
 
-func TestParse_SingleUnsupportedSelect(t *testing.T) {
+func TestParse_SingleSelect(t *testing.T) {
 	runParseBestEffortCase(t, parseCase{
 		name:        "single SELECT",
 		input:       "SELECT 1;",
-		wantStmtCnt: 0,
-		wantErrCnt:  1,
-		wantErrMsgs: []string{"SELECT statement parsing is not yet supported"},
-		wantErrLocs: []int{0},
+		wantStmtCnt: 1,
+		wantErrCnt:  0,
 	})
 }
 
-func TestParse_MultiUnsupported(t *testing.T) {
+func TestParse_MultiMixed(t *testing.T) {
 	// "SELECT 1; INSERT INTO t VALUES (1);" has SELECT at byte 0 and
-	// INSERT at byte 10 (after "SELECT 1; ").
+	// INSERT at byte 10 (after "SELECT 1; "). SELECT now succeeds.
 	runParseBestEffortCase(t, parseCase{
 		name:        "SELECT then INSERT",
 		input:       "SELECT 1; INSERT INTO t VALUES (1);",
-		wantStmtCnt: 0,
-		wantErrCnt:  2,
+		wantStmtCnt: 1,
+		wantErrCnt:  1,
 		wantErrMsgs: []string{
-			"SELECT statement parsing is not yet supported",
 			"INSERT statement parsing is not yet supported",
 		},
-		wantErrLocs: []int{0, 10},
+		wantErrLocs: []int{10},
 	})
 }
 
@@ -153,6 +152,7 @@ func TestParse_BeginEndBlockOneError(t *testing.T) {
 
 func TestParse_StrictVsBestEffort(t *testing.T) {
 	// Parse returns the first error; ParseBestEffort returns all errors.
+	// SELECT now succeeds, so the first error is INSERT.
 	input := "SELECT 1; INSERT INTO t VALUES (1);"
 
 	file, err := Parse(input)
@@ -162,8 +162,8 @@ func TestParse_StrictVsBestEffort(t *testing.T) {
 		pe, ok := err.(*ParseError)
 		if !ok {
 			t.Errorf("Parse: expected *ParseError, got %T", err)
-		} else if !strings.Contains(pe.Msg, "SELECT") {
-			t.Errorf("Parse: first error Msg = %q, want to contain SELECT", pe.Msg)
+		} else if !strings.Contains(pe.Msg, "INSERT") {
+			t.Errorf("Parse: first error Msg = %q, want to contain INSERT", pe.Msg)
 		}
 	}
 	if file == nil {
@@ -171,8 +171,8 @@ func TestParse_StrictVsBestEffort(t *testing.T) {
 	}
 
 	result := ParseBestEffort(input)
-	if len(result.Errors) != 2 {
-		t.Errorf("ParseBestEffort: got %d errors, want 2", len(result.Errors))
+	if len(result.Errors) != 1 {
+		t.Errorf("ParseBestEffort: got %d errors, want 1", len(result.Errors))
 	}
 }
 
@@ -188,18 +188,23 @@ func TestParse_StrictNoErrors(t *testing.T) {
 }
 
 func TestParse_AbsoluteSegmentPositions(t *testing.T) {
-	// Given "SELECT 1; SELECT 2;", the second SELECT error's Loc.Start
-	// should be 10 (the absolute byte position), NOT 0 (which would be
-	// relative to the second segment).
+	// Given "SELECT 1; SELECT 2;", both SELECT statements now parse
+	// successfully. Verify we get 2 stmts and 0 errors.
 	result := ParseBestEffort("SELECT 1; SELECT 2;")
-	if len(result.Errors) != 2 {
-		t.Fatalf("expected 2 errors, got %d: %+v", len(result.Errors), result.Errors)
+	if len(result.Errors) != 0 {
+		t.Fatalf("expected 0 errors, got %d: %+v", len(result.Errors), result.Errors)
 	}
-	if result.Errors[0].Loc.Start != 0 {
-		t.Errorf("first error Loc.Start = %d, want 0", result.Errors[0].Loc.Start)
+	if len(result.File.Stmts) != 2 {
+		t.Fatalf("expected 2 stmts, got %d", len(result.File.Stmts))
 	}
-	if result.Errors[1].Loc.Start != 10 {
-		t.Errorf("second error Loc.Start = %d, want 10", result.Errors[1].Loc.Start)
+	// Verify absolute Loc positions: first SELECT at 0, second at 10.
+	loc0 := ast.NodeLoc(result.File.Stmts[0])
+	if loc0.Start != 0 {
+		t.Errorf("first stmt Loc.Start = %d, want 0", loc0.Start)
+	}
+	loc1 := ast.NodeLoc(result.File.Stmts[1])
+	if loc1.Start != 10 {
+		t.Errorf("second stmt Loc.Start = %d, want 10", loc1.Start)
 	}
 }
 
