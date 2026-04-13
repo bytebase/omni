@@ -30,6 +30,23 @@ Unless otherwise noted, scenarios assume:
 
 ## Section C1: Name auto-generation
 
+> **Expansion note (Wave 2):** grew from 6 to 13 scenarios via systematic
+> walk of MySQL 8.0 create-table-foreign-keys.html,
+> create-table-check-constraints.html, create-index.html +
+> targeted re-read of `sql/sql_table.cc` covering
+> `prepare_key` (index name generation from first column +
+> PRIMARY reservation, ~L7229-L7265),
+> `make_unique_key_name` (L10377-L10398),
+> `make_functional_index_column_name` (L7710-L7743),
+> `add_functional_index_to_create_list` (L7783-L7808),
+> `generate_fk_name` (L5906-L5948),
+> `prepare_check_constraints_for_create` +
+> `generate_check_constraint_name` (L19007-L19031, L19583-L19602),
+> and a spot-check of `mysql/catalog/tablecmds.go` (`allocIndexName`,
+> `nextFKGeneratedNumber`, `nextCheckNumber`, `ensureFKBackingIndex`).
+
+---
+
 ### 1.1 Foreign Key name — CREATE path (fresh counter)
 
 **Setup:**
@@ -154,6 +171,233 @@ Expected: `[a, a_2]`.
 **omni assertion:** two unique indexes on `t` with names `a` and `a_2`.
 
 **See catalog:** C1.5 (`make_unique_key_name` loop).
+
+---
+
+### 1.7 PRIMARY KEY always named "PRIMARY" (user name ignored)
+
+> **new in expansion (Wave 2)** — priority: HIGH — status: pending-verify
+
+**Setup:**
+```sql
+CREATE TABLE t (
+    a INT,
+    CONSTRAINT my_pk PRIMARY KEY (a)
+);
+```
+
+**Oracle verification:**
+```sql
+SELECT CONSTRAINT_NAME, CONSTRAINT_TYPE FROM information_schema.TABLE_CONSTRAINTS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t';
+
+SELECT INDEX_NAME FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t';
+```
+Expected: CONSTRAINT_NAME = `PRIMARY` (NOT `my_pk`). The `CONSTRAINT my_pk` clause is silently discarded — MySQL hard-codes `key_info->name = primary_key_name` regardless of the user-supplied `CONSTRAINT symbol`. STATISTICS INDEX_NAME = `PRIMARY`.
+
+**omni assertion:** `tbl.PrimaryKey.Name == "PRIMARY"`, no constraint named `my_pk` exists on `tbl`.
+
+**Anchors:**
+- `sql/sql_table.cc:210` — `const char *primary_key_name = "PRIMARY";`
+- `sql/sql_table.cc:7236-7237` — `if (key->type == KEYTYPE_PRIMARY) key_info->name = primary_key_name;`
+- doc: [create-table.html](https://dev.mysql.com/doc/refman/8.0/en/create-table.html) — "The name of a PRIMARY KEY is always PRIMARY, which thus cannot be used as the name for any other kind of index."
+
+**omni gap:** need to confirm omni discards `CONSTRAINT my_pk` on PK. Grep of `tablecmds.go` does not show explicit "override user PK name" logic — candidate gap.
+
+---
+
+### 1.8 Non-PK index cannot be named "PRIMARY" (ER_WRONG_NAME_FOR_INDEX)
+
+> **new in expansion (Wave 2)** — priority: MED — status: pending-verify
+
+**Setup (error case):**
+```sql
+CREATE TABLE t (a INT, UNIQUE KEY PRIMARY (a));
+-- or
+CREATE TABLE t (a INT, INDEX primary (a));
+-- or via ALTER
+CREATE TABLE t (a INT);
+ALTER TABLE t ADD INDEX PRIMARY (a);
+```
+
+**Oracle verification:** Expect `ERROR 1280 (42000): Incorrect index name 'PRIMARY'` on each of the three forms. Case-insensitive — `primary`, `Primary`, `PRIMARY` all error.
+
+**omni assertion:** `LoadSDL` / `Apply(ALTER)` should return an error for these; currently likely silent or a different error.
+
+**Anchors:**
+- `sql/sql_table.cc:7229-7232` — `if (key->name.str && (key->type != KEYTYPE_PRIMARY) && !my_strcasecmp(system_charset_info, key->name.str, primary_key_name)) { my_error(ER_WRONG_NAME_FOR_INDEX, ...); return true; }`
+- `sql/sql_table.cc:15087-15092` — ALTER RENAME INDEX from/to `PRIMARY` check
+- doc: [create-table.html](https://dev.mysql.com/doc/refman/8.0/en/create-table.html)
+
+**omni gap:** `indexNameExists` in `tablecmds.go` is case-insensitive but omni does not special-case the string `"PRIMARY"` as reserved. Candidate bug.
+
+---
+
+### 1.9 Implicit index name from first key column
+
+> **new in expansion (Wave 2)** — priority: HIGH — status: pending-verify
+
+**Setup:**
+```sql
+CREATE TABLE t (
+    a INT,
+    b INT,
+    c INT,
+    KEY (b, c)
+);
+```
+
+**Oracle verification:**
+```sql
+SELECT INDEX_NAME, SEQ_IN_INDEX, COLUMN_NAME FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t'
+ORDER BY INDEX_NAME, SEQ_IN_INDEX;
+```
+Expected: `INDEX_NAME = 'b'` — the generated name is taken from the *first* key-part column (not all columns concatenated). The second column `c` contributes nothing to the name.
+
+**omni assertion:** `tbl.Indexes[0].Name == "b"`, columns `[b, c]`.
+
+**Anchors:**
+- `sql/sql_table.cc:7240-7255` — `else { const Key_part_spec *first_col = key->columns[0]; ... key_info->name = make_unique_key_name(sql_field->field_name, ...); }`
+- `mysql/catalog/tablecmds.go:915` — `allocIndexName(tbl, cols[0])` (matches rule)
+
+**Covers omni helper:** matches `allocIndexName`.
+
+---
+
+### 1.10 UNIQUE index backing KEY name fallback when first column equals "PRIMARY" (string literal)
+
+> **new in expansion (Wave 2)** — priority: LOW — status: pending-verify
+
+**Setup:**
+```sql
+CREATE TABLE t (`PRIMARY` INT);  -- literal column named PRIMARY (backtick-quoted)
+-- implicitly, any UNIQUE KEY (`PRIMARY`) would want name "PRIMARY",
+-- but make_unique_key_name() explicitly rejects that:
+ALTER TABLE t ADD UNIQUE KEY (`PRIMARY`);
+```
+
+**Oracle verification:**
+```sql
+SELECT INDEX_NAME FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t';
+```
+Expected: INDEX_NAME = `PRIMARY_2` — the first candidate `PRIMARY` is rejected because `make_unique_key_name` does `my_strcasecmp(field_name, primary_key_name)` and falls into the `_2..._99` loop, even though no conflicting index exists.
+
+**omni assertion:** unique index name should be `PRIMARY_2` not `PRIMARY`.
+
+**Anchors:**
+- `sql/sql_table.cc:10382-10384` — `if (!check_if_keyname_exists(...) && my_strcasecmp(..., field_name, primary_key_name)) return field_name;` — the `PRIMARY` field_name fails the `my_strcasecmp != 0` guard, skipping the early return.
+- `mysql/catalog/tablecmds.go:915-923` — `allocIndexName` does NOT exclude `PRIMARY` — omni gap.
+
+**omni gap:** omni `allocIndexName` would return `"PRIMARY"` here, creating an illegal index name per 1.8.
+
+---
+
+### 1.11 Functional index auto-name "functional_index" with collision suffix
+
+> **new in expansion (Wave 2)** — priority: MED — status: pending-verify
+
+**Setup:**
+```sql
+CREATE TABLE t (
+    a INT,
+    INDEX ((a + 1)),            -- no name → functional_index
+    INDEX ((a * 2))             -- no name → functional_index_2 (counter starts at 2)
+);
+```
+
+**Oracle verification:**
+```sql
+SELECT INDEX_NAME FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t'
+ORDER BY INDEX_NAME;
+```
+Expected: `[functional_index, functional_index_2]` — note the collision suffix starts at **2**, not 1, per source.
+
+**omni assertion:** indexes named `functional_index` and `functional_index_2`.
+
+**Anchors:**
+- `sql/sql_table.cc:7797-7803` — `key_name.assign("functional_index"); ... while (key_name_exists(...)) { key_name.assign("functional_index_"); key_name.append(std::to_string(count++)); }` with `int count = 2;`
+- doc: [create-index.html#create-index-functional-key-parts](https://dev.mysql.com/doc/refman/8.0/en/create-index.html)
+
+**omni gap:** omni currently has no path for functional indexes (C19 is a new section). Name-generation portion belongs here.
+
+---
+
+### 1.12 Functional index hidden generated column name `!hidden!{idx}!{part}!{count}`
+
+> **new in expansion (Wave 2)** — priority: MED — status: pending-verify
+
+**Setup:**
+```sql
+CREATE TABLE t (a INT, INDEX fx ((a + 1), (a * 2)));
+```
+
+**Oracle verification:**
+```sql
+SELECT COLUMN_NAME, EXTRA, GENERATION_EXPRESSION
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t';
+-- Hidden functional columns are not shown by information_schema.COLUMNS by default
+-- (they are hidden from SQL layer). Observe via:
+SHOW CREATE TABLE t;
+-- AND internally via dd schema dumps if needed.
+```
+Expected internal column names (visible only in the data dictionary, hidden from user queries):
+- key part 0 → `!hidden!fx!0!0`
+- key part 1 → `!hidden!fx!1!0`
+
+If a user column with a colliding name exists, the trailing `count` increments: `!hidden!fx!0!1`, etc. If the `!hidden!{key}` prefix + `!{part}!{count}` would exceed `NAME_CHAR_LEN` (64), the key_name portion is truncated, NOT the counter (otherwise the loop could never terminate).
+
+**omni assertion:** omni's representation of functional-index hidden columns should match this name format for round-trip deparse.
+
+**Anchors:**
+- `sql/sql_table.cc:7710-7743` — `make_functional_index_column_name`:
+  ```cpp
+  string name("!hidden!"); name += key_name;
+  string suffix("!"); suffix += to_string(key_part_number); suffix += '!'; suffix += to_string(count);
+  name.resize(min(name.size(), NAME_CHAR_LEN - suffix.size()));
+  name.append(suffix);
+  ```
+- doc: [create-index.html](https://dev.mysql.com/doc/refman/8.0/en/create-index.html) — "Functional indexes are implemented as hidden virtual generated columns"
+
+**omni gap:** omni functional-index support is absent — no path creates the hidden column. This scenario defines the target shape for the eventual implementation.
+
+---
+
+### 1.13 CHECK constraint name is schema-scoped, not table-scoped
+
+> **new in expansion (Wave 2)** — priority: HIGH — status: pending-verify
+
+**Setup (error case):**
+```sql
+CREATE TABLE t1 (a INT, CONSTRAINT mychk CHECK (a > 0));
+CREATE TABLE t2 (a INT, CONSTRAINT mychk CHECK (a < 100));
+-- second CREATE TABLE fails
+```
+
+**Oracle verification:** Expect `ERROR 3822 (HY000): Duplicate check constraint name 'mychk'.` on the second CREATE. This holds even though the two constraints live on different tables.
+
+Variant — auto-generated name collision across tables:
+```sql
+CREATE TABLE t1 (a INT, CHECK (a > 0));  -- auto → t1_chk_1
+CREATE TABLE t1_chk_1 (a INT, CHECK (a > 0));  -- auto → t1_chk_1_chk_1, no collision
+-- But:
+CREATE TABLE t_chk_1 (a INT);           -- no check
+CREATE TABLE t (a INT, CHECK (a > 0));  -- auto → t_chk_1 — does NOT collide because t_chk_1 is a table name, not a check constraint name
+CREATE TABLE u (a INT, CONSTRAINT t_chk_1 CHECK (a > 0));  -- collides with the auto-generated t_chk_1 from table `t` → ERROR 3822
+```
+
+**omni assertion:** `LoadSDL` / `Apply(CREATE)` should error on duplicate check constraint names even across tables in the same schema. omni `nextCheckNumber` is per-table today; it does NOT detect cross-table collisions.
+
+**Anchors:**
+- `sql/sql_table.cc:19593-19602` — `for (auto cc_name : new_cc_names) { if (thd->dd_client()->check_constraint_exists(*new_schema, cc_name, &exists)) ... if (exists) { my_error(ER_CHECK_CONSTRAINT_DUP_NAME, ...); ... } }` — uses **schema** not table for lookup.
+- `sql/sql_table.cc:19046-19066` — `push_check_constraint_mdl_request_to_list` acquires schema-level MDL on lowercased cc_name.
+- doc: [create-table-check-constraints.html](https://dev.mysql.com/doc/refman/8.0/en/create-table-check-constraints.html) — "CHECK constraint names must be unique per schema; no two tables in the same schema can share a CHECK constraint name."
+
+**omni gap:** `mysql/catalog/tablecmds.go:253-254` and `altercmds.go:467` assign `{tableName}_chk_{N}` without a schema-level uniqueness check. A cross-table duplicate should raise an error — currently it will silently succeed. HIGH priority because this can corrupt SDL diffs when an unrelated table reserves a `_chk_N` name that happens to match.
 
 ---
 
@@ -949,7 +1193,29 @@ Expected: `NO`.
 
 ## Section C4: Charset / collation inheritance
 
+Scope: this section covers MySQL 8.0's implicit charset/collation resolution
+chain (server → database → table → column → expression), the BINARY /
+NCHAR / NATIONAL special forms, literal introducers, index-prefix byte
+accounting, and the precedence rules DTCollation uses to negotiate charsets
+between operands. Every scenario below was chosen because it produces a
+materially different `SHOW CREATE TABLE` / `information_schema.COLUMNS` /
+`information_schema.TABLES` shape that omni must reproduce on round-trip.
+
+Primary sources:
+- `sql/sql_table.cc:8448` `set_table_default_charset()` — table-level default
+- `sql/sql_table.cc:4188` `get_sql_field_charset()` — column-level default
+- `sql/sql_table.cc:4544-4560` `prepare_create_field` BINCMP_FLAG handling
+- `sql/sql_yacc.yy:489`, `sql/mysqld.cc:10208` `national_charset_info`
+- `sql/item.h:160-241` `DTCollation` derivation levels
+- Refman: charset-database / charset-table / charset-column /
+  charset-national / charset-binary-op / charset-collate / charset-literal
+
+---
+
 ### 4.1 Table charset inherits from database
+
+**Priority:** HIGH
+**Status:** existing (Wave 0)
 
 **Setup:**
 ```sql
@@ -973,6 +1239,9 @@ Expected: `utf8mb4_0900_ai_ci`.
 
 ### 4.2 Column charset inherits from table (then elided in SHOW)
 
+**Priority:** HIGH
+**Status:** existing (Wave 0)
+
 **Setup:**
 ```sql
 CREATE TABLE t (c VARCHAR(10)) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
@@ -982,14 +1251,469 @@ CREATE TABLE t (c VARCHAR(10)) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 ```sql
 SELECT COLLATION_NAME FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='c';
--- AND
 SHOW CREATE TABLE t;
 ```
-Expected: column collation = `utf8mb4_0900_ai_ci`; `SHOW CREATE TABLE` elides the column-level CHARACTER SET / COLLATE (matches table default), per C18.1.
+Expected: column collation = `utf8mb4_0900_ai_ci`; `SHOW CREATE TABLE` elides
+the column-level CHARACTER SET / COLLATE (matches table default), per C18.1.
 
-**omni assertion:** column charset == table charset, and deparse output does not print a column-level CHARACTER SET clause.
+**omni assertion:** column charset == table charset, and deparse output does
+not print a column-level CHARACTER SET clause.
 
 **See catalog:** C4.2 + C18.1.
+
+---
+
+### 4.3 Column `COLLATE` alone derives `CHARACTER SET` from collation name
+
+**Priority:** HIGH
+**Status:** new (Wave 2)
+
+**Setup:**
+```sql
+CREATE TABLE t (c VARCHAR(10) COLLATE utf8mb4_unicode_ci)
+  DEFAULT CHARSET=latin1;
+```
+
+The column was not given a `CHARACTER SET`, only a `COLLATE`. MySQL derives
+the charset from the collation (`utf8mb4_unicode_ci` → `utf8mb4`), so the
+column is `utf8mb4` even though the table default is `latin1`.
+
+**Oracle verification:**
+```sql
+SELECT CHARACTER_SET_NAME, COLLATION_NAME
+FROM information_schema.COLUMNS
+WHERE TABLE_NAME='t' AND COLUMN_NAME='c';
+SHOW CREATE TABLE t;
+```
+Expected: `CHARACTER_SET_NAME='utf8mb4'`, `COLLATION_NAME='utf8mb4_unicode_ci'`.
+`SHOW CREATE TABLE` emits `CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+on the column (both because charset differs from table default).
+
+**omni assertion:** `col.Charset == "utf8mb4"`, `col.Collation ==
+"utf8mb4_unicode_ci"`, round-trip deparse preserves the column clause.
+
+**Source anchor:** parser attaches `COLLATE` to `Create_field`; charset is
+looked up from the collation row during `get_sql_field_charset` because
+`sql_field->charset` was populated from the collation side of the parse node
+(`sql/sql_yacc.yy` charset/collation attribute rules; follows the rule in
+refman charset-collate.html "if only COLLATE, charset is that of collation").
+
+**See catalog:** C4 (new subsection), C18.1.
+
+---
+
+### 4.4 Column `CHARACTER SET` alone derives default collation
+
+**Priority:** HIGH
+**Status:** new (Wave 2)
+
+**Setup:**
+```sql
+CREATE TABLE t (c VARCHAR(10) CHARACTER SET latin1)
+  DEFAULT CHARSET=utf8mb4;
+```
+
+No column COLLATE given. MySQL picks the charset's **default collation**
+(`latin1` → `latin1_swedish_ci`). This is the mirror of 4.3.
+
+**Oracle verification:**
+```sql
+SELECT CHARACTER_SET_NAME, COLLATION_NAME
+FROM information_schema.COLUMNS
+WHERE TABLE_NAME='t' AND COLUMN_NAME='c';
+SHOW CREATE TABLE t;
+```
+Expected: `COLLATION_NAME='latin1_swedish_ci'`. `SHOW CREATE TABLE` emits
+`CHARACTER SET latin1 COLLATE latin1_swedish_ci` on the column (column charset
+differs from table default → cannot be elided, C18.1).
+
+**omni assertion:** `col.Charset == "latin1"`, `col.Collation ==
+"latin1_swedish_ci"`; deparse reproduces the clause.
+
+**Source anchor:** `CHARSET_INFO::default_collation` lookup in
+`get_charset_by_csname(...)`; parser fills `sql_field->charset` with the
+charset's primary collation row when only `CHARACTER SET` is supplied.
+
+**See catalog:** C4 (new subsection).
+
+---
+
+### 4.5 Table `COLLATE` must be compatible with table `CHARACTER SET`
+
+**Priority:** HIGH
+**Status:** new (Wave 2)
+
+**Setup (error case):**
+```sql
+CREATE TABLE t (c VARCHAR(10))
+  CHARACTER SET latin1 COLLATE utf8mb4_0900_ai_ci;
+```
+
+**Setup (success case):**
+```sql
+CREATE TABLE t (c VARCHAR(10))
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+```
+
+If the COLLATE does not belong to the named CHARACTER SET, MySQL raises
+`ER_COLLATION_CHARSET_MISMATCH` ("COLLATION 'utf8mb4_0900_ai_ci' is not valid
+for CHARACTER SET 'latin1'"). Validation runs before `set_table_default_charset`
+and is performed by the parser's `merge_charset_and_collation` helper /
+`check_charset_collation_pair`.
+
+**Oracle verification:**
+- Mismatch case: statement fails with errno 1253 (SQLSTATE 42000).
+- Compatible case: table created; `TABLE_COLLATION='utf8mb4_0900_ai_ci'`.
+
+**omni assertion:** mismatch is rejected at parse/analyse time with a mirrored
+error, not silently coerced. Compatible combination resolves both fields.
+
+**Source anchor:** `sql/sql_parse.cc` / `sql/parse_tree_nodes.cc`
+`merge_charset_and_collation()` (pre-flight compatibility check before
+`set_table_default_charset` is called in `create_table_impl`).
+
+**See catalog:** C4 (new subsection).
+
+---
+
+### 4.6 `BINARY` modifier on CHAR/VARCHAR/TEXT resolves to `{charset}_bin` collation
+
+**Priority:** HIGH
+**Status:** new (Wave 2)
+
+**Setup:**
+```sql
+CREATE TABLE t (
+  a CHAR(10) BINARY,
+  b VARCHAR(10) CHARACTER SET latin1 BINARY
+) DEFAULT CHARSET=utf8mb4;
+```
+
+`BINARY` here is an **attribute**, not a column type. `prepare_create_field`
+(sql_table.cc:4546-4560) sees `BINCMP_FLAG` and rewrites the charset to the
+same charset's `_bin` collation via
+`get_charset_by_csname(cs->csname, MY_CS_BINSORT, MYF(0))`. Column `a` becomes
+`utf8mb4 / utf8mb4_bin`; column `b` becomes `latin1 / latin1_bin`.
+
+MySQL 8.0 also deprecates this form (`warn_about_deprecated_binary`, sql_yacc.yy:
+"BINARY as attribute of a type … use a CHARACTER SET clause with _bin
+collation"), so round-trip through `SHOW CREATE TABLE` re-emits the **canonical
+form**: `CHARACTER SET xxx COLLATE xxx_bin`. The `BINARY` keyword does **not**
+come back.
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t;
+SELECT COLUMN_NAME, COLLATION_NAME FROM information_schema.COLUMNS
+WHERE TABLE_NAME='t';
+```
+Expected:
+- `a` → `utf8mb4_bin` (rendered as `COLLATE utf8mb4_bin` only — charset matches
+  table default so charset clause is elided).
+- `b` → `latin1_bin` (rendered as `CHARACTER SET latin1 COLLATE latin1_bin` —
+  charset differs from table default).
+- Neither column has the `BINARY` keyword in the reprinted DDL.
+
+**omni assertion:** ingesting the BINARY-attribute form produces the same
+resolved `col.Collation` values as ingesting the canonical `COLLATE xxx_bin`
+form; deparse always emits the canonical form (matches MySQL round-trip).
+
+**Source anchor:** `sql/sql_table.cc:4546` BINCMP_FLAG branch; `sql/sql_yacc.yy`
+deprecation warning (`warn_about_deprecated_binary`).
+
+**See catalog:** C4 (new subsection), C18.1.
+
+---
+
+### 4.7 `CHARACTER SET binary` is not the same as column type `BINARY`
+
+**Priority:** MEDIUM
+**Status:** new (Wave 2)
+
+**Setup:**
+```sql
+CREATE TABLE t (
+  a BINARY(10),                    -- byte type, sql_type = MYSQL_TYPE_STRING + BINARY_FLAG
+  b CHAR(10) CHARACTER SET binary, -- text type stored as bytes
+  c VARBINARY(10)                  -- MYSQL_TYPE_VARCHAR + binary charset
+);
+```
+
+All three end up with `COLLATION_NAME='binary'`, but they are different column
+types and different `DATA_TYPE` values:
+- `a` → `DATA_TYPE='binary'`
+- `b` → `DATA_TYPE='char'` with `CHARACTER SET binary`
+- `c` → `DATA_TYPE='varbinary'`
+
+`get_sql_field_charset` hard-codes an early return for `&my_charset_bin` and
+for array columns (sql_table.cc:4203) so that `ALTER TABLE … CONVERT TO
+CHARACTER SET …` does not touch them. This is why a converted table keeps
+`BINARY`/`VARBINARY` columns as bytes.
+
+**Oracle verification:**
+```sql
+SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME
+FROM information_schema.COLUMNS WHERE TABLE_NAME='t';
+SHOW CREATE TABLE t;
+```
+Expected: three distinct `DATA_TYPE` / `COLUMN_TYPE` values; all three have
+`COLLATION_NAME='binary'`. `SHOW CREATE TABLE` emits `binary(10)` for `a`,
+`char(10) CHARACTER SET 'binary'` (or equivalent) for `b`, `varbinary(10)` for
+`c`. `ALTER TABLE t CONVERT TO CHARACTER SET utf8mb4` leaves `a` and `c`
+untouched but rewrites `b` to `char(10) CHARACTER SET utf8mb4`.
+
+**omni assertion:** the three columns parse to three different
+`DataType` values (not conflated); `Collation == "binary"` for all; CONVERT TO
+CHARACTER SET semantics preserve `BINARY`/`VARBINARY` on round-trip.
+
+**Source anchor:** `sql/sql_table.cc:4203` (`cs == &my_charset_bin` early
+return); refman charset-binary-op.html.
+
+**See catalog:** C4 (new subsection).
+
+---
+
+### 4.8 `utf8` is an alias for `utf8mb3` (not the server default `utf8mb4`)
+
+**Priority:** HIGH
+**Status:** new (Wave 2)
+
+**Setup:**
+```sql
+CREATE TABLE t (c VARCHAR(10) CHARACTER SET utf8);
+```
+
+Even though the MySQL 8.0 server default is `utf8mb4`, the **literal name**
+`utf8` in DDL is an alias for `utf8mb3`. The parser resolves it that way and
+the resulting column is `utf8mb3 / utf8mb3_general_ci` (or whatever the
+session's default collation for utf8mb3 is).
+
+Additionally, `SHOW CREATE TABLE` in 8.0.30+ normalises the stored clause back
+to `utf8mb3` — the `utf8` spelling is **not** preserved on round-trip. omni's
+catalog must normalise ingested `utf8` to `utf8mb3` so that a subsequent
+deparse matches MySQL.
+
+**Oracle verification:**
+```sql
+SELECT CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
+WHERE TABLE_NAME='t' AND COLUMN_NAME='c';
+SHOW CREATE TABLE t;
+```
+Expected: `CHARACTER_SET_NAME='utf8mb3'`, `COLLATION_NAME='utf8mb3_general_ci'`.
+`SHOW CREATE TABLE` prints `utf8mb3`, never `utf8`.
+
+**omni assertion:** after ingestion, `col.Charset == "utf8mb3"` (not `utf8`);
+deparse emits `utf8mb3`. Also applies to table-level and database-level
+charset declarations.
+
+**Source anchor:** refman
+charset-collation-implementations.html; `mysys/charset.cc` aliases;
+`sql/mysqld.cc:10208` national_charset_info = `my_charset_utf8mb3_general_ci`
+(proves utf8 = utf8mb3 internally).
+
+**See catalog:** C4 (new subsection).
+
+---
+
+### 4.9 `NATIONAL CHAR` / `NCHAR` is hard-wired to `utf8mb3` (deprecated in 8.0)
+
+**Priority:** MEDIUM
+**Status:** new (Wave 2)
+
+**Setup:**
+```sql
+CREATE TABLE t (
+  a NCHAR(10),
+  b NATIONAL CHARACTER(10),
+  c NATIONAL VARCHAR(10),
+  d NCHAR VARYING(10)
+);
+```
+
+These column forms ignore the table/server default and use
+`national_charset_info`, which `sql/mysqld.cc:10208` hard-codes to
+`&my_charset_utf8mb3_general_ci`. This is SQL-2003 legacy behaviour: NATIONAL
+means "the server's designated Unicode charset", and MySQL still uses
+utf8mb3 for that slot. Because utf8mb3 is deprecated, MySQL 8.0 issues
+`ER_DEPRECATED_NATIONAL` (sql_yacc.yy:489) and the documentation recommends
+switching to explicit `CHARACTER SET utf8mb4`.
+
+**Oracle verification:**
+```sql
+SELECT COLUMN_NAME, CHARACTER_SET_NAME, COLLATION_NAME
+FROM information_schema.COLUMNS WHERE TABLE_NAME='t';
+SHOW CREATE TABLE t;
+```
+Expected: all four columns `CHARACTER_SET_NAME='utf8mb3'`,
+`COLLATION_NAME='utf8mb3_general_ci'`. `SHOW CREATE TABLE` rewrites every form
+to the same canonical shape (typically `char(10) CHARACTER SET utf8mb3` /
+`varchar(10) CHARACTER SET utf8mb3`), the NATIONAL / NCHAR keyword is **not**
+preserved.
+
+**omni assertion:** parser accepts all four forms, resolves each to
+`utf8mb3 / utf8mb3_general_ci`, and deparse emits the canonical
+`CHARACTER SET utf8mb3` shape (matches MySQL round-trip). Ingesting the
+deparser output and re-deparsing yields an identical string.
+
+**Source anchor:** `sql/sql_yacc.yy:7113-7144` (`national_charset_info` used for
+NCHAR/NATIONAL productions); `sql/sql_yacc.yy:487-492`
+`warn_about_deprecated_national`; `sql/mysqld.cc:10208`.
+
+**See catalog:** C4 (new subsection), C17.
+
+---
+
+### 4.10 `ENUM` / `SET` charset inheritance follows the same column rule
+
+**Priority:** HIGH
+**Status:** new (Wave 2)
+
+**Setup:**
+```sql
+CREATE TABLE t (
+  a ENUM('x','y'),
+  b ENUM('x','y') CHARACTER SET latin1,
+  c SET('p','q') COLLATE utf8mb4_unicode_ci
+) DEFAULT CHARSET=utf8mb4;
+```
+
+ENUM and SET are string columns, so they go through `get_sql_field_charset`
+exactly like CHAR/VARCHAR. The critical side effect is that MySQL **converts
+the enum literals** from the client charset to the column charset during
+`prepare_create_field` (sql_table.cc:4567-4591,
+`constant_default->safe_charset_converter`). After creation, the stored
+definition lists the literals in the column charset's encoding, which is what
+`information_schema.COLUMNS.COLUMN_TYPE` reflects.
+
+**Oracle verification:**
+```sql
+SELECT COLUMN_NAME, COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME
+FROM information_schema.COLUMNS WHERE TABLE_NAME='t';
+SHOW CREATE TABLE t;
+```
+Expected:
+- `a` → charset utf8mb4 (table default), `COLUMN_TYPE="enum('x','y')"`.
+- `b` → charset latin1, default collation latin1_swedish_ci.
+- `c` → charset utf8mb4 (derived from COLLATE, see 4.3),
+  collation utf8mb4_unicode_ci.
+
+**omni assertion:** enum/set elements stored on the column carry the resolved
+charset; catalog reports charset on ENUM/SET columns identically to
+VARCHAR; deparse round-trips values without mojibake.
+
+**Source anchor:** `sql/sql_table.cc:4593-4596` (`prepare_set_field`,
+`prepare_enum_field`) which use `sql_field->charset` set two lines earlier.
+
+**See catalog:** C4 (new subsection).
+
+---
+
+### 4.11 Index prefix length is measured in **bytes**, so charset change multiplies it
+
+**Priority:** HIGH
+**Status:** new (Wave 2)
+
+**Setup:**
+```sql
+CREATE TABLE t1 (c VARCHAR(10) CHARACTER SET latin1, KEY k (c(10)));
+CREATE TABLE t2 (c VARCHAR(10) CHARACTER SET utf8mb4, KEY k (c(10)));
+CREATE TABLE t3 (c VARCHAR(200) CHARACTER SET utf8mb4, KEY k (c(768)));
+```
+
+The `c(N)` prefix length is **characters** in the DDL but is stored and
+reported in **bytes internally**. MySQL multiplies by
+`charset->mbmaxlen` (sql_table.cc:5022:
+`column->get_prefix_length() * sql_field->charset->mbmaxlen`), so:
+- t1 `c(10)` → 10 × 1 = 10 bytes on disk.
+- t2 `c(10)` → 10 × 4 = 40 bytes on disk.
+- t3 `c(768)` → 768 × 4 = 3072 bytes, **exceeds** InnoDB's default 3072-byte
+  per-column key limit → rejected with `ER_TOO_LONG_KEY` unless the caller
+  has `innodb_large_prefix` / DYNAMIC row format.
+
+Additionally, when a key part length is rounded, the rounding is done on byte
+boundaries: `key_part_length -= key_part_length % sql_field->charset->mbmaxlen`
+(sql_table.cc:5183, 5241), ensuring the stored length is a multiple of
+`mbmaxlen`.
+
+**Oracle verification:**
+```sql
+SELECT INDEX_NAME, COLUMN_NAME, SUB_PART
+FROM information_schema.STATISTICS
+WHERE TABLE_NAME IN ('t1','t2');
+SHOW CREATE TABLE t1; SHOW CREATE TABLE t2;
+```
+Expected: `SUB_PART` reported as 10 for both in characters; but
+`innodb_sys_indexes` / internal max length differs by 4×. The t3 CREATE fails
+with error 1071 "Specified key was too long".
+
+**omni assertion:** index prefix validation uses the resolved column charset's
+mbmaxlen; omni must reject the t3 form with the same error. Deparse preserves
+the user-written prefix length in characters (not bytes).
+
+**Source anchor:** `sql/sql_table.cc:5022` (prefix × mbmaxlen), 5183, 5241
+(rounding).
+
+**See catalog:** C4 (new subsection), cross-link to C6/C16 (index
+defaults).
+
+---
+
+### 4.12 Expression collation negotiation: column COLLATE vs `COLLATE` expression vs literal introducer
+
+**Priority:** MEDIUM
+**Status:** new (Wave 2)
+
+**Setup:**
+```sql
+CREATE TABLE t (c VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci);
+-- query time:
+SELECT c = 'abc' FROM t;                              -- implicit vs coercible
+SELECT c = _utf8mb4'abc' COLLATE utf8mb4_bin FROM t;  -- coercible vs explicit
+SELECT c COLLATE utf8mb4_bin = _latin1'abc' FROM t;   -- explicit vs coercible
+SELECT CAST('abc' AS CHAR CHARACTER SET latin1) = c FROM t; -- explicit vs implicit
+```
+
+MySQL's `DTCollation` class (sql/item.h:160-241) classifies every expression
+with a derivation level:
+
+| Level                 | Value | Source                                       |
+|-----------------------|-------|----------------------------------------------|
+| DERIVATION_EXPLICIT   | 0     | `COLLATE x` clause in the expression         |
+| DERIVATION_NONE       | 1     | result of failed aggregation                 |
+| DERIVATION_SYSCONST   | 2     | system constants (USER(), VERSION())         |
+| DERIVATION_IMPLICIT   | 3     | column reference                             |
+| DERIVATION_COERCIBLE  | 4     | string literal                               |
+| DERIVATION_NUMERIC    | 5     | numeric / binary                             |
+
+When aggregating two operands (`agg_item_charsets_for_string_result`), the
+one with the **lower (stronger)** derivation wins. If both are EXPLICIT and
+their collations differ → `ER_CANT_AGGREGATE_2COLLATIONS`. Column vs literal:
+column wins (IMPLICIT < COERCIBLE). Two columns with different collations:
+error unless one is EXPLICIT. Literal introducers (`_utf8mb4'abc'`) do **not**
+raise derivation — the literal stays COERCIBLE; to force it, add a
+`COLLATE` clause, which raises it to EXPLICIT.
+
+**Oracle verification:** each query above executes with the documented
+outcome:
+- `c = 'abc'` uses the column's collation (implicit wins over coercible).
+- `c = _utf8mb4'abc' COLLATE utf8mb4_bin` uses utf8mb4_bin (explicit wins).
+- `c COLLATE utf8mb4_bin = _latin1'abc'` coerces latin1 to utf8mb4_bin
+  (explicit wins; cross-charset conversion allowed because derivation differs).
+- `CAST('abc' AS CHAR CHARACTER SET latin1) = c` → `ER_CANT_AGGREGATE_2COLLATIONS`
+  because CAST produces an implicit latin1 vs implicit utf8mb4 column, and
+  neither is explicit.
+
+**omni assertion:** omni's expression-type resolver must track derivation on
+every string-producing node (column ref, literal, CAST, COLLATE) and replay
+the same aggregation outcome. In particular, the catalog must **not** reject
+cross-charset comparisons that MySQL allows, and must reject the ones MySQL
+rejects — both are needed for correct CHECK-constraint / generated-column
+validation and for SDL-diff stability on computed-column definitions.
+
+**Source anchor:** `sql/item.h:160-241` DTCollation class and derivation enum;
+`sql/item.cc` `DTCollation::aggregate`; refman charset-collation-coercibility.html.
+
+**See catalog:** C4 (new subsection); cross-link to C18 (generated columns).
 
 ---
 
@@ -1287,6 +2011,144 @@ Expected: an index on `(a)` named `c_ibfk_1` (implicit, uses FK name).
 **omni assertion:** `c` has an index on column `a`; name matches FK constraint name.
 
 **See catalog:** C7.2.
+
+---
+
+### 7.3 BTREE is the default algorithm for InnoDB (HASH requires explicit USING)
+**Priority:** MED
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-index.html, https://dev.mysql.com/doc/refman/8.0/en/innodb-index-types.html
+**Source:** `sql/sql_table.cc:7341` — `key_info->is_algorithm_explicit = false` is the default; line 7358-7393 — when `is_algorithm_explicit` is false the server assigns `file->get_default_index_algorithm()`, which for InnoDB returns `HA_KEY_ALG_BTREE`. If the user wrote nothing, `key->key_create_info.algorithm == HA_KEY_ALG_SE_SPECIFIC` (asserted line 7392). HASH on InnoDB/MyISAM is silently coerced to BTREE (`ER_UNSUPPORTED_INDEX_ALGORITHM` warning, line 7377-7381).
+**Rule:**
+```sql
+CREATE TABLE t (a INT, KEY (a) USING HASH) ENGINE=InnoDB;
+```
+InnoDB does not support HASH secondary indexes; the engine coerces to BTREE and emits `Note 3502: The storage engine for the table doesn't support HASH`. `SHOW CREATE TABLE` shows `KEY a (a)` with no `USING` clause — the explicit-flag is discarded.
+**Oracle verification:** `SELECT INDEX_TYPE FROM information_schema.STATISTICS WHERE TABLE_NAME='t'` returns `BTREE`; `SHOW WARNINGS` shows note 3502.
+**omni assertion:** parsing `USING HASH` on InnoDB should leave the catalog index with `IndexType="BTREE"` (post-engine-normalization) and record a warning; currently omni keeps the user string verbatim.
+**omni pointer:** `mysql/catalog/indexcmds.go:62` stores `stmt.IndexType` raw. Needs engine-aware normalization hook.
+
+---
+
+### 7.4 USING BTREE explicit vs implicit differs in SHOW CREATE output
+**Priority:** MED
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-index.html
+**Source:** `sql/sql_table.cc:7341,7367` — `is_algorithm_explicit` is a first-class bit on `KEY_INFO`. `sql/sql_show.cc` (store_create_info) emits `USING BTREE` only when `key_info->is_algorithm_explicit` is true. `sql/sql_table.cc:12340` — ALTER path diffs this flag and triggers `CHANGE_INDEX_OPTION` even with no physical change.
+**Rule:**
+```sql
+CREATE TABLE t1 (a INT, KEY (a));              -- SHOW CREATE: KEY `a` (`a`)
+CREATE TABLE t2 (a INT, KEY (a) USING BTREE);  -- SHOW CREATE: KEY `a` (`a`) USING BTREE
+```
+Both index the same way; only the rendering differs. Round-trip deparsing must preserve the explicit-flag to stay byte-identical with the oracle.
+**Oracle verification:** `SHOW CREATE TABLE t1\G` vs `SHOW CREATE TABLE t2\G` — compare the `KEY` line.
+**omni assertion:** catalog needs a `IndexTypeExplicit bool` companion field (or nil vs `"BTREE"` distinction). Deparser must only print `USING BTREE` when explicit.
+**omni pointer:** `mysql/catalog/indexcmds.go:62` — currently conflates default and explicit BTREE. Deparser in `mysql/deparse/` drops or emits unconditionally — verify.
+
+---
+
+### 7.5 UNIQUE index on a nullable column permits multiple NULLs
+**Priority:** HIGH
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-index.html (“A UNIQUE index permits multiple NULL values for columns that can contain NULL.”)
+**Source:** `sql/sql_table.cc:5134-5143` — when a key part’s column is nullable, the server sets `HA_NULL_PART_KEY` on `key_info->flags`. The UNIQUE uniqueness check in InnoDB (`storage/innobase/row/row0ins.cc`) short-circuits on NULL key parts, treating each NULL tuple as distinct. Contrast with PRIMARY KEY path (5130-5137) which forcibly sets `NOT_NULL_FLAG` and decrements `null_bits`.
+**Rule:**
+```sql
+CREATE TABLE t (a INT, UNIQUE KEY (a));
+INSERT INTO t VALUES (NULL), (NULL), (NULL);   -- all succeed
+INSERT INTO t VALUES (1), (1);                 -- second fails: duplicate key
+```
+**Oracle verification:** both inserts succeed; `SELECT COUNT(*) FROM t` returns 3 after the NULL inserts; second `(1)` insert returns `ER_DUP_ENTRY 1062`.
+**omni assertion:** catalog must retain column nullability after UNIQUE index creation (no forced NOT NULL, unlike PK). Advisor/diff should not treat UNIQUE as implying NOT NULL.
+**omni pointer:** `mysql/catalog/tablecmds.go` PK path promotes to NOT NULL; verify UNIQUE path does NOT.
+
+---
+
+### 7.6 Indexes default to VISIBLE; INVISIBLE must be explicit (and PK cannot be invisible)
+**Priority:** MED
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/invisible-indexes.html
+**Source:** `sql/sql_table.cc:7342` — `key_info->is_visible = key->key_create_info.is_visible` where the parser default for `KEY_CREATE_INFO` is `is_visible=true`. Lines 7473-7474 — `if (!k->is_visible) my_error(ER_PK_INDEX_CANT_BE_INVISIBLE)`; line 15153 — ALTER INDEX VISIBLE/INVISIBLE repeats the same PK guard. Column hidden-ness (`HT_VISIBLE`, line 8357) is a separate DD concept from index visibility.
+**Rule:**
+```sql
+CREATE TABLE t (a INT, KEY ix (a));                 -- VISIBLE (default)
+CREATE TABLE t (a INT, KEY ix (a) INVISIBLE);       -- invisible, optimizer ignores
+CREATE TABLE t (a INT, PRIMARY KEY (a) INVISIBLE);  -- ER_PK_INDEX_CANT_BE_INVISIBLE 3522
+```
+**Oracle verification:** `SELECT IS_VISIBLE FROM information_schema.STATISTICS WHERE INDEX_NAME='ix'` returns `YES`/`NO`.
+**omni assertion:** `idx.Visible` defaults to true; parser must record the explicit `INVISIBLE` keyword; PK with INVISIBLE must be rejected at analyze time.
+**omni pointer:** `mysql/catalog/indexcmds.go:51` sets `Visible: true`. Verify PRIMARY KEY path errors when INVISIBLE is present.
+
+---
+
+### 7.7 BLOB/TEXT columns require an explicit prefix length in an index
+**Priority:** HIGH
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-index.html (Column Prefix Key Parts), https://dev.mysql.com/doc/refman/8.0/en/innodb-limits.html
+**Source:** `sql/sql_table.cc:5076-5082` — `if (is_blob(sql_field->sql_type)) { if (!column_length) { my_error(ER_BLOB_KEY_WITHOUT_LENGTH); return true; } }`. Line 5157-5194 — the prefix length is clamped to the engine max key part length (InnoDB: 767 bytes for COMPACT/REDUNDANT, 3072 bytes for DYNAMIC/COMPRESSED — row-format dependent). FULLTEXT indexes (line 5151 branch) are exempt: the whole column is tokenized.
+**Rule:**
+```sql
+CREATE TABLE t (a TEXT, KEY (a));             -- ER_BLOB_KEY_WITHOUT_LENGTH 1170
+CREATE TABLE t (a TEXT, KEY (a(100)));         -- OK
+CREATE TABLE t (a TEXT, FULLTEXT KEY (a));     -- OK, no prefix required
+```
+**Oracle verification:** first form returns 1170; second yields `SUB_PART=100` in `information_schema.STATISTICS`; third yields `INDEX_TYPE=FULLTEXT` and `SUB_PART=NULL`.
+**omni assertion:** analyze-time error on non-FULLTEXT BLOB/TEXT index without length; carry `SubPart` into catalog.
+**omni pointer:** check `mysql/catalog/indexcmds.go` key-part handling for prefix length propagation.
+
+---
+
+### 7.8 FULLTEXT index uses the built-in parser when WITH PARSER is omitted
+**Priority:** MED
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/innodb-fulltext-index.html, https://dev.mysql.com/doc/refman/8.0/en/fulltext-natural-language.html
+**Source:** `sql/sql_table.cc:7307-7308` — `if (key->key_create_info.parser_name.str) key_info->parser_name = key->key_create_info.parser_name;` — only set when the user wrote `WITH PARSER`. Otherwise `key_info->parser_name` is `{nullptr, 0}` and InnoDB falls back to its built-in whitespace/stopword parser (not ngram; ngram must be explicit `WITH PARSER ngram`). Line 15136 — SHOW CREATE re-emits `WITH PARSER <name>` only when `key_info->parser` is non-null.
+**Rule:**
+```sql
+CREATE TABLE t (a TEXT, FULLTEXT KEY (a));                     -- default parser
+CREATE TABLE t (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram);   -- ngram explicit
+```
+`SHOW CREATE TABLE` for the first form does **not** emit any `WITH PARSER` clause.
+**Oracle verification:** compare `SHOW CREATE TABLE` outputs; query `information_schema.INNODB_FT_INDEX_TABLE` after inserting multi-byte text to confirm tokenization differs.
+**omni assertion:** catalog `ParserName` is nil (not `"default"`) when omitted; deparser suppresses the clause in that case.
+**omni pointer:** `mysql/catalog/indexcmds.go` should parse optional `WITH PARSER` and leave unset when absent.
+
+---
+
+### 7.9 SPATIAL index requires all key columns to be NOT NULL
+**Priority:** HIGH
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/creating-spatial-indexes.html, https://dev.mysql.com/doc/refman/8.0/en/create-index.html
+**Source:** `sql/sql_table.cc:5144-5147` — `if (key->type == KEYTYPE_SPATIAL || sql_field->sql_type == MYSQL_TYPE_GEOMETRY) my_error(ER_SPATIAL_CANT_HAVE_NULL)`. Lines 4998-5007 — an explicit `USING BTREE/HASH` on a SPATIAL key raises `ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX`; line 7352-7354 — the algorithm is force-set to `HA_KEY_ALG_RTREE` and `is_algorithm_explicit` must be false. Related: SRID on the column is required for the optimizer to use the spatial index (not an error, but a usability rule).
+**Rule:**
+```sql
+CREATE TABLE t (g GEOMETRY NOT NULL SRID 4326, SPATIAL KEY (g));  -- OK
+CREATE TABLE t (g GEOMETRY, SPATIAL KEY (g));                     -- ER_SPATIAL_CANT_HAVE_NULL 1252
+CREATE TABLE t (g GEOMETRY NOT NULL, SPATIAL KEY (g) USING BTREE);-- ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX 3500
+```
+**Oracle verification:** error codes 1252 and 3500 respectively.
+**omni assertion:** analyze-time checks for (a) non-null geometry columns under SPATIAL, (b) rejection of `USING BTREE|HASH` on SPATIAL.
+**omni pointer:** `mysql/catalog/indexcmds.go:58` sets `idx.Spatial=true` and `IndexType="SPATIAL"` but does not validate column nullability or algorithm conflicts.
+
+---
+
+### 7.10 PRIMARY KEY and UNIQUE KEY on the same columns both persist
+**Priority:** MED
+**Status:** pending
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/create-table.html (Keys section), https://dev.mysql.com/doc/refman/8.0/en/create-index.html
+**Source:** `sql/sql_table.cc` — key-list processing in `mysql_prepare_create_table` enumerates each `Key_spec` in `alter_info->key_list` and appends a `KEY_INFO` per spec; there is no dedup step that collapses a UNIQUE onto an existing PRIMARY (only the opposite is forbidden — a second PRIMARY raises `ER_MULTIPLE_PRI_KEY`). The two indexes share tuple storage under InnoDB clustering rules but appear as distinct rows in `information_schema.STATISTICS`.
+**Rule:**
+```sql
+CREATE TABLE t (a INT NOT NULL, PRIMARY KEY (a), UNIQUE KEY uk (a));
+```
+`SHOW CREATE TABLE` preserves both:
+```
+PRIMARY KEY (`a`),
+UNIQUE KEY `uk` (`a`)
+```
+**Oracle verification:** `SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_NAME='t'` returns two rows: `PRIMARY` and `uk`.
+**omni assertion:** catalog keeps both indexes distinct; diff engine must not merge/drop the redundant UNIQUE as a “same-columns” dedup.
+**omni pointer:** verify `mysql/catalog/tablecmds.go` appends both keys and diff code does not collapse.
 
 ---
 
@@ -1787,6 +2649,17 @@ push_deprecated_warn(YYTHD, "YEAR(4)", "YEAR");
 
 ## Section C18: SHOW CREATE TABLE elision rules
 
+> **Expansion note (Wave 2):** grew from 6 to 15 scenarios via systematic
+> walk of `sql/sql_show.cc::store_create_info` (approx L1800-2600),
+> `sql/sql_show.cc::store_key_options` (approx L2620-2680), and the
+> `HA_CREATE_USED_*` flag table in `sql/handler.h` (L710-805). Every
+> `if (create_info_arg->used_fields & HA_CREATE_USED_*)` gate and every
+> `if (share->...)` renderer in that function is a potential elision
+> rule; each one where MySQL hides a technically-present value is
+> lifted to a scenario below. This section is the deparse contract —
+> omni's `mysql/catalog/show.go` must match byte-for-byte on every
+> elision rule documented here or SDL round-trip breaks.
+
 ### 18.1 Column charset elided when equal to table default
 
 **Setup:**
@@ -1800,6 +2673,8 @@ CREATE TABLE t (a VARCHAR(10), b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8m
 - `b` — `CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci` (explicit, non-primary)
 
 **omni assertion:** deparse output matches the above structure — column-level charset appears only when it differs from table charset or is marked explicit.
+
+**Priority:** HIGH  **Status:** verified
 
 **See catalog:** C18.1 (`sql/sql_show.cc:2086-2108`).
 
@@ -1829,6 +2704,8 @@ Expected:
 
 **omni assertion:** deparse produces the same 4 column defs.
 
+**Priority:** HIGH  **Status:** verified
+
 **See catalog:** C18.2.
 
 ---
@@ -1844,6 +2721,8 @@ CREATE TABLE t (a INT);
 
 **omni assertion:** deparse emits `ENGINE=InnoDB`.
 
+**Priority:** HIGH  **Status:** pending
+
 **See catalog:** C18.3 (in practice always rendered for 8.0.45).
 
 ---
@@ -1858,6 +2737,8 @@ CREATE TABLE t (id INT AUTO_INCREMENT PRIMARY KEY);
 **Oracle verification:** `SHOW CREATE TABLE t` does NOT contain `AUTO_INCREMENT=`.
 
 **omni assertion:** deparse output contains no `AUTO_INCREMENT=` clause.
+
+**Priority:** HIGH  **Status:** verified
 
 **See catalog:** C18.4.
 
@@ -1875,6 +2756,8 @@ CREATE TABLE tnocs (x INT);
 
 **omni assertion:** deparse emits both `DEFAULT CHARSET=utf8mb4` and `COLLATE=utf8mb4_0900_ai_ci`.
 
+**Priority:** HIGH  **Status:** verified
+
 **See catalog:** C18.5 (spot-check 2026-04-13 overrides the "elided" reading — omni must ALWAYS render).
 
 ---
@@ -1891,7 +2774,255 @@ CREATE TABLE t2 (a INT) ROW_FORMAT=DYNAMIC;  -- explicit
 
 **omni assertion:** deparse emits `ROW_FORMAT=` only if `tbl.RowFormatExplicit == true`.
 
+**Priority:** HIGH  **Status:** pending
+
 **See catalog:** C18.6.
+
+---
+
+### 18.7 Table-level COLLATE clause rendered only when non-primary or utf8mb4_0900_ai_ci
+
+**Setup:**
+```sql
+-- Primary collation for latin1 is latin1_swedish_ci.
+CREATE TABLE t_prim   (x INT) CHARACTER SET latin1;
+-- Non-primary collation for latin1.
+CREATE TABLE t_nonprim (x INT) CHARACTER SET latin1 COLLATE latin1_bin;
+-- utf8mb4_0900_ai_ci is "primary-ish" but always rendered (special-cased).
+CREATE TABLE t_0900    (x INT) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t_prim;     -- contains DEFAULT CHARSET=latin1; NO COLLATE= clause
+SHOW CREATE TABLE t_nonprim;  -- contains DEFAULT CHARSET=latin1 COLLATE=latin1_bin
+SHOW CREATE TABLE t_0900;     -- contains DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci (special-case)
+```
+
+Expected substrings:
+- `t_prim`: contains `DEFAULT CHARSET=latin1`; does NOT contain `COLLATE=`.
+- `t_nonprim`: contains `COLLATE=latin1_bin`.
+- `t_0900`: contains `COLLATE=utf8mb4_0900_ai_ci`.
+
+**omni assertion:** deparse emits `COLLATE=` after `DEFAULT CHARSET=` iff the collation is non-primary for the charset OR equals `utf8mb4_0900_ai_ci`. Source: `sql_show.cc:2450-2456`.
+
+**Priority:** HIGH  **Status:** pending
+
+**See catalog:** C18.7 (`sql/sql_show.cc:2450-2456`).
+
+---
+
+### 18.8 Table-level KEY_BLOCK_SIZE elided unless explicitly set
+
+**Setup:**
+```sql
+CREATE TABLE t_nokbs  (a INT);
+CREATE TABLE t_kbs    (a INT) KEY_BLOCK_SIZE=4;
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t_nokbs;  -- does NOT contain KEY_BLOCK_SIZE=
+SHOW CREATE TABLE t_kbs;    -- contains KEY_BLOCK_SIZE=4
+```
+
+**omni assertion:** deparse emits `KEY_BLOCK_SIZE=N` only when `share->key_block_size != 0`. Source: `sql_show.cc:2516-2520` (renders iff `table->s->key_block_size` truthy; unset = 0 = elided).
+
+**Priority:** HIGH  **Status:** pending
+
+**See catalog:** C18.8 (`sql/sql_show.cc:2516-2520`; `HA_CREATE_USED_KEY_BLOCK_SIZE`).
+
+---
+
+### 18.9 COMPRESSION clause elided unless explicitly set
+
+**Setup:**
+```sql
+CREATE TABLE t_nocomp (a INT);
+CREATE TABLE t_comp   (a INT) COMPRESSION='ZLIB';
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t_nocomp;  -- does NOT contain COMPRESSION=
+SHOW CREATE TABLE t_comp;    -- contains COMPRESSION='ZLIB'
+```
+
+**omni assertion:** deparse emits `COMPRESSION='...'` only when `share->compress.length > 0`. Omni must elide it even though InnoDB's effective default is "no compression" (storage default; not shown). Source: `sql_show.cc:2522-2525`.
+
+**Priority:** HIGH  **Status:** pending
+
+**See catalog:** C18.9 (`sql/sql_show.cc:2522-2525`; `HA_CREATE_USED_COMPRESS`).
+
+---
+
+### 18.10 STATS_PERSISTENT / STATS_AUTO_RECALC / STATS_SAMPLE_PAGES elision
+
+**Setup:**
+```sql
+CREATE TABLE t_nostats (a INT);
+CREATE TABLE t_stats   (a INT)
+  STATS_PERSISTENT=1
+  STATS_AUTO_RECALC=0
+  STATS_SAMPLE_PAGES=32;
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t_nostats;
+-- Must NOT contain STATS_PERSISTENT=, STATS_AUTO_RECALC=, or STATS_SAMPLE_PAGES=.
+SHOW CREATE TABLE t_stats;
+-- Must contain STATS_PERSISTENT=1, STATS_AUTO_RECALC=0, STATS_SAMPLE_PAGES=32.
+```
+
+**omni assertion:** deparse emits each of these three clauses only when the corresponding field has a non-default value:
+- `STATS_PERSISTENT=1` iff `HA_OPTION_STATS_PERSISTENT` set; `=0` iff `HA_OPTION_NO_STATS_PERSISTENT` set; otherwise elided (DEFAULT).
+- `STATS_AUTO_RECALC=1|0` iff `share->stats_auto_recalc` is ON/OFF; elided when DEFAULT.
+- `STATS_SAMPLE_PAGES=N` iff `share->stats_sample_pages != 0`.
+
+Source: `sql_show.cc:2481-2497`.
+
+**Priority:** HIGH  **Status:** pending
+
+**See catalog:** C18.10 (`sql/sql_show.cc:2481-2497`; `HA_CREATE_USED_STATS_PERSISTENT` / `_STATS_AUTO_RECALC` / `_STATS_SAMPLE_PAGES`).
+
+---
+
+### 18.11 AVG_ROW_LENGTH / MAX_ROWS / MIN_ROWS elided when zero
+
+**Setup:**
+```sql
+CREATE TABLE t_nominmax (a INT);
+CREATE TABLE t_minmax   (a INT) MIN_ROWS=10 MAX_ROWS=1000 AVG_ROW_LENGTH=256;
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t_nominmax;
+-- Must NOT contain MIN_ROWS=, MAX_ROWS=, or AVG_ROW_LENGTH=.
+SHOW CREATE TABLE t_minmax;
+-- Must contain MIN_ROWS=10, MAX_ROWS=1000, AVG_ROW_LENGTH=256.
+```
+
+**omni assertion:** deparse emits each clause only when the `share->min_rows` / `share->max_rows` / `share->avg_row_length` field is truthy (non-zero). Source: `sql_show.cc:2461-2479`.
+
+**Priority:** HIGH  **Status:** pending
+
+**See catalog:** C18.11 (`sql/sql_show.cc:2461-2479`; `HA_CREATE_USED_MIN_ROWS` / `_MAX_ROWS` / `_AVG_ROW_LENGTH`).
+
+---
+
+### 18.12 TABLESPACE clause elision rules
+
+**Setup:**
+```sql
+CREATE TABLE t_default (a INT);  -- no explicit tablespace
+CREATE TABLE t_gts     (a INT) TABLESPACE=innodb_system;
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t_default;  -- does NOT contain TABLESPACE=
+SHOW CREATE TABLE t_gts;      -- contains /*!50100 TABLESPACE `innodb_system` */
+```
+
+**omni assertion:** deparse emits a `TABLESPACE=` clause only when `HA_CREATE_USED_TABLESPACE` was set at create time — i.e. when the table was explicitly attached to a named (non-implicit) tablespace. The implicit per-file tablespace InnoDB creates for every file-per-table is NEVER rendered. Wrapped in `/*!50100 ... */` versioned comment on output.
+
+**Priority:** HIGH  **Status:** pending
+
+**See catalog:** C18.12 (`sql/sql_show.cc` tablespace path via `handler::append_create_info`; `HA_CREATE_USED_TABLESPACE`).
+
+---
+
+### 18.13 PACK_KEYS / CHECKSUM / DELAY_KEY_WRITE elision
+
+**Setup:**
+```sql
+CREATE TABLE t_none (a INT);
+CREATE TABLE t_opts (a INT) PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1;
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t_none;
+-- Must NOT contain PACK_KEYS=, CHECKSUM=, or DELAY_KEY_WRITE=.
+SHOW CREATE TABLE t_opts;
+-- Must contain PACK_KEYS=1, CHECKSUM=1, DELAY_KEY_WRITE=1.
+-- (InnoDB may reject or normalize some values; the elision contract is
+--  what matters: none of these is ever shown unless the caller asked for it.)
+```
+
+**omni assertion:** deparse emits each clause only when the corresponding `HA_OPTION_*` bit is set on `share->db_create_options`:
+- `PACK_KEYS=1` iff `HA_OPTION_PACK_KEYS`; `=0` iff `HA_OPTION_NO_PACK_KEYS`; else elided.
+- `CHECKSUM=1` iff `HA_OPTION_CHECKSUM`.
+- `DELAY_KEY_WRITE=1` iff `HA_OPTION_DELAY_KEY_WRITE`.
+
+Source: `sql_show.cc:2481-2504`.
+
+**Priority:** HIGH  **Status:** pending
+
+**See catalog:** C18.13 (`sql/sql_show.cc:2481-2504`; `HA_CREATE_USED_PACK_KEYS` / `_CHECKSUM` / `_DELAY_KEY_WRITE`).
+
+---
+
+### 18.14 Per-index COMMENT and KEY_BLOCK_SIZE rendering inside index clauses
+
+**Setup:**
+```sql
+CREATE TABLE t (
+    id INT PRIMARY KEY,
+    a  INT,
+    b  INT,
+    KEY ix_plain (a),
+    KEY ix_cmt   (b) COMMENT 'hello'
+) KEY_BLOCK_SIZE=4;
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t;
+```
+Expected substrings:
+- `KEY \`ix_plain\` (\`a\`)` — no `COMMENT`, no per-index `KEY_BLOCK_SIZE`.
+- `KEY \`ix_cmt\` (\`b\`) COMMENT 'hello'` — per-index COMMENT appears iff `HA_USES_COMMENT` and length > 0.
+- Table-level `KEY_BLOCK_SIZE=4` present; neither index prints its own `KEY_BLOCK_SIZE` (both inherit the table-level value — per-index KBS only renders when it DIFFERS from table-level).
+
+**omni assertion:** deparse emits per-index `COMMENT '...'` iff the index has a non-empty comment, and per-index `KEY_BLOCK_SIZE=N` iff `key_info->block_size != table->s->key_block_size`. Source: `sql_show.cc:2646-2665` (`store_key_options`).
+
+**Priority:** HIGH  **Status:** pending
+
+**See catalog:** C18.14 (`sql/sql_show.cc:2646-2665`).
+
+---
+
+### 18.15 USING BTREE/HASH clause rendered only when algorithm explicit
+
+**Setup:**
+```sql
+CREATE TABLE t (
+    id INT,
+    a  INT,
+    b  INT,
+    KEY ix_default (a),
+    KEY ix_btree   (a) USING BTREE,
+    KEY ix_hash    (b) USING HASH
+) ENGINE=InnoDB;
+```
+
+**Oracle verification:**
+```sql
+SHOW CREATE TABLE t;
+```
+Expected substrings:
+- `KEY \`ix_default\` (\`a\`)` — no `USING` clause (InnoDB silently stores BTREE, but MySQL elides the USING because the user didn't specify it).
+- `KEY \`ix_btree\` (\`a\`) USING BTREE` — explicit flag preserved and rendered.
+- InnoDB rewrites `USING HASH` to `USING BTREE` under the hood; the rendered form depends on what `key_info->algorithm` holds after the handler fixes up HASH → BTREE. Test asserts only that when `is_algorithm_explicit == true`, a `USING ...` clause appears (and does not appear when it is false).
+
+**omni assertion:** deparse emits `USING BTREE|HASH|RTREE` after index-key-list only when the index was created with an explicit algorithm flag (omni must track an `AlgorithmExplicit` bit on index metadata). Default (implicit) indexes must NEVER produce `USING`. Source: `sql_show.cc:2624-2642` (`if (key_info->is_algorithm_explicit)`).
+
+**Priority:** HIGH  **Status:** pending
+
+**See catalog:** C18.15 (`sql/sql_show.cc:2624-2642`).
 
 ---
 
@@ -2404,6 +3535,13 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 1.4 | CHECK constraint auto-name | verified | MED | `C1_3_CheckConstraintName` |
 | 1.5 | UNIQUE KEY field-name | pending | LOW | trivial |
 | 1.6 | UNIQUE KEY name collision _2 | pending | LOW | |
+| 1.7 | PRIMARY KEY name forced "PRIMARY" | pending-verify | HIGH | Wave 2 C1 worker |
+| 1.8 | Non-PK index cannot be named PRIMARY | pending-verify | MED | Wave 2 C1 worker |
+| 1.9 | Implicit index name from first column | pending-verify | HIGH | Wave 2 C1 worker |
+| 1.10 | UNIQUE fallback when column literally "PRIMARY" | pending-verify | LOW | Wave 2 C1 worker |
+| 1.11 | Functional index auto-name collision suffix | pending-verify | MED | Wave 2 C1 worker |
+| 1.12 | Functional index hidden column name format | pending-verify | MED | Wave 2 C1 worker |
+| 1.13 | CHECK constraint name is schema-scoped | pending-verify | HIGH | Wave 2 C1 worker |
 | 2.1 | REAL → DOUBLE | verified | LOW | `C2_1_REAL_to_DOUBLE` |
 | 2.2 | BOOL → TINYINT(1) | verified | LOW | `C2_2_BOOL_to_TINYINT1` |
 | 2.3 | INTEGER → INT | pending | LOW | Wave 1 C2 worker |
@@ -2435,6 +3573,16 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 3.3 | AUTO_INCREMENT → NOT NULL | verified | MED | `C3_3_AutoIncrement_implies_NOT_NULL` |
 | 4.1 | Table charset from database | verified | HIGH | `C4_1_table_charset_from_database` |
 | 4.2 | Column charset inherits + elided | verified | MED | `C4_2_and_C18_1_and_C18_5_charset_inheritance_and_elision` |
+| 4.3 | Column COLLATE alone derives CHARACTER SET | pending | HIGH | Wave 2 C4 worker |
+| 4.4 | Column CHARACTER SET alone derives default collation | pending | HIGH | Wave 2 C4 worker |
+| 4.5 | Table COLLATE/CHARSET mismatch rejected | pending | HIGH | Wave 2 C4 worker |
+| 4.6 | BINARY attribute → {charset}_bin collation | pending | HIGH | Wave 2 C4 worker |
+| 4.7 | CHARACTER SET binary vs BINARY type | pending | MED | Wave 2 C4 worker |
+| 4.8 | utf8 alias normalized to utf8mb3 | pending | HIGH | Wave 2 C4 worker |
+| 4.9 | NATIONAL / NCHAR hard-wired to utf8mb3 | pending | MED | Wave 2 C4 worker |
+| 4.10 | ENUM/SET charset inheritance | pending | HIGH | Wave 2 C4 worker |
+| 4.11 | Index prefix length × mbmaxlen | pending | HIGH | Wave 2 C4 worker |
+| 4.12 | Collation derivation aggregation | pending | MED | Wave 2 C4 worker |
 | 5.1 | FK ON DELETE default NO ACTION | verified | HIGH | `C5_1_fk_on_delete_default` — reporting discrepancy |
 | 5.2 | FK SET NULL on NOT NULL errors | pending | MED | |
 | 5.3 | FK MATCH default NONE | verified | MED | `C5_3_FK_MATCH_default` |
@@ -2457,6 +3605,14 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 6.17 | COALESCE/REORGANIZE partition behavior | pending | LOW | Wave 1 C6 worker |
 | 7.1 | Default index algorithm BTREE | verified | MED | `C7_1_Default_index_algorithm_BTREE` |
 | 7.2 | FK backing index implicit | verified | MED | `C7_2_FK_backing_index` |
+| 7.3 | HASH on InnoDB silently coerced to BTREE | pending | MED | Wave 2 C7 worker |
+| 7.4 | USING BTREE explicit vs implicit rendering | pending | MED | Wave 2 C7 worker |
+| 7.5 | UNIQUE on nullable allows multiple NULLs | pending | HIGH | Wave 2 C7 worker |
+| 7.6 | VISIBLE default; PK cannot be INVISIBLE | pending | MED | Wave 2 C7 worker |
+| 7.7 | BLOB/TEXT index requires prefix length | pending | HIGH | Wave 2 C7 worker |
+| 7.8 | FULLTEXT default parser when WITH PARSER omitted | pending | MED | Wave 2 C7 worker |
+| 7.9 | SPATIAL requires NOT NULL; no USING BTREE/HASH | pending | HIGH | Wave 2 C7 worker |
+| 7.10 | PRIMARY and UNIQUE on same columns both persist | pending | MED | Wave 2 C7 worker |
 | 8.1 | Engine default InnoDB | verified | MED | `C8_1_Default_engine_InnoDB` |
 | 8.2 | ROW_FORMAT default DYNAMIC | verified | MED | `C8_2_Default_row_format` |
 | 8.3 | AUTO_INCREMENT starts at 1 | verified | MED | covered by 18.4 spot-check |
@@ -2485,6 +3641,15 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 18.4 | AUTO_INCREMENT elided at 1 | verified | HIGH | `C18_4_auto_increment_elision` |
 | 18.5 | DEFAULT CHARSET always rendered | verified | HIGH | `C18_5_DefaultCharset_implicit` |
 | 18.6 | ROW_FORMAT elided unless explicit | pending | HIGH | |
+| 18.7 | Table COLLATE rendered only when non-primary | pending | HIGH | Wave 2 C18 worker |
+| 18.8 | KEY_BLOCK_SIZE elided unless explicit | pending | HIGH | Wave 2 C18 worker |
+| 18.9 | COMPRESSION elided unless explicit | pending | HIGH | Wave 2 C18 worker |
+| 18.10 | STATS_* elision | pending | HIGH | Wave 2 C18 worker |
+| 18.11 | AVG_ROW_LENGTH / MIN_ROWS / MAX_ROWS elided at zero | pending | HIGH | Wave 2 C18 worker |
+| 18.12 | TABLESPACE elision | pending | HIGH | Wave 2 C18 worker |
+| 18.13 | PACK_KEYS / CHECKSUM / DELAY_KEY_WRITE elision | pending | HIGH | Wave 2 C18 worker |
+| 18.14 | Per-index COMMENT / KEY_BLOCK_SIZE rendering | pending | HIGH | Wave 2 C18 worker |
+| 18.15 | USING BTREE/HASH emitted only when explicit | pending | HIGH | Wave 2 C18 worker |
 | 21.1 | DEFAULT NULL literal | verified | LOW | `C21_1_Default_NULL` |
 | 22.1 | ALGORITHM=DEFAULT picks fastest supported | pending | HIGH | Wave 1 C22 worker |
 | 22.2 | LOCK=DEFAULT picks least restrictive | pending | HIGH | Wave 1 C22 worker |
