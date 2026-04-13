@@ -62,6 +62,10 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *SetOperationStmt:
 		return v.Loc
+	case *TableRef:
+		return v.Loc
+	case *JoinExpr:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

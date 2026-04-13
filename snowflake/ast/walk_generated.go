@@ -44,6 +44,11 @@ func walkChildren(v Visitor, node Node) {
 	case *IsExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.DistinctFrom)
+	case *JoinExpr:
+		Walk(v, n.Left)
+		Walk(v, n.Right)
+		Walk(v, n.On)
+		Walk(v, n.MatchCondition)
 	case *LambdaExpr:
 		Walk(v, n.Body)
 	case *LikeExpr:
@@ -55,6 +60,7 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Expr)
 	case *SelectStmt:
 		Walk(v, n.Top)
+		walkNodes(v, n.From)
 		Walk(v, n.Where)
 		Walk(v, n.Having)
 		Walk(v, n.Qualify)
@@ -69,6 +75,14 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *SubqueryExpr:
 		Walk(v, n.Query)
+	case *TableRef:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.Subquery)
+		if n.FuncCall != nil {
+			Walk(v, n.FuncCall)
+		}
 	case *TypeName:
 		if n.ElementType != nil {
 			Walk(v, n.ElementType)

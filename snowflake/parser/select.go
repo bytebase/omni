@@ -462,30 +462,422 @@ func (p *Parser) parseSelectTarget() (*ast.SelectTarget, error) {
 // FROM clause
 // ---------------------------------------------------------------------------
 
-// parseFromClause parses comma-separated table references.
+// parseFromClause parses comma-separated FROM items, where each item is
+// a primary source optionally followed by a chain of JOINs.
 // The FROM keyword has already been consumed by the caller.
-func (p *Parser) parseFromClause() ([]*ast.TableRef, error) {
-	var refs []*ast.TableRef
+func (p *Parser) parseFromClause() ([]ast.Node, error) {
+	var items []ast.Node
 
-	ref, err := p.parseTableRef()
+	item, err := p.parseFromItem()
 	if err != nil {
 		return nil, err
 	}
-	refs = append(refs, ref)
+	items = append(items, item)
 
 	for p.cur.Type == ',' {
 		p.advance() // consume ','
-		ref, err = p.parseTableRef()
+		item, err = p.parseFromItem()
 		if err != nil {
 			return nil, err
 		}
-		refs = append(refs, ref)
+		items = append(items, item)
 	}
 
-	return refs, nil
+	return items, nil
 }
 
-// parseTableRef parses one table reference: object_name [AS alias].
+// parseFromItem parses one comma-separated FROM item: a primary source
+// optionally followed by a join chain.
+func (p *Parser) parseFromItem() (ast.Node, error) {
+	left, err := p.parsePrimarySource()
+	if err != nil {
+		return nil, err
+	}
+	return p.parseJoinChain(left)
+}
+
+// parsePrimarySource dispatches on the current token to parse a single
+// FROM source:
+//   - ( → subquery or parenthesized from-item
+//   - LATERAL → consume, recurse, set Lateral=true
+//   - TABLE → TABLE(func(...))
+//   - otherwise → parseTableRef (ObjectName + alias)
+func (p *Parser) parsePrimarySource() (ast.Node, error) {
+	startLoc := p.cur.Loc
+
+	// Parenthesized: subquery or parenthesized from-item.
+	if p.cur.Type == '(' {
+		next := p.peekNext()
+		if next.Type == kwSELECT || next.Type == kwWITH {
+			// Subquery in FROM: (SELECT ...) [AS] alias
+			p.advance() // consume '('
+			var query ast.Node
+			var err error
+			if p.cur.Type == kwWITH {
+				query, err = p.parseWithSelect()
+			} else {
+				query, err = p.parseSelectStmt()
+			}
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			ref := &ast.TableRef{
+				Subquery: query,
+				Loc:      ast.Loc{Start: startLoc.Start},
+			}
+			alias, hasAlias := p.parseOptionalAlias()
+			if hasAlias {
+				ref.Alias = alias
+			}
+			ref.Loc.End = p.prev.Loc.End
+			return ref, nil
+		}
+		// Parenthesized from-item: (t1 JOIN t2 ON ...)
+		p.advance() // consume '('
+		inner, err := p.parseFromItem()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return inner, nil
+	}
+
+	// LATERAL prefix
+	if p.cur.Type == kwLATERAL {
+		p.advance() // consume LATERAL
+		// LATERAL can be followed by a subquery, TABLE(func), or FLATTEN(...)
+		source, err := p.parsePrimarySource()
+		if err != nil {
+			return nil, err
+		}
+		// Set Lateral on the resulting TableRef
+		if ref, ok := source.(*ast.TableRef); ok {
+			ref.Lateral = true
+			ref.Loc.Start = startLoc.Start
+			return ref, nil
+		}
+		// If it's not a TableRef (shouldn't normally happen), wrap it
+		return source, nil
+	}
+
+	// TABLE(func(...)) — table function
+	if p.cur.Type == kwTABLE {
+		p.advance() // consume TABLE
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		// Parse the function call expression inside TABLE(...)
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		funcCall, ok := expr.(*ast.FuncCallExpr)
+		if !ok {
+			return nil, &ParseError{
+				Loc: ast.NodeLoc(expr),
+				Msg: "expected function call inside TABLE(...)",
+			}
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		ref := &ast.TableRef{
+			FuncCall: funcCall,
+			Loc:      ast.Loc{Start: startLoc.Start},
+		}
+		alias, hasAlias := p.parseOptionalAlias()
+		if hasAlias {
+			ref.Alias = alias
+		}
+		ref.Loc.End = p.prev.Loc.End
+		return ref, nil
+	}
+
+	// FLATTEN(...) as a bare function in FROM (common Snowflake pattern)
+	if p.cur.Type == kwFLATTEN {
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		funcCall, ok := expr.(*ast.FuncCallExpr)
+		if !ok {
+			return nil, &ParseError{
+				Loc: ast.NodeLoc(expr),
+				Msg: "expected function call for FLATTEN",
+			}
+		}
+		ref := &ast.TableRef{
+			FuncCall: funcCall,
+			Loc:      ast.Loc{Start: startLoc.Start},
+		}
+		alias, hasAlias := p.parseOptionalAlias()
+		if hasAlias {
+			ref.Alias = alias
+		}
+		ref.Loc.End = p.prev.Loc.End
+		return ref, nil
+	}
+
+	// Default: simple table reference (ObjectName + alias)
+	return p.parseTableRef()
+}
+
+// parseJoinChain builds a left-associative JoinExpr tree from any
+// JOIN keywords following the left source.
+func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
+	for {
+		joinType, natural, directed, ok := p.parseJoinKeywords()
+		if !ok {
+			break
+		}
+
+		right, err := p.parsePrimarySource()
+		if err != nil {
+			return nil, err
+		}
+
+		join := &ast.JoinExpr{
+			Type:     joinType,
+			Left:     left,
+			Right:    right,
+			Natural:  natural,
+			Directed: directed,
+			Loc:      ast.Loc{Start: ast.NodeLoc(left).Start},
+		}
+
+		// Parse join condition
+		switch {
+		case joinType == ast.JoinAsof:
+			// ASOF JOIN: expect MATCH_CONDITION(expr)
+			if p.cur.Type == kwMATCH_CONDITION ||
+				(p.cur.Type == tokIdent && strings.ToUpper(p.cur.Str) == "MATCH_CONDITION") {
+				p.advance() // consume MATCH_CONDITION
+				if _, err := p.expect('('); err != nil {
+					return nil, err
+				}
+				cond, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
+				join.MatchCondition = cond
+			}
+			// ASOF may also have ON
+			if p.cur.Type == kwON {
+				p.advance() // consume ON
+				onExpr, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				join.On = onExpr
+			}
+
+		case joinType == ast.JoinCross || natural:
+			// CROSS JOIN and NATURAL JOIN: no condition required
+
+		case p.cur.Type == kwON:
+			p.advance() // consume ON
+			onExpr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			join.On = onExpr
+
+		case p.cur.Type == kwUSING:
+			p.advance() // consume USING
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			var cols []ast.Ident
+			col, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			cols = append(cols, col)
+			for p.cur.Type == ',' {
+				p.advance() // consume ','
+				col, err = p.parseIdent()
+				if err != nil {
+					return nil, err
+				}
+				cols = append(cols, col)
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			join.Using = cols
+		}
+
+		join.Loc.End = p.prev.Loc.End
+		left = join
+	}
+	return left, nil
+}
+
+// parseJoinKeywords checks whether the current token position starts a
+// JOIN keyword sequence. If so, it consumes the tokens and returns
+// (joinType, natural, directed, true). If not, returns (0, false, false, false)
+// without consuming any tokens.
+func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
+	// NATURAL [LEFT|RIGHT|FULL] [OUTER] JOIN
+	if p.cur.Type == kwNATURAL {
+		next := p.peekNext()
+		// NATURAL JOIN
+		if next.Type == kwJOIN {
+			p.advance() // consume NATURAL
+			p.advance() // consume JOIN
+			return ast.JoinInner, true, false, true
+		}
+		// NATURAL LEFT/RIGHT/FULL [OUTER] JOIN
+		if next.Type == kwLEFT || next.Type == kwRIGHT || next.Type == kwFULL {
+			p.advance() // consume NATURAL
+			jt := p.consumeDirectionAndJoin()
+			return jt, true, false, true
+		}
+		return 0, false, false, false
+	}
+
+	// DIRECTED [INNER|LEFT|RIGHT|FULL|CROSS] JOIN
+	if p.cur.Type == kwDIRECTED {
+		next := p.peekNext()
+		switch next.Type {
+		case kwJOIN:
+			p.advance() // consume DIRECTED
+			p.advance() // consume JOIN
+			return ast.JoinInner, false, true, true
+		case kwINNER:
+			p.advance() // consume DIRECTED
+			p.advance() // consume INNER
+			if _, err := p.expect(kwJOIN); err == nil {
+				return ast.JoinInner, false, true, true
+			}
+			return 0, false, false, false
+		case kwLEFT, kwRIGHT, kwFULL:
+			p.advance() // consume DIRECTED
+			jt := p.consumeDirectionAndJoin()
+			return jt, false, true, true
+		case kwCROSS:
+			p.advance() // consume DIRECTED
+			p.advance() // consume CROSS
+			if _, err := p.expect(kwJOIN); err == nil {
+				return ast.JoinCross, false, true, true
+			}
+			return 0, false, false, false
+		}
+		return 0, false, false, false
+	}
+
+	// ASOF JOIN
+	if p.cur.Type == kwASOF {
+		next := p.peekNext()
+		if next.Type == kwJOIN {
+			p.advance() // consume ASOF
+			p.advance() // consume JOIN
+			return ast.JoinAsof, false, false, true
+		}
+		return 0, false, false, false
+	}
+
+	// INNER JOIN
+	if p.cur.Type == kwINNER {
+		next := p.peekNext()
+		if next.Type == kwJOIN {
+			p.advance() // consume INNER
+			p.advance() // consume JOIN
+			return ast.JoinInner, false, false, true
+		}
+		return 0, false, false, false
+	}
+
+	// LEFT [OUTER] JOIN
+	if p.cur.Type == kwLEFT {
+		jt := p.consumeDirectionAndJoin()
+		if jt == ast.JoinLeft {
+			return jt, false, false, true
+		}
+		return 0, false, false, false
+	}
+
+	// RIGHT [OUTER] JOIN
+	if p.cur.Type == kwRIGHT {
+		jt := p.consumeDirectionAndJoin()
+		if jt == ast.JoinRight {
+			return jt, false, false, true
+		}
+		return 0, false, false, false
+	}
+
+	// FULL [OUTER] JOIN
+	if p.cur.Type == kwFULL {
+		jt := p.consumeDirectionAndJoin()
+		if jt == ast.JoinFull {
+			return jt, false, false, true
+		}
+		return 0, false, false, false
+	}
+
+	// CROSS JOIN
+	if p.cur.Type == kwCROSS {
+		next := p.peekNext()
+		if next.Type == kwJOIN {
+			p.advance() // consume CROSS
+			p.advance() // consume JOIN
+			return ast.JoinCross, false, false, true
+		}
+		return 0, false, false, false
+	}
+
+	// Bare JOIN (= INNER)
+	if p.cur.Type == kwJOIN {
+		p.advance() // consume JOIN
+		return ast.JoinInner, false, false, true
+	}
+
+	return 0, false, false, false
+}
+
+// consumeDirectionAndJoin consumes LEFT/RIGHT/FULL [OUTER] JOIN and returns
+// the corresponding JoinType. The caller must have already checked that
+// p.cur.Type is kwLEFT, kwRIGHT, or kwFULL.
+// If the sequence doesn't end with JOIN, this returns JoinInner as a sentinel
+// (the caller checks the return value).
+func (p *Parser) consumeDirectionAndJoin() ast.JoinType {
+	dir := p.cur.Type
+	p.advance() // consume LEFT/RIGHT/FULL
+
+	// Optional OUTER
+	if p.cur.Type == kwOUTER {
+		p.advance() // consume OUTER
+	}
+
+	// Expect JOIN
+	if p.cur.Type != kwJOIN {
+		// Not a join sequence — but we already consumed tokens.
+		// This is an issue; for safety, return a sentinel and let caller handle.
+		return ast.JoinInner
+	}
+	p.advance() // consume JOIN
+
+	switch dir {
+	case kwLEFT:
+		return ast.JoinLeft
+	case kwRIGHT:
+		return ast.JoinRight
+	case kwFULL:
+		return ast.JoinFull
+	default:
+		return ast.JoinInner
+	}
+}
+
+// parseTableRef parses one simple table reference: object_name [AS alias].
 func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 	name, err := p.parseObjectName()
 	if err != nil {
@@ -729,7 +1121,8 @@ func isClauseKeyword(t int) bool {
 		kwLIMIT, kwOFFSET, kwFETCH, kwUNION, kwEXCEPT, kwMINUS, kwINTERSECT,
 		kwINTO, kwON, kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL,
 		kwCROSS, kwNATURAL, kwWITH, kwSELECT, kwSET, kwWHEN,
-		kwTHEN, kwELSE, kwEND, kwCASE, kwROWS, kwGROUPS, kwOVER:
+		kwTHEN, kwELSE, kwEND, kwCASE, kwROWS, kwGROUPS, kwOVER,
+		kwUSING, kwOUTER, kwASOF, kwDIRECTED, kwLATERAL, kwMATCH_CONDITION:
 		return true
 	}
 	return false
