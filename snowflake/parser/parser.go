@@ -183,7 +183,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	switch p.cur.Type {
 	// DDL (6 cases)
 	case kwCREATE:
-		return p.unsupported("CREATE")
+		return p.parseCreateStmt()
 	case kwALTER:
 		return p.unsupported("ALTER")
 	case kwDROP:
