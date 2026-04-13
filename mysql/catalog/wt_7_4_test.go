@@ -290,10 +290,10 @@ func TestWalkThrough_7_4_SubpartitionsNCount(t *testing.T) {
 	if tbl.Partitioning.NumSubParts != 3 {
 		t.Errorf("expected NumSubParts 3, got %d", tbl.Partitioning.NumSubParts)
 	}
-	// No explicit subpartitions on individual partition defs
+	// Auto-generated subpartitions should be present on each partition def.
 	for _, p := range tbl.Partitioning.Partitions {
-		if len(p.SubPartitions) != 0 {
-			t.Errorf("expected no explicit subpartitions for partition %s, got %d", p.Name, len(p.SubPartitions))
+		if len(p.SubPartitions) != 3 {
+			t.Errorf("expected 3 auto-generated subpartitions for partition %s, got %d", p.Name, len(p.SubPartitions))
 		}
 	}
 }

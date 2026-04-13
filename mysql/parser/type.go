@@ -197,18 +197,22 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		dt.Name = "BLOB"
 		p.advance()
 		p.parseOptionalLength(dt)
+		p.parseCharsetCollate(dt)
 
 	case kwTINYBLOB:
 		dt.Name = "TINYBLOB"
 		p.advance()
+		p.parseCharsetCollate(dt)
 
 	case kwMEDIUMBLOB:
 		dt.Name = "MEDIUMBLOB"
 		p.advance()
+		p.parseCharsetCollate(dt)
 
 	case kwLONGBLOB:
 		dt.Name = "LONGBLOB"
 		p.advance()
+		p.parseCharsetCollate(dt)
 
 	// Binary types
 	case kwBINARY:
@@ -453,6 +457,14 @@ func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
 		if p.isIdentToken() || p.cur.Type == kwBINARY {
 			dt.Collate, _, _ = p.parseKeywordOrIdent()
 		}
+	}
+
+	// Standalone BINARY modifier — shorthand for CHARACTER SET binary.
+	// Valid for CHAR, VARCHAR, TEXT variants, ENUM, SET, and BLOB types.
+	// MySQL: CHAR(10) BINARY → CHAR(10) CHARACTER SET binary
+	if p.cur.Type == kwBINARY {
+		p.advance()
+		dt.Charset = "binary"
 	}
 }
 

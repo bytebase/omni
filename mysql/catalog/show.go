@@ -593,7 +593,12 @@ func showPartitioning(pi *PartitionInfo) string {
 	}
 
 	// Partition definitions.
-	if len(pi.Partitions) > 0 {
+	// For HASH/KEY partitions with NumParts > 0, auto-generated partition defs
+	// are rendered as "PARTITIONS N" (matching MySQL 8.0's SHOW CREATE TABLE).
+	hashKeyAutoGen := pi.NumParts > 0 && (pi.Type == "HASH" || pi.Type == "KEY")
+	if hashKeyAutoGen {
+		b.WriteString(fmt.Sprintf("\nPARTITIONS %d", pi.NumParts))
+	} else if len(pi.Partitions) > 0 {
 		b.WriteString("\n(")
 		for i, pd := range pi.Partitions {
 			if i > 0 {
@@ -622,8 +627,8 @@ func showPartitioning(pi *PartitionInfo) string {
 			if pd.Comment != "" {
 				b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(pd.Comment)))
 			}
-			// Subpartition definitions.
-			if len(pd.SubPartitions) > 0 {
+			// Subpartition definitions — skip auto-generated ones (NumSubParts > 0).
+			if len(pd.SubPartitions) > 0 && pi.NumSubParts == 0 {
 				b.WriteString("\n (")
 				for j, spd := range pd.SubPartitions {
 					if j > 0 {
@@ -640,9 +645,6 @@ func showPartitioning(pi *PartitionInfo) string {
 			}
 		}
 		b.WriteString(")")
-	} else if pi.NumParts > 0 {
-		// HASH/KEY with PARTITIONS num but no explicit defs
-		b.WriteString(fmt.Sprintf("\nPARTITIONS %d", pi.NumParts))
 	}
 
 	b.WriteString(" */")

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
+	"github.com/bytebase/omni/mysql/deparse"
 )
 
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
@@ -92,6 +93,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 	// Track whether we have a primary key (to detect multiple PKs).
 	hasPK := false
+
+	// Defer FK backing index creation until after all explicit indexes are added,
+	// so that explicit indexes can satisfy FK requirements without creating duplicates.
+	type pendingFK struct {
+		conName string
+		cols    []string
+		idxCols []*IndexColumn
+	}
+	var pendingFKs []pendingFK
 
 	// Process columns.
 	for i, colDef := range stmt.Columns {
@@ -245,8 +255,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					OnDelete:   refActionToString(cc.OnDelete),
 					OnUpdate:   refActionToString(cc.OnUpdate),
 				})
-				// Add implicit backing index for FK if needed.
-				ensureFKBackingIndex(tbl, cc.Name, []string{colDef.Name}, []*IndexColumn{{Name: colDef.Name}})
+				// Defer implicit backing index for FK until after all explicit indexes are added.
+				pendingFKs = append(pendingFKs, pendingFK{conName: cc.Name, cols: []string{colDef.Name}, idxCols: []*IndexColumn{{Name: colDef.Name}}})
 			case nodes.ColConstrVisible:
 				col.Invisible = false
 			case nodes.ColConstrInvisible:
@@ -410,8 +420,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				OnDelete:   refActionToString(con.OnDelete),
 				OnUpdate:   refActionToString(con.OnUpdate),
 			})
-			// Add implicit backing index for FK if needed.
-			ensureFKBackingIndex(tbl, con.Name, cols, buildIndexColumns(con))
+			// Defer implicit backing index for FK until after all explicit indexes are added.
+			pendingFKs = append(pendingFKs, pendingFK{conName: con.Name, cols: cols, idxCols: buildIndexColumns(con)})
 
 		case nodes.ConstrCheck:
 			conName := con.Name
@@ -476,6 +486,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			applyIndexOptions(spIdx, con.IndexOptions)
 			tbl.Indexes = append(tbl.Indexes, spIdx)
 		}
+	}
+
+	// Process deferred FK backing indexes now that all explicit indexes are in place.
+	for _, fk := range pendingFKs {
+		ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols)
 	}
 
 	// Validate foreign key constraints (unless foreign_key_checks=0).
@@ -651,6 +666,32 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 			pdi.SubPartitions = append(pdi.SubPartitions, spdi)
 		}
 		pi.Partitions = append(pi.Partitions, pdi)
+	}
+
+	// Auto-generate partition definitions for HASH/KEY/LINEAR HASH/LINEAR KEY
+	// when PARTITIONS N is specified without explicit partition definitions.
+	// MySQL naming convention: p0, p1, p2, ...
+	if len(pi.Partitions) == 0 && pi.NumParts > 0 {
+		for i := 0; i < pi.NumParts; i++ {
+			pi.Partitions = append(pi.Partitions, &PartitionDefInfo{
+				Name: fmt.Sprintf("p%d", i),
+			})
+		}
+	}
+
+	// Auto-generate subpartition definitions when SUBPARTITIONS N is specified
+	// without explicit subpartition definitions.
+	// MySQL naming convention: <partition_name>sp0, <partition_name>sp1, ...
+	if pi.NumSubParts > 0 {
+		for _, part := range pi.Partitions {
+			if len(part.SubPartitions) == 0 {
+				for j := 0; j < pi.NumSubParts; j++ {
+					part.SubPartitions = append(part.SubPartitions, &SubPartitionDefInfo{
+						Name: fmt.Sprintf("%ssp%d", part.Name, j),
+					})
+				}
+			}
+		}
 	}
 
 	return pi
@@ -1100,68 +1141,7 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 }
 
 func nodeToSQL(node nodes.ExprNode) string {
-	if node == nil {
-		return ""
-	}
-	switch n := node.(type) {
-	case *nodes.ColumnRef:
-		if n.Table != "" {
-			return "`" + n.Table + "`.`" + n.Column + "`"
-		}
-		return "`" + n.Column + "`"
-	case *nodes.IntLit:
-		return fmt.Sprintf("%d", n.Value)
-	case *nodes.StringLit:
-		return "'" + n.Value + "'"
-	case *nodes.FuncCallExpr:
-		funcName := strings.ToLower(n.Name)
-		if n.Star {
-			return funcName + "(*)"
-		}
-		var args []string
-		for _, a := range n.Args {
-			args = append(args, nodeToSQL(a))
-		}
-		return funcName + "(" + strings.Join(args, ",") + ")"
-	case *nodes.NullLit:
-		return "NULL"
-	case *nodes.BoolLit:
-		if n.Value {
-			return "1"
-		}
-		return "0"
-	case *nodes.FloatLit:
-		return n.Value
-	case *nodes.BitLit:
-		// MySQL strips leading zeros from bit literals in SHOW CREATE TABLE.
-		val := strings.TrimLeft(n.Value, "0")
-		if val == "" {
-			val = "0"
-		}
-		return "b'" + val + "'"
-	case *nodes.ParenExpr:
-		return "(" + nodeToSQL(n.Expr) + ")"
-	case *nodes.BinaryExpr:
-		left := nodeToSQL(n.Left)
-		right := nodeToSQL(n.Right)
-		op := binaryOpToString(n.Op)
-		// MySQL wraps binary expressions in parentheses in SHOW CREATE TABLE.
-		return "(" + left + " " + op + " " + right + ")"
-	case *nodes.UnaryExpr:
-		operand := nodeToSQL(n.Operand)
-		switch n.Op {
-		case nodes.UnaryMinus:
-			return "-" + operand
-		case nodes.UnaryNot:
-			return "NOT " + operand
-		case nodes.UnaryBitNot:
-			return "~" + operand
-		default:
-			return operand
-		}
-	default:
-		return "(?)"
-	}
+	return deparse.Deparse(node)
 }
 
 func binaryOpToString(op nodes.BinaryOp) string {
