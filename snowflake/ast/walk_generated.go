@@ -28,6 +28,8 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *CollateExpr:
 		Walk(v, n.Expr)
+	case *ExistsExpr:
+		Walk(v, n.Query)
 	case *File:
 		walkNodes(v, n.Stmts)
 	case *FuncCallExpr:
@@ -51,10 +53,19 @@ func walkChildren(v Visitor, node Node) {
 		walkNodes(v, n.AnyValues)
 	case *ParenExpr:
 		Walk(v, n.Expr)
+	case *SelectStmt:
+		Walk(v, n.Top)
+		Walk(v, n.Where)
+		Walk(v, n.Having)
+		Walk(v, n.Qualify)
+		Walk(v, n.Limit)
+		Walk(v, n.Offset)
 	case *StarExpr:
 		if n.Qualifier != nil {
 			Walk(v, n.Qualifier)
 		}
+	case *SubqueryExpr:
+		Walk(v, n.Query)
 	case *TypeName:
 		if n.ElementType != nil {
 			Walk(v, n.ElementType)

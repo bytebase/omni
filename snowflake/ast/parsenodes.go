@@ -634,18 +634,18 @@ type LambdaExpr struct {
 
 func (n *LambdaExpr) Tag() NodeTag { return T_LambdaExpr }
 
-// SubqueryExpr is a placeholder for subquery expressions (SELECT ...).
-// T1.4 will fill in the real implementation.
+// SubqueryExpr represents a parenthesized subquery expression (SELECT ...).
 type SubqueryExpr struct {
-	Loc Loc
+	Query Node // the SELECT statement
+	Loc   Loc
 }
 
 func (n *SubqueryExpr) Tag() NodeTag { return T_SubqueryExpr }
 
-// ExistsExpr is a placeholder for EXISTS (SELECT ...).
-// T1.4 will fill in the real implementation.
+// ExistsExpr represents EXISTS (SELECT ...).
 type ExistsExpr struct {
-	Loc Loc
+	Query Node
+	Loc   Loc
 }
 
 func (n *ExistsExpr) Tag() NodeTag { return T_ExistsExpr }
@@ -705,3 +705,82 @@ var (
 	_ Node = (*SubqueryExpr)(nil)
 	_ Node = (*ExistsExpr)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// Statement nodes
+// ---------------------------------------------------------------------------
+
+// SelectStmt represents a SELECT statement.
+type SelectStmt struct {
+	With     []*CTE          // WITH clause CTEs; nil if absent
+	Distinct bool            // SELECT DISTINCT
+	All      bool            // SELECT ALL
+	Top      Node            // TOP n expression; nil if absent
+	Targets  []*SelectTarget // SELECT list items
+	From     []*TableRef     // FROM table references; nil if absent
+	Where    Node            // WHERE condition; nil if absent
+	GroupBy  *GroupByClause  // GROUP BY; nil if absent
+	Having   Node            // HAVING condition; nil if absent
+	Qualify  Node            // QUALIFY condition; nil if absent (Snowflake-specific)
+	OrderBy  []*OrderItem    // ORDER BY; nil if absent
+	Limit    Node            // LIMIT n; nil if absent
+	Offset   Node            // OFFSET n; nil if absent
+	Fetch    *FetchClause    // FETCH FIRST/NEXT; nil if absent
+	Loc      Loc
+}
+
+func (n *SelectStmt) Tag() NodeTag { return T_SelectStmt }
+
+var _ Node = (*SelectStmt)(nil)
+
+// SelectTarget is one item in a SELECT list.
+// For expressions: Expr is set, Star is false.
+// For star: Star is true, Expr may be a qualifier (table.*) or nil (bare *).
+type SelectTarget struct {
+	Expr    Node    // expression; nil for bare *
+	Alias   Ident   // AS alias; zero Ident if absent
+	Star    bool    // true for * or qualifier.*
+	Exclude []Ident // EXCLUDE columns; nil if absent
+	Loc     Loc
+}
+
+// TableRef is a table reference in the FROM clause.
+// T1.5 extends this with join syntax.
+type TableRef struct {
+	Name  *ObjectName // table name
+	Alias Ident       // AS alias; zero if absent
+	Loc   Loc
+}
+
+// CTE represents a Common Table Expression in a WITH clause.
+type CTE struct {
+	Name      Ident   // CTE name
+	Columns   []Ident // optional column aliases
+	Query     Node    // the SELECT body (*SelectStmt)
+	Recursive bool    // WITH RECURSIVE flag
+	Loc       Loc
+}
+
+// GroupByClause represents a GROUP BY clause with optional variant.
+type GroupByClause struct {
+	Kind  GroupByKind
+	Items []Node // group-by expressions
+	Loc   Loc
+}
+
+// GroupByKind enumerates GROUP BY variants.
+type GroupByKind int
+
+const (
+	GroupByNormal       GroupByKind = iota // GROUP BY a, b
+	GroupByCube                            // GROUP BY CUBE (a, b)
+	GroupByRollup                          // GROUP BY ROLLUP (a, b)
+	GroupByGroupingSets                    // GROUP BY GROUPING SETS ((a), (b))
+	GroupByAll                             // GROUP BY ALL
+)
+
+// FetchClause represents FETCH FIRST/NEXT n ROWS ONLY.
+type FetchClause struct {
+	Count Node // the count expression
+	Loc   Loc
+}
