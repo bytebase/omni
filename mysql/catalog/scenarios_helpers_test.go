@@ -251,6 +251,14 @@ var (
 
 func dockerAvailable() bool {
 	dockerAvailableOnce.Do(func() {
+		// testcontainers.NewDockerProvider can panic via MustExtractDockerHost
+		// when DOCKER_HOST is unset and no socket is reachable, so wrap the
+		// probe in recover() to guarantee a clean skip instead of a panic.
+		defer func() {
+			if r := recover(); r != nil {
+				dockerAvailableVal = false
+			}
+		}()
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		provider, err := testcontainers.NewDockerProvider()
