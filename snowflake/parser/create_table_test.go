@@ -676,6 +676,23 @@ func TestCreateTable_MaskingPolicy(t *testing.T) {
 	}
 }
 
+func TestCreateTable_ColumnWithTag(t *testing.T) {
+	stmt, errs := testParseCreateTable("CREATE TABLE t (id INT WITH TAG (sensitivity = 'PII', team = 'security'))")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	col := stmt.Columns[0]
+	if len(col.Tags) != 2 {
+		t.Fatalf("col tags = %d, want 2", len(col.Tags))
+	}
+	if col.Tags[0].Name.Normalize() != "SENSITIVITY" || col.Tags[0].Value != "PII" {
+		t.Errorf("tag[0] = %v/%v, want SENSITIVITY/PII", col.Tags[0].Name.Normalize(), col.Tags[0].Value)
+	}
+	if col.Tags[1].Name.Normalize() != "TEAM" || col.Tags[1].Value != "security" {
+		t.Errorf("tag[1] = %v/%v, want TEAM/security", col.Tags[1].Name.Normalize(), col.Tags[1].Value)
+	}
+}
+
 func TestCreateTable_VirtualColumn(t *testing.T) {
 	stmt, errs := testParseCreateTable("CREATE TABLE t (a INT, b INT, c INT AS (a + b))")
 	if len(errs) > 0 {
