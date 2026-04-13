@@ -47,7 +47,7 @@ func TestScenario_PS(t *testing.T) {
 			t.Errorf("PS.1 oracle CHECK names: got %v, want %v", oracleNames, want)
 		}
 
-		omniNames := omniCheckNames(c, "t")
+		omniNames := psCheckNames(c, "t")
 		if !slices.Equal(omniNames, want) {
 			t.Errorf("PS.1 omni CHECK names: got %v, want %v", omniNames, want)
 		}
@@ -78,7 +78,7 @@ func TestScenario_PS(t *testing.T) {
 			t.Errorf("PS.2 oracle CHECK names: got %v, want %v", oracleNames, want)
 		}
 
-		omniNames := omniCheckNames(c, "t")
+		omniNames := psCheckNames(c, "t")
 		if !slices.Equal(omniNames, want) {
 			t.Errorf("PS.2 omni CHECK names: got %v, want %v", omniNames, want)
 		}
@@ -112,7 +112,7 @@ func TestScenario_PS(t *testing.T) {
 			t.Errorf("PS.3 oracle FK names: got %v, want %v", oracleNames, want)
 		}
 
-		omniNames := omniFKNames(c, "child")
+		omniNames := psFKNames(c, "child")
 		if !slices.Equal(omniNames, want) {
 			t.Errorf("PS.3 omni FK names: got %v, want %v", omniNames, want)
 		}
@@ -147,7 +147,7 @@ func TestScenario_PS(t *testing.T) {
 			t.Errorf("PS.4 oracle FK names: got %v, want %v", oracleNames, want)
 		}
 
-		omniNames := omniFKNames(c, "child")
+		omniNames := psFKNames(c, "child")
 		if !slices.Equal(omniNames, want) {
 			t.Errorf("PS.4 omni FK names: got %v, want %v", omniNames, want)
 		}
@@ -328,7 +328,7 @@ func TestScenario_PS(t *testing.T) {
 
 // omniCheckNames returns the CHECK constraint names from the omni catalog
 // for the given table (in testdb), sorted.
-func omniCheckNames(c *Catalog, table string) []string {
+func psCheckNames(c *Catalog, table string) []string {
 	db := c.GetDatabase("testdb")
 	if db == nil {
 		return nil
@@ -349,7 +349,7 @@ func omniCheckNames(c *Catalog, table string) []string {
 
 // omniFKNames returns the FOREIGN KEY constraint names from the omni catalog
 // for the given table (in testdb), sorted.
-func omniFKNames(c *Catalog, table string) []string {
+func psFKNames(c *Catalog, table string) []string {
 	db := c.GetDatabase("testdb")
 	if db == nil {
 		return nil
