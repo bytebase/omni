@@ -254,17 +254,25 @@ func TestSelect_CommaFrom(t *testing.T) {
 	if len(sel.From) != 2 {
 		t.Fatalf("from = %d, want 2", len(sel.From))
 	}
-	if sel.From[0].Name.Name.Name != "t1" {
-		t.Errorf("from[0] = %q, want %q", sel.From[0].Name.Name.Name, "t1")
+	from0, ok := sel.From[0].(*ast.TableRef)
+	if !ok {
+		t.Fatalf("from[0]: expected *ast.TableRef, got %T", sel.From[0])
 	}
-	if !sel.From[0].Alias.IsEmpty() {
-		t.Errorf("from[0] alias should be empty, got %q", sel.From[0].Alias.Name)
+	if from0.Name.Name.Name != "t1" {
+		t.Errorf("from[0] = %q, want %q", from0.Name.Name.Name, "t1")
 	}
-	if sel.From[1].Name.Name.Name != "t2" {
-		t.Errorf("from[1] = %q, want %q", sel.From[1].Name.Name.Name, "t2")
+	if !from0.Alias.IsEmpty() {
+		t.Errorf("from[0] alias should be empty, got %q", from0.Alias.Name)
 	}
-	if sel.From[1].Alias.Name != "x" {
-		t.Errorf("from[1] alias = %q, want %q", sel.From[1].Alias.Name, "x")
+	from1, ok := sel.From[1].(*ast.TableRef)
+	if !ok {
+		t.Fatalf("from[1]: expected *ast.TableRef, got %T", sel.From[1])
+	}
+	if from1.Name.Name.Name != "t2" {
+		t.Errorf("from[1] = %q, want %q", from1.Name.Name.Name, "t2")
+	}
+	if from1.Alias.Name != "x" {
+		t.Errorf("from[1] alias = %q, want %q", from1.Alias.Name, "x")
 	}
 }
 
@@ -796,8 +804,12 @@ func TestSelect_TableAliasNotConsumeWHERE(t *testing.T) {
 	if len(sel.From) != 1 {
 		t.Fatalf("from = %d, want 1", len(sel.From))
 	}
-	if !sel.From[0].Alias.IsEmpty() {
-		t.Errorf("table alias should be empty, got %q", sel.From[0].Alias.Name)
+	from0, ok := sel.From[0].(*ast.TableRef)
+	if !ok {
+		t.Fatalf("from[0]: expected *ast.TableRef, got %T", sel.From[0])
+	}
+	if !from0.Alias.IsEmpty() {
+		t.Errorf("table alias should be empty, got %q", from0.Alias.Name)
 	}
 	if sel.Where == nil {
 		t.Fatal("WHERE should be set")
@@ -812,11 +824,19 @@ func TestSelect_TableImplicitAlias(t *testing.T) {
 	if len(sel.From) != 2 {
 		t.Fatalf("from = %d, want 2", len(sel.From))
 	}
-	if sel.From[0].Alias.Name != "x" {
-		t.Errorf("from[0] alias = %q, want %q", sel.From[0].Alias.Name, "x")
+	from0, ok := sel.From[0].(*ast.TableRef)
+	if !ok {
+		t.Fatalf("from[0]: expected *ast.TableRef, got %T", sel.From[0])
 	}
-	if sel.From[1].Alias.Name != "y" {
-		t.Errorf("from[1] alias = %q, want %q", sel.From[1].Alias.Name, "y")
+	if from0.Alias.Name != "x" {
+		t.Errorf("from[0] alias = %q, want %q", from0.Alias.Name, "x")
+	}
+	from1, ok := sel.From[1].(*ast.TableRef)
+	if !ok {
+		t.Fatalf("from[1]: expected *ast.TableRef, got %T", sel.From[1])
+	}
+	if from1.Alias.Name != "y" {
+		t.Errorf("from[1] alias = %q, want %q", from1.Alias.Name, "y")
 	}
 }
 
@@ -873,7 +893,11 @@ func TestSelect_QualifiedTableName(t *testing.T) {
 	if len(sel.From) != 1 {
 		t.Fatalf("from = %d, want 1", len(sel.From))
 	}
-	name := sel.From[0].Name
+	from0, ok := sel.From[0].(*ast.TableRef)
+	if !ok {
+		t.Fatalf("from[0]: expected *ast.TableRef, got %T", sel.From[0])
+	}
+	name := from0.Name
 	if name.Database.Name != "mydb" {
 		t.Errorf("database = %q, want %q", name.Database.Name, "mydb")
 	}
@@ -1197,5 +1221,707 @@ func TestSetOp_WithCTE(t *testing.T) {
 	}
 	if _, ok := node.Right.(*ast.SelectStmt); !ok {
 		t.Errorf("Right: expected *SelectStmt, got %T", node.Right)
+	}
+}
+
+// ===========================================================================
+// JOIN tests (T1.5)
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// J1. Basic INNER JOIN
+// ---------------------------------------------------------------------------
+
+func TestJoin_InnerJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 JOIN t2 ON t1.id = t2.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("from = %d, want 1", len(sel.From))
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinInner {
+		t.Errorf("join type = %v, want JoinInner", join.Type)
+	}
+	if join.Natural {
+		t.Error("expected Natural = false")
+	}
+	if join.Directed {
+		t.Error("expected Directed = false")
+	}
+
+	// Left and Right should be TableRef
+	left, ok := join.Left.(*ast.TableRef)
+	if !ok {
+		t.Fatalf("left: expected *ast.TableRef, got %T", join.Left)
+	}
+	if left.Name.Name.Name != "t1" {
+		t.Errorf("left = %q, want %q", left.Name.Name.Name, "t1")
+	}
+	right, ok := join.Right.(*ast.TableRef)
+	if !ok {
+		t.Fatalf("right: expected *ast.TableRef, got %T", join.Right)
+	}
+	if right.Name.Name.Name != "t2" {
+		t.Errorf("right = %q, want %q", right.Name.Name.Name, "t2")
+	}
+
+	// ON condition
+	if join.On == nil {
+		t.Fatal("expected ON condition")
+	}
+	_, ok = join.On.(*ast.BinaryExpr)
+	if !ok {
+		t.Fatalf("ON: expected *ast.BinaryExpr, got %T", join.On)
+	}
+}
+
+func TestJoin_ExplicitInnerJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 INNER JOIN t2 ON t1.id = t2.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinInner {
+		t.Errorf("join type = %v, want JoinInner", join.Type)
+	}
+	if join.On == nil {
+		t.Fatal("expected ON condition")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// J2. LEFT JOIN
+// ---------------------------------------------------------------------------
+
+func TestJoin_LeftJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 LEFT JOIN t2 ON t1.id = t2.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinLeft {
+		t.Errorf("join type = %v, want JoinLeft", join.Type)
+	}
+	if join.On == nil {
+		t.Fatal("expected ON condition")
+	}
+}
+
+func TestJoin_LeftOuterJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 LEFT OUTER JOIN t2 ON t1.id = t2.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinLeft {
+		t.Errorf("join type = %v, want JoinLeft", join.Type)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// J3. RIGHT OUTER JOIN
+// ---------------------------------------------------------------------------
+
+func TestJoin_RightOuterJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 RIGHT OUTER JOIN t2 ON t1.id = t2.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinRight {
+		t.Errorf("join type = %v, want JoinRight", join.Type)
+	}
+}
+
+func TestJoin_RightJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 RIGHT JOIN t2 ON t1.id = t2.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinRight {
+		t.Errorf("join type = %v, want JoinRight", join.Type)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// J4. FULL JOIN
+// ---------------------------------------------------------------------------
+
+func TestJoin_FullJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 FULL JOIN t2 ON t1.id = t2.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinFull {
+		t.Errorf("join type = %v, want JoinFull", join.Type)
+	}
+}
+
+func TestJoin_FullOuterJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 FULL OUTER JOIN t2 ON t1.id = t2.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinFull {
+		t.Errorf("join type = %v, want JoinFull", join.Type)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// J5. CROSS JOIN (no ON)
+// ---------------------------------------------------------------------------
+
+func TestJoin_CrossJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 CROSS JOIN t2")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinCross {
+		t.Errorf("join type = %v, want JoinCross", join.Type)
+	}
+	if join.On != nil {
+		t.Error("CROSS JOIN should not have ON condition")
+	}
+	if join.Using != nil {
+		t.Error("CROSS JOIN should not have USING")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// J6. NATURAL JOIN (no ON/USING)
+// ---------------------------------------------------------------------------
+
+func TestJoin_NaturalJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 NATURAL JOIN t2")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinInner {
+		t.Errorf("join type = %v, want JoinInner", join.Type)
+	}
+	if !join.Natural {
+		t.Error("expected Natural = true")
+	}
+	if join.On != nil {
+		t.Error("NATURAL JOIN should not have ON")
+	}
+	if join.Using != nil {
+		t.Error("NATURAL JOIN should not have USING")
+	}
+}
+
+func TestJoin_NaturalLeftJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 NATURAL LEFT JOIN t2")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinLeft {
+		t.Errorf("join type = %v, want JoinLeft", join.Type)
+	}
+	if !join.Natural {
+		t.Error("expected Natural = true")
+	}
+}
+
+func TestJoin_NaturalRightJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 NATURAL RIGHT JOIN t2")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinRight {
+		t.Errorf("join type = %v, want JoinRight", join.Type)
+	}
+	if !join.Natural {
+		t.Error("expected Natural = true")
+	}
+}
+
+func TestJoin_NaturalFullJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 NATURAL FULL JOIN t2")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinFull {
+		t.Errorf("join type = %v, want JoinFull", join.Type)
+	}
+	if !join.Natural {
+		t.Error("expected Natural = true")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// J7. USING clause
+// ---------------------------------------------------------------------------
+
+func TestJoin_UsingClause(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 JOIN t2 USING (id)")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinInner {
+		t.Errorf("join type = %v, want JoinInner", join.Type)
+	}
+	if join.On != nil {
+		t.Error("USING join should not have ON")
+	}
+	if len(join.Using) != 1 {
+		t.Fatalf("Using = %d, want 1", len(join.Using))
+	}
+	if join.Using[0].Name != "id" {
+		t.Errorf("Using[0] = %q, want %q", join.Using[0].Name, "id")
+	}
+}
+
+func TestJoin_UsingMultipleColumns(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 JOIN t2 USING (id, name)")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if len(join.Using) != 2 {
+		t.Fatalf("Using = %d, want 2", len(join.Using))
+	}
+	if join.Using[0].Name != "id" {
+		t.Errorf("Using[0] = %q, want %q", join.Using[0].Name, "id")
+	}
+	if join.Using[1].Name != "name" {
+		t.Errorf("Using[1] = %q, want %q", join.Using[1].Name, "name")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// J8. Chained JOINs — left-associative
+// ---------------------------------------------------------------------------
+
+func TestJoin_ChainedJoins(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 ON t2.id = t3.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("from = %d, want 1", len(sel.From))
+	}
+	// Outer join: (t1 JOIN t2) JOIN t3
+	outerJoin, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected outer *ast.JoinExpr, got %T", sel.From[0])
+	}
+	// Left of outer should be inner join
+	innerJoin, ok := outerJoin.Left.(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("outer.Left: expected *ast.JoinExpr, got %T", outerJoin.Left)
+	}
+	// innerJoin.Left = t1, innerJoin.Right = t2
+	t1, ok := innerJoin.Left.(*ast.TableRef)
+	if !ok {
+		t.Fatalf("inner.Left: expected *ast.TableRef, got %T", innerJoin.Left)
+	}
+	if t1.Name.Name.Name != "t1" {
+		t.Errorf("inner.Left = %q, want %q", t1.Name.Name.Name, "t1")
+	}
+	t2, ok := innerJoin.Right.(*ast.TableRef)
+	if !ok {
+		t.Fatalf("inner.Right: expected *ast.TableRef, got %T", innerJoin.Right)
+	}
+	if t2.Name.Name.Name != "t2" {
+		t.Errorf("inner.Right = %q, want %q", t2.Name.Name.Name, "t2")
+	}
+	// outerJoin.Right = t3
+	t3, ok := outerJoin.Right.(*ast.TableRef)
+	if !ok {
+		t.Fatalf("outer.Right: expected *ast.TableRef, got %T", outerJoin.Right)
+	}
+	if t3.Name.Name.Name != "t3" {
+		t.Errorf("outer.Right = %q, want %q", t3.Name.Name.Name, "t3")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// J9. Comma + JOIN mixed
+// ---------------------------------------------------------------------------
+
+func TestJoin_CommaAndJoinMixed(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1, t2 JOIN t3 ON t2.id = t3.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.From) != 2 {
+		t.Fatalf("from = %d, want 2", len(sel.From))
+	}
+	// From[0] = TableRef(t1)
+	ref0, ok := sel.From[0].(*ast.TableRef)
+	if !ok {
+		t.Fatalf("from[0]: expected *ast.TableRef, got %T", sel.From[0])
+	}
+	if ref0.Name.Name.Name != "t1" {
+		t.Errorf("from[0] = %q, want %q", ref0.Name.Name.Name, "t1")
+	}
+	// From[1] = JoinExpr(t2 JOIN t3)
+	join1, ok := sel.From[1].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("from[1]: expected *ast.JoinExpr, got %T", sel.From[1])
+	}
+	left, ok := join1.Left.(*ast.TableRef)
+	if !ok {
+		t.Fatalf("from[1].Left: expected *ast.TableRef, got %T", join1.Left)
+	}
+	if left.Name.Name.Name != "t2" {
+		t.Errorf("from[1].Left = %q, want %q", left.Name.Name.Name, "t2")
+	}
+	right, ok := join1.Right.(*ast.TableRef)
+	if !ok {
+		t.Fatalf("from[1].Right: expected *ast.TableRef, got %T", join1.Right)
+	}
+	if right.Name.Name.Name != "t3" {
+		t.Errorf("from[1].Right = %q, want %q", right.Name.Name.Name, "t3")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// J10. Subquery in FROM
+// ---------------------------------------------------------------------------
+
+func TestJoin_SubqueryInFrom(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM (SELECT 1 AS x) AS sub")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("from = %d, want 1", len(sel.From))
+	}
+	ref, ok := sel.From[0].(*ast.TableRef)
+	if !ok {
+		t.Fatalf("expected *ast.TableRef, got %T", sel.From[0])
+	}
+	if ref.Subquery == nil {
+		t.Fatal("expected Subquery to be set")
+	}
+	if ref.Name != nil {
+		t.Error("Name should be nil for subquery source")
+	}
+	innerSel, ok := ref.Subquery.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("Subquery: expected *ast.SelectStmt, got %T", ref.Subquery)
+	}
+	if len(innerSel.Targets) != 1 {
+		t.Errorf("inner targets = %d, want 1", len(innerSel.Targets))
+	}
+	if ref.Alias.Name != "sub" {
+		t.Errorf("alias = %q, want %q", ref.Alias.Name, "sub")
+	}
+}
+
+func TestJoin_SubqueryJoinTable(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM (SELECT 1 AS id) AS sub JOIN t2 ON sub.id = t2.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("from = %d, want 1", len(sel.From))
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	left, ok := join.Left.(*ast.TableRef)
+	if !ok {
+		t.Fatalf("Left: expected *ast.TableRef, got %T", join.Left)
+	}
+	if left.Subquery == nil {
+		t.Fatal("Left.Subquery should be set")
+	}
+	if left.Alias.Name != "sub" {
+		t.Errorf("Left.Alias = %q, want %q", left.Alias.Name, "sub")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// J11. LATERAL subquery
+// ---------------------------------------------------------------------------
+
+func TestJoin_LateralSubquery(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1, LATERAL (SELECT t1.id) AS lat")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.From) != 2 {
+		t.Fatalf("from = %d, want 2", len(sel.From))
+	}
+	ref, ok := sel.From[1].(*ast.TableRef)
+	if !ok {
+		t.Fatalf("from[1]: expected *ast.TableRef, got %T", sel.From[1])
+	}
+	if !ref.Lateral {
+		t.Error("expected Lateral = true")
+	}
+	if ref.Subquery == nil {
+		t.Fatal("expected Subquery to be set")
+	}
+	if ref.Alias.Name != "lat" {
+		t.Errorf("alias = %q, want %q", ref.Alias.Name, "lat")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// J12. TABLE(FLATTEN(...)) — table function
+// ---------------------------------------------------------------------------
+
+func TestJoin_TableFlatten(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM TABLE(FLATTEN(v))")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("from = %d, want 1", len(sel.From))
+	}
+	ref, ok := sel.From[0].(*ast.TableRef)
+	if !ok {
+		t.Fatalf("expected *ast.TableRef, got %T", sel.From[0])
+	}
+	if ref.FuncCall == nil {
+		t.Fatal("expected FuncCall to be set")
+	}
+	if ref.FuncCall.Name.Name.Name != "FLATTEN" {
+		t.Errorf("FuncCall name = %q, want %q", ref.FuncCall.Name.Name.Name, "FLATTEN")
+	}
+	if ref.Name != nil {
+		t.Error("Name should be nil for table function source")
+	}
+}
+
+func TestJoin_TableFlattenWithAlias(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT f.value FROM TABLE(FLATTEN(v)) AS f")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("from = %d, want 1", len(sel.From))
+	}
+	ref, ok := sel.From[0].(*ast.TableRef)
+	if !ok {
+		t.Fatalf("expected *ast.TableRef, got %T", sel.From[0])
+	}
+	if ref.FuncCall == nil {
+		t.Fatal("expected FuncCall to be set")
+	}
+	if ref.Alias.Name != "f" {
+		t.Errorf("alias = %q, want %q", ref.Alias.Name, "f")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// J13. ASOF JOIN with MATCH_CONDITION
+// ---------------------------------------------------------------------------
+
+func TestJoin_AsofJoinMatchCondition(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 ASOF JOIN t2 MATCH_CONDITION (t1.ts >= t2.ts)")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("from = %d, want 1", len(sel.From))
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinAsof {
+		t.Errorf("join type = %v, want JoinAsof", join.Type)
+	}
+	if join.MatchCondition == nil {
+		t.Fatal("expected MatchCondition to be set")
+	}
+	_, ok = join.MatchCondition.(*ast.BinaryExpr)
+	if !ok {
+		t.Fatalf("MatchCondition: expected *ast.BinaryExpr, got %T", join.MatchCondition)
+	}
+}
+
+func TestJoin_AsofJoinMatchConditionAndOn(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 ASOF JOIN t2 MATCH_CONDITION (t1.ts >= t2.ts) ON t1.id = t2.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinAsof {
+		t.Errorf("join type = %v, want JoinAsof", join.Type)
+	}
+	if join.MatchCondition == nil {
+		t.Fatal("expected MatchCondition to be set")
+	}
+	if join.On == nil {
+		t.Fatal("expected ON condition to be set")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// J14. DIRECTED JOIN
+// ---------------------------------------------------------------------------
+
+func TestJoin_DirectedInnerJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 DIRECTED INNER JOIN t2 ON t1.id = t2.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinInner {
+		t.Errorf("join type = %v, want JoinInner", join.Type)
+	}
+	if !join.Directed {
+		t.Error("expected Directed = true")
+	}
+}
+
+func TestJoin_DirectedLeftJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 DIRECTED LEFT JOIN t2 ON t1.id = t2.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinLeft {
+		t.Errorf("join type = %v, want JoinLeft", join.Type)
+	}
+	if !join.Directed {
+		t.Error("expected Directed = true")
+	}
+}
+
+func TestJoin_DirectedBareJoin(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 DIRECTED JOIN t2 ON t1.id = t2.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinInner {
+		t.Errorf("join type = %v, want JoinInner", join.Type)
+	}
+	if !join.Directed {
+		t.Error("expected Directed = true")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// J15. Error cases
+// ---------------------------------------------------------------------------
+
+func TestJoin_ErrorJoinWithoutTable(t *testing.T) {
+	// JOIN with no right-hand table — should produce an error
+	_, errs := testParseSelectStmt("SELECT * FROM t1 JOIN")
+	if len(errs) == 0 {
+		t.Fatal("expected error for JOIN without right table")
+	}
+}
+
+func TestJoin_ErrorSubqueryNoClosingParen(t *testing.T) {
+	// Missing closing paren for subquery
+	_, errs := testParseSelectStmt("SELECT * FROM (SELECT 1")
+	if len(errs) == 0 {
+		t.Fatal("expected error for unclosed subquery in FROM")
+	}
+}
+
+func TestJoin_JoinWithWhereClause(t *testing.T) {
+	// Full query with JOIN + WHERE to ensure they compose correctly
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 JOIN t2 ON t1.id = t2.id WHERE t1.active = 1")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("from = %d, want 1", len(sel.From))
+	}
+	_, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if sel.Where == nil {
+		t.Fatal("expected WHERE to be set")
+	}
+}
+
+func TestJoin_JoinWithOrderByLimit(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM t1 LEFT JOIN t2 ON t1.id = t2.id ORDER BY t1.id LIMIT 10")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("expected *ast.JoinExpr, got %T", sel.From[0])
+	}
+	if join.Type != ast.JoinLeft {
+		t.Errorf("join type = %v, want JoinLeft", join.Type)
+	}
+	if len(sel.OrderBy) != 1 {
+		t.Fatalf("OrderBy = %d, want 1", len(sel.OrderBy))
+	}
+	if sel.Limit == nil {
+		t.Fatal("expected LIMIT to be set")
 	}
 }

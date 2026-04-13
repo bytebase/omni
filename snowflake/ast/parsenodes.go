@@ -717,7 +717,7 @@ type SelectStmt struct {
 	All      bool            // SELECT ALL
 	Top      Node            // TOP n expression; nil if absent
 	Targets  []*SelectTarget // SELECT list items
-	From     []*TableRef     // FROM table references; nil if absent
+	From     []Node          // FROM: mixed *TableRef and *JoinExpr; nil if absent
 	Where    Node            // WHERE condition; nil if absent
 	GroupBy  *GroupByClause  // GROUP BY; nil if absent
 	Having   Node            // HAVING condition; nil if absent
@@ -745,12 +745,52 @@ type SelectTarget struct {
 }
 
 // TableRef is a table reference in the FROM clause.
-// T1.5 extends this with join syntax.
+// A TableRef is polymorphic:
+//   - Table: Name is set, others nil
+//   - Subquery: Subquery is set, Name is nil
+//   - Table function: FuncCall is set, Name is nil
+//   - Any of the above can have Lateral = true
 type TableRef struct {
-	Name  *ObjectName // table name
-	Alias Ident       // AS alias; zero if absent
-	Loc   Loc
+	Name     *ObjectName   // table name; nil for subquery/func sources
+	Alias    Ident         // AS alias; zero if absent
+	Subquery Node          // (SELECT ...) in FROM; nil for table refs
+	FuncCall *FuncCallExpr // TABLE(func(...)); nil for table refs
+	Lateral  bool          // LATERAL prefix
+	Loc      Loc
 }
+
+func (n *TableRef) Tag() NodeTag { return T_TableRef }
+
+var _ Node = (*TableRef)(nil)
+
+// JoinExpr represents a JOIN between two FROM sources.
+type JoinExpr struct {
+	Type           JoinType
+	Left           Node    // TableRef or nested JoinExpr
+	Right          Node    // TableRef or nested JoinExpr
+	On             Node    // ON condition; nil for CROSS/NATURAL/USING-only
+	Using          []Ident // USING columns; nil if ON or NATURAL
+	Natural        bool
+	Directed       bool // Snowflake DIRECTED hint
+	MatchCondition Node // ASOF MATCH_CONDITION(expr); nil for non-ASOF
+	Loc            Loc
+}
+
+func (n *JoinExpr) Tag() NodeTag { return T_JoinExpr }
+
+var _ Node = (*JoinExpr)(nil)
+
+// JoinType enumerates the kinds of JOIN.
+type JoinType int
+
+const (
+	JoinInner JoinType = iota // [INNER] JOIN
+	JoinLeft                  // LEFT [OUTER] JOIN
+	JoinRight                 // RIGHT [OUTER] JOIN
+	JoinFull                  // FULL [OUTER] JOIN
+	JoinCross                 // CROSS JOIN
+	JoinAsof                  // ASOF JOIN (Snowflake-specific)
+)
 
 // CTE represents a Common Table Expression in a WITH clause.
 type CTE struct {

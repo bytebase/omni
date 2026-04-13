@@ -48,6 +48,8 @@ const (
 	T_ExistsExpr
 	T_SelectStmt
 	T_SetOperationStmt
+	T_TableRef
+	T_JoinExpr
 )
 
 // String returns a human-readable representation of the tag.
@@ -107,6 +109,10 @@ func (t NodeTag) String() string {
 		return "SelectStmt"
 	case T_SetOperationStmt:
 		return "SetOperationStmt"
+	case T_TableRef:
+		return "TableRef"
+	case T_JoinExpr:
+		return "JoinExpr"
 	default:
 		return "Unknown"
 	}
