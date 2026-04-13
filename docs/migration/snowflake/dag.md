@@ -35,10 +35,10 @@ snowflake/
 | **T1.1** | identifiers + qualified names + normalization helpers | `snowflake/parser` | F4 | — | 1 | P0 | **done** (PR #22) |
 | **T1.2** | data types (incl. VARIANT/OBJECT/ARRAY/VECTOR/GEO/TIMESTAMP_*) | `snowflake/parser` | T1.1 | — | 1 | P0 | **done** (PR #39) |
 | **T1.3** | expressions (operators, function calls, CASE, CAST, JSON path, lambdas, subqueries, IN/BETWEEN/LIKE/RLIKE) | `snowflake/parser` | T1.2 | — | 1 | P0 | **done** (PR #46) |
-| **T1.4** | SELECT core (list, FROM, WHERE, GROUP BY incl. CUBE/ROLLUP/GROUPING SETS/ALL, HAVING, QUALIFY, ORDER BY, LIMIT/OFFSET/FETCH/TOP, EXCLUDE) | `snowflake/parser` | T1.3 | — | 1 | P0 | not started |
-| **T1.5** | joins (INNER/LEFT/RIGHT/FULL/CROSS/NATURAL/ASOF/DIRECTED/LATERAL) | `snowflake/parser` | T1.4 | T1.6, T1.7 | 1 | P0 | not started |
-| **T1.6** | CTEs (WITH [RECURSIVE]) | `snowflake/parser` | T1.4 | T1.5, T1.7 | 1 | P0 | not started |
-| **T1.7** | set operators (UNION/UNION BY NAME/EXCEPT/MINUS/INTERSECT) | `snowflake/parser` | T1.4 | T1.5, T1.6 | 1 | P0 | not started |
+| **T1.4** | SELECT core (list, FROM, WHERE, GROUP BY incl. CUBE/ROLLUP/GROUPING SETS/ALL, HAVING, QUALIFY, ORDER BY, LIMIT/OFFSET/FETCH/TOP, EXCLUDE) | `snowflake/parser` | T1.3 | — | 1 | P0 | **done** (PR #48, includes T1.6 CTEs) |
+| **T1.5** | joins (INNER/LEFT/RIGHT/FULL/CROSS/NATURAL/ASOF/DIRECTED/LATERAL) | `snowflake/parser` | T1.4 | T1.6, T1.7 | 1 | P0 | **done** (PR #50) |
+| **T1.6** | CTEs (WITH [RECURSIVE]) | `snowflake/parser` | T1.4 | T1.5, T1.7 | 1 | P0 | **done** (included in T1.4 PR #48) |
+| **T1.7** | set operators (UNION/UNION BY NAME/EXCEPT/MINUS/INTERSECT) | `snowflake/parser` | T1.4 | T1.5, T1.6 | 1 | P0 | **done** (PR #53) |
 | **T1.8** | statement-classification helper (DDL/DML/SELECT/SHOW/DESCRIBE/Other) | `snowflake/analysis` | F4 | T1.1–T1.7 | 1 | P0 | not started |
 | **T2.1** | DDL: DATABASE / SCHEMA (CREATE/ALTER/DROP/UNDROP) | `snowflake/parser` | T1.1 | T2.2, T2.4, T2.5 | 2 | P0 | not started |
 | **T2.2** | DDL: CREATE TABLE (full — constraints, CTAS, LIKE, CLUSTER BY, COPY GRANTS, WITH TAGS, MASKING POLICY, COLLATE, IDENTITY/AUTOINCREMENT) | `snowflake/parser` | T1.2, T1.3, T1.4 | T2.1, T2.4 | 2 | P0 | not started |
