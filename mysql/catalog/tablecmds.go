@@ -116,6 +116,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// max(existing) — see altercmds.go.
 	var unnamedFKCount int
 
+	// unnamedCheckCount counts CHECK constraints that received an auto-generated
+	// name in this CREATE TABLE statement. Matches MySQL 8.0's CHECK counter
+	// at sql/sql_table.cc:19073 (cc_max_generated_number starts at 0, used
+	// via ++cc_max_generated_number). Like the FK counter, this IGNORES
+	// user-named CHECK constraints during CREATE TABLE.
+	//
+	// Example: CREATE TABLE t (a INT, CONSTRAINT t_chk_1 CHECK(a>0), b INT, CHECK(b<100))
+	//   → unnamed CHECK gets t_chk_1, but t_chk_1 is already taken by user
+	//   → real MySQL errors with ER_CHECK_CONSTRAINT_DUP_NAME
+	//   (see sql/sql_table.cc:19595 check_constraint_dup_name check).
+	// For ALTER TABLE ADD CHECK, the counter is loaded from existing max —
+	// see altercmds.go which uses nextCheckNumber (gap-scan helper).
+	var unnamedCheckCount int
+
 	// Process columns.
 	for i, colDef := range stmt.Columns {
 		colKey := toLower(colDef.Name)
@@ -236,7 +250,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				// Add check constraint.
 				conName := cc.Name
 				if conName == "" {
-					conName = fmt.Sprintf("%s_chk_%d", tableName, nextCheckNumber(tbl))
+					unnamedCheckCount++
+					conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
 				}
 				tbl.Constraints = append(tbl.Constraints, &Constraint{
 					Name:        conName,
@@ -441,7 +456,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case nodes.ConstrCheck:
 			conName := con.Name
 			if conName == "" {
-				conName = fmt.Sprintf("%s_chk_%d", tableName, nextCheckNumber(tbl))
+				unnamedCheckCount++
+				conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
 			}
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:        conName,
