@@ -122,14 +122,14 @@ func Split(input string) []Segment {
 			}
 
 		case ch == '`':
-			// Ion literal: skip to closing backtick.
-			i++
-			for i < n && input[i] != '`' {
-				i++
-			}
-			if i < n {
-				i++ // consume closing `
-			}
+			// Ion literal: scan with awareness of Ion-mode strings and
+			// comments so that backticks inside them don't prematurely
+			// close the literal. Matches PartiQLLexer.g4's ION mode
+			// (lines 408-428): Ion short strings ("..."), Ion symbols
+			// ('...'), Ion long strings ('''...'''), and Ion inline
+			// comments (/*...*/) can all contain backticks.
+			i++ // skip opening `
+			scanIon(input, &i)
 
 		case ch == '-' && i+1 < n && input[i+1] == '-':
 			// Line comment: skip to end of line.
@@ -160,4 +160,75 @@ func Split(input string) []Segment {
 	}
 
 	return segs
+}
+
+// scanIon advances *pos past an Ion literal body (after the opening
+// backtick has been consumed). It handles Ion short strings ("..."),
+// Ion symbols ('...'), Ion long strings (”'...”'), and Ion inline
+// comments (/*...*/) — all of which can contain backticks without
+// terminating the literal. Matches PartiQLLexer.g4's ION mode.
+func scanIon(input string, pos *int) {
+	n := len(input)
+	i := *pos
+	for i < n {
+		switch input[i] {
+		case '`':
+			i++ // closing backtick
+			*pos = i
+			return
+		case '"':
+			// Ion short string: "..." with backslash escapes.
+			i++
+			for i < n && input[i] != '"' {
+				if input[i] == '\\' && i+1 < n {
+					i++ // skip escaped char
+				}
+				i++
+			}
+			if i < n {
+				i++ // closing "
+			}
+		case '\'':
+			// Check for triple-quote Ion long string '''...'''.
+			if i+2 < n && input[i+1] == '\'' && input[i+2] == '\'' {
+				i += 3
+				for i+2 < n {
+					if input[i] == '\'' && input[i+1] == '\'' && input[i+2] == '\'' {
+						i += 3
+						break
+					}
+					i++
+				}
+			} else {
+				// Ion symbol: '...' with backslash escapes.
+				i++
+				for i < n && input[i] != '\'' {
+					if input[i] == '\\' && i+1 < n {
+						i++
+					}
+					i++
+				}
+				if i < n {
+					i++ // closing '
+				}
+			}
+		case '/':
+			// Ion inline comment: /*...*/ (non-nesting per Ion spec).
+			if i+1 < n && input[i+1] == '*' {
+				i += 2
+				for i+1 < n {
+					if input[i] == '*' && input[i+1] == '/' {
+						i += 2
+						break
+					}
+					i++
+				}
+			} else {
+				i++
+			}
+		default:
+			i++
+		}
+	}
+	*pos = i
 }

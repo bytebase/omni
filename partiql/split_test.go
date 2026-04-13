@@ -108,6 +108,41 @@ func TestSplit(t *testing.T) {
 			wantText:  []string{"SELECT /* outer /* inner */ still comment */ 1"},
 			wantEmpty: []bool{false},
 		},
+		{
+			name:      "ion_with_backtick_in_short_string",
+			input:     "SELECT `\"a`b\"`; SELECT 2",
+			wantN:     2,
+			wantText:  []string{"SELECT `\"a`b\"`;", " SELECT 2"},
+			wantEmpty: []bool{false, false},
+		},
+		{
+			name:      "ion_with_backtick_in_comment",
+			input:     "SELECT `/* not end ` still ion */`; SELECT 2",
+			wantN:     2,
+			wantText:  []string{"SELECT `/* not end ` still ion */`;", " SELECT 2"},
+			wantEmpty: []bool{false, false},
+		},
+		{
+			name:      "ion_with_backtick_in_symbol",
+			input:     "SELECT `'a`b'`; SELECT 2",
+			wantN:     2,
+			wantText:  []string{"SELECT `'a`b'`;", " SELECT 2"},
+			wantEmpty: []bool{false, false},
+		},
+		{
+			name:      "ion_with_triple_quoted_long_string",
+			input:     "SELECT `'''contains ` backtick'''`; SELECT 2",
+			wantN:     2,
+			wantText:  []string{"SELECT `'''contains ` backtick'''`;", " SELECT 2"},
+			wantEmpty: []bool{false, false},
+		},
+		{
+			name:      "ion_simple_no_inner_strings",
+			input:     "SELECT `{a: 1}`; SELECT 2",
+			wantN:     2,
+			wantText:  []string{"SELECT `{a: 1}`;", " SELECT 2"},
+			wantEmpty: []bool{false, false},
+		},
 	}
 
 	for _, tc := range cases {
