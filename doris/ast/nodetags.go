@@ -47,6 +47,62 @@ const (
 
 	// T_Property is the tag for *Property, a key=value pair in PROPERTIES clauses.
 	T_Property
+
+	// Expression nodes (T1.3).
+
+	// T_BinaryExpr is the tag for *BinaryExpr (left op right).
+	T_BinaryExpr
+
+	// T_UnaryExpr is the tag for *UnaryExpr (op expr).
+	T_UnaryExpr
+
+	// T_IsExpr is the tag for *IsExpr (expr IS [NOT] NULL/TRUE/FALSE).
+	T_IsExpr
+
+	// T_BetweenExpr is the tag for *BetweenExpr (expr [NOT] BETWEEN low AND high).
+	T_BetweenExpr
+
+	// T_InExpr is the tag for *InExpr (expr [NOT] IN (...)).
+	T_InExpr
+
+	// T_LikeExpr is the tag for *LikeExpr (expr [NOT] LIKE pattern [ESCAPE esc]).
+	T_LikeExpr
+
+	// T_RegexpExpr is the tag for *RegexpExpr (expr [NOT] REGEXP/RLIKE pattern).
+	T_RegexpExpr
+
+	// T_FuncCallExpr is the tag for *FuncCallExpr (name(args...)).
+	T_FuncCallExpr
+
+	// T_CastExpr is the tag for *CastExpr (CAST/TRY_CAST).
+	T_CastExpr
+
+	// T_CaseExpr is the tag for *CaseExpr (CASE...END).
+	T_CaseExpr
+
+	// T_WhenClause is the tag for *WhenClause (WHEN cond THEN result).
+	T_WhenClause
+
+	// T_SubqueryExpr is the tag for *SubqueryExpr (placeholder for subqueries).
+	T_SubqueryExpr
+
+	// T_ColumnRef is the tag for *ColumnRef (qualified column reference).
+	T_ColumnRef
+
+	// T_Literal is the tag for *Literal (numeric, string, boolean, NULL).
+	T_Literal
+
+	// T_ParenExpr is the tag for *ParenExpr ((expr)).
+	T_ParenExpr
+
+	// T_ExistsExpr is the tag for *ExistsExpr (EXISTS (subquery)).
+	T_ExistsExpr
+
+	// T_IntervalExpr is the tag for *IntervalExpr (INTERVAL expr unit).
+	T_IntervalExpr
+
+	// T_OrderByItem is the tag for *OrderByItem (expr ASC/DESC NULLS FIRST/LAST).
+	T_OrderByItem
 )
 
 // String returns a human-readable representation of the tag.
@@ -74,6 +130,42 @@ func (t NodeTag) String() string {
 		return "DropDatabaseStmt"
 	case T_Property:
 		return "Property"
+	case T_BinaryExpr:
+		return "BinaryExpr"
+	case T_UnaryExpr:
+		return "UnaryExpr"
+	case T_IsExpr:
+		return "IsExpr"
+	case T_BetweenExpr:
+		return "BetweenExpr"
+	case T_InExpr:
+		return "InExpr"
+	case T_LikeExpr:
+		return "LikeExpr"
+	case T_RegexpExpr:
+		return "RegexpExpr"
+	case T_FuncCallExpr:
+		return "FuncCallExpr"
+	case T_CastExpr:
+		return "CastExpr"
+	case T_CaseExpr:
+		return "CaseExpr"
+	case T_WhenClause:
+		return "WhenClause"
+	case T_SubqueryExpr:
+		return "SubqueryExpr"
+	case T_ColumnRef:
+		return "ColumnRef"
+	case T_Literal:
+		return "Literal"
+	case T_ParenExpr:
+		return "ParenExpr"
+	case T_ExistsExpr:
+		return "ExistsExpr"
+	case T_IntervalExpr:
+		return "IntervalExpr"
+	case T_OrderByItem:
+		return "OrderByItem"
 	default:
 		return "Unknown"
 	}

@@ -47,5 +47,66 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Name)
 	case *Property:
 		// leaf node, no children
+
+	// Expression nodes (T1.3).
+	case *BinaryExpr:
+		Walk(v, n.Left)
+		Walk(v, n.Right)
+	case *UnaryExpr:
+		Walk(v, n.Expr)
+	case *IsExpr:
+		Walk(v, n.Expr)
+	case *BetweenExpr:
+		Walk(v, n.Expr)
+		Walk(v, n.Low)
+		Walk(v, n.High)
+	case *InExpr:
+		Walk(v, n.Expr)
+		walkNodes(v, n.Values)
+	case *LikeExpr:
+		Walk(v, n.Expr)
+		Walk(v, n.Pattern)
+		if n.Escape != nil {
+			Walk(v, n.Escape)
+		}
+	case *RegexpExpr:
+		Walk(v, n.Expr)
+		Walk(v, n.Pattern)
+	case *FuncCallExpr:
+		Walk(v, n.Name)
+		walkNodes(v, n.Args)
+		for _, item := range n.OrderBy {
+			Walk(v, item)
+		}
+	case *CastExpr:
+		Walk(v, n.Expr)
+		Walk(v, n.TypeName)
+	case *CaseExpr:
+		if n.Operand != nil {
+			Walk(v, n.Operand)
+		}
+		for _, w := range n.Whens {
+			Walk(v, w)
+		}
+		if n.Else != nil {
+			Walk(v, n.Else)
+		}
+	case *WhenClause:
+		Walk(v, n.Cond)
+		Walk(v, n.Result)
+	case *SubqueryExpr:
+		// placeholder leaf — no parsed children yet
+	case *ColumnRef:
+		Walk(v, n.Name)
+	case *Literal:
+		// leaf node, no children
+	case *ParenExpr:
+		Walk(v, n.Expr)
+	case *ExistsExpr:
+		Walk(v, n.Subquery)
+	case *IntervalExpr:
+		Walk(v, n.Value)
+	case *OrderByItem:
+		Walk(v, n.Expr)
 	}
 }
