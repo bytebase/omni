@@ -197,9 +197,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// DML (12 cases)
 	case kwSELECT:
-		return p.parseSelectStmt()
+		return p.parseQueryExpr()
+	case '(':
+		// Parenthesized query expression at top level, e.g. (SELECT 1) UNION (SELECT 2).
+		// Delegate to parseQueryExpr which handles the leading '('.
+		return p.parseQueryExpr()
 	case kwWITH:
-		return p.parseWithSelect()
+		return p.parseWithQueryExpr()
 	case kwINSERT:
 		return p.unsupported("INSERT")
 	case kwUPDATE:

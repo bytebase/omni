@@ -784,3 +784,37 @@ type FetchClause struct {
 	Count Node // the count expression
 	Loc   Loc
 }
+
+// ---------------------------------------------------------------------------
+// Set operator node
+// ---------------------------------------------------------------------------
+
+// SetOp enumerates the set operator kinds.
+type SetOp int
+
+const (
+	SetOpUnion     SetOp = iota // UNION
+	SetOpExcept                 // EXCEPT (also MINUS)
+	SetOpIntersect              // INTERSECT
+)
+
+// SetOperationStmt represents a set-operation query:
+// UNION [ALL] [BY NAME] / EXCEPT / INTERSECT between two query expressions.
+//
+// Left and Right are either *SelectStmt (leaf) or nested *SetOperationStmt
+// (chained). The chain is left-associative:
+//
+//	SELECT 1 UNION SELECT 2 UNION SELECT 3
+//	→ SetOperationStmt{Left: SetOperationStmt{Left: S1, Right: S2}, Right: S3}
+type SetOperationStmt struct {
+	Op     SetOp // the operator kind
+	All    bool  // true for UNION ALL
+	ByName bool  // true for UNION [ALL] BY NAME (Snowflake-specific)
+	Left   Node  // *SelectStmt or nested *SetOperationStmt
+	Right  Node  // *SelectStmt or nested *SetOperationStmt
+	Loc    Loc
+}
+
+func (n *SetOperationStmt) Tag() NodeTag { return T_SetOperationStmt }
+
+var _ Node = (*SetOperationStmt)(nil)
