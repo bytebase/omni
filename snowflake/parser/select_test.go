@@ -1021,3 +1021,181 @@ func TestSelect_WithSubqueryInCTE(t *testing.T) {
 		t.Fatalf("expected SubqueryExpr, got %T", sel.Targets[0].Expr)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// T1.7 Set operator tests
+// ---------------------------------------------------------------------------
+
+// testParseSetOp is a helper that parses input and returns the first statement
+// as *ast.SetOperationStmt plus any errors.
+func testParseSetOp(input string) (*ast.SetOperationStmt, []ParseError) {
+	result := ParseBestEffort(input)
+	if len(result.File.Stmts) == 0 {
+		return nil, result.Errors
+	}
+	node, ok := result.File.Stmts[0].(*ast.SetOperationStmt)
+	if !ok {
+		return nil, append(result.Errors, ParseError{Msg: "not a SetOperationStmt"})
+	}
+	return node, result.Errors
+}
+
+// TestSetOp_Union verifies UNION parsing.
+func TestSetOp_Union(t *testing.T) {
+	node, errs := testParseSetOp("SELECT 1 UNION SELECT 2")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if node.Op != ast.SetOpUnion {
+		t.Errorf("Op = %v, want SetOpUnion", node.Op)
+	}
+	if node.All {
+		t.Error("All should be false")
+	}
+	if node.ByName {
+		t.Error("ByName should be false")
+	}
+	if _, ok := node.Left.(*ast.SelectStmt); !ok {
+		t.Errorf("Left: expected *SelectStmt, got %T", node.Left)
+	}
+	if _, ok := node.Right.(*ast.SelectStmt); !ok {
+		t.Errorf("Right: expected *SelectStmt, got %T", node.Right)
+	}
+}
+
+// TestSetOp_UnionAll verifies UNION ALL parsing.
+func TestSetOp_UnionAll(t *testing.T) {
+	node, errs := testParseSetOp("SELECT 1 UNION ALL SELECT 2")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if node.Op != ast.SetOpUnion {
+		t.Errorf("Op = %v, want SetOpUnion", node.Op)
+	}
+	if !node.All {
+		t.Error("All should be true")
+	}
+	if node.ByName {
+		t.Error("ByName should be false")
+	}
+}
+
+// TestSetOp_UnionAllByName verifies UNION ALL BY NAME parsing.
+func TestSetOp_UnionAllByName(t *testing.T) {
+	node, errs := testParseSetOp("SELECT 1 UNION ALL BY NAME SELECT 2")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if node.Op != ast.SetOpUnion {
+		t.Errorf("Op = %v, want SetOpUnion", node.Op)
+	}
+	if !node.All {
+		t.Error("All should be true")
+	}
+	if !node.ByName {
+		t.Error("ByName should be true")
+	}
+}
+
+// TestSetOp_Except verifies EXCEPT parsing.
+func TestSetOp_Except(t *testing.T) {
+	node, errs := testParseSetOp("SELECT 1 EXCEPT SELECT 2")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if node.Op != ast.SetOpExcept {
+		t.Errorf("Op = %v, want SetOpExcept", node.Op)
+	}
+}
+
+// TestSetOp_Minus verifies MINUS is treated as EXCEPT.
+func TestSetOp_Minus(t *testing.T) {
+	node, errs := testParseSetOp("SELECT 1 MINUS SELECT 2")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if node.Op != ast.SetOpExcept {
+		t.Errorf("Op = %v, want SetOpExcept (MINUS maps to EXCEPT)", node.Op)
+	}
+}
+
+// TestSetOp_Intersect verifies INTERSECT parsing.
+func TestSetOp_Intersect(t *testing.T) {
+	node, errs := testParseSetOp("SELECT 1 INTERSECT SELECT 2")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if node.Op != ast.SetOpIntersect {
+		t.Errorf("Op = %v, want SetOpIntersect", node.Op)
+	}
+}
+
+// TestSetOp_Chained verifies left-associative chaining:
+// SELECT 1 UNION SELECT 2 UNION SELECT 3
+// → SetOperationStmt{Left: SetOperationStmt{...}, Right: SelectStmt}
+func TestSetOp_Chained(t *testing.T) {
+	node, errs := testParseSetOp("SELECT 1 UNION SELECT 2 UNION SELECT 3")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if node.Op != ast.SetOpUnion {
+		t.Errorf("outer Op = %v, want SetOpUnion", node.Op)
+	}
+	inner, ok := node.Left.(*ast.SetOperationStmt)
+	if !ok {
+		t.Fatalf("Left: expected *SetOperationStmt (left-assoc), got %T", node.Left)
+	}
+	if inner.Op != ast.SetOpUnion {
+		t.Errorf("inner Op = %v, want SetOpUnion", inner.Op)
+	}
+	if _, ok := inner.Left.(*ast.SelectStmt); !ok {
+		t.Errorf("inner.Left: expected *SelectStmt, got %T", inner.Left)
+	}
+	if _, ok := inner.Right.(*ast.SelectStmt); !ok {
+		t.Errorf("inner.Right: expected *SelectStmt, got %T", inner.Right)
+	}
+	if _, ok := node.Right.(*ast.SelectStmt); !ok {
+		t.Errorf("outer Right: expected *SelectStmt, got %T", node.Right)
+	}
+}
+
+// TestSetOp_Parenthesized verifies (SELECT 1) UNION (SELECT 2).
+func TestSetOp_Parenthesized(t *testing.T) {
+	node, errs := testParseSetOp("(SELECT 1) UNION (SELECT 2)")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if node.Op != ast.SetOpUnion {
+		t.Errorf("Op = %v, want SetOpUnion", node.Op)
+	}
+}
+
+// TestSetOp_WithCTE verifies WITH cte AS (SELECT 1) SELECT * FROM cte UNION SELECT 2.
+func TestSetOp_WithCTE(t *testing.T) {
+	input := "WITH cte AS (SELECT 1) SELECT * FROM cte UNION SELECT 2"
+	result := ParseBestEffort(input)
+	if len(result.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", result.Errors)
+	}
+	if len(result.File.Stmts) == 0 {
+		t.Fatal("expected at least one statement")
+	}
+	node, ok := result.File.Stmts[0].(*ast.SetOperationStmt)
+	if !ok {
+		t.Fatalf("expected *SetOperationStmt, got %T", result.File.Stmts[0])
+	}
+	if node.Op != ast.SetOpUnion {
+		t.Errorf("Op = %v, want SetOpUnion", node.Op)
+	}
+	// Left side should be a SelectStmt (with With CTE attached).
+	leftSel, ok := node.Left.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("Left: expected *SelectStmt, got %T", node.Left)
+	}
+	if len(leftSel.With) != 1 {
+		t.Errorf("With = %d, want 1 CTE", len(leftSel.With))
+	}
+	if _, ok := node.Right.(*ast.SelectStmt); !ok {
+		t.Errorf("Right: expected *SelectStmt, got %T", node.Right)
+	}
+}

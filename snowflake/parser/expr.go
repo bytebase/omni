@@ -274,9 +274,9 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 		var query ast.Node
 		var err error
 		if p.cur.Type == kwWITH {
-			query, err = p.parseWithSelect()
+			query, err = p.parseWithQueryExpr()
 		} else {
-			query, err = p.parseSelectStmt()
+			query, err = p.parseQueryExpr()
 		}
 		if err != nil {
 			return nil, err
@@ -600,14 +600,14 @@ func (p *Parser) parseParenExpr() (ast.Node, error) {
 	openTok := p.advance() // consume '('
 	startLoc := openTok.Loc.Start
 
-	// Subquery: (SELECT ...) or (WITH ... SELECT ...)
+	// Subquery: (SELECT ...) or (WITH ... SELECT ...), optionally with set ops
 	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
 		var query ast.Node
 		var err error
 		if p.cur.Type == kwWITH {
-			query, err = p.parseWithSelect()
+			query, err = p.parseWithQueryExpr()
 		} else {
-			query, err = p.parseSelectStmt()
+			query, err = p.parseQueryExpr()
 		}
 		if err != nil {
 			return nil, err
@@ -1009,14 +1009,14 @@ func (p *Parser) parseInExpr(left ast.Node) (ast.Node, error) {
 		return nil, err
 	}
 
-	// Subquery: IN (SELECT ...) or IN (WITH ... SELECT ...)
+	// Subquery: IN (SELECT ...) or IN (WITH ... SELECT ...), optionally with set ops
 	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
 		var query ast.Node
 		var err error
 		if p.cur.Type == kwWITH {
-			query, err = p.parseWithSelect()
+			query, err = p.parseWithQueryExpr()
 		} else {
-			query, err = p.parseSelectStmt()
+			query, err = p.parseQueryExpr()
 		}
 		if err != nil {
 			return nil, err

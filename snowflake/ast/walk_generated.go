@@ -60,6 +60,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Qualify)
 		Walk(v, n.Limit)
 		Walk(v, n.Offset)
+	case *SetOperationStmt:
+		Walk(v, n.Left)
+		Walk(v, n.Right)
 	case *StarExpr:
 		if n.Qualifier != nil {
 			Walk(v, n.Qualifier)

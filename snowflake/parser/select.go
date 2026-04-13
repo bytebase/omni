@@ -10,6 +10,124 @@ import (
 // SELECT statement parser
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Query-expression wrappers (SELECT + optional set operators)
+// ---------------------------------------------------------------------------
+
+// parseQueryExpr parses a SELECT statement optionally followed by set
+// operators (UNION/EXCEPT/MINUS/INTERSECT). Returns either a bare
+// *SelectStmt or a *SetOperationStmt wrapping chained SELECTs.
+//
+// Also handles the case where the query starts with ( SELECT ... ), i.e.
+// a parenthesized SELECT as the leftmost operand in a set-op chain.
+func (p *Parser) parseQueryExpr() (ast.Node, error) {
+	var left ast.Node
+	var err error
+	if p.cur.Type == '(' {
+		// Parenthesized SELECT: consume '(', parse inner query, then ')'
+		p.advance() // consume '('
+		left, err = p.parseQueryExpr()
+		if err != nil {
+			return nil, err
+		}
+		if _, err = p.expect(')'); err != nil {
+			return nil, err
+		}
+	} else {
+		left, err = p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return p.parseSetOpChain(left)
+}
+
+// parseWithQueryExpr parses WITH ... SELECT ... [set operators].
+func (p *Parser) parseWithQueryExpr() (ast.Node, error) {
+	node, err := p.parseWithSelect()
+	if err != nil {
+		return nil, err
+	}
+	return p.parseSetOpChain(node)
+}
+
+// parseSetOpChain checks for UNION/EXCEPT/MINUS/INTERSECT after a SELECT
+// and builds a left-associative SetOperationStmt chain.
+func (p *Parser) parseSetOpChain(left ast.Node) (ast.Node, error) {
+	for {
+		op, all, byName, ok := p.tryParseSetOp()
+		if !ok {
+			break
+		}
+		// The right side may be parenthesized: (SELECT ...)
+		var right ast.Node
+		var err error
+		if p.cur.Type == '(' {
+			p.advance() // consume '('
+			right, err = p.parseQueryExpr()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+		} else {
+			right, err = p.parseSelectStmt()
+			if err != nil {
+				return nil, err
+			}
+		}
+		left = &ast.SetOperationStmt{
+			Op:     op,
+			All:    all,
+			ByName: byName,
+			Left:   left,
+			Right:  right,
+			Loc:    ast.Loc{Start: ast.NodeLoc(left).Start, End: ast.NodeLoc(right).End},
+		}
+	}
+	return left, nil
+}
+
+// tryParseSetOp checks if the current token starts a set operator.
+// Returns (op, all, byName, ok). Consumes the operator tokens on match.
+func (p *Parser) tryParseSetOp() (ast.SetOp, bool, bool, bool) {
+	switch p.cur.Type {
+	case kwUNION:
+		p.advance() // consume UNION
+		all := false
+		byName := false
+		if p.cur.Type == kwALL {
+			all = true
+			p.advance() // consume ALL
+		}
+		// UNION [ALL] BY NAME — Snowflake-specific
+		if p.cur.Type == kwBY {
+			next := p.peekNext()
+			if next.Type == kwNAME {
+				p.advance() // consume BY
+				p.advance() // consume NAME
+				byName = true
+			}
+		}
+		return ast.SetOpUnion, all, byName, true
+	case kwEXCEPT:
+		p.advance() // consume EXCEPT
+		return ast.SetOpExcept, false, false, true
+	case kwMINUS:
+		p.advance() // consume MINUS (alias for EXCEPT in Snowflake)
+		return ast.SetOpExcept, false, false, true
+	case kwINTERSECT:
+		p.advance() // consume INTERSECT
+		return ast.SetOpIntersect, false, false, true
+	}
+	return 0, false, false, false
+}
+
+// ---------------------------------------------------------------------------
+// SELECT statement parser
+// ---------------------------------------------------------------------------
+
 // parseSelectStmt parses a SELECT statement:
 //
 //	SELECT [DISTINCT|ALL] [TOP n] target_list
@@ -232,12 +350,12 @@ func (p *Parser) parseCTE(recursive bool) (*ast.CTE, error) {
 		return nil, err
 	}
 
-	// The CTE body can be WITH ... SELECT or just SELECT
+	// The CTE body can be WITH ... SELECT [set ops] or just SELECT [set ops]
 	var query ast.Node
 	if p.cur.Type == kwWITH {
-		query, err = p.parseWithSelect()
+		query, err = p.parseWithQueryExpr()
 	} else {
-		query, err = p.parseSelectStmt()
+		query, err = p.parseQueryExpr()
 	}
 	if err != nil {
 		return nil, err
