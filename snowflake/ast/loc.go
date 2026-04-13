@@ -16,6 +16,48 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *TypeName:
 		return v.Loc
+	case *Literal:
+		return v.Loc
+	case *ColumnRef:
+		return v.Loc
+	case *StarExpr:
+		return v.Loc
+	case *BinaryExpr:
+		return v.Loc
+	case *UnaryExpr:
+		return v.Loc
+	case *ParenExpr:
+		return v.Loc
+	case *CastExpr:
+		return v.Loc
+	case *CaseExpr:
+		return v.Loc
+	case *FuncCallExpr:
+		return v.Loc
+	case *IffExpr:
+		return v.Loc
+	case *CollateExpr:
+		return v.Loc
+	case *IsExpr:
+		return v.Loc
+	case *BetweenExpr:
+		return v.Loc
+	case *InExpr:
+		return v.Loc
+	case *LikeExpr:
+		return v.Loc
+	case *AccessExpr:
+		return v.Loc
+	case *ArrayLiteralExpr:
+		return v.Loc
+	case *JsonLiteralExpr:
+		return v.Loc
+	case *LambdaExpr:
+		return v.Loc
+	case *SubqueryExpr:
+		return v.Loc
+	case *ExistsExpr:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

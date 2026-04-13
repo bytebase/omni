@@ -56,6 +56,11 @@ func main() {
 
 	var structs []structInfo
 
+	// nodeStructs tracks which structs implement the Node interface (have a Tag() method).
+	// Only these structs get their own case in the walkChildren switch, and only
+	// pointer-to-Node-struct fields generate Walk calls.
+	nodeStructs := map[string]bool{}
+
 	for _, f := range files {
 		for _, decl := range f.Decls {
 			gd, ok := decl.(*ast.GenDecl)
@@ -66,6 +71,35 @@ func main() {
 				ts := spec.(*ast.TypeSpec)
 				if _, ok := ts.Type.(*ast.StructType); ok {
 					structNames[ts.Name.Name] = true
+				}
+			}
+		}
+		// Scan function declarations for Tag() methods to identify Node types.
+		for _, decl := range f.Decls {
+			fd, ok := decl.(*ast.FuncDecl)
+			if !ok || fd.Recv == nil || fd.Name.Name != "Tag" {
+				continue
+			}
+			// Check it returns NodeTag and has no parameters.
+			if fd.Type.Params != nil && len(fd.Type.Params.List) > 0 {
+				continue
+			}
+			if fd.Type.Results == nil || len(fd.Type.Results.List) != 1 {
+				continue
+			}
+			// Extract the receiver type name (handles both *T and T receivers).
+			for _, recv := range fd.Recv.List {
+				recvName := ""
+				switch rt := recv.Type.(type) {
+				case *ast.StarExpr:
+					if id, ok := rt.X.(*ast.Ident); ok {
+						recvName = id.Name
+					}
+				case *ast.Ident:
+					recvName = rt.Name
+				}
+				if recvName != "" {
+					nodeStructs[recvName] = true
 				}
 			}
 		}
@@ -91,7 +125,7 @@ func main() {
 						continue // embedded
 					}
 					typStr := typeString(fld.Type)
-					if isChildType(typStr, structNames) {
+					if isChildType(typStr, nodeStructs) {
 						for _, name := range fld.Names {
 							fields = append(fields, field{Name: name.Name, Type: typStr})
 						}
@@ -118,6 +152,10 @@ func main() {
 
 	for _, s := range structs {
 		if len(s.Fields) == 0 {
+			continue
+		}
+		// Only emit cases for structs that implement Node (have a Tag() method).
+		if !nodeStructs[s.Name] {
 			continue
 		}
 		fmt.Fprintf(&buf, "\tcase *%s:\n", s.Name)
@@ -157,7 +195,7 @@ func main() {
 	cases := 0
 	fields := 0
 	for _, s := range structs {
-		if len(s.Fields) > 0 {
+		if len(s.Fields) > 0 && nodeStructs[s.Name] {
 			cases++
 			fields += len(s.Fields)
 		}
@@ -188,10 +226,11 @@ func typeString(expr ast.Expr) string {
 // Recognized shapes:
 //   - "Node"             — the Node interface
 //   - "[]Node"           — slice of nodes
-//   - "*<KnownStruct>"   — pointer to a struct defined in parsenodes.go or node.go
+//   - "*<NodeStruct>"    — pointer to a struct that implements Node (has Tag() method)
 //
-// Excluded: pointer to "Loc" (Loc is not a node), and any other shape.
-func isChildType(typStr string, structNames map[string]bool) bool {
+// Excluded: pointer to "Loc" (Loc is not a node), pointer to non-Node structs
+// (helper types like WhenClause, WindowSpec, etc.), and any other shape.
+func isChildType(typStr string, nodeStructs map[string]bool) bool {
 	if typStr == "Node" {
 		return true
 	}
@@ -203,7 +242,7 @@ func isChildType(typStr string, structNames map[string]bool) bool {
 		if name == "Loc" {
 			return false
 		}
-		return structNames[name]
+		return nodeStructs[name]
 	}
 	return false
 }

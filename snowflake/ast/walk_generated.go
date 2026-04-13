@@ -6,11 +6,60 @@ package ast
 // for each child. This function is generated from parsenodes.go and node.go.
 func walkChildren(v Visitor, node Node) {
 	switch n := node.(type) {
+	case *AccessExpr:
+		Walk(v, n.Expr)
+		Walk(v, n.Index)
+	case *ArrayLiteralExpr:
+		walkNodes(v, n.Elements)
+	case *BetweenExpr:
+		Walk(v, n.Expr)
+		Walk(v, n.Low)
+		Walk(v, n.High)
+	case *BinaryExpr:
+		Walk(v, n.Left)
+		Walk(v, n.Right)
+	case *CaseExpr:
+		Walk(v, n.Operand)
+		Walk(v, n.Else)
+	case *CastExpr:
+		Walk(v, n.Expr)
+		if n.TypeName != nil {
+			Walk(v, n.TypeName)
+		}
+	case *CollateExpr:
+		Walk(v, n.Expr)
 	case *File:
 		walkNodes(v, n.Stmts)
+	case *FuncCallExpr:
+		walkNodes(v, n.Args)
+	case *IffExpr:
+		Walk(v, n.Cond)
+		Walk(v, n.Then)
+		Walk(v, n.Else)
+	case *InExpr:
+		Walk(v, n.Expr)
+		walkNodes(v, n.Values)
+	case *IsExpr:
+		Walk(v, n.Expr)
+		Walk(v, n.DistinctFrom)
+	case *LambdaExpr:
+		Walk(v, n.Body)
+	case *LikeExpr:
+		Walk(v, n.Expr)
+		Walk(v, n.Pattern)
+		Walk(v, n.Escape)
+		walkNodes(v, n.AnyValues)
+	case *ParenExpr:
+		Walk(v, n.Expr)
+	case *StarExpr:
+		if n.Qualifier != nil {
+			Walk(v, n.Qualifier)
+		}
 	case *TypeName:
 		if n.ElementType != nil {
 			Walk(v, n.ElementType)
 		}
+	case *UnaryExpr:
+		Walk(v, n.Expr)
 	}
 }
