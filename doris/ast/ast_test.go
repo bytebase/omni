@@ -2,10 +2,16 @@ package ast
 
 import "testing"
 
-func TestNodeInterface(t *testing.T) {
-	// Verify that File and ObjectName satisfy the Node interface.
-	var _ Node = (*File)(nil)
-	var _ Node = (*ObjectName)(nil)
+// stubNode is a test-only Node implementation used to verify that NodeLoc
+// returns NoLoc() for unrecognized types.
+type stubNode struct{}
+
+func (stubNode) Tag() NodeTag { return T_Invalid }
+
+func TestNodeLocUnknownType(t *testing.T) {
+	if got := NodeLoc(stubNode{}); got != NoLoc() {
+		t.Errorf("NodeLoc(stubNode) = %v, want NoLoc", got)
+	}
 }
 
 func TestNodeTags(t *testing.T) {
@@ -138,6 +144,62 @@ func TestWalkFile(t *testing.T) {
 func TestWalkNilNode(t *testing.T) {
 	// Walk(nil) should not panic.
 	Walk(inspector(func(Node) bool { return true }), nil)
+}
+
+// recorder is a Visitor that logs pre-order and post-order events.
+type recorder struct {
+	events *[]string
+}
+
+func (r recorder) Visit(node Node) Visitor {
+	if node == nil {
+		*r.events = append(*r.events, "post")
+		return nil
+	}
+	*r.events = append(*r.events, node.Tag().String())
+	return r
+}
+
+func TestWalkPostOrder(t *testing.T) {
+	child := &ObjectName{Parts: []string{"a"}}
+	file := &File{Stmts: []Node{child}}
+
+	var events []string
+	Walk(recorder{&events}, file)
+
+	// Expect: File (pre), ObjectName (pre), ObjectName (post), File (post)
+	want := []string{"File", "ObjectName", "post", "post"}
+	if len(events) != len(want) {
+		t.Fatalf("events = %v, want %v", events, want)
+	}
+	for i, e := range events {
+		if e != want[i] {
+			t.Errorf("events[%d] = %q, want %q", i, e, want[i])
+		}
+	}
+}
+
+func TestWalkAbort(t *testing.T) {
+	// Returning nil from Visit should prevent descending into children.
+	child := &ObjectName{Parts: []string{"a"}}
+	file := &File{Stmts: []Node{child}}
+
+	var visited []string
+	Inspect(file, func(n Node) bool {
+		if n != nil {
+			visited = append(visited, n.Tag().String())
+		}
+		// Return false for File -> should not visit children.
+		return false
+	})
+
+	want := []string{"File"}
+	if len(visited) != len(want) {
+		t.Fatalf("visited = %v, want %v", visited, want)
+	}
+	if visited[0] != "File" {
+		t.Errorf("visited[0] = %q, want %q", visited[0], "File")
+	}
 }
 
 func TestNodeLoc(t *testing.T) {

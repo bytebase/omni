@@ -27,9 +27,12 @@ var _ Node = (*File)(nil)
 // multipartIdentifier grammar rule. Parts are stored in order: for a 3-part
 // name like catalog.db.table, Parts = ["catalog", "db", "table"].
 //
-// Parts stores the raw text from source: for backtick-quoted identifiers,
-// the content between the backticks; for unquoted identifiers, the source
-// bytes with case preserved.
+// Parts stores the normalized identifier text: the parser strips backtick
+// quoting at parse time, so all parts are bare names. Quoting information
+// is not preserved because Doris identifier resolution is case-insensitive
+// regardless of quoting (unlike Snowflake where quoting affects case folding).
+// If a future consumer needs to distinguish quoted vs unquoted identifiers,
+// a Quoted []bool field can be added alongside Parts.
 //
 // ObjectName is a Node and is visited by the AST walker, but has no Node
 // children to descend into.
