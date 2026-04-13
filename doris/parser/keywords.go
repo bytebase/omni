@@ -1474,6 +1474,11 @@ func TokenName(kind TokenKind) string {
 		tokenNames[tokDotDotDot] = "..."
 		tokenNames[tokHintStart] = "HINT_START"
 		tokenNames[tokHintEnd] = "HINT_END"
+		// Fix non-determinism for aliases that map multiple strings
+		// to the same TokenKind (e.g., "char"/"character" -> kwCHAR).
+		tokenNames[kwCHAR] = "CHAR"
+		tokenNames[kwTYPECAST] = "TYPECAST"
+		tokenNames[kwCONVERT_LSC] = "CONVERT_LSC"
 	}
 	if name, ok := tokenNames[kind]; ok {
 		return name

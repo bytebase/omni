@@ -17,8 +17,7 @@ type Lexer struct {
 	pos        int // current byte offset
 	start      int // start byte of current token
 	errors     []LexError
-	baseOffset int  // added to Loc positions on return
-	inHint     bool // true between /*+ and */
+	baseOffset int // added to Loc positions on return
 }
 
 // NewLexer creates a lexer for the given input.

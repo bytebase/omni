@@ -29,7 +29,7 @@ const (
 	tokAssign                  // :=
 	tokDotDotDot               // ...
 	tokHintStart               // /*+
-	tokHintEnd                 // */ (only emitted after a hint-start)
+	tokHintEnd                 // */ — emitted for ANY */ in the token stream; the parser is responsible for validating hint context
 )
 
 // Literal tokens (600-699).
