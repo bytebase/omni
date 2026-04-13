@@ -24,6 +24,28 @@ const (
 
 	// T_TypeName is the tag for *TypeName, a data type reference.
 	T_TypeName
+
+	T_Literal
+	T_ColumnRef
+	T_StarExpr
+	T_BinaryExpr
+	T_UnaryExpr
+	T_ParenExpr
+	T_CastExpr
+	T_CaseExpr
+	T_FuncCallExpr
+	T_IffExpr
+	T_CollateExpr
+	T_IsExpr
+	T_BetweenExpr
+	T_InExpr
+	T_LikeExpr
+	T_AccessExpr
+	T_ArrayLiteralExpr
+	T_JsonLiteralExpr
+	T_LambdaExpr
+	T_SubqueryExpr
+	T_ExistsExpr
 )
 
 // String returns a human-readable representation of the tag.
@@ -37,6 +59,48 @@ func (t NodeTag) String() string {
 		return "ObjectName"
 	case T_TypeName:
 		return "TypeName"
+	case T_Literal:
+		return "Literal"
+	case T_ColumnRef:
+		return "ColumnRef"
+	case T_StarExpr:
+		return "StarExpr"
+	case T_BinaryExpr:
+		return "BinaryExpr"
+	case T_UnaryExpr:
+		return "UnaryExpr"
+	case T_ParenExpr:
+		return "ParenExpr"
+	case T_CastExpr:
+		return "CastExpr"
+	case T_CaseExpr:
+		return "CaseExpr"
+	case T_FuncCallExpr:
+		return "FuncCallExpr"
+	case T_IffExpr:
+		return "IffExpr"
+	case T_CollateExpr:
+		return "CollateExpr"
+	case T_IsExpr:
+		return "IsExpr"
+	case T_BetweenExpr:
+		return "BetweenExpr"
+	case T_InExpr:
+		return "InExpr"
+	case T_LikeExpr:
+		return "LikeExpr"
+	case T_AccessExpr:
+		return "AccessExpr"
+	case T_ArrayLiteralExpr:
+		return "ArrayLiteralExpr"
+	case T_JsonLiteralExpr:
+		return "JsonLiteralExpr"
+	case T_LambdaExpr:
+		return "LambdaExpr"
+	case T_SubqueryExpr:
+		return "SubqueryExpr"
+	case T_ExistsExpr:
+		return "ExistsExpr"
 	default:
 		return "Unknown"
 	}
