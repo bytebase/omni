@@ -793,42 +793,42 @@ func (p *Parser) parseIdentitySpec() (*ast.IdentitySpec, error) {
 		}
 	}
 
-	// Optional START WITH [=] n
+	// Optional START [WITH] [=] n
 	if p.cur.Type == kwSTART {
-		next := p.peekNext()
-		if next.Type == kwWITH {
-			p.advance() // consume START
+		p.advance() // consume START
+		// Optional WITH
+		if p.cur.Type == kwWITH {
 			p.advance() // consume WITH
-			// Optional =
-			if p.cur.Type == '=' {
-				p.advance()
-			}
-			tok, err := p.expect(tokInt)
-			if err != nil {
-				return nil, err
-			}
-			v := tok.Ival
-			spec.Start = &v
 		}
+		// Optional =
+		if p.cur.Type == '=' {
+			p.advance()
+		}
+		tok, err := p.expect(tokInt)
+		if err != nil {
+			return nil, err
+		}
+		v := tok.Ival
+		spec.Start = &v
 	}
 
-	// Optional INCREMENT BY [=] n
+	// Optional INCREMENT [BY] [=] n
 	if p.cur.Type == kwINCREMENT {
-		next := p.peekNext()
-		if next.Type == kwBY {
-			p.advance() // consume INCREMENT
+		p.advance() // consume INCREMENT
+		// Optional BY
+		if p.cur.Type == kwBY {
 			p.advance() // consume BY
-			// Optional =
-			if p.cur.Type == '=' {
-				p.advance()
-			}
-			tok, err := p.expect(tokInt)
-			if err != nil {
-				return nil, err
-			}
-			v := tok.Ival
-			spec.Increment = &v
 		}
+		// Optional =
+		if p.cur.Type == '=' {
+			p.advance()
+		}
+		tok, err := p.expect(tokInt)
+		if err != nil {
+			return nil, err
+		}
+		v := tok.Ival
+		spec.Increment = &v
 	}
 
 	// Optional ORDER / NOORDER

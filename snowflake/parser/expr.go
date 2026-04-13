@@ -377,6 +377,21 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		tok := p.advance()
 		return &ast.StarExpr{Loc: tok.Loc}, nil
 
+	// Reserved keywords that are also common zero-argument functions:
+	// CURRENT_TIMESTAMP([prec]), CURRENT_DATE, CURRENT_TIME([prec]).
+	// Snowflake allows them both with and without parentheses.
+	case kwCURRENT_TIMESTAMP, kwCURRENT_DATE, kwCURRENT_TIME:
+		tok := p.advance()
+		name := ast.ObjectName{
+			Name: ast.Ident{Name: tok.Str, Loc: tok.Loc},
+			Loc:  tok.Loc,
+		}
+		if p.cur.Type == '(' {
+			return p.parseFuncCall(name, tok.Loc)
+		}
+		// Without parens — treat as a no-arg function call.
+		return &ast.FuncCallExpr{Name: name, Loc: tok.Loc}, nil
+
 	default:
 		// Lambda detection: single ident followed by ->
 		if p.isIdentToken() && p.peekNext().Type == tokArrow {
