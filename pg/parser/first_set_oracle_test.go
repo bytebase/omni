@@ -276,6 +276,71 @@ func runFirstSetProbe(
 func filterKeywordsOnly(c candidateToken) bool { return c.kind == kindKeyword }
 func filterAll(c candidateToken) bool          { return true }
 
+func TestSimpleTypenameLeadTokensMatchPG(t *testing.T) {
+	o := startFirstSetOracle(t)
+
+	// Probe each keyword via CAST. CAST's grammar is
+	//   CAST '(' a_expr AS Typename ')'
+	// (gram.y:14130), which exercises `Typename`, a SUPERSET of
+	// SimpleTypename: Typename = SimpleTypename opt_array_bounds
+	//                          | SETOF SimpleTypename opt_array_bounds | ...
+	//
+	// For FIRST-set purposes the only difference is SETOF, since
+	// opt_array_bounds is a suffix. We therefore subtract SETOF from
+	// PG's accepted set below — the SimpleTypename production proper
+	// does NOT include SETOF, so isSimpleTypenameStart must reject it,
+	// but the CAST probe will accept `CAST(NULL AS setof int)` because
+	// renderTypeCandidate produces that form.
+	//
+	// Result classification:
+	//   42601 syntax_error → not a SimpleTypename lead
+	//   42704 undefined_object / success → valid lead (unknown or built-in)
+	//
+	// Multi-token type syntax (DOUBLE PRECISION, NATIONAL CHARACTER,
+	// CHARACTER VARYING, etc.) is covered by renderTypeCandidate trying
+	// every rendering; the probe is accepted if any rendering parses.
+
+	// Scope the probe to keyword + IDENT candidates. Including literals,
+	// PARAM, and punctuation would only produce "both reject" matches
+	// (PG rejects `CAST(NULL AS 1)`, predicate rejects int-typed tokens)
+	// which is noise that could mask a real regression in the IDENT path.
+	filter := func(c candidateToken) bool {
+		return c.kind == kindKeyword || c.kind == kindIdent
+	}
+	outcomes := runFirstSetProbe(t, o,
+		"SELECT CAST(NULL AS %s)",
+		renderTypeCandidate,
+		filter,
+	)
+
+	// Subtract SETOF: CAST probes Typename, which includes SETOF, but
+	// SimpleTypename does not. Without this subtraction the test would
+	// report "PG accepts but predicate rejects: setof" on every run.
+	// The Typename test in Task 1.7 handles SETOF explicitly via its
+	// own predicate isTypenameStart.
+	for i := range outcomes {
+		if outcomes[i].candidate.token == SETOF {
+			outcomes[i].accepted = false
+		}
+	}
+
+	assertPredicateMatchesPG(t, "SimpleTypename", outcomes, predicateProbe{
+		onKeyword: func(c candidateToken) bool {
+			// Str MUST be set — isTypeFunctionName's category check reads
+			// p.cur.Str and cross-verifies via LookupKeyword.
+			p := &Parser{cur: Token{Type: c.token, Str: c.name}}
+			return p.isSimpleTypenameStart()
+		},
+		onNonKeyword: func(c candidateToken) bool {
+			// Only IDENT reaches SimpleTypename (via GenericType →
+			// isTypeFunctionName). Literals, punctuation, PARAM are
+			// rejected by the predicate.
+			p := &Parser{cur: Token{Type: c.token, Str: c.name}}
+			return p.isSimpleTypenameStart()
+		},
+	})
+}
+
 // predicateProbe dispatches a FIRST-set predicate against a single
 // candidate. Both callbacks receive the full candidateToken because
 // omni's category predicates (isTypeFunctionName, isColId, isColLabel)
