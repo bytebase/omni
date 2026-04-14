@@ -399,3 +399,49 @@ func assertPredicateMatchesPG(
 			production, missingFromOmni, extraInOmni)
 	}
 }
+
+// TestIsConstTypenameStartMatchesSimpleLeadSet asserts the invariant that
+// ConstTypename and SimpleTypename share the same hard-lead token set in
+// omni. This is the rule the implementation has to follow; if grammar
+// ever diverges and we need a separate slice, revisit this test.
+func TestIsConstTypenameStartMatchesSimpleLeadSet(t *testing.T) {
+	for _, tok := range simpleTypenameLeadTokens {
+		name := ""
+		for _, kw := range Keywords {
+			if kw.Token == tok {
+				name = kw.Name
+				break
+			}
+		}
+		p := &Parser{cur: Token{Type: tok, Str: name}}
+		if !p.isConstTypenameStart() {
+			t.Errorf("isConstTypenameStart must accept %q (in simpleTypenameLeadTokens)", name)
+		}
+	}
+}
+
+// TestIsConstTypenameStartRejectsNonTypeStarters ensures the predicate
+// rejects tokens that PG would accept only via the func_name Sconst
+// branch. This is the negative coverage the PG oracle cannot give us.
+func TestIsConstTypenameStartRejectsNonTypeStarters(t *testing.T) {
+	rejects := []struct {
+		tok  int
+		name string
+	}{
+		{IDENT, "foo"},       // bare IDENT → func_name path in PG
+		{BETWEEN, "between"}, // ColNameKeyword, not a type
+		{EXISTS, "exists"},
+		{COALESCE, "coalesce"},
+		{GREATEST, "greatest"},
+		{ROW, "row"},
+		{VALUES, "values"},
+		{POSITION, "position"},
+		{TRIM, "trim"},
+	}
+	for _, r := range rejects {
+		p := &Parser{cur: Token{Type: r.tok, Str: r.name}}
+		if p.isConstTypenameStart() {
+			t.Errorf("isConstTypenameStart must reject %q (tok %d)", r.name, r.tok)
+		}
+	}
+}

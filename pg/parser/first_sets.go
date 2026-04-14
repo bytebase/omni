@@ -37,3 +37,26 @@ func (p *Parser) isSimpleTypenameStart() bool {
 	// GenericType fallthrough: type_function_name opt_type_modifiers
 	return p.isTypeFunctionName()
 }
+
+// isConstTypenameStart reports whether the current token starts a
+// ConstTypename production.
+//
+// Grammar reference: gram.y:14370
+//
+//	ConstTypename: Numeric | ConstBit | ConstCharacter | ConstDatetime | JsonType
+//
+// In omni's parser, ConstTypename and SimpleTypename share the SAME
+// hard-lead token set — both are validated by parseSimpleTypename's
+// switch at type.go:105. The difference is that SimpleTypename additionally
+// falls through to `isTypeFunctionName()` (GenericType path) while
+// ConstTypename does not. We therefore reuse simpleTypenameLeadSet and
+// simply skip the fallback.
+//
+// NOTE: this predicate CANNOT be validated via a PG oracle at the
+// AexprConst grammar position because that position is ambiguous with
+// `func_name Sconst`, which accepts almost any keyword. See
+// TestIsConstTypenameStartRejectsNonTypeStarters for the hand-curated
+// negative coverage that replaces the oracle test.
+func (p *Parser) isConstTypenameStart() bool {
+	return simpleTypenameLeadSet[p.cur.Type]
+}
