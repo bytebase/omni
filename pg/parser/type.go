@@ -102,6 +102,12 @@ func (p *Parser) parseOptArrayBounds() (*nodes.List, error) {
 //	    | ConstInterval '(' Iconst ')'
 //	    | BOOLEAN_P
 //	    | JSON
+//
+// MAINTENANCE: the explicit case list below MUST stay in lockstep with
+// simpleTypenameLeadTokens in first_sets.go. Callers using FIRST-set
+// lookahead should consult isSimpleTypenameStart rather than hand-writing
+// a switch on these tokens — TestSimpleTypenameLeadTokensMatchPG enforces
+// the parity against PG 17 so any drift fails CI.
 func (p *Parser) parseSimpleTypename() (*nodes.TypeName, error) {
 	switch p.cur.Type {
 	case INT_P, INTEGER:
