@@ -8,6 +8,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -92,7 +93,12 @@ func isCI() bool {
 type probeResult int
 
 const (
-	probeAccept probeResult = iota // syntax OK, may or may not be semantically valid
+	// probeAccept means PG did NOT report a syntax error. This includes
+	// outright success AND semantic errors like 42704 undefined_object,
+	// because semantic errors prove the parser accepted the leading
+	// tokens before reaching name resolution. For FIRST-set purposes,
+	// "syntactically valid" is the question, not "semantically valid".
+	probeAccept probeResult = iota
 	probeReject                    // syntax_error (42601)
 )
 
@@ -109,14 +115,19 @@ func classifyProbeErr(err error) probeResult {
 	return probeAccept
 }
 
-// probe runs one SQL statement inside a savepoint so side effects roll back.
+// probe runs one SQL statement inside a transaction with a per-call
+// timeout, then rolls back so side effects don't leak. The timeout
+// prevents a pathological probe from hanging the entire test binary
+// until the Go test timeout expires.
 func (o *firstSetOracle) probe(t *testing.T, sqlStr string) probeResult {
 	t.Helper()
-	tx, err := o.db.BeginTx(o.ctx, nil)
+	ctx, cancel := context.WithTimeout(o.ctx, 5*time.Second)
+	defer cancel()
+	tx, err := o.db.BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatalf("begin: %v", err)
 	}
-	defer tx.Rollback()
-	_, err = tx.ExecContext(o.ctx, sqlStr)
+	defer func() { _ = tx.Rollback() }()
+	_, err = tx.ExecContext(ctx, sqlStr)
 	return classifyProbeErr(err)
 }
