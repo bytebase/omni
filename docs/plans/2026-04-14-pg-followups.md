@@ -29,7 +29,18 @@ narrower than expected.
 
 ## Section 1 — Findings
 
-### Finding 1: `parseGenericType` 1-dot limitation (REAL BUG)
+### Finding 1: `parseGenericType` 1-dot limitation (REAL BUG, but downstream catalog also needs a fix)
+
+**SCOPE EXPANSION (per codex review of commit f7731c2)**: fixing
+`parseGenericType` alone is insufficient. The catalog's
+`typeNameParts` helper silently drops qualification for any `Names`
+list with more than 2 components — so a parser that produces
+`Names=["db","schema","mytype"]` would feed the catalog a 3-component
+list, and the catalog would silently treat it as bare `"mytype"` with
+no schema. This is a **silent semantic bug that the parser fix would
+expose**. The plan now includes a paired catalog fix.
+
+
 
 **Symptom**: any type position that uses a 3-or-more-component qualified
 name fails to parse:
@@ -161,13 +172,87 @@ func (p *Parser) parseGenericType() (*nodes.TypeName, error) {
 ~15 lines vs the current ~36. Matches PG's grammar exactly. No new
 abstraction — reuses the existing `parseAttrs`.
 
-**Test coverage**: a new `TestParseQualifiedTypeMultiComponent` covering
-all 6 type positions (CAST, TYPECAST, CREATE TABLE, ALTER TABLE,
-CREATE FUNCTION param, CREATE FUNCTION return) at 2-component, 3-component,
-and 4-component depths, with AST-shape assertions on the resulting
-`Names` list.
+**Paired catalog fix** (added per codex review):
 
-**Cost**: ~30 minutes of work. 1 commit.
+`pg/catalog/nodeutil.go:189-206` `typeNameParts` currently has:
+
+```go
+func typeNameParts(tn *nodes.TypeName) (schema, name string) {
+    if tn.Names == nil {
+        return "", ""
+    }
+    items := tn.Names.Items
+    switch len(items) {
+    case 1:
+        return "", stringVal(items[0])
+    case 2:
+        return stringVal(items[0]), stringVal(items[1])
+    default:
+        // Last element is the type name.
+        if len(items) > 0 {
+            return "", stringVal(items[len(items)-1])  // ← drops schema AND catalog
+        }
+        return "", ""
+    }
+}
+```
+
+For `len > 2`, it returns `("", lastItem)` — silently dropping all
+qualification beyond the last component. Today this path is unreachable
+(parser produces at most 2-component names), but the parser fix above
+would produce `Names=["db","schema","mytype"]` for `db.schema.mytype`,
+and `typeNameParts` would silently turn it into bare `"mytype"`.
+
+PG's actual semantics: in `catalog.schema.type`, the catalog must match
+the current database name. PG accepts the syntax and validates the
+catalog at name-resolution time. omni doesn't track the current
+database, so we can't perform that validation, but we can still extract
+the schema and name correctly:
+
+```go
+case 1:
+    return "", stringVal(items[0])
+case 2:
+    return stringVal(items[0]), stringVal(items[1])
+case 3:
+    // catalog.schema.name — drop the catalog prefix. PG would validate
+    // it matches the current database, but we don't track that here.
+    return stringVal(items[1]), stringVal(items[2])
+default:
+    // 0 or 4+ components: invalid
+    return "", ""
+}
+```
+
+**Call site audit for `typeNameParts`**: 7 sites. 5 use only the name
+(`_, name := ...`), 2 use both (`schema, name := ...` at
+`nodeutil.go:145` and `nodeutil.go:350`). For the name-only sites, the
+fix is transparent. For the schema-using sites, the fix changes the
+returned `schema` from `""` to `items[len-2]` for 3-component names —
+which is the correct behavior matching PG.
+
+**Test coverage**: in addition to parser tests for 6 type positions at
+2/3/4-component depths, add a catalog test that asserts
+`typeNameParts` returns the expected `(schema, name)` pair for 3-component
+input, and that 4+component returns an empty/invalid result rather than
+silently truncating.
+
+**Test matrix expansion (per codex item 6 — broader parseGenericType
+call paths)**: codex's audit found additional broken positions I
+missed. These all hit `parseGenericType` via different call chains and
+all fail at HEAD:
+
+- `RETURNS TABLE (x db.schema.mytype)` (parseTableFuncColumn → parseFuncType → parseTypename → parseSimpleTypename → parseGenericType)
+- `CREATE OPERATOR === (..., LEFTARG = db.schema.mytype, ...)` (parseDefArg → parseFuncType → ...)
+- `CREATE SEQUENCE s AS db.schema.mytype` (sequence AS → parseSimpleTypename → parseGenericType)
+- `XMLSERIALIZE(... AS db.schema.mytype)` (parseSimpleTypename → parseGenericType)
+- `json_serialize(... RETURNING db.schema.mytype)` (parseTypename → ...)
+
+These should all be in the test matrix because they exercise different
+call chains to the same buggy function.
+
+**Cost**: ~1 hour of work (parser fix + catalog fix + 11-position test
+matrix). 1-2 commits.
 
 ### Finding 2: 3 `isColId() || isTypeFunctionName()` call sites are DEAD CODE (NOT a bug, just style)
 
@@ -291,11 +376,14 @@ previous test process's container before the new test process's
 `startFirstSetOracle` can ping it. The test fails with
 `connection refused`.
 
-**Reproduction**: I tried 5 rapid `go test` reruns in this session — all
-passed. The flake happened during the original Phase 1 smoke test (1
-occurrence) but has not reproduced since. **Estimated rate: ~3% per run,
-zero in CI** (CI uses isolated processes per job, which Ryuk handles
-correctly).
+**Reproduction**: 1 confirmed occurrence during the original Phase 1
+smoke test in this conversation. 5 follow-up rapid reruns all passed.
+The frequency cannot be validated from source alone — it depends on
+local Docker/Ryuk timing — so any "X% per run" estimate is a guess. CI
+should be unaffected because per-job process isolation gives Ryuk a
+clean lifetime per process. (Codex correctly flagged my earlier "rare"
+claim as not validatable from source; this paragraph reflects what we
+actually know.)
 
 **Investigation summary**:
 
@@ -452,22 +540,38 @@ alignment). Document but don't fix finding 3 (Option A: doc-only).
 
 ### Commit breakdown
 
-**Commit 1**: Fix `parseGenericType` to use `parseAttrs` for arbitrary
-qualified type depth. Add `TestParseQualifiedTypeMultiComponent` covering
-6 type positions × 2/3/4-component depths.
+**Commit 1 (CATALOG)**: Fix `pg/catalog/nodeutil.go:typeNameParts` to
+handle 3-component names by treating `[catalog, schema, name]` as
+`(schema, name)`, and explicitly returning empty for 4+component
+(rather than silently truncating). Add `TestTypeNamePartsThreeComponent`
+covering 1/2/3/4-component inputs. **Land this BEFORE commit 2** so the
+parser fix doesn't expose the silent-truncation bug.
 
-**Commit 2**: Remove dead-code `|| p.isTypeFunctionName()` from the 3
-call sites at `expr.go:1475`, `create_table.go:901`, `create_index.go:273`.
-Add a small `TestTypeFuncNameKeywordRejectedAsExpression` covering
-`SELECT inner`, `SELECT left`, etc. as a regression sanity (these
-already fail today; the test locks in that they continue to fail after
-the cleanup).
+**Commit 2 (PARSER)**: Fix `parseGenericType` to use `parseAttrs` for
+arbitrary qualified type depth. Add `TestParseQualifiedTypeMultiComponent`
+covering all 11 positions (6 originally listed + 5 found by codex
+review): CAST, TYPECAST, CREATE TABLE column, ALTER TABLE, CREATE
+FUNCTION param, CREATE FUNCTION return, RETURNS TABLE column, CREATE
+OPERATOR LEFTARG, CREATE SEQUENCE AS, XMLSERIALIZE, json_serialize
+RETURNING — at 2-component, 3-component, and 4-component depths where
+applicable.
 
-**Commit 3** (optional): Update `pg/parser/CLAUDE.md` to remove the
+**Commit 3 (CLEANUP)**: Remove dead-code `|| p.isTypeFunctionName()`
+from the 3 call sites at `expr.go:1475`, `create_table.go:901`,
+`create_index.go:273`. Add a small
+`TestTypeFuncNameKeywordRejectedAsExpression` covering `SELECT inner`,
+`SELECT left`, etc. as a regression sanity (these already fail today;
+the test locks in that they continue to fail after the cleanup).
+
+**Commit 4 (DOCS)**: Update `pg/parser/CLAUDE.md` to remove the
 "Three-component qualified type names" entry from "Known limitations"
-(it will be fixed by commit 1) and the `isColId() || isTypeFunctionName()`
-audit note from the FIRST-set discipline section if any. Leave the
-Ryuk reaper note as-is (Option A for finding 3).
+(it will be fixed by commits 1+2). Leave the Ryuk reaper note as-is
+(Option A for finding 3).
+
+**Commit ordering matters**: catalog fix MUST land before parser fix.
+Otherwise the parser starts producing 3-component ASTs while the catalog
+still silently drops them, creating a temporary window of silent
+semantic bug.
 
 ### Test matrix
 
@@ -485,7 +589,7 @@ func TestParseQualifiedTypeMultiComponent(t *testing.T) {
             sql:       `SELECT CAST(NULL AS pg_catalog.int4)`,
             wantNames: []string{"pg_catalog", "int4"},
         },
-        // 3-component (the fix)
+        // 3-component — the 6 positions originally listed
         {
             name:      "3-component CAST",
             sql:       `SELECT CAST(NULL AS db.schema.mytype)`,
@@ -516,20 +620,81 @@ func TestParseQualifiedTypeMultiComponent(t *testing.T) {
             sql:       `CREATE FUNCTION f() RETURNS db.schema.mytype AS 'select 1' LANGUAGE sql`,
             wantNames: []string{"db", "schema", "mytype"},
         },
-        // 4-component (deeper)
+        // 3-component — additional positions found by codex review
         {
-            name:      "4-component CREATE TABLE column",
+            name:      "3-component RETURNS TABLE column",
+            sql:       `CREATE FUNCTION f() RETURNS TABLE (x db.schema.mytype) AS 'select 1' LANGUAGE sql`,
+            wantNames: []string{"db", "schema", "mytype"},
+        },
+        {
+            name:      "3-component CREATE OPERATOR LEFTARG",
+            sql:       `CREATE OPERATOR === (FUNCTION = int4eq, LEFTARG = db.schema.mytype, RIGHTARG = int4)`,
+            wantNames: []string{"db", "schema", "mytype"},
+        },
+        {
+            name:      "3-component CREATE SEQUENCE AS",
+            sql:       `CREATE SEQUENCE s AS db.schema.mytype`,
+            wantNames: []string{"db", "schema", "mytype"},
+        },
+        {
+            name:      "3-component XMLSERIALIZE",
+            sql:       `SELECT XMLSERIALIZE(CONTENT '<a/>' AS db.schema.mytype)`,
+            wantNames: []string{"db", "schema", "mytype"},
+        },
+        {
+            name:      "3-component json_serialize RETURNING",
+            sql:       `SELECT JSON_SERIALIZE('{}' RETURNING db.schema.mytype)`,
+            wantNames: []string{"db", "schema", "mytype"},
+        },
+        // 4-component (PG accepts at parse time but errors at semantic
+        // resolution because the catalog component must match the current
+        // database AND the chain can't go deeper). omni's parser should
+        // accept the syntax; the catalog fix below should reject the
+        // semantic.
+        {
+            name:      "4-component parser accepts",
             sql:       `CREATE TABLE t (c a.b.c.d)`,
             wantNames: []string{"a", "b", "c", "d"},
         },
-        // 5-component (just to prove there's no implicit limit)
-        {
-            name:      "5-component CAST",
-            sql:       `SELECT CAST(NULL AS a.b.c.d.e)`,
-            wantNames: []string{"a", "b", "c", "d", "e"},
-        },
     }
     // ... walk to TypeName and assert Names ...
+}
+
+// pg/catalog/nodeutil_test.go addition (new test in existing file
+// or new file if nodeutil_test.go doesn't exist)
+func TestTypeNamePartsThreeComponent(t *testing.T) {
+    cases := []struct {
+        name       string
+        items      []string  // raw Names list strings
+        wantSchema string
+        wantName   string
+    }{
+        {
+            name:       "1-component bare",
+            items:      []string{"int4"},
+            wantSchema: "",
+            wantName:   "int4",
+        },
+        {
+            name:       "2-component schema-qualified",
+            items:      []string{"pg_catalog", "int4"},
+            wantSchema: "pg_catalog",
+            wantName:   "int4",
+        },
+        {
+            name:       "3-component catalog.schema.name",
+            items:      []string{"db", "schema", "mytype"},
+            wantSchema: "schema",
+            wantName:   "mytype",
+        },
+        {
+            name:       "4-component invalid",
+            items:      []string{"a", "b", "c", "d"},
+            wantSchema: "",
+            wantName:   "",  // explicit invalid, not silent truncation
+        },
+    }
+    // ... build TypeName, call typeNameParts, assert ...
 }
 
 // pg/parser/typefuncname_keyword_rejected_test.go (new file)
@@ -589,16 +754,22 @@ func TestTypeFuncNameKeywordRejectedAsExpression(t *testing.T) {
    review surfaces a new use case I missed, fall back to keeping the
    OR but adding an explanatory comment.
 
-### Time estimate
+### Time estimate (revised after codex review)
 
 | Phase | Time |
 |---|---|
-| Commit 1 (parseGenericType fix + multi-component tests) | 30-45 min |
-| Commit 2 (3-site cleanup + sanity test) | 15-30 min |
-| Commit 3 (CLAUDE.md update) | 10 min |
-| Full pg/parser smoke + integration check | 15 min |
-| Codex review + iteration | 30 min |
-| **Total** | **~2 hours** |
+| Commit 1 (catalog typeNameParts fix + 4-case unit test) | 20-30 min |
+| Commit 2 (parseGenericType fix + 11-position multi-component tests) | 45-60 min |
+| Commit 3 (3-site dead-code cleanup + sanity test) | 15-30 min |
+| Commit 4 (CLAUDE.md update) | 10 min |
+| Full pg/parser + pg/catalog + omni-wide smoke | 30 min |
+| Codex review + iteration | 30-60 min |
+| **Total** | **~3 hours** |
+
+Increased from "~2 hours" because the codex review revealed (a) the
+catalog dependency means there's a 4th commit, (b) the test matrix is
+~2x larger (11 positions instead of 6), (c) a wider smoke is needed
+since the catalog change touches code paths beyond pg/parser.
 
 ### Deferred / out of scope
 
