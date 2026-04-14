@@ -53,6 +53,14 @@ const (
 	T_CreateTableStmt
 	T_ColumnDef
 	T_TableConstraint
+	T_CreateDatabaseStmt
+	T_AlterDatabaseStmt
+	T_DropDatabaseStmt
+	T_UndropDatabaseStmt
+	T_CreateSchemaStmt
+	T_AlterSchemaStmt
+	T_DropSchemaStmt
+	T_UndropSchemaStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -122,6 +130,22 @@ func (t NodeTag) String() string {
 		return "ColumnDef"
 	case T_TableConstraint:
 		return "TableConstraint"
+	case T_CreateDatabaseStmt:
+		return "CreateDatabaseStmt"
+	case T_AlterDatabaseStmt:
+		return "AlterDatabaseStmt"
+	case T_DropDatabaseStmt:
+		return "DropDatabaseStmt"
+	case T_UndropDatabaseStmt:
+		return "UndropDatabaseStmt"
+	case T_CreateSchemaStmt:
+		return "CreateSchemaStmt"
+	case T_AlterSchemaStmt:
+		return "AlterSchemaStmt"
+	case T_DropSchemaStmt:
+		return "DropSchemaStmt"
+	case T_UndropSchemaStmt:
+		return "UndropSchemaStmt"
 	default:
 		return "Unknown"
 	}

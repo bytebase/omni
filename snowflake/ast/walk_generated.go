@@ -9,6 +9,20 @@ func walkChildren(v Visitor, node Node) {
 	case *AccessExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.Index)
+	case *AlterDatabaseStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
+	case *AlterSchemaStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
 	case *ArrayLiteralExpr:
 		walkNodes(v, n.Elements)
 	case *BetweenExpr:
@@ -37,6 +51,14 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.MaskingPolicy)
 		}
 		Walk(v, n.VirtualExpr)
+	case *CreateDatabaseStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *CreateSchemaStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *CreateTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -45,6 +67,14 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.AsSelect)
 		if n.Like != nil {
 			Walk(v, n.Like)
+		}
+	case *DropDatabaseStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *DropSchemaStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 	case *ExistsExpr:
 		Walk(v, n.Query)
@@ -107,5 +137,13 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *UnaryExpr:
 		Walk(v, n.Expr)
+	case *UndropDatabaseStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *UndropSchemaStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	}
 }
