@@ -55,16 +55,21 @@ func TestTypeNamePartsThreeComponent(t *testing.T) {
 			wantName:   "int4",
 		},
 		{
-			name:       "4-component soft fallback",
+			// 4+ components: return empty so downstream resolution
+			// fails. We deliberately do NOT fall back to ("", lastItem)
+			// — that would silently resolve invalid SQL like `CREATE
+			// TABLE t (c a.b.c.int4)` as the local int4 type. See
+			// typeNameParts doc comment for the full rationale.
+			name:       "4-component returns empty (silent-success guard)",
 			items:      []string{"a", "b", "c", "d"},
 			wantSchema: "",
-			wantName:   "d",
+			wantName:   "",
 		},
 		{
-			name:       "5-component soft fallback",
+			name:       "5-component returns empty",
 			items:      []string{"a", "b", "c", "d", "e"},
 			wantSchema: "",
-			wantName:   "e",
+			wantName:   "",
 		},
 	}
 	for _, tc := range cases {

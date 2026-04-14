@@ -200,11 +200,14 @@ func (c *Catalog) resolveTypeName(tn *nodes.TypeName) (uint32, int32, error) {
 // reference is to the local database.
 //
 // 4+ components: PG rejects these at name-resolution time as "improper
-// qualified name". omni soft-falls back to ("", lastItem) — same as the
-// pre-fix behavior — so the downstream resolver error mentions the
-// last-component identifier (better UX than a literally empty name). A
-// typed error from typeNameParts would require a signature change and is
-// out of scope.
+// qualified name". omni returns ("", "") so the downstream resolver fails
+// to find a type with empty name. We deliberately do NOT fall back to
+// `("", lastItem)`: that would silently let `CREATE TABLE t (c
+// a.b.c.int4)` resolve as the local `int4` type, turning invalid SQL
+// into a successful parse with the wrong AST. A typed error from
+// typeNameParts would give a more informative error message than
+// `type "" does not exist`, but it would require a signature change at
+// all 8 call sites and is out of scope for this fix.
 //
 // History: prior to this fix, typeNameParts treated len > 2 as
 // ("", lastItem) — silently dropping ALL qualification beyond the last
@@ -231,10 +234,13 @@ func typeNameParts(tn *nodes.TypeName) (schema, name string) {
 		// track that here.
 		return stringVal(items[1]), stringVal(items[2])
 	default:
-		// 4+ components: PG also rejects these at name resolution time.
-		// Soft fall back so the downstream resolver error mentions the
-		// last-component identifier rather than an empty string.
-		return "", stringVal(items[len(items)-1])
+		// 4+ components: PG rejects these at name resolution time as
+		// "improper qualified name". Return empty so the downstream
+		// resolver fails. Falling back to ("", lastItem) would silently
+		// resolve `CREATE TABLE t (c a.b.c.int4)` as the local `int4`
+		// type — a silent success bug that codex caught during the
+		// implementation review of this commit's predecessor.
+		return "", ""
 	}
 }
 
