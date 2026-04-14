@@ -581,14 +581,21 @@ func TestAExprLeadTokensMatchPG(t *testing.T) {
 
 	// Subtract probe-contamination keywords. The `SELECT %s` template
 	// cannot fully isolate a_expr's FIRST set because SELECT's own
-	// grammar absorbs some tokens before they reach the target_el slot:
+	// grammar absorbs some tokens before they reach the target_el slot.
 	//
-	//   - ALL / DISTINCT: `SELECT ALL ...` and `SELECT DISTINCT ...` are
-	//     the duplicate-elimination quantifiers from select_clause, not
-	//     a_expr leads. PG consumes ALL as the quantifier and then parses
-	//     nothing as the target list (which fails with a different error
-	//     than 42601 in some forms, but `SELECT ALL` by itself is
-	//     classified as accept by some render probes). Not a_expr leads.
+	// Empirically: `SELECT all` returns a non-42601 status from PG (the
+	// classifier therefore reads it as "accepted"), because ALL is parsed
+	// as the select_clause duplicate-elimination quantifier — not as an
+	// a_expr lead. The predicate correctly rejects ALL, so without this
+	// subtraction the assertion would report a spurious drift entry.
+	//
+	// DISTINCT does NOT need subtracting: bare `SELECT distinct` returns
+	// 42601, so the classifier already counts it as rejected and the
+	// predicate's rejection matches.
+	//
+	// Add to this map only after running the test without the entry,
+	// observing a "PG accepts but predicate rejects" drift, and verifying
+	// the token is absorbed by surrounding SELECT grammar (not by a_expr).
 	aExprProbeContamination := map[int]bool{
 		ALL: true,
 	}

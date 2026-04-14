@@ -101,9 +101,10 @@ func (p *Parser) isTypenameStart() bool {
 }
 
 // aExprLeadTokens is the set of tokens that start an a_expr but are
-// NOT covered by isConstTypenameStart or the isColId/isTypeFunctionName
-// category check. Includes literal tokens, expression-opener keywords,
-// the parameter reference, and unary punctuation.
+// NOT covered by isConstTypenameStart or the isColId category check.
+// Includes literal tokens, expression-opener keywords, the parameter
+// reference, the SQL value functions (which use func_expr_common_subexpr,
+// a distinct production from columnref), and unary punctuation.
 //
 // Grammar reference: a_expr in postgres/src/backend/parser/gram.y around
 // line 14780. The FIRST set of a_expr is the most general expression
