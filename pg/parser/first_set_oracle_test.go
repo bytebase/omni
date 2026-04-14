@@ -474,3 +474,47 @@ func TestIsConstTypenameStartRejectsNonTypeStarters(t *testing.T) {
 		}
 	}
 }
+
+func TestTypenameLeadTokensMatchPG(t *testing.T) {
+	o := startFirstSetOracle(t)
+	// Probe Typename via the RETURNS clause of CREATE FUNCTION. This
+	// position is grammatically `func_type`, and at the FIRST-set level
+	// `func_type` equals `Typename`:
+	//
+	//   func_type: Typename
+	//            | type_function_name attrs '%' TYPE_P
+	//            | SETOF type_function_name attrs '%' TYPE_P
+	//
+	// The %TYPE alternatives start with `type_function_name`, which is
+	// already in FIRST(Typename) via SimpleTypename → GenericType. So
+	// FIRST(func_type) = FIRST(Typename) ∪ {SETOF}, and {SETOF} is already
+	// in FIRST(Typename) (Typename: SETOF SimpleTypename | SimpleTypename
+	// ...). Therefore the RETURNS position is a sound oracle for Typename's
+	// FIRST set — and it correctly accepts SETOF, unlike CAST.
+	//
+	// Cross-check: if a future PG version introduces a token accepted in
+	// one position but not the other, TestSimpleTypenameLeadTokensMatchPG
+	// (CAST-based) and this test will disagree, which is a useful alert.
+
+	// Scope to keyword + IDENT, matching the SimpleTypename test — see
+	// TestSimpleTypenameLeadTokensMatchPG rationale.
+	filter := func(c candidateToken) bool {
+		return c.kind == kindKeyword || c.kind == kindIdent
+	}
+	outcomes := runFirstSetProbe(t, o,
+		"CREATE FUNCTION __omni_probe() RETURNS %s AS $$ SELECT 1 $$ LANGUAGE sql",
+		renderTypeCandidate,
+		filter,
+	)
+
+	assertPredicateMatchesPG(t, "Typename via RETURNS", outcomes, predicateProbe{
+		onKeyword: func(c candidateToken) bool {
+			p := &Parser{cur: Token{Type: c.token, Str: c.name}}
+			return p.isTypenameStart()
+		},
+		onNonKeyword: func(c candidateToken) bool {
+			p := &Parser{cur: Token{Type: c.token, Str: c.name}}
+			return p.isTypenameStart()
+		},
+	})
+}

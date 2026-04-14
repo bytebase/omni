@@ -71,3 +71,31 @@ func (p *Parser) isSimpleTypenameStart() bool {
 func (p *Parser) isConstTypenameStart() bool {
 	return simpleTypenameLeadSet[p.cur.Type]
 }
+
+// isTypenameStart reports whether the current token starts a Typename
+// production.
+//
+//	Typename:
+//	    SimpleTypename opt_array_bounds
+//	    | SETOF SimpleTypename opt_array_bounds
+//	    | SimpleTypename ARRAY '[' Iconst ']'
+//	    | SETOF SimpleTypename ARRAY '[' Iconst ']'
+//	    | SimpleTypename ARRAY
+//	    | SETOF SimpleTypename ARRAY
+//
+// Composed from isSimpleTypenameStart plus SETOF. There is no
+// typenameLeadTokens slice — the FIRST set is fully expressible as
+// {SETOF} ∪ FIRST(SimpleTypename), and we reuse the latter.
+//
+// At the FIRST-set level, FIRST(Typename) equals FIRST(func_type),
+// because func_type's %TYPE alternatives all start with
+// type_function_name, which is already in FIRST(Typename) via
+// SimpleTypename's GenericType path. The oracle test below probes the
+// RETURNS position of CREATE FUNCTION, which is grammatically func_type,
+// and that's a sound oracle for Typename's FIRST set.
+func (p *Parser) isTypenameStart() bool {
+	if p.cur.Type == SETOF {
+		return true
+	}
+	return p.isSimpleTypenameStart()
+}
