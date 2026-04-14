@@ -35,6 +35,18 @@ var (
 func startFirstSetOracle(t *testing.T) *firstSetOracle {
 	t.Helper()
 	firstSetOracleOnce.Do(func() {
+		// testcontainers-go panics inside MustExtractDockerHost when the
+		// Docker socket is reachable but access is denied (e.g. sandboxed
+		// runs, containerized CI without socket mount). It panics rather
+		// than returning an error, so we have to recover() to honor the
+		// CI-vs-local skip policy below. Same pattern as
+		// pg/catalog and mysql/catalog testcontainer helpers.
+		defer func() {
+			if r := recover(); r != nil {
+				oracleSetupError = fmt.Errorf("docker provider panic: %v", r)
+			}
+		}()
+
 		ctx := context.Background()
 		container, err := tcpg.Run(ctx, "postgres:17-alpine",
 			tcpg.WithDatabase("omni_fs"),
