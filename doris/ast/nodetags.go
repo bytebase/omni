@@ -168,6 +168,20 @@ const (
 
 	// T_AlterTableAction is the tag for *AlterTableAction.
 	T_AlterTableAction
+
+	// DDL — VIEW nodes (T2.4).
+
+	// T_ViewColumn is the tag for *ViewColumn (one column in a view column list).
+	T_ViewColumn
+
+	// T_CreateViewStmt is the tag for *CreateViewStmt.
+	T_CreateViewStmt
+
+	// T_AlterViewStmt is the tag for *AlterViewStmt.
+	T_AlterViewStmt
+
+	// T_DropViewStmt is the tag for *DropViewStmt.
+	T_DropViewStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -269,6 +283,14 @@ func (t NodeTag) String() string {
 		return "AlterTableStmt"
 	case T_AlterTableAction:
 		return "AlterTableAction"
+	case T_ViewColumn:
+		return "ViewColumn"
+	case T_CreateViewStmt:
+		return "CreateViewStmt"
+	case T_AlterViewStmt:
+		return "AlterViewStmt"
+	case T_DropViewStmt:
+		return "DropViewStmt"
 	default:
 		return "Unknown"
 	}

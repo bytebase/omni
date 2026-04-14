@@ -265,5 +265,27 @@ func walkChildren(v Visitor, node Node) {
 		if n.Distribution != nil {
 			Walk(v, n.Distribution)
 		}
+
+	// DDL — VIEW nodes (T2.4).
+	case *ViewColumn:
+		// leaf-ish node, no Node children
+	case *CreateViewStmt:
+		Walk(v, n.Name)
+		for _, col := range n.Columns {
+			Walk(v, col)
+		}
+		if n.Query != nil {
+			Walk(v, n.Query)
+		}
+	case *AlterViewStmt:
+		Walk(v, n.Name)
+		for _, col := range n.Columns {
+			Walk(v, col)
+		}
+		if n.Query != nil {
+			Walk(v, n.Query)
+		}
+	case *DropViewStmt:
+		Walk(v, n.Name)
 	}
 }

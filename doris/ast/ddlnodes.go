@@ -210,7 +210,6 @@ func (n *RawQuery) Tag() NodeTag { return T_RawQuery }
 
 var _ Node = (*RawQuery)(nil)
 
-// ---------------------------------------------------------------------------
 // ALTER TABLE statement and supporting types (T2.2)
 // ---------------------------------------------------------------------------
 
@@ -301,3 +300,71 @@ type AlterTableStmt struct {
 func (n *AlterTableStmt) Tag() NodeTag { return T_AlterTableStmt }
 
 var _ Node = (*AlterTableStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// VIEW DDL nodes (T2.4)
+// ---------------------------------------------------------------------------
+
+// ViewColumn is one entry in a CREATE/ALTER VIEW column list:
+//
+//	name [COMMENT 'text']
+type ViewColumn struct {
+	Name    string
+	Comment string
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ViewColumn) Tag() NodeTag { return T_ViewColumn }
+
+var _ Node = (*ViewColumn)(nil)
+
+// CreateViewStmt represents:
+//
+//	CREATE [OR REPLACE] VIEW [IF NOT EXISTS] view_name
+//	    [(col1 [COMMENT 'text'], ...)]
+//	    [COMMENT 'view comment']
+//	    AS query
+type CreateViewStmt struct {
+	Name        *ObjectName
+	OrReplace   bool
+	IfNotExists bool
+	Columns     []*ViewColumn // optional column list
+	Comment     string        // view-level COMMENT
+	Query       Node          // SELECT statement (*SelectStmt)
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateViewStmt) Tag() NodeTag { return T_CreateViewStmt }
+
+var _ Node = (*CreateViewStmt)(nil)
+
+// AlterViewStmt represents:
+//
+//	ALTER VIEW view_name [(col1 [COMMENT 'text'], ...)] AS query
+type AlterViewStmt struct {
+	Name    *ObjectName
+	Columns []*ViewColumn
+	Query   Node
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *AlterViewStmt) Tag() NodeTag { return T_AlterViewStmt }
+
+var _ Node = (*AlterViewStmt)(nil)
+
+// DropViewStmt represents:
+//
+//	DROP VIEW [IF EXISTS] view_name
+type DropViewStmt struct {
+	Name     *ObjectName
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropViewStmt) Tag() NodeTag { return T_DropViewStmt }
+
+var _ Node = (*DropViewStmt)(nil)
