@@ -45,6 +45,30 @@ func (p *Parser) parseIdentStrict() (ast.Ident, error) {
 	}
 }
 
+// parseNamePart parses one component of a dotted object name. It is more
+// permissive than parseIdent: it accepts any keyword token (including reserved
+// keywords) in addition to bare and quoted identifiers. This matches Snowflake
+// behaviour where reserved words such as SCHEMA or DATABASE are valid when
+// used as object-name components in a dotted path (e.g. mydb.schema.t1).
+func (p *Parser) parseNamePart() (ast.Ident, error) {
+	switch {
+	case p.cur.Type == tokIdent:
+		tok := p.advance()
+		return ast.Ident{Name: tok.Str, Quoted: false, Loc: tok.Loc}, nil
+	case p.cur.Type == tokQuotedIdent:
+		tok := p.advance()
+		return ast.Ident{Name: tok.Str, Quoted: true, Loc: tok.Loc}, nil
+	case p.cur.Type >= 700:
+		// Any keyword — reserved or not — is accepted as a name part.
+		tok := p.advance()
+		return ast.Ident{Name: tok.Str, Quoted: false, Loc: tok.Loc}, nil
+	}
+	return ast.Ident{}, &ParseError{
+		Loc: p.cur.Loc,
+		Msg: "expected identifier",
+	}
+}
+
 // parseObjectName parses a dotted object name with 1, 2, or 3 parts:
 //
 //	table
@@ -54,8 +78,11 @@ func (p *Parser) parseIdentStrict() (ast.Ident, error) {
 // Starts by parsing one identifier, then greedily consumes up to two more
 // dot-separated identifiers if present. Returns *ast.ObjectName with the
 // correct parts populated and Loc spanning all parts.
+//
+// Each name part is parsed with parseNamePart, which accepts any keyword
+// (including reserved keywords such as SCHEMA or DATABASE) as an identifier.
 func (p *Parser) parseObjectName() (*ast.ObjectName, error) {
-	first, err := p.parseIdent()
+	first, err := p.parseNamePart()
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +96,7 @@ func (p *Parser) parseObjectName() (*ast.ObjectName, error) {
 	}
 	p.advance() // consume first dot
 
-	second, err := p.parseIdent()
+	second, err := p.parseNamePart()
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +111,7 @@ func (p *Parser) parseObjectName() (*ast.ObjectName, error) {
 	}
 	p.advance() // consume second dot
 
-	third, err := p.parseIdent()
+	third, err := p.parseNamePart()
 	if err != nil {
 		return nil, err
 	}
