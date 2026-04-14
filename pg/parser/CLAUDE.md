@@ -25,9 +25,9 @@ Drift is caught at three layers:
 
 3. **Code review:** any PR introducing a bare `case TOK_A, TOK_B, TOK_C:` cluster outside a dispatch switch should be flagged. If you're tempted to write such a cluster, ask: "is this the FIRST set of some production?" If yes, route it through `isXStart`. If no, document in a comment why it's not (operator categorization, error recovery, etc.).
 
-## The five canonical predicates
+## The six canonical predicates
 
-All defined in `first_sets.go` and documented inline. Read the doc comment on each before adding a new caller.
+All defined in `first_sets.go` and documented inline. Read the doc comment on each before adding a new caller. (`isSelectStart` lives in `expr.go` and predates this refactor; it was reused at the migrated `copy.go` and `publication.go` call sites but is not part of the `first_sets.go` family.)
 
 | Predicate | Backing slice | Composes from | Has PG oracle test? |
 |---|---|---|---|
@@ -166,12 +166,42 @@ PRs that introduce hand-written multi-token clusters in probe positions without 
 
 ## File map (for quick navigation)
 
+**FIRST-set core:**
 - `first_sets.go` — all 6 canonical FIRST-set slices and predicates
 - `first_set_oracle_test.go` — testcontainer infrastructure, candidate enumeration, probe driver, bidirectional assertion helper, and all FIRST-set tests
+- `create_function_json_test.go` — JSON / DEC / NATIONAL CHARACTER / NCHAR regression test with AST-shape assertions
+
+**Reference data:**
 - `keywords.go` — the source-of-truth `Keywords []Keyword` table mapping keyword strings to token IDs and category
 - `tokens.go` — the omni-side token constants (IDENT, ICONST, etc.)
 - `name.go` — `isColId`, `isColLabel`, `isTypeFunctionName` (category-level predicates that the FIRST-set predicates compose with)
+
+**Migrated call sites (FIRST-set probes use `isXStart` here):**
+- `create_function.go` — `parseFuncArg` uses `isFuncTypeStart` (canonical example)
+- `create_table.go` — `parseTableElement` and `parseTypedTableElement` use `isTableConstraintStart`
+- `alter_table.go` — `parseAlterTableAdd` uses `isTableConstraintStart`
+- `parser.go` — `isCreateTableElement` delegates to `isTableConstraintStart`
+- `copy.go` — `parsePreparableStmt` uses `isSelectStart`
+- `publication.go` — `parseRuleActionStmt` uses `isSelectStart` with WITH preserved
+- `expr.go` — `isAExprConstTypeCast` is a one-line wrapper around `isConstTypenameStart`; also defines `isSelectStart`
+
+**Dispatch switches (lockstep with FIRST-set slices):**
 - `type.go` — `parseSimpleTypename` and friends (the dispatch switch that `isSimpleTypenameStart` mirrors)
-- `create_function.go` — `parseFuncArg`, the canonical example of a FIRST-set probe call site
-- `expr.go` — `isAExprConstTypeCast`, `isSelectStart`, and the bulk of expression parsing
+
+**Documentation:**
 - `docs/first-set-audit.md` — the Phase 3.1 audit output (one-time snapshot; re-run if a future audit is needed)
+- `docs/plans/2026-04-14-pg-first-sets.md` (in repo root) — original implementation plan with full rationale and grammar references
+
+## Known limitations / follow-ups
+
+### Paramless multi-word types in `CREATE FUNCTION` arguments
+
+`CREATE FUNCTION f(double precision)` — a function declaration where the parameter has NO name and the type is a multi-word builtin like `DOUBLE PRECISION` / `BIT VARYING` / `CHARACTER VARYING(n)` — still fails after this refactor. The FIRST-set predicate returns the right answer; the bug is in `parseFuncArg`'s `pushBack` mechanism (`create_function.go` around line 327) which rewrites the pushed-back token to type `IDENT`, losing the original keyword token type. After pushback, `parseSimpleTypename` sees `Token{IDENT, "double"}` instead of `Token{DOUBLE_P, "double"}` and falls through to `parseGenericType`, then crashes on the unexpected `precision`.
+
+This requires a separate PR that either:
+- Makes `pushBack` preserve the original token type (needs a richer pushback buffer), or
+- Replaces the speculative consume + pushback with a proper 1-token lookback that doesn't lose state
+
+Full diagnosis in `docs/plans/2026-04-14-pg-first-sets.md` under "Out of scope".
+
+**Workaround for affected users:** add an explicit parameter name. `CREATE FUNCTION f(p double precision)` parses correctly because the leading IDENT consumes the slot before the multi-word type is reached.
