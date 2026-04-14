@@ -401,9 +401,9 @@ func assertPredicateMatchesPG(
 }
 
 // TestIsConstTypenameStartMatchesSimpleLeadSet asserts the invariant that
-// ConstTypename and SimpleTypename share the same hard-lead token set in
-// omni. This is the rule the implementation has to follow; if grammar
-// ever diverges and we need a separate slice, revisit this test.
+// isConstTypenameStart accepts every token in simpleTypenameLeadTokens.
+// This is the positive direction of the predicate's contract — by
+// reusing simpleTypenameLeadSet, it must accept the entire slice.
 func TestIsConstTypenameStartMatchesSimpleLeadSet(t *testing.T) {
 	for _, tok := range simpleTypenameLeadTokens {
 		name := ""
@@ -413,6 +413,9 @@ func TestIsConstTypenameStartMatchesSimpleLeadSet(t *testing.T) {
 				break
 			}
 		}
+		if name == "" {
+			t.Fatalf("token %d in simpleTypenameLeadTokens has no Keywords entry", tok)
+		}
 		p := &Parser{cur: Token{Type: tok, Str: name}}
 		if !p.isConstTypenameStart() {
 			t.Errorf("isConstTypenameStart must accept %q (in simpleTypenameLeadTokens)", name)
@@ -420,9 +423,35 @@ func TestIsConstTypenameStartMatchesSimpleLeadSet(t *testing.T) {
 	}
 }
 
-// TestIsConstTypenameStartRejectsNonTypeStarters ensures the predicate
-// rejects tokens that PG would accept only via the func_name Sconst
-// branch. This is the negative coverage the PG oracle cannot give us.
+// TestIsConstTypenameStartRejectsAllOtherKeywords is the exhaustive
+// negative test: for every keyword in the omni Keywords table that is
+// NOT in simpleTypenameLeadSet, the predicate must reject it. This
+// catches the "ColNameKeyword silently leaks into the type FIRST set"
+// regression class that the spot-check version (renamed below) cannot.
+//
+// Why we need this: PG's AexprConst grammar position is ambiguous with
+// `func_name Sconst`, so PG cannot tell us via oracle whether a given
+// keyword is a real ConstTypename lead. The exhaustive in-Go sweep
+// against the explicit slice is the only way to lock down the negative
+// coverage.
+func TestIsConstTypenameStartRejectsAllOtherKeywords(t *testing.T) {
+	for _, kw := range Keywords {
+		if simpleTypenameLeadSet[kw.Token] {
+			continue
+		}
+		p := &Parser{cur: Token{Type: kw.Token, Str: kw.Name}}
+		if p.isConstTypenameStart() {
+			t.Errorf("isConstTypenameStart wrongly accepts %q (tok %d, category %d) — not in simpleTypenameLeadSet",
+				kw.Name, kw.Token, kw.Category)
+		}
+	}
+}
+
+// TestIsConstTypenameStartRejectsNonTypeStarters is the documented
+// spot-check kept alongside the exhaustive sweep above. Its value is
+// readability — a future reader scanning this file sees concrete
+// examples (IDENT/BETWEEN/EXISTS/...) of tokens that PG would route
+// through `func_name Sconst` and that the predicate rejects.
 func TestIsConstTypenameStartRejectsNonTypeStarters(t *testing.T) {
 	rejects := []struct {
 		tok  int
