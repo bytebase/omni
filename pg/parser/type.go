@@ -193,31 +193,37 @@ func (p *Parser) parseSimpleTypename() (*nodes.TypeName, error) {
 //
 //	GenericType:
 //	    type_function_name opt_type_modifiers
-//	    | type_function_name '.' attr_name opt_type_modifiers
+//	    | type_function_name attrs opt_type_modifiers
+//
+// `attrs` is recursive in PG's grammar (gram.y:7007-7011), so an
+// arbitrary number of `.attr_name` continuations is allowed:
+// `pg_catalog.int4`, `db.schema.mytype`, `a.b.c.d`, etc.
+//
+// Reuses the existing parseAttrs helper from name.go (which is also
+// used by extension.go, fdw.go, and parseFuncType's %TYPE branch).
+//
+// History: prior to this fix, this function consumed exactly one
+// dot and produced a 2-element Names list at most. That caused
+// every type position (CAST, TYPECAST, CREATE TABLE column, ALTER
+// TABLE, CREATE FUNCTION param/return, RETURNS TABLE, CREATE
+// OPERATOR LEFTARG/RIGHTARG, CREATE SEQUENCE AS, XMLSERIALIZE,
+// JSON_SERIALIZE RETURNING) to reject 3-or-more component qualified
+// type names. The catalog's typeNameParts already handles
+// 3-component as (schema, name) — see commit 433a1eb. See
+// docs/plans/2026-04-14-pg-followups.md for the audit.
 func (p *Parser) parseGenericType() (*nodes.TypeName, error) {
 	name, err := p.parseTypeFunctionName()
 	if err != nil {
 		return nil, err
 	}
 
+	nameItems := []nodes.Node{&nodes.String{Str: name}}
 	if p.cur.Type == '.' {
-		p.advance()
-		attr, err := p.parseAttrName()
+		attrs, err := p.parseAttrs()
 		if err != nil {
 			return nil, err
 		}
-		typmods, err := p.parseOptTypeModifiers()
-		if err != nil {
-			return nil, err
-		}
-		return &nodes.TypeName{
-			Names: &nodes.List{Items: []nodes.Node{
-				&nodes.String{Str: name},
-				&nodes.String{Str: attr},
-			}},
-			Typmods:  typmods,
-			Loc: nodes.NoLoc(),
-		}, nil
+		nameItems = append(nameItems, attrs.Items...)
 	}
 
 	typmods, err := p.parseOptTypeModifiers()
@@ -225,9 +231,9 @@ func (p *Parser) parseGenericType() (*nodes.TypeName, error) {
 		return nil, err
 	}
 	return &nodes.TypeName{
-		Names:    &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}},
-		Typmods:  typmods,
-		Loc: nodes.NoLoc(),
+		Names:   &nodes.List{Items: nameItems},
+		Typmods: typmods,
+		Loc:     nodes.NoLoc(),
 	}, nil
 }
 
