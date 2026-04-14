@@ -954,9 +954,9 @@ type CreateTableStmt struct {
 	Name        *ObjectName
 	Columns     []*ColumnDef
 	Constraints []*TableConstraint
-	ClusterBy   []Node           // CLUSTER BY expressions; nil if absent
-	Linear      bool             // CLUSTER BY LINEAR modifier
-	Comment     *string          // COMMENT = 'text'; nil if absent
+	ClusterBy   []Node  // CLUSTER BY expressions; nil if absent
+	Linear      bool    // CLUSTER BY LINEAR modifier
+	Comment     *string // COMMENT = 'text'; nil if absent
 	CopyGrants  bool
 	Tags        []*TagAssignment // WITH TAG (...); nil if absent
 	AsSelect    Node             // CREATE TABLE ... AS SELECT; nil if absent
@@ -970,8 +970,8 @@ func (n *CreateTableStmt) Tag() NodeTag { return T_CreateTableStmt }
 // ColumnDef represents a column definition in CREATE TABLE.
 type ColumnDef struct {
 	Name             Ident
-	DataType         *TypeName         // nil for virtual columns without explicit type
-	Default          Node              // DEFAULT expr; nil if absent
+	DataType         *TypeName // nil for virtual columns without explicit type
+	Default          Node      // DEFAULT expr; nil if absent
 	NotNull          bool
 	Nullable         bool              // explicit NULL
 	Identity         *IdentitySpec     // IDENTITY/AUTOINCREMENT; nil if absent
@@ -1004,3 +1004,170 @@ var (
 	_ Node = (*ColumnDef)(nil)
 	_ Node = (*TableConstraint)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// DATABASE / SCHEMA DDL — enums and helpers
+// ---------------------------------------------------------------------------
+
+// AlterDatabaseAction discriminates the action variants of ALTER DATABASE.
+type AlterDatabaseAction int
+
+const (
+	AlterDBRename             AlterDatabaseAction = iota // RENAME TO
+	AlterDBSwap                                          // SWAP WITH
+	AlterDBSet                                           // SET <properties>
+	AlterDBUnset                                         // UNSET <properties>
+	AlterDBSetTag                                        // SET TAG (...)
+	AlterDBUnsetTag                                      // UNSET TAG (...)
+	AlterDBEnableReplication                             // ENABLE REPLICATION ...
+	AlterDBDisableReplication                            // DISABLE REPLICATION ...
+	AlterDBEnableFailover                                // ENABLE FAILOVER ...
+	AlterDBDisableFailover                               // DISABLE FAILOVER ...
+	AlterDBRefresh                                       // REFRESH
+	AlterDBPrimary                                       // PRIMARY
+)
+
+// AlterSchemaAction discriminates the action variants of ALTER SCHEMA.
+type AlterSchemaAction int
+
+const (
+	AlterSchemaRename               AlterSchemaAction = iota // RENAME TO
+	AlterSchemaSwap                                          // SWAP WITH
+	AlterSchemaSet                                           // SET <properties>
+	AlterSchemaUnset                                         // UNSET <properties>
+	AlterSchemaSetTag                                        // SET TAG (...)
+	AlterSchemaUnsetTag                                      // UNSET TAG (...)
+	AlterSchemaEnableManagedAccess                           // ENABLE MANAGED ACCESS
+	AlterSchemaDisableManagedAccess                          // DISABLE MANAGED ACCESS
+)
+
+// DBSchemaProps holds the optional settable properties shared by DATABASE and
+// SCHEMA DDL statements.  It is NOT a Node — embedded by value or pointer in
+// the statement nodes that need it.
+type DBSchemaProps struct {
+	DataRetention *int64  // DATA_RETENTION_TIME_IN_DAYS = n; nil if absent
+	MaxDataExt    *int64  // MAX_DATA_EXTENSION_TIME_IN_DAYS = n; nil if absent
+	DefaultDDLCol *string // DEFAULT_DDL_COLLATION = 'str'; nil if absent
+	Comment       *string // COMMENT = 'str'; nil if absent
+}
+
+// ---------------------------------------------------------------------------
+// DATABASE DDL statement nodes
+// ---------------------------------------------------------------------------
+
+// CreateDatabaseStmt represents CREATE [OR REPLACE] [TRANSIENT] DATABASE ...
+type CreateDatabaseStmt struct {
+	OrReplace   bool
+	Transient   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Clone       *CloneSource     // CLONE source [AT|BEFORE (...)]; nil if absent
+	Props       DBSchemaProps    // optional properties
+	Tags        []*TagAssignment // WITH TAG (...); nil if absent
+	Loc         Loc
+}
+
+func (n *CreateDatabaseStmt) Tag() NodeTag { return T_CreateDatabaseStmt }
+
+var _ Node = (*CreateDatabaseStmt)(nil)
+
+// AlterDatabaseStmt represents ALTER DATABASE ... (all action variants).
+type AlterDatabaseStmt struct {
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterDatabaseAction
+	NewName    *ObjectName      // RENAME TO / SWAP WITH target
+	SetProps   *DBSchemaProps   // SET properties; non-nil for AlterDBSet
+	UnsetProps []string         // UNSET property names
+	Tags       []*TagAssignment // SET TAG (...) assignments
+	UnsetTags  []*ObjectName    // UNSET TAG (...) names
+	Loc        Loc
+}
+
+func (n *AlterDatabaseStmt) Tag() NodeTag { return T_AlterDatabaseStmt }
+
+var _ Node = (*AlterDatabaseStmt)(nil)
+
+// DropDatabaseStmt represents DROP DATABASE [IF EXISTS] name [CASCADE|RESTRICT].
+type DropDatabaseStmt struct {
+	IfExists bool
+	Name     *ObjectName
+	Cascade  bool
+	Restrict bool
+	Loc      Loc
+}
+
+func (n *DropDatabaseStmt) Tag() NodeTag { return T_DropDatabaseStmt }
+
+var _ Node = (*DropDatabaseStmt)(nil)
+
+// UndropDatabaseStmt represents UNDROP DATABASE name.
+type UndropDatabaseStmt struct {
+	Name *ObjectName
+	Loc  Loc
+}
+
+func (n *UndropDatabaseStmt) Tag() NodeTag { return T_UndropDatabaseStmt }
+
+var _ Node = (*UndropDatabaseStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// SCHEMA DDL statement nodes
+// ---------------------------------------------------------------------------
+
+// CreateSchemaStmt represents CREATE [OR REPLACE] [TRANSIENT] SCHEMA ...
+type CreateSchemaStmt struct {
+	OrReplace     bool
+	Transient     bool
+	IfNotExists   bool
+	Name          *ObjectName
+	Clone         *CloneSource     // CLONE source [AT|BEFORE (...)]; nil if absent
+	ManagedAccess bool             // WITH MANAGED ACCESS
+	Props         DBSchemaProps    // optional properties
+	Tags          []*TagAssignment // WITH TAG (...); nil if absent
+	Loc           Loc
+}
+
+func (n *CreateSchemaStmt) Tag() NodeTag { return T_CreateSchemaStmt }
+
+var _ Node = (*CreateSchemaStmt)(nil)
+
+// AlterSchemaStmt represents ALTER SCHEMA ... (all action variants).
+type AlterSchemaStmt struct {
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterSchemaAction
+	NewName    *ObjectName      // RENAME TO / SWAP WITH target
+	SetProps   *DBSchemaProps   // SET properties; non-nil for AlterSchemaSet
+	UnsetProps []string         // UNSET property names
+	Tags       []*TagAssignment // SET TAG (...) assignments
+	UnsetTags  []*ObjectName    // UNSET TAG (...) names
+	Loc        Loc
+}
+
+func (n *AlterSchemaStmt) Tag() NodeTag { return T_AlterSchemaStmt }
+
+var _ Node = (*AlterSchemaStmt)(nil)
+
+// DropSchemaStmt represents DROP SCHEMA [IF EXISTS] name [CASCADE|RESTRICT].
+type DropSchemaStmt struct {
+	IfExists bool
+	Name     *ObjectName
+	Cascade  bool
+	Restrict bool
+	Loc      Loc
+}
+
+func (n *DropSchemaStmt) Tag() NodeTag { return T_DropSchemaStmt }
+
+var _ Node = (*DropSchemaStmt)(nil)
+
+// UndropSchemaStmt represents UNDROP SCHEMA name.
+type UndropSchemaStmt struct {
+	Name *ObjectName
+	Loc  Loc
+}
+
+func (n *UndropSchemaStmt) Tag() NodeTag { return T_UndropSchemaStmt }
+
+var _ Node = (*UndropSchemaStmt)(nil)

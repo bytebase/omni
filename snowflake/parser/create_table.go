@@ -48,6 +48,10 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	switch p.cur.Type {
 	case kwTABLE:
 		return p.parseCreateTableStmt(start, orReplace, transient, temporary, volatile)
+	case kwDATABASE:
+		return p.parseCreateDatabaseStmt(start, orReplace, transient)
+	case kwSCHEMA:
+		return p.parseCreateSchemaStmt(start, orReplace, transient)
 	default:
 		return p.unsupported("CREATE")
 	}
