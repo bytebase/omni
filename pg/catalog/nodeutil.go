@@ -194,10 +194,29 @@ func (c *Catalog) resolveTypeName(tn *nodes.TypeName) (uint32, int32, error) {
 //   - 3 components: catalog.schema.name   → (schema, name)  (catalog is dropped)
 //
 // For 3-component names, PG validates at name-resolution time that the
-// catalog component matches the current database name. omni doesn't track
-// the current database, so we drop the catalog component and use schema +
-// name. This matches PG's behavior for the common case where the catalog
-// reference is to the local database.
+// catalog component matches the current database name. If it doesn't,
+// PG raises "cross-database references are not implemented". omni has
+// no concept of "current database", so we cannot perform that
+// validation — we unconditionally drop the catalog component.
+//
+// Trade-off (deliberate, codex review of commit a47e68d):
+//
+//   - Permissive (current behavior): `mydb.pg_catalog.int4` resolves
+//     correctly when mydb is the current db (the common case for
+//     pg_dump output). `otherdb.pg_catalog.int4` is also accepted as
+//     local pg_catalog.int4 — a false positive that omni cannot
+//     distinguish from the valid case.
+//   - Strict (reject all 3-component): would break pg_dump round-trip
+//     for any dump that emits 3-part type names with the current db
+//     as the catalog (the most common shape).
+//
+// We chose permissive because the strict alternative blocks a real
+// workflow (dump-restore) to catch a syntax form that virtually no
+// user writes by hand. Cross-db type references are not implemented
+// in PG itself, so the false-positive case represents SQL that
+// wouldn't have worked anywhere — only the error message is missing.
+// If omni gains a current-database concept, this branch should
+// validate and reject mismatches.
 //
 // 4+ components: PG rejects these at name-resolution time as "improper
 // qualified name". omni returns ("", "") so the downstream resolver fails
