@@ -216,78 +216,70 @@ func (p *Parser) parseFuncArgWithDefault() (*nodes.FunctionParameter, error) {
 //	    | param_name func_type
 //	    | arg_class func_type
 //	    | func_type
+//
+// param_name is type_function_name; func_type is Typename or
+// type_function_name attrs '%' TYPE_P; arg_class is one of IN, OUT,
+// INOUT, IN OUT, VARIADIC.
+//
+// Disambiguation strategy: peek-then-commit using the existing 1-token
+// lookahead via peekNext(). For each of the 5 alternatives we look at
+// cur and (if needed) the lookahead token to decide whether cur is a
+// param_name or the start of func_type — without consuming cur until
+// we're sure. This mirrors what bison's LALR(1) does for func_arg in
+// PG's grammar.
+//
+// History: an earlier version of this function used speculative-consume
+// + a lossy `pushBack(name string)` rollback that rewrote the
+// rolled-back token's Type to IDENT unconditionally. That caused
+// `CREATE FUNCTION f(double precision)` (and every `arg_class double
+// precision` variant) to fail at parse time — DOUBLE_P is the sole
+// UnreservedKeyword in simpleTypenameLeadTokens, so it was the only
+// token whose loss-of-Type-on-pushBack actually surfaced. Peek-then-
+// commit eliminates the need for pushBack entirely; the function is
+// now deleted.
 func (p *Parser) parseFuncArg() *nodes.FunctionParameter {
 	paramLoc := p.pos()
-	// This is complex because we need to distinguish between:
-	// 1. arg_class param_name func_type  (IN x integer)
-	// 2. param_name arg_class func_type  (x IN integer)
-	// 3. param_name func_type            (x integer)
-	// 4. arg_class func_type             (IN integer)
-	// 5. func_type                       (integer)
-	//
-	// arg_class is one of: IN, OUT, INOUT, IN OUT, VARIADIC
-	// param_name is type_function_name
-	// func_type is Typename or type_function_name attrs '%' TYPE_P
 
 	mode := nodes.FUNC_PARAM_IN // default
 	name := ""
 
 	argClass, isArgClass := p.tryParseArgClass()
 	if isArgClass {
-		// Cases 1 or 4
-		// Check if next is a param_name followed by a type, or directly a type
-		if p.isTypeFunctionName() {
-			// Could be param_name func_type or just func_type
-			// Try to distinguish: parse as param_name, then check if what follows
-			// looks like a type. If not, it was actually the type itself.
-			savedName, _ := p.parseTypeFunctionName()
-
-			if p.isFuncTypeStart() {
-				// It's param_name followed by func_type
-				name = savedName
-				mode = argClass
-			} else if p.cur.Type == '.' || p.cur.Type == '%' {
-				// Could be qualified type name (schema.type) or %TYPE
-				// If it's name '.' name, it could still be type_function_name attrs '%' TYPE
-				// or a qualified Typename. For func_type specifically, we handle the %TYPE case.
-				// The safe bet: treat savedName as the type (part of func_type).
-				// We need to "put back" savedName and parse as func_type.
-				// Since we can't easily backtrack, use savedName as param name
-				// only if the pattern matches.
-				// Actually, at this point if we see '.', it's likely a qualified type,
-				// not a param name. So treat savedName as start of func_type.
-				p.pushBack(savedName)
-				mode = argClass
-			} else {
-				// savedName was actually the type name by itself
-				p.pushBack(savedName)
-				mode = argClass
-			}
+		// Cases 1 or 4: arg_class is consumed; decide if a param_name
+		// follows or if cur is the type.
+		mode = argClass
+		if p.isTypeFunctionName() && p.isFuncTypeStartToken(p.peekNext()) {
+			// Case 1: arg_class param_name func_type. The token after
+			// cur is a func_type lead, so cur must be the param_name.
+			name, _ = p.parseTypeFunctionName()
 		}
+		// else case 4: arg_class func_type. Don't consume cur — let
+		// parseFuncType handle it. This includes the `IN double
+		// precision` case where cur=DOUBLE_P, peek=PRECISION (which is
+		// not a func_type lead, so parseFuncType correctly handles
+		// `double precision` as a single SimpleTypename).
 	} else if p.isTypeFunctionName() {
-		// Cases 2, 3, or 5
-		savedName, _ := p.parseTypeFunctionName()
-
-		// Check if an arg_class follows (case 2: param_name arg_class func_type)
-		argClass2, isArgClass2 := p.tryParseArgClass()
-		if isArgClass2 {
-			name = savedName
+		// Cases 2, 3, or 5: cur could be a param_name or the type.
+		// Look at the lookahead to decide.
+		next := p.peekNext()
+		switch {
+		case isArgClassToken(next.Type):
+			// Case 2: param_name arg_class func_type. e.g. `x IN int`.
+			name, _ = p.parseTypeFunctionName()
+			argClass2, _ := p.tryParseArgClass()
 			mode = argClass2
-		} else if p.isFuncTypeStart() {
-			// Case 3: param_name func_type
-			name = savedName
+		case p.isFuncTypeStartToken(next):
+			// Case 3: param_name func_type. e.g. `x int`, `p double precision`.
+			name, _ = p.parseTypeFunctionName()
 			// mode stays FUNC_PARAM_IN
-		} else if p.cur.Type == '.' || p.cur.Type == '%' {
-			// Could be qualified type (case 5) or param with qualified type (case 3)
-			// For '.' after a name, it's likely a qualified type name.
-			p.pushBack(savedName)
-		} else {
-			// Case 5: savedName is the type itself
-			p.pushBack(savedName)
+		default:
+			// Case 5: cur IS the type (no param_name). e.g. `int`,
+			// `double precision`, `pg_catalog.int4`. Don't consume.
 		}
 	}
 
-	// Parse func_type
+	// Parse func_type. cur is now positioned at the start of the type
+	// (whether we consumed a param_name above or not).
 	argType, _ := p.parseFuncType()
 
 	return &nodes.FunctionParameter{
@@ -322,16 +314,18 @@ func (p *Parser) tryParseArgClass() (nodes.FunctionParameterMode, bool) {
 	return 0, false
 }
 
-// pushBack pushes a name token back as the current token.
-// Used when we speculatively consumed a name but need to reparse it as a type.
-func (p *Parser) pushBack(name string) {
-	p.nextBuf = p.cur
-	p.hasNext = true
-	p.cur = Token{
-		Type: IDENT,
-		Str:  name,
-		Loc:  p.prev.Loc,
+// isArgClassToken reports whether tok is a func_arg arg_class lead token.
+// The arg_class production is: IN | OUT | INOUT | IN OUT | VARIADIC.
+// All five lead with a single keyword; this predicate returns true for
+// any of them. Used by parseFuncArg's case 2 detection (param_name
+// arg_class func_type) when peeking at the token after a candidate
+// param_name.
+func isArgClassToken(tok int) bool {
+	switch tok {
+	case IN_P, OUT_P, INOUT, VARIADIC:
+		return true
 	}
+	return false
 }
 
 // parseTableFuncColumnList parses a comma-separated list of table function columns.
