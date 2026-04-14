@@ -378,14 +378,17 @@ func TestCreateDropDatabase_MultiStatement(t *testing.T) {
 // Other CREATE/ALTER/DROP still unsupported
 // ---------------------------------------------------------------------------
 
-func TestCreateTable_StillUnsupported(t *testing.T) {
-	_, errs := Parse("CREATE TABLE t (id INT)")
-	if len(errs) == 0 {
-		t.Fatal("expected error for unsupported CREATE TABLE")
+func TestCreateTable_NowSupported(t *testing.T) {
+	file, errs := Parse("CREATE TABLE t (id INT)")
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %v", errs)
 	}
-	want := "CREATE statement parsing is not yet supported"
-	if errs[0].Msg != want {
-		t.Errorf("error = %q, want %q", errs[0].Msg, want)
+	if len(file.Stmts) != 1 {
+		t.Fatalf("expected 1 stmt, got %d", len(file.Stmts))
+	}
+	_, ok := file.Stmts[0].(*ast.CreateTableStmt)
+	if !ok {
+		t.Fatalf("expected *ast.CreateTableStmt, got %T", file.Stmts[0])
 	}
 }
 

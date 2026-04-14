@@ -117,6 +117,38 @@ const (
 
 	// T_JoinClause is the tag for *JoinClause (JOIN expression in FROM).
 	T_JoinClause
+
+	// DDL — CREATE TABLE nodes (T2.1).
+
+	// T_CreateTableStmt is the tag for *CreateTableStmt.
+	T_CreateTableStmt
+
+	// T_ColumnDef is the tag for *ColumnDef.
+	T_ColumnDef
+
+	// T_IndexDef is the tag for *IndexDef (inline index in CREATE TABLE).
+	T_IndexDef
+
+	// T_TableConstraint is the tag for *TableConstraint (PRIMARY KEY, UNIQUE).
+	T_TableConstraint
+
+	// T_KeyDesc is the tag for *KeyDesc (AGGREGATE/UNIQUE/DUPLICATE KEY).
+	T_KeyDesc
+
+	// T_PartitionDesc is the tag for *PartitionDesc (PARTITION BY RANGE/LIST).
+	T_PartitionDesc
+
+	// T_PartitionItem is the tag for *PartitionItem.
+	T_PartitionItem
+
+	// T_DistributionDesc is the tag for *DistributionDesc (DISTRIBUTED BY HASH/RANDOM).
+	T_DistributionDesc
+
+	// T_RollupDef is the tag for *RollupDef.
+	T_RollupDef
+
+	// T_RawQuery is the tag for *RawQuery (placeholder for unparsed SELECT).
+	T_RawQuery
 )
 
 // String returns a human-readable representation of the tag.
@@ -188,6 +220,26 @@ func (t NodeTag) String() string {
 		return "TableRef"
 	case T_JoinClause:
 		return "JoinClause"
+	case T_CreateTableStmt:
+		return "CreateTableStmt"
+	case T_ColumnDef:
+		return "ColumnDef"
+	case T_IndexDef:
+		return "IndexDef"
+	case T_TableConstraint:
+		return "TableConstraint"
+	case T_KeyDesc:
+		return "KeyDesc"
+	case T_PartitionDesc:
+		return "PartitionDesc"
+	case T_PartitionItem:
+		return "PartitionItem"
+	case T_DistributionDesc:
+		return "DistributionDesc"
+	case T_RollupDef:
+		return "RollupDef"
+	case T_RawQuery:
+		return "RawQuery"
 	default:
 		return "Unknown"
 	}

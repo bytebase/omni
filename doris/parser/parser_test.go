@@ -38,8 +38,8 @@ func TestParseUnsupported(t *testing.T) {
 }
 
 func TestParseMultipleUnsupported(t *testing.T) {
-	// SELECT is now supported; INSERT and CREATE TABLE are still unsupported.
-	file, errs := Parse("SELECT 1; INSERT INTO t VALUES (1); CREATE TABLE t (id INT)")
+	// SELECT is supported; INSERT and TRUNCATE are still unsupported.
+	file, errs := Parse("SELECT 1; INSERT INTO t VALUES (1); TRUNCATE TABLE t")
 	if file == nil {
 		t.Fatal("expected non-nil File")
 	}
@@ -169,7 +169,6 @@ func TestParseAllDispatchCategories(t *testing.T) {
 		input   string
 		wantMsg string
 	}{
-		{"CREATE TABLE t (id INT)", "CREATE"},
 		{"ALTER TABLE t ADD COLUMN c INT", "ALTER"},
 		{"DROP TABLE t", "DROP"},
 		{"TRUNCATE TABLE t", "TRUNCATE"},

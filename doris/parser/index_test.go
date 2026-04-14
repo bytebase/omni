@@ -308,16 +308,15 @@ func TestBuildIndexNodeTag(t *testing.T) {
 	}
 }
 
-// TestCreateIndexStillUnsupportedForNonIndex verifies that CREATE TABLE
-// still returns the "not yet supported" error path.
-func TestCreateIndexStillUnsupportedForNonIndex(t *testing.T) {
-	_, errs := Parse("CREATE TABLE t (id INT)")
-	if len(errs) == 0 {
-		t.Fatal("expected error for CREATE TABLE")
+// TestCreateIndexCreateTableNowSupported verifies that CREATE TABLE
+// no longer returns an unsupported error.
+func TestCreateIndexCreateTableNowSupported(t *testing.T) {
+	file, errs := Parse("CREATE TABLE t (id INT)")
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %v", errs)
 	}
-	want := "CREATE statement parsing is not yet supported"
-	if errs[0].Msg != want {
-		t.Errorf("got %q, want %q", errs[0].Msg, want)
+	if len(file.Stmts) != 1 {
+		t.Fatalf("expected 1 stmt, got %d", len(file.Stmts))
 	}
 }
 

@@ -151,5 +151,71 @@ func walkChildren(v Visitor, node Node) {
 		if n.On != nil {
 			Walk(v, n.On)
 		}
+
+	// DDL — CREATE TABLE nodes (T2.1).
+	case *CreateTableStmt:
+		Walk(v, n.Name)
+		for _, col := range n.Columns {
+			Walk(v, col)
+		}
+		for _, idx := range n.Indexes {
+			Walk(v, idx)
+		}
+		for _, c := range n.Constraints {
+			Walk(v, c)
+		}
+		if n.KeyDesc != nil {
+			Walk(v, n.KeyDesc)
+		}
+		if n.PartitionBy != nil {
+			Walk(v, n.PartitionBy)
+		}
+		if n.DistributedBy != nil {
+			Walk(v, n.DistributedBy)
+		}
+		for _, r := range n.Rollup {
+			Walk(v, r)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+		if n.Like != nil {
+			Walk(v, n.Like)
+		}
+		if n.AsSelect != nil {
+			Walk(v, n.AsSelect)
+		}
+	case *ColumnDef:
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		if n.Default != nil {
+			Walk(v, n.Default)
+		}
+		if n.Generated != nil {
+			Walk(v, n.Generated)
+		}
+	case *IndexDef:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *TableConstraint:
+		// leaf-ish node, no Node children
+	case *KeyDesc:
+		// leaf-ish node, no Node children
+	case *PartitionDesc:
+		for _, p := range n.Partitions {
+			Walk(v, p)
+		}
+	case *PartitionItem:
+		// leaf-ish node, values stored as strings
+	case *DistributionDesc:
+		// leaf-ish node, no Node children
+	case *RollupDef:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *RawQuery:
+		// leaf node, no parsed children
 	}
 }
