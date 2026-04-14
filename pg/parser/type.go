@@ -753,13 +753,19 @@ func (p *Parser) parseFuncType() (*nodes.TypeName, error) {
 		// Check if this looks like a %TYPE reference (name.name...%TYPE)
 		next := p.peekNext()
 		if next.Type == '.' {
-			// Could be qualified type or %TYPE. We need to try parsing.
-			// Save state for backtracking.
-			savedCur := p.cur
-			savedPrev := p.prev
-			savedNext := p.nextBuf
-			savedHasNext := p.hasNext
-			savedLexerErr := p.lexer.Err
+			// Could be qualified type or %TYPE. Speculatively parse the
+			// %TYPE form; if it doesn't match, roll the token stream back
+			// and let parseTypename handle it as a normal qualified type.
+			//
+			// Use snapshotTokenStream/restoreTokenStream for the rollback —
+			// the previous hand-rolled save here only captured cur/prev/
+			// nextBuf/hasNext/lexer.Err and missed lexer.pos/start/state,
+			// causing every qualified type at any parseFuncType call site
+			// (parseFuncArg, RETURNS, parseTableFuncColumn, parseDefArg /
+			// CREATE OPERATOR LEFTARG/RIGHTARG, etc.) to corrupt the lexer
+			// position when parseAttrs read fresh tokens during the
+			// speculative parse.
+			snap := p.snapshotTokenStream()
 
 			name, _ := p.parseTypeFunctionName()
 			if p.cur.Type == '.' {
@@ -774,18 +780,14 @@ func (p *Parser) parseFuncType() (*nodes.TypeName, error) {
 						return &nodes.TypeName{
 							Names:   &nodes.List{Items: nameItems},
 							PctType: true,
-							Loc: nodes.NoLoc(),
+							Loc:     nodes.NoLoc(),
 						}, nil
 					}
 				}
 			}
 
 			// Not %TYPE pattern - restore and parse as Typename
-			p.cur = savedCur
-			p.prev = savedPrev
-			p.nextBuf = savedNext
-			p.hasNext = savedHasNext
-			p.lexer.Err = savedLexerErr
+			p.restoreTokenStream(snap)
 		}
 	}
 
