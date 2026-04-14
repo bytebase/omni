@@ -219,10 +219,46 @@ case 3:
     // it matches the current database, but we don't track that here.
     return stringVal(items[1]), stringVal(items[2])
 default:
-    // 0 or 4+ components: invalid
+    // 4+ components: PG also rejects these at name resolution time
+    // ("improper qualified name"). Fall back to returning the last
+    // component as the name with empty schema, so the downstream
+    // resolver error at least mentions an identifier the user can
+    // recognize. A better error message would require changing
+    // typeNameParts's signature to return a bool/error, which is
+    // out of scope for this fix.
+    if len(items) > 0 {
+        return "", stringVal(items[len(items)-1])
+    }
     return "", ""
 }
 ```
+
+**Important caveat (per codex review of commit 08090e6)**: the catalog
+fix is **NOT behavior-neutral** for one currently-reachable path —
+`%TYPE` references like `RETURNS schema.tab.col%TYPE`. omni's
+`parseFuncType` already produces `TypeName{PctType: true, Names:
+[schema, tab, col]}` for such inputs. Today, `typeNameParts` returns
+`("", "col")` and resolution fails as `type "col" does not exist`.
+After the fix, it returns `("tab", "col")` and resolution fails as
+`type "tab.col" does not exist` (or similar).
+
+**This is not a regression — both error paths are wrong.** omni's
+catalog has **no PctType handler at all** (verified by `grep -rn
+"PctType" pg/catalog/` — zero matches). `%TYPE` semantics are
+"resolve to the type of column X in table Y", which requires actual
+column-type lookup, not a `(schema, name)` split. Fixing PctType
+resolution properly is **out of scope** for this PR; documenting
+the existing brokenness is enough.
+
+The commit message for the catalog fix should explicitly call out:
+
+1. Behavior change is intentional for non-PctType 3-component types
+   (the bug being fixed)
+2. Behavior also changes incidentally for PctType inputs, but on a
+   path that was never working — error message changes from
+   `type "col" does not exist` to `type "tab.col" does not exist`,
+   which is more informative even though both are wrong
+3. Full PctType resolution is out of scope; tracked separately.
 
 **Call site audit for `typeNameParts`**: 7 sites. 5 use only the name
 (`_, name := ...`), 2 use both (`schema, name := ...` at
@@ -573,6 +609,13 @@ Otherwise the parser starts producing 3-component ASTs while the catalog
 still silently drops them, creating a temporary window of silent
 semantic bug.
 
+**Caveat on "additive"**: the catalog fix is NOT purely additive — see
+the "Important caveat" section above for the `%TYPE` interaction.
+However, both behaviors on the `%TYPE` path are wrong (omni has no
+PctType handler), so the change is "different broken" rather than
+"newly broken". The catalog-before-parser ordering is still the right
+choice.
+
 ### Test matrix
 
 ```go
@@ -688,10 +731,15 @@ func TestTypeNamePartsThreeComponent(t *testing.T) {
             wantName:   "mytype",
         },
         {
-            name:       "4-component invalid",
+            // 4+ components: PG also rejects at name resolution. omni
+            // returns the last component with empty schema as a soft
+            // fallback so the downstream resolver error mentions a
+            // recognizable identifier. A typed error would require
+            // changing typeNameParts's signature, which is out of scope.
+            name:       "4-component soft fallback",
             items:      []string{"a", "b", "c", "d"},
             wantSchema: "",
-            wantName:   "",  // explicit invalid, not silent truncation
+            wantName:   "d",
         },
     }
     // ... build TypeName, call typeNameParts, assert ...
