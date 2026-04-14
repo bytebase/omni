@@ -198,10 +198,10 @@ func typeNameParts(tn *nodes.TypeName) (schema, name string) {
 ```
 
 For `len > 2`, it returns `("", lastItem)` — silently dropping all
-qualification beyond the last component. Today this path is unreachable
-(parser produces at most 2-component names), but the parser fix above
-would produce `Names=["db","schema","mytype"]` for `db.schema.mytype`,
-and `typeNameParts` would silently turn it into bare `"mytype"`.
+qualification beyond the last component. **This path is currently
+reachable** via several existing producers (see "Currently-reachable
+3-component paths" below). The parser fix above adds many more, but
+even today the silent truncation is a (mostly latent) bug.
 
 PG's actual semantics: in `catalog.schema.type`, the catalog must match
 the current database name. PG accepts the syntax and validates the
@@ -219,13 +219,14 @@ case 3:
     // it matches the current database, but we don't track that here.
     return stringVal(items[1]), stringVal(items[2])
 default:
-    // 4+ components: PG also rejects these at name resolution time
-    // ("improper qualified name"). Fall back to returning the last
-    // component as the name with empty schema, so the downstream
-    // resolver error at least mentions an identifier the user can
-    // recognize. A better error message would require changing
-    // typeNameParts's signature to return a bool/error, which is
-    // out of scope for this fix.
+    // 4+ components: PG rejects these at name resolution time
+    // ("improper qualified name"). Soft-fall back to (empty, lastItem)
+    // — same as today's behavior for len > 2. This preserves the
+    // existing error-message shape (downstream resolver errors will
+    // mention the last-component identifier) without introducing a
+    // new typed-error contract for typeNameParts. Out of scope:
+    // returning a typed error so callers can surface a more accurate
+    // "improper qualified name" message.
     if len(items) > 0 {
         return "", stringVal(items[len(items)-1])
     }
@@ -233,14 +234,45 @@ default:
 }
 ```
 
-**Important caveat (per codex review of commit 08090e6)**: the catalog
-fix is **NOT behavior-neutral** for one currently-reachable path —
-`%TYPE` references like `RETURNS schema.tab.col%TYPE`. omni's
-`parseFuncType` already produces `TypeName{PctType: true, Names:
-[schema, tab, col]}` for such inputs. Today, `typeNameParts` returns
-`("", "col")` and resolution fails as `type "col" does not exist`.
-After the fix, it returns `("tab", "col")` and resolution fails as
-`type "tab.col" does not exist` (or similar).
+### Currently-reachable 3-component `TypeName.Names` producers
+
+(Found by codex audit on plan v3.) Even before the parser fix, several
+existing code paths can produce 3-component `TypeName.Names` lists. The
+catalog fix changes behavior for ALL of them, not just the new
+parseGenericType cases.
+
+**Path A — `%TYPE` references** (`parseFuncType`'s success branch):
+
+`RETURNS schema.tab.col%TYPE` produces `TypeName{PctType: true, Names:
+[schema, tab, col]}`. Today, `typeNameParts` returns `("", "col")` and
+resolution fails as `type "col" does not exist`. After the fix, it
+returns `("tab", "col")` and resolution fails as `type "tab.col" does
+not exist` (or similar).
+
+**Path B — `parseAnyName` callers** (`makeTypeNameFromNameList` flows):
+
+omni's `parseAnyName` already loops over multiple dots (it's the
+helper I'd be reusing in `parseGenericType`). It feeds
+`makeTypeNameFromNameList` for several constructs:
+
+- `CREATE TABLE t OF db.schema.basetype` (typed table OF clause)
+- `ALTER TABLE t OF db.schema.basetype`
+- `COMMENT ON CONSTRAINT c ON DOMAIN db.schema.dom IS '...'`
+
+These are valid SQL today. The parser produces 3-component
+`TypeName.Names` for them, and the catalog silently truncates to bare
+`basetype` / `dom`. The user's intent is lost; the catalog looks up
+the wrong thing or fails to resolve.
+
+**Verdict**: the catalog fix **improves** behavior for paths A and B
+even before the parser fix. For path A (`%TYPE`), it changes one
+broken error into a slightly-more-informative-but-still-broken error
+(omni has no PctType handler at all — see below). For path B, it
+fixes the silent truncation into correct schema-qualified resolution.
+
+### `%TYPE` is fundamentally broken in omni's catalog
+
+(Background context for path A above.)
 
 **This is not a regression — both error paths are wrong.** omni's
 catalog has **no PctType handler at all** (verified by `grep -rn
@@ -252,13 +284,17 @@ the existing brokenness is enough.
 
 The commit message for the catalog fix should explicitly call out:
 
-1. Behavior change is intentional for non-PctType 3-component types
-   (the bug being fixed)
-2. Behavior also changes incidentally for PctType inputs, but on a
-   path that was never working — error message changes from
-   `type "col" does not exist` to `type "tab.col" does not exist`,
-   which is more informative even though both are wrong
-3. Full PctType resolution is out of scope; tracked separately.
+1. **Improved behavior** for non-PctType 3-component types from new
+   parser cases (the main bug being fixed)
+2. **Improved behavior** for `parseAnyName`-driven 3-component types
+   already reachable today (path B in the previous section): silent
+   truncation → correct schema-qualified resolution
+3. **Different broken** behavior for `%TYPE` 3-component types (path
+   A): `type "col" does not exist` → `type "tab.col" does not exist`.
+   omni's catalog has no PctType handler at all, so `%TYPE` resolution
+   was never working. This is an incidental change in error message,
+   not a regression in functionality. Full PctType resolution is
+   tracked separately.
 
 **Call site audit for `typeNameParts`**: 7 sites. 5 use only the name
 (`_, name := ...`), 2 use both (`schema, name := ...` at
@@ -267,11 +303,23 @@ fix is transparent. For the schema-using sites, the fix changes the
 returned `schema` from `""` to `items[len-2]` for 3-component names —
 which is the correct behavior matching PG.
 
-**Test coverage**: in addition to parser tests for 6 type positions at
-2/3/4-component depths, add a catalog test that asserts
-`typeNameParts` returns the expected `(schema, name)` pair for 3-component
-input, and that 4+component returns an empty/invalid result rather than
-silently truncating.
+**4+ component handling — single agreed answer**: returns
+`("", lastItem)` (preserves today's soft fallback). 4+ component types
+are extremely rare in real SQL; PG also rejects them at name resolution
+with "improper qualified name". A typed error from `typeNameParts`
+would require a signature change and is out of scope. The downstream
+error message will mention the last-component identifier, which is
+ugly but at least gives the user a recognizable name.
+
+**Test coverage**: in addition to parser tests for the 11 type
+positions, add `TestTypeNamePartsThreeComponent` (in `pg/catalog`)
+covering 1/2/3/4-component inputs with the unified return-value
+expectations:
+
+- 1: `("", items[0])`
+- 2: `(items[0], items[1])`
+- 3: `(items[1], items[2])` (NEW behavior)
+- 4+: `("", items[-1])` (UNCHANGED soft fallback)
 
 **Test matrix expansion (per codex item 6 — broader parseGenericType
 call paths)**: codex's audit found additional broken positions I
