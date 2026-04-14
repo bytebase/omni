@@ -1171,3 +1171,126 @@ type UndropSchemaStmt struct {
 func (n *UndropSchemaStmt) Tag() NodeTag { return T_UndropSchemaStmt }
 
 var _ Node = (*UndropSchemaStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// DROP / UNDROP statement nodes (non-DATABASE/SCHEMA object types)
+// ---------------------------------------------------------------------------
+
+// DropObjectKind enumerates the object types that can appear in a DROP
+// statement handled by this parser. DATABASE and SCHEMA are handled by T2.1.
+type DropObjectKind int
+
+const (
+	DropTable            DropObjectKind = iota
+	DropView                            // DROP VIEW
+	DropMaterializedView                // DROP MATERIALIZED VIEW
+	DropDynamicTable                    // DROP DYNAMIC TABLE
+	DropExternalTable                   // DROP EXTERNAL TABLE
+	DropStream                          // DROP STREAM
+	DropTask                            // DROP TASK
+	DropSequence                        // DROP SEQUENCE
+	DropStage                           // DROP STAGE
+	DropFileFormat                      // DROP FILE FORMAT
+	DropFunction                        // DROP FUNCTION
+	DropProcedure                       // DROP PROCEDURE
+	DropPipe                            // DROP PIPE
+	DropTag                             // DROP TAG
+	DropRole                            // DROP ROLE
+	DropWarehouse                       // DROP WAREHOUSE
+)
+
+// String returns the SQL object-type keyword for the kind.
+func (k DropObjectKind) String() string {
+	switch k {
+	case DropTable:
+		return "TABLE"
+	case DropView:
+		return "VIEW"
+	case DropMaterializedView:
+		return "MATERIALIZED VIEW"
+	case DropDynamicTable:
+		return "DYNAMIC TABLE"
+	case DropExternalTable:
+		return "EXTERNAL TABLE"
+	case DropStream:
+		return "STREAM"
+	case DropTask:
+		return "TASK"
+	case DropSequence:
+		return "SEQUENCE"
+	case DropStage:
+		return "STAGE"
+	case DropFileFormat:
+		return "FILE FORMAT"
+	case DropFunction:
+		return "FUNCTION"
+	case DropProcedure:
+		return "PROCEDURE"
+	case DropPipe:
+		return "PIPE"
+	case DropTag:
+		return "TAG"
+	case DropRole:
+		return "ROLE"
+	case DropWarehouse:
+		return "WAREHOUSE"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// DropStmt represents a DROP <object_type> [IF EXISTS] name [CASCADE|RESTRICT]
+// statement. DATABASE and SCHEMA are handled by T2.1's DropDatabaseStmt /
+// DropSchemaStmt and are NOT covered by this type.
+type DropStmt struct {
+	Kind     DropObjectKind
+	IfExists bool
+	Name     *ObjectName
+	Cascade  bool // CASCADE option (mutually exclusive with Restrict)
+	Restrict bool // RESTRICT option (mutually exclusive with Cascade)
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropStmt) Tag() NodeTag { return T_DropStmt }
+
+// UndropObjectKind enumerates the object types that can appear in an UNDROP
+// statement. DATABASE and SCHEMA are handled by T2.1.
+type UndropObjectKind int
+
+const (
+	UndropTable        UndropObjectKind = iota
+	UndropDynamicTable                  // UNDROP DYNAMIC TABLE
+	UndropTag                           // UNDROP TAG
+)
+
+// String returns the SQL object-type keyword for the kind.
+func (k UndropObjectKind) String() string {
+	switch k {
+	case UndropTable:
+		return "TABLE"
+	case UndropDynamicTable:
+		return "DYNAMIC TABLE"
+	case UndropTag:
+		return "TAG"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// UndropStmt represents an UNDROP <object_type> name statement.
+// DATABASE and SCHEMA are handled by T2.1.
+type UndropStmt struct {
+	Kind UndropObjectKind
+	Name *ObjectName
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *UndropStmt) Tag() NodeTag { return T_UndropStmt }
+
+// Compile-time assertions.
+var (
+	_ Node = (*DropStmt)(nil)
+	_ Node = (*UndropStmt)(nil)
+)

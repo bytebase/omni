@@ -61,6 +61,8 @@ const (
 	T_AlterSchemaStmt
 	T_DropSchemaStmt
 	T_UndropSchemaStmt
+	T_DropStmt
+	T_UndropStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -146,6 +148,10 @@ func (t NodeTag) String() string {
 		return "DropSchemaStmt"
 	case T_UndropSchemaStmt:
 		return "UndropSchemaStmt"
+	case T_DropStmt:
+		return "DropStmt"
+	case T_UndropStmt:
+		return "UndropStmt"
 	default:
 		return "Unknown"
 	}
