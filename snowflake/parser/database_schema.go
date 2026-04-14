@@ -477,18 +477,7 @@ func (p *Parser) parseAlterSchemaStmt() (ast.Node, error) {
 // ---------------------------------------------------------------------------
 
 // parseDropStmt dispatches DROP ... to the appropriate sub-parser.
-func (p *Parser) parseDropStmt() (ast.Node, error) {
-	p.advance() // consume DROP
-
-	switch p.cur.Type {
-	case kwDATABASE:
-		return p.parseDropDatabaseStmt()
-	case kwSCHEMA:
-		return p.parseDropSchemaStmt()
-	default:
-		return p.unsupported("DROP")
-	}
-}
+// (parseDropStmt lives in drop.go; it dispatches DATABASE/SCHEMA here.)
 
 // ---------------------------------------------------------------------------
 // DROP DATABASE
@@ -574,19 +563,7 @@ func (p *Parser) parseDropSchemaStmt() (ast.Node, error) {
 // UNDROP dispatch
 // ---------------------------------------------------------------------------
 
-// parseUndropStmt dispatches UNDROP ... to the appropriate sub-parser.
-func (p *Parser) parseUndropStmt() (ast.Node, error) {
-	p.advance() // consume UNDROP
-
-	switch p.cur.Type {
-	case kwDATABASE:
-		return p.parseUndropDatabaseStmt()
-	case kwSCHEMA:
-		return p.parseUndropSchemaStmt()
-	default:
-		return p.unsupported("UNDROP")
-	}
-}
+// (parseUndropStmt lives in drop.go; it dispatches DATABASE/SCHEMA here.)
 
 // ---------------------------------------------------------------------------
 // UNDROP DATABASE

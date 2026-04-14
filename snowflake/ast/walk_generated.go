@@ -76,6 +76,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *DropStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *ExistsExpr:
 		Walk(v, n.Query)
 	case *File:
@@ -142,6 +146,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Name)
 		}
 	case *UndropSchemaStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *UndropStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
