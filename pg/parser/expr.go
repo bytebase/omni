@@ -1472,7 +1472,13 @@ func (p *Parser) parseCExprInner() (nodes.Node, error) {
 			return p.parseTypeCastedConst()
 		}
 		// --- func_expr: func_application or columnref ---
-		if p.isColId() || p.isTypeFunctionName() {
+		// Predicate is isColId only — parseColumnRefOrFuncCall calls
+		// parseColId downstream, which rejects TypeFuncNameKeyword. The
+		// previous `|| p.isTypeFunctionName()` was dead code: it
+		// admitted INNER/LEFT/JOIN/etc into the parse function only to
+		// have them rejected one call deeper. PG's a_expr → columnref
+		// → ColId path matches this strict form.
+		if p.isColId() {
 			return p.parseColumnRefOrFuncCall()
 		}
 	}

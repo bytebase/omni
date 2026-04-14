@@ -897,8 +897,13 @@ func (p *Parser) parseOptCollate() *nodes.List {
 // parseOptQualifiedName parses opt_qualified_name.
 //
 //	opt_qualified_name: any_name | /* EMPTY */
+//
+// Predicate is isColId only — parseAnyName calls parseColId
+// downstream, which rejects TypeFuncNameKeyword. PG's any_name
+// production is `ColId | ColId attrs`, also using ColId. The
+// previous `|| p.isTypeFunctionName()` was dead code.
 func (p *Parser) parseOptQualifiedName() *nodes.List {
-	if p.isColId() || p.isTypeFunctionName() {
+	if p.isColId() {
 		name, _ := p.parseAnyName()
 		return name
 	}
