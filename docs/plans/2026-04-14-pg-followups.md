@@ -296,12 +296,28 @@ The commit message for the catalog fix should explicitly call out:
    not a regression in functionality. Full PctType resolution is
    tracked separately.
 
-**Call site audit for `typeNameParts`**: 7 sites. 5 use only the name
-(`_, name := ...`), 2 use both (`schema, name := ...` at
-`nodeutil.go:145` and `nodeutil.go:350`). For the name-only sites, the
-fix is transparent. For the schema-using sites, the fix changes the
-returned `schema` from `""` to `items[len-2]` for 3-component names —
-which is the correct behavior matching PG.
+**Call site audit for `typeNameParts`**: 8 sites total.
+
+5 use only the name (`_, name := ...`):
+- `aggregatecmds.go:126` (`_, baseName`)
+- `analyze.go:3695`
+- `nodeutil.go:387`
+- `nodeutil.go:436`
+- `operatorcmds.go:240`
+
+3 use both schema and name:
+- `nodeutil.go:145` — `schema, name := typeNameParts(tn)`
+- `nodeutil.go:350` — `schema, name := typeNameParts(tn)`
+- `tablecmds.go:908` — `typSchema, name := typeNameParts(cd.TypeName)`
+
+For the name-only sites, the fix is transparent (they read the same
+`name`, regardless of whether `schema` is now populated). For the 3
+schema-using sites, the fix changes the returned `schema` from `""` to
+`items[len-2]` for 3-component names — which is the correct behavior
+matching PG. The `tablecmds.go:908` site specifically resolves
+column types in `ALTER TABLE ... ADD COLUMN`-style flows, so it's a
+real user-facing improvement (today: 3-component column type silently
+loses qualification; after: resolves correctly).
 
 **4+ component handling — single agreed answer**: returns
 `("", lastItem)` (preserves today's soft fallback). 4+ component types
@@ -626,10 +642,23 @@ alignment). Document but don't fix finding 3 (Option A: doc-only).
 
 **Commit 1 (CATALOG)**: Fix `pg/catalog/nodeutil.go:typeNameParts` to
 handle 3-component names by treating `[catalog, schema, name]` as
-`(schema, name)`, and explicitly returning empty for 4+component
-(rather than silently truncating). Add `TestTypeNamePartsThreeComponent`
-covering 1/2/3/4-component inputs. **Land this BEFORE commit 2** so the
-parser fix doesn't expose the silent-truncation bug.
+`(schema, name)`. 4+ component types continue to return
+`("", lastItem)` as today (a typed error would require a signature
+change; out of scope). Add `TestTypeNamePartsThreeComponent` covering
+1/2/3/4-component inputs with the unified return-value expectations
+(see test matrix). **Land this BEFORE commit 2** to avoid widening the
+parser-side cases without their downstream resolution being correct.
+
+Note: this commit is NOT purely additive — it also changes behavior on
+3-component paths that are already reachable today (`%TYPE`, `CREATE
+TABLE OF`, `ALTER TABLE OF`, `COMMENT ON CONSTRAINT ON DOMAIN`). For
+the `parseAnyName`-driven paths (path B in section above) this is a
+silent improvement: silent truncation → correct schema-qualified
+resolution. For the `%TYPE` path (path A), it changes one wrong error
+message to a slightly more informative wrong error message — omni's
+catalog has no PctType handler at all, so this path was never
+correctly resolving regardless. Document all three in the commit
+message.
 
 **Commit 2 (PARSER)**: Fix `parseGenericType` to use `parseAttrs` for
 arbitrary qualified type depth. Add `TestParseQualifiedTypeMultiComponent`
