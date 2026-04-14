@@ -221,22 +221,28 @@ func (p *Parser) parseFuncArgWithDefault() (*nodes.FunctionParameter, error) {
 // type_function_name attrs '%' TYPE_P; arg_class is one of IN, OUT,
 // INOUT, IN OUT, VARIADIC.
 //
-// Disambiguation strategy: peek-then-commit using the existing 1-token
-// lookahead via peekNext(). For each of the 5 alternatives we look at
-// cur and (if needed) the lookahead token to decide whether cur is a
-// param_name or the start of func_type — without consuming cur until
-// we're sure. This mirrors what bison's LALR(1) does for func_arg in
-// PG's grammar.
+// Disambiguation strategy: speculatively consume the leading token as
+// a param_name and check what follows. If the rest doesn't fit, roll
+// back via snapshotTokenStream / restoreTokenStream and let
+// parseFuncType handle the original token as the start of a type.
 //
-// History: an earlier version of this function used speculative-consume
-// + a lossy `pushBack(name string)` rollback that rewrote the
-// rolled-back token's Type to IDENT unconditionally. That caused
-// `CREATE FUNCTION f(double precision)` (and every `arg_class double
-// precision` variant) to fail at parse time — DOUBLE_P is the sole
-// UnreservedKeyword in simpleTypenameLeadTokens, so it was the only
-// token whose loss-of-Type-on-pushBack actually surfaced. Peek-then-
-// commit eliminates the need for pushBack entirely; the function is
-// now deleted.
+// Why speculative-consume instead of peek-then-commit: omni's parser
+// supports IDE completion mode (`Collect`) by populating candidate
+// completions as a side effect of `advance()` calls. A pure peek-then-
+// commit version of this function would never advance past the
+// param_name candidate, so completion mode would lose type-name
+// suggestions at positions like `CREATE FUNCTION f(x |` and
+// `CREATE FUNCTION f(IN x |`. The lossy `pushBack(string)` mechanism
+// the previous version used was a buggy form of the same speculative
+// pattern; switching to snapshotTokenStream / restoreTokenStream keeps
+// the advance side effects intact while making the rollback lossless.
+//
+// History: the prior pushBack(string) mechanism rewrote the rolled-back
+// token's Type to IDENT unconditionally. DOUBLE_P is the only
+// UnreservedKeyword in simpleTypenameLeadTokens, so 'CREATE FUNCTION
+// f(double precision)' and every `arg_class double precision` variant
+// failed at parse time. snapshotTokenStream / restoreTokenStream
+// preserves all token state on rollback.
 func (p *Parser) parseFuncArg() *nodes.FunctionParameter {
 	paramLoc := p.pos()
 
@@ -248,38 +254,49 @@ func (p *Parser) parseFuncArg() *nodes.FunctionParameter {
 		// Cases 1 or 4: arg_class is consumed; decide if a param_name
 		// follows or if cur is the type.
 		mode = argClass
-		if p.isTypeFunctionName() && p.isFuncTypeStartToken(p.peekNext()) {
-			// Case 1: arg_class param_name func_type. The token after
-			// cur is a func_type lead, so cur must be the param_name.
-			name, _ = p.parseTypeFunctionName()
+		if p.isTypeFunctionName() {
+			snap := p.snapshotTokenStream()
+			savedName, _ := p.parseTypeFunctionName()
+			if p.isFuncTypeStart() {
+				// Case 1: arg_class param_name func_type
+				name = savedName
+			} else {
+				// Case 4: cur IS the type (no param_name). Roll back so
+				// parseFuncType sees the original token, including its
+				// keyword Type. e.g. `IN double precision`: we consumed
+				// `double` speculatively, peek shows `precision` is not
+				// a func_type lead, so restore and let parseFuncType
+				// handle `double precision` via parseSimpleTypename.
+				p.restoreTokenStream(snap)
+			}
 		}
-		// else case 4: arg_class func_type. Don't consume cur — let
-		// parseFuncType handle it. This includes the `IN double
-		// precision` case where cur=DOUBLE_P, peek=PRECISION (which is
-		// not a func_type lead, so parseFuncType correctly handles
-		// `double precision` as a single SimpleTypename).
 	} else if p.isTypeFunctionName() {
 		// Cases 2, 3, or 5: cur could be a param_name or the type.
-		// Look at the lookahead to decide.
-		next := p.peekNext()
+		snap := p.snapshotTokenStream()
+		savedName, _ := p.parseTypeFunctionName()
+		argClass2, isArgClass2 := p.tryParseArgClass()
 		switch {
-		case isArgClassToken(next.Type):
+		case isArgClass2:
 			// Case 2: param_name arg_class func_type. e.g. `x IN int`.
-			name, _ = p.parseTypeFunctionName()
-			argClass2, _ := p.tryParseArgClass()
+			name = savedName
 			mode = argClass2
-		case p.isFuncTypeStartToken(next):
+		case p.isFuncTypeStart():
 			// Case 3: param_name func_type. e.g. `x int`, `p double precision`.
-			name, _ = p.parseTypeFunctionName()
+			name = savedName
 			// mode stays FUNC_PARAM_IN
 		default:
-			// Case 5: cur IS the type (no param_name). e.g. `int`,
-			// `double precision`, `pg_catalog.int4`. Don't consume.
+			// Case 5: cur IS the type. Roll back so parseFuncType sees
+			// the original token. This is the path that fixes
+			// `f(double precision)` — restore puts cur back to
+			// Token{DOUBLE_P, "double"} (not the lossy IDENT pushBack
+			// produced previously).
+			p.restoreTokenStream(snap)
 		}
 	}
 
 	// Parse func_type. cur is now positioned at the start of the type
-	// (whether we consumed a param_name above or not).
+	// (whether we consumed a param_name above, restored a rollback, or
+	// never entered the speculative branch at all).
 	argType, _ := p.parseFuncType()
 
 	return &nodes.FunctionParameter{
@@ -312,20 +329,6 @@ func (p *Parser) tryParseArgClass() (nodes.FunctionParameterMode, bool) {
 		return nodes.FUNC_PARAM_VARIADIC, true
 	}
 	return 0, false
-}
-
-// isArgClassToken reports whether tok is a func_arg arg_class lead token.
-// The arg_class production is: IN | OUT | INOUT | IN OUT | VARIADIC.
-// All five lead with a single keyword; this predicate returns true for
-// any of them. Used by parseFuncArg's case 2 detection (param_name
-// arg_class func_type) when peeking at the token after a candidate
-// param_name.
-func isArgClassToken(tok int) bool {
-	switch tok {
-	case IN_P, OUT_P, INOUT, VARIADIC:
-		return true
-	}
-	return false
 }
 
 // parseTableFuncColumnList parses a comma-separated list of table function columns.

@@ -100,41 +100,6 @@ func (p *Parser) isTypenameStart() bool {
 	return p.isSimpleTypenameStart()
 }
 
-// ---------------------------------------------------------------------------
-// Token-variant predicates: same semantics as the receiver-on-cur versions
-// above, but operate on an arbitrary Token. Used by callers that need to
-// peek at lookahead tokens (e.g. parseFuncArg's peek-then-commit
-// disambiguation) without consuming them.
-//
-// These are thin parallel implementations rather than wrappers because the
-// receiver versions read p.cur.Type and p.cur.Str, and we don't want to
-// briefly mutate p.cur to reuse them — that would defeat the point of
-// peeking.
-// ---------------------------------------------------------------------------
-
-// isSimpleTypenameStartToken is the Token-variant of isSimpleTypenameStart.
-func (p *Parser) isSimpleTypenameStartToken(tok Token) bool {
-	if simpleTypenameLeadSet[tok.Type] {
-		return true
-	}
-	return p.isTypeFunctionNameToken(tok)
-}
-
-// isTypenameStartToken is the Token-variant of isTypenameStart.
-func (p *Parser) isTypenameStartToken(tok Token) bool {
-	if tok.Type == SETOF {
-		return true
-	}
-	return p.isSimpleTypenameStartToken(tok)
-}
-
-// isFuncTypeStartToken is the Token-variant of isFuncTypeStart.
-// FIRST(func_type) == FIRST(Typename) — see isFuncTypeStart's doc comment
-// for the grammar-level proof.
-func (p *Parser) isFuncTypeStartToken(tok Token) bool {
-	return p.isTypenameStartToken(tok)
-}
-
 // aExprLeadTokens is the set of tokens that start an a_expr but are
 // NOT covered by isConstTypenameStart or the isColId category check.
 // Includes literal tokens, expression-opener keywords, the parameter
