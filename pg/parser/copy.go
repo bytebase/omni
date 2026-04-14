@@ -80,9 +80,10 @@ func (p *Parser) parseCopyQueryStmt(loc int) (nodes.Node, error) {
 
 // parsePreparableStmt parses SELECT, INSERT, UPDATE, or DELETE.
 func (p *Parser) parsePreparableStmt() (nodes.Node, error) {
-	switch p.cur.Type {
-	case SELECT, VALUES, TABLE, WITH:
+	if p.isSelectStart() {
 		return p.parseSelectNoParens()
+	}
+	switch p.cur.Type {
 	case INSERT:
 		return p.parseInsertStmt(nil)
 	case UPDATE:

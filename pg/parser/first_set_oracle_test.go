@@ -678,3 +678,45 @@ func TestFuncTypeLeadTokensMatchPG(t *testing.T) {
 		},
 	})
 }
+
+// TestIsTableConstraintStartCoverage validates the FIRST set against
+// the canonical 6 tokens. There is no PG oracle test because the
+// production is only reachable through CREATE/ALTER TABLE where
+// surrounding column-definition rules create grammar ambiguity.
+func TestIsTableConstraintStartCoverage(t *testing.T) {
+	accepts := []struct {
+		tok  int
+		name string
+	}{
+		{CONSTRAINT, "constraint"},
+		{CHECK, "check"},
+		{UNIQUE, "unique"},
+		{PRIMARY, "primary"},
+		{FOREIGN, "foreign"},
+		{EXCLUDE, "exclude"},
+	}
+	for _, a := range accepts {
+		p := &Parser{cur: Token{Type: a.tok, Str: a.name}}
+		if !p.isTableConstraintStart() {
+			t.Errorf("isTableConstraintStart must accept %q", a.name)
+		}
+	}
+
+	// Negative spot-checks: tokens that look type/column-ish but are NOT
+	// table-constraint starters.
+	rejects := []struct {
+		tok  int
+		name string
+	}{
+		{IDENT, "my_column"},
+		{INT_P, "int"},
+		{SELECT, "select"},
+		{LIKE, "like"}, // LIKE is a CREATE TABLE element but NOT a constraint
+	}
+	for _, r := range rejects {
+		p := &Parser{cur: Token{Type: r.tok, Str: r.name}}
+		if p.isTableConstraintStart() {
+			t.Errorf("isTableConstraintStart must reject %q", r.name)
+		}
+	}
+}

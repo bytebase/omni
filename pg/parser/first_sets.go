@@ -178,6 +178,46 @@ func (p *Parser) isAExprStart() bool {
 	return p.isColId()
 }
 
+// tableConstraintLeadTokens is the FIRST set of tokens that start a
+// TableConstraint clause inside CREATE TABLE / ALTER TABLE.
+//
+// Grammar reference: TableConstraint in postgres/src/backend/parser/gram.y.
+//
+//	TableConstraint:
+//	    CONSTRAINT name ConstraintElem
+//	    | ConstraintElem  // CHECK | UNIQUE | PRIMARY KEY | FOREIGN KEY | EXCLUDE
+//
+// DO NOT extend this list without also extending parseTableConstraint's
+// dispatch in create_table.go, and vice versa.
+var tableConstraintLeadTokens = []int{
+	CONSTRAINT, CHECK, UNIQUE, PRIMARY, FOREIGN, EXCLUDE,
+}
+
+var tableConstraintLeadSet = func() map[int]bool {
+	m := make(map[int]bool, len(tableConstraintLeadTokens))
+	for _, t := range tableConstraintLeadTokens {
+		m[t] = true
+	}
+	return m
+}()
+
+// isTableConstraintStart reports whether the current token starts a
+// TableConstraint clause inside CREATE TABLE / ALTER TABLE.
+//
+// Used at the disambiguation point where parseTableElement /
+// parseTypedTableElement / parseAlterTableAdd decide between a column
+// definition and a table-level constraint.
+//
+// No PG oracle test: TableConstraint is only reachable through
+// CREATE/ALTER TABLE, where the surrounding column-definition rules
+// admit overlapping leads (e.g. an IDENT could start a column name).
+// Negative coverage is provided by the existing parseTableElement /
+// parseTypedTableElement / parseAlterTableAdd tests in the corpus,
+// plus the in-Go unit test TestIsTableConstraintStartCoverage.
+func (p *Parser) isTableConstraintStart() bool {
+	return tableConstraintLeadSet[p.cur.Type]
+}
+
 // isFuncTypeStart reports whether the current token starts a func_type
 // production.
 //
