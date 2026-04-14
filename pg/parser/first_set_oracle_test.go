@@ -518,3 +518,65 @@ func TestTypenameLeadTokensMatchPG(t *testing.T) {
 		},
 	})
 }
+
+func TestFuncTypeLeadTokensMatchPG(t *testing.T) {
+	o := startFirstSetOracle(t)
+	// Probe func_type via the parameter type position of CREATE FUNCTION.
+	// Use a dummy_name prefix so PG parses the candidate as func_type, not
+	// arg_class. (Bare `CREATE FUNCTION __omni_probe(X)` would let PG
+	// interpret X as an arg_class like IN/OUT.)
+	//
+	// This test is intentionally a sibling of TestTypenameLeadTokensMatchPG
+	// (which uses RETURNS). They MUST agree on the keyword set —
+	// FIRST(func_type) == FIRST(Typename) by grammar — and any future
+	// disagreement would be a useful drift alert.
+
+	filter := func(c candidateToken) bool {
+		return c.kind == kindKeyword || c.kind == kindIdent
+	}
+	outcomes := runFirstSetProbe(t, o,
+		"CREATE FUNCTION __omni_probe(dummy_name %s) RETURNS int AS $$ SELECT 1 $$ LANGUAGE sql",
+		renderTypeCandidate,
+		filter,
+	)
+
+	// Subtract probe-contamination keywords. The `dummy_name %s` template
+	// cannot fully isolate func_type's FIRST set because PG's func_arg
+	// rule has multiple alternatives that let the surrounding syntax
+	// "absorb" tokens that aren't func_type leads at all:
+	//
+	//   - IN, OUT, INOUT, VARIADIC: arg_class keywords. PG re-parses
+	//     `dummy_name IN int` as `param_name arg_class func_type`, so IN
+	//     is consumed by arg_class, not func_type. Not a func_type lead.
+	//   - DEFAULT: after `dummy_name` is parsed as a GenericType, DEFAULT
+	//     introduces the default-value clause of func_arg_with_default.
+	//     Not a func_type lead.
+	//   - ARRAY: the renderTypeCandidate form `array` lets PG parse
+	//     `dummy_name` as the GenericType and ARRAY as opt_array_bounds
+	//     attached to that type, so ARRAY is a type SUFFIX, never a
+	//     func_type start.
+	//
+	// These match PG's semantics exactly (none of them can start a
+	// func_type in isolation), so the subtraction aligns the oracle with
+	// the predicate's actual contract rather than masking a real bug.
+	funcTypeContamination := map[int]bool{
+		IN_P: true, OUT_P: true, INOUT: true, VARIADIC: true,
+		DEFAULT: true, ARRAY: true,
+	}
+	for i := range outcomes {
+		if funcTypeContamination[outcomes[i].candidate.token] {
+			outcomes[i].accepted = false
+		}
+	}
+
+	assertPredicateMatchesPG(t, "func_type via func arg", outcomes, predicateProbe{
+		onKeyword: func(c candidateToken) bool {
+			p := &Parser{cur: Token{Type: c.token, Str: c.name}}
+			return p.isFuncTypeStart()
+		},
+		onNonKeyword: func(c candidateToken) bool {
+			p := &Parser{cur: Token{Type: c.token, Str: c.name}}
+			return p.isFuncTypeStart()
+		},
+	})
+}

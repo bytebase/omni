@@ -99,3 +99,30 @@ func (p *Parser) isTypenameStart() bool {
 	}
 	return p.isSimpleTypenameStart()
 }
+
+// isFuncTypeStart reports whether the current token starts a func_type
+// production.
+//
+//	func_type:
+//	    Typename
+//	    | type_function_name attrs '%' TYPE_P
+//	    | SETOF type_function_name attrs '%' TYPE_P
+//
+// At the FIRST-set level, FIRST(func_type) = FIRST(Typename), because:
+//   - The %TYPE alternatives start with type_function_name, which is
+//     already in FIRST(Typename) via SimpleTypename's GenericType path
+//     (parseSimpleTypename → parseGenericType → parseTypeFunctionName).
+//   - The SETOF prefix is already in FIRST(Typename) via the
+//     `SETOF SimpleTypename` alternative.
+//
+// So isFuncTypeStart is a thin alias for isTypenameStart. The separate
+// name documents the call site's intent: "this point is checking whether
+// the next token is a func_type lead". Renaming the concept at the call
+// site is cheaper than threading the comment everywhere.
+//
+// Validated against PG 17 by TestFuncTypeLeadTokensMatchPG, which probes
+// the parameter type position of CREATE FUNCTION (a func_type position)
+// and confirms the predicate matches PG's accept set keyword-for-keyword.
+func (p *Parser) isFuncTypeStart() bool {
+	return p.isTypenameStart()
+}

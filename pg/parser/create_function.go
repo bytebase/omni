@@ -242,7 +242,7 @@ func (p *Parser) parseFuncArg() *nodes.FunctionParameter {
 			// looks like a type. If not, it was actually the type itself.
 			savedName, _ := p.parseTypeFunctionName()
 
-			if p.isSimpleTypenameStart() || p.cur.Type == SETOF {
+			if p.isFuncTypeStart() {
 				// It's param_name followed by func_type
 				name = savedName
 				mode = argClass
@@ -273,7 +273,7 @@ func (p *Parser) parseFuncArg() *nodes.FunctionParameter {
 		if isArgClass2 {
 			name = savedName
 			mode = argClass2
-		} else if p.isSimpleTypenameStart() || p.cur.Type == SETOF {
+		} else if p.isFuncTypeStart() {
 			// Case 3: param_name func_type
 			name = savedName
 			// mode stays FUNC_PARAM_IN
