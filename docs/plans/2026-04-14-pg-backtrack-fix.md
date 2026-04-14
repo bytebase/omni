@@ -40,26 +40,69 @@ The bug requires BOTH conditions:
 
 Of the 21 tokens in `simpleTypenameLeadTokens`, exactly **one** is `UnreservedKeyword`: `DOUBLE_P`. All other type leads (`INT_P`, `INTEGER`, `BIT`, `CHARACTER`, `VARCHAR`, `NATIONAL`, `NCHAR`, `BOOLEAN_P`, `JSON`, `TIMESTAMP`, `TIME`, `INTERVAL`, etc.) are `ColNameKeyword`, so `isTypeFunctionName(...)` returns false and they bypass the speculative-consume branch entirely — they go directly to `parseFuncType` → `parseSimpleTypename` where the dispatch switch correctly handles their multi-token forms (`bit varying`, `character varying(10)`, `national character varying`, `time with time zone`, etc.).
 
-**Empirical blast radius for finding 1**: exactly 1 SQL pattern, `CREATE FUNCTION f(double precision) RETURNS int AS '...' LANGUAGE sql`. Verified by direct test against omni at HEAD of `pg-first-sets`.
+**Empirical blast radius for finding 1** (corrected per codex review on commit 66a8cbe):
+
+The bug fires in **every** `parseFuncArg` grammar alternative that ends with `double precision`. Codex re-tested and reproduced the failure for all five forms below — each enters the same speculative-consume + lossy-pushBack code path:
+
+| SQL | Result |
+|---|---|
+| `CREATE FUNCTION f(double precision) RETURNS int AS '...' LANGUAGE sql` (case 5: bare `func_type`) | ❌ FAIL |
+| `CREATE FUNCTION f(IN double precision) RETURNS int AS '...' LANGUAGE sql` (case 4: `arg_class func_type`) | ❌ FAIL |
+| `CREATE FUNCTION f(OUT double precision) RETURNS int AS '...' LANGUAGE sql` | ❌ FAIL |
+| `CREATE FUNCTION f(INOUT double precision) RETURNS int AS '...' LANGUAGE sql` | ❌ FAIL |
+| `CREATE FUNCTION f(VARIADIC double precision) RETURNS int AS '...' LANGUAGE sql` | ❌ FAIL |
+| `CREATE FUNCTION f(double precision DEFAULT 1.0) RETURNS int AS '...' LANGUAGE sql` (case 5 with default) | ❌ FAIL |
+| `CREATE FUNCTION f(p double precision) RETURNS int AS '...' LANGUAGE sql` (case 3: `param_name func_type` with explicit name) | ✅ OK (the IDENT param name keeps speculative-consume harmless) |
+
+So the **single root cause** (lossy `pushBack`) manifests across **6+ visible SQL forms**. My initial report listed only the bare case 5; the corrected blast radius is "any `CREATE FUNCTION` argument that uses `double precision` without an explicit parameter name".
+
+Note: the bug is still **one bug**, not six. Fixing the `pushBack` lossiness fixes all six simultaneously. The expanded list affects test-matrix coverage, not the fix.
 
 ### Finding 2: `parseFuncType` speculative branch in `type.go:758-789` does partial state save (NEW, not previously known)
 
-**Symptom**: any `CREATE FUNCTION` whose parameter or return type is schema-qualified (`pg_catalog.int4`, `schema.mytype`, `db.schema.mytype`, ...) fails to parse.
+**Symptom**: any `parseFuncType` caller — which includes function parameters, function return types, `RETURNS TABLE` columns, and `CREATE OPERATOR` LEFTARG/RIGHTARG — that uses a 2-component schema-qualified type fails to parse.
 
-**Empirical blast radius**:
+**parseFuncType call sites (verified by grep + manual trace)**:
+
+| File:line | Caller | Grammar context |
+|---|---|---|
+| `create_function.go:104` | `parseCreateFunctionStmt` | `RETURNS func_type` |
+| `create_function.go:291` | `parseFuncArg` | function parameter type |
+| `create_function.go:359` | `parseTableFuncColumn` | `RETURNS TABLE (col type, ...)` column type |
+| `define.go:329` | `parseDefArg` | `CREATE OPERATOR ... LEFTARG = type`, `CREATE AGGREGATE ... STYPE = type`, etc. |
+
+`parseDefArg` is itself called from `define.go:284`, `define.go:403`, `define.go:1442`, `create_table.go:1583`, `create_table.go:1600` — all within DefList/option-list parsing contexts. So the broken branch surfaces in **at least four user-visible grammar positions**, not just `CREATE FUNCTION`.
+
+**Empirical blast radius (corrected per codex review on commit 66a8cbe)**:
 
 | SQL | Result |
 |---|---|
 | `CREATE FUNCTION f(x pg_catalog.int4) RETURNS int AS '...' LANGUAGE sql` | ❌ FAIL |
 | `CREATE FUNCTION f(x schema.mytype) RETURNS int AS '...' LANGUAGE sql` | ❌ FAIL |
 | `CREATE FUNCTION f() RETURNS pg_catalog.int4 AS '...' LANGUAGE sql` | ❌ FAIL |
-| `CREATE FUNCTION f() RETURNS db.schema.mytype AS '...' LANGUAGE sql` | ❌ FAIL |
+| `CREATE FUNCTION f() RETURNS TABLE (x pg_catalog.int4) AS '...' LANGUAGE sql` | ❌ FAIL (parseTableFuncColumn → parseFuncType) |
+| `CREATE OPERATOR === (FUNCTION = int4eq, LEFTARG = pg_catalog.int4, RIGHTARG = int4)` | ❌ FAIL (parseDefArg → parseFuncType) |
+| `CREATE OPERATOR === (FUNCTION = int4eq, LEFTARG = int4, RIGHTARG = int4)` | ✅ OK (unqualified — never enters the broken branch) |
 | `CREATE FUNCTION f() RETURNS SETOF pg_catalog.int4 AS '...' LANGUAGE sql` | ✅ OK (SETOF takes a different code path that bypasses the broken branch) |
 | `CREATE FUNCTION f() RETURNS schema.tab.col%TYPE AS '...' LANGUAGE sql` | ✅ OK (success path of the speculative branch — no rollback needed) |
 | `CREATE TABLE t (c pg_catalog.int4)` | ✅ OK (uses `parseTypename` directly, not `parseFuncType`) |
 | `SELECT CAST(NULL AS pg_catalog.int4)` | ✅ OK (uses `parseTypename` via expr) |
 | `SELECT 1::pg_catalog.int4` | ✅ OK (TYPECAST) |
 | `ALTER TABLE t ALTER COLUMN c TYPE pg_catalog.int4` | ✅ OK (uses `parseTypename`) |
+
+**Out of evidence (not actually proof of finding 2 — see "Pre-existing 3-component name limitation" below)**:
+
+| SQL | Status | Why excluded |
+|---|---|---|
+| `CREATE FUNCTION f() RETURNS db.schema.mytype AS '...' LANGUAGE sql` | ❌ FAIL | But `CREATE TABLE t (c db.schema.mytype)` ALSO fails. So 3-component names fail in **all** contexts, not just `parseFuncType`. This is a separate `parseGenericType` limitation, not the backtracking bug. |
+| `SELECT CAST(NULL AS db.schema.mytype)` | ❌ FAIL | Same. |
+| `ALTER TABLE t ALTER COLUMN c TYPE db.schema.mytype` | ❌ FAIL | Same. |
+
+#### Pre-existing 3-component name limitation (out of scope for this fix)
+
+Codex's audit revealed that omni's `parseGenericType` only supports **at most one dot** in qualified names. So `db.schema.mytype` fails in `CREATE TABLE`, `CAST`, `ALTER TABLE`, and `CREATE FUNCTION` alike — all because the underlying `parseGenericType` can't handle 3-component qualified names. This is a **separate independent bug**, not finding 2. It is **out of scope** for this PR.
+
+If you fix the backtracking bug per this plan, `db.schema.mytype` will still fail in `CREATE FUNCTION` — but it will fail **for the same reason it fails everywhere else**, not because of the backtracking restore. To actually accept `db.schema.mytype`, `parseGenericType` needs to be extended to consume more dots. Track as a separate follow-up.
 
 **Mechanism**:
 
@@ -276,16 +319,38 @@ Fix both bugs by introducing a single shared backtracking helper, then migrating
 
 ### The helper
 
+**Important scope note (per codex review)**: this helper is a **token-stream snapshot**, NOT a complete parser/lexer snapshot. It captures exactly the state needed to rewind the token stream to a previous **token boundary** during ordinary parsing. It does NOT cover:
+
+- Lexer mid-token-content state: `stateBeforeStrStop`, `literalbuf`, `dolqstart`, `utf16FirstPart`, `xcdepth`, lexer warning flags. These fields are reset to known values at every token boundary, so they don't need saving for token-stream rollback. They WOULD need saving if a future caller wanted to roll back from inside a string literal or dollar-quoted block — that's not a use case omni currently has.
+- Completion-mode state: `candidates`, `collecting`, etc. used during IDE completion mode. The current speculative parses don't run in completion mode.
+- Any state in `Parser` that's not part of the token stream view (e.g., error accumulators if any).
+
+Naming convention: the type and methods are deliberately named `tokenStreamState` / `snapshotTokenStream` / `restoreTokenStream` to make the limited scope visible at every call site. A future "complete parser snapshot" would be a different, larger struct with different methods.
+
 ```go
 // pg/parser/backtrack.go (new file)
 
-// parserState is a complete snapshot of parser + lexer state. It is the
-// minimum information needed to rewind the parser to a previous position
-// after a speculative parse. Use snapshot/restore (see below) rather than
-// hand-rolling state save/restore — incomplete snapshots are a known
-// source of bugs (see commit history for the create_function pushBack
-// and type.go parseFuncType incidents).
-type parserState struct {
+// tokenStreamState captures the parser + lexer state needed to rewind the
+// token stream to a previous token boundary. This is sufficient for the
+// "speculative parse, then rollback if it doesn't match" pattern at every
+// site in pg/parser as of this writing.
+//
+// SCOPE: this is a TOKEN-STREAM snapshot, not a complete parser/lexer
+// snapshot. It does not cover mid-token-content lexer state (literalbuf,
+// dolqstart, utf16FirstPart, xcdepth, etc.) or completion-mode state
+// (candidates, collecting). Those fields are either reset at token
+// boundaries (lexer internals) or not used by speculative parses
+// (completion mode), so they don't need to be saved here.
+//
+// If a future caller needs to roll back from INSIDE a token (e.g., from
+// inside a string literal or dollar-quoted block), this struct is
+// insufficient — extend it carefully.
+//
+// Why this exists: see commit history for the create_function pushBack
+// incident and the type.go parseFuncType partial-snapshot incident.
+// Both bugs were caused by hand-rolled rollback machinery that captured
+// only a subset of the necessary state.
+type tokenStreamState struct {
     cur, prev, nextBuf Token
     hasNext            bool
     lexerErr           error
@@ -294,9 +359,11 @@ type parserState struct {
     lexerState         lexerStateMode  // whatever type pg/parser/lexer.go uses
 }
 
-// snapshot captures the current parser+lexer state for later restoration.
-func (p *Parser) snapshot() parserState {
-    return parserState{
+// snapshotTokenStream captures the current token-stream position for
+// later restoration via restoreTokenStream. See tokenStreamState for
+// scope and limitations.
+func (p *Parser) snapshotTokenStream() tokenStreamState {
+    return tokenStreamState{
         cur:        p.cur,
         prev:       p.prev,
         nextBuf:    p.nextBuf,
@@ -308,10 +375,14 @@ func (p *Parser) snapshot() parserState {
     }
 }
 
-// restore rewinds parser+lexer state to a previously captured snapshot.
-// After restore, the next advance() will emit the same token as it would
-// have at the moment snapshot() was called.
-func (p *Parser) restore(s parserState) {
+// restoreTokenStream rewinds parser+lexer state to a previously captured
+// snapshot. After restore, the next advance() will emit the same token as
+// it would have at the moment snapshotTokenStream() was called.
+//
+// Caller responsibility: do not interleave restore with completion-mode
+// queries or with any operation that mutates lexer state outside the
+// token stream (string literal scanning, etc.).
+func (p *Parser) restoreTokenStream(s tokenStreamState) {
     p.cur = s.cur
     p.prev = s.prev
     p.nextBuf = s.nextBuf
@@ -323,7 +394,7 @@ func (p *Parser) restore(s parserState) {
 }
 ```
 
-The exact field types depend on what `Lexer` exports — the implementer should verify `lexer.state`'s type name in `lexer.go` before writing this.
+The exact field types depend on what `Lexer` exports — the implementer should verify `lexer.state`'s type name in `lexer.go` before writing this. If the type is unexported, the helper file lives in the same package so it's accessible directly.
 
 ### Commit breakdown
 
@@ -358,70 +429,134 @@ Both options fix bug 1. Option (b) is more elegant; option (a) is more conservat
 ```go
 // pg/parser/create_function_extra_test.go (new file)
 
-func TestParseCreateFunctionParamlessDoublePrecision(t *testing.T) {
-    cases := []struct {
+func TestParseCreateFunctionDoublePrecisionAllArgClasses(t *testing.T) {
+    // Per codex review: bug 1 fires in EVERY parseFuncArg grammar
+    // alternative that ends with `double precision`, not just the bare
+    // case 5. Test all 6 visible forms.
+    type testCase struct {
         sql       string
-        paramName string  // "" for paramless
-        typeLast  string  // last component of parsed TypeName
-    }{
+        paramName string                       // "" for paramless
+        mode      nodes.FunctionParameterMode  // FUNC_PARAM_DEFAULT / IN / OUT / INOUT / VARIADIC
+        typeLast  string                       // last component of parsed TypeName
+    }
+    cases := []testCase{
+        // case 5: bare func_type
         {
             sql:      `CREATE FUNCTION f(double precision) RETURNS int AS 'select 1' LANGUAGE sql`,
+            mode:     nodes.FUNC_PARAM_DEFAULT,
             typeLast: "float8",
         },
-        // sanity: with explicit param name (must keep working)
+        // case 4: arg_class func_type
+        {
+            sql:      `CREATE FUNCTION f(IN double precision) RETURNS int AS 'select 1' LANGUAGE sql`,
+            mode:     nodes.FUNC_PARAM_IN,
+            typeLast: "float8",
+        },
+        {
+            sql:      `CREATE FUNCTION f(OUT double precision) RETURNS int AS 'select 1' LANGUAGE sql`,
+            mode:     nodes.FUNC_PARAM_OUT,
+            typeLast: "float8",
+        },
+        {
+            sql:      `CREATE FUNCTION f(INOUT double precision) RETURNS int AS 'select 1' LANGUAGE sql`,
+            mode:     nodes.FUNC_PARAM_INOUT,
+            typeLast: "float8",
+        },
+        {
+            sql:      `CREATE FUNCTION f(VARIADIC double precision) RETURNS int AS 'select 1' LANGUAGE sql`,
+            mode:     nodes.FUNC_PARAM_VARIADIC,
+            typeLast: "float8",
+        },
+        // case 5 with default value
+        {
+            sql:      `CREATE FUNCTION f(double precision DEFAULT 1.0) RETURNS int AS 'select 1' LANGUAGE sql`,
+            mode:     nodes.FUNC_PARAM_DEFAULT,
+            typeLast: "float8",
+        },
+        // sanity: case 3 (param_name func_type) with explicit name (must keep working)
         {
             sql:       `CREATE FUNCTION f(p double precision) RETURNS int AS 'select 1' LANGUAGE sql`,
             paramName: "p",
+            mode:      nodes.FUNC_PARAM_DEFAULT,
             typeLast:  "float8",
         },
         // sanity: paramless single-token type (must keep working)
         {
             sql:      `CREATE FUNCTION f(int) RETURNS int AS 'select 1' LANGUAGE sql`,
+            mode:     nodes.FUNC_PARAM_DEFAULT,
             typeLast: "int4",
         },
     }
-    // ... unwrap RawStmt → CreateFunctionStmt → FunctionParameter, assert AST shape ...
+    // ... unwrap RawStmt → CreateFunctionStmt → FunctionParameter, assert
+    //     Name == paramName, Mode == mode, ArgType.Names[-1].Str == typeLast ...
 }
 
-func TestParseCreateFunctionQualifiedTypes(t *testing.T) {
+func TestParseQualifiedTypeInFuncTypePositions(t *testing.T) {
+    // Bug 2 surfaces in EVERY parseFuncType caller, not just CREATE FUNCTION
+    // params/returns. Test all four caller paths to lock down the full
+    // blast radius.
+    //
+    // Excluded: db.schema.mytype (3-component qualified names fail in
+    // parseGenericType in ALL contexts, not just parseFuncType — separate
+    // bug, separate PR).
     cases := []struct {
         sql        string
-        paramName  string
-        typeNames  []string  // full Names list of parsed TypeName
+        callerKind string  // diagnostic label
     }{
-        // bug 2 — param qualified
+        // create_function.go:291 — function parameter type
         {
-            sql:       `CREATE FUNCTION f(x pg_catalog.int4) RETURNS int AS 'select 1' LANGUAGE sql`,
-            paramName: "x",
-            typeNames: []string{"pg_catalog", "int4"},
+            sql:        `CREATE FUNCTION f(x pg_catalog.int4) RETURNS int AS 'select 1' LANGUAGE sql`,
+            callerKind: "parseFuncArg argType",
         },
         {
-            sql:       `CREATE FUNCTION f(x schema.mytype) RETURNS int AS 'select 1' LANGUAGE sql`,
-            paramName: "x",
-            typeNames: []string{"schema", "mytype"},
+            sql:        `CREATE FUNCTION f(x schema.mytype) RETURNS int AS 'select 1' LANGUAGE sql`,
+            callerKind: "parseFuncArg argType (custom schema)",
         },
-        // bug 2 — return qualified
+        // create_function.go:104 — function return type
         {
-            sql:       `CREATE FUNCTION f() RETURNS pg_catalog.int4 AS 'select 1' LANGUAGE sql`,
-            typeNames: []string{"pg_catalog", "int4"},
+            sql:        `CREATE FUNCTION f() RETURNS pg_catalog.int4 AS 'select 1' LANGUAGE sql`,
+            callerKind: "parseCreateFunctionStmt RETURNS",
         },
-        // bug 2 — deep qualified
+        // create_function.go:359 — RETURNS TABLE column type
         {
-            sql:       `CREATE FUNCTION f() RETURNS db.schema.mytype AS 'select 1' LANGUAGE sql`,
-            typeNames: []string{"db", "schema", "mytype"},
+            sql:        `CREATE FUNCTION f() RETURNS TABLE (x pg_catalog.int4) AS 'select 1' LANGUAGE sql`,
+            callerKind: "parseTableFuncColumn",
         },
-        // sanity: SETOF qualified (works today, must keep working)
+        // define.go:329 — DefArg via CREATE OPERATOR
         {
-            sql:       `CREATE FUNCTION f() RETURNS SETOF pg_catalog.int4 AS 'select 1' LANGUAGE sql`,
-            typeNames: []string{"pg_catalog", "int4"},
+            sql:        `CREATE OPERATOR === (FUNCTION = int4eq, LEFTARG = pg_catalog.int4, RIGHTARG = int4)`,
+            callerKind: "parseDefArg LEFTARG",
         },
-        // sanity: %TYPE form (success path of speculative branch, must keep working)
         {
-            sql: `CREATE FUNCTION f() RETURNS schema.tab.col%TYPE AS 'select 1' LANGUAGE sql`,
-            // ... pct_type assertion ...
+            sql:        `CREATE OPERATOR === (FUNCTION = int4eq, LEFTARG = int4, RIGHTARG = pg_catalog.int4)`,
+            callerKind: "parseDefArg RIGHTARG",
+        },
+        // sanity: SETOF qualified — bypasses speculative branch via SETOF prefix
+        {
+            sql:        `CREATE FUNCTION f() RETURNS SETOF pg_catalog.int4 AS 'select 1' LANGUAGE sql`,
+            callerKind: "SETOF qualified (sanity)",
+        },
+        // sanity: %TYPE form — success path of speculative branch
+        {
+            sql:        `CREATE FUNCTION f() RETURNS schema.tab.col%TYPE AS 'select 1' LANGUAGE sql`,
+            callerKind: "%TYPE form (sanity)",
+        },
+        // sanity: unqualified type — never enters speculative branch
+        {
+            sql:        `CREATE FUNCTION f() RETURNS int AS 'select 1' LANGUAGE sql`,
+            callerKind: "unqualified (sanity)",
         },
     }
-    // ... AST shape assertions ...
+    for _, tc := range cases {
+        t.Run(tc.callerKind, func(t *testing.T) {
+            stmts, err := Parse(tc.sql)
+            if err != nil {
+                t.Fatalf("parse failed: %v", err)
+            }
+            // ... AST assertions per callerKind ...
+            _ = stmts
+        })
+    }
 }
 ```
 
