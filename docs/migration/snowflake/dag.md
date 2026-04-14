@@ -41,7 +41,7 @@ snowflake/
 | **T1.7** | set operators (UNION/UNION BY NAME/EXCEPT/MINUS/INTERSECT) | `snowflake/parser` | T1.4 | T1.5, T1.6 | 1 | P0 | **done** (PR #53) |
 | **T1.8** | statement-classification helper (DDL/DML/SELECT/SHOW/DESCRIBE/Other) | `snowflake/analysis` | F4 | T1.1–T1.7 | 1 | P0 | not started |
 | **T2.1** | DDL: DATABASE / SCHEMA (CREATE/ALTER/DROP/UNDROP) | `snowflake/parser` | T1.1 | T2.2, T2.4, T2.5 | 2 | P0 | not started |
-| **T2.2** | DDL: CREATE TABLE (full — constraints, CTAS, LIKE, CLUSTER BY, COPY GRANTS, WITH TAGS, MASKING POLICY, COLLATE, IDENTITY/AUTOINCREMENT) | `snowflake/parser` | T1.2, T1.3, T1.4 | T2.1, T2.4 | 2 | P0 | not started |
+| **T2.2** | DDL: CREATE TABLE (full — constraints, CTAS, LIKE, CLUSTER BY, COPY GRANTS, WITH TAGS, MASKING POLICY, COLLATE, IDENTITY/AUTOINCREMENT) | `snowflake/parser` | T1.2, T1.3, T1.4 | T2.1, T2.4 | 2 | P0 | **done** (PR #60) |
 | **T2.3** | DDL: ALTER TABLE (full action set) | `snowflake/parser` | T2.2 | T2.4, T2.5 | 2 | P0 | not started |
 | **T2.4** | DDL: VIEW + MATERIALIZED VIEW (CREATE/ALTER/DROP) | `snowflake/parser` | T1.4, T1.6 | T2.1, T2.2, T2.3 | 2 | P0 | not started |
 | **T2.5** | DDL: DROP / UNDROP (table/schema/db core) | `snowflake/parser` | T1.1 | T2.1–T2.4 | 2 | P0 | not started |
