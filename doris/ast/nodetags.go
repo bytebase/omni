@@ -103,6 +103,20 @@ const (
 
 	// T_OrderByItem is the tag for *OrderByItem (expr ASC/DESC NULLS FIRST/LAST).
 	T_OrderByItem
+
+	// SELECT statement nodes (T1.4).
+
+	// T_SelectStmt is the tag for *SelectStmt.
+	T_SelectStmt
+
+	// T_SelectItem is the tag for *SelectItem (one item in the SELECT list).
+	T_SelectItem
+
+	// T_TableRef is the tag for *TableRef (table reference in FROM clause).
+	T_TableRef
+
+	// T_JoinClause is the tag for *JoinClause (JOIN expression in FROM).
+	T_JoinClause
 )
 
 // String returns a human-readable representation of the tag.
@@ -166,6 +180,14 @@ func (t NodeTag) String() string {
 		return "IntervalExpr"
 	case T_OrderByItem:
 		return "OrderByItem"
+	case T_SelectStmt:
+		return "SelectStmt"
+	case T_SelectItem:
+		return "SelectItem"
+	case T_TableRef:
+		return "TableRef"
+	case T_JoinClause:
+		return "JoinClause"
 	default:
 		return "Unknown"
 	}

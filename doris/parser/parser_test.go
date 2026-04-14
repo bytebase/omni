@@ -20,8 +20,8 @@ func TestParseEmpty(t *testing.T) {
 }
 
 func TestParseUnsupported(t *testing.T) {
-	// All statement types are stubbed as unsupported in F4.
-	file, errs := Parse("SELECT 1")
+	// INSERT is still unsupported.
+	file, errs := Parse("INSERT INTO t VALUES (1)")
 	if file == nil {
 		t.Fatal("expected non-nil File")
 	}
@@ -32,21 +32,23 @@ func TestParseUnsupported(t *testing.T) {
 	if len(errs) != 1 {
 		t.Fatalf("expected 1 error, got %d", len(errs))
 	}
-	if errs[0].Msg != "SELECT statement parsing is not yet supported" {
+	if errs[0].Msg != "INSERT statement parsing is not yet supported" {
 		t.Errorf("unexpected error: %q", errs[0].Msg)
 	}
 }
 
 func TestParseMultipleUnsupported(t *testing.T) {
+	// SELECT is now supported; INSERT and CREATE TABLE are still unsupported.
 	file, errs := Parse("SELECT 1; INSERT INTO t VALUES (1); CREATE TABLE t (id INT)")
 	if file == nil {
 		t.Fatal("expected non-nil File")
 	}
-	if len(file.Stmts) != 0 {
-		t.Errorf("expected 0 stmts, got %d", len(file.Stmts))
+	// SELECT 1 should parse successfully, producing 1 stmt.
+	if len(file.Stmts) != 1 {
+		t.Errorf("expected 1 stmt, got %d", len(file.Stmts))
 	}
-	if len(errs) != 3 {
-		t.Fatalf("expected 3 errors, got %d: %v", len(errs), errs)
+	if len(errs) != 2 {
+		t.Fatalf("expected 2 errors, got %d: %v", len(errs), errs)
 	}
 }
 

@@ -38,8 +38,9 @@ func TestDiagnoseUnterminatedComment(t *testing.T) {
 }
 
 func TestDiagnoseMultiStatement(t *testing.T) {
-	// Multiple statements each produce their own "unsupported" diagnostics.
-	diags := Diagnose("SELECT 1; INSERT INTO t")
+	// SELECT is now supported; INSERT is still unsupported.
+	// The INSERT statement produces a diagnostic.
+	diags := Diagnose("INSERT INTO t; UPDATE t SET c = 1")
 	if len(diags) < 2 {
 		t.Errorf("expected at least 2 diagnostics, got %d", len(diags))
 	}

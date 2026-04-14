@@ -108,5 +108,48 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Value)
 	case *OrderByItem:
 		Walk(v, n.Expr)
+
+	// SELECT statement nodes (T1.4).
+	case *SelectStmt:
+		for _, item := range n.Items {
+			Walk(v, item)
+		}
+		walkNodes(v, n.From)
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+		walkNodes(v, n.GroupBy)
+		if n.Having != nil {
+			Walk(v, n.Having)
+		}
+		if n.Qualify != nil {
+			Walk(v, n.Qualify)
+		}
+		for _, item := range n.OrderBy {
+			Walk(v, item)
+		}
+		if n.Limit != nil {
+			Walk(v, n.Limit)
+		}
+		if n.Offset != nil {
+			Walk(v, n.Offset)
+		}
+	case *SelectItem:
+		if n.Expr != nil {
+			Walk(v, n.Expr)
+		}
+		if n.TableName != nil {
+			Walk(v, n.TableName)
+		}
+	case *TableRef:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *JoinClause:
+		Walk(v, n.Left)
+		Walk(v, n.Right)
+		if n.On != nil {
+			Walk(v, n.On)
+		}
 	}
 }
