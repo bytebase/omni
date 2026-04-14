@@ -192,16 +192,26 @@ PRs that introduce hand-written multi-token clusters in probe positions without 
 - `docs/first-set-audit.md` — the Phase 3.1 audit output (one-time snapshot; re-run if a future audit is needed)
 - `docs/plans/2026-04-14-pg-first-sets.md` (in repo root) — original implementation plan with full rationale and grammar references
 
+## Backtracking discipline
+
+omni's pg parser is hand-written recursive descent. When a grammar position has local ambiguity that requires lookahead, the canonical approaches in pg/parser are:
+
+1. **Peek-then-commit using `peekNext()`** (preferred when the lookahead is a single token). Examples: `parseFuncArg`, `parseStmt`'s CREATE dispatch, `_LA` token reclassification in `advance()`.
+2. **`snapshotTokenStream` + `restoreTokenStream`** from `backtrack.go` (when peek isn't enough — e.g. the speculative parse needs to walk multiple tokens before deciding). Example: `parseFuncType`'s `%TYPE` branch.
+3. **`Token` struct snapshot + manual `nextBuf` push** (when the speculative parse only consumes 1 token and rolling back via `nextBuf` push is more compact). Example: `parseCreateStmt`'s CTAS detection at `parser.go:894-918`.
+
+**Forbidden:** synthesizing a "rolled back" token by hand with a hardcoded `Type` field. Two prior bugs were caused by this anti-pattern (the deleted `pushBack(string)` in `create_function.go` and the partial state save in `parseFuncType`'s speculative branch). If you need to roll back, use `snapshotTokenStream` / `restoreTokenStream` — never reconstruct a token from a string.
+
+The `tokenStreamState` snapshot covers cur, prev, nextBuf, hasNext, and the lexer's token-boundary state (Err, pos, start, state). It does **not** cover mid-token lexer state (literalbuf, dolqstart, utf16FirstPart, xcdepth, stateBeforeStrStop) or completion-mode state. If a future caller needs to roll back from inside a string literal or dollar-quoted block, extend `tokenStreamState` carefully and update its doc comment.
+
 ## Known limitations / follow-ups
 
-### Paramless multi-word types in `CREATE FUNCTION` arguments
+### Three-component qualified type names (separate `parseGenericType` limitation)
 
-`CREATE FUNCTION f(double precision)` — a function declaration where the parameter has NO name and the type is a multi-word builtin like `DOUBLE PRECISION` / `BIT VARYING` / `CHARACTER VARYING(n)` — still fails after this refactor. The FIRST-set predicate returns the right answer; the bug is in `parseFuncArg`'s `pushBack` mechanism (`create_function.go` around line 327) which rewrites the pushed-back token to type `IDENT`, losing the original keyword token type. After pushback, `parseSimpleTypename` sees `Token{IDENT, "double"}` instead of `Token{DOUBLE_P, "double"}` and falls through to `parseGenericType`, then crashes on the unexpected `precision`.
+`db.schema.mytype` (3-component qualified names) fail to parse in **all** type contexts — `CREATE TABLE`, `CAST`, `ALTER TABLE`, `CREATE FUNCTION`, etc. This is **not** the backtracking bug fixed by this refactor; `parseGenericType` only consumes at most one dot. To accept 3-component names, `parseGenericType` needs to be extended to consume more dots, and the AST needs to handle the additional name component.
 
-This requires a separate PR that either:
-- Makes `pushBack` preserve the original token type (needs a richer pushback buffer), or
-- Replaces the speculative consume + pushback with a proper 1-token lookback that doesn't lose state
+Tracked as a separate follow-up — no client has reported it yet.
 
-Full diagnosis in `docs/plans/2026-04-14-pg-first-sets.md` under "Out of scope".
+### Ryuk reaper flake (testcontainer infrastructure quirk)
 
-**Workaround for affected users:** add an explicit parameter name. `CREATE FUNCTION f(p double precision)` parses correctly because the leading IDENT consumes the slot before the multi-word type is reached.
+See "Known operational quirk: Ryuk reaper race" above. Not a parser bug; a testcontainers-go race condition when tests are re-run rapidly in the same shell session.
