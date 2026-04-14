@@ -11,39 +11,43 @@
 | Metric | Value |
 |--------|-------|
 | Bug queue files analyzed | 26 (25 sections + README) |
-| Total bugs (exact, by reading) | **110** |
+| `### ` headers across queue | 110 |
+| Non-bug meta notes | 3 (C6.LIST-DEFAULT-ORACLE, "Note on 11.5 detection strategy", "Note on C9.2 / C9.8 scenario doc drift") |
+| **Total real bugs** | **107** |
+| Files with bugs | 22 (all except ax.md, c15.md, c22.md, README.md) |
 | HIGH severity | 67 |
-| MED / MEDIUM severity | 38 (35 MED + 3 MEDIUM) |
-| LOW severity | 10 |
-| Files with bugs | 25 (all except ax.md, c15.md, c22.md) |
+| MED / MEDIUM severity | 32 |
+| LOW severity | 8 |
 
 ### Per-Section Bug Counts
 
-| Section | Count | HIGH | MED | LOW |
-|---------|-------|------|-----|-----|
-| C1 | 7 | 4 | 2 | 1 |
-| C2 | 8 | 5 | 2 | 1 |
-| C3 | 1 | 1 | 0 | 0 |
-| C4 | 6 | 5 | 1 | 0 |
-| C5 | 3 | 2 | 1 | 0 |
-| C6 | 11 | 5 | 5 | 1 |
-| C7 | 5 | 3 | 2 | 0 |
-| C8 | 4 | 0 | 4 | 0 |
-| C9 | 4 | 3 | 0 | 0 |
-| C10 | 5 | 2 | 3 | 0 |
-| C11 | 6 | 3 | 2 | 1 |
-| C14 | 1 | 1 | 0 | 0 |
-| C16 | 9 | 5 | 3 | 1 |
-| C17 | 8 | 5 | 3 | 0 |
-| C18 | 5 | 5 | 0 | 0 |
-| C19 | 8 | 8 | 0 | 0 |
-| C20 | 2 | 2 | 0 | 0 |
-| C21 | 2 | 0 | 2 | 0 |
-| C23 | 3 | 0 | 3 | 0 |
-| C24 | 4 | 4 | 0 | 0 |
-| C25 | 5 | 4 | 1 | 0 |
-| PS | 5 | 4 | 1 | 0 |
-| **TOTAL** | **110** | **67** | **35** | **8** |
+Counts below are REAL bugs (section header count minus meta notes). Sections ax, c15, c22 had zero bugs.
+
+| Section | Real bugs | Notes |
+|---------|----------:|-------|
+| C1 | 7 | |
+| C2 | 8 | |
+| C3 | 1 | |
+| C4 | 6 | |
+| C5 | 3 | |
+| C6 | 10 | 11 headers − 1 meta (C6.LIST-DEFAULT-ORACLE) |
+| C7 | 5 | |
+| C8 | 4 | |
+| C9 | 3 | 4 headers − 1 "Note on C9.2/9.8 drift" meta |
+| C10 | 5 | |
+| C11 | 5 | 6 headers − 1 "Note on 11.5 detection strategy" meta |
+| C14 | 1 | |
+| C16 | 9 | |
+| C17 | 8 | |
+| C18 | 5 | |
+| C19 | 6 | agent's earlier table wrongly showed 8 |
+| C20 | 2 | |
+| C21 | 2 | |
+| C23 | 3 | |
+| C24 | 4 | |
+| C25 | 5 | |
+| PS | 5 | |
+| **TOTAL** | **107** | |
 
 ---
 
@@ -60,13 +64,14 @@
 - PS.2 (HIGH) — CHECK counter ALTER path uses fresh sequence (same root as C1.2)
 - PS.7 (HIGH) — FK name collision between user-named and auto-generated not detected
 - C1.13 (HIGH) — CHECK constraint names are schema-scoped, not per-table; omni has no cross-table collision check
+- PS.8 (MED) — CHECK schema-scoped name collision not detected across tables (same root as C1.13)
 
 **Proposed fix shape**:
 1. Split `nextFKGeneratedNumber(tbl)` into `nextFKCreateNumber(tbl)` [reset to 0] and `nextFKAlterNumber(tbl)` [scan max+1].
 2. Implement parallel `nextCheckCreateNumber` / `nextCheckAlterNumber` in `tablecmds.go` and wire into `altercmds.go` ADD CHECK path.
 3. Add `findCheckConstraintInDatabase(db, name)` to detect schema-scoped collisions before accepting a CHECK constraint name.
 
-**Fix ROI**: `5 bugs / S` (straightforward counter logic, high-volume impact on every table with multiple FKs/CHECKs).
+**Fix ROI**: `6 bugs / S` (straightforward counter logic, high-volume impact on every table with multiple FKs/CHECKs).
 
 **Dependencies**: None.
 
@@ -116,6 +121,8 @@
 - C6.11 (MED) — Non-INTEGER partition expression not validated
 - C6.12 (MED) — TIMESTAMP column without UNIX_TIMESTAMP wrapping not rejected
 - C6.13 (HIGH) — UNIQUE KEY missing partition columns not rejected
+- C6.16 (MED) — ALTER TABLE ADD PARTITION — omni parser rejects (needs ALTER partition grammar)
+- PS.6 (LOW) — HASH partition ADD not supported (same root as C6.16)
 
 **Proposed fix shape**:
 1. Default `pi.NumParts = 1` for HASH/KEY when omitted; `pi.NumSubParts = 1` when SubPartType set and NumSubParts==0.
@@ -124,7 +131,7 @@
 4. Validate UNIQUE/PK constraints include all partition columns.
 5. Type-check partition expression: INTEGER column or whitelisted functions (YEAR, TO_DAYS, UNIX_TIMESTAMP).
 
-**Fix ROI**: `8 bugs / M` (validation spread across multiple conditional branches; some may interact with future partition ALTER).
+**Fix ROI**: `10 bugs / M` (validation spread across multiple conditional branches; includes ALTER PARTITION grammar work for C6.16 / PS.6).
 
 **Dependencies**: None.
 
@@ -163,9 +170,10 @@
 **Bugs in cluster**:
 - C3.4 (HIGH) — Explicit NULL on PRIMARY KEY column is silently coerced (should error 1171)
 - C5.2 (HIGH) — FK ON DELETE SET NULL accepted on NOT NULL column (should error 1830)
-- C5.7 (HIGH) — FK on VIRTUAL generated column accepted (should error 3104)
 - C5.10 (MED) — Column-level CHECK referencing another column accepted
 - C14.4 (HIGH) — CHECK constraint accepts forbidden constructs (subquery, NOW, RAND, user variable)
+
+**Related (tracked in Cluster 6)**: C5.7 / C9.2 — FK on VIRTUAL generated column — same root cause, lives with generated-column validation.
 
 **Proposed fix shape**:
 1. Explicit NULL + PK check: track nullability source and reject before promotion.
@@ -174,9 +182,9 @@
 4. Column-level CHECK scope: validate that CHECK expression references only the owning column.
 5. CHECK expression validator: walk analyzed tree, reject subqueries, non-deterministic functions (NOW, SYSDATE, RAND, UUID, etc.), user/system variables.
 
-**Fix ROI**: `5 bugs / M` (validation logic at multiple CREATE/ALTER entry points; some share expression-walking code).
+**Fix ROI**: `4 bugs / M` (validation logic at multiple CREATE/ALTER entry points; some share expression-walking code).
 
-**Dependencies**: Cluster 8 (Generated Column Validation) should land first for consistent VIRTUAL/STORED terminology.
+**Dependencies**: Cluster 6 (Generated Column Validation) should land first for consistent VIRTUAL/STORED terminology.
 
 ---
 
@@ -186,20 +194,20 @@
 **Source evidence**: C9.2/C9.3 cites FK/PK path; C9.4 cites expression validation gap. Verified `tablecmds.go` exists.
 
 **Bugs in cluster**:
-- C9.2 (HIGH) — FK on VIRTUAL generated column accepted (error 3104)
+- C9.2 (HIGH) — FK on VIRTUAL generated column accepted (error 3104) — C5.7 in c5.md is a duplicate entry of the same bug
 - C9.3 (HIGH) — VIRTUAL generated column as PRIMARY KEY accepted
 - C9.4 (HIGH) — Non-deterministic generated column expression accepted (NOW, RAND, UUID, etc.; errors 3102/3103)
-- C1.11 (MED) — Functional index auto-name not generated
-- C1.12 (MED) — Functional index hidden generated column name not synthesized
+
+**Related (tracked in Cluster 12)**: C1.11 / C1.12 — Functional index naming — same root cause lives with the functional-index feature gap, not generic gcol logic.
 
 **Proposed fix shape**:
 1. FK/PK check: if column is VIRTUAL, reject with error 3104 / 3105.
 2. Expression validator: walk analyzed expression, reject non-deterministic functions (NOW, CURRENT_TIMESTAMP, SYSDATE, UTC_TIMESTAMP, RAND, UUID, UUID_SHORT, CONNECTION_ID, CURRENT_USER, SESSION_USER, SYSTEM_USER, DATABASE, FOUND_ROWS, ROW_COUNT, LAST_INSERT_ID, VERSION).
 3. Functional index support (Phase 2): synthesize hidden VIRTUAL column with auto-name `!hidden!{idx}!{part}!{count}`.
 
-**Fix ROI**: `5 bugs / M` (validation/synthesis bundled in gcol path; functional index is separate feature).
+**Fix ROI**: `3 bugs / S` (validation bundled in gcol path; functional index naming moved to Cluster 12).
 
-**Dependencies**: None for validation; Cluster 13 (Functional Indexes) is orthogonal feature work.
+**Dependencies**: None for validation; Cluster 12 (Functional Indexes) is orthogonal feature work.
 
 ---
 
@@ -289,6 +297,8 @@
 **Bugs in cluster**:
 - C1.8 (MED) — Non-PK index cannot be named "PRIMARY" (error 1280)
 - C1.10 (LOW) — UNIQUE index name fallback when first column is PRIMARY (use _2 suffix)
+- C7.3 (MED) — USING HASH on InnoDB not coerced to BTREE (MySQL silently downgrades)
+- C7.6 (MED) — PRIMARY KEY ... INVISIBLE not rejected (error 3522)
 - C7.7 (HIGH) — BLOB/TEXT KEY without prefix length not rejected (error 1170)
 - C7.9 (HIGH) — SPATIAL index validation gaps (nullability 1252, USING BTREE 3500)
 
@@ -298,7 +308,7 @@
 3. BLOB/TEXT prefix check: if key column is BLOB/TEXT/JSON/GEOMETRY and IndexColumn.Length == 0 and index is not FULLTEXT, error 1170.
 4. SPATIAL: (a) reject if any column is nullable [1252], (b) reject explicit `USING BTREE|HASH` [3500].
 
-**Fix ROI**: `4 bugs / M` (scattered across index creation paths; some interact with functional indexes).
+**Fix ROI**: `6 bugs / M` (scattered across index creation paths; some interact with functional indexes).
 
 **Dependencies**: After Cluster 2 for type classification; before Cluster 13 (Functional Indexes).
 
@@ -309,8 +319,7 @@
 
 **Source evidence**: C16.2 cites no fsp bound check; C16.5/C16.6 cite SYSDATE/UTC_TIMESTAMP incorrectly allowed. Verified files exist.
 
-**Bugs in cluster**:
-- C16.2 (HIGH) — NOW(N) / DATETIME(N) out-of-range fsp not rejected (max 6)
+**Bugs in cluster** (C16.2 lives in Cluster 2 — type bounds):
 - C16.3 (MED) — CURDATE(6) not rejected at parse time (zero-arg function)
 - C16.4 (MED) — CURTIME(7) fsp > 6 not rejected
 - C16.5 (LOW) — SYSDATE() not rejected as column DEFAULT
@@ -326,7 +335,7 @@
 3. Parse and compare fsp in DEFAULT value against column fsp; reject if mismatch (check both DEFAULT and ON UPDATE).
 4. For TIMESTAMP(N) first-column promotion: synthesize DEFAULT/ON UPDATE with matching fsp.
 
-**Fix ROI**: `9 bugs / M` (validation spread across DEFAULT/ON UPDATE/fsp; all in same analyzer path).
+**Fix ROI**: `8 bugs / M` (validation spread across DEFAULT/ON UPDATE/fsp; all in same analyzer path).
 
 **Dependencies**: Cluster 2 (Type Normalization) should land first for fsp infrastructure.
 
@@ -409,11 +418,33 @@
 
 ---
 
+### Cluster 15 — Trigger Struct & Semantic Validation
+**Root cause**: `mysql/catalog/table.go:Trigger` struct lacks CharacterSetClient / CollationConnection / DatabaseCollation / ActionOrder fields, so session-snapshot state cannot round-trip. Trigger body validation does not enforce the OLD-in-INSERT, NEW-in-DELETE, and SET-NEW-in-AFTER semantic restrictions.
+
+**Source evidence**: C11.3 cites missing Trigger charset fields; C11.5 notes three distinct forbidden-reference patterns accepted by omni. Verified `table.go` exists and contains a Trigger struct (see Timing/Event/Table/Definer/Body/Order fields) with no charset context.
+
+**Bugs in cluster**:
+- C11.3 (MED) — Trigger charset/collation snapshot fields missing (affects deparse fidelity)
+- C11.4 (MED) — Trigger ACTION_ORDER / FOLLOWS-PRECEDES splicing not modeled
+- C11.5a (HIGH) — OLD.* accepted inside INSERT trigger body (should reject)
+- C11.5b (HIGH) — NEW.* accepted inside DELETE trigger body (should reject)
+- C11.5c (HIGH) — SET NEW.col accepted in AFTER trigger (should reject)
+
+**Proposed fix shape**:
+1. Add `CharacterSetClient, CollationConnection, DatabaseCollation string` and `ActionOrder int` to the Trigger struct in `table.go`.
+2. Populate at `CREATE TRIGGER` time from session state; preserve on `ALTER TRIGGER` splicing.
+3. Body validator pass over the analyzed trigger body: walk expression tree; reject `OLD.*` reads in INSERT triggers, `NEW.*` reads in DELETE triggers, and `SET NEW.col` writes in AFTER triggers (error codes 1362/1363/1364).
+
+**Fix ROI**: `5 bugs / M` (struct extension + new validator pass; body walker reusable for CHECK validation in Cluster 5).
+
+**Dependencies**: None. Body validator overlaps with Cluster 5 CHECK validator — consider sharing a generic "walk trigger/CHECK expression tree" helper.
+
+---
+
 ## Isolated Bugs
 
 | Bug ID | Severity | Summary | Source |
 |--------|----------|---------|--------|
-| C1.13 | HIGH | CHECK constraint names are schema-scoped; omni has per-table scope only. Needs `findCheckConstraintInDatabase(db, name)` scan. | `tablecmds.go` check path |
 | C21.3 | MED | OrderByItem cannot represent ORDER_NOT_RELEVANT; needs tri-state Direction enum instead of bool Desc. | `mysql/ast/parsenodes.go:901` / `parser/select.go:1413` |
 | C20.6 | HIGH | BLOB/TEXT/JSON/GEOMETRY literal DEFAULT not rejected; parser accepts but MySQL errors 1101. | `tablecmds.go` column validation |
 | C20.8 | MED | Generated column with DEFAULT clause not rejected; parser or catalog must gate. | `tablecmds.go` / parser grammar |
@@ -464,42 +495,48 @@
 
 ## Summary Table: Clusters by ROI
 
-| Cluster | Bugs | ROI | Est. Effort | Dependencies |
-|---------|------|-----|-------------|--------------|
-| Cluster 7 (Table options) | 9 | 9/S | Small | None |
-| Cluster 2 (Type norm) | 12 | 12/S | Small | None |
-| Cluster 1 (Constraints) | 5 | 5/S | Small | None |
-| Cluster 9 (Parser) | 4 | 4/S | Small | None |
-| Cluster 4 (Charset) | 5 | 5/M | Medium | None |
-| Cluster 3 (Partitions) | 8 | 8/M | Medium | None |
-| Cluster 11 (Date/Time) | 9 | 9/M | Medium | Cluster 2 |
-| Cluster 5 (Constraints) | 5 | 5/M | Medium | Cluster 8 |
-| Cluster 6 (Gcol) | 5 | 5/M | Medium | None |
-| Cluster 10 (Index) | 4 | 4/M | Medium | Cluster 2 |
-| Cluster 8 (View) | 8 | 8/M | Medium | None |
-| Cluster 14 (Session vars) | 5 | 5/L | Large | None |
-| Cluster 12 (Functional idx) | 8 | 8/L | Large | Cluster 2, expr analyzer |
-| Cluster 13 (Expr collation) | 8 | 8/L | Large | Phase 3 (deferred) |
+| Cluster | Bugs | Est. Effort | Dependencies |
+|---------|-----:|-------------|--------------|
+| Cluster 7 (Table option fields) | 9 | S | None |
+| Cluster 2 (Type normalization & bounds) | 12 | S | None |
+| Cluster 1 (Named constraint counters) | 6 | S | None |
+| Cluster 9 (Parser type keywords) | 4 | S | None |
+| Cluster 6 (Generated column validation) | 3 | S | None |
+| Cluster 4 (Charset/collation derivation) | 5 | M | None |
+| Cluster 3 (Partition defaults & validation) | 10 | M | None |
+| Cluster 11 (Date/time function validation) | 8 | M | Cluster 2 |
+| Cluster 5 (Constraint semantic validation) | 4 | M | Cluster 6 |
+| Cluster 10 (Index name & key-part validation) | 6 | M | Cluster 2 |
+| Cluster 8 (View metadata & column defaults) | 8 | M | None |
+| Cluster 15 (Trigger struct & body validation) | 5 | M | None (overlap with Cluster 5) |
+| Cluster 14 (Session vars / GIPK) | 5 | L | None |
+| Cluster 12 (Functional indexes — feature) | 8 | L | Cluster 2, expr analyzer |
+| Cluster 13 (Expression collation — Phase 3) | 8 | L | Phase 3 deferred |
+| **Clusters (unique bugs)** | **101** | | |
+| Isolated | 5 | | |
+| Declared dup in queue (C5.7 == C9.2) | 1 | | — counted once in Cluster 6 |
+| **Accounted** | **107** | | |
+| **Real bugs in queue (110 headers − 3 meta notes)** | **107** | | |
 
 ---
 
 ## Top 3 Highest-ROI Clusters (Ready for Phase 1)
 
-1. **Cluster 2 — Type Normalization & Bounds Checking** (12 bugs / S)
-2. **Cluster 7 — Table Option Fields** (9 bugs / S)
-3. **Cluster 11 — Date/Time Function Validation** (9 bugs / M, depends on Cluster 2)
+1. **Cluster 2 — Type Normalization & Bounds Checking** (12 bugs / S) — no dependencies, widest impact
+2. **Cluster 3 — Partition Defaults & Validation** (10 bugs / M) — largest M-cluster, touches most user-visible schemas
+3. **Cluster 7 — Table Option Fields** (9 bugs / S) — pure struct extension, fastest path to closing SHOW CREATE round-trip gaps
 
 ---
 
 ## Verification Checklist
 
-- [x] Every cluster's bug list is a subset of bug queue files (verified by manual grep)
-- [x] Cluster + isolated + feature-gap totals equal 110 (67+5+8 = 80 clustered; 6 isolated; 16 feature-gap = 102 counted; 8 C17 deferred = 110 total)
-- [x] Every source file cited exists (Bash ls confirmed all .go files)
-- [x] Severity counts from grep match sums in table (67 HIGH + 35 MED + 8 LOW = 110)
-- [x] No bug double-counted (each bug appears in exactly one cluster or isolated section)
-- [x] No invented bugs (all 110 bugs verified against original queue files by reading every .md file)
-- [x] Parser struct gap (C21.3) correctly marked as isolated, not requiring cluster
+- [x] Every cluster's bug list is a subset of bug queue files (grep-verified)
+- [x] Clusters + isolated + declared-duplicate = 107 (real bug count). Verified: 101 clustered + 5 isolated + 1 duplicate = 107.
+- [x] Every source file cited exists (Bash ls confirmed `table.go`, `tablecmds.go`, `altercmds.go`, `constraint.go`, `viewcmds.go`, `analyze_expr.go`, `function_types.go`, `parser/type.go`)
+- [x] No bug double-counted across clusters (C16.2 moved to Cluster 2 only; C1.11/C1.12 in Cluster 12 only; C5.7 declared duplicate of C9.2)
+- [x] No invented bugs — every bug ID appears verbatim as a `### ` header in `mysql/catalog/scenarios_bug_queue/*.md`
+- [x] Cluster vs Feature-Gap is a dual dimension, not a partition: Cluster 12/13/14/8 overlap with Feature Gaps by design. Feature Gap section is a cross-cut view for scope planning, not a separate accounting bucket.
+- [x] 3 meta notes excluded from bug count (C6.LIST-DEFAULT-ORACLE; "Note on 11.5 detection strategy"; "Note on C9.2/C9.8 drift")
 
 ---
 
