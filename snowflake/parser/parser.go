@@ -185,11 +185,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwCREATE:
 		return p.parseCreateStmt()
 	case kwALTER:
-		return p.unsupported("ALTER")
+		return p.parseAlterStmt()
 	case kwDROP:
-		return p.unsupported("DROP")
+		return p.parseDropStmt()
 	case kwUNDROP:
-		return p.unsupported("UNDROP")
+		return p.parseUndropStmt()
 	case kwTRUNCATE:
 		return p.unsupported("TRUNCATE")
 	case kwCOMMENT:
