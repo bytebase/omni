@@ -6,8 +6,41 @@ package ast
 // SELECT statement
 // ---------------------------------------------------------------------------
 
+// WithClause represents a WITH clause preceding a SELECT statement.
+//
+//	WITH [RECURSIVE] cte_name [(col1, col2, ...)] AS (query)
+//	  [, cte_name2 AS (query2)]
+type WithClause struct {
+	Recursive bool   // RECURSIVE keyword present
+	CTEs      []*CTE // one or more CTE definitions
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *WithClause) Tag() NodeTag { return T_WithClause }
+
+// Compile-time assertion that *WithClause satisfies Node.
+var _ Node = (*WithClause)(nil)
+
+// CTE is one named entry in a WITH clause:
+//
+//	cte_name [(col1, col2, ...)] AS (query)
+type CTE struct {
+	Name    string   // the CTE alias name
+	Columns []string // optional column aliases; nil/empty if not specified
+	Query   Node     // the inner SELECT statement (*SelectStmt)
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *CTE) Tag() NodeTag { return T_CTE }
+
+// Compile-time assertion that *CTE satisfies Node.
+var _ Node = (*CTE)(nil)
+
 // SelectStmt represents a full SELECT statement.
 //
+//	[WITH [RECURSIVE] cte ...]
 //	SELECT [DISTINCT|ALL] select_list
 //	  [FROM table_references]
 //	  [WHERE condition]
@@ -17,6 +50,7 @@ package ast
 //	  [ORDER BY expr [ASC|DESC] [NULLS FIRST|LAST], ...]
 //	  [LIMIT count [OFFSET offset]]
 type SelectStmt struct {
+	With     *WithClause   // optional WITH clause (nil if absent)
 	Distinct bool          // DISTINCT keyword present
 	All      bool          // ALL keyword present (explicit, rarely used)
 	Items    []*SelectItem // SELECT list

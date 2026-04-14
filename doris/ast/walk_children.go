@@ -109,8 +109,21 @@ func walkChildren(v Visitor, node Node) {
 	case *OrderByItem:
 		Walk(v, n.Expr)
 
+	// CTE / WITH clause nodes (T1.6).
+	case *WithClause:
+		for _, cte := range n.CTEs {
+			Walk(v, cte)
+		}
+	case *CTE:
+		if n.Query != nil {
+			Walk(v, n.Query)
+		}
+
 	// SELECT statement nodes (T1.4).
 	case *SelectStmt:
+		if n.With != nil {
+			Walk(v, n.With)
+		}
 		for _, item := range n.Items {
 			Walk(v, item)
 		}

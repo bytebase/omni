@@ -385,6 +385,7 @@ const (
 	kwREBALANCE
 	kwRECENT
 	kwRECOVER
+	kwRECURSIVE
 	kwRECYCLE
 	kwREFERENCES
 	kwREFRESH
@@ -922,6 +923,7 @@ var keywordMap = map[string]TokenKind{
 	"rebalance":                            kwREBALANCE,
 	"recent":                               kwRECENT,
 	"recover":                              kwRECOVER,
+	"recursive":                            kwRECURSIVE,
 	"recycle":                              kwRECYCLE,
 	"references":                           kwREFERENCES,
 	"refresh":                              kwREFRESH,
@@ -1331,6 +1333,7 @@ var nonReservedKeywords = map[TokenKind]bool{
 	kwRANDOM:                 true,
 	kwRECENT:                 true,
 	kwRECOVER:                true,
+	kwRECURSIVE:              true,
 	kwRECYCLE:                true,
 	kwREFRESH:                true,
 	kwREPEATABLE:             true,
