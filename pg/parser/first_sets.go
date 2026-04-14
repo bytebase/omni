@@ -100,6 +100,83 @@ func (p *Parser) isTypenameStart() bool {
 	return p.isSimpleTypenameStart()
 }
 
+// aExprLeadTokens is the set of tokens that start an a_expr but are
+// NOT covered by isConstTypenameStart or the isColId/isTypeFunctionName
+// category check. Includes literal tokens, expression-opener keywords,
+// the parameter reference, and unary punctuation.
+//
+// Grammar reference: a_expr in postgres/src/backend/parser/gram.y around
+// line 14780. The FIRST set of a_expr is the most general expression
+// FIRST set in PG; this slice captures the explicit token leads that
+// don't fall through to the category or const-typename predicates.
+//
+// COLLATE is INTENTIONALLY EXCLUDED — it is a postfix operator
+// (`a_expr COLLATE any_name`), not an expression starter. Adding it
+// would make isAExprStart over-permissive.
+//
+// DO NOT extend without also extending the renderExpression continuation
+// map in first_set_oracle_test.go. The oracle test
+// TestAExprLeadTokensMatchPG enforces parity against PG 17.
+var aExprLeadTokens = []int{
+	// Literals (lex tokens, no category)
+	ICONST, FCONST, SCONST, BCONST, XCONST,
+	// Reserved keywords that are literal-like
+	NULL_P, TRUE_P, FALSE_P,
+	// Parameter reference
+	PARAM,
+	// Expression-opener keywords
+	CASE, EXISTS, NOT, LEAST, GREATEST, COALESCE, NULLIF,
+	CAST, ARRAY, ROW, INTERVAL,
+	// SQL value functions / context constants. These are matched by
+	// func_expr_common_subexpr in gram.y, a distinct production from the
+	// columnref path, so they must appear explicitly in the lead set
+	// rather than falling through isColId.
+	CURRENT_TIMESTAMP, CURRENT_DATE, CURRENT_TIME,
+	CURRENT_USER, SESSION_USER, USER,
+	CURRENT_CATALOG, CURRENT_ROLE, CURRENT_SCHEMA, SYSTEM_USER,
+	LOCALTIME, LOCALTIMESTAMP,
+	// Punctuation openers (Go rune values)
+	int('('), int('+'), int('-'),
+}
+
+var aExprLeadSet = func() map[int]bool {
+	m := make(map[int]bool, len(aExprLeadTokens))
+	for _, t := range aExprLeadTokens {
+		m[t] = true
+	}
+	return m
+}()
+
+// isAExprStart reports whether the current token starts an a_expr
+// production. Composed from:
+//   - aExprLeadSet (explicit literal/keyword/punctuation/value-func leads)
+//   - isConstTypenameStart (typed literals like `int '42'`)
+//   - isColId() (identifier path via columnref)
+//
+// NOTE on isTypeFunctionName: PG's a_expr columnref alternative uses
+// ColId, NOT type_function_name. The TypeFuncNameKeyword category
+// contains join/operator keywords (INNER, LEFT, LIKE, ILIKE, IS,
+// ISNULL, NOTNULL, OVERLAPS, CROSS, NATURAL, FULL, RIGHT, OUTER, JOIN,
+// TABLESAMPLE, BINARY, FREEZE, CONCURRENTLY, COLLATION, AUTHORIZATION,
+// SIMILAR, VERBOSE) that CANNOT start an expression. The TypeFuncName
+// keywords that ARE SQL value functions (CURRENT_SCHEMA, and the four
+// reserved ones like CURRENT_USER) have their own func_expr_common_subexpr
+// rule and are listed explicitly in aExprLeadTokens. See
+// TestAExprLeadTokensMatchPG for the oracle that locks this down.
+//
+// COLLATE is excluded — it's a postfix operator, not an expression lead.
+//
+// Validated against PG 17 by TestAExprLeadTokensMatchPG.
+func (p *Parser) isAExprStart() bool {
+	if aExprLeadSet[p.cur.Type] {
+		return true
+	}
+	if p.isConstTypenameStart() {
+		return true
+	}
+	return p.isColId()
+}
+
 // isFuncTypeStart reports whether the current token starts a func_type
 // production.
 //

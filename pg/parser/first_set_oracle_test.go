@@ -519,6 +519,97 @@ func TestTypenameLeadTokensMatchPG(t *testing.T) {
 	})
 }
 
+// renderExpression expands a candidate into plausible a_expr starts.
+// Each expression-starter keyword needs a specific continuation because
+// bare `SELECT not` / `SELECT exists` / `SELECT case` are all syntax errors.
+//
+// For tokens not in the expansion table, fall back to the bare probeSQL —
+// most simple starters (IDENT, ICONST, SCONST, PARAM, '(1)', '+1', '-1',
+// NULL, TRUE, FALSE, most type-name keywords) parse correctly bare.
+//
+// This table MUST cover every keyword that appears in the expected
+// isAExprStart lead set and requires a continuation. Extend as Phase 3
+// surfaces more.
+//
+// COLLATE is intentionally OMITTED — it is a postfix operator, not a
+// lead token. Including it here would mislabel it as an expression
+// starter.
+func renderExpression(c candidateToken) []string {
+	expansions := map[string][]string{
+		"not":               {"NOT TRUE"},
+		"exists":            {"EXISTS (SELECT 1)"},
+		"case":              {"CASE WHEN TRUE THEN 1 END"},
+		"cast":              {"CAST(NULL AS int)"},
+		"array":             {"ARRAY[1]"},
+		"row":               {"ROW(1)"},
+		"nullif":            {"NULLIF(1, 2)"},
+		"coalesce":          {"COALESCE(1, 2)"},
+		"greatest":          {"GREATEST(1, 2)"},
+		"least":             {"LEAST(1, 2)"},
+		"interval":          {"INTERVAL '1 day'"},
+		"current_timestamp": {"CURRENT_TIMESTAMP"},
+		"current_date":      {"CURRENT_DATE"},
+		"current_time":      {"CURRENT_TIME"},
+		"current_user":      {"CURRENT_USER"},
+		"session_user":      {"SESSION_USER"},
+		"user":              {"USER"},
+		"localtime":         {"LOCALTIME"},
+		"localtimestamp":    {"LOCALTIMESTAMP"},
+	}
+	if c.kind == kindKeyword {
+		if forms, ok := expansions[c.name]; ok {
+			return forms
+		}
+	}
+	return []string{c.probeSQL}
+}
+
+func TestAExprLeadTokensMatchPG(t *testing.T) {
+	o := startFirstSetOracle(t)
+
+	// Probe a_expr via the SELECT target list. This is the most general
+	// expression position. Use filterAll so non-keyword starters
+	// (literals, PARAM, punctuation, IDENT) are also probed.
+	//
+	// renderExpression provides per-keyword continuations for tokens that
+	// need them (NOT TRUE, CASE WHEN..., CAST(... AS int), etc.).
+	outcomes := runFirstSetProbe(t, o,
+		"SELECT %s",
+		renderExpression,
+		filterAll,
+	)
+
+	// Subtract probe-contamination keywords. The `SELECT %s` template
+	// cannot fully isolate a_expr's FIRST set because SELECT's own
+	// grammar absorbs some tokens before they reach the target_el slot:
+	//
+	//   - ALL / DISTINCT: `SELECT ALL ...` and `SELECT DISTINCT ...` are
+	//     the duplicate-elimination quantifiers from select_clause, not
+	//     a_expr leads. PG consumes ALL as the quantifier and then parses
+	//     nothing as the target list (which fails with a different error
+	//     than 42601 in some forms, but `SELECT ALL` by itself is
+	//     classified as accept by some render probes). Not a_expr leads.
+	aExprProbeContamination := map[int]bool{
+		ALL: true,
+	}
+	for i := range outcomes {
+		if aExprProbeContamination[outcomes[i].candidate.token] {
+			outcomes[i].accepted = false
+		}
+	}
+
+	assertPredicateMatchesPG(t, "a_expr via SELECT", outcomes, predicateProbe{
+		onKeyword: func(c candidateToken) bool {
+			p := &Parser{cur: Token{Type: c.token, Str: c.name}}
+			return p.isAExprStart()
+		},
+		onNonKeyword: func(c candidateToken) bool {
+			p := &Parser{cur: Token{Type: c.token, Str: c.name}}
+			return p.isAExprStart()
+		},
+	})
+}
+
 func TestFuncTypeLeadTokensMatchPG(t *testing.T) {
 	o := startFirstSetOracle(t)
 	// Probe func_type via the parameter type position of CREATE FUNCTION.
