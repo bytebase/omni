@@ -186,22 +186,55 @@ func (c *Catalog) resolveTypeName(tn *nodes.TypeName) (uint32, int32, error) {
 }
 
 // typeNameParts extracts schema and type name from a nodes.TypeName.Names list.
+//
+// PG accepts qualified type names with up to 3 components in its grammar:
+//
+//   - 1 component:  name                  → ("", name)
+//   - 2 components: schema.name           → (schema, name)
+//   - 3 components: catalog.schema.name   → (schema, name)  (catalog is dropped)
+//
+// For 3-component names, PG validates at name-resolution time that the
+// catalog component matches the current database name. omni doesn't track
+// the current database, so we drop the catalog component and use schema +
+// name. This matches PG's behavior for the common case where the catalog
+// reference is to the local database.
+//
+// 4+ components: PG rejects these at name-resolution time as "improper
+// qualified name". omni soft-falls back to ("", lastItem) — same as the
+// pre-fix behavior — so the downstream resolver error mentions the
+// last-component identifier (better UX than a literally empty name). A
+// typed error from typeNameParts would require a signature change and is
+// out of scope.
+//
+// History: prior to this fix, typeNameParts treated len > 2 as
+// ("", lastItem) — silently dropping ALL qualification beyond the last
+// component. That broke 3-component names in three currently-reachable
+// flows: %TYPE references, parseAnyName-driven CREATE TABLE OF / ALTER
+// TABLE OF / COMMENT ON CONSTRAINT ON DOMAIN, and (after the paired
+// parseGenericType fix) every type position. See
+// docs/plans/2026-04-14-pg-followups.md for the full audit.
 func typeNameParts(tn *nodes.TypeName) (schema, name string) {
 	if tn.Names == nil {
 		return "", ""
 	}
 	items := tn.Names.Items
 	switch len(items) {
+	case 0:
+		return "", ""
 	case 1:
 		return "", stringVal(items[0])
 	case 2:
 		return stringVal(items[0]), stringVal(items[1])
+	case 3:
+		// catalog.schema.name — drop the catalog prefix. PG would
+		// validate it matches the current database, but we don't
+		// track that here.
+		return stringVal(items[1]), stringVal(items[2])
 	default:
-		// Last element is the type name.
-		if len(items) > 0 {
-			return "", stringVal(items[len(items)-1])
-		}
-		return "", ""
+		// 4+ components: PG also rejects these at name resolution time.
+		// Soft fall back so the downstream resolver error mentions the
+		// last-component identifier rather than an empty string.
+		return "", stringVal(items[len(items)-1])
 	}
 }
 
