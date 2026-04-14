@@ -242,7 +242,7 @@ func (p *Parser) parseFuncArg() *nodes.FunctionParameter {
 			// looks like a type. If not, it was actually the type itself.
 			savedName, _ := p.parseTypeFunctionName()
 
-			if p.isTypeFunctionName() || p.isBuiltinType() || p.cur.Type == SETOF {
+			if p.isSimpleTypenameStart() || p.cur.Type == SETOF {
 				// It's param_name followed by func_type
 				name = savedName
 				mode = argClass
@@ -273,7 +273,7 @@ func (p *Parser) parseFuncArg() *nodes.FunctionParameter {
 		if isArgClass2 {
 			name = savedName
 			mode = argClass2
-		} else if p.isTypeFunctionName() || p.isBuiltinType() || p.cur.Type == SETOF {
+		} else if p.isSimpleTypenameStart() || p.cur.Type == SETOF {
 			// Case 3: param_name func_type
 			name = savedName
 			// mode stays FUNC_PARAM_IN
@@ -332,17 +332,6 @@ func (p *Parser) pushBack(name string) {
 		Str:  name,
 		Loc:  p.prev.Loc,
 	}
-}
-
-// isBuiltinType checks if the current token starts a built-in type keyword.
-func (p *Parser) isBuiltinType() bool {
-	switch p.cur.Type {
-	case INT_P, INTEGER, SMALLINT, BIGINT, REAL, FLOAT_P, DOUBLE_P,
-		DECIMAL_P, NUMERIC, BOOLEAN_P, BIT, CHAR_P, CHARACTER,
-		VARCHAR, TIMESTAMP, TIME, INTERVAL:
-		return true
-	}
-	return false
 }
 
 // parseTableFuncColumnList parses a comma-separated list of table function columns.
