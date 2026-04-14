@@ -131,3 +131,206 @@ func (o *firstSetOracle) probe(t *testing.T, sqlStr string) probeResult {
 	_, err = tx.ExecContext(ctx, sqlStr)
 	return classifyProbeErr(err)
 }
+
+// candidateKind categorizes a probe token.
+type candidateKind int
+
+const (
+	kindKeyword candidateKind = iota // From the Keywords table
+	kindIdent                        // Bare identifier, not a keyword
+	kindLiteral                      // Numeric / string / bit / hex literal
+	kindPunct                        // Operator or punctuation opener
+)
+
+// candidateToken represents one token to probe in a FIRST-set test.
+//
+// For keyword candidates, `name` is both the SQL surface form (lowercase
+// keyword) and the string used to construct Parser.cur.Str, and `token`
+// is the omni token constant from keywords.go.
+//
+// For non-keyword candidates, `probeSQL` is the SQL fragment to
+// interpolate into the probe template (may include trailing disambiguators
+// like `"(1)"`, `"+1"`), and `token` is the omni token constant for the
+// LEADING token of that fragment — e.g. the `'('` rune for `"(1)"`, the
+// PARAM constant for `"$1"`. When the predicate is called, the test
+// constructs Parser.cur = Token{Type: token, Str: leadStr} so the
+// lead-token check reflects what the first lexed token actually is.
+type candidateToken struct {
+	name     string          // SQL keyword string (keyword kind) OR leading-token literal (non-keyword)
+	probeSQL string          // SQL fragment interpolated into the probe template
+	display  string          // Human-readable label for test output
+	token    int             // omni token type constant — MUST be set for every candidate
+	category KeywordCategory // Valid only when kind == kindKeyword
+	kind     candidateKind
+}
+
+var nonKeywordCandidates = []candidateToken{
+	{name: "omni_probe_ident", probeSQL: "omni_probe_ident", display: "IDENT",
+		token: IDENT, kind: kindIdent},
+	{name: "1", probeSQL: "1", display: "ICONST",
+		token: ICONST, kind: kindLiteral},
+	{name: "1.5", probeSQL: "1.5", display: "FCONST",
+		token: FCONST, kind: kindLiteral},
+	{name: "'x'", probeSQL: "'x'", display: "SCONST",
+		token: SCONST, kind: kindLiteral},
+	{name: "B'1'", probeSQL: "B'1'", display: "BCONST",
+		token: BCONST, kind: kindLiteral},
+	{name: "X'AB'", probeSQL: "X'AB'", display: "XCONST",
+		token: XCONST, kind: kindLiteral},
+	{name: "$1", probeSQL: "$1", display: "PARAM",
+		token: PARAM, kind: kindLiteral},
+	{name: "(", probeSQL: "(1)", display: "LPAREN",
+		token: int('('), kind: kindPunct},
+	{name: "+", probeSQL: "+1", display: "PLUS",
+		token: int('+'), kind: kindPunct},
+	{name: "-", probeSQL: "-1", display: "MINUS",
+		token: int('-'), kind: kindPunct},
+}
+
+func allCandidates() []candidateToken {
+	out := make([]candidateToken, 0, len(Keywords)+len(nonKeywordCandidates))
+	for _, kw := range Keywords {
+		out = append(out, candidateToken{
+			name:     kw.Name,
+			probeSQL: kw.Name,
+			display:  kw.Name,
+			token:    kw.Token,
+			category: kw.Category,
+			kind:     kindKeyword,
+		})
+	}
+	out = append(out, nonKeywordCandidates...)
+	return out
+}
+
+// renderFn produces one or more candidate renderings for a token.
+type renderFn func(c candidateToken) []string
+
+// renderBare returns only the candidate's configured probeSQL.
+func renderBare(c candidateToken) []string { return []string{c.probeSQL} }
+
+// renderTypeCandidate expands a token into the combinations that real
+// PG type grammar requires: bare, parenthesized type modifiers, and the
+// multi-word forms (PRECISION, CHARACTER, VARYING) that the PG lexer
+// emits as separate tokens. Tokens that REQUIRE a trailing element
+// (like SETOF) get dedicated renderings that supply a valid continuation.
+func renderTypeCandidate(c candidateToken) []string {
+	if c.kind != kindKeyword {
+		return []string{c.probeSQL}
+	}
+	base := c.name
+	if base == "setof" {
+		return []string{"setof int", "setof varchar(10)", "setof json"}
+	}
+	return []string{
+		base,
+		base + "(1)",
+		base + "(1, 1)",
+		base + " precision",
+		base + " character",
+		base + " character(1)",
+		base + " varying",
+		base + " varying(1)",
+		base + " character varying",
+		base + " character varying(1)",
+	}
+}
+
+// probeOutcome records the result for a single candidate.
+type probeOutcome struct {
+	candidate candidateToken
+	accepted  bool
+}
+
+// runFirstSetProbe probes each filtered candidate via every rendering
+// returned by `render`. A candidate is marked accepted if any rendering
+// parses under PG. Each probe runs inside the savepoint isolation
+// provided by (*firstSetOracle).probe.
+func runFirstSetProbe(
+	t *testing.T,
+	o *firstSetOracle,
+	probeTemplate string, // fmt template with a single %s slot
+	render renderFn,
+	filter func(candidateToken) bool,
+) []probeOutcome {
+	t.Helper()
+	var outcomes []probeOutcome
+	for _, c := range allCandidates() {
+		if !filter(c) {
+			continue
+		}
+		accepted := false
+		for _, form := range render(c) {
+			sqlStr := fmt.Sprintf(probeTemplate, form)
+			if o.probe(t, sqlStr) == probeAccept {
+				accepted = true
+				break
+			}
+		}
+		outcomes = append(outcomes, probeOutcome{candidate: c, accepted: accepted})
+	}
+	return outcomes
+}
+
+// Filters for common cases.
+func filterKeywordsOnly(c candidateToken) bool { return c.kind == kindKeyword }
+func filterAll(c candidateToken) bool          { return true }
+
+// predicateProbe dispatches a FIRST-set predicate against a single
+// candidate. Both callbacks receive the full candidateToken because
+// omni's category predicates (isTypeFunctionName, isColId, isColLabel)
+// consult BOTH the token type AND the literal string: `LookupKeyword(
+// p.cur.Str)` must return a Keyword whose Token matches p.cur.Type. A
+// predicateProbe that ignored candidateToken.name would make every
+// UnreservedKeyword / TypeFuncNameKeyword probe fail the category check
+// and report massive false drift.
+//
+// onNonKeyword may be nil to signal the production doesn't care about
+// non-keyword starters — those candidates are skipped entirely in that
+// case.
+type predicateProbe struct {
+	onKeyword    func(c candidateToken) bool
+	onNonKeyword func(c candidateToken) bool // may be nil
+}
+
+// assertPredicateMatchesPG performs the full bidirectional FIRST-set check:
+//
+//	(1) PG accepts ∧ predicate rejects → missingFromOmni
+//	(2) predicate accepts ∧ PG rejects → extraInOmni
+//
+// Both directions iterate ALL outcomes returned by runFirstSetProbe.
+func assertPredicateMatchesPG(
+	t *testing.T,
+	production string,
+	outcomes []probeOutcome,
+	probe predicateProbe,
+) {
+	t.Helper()
+	var missingFromOmni, extraInOmni []string
+
+	for _, out := range outcomes {
+		var predicateOK bool
+		switch out.candidate.kind {
+		case kindKeyword:
+			predicateOK = probe.onKeyword(out.candidate)
+		default:
+			if probe.onNonKeyword == nil {
+				continue
+			}
+			predicateOK = probe.onNonKeyword(out.candidate)
+		}
+		switch {
+		case out.accepted && !predicateOK:
+			missingFromOmni = append(missingFromOmni, out.candidate.display)
+		case !out.accepted && predicateOK:
+			extraInOmni = append(extraInOmni, out.candidate.display)
+		}
+	}
+
+	if len(missingFromOmni) > 0 || len(extraInOmni) > 0 {
+		t.Errorf("%s FIRST-set drift:\n"+
+			"  PG accepts but predicate rejects: %v\n"+
+			"  predicate accepts but PG rejects: %v",
+			production, missingFromOmni, extraInOmni)
+	}
+}
