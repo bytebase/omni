@@ -13,6 +13,14 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 	start := dropTok.Loc
 
 	switch p.cur.Type {
+	case kwDATABASE:
+		// DATABASE handled by T2.1; parseDropDatabaseStmt consumes DATABASE.
+		return p.parseDropDatabaseStmt()
+
+	case kwSCHEMA:
+		// SCHEMA handled by T2.1; parseDropSchemaStmt consumes SCHEMA.
+		return p.parseDropSchemaStmt()
+
 	case kwTABLE:
 		p.advance() // consume TABLE
 		return p.parseDropObject(ast.DropTable, start, true, true)
@@ -170,6 +178,14 @@ func (p *Parser) parseUndropStmt() (ast.Node, error) {
 	start := undropTok.Loc
 
 	switch p.cur.Type {
+	case kwDATABASE:
+		// DATABASE handled by T2.1; parseUndropDatabaseStmt consumes DATABASE.
+		return p.parseUndropDatabaseStmt()
+
+	case kwSCHEMA:
+		// SCHEMA handled by T2.1; parseUndropSchemaStmt consumes SCHEMA.
+		return p.parseUndropSchemaStmt()
+
 	case kwTABLE:
 		p.advance() // consume TABLE
 		return p.parseUndropObject(ast.UndropTable, start)

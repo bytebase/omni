@@ -494,12 +494,11 @@ func TestDropWarehouse_IfExists(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDropUnsupported_TargetedError(t *testing.T) {
-	// DROP DATABASE is handled by T2.1 and is NOT in our dispatch — it should
-	// produce a targeted "DROP DATABASE ... not yet supported" error rather than
+	// DROP <unrecognized object> should produce a targeted error rather than
 	// a generic "DROP not supported" error.
-	result := ParseBestEffort("DROP DATABASE db1")
+	result := ParseBestEffort("DROP NETWORK POLICY foo")
 	if len(result.Errors) == 0 {
-		t.Fatal("expected an error for DROP DATABASE, got none")
+		t.Fatal("expected an error for DROP NETWORK POLICY, got none")
 	}
 	msg := result.Errors[0].Msg
 	if msg == "DROP statement parsing is not yet supported" {
@@ -573,9 +572,9 @@ func TestUndropTag_Basic(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestUndropUnsupported_TargetedError(t *testing.T) {
-	result := ParseBestEffort("UNDROP SCHEMA myschema")
+	result := ParseBestEffort("UNDROP STREAM mystream")
 	if len(result.Errors) == 0 {
-		t.Fatal("expected an error for UNDROP SCHEMA, got none")
+		t.Fatal("expected an error for UNDROP STREAM, got none")
 	}
 	msg := result.Errors[0].Msg
 	if msg == "UNDROP statement parsing is not yet supported" {
