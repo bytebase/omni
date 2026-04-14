@@ -954,9 +954,9 @@ type CreateTableStmt struct {
 	Name        *ObjectName
 	Columns     []*ColumnDef
 	Constraints []*TableConstraint
-	ClusterBy   []Node           // CLUSTER BY expressions; nil if absent
-	Linear      bool             // CLUSTER BY LINEAR modifier
-	Comment     *string          // COMMENT = 'text'; nil if absent
+	ClusterBy   []Node  // CLUSTER BY expressions; nil if absent
+	Linear      bool    // CLUSTER BY LINEAR modifier
+	Comment     *string // COMMENT = 'text'; nil if absent
 	CopyGrants  bool
 	Tags        []*TagAssignment // WITH TAG (...); nil if absent
 	AsSelect    Node             // CREATE TABLE ... AS SELECT; nil if absent
@@ -970,8 +970,8 @@ func (n *CreateTableStmt) Tag() NodeTag { return T_CreateTableStmt }
 // ColumnDef represents a column definition in CREATE TABLE.
 type ColumnDef struct {
 	Name             Ident
-	DataType         *TypeName         // nil for virtual columns without explicit type
-	Default          Node              // DEFAULT expr; nil if absent
+	DataType         *TypeName // nil for virtual columns without explicit type
+	Default          Node      // DEFAULT expr; nil if absent
 	NotNull          bool
 	Nullable         bool              // explicit NULL
 	Identity         *IdentitySpec     // IDENTITY/AUTOINCREMENT; nil if absent
@@ -1031,14 +1031,14 @@ const (
 type AlterSchemaAction int
 
 const (
-	AlterSchemaRename                AlterSchemaAction = iota // RENAME TO
-	AlterSchemaSwap                                           // SWAP WITH
-	AlterSchemaSet                                            // SET <properties>
-	AlterSchemaUnset                                          // UNSET <properties>
-	AlterSchemaSetTag                                         // SET TAG (...)
-	AlterSchemaUnsetTag                                       // UNSET TAG (...)
-	AlterSchemaEnableManagedAccess                            // ENABLE MANAGED ACCESS
-	AlterSchemaDisableManagedAccess                           // DISABLE MANAGED ACCESS
+	AlterSchemaRename               AlterSchemaAction = iota // RENAME TO
+	AlterSchemaSwap                                          // SWAP WITH
+	AlterSchemaSet                                           // SET <properties>
+	AlterSchemaUnset                                         // UNSET <properties>
+	AlterSchemaSetTag                                        // SET TAG (...)
+	AlterSchemaUnsetTag                                      // UNSET TAG (...)
+	AlterSchemaEnableManagedAccess                           // ENABLE MANAGED ACCESS
+	AlterSchemaDisableManagedAccess                          // DISABLE MANAGED ACCESS
 )
 
 // DBSchemaProps holds the optional settable properties shared by DATABASE and
