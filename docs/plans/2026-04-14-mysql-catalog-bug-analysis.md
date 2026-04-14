@@ -11,12 +11,12 @@
 | Metric | Value |
 |--------|-------|
 | Bug queue files analyzed | 26 (25 sections + README) |
-| `### ` headers across queue | 110 |
+| `### ` / `## ` bug headers across queue | 112 (ax.md uses `##` headers, all others use `###`) |
 | Non-bug meta notes | 3 (C6.LIST-DEFAULT-ORACLE, "Note on 11.5 detection strategy", "Note on C9.2 / C9.8 scenario doc drift") |
-| **Total real bugs** | **107** |
-| Files with bugs | 22 (all except ax.md, c15.md, c22.md, README.md) |
-| HIGH severity | 61 |
-| MED / MEDIUM severity | 36 (33 MED + 3 MEDIUM) |
+| **Total real bugs** | **109** |
+| Files with bugs | 23 (all except c15.md, c22.md, README.md) |
+| HIGH severity | 62 |
+| MED / MEDIUM severity | 37 (34 MED + 3 MEDIUM) |
 | LOW severity | 10 |
 
 ### Per-Section Bug Counts
@@ -25,6 +25,7 @@ Counts below are REAL bugs (section header count minus meta notes). Sections ax,
 
 | Section | Real bugs | Notes |
 |---------|----------:|-------|
+| AX | 2 | ax.md uses `##` headers (AX.3 MED, AX.9 HIGH), not `###` |
 | C1 | 7 | |
 | C2 | 8 | |
 | C3 | 1 | |
@@ -47,7 +48,7 @@ Counts below are REAL bugs (section header count minus meta notes). Sections ax,
 | C24 | 4 | |
 | C25 | 5 | |
 | PS | 5 | |
-| **TOTAL** | **107** | |
+| **TOTAL** | **109** | |
 
 ---
 
@@ -172,6 +173,7 @@ Counts below are REAL bugs (section header count minus meta notes). Sections ax,
 - C5.2 (HIGH) — FK ON DELETE SET NULL accepted on NOT NULL column (should error 1830)
 - C5.10 (MED) — Column-level CHECK referencing another column accepted
 - C14.4 (HIGH) — CHECK constraint accepts forbidden constructs (subquery, NOW, RAND, user variable)
+- AX.3 (MED) — ALTER TABLE DROP COLUMN does not reject removal of the last column (should error 1090)
 
 **Related (tracked in Cluster 6)**: C5.7 / C9.2 — FK on VIRTUAL generated column — same root cause, lives with generated-column validation.
 
@@ -182,7 +184,7 @@ Counts below are REAL bugs (section header count minus meta notes). Sections ax,
 4. Column-level CHECK scope: validate that CHECK expression references only the owning column.
 5. CHECK expression validator: walk analyzed tree, reject subqueries, non-deterministic functions (NOW, SYSDATE, RAND, UUID, etc.), user/system variables.
 
-**Fix ROI**: `4 bugs / M` (validation logic at multiple CREATE/ALTER entry points; some share expression-walking code).
+**Fix ROI**: `5 bugs / M` (validation logic at multiple CREATE/ALTER entry points; some share expression-walking code).
 
 **Dependencies**: Cluster 6 (Generated Column Validation) should land first for consistent VIRTUAL/STORED terminology.
 
@@ -445,6 +447,7 @@ Counts below are REAL bugs (section header count minus meta notes). Sections ax,
 
 | Bug ID | Severity | Summary | Source |
 |--------|----------|---------|--------|
+| AX.9 | HIGH | Column-level `REFERENCES` in CREATE TABLE creates a real FK in omni; MySQL parses but ignores it (InnoDB pitfall). Fix: accept only table-level `FOREIGN KEY (...) REFERENCES ...`. | `mysql/catalog/tablecmds.go` column FK path |
 | C21.3 | MED | OrderByItem cannot represent ORDER_NOT_RELEVANT; needs tri-state Direction enum instead of bool Desc. | `mysql/ast/parsenodes.go:901` / `parser/select.go:1413` |
 | C20.6 | HIGH | BLOB/TEXT/JSON/GEOMETRY literal DEFAULT not rejected; parser accepts but MySQL errors 1101. | `tablecmds.go` column validation |
 | C20.8 | MED | Generated column with DEFAULT clause not rejected; parser or catalog must gate. | `tablecmds.go` / parser grammar |
@@ -505,18 +508,18 @@ Counts below are REAL bugs (section header count minus meta notes). Sections ax,
 | Cluster 4 (Charset/collation derivation) | 5 | M | None |
 | Cluster 3 (Partition defaults & validation) | 10 | M | None |
 | Cluster 11 (Date/time function validation) | 8 | M | Cluster 2 |
-| Cluster 5 (Constraint semantic validation) | 4 | M | Cluster 6 |
+| Cluster 5 (Constraint semantic validation) | 5 | M | Cluster 6 |
 | Cluster 10 (Index name & key-part validation) | 6 | M | Cluster 2 |
 | Cluster 8 (View metadata & column defaults) | 8 | M | None |
 | Cluster 15 (Trigger struct & body validation) | 5 | M | None (overlap with Cluster 5) |
 | Cluster 14 (Session vars / GIPK) | 5 | L | None |
 | Cluster 12 (Functional indexes — feature) | 8 | L | Cluster 2, expr analyzer |
 | Cluster 13 (Expression collation — Phase 3) | 8 | L | Phase 3 deferred |
-| **Clusters (unique bugs)** | **101** | | |
-| Isolated | 5 | | |
+| **Clusters (unique bugs)** | **102** | | |
+| Isolated | 6 | | |
 | Declared dup in queue (C5.7 == C9.2) | 1 | | — counted once in Cluster 6 |
-| **Accounted** | **107** | | |
-| **Real bugs in queue (110 headers − 3 meta notes)** | **107** | | |
+| **Accounted** | **109** | | |
+| **Real bugs in queue (112 headers − 3 meta notes)** | **109** | | |
 
 ---
 
@@ -531,7 +534,7 @@ Counts below are REAL bugs (section header count minus meta notes). Sections ax,
 ## Verification Checklist
 
 - [x] Every cluster's bug list is a subset of bug queue files (grep-verified)
-- [x] Clusters + isolated + declared-duplicate = 107 (real bug count). Verified: 101 clustered + 5 isolated + 1 duplicate = 107.
+- [x] Clusters + isolated + declared-duplicate = 109 (real bug count). Verified: 102 clustered + 6 isolated + 1 duplicate = 109.
 - [x] Every source file cited exists (Bash ls confirmed `table.go`, `tablecmds.go`, `altercmds.go`, `constraint.go`, `viewcmds.go`, `analyze_expr.go`, `function_types.go`, `parser/type.go`)
 - [x] No bug double-counted across clusters (C16.2 moved to Cluster 2 only; C1.11/C1.12 in Cluster 12 only; C5.7 declared duplicate of C9.2)
 - [x] No invented bugs — every bug ID appears verbatim as a `### ` header in `mysql/catalog/scenarios_bug_queue/*.md`
