@@ -207,7 +207,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// DML
 	case kwSELECT:
-		return p.parseSelectStmt()
+		left, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+		return p.parseSetOpTail(left)
 	case kwWITH:
 		return p.unsupported("WITH")
 	case kwINSERT:

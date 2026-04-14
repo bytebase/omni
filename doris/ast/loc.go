@@ -74,6 +74,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *JoinClause:
 		return v.Loc
+	case *SetOpStmt:
+		return v.Loc
 	case *CreateTableStmt:
 		return v.Loc
 	case *ColumnDef:
