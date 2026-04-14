@@ -15,8 +15,8 @@
 | Non-bug meta notes | 3 (C6.LIST-DEFAULT-ORACLE, "Note on 11.5 detection strategy", "Note on C9.2 / C9.8 scenario doc drift") |
 | **Total real bugs** | **107** |
 | Files with bugs | 22 (all except ax.md, c15.md, c22.md, README.md) |
-| HIGH severity | 67 |
-| MED / MEDIUM severity | 32 |
+| HIGH severity | 62 |
+| MED / MEDIUM severity | 37 (34 MED + 3 MEDIUM) |
 | LOW severity | 8 |
 
 ### Per-Section Bug Counts
