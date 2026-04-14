@@ -196,9 +196,11 @@ PRs that introduce hand-written multi-token clusters in probe positions without 
 
 omni's pg parser is hand-written recursive descent. When a grammar position has local ambiguity that requires lookahead, the canonical approaches in pg/parser are:
 
-1. **Peek-then-commit using `peekNext()`** (preferred when the lookahead is a single token). Examples: `parseFuncArg`, `parseStmt`'s CREATE dispatch, `_LA` token reclassification in `advance()`.
-2. **`snapshotTokenStream` + `restoreTokenStream`** from `backtrack.go` (when peek isn't enough — e.g. the speculative parse needs to walk multiple tokens before deciding). Example: `parseFuncType`'s `%TYPE` branch.
+1. **Peek-then-commit using `peekNext()`** (preferred when the lookahead is a single token AND the peek doesn't need to register completion candidates). Examples: `parseStmt`'s CREATE dispatch (`parseCreateDispatch`), `_LA` token reclassification in `advance()`, `parseFuncType`'s `%TYPE` SETOF heuristic.
+2. **`snapshotTokenStream` + `restoreTokenStream`** from `backtrack.go` (when peek isn't enough — e.g. the speculative parse needs to walk multiple tokens before deciding, OR omni's collect-mode model needs the speculative `advance()` calls to populate completion candidates). Examples: `parseFuncArg` (the speculative consume of `param_name` is the only way collect mode gets type-name candidates after `f(x |`), `parseFuncType`'s `%TYPE` branch.
 3. **`Token` struct snapshot + manual `nextBuf` push** (when the speculative parse only consumes 1 token and rolling back via `nextBuf` push is more compact). Example: `parseCreateStmt`'s CTAS detection at `parser.go:894-918`.
+
+**Choosing between (1) and (2)**: ask whether the speculative parse needs to populate completion candidates as a side effect. If yes, use (2). omni's collect mode treats `advance()` as the place that registers candidates for "what comes after this position", so a peek-only path skips that registration. The `parseFuncArg` history is the canonical example: a peek-then-commit rewrite (commit `3f644aa`) regressed IDE completion at `CREATE FUNCTION f(x |` from 353 candidates to 1, and was reverted to snapshot/restore in commit `efb0ff1`.
 
 **Forbidden:** synthesizing a "rolled back" token by hand with a hardcoded `Type` field. Two prior bugs were caused by this anti-pattern (the deleted `pushBack(string)` in `create_function.go` and the partial state save in `parseFuncType`'s speculative branch). If you need to roll back, use `snapshotTokenStream` / `restoreTokenStream` — never reconstruct a token from a string.
 
@@ -206,12 +208,10 @@ The `tokenStreamState` snapshot covers cur, prev, nextBuf, hasNext, and the lexe
 
 ## Known limitations / follow-ups
 
-### Three-component qualified type names (separate `parseGenericType` limitation)
-
-`db.schema.mytype` (3-component qualified names) fail to parse in **all** type contexts — `CREATE TABLE`, `CAST`, `ALTER TABLE`, `CREATE FUNCTION`, etc. This is **not** the backtracking bug fixed by this refactor; `parseGenericType` only consumes at most one dot. To accept 3-component names, `parseGenericType` needs to be extended to consume more dots, and the AST needs to handle the additional name component.
-
-Tracked as a separate follow-up — no client has reported it yet.
-
 ### Ryuk reaper flake (testcontainer infrastructure quirk)
 
-See "Known operational quirk: Ryuk reaper race" above. Not a parser bug; a testcontainers-go race condition when tests are re-run rapidly in the same shell session.
+See "Known operational quirk: Ryuk reaper race" above. Not a parser bug; a testcontainers-go race condition when tests are re-run rapidly in the same shell session. Workaround: `TESTCONTAINERS_RYUK_DISABLED=true`.
+
+### `%TYPE` references are not resolved by the catalog
+
+omni's catalog has no PctType handler. `RETURNS schema.tab.col%TYPE` parses correctly into `TypeName{PctType: true, Names: [schema, tab, col]}`, but resolution falls through `typeNameParts` (which produces `(schema=tab, name=col)`) and fails as `type "tab.col" does not exist`. Full PctType resolution would require a separate "look up the type of column X in table Y" code path. Not currently a client request.
