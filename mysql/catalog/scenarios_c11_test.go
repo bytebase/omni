@@ -144,10 +144,20 @@ CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET NEW.a = NEW.a;`)
 			t.Error("omni: trigger trg missing")
 			return
 		}
-		// Intentionally a no-op beyond existence check; see c11.md for the
-		// documented gap. If a future patch adds these fields the assertion
-		// should be tightened.
-		_ = trg
+		// Assert the core fields omni does track so the subtest has real
+		// substance, then flag the charset-snapshot gap explicitly. If a
+		// future patch adds CharacterSetClient / CollationConnection /
+		// DatabaseCollation fields, tighten the assertion below.
+		if strings.ToUpper(trg.Timing) != "BEFORE" {
+			t.Errorf("omni 11.3: trg.Timing=%q, want BEFORE", trg.Timing)
+		}
+		if strings.ToUpper(trg.Event) != "INSERT" {
+			t.Errorf("omni 11.3: trg.Event=%q, want INSERT", trg.Event)
+		}
+		if trg.Table != "t" {
+			t.Errorf("omni 11.3: trg.Table=%q, want t", trg.Table)
+		}
+		t.Errorf("omni 11.3: KNOWN GAP — Trigger struct lacks CharacterSetClient/CollationConnection/DatabaseCollation fields; session snapshot cannot round-trip (see scenarios_bug_queue/c11.md)")
 	})
 
 	// --- 11.4 ACTION_ORDER default sequencing within (table, timing, event) -

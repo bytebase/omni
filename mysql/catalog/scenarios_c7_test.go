@@ -367,10 +367,19 @@ CREATE TABLE t2 (a TEXT, FULLTEXT KEY (a) WITH PARSER ngram);`)
 		_, mysqlErr2 := mc.db.ExecContext(mc.ctx,
 			`CREATE TABLE t_spbtree (g GEOMETRY NOT NULL, SPATIAL KEY (g) USING BTREE)`)
 		if mysqlErr2 == nil {
-			t.Errorf("oracle: expected ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX, got nil")
-		} else if !strings.Contains(mysqlErr2.Error(), "3500") &&
-			!strings.Contains(strings.ToLower(mysqlErr2.Error()), "not supported") {
-			t.Errorf("oracle: expected 3500, got %v", mysqlErr2)
+			t.Errorf("oracle: expected rejection of SPATIAL USING BTREE, got nil")
+		} else {
+			// MySQL 8.0 parser rejects `USING BTREE` on a SPATIAL index at parse
+			// time with a plain syntax error (1064) rather than the semantic
+			// ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX (3500). Accept either
+			// so the scenario is version-robust.
+			msg := strings.ToLower(mysqlErr2.Error())
+			if !strings.Contains(mysqlErr2.Error(), "3500") &&
+				!strings.Contains(mysqlErr2.Error(), "1064") &&
+				!strings.Contains(msg, "not supported") &&
+				!strings.Contains(msg, "syntax") {
+				t.Errorf("oracle: expected 3500 or 1064/syntax, got %v", mysqlErr2)
+			}
 		}
 		results2, err2 := c.Exec(
 			`CREATE TABLE t_spbtree (g GEOMETRY NOT NULL, SPATIAL KEY (g) USING BTREE);`, nil)

@@ -147,7 +147,9 @@ func TestScenario_C23(t *testing.T) {
 
 		// row1 → 'x,z' (NULL skipped, no double separator)
 		// row2 → ''   (all NULL data args → empty string, NOT NULL)
-		rows := oracleRows(t, mc, `SELECT CONCAT_WS(',', a, b, c) FROM t`)
+		// Order stably so (a IS NOT NULL) row comes first regardless of
+		// storage engine ordering.
+		rows := oracleRows(t, mc, `SELECT CONCAT_WS(',', a, b, c) FROM t ORDER BY a IS NULL, a`)
 		if len(rows) != 2 {
 			t.Errorf("oracle: expected 2 rows, got %d", len(rows))
 		} else {
@@ -251,25 +253,19 @@ func TestScenario_C23(t *testing.T) {
 		// The point of 23.3 is the RUNTIME values, which we asserted above.
 		// The IS_NULLABLE values here are oracle ground-truth — record them
 		// so any future MySQL upgrade or omni inference change is caught.
-		bad := c23OracleViewColNullable(t, "v_name", "bad")
-		ifn := c23OracleViewColNullable(t, "v_name", "rescue_ifnull")
-		coa := c23OracleViewColNullable(t, "v_name", "rescue_coalesce")
-		ws := c23OracleViewColNullable(t, "v_name", "rescue_ws")
-		// These four must all be exactly "YES" or "NO" — record what oracle
-		// says without hard-coding a guess.
-		for _, p := range []struct{ label, got string }{
-			{"v_name.bad", bad},
-			{"v_name.rescue_ifnull", ifn},
-			{"v_name.rescue_coalesce", coa},
-			{"v_name.rescue_ws", ws},
-		} {
-			if p.got != "YES" && p.got != "NO" {
-				t.Errorf("oracle %s IS_NULLABLE: got %q, want YES or NO", p.label, p.got)
-			}
-		}
-		// And lock the specific MySQL 8.0.45 result for "bad" (the unrescued
-		// CONCAT) — it must be YES.
-		assertStringEq(t, "oracle v_name.bad IS_NULLABLE (unrescued CONCAT)", bad, "YES")
+		// Lock the specific MySQL 8.0.45 metadata ground truth for all four
+		// columns (empirical). Base columns are nullable → view columns
+		// reported nullable regardless of the IFNULL/COALESCE rescue, so all
+		// four are "YES". Any future MySQL upgrade or omni inference change
+		// will trip one of these and force a scenario revisit.
+		assertStringEq(t, "oracle v_name.bad IS_NULLABLE",
+			c23OracleViewColNullable(t, "v_name", "bad"), "YES")
+		assertStringEq(t, "oracle v_name.rescue_ifnull IS_NULLABLE",
+			c23OracleViewColNullable(t, "v_name", "rescue_ifnull"), "YES")
+		assertStringEq(t, "oracle v_name.rescue_coalesce IS_NULLABLE",
+			c23OracleViewColNullable(t, "v_name", "rescue_coalesce"), "YES")
+		assertStringEq(t, "oracle v_name.rescue_ws IS_NULLABLE",
+			c23OracleViewColNullable(t, "v_name", "rescue_ws"), "YES")
 
 		v := c23OmniView(c, "v_name")
 		if v == nil {

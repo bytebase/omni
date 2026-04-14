@@ -276,6 +276,45 @@ func dockerAvailable() bool {
 	return dockerAvailableVal
 }
 
+// mysqlAtLeast reports whether the VERSION() string reports a server at
+// or above the requested (major, minor, patch) triple. Non-numeric suffixes
+// like "-log" or "-debug" are ignored. Malformed versions return false.
+func mysqlAtLeast(ver string, wantMajor, wantMinor, wantPatch int) bool {
+	// Strip anything after the first non-numeric/non-dot rune.
+	cut := len(ver)
+	for i, r := range ver {
+		if (r < '0' || r > '9') && r != '.' {
+			cut = i
+			break
+		}
+	}
+	parts := strings.Split(ver[:cut], ".")
+	if len(parts) < 3 {
+		return false
+	}
+	atoi := func(s string) int {
+		n := 0
+		for _, r := range s {
+			if r < '0' || r > '9' {
+				return -1
+			}
+			n = n*10 + int(r-'0')
+		}
+		return n
+	}
+	maj, min, pat := atoi(parts[0]), atoi(parts[1]), atoi(parts[2])
+	if maj < 0 || min < 0 || pat < 0 {
+		return false
+	}
+	if maj != wantMajor {
+		return maj > wantMajor
+	}
+	if min != wantMinor {
+		return min > wantMinor
+	}
+	return pat >= wantPatch
+}
+
 // splitStmts splits a possibly multi-statement DDL string into individual
 // statements, respecting single quotes, double quotes, and backticks, and
 // trimming empty results. It is a thin wrapper around splitStatements

@@ -295,22 +295,26 @@ func TestScenario_C17(t *testing.T) {
 		)`)
 		// Without CONVERT this would be 17.3 (ER 1267). CONVERT rescues it.
 		ddl := `CREATE VIEW v7 AS SELECT CONCAT(a, CONVERT(b USING utf8mb4)) AS c FROM t`
-		if _, err := mc.db.ExecContext(mc.ctx, ddl); err != nil {
-			// VERIFY: if MySQL actually rejects even with one-sided CONVERT,
-			// note this so the scenario can be refined to wrap both sides.
-			t.Logf("oracle note: one-sided CONVERT still rejected: %v", err)
-		} else {
-			if cs, co, ok := c17OracleViewCol(t, "v7", "c"); ok {
-				assertStringEq(t, "oracle v7.c CHARACTER_SET_NAME", cs, "utf8mb4")
-				// The default collation of utf8mb4 is server-configurable; accept
-				// any utf8mb4_* collation. What matters is the charset pin.
-				if !strings.HasPrefix(co, "utf8mb4_") {
-					t.Errorf("oracle v7.c COLLATION_NAME: got %q, want utf8mb4_* (some utf8mb4 collation)", co)
-				}
+		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
+		if oracleErr != nil {
+			// If MySQL rejects even one-sided CONVERT, the scenario has no
+			// oracle ground truth to compare omni against. Record this so the
+			// scenario can be refined and return — do NOT assert omni-side
+			// behavior against a missing oracle.
+			t.Skipf("17.7 oracle rejected one-sided CONVERT; scenario needs two-sided wrap. err=%v", oracleErr)
+			return
+		}
+		if cs, co, ok := c17OracleViewCol(t, "v7", "c"); ok {
+			assertStringEq(t, "oracle v7.c CHARACTER_SET_NAME", cs, "utf8mb4")
+			// The default collation of utf8mb4 is server-configurable; accept
+			// any utf8mb4_* collation. What matters is the charset pin.
+			if !strings.HasPrefix(co, "utf8mb4_") {
+				t.Errorf("oracle v7.c COLLATION_NAME: got %q, want utf8mb4_* (some utf8mb4 collation)", co)
 			}
 		}
 
-		// omni side: parse the same DDL and check it does not error.
+		// omni side: parse the same DDL. Only reached when oracle accepted,
+		// so the KNOWN GAP comparison is meaningful.
 		results, parseErr := c.Exec(ddl, nil)
 		omniAccepted := parseErr == nil
 		if parseErr == nil {

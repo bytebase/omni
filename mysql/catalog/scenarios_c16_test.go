@@ -516,11 +516,20 @@ func TestScenario_C16(t *testing.T) {
 	})
 
 	// ---- 16.12 TIMESTAMP first-column promotion carries column fsp -------
+	//
+	// NOTE: asymmetric scenario. The session variable
+	// `explicit_defaults_for_timestamp=0` only affects the MySQL oracle —
+	// omni has no session-variable model today. The omni-side assertions
+	// below are tagged "KNOWN GAP" and are expected to fail in either
+	// direction: omni's promotion path either doesn't honor the oracle's
+	// session state at all (today's behavior) or eventually will honor
+	// session vars and then match automatically. If omni starts tracking
+	// session vars, revisit this test to mirror the SET on both sides.
 	t.Run("16_12_Timestamp_promotion_fsp", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 		// Default explicit_defaults_for_timestamp=ON on MySQL 8.0, so turn it
-		// off to trigger implicit promotion.
+		// off to trigger implicit promotion on the oracle side.
 		if _, err := mc.db.ExecContext(mc.ctx, `SET SESSION explicit_defaults_for_timestamp=0`); err != nil {
 			t.Errorf("oracle SET: %v", err)
 		}

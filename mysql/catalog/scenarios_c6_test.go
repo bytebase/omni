@@ -261,9 +261,18 @@ func TestScenario_C6(t *testing.T) {
 	})
 
 	// --- 6.10 LIST DEFAULT partition --------------------------------
+	// Requires MySQL 8.0.4+ (introduction of LIST ... VALUES IN (DEFAULT)).
+	// Skip on older server versions so the test survives contributors
+	// running pinned-older images or CI lanes behind the rolling 8.0 tag.
 	t.Run("6_10_list_default_partition", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
+
+		var ver string
+		oracleScan(t, mc, `SELECT VERSION()`, &ver)
+		if !mysqlAtLeast(ver, 8, 0, 4) {
+			t.Skipf("6.10 requires MySQL >= 8.0.4 for LIST DEFAULT partition, got %q", ver)
+		}
 
 		runOnBoth(t, mc, c,
 			`CREATE TABLE t (c INT) PARTITION BY LIST(c)
