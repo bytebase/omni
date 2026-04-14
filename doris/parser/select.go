@@ -443,6 +443,9 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 			break
 		}
 
+		// Skip optional Doris execution hints: [shuffle], [broadcast], etc.
+		hints := p.parseJoinHints()
+
 		right, err := p.parsePrimarySource()
 		if err != nil {
 			return nil, err
@@ -453,6 +456,7 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 			Left:    left,
 			Right:   right,
 			Natural: natural,
+			Hints:   hints,
 			Loc:     ast.Loc{Start: ast.NodeLoc(left).Start},
 		}
 
@@ -500,6 +504,29 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 	return left, nil
 }
 
+// parseJoinHints skips any Doris execution hint between join keywords and
+// the right-side table reference. Hints have the form [identifier] or
+// /*+ identifier */ (comment-style). Only bracket-style is handled here.
+// Returns the consumed hint identifiers (may be empty).
+func (p *Parser) parseJoinHints() []string {
+	var hints []string
+	for p.cur.Kind == int('[') {
+		p.advance() // consume '['
+		// Collect tokens until ']'
+		for p.cur.Kind != int(']') && p.cur.Kind != tokEOF {
+			if p.cur.Kind == tokIdent || p.cur.Kind == tokQuotedIdent ||
+				(p.cur.Kind >= 700) {
+				hints = append(hints, p.cur.Str)
+			}
+			p.advance()
+		}
+		if p.cur.Kind == int(']') {
+			p.advance() // consume ']'
+		}
+	}
+	return hints
+}
+
 // parseJoinKeywords checks whether the current token position starts a
 // JOIN keyword sequence. If so, it consumes the tokens and returns
 // (joinType, natural, true). If not, returns (0, false, false)
@@ -532,10 +559,27 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool) {
 		return 0, false, false
 	}
 
-	// LEFT [OUTER] JOIN
+	// LEFT variants: LEFT [OUTER] JOIN | LEFT SEMI JOIN | LEFT ANTI JOIN
 	if p.cur.Kind == kwLEFT {
 		next := p.peekNext()
-		if next.Kind == kwJOIN || next.Kind == kwOUTER {
+		switch next.Kind {
+		case kwSEMI:
+			p.advance() // consume LEFT
+			p.advance() // consume SEMI
+			if p.cur.Kind != kwJOIN {
+				return 0, false, false
+			}
+			p.advance() // consume JOIN
+			return ast.JoinLeftSemi, false, true
+		case kwANTI:
+			p.advance() // consume LEFT
+			p.advance() // consume ANTI
+			if p.cur.Kind != kwJOIN {
+				return 0, false, false
+			}
+			p.advance() // consume JOIN
+			return ast.JoinLeftAnti, false, true
+		case kwJOIN, kwOUTER:
 			jt := p.consumeDirectionAndJoin()
 			if jt == ast.JoinLeft {
 				return jt, false, true
@@ -544,10 +588,27 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool) {
 		return 0, false, false
 	}
 
-	// RIGHT [OUTER] JOIN
+	// RIGHT variants: RIGHT [OUTER] JOIN | RIGHT SEMI JOIN | RIGHT ANTI JOIN
 	if p.cur.Kind == kwRIGHT {
 		next := p.peekNext()
-		if next.Kind == kwJOIN || next.Kind == kwOUTER {
+		switch next.Kind {
+		case kwSEMI:
+			p.advance() // consume RIGHT
+			p.advance() // consume SEMI
+			if p.cur.Kind != kwJOIN {
+				return 0, false, false
+			}
+			p.advance() // consume JOIN
+			return ast.JoinRightSemi, false, true
+		case kwANTI:
+			p.advance() // consume RIGHT
+			p.advance() // consume ANTI
+			if p.cur.Kind != kwJOIN {
+				return 0, false, false
+			}
+			p.advance() // consume JOIN
+			return ast.JoinRightAnti, false, true
+		case kwJOIN, kwOUTER:
 			jt := p.consumeDirectionAndJoin()
 			if jt == ast.JoinRight {
 				return jt, false, true

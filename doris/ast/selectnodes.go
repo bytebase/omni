@@ -89,21 +89,26 @@ var _ Node = (*TableRef)(nil)
 type JoinType int
 
 const (
-	JoinInner JoinType = iota // [INNER] JOIN
-	JoinLeft                  // LEFT [OUTER] JOIN
-	JoinRight                 // RIGHT [OUTER] JOIN
-	JoinFull                  // FULL [OUTER] JOIN
-	JoinCross                 // CROSS JOIN
+	JoinInner     JoinType = iota // [INNER] JOIN
+	JoinLeft                      // LEFT [OUTER] JOIN
+	JoinRight                     // RIGHT [OUTER] JOIN
+	JoinFull                      // FULL [OUTER] JOIN
+	JoinCross                     // CROSS JOIN
+	JoinLeftSemi                  // LEFT SEMI JOIN
+	JoinRightSemi                 // RIGHT SEMI JOIN
+	JoinLeftAnti                  // LEFT ANTI JOIN
+	JoinRightAnti                 // RIGHT ANTI JOIN
 )
 
 // JoinClause represents a JOIN expression in the FROM clause.
 type JoinClause struct {
 	Type    JoinType
-	Left    Node   // left side of the join
-	Right   Node   // right side of the join
-	Natural bool   // NATURAL join
-	On      Node   // ON condition (nil if absent)
+	Left    Node     // left side of the join
+	Right   Node     // right side of the join
+	Natural bool     // NATURAL join modifier
+	On      Node     // ON condition (nil if absent)
 	Using   []string // USING (col1, col2, ...) column names
+	Hints   []string // execution hints, e.g. [shuffle], [broadcast]
 	Loc     Loc
 }
 
