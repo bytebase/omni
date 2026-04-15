@@ -392,14 +392,17 @@ func TestCreateTable_NowSupported(t *testing.T) {
 	}
 }
 
-func TestAlterTable_StillUnsupported(t *testing.T) {
-	_, errs := Parse("ALTER TABLE t ADD COLUMN c INT")
-	if len(errs) == 0 {
-		t.Fatal("expected error for unsupported ALTER TABLE")
+func TestAlterTable_NowSupported(t *testing.T) {
+	// ALTER TABLE is now implemented (T2.2). Verify it parses without errors.
+	file, errs := Parse("ALTER TABLE t ADD COLUMN c INT")
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %v", errs)
 	}
-	want := "ALTER statement parsing is not yet supported"
-	if errs[0].Msg != want {
-		t.Errorf("error = %q, want %q", errs[0].Msg, want)
+	if len(file.Stmts) != 1 {
+		t.Fatalf("expected 1 stmt, got %d", len(file.Stmts))
+	}
+	if _, ok := file.Stmts[0].(*ast.AlterTableStmt); !ok {
+		t.Fatalf("expected *ast.AlterTableStmt, got %T", file.Stmts[0])
 	}
 }
 

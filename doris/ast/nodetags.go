@@ -160,6 +160,14 @@ const (
 
 	// T_RawQuery is the tag for *RawQuery (placeholder for unparsed SELECT).
 	T_RawQuery
+
+	// DDL — ALTER TABLE nodes (T2.2).
+
+	// T_AlterTableStmt is the tag for *AlterTableStmt.
+	T_AlterTableStmt
+
+	// T_AlterTableAction is the tag for *AlterTableAction.
+	T_AlterTableAction
 )
 
 // String returns a human-readable representation of the tag.
@@ -257,6 +265,10 @@ func (t NodeTag) String() string {
 		return "RollupDef"
 	case T_RawQuery:
 		return "RawQuery"
+	case T_AlterTableStmt:
+		return "AlterTableStmt"
+	case T_AlterTableAction:
+		return "AlterTableAction"
 	default:
 		return "Unknown"
 	}

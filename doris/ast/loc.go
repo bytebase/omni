@@ -100,6 +100,10 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *RawQuery:
 		return v.Loc
+	case *AlterTableStmt:
+		return v.Loc
+	case *AlterTableAction:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

@@ -187,8 +187,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwALTER:
 		p.advance() // consume ALTER; cur is now the object type keyword
 		switch p.cur.Kind {
-		case kwDATABASE:
+		case kwDATABASE, kwSCHEMA:
 			return p.parseAlterDatabase()
+		case kwTABLE:
+			return p.parseAlterTable()
 		default:
 			return p.unsupported("ALTER")
 		}
