@@ -205,13 +205,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwWITH:
 		return p.parseWithQueryExpr()
 	case kwINSERT:
-		return p.unsupported("INSERT")
+		return p.parseInsertStmt()
 	case kwUPDATE:
-		return p.unsupported("UPDATE")
+		return p.parseUpdateStmt()
 	case kwDELETE:
-		return p.unsupported("DELETE")
+		return p.parseDeleteStmt()
 	case kwMERGE:
-		return p.unsupported("MERGE")
+		return p.parseMergeStmt()
 	case kwCOPY:
 		return p.unsupported("COPY")
 	case kwPUT:

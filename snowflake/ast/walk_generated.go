@@ -68,6 +68,12 @@ func walkChildren(v Visitor, node Node) {
 		if n.Like != nil {
 			Walk(v, n.Like)
 		}
+	case *DeleteStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		walkNodes(v, n.Using)
+		Walk(v, n.Where)
 	case *DropDatabaseStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -93,6 +99,13 @@ func walkChildren(v Visitor, node Node) {
 	case *InExpr:
 		Walk(v, n.Expr)
 		walkNodes(v, n.Values)
+	case *InsertMultiStmt:
+		Walk(v, n.Select)
+	case *InsertStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		Walk(v, n.Select)
 	case *IsExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.DistinctFrom)
@@ -108,6 +121,12 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Pattern)
 		Walk(v, n.Escape)
 		walkNodes(v, n.AnyValues)
+	case *MergeStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		Walk(v, n.Source)
+		Walk(v, n.On)
 	case *ParenExpr:
 		Walk(v, n.Expr)
 	case *SelectStmt:
@@ -153,5 +172,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *UpdateStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		walkNodes(v, n.From)
+		Walk(v, n.Where)
 	}
 }

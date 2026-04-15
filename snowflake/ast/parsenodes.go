@@ -1294,3 +1294,131 @@ var (
 	_ Node = (*DropStmt)(nil)
 	_ Node = (*UndropStmt)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// DML statement nodes
+// ---------------------------------------------------------------------------
+
+// InsertStmt represents a single-table INSERT statement:
+//
+//	INSERT [OVERWRITE] INTO table [(cols)] {VALUES (exprs)[, ...] | SELECT ...}
+type InsertStmt struct {
+	Overwrite bool
+	Target    *ObjectName
+	Columns   []Ident  // optional column list; nil if not specified
+	Values    [][]Node // VALUES rows; nil if SELECT form used
+	Select    Node     // SELECT body; nil if VALUES form used
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *InsertStmt) Tag() NodeTag { return T_InsertStmt }
+
+// InsertMultiStmt represents INSERT ALL / INSERT FIRST (multi-table insert):
+//
+//	INSERT [OVERWRITE] {ALL | FIRST} [WHEN cond THEN] INTO target [(cols)] VALUES (exprs) ... SELECT ...
+type InsertMultiStmt struct {
+	Overwrite bool
+	First     bool                 // true = INSERT FIRST, false = INSERT ALL
+	Branches  []*InsertMultiBranch // INTO targets with optional WHEN guards
+	Select    Node                 // driving SELECT query
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *InsertMultiStmt) Tag() NodeTag { return T_InsertMultiStmt }
+
+// InsertMultiBranch is one INTO target inside an INSERT ALL/FIRST statement.
+// When is nil for unconditional branches; non-nil for WHEN cond THEN branches.
+type InsertMultiBranch struct {
+	When    Node // nil for unconditional ALL/FIRST; WHEN condition otherwise
+	Target  *ObjectName
+	Columns []Ident
+	Values  []Node // single row of VALUES expressions; nil if VALUES clause omitted
+	Loc     Loc
+}
+
+// UpdateSet represents one assignment in an UPDATE SET list.
+// Column holds the target column name, which may be qualified (e.g. t.col).
+type UpdateSet struct {
+	Column *ObjectName
+	Value  Node
+	Loc    Loc
+}
+
+// UpdateStmt represents an UPDATE statement:
+//
+//	UPDATE table [alias] SET col = expr [, ...] [FROM sources] [WHERE cond]
+type UpdateStmt struct {
+	Target *ObjectName
+	Alias  Ident // table alias; zero Ident if absent
+	Sets   []*UpdateSet
+	From   []Node // FROM clause items (Snowflake extension for joins); nil if absent
+	Where  Node   // WHERE condition; nil if absent
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *UpdateStmt) Tag() NodeTag { return T_UpdateStmt }
+
+// DeleteStmt represents a DELETE statement:
+//
+//	DELETE FROM table [alias] [USING sources] [WHERE cond]
+type DeleteStmt struct {
+	Target *ObjectName
+	Alias  Ident  // table alias; zero Ident if absent
+	Using  []Node // USING clause items; nil if absent
+	Where  Node   // WHERE condition; nil if absent
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *DeleteStmt) Tag() NodeTag { return T_DeleteStmt }
+
+// MergeAction identifies the action in a WHEN clause of a MERGE statement.
+type MergeAction int
+
+const (
+	MergeActionUpdate MergeAction = iota // WHEN ... THEN UPDATE SET ...
+	MergeActionDelete                    // WHEN ... THEN DELETE
+	MergeActionInsert                    // WHEN ... THEN INSERT ...
+)
+
+// MergeWhen represents one WHEN clause in a MERGE statement.
+type MergeWhen struct {
+	Matched       bool // true = WHEN MATCHED, false = WHEN NOT MATCHED
+	BySource      bool // WHEN NOT MATCHED BY SOURCE (Snowflake extension)
+	ByTarget      bool // WHEN NOT MATCHED BY TARGET (or plain NOT MATCHED)
+	AndCond       Node // optional AND condition; nil if absent
+	Action        MergeAction
+	Sets          []*UpdateSet // for MergeActionUpdate
+	InsertCols    []Ident      // for MergeActionInsert: optional column list
+	InsertVals    []Node       // for MergeActionInsert: VALUES expressions
+	InsertDefault bool         // for MergeActionInsert: INSERT VALUES DEFAULT
+	Loc           Loc
+}
+
+// MergeStmt represents a MERGE statement:
+//
+//	MERGE INTO target [alias] USING source [alias] ON cond [WHEN ...]...
+type MergeStmt struct {
+	Target      *ObjectName
+	TargetAlias Ident // alias for target; zero Ident if absent
+	Source      Node  // table ref or subquery
+	SourceAlias Ident // alias for source; zero Ident if absent
+	On          Node
+	Whens       []*MergeWhen
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *MergeStmt) Tag() NodeTag { return T_MergeStmt }
+
+// Compile-time assertions for DML nodes.
+var (
+	_ Node = (*InsertStmt)(nil)
+	_ Node = (*InsertMultiStmt)(nil)
+	_ Node = (*UpdateStmt)(nil)
+	_ Node = (*DeleteStmt)(nil)
+	_ Node = (*MergeStmt)(nil)
+)
