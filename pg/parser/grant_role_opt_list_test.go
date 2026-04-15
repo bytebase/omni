@@ -209,3 +209,24 @@ func TestGrantRoleOptionsAndGrantedBy(t *testing.T) {
 		}
 	})
 }
+
+// TestGrantRoleOptListRejectsMalformed guards against the loop-then-break
+// bug where parseGrantRoleOptList accepted trailing commas or missing
+// options. PG rejects all of these at parse time; omni must match.
+func TestGrantRoleOptListRejectsMalformed(t *testing.T) {
+	cases := []string{
+		"GRANT r1 TO r2 WITH",                            // bare WITH, no opt
+		"GRANT r1 TO r2 WITH ADMIN TRUE,",                // trailing comma
+		"GRANT r1 TO r2 WITH ADMIN TRUE, GRANTED BY r3",  // comma then non-opt
+		"GRANT r1 TO r2 WITH GRANTED BY r3",              // WITH then non-opt
+		"GRANT r1 TO r2 WITH ,ADMIN TRUE",                // leading comma
+		"GRANT r1 TO r2 WITH ADMIN TRUE, , INHERIT TRUE", // empty middle
+	}
+	for _, sql := range cases {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("expected parse error for %q, got nil", sql)
+			}
+		})
+	}
+}

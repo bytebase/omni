@@ -168,7 +168,10 @@ func (p *Parser) finishGrantRole(loc int, isGrant bool, roles *nodes.List) (node
 		return nil, err
 	}
 	grantees := p.parseRoleList()
-	opts := p.parseGrantRoleOptList()
+	opts, err := p.parseGrantRoleOptList()
+	if err != nil {
+		return nil, err
+	}
 	grantedBy := p.parseOptGrantedBy()
 	return &nodes.GrantRoleStmt{
 		GrantedRoles: roles, GranteeRoles: grantees, IsGrant: isGrant, Opt: opts,
@@ -549,29 +552,32 @@ func (p *Parser) parseOptGrantedBy() *nodes.RoleSpec {
 	return nil
 }
 
-func (p *Parser) parseGrantRoleOptList() *nodes.List {
+func (p *Parser) parseGrantRoleOptList() (*nodes.List, error) {
 	// PG grammar: opt_granted_by's sibling here is
 	//   WITH grant_role_opt_list
 	//   where grant_role_opt_list is a comma-separated list of grant_role_opt.
 	// A single WITH introduces the whole list; entries are comma-separated.
+	// Once WITH (or a ',') has been consumed, a valid grant_role_opt is
+	// required — silently accepting a trailing comma or an unrecognized
+	// option would make the parser permissive where PG rejects.
 	if p.cur.Type != WITH {
-		return nil
+		return nil, nil
 	}
 	p.advance() // consume WITH
 	first := p.parseGrantRoleOptValue()
 	if first == nil {
-		return nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
 		p.advance()
 		next := p.parseGrantRoleOptValue()
 		if next == nil {
-			break
+			return nil, p.syntaxErrorAtCur()
 		}
 		items = append(items, next)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 func (p *Parser) parseGrantRoleOptValue() *nodes.DefElem {

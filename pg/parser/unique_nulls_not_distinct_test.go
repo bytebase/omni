@@ -73,15 +73,41 @@ func TestUniqueNullsNotDistinct(t *testing.T) {
 	})
 
 	t.Run("table-level UNIQUE NULLS NOT DISTINCT (c)", func(t *testing.T) {
-		parseOK(t, "CREATE TABLE t (c int, UNIQUE NULLS NOT DISTINCT (c))")
+		stmt := singleStmt(t, "CREATE TABLE t (c int, UNIQUE NULLS NOT DISTINCT (c))")
+		cs := stmt.(*nodes.CreateStmt)
+		// table-level constraint is the 2nd TableElt
+		if cs.TableElts == nil || len(cs.TableElts.Items) < 2 {
+			t.Fatalf("expected >=2 table elements, got %d", len(cs.TableElts.Items))
+		}
+		c, ok := cs.TableElts.Items[1].(*nodes.Constraint)
+		if !ok {
+			t.Fatalf("elem[1] not Constraint: %T", cs.TableElts.Items[1])
+		}
+		if c.Contype != nodes.CONSTR_UNIQUE {
+			t.Fatalf("expected CONSTR_UNIQUE, got %v", c.Contype)
+		}
+		if !c.NullsNotDistinct {
+			t.Fatalf("expected NullsNotDistinct=true")
+		}
 	})
 
 	t.Run("CREATE UNIQUE INDEX NULLS NOT DISTINCT", func(t *testing.T) {
-		parseOK(t, "CREATE UNIQUE INDEX i ON t (c) NULLS NOT DISTINCT")
+		stmt := singleStmt(t, "CREATE UNIQUE INDEX i ON t (c) NULLS NOT DISTINCT")
+		idx, ok := stmt.(*nodes.IndexStmt)
+		if !ok {
+			t.Fatalf("expected IndexStmt, got %T", stmt)
+		}
+		if !idx.Nulls_not_distinct {
+			t.Fatalf("expected idx.Nulls_not_distinct=true")
+		}
 	})
 
 	t.Run("CREATE UNIQUE INDEX NULLS DISTINCT", func(t *testing.T) {
-		parseOK(t, "CREATE UNIQUE INDEX i ON t (c) NULLS DISTINCT")
+		stmt := singleStmt(t, "CREATE UNIQUE INDEX i ON t (c) NULLS DISTINCT")
+		idx := stmt.(*nodes.IndexStmt)
+		if idx.Nulls_not_distinct {
+			t.Fatalf("expected idx.Nulls_not_distinct=false")
+		}
 	})
 
 	// Regression-sanity: NULLS FIRST/LAST in ORDER BY must still work

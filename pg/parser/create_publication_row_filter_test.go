@@ -38,6 +38,19 @@ func TestCreatePublicationTablesInSchemaWhere(t *testing.T) {
 		if cp.Pubobjects == nil || len(cp.Pubobjects.Items) != 2 {
 			t.Fatalf("expected 2 pubobjects, got %v", cp.Pubobjects)
 		}
+		// Ensure the permissive WHERE parse did not reclassify item[0]
+		// as TABLES_IN_SCHEMA or collapse both into one entry.
+		spec0 := cp.Pubobjects.Items[0].(*nodes.PublicationObjSpec)
+		if spec0.Pubobjtype != nodes.PUBLICATIONOBJ_TABLE {
+			t.Fatalf("item[0] expected TABLE, got %v", spec0.Pubobjtype)
+		}
+		spec1 := cp.Pubobjects.Items[1].(*nodes.PublicationObjSpec)
+		if spec1.Pubobjtype != nodes.PUBLICATIONOBJ_TABLES_IN_SCHEMA {
+			t.Fatalf("item[1] expected TABLES_IN_SCHEMA, got %v", spec1.Pubobjtype)
+		}
+		if spec1.Name != "s1" {
+			t.Fatalf("item[1] expected schema s1, got %q", spec1.Name)
+		}
 	})
 
 	// Regression-sanity: existing forms must still work.
