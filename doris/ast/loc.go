@@ -124,6 +124,22 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *MergeClause:
 		return v.Loc
+	case *MTMVRefreshTrigger:
+		return v.Loc
+	case *CreateMTMVStmt:
+		return v.Loc
+	case *AlterMTMVStmt:
+		return v.Loc
+	case *DropMTMVStmt:
+		return v.Loc
+	case *RefreshMTMVStmt:
+		return v.Loc
+	case *PauseMTMVJobStmt:
+		return v.Loc
+	case *ResumeMTMVJobStmt:
+		return v.Loc
+	case *CancelMTMVTaskStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

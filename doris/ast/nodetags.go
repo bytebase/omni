@@ -206,6 +206,32 @@ const (
 
 	// T_MergeClause is the tag for *MergeClause (one WHEN clause inside MERGE).
 	T_MergeClause
+
+	// DDL — Materialized View nodes (T5.1).
+
+	// T_MTMVRefreshTrigger is the tag for *MTMVRefreshTrigger.
+	T_MTMVRefreshTrigger
+
+	// T_CreateMTMVStmt is the tag for *CreateMTMVStmt.
+	T_CreateMTMVStmt
+
+	// T_AlterMTMVStmt is the tag for *AlterMTMVStmt.
+	T_AlterMTMVStmt
+
+	// T_DropMTMVStmt is the tag for *DropMTMVStmt.
+	T_DropMTMVStmt
+
+	// T_RefreshMTMVStmt is the tag for *RefreshMTMVStmt.
+	T_RefreshMTMVStmt
+
+	// T_PauseMTMVJobStmt is the tag for *PauseMTMVJobStmt.
+	T_PauseMTMVJobStmt
+
+	// T_ResumeMTMVJobStmt is the tag for *ResumeMTMVJobStmt.
+	T_ResumeMTMVJobStmt
+
+	// T_CancelMTMVTaskStmt is the tag for *CancelMTMVTaskStmt.
+	T_CancelMTMVTaskStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -327,6 +353,22 @@ func (t NodeTag) String() string {
 		return "MergeStmt"
 	case T_MergeClause:
 		return "MergeClause"
+	case T_MTMVRefreshTrigger:
+		return "MTMVRefreshTrigger"
+	case T_CreateMTMVStmt:
+		return "CreateMTMVStmt"
+	case T_AlterMTMVStmt:
+		return "AlterMTMVStmt"
+	case T_DropMTMVStmt:
+		return "DropMTMVStmt"
+	case T_RefreshMTMVStmt:
+		return "RefreshMTMVStmt"
+	case T_PauseMTMVJobStmt:
+		return "PauseMTMVJobStmt"
+	case T_ResumeMTMVJobStmt:
+		return "ResumeMTMVJobStmt"
+	case T_CancelMTMVTaskStmt:
+		return "CancelMTMVTaskStmt"
 	default:
 		return "Unknown"
 	}
