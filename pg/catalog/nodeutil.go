@@ -186,21 +186,79 @@ func (c *Catalog) resolveTypeName(tn *nodes.TypeName) (uint32, int32, error) {
 }
 
 // typeNameParts extracts schema and type name from a nodes.TypeName.Names list.
+//
+// PG accepts qualified type names with up to 3 components in its grammar:
+//
+//   - 1 component:  name                  → ("", name)
+//   - 2 components: schema.name           → (schema, name)
+//   - 3 components: catalog.schema.name   → (schema, name)  (catalog is dropped)
+//
+// For 3-component names, PG validates at name-resolution time that the
+// catalog component matches the current database name. If it doesn't,
+// PG raises "cross-database references are not implemented". omni has
+// no concept of "current database", so we cannot perform that
+// validation — we unconditionally drop the catalog component.
+//
+// Trade-off (deliberate, codex review of commit a47e68d):
+//
+//   - Permissive (current behavior): `mydb.pg_catalog.int4` resolves
+//     correctly when mydb is the current db (the common case for
+//     pg_dump output). `otherdb.pg_catalog.int4` is also accepted as
+//     local pg_catalog.int4 — a false positive that omni cannot
+//     distinguish from the valid case.
+//   - Strict (reject all 3-component): would break pg_dump round-trip
+//     for any dump that emits 3-part type names with the current db
+//     as the catalog (the most common shape).
+//
+// We chose permissive because the strict alternative blocks a real
+// workflow (dump-restore) to catch a syntax form that virtually no
+// user writes by hand. Cross-db type references are not implemented
+// in PG itself, so the false-positive case represents SQL that
+// wouldn't have worked anywhere — only the error message is missing.
+// If omni gains a current-database concept, this branch should
+// validate and reject mismatches.
+//
+// 4+ components: PG rejects these at name-resolution time as "improper
+// qualified name". omni returns ("", "") so the downstream resolver fails
+// to find a type with empty name. We deliberately do NOT fall back to
+// `("", lastItem)`: that would silently let `CREATE TABLE t (c
+// a.b.c.int4)` resolve as the local `int4` type, turning invalid SQL
+// into a successful parse with the wrong AST. A typed error from
+// typeNameParts would give a more informative error message than
+// `type "" does not exist`, but it would require a signature change at
+// all 8 call sites and is out of scope for this fix.
+//
+// History: prior to this fix, typeNameParts treated len > 2 as
+// ("", lastItem) — silently dropping ALL qualification beyond the last
+// component. That broke 3-component names in three currently-reachable
+// flows: %TYPE references, parseAnyName-driven CREATE TABLE OF / ALTER
+// TABLE OF / COMMENT ON CONSTRAINT ON DOMAIN, and (after the paired
+// parseGenericType fix) every type position. See
+// docs/plans/2026-04-14-pg-followups.md for the full audit.
 func typeNameParts(tn *nodes.TypeName) (schema, name string) {
 	if tn.Names == nil {
 		return "", ""
 	}
 	items := tn.Names.Items
 	switch len(items) {
+	case 0:
+		return "", ""
 	case 1:
 		return "", stringVal(items[0])
 	case 2:
 		return stringVal(items[0]), stringVal(items[1])
+	case 3:
+		// catalog.schema.name — drop the catalog prefix. PG would
+		// validate it matches the current database, but we don't
+		// track that here.
+		return stringVal(items[1]), stringVal(items[2])
 	default:
-		// Last element is the type name.
-		if len(items) > 0 {
-			return "", stringVal(items[len(items)-1])
-		}
+		// 4+ components: PG rejects these at name resolution time as
+		// "improper qualified name". Return empty so the downstream
+		// resolver fails. Falling back to ("", lastItem) would silently
+		// resolve `CREATE TABLE t (c a.b.c.int4)` as the local `int4`
+		// type — a silent success bug that codex caught during the
+		// implementation review of this commit's predecessor.
 		return "", ""
 	}
 }

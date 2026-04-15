@@ -1,11 +1,5 @@
 {
-  "alter_table.sql": [
-    1043,
-    1044,
-    1048,
-    1050,
-    1061
-  ],
+  "alter_table.sql": [],
   "arrays.sql": [
     211,
     212,
@@ -135,7 +129,6 @@
   ],
   "event_trigger.sql": [
     16,
-    73,
     216
   ],
   "fast_default.sql": [
@@ -204,9 +197,7 @@
     553,
     584
   ],
-  "join_hash.sql": [
-    4
-  ],
+  "join_hash.sql": [],
   "json.sql": [
     65,
     84,

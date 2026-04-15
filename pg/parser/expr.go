@@ -1472,7 +1472,13 @@ func (p *Parser) parseCExprInner() (nodes.Node, error) {
 			return p.parseTypeCastedConst()
 		}
 		// --- func_expr: func_application or columnref ---
-		if p.isColId() || p.isTypeFunctionName() {
+		// Predicate is isColId only — parseColumnRefOrFuncCall calls
+		// parseColId downstream, which rejects TypeFuncNameKeyword. The
+		// previous `|| p.isTypeFunctionName()` was dead code: it
+		// admitted INNER/LEFT/JOIN/etc into the parse function only to
+		// have them rejected one call deeper. PG's a_expr → columnref
+		// → ColId path matches this strict form.
+		if p.isColId() {
 			return p.parseColumnRefOrFuncCall()
 		}
 	}
@@ -2994,17 +3000,13 @@ func (p *Parser) parseFrameBound(opts int, isStart bool) (int, nodes.Node, error
 
 // isAExprConstTypeCast checks if we're looking at a type-casted constant
 // like: int '42' or interval '1 day' or typename 'literal'.
+//
+// Thin wrapper that delegates to isConstTypenameStart — the canonical
+// predicate for "current token starts a ConstTypename". Keeps this
+// call site's intent ("AexprConst type cast") legible without
+// maintaining a second hand-written copy of the type FIRST set.
 func (p *Parser) isAExprConstTypeCast() bool {
-	// ConstTypename Sconst: Numeric/Bit/Character/DateTime/JSON types followed by SCONST
-	switch p.cur.Type {
-	case INT_P, INTEGER, SMALLINT, BIGINT, REAL, FLOAT_P, DOUBLE_P,
-		DECIMAL_P, DEC, NUMERIC,
-		BIT, CHARACTER, CHAR_P, VARCHAR, NATIONAL, NCHAR,
-		BOOLEAN_P, JSON,
-		TIMESTAMP, TIME, INTERVAL:
-		return true
-	}
-	return false
+	return p.isConstTypenameStart()
 }
 
 // parseTypeCastedConst parses ConstTypename Sconst or ConstInterval Sconst opt_interval.

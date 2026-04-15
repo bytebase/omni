@@ -102,6 +102,12 @@ func (p *Parser) parseOptArrayBounds() (*nodes.List, error) {
 //	    | ConstInterval '(' Iconst ')'
 //	    | BOOLEAN_P
 //	    | JSON
+//
+// MAINTENANCE: the explicit case list below MUST stay in lockstep with
+// simpleTypenameLeadTokens in first_sets.go. Callers using FIRST-set
+// lookahead should consult isSimpleTypenameStart rather than hand-writing
+// a switch on these tokens — TestSimpleTypenameLeadTokensMatchPG enforces
+// the parity against PG 17 so any drift fails CI.
 func (p *Parser) parseSimpleTypename() (*nodes.TypeName, error) {
 	switch p.cur.Type {
 	case INT_P, INTEGER:
@@ -187,31 +193,37 @@ func (p *Parser) parseSimpleTypename() (*nodes.TypeName, error) {
 //
 //	GenericType:
 //	    type_function_name opt_type_modifiers
-//	    | type_function_name '.' attr_name opt_type_modifiers
+//	    | type_function_name attrs opt_type_modifiers
+//
+// `attrs` is recursive in PG's grammar (gram.y:7007-7011), so an
+// arbitrary number of `.attr_name` continuations is allowed:
+// `pg_catalog.int4`, `db.schema.mytype`, `a.b.c.d`, etc.
+//
+// Reuses the existing parseAttrs helper from name.go (which is also
+// used by extension.go, fdw.go, and parseFuncType's %TYPE branch).
+//
+// History: prior to this fix, this function consumed exactly one
+// dot and produced a 2-element Names list at most. That caused
+// every type position (CAST, TYPECAST, CREATE TABLE column, ALTER
+// TABLE, CREATE FUNCTION param/return, RETURNS TABLE, CREATE
+// OPERATOR LEFTARG/RIGHTARG, CREATE SEQUENCE AS, XMLSERIALIZE,
+// JSON_SERIALIZE RETURNING) to reject 3-or-more component qualified
+// type names. The catalog's typeNameParts already handles
+// 3-component as (schema, name) — see commit 433a1eb. See
+// docs/plans/2026-04-14-pg-followups.md for the audit.
 func (p *Parser) parseGenericType() (*nodes.TypeName, error) {
 	name, err := p.parseTypeFunctionName()
 	if err != nil {
 		return nil, err
 	}
 
+	nameItems := []nodes.Node{&nodes.String{Str: name}}
 	if p.cur.Type == '.' {
-		p.advance()
-		attr, err := p.parseAttrName()
+		attrs, err := p.parseAttrs()
 		if err != nil {
 			return nil, err
 		}
-		typmods, err := p.parseOptTypeModifiers()
-		if err != nil {
-			return nil, err
-		}
-		return &nodes.TypeName{
-			Names: &nodes.List{Items: []nodes.Node{
-				&nodes.String{Str: name},
-				&nodes.String{Str: attr},
-			}},
-			Typmods:  typmods,
-			Loc: nodes.NoLoc(),
-		}, nil
+		nameItems = append(nameItems, attrs.Items...)
 	}
 
 	typmods, err := p.parseOptTypeModifiers()
@@ -219,9 +231,9 @@ func (p *Parser) parseGenericType() (*nodes.TypeName, error) {
 		return nil, err
 	}
 	return &nodes.TypeName{
-		Names:    &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}},
-		Typmods:  typmods,
-		Loc: nodes.NoLoc(),
+		Names:   &nodes.List{Items: nameItems},
+		Typmods: typmods,
+		Loc:     nodes.NoLoc(),
 	}, nil
 }
 
@@ -747,13 +759,19 @@ func (p *Parser) parseFuncType() (*nodes.TypeName, error) {
 		// Check if this looks like a %TYPE reference (name.name...%TYPE)
 		next := p.peekNext()
 		if next.Type == '.' {
-			// Could be qualified type or %TYPE. We need to try parsing.
-			// Save state for backtracking.
-			savedCur := p.cur
-			savedPrev := p.prev
-			savedNext := p.nextBuf
-			savedHasNext := p.hasNext
-			savedLexerErr := p.lexer.Err
+			// Could be qualified type or %TYPE. Speculatively parse the
+			// %TYPE form; if it doesn't match, roll the token stream back
+			// and let parseTypename handle it as a normal qualified type.
+			//
+			// Use snapshotTokenStream/restoreTokenStream for the rollback —
+			// the previous hand-rolled save here only captured cur/prev/
+			// nextBuf/hasNext/lexer.Err and missed lexer.pos/start/state,
+			// causing every qualified type at any parseFuncType call site
+			// (parseFuncArg, RETURNS, parseTableFuncColumn, parseDefArg /
+			// CREATE OPERATOR LEFTARG/RIGHTARG, etc.) to corrupt the lexer
+			// position when parseAttrs read fresh tokens during the
+			// speculative parse.
+			snap := p.snapshotTokenStream()
 
 			name, _ := p.parseTypeFunctionName()
 			if p.cur.Type == '.' {
@@ -768,18 +786,14 @@ func (p *Parser) parseFuncType() (*nodes.TypeName, error) {
 						return &nodes.TypeName{
 							Names:   &nodes.List{Items: nameItems},
 							PctType: true,
-							Loc: nodes.NoLoc(),
+							Loc:     nodes.NoLoc(),
 						}, nil
 					}
 				}
 			}
 
 			// Not %TYPE pattern - restore and parse as Typename
-			p.cur = savedCur
-			p.prev = savedPrev
-			p.nextBuf = savedNext
-			p.hasNext = savedHasNext
-			p.lexer.Err = savedLexerErr
+			p.restoreTokenStream(snap)
 		}
 	}
 

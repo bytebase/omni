@@ -951,11 +951,7 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, relpersiste
 // isCreateTableElement returns true if the current token starts a table element
 // that is NOT a simple column name (i.e., a table constraint or LIKE).
 func (p *Parser) isCreateTableElement() bool {
-	switch p.cur.Type {
-	case LIKE, CHECK, CONSTRAINT, PRIMARY, UNIQUE, FOREIGN, EXCLUDE:
-		return true
-	}
-	return false
+	return p.cur.Type == LIKE || p.isTableConstraintStart()
 }
 
 // finishCTAS completes parsing a CTAS statement after names and optional column

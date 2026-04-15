@@ -681,12 +681,16 @@ func (p *Parser) parseRuleActionMulti() *nodes.List {
 //	RuleActionStmt:
 //	    SelectStmt | InsertStmt | UpdateStmt | DeleteStmt | NotifyStmt
 func (p *Parser) parseRuleActionStmt() (nodes.Node, error) {
-	switch p.cur.Type {
-	case SELECT, VALUES, TABLE, WITH:
+	if p.isSelectStart() {
+		// WITH is in the SELECT FIRST set but dispatches to parseWithStmt
+		// rather than parseSelectNoParens, so handle it as a sub-branch
+		// inside the isSelectStart() gate.
 		if p.cur.Type == WITH {
 			return p.parseWithStmt()
 		}
 		return p.parseSelectNoParens()
+	}
+	switch p.cur.Type {
 	case INSERT:
 		return p.parseInsertStmt(nil)
 	case UPDATE:

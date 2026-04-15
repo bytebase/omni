@@ -103,6 +103,33 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 	var pendingFKs []pendingFK
 
+	// unnamedFKCount counts FKs that received an auto-generated name in this
+	// CREATE TABLE statement. Matches MySQL 8.0's generate_fk_name() counter,
+	// which is initialized to 0 for CREATE TABLE and incremented per unnamed FK,
+	// IGNORING user-named FKs. See sql/sql_table.cc:9252 (create_table_impl
+	// is called with fk_max_generated_name_number = 0) and sql/sql_table.cc:5912
+	// (generate_fk_name uses ++counter).
+	//
+	// Example: CREATE TABLE t (a INT, CONSTRAINT t_ibfk_5 FK, b INT, FK)
+	//   → first unnamed FK gets t_ibfk_1 (not t_ibfk_2 or t_ibfk_6).
+	// This differs from ALTER TABLE ADD FK, where the counter starts at
+	// max(existing) — see altercmds.go.
+	var unnamedFKCount int
+
+	// unnamedCheckCount counts CHECK constraints that received an auto-generated
+	// name in this CREATE TABLE statement. Matches MySQL 8.0's CHECK counter
+	// at sql/sql_table.cc:19073 (cc_max_generated_number starts at 0, used
+	// via ++cc_max_generated_number). Like the FK counter, this IGNORES
+	// user-named CHECK constraints during CREATE TABLE.
+	//
+	// Example: CREATE TABLE t (a INT, CONSTRAINT t_chk_1 CHECK(a>0), b INT, CHECK(b<100))
+	//   → unnamed CHECK gets t_chk_1, but t_chk_1 is already taken by user
+	//   → real MySQL errors with ER_CHECK_CONSTRAINT_DUP_NAME
+	//   (see sql/sql_table.cc:19595 check_constraint_dup_name check).
+	// For ALTER TABLE ADD CHECK, the counter is loaded from existing max —
+	// see altercmds.go which uses nextCheckNumber (gap-scan helper).
+	var unnamedCheckCount int
+
 	// Process columns.
 	for i, colDef := range stmt.Columns {
 		colKey := toLower(colDef.Name)
@@ -223,7 +250,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				// Add check constraint.
 				conName := cc.Name
 				if conName == "" {
-					conName = fmt.Sprintf("%s_chk_%d", tableName, nextCheckNumber(tbl))
+					unnamedCheckCount++
+					conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
 				}
 				tbl.Constraints = append(tbl.Constraints, &Constraint{
 					Name:        conName,
@@ -242,7 +270,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				}
 				conName := cc.Name
 				if conName == "" {
-					conName = fmt.Sprintf("%s_ibfk_%d", tableName, countFKConstraints(tbl)+1)
+					unnamedFKCount++
+					conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
 				}
 				tbl.Constraints = append(tbl.Constraints, &Constraint{
 					Name:       conName,
@@ -401,7 +430,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case nodes.ConstrForeignKey:
 			conName := con.Name
 			if conName == "" {
-				conName = fmt.Sprintf("%s_ibfk_%d", tableName, countFKConstraints(tbl)+1)
+				unnamedFKCount++
+				conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
 			}
 			refDB := ""
 			refTable := ""
@@ -426,7 +456,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case nodes.ConstrCheck:
 			conName := con.Name
 			if conName == "" {
-				conName = fmt.Sprintf("%s_chk_%d", tableName, nextCheckNumber(tbl))
+				unnamedCheckCount++
+				conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
 			}
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:        conName,
@@ -990,15 +1021,52 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 	}
 }
 
-// countFKConstraints counts the number of foreign key constraints on a table.
-func countFKConstraints(tbl *Table) int {
-	count := 0
-	for _, c := range tbl.Constraints {
-		if c.Type == ConForeignKey {
-			count++
+// nextFKGeneratedNumber returns the next available counter for an auto-generated
+// InnoDB FK constraint name of the form "<tableName>_ibfk_<N>".
+//
+// This matches MySQL 8.0's behavior in sql/sql_table.cc:5843
+// (get_fk_max_generated_name_number): it scans existing FK constraints on the
+// table, parses any name that looks like "<tableName>_ibfk_<digits>" as a
+// generated name, and returns max(N)+1 (or 1 if no such names exist).
+//
+// Bytebase omni catalog is case-insensitive on table names (we lowercase the
+// prefix before comparison). MySQL's own comparison is case-sensitive on
+// already-lowered names, so this is equivalent for typical use.
+//
+// As in MySQL, pre-4.0.18-style names ("<tableName>_ibfk_0<digits>") are
+// ignored — we skip anything whose counter substring starts with '0'.
+func nextFKGeneratedNumber(tbl *Table, tableName string) int {
+	prefix := toLower(tableName) + "_ibfk_"
+	max := 0
+	for _, con := range tbl.Constraints {
+		if con.Type != ConForeignKey {
+			continue
+		}
+		name := toLower(con.Name)
+		if !strings.HasPrefix(name, prefix) {
+			continue
+		}
+		rest := name[len(prefix):]
+		if rest == "" || rest[0] == '0' {
+			continue
+		}
+		n := 0
+		ok := true
+		for _, ch := range rest {
+			if ch < '0' || ch > '9' {
+				ok = false
+				break
+			}
+			n = n*10 + int(ch-'0')
+		}
+		if !ok {
+			continue
+		}
+		if n > max {
+			max = n
 		}
 	}
-	return count
+	return max + 1
 }
 
 // nextCheckNumber returns the next available check constraint number for auto-naming.

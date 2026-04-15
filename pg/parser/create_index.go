@@ -263,6 +263,15 @@ func (p *Parser) parseIndexElemOpclass() (*nodes.List, *nodes.List) {
 }
 
 // isIndexElemOpclassStart returns true if the current token could start an opclass name.
+//
+// Predicate is isColId only — parseIndexElemOpclass calls
+// parseOptQualifiedName → parseAnyName → parseColId, which rejects
+// TypeFuncNameKeyword. The previous `|| p.isTypeFunctionName()` was
+// dead code in the success path. (The change can shift error
+// messages for invalid SQL with TypeFuncNameKeyword tokens at the
+// opclass position, but the negative-filter list above already
+// covers the only TypeFuncNameKeyword tokens that are valid index
+// clause terminators.)
 func (p *Parser) isIndexElemOpclassStart() bool {
 	switch p.cur.Type {
 	case ASC, DESC, NULLS_LA, ',', ')', 0,
@@ -270,5 +279,5 @@ func (p *Parser) isIndexElemOpclassStart() bool {
 		USING, DO:
 		return false
 	}
-	return p.isColId() || p.isTypeFunctionName()
+	return p.isColId()
 }

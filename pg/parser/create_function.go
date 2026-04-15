@@ -216,78 +216,87 @@ func (p *Parser) parseFuncArgWithDefault() (*nodes.FunctionParameter, error) {
 //	    | param_name func_type
 //	    | arg_class func_type
 //	    | func_type
+//
+// param_name is type_function_name; func_type is Typename or
+// type_function_name attrs '%' TYPE_P; arg_class is one of IN, OUT,
+// INOUT, IN OUT, VARIADIC.
+//
+// Disambiguation strategy: speculatively consume the leading token as
+// a param_name and check what follows. If the rest doesn't fit, roll
+// back via snapshotTokenStream / restoreTokenStream and let
+// parseFuncType handle the original token as the start of a type.
+//
+// Why speculative-consume instead of peek-then-commit: omni's parser
+// supports IDE completion mode (`Collect`) by populating candidate
+// completions as a side effect of `advance()` calls. A pure peek-then-
+// commit version of this function would never advance past the
+// param_name candidate, so completion mode would lose type-name
+// suggestions at positions like `CREATE FUNCTION f(x |` and
+// `CREATE FUNCTION f(IN x |`. The lossy `pushBack(string)` mechanism
+// the previous version used was a buggy form of the same speculative
+// pattern; switching to snapshotTokenStream / restoreTokenStream keeps
+// the advance side effects intact while making the rollback lossless.
+//
+// History: the prior pushBack(string) mechanism rewrote the rolled-back
+// token's Type to IDENT unconditionally. DOUBLE_P is the only
+// UnreservedKeyword in simpleTypenameLeadTokens, so 'CREATE FUNCTION
+// f(double precision)' and every `arg_class double precision` variant
+// failed at parse time. snapshotTokenStream / restoreTokenStream
+// preserves all token state on rollback.
 func (p *Parser) parseFuncArg() *nodes.FunctionParameter {
 	paramLoc := p.pos()
-	// This is complex because we need to distinguish between:
-	// 1. arg_class param_name func_type  (IN x integer)
-	// 2. param_name arg_class func_type  (x IN integer)
-	// 3. param_name func_type            (x integer)
-	// 4. arg_class func_type             (IN integer)
-	// 5. func_type                       (integer)
-	//
-	// arg_class is one of: IN, OUT, INOUT, IN OUT, VARIADIC
-	// param_name is type_function_name
-	// func_type is Typename or type_function_name attrs '%' TYPE_P
 
 	mode := nodes.FUNC_PARAM_IN // default
 	name := ""
 
 	argClass, isArgClass := p.tryParseArgClass()
 	if isArgClass {
-		// Cases 1 or 4
-		// Check if next is a param_name followed by a type, or directly a type
+		// Cases 1 or 4: arg_class is consumed; decide if a param_name
+		// follows or if cur is the type.
+		mode = argClass
 		if p.isTypeFunctionName() {
-			// Could be param_name func_type or just func_type
-			// Try to distinguish: parse as param_name, then check if what follows
-			// looks like a type. If not, it was actually the type itself.
+			snap := p.snapshotTokenStream()
 			savedName, _ := p.parseTypeFunctionName()
-
-			if p.isTypeFunctionName() || p.isBuiltinType() || p.cur.Type == SETOF {
-				// It's param_name followed by func_type
+			if p.isFuncTypeStart() {
+				// Case 1: arg_class param_name func_type
 				name = savedName
-				mode = argClass
-			} else if p.cur.Type == '.' || p.cur.Type == '%' {
-				// Could be qualified type name (schema.type) or %TYPE
-				// If it's name '.' name, it could still be type_function_name attrs '%' TYPE
-				// or a qualified Typename. For func_type specifically, we handle the %TYPE case.
-				// The safe bet: treat savedName as the type (part of func_type).
-				// We need to "put back" savedName and parse as func_type.
-				// Since we can't easily backtrack, use savedName as param name
-				// only if the pattern matches.
-				// Actually, at this point if we see '.', it's likely a qualified type,
-				// not a param name. So treat savedName as start of func_type.
-				p.pushBack(savedName)
-				mode = argClass
 			} else {
-				// savedName was actually the type name by itself
-				p.pushBack(savedName)
-				mode = argClass
+				// Case 4: cur IS the type (no param_name). Roll back so
+				// parseFuncType sees the original token, including its
+				// keyword Type. e.g. `IN double precision`: we consumed
+				// `double` speculatively, peek shows `precision` is not
+				// a func_type lead, so restore and let parseFuncType
+				// handle `double precision` via parseSimpleTypename.
+				p.restoreTokenStream(snap)
 			}
 		}
 	} else if p.isTypeFunctionName() {
-		// Cases 2, 3, or 5
+		// Cases 2, 3, or 5: cur could be a param_name or the type.
+		snap := p.snapshotTokenStream()
 		savedName, _ := p.parseTypeFunctionName()
-
-		// Check if an arg_class follows (case 2: param_name arg_class func_type)
 		argClass2, isArgClass2 := p.tryParseArgClass()
-		if isArgClass2 {
+		switch {
+		case isArgClass2:
+			// Case 2: param_name arg_class func_type. e.g. `x IN int`.
 			name = savedName
 			mode = argClass2
-		} else if p.isTypeFunctionName() || p.isBuiltinType() || p.cur.Type == SETOF {
-			// Case 3: param_name func_type
+		case p.isFuncTypeStart():
+			// Case 3: param_name func_type. e.g. `x int`, `p double precision`.
 			name = savedName
 			// mode stays FUNC_PARAM_IN
-		} else if p.cur.Type == '.' || p.cur.Type == '%' {
-			// Could be qualified type (case 5) or param with qualified type (case 3)
-			// For '.' after a name, it's likely a qualified type name.
-			p.pushBack(savedName)
-		} else {
-			// Case 5: savedName is the type itself
-			p.pushBack(savedName)
+		default:
+			// Case 5: cur IS the type. Roll back so parseFuncType sees
+			// the original token. This is the path that fixes
+			// `f(double precision)` — restore puts cur back to
+			// Token{DOUBLE_P, "double"} (not the lossy IDENT pushBack
+			// produced previously).
+			p.restoreTokenStream(snap)
 		}
 	}
 
-	// Parse func_type
+	// Parse func_type. cur is now positioned at the start of the type
+	// (whether we consumed a param_name above, restored a rollback, or
+	// never entered the speculative branch at all).
 	argType, _ := p.parseFuncType()
 
 	return &nodes.FunctionParameter{
@@ -320,29 +329,6 @@ func (p *Parser) tryParseArgClass() (nodes.FunctionParameterMode, bool) {
 		return nodes.FUNC_PARAM_VARIADIC, true
 	}
 	return 0, false
-}
-
-// pushBack pushes a name token back as the current token.
-// Used when we speculatively consumed a name but need to reparse it as a type.
-func (p *Parser) pushBack(name string) {
-	p.nextBuf = p.cur
-	p.hasNext = true
-	p.cur = Token{
-		Type: IDENT,
-		Str:  name,
-		Loc:  p.prev.Loc,
-	}
-}
-
-// isBuiltinType checks if the current token starts a built-in type keyword.
-func (p *Parser) isBuiltinType() bool {
-	switch p.cur.Type {
-	case INT_P, INTEGER, SMALLINT, BIGINT, REAL, FLOAT_P, DOUBLE_P,
-		DECIMAL_P, NUMERIC, BOOLEAN_P, BIT, CHAR_P, CHARACTER,
-		VARCHAR, TIMESTAMP, TIME, INTERVAL:
-		return true
-	}
-	return false
 }
 
 // parseTableFuncColumnList parses a comma-separated list of table function columns.

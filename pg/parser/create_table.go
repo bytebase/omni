@@ -244,17 +244,14 @@ func (p *Parser) parseTableElementList() (*nodes.List, error) {
 //
 //	TableElement: columnDef | TableConstraint | TableLikeClause
 func (p *Parser) parseTableElement() (nodes.Node, error) {
-	switch p.cur.Type {
-	case CONSTRAINT:
+	if p.isTableConstraintStart() {
 		return p.parseTableConstraint(), nil
-	case CHECK, UNIQUE, PRIMARY, FOREIGN, EXCLUDE:
-		return p.parseTableConstraint(), nil
-	case LIKE:
-		return p.parseTableLikeClause()
-	default:
-		// columnDef: ColId Typename opt_column_constraints
-		return p.parseColumnDef()
 	}
+	if p.cur.Type == LIKE {
+		return p.parseTableLikeClause()
+	}
+	// columnDef: ColId Typename opt_column_constraints
+	return p.parseColumnDef()
 }
 
 // parseColumnDef parses a column definition.
@@ -900,8 +897,13 @@ func (p *Parser) parseOptCollate() *nodes.List {
 // parseOptQualifiedName parses opt_qualified_name.
 //
 //	opt_qualified_name: any_name | /* EMPTY */
+//
+// Predicate is isColId only — parseAnyName calls parseColId
+// downstream, which rejects TypeFuncNameKeyword. PG's any_name
+// production is `ColId | ColId attrs`, also using ColId. The
+// previous `|| p.isTypeFunctionName()` was dead code.
 func (p *Parser) parseOptQualifiedName() *nodes.List {
-	if p.isColId() || p.isTypeFunctionName() {
+	if p.isColId() {
 		name, _ := p.parseAnyName()
 		return name
 	}
@@ -1039,12 +1041,10 @@ func (p *Parser) parseTypedTableElementList() *nodes.List {
 //
 //	TypedTableElement: columnOptions | TableConstraint
 func (p *Parser) parseTypedTableElement() nodes.Node {
-	switch p.cur.Type {
-	case CONSTRAINT, CHECK, UNIQUE, PRIMARY, FOREIGN, EXCLUDE:
+	if p.isTableConstraintStart() {
 		return p.parseTableConstraint()
-	default:
-		return p.parseColumnOptions()
 	}
+	return p.parseColumnOptions()
 }
 
 // parseColumnOptions parses columnOptions.

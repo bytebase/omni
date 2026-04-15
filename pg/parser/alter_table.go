@@ -700,6 +700,14 @@ func (p *Parser) parseAlterTableAdd() *nodes.AlterTableCmd {
 		return nil
 	}
 
+	if p.isTableConstraintStart() {
+		// ADD TableConstraint
+		constr := p.parseTableConstraint()
+		return &nodes.AlterTableCmd{
+			Subtype: int(nodes.AT_AddConstraint),
+			Def:     constr,
+		}
+	}
 	switch p.cur.Type {
 	case COLUMN:
 		p.advance() // consume COLUMN
@@ -727,13 +735,6 @@ func (p *Parser) parseAlterTableAdd() *nodes.AlterTableCmd {
 			Subtype:    int(nodes.AT_AddColumn),
 			Def:        coldef,
 			Missing_ok: true,
-		}
-	case CONSTRAINT, CHECK, UNIQUE, PRIMARY, EXCLUDE, FOREIGN:
-		// ADD TableConstraint
-		constr := p.parseTableConstraint()
-		return &nodes.AlterTableCmd{
-			Subtype: int(nodes.AT_AddConstraint),
-			Def:     constr,
 		}
 	default:
 		// ADD columnDef (without COLUMN keyword)
