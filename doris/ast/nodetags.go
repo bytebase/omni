@@ -206,6 +206,20 @@ const (
 
 	// T_MergeClause is the tag for *MergeClause (one WHEN clause inside MERGE).
 	T_MergeClause
+
+	// DDL — CATALOG nodes (T5.2).
+
+	// T_CreateCatalogStmt is the tag for *CreateCatalogStmt.
+	T_CreateCatalogStmt
+
+	// T_AlterCatalogStmt is the tag for *AlterCatalogStmt.
+	T_AlterCatalogStmt
+
+	// T_DropCatalogStmt is the tag for *DropCatalogStmt.
+	T_DropCatalogStmt
+
+	// T_RefreshCatalogStmt is the tag for *RefreshCatalogStmt.
+	T_RefreshCatalogStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -327,6 +341,14 @@ func (t NodeTag) String() string {
 		return "MergeStmt"
 	case T_MergeClause:
 		return "MergeClause"
+	case T_CreateCatalogStmt:
+		return "CreateCatalogStmt"
+	case T_AlterCatalogStmt:
+		return "AlterCatalogStmt"
+	case T_DropCatalogStmt:
+		return "DropCatalogStmt"
+	case T_RefreshCatalogStmt:
+		return "RefreshCatalogStmt"
 	default:
 		return "Unknown"
 	}
