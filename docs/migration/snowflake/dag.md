@@ -49,7 +49,7 @@ snowflake/
 | **T2.7** | 14 lint rules (parallel within node — see breakdown below) | `snowflake/advisor` | T2.2, T2.3, T2.5, T2.6, T1.4 | T3.1, T3.2, T3.4 | 2 | P0 | **done** (PR #84) |
 | **T3.1** | query span extractor (result-column lineage, table-access, CTE/set-op merging, EXCLUDE, subquery field resolution) | `snowflake/analysis` | T1.4, T1.5, T1.6, T1.7 | T2.7, T3.2, T3.4 | 3 | P0 | **done** (PR #82) |
 | **T3.2** | deparse-core (AST → SQL string for all P0 statement nodes) | `snowflake/deparse` | T1.4, T2.2, T5.1 | T2.7, T3.1, T3.4 | 3 | P0 | **done** (PR #83) |
-| **T3.3** | LIMIT injection rewrite (AST-level, mirrors `mysql/deparse/rewrite.go`) | `snowflake/deparse` | T3.2 | T3.4 | 3 | P0 | not started |
+| **T3.3** | LIMIT injection rewrite (AST-level, mirrors `mysql/deparse/rewrite.go`) | `snowflake/deparse` | T3.2 | T3.4 | 3 | P0 | **done** (PR #87) |
 | **T3.4** | syntax diagnostics (error listing for editor) | `snowflake/parser` | F4 | T2.7, T3.1–T3.3 | 3 | P0 | **done** (PR #73) |
 | **T5.1** | DML: INSERT (single + INSERT ALL/FIRST), UPDATE (USING), DELETE (USING), MERGE (matched / not matched / not matched by source) | `snowflake/parser` | T1.4, T1.5 | T2.* | 5 | P0 | **done** (PR #75) |
 | **M1** | bytebase import switch (replace `bytebase/parser/snowflake` imports with `omni/snowflake`) | bytebase repo | F1–T5.1 (all P0) | — | — | P0 | not started |
