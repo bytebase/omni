@@ -124,6 +124,32 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *MergeClause:
 		return v.Loc
+	case *CreateWorkloadGroupStmt:
+		return v.Loc
+	case *AlterWorkloadGroupStmt:
+		return v.Loc
+	case *DropWorkloadGroupStmt:
+		return v.Loc
+	case *WorkloadPolicyItem:
+		return v.Loc
+	case *CreateWorkloadPolicyStmt:
+		return v.Loc
+	case *AlterWorkloadPolicyStmt:
+		return v.Loc
+	case *DropWorkloadPolicyStmt:
+		return v.Loc
+	case *CreateResourceStmt:
+		return v.Loc
+	case *AlterResourceStmt:
+		return v.Loc
+	case *DropResourceStmt:
+		return v.Loc
+	case *CreateSQLBlockRuleStmt:
+		return v.Loc
+	case *AlterSQLBlockRuleStmt:
+		return v.Loc
+	case *DropSQLBlockRuleStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

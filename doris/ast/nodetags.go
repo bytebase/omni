@@ -206,6 +206,47 @@ const (
 
 	// T_MergeClause is the tag for *MergeClause (one WHEN clause inside MERGE).
 	T_MergeClause
+
+	// Workload management DDL nodes (T5.4).
+
+	// T_CreateWorkloadGroupStmt is the tag for *CreateWorkloadGroupStmt.
+	T_CreateWorkloadGroupStmt
+
+	// T_AlterWorkloadGroupStmt is the tag for *AlterWorkloadGroupStmt.
+	T_AlterWorkloadGroupStmt
+
+	// T_DropWorkloadGroupStmt is the tag for *DropWorkloadGroupStmt.
+	T_DropWorkloadGroupStmt
+
+	// T_WorkloadPolicyItem is the tag for *WorkloadPolicyItem.
+	T_WorkloadPolicyItem
+
+	// T_CreateWorkloadPolicyStmt is the tag for *CreateWorkloadPolicyStmt.
+	T_CreateWorkloadPolicyStmt
+
+	// T_AlterWorkloadPolicyStmt is the tag for *AlterWorkloadPolicyStmt.
+	T_AlterWorkloadPolicyStmt
+
+	// T_DropWorkloadPolicyStmt is the tag for *DropWorkloadPolicyStmt.
+	T_DropWorkloadPolicyStmt
+
+	// T_CreateResourceStmt is the tag for *CreateResourceStmt.
+	T_CreateResourceStmt
+
+	// T_AlterResourceStmt is the tag for *AlterResourceStmt.
+	T_AlterResourceStmt
+
+	// T_DropResourceStmt is the tag for *DropResourceStmt.
+	T_DropResourceStmt
+
+	// T_CreateSQLBlockRuleStmt is the tag for *CreateSQLBlockRuleStmt.
+	T_CreateSQLBlockRuleStmt
+
+	// T_AlterSQLBlockRuleStmt is the tag for *AlterSQLBlockRuleStmt.
+	T_AlterSQLBlockRuleStmt
+
+	// T_DropSQLBlockRuleStmt is the tag for *DropSQLBlockRuleStmt.
+	T_DropSQLBlockRuleStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -327,6 +368,32 @@ func (t NodeTag) String() string {
 		return "MergeStmt"
 	case T_MergeClause:
 		return "MergeClause"
+	case T_CreateWorkloadGroupStmt:
+		return "CreateWorkloadGroupStmt"
+	case T_AlterWorkloadGroupStmt:
+		return "AlterWorkloadGroupStmt"
+	case T_DropWorkloadGroupStmt:
+		return "DropWorkloadGroupStmt"
+	case T_WorkloadPolicyItem:
+		return "WorkloadPolicyItem"
+	case T_CreateWorkloadPolicyStmt:
+		return "CreateWorkloadPolicyStmt"
+	case T_AlterWorkloadPolicyStmt:
+		return "AlterWorkloadPolicyStmt"
+	case T_DropWorkloadPolicyStmt:
+		return "DropWorkloadPolicyStmt"
+	case T_CreateResourceStmt:
+		return "CreateResourceStmt"
+	case T_AlterResourceStmt:
+		return "AlterResourceStmt"
+	case T_DropResourceStmt:
+		return "DropResourceStmt"
+	case T_CreateSQLBlockRuleStmt:
+		return "CreateSQLBlockRuleStmt"
+	case T_AlterSQLBlockRuleStmt:
+		return "AlterSQLBlockRuleStmt"
+	case T_DropSQLBlockRuleStmt:
+		return "DropSQLBlockRuleStmt"
 	default:
 		return "Unknown"
 	}

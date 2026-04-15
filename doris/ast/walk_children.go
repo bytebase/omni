@@ -348,5 +348,55 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, val)
 			}
 		}
+
+	// Workload management DDL nodes (T5.4).
+	case *CreateWorkloadGroupStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterWorkloadGroupStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropWorkloadGroupStmt:
+		// leaf-ish node, no Node children
+	case *WorkloadPolicyItem:
+		// leaf node, raw text only
+	case *CreateWorkloadPolicyStmt:
+		for _, c := range n.Conditions {
+			Walk(v, c)
+		}
+		for _, a := range n.Actions {
+			Walk(v, a)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterWorkloadPolicyStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropWorkloadPolicyStmt:
+		// leaf-ish node, no Node children
+	case *CreateResourceStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterResourceStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropResourceStmt:
+		// leaf-ish node, no Node children
+	case *CreateSQLBlockRuleStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterSQLBlockRuleStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropSQLBlockRuleStmt:
+		// leaf-ish node, no Node children
 	}
 }
