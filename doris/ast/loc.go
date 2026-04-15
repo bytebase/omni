@@ -112,6 +112,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *DropViewStmt:
 		return v.Loc
+	case *InsertStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

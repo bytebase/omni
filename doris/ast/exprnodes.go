@@ -120,11 +120,12 @@ func (op UnaryOp) String() string {
 type LitKind int
 
 const (
-	LitInt    LitKind = iota // integer literal
-	LitFloat                 // decimal/float literal
-	LitString                // string literal
-	LitBool                  // TRUE or FALSE
-	LitNull                  // NULL
+	LitInt     LitKind = iota // integer literal
+	LitFloat                  // decimal/float literal
+	LitString                 // string literal
+	LitBool                   // TRUE or FALSE
+	LitNull                   // NULL
+	LitKeyword                // keyword used as literal value, e.g. DEFAULT
 )
 
 // CaseKind classifies a CASE expression as simple or searched.
