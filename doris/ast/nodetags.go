@@ -187,6 +187,17 @@ const (
 
 	// T_InsertStmt is the tag for *InsertStmt.
 	T_InsertStmt
+
+	// DML — UPDATE / DELETE nodes (T4.2).
+
+	// T_Assignment is the tag for *Assignment (col = expr in UPDATE SET clause).
+	T_Assignment
+
+	// T_UpdateStmt is the tag for *UpdateStmt.
+	T_UpdateStmt
+
+	// T_DeleteStmt is the tag for *DeleteStmt.
+	T_DeleteStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -298,6 +309,12 @@ func (t NodeTag) String() string {
 		return "DropViewStmt"
 	case T_InsertStmt:
 		return "InsertStmt"
+	case T_Assignment:
+		return "Assignment"
+	case T_UpdateStmt:
+		return "UpdateStmt"
+	case T_DeleteStmt:
+		return "DeleteStmt"
 	default:
 		return "Unknown"
 	}

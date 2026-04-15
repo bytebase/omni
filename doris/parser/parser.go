@@ -232,9 +232,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwINSERT:
 		return p.parseInsert()
 	case kwUPDATE:
-		return p.unsupported("UPDATE")
+		updateTok := p.advance() // consume UPDATE
+		return p.parseUpdateStmt(updateTok.Loc.Start)
 	case kwDELETE:
-		return p.unsupported("DELETE")
+		deleteTok := p.advance() // consume DELETE
+		return p.parseDeleteStmt(deleteTok.Loc.Start)
 	case kwMERGE:
 		return p.unsupported("MERGE")
 
