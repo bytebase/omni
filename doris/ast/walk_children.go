@@ -348,5 +348,66 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, val)
 			}
 		}
+
+	// DDL — Materialized View nodes (T5.1).
+	case *MTMVRefreshTrigger:
+		// leaf-ish node, no Node children
+
+	case *CreateMTMVStmt:
+		Walk(v, n.Name)
+		for _, col := range n.Columns {
+			Walk(v, col)
+		}
+		if n.RefreshTrigger != nil {
+			Walk(v, n.RefreshTrigger)
+		}
+		if n.PartitionBy != nil {
+			Walk(v, n.PartitionBy)
+		}
+		if n.DistributedBy != nil {
+			Walk(v, n.DistributedBy)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+		if n.Query != nil {
+			Walk(v, n.Query)
+		}
+
+	case *AlterMTMVStmt:
+		Walk(v, n.Name)
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
+		if n.ReplaceTarget != nil {
+			Walk(v, n.ReplaceTarget)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+
+	case *DropMTMVStmt:
+		Walk(v, n.Name)
+		if n.OnBase != nil {
+			Walk(v, n.OnBase)
+		}
+
+	case *RefreshMTMVStmt:
+		Walk(v, n.Name)
+
+	case *PauseMTMVJobStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+
+	case *ResumeMTMVJobStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+
+	case *CancelMTMVTaskStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	}
 }
