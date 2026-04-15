@@ -104,6 +104,14 @@ const (
 	// T_OrderByItem is the tag for *OrderByItem (expr ASC/DESC NULLS FIRST/LAST).
 	T_OrderByItem
 
+	// CTE / WITH clause nodes (T1.6).
+
+	// T_WithClause is the tag for *WithClause.
+	T_WithClause
+
+	// T_CTE is the tag for *CTE (one named CTE entry inside a WITH clause).
+	T_CTE
+
 	// SELECT statement nodes (T1.4).
 
 	// T_SelectStmt is the tag for *SelectStmt.
@@ -117,6 +125,9 @@ const (
 
 	// T_JoinClause is the tag for *JoinClause (JOIN expression in FROM).
 	T_JoinClause
+
+	// T_SetOpStmt is the tag for *SetOpStmt (UNION/INTERSECT/EXCEPT/MINUS).
+	T_SetOpStmt
 
 	// DDL — CREATE TABLE nodes (T2.1).
 
@@ -149,6 +160,14 @@ const (
 
 	// T_RawQuery is the tag for *RawQuery (placeholder for unparsed SELECT).
 	T_RawQuery
+
+	// DDL — ALTER TABLE nodes (T2.2).
+
+	// T_AlterTableStmt is the tag for *AlterTableStmt.
+	T_AlterTableStmt
+
+	// T_AlterTableAction is the tag for *AlterTableAction.
+	T_AlterTableAction
 )
 
 // String returns a human-readable representation of the tag.
@@ -212,6 +231,10 @@ func (t NodeTag) String() string {
 		return "IntervalExpr"
 	case T_OrderByItem:
 		return "OrderByItem"
+	case T_WithClause:
+		return "WithClause"
+	case T_CTE:
+		return "CTE"
 	case T_SelectStmt:
 		return "SelectStmt"
 	case T_SelectItem:
@@ -220,6 +243,8 @@ func (t NodeTag) String() string {
 		return "TableRef"
 	case T_JoinClause:
 		return "JoinClause"
+	case T_SetOpStmt:
+		return "SetOpStmt"
 	case T_CreateTableStmt:
 		return "CreateTableStmt"
 	case T_ColumnDef:
@@ -240,6 +265,10 @@ func (t NodeTag) String() string {
 		return "RollupDef"
 	case T_RawQuery:
 		return "RawQuery"
+	case T_AlterTableStmt:
+		return "AlterTableStmt"
+	case T_AlterTableAction:
+		return "AlterTableAction"
 	default:
 		return "Unknown"
 	}

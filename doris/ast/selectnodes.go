@@ -6,8 +6,41 @@ package ast
 // SELECT statement
 // ---------------------------------------------------------------------------
 
+// WithClause represents a WITH clause preceding a SELECT statement.
+//
+//	WITH [RECURSIVE] cte_name [(col1, col2, ...)] AS (query)
+//	  [, cte_name2 AS (query2)]
+type WithClause struct {
+	Recursive bool   // RECURSIVE keyword present
+	CTEs      []*CTE // one or more CTE definitions
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *WithClause) Tag() NodeTag { return T_WithClause }
+
+// Compile-time assertion that *WithClause satisfies Node.
+var _ Node = (*WithClause)(nil)
+
+// CTE is one named entry in a WITH clause:
+//
+//	cte_name [(col1, col2, ...)] AS (query)
+type CTE struct {
+	Name    string   // the CTE alias name
+	Columns []string // optional column aliases; nil/empty if not specified
+	Query   Node     // the inner SELECT statement (*SelectStmt)
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *CTE) Tag() NodeTag { return T_CTE }
+
+// Compile-time assertion that *CTE satisfies Node.
+var _ Node = (*CTE)(nil)
+
 // SelectStmt represents a full SELECT statement.
 //
+//	[WITH [RECURSIVE] cte ...]
 //	SELECT [DISTINCT|ALL] select_list
 //	  [FROM table_references]
 //	  [WHERE condition]
@@ -17,6 +50,7 @@ package ast
 //	  [ORDER BY expr [ASC|DESC] [NULLS FIRST|LAST], ...]
 //	  [LIMIT count [OFFSET offset]]
 type SelectStmt struct {
+	With     *WithClause   // optional WITH clause (nil if absent)
 	Distinct bool          // DISTINCT keyword present
 	All      bool          // ALL keyword present (explicit, rarely used)
 	Items    []*SelectItem // SELECT list
@@ -89,21 +123,26 @@ var _ Node = (*TableRef)(nil)
 type JoinType int
 
 const (
-	JoinInner JoinType = iota // [INNER] JOIN
-	JoinLeft                  // LEFT [OUTER] JOIN
-	JoinRight                 // RIGHT [OUTER] JOIN
-	JoinFull                  // FULL [OUTER] JOIN
-	JoinCross                 // CROSS JOIN
+	JoinInner     JoinType = iota // [INNER] JOIN
+	JoinLeft                      // LEFT [OUTER] JOIN
+	JoinRight                     // RIGHT [OUTER] JOIN
+	JoinFull                      // FULL [OUTER] JOIN
+	JoinCross                     // CROSS JOIN
+	JoinLeftSemi                  // LEFT SEMI JOIN
+	JoinRightSemi                 // RIGHT SEMI JOIN
+	JoinLeftAnti                  // LEFT ANTI JOIN
+	JoinRightAnti                 // RIGHT ANTI JOIN
 )
 
 // JoinClause represents a JOIN expression in the FROM clause.
 type JoinClause struct {
 	Type    JoinType
-	Left    Node   // left side of the join
-	Right   Node   // right side of the join
-	Natural bool   // NATURAL join
-	On      Node   // ON condition (nil if absent)
+	Left    Node     // left side of the join
+	Right   Node     // right side of the join
+	Natural bool     // NATURAL join modifier
+	On      Node     // ON condition (nil if absent)
 	Using   []string // USING (col1, col2, ...) column names
+	Hints   []string // execution hints, e.g. [shuffle], [broadcast]
 	Loc     Loc
 }
 
@@ -112,3 +151,36 @@ func (n *JoinClause) Tag() NodeTag { return T_JoinClause }
 
 // Compile-time assertion that *JoinClause satisfies Node.
 var _ Node = (*JoinClause)(nil)
+
+// ---------------------------------------------------------------------------
+// Set operation (UNION / INTERSECT / EXCEPT / MINUS) — T1.7
+// ---------------------------------------------------------------------------
+
+// SetOperator represents the type of set operation.
+type SetOperator int
+
+const (
+	SetUnion     SetOperator = iota // UNION
+	SetIntersect                    // INTERSECT
+	SetExcept                       // EXCEPT / MINUS
+)
+
+// SetOpStmt represents a set operation between two queries.
+//
+//	left UNION [ALL|DISTINCT] right
+//	left INTERSECT [ALL|DISTINCT] right
+//	left EXCEPT [ALL|DISTINCT] right
+//	left MINUS [ALL|DISTINCT] right  -- MINUS is an alias for EXCEPT in Doris
+type SetOpStmt struct {
+	Op    SetOperator // the set operator
+	All   bool        // true for ALL quantifier; false means DISTINCT (the default)
+	Left  Node        // SelectStmt or another SetOpStmt
+	Right Node        // SelectStmt or another SetOpStmt
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *SetOpStmt) Tag() NodeTag { return T_SetOpStmt }
+
+// Compile-time assertion that *SetOpStmt satisfies Node.
+var _ Node = (*SetOpStmt)(nil)

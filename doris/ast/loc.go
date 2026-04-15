@@ -66,6 +66,10 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *OrderByItem:
 		return v.Loc
+	case *WithClause:
+		return v.Loc
+	case *CTE:
+		return v.Loc
 	case *SelectStmt:
 		return v.Loc
 	case *SelectItem:
@@ -73,6 +77,8 @@ func NodeLoc(n Node) Loc {
 	case *TableRef:
 		return v.Loc
 	case *JoinClause:
+		return v.Loc
+	case *SetOpStmt:
 		return v.Loc
 	case *CreateTableStmt:
 		return v.Loc
@@ -93,6 +99,10 @@ func NodeLoc(n Node) Loc {
 	case *RollupDef:
 		return v.Loc
 	case *RawQuery:
+		return v.Loc
+	case *AlterTableStmt:
+		return v.Loc
+	case *AlterTableAction:
 		return v.Loc
 	default:
 		return NoLoc()

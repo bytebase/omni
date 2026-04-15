@@ -109,8 +109,21 @@ func walkChildren(v Visitor, node Node) {
 	case *OrderByItem:
 		Walk(v, n.Expr)
 
+	// CTE / WITH clause nodes (T1.6).
+	case *WithClause:
+		for _, cte := range n.CTEs {
+			Walk(v, cte)
+		}
+	case *CTE:
+		if n.Query != nil {
+			Walk(v, n.Query)
+		}
+
 	// SELECT statement nodes (T1.4).
 	case *SelectStmt:
+		if n.With != nil {
+			Walk(v, n.With)
+		}
 		for _, item := range n.Items {
 			Walk(v, item)
 		}
@@ -151,6 +164,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.On != nil {
 			Walk(v, n.On)
 		}
+	case *SetOpStmt:
+		Walk(v, n.Left)
+		Walk(v, n.Right)
 
 	// DDL — CREATE TABLE nodes (T2.1).
 	case *CreateTableStmt:
@@ -217,5 +233,37 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *RawQuery:
 		// leaf node, no parsed children
+
+	// DDL — ALTER TABLE nodes (T2.2).
+	case *AlterTableStmt:
+		Walk(v, n.Name)
+		for _, action := range n.Actions {
+			Walk(v, action)
+		}
+	case *AlterTableAction:
+		if n.Column != nil {
+			Walk(v, n.Column)
+		}
+		if n.NewTableName != nil {
+			Walk(v, n.NewTableName)
+		}
+		if n.Partition != nil {
+			Walk(v, n.Partition)
+		}
+		if n.PartitionDist != nil {
+			Walk(v, n.PartitionDist)
+		}
+		for _, prop := range n.PartitionProps {
+			Walk(v, prop)
+		}
+		if n.Rollup != nil {
+			Walk(v, n.Rollup)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+		if n.Distribution != nil {
+			Walk(v, n.Distribution)
+		}
 	}
 }

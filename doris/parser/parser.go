@@ -187,8 +187,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwALTER:
 		p.advance() // consume ALTER; cur is now the object type keyword
 		switch p.cur.Kind {
-		case kwDATABASE:
+		case kwDATABASE, kwSCHEMA:
 			return p.parseAlterDatabase()
+		case kwTABLE:
+			return p.parseAlterTable()
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -207,9 +209,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// DML
 	case kwSELECT:
-		return p.parseSelectStmt()
+		left, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+		return p.parseSetOpTail(left)
 	case kwWITH:
-		return p.unsupported("WITH")
+		return p.parseWithSelect()
 	case kwINSERT:
 		return p.unsupported("INSERT")
 	case kwUPDATE:

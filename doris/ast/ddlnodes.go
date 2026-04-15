@@ -1,6 +1,6 @@
 package ast
 
-// This file holds DDL AST node types for CREATE TABLE (T2.1).
+// This file holds DDL AST node types for CREATE TABLE (T2.1) and ALTER TABLE (T2.2).
 
 // ---------------------------------------------------------------------------
 // CREATE TABLE statement and supporting types
@@ -209,3 +209,95 @@ type RawQuery struct {
 func (n *RawQuery) Tag() NodeTag { return T_RawQuery }
 
 var _ Node = (*RawQuery)(nil)
+
+// ---------------------------------------------------------------------------
+// ALTER TABLE statement and supporting types (T2.2)
+// ---------------------------------------------------------------------------
+
+// AlterActionType identifies the kind of action in an ALTER TABLE statement.
+type AlterActionType int
+
+const (
+	AlterActionUnknown      AlterActionType = iota
+	AlterAddColumn                          // ADD COLUMN col_def [AFTER col | FIRST]
+	AlterDropColumn                         // DROP COLUMN col
+	AlterModifyColumn                       // MODIFY COLUMN col_def [AFTER col | FIRST]
+	AlterRenameColumn                       // RENAME COLUMN old TO new (or old new)
+	AlterRenameTable                        // RENAME TO new_name (or RENAME new_name)
+	AlterRenameRollup                       // RENAME ROLLUP old new
+	AlterRenamePartition                    // RENAME PARTITION old new
+	AlterAddPartition                       // ADD PARTITION ...
+	AlterDropPartition                      // DROP PARTITION name
+	AlterTruncatePartition                  // TRUNCATE PARTITION name
+	AlterReplacePartition                   // REPLACE PARTITION ... WITH TEMPORARY ...
+	AlterAddRollup                          // ADD ROLLUP name (cols) [FROM base] [PROPERTIES(...)]
+	AlterDropRollup                         // DROP ROLLUP name
+	AlterSetProperties                      // SET ("key"="value", ...)
+	AlterModifyPartition                    // MODIFY PARTITION p SET ("key"="val")
+	AlterModifyDistribution                 // MODIFY DISTRIBUTION DISTRIBUTED BY ...
+	AlterModifyComment                      // MODIFY COMMENT 'text'
+	AlterModifyEngine                       // MODIFY ENGINE TO engine
+	AlterEnableFeature                      // ENABLE FEATURE 'name' [WITH PROPERTIES (...)]
+	AlterOrderBy                            // ORDER BY (col1, col2, ...)
+	AlterRaw                                // fallback: raw text for unparsed actions
+)
+
+// AlterTableAction represents a single action in an ALTER TABLE statement.
+// Doris supports many action types; we use a generic struct with Type
+// and typed fields for common actions.
+type AlterTableAction struct {
+	Type AlterActionType
+	// Column actions (ADD/MODIFY COLUMN):
+	Column     *ColumnDef // for ADD/MODIFY COLUMN
+	ColumnName string     // for DROP/RENAME COLUMN
+	NewName    string     // for RENAME COLUMN (new name) or RENAME ROLLUP/PARTITION
+	After      string     // optional AFTER column name
+	First      bool       // FIRST position flag
+	// Rename table:
+	NewTableName *ObjectName // for RENAME TO new_name
+	// Partition actions:
+	Partition     *PartitionItem // for ADD PARTITION
+	PartitionName string         // for DROP/TRUNCATE/MODIFY PARTITION
+	PartitionList []string       // for MODIFY PARTITION (p1, p2) or (*)
+	PartitionStar bool           // MODIFY PARTITION (*)
+	// ADD PARTITION extras:
+	PartitionDist *DistributionDesc // optional DISTRIBUTED BY after ADD PARTITION
+	PartitionProps []*Property      // optional properties after ADD PARTITION
+	// Rollup actions:
+	Rollup     *RollupDef // for ADD ROLLUP
+	RollupName string     // for DROP ROLLUP / RENAME ROLLUP (old name)
+	// Properties (SET / MODIFY PARTITION SET):
+	Properties []*Property
+	// MODIFY DISTRIBUTION:
+	Distribution *DistributionDesc
+	// MODIFY COMMENT:
+	Comment string
+	// MODIFY ENGINE:
+	Engine string
+	// ENABLE FEATURE:
+	FeatureName string
+	// ORDER BY columns:
+	OrderByColumns []string
+	// Raw text for unsupported/complex actions:
+	RawText string
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *AlterTableAction) Tag() NodeTag { return T_AlterTableAction }
+
+var _ Node = (*AlterTableAction)(nil)
+
+// AlterTableStmt represents:
+//
+//	ALTER TABLE name action [, action ...]
+type AlterTableStmt struct {
+	Name    *ObjectName
+	Actions []*AlterTableAction
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *AlterTableStmt) Tag() NodeTag { return T_AlterTableStmt }
+
+var _ Node = (*AlterTableStmt)(nil)

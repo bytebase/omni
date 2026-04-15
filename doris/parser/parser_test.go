@@ -169,7 +169,6 @@ func TestParseAllDispatchCategories(t *testing.T) {
 		input   string
 		wantMsg string
 	}{
-		{"ALTER TABLE t ADD COLUMN c INT", "ALTER"},
 		{"DROP TABLE t", "DROP"},
 		{"TRUNCATE TABLE t", "TRUNCATE"},
 		{"INSERT INTO t VALUES (1)", "INSERT"},

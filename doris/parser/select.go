@@ -123,6 +123,112 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 }
 
 // ---------------------------------------------------------------------------
+// Set operations (UNION / INTERSECT / EXCEPT / MINUS) — T1.7
+// ---------------------------------------------------------------------------
+
+// parseSetOpTail checks whether the token stream continues with a set
+// operator (UNION, INTERSECT, EXCEPT, MINUS). If so, it loops consuming
+// set-op tokens and building a left-associative SetOpStmt tree.
+//
+// Precedence note: The SQL standard gives INTERSECT higher precedence than
+// UNION/EXCEPT. This implementation uses a two-level loop:
+//
+//  1. An inner loop collects a chain of INTERSECT clauses (higher priority).
+//  2. An outer loop then folds UNION/EXCEPT operators at lower priority.
+//
+// This matches Doris/MySQL behaviour where INTERSECT binds more tightly.
+func (p *Parser) parseSetOpTail(left ast.Node) (ast.Node, error) {
+	// Collect the left side of any pending UNION/EXCEPT operation, starting
+	// by giving INTERSECT first crack.
+	left, err := p.parseIntersectChain(left)
+	if err != nil {
+		return nil, err
+	}
+
+	// Outer loop: UNION / EXCEPT (including MINUS alias) – left-associative.
+	for {
+		var op ast.SetOperator
+		switch p.cur.Kind {
+		case kwUNION:
+			op = ast.SetUnion
+		case kwEXCEPT, kwMINUS:
+			op = ast.SetExcept
+		default:
+			return left, nil
+		}
+
+		opTok := p.advance() // consume UNION / EXCEPT / MINUS
+		_ = opTok
+
+		// Optional ALL / DISTINCT quantifier
+		all := false
+		if p.cur.Kind == kwALL {
+			p.advance()
+			all = true
+		} else if p.cur.Kind == kwDISTINCT {
+			p.advance()
+			// DISTINCT is the default — all stays false
+		}
+
+		// Parse the right-hand side: must start with SELECT.
+		if p.cur.Kind != kwSELECT {
+			return nil, p.syntaxErrorAtCur()
+		}
+		rightSelect, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+		// Give INTERSECT a chance to grab more operands on the right.
+		right, err := p.parseIntersectChain(rightSelect)
+		if err != nil {
+			return nil, err
+		}
+
+		left = &ast.SetOpStmt{
+			Op:    op,
+			All:   all,
+			Left:  left,
+			Right: right,
+			Loc:   ast.Loc{Start: ast.NodeLoc(left).Start, End: ast.NodeLoc(right).End},
+		}
+	}
+}
+
+// parseIntersectChain collects a left-associative chain of INTERSECT clauses
+// starting from an already-parsed left node.
+func (p *Parser) parseIntersectChain(left ast.Node) (ast.Node, error) {
+	for p.cur.Kind == kwINTERSECT {
+		p.advance() // consume INTERSECT
+
+		// Optional ALL / DISTINCT quantifier
+		all := false
+		if p.cur.Kind == kwALL {
+			p.advance()
+			all = true
+		} else if p.cur.Kind == kwDISTINCT {
+			p.advance()
+		}
+
+		if p.cur.Kind != kwSELECT {
+			return nil, p.syntaxErrorAtCur()
+		}
+		right, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+
+		left = &ast.SetOpStmt{
+			Op:    ast.SetIntersect,
+			All:   all,
+			Left:  left,
+			Right: right,
+			Loc:   ast.Loc{Start: ast.NodeLoc(left).Start, End: ast.NodeLoc(right).End},
+		}
+	}
+	return left, nil
+}
+
+// ---------------------------------------------------------------------------
 // SELECT list
 // ---------------------------------------------------------------------------
 
@@ -443,6 +549,9 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 			break
 		}
 
+		// Skip optional Doris execution hints: [shuffle], [broadcast], etc.
+		hints := p.parseJoinHints()
+
 		right, err := p.parsePrimarySource()
 		if err != nil {
 			return nil, err
@@ -453,6 +562,7 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 			Left:    left,
 			Right:   right,
 			Natural: natural,
+			Hints:   hints,
 			Loc:     ast.Loc{Start: ast.NodeLoc(left).Start},
 		}
 
@@ -500,6 +610,29 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 	return left, nil
 }
 
+// parseJoinHints skips any Doris execution hint between join keywords and
+// the right-side table reference. Hints have the form [identifier] or
+// /*+ identifier */ (comment-style). Only bracket-style is handled here.
+// Returns the consumed hint identifiers (may be empty).
+func (p *Parser) parseJoinHints() []string {
+	var hints []string
+	for p.cur.Kind == int('[') {
+		p.advance() // consume '['
+		// Collect tokens until ']'
+		for p.cur.Kind != int(']') && p.cur.Kind != tokEOF {
+			if p.cur.Kind == tokIdent || p.cur.Kind == tokQuotedIdent ||
+				(p.cur.Kind >= 700) {
+				hints = append(hints, p.cur.Str)
+			}
+			p.advance()
+		}
+		if p.cur.Kind == int(']') {
+			p.advance() // consume ']'
+		}
+	}
+	return hints
+}
+
 // parseJoinKeywords checks whether the current token position starts a
 // JOIN keyword sequence. If so, it consumes the tokens and returns
 // (joinType, natural, true). If not, returns (0, false, false)
@@ -532,10 +665,27 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool) {
 		return 0, false, false
 	}
 
-	// LEFT [OUTER] JOIN
+	// LEFT variants: LEFT [OUTER] JOIN | LEFT SEMI JOIN | LEFT ANTI JOIN
 	if p.cur.Kind == kwLEFT {
 		next := p.peekNext()
-		if next.Kind == kwJOIN || next.Kind == kwOUTER {
+		switch next.Kind {
+		case kwSEMI:
+			p.advance() // consume LEFT
+			p.advance() // consume SEMI
+			if p.cur.Kind != kwJOIN {
+				return 0, false, false
+			}
+			p.advance() // consume JOIN
+			return ast.JoinLeftSemi, false, true
+		case kwANTI:
+			p.advance() // consume LEFT
+			p.advance() // consume ANTI
+			if p.cur.Kind != kwJOIN {
+				return 0, false, false
+			}
+			p.advance() // consume JOIN
+			return ast.JoinLeftAnti, false, true
+		case kwJOIN, kwOUTER:
 			jt := p.consumeDirectionAndJoin()
 			if jt == ast.JoinLeft {
 				return jt, false, true
@@ -544,10 +694,27 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool) {
 		return 0, false, false
 	}
 
-	// RIGHT [OUTER] JOIN
+	// RIGHT variants: RIGHT [OUTER] JOIN | RIGHT SEMI JOIN | RIGHT ANTI JOIN
 	if p.cur.Kind == kwRIGHT {
 		next := p.peekNext()
-		if next.Kind == kwJOIN || next.Kind == kwOUTER {
+		switch next.Kind {
+		case kwSEMI:
+			p.advance() // consume RIGHT
+			p.advance() // consume SEMI
+			if p.cur.Kind != kwJOIN {
+				return 0, false, false
+			}
+			p.advance() // consume JOIN
+			return ast.JoinRightSemi, false, true
+		case kwANTI:
+			p.advance() // consume RIGHT
+			p.advance() // consume ANTI
+			if p.cur.Kind != kwJOIN {
+				return 0, false, false
+			}
+			p.advance() // consume JOIN
+			return ast.JoinRightAnti, false, true
+		case kwJOIN, kwOUTER:
 			jt := p.consumeDirectionAndJoin()
 			if jt == ast.JoinRight {
 				return jt, false, true
