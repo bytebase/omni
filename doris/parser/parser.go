@@ -230,7 +230,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwWITH:
 		return p.parseWithSelect()
 	case kwINSERT:
-		return p.unsupported("INSERT")
+		return p.parseInsert()
 	case kwUPDATE:
 		return p.unsupported("UPDATE")
 	case kwDELETE:

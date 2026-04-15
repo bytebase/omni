@@ -182,6 +182,11 @@ const (
 
 	// T_DropViewStmt is the tag for *DropViewStmt.
 	T_DropViewStmt
+
+	// DML — INSERT statement (T4.1).
+
+	// T_InsertStmt is the tag for *InsertStmt.
+	T_InsertStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -291,6 +296,8 @@ func (t NodeTag) String() string {
 		return "AlterViewStmt"
 	case T_DropViewStmt:
 		return "DropViewStmt"
+	case T_InsertStmt:
+		return "InsertStmt"
 	default:
 		return "Unknown"
 	}

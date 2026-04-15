@@ -287,5 +287,17 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *DropViewStmt:
 		Walk(v, n.Name)
+
+	// DML — INSERT statement (T4.1).
+	case *InsertStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		for _, row := range n.Values {
+			walkNodes(v, row)
+		}
+		if n.Query != nil {
+			Walk(v, n.Query)
+		}
 	}
 }
