@@ -46,6 +46,77 @@ func defElemBool(n nodes.Node) (bool, bool) {
 	return b.Boolval, true
 }
 
+func unwrapRevokeRole(t *testing.T, sql string) *nodes.GrantRoleStmt {
+	t.Helper()
+	list, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse(%q): %v", sql, err)
+	}
+	if list == nil || len(list.Items) != 1 {
+		t.Fatalf("Parse(%q): expected 1 stmt, got %d", sql, len(list.Items))
+	}
+	raw := list.Items[0].(*nodes.RawStmt)
+	stmt, ok := raw.Stmt.(*nodes.GrantRoleStmt)
+	if !ok {
+		t.Fatalf("Parse(%q): stmt not GrantRoleStmt, got %T", sql, raw.Stmt)
+	}
+	if stmt.IsGrant {
+		t.Fatalf("Parse(%q): expected revoke, got grant", sql)
+	}
+	return stmt
+}
+
+func TestRevokeRoleOptionFor(t *testing.T) {
+	t.Run("ADMIN OPTION FOR (baseline)", func(t *testing.T) {
+		r := unwrapRevokeRole(t, "REVOKE ADMIN OPTION FOR r1 FROM r2")
+		if r.Opt == nil || len(r.Opt.Items) != 1 {
+			t.Fatalf("expected 1 opt, got %v", r.Opt)
+		}
+		if defElemName(r.Opt.Items[0]) != "admin" {
+			t.Fatalf("expected admin, got %q", defElemName(r.Opt.Items[0]))
+		}
+	})
+
+	t.Run("INHERIT OPTION FOR", func(t *testing.T) {
+		r := unwrapRevokeRole(t, "REVOKE INHERIT OPTION FOR r1 FROM r2")
+		if r.Opt == nil || len(r.Opt.Items) != 1 {
+			t.Fatalf("expected 1 opt, got %v", r.Opt)
+		}
+		if defElemName(r.Opt.Items[0]) != "inherit" {
+			t.Fatalf("expected inherit, got %q", defElemName(r.Opt.Items[0]))
+		}
+		if b, _ := defElemBool(r.Opt.Items[0]); b {
+			t.Fatalf("expected false")
+		}
+	})
+
+	t.Run("SET OPTION FOR", func(t *testing.T) {
+		r := unwrapRevokeRole(t, "REVOKE SET OPTION FOR r1 FROM r2")
+		if r.Opt == nil || len(r.Opt.Items) != 1 {
+			t.Fatalf("expected 1 opt, got %v", r.Opt)
+		}
+		if defElemName(r.Opt.Items[0]) != "set" {
+			t.Fatalf("expected set, got %q", defElemName(r.Opt.Items[0]))
+		}
+	})
+
+	t.Run("GRANT OPTION FOR SELECT (baseline)", func(t *testing.T) {
+		// This path goes to finishRevokeOnObject, not finishRevokeRole.
+		list, err := Parse("REVOKE GRANT OPTION FOR SELECT ON t FROM r")
+		if err != nil {
+			t.Fatalf("Parse: %v", err)
+		}
+		raw := list.Items[0].(*nodes.RawStmt)
+		g, ok := raw.Stmt.(*nodes.GrantStmt)
+		if !ok {
+			t.Fatalf("expected GrantStmt, got %T", raw.Stmt)
+		}
+		if g.IsGrant || !g.GrantOption {
+			t.Fatalf("expected revoke+GrantOption, got grant=%v opt=%v", g.IsGrant, g.GrantOption)
+		}
+	})
+}
+
 func TestGrantRoleOptionsAndGrantedBy(t *testing.T) {
 	t.Run("WITH ADMIN OPTION (baseline)", func(t *testing.T) {
 		g := unwrapGrantRole(t, "GRANT r1 TO r2 WITH ADMIN OPTION")
