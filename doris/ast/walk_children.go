@@ -164,6 +164,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.On != nil {
 			Walk(v, n.On)
 		}
+	case *SetOpStmt:
+		Walk(v, n.Left)
+		Walk(v, n.Right)
 
 	// DDL — CREATE TABLE nodes (T2.1).
 	case *CreateTableStmt:

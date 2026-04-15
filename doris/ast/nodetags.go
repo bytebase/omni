@@ -126,6 +126,9 @@ const (
 	// T_JoinClause is the tag for *JoinClause (JOIN expression in FROM).
 	T_JoinClause
 
+	// T_SetOpStmt is the tag for *SetOpStmt (UNION/INTERSECT/EXCEPT/MINUS).
+	T_SetOpStmt
+
 	// DDL — CREATE TABLE nodes (T2.1).
 
 	// T_CreateTableStmt is the tag for *CreateTableStmt.
@@ -232,6 +235,8 @@ func (t NodeTag) String() string {
 		return "TableRef"
 	case T_JoinClause:
 		return "JoinClause"
+	case T_SetOpStmt:
+		return "SetOpStmt"
 	case T_CreateTableStmt:
 		return "CreateTableStmt"
 	case T_ColumnDef:

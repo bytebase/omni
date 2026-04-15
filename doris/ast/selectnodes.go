@@ -151,3 +151,36 @@ func (n *JoinClause) Tag() NodeTag { return T_JoinClause }
 
 // Compile-time assertion that *JoinClause satisfies Node.
 var _ Node = (*JoinClause)(nil)
+
+// ---------------------------------------------------------------------------
+// Set operation (UNION / INTERSECT / EXCEPT / MINUS) — T1.7
+// ---------------------------------------------------------------------------
+
+// SetOperator represents the type of set operation.
+type SetOperator int
+
+const (
+	SetUnion     SetOperator = iota // UNION
+	SetIntersect                    // INTERSECT
+	SetExcept                       // EXCEPT / MINUS
+)
+
+// SetOpStmt represents a set operation between two queries.
+//
+//	left UNION [ALL|DISTINCT] right
+//	left INTERSECT [ALL|DISTINCT] right
+//	left EXCEPT [ALL|DISTINCT] right
+//	left MINUS [ALL|DISTINCT] right  -- MINUS is an alias for EXCEPT in Doris
+type SetOpStmt struct {
+	Op    SetOperator // the set operator
+	All   bool        // true for ALL quantifier; false means DISTINCT (the default)
+	Left  Node        // SelectStmt or another SetOpStmt
+	Right Node        // SelectStmt or another SetOpStmt
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *SetOpStmt) Tag() NodeTag { return T_SetOpStmt }
+
+// Compile-time assertion that *SetOpStmt satisfies Node.
+var _ Node = (*SetOpStmt)(nil)
