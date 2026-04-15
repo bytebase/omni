@@ -991,6 +991,21 @@ func (p *Parser) parseAlterPolicyStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	table := makeRangeVarFromNames(names)
+	// ALTER POLICY name ON qualified_name RENAME TO name
+	if p.cur.Type == RENAME {
+		p.advance()
+		if _, err := p.expect(TO); err != nil {
+			return nil, err
+		}
+		newname, _ := p.parseName()
+		return &nodes.RenameStmt{
+			RenameType: nodes.OBJECT_POLICY,
+			Relation:   table,
+			Subname:    policyName,
+			Newname:    newname,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
+		}, nil
+	}
 	var roles *nodes.List
 	var qual nodes.Node
 	var withCheck nodes.Node
