@@ -1304,9 +1304,15 @@ func applyConstraintAttrs(n *nodes.Constraint, attrs int64) {
 
 // parseOptUniqueNullTreatment parses opt_unique_null_treatment.
 //
-//	opt_unique_null_treatment: NULLS_LA DISTINCT | NULLS_LA NOT DISTINCT | /* EMPTY */
+//	opt_unique_null_treatment: NULLS_P DISTINCT | NULLS_P NOT DISTINCT | /* EMPTY */
+//
+// PG's gram.y keeps the plain NULLS_P token here. base_yylex only
+// reclassifies NULLS_P -> NULLS_LA when followed by FIRST_P/LAST_P
+// (for ORDER BY x NULLS FIRST/LAST), which matches omni's
+// reclassification rule. UNIQUE NULLS [NOT] DISTINCT therefore sees
+// the raw NULLS_P token and must probe for it directly.
 func (p *Parser) parseOptUniqueNullTreatment() bool {
-	if p.cur.Type == NULLS_LA {
+	if p.cur.Type == NULLS_P {
 		p.advance()
 		if p.cur.Type == NOT {
 			p.advance()
