@@ -163,9 +163,11 @@ func (p *Parser) finishGrantRole(loc int, isGrant bool, roles *nodes.List) (node
 	}
 	grantees := p.parseRoleList()
 	opts := p.parseGrantRoleOptList()
+	grantedBy := p.parseOptGrantedBy()
 	return &nodes.GrantRoleStmt{
 		GrantedRoles: roles, GranteeRoles: grantees, IsGrant: isGrant, Opt: opts,
-		Loc: nodes.Loc{Start: loc, End: p.prev.End},
+		Grantor: grantedBy,
+		Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
@@ -542,26 +544,28 @@ func (p *Parser) parseOptGrantedBy() *nodes.RoleSpec {
 }
 
 func (p *Parser) parseGrantRoleOptList() *nodes.List {
-	var items []nodes.Node
-	for {
-		opt := p.parseGrantRoleOpt()
-		if opt == nil {
-			break
-		}
-		items = append(items, opt)
-	}
-	if len(items) == 0 {
-		return nil
-	}
-	return &nodes.List{Items: items}
-}
-
-func (p *Parser) parseGrantRoleOpt() *nodes.DefElem {
+	// PG grammar: opt_granted_by's sibling here is
+	//   WITH grant_role_opt_list
+	//   where grant_role_opt_list is a comma-separated list of grant_role_opt.
+	// A single WITH introduces the whole list; entries are comma-separated.
 	if p.cur.Type != WITH {
 		return nil
 	}
-	p.advance()
-	return p.parseGrantRoleOptValue()
+	p.advance() // consume WITH
+	first := p.parseGrantRoleOptValue()
+	if first == nil {
+		return nil
+	}
+	items := []nodes.Node{first}
+	for p.cur.Type == ',' {
+		p.advance()
+		next := p.parseGrantRoleOptValue()
+		if next == nil {
+			break
+		}
+		items = append(items, next)
+	}
+	return &nodes.List{Items: items}
 }
 
 func (p *Parser) parseGrantRoleOptValue() *nodes.DefElem {
