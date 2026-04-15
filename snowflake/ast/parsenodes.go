@@ -1422,3 +1422,166 @@ var (
 	_ Node = (*DeleteStmt)(nil)
 	_ Node = (*MergeStmt)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// VIEW / MATERIALIZED VIEW DDL — helper structs (not Nodes)
+// ---------------------------------------------------------------------------
+
+// ViewColumn represents a single column entry in a VIEW column list or a
+// view_col binding (WITH MASKING POLICY / WITH TAG).
+//
+// Used by both CreateViewStmt and CreateMaterializedViewStmt.
+type ViewColumn struct {
+	Name          Ident
+	MaskingPolicy *ObjectName      // WITH MASKING POLICY p; nil if absent
+	MaskingUsing  []Ident          // USING (col, ...); nil if absent
+	Tags          []*TagAssignment // WITH TAG (...); nil if absent
+	Comment       *string          // COMMENT 'text'; nil if absent
+	Loc           Loc
+}
+
+// RowAccessPolicy holds the policy name and column list from a
+// WITH ROW ACCESS POLICY name ON (col, ...) clause.
+type RowAccessPolicy struct {
+	PolicyName *ObjectName
+	Columns    []Ident
+}
+
+// ---------------------------------------------------------------------------
+// CREATE VIEW
+// ---------------------------------------------------------------------------
+
+// CreateViewStmt represents CREATE [OR REPLACE] [SECURE] [RECURSIVE] VIEW ...
+type CreateViewStmt struct {
+	OrReplace   bool
+	Secure      bool
+	Recursive   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Columns     []*ViewColumn // optional column list from ( col [COMMENT 'x'], ... )
+	ViewCols    []*ViewColumn // view_col* — column masking/tag bindings (outside parens)
+	CopyGrants  bool
+	Comment     *string          // COMMENT = 'str'; nil if absent
+	Tags        []*TagAssignment // WITH TAG (...); nil if absent
+	RowPolicy   *RowAccessPolicy // WITH ROW ACCESS POLICY ...; nil if absent
+	Query       Node             // the AS query body
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateViewStmt) Tag() NodeTag { return T_CreateViewStmt }
+
+var _ Node = (*CreateViewStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// CREATE MATERIALIZED VIEW
+// ---------------------------------------------------------------------------
+
+// CreateMaterializedViewStmt represents CREATE [OR REPLACE] [SECURE] MATERIALIZED VIEW ...
+type CreateMaterializedViewStmt struct {
+	OrReplace   bool
+	Secure      bool
+	IfNotExists bool
+	Name        *ObjectName
+	Columns     []*ViewColumn // optional column list
+	ViewCols    []*ViewColumn // view_col* — column masking/tag bindings
+	CopyGrants  bool
+	Comment     *string          // COMMENT = 'str'; nil if absent
+	ClusterBy   []Node           // CLUSTER BY (exprs); nil if absent
+	Linear      bool             // CLUSTER BY LINEAR modifier
+	Tags        []*TagAssignment // WITH TAG (...); nil if absent
+	RowPolicy   *RowAccessPolicy // WITH ROW ACCESS POLICY ...; nil if absent
+	Query       Node             // the AS query body
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateMaterializedViewStmt) Tag() NodeTag { return T_CreateMaterializedViewStmt }
+
+var _ Node = (*CreateMaterializedViewStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// ALTER VIEW — action enum and statement
+// ---------------------------------------------------------------------------
+
+// AlterViewAction discriminates the action variants of ALTER VIEW.
+type AlterViewAction int
+
+const (
+	AlterViewRename                   AlterViewAction = iota // RENAME TO
+	AlterViewSetComment                                      // SET COMMENT = '...'
+	AlterViewUnsetComment                                    // UNSET COMMENT
+	AlterViewSetSecure                                       // SET SECURE
+	AlterViewUnsetSecure                                     // UNSET SECURE
+	AlterViewSetTag                                          // SET TAG (...)
+	AlterViewUnsetTag                                        // UNSET TAG (...)
+	AlterViewAddRowAccessPolicy                              // ADD ROW ACCESS POLICY
+	AlterViewDropRowAccessPolicy                             // DROP ROW ACCESS POLICY
+	AlterViewDropAllRowAccessPolicies                        // DROP ALL ROW ACCESS POLICIES
+	AlterViewColumnSetMaskingPolicy                          // ALTER COLUMN col SET MASKING POLICY
+	AlterViewColumnUnsetMaskingPolicy                        // ALTER COLUMN col UNSET MASKING POLICY
+	AlterViewColumnSetTag                                    // ALTER COLUMN col SET TAG (...)
+	AlterViewColumnUnsetTag                                  // ALTER COLUMN col UNSET TAG (...)
+)
+
+// AlterViewStmt represents ALTER VIEW ... (all action variants).
+type AlterViewStmt struct {
+	IfExists      bool
+	Name          *ObjectName
+	Action        AlterViewAction
+	NewName       *ObjectName      // RENAME TO
+	Comment       *string          // SET COMMENT = '...'
+	Secure        bool             // true = SET SECURE; false = UNSET SECURE (check Action)
+	Tags          []*TagAssignment // SET TAG (...)
+	UnsetTags     []*ObjectName    // UNSET TAG (...)
+	PolicyName    *ObjectName      // ADD/DROP ROW ACCESS POLICY name
+	PolicyCols    []Ident          // ON (col, ...) for ADD ROW ACCESS POLICY
+	Column        Ident            // ALTER COLUMN col name
+	MaskingPolicy *ObjectName      // SET MASKING POLICY p
+	MaskingUsing  []Ident          // USING (col, ...)
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *AlterViewStmt) Tag() NodeTag { return T_AlterViewStmt }
+
+var _ Node = (*AlterViewStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// ALTER MATERIALIZED VIEW — action enum and statement
+// ---------------------------------------------------------------------------
+
+// AlterMaterializedViewAction discriminates the action variants of ALTER MATERIALIZED VIEW.
+type AlterMaterializedViewAction int
+
+const (
+	AlterMVRename            AlterMaterializedViewAction = iota // RENAME TO
+	AlterMVClusterBy                                            // CLUSTER BY (exprs)
+	AlterMVDropClusteringKey                                    // DROP CLUSTERING KEY
+	AlterMVSuspend                                              // SUSPEND
+	AlterMVResume                                               // RESUME
+	AlterMVSuspendRecluster                                     // SUSPEND RECLUSTER
+	AlterMVResumeRecluster                                      // RESUME RECLUSTER
+	AlterMVSetSecure                                            // SET SECURE
+	AlterMVUnsetSecure                                          // UNSET SECURE
+	AlterMVSetComment                                           // SET COMMENT = '...'
+	AlterMVUnsetComment                                         // UNSET COMMENT
+)
+
+// AlterMaterializedViewStmt represents ALTER MATERIALIZED VIEW ... (all action variants).
+// Note: the legacy grammar does NOT support IF EXISTS for ALTER MATERIALIZED VIEW.
+type AlterMaterializedViewStmt struct {
+	Name      *ObjectName
+	Action    AlterMaterializedViewAction
+	NewName   *ObjectName // RENAME TO
+	ClusterBy []Node      // CLUSTER BY (exprs)
+	Linear    bool        // CLUSTER BY LINEAR modifier
+	Comment   *string     // SET COMMENT = '...'
+	Secure    bool        // true = SET SECURE; false = UNSET SECURE (check Action)
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *AlterMaterializedViewStmt) Tag() NodeTag { return T_AlterMaterializedViewStmt }
+
+var _ Node = (*AlterMaterializedViewStmt)(nil)

@@ -70,6 +70,12 @@ const (
 	T_UpdateStmt
 	T_DeleteStmt
 	T_MergeStmt
+
+	// VIEW + MATERIALIZED VIEW tags (T2.4)
+	T_CreateViewStmt
+	T_CreateMaterializedViewStmt
+	T_AlterViewStmt
+	T_AlterMaterializedViewStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -169,6 +175,14 @@ func (t NodeTag) String() string {
 		return "DeleteStmt"
 	case T_MergeStmt:
 		return "MergeStmt"
+	case T_CreateViewStmt:
+		return "CreateViewStmt"
+	case T_CreateMaterializedViewStmt:
+		return "CreateMaterializedViewStmt"
+	case T_AlterViewStmt:
+		return "AlterViewStmt"
+	case T_AlterMaterializedViewStmt:
+		return "AlterMaterializedViewStmt"
 	default:
 		return "Unknown"
 	}

@@ -16,12 +16,33 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+	case *AlterMaterializedViewStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
+		walkNodes(v, n.ClusterBy)
 	case *AlterSchemaStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
 		if n.NewName != nil {
 			Walk(v, n.NewName)
+		}
+	case *AlterViewStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
+		if n.PolicyName != nil {
+			Walk(v, n.PolicyName)
+		}
+		if n.MaskingPolicy != nil {
+			Walk(v, n.MaskingPolicy)
 		}
 	case *ArrayLiteralExpr:
 		walkNodes(v, n.Elements)
@@ -55,6 +76,12 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *CreateMaterializedViewStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		walkNodes(v, n.ClusterBy)
+		Walk(v, n.Query)
 	case *CreateSchemaStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -68,6 +95,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Like != nil {
 			Walk(v, n.Like)
 		}
+	case *CreateViewStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.Query)
 	case *DeleteStmt:
 		if n.Target != nil {
 			Walk(v, n.Target)
