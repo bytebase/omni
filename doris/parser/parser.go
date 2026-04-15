@@ -182,14 +182,32 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwTABLE, kwTEMPORARY:
 			return p.parseCreateTable()
 		case kwEXTERNAL:
-			// Peek past EXTERNAL to distinguish CREATE EXTERNAL CATALOG from
-			// CREATE EXTERNAL TABLE (and CREATE EXTERNAL TEMPORARY TABLE, etc.)
-			if p.peekNext().Kind == kwCATALOG {
+			// Peek past EXTERNAL to distinguish CREATE EXTERNAL CATALOG,
+			// CREATE EXTERNAL RESOURCE, from CREATE EXTERNAL TABLE.
+			switch p.peekNext().Kind {
+			case kwCATALOG:
 				return p.parseCreateCatalog()
+			case kwRESOURCE:
+				p.advance() // consume EXTERNAL
+				return p.parseCreateResource(createTok.Loc, true)
 			}
 			return p.parseCreateTable()
 		case kwCATALOG:
 			return p.parseCreateCatalog()
+		case kwWORKLOAD:
+			// CREATE WORKLOAD GROUP ... or CREATE WORKLOAD POLICY ...
+			next := p.peekNext()
+			if next.Kind == kwGROUP {
+				return p.parseCreateWorkloadGroup(createTok.Loc)
+			}
+			if next.Kind == kwPOLICY {
+				return p.parseCreateWorkloadPolicy(createTok.Loc)
+			}
+			return p.unsupported("CREATE WORKLOAD")
+		case kwRESOURCE:
+			return p.parseCreateResource(createTok.Loc, false)
+		case kwSQL_BLOCK_RULE:
+			return p.parseCreateSQLBlockRule(createTok.Loc)
 		case kwVIEW:
 			return p.parseCreateView(createTok.Loc, false)
 		case kwMATERIALIZED:
@@ -238,6 +256,21 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterStorage(alterTok.Loc)
 		case kwREPOSITORY:
 			return p.parseAlterRepository(alterTok.Loc)
+		case kwWORKLOAD:
+			// ALTER WORKLOAD GROUP ... or ALTER WORKLOAD POLICY ...
+			alterLoc := p.prev.Loc
+			next := p.peekNext()
+			if next.Kind == kwGROUP {
+				return p.parseAlterWorkloadGroup(alterLoc)
+			}
+			if next.Kind == kwPOLICY {
+				return p.parseAlterWorkloadPolicy(alterLoc)
+			}
+			return p.unsupported("ALTER WORKLOAD")
+		case kwRESOURCE:
+			return p.parseAlterResource(p.prev.Loc)
+		case kwSQL_BLOCK_RULE:
+			return p.parseAlterSQLBlockRule(p.prev.Loc)
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -263,6 +296,20 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropStage(dropTok.Loc)
 		case kwFILE:
 			return p.parseDropFile(dropTok.Loc)
+		case kwWORKLOAD:
+			// DROP WORKLOAD GROUP ... or DROP WORKLOAD POLICY ...
+			next := p.peekNext()
+			if next.Kind == kwGROUP {
+				return p.parseDropWorkloadGroup(dropTok.Loc)
+			}
+			if next.Kind == kwPOLICY {
+				return p.parseDropWorkloadPolicy(dropTok.Loc)
+			}
+			return p.unsupported("DROP WORKLOAD")
+		case kwRESOURCE:
+			return p.parseDropResource(dropTok.Loc)
+		case kwSQL_BLOCK_RULE:
+			return p.parseDropSQLBlockRule(dropTok.Loc)
 		default:
 			return p.unsupported("DROP")
 		}
