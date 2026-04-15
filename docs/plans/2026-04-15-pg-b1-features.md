@@ -134,10 +134,17 @@ in this production:
 
 ```
 opt_unique_null_treatment:
-    NULLS_P DISTINCT        { $$ = true; }
-  | NULLS_P NOT DISTINCT    { $$ = false; }
+    NULLS_P DISTINCT        { $$ = true; }  // PG: nulls-distinct (default)
+  | NULLS_P NOT DISTINCT    { $$ = false; } // PG: nulls-NOT-distinct
   | /*EMPTY*/               { $$ = true; }
 ```
+
+Note the boolean polarity: PG's `$$` records "NULLS are distinct"
+(true = default, false = `NULLS NOT DISTINCT`). omni's helper
+`parseOptUniqueNullTreatment` returns the *inverse* — `true` for
+`NULLS NOT DISTINCT`, because its return value feeds
+`Constraint.NullsNotDistinct`. Both implementations are correct; just
+don't conflate the two booleans when reading the code side-by-side.
 
 PG's `base_yylex` in `parser.c:221-229` only reclassifies `NULLS_P` to
 `NULLS_LA` when followed by `FIRST_P`/`LAST_P` — matching omni's
@@ -321,6 +328,13 @@ No B1-scope CAST COLLATE gap exists in the current corpus. The one
 real COLLATE-in-type-literal form (`CAST(x AS text COLLATE "C")`) is
 only reachable via `a_expr COLLATE any_name` applied to the CAST
 result, which omni already parses. Dropped from this plan.
+
+The residual `collate.sql` / `collate.icu.utf8.sql` /
+`collate.linux.utf8.sql` / `collate.windows.win1252.sql`
+known_failures were spot-checked and are unrelated to CAST COLLATE
+(they exercise locale-specific COLLATE semantics, aggregate
+`COLLATE` on expressions, and a few `CREATE COLLATION` variants).
+Those are B2/B3 scope.
 
 ### Summary — 8 Features
 
