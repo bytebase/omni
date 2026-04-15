@@ -161,6 +161,8 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	p.advance() // consume ALTER
 
 	switch p.cur.Type {
+	case kwTABLE:
+		return p.parseAlterTableStmt()
 	case kwDATABASE:
 		return p.parseAlterDatabaseStmt()
 	case kwSCHEMA:
