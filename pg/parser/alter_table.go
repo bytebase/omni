@@ -1031,9 +1031,15 @@ func (p *Parser) parseAlterColumnSet(colname string) (*nodes.AlterTableCmd, erro
 			Def:     &nodes.String{Str: storageVal},
 		}, nil
 	case COMPRESSION:
-		// SET COMPRESSION ColId
+		// SET COMPRESSION ColId | SET COMPRESSION DEFAULT
 		p.advance()
-		compVal, _ := p.parseColId()
+		var compVal string
+		if p.cur.Type == DEFAULT {
+			p.advance()
+			compVal = "default"
+		} else {
+			compVal, _ = p.parseColId()
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetCompression),
 			Name:    colname,
