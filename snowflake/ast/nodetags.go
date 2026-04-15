@@ -76,6 +76,9 @@ const (
 	T_CreateMaterializedViewStmt
 	T_AlterViewStmt
 	T_AlterMaterializedViewStmt
+
+	// ALTER TABLE tag (T2.3)
+	T_AlterTableStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -183,6 +186,8 @@ func (t NodeTag) String() string {
 		return "AlterViewStmt"
 	case T_AlterMaterializedViewStmt:
 		return "AlterMaterializedViewStmt"
+	case T_AlterTableStmt:
+		return "AlterTableStmt"
 	default:
 		return "Unknown"
 	}

@@ -1585,3 +1585,156 @@ type AlterMaterializedViewStmt struct {
 func (n *AlterMaterializedViewStmt) Tag() NodeTag { return T_AlterMaterializedViewStmt }
 
 var _ Node = (*AlterMaterializedViewStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// ALTER TABLE DDL — enums, helpers, and statement node
+// ---------------------------------------------------------------------------
+
+// AlterTableActionKind discriminates the action variants of ALTER TABLE.
+type AlterTableActionKind int
+
+const (
+	AlterTableRename                   AlterTableActionKind = iota // RENAME TO new_name
+	AlterTableSwapWith                                             // SWAP WITH other_table
+	AlterTableAddColumn                                            // ADD [COLUMN] [IF NOT EXISTS] col_def [, ...]
+	AlterTableDropColumn                                           // DROP [COLUMN] [IF EXISTS] col [, ...]
+	AlterTableRenameColumn                                         // RENAME COLUMN old TO new
+	AlterTableAlterColumn                                          // ALTER/MODIFY COLUMN col ...
+	AlterTableAddConstraint                                        // ADD [CONSTRAINT name] PK/UK/FK
+	AlterTableDropConstraint                                       // DROP CONSTRAINT name | DROP PRIMARY KEY | DROP UNIQUE
+	AlterTableRenameConstraint                                     // RENAME CONSTRAINT old TO new
+	AlterTableClusterBy                                            // CLUSTER BY [LINEAR] (exprs)
+	AlterTableDropClusterKey                                       // DROP CLUSTERING KEY
+	AlterTableRecluster                                            // RECLUSTER [MAX_SIZE = n] [WHERE expr]
+	AlterTableSuspendRecluster                                     // SUSPEND RECLUSTER
+	AlterTableResumeRecluster                                      // RESUME RECLUSTER
+	AlterTableSet                                                  // SET properties
+	AlterTableUnset                                                // UNSET properties
+	AlterTableSetTag                                               // SET TAG (...)
+	AlterTableUnsetTag                                             // UNSET TAG (...)
+	AlterTableAddRowAccessPolicy                                   // ADD ROW ACCESS POLICY name ON (cols)
+	AlterTableDropRowAccessPolicy                                  // DROP ROW ACCESS POLICY name
+	AlterTableDropAllRowAccessPolicies                             // DROP ALL ROW ACCESS POLICIES
+	AlterTableAddSearchOpt                                         // ADD SEARCH OPTIMIZATION [ON ...]
+	AlterTableDropSearchOpt                                        // DROP SEARCH OPTIMIZATION [ON ...]
+	AlterTableSetMaskingPolicy                                     // ALTER/MODIFY COLUMN col SET MASKING POLICY
+	AlterTableUnsetMaskingPolicy                                   // ALTER/MODIFY COLUMN col UNSET MASKING POLICY
+	AlterTableSetColumnTag                                         // ALTER/MODIFY col SET TAG (...)
+	AlterTableUnsetColumnTag                                       // ALTER/MODIFY col UNSET TAG (...)
+)
+
+// ColumnAlterKind discriminates the sub-action inside ALTER/MODIFY COLUMN.
+type ColumnAlterKind int
+
+const (
+	ColumnAlterSetDataType  ColumnAlterKind = iota // SET DATA TYPE t | TYPE t | t
+	ColumnAlterSetDefault                          // SET DEFAULT expr
+	ColumnAlterDropDefault                         // DROP DEFAULT
+	ColumnAlterSetNotNull                          // SET NOT NULL
+	ColumnAlterDropNotNull                         // DROP NOT NULL
+	ColumnAlterSetComment                          // COMMENT 'text'
+	ColumnAlterUnsetComment                        // UNSET COMMENT
+)
+
+// ColumnAlter holds the specification for a single ALTER/MODIFY COLUMN
+// sub-action (used inside AlterTableAction.ColumnAlters).
+//
+// ColumnAlter is NOT a Node. It is owned by AlterTableAction.
+type ColumnAlter struct {
+	Column      Ident // column being altered
+	Kind        ColumnAlterKind
+	DataType    *TypeName // for ColumnAlterSetDataType
+	DefaultExpr Node      // for ColumnAlterSetDefault
+	Comment     *string   // for ColumnAlterSetComment
+}
+
+// TableProp is a single SET property key=value pair used in ALTER TABLE SET.
+// It is NOT a Node.
+type TableProp struct {
+	Name  string // uppercased property name
+	Value string // raw value text
+}
+
+// AlterTableAction represents one action in an ALTER TABLE statement.
+// Only the fields relevant to the Kind are populated.
+//
+// AlterTableAction is NOT a Node. It is owned by AlterTableStmt.
+type AlterTableAction struct {
+	Kind AlterTableActionKind
+
+	// --- Rename / SwapWith ---
+	NewName *ObjectName // RENAME TO target / SWAP WITH target
+
+	// --- AddColumn ---
+	Columns     []*ColumnDef // column definitions for ADD COLUMN
+	IfNotExists bool         // ADD COLUMN IF NOT EXISTS guard
+
+	// --- DropColumn ---
+	DropColumnNames []Ident // column names for DROP COLUMN
+	IfExists        bool    // DROP COLUMN IF EXISTS guard
+
+	// --- RenameColumn ---
+	OldName    Ident // RENAME COLUMN old
+	NewColName Ident // RENAME COLUMN ... TO new
+
+	// --- AlterColumn ---
+	ColumnAlters []*ColumnAlter // one per ALTER/MODIFY COLUMN spec
+
+	// --- AddConstraint ---
+	Constraint *TableConstraint // reuse T2.2 TableConstraint
+
+	// --- DropConstraint / RenameConstraint ---
+	ConstraintName    Ident // DROP CONSTRAINT name / RENAME CONSTRAINT old
+	NewConstraintName Ident // RENAME CONSTRAINT ... TO new
+	IsPrimaryKey      bool  // DROP PRIMARY KEY (unnamed)
+	DropUnique        bool  // DROP UNIQUE
+	DropForeignKey    bool  // DROP FOREIGN KEY
+	Cascade           bool
+	Restrict          bool
+
+	// --- ClusterBy ---
+	ClusterBy []Node // CLUSTER BY expressions
+	Linear    bool   // CLUSTER BY LINEAR
+
+	// --- Recluster ---
+	ReclusterMaxSize *int64 // MAX_SIZE = n; nil if absent
+	ReclusterWhere   Node   // WHERE expr; nil if absent
+
+	// --- Set / Unset properties ---
+	Props      []*TableProp // SET property list
+	UnsetProps []string     // UNSET property names
+
+	// --- SetTag / UnsetTag ---
+	Tags      []*TagAssignment // SET TAG assignments
+	UnsetTags []*ObjectName    // UNSET TAG names
+
+	// --- Row access policy ---
+	PolicyName *ObjectName // ADD/DROP ROW ACCESS POLICY name
+	PolicyCols []Ident     // ADD ROW ACCESS POLICY ... ON (cols)
+
+	// --- Search optimization ---
+	SearchOptOn []string // ON targets (raw text); nil = no ON clause
+
+	// --- Masking policy (column-level) ---
+	MaskColumn    Ident       // column for SET/UNSET MASKING POLICY
+	MaskingPolicy *ObjectName // SET MASKING POLICY target
+
+	// --- Column tag (ALTER/MODIFY col SET/UNSET TAG) ---
+	TagColumn Ident // column for SetColumnTag / UnsetColumnTag
+
+	Loc Loc
+}
+
+// AlterTableStmt represents ALTER TABLE [IF EXISTS] name action [, action ...].
+type AlterTableStmt struct {
+	IfExists bool
+	Name     *ObjectName
+	Actions  []*AlterTableAction
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *AlterTableStmt) Tag() NodeTag { return T_AlterTableStmt }
+
+// Compile-time assertion.
+var _ Node = (*AlterTableStmt)(nil)

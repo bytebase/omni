@@ -31,6 +31,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+	case *AlterTableStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *AlterViewStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
