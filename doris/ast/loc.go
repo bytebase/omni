@@ -120,6 +120,10 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *DeleteStmt:
 		return v.Loc
+	case *MergeStmt:
+		return v.Loc
+	case *MergeClause:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

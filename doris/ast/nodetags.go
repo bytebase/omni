@@ -198,6 +198,14 @@ const (
 
 	// T_DeleteStmt is the tag for *DeleteStmt.
 	T_DeleteStmt
+
+	// DML — MERGE INTO nodes (T4.3).
+
+	// T_MergeStmt is the tag for *MergeStmt.
+	T_MergeStmt
+
+	// T_MergeClause is the tag for *MergeClause (one WHEN clause inside MERGE).
+	T_MergeClause
 )
 
 // String returns a human-readable representation of the tag.
@@ -315,6 +323,10 @@ func (t NodeTag) String() string {
 		return "UpdateStmt"
 	case T_DeleteStmt:
 		return "DeleteStmt"
+	case T_MergeStmt:
+		return "MergeStmt"
+	case T_MergeClause:
+		return "MergeClause"
 	default:
 		return "Unknown"
 	}

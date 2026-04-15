@@ -171,8 +171,7 @@ func TestParseAllDispatchCategories(t *testing.T) {
 	}{
 		{"DROP TABLE t", "DROP"},
 		{"TRUNCATE TABLE t", "TRUNCATE"},
-		// INSERT, UPDATE, DELETE are now supported; skip them here.
-		{"MERGE INTO t USING s ON t.id=s.id WHEN MATCHED THEN DELETE", "MERGE"},
+		// INSERT, UPDATE, DELETE, MERGE are now supported; skip them here.
 		{"LOAD DATA INFILE 'f' INTO TABLE t", "LOAD"},
 		{"EXPORT TABLE t", "EXPORT"},
 		{"BEGIN", "BEGIN"},

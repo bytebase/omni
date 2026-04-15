@@ -34,10 +34,10 @@ func (n *InsertStmt) Tag() NodeTag { return T_InsertStmt }
 var _ Node = (*InsertStmt)(nil)
 
 // ---------------------------------------------------------------------------
-// Assignment: col = expr (used in UPDATE SET clause) (T4.2)
+// Assignment: col = expr (used in UPDATE SET and MERGE UPDATE SET) (T4.2/T4.3)
 // ---------------------------------------------------------------------------
 
-// Assignment represents a single SET assignment in an UPDATE statement:
+// Assignment represents a single SET assignment in UPDATE or MERGE:
 //
 //	col = expr
 //	t.col = expr
@@ -102,3 +102,63 @@ func (n *DeleteStmt) Tag() NodeTag { return T_DeleteStmt }
 
 // Compile-time assertion that *DeleteStmt satisfies Node.
 var _ Node = (*DeleteStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// MERGE INTO statement (T4.3)
+// ---------------------------------------------------------------------------
+
+// MergeAction classifies the action in a WHEN clause.
+type MergeAction int
+
+const (
+	// MergeActionDelete: THEN DELETE
+	MergeActionDelete MergeAction = iota
+	// MergeActionUpdate: THEN UPDATE SET col = expr [, ...]
+	MergeActionUpdate
+	// MergeActionInsert: THEN INSERT [(cols)] VALUES (exprs) | INSERT *
+	MergeActionInsert
+	// MergeActionDoNothing: THEN DO NOTHING
+	MergeActionDoNothing
+)
+
+// MergeClause represents one WHEN [NOT] MATCHED [AND condition] THEN action clause.
+type MergeClause struct {
+	NotMatched  bool          // WHEN NOT MATCHED vs WHEN MATCHED
+	And         Node          // optional AND <condition> (nil if absent)
+	Action      MergeAction   // DELETE / UPDATE / INSERT / DO NOTHING
+	Assignments []*Assignment // UPDATE SET col = expr, ... (len > 0 only for MergeActionUpdate when UpdateAll=false)
+	UpdateAll   bool          // UPDATE SET * — update all columns from source row
+	Columns     []string      // INSERT optional column list (nil means "all columns" or INSERT *)
+	Values      []Node        // INSERT VALUES (...) expressions; nil when InsertAll=true
+	InsertAll   bool          // INSERT * — insert all columns from source row
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *MergeClause) Tag() NodeTag { return T_MergeClause }
+
+// Compile-time assertion that *MergeClause satisfies Node.
+var _ Node = (*MergeClause)(nil)
+
+// MergeStmt represents a MERGE INTO statement:
+//
+//	MERGE INTO target [AS alias]
+//	  USING source [AS alias]
+//	  ON condition
+//	  WHEN [NOT] MATCHED [AND condition] THEN action
+//	  [WHEN ...]
+type MergeStmt struct {
+	Target      *ObjectName // target table name
+	TargetAlias string      // optional alias for target
+	Source      Node        // source: TableRef or SubqueryExpr / RawQuery
+	SourceAlias string      // optional alias for source
+	On          Node        // ON join condition
+	Clauses     []*MergeClause
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *MergeStmt) Tag() NodeTag { return T_MergeStmt }
+
+// Compile-time assertion that *MergeStmt satisfies Node.
+var _ Node = (*MergeStmt)(nil)
