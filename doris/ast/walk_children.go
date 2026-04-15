@@ -348,5 +348,77 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, val)
 			}
 		}
+
+	// Security DDL nodes (T5.5).
+	case *CreateRowPolicyStmt:
+		if n.On != nil {
+			Walk(v, n.On)
+		}
+	case *DropRowPolicyStmt:
+		if n.On != nil {
+			Walk(v, n.On)
+		}
+	case *CreateEncryptKeyStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *DropEncryptKeyStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *DictionaryColumn:
+		// leaf-ish node, no Node children
+	case *CreateDictionaryStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.UsingTable != nil {
+			Walk(v, n.UsingTable)
+		}
+		for _, col := range n.Columns {
+			Walk(v, col)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterDictionaryStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropDictionaryStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *RefreshDictionaryStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *CreateRoleStmt:
+		// leaf-ish node, no Node children
+	case *AlterRoleStmt:
+		// leaf-ish node, no Node children
+	case *DropRoleStmt:
+		// leaf-ish node, no Node children
+	case *UserIdentity:
+		// leaf node, no Node children
+	case *CreateUserStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *AlterUserStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *DropUserStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *SetPasswordStmt:
+		if n.For != nil {
+			Walk(v, n.For)
+		}
 	}
 }
