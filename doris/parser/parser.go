@@ -179,8 +179,30 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateIndex(createTok.Loc)
 		case kwDATABASE, kwSCHEMA:
 			return p.parseCreateDatabase()
-		case kwTABLE, kwEXTERNAL, kwTEMPORARY:
+		case kwTABLE, kwTEMPORARY:
 			return p.parseCreateTable()
+		case kwEXTERNAL:
+			// CREATE EXTERNAL RESOURCE ... or CREATE EXTERNAL TABLE ...
+			// Peek past EXTERNAL to decide which.
+			if p.peekNext().Kind == kwRESOURCE {
+				p.advance() // consume EXTERNAL
+				return p.parseCreateResource(createTok.Loc, true)
+			}
+			return p.parseCreateTable()
+		case kwWORKLOAD:
+			// CREATE WORKLOAD GROUP ... or CREATE WORKLOAD POLICY ...
+			next := p.peekNext()
+			if next.Kind == kwGROUP {
+				return p.parseCreateWorkloadGroup(createTok.Loc)
+			}
+			if next.Kind == kwPOLICY {
+				return p.parseCreateWorkloadPolicy(createTok.Loc)
+			}
+			return p.unsupported("CREATE WORKLOAD")
+		case kwRESOURCE:
+			return p.parseCreateResource(createTok.Loc, false)
+		case kwSQL_BLOCK_RULE:
+			return p.parseCreateSQLBlockRule(createTok.Loc)
 		case kwVIEW:
 			return p.parseCreateView(createTok.Loc, false)
 		case kwOR:
@@ -202,6 +224,21 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterTable()
 		case kwVIEW:
 			return p.parseAlterView()
+		case kwWORKLOAD:
+			// ALTER WORKLOAD GROUP ... or ALTER WORKLOAD POLICY ...
+			alterLoc := p.prev.Loc
+			next := p.peekNext()
+			if next.Kind == kwGROUP {
+				return p.parseAlterWorkloadGroup(alterLoc)
+			}
+			if next.Kind == kwPOLICY {
+				return p.parseAlterWorkloadPolicy(alterLoc)
+			}
+			return p.unsupported("ALTER WORKLOAD")
+		case kwRESOURCE:
+			return p.parseAlterResource(p.prev.Loc)
+		case kwSQL_BLOCK_RULE:
+			return p.parseAlterSQLBlockRule(p.prev.Loc)
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -214,6 +251,20 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropDatabase()
 		case kwVIEW:
 			return p.parseDropView(dropTok.Loc)
+		case kwWORKLOAD:
+			// DROP WORKLOAD GROUP ... or DROP WORKLOAD POLICY ...
+			next := p.peekNext()
+			if next.Kind == kwGROUP {
+				return p.parseDropWorkloadGroup(dropTok.Loc)
+			}
+			if next.Kind == kwPOLICY {
+				return p.parseDropWorkloadPolicy(dropTok.Loc)
+			}
+			return p.unsupported("DROP WORKLOAD")
+		case kwRESOURCE:
+			return p.parseDropResource(dropTok.Loc)
+		case kwSQL_BLOCK_RULE:
+			return p.parseDropSQLBlockRule(dropTok.Loc)
 		default:
 			return p.unsupported("DROP")
 		}
