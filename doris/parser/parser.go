@@ -190,11 +190,27 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 				return nil, err
 			}
 			return p.parseCreateView(createTok.Loc, true)
+		case kwSTORAGE:
+			p.advance() // consume STORAGE
+			return p.parseCreateStorage(createTok.Loc)
+		case kwREPOSITORY:
+			return p.parseCreateRepository(createTok.Loc, false)
+		case kwREAD:
+			// CREATE READ ONLY REPOSITORY ...
+			p.advance() // consume READ
+			if _, err := p.expect(kwONLY); err != nil {
+				return nil, err
+			}
+			return p.parseCreateRepository(createTok.Loc, true)
+		case kwSTAGE:
+			return p.parseCreateStage(createTok.Loc)
+		case kwFILE:
+			return p.parseCreateFile(createTok.Loc)
 		default:
 			return p.unsupported("CREATE")
 		}
 	case kwALTER:
-		p.advance() // consume ALTER; cur is now the object type keyword
+		alterTok := p.advance() // consume ALTER; cur is now the object type keyword
 		switch p.cur.Kind {
 		case kwDATABASE, kwSCHEMA:
 			return p.parseAlterDatabase()
@@ -202,6 +218,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterTable()
 		case kwVIEW:
 			return p.parseAlterView()
+		case kwSTORAGE:
+			p.advance() // consume STORAGE
+			return p.parseAlterStorage(alterTok.Loc)
+		case kwREPOSITORY:
+			return p.parseAlterRepository(alterTok.Loc)
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -214,6 +235,15 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropDatabase()
 		case kwVIEW:
 			return p.parseDropView(dropTok.Loc)
+		case kwSTORAGE:
+			p.advance() // consume STORAGE
+			return p.parseDropStorage(dropTok.Loc)
+		case kwREPOSITORY:
+			return p.parseDropRepository(dropTok.Loc)
+		case kwSTAGE:
+			return p.parseDropStage(dropTok.Loc)
+		case kwFILE:
+			return p.parseDropFile(dropTok.Loc)
 		default:
 			return p.unsupported("DROP")
 		}
@@ -279,8 +309,18 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// Set / Unset
 	case kwSET:
+		setTok := p.advance() // consume SET
+		// SET DEFAULT STORAGE VAULT name
+		if p.cur.Kind == kwDEFAULT && p.peekNext().Kind == kwSTORAGE {
+			return p.parseSetDefaultStorageVault(setTok.Loc)
+		}
 		return p.unsupported("SET")
 	case kwUNSET:
+		unsetTok := p.advance() // consume UNSET
+		// UNSET DEFAULT STORAGE VAULT
+		if p.cur.Kind == kwDEFAULT && p.peekNext().Kind == kwSTORAGE {
+			return p.parseUnsetDefaultStorageVault(unsetTok.Loc)
+		}
 		return p.unsupported("UNSET")
 
 	// Admin / System

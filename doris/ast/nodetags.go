@@ -206,6 +206,61 @@ const (
 
 	// T_MergeClause is the tag for *MergeClause (one WHEN clause inside MERGE).
 	T_MergeClause
+
+	// DDL — STORAGE VAULT nodes (T5.3).
+
+	// T_CreateStorageVaultStmt is the tag for *CreateStorageVaultStmt.
+	T_CreateStorageVaultStmt
+
+	// T_AlterStorageVaultStmt is the tag for *AlterStorageVaultStmt.
+	T_AlterStorageVaultStmt
+
+	// T_DropStorageVaultStmt is the tag for *DropStorageVaultStmt.
+	T_DropStorageVaultStmt
+
+	// T_SetDefaultStorageVaultStmt is the tag for *SetDefaultStorageVaultStmt.
+	T_SetDefaultStorageVaultStmt
+
+	// T_UnsetDefaultStorageVaultStmt is the tag for *UnsetDefaultStorageVaultStmt.
+	T_UnsetDefaultStorageVaultStmt
+
+	// DDL — STORAGE POLICY nodes (T5.3).
+
+	// T_CreateStoragePolicyStmt is the tag for *CreateStoragePolicyStmt.
+	T_CreateStoragePolicyStmt
+
+	// T_AlterStoragePolicyStmt is the tag for *AlterStoragePolicyStmt.
+	T_AlterStoragePolicyStmt
+
+	// T_DropStoragePolicyStmt is the tag for *DropStoragePolicyStmt.
+	T_DropStoragePolicyStmt
+
+	// DDL — REPOSITORY nodes (T5.3).
+
+	// T_CreateRepositoryStmt is the tag for *CreateRepositoryStmt.
+	T_CreateRepositoryStmt
+
+	// T_AlterRepositoryStmt is the tag for *AlterRepositoryStmt.
+	T_AlterRepositoryStmt
+
+	// T_DropRepositoryStmt is the tag for *DropRepositoryStmt.
+	T_DropRepositoryStmt
+
+	// DDL — STAGE nodes (T5.3).
+
+	// T_CreateStageStmt is the tag for *CreateStageStmt.
+	T_CreateStageStmt
+
+	// T_DropStageStmt is the tag for *DropStageStmt.
+	T_DropStageStmt
+
+	// DDL — FILE nodes (T5.3).
+
+	// T_CreateFileStmt is the tag for *CreateFileStmt.
+	T_CreateFileStmt
+
+	// T_DropFileStmt is the tag for *DropFileStmt.
+	T_DropFileStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -327,6 +382,36 @@ func (t NodeTag) String() string {
 		return "MergeStmt"
 	case T_MergeClause:
 		return "MergeClause"
+	case T_CreateStorageVaultStmt:
+		return "CreateStorageVaultStmt"
+	case T_AlterStorageVaultStmt:
+		return "AlterStorageVaultStmt"
+	case T_DropStorageVaultStmt:
+		return "DropStorageVaultStmt"
+	case T_SetDefaultStorageVaultStmt:
+		return "SetDefaultStorageVaultStmt"
+	case T_UnsetDefaultStorageVaultStmt:
+		return "UnsetDefaultStorageVaultStmt"
+	case T_CreateStoragePolicyStmt:
+		return "CreateStoragePolicyStmt"
+	case T_AlterStoragePolicyStmt:
+		return "AlterStoragePolicyStmt"
+	case T_DropStoragePolicyStmt:
+		return "DropStoragePolicyStmt"
+	case T_CreateRepositoryStmt:
+		return "CreateRepositoryStmt"
+	case T_AlterRepositoryStmt:
+		return "AlterRepositoryStmt"
+	case T_DropRepositoryStmt:
+		return "DropRepositoryStmt"
+	case T_CreateStageStmt:
+		return "CreateStageStmt"
+	case T_DropStageStmt:
+		return "DropStageStmt"
+	case T_CreateFileStmt:
+		return "CreateFileStmt"
+	case T_DropFileStmt:
+		return "DropFileStmt"
 	default:
 		return "Unknown"
 	}
