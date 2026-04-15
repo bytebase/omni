@@ -36,6 +36,7 @@ func TestValidateQuery_DQLAllowed(t *testing.T) {
 		"SELECT * FROM t1 UNION SELECT * FROM t2",
 		"SELECT * FROM t1 INTERSECT SELECT * FROM t2",
 		"EXPLAIN SELECT * FROM t",
+		"EXPLAIN UPDATE t SET a = 1", // EXPLAIN is always read-only
 	}
 	for _, input := range cases {
 		input := input
