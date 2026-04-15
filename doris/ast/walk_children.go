@@ -409,5 +409,21 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+
+	// DDL — CATALOG nodes (T5.2).
+	case *CreateCatalogStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterCatalogStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropCatalogStmt:
+		// leaf-ish node, name stored as string
+	case *RefreshCatalogStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	}
 }

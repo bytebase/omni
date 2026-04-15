@@ -179,8 +179,17 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateIndex(createTok.Loc)
 		case kwDATABASE, kwSCHEMA:
 			return p.parseCreateDatabase()
-		case kwTABLE, kwEXTERNAL, kwTEMPORARY:
+		case kwTABLE, kwTEMPORARY:
 			return p.parseCreateTable()
+		case kwEXTERNAL:
+			// Peek past EXTERNAL to distinguish CREATE EXTERNAL CATALOG from
+			// CREATE EXTERNAL TABLE (and CREATE EXTERNAL TEMPORARY TABLE, etc.)
+			if p.peekNext().Kind == kwCATALOG {
+				return p.parseCreateCatalog()
+			}
+			return p.parseCreateTable()
+		case kwCATALOG:
+			return p.parseCreateCatalog()
 		case kwVIEW:
 			return p.parseCreateView(createTok.Loc, false)
 		case kwMATERIALIZED:
@@ -206,6 +215,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterView()
 		case kwMATERIALIZED:
 			return p.parseAlterMTMV(alterTok.Loc)
+		case kwCATALOG:
+			return p.parseAlterCatalog()
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -220,6 +231,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropView(dropTok.Loc)
 		case kwMATERIALIZED:
 			return p.parseDropMTMV(dropTok.Loc)
+		case kwCATALOG:
+			return p.parseDropCatalog()
 		default:
 			return p.unsupported("DROP")
 		}
@@ -313,9 +326,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// Materialized View / Refresh
 	case kwREFRESH:
-		refreshTok := p.advance() // consume REFRESH
-		if p.cur.Kind == kwMATERIALIZED {
+		refreshTok := p.advance() // consume REFRESH; cur is now the object type keyword
+		switch p.cur.Kind {
+		case kwMATERIALIZED:
 			return p.parseRefreshMTMV(refreshTok.Loc)
+		case kwCATALOG:
+			return p.parseRefreshCatalog()
 		}
 		return p.unsupported("REFRESH")
 
