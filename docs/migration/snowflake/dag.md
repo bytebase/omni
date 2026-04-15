@@ -42,16 +42,16 @@ snowflake/
 | **T1.8** | statement-classification helper (DDL/DML/SELECT/SHOW/DESCRIBE/Other) | `snowflake/analysis` | F4 | T1.1–T1.7 | 1 | P0 | not started |
 | **T2.1** | DDL: DATABASE / SCHEMA (CREATE/ALTER/DROP/UNDROP) | `snowflake/parser` | T1.1 | T2.2, T2.4, T2.5 | 2 | P0 | **done** (PR #65) |
 | **T2.2** | DDL: CREATE TABLE (full — constraints, CTAS, LIKE, CLUSTER BY, COPY GRANTS, WITH TAGS, MASKING POLICY, COLLATE, IDENTITY/AUTOINCREMENT) | `snowflake/parser` | T1.2, T1.3, T1.4 | T2.1, T2.4 | 2 | P0 | **done** (PR #60) |
-| **T2.3** | DDL: ALTER TABLE (full action set) | `snowflake/parser` | T2.2 | T2.4, T2.5 | 2 | P0 | not started |
-| **T2.4** | DDL: VIEW + MATERIALIZED VIEW (CREATE/ALTER/DROP) | `snowflake/parser` | T1.4, T1.6 | T2.1, T2.2, T2.3 | 2 | P0 | not started |
+| **T2.3** | DDL: ALTER TABLE (full action set) | `snowflake/parser` | T2.2 | T2.4, T2.5 | 2 | P0 | **done** (PR #76) |
+| **T2.4** | DDL: VIEW + MATERIALIZED VIEW (CREATE/ALTER/DROP) | `snowflake/parser` | T1.4, T1.6 | T2.1, T2.2, T2.3 | 2 | P0 | **done** (PR #74) |
 | **T2.5** | DDL: DROP / UNDROP (table/schema/db core) | `snowflake/parser` | T1.1 | T2.1–T2.4 | 2 | P0 | **done** (PR #63) |
 | **T2.6** | advisor dispatcher (generic walker, rule registration) | `snowflake/advisor` | F4 | T2.1–T2.5 | 2 | P0 | **done** (PR #64) |
 | **T2.7** | 14 lint rules (parallel within node — see breakdown below) | `snowflake/advisor` | T2.2, T2.3, T2.5, T2.6, T1.4 | T3.1, T3.2, T3.4 | 2 | P0 | not started |
 | **T3.1** | query span extractor (result-column lineage, table-access, CTE/set-op merging, EXCLUDE, subquery field resolution) | `snowflake/analysis` | T1.4, T1.5, T1.6, T1.7 | T2.7, T3.2, T3.4 | 3 | P0 | not started |
 | **T3.2** | deparse-core (AST → SQL string for all P0 statement nodes) | `snowflake/deparse` | T1.4, T2.2, T5.1 | T2.7, T3.1, T3.4 | 3 | P0 | not started |
 | **T3.3** | LIMIT injection rewrite (AST-level, mirrors `mysql/deparse/rewrite.go`) | `snowflake/deparse` | T3.2 | T3.4 | 3 | P0 | not started |
-| **T3.4** | syntax diagnostics (error listing for editor) | `snowflake/parser` | F4 | T2.7, T3.1–T3.3 | 3 | P0 | not started |
-| **T5.1** | DML: INSERT (single + INSERT ALL/FIRST), UPDATE (USING), DELETE (USING), MERGE (matched / not matched / not matched by source) | `snowflake/parser` | T1.4, T1.5 | T2.* | 5 | P0 | not started |
+| **T3.4** | syntax diagnostics (error listing for editor) | `snowflake/parser` | F4 | T2.7, T3.1–T3.3 | 3 | P0 | **done** (PR #73) |
+| **T5.1** | DML: INSERT (single + INSERT ALL/FIRST), UPDATE (USING), DELETE (USING), MERGE (matched / not matched / not matched by source) | `snowflake/parser` | T1.4, T1.5 | T2.* | 5 | P0 | **done** (PR #75) |
 | **M1** | bytebase import switch (replace `bytebase/parser/snowflake` imports with `omni/snowflake`) | bytebase repo | F1–T5.1 (all P0) | — | — | P0 | not started |
 | **T4.1** | DDL: STAGE | `snowflake/parser` | T2.2 | T4.2–T4.9 | 4 | P1 | not started |
 | **T4.2** | DDL: FILE FORMAT (CSV/JSON/AVRO/ORC/PARQUET) | `snowflake/parser` | T2.2 | T4.1, T4.3–T4.9 | 4 | P1 | not started |
