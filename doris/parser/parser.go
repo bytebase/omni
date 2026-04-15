@@ -179,8 +179,17 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateIndex(createTok.Loc)
 		case kwDATABASE, kwSCHEMA:
 			return p.parseCreateDatabase()
-		case kwTABLE, kwEXTERNAL, kwTEMPORARY:
+		case kwTABLE, kwTEMPORARY:
 			return p.parseCreateTable()
+		case kwEXTERNAL:
+			// Peek past EXTERNAL to distinguish CREATE EXTERNAL CATALOG from
+			// CREATE EXTERNAL TABLE (and CREATE EXTERNAL TEMPORARY TABLE, etc.)
+			if p.peekNext().Kind == kwCATALOG {
+				return p.parseCreateCatalog()
+			}
+			return p.parseCreateTable()
+		case kwCATALOG:
+			return p.parseCreateCatalog()
 		case kwVIEW:
 			return p.parseCreateView(createTok.Loc, false)
 		case kwOR:
@@ -202,6 +211,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterTable()
 		case kwVIEW:
 			return p.parseAlterView()
+		case kwCATALOG:
+			return p.parseAlterCatalog()
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -214,6 +225,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropDatabase()
 		case kwVIEW:
 			return p.parseDropView(dropTok.Loc)
+		case kwCATALOG:
+			return p.parseDropCatalog()
 		default:
 			return p.unsupported("DROP")
 		}
@@ -307,6 +320,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// Materialized View / Refresh
 	case kwREFRESH:
+		refreshTok := p.advance() // consume REFRESH; cur is now the object type keyword
+		if p.cur.Kind == kwCATALOG {
+			return p.parseRefreshCatalog()
+		}
+		_ = refreshTok
 		return p.unsupported("REFRESH")
 
 	// Job control
