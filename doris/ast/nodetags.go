@@ -104,6 +104,14 @@ const (
 	// T_OrderByItem is the tag for *OrderByItem (expr ASC/DESC NULLS FIRST/LAST).
 	T_OrderByItem
 
+	// CTE / WITH clause nodes (T1.6).
+
+	// T_WithClause is the tag for *WithClause.
+	T_WithClause
+
+	// T_CTE is the tag for *CTE (one named CTE entry inside a WITH clause).
+	T_CTE
+
 	// SELECT statement nodes (T1.4).
 
 	// T_SelectStmt is the tag for *SelectStmt.
@@ -212,6 +220,10 @@ func (t NodeTag) String() string {
 		return "IntervalExpr"
 	case T_OrderByItem:
 		return "OrderByItem"
+	case T_WithClause:
+		return "WithClause"
+	case T_CTE:
+		return "CTE"
 	case T_SelectStmt:
 		return "SelectStmt"
 	case T_SelectItem:
