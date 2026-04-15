@@ -83,6 +83,9 @@ func (p *Parser) parseGrantRoleOptList() *nodes.List {
 
 where `parseGrantRoleOptEntry` is the renamed `parseGrantRoleOptValue`.
 
+**Regression-sanity tests**: `GRANT r1 TO r2 WITH ADMIN OPTION` and
+`GRANT r1 TO r2` (no WITH clause) continue to parse.
+
 ### Finding 2 — REVOKE role: ColId OPTION FOR (3+ items)
 
 **Failing SQL**:
@@ -114,6 +117,9 @@ if p.isColId() && p.peekNext().Type == OPTION {
 Then pass `roleOptionName` into `finishRevokeRole` and use it to build
 the `DefElem` (replacing the current hardcoded `"admin"`).
 
+**Regression-sanity tests**: `REVOKE ADMIN OPTION FOR r1 FROM r2` and
+`REVOKE GRANT OPTION FOR SELECT ON t FROM r` continue to parse.
+
 ### Finding 3 — UNIQUE NULLS [NOT] DISTINCT (7 items)
 
 **Failing SQL**:
@@ -121,38 +127,49 @@ the `DefElem` (replacing the current hardcoded `"admin"`).
 - `CREATE UNIQUE INDEX i ON t (c) NULLS DISTINCT`
 - `CREATE UNIQUE INDEX i ON t (c) NULLS NOT DISTINCT`
 
-**Root cause**: omni reclassifies `NULLS_P` to `NULLS_LA` only when
-followed by `FIRST`/`LAST` (`parser.go:1126-1132`):
+**Root cause** (corrected from plan v1 after verifying PG source):
+`parseOptUniqueNullTreatment` at `create_table.go:1308-1320` checks for
+`NULLS_LA`, but PG's grammar at `gram.y:4019-4021` uses plain `NULLS_P`
+in this production:
 
-```go
-case NULLS_P:
-    next := p.peekNext()
-    switch next.Type {
-    case FIRST_P, LAST_P:
-        p.cur.Type = NULLS_LA
-    }
+```
+opt_unique_null_treatment:
+    NULLS_P DISTINCT        { $$ = true; }
+  | NULLS_P NOT DISTINCT    { $$ = false; }
+  | /*EMPTY*/               { $$ = true; }
 ```
 
-But `parseOptUniqueNullTreatment` at `create_table.go:1308-1320`
-expects `NULLS_LA` before `DISTINCT` / `NOT DISTINCT`, so with
-`NULLS` (without `_LA`) the check fails and the clause is unrecognized.
+PG's `base_yylex` in `parser.c:221-229` only reclassifies `NULLS_P` to
+`NULLS_LA` when followed by `FIRST_P`/`LAST_P` — matching omni's
+`parser.go:1126-1132`. `NULLS DISTINCT` / `NULLS NOT DISTINCT` keeps
+the plain `NULLS_P` token in PG. omni's reclassification is correct;
+the probe site is wrong.
 
-PG's `_LA` reclassification for `NULLS` covers `{DISTINCT, NOT, FIRST, LAST}`.
-omni is missing `DISTINCT` and `NOT`.
-
-**Fix**: 2-line addition to the reclassification switch:
+**Fix**: one-line change in `parseOptUniqueNullTreatment` — check
+`NULLS_P` instead of `NULLS_LA`. No reclassification changes needed.
 
 ```go
-case NULLS_P:
-    next := p.peekNext()
-    switch next.Type {
-    case FIRST_P, LAST_P, DISTINCT, NOT:
-        p.cur.Type = NULLS_LA
+func (p *Parser) parseOptUniqueNullTreatment() bool {
+    if p.cur.Type == NULLS_P { // was: NULLS_LA
+        p.advance()
+        if p.cur.Type == NOT {
+            p.advance()
+            p.expect(DISTINCT)
+            return true
+        }
+        p.expect(DISTINCT)
+        return false
     }
+    return false
+}
 ```
 
-`NOT` is safe because `NULLS NOT` only appears in `NULLS NOT DISTINCT`
-(any `ColId NULLS NOT ...` pattern is rejected downstream).
+Also update the doc comment above the function — it references
+`NULLS_LA` in the grammar shorthand, which is misleading.
+
+**Regression-sanity tests**: `ORDER BY x NULLS FIRST` and
+`ORDER BY x NULLS LAST` continue to parse (exercise the unchanged
+reclassification path).
 
 ### Finding 4 — ALTER POLICY ... RENAME (3 items)
 
@@ -171,6 +188,9 @@ AlterPolicyStmt: ALTER POLICY name ON qualified_name alter_policy_options
 for `RENAME` and branch to a `RenameStmt`-returning path. Keep the
 existing alter-options path for the non-rename case.
 
+**Regression-sanity tests**: `ALTER POLICY p1 ON t USING (a > 0)` and
+`ALTER POLICY p1 ON t WITH CHECK (a > 0)` continue to parse.
+
 ### Finding 5 — ALTER VIEW RENAME COLUMN (3 items)
 
 **Failing SQL**:
@@ -183,6 +203,9 @@ grammar allows both under `AlterObjectSchemaStmt`/`RenameStmt` shapes.
 **Fix**: in the ALTER VIEW dispatch (find via `grep parseAlterView`),
 after RENAME peek for COLUMN; if present, parse `COLUMN name TO name`
 and return a `RenameStmt` with the right `RelationType` / `SubName`.
+
+**Regression-sanity tests**: `ALTER VIEW v RENAME TO v2` and
+`ALTER VIEW v ALTER COLUMN a SET DEFAULT 1` continue to parse.
 
 ### Finding 6 — ALTER DATABASE ... REFRESH COLLATION VERSION (3 items)
 
@@ -199,10 +222,15 @@ AlterDatabaseRefreshCollStmt:
 ```
 
 **Fix**: add a `REFRESH` branch in the dispatch that expects
-`COLLATION VERSION` and returns the corresponding AST node. Check if
-`nodes.AlterDatabaseRefreshCollStmt` already exists in `pg/ast` — if
-not, it needs to be added (which is a separate concern but usually
-mechanical).
+`COLLATION VERSION` and returns the corresponding AST node.
+`T_AlterDatabaseRefreshCollStmt` already exists in `pg/ast/nodetags.go`
+but the actual struct is missing in `pg/ast/parsenodes.go` — add it
+(single `{DbName string; Loc nodes.Loc}` shape, following the nearby
+`AlterDatabaseSetStmt` / `AlterDatabaseStmt` pattern). Walker
+regeneration should be mechanical.
+
+**Regression-sanity tests**: `ALTER DATABASE d SET timezone = 'UTC'`
+and `ALTER DATABASE d RENAME TO d2` continue to parse.
 
 ### Finding 7 — CREATE PUBLICATION FOR TABLES IN SCHEMA ... WHERE (3 items)
 
@@ -232,38 +260,67 @@ Note: PG actually rejects `WHERE` on `TABLES IN SCHEMA` at semantic time
 doesn't apply. But it's allowed at parse time and errored at
 post-parse validation. omni should match the parse-time permissiveness.
 
-### Finding 8 — CAST(... AS type COLLATE "C") (4 items)
+**Regression-sanity tests**: `CREATE PUBLICATION p FOR TABLE t` and
+`CREATE PUBLICATION p FOR TABLE t WHERE (a > 10)` continue to parse.
+
+### Finding 8 — ALTER TABLE ... ALTER COLUMN ... SET COMPRESSION DEFAULT (1 item)
 
 **Failing SQL**:
-- `SELECT CAST('42' AS text COLLATE "C")`
+- `ALTER TABLE t ALTER COLUMN c SET COMPRESSION default` (compression.sql:63)
 
-**Root cause**: omni's `parseCastExpr` calls `parseTypename`, but
-`parseTypename` doesn't handle trailing `COLLATE any_name`. PG allows
-it via `Typename opt_array_bounds opt_collate_clause` in some contexts,
-but specifically for CAST it's via the CAST target allowing a
-`Typename opt_collate_clause` extension.
+**Root cause**: `alter_table.go:1012-1020` parses SET COMPRESSION as
+`SET COMPRESSION ColId` only. `DEFAULT` is a reserved keyword in omni
+and is therefore not accepted by `parseColId`. The adjacent
+`SET STORAGE` branch at lines 1000-1006 already handles this by
+special-casing `DEFAULT` before falling through to `parseColId`:
 
-Actually let me read PG's grammar more carefully:
-
+```go
+var storageVal string
+if p.cur.Type == DEFAULT {
+    p.advance()
+    storageVal = "default"
+} else {
+    storageVal, _ = p.parseColId()
+}
 ```
-a_expr:  CAST '(' a_expr AS Typename ')'
-Typename: SimpleTypename opt_array_bounds
-        | ...
+
+PG's grammar treats both symmetrically — `SET COMPRESSION ColId`
+where `default` is admitted because it's an unreserved keyword in
+PG's `ColId`. omni has `DEFAULT` in the reserved list, so the
+DEFAULT branch has to be inlined (matching the SET STORAGE pattern).
+
+**Fix**: mirror the SET STORAGE DEFAULT handling at the SET
+COMPRESSION site. 3-line change.
+
+```go
+case COMPRESSION:
+    p.advance()
+    var compVal string
+    if p.cur.Type == DEFAULT {
+        p.advance()
+        compVal = "default"
+    } else {
+        compVal, _ = p.parseColId()
+    }
+    return &nodes.AlterTableCmd{
+        Subtype: int(nodes.AT_SetCompression),
+        Name:    colname,
+        Def:     &nodes.String{Str: compVal},
+    }, nil
 ```
 
-There's no `opt_collate_clause` on Typename directly. So how does PG
-accept `CAST('42' AS text COLLATE "C")`?
+**Regression-sanity tests**: `SET COMPRESSION pglz` and
+`SET COMPRESSION lz4` continue to parse (ColId path).
 
-Checking PG: it's `a_expr COLLATE any_name` applied to the CAST result.
-So `CAST('42' AS text COLLATE "C")` is parsed as
-`CAST('42' AS (text COLLATE "C"))` — which means COLLATE is treated as
-part of the type? Or is it the outer expression?
-
-Actually per PG docs, `CAST (expr AS type COLLATE collation)` is
-equivalent to `CAST(expr AS type) COLLATE collation`. The grammar must
-admit COLLATE after the Typename inside CAST.
-
-**Need to re-investigate PG's gram.y for this case before writing a fix.**
+**Note (de-scoped from plan v1)**: The original plan v1 listed
+`CAST('42' AS text COLLATE "C")` as Finding 8. On investigation, the
+`strings.sql` known_failures entries at lines 1, 8-10, 33-34, 78-91
+are NOT CAST COLLATE — they're unicode escape diagnostics, `bytea`
+escape-output round-trips, and line-continuation string literals.
+No B1-scope CAST COLLATE gap exists in the current corpus. The one
+real COLLATE-in-type-literal form (`CAST(x AS text COLLATE "C")`) is
+only reachable via `a_expr COLLATE any_name` applied to the CAST
+result, which omni already parses. Dropped from this plan.
 
 ### Summary — 8 Features
 
@@ -271,15 +328,17 @@ admit COLLATE after the Typename inside CAST.
 |---|---|---|---|
 | 1 | GRANT role WITH opts comma-sep + GRANTED BY | ~20+ | medium (`grant.go` 2 bugs) |
 | 2 | REVOKE role ColId OPTION FOR | ~5 | small (`grant.go` generalize) |
-| 3 | UNIQUE NULLS [NOT] DISTINCT | 7 | tiny (2 lines in `parser.go`) |
+| 3 | UNIQUE NULLS [NOT] DISTINCT | 7 | tiny (1 line in `create_table.go`) |
 | 4 | ALTER POLICY ... RENAME | 3 | small (dispatch branch) |
 | 5 | ALTER VIEW RENAME COLUMN | 3 | small (dispatch branch) |
 | 6 | ALTER DATABASE REFRESH COLLATION VERSION | 3 | small (dispatch branch, maybe + AST node) |
 | 7 | CREATE PUBLICATION FOR TABLES IN SCHEMA WHERE | 3 | small-medium (`publication.go` WHERE extension) |
-| 8 | CAST(... AS type COLLATE ...) | 4 | needs re-investigation |
+| 8 | ALTER TABLE SET COMPRESSION DEFAULT | 1 | tiny (3 lines in `alter_table.go`) |
 
-**Estimated real count**: ~48 known_failures entries covered (minus any
+**Estimated real count**: ~45 known_failures entries covered (minus any
 that turn out to be from a different root cause on closer inspection).
+The 4-entry CAST COLLATE candidate from plan v1 was dropped after
+verification (see Finding 8 note).
 
 ---
 
@@ -296,8 +355,16 @@ For each finding:
 4. **Cross-check** against pgregress `known_failures.json` entry list
    — confirm the expected fix would remove the entry.
 
-For findings 1-7 this was straightforward. For finding 8 (CAST COLLATE)
-the grammar interaction is subtler and deferred until implementation.
+For findings 1-7 this was straightforward. Finding 8 (SET COMPRESSION
+DEFAULT) was surfaced by codex review of plan v1 — compression.sql:63
+sits alone in the known_failures list and a quick grep at
+`alter_table.go:1012` confirmed the missing DEFAULT branch.
+
+**Regression-sanity test requirement** (from plan v2 review): every
+finding's test commit must include at least one subtest covering an
+existing, working form that shares the same code path, so the fix
+doesn't silently narrow previously-accepted grammar. Per-finding
+regression subtests are listed in each Finding section above.
 
 ---
 
@@ -314,10 +381,11 @@ comma-separated options after a single WITH. Add
 `<ColId> OPTION FOR`. Add subtests for ADMIN/INHERIT/SET option
 variants.
 
-**Commit 3**: Extend `NULLS_P → NULLS_LA` reclassification to include
-`DISTINCT` and `NOT` as follow-on tokens. Add `TestUniqueNullsNotDistinct`
-covering CREATE TABLE column constraint, table-level constraint, and
-CREATE UNIQUE INDEX.
+**Commit 3**: Change `parseOptUniqueNullTreatment` to probe `NULLS_P`
+instead of `NULLS_LA` (match PG's `opt_unique_null_treatment`
+production which uses plain `NULLS_P`). Update the doc comment.
+Add `TestUniqueNullsNotDistinct` covering CREATE TABLE column
+constraint, table-level constraint, and CREATE UNIQUE INDEX.
 
 **Commit 4**: Add `ALTER POLICY ... RENAME TO` to `parseAlterPolicyStmt`.
 Add `TestAlterPolicyRename`.
@@ -333,9 +401,9 @@ the same commit. Add `TestAlterDatabaseRefreshCollation`.
 `TABLES IN SCHEMA` entries. Add
 `TestCreatePublicationTablesInSchemaWhere`.
 
-**Commit 8**: Investigate PG's CAST COLLATE grammar; implement either
-in `parseCastExpr`/`parseTypename` per the actual rule. Add
-`TestCastWithCollate`.
+**Commit 8**: Add `DEFAULT` handling to the SET COMPRESSION branch in
+`alter_table.go` mirroring SET STORAGE. Add
+`TestAlterTableSetCompressionDefault`.
 
 **Commit 9**: Run `go test -short ./pg/pgregress/...`; note which
 entries in `known_failures.json` are now fixed; remove them.
@@ -344,10 +412,11 @@ entries in `known_failures.json` are now fixed; remove them.
 
 ### Ordering
 
-Commits 3, 4, 5, 6, 7 are independent of each other and of commit 1/2.
-Commits 1 and 2 both touch `grant.go` and should be sequential. Commit
-8 is the risky one — if CAST COLLATE turns out to be complex, it can
-be deferred to a follow-up without blocking the others.
+Commits 3, 4, 5, 6, 7, 8 are independent of each other and of
+commits 1/2. Commits 1 and 2 both touch `grant.go` and should be
+sequential. Commit 6 is the only risky one — if walker regeneration
+for `AlterDatabaseRefreshCollStmt` touches unrelated files, it can be
+split into its own PR without blocking the others.
 
 ### Test matrix
 
@@ -362,7 +431,7 @@ For each finding, the target test file is:
 | 5 | `alter_view_rename_column_test.go` (new) | 2 |
 | 6 | `alter_database_refresh_test.go` (new) | 2 |
 | 7 | `create_publication_row_filter_test.go` (new) | 3 |
-| 8 | `cast_collate_test.go` (new) | 3 |
+| 8 | `alter_table_set_compression_test.go` (new) | 3 |
 
 All tests should use AST-shape assertions (not just error-absence),
 following the pattern established by `create_function_json_test.go`
@@ -371,24 +440,18 @@ following the pattern established by `create_function_json_test.go`
 ### known_failures.json cleanup
 
 After all fixes land, re-run `go test -short ./pg/pgregress/...`. Each
-"FIXED" report corresponds to a removable entry. Expect ~48 entries
-removed, bringing the total from 350 → ~302.
+"FIXED" report corresponds to a removable entry. Expect ~45 entries
+removed, bringing the total from 350 → ~305.
 
 ### Risks
 
-1. **CAST COLLATE grammar** may be more complex than a dispatch fix.
-   If `parseTypename` needs an `opt_collate_clause` extension and that
-   clause currently exists for columns but not for type literals, the
-   fix could touch the type parsing core. Mitigation: defer commit 8
-   if it exceeds 2 hours.
+1. **AST struct for `AlterDatabaseRefreshCollStmt`** is missing in
+   `pg/ast/parsenodes.go` even though `T_AlterDatabaseRefreshCollStmt`
+   is present in `pg/ast/nodetags.go`. Adding the struct is
+   mechanical; if walker regeneration (`pg/ast/cmd/genwalker`) touches
+   unrelated files, split commit 6 into its own PR.
 
-2. **AST node for `AlterDatabaseRefreshCollStmt`** may not exist. If
-   adding it requires regenerating walker code
-   (`pg/ast/cmd/genwalker`), that's extra setup. Mitigation: check
-   first, skip commit 6 if the AST node is missing and has to land in
-   a separate PR.
-
-3. **Generalized REVOKE role ColId OPTION FOR** could accidentally
+2. **Generalized REVOKE role ColId OPTION FOR** could accidentally
    accept bogus option names like `REVOKE BOGUS OPTION FOR r FROM r`.
    PG accepts this at parse time and errors at semantic time. omni
    should match. Mitigation: no validation at parse level; the test
@@ -396,7 +459,7 @@ removed, bringing the total from 350 → ~302.
    obviously-bad ones like `REVOKE 123 OPTION FOR ...` via ColId
    rejection at `parseColId`.
 
-4. **PublicationObjSpec WHERE interaction**: PG accepts `WHERE` on
+3. **PublicationObjSpec WHERE interaction**: PG accepts `WHERE` on
    `TABLES IN SCHEMA` at parse time but errors at validation time.
    If omni's current behavior is semantic rejection rather than parse
    rejection, the "fix" may actually just be removing a parse-time
@@ -407,15 +470,15 @@ removed, bringing the total from 350 → ~302.
 | Phase | Time |
 |---|---|
 | Commit 1+2 (GRANT/REVOKE role) | 60-90 min |
-| Commit 3 (NULLS_LA) | 20 min |
+| Commit 3 (NULLS_P probe) | 15 min |
 | Commit 4 (ALTER POLICY RENAME) | 30 min |
 | Commit 5 (ALTER VIEW RENAME COLUMN) | 30 min |
-| Commit 6 (ALTER DATABASE REFRESH) | 30-60 min (AST node risk) |
+| Commit 6 (ALTER DATABASE REFRESH) | 30-60 min (AST struct risk) |
 | Commit 7 (PUBLICATION row filter) | 30-60 min |
-| Commit 8 (CAST COLLATE) | 60-120 min (investigation + impl) |
+| Commit 8 (SET COMPRESSION DEFAULT) | 15 min |
 | Commit 9 (known_failures cleanup) | 15 min |
 | Final codex review + iteration | 30-60 min |
-| **Total** | **4-7 hours** |
+| **Total** | **3.5-6 hours** |
 
 ### Deferred / out of scope
 
@@ -442,14 +505,15 @@ removed, bringing the total from 350 → ~302.
    set, or accept any ColId at parse time? If any ColId, is there a
    concern about ambiguity with statements like
    `REVOKE role FROM role OPTION FOR ...` where OPTION is a field name?
-3. **Finding 3 (NULLS_LA)**: are `DISTINCT` and `NOT` the only follow-on
-   tokens I should add, or is there another place PG reclassifies NULLS
-   that I'm missing? Check PG's `base_yylex` in `parser.c`.
-4. **Finding 6 (AlterDatabaseRefreshCollStmt)**: does `pg/ast` already
-   have this node type? If not, adding it requires running the walker
-   generator which could change unrelated files.
-5. **Finding 8 (CAST COLLATE)**: what's the actual PG grammar production?
-   Is it `CAST '(' a_expr AS Typename opt_collate ')'` or does COLLATE
-   bind tighter than I think? Need grammar trace before implementing.
+3. **Finding 3 (NULLS_P)** — RESOLVED in v2. Verified against PG's
+   `gram.y:4019-4021` (`opt_unique_null_treatment: NULLS_P DISTINCT`)
+   and `parser.c:221-229` (`_LA` only fires on FIRST/LAST). Fix is a
+   1-line probe-site change — no reclassification extension needed.
+4. **Finding 6 (AlterDatabaseRefreshCollStmt)**: struct is missing in
+   `pg/ast/parsenodes.go` but tag exists in `nodetags.go`. Confirm
+   walker regeneration is mechanical; if not, split to its own PR.
+5. **Finding 8 (CAST COLLATE)** — DROPPED in v2. strings.sql
+   known_failures are unicode-escape / bytea-output / line-continuation
+   issues, not CAST COLLATE. Replaced with SET COMPRESSION DEFAULT.
 6. **Anything I'm missing**: are there other B1-scope items in
    `known_failures.json` I haven't enumerated?
