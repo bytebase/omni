@@ -34,6 +34,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *AlterDatabaseSetStmt:
 		return v.Loc
+	case *AlterDatabaseRefreshCollStmt:
+		return v.Loc
 	case *CreateSchemaStmt:
 		return v.Loc
 	case *CreateTableSpaceStmt:

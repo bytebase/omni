@@ -218,6 +218,20 @@ func (p *Parser) parseAlterDatabaseDispatch(stmtLoc int) (nodes.Node, error) {
 			Loc:     nodes.Loc{Start: stmtLoc, End: p.prev.End},
 		}, nil
 
+	case REFRESH:
+		// ALTER DATABASE name REFRESH COLLATION VERSION
+		p.advance() // consume REFRESH
+		if _, err := p.expect(COLLATION); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(VERSION_P); err != nil {
+			return nil, err
+		}
+		return &nodes.AlterDatabaseRefreshCollStmt{
+			Dbname: name,
+			Loc:    nodes.Loc{Start: stmtLoc, End: p.prev.End},
+		}, nil
+
 	default:
 		// ALTER DATABASE name createdb_opt_list (empty or options)
 		options := p.parseCreatedbOptList()
