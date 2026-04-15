@@ -181,6 +181,15 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateDatabase()
 		case kwTABLE, kwEXTERNAL, kwTEMPORARY:
 			return p.parseCreateTable()
+		case kwVIEW:
+			return p.parseCreateView(createTok.Loc, false)
+		case kwOR:
+			// CREATE OR REPLACE VIEW ...
+			p.advance() // consume OR
+			if _, err := p.expect(kwREPLACE); err != nil {
+				return nil, err
+			}
+			return p.parseCreateView(createTok.Loc, true)
 		default:
 			return p.unsupported("CREATE")
 		}
@@ -191,6 +200,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterDatabase()
 		case kwTABLE:
 			return p.parseAlterTable()
+		case kwVIEW:
+			return p.parseAlterView()
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -201,6 +212,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropIndex(dropTok.Loc)
 		case kwDATABASE, kwSCHEMA:
 			return p.parseDropDatabase()
+		case kwVIEW:
+			return p.parseDropView(dropTok.Loc)
 		default:
 			return p.unsupported("DROP")
 		}

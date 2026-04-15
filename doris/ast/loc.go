@@ -104,6 +104,14 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *AlterTableAction:
 		return v.Loc
+	case *ViewColumn:
+		return v.Loc
+	case *CreateViewStmt:
+		return v.Loc
+	case *AlterViewStmt:
+		return v.Loc
+	case *DropViewStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}
