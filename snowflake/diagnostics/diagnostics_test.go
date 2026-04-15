@@ -85,9 +85,8 @@ func TestAnalyze_UnknownStatement(t *testing.T) {
 }
 
 func TestAnalyze_ErrorOnFirstLine_ColumnAccuracy(t *testing.T) {
-	// "INSERT INTO t" — INSERT is at byte 0, col 1 on line 1.
-	// The parser emits "INSERT statement parsing is not yet supported".
-	diags := Analyze("INSERT INTO t VALUES (1)")
+	// "@@bogus@@" — bad token at byte 0, col 1 on line 1.
+	diags := Analyze("@@bogus@@")
 	if len(diags) == 0 {
 		t.Fatal("expected at least one diagnostic, got none")
 	}
@@ -101,23 +100,23 @@ func TestAnalyze_ErrorOnFirstLine_ColumnAccuracy(t *testing.T) {
 }
 
 func TestAnalyze_UnsupportedStatementInMiddle(t *testing.T) {
-	// "SELECT 1; INSERT …" — INSERT starts at byte 10 (after "SELECT 1; ").
+	// "SELECT 1; @@bogus@@" — @@ starts at byte 10 (after "SELECT 1; ").
 	// Line is still 1, column 11.
-	sql := "SELECT 1; INSERT INTO t VALUES (1)"
+	sql := "SELECT 1; @@bogus@@"
 	diags := Analyze(sql)
 	if len(diags) == 0 {
 		t.Fatal("expected at least one diagnostic, got none")
 	}
-	insertDiag := diags[0]
-	if insertDiag.Range.Start.Line != 1 {
-		t.Errorf("line = %d, want 1", insertDiag.Range.Start.Line)
+	d := diags[0]
+	if d.Range.Start.Line != 1 {
+		t.Errorf("line = %d, want 1", d.Range.Start.Line)
 	}
-	// "SELECT 1; " is 10 bytes, so INSERT starts at column 11.
-	if insertDiag.Range.Start.Column != 11 {
-		t.Errorf("column = %d, want 11 (INSERT starts after 'SELECT 1; ')", insertDiag.Range.Start.Column)
+	// "SELECT 1; " is 10 bytes, so the bad token starts at column 11.
+	if d.Range.Start.Column != 11 {
+		t.Errorf("column = %d, want 11 (bad token starts after 'SELECT 1; ')", d.Range.Start.Column)
 	}
-	if insertDiag.Range.Start.Offset != 10 {
-		t.Errorf("offset = %d, want 10", insertDiag.Range.Start.Offset)
+	if d.Range.Start.Offset != 10 {
+		t.Errorf("offset = %d, want 10", d.Range.Start.Offset)
 	}
 }
 
@@ -126,8 +125,8 @@ func TestAnalyze_UnsupportedStatementInMiddle(t *testing.T) {
 // -----------------------------------------------------------------------
 
 func TestAnalyze_MultiLine_ErrorOnLine3(t *testing.T) {
-	// Error should be reported on line 3 (the INSERT statement).
-	sql := "SELECT 1;\nSELECT 2;\nINSERT INTO t VALUES (1)"
+	// Error should be reported on line 3 (the bad token).
+	sql := "SELECT 1;\nSELECT 2;\n@@bogus@@"
 	diags := Analyze(sql)
 	if len(diags) == 0 {
 		t.Fatal("expected at least one diagnostic")
@@ -161,7 +160,7 @@ func TestAnalyze_MultiLine_ErrorOnLine2(t *testing.T) {
 
 func TestAnalyze_CRLF_LineEndings(t *testing.T) {
 	// CRLF line endings — error should still report line 3.
-	sql := "SELECT 1;\r\nSELECT 2;\r\nINSERT INTO t VALUES (1)"
+	sql := "SELECT 1;\r\nSELECT 2;\r\n@@bogus@@"
 	diags := Analyze(sql)
 	if len(diags) == 0 {
 		t.Fatal("expected at least one diagnostic")
@@ -177,8 +176,8 @@ func TestAnalyze_CRLF_LineEndings(t *testing.T) {
 // -----------------------------------------------------------------------
 
 func TestAnalyze_MultipleErrors(t *testing.T) {
-	// Two unsupported statements.
-	sql := "INSERT INTO t VALUES (1);\nUPDATE t SET x=1"
+	// Two malformed statements.
+	sql := "@@bogus1@@;\n@@bogus2@@"
 	diags := Analyze(sql)
 	if len(diags) < 2 {
 		t.Fatalf("expected at least 2 diagnostics, got %d", len(diags))
@@ -336,14 +335,14 @@ func TestAnalyze_UTF8_ByteBasedColumn(t *testing.T) {
 func TestAnalyze_PositionConsistency(t *testing.T) {
 	// For a multi-line input, verify that the Offset of the error on line N
 	// is consistent with the line/column values.
-	sql := "SELECT 1;\nSELECT 2;\nINSERT INTO t VALUES (1)"
+	sql := "SELECT 1;\nSELECT 2;\n@@bogus@@"
 	diags := Analyze(sql)
 	if len(diags) == 0 {
 		t.Fatal("expected diagnostics")
 	}
 	d := diags[0]
-	// Line 3, column 1 → offset should equal the byte position of "INSERT" in sql.
-	wantOffset := strings.Index(sql, "INSERT")
+	// Line 3, column 1 → offset should equal the byte position of "@@bogus@@" in sql.
+	wantOffset := strings.Index(sql, "@@bogus@@")
 	if d.Range.Start.Offset != wantOffset {
 		t.Errorf("Start.Offset = %d, want %d", d.Range.Start.Offset, wantOffset)
 	}

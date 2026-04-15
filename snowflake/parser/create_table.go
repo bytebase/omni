@@ -23,6 +23,35 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		}
 	}
 
+	// Optional SECURE modifier (VIEW-only — must be checked before temporary modifiers
+	// since SECURE can appear before MATERIALIZED VIEW too).
+	secure := false
+	if p.cur.Type == kwSECURE {
+		p.advance()
+		secure = true
+	}
+
+	// Optional RECURSIVE modifier (VIEW-only).
+	recursive := false
+	if p.cur.Type == kwRECURSIVE {
+		p.advance()
+		recursive = true
+	}
+
+	// If SECURE or RECURSIVE were consumed, the next token must be VIEW or MATERIALIZED VIEW.
+	// Dispatch early before checking temporary modifiers.
+	if secure || recursive {
+		switch p.cur.Type {
+		case kwVIEW:
+			return p.parseCreateViewStmt(start, orReplace, secure, recursive)
+		case kwMATERIALIZED:
+			p.advance() // consume MATERIALIZED
+			return p.parseCreateMaterializedViewStmt(start, orReplace, secure)
+		default:
+			return p.unsupported("CREATE")
+		}
+	}
+
 	// Optional [LOCAL|GLOBAL] TRANSIENT|TEMPORARY|TEMP|VOLATILE
 	transient := false
 	temporary := false
@@ -52,6 +81,11 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		return p.parseCreateDatabaseStmt(start, orReplace, transient)
 	case kwSCHEMA:
 		return p.parseCreateSchemaStmt(start, orReplace, transient)
+	case kwVIEW:
+		return p.parseCreateViewStmt(start, orReplace, false, false)
+	case kwMATERIALIZED:
+		p.advance() // consume MATERIALIZED
+		return p.parseCreateMaterializedViewStmt(start, orReplace, false)
 	default:
 		return p.unsupported("CREATE")
 	}

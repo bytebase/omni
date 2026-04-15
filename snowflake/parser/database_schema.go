@@ -155,7 +155,8 @@ func (p *Parser) parseCreateSchemaStmt(start ast.Loc, orReplace, transient bool)
 // ---------------------------------------------------------------------------
 
 // parseAlterStmt dispatches ALTER ... to the appropriate sub-parser.
-// Handles DATABASE and SCHEMA; falls back to unsupported for other objects.
+// Handles DATABASE, SCHEMA, VIEW, and MATERIALIZED VIEW; falls back to
+// unsupported for other objects.
 func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	p.advance() // consume ALTER
 
@@ -164,6 +165,11 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		return p.parseAlterDatabaseStmt()
 	case kwSCHEMA:
 		return p.parseAlterSchemaStmt()
+	case kwVIEW:
+		return p.parseAlterViewStmt()
+	case kwMATERIALIZED:
+		p.advance() // consume MATERIALIZED
+		return p.parseAlterMaterializedViewStmt()
 	default:
 		return p.unsupported("ALTER")
 	}
