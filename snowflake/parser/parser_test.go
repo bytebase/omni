@@ -91,17 +91,12 @@ func TestParse_SingleSelect(t *testing.T) {
 }
 
 func TestParse_MultiMixed(t *testing.T) {
-	// "SELECT 1; INSERT INTO t VALUES (1);" has SELECT at byte 0 and
-	// INSERT at byte 10 (after "SELECT 1; "). SELECT now succeeds.
+	// "SELECT 1; INSERT INTO t VALUES (1);" — both statements now parse.
 	runParseBestEffortCase(t, parseCase{
 		name:        "SELECT then INSERT",
 		input:       "SELECT 1; INSERT INTO t VALUES (1);",
-		wantStmtCnt: 1,
-		wantErrCnt:  1,
-		wantErrMsgs: []string{
-			"INSERT statement parsing is not yet supported",
-		},
-		wantErrLocs: []int{10},
+		wantStmtCnt: 2,
+		wantErrCnt:  0,
 	})
 }
 
@@ -151,9 +146,9 @@ func TestParse_BeginEndBlockOneError(t *testing.T) {
 }
 
 func TestParse_StrictVsBestEffort(t *testing.T) {
-	// Parse returns the first error; ParseBestEffort returns all errors.
-	// SELECT now succeeds, so the first error is INSERT.
-	input := "SELECT 1; INSERT INTO t VALUES (1);"
+	// INSERT now parses successfully — both statements in the input succeed.
+	// Use a BEGIN statement (still unsupported) to produce an error.
+	input := "SELECT 1; BEGIN TRANSACTION;"
 
 	file, err := Parse(input)
 	if err == nil {
@@ -162,8 +157,8 @@ func TestParse_StrictVsBestEffort(t *testing.T) {
 		pe, ok := err.(*ParseError)
 		if !ok {
 			t.Errorf("Parse: expected *ParseError, got %T", err)
-		} else if !strings.Contains(pe.Msg, "INSERT") {
-			t.Errorf("Parse: first error Msg = %q, want to contain INSERT", pe.Msg)
+		} else if !strings.Contains(pe.Msg, "BEGIN") {
+			t.Errorf("Parse: first error Msg = %q, want to contain BEGIN", pe.Msg)
 		}
 	}
 	if file == nil {
