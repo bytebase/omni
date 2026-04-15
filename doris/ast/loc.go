@@ -114,6 +114,12 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *InsertStmt:
 		return v.Loc
+	case *Assignment:
+		return v.Loc
+	case *UpdateStmt:
+		return v.Loc
+	case *DeleteStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

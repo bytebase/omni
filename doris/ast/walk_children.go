@@ -299,5 +299,25 @@ func walkChildren(v Visitor, node Node) {
 		if n.Query != nil {
 			Walk(v, n.Query)
 		}
+
+	// DML — UPDATE / DELETE nodes (T4.2).
+	case *Assignment:
+		Walk(v, n.Column)
+		Walk(v, n.Value)
+	case *UpdateStmt:
+		Walk(v, n.Target)
+		for _, a := range n.Assignments {
+			Walk(v, a)
+		}
+		walkNodes(v, n.From)
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+	case *DeleteStmt:
+		Walk(v, n.Target)
+		walkNodes(v, n.Using)
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
 	}
 }

@@ -20,8 +20,8 @@ func TestParseEmpty(t *testing.T) {
 }
 
 func TestParseUnsupported(t *testing.T) {
-	// UPDATE is still unsupported.
-	file, errs := Parse("UPDATE t SET c = 1")
+	// TRUNCATE is still unsupported.
+	file, errs := Parse("TRUNCATE TABLE t")
 	if file == nil {
 		t.Fatal("expected non-nil File")
 	}
@@ -32,7 +32,7 @@ func TestParseUnsupported(t *testing.T) {
 	if len(errs) != 1 {
 		t.Fatalf("expected 1 error, got %d", len(errs))
 	}
-	if errs[0].Msg != "UPDATE statement parsing is not yet supported" {
+	if errs[0].Msg != "TRUNCATE statement parsing is not yet supported" {
 		t.Errorf("unexpected error: %q", errs[0].Msg)
 	}
 }
@@ -171,8 +171,7 @@ func TestParseAllDispatchCategories(t *testing.T) {
 	}{
 		{"DROP TABLE t", "DROP"},
 		{"TRUNCATE TABLE t", "TRUNCATE"},
-		{"UPDATE t SET c=1", "UPDATE"},
-		{"DELETE FROM t", "DELETE"},
+		// INSERT, UPDATE, DELETE are now supported; skip them here.
 		{"MERGE INTO t USING s ON t.id=s.id WHEN MATCHED THEN DELETE", "MERGE"},
 		{"LOAD DATA INFILE 'f' INTO TABLE t", "LOAD"},
 		{"EXPORT TABLE t", "EXPORT"},

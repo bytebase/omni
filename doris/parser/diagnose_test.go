@@ -38,9 +38,8 @@ func TestDiagnoseUnterminatedComment(t *testing.T) {
 }
 
 func TestDiagnoseMultiStatement(t *testing.T) {
-	// SELECT is now supported; INSERT is still unsupported.
-	// The INSERT statement produces a diagnostic.
-	diags := Diagnose("INSERT INTO t; UPDATE t SET c = 1")
+	// INSERT and TRUNCATE are still unsupported; each produces a diagnostic.
+	diags := Diagnose("INSERT INTO t; TRUNCATE TABLE t")
 	if len(diags) < 2 {
 		t.Errorf("expected at least 2 diagnostics, got %d", len(diags))
 	}
