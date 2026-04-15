@@ -221,16 +221,22 @@ func (p *Parser) parsePublicationObjSpec() *nodes.PublicationObjSpec {
 		p.expect(SCHEMA)
 		if p.cur.Type == CURRENT_SCHEMA {
 			p.advance()
+			// PG accepts OptWhereClause here at parse time and errors
+			// at semantic time; match its permissiveness.
+			p.parseOptWhereClausePub()
 			return &nodes.PublicationObjSpec{
 				Pubobjtype: nodes.PUBLICATIONOBJ_TABLES_IN_CUR_SCHEMA,
-				Loc: nodes.Loc{Start: loc, End: p.prev.End},
+				Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 			}
 		}
 		schemaName, _ := p.parseColId()
+		// PG accepts a trailing WHERE (...) here at parse time, then
+		// rejects at validation. omni matches parse-time permissiveness.
+		p.parseOptWhereClausePub()
 		return &nodes.PublicationObjSpec{
 			Pubobjtype: nodes.PUBLICATIONOBJ_TABLES_IN_SCHEMA,
 			Name:       schemaName,
-			Loc: nodes.Loc{Start: loc, End: p.prev.End},
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}
 	}
 
