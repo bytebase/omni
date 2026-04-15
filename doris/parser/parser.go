@@ -238,7 +238,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		deleteTok := p.advance() // consume DELETE
 		return p.parseDeleteStmt(deleteTok.Loc.Start)
 	case kwMERGE:
-		return p.unsupported("MERGE")
+		mergeTok := p.advance() // consume MERGE; cur is now INTO
+		return p.parseMergeStmt(mergeTok.Loc)
 
 	// Load / Export / Copy
 	case kwLOAD:

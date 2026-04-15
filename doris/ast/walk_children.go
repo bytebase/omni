@@ -319,5 +319,34 @@ func walkChildren(v Visitor, node Node) {
 		if n.Where != nil {
 			Walk(v, n.Where)
 		}
+
+	// DML — MERGE INTO nodes (T4.3).
+	case *MergeStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		if n.Source != nil {
+			Walk(v, n.Source)
+		}
+		if n.On != nil {
+			Walk(v, n.On)
+		}
+		for _, clause := range n.Clauses {
+			Walk(v, clause)
+		}
+	case *MergeClause:
+		if n.And != nil {
+			Walk(v, n.And)
+		}
+		for _, a := range n.Assignments {
+			if a.Value != nil {
+				Walk(v, a.Value)
+			}
+		}
+		for _, val := range n.Values {
+			if val != nil {
+				Walk(v, val)
+			}
+		}
 	}
 }
