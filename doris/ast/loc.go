@@ -124,6 +124,36 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *MergeClause:
 		return v.Loc
+	case *CreateStorageVaultStmt:
+		return v.Loc
+	case *AlterStorageVaultStmt:
+		return v.Loc
+	case *DropStorageVaultStmt:
+		return v.Loc
+	case *SetDefaultStorageVaultStmt:
+		return v.Loc
+	case *UnsetDefaultStorageVaultStmt:
+		return v.Loc
+	case *CreateStoragePolicyStmt:
+		return v.Loc
+	case *AlterStoragePolicyStmt:
+		return v.Loc
+	case *DropStoragePolicyStmt:
+		return v.Loc
+	case *CreateRepositoryStmt:
+		return v.Loc
+	case *AlterRepositoryStmt:
+		return v.Loc
+	case *DropRepositoryStmt:
+		return v.Loc
+	case *CreateStageStmt:
+		return v.Loc
+	case *DropStageStmt:
+		return v.Loc
+	case *CreateFileStmt:
+		return v.Loc
+	case *DropFileStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

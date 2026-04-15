@@ -348,5 +348,63 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, val)
 			}
 		}
+
+	// DDL — STORAGE VAULT nodes (T5.3).
+	case *CreateStorageVaultStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterStorageVaultStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropStorageVaultStmt:
+		// leaf-ish node, no Node children
+	case *SetDefaultStorageVaultStmt:
+		// leaf-ish node, no Node children
+	case *UnsetDefaultStorageVaultStmt:
+		// leaf-ish node, no Node children
+
+	// DDL — STORAGE POLICY nodes (T5.3).
+	case *CreateStoragePolicyStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterStoragePolicyStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropStoragePolicyStmt:
+		// leaf-ish node, no Node children
+
+	// DDL — REPOSITORY nodes (T5.3).
+	case *CreateRepositoryStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterRepositoryStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropRepositoryStmt:
+		// leaf-ish node, no Node children
+
+	// DDL — STAGE nodes (T5.3).
+	case *CreateStageStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropStageStmt:
+		// leaf-ish node, no Node children
+
+	// DDL — FILE nodes (T5.3).
+	case *CreateFileStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropFileStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	}
 }
