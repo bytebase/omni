@@ -63,6 +63,13 @@ const (
 	T_UndropSchemaStmt
 	T_DropStmt
 	T_UndropStmt
+
+	// DML statement tags (T5.1)
+	T_InsertStmt
+	T_InsertMultiStmt
+	T_UpdateStmt
+	T_DeleteStmt
+	T_MergeStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -152,6 +159,16 @@ func (t NodeTag) String() string {
 		return "DropStmt"
 	case T_UndropStmt:
 		return "UndropStmt"
+	case T_InsertStmt:
+		return "InsertStmt"
+	case T_InsertMultiStmt:
+		return "InsertMultiStmt"
+	case T_UpdateStmt:
+		return "UpdateStmt"
+	case T_DeleteStmt:
+		return "DeleteStmt"
+	case T_MergeStmt:
+		return "MergeStmt"
 	default:
 		return "Unknown"
 	}
