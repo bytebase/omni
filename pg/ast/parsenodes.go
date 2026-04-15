@@ -1596,6 +1596,14 @@ type AlterDatabaseSetStmt struct {
 
 func (n *AlterDatabaseSetStmt) Tag() NodeTag { return T_AlterDatabaseSetStmt }
 
+// AlterDatabaseRefreshCollStmt - ALTER DATABASE name REFRESH COLLATION VERSION
+type AlterDatabaseRefreshCollStmt struct {
+	Dbname string
+	Loc    Loc // token location
+}
+
+func (n *AlterDatabaseRefreshCollStmt) Tag() NodeTag { return T_AlterDatabaseRefreshCollStmt }
+
 // DropdbStmt - DROP DATABASE
 type DropdbStmt struct {
 	Dbname    string

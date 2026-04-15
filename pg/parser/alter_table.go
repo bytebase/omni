@@ -292,6 +292,27 @@ func (p *Parser) parseAlterView(alterLoc int) (nodes.Node, error) {
 	// Check for RENAME
 	if p.cur.Type == RENAME {
 		p.advance()
+		// RENAME COLUMN oldname TO newname
+		if p.cur.Type == COLUMN {
+			p.advance()
+			oldname, err := p.parseColId()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(TO); err != nil {
+				return nil, err
+			}
+			newname, _ := p.parseName()
+			return &nodes.RenameStmt{
+				RenameType:   nodes.OBJECT_COLUMN,
+				RelationType: nodes.OBJECT_VIEW,
+				Relation:     rv,
+				Subname:      oldname,
+				Newname:      newname,
+				MissingOk:    missingOk,
+				Loc:          nodes.Loc{Start: alterLoc, End: p.prev.End},
+			}, nil
+		}
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
@@ -1010,9 +1031,15 @@ func (p *Parser) parseAlterColumnSet(colname string) (*nodes.AlterTableCmd, erro
 			Def:     &nodes.String{Str: storageVal},
 		}, nil
 	case COMPRESSION:
-		// SET COMPRESSION ColId
+		// SET COMPRESSION ColId | SET COMPRESSION DEFAULT
 		p.advance()
-		compVal, _ := p.parseColId()
+		var compVal string
+		if p.cur.Type == DEFAULT {
+			p.advance()
+			compVal = "default"
+		} else {
+			compVal, _ = p.parseColId()
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetCompression),
 			Name:    colname,

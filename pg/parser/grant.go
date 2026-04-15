@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/pg/ast"
 )
 
@@ -53,7 +55,7 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // position of REVOKE keyword
 	grantOptionFor := false
-	adminOptionFor := false
+	roleOptionName := "" // non-empty => "<name> OPTION FOR" form
 	if p.cur.Type == GRANT {
 		p.advance()
 		if _, err := p.expect(OPTION); err != nil {
@@ -63,15 +65,19 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			return nil, err
 		}
 		grantOptionFor = true
-	} else if p.cur.Type == ADMIN {
-		p.advance()
+	} else if p.isColId() && p.peekNext().Type == OPTION {
+		// PG's grammar allows any ColId before OPTION FOR in REVOKE role:
+		//   REVOKE ColId OPTION FOR privilege_list FROM role_list
+		// ADMIN/INHERIT/SET are the meaningful names; PG parses any ColId
+		// and defers validation to semantic time.
+		roleOptionName = strings.ToLower(p.cur.Str)
+		p.advance() // ColId
 		if _, err := p.expect(OPTION); err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(FOR); err != nil {
 			return nil, err
 		}
-		adminOptionFor = true
 	}
 	switch p.cur.Type {
 	case ALL:
@@ -90,7 +96,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 				name, _ := p.parseColId()
 				roles.Items = append(roles.Items, &nodes.AccessPriv{PrivName: name})
 			}
-			return p.finishRevokeRole(loc, roles, adminOptionFor)
+			return p.finishRevokeRole(loc, roles, roleOptionName)
 		}
 		return nil, nil
 	case SELECT, INSERT, UPDATE, DELETE_P, TRUNCATE, REFERENCES, TRIGGER,
@@ -103,7 +109,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			p.advance()
 			return p.finishRevokeOnObject(loc, grantOptionFor, privs)
 		}
-		return p.finishRevokeRole(loc, privs, adminOptionFor)
+		return p.finishRevokeRole(loc, privs, roleOptionName)
 	default:
 		privs, err := p.parsePrivilegeList()
 		if err != nil {
@@ -113,7 +119,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			p.advance()
 			return p.finishRevokeOnObject(loc, grantOptionFor, privs)
 		}
-		return p.finishRevokeRole(loc, privs, adminOptionFor)
+		return p.finishRevokeRole(loc, privs, roleOptionName)
 	}
 }
 
@@ -162,14 +168,19 @@ func (p *Parser) finishGrantRole(loc int, isGrant bool, roles *nodes.List) (node
 		return nil, err
 	}
 	grantees := p.parseRoleList()
-	opts := p.parseGrantRoleOptList()
+	opts, err := p.parseGrantRoleOptList()
+	if err != nil {
+		return nil, err
+	}
+	grantedBy := p.parseOptGrantedBy()
 	return &nodes.GrantRoleStmt{
 		GrantedRoles: roles, GranteeRoles: grantees, IsGrant: isGrant, Opt: opts,
-		Loc: nodes.Loc{Start: loc, End: p.prev.End},
+		Grantor: grantedBy,
+		Loc:     nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
-func (p *Parser) finishRevokeRole(loc int, roles *nodes.List, adminOptionFor bool) (nodes.Node, error) {
+func (p *Parser) finishRevokeRole(loc int, roles *nodes.List, roleOptionName string) (nodes.Node, error) {
 	if _, err := p.expect(FROM); err != nil {
 		return nil, err
 	}
@@ -177,8 +188,8 @@ func (p *Parser) finishRevokeRole(loc int, roles *nodes.List, adminOptionFor boo
 	grantedBy := p.parseOptGrantedBy()
 	behavior := p.parseOptDropBehavior()
 	var opts *nodes.List
-	if adminOptionFor {
-		opts = &nodes.List{Items: []nodes.Node{makeDefElem("admin", &nodes.Boolean{Boolval: false})}}
+	if roleOptionName != "" {
+		opts = &nodes.List{Items: []nodes.Node{makeDefElem(roleOptionName, &nodes.Boolean{Boolval: false})}}
 	}
 	return &nodes.GrantRoleStmt{
 		GrantedRoles: roles, GranteeRoles: grantees, IsGrant: false,
@@ -541,27 +552,32 @@ func (p *Parser) parseOptGrantedBy() *nodes.RoleSpec {
 	return nil
 }
 
-func (p *Parser) parseGrantRoleOptList() *nodes.List {
-	var items []nodes.Node
-	for {
-		opt := p.parseGrantRoleOpt()
-		if opt == nil {
-			break
-		}
-		items = append(items, opt)
-	}
-	if len(items) == 0 {
-		return nil
-	}
-	return &nodes.List{Items: items}
-}
-
-func (p *Parser) parseGrantRoleOpt() *nodes.DefElem {
+func (p *Parser) parseGrantRoleOptList() (*nodes.List, error) {
+	// PG grammar: opt_granted_by's sibling here is
+	//   WITH grant_role_opt_list
+	//   where grant_role_opt_list is a comma-separated list of grant_role_opt.
+	// A single WITH introduces the whole list; entries are comma-separated.
+	// Once WITH (or a ',') has been consumed, a valid grant_role_opt is
+	// required — silently accepting a trailing comma or an unrecognized
+	// option would make the parser permissive where PG rejects.
 	if p.cur.Type != WITH {
-		return nil
+		return nil, nil
 	}
-	p.advance()
-	return p.parseGrantRoleOptValue()
+	p.advance() // consume WITH
+	first := p.parseGrantRoleOptValue()
+	if first == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	items := []nodes.Node{first}
+	for p.cur.Type == ',' {
+		p.advance()
+		next := p.parseGrantRoleOptValue()
+		if next == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		items = append(items, next)
+	}
+	return &nodes.List{Items: items}, nil
 }
 
 func (p *Parser) parseGrantRoleOptValue() *nodes.DefElem {
@@ -981,6 +997,21 @@ func (p *Parser) parseAlterPolicyStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	table := makeRangeVarFromNames(names)
+	// ALTER POLICY name ON qualified_name RENAME TO name
+	if p.cur.Type == RENAME {
+		p.advance()
+		if _, err := p.expect(TO); err != nil {
+			return nil, err
+		}
+		newname, _ := p.parseName()
+		return &nodes.RenameStmt{
+			RenameType: nodes.OBJECT_POLICY,
+			Relation:   table,
+			Subname:    policyName,
+			Newname:    newname,
+			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
+		}, nil
+	}
 	var roles *nodes.List
 	var qual nodes.Node
 	var withCheck nodes.Node

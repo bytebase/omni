@@ -387,6 +387,8 @@ func NodeTagName(tag NodeTag) string {
 		return "AlterDatabaseStmt"
 	case T_AlterDatabaseSetStmt:
 		return "AlterDatabaseSetStmt"
+	case T_AlterDatabaseRefreshCollStmt:
+		return "AlterDatabaseRefreshCollStmt"
 	case T_DropdbStmt:
 		return "DropdbStmt"
 	case T_AlterSystemStmt:

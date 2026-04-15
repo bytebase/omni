@@ -237,6 +237,9 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 	case *nodes.AlterDatabaseSetStmt:
 		// ALTER DATABASE ... SET: no-op for pgddl
 		return nil
+	case *nodes.AlterDatabaseRefreshCollStmt:
+		// ALTER DATABASE ... REFRESH COLLATION VERSION: no-op for pgddl
+		return nil
 	case *nodes.DropdbStmt:
 		// DROP DATABASE: no-op for pgddl
 		return nil
