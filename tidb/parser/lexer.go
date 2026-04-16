@@ -1957,6 +1957,12 @@ func (l *Lexer) skipWhitespaceAndComments() {
 					l.pos = len(l.input)
 					continue
 				}
+				// Splice inner SQL into the input buffer, replacing the comment construct.
+				// Note: this in-place mutation means Loc offsets on subsequent tokens are
+				// relative to the rewritten buffer, not the original source text. This matches
+				// the MySQL /*!*/ handling below and is an accepted invariant — no downstream
+				// code in the TiDB engine currently relies on byte-accurate Loc against the
+				// original input.
 				inner := l.input[innerStart:end]
 				l.input = l.input[:l.pos] + inner + l.input[end+2:]
 				continue

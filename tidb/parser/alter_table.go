@@ -352,6 +352,8 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 
 	case kwSET:
 		// TiDB: SET TIFLASH REPLICA n
+		// Note: no MySQL ALTER TABLE form starts with bare SET at this dispatch level.
+		// ALTER COLUMN col SET DEFAULT routes through the kwALTER branch, not here.
 		p.advance()
 		if p.cur.Type == kwTIFLASH {
 			p.advance()

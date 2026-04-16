@@ -90,20 +90,47 @@ func TestParseTiDBTableOptions(t *testing.T) {
 }
 
 func TestParseTTLExpression(t *testing.T) {
-	sql := "CREATE TABLE t (id INT, created_at DATETIME) TTL = created_at + INTERVAL 1 YEAR"
-	list, err := Parse(sql)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
+	tests := []struct {
+		name     string
+		sql      string
+		wantVal  string // substring expected in TTL Value
+	}{
+		{
+			"simple interval",
+			"CREATE TABLE t (id INT, created_at DATETIME) TTL = created_at + INTERVAL 1 YEAR",
+			"created_at + INTERVAL 1 YEAR",
+		},
+		{
+			"date_add function",
+			"CREATE TABLE t (id INT, created_at DATETIME) TTL = DATE_ADD(created_at, INTERVAL 1 DAY)",
+			"DATE_ADD(created_at, INTERVAL 1 DAY)",
+		},
+		{
+			"with other options after",
+			"CREATE TABLE t (id INT, created_at DATETIME) TTL = created_at + INTERVAL 1 MONTH TTL_ENABLE = 'ON'",
+			"created_at + INTERVAL 1 MONTH",
+		},
 	}
-	stmt := list.Items[0].(*nodes.CreateTableStmt)
-	found := false
-	for _, opt := range stmt.Options {
-		if opt.Name == "TTL" {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("TTL option not found")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			list, err := Parse(tt.sql)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			stmt := list.Items[0].(*nodes.CreateTableStmt)
+			found := false
+			for _, opt := range stmt.Options {
+				if opt.Name == "TTL" {
+					found = true
+					if !strings.Contains(opt.Value, tt.wantVal) {
+						t.Errorf("TTL Value = %q, want substring %q", opt.Value, tt.wantVal)
+					}
+				}
+			}
+			if !found {
+				t.Error("TTL option not found")
+			}
+		})
 	}
 }
 
@@ -185,6 +212,17 @@ func TestParseAlterTiFlashReplica(t *testing.T) {
 				t.Errorf("replica count: got %d, want %d", cmd.TiFlashReplica, tt.count)
 			}
 		})
+	}
+}
+
+func TestParseAlterTiFlashReplicaLocationLabelsDeferred(t *testing.T) {
+	// Pinned negative test: LOCATION LABELS is a valid TiDB syntax extension
+	// that is not yet supported. This test documents the gap and will fail
+	// (in a good way) once support is added.
+	sql := "ALTER TABLE t SET TIFLASH REPLICA 2 LOCATION LABELS 'zone', 'rack'"
+	_, err := Parse(sql)
+	if err == nil {
+		t.Fatal("expected parse error for unsupported LOCATION LABELS syntax — if this passes, the feature was added; update the test")
 	}
 }
 

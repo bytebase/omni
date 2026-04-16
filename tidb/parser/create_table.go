@@ -1385,19 +1385,18 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "PLACEMENT POLICY", Value: val}, true, nil
 
 	case kwTTL:
-		// TTL = column_name + INTERVAL n UNIT
-		// NOTE: TTL expression is consumed as raw tokens joined with spaces.
-		// This works for typical expressions (e.g., "created_at + INTERVAL 1 YEAR")
-		// but may mangle string literals or complex expressions. A proper fix would
-		// use parseExpr() and deparse, but that's deferred for simplicity.
+		// TTL = expr (e.g., created_at + INTERVAL 1 YEAR, or DATE_ADD(col, INTERVAL 1 DAY))
+		// Parse as a full expression to handle function calls, parens, string literals correctly.
+		// Store raw source text in Value for round-trip fidelity.
 		p.advance()
 		p.match('=')
-		var ttlParts []string
-		for p.cur.Type != tokEOF && p.cur.Type != ';' && p.cur.Type != ',' && !p.isTableOptionKeyword() {
-			ttlParts = append(ttlParts, p.cur.Str)
-			p.advance()
+		exprStart := p.cur.Loc
+		_, err := p.parseExpr()
+		if err != nil {
+			return nil, false, err
 		}
-		val := strings.Join(ttlParts, " ")
+		exprEnd := p.prev.End
+		val := strings.TrimSpace(p.lexer.input[exprStart:exprEnd])
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "TTL", Value: val}, true, nil
 	}
 
@@ -1457,26 +1456,6 @@ func (p *Parser) consumeOptionValue() (string, error) {
 		}
 		return "", nil
 	}
-}
-
-// isTableOptionKeyword returns true if the current token is a keyword that
-// starts a new table option. Used for TTL expression boundary detection.
-func (p *Parser) isTableOptionKeyword() bool {
-	switch p.cur.Type {
-	case kwENGINE, kwAUTO_INCREMENT, kwDEFAULT, kwCHARSET, kwCHARACTER,
-		kwCOLLATE, kwCOMMENT, kwROW_FORMAT, kwCONNECTION, kwPASSWORD,
-		kwSTORAGE, kwSTART, kwCHECKSUM, kwTABLESPACE, kwENCRYPTION,
-		kwUNION, kwINDEX, kwDATA, kwCOMPRESSION, kwINSERT_METHOD,
-		kwKEY_BLOCK_SIZE, kwSTATS_AUTO_RECALC, kwSTATS_PERSISTENT,
-		kwSTATS_SAMPLE_PAGES, kwMAX_ROWS, kwMIN_ROWS, kwAVG_ROW_LENGTH,
-		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
-		kwSECONDARY_ENGINE_ATTRIBUTE, kwAUTOEXTEND_SIZE, kwENGINE_ATTRIBUTE,
-		kwSHARD_ROW_ID_BITS, kwPRE_SPLIT_REGIONS, kwAUTO_ID_CACHE,
-		kwAUTO_RANDOM_BASE, kwTTL_ENABLE, kwTTL_JOB_INTERVAL, kwPLACEMENT,
-		kwTTL, kwPARTITION:
-		return true
-	}
-	return false
 }
 
 // parsePartitionClause parses a PARTITION BY clause.
