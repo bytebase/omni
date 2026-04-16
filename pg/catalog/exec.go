@@ -17,12 +17,13 @@ type ExecOptions struct {
 
 // ExecResult is the execution result for a single statement.
 type ExecResult struct {
-	Index    int       // statement position in the batch (0-based)
-	SQL      string    // original SQL text for this statement
-	Line     int       // 1-based start line in the original SQL
-	Skipped  bool      // true if the statement was not processed (DML, etc.)
-	Error    error     // nil = success or skipped
-	Warnings []Warning // non-fatal notices emitted during execution
+	Index    int          // statement position in the batch (0-based)
+	SQL      string       // original SQL text for this statement
+	Line     int          // 1-based start line in the original SQL
+	Skipped  bool         // true if the statement was not processed (DML, etc.)
+	Error    error        // nil = success or skipped
+	Warnings []Warning    // non-fatal notices emitted during execution
+	Changes  *SchemaDiff  // structural changes produced by this statement (nil when Error != nil or Skipped)
 }
 
 // Exec parses and executes one or more SQL statements against the catalog.
@@ -85,10 +86,21 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 			continue
 		}
 
+		// Snapshot catalog state before DDL for change detection.
+		snapshot := c.Clone()
+
 		// Execute DDL/utility via ProcessUtility.
 		execErr := c.ProcessUtility(stmt)
 		result.Error = execErr
 		result.Warnings = c.DrainWarnings()
+
+		// Compute structural changes on success.
+		if execErr == nil {
+			if diff := Diff(snapshot, c); !diff.IsEmpty() {
+				result.Changes = diff
+			}
+		}
+
 		results = append(results, result)
 
 		if execErr != nil && !continueOnError {
