@@ -44,6 +44,15 @@ type Constraint struct {
 	FKDelSetCols []int16  // FK: subset of columns for ON DELETE SET NULL/DEFAULT
 }
 
+// AddConstraint adds a constraint to an existing relation, bypassing DDL text.
+func (c *Catalog) AddConstraint(schemaName, tableName string, def ConstraintDef) error {
+	schema, rel, err := c.findRelation(schemaName, tableName)
+	if err != nil {
+		return err
+	}
+	return c.addConstraint(schema, rel, def)
+}
+
 // addConstraint adds a constraint to a relation during CREATE TABLE.
 func (c *Catalog) addConstraint(schema *Schema, rel *Relation, def ConstraintDef) error {
 	switch def.Type {
