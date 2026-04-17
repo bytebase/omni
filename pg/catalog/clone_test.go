@@ -323,3 +323,171 @@ func TestCloneBuiltinTypesShared(t *testing.T) {
 		t.Error("builtin type BOOL should be shared between original and clone")
 	}
 }
+
+func TestCloneSessionUserIsolation(t *testing.T) {
+	orig := New()
+	orig.SetSessionUser("alice")
+	orig.SetRole("bob")
+
+	clone := orig.Clone()
+
+	if clone.SessionUser() != "alice" {
+		t.Errorf("clone sessionUser=%q, want %q", clone.SessionUser(), "alice")
+	}
+	if clone.CurrentUser() != "bob" {
+		t.Errorf("clone currentUser=%q, want %q", clone.CurrentUser(), "bob")
+	}
+
+	clone.SetRole("charlie")
+	if orig.CurrentUser() != "bob" {
+		t.Errorf("original currentUser changed to %q after clone SetRole", orig.CurrentUser())
+	}
+}
+
+func TestCloneIndexExprsIsolation(t *testing.T) {
+	orig := New()
+
+	_, err := orig.Exec(`
+		CREATE TABLE t1 (data jsonb);
+		CREATE INDEX t1_expr_idx ON t1 ((data->>'name'));
+	`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rel := orig.GetRelation("", "t1")
+	if rel == nil {
+		t.Fatal("missing t1")
+	}
+
+	var origIdx *Index
+	for _, idx := range orig.IndexesOf(rel.OID) {
+		if idx.Name == "t1_expr_idx" {
+			origIdx = idx
+			break
+		}
+	}
+	if origIdx == nil {
+		t.Fatal("missing t1_expr_idx")
+	}
+	if len(origIdx.Exprs) == 0 {
+		t.Fatal("expected expression index to have Exprs")
+	}
+	origExpr := origIdx.Exprs[0]
+
+	clone := orig.Clone()
+	cloneRel := clone.GetRelation("", "t1")
+	var cloneIdx *Index
+	for _, idx := range clone.IndexesOf(cloneRel.OID) {
+		if idx.Name == "t1_expr_idx" {
+			cloneIdx = idx
+			break
+		}
+	}
+	if cloneIdx == nil {
+		t.Fatal("clone missing t1_expr_idx")
+	}
+
+	// Mutate clone's Exprs.
+	cloneIdx.Exprs[0] = "MUTATED"
+
+	// Original must be unchanged.
+	if origIdx.Exprs[0] != origExpr {
+		t.Errorf("original index Exprs[0] changed to %q after clone mutation", origIdx.Exprs[0])
+	}
+}
+
+func TestCloneUserProcSliceIsolation(t *testing.T) {
+	orig := New()
+
+	_, err := orig.Exec(`
+		CREATE FUNCTION myfunc(a integer, b text) RETURNS integer
+		LANGUAGE sql AS 'SELECT a';
+	`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var origProc *UserProc
+	for _, up := range orig.userProcs {
+		if up.Name == "myfunc" {
+			origProc = up
+			break
+		}
+	}
+	if origProc == nil {
+		t.Fatal("missing myfunc")
+	}
+	if len(origProc.ArgNames) < 2 {
+		t.Fatalf("expected 2 arg names, got %d", len(origProc.ArgNames))
+	}
+	origName := origProc.ArgNames[0]
+
+	clone := orig.Clone()
+
+	var cloneProc *UserProc
+	for _, up := range clone.userProcs {
+		if up.Name == "myfunc" {
+			cloneProc = up
+			break
+		}
+	}
+	if cloneProc == nil {
+		t.Fatal("clone missing myfunc")
+	}
+
+	// Mutate clone's ArgNames.
+	cloneProc.ArgNames[0] = "MUTATED"
+
+	// Original must be unchanged.
+	if origProc.ArgNames[0] != origName {
+		t.Errorf("original proc ArgNames[0] changed to %q after clone mutation", origProc.ArgNames[0])
+	}
+}
+
+func TestCloneExecIsolation(t *testing.T) {
+	orig := New()
+
+	_, err := orig.Exec(`
+		CREATE TABLE parent (id integer PRIMARY KEY);
+		CREATE TABLE child (
+			id integer PRIMARY KEY,
+			parent_id integer REFERENCES parent(id)
+		);
+	`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	origParent := orig.GetRelation("", "parent")
+	origChild := orig.GetRelation("", "child")
+	origChildConCount := len(orig.ConstraintsOf(origChild.OID))
+
+	clone := orig.Clone()
+
+	// DROP parent CASCADE on clone — should remove FK from child too.
+	results, err := clone.Exec("DROP TABLE parent CASCADE;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results[0].Error != nil {
+		t.Fatal(results[0].Error)
+	}
+
+	// Clone: parent gone, child FK removed.
+	if clone.GetRelation("", "parent") != nil {
+		t.Error("clone should not have parent after DROP CASCADE")
+	}
+
+	// Original: parent still exists, child constraints unchanged.
+	if orig.GetRelation("", "parent") == nil {
+		t.Error("original parent should still exist")
+	}
+	if origParent.Name != "parent" {
+		t.Error("original parent relation corrupted")
+	}
+	if len(orig.ConstraintsOf(origChild.OID)) != origChildConCount {
+		t.Errorf("original child constraints changed: got %d, want %d",
+			len(orig.ConstraintsOf(origChild.OID)), origChildConCount)
+	}
+}

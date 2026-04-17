@@ -173,6 +173,10 @@ func (c *Catalog) Clone() *Catalog {
 			ci.IndOption = make([]int16, len(idx.IndOption))
 			copy(ci.IndOption, idx.IndOption)
 		}
+		if idx.Exprs != nil {
+			ci.Exprs = make([]string, len(idx.Exprs))
+			copy(ci.Exprs, idx.Exprs)
+		}
 		ci.Schema = clone.schemas[idx.Schema.OID]
 		clone.indexes[oid] = &ci
 		clone.indexesByRel[ci.RelOID] = append(clone.indexesByRel[ci.RelOID], &ci)
@@ -242,6 +246,18 @@ func (c *Catalog) Clone() *Catalog {
 		if up.ArgTypes != nil {
 			cup.ArgTypes = make([]uint32, len(up.ArgTypes))
 			copy(cup.ArgTypes, up.ArgTypes)
+		}
+		if up.ArgNames != nil {
+			cup.ArgNames = make([]string, len(up.ArgNames))
+			copy(cup.ArgNames, up.ArgNames)
+		}
+		if up.ArgModes != nil {
+			cup.ArgModes = make([]byte, len(up.ArgModes))
+			copy(cup.ArgModes, up.ArgModes)
+		}
+		if up.AllArgTypes != nil {
+			cup.AllArgTypes = make([]uint32, len(up.AllArgTypes))
+			copy(cup.AllArgTypes, up.AllArgTypes)
 		}
 		cup.Schema = clone.schemas[up.Schema.OID]
 		clone.userProcs[oid] = &cup
@@ -369,6 +385,10 @@ func (c *Catalog) Clone() *Catalog {
 		clone.searchPath = make([]string, len(c.searchPath))
 		copy(clone.searchPath, c.searchPath)
 	}
+
+	// Session state.
+	clone.sessionUser = c.sessionUser
+	clone.currentUser = c.currentUser
 
 	// Warnings: start clean (not copied from source).
 	// clone.warnings is nil by default.
