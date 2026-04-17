@@ -472,6 +472,21 @@ var keywordCategories = map[int]keywordCategory{
 	kwRESOURCE:            kwCatAmbiguous3,
 	// Ambiguous 4 (not lvalue)
 	kwPERSIST:             kwCatAmbiguous4,
+
+	// TiDB-specific keywords.
+	kwAUTO_RANDOM:       kwCatUnambiguous,
+	kwAUTO_RANDOM_BASE:  kwCatUnambiguous,
+	kwSHARD_ROW_ID_BITS: kwCatUnambiguous,
+	kwPRE_SPLIT_REGIONS: kwCatUnambiguous,
+	kwAUTO_ID_CACHE:     kwCatUnambiguous,
+	kwCLUSTERED:         kwCatUnambiguous,
+	kwNONCLUSTERED:      kwCatUnambiguous,
+	kwTIFLASH:           kwCatUnambiguous,
+	kwTTL:               kwCatUnambiguous,
+	kwTTL_ENABLE:        kwCatUnambiguous,
+	kwTTL_JOB_INTERVAL:  kwCatUnambiguous,
+	kwPLACEMENT:         kwCatUnambiguous,
+	kwPOLICY:            kwCatUnambiguous,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot

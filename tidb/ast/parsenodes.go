@@ -211,6 +211,9 @@ const (
 	ATSecondaryLoad
 	ATSecondaryUnload
 	ATPartitionBy
+	// TiDB-specific ALTER TABLE commands.
+	ATSetTiFlashReplica // SET TIFLASH REPLICA n
+	ATRemoveTTL         // REMOVE TTL
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
@@ -235,6 +238,7 @@ type AlterTableCmd struct {
 	WithValidation *bool           // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
 	OrderByItems   []*OrderByItem    // for ORDER BY operation
 	PartitionBy    *PartitionClause // for PARTITION BY (repartition)
+	TiFlashReplica int              // TiDB: replica count for SET TIFLASH REPLICA
 }
 
 func (c *AlterTableCmd) nodeTag() {}
@@ -367,6 +371,9 @@ type ColumnDef struct {
 	DefaultValue             ExprNode
 	Comment                  string
 	AutoIncrement            bool
+	AutoRandom               bool // TiDB: AUTO_RANDOM attribute
+	AutoRandomShardBits      int  // TiDB: AUTO_RANDOM(shard_bits[, range])
+	AutoRandomRangeBits      int  // TiDB: AUTO_RANDOM(shard_bits, range_bits)
 	OnUpdate                 ExprNode // ON UPDATE CURRENT_TIMESTAMP
 	Generated                *GeneratedColumn
 	ColumnFormat             string // COLUMN_FORMAT {FIXED | DYNAMIC | DEFAULT}
@@ -420,6 +427,7 @@ type ColumnConstraint struct {
 	OnDelete    ReferenceAction
 	OnUpdate    ReferenceAction
 	NotEnforced bool // for CHECK ... NOT ENFORCED
+	Clustered   *bool // TiDB: for PRIMARY KEY column constraint
 }
 
 func (c *ColumnConstraint) nodeTag() {}
@@ -453,6 +461,7 @@ type Constraint struct {
 	OnUpdate     ReferenceAction
 	Match        string // FULL, PARTIAL, SIMPLE
 	NotEnforced  bool   // for CHECK ... NOT ENFORCED
+	Clustered    *bool  // TiDB: nil=unset, true=CLUSTERED, false=NONCLUSTERED
 }
 
 func (c *Constraint) nodeTag() {}

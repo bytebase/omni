@@ -362,6 +362,31 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		})
 		return true, nil
 
+	case kwAUTO_RANDOM:
+		p.advance()
+		col.AutoRandom = true
+		// Optional (shard_bits[, range_bits])
+		if p.cur.Type == '(' {
+			p.advance()
+			if p.cur.Type != tokICONST {
+				return false, p.syntaxErrorAtCur()
+			}
+			col.AutoRandomShardBits = int(p.cur.Ival)
+			p.advance()
+			if p.cur.Type == ',' {
+				p.advance()
+				if p.cur.Type != tokICONST {
+					return false, p.syntaxErrorAtCur()
+				}
+				col.AutoRandomRangeBits = int(p.cur.Ival)
+				p.advance()
+			}
+			if _, ok := p.match(')'); !ok {
+				return false, p.syntaxErrorAtCur()
+			}
+		}
+		return true, nil
+
 	case kwUNIQUE:
 		p.advance()
 		p.match(kwKEY) // optional KEY
@@ -376,19 +401,29 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		if _, err := p.expect(kwKEY); err != nil {
 			return false, err
 		}
-		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
+		cc := &nodes.ColumnConstraint{
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrPrimaryKey,
-		})
+		}
+		if cl := p.parseClusteredAttr(); cl != nil {
+			cc.Clustered = cl
+			cc.Loc.End = p.pos()
+		}
+		col.Constraints = append(col.Constraints, cc)
 		return true, nil
 
 	case kwKEY:
 		// Bare KEY means PRIMARY KEY
 		p.advance()
-		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
+		cc := &nodes.ColumnConstraint{
 			Loc:  nodes.Loc{Start: start, End: p.pos()},
 			Type: nodes.ColConstrPrimaryKey,
-		})
+		}
+		if cl := p.parseClusteredAttr(); cl != nil {
+			cc.Clustered = cl
+			cc.Loc.End = p.pos()
+		}
+		col.Constraints = append(col.Constraints, cc)
 		return true, nil
 
 	case kwCOMMENT:
@@ -861,6 +896,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
 		p.parseConstraintIndexOptions(constr)
+		constr.Clustered = p.parseClusteredAttr()
 
 	case kwUNIQUE:
 		p.advance()
@@ -1049,6 +1085,21 @@ func (p *Parser) parseIndexTypeClause(constr *nodes.Constraint) {
 //	ROW_FORMAT [=] format
 //	KEY_BLOCK_SIZE [=] value
 //	And many more...
+// parseClusteredAttr parses optional CLUSTERED/NONCLUSTERED after PRIMARY KEY.
+// Returns nil if neither keyword is present.
+func (p *Parser) parseClusteredAttr() *bool {
+	if p.cur.Type == kwCLUSTERED {
+		p.advance()
+		b := true
+		return &b
+	} else if p.cur.Type == kwNONCLUSTERED {
+		p.advance()
+		b := false
+		return &b
+	}
+	return nil
+}
+
 func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	// Completion: offer table option keywords.
 	p.checkCursor()
@@ -1266,6 +1317,87 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DATA DIRECTORY", Value: val}, true, nil
 		}
 		return nil, false, nil
+
+	case kwSHARD_ROW_ID_BITS:
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "SHARD_ROW_ID_BITS", Value: val}, true, nil
+
+	case kwPRE_SPLIT_REGIONS:
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "PRE_SPLIT_REGIONS", Value: val}, true, nil
+
+	case kwAUTO_ID_CACHE:
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "AUTO_ID_CACHE", Value: val}, true, nil
+
+	case kwAUTO_RANDOM_BASE:
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "AUTO_RANDOM_BASE", Value: val}, true, nil
+
+	case kwTTL_ENABLE:
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "TTL_ENABLE", Value: val}, true, nil
+
+	case kwTTL_JOB_INTERVAL:
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "TTL_JOB_INTERVAL", Value: val}, true, nil
+
+	case kwPLACEMENT:
+		p.advance()
+		if _, ok := p.match(kwPOLICY); !ok {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "PLACEMENT POLICY", Value: val}, true, nil
+
+	case kwTTL:
+		// TTL = expr (e.g., created_at + INTERVAL 1 YEAR, or DATE_ADD(col, INTERVAL 1 DAY))
+		// Parse as a full expression to handle function calls, parens, string literals correctly.
+		// Store raw source text in Value for round-trip fidelity.
+		p.advance()
+		p.match('=')
+		exprStart := p.cur.Loc
+		_, err := p.parseExpr()
+		if err != nil {
+			return nil, false, err
+		}
+		exprEnd := p.prev.End
+		val := strings.TrimSpace(p.lexer.input[exprStart:exprEnd])
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "TTL", Value: val}, true, nil
 	}
 
 	// Handle keyword-token-based table options: COMPRESSION, INSERT_METHOD.

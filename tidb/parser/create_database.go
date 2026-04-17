@@ -76,7 +76,7 @@ func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
 	stmt := &nodes.AlterDatabaseStmt{Loc: nodes.Loc{Start: start}}
 
 	// Optional database name
-	if p.isIdentToken() && p.cur.Type != kwDEFAULT && p.cur.Type != kwCHARACTER && p.cur.Type != kwCHARSET && p.cur.Type != kwCOLLATE {
+	if p.isIdentToken() && p.cur.Type != kwDEFAULT && p.cur.Type != kwCHARACTER && p.cur.Type != kwCHARSET && p.cur.Type != kwCOLLATE && p.cur.Type != kwPLACEMENT {
 		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
@@ -217,6 +217,21 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 				Value: val,
 			}, true, nil
 		}
+	case p.cur.Type == kwPLACEMENT:
+		p.advance()
+		if _, ok := p.match(kwPOLICY); !ok {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.DatabaseOption{
+			Loc:   nodes.Loc{Start: start, End: p.pos()},
+			Name:  "PLACEMENT POLICY",
+			Value: val,
+		}, true, nil
 	}
 
 	return nil, false, nil
