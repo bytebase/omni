@@ -29,10 +29,25 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 		Label: labelName,
 	}
 
-	// Parse statements until END
+	// Parse statements until END, enforcing MySQL's declaration-ordering rule:
+	//   DECLARE var/condition  →  DECLARE cursor  →  DECLARE handler  →  stmts
+	// Each declaration kind may move the phase forward but not backward.
+	// Container-verified against MySQL 8.0 (2026-04-20); mirrors ERR 1337/1338.
+	const (
+		phaseInit = iota
+		phaseSawVar
+		phaseSawCursor
+		phaseSawHandler
+		phaseSawStmt
+	)
+	phase := phaseInit
 	for p.cur.Type != kwEND && p.cur.Type != tokEOF {
+		sStart := p.pos()
 		s, err := p.parseCompoundStmtOrStmt()
 		if err != nil {
+			return nil, err
+		}
+		if err := checkDeclarePhase(&phase, s, sStart); err != nil {
 			return nil, err
 		}
 		stmt.Stmts = append(stmt.Stmts, s)
@@ -60,6 +75,48 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil
+}
+
+// checkDeclarePhase enforces MySQL's DECLARE ordering rule inside a
+// BEGIN...END block. See parseBeginEndBlock for the phase state machine.
+// MySQL surfaces ERR 1337 / 1338; omni uses its own wording.
+func checkDeclarePhase(phase *int, s nodes.Node, sPos int) error {
+	const (
+		phaseInit = iota
+		phaseSawVar
+		phaseSawCursor
+		phaseSawHandler
+		phaseSawStmt
+	)
+	switch s.(type) {
+	case *nodes.DeclareVarStmt, *nodes.DeclareConditionStmt:
+		if *phase > phaseSawVar {
+			return &ParseError{
+				Message:  "variable or condition declaration after cursor or handler declaration",
+				Position: sPos,
+			}
+		}
+		*phase = phaseSawVar
+	case *nodes.DeclareCursorStmt:
+		if *phase > phaseSawCursor {
+			return &ParseError{
+				Message:  "cursor declaration after handler declaration",
+				Position: sPos,
+			}
+		}
+		*phase = phaseSawCursor
+	case *nodes.DeclareHandlerStmt:
+		if *phase > phaseSawHandler {
+			return &ParseError{
+				Message:  "handler declaration after regular statement",
+				Position: sPos,
+			}
+		}
+		*phase = phaseSawHandler
+	default:
+		*phase = phaseSawStmt
+	}
+	return nil
 }
 
 // checkLabelMatch enforces MySQL's end-label matching rule: when an end label
