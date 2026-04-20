@@ -1,6 +1,9 @@
 package parser
 
 import (
+	"fmt"
+	"strings"
+
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
@@ -45,14 +48,42 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 		return nil, err
 	}
 
-	// Optional end_label
+	// Optional end_label. Must match the begin label (case-insensitive, per
+	// MySQL 8.0 — container-verified 2026-04-20).
 	if p.isLabelIdentToken() && p.cur.Type != tokEOF {
-		stmt.EndLabel = p.cur.Str
-		p.advance()
+		endLabelTok := p.advance()
+		stmt.EndLabel = endLabelTok.Str
+		if err := checkLabelMatch(labelName, stmt.EndLabel, endLabelTok.Loc); err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil
+}
+
+// checkLabelMatch enforces MySQL's end-label matching rule: when an end label
+// is present, a matching begin label must also be present and the two names
+// must be equal case-insensitively. MySQL surfaces ERR 1310 ("End-label X
+// without match"); omni uses its own wording.
+func checkLabelMatch(beginLabel, endLabel string, endLabelPos int) error {
+	if endLabel == "" {
+		// No end label: always fine.
+		return nil
+	}
+	if beginLabel == "" {
+		return &ParseError{
+			Message:  fmt.Sprintf("end label %q without matching begin label", endLabel),
+			Position: endLabelPos,
+		}
+	}
+	if !strings.EqualFold(beginLabel, endLabel) {
+		return &ParseError{
+			Message:  fmt.Sprintf("end label %q does not match begin label %q", endLabel, beginLabel),
+			Position: endLabelPos,
+		}
+	}
+	return nil
 }
 
 // parseCompoundStmtOrStmt tries to parse compound statements (DECLARE, labeled blocks,
@@ -654,8 +685,11 @@ func (p *Parser) parseWhileStmt(labelName string, labelStart int) (*nodes.WhileS
 	// Optional end_label
 	var endLabel string
 	if p.isLabelIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
-		endLabel = p.cur.Str
-		p.advance()
+		endLabelTok := p.advance()
+		endLabel = endLabelTok.Str
+		if err := checkLabelMatch(labelName, endLabel, endLabelTok.Loc); err != nil {
+			return nil, err
+		}
 	}
 
 	return &nodes.WhileStmt{
@@ -711,8 +745,11 @@ func (p *Parser) parseRepeatStmt(labelName string, labelStart int) (*nodes.Repea
 	// Optional end_label
 	var endLabel string
 	if p.isLabelIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
-		endLabel = p.cur.Str
-		p.advance()
+		endLabelTok := p.advance()
+		endLabel = endLabelTok.Str
+		if err := checkLabelMatch(labelName, endLabel, endLabelTok.Loc); err != nil {
+			return nil, err
+		}
 	}
 
 	return &nodes.RepeatStmt{
@@ -753,8 +790,11 @@ func (p *Parser) parseLoopStmt(labelName string, labelStart int) (*nodes.LoopStm
 	// Optional end_label
 	var endLabel string
 	if p.isLabelIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
-		endLabel = p.cur.Str
-		p.advance()
+		endLabelTok := p.advance()
+		endLabel = endLabelTok.Str
+		if err := checkLabelMatch(labelName, endLabel, endLabelTok.Loc); err != nil {
+			return nil, err
+		}
 	}
 
 	return &nodes.LoopStmt{
