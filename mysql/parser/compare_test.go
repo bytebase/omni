@@ -5147,6 +5147,414 @@ func TestParseCreateProcedure(t *testing.T) {
 	})
 }
 
+// TestParseRoutineCompoundBody verifies that routine/trigger/event body scanners
+// correctly balance inner compound statements (IF/CASE/WHILE/LOOP/REPEAT) against
+// their END so that END IF, END CASE, etc. do not prematurely close the outer
+// BEGIN...END wrapper.
+//
+// Each case specifies the SQL plus the expected number of top-level statements
+// and the expected body-text suffix. The suffix check guarantees the body
+// scanner did not terminate early at an inner END (which would leave e.g.
+// " IF" trailing outside the captured body).
+func TestParseRoutineCompoundBody(t *testing.T) {
+	cases := []struct {
+		name       string
+		sql        string
+		wantStmts  int
+		bodySuffix string // expected suffix of the captured routine body (raw text)
+	}{
+		{
+			name: "procedure with IF...END IF",
+			sql: `CREATE PROCEDURE p1(IN uid INT)
+BEGIN
+    IF uid = 0 THEN
+        SET @statement = 'x';
+    END IF;
+    SET @user_id = uid;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with DELIMITER and ELSEIF/ELSE chain",
+			sql: `DELIMITER ;;
+CREATE PROCEDURE p2(IN uid INT)
+BEGIN
+    IF uid = 0 THEN
+        SET @a = 1;
+    ELSEIF uid = 1 THEN
+        SET @a = 2;
+    ELSE
+        SET @a = 3;
+    END IF;
+    SET @b = uid;
+END ;;
+DELIMITER ;`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with WHILE...END WHILE",
+			sql: `CREATE PROCEDURE p3()
+BEGIN
+    DECLARE i INT DEFAULT 0;
+    WHILE i < 10 DO
+        SET i = i + 1;
+    END WHILE;
+    SET @done = 1;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with simple CASE statement",
+			sql: `CREATE PROCEDURE p4(IN x INT)
+BEGIN
+    CASE x
+        WHEN 1 THEN SET @r = 'one';
+        WHEN 2 THEN SET @r = 'two';
+        ELSE SET @r = 'other';
+    END CASE;
+    SET @y = 1;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with searched CASE statement",
+			sql: `CREATE PROCEDURE p4s(IN x INT)
+BEGIN
+    CASE
+        WHEN x < 0 THEN SET @r = 'neg';
+        WHEN x = 0 THEN SET @r = 'zero';
+        ELSE SET @r = 'pos';
+    END CASE;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with labeled LOOP + LEAVE + ITERATE",
+			sql: `CREATE PROCEDURE p5()
+BEGIN
+    DECLARE i INT DEFAULT 0;
+    outer_loop: LOOP
+        SET i = i + 1;
+        IF i = 3 THEN
+            ITERATE outer_loop;
+        END IF;
+        IF i >= 5 THEN
+            LEAVE outer_loop;
+        END IF;
+    END LOOP outer_loop;
+    SET @done = 1;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with REPEAT...UNTIL...END REPEAT",
+			sql: `CREATE PROCEDURE p6()
+BEGIN
+    DECLARE i INT DEFAULT 0;
+    REPEAT
+        SET i = i + 1;
+    UNTIL i >= 10
+    END REPEAT;
+    SET @done = 1;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "function with CASE expression inside BEGIN...END",
+			sql: `CREATE FUNCTION f1(x INT) RETURNS VARCHAR(20)
+BEGIN
+    DECLARE r VARCHAR(20);
+    SET r = CASE x WHEN 1 THEN 'one' ELSE 'other' END;
+    RETURN r;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with nested BEGIN inside IF",
+			sql: `CREATE PROCEDURE p7(IN x INT)
+BEGIN
+    IF x > 0 THEN
+        BEGIN
+            DECLARE v INT;
+            SET v = x * 2;
+            SET @r = v;
+        END;
+    END IF;
+    SET @done = 1;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "labeled BEGIN...END with matching end-label",
+			sql: `CREATE PROCEDURE p8()
+myblock: BEGIN
+    SET @a = 1;
+    IF @a = 1 THEN
+        SET @b = 2;
+    END IF;
+END myblock`,
+			wantStmts:  1,
+			bodySuffix: "END myblock",
+		},
+		{
+			name: "labeled WHILE with end-label",
+			sql: `CREATE FUNCTION CalcIncome(starting_value INT) RETURNS INT DETERMINISTIC
+BEGIN
+   DECLARE income INT;
+   SET income = 0;
+   label1: WHILE income <= 3000 DO
+     SET income = income + starting_value;
+   END WHILE label1;
+   RETURN income;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with cursor + DECLARE HANDLER + LOOP",
+			sql: `CREATE PROCEDURE p9()
+BEGIN
+    DECLARE done INT DEFAULT 0;
+    DECLARE v INT;
+    DECLARE cur CURSOR FOR SELECT id FROM t;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO v;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        SET @last = v;
+    END LOOP read_loop;
+    CLOSE cur;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with named condition + handler for SQLSTATE",
+			sql: `CREATE PROCEDURE p10()
+BEGIN
+    DECLARE dup_key CONDITION FOR SQLSTATE '23000';
+    DECLARE EXIT HANDLER FOR dup_key
+    BEGIN
+        SET @err = 'duplicate';
+    END;
+    INSERT INTO t(id) VALUES (1);
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with SIGNAL and RESIGNAL",
+			sql: `CREATE PROCEDURE p11(IN x INT)
+BEGIN
+    IF x < 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'negative';
+    END IF;
+    BEGIN
+        DECLARE EXIT HANDLER FOR SQLEXCEPTION
+        BEGIN
+            RESIGNAL;
+        END;
+        SET @y = x * 2;
+    END;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with DROP TABLE IF EXISTS inside body",
+			sql: `CREATE PROCEDURE p12()
+BEGIN
+    DROP TABLE IF EXISTS tmp;
+    CREATE TABLE IF NOT EXISTS tmp (id INT);
+    SET @done = 1;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with IF EXISTS (subquery) THEN flow control",
+			sql: `CREATE PROCEDURE p13()
+BEGIN
+    IF EXISTS (SELECT 1 FROM t WHERE id = 1) THEN
+        DELETE FROM t WHERE id = 1;
+    END IF;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with end-label containing keyword tokens in string",
+			sql: `CREATE PROCEDURE p14()
+BEGIN
+    SET @msg = 'END IF; END WHILE; END';
+    IF LENGTH(@msg) > 0 THEN
+        SET @ok = 1;
+    END IF;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with comment containing fake END IF",
+			sql: `CREATE PROCEDURE p15()
+BEGIN
+    /* END IF; END WHILE; END */
+    -- END IF
+    SET @x = 1;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "deeply nested: IF inside WHILE inside IF inside BEGIN",
+			sql: `CREATE PROCEDURE p16()
+BEGIN
+    DECLARE i INT DEFAULT 0;
+    IF @cond = 1 THEN
+        WHILE i < 10 DO
+            IF i % 2 = 0 THEN
+                CASE i
+                    WHEN 0 THEN SET @a = 'zero';
+                    ELSE SET @a = 'even';
+                END CASE;
+            END IF;
+            SET i = i + 1;
+        END WHILE;
+    END IF;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "trigger with IF...END IF",
+			sql: `CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW
+BEGIN
+    IF NEW.x IS NULL THEN
+        SET NEW.x = 0;
+    END IF;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "trigger with WHILE loop",
+			sql: `CREATE TRIGGER trg_w BEFORE UPDATE ON t FOR EACH ROW
+BEGIN
+    DECLARE i INT DEFAULT 0;
+    WHILE i < 3 DO
+        SET i = i + 1;
+    END WHILE;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "event with IF EXISTS (subquery)",
+			sql: `CREATE EVENT ev ON SCHEDULE EVERY 1 HOUR DO
+BEGIN
+    IF EXISTS (SELECT 1 FROM t) THEN
+        DELETE FROM t;
+    END IF;
+END`,
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "multiple procedures with DELIMITER in one script",
+			sql: `DELIMITER ;;
+CREATE PROCEDURE p_a()
+BEGIN
+    IF @x = 1 THEN SET @y = 2; END IF;
+END ;;
+CREATE PROCEDURE p_b()
+BEGIN
+    WHILE @i < 3 DO SET @i = @i + 1; END WHILE;
+END ;;
+DELIMITER ;`,
+			wantStmts:  2,
+			bodySuffix: "END",
+		},
+		{
+			name: "procedure with DEFINER and characteristics",
+			sql: "CREATE DEFINER=`root`@`%` PROCEDURE p_def(IN x INT)\n" +
+				"    READS SQL DATA\n" +
+				"    DETERMINISTIC\n" +
+				"    SQL SECURITY DEFINER\n" +
+				"    COMMENT 'test'\n" +
+				"BEGIN\n" +
+				"    IF x > 0 THEN SET @y = 1; END IF;\n" +
+				"END",
+			wantStmts:  1,
+			bodySuffix: "END",
+		},
+		{
+			name: "function RETURNS with single RETURN body (no BEGIN)",
+			sql:        `CREATE FUNCTION f_simple(a INT) RETURNS INT RETURN a + 1`,
+			wantStmts:  1,
+			bodySuffix: "a + 1",
+		},
+		{
+			name: "procedure body is a single IF (no BEGIN wrapper)",
+			sql: `CREATE PROCEDURE p_single(IN x INT)
+IF x > 0 THEN
+    SET @y = 1;
+ELSE
+    SET @y = 0;
+END IF`,
+			wantStmts:  1,
+			bodySuffix: "END IF",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			list, err := Parse(tc.sql)
+			if err != nil {
+				t.Fatalf("Parse failed: %v", err)
+			}
+			if got := len(list.Items); got != tc.wantStmts {
+				t.Fatalf("got %d top-level stmts, want %d", got, tc.wantStmts)
+			}
+			// Verify the first routine/trigger/event body ends at the outermost END.
+			body := firstRoutineBody(t, list)
+			trimmed := strings.TrimSpace(body)
+			if !strings.HasSuffix(trimmed, tc.bodySuffix) {
+				t.Errorf("body suffix mismatch:\n  got:  %q\n  want suffix: %q", trimmed, tc.bodySuffix)
+			}
+		})
+	}
+}
+
+// firstRoutineBody returns the Body field of the first CreateFunctionStmt,
+// CreateTriggerStmt, or CreateEventStmt in the statement list.
+func firstRoutineBody(t *testing.T, list *ast.List) string {
+	t.Helper()
+	for _, n := range list.Items {
+		switch s := n.(type) {
+		case *ast.CreateFunctionStmt:
+			return s.Body
+		case *ast.CreateTriggerStmt:
+			return s.Body
+		case *ast.CreateEventStmt:
+			return s.Body
+		}
+	}
+	t.Fatalf("no routine/trigger/event statement in list")
+	return ""
+}
+
 // ============================================================================
 // Batch 17: CREATE TRIGGER, CREATE EVENT
 // ============================================================================
