@@ -87,6 +87,23 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 	return &nodes.List{Items: stmts}, nil
 }
 
+// ParseExpr parses a single SQL expression (no surrounding statement).
+// Returns an error if the input is not a valid expression or has trailing tokens.
+// Used by the catalog to re-parse stored TableOption.Value strings for options
+// like TTL whose value is a full expression.
+func ParseExpr(sql string) (nodes.ExprNode, error) {
+	p := &Parser{lexer: NewLexerWithOffset(sql, 0)}
+	p.advance()
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, p.enrichError(err)
+	}
+	if p.cur.Type != tokEOF {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return expr, nil
+}
+
 // advance consumes the current token and moves to the next one.
 func (p *Parser) advance() Token {
 	p.prev = p.cur
