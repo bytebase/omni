@@ -1404,7 +1404,11 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			return nil, false, err
 		}
 		exprEnd := p.prev.End
-		val := strings.TrimSpace(p.lexer.input[exprStart:exprEnd])
+		// Use inputText (not raw slicing) so that multi-statement inputs
+		// — where parseSingle runs this segment with a non-zero
+		// baseOffset — don't index lexer.input out of bounds. Every
+		// other body-capture site in the parser uses inputText.
+		val := strings.TrimSpace(p.inputText(exprStart, exprEnd))
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "TTL", Value: val}, true, nil
 	}
 
