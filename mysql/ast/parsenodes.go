@@ -635,12 +635,13 @@ func (e *FuncCallExpr) exprNode() {}
 
 // SubqueryExpr represents a subquery expression.
 type SubqueryExpr struct {
-	Loc     Loc
-	Select  *SelectStmt
-	Exists  bool     // EXISTS (SELECT ...)
-	Lateral bool     // LATERAL derived table
-	Alias   string   // AS alias (for derived tables)
-	Columns []string // derived table column alias list: (SELECT ...) AS t(c1, c2)
+	Loc        Loc
+	Select     *SelectStmt
+	Exists     bool     // EXISTS (SELECT ...)
+	Lateral    bool     // LATERAL derived table
+	Alias      string   // AS alias (for derived tables)
+	Columns    []string // derived table column alias list: (SELECT ...) AS t(c1, c2)
+	Quantifier string   // "ANY" / "SOME" / "ALL" for `expr op {ANY|SOME|ALL} (subquery)`; empty for scalar subquery
 }
 
 func (e *SubqueryExpr) nodeTag()   {}
