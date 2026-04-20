@@ -110,6 +110,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		if err != nil {
 			return nil, err
 		}
+		if stmt.IntoTable == nil {
+			return nil, p.newParseError(p.cur.Loc, "expected table name after INTO")
+		}
 	}
 
 	// FROM

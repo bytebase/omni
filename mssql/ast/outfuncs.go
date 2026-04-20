@@ -602,6 +602,9 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 		sb.WriteString(" :source ")
 		writeNode(sb, n.Source)
 	}
+	if n.DefaultValues {
+		sb.WriteString(" :defaultValues true")
+	}
 	if n.OutputClause != nil {
 		sb.WriteString(" :output ")
 		writeNode(sb, n.OutputClause)
@@ -836,6 +839,10 @@ func writeDropStmt(sb *strings.Builder, n *DropStmt) {
 	if n.Names != nil {
 		sb.WriteString(" :names ")
 		writeNode(sb, n.Names)
+	}
+	if n.OnTables != nil {
+		sb.WriteString(" :onTables ")
+		writeNode(sb, n.OnTables)
 	}
 	sb.WriteString(fmt.Sprintf(" :ifExists %t", n.IfExists))
 	if n.Options != nil {

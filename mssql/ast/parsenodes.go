@@ -165,14 +165,15 @@ func (n *CommonTableExpr) nodeTag() {}
 // InsertStmt represents an INSERT statement.
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/insert-transact-sql
 type InsertStmt struct {
-	WithClause   *WithClause
-	Top          *TopClause
-	Relation     TableExpr // *TableRef or *TableVarRef
-	Cols         *List // column name list
-	Source       Node  // SELECT, VALUES, EXEC, or DEFAULT VALUES
-	OutputClause *OutputClause
-	OptionClause *List // OPTION ( <query_hint> [,...n] )
-	Loc          Loc
+	WithClause    *WithClause
+	Top           *TopClause
+	Relation      TableExpr // *TableRef or *TableVarRef
+	Cols          *List     // column name list
+	Source        Node      // SELECT, VALUES, or EXEC; nil when DefaultValues is true
+	DefaultValues bool      // DEFAULT VALUES (mutually exclusive with Source)
+	OutputClause  *OutputClause
+	OptionClause  *List // OPTION ( <query_hint> [,...n] )
+	Loc           Loc
 }
 
 func (n *InsertStmt) nodeTag()  {}
@@ -570,8 +571,13 @@ func (n *AlterColumnOption) nodeTag() {}
 // DropStmt represents a DROP statement.
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-table-transact-sql
 type DropStmt struct {
-	ObjectType   DropObjectType
-	Names        *List // list of TableRef
+	ObjectType DropObjectType
+	Names      *List // list of TableRef
+	// OnTables is a parallel list to Names for DROP INDEX:
+	// OnTables.Items[i] is the *TableRef after `ON` for the i-th clause
+	// (`idx ON tbl` form), or nil for the backward-compatible `tbl.idx` form.
+	// Only populated when ObjectType == DropIndex.
+	OnTables     *List
 	IfExists     bool
 	Options      *List // WITH options (e.g., DROP INDEX ... WITH (MAXDOP=1, ONLINE=ON))
 	OnDatabase   bool  // ON DATABASE (DROP TRIGGER for DDL triggers)

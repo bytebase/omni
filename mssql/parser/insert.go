@@ -146,15 +146,11 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 		stmt.Source = execStmt
 	case p.cur.Type == kwDEFAULT:
 		// DEFAULT VALUES
-		defLoc := p.pos()
 		p.advance()
 		if p.cur.Type == kwVALUES {
 			p.advance()
 		}
-		stmt.Source = &nodes.Literal{
-			Type: nodes.LitDefault,
-			Loc:  nodes.Loc{Start: defLoc, End: -1},
-		}
+		stmt.DefaultValues = true
 	}
 
 	// Optional OPTION clause

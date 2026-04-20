@@ -408,6 +408,7 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Names)
 	case *DropStmt:
 		walkList(v, n.Names)
+		walkList(v, n.OnTables)
 		walkList(v, n.Options)
 	case *EdgeConnectionDef:
 		if n.FromTable != nil {
