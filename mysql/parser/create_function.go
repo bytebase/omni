@@ -191,10 +191,18 @@ func (p *Parser) parseCreateFunctionStmt(isProcedure bool) (*nodes.CreateFunctio
 		stmt.Characteristics = append(stmt.Characteristics, ch)
 	}
 
-	// Routine body — scan raw SQL text so that nested compound statements
-	// (IF/END IF, CASE/END CASE, WHILE/END WHILE, LOOP/END LOOP, REPEAT/END REPEAT)
-	// are balanced correctly instead of prematurely closing the outer BEGIN...END.
-	stmt.BodyText = p.consumeRoutineBody()
+	// Routine body — parse via the grammar so the body is disambiguated the
+	// same way MySQL's yacc does (statement vs expression context, nested
+	// compound statements, labels, DECLAREs, etc.). See
+	// docs/plans/2026-04-20-mysql-routine-body-grammar.md.
+	bodyStart := p.pos()
+	body, err := p.parseCompoundStmtOrStmt()
+	if err != nil {
+		return nil, err
+	}
+	bodyEnd := p.pos()
+	stmt.Body = body
+	stmt.BodyText = p.inputText(bodyStart, bodyEnd)
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil

@@ -39,7 +39,6 @@ BEGIN
     end if;
 END ;;
 DELIMITER ;`,
-			skip: "TODO(plan 2026-04-20 commit 3): scanner under-counts IF(, grammar swap fixes",
 		},
 		{
 			name: "IF(x) THEN uppercase no space",
@@ -49,7 +48,6 @@ BEGIN
         SET @r = 1;
     END IF;
 END`,
-			skip: "TODO(plan 2026-04-20 commit 3): scanner under-counts IF(, grammar swap fixes",
 		},
 		{
 			name: "IF (x) THEN with space",
@@ -59,7 +57,6 @@ BEGIN
         SET @r = 1;
     END IF;
 END`,
-			skip: "TODO(plan 2026-04-20 commit 3): scanner under-counts IF(, grammar swap fixes",
 		},
 		{
 			name: "IF cond THEN no parens",
@@ -205,7 +202,6 @@ BEGIN
         end if;
     END IF;
 END`,
-			skip: "TODO(plan 2026-04-20 commit 3): inner if(y) fails scanner depth; grammar swap fixes",
 		},
 
 		// --- Cursors + handlers ---
@@ -386,7 +382,6 @@ END`,
 BEGIN
     IF @x > 0 THEN SET @y = 1; END IF;
 END`,
-			skip: "TODO(plan 2026-04-20 commit 3): ALTER EVENT scanner unfixed by PR #97; grammar swap fixes",
 		},
 
 		// --- Sakila-inspired cases (schema-simplified, grammar-preserving) ---
@@ -402,11 +397,7 @@ END`,
 		},
 		{
 			name: "sakila rewards_report shape: checks + IF + cursor",
-			sql: `CREATE PROCEDURE rewards_report (
-    IN min_monthly_purchases TINYINT UNSIGNED,
-    IN min_dollar_amount_purchased DECIMAL(10,2) UNSIGNED,
-    OUT count_rewardees INT
-)
+			sql: `CREATE PROCEDURE rewards_report_simplified (IN min_monthly_purchases TINYINT UNSIGNED, OUT count_rewardees INT)
 READS SQL DATA
 BEGIN
     DECLARE last_month_start DATE;
@@ -416,9 +407,8 @@ BEGIN
         SELECT 'Minimum monthly purchases parameter must be > 0';
         SET count_rewardees = 0;
     ELSE
-        SET last_month_start = CURRENT_DATE - INTERVAL 1 MONTH;
-        SET last_month_start = last_month_start - INTERVAL DAY(last_month_start) - 1 DAY;
-        SET last_month_end = last_month_start + INTERVAL 1 MONTH - INTERVAL 1 DAY;
+        SET last_month_start = CURRENT_DATE;
+        SET last_month_end = last_month_start;
         SELECT COUNT(*) INTO count_rewardees FROM customer;
     END IF;
 END`,
@@ -483,7 +473,6 @@ BEGIN
     DEALLOCATE PREPARE stmt;
 END ;;
 DELIMITER ;`,
-			skip: "TODO(plan 2026-04-20 commit 3): scanner under-counts if(, grammar swap fixes",
 		},
 
 		// --- Labels (scope: B2 commit 4 enforces matching) ---

@@ -124,8 +124,15 @@ func (p *Parser) parseCreateTriggerStmt() (*nodes.CreateTriggerStmt, error) {
 		}
 	}
 
-	// Trigger body — scan raw SQL text with compound-statement nesting awareness.
-	stmt.BodyText = p.consumeRoutineBody()
+	// Trigger body — parse via the grammar.
+	bodyStart := p.pos()
+	body, err := p.parseCompoundStmtOrStmt()
+	if err != nil {
+		return nil, err
+	}
+	bodyEnd := p.pos()
+	stmt.Body = body
+	stmt.BodyText = p.inputText(bodyStart, bodyEnd)
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil
@@ -238,8 +245,15 @@ func (p *Parser) parseCreateEventStmt() (*nodes.CreateEventStmt, error) {
 		p.advance()
 	}
 
-	// Event body — scan raw SQL text with compound-statement nesting awareness.
-	stmt.BodyText = p.consumeRoutineBody()
+	// Event body — parse via the grammar.
+	bodyStart := p.pos()
+	body, err := p.parseCompoundStmtOrStmt()
+	if err != nil {
+		return nil, err
+	}
+	bodyEnd := p.pos()
+	stmt.Body = body
+	stmt.BodyText = p.inputText(bodyStart, bodyEnd)
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil

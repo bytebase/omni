@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
@@ -301,6 +303,25 @@ func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 		col = &nodes.ColumnRef{
 			Loc:    vref.Loc,
 			Column: prefix + vref.Name,
+		}
+	} else if p.cur.Type == kwNEW || p.cur.Type == kwOLD {
+		// Trigger-only assignment form: SET NEW.col = val / SET OLD.col = val.
+		// NEW/OLD are reserved keywords that parseLvalueIdent rejects, so we
+		// special-case them here as qualifier tokens.
+		colStart := p.pos()
+		qualTok := p.advance()
+		qual := strings.ToUpper(qualTok.Str)
+		if _, err := p.expect('.'); err != nil {
+			return nil, err
+		}
+		colName, _, err := p.parseLvalueIdent()
+		if err != nil {
+			return nil, err
+		}
+		col = &nodes.ColumnRef{
+			Loc:    nodes.Loc{Start: colStart, End: p.pos()},
+			Table:  qual,
+			Column: colName,
 		}
 	} else {
 		// SET variable names use lvalue_ident context: excludes ambiguous_4

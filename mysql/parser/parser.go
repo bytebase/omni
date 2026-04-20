@@ -144,32 +144,6 @@ func (p *Parser) pos() int {
 	return p.cur.Loc
 }
 
-// consumeRoutineBody scans a routine/trigger/event compound body as raw text,
-// advances the token stream past the body, and returns the body text.
-//
-// The scanner mirrors Split's compound-statement tracking so that nested
-// constructs like IF ... END IF, CASE ... END CASE, WHILE ... END WHILE etc.
-// are balanced correctly and do not prematurely close an outer BEGIN...END.
-func (p *Parser) consumeRoutineBody() string {
-	bodyStartAbs := p.pos()
-	bodyStartLocal := bodyStartAbs - p.lexer.baseOffset
-	if bodyStartLocal < 0 {
-		bodyStartLocal = 0
-	}
-	bodyEndLocal := findCompoundBodyEnd(p.lexer.input, bodyStartLocal)
-	bodyEndAbs := bodyEndLocal + p.lexer.baseOffset
-
-	// Advance the tokenizer past every token that falls within the body range.
-	for p.cur.Type != tokEOF && p.cur.Loc < bodyEndAbs {
-		p.advance()
-	}
-
-	if bodyEndLocal > bodyStartLocal {
-		return p.lexer.input[bodyStartLocal:bodyEndLocal]
-	}
-	return ""
-}
-
 // inputText returns a substring of the original input between start and end byte positions.
 // start and end are absolute (include baseOffset), so we subtract it to index into the segment text.
 func (p *Parser) inputText(start, end int) string {

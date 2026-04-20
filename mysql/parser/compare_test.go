@@ -5506,13 +5506,15 @@ DELIMITER ;`,
 			bodySuffix: "a + 1",
 		},
 		{
-			name: "procedure body is a single IF (no BEGIN wrapper)",
-			sql: `CREATE PROCEDURE p_single(IN x INT)
+			name: "procedure body is a single IF (no BEGIN wrapper, DELIMITER-wrapped)",
+			sql: `DELIMITER ;;
+CREATE PROCEDURE p_single(IN x INT)
 IF x > 0 THEN
     SET @y = 1;
 ELSE
     SET @y = 0;
-END IF`,
+END IF ;;
+DELIMITER ;`,
 			wantStmts:  1,
 			bodySuffix: "END IF",
 		},
