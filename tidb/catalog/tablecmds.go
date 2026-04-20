@@ -6,6 +6,7 @@ import (
 
 	nodes "github.com/bytebase/omni/tidb/ast"
 	"github.com/bytebase/omni/tidb/deparse"
+	tidbparser "github.com/bytebase/omni/tidb/parser"
 )
 
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
@@ -77,6 +78,28 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			tbl.RowFormat = opt.Value
 		case "key_block_size":
 			fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
+		// TiDB-specific table options.
+		case "shard_row_id_bits":
+			fmt.Sscanf(opt.Value, "%d", &tbl.ShardRowIDBits)
+		case "pre_split_regions":
+			fmt.Sscanf(opt.Value, "%d", &tbl.PreSplitRegions)
+		case "auto_id_cache":
+			fmt.Sscanf(opt.Value, "%d", &tbl.AutoIDCache)
+		case "auto_random_base":
+			fmt.Sscanf(opt.Value, "%d", &tbl.AutoRandomBase)
+		case "placement policy":
+			tbl.PlacementPolicy = opt.Value
+		case "ttl":
+			col, interval, err := extractTTLParts(opt.Value)
+			if err != nil {
+				return err
+			}
+			tbl.TTLColumn = col
+			tbl.TTLInterval = interval
+		case "ttl_enable":
+			tbl.TTLEnable = strings.EqualFold(opt.Value, "ON")
+		case "ttl_job_interval":
+			tbl.TTLJobInterval = opt.Value
 		}
 	}
 	// When charset is specified without explicit collation, derive the default collation.
@@ -203,6 +226,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		if colDef.AutoIncrement {
 			col.AutoIncrement = true
 			col.Nullable = false
+		}
+		if colDef.AutoRandom {
+			col.AutoRandom = true
+			col.AutoRandomShardBits = colDef.AutoRandomShardBits
+			col.AutoRandomRangeBits = colDef.AutoRandomRangeBits
 		}
 		if colDef.Comment != "" {
 			col.Comment = colDef.Comment
@@ -344,6 +372,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					Table:     tbl,
 					Columns:   []string{colDef.Name},
 					IndexName: "PRIMARY",
+					// TiDB: hoist CLUSTERED/NONCLUSTERED from inline column PK
+					// (`id INT PRIMARY KEY CLUSTERED`) onto the synthesized
+					// table-level constraint so that later lookups by
+					// con.Type == ConPrimaryKey see the flag.
+					Clustered: cc.Clustered,
 				})
 			case nodes.ColConstrUnique:
 				idxName := allocIndexName(tbl, colDef.Name)
@@ -401,6 +434,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Table:     tbl,
 				Columns:   cols,
 				IndexName: "PRIMARY",
+				Clustered: con.Clustered, // TiDB: CLUSTERED/NONCLUSTERED on table-level PK
 			})
 
 		case nodes.ConstrUnique:
@@ -1509,6 +1543,49 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 
 	db.Tables[key] = tbl
 	return nil
+}
+
+// extractTTLParts parses a TiDB TTL expression string (stored verbatim on
+// TableOption.Value by the parser) and splits it into (column, interval).
+// Accepted shapes in TiDB v8.5:
+//   - `<col> + INTERVAL <n> <unit>`
+//   - `DATE_ADD(<col>, INTERVAL <n> <unit>)` (and sibling date functions)
+//
+// Any other shape returns a validation error — TiDB accepts other expressions
+// but the catalog only tracks the column reference, so unknown shapes are not
+// silently lost.
+func extractTTLParts(val string) (string, string, error) {
+	expr, err := tidbparser.ParseExpr(val)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid TTL expression %q: %w", val, err)
+	}
+	switch e := expr.(type) {
+	case *nodes.BinaryExpr:
+		// Shape: <col> + INTERVAL <n> <unit>
+		if e.Op == nodes.BinOpAdd {
+			if col, ok := ttlColumnName(e.Left); ok {
+				return col, deparse.Deparse(e.Right), nil
+			}
+		}
+	case *nodes.FuncCallExpr:
+		// Shape: DATE_ADD(<col>, INTERVAL <n> <unit>) / ADDDATE
+		name := strings.ToUpper(e.Name)
+		if (name == "DATE_ADD" || name == "ADDDATE") && len(e.Args) == 2 {
+			if col, ok := ttlColumnName(e.Args[0]); ok {
+				return col, deparse.Deparse(e.Args[1]), nil
+			}
+		}
+	}
+	return "", "", fmt.Errorf("TTL expression %q is not in a recognized form (expected `<col> + INTERVAL <n> <unit>` or `DATE_ADD(<col>, INTERVAL <n> <unit>)`)", val)
+}
+
+// ttlColumnName extracts a column name from an expression node if it is a
+// plain column reference. Returns ("", false) otherwise.
+func ttlColumnName(e nodes.ExprNode) (string, bool) {
+	if c, ok := e.(*nodes.ColumnRef); ok {
+		return c.Column, true
+	}
+	return "", false
 }
 
 func refActionToString(action nodes.ReferenceAction) string {

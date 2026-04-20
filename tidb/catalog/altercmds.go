@@ -109,6 +109,15 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATRemovePartitioning:
 		tbl.Partitioning = nil
 		return nil
+	case nodes.ATSetTiFlashReplica:
+		tbl.TiFlashReplica = cmd.TiFlashReplica
+		return nil
+	case nodes.ATRemoveTTL:
+		tbl.TTLColumn = ""
+		tbl.TTLInterval = ""
+		tbl.TTLEnable = false
+		tbl.TTLJobInterval = ""
+		return nil
 	default:
 		// Unsupported alter command; silently ignore.
 		return nil
@@ -694,6 +703,26 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		fmt.Sscanf(opt.Value, "%d", &tbl.AutoIncrement)
 	case "row_format":
 		tbl.RowFormat = opt.Value
+	// TiDB-specific ALTER TABLE options.
+	case "shard_row_id_bits":
+		fmt.Sscanf(opt.Value, "%d", &tbl.ShardRowIDBits)
+	case "auto_id_cache":
+		fmt.Sscanf(opt.Value, "%d", &tbl.AutoIDCache)
+	case "auto_random_base":
+		fmt.Sscanf(opt.Value, "%d", &tbl.AutoRandomBase)
+	case "placement policy":
+		tbl.PlacementPolicy = opt.Value
+	case "ttl":
+		col, interval, err := extractTTLParts(opt.Value)
+		if err != nil {
+			return err
+		}
+		tbl.TTLColumn = col
+		tbl.TTLInterval = interval
+	case "ttl_enable":
+		tbl.TTLEnable = strings.EqualFold(opt.Value, "ON")
+	case "ttl_job_interval":
+		tbl.TTLJobInterval = opt.Value
 	}
 	return nil
 }

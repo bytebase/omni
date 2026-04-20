@@ -21,6 +21,18 @@ type Table struct {
 	// during multi-command ALTER TABLE. This allows a subsequent explicit
 	// DROP INDEX in the same ALTER to succeed (matching MySQL 8.0 behavior).
 	droppedByCleanup map[string]bool
+
+	// TiDB-specific table metadata.
+	ShardRowIDBits  int
+	PreSplitRegions int
+	AutoIDCache     int64
+	AutoRandomBase  int64
+	PlacementPolicy string
+	TTLColumn       string // column referenced in TTL expression (e.g., "created_at")
+	TTLInterval     string // interval portion (e.g., "INTERVAL 1 YEAR")
+	TTLEnable       bool
+	TTLJobInterval  string // e.g., "1h"
+	TiFlashReplica  int    // number of TiFlash replicas (0 = none)
 }
 
 // PartitionInfo holds partition metadata for a table.
@@ -74,6 +86,11 @@ type Column struct {
 	SRID              int // Spatial Reference ID (0 = not set)
 	DefaultAnalyzed   AnalyzedExpr // Phase 3: analyzed DEFAULT expression
 	GeneratedAnalyzed AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
+
+	// TiDB-specific column metadata.
+	AutoRandom          bool
+	AutoRandomShardBits int
+	AutoRandomRangeBits int
 }
 
 type GeneratedColumnInfo struct {
