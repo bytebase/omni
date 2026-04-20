@@ -198,26 +198,36 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 
 	// Names (comma-separated)
 	var names []nodes.Node
+	// For DROP INDEX: OnTables parallels Names; Items[i] is the table after ON
+	// for `idx ON tbl` form, or nil for the backward-compatible `tbl.idx` form.
+	var onTables []nodes.Node
 
 	// DROP FULLTEXT INDEX ON table does not have a "name" per se - the table IS the target
 	if stmt.ObjectType == nodes.DropFulltextIndex {
 		// ON table_name
 		if _, ok := p.match(kwON); ok {
-			if ref , _ := p.parseTableRef(); ref != nil {
+			if ref, _ := p.parseTableRef(); ref != nil {
 				names = append(names, ref)
 			}
 		}
 	} else {
 		for {
-			name , _ := p.parseTableRef()
+			name, _ := p.parseTableRef()
 			if name == nil {
 				break
 			}
 			// For DROP INDEX: index_name ON table_name [ WITH ( options ) ]
+			// Backward-compatible form `tbl.idx` has no ON clause; keep nil placeholder
+			// so OnTables.Items[i] aligns with Names.Items[i].
 			if stmt.ObjectType == nodes.DropIndex {
+				var onTable nodes.Node
 				if _, ok := p.match(kwON); ok {
-					p.parseTableRef() // consume table name
+					ref, _ := p.parseTableRef()
+					if ref != nil {
+						onTable = ref
+					}
 				}
+				onTables = append(onTables, onTable)
 				// WITH ( <drop_clustered_index_option> [ ,...n ] )
 				if p.cur.Type == kwWITH {
 					p.advance()
@@ -233,6 +243,9 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 		}
 	}
 	stmt.Names = &nodes.List{Items: names}
+	if stmt.ObjectType == nodes.DropIndex && len(onTables) > 0 {
+		stmt.OnTables = &nodes.List{Items: onTables}
+	}
 
 	// DROP TRIGGER ... ON { DATABASE | ALL SERVER } (for DDL/logon triggers)
 	if stmt.ObjectType == nodes.DropTrigger {

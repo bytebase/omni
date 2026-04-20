@@ -1367,7 +1367,14 @@ func TestParseInsert(t *testing.T) {
 
 	t.Run("insert default values", func(t *testing.T) {
 		sql := "INSERT INTO t DEFAULT VALUES"
-		ParseAndCheck(t, sql)
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.InsertStmt)
+		if !stmt.DefaultValues {
+			t.Error("expected DefaultValues=true")
+		}
+		if stmt.Source != nil {
+			t.Errorf("expected Source=nil when DefaultValues, got %T", stmt.Source)
+		}
 	})
 
 	t.Run("insert with output", func(t *testing.T) {
@@ -19154,6 +19161,55 @@ func TestParseIndexBnfReview(t *testing.T) {
 		}
 		if stmt.Options == nil {
 			t.Error("expected non-nil Options for DROP INDEX WITH")
+		}
+		if stmt.OnTables == nil || len(stmt.OnTables.Items) != 1 {
+			t.Fatalf("expected OnTables with 1 item, got %+v", stmt.OnTables)
+		}
+		onTbl, ok := stmt.OnTables.Items[0].(*ast.TableRef)
+		if !ok {
+			t.Fatalf("expected *TableRef in OnTables[0], got %T", stmt.OnTables.Items[0])
+		}
+		if onTbl.Schema != "dbo" || onTbl.Object != "t" {
+			t.Errorf("expected OnTables[0]=dbo.t, got %s.%s", onTbl.Schema, onTbl.Object)
+		}
+	})
+
+	// DROP INDEX with multiple clauses, each with its own ON table.
+	t.Run("drop index multiple clauses", func(t *testing.T) {
+		sql := "DROP INDEX idx1 ON dbo.t1, idx2 ON dbo.t2"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.DropStmt)
+		if stmt.Names == nil || len(stmt.Names.Items) != 2 {
+			t.Fatalf("expected Names with 2 items, got %+v", stmt.Names)
+		}
+		if stmt.OnTables == nil || len(stmt.OnTables.Items) != 2 {
+			t.Fatalf("expected OnTables with 2 items, got %+v", stmt.OnTables)
+		}
+		checkOn := func(i int, wantObj string) {
+			t.Helper()
+			ref, ok := stmt.OnTables.Items[i].(*ast.TableRef)
+			if !ok {
+				t.Fatalf("OnTables[%d]: expected *TableRef, got %T", i, stmt.OnTables.Items[i])
+			}
+			if ref.Object != wantObj {
+				t.Errorf("OnTables[%d]: expected Object=%s, got %s", i, wantObj, ref.Object)
+			}
+		}
+		checkOn(0, "t1")
+		checkOn(1, "t2")
+	})
+
+	// DROP INDEX backward-compatible form: table.index (no ON clause).
+	// OnTables.Items[i] must be nil so indexes align with Names.
+	t.Run("drop index backward compatible form", func(t *testing.T) {
+		sql := "DROP INDEX dbo.t.idx"
+		result := ParseAndCheck(t, sql)
+		stmt := result.Items[0].(*ast.DropStmt)
+		if stmt.OnTables == nil || len(stmt.OnTables.Items) != 1 {
+			t.Fatalf("expected OnTables with 1 item, got %+v", stmt.OnTables)
+		}
+		if stmt.OnTables.Items[0] != nil {
+			t.Errorf("expected nil OnTables[0] for backward-compatible form, got %T", stmt.OnTables.Items[0])
 		}
 	})
 
