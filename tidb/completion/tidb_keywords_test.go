@@ -74,6 +74,20 @@ func TestTiDBKeywords_NoTiKVEngine(t *testing.T) {
 	}
 }
 
+// TestTiDBKeywords_CreateDatabasePlacement asserts that PLACEMENT is
+// offered as a completion candidate inside a CREATE DATABASE option
+// list, anchoring the PLACEMENT POLICY = <name> syntax TiDB accepts.
+func TestTiDBKeywords_CreateDatabasePlacement(t *testing.T) {
+	cat := catalog.New()
+
+	sql := "CREATE DATABASE db "
+	candidates := Complete(sql, len(sql), cat)
+
+	if !containsText(candidates, "PLACEMENT") {
+		t.Errorf("expected PLACEMENT in CREATE DATABASE completion; got: %v", candidateTexts(candidates))
+	}
+}
+
 // candidateTexts extracts the text of each candidate for error messages.
 func candidateTexts(cs []Candidate) []string {
 	out := make([]string, 0, len(cs))

@@ -208,6 +208,13 @@ func cloneTable(src *Table) Table {
 		con.Table = src
 		con.Columns = append([]string{}, sc.Columns...)
 		con.RefColumns = append([]string{}, sc.RefColumns...)
+		// TiDB: deep-copy Clustered *bool so a future write-through-pointer
+		// mutation on one copy cannot leak into the other. Pattern-matched
+		// to the Column.Default / Column.Generated handling above.
+		if sc.Clustered != nil {
+			v := *sc.Clustered
+			con.Clustered = &v
+		}
 		dst.Constraints[i] = &con
 	}
 
