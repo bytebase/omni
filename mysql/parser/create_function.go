@@ -194,7 +194,7 @@ func (p *Parser) parseCreateFunctionStmt(isProcedure bool) (*nodes.CreateFunctio
 	// Routine body — scan raw SQL text so that nested compound statements
 	// (IF/END IF, CASE/END CASE, WHILE/END WHILE, LOOP/END LOOP, REPEAT/END REPEAT)
 	// are balanced correctly instead of prematurely closing the outer BEGIN...END.
-	stmt.Body = p.consumeRoutineBody()
+	stmt.BodyText = p.consumeRoutineBody()
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil

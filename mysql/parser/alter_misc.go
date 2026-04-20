@@ -264,7 +264,7 @@ func (p *Parser) parseAlterEventStmt() (*nodes.AlterEventStmt, error) {
 		}
 		bodyEnd := p.pos()
 		if bodyEnd > bodyStart {
-			stmt.Body = p.inputText(bodyStart, bodyEnd)
+			stmt.BodyText = p.inputText(bodyStart, bodyEnd)
 		}
 	}
 

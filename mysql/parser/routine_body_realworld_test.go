@@ -551,11 +551,11 @@ END`,
 			var bodyText string
 			switch s := list.Items[0].(type) {
 			case *ast.CreateFunctionStmt:
-				bodyText = s.Body
+				bodyText = s.BodyText
 			case *ast.CreateTriggerStmt:
-				bodyText = s.Body
+				bodyText = s.BodyText
 			case *ast.CreateEventStmt:
-				bodyText = s.Body
+				bodyText = s.BodyText
 			default:
 				t.Fatalf("unexpected top-level type %T", list.Items[0])
 			}

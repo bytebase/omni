@@ -1477,7 +1477,8 @@ type CreateFunctionStmt struct {
 	Params          []*FuncParam
 	Returns         *DataType
 	Soname          string // SONAME 'shared_library' (loadable UDF)
-	Body            string
+	Body            Node   // parsed sp_proc_stmt (compound or simple). nil for loadable UDFs.
+	BodyText        string // raw source bytes of the body (byte-preserved from the input segment).
 	Characteristics []*RoutineCharacteristic
 }
 
@@ -1513,7 +1514,8 @@ type CreateTriggerStmt struct {
 	Event       string // INSERT, UPDATE, DELETE
 	Table       *TableRef
 	Order       *TriggerOrder
-	Body        string
+	Body        Node   // parsed sp_proc_stmt
+	BodyText    string // raw source bytes of the body
 }
 
 func (s *CreateTriggerStmt) nodeTag()  {}
@@ -1538,7 +1540,8 @@ type CreateEventStmt struct {
 	OnCompletion string
 	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE
 	Comment      string
-	Body         string
+	Body         Node   // parsed sp_proc_stmt
+	BodyText     string // raw source bytes of the body
 }
 
 func (s *CreateEventStmt) nodeTag()  {}
@@ -2495,7 +2498,8 @@ type AlterEventStmt struct {
 	RenameTo     string
 	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE
 	Comment      string
-	Body         string
+	Body         Node   // parsed sp_proc_stmt (nil when no DO clause)
+	BodyText     string // raw source bytes of the body
 }
 
 func (s *AlterEventStmt) nodeTag()  {}

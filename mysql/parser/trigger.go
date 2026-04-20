@@ -125,7 +125,7 @@ func (p *Parser) parseCreateTriggerStmt() (*nodes.CreateTriggerStmt, error) {
 	}
 
 	// Trigger body — scan raw SQL text with compound-statement nesting awareness.
-	stmt.Body = p.consumeRoutineBody()
+	stmt.BodyText = p.consumeRoutineBody()
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil
@@ -239,7 +239,7 @@ func (p *Parser) parseCreateEventStmt() (*nodes.CreateEventStmt, error) {
 	}
 
 	// Event body — scan raw SQL text with compound-statement nesting awareness.
-	stmt.Body = p.consumeRoutineBody()
+	stmt.BodyText = p.consumeRoutineBody()
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil

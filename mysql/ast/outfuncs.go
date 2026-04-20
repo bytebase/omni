@@ -1586,8 +1586,12 @@ func writeCreateFunctionStmt(sb *strings.Builder, n *CreateFunctionStmt) {
 	if n.Soname != "" {
 		fmt.Fprintf(sb, " :soname %q", n.Soname)
 	}
-	if n.Body != "" {
-		fmt.Fprintf(sb, " :body %q", n.Body)
+	if n.BodyText != "" {
+		fmt.Fprintf(sb, " :body %q", n.BodyText)
+	}
+	if n.Body != nil {
+		sb.WriteString(" :body-stmt ")
+		writeNode(sb, n.Body)
 	}
 	if len(n.Characteristics) > 0 {
 		sb.WriteString(" :characteristics ")
@@ -1627,8 +1631,12 @@ func writeCreateTriggerStmt(sb *strings.Builder, n *CreateTriggerStmt) {
 		sb.WriteString(" :order ")
 		writeNode(sb, n.Order)
 	}
-	if n.Body != "" {
-		fmt.Fprintf(sb, " :body %q", n.Body)
+	if n.BodyText != "" {
+		fmt.Fprintf(sb, " :body %q", n.BodyText)
+	}
+	if n.Body != nil {
+		sb.WriteString(" :body-stmt ")
+		writeNode(sb, n.Body)
 	}
 	sb.WriteString("}")
 }
@@ -1658,8 +1666,12 @@ func writeCreateEventStmt(sb *strings.Builder, n *CreateEventStmt) {
 	if n.Comment != "" {
 		fmt.Fprintf(sb, " :comment %q", n.Comment)
 	}
-	if n.Body != "" {
-		fmt.Fprintf(sb, " :body %q", n.Body)
+	if n.BodyText != "" {
+		fmt.Fprintf(sb, " :body %q", n.BodyText)
+	}
+	if n.Body != nil {
+		sb.WriteString(" :body-stmt ")
+		writeNode(sb, n.Body)
 	}
 	sb.WriteString("}")
 }
@@ -4430,8 +4442,12 @@ func writeAlterEventStmt(sb *strings.Builder, n *AlterEventStmt) {
 	if n.Comment != "" {
 		fmt.Fprintf(sb, " :comment %q", n.Comment)
 	}
-	if n.Body != "" {
-		fmt.Fprintf(sb, " :body %q", n.Body)
+	if n.BodyText != "" {
+		fmt.Fprintf(sb, " :body %q", n.BodyText)
+	}
+	if n.Body != nil {
+		sb.WriteString(" :body-stmt ")
+		writeNode(sb, n.Body)
 	}
 	sb.WriteString("}")
 }

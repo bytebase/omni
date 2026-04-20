@@ -5537,18 +5537,19 @@ END IF`,
 	}
 }
 
-// firstRoutineBody returns the Body field of the first CreateFunctionStmt,
-// CreateTriggerStmt, or CreateEventStmt in the statement list.
+// firstRoutineBody returns the BodyText (raw source bytes of the body) of
+// the first CreateFunctionStmt, CreateTriggerStmt, or CreateEventStmt in
+// the statement list.
 func firstRoutineBody(t *testing.T, list *ast.List) string {
 	t.Helper()
 	for _, n := range list.Items {
 		switch s := n.(type) {
 		case *ast.CreateFunctionStmt:
-			return s.Body
+			return s.BodyText
 		case *ast.CreateTriggerStmt:
-			return s.Body
+			return s.BodyText
 		case *ast.CreateEventStmt:
-			return s.Body
+			return s.BodyText
 		}
 	}
 	t.Fatalf("no routine/trigger/event statement in list")
