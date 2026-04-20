@@ -12,6 +12,9 @@ type Database struct {
 	Procedures map[string]*Routine // lowered name -> stored procedure
 	Triggers   map[string]*Trigger // lowered name -> trigger
 	Events     map[string]*Event   // lowered name -> event
+
+	// TiDB-specific: database-level placement policy. Empty when unset.
+	PlacementPolicy string
 }
 
 func newDatabase(name, charset, collation string) *Database {

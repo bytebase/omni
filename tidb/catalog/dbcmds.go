@@ -13,6 +13,7 @@ func (c *Catalog) createDatabase(stmt *nodes.CreateDatabaseStmt) error {
 	}
 	charset := c.defaultCharset
 	collation := c.defaultCollation
+	placementPolicy := ""
 	charsetExplicit := false
 	collationExplicit := false
 	for _, opt := range stmt.Options {
@@ -23,6 +24,8 @@ func (c *Catalog) createDatabase(stmt *nodes.CreateDatabaseStmt) error {
 		case "collate":
 			collation = opt.Value
 			collationExplicit = true
+		case "placement policy":
+			placementPolicy = opt.Value
 		}
 	}
 	// When charset is specified without explicit collation, derive the default collation.
@@ -31,7 +34,9 @@ func (c *Catalog) createDatabase(stmt *nodes.CreateDatabaseStmt) error {
 			collation = dc
 		}
 	}
-	c.databases[key] = newDatabase(name, charset, collation)
+	db := newDatabase(name, charset, collation)
+	db.PlacementPolicy = placementPolicy
+	c.databases[key] = db
 	return nil
 }
 
@@ -80,6 +85,8 @@ func (c *Catalog) alterDatabase(stmt *nodes.AlterDatabaseStmt) error {
 		case "collate":
 			db.Collation = opt.Value
 			collationExplicit = true
+		case "placement policy":
+			db.PlacementPolicy = opt.Value
 		}
 	}
 	// When charset is changed without explicit collation, derive the default collation.

@@ -182,6 +182,11 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 				Table:     tbl,
 				Columns:   []string{colDef.Name},
 				IndexName: "PRIMARY",
+				// TiDB: hoist CLUSTERED/NONCLUSTERED from the inline PK
+				// constraint of an ALTER TABLE ADD COLUMN ... PRIMARY KEY
+				// CLUSTERED into the synthesized table-level constraint.
+				// Mirrors the CREATE TABLE path in tablecmds.go.
+				Clustered: cc.Clustered,
 			})
 		case nodes.ColConstrUnique:
 			idxName := allocIndexName(tbl, colDef.Name)
@@ -411,6 +416,10 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Table:     tbl,
 			Columns:   cols,
 			IndexName: "PRIMARY",
+			// TiDB: propagate CLUSTERED/NONCLUSTERED from ALTER TABLE
+			// ADD PRIMARY KEY (...) CLUSTERED / NONCLUSTERED. Mirrors
+			// the CREATE TABLE path in tablecmds.go.
+			Clustered: con.Clustered,
 		})
 
 	case nodes.ConstrUnique:
