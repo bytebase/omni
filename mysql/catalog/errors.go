@@ -13,61 +13,63 @@ func (e *Error) Error() string {
 }
 
 const (
-	ErrDupDatabase             = 1007
-	ErrUnknownDatabase         = 1049
-	ErrDupTable                = 1050
-	ErrUnknownTable            = 1051
-	ErrDupColumn               = 1060
-	ErrDupKeyName              = 1061
-	ErrDupEntry                = 1062
-	ErrMultiplePriKey          = 1068
-	ErrNoSuchTable             = 1146
-	ErrNoSuchColumn            = 1054
-	ErrNoDatabaseSelected      = 1046
-	ErrDupIndex                = 1831
-	ErrFKNoRefTable            = 1824
-	ErrCantDropKey             = 1091
-	ErrCheckConstraintViolated = 3819
-	ErrFKCannotDropParent      = 3730
-	ErrFKMissingIndex          = 1822
-	ErrFKIncompatibleColumns   = 3780
-	ErrNoSuchFunction          = 1305
-	ErrNoSuchProcedure         = 1305
-	ErrDupFunction             = 1304
-	ErrDupProcedure            = 1304
+	ErrDupDatabase                       = 1007
+	ErrUnknownDatabase                   = 1049
+	ErrDupTable                          = 1050
+	ErrUnknownTable                      = 1051
+	ErrDupColumn                         = 1060
+	ErrDupKeyName                        = 1061
+	ErrDupEntry                          = 1062
+	ErrMultiplePriKey                    = 1068
+	ErrNoSuchTable                       = 1146
+	ErrNoSuchColumn                      = 1054
+	ErrNoDatabaseSelected                = 1046
+	ErrDupIndex                          = 1831
+	ErrFKNoRefTable                      = 1824
+	ErrCantDropKey                       = 1091
+	ErrCheckConstraintViolated           = 3819
+	ErrFKCannotDropParent                = 3730
+	ErrFKMissingIndex                    = 1822
+	ErrFKIncompatibleColumns             = 3780
+	ErrNoSuchFunction                    = 1305
+	ErrNoSuchProcedure                   = 1305
+	ErrDupFunction                       = 1304
+	ErrDupProcedure                      = 1304
 	ErrNoSuchTrigger                     = 1360
 	ErrDupTrigger                        = 1359
 	ErrNoSuchEvent                       = 1539
 	ErrDupEvent                          = 1537
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
+	ErrWrongArguments                    = 1210
 )
 
 var sqlStateMap = map[int]string{
-	ErrDupDatabase:             "HY000",
-	ErrUnknownDatabase:         "42000",
-	ErrDupTable:                "42S01",
-	ErrUnknownTable:            "42S02",
-	ErrDupColumn:               "42S21",
-	ErrDupKeyName:              "42000",
-	ErrDupEntry:                "23000",
-	ErrMultiplePriKey:          "42000",
-	ErrNoSuchTable:             "42S02",
-	ErrNoSuchColumn:            "42S22",
-	ErrNoDatabaseSelected:      "3D000",
-	ErrDupIndex:                "42000",
-	ErrFKNoRefTable:            "HY000",
-	ErrCantDropKey:             "42000",
-	ErrCheckConstraintViolated: "HY000",
-	ErrFKCannotDropParent:      "HY000",
-	ErrFKMissingIndex:          "HY000",
-	ErrFKIncompatibleColumns:   "HY000",
-	ErrNoSuchFunction:          "42000",
-	ErrDupFunction:             "HY000",
-	ErrNoSuchEvent:                      "HY000",
-	ErrDupEvent:                         "HY000",
+	ErrDupDatabase:                       "HY000",
+	ErrUnknownDatabase:                   "42000",
+	ErrDupTable:                          "42S01",
+	ErrUnknownTable:                      "42S02",
+	ErrDupColumn:                         "42S21",
+	ErrDupKeyName:                        "42000",
+	ErrDupEntry:                          "23000",
+	ErrMultiplePriKey:                    "42000",
+	ErrNoSuchTable:                       "42S02",
+	ErrNoSuchColumn:                      "42S22",
+	ErrNoDatabaseSelected:                "3D000",
+	ErrDupIndex:                          "42000",
+	ErrFKNoRefTable:                      "HY000",
+	ErrCantDropKey:                       "42000",
+	ErrCheckConstraintViolated:           "HY000",
+	ErrFKCannotDropParent:                "HY000",
+	ErrFKMissingIndex:                    "HY000",
+	ErrFKIncompatibleColumns:             "HY000",
+	ErrNoSuchFunction:                    "42000",
+	ErrDupFunction:                       "HY000",
+	ErrNoSuchEvent:                       "HY000",
+	ErrDupEvent:                          "HY000",
 	ErrUnsupportedGeneratedStorageChange: "HY000",
-	ErrDependentByGenCol:                "HY000",
+	ErrDependentByGenCol:                 "HY000",
+	ErrWrongArguments:                    "HY000",
 }
 
 func sqlState(code int) string {
@@ -200,4 +202,9 @@ func errUnsupportedGeneratedStorageChange(col, table string) error {
 func errDependentByGeneratedColumn(column, genColumn, table string) error {
 	return &Error{Code: ErrDependentByGenCol, SQLState: sqlState(ErrDependentByGenCol),
 		Message: fmt.Sprintf("Column '%s' has a generated column dependency and cannot be dropped or renamed. A generated column '%s' refers to this column in table '%s'.", column, genColumn, table)}
+}
+
+func errWrongArguments(fn string) error {
+	return &Error{Code: ErrWrongArguments, SQLState: sqlState(ErrWrongArguments),
+		Message: fmt.Sprintf("Incorrect arguments to %s", fn)}
 }
