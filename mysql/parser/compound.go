@@ -90,7 +90,13 @@ func checkDeclarePhase(phase *int, s nodes.Node, sPos int) error {
 	)
 	switch s.(type) {
 	case *nodes.DeclareVarStmt, *nodes.DeclareConditionStmt:
-		if *phase > phaseSawVar {
+		switch {
+		case *phase == phaseSawStmt:
+			return &ParseError{
+				Message:  "variable or condition declaration after regular statement",
+				Position: sPos,
+			}
+		case *phase > phaseSawVar:
 			return &ParseError{
 				Message:  "variable or condition declaration after cursor or handler declaration",
 				Position: sPos,
@@ -98,7 +104,13 @@ func checkDeclarePhase(phase *int, s nodes.Node, sPos int) error {
 		}
 		*phase = phaseSawVar
 	case *nodes.DeclareCursorStmt:
-		if *phase > phaseSawCursor {
+		switch {
+		case *phase == phaseSawStmt:
+			return &ParseError{
+				Message:  "cursor declaration after regular statement",
+				Position: sPos,
+			}
+		case *phase > phaseSawCursor:
 			return &ParseError{
 				Message:  "cursor declaration after handler declaration",
 				Position: sPos,

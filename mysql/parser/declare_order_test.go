@@ -141,7 +141,7 @@ BEGIN
     SELECT 1;
     DECLARE cur CURSOR FOR SELECT 2;
 END`,
-			wantErr: "cursor declaration after handler declaration",
+			wantErr: "cursor declaration after regular statement",
 		},
 		{
 			name: "var after regular statement",
@@ -150,7 +150,7 @@ BEGIN
     SELECT 1;
     DECLARE x INT;
 END`,
-			wantErr: "variable or condition declaration after cursor or handler declaration",
+			wantErr: "variable or condition declaration after regular statement",
 		},
 	}
 	for _, c := range cases {

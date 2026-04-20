@@ -172,40 +172,6 @@ func nextNonSpaceChar(sql string, pos int) byte {
 	return sql[j]
 }
 
-// prevNonSpaceChar returns the last non-whitespace character before pos, or 0
-// if pos is at or before the start.
-func prevNonSpaceChar(sql string, pos int) byte {
-	j := pos - 1
-	for j >= 0 {
-		b := sql[j]
-		if b == ' ' || b == '\t' || b == '\n' || b == '\r' {
-			j--
-			continue
-		}
-		return b
-	}
-	return 0
-}
-
-// isStmtStartBefore returns true when position i appears at a statement-start
-// boundary: immediately after a statement separator (';'), a label (':'), the
-// start of input, or a statement-list-starter keyword (BEGIN / THEN / ELSE /
-// ELSEIF / DO / LOOP / REPEAT). Used to decide whether a following keyword
-// like IF is a compound statement (flow control) or an expression-context
-// form (function call / DDL modifier). This mirrors MySQL's yacc-driven
-// grammar-position disambiguation at the text level.
-func isStmtStartBefore(sql string, i int, prevUpper string) bool {
-	pc := prevNonSpaceChar(sql, i)
-	if pc == 0 || pc == ';' || pc == ':' {
-		return true
-	}
-	switch prevUpper {
-	case "BEGIN", "THEN", "ELSE", "ELSEIF", "DO", "LOOP", "REPEAT":
-		return true
-	}
-	return false
-}
-
 // Split splits SQL text into segments at top-level semicolons.
 // It is a pure lexical scanner that does not parse SQL, so it works
 // on both valid and invalid SQL. Segments do NOT include the trailing
@@ -219,8 +185,15 @@ func Split(sql string) []Segment {
 	var segments []Segment
 	stmtStart := 0
 	i := 0
-	depth := 0  // compound block nesting depth
+	depth := 0   // compound block nesting depth
 	delim := ";" // active delimiter
+	// atStmtStart tracks whether the next keyword/token would appear at a
+	// statement-start position (after ';', after BEGIN/THEN/ELSE/ELSEIF/DO/
+	// LOOP/REPEAT/UNTIL, after a label ':', at start of input, or across
+	// whitespace/comments). Used to disambiguate IF-as-compound from
+	// IF-as-function-call / DDL-modifier — mirrors MySQL's yacc grammar-
+	// position disambiguation at the text-scan level.
+	atStmtStart := true
 
 	for i < len(sql) {
 		// Check for DELIMITER directive.
@@ -246,113 +219,148 @@ func Split(sql string) []Segment {
 			}
 			i = j
 			stmtStart = i
+			atStmtStart = true
 			continue
 		}
 
 		b := sql[i]
 
 		switch {
-		// Single-quoted string.
+		// Single-quoted string — non-stmt-start after.
 		case b == '\'':
 			i = skipSingleQuoteMySQL(sql, i)
+			atStmtStart = false
 
 		// Double-quoted string (MySQL treats as string literal).
 		case b == '"':
 			i = skipDoubleQuoteMySQL(sql, i)
+			atStmtStart = false
 
 		// Backtick-quoted identifier.
 		case b == '`':
 			i = skipBacktick(sql, i)
+			atStmtStart = false
 
-		// Block comment (including conditional comments /*!...*/)).
+		// Block comment: transparent to atStmtStart.
 		case b == '/' && i+1 < len(sql) && sql[i+1] == '*':
 			i = skipBlockCommentMySQL(sql, i)
 
-		// Dash line comment (-- followed by space/tab/newline/EOF).
+		// Dash line comment: transparent to atStmtStart.
 		case isDashComment(sql, i):
 			i = skipDashComment(sql, i)
 
-		// Hash line comment.
+		// Hash line comment: transparent to atStmtStart.
 		case b == '#':
 			i = skipHashComment(sql, i)
 
-		// BEGIN — increment depth unless it's a transaction (BEGIN WORK, BEGIN alone, XA BEGIN).
-		// Note: "BEGIN" without semicolon followed by another statement is invalid MySQL
-		// syntax, so we don't need to handle that case.
+		// BEGIN — compound block opener (depth++) unless it's a transaction
+		// (BEGIN WORK, lone BEGIN, XA BEGIN). After a compound BEGIN, the
+		// next token is at stmt-start; after a transaction BEGIN, it's not.
 		case (b == 'b' || b == 'B') && matchWord(sql, i, "BEGIN"):
 			endOfWord := skipToEndOfWord(sql, i)
 			next := nextWordAfter(sql, endOfWord)
 			prev := prevWord(sql, i)
-			// BEGIN WORK => transaction, not compound.
-			// BEGIN at EOF or followed by ; => transaction.
-			// XA BEGIN => transaction.
-			if next != "WORK" && prev != "XA" && nextNonSpaceChar(sql, endOfWord) != ';' && nextNonSpaceChar(sql, endOfWord) != 0 {
+			isCompound := next != "WORK" && prev != "XA" && nextNonSpaceChar(sql, endOfWord) != ';' && nextNonSpaceChar(sql, endOfWord) != 0
+			if isCompound {
 				depth++
+				atStmtStart = true
+			} else {
+				atStmtStart = false
 			}
 			i = endOfWord
 
-		// IF — compound flow-control vs DDL modifier vs function call.
-		// Disambiguation (approximate at the text level, exact at parse time):
-		//   - END IF: handled by the END branch via prev == "END" (skip here).
-		//   - IF at statement-start position (after ';' / ':' / start-of-input
-		//     or after BEGIN/THEN/ELSE/ELSEIF/DO/LOOP/REPEAT): compound IF.
-		//   - IF inside a compound block (depth > 0): conservatively compound;
-		//     occasional over-counting is harmless because outer END decrements
-		//     keep the segment complete.
-		//   - Otherwise (top-level expression or DDL modifier): not tracked.
-		// The exact disambiguation happens in the parser's grammar once the
-		// segment reaches it.
+		// IF — compound flow-control iff at stmt-start and not preceded by END.
+		// atStmtStart encodes MySQL's yacc grammar-position disambiguation:
+		// IF in expression context (after '=', ',', '(', keywords like DROP/
+		// CREATE/SELECT/SET) is a function or DDL modifier, not a compound.
 		case (b == 'i' || b == 'I') && matchWord(sql, i, "IF"):
 			endOfWord := skipToEndOfWord(sql, i)
 			prev := prevWord(sql, i)
-			if prev != "END" && (isStmtStartBefore(sql, i, prev) || depth > 0) {
+			if prev != "END" && atStmtStart {
 				depth++
 			}
+			// After IF the next tokens form either the condition expression
+			// (compound) or the argument list (function) — either way, the
+			// immediately following content is expression context.
+			atStmtStart = false
 			i = endOfWord
 
-		// CASE — increment depth unless preceded by END.
+		// CASE — always paired with END (expr form) or END CASE (stmt form).
 		case (b == 'c' || b == 'C') && matchWord(sql, i, "CASE"):
 			endOfWord := skipToEndOfWord(sql, i)
 			if prevWord(sql, i) != "END" {
 				depth++
 			}
+			atStmtStart = false
 			i = endOfWord
 
-		// WHILE — increment depth unless preceded by END.
+		// WHILE / LOOP — opener unless preceded by END (end-WHILE / end-LOOP).
 		case (b == 'w' || b == 'W') && matchWord(sql, i, "WHILE"):
 			endOfWord := skipToEndOfWord(sql, i)
 			if prevWord(sql, i) != "END" {
 				depth++
 			}
+			atStmtStart = false
 			i = endOfWord
 
-		// LOOP — increment depth unless preceded by END.
 		case (b == 'l' || b == 'L') && matchWord(sql, i, "LOOP"):
 			endOfWord := skipToEndOfWord(sql, i)
 			if prevWord(sql, i) != "END" {
 				depth++
 			}
+			// LOOP keyword introduces the loop body (stmt-start), unless
+			// this is END LOOP (closer) or the `LOOP(...)` function (rare).
+			if prevWord(sql, i) != "END" && nextNonSpaceChar(sql, endOfWord) != '(' {
+				atStmtStart = true
+			} else {
+				atStmtStart = false
+			}
 			i = endOfWord
 
-		// REPEAT — increment depth unless preceded by END or followed by '('.
+		// REPEAT — opener unless preceded by END or followed by '(' (function).
 		case (b == 'r' || b == 'R') && matchWord(sql, i, "REPEAT"):
 			endOfWord := skipToEndOfWord(sql, i)
 			prev := prevWord(sql, i)
 			if prev != "END" && nextNonSpaceChar(sql, endOfWord) != '(' {
 				depth++
+				atStmtStart = true
+			} else {
+				atStmtStart = false
 			}
 			i = endOfWord
 
-		// END — decrement depth (if > 0), skip if preceded by XA.
+		// END — close a compound opener. atStmtStart stays false because the
+		// token after END is either an end-label, IF/CASE/WHILE/LOOP/REPEAT
+		// (the compound-close suffix), or the next token in a statement.
 		case (b == 'e' || b == 'E') && matchWord(sql, i, "END"):
 			endOfWord := skipToEndOfWord(sql, i)
 			if depth > 0 && prevWord(sql, i) != "XA" {
 				depth--
 			}
+			atStmtStart = false
 			i = endOfWord
 
+		// THEN / ELSE / ELSEIF / DO / UNTIL — these keywords introduce
+		// statement lists (IF branches, WHILE loop body, REPEAT predicate).
+		// Explicitly mark atStmtStart=true after consuming.
+		case (b == 't' || b == 'T') && matchWord(sql, i, "THEN"):
+			i = skipToEndOfWord(sql, i)
+			atStmtStart = true
+		case (b == 'e' || b == 'E') && matchWord(sql, i, "ELSE"):
+			i = skipToEndOfWord(sql, i)
+			atStmtStart = true
+		case (b == 'e' || b == 'E') && matchWord(sql, i, "ELSEIF"):
+			i = skipToEndOfWord(sql, i)
+			atStmtStart = false // ELSEIF is followed by its own condition expr
+		case (b == 'd' || b == 'D') && matchWord(sql, i, "DO"):
+			i = skipToEndOfWord(sql, i)
+			atStmtStart = true
+		case (b == 'u' || b == 'U') && matchWord(sql, i, "UNTIL"):
+			i = skipToEndOfWord(sql, i)
+			atStmtStart = false // UNTIL is followed by its predicate expr
+
 		default:
-			// Check for delimiter match at current position (only at top level).
+			// Delimiter match — segment split at top level.
 			if depth == 0 && matchDelimiter(sql, i, delim) {
 				seg := Segment{
 					Text:      sql[stmtStart:i],
@@ -364,9 +372,21 @@ func Split(sql string) []Segment {
 				}
 				i += len(delim)
 				stmtStart = i
-			} else {
-				i++
+				atStmtStart = true
+				continue
 			}
+			// Single character classification.
+			switch b {
+			case ';':
+				atStmtStart = true
+			case ':':
+				atStmtStart = true
+			case ' ', '\t', '\r', '\n':
+				// whitespace — transparent to atStmtStart
+			default:
+				atStmtStart = false
+			}
+			i++
 		}
 	}
 

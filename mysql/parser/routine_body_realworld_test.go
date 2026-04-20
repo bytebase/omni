@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -275,6 +276,13 @@ BEGIN
     INSERT INTO tmp VALUES (1);
 END`,
 		},
+		{
+			name: "multiple procs with DROP IF EXISTS inside each body (Split over-count safety)",
+			sql: `DELIMITER ;;
+CREATE PROCEDURE p_a() BEGIN DROP TABLE IF EXISTS t; INSERT INTO x VALUES (1); END ;;
+CREATE PROCEDURE p_b() BEGIN SET @y = IF(1, 'a', 'b'); SELECT @y; END ;;
+DELIMITER ;`,
+		},
 
 		// --- Comments and whitespace ---
 		{
@@ -506,16 +514,44 @@ END MYBLOCK`,
 			if list == nil || len(list.Items) == 0 {
 				t.Fatal("expected at least one parsed statement")
 			}
+			// Every routine/trigger/event statement must have a non-nil Body
+			// AST (the main contract of the grammar-driven body parse). Body
+			// text is also captured via Loc range and must be non-empty.
+			for idx, item := range list.Items {
+				var body ast.Node
+				var bodyText string
+				switch s := item.(type) {
+				case *ast.CreateFunctionStmt:
+					// Loadable UDFs (SONAME form) have no body; skip.
+					if s.Soname != "" {
+						continue
+					}
+					body, bodyText = s.Body, s.BodyText
+				case *ast.CreateTriggerStmt:
+					body, bodyText = s.Body, s.BodyText
+				case *ast.CreateEventStmt:
+					body, bodyText = s.Body, s.BodyText
+				case *ast.AlterEventStmt:
+					body, bodyText = s.Body, s.BodyText
+				default:
+					continue
+				}
+				if body == nil {
+					t.Errorf("item[%d] Body is nil (expected parsed sp_proc_stmt)", idx)
+				}
+				if strings.TrimSpace(bodyText) == "" {
+					t.Errorf("item[%d] BodyText is empty (expected raw body bytes)", idx)
+				}
+			}
 		})
 	}
 }
 
 // TestRoutineBodyRealworld_BodyTextRoundTrip verifies that stmt.BodyText
-// (currently populated by the scanner) can itself be fed back through
-// Parse() wrapped as a procedure body. After commit 3 this becomes a
-// stronger assertion via parseCompoundStmtOrStmt directly, but even against
-// the current scanner the round-trip of the captured body text should hold
-// for cases the scanner handles.
+// can be fed back through parseCompoundStmtOrStmt directly and produces an
+// AST structurally identical to stmt.Body (modulo absolute Loc offsets).
+// This locks in that BodyText is a byte-preserved range that parses into
+// the same compound/simple statement the first pass produced.
 func TestRoutineBodyRealworld_BodyTextRoundTrip(t *testing.T) {
 	cases := []string{
 		`CREATE PROCEDURE p()
@@ -530,6 +566,12 @@ BEGIN
     IF x > 0 THEN RETURN x; END IF;
     RETURN 0;
 END`,
+		`CREATE PROCEDURE p()
+BEGIN
+    IF EXISTS (SELECT 1 FROM t) THEN
+        DELETE FROM t;
+    END IF;
+END`,
 	}
 	for _, sql := range cases {
 		t.Run(firstLine(sql), func(t *testing.T) {
@@ -537,22 +579,38 @@ END`,
 			if err != nil {
 				t.Fatalf("Parse failed: %v", err)
 			}
+			var body ast.Node
 			var bodyText string
 			switch s := list.Items[0].(type) {
 			case *ast.CreateFunctionStmt:
-				bodyText = s.BodyText
+				body, bodyText = s.Body, s.BodyText
 			case *ast.CreateTriggerStmt:
-				bodyText = s.BodyText
+				body, bodyText = s.Body, s.BodyText
 			case *ast.CreateEventStmt:
-				bodyText = s.BodyText
+				body, bodyText = s.Body, s.BodyText
 			default:
 				t.Fatalf("unexpected top-level type %T", list.Items[0])
 			}
-			if strings.TrimSpace(bodyText) == "" {
-				t.Fatal("body text is empty")
+			if body == nil {
+				t.Fatal("Body AST is nil")
 			}
-			// After commit 3, round-trip bodyText through
-			// parseCompoundStmtOrStmt directly. For now just assert non-empty.
+			if strings.TrimSpace(bodyText) == "" {
+				t.Fatal("BodyText is empty")
+			}
+			// Feed BodyText back through the compound parser directly.
+			p := &Parser{lexer: NewLexer(bodyText)}
+			p.advance()
+			reparsed, err := p.parseCompoundStmtOrStmt()
+			if err != nil {
+				t.Fatalf("BodyText re-parse failed: %v\nbodyText: %s", err, bodyText)
+			}
+			// Top-level node kind must match (absolute Loc differs because
+			// the re-parse starts at offset 0).
+			wantType := fmt.Sprintf("%T", body)
+			gotType := fmt.Sprintf("%T", reparsed)
+			if wantType != gotType {
+				t.Errorf("re-parsed top type = %s, want %s", gotType, wantType)
+			}
 		})
 	}
 }
