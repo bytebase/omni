@@ -355,6 +355,77 @@ func TestValidateFunctionHasNestedReturn(t *testing.T) {
 	requireNoCode(t, diags, "function_missing_return")
 }
 
+// --- Task 4.7: SET target resolution (Bug 2 groundwork) ------------------
+
+func TestValidateSetUndeclaredVar(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.Assignment{
+					Column: &nodes.ColumnRef{
+						Column: "totally_not_a_real_thing",
+						Loc:    nodes.Loc{Start: 10},
+					},
+				},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireCode(t, diags, "undeclared_variable")
+}
+
+func TestValidateSetDeclaredVar(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.DeclareVarStmt{Names: []string{"x"}},
+				&nodes.Assignment{Column: &nodes.ColumnRef{Column: "X"}},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireNoCode(t, diags, "undeclared_variable")
+}
+
+func TestValidateSetUserVarSkipped(t *testing.T) {
+	// @user variables carry the @-prefix in Column; validator must ignore.
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.Assignment{Column: &nodes.ColumnRef{Column: "@foo"}},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireNoCode(t, diags, "undeclared_variable")
+}
+
+func TestValidateSetQualifiedSkipped(t *testing.T) {
+	// Table-qualified column → treated as a system-variable reference.
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.Assignment{Column: &nodes.ColumnRef{Table: "global", Column: "sql_mode"}},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireNoCode(t, diags, "undeclared_variable")
+}
+
+func TestValidateSetOutsideRoutineSkipped(t *testing.T) {
+	// A bare Assignment at the top level — no scope — must not emit.
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.Assignment{Column: &nodes.ColumnRef{Column: "whatever"}},
+	}}
+	diags := Validate(list, Options{})
+	requireNoCode(t, diags, "undeclared_variable")
+}
+
 func TestValidateProcedureNoReturnOK(t *testing.T) {
 	// Procedures are not required to contain RETURN.
 	list := &nodes.List{Items: []nodes.Node{

@@ -5,7 +5,11 @@
 // from here.
 package validate
 
-import nodes "github.com/bytebase/omni/mysql/ast"
+import (
+	"strings"
+
+	nodes "github.com/bytebase/omni/mysql/ast"
+)
 
 // Options tunes which validators run. Reserved for future strictness toggles.
 type Options struct{}
@@ -99,7 +103,38 @@ func (v *validator) walk(n nodes.Node) {
 			v.emit("return_outside_function",
 				"RETURN is only allowed inside a function body", s.Loc.Start)
 		}
+	case *nodes.Assignment:
+		v.walkAssignment(s)
 	}
+}
+
+// walkAssignment validates a SET assignment inside a routine body. Outside a
+// routine the target is always a global session/user variable — nothing to
+// check here. See S11 in the plan; Phase 6 adds the system-variable fallback
+// before this emits undeclared_variable.
+func (v *validator) walkAssignment(s *nodes.Assignment) {
+	col := s.Column
+	if col == nil {
+		return
+	}
+	// @user / @@system variables carry the prefix on the Column field; always
+	// valid, never a routine local.
+	if strings.HasPrefix(col.Column, "@") {
+		return
+	}
+	// Qualified target (e.g. global.sql_mode) resolves via MySQL's system-var
+	// rules, not the routine scope.
+	if col.Table != "" {
+		return
+	}
+	if v.scope == nil {
+		return
+	}
+	if v.scope.lookupVar(col.Column) != nil {
+		return
+	}
+	// Phase 6 will insert isSystemVariable(col.Column) before this emit.
+	v.emit("undeclared_variable", "undeclared variable: "+col.Column, col.Loc.Start)
 }
 
 // checkCursorRef emits undeclared_cursor when name is unknown in the scope
