@@ -180,6 +180,20 @@ Dedicated hardening pass (runs in parallel with C2+ cluster work):
 2. Fuzz test: random balanced-paren SQL with interleaved SELECT / JOIN / set-op keywords, compare omni vs PG.
 3. If fuzz surfaces a class of mis-routing, either fix `parenBeginsSubquery` or replace it with T5/T6 (the principled preference per §3).
 
+**Delivered scope (post-Phase 2 acknowledgment):** the landed corpus is
+N=191 probes — 106 PRNG-generated (`paren_oracle_fuzz_test.go`) plus 85
+hand-curated across §2.2–§2.7 (simple/subquery/joined/mixed/LATERAL/
+degenerate). The original "200+ targeting `parenBeginsSubquery`
+specifically" was a rough estimate; in practice the oracle harness
+covers the whole FROM-clause `(` dispatch surface: `parenBeginsSubquery`
+plus LATERAL variants (select_with_parens / XMLTABLE / JSON_TABLE /
+func_table / ROWS FROM), VALUES / TABLE / WITH subqueries, set-op
+operand paren-wrapping, column-list aliases, and the obvious-reject
+perimeter. This is broader than strictly needed for
+`parenBeginsSubquery` alone; the extra coverage is kept for
+defense-in-depth — it's the single cheapest regression fence for every
+Phase-1 fix site (1.1–1.4) that routes through a paren in FROM context.
+
 ### 5.3 The "aligned without code change" bar (answers §8 Q3)
 
 A site can be marked `aligned = yes` without changing code only if **both** of these hold:

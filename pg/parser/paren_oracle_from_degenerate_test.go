@@ -56,13 +56,15 @@ func TestParenOracleFromDegenerate(t *testing.T) {
 		{
 			// DIVERGENCE: PG rejects (inner JOIN requires ON/USING, 42601)
 			// but omni currently accepts as JoinExpr with nil qual — a real
-			// parser leniency bug. Skipped to keep the proof green; the
-			// critical-signal divergence is reported out of §2.7 so Phase 1
-			// can fix parseJoinedTable to require join_qual for inner JOIN.
+			// parser leniency bug tracked as PAREN-KB-1 in
+			// pg/parser/PAREN_KNOWN_BUGS.md. Skipped to keep the proof
+			// green; the critical-signal divergence is reported out of §2.7
+			// so a future batch can fix parseJoinedTable to require
+			// join_qual for inner JOIN.
 			name:     "inner JOIN missing qual",
 			sql:      `SELECT * FROM (T JOIN U)`,
 			expected: OmniRejected,
-			skip:     "omni accepts inner JOIN without ON/USING; parser fix required (Phase 1)",
+			skip:     "PAREN-KB-1: omni accepts inner JOIN without ON/USING; see pg/parser/PAREN_KNOWN_BUGS.md",
 		},
 		{
 			name:     "CROSS JOIN with ON qual",

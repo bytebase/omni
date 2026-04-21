@@ -9,13 +9,17 @@ import "testing"
 // asserts the OmniStatus omni must emit to be PG-17 aligned for a FROM list
 // whose second item is LATERAL-prefixed.
 //
-// Classifier note: the harness's classifyOmni inspects `FromClause.Items[0]`
-// only. For every scenario in §2.6 the FROM list starts with `T` (a plain
-// RangeVar), so the accept cases all classify as OmniOther — "parsed, but not
-// a RangeSubselect or JoinExpr at Items[0]". The PG-reject case (LATERAL
-// with a joined_table operand) must surface as OmniRejected because the
-// whole SELECT fails to parse. This matches the invariant assertParenParity
-// enforces: PGReject iff OmniRejected.
+// Classifier note: the LATERAL-prefixed node in §2.6 scenarios lives at
+// `FromClause.Items[1]` (Items[0] is the anchor relation T). We drive the
+// accept cases through assertParenParityAt(..., index=1, expected) so the
+// classifier actually inspects the LATERAL routing result — OmniSubquery
+// for (SELECT …) bodies, OmniOther for XMLTABLE/JSON_TABLE (RangeTableFunc/
+// JsonTable). The PG-reject case (LATERAL with a joined_table operand)
+// must surface as OmniRejected because the whole SELECT fails to parse;
+// for that case we use plain assertParenParity — the parse error aborts
+// classification before any FROM item is reached. This matches the
+// invariant assertParenParity/assertParenParityAt enforce: PGReject iff
+// OmniRejected.
 //
 // Coverage outline:
 //   - LATERAL select_with_parens (bare, aliased, double-wrapped, set-op)
@@ -34,36 +38,41 @@ func TestParenOracleFromLateral(t *testing.T) {
 	cases := []struct {
 		name     string
 		sql      string
-		expected OmniStatus
+		index    int        // FROM-item index to classify (0=anchor, 1=LATERAL arm)
+		expected OmniStatus // expected status for Items[index]
 	}{
 		// --- LATERAL select_with_parens ---
-		// Items[0] is T (RangeVar) → OmniOther. The LATERAL arm is at
-		// Items[1], not inspected by classifyOmni. These probes still pull
-		// their weight: they prove PG accepts the LATERAL shape (no 42601)
-		// and omni round-trips without error.
+		// Items[1] is the LATERAL-prefixed RangeSubselect, so index=1
+		// routes the classifier to the actual dispatch decision. A bare
+		// LATERAL (SELECT …) becomes a RangeSubselect → OmniSubquery.
 		{
 			name:     "LATERAL bare subquery",
 			sql:      `SELECT * FROM T, LATERAL (SELECT 1)`,
-			expected: OmniOther,
+			index:    1,
+			expected: OmniSubquery,
 		},
 		{
 			name:     "LATERAL subquery with alias",
 			sql:      `SELECT * FROM T, LATERAL (SELECT 1) x`,
-			expected: OmniOther,
+			index:    1,
+			expected: OmniSubquery,
 		},
 		{
 			name:     "LATERAL double-wrapped subquery",
 			sql:      `SELECT * FROM T, LATERAL ((SELECT 1))`,
-			expected: OmniOther,
+			index:    1,
+			expected: OmniSubquery,
 		},
 		// BYT-9315-adjacent: parenthesized set-op operands under LATERAL.
 		// Inner parens must route to select_with_parens on the way to the
 		// UNION's simple_select arms; outer paren routes the whole UNION
-		// as LATERAL's select_with_parens body.
+		// as LATERAL's select_with_parens body — classifies as
+		// RangeSubselect at Items[1].
 		{
 			name:     "LATERAL parenthesized UNION",
 			sql:      `SELECT * FROM T, LATERAL ((SELECT 1) UNION (SELECT 2))`,
-			expected: OmniOther,
+			index:    1,
+			expected: OmniSubquery,
 		},
 
 		// --- LATERAL joined_table is NOT a grammar production ---
@@ -71,21 +80,25 @@ func TestParenOracleFromLateral(t *testing.T) {
 		// xmltable, json_table}. A bare joined_table body like
 		// `a JOIN b ON ...` inside the parens is rejected because
 		// select_with_parens requires a select_no_parens / values_clause,
-		// not a joined_table. Expected outcome: 42601 at `JOIN`.
+		// not a joined_table. Expected outcome: 42601 at `JOIN` — the
+		// whole SELECT fails to parse so index is irrelevant (we keep 0).
 		{
 			name:     "LATERAL joined_table rejected",
 			sql:      `SELECT * FROM T, LATERAL (a JOIN b ON t.x = a.x)`,
+			index:    0,
 			expected: OmniRejected,
 		},
 
 		// --- LATERAL xmltable ---
 		// T.doc is xml, so the PASSING operand type-checks; PG parses and
 		// executes successfully against an empty T. omni produces a
-		// RangeTableFunc at Items[1], but classifyOmni only looks at
-		// Items[0] (T, RangeVar) → OmniOther.
+		// RangeTableFunc at Items[1] — that's neither RangeSubselect nor
+		// JoinExpr, so the classifier reports OmniOther. index=1 forces
+		// the classifier to inspect the LATERAL arm rather than T.
 		{
 			name:     "LATERAL xmltable",
 			sql:      `SELECT * FROM T, LATERAL XMLTABLE('/root' PASSING T.doc COLUMNS a int PATH 'a')`,
+			index:    1,
 			expected: OmniOther,
 		},
 
@@ -93,11 +106,12 @@ func TestParenOracleFromLateral(t *testing.T) {
 		// T.doc is xml, not jsonb — PG will raise a semantic type error
 		// (42804 / 42883) when the statement runs. That's still Accept
 		// for classifyPG: the grammar decision was made before name and
-		// type resolution. Omni emits a JsonTable node at Items[1];
-		// Items[0] stays T → OmniOther.
+		// type resolution. Omni emits a JsonTable node at Items[1] →
+		// OmniOther via the default branch.
 		{
 			name:     "LATERAL json_table",
 			sql:      `SELECT * FROM T, LATERAL JSON_TABLE(T.doc, '$' COLUMNS(a int PATH '$.a'))`,
+			index:    1,
 			expected: OmniOther,
 		},
 	}
@@ -105,7 +119,7 @@ func TestParenOracleFromLateral(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			assertParenParity(t, o, tc.sql, tc.expected)
+			assertParenParityAt(t, o, tc.sql, tc.index, tc.expected)
 		})
 	}
 }

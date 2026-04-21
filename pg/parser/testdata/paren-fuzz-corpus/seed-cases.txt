@@ -2,21 +2,24 @@
 # Lines beginning with `#` and blank lines are ignored. Each SQL is
 # replayed as an additional probe after the PRNG-generated batch.
 #
-# Category A: trailing SELECT after paren-wrapped subquery.
-#   PG rejects with 42601 syntax_error at the second SELECT; omni
-#   Parse() currently accepts by taking only the first statement. Real
-#   bug; fix belongs in omni's top-level statement-list parser, not the
-#   paren-dispatch code — tracked outside Phase 1 of pg-paren-dispatch.
-SELECT * FROM (SELECT 1) SELECT 1
-SELECT * FROM (VALUES (1), (2)) SELECT 1
-SELECT * FROM (WITH w AS (SELECT 1) SELECT * FROM w) SELECT 1
-
-# Category B: inner JOIN missing ON/USING inside parens.
+# Category: inner JOIN missing ON/USING inside parens (PAREN-KB-1).
 #   PG rejects with 42601 ("syntax error at or near `)`"); omni accepts
-#   as JoinExpr with nil qual. Already documented in
+#   as JoinExpr with nil qual. Tracked in pg/parser/PAREN_KNOWN_BUGS.md
+#   as PAREN-KB-1 with recommended fix location parseJoinedTable /
+#   parseJoinQual. Also documented in
 #   paren_oracle_from_degenerate_test.go (§2.7 "inner JOIN missing qual")
-#   — the fuzz harness rediscovers it at depth, confirming the bug
-#   surfaces on more than the hand-written canonical case.
+#   where the canonical probe is skipped with a pointer back to the bug
+#   ID. The fuzz harness rediscovers it at depth here, confirming the
+#   bug surfaces on more than the hand-written canonical case.
 SELECT * FROM (T JOIN U)
 SELECT * FROM (foo LEFT JOIN W)
 SELECT * FROM (foo RIGHT OUTER JOIN W)
+
+# Category (removed): trailing SELECT after paren-wrapped subquery.
+#   Was previously probed here — PG rejects with 42601 at the second
+#   SELECT; omni Parse() currently accepts by silently truncating to the
+#   first RawStmt. That is a statement-list bug (Parse-level), not a
+#   `(` dispatch bug, and counting it against the fuzz budget was scope
+#   leakage. Tracked as PAREN-KB-2 in pg/parser/PAREN_KNOWN_BUGS.md with
+#   recommended fix location in parser.go Parse(). Seed probes removed
+#   and the generator's genReservedMisuse no longer produces this shape.

@@ -175,9 +175,9 @@ One probe per canonical shape. `T`, `U`, `V` are pre-created tables on the oracl
 - [ ] `SELECT * FROM ((SELECT 1))` — accept double-wrapped
 - [ ] `SELECT * FROM (((SELECT 1)))` — accept triple-wrapped
 - [ ] `SELECT * FROM ((((SELECT 1))))` — accept four-wrapped
-- [ ] `SELECT * FROM (VALUES (1))` — PG: reject (needs alias for VALUES-in-paren? verify)
+- [ ] `SELECT * FROM (VALUES (1))` — accept (oracle-verified: PG 17 accepts without alias; classifies as a VALUES-backed RangeSubselect)
 - [ ] `SELECT * FROM (VALUES (1)) AS v(a)` — accept
-- [ ] `SELECT * FROM ((VALUES (1)) AS v(a))` — double-wrap with alias
+- [ ] `SELECT * FROM ((VALUES (1)) AS v(a))` — reject (oracle-verified: PG 17 rejects the double-wrap-with-alias form at `AS`)
 - [ ] `SELECT * FROM (WITH cte AS (SELECT 1) SELECT * FROM cte)` — accept
 - [ ] `SELECT * FROM ((WITH cte AS (SELECT 1) SELECT * FROM cte))` — double-wrap
 - [ ] `SELECT * FROM (TABLE T)` — accept, TABLE subquery
@@ -242,7 +242,7 @@ One probe per canonical shape. `T`, `U`, `V` are pre-created tables on the oracl
 - [ ] `SELECT * FROM (T JOIN U)` — reject (missing join qual for inner join — PG requires ON or USING)
 - [ ] `SELECT * FROM (T CROSS JOIN U ON TRUE)` — reject (CROSS JOIN has no qual)
 - [ ] `SELECT * FROM (T NATURAL JOIN U ON TRUE)` — reject (NATURAL has no qual)
-- [ ] `SELECT * FROM (SELECT)` — reject (incomplete SELECT)
+- [ ] `SELECT * FROM (SELECT)` — accept (oracle-verified: PG 17 accepts empty-target-list SELECT as a valid select_no_parens; RangeSubselect on omni side)
 - [ ] `SELECT * FROM (SELECT 1))` — reject (extra close paren)
 - [ ] `SELECT * FROM ((SELECT 1)` — reject (missing close paren)
 - [ ] `SELECT * FROM (SELECT 1 FROM)` — reject (FROM without relation)

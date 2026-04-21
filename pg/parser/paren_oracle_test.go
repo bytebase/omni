@@ -212,10 +212,20 @@ type ParenProbeResult struct {
 // returns the side-by-side probe record. Caller owns the *testing.T
 // integration (assertParenParity does that); ProbeParen itself never
 // calls t.Fatal so it can be used from loops and from non-test code.
+//
+// Classifies the first FROM item (index 0). For non-first FROM items
+// (LATERAL probes in §2.6), use ProbeParenAt.
 func ProbeParen(ctx context.Context, o *ParenOracle, sqlStr string) *ParenProbeResult {
+	return ProbeParenAt(ctx, o, sqlStr, 0)
+}
+
+// ProbeParenAt is the general form: classify the FROM-item at the
+// supplied 0-based index. Used by §2.6 LATERAL probes where the
+// interesting node sits at Items[1].
+func ProbeParenAt(ctx context.Context, o *ParenOracle, sqlStr string, index int) *ParenProbeResult {
 	start := time.Now()
 	pgStatus, pgSQLState, pgMsg := classifyPG(ctx, o, sqlStr)
-	omniStatus, omniErr := classifyOmni(sqlStr)
+	omniStatus, omniErr := classifyOmniAt(sqlStr, index)
 	r := &ParenProbeResult{
 		SQL:        sqlStr,
 		PGStatus:   pgStatus,
@@ -272,7 +282,27 @@ func classifyPG(ctx context.Context, o *ParenOracle, sqlStr string) (PGStatus, s
 // Phase 2 probe template. For any other input shape the result is
 // OmniOther, which corpus workers treat as "do not assert parity on
 // this probe" noise filter.
+//
+// This is the Items[0] specialization of classifyOmniAt; kept as a
+// compatibility shim so §2.2–§2.5 and §2.7 corpus workers don't have to
+// thread an explicit index when the first FROM item is the one being
+// probed.
 func classifyOmni(sqlStr string) (OmniStatus, string) {
+	return classifyOmniAt(sqlStr, 0)
+}
+
+// classifyOmniAt is the general-form classifier: it inspects the
+// FROM-item at the caller-specified 0-based index. §2.6 LATERAL probes
+// put the LATERAL-prefixed node at Items[1] (Items[0] is the anchor
+// relation T), so classifyOmni alone would silently always report
+// OmniOther for the anchor and never exercise the LATERAL routing
+// decision. Corpus workers that care about a non-first FROM item call
+// this variant with the right index.
+//
+// Index out-of-range returns OmniOther, "" — same shape as any other
+// unrouteable input, so the caller's expected-status table can still
+// assert something meaningful (typically OmniOther or OmniRejected).
+func classifyOmniAt(sqlStr string, index int) (OmniStatus, string) {
 	stmts, err := Parse(sqlStr)
 	if err != nil {
 		return OmniRejected, err.Error()
@@ -292,8 +322,11 @@ func classifyOmni(sqlStr string) (OmniStatus, string) {
 		// `SELECT 1` with no FROM — not a paren-routing question.
 		return OmniOther, ""
 	}
-	first := sel.FromClause.Items[0]
-	switch first.(type) {
+	if index < 0 || index >= len(sel.FromClause.Items) {
+		return OmniOther, ""
+	}
+	item := sel.FromClause.Items[index]
+	switch item.(type) {
 	case *nodes.RangeSubselect:
 		return OmniSubquery, ""
 	case *nodes.JoinExpr:
@@ -324,7 +357,16 @@ func classifyOmni(sqlStr string) (OmniStatus, string) {
 // errors so debugging doesn't require re-running the probe by hand.
 func assertParenParity(t *testing.T, o *ParenOracle, sqlStr string, expected OmniStatus) {
 	t.Helper()
-	r := ProbeParen(o.ctx, o, sqlStr)
+	assertParenParityAt(t, o, sqlStr, 0, expected)
+}
+
+// assertParenParityAt is the index-aware variant of assertParenParity.
+// §2.6 LATERAL probes call this with index=1 so the classifier inspects
+// the LATERAL-prefixed FROM item (Items[1]) rather than the anchor
+// relation at Items[0].
+func assertParenParityAt(t *testing.T, o *ParenOracle, sqlStr string, index int, expected OmniStatus) {
+	t.Helper()
+	r := ProbeParenAt(o.ctx, o, sqlStr, index)
 
 	// Expected pg_status: Reject iff the caller expects OmniRejected.
 	// This couples "PG rejects" to "omni must also reject" tightly,
@@ -402,6 +444,16 @@ func TestParenOracleHarness(t *testing.T) {
 			name:     "BYT-9315 shape",
 			sql:      `SELECT * FROM ((T JOIN U ON TRUE) JOIN V ON TRUE)`,
 			expected: OmniJoinedTable,
+		},
+		{
+			// OmniOther fixture: bare RangeVar doesn't exercise `(` dispatch
+			// and proves the classifier's default branch (RangeVar/
+			// RangeFunction/RangeTableFunc/JsonTable) is reachable from the
+			// self-test, not only from §2.6 where LATERAL hides behind
+			// Items[1].
+			name:     "bare relation (OmniOther)",
+			sql:      `SELECT * FROM T`,
+			expected: OmniOther,
 		},
 	}
 

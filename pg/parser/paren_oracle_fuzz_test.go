@@ -51,19 +51,12 @@ import (
 // predict the target shape (that's §2.2–§2.7's job), only that the
 // accept/reject decision agrees.
 const (
-	fuzzSeed              int64   = 0xBADC0DE1 // stable across CI runs
-	fuzzCorpusSize        int     = 100
-	// fuzzMismatchThreshold is tuned to the post-triage residual from the
-	// initial run: ~7% real-bug divergences (trailing-SELECT over a
-	// paren-wrapped subquery; inner JOIN accepted without ON/USING — both
-	// tracked as parser-leniency bugs for Phase 1). 15% gives enough
-	// headroom that ordinary seed tweaks don't trip the threshold while
-	// still catching a wholesale routing regression (which would spike
-	// mismatches toward 50%+).
-	fuzzMismatchThreshold float64 = 0.15
+	fuzzSeed       int64 = 0xBADC0DE1 // stable across CI runs
+	fuzzCorpusSize int   = 100
 
 	// fuzzCorpusDir is relative to the test binary's working directory
-	// (pg/parser/). Both seed-cases.txt and mismatches.txt live here.
+	// (pg/parser/). seed-cases.txt, mismatches.txt, and
+	// known-mismatches.txt all live here.
 	fuzzCorpusDir = "testdata/paren-fuzz-corpus"
 )
 
@@ -189,11 +182,13 @@ func (g *parenFuzzGenerator) pick(pool []string) string {
 }
 
 // genNestedParens: `SELECT * FROM ((((T JOIN U ON TRUE))))` with random
-// depth 0–4. At depth 0 this reduces to bare `FROM T` which doesn't test
-// the `(` dispatch but does keep the base rate of PGAccept non-zero in the
-// corpus (keeps the mismatch-rate denominator meaningful).
+// depth 1–4. Depth 0 is excluded because it reduces to bare `FROM T`
+// (no `(` dispatch); including it would inflate the denominator of any
+// mismatch-rate statistic with cases that don't exercise the surface
+// this fuzz corpus is built to stress.
 func (g *parenFuzzGenerator) genNestedParens() string {
-	depth := g.rng.Intn(5)
+	// depth ∈ [1,4]
+	depth := 1 + g.rng.Intn(4)
 	// Half the time wrap a joined_table, half the time a subquery.
 	var inner string
 	if g.rng.Intn(2) == 0 {
@@ -317,14 +312,18 @@ func (g *parenFuzzGenerator) genUnbalanced() string {
 	}
 }
 
-// genReservedMisuse mixes in reserved words where a relation is expected
-// or inserts stray SELECTs — another shape of obvious-reject.
+// genReservedMisuse mixes in reserved words where a relation is
+// expected — another shape of obvious-reject.
+//
+// Trailing-SELECT patterns like `FROM (<subquery>) SELECT 1` were
+// removed (see PAREN_KNOWN_BUGS.md PAREN-KB-2): they measure omni's
+// top-level statement-list handling (Parse() silently truncating to
+// the first RawStmt), not the `(` dispatch question this corpus is
+// scoped to. Counting them as mismatches here was scope leakage.
 func (g *parenFuzzGenerator) genReservedMisuse() string {
-	switch g.rng.Intn(3) {
+	switch g.rng.Intn(2) {
 	case 0:
 		return "SELECT * FROM ( )" // empty parens
-	case 1:
-		return fmt.Sprintf("SELECT * FROM (%s) SELECT 1", g.pick(fuzzSubqueryBodies))
 	default:
 		// bare keyword instead of a relation
 		return "SELECT * FROM (WHERE)"
@@ -418,6 +417,12 @@ func loadSeedCases(t *testing.T) []string {
 
 // persistMismatches writes the collected mismatches to mismatches.txt in
 // deterministic order (by SQL) so diffs across runs are meaningful.
+//
+// Write failures are escalated to t.Fatalf: on a read-only CI worktree
+// the artifact silently disappearing would erase the regression signal
+// this file exists to provide. If the directory is legitimately
+// read-only for reasons beyond this test's control, the test should
+// fail loudly so the operator surfaces the misconfiguration.
 func persistMismatches(t *testing.T, mismatches []fuzzMismatch) {
 	t.Helper()
 	path := filepath.Join(fuzzCorpusDir, "mismatches.txt")
@@ -426,7 +431,7 @@ func persistMismatches(t *testing.T, mismatches []fuzzMismatch) {
 		// truncate it so the repo reflects current reality.
 		if _, err := os.Stat(path); err == nil {
 			if err := os.WriteFile(path, []byte(""), 0o644); err != nil {
-				t.Logf("mismatches.txt truncate: %v", err)
+				t.Fatalf("mismatches.txt truncate failed (read-only testdata?): %v", err)
 			}
 		}
 		return
@@ -448,10 +453,58 @@ func persistMismatches(t *testing.T, mismatches []fuzzMismatch) {
 		fmt.Fprintf(&b, "duration: %v\n\n", m.r.Duration)
 	}
 	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
-		t.Logf("mismatches.txt write: %v", err)
-	} else {
-		t.Logf("wrote %d mismatches to %s", len(mismatches), path)
+		t.Fatalf("mismatches.txt write failed (read-only testdata?): %v", err)
 	}
+	t.Logf("wrote %d mismatches to %s", len(mismatches), path)
+}
+
+// mismatchKey normalizes a mismatch to the subset-comparable tuple
+// {sql, pg_status, omni_status}. Timestamps, durations, and exact error
+// text (which can vary across PG patch releases) are deliberately
+// dropped so the allowlist stays stable across benign infrastructure
+// churn.
+func mismatchKey(m fuzzMismatch) string {
+	return fmt.Sprintf("%s | %s | %s", m.sql, m.r.PGStatus, m.r.OmniStatus)
+}
+
+// loadKnownMismatches reads the known-mismatch allowlist from
+// `testdata/paren-fuzz-corpus/known-mismatches.txt`. Each non-blank,
+// non-# line is a pipe-separated {sql | pg_status | omni_status}
+// triple. Whitespace around each field is trimmed. Missing file is
+// treated as "no known mismatches" — discovered mismatches will then
+// fail the test, which is the right default on first run.
+func loadKnownMismatches(t *testing.T) map[string]struct{} {
+	t.Helper()
+	path := filepath.Join(fuzzCorpusDir, "known-mismatches.txt")
+	out := make(map[string]struct{})
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return out
+		}
+		t.Fatalf("known-mismatches.txt open: %v", err)
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.Split(line, "|")
+		if len(parts) != 3 {
+			t.Fatalf("known-mismatches.txt malformed line (need 3 fields): %q", line)
+		}
+		sql := strings.TrimSpace(parts[0])
+		pgStat := strings.TrimSpace(parts[1])
+		omniStat := strings.TrimSpace(parts[2])
+		out[fmt.Sprintf("%s | %s | %s", sql, pgStat, omniStat)] = struct{}{}
+	}
+	if err := sc.Err(); err != nil {
+		t.Fatalf("known-mismatches.txt read: %v", err)
+	}
+	return out
 }
 
 func TestParenOracleFuzz(t *testing.T) {
@@ -491,10 +544,8 @@ func TestParenOracleFuzz(t *testing.T) {
 	}
 
 	total := len(probes)
-	rate := float64(len(mismatches)) / float64(total)
-	t.Logf("fuzz corpus: %d probes, %d mismatches, rate=%.2f%% (threshold=%.2f%%)",
-		total, len(mismatches), rate*100, fuzzMismatchThreshold*100)
-	// Per-family green/total report — helps triage when the threshold trips.
+	t.Logf("fuzz corpus: %d probes, %d mismatches", total, len(mismatches))
+	// Per-family green/total report — helps triage when a new mismatch lands.
 	fams := make([]string, 0, len(byFamily))
 	for f := range byFamily {
 		fams = append(fams, f)
@@ -518,8 +569,48 @@ func TestParenOracleFuzz(t *testing.T) {
 			m.family, summarize(m.sql), m.r.PGStatus, m.r.OmniStatus)
 	}
 
-	if rate > fuzzMismatchThreshold {
-		t.Fatalf("fuzz mismatch rate %.2f%% exceeds threshold %.2f%% (%d of %d probes); see testdata/paren-fuzz-corpus/mismatches.txt for triage",
-			rate*100, fuzzMismatchThreshold*100, len(mismatches), total)
+	// Known-mismatch allowlist enforcement (C3.1 fix).
+	//
+	// We require set-equality between the discovered mismatches (keyed
+	// by {sql, pg_status, omni_status}) and the allowlist in
+	// testdata/paren-fuzz-corpus/known-mismatches.txt. Previously the
+	// harness accepted up to 15% mismatches, which left ~3 regression
+	// slots unfilled — new bugs could land silently. Strict set-equality
+	// forces two properties:
+	//   (a) any NEW mismatch fails the test (regression caught),
+	//   (b) any EXPECTED mismatch that disappears also fails (drives
+	//       known-mismatches.txt to be re-baselined when a bug is fixed).
+	known := loadKnownMismatches(t)
+	discovered := make(map[string]struct{}, len(mismatches))
+	for _, m := range mismatches {
+		discovered[mismatchKey(m)] = struct{}{}
+	}
+	var unexpected, disappeared []string
+	for k := range discovered {
+		if _, ok := known[k]; !ok {
+			unexpected = append(unexpected, k)
+		}
+	}
+	for k := range known {
+		if _, ok := discovered[k]; !ok {
+			disappeared = append(disappeared, k)
+		}
+	}
+	sort.Strings(unexpected)
+	sort.Strings(disappeared)
+	if len(unexpected) > 0 || len(disappeared) > 0 {
+		if len(unexpected) > 0 {
+			t.Errorf("fuzz discovered %d NEW mismatch(es) not in known-mismatches.txt:", len(unexpected))
+			for _, k := range unexpected {
+				t.Errorf("  + %s", k)
+			}
+		}
+		if len(disappeared) > 0 {
+			t.Errorf("fuzz: %d expected mismatch(es) disappeared from known-mismatches.txt (update the allowlist after verifying the fix):", len(disappeared))
+			for _, k := range disappeared {
+				t.Errorf("  - %s", k)
+			}
+		}
+		t.Fatalf("fuzz mismatch set differs from known-mismatches.txt; see testdata/paren-fuzz-corpus/mismatches.txt for full triage")
 	}
 }
