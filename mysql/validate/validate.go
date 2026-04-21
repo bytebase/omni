@@ -196,6 +196,88 @@ func (v *validator) walkRoutine(body nodes.Node, isFunction bool, params []*node
 	}
 	v.walk(body)
 	v.pop()
+
+	// Functions must contain at least one RETURN anywhere in the body.
+	// Mirrors MySQL's sp_head HAS_RETURN flag check at CREATE time (ERR 1320).
+	// Path analysis is deferred to runtime; SIGNAL/RESIGNAL do not substitute.
+	if isFunction && !containsReturn(body) {
+		v.emit("function_missing_return",
+			"no RETURN found in function body", bodyStart(body))
+	}
+}
+
+// bodyStart returns the body node's start offset for diagnostic positioning.
+// Guards against nil; typed-nil discriminated via the switch.
+func bodyStart(n nodes.Node) int {
+	switch b := n.(type) {
+	case *nodes.BeginEndBlock:
+		return b.Loc.Start
+	case *nodes.IfStmt:
+		return b.Loc.Start
+	case *nodes.CaseStmtNode:
+		return b.Loc.Start
+	case *nodes.WhileStmt:
+		return b.Loc.Start
+	case *nodes.RepeatStmt:
+		return b.Loc.Start
+	case *nodes.LoopStmt:
+		return b.Loc.Start
+	case *nodes.ReturnStmt:
+		return b.Loc.Start
+	}
+	return 0
+}
+
+// containsReturn reports whether a stored-function body's AST contains at
+// least one *ReturnStmt anywhere. Ported from mysql/parser/compound.go —
+// matches MySQL 8.0's CREATE-time HAS_RETURN check. Path analysis is
+// deferred to runtime; SIGNAL/RESIGNAL do NOT substitute for RETURN.
+func containsReturn(s nodes.Node) bool {
+	if s == nil {
+		return false
+	}
+	switch n := s.(type) {
+	case *nodes.ReturnStmt:
+		return true
+	case *nodes.BeginEndBlock:
+		return containsReturnList(n.Stmts)
+	case *nodes.IfStmt:
+		if containsReturnList(n.ThenList) {
+			return true
+		}
+		for _, ei := range n.ElseIfs {
+			if containsReturnList(ei.ThenList) {
+				return true
+			}
+		}
+		return containsReturnList(n.ElseList)
+	case *nodes.CaseStmtNode:
+		for _, w := range n.Whens {
+			if containsReturnList(w.ThenList) {
+				return true
+			}
+		}
+		return containsReturnList(n.ElseList)
+	case *nodes.WhileStmt:
+		return containsReturnList(n.Stmts)
+	case *nodes.LoopStmt:
+		return containsReturnList(n.Stmts)
+	case *nodes.RepeatStmt:
+		return containsReturnList(n.Stmts)
+	case *nodes.DeclareHandlerStmt:
+		return containsReturn(n.Stmt)
+	default:
+		return false
+	}
+}
+
+func containsReturnList(stmts []nodes.Node) bool {
+	for _, s := range stmts {
+		if containsReturn(s) {
+			return true
+		}
+	}
+	return false
 }
 
 func (v *validator) walkEventBody(_ *nodes.CreateEventStmt) {

@@ -321,6 +321,54 @@ func TestValidateReturnInsideFunction(t *testing.T) {
 	requireNoCode(t, diags, "return_outside_function")
 }
 
+// --- Task 4.6: Function body must contain RETURN -------------------------
+
+func TestValidateFunctionMissingReturn(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: false, // function
+			Body: &nodes.BeginEndBlock{
+				Loc: nodes.Loc{Start: 7},
+				Stmts: []nodes.Node{
+					&nodes.DeclareVarStmt{Names: []string{"x"}},
+				},
+			},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireCode(t, diags, "function_missing_return")
+}
+
+func TestValidateFunctionHasNestedReturn(t *testing.T) {
+	// RETURN inside IF/THEN counts toward the HAS_RETURN flag.
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: false,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.IfStmt{
+					ThenList: []nodes.Node{&nodes.ReturnStmt{}},
+				},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireNoCode(t, diags, "function_missing_return")
+}
+
+func TestValidateProcedureNoReturnOK(t *testing.T) {
+	// Procedures are not required to contain RETURN.
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{
+				Stmts: []nodes.Node{&nodes.DeclareVarStmt{Names: []string{"x"}}},
+			},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireNoCode(t, diags, "function_missing_return")
+}
+
 func TestValidateIterateLoopLabelOK(t *testing.T) {
 	list := &nodes.List{Items: []nodes.Node{
 		&nodes.CreateFunctionStmt{
