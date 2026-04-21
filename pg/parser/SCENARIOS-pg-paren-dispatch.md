@@ -306,24 +306,24 @@ The audit found 2 ambiguity-present sites already aligned in Phase 0 (`parsePare
 
 ### 4.1 Phase 0 sites audit-row proofs
 
-- [ ] `parseParenTableRef` caller-context proof written into PAREN_AUDIT.md
-- [ ] `parseParenTableRef` empirical pinned tests ≥ 5 (already have 18 in paren_multi_join_test.go — cite file:line)
-- [ ] `parseSelectClausePrimary` caller-context proof written
-- [ ] `parseSelectClausePrimary` empirical pinned tests ≥ 5
-- [ ] `parseJoinedTable` caller-context proof written
-- [ ] `parseJoinedTable` empirical pinned tests ≥ 5
-- [ ] `parseSelectWithParens` (the post-Phase 0 left-factored form) caller-context proof written
-- [ ] All 4 proof rows mirrored in PAREN_AUDIT.json
+- [x] `parseParenTableRef` caller-context proof written into PAREN_AUDIT.md
+- [x] `parseParenTableRef` empirical pinned tests ≥ 5 (already have 18 in paren_multi_join_test.go — cite file:line)
+- [x] `parseSelectClausePrimary` caller-context proof written
+- [x] `parseSelectClausePrimary` empirical pinned tests ≥ 5
+- [x] `parseJoinedTable` caller-context proof written
+- [x] `parseJoinedTable` empirical pinned tests ≥ 5
+- [x] `parseSelectWithParens` (the post-Phase 0 left-factored form) caller-context proof written
+- [x] All 4 proof rows mirrored in PAREN_AUDIT.json
 
 ### 4.2 §5.3 aligned-without-code-change audit rows for non-ambiguous sites
 
 The 85+ non-ambiguous sites ("expect `(` after keyword" / optional paren-list) don't need the formal two-proof treatment — grammar structure is itself the proof. But the audit should cite **which existing test exercises each one** for anti-regression traceability.
 
-- [ ] Each of the 9 C3 (type parens) sites cites an existing test covering it
-- [ ] Each of the 14 C4 (DDL element list) sites cites an existing test covering it
-- [ ] Each of the 33 C5 sites cites an existing test covering it
-- [ ] Uncovered sites (if any) get minimal handwritten tests added — target < 10 new tests
-- [ ] PAREN_AUDIT.json `proof_notes` field populated with test citations for every row
+- [x] Each of the 9 C3 (type parens) sites cites an existing test covering it
+- [x] Each of the 14 C4 (DDL element list) sites cites an existing test covering it
+- [x] Each of the 33 C5 sites cites an existing test covering it
+- [x] Uncovered sites (if any) get minimal handwritten tests added — target < 10 new tests
+- [x] PAREN_AUDIT.json `proof_notes` field populated with test citations for every row
 
 ---
 
