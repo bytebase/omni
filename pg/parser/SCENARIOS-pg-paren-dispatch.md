@@ -48,81 +48,81 @@ Direct fixes for the only ambiguity-present sites the audit found as `aligned !=
 
 PG grammar (gram.y:14973-14998): `in_expr` accepts either a `select_with_parens` or a parenthesized `expr_list`. omni currently uses a 1-token peek which can't distinguish `IN (1, 2)` from `IN (SELECT 1)` reliably — it depends on FIRST-set detection of subquery starts.
 
-- [ ] `WHERE x IN (1, 2, 3)` — expr_list path, literals
-- [ ] `WHERE x IN (a, b, c)` — expr_list path, identifiers
-- [ ] `WHERE x IN ('a', 'b')` — expr_list path, strings
-- [ ] `WHERE x IN (1)` — single-element expr_list (not a subquery)
-- [ ] `WHERE x IN (SELECT y FROM t)` — simple subquery
-- [ ] `WHERE x IN (SELECT 1)` — scalar subquery
-- [ ] `WHERE x IN (SELECT 1 UNION SELECT 2)` — set-op subquery
-- [ ] `WHERE x IN ((SELECT 1) UNION (SELECT 2))` — parenthesized set-op operands
-- [ ] `WHERE x IN (VALUES (1), (2))` — VALUES subquery
-- [ ] `WHERE x IN (WITH cte AS (SELECT 1) SELECT * FROM cte)` — WITH subquery
-- [ ] `WHERE x IN (TABLE foo)` — TABLE subquery
-- [ ] `WHERE x IN ()` — empty list rejected (syntax error, matches PG)
-- [ ] `WHERE (x, y) IN (SELECT a, b FROM t)` — row constructor on LHS with subquery
-- [ ] `WHERE (x, y) IN ((1,2), (3,4))` — row constructor on LHS with row list
-- [ ] `WHERE (x, y) IN (SELECT a FROM t)` — row-constructor LHS with arity-mismatch subquery (parses, rejected later)
-- [ ] `WHERE x NOT IN (1, 2, 3)` — NOT IN expr_list
-- [ ] `WHERE x NOT IN (SELECT y FROM t)` — NOT IN subquery
-- [ ] `WHERE x NOT IN (SELECT 1 UNION SELECT 2)` — NOT IN set-op subquery
-- [ ] `WHERE (x, y) NOT IN (SELECT a, b FROM t)` — NOT IN row-constructor
-- [ ] AST parity: `IN (SELECT 1)` produces SubLink with subLinkType=ANY_SUBLINK (matches PG)
-- [ ] AST parity: `IN (1, 2)` produces ScalarArrayOpExpr with operator `=` (matches PG)
-- [ ] AST parity: `NOT IN (SELECT 1)` produces SubLink with subLinkType=ANY_SUBLINK wrapped in NOT
-- [ ] AST parity: `NOT IN (1, 2)` produces ScalarArrayOpExpr with operator `<>`, useOr=false
-- [ ] Out-of-scope: `x = ANY (SELECT ...)` / `x = SOME (...)` / `x = ALL (...)` (gram.y:14976-14998 `sub_type` family — tracked separately, not a `(` dispatch issue)
-- [ ] pgregress: file `subselect.sql` IN-subquery cases no longer fail (delta report)
+- [x] `WHERE x IN (1, 2, 3)` — expr_list path, literals
+- [x] `WHERE x IN (a, b, c)` — expr_list path, identifiers
+- [x] `WHERE x IN ('a', 'b')` — expr_list path, strings
+- [x] `WHERE x IN (1)` — single-element expr_list (not a subquery)
+- [x] `WHERE x IN (SELECT y FROM t)` — simple subquery
+- [x] `WHERE x IN (SELECT 1)` — scalar subquery
+- [x] `WHERE x IN (SELECT 1 UNION SELECT 2)` — set-op subquery
+- [x] `WHERE x IN ((SELECT 1) UNION (SELECT 2))` — parenthesized set-op operands
+- [x] `WHERE x IN (VALUES (1), (2))` — VALUES subquery
+- [x] `WHERE x IN (WITH cte AS (SELECT 1) SELECT * FROM cte)` — WITH subquery
+- [x] `WHERE x IN (TABLE foo)` — TABLE subquery
+- [x] `WHERE x IN ()` — empty list rejected (syntax error, matches PG)
+- [x] `WHERE (x, y) IN (SELECT a, b FROM t)` — row constructor on LHS with subquery
+- [x] `WHERE (x, y) IN ((1,2), (3,4))` — row constructor on LHS with row list
+- [x] `WHERE (x, y) IN (SELECT a FROM t)` — row-constructor LHS with arity-mismatch subquery (parses, rejected later)
+- [x] `WHERE x NOT IN (1, 2, 3)` — NOT IN expr_list
+- [x] `WHERE x NOT IN (SELECT y FROM t)` — NOT IN subquery
+- [x] `WHERE x NOT IN (SELECT 1 UNION SELECT 2)` — NOT IN set-op subquery
+- [x] `WHERE (x, y) NOT IN (SELECT a, b FROM t)` — NOT IN row-constructor
+- [x] AST parity: `IN (SELECT 1)` produces SubLink with subLinkType=ANY_SUBLINK (matches PG)
+- [x] AST parity: `IN (1, 2)` produces `A_Expr{Kind:AEXPR_IN, Op:"="}` at raw-parse (PG's `ScalarArrayOpExpr` is a post-analyze transform; omni's raw-parse shape matches PG's raw-parse — analyze-layer shape divergence tracked outside this starmap)
+- [x] AST parity: `NOT IN (SELECT 1)` produces SubLink with subLinkType=ANY_SUBLINK wrapped in BoolExpr NOT
+- [x] AST parity: `NOT IN (1, 2)` produces `A_Expr{Kind:AEXPR_IN, Op:"<>"}` at raw-parse (PG post-analyze: ScalarArrayOpExpr useOr=false; see parity note above)
+- [~] Out-of-scope: `x = ANY (SELECT ...)` / `x = SOME (...)` / `x = ALL (...)` (gram.y:14976-14998 `sub_type` family — tracked separately, not a `(` dispatch issue)
+- [x] pgregress: file `subselect.sql` IN-subquery cases no longer fail (delta report)
 
 ### 1.2 parseLateralTableRef — LATERAL dispatch
 
 PG grammar (gram.y:13611-13620): LATERAL can prefix `func_table`, `select_with_parens`, `xmltable`, `json_table`. omni's current path goes straight to `(` → select_with_parens without distinguishing XMLTABLE / JSON_TABLE.
 
-- [ ] `SELECT * FROM t, LATERAL (SELECT 1) x` — LATERAL select_with_parens accepted
-- [ ] `SELECT * FROM t, LATERAL (SELECT * FROM u WHERE u.x = t.x) y` — LATERAL with outer ref
-- [ ] `SELECT * FROM t, LATERAL XMLTABLE('/root' PASSING x COLUMNS a int PATH 'a') as xt` — LATERAL xmltable accepted
-- [ ] `SELECT * FROM t, LATERAL JSON_TABLE(x, '$' COLUMNS(a int PATH '$.a')) as jt` — LATERAL json_table accepted
-- [ ] `SELECT * FROM t, LATERAL f(t.x)` — LATERAL func_table accepted
-- [ ] `SELECT * FROM t, LATERAL f(t.x) WITH ORDINALITY` — LATERAL func_table + ordinality
-- [ ] `SELECT * FROM t, LATERAL f(t.x) AS fa(a int, b text)` — LATERAL func_table + column-definition alias
-- [ ] `SELECT * FROM t, LATERAL ROWS FROM (f(t.x), g(t.y))` — LATERAL rows-from accepted
-- [ ] `SELECT * FROM t, LATERAL ROWS FROM (f(t.x), g(t.y)) WITH ORDINALITY` — LATERAL rows-from + ordinality
-- [ ] `SELECT * FROM t, LATERAL (a JOIN b ON TRUE)` — LATERAL joined_table REJECTED (PG rejects; grammar has no such production)
-- [ ] `SELECT * FROM t, LATERAL u` — bare LATERAL relation REJECTED (LATERAL prefix requires subquery/xmltable/json_table/func_table; plain relation_expr is not a variant)
-- [ ] AST: LATERAL subquery sets `RangeSubselect.Lateral=true`
-- [ ] AST: LATERAL func_table sets `RangeFunction.Lateral=true`
-- [ ] AST: LATERAL xmltable sets `RangeTableFunc.Lateral=true`
-- [ ] AST: LATERAL json_table sets `JsonTable.Lateral=true`
+- [x] `SELECT * FROM t, LATERAL (SELECT 1) x` — LATERAL select_with_parens accepted
+- [x] `SELECT * FROM t, LATERAL (SELECT * FROM u WHERE u.x = t.x) y` — LATERAL with outer ref
+- [x] `SELECT * FROM t, LATERAL XMLTABLE('/root' PASSING x COLUMNS a int PATH 'a') as xt` — LATERAL xmltable accepted
+- [x] `SELECT * FROM t, LATERAL JSON_TABLE(x, '$' COLUMNS(a int PATH '$.a')) as jt` — LATERAL json_table accepted
+- [x] `SELECT * FROM t, LATERAL f(t.x)` — LATERAL func_table accepted
+- [x] `SELECT * FROM t, LATERAL f(t.x) WITH ORDINALITY` — LATERAL func_table + ordinality
+- [x] `SELECT * FROM t, LATERAL f(t.x) AS fa(a int, b text)` — LATERAL func_table + column-definition alias
+- [x] `SELECT * FROM t, LATERAL ROWS FROM (f(t.x), g(t.y))` — LATERAL rows-from accepted
+- [x] `SELECT * FROM t, LATERAL ROWS FROM (f(t.x), g(t.y)) WITH ORDINALITY` — LATERAL rows-from + ordinality
+- [x] `SELECT * FROM t, LATERAL (a JOIN b ON TRUE)` — LATERAL joined_table REJECTED (PG rejects; grammar has no such production)
+- [x] `SELECT * FROM t, LATERAL u` — bare LATERAL relation REJECTED (LATERAL prefix requires subquery/xmltable/json_table/func_table; plain relation_expr is not a variant)
+- [x] AST: LATERAL subquery sets `RangeSubselect.Lateral=true`
+- [x] AST: LATERAL func_table sets `RangeFunction.Lateral=true`
+- [x] AST: LATERAL xmltable sets `RangeTableFunc.Lateral=true`
+- [x] AST: LATERAL json_table sets `JsonTable.Lateral=true`
 
 ### 1.3 parseArraySubscript — `ARRAY[...]` vs `ARRAY(SELECT ...)`
 
 PG grammar (gram.y:14845-14910): two distinct productions — `ARRAY '[' ... ']'` is array constructor, `ARRAY '(' select_no_parens ')'` is ARRAY_SUBLINK. omni's 1-token peek at `(` currently routes all `ARRAY(...)` to sublink; `ARRAY[...]` handling may be broken or underexercised.
 
-- [ ] `SELECT ARRAY[1, 2, 3]` — array constructor, int literals
-- [ ] `SELECT ARRAY['a', 'b']` — array constructor, strings
-- [ ] `SELECT ARRAY[]::int[]` — empty array with cast accepted
-- [ ] `SELECT ARRAY[]` — empty array without cast REJECTED (PG: "cannot determine type of empty array")
-- [ ] `SELECT ARRAY[[1,2],[3,4]]` — nested array constructor
-- [ ] `SELECT ARRAY[1, 2] || ARRAY[3]` — array concatenation in expr context
-- [ ] `SELECT ARRAY(SELECT 1)` — ARRAY sublink scalar
-- [ ] `SELECT ARRAY(SELECT x FROM t)` — ARRAY sublink column
-- [ ] `SELECT ARRAY(SELECT DISTINCT x FROM t ORDER BY x)` — ARRAY sublink with DISTINCT+ORDER BY
-- [ ] `SELECT ARRAY(VALUES (1), (2))` — ARRAY VALUES subquery
-- [ ] AST parity: `ARRAY[1,2]` produces A_ArrayExpr with elements, multidims=false (matches PG)
-- [ ] AST parity: `ARRAY[[1,2],[3,4]]` produces A_ArrayExpr with multidims=true
-- [ ] AST parity: `ARRAY(SELECT 1)` produces SubLink with subLinkType=ARRAY_SUBLINK
+- [x] `SELECT ARRAY[1, 2, 3]` — array constructor, int literals
+- [x] `SELECT ARRAY['a', 'b']` — array constructor, strings
+- [x] `SELECT ARRAY[]::int[]` — empty array with cast accepted
+- [~] `SELECT ARRAY[]` — accepted at raw-parse (matches PG's `array_expr: '[' ']'` production); PG's "cannot determine type" is a post-analyze check in `transformAArrayExpr`, not parser-level. Raw-parser alignment confirmed; analyze-layer divergence tracked outside this starmap.
+- [x] `SELECT ARRAY[[1,2],[3,4]]` — nested array constructor
+- [x] `SELECT ARRAY[1, 2] || ARRAY[3]` — array concatenation in expr context
+- [x] `SELECT ARRAY(SELECT 1)` — ARRAY sublink scalar
+- [x] `SELECT ARRAY(SELECT x FROM t)` — ARRAY sublink column
+- [x] `SELECT ARRAY(SELECT DISTINCT x FROM t ORDER BY x)` — ARRAY sublink with DISTINCT+ORDER BY
+- [x] `SELECT ARRAY(VALUES (1), (2))` — ARRAY VALUES subquery
+- [x] AST parity: `ARRAY[1,2]` produces A_ArrayExpr with elements at raw-parse (PG's `multidims` flag is analyze-layer, not raw-parse — see PG `transformArrayExpr`; raw-parse shape matches)
+- [x] AST parity: `ARRAY[[1,2],[3,4]]` produces outer A_ArrayExpr wrapping inner A_ArrayExpr items (multidims=true is analyzer-derived; raw-parse shape matches PG)
+- [x] AST parity: `ARRAY(SELECT 1)` produces SubLink with subLinkType=ARRAY_SUBLINK
 
 ### 1.4 parseArraySubscript second site — contract lock
 
 `expr.go:1610` was marked `unclear` in audit. Per PG 17 gram.y:14845-14850, `ARRAY '(' select_no_parens ')'` restricts the paren content to `select_no_parens` — therefore `TABLE foo` and `WITH cte AS ... SELECT ...` ARE valid (both are select_no_parens shapes); `ROWS FROM (...)` is NOT (it's only reachable via func_table in FROM, not in select_no_parens). Scenarios commit to that expected outcome.
 
-- [ ] `SELECT ARRAY(TABLE foo)` — ACCEPT (TABLE is a simple_select form → select_no_parens)
-- [ ] `SELECT ARRAY(WITH cte AS (SELECT 1) SELECT * FROM cte)` — ACCEPT (WITH + select_clause is select_no_parens)
-- [ ] `SELECT ARRAY(VALUES (1), (2))` — ACCEPT (VALUES is simple_select)
-- [ ] `SELECT ARRAY(ROWS FROM (f(1)))` — REJECT (ROWS FROM is func_table-only, not valid in ARRAY sublink)
-- [ ] `SELECT ARRAY(1)` — REJECT (bare expr not a select_no_parens)
-- [ ] `SELECT ARRAY()` — REJECT (empty parens not a select_no_parens)
-- [ ] After fix/verify, PAREN_AUDIT.json row for expr.go:1610 flips `aligned: unclear` → `aligned: yes` with the 6 scenarios above as empirical proof
+- [x] `SELECT ARRAY(TABLE foo)` — ACCEPT (TABLE is a simple_select form → select_no_parens)
+- [x] `SELECT ARRAY(WITH cte AS (SELECT 1) SELECT * FROM cte)` — ACCEPT (WITH + select_clause is select_no_parens)
+- [x] `SELECT ARRAY(VALUES (1), (2))` — ACCEPT (VALUES is simple_select)
+- [x] `SELECT ARRAY(ROWS FROM (f(1)))` — REJECT (ROWS FROM is func_table-only, not valid in ARRAY sublink)
+- [x] `SELECT ARRAY(1)` — REJECT (bare expr not a select_no_parens)
+- [x] `SELECT ARRAY()` — REJECT (empty parens not a select_no_parens)
+- [x] PAREN_AUDIT.json row for expr.go:1610 flipped `aligned: unclear` → `aligned: yes` with 6 empirical scenarios + caller-context proof (see PAREN_AUDIT.md)
 
 ---
 
