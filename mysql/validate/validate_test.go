@@ -459,3 +459,85 @@ func TestValidateIterateLoopLabelOK(t *testing.T) {
 	requireNoCode(t, diags, "undeclared_label")
 	requireNoCode(t, diags, "undeclared_loop_label")
 }
+
+// --- Phase 4 reviewer follow-ups: walker invariants (regression cover) ---
+
+// TestValidateLeaveAcrossHandlerBarrier asserts that LEAVE inside a handler
+// body cannot target a label declared in the enclosing routine scope.
+// scope.go:lookupLabel stops walking at scopeHandlerBody; this fires
+// "undeclared_label".
+func TestValidateLeaveAcrossHandlerBarrier(t *testing.T) {
+	// outer: BEGIN (label "lbl")
+	//   DECLARE EXIT HANDLER FOR SQLEXCEPTION
+	//     BEGIN
+	//       LEAVE lbl;   -- illegal: handler body cannot see outer label
+	//     END;
+	// END
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{
+				Label: "lbl",
+				Stmts: []nodes.Node{
+					&nodes.DeclareHandlerStmt{
+						Action:     "EXIT",
+						Conditions: []nodes.HandlerCondValue{{Kind: nodes.HandlerCondSQLException}},
+						Stmt: &nodes.BeginEndBlock{
+							Stmts: []nodes.Node{
+								&nodes.LeaveStmt{Label: "lbl"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireCode(t, diags, "undeclared_label")
+}
+
+// TestValidateNestedVarShadowAllowed asserts MySQL's rule that re-declaring
+// a variable name in a nested BEGIN/END scope is legal — the inner DECLARE
+// shadows the outer; no "duplicate_variable" diagnostic.
+func TestValidateNestedVarShadowAllowed(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{
+				Stmts: []nodes.Node{
+					&nodes.DeclareVarStmt{Names: []string{"x"}},
+					&nodes.BeginEndBlock{
+						Stmts: []nodes.Node{
+							&nodes.DeclareVarStmt{Names: []string{"x"}},
+						},
+					},
+				},
+			},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireNoCode(t, diags, "duplicate_variable")
+}
+
+// TestValidateReturnInHandlerInFunction asserts that RETURN inside a handler
+// body inside a function body is legal. isFunction must propagate through
+// scopeHandlerBody, so no "return_outside_function" fires.
+func TestValidateReturnInHandlerInFunction(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: false,
+			Returns:     &nodes.DataType{}, // shape-only; validator doesn't care
+			Body: &nodes.BeginEndBlock{
+				Stmts: []nodes.Node{
+					&nodes.DeclareHandlerStmt{
+						Action:     "EXIT",
+						Conditions: []nodes.HandlerCondValue{{Kind: nodes.HandlerCondSQLException}},
+						Stmt:       &nodes.ReturnStmt{Expr: &nodes.IntLit{Value: 0}},
+					},
+				},
+			},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireNoCode(t, diags, "return_outside_function")
+}
