@@ -1261,7 +1261,7 @@ func (p *Parser) parseJsonTable() (nodes.TableExpr, error) {
 
 	// [AS] alias (required for JSON_TABLE)
 	p.match(kwAS)
-	alias, _, aErr := p.parseIdent()
+	alias, _, aErr := p.parseIdentOrText()
 	if aErr != nil {
 		return nil, aErr
 	}

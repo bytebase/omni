@@ -32,3 +32,10 @@ func TestTableAliasStringLiteral(t *testing.T) {
 		})
 	}
 }
+
+func TestJsonTableAliasStringLiteral(t *testing.T) {
+	sql := `SELECT * FROM JSON_TABLE('[]', '$' COLUMNS (v INT PATH '$')) AS 'j'`
+	if _, err := Parse(sql); err != nil {
+		t.Fatalf("Parse(%q) error: %v", sql, err)
+	}
+}
