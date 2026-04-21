@@ -144,68 +144,58 @@ func checkDeclarePhase(phase *int, s nodes.Node, sPos int) error {
 	return nil
 }
 
-// mustReturn reports whether a stored-function body (or any sub-tree) is
-// guaranteed to RETURN on every normal-flow execution path. Mirrors MySQL's
-// sp_head::check_return semantics:
-//   - RETURN, SIGNAL, RESIGNAL are unconditionally terminal on their path.
-//   - A statement *list* terminates if any prefix statement terminates;
-//     that lets `RETURN x; SET @y = 0` count even though the assignment
-//     is unreachable (matches MySQL's check).
-//   - BEGIN...END returns iff its statement list returns.
-//   - IF returns iff ELSE is present and every branch's stmt list returns.
-//   - CASE returns iff ELSE is present and every WHEN-list and the ELSE list
-//     return.
-//   - Loops never satisfy: WHILE / REPEAT / LOOP may execute zero times and
-//     LEAVE only exits the loop, not the function.
-//   - Handlers (DECLARE HANDLER) are conditional side paths and do NOT
-//     contribute to normal-flow return coverage; they're skipped when
-//     scanning a stmt list (handled by mustReturnStmts).
-func mustReturn(s nodes.Node) bool {
+// containsReturn reports whether a stored-function body's AST contains at
+// least one *ReturnStmt anywhere. This mirrors MySQL 8.0's actual CREATE-
+// time check (sp_head sets HAS_RETURN flag when a RETURN is parsed; at
+// CREATE the parser raises ERR 1320 "No RETURN found in FUNCTION" iff the
+// flag is unset). MySQL does NOT do path analysis at CREATE — functions
+// like `IF x THEN RETURN 1; END IF` (no else-RETURN) are accepted and the
+// missing-return condition surfaces only at runtime if the path is taken.
+// SIGNAL/RESIGNAL do NOT substitute for RETURN in MySQL's check.
+//
+// Container-verified 2026-04-21 via TestRoutineAlignment.
+func containsReturn(s nodes.Node) bool {
 	if s == nil {
 		return false
 	}
 	switch n := s.(type) {
-	case *nodes.ReturnStmt, *nodes.SignalStmt, *nodes.ResignalStmt:
+	case *nodes.ReturnStmt:
 		return true
 	case *nodes.BeginEndBlock:
-		return mustReturnStmts(n.Stmts)
+		return containsReturnList(n.Stmts)
 	case *nodes.IfStmt:
-		if n.ElseList == nil {
-			return false
-		}
-		if !mustReturnStmts(n.ThenList) {
-			return false
+		if containsReturnList(n.ThenList) {
+			return true
 		}
 		for _, ei := range n.ElseIfs {
-			if !mustReturnStmts(ei.ThenList) {
-				return false
+			if containsReturnList(ei.ThenList) {
+				return true
 			}
 		}
-		return mustReturnStmts(n.ElseList)
+		return containsReturnList(n.ElseList)
 	case *nodes.CaseStmtNode:
-		if n.ElseList == nil {
-			return false
-		}
 		for _, w := range n.Whens {
-			if !mustReturnStmts(w.ThenList) {
-				return false
+			if containsReturnList(w.ThenList) {
+				return true
 			}
 		}
-		return mustReturnStmts(n.ElseList)
+		return containsReturnList(n.ElseList)
+	case *nodes.WhileStmt:
+		return containsReturnList(n.Stmts)
+	case *nodes.LoopStmt:
+		return containsReturnList(n.Stmts)
+	case *nodes.RepeatStmt:
+		return containsReturnList(n.Stmts)
+	case *nodes.DeclareHandlerStmt:
+		return containsReturn(n.Stmt)
 	default:
 		return false
 	}
 }
 
-// mustReturnStmts: a statement list returns iff any non-handler-declaration
-// statement in it returns. DECLARE HANDLER is a side-path attachment and is
-// ignored for normal-flow coverage.
-func mustReturnStmts(stmts []nodes.Node) bool {
+func containsReturnList(stmts []nodes.Node) bool {
 	for _, s := range stmts {
-		if _, isHandler := s.(*nodes.DeclareHandlerStmt); isHandler {
-			continue
-		}
-		if mustReturn(s) {
+		if containsReturn(s) {
 			return true
 		}
 	}

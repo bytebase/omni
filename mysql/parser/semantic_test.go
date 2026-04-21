@@ -304,13 +304,16 @@ BEGIN
 END`,
 		},
 		{
-			name: "function missing RETURN on else path",
+			// MySQL 8.0 CREATE-time check is presence-only ("No RETURN
+			// found in FUNCTION"). Path analysis is deferred to runtime,
+			// so a function that returns only on the THEN path is accepted
+			// at CREATE.
+			name: "function missing RETURN on else path is accepted (matches MySQL)",
 			sql: `CREATE FUNCTION f(x INT) RETURNS INT
 BEGIN
     IF x > 0 THEN RETURN 1;
     END IF;
 END`,
-			wantErr: `function body does not RETURN on all paths`,
 		},
 		{
 			name: "function CASE with all branches RETURN + ELSE",
@@ -324,21 +327,25 @@ BEGIN
 END`,
 		},
 		{
-			name: "function CASE without ELSE rejected",
+			// Same as above: CASE without ELSE is accepted at CREATE
+			// because a RETURN exists somewhere in the body.
+			name: "function CASE without ELSE accepted (matches MySQL)",
 			sql: `CREATE FUNCTION f(x INT) RETURNS INT
 BEGIN
     CASE x
         WHEN 1 THEN RETURN 1;
     END CASE;
 END`,
-			wantErr: `function body does not RETURN on all paths`,
 		},
 		{
-			name: "SIGNAL in function body counts as terminal",
+			// SIGNAL/RESIGNAL alone does NOT satisfy MySQL's check
+			// (sp_head's HAS_RETURN flag is set only by RETURN).
+			name: "function with only SIGNAL is rejected (MySQL ERR 1320)",
 			sql: `CREATE FUNCTION f() RETURNS INT
 BEGIN
     SIGNAL SQLSTATE '45000';
 END`,
+			wantErr: `no RETURN found in function body`,
 		},
 		{
 			name: "function whose body is just BEGIN ... SELECT (no RETURN)",
@@ -346,7 +353,7 @@ END`,
 BEGIN
     SELECT 1;
 END`,
-			wantErr: `function body does not RETURN on all paths`,
+			wantErr: `no RETURN found in function body`,
 		},
 		{
 			name: "function with HANDLER + RETURN at end",

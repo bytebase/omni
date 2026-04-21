@@ -221,13 +221,15 @@ func (p *Parser) parseCreateFunctionStmt(isProcedure bool) (*nodes.CreateFunctio
 	stmt.Body = body
 	stmt.BodyText = p.inputText(bodyStart, bodyEnd)
 
-	// RETURN coverage: a function body must reach a terminal statement on
-	// every normal-flow path (excluding handler-triggered paths). Loadable
-	// UDFs (Soname != "") have no Body to check.
+	// RETURN coverage: MySQL's CREATE-time check requires at least one
+	// RETURN statement to exist somewhere in the function body (ERR 1320
+	// "No RETURN found in FUNCTION"). Path analysis is deferred to runtime;
+	// SIGNAL/RESIGNAL do not substitute. Loadable UDFs (Soname != "") have
+	// no Body to check.
 	if !isProcedure && stmt.Soname == "" && body != nil {
-		if !mustReturn(body) {
+		if !containsReturn(body) {
 			return nil, &ParseError{
-				Message:  "function body does not RETURN on all paths",
+				Message:  "no RETURN found in function body",
 				Position: bodyStart,
 			}
 		}
