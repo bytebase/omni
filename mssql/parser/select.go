@@ -613,6 +613,55 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 			return nil, errCollecting
 		}
 		targetLoc := p.pos()
+
+		// T-SQL `column_alias = expression` and `@var = expression` forms.
+		// Disambiguated by 2-token lookahead: { ident | @var } followed by '='
+		// at the head of a select list item can only be the assignment form
+		// (a bare expression that starts with `ident =` would be a top-level
+		// comparison, which is not a valid select-list element shape).
+		if p.peekNext().Type == '=' {
+			if p.cur.Type == tokVARIABLE {
+				name := p.cur.Str
+				p.advance() // consume @var
+				p.advance() // consume =
+				rhs, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				assign := &nodes.SelectAssign{
+					Variable: name,
+					Value:    rhs,
+					Loc:      nodes.Loc{Start: targetLoc, End: p.prevEnd()},
+				}
+				targets = append(targets, &nodes.ResTarget{
+					Val: assign,
+					Loc: nodes.Loc{Start: targetLoc, End: p.prevEnd()},
+				})
+				if _, ok := p.match(','); !ok {
+					break
+				}
+				continue
+			}
+			if p.isIdentLike() && !p.isBareAliasExcluded() {
+				alias := p.cur.Str
+				p.advance() // consume ident
+				p.advance() // consume =
+				rhs, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				targets = append(targets, &nodes.ResTarget{
+					Name: alias,
+					Val:  rhs,
+					Loc:  nodes.Loc{Start: targetLoc, End: p.prevEnd()},
+				})
+				if _, ok := p.match(','); !ok {
+					break
+				}
+				continue
+			}
+		}
+
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
