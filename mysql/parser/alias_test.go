@@ -17,3 +17,18 @@ func TestSelectAliasStringLiteral(t *testing.T) {
 		})
 	}
 }
+
+func TestTableAliasStringLiteral(t *testing.T) {
+	cases := []string{
+		`SELECT * FROM t AS 'a'`,
+		`SELECT * FROM t 'a'`,
+		`SELECT * FROM t AS "a" JOIN u AS 'b' ON t.id = b.id`,
+	}
+	for _, sql := range cases {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err != nil {
+				t.Fatalf("Parse(%q) error: %v", sql, err)
+			}
+		})
+	}
+}

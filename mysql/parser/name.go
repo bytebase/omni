@@ -810,16 +810,16 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 
 	// Optional AS alias
 	if _, ok := p.match(kwAS); ok {
-		alias, _, err := p.parseIdentifier()
+		alias, _, err := p.parseIdentOrText()
 		if err != nil {
 			return nil, err
 		}
 		ref.Alias = alias
 		ref.Loc.End = p.pos()
-	} else if p.isIdentToken() {
-		// Alias without AS keyword — accepts non-reserved keywords,
-		// matching MySQL's grammar: opt_table_alias: [AS] ident
-		alias, _, _ := p.parseIdentifier()
+	} else if p.isIdentToken() || p.cur.Type == tokSCONST {
+		// Alias without AS keyword — accepts non-reserved keywords and string
+		// literals, matching MySQL's opt_table_alias: [AS] ident_or_text
+		alias, _, _ := p.parseIdentOrText()
 		ref.Alias = alias
 		ref.Loc.End = p.pos()
 	}
