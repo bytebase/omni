@@ -519,6 +519,73 @@ func TestValidateNestedVarShadowAllowed(t *testing.T) {
 	requireNoCode(t, diags, "duplicate_variable")
 }
 
+// --- Phase 6: sp_head::find_variable sysvar fallback (Bug 2) -------------
+
+// TestValidateSetSystemVariableInRoutine asserts that bare SET targets in a
+// routine body whose names match known MySQL 8.0 system variables are
+// accepted — mirroring sp_head::find_variable's fallback rule (look up the
+// name in the session system variable table before failing).
+func TestValidateSetSystemVariableInRoutine(t *testing.T) {
+	cases := []string{
+		`CREATE PROCEDURE p() BEGIN SET sql_safe_updates = 0; END`,
+		`CREATE PROCEDURE p() BEGIN SET SQL_MODE = ''; END`,
+		`CREATE PROCEDURE p() BEGIN SET autocommit = 1; END`,
+		`CREATE PROCEDURE p() BEGIN SET foreign_key_checks = 0; SET unique_checks = 0; END`,
+		`CREATE PROCEDURE p() BEGIN SET time_zone = '+00:00'; END`,
+	}
+	for _, sql := range cases {
+		t.Run(sql, func(t *testing.T) {
+			list, err := parser.Parse(sql)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			diags := Validate(list, Options{})
+			for _, d := range diags {
+				if d.Code == "undeclared_variable" {
+					t.Fatalf("unexpected undeclared_variable: %v", d)
+				}
+			}
+		})
+	}
+}
+
+// TestValidateSetUndeclaredStillRejected asserts that names that are neither
+// a declared local/parameter NOR a known system variable still get flagged.
+// This protects the fallback from silently accepting every misspelled target.
+func TestValidateSetUndeclaredStillRejected(t *testing.T) {
+	sql := `CREATE PROCEDURE p() BEGIN SET totally_not_a_real_thing_xyz = 1; END`
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	diags := Validate(list, Options{})
+	requireCode(t, diags, "undeclared_variable")
+}
+
+// TestValidateBug2RoutineBodySetSysVar is the exact reproduction of the
+// user-reported Bug 2 from the 2026-04-21 ANTLR oracle comparison:
+// `SET SQL_SAFE_UPDATES = 0;` inside a routine body was rejected as
+// undeclared_variable. MySQL's sp_head::find_variable falls back to session
+// system variables before failing (ER_UNKNOWN_SYSTEM_VARIABLE only fires at
+// runtime if the name doesn't match a known sysvar).
+func TestValidateBug2RoutineBodySetSysVar(t *testing.T) {
+	sql := `CREATE PROCEDURE p()
+BEGIN
+    SET SQL_SAFE_UPDATES = 0;
+    SELECT 1;
+END`
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	diags := Validate(list, Options{})
+	for _, d := range diags {
+		if d.Code == "undeclared_variable" {
+			t.Fatalf("Bug 2 not fixed: %v", d)
+		}
+	}
+}
+
 // TestValidateReturnInHandlerInFunction asserts that RETURN inside a handler
 // body inside a function body is legal. isFunction must propagate through
 // scopeHandlerBody, so no "return_outside_function" fires.

@@ -151,7 +151,14 @@ func (v *validator) walkAssignment(s *nodes.Assignment, systemScope bool) {
 	if v.scope.lookupVar(col.Column) != nil {
 		return
 	}
-	// Phase 6 will insert isSystemVariable(col.Column) before this emit.
+	// sp_head::find_variable fallback: MySQL treats an otherwise-undeclared
+	// bare SET target in a routine body as a session system variable, and only
+	// raises ER_UNKNOWN_SYSTEM_VARIABLE at runtime if the name doesn't match a
+	// known sysvar. Mirror that here so SHOW CREATE PROCEDURE roundtrips don't
+	// fail validate. See mysql/validate/sysvars.go for the embedded table.
+	if isSystemVariable(col.Column) {
+		return
+	}
 	v.emit("undeclared_variable", "undeclared variable: "+col.Column, col.Loc.Start)
 }
 
