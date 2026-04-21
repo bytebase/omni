@@ -990,20 +990,11 @@ func (p *Parser) parseLeaveStmt() (*nodes.LeaveStmt, error) {
 	start := p.pos()
 	p.advance() // consume LEAVE
 
-	labelStart := p.pos()
 	label, _, err := p.parseLabelIdent()
 	if err != nil {
 		return nil, err
 	}
 
-	if p.procScope != nil {
-		if _, ok := p.lookupLabel(label, false); !ok {
-			return nil, &ParseError{
-				Message:  "LEAVE references undeclared label: " + label,
-				Position: labelStart,
-			}
-		}
-	}
 	return &nodes.LeaveStmt{
 		Loc:   nodes.Loc{Start: start, End: p.pos()},
 		Label: label,
@@ -1018,20 +1009,11 @@ func (p *Parser) parseIterateStmt() (*nodes.IterateStmt, error) {
 	start := p.pos()
 	p.advance() // consume ITERATE
 
-	labelStart := p.pos()
 	label, _, err := p.parseLabelIdent()
 	if err != nil {
 		return nil, err
 	}
 
-	if p.procScope != nil {
-		if _, ok := p.lookupLabel(label, true); !ok {
-			return nil, &ParseError{
-				Message:  "ITERATE references undeclared loop label: " + label,
-				Position: labelStart,
-			}
-		}
-	}
 	return &nodes.IterateStmt{
 		Loc:   nodes.Loc{Start: start, End: p.pos()},
 		Label: label,
