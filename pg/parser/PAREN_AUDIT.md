@@ -155,18 +155,18 @@ All previously attention-listed sites are resolved (Phase 1 BATCH 1 §§1.1–1.
 
 ---
 
-## TOP 10 PRIORITY MISALIGNED SITES (Phase 2 Scenario Ordering)
+## Historical attention list (pre-Phase-1)
 
-1. **PRIORITY HIGH** — expr.go:2053 | parseInExpr | IN (expr_list) vs IN (SELECT) ambiguity | Affects all IN expressions with subqueries | **Test:** `WHERE x IN (1, 2)` vs `WHERE x IN (SELECT y FROM t)` vs `WHERE x IN (SELECT 1 UNION SELECT 2)` | **PG 17 behavior:** FIRST set includes SELECT/VALUES/WITH/TABLE; omni 1-token peek can't distinguish | **Technique:** T3 (scan for SELECT/VALUES/WITH inside parens) or T8 (FIRST-set predicate for subquery-start)
+Originally surfaced as the top misaligned sites. All four have since been closed by Phase 1 of the starmap — the rows in the main cluster tables above reflect current state (`aligned: yes`). Kept here for audit-trail continuity; do not use for future prioritization.
 
-2. **PRIORITY HIGH** — select.go:1347 | parseLateralTableRef | LATERAL (SELECT) vs LATERAL XMLTABLE vs LATERAL JSON_TABLE | Peek only checks '('; can't route to correct handler | **Test:** `FROM LATERAL (SELECT 1)` vs `FROM LATERAL XMLTABLE(...)` vs `FROM LATERAL JSON_TABLE(...)` | **PG 17 behavior:** Each is a distinct production with disjoint FIRST sets after paren | **Technique:** T3 scan or T6 dedicated nonterminals for xmltable/json_table paths
+1. ~~**HIGH** expr.go:2053 parseInExpr — IN (list) vs IN (SELECT)~~ **CLOSED in §1.1** (commit ad700fa). Technique: T3+T8 hybrid (snapshot scan + FIRST-set). Proof: `TestParenInExprDispatch` in `paren_in_expr_test.go`.
+2. ~~**HIGH** select.go:1347 parseLateralTableRef — LATERAL dispatch~~ **CLOSED in §1.2** (commit 284f39e). Technique: T6/T7 hybrid (dedicated nonterminal + post-parse ColumnRef reject). Proof: `TestParenLateralRef*` in `paren_lateral_ref_test.go`.
+3. ~~**HIGH** expr.go:1609 parseArrayCExpr — ARRAY[ vs ARRAY(~~ **CLOSED in §1.3** (commit be8af80). Technique: T1 peek. Proof: `TestParenArrayExprDispatch` in `paren_array_expr_test.go`.
+4. ~~**MED** expr.go:1610 parseArrayCExpr — ARRAY( content contract~~ **CLOSED in §1.4** (commit c1158b7 + codex-fix b97477f). Technique: T1 + T7 (typed-nil guard). Proof: `TestParenArrayExprSubqueryContract` in `paren_array_expr_test.go`.
 
-3. **PRIORITY HIGH** — expr.go:1609 | parseArraySubscript | ARRAY [ ... ] vs ARRAY ( SELECT ) syntax | Current code treats all as ARRAY(SELECT); [ operator is unhandled | **Test:** `ARRAY[1, 2, 3]` vs `ARRAY(SELECT 1)` vs bare `ARRAY` | **PG 17 behavior:** ARRAY followed by [ or ( disambiguates; omni's code path confusion | **Technique:** T1 peek on '(' vs '[' at callsite entry
+Remaining low-priority items from the original list (already informally aligned via T1 peek; kept for §5.3 lock-in in Phase 4):
 
-4. **PRIORITY MED** — expr.go:1610 | parseArraySubscript | ARRAY(SELECT) inside expression context | Assumes all ARRAY(...) are subqueries; need to check against PG | **Test:** `SELECT ARRAY(SELECT 1)` vs `SELECT ARRAY(ROWS FROM f(...))` | **PG 17 behavior:** ARRAY ( ... ) expects a subquery (SELECT/TABLE/VALUES) | **Technique:** T8 FIRST-set check to confirm parseSelectStmtForExpr is correct delegation
-
-5. **PRIORITY MED** — select.go:770 | parseCommonTableExpr | Paren-wrapped column list optional | Currently T1 peek; confirm PG alignment | **Test:** `WITH cte AS (...) SELECT ...` vs `WITH cte(a, b) AS (...) SELECT ...` | **PG 17 behavior:** name opt_name_list AS — opt_name_list is optional | **Technique:** Already T1; verify test coverage exists
-
-6. **PRIORITY MED** — type.go:313 through type.go:687 | parseOptFloat / parseBit / parseVarcharType / etc. | All type-modifier parens use T1 peek; cluster alignment check | **Test:** `FLOAT(24)` vs `FLOAT` vs `VARCHAR(255)` vs `VARCHAR` vs `BIT(10)` vs `BIT` vs `CHAR(20)` vs `CHAR` | **PG 17 behavior:** All are optional parens after keyword | **Technique:** T1 sufficient; batch test coverage validation
+5. select.go:770 parseCommonTableExpr — optional paren-wrapped column list (T1; Phase 4 empirical lock-in)
+6. type.go:313-687 parseOptFloat / parseBit / parseVarcharType / … — type-modifier paren family (T1; Phase 4 batch lock-in)
 
 
