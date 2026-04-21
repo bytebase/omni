@@ -85,13 +85,23 @@ func (p *Parser) parseSelectWithParens() (*nodes.SelectStmt, error) {
 		p.addTokenCandidate(WITH)
 		return nil, nil
 	}
-	var stmt *nodes.SelectStmt
-	var err error
-	if p.cur.Type == '(' {
-		stmt, err = p.parseSelectWithParens()
-	} else {
-		stmt, err = p.parseSelectNoParens()
-	}
+	// Delegate to parseSelectNoParens unconditionally. PG's grammar says
+	//
+	//	select_with_parens: '(' select_no_parens ')' | '(' select_with_parens ')'
+	//
+	// but the second production is already reachable via select_no_parens →
+	// select_clause → parseSelectClausePrimary → '(' → parseSelectWithParens.
+	// Short-circuiting on cur == '(' here (as a hand-written recursion)
+	// skips parseSelectClause's set-op precedence climbing, so
+	//
+	//	SELECT * FROM ((SELECT 1) UNION (SELECT 2))
+	//
+	// failed: the inner '(SELECT 1)' was consumed as a nested
+	// select_with_parens and the outer expected ')' instead of UNION.
+	// Left-factoring to always go through parseSelectNoParens lets
+	// select_clause handle nested select_with_parens as the first operand
+	// of a set op, matching PG's LALR reduction.
+	stmt, err := p.parseSelectNoParens()
 	if err != nil {
 		return nil, err
 	}
@@ -1150,12 +1160,8 @@ func (p *Parser) parseTableRefPrimary() (nodes.Node, error) {
 // parseParenTableRef handles '(' ... ')' in FROM clause.
 // Could be: '(' select_no_parens ')' or '(' joined_table ')' opt_alias
 func (p *Parser) parseParenTableRef() (nodes.Node, error) {
-	// Peek to see if this is a subquery or joined table
-	// If next token after '(' is SELECT/VALUES/WITH/TABLE, it's a subquery
 	loc := p.pos()
-	next := p.peekNext()
-	if next.Type == SELECT || next.Type == VALUES || next.Type == WITH || next.Type == TABLE || next.Type == '(' {
-		// Could be select_with_parens → subquery
+	if p.parenBeginsSubquery() {
 		stmt, err := p.parseSelectWithParens()
 		if err != nil {
 			return nil, err
@@ -1180,7 +1186,7 @@ func (p *Parser) parseParenTableRef() (nodes.Node, error) {
 		p.addRuleCandidate("qualified_name")
 		return nil, nil
 	}
-	inner, err := p.parseTableRef()
+	inner, err := p.parseJoinedTable()
 	if err != nil {
 		return nil, err
 	}
@@ -1193,6 +1199,137 @@ func (p *Parser) parseParenTableRef() (nodes.Node, error) {
 		j.Loc.End = alias.Loc.End
 	}
 	return inner, nil
+}
+
+// parseJoinedTable parses a PG joined_table nonterminal:
+//
+//	joined_table:
+//	    '(' joined_table ')'
+//	  | table_ref CROSS JOIN table_ref
+//	  | table_ref [join_type] JOIN table_ref join_qual
+//	  | table_ref NATURAL [join_type] JOIN table_ref
+//
+// A joined_table must contain at least one JOIN operator — this is what
+// distinguishes the '(' joined_table ')' alternative of table_ref from
+// the select_with_parens / LATERAL alternatives. omni's parseTableRef
+// is the generic table_ref entry point and happily returns a single
+// RangeVar or RangeSubselect when no JOIN follows; reusing it inside
+// '(' ... ')' would wrongly accept things like `FROM (a)` or
+// `FROM ((SELECT 1) x)` which PG rejects because the content is not a
+// joined_table.
+//
+// Implementation note: parseTableRef already parses the primary +
+// left-recursive JOIN loop (see parseTableRef comment). A valid
+// joined_table is therefore "parseTableRef result whose root is a
+// JoinExpr"; we enforce that assertion here.
+func (p *Parser) parseJoinedTable() (nodes.Node, error) {
+	node, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	if p.collectMode() {
+		return node, nil
+	}
+	if node == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, ok := node.(*nodes.JoinExpr); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return node, nil
+}
+
+// parenBeginsSubquery reports whether the '(' at p.cur begins a
+// select_with_parens (a parenthesized SELECT/VALUES/WITH/TABLE
+// subquery) rather than a '(' joined_table ')' parenthesized joined
+// table.
+//
+// A single-token peek can't disambiguate these:
+//
+//	'(' SELECT ... ')'         — subquery
+//	'(' a JOIN b ON ... ')'    — joined_table (peekNext is an identifier)
+//	'(' '(' SELECT ... ')' ')' — subquery (select_with_parens wraps select_with_parens)
+//	'(' '(' a JOIN b ')' ')'   — joined_table (joined_table wraps joined_table)
+//	'(' '(' SELECT 1 ')' JOIN ... ')' — joined_table (inner is subquery, outer joins it)
+//
+// The last two both start '((' but go to different branches. Walking
+// past all opening parens and looking at the first non-'(' token is
+// therefore insufficient — a nested '(SELECT ...)' could be either a
+// wrapped subquery or one operand of an outer join.
+//
+// Instead, we snapshot the token stream and scan the matched paren
+// block. The outer is select_with_parens iff the depth-1 content is
+// either a SELECT/VALUES/WITH/TABLE lead or a single nested
+// paren-block that is itself select_with_parens (recursive). Any JOIN-
+// family keyword at depth 1, or any trailing tokens after a nested
+// paren-block, routes to the joined_table path.
+func (p *Parser) parenBeginsSubquery() bool {
+	if p.cur.Type != '(' {
+		return false
+	}
+	snap := p.snapshotTokenStream()
+	defer p.restoreTokenStream(snap)
+	return p.consumeMatchedParenIsSubquery()
+}
+
+// consumeMatchedParenIsSubquery: p.cur is at '('. Consumes through
+// the matched ')' (inclusive) and returns true iff the paren block is
+// a select_with_parens. Must only be called inside a snapshot/restore
+// scope because it mutates the token stream.
+func (p *Parser) consumeMatchedParenIsSubquery() bool {
+	if p.cur.Type != '(' || p.cur.Type == 0 {
+		return false
+	}
+	p.advance() // consume '('
+
+	var isSubquery bool
+	switch p.cur.Type {
+	case SELECT, VALUES, WITH, WITH_LA, TABLE:
+		isSubquery = true
+	case '(':
+		nested := p.consumeMatchedParenIsSubquery()
+		// After recursion, p.cur is past the nested ')'. Classify the
+		// outer by what follows the nested paren-block:
+		//   ')'                            — outer just wraps nested
+		//   UNION / INTERSECT / EXCEPT     — set-op continuation; nested
+		//                                    is the first operand of a
+		//                                    select_no_parens, so outer
+		//                                    is select_with_parens iff
+		//                                    nested was.
+		//   JOIN / CROSS / NATURAL / ...   — nested is the first operand
+		//                                    of a joined_table; outer is
+		//                                    a joined_table wrap.
+		//   anything else (alias, etc.)    — default to joined_table path;
+		//                                    parseJoinedTable will surface
+		//                                    a proper syntax error if the
+		//                                    content isn't actually a
+		//                                    joined_table.
+		switch p.cur.Type {
+		case ')', UNION, INTERSECT, EXCEPT:
+			isSubquery = nested
+		default:
+			isSubquery = false
+		}
+	default:
+		isSubquery = false
+	}
+
+	// Consume through the matching outer ')'.
+	depth := 1
+	for depth > 0 && p.cur.Type != 0 {
+		switch p.cur.Type {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				p.advance()
+				return isSubquery
+			}
+		}
+		p.advance()
+	}
+	return isSubquery
 }
 
 // parseLateralTableRef handles LATERAL prefix.
