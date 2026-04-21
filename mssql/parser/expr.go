@@ -1356,18 +1356,11 @@ func (p *Parser) parseOverClause() (*nodes.OverClause, error) {
 			p.addRuleCandidate("func_name")
 			return nil, errCollecting
 		}
-		var parts []nodes.Node
-		for {
-			expr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			parts = append(parts, expr)
-			if _, ok := p.match(','); !ok {
-				break
-			}
+		list, err := p.parseExprList()
+		if err != nil {
+			return nil, err
 		}
-		over.PartitionBy = &nodes.List{Items: parts}
+		over.PartitionBy = list
 	}
 
 	// ORDER BY

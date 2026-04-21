@@ -97,11 +97,14 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		}
 	}
 
-	// Target list
+	// Target list — at least one result column is required per T-SQL.
 	var err error
 	stmt.TargetList, err = p.parseTargetList()
 	if err != nil {
 		return nil, err
+	}
+	if stmt.TargetList == nil || len(stmt.TargetList.Items) == 0 {
+		return nil, p.unexpectedToken()
 	}
 
 	// INTO
@@ -408,6 +411,10 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 		p.match(',') // consume comma between XMLNAMESPACES and CTEs
 	}
 
+	// CTE list terminator is multi-token (SELECT / INSERT / UPDATE / DELETE /
+	// MERGE); parseCTE returns nil when the current token does not start a CTE
+	// name, which lets us break the loop cleanly at non-SELECT DML statements.
+	// parseCommaList's single-terminator contract does not fit here.
 	var ctes []nodes.Node
 	for p.cur.Type != kwSELECT && p.cur.Type != tokEOF && p.cur.Type != ';' {
 		cte, err := p.parseCTE()
@@ -420,6 +427,11 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 		ctes = append(ctes, cte)
 		if _, ok := p.match(','); !ok {
 			break
+		}
+		// Reject trailing comma: after consuming ',', we must have another CTE
+		// before a terminator.
+		if p.cur.Type == kwSELECT || p.cur.Type == tokEOF || p.cur.Type == ';' {
+			return nil, p.unexpectedToken()
 		}
 	}
 	wc.CTEs = &nodes.List{Items: ctes}
@@ -436,20 +448,16 @@ func (p *Parser) parseXmlNamespaces() (*nodes.List, error) {
 		return nil, err
 	}
 
-	var decls []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	decls, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 		loc := p.pos()
 		decl := &nodes.XmlNamespaceDecl{Loc: nodes.Loc{Start: loc, End: -1}}
-
 		if _, ok := p.match(kwDEFAULT); ok {
-			// DEFAULT 'uri'
 			decl.IsDefault = true
 			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
 				decl.URI = p.cur.Str
 				p.advance()
 			}
 		} else {
-			// 'uri' AS prefix
 			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
 				decl.URI = p.cur.Str
 				p.advance()
@@ -461,16 +469,14 @@ func (p *Parser) parseXmlNamespaces() (*nodes.List, error) {
 			}
 		}
 		decl.Loc.End = p.prevEnd()
-		decls = append(decls, decl)
-
-		if _, ok := p.match(','); !ok {
-			break
-		}
+		return decl, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-
 	if len(decls) == 0 {
 		return nil, nil
 	}
@@ -498,16 +504,15 @@ func (p *Parser) parseCTE() (*nodes.CommonTableExpr, error) {
 			p.addRuleCandidate("cte_column_name")
 			return nil, errCollecting
 		}
-		var cols []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 			colName, ok := p.parseIdentifier()
 			if !ok {
-				break
+				return nil, p.unexpectedToken()
 			}
-			cols = append(cols, &nodes.String{Str: colName})
-			if _, ok := p.match(','); !ok {
-				break
-			}
+			return &nodes.String{Str: colName}, nil
+		})
+		if err != nil {
+			return nil, err
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -667,6 +672,10 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 			return nil, err
 		}
 		if expr == nil {
+			if len(targets) > 0 {
+				// Just consumed ',' with no expr to follow — trailing comma.
+				return nil, p.unexpectedToken()
+			}
 			break
 		}
 		target := &nodes.ResTarget{
@@ -978,14 +987,15 @@ func (p *Parser) parsePivotExpr(source nodes.TableExpr) (*nodes.PivotExpr, error
 	// IN ([v1], [v2], ...)
 	if _, ok := p.match(kwIN); ok {
 		if _, err := p.expect('('); err == nil {
-			var vals []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if name, ok := p.parseIdentifier(); ok {
-					vals = append(vals, &nodes.String{Str: name})
+			vals, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+				name, ok := p.parseIdentifier()
+				if !ok {
+					return nil, p.unexpectedToken()
 				}
-				if _, ok := p.match(','); !ok {
-					break
-				}
+				return &nodes.String{Str: name}, nil
+			})
+			if err != nil {
+				return nil, err
 			}
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
@@ -1041,14 +1051,15 @@ func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) (*nodes.UnpivotExpr, e
 	// IN ([c1], [c2], ...)
 	if _, ok := p.match(kwIN); ok {
 		if _, err := p.expect('('); err == nil {
-			var cols []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if name, ok := p.parseIdentifier(); ok {
-					cols = append(cols, &nodes.String{Str: name})
+			cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+				name, ok := p.parseIdentifier()
+				if !ok {
+					return nil, p.unexpectedToken()
 				}
-				if _, ok := p.match(','); !ok {
-					break
-				}
+				return &nodes.String{Str: name}, nil
+			})
+			if err != nil {
+				return nil, err
 			}
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
@@ -1126,18 +1137,20 @@ func (p *Parser) parseTableValuedFunction(ref *nodes.TableRef) (nodes.TableExpr,
 		Loc:  nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.cur.Type != ')' {
-		var args []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			arg, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			args = append(args, arg)
-			if _, ok := p.match(','); !ok {
-				break
-			}
+	args, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
+		arg, err := p.parseExpr()
+		if err != nil {
+			return nil, err
 		}
+		if arg == nil {
+			return nil, p.unexpectedToken()
+		}
+		return arg, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(args) > 0 {
 		fc.Args = &nodes.List{Items: args}
 	}
 	if _, err := p.expect(')'); err != nil {
@@ -1188,16 +1201,15 @@ func (p *Parser) parseAliasAndOptionalColumnList() (string, *nodes.List, error) 
 		return alias, nil, nil
 	}
 	p.advance() // consume '('
-	var cols []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 		name, ok := p.parseIdentifier()
 		if !ok {
-			return alias, nil, p.unexpectedToken()
+			return nil, p.unexpectedToken()
 		}
-		cols = append(cols, &nodes.String{Str: name})
-		if _, ok := p.match(','); !ok {
-			break
-		}
+		return &nodes.String{Str: name}, nil
+	})
+	if err != nil {
+		return alias, nil, err
 	}
 	if _, err := p.expect(')'); err != nil {
 		return alias, nil, err
@@ -1497,6 +1509,11 @@ func (p *Parser) parseForJsonOptions(fc *nodes.ForClause) error {
 }
 
 // parseExprList parses a comma-separated list of expressions.
+// parseExprList parses a non-empty comma-separated list of expressions,
+// stopping at the first non-expression token (which the caller then matches
+// against its own terminator). At least one expression is required and a
+// trailing comma is rejected — every current call site (VALUES row,
+// ROLLUP/CUBE args, PARTITION BY) needs both invariants per SqlScriptDOM.
 func (p *Parser) parseExprList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
@@ -1505,7 +1522,8 @@ func (p *Parser) parseExprList() (*nodes.List, error) {
 			return nil, err
 		}
 		if expr == nil {
-			break
+			// Empty list at head or trailing-comma tail — both invalid.
+			return nil, p.unexpectedToken()
 		}
 		items = append(items, expr)
 		if _, ok := p.match(','); !ok {
@@ -1527,16 +1545,11 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 				p.advance() // consume GROUPING
 				p.advance() // consume SETS
 				if _, err := p.expect('('); err == nil {
-					var sets []nodes.Node
-					for p.cur.Type != ')' && p.cur.Type != tokEOF {
-						set, err := p.parseGroupingSet()
-						if err != nil {
-							return nil, err
-						}
-						sets = append(sets, set)
-						if _, ok := p.match(','); !ok {
-							break
-						}
+					sets, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+						return p.parseGroupingSet()
+					})
+					if err != nil {
+						return nil, err
 					}
 					if _, err := p.expect(')'); err != nil {
 						return nil, err
@@ -1619,26 +1632,23 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 }
 
 // parseGroupingSet parses a single grouping set: () or (expr, expr, ...) or just expr.
+// The empty form `()` is a valid T-SQL grand-total marker and so is the one site
+// in the parser that uses commaListAllowEmpty for a paren-delimited list.
 func (p *Parser) parseGroupingSet() (*nodes.List, error) {
 	if p.cur.Type == '(' {
 		p.advance()
-		if p.cur.Type == ')' {
-			// Empty set ()
-			p.advance()
-			return &nodes.List{Items: nil}, nil
-		}
-		var items []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		items, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
 			expr, err := p.parseExpr()
 			if err != nil {
 				return nil, err
 			}
-			if expr != nil {
-				items = append(items, expr)
+			if expr == nil {
+				return nil, p.unexpectedToken()
 			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
+			return expr, nil
+		})
+		if err != nil {
+			return nil, err
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -1765,6 +1775,10 @@ func (p *Parser) parseOrderByList() (*nodes.List, error) {
 			return nil, err
 		}
 		if expr == nil {
+			if len(items) > 0 {
+				// Just consumed ',' with no expr to follow — trailing comma.
+				return nil, p.unexpectedToken()
+			}
 			break
 		}
 		dir := nodes.SortDefault
@@ -1886,43 +1900,32 @@ func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 			Name: "INDEX",
 			Loc:  nodes.Loc{Start: loc, End: -1},
 		}
+		parseIndexVals := func() error {
+			vals, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+				return p.parseIndexValue()
+			})
+			if err != nil {
+				return err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return err
+			}
+			hint.IndexValues = &nodes.List{Items: vals}
+			return nil
+		}
 		if _, ok := p.match('='); ok {
 			// INDEX = ( value )
 			if _, err := p.expect('('); err == nil {
-				var vals []nodes.Node
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					v, err := p.parseIndexValue()
-					if err != nil {
-						return nil, err
-					}
-					vals = append(vals, v)
-					if _, ok := p.match(','); !ok {
-						break
-					}
-				}
-				if _, err := p.expect(')'); err != nil {
+				if err := parseIndexVals(); err != nil {
 					return nil, err
 				}
-				hint.IndexValues = &nodes.List{Items: vals}
 			}
 		} else if p.cur.Type == '(' {
 			// INDEX ( values )
 			p.advance()
-			var vals []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				v, err := p.parseIndexValue()
-				if err != nil {
-					return nil, err
-				}
-				vals = append(vals, v)
-				if _, ok := p.match(','); !ok {
-					break
-				}
-			}
-			if _, err := p.expect(')'); err != nil {
+			if err := parseIndexVals(); err != nil {
 				return nil, err
 			}
-			hint.IndexValues = &nodes.List{Items: vals}
 		}
 		hint.Loc.End = p.prevEnd()
 		return hint, nil
@@ -1966,14 +1969,15 @@ func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 			// ( col1, col2, ... )
 			if p.cur.Type == '(' {
 				p.advance()
-				var cols []nodes.Node
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					if colName, ok := p.parseIdentifier(); ok {
-						cols = append(cols, &nodes.String{Str: colName})
+				cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+					colName, ok := p.parseIdentifier()
+					if !ok {
+						return nil, p.unexpectedToken()
 					}
-					if _, ok := p.match(','); !ok {
-						break
-					}
+					return &nodes.String{Str: colName}, nil
+				})
+				if err != nil {
+					return nil, err
 				}
 				if _, err := p.expect(')'); err != nil {
 					return nil, err
