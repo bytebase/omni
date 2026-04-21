@@ -170,3 +170,86 @@ func TestValidateDuplicateLabelDirect(t *testing.T) {
 	diags := Validate(list, Options{})
 	requireCode(t, diags, "duplicate_label")
 }
+
+// --- Task 4.3: LEAVE / ITERATE label resolution --------------------------
+
+func TestValidateLeaveUndeclaredLabel(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.LeaveStmt{Label: "nope", Loc: nodes.Loc{Start: 10}},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireCode(t, diags, "undeclared_label")
+}
+
+func TestValidateLeaveBlockLabelOK(t *testing.T) {
+	// LEAVE can target a block label.
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{
+				Label: "outer",
+				Stmts: []nodes.Node{
+					&nodes.LeaveStmt{Label: "outer"},
+				},
+			},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireNoCode(t, diags, "undeclared_label")
+}
+
+func TestValidateIterateUndeclaredLabel(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.IterateStmt{Label: "nope", Loc: nodes.Loc{Start: 10}},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireCode(t, diags, "undeclared_loop_label")
+}
+
+func TestValidateIterateBlockLabelRejected(t *testing.T) {
+	// ITERATE inside a loop-less labeled block: block label is NOT a loop
+	// label, so ITERATE must be rejected even though the label exists.
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{
+				Label: "blk",
+				Stmts: []nodes.Node{
+					&nodes.IterateStmt{Label: "blk"},
+				},
+			},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireCode(t, diags, "undeclared_loop_label")
+}
+
+func TestValidateIterateLoopLabelOK(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.WhileStmt{
+					Label: "lp",
+					Stmts: []nodes.Node{
+						&nodes.IterateStmt{Label: "lp"},
+						&nodes.LeaveStmt{Label: "lp"},
+					},
+				},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireNoCode(t, diags, "undeclared_label")
+	requireNoCode(t, diags, "undeclared_loop_label")
+}

@@ -74,6 +74,20 @@ func (v *validator) walk(n nodes.Node) {
 		v.registerDeclareCursor(s)
 	case *nodes.DeclareHandlerStmt:
 		v.walkDeclareHandler(s)
+	case *nodes.WhileStmt:
+		v.walkWhileStmt(s)
+	case *nodes.RepeatStmt:
+		v.walkRepeatStmt(s)
+	case *nodes.LoopStmt:
+		v.walkLoopStmt(s)
+	case *nodes.IfStmt:
+		v.walkIfStmt(s)
+	case *nodes.CaseStmtNode:
+		v.walkCaseStmt(s)
+	case *nodes.LeaveStmt:
+		v.walkLeaveStmt(s)
+	case *nodes.IterateStmt:
+		v.walkIterateStmt(s)
 	}
 }
 
@@ -190,4 +204,75 @@ func (v *validator) registerLabel(name string, kind labelKind, pos int) {
 		return
 	}
 	v.scope.labels[key] = labelInfo{kind: kind, pos: pos}
+}
+
+func (v *validator) walkWhileStmt(s *nodes.WhileStmt) {
+	v.registerLabel(s.Label, labelLoop, s.Loc.Start)
+	v.push(scopeBlock)
+	for _, st := range s.Stmts {
+		v.walk(st)
+	}
+	v.pop()
+}
+
+func (v *validator) walkRepeatStmt(s *nodes.RepeatStmt) {
+	v.registerLabel(s.Label, labelLoop, s.Loc.Start)
+	v.push(scopeBlock)
+	for _, st := range s.Stmts {
+		v.walk(st)
+	}
+	v.pop()
+}
+
+func (v *validator) walkLoopStmt(s *nodes.LoopStmt) {
+	v.registerLabel(s.Label, labelLoop, s.Loc.Start)
+	v.push(scopeBlock)
+	for _, st := range s.Stmts {
+		v.walk(st)
+	}
+	v.pop()
+}
+
+func (v *validator) walkIfStmt(s *nodes.IfStmt) {
+	for _, st := range s.ThenList {
+		v.walk(st)
+	}
+	for _, ei := range s.ElseIfs {
+		for _, st := range ei.ThenList {
+			v.walk(st)
+		}
+	}
+	for _, st := range s.ElseList {
+		v.walk(st)
+	}
+}
+
+func (v *validator) walkCaseStmt(s *nodes.CaseStmtNode) {
+	for _, w := range s.Whens {
+		for _, st := range w.ThenList {
+			v.walk(st)
+		}
+	}
+	for _, st := range s.ElseList {
+		v.walk(st)
+	}
+}
+
+func (v *validator) walkLeaveStmt(s *nodes.LeaveStmt) {
+	if v.scope == nil {
+		return
+	}
+	if _, ok := v.scope.lookupLabel(s.Label, false); !ok {
+		v.emit("undeclared_label", "LEAVE references undeclared label: "+s.Label, s.Loc.Start)
+	}
+}
+
+func (v *validator) walkIterateStmt(s *nodes.IterateStmt) {
+	if v.scope == nil {
+		return
+	}
+	if _, ok := v.scope.lookupLabel(s.Label, true); !ok {
+		v.emit("undeclared_loop_label",
+			"ITERATE references undeclared loop label: "+s.Label, s.Loc.Start)
+	}
 }
