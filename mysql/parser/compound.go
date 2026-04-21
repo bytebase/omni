@@ -29,19 +29,6 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 		Label: labelName,
 	}
 
-	// Register the label in the *current (outer)* scope so LEAVE from
-	// within the body can find it via the parent chain.
-	if labelName != "" {
-		if err := p.declareLabel(labelName, labelBegin, stmt, labelStart); err != nil {
-			return nil, err
-		}
-	}
-	// Open a child scope for the body's declarations.
-	if p.procScope != nil {
-		p.pushScope(scopeBlock)
-		defer p.popScope()
-	}
-
 	// Parse statements until END, enforcing MySQL's declaration-ordering rule:
 	//   DECLARE var/condition  →  DECLARE cursor  →  DECLARE handler  →  stmts
 	// Each declaration kind may move the phase forward but not backward.
@@ -349,14 +336,6 @@ func (p *Parser) parseDeclareVarStmt(start int, firstName string) (*nodes.Declar
 	}
 
 	stmt.Loc.End = p.pos()
-	// Static-validation insert: each declared name claims the var slot in
-	// the current scope. Duplicate within same scope (or shadowing of a
-	// param at the top scope) is rejected per ER_SP_DUP_VAR.
-	for _, n := range stmt.Names {
-		if err := p.declareVar(n, stmt, start); err != nil {
-			return nil, err
-		}
-	}
 	return stmt, nil
 }
 
@@ -386,9 +365,6 @@ func (p *Parser) parseDeclareConditionStmt(start int, name string) (*nodes.Decla
 	stmt.ConditionValue = condVal
 
 	stmt.Loc.End = p.pos()
-	if err := p.declareCondition(name, stmt, start); err != nil {
-		return nil, err
-	}
 	return stmt, nil
 }
 
@@ -434,12 +410,6 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 		p.advance()
 	}
 
-	// Handler body lives in a HANDLER_SCOPE: outer vars/conditions/cursors
-	// are visible via parent chain, but outer labels are not (label barrier).
-	if p.procScope != nil {
-		p.pushScope(scopeHandlerBody)
-		defer p.popScope()
-	}
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
 		return nil, err
@@ -472,9 +442,6 @@ func (p *Parser) parseDeclareCursorStmt(start int, name string) (*nodes.DeclareC
 		Loc:    nodes.Loc{Start: start, End: p.pos()},
 		Name:   name,
 		Select: sel,
-	}
-	if err := p.declareCursor(name, stmt, start); err != nil {
-		return nil, err
 	}
 	return stmt, nil
 }
@@ -772,14 +739,7 @@ func (p *Parser) parseWhileStmt(labelName string, labelStart int) (*nodes.WhileS
 		return nil, err
 	}
 
-	// Stub for label-registration target node identity; declared after stmts
-	// is irrelevant since we register before walking the body.
 	stmt := &nodes.WhileStmt{Loc: nodes.Loc{Start: start}, Label: labelName, Cond: cond}
-	if labelName != "" {
-		if err := p.declareLabel(labelName, labelLoop, stmt, labelStart); err != nil {
-			return nil, err
-		}
-	}
 
 	// Parse statement list until END
 	stmts, err := p.parseCompoundStmtList()
@@ -825,11 +785,6 @@ func (p *Parser) parseRepeatStmt(labelName string, labelStart int) (*nodes.Repea
 	p.advance() // consume REPEAT
 
 	stmt := &nodes.RepeatStmt{Loc: nodes.Loc{Start: start}, Label: labelName}
-	if labelName != "" {
-		if err := p.declareLabel(labelName, labelLoop, stmt, labelStart); err != nil {
-			return nil, err
-		}
-	}
 
 	// Parse statement list until UNTIL
 	stmts, err := p.parseCompoundStmtList()
@@ -889,11 +844,6 @@ func (p *Parser) parseLoopStmt(labelName string, labelStart int) (*nodes.LoopStm
 	p.advance() // consume LOOP
 
 	stmt := &nodes.LoopStmt{Loc: nodes.Loc{Start: start}, Label: labelName}
-	if labelName != "" {
-		if err := p.declareLabel(labelName, labelLoop, stmt, labelStart); err != nil {
-			return nil, err
-		}
-	}
 
 	// Parse statement list until END
 	stmts, err := p.parseCompoundStmtList()
