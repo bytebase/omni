@@ -1,0 +1,53 @@
+# PAREN_AUDIT drift baseline (Phase 5 §5.3 scope-lock).
+# Each line: <file>\t<function>
+# These (file, function) pairs have `p.cur.Type == '(' / ')'` dispatch
+# sites in live code but no matching row in PAREN_AUDIT.json — typically
+# because the function was renamed/refactored after the Phase 1 audit.
+# TestPARENAuditLint treats these as known-drift: they do NOT fail the lint.
+# NEW dispatch sites (not in this baseline) DO fail the lint, forcing the
+# author to either update PAREN_AUDIT.json or explicitly re-baseline here.
+# See PAREN_AUDIT_SCHEMA.md for the full policy.
+#
+copy.go	parseCopyStmt
+create_function.go	parseFuncArgsWithDefaults
+create_index.go	parseIndexElem
+create_index.go	parseIndexElemOpclass
+create_table.go	parseCreateStmtOf
+create_table.go	parseCreateStmtPartitionOf
+create_table.go	parseOptTableElementList
+create_table.go	parsePartElem
+database.go	parseDropdbStmt
+define.go	parseDefineStmtAggregate
+define.go	parseFunctionWithArgtypes
+define.go	parseOpclassItem
+define.go	parseOperArgtypes
+define.go	parseStatsParam
+expr.go	lookaheadInIsSubquery
+expr.go	parseOverClause
+expr.go	parsePositionExpr
+expr.go	parseSubstringExpr
+extension.go	parseExtFuncWithArgtypes
+extension.go	parseExtOperArgtypes
+fdw.go	parseCreateForeignTableStmt
+grant.go	parseGrantFunctionWithArgtypes
+insert.go	parseSelectStmt
+insert.go	parseSetClause
+json.go	parseJsonArrayExpr
+json.go	parseJsonObjectExpr
+maintenance.go	parseClusterStmt
+maintenance.go	parseReindexStmt
+maintenance.go	parseVacuumStmt
+parser.go	parseCreateOrCTAS
+parser.go	parseCreateTableOrCTASAfterParen
+parser.go	parseCreateTempDispatch
+parser.go	parseCreateUnloggedDispatch
+publication.go	parseRuleActionList
+publication.go	parseRuleActionMulti
+schema.go	parseAggregateWithArgtypesForComment
+schema.go	parseFunctionWithArgtypesForComment
+schema.go	parseOperatorWithArgtypesForComment
+select.go	parseFuncAliasClause
+select.go	parseOptAliasClause
+select.go	parseRelationOrFuncTable
+trigger.go	parseTriggerFuncArgs
+utility.go	parseExplainStmt

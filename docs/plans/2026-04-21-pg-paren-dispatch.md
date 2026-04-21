@@ -231,7 +231,7 @@ pg/parser/
   paren_oracle_test.go                  ← Phase 2 PG-container oracle (once landed)
 ```
 
-PAREN_AUDIT.json schema (one array of row objects) mirrors the markdown; kept in sync by the worker skill. Fields: `site` (file:line), `function`, `nonterminals` (array), `ambiguity_present` (bool), `current_technique` (T1..T8 or null), `pg_reference` (gram.y:line), `aligned` (enum: yes / no / blocked / unclear), `blocked_by` (nullable — e.g. "pg-nonterminal-alignment", "pg-first-sets"), `priority` (high/med/low), `section` (nullable scenario id), `proofs` (object: caller_context_argument, empirical_test_file).
+PAREN_AUDIT.json schema (one array of row objects) mirrors the markdown; kept in sync by the worker skill. **Canonical schema doc:** `pg/parser/PAREN_AUDIT_SCHEMA.md` — enforced by `TestPARENAuditLint` on every CI run (SCENARIOS §5.3). Live fields: `site` (file:line, stable audit coordinate), `function` (enclosing Go function), `nonterminals` (array), `ambiguity_present` (bool), `current_technique` (T1..T8 or null), `pg_reference` (gram.y:line), `aligned` (enum: yes / no / blocked / unclear), `blocked_by` (nullable — e.g. "pg-nonterminal-alignment", "pg-first-sets"), `cluster` (C1..C5 with optional subcluster suffix), `priority` (high/med/low), `proof_notes` (free-form caller-context + empirical test citations; required non-empty when aligned=yes), `suspicion_notes` (nullable).
 
 ### 6.2 Skills (to be created after plan approval)
 
