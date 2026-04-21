@@ -299,7 +299,7 @@ func classifyOmni(sqlStr string) (OmniStatus, string) {
 // decision. Corpus workers that care about a non-first FROM item call
 // this variant with the right index.
 //
-// Index out-of-range returns OmniOther, "" — same shape as any other
+// Index out-of-range returns OmniRejected with an explanatory message so
 // unrouteable input, so the caller's expected-status table can still
 // assert something meaningful (typically OmniOther or OmniRejected).
 func classifyOmniAt(sqlStr string, index int) (OmniStatus, string) {
@@ -323,7 +323,7 @@ func classifyOmniAt(sqlStr string, index int) (OmniStatus, string) {
 		return OmniOther, ""
 	}
 	if index < 0 || index >= len(sel.FromClause.Items) {
-		return OmniOther, ""
+		return OmniRejected, "FROM item index out of bounds"
 	}
 	item := sel.FromClause.Items[index]
 	switch item.(type) {

@@ -181,7 +181,9 @@ Dedicated hardening pass (runs in parallel with C2+ cluster work):
 3. If fuzz surfaces a class of mis-routing, either fix `parenBeginsSubquery` or replace it with T5/T6 (the principled preference per §3).
 
 **Delivered scope (post-Phase 2 acknowledgment):** the landed corpus is
-N=191 probes — 106 PRNG-generated (`paren_oracle_fuzz_test.go`) plus 85
+N=188 probes — 100 PRNG-generated via `fuzzCorpusSize=100` in
+`paren_oracle_fuzz_test.go` (`fuzzSeed=0xBADC0DE1`, deterministic) + 3
+active seed entries in `testdata/paren-fuzz-corpus/seed-cases.txt` + 85
 hand-curated across §2.2–§2.7 (simple/subquery/joined/mixed/LATERAL/
 degenerate). The original "200+ targeting `parenBeginsSubquery`
 specifically" was a rough estimate; in practice the oracle harness
