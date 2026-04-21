@@ -124,11 +124,7 @@ func (p *Parser) parseCreateTriggerStmt() (*nodes.CreateTriggerStmt, error) {
 		}
 	}
 
-	// Trigger body — parse via the grammar. Open a scope so DECLARE
-	// duplicate detection, label resolution, etc. apply. Triggers are not
-	// functions, so RETURN inside is rejected.
-	p.pushScope(scopeBlock)
-	defer p.popScope()
+	// Trigger body — parse via the grammar.
 	bodyStart := p.pos()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
@@ -249,9 +245,7 @@ func (p *Parser) parseCreateEventStmt() (*nodes.CreateEventStmt, error) {
 		p.advance()
 	}
 
-	// Event body — parse via the grammar. Same scope treatment as triggers.
-	p.pushScope(scopeBlock)
-	defer p.popScope()
+	// Event body — parse via the grammar.
 	bodyStart := p.pos()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {

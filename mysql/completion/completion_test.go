@@ -2833,3 +2833,51 @@ func TestComplete_8_2_ExpressionContexts(t *testing.T) {
 		}
 	})
 }
+
+// TestCompletionAfterSetSysVarInRoutine is a Phase 7 regression guard.
+//
+// Before the Phase 5 parser/validator split, `SET sql_safe_updates = 0` inside a
+// routine body raised an "undeclared variable" error during parsing. Collect
+// uses defer-recover + errcheck, so the error was swallowed, but the parse path
+// was truncated — tokens after the offending SET were never walked, and
+// completion at a trailing `SELECT ` position inside the same body returned no
+// candidates.
+//
+// Post-Phase-5 the parser is grammar-only: system-variable validity moved to
+// mysql/validate, so Collect now walks the full body. This test asserts the
+// trailing SELECT-position cursor yields the usual SELECT-target-list
+// candidates (DISTINCT keyword, column refs from the current database, and
+// aggregate functions).
+func TestCompletionAfterSetSysVarInRoutine(t *testing.T) {
+	cat := catalog.New()
+	mustExec(t, cat, "CREATE DATABASE test")
+	cat.SetCurrentDatabase("test")
+	mustExec(t, cat, "CREATE TABLE t (a INT, b INT)")
+
+	// Cursor is at the end of the string, positioned right after the trailing
+	// `SELECT ` space. The `SET sql_safe_updates = 0;` statement between BEGIN
+	// and SELECT is the one that used to trip the pre-Phase-5 parser.
+	sql := "CREATE PROCEDURE p() BEGIN SET sql_safe_updates = 0; SELECT "
+	cursor := len(sql)
+
+	candidates := Complete(sql, cursor, cat)
+
+	if len(candidates) == 0 {
+		t.Fatalf("no candidates collected at SELECT-position after SET sys_var in routine body; " +
+			"this indicates the parser truncated the body before reaching SELECT (Phase 5 regression)")
+	}
+
+	// A healthy SELECT-target-list position offers DISTINCT/ALL keywords, the
+	// current-database columns, and aggregate functions. Assert a representative
+	// example from each category so the test would fail if the parse path were
+	// truncated anywhere before the trailing SELECT.
+	if !containsCandidate(candidates, "DISTINCT", CandidateKeyword) {
+		t.Errorf("missing keyword DISTINCT at SELECT position inside routine body; got %d candidates", len(candidates))
+	}
+	if !containsCandidate(candidates, "a", CandidateColumn) {
+		t.Errorf("missing column candidate 'a' at SELECT position inside routine body; got %d candidates", len(candidates))
+	}
+	if !containsCandidate(candidates, "COUNT", CandidateFunction) {
+		t.Errorf("missing function candidate COUNT at SELECT position inside routine body; got %d candidates", len(candidates))
+	}
+}

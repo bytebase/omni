@@ -547,6 +547,23 @@ func (p *Parser) parseIdent() (string, int, error) {
 	}
 }
 
+// parseIdentOrText parses MySQL's `ident_or_text` grammar rule: either an
+// identifier (including non-reserved keywords) or a string literal. Used for
+// aliases and other positions where MySQL accepts TEXT_STRING_sys equivalently.
+//
+// Ref: mysql-server sql/sql_yacc.yy — ident_or_text rule
+//
+//	ident_or_text:
+//	    ident
+//	  | TEXT_STRING_sys
+func (p *Parser) parseIdentOrText() (string, int, error) {
+	if p.cur.Type == tokSCONST {
+		tok := p.advance()
+		return tok.Str, tok.Loc, nil
+	}
+	return p.parseIdent()
+}
+
 // parseIdentifier is a thin alias for parseIdent, preserved for gradual migration
 // of existing call sites. New code should use parseIdent directly.
 func (p *Parser) parseIdentifier() (string, int, error) {
@@ -793,16 +810,16 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 
 	// Optional AS alias
 	if _, ok := p.match(kwAS); ok {
-		alias, _, err := p.parseIdentifier()
+		alias, _, err := p.parseIdentOrText()
 		if err != nil {
 			return nil, err
 		}
 		ref.Alias = alias
 		ref.Loc.End = p.pos()
-	} else if p.isIdentToken() {
-		// Alias without AS keyword — accepts non-reserved keywords,
-		// matching MySQL's grammar: opt_table_alias: [AS] ident
-		alias, _, _ := p.parseIdentifier()
+	} else if p.isIdentToken() || p.cur.Type == tokSCONST {
+		// Alias without AS keyword — accepts non-reserved keywords and string
+		// literals, matching MySQL's opt_table_alias: [AS] ident_or_text
+		alias, _, _ := p.parseIdentOrText()
 		ref.Alias = alias
 		ref.Loc.End = p.pos()
 	}

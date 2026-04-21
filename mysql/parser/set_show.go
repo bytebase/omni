@@ -182,12 +182,9 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 
 	stmt.Scope = scope
 
-	// Parse assignment list. When an explicit scope (GLOBAL/SESSION/LOCAL/
-	// PERSIST/PERSIST_ONLY) is present, bare-identifier targets are system
-	// variables, not stored-program locals — bypass the local-var lookup.
-	hasScope := scope != ""
+	// Parse assignment list.
 	for {
-		asgn, err := p.parseSetAssignment(hasScope)
+		asgn, err := p.parseSetAssignment()
 		if err != nil {
 			return nil, err
 		}
@@ -284,10 +281,7 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 }
 
 // parseSetAssignment parses a single SET assignment: var = expr.
-// systemScope=true means the enclosing SET had an explicit scope keyword
-// (GLOBAL/SESSION/LOCAL/PERSIST/PERSIST_ONLY), so bare-identifier targets
-// are system variables, not stored-program local variables.
-func (p *Parser) parseSetAssignment(systemScope bool) (*nodes.Assignment, error) {
+func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 	start := p.pos()
 
 	var col *nodes.ColumnRef
@@ -352,19 +346,6 @@ func (p *Parser) parseSetAssignment(systemScope bool) (*nodes.Assignment, error)
 			col.Column = name2
 		}
 		col.Loc.End = p.pos()
-		// Inside a routine body, a bare-identifier SET target must resolve
-		// to a declared local variable or routine parameter (MySQL's
-		// sp_head::find_variable). Qualified targets (schema.var) are
-		// session/system variables; explicit-scope SET (GLOBAL/SESSION/...)
-		// targets are also system variables — skip the check in both cases.
-		if p.procScope != nil && col.Table == "" && !systemScope {
-			if p.lookupVar(col.Column) == nil {
-				return nil, &ParseError{
-					Message:  "undeclared variable: " + col.Column,
-					Position: colStart,
-				}
-			}
-		}
 	}
 
 	// Expect '=' or ':='

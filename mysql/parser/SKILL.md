@@ -10,6 +10,35 @@ You are reviewing a recursive descent MySQL 8.0 parser against its BNF specifica
 **Reference:** [MySQL 8.0 SQL Statements](https://dev.mysql.com/doc/refman/8.0/en/sql-statements.html)
 **Tests:** `mysql/parser/compare_test.go`
 
+## Scope: grammar-only
+
+This package is a pure MySQL-grammar recognizer. It accepts everything
+MySQL's `sql_yacc.yy` accepts and raises `ParseError` for grammar
+violations only. All semantic checks — undeclared variable/cursor/label,
+duplicate DECLARE, missing RETURN, RETURN outside a function, etc. —
+live in `mysql/validate`. See [mysql/validate/SKILL.md](../validate/SKILL.md).
+
+Two checks intentionally stay inside the parser because they mirror
+yacc-level grammar rules rather than post-parse semantics:
+
+- `checkDeclarePhase` — `DECLARE` ordering within a `BEGIN...END` block
+  (variables/conditions, then cursors, then handlers).
+- `checkLabelMatch` — end-label text must match the begin-label on
+  labeled `BEGIN`/`LOOP`/`WHILE`/`REPEAT` blocks.
+
+Callers that want both grammar and semantic validation should do:
+
+```go
+list, err := parser.Parse(sql)
+if err != nil {
+    return err // grammar error
+}
+diags := validate.Validate(list, validate.Options{})
+```
+
+Catalog, deparse, and completion callers do not need the validator —
+`parser.Parse` alone is sufficient.
+
 ## Current State
 
 - 97 implementation batches (0-96) are **done** (audit_round 17)
