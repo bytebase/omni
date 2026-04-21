@@ -94,6 +94,11 @@ func (v *validator) walk(n nodes.Node) {
 		v.checkCursorRef(s.Name, s.Loc.Start)
 	case *nodes.CloseCursorStmt:
 		v.checkCursorRef(s.Name, s.Loc.Start)
+	case *nodes.ReturnStmt:
+		if v.scope == nil || !v.scope.isFunction {
+			v.emit("return_outside_function",
+				"RETURN is only allowed inside a function body", s.Loc.Start)
+		}
 	}
 }
 

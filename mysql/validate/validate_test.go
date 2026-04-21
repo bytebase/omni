@@ -291,6 +291,36 @@ func TestValidateCursorDeclaredOK(t *testing.T) {
 	requireNoCode(t, diags, "undeclared_cursor")
 }
 
+// --- Task 4.5: RETURN only inside function body --------------------------
+
+func TestValidateReturnOutsideFunction(t *testing.T) {
+	// Procedure body: RETURN is not allowed.
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.ReturnStmt{Loc: nodes.Loc{Start: 10}},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireCode(t, diags, "return_outside_function")
+}
+
+func TestValidateReturnInsideFunction(t *testing.T) {
+	// Function body: RETURN is allowed.
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: false, // function
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.ReturnStmt{},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireNoCode(t, diags, "return_outside_function")
+}
+
 func TestValidateIterateLoopLabelOK(t *testing.T) {
 	list := &nodes.List{Items: []nodes.Node{
 		&nodes.CreateFunctionStmt{
