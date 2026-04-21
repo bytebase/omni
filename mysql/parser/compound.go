@@ -144,64 +144,6 @@ func checkDeclarePhase(phase *int, s nodes.Node, sPos int) error {
 	return nil
 }
 
-// containsReturn reports whether a stored-function body's AST contains at
-// least one *ReturnStmt anywhere. This mirrors MySQL 8.0's actual CREATE-
-// time check (sp_head sets HAS_RETURN flag when a RETURN is parsed; at
-// CREATE the parser raises ERR 1320 "No RETURN found in FUNCTION" iff the
-// flag is unset). MySQL does NOT do path analysis at CREATE — functions
-// like `IF x THEN RETURN 1; END IF` (no else-RETURN) are accepted and the
-// missing-return condition surfaces only at runtime if the path is taken.
-// SIGNAL/RESIGNAL do NOT substitute for RETURN in MySQL's check.
-//
-// Container-verified 2026-04-21 via TestRoutineAlignment.
-func containsReturn(s nodes.Node) bool {
-	if s == nil {
-		return false
-	}
-	switch n := s.(type) {
-	case *nodes.ReturnStmt:
-		return true
-	case *nodes.BeginEndBlock:
-		return containsReturnList(n.Stmts)
-	case *nodes.IfStmt:
-		if containsReturnList(n.ThenList) {
-			return true
-		}
-		for _, ei := range n.ElseIfs {
-			if containsReturnList(ei.ThenList) {
-				return true
-			}
-		}
-		return containsReturnList(n.ElseList)
-	case *nodes.CaseStmtNode:
-		for _, w := range n.Whens {
-			if containsReturnList(w.ThenList) {
-				return true
-			}
-		}
-		return containsReturnList(n.ElseList)
-	case *nodes.WhileStmt:
-		return containsReturnList(n.Stmts)
-	case *nodes.LoopStmt:
-		return containsReturnList(n.Stmts)
-	case *nodes.RepeatStmt:
-		return containsReturnList(n.Stmts)
-	case *nodes.DeclareHandlerStmt:
-		return containsReturn(n.Stmt)
-	default:
-		return false
-	}
-}
-
-func containsReturnList(stmts []nodes.Node) bool {
-	for _, s := range stmts {
-		if containsReturn(s) {
-			return true
-		}
-	}
-	return false
-}
-
 // checkLabelMatch enforces MySQL's end-label matching rule: when an end label
 // is present, a matching begin label must also be present and the two names
 // must be equal case-insensitively. MySQL surfaces ERR 1310 ("End-label X
@@ -1025,16 +967,6 @@ func (p *Parser) parseIterateStmt() (*nodes.IterateStmt, error) {
 //	RETURN expr
 func (p *Parser) parseReturnStmt() (*nodes.ReturnStmt, error) {
 	start := p.pos()
-	// MySQL allows RETURN only inside functions. Procedures, triggers, and
-	// events use LEAVE / SIGNAL to terminate. The isFunction flag is set on
-	// the outermost scope by parseCreateFunctionStmt and inherited by inner
-	// scopes via pushScope.
-	if p.procScope != nil && !p.procScope.isFunction {
-		return nil, &ParseError{
-			Message:  "RETURN is only allowed inside a function body",
-			Position: start,
-		}
-	}
 	p.advance() // consume RETURN
 
 	expr, err := p.parseExpr()
