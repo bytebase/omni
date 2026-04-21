@@ -331,22 +331,22 @@ The 85+ non-ambiguous sites ("expect `(` after keyword" / optional paren-list) d
 
 ### 5.1 Oracle harness in CI
 
-- [ ] Oracle harness wired to GitHub Actions via build tag `oracle`
-- [ ] Oracle runs on PR against pg/parser/ changes (file-scoped trigger)
-- [ ] Oracle timing ≤ 5 min in CI (green signal for plan §6.5 budget)
-- [ ] Oracle mismatches fail the CI check with side-by-side SQL / omni-AST / PG-accept diff
-- [ ] Oracle baseline file committed — known-diff entries tracked like pgregress known_failures.json
+- [x] Oracle harness wired to GitHub Actions via build tag `oracle`
+- [x] Oracle runs on PR against pg/parser/ changes (file-scoped trigger)
+- [x] Oracle timing ≤ 5 min in CI (green signal for plan §6.5 budget)
+- [x] Oracle mismatches fail the CI check with side-by-side SQL / omni-AST / PG-accept diff
+- [x] Oracle baseline file committed — known-diff entries tracked like pgregress known_failures.json
 
 ### 5.2 Fuzz corpus in CI
 
-- [ ] Fuzz corpus stored under `pg/parser/testdata/paren-fuzz-corpus/`
-- [ ] Fuzz run sampled at N=1000 in CI, full N=10000 nightly
-- [ ] New mismatches from fuzz auto-file to `testdata/paren-fuzz-defer/` for triage (not auto-fail)
-- [ ] `go test -tags=fuzz ./pg/parser/` runs the fuzz seeds + corpus as regular tests
+- [x] Fuzz corpus stored under `pg/parser/testdata/paren-fuzz-corpus/`
+- [x] Fuzz run sampled at N=1000 in CI, full N=10000 nightly
+- [x] New mismatches from fuzz auto-file to `testdata/paren-fuzz-defer/` for triage (not auto-fail)
+- [x] `go test -tags=fuzz ./pg/parser/` runs the fuzz seeds + corpus as regular tests
 
 ### 5.3 PAREN_AUDIT governance
 
-- [ ] `PAREN_AUDIT.json` schema documented in plan §6.1 (machine-readable)
-- [ ] CI lint: every `aligned=yes` row must have non-empty `proof_notes` pointing to either a test file:line or a sister-starmap dependency
-- [ ] CI lint: every `p.cur.Type == '('` / `p.cur.Type == ')'` in pg/parser/*.go must have a matching row in PAREN_AUDIT.json (drift detection)
-- [ ] New dispatch site added without updating PAREN_AUDIT.json fails CI
+- [x] `PAREN_AUDIT.json` schema documented in plan §6.1 (machine-readable)
+- [x] CI lint: every `aligned=yes` row must have non-empty `proof_notes` pointing to either a test file:line or a sister-starmap dependency
+- [x] CI lint: every `p.cur.Type == '('` / `p.cur.Type == ')'` in pg/parser/*.go must have a matching row in PAREN_AUDIT.json (drift detection)
+- [x] New dispatch site added without updating PAREN_AUDIT.json fails CI
