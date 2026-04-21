@@ -30,7 +30,6 @@ func TestRoutineBodyAudit(t *testing.T) {
 		sql    string
 	}
 	accept := func(cat, name, sql string) probe { return probe{cat, "accept", name, sql} }
-	reject := func(cat, name, sql string) probe { return probe{cat, "reject", name, sql} }
 
 	probes := []probe{
 		// --- DECLARE variable types (S) ---
@@ -200,21 +199,13 @@ func TestRoutineBodyAudit(t *testing.T) {
 		accept("C", "OLD.col in trigger expr", `CREATE TRIGGER t BEFORE UPDATE ON tbl FOR EACH ROW BEGIN IF OLD.a <> NEW.a THEN SET @c = 1; END IF; END`),
 		accept("C", "NEW.col in INSERT VALUES", `CREATE TRIGGER t BEFORE INSERT ON tbl FOR EACH ROW INSERT INTO audit VALUES (NEW.id, NOW())`),
 
-		// --- Static validation (V) — MySQL rejects, omni currently accepts ---
-		reject("V", "LEAVE undeclared label", `CREATE PROCEDURE p() BEGIN LEAVE nonexistent; END`),
-		reject("V", "ITERATE undeclared label", `CREATE PROCEDURE p() BEGIN ITERATE nonexistent; END`),
-		reject("V", "OPEN undeclared cursor", `CREATE PROCEDURE p() BEGIN OPEN nonexistent; END`),
-		reject("V", "FETCH undeclared cursor", `CREATE PROCEDURE p() BEGIN FETCH nonexistent INTO @x; END`),
-		reject("V", "CLOSE undeclared cursor", `CREATE PROCEDURE p() BEGIN CLOSE nonexistent; END`),
-		reject("V", "HANDLER references undeclared condition", `CREATE PROCEDURE p() BEGIN DECLARE EXIT HANDLER FOR nonexistent SET @e=1; SELECT 1; END`),
-		reject("V", "assign to undeclared variable", `CREATE PROCEDURE p() BEGIN SET nonexistent_local = 1; END`),
-		reject("V", "duplicate DECLARE VAR same scope", `CREATE PROCEDURE p() BEGIN DECLARE x INT; DECLARE x INT; SELECT 1; END`),
-		reject("V", "duplicate DECLARE CURSOR same scope", `CREATE PROCEDURE p() BEGIN DECLARE c CURSOR FOR SELECT 1; DECLARE c CURSOR FOR SELECT 2; SELECT 1; END`),
-		reject("V", "duplicate CONDITION same scope", `CREATE PROCEDURE p() BEGIN DECLARE dk CONDITION FOR SQLSTATE '23000'; DECLARE dk CONDITION FOR SQLSTATE '23001'; SELECT 1; END`),
-		reject("V", "duplicate label on same compound", `CREATE PROCEDURE p() lbl: BEGIN lbl: BEGIN SELECT 1; END lbl; END lbl`),
-		reject("V", "duplicate HANDLER condition within one DECLARE", `CREATE PROCEDURE p() BEGIN DECLARE EXIT HANDLER FOR SQLSTATE '23000', SQLSTATE '23000' SET @e=1; SELECT 1; END`),
-		reject("V", "function missing RETURN on else path", `CREATE FUNCTION f() RETURNS INT BEGIN IF @x=1 THEN RETURN 1; END IF; END`),
-		reject("V", "function missing RETURN overall", `CREATE FUNCTION f() RETURNS INT BEGIN SELECT 1; END`),
+		// --- Static validation (V) — moved to mysql/validate (see
+		// semantic_sql_test.go). After the Phase 5 parser/validator split,
+		// semantic rejections are the validator's responsibility; the parser
+		// accepts these shapes as a pure grammar match. The V-row below
+		// (also worth noting: "function missing RETURN on else path" is
+		// MySQL-accepted at CREATE time, so it was mislabeled — it's an S
+		// case, not V; the validator does not reject it either).
 
 		// --- Real-world shapes (S / mixed) ---
 		accept("S", "procedure with handler wrapped body", `CREATE PROCEDURE p() BEGIN
