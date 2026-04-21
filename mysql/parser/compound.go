@@ -1,6 +1,9 @@
 package parser
 
 import (
+	"fmt"
+	"strings"
+
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
@@ -26,10 +29,38 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 		Label: labelName,
 	}
 
-	// Parse statements until END
+	// Register the label in the *current (outer)* scope so LEAVE from
+	// within the body can find it via the parent chain.
+	if labelName != "" {
+		if err := p.declareLabel(labelName, labelBegin, stmt, labelStart); err != nil {
+			return nil, err
+		}
+	}
+	// Open a child scope for the body's declarations.
+	if p.procScope != nil {
+		p.pushScope(scopeBlock)
+		defer p.popScope()
+	}
+
+	// Parse statements until END, enforcing MySQL's declaration-ordering rule:
+	//   DECLARE var/condition  →  DECLARE cursor  →  DECLARE handler  →  stmts
+	// Each declaration kind may move the phase forward but not backward.
+	// Container-verified against MySQL 8.0 (2026-04-20); mirrors ERR 1337/1338.
+	const (
+		phaseInit = iota
+		phaseSawVar
+		phaseSawCursor
+		phaseSawHandler
+		phaseSawStmt
+	)
+	phase := phaseInit
 	for p.cur.Type != kwEND && p.cur.Type != tokEOF {
+		sStart := p.pos()
 		s, err := p.parseCompoundStmtOrStmt()
 		if err != nil {
+			return nil, err
+		}
+		if err := checkDeclarePhase(&phase, s, sStart); err != nil {
 			return nil, err
 		}
 		stmt.Stmts = append(stmt.Stmts, s)
@@ -45,14 +76,154 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 		return nil, err
 	}
 
-	// Optional end_label
+	// Optional end_label. Must match the begin label (case-insensitive, per
+	// MySQL 8.0 — container-verified 2026-04-20).
 	if p.isLabelIdentToken() && p.cur.Type != tokEOF {
-		stmt.EndLabel = p.cur.Str
-		p.advance()
+		endLabelTok := p.advance()
+		stmt.EndLabel = endLabelTok.Str
+		if err := checkLabelMatch(labelName, stmt.EndLabel, endLabelTok.Loc); err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil
+}
+
+// checkDeclarePhase enforces MySQL's DECLARE ordering rule inside a
+// BEGIN...END block. See parseBeginEndBlock for the phase state machine.
+// MySQL surfaces ERR 1337 / 1338; omni uses its own wording.
+func checkDeclarePhase(phase *int, s nodes.Node, sPos int) error {
+	const (
+		phaseInit = iota
+		phaseSawVar
+		phaseSawCursor
+		phaseSawHandler
+		phaseSawStmt
+	)
+	switch s.(type) {
+	case *nodes.DeclareVarStmt, *nodes.DeclareConditionStmt:
+		switch {
+		case *phase == phaseSawStmt:
+			return &ParseError{
+				Message:  "variable or condition declaration after regular statement",
+				Position: sPos,
+			}
+		case *phase > phaseSawVar:
+			return &ParseError{
+				Message:  "variable or condition declaration after cursor or handler declaration",
+				Position: sPos,
+			}
+		}
+		*phase = phaseSawVar
+	case *nodes.DeclareCursorStmt:
+		switch {
+		case *phase == phaseSawStmt:
+			return &ParseError{
+				Message:  "cursor declaration after regular statement",
+				Position: sPos,
+			}
+		case *phase > phaseSawCursor:
+			return &ParseError{
+				Message:  "cursor declaration after handler declaration",
+				Position: sPos,
+			}
+		}
+		*phase = phaseSawCursor
+	case *nodes.DeclareHandlerStmt:
+		if *phase > phaseSawHandler {
+			return &ParseError{
+				Message:  "handler declaration after regular statement",
+				Position: sPos,
+			}
+		}
+		*phase = phaseSawHandler
+	default:
+		*phase = phaseSawStmt
+	}
+	return nil
+}
+
+// containsReturn reports whether a stored-function body's AST contains at
+// least one *ReturnStmt anywhere. This mirrors MySQL 8.0's actual CREATE-
+// time check (sp_head sets HAS_RETURN flag when a RETURN is parsed; at
+// CREATE the parser raises ERR 1320 "No RETURN found in FUNCTION" iff the
+// flag is unset). MySQL does NOT do path analysis at CREATE — functions
+// like `IF x THEN RETURN 1; END IF` (no else-RETURN) are accepted and the
+// missing-return condition surfaces only at runtime if the path is taken.
+// SIGNAL/RESIGNAL do NOT substitute for RETURN in MySQL's check.
+//
+// Container-verified 2026-04-21 via TestRoutineAlignment.
+func containsReturn(s nodes.Node) bool {
+	if s == nil {
+		return false
+	}
+	switch n := s.(type) {
+	case *nodes.ReturnStmt:
+		return true
+	case *nodes.BeginEndBlock:
+		return containsReturnList(n.Stmts)
+	case *nodes.IfStmt:
+		if containsReturnList(n.ThenList) {
+			return true
+		}
+		for _, ei := range n.ElseIfs {
+			if containsReturnList(ei.ThenList) {
+				return true
+			}
+		}
+		return containsReturnList(n.ElseList)
+	case *nodes.CaseStmtNode:
+		for _, w := range n.Whens {
+			if containsReturnList(w.ThenList) {
+				return true
+			}
+		}
+		return containsReturnList(n.ElseList)
+	case *nodes.WhileStmt:
+		return containsReturnList(n.Stmts)
+	case *nodes.LoopStmt:
+		return containsReturnList(n.Stmts)
+	case *nodes.RepeatStmt:
+		return containsReturnList(n.Stmts)
+	case *nodes.DeclareHandlerStmt:
+		return containsReturn(n.Stmt)
+	default:
+		return false
+	}
+}
+
+func containsReturnList(stmts []nodes.Node) bool {
+	for _, s := range stmts {
+		if containsReturn(s) {
+			return true
+		}
+	}
+	return false
+}
+
+// checkLabelMatch enforces MySQL's end-label matching rule: when an end label
+// is present, a matching begin label must also be present and the two names
+// must be equal case-insensitively. MySQL surfaces ERR 1310 ("End-label X
+// without match"); omni uses its own wording.
+func checkLabelMatch(beginLabel, endLabel string, endLabelPos int) error {
+	if endLabel == "" {
+		// No end label: always fine.
+		return nil
+	}
+	if beginLabel == "" {
+		return &ParseError{
+			Message:  fmt.Sprintf("end label %q without matching begin label", endLabel),
+			Position: endLabelPos,
+		}
+	}
+	if !strings.EqualFold(beginLabel, endLabel) {
+		return &ParseError{
+			Message:  fmt.Sprintf("end label %q does not match begin label %q", endLabel, beginLabel),
+			Position: endLabelPos,
+		}
+	}
+	return nil
 }
 
 // parseCompoundStmtOrStmt tries to parse compound statements (DECLARE, labeled blocks,
@@ -236,6 +407,14 @@ func (p *Parser) parseDeclareVarStmt(start int, firstName string) (*nodes.Declar
 	}
 
 	stmt.Loc.End = p.pos()
+	// Static-validation insert: each declared name claims the var slot in
+	// the current scope. Duplicate within same scope (or shadowing of a
+	// param at the top scope) is rejected per ER_SP_DUP_VAR.
+	for _, n := range stmt.Names {
+		if err := p.declareVar(n, stmt, start); err != nil {
+			return nil, err
+		}
+	}
 	return stmt, nil
 }
 
@@ -265,6 +444,9 @@ func (p *Parser) parseDeclareConditionStmt(start int, name string) (*nodes.Decla
 	stmt.ConditionValue = condVal
 
 	stmt.Loc.End = p.pos()
+	if err := p.declareCondition(name, stmt, start); err != nil {
+		return nil, err
+	}
 	return stmt, nil
 }
 
@@ -298,10 +480,30 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 	}
 
 	// condition_value [, condition_value] ...
+	// Track duplicates within this single DECLARE list. Resolve name-kind
+	// conditions against the surrounding scope chain (Group A #6).
+	seen := make(map[handlerCondKey]bool)
 	for {
+		condStart := p.pos()
 		condVal, err := p.parseHandlerConditionValue()
 		if err != nil {
 			return nil, err
+		}
+		k := handlerCondKey{kind: condVal.Kind, value: strings.ToLower(condVal.Value)}
+		if seen[k] {
+			return nil, &ParseError{
+				Message:  "duplicate condition value in handler declaration",
+				Position: condStart,
+			}
+		}
+		seen[k] = true
+		if condVal.Kind == nodes.HandlerCondName {
+			if p.lookupCondition(condVal.Value) == nil {
+				return nil, &ParseError{
+					Message:  "undeclared condition: " + condVal.Value,
+					Position: condStart,
+				}
+			}
 		}
 		stmt.Conditions = append(stmt.Conditions, condVal)
 		if p.cur.Type != ',' {
@@ -310,7 +512,12 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 		p.advance()
 	}
 
-	// handler statement body
+	// Handler body lives in a HANDLER_SCOPE: outer vars/conditions/cursors
+	// are visible via parent chain, but outer labels are not (label barrier).
+	if p.procScope != nil {
+		p.pushScope(scopeHandlerBody)
+		defer p.popScope()
+	}
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
 		return nil, err
@@ -319,6 +526,14 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil
+}
+
+// handlerCondKey deduplicates condition-value entries within a single
+// DECLARE HANDLER list. Built-in categories (SQLWARNING / NOT FOUND /
+// SQLEXCEPTION) all have empty Value, so kind alone distinguishes them.
+type handlerCondKey struct {
+	kind  nodes.HandlerCondKind
+	value string
 }
 
 // parseDeclareCursorStmt parses DECLARE cursor_name CURSOR FOR select_statement.
@@ -339,14 +554,20 @@ func (p *Parser) parseDeclareCursorStmt(start int, name string) (*nodes.DeclareC
 		return nil, err
 	}
 
-	return &nodes.DeclareCursorStmt{
+	stmt := &nodes.DeclareCursorStmt{
 		Loc:    nodes.Loc{Start: start, End: p.pos()},
 		Name:   name,
 		Select: sel,
-	}, nil
+	}
+	if err := p.declareCursor(name, stmt, start); err != nil {
+		return nil, err
+	}
+	return stmt, nil
 }
 
-// parseHandlerConditionValue parses a handler condition value.
+// parseHandlerConditionValue parses a handler condition value, returning
+// a tagged HandlerCondValue so semantic analysis can distinguish SQLSTATE
+// literals from user condition names with the same text.
 //
 //	condition_value:
 //	    mysql_error_code
@@ -355,7 +576,7 @@ func (p *Parser) parseDeclareCursorStmt(start int, name string) (*nodes.DeclareC
 //	  | SQLWARNING
 //	  | NOT FOUND
 //	  | SQLEXCEPTION
-func (p *Parser) parseHandlerConditionValue() (string, error) {
+func (p *Parser) parseHandlerConditionValue() (nodes.HandlerCondValue, error) {
 	// SQLSTATE [VALUE] 'sqlstate_value'
 	if p.cur.Type == kwSQLSTATE {
 		p.advance()
@@ -364,50 +585,50 @@ func (p *Parser) parseHandlerConditionValue() (string, error) {
 			p.advance()
 		}
 		if p.cur.Type != tokSCONST {
-			return "", &ParseError{
+			return nodes.HandlerCondValue{}, &ParseError{
 				Message:  "expected SQLSTATE value string",
 				Position: p.cur.Loc,
 			}
 		}
 		val := p.cur.Str
 		p.advance()
-		return val, nil
+		return nodes.HandlerCondValue{Kind: nodes.HandlerCondSQLState, Value: val}, nil
 	}
 
 	// SQLWARNING
 	if p.cur.Type == kwSQLWARNING {
 		p.advance()
-		return "SQLWARNING", nil
+		return nodes.HandlerCondValue{Kind: nodes.HandlerCondSQLWarning}, nil
 	}
 
 	// SQLEXCEPTION
 	if p.cur.Type == kwSQLEXCEPTION {
 		p.advance()
-		return "SQLEXCEPTION", nil
+		return nodes.HandlerCondValue{Kind: nodes.HandlerCondSQLException}, nil
 	}
 
 	// NOT FOUND
 	if p.cur.Type == kwNOT {
 		p.advance()
 		if _, err := p.expect(kwFOUND); err != nil {
-			return "", err
+			return nodes.HandlerCondValue{}, err
 		}
-		return "NOT FOUND", nil
+		return nodes.HandlerCondValue{Kind: nodes.HandlerCondNotFound}, nil
 	}
 
 	// mysql_error_code (integer literal)
 	if p.cur.Type == tokICONST {
 		val := p.cur.Str
 		p.advance()
-		return val, nil
+		return nodes.HandlerCondValue{Kind: nodes.HandlerCondErrorCode, Value: val}, nil
 	}
 
 	// condition_name (identifier)
 	name, _, err := p.parseIdentifier()
 	if err != nil {
-		return "", err
+		return nodes.HandlerCondValue{}, err
 	}
-	return name, nil
+	return nodes.HandlerCondValue{Kind: nodes.HandlerCondName, Value: name}, nil
 }
 
 // isCompoundTerminator checks if the current token is a keyword that terminates
@@ -637,6 +858,15 @@ func (p *Parser) parseWhileStmt(labelName string, labelStart int) (*nodes.WhileS
 		return nil, err
 	}
 
+	// Stub for label-registration target node identity; declared after stmts
+	// is irrelevant since we register before walking the body.
+	stmt := &nodes.WhileStmt{Loc: nodes.Loc{Start: start}, Label: labelName, Cond: cond}
+	if labelName != "" {
+		if err := p.declareLabel(labelName, labelLoop, stmt, labelStart); err != nil {
+			return nil, err
+		}
+	}
+
 	// Parse statement list until END
 	stmts, err := p.parseCompoundStmtList()
 	if err != nil {
@@ -654,17 +884,17 @@ func (p *Parser) parseWhileStmt(labelName string, labelStart int) (*nodes.WhileS
 	// Optional end_label
 	var endLabel string
 	if p.isLabelIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
-		endLabel = p.cur.Str
-		p.advance()
+		endLabelTok := p.advance()
+		endLabel = endLabelTok.Str
+		if err := checkLabelMatch(labelName, endLabel, endLabelTok.Loc); err != nil {
+			return nil, err
+		}
 	}
 
-	return &nodes.WhileStmt{
-		Loc:      nodes.Loc{Start: start, End: p.pos()},
-		Label:    labelName,
-		EndLabel: endLabel,
-		Cond:     cond,
-		Stmts:    stmts,
-	}, nil
+	stmt.EndLabel = endLabel
+	stmt.Stmts = stmts
+	stmt.Loc.End = p.pos()
+	return stmt, nil
 }
 
 // parseRepeatStmt parses a REPEAT loop compound statement.
@@ -679,6 +909,13 @@ func (p *Parser) parseRepeatStmt(labelName string, labelStart int) (*nodes.Repea
 		start = p.pos()
 	}
 	p.advance() // consume REPEAT
+
+	stmt := &nodes.RepeatStmt{Loc: nodes.Loc{Start: start}, Label: labelName}
+	if labelName != "" {
+		if err := p.declareLabel(labelName, labelLoop, stmt, labelStart); err != nil {
+			return nil, err
+		}
+	}
 
 	// Parse statement list until UNTIL
 	stmts, err := p.parseCompoundStmtList()
@@ -711,17 +948,18 @@ func (p *Parser) parseRepeatStmt(labelName string, labelStart int) (*nodes.Repea
 	// Optional end_label
 	var endLabel string
 	if p.isLabelIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
-		endLabel = p.cur.Str
-		p.advance()
+		endLabelTok := p.advance()
+		endLabel = endLabelTok.Str
+		if err := checkLabelMatch(labelName, endLabel, endLabelTok.Loc); err != nil {
+			return nil, err
+		}
 	}
 
-	return &nodes.RepeatStmt{
-		Loc:      nodes.Loc{Start: start, End: p.pos()},
-		Label:    labelName,
-		EndLabel: endLabel,
-		Stmts:    stmts,
-		Cond:     cond,
-	}, nil
+	stmt.Stmts = stmts
+	stmt.Cond = cond
+	stmt.EndLabel = endLabel
+	stmt.Loc.End = p.pos()
+	return stmt, nil
 }
 
 // parseLoopStmt parses a LOOP compound statement.
@@ -735,6 +973,13 @@ func (p *Parser) parseLoopStmt(labelName string, labelStart int) (*nodes.LoopStm
 		start = p.pos()
 	}
 	p.advance() // consume LOOP
+
+	stmt := &nodes.LoopStmt{Loc: nodes.Loc{Start: start}, Label: labelName}
+	if labelName != "" {
+		if err := p.declareLabel(labelName, labelLoop, stmt, labelStart); err != nil {
+			return nil, err
+		}
+	}
 
 	// Parse statement list until END
 	stmts, err := p.parseCompoundStmtList()
@@ -753,16 +998,17 @@ func (p *Parser) parseLoopStmt(labelName string, labelStart int) (*nodes.LoopStm
 	// Optional end_label
 	var endLabel string
 	if p.isLabelIdentToken() && p.cur.Type != tokEOF && p.cur.Type != ';' {
-		endLabel = p.cur.Str
-		p.advance()
+		endLabelTok := p.advance()
+		endLabel = endLabelTok.Str
+		if err := checkLabelMatch(labelName, endLabel, endLabelTok.Loc); err != nil {
+			return nil, err
+		}
 	}
 
-	return &nodes.LoopStmt{
-		Loc:      nodes.Loc{Start: start, End: p.pos()},
-		Label:    labelName,
-		EndLabel: endLabel,
-		Stmts:    stmts,
-	}, nil
+	stmt.EndLabel = endLabel
+	stmt.Stmts = stmts
+	stmt.Loc.End = p.pos()
+	return stmt, nil
 }
 
 // parseLeaveStmt parses a LEAVE label statement.
@@ -772,29 +1018,48 @@ func (p *Parser) parseLeaveStmt() (*nodes.LeaveStmt, error) {
 	start := p.pos()
 	p.advance() // consume LEAVE
 
+	labelStart := p.pos()
 	label, _, err := p.parseLabelIdent()
 	if err != nil {
 		return nil, err
 	}
 
+	if p.procScope != nil {
+		if _, ok := p.lookupLabel(label, false); !ok {
+			return nil, &ParseError{
+				Message:  "LEAVE references undeclared label: " + label,
+				Position: labelStart,
+			}
+		}
+	}
 	return &nodes.LeaveStmt{
 		Loc:   nodes.Loc{Start: start, End: p.pos()},
 		Label: label,
 	}, nil
 }
 
-// parseIterateStmt parses an ITERATE label statement.
+// parseIterateStmt parses an ITERATE label statement. ITERATE only targets
+// loop labels (WHILE / LOOP / REPEAT) — not BEGIN-style labels.
 //
 //	ITERATE label
 func (p *Parser) parseIterateStmt() (*nodes.IterateStmt, error) {
 	start := p.pos()
 	p.advance() // consume ITERATE
 
+	labelStart := p.pos()
 	label, _, err := p.parseLabelIdent()
 	if err != nil {
 		return nil, err
 	}
 
+	if p.procScope != nil {
+		if _, ok := p.lookupLabel(label, true); !ok {
+			return nil, &ParseError{
+				Message:  "ITERATE references undeclared loop label: " + label,
+				Position: labelStart,
+			}
+		}
+	}
 	return &nodes.IterateStmt{
 		Loc:   nodes.Loc{Start: start, End: p.pos()},
 		Label: label,
@@ -806,6 +1071,16 @@ func (p *Parser) parseIterateStmt() (*nodes.IterateStmt, error) {
 //	RETURN expr
 func (p *Parser) parseReturnStmt() (*nodes.ReturnStmt, error) {
 	start := p.pos()
+	// MySQL allows RETURN only inside functions. Procedures, triggers, and
+	// events use LEAVE / SIGNAL to terminate. The isFunction flag is set on
+	// the outermost scope by parseCreateFunctionStmt and inherited by inner
+	// scopes via pushScope.
+	if p.procScope != nil && !p.procScope.isFunction {
+		return nil, &ParseError{
+			Message:  "RETURN is only allowed inside a function body",
+			Position: start,
+		}
+	}
 	p.advance() // consume RETURN
 
 	expr, err := p.parseExpr()
@@ -829,15 +1104,33 @@ func (p *Parser) parseOpenCursorStmt() (*nodes.OpenCursorStmt, error) {
 	start := p.pos()
 	p.advance() // consume OPEN
 
+	nameStart := p.pos()
 	name, _, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
-
+	if err := p.requireCursor(name, nameStart); err != nil {
+		return nil, err
+	}
 	return &nodes.OpenCursorStmt{
 		Loc:  nodes.Loc{Start: start, End: p.pos()},
 		Name: name,
 	}, nil
+}
+
+// requireCursor verifies that the named cursor is declared in scope. Used
+// by OPEN / FETCH / CLOSE.
+func (p *Parser) requireCursor(name string, pos int) error {
+	if p.procScope == nil {
+		return nil
+	}
+	if p.lookupCursor(name) == nil {
+		return &ParseError{
+			Message:  "undeclared cursor: " + name,
+			Position: pos,
+		}
+	}
+	return nil
 }
 
 // parseFetchCursorStmt parses a FETCH cursor statement.
@@ -858,8 +1151,12 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 	}
 
 	// cursor_name
+	nameStart := p.pos()
 	name, _, err := p.parseIdentifier()
 	if err != nil {
+		return nil, err
+	}
+	if err := p.requireCursor(name, nameStart); err != nil {
 		return nil, err
 	}
 
@@ -896,11 +1193,14 @@ func (p *Parser) parseCloseCursorStmt() (*nodes.CloseCursorStmt, error) {
 	start := p.pos()
 	p.advance() // consume CLOSE
 
+	nameStart := p.pos()
 	name, _, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
-
+	if err := p.requireCursor(name, nameStart); err != nil {
+		return nil, err
+	}
 	return &nodes.CloseCursorStmt{
 		Loc:  nodes.Loc{Start: start, End: p.pos()},
 		Name: name,

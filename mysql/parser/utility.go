@@ -1090,11 +1090,12 @@ func (p *Parser) parseInstallComponentStmt(start int) (*nodes.InstallComponentSt
 		p.advance()
 	}
 
-	// Optional SET clause
+	// Optional SET clause — INSTALL COMPONENT ... SET targets are
+	// component-system variables, never stored-program locals.
 	if p.cur.Type == kwSET {
 		p.advance() // consume SET
 		for {
-			asgn, err := p.parseSetAssignment()
+			asgn, err := p.parseSetAssignment(true)
 			if err != nil {
 				return nil, err
 			}

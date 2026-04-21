@@ -1713,7 +1713,9 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 			p.advance()
 		}
 	default:
-		// INTO var_name [, var_name ...]
+		// INTO var_name [, var_name ...]. Accepts @user_vars as well as bare
+		// identifiers (stored-program local variables / parameters declared
+		// via DECLARE, per MySQL's select_var alternative).
 		for {
 			if p.isVariableRef() {
 				v, err := p.parseVariableRef()
@@ -1721,6 +1723,17 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 					return nil, err
 				}
 				into.Vars = append(into.Vars, v)
+			} else if p.cur.Type == tokIDENT || (p.cur.Type >= 700 && isLvalueKeyword(p.cur.Type)) {
+				// Bare identifier: SELECT ... INTO local_var (stored program)
+				nameStart := p.pos()
+				name, _, err := p.parseLvalueIdent()
+				if err != nil {
+					return nil, err
+				}
+				into.Vars = append(into.Vars, &nodes.VariableRef{
+					Loc:  nodes.Loc{Start: nameStart, End: p.pos()},
+					Name: name,
+				})
 			} else {
 				break
 			}

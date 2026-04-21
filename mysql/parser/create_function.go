@@ -191,10 +191,49 @@ func (p *Parser) parseCreateFunctionStmt(isProcedure bool) (*nodes.CreateFunctio
 		stmt.Characteristics = append(stmt.Characteristics, ch)
 	}
 
-	// Routine body — scan raw SQL text so that nested compound statements
-	// (IF/END IF, CASE/END CASE, WHILE/END WHILE, LOOP/END LOOP, REPEAT/END REPEAT)
-	// are balanced correctly instead of prematurely closing the outer BEGIN...END.
-	stmt.Body = p.consumeRoutineBody()
+	// Routine body — parse via the grammar so the body is disambiguated the
+	// same way MySQL's yacc does (statement vs expression context, nested
+	// compound statements, labels, DECLAREs, etc.). See
+	// docs/plans/2026-04-20-mysql-routine-body-grammar.md.
+	//
+	// Open the outermost static-validation scope and seed parameters as
+	// in-scope variables so SET param_name = ... resolves and same-name
+	// DECLAREs in the top BEGIN block conflict (matches MySQL semantics).
+	scope := p.pushScope(scopeBlock)
+	scope.isFunction = !isProcedure
+	for _, fp := range stmt.Params {
+		// Synthesize a DeclareVarStmt placeholder to occupy the var slot.
+		// Loc points at the parameter; TypeName carries through.
+		_ = p.declareVar(fp.Name, &nodes.DeclareVarStmt{
+			Loc:      fp.Loc,
+			Names:    []string{fp.Name},
+			TypeName: fp.TypeName,
+		}, fp.Loc.Start)
+	}
+	defer p.popScope()
+
+	bodyStart := p.pos()
+	body, err := p.parseCompoundStmtOrStmt()
+	if err != nil {
+		return nil, err
+	}
+	bodyEnd := p.pos()
+	stmt.Body = body
+	stmt.BodyText = p.inputText(bodyStart, bodyEnd)
+
+	// RETURN coverage: MySQL's CREATE-time check requires at least one
+	// RETURN statement to exist somewhere in the function body (ERR 1320
+	// "No RETURN found in FUNCTION"). Path analysis is deferred to runtime;
+	// SIGNAL/RESIGNAL do not substitute. Loadable UDFs (Soname != "") have
+	// no Body to check.
+	if !isProcedure && stmt.Soname == "" && body != nil {
+		if !containsReturn(body) {
+			return nil, &ParseError{
+				Message:  "no RETURN found in function body",
+				Position: bodyStart,
+			}
+		}
+	}
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil

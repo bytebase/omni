@@ -5506,13 +5506,15 @@ DELIMITER ;`,
 			bodySuffix: "a + 1",
 		},
 		{
-			name: "procedure body is a single IF (no BEGIN wrapper)",
-			sql: `CREATE PROCEDURE p_single(IN x INT)
+			name: "procedure body is a single IF (no BEGIN wrapper, DELIMITER-wrapped)",
+			sql: `DELIMITER ;;
+CREATE PROCEDURE p_single(IN x INT)
 IF x > 0 THEN
     SET @y = 1;
 ELSE
     SET @y = 0;
-END IF`,
+END IF ;;
+DELIMITER ;`,
 			wantStmts:  1,
 			bodySuffix: "END IF",
 		},
@@ -5537,18 +5539,19 @@ END IF`,
 	}
 }
 
-// firstRoutineBody returns the Body field of the first CreateFunctionStmt,
-// CreateTriggerStmt, or CreateEventStmt in the statement list.
+// firstRoutineBody returns the BodyText (raw source bytes of the body) of
+// the first CreateFunctionStmt, CreateTriggerStmt, or CreateEventStmt in
+// the statement list.
 func firstRoutineBody(t *testing.T, list *ast.List) string {
 	t.Helper()
 	for _, n := range list.Items {
 		switch s := n.(type) {
 		case *ast.CreateFunctionStmt:
-			return s.Body
+			return s.BodyText
 		case *ast.CreateTriggerStmt:
-			return s.Body
+			return s.BodyText
 		case *ast.CreateEventStmt:
-			return s.Body
+			return s.BodyText
 		}
 	}
 	t.Fatalf("no routine/trigger/event statement in list")
@@ -6704,15 +6707,15 @@ func TestParseDeclareCondition(t *testing.T) {
 	}{
 		{
 			sql:  "DECLARE my_error CONDITION FOR SQLSTATE '45000'",
-			want: "{DECLARE_CONDITION :loc 0 :name my_error :value 45000}",
+			want: "{DECLARE_CONDITION :loc 0 :name my_error :value SQLSTATE:45000}",
 		},
 		{
 			sql:  "DECLARE my_error CONDITION FOR SQLSTATE VALUE '45000'",
-			want: "{DECLARE_CONDITION :loc 0 :name my_error :value 45000}",
+			want: "{DECLARE_CONDITION :loc 0 :name my_error :value SQLSTATE:45000}",
 		},
 		{
 			sql:  "DECLARE my_error CONDITION FOR 1051",
-			want: "{DECLARE_CONDITION :loc 0 :name my_error :value 1051}",
+			want: "{DECLARE_CONDITION :loc 0 :name my_error :value ERRCODE:1051}",
 		},
 	}
 	for _, tt := range tests {
@@ -6742,11 +6745,11 @@ func TestParseDeclareHandler(t *testing.T) {
 		},
 		{
 			sql:  "DECLARE EXIT HANDLER FOR NOT FOUND SELECT 1",
-			want: "{DECLARE_HANDLER :loc 0 :action EXIT :conditions NOT FOUND :stmt {SELECT :loc 35 :targets ({INT_LIT :val 1 :loc 42})}}",
+			want: "{DECLARE_HANDLER :loc 0 :action EXIT :conditions NOT_FOUND :stmt {SELECT :loc 35 :targets ({INT_LIT :val 1 :loc 42})}}",
 		},
 		{
 			sql:  "DECLARE CONTINUE HANDLER FOR SQLSTATE '23000' SELECT 1",
-			want: "{DECLARE_HANDLER :loc 0 :action CONTINUE :conditions 23000 :stmt {SELECT :loc 46 :targets ({INT_LIT :val 1 :loc 53})}}",
+			want: "{DECLARE_HANDLER :loc 0 :action CONTINUE :conditions SQLSTATE:23000 :stmt {SELECT :loc 46 :targets ({INT_LIT :val 1 :loc 53})}}",
 		},
 		{
 			sql:  "DECLARE CONTINUE HANDLER FOR SQLWARNING, SQLEXCEPTION SELECT 1",

@@ -1586,8 +1586,12 @@ func writeCreateFunctionStmt(sb *strings.Builder, n *CreateFunctionStmt) {
 	if n.Soname != "" {
 		fmt.Fprintf(sb, " :soname %q", n.Soname)
 	}
-	if n.Body != "" {
-		fmt.Fprintf(sb, " :body %q", n.Body)
+	if n.BodyText != "" {
+		fmt.Fprintf(sb, " :body %q", n.BodyText)
+	}
+	if n.Body != nil {
+		sb.WriteString(" :body-stmt ")
+		writeNode(sb, n.Body)
 	}
 	if len(n.Characteristics) > 0 {
 		sb.WriteString(" :characteristics ")
@@ -1627,8 +1631,12 @@ func writeCreateTriggerStmt(sb *strings.Builder, n *CreateTriggerStmt) {
 		sb.WriteString(" :order ")
 		writeNode(sb, n.Order)
 	}
-	if n.Body != "" {
-		fmt.Fprintf(sb, " :body %q", n.Body)
+	if n.BodyText != "" {
+		fmt.Fprintf(sb, " :body %q", n.BodyText)
+	}
+	if n.Body != nil {
+		sb.WriteString(" :body-stmt ")
+		writeNode(sb, n.Body)
 	}
 	sb.WriteString("}")
 }
@@ -1658,8 +1666,12 @@ func writeCreateEventStmt(sb *strings.Builder, n *CreateEventStmt) {
 	if n.Comment != "" {
 		fmt.Fprintf(sb, " :comment %q", n.Comment)
 	}
-	if n.Body != "" {
-		fmt.Fprintf(sb, " :body %q", n.Body)
+	if n.BodyText != "" {
+		fmt.Fprintf(sb, " :body %q", n.BodyText)
+	}
+	if n.Body != nil {
+		sb.WriteString(" :body-stmt ")
+		writeNode(sb, n.Body)
 	}
 	sb.WriteString("}")
 }
@@ -3635,11 +3647,29 @@ func writeDeclareVarStmt(sb *strings.Builder, n *DeclareVarStmt) {
 	sb.WriteString("}")
 }
 
+func writeHandlerCondValue(sb *strings.Builder, c HandlerCondValue) {
+	switch c.Kind {
+	case HandlerCondSQLState:
+		fmt.Fprintf(sb, "SQLSTATE:%s", c.Value)
+	case HandlerCondErrorCode:
+		fmt.Fprintf(sb, "ERRCODE:%s", c.Value)
+	case HandlerCondSQLWarning:
+		sb.WriteString("SQLWARNING")
+	case HandlerCondNotFound:
+		sb.WriteString("NOT_FOUND")
+	case HandlerCondSQLException:
+		sb.WriteString("SQLEXCEPTION")
+	case HandlerCondName:
+		fmt.Fprintf(sb, "NAME:%s", c.Value)
+	}
+}
+
 func writeDeclareConditionStmt(sb *strings.Builder, n *DeclareConditionStmt) {
 	sb.WriteString("{DECLARE_CONDITION")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	fmt.Fprintf(sb, " :name %s", n.Name)
-	fmt.Fprintf(sb, " :value %s", n.ConditionValue)
+	sb.WriteString(" :value ")
+	writeHandlerCondValue(sb, n.ConditionValue)
 	sb.WriteString("}")
 }
 
@@ -3650,7 +3680,8 @@ func writeDeclareHandlerStmt(sb *strings.Builder, n *DeclareHandlerStmt) {
 	if len(n.Conditions) > 0 {
 		sb.WriteString(" :conditions")
 		for _, c := range n.Conditions {
-			fmt.Fprintf(sb, " %s", c)
+			sb.WriteString(" ")
+			writeHandlerCondValue(sb, c)
 		}
 	}
 	if n.Stmt != nil {
@@ -4430,8 +4461,12 @@ func writeAlterEventStmt(sb *strings.Builder, n *AlterEventStmt) {
 	if n.Comment != "" {
 		fmt.Fprintf(sb, " :comment %q", n.Comment)
 	}
-	if n.Body != "" {
-		fmt.Fprintf(sb, " :body %q", n.Body)
+	if n.BodyText != "" {
+		fmt.Fprintf(sb, " :body %q", n.BodyText)
+	}
+	if n.Body != nil {
+		sb.WriteString(" :body-stmt ")
+		writeNode(sb, n.Body)
 	}
 	sb.WriteString("}")
 }

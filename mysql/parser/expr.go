@@ -125,7 +125,39 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 		case p.cur.Type == tokNotEq && p.cur.Str == "!=":
 			originalOp = "!="
 		}
+		isComparison := prec == precComparison
 		p.advance() // consume operator
+
+		// Quantified-subquery RHS: `expr comp_op {ANY|SOME|ALL} (subquery)`.
+		// Only after a comparison operator. The quantifier is recorded on
+		// the SubqueryExpr so consumers can distinguish from a scalar
+		// subquery comparison.
+		if isComparison && (p.cur.Type == kwANY || p.cur.Type == kwSOME || p.cur.Type == kwALL) {
+			quantTok := p.advance()
+			quantifier := strings.ToUpper(quantTok.Str)
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			subStart := p.pos()
+			sub, err := p.parseSubqueryExpr()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			sub.Loc.Start = subStart
+			sub.Loc.End = p.pos()
+			sub.Quantifier = quantifier
+			left = &nodes.BinaryExpr{
+				Loc:        nodes.Loc{Start: opStart, End: p.pos()},
+				Op:         binOp,
+				Left:       left,
+				Right:      sub,
+				OriginalOp: originalOp,
+			}
+			continue
+		}
 
 		// Right-associative for assignment
 		nextPrec := prec + 1
@@ -1605,11 +1637,16 @@ func (p *Parser) parseExistsExpr() (nodes.ExprNode, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/expressions.html#temporal-intervals
 //
 //	INTERVAL expr unit
+//
+// The value is a full expression (bit_expr in MySQL yacc), so arithmetic like
+// `INTERVAL DAY(d) - 1 DAY` and `INTERVAL @n + 1 HOUR` is valid. Unit
+// keywords (DAY, HOUR, ...) are not infix operators, so Pratt parsing halts
+// naturally before the unit.
 func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume INTERVAL
 
-	val, err := p.parsePrimaryExpr()
+	val, err := p.parseExpr()
 	if err != nil {
 		return nil, err
 	}

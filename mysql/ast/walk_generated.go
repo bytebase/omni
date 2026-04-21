@@ -16,6 +16,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Schedule != nil {
 			Walk(v, n.Schedule)
 		}
+		Walk(v, n.Body)
 	case *AlterRoutineStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -238,6 +239,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Schedule != nil {
 			Walk(v, n.Schedule)
 		}
+		Walk(v, n.Body)
 	case *CreateFunctionStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -250,6 +252,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Returns != nil {
 			Walk(v, n.Returns)
 		}
+		Walk(v, n.Body)
 		for _, item := range n.Characteristics {
 			if item != nil {
 				Walk(v, item)
@@ -304,6 +307,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Order != nil {
 			Walk(v, n.Order)
 		}
+		Walk(v, n.Body)
 	case *CreateUserStmt:
 		for _, item := range n.Users {
 			if item != nil {

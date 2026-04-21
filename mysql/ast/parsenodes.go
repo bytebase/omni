@@ -635,12 +635,13 @@ func (e *FuncCallExpr) exprNode() {}
 
 // SubqueryExpr represents a subquery expression.
 type SubqueryExpr struct {
-	Loc     Loc
-	Select  *SelectStmt
-	Exists  bool     // EXISTS (SELECT ...)
-	Lateral bool     // LATERAL derived table
-	Alias   string   // AS alias (for derived tables)
-	Columns []string // derived table column alias list: (SELECT ...) AS t(c1, c2)
+	Loc        Loc
+	Select     *SelectStmt
+	Exists     bool     // EXISTS (SELECT ...)
+	Lateral    bool     // LATERAL derived table
+	Alias      string   // AS alias (for derived tables)
+	Columns    []string // derived table column alias list: (SELECT ...) AS t(c1, c2)
+	Quantifier string   // "ANY" / "SOME" / "ALL" for `expr op {ANY|SOME|ALL} (subquery)`; empty for scalar subquery
 }
 
 func (e *SubqueryExpr) nodeTag()   {}
@@ -1477,7 +1478,8 @@ type CreateFunctionStmt struct {
 	Params          []*FuncParam
 	Returns         *DataType
 	Soname          string // SONAME 'shared_library' (loadable UDF)
-	Body            string
+	Body            Node   // parsed sp_proc_stmt (compound or simple). nil for loadable UDFs.
+	BodyText        string // raw source bytes of the body (byte-preserved from the input segment).
 	Characteristics []*RoutineCharacteristic
 }
 
@@ -1513,7 +1515,8 @@ type CreateTriggerStmt struct {
 	Event       string // INSERT, UPDATE, DELETE
 	Table       *TableRef
 	Order       *TriggerOrder
-	Body        string
+	Body        Node   // parsed sp_proc_stmt
+	BodyText    string // raw source bytes of the body
 }
 
 func (s *CreateTriggerStmt) nodeTag()  {}
@@ -1538,7 +1541,8 @@ type CreateEventStmt struct {
 	OnCompletion string
 	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE
 	Comment      string
-	Body         string
+	Body         Node   // parsed sp_proc_stmt
+	BodyText     string // raw source bytes of the body
 }
 
 func (s *CreateEventStmt) nodeTag()  {}
@@ -2033,11 +2037,41 @@ type DeclareVarStmt struct {
 func (s *DeclareVarStmt) nodeTag()  {}
 func (s *DeclareVarStmt) stmtNode() {}
 
+// HandlerCondKind classifies a handler condition value so that semantic
+// analysis can distinguish SQLSTATE literals, error-code literals, built-in
+// condition categories, and user-declared condition names. The prior `string`
+// form collapsed all kinds into one field, making e.g. `SQLSTATE '23000'`
+// indistinguishable from a user condition named `23000`.
+type HandlerCondKind int
+
+const (
+	// HandlerCondSQLState — SQLSTATE '23000' / SQLSTATE VALUE '23000'.
+	HandlerCondSQLState HandlerCondKind = iota
+	// HandlerCondErrorCode — a bare integer mysql_error_code (e.g., 1062).
+	HandlerCondErrorCode
+	// HandlerCondSQLWarning — the built-in category.
+	HandlerCondSQLWarning
+	// HandlerCondNotFound — the built-in category.
+	HandlerCondNotFound
+	// HandlerCondSQLException — the built-in category.
+	HandlerCondSQLException
+	// HandlerCondName — a user-declared condition name (resolved via DECLARE
+	// CONDITION in an enclosing scope).
+	HandlerCondName
+)
+
+// HandlerCondValue is one handler condition value (one item in a DECLARE
+// HANDLER FOR list, or the RHS of DECLARE CONDITION FOR).
+type HandlerCondValue struct {
+	Kind  HandlerCondKind
+	Value string // SQLSTATE literal / error code / condition name; empty for SQLWARNING/NOT FOUND/SQLEXCEPTION
+}
+
 // DeclareConditionStmt represents a DECLARE ... CONDITION FOR statement.
 type DeclareConditionStmt struct {
 	Loc            Loc
 	Name           string // condition name
-	ConditionValue string // SQLSTATE value or mysql_error_code
+	ConditionValue HandlerCondValue
 }
 
 func (s *DeclareConditionStmt) nodeTag()  {}
@@ -2046,9 +2080,9 @@ func (s *DeclareConditionStmt) stmtNode() {}
 // DeclareHandlerStmt represents a DECLARE ... HANDLER FOR statement.
 type DeclareHandlerStmt struct {
 	Loc        Loc
-	Action     string   // CONTINUE, EXIT, or UNDO
-	Conditions []string // condition values
-	Stmt       Node     // handler statement body
+	Action     string // CONTINUE, EXIT, or UNDO
+	Conditions []HandlerCondValue
+	Stmt       Node // handler statement body
 }
 
 func (s *DeclareHandlerStmt) nodeTag()  {}
@@ -2495,7 +2529,8 @@ type AlterEventStmt struct {
 	RenameTo     string
 	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE
 	Comment      string
-	Body         string
+	Body         Node   // parsed sp_proc_stmt (nil when no DO clause)
+	BodyText     string // raw source bytes of the body
 }
 
 func (s *AlterEventStmt) nodeTag()  {}

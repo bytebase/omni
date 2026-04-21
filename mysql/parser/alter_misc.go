@@ -237,35 +237,19 @@ func (p *Parser) parseAlterEventStmt() (*nodes.AlterEventStmt, error) {
 		}
 	}
 
-	// Optional: DO event_body
+	// Optional: DO event_body — when present, parse via the grammar.
 	if p.cur.Type == kwDO {
 		p.advance()
+		p.pushScope(scopeBlock)
 		bodyStart := p.pos()
-		depth := 0
-		for p.cur.Type != tokEOF {
-			if p.cur.Type == ';' && depth == 0 {
-				break
-			}
-			if p.cur.Type == kwBEGIN {
-				depth++
-			}
-			if p.cur.Type == kwEND {
-				if depth > 0 {
-					depth--
-					if depth == 0 {
-						p.advance()
-						break
-					}
-				} else {
-					break
-				}
-			}
-			p.advance()
+		body, err := p.parseCompoundStmtOrStmt()
+		p.popScope()
+		if err != nil {
+			return nil, err
 		}
 		bodyEnd := p.pos()
-		if bodyEnd > bodyStart {
-			stmt.Body = p.inputText(bodyStart, bodyEnd)
-		}
+		stmt.Body = body
+		stmt.BodyText = p.inputText(bodyStart, bodyEnd)
 	}
 
 	stmt.Loc.End = p.pos()
