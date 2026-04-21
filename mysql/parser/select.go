@@ -770,7 +770,7 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 	var alias string
 	if _, ok := p.match(kwAS); ok {
 		aliasLoc := p.pos()
-		name, _, err := p.parseIdent()
+		name, _, err := p.parseIdentOrText()
 		if err != nil {
 			return nil, err
 		}
@@ -778,10 +778,10 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 		if p.completing {
 			p.addSelectAliasPosition(aliasLoc)
 		}
-	} else if p.isIdentToken() && !p.isSelectTerminator() {
-		// Implicit alias (identifier without AS), but not if it's a keyword that starts the next clause
+	} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && !p.isSelectTerminator() {
+		// Implicit alias (identifier or string literal without AS), but not if it's a keyword that starts the next clause
 		aliasLoc := p.pos()
-		alias, _, err = p.parseIdent()
+		alias, _, err = p.parseIdentOrText()
 		if err != nil {
 			return nil, err
 		}
