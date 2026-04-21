@@ -9,7 +9,7 @@
 
 - **94 total dispatch sites** (69 `(` opens, 25 `)` closes)
 - **5 ambiguity-present sites:** all aligned (Phase 0 + Phase 1 §§1.1–1.4)
-- **88 non-ambiguous sites:** aligned via grammar structure (unconditional `expect('(')` / `expect(')')` or T1 peek on optional list)
+- **89 non-ambiguous sites:** aligned via grammar structure (unconditional `expect('(')` / `expect(')')` or T1 peek on optional list)
 - **0 unclear** (was 1: `expr.go:1610` parseArraySubscript ARRAY subquery contract — locked in by §1.4 with 6 empirical tests + caller-context proof; see paren_array_expr_test.go)
 
 ## By cluster
