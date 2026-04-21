@@ -104,15 +104,29 @@ func (v *validator) walk(n nodes.Node) {
 				"RETURN is only allowed inside a function body", s.Loc.Start)
 		}
 	case *nodes.Assignment:
-		v.walkAssignment(s)
+		v.walkAssignment(s, false)
+	case *nodes.SetStmt:
+		v.walkSetStmt(s)
+	}
+}
+
+// walkSetStmt walks each assignment in a SET statement. An explicit-scope
+// SET (GLOBAL/SESSION/LOCAL) targets system variables; skip the local-var
+// lookup entirely in that case.
+func (v *validator) walkSetStmt(s *nodes.SetStmt) {
+	systemScope := s.Scope != ""
+	for _, a := range s.Assignments {
+		v.walkAssignment(a, systemScope)
 	}
 }
 
 // walkAssignment validates a SET assignment inside a routine body. Outside a
 // routine the target is always a global session/user variable — nothing to
 // check here. See S11 in the plan; Phase 6 adds the system-variable fallback
-// before this emits undeclared_variable.
-func (v *validator) walkAssignment(s *nodes.Assignment) {
+// before this emits undeclared_variable. When systemScope is true, the
+// enclosing SET statement specified GLOBAL/SESSION/LOCAL, which makes the
+// target a system variable regardless of the routine scope.
+func (v *validator) walkAssignment(s *nodes.Assignment, systemScope bool) {
 	col := s.Column
 	if col == nil {
 		return
@@ -125,6 +139,10 @@ func (v *validator) walkAssignment(s *nodes.Assignment) {
 	// Qualified target (e.g. global.sql_mode) resolves via MySQL's system-var
 	// rules, not the routine scope.
 	if col.Table != "" {
+		return
+	}
+	// Explicit-scope SET (GLOBAL/SESSION/LOCAL) always targets a system var.
+	if systemScope {
 		return
 	}
 	if v.scope == nil {
@@ -315,8 +333,10 @@ func containsReturnList(stmts []nodes.Node) bool {
 	return false
 }
 
-func (v *validator) walkEventBody(_ *nodes.CreateEventStmt) {
-	// Fill in once we wire up event-body walking; skeletal for now.
+func (v *validator) walkEventBody(s *nodes.CreateEventStmt) {
+	// Events are not functions; RETURN inside is rejected. Walk as a
+	// non-function routine body.
+	v.walkRoutine(s.Body, false, nil)
 }
 
 func (v *validator) walkBeginEnd(b *nodes.BeginEndBlock) {
@@ -332,15 +352,22 @@ func (v *validator) walkBeginEnd(b *nodes.BeginEndBlock) {
 }
 
 // registerLabel installs a label into the current (enclosing) scope and emits
-// duplicate_label on collision. Safe to call with an empty name.
+// duplicate_label on collision. MySQL rejects label reuse anywhere in the
+// visibility chain, so the duplicate walk traverses parents up to (but not
+// across) a handler-scope barrier. Safe to call with an empty name.
 func (v *validator) registerLabel(name string, kind labelKind, pos int) {
 	if name == "" || v.scope == nil {
 		return
 	}
 	key := lower(name)
-	if _, exists := v.scope.labels[key]; exists {
-		v.emit("duplicate_label", "duplicate label: "+name, pos)
-		return
+	for cur := v.scope; cur != nil; cur = cur.parent {
+		if _, exists := cur.labels[key]; exists {
+			v.emit("duplicate_label", "duplicate label: "+name, pos)
+			return
+		}
+		if cur.kind == scopeHandlerBody {
+			break
+		}
 	}
 	v.scope.labels[key] = labelInfo{kind: kind, pos: pos}
 }
