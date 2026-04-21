@@ -240,8 +240,10 @@ func (p *Parser) parseAlterEventStmt() (*nodes.AlterEventStmt, error) {
 	// Optional: DO event_body — when present, parse via the grammar.
 	if p.cur.Type == kwDO {
 		p.advance()
+		p.pushScope(scopeBlock)
 		bodyStart := p.pos()
 		body, err := p.parseCompoundStmtOrStmt()
+		p.popScope()
 		if err != nil {
 			return nil, err
 		}

@@ -6707,15 +6707,15 @@ func TestParseDeclareCondition(t *testing.T) {
 	}{
 		{
 			sql:  "DECLARE my_error CONDITION FOR SQLSTATE '45000'",
-			want: "{DECLARE_CONDITION :loc 0 :name my_error :value 45000}",
+			want: "{DECLARE_CONDITION :loc 0 :name my_error :value SQLSTATE:45000}",
 		},
 		{
 			sql:  "DECLARE my_error CONDITION FOR SQLSTATE VALUE '45000'",
-			want: "{DECLARE_CONDITION :loc 0 :name my_error :value 45000}",
+			want: "{DECLARE_CONDITION :loc 0 :name my_error :value SQLSTATE:45000}",
 		},
 		{
 			sql:  "DECLARE my_error CONDITION FOR 1051",
-			want: "{DECLARE_CONDITION :loc 0 :name my_error :value 1051}",
+			want: "{DECLARE_CONDITION :loc 0 :name my_error :value ERRCODE:1051}",
 		},
 	}
 	for _, tt := range tests {
@@ -6745,11 +6745,11 @@ func TestParseDeclareHandler(t *testing.T) {
 		},
 		{
 			sql:  "DECLARE EXIT HANDLER FOR NOT FOUND SELECT 1",
-			want: "{DECLARE_HANDLER :loc 0 :action EXIT :conditions NOT FOUND :stmt {SELECT :loc 35 :targets ({INT_LIT :val 1 :loc 42})}}",
+			want: "{DECLARE_HANDLER :loc 0 :action EXIT :conditions NOT_FOUND :stmt {SELECT :loc 35 :targets ({INT_LIT :val 1 :loc 42})}}",
 		},
 		{
 			sql:  "DECLARE CONTINUE HANDLER FOR SQLSTATE '23000' SELECT 1",
-			want: "{DECLARE_HANDLER :loc 0 :action CONTINUE :conditions 23000 :stmt {SELECT :loc 46 :targets ({INT_LIT :val 1 :loc 53})}}",
+			want: "{DECLARE_HANDLER :loc 0 :action CONTINUE :conditions SQLSTATE:23000 :stmt {SELECT :loc 46 :targets ({INT_LIT :val 1 :loc 53})}}",
 		},
 		{
 			sql:  "DECLARE CONTINUE HANDLER FOR SQLWARNING, SQLEXCEPTION SELECT 1",

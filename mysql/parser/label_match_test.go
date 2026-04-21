@@ -105,11 +105,11 @@ END`,
 			name: "LOOP end-label without begin-label",
 			sql: `CREATE PROCEDURE p()
 BEGIN
-    LOOP
-        LEAVE nowhere;
+    foo: LOOP
+        LEAVE foo;
     END LOOP myloop;
 END`,
-			wantErr: `end label "myloop" without matching begin label`,
+			wantErr: `end label "myloop" does not match begin label "foo"`,
 		},
 		{
 			name: "REPEAT mismatched labels",

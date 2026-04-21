@@ -20,6 +20,11 @@ type Parser struct {
 	candidates *CandidateSet // collected candidates
 	collecting bool          // true once cursor position is reached
 	maxCollect int           // max exploration depth
+
+	// procScope is the current static-validation scope, mirroring MySQL's
+	// sp_pcontext during stored-program body parsing. nil outside routine
+	// bodies. See scope.go.
+	procScope *procScope
 }
 
 // Parse parses a SQL string into an AST list.

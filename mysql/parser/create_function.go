@@ -195,6 +195,23 @@ func (p *Parser) parseCreateFunctionStmt(isProcedure bool) (*nodes.CreateFunctio
 	// same way MySQL's yacc does (statement vs expression context, nested
 	// compound statements, labels, DECLAREs, etc.). See
 	// docs/plans/2026-04-20-mysql-routine-body-grammar.md.
+	//
+	// Open the outermost static-validation scope and seed parameters as
+	// in-scope variables so SET param_name = ... resolves and same-name
+	// DECLAREs in the top BEGIN block conflict (matches MySQL semantics).
+	scope := p.pushScope(scopeBlock)
+	scope.isFunction = !isProcedure
+	for _, fp := range stmt.Params {
+		// Synthesize a DeclareVarStmt placeholder to occupy the var slot.
+		// Loc points at the parameter; TypeName carries through.
+		_ = p.declareVar(fp.Name, &nodes.DeclareVarStmt{
+			Loc:      fp.Loc,
+			Names:    []string{fp.Name},
+			TypeName: fp.TypeName,
+		}, fp.Loc.Start)
+	}
+	defer p.popScope()
+
 	bodyStart := p.pos()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
@@ -203,6 +220,18 @@ func (p *Parser) parseCreateFunctionStmt(isProcedure bool) (*nodes.CreateFunctio
 	bodyEnd := p.pos()
 	stmt.Body = body
 	stmt.BodyText = p.inputText(bodyStart, bodyEnd)
+
+	// RETURN coverage: a function body must reach a terminal statement on
+	// every normal-flow path (excluding handler-triggered paths). Loadable
+	// UDFs (Soname != "") have no Body to check.
+	if !isProcedure && stmt.Soname == "" && body != nil {
+		if !mustReturn(body) {
+			return nil, &ParseError{
+				Message:  "function body does not RETURN on all paths",
+				Position: bodyStart,
+			}
+		}
+	}
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil

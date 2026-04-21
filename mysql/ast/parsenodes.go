@@ -2037,11 +2037,41 @@ type DeclareVarStmt struct {
 func (s *DeclareVarStmt) nodeTag()  {}
 func (s *DeclareVarStmt) stmtNode() {}
 
+// HandlerCondKind classifies a handler condition value so that semantic
+// analysis can distinguish SQLSTATE literals, error-code literals, built-in
+// condition categories, and user-declared condition names. The prior `string`
+// form collapsed all kinds into one field, making e.g. `SQLSTATE '23000'`
+// indistinguishable from a user condition named `23000`.
+type HandlerCondKind int
+
+const (
+	// HandlerCondSQLState — SQLSTATE '23000' / SQLSTATE VALUE '23000'.
+	HandlerCondSQLState HandlerCondKind = iota
+	// HandlerCondErrorCode — a bare integer mysql_error_code (e.g., 1062).
+	HandlerCondErrorCode
+	// HandlerCondSQLWarning — the built-in category.
+	HandlerCondSQLWarning
+	// HandlerCondNotFound — the built-in category.
+	HandlerCondNotFound
+	// HandlerCondSQLException — the built-in category.
+	HandlerCondSQLException
+	// HandlerCondName — a user-declared condition name (resolved via DECLARE
+	// CONDITION in an enclosing scope).
+	HandlerCondName
+)
+
+// HandlerCondValue is one handler condition value (one item in a DECLARE
+// HANDLER FOR list, or the RHS of DECLARE CONDITION FOR).
+type HandlerCondValue struct {
+	Kind  HandlerCondKind
+	Value string // SQLSTATE literal / error code / condition name; empty for SQLWARNING/NOT FOUND/SQLEXCEPTION
+}
+
 // DeclareConditionStmt represents a DECLARE ... CONDITION FOR statement.
 type DeclareConditionStmt struct {
 	Loc            Loc
 	Name           string // condition name
-	ConditionValue string // SQLSTATE value or mysql_error_code
+	ConditionValue HandlerCondValue
 }
 
 func (s *DeclareConditionStmt) nodeTag()  {}
@@ -2050,9 +2080,9 @@ func (s *DeclareConditionStmt) stmtNode() {}
 // DeclareHandlerStmt represents a DECLARE ... HANDLER FOR statement.
 type DeclareHandlerStmt struct {
 	Loc        Loc
-	Action     string   // CONTINUE, EXIT, or UNDO
-	Conditions []string // condition values
-	Stmt       Node     // handler statement body
+	Action     string // CONTINUE, EXIT, or UNDO
+	Conditions []HandlerCondValue
+	Stmt       Node // handler statement body
 }
 
 func (s *DeclareHandlerStmt) nodeTag()  {}
