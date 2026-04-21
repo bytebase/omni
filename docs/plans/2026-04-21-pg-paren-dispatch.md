@@ -164,7 +164,7 @@ A cluster is one PG nonterminal family whose `(` / `)` dispatches are coupled (s
 
 Per cluster, one worker:
 1. **Audit sub-step (C-specific rows):** populate PAREN_AUDIT.md with rows only for sites in this cluster.
-2. **Fix sub-step:** implement section(s) in SCENARIOS-paren-dispatch.md for that cluster.
+2. **Fix sub-step:** implement section(s) in SCENARIOS-pg-paren-dispatch.md for that cluster.
 3. **Close sub-step:** regenerate `pgregress -update`, report `fixed=K, new=0`, update `PAREN_PROGRESS.json`.
 
 Cluster ordering: C1 (highest pgregress density, already validated in Phase 0) → C2 → C3 (coordinate with pg-first-sets) → C4 → C5.
@@ -209,7 +209,7 @@ docs/plans/
 pg/parser/
   PAREN_AUDIT.md                        ← audit rows (grows per cluster)
   PAREN_AUDIT.json                      ← machine-readable mirror of AUDIT.md
-  SCENARIOS-paren-dispatch.md           ← per-section fix scenarios
+  SCENARIOS-pg-paren-dispatch.md           ← per-section fix scenarios
   PAREN_PROGRESS.json                   ← cluster/section state + history[]
   paren_*_test.go                       ← per-section tests
   paren_oracle_test.go                  ← Phase 2 PG-container oracle (once landed)

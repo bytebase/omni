@@ -2,7 +2,9 @@
 
 **Status:** Phase 1 audit complete (2026-04-21)
 **Scope:** every `(` / `)` dispatch site in `pg/parser/*.go`
-**Reference:** `/Users/rebeliceyang/Github/omni-byt-9315/docs/plans/2026-04-21-pg-paren-dispatch.md` §4.1 scope, §3 technique catalogue, §5.3 alignment bar
+**Reference:** `docs/plans/2026-04-21-pg-paren-dispatch.md` §4.1 scope, §3 technique catalogue, §5.3 alignment bar
+
+**Note on site identifiers:** `file:line` in this document is the **original audit coordinate** captured at Phase 1 scope-lock (2026-04-21). Line numbers drift as code evolves; we retain the original coordinate as a stable row ID so audit history remains cross-referenceable. For the current live location of any site, grep the function name.
 **Machine-readable mirror:** `PAREN_AUDIT.json`
 
 ## Summary
