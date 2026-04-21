@@ -146,6 +146,20 @@ func (p *Parser) parseDropDatabaseStmt() (*nodes.DropDatabaseStmt, error) {
 //	  | [DEFAULT] ENCRYPTION [=] {'Y' | 'N'}
 //	  | READ ONLY [=] {DEFAULT | 0 | 1}        (ALTER DATABASE only)
 func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
+	// Completion: offer database option keywords.
+	p.checkCursor()
+	if p.collectMode() {
+		for _, t := range []int{
+			kwDEFAULT, kwCHARACTER, kwCHARSET, kwCOLLATE, kwENCRYPTION,
+			kwREAD,
+			// TiDB-specific: PLACEMENT POLICY on CREATE/ALTER DATABASE.
+			kwPLACEMENT,
+		} {
+			p.addTokenCandidate(t)
+		}
+		return nil, false, &ParseError{Message: "collecting"}
+	}
+
 	start := p.pos()
 
 	// READ ONLY [=] {DEFAULT | 0 | 1}  (no DEFAULT prefix)

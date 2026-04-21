@@ -60,7 +60,12 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 	// Completion: after ALTER TABLE table-name, offer sub-command keywords.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, tok := range []int{kwADD, kwDROP, kwMODIFY, kwCHANGE, kwRENAME, kwALTER, kwCONVERT, kwENGINE, kwDEFAULT, kwORDER, kwALGORITHM, kwLOCK, kwFORCE} {
+		for _, tok := range []int{
+			kwADD, kwDROP, kwMODIFY, kwCHANGE, kwRENAME, kwALTER, kwCONVERT,
+			kwENGINE, kwDEFAULT, kwORDER, kwALGORITHM, kwLOCK, kwFORCE,
+			// TiDB-specific: SET TIFLASH REPLICA n, REMOVE TTL.
+			kwSET, kwREMOVE,
+		} {
 			p.addTokenCandidate(tok)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -93,7 +98,12 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	// Completion: offer ALTER TABLE operation keywords.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwADD, kwDROP, kwMODIFY, kwCHANGE, kwRENAME, kwALTER, kwCONVERT, kwENGINE, kwDEFAULT, kwORDER, kwALGORITHM, kwLOCK, kwFORCE, kwPARTITION} {
+		for _, t := range []int{
+			kwADD, kwDROP, kwMODIFY, kwCHANGE, kwRENAME, kwALTER, kwCONVERT,
+			kwENGINE, kwDEFAULT, kwORDER, kwALGORITHM, kwLOCK, kwFORCE, kwPARTITION,
+			// TiDB-specific: SET TIFLASH REPLICA n, REMOVE TTL.
+			kwSET, kwREMOVE,
+		} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}

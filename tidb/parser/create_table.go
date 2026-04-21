@@ -1104,7 +1104,15 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	// Completion: offer table option keywords.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwENGINE, kwDEFAULT, kwCHARSET, kwCOLLATE, kwCOMMENT, kwAUTO_INCREMENT, kwROW_FORMAT, kwPARTITION} {
+		for _, t := range []int{
+			kwENGINE, kwDEFAULT, kwCHARSET, kwCOLLATE, kwCOMMENT,
+			kwAUTO_INCREMENT, kwROW_FORMAT, kwPARTITION,
+			// TiDB-specific table options (PR2 keywords; exposed here
+			// so completion offers them in the table_option list).
+			kwSHARD_ROW_ID_BITS, kwPRE_SPLIT_REGIONS, kwAUTO_ID_CACHE,
+			kwAUTO_RANDOM_BASE, kwTTL, kwTTL_ENABLE, kwTTL_JOB_INTERVAL,
+			kwPLACEMENT,
+		} {
 			p.addTokenCandidate(t)
 		}
 		return nil, false, &ParseError{Message: "collecting"}
@@ -1396,7 +1404,11 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			return nil, false, err
 		}
 		exprEnd := p.prev.End
-		val := strings.TrimSpace(p.lexer.input[exprStart:exprEnd])
+		// Use inputText (not raw slicing) so that multi-statement inputs
+		// — where parseSingle runs this segment with a non-zero
+		// baseOffset — don't index lexer.input out of bounds. Every
+		// other body-capture site in the parser uses inputText.
+		val := strings.TrimSpace(p.inputText(exprStart, exprEnd))
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "TTL", Value: val}, true, nil
 	}
 
