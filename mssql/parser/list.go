@@ -63,14 +63,15 @@ func (p *Parser) parseCommaList(
 		if _, ok := p.match(','); !ok {
 			break
 		}
+		// Reject a trailing comma: after consuming ',' we must see another item
+		// before the terminator. parseItem is allowed to run at EOF so it can
+		// emit completion candidates via errCollecting; it must otherwise
+		// return an error if there is no item to parse.
 		if p.cur.Type == end {
 			if flags&commaListAllowTrail == 0 {
 				return nil, p.unexpectedToken()
 			}
 			break
-		}
-		if p.cur.Type == tokEOF {
-			return nil, p.unexpectedToken()
 		}
 	}
 	return items, nil

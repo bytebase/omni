@@ -238,21 +238,22 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 				Loc:      nodes.Loc{Start: loc, End: p.prevEnd()},
 			}, nil
 		}
-		var items []nodes.Node
-		if p.cur.Type == tokEOF {
-			return nil, p.unexpectedToken()
-		}
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		items, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 			expr, err := p.parseExpr()
 			if err != nil {
 				return nil, err
 			}
-			items = append(items, expr)
-			if _, ok := p.match(','); !ok {
-				break
+			if expr == nil {
+				return nil, p.unexpectedToken()
 			}
+			return expr, nil
+		})
+		if err != nil {
+			return nil, err
 		}
-		_, _ = p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		return &nodes.InExpr{
 			Expr: left,
 			List: &nodes.List{Items: items},
@@ -1187,20 +1188,24 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 		fc.Distinct = true
 	}
 
-	var args []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	args, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
 		arg, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
-		args = append(args, arg)
-		if _, ok := p.match(','); !ok {
-			break
+		if arg == nil {
+			return nil, p.unexpectedToken()
 		}
+		return arg, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	fc.Args = &nodes.List{Items: args}
 
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	// Check for WITHIN GROUP (ORDER BY ...) clause
 	//
