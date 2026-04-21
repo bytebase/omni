@@ -1,23 +1,24 @@
-package parser
+package validate
 
 import (
-	"strings"
 	"testing"
+
+	parser "github.com/bytebase/omni/mysql/parser"
 )
 
-// TestSemanticValidation locks in the inline static-validation behavior
-// added to mirror MySQL's sp_pcontext / sp_head::check_return semantics.
+// TestSemanticValidationSQL mirrors the MySQL sp_pcontext / sp_head::check_return
+// semantics via SQL-fed cases. Each case asserts that Validate() either emits
+// the expected diagnostic code or reports none. Parsing must always succeed:
+// after the Phase 5 parser/validator split, grammar errors stay in the parser
+// and all semantic errors move here.
 //
-// Each case asserts: parser accepts a valid construct, or rejects an
-// invalid one with a specific error substring. Categories cover the
-// behavior the routine-body audit (TestRoutineBodyAudit) calls out as
-// V-class plus the scope-barrier / kind-distinction edges that bare
-// audit probes don't exercise.
-func TestSemanticValidation(t *testing.T) {
+// This file was migrated from mysql/parser/semantic_test.go as part of the
+// Phase 5 structural PR (docs/plans/2026-04-21-mysql-parser-validator-split.md).
+func TestSemanticValidationSQL(t *testing.T) {
 	type tc struct {
-		name    string
-		sql     string
-		wantErr string // empty = expect accept
+		name     string
+		sql      string
+		wantCode string // empty = expect no matching diagnostic
 	}
 	cases := []tc{
 		// ---------- Symbol resolution: labels (LEAVE / ITERATE) ----------
@@ -45,7 +46,7 @@ END my_block`,
 my_block: BEGIN
     ITERATE my_block;
 END my_block`,
-			wantErr: "ITERATE references undeclared loop label",
+			wantCode: "undeclared_loop_label",
 		},
 		{
 			name: "ITERATE loop label",
@@ -62,7 +63,7 @@ END`,
 BEGIN
     LEAVE nowhere;
 END`,
-			wantErr: `LEAVE references undeclared label: nowhere`,
+			wantCode: "undeclared_label",
 		},
 		{
 			name: "label barrier — LEAVE outer label from inside HANDLER body",
@@ -74,7 +75,7 @@ my_block: BEGIN
     END;
     SELECT 1;
 END my_block`,
-			wantErr: `LEAVE references undeclared label: my_block`,
+			wantCode: "undeclared_label",
 		},
 
 		// ---------- Symbol resolution: variables ----------
@@ -99,7 +100,7 @@ END`,
 BEGIN
     SET nope = 1;
 END`,
-			wantErr: `undeclared variable: nope`,
+			wantCode: "undeclared_variable",
 		},
 		{
 			name: "SET @user_var no scope check",
@@ -133,7 +134,7 @@ END`,
 BEGIN
     OPEN nope;
 END`,
-			wantErr: `undeclared cursor: nope`,
+			wantCode: "undeclared_cursor",
 		},
 		{
 			name: "FETCH undeclared cursor",
@@ -141,7 +142,7 @@ END`,
 BEGIN
     FETCH nope INTO @x;
 END`,
-			wantErr: `undeclared cursor: nope`,
+			wantCode: "undeclared_cursor",
 		},
 		{
 			name: "CLOSE undeclared cursor",
@@ -149,7 +150,7 @@ END`,
 BEGIN
     CLOSE nope;
 END`,
-			wantErr: `undeclared cursor: nope`,
+			wantCode: "undeclared_cursor",
 		},
 
 		// ---------- Symbol resolution: HANDLER condition name ----------
@@ -169,7 +170,7 @@ BEGIN
     DECLARE EXIT HANDLER FOR nope SET @e = 1;
     SELECT 1;
 END`,
-			wantErr: `undeclared condition: nope`,
+			wantCode: "undeclared_condition",
 		},
 		{
 			name: "HANDLER for SQLSTATE literal does not need declaration",
@@ -189,7 +190,7 @@ BEGIN
     DECLARE x INT;
     SELECT 1;
 END`,
-			wantErr: `duplicate variable declaration: x`,
+			wantCode: "duplicate_variable",
 		},
 		{
 			name: "DECLARE VAR shadowed in nested block is OK",
@@ -221,7 +222,7 @@ BEGIN
     DECLARE c CURSOR FOR SELECT 2;
     SELECT 1;
 END`,
-			wantErr: `duplicate cursor declaration: c`,
+			wantCode: "duplicate_cursor",
 		},
 		{
 			name: "duplicate DECLARE CONDITION same scope",
@@ -231,7 +232,7 @@ BEGIN
     DECLARE dk CONDITION FOR SQLSTATE '23001';
     SELECT 1;
 END`,
-			wantErr: `duplicate condition declaration: dk`,
+			wantCode: "duplicate_condition",
 		},
 		{
 			name: "duplicate label nested",
@@ -241,7 +242,7 @@ lbl: BEGIN
         SELECT 1;
     END lbl;
 END lbl`,
-			wantErr: `duplicate label: lbl`,
+			wantCode: "duplicate_label",
 		},
 		{
 			name: "label name reused across handler barrier OK",
@@ -261,7 +262,7 @@ BEGIN
     DECLARE EXIT HANDLER FOR SQLSTATE '23000', SQLSTATE '23000' SET @e = 1;
     SELECT 1;
 END`,
-			wantErr: `duplicate condition value`,
+			wantCode: "duplicate_handler_condition",
 		},
 		{
 			name: "HANDLER different conditions same kind OK",
@@ -278,7 +279,7 @@ BEGIN
     DECLARE CONTINUE HANDLER FOR NOT FOUND, NOT FOUND SET @d = 1;
     SELECT 1;
 END`,
-			wantErr: `duplicate condition value`,
+			wantCode: "duplicate_handler_condition",
 		},
 
 		// ---------- Function RETURN coverage ----------
@@ -345,7 +346,7 @@ END`,
 BEGIN
     SIGNAL SQLSTATE '45000';
 END`,
-			wantErr: `no RETURN found in function body`,
+			wantCode: "function_missing_return",
 		},
 		{
 			name: "function whose body is just BEGIN ... SELECT (no RETURN)",
@@ -353,7 +354,7 @@ END`,
 BEGIN
     SELECT 1;
 END`,
-			wantErr: `no RETURN found in function body`,
+			wantCode: "function_missing_return",
 		},
 		{
 			name: "function with HANDLER + RETURN at end",
@@ -371,7 +372,7 @@ END`,
 BEGIN
     RETURN 1;
 END`,
-			wantErr: `RETURN is only allowed inside a function body`,
+			wantCode: "return_outside_function",
 		},
 		{
 			name: "RETURN inside trigger rejected",
@@ -379,7 +380,7 @@ END`,
 BEGIN
     RETURN 1;
 END`,
-			wantErr: `RETURN is only allowed inside a function body`,
+			wantCode: "return_outside_function",
 		},
 		{
 			name: "RETURN inside event rejected",
@@ -387,7 +388,7 @@ END`,
 BEGIN
     RETURN 1;
 END`,
-			wantErr: `RETURN is only allowed inside a function body`,
+			wantCode: "return_outside_function",
 		},
 		{
 			name: "RETURN nested inside function (in HANDLER body)",
@@ -401,19 +402,23 @@ END`,
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, err := Parse(c.sql)
-			if c.wantErr == "" {
-				if err != nil {
-					t.Fatalf("Parse failed: %v", err)
+			list, err := parser.Parse(c.sql)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			diags := Validate(list, Options{})
+			if c.wantCode == "" {
+				for _, d := range diags {
+					t.Errorf("unexpected diagnostic: %+v", d)
 				}
 				return
 			}
-			if err == nil {
-				t.Fatalf("expected error containing %q, got nil", c.wantErr)
+			for _, d := range diags {
+				if d.Code == c.wantCode {
+					return
+				}
 			}
-			if !strings.Contains(err.Error(), c.wantErr) {
-				t.Fatalf("error = %q, want substring %q", err.Error(), c.wantErr)
-			}
+			t.Fatalf("expected diagnostic code %q, got %v", c.wantCode, diags)
 		})
 	}
 }
