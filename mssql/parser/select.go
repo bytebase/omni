@@ -782,13 +782,17 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 			Loc:   nodes.Loc{Start: loc, End: -1},
 		}
 
-		// Alias
-		alias := p.parseOptionalAlias()
+		// Alias [ ( col1, col2, ... ) ]
+		alias, cols, err := p.parseAliasAndOptionalColumnList()
+		if err != nil {
+			return nil, err
+		}
 		if alias != "" {
 			result := &nodes.AliasedTableRef{
-				Table: subExpr,
-				Alias: alias,
-				Loc:   nodes.Loc{Start: loc, End: -1},
+				Table:   subExpr,
+				Alias:   alias,
+				Columns: cols,
+				Loc:     nodes.Loc{Start: loc, End: -1},
 			}
 			return p.parsePivotUnpivot(result)
 		}
@@ -1082,17 +1086,15 @@ func (p *Parser) parseTableValuedFunction(ref *nodes.TableRef) (nodes.TableExpr,
 		return nil, err
 	}
 
-	alias := p.parseOptionalAlias()
-	if alias != "" {
-		return &nodes.AliasedTableRef{
-			Table: fc,
-			Alias: alias,
-			Loc:   nodes.Loc{Start: loc, End: -1},
-		}, nil
+	alias, cols, err := p.parseAliasAndOptionalColumnList()
+	if err != nil {
+		return nil, err
 	}
 	return &nodes.AliasedTableRef{
-		Table: fc,
-		Loc:   nodes.Loc{Start: loc, End: -1},
+		Table:   fc,
+		Alias:   alias,
+		Columns: cols,
+		Loc:     nodes.Loc{Start: loc, End: -1},
 	}, nil
 }
 
@@ -1113,6 +1115,36 @@ func (p *Parser) parseOptionalAlias() string {
 		return name
 	}
 	return ""
+}
+
+// parseAliasAndOptionalColumnList parses the `[ AS alias ] [ ( col1, col2, ... ) ]`
+// tail that appears after a derived-table-like source (subquery, TVF, VALUES, rowset).
+// The column list is only consumed when a non-empty alias was parsed.
+// Returns ("", nil, nil) when no alias is present.
+func (p *Parser) parseAliasAndOptionalColumnList() (string, *nodes.List, error) {
+	alias := p.parseOptionalAlias()
+	if alias == "" {
+		return "", nil, nil
+	}
+	if p.cur.Type != '(' {
+		return alias, nil, nil
+	}
+	p.advance() // consume '('
+	var cols []nodes.Node
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		name, ok := p.parseIdentifier()
+		if !ok {
+			return alias, nil, p.unexpectedToken()
+		}
+		cols = append(cols, &nodes.String{Str: name})
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return alias, nil, err
+	}
+	return alias, &nodes.List{Items: cols}, nil
 }
 
 // isSelectClauseIdent returns true if the current token is a contextual
