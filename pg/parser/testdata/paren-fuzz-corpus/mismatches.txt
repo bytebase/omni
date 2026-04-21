@@ -1,0 +1,99 @@
+# paren-fuzz mismatches (seed=0xbadc0de1, corpus=100)
+# 12 mismatches recorded; see README.md for format.
+
+--- mismatch 1 (family=seed) ---
+SQL:      SELECT * FROM (SELECT 1) SELECT 1
+pg:       reject(42601)
+omni:     subquery
+pg_err:   42601: syntax error at or near "SELECT"
+omni_err: 
+duration: 1.002417ms
+
+--- mismatch 2 (family=reserved-misuse) ---
+SQL:      SELECT * FROM (SELECT a FROM T WHERE a > 0) SELECT 1
+pg:       reject(42601)
+omni:     subquery
+pg_err:   42601: syntax error at or near "SELECT"
+omni_err: 
+duration: 990.834µs
+
+--- mismatch 3 (family=reserved-misuse) ---
+SQL:      SELECT * FROM (SELECT a, b FROM U) SELECT 1
+pg:       reject(42601)
+omni:     subquery
+pg_err:   42601: syntax error at or near "SELECT"
+omni_err: 
+duration: 864.292µs
+
+--- mismatch 4 (family=reserved-misuse) ---
+SQL:      SELECT * FROM (SELECT a, b FROM U) SELECT 1
+pg:       reject(42601)
+omni:     subquery
+pg_err:   42601: syntax error at or near "SELECT"
+omni_err: 
+duration: 1.00975ms
+
+--- mismatch 5 (family=seed) ---
+SQL:      SELECT * FROM (T JOIN U)
+pg:       reject(42601)
+omni:     joined_table
+pg_err:   42601: syntax error at or near ")"
+omni_err: 
+duration: 1.0655ms
+
+--- mismatch 6 (family=seed) ---
+SQL:      SELECT * FROM (VALUES (1), (2)) SELECT 1
+pg:       reject(42601)
+omni:     subquery
+pg_err:   42601: syntax error at or near "SELECT"
+omni_err: 
+duration: 1.0245ms
+
+--- mismatch 7 (family=seed) ---
+SQL:      SELECT * FROM (WITH w AS (SELECT 1) SELECT * FROM w) SELECT 1
+pg:       reject(42601)
+omni:     subquery
+pg_err:   42601: syntax error at or near "SELECT"
+omni_err: 
+duration: 991.375µs
+
+--- mismatch 8 (family=reserved-misuse) ---
+SQL:      SELECT * FROM (WITH w AS (SELECT 1, 2) SELECT * FROM w) SELECT 1
+pg:       reject(42601)
+omni:     subquery
+pg_err:   42601: syntax error at or near "SELECT"
+omni_err: 
+duration: 1.03025ms
+
+--- mismatch 9 (family=joined-table) ---
+SQL:      SELECT * FROM (foo LEFT JOIN W)
+pg:       reject(42601)
+omni:     joined_table
+pg_err:   42601: syntax error at or near ")"
+omni_err: 
+duration: 990.834µs
+
+--- mismatch 10 (family=seed) ---
+SQL:      SELECT * FROM (foo LEFT JOIN W)
+pg:       reject(42601)
+omni:     joined_table
+pg_err:   42601: syntax error at or near ")"
+omni_err: 
+duration: 927.417µs
+
+--- mismatch 11 (family=joined-table) ---
+SQL:      SELECT * FROM (foo RIGHT OUTER JOIN W)
+pg:       reject(42601)
+omni:     joined_table
+pg_err:   42601: syntax error at or near ")"
+omni_err: 
+duration: 1.002209ms
+
+--- mismatch 12 (family=seed) ---
+SQL:      SELECT * FROM (foo RIGHT OUTER JOIN W)
+pg:       reject(42601)
+omni:     joined_table
+pg_err:   42601: syntax error at or near ")"
+omni_err: 
+duration: 954.125µs
+
