@@ -1334,18 +1334,34 @@ func (p *Parser) consumeMatchedParenIsSubquery() bool {
 
 // parseLateralTableRef handles LATERAL prefix.
 //
-// Ref: https://www.postgresql.org/docs/17/sql-select.html
+// Ref: gram.y:13611-13620 (PG 17 table_ref LATERAL alternatives)
 //
-//	LATERAL_P func_table func_alias_clause
-//	| LATERAL_P select_with_parens opt_alias_clause
-//	| LATERAL_P xmltable opt_alias_clause
-//	| LATERAL_P json_table opt_alias_clause
+//	table_ref:
+//	    ...
+//	  | LATERAL_P func_table func_alias_clause
+//	  | LATERAL_P select_with_parens opt_alias_clause
+//	  | LATERAL_P xmltable opt_alias_clause
+//	  | LATERAL_P json_table opt_alias_clause
+//
+// Dispatch technique: T6 (dedicated nonterminal dispatch per PG
+// production). The four LATERAL-prefixed variants have disjoint leading
+// tokens after LATERAL: `(` (select_with_parens), XMLTABLE, JSON_TABLE,
+// and everything else (func_table via func_expr_windowless, which
+// admits ROWS FROM and func_expr_common_subexpr starters).
+//
+// Notably absent: bare `LATERAL <relation>` is NOT a grammar production
+// (relation_expr's LATERAL-less variant is the only way to spell a
+// plain relation reference). We enforce that by post-filtering the
+// func_table branch — if `parseFuncExprWindowless` returned a bare
+// ColumnRef (no parenthesized argument list), the content wasn't a
+// valid func_application and we reject it with a syntax error matching
+// PG 17.
 func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 	lateralLoc := p.pos()
 	p.advance() // consume LATERAL
 
+	// LATERAL select_with_parens opt_alias_clause
 	if p.cur.Type == '(' {
-		// LATERAL select_with_parens
 		stmt, err := p.parseSelectWithParens()
 		if err != nil {
 			return nil, err
@@ -1359,6 +1375,7 @@ func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 		}, nil
 	}
 
+	// LATERAL ROWS FROM (...) — a sub-production of func_table
 	if p.cur.Type == ROWS {
 		rf, err := p.parseRowsFromTable()
 		if err != nil {
@@ -1405,9 +1422,22 @@ func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 	}
 
 	// LATERAL func_table func_alias_clause
+	//
+	// func_table = func_expr_windowless opt_ordinality (gram.y:13730).
+	// func_expr_windowless = func_application | func_expr_common_subexpr
+	// (gram.y:14470). Neither alternative admits a bare identifier — a
+	// plain `LATERAL u` is therefore not a grammar production and must
+	// be rejected.
+	funcStart := p.cur
 	funcExpr, err := p.parseFuncExprWindowless()
 	if err != nil {
 		return nil, err
+	}
+	// Reject bare relation references (ColumnRef without a following
+	// argument list) — these are not valid func_application shapes.
+	// Matches PG 17's rejection of `FROM t, LATERAL u`.
+	if _, isColRef := funcExpr.(*nodes.ColumnRef); isColRef {
+		return nil, p.syntaxErrorAtTok(funcStart)
 	}
 	rf := &nodes.RangeFunction{
 		Lateral:   true,
