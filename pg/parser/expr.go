@@ -592,6 +592,35 @@ func (p *Parser) parseBetweenExpr(left nodes.Node, negated bool) (nodes.Node, er
 }
 
 // parseInExpr parses IN (expr_list) or IN (subquery).
+//
+// PG grammar (gram.y:14973-14998, in_expr):
+//
+//	in_expr:
+//	    select_with_parens
+//	    | '(' expr_list ')'
+//
+// The ambiguity at the opening '(' is that both branches begin with
+// '('. A 1-token peek after '(' is not sufficient because
+// select_with_parens admits '(' select_with_parens ')' — i.e. the
+// subquery itself can be parenthesized, so the first token after the
+// outer '(' can itself be '(' for subquery cases like
+// IN ((SELECT 1) UNION (SELECT 2)). Conversely, a top-level `,` inside
+// the IN's parens commits to expr_list even when the individual
+// elements are themselves parenthesized sub-selects — see the
+// partition_prune.sql regression `IN ((SELECT 1), (SELECT 2))`.
+//
+// Technique: hybrid T3 + T8. If the immediate post-'(' token is a
+// SELECT-start keyword (SELECT / VALUES / WITH / TABLE), commit to the
+// subquery branch directly (T8 FIRST-set predicate via isSelectStart).
+// Otherwise, if it's '(' — the ambiguous case — snapshot the token
+// stream and scan forward (T3), tracking paren balance, looking for a
+// top-level ',' (→ expr_list), a top-level set-op
+// (UNION/INTERSECT/EXCEPT → subquery), or the IN's matching ')' (→
+// single-element case; disambiguate via FIRST-set probe of the
+// element after peeling leading '(' tokens).
+//
+// PG rejects empty IN () lists, so we reject ')' here immediately —
+// omni previously accepted it silently.
 func (p *Parser) parseInExpr(left nodes.Node, negated bool) (nodes.Node, error) {
 	p.advance() // consume IN
 
@@ -605,9 +634,23 @@ func (p *Parser) parseInExpr(left nodes.Node, negated bool) (nodes.Node, error) 
 	}
 	p.advance() // consume '('
 
-	// Try to determine if this is a subquery or expression list.
-	// Subqueries start with SELECT, VALUES, WITH, or '(' followed by another select.
-	if p.isSelectStart() {
+	// PG rejects empty IN () lists with a syntax error.
+	if p.cur.Type == ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	// Dispatch: subquery vs expr_list.
+	//
+	// Case 1 (fast path): current token is a SELECT-start keyword —
+	// unambiguously a subquery.
+	//
+	// Case 2: current token is '(' — could be either a parenthesized
+	// subquery (select_with_parens recursion: IN ((SELECT 1))) OR a
+	// parenthesized-leading expression list (IN ((1,2), (3,4)) with a
+	// row constructor as the first element). Scan past consecutive '('
+	// tokens to find the first non-'(' token. If SELECT-start, route
+	// subquery; otherwise expr_list.
+	if p.isSelectStart() || (p.cur.Type == '(' && p.lookaheadInIsSubquery()) {
 		subquery, err := p.parseSelectStmtForExpr()
 		if err != nil {
 			return nil, err
@@ -645,6 +688,108 @@ func (p *Parser) parseInExpr(left nodes.Node, negated bool) (nodes.Node, error) 
 		Lexpr:    left,
 		Rexpr:    exprs,
 	}, nil
+}
+
+// lookaheadInIsSubquery decides whether `IN (` is followed by a
+// select_with_parens (subquery) or an `expr_list` whose first element
+// is itself parenthesized (e.g. a row constructor, or a parenthesized
+// sub-select expression used as one list element).
+//
+// Precondition: the caller has consumed IN '(' and p.cur is the first
+// token inside the IN's parens (already verified to be '(' at the call
+// site).
+//
+// Strategy: track paren balance relative to the IN's opening '(' (we
+// treat "depth 0" as being just inside that opening paren). Walk the
+// token stream and look at tokens at depth 0 — if we see:
+//
+//   - ',' at depth 0  → expr_list (elements separated by top-level comma).
+//     This is the `IN ((select 1), (select 2))` case from partition_prune.sql
+//     where each list element is itself a parenthesized sub-select expression,
+//     parsed as a normal a_expr rather than the list being one subquery.
+//   - UNION / INTERSECT / EXCEPT at depth 0 → subquery (set-op, invalid
+//     in expr_list). This catches `IN ((SELECT 1) UNION (SELECT 2))`.
+//   - ')' at depth 0 → end of IN parens with a single element; look at
+//     what was the very first non-'(' token we saw inside. If it was a
+//     SELECT-start keyword, it's a subquery; otherwise expr_list.
+//   - EOF → malformed input; return false and let the expr_list branch
+//     surface the real parse error.
+//
+// Uses snapshotTokenStream / restoreTokenStream per pg/parser's
+// backtracking discipline (see CLAUDE.md §Backtracking discipline and
+// backtrack.go) — lookahead consumes multiple tokens and we must roll
+// back to the original position regardless of the outcome.
+func (p *Parser) lookaheadInIsSubquery() bool {
+	if p.cur.Type != '(' {
+		return false
+	}
+	snap := p.snapshotTokenStream()
+	defer p.restoreTokenStream(snap)
+
+	// Pass 1: find the first event at depth 0 (relative to the IN's
+	// '(' — we are already just past it). Depth starts at 0; '('
+	// deepens, ')' shallows. A top-level ',' commits to expr_list; a
+	// top-level UNION/INTERSECT/EXCEPT commits to subquery; depth
+	// going below zero (the matching ')' of the IN) means single
+	// element and we fall through to pass 2.
+	depth := 0
+	for p.cur.Type != 0 { // 0 == lex_EOF
+		switch p.cur.Type {
+		case '(':
+			depth++
+		case ')':
+			if depth == 0 {
+				// Reached the IN's matching ')' — single element
+				// form. Break out to pass 2 to decide via FIRST-set
+				// probe of the element content.
+				goto singleElement
+			}
+			depth--
+		case ',':
+			if depth == 0 {
+				// Top-level comma → expr_list, even when individual
+				// elements are parenthesized sub-selects (the pg
+				// partition_prune.sql pattern `IN ((SELECT 1),
+				// (SELECT 2))`).
+				return false
+			}
+		case UNION, INTERSECT, EXCEPT:
+			if depth == 0 {
+				// Top-level set-op on the IN's content — subquery
+				// branch, because expr_list elements can't contain a
+				// top-level set-op.
+				return true
+			}
+		}
+		p.advance()
+	}
+	// EOF before finding a matching ')' — malformed. Let the
+	// expr_list branch surface the error.
+	return false
+
+singleElement:
+	// Pass 2: single-element case. Roll back to the original position
+	// and walk past any leading '(' to peek at the element's first
+	// non-'(' token. Subquery iff SELECT-start. The outer-function
+	// defer will restore again, but since we restored to the same
+	// anchor, the final state is unchanged.
+	p.restoreTokenStream(snap)
+	for p.cur.Type == '(' {
+		p.advance()
+	}
+	return isSelectStartToken(p.cur.Type)
+}
+
+// isSelectStartToken returns true for SELECT / VALUES / WITH / TABLE —
+// the FIRST set of select_with_parens's body. Mirrors isSelectStart
+// but for a bare token type rather than p.cur (used from
+// lookaheadInIsSubquery after backtrack state has been captured).
+func isSelectStartToken(tok int) bool {
+	switch tok {
+	case SELECT, VALUES, WITH, TABLE:
+		return true
+	}
+	return false
 }
 
 // parseLikeExpr parses [NOT] LIKE a_expr [ESCAPE a_expr].
