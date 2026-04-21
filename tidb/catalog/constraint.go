@@ -24,4 +24,8 @@ type Constraint struct {
 	CheckExpr     string
 	NotEnforced   bool
 	CheckAnalyzed AnalyzedExpr // Phase 3: analyzed CHECK expression body
+
+	// TiDB-specific constraint metadata.
+	// Clustered is nil when unset, &true for CLUSTERED PK, &false for NONCLUSTERED.
+	Clustered *bool
 }
