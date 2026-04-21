@@ -31,3 +31,44 @@ jobs:
 
       - name: Test
         run: go test -short ./...
+
+      # SCENARIOS-pg-paren-dispatch.md §5.3 — PAREN_AUDIT lint gate.
+      # Runs on every PR/push; fails CI when a new `(` / `)` dispatch
+      # site is added without a matching row in PAREN_AUDIT.json or
+      # when an aligned=yes row loses its proof_notes.
+      - name: PAREN_AUDIT lint
+        run: go test -run TestPARENAuditLint ./pg/parser/... -count=1 -v
+
+  paren-fuzz:
+    # SCENARIOS-pg-paren-dispatch.md §5.2 — property-based fuzz corpus
+    # run against a PG 17 testcontainer. PAREN_FUZZ_DEFER keeps the job
+    # non-blocking: new mismatches are persisted to
+    # testdata/paren-fuzz-defer/<timestamp>.txt for human triage rather
+    # than auto-failing the pipeline. The strict set-equality gate
+    # (without PAREN_FUZZ_DEFER) remains the developer-side promote
+    # check.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        go-version: ['1.25']
+    env:
+      PAREN_FUZZ_SIZE: '1000'
+      PAREN_FUZZ_DEFER: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Paren fuzz (N=1000, defer mode)
+        run: go test -tags=oracle -timeout 15m -run TestParenOracleFuzz ./pg/parser/... -count=1 -v
+
+      - name: Upload deferred-mismatch artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paren-fuzz-defer
+          path: pg/parser/testdata/paren-fuzz-defer/*.txt
+          if-no-files-found: ignore

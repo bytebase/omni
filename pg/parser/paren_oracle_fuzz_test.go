@@ -9,8 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestParenOracleFuzz implements SCENARIOS-pg-paren-dispatch.md §2.8 — a
@@ -26,7 +28,7 @@ import (
 //  2. A handful of template families — nested parens, SELECT/VALUES/WITH/
 //     TABLE subqueries, UNION/INTERSECT/EXCEPT, JOIN/CROSS/NATURAL, LATERAL,
 //     alias/column-list, obvious-reject — random substitution per slot.
-//  3. Target size fuzzCorpusSize = 100 (tuned from the ~2-min-for-200-probes
+//  3. Target size fuzzCorpusSizeDefault = 100 (tuned from the ~2-min-for-200-probes
 //     budget in paren_oracle_test.go minus overhead of PG + omni double-
 //     parse per probe; at ~500ms each this leaves margin).
 //  4. Probe each via ProbeParen (NOT assertParenParity — the fuzz loop
@@ -51,14 +53,49 @@ import (
 // predict the target shape (that's §2.2–§2.7's job), only that the
 // accept/reject decision agrees.
 const (
-	fuzzSeed       int64 = 0xBADC0DE1 // stable across CI runs
-	fuzzCorpusSize int   = 100
+	fuzzSeed               int64 = 0xBADC0DE1 // stable across CI runs
+	fuzzCorpusSizeDefault  int   = 100
 
 	// fuzzCorpusDir is relative to the test binary's working directory
 	// (pg/parser/). seed-cases.txt, mismatches.txt, and
 	// known-mismatches.txt all live here.
 	fuzzCorpusDir = "testdata/paren-fuzz-corpus"
+
+	// fuzzDeferDir receives auto-persisted mismatches in CI-defer mode
+	// (see PAREN_FUZZ_DEFER env var below). One timestamped file per
+	// run; humans triage from there into known-mismatches.txt.
+	fuzzDeferDir = "testdata/paren-fuzz-defer"
+
+	// PAREN_FUZZ_SIZE overrides fuzzCorpusSizeDefault at runtime so CI
+	// can dial the per-PR batch (N=1000) up to nightly (N=10000) without
+	// recompiling. Unset or <=0 falls back to the default.
+	envFuzzSize = "PAREN_FUZZ_SIZE"
+
+	// PAREN_FUZZ_DEFER switches the strict set-equality gate against
+	// known-mismatches.txt into a non-blocking "log + persist" mode
+	// used by the CI fuzz job (§5.2). Non-empty value enables defer
+	// mode: new mismatches get written under fuzzDeferDir with a
+	// timestamp and the test returns success so the CI job doesn't
+	// auto-fail on findings that need human triage.
+	envFuzzDefer = "PAREN_FUZZ_DEFER"
 )
+
+// fuzzCorpusSize resolves the effective corpus size for this run,
+// honouring the PAREN_FUZZ_SIZE env var (see envFuzzSize).
+func fuzzCorpusSize() int {
+	if v := strings.TrimSpace(os.Getenv(envFuzzSize)); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return fuzzCorpusSizeDefault
+}
+
+// fuzzDeferMode reports whether the strict known-mismatches gate
+// should downgrade to log-and-persist (see envFuzzDefer).
+func fuzzDeferMode() bool {
+	return strings.TrimSpace(os.Getenv(envFuzzDefer)) != ""
+}
 
 // parenFuzzGenerator produces balanced-paren FROM-clause SQL statements
 // from a template family + random slot substitutions. It's deliberately
@@ -441,7 +478,7 @@ func persistMismatches(t *testing.T, mismatches []fuzzMismatch) {
 		return mismatches[i].sql < mismatches[j].sql
 	})
 	var b strings.Builder
-	fmt.Fprintf(&b, "# paren-fuzz mismatches (seed=0x%x, corpus=%d)\n", fuzzSeed, fuzzCorpusSize)
+	fmt.Fprintf(&b, "# paren-fuzz mismatches (seed=0x%x, corpus=%d)\n", fuzzSeed, fuzzCorpusSize())
 	fmt.Fprintf(&b, "# %d mismatches recorded; see README.md for format.\n\n", len(mismatches))
 	for i, m := range mismatches {
 		fmt.Fprintf(&b, "--- mismatch %d (family=%s) ---\n", i+1, m.family)
@@ -516,8 +553,9 @@ func TestParenOracleFuzz(t *testing.T) {
 		sql    string
 		family string
 	}
-	probes := make([]probe, 0, fuzzCorpusSize+32)
-	for i := 0; i < fuzzCorpusSize; i++ {
+	size := fuzzCorpusSize()
+	probes := make([]probe, 0, size+32)
+	for i := 0; i < size; i++ {
 		sql, family := gen.generateOne()
 		probes = append(probes, probe{sql: sql, family: family})
 	}
@@ -598,6 +636,31 @@ func TestParenOracleFuzz(t *testing.T) {
 	}
 	sort.Strings(unexpected)
 	sort.Strings(disappeared)
+
+	// CI-defer mode (SCENARIOS §5.2): the ci.yml fuzz job runs with
+	// PAREN_FUZZ_DEFER=1 and a larger corpus. In that mode we don't
+	// want a fresh mismatch to auto-fail the build — the fuzz corpus
+	// is inherently probabilistic at N=1000+ and humans need to triage
+	// each finding before pinning it to known-mismatches.txt. So we
+	// persist unexpected mismatches to testdata/paren-fuzz-defer/
+	// <timestamp>.txt and return green. Disappeared mismatches are
+	// still reported (as info) because a fuzz run at larger N is a
+	// superset — anything in known-mismatches should still appear.
+	if fuzzDeferMode() {
+		if len(unexpected) > 0 {
+			if err := persistDeferredMismatches(t, mismatches, known); err != nil {
+				t.Fatalf("defer persist: %v", err)
+			}
+			t.Logf("fuzz-defer: %d new mismatch(es) logged to %s for triage",
+				len(unexpected), fuzzDeferDir)
+		}
+		if len(disappeared) > 0 {
+			t.Logf("fuzz-defer: %d known mismatch(es) did not reproduce at N=%d (expected when larger N shifts RNG sampling)",
+				len(disappeared), size)
+		}
+		return
+	}
+
 	if len(unexpected) > 0 || len(disappeared) > 0 {
 		if len(unexpected) > 0 {
 			t.Errorf("fuzz discovered %d NEW mismatch(es) not in known-mismatches.txt:", len(unexpected))
@@ -613,4 +676,45 @@ func TestParenOracleFuzz(t *testing.T) {
 		}
 		t.Fatalf("fuzz mismatch set differs from known-mismatches.txt; see testdata/paren-fuzz-corpus/mismatches.txt for full triage")
 	}
+}
+
+// persistDeferredMismatches writes only the NEW (not-in-known) mismatches
+// to a timestamped file under testdata/paren-fuzz-defer/. Used by the
+// CI fuzz job running with PAREN_FUZZ_DEFER=1 so regressions don't
+// auto-fail the pipeline but do get surfaced for human triage.
+func persistDeferredMismatches(t *testing.T, all []fuzzMismatch, known map[string]struct{}) error {
+	t.Helper()
+	if err := os.MkdirAll(fuzzDeferDir, 0o755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", fuzzDeferDir, err)
+	}
+	stamp := time.Now().UTC().Format("20060102T150405Z")
+	path := filepath.Join(fuzzDeferDir, stamp+".txt")
+	var b strings.Builder
+	fmt.Fprintf(&b, "# paren-fuzz deferred mismatches (seed=0x%x, corpus=%d, timestamp=%s)\n",
+		fuzzSeed, fuzzCorpusSize(), stamp)
+	fmt.Fprintf(&b, "# NEW mismatches (not present in known-mismatches.txt).\n")
+	fmt.Fprintf(&b, "# Triage: if legitimate, move the line into known-mismatches.txt; if a bug, fix and drop here.\n\n")
+	n := 0
+	// Deterministic ordering.
+	sort.Slice(all, func(i, j int) bool { return all[i].sql < all[j].sql })
+	for _, m := range all {
+		if _, ok := known[mismatchKey(m)]; ok {
+			continue
+		}
+		n++
+		fmt.Fprintf(&b, "--- deferred mismatch %d (family=%s) ---\n", n, m.family)
+		fmt.Fprintf(&b, "SQL:      %s\n", m.sql)
+		fmt.Fprintf(&b, "pg:       %s\n", m.r.PGStatus)
+		fmt.Fprintf(&b, "omni:     %s\n", m.r.OmniStatus)
+		fmt.Fprintf(&b, "pg_err:   %s\n", m.r.PGError)
+		fmt.Fprintf(&b, "omni_err: %s\n\n", m.r.OmniError)
+	}
+	if n == 0 {
+		// Nothing to write.
+		return nil
+	}
+	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
 }
