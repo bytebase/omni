@@ -1095,7 +1095,7 @@ func (p *Parser) parseInstallComponentStmt(start int) (*nodes.InstallComponentSt
 	if p.cur.Type == kwSET {
 		p.advance() // consume SET
 		for {
-			asgn, err := p.parseSetAssignment(true)
+			asgn, err := p.parseSetAssignment()
 			if err != nil {
 				return nil, err
 			}
