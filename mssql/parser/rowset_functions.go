@@ -48,13 +48,12 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 
 		alias := p.parseOptionalAlias()
 
-		result := &nodes.AliasedTableRef{
-			Table: fc,
-			Alias: alias,
-			Loc:   nodes.Loc{Start: loc, End: -1},
-		}
-		_ = withClause // WITH clause columns are consumed but not stored in AST for now
-		return result, nil
+		return &nodes.AliasedTableRef{
+			Table:   fc,
+			Alias:   alias,
+			Columns: withClause,
+			Loc:     nodes.Loc{Start: loc, End: -1},
+		}, nil
 	}
 
 	// Shouldn't happen but handle gracefully
