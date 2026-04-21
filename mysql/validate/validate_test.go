@@ -91,6 +91,70 @@ func TestValidateDuplicateCursorDirect(t *testing.T) {
 	requireCode(t, diags, "duplicate_cursor")
 }
 
+// --- Task 4.2: HANDLER condition list (direct-AST) -----------------------
+
+func TestValidateHandlerDuplicateCond(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.DeclareHandlerStmt{
+					Action: "CONTINUE",
+					Conditions: []nodes.HandlerCondValue{
+						{Kind: nodes.HandlerCondSQLState, Value: "23000"},
+						{Kind: nodes.HandlerCondSQLState, Value: "23000"},
+					},
+					Stmt: &nodes.BeginEndBlock{},
+					Loc:  nodes.Loc{Start: 10},
+				},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireCode(t, diags, "duplicate_handler_condition")
+}
+
+func TestValidateHandlerUndeclaredCond(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.DeclareHandlerStmt{
+					Action: "EXIT",
+					Conditions: []nodes.HandlerCondValue{
+						{Kind: nodes.HandlerCondName, Value: "no_such_cond"},
+					},
+					Stmt: &nodes.BeginEndBlock{},
+					Loc:  nodes.Loc{Start: 10},
+				},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireCode(t, diags, "undeclared_condition")
+}
+
+func TestValidateHandlerDeclaredCondOK(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.DeclareConditionStmt{Name: "cond_ok"},
+				&nodes.DeclareHandlerStmt{
+					Action: "EXIT",
+					Conditions: []nodes.HandlerCondValue{
+						{Kind: nodes.HandlerCondName, Value: "COND_OK"},
+					},
+					Stmt: &nodes.BeginEndBlock{},
+				},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireNoCode(t, diags, "undeclared_condition")
+	requireNoCode(t, diags, "duplicate_handler_condition")
+}
+
 func TestValidateDuplicateLabelDirect(t *testing.T) {
 	// Two sibling labeled BEGIN..END blocks inside the same routine scope.
 	// Both labels land in the enclosing (routine) scope → collision.

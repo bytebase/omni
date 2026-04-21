@@ -72,7 +72,39 @@ func (v *validator) walk(n nodes.Node) {
 		v.registerDeclareCondition(s)
 	case *nodes.DeclareCursorStmt:
 		v.registerDeclareCursor(s)
+	case *nodes.DeclareHandlerStmt:
+		v.walkDeclareHandler(s)
 	}
+}
+
+// handlerCondKey dedups a DECLARE HANDLER FOR condition-value list, mirroring
+// the parser's local key type.
+type handlerCondKey struct {
+	kind  nodes.HandlerCondKind
+	value string
+}
+
+func (v *validator) walkDeclareHandler(s *nodes.DeclareHandlerStmt) {
+	seen := make(map[handlerCondKey]bool, len(s.Conditions))
+	for _, c := range s.Conditions {
+		k := handlerCondKey{kind: c.Kind, value: lower(c.Value)}
+		if seen[k] {
+			v.emit("duplicate_handler_condition",
+				"duplicate condition value in handler declaration", s.Loc.Start)
+			continue
+		}
+		seen[k] = true
+		if c.Kind == nodes.HandlerCondName {
+			if v.scope == nil || v.scope.lookupCondition(c.Value) == nil {
+				v.emit("undeclared_condition", "undeclared condition: "+c.Value, s.Loc.Start)
+			}
+		}
+	}
+	// Handler body runs inside a HANDLER_SCOPE: outer vars/conditions/cursors
+	// visible via parent chain, but outer labels are hidden (label barrier).
+	v.push(scopeHandlerBody)
+	v.walk(s.Stmt)
+	v.pop()
 }
 
 func (v *validator) registerDeclareVar(s *nodes.DeclareVarStmt) {
