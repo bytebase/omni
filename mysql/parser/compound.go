@@ -1058,33 +1058,14 @@ func (p *Parser) parseOpenCursorStmt() (*nodes.OpenCursorStmt, error) {
 	start := p.pos()
 	p.advance() // consume OPEN
 
-	nameStart := p.pos()
 	name, _, err := p.parseIdentifier()
 	if err != nil {
-		return nil, err
-	}
-	if err := p.requireCursor(name, nameStart); err != nil {
 		return nil, err
 	}
 	return &nodes.OpenCursorStmt{
 		Loc:  nodes.Loc{Start: start, End: p.pos()},
 		Name: name,
 	}, nil
-}
-
-// requireCursor verifies that the named cursor is declared in scope. Used
-// by OPEN / FETCH / CLOSE.
-func (p *Parser) requireCursor(name string, pos int) error {
-	if p.procScope == nil {
-		return nil
-	}
-	if p.lookupCursor(name) == nil {
-		return &ParseError{
-			Message:  "undeclared cursor: " + name,
-			Position: pos,
-		}
-	}
-	return nil
 }
 
 // parseFetchCursorStmt parses a FETCH cursor statement.
@@ -1105,12 +1086,8 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 	}
 
 	// cursor_name
-	nameStart := p.pos()
 	name, _, err := p.parseIdentifier()
 	if err != nil {
-		return nil, err
-	}
-	if err := p.requireCursor(name, nameStart); err != nil {
 		return nil, err
 	}
 
@@ -1147,12 +1124,8 @@ func (p *Parser) parseCloseCursorStmt() (*nodes.CloseCursorStmt, error) {
 	start := p.pos()
 	p.advance() // consume CLOSE
 
-	nameStart := p.pos()
 	name, _, err := p.parseIdentifier()
 	if err != nil {
-		return nil, err
-	}
-	if err := p.requireCursor(name, nameStart); err != nil {
 		return nil, err
 	}
 	return &nodes.CloseCursorStmt{
