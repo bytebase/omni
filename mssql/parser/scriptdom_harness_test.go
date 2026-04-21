@@ -394,3 +394,65 @@ func TestScriptDOMDiff(t *testing.T) {
 		})
 	}
 }
+
+// TestScriptDOMRejectAlignment verifies that SQL which SqlScriptDOM rejects
+// is ALSO rejected by omni. Pinned via the negative fixtures below so that
+// comma-list strictness can't regress silently.
+func TestScriptDOMRejectAlignment(t *testing.T) {
+	h := getHarness(t)
+
+	fixtures := []struct {
+		name string
+		sql  string
+	}{
+		// empty lists
+		{"empty/alias-cols", `SELECT * FROM (SELECT 1 AS a) AS t()`},
+		{"empty/cte-cols", `WITH c() AS (SELECT 1) SELECT * FROM c`},
+		{"empty/view-cols", `CREATE VIEW v() AS SELECT 1`},
+		// INSERT INTO t () — SqlScriptDOM accepts; parity with omni ensured by
+		// commaListAllowEmpty at the call site (insert.go parseInsertStmt).
+		{"empty/in-list", `SELECT * FROM t WHERE a IN ()`},
+		{"empty/values-row", `INSERT INTO t VALUES ()`},
+		{"empty/create-table-cols", `CREATE TABLE t ()`},
+		{"empty/pivot-in", `SELECT * FROM t PIVOT (SUM(x) FOR y IN ()) p`},
+		{"empty/unpivot-in", `SELECT * FROM t UNPIVOT (v FOR c IN ()) u`},
+		{"empty/rollup", `SELECT COUNT(*) FROM t GROUP BY ROLLUP()`},
+		{"empty/cube", `SELECT COUNT(*) FROM t GROUP BY CUBE()`},
+		{"empty/partition-by", `SELECT *, ROW_NUMBER() OVER (PARTITION BY) FROM t`},
+		{"empty/index-cols", `CREATE INDEX ix ON t()`},
+		// trailing commas
+		{"trail/alias-cols", `SELECT * FROM (SELECT 1 AS a) AS t(a,)`},
+		{"trail/cte-cols", `WITH c(a,) AS (SELECT 1) SELECT * FROM c`},
+		{"trail/cte-list", `WITH c AS (SELECT 1), SELECT 1`},
+		{"trail/view-cols", `CREATE VIEW v(a,) AS SELECT 1`},
+		{"trail/insert-cols", `INSERT INTO t (a,) VALUES (1)`},
+		{"trail/values-row", `INSERT INTO t VALUES (1,)`},
+		{"trail/in-list", `SELECT * FROM t WHERE a IN (1,)`},
+		{"trail/func-args", `SELECT f(1,) FROM t`},
+		{"trail/tvf-args", `SELECT * FROM dbo.fn(1,) AS t(a)`},
+		{"trail/select-list", `SELECT * FROM t ORDER BY a,`},
+		{"trail/rollup", `SELECT COUNT(*) FROM t GROUP BY ROLLUP(a,)`},
+		{"trail/partition-by", `SELECT *, ROW_NUMBER() OVER (PARTITION BY a,) FROM t`},
+		{"trail/pivot-in", `SELECT * FROM t PIVOT (SUM(x) FOR y IN ([a],)) p`},
+		{"trail/unpivot-in", `SELECT * FROM t UNPIVOT (v FOR c IN (a,)) u`},
+		{"trail/index-cols", `CREATE INDEX ix ON t(a,)`},
+		{"trail/primary-key", `ALTER TABLE t ADD CONSTRAINT pk PRIMARY KEY (a,b,)`},
+		{"trail/constraint-cols", `CREATE TABLE t (a INT, b INT, CONSTRAINT pk PRIMARY KEY (a,b,))`},
+		{"trail/table-hint", `SELECT * FROM t WITH (NOLOCK,)`},
+	}
+
+	for _, f := range fixtures {
+		t.Run(f.name, func(t *testing.T) {
+			// Verify SqlScriptDOM rejects (sanity on our expectation).
+			want := h.Shape(t, f.sql)
+			errs, _ := want["errors"].([]any)
+			if len(errs) == 0 {
+				t.Fatalf("fixture asserts reject but SqlScriptDOM accepted: %s", f.sql)
+			}
+			// Verify omni also rejects.
+			if _, err := Parse(f.sql); err == nil {
+				t.Errorf("omni accepted input that SqlScriptDOM rejects: %s", f.sql)
+			}
+		})
+	}
+}

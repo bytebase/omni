@@ -1855,9 +1855,12 @@ func (p *Parser) parseTableHints() (*nodes.List, error) {
 		return nil, errCollecting
 	}
 
+	// Table hints allow an OPTIONAL comma between hints, so this list is not
+	// a standard comma-separated list (parseCommaList would mandate commas).
+	// We do however reject a trailing comma before ')', matching SqlScriptDOM.
 	var hints []nodes.Node
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		// Completion: after comma in table hints → table hint keywords
+		// Completion: at start of each hint slot → table hint keywords
 		if p.collectMode() {
 			p.addRuleCandidate("table_hint")
 			return nil, errCollecting
@@ -1870,12 +1873,15 @@ func (p *Parser) parseTableHints() (*nodes.List, error) {
 			break
 		}
 		hints = append(hints, hint)
-		// Optional comma between hints
+		// Optional comma between hints. If a comma is consumed, another hint
+		// MUST follow — reject `WITH (NOLOCK,)`.
 		if _, ok := p.match(','); ok {
-			// Completion: after comma in table hints → table hint keywords
 			if p.collectMode() {
 				p.addRuleCandidate("table_hint")
 				return nil, errCollecting
+			}
+			if p.cur.Type == ')' || p.cur.Type == tokEOF {
+				return nil, p.unexpectedToken()
 			}
 		}
 	}

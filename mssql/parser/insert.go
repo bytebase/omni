@@ -86,7 +86,9 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 			p.addRuleCandidate("columnref")
 			return nil, errCollecting
 		}
-		cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+		// SqlScriptDOM tolerates an empty INSERT column list `INSERT INTO t ()`,
+		// so we permit it too; trailing commas remain rejected.
+		cols, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
 			if p.collectMode() {
 				p.addRuleCandidate("columnref")
 				return nil, errCollecting
