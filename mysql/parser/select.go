@@ -1087,13 +1087,13 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 
 		// Optional alias: [AS] alias
 		if _, ok := p.match(kwAS); ok {
-			alias, _, err := p.parseIdent()
+			alias, _, err := p.parseIdentOrText()
 			if err != nil {
 				return nil, err
 			}
 			sub.Alias = alias
-		} else if p.isIdentToken() && !p.isSelectTerminator() {
-			alias, _, err := p.parseIdent()
+		} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && !p.isSelectTerminator() {
+			alias, _, err := p.parseIdentOrText()
 			if err != nil {
 				return nil, err
 			}
@@ -1134,13 +1134,13 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 
 			// Optional alias: [AS] alias
 			if _, ok := p.match(kwAS); ok {
-				alias, _, err := p.parseIdent()
+				alias, _, err := p.parseIdentOrText()
 				if err != nil {
 					return nil, err
 				}
 				sub.Alias = alias
-			} else if p.isIdentToken() && !p.isSelectTerminator() {
-				alias, _, err := p.parseIdent()
+			} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && !p.isSelectTerminator() {
+				alias, _, err := p.parseIdentOrText()
 				if err != nil {
 					return nil, err
 				}

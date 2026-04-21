@@ -39,3 +39,19 @@ func TestJsonTableAliasStringLiteral(t *testing.T) {
 		t.Fatalf("Parse(%q) error: %v", sql, err)
 	}
 }
+
+func TestDerivedTableAliasStringLiteral(t *testing.T) {
+	cases := []string{
+		`SELECT * FROM (SELECT 1) AS 'a'`,
+		`SELECT * FROM (SELECT 1) 'a'`,
+		`SELECT * FROM LATERAL (SELECT 1) AS 'a'`,
+		`SELECT * FROM LATERAL (SELECT 1) 'a'`,
+	}
+	for _, sql := range cases {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err != nil {
+				t.Fatalf("Parse(%q) error: %v", sql, err)
+			}
+		})
+	}
+}
