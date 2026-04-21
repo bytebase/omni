@@ -66,7 +66,51 @@ func (v *validator) walk(n nodes.Node) {
 		v.walkEventBody(s)
 	case *nodes.BeginEndBlock:
 		v.walkBeginEnd(s)
+	case *nodes.DeclareVarStmt:
+		v.registerDeclareVar(s)
+	case *nodes.DeclareConditionStmt:
+		v.registerDeclareCondition(s)
+	case *nodes.DeclareCursorStmt:
+		v.registerDeclareCursor(s)
 	}
+}
+
+func (v *validator) registerDeclareVar(s *nodes.DeclareVarStmt) {
+	if v.scope == nil {
+		return
+	}
+	for _, name := range s.Names {
+		key := lower(name)
+		if _, exists := v.scope.vars[key]; exists {
+			v.emit("duplicate_variable", "duplicate variable declaration: "+name, s.Loc.Start)
+			continue
+		}
+		v.scope.vars[key] = s
+	}
+}
+
+func (v *validator) registerDeclareCondition(s *nodes.DeclareConditionStmt) {
+	if v.scope == nil {
+		return
+	}
+	key := lower(s.Name)
+	if _, exists := v.scope.conditions[key]; exists {
+		v.emit("duplicate_condition", "duplicate condition declaration: "+s.Name, s.Loc.Start)
+		return
+	}
+	v.scope.conditions[key] = s
+}
+
+func (v *validator) registerDeclareCursor(s *nodes.DeclareCursorStmt) {
+	if v.scope == nil {
+		return
+	}
+	key := lower(s.Name)
+	if _, exists := v.scope.cursors[key]; exists {
+		v.emit("duplicate_cursor", "duplicate cursor declaration: "+s.Name, s.Loc.Start)
+		return
+	}
+	v.scope.cursors[key] = s
 }
 
 func (v *validator) walkRoutine(body nodes.Node, isFunction bool, params []*nodes.FuncParam) {
@@ -91,9 +135,27 @@ func (v *validator) walkEventBody(_ *nodes.CreateEventStmt) {
 }
 
 func (v *validator) walkBeginEnd(b *nodes.BeginEndBlock) {
+	// The block's label belongs to the ENCLOSING scope, mirroring sp_pcontext:
+	// BEGIN ... END's label is visible to siblings/parents, not to the body's
+	// own declarations.
+	v.registerLabel(b.Label, labelBlock, b.Loc.Start)
 	v.push(scopeBlock)
 	for _, s := range b.Stmts {
 		v.walk(s)
 	}
 	v.pop()
+}
+
+// registerLabel installs a label into the current (enclosing) scope and emits
+// duplicate_label on collision. Safe to call with an empty name.
+func (v *validator) registerLabel(name string, kind labelKind, pos int) {
+	if name == "" || v.scope == nil {
+		return
+	}
+	key := lower(name)
+	if _, exists := v.scope.labels[key]; exists {
+		v.emit("duplicate_label", "duplicate label: "+name, pos)
+		return
+	}
+	v.scope.labels[key] = labelInfo{kind: kind, pos: pos}
 }
