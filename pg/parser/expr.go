@@ -1753,9 +1753,28 @@ func (p *Parser) parseArrayCExpr() (nodes.Node, error) {
 
 	if p.cur.Type == '(' {
 		p.advance()
+		// PG grammar (gram.y:15440): `ARRAY select_with_parens` requires
+		// `select_with_parens` content — i.e. select_no_parens or another
+		// select_with_parens. `parseSelectStmtForExpr` (= parseSelectNoParens)
+		// returns a non-nil SelectStmt for SELECT/VALUES/TABLE/WITH leads
+		// and nil otherwise (e.g. `ARRAY()`, `ARRAY(ROWS FROM ...)`,
+		// `ARRAY(1)`). A nil result would otherwise produce a SubLink
+		// with Subselect=nil that downstream consumers cannot interpret.
+		// Reject explicitly here (T7 post-parse content contract check)
+		// to align with PG's grammar — `ARRAY()` is rejected by gram.y
+		// because `select_with_parens` cannot reduce to empty parens,
+		// and `ARRAY(1)` / `ARRAY(ROWS FROM ...)` already error on
+		// unexpected lead tokens.
 		subquery, err := p.parseSelectStmtForExpr()
 		if err != nil {
 			return nil, err
+		}
+		// parseSelectNoParens returns a typed-nil *SelectStmt when the
+		// content is not a select_no_parens lead (SELECT/VALUES/TABLE/
+		// WITH). Boxed in a nodes.Node interface this is NOT == nil, so
+		// type-assert to detect it.
+		if s, ok := subquery.(*nodes.SelectStmt); !ok || s == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err

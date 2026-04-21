@@ -10,7 +10,7 @@
 - **94 total dispatch sites** (69 `(` opens, 25 `)` closes)
 - **5 ambiguity-present sites:** 2 already aligned (Phase 0), 3 not aligned → Phase 2 fix targets
 - **88 non-ambiguous sites:** aligned via grammar structure (unconditional `expect('(')` / `expect(')')` or T1 peek on optional list)
-- **1 unclear:** `expr.go:1610` parseArraySubscript (ARRAY subquery contract) — needs oracle cross-check, not a known bug
+- **0 unclear** (was 1: `expr.go:1610` parseArraySubscript ARRAY subquery contract — locked in by §1.4 with 6 empirical tests + caller-context proof; see paren_array_expr_test.go)
 
 ## By cluster
 
@@ -57,7 +57,7 @@
 | Site | Function | Nonterminal | Ambiguity | Technique | Aligned | Priority | Notes |
 |------|----------|-------------|-----------|-----------|---------|----------|-------|
 | expr.go:1609 | parseArraySubscript | ARRAY_SUBLINK | yes | T1 | no | med | ARRAY [ ... ] vs ARRAY ( SELECT ) ambiguity; needs T3 |
-| expr.go:1610 | parseArraySubscript | ARRAY_SUBLINK | no | T1 | unclear | med | ARRAY(...) always subquery? Cross-check PG 17 |
+| expr.go:1610 | parseArraySubscript | ARRAY_SUBLINK | no | T1+T7 | yes | med | ARRAY(...) content contract verified: parseSelectStmtForExpr (= select_no_parens) accepts SELECT/VALUES/TABLE/WITH leads, T7 nil check rejects ARRAY()/ARRAY(1)/ARRAY(ROWS FROM ...). Tests: paren_array_expr_test.go TestParenArrayExprSubqueryContract (6 scenarios). Ref: gram.y:15440-15451. |
 | expr.go:1741 | parseExplicitRow | explicit_row | no | none | yes | low | ROW keyword disambiguates |
 | expr.go:1747 | parseExplicitRow | explicit_row | no | none | yes | low | Empty row check |
 | expr.go:1773 | parseCastExpr | cast_expr | no | none | yes | low | After CAST; unconditional |

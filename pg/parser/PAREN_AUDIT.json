@@ -354,14 +354,14 @@
     "function": "parseArraySubscript",
     "nonterminals": ["ARRAY_SUBLINK"],
     "ambiguity_present": false,
-    "current_technique": "T1",
-    "pg_reference": "gram.y:14845-14850",
-    "aligned": "unclear",
+    "current_technique": "T1+T7",
+    "pg_reference": "gram.y:15440-15451",
+    "aligned": "yes",
     "blocked_by": null,
     "cluster": "C2",
     "priority": "med",
-    "proof_notes": null,
-    "suspicion_notes": "After ARRAY: the code does p.advance() and then tries parseSelectStmtForExpr(). Is this always a subquery form, or can ARRAY(...) in other contexts be mishandled? Need test: ARRAY(ROWS FROM ...) to check if parseSelectStmtForExpr correctly delegates. Cross-check against PG 17."
+    "proof_notes": "ARRAY(...) content contract: per gram.y:15440 the production is `ARRAY select_with_parens`, restricting paren content to select_no_parens (SELECT / VALUES / TABLE / WITH ... SELECT). omni's parseArrayCExpr ('(' branch) defers to parseSelectStmtForExpr (= parseSelectNoParens) which returns a typed-nil *SelectStmt for unsupported leads; the T7 nil check at expr.go:1610 rejects ARRAY(), ARRAY(ROWS FROM ...), and ARRAY(<bare expr>). Caller-context proof: parseArrayCExpr is the sole caller and is itself reachable only after the ARRAY keyword (gram.y:15440-15451 c_expr arms). Empirical proof: paren_array_expr_test.go TestParenArrayExprSubqueryContract (6 scenarios): 3 accept (TABLE foo, WITH cte AS ... SELECT, VALUES), 3 reject (ROWS FROM, bare 1, empty parens).",
+    "suspicion_notes": null
   },
   {
     "site": "expr.go:1773",

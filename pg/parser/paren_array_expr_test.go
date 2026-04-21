@@ -129,6 +129,95 @@ func TestParenArrayExprNestedConstructorAST(t *testing.T) {
 	}
 }
 
+// TestParenArrayExprSubqueryContract covers pg-paren-dispatch §1.4: the
+// content contract of `ARRAY '(' ... ')'`. Per PG 17 gram.y:15440-15451,
+// the production is `ARRAY select_with_parens`, which restricts the
+// paren content to `select_with_parens` — i.e. another wrapped
+// select_with_parens or a select_no_parens. select_no_parens admits:
+//
+//   - simple_select (SELECT, VALUES, TABLE form)
+//   - select_clause sort_clause / select_clause for_locking / etc.
+//   - with_clause select_clause ...
+//
+// It does NOT admit `ROWS FROM (...)` (func_table-only), bare
+// expressions like `ARRAY(1)`, or empty parens `ARRAY()`. omni's
+// parseArrayCExpr defers to parseSelectStmtForExpr (= parseSelectNoParens)
+// which returns a typed-nil *SelectStmt for the latter cases; the
+// fix at expr.go:1610 (T7 post-parse content contract check)
+// rejects when the subquery comes back nil.
+//
+// These six scenarios provide the empirical proof that locks in
+// PAREN_AUDIT row expr.go:1610 from `aligned: unclear` → `aligned: yes`.
+func TestParenArrayExprSubqueryContract(t *testing.T) {
+	cases := []struct {
+		sql       string
+		wantParse bool
+		why       string
+	}{
+		// --- ACCEPT: select_no_parens shapes ---------------------------------
+		// TABLE foo is a simple_select form (gram.y:13183-13186):
+		//   simple_select: TABLE relation_expr
+		// Reachable via parseSimpleSelectLeaf's TABLE arm.
+		{
+			`SELECT ARRAY(TABLE foo)`,
+			true,
+			"TABLE is simple_select → select_no_parens → select_with_parens",
+		},
+		// WITH ... SELECT is select_no_parens's with_clause+select_clause
+		// alternative (gram.y:13165-13168). parseSelectNoParens picks up
+		// the WITH lead, then parses select_clause.
+		{
+			`SELECT ARRAY(WITH cte AS (SELECT 1) SELECT * FROM cte)`,
+			true,
+			"WITH + select_clause is a select_no_parens form",
+		},
+		// VALUES is simple_select (gram.y:13180): VALUES_P ... .
+		{
+			`SELECT ARRAY(VALUES (1), (2))`,
+			true,
+			"VALUES is simple_select → select_no_parens",
+		},
+
+		// --- REJECT: not a select_no_parens lead -----------------------------
+		// ROWS FROM is reachable only through func_table (gram.y:13468);
+		// it is NOT in select_no_parens. parseSelectStmtForExpr returns
+		// nil on the unexpected ROWS lead, then expect(')') sees ROWS
+		// and emits a syntax error.
+		{
+			`SELECT ARRAY(ROWS FROM (f(1)))`,
+			false,
+			"ROWS FROM is func_table-only, not in select_no_parens",
+		},
+		// Bare expression: parseSimpleSelectLeaf rejects integer-literal
+		// lead (returns nil). The T7 post-parse check then errors before
+		// expect(')').
+		{
+			`SELECT ARRAY(1)`,
+			false,
+			"bare expr is not a select_no_parens",
+		},
+		// Empty parens: parseSimpleSelectLeaf returns nil for `)` lead.
+		// Without the T7 nil check, omni would silently produce a
+		// SubLink with Subselect=nil (which is what it did pre-1.4).
+		{
+			`SELECT ARRAY()`,
+			false,
+			"empty parens are not a select_no_parens",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.sql, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if tc.wantParse && err != nil {
+				t.Fatalf("expected parse success (%s), got error: %v", tc.why, err)
+			}
+			if !tc.wantParse && err == nil {
+				t.Fatalf("expected parse error (%s), got nil", tc.why)
+			}
+		})
+	}
+}
+
 // TestParenArrayExprSublinkAST asserts ARRAY(SELECT 1) produces a
 // SubLink with SubLinkType=ARRAY_SUBLINK, matching PG's gram.y
 // yacc action at gram.y:15440-15451.
