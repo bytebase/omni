@@ -762,24 +762,33 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		return nil, errCollecting
 	}
 
-	// Subquery: (SELECT ...)
+	// Parenthesised derived table: (SELECT ...) or (VALUES ...)
 	if p.cur.Type == '(' {
 		loc := p.pos()
 		p.advance()
-		sub, err := p.parseSelectStmt()
-		if err != nil {
-			return nil, err
-		}
-		if sub == nil {
-			return nil, p.unexpectedToken()
+
+		var inner nodes.TableExpr
+		if p.cur.Type == kwVALUES {
+			vc, err := p.parseValuesClause()
+			if err != nil {
+				return nil, err
+			}
+			inner = vc
+		} else {
+			sub, err := p.parseSelectStmt()
+			if err != nil {
+				return nil, err
+			}
+			if sub == nil {
+				return nil, p.unexpectedToken()
+			}
+			inner = &nodes.SubqueryExpr{
+				Query: sub,
+				Loc:   nodes.Loc{Start: loc, End: -1},
+			}
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
-		}
-
-		subExpr := &nodes.SubqueryExpr{
-			Query: sub,
-			Loc:   nodes.Loc{Start: loc, End: -1},
 		}
 
 		// Alias [ ( col1, col2, ... ) ]
@@ -789,14 +798,14 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		}
 		if alias != "" {
 			result := &nodes.AliasedTableRef{
-				Table:   subExpr,
+				Table:   inner,
 				Alias:   alias,
 				Columns: cols,
 				Loc:     nodes.Loc{Start: loc, End: -1},
 			}
 			return p.parsePivotUnpivot(result)
 		}
-		return p.parsePivotUnpivot(subExpr)
+		return p.parsePivotUnpivot(inner)
 	}
 
 	// Rowset functions: OPENROWSET, OPENQUERY, OPENJSON, OPENDATASOURCE, OPENXML
