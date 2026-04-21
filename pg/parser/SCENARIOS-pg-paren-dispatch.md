@@ -269,34 +269,34 @@ Phase 2 hardens the `FROM (...)` primitive. Phase 3 extends the oracle disciplin
 
 ### 3.1 parseInExpr oracle corpus
 
-- [ ] Oracle compares `WHERE x IN (1,2,3)` omni AST shape vs PG ScalarArrayOpExpr
-- [ ] Oracle compares `WHERE x IN (SELECT 1)` omni SubLink vs PG SubLink
-- [ ] Oracle probes list size variants: single element, 2-element, 10-element, 100-element (4 sizes)
-- [ ] Oracle probes literal kind variants: int, float, string, bool, null (5 kinds)
-- [ ] Oracle probes subquery kind variants: SELECT, VALUES, WITH ... SELECT, TABLE, SELECT UNION SELECT (5 kinds)
-- [ ] Oracle probes row-constructor LHS `(x,y) IN (...)` against PG (both list and subquery RHS)
-- [ ] Oracle probes `NOT IN` for expr_list path
-- [ ] Oracle probes `NOT IN` for subquery path
-- [ ] Oracle probes `IN` in JOIN ON: `FROM T JOIN U ON T.a IN (SELECT ...)`
-- [ ] Oracle probes `IN` in HAVING: `HAVING count(*) IN (1, 2, 3)`
-- [ ] Oracle probes `IN` in CASE WHEN: `CASE WHEN x IN (1,2) THEN 'y' ELSE 'n' END`
-- [ ] Oracle probes `IN` in CHECK constraint: `CREATE TABLE t (x int CHECK (x IN (1,2,3)))`
-- [ ] Oracle probes `IN` inside a subquery's WHERE: `SELECT (SELECT 1 WHERE x IN (SELECT y FROM t))`
+- [x] Oracle compares `WHERE x IN (1,2,3)` omni AST shape vs PG ScalarArrayOpExpr
+- [x] Oracle compares `WHERE x IN (SELECT 1)` omni SubLink vs PG SubLink
+- [x] Oracle probes list size variants: single element, 2-element, 10-element, 100-element (4 sizes)
+- [x] Oracle probes literal kind variants: int, float, string, bool, null (5 kinds)
+- [x] Oracle probes subquery kind variants: SELECT, VALUES, WITH ... SELECT, TABLE, SELECT UNION SELECT (5 kinds)
+- [x] Oracle probes row-constructor LHS `(x,y) IN (...)` against PG (both list and subquery RHS)
+- [x] Oracle probes `NOT IN` for expr_list path
+- [x] Oracle probes `NOT IN` for subquery path
+- [x] Oracle probes `IN` in JOIN ON: `FROM T JOIN U ON T.a IN (SELECT ...)`
+- [x] Oracle probes `IN` in HAVING: `HAVING count(*) IN (1, 2, 3)`
+- [x] Oracle probes `IN` in CASE WHEN: `CASE WHEN x IN (1,2) THEN 'y' ELSE 'n' END`
+- [ ] Oracle probes `IN` in CHECK constraint: `CREATE TABLE t (x int CHECK (x IN (1,2,3)))` — coverage debt per Codex Phase 3 spot-check; parseInExpr is caller-context agnostic, test can be added later
+- [ ] Oracle probes `IN` inside a subquery's WHERE: `SELECT (SELECT 1 WHERE x IN (SELECT y FROM t))` — coverage debt per Codex Phase 3 spot-check
 
 ### 3.2 parseLateralTableRef oracle corpus
 
-- [ ] Oracle compares LATERAL (SELECT) vs LATERAL xmltable vs LATERAL json_table AST shapes
-- [ ] Oracle probes LATERAL + column-list alias combinations
-- [ ] Oracle probes LATERAL with outer-table reference (typical correlated use)
-- [ ] Oracle probes invalid LATERAL shapes (LATERAL joined_table, LATERAL ROWS FROM without parens, etc.) and confirms omni rejects matching PG
+- [x] Oracle compares LATERAL (SELECT) vs LATERAL xmltable vs LATERAL json_table AST shapes
+- [x] Oracle probes LATERAL + column-list alias combinations
+- [x] Oracle probes LATERAL with outer-table reference (typical correlated use)
+- [x] Oracle probes invalid LATERAL shapes (LATERAL joined_table, LATERAL ROWS FROM without parens, etc.) and confirms omni rejects matching PG
 
 ### 3.3 parseArraySubscript oracle corpus
 
-- [ ] Oracle compares ARRAY[...] A_ArrayExpr vs ARRAY(...) SubLink shapes
-- [ ] Oracle probes nested ARRAY[ARRAY[...]] constructions
-- [ ] Oracle probes ARRAY with type cast combinations
-- [ ] Oracle probes ARRAY sublink with VALUES/TABLE/WITH variants
-- [ ] Oracle probes negative cases — ARRAY() empty, ARRAY[SELECT], etc.
+- [x] Oracle compares ARRAY[...] A_ArrayExpr vs ARRAY(...) SubLink shapes
+- [x] Oracle probes nested ARRAY[ARRAY[...]] constructions
+- [x] Oracle probes ARRAY with type cast combinations
+- [x] Oracle probes ARRAY sublink with VALUES/TABLE/WITH variants
+- [x] Oracle probes negative cases — ARRAY() empty, ARRAY[SELECT], etc.
 
 ---
 
