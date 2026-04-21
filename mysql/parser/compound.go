@@ -480,30 +480,10 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 	}
 
 	// condition_value [, condition_value] ...
-	// Track duplicates within this single DECLARE list. Resolve name-kind
-	// conditions against the surrounding scope chain (Group A #6).
-	seen := make(map[handlerCondKey]bool)
 	for {
-		condStart := p.pos()
 		condVal, err := p.parseHandlerConditionValue()
 		if err != nil {
 			return nil, err
-		}
-		k := handlerCondKey{kind: condVal.Kind, value: strings.ToLower(condVal.Value)}
-		if seen[k] {
-			return nil, &ParseError{
-				Message:  "duplicate condition value in handler declaration",
-				Position: condStart,
-			}
-		}
-		seen[k] = true
-		if condVal.Kind == nodes.HandlerCondName {
-			if p.lookupCondition(condVal.Value) == nil {
-				return nil, &ParseError{
-					Message:  "undeclared condition: " + condVal.Value,
-					Position: condStart,
-				}
-			}
 		}
 		stmt.Conditions = append(stmt.Conditions, condVal)
 		if p.cur.Type != ',' {
@@ -526,14 +506,6 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil
-}
-
-// handlerCondKey deduplicates condition-value entries within a single
-// DECLARE HANDLER list. Built-in categories (SQLWARNING / NOT FOUND /
-// SQLEXCEPTION) all have empty Value, so kind alone distinguishes them.
-type handlerCondKey struct {
-	kind  nodes.HandlerCondKind
-	value string
 }
 
 // parseDeclareCursorStmt parses DECLARE cursor_name CURSOR FOR select_statement.
