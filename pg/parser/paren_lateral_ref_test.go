@@ -186,3 +186,63 @@ func TestParenLateralRefJsonTableAST(t *testing.T) {
 		t.Fatalf("expected Lateral=true on JsonTable, got false")
 	}
 }
+
+// TestParenLateralRefFuncTableAliasColdefAST asserts that
+// `LATERAL f(t.x) AS fa(a int, b text)` populates the RangeFunction
+// with Alias.Aliasname="fa" AND a 2-entry Coldeflist (the typed-column
+// form of func_alias_clause: `AS ColId '(' TableFuncElementList ')'`).
+// Parse-accept alone (TestParenLateralRefDispatch) is not enough — a
+// regression that dropped the alias or failed to populate Coldeflist
+// would still parse-accept but produce a structurally wrong AST.
+func TestParenLateralRefFuncTableAliasColdefAST(t *testing.T) {
+	stmts, err := Parse(`SELECT * FROM t, LATERAL f(t.x) AS fa(a int, b text)`)
+	if err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	sel := stmts.Items[0].(*nodes.RawStmt).Stmt.(*nodes.SelectStmt)
+	rf, ok := sel.FromClause.Items[1].(*nodes.RangeFunction)
+	if !ok {
+		t.Fatalf("expected RangeFunction, got %T", sel.FromClause.Items[1])
+	}
+	if !rf.Lateral {
+		t.Fatalf("expected Lateral=true, got false")
+	}
+	if rf.Alias == nil {
+		t.Fatalf("expected non-nil Alias for `AS fa(...)`, got nil")
+	}
+	if rf.Alias.Aliasname != "fa" {
+		t.Fatalf("expected Alias.Aliasname=\"fa\", got %q", rf.Alias.Aliasname)
+	}
+	if rf.Coldeflist == nil {
+		t.Fatalf("expected non-nil Coldeflist for typed-column alias form, got nil")
+	}
+	if len(rf.Coldeflist.Items) != 2 {
+		t.Fatalf("expected 2 Coldeflist items, got %d", len(rf.Coldeflist.Items))
+	}
+}
+
+// TestParenLateralRefFuncTableOrdinalityAST asserts that
+// `LATERAL f(t.x) WITH ORDINALITY` sets Ordinality=true on the
+// RangeFunction (func_table's opt_ordinality production,
+// gram.y:13730). Mirrors the ROWS FROM ordinality assertion above but
+// for the func_application arm.
+func TestParenLateralRefFuncTableOrdinalityAST(t *testing.T) {
+	stmts, err := Parse(`SELECT * FROM t, LATERAL f(t.x) WITH ORDINALITY`)
+	if err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	sel := stmts.Items[0].(*nodes.RawStmt).Stmt.(*nodes.SelectStmt)
+	rf, ok := sel.FromClause.Items[1].(*nodes.RangeFunction)
+	if !ok {
+		t.Fatalf("expected RangeFunction, got %T", sel.FromClause.Items[1])
+	}
+	if !rf.Lateral {
+		t.Fatalf("expected Lateral=true, got false")
+	}
+	if !rf.Ordinality {
+		t.Fatalf("expected Ordinality=true on LATERAL f(...) WITH ORDINALITY, got false")
+	}
+	if rf.IsRowsfrom {
+		t.Fatalf("expected IsRowsfrom=false (func_application, not ROWS FROM), got true")
+	}
+}

@@ -1343,19 +1343,22 @@ func (p *Parser) consumeMatchedParenIsSubquery() bool {
 //	  | LATERAL_P xmltable opt_alias_clause
 //	  | LATERAL_P json_table opt_alias_clause
 //
-// Dispatch technique: T6 (dedicated nonterminal dispatch per PG
-// production). The four LATERAL-prefixed variants have disjoint leading
-// tokens after LATERAL: `(` (select_with_parens), XMLTABLE, JSON_TABLE,
-// and everything else (func_table via func_expr_windowless, which
-// admits ROWS FROM and func_expr_common_subexpr starters).
+// Dispatch technique: T6/T7 hybrid. Four LATERAL-prefixed variants have
+// disjoint leading tokens after LATERAL — T6 routes each to a
+// dedicated nonterminal: `(` (select_with_parens), XMLTABLE, JSON_TABLE,
+// ROWS (ROWS FROM sub-production of func_table), and every other lead
+// flows through func_expr_windowless (func_application |
+// func_expr_common_subexpr).
 //
-// Notably absent: bare `LATERAL <relation>` is NOT a grammar production
-// (relation_expr's LATERAL-less variant is the only way to spell a
-// plain relation reference). We enforce that by post-filtering the
-// func_table branch — if `parseFuncExprWindowless` returned a bare
-// ColumnRef (no parenthesized argument list), the content wasn't a
-// valid func_application and we reject it with a syntax error matching
-// PG 17.
+// The T7 piece is the post-parse ColumnRef rejection: gram.y has NO
+// `LATERAL relation` production, and `func_expr_windowless` in omni
+// shares a parser entry point with `columnref` parsing, so a bare
+// identifier lead (e.g. `LATERAL u`) succeeds as a ColumnRef when
+// there is no `(` follow-up. We reject that post-parse because the
+// dispatch alone cannot distinguish "func_name that returned a bare
+// identifier" (invalid) from "func_name that parsed a func_application"
+// (valid). Matches PG 17's rejection of `FROM t, LATERAL u` at parse
+// time.
 func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 	lateralLoc := p.pos()
 	p.advance() // consume LATERAL

@@ -655,6 +655,16 @@ func (p *Parser) parseInExpr(left nodes.Node, negated bool) (nodes.Node, error) 
 		if err != nil {
 			return nil, err
 		}
+		// parseSelectStmtForExpr (= parseSelectNoParens) returns a
+		// typed-nil *SelectStmt on malformed SELECT starts (e.g. bare
+		// `WITH cte AS (SELECT 1)` with no trailing select_clause).
+		// Boxed in a nodes.Node interface that is NOT == nil, so a
+		// raw `if subquery == nil` misses it. Reject here to avoid
+		// building a SubLink with Subselect=nil. Same pattern as §1.4
+		// parseArrayCExpr (see expr.go:1610 proof_notes in PAREN_AUDIT).
+		if s, ok := subquery.(*nodes.SelectStmt); !ok || s == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -719,8 +729,26 @@ func (p *Parser) parseInExpr(left nodes.Node, negated bool) (nodes.Node, error) 
 // backtracking discipline (see CLAUDE.md §Backtracking discipline and
 // backtrack.go) — lookahead consumes multiple tokens and we must roll
 // back to the original position regardless of the outcome.
+//
+// Completion-mode safety: snapshotTokenStream explicitly does NOT cover
+// completion-mode state (p.completing/p.collecting/p.candidates) — see
+// backtrack.go:8-14. If the speculative advance() loop below crosses
+// the cursor offset, checkCursor() flips p.collecting to true as a
+// side effect, and the restore does NOT roll that back (because the
+// snapshot didn't capture it). That would leave completion in an
+// inconsistent state where candidates accumulate from both the
+// speculative walk and the subsequent real parse. Guard at the top:
+// when completion is active we fall through to the expr_list branch
+// (the broader of the two), which preserves candidate registration at
+// the real parse positions without contamination from the lookahead.
 func (p *Parser) lookaheadInIsSubquery() bool {
 	if p.cur.Type != '(' {
+		return false
+	}
+	// See doc comment above: skip the speculative walk when completing
+	// to avoid corrupting candidate state across a non-round-trippable
+	// snapshot/restore.
+	if p.completing {
 		return false
 	}
 	snap := p.snapshotTokenStream()
@@ -993,6 +1021,13 @@ func (p *Parser) parseSubqueryOp(left nodes.Node, opName *nodes.List) (nodes.Nod
 		subquery, err := p.parseSelectStmtForExpr()
 		if err != nil {
 			return nil, err
+		}
+		// Typed-nil guard: see parseArrayCExpr / parseInExpr for the
+		// boxed-nil explanation. Malformed SELECT-start leads (e.g. a
+		// WITH clause with no trailing select_clause) surface as
+		// (*SelectStmt)(nil) boxed in nodes.Node.
+		if s, ok := subquery.(*nodes.SelectStmt); !ok || s == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -1644,6 +1679,13 @@ func (p *Parser) parseParenExprOrRow() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		// Typed-nil guard: see parseArrayCExpr / parseInExpr for the
+		// boxed-nil explanation. Malformed SELECT-start leads (e.g. a
+		// WITH clause with no trailing select_clause) surface as
+		// (*SelectStmt)(nil) boxed in nodes.Node.
+		if s, ok := subquery.(*nodes.SelectStmt); !ok || s == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -1723,6 +1765,15 @@ func (p *Parser) parseExistsExpr() (nodes.Node, error) {
 	subquery, err := p.parseSelectStmtForExpr()
 	if err != nil {
 		return nil, err
+	}
+	// Typed-nil guard: parseSelectStmtForExpr returns a typed-nil
+	// *SelectStmt when the paren content is not a select_no_parens
+	// lead (EXISTS() with empty parens, EXISTS(1), etc.). Boxed in
+	// nodes.Node this is NOT == nil, so a downstream consumer would
+	// crash on a SubLink{Subselect: (*SelectStmt)(nil)}. Same pattern
+	// as §1.4 parseArrayCExpr.
+	if s, ok := subquery.(*nodes.SelectStmt); !ok || s == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err

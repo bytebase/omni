@@ -44,16 +44,16 @@
   {
     "site": "select.go:1347",
     "function": "parseLateralTableRef",
-    "nonterminals": ["select_with_parens", "xmltable", "json_table"],
+    "nonterminals": ["select_with_parens", "xmltable", "json_table", "func_table"],
     "ambiguity_present": true,
-    "current_technique": "T1",
+    "current_technique": "T6+T7",
     "pg_reference": "gram.y:13611-13620",
-    "aligned": "no",
+    "aligned": "yes",
     "blocked_by": null,
     "cluster": "C1",
     "priority": "high",
-    "proof_notes": null,
-    "suspicion_notes": "Peek only checks '('; doesn't disambiguate LATERAL select_with_parens from LATERAL xmltable/json_table. Test needed: LATERAL (SELECT 1) vs LATERAL xmltable(...). Should use T6 dedicated nonterminal or T3 scan to detect XMLTABLE/JSON_TABLE keywords inside parens."
+    "proof_notes": "Phase 1 §1.2: T6/T7 hybrid. T6 dispatch arms route each disjoint lead — '(' → parseSelectWithParens, ROWS → parseRowsFromTable (ROWS FROM sub-production of func_table), XMLTABLE → parseXmlTable, JSON_TABLE → parseJsonTable, default → parseFuncExprWindowless. T7 post-parse check rejects bare ColumnRef from the func_table arm because gram.y has no `LATERAL relation` production and the shared parser entry point for func_expr_windowless also parses plain identifiers. Caller-context: parseLateralTableRef is invoked only from parseTableRefPrimary after consuming the LATERAL keyword (select.go:1107). Pinned scenarios (paren_lateral_ref_test.go TestParenLateralRefDispatch at line 33): accept — LATERAL (SELECT ...) at line 39-40, LATERAL XMLTABLE at line 43, LATERAL JSON_TABLE at line 46, LATERAL f(t.x) at line 49, LATERAL f(t.x) WITH ORDINALITY at line 50, LATERAL f(t.x) AS fa(a int, b text) at line 51, LATERAL ROWS FROM at line 54-55, LATERAL CURRENT_USER (func_expr_common_subexpr) at line 61; reject — LATERAL (a JOIN b ON TRUE) at line 68, LATERAL u (bare relation) at line 74. Additional AST-shape proof: TestParenLateralRefSubqueryAST (line 94), TestParenLateralRefFuncTableAST (line 115), TestParenLateralRefRowsFromAST (line 135), TestParenLateralRefXmlTableAST (line 158), TestParenLateralRefJsonTableAST (line 175), TestParenLateralRefFuncTableAliasColdefAST (line 197, Alias.Aliasname + Coldeflist), TestParenLateralRefFuncTableOrdinalityAST (line 229, Ordinality flag).",
+    "suspicion_notes": null
   },
   {
     "site": "select.go:1504",
@@ -197,17 +197,17 @@
   },
   {
     "site": "expr.go:1609",
-    "function": "parseArraySubscript",
-    "nonterminals": ["a_expr", "ARRAY_SUBLINK"],
+    "function": "parseArrayCExpr",
+    "nonterminals": ["A_ArrayExpr", "ARRAY_SUBLINK"],
     "ambiguity_present": true,
     "current_technique": "T1",
-    "pg_reference": "gram.y:14845-14910",
-    "aligned": "no",
+    "pg_reference": "gram.y:15440-15459",
+    "aligned": "yes",
     "blocked_by": null,
     "cluster": "C2",
     "priority": "med",
-    "proof_notes": null,
-    "suspicion_notes": "After ARRAY: could be ARRAY '[' or ARRAY '(SELECT...)' subquery. Current code peeks only once. Test: ARRAY(SELECT 1) vs ARRAY[1]. PG 17 distinguishes: ARRAY [ ... ] for literal constructor, ARRAY ( subquery ) for set-returning. Need T3 or T8 FIRST-set predicate."
+    "proof_notes": "Phase 1 §1.3: T1 peek on the first token after ARRAY — '[' routes to parseArrayExpr (array_expr constructor producing A_ArrayExpr), '(' routes to parseSelectStmtForExpr wrapped in SubLink{ARRAY_SUBLINK}. Other leads error. Caller-context: parseArrayCExpr is the sole consumer of the ARRAY c_expr lead (dispatched from c_expr at expr.go:1491 after the ARRAY keyword is matched); no other callers. Pinned scenarios (paren_array_expr_test.go TestParenArrayExprDispatch at line 37): constructor form (6) — ARRAY[1,2,3] line 43, ARRAY['a','b'] line 44, ARRAY[]::int[] line 47, ARRAY[] line 53, ARRAY[[1,2],[3,4]] line 58, ARRAY[1,2] || ARRAY[3] line 61; sublink form (4) — ARRAY(SELECT 1) line 64, ARRAY(SELECT x FROM t) line 65, ARRAY(SELECT DISTINCT ... ORDER BY) line 66, ARRAY(VALUES (1),(2)) line 67. AST-shape proof: TestParenArrayExprConstructorAST (line 87) asserts A_ArrayExpr.Elements len==2, TestParenArrayExprNestedConstructorAST (line 107) asserts nested A_ArrayExpr raw shape, TestParenArrayExprSublinkAST (line 224) asserts SubLink.SubLinkType==ARRAY_SUBLINK. Ref: gram.y:15440-15459 + 16583-16595.",
+    "suspicion_notes": null
   },
   {
     "site": "expr.go:2404",
@@ -298,14 +298,14 @@
     "function": "parseInExpr",
     "nonterminals": ["in_expr"],
     "ambiguity_present": true,
-    "current_technique": "T1",
+    "current_technique": "T3+T8",
     "pg_reference": "gram.y:14973-14998",
-    "aligned": "no",
+    "aligned": "yes",
     "blocked_by": null,
     "cluster": "C2",
     "priority": "high",
-    "proof_notes": null,
-    "suspicion_notes": "IN (...) can contain expr_list OR subquery. Current code peeks once; can't distinguish IN (1, 2) from IN (SELECT 1). Tests: IN (1, 2) vs IN (SELECT 1) vs IN (subquery UNION subquery). Need T3 scan or T8 FIRST-set for SELECT-start detection."
+    "proof_notes": "Phase 1 §1.1: T8 fast path (isSelectStart on SELECT/VALUES/WITH/TABLE) commits to the subquery branch; when the post-'(' token is itself '(' the ambiguous case is resolved by lookaheadInIsSubquery — a T3 snapshot/restore scan tracking paren balance, where top-level ',' → expr_list, top-level UNION/INTERSECT/EXCEPT → subquery, and single-element falls through to a FIRST-set probe past leading '('. Completion-mode guard added at lookaheadInIsSubquery entry because snapshotTokenStream does not cover collecting/candidates state (backtrack.go:8-14); skipping the scan when p.completing is true preserves candidate registration integrity. Caller-context: parseInExpr is entered only from precedence climbing after IN / NOT IN token consumption (expr.go:264, 294); empty `IN ()` explicitly rejected. Pinned scenarios (paren_in_expr_test.go TestParenInExprDispatch at line 25): expr_list accept — IN (1,2,3) line 31, IN (a,b,c) line 32, IN ('a','b') line 33, IN (1) line 34; subquery accept — IN (SELECT y FROM u) line 36, IN (SELECT 1) line 37, IN (SELECT 1 UNION SELECT 2) line 38, IN ((SELECT 1) UNION (SELECT 2)) line 42, IN (VALUES ...) line 43, IN (WITH cte AS ... SELECT) line 44, IN (TABLE foo) line 45; empty reject — IN () line 49; row-LHS — (x,y) IN (SELECT a,b FROM u) line 51, (x,y) IN ((1,2),(3,4)) line 52; NOT IN variants — lines 57-60; partition_prune regression — IN ((SELECT 1),(SELECT 2)) line 68, IN ((SELECT 1)) line 72. AST-shape proof: TestParenInExprSubqueryAST (line 93, ANY_SUBLINK), TestParenInExprExprListAST (line 118, A_Expr AEXPR_IN with name '='), TestParenInExprNotInSubqueryAST (line 149, BoolExpr NOT wrap), TestParenInExprNotInExprListAST (line 179, operator '<>'). Ref: gram.y:14973-14998.",
+    "suspicion_notes": null
   },
   {
     "site": "expr.go:2112",
@@ -351,7 +351,7 @@
   },
   {
     "site": "expr.go:1610",
-    "function": "parseArraySubscript",
+    "function": "parseArrayCExpr",
     "nonterminals": ["ARRAY_SUBLINK"],
     "ambiguity_present": false,
     "current_technique": "T1+T7",
@@ -360,7 +360,7 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "med",
-    "proof_notes": "ARRAY(...) content contract: per gram.y:15440 the production is `ARRAY select_with_parens`, restricting paren content to select_no_parens (SELECT / VALUES / TABLE / WITH ... SELECT). omni's parseArrayCExpr ('(' branch) defers to parseSelectStmtForExpr (= parseSelectNoParens) which returns a typed-nil *SelectStmt for unsupported leads; the T7 nil check at expr.go:1610 rejects ARRAY(), ARRAY(ROWS FROM ...), and ARRAY(<bare expr>). Caller-context proof: parseArrayCExpr is the sole caller and is itself reachable only after the ARRAY keyword (gram.y:15440-15451 c_expr arms). Empirical proof: paren_array_expr_test.go TestParenArrayExprSubqueryContract (6 scenarios): 3 accept (TABLE foo, WITH cte AS ... SELECT, VALUES), 3 reject (ROWS FROM, bare 1, empty parens).",
+    "proof_notes": "Phase 1 §1.4 (§5.3 two-proof bar). (a) Caller-context: parseArrayCExpr is the sole caller of this site; parseArrayCExpr itself is invoked exclusively from c_expr dispatch at expr.go:1491 after the ARRAY keyword is matched (gram.y:15440 c_expr: ARRAY select_with_parens / ARRAY array_expr). The '(' branch here is entered only after the preceding T1 peek at expr.go:1609 rules out '['. Inside, parseSelectStmtForExpr (= parseSelectNoParens) returns a typed-nil *SelectStmt when the paren content is not a select_no_parens lead; the T7 nil check type-asserts `*nodes.SelectStmt` and rejects when the boxed pointer is nil, preventing a downstream crash on SubLink{Subselect=(*SelectStmt)(nil)}. (b) Empirical proof (paren_array_expr_test.go TestParenArrayExprSubqueryContract at line 151, 6 pinned scenarios): accept — `SELECT ARRAY(TABLE foo)` (line 162-165, simple_select TABLE arm), `SELECT ARRAY(WITH cte AS (SELECT 1) SELECT * FROM cte)` (line 169-173, with_clause + select_clause), `SELECT ARRAY(VALUES (1), (2))` (line 175-179, simple_select VALUES); reject — `SELECT ARRAY(ROWS FROM (f(1)))` (line 186-190, ROWS FROM is func_table-only, not in select_no_parens), `SELECT ARRAY(1)` (line 194-198, bare expr is not a select_no_parens lead), `SELECT ARRAY()` (line 202-206, empty parens — pre-§1.4 this produced a SubLink{Subselect=nil}). Additional AST-shape proof: TestParenArrayExprSublinkAST (line 224) asserts SubLink.SubLinkType==ARRAY_SUBLINK for ARRAY(SELECT 1). Ref: gram.y:15440-15451.",
     "suspicion_notes": null
   },
   {
