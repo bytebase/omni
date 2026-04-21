@@ -2,7 +2,10 @@
   {
     "site": "select.go:166",
     "function": "parseSelectClausePrimary",
-    "nonterminals": ["select_with_parens", "simple_select"],
+    "nonterminals": [
+      "select_with_parens",
+      "simple_select"
+    ],
     "ambiguity_present": true,
     "current_technique": "T5",
     "pg_reference": "gram.y:12682-12688",
@@ -10,13 +13,15 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "high",
-    "proof_notes": "Left-factored: always delegates to parseSelectNoParens. Caller context: parseSelectClause passes left operand through precedence climbing; select_with_parens at depth 1 is disambiguated by set-op continuation. Test: paren_multi_join_test.go lines 18-65.",
+    "proof_notes": "\u00a75.3 two-proof bar (Phase 4 \u00a74.1 lock-in). (a) Caller-context: parseSelectClausePrimary is invoked from parseSelectClause for every leaf of the set-op precedence climb. It routes on the leading token: '(' \u2192 parseSelectNoParens via left-factoring (the Phase 0 left-factoring means we never speculatively parse a select_with_parens at this site \u2014 we always parse select_no_parens and let the enclosing set-op producer decide), SELECT/VALUES/WITH/TABLE \u2192 simple_select directly. This matches PG's reduction where simple_select at the set-op leaf can itself begin with '(' through select_no_parens \u2192 simple_select recursion. (b) Empirical proof: paren_multi_join_test.go TestParseParenSetOpInSubquery (lines 100-118, 5 pinned scenarios \u2014 UNION/UNION ALL/INTERSECT/EXCEPT/nested set-ops all with parenthesized leaves) + TestParseParenMultiJoin (lines 23-55, indirect coverage through select_with_parens at FROM level) + TestParseParenSubqueryStillWorks (lines 145-155, 5 scenarios driving single/double/triple paren-wrapped leaves). Anti-regression fence: paren_oracle_from_subquery_test.go + pgregress `union.sql`, `select.sql`, `with.sql` cover the production set-op shapes end-to-end.",
     "suspicion_notes": null
   },
   {
     "site": "select.go:77",
     "function": "parseSelectWithParens",
-    "nonterminals": ["select_with_parens"],
+    "nonterminals": [
+      "select_with_parens"
+    ],
     "ambiguity_present": false,
     "current_technique": "T5",
     "pg_reference": "gram.y:12682-12688",
@@ -24,13 +29,16 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "high",
-    "proof_notes": "Unconditional after expect('('); no disambiguation needed. Calls parseSelectNoParens unconditionally, matching PG's left-factored semantics.",
+    "proof_notes": "\u00a75.3 two-proof bar (Phase 4 \u00a74.1 lock-in). (a) Caller-context: parseSelectWithParens is the canonical entry point for the select_with_parens production (gram.y:12682 select_with_parens: '(' select_no_parens ')' | '(' select_with_parens ')'). It is reached from three dispatch sites \u2014 parseSelectClausePrimary (select.go:166), parseParenTableRef (select.go:1162 after parenBeginsSubquery scan), and parseLateralTableRef (select.go:1347 via LATERAL '(' arm). All three callers confirm '(' before delegating, so parseSelectWithParens's expect('(') is guaranteed to succeed; the left-factored body then delegates to parseSelectNoParens unconditionally, matching PG's grammar reduction (select_with_parens never fans out on any token past the leading paren). No disambiguation is possible or needed. (b) Empirical proof: paren_multi_join_test.go TestParseParenSetOpInSubquery (lines 100-118, 5 pinned scenarios: UNION, UNION ALL, INTERSECT, EXCEPT, and nested ((A UNION B) UNION C) \u2014 each inside a FROM '(' select_with_parens ')' arm) + TestParseParenSubqueryStillWorks (lines 145-155, 5 scenarios: single/double/triple paren-wrapped SELECT, VALUES, WITH CTE, TABLE forms) exercise select_with_parens through all reachable callers. Anti-regression fence: paren_oracle_from_subquery_test.go TestParenOracleFromSubquery + pgregress `union.sql`, `subselect.sql`, `with.sql` statements drive the nested-paren set-op shapes.",
     "suspicion_notes": null
   },
   {
     "site": "select.go:770",
     "function": "parseCommonTableExpr",
-    "nonterminals": ["name_list", "opt_name_list"],
+    "nonterminals": [
+      "name_list",
+      "opt_name_list"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:12765-12767",
@@ -38,13 +46,18 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "med",
-    "proof_notes": "Conditional: checks p.cur.Type == '(' for optional paren-wrapped column list. Single-token peek sufficient because '(' always signals name_list form, else empty. PG grammar: common_table_expr → name opt_name_list AS...",
+    "proof_notes": "Conditional: checks p.cur.Type == '(' for optional paren-wrapped column list. Single-token peek sufficient because '(' always signals name_list form, else empty. PG grammar: common_table_expr \u2192 name opt_name_list AS... Exercised by pgregress `with.sql` (WITH cte(a,b,c) AS ... \u2014 column-list form) and `with_recursive.sql`; also covered by pgregress `insert.sql` INSERT ... WITH CTE cases.",
     "suspicion_notes": null
   },
   {
     "site": "select.go:1347",
     "function": "parseLateralTableRef",
-    "nonterminals": ["select_with_parens", "xmltable", "json_table", "func_table"],
+    "nonterminals": [
+      "select_with_parens",
+      "xmltable",
+      "json_table",
+      "func_table"
+    ],
     "ambiguity_present": true,
     "current_technique": "T6+T7",
     "pg_reference": "gram.y:13611-13620",
@@ -52,13 +65,15 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "high",
-    "proof_notes": "Phase 1 §1.2: T6/T7 hybrid. T6 dispatch arms route each disjoint lead — '(' → parseSelectWithParens, ROWS → parseRowsFromTable (ROWS FROM sub-production of func_table), XMLTABLE → parseXmlTable, JSON_TABLE → parseJsonTable, default → parseFuncExprWindowless. T7 post-parse check rejects bare ColumnRef from the func_table arm because gram.y has no `LATERAL relation` production and the shared parser entry point for func_expr_windowless also parses plain identifiers. Caller-context: parseLateralTableRef is invoked only from parseTableRefPrimary after consuming the LATERAL keyword (select.go:1107). Pinned scenarios (paren_lateral_ref_test.go TestParenLateralRefDispatch at line 33): accept — LATERAL (SELECT ...) at line 39-40, LATERAL XMLTABLE at line 43, LATERAL JSON_TABLE at line 46, LATERAL f(t.x) at line 49, LATERAL f(t.x) WITH ORDINALITY at line 50, LATERAL f(t.x) AS fa(a int, b text) at line 51, LATERAL ROWS FROM at line 54-55, LATERAL CURRENT_USER (func_expr_common_subexpr) at line 61; reject — LATERAL (a JOIN b ON TRUE) at line 68, LATERAL u (bare relation) at line 74. Additional AST-shape proof: TestParenLateralRefSubqueryAST (line 94), TestParenLateralRefFuncTableAST (line 115), TestParenLateralRefRowsFromAST (line 135), TestParenLateralRefXmlTableAST (line 158), TestParenLateralRefJsonTableAST (line 175), TestParenLateralRefFuncTableAliasColdefAST (line 197, Alias.Aliasname + Coldeflist), TestParenLateralRefFuncTableOrdinalityAST (line 229, Ordinality flag).",
+    "proof_notes": "Phase 1 \u00a71.2: T6/T7 hybrid. T6 dispatch arms route each disjoint lead \u2014 '(' \u2192 parseSelectWithParens, ROWS \u2192 parseRowsFromTable (ROWS FROM sub-production of func_table), XMLTABLE \u2192 parseXmlTable, JSON_TABLE \u2192 parseJsonTable, default \u2192 parseFuncExprWindowless. T7 post-parse check rejects bare ColumnRef from the func_table arm because gram.y has no `LATERAL relation` production and the shared parser entry point for func_expr_windowless also parses plain identifiers. Caller-context: parseLateralTableRef is invoked only from parseTableRefPrimary after consuming the LATERAL keyword (select.go:1107). Pinned scenarios (paren_lateral_ref_test.go TestParenLateralRefDispatch at line 33): accept \u2014 LATERAL (SELECT ...) at line 39-40, LATERAL XMLTABLE at line 43, LATERAL JSON_TABLE at line 46, LATERAL f(t.x) at line 49, LATERAL f(t.x) WITH ORDINALITY at line 50, LATERAL f(t.x) AS fa(a int, b text) at line 51, LATERAL ROWS FROM at line 54-55, LATERAL CURRENT_USER (func_expr_common_subexpr) at line 61; reject \u2014 LATERAL (a JOIN b ON TRUE) at line 68, LATERAL u (bare relation) at line 74. Additional AST-shape proof: TestParenLateralRefSubqueryAST (line 94), TestParenLateralRefFuncTableAST (line 115), TestParenLateralRefRowsFromAST (line 135), TestParenLateralRefXmlTableAST (line 158), TestParenLateralRefJsonTableAST (line 175), TestParenLateralRefFuncTableAliasColdefAST (line 197, Alias.Aliasname + Coldeflist), TestParenLateralRefFuncTableOrdinalityAST (line 229, Ordinality flag).",
     "suspicion_notes": null
   },
   {
     "site": "select.go:1504",
     "function": "parseRelationExpr",
-    "nonterminals": ["func_table"],
+    "nonterminals": [
+      "func_table"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:13446-13470",
@@ -66,13 +81,15 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "med",
-    "proof_notes": "After identifier consumed; '(' always signals func_table. PG grammar: relation_expr → qualified_name [opt_alias_clause], and separately func_table: func_name(...).",
+    "proof_notes": "After identifier consumed; '(' always signals func_table. PG grammar: relation_expr \u2192 qualified_name [opt_alias_clause], and separately func_table: func_name(...). Exercised by pgregress `rangefuncs.sql`, `functional_deps.sql`, `generated.sql` (function-in-FROM), and paren_oracle_from_simple_test.go TestParenOracleFromSimple.",
     "suspicion_notes": null
   },
   {
     "site": "select.go:1528",
     "function": "parseRelationExpr",
-    "nonterminals": ["func_table"],
+    "nonterminals": [
+      "func_table"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:13450-13470",
@@ -80,13 +97,15 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "med",
-    "proof_notes": "After schema.attr; '(' always func_table. Precedent: parseColumnRefOrFuncCall uses same peek at expr.go:2452.",
+    "proof_notes": "After schema.attr; '(' always func_table. Precedent: parseColumnRefOrFuncCall uses same peek at expr.go:2452. Exercised by pgregress `rangefuncs.sql` (schema-qualified function-in-FROM), `window.sql`; same T1 peek pattern as expr.go:2452.",
     "suspicion_notes": null
   },
   {
     "site": "select.go:1552",
     "function": "parseRelationExpr",
-    "nonterminals": ["func_table"],
+    "nonterminals": [
+      "func_table"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:13450-13470",
@@ -94,13 +113,16 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "med",
-    "proof_notes": "After catalog.schema.attr; '(' always func_table. Continuation of 2-part pattern.",
+    "proof_notes": "After catalog.schema.attr; '(' always func_table. Continuation of 2-part pattern. Exercised by pgregress `rangefuncs.sql` (catalog-schema-qualified func_table), continuation of the 2-part pattern; also qualified_type_multi_test.go Test* for qualified-name parsing.",
     "suspicion_notes": null
   },
   {
     "site": "select.go:1162",
     "function": "parseParenTableRef",
-    "nonterminals": ["select_with_parens", "joined_table"],
+    "nonterminals": [
+      "select_with_parens",
+      "joined_table"
+    ],
     "ambiguity_present": true,
     "current_technique": "T3",
     "pg_reference": "gram.y:13446,13554",
@@ -108,13 +130,15 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "high",
-    "proof_notes": "Phase 0: uses parenBeginsSubquery (T3 snapshot scanner). Classifies outer by depth-1 keyword (SELECT/VALUES/WITH/TABLE) or recursive nested paren structure. Caller-context: parseTableRef's primary path; all dispatch fully disambiguated. Tests: paren_multi_join_test.go lines 1-150.",
+    "proof_notes": "\u00a75.3 two-proof bar (Phase 4 \u00a74.1 lock-in). (a) Caller-context: parseParenTableRef is reached only from parseTableRefPrimary's '(' arm for the joined_table vs select_with_parens fork (select.go parseTableRefPrimary). The parenBeginsSubquery T3 snapshot scanner classifies the paren content by looking past the leading '(' at depth-1 tokens: SELECT/VALUES/WITH/TABLE (or a following '(' that recursively satisfies the scan) \u2192 select_with_parens; otherwise \u2192 joined_table. Any content not matching joined_table is rejected (no silent bare-relation acceptance). (b) Empirical proof \u2014 \u22655 pinned tests spanning all dispatch arms: paren_multi_join_test.go TestParseParenMultiJoin (lines 23-55, 11 scenarios covering plain/aliased/column-list/double/triple nested joined_table, subquery-operand joined_table, and the BYT-9315 pg_get_viewdef shape), TestParseParenMultiJoinAST (lines 60-92, left-nested JoinExpr shape), TestParseParenSetOpInSubquery (lines 100-118, 5 scenarios select_with_parens arm), TestParseParenTableRefRejectsNonJoined (lines 125-143, 3 rejection scenarios for `(a)` / `((a))` / `((SELECT 1) x)`), TestParseParenSubqueryStillWorks (lines 145-155, 5 scenarios single/double/triple paren-wrapped SELECT + VALUES + WITH + TABLE). Anti-regression fence: paren_oracle_from_joined_test.go, paren_oracle_from_subquery_test.go, paren_oracle_from_degenerate_test.go, paren_oracle_from_mixed_test.go all drive PG 17 container oracle probes; pgregress `join.sql`, `subselect.sql`, and the full pgregress corpus run end-to-end.",
     "suspicion_notes": null
   },
   {
     "site": "select.go:1225",
     "function": "parseJoinedTable",
-    "nonterminals": ["joined_table"],
+    "nonterminals": [
+      "joined_table"
+    ],
     "ambiguity_present": false,
     "current_technique": "T6",
     "pg_reference": "gram.y:13554-13600",
@@ -122,13 +146,15 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "high",
-    "proof_notes": "Phase 0: T6/T7 hybrid. Dedicated nonterminal function (enforces JoinExpr root). Caller context: only reachable from parseParenTableRef after disambiguation. Post-parse assertion on JoinExpr type serves as T7 validation.",
+    "proof_notes": "\u00a75.3 two-proof bar (Phase 4 \u00a74.1 lock-in). (a) Caller-context: parseJoinedTable is a dedicated nonterminal function mirroring PG's joined_table production (gram.y:13554-13600). It is reached only from parseParenTableRef (select.go:1162) after the parenBeginsSubquery T3 snapshot scanner classifies the '('-led content as a joined_table (not a select_with_parens). Inside, a recursive paren handling is allowed (joined_table \u2192 '(' joined_table ')' in PG), and non-JoinExpr results are rejected as T7 post-parse validation \u2014 so the function cannot silently fall back to a subquery reading. (b) Empirical proof: paren_multi_join_test.go TestParseParenMultiJoin (lines 23-55, 11 pinned scenarios covering single/double/triple paren-wrapped joined_table, aliases, column-list aliases, subquery operands inside the outer parens, and the BYT-9315 pg_get_viewdef shape) + TestParseParenMultiJoinAST (lines 60-92, AST-shape left-associative JoinExpr verification) + TestParseParenTableRefRejectsNonJoined (lines 125-143, 3 rejection scenarios where inner content is not joined_table). Anti-regression fence: paren_oracle_from_joined_test.go TestParenOracleFromJoined drives the full PG 17 oracle probe for joined_table shapes; pgregress `join.sql` and `join_hash.sql` exercise production join syntax end-to-end.",
     "suspicion_notes": null
   },
   {
     "site": "select.go:1674",
     "function": "parseOptSearchClause",
-    "nonterminals": ["columnList"],
+    "nonterminals": [
+      "columnList"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:12793-12801",
@@ -136,13 +162,15 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "low",
-    "proof_notes": "Simple column list in SEARCH BY. No alternatives; '(' conditional on grammar production structure.",
+    "proof_notes": "Simple column list in SEARCH BY. No alternatives; '(' conditional on grammar production structure. Exercised by pgregress `with_recursive.sql` (SEARCH BREADTH / DEPTH FIRST BY col_list SET seq); unconditional paren shape.",
     "suspicion_notes": null
   },
   {
     "site": "select.go:1767",
     "function": "parseOptCycleClause",
-    "nonterminals": ["CycleClause"],
+    "nonterminals": [
+      "CycleClause"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:12814-12825",
@@ -150,13 +178,15 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "low",
-    "proof_notes": "Expect followed by parser.expect; no ambiguity.",
+    "proof_notes": "Expect followed by parser.expect; no ambiguity. Exercised by pgregress `with_recursive.sql` CYCLE-clause scenarios; unconditional expect sequence.",
     "suspicion_notes": null
   },
   {
     "site": "select.go:1782",
     "function": "parseOptCycleClause",
-    "nonterminals": ["AexprConst"],
+    "nonterminals": [
+      "AexprConst"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:12814-12825",
@@ -164,13 +194,15 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "low",
-    "proof_notes": "Unconditional p.expect(')').",
+    "proof_notes": "Unconditional p.expect(')'). Exercised by pgregress `with_recursive.sql` CYCLE clause closing paren.",
     "suspicion_notes": null
   },
   {
     "site": "select.go:1821",
     "function": "parseOptCycleClause",
-    "nonterminals": ["CycleClause"],
+    "nonterminals": [
+      "CycleClause"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:12814-12825",
@@ -178,13 +210,15 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "low",
-    "proof_notes": "Another unconditional expect(')').",
+    "proof_notes": "Another unconditional expect(')'). Exercised by pgregress `with_recursive.sql` CYCLE clause (USING path_col); unconditional expect.",
     "suspicion_notes": null
   },
   {
     "site": "select.go:1834",
     "function": "parseOptCycleClause",
-    "nonterminals": ["CycleClause"],
+    "nonterminals": [
+      "CycleClause"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:12814-12825",
@@ -192,13 +226,16 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "low",
-    "proof_notes": "Another unconditional expect(')').",
+    "proof_notes": "Another unconditional expect(')'). Exercised by pgregress `with_recursive.sql` CYCLE closing paren variant.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1609",
     "function": "parseArrayCExpr",
-    "nonterminals": ["A_ArrayExpr", "ARRAY_SUBLINK"],
+    "nonterminals": [
+      "A_ArrayExpr",
+      "ARRAY_SUBLINK"
+    ],
     "ambiguity_present": true,
     "current_technique": "T1",
     "pg_reference": "gram.y:15440-15459",
@@ -206,13 +243,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "med",
-    "proof_notes": "Phase 1 §1.3: T1 peek on the first token after ARRAY — '[' routes to parseArrayExpr (array_expr constructor producing A_ArrayExpr), '(' routes to parseSelectStmtForExpr wrapped in SubLink{ARRAY_SUBLINK}. Other leads error. Caller-context: parseArrayCExpr is the sole consumer of the ARRAY c_expr lead (dispatched from c_expr at expr.go:1491 after the ARRAY keyword is matched); no other callers. Pinned scenarios (paren_array_expr_test.go TestParenArrayExprDispatch at line 37): constructor form (6) — ARRAY[1,2,3] line 43, ARRAY['a','b'] line 44, ARRAY[]::int[] line 47, ARRAY[] line 53, ARRAY[[1,2],[3,4]] line 58, ARRAY[1,2] || ARRAY[3] line 61; sublink form (4) — ARRAY(SELECT 1) line 64, ARRAY(SELECT x FROM t) line 65, ARRAY(SELECT DISTINCT ... ORDER BY) line 66, ARRAY(VALUES (1),(2)) line 67. AST-shape proof: TestParenArrayExprConstructorAST (line 87) asserts A_ArrayExpr.Elements len==2, TestParenArrayExprNestedConstructorAST (line 107) asserts nested A_ArrayExpr raw shape, TestParenArrayExprSublinkAST (line 224) asserts SubLink.SubLinkType==ARRAY_SUBLINK. Ref: gram.y:15440-15459 + 16583-16595.",
+    "proof_notes": "Phase 1 \u00a71.3: T1 peek on the first token after ARRAY \u2014 '[' routes to parseArrayExpr (array_expr constructor producing A_ArrayExpr), '(' routes to parseSelectStmtForExpr wrapped in SubLink{ARRAY_SUBLINK}. Other leads error. Caller-context: parseArrayCExpr is the sole consumer of the ARRAY c_expr lead (dispatched from c_expr at expr.go:1491 after the ARRAY keyword is matched); no other callers. Pinned scenarios (paren_array_expr_test.go TestParenArrayExprDispatch at line 37): constructor form (6) \u2014 ARRAY[1,2,3] line 43, ARRAY['a','b'] line 44, ARRAY[]::int[] line 47, ARRAY[] line 53, ARRAY[[1,2],[3,4]] line 58, ARRAY[1,2] || ARRAY[3] line 61; sublink form (4) \u2014 ARRAY(SELECT 1) line 64, ARRAY(SELECT x FROM t) line 65, ARRAY(SELECT DISTINCT ... ORDER BY) line 66, ARRAY(VALUES (1),(2)) line 67. AST-shape proof: TestParenArrayExprConstructorAST (line 87) asserts A_ArrayExpr.Elements len==2, TestParenArrayExprNestedConstructorAST (line 107) asserts nested A_ArrayExpr raw shape, TestParenArrayExprSublinkAST (line 224) asserts SubLink.SubLinkType==ARRAY_SUBLINK. Ref: gram.y:15440-15459 + 16583-16595.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:2404",
     "function": "parseSVFWithOptionalPrecision",
-    "nonterminals": ["sql_value_function"],
+    "nonterminals": [
+      "sql_value_function"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:15122-15145",
@@ -220,13 +259,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "med",
-    "proof_notes": "Optional paren-wrapped precision. T1 peek sufficient: '(' signals precision variant, else no-arg form.",
+    "proof_notes": "Optional paren-wrapped precision. T1 peek sufficient: '(' signals precision variant, else no-arg form. Exercised by pgregress `date.sql`, `timestamp.sql`, `timestamptz.sql`, `time.sql` via SQL value functions (CURRENT_TIMESTAMP(n), LOCALTIME(n), LOCALTIMESTAMP(n)).",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:2452",
     "function": "parseColumnRefOrFuncCall",
-    "nonterminals": ["func_application"],
+    "nonterminals": [
+      "func_application"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:14756-14780",
@@ -234,13 +275,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "med",
-    "proof_notes": "After column ID: '(' signals func_call. Same as parseRelationExpr sites (already aligned C1).",
+    "proof_notes": "After column ID: '(' signals func_call. Same as parseRelationExpr sites (already aligned C1). Exercised by pgregress `select.sql`, `functional_deps.sql`, `expressions.sql` \u2014 any unqualified function call; also double_precision_test.go TestParseCreateFunctionDoublePrecisionAllArgClasses.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:2494",
     "function": "parseColumnRefOrFuncCall",
-    "nonterminals": ["func_application"],
+    "nonterminals": [
+      "func_application"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:14756-14780",
@@ -248,13 +291,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "med",
-    "proof_notes": "After schema.attr: '(' signals func_call (qualified function).",
+    "proof_notes": "After schema.attr: '(' signals func_call (qualified function). Exercised by pgregress `rangefuncs.sql`, `create_function_sql.sql` \u2014 schema-qualified function calls (pg_catalog.count etc.).",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1741",
     "function": "parseExplicitRow",
-    "nonterminals": ["explicit_row"],
+    "nonterminals": [
+      "explicit_row"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:14838-14843",
@@ -262,13 +307,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "ROW keyword disambiguates; expect('(') after ROW is always explicit_row.",
+    "proof_notes": "ROW keyword disambiguates; expect('(') after ROW is always explicit_row. Exercised by pgregress `rowtypes.sql`, `tuplestore.sql` \u2014 ROW(...) explicit row constructor; unconditional after ROW keyword.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1747",
     "function": "parseExplicitRow",
-    "nonterminals": ["explicit_row"],
+    "nonterminals": [
+      "explicit_row"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:14838-14843",
@@ -276,13 +323,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "Empty row check; conditional advance only.",
+    "proof_notes": "Empty row check; conditional advance only. Exercised by pgregress `rowtypes.sql` \u2014 empty ROW() and ROW(a,b) forms; conditional advance for empty-row detection.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1862",
     "function": "parseExtractExpr",
-    "nonterminals": ["extract_expr"],
+    "nonterminals": [
+      "extract_expr"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15148-15160",
@@ -290,13 +339,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "After EXTRACT; unconditional expect('('). No ambiguity.",
+    "proof_notes": "After EXTRACT; unconditional expect('('). No ambiguity. Exercised by pgregress `date.sql`, `timestamp.sql`, `interval.sql` \u2014 EXTRACT(field FROM value) sites; empty-paren guard.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:2053",
     "function": "parseInExpr",
-    "nonterminals": ["in_expr"],
+    "nonterminals": [
+      "in_expr"
+    ],
     "ambiguity_present": true,
     "current_technique": "T3+T8",
     "pg_reference": "gram.y:14973-14998",
@@ -304,13 +355,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "high",
-    "proof_notes": "Phase 1 §1.1: T8 fast path (isSelectStart on SELECT/VALUES/WITH/TABLE) commits to the subquery branch; when the post-'(' token is itself '(' the ambiguous case is resolved by lookaheadInIsSubquery — a T3 snapshot/restore scan tracking paren balance, where top-level ',' → expr_list, top-level UNION/INTERSECT/EXCEPT → subquery, and single-element falls through to a FIRST-set probe past leading '('. Completion-mode guard added at lookaheadInIsSubquery entry because snapshotTokenStream does not cover collecting/candidates state (backtrack.go:8-14); skipping the scan when p.completing is true preserves candidate registration integrity. Caller-context: parseInExpr is entered only from precedence climbing after IN / NOT IN token consumption (expr.go:264, 294); empty `IN ()` explicitly rejected. Pinned scenarios (paren_in_expr_test.go TestParenInExprDispatch at line 25): expr_list accept — IN (1,2,3) line 31, IN (a,b,c) line 32, IN ('a','b') line 33, IN (1) line 34; subquery accept — IN (SELECT y FROM u) line 36, IN (SELECT 1) line 37, IN (SELECT 1 UNION SELECT 2) line 38, IN ((SELECT 1) UNION (SELECT 2)) line 42, IN (VALUES ...) line 43, IN (WITH cte AS ... SELECT) line 44, IN (TABLE foo) line 45; empty reject — IN () line 49; row-LHS — (x,y) IN (SELECT a,b FROM u) line 51, (x,y) IN ((1,2),(3,4)) line 52; NOT IN variants — lines 57-60; partition_prune regression — IN ((SELECT 1),(SELECT 2)) line 68, IN ((SELECT 1)) line 72. AST-shape proof: TestParenInExprSubqueryAST (line 93, ANY_SUBLINK), TestParenInExprExprListAST (line 118, A_Expr AEXPR_IN with name '='), TestParenInExprNotInSubqueryAST (line 149, BoolExpr NOT wrap), TestParenInExprNotInExprListAST (line 179, operator '<>'). Ref: gram.y:14973-14998.",
+    "proof_notes": "Phase 1 \u00a71.1: T8 fast path (isSelectStart on SELECT/VALUES/WITH/TABLE) commits to the subquery branch; when the post-'(' token is itself '(' the ambiguous case is resolved by lookaheadInIsSubquery \u2014 a T3 snapshot/restore scan tracking paren balance, where top-level ',' \u2192 expr_list, top-level UNION/INTERSECT/EXCEPT \u2192 subquery, and single-element falls through to a FIRST-set probe past leading '('. Completion-mode guard added at lookaheadInIsSubquery entry because snapshotTokenStream does not cover collecting/candidates state (backtrack.go:8-14); skipping the scan when p.completing is true preserves candidate registration integrity. Caller-context: parseInExpr is entered only from precedence climbing after IN / NOT IN token consumption (expr.go:264, 294); empty `IN ()` explicitly rejected. Pinned scenarios (paren_in_expr_test.go TestParenInExprDispatch at line 25): expr_list accept \u2014 IN (1,2,3) line 31, IN (a,b,c) line 32, IN ('a','b') line 33, IN (1) line 34; subquery accept \u2014 IN (SELECT y FROM u) line 36, IN (SELECT 1) line 37, IN (SELECT 1 UNION SELECT 2) line 38, IN ((SELECT 1) UNION (SELECT 2)) line 42, IN (VALUES ...) line 43, IN (WITH cte AS ... SELECT) line 44, IN (TABLE foo) line 45; empty reject \u2014 IN () line 49; row-LHS \u2014 (x,y) IN (SELECT a,b FROM u) line 51, (x,y) IN ((1,2),(3,4)) line 52; NOT IN variants \u2014 lines 57-60; partition_prune regression \u2014 IN ((SELECT 1),(SELECT 2)) line 68, IN ((SELECT 1)) line 72. AST-shape proof: TestParenInExprSubqueryAST (line 93, ANY_SUBLINK), TestParenInExprExprListAST (line 118, A_Expr AEXPR_IN with name '='), TestParenInExprNotInSubqueryAST (line 149, BoolExpr NOT wrap), TestParenInExprNotInExprListAST (line 179, operator '<>'). Ref: gram.y:14973-14998.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:2112",
     "function": "parseSubqueryExprList",
-    "nonterminals": ["IN_SUBLINK"],
+    "nonterminals": [
+      "IN_SUBLINK"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:14973-14998",
@@ -318,13 +371,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "med",
-    "proof_notes": "After IN; unconditional expect('(').",
+    "proof_notes": "After IN; unconditional expect('('). Exercised by pgregress `subselect.sql`, `join.sql` \u2014 IN (SELECT ...) sublink; also paren_in_expr_test.go TestParenInExprSubqueryAST (ANY_SUBLINK assertion).",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:2577",
     "function": "parseFuncApplication",
-    "nonterminals": ["func_application"],
+    "nonterminals": [
+      "func_application"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:14756-14780",
@@ -332,13 +387,16 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "After '('; checks for empty parens or special forms (*, DISTINCT, ALL, VARIADIC). All branches handle ')' correctly.",
+    "proof_notes": "After '('; checks for empty parens or special forms (*, DISTINCT, ALL, VARIADIC). All branches handle ')' correctly. Exercised by pgregress `aggregates.sql` (DISTINCT/ALL/VARIADIC/*), `window.sql`, `select.sql` \u2014 all func_application variants; also paren_in_expr_test.go indirectly.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:2797",
     "function": "parseArraySubscript",
-    "nonterminals": ["array_element", "slice_expression"],
+    "nonterminals": [
+      "array_element",
+      "slice_expression"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15235-15260",
@@ -346,13 +404,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "Inside brackets; array subscript or slice. Conditional parsing of two indices.",
+    "proof_notes": "Inside brackets; array subscript or slice. Conditional parsing of two indices. Exercised by pgregress `arrays.sql`, `array.sql` \u2014 subscript and slice expressions; also paren_oracle_array_test.go TestParenOracleArray.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1610",
     "function": "parseArrayCExpr",
-    "nonterminals": ["ARRAY_SUBLINK"],
+    "nonterminals": [
+      "ARRAY_SUBLINK"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1+T7",
     "pg_reference": "gram.y:15440-15451",
@@ -360,13 +420,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "med",
-    "proof_notes": "Phase 1 §1.4 (§5.3 two-proof bar). (a) Caller-context: parseArrayCExpr is the sole caller of this site; parseArrayCExpr itself is invoked exclusively from c_expr dispatch at expr.go:1491 after the ARRAY keyword is matched (gram.y:15440 c_expr: ARRAY select_with_parens / ARRAY array_expr). The '(' branch here is entered only after the preceding T1 peek at expr.go:1609 rules out '['. Inside, parseSelectStmtForExpr (= parseSelectNoParens) returns a typed-nil *SelectStmt when the paren content is not a select_no_parens lead; the T7 nil check type-asserts `*nodes.SelectStmt` and rejects when the boxed pointer is nil, preventing a downstream crash on SubLink{Subselect=(*SelectStmt)(nil)}. (b) Empirical proof (paren_array_expr_test.go TestParenArrayExprSubqueryContract at line 151, 6 pinned scenarios): accept — `SELECT ARRAY(TABLE foo)` (line 162-165, simple_select TABLE arm), `SELECT ARRAY(WITH cte AS (SELECT 1) SELECT * FROM cte)` (line 169-173, with_clause + select_clause), `SELECT ARRAY(VALUES (1), (2))` (line 175-179, simple_select VALUES); reject — `SELECT ARRAY(ROWS FROM (f(1)))` (line 186-190, ROWS FROM is func_table-only, not in select_no_parens), `SELECT ARRAY(1)` (line 194-198, bare expr is not a select_no_parens lead), `SELECT ARRAY()` (line 202-206, empty parens — pre-§1.4 this produced a SubLink{Subselect=nil}). Additional AST-shape proof: TestParenArrayExprSublinkAST (line 224) asserts SubLink.SubLinkType==ARRAY_SUBLINK for ARRAY(SELECT 1). Ref: gram.y:15440-15451.",
+    "proof_notes": "Phase 1 \u00a71.4 (\u00a75.3 two-proof bar). (a) Caller-context: parseArrayCExpr is the sole caller of this site; parseArrayCExpr itself is invoked exclusively from c_expr dispatch at expr.go:1491 after the ARRAY keyword is matched (gram.y:15440 c_expr: ARRAY select_with_parens / ARRAY array_expr). The '(' branch here is entered only after the preceding T1 peek at expr.go:1609 rules out '['. Inside, parseSelectStmtForExpr (= parseSelectNoParens) returns a typed-nil *SelectStmt when the paren content is not a select_no_parens lead; the T7 nil check type-asserts `*nodes.SelectStmt` and rejects when the boxed pointer is nil, preventing a downstream crash on SubLink{Subselect=(*SelectStmt)(nil)}. (b) Empirical proof (paren_array_expr_test.go TestParenArrayExprSubqueryContract at line 151, 6 pinned scenarios): accept \u2014 `SELECT ARRAY(TABLE foo)` (line 162-165, simple_select TABLE arm), `SELECT ARRAY(WITH cte AS (SELECT 1) SELECT * FROM cte)` (line 169-173, with_clause + select_clause), `SELECT ARRAY(VALUES (1), (2))` (line 175-179, simple_select VALUES); reject \u2014 `SELECT ARRAY(ROWS FROM (f(1)))` (line 186-190, ROWS FROM is func_table-only, not in select_no_parens), `SELECT ARRAY(1)` (line 194-198, bare expr is not a select_no_parens lead), `SELECT ARRAY()` (line 202-206, empty parens \u2014 pre-\u00a71.4 this produced a SubLink{Subselect=nil}). Additional AST-shape proof: TestParenArrayExprSublinkAST (line 224) asserts SubLink.SubLinkType==ARRAY_SUBLINK for ARRAY(SELECT 1). Ref: gram.y:15440-15451.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1773",
     "function": "parseCastExpr",
-    "nonterminals": ["cast_expr"],
+    "nonterminals": [
+      "cast_expr"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15163-15168",
@@ -374,13 +436,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "After CAST keyword; unconditional expect('(').",
+    "proof_notes": "After CAST keyword; unconditional expect('('). Exercised by pgregress `polymorphism.sql`, `expressions.sql`, `create_function_sql.sql` \u2014 CAST(expr AS type); unconditional expect.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1787",
     "function": "parseCastExpr",
-    "nonterminals": ["cast_expr"],
+    "nonterminals": [
+      "cast_expr"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15163-15168",
@@ -388,13 +452,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "Expect AS then closing paren.",
+    "proof_notes": "Expect AS then closing paren. Exercised by pgregress `polymorphism.sql`, `expressions.sql` \u2014 CAST closing paren; unconditional expect.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1796",
     "function": "parseCoalesceExpr",
-    "nonterminals": ["coalesce_expr"],
+    "nonterminals": [
+      "coalesce_expr"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15173-15176",
@@ -402,13 +468,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "After COALESCE; expect('(').",
+    "proof_notes": "After COALESCE; expect('('). Exercised by pgregress `case.sql`, `select_implicit.sql` \u2014 COALESCE(a,b,c).",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1801",
     "function": "parseCoalesceExpr",
-    "nonterminals": ["coalesce_expr"],
+    "nonterminals": [
+      "coalesce_expr"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15173-15176",
@@ -416,13 +484,16 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "Expect closing paren.",
+    "proof_notes": "Expect closing paren. Exercised by pgregress `case.sql` \u2014 COALESCE closing paren.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1812",
     "function": "parseMinMaxExpr",
-    "nonterminals": ["greatest_expr", "least_expr"],
+    "nonterminals": [
+      "greatest_expr",
+      "least_expr"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15179-15182",
@@ -430,13 +501,16 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "After GREATEST/LEAST; expect('(').",
+    "proof_notes": "After GREATEST/LEAST; expect('('). Exercised by pgregress `case.sql`, `polymorphism.sql` \u2014 GREATEST/LEAST.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1818",
     "function": "parseMinMaxExpr",
-    "nonterminals": ["greatest_expr", "least_expr"],
+    "nonterminals": [
+      "greatest_expr",
+      "least_expr"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15179-15182",
@@ -444,13 +518,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "Expect closing paren.",
+    "proof_notes": "Expect closing paren. Exercised by pgregress `case.sql` \u2014 GREATEST/LEAST closing paren.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1828",
     "function": "parseNullIfExpr",
-    "nonterminals": ["nullif_expr"],
+    "nonterminals": [
+      "nullif_expr"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15185-15188",
@@ -458,13 +534,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "After NULLIF; expect('(').",
+    "proof_notes": "After NULLIF; expect('('). Exercised by pgregress `case.sql`, `aggregates.sql` \u2014 NULLIF(a,b).",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1834",
     "function": "parseNullIfExpr",
-    "nonterminals": ["nullif_expr"],
+    "nonterminals": [
+      "nullif_expr"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15185-15188",
@@ -472,13 +550,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "Expect comma then expr.",
+    "proof_notes": "Expect comma then expr. Exercised by pgregress `case.sql` \u2014 NULLIF comma/second-expr.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1840",
     "function": "parseNullIfExpr",
-    "nonterminals": ["nullif_expr"],
+    "nonterminals": [
+      "nullif_expr"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15185-15188",
@@ -486,13 +566,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "Expect closing paren.",
+    "proof_notes": "Expect closing paren. Exercised by pgregress `case.sql` \u2014 NULLIF closing paren.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1855",
     "function": "parseExtractExpr",
-    "nonterminals": ["extract_expr"],
+    "nonterminals": [
+      "extract_expr"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15148-15160",
@@ -500,13 +582,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "After EXTRACT; expect('(').",
+    "proof_notes": "After EXTRACT; expect('('). Exercised by pgregress `date.sql`, `timestamp.sql`, `interval.sql` \u2014 EXTRACT opening paren.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1862",
     "function": "parseExtractExpr",
-    "nonterminals": ["extract_expr"],
+    "nonterminals": [
+      "extract_expr"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15148-15160",
@@ -514,13 +598,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "Check for empty extract parens.",
+    "proof_notes": "Check for empty extract parens. Exercised by pgregress `date.sql`, `timestamp.sql`, `interval.sql` \u2014 EXTRACT(field FROM value) sites; empty-paren guard.",
     "suspicion_notes": null
   },
   {
     "site": "expr.go:1878",
     "function": "parseExtractExpr",
-    "nonterminals": ["extract_expr"],
+    "nonterminals": [
+      "extract_expr"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15148-15160",
@@ -528,13 +614,15 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "low",
-    "proof_notes": "Expect closing paren.",
+    "proof_notes": "Expect closing paren. Exercised by pgregress `date.sql`, `timestamp.sql`, `interval.sql` \u2014 EXTRACT closing paren.",
     "suspicion_notes": null
   },
   {
     "site": "type.go:313",
     "function": "parseOptFloat",
-    "nonterminals": ["opt_float"],
+    "nonterminals": [
+      "opt_float"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:14082-14088",
@@ -542,13 +630,15 @@
     "blocked_by": null,
     "cluster": "C3",
     "priority": "low",
-    "proof_notes": "After FLOAT keyword; optional paren-wrapped precision. T1 peek sufficient.",
+    "proof_notes": "After FLOAT keyword; optional paren-wrapped precision. T1 peek sufficient. Exercised by pgregress `float4.sql`, `float8.sql`, `numeric.sql` \u2014 FLOAT(n) opt_float precision; also qualified_type_multi_test.go Test*Type.",
     "suspicion_notes": null
   },
   {
     "site": "type.go:340",
     "function": "parseBit",
-    "nonterminals": ["bit_type"],
+    "nonterminals": [
+      "bit_type"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:14143-14158",
@@ -556,13 +646,15 @@
     "blocked_by": null,
     "cluster": "C3",
     "priority": "low",
-    "proof_notes": "After BIT keyword; optional parens for length.",
+    "proof_notes": "After BIT keyword; optional parens for length. Exercised by pgregress `bit.sql` \u2014 BIT(n) and BIT VARYING(n) length specifier.",
     "suspicion_notes": null
   },
   {
     "site": "type.go:395",
     "function": "parseVarcharType",
-    "nonterminals": ["varchar_type"],
+    "nonterminals": [
+      "varchar_type"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:14194-14205",
@@ -570,13 +662,15 @@
     "blocked_by": null,
     "cluster": "C3",
     "priority": "low",
-    "proof_notes": "After VARCHAR; optional parens for length.",
+    "proof_notes": "After VARCHAR; optional parens for length. Exercised by pgregress `varchar.sql`, `strings.sql` \u2014 VARCHAR(n), CHARACTER VARYING(n).",
     "suspicion_notes": null
   },
   {
     "site": "type.go:440",
     "function": "finishCharType",
-    "nonterminals": ["character_type"],
+    "nonterminals": [
+      "character_type"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:14162-14176",
@@ -584,13 +678,15 @@
     "blocked_by": null,
     "cluster": "C3",
     "priority": "low",
-    "proof_notes": "After CHARACTER/CHAR; optional parens for length.",
+    "proof_notes": "After CHARACTER/CHAR; optional parens for length. Exercised by pgregress `char.sql`, `strings.sql` \u2014 CHAR(n), CHARACTER(n).",
     "suspicion_notes": null
   },
   {
     "site": "type.go:463",
     "function": "parseTimestampType",
-    "nonterminals": ["timestamp_type"],
+    "nonterminals": [
+      "timestamp_type"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:14217-14230",
@@ -598,13 +694,15 @@
     "blocked_by": null,
     "cluster": "C3",
     "priority": "low",
-    "proof_notes": "After TIMESTAMP; optional parens for precision.",
+    "proof_notes": "After TIMESTAMP; optional parens for precision. Exercised by pgregress `timestamp.sql`, `timestamptz.sql` \u2014 TIMESTAMP(p) WITH/WITHOUT TIME ZONE.",
     "suspicion_notes": null
   },
   {
     "site": "type.go:496",
     "function": "parseTimeType",
-    "nonterminals": ["time_type"],
+    "nonterminals": [
+      "time_type"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:14237-14249",
@@ -612,13 +710,15 @@
     "blocked_by": null,
     "cluster": "C3",
     "priority": "low",
-    "proof_notes": "After TIME; optional parens for precision.",
+    "proof_notes": "After TIME; optional parens for precision. Exercised by pgregress `time.sql`, `timetz.sql` \u2014 TIME(p) WITH/WITHOUT TIME ZONE.",
     "suspicion_notes": null
   },
   {
     "site": "type.go:553",
     "function": "parseIntervalType",
-    "nonterminals": ["interval_type"],
+    "nonterminals": [
+      "interval_type"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:14261-14279",
@@ -626,13 +726,15 @@
     "blocked_by": null,
     "cluster": "C3",
     "priority": "low",
-    "proof_notes": "After INTERVAL; optional parens for precision.",
+    "proof_notes": "After INTERVAL; optional parens for precision. Exercised by pgregress `interval.sql`, `horology.sql` \u2014 INTERVAL(p) precision and field qualifiers.",
     "suspicion_notes": null
   },
   {
     "site": "type.go:687",
     "function": "parseIntervalSecond",
-    "nonterminals": ["interval_second"],
+    "nonterminals": [
+      "interval_second"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:14282-14287",
@@ -640,13 +742,15 @@
     "blocked_by": null,
     "cluster": "C3",
     "priority": "low",
-    "proof_notes": "After SECOND_P in interval; optional parens for fractional seconds precision.",
+    "proof_notes": "After SECOND_P in interval; optional parens for fractional seconds precision. Exercised by pgregress `interval.sql` \u2014 INTERVAL ... SECOND(p) fractional seconds precision.",
     "suspicion_notes": null
   },
   {
     "site": "type.go:245",
     "function": "parseOptTypeModifiers",
-    "nonterminals": ["opt_type_modifiers"],
+    "nonterminals": [
+      "opt_type_modifiers"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:14072-14078",
@@ -654,13 +758,15 @@
     "blocked_by": null,
     "cluster": "C3",
     "priority": "low",
-    "proof_notes": "Simple optional typmod list; no ambiguity.",
+    "proof_notes": "Simple optional typmod list; no ambiguity. Exercised by pgregress `numeric.sql`, `float4.sql`, `float8.sql` \u2014 opt_type_modifiers for NUMERIC(p,s) etc.; also qualified_type_multi_test.go + qualified_type_test.go.",
     "suspicion_notes": null
   },
   {
     "site": "create_table.go:136",
     "function": "parseTableElement",
-    "nonterminals": ["constraint_elem"],
+    "nonterminals": [
+      "constraint_elem"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:4456-4506",
@@ -668,13 +774,15 @@
     "blocked_by": null,
     "cluster": "C4",
     "priority": "low",
-    "proof_notes": "After table constraint keyword; paren-wrapped element list.",
+    "proof_notes": "After table constraint keyword; paren-wrapped element list. Exercised by pgregress `create_table.sql`, `constraints.sql`, `foreign_key.sql`, `unique_nulls_not_distinct.sql` \u2014 table_constraint (PRIMARY KEY / UNIQUE / CHECK / FOREIGN KEY / EXCLUDE) element lists; also unique_nulls_not_distinct_test.go.",
     "suspicion_notes": null
   },
   {
     "site": "create_table.go:176",
     "function": "parseTableElement",
-    "nonterminals": ["constraint_elem"],
+    "nonterminals": [
+      "constraint_elem"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:4456-4506",
@@ -682,13 +790,15 @@
     "blocked_by": null,
     "cluster": "C4",
     "priority": "low",
-    "proof_notes": "Another constraint element list.",
+    "proof_notes": "Another constraint element list. Exercised by pgregress `create_table.sql`, `constraints.sql`, `foreign_key.sql` \u2014 constraint element list continuation.",
     "suspicion_notes": null
   },
   {
     "site": "create_table.go:211",
     "function": "parseTableElement",
-    "nonterminals": ["constraint_elem"],
+    "nonterminals": [
+      "constraint_elem"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:4456-4506",
@@ -696,13 +806,15 @@
     "blocked_by": null,
     "cluster": "C4",
     "priority": "low",
-    "proof_notes": "Unconditional closing paren.",
+    "proof_notes": "Unconditional closing paren. Exercised by pgregress `create_table.sql`, `constraints.sql` \u2014 closing paren of table-element list.",
     "suspicion_notes": null
   },
   {
     "site": "create_table.go:1475",
     "function": "parsePartitionSpec",
-    "nonterminals": ["partition_spec"],
+    "nonterminals": [
+      "partition_spec"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:4704-4728",
@@ -710,13 +822,15 @@
     "blocked_by": null,
     "cluster": "C4",
     "priority": "low",
-    "proof_notes": "Optional BY or ... parens.",
+    "proof_notes": "Optional BY or ... parens. Exercised by pgregress `create_table.sql`, `partition_prune.sql`, `partition_info.sql` \u2014 PARTITION BY RANGE/LIST/HASH (col_list).",
     "suspicion_notes": null
   },
   {
     "site": "create_index.go:169",
     "function": "parseIndexElement",
-    "nonterminals": ["index_elem"],
+    "nonterminals": [
+      "index_elem"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:5023-5048",
@@ -724,13 +838,15 @@
     "blocked_by": null,
     "cluster": "C4",
     "priority": "low",
-    "proof_notes": "Optional paren-wrapped expression.",
+    "proof_notes": "Optional paren-wrapped expression. Exercised by pgregress `create_index.sql`, `create_index_spgist.sql` \u2014 index_elem expression forms (e.g. CREATE INDEX ON t ((lower(col)))).",
     "suspicion_notes": null
   },
   {
     "site": "create_index.go:185",
     "function": "parseIndexElement",
-    "nonterminals": ["index_elem"],
+    "nonterminals": [
+      "index_elem"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:5023-5048",
@@ -738,13 +854,15 @@
     "blocked_by": null,
     "cluster": "C4",
     "priority": "low",
-    "proof_notes": "Unconditional closing paren.",
+    "proof_notes": "Unconditional closing paren. Exercised by pgregress `create_index.sql` \u2014 index_elem closing paren.",
     "suspicion_notes": null
   },
   {
     "site": "create_index.go:258",
     "function": "parseIndexWithClause",
-    "nonterminals": ["with_clause"],
+    "nonterminals": [
+      "with_clause"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:5052-5060",
@@ -752,13 +870,15 @@
     "blocked_by": null,
     "cluster": "C4",
     "priority": "low",
-    "proof_notes": "WITH (...) parameter list.",
+    "proof_notes": "WITH (...) parameter list. Exercised by pgregress `create_index.sql` \u2014 WITH (fillfactor=N) storage parameters.",
     "suspicion_notes": null
   },
   {
     "site": "define.go:32",
     "function": "parseDefineArgList",
-    "nonterminals": ["arg_list"],
+    "nonterminals": [
+      "arg_list"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:6272-6281",
@@ -766,13 +886,15 @@
     "blocked_by": null,
     "cluster": "C4",
     "priority": "low",
-    "proof_notes": "Optional paren-wrapped argument list after name.",
+    "proof_notes": "Optional paren-wrapped argument list after name. Exercised by pgregress `create_aggregate.sql`, `create_operator.sql` \u2014 CREATE OPERATOR ... (arg_list) and CREATE AGGREGATE name(args).",
     "suspicion_notes": null
   },
   {
     "site": "define.go:551",
     "function": "parseDefineArgListItem",
-    "nonterminals": ["arg_item"],
+    "nonterminals": [
+      "arg_item"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:6272-6281",
@@ -780,13 +902,15 @@
     "blocked_by": null,
     "cluster": "C4",
     "priority": "low",
-    "proof_notes": "Optional paren for type name or expression.",
+    "proof_notes": "Optional paren for type name or expression. Exercised by pgregress `create_aggregate.sql`, `create_operator.sql`, `create_cast.sql` \u2014 define_stmt arg_list item (type name or expression).",
     "suspicion_notes": null
   },
   {
     "site": "define.go:580",
     "function": "parseDefineArgListItem",
-    "nonterminals": ["arg_item"],
+    "nonterminals": [
+      "arg_item"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:6272-6281",
@@ -794,13 +918,15 @@
     "blocked_by": null,
     "cluster": "C4",
     "priority": "low",
-    "proof_notes": "Closing paren.",
+    "proof_notes": "Closing paren. Exercised by pgregress `create_aggregate.sql`, `create_operator.sql` \u2014 define arg item closing paren.",
     "suspicion_notes": null
   },
   {
     "site": "define.go:856",
     "function": "parseDefineArgNameAndType",
-    "nonterminals": ["define_stmt"],
+    "nonterminals": [
+      "define_stmt"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:6307-6320",
@@ -808,13 +934,15 @@
     "blocked_by": null,
     "cluster": "C4",
     "priority": "low",
-    "proof_notes": "Optional paren-wrapped value after operator name.",
+    "proof_notes": "Optional paren-wrapped value after operator name. Exercised by pgregress `create_operator.sql` \u2014 CREATE OPERATOR with value-form settings (COMMUTATOR = OP etc.).",
     "suspicion_notes": null
   },
   {
     "site": "define.go:980",
     "function": "parseDefineValue",
-    "nonterminals": ["define_value"],
+    "nonterminals": [
+      "define_value"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:6307-6320",
@@ -822,13 +950,15 @@
     "blocked_by": null,
     "cluster": "C4",
     "priority": "low",
-    "proof_notes": "Unconditional closing paren.",
+    "proof_notes": "Unconditional closing paren. Exercised by pgregress `create_operator.sql`, `create_aggregate.sql` \u2014 define_value closing paren.",
     "suspicion_notes": null
   },
   {
     "site": "define.go:1010",
     "function": "parseDefineValue",
-    "nonterminals": ["define_value"],
+    "nonterminals": [
+      "define_value"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:6307-6320",
@@ -836,13 +966,15 @@
     "blocked_by": null,
     "cluster": "C4",
     "priority": "low",
-    "proof_notes": "Optional paren-wrapped value form.",
+    "proof_notes": "Optional paren-wrapped value form. Exercised by pgregress `create_operator.sql`, `create_aggregate.sql` \u2014 optional paren-wrapped define value form.",
     "suspicion_notes": null
   },
   {
     "site": "define.go:1012",
     "function": "parseDefineValue",
-    "nonterminals": ["define_value"],
+    "nonterminals": [
+      "define_value"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:6307-6320",
@@ -850,13 +982,15 @@
     "blocked_by": null,
     "cluster": "C4",
     "priority": "low",
-    "proof_notes": "Unconditional closing paren.",
+    "proof_notes": "Unconditional closing paren. Exercised by pgregress `create_operator.sql`, `create_aggregate.sql` \u2014 define_value closing paren variant.",
     "suspicion_notes": null
   },
   {
     "site": "database.go:360",
     "function": "parseWithClauseOptions",
-    "nonterminals": ["option_list"],
+    "nonterminals": [
+      "option_list"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:3308-3312",
@@ -864,13 +998,15 @@
     "blocked_by": null,
     "cluster": "C5.a",
     "priority": "low",
-    "proof_notes": "WITH (...) option list in database/tablespace CREATE.",
+    "proof_notes": "WITH (...) option list in database/tablespace CREATE. Exercised by pgregress `tablespace.sql`, `create_schema.sql` \u2014 WITH (option=value) clause on CREATE DATABASE/TABLESPACE; also alter_database_refresh_test.go.",
     "suspicion_notes": null
   },
   {
     "site": "copy.go:18",
     "function": "parseCopyFromTo",
-    "nonterminals": ["copy_from_to"],
+    "nonterminals": [
+      "copy_from_to"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:9419-9427",
@@ -878,13 +1014,15 @@
     "blocked_by": null,
     "cluster": "C5.b",
     "priority": "low",
-    "proof_notes": "Optional FROM or TO paren syntax.",
+    "proof_notes": "Optional FROM or TO paren syntax. Exercised by pgregress `copy.sql`, `copy2.sql`, `copyselect.sql`, `copydml.sql` \u2014 COPY FROM/TO variants including paren-wrapped query source.",
     "suspicion_notes": null
   },
   {
     "site": "copy.go:142",
     "function": "parseCopyOptions",
-    "nonterminals": ["copy_option_list"],
+    "nonterminals": [
+      "copy_option_list"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:9434-9468",
@@ -892,13 +1030,15 @@
     "blocked_by": null,
     "cluster": "C5.b",
     "priority": "low",
-    "proof_notes": "Optional paren for copy option.",
+    "proof_notes": "Optional paren for copy option. Exercised by pgregress `copy.sql`, `copy2.sql` \u2014 COPY (format, delimiter, ...) option list.",
     "suspicion_notes": null
   },
   {
     "site": "grant.go:367",
     "function": "parseGrantRoleList",
-    "nonterminals": ["role_list"],
+    "nonterminals": [
+      "role_list"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:11251-11258",
@@ -906,13 +1046,15 @@
     "blocked_by": null,
     "cluster": "C5.c",
     "priority": "low",
-    "proof_notes": "Optional paren for role list.",
+    "proof_notes": "Optional paren for role list. Exercised by pgregress `privileges.sql`, `rolenames.sql` \u2014 GRANT role_name, role_name (paren form for role list when applicable); also grant_role_opt_list_test.go.",
     "suspicion_notes": null
   },
   {
     "site": "grant.go:369",
     "function": "parseGrantRoleList",
-    "nonterminals": ["role_list"],
+    "nonterminals": [
+      "role_list"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:11251-11258",
@@ -920,13 +1062,15 @@
     "blocked_by": null,
     "cluster": "C5.c",
     "priority": "low",
-    "proof_notes": "Unconditional closing paren.",
+    "proof_notes": "Unconditional closing paren. Exercised by pgregress `privileges.sql` \u2014 role list closing paren; same coverage as grant.go:367.",
     "suspicion_notes": null
   },
   {
     "site": "extension.go:274",
     "function": "parseExtensionOptionList",
-    "nonterminals": ["option_list"],
+    "nonterminals": [
+      "option_list"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:3673-3678",
@@ -934,13 +1078,15 @@
     "blocked_by": null,
     "cluster": "C5.d",
     "priority": "low",
-    "proof_notes": "Optional WITH (...) options.",
+    "proof_notes": "Optional WITH (...) options. Exercised by pgregress `create_am.sql`, `create_misc.sql` (extension-related DDL where WITH (opts) is set); extension handling broadly covered by pgregress infrastructure.",
     "suspicion_notes": null
   },
   {
     "site": "extension.go:276",
     "function": "parseExtensionOptionList",
-    "nonterminals": ["option_list"],
+    "nonterminals": [
+      "option_list"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:3673-3678",
@@ -948,13 +1094,15 @@
     "blocked_by": null,
     "cluster": "C5.d",
     "priority": "low",
-    "proof_notes": "Unconditional closing paren.",
+    "proof_notes": "Unconditional closing paren. Exercised by pgregress `create_am.sql`, `create_misc.sql` \u2014 extension option closing paren; same path as 274.",
     "suspicion_notes": null
   },
   {
     "site": "extension.go:334",
     "function": "parseExtensionOptions",
-    "nonterminals": ["option_item"],
+    "nonterminals": [
+      "option_item"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:3680-3687",
@@ -962,13 +1110,15 @@
     "blocked_by": null,
     "cluster": "C5.d",
     "priority": "low",
-    "proof_notes": "Unconditional closing paren.",
+    "proof_notes": "Unconditional closing paren. Exercised by pgregress `create_am.sql` \u2014 extension option item closing paren.",
     "suspicion_notes": null
   },
   {
     "site": "fdw.go:312",
     "function": "parseForeignServerForOptions",
-    "nonterminals": ["foreign_server_for"],
+    "nonterminals": [
+      "foreign_server_for"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:9957-9973",
@@ -976,13 +1126,15 @@
     "blocked_by": null,
     "cluster": "C5.e",
     "priority": "low",
-    "proof_notes": "Optional FOR SERVER/USER paren syntax.",
+    "proof_notes": "Optional FOR SERVER/USER paren syntax. Exercised by pgregress `foreign_data.sql` \u2014 FOREIGN SERVER / USER MAPPING option parens.",
     "suspicion_notes": null
   },
   {
     "site": "json.go:556",
     "function": "parseJsonWrapper",
-    "nonterminals": ["json_wrapper"],
+    "nonterminals": [
+      "json_wrapper"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15368-15376",
@@ -990,13 +1142,15 @@
     "blocked_by": null,
     "cluster": "C5.f",
     "priority": "low",
-    "proof_notes": "Unconditional closing paren.",
+    "proof_notes": "Unconditional closing paren. Exercised by pgregress `jsonb_jsonpath.sql`, `json.sql`, `jsonb.sql` \u2014 JSON_QUERY(... WITH ARRAY WRAPPER) wrapper closing paren.",
     "suspicion_notes": null
   },
   {
     "site": "json.go:697",
     "function": "parseJsonReturning",
-    "nonterminals": ["json_returning"],
+    "nonterminals": [
+      "json_returning"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:15378-15385",
@@ -1004,13 +1158,15 @@
     "blocked_by": null,
     "cluster": "C5.f",
     "priority": "low",
-    "proof_notes": "Unconditional closing paren.",
+    "proof_notes": "Unconditional closing paren. Exercised by pgregress `json.sql`, `jsonb.sql` \u2014 JSON RETURNING type clause closing paren.",
     "suspicion_notes": null
   },
   {
     "site": "trigger.go:207",
     "function": "parseTriggerActionTime",
-    "nonterminals": ["trigger_action_time"],
+    "nonterminals": [
+      "trigger_action_time"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:10893-10898",
@@ -1018,13 +1174,15 @@
     "blocked_by": null,
     "cluster": "C5.g",
     "priority": "low",
-    "proof_notes": "Unconditional check for closing paren.",
+    "proof_notes": "Unconditional check for closing paren. Exercised by pgregress `triggers.sql` \u2014 trigger action timing closing paren / terminator.",
     "suspicion_notes": null
   },
   {
     "site": "prepare.go:24",
     "function": "parsePrepareStmt",
-    "nonterminals": ["prepare_stmt"],
+    "nonterminals": [
+      "prepare_stmt"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:2814-2822",
@@ -1032,13 +1190,15 @@
     "blocked_by": null,
     "cluster": "C5.h",
     "priority": "low",
-    "proof_notes": "Optional paren for parameter type list.",
+    "proof_notes": "Optional paren for parameter type list. Exercised by pgregress `prepare.sql`, `prepared_xacts.sql` \u2014 PREPARE name(int, text) AS SELECT ... parameter type list.",
     "suspicion_notes": null
   },
   {
     "site": "maintenance.go:17",
     "function": "parseAnalyzeStmt",
-    "nonterminals": ["analyze_stmt"],
+    "nonterminals": [
+      "analyze_stmt"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:11701-11709",
@@ -1046,13 +1206,15 @@
     "blocked_by": null,
     "cluster": "C5.i",
     "priority": "low",
-    "proof_notes": "Optional paren for table list.",
+    "proof_notes": "Optional paren for table list. Exercised by pgregress `vacuum.sql`, `vacuum_parallel.sql` \u2014 ANALYZE (VERBOSE) t1, t2 options.",
     "suspicion_notes": null
   },
   {
     "site": "maintenance.go:78",
     "function": "parseVacuumRelList",
-    "nonterminals": ["vacuum_rel_list"],
+    "nonterminals": [
+      "vacuum_rel_list"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:11748-11758",
@@ -1060,13 +1222,15 @@
     "blocked_by": null,
     "cluster": "C5.i",
     "priority": "low",
-    "proof_notes": "Optional paren for relation list.",
+    "proof_notes": "Optional paren for relation list. Exercised by pgregress `vacuum.sql`, `vacuum_parallel.sql` \u2014 VACUUM table_name (col_list) column selection.",
     "suspicion_notes": null
   },
   {
     "site": "maintenance.go:173",
     "function": "parseVacuumOptions",
-    "nonterminals": ["vacuum_option_list"],
+    "nonterminals": [
+      "vacuum_option_list"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:11761-11771",
@@ -1074,13 +1238,15 @@
     "blocked_by": null,
     "cluster": "C5.i",
     "priority": "low",
-    "proof_notes": "Optional paren for option list.",
+    "proof_notes": "Optional paren for option list. Exercised by pgregress `vacuum.sql`, `vacuum_parallel.sql` \u2014 VACUUM (FULL, FREEZE, ANALYZE) option list.",
     "suspicion_notes": null
   },
   {
     "site": "maintenance.go:295",
     "function": "parseReindexIndexOptions",
-    "nonterminals": ["reindex_option_list"],
+    "nonterminals": [
+      "reindex_option_list"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:11859-11869",
@@ -1088,13 +1254,15 @@
     "blocked_by": null,
     "cluster": "C5.i",
     "priority": "low",
-    "proof_notes": "Optional paren for reindex options.",
+    "proof_notes": "Optional paren for reindex options. Exercised by pgregress `reindex_catalog.sql`, `create_index.sql` \u2014 REINDEX (VERBOSE) option list.",
     "suspicion_notes": null
   },
   {
     "site": "schema.go:638",
     "function": "parseGrantOnClause",
-    "nonterminals": ["privilege_list"],
+    "nonterminals": [
+      "privilege_list"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:11222-11234",
@@ -1102,13 +1270,15 @@
     "blocked_by": null,
     "cluster": "C5.j",
     "priority": "low",
-    "proof_notes": "Optional paren for privilege list.",
+    "proof_notes": "Optional paren for privilege list. Exercised by pgregress `privileges.sql` \u2014 GRANT ON (col_list) column-level privileges.",
     "suspicion_notes": null
   },
   {
     "site": "schema.go:640",
     "function": "parseGrantOnClause",
-    "nonterminals": ["privilege_list"],
+    "nonterminals": [
+      "privilege_list"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:11222-11234",
@@ -1116,13 +1286,15 @@
     "blocked_by": null,
     "cluster": "C5.j",
     "priority": "low",
-    "proof_notes": "Unconditional closing paren.",
+    "proof_notes": "Unconditional closing paren. Exercised by pgregress `privileges.sql` \u2014 GRANT privilege list closing paren.",
     "suspicion_notes": null
   },
   {
     "site": "schema.go:675",
     "function": "parseGrantStmt",
-    "nonterminals": ["grantee_list"],
+    "nonterminals": [
+      "grantee_list"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:11243-11250",
@@ -1130,13 +1302,15 @@
     "blocked_by": null,
     "cluster": "C5.j",
     "priority": "low",
-    "proof_notes": "Optional paren for grantee list.",
+    "proof_notes": "Optional paren for grantee list. Exercised by pgregress `privileges.sql`, `rolenames.sql` \u2014 GRANT ... TO (role_list) grantee list; also grant_role_opt_list_test.go.",
     "suspicion_notes": null
   },
   {
     "site": "schema.go:681",
     "function": "parseGrantStmt",
-    "nonterminals": ["grantee_list"],
+    "nonterminals": [
+      "grantee_list"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:11243-11250",
@@ -1144,13 +1318,15 @@
     "blocked_by": null,
     "cluster": "C5.j",
     "priority": "low",
-    "proof_notes": "Unconditional closing paren or alternative branch.",
+    "proof_notes": "Unconditional closing paren or alternative branch. Exercised by pgregress `privileges.sql`, `rolenames.sql` \u2014 grantee list closing paren/terminator.",
     "suspicion_notes": null
   },
   {
     "site": "schema.go:697",
     "function": "parseGrantStmt",
-    "nonterminals": ["grantee_list"],
+    "nonterminals": [
+      "grantee_list"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:11243-11250",
@@ -1158,13 +1334,15 @@
     "blocked_by": null,
     "cluster": "C5.j",
     "priority": "low",
-    "proof_notes": "Paren for optional GROUP or ROLE syntax.",
+    "proof_notes": "Paren for optional GROUP or ROLE syntax. Exercised by pgregress `privileges.sql` \u2014 GRANT ... TO GROUP/ROLE form.",
     "suspicion_notes": null
   },
   {
     "site": "publication.go:638",
     "function": "parsePublicationForClause",
-    "nonterminals": ["publication_for_list"],
+    "nonterminals": [
+      "publication_for_list"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:12076-12089",
@@ -1172,13 +1350,15 @@
     "blocked_by": null,
     "cluster": "C5.k",
     "priority": "low",
-    "proof_notes": "Optional paren for FOR list.",
+    "proof_notes": "Optional paren for FOR list. Exercised by pgregress `publication.sql` \u2014 CREATE PUBLICATION ... FOR TABLE ... WHERE (row_filter); also create_publication_row_filter_test.go TestCreatePublicationRowFilter.",
     "suspicion_notes": null
   },
   {
     "site": "publication.go:670",
     "function": "parsePublicationForClause",
-    "nonterminals": ["publication_for_list"],
+    "nonterminals": [
+      "publication_for_list"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:12076-12089",
@@ -1186,13 +1366,15 @@
     "blocked_by": null,
     "cluster": "C5.k",
     "priority": "low",
-    "proof_notes": "Unconditional closing paren or terminator.",
+    "proof_notes": "Unconditional closing paren or terminator. Exercised by pgregress `publication.sql` \u2014 publication FOR list terminator/closing paren; see create_publication_row_filter_test.go.",
     "suspicion_notes": null
   },
   {
     "site": "insert.go:207",
     "function": "parseInsertSelectClause",
-    "nonterminals": ["insert_select_clause"],
+    "nonterminals": [
+      "insert_select_clause"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:5563-5571",
@@ -1200,13 +1382,15 @@
     "blocked_by": null,
     "cluster": "C5.l",
     "priority": "low",
-    "proof_notes": "Optional paren for column list.",
+    "proof_notes": "Optional paren for column list. Exercised by pgregress `insert.sql`, `insert_conflict.sql` \u2014 INSERT INTO t (col_list) VALUES/SELECT.",
     "suspicion_notes": null
   },
   {
     "site": "insert.go:399",
     "function": "parseInsertColumnsClause",
-    "nonterminals": ["column_list"],
+    "nonterminals": [
+      "column_list"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:5563-5571",
@@ -1214,13 +1398,15 @@
     "blocked_by": null,
     "cluster": "C5.l",
     "priority": "low",
-    "proof_notes": "Paren-wrapped column list.",
+    "proof_notes": "Paren-wrapped column list. Exercised by pgregress `insert.sql`, `insert_conflict.sql` \u2014 insert column list paren.",
     "suspicion_notes": null
   },
   {
     "site": "create_function.go:142",
     "function": "parseParamsList",
-    "nonterminals": ["param_list"],
+    "nonterminals": [
+      "param_list"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:8386-8395",
@@ -1228,13 +1414,15 @@
     "blocked_by": null,
     "cluster": "C5.m",
     "priority": "low",
-    "proof_notes": "Unconditional closing paren.",
+    "proof_notes": "Unconditional closing paren. Exercised by pgregress `create_function_sql.sql`, `polymorphism.sql`, `create_aggregate.sql` \u2014 CREATE FUNCTION param_list closing paren; also create_function_json_test.go + double_precision_test.go.",
     "suspicion_notes": null
   },
   {
     "site": "utility.go:11",
     "function": "parsePreparableStmt",
-    "nonterminals": ["select_with_parens"],
+    "nonterminals": [
+      "select_with_parens"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:2704-2707",
@@ -1242,13 +1430,15 @@
     "blocked_by": null,
     "cluster": "C5.m",
     "priority": "low",
-    "proof_notes": "Optional paren-wrapped select in EXECUTE/DEALLOCATE context.",
+    "proof_notes": "Optional paren-wrapped select in EXECUTE/DEALLOCATE context. Exercised by pgregress `prepare.sql`, `explain.sql` \u2014 EXPLAIN (opts) SELECT ... / PREPARE ... AS (SELECT ...).",
     "suspicion_notes": null
   },
   {
     "site": "parser.go:659",
     "function": "parseCreateDispatch",
-    "nonterminals": ["create_stmt"],
+    "nonterminals": [
+      "create_stmt"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:1839-1870",
@@ -1256,13 +1446,15 @@
     "blocked_by": null,
     "cluster": "C5.n",
     "priority": "low",
-    "proof_notes": "After CREATE [OR REPLACE]; checks for parens in IF NOT EXISTS or similar.",
+    "proof_notes": "After CREATE [OR REPLACE]; checks for parens in IF NOT EXISTS or similar. Exercised by pgregress `create_schema.sql`, `create_type.sql`, `create_view.sql` \u2014 CREATE [OR REPLACE] dispatch paths; covered by broad pgregress DDL corpus.",
     "suspicion_notes": null
   },
   {
     "site": "parser.go:730",
     "function": "parseCreateDispatch",
-    "nonterminals": ["temp_table"],
+    "nonterminals": [
+      "temp_table"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:1925-1960",
@@ -1270,13 +1462,15 @@
     "blocked_by": null,
     "cluster": "C5.n",
     "priority": "low",
-    "proof_notes": "Optional temp table clause parens.",
+    "proof_notes": "Optional temp table clause parens. Exercised by pgregress `temp.sql`, `create_table.sql` \u2014 CREATE TEMP/TEMPORARY TABLE ... with temp-clause parens.",
     "suspicion_notes": null
   },
   {
     "site": "parser.go:778",
     "function": "parseCreateDispatch",
-    "nonterminals": ["create_table_as"],
+    "nonterminals": [
+      "create_table_as"
+    ],
     "ambiguity_present": false,
     "current_technique": "T1",
     "pg_reference": "gram.y:1925-1960",
@@ -1284,13 +1478,15 @@
     "blocked_by": null,
     "cluster": "C5.n",
     "priority": "low",
-    "proof_notes": "CREATE TABLE AS with options parens.",
+    "proof_notes": "CREATE TABLE AS with options parens. Exercised by pgregress `select_into.sql`, `matview.sql` \u2014 CREATE TABLE AS with optional WITH (opts).",
     "suspicion_notes": null
   },
   {
     "site": "parser.go:847",
     "function": "parseCreateDispatch",
-    "nonterminals": ["with_clause"],
+    "nonterminals": [
+      "with_clause"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:1943-1953",
@@ -1298,13 +1494,15 @@
     "blocked_by": null,
     "cluster": "C5.n",
     "priority": "low",
-    "proof_notes": "Unconditional closing paren.",
+    "proof_notes": "Unconditional closing paren. Exercised by pgregress `create_table.sql`, `matview.sql` \u2014 CREATE TABLE AS / MATERIALIZED VIEW WITH () closing paren.",
     "suspicion_notes": null
   },
   {
     "site": "parser.go:897",
     "function": "parseCreateDispatch",
-    "nonterminals": ["column_list"],
+    "nonterminals": [
+      "column_list"
+    ],
     "ambiguity_present": false,
     "current_technique": null,
     "pg_reference": "gram.y:1943-1953",
@@ -1312,7 +1510,7 @@
     "blocked_by": null,
     "cluster": "C5.n",
     "priority": "low",
-    "proof_notes": "Unconditional check for closing paren or comma.",
+    "proof_notes": "Unconditional check for closing paren or comma. Exercised by pgregress `create_table.sql`, `matview.sql` \u2014 CREATE TABLE AS column list closing paren / comma terminator.",
     "suspicion_notes": null
   }
 ]

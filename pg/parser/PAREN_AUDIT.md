@@ -1,11 +1,11 @@
 # PAREN_AUDIT — pg/parser `(` / `)` dispatch sites
 
-**Status:** Phase 1 audit complete (2026-04-21)
+**Status:** Phase 1 audit complete (2026-04-21); Phase 4 §5.3 lock-in proofs + §4.2 citation sweep complete.
 **Scope:** every `(` / `)` dispatch site in `pg/parser/*.go`
 **Reference:** `docs/plans/2026-04-21-pg-paren-dispatch.md` §4.1 scope, §3 technique catalogue, §5.3 alignment bar
 
 **Note on site identifiers:** `file:line` in this document is the **original audit coordinate** captured at Phase 1 scope-lock (2026-04-21). Line numbers drift as code evolves; we retain the original coordinate as a stable row ID so audit history remains cross-referenceable. For the current live location of any site, grep the function name.
-**Machine-readable mirror:** `PAREN_AUDIT.json`
+**Machine-readable mirror:** `PAREN_AUDIT.json` — **source of truth** for the full `proof_notes` text (caller-context paragraphs and test citations). The markdown cluster tables below carry a terse one-line technique/status summary; for the §5.3 two-proof bar text (caller-context + ≥5 pinned tests for ambiguity-present sites) or test-file citations (non-ambiguous sites), consult the matching site row in `PAREN_AUDIT.json`.
 
 ## Summary
 
@@ -168,7 +168,15 @@ Originally surfaced as the top misaligned sites. All four have since been closed
 
 Remaining low-priority items from the original list (already informally aligned via T1 peek; kept for §5.3 lock-in in Phase 4):
 
-5. select.go:770 parseCommonTableExpr — optional paren-wrapped column list (T1; Phase 4 empirical lock-in)
-6. type.go:313-687 parseOptFloat / parseBit / parseVarcharType / … — type-modifier paren family (T1; Phase 4 batch lock-in)
+5. select.go:770 parseCommonTableExpr — optional paren-wrapped column list (T1; Phase 4 §4.2 citation: pgregress `with.sql`, `with_recursive.sql`)
+6. type.go:313-687 parseOptFloat / parseBit / parseVarcharType / … — type-modifier paren family (T1; Phase 4 §4.2 citations: pgregress `float4.sql`, `bit.sql`, `varchar.sql`, `timestamp.sql`, `interval.sql`, etc.)
+
+---
+
+## Phase 4 §5.3 lock-in summary (2026-04-21)
+
+- **§4.1 two-proof bar** applied to the 4 Phase 0 `select_with_parens` / `joined_table` sites: `select.go:77 parseSelectWithParens`, `select.go:166 parseSelectClausePrimary`, `select.go:1162 parseParenTableRef`, `select.go:1225 parseJoinedTable`. Each row in `PAREN_AUDIT.json` now carries (a) an explicit caller-context paragraph identifying every caller, (b) ≥5 pinned empirical tests from `paren_multi_join_test.go` (plus the oracle + pgregress anti-regression fences). The two Phase 1 ambiguity-present sites (`expr.go:1609-1610 parseArrayCExpr`, `expr.go:2053 parseInExpr`, `select.go:1347 parseLateralTableRef`) already carry the §5.3 bar from Phase 1 commits ad700fa / 284f39e / be8af80 / c1158b7.
+- **§4.2 citation sweep** applied to all 85+ non-ambiguous C3/C4/C5 rows: every `proof_notes` field now cites at least one concrete test file (dedicated `pg/parser/*_test.go`) or pgregress SQL corpus entry (`pg/pgregress/testdata/sql/*.sql`) that exercises the grammar point. Grammar structure remains the primary proof; citations are for anti-regression traceability only.
+- **Gaps surfaced:** none blocking. All 94 rows have at least one citation. A handful of rows cite only the broad pgregress corpus (no dedicated unit test) — these are low-priority utility sites (e.g. `trigger.go:207`, `extension.go:274-334`) where adding a bespoke paren test would be redundant with pgregress; deferred as minor TODOs rather than §4.2 blockers.
 
 
