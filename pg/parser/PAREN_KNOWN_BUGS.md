@@ -46,6 +46,37 @@ so the signal isn't lost when future work reads those files.
   - `pg/parser/testdata/paren-fuzz-corpus/known-mismatches.txt`
     entries for all three depths.
 
+## PAREN-KB-3 — `LATERAL ()` accepted with empty parens
+
+- **Summary:** omni's `parseLateralTableRef` routes `LATERAL ()` to
+  `select_with_parens` and accepts it, producing a `RangeSubselect`
+  with a nil (or empty-SELECT) body. PG 17 rejects with 42601
+  ("syntax error at or near `)`") because `select_with_parens`
+  requires a `select_no_parens` body and empty parens are not one.
+- **omni current behavior:** parses successfully; classifier reports
+  `OmniSubquery`. Downstream analyze would fail on the degenerate
+  subquery body, but raw-parse silently accepts the token sequence.
+- **PG correct behavior:** 42601 syntax_error at the closing `)`.
+- **Discovery context:** `SCENARIOS-pg-paren-dispatch.md` §3.2
+  ("parseLateralTableRef oracle corpus"), scenario 4 (invalid LATERAL
+  shapes). Surfaced by the §3.2 test
+  `TestParenOracleLateral/invalid_shapes_rejected/LATERAL_empty_parens`.
+- **Recommended fix location:** `pg/parser/select.go` →
+  `parseLateralTableRef` / the inner `parseSelectWithParens` path.
+  After the opening `(` is consumed in the `LATERAL (...)` arm, if the
+  next token is `)` (empty body), emit 42601 at the close paren. The
+  non-LATERAL path (`SELECT * FROM ()`) is already correctly rejected
+  — see `TestParenOracleHarness/empty_parens_rejected` — so the fix
+  likely sits on the LATERAL dispatch side that skips the shared
+  empty-body check.
+- **Priority:** low. Degenerate input unlikely to appear in user SQL,
+  but the accept-vs-reject drift is real and the oracle fence should
+  eventually be able to drop the skip.
+- **Test pins:**
+  - `pg/parser/paren_oracle_lateral_test.go`
+    `TestParenOracleLateral/invalid_shapes_rejected/LATERAL_empty_parens`
+    (skipped with a pointer to PAREN-KB-3).
+
 ## PAREN-KB-2 — `Parse()` silently drops trailing statements
 
 - **Summary:** omni's top-level `Parse(sql string)` accepts inputs
