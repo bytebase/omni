@@ -547,6 +547,23 @@ func (p *Parser) parseIdent() (string, int, error) {
 	}
 }
 
+// parseIdentOrText parses MySQL's `ident_or_text` grammar rule: either an
+// identifier (including non-reserved keywords) or a string literal. Used for
+// aliases and other positions where MySQL accepts TEXT_STRING_sys equivalently.
+//
+// Ref: mysql-server sql/sql_yacc.yy — ident_or_text rule
+//
+//	ident_or_text:
+//	    ident
+//	  | TEXT_STRING_sys
+func (p *Parser) parseIdentOrText() (string, int, error) {
+	if p.cur.Type == tokSCONST {
+		tok := p.advance()
+		return tok.Str, tok.Loc, nil
+	}
+	return p.parseIdent()
+}
+
 // parseIdentifier is a thin alias for parseIdent, preserved for gradual migration
 // of existing call sites. New code should use parseIdent directly.
 func (p *Parser) parseIdentifier() (string, int, error) {
