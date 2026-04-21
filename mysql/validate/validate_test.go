@@ -234,6 +234,63 @@ func TestValidateIterateBlockLabelRejected(t *testing.T) {
 	requireCode(t, diags, "undeclared_loop_label")
 }
 
+// --- Task 4.4: OPEN/FETCH/CLOSE cursor reference -------------------------
+
+func TestValidateOpenUndeclaredCursor(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.OpenCursorStmt{Name: "no_cur", Loc: nodes.Loc{Start: 10}},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireCode(t, diags, "undeclared_cursor")
+}
+
+func TestValidateFetchUndeclaredCursor(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.FetchCursorStmt{Name: "no_cur", Loc: nodes.Loc{Start: 10}},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireCode(t, diags, "undeclared_cursor")
+}
+
+func TestValidateCloseUndeclaredCursor(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.CloseCursorStmt{Name: "no_cur", Loc: nodes.Loc{Start: 10}},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireCode(t, diags, "undeclared_cursor")
+}
+
+func TestValidateCursorDeclaredOK(t *testing.T) {
+	list := &nodes.List{Items: []nodes.Node{
+		&nodes.CreateFunctionStmt{
+			IsProcedure: true,
+			Body: &nodes.BeginEndBlock{Stmts: []nodes.Node{
+				&nodes.DeclareCursorStmt{Name: "cur"},
+				&nodes.OpenCursorStmt{Name: "CUR"},
+				&nodes.FetchCursorStmt{Name: "cur"},
+				&nodes.CloseCursorStmt{Name: "Cur"},
+			}},
+		},
+	}}
+	diags := Validate(list, Options{})
+	requireNoCode(t, diags, "undeclared_cursor")
+}
+
 func TestValidateIterateLoopLabelOK(t *testing.T) {
 	list := &nodes.List{Items: []nodes.Node{
 		&nodes.CreateFunctionStmt{

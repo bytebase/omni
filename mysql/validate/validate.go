@@ -88,6 +88,23 @@ func (v *validator) walk(n nodes.Node) {
 		v.walkLeaveStmt(s)
 	case *nodes.IterateStmt:
 		v.walkIterateStmt(s)
+	case *nodes.OpenCursorStmt:
+		v.checkCursorRef(s.Name, s.Loc.Start)
+	case *nodes.FetchCursorStmt:
+		v.checkCursorRef(s.Name, s.Loc.Start)
+	case *nodes.CloseCursorStmt:
+		v.checkCursorRef(s.Name, s.Loc.Start)
+	}
+}
+
+// checkCursorRef emits undeclared_cursor when name is unknown in the scope
+// chain. Used by OPEN/FETCH/CLOSE walkers.
+func (v *validator) checkCursorRef(name string, pos int) {
+	if v.scope == nil {
+		return
+	}
+	if v.scope.lookupCursor(name) == nil {
+		v.emit("undeclared_cursor", "undeclared cursor: "+name, pos)
 	}
 }
 
