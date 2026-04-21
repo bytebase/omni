@@ -512,19 +512,21 @@ func (p *Parser) parseReceiveStmt() (*nodes.ReceiveStmt, error) {
 		stmt.AllColumns = true
 		p.advance()
 	} else {
+		// RECEIVE column list is terminated by a DML/statement boundary
+		// (FROM / INTO / WHERE / ; / EOF), so parseCommaList's single-end
+		// contract does not fit. Keep open-coded but enforce trailing-comma
+		// rejection to match SqlScriptDOM strictness.
 		var cols []nodes.Node
 		for p.cur.Type != kwFROM && p.cur.Type != tokEOF && p.cur.Type != ';' {
 			col := &nodes.ReceiveColumn{
 				Loc: nodes.Loc{Start: p.pos(), End: -1},
 			}
-			// Parse column expression (simple: column_name or expression)
 			if p.isAnyKeywordIdent() || p.cur.Type == tokVARIABLE {
 				col.Expr = &nodes.ColumnRef{Column: p.cur.Str, Loc: nodes.Loc{Start: p.pos(), End: p.prevEnd() + len(p.cur.Str)}}
 				p.advance()
 			} else {
 				col.Expr, _ = p.parseExpr()
 			}
-			// optional alias: [AS] alias
 			if p.cur.Type == kwAS {
 				p.advance()
 				if p.isAnyKeywordIdent() {
@@ -532,7 +534,6 @@ func (p *Parser) parseReceiveStmt() (*nodes.ReceiveStmt, error) {
 					p.advance()
 				}
 			} else if p.isAnyKeywordIdent() && p.cur.Type != kwFROM && p.cur.Type != kwINTO && p.cur.Type != kwWHERE {
-				// alias without AS
 				col.Alias = p.cur.Str
 				p.advance()
 			}
@@ -542,6 +543,11 @@ func (p *Parser) parseReceiveStmt() (*nodes.ReceiveStmt, error) {
 			}
 			if _, ok := p.match(','); !ok {
 				break
+			}
+			// After consuming ',' there must be another column before the
+			// statement terminator — reject trailing comma.
+			if p.cur.Type == kwFROM || p.cur.Type == tokEOF || p.cur.Type == ';' {
+				return nil, p.unexpectedToken()
 			}
 		}
 		if len(cols) > 0 {

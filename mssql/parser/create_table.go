@@ -118,34 +118,39 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	var cols []nodes.Node
 	var constraints []nodes.Node
 
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		// Check for PERIOD FOR SYSTEM_TIME
-		if p.cur.Type == kwPERIOD {
-			if p.peekNext().Type == kwFOR {
-				p.advance() // PERIOD
-				p.advance() // FOR
-				// SYSTEM_TIME
-				if p.cur.Type == kwSYSTEM_TIME {
-					p.advance()
-				}
-				// ( start_col , end_col )
-				if p.cur.Type == '(' {
-					p.advance()
-					startCol, _ := p.parseIdentifier()
-					stmt.PeriodStartCol = startCol
-					p.match(',')
-					endCol, _ := p.parseIdentifier()
-					stmt.PeriodEndCol = endCol
-					p.expect(')')
-				}
-				if _, ok := p.match(','); !ok {
-					break
-				}
-				continue
-			}
+	// CREATE TABLE column/constraint list is the one site where SqlScriptDOM
+	// tolerates a trailing comma (see scriptdom harness verification).
+	_, listErr := p.parseCommaList(')', commaListAllowTrail, func() (nodes.Node, error) {
+		// Completion: at start of each column/constraint slot.
+		if p.collectMode() {
+			p.addRuleCandidate("identifier")
+			p.addTokenCandidate(kwCONSTRAINT)
+			p.addTokenCandidate(kwPRIMARY)
+			p.addTokenCandidate(kwUNIQUE)
+			p.addTokenCandidate(kwFOREIGN)
+			p.addTokenCandidate(kwCHECK)
+			p.addTokenCandidate(kwINDEX)
+			return nil, errCollecting
 		}
-
-		// Check for inline INDEX definition
+		// PERIOD FOR SYSTEM_TIME — stored on stmt directly, not collected here.
+		if p.cur.Type == kwPERIOD && p.peekNext().Type == kwFOR {
+			p.advance() // PERIOD
+			p.advance() // FOR
+			if p.cur.Type == kwSYSTEM_TIME {
+				p.advance()
+			}
+			if p.cur.Type == '(' {
+				p.advance()
+				startCol, _ := p.parseIdentifier()
+				stmt.PeriodStartCol = startCol
+				p.match(',')
+				endCol, _ := p.parseIdentifier()
+				stmt.PeriodEndCol = endCol
+				p.expect(')')
+			}
+			// Return a sentinel so parseCommaList accepts this as "one item".
+			return &nodes.String{Str: "__period__"}, nil
+		}
 		if p.cur.Type == kwINDEX {
 			idx, err := p.parseInlineTableIndex()
 			if err != nil {
@@ -157,7 +162,9 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 				}
 				stmt.Indexes.Items = append(stmt.Indexes.Items, idx)
 			}
-		} else if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwPRIMARY ||
+			return idx, nil
+		}
+		if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwPRIMARY ||
 			p.cur.Type == kwUNIQUE || p.cur.Type == kwCHECK ||
 			p.cur.Type == kwFOREIGN {
 			constraint, err := p.parseTableConstraint()
@@ -167,29 +174,19 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 			if constraint != nil {
 				constraints = append(constraints, constraint)
 			}
-		} else {
-			col, err := p.parseColumnDef()
-			if err != nil {
-				return nil, err
-			}
-			if col != nil {
-				cols = append(cols, col)
-			}
+			return constraint, nil
 		}
-		if _, ok := p.match(','); !ok {
-			break
+		col, err := p.parseColumnDef()
+		if err != nil {
+			return nil, err
 		}
-		// Completion: after comma inside CREATE TABLE → constraint keywords / columnref
-		if p.collectMode() {
-			p.addRuleCandidate("identifier")
-			p.addTokenCandidate(kwCONSTRAINT)
-			p.addTokenCandidate(kwPRIMARY)
-			p.addTokenCandidate(kwUNIQUE)
-			p.addTokenCandidate(kwFOREIGN)
-			p.addTokenCandidate(kwCHECK)
-			p.addTokenCandidate(kwINDEX)
-			return nil, errCollecting
+		if col != nil {
+			cols = append(cols, col)
 		}
+		return col, nil
+	})
+	if listErr != nil {
+		return nil, listErr
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -300,18 +297,18 @@ func (p *Parser) parseTableOptions() (*nodes.List, error) {
 	}
 	p.advance()
 
-	var items []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	items, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 		opt, err := p.parseOneTableOption()
 		if err != nil {
 			return nil, err
 		}
-		if opt != nil {
-			items = append(items, opt)
+		if opt == nil {
+			return nil, p.unexpectedToken()
 		}
-		if _, ok := p.match(','); !ok {
-			break
-		}
+		return opt, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -1852,17 +1849,18 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 // parseParenIdentList parses (ident, ident, ...).
 func (p *Parser) parseParenIdentList() (*nodes.List, error) {
 	p.advance() // consume (
-	var items []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	items, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 		name, ok := p.parseIdentifier()
 		if !ok {
-			break
+			return nil, p.unexpectedToken()
 		}
-		items = append(items, &nodes.String{Str: name})
-		if _, ok := p.match(','); !ok {
-			break
-		}
+		return &nodes.String{Str: name}, nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.List{Items: items}, nil
 }

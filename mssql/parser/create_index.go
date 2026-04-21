@@ -175,17 +175,16 @@ func (p *Parser) parseCreateIndexStmt(unique bool) (*nodes.CreateIndexStmt, erro
 // parseIndexColumnList parses (col [ASC|DESC], ...).
 func (p *Parser) parseIndexColumnList() (*nodes.List, error) {
 	p.advance() // consume (
-	// Completion: inside index column list → columnref
-	if p.collectMode() {
-		p.addRuleCandidate("columnref")
-		return nil, errCollecting
-	}
-	var items []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	items, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+		// Completion: at start of each index column slot → columnref
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return nil, errCollecting
+		}
 		loc := p.pos()
 		name, ok := p.parseIdentifier()
 		if !ok {
-			break
+			return nil, p.unexpectedToken()
 		}
 		dir := nodes.SortDefault
 		if _, ok := p.match(kwASC); ok {
@@ -193,14 +192,14 @@ func (p *Parser) parseIndexColumnList() (*nodes.List, error) {
 		} else if _, ok := p.match(kwDESC); ok {
 			dir = nodes.SortDesc
 		}
-		items = append(items, &nodes.IndexColumn{
+		return &nodes.IndexColumn{
 			Name:    name,
 			SortDir: dir,
 			Loc:     nodes.Loc{Start: loc, End: -1},
-		})
-		if _, ok := p.match(','); !ok {
-			break
-		}
+		}, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -729,19 +728,21 @@ func (p *Parser) parseCreateVectorIndexStmt() (*nodes.CreateVectorIndexStmt, err
 // parseOptionList parses (option = value, ...) used in WITH clauses.
 func (p *Parser) parseOptionList() (*nodes.List, error) {
 	p.advance() // consume (
-	var items []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	items, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
-		if expr != nil {
-			items = append(items, expr)
+		if expr == nil {
+			return nil, p.unexpectedToken()
 		}
-		if _, ok := p.match(','); !ok {
-			break
-		}
+		return expr, nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.List{Items: items}, nil
 }
