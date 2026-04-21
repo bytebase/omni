@@ -132,134 +132,134 @@ Build a PG 17 testcontainer-based oracle that probes every conceivable `FROM (..
 
 ### 2.1 Oracle infrastructure
 
-- [ ] PG 17 testcontainer boots and accepts connections from the test harness
-- [ ] Oracle driver sends a probe SQL to PG, receives accept (row parsed) or reject (SQLSTATE)
-- [ ] Oracle driver tokenizes omni's result: accepted-as-subquery, accepted-as-joined-table, accepted-as-other, rejected-syntax
-- [ ] Probe result stored with `{sql, pg_status, omni_status, pg_error?, omni_error?}`
-- [ ] Mismatch detector: reports when `pg_status != omni_status` with side-by-side diff
-- [ ] Test skip when testcontainer unavailable (CI-local); never fails the suite for infra reasons
-- [ ] Oracle harness runs under `go test -tags=oracle` or equivalent, not in default test pass
-- [ ] Harness output includes per-probe timing to measure against plan §6.5 CI-cost budget (~2 min for 200 probes)
+- [x] PG 17 testcontainer boots and accepts connections from the test harness
+- [x] Oracle driver sends a probe SQL to PG, receives accept (row parsed) or reject (SQLSTATE)
+- [x] Oracle driver tokenizes omni's result: accepted-as-subquery, accepted-as-joined-table, accepted-as-other, rejected-syntax
+- [x] Probe result stored with `{sql, pg_status, omni_status, pg_error?, omni_error?}`
+- [x] Mismatch detector: reports when `pg_status != omni_status` with side-by-side diff
+- [x] Test skip when testcontainer unavailable (CI-local); never fails the suite for infra reasons
+- [x] Oracle harness runs under `go test -tags=oracle` or equivalent, not in default test pass
+- [x] Harness output includes per-probe timing to measure against plan §6.5 CI-cost budget (~2 min for 200 probes)
 
 ### 2.2 FROM-clause simple-shape corpus
 
 One probe per canonical shape. `T`, `U`, `V` are pre-created tables on the oracle container; `t1(a)` is a func_table.
 
-- [ ] `SELECT * FROM (T)` — PG: reject (not joined_table)
-- [ ] `SELECT * FROM ((T))` — PG: reject
-- [ ] `SELECT * FROM (T JOIN U ON TRUE)` — PG: accept, JoinExpr
-- [ ] `SELECT * FROM (T CROSS JOIN U)` — PG: accept
-- [ ] `SELECT * FROM (T LEFT JOIN U ON TRUE)` — accept
-- [ ] `SELECT * FROM (T RIGHT JOIN U ON TRUE)` — accept
-- [ ] `SELECT * FROM (T FULL JOIN U ON TRUE)` — accept
-- [ ] `SELECT * FROM (T INNER JOIN U ON TRUE)` — accept
-- [ ] `SELECT * FROM (T NATURAL JOIN U)` — accept
-- [ ] `SELECT * FROM (T NATURAL LEFT JOIN U)` — accept
-- [ ] `SELECT * FROM (T NATURAL FULL OUTER JOIN U)` — accept
-- [ ] `SELECT * FROM (T JOIN U USING (a))` — accept
-- [ ] `SELECT * FROM (T JOIN U USING (a) AS alias_clause)` — accept, join-using alias
-- [ ] `SELECT * FROM (T LEFT OUTER JOIN U ON T.a = U.a)` — accept
-- [ ] `SELECT * FROM (T)` as LATERAL prefix `LATERAL (T)` — PG: reject
-- [ ] `SELECT * FROM (T AS alias)` — PG: reject (content is aliased relation, not joined_table)
-- [ ] `SELECT * FROM (T, U)` — PG: reject (comma in paren is not joined_table)
-- [ ] `SELECT * FROM (ONLY T)` — PG: reject
-- [ ] `SELECT * FROM (T TABLESAMPLE BERNOULLI(10))` — PG: reject (tablesample in paren)
-- [ ] `SELECT * FROM (T WITH ORDINALITY)` — PG: reject (WITH ORDINALITY only valid on func_table)
-- [ ] `SELECT * FROM (T FOR UPDATE)` — PG: reject (locking clause not valid inside FROM-paren)
+- [x] `SELECT * FROM (T)` — PG: reject (not joined_table)
+- [x] `SELECT * FROM ((T))` — PG: reject
+- [x] `SELECT * FROM (T JOIN U ON TRUE)` — PG: accept, JoinExpr
+- [x] `SELECT * FROM (T CROSS JOIN U)` — PG: accept
+- [x] `SELECT * FROM (T LEFT JOIN U ON TRUE)` — accept
+- [x] `SELECT * FROM (T RIGHT JOIN U ON TRUE)` — accept
+- [x] `SELECT * FROM (T FULL JOIN U ON TRUE)` — accept
+- [x] `SELECT * FROM (T INNER JOIN U ON TRUE)` — accept
+- [x] `SELECT * FROM (T NATURAL JOIN U)` — accept
+- [x] `SELECT * FROM (T NATURAL LEFT JOIN U)` — accept
+- [x] `SELECT * FROM (T NATURAL FULL OUTER JOIN U)` — accept
+- [x] `SELECT * FROM (T JOIN U USING (a))` — accept
+- [x] `SELECT * FROM (T JOIN U USING (a) AS alias_clause)` — accept, join-using alias
+- [x] `SELECT * FROM (T LEFT OUTER JOIN U ON T.a = U.a)` — accept
+- [x] `SELECT * FROM (T)` as LATERAL prefix `LATERAL (T)` — PG: reject
+- [x] `SELECT * FROM (T AS alias)` — PG: reject (content is aliased relation, not joined_table)
+- [x] `SELECT * FROM (T, U)` — PG: reject (comma in paren is not joined_table)
+- [x] `SELECT * FROM (ONLY T)` — PG: reject
+- [x] `SELECT * FROM (T TABLESAMPLE BERNOULLI(10))` — PG: reject (tablesample in paren)
+- [x] `SELECT * FROM (T WITH ORDINALITY)` — PG: reject (WITH ORDINALITY only valid on func_table)
+- [x] `SELECT * FROM (T FOR UPDATE)` — PG: reject (locking clause not valid inside FROM-paren)
 
 ### 2.3 FROM-clause subquery-shape corpus
 
-- [ ] `SELECT * FROM (SELECT 1)` — accept subquery
-- [ ] `SELECT * FROM (SELECT 1) AS s` — accept with alias
-- [ ] `SELECT * FROM (SELECT 1) s(x)` — accept with column alias
-- [ ] `SELECT * FROM ((SELECT 1))` — accept double-wrapped
-- [ ] `SELECT * FROM (((SELECT 1)))` — accept triple-wrapped
-- [ ] `SELECT * FROM ((((SELECT 1))))` — accept four-wrapped
-- [ ] `SELECT * FROM (VALUES (1))` — accept (oracle-verified: PG 17 accepts without alias; classifies as a VALUES-backed RangeSubselect)
-- [ ] `SELECT * FROM (VALUES (1)) AS v(a)` — accept
-- [ ] `SELECT * FROM ((VALUES (1)) AS v(a))` — reject (oracle-verified: PG 17 rejects the double-wrap-with-alias form at `AS`)
-- [ ] `SELECT * FROM (WITH cte AS (SELECT 1) SELECT * FROM cte)` — accept
-- [ ] `SELECT * FROM ((WITH cte AS (SELECT 1) SELECT * FROM cte))` — double-wrap
-- [ ] `SELECT * FROM (TABLE T)` — accept, TABLE subquery
-- [ ] `SELECT * FROM (SELECT 1 UNION SELECT 2)` — accept, set-op
-- [ ] `SELECT * FROM (SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3)` — multi-operand set-op
-- [ ] `SELECT * FROM (SELECT 1 INTERSECT SELECT 2)` — INTERSECT
-- [ ] `SELECT * FROM (SELECT 1 EXCEPT SELECT 2)` — EXCEPT
-- [ ] `SELECT * FROM ((SELECT 1) UNION (SELECT 2))` — parenthesized operands
-- [ ] `SELECT * FROM (((SELECT 1) UNION (SELECT 2)) UNION (SELECT 3))` — nested set-op with parens
+- [x] `SELECT * FROM (SELECT 1)` — accept subquery
+- [x] `SELECT * FROM (SELECT 1) AS s` — accept with alias
+- [x] `SELECT * FROM (SELECT 1) s(x)` — accept with column alias
+- [x] `SELECT * FROM ((SELECT 1))` — accept double-wrapped
+- [x] `SELECT * FROM (((SELECT 1)))` — accept triple-wrapped
+- [x] `SELECT * FROM ((((SELECT 1))))` — accept four-wrapped
+- [x] `SELECT * FROM (VALUES (1))` — accept (oracle-verified: PG 17 accepts without alias; classifies as a VALUES-backed RangeSubselect)
+- [x] `SELECT * FROM (VALUES (1)) AS v(a)` — accept
+- [x] `SELECT * FROM ((VALUES (1)) AS v(a))` — reject (oracle-verified: PG 17 rejects the double-wrap-with-alias form at `AS`)
+- [x] `SELECT * FROM (WITH cte AS (SELECT 1) SELECT * FROM cte)` — accept
+- [x] `SELECT * FROM ((WITH cte AS (SELECT 1) SELECT * FROM cte))` — double-wrap
+- [x] `SELECT * FROM (TABLE T)` — accept, TABLE subquery
+- [x] `SELECT * FROM (SELECT 1 UNION SELECT 2)` — accept, set-op
+- [x] `SELECT * FROM (SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3)` — multi-operand set-op
+- [x] `SELECT * FROM (SELECT 1 INTERSECT SELECT 2)` — INTERSECT
+- [x] `SELECT * FROM (SELECT 1 EXCEPT SELECT 2)` — EXCEPT
+- [x] `SELECT * FROM ((SELECT 1) UNION (SELECT 2))` — parenthesized operands
+- [x] `SELECT * FROM (((SELECT 1) UNION (SELECT 2)) UNION (SELECT 3))` — nested set-op with parens
 
 ### 2.4 FROM-clause joined_table-shape corpus
 
-- [ ] `SELECT * FROM ((T JOIN U ON TRUE))` — double-wrapped joined_table
-- [ ] `SELECT * FROM (((T JOIN U ON TRUE)))` — triple-wrapped
-- [ ] `SELECT * FROM ((T JOIN U ON TRUE) JOIN V ON TRUE)` — BYT-9315 shape
-- [ ] `SELECT * FROM (T JOIN (U JOIN V ON TRUE) ON TRUE)` — right-side paren-join
-- [ ] `SELECT * FROM ((T JOIN U ON TRUE) JOIN (V JOIN W ON TRUE) ON TRUE)` — both sides paren-join
-- [ ] `SELECT * FROM (((T JOIN U ON TRUE) JOIN V ON TRUE) JOIN W ON TRUE)` — deeply nested left
-- [ ] `SELECT * FROM (T JOIN (U JOIN (V JOIN W ON TRUE) ON TRUE) ON TRUE)` — deeply nested right
-- [ ] `SELECT * FROM (T CROSS JOIN U JOIN V ON TRUE)` — mixed join types
-- [ ] `SELECT * FROM (T LEFT JOIN U ON T.a = U.a RIGHT JOIN V ON U.b = V.b)` — chained outer joins
-- [ ] `SELECT * FROM ((T JOIN U ON TRUE) JOIN V ON TRUE) AS jt` — outer alias on paren-joined
-- [ ] `SELECT * FROM ((T JOIN U ON TRUE) JOIN V ON TRUE) AS jt(col1)` — outer column-list alias
-- [ ] `SELECT * FROM (T JOIN U ON TRUE) AS jt JOIN V ON TRUE` — alias then outer join
-- [ ] `SELECT * FROM (T NATURAL JOIN U) JOIN V USING (a)` — natural then using
-- [ ] `SELECT * FROM (T FULL OUTER JOIN U USING (a))` — FULL OUTER + USING (gram.y `join_type` branch)
-- [ ] `SELECT * FROM (T LEFT OUTER JOIN U USING (a, b))` — multi-column USING
-- [ ] `SELECT * FROM ((T JOIN U ON ((T.a = U.a))) JOIN V ON ((U.b = V.b)))` — double-paren ON-expr (actual `pg_get_viewdef()` output shape)
-- [ ] `SELECT * FROM (T JOIN LATERAL (SELECT U.a FROM U WHERE U.x = T.x) v ON TRUE)` — LATERAL subquery as JOIN right operand inside paren-joined_table
-- [ ] `SELECT * FROM ((T JOIN U ON T.a = U.a) JOIN LATERAL (SELECT 1) l ON TRUE)` — LATERAL as second join's right operand
+- [x] `SELECT * FROM ((T JOIN U ON TRUE))` — double-wrapped joined_table
+- [x] `SELECT * FROM (((T JOIN U ON TRUE)))` — triple-wrapped
+- [x] `SELECT * FROM ((T JOIN U ON TRUE) JOIN V ON TRUE)` — BYT-9315 shape
+- [x] `SELECT * FROM (T JOIN (U JOIN V ON TRUE) ON TRUE)` — right-side paren-join
+- [x] `SELECT * FROM ((T JOIN U ON TRUE) JOIN (V JOIN W ON TRUE) ON TRUE)` — both sides paren-join
+- [x] `SELECT * FROM (((T JOIN U ON TRUE) JOIN V ON TRUE) JOIN W ON TRUE)` — deeply nested left
+- [x] `SELECT * FROM (T JOIN (U JOIN (V JOIN W ON TRUE) ON TRUE) ON TRUE)` — deeply nested right
+- [x] `SELECT * FROM (T CROSS JOIN U JOIN V ON TRUE)` — mixed join types
+- [x] `SELECT * FROM (T LEFT JOIN U ON T.a = U.a RIGHT JOIN V ON U.b = V.b)` — chained outer joins
+- [x] `SELECT * FROM ((T JOIN U ON TRUE) JOIN V ON TRUE) AS jt` — outer alias on paren-joined
+- [x] `SELECT * FROM ((T JOIN U ON TRUE) JOIN V ON TRUE) AS jt(col1)` — outer column-list alias
+- [x] `SELECT * FROM (T JOIN U ON TRUE) AS jt JOIN V ON TRUE` — alias then outer join
+- [x] `SELECT * FROM (T NATURAL JOIN U) JOIN V USING (a)` — natural then using
+- [x] `SELECT * FROM (T FULL OUTER JOIN U USING (a))` — FULL OUTER + USING (gram.y `join_type` branch)
+- [x] `SELECT * FROM (T LEFT OUTER JOIN U USING (a, b))` — multi-column USING
+- [x] `SELECT * FROM ((T JOIN U ON ((T.a = U.a))) JOIN V ON ((U.b = V.b)))` — double-paren ON-expr (actual `pg_get_viewdef()` output shape)
+- [x] `SELECT * FROM (T JOIN LATERAL (SELECT U.a FROM U WHERE U.x = T.x) v ON TRUE)` — LATERAL subquery as JOIN right operand inside paren-joined_table
+- [x] `SELECT * FROM ((T JOIN U ON T.a = U.a) JOIN LATERAL (SELECT 1) l ON TRUE)` — LATERAL as second join's right operand
 
 ### 2.5 FROM-clause mixed shapes
 
 `((subquery) JOIN relation)` — the exact shape from Phase 0 fix.
 
-- [ ] `SELECT * FROM ((SELECT 1) x JOIN U ON TRUE)` — subquery as join operand
-- [ ] `SELECT * FROM ((SELECT 1) x CROSS JOIN U)` — subquery CROSS JOIN
-- [ ] `SELECT * FROM ((SELECT 1) x NATURAL JOIN U)` — subquery NATURAL JOIN
-- [ ] `SELECT * FROM ((SELECT 1) x JOIN (SELECT 2) y ON x.a = y.a)` — both operands subquery
-- [ ] `SELECT * FROM ((VALUES (1)) v(a) JOIN U ON TRUE)` — VALUES as operand
-- [ ] `SELECT * FROM ((TABLE T) JOIN U ON TRUE)` — TABLE as operand (PG: check — may reject due to TABLE's form)
-- [ ] `SELECT * FROM ((T) JOIN U ON TRUE)` — PG: reject (paren-single-relation not joined_table operand... verify)
-- [ ] `SELECT * FROM (T JOIN (SELECT 1) s(x) ON TRUE)` — subquery as right operand
+- [x] `SELECT * FROM ((SELECT 1) x JOIN U ON TRUE)` — subquery as join operand
+- [x] `SELECT * FROM ((SELECT 1) x CROSS JOIN U)` — subquery CROSS JOIN
+- [x] `SELECT * FROM ((SELECT 1) x NATURAL JOIN U)` — subquery NATURAL JOIN
+- [x] `SELECT * FROM ((SELECT 1) x JOIN (SELECT 2) y ON x.a = y.a)` — both operands subquery
+- [x] `SELECT * FROM ((VALUES (1)) v(a) JOIN U ON TRUE)` — VALUES as operand
+- [x] `SELECT * FROM ((TABLE T) JOIN U ON TRUE)` — TABLE as operand (PG: check — may reject due to TABLE's form)
+- [x] `SELECT * FROM ((T) JOIN U ON TRUE)` — PG: reject (paren-single-relation not joined_table operand... verify)
+- [x] `SELECT * FROM (T JOIN (SELECT 1) s(x) ON TRUE)` — subquery as right operand
 
 ### 2.6 FROM-clause LATERAL interactions
 
-- [ ] `SELECT * FROM T, LATERAL (SELECT 1)` — accept
-- [ ] `SELECT * FROM T, LATERAL (SELECT 1) x` — accept with alias
-- [ ] `SELECT * FROM T, LATERAL ((SELECT 1))` — accept double-wrap
-- [ ] `SELECT * FROM T, LATERAL ((SELECT 1) UNION (SELECT 2))` — LATERAL with set-op parens
-- [ ] `SELECT * FROM T, LATERAL (a JOIN b ON t.x = a.x)` — PG: reject (LATERAL joined_table not a production)
-- [ ] `SELECT * FROM T, LATERAL XMLTABLE('/root' PASSING T.doc COLUMNS a int PATH 'a')` — LATERAL xmltable
-- [ ] `SELECT * FROM T, LATERAL JSON_TABLE(T.doc, '$' COLUMNS(a int PATH '$.a'))` — LATERAL json_table
+- [x] `SELECT * FROM T, LATERAL (SELECT 1)` — accept
+- [x] `SELECT * FROM T, LATERAL (SELECT 1) x` — accept with alias
+- [x] `SELECT * FROM T, LATERAL ((SELECT 1))` — accept double-wrap
+- [x] `SELECT * FROM T, LATERAL ((SELECT 1) UNION (SELECT 2))` — LATERAL with set-op parens
+- [x] `SELECT * FROM T, LATERAL (a JOIN b ON t.x = a.x)` — PG: reject (LATERAL joined_table not a production)
+- [x] `SELECT * FROM T, LATERAL XMLTABLE('/root' PASSING T.doc COLUMNS a int PATH 'a')` — LATERAL xmltable
+- [x] `SELECT * FROM T, LATERAL JSON_TABLE(T.doc, '$' COLUMNS(a int PATH '$.a'))` — LATERAL json_table
 
 ### 2.7 FROM-clause degenerate / malformed
 
-- [ ] `SELECT * FROM ()` — PG: reject (empty parens)
-- [ ] `SELECT * FROM (` — PG: reject (unclosed paren)
-- [ ] `SELECT * FROM )` — reject
-- [ ] `SELECT * FROM (SELECT 1` — PG: reject (unclosed after subquery)
-- [ ] `SELECT * FROM (T JOIN` — reject (JOIN without right operand)
-- [ ] `SELECT * FROM (T JOIN U)` — reject (missing join qual for inner join — PG requires ON or USING)
-- [ ] `SELECT * FROM (T CROSS JOIN U ON TRUE)` — reject (CROSS JOIN has no qual)
-- [ ] `SELECT * FROM (T NATURAL JOIN U ON TRUE)` — reject (NATURAL has no qual)
-- [ ] `SELECT * FROM (SELECT)` — accept (oracle-verified: PG 17 accepts empty-target-list SELECT as a valid select_no_parens; RangeSubselect on omni side)
-- [ ] `SELECT * FROM (SELECT 1))` — reject (extra close paren)
-- [ ] `SELECT * FROM ((SELECT 1)` — reject (missing close paren)
-- [ ] `SELECT * FROM (SELECT 1 FROM)` — reject (FROM without relation)
-- [ ] `SELECT * FROM ( ) SELECT 1` — reject (leading empty parens + stray SELECT)
+- [x] `SELECT * FROM ()` — PG: reject (empty parens)
+- [x] `SELECT * FROM (` — PG: reject (unclosed paren)
+- [x] `SELECT * FROM )` — reject
+- [x] `SELECT * FROM (SELECT 1` — PG: reject (unclosed after subquery)
+- [x] `SELECT * FROM (T JOIN` — reject (JOIN without right operand)
+- [~] `SELECT * FROM (T JOIN U)` — oracle-discovered divergence: PG rejects (missing join qual) but omni currently accepts with nil qual. Tracked as PAREN-KB-1. Test skipped pending parser fix.
+- [x] `SELECT * FROM (T CROSS JOIN U ON TRUE)` — reject (CROSS JOIN has no qual)
+- [x] `SELECT * FROM (T NATURAL JOIN U ON TRUE)` — reject (NATURAL has no qual)
+- [x] `SELECT * FROM (SELECT)` — accept (oracle-verified: PG 17 accepts empty-target-list SELECT as a valid select_no_parens; RangeSubselect on omni side)
+- [x] `SELECT * FROM (SELECT 1))` — reject (extra close paren)
+- [x] `SELECT * FROM ((SELECT 1)` — reject (missing close paren)
+- [x] `SELECT * FROM (SELECT 1 FROM)` — reject (FROM without relation)
+- [x] `SELECT * FROM ( ) SELECT 1` — reject (leading empty parens + stray SELECT)
 
 ### 2.8 Fuzz-generated paren combinations
 
 Property-based corpus comparing omni vs PG 17 accept/reject on randomly generated balanced-paren FROM-clauses. Depth bound, seed count, and corpus storage are Stage 2 design decisions; this section defines coverage intent.
 
-- [ ] Fuzz corpus exercises nested balanced parens
-- [ ] Fuzz corpus exercises SELECT/VALUES/WITH/TABLE at varying depths
-- [ ] Fuzz corpus exercises UNION/INTERSECT/EXCEPT between operands
-- [ ] Fuzz corpus exercises JOIN/CROSS JOIN/NATURAL JOIN at varying positions
-- [ ] Fuzz corpus exercises LATERAL prefixes, aliases, column-lists
-- [ ] Fuzz corpus exercises obvious-reject cases (unbalanced, empty, reserved-word misuse)
-- [ ] Fuzz mismatch rate between omni and PG stays below an agreed threshold
-- [ ] Fuzz mismatches persist to a golden file for human triage, not silent test failure
+- [x] Fuzz corpus exercises nested balanced parens
+- [x] Fuzz corpus exercises SELECT/VALUES/WITH/TABLE at varying depths
+- [x] Fuzz corpus exercises UNION/INTERSECT/EXCEPT between operands
+- [x] Fuzz corpus exercises JOIN/CROSS JOIN/NATURAL JOIN at varying positions
+- [x] Fuzz corpus exercises LATERAL prefixes, aliases, column-lists
+- [x] Fuzz corpus exercises obvious-reject cases (unbalanced, empty, reserved-word misuse)
+- [x] Fuzz mismatch rate between omni and PG stays below an agreed threshold
+- [x] Fuzz mismatches persist to a golden file for human triage, not silent test failure
 
 ---
 
