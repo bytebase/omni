@@ -84,40 +84,78 @@ func (p *Parser) parseOptSchemaEltList() (*nodes.List, error) {
 }
 
 // parseSchemaStmt parses a schema_stmt (a statement allowed inside CREATE SCHEMA).
+//
+// Ref: gram.y schema_stmt:
+//
+//	CreateStmt | CreateSeqStmt | CreateTrigStmt | GrantStmt | ViewStmt | CreateIndexStmt
+//
+// PG's schema_element list is whitespace-separated — each element is a complete
+// sub-statement and the list terminates when the next token is not a valid
+// schema_stmt lead keyword. Returns (nil, nil) to signal end-of-list.
 func (p *Parser) parseSchemaStmt() (nodes.Node, error) {
-	if p.cur.Type != CREATE {
-		return nil, nil
-	}
-	next := p.peekNext()
-	switch next.Type {
-	case TABLE:
-		return p.parseCreateOrCTAS()
-	case INDEX, UNIQUE:
-		loc := p.pos()
-		p.advance() // consume CREATE
-		stmt, err := p.parseIndexStmt()
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
-		return stmt, err
-	case SEQUENCE:
-		loc := p.pos()
-		p.advance() // consume CREATE
-		return p.parseCreateSeqStmt(loc, byte(nodes.RELPERSISTENCE_PERMANENT))
-	case VIEW:
-		loc := p.pos()
-		p.advance() // consume CREATE
-		stmt, err := p.parseViewStmt(false)
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
-		return stmt, err
-	case OR:
-		loc := p.pos()
-		p.advance() // consume CREATE
-		p.advance() // consume OR
-		if _, err := p.expect(REPLACE); err != nil {
-			return nil, err
+	switch p.cur.Type {
+	case CREATE:
+		next := p.peekNext()
+		switch next.Type {
+		case TABLE:
+			return p.parseCreateOrCTAS()
+		case INDEX, UNIQUE:
+			loc := p.pos()
+			p.advance() // consume CREATE
+			stmt, err := p.parseIndexStmt()
+			if stmt != nil {
+				stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			}
+			return stmt, err
+		case SEQUENCE:
+			loc := p.pos()
+			p.advance() // consume CREATE
+			return p.parseCreateSeqStmt(loc, byte(nodes.RELPERSISTENCE_PERMANENT))
+		case VIEW:
+			loc := p.pos()
+			p.advance() // consume CREATE
+			stmt, err := p.parseViewStmt(false)
+			if stmt != nil {
+				stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			}
+			return stmt, err
+		case TRIGGER, CONSTRAINT:
+			loc := p.pos()
+			p.advance() // consume CREATE
+			stmt, err := p.parseCreateTrigStmt(false)
+			if stmt != nil {
+				stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			}
+			return stmt, err
+		case OR:
+			loc := p.pos()
+			p.advance() // consume CREATE
+			p.advance() // consume OR
+			if _, err := p.expect(REPLACE); err != nil {
+				return nil, err
+			}
+			// CREATE OR REPLACE inside a schema_element covers ViewStmt and
+			// CreateTrigStmt (the two schema_stmts that allow OR REPLACE).
+			switch p.cur.Type {
+			case TRIGGER, CONSTRAINT:
+				stmt, err := p.parseCreateTrigStmt(true)
+				if stmt != nil {
+					stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+				}
+				return stmt, err
+			default:
+				stmt, err := p.parseViewStmt(true)
+				if stmt != nil {
+					stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+				}
+				return stmt, err
+			}
+		default:
+			return nil, nil
 		}
-		stmt, err := p.parseViewStmt(true)
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
-		return stmt, err
+	case GRANT:
+		p.advance() // consume GRANT
+		return p.parseGrantStmt()
 	default:
 		return nil, nil
 	}
