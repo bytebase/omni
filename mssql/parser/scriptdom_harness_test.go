@@ -466,6 +466,13 @@ func TestScriptDOMRejectAlignment(t *testing.T) {
 		{"kw/from-as-dbname", `CREATE DATABASE FROM`},
 		{"kw/from-as-tablename", `SELECT * FROM FROM`},
 		{"kw/select-as-colname", `CREATE TABLE t (SELECT INT)`},
+		// DDL option VALUE enums — POC scope (alter_objects.go).
+		{"dbopt-value/recovery-off", `ALTER DATABASE foo SET RECOVERY OFF`},
+		{"dbopt-value/recovery-bogus", `ALTER DATABASE foo SET RECOVERY BOGUS`},
+		{"dbopt-value/recovery-select", `ALTER DATABASE foo SET RECOVERY SELECT`},
+		{"dbopt-value/page-verify-off", `ALTER DATABASE foo SET PAGE_VERIFY OFF`},
+		{"dbopt-value/parameterization-select", `ALTER DATABASE foo SET PARAMETERIZATION SELECT`},
+		{"dbopt-value/cursor-default-off", `ALTER DATABASE foo SET CURSOR_DEFAULT OFF`},
 	}
 
 	for _, f := range fixtures {

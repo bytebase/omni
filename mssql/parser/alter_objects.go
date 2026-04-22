@@ -254,6 +254,21 @@ var dbSetOptions = newOptionSet(
 	// Additional (MANUAL_CUTOVER, PERFORM_CUTOVER are handled at ALTER DATABASE level, not SET level).
 )
 
+// Per-option value enums. When an option key is found here, its value must be
+// one of the listed identifiers; any other keyword/ident is rejected (the
+// parseAlterDatabaseSetOption function returns "" to skip this SET fragment,
+// matching how it already treats unparseable options).
+//
+// This is the POC scope for the DDL option-value strictness plan
+// (docs/plans/2026-04-22-ddl-option-strictness.md). Additional option → enum
+// mappings belong in the follow-up batches.
+var dbSetOptionValueEnums = map[string]optionSet{
+	"RECOVERY":         newOptionSet().withIdents("FULL", "SIMPLE", "BULK_LOGGED"),
+	"PAGE_VERIFY":      newOptionSet().withIdents("CHECKSUM", "TORN_PAGE_DETECTION", "NONE"),
+	"PARAMETERIZATION": newOptionSet().withIdents("SIMPLE", "FORCED"),
+	"CURSOR_DEFAULT":   newOptionSet().withIdents("LOCAL", "GLOBAL"),
+}
+
 // parseAlterDatabaseSetOption parses a single SET option and returns it as a string.
 // Returns empty string if no option can be parsed.
 func (p *Parser) parseAlterDatabaseSetOption() string {
@@ -366,12 +381,27 @@ func (p *Parser) parseAlterDatabaseSetOption() string {
 		}
 		return key + "=ON"
 	}
-	// Accept any keyword or identifier as option value (FULL, OFF, CHECKSUM, etc.)
+	// If this option has a declared value enum, restrict the value to that set.
+	// Anything else is rejected by returning "" (which the outer loop treats
+	// as "option not recognized here" — same error surface as an unknown key).
+	if enum, ok := dbSetOptionValueEnums[key]; ok {
+		if !p.isValidOption(enum) {
+			return ""
+		}
+		val := strings.ToUpper(p.cur.Str)
+		p.advance()
+		return key + "=" + val
+	}
+
+	// Accept any keyword or identifier as option value (AUTO_CLOSE OFF, etc.)
+	// TODO(ddl-option-strictness): migrate remaining keys (HADR, ENCRYPTION,
+	// ACCELERATED_DATABASE_RECOVERY, ...) into dbSetOptionValueEnums per the
+	// follow-up plan in docs/plans/2026-04-22-ddl-option-strictness.md.
 	if p.isAnyKeywordIdent() {
 		val := strings.ToUpper(p.cur.Str)
 		p.advance()
 		// Handle TARGET_RECOVERY_TIME = 60 SECONDS (already consumed the number via =)
-		// Here it's like "RECOVERY FULL" or "AUTO_CLOSE OFF" or "TARGET_RECOVERY_TIME 60"
+		// Here it's like "AUTO_CLOSE OFF" or "TARGET_RECOVERY_TIME 60"
 		if key == "TARGET_RECOVERY_TIME" {
 			// val is the number, check for unit
 			if p.isAnyKeywordIdent() {
