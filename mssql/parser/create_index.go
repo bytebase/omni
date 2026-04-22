@@ -504,13 +504,13 @@ func (p *Parser) parseCreateAggregateStmt() (*nodes.CreateAggregateStmt, error) 
 		}
 		// Read dotted name: assembly.class[.method]
 		var parts []string
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			parts = append(parts, p.cur.Str)
 			p.advance()
 		}
 		for {
 			if _, ok := p.match('.'); ok {
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					parts = append(parts, p.cur.Str)
 					p.advance()
 				}

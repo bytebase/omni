@@ -172,7 +172,7 @@ func (p *Parser) parseCreatePartitionSchemeStmt() (*nodes.CreatePartitionSchemeS
 		p.advance()
 		var fgs []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isAnyKeywordIdent() || p.cur.Type == kwPRIMARY {
+			if p.isIdentLike() || p.cur.Type == kwPRIMARY {
 				fgname := p.cur.Str
 				p.advance()
 				if allTo && len(fgs) == 0 {

@@ -7,6 +7,13 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// DROP ident-based subcommand sets — matching SqlScriptDOM's DROP variants
+// that are lexed as identifiers rather than dedicated keywords.
+var (
+	dropIdentDispatch     = newOptionSet().withIdents("SEQUENCE", "SYNONYM", "ASSEMBLY", "DEFAULT")
+	dropPartitionDispatch = newOptionSet().withIdents("FUNCTION", "SCHEME")
+)
+
 // parseDropStmt parses a DROP statement.
 //
 // BNF (DROP TABLE): mssql/parser/bnf/drop-table-transact-sql.bnf
@@ -109,7 +116,8 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 		stmt.ObjectType = nodes.DropRule
 		p.advance()
 	default:
-		if p.isAnyKeywordIdent() {
+		// DROP SEQUENCE/SYNONYM/ASSEMBLY/DEFAULT dispatch — closed set.
+		if p.isValidOption(dropIdentDispatch) {
 			switch strings.ToUpper(p.cur.Str) {
 			case "SEQUENCE":
 				stmt.ObjectType = nodes.DropSequence
@@ -128,7 +136,7 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 		// Check for PARTITION FUNCTION/SCHEME
 		if p.cur.Type == kwPARTITION {
 			p.advance() // consume PARTITION
-			if p.isAnyKeywordIdent() {
+			if p.isValidOption(dropPartitionDispatch) {
 				switch strings.ToUpper(p.cur.Str) {
 				case "FUNCTION":
 					stmt.ObjectType = nodes.DropPartitionFunction

@@ -162,7 +162,7 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) (*nodes.CreateProcedureS
 func (p *Parser) parseMethodSpecifier() string {
 	var parts []string
 	for {
-		if p.isAnyKeywordIdent() || p.cur.Type == tokIDENT {
+		if p.isIdentLike() {
 			parts = append(parts, p.cur.Str)
 			p.advance()
 		} else {

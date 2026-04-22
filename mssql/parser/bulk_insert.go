@@ -142,7 +142,7 @@ func (p *Parser) parseBulkInsertOption() nodes.Node {
 		p.advance() // consume '('
 		var parts []string
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				col := p.cur.Str
 				p.advance()
 				// Optional ASC/DESC

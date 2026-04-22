@@ -1323,7 +1323,7 @@ func (p *Parser) parseOverClause() (*nodes.OverClause, error) {
 	p.advance() // consume OVER
 
 	// OVER window_name (reference to named window, no parentheses)
-	if p.cur.Type != '(' && p.isAnyKeywordIdent() {
+	if p.cur.Type != '(' && p.isIdentLike() {
 		over := &nodes.OverClause{
 			WindowName: p.cur.Str,
 			Loc:        nodes.Loc{Start: loc, End: p.prevEnd()},
