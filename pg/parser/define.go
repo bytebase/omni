@@ -610,6 +610,7 @@ func (p *Parser) parseOpclassItem() (nodes.Node, error) {
 			Storedtype: storedtype,
 			Loc:        nodes.Loc{Start: itemLoc, End: p.prev.End},
 		}, nil
+	// known-gap: not a KB-2 blocker; tracked in PARSER_DISPATCH_AUDIT.md §2 for future fix
 	default:
 		return nil, nil
 	}
@@ -720,6 +721,7 @@ func (p *Parser) parseOpclassDrop() (nodes.Node, error) {
 		itemtype = nodes.OPCLASS_ITEM_OPERATOR
 	case FUNCTION:
 		itemtype = nodes.OPCLASS_ITEM_FUNCTION
+	// known-gap: not a KB-2 blocker; tracked in PARSER_DISPATCH_AUDIT.md §2 for future fix
 	default:
 		return nil, nil
 	}
@@ -1405,6 +1407,7 @@ func (p *Parser) parseAlterOperatorStmt(stmtLoc int) (nodes.Node, error) {
 			Object:     owa,
 			Newowner:   roleSpec,
 		}, nil
+	// exhaustive: gram.y:10233 — caller handles nil via outer error
 	default:
 		return nil, nil
 	}

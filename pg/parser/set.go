@@ -279,6 +279,7 @@ func (p *Parser) parseGenericSetOrFromCurrent() (nodes.Node, error) {
 			Args: args,
 		}, nil
 
+	// known-gap: not a KB-2 blocker; tracked in PARSER_DISPATCH_AUDIT.md §2 for future fix
 	default:
 		return nil, nil
 	}

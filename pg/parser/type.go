@@ -672,6 +672,7 @@ func (p *Parser) parseOptInterval() (*nodes.List, error) {
 		}}, nil
 	case SECOND_P:
 		return p.parseIntervalSecond()
+	// optional-probe: opt_interval has explicit /* EMPTY */ branch — caller ignores nil Typmods
 	default:
 		return nil, nil
 	}

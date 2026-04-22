@@ -433,6 +433,7 @@ func (p *Parser) parseColConstraint() (nodes.Node, error) {
 			}, nil
 		}
 		return nil, nil
+	// optional-probe: ColConstraint loop terminator — parseOptColumnConstraints breaks on nil
 	default:
 		return nil, nil
 	}
@@ -547,6 +548,7 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		return n, nil
 	case GENERATED:
 		return p.parseGeneratedConstraint()
+	// known-gap: not a KB-2 blocker; tracked in PARSER_DISPATCH_AUDIT.md §2 for future fix
 	default:
 		return nil, nil
 	}

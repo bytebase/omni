@@ -620,6 +620,7 @@ func (p *Parser) parseXmlTableColumnOptionEl() (nodes.Node, error) {
 			return nil, err
 		}
 		return &nodes.DefElem{Defname: name, Arg: expr, Loc: nodes.NoLoc()}, nil
+	// optional-probe: xmltable_column_option loop terminator — list caller breaks on nil
 	default:
 		return nil, nil
 	}

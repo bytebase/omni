@@ -9,12 +9,11 @@ import (
 	"testing"
 )
 
-// TestDispatchStrictnessReport is a REPORT-ONLY lint that scans
-// pg/parser/*.go for `default: return nil, nil` sites and reports
-// whether each carries an intent annotation. This is Phase G1-RO
-// of the pg-paren-dispatch starmap — deliberately non-blocking so
-// that the A2+A4 classification work (PARSER_DISPATCH_AUDIT.md)
-// can stabilize before flipping the lint to gating (G1-GATE).
+// TestDispatchStrictnessGate is a GATING lint (Phase G1-GATE of the
+// pg-paren-dispatch starmap) that scans pg/parser/*.go for
+// `default: return nil, nil` sites and fails the build if any lacks
+// an intent annotation. This prevents regression of the KB-2 class
+// (silent-accept via grammar-gap default) and its Class-A family.
 //
 // Expected annotations on the comment line(s) immediately preceding
 // the `default:` line:
@@ -23,21 +22,23 @@ import (
 //	// exhaustive: gram.y:N-M            — all productions enumerated
 //	// known-gap: PAREN-KB-N              — known bug, tracked for fix
 //
-// This test always passes; it logs findings via t.Logf so CI output
-// shows the current state without failing the build.
-func TestDispatchStrictnessReport(t *testing.T) {
+// See pg/parser/PARSER_DISPATCH_AUDIT.md for the classification
+// reference. Annotations are informational — they don't change
+// runtime behavior but force intent declaration at new sites.
+func TestDispatchStrictnessGate(t *testing.T) {
 	sites := findDefaultReturnNilNilSites(t)
 	unannotated := 0
 	annotated := 0
 	for _, s := range sites {
 		if s.Annotation == "" {
 			unannotated++
-			t.Logf("UNANNOTATED %s:%d (in %s)", s.File, s.Line, s.Function)
+			t.Errorf("UNANNOTATED %s:%d in %s — annotate with // optional-probe, // exhaustive, or // known-gap",
+				s.File, s.Line, s.Function)
 		} else {
 			annotated++
 		}
 	}
-	t.Logf("dispatch-strictness report: %d sites total, %d annotated, %d unannotated",
+	t.Logf("dispatch-strictness gate: %d sites total, %d annotated, %d unannotated",
 		len(sites), annotated, unannotated)
 	t.Logf("see pg/parser/PARSER_DISPATCH_AUDIT.md for classification")
 }

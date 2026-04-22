@@ -335,6 +335,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case REASSIGN:
 		p.advance() // consume REASSIGN
 		return p.parseReassignOwnedStmt()
+	// exhaustive: gram.y:11370 stmt — Parse raises syntaxErrorAtCur for unknown stmt keyword
 	default:
 		return nil, nil
 	}
@@ -612,6 +613,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// CREATE SCHEMA ...
 		p.advance() // consume CREATE
 		return p.parseCreateSchemaStmt(createLoc)
+	// exhaustive: gram.y:6780 CreateStmt-family — unknown post-CREATE keyword bubbles to Parse error
 	default:
 		return nil, nil
 	}

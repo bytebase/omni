@@ -189,6 +189,7 @@ func (p *Parser) parseTransactionStmtInner() (nodes.Node, error) {
 			Savepoint: name,
 		}, nil
 
+	// exhaustive: gram.y:10988 TransactionStmt — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -324,6 +325,7 @@ func (p *Parser) parseTransactionModeItem() (nodes.Node, error) {
 		}
 		return nil, nil
 
+	// optional-probe: transaction_mode_list_or_empty — parseTransactionModeListOrEmpty breaks on nil
 	default:
 		return nil, nil
 	}

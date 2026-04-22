@@ -103,6 +103,7 @@ func (p *Parser) parseAlterExtensionStmt() (nodes.Node, error) {
 			Object:     &nodes.String{Str: name},
 			Newschema:  newschema,
 		}, nil
+	// known-gap: not a KB-2 blocker; tracked in PARSER_DISPATCH_AUDIT.md §2 for future fix
 	default:
 		return nil, nil
 	}

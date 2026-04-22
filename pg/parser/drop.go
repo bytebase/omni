@@ -118,6 +118,7 @@ func (p *Parser) parseDropStmtInner() (nodes.Node, error) {
 		return p.parseDropOperatorClassOrFamily()
 	case TABLESPACE:
 		return p.parseDropTableSpaceStmt()
+	// exhaustive: gram.y:6815 — caller handles nil via outer error
 	default:
 		return nil, nil
 	}

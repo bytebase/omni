@@ -40,6 +40,7 @@ func (p *Parser) parseAlterTableStmt() (nodes.Node, error) {
 		return p.parseAlterEventTrigStmt()
 	case EXTENSION:
 		return p.parseAlterExtensionStmt()
+	// exhaustive: gram.y:2081 AlterTableStmt — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -1739,6 +1740,7 @@ func (p *Parser) parseAlterIdentityColumnOption() (nodes.Node, error) {
 		}
 		// SET SeqOptElem
 		return p.parseOneSeqOptElem()
+	// optional-probe: alter_identity_column_option list — list caller breaks on nil after first match
 	default:
 		return nil, nil
 	}

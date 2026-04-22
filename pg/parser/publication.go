@@ -157,6 +157,7 @@ func (p *Parser) parseAlterPublicationStmt() (nodes.Node, error) {
 			Action:     nodes.DEFELEM_DROP,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
+	// exhaustive: gram.y:10668 — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -520,6 +521,7 @@ func (p *Parser) parseAlterSubscriptionStmt() (nodes.Node, error) {
 			Options:     options,
 		}, nil
 
+	// exhaustive: gram.y:10734 — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -706,6 +708,7 @@ func (p *Parser) parseRuleActionStmt() (nodes.Node, error) {
 	case NOTIFY:
 		p.advance() // consume NOTIFY
 		return p.parseNotifyStmt()
+	// exhaustive: gram.y:10903 RuleActionStmt — caller handles nil via outer error (post-KB-2a)
 	default:
 		return nil, nil
 	}

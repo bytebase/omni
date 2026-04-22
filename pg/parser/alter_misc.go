@@ -263,6 +263,7 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 			Options:  opts,
 			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
+	// exhaustive: gram.y:10273 — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -477,6 +478,7 @@ func (p *Parser) parseAlterTypeCmd() (*nodes.AlterTableCmd, error) {
 			Def:      coldef,
 			Behavior: behavior,
 		}, nil
+	// known-gap: not a KB-2 blocker; tracked in PARSER_DISPATCH_AUDIT.md §2 for future fix
 	default:
 		return nil, nil
 	}
@@ -664,6 +666,7 @@ func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 			Object:     names,
 			Newname:    newname,
 		}, nil
+	// exhaustive: gram.y:11522 — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -751,6 +754,7 @@ func (p *Parser) parseAlterSchemaOwner() (nodes.Node, error) {
 			Subname:    name,
 			Newname:    newname,
 		}, nil
+	// exhaustive: gram.y AlterOwnerStmt/RenameStmt inline — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -818,6 +822,7 @@ func (p *Parser) parseAlterCollationStmt() (nodes.Node, error) {
 			Newschema:  newschema,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
+	// exhaustive: gram.y ALTER COLLATION inline — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -879,6 +884,7 @@ func (p *Parser) parseAlterConversionStmt() (nodes.Node, error) {
 			Newschema:  newschema,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
+	// exhaustive: gram.y ALTER CONVERSION inline — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -940,6 +946,7 @@ func (p *Parser) parseAlterAggregateStmt() (nodes.Node, error) {
 			Newschema:  newschema,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
+	// exhaustive: gram.y ALTER AGGREGATE inline — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -1001,6 +1008,7 @@ func (p *Parser) parseAlterTextSearchStmt() (nodes.Node, error) {
 		return p.parseAlterTSParserOrTemplate(nodes.OBJECT_TSPARSER, loc)
 	case TEMPLATE:
 		return p.parseAlterTSParserOrTemplate(nodes.OBJECT_TSTEMPLATE, loc)
+	// exhaustive: gram.y ALTER TEXT SEARCH kind (DICTIONARY/CONFIGURATION/PARSER/TEMPLATE) — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -1067,6 +1075,7 @@ func (p *Parser) parseAlterTSDictionary(loc int) (nodes.Node, error) {
 			Newschema:  newschema,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
+	// exhaustive: gram.y ALTER TS DICTIONARY inline — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -1251,6 +1260,7 @@ func (p *Parser) parseAlterTSConfiguration(loc int) (nodes.Node, error) {
 			Newschema:  newschema,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
+	// exhaustive: gram.y ALTER TS CONFIGURATION inline — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -1294,6 +1304,7 @@ func (p *Parser) parseAlterTSParserOrTemplate(objtype nodes.ObjectType, loc int)
 			Newschema:  newschema,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
+	// exhaustive: gram.y ALTER TS PARSER/TEMPLATE inline — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -1343,6 +1354,7 @@ func (p *Parser) parseAlterLanguageStmt() (nodes.Node, error) {
 			Newowner:   roleSpec,
 			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
+	// exhaustive: gram.y ALTER LANGUAGE inline — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -1442,6 +1454,7 @@ func (p *Parser) parseAlterEventTriggerOwner() (nodes.Node, error) {
 			Tgenabled: 'D',
 			Loc:       nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
+	// exhaustive: gram.y ALTER EVENT TRIGGER inline — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -1506,6 +1519,7 @@ func (p *Parser) parseAlterTablespaceOwner() (nodes.Node, error) {
 			IsReset:        true,
 			Loc:            nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
+	// exhaustive: gram.y ALTER TABLESPACE inline — caller handles nil via outer error
 	default:
 		return nil, nil
 	}

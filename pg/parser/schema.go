@@ -175,12 +175,14 @@ func (p *Parser) parseSchemaStmt() (nodes.Node, error) {
 				}
 				return stmt, err
 			}
+		// exhaustive: gram.y:1598 schema_stmt CREATE sub-kind — caller handles nil via outer error (post-KB-2c)
 		default:
 			return nil, nil
 		}
 	case GRANT:
 		p.advance() // consume GRANT
 		return p.parseGrantStmt()
+	// optional-probe: schema_element loop terminator — parseOptSchemaEltList breaks on nil
 	default:
 		return nil, nil
 	}

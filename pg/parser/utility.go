@@ -93,6 +93,7 @@ func (p *Parser) parseExplainableStmt() (nodes.Node, error) {
 		stmt, err := p.parseRefreshMatViewStmt()
 		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
 		return stmt, err
+	// known-gap: not a KB-2 blocker; tracked in PARSER_DISPATCH_AUDIT.md §2 for future fix
 	default:
 		return nil, nil
 	}
@@ -145,6 +146,7 @@ func (p *Parser) parseDiscardStmt() (nodes.Node, error) {
 	case SEQUENCES:
 		p.advance()
 		return &nodes.DiscardStmt{Target: nodes.DISCARD_SEQUENCES, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
+	// exhaustive: gram.y:2033 — caller handles nil via outer error
 	default:
 		return nil, nil
 	}

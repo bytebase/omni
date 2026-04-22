@@ -184,6 +184,7 @@ func (p *Parser) parseSimpleSelectLeaf() (*nodes.SelectStmt, error) {
 		return p.parseValuesClause()
 	case TABLE:
 		return p.parseTableCmd()
+	// exhaustive: gram.y:12790 — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -2080,6 +2081,7 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 			Loc:       nodes.Loc{Start: nodes.NodeLoc(left).Start, End: p.prev.End},
 		}, nil
 
+	// optional-probe: join loop terminator — parseTableRef breaks on nil
 	default:
 		return nil, nil
 	}
