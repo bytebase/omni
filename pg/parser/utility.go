@@ -220,13 +220,19 @@ func (p *Parser) parseCallStmt() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	// shape-III-partial fix: parseFuncApplication unconditionally advances past
+	// the opening token; without this pre-check, `CALL foo` (no parens) would
+	// silently consume whatever follows funcName and produce a malformed FuncCall.
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
 	loc := p.pos()
 	fc, err := p.parseFuncApplication(funcName, loc)
 	if err != nil {
 		return nil, err
 	}
 	if fc == nil {
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	return &nodes.CallStmt{
 		Funccall: fc.(*nodes.FuncCall),
