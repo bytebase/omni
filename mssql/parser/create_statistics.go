@@ -54,7 +54,7 @@ func (p *Parser) parseCreateStatisticsStmt() (*nodes.CreateStatisticsStmt, error
 		p.advance()
 		var cols []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				cols = append(cols, &nodes.String{Str: p.cur.Str})
 				p.advance()
 			}
@@ -130,7 +130,7 @@ func (p *Parser) parseUpdateStatisticsStmt() (*nodes.UpdateStatisticsStmt, error
 		p.advance()
 		var names []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				names = append(names, &nodes.String{Str: p.cur.Str})
 				p.advance()
 			}
@@ -177,7 +177,7 @@ func (p *Parser) parseDropStatisticsStmt() (*nodes.DropStatisticsStmt, error) {
 	var names []nodes.Node
 	for {
 		// Each name is [schema.]table.stats_name (two or three-part dot-separated)
-		if !p.isAnyKeywordIdent() {
+		if !p.isIdentLike() {
 			break
 		}
 		// Collect all dotted parts
@@ -185,7 +185,7 @@ func (p *Parser) parseDropStatisticsStmt() (*nodes.DropStatisticsStmt, error) {
 		p.advance()
 		for p.cur.Type == '.' {
 			p.advance()
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				parts = parts + "." + p.cur.Str
 				p.advance()
 			}

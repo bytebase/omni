@@ -413,7 +413,7 @@ func (p *Parser) parseFileSpecValue() string {
 			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
 				parts = append(parts, p.cur.Str)
 				p.advance()
-			} else if p.isAnyKeywordIdent() {
+			} else if p.isIdentLike() {
 				parts = append(parts, p.cur.Str)
 				p.advance()
 			} else {
