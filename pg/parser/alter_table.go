@@ -243,6 +243,25 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 		}, nil
 	}
 
+	// PG 15+: ALTER SEQUENCE name SET LOGGED | SET UNLOGGED
+	// These appear in PG's SeqOptElem grammar but require the SET keyword (unlike
+	// CREATE SEQUENCE where bare LOGGED/UNLOGGED is accepted). Produce the same
+	// DefElem shape as the bare LOGGED/UNLOGGED SeqOptElem (Defname="logged",
+	// Arg=Boolean{true/false}) so downstream consumers stay uniform.
+	if p.cur.Type == SET && (p.peekNext().Type == LOGGED || p.peekNext().Type == UNLOGGED) {
+		rv := makeRangeVarFromNames(names)
+		p.advance() // consume SET
+		logged := p.cur.Type == LOGGED
+		p.advance() // consume LOGGED or UNLOGGED
+		opt := makeDefElem("logged", &nodes.Boolean{Boolval: logged})
+		return &nodes.AlterSeqStmt{
+			Sequence:  rv,
+			Options:   &nodes.List{Items: []nodes.Node{opt}},
+			MissingOk: missingOk,
+			Loc:       nodes.Loc{Start: alterLoc, End: p.prev.End},
+		}, nil
+	}
+
 	// OWNER TO goes through alter_table_cmds in the yacc grammar
 	if p.cur.Type == OWNER {
 		rv := makeRangeVarFromAnyName(names)
