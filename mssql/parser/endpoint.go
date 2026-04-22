@@ -7,6 +7,16 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// endpointStateValues: CREATE/ALTER ENDPOINT STATE = {STARTED | STOPPED | DISABLED}.
+var endpointStateValues = newOptionSet().withIdents("STARTED", "STOPPED", "DISABLED")
+
+// endpointPayloadTypes: first word of FOR clause. DATABASE and SERVICE are
+// multi-word prefixes (DATABASE_MIRRORING, SERVICE_BROKER) handled via peek.
+var endpointPayloadTypes = newOptionSet().withIdents(
+	"TSQL", "SERVICE_BROKER", "DATABASE_MIRRORING", "SOAP",
+	"SERVICE", "DATABASE",
+)
+
 // parseCreateEndpointStmt parses CREATE ENDPOINT.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-endpoint-transact-sql
@@ -170,7 +180,8 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			if p.isAnyKeywordIdent() {
+			// STATE = { STARTED | STOPPED | DISABLED }
+			if p.isValidOption(endpointStateValues) {
 				opts = append(opts, &nodes.EndpointOption{Name: "STATE", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
@@ -196,7 +207,10 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 		case p.cur.Type == kwFOR:
 			optLoc := p.pos()
 			p.advance()
-			if p.isAnyKeywordIdent() {
+			// FOR { TSQL | SERVICE_BROKER | DATABASE_MIRRORING | SOAP }
+			// SqlScriptDOM's EndpointPayloadType enum; SERVICE / DATABASE are
+			// multi-word prefixes handled by the lookahead below.
+			if p.isValidOption(endpointPayloadTypes) {
 				payloadType := strings.ToUpper(p.cur.Str)
 				// Check for multi-word payload types
 				if payloadType == "SERVICE" {
