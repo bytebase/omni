@@ -415,7 +415,7 @@ func (p *Parser) parseEventSessionEventSpec(prefix string) []nodes.Node {
 				// SET { attribute = value [ , ...n ] }
 				p.advance()
 				for {
-					if !p.isAnyKeywordIdent() {
+					if !p.isIdentLike() {
 						break
 					}
 					attrName := p.cur.Str
@@ -485,7 +485,7 @@ func (p *Parser) parseEventSessionTargetSpec(prefix string) []nodes.Node {
 		if p.cur.Type == kwSET {
 			p.advance()
 			for {
-				if !p.isAnyKeywordIdent() && p.cur.Type != tokSCONST {
+				if !p.isIdentLike() && p.cur.Type != tokSCONST {
 					break
 				}
 				paramName := p.cur.Str
