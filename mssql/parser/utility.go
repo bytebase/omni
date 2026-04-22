@@ -389,7 +389,7 @@ func (p *Parser) parseReadtextStmt() (*nodes.ReadtextStmt, error) {
 	}
 
 	// table.column - parse as column ref
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		colLoc := p.pos()
 		table := p.cur.Str
 		p.advance()
@@ -444,7 +444,7 @@ func (p *Parser) parseWritetextStmt() (*nodes.WritetextStmt, error) {
 	}
 
 	// table.column
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		table := p.cur.Str
 		p.advance()
 		if p.cur.Type == '.' {
@@ -505,7 +505,7 @@ func (p *Parser) parseUpdatetextStmt() (*nodes.UpdatetextStmt, error) {
 	}
 
 	// dest_table.dest_column dest_text_ptr
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		table := p.cur.Str
 		p.advance()
 		if p.cur.Type == '.' {
@@ -636,12 +636,12 @@ func (p *Parser) parseCreateDefaultStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// [ schema_name . ] default_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		name := p.cur.Str
 		p.advance()
 		if p.cur.Type == '.' {
 			p.advance() // consume '.'
-			if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
 				name = name + "." + p.cur.Str
 				p.advance()
 			}
@@ -685,12 +685,12 @@ func (p *Parser) parseCreateRuleStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// [ schema_name . ] rule_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		name := p.cur.Str
 		p.advance()
 		if p.cur.Type == '.' {
 			p.advance() // consume '.'
-			if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
 				name = name + "." + p.cur.Str
 				p.advance()
 			}

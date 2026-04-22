@@ -141,13 +141,13 @@ func (p *Parser) parseDropExternalStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// name (possibly qualified)
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		var parts []string
 		parts = append(parts, p.cur.Str)
 		p.advance()
 		for p.cur.Type == '.' {
 			p.advance() // consume '.'
-			if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
 				parts = append(parts, p.cur.Str)
 				p.advance()
 			}
@@ -208,13 +208,13 @@ func (p *Parser) parseCreateExternalTableStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// table name (possibly qualified: db.schema.table)
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		var parts []string
 		parts = append(parts, p.cur.Str)
 		p.advance()
 		for p.cur.Type == '.' {
 			p.advance() // consume '.'
-			if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
 				parts = append(parts, p.cur.Str)
 				p.advance()
 			}
