@@ -84,7 +84,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 				// LANGUAGE term
 				if p.cur.Type == kwLANGUAGE {
 					p.advance()
-					if p.isAnyKeywordIdent() || p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
+					if p.isIdentLike() || p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
 						p.advance()
 					}
 				}
@@ -320,7 +320,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 					// LANGUAGE term
 					if p.cur.Type == kwLANGUAGE {
 						p.advance()
-						if p.isAnyKeywordIdent() || p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
+						if p.isIdentLike() || p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
 							p.advance()
 						}
 					}
