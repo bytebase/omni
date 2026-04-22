@@ -10,6 +10,18 @@ import (
 // endpointStateValues: CREATE/ALTER ENDPOINT STATE = {STARTED | STOPPED | DISABLED}.
 var endpointStateValues = newOptionSet().withIdents("STARTED", "STOPPED", "DISABLED")
 
+// endpointAuthMethods: HTTP endpoint AUTHENTICATION options: NTLM/KERBEROS/NEGOTIATE.
+var endpointAuthMethods = newOptionSet().withIdents("NTLM", "KERBEROS", "NEGOTIATE")
+
+// endpointEncryptionAlgs: TCP endpoint ENCRYPTION ALGORITHM options: AES/RC4.
+var endpointEncryptionAlgs = newOptionSet().withIdents("AES", "RC4")
+
+// endpointRoleValues: service_broker role: WITNESS/PARTNER/ALL (kwALL exempted).
+var endpointRoleValues = newOptionSet(kwALL).withIdents("WITNESS", "PARTNER", "ALL")
+
+// endpointMessageForwarding: ENABLED/DISABLED.
+var endpointMessageForwarding = newOptionSet().withIdents("ENABLED", "DISABLED")
+
 // endpointPayloadTypes: first word of FOR clause. DATABASE and SERVICE are
 // multi-word prefixes (DATABASE_MIRRORING, SERVICE_BROKER) handled via peek.
 var endpointPayloadTypes = newOptionSet().withIdents(
@@ -542,7 +554,8 @@ func (p *Parser) parseEndpointPayloadOptions(payloadType string, opts *[]nodes.N
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			if p.isAnyKeywordIdent() {
+			// MESSAGE_FORWARDING = { ENABLED | DISABLED }
+			if p.isValidOption(endpointMessageForwarding) {
 				*opts = append(*opts, &nodes.EndpointOption{Name: "MESSAGE_FORWARDING", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
@@ -564,7 +577,8 @@ func (p *Parser) parseEndpointPayloadOptions(payloadType string, opts *[]nodes.N
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			if p.isAnyKeywordIdent() || p.cur.Type == kwALL {
+			// ROLE = { WITNESS | PARTNER | ALL }
+			if p.isValidOption(endpointRoleValues) {
 				val := strings.ToUpper(p.cur.Str)
 				*opts = append(*opts, &nodes.EndpointOption{Name: "ROLE", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
@@ -615,12 +629,9 @@ func (p *Parser) parseEndpointAuthentication() string {
 		parts = append(parts, "WINDOWS")
 		p.advance()
 		// Optional auth method: NTLM | KERBEROS | NEGOTIATE
-		if p.isAnyKeywordIdent() {
-			upper := strings.ToUpper(p.cur.Str)
-			if upper == "NTLM" || upper == "KERBEROS" || upper == "NEGOTIATE" {
-				parts = append(parts, upper)
-				p.advance()
-			}
+		if p.isValidOption(endpointAuthMethods) {
+			parts = append(parts, strings.ToUpper(p.cur.Str))
+			p.advance()
 		}
 		// Optional CERTIFICATE after WINDOWS
 		if p.cur.Type == kwCERTIFICATE {
@@ -640,12 +651,9 @@ func (p *Parser) parseEndpointAuthentication() string {
 		if p.cur.Type == kwWINDOWS {
 			parts = append(parts, "WINDOWS")
 			p.advance()
-			if p.isAnyKeywordIdent() {
-				upper := strings.ToUpper(p.cur.Str)
-				if upper == "NTLM" || upper == "KERBEROS" || upper == "NEGOTIATE" {
-					parts = append(parts, upper)
-					p.advance()
-				}
+			if p.isValidOption(endpointAuthMethods) {
+				parts = append(parts, strings.ToUpper(p.cur.Str))
+				p.advance()
 			}
 		}
 	}
@@ -686,11 +694,11 @@ func (p *Parser) parseEndpointEncryption(payloadType string) string {
 	if val == "SUPPORTED" || val == "REQUIRED" {
 		if p.cur.Type == kwALGORITHM {
 			p.advance()
-			if p.isAnyKeywordIdent() {
+			if p.isValidOption(endpointEncryptionAlgs) {
 				alg1 := strings.ToUpper(p.cur.Str)
 				p.advance()
 				// Check for two-algorithm spec: AES RC4 or RC4 AES
-				if p.isAnyKeywordIdent() {
+				if p.isValidOption(endpointEncryptionAlgs) {
 					alg2 := strings.ToUpper(p.cur.Str)
 					if alg2 == "AES" || alg2 == "RC4" {
 						p.advance()
