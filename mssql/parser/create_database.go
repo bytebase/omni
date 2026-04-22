@@ -7,6 +7,12 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// Shared SQL Server size unit suffix: {KB | MB | GB | TB}.
+var sizeUnitValues = newOptionSet().withIdents("KB", "MB", "GB", "TB")
+
+// FILESTREAM NON_TRANSACTED_ACCESS enum.
+var filestreamNonTransactedValues = newOptionSet().withIdents("OFF", "READ_ONLY", "FULL")
+
 // parseCreateDatabaseStmt parses a CREATE DATABASE statement.
 //
 // BNF: mssql/parser/bnf/create-database-transact-sql.bnf
@@ -335,7 +341,7 @@ func (p *Parser) parseSizeValue() *nodes.SizeValue {
 	if p.cur.Type == '%' {
 		sv.Unit = "%"
 		p.advance()
-	} else if p.isAnyKeywordIdent() {
+	} else if p.isValidOption(sizeUnitValues) {
 		unit := strings.ToUpper(p.cur.Str)
 		switch unit {
 		case "KB", "MB", "GB", "TB":
@@ -532,7 +538,8 @@ func (p *Parser) parseDatabaseFilestreamOption() *nodes.DatabaseOption {
 					p.advance() // consume =
 					switch subKey {
 					case "NON_TRANSACTED_ACCESS":
-						if p.isAnyKeywordIdent() || p.cur.Type == kwOFF {
+						// NON_TRANSACTED_ACCESS = { OFF | READ_ONLY | FULL }
+						if p.isValidOption(filestreamNonTransactedValues) {
 							opt.FilestreamAccess = strings.ToUpper(p.cur.Str)
 							p.advance()
 						}
