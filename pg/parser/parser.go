@@ -40,11 +40,15 @@ func Parse(sql string) (*nodes.List, error) {
 	p.advance()
 
 	var stmts []nodes.Node
+	needSeparator := false
 	for p.cur.Type != 0 {
-		// Skip semicolons
 		if p.cur.Type == ';' {
 			p.advance()
+			needSeparator = false
 			continue
+		}
+		if needSeparator {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if p.lexer.Err != nil {
 			return nil, p.lexerError()
@@ -69,6 +73,7 @@ func Parse(sql string) (*nodes.List, error) {
 			Loc:  nodes.Loc{Start: stmtStart, End: p.prev.End},
 		}
 		stmts = append(stmts, raw)
+		needSeparator = true
 	}
 
 	if len(stmts) == 0 {

@@ -77,7 +77,18 @@ so the signal isn't lost when future work reads those files.
     `TestParenOracleLateral/invalid_shapes_rejected/LATERAL_empty_parens`
     (skipped with a pointer to PAREN-KB-3).
 
-## PAREN-KB-2 — `Parse()` accepts statements without `;` separator — **blocked by upstream parser gaps**
+## PAREN-KB-2 — `Parse()` accepts statements without `;` separator — **CLOSED 2026-04-22**
+
+**Status:** All 13 upstream blockers fixed (KB-2a/b/c/d), then `parser.go:Parse` `needSeparator` check re-applied. pgregress + oracle suites fully green. The KB-2 entry below documents the history of the attempt, the blockers surfaced, and the fix commits that unblocked it.
+
+Closed by commit chain:
+- 0f5b7d2 KB-2a: parseRuleActionStmt NotifyStmt case
+- 6075da0 KB-2b: ALTER SEQUENCE SET LOGGED/UNLOGGED
+- 1808371 KB-2c: CREATE SCHEMA inline schema_element list
+- d7e9ba3 KB-2d: CREATE TEMP VIEW inside SCHEMA + DROP FUNCTION empty name
+- <this commit> KB-2 reland: needSeparator check in parser.go Parse loop
+
+## PAREN-KB-2 — `Parse()` accepts statements without `;` separator — **history**
 
 **Status:** fix attempted 2026-04-22 and reverted. Enforcing "cur must be `;` or EOF after each parseStmt" at parser.go:Parse surfaced 13 new pgregress failures — all pre-existing omni parser gaps that had been **masked** by the silent-accept behavior (CREATE RULE `DO INSTEAD NOTIFY x` body, SET inside transaction / savepoint blocks, CREATE-chained DDL). Before the statement-list strictness can land, those 13 upstream grammar gaps need to be fixed so the corresponding single-statement parses emit the right AST instead of truncating and letting a second parseStmt pick up the tail.
 
