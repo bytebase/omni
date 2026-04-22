@@ -1,0 +1,47 @@
+name: Paren Oracle
+
+# Dedicated workflow for the pg-paren-dispatch PG 17 testcontainer oracle
+# (SCENARIOS-pg-paren-dispatch.md §5.1). Triggers narrowly on pg/parser/**
+# so the Docker-backed oracle only boots when it would catch drift — the
+# default CI pipeline in ci.yml remains fast for unrelated changes.
+#
+# Timing budget: ≤ 10 min total run. The PG 17 container boots once
+# (sync.Once in paren_oracle_test.go) and all oracle corpus tests plus
+# the fuzz test share it. If the run exceeds 10 min in practice, trim
+# fuzzCorpusSize or shard the oracle corpus.
+#
+# Baseline diff policy: pg/parser/testdata/paren-oracle-baseline.json
+# starts as the empty array; known-diff entries can be tracked like
+# pg/pgregress/known_failures.json. New mismatches fail the build with
+# side-by-side diff (SQL / omni-AST / PG-accept) — the individual
+# oracle test functions (paren_oracle_*_test.go, paren_oracle_fuzz_test.go)
+# already emit this on failure.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pg/parser/**'
+      - '.github/workflows/paren-oracle.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'pg/parser/**'
+      - '.github/workflows/paren-oracle.yml'
+
+jobs:
+  paren-oracle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        go-version: ['1.25']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Paren oracle (PG 17 testcontainer)
+        run: go test -tags=oracle -timeout 10m ./pg/parser/... -count=1 -v

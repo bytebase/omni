@@ -1,0 +1,27 @@
+# paren-fuzz known-mismatch allowlist.
+#
+# Format: one mismatch per line, three pipe-separated fields:
+#   <sql> | <pg_status> | <omni_status>
+#
+# pg_status:   "accept" or "reject(42601)"
+# omni_status: "subquery" | "joined_table" | "other" | "reject"
+#
+# The fuzz test normalizes discovered mismatches to this same triple
+# and requires set-equality with this file: any newly discovered
+# mismatch fails the test (regression); any expected mismatch that
+# disappears from the discovered set also fails (drives re-baseline).
+#
+# Blank lines and lines starting with `#` are ignored.
+#
+# Current entries = residual known bugs (all tracked in
+# pg/parser/PAREN_KNOWN_BUGS.md):
+#   PAREN-KB-1 — inner JOIN accepted with no ON/USING
+#
+# Trailing-SELECT cases (PAREN-KB-2) were previously in the corpus but
+# were removed — they measure a top-level statement-list bug, not a `(`
+# dispatch question. See PAREN_KNOWN_BUGS.md for the full rationale.
+
+SELECT * FROM (T JOIN U) | reject(42601) | joined_table
+SELECT * FROM (T LEFT JOIN T) | reject(42601) | joined_table
+SELECT * FROM (foo LEFT JOIN W) | reject(42601) | joined_table
+SELECT * FROM (foo RIGHT OUTER JOIN W) | reject(42601) | joined_table

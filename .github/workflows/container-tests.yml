@@ -25,3 +25,36 @@ jobs:
 
       - name: Container tests (MySQL catalog)
         run: go test -timeout 15m ./mysql/catalog/ -run TestContainer -count=1 -v
+
+  paren-fuzz-nightly:
+    # SCENARIOS-pg-paren-dispatch.md §5.2 — wide-N nightly fuzz run.
+    # N=10000 catches low-frequency paren-dispatch drift that the
+    # PR-gate N=1000 misses. Still uses PAREN_FUZZ_DEFER so a single
+    # fresh mismatch doesn't auto-fail the nightly build; the
+    # timestamped artefact under testdata/paren-fuzz-defer/ is the
+    # triage signal.
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        go-version: ['1.25']
+    env:
+      PAREN_FUZZ_SIZE: '10000'
+      PAREN_FUZZ_DEFER: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Paren fuzz nightly (N=10000, defer mode)
+        run: go test -tags=oracle -timeout 55m -run TestParenOracleFuzz ./pg/parser/... -count=1 -v
+
+      - name: Upload deferred-mismatch artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paren-fuzz-defer-nightly
+          path: pg/parser/testdata/paren-fuzz-defer/*.txt
+          if-no-files-found: ignore

@@ -1,35 +1,39 @@
 # PAREN_AUDIT — pg/parser `(` / `)` dispatch sites
 
-**Status:** Phase 1 audit complete (2026-04-21)
+**Status:** Phase 1 audit complete (2026-04-21); Phase 4 §5.3 lock-in proofs + §4.2 citation sweep complete.
 **Scope:** every `(` / `)` dispatch site in `pg/parser/*.go`
-**Reference:** `/Users/rebeliceyang/Github/omni-byt-9315/docs/plans/2026-04-21-pg-paren-dispatch.md` §4.1 scope, §3 technique catalogue, §5.3 alignment bar
-**Machine-readable mirror:** `PAREN_AUDIT.json`
+**Reference:** `docs/plans/2026-04-21-pg-paren-dispatch.md` §4.1 scope, §3 technique catalogue, §5.3 alignment bar
+
+**Note on site identifiers:** `file:line` in this document is the **original audit coordinate** captured at Phase 1 scope-lock (2026-04-21). Line numbers drift as code evolves; we retain the original coordinate as a stable row ID so audit history remains cross-referenceable. For the current live location of any site, grep the function name.
+**Machine-readable mirror:** `PAREN_AUDIT.json` — **source of truth** for the full `proof_notes` text (caller-context paragraphs and test citations). The markdown cluster tables below carry a terse one-line technique/status summary; for the §5.3 two-proof bar text (caller-context + ≥5 pinned tests for ambiguity-present sites) or test-file citations (non-ambiguous sites), consult the matching site row in `PAREN_AUDIT.json`.
 
 ## Summary
 
 - **94 total dispatch sites** (69 `(` opens, 25 `)` closes)
-- **5 ambiguity-present sites:** 2 already aligned (Phase 0), 3 not aligned → Phase 2 fix targets
-- **88 non-ambiguous sites:** aligned via grammar structure (unconditional `expect('(')` / `expect(')')` or T1 peek on optional list)
-- **1 unclear:** `expr.go:1610` parseArraySubscript (ARRAY subquery contract) — needs oracle cross-check, not a known bug
+- **5 ambiguity-present sites:** all aligned (Phase 0 + Phase 1 §§1.1–1.4)
+- **89 non-ambiguous sites:** aligned via grammar structure (unconditional `expect('(')` / `expect(')')` or T1 peek on optional list)
+- **0 unclear** (was 1: `expr.go:1610` parseArraySubscript ARRAY subquery contract — locked in by §1.4 with 6 empirical tests + caller-context proof; see paren_array_expr_test.go)
 
 ## By cluster
 
 | Cluster | File(s) | Sites | Ambiguity-present | Misaligned |
 |---------|---------|-------|-------------------|------------|
-| C1 | select.go | 14 | 3 | 1 (select.go:1347 parseLateralTableRef) |
-| C2 | expr.go | 24 | 2 | 2 (expr.go:2053 parseInExpr, expr.go:1609 parseArraySubscript) |
+| C1 | select.go | 14 | 3 | 0 |
+| C2 | expr.go | 24 | 2 | 0 |
 | C3 | type.go | 9 | 0 | 0 |
 | C4 | create_table.go, create_index.go, define.go | 14 | 0 | 0 |
 | C5 | (11 utility files — see §5.1 unbounded-tail note in PLAN) | 33 | 0 | 0 |
 
 ## Attention list
 
-| # | Site | Function | Priority | Ambiguity | Recommended technique |
-|---|------|----------|----------|-----------|----------------------|
-| 1 | `expr.go:2053` | `parseInExpr` | **high** | `IN (expr_list)` vs `IN (select)` | T3 scan or T8 FIRST-set predicate for subquery-start |
-| 2 | `select.go:1347` | `parseLateralTableRef` | **high** | `LATERAL (select)` vs `LATERAL XMLTABLE(...)` vs `LATERAL JSON_TABLE(...)` | T6 separate dispatch arms keyed by XMLTABLE / JSON_TABLE keywords |
-| 3 | `expr.go:1609` | `parseArraySubscript` | med | `ARRAY[...]` (constructor) vs `ARRAY(select)` (sublink) | T1 peek on `[` vs `(` at callsite entry |
-| 4 | `expr.go:1610` | `parseArraySubscript` | med | `ARRAY(select)` contract — does omni route all non-`[` to subquery correctly? | Oracle cross-check before classifying |
+All previously attention-listed sites are resolved (Phase 1 BATCH 1 §§1.1–1.4). The table below is kept for historical reference.
+
+| # | Site | Function | Priority | Ambiguity | Resolution |
+|---|------|----------|----------|-----------|------------|
+| 1 | `expr.go:2053` | `parseInExpr` | **high** | `IN (expr_list)` vs `IN (select)` | §1.1: T3 snapshot-scan + T8 FIRST-set; completion-mode guard on lookahead |
+| 2 | `select.go:1347` | `parseLateralTableRef` | **high** | LATERAL variants | §1.2: T6/T7 hybrid — dedicated dispatch arms + post-parse ColumnRef reject |
+| 3 | `expr.go:1609` | `parseArrayCExpr` | med | `ARRAY[...]` vs `ARRAY(select)` | §1.3: T1 peek on `[` vs `(` at entry |
+| 4 | `expr.go:1610` | `parseArrayCExpr` | med | `ARRAY(select)` content contract | §1.4: T7 post-parse typed-nil guard rejects ARRAY() / ARRAY(1) / ARRAY(ROWS FROM …) |
 
 ## Cluster tables
 
@@ -42,7 +46,7 @@
 | select.go:770 | parseCommonTableExpr | name_list | no | T1 | yes | med | Optional paren for column names |
 | select.go:1162 | parseParenTableRef | select_with_parens, joined_table | yes | T3 | yes | high | Phase 0: parenBeginsSubquery scanner |
 | select.go:1225 | parseJoinedTable | joined_table | no | T6 | yes | high | Phase 0: T6/T7 dedicated nonterminal |
-| select.go:1347 | parseLateralTableRef | select_with_parens, xmltable, json_table | yes | T1 | no | high | Peek only; needs T3/T6 for xmltable/json_table |
+| select.go:1347 | parseLateralTableRef | select_with_parens, xmltable, json_table, func_table | yes | T6+T7 | yes | high | §1.2 landed: four disjoint leads ('(' / XMLTABLE / JSON_TABLE / ROWS / default) routed via dedicated arms; post-parse ColumnRef rejection closes `LATERAL <relation>` gap. Caller-context: only reachable from parseTableRefPrimary's LATERAL arm. Tests: paren_lateral_ref_test.go TestParenLateralRefDispatch (12 scenarios: 10 accept, 2 reject) + AST-shape tests for subquery/func_table/rows-from/xmltable/json_table/alias-coldeflist/ordinality. |
 | select.go:1504 | parseRelationExpr | func_table | no | T1 | yes | med | After identifier; '(' always func_table |
 | select.go:1528 | parseRelationExpr | func_table | no | T1 | yes | med | After schema.attr; '(' always func_table |
 | select.go:1552 | parseRelationExpr | func_table | no | T1 | yes | med | After catalog.schema.attr; '(' always func_table |
@@ -56,8 +60,8 @@
 
 | Site | Function | Nonterminal | Ambiguity | Technique | Aligned | Priority | Notes |
 |------|----------|-------------|-----------|-----------|---------|----------|-------|
-| expr.go:1609 | parseArraySubscript | ARRAY_SUBLINK | yes | T1 | no | med | ARRAY [ ... ] vs ARRAY ( SELECT ) ambiguity; needs T3 |
-| expr.go:1610 | parseArraySubscript | ARRAY_SUBLINK | no | T1 | unclear | med | ARRAY(...) always subquery? Cross-check PG 17 |
+| expr.go:1609 | parseArrayCExpr | A_ArrayExpr, ARRAY_SUBLINK | yes | T1 | yes | med | §1.3 landed: T1 peek on '[' vs '(' after ARRAY routes to parseArrayExpr (array constructor) vs parseSelectStmtForExpr (sublink). Caller-context: parseArrayCExpr is the sole consumer of the ARRAY keyword lead (dispatched from c_expr at expr.go:1491). Tests: paren_array_expr_test.go TestParenArrayExprDispatch (10 scenarios: 6 constructor '[' forms, 4 sublink '(' forms), TestParenArrayExprConstructorAST (A_ArrayExpr shape), TestParenArrayExprNestedConstructorAST, TestParenArrayExprSublinkAST (ARRAY_SUBLINK shape). Ref: gram.y:15440-15459 + 16583-16595. |
+| expr.go:1610 | parseArrayCExpr | ARRAY_SUBLINK | no | T1+T7 | yes | med | §1.4 landed: ARRAY(...) content contract via T7 post-parse typed-nil guard. Caller-context: parseArrayCExpr is invoked only after the ARRAY keyword (c_expr dispatch at expr.go:1491), and the '(' branch here is entered only after T1 peek confirms '(' (not '[', not other). The enclosing parseArrayCExpr calls parseSelectStmtForExpr (= parseSelectNoParens) which returns a typed-nil *SelectStmt for anything not in the select_no_parens FIRST set; we type-assert and reject. Pinned scenarios (paren_array_expr_test.go TestParenArrayExprSubqueryContract at line 151): accept — SELECT ARRAY(TABLE foo) (line 162-165), SELECT ARRAY(WITH cte AS (SELECT 1) SELECT * FROM cte) (line 169-173), SELECT ARRAY(VALUES (1), (2)) (line 175-179); reject — SELECT ARRAY(ROWS FROM (f(1))) (line 186-190), SELECT ARRAY(1) (line 194-198), SELECT ARRAY() (line 202-206). Additional AST-shape proof: TestParenArrayExprSublinkAST (line 224) asserts SubLink{SubLinkType=ARRAY_SUBLINK}. Ref: gram.y:15440-15451. |
 | expr.go:1741 | parseExplicitRow | explicit_row | no | none | yes | low | ROW keyword disambiguates |
 | expr.go:1747 | parseExplicitRow | explicit_row | no | none | yes | low | Empty row check |
 | expr.go:1773 | parseCastExpr | cast_expr | no | none | yes | low | After CAST; unconditional |
@@ -72,7 +76,7 @@
 | expr.go:1855 | parseExtractExpr | extract_expr | no | none | yes | low | After EXTRACT; unconditional |
 | expr.go:1862 | parseExtractExpr | extract_expr | no | none | yes | low | Check for empty extract parens |
 | expr.go:1878 | parseExtractExpr | extract_expr | no | none | yes | low | Expect closing paren |
-| expr.go:2053 | parseInExpr | in_expr | yes | T1 | no | high | IN (list) vs IN (SELECT) ambiguity; needs T3/T8 |
+| expr.go:2053 | parseInExpr | in_expr | yes | T3+T8 | yes | high | §1.1 landed: fast-path T8 (isSelectStart) for SELECT/VALUES/WITH/TABLE; T3 snapshot/restore lookaheadInIsSubquery scan for the `IN ((...))` ambiguous case (top-level ',' → expr_list, top-level UNION/INTERSECT/EXCEPT → subquery, single-element → FIRST-set probe past leading '('). Completion-mode guard added at lookaheadInIsSubquery entry (snapshotTokenStream does not cover collecting/candidates). Caller-context: only entered after IN token consumed and '(' confirmed; empty `IN ()` rejected. Tests: paren_in_expr_test.go TestParenInExprDispatch (20 scenarios spanning expr_list, subquery, nested parens, VALUES/WITH/TABLE leads, empty list reject, row-constructor LHS, NOT IN variants, partition_prune regression) + AST-shape tests TestParenInExprSubqueryAST (ANY_SUBLINK), TestParenInExprExprListAST (A_Expr AEXPR_IN with "="), TestParenInExprNotInSubqueryAST (BoolExpr NOT wrap), TestParenInExprNotInExprListAST (operator "<>"). Ref: gram.y:14973-14998. |
 | expr.go:2112 | parseSubqueryExprList | IN_SUBLINK | no | none | yes | med | After IN; unconditional |
 | expr.go:2404 | parseSVFWithOptionalPrecision | sql_value_function | no | T1 | yes | med | Optional precision; T1 peek sufficient |
 | expr.go:2452 | parseColumnRefOrFuncCall | func_application | no | T1 | yes | med | After column ID; '(' always func_call |
@@ -153,18 +157,26 @@
 
 ---
 
-## TOP 10 PRIORITY MISALIGNED SITES (Phase 2 Scenario Ordering)
+## Historical attention list (pre-Phase-1)
 
-1. **PRIORITY HIGH** — expr.go:2053 | parseInExpr | IN (expr_list) vs IN (SELECT) ambiguity | Affects all IN expressions with subqueries | **Test:** `WHERE x IN (1, 2)` vs `WHERE x IN (SELECT y FROM t)` vs `WHERE x IN (SELECT 1 UNION SELECT 2)` | **PG 17 behavior:** FIRST set includes SELECT/VALUES/WITH/TABLE; omni 1-token peek can't distinguish | **Technique:** T3 (scan for SELECT/VALUES/WITH inside parens) or T8 (FIRST-set predicate for subquery-start)
+Originally surfaced as the top misaligned sites. All four have since been closed by Phase 1 of the starmap — the rows in the main cluster tables above reflect current state (`aligned: yes`). Kept here for audit-trail continuity; do not use for future prioritization.
 
-2. **PRIORITY HIGH** — select.go:1347 | parseLateralTableRef | LATERAL (SELECT) vs LATERAL XMLTABLE vs LATERAL JSON_TABLE | Peek only checks '('; can't route to correct handler | **Test:** `FROM LATERAL (SELECT 1)` vs `FROM LATERAL XMLTABLE(...)` vs `FROM LATERAL JSON_TABLE(...)` | **PG 17 behavior:** Each is a distinct production with disjoint FIRST sets after paren | **Technique:** T3 scan or T6 dedicated nonterminals for xmltable/json_table paths
+1. ~~**HIGH** expr.go:2053 parseInExpr — IN (list) vs IN (SELECT)~~ **CLOSED in §1.1** (commit ad700fa). Technique: T3+T8 hybrid (snapshot scan + FIRST-set). Proof: `TestParenInExprDispatch` in `paren_in_expr_test.go`.
+2. ~~**HIGH** select.go:1347 parseLateralTableRef — LATERAL dispatch~~ **CLOSED in §1.2** (commit 284f39e). Technique: T6/T7 hybrid (dedicated nonterminal + post-parse ColumnRef reject). Proof: `TestParenLateralRef*` in `paren_lateral_ref_test.go`.
+3. ~~**HIGH** expr.go:1609 parseArrayCExpr — ARRAY[ vs ARRAY(~~ **CLOSED in §1.3** (commit be8af80). Technique: T1 peek. Proof: `TestParenArrayExprDispatch` in `paren_array_expr_test.go`.
+4. ~~**MED** expr.go:1610 parseArrayCExpr — ARRAY( content contract~~ **CLOSED in §1.4** (commit c1158b7 + codex-fix b97477f). Technique: T1 + T7 (typed-nil guard). Proof: `TestParenArrayExprSubqueryContract` in `paren_array_expr_test.go`.
 
-3. **PRIORITY HIGH** — expr.go:1609 | parseArraySubscript | ARRAY [ ... ] vs ARRAY ( SELECT ) syntax | Current code treats all as ARRAY(SELECT); [ operator is unhandled | **Test:** `ARRAY[1, 2, 3]` vs `ARRAY(SELECT 1)` vs bare `ARRAY` | **PG 17 behavior:** ARRAY followed by [ or ( disambiguates; omni's code path confusion | **Technique:** T1 peek on '(' vs '[' at callsite entry
+Remaining low-priority items from the original list (already informally aligned via T1 peek; kept for §5.3 lock-in in Phase 4):
 
-4. **PRIORITY MED** — expr.go:1610 | parseArraySubscript | ARRAY(SELECT) inside expression context | Assumes all ARRAY(...) are subqueries; need to check against PG | **Test:** `SELECT ARRAY(SELECT 1)` vs `SELECT ARRAY(ROWS FROM f(...))` | **PG 17 behavior:** ARRAY ( ... ) expects a subquery (SELECT/TABLE/VALUES) | **Technique:** T8 FIRST-set check to confirm parseSelectStmtForExpr is correct delegation
+5. select.go:770 parseCommonTableExpr — optional paren-wrapped column list (T1; Phase 4 §4.2 citation: pgregress `with.sql`, `with_recursive.sql`)
+6. type.go:313-687 parseOptFloat / parseBit / parseVarcharType / … — type-modifier paren family (T1; Phase 4 §4.2 citations: pgregress `float4.sql`, `bit.sql`, `varchar.sql`, `timestamp.sql`, `interval.sql`, etc.)
 
-5. **PRIORITY MED** — select.go:770 | parseCommonTableExpr | Paren-wrapped column list optional | Currently T1 peek; confirm PG alignment | **Test:** `WITH cte AS (...) SELECT ...` vs `WITH cte(a, b) AS (...) SELECT ...` | **PG 17 behavior:** name opt_name_list AS — opt_name_list is optional | **Technique:** Already T1; verify test coverage exists
+---
 
-6. **PRIORITY MED** — type.go:313 through type.go:687 | parseOptFloat / parseBit / parseVarcharType / etc. | All type-modifier parens use T1 peek; cluster alignment check | **Test:** `FLOAT(24)` vs `FLOAT` vs `VARCHAR(255)` vs `VARCHAR` vs `BIT(10)` vs `BIT` vs `CHAR(20)` vs `CHAR` | **PG 17 behavior:** All are optional parens after keyword | **Technique:** T1 sufficient; batch test coverage validation
+## Phase 4 §5.3 lock-in summary (2026-04-21)
+
+- **§4.1 two-proof bar** applied to the 4 Phase 0 `select_with_parens` / `joined_table` sites: `select.go:77 parseSelectWithParens`, `select.go:166 parseSelectClausePrimary`, `select.go:1162 parseParenTableRef`, `select.go:1225 parseJoinedTable`. Each row in `PAREN_AUDIT.json` now carries (a) an explicit caller-context paragraph identifying every caller, (b) ≥5 pinned empirical tests from `paren_multi_join_test.go` (plus the oracle + pgregress anti-regression fences). The two Phase 1 ambiguity-present sites (`expr.go:1609-1610 parseArrayCExpr`, `expr.go:2053 parseInExpr`, `select.go:1347 parseLateralTableRef`) already carry the §5.3 bar from Phase 1 commits ad700fa / 284f39e / be8af80 / c1158b7.
+- **§4.2 citation sweep** applied to all 85+ non-ambiguous C3/C4/C5 rows: every `proof_notes` field now cites at least one concrete test file (dedicated `pg/parser/*_test.go`) or pgregress SQL corpus entry (`pg/pgregress/testdata/sql/*.sql`) that exercises the grammar point. Grammar structure remains the primary proof; citations are for anti-regression traceability only.
+- **Gaps surfaced:** none blocking. All 94 rows have at least one citation. A handful of rows cite only the broad pgregress corpus (no dedicated unit test) — these are low-priority utility sites (e.g. `trigger.go:207`, `extension.go:274-334`) where adding a bespoke paren test would be redundant with pgregress; deferred as minor TODOs rather than §4.2 blockers.
 
 

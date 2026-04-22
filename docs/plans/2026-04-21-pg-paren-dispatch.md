@@ -164,7 +164,7 @@ A cluster is one PG nonterminal family whose `(` / `)` dispatches are coupled (s
 
 Per cluster, one worker:
 1. **Audit sub-step (C-specific rows):** populate PAREN_AUDIT.md with rows only for sites in this cluster.
-2. **Fix sub-step:** implement section(s) in SCENARIOS-paren-dispatch.md for that cluster.
+2. **Fix sub-step:** implement section(s) in SCENARIOS-pg-paren-dispatch.md for that cluster.
 3. **Close sub-step:** regenerate `pgregress -update`, report `fixed=K, new=0`, update `PAREN_PROGRESS.json`.
 
 Cluster ordering: C1 (highest pgregress density, already validated in Phase 0) → C2 → C3 (coordinate with pg-first-sets) → C4 → C5.
@@ -179,6 +179,22 @@ Dedicated hardening pass (runs in parallel with C2+ cluster work):
 1. Oracle-style test against PG testcontainer (pattern: see 2026-04-14-pg-first-sets.md §oracle design). Build a minimal corpus of 200+ `FROM (...)` SQL variants, compare omni's routing decision (subquery vs joined_table) against PG's acceptance.
 2. Fuzz test: random balanced-paren SQL with interleaved SELECT / JOIN / set-op keywords, compare omni vs PG.
 3. If fuzz surfaces a class of mis-routing, either fix `parenBeginsSubquery` or replace it with T5/T6 (the principled preference per §3).
+
+**Delivered scope (post-Phase 2 acknowledgment):** the landed corpus is
+N=188 probes — 100 PRNG-generated via `fuzzCorpusSize=100` in
+`paren_oracle_fuzz_test.go` (`fuzzSeed=0xBADC0DE1`, deterministic) + 3
+active seed entries in `testdata/paren-fuzz-corpus/seed-cases.txt` + 85
+hand-curated across §2.2–§2.7 (simple/subquery/joined/mixed/LATERAL/
+degenerate). The original "200+ targeting `parenBeginsSubquery`
+specifically" was a rough estimate; in practice the oracle harness
+covers the whole FROM-clause `(` dispatch surface: `parenBeginsSubquery`
+plus LATERAL variants (select_with_parens / XMLTABLE / JSON_TABLE /
+func_table / ROWS FROM), VALUES / TABLE / WITH subqueries, set-op
+operand paren-wrapping, column-list aliases, and the obvious-reject
+perimeter. This is broader than strictly needed for
+`parenBeginsSubquery` alone; the extra coverage is kept for
+defense-in-depth — it's the single cheapest regression fence for every
+Phase-1 fix site (1.1–1.4) that routes through a paren in FROM context.
 
 ### 5.3 The "aligned without code change" bar (answers §8 Q3)
 
@@ -209,13 +225,13 @@ docs/plans/
 pg/parser/
   PAREN_AUDIT.md                        ← audit rows (grows per cluster)
   PAREN_AUDIT.json                      ← machine-readable mirror of AUDIT.md
-  SCENARIOS-paren-dispatch.md           ← per-section fix scenarios
+  SCENARIOS-pg-paren-dispatch.md           ← per-section fix scenarios
   PAREN_PROGRESS.json                   ← cluster/section state + history[]
   paren_*_test.go                       ← per-section tests
   paren_oracle_test.go                  ← Phase 2 PG-container oracle (once landed)
 ```
 
-PAREN_AUDIT.json schema (one array of row objects) mirrors the markdown; kept in sync by the worker skill. Fields: `site` (file:line), `function`, `nonterminals` (array), `ambiguity_present` (bool), `current_technique` (T1..T8 or null), `pg_reference` (gram.y:line), `aligned` (enum: yes / no / blocked / unclear), `blocked_by` (nullable — e.g. "pg-nonterminal-alignment", "pg-first-sets"), `priority` (high/med/low), `section` (nullable scenario id), `proofs` (object: caller_context_argument, empirical_test_file).
+PAREN_AUDIT.json schema (one array of row objects) mirrors the markdown; kept in sync by the worker skill. **Canonical schema doc:** `pg/parser/PAREN_AUDIT_SCHEMA.md` — enforced by `TestPARENAuditLint` on every CI run (SCENARIOS §5.3). Live fields: `site` (file:line, stable audit coordinate), `function` (enclosing Go function), `nonterminals` (array), `ambiguity_present` (bool), `current_technique` (T1..T8 or null), `pg_reference` (gram.y:line), `aligned` (enum: yes / no / blocked / unclear), `blocked_by` (nullable — e.g. "pg-nonterminal-alignment", "pg-first-sets"), `cluster` (C1..C5 with optional subcluster suffix), `priority` (high/med/low), `proof_notes` (free-form caller-context + empirical test citations; required non-empty when aligned=yes), `suspicion_notes` (nullable).
 
 ### 6.2 Skills (to be created after plan approval)
 

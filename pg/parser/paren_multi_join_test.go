@@ -22,6 +22,12 @@ import (
 // SQL review for every statement against the instance (BYT-9308).
 func TestParseParenMultiJoin(t *testing.T) {
 	cases := []string{
+		// Plain single-level parenthesized joined_table (no alias).
+		`SELECT * FROM (a JOIN b ON TRUE)`,
+		// Plain parenthesized joined_table with alias clause.
+		`SELECT * FROM (a JOIN b ON TRUE) AS jt`,
+		// Plain parenthesized joined_table with column-list alias.
+		`SELECT * FROM (a JOIN b ON TRUE) jt(x, y)`,
 		// Exact shape from BYT-9315 description.
 		`SELECT * FROM ((a JOIN b ON TRUE) JOIN c ON TRUE)`,
 		// Deeper nesting.
@@ -34,6 +40,8 @@ func TestParseParenMultiJoin(t *testing.T) {
 		`SELECT * FROM ((SELECT 1) x CROSS JOIN b)`,
 		// Alias on the outer parenthesized joined_table.
 		`SELECT * FROM ((a JOIN b ON TRUE) JOIN c ON TRUE) AS jt`,
+		// Column-list alias on the outer parenthesized joined_table.
+		`SELECT * FROM ((a JOIN b ON TRUE) JOIN c ON TRUE) jt(x, y, z)`,
 		// Real pg_get_viewdef() output shape (double parens on join qual).
 		`CREATE VIEW v AS SELECT a.*, b.*, c.* FROM ((a JOIN b ON ((a.id = b.aid))) JOIN c ON ((b.id = c.bid)))`,
 	}
