@@ -7,6 +7,12 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// backupEncryptionAlgorithms matches SqlScriptDOM BackupEncryptionAlgorithm
+// enum for BACKUP ... WITH ENCRYPTION(ALGORITHM = ...).
+var backupEncryptionAlgorithms = newOptionSet().withIdents(
+	"AES_128", "AES_192", "AES_256", "TRIPLE_DES_3KEY",
+)
+
 // parseBackupStmt parses a BACKUP DATABASE or BACKUP LOG statement.
 //
 // BNF: mssql/parser/bnf/backup-transact-sql.bnf
@@ -774,7 +780,7 @@ func (p *Parser) parseBackupEncryptionOption() (*nodes.BackupRestoreOption, erro
 	if p.cur.Type == kwALGORITHM {
 		p.advance() // consume ALGORITHM
 		if _, ok := p.match('='); ok {
-			if p.isAnyKeywordIdent() {
+			if p.isValidOption(backupEncryptionAlgorithms) {
 				opt.Algorithm = strings.ToUpper(p.cur.Str)
 				p.advance()
 			}

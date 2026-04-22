@@ -1010,7 +1010,7 @@ func (p *Parser) parseCopyIntoStmt() (*nodes.CopyIntoStmt, error) {
 		var cols []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
 			// Each entry is: Column_name [ DEFAULT value ] [ field_number ]
-			if p.isAnyKeywordIdent() || p.cur.Type == '[' {
+			if p.isIdentLike() || p.cur.Type == '[' {
 				col := &nodes.CopyIntoColumn{
 					Loc: nodes.Loc{Start: p.pos(), End: -1},
 				}
@@ -1192,7 +1192,7 @@ func (p *Parser) parseRenameStmt() (*nodes.RenameStmt, error) {
 	// TO new_name
 	if p.cur.Type == kwTO {
 		p.advance() // consume TO
-		if p.isAnyKeywordIdent() || p.cur.Type == '[' {
+		if p.isIdentLike() || p.cur.Type == '[' {
 			if stmt.ColumnName != "" {
 				stmt.NewColumnName = p.cur.Str
 			} else {
@@ -1436,7 +1436,7 @@ func (p *Parser) parsePredictStmt() (*nodes.PredictStmt, error) {
 // parsePredictColumnDef parses a column definition in PREDICT's WITH clause.
 // column_name data_type [COLLATE collation_name] [NULL | NOT NULL]
 func (p *Parser) parsePredictColumnDef() *nodes.ColumnDef {
-	if !p.isAnyKeywordIdent() {
+	if !p.isIdentLike() {
 		return nil
 	}
 	loc := p.pos()
