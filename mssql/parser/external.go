@@ -158,7 +158,7 @@ func (p *Parser) parseDropExternalStmt() (*nodes.SecurityStmt, error) {
 	// optional AUTHORIZATION owner_name (for DROP EXTERNAL LIBRARY)
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -377,7 +377,7 @@ func (p *Parser) parseCreateExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 	// AUTHORIZATION owner_name
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -445,7 +445,7 @@ func (p *Parser) parseAlterExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 	// AUTHORIZATION owner_name
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -511,7 +511,7 @@ func (p *Parser) parseCreateExternalLanguageStmt() (*nodes.SecurityStmt, error) 
 	// AUTHORIZATION owner_name
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -579,7 +579,7 @@ func (p *Parser) parseAlterExternalLanguageStmt() (*nodes.SecurityStmt, error) {
 	// AUTHORIZATION owner_name
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -633,7 +633,7 @@ func (p *Parser) parseDropExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 	// optional AUTHORIZATION owner_name
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -842,7 +842,7 @@ func (p *Parser) parseCreateExternalModelStmt() (*nodes.SecurityStmt, error) {
 	// [ AUTHORIZATION owner_name ]
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
