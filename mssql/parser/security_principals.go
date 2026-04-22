@@ -459,7 +459,7 @@ func (p *Parser) parseSecurityPrincipalWithOptions() []nodes.Node {
 	var opts []nodes.Node
 
 	for {
-		if !p.isAnyKeywordIdent() {
+		if !p.isIdentLike() {
 			break
 		}
 
@@ -487,7 +487,7 @@ func (p *Parser) parseSecurityPrincipalWithOptions() []nodes.Node {
 			} else if p.cur.Type == kwOFF {
 				opt.Value = "OFF"
 				p.advance()
-			} else if p.isAnyKeywordIdent() {
+			} else if p.isIdentLike() {
 				upper := strings.ToUpper(p.cur.Str)
 				if upper == "ON" {
 					opt.Value = "ON"
@@ -736,7 +736,7 @@ func (p *Parser) parseAlterAuthorizationStmt() (*nodes.SecurityStmt, error) {
 // SYMMETRIC KEY, ASYMMETRIC KEY, AVAILABILITY GROUP, SERVER ROLE
 func (p *Parser) tryParseAlterAuthEntityType() string {
 	// For single-word entity types, check if next token is ':'
-	if (p.isAnyKeywordIdent() || p.cur.Type == kwDATABASE || p.cur.Type == kwXML ||
+	if (p.isIdentLike() || p.cur.Type == kwDATABASE || p.cur.Type == kwXML ||
 		p.cur.Type == kwROLE || p.cur.Type == kwSCHEMA || p.cur.Type == kwTYPE) &&
 		p.peekNext().Type == tokCOLONCOLON {
 		word := strings.ToUpper(p.cur.Str)
@@ -744,7 +744,7 @@ func (p *Parser) tryParseAlterAuthEntityType() string {
 		return word
 	}
 	// For multi-word entity types: check first word, then peek second
-	if p.isAnyKeywordIdent() || p.cur.Type == kwXML || p.cur.Type == kwSCHEMA {
+	if p.isIdentLike() || p.cur.Type == kwXML || p.cur.Type == kwSCHEMA {
 		first := strings.ToUpper(p.cur.Str)
 		switch first {
 		case "XML":
@@ -787,7 +787,7 @@ func (p *Parser) tryParseMultiWordEntityType(first string, remaining []string) s
 	p.advance()
 	parts := []string{first}
 	for _, word := range remaining {
-		if (p.isAnyKeywordIdent() || p.cur.Type == kwSCHEMA || p.cur.Type == kwTYPE) &&
+		if (p.isIdentLike() || p.cur.Type == kwSCHEMA || p.cur.Type == kwTYPE) &&
 			p.cur.Type == lookupKeyword(word) {
 			parts = append(parts, strings.ToUpper(p.cur.Str))
 			p.advance()
@@ -805,7 +805,7 @@ func (p *Parser) parseAlterAuthEntityName() string {
 		if p.cur.Type == kwTO {
 			break
 		}
-		if p.isAnyKeywordIdent() || p.cur.Type == kwDATABASE || p.cur.Type == kwXML ||
+		if p.isIdentLike() || p.cur.Type == kwDATABASE || p.cur.Type == kwXML ||
 			p.cur.Type == kwROLE || p.cur.Type == kwSCHEMA || p.cur.Type == kwTYPE {
 			parts = append(parts, p.cur.Str)
 		} else if p.cur.Type == '.' {

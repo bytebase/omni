@@ -644,7 +644,7 @@ func (p *Parser) parseRoutineOption() *nodes.String {
 	}
 
 	// Simple identifier options: RECOMPILE, ENCRYPTION, VIEW_METADATA, NATIVE_COMPILATION, INLINE
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		s := strings.ToUpper(p.cur.Str)
 		switch s {
 		case "RECOMPILE", "ENCRYPTION", "VIEW_METADATA", "NATIVE_COMPILATION":

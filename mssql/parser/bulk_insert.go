@@ -180,7 +180,7 @@ func (p *Parser) parseBulkInsertOption() nodes.Node {
 			valStr = p.cur.Str
 			p.advance()
 		default:
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				valStr = p.cur.Str
 				p.advance()
 			}

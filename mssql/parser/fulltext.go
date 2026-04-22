@@ -168,7 +168,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 				p.advance()
 				if p.cur.Type == '=' {
 					p.advance()
-					if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+					if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 						opt += "=" + strings.ToUpper(p.cur.Str)
 						p.advance()
 					}

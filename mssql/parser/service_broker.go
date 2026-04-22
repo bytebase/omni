@@ -233,7 +233,7 @@ func (p *Parser) parseCreateQueueStmt() (*nodes.ServiceBrokerStmt, error) {
 	if p.cur.Type == kwON {
 		onLoc := p.pos()
 		p.advance()
-		if p.isAnyKeywordIdent() || p.cur.Type == kwDEFAULT {
+		if p.isIdentLike() || p.cur.Type == kwDEFAULT {
 			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ON", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: onLoc, End: -1}})
 			p.advance()
 		}
@@ -700,7 +700,7 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 				if p.cur.Type == '=' {
 					p.advance()
 				}
-				if p.cur.Type == tokICONST || p.cur.Type == tokVARIABLE || p.isAnyKeywordIdent() {
+				if p.cur.Type == tokICONST || p.cur.Type == tokVARIABLE || p.isIdentLike() {
 					opts = append(opts, &nodes.ServiceBrokerOption{Name: "LIFETIME", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 					p.advance()
 				}
@@ -1757,7 +1757,7 @@ func (p *Parser) parseBrokerPrioritySetOptions() *nodes.List {
 	p.advance()
 	var opts []nodes.Node
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			optLoc := p.pos()
 			optName := strings.ToUpper(p.cur.Str)
 			p.advance()
@@ -1767,7 +1767,7 @@ func (p *Parser) parseBrokerPrioritySetOptions() *nodes.List {
 				if p.cur.Type == tokSCONST {
 					val = p.cur.Str
 					p.advance()
-				} else if p.isAnyKeywordIdent() || p.cur.Type == kwDEFAULT || p.cur.Type == kwANY {
+				} else if p.isIdentLike() || p.cur.Type == kwDEFAULT || p.cur.Type == kwANY {
 					val = strings.ToUpper(p.cur.Str)
 					p.advance()
 				} else if p.cur.Type == tokICONST {

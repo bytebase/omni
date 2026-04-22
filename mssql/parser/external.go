@@ -596,7 +596,7 @@ func (p *Parser) parseAlterExternalLanguageStmt() (*nodes.SecurityStmt, error) {
 		if p.cur.Type == kwPLATFORM {
 			p.advance() // consume PLATFORM
 		}
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			fileSpecOpts = append(fileSpecOpts, &nodes.String{Str: "REMOVE_PLATFORM=" + strings.ToUpper(p.cur.Str)})
 			p.advance() // consume platform name (WINDOWS/LINUX)
 		}
@@ -677,7 +677,7 @@ func (p *Parser) parseExternalSetOptions() *nodes.List {
 			p.advance()
 			continue
 		}
-		if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+		if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 			optLoc := p.pos()
 			key := strings.ToUpper(p.cur.Str)
 			p.advance()
@@ -725,7 +725,7 @@ func (p *Parser) parseExternalWithOptions() *nodes.List {
 		}
 
 		// key = value
-		if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+		if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 			key := strings.ToUpper(p.cur.Str)
 			p.advance()
 			if p.cur.Type == '=' {
@@ -779,7 +779,7 @@ func (p *Parser) parseExternalOptionValue() string {
 	case p.cur.Type == kwNULL:
 		val = "NULL"
 		p.advance()
-	case p.isAnyKeywordIdent():
+	case p.isIdentLike():
 		val = strings.ToUpper(p.cur.Str)
 		p.advance()
 		// check for function-like syntax: SHARDED(col)
@@ -791,7 +791,7 @@ func (p *Parser) parseExternalOptionValue() string {
 					p.advance()
 					continue
 				}
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					args = append(args, strings.ToUpper(p.cur.Str))
 				} else {
 					args = append(args, p.cur.Str)
@@ -897,7 +897,7 @@ func (p *Parser) parseAlterExternalModelStmt() (*nodes.SecurityStmt, error) {
 				p.advance()
 				continue
 			}
-			if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+			if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 				key := strings.ToUpper(p.cur.Str)
 				p.advance()
 				if p.cur.Type == '=' {
@@ -1034,7 +1034,7 @@ func (p *Parser) parseExternalFileSpec() []nodes.Node {
 			p.advance()
 			continue
 		}
-		if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwNULL {
+		if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwNULL {
 			key := strings.ToUpper(p.cur.Str)
 			p.advance()
 			if p.cur.Type == '=' {

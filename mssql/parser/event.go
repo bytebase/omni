@@ -119,7 +119,7 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 		case p.cur.Type == kwFOR:
 			p.advance()
 			for {
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST {
 					opt.Events = append(opt.Events, strings.ToUpper(p.cur.Str))
 					p.advance()
 				}
@@ -353,14 +353,14 @@ func (p *Parser) parseEventSessionBody() *nodes.List {
 			if p.cur.Type == '(' {
 				p.advance()
 				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+					if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 						optName := strings.ToUpper(p.cur.Str)
 						p.advance()
 						if p.cur.Type == '=' {
 							p.advance()
 							// Value could be: number [KB|MB|SECONDS], identifier, ON/OFF
 							val := ""
-							if p.isAnyKeywordIdent() || p.cur.Type == tokICONST || p.cur.Type == tokSCONST ||
+							if p.isIdentLike() || p.cur.Type == tokICONST || p.cur.Type == tokSCONST ||
 								p.cur.Type == kwON || p.cur.Type == kwOFF {
 								val = strings.ToUpper(p.cur.Str)
 								p.advance()
@@ -527,7 +527,7 @@ func (p *Parser) parseEventSessionValue() string {
 	case p.cur.Type == kwOFF:
 		p.advance()
 		return "OFF"
-	case p.isAnyKeywordIdent():
+	case p.isIdentLike():
 		val := p.cur.Str
 		p.advance()
 		return val

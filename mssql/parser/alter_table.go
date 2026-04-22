@@ -708,7 +708,7 @@ func (p *Parser) parseAlterColumnAddDrop(loc int, colName string) (*nodes.AlterT
 		opt.Option = "NOT FOR REPLICATION"
 	default:
 		// Unknown option, consume as normalized uppercase identifier
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			opt.Option = strings.ToUpper(p.cur.Str)
 			p.advance()
 		}
