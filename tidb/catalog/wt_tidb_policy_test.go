@@ -241,6 +241,48 @@ func TestWTTiDBPolicy_DropInUseByDatabase(t *testing.T) {
 	}
 }
 
+// TestWTTiDBPolicy_DropBacktickDefaultSucceeds pins an implicit
+// consequence of the "default" sentinel: if a user backtick-creates
+// `default` as a policy, no subsequent table or database can actually
+// reference it (every textual form of "default" hits the sentinel
+// short-circuit before PolicyByName). Therefore the in-use scan on
+// DROP never fires, and DROP succeeds regardless of how many tables
+// carry `PLACEMENT POLICY = default` clauses in their DDL history.
+//
+// This is correct upstream behavior — flagged by review as worth
+// pinning so a future refactor that reorders the in-use scan vs. the
+// sentinel check can't silently break it.
+func TestWTTiDBPolicy_DropBacktickDefaultSucceeds(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE PLACEMENT POLICY `default` PRIMARY_REGION = 'us-east'")
+
+	// Create several tables that "reference" default in different
+	// textual forms. None of them actually store "default" as the ref
+	// due to resolvePolicyRef collapsing to "" — so the DROP below
+	// must still find zero references.
+	wtExec(t, c, "CREATE TABLE t1 (id INT) PLACEMENT POLICY = default")
+	wtExec(t, c, "CREATE TABLE t2 (id INT) PLACEMENT POLICY = 'default'")
+	wtExec(t, c, "CREATE TABLE t3 (id INT) PLACEMENT POLICY = DEFAULT")
+	wtExec(t, c, "CREATE TABLE t4 (id INT) PLACEMENT POLICY = `default`")
+
+	// Sanity: no table ended up with PlacementPolicy == "default".
+	db := c.GetDatabase("testdb")
+	for _, name := range []string{"t1", "t2", "t3", "t4"} {
+		if got := db.GetTable(name).PlacementPolicy; got != "" {
+			t.Errorf("%s.PlacementPolicy = %q, want empty (sentinel collapsed)", name, got)
+		}
+	}
+
+	// DROP succeeds — the in-use scan finds nothing referencing the
+	// backtick-`default` policy.
+	if _, err := c.Exec("DROP PLACEMENT POLICY `default`", nil); err != nil {
+		t.Fatalf("DROP PLACEMENT POLICY `default`: %v", err)
+	}
+	if c.GetPlacementPolicy("default") != nil {
+		t.Error("DROP did not remove backtick-`default` policy from catalog")
+	}
+}
+
 // TestWTTiDBPolicy_DefaultSentinel verifies the special-cased "default"
 // policy name: it must bypass ref validation and clear the assigned
 // policy to the empty string (matching TiDB's short-circuit at
