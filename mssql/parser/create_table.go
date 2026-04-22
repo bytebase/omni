@@ -349,9 +349,9 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 	}
 	p.advance()
 
-	// SYSTEM_VERSIONING = ON [ ( ... ) ]
+	// SYSTEM_VERSIONING = { ON | OFF } [ ( ... ) ]
 	if name == "SYSTEM_VERSIONING" {
-		if p.isAnyKeywordIdent() {
+		if p.isValidOption(onOffOptionValues) {
 			opt.Value = strings.ToUpper(p.cur.Str)
 			p.advance()
 		}
@@ -382,7 +382,8 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 						}
 						opt.HistoryTable = strings.Join(parts, ".")
 					case "DATA_CONSISTENCY_CHECK":
-						if p.isAnyKeywordIdent() {
+						// DATA_CONSISTENCY_CHECK = { ON | OFF }
+						if p.isValidOption(onOffOptionValues) {
 							opt.DataConsistencyCheck = strings.ToUpper(p.cur.Str)
 							p.advance()
 						}
