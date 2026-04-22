@@ -207,11 +207,11 @@ func (p *Parser) parseExecAtClause(stmt *nodes.ExecStmt) {
 	// DATA_SOURCE keyword
 	if p.cur.Type == kwDATA_SOURCE {
 		p.advance() // consume DATA_SOURCE
-		if p.isAnyKeywordIdent() || p.cur.Type == tokIDENT {
+		if p.isIdentLike() || p.cur.Type == tokIDENT {
 			stmt.AtDataSource = p.cur.Str
 			p.advance()
 		}
-	} else if p.isAnyKeywordIdent() || p.cur.Type == tokIDENT {
+	} else if p.isIdentLike() || p.cur.Type == tokIDENT {
 		stmt.AtServer = p.cur.Str
 		p.advance()
 	}

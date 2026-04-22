@@ -701,7 +701,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		// COLLATE
 		if p.cur.Type == kwCOLLATE {
 			p.advance()
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				col.Collation = p.cur.Str
 				p.advance()
 			}

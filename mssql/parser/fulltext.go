@@ -573,7 +573,7 @@ func (p *Parser) parseCreateFulltextStoplistStmt() (*nodes.CreateFulltextStoplis
 			if p.cur.Type == '.' {
 				p.advance()
 				stmt.SourceDB = name1
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					stmt.SourceList = p.cur.Str
 					p.advance()
 				}
@@ -642,7 +642,7 @@ func (p *Parser) parseAlterFulltextStoplistStmt() (*nodes.AlterFulltextStoplistS
 		// LANGUAGE language_term
 		if p.cur.Type == kwLANGUAGE {
 			p.advance()
-			if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
+			if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
 				stmt.Language = p.cur.Str
 				p.advance()
 			}
@@ -660,7 +660,7 @@ func (p *Parser) parseAlterFulltextStoplistStmt() (*nodes.AlterFulltextStoplistS
 			p.advance()
 			if p.cur.Type == kwLANGUAGE {
 				p.advance()
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
 					stmt.Language = p.cur.Str
 					p.advance()
 				}
@@ -671,7 +671,7 @@ func (p *Parser) parseAlterFulltextStoplistStmt() (*nodes.AlterFulltextStoplistS
 			// ALL LANGUAGE language_term  or just ALL
 			if p.cur.Type == kwLANGUAGE {
 				p.advance()
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
 					stmt.Language = p.cur.Str
 					p.advance()
 				}
@@ -735,7 +735,7 @@ func (p *Parser) parseCreateSearchPropertyListStmt() (*nodes.CreateSearchPropert
 			if p.cur.Type == '.' {
 				p.advance()
 				stmt.SourceDB = name1
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					stmt.SourceList = p.cur.Str
 					p.advance()
 				}
@@ -817,7 +817,7 @@ func (p *Parser) parseAlterSearchPropertyListStmt() (*nodes.AlterSearchPropertyL
 								p.advance()
 							}
 						case "PROPERTY_INT_ID":
-							if p.cur.Type == tokICONST || p.isAnyKeywordIdent() {
+							if p.cur.Type == tokICONST || p.isIdentLike() {
 								stmt.PropertyIntID = p.cur.Str
 								p.advance()
 							}

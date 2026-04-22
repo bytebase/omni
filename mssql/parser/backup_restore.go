@@ -288,7 +288,7 @@ func (p *Parser) parseRestoreStmt() (*nodes.RestoreStmt, error) {
 	case "HEADERONLY", "FILELISTONLY", "VERIFYONLY", "LABELONLY", "REWINDONLY":
 		// no database name expected before FROM
 	default:
-		if p.isAnyKeywordIdent() && p.cur.Type != kwFROM {
+		if p.isIdentLike() && p.cur.Type != kwFROM {
 			stmt.Database = p.cur.Str
 			p.advance()
 		}
@@ -712,7 +712,7 @@ func (p *Parser) parseOneBackupRestoreOption() (*nodes.BackupRestoreOption, erro
 				p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 				opt.Value = p.cur.Str
 				p.advance()
-			} else if p.isAnyKeywordIdent() {
+			} else if p.isIdentLike() {
 				opt.Value = p.cur.Str
 				p.advance()
 			}
@@ -742,7 +742,7 @@ func (p *Parser) parseOneBackupRestoreOption() (*nodes.BackupRestoreOption, erro
 			p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 			opt.Value = p.cur.Str
 			p.advance()
-		} else if p.isAnyKeywordIdent() {
+		} else if p.isIdentLike() {
 			opt.Value = p.cur.Str
 			p.advance()
 		}
@@ -875,7 +875,7 @@ func (p *Parser) parseRestoreFilestreamOption() (*nodes.BackupRestoreOption, err
 			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
 				opt.Value = p.cur.Str
 				p.advance()
-			} else if p.isAnyKeywordIdent() {
+			} else if p.isIdentLike() {
 				opt.Value = p.cur.Str
 				p.advance()
 			}

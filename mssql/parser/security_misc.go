@@ -358,7 +358,7 @@ func (p *Parser) parseAddSensitivityClassificationStmt() (*nodes.SensitivityClas
 					if p.cur.Type == tokSCONST {
 						val = p.cur.Str
 						p.advance()
-					} else if p.isAnyKeywordIdent() || p.cur.Type == tokICONST {
+					} else if p.isIdentLike() || p.cur.Type == tokICONST {
 						val = p.cur.Str
 						p.advance()
 					}
@@ -573,7 +573,7 @@ func (p *Parser) parseSignatureCryptoItem() *nodes.CryptoItem {
 				p.advance()
 			}
 			// hex blob
-			if p.isAnyKeywordIdent() || p.cur.Type == tokICONST {
+			if p.isIdentLike() || p.cur.Type == tokICONST {
 				item.WithValue = p.cur.Str
 				p.advance()
 			}

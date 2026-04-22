@@ -55,7 +55,7 @@ func (p *Parser) parseCreateServerAuditStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// audit_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -99,7 +99,7 @@ func (p *Parser) parseAlterServerAuditStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// audit_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -125,7 +125,7 @@ func (p *Parser) parseDropServerAuditStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -152,7 +152,7 @@ func (p *Parser) parseCreateServerAuditSpecStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -181,7 +181,7 @@ func (p *Parser) parseAlterServerAuditSpecStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -204,7 +204,7 @@ func (p *Parser) parseDropServerAuditSpecStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -235,7 +235,7 @@ func (p *Parser) parseCreateDatabaseAuditSpecStmt() (*nodes.SecurityStmt, error)
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -261,7 +261,7 @@ func (p *Parser) parseAlterDatabaseAuditSpecStmt() (*nodes.SecurityStmt, error) 
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -284,7 +284,7 @@ func (p *Parser) parseDropDatabaseAuditSpecStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}

@@ -533,7 +533,7 @@ func (p *Parser) parseReceiveStmt() (*nodes.ReceiveStmt, error) {
 					col.Alias = p.cur.Str
 					p.advance()
 				}
-			} else if p.isAnyKeywordIdent() && p.cur.Type != kwFROM && p.cur.Type != kwINTO && p.cur.Type != kwWHERE {
+			} else if p.isIdentLike() && p.cur.Type != kwFROM && p.cur.Type != kwINTO && p.cur.Type != kwWHERE {
 				col.Alias = p.cur.Str
 				p.advance()
 			}
@@ -765,7 +765,7 @@ func (p *Parser) parseEndConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 			}
 			// failure_code: integer or variable
 			errorCode := ""
-			if p.cur.Type == tokICONST || p.cur.Type == tokVARIABLE || p.isAnyKeywordIdent() {
+			if p.cur.Type == tokICONST || p.cur.Type == tokVARIABLE || p.isIdentLike() {
 				errorCode = p.cur.Str
 				p.advance()
 			}
@@ -779,7 +779,7 @@ func (p *Parser) parseEndConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 					p.advance()
 				}
 				descVal := ""
-				if p.cur.Type == tokSCONST || p.cur.Type == tokVARIABLE || p.isAnyKeywordIdent() {
+				if p.cur.Type == tokSCONST || p.cur.Type == tokVARIABLE || p.isIdentLike() {
 					descVal = p.cur.Str
 					p.advance()
 				}
@@ -1241,7 +1241,7 @@ func (p *Parser) parseAlterQueueStmt() (*nodes.ServiceBrokerStmt, error) {
 			p.advance()
 		}
 		val := ""
-		if p.isAnyKeywordIdent() || p.cur.Type == kwDEFAULT || p.cur.Type == tokSCONST {
+		if p.isIdentLike() || p.cur.Type == kwDEFAULT || p.cur.Type == tokSCONST {
 			val = p.cur.Str
 			p.advance()
 		}
@@ -1575,7 +1575,7 @@ func (p *Parser) parseAlterContractStmt() (*nodes.ServiceBrokerStmt, error) {
 			}
 		}
 		var msgTypeName string
-		if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
 			msgTypeName = p.cur.Str
 			p.advance()
 		}

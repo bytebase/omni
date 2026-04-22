@@ -137,7 +137,7 @@ func (p *Parser) parseCreateIndexStmt(unique bool) (*nodes.CreateIndexStmt, erro
 
 	// ON { partition_scheme_name ( column_name ) | filegroup_name | default }
 	if _, ok := p.match(kwON); ok {
-		if p.isAnyKeywordIdent() || p.cur.Type == kwDEFAULT {
+		if p.isIdentLike() || p.cur.Type == kwDEFAULT {
 			stmt.OnFileGroup = p.cur.Str
 			p.advance()
 			// partition_scheme_name ( column_name )
@@ -154,7 +154,7 @@ func (p *Parser) parseCreateIndexStmt(unique bool) (*nodes.CreateIndexStmt, erro
 	// FILESTREAM_ON { filestream_filegroup_name | partition_scheme_name | "NULL" }
 	if p.cur.Type == kwFILESTREAM_ON {
 		p.advance()
-		if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
 			stmt.FilestreamOn = p.cur.Str
 			p.advance()
 			// partition_scheme_name ( column_name )
@@ -407,7 +407,7 @@ func (p *Parser) parseCreateSpatialIndexStmt() (*nodes.CreateSpatialIndexStmt, e
 	// USING tessellation_scheme
 	if p.cur.Type == kwUSING {
 		p.advance() // consume USING
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.Using = p.cur.Str
 			p.advance()
 		}

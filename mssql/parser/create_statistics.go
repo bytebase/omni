@@ -146,7 +146,7 @@ func (p *Parser) parseUpdateStatisticsStmt() (*nodes.UpdateStatisticsStmt, error
 				stmt.Name = s.Str
 			}
 		}
-	} else if p.isAnyKeywordIdent() && p.cur.Type != kwWITH {
+	} else if p.isIdentLike() && p.cur.Type != kwWITH {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}

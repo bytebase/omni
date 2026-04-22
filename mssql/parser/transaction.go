@@ -35,7 +35,7 @@ func (p *Parser) parseBeginTransStmt() (*nodes.BeginTransStmt, error) {
 	}
 
 	// Optional transaction name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokVARIABLE {
+	if p.isIdentLike() || p.cur.Type == tokVARIABLE {
 		stmt.Name = p.cur.Str
 		p.advance()
 
@@ -77,7 +77,7 @@ func (p *Parser) parseBeginDistributedTransStmt() (*nodes.BeginDistributedTransS
 	}
 
 	// Optional transaction name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokVARIABLE {
+	if p.isIdentLike() || p.cur.Type == tokVARIABLE {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -116,7 +116,7 @@ func (p *Parser) parseCommitStmt() (*nodes.CommitTransStmt, error) {
 	}
 
 	// Optional name (but not WITH, which starts the delayed durability clause)
-	if (p.isAnyKeywordIdent() || p.cur.Type == tokVARIABLE) && p.cur.Type != kwWITH {
+	if (p.isIdentLike() || p.cur.Type == tokVARIABLE) && p.cur.Type != kwWITH {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -169,7 +169,7 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackTransStmt, error) {
 	}
 
 	// Optional name/savepoint
-	if p.isAnyKeywordIdent() || p.cur.Type == tokVARIABLE {
+	if p.isIdentLike() || p.cur.Type == tokVARIABLE {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -203,7 +203,7 @@ func (p *Parser) parseSaveTransStmt() (*nodes.SaveTransStmt, error) {
 	}
 
 	// Name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokVARIABLE {
+	if p.isIdentLike() || p.cur.Type == tokVARIABLE {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}

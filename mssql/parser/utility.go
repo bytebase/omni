@@ -396,7 +396,7 @@ func (p *Parser) parseReadtextStmt() (*nodes.ReadtextStmt, error) {
 		if p.cur.Type == '.' {
 			p.advance() // consume .
 			col := ""
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				col = p.cur.Str
 				p.advance()
 			}
@@ -450,7 +450,7 @@ func (p *Parser) parseWritetextStmt() (*nodes.WritetextStmt, error) {
 		if p.cur.Type == '.' {
 			p.advance() // .
 			col := ""
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				col = p.cur.Str
 				p.advance()
 			}
@@ -511,7 +511,7 @@ func (p *Parser) parseUpdatetextStmt() (*nodes.UpdatetextStmt, error) {
 		if p.cur.Type == '.' {
 			p.advance()
 			col := ""
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				col = p.cur.Str
 				p.advance()
 			}
@@ -1136,7 +1136,7 @@ func (p *Parser) parseCopyIntoOption() nodes.Node {
 			valStr = p.cur.Str
 			p.advance()
 		default:
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				valStr = p.cur.Str
 				p.advance()
 			}
@@ -1183,7 +1183,7 @@ func (p *Parser) parseRenameStmt() (*nodes.RenameStmt, error) {
 	// Check for COLUMN rename variant
 	if p.cur.Type == kwCOLUMN {
 		p.advance() // consume COLUMN
-		if p.isAnyKeywordIdent() || p.cur.Type == '[' {
+		if p.isIdentLike() || p.cur.Type == '[' {
 			stmt.ColumnName = p.cur.Str
 			p.advance()
 		}
@@ -1456,7 +1456,7 @@ func (p *Parser) parsePredictColumnDef() *nodes.ColumnDef {
 	// Optional COLLATE
 	if p.cur.Type == kwCOLLATE {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			col.Collation = p.cur.Str
 			p.advance()
 		}

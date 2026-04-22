@@ -69,7 +69,7 @@ func (p *Parser) parseCreateEndpointStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -102,7 +102,7 @@ func (p *Parser) parseAlterEndpointStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -128,7 +128,7 @@ func (p *Parser) parseDropEndpointStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}

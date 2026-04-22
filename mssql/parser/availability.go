@@ -79,7 +79,7 @@ func (p *Parser) parseCreateAvailabilityGroupStmt() (*nodes.SecurityStmt, error)
 	}
 
 	// group_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -178,7 +178,7 @@ func (p *Parser) parseAlterAvailabilityGroupStmt() (*nodes.SecurityStmt, error) 
 	}
 
 	// group_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -207,7 +207,7 @@ func (p *Parser) parseDropAvailabilityGroupStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// group_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}

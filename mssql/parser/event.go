@@ -27,7 +27,7 @@ func (p *Parser) parseCreateEventNotificationStmt() (*nodes.SecurityStmt, error)
 	}
 
 	// event_notification_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -56,7 +56,7 @@ func (p *Parser) parseDropEventNotificationStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// notification_name [ ,...n ]
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -94,7 +94,7 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 				opt.Scope = "QUEUE"
 				p.advance()
 				queueName := ""
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST {
 					queueName = p.cur.Str
 					p.advance()
 				}
@@ -204,7 +204,7 @@ func (p *Parser) parseCreateEventSessionStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// event_session_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -248,7 +248,7 @@ func (p *Parser) parseAlterEventSessionStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// event_session_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -277,7 +277,7 @@ func (p *Parser) parseDropEventSessionStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// event_session_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -637,7 +637,7 @@ func (p *Parser) parseEventSessionPredicateFactor() string {
 // parseEventSessionDottedName consumes a dotted name like package.event_name or [guid].package.name.
 func (p *Parser) parseEventSessionDottedName() string {
 	name := ""
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
 		name = p.cur.Str
 		p.advance()
 	}

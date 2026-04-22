@@ -35,7 +35,7 @@ func (p *Parser) parseCreateWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// group_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -70,7 +70,7 @@ func (p *Parser) parseAlterWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// group_name | [default]
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
+	if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -94,7 +94,7 @@ func (p *Parser) parseDropWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// group_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -139,7 +139,7 @@ func (p *Parser) parseCreateResourcePoolStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// pool_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -177,7 +177,7 @@ func (p *Parser) parseAlterResourcePoolStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// pool_name | [default]
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
+	if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -201,7 +201,7 @@ func (p *Parser) parseDropResourcePoolStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// pool_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -230,7 +230,7 @@ func (p *Parser) parseCreateExternalResourcePoolStmt() (*nodes.SecurityStmt, err
 	}
 
 	// pool_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -260,7 +260,7 @@ func (p *Parser) parseAlterExternalResourcePoolStmt() (*nodes.SecurityStmt, erro
 	}
 
 	// pool_name | "default"
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
+	if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -284,7 +284,7 @@ func (p *Parser) parseDropExternalResourcePoolStmt() (*nodes.SecurityStmt, error
 	}
 
 	// pool_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -567,7 +567,7 @@ func (p *Parser) parseCreateWorkloadClassifierStmt() (*nodes.SecurityStmt, error
 	}
 
 	// classifier_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -599,7 +599,7 @@ func (p *Parser) parseAlterWorkloadClassifierStmt() (*nodes.SecurityStmt, error)
 	}
 
 	// classifier_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -623,7 +623,7 @@ func (p *Parser) parseDropWorkloadClassifierStmt() (*nodes.SecurityStmt, error) 
 	}
 
 	// classifier_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}

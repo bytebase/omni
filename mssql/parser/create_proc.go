@@ -595,7 +595,7 @@ func (p *Parser) parseRoutineOption() *nodes.String {
 		if p.cur.Type == tokSCONST {
 			principal = p.cur.Str
 			p.advance()
-		} else if p.isAnyKeywordIdent() {
+		} else if p.isIdentLike() {
 			principal = p.cur.Str
 			p.advance()
 		}

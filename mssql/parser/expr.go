@@ -450,7 +450,7 @@ func (p *Parser) parseCollateExpr(expr nodes.ExprNode) (nodes.ExprNode, error) {
 	// Collation name is an identifier (may contain underscores, numbers)
 	// or the special keyword database_default
 	var collation string
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		collation = p.cur.Str
 		p.advance()
 	} else {
