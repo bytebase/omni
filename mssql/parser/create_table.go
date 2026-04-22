@@ -361,13 +361,13 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 					case "HISTORY_TABLE":
 						// schema.table - collect dotted name
 						var parts []string
-						if p.isAnyKeywordIdent() {
+						if p.isIdentLike() {
 							parts = append(parts, p.cur.Str)
 							p.advance()
 						}
 						for p.cur.Type == '.' {
 							p.advance()
-							if p.isAnyKeywordIdent() {
+							if p.isIdentLike() {
 								parts = append(parts, p.cur.Str)
 								p.advance()
 							}
@@ -1079,7 +1079,7 @@ func (p *Parser) parseConstraintOnFilegroup(cd *nodes.ConstraintDef) {
 		return
 	}
 	p.advance()
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() || p.cur.Type == kwPRIMARY {
 		name := p.cur.Str
 		p.advance()
 		if p.cur.Type == '(' {
@@ -1459,7 +1459,7 @@ trailingOptions:
 	// [ ON { partition_scheme_name ( column_name ) | filegroup_name | default } ]
 	if p.cur.Type == kwON {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() || p.cur.Type == kwPRIMARY {
 			fg := p.cur.Str
 			p.advance()
 			if p.cur.Type == '(' {
