@@ -482,6 +482,10 @@ func TestScriptDOMRejectAlignment(t *testing.T) {
 		{"dbopt-value/encryption-bogus", `ALTER DATABASE foo SET ENCRYPTION BOGUS`},
 		{"dbopt-value/auto-close-bogus", `ALTER DATABASE foo SET AUTO_CLOSE BOGUS`},
 		{"dbopt-value/quoted-ident-bogus", `ALTER DATABASE foo SET QUOTED_IDENTIFIER BOGUS`},
+		// Additional value-enum strictness (B3 extended).
+		{"enum/assembly-permset-bogus", `CREATE ASSEMBLY a FROM 'x' WITH PERMISSION_SET = BOGUS`},
+		{"enum/for-xml-bogus", `SELECT * FROM t FOR XML BOGUS`},
+		{"enum/for-json-bogus", `SELECT * FROM t FOR JSON BOGUS`},
 	}
 
 	for _, f := range fixtures {

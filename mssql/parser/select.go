@@ -1358,8 +1358,8 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 			p.addRuleCandidate("xml_mode") // PATH, RAW, AUTO, EXPLICIT
 			return nil, errCollecting
 		}
-		// RAW, AUTO, EXPLICIT, PATH
-		if p.isAnyKeywordIdent() || p.cur.Type == kwRAW || p.cur.Type == kwPATH {
+		// RAW, AUTO, EXPLICIT, PATH — SqlScriptDOM ForXmlMode enum.
+		if p.isValidOption(forXmlModes) {
 			fc.SubMode = strings.ToUpper(p.cur.Str)
 			p.advance()
 			// RAW('ElementName') or PATH('ElementName')
@@ -1386,8 +1386,8 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 			p.addRuleCandidate("json_mode") // PATH, AUTO
 			return nil, errCollecting
 		}
-		// AUTO or PATH
-		if p.isAnyKeywordIdent() || p.cur.Type == kwPATH {
+		// AUTO or PATH — SqlScriptDOM ForJsonMode enum.
+		if p.isValidOption(forJsonModes) {
 			fc.SubMode = strings.ToUpper(p.cur.Str)
 			p.advance()
 		}

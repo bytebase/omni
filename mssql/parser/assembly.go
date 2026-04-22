@@ -7,6 +7,10 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// assemblyPermissionSetValues matches SqlScriptDOM's AssemblyPermissionSet enum
+// for CREATE/ALTER ASSEMBLY ... WITH PERMISSION_SET = ...
+var assemblyPermissionSetValues = newOptionSet().withIdents("SAFE", "EXTERNAL_ACCESS", "UNSAFE")
+
 // parseCreateAssemblyStmt parses a CREATE ASSEMBLY statement.
 //
 // BNF: mssql/parser/bnf/create-assembly-transact-sql.bnf
@@ -80,7 +84,7 @@ func (p *Parser) parseCreateAssemblyStmt() (*nodes.CreateAssemblyStmt, error) {
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			if p.isAnyKeywordIdent() {
+			if p.isValidOption(assemblyPermissionSetValues) {
 				stmt.PermissionSet = strings.ToUpper(p.cur.Str)
 				p.advance()
 			}

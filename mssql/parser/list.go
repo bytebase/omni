@@ -4,6 +4,13 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// forXmlModes is SqlScriptDOM's ForXmlMode enum (RAW/AUTO/EXPLICIT/PATH).
+// RAW and PATH are also registered keyword tokens.
+var forXmlModes = newOptionSet(kwRAW, kwPATH).withIdents("RAW", "AUTO", "EXPLICIT", "PATH")
+
+// forJsonModes is SqlScriptDOM's ForJsonMode enum (AUTO/PATH).
+var forJsonModes = newOptionSet(kwPATH).withIdents("AUTO", "PATH")
+
 // commaListFlags controls leniency of parseCommaList.
 type commaListFlags uint8
 
