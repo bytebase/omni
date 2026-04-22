@@ -79,7 +79,7 @@ func (p *Parser) parseCreateAvailabilityGroupStmt() (*nodes.SecurityStmt, error)
 	}
 
 	// group_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -178,7 +178,7 @@ func (p *Parser) parseAlterAvailabilityGroupStmt() (*nodes.SecurityStmt, error) 
 	}
 
 	// group_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -207,7 +207,7 @@ func (p *Parser) parseDropAvailabilityGroupStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// group_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -245,7 +245,7 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 			if p.cur.Type == kwDATABASE {
 				p.advance()
 				var dbs []string
-				for p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+				for p.isIdentLike() || p.cur.Type == tokSCONST {
 					dbs = append(dbs, p.cur.Str)
 					p.advance()
 					if p.cur.Type == ',' {
@@ -287,7 +287,7 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 			p.advance() // consume ADD
 			if p.cur.Type == kwDATABASE {
 				p.advance()
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST {
 					dbName := p.cur.Str
 					p.advance()
 					opts = append(opts, newAGOpt("ADD DATABASE", dbName, nodes.Loc{Start: start, End: p.prevEnd()}))
@@ -310,7 +310,7 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 			p.advance() // consume REMOVE
 			if p.cur.Type == kwDATABASE {
 				p.advance()
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST {
 					dbName := p.cur.Str
 					p.advance()
 					opts = append(opts, newAGOpt("REMOVE DATABASE", dbName, nodes.Loc{Start: start, End: p.prevEnd()}))

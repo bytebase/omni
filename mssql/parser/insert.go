@@ -86,21 +86,21 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 			p.addRuleCandidate("columnref")
 			return nil, errCollecting
 		}
-		var cols []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			colName, ok := p.parseIdentifier()
-			if !ok {
-				break
-			}
-			cols = append(cols, &nodes.String{Str: colName})
-			if _, ok := p.match(','); !ok {
-				break
-			}
-			// Completion: after comma in INSERT column list → columnref
+		// SqlScriptDOM tolerates an empty INSERT column list `INSERT INTO t ()`,
+		// so we permit it too; trailing commas remain rejected.
+		cols, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
 			if p.collectMode() {
 				p.addRuleCandidate("columnref")
 				return nil, errCollecting
 			}
+			colName, ok := p.parseIdentifier()
+			if !ok {
+				return nil, p.unexpectedToken()
+			}
+			return &nodes.String{Str: colName}, nil
+		})
+		if err != nil {
+			return nil, err
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -244,16 +244,15 @@ func (p *Parser) parseOutputClause() (*nodes.OutputClause, error) {
 		// Optional column list
 		if p.cur.Type == '(' {
 			p.advance()
-			var cols []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 				colName, ok := p.parseIdentifier()
 				if !ok {
-					break
+					return nil, p.unexpectedToken()
 				}
-				cols = append(cols, &nodes.String{Str: colName})
-				if _, ok := p.match(','); !ok {
-					break
-				}
+				return &nodes.String{Str: colName}, nil
+			})
+			if err != nil {
+				return nil, err
 			}
 			if _, err := p.expect(')'); err != nil {
 				return nil, err

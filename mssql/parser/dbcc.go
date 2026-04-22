@@ -24,7 +24,7 @@ func (p *Parser) parseDbccStmt() (*nodes.DbccStmt, error) {
 
 	// Parse command name - it may be a keyword or identifier.
 	// DBCC command names like CHECKDB, SHRINKDATABASE, etc. are always treated as identifiers here.
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Command = strings.ToUpper(p.cur.Str)
 		p.advance()
 	} else {
@@ -59,7 +59,7 @@ func (p *Parser) parseDbccStmt() (*nodes.DbccStmt, error) {
 		p.advance() // consume WITH
 		var opts []nodes.Node
 		for {
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				optLoc := p.pos()
 				optName := strings.ToUpper(p.cur.Str)
 				p.advance()

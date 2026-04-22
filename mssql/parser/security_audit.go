@@ -55,7 +55,7 @@ func (p *Parser) parseCreateServerAuditStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// audit_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -99,7 +99,7 @@ func (p *Parser) parseAlterServerAuditStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// audit_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -125,7 +125,7 @@ func (p *Parser) parseDropServerAuditStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -152,7 +152,7 @@ func (p *Parser) parseCreateServerAuditSpecStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -181,7 +181,7 @@ func (p *Parser) parseAlterServerAuditSpecStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -204,7 +204,7 @@ func (p *Parser) parseDropServerAuditSpecStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -235,7 +235,7 @@ func (p *Parser) parseCreateDatabaseAuditSpecStmt() (*nodes.SecurityStmt, error)
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -261,7 +261,7 @@ func (p *Parser) parseAlterDatabaseAuditSpecStmt() (*nodes.SecurityStmt, error) 
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -284,7 +284,7 @@ func (p *Parser) parseDropDatabaseAuditSpecStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -345,7 +345,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 		if p.cur.Type == '=' {
 			p.advance()
 		}
-		if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
 			opts = append(opts, &nodes.String{Str: "MODIFY NAME=" + p.cur.Str})
 			p.advance()
 		}
@@ -370,7 +370,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 						p.advance()
 						continue
 					}
-					if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+					if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 						name := strings.ToUpper(p.cur.Str)
 						p.advance()
 						if p.cur.Type == '=' {
@@ -389,7 +389,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 									val += strings.ToUpper(p.cur.Str)
 									p.advance()
 								}
-							} else if p.isAnyKeywordIdent() {
+							} else if p.isIdentLike() {
 								val = strings.ToUpper(p.cur.Str)
 								p.advance()
 							} else if p.cur.Type == kwON {
@@ -407,7 +407,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 				}
 				p.match(')')
 			}
-		} else if p.isAnyKeywordIdent() {
+		} else if p.isIdentLike() {
 			target := strings.ToUpper(p.cur.Str)
 			p.advance()
 			opts = append(opts, &nodes.String{Str: "TO=" + target})
@@ -424,7 +424,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 					p.advance()
 					continue
 				}
-				if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+				if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 					name := strings.ToUpper(p.cur.Str)
 					p.advance()
 					if p.cur.Type == '=' {
@@ -436,7 +436,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 						} else if p.cur.Type == tokICONST {
 							val = p.cur.Str
 							p.advance()
-						} else if p.isAnyKeywordIdent() {
+						} else if p.isIdentLike() {
 							val = strings.ToUpper(p.cur.Str)
 							p.advance()
 						} else if p.cur.Type == kwON {
@@ -487,7 +487,7 @@ func (p *Parser) parseAuditSpecOptions() *nodes.List {
 			p.advance()
 		}
 		// audit_name
-		if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
 			opts = append(opts, &nodes.String{Str: "FOR_AUDIT=" + p.cur.Str})
 			p.advance()
 		}
@@ -502,12 +502,12 @@ func (p *Parser) parseAuditSpecOptions() *nodes.List {
 			if p.cur.Type == '(' {
 				p.advance()
 				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+					if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 						optName := strings.ToUpper(p.cur.Str)
 						p.advance()
 						if p.cur.Type == '=' {
 							p.advance()
-							if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+							if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 								optName += "=" + strings.ToUpper(p.cur.Str)
 								p.advance()
 							}
@@ -569,7 +569,7 @@ func (p *Parser) parseAuditSpecAction() *nodes.AuditSpecAction {
 		if p.cur.Type == kwON {
 			break
 		}
-		if p.isAnyKeywordIdent() || p.cur.Type == kwSELECT || p.cur.Type == kwINSERT ||
+		if p.isIdentLike() || p.cur.Type == kwSELECT || p.cur.Type == kwINSERT ||
 			p.cur.Type == kwUPDATE || p.cur.Type == kwDELETE ||
 			p.cur.Type == kwEXECUTE || p.cur.Type == kwEXEC {
 			names = append(names, strings.ToUpper(p.cur.Str))
@@ -592,7 +592,7 @@ func (p *Parser) parseAuditSpecAction() *nodes.AuditSpecAction {
 		// Could be: OBJECT::dbo.MyTable, SCHEMA::dbo, DATABASE::mydb, or just dbo.MyTable
 		var securableParts []string
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isAnyKeywordIdent() || p.cur.Type == kwSELECT || p.cur.Type == kwDELETE {
+			if p.isKeywordOrIdent() || p.cur.Type == kwSELECT || p.cur.Type == kwDELETE {
 				word := p.cur.Str
 				p.advance()
 				if p.cur.Type == tokCOLONCOLON {
@@ -605,7 +605,7 @@ func (p *Parser) parseAuditSpecAction() *nodes.AuditSpecAction {
 				// Check for dotted name
 				for p.cur.Type == '.' {
 					p.advance()
-					if p.isAnyKeywordIdent() || p.cur.Type == kwDEFAULT {
+					if p.isIdentLike() || p.cur.Type == kwDEFAULT {
 						securableParts = append(securableParts, p.cur.Str)
 						p.advance()
 					}
@@ -621,7 +621,7 @@ func (p *Parser) parseAuditSpecAction() *nodes.AuditSpecAction {
 		if p.cur.Type == kwBY {
 			p.advance()
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if p.isAnyKeywordIdent() || p.cur.Type == kwPUBLIC {
+				if p.isIdentLike() || p.cur.Type == kwPUBLIC {
 					node.Principals = append(node.Principals, p.cur.Str)
 					p.advance()
 				}

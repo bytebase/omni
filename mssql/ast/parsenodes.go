@@ -2125,7 +2125,8 @@ type ValuesClause struct {
 	Loc  Loc
 }
 
-func (n *ValuesClause) nodeTag() {}
+func (n *ValuesClause) nodeTag()   {}
+func (n *ValuesClause) tableExpr() {} // VALUES can appear in FROM as an inline derived table
 
 // ---------- Result target ----------
 

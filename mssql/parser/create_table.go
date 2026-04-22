@@ -7,6 +7,14 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// Column-level enum value sets for various T-SQL column annotations.
+var (
+	encryptionTypeValues   = newOptionSet().withIdents("DETERMINISTIC", "RANDOMIZED")
+	ledgerColumnKindValues = newOptionSet().withIdents("TRANSACTION_ID", "SEQUENCE_NUMBER")
+	ledgerStartEndValues   = newOptionSet().withIdents("START", "END")
+	distributionTypeValues = newOptionSet().withIdents("HASH", "ROUND_ROBIN", "REPLICATE")
+)
+
 // createTableOptions defines the valid option names for CREATE TABLE ... WITH (...).
 // Derived from SqlScriptDOM TSql170.g createTableOption rule.
 var createTableOptions = newOptionSet(
@@ -118,34 +126,39 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	var cols []nodes.Node
 	var constraints []nodes.Node
 
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		// Check for PERIOD FOR SYSTEM_TIME
-		if p.cur.Type == kwPERIOD {
-			if p.peekNext().Type == kwFOR {
-				p.advance() // PERIOD
-				p.advance() // FOR
-				// SYSTEM_TIME
-				if p.cur.Type == kwSYSTEM_TIME {
-					p.advance()
-				}
-				// ( start_col , end_col )
-				if p.cur.Type == '(' {
-					p.advance()
-					startCol, _ := p.parseIdentifier()
-					stmt.PeriodStartCol = startCol
-					p.match(',')
-					endCol, _ := p.parseIdentifier()
-					stmt.PeriodEndCol = endCol
-					p.expect(')')
-				}
-				if _, ok := p.match(','); !ok {
-					break
-				}
-				continue
-			}
+	// CREATE TABLE column/constraint list is the one site where SqlScriptDOM
+	// tolerates a trailing comma (see scriptdom harness verification).
+	_, listErr := p.parseCommaList(')', commaListAllowTrail, func() (nodes.Node, error) {
+		// Completion: at start of each column/constraint slot.
+		if p.collectMode() {
+			p.addRuleCandidate("identifier")
+			p.addTokenCandidate(kwCONSTRAINT)
+			p.addTokenCandidate(kwPRIMARY)
+			p.addTokenCandidate(kwUNIQUE)
+			p.addTokenCandidate(kwFOREIGN)
+			p.addTokenCandidate(kwCHECK)
+			p.addTokenCandidate(kwINDEX)
+			return nil, errCollecting
 		}
-
-		// Check for inline INDEX definition
+		// PERIOD FOR SYSTEM_TIME — stored on stmt directly, not collected here.
+		if p.cur.Type == kwPERIOD && p.peekNext().Type == kwFOR {
+			p.advance() // PERIOD
+			p.advance() // FOR
+			if p.cur.Type == kwSYSTEM_TIME {
+				p.advance()
+			}
+			if p.cur.Type == '(' {
+				p.advance()
+				startCol, _ := p.parseIdentifier()
+				stmt.PeriodStartCol = startCol
+				p.match(',')
+				endCol, _ := p.parseIdentifier()
+				stmt.PeriodEndCol = endCol
+				p.expect(')')
+			}
+			// Return a sentinel so parseCommaList accepts this as "one item".
+			return &nodes.String{Str: "__period__"}, nil
+		}
 		if p.cur.Type == kwINDEX {
 			idx, err := p.parseInlineTableIndex()
 			if err != nil {
@@ -157,7 +170,9 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 				}
 				stmt.Indexes.Items = append(stmt.Indexes.Items, idx)
 			}
-		} else if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwPRIMARY ||
+			return idx, nil
+		}
+		if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwPRIMARY ||
 			p.cur.Type == kwUNIQUE || p.cur.Type == kwCHECK ||
 			p.cur.Type == kwFOREIGN {
 			constraint, err := p.parseTableConstraint()
@@ -167,29 +182,19 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 			if constraint != nil {
 				constraints = append(constraints, constraint)
 			}
-		} else {
-			col, err := p.parseColumnDef()
-			if err != nil {
-				return nil, err
-			}
-			if col != nil {
-				cols = append(cols, col)
-			}
+			return constraint, nil
 		}
-		if _, ok := p.match(','); !ok {
-			break
+		col, err := p.parseColumnDef()
+		if err != nil {
+			return nil, err
 		}
-		// Completion: after comma inside CREATE TABLE → constraint keywords / columnref
-		if p.collectMode() {
-			p.addRuleCandidate("identifier")
-			p.addTokenCandidate(kwCONSTRAINT)
-			p.addTokenCandidate(kwPRIMARY)
-			p.addTokenCandidate(kwUNIQUE)
-			p.addTokenCandidate(kwFOREIGN)
-			p.addTokenCandidate(kwCHECK)
-			p.addTokenCandidate(kwINDEX)
-			return nil, errCollecting
+		if col != nil {
+			cols = append(cols, col)
 		}
+		return col, nil
+	})
+	if listErr != nil {
+		return nil, listErr
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -213,7 +218,7 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	// ON { partition_scheme_name ( partition_column_name ) | filegroup | "default" }
 	if p.cur.Type == kwON {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() || p.cur.Type == kwPRIMARY {
 			name := p.cur.Str
 			p.advance()
 			if p.cur.Type == '(' {
@@ -231,7 +236,7 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	// TEXTIMAGE_ON filegroup
 	if p.cur.Type == kwTEXTIMAGE_ON {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
 			stmt.TextImageOn = p.cur.Str
 			p.advance()
 		}
@@ -240,7 +245,7 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	// FILESTREAM_ON filegroup
 	if p.cur.Type == kwFILESTREAM_ON {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
 			stmt.FilestreamOn = p.cur.Str
 			p.advance()
 		}
@@ -300,18 +305,18 @@ func (p *Parser) parseTableOptions() (*nodes.List, error) {
 	}
 	p.advance()
 
-	var items []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	items, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 		opt, err := p.parseOneTableOption()
 		if err != nil {
 			return nil, err
 		}
-		if opt != nil {
-			items = append(items, opt)
+		if opt == nil {
+			return nil, p.unexpectedToken()
 		}
-		if _, ok := p.match(','); !ok {
-			break
-		}
+		return opt, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -344,9 +349,9 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 	}
 	p.advance()
 
-	// SYSTEM_VERSIONING = ON [ ( ... ) ]
+	// SYSTEM_VERSIONING = { ON | OFF } [ ( ... ) ]
 	if name == "SYSTEM_VERSIONING" {
-		if p.isAnyKeywordIdent() {
+		if p.isValidOption(onOffOptionValues) {
 			opt.Value = strings.ToUpper(p.cur.Str)
 			p.advance()
 		}
@@ -354,7 +359,7 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 		if opt.Value == "ON" && p.cur.Type == '(' {
 			p.advance()
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					subName := strings.ToUpper(p.cur.Str)
 					p.advance()
 					if p.cur.Type == '=' {
@@ -364,20 +369,21 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 					case "HISTORY_TABLE":
 						// schema.table - collect dotted name
 						var parts []string
-						if p.isAnyKeywordIdent() {
+						if p.isIdentLike() {
 							parts = append(parts, p.cur.Str)
 							p.advance()
 						}
 						for p.cur.Type == '.' {
 							p.advance()
-							if p.isAnyKeywordIdent() {
+							if p.isIdentLike() {
 								parts = append(parts, p.cur.Str)
 								p.advance()
 							}
 						}
 						opt.HistoryTable = strings.Join(parts, ".")
 					case "DATA_CONSISTENCY_CHECK":
-						if p.isAnyKeywordIdent() {
+						// DATA_CONSISTENCY_CHECK = { ON | OFF }
+						if p.isValidOption(onOffOptionValues) {
 							opt.DataConsistencyCheck = strings.ToUpper(p.cur.Str)
 							p.advance()
 						}
@@ -395,7 +401,7 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 							p.advance()
 						} else if p.cur.Type == kwOFF {
 							p.advance()
-						} else if p.isAnyKeywordIdent() {
+						} else if p.isIdentLike() {
 							p.advance()
 						} else if p.cur.Type == tokICONST {
 							p.advance()
@@ -410,7 +416,7 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 		}
 	} else {
 		// Simple NAME = VALUE
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			opt.Value = strings.ToUpper(p.cur.Str)
 			p.advance()
 		} else if p.cur.Type == kwON {
@@ -704,7 +710,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		// COLLATE
 		if p.cur.Type == kwCOLLATE {
 			p.advance()
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				col.Collation = p.cur.Str
 				p.advance()
 			}
@@ -808,7 +814,7 @@ func (p *Parser) parseEncryptedWith() (*nodes.EncryptedWithSpec, error) {
 	p.advance()
 
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			optName := strings.ToUpper(p.cur.Str)
 			p.advance()
 			if p.cur.Type == '=' {
@@ -816,12 +822,12 @@ func (p *Parser) parseEncryptedWith() (*nodes.EncryptedWithSpec, error) {
 			}
 			switch optName {
 			case "COLUMN_ENCRYPTION_KEY":
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					spec.ColumnEncryptionKey = p.cur.Str
 					p.advance()
 				}
 			case "ENCRYPTION_TYPE":
-				if p.isAnyKeywordIdent() {
+				if p.isValidOption(encryptionTypeValues) {
 					spec.EncryptionType = strings.ToUpper(p.cur.Str)
 					p.advance()
 				}
@@ -831,7 +837,7 @@ func (p *Parser) parseEncryptedWith() (*nodes.EncryptedWithSpec, error) {
 					p.advance()
 				}
 			default:
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST {
 					p.advance()
 				}
 			}
@@ -869,15 +875,16 @@ func (p *Parser) parseGeneratedAlways() (*nodes.GeneratedAlwaysSpec, error) {
 		p.advance()
 	}
 
-	// ROW | TRANSACTION_ID | SEQUENCE_NUMBER
-	if p.isAnyKeywordIdent() {
+	// ROW | TRANSACTION_ID | SEQUENCE_NUMBER — ROW is kwROW (CoreKeyword),
+	// TRANSACTION_ID / SEQUENCE_NUMBER are idents.
+	if p.isValidOption(ledgerColumnKindValues) || p.cur.Type == kwROW {
 		kind := strings.ToUpper(p.cur.Str)
 		p.advance()
 		spec.Kind = kind
 	}
 
-	// START | END
-	if p.isAnyKeywordIdent() {
+	// START | END — END is kwEND (CoreKeyword); START is an ident.
+	if p.isValidOption(ledgerStartEndValues) || p.cur.Type == kwEND {
 		startEnd := strings.ToUpper(p.cur.Str)
 		if startEnd == "START" || startEnd == "END" {
 			spec.StartEnd = startEnd
@@ -1082,7 +1089,7 @@ func (p *Parser) parseConstraintOnFilegroup(cd *nodes.ConstraintDef) {
 		return
 	}
 	p.advance()
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() || p.cur.Type == kwPRIMARY {
 		name := p.cur.Str
 		p.advance()
 		if p.cur.Type == '(' {
@@ -1462,7 +1469,7 @@ trailingOptions:
 	// [ ON { partition_scheme_name ( column_name ) | filegroup_name | default } ]
 	if p.cur.Type == kwON {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() || p.cur.Type == kwPRIMARY {
 			fg := p.cur.Str
 			p.advance()
 			if p.cur.Type == '(' {
@@ -1479,7 +1486,7 @@ trailingOptions:
 	// [ FILESTREAM_ON { ... } ]
 	if p.cur.Type == kwFILESTREAM_ON {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
 			idx.FilestreamOn = p.cur.Str
 			p.advance()
 		}
@@ -1819,7 +1826,7 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 		if p.cur.Type == '=' {
 			p.advance()
 		}
-		if p.isAnyKeywordIdent() {
+		if p.isValidOption(distributionTypeValues) {
 			distType := strings.ToUpper(p.cur.Str)
 			p.advance()
 			if distType == "HASH" && p.cur.Type == '(' {
@@ -1852,17 +1859,18 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 // parseParenIdentList parses (ident, ident, ...).
 func (p *Parser) parseParenIdentList() (*nodes.List, error) {
 	p.advance() // consume (
-	var items []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	items, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 		name, ok := p.parseIdentifier()
 		if !ok {
-			break
+			return nil, p.unexpectedToken()
 		}
-		items = append(items, &nodes.String{Str: name})
-		if _, ok := p.match(','); !ok {
-			break
-		}
+		return &nodes.String{Str: name}, nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.List{Items: items}, nil
 }

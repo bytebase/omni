@@ -184,7 +184,7 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 			p.advance()
 		} else if p.matchIdentCI("LOGON") {
 			events = append(events, &nodes.TriggerEvent{Name: "LOGON", Loc: nodes.Loc{Start: evtLoc, End: p.prevEnd()}})
-		} else if p.isAnyKeywordIdent() {
+		} else if p.isIdentLike() {
 			// DDL event type or event group (e.g., CREATE_TABLE, DDL_TABLE_EVENTS)
 			events = append(events, &nodes.TriggerEvent{Name: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: evtLoc, End: p.prevEnd()}})
 			p.advance()
@@ -232,7 +232,7 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 		}
 		var parts []string
 		for {
-			if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
 				parts = append(parts, p.cur.Str)
 				p.advance()
 			} else {
@@ -291,7 +291,7 @@ func (p *Parser) parseTriggerWithOptions() *nodes.List {
 			if p.cur.Type == tokSCONST {
 				asVal = p.cur.Str
 				p.advance()
-			} else if p.isAnyKeywordIdent() {
+			} else if p.isIdentLike() {
 				asVal = strings.ToUpper(p.cur.Str)
 				p.advance()
 			}

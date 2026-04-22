@@ -7,6 +7,12 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// backupEncryptionAlgorithms matches SqlScriptDOM BackupEncryptionAlgorithm
+// enum for BACKUP ... WITH ENCRYPTION(ALGORITHM = ...).
+var backupEncryptionAlgorithms = newOptionSet().withIdents(
+	"AES_128", "AES_192", "AES_256", "TRIPLE_DES_3KEY",
+)
+
 // parseBackupStmt parses a BACKUP DATABASE or BACKUP LOG statement.
 //
 // BNF: mssql/parser/bnf/backup-transact-sql.bnf
@@ -118,7 +124,7 @@ func (p *Parser) parseBackupStmt() (*nodes.BackupStmt, error) {
 
 	// Database name (not for CERTIFICATE)
 	if stmt.Type != "CERTIFICATE" {
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.Database = p.cur.Str
 			p.advance()
 		}
@@ -249,7 +255,7 @@ func (p *Parser) parseRestoreStmt() (*nodes.RestoreStmt, error) {
 	if p.cur.Type == kwDATABASE {
 		stmt.Type = "DATABASE"
 		p.advance()
-	} else if p.isAnyKeywordIdent() {
+	} else if p.isIdentLike() {
 		upper := strings.ToUpper(p.cur.Str)
 		switch upper {
 		case "LOG":
@@ -288,7 +294,7 @@ func (p *Parser) parseRestoreStmt() (*nodes.RestoreStmt, error) {
 	case "HEADERONLY", "FILELISTONLY", "VERIFYONLY", "LABELONLY", "REWINDONLY":
 		// no database name expected before FROM
 	default:
-		if p.isAnyKeywordIdent() && p.cur.Type != kwFROM {
+		if p.isIdentLike() && p.cur.Type != kwFROM {
 			stmt.Database = p.cur.Str
 			p.advance()
 		}
@@ -307,7 +313,7 @@ func (p *Parser) parseRestoreStmt() (*nodes.RestoreStmt, error) {
 		if p.cur.Type == kwDATABASE_SNAPSHOT {
 			p.advance() // consume DATABASE_SNAPSHOT
 			if _, ok := p.match('='); ok {
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST {
 					stmt.SnapshotName = p.cur.Str
 					p.advance()
 				}
@@ -413,7 +419,7 @@ func (p *Parser) parseFileSpecValue() string {
 			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
 				parts = append(parts, p.cur.Str)
 				p.advance()
-			} else if p.isAnyKeywordIdent() {
+			} else if p.isIdentLike() {
 				parts = append(parts, p.cur.Str)
 				p.advance()
 			} else {
@@ -436,7 +442,7 @@ func (p *Parser) parseFileSpecValue() string {
 		p.advance()
 		return val
 	}
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		val := p.cur.Str
 		p.advance()
 		return val
@@ -477,7 +483,7 @@ func (p *Parser) parseDeviceList() (*nodes.List, error) {
 // parseOneDevice parses a single device entry.
 // Returns "TYPE=path" for physical devices or "logical_name" for logical devices.
 func (p *Parser) parseOneDevice() string {
-	if !p.isAnyKeywordIdent() && p.cur.Type != kwFILE {
+	if !p.isIdentLike() && p.cur.Type != kwFILE {
 		return ""
 	}
 
@@ -493,7 +499,7 @@ func (p *Parser) parseOneDevice() string {
 				p.advance()
 				return devType + "=" + path
 			}
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				// variable like @path_var
 				path := p.cur.Str
 				p.advance()
@@ -513,7 +519,7 @@ func (p *Parser) parseOneDevice() string {
 				p.advance()
 				return name + "=" + path
 			}
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				path := p.cur.Str
 				p.advance()
 				return name + "=" + path
@@ -637,7 +643,7 @@ var backupRestoreSpecialOptions = map[string]bool{
 
 // isBackupRestoreOption checks whether the current token is a valid backup/restore option name.
 func (p *Parser) isBackupRestoreOption() bool {
-	if !p.isAnyKeywordIdent() {
+	if !p.isKeywordOrIdent() {
 		return false
 	}
 	name := strings.ToUpper(p.cur.Str)
@@ -712,7 +718,7 @@ func (p *Parser) parseOneBackupRestoreOption() (*nodes.BackupRestoreOption, erro
 				p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 				opt.Value = p.cur.Str
 				p.advance()
-			} else if p.isAnyKeywordIdent() {
+			} else if p.isIdentLike() {
 				opt.Value = p.cur.Str
 				p.advance()
 			}
@@ -742,7 +748,7 @@ func (p *Parser) parseOneBackupRestoreOption() (*nodes.BackupRestoreOption, erro
 			p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 			opt.Value = p.cur.Str
 			p.advance()
-		} else if p.isAnyKeywordIdent() {
+		} else if p.isIdentLike() {
 			opt.Value = p.cur.Str
 			p.advance()
 		}
@@ -774,7 +780,7 @@ func (p *Parser) parseBackupEncryptionOption() (*nodes.BackupRestoreOption, erro
 	if p.cur.Type == kwALGORITHM {
 		p.advance() // consume ALGORITHM
 		if _, ok := p.match('='); ok {
-			if p.isAnyKeywordIdent() {
+			if p.isValidOption(backupEncryptionAlgorithms) {
 				opt.Algorithm = strings.ToUpper(p.cur.Str)
 				p.advance()
 			}
@@ -789,7 +795,7 @@ func (p *Parser) parseBackupEncryptionOption() (*nodes.BackupRestoreOption, erro
 	// SERVER CERTIFICATE = name | SERVER ASYMMETRIC KEY = name
 	if p.cur.Type == kwSERVER {
 		p.advance() // consume SERVER
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			upper := strings.ToUpper(p.cur.Str)
 			if upper == "CERTIFICATE" {
 				opt.EncryptorType = "SERVER CERTIFICATE"
@@ -806,7 +812,7 @@ func (p *Parser) parseBackupEncryptionOption() (*nodes.BackupRestoreOption, erro
 		if p.cur.Type == '=' {
 			p.advance()
 		}
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			opt.EncryptorName = p.cur.Str
 			p.advance()
 		}
@@ -875,7 +881,7 @@ func (p *Parser) parseRestoreFilestreamOption() (*nodes.BackupRestoreOption, err
 			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
 				opt.Value = p.cur.Str
 				p.advance()
-			} else if p.isAnyKeywordIdent() {
+			} else if p.isIdentLike() {
 				opt.Value = p.cur.Str
 				p.advance()
 			}

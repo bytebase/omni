@@ -22,18 +22,25 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 		}
 		p.advance() // consume (
 
-		if p.cur.Type != ')' {
-			var args []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				arg, _ := p.parseExpr()
-				args = append(args, arg)
-				if _, ok := p.match(','); !ok {
-					break
-				}
+		args, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+			arg, err := p.parseExpr()
+			if err != nil {
+				return nil, err
 			}
+			if arg == nil {
+				return nil, p.unexpectedToken()
+			}
+			return arg, nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		if len(args) > 0 {
 			fc.Args = &nodes.List{Items: args}
 		}
-		_, _ = p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 
 		// WITH clause for OPENJSON and OPENXML
 		var withClause *nodes.List
@@ -48,13 +55,12 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 
 		alias := p.parseOptionalAlias()
 
-		result := &nodes.AliasedTableRef{
-			Table: fc,
-			Alias: alias,
-			Loc:   nodes.Loc{Start: loc, End: -1},
-		}
-		_ = withClause // WITH clause columns are consumed but not stored in AST for now
-		return result, nil
+		return &nodes.AliasedTableRef{
+			Table:   fc,
+			Alias:   alias,
+			Columns: withClause,
+			Loc:     nodes.Loc{Start: loc, End: -1},
+		}, nil
 	}
 
 	// Shouldn't happen but handle gracefully
@@ -70,28 +76,28 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 // parseRowsetWithClause parses the WITH (...) column definitions for OPENJSON/OPENXML.
 // The opening '(' has already been consumed.
 func (p *Parser) parseRowsetWithClause() (*nodes.List, error) {
-	var cols []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 		// column_name data_type [path]
 		colName, ok := p.parseIdentifier()
 		if !ok {
-			break
+			return nil, p.unexpectedToken()
 		}
-		dt , _ := p.parseDataType()
+		dt, _ := p.parseDataType()
 		col := &nodes.ColumnDef{
 			Name:     colName,
 			DataType: dt,
 		}
 		// Optional path expression (string literal or XPath)
 		if p.cur.Type != ',' && p.cur.Type != ')' {
-			// Consume optional path/expression
 			p.parseExpr()
 		}
-		cols = append(cols, col)
-		if _, ok := p.match(','); !ok {
-			break
-		}
+		return col, nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.List{Items: cols}, nil
 }

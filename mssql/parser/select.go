@@ -97,11 +97,14 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		}
 	}
 
-	// Target list
+	// Target list — at least one result column is required per T-SQL.
 	var err error
 	stmt.TargetList, err = p.parseTargetList()
 	if err != nil {
 		return nil, err
+	}
+	if stmt.TargetList == nil || len(stmt.TargetList.Items) == 0 {
+		return nil, p.unexpectedToken()
 	}
 
 	// INTO
@@ -408,6 +411,10 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 		p.match(',') // consume comma between XMLNAMESPACES and CTEs
 	}
 
+	// CTE list terminator is multi-token (SELECT / INSERT / UPDATE / DELETE /
+	// MERGE); parseCTE returns nil when the current token does not start a CTE
+	// name, which lets us break the loop cleanly at non-SELECT DML statements.
+	// parseCommaList's single-terminator contract does not fit here.
 	var ctes []nodes.Node
 	for p.cur.Type != kwSELECT && p.cur.Type != tokEOF && p.cur.Type != ';' {
 		cte, err := p.parseCTE()
@@ -420,6 +427,11 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 		ctes = append(ctes, cte)
 		if _, ok := p.match(','); !ok {
 			break
+		}
+		// Reject trailing comma: after consuming ',', we must have another CTE
+		// before a terminator.
+		if p.cur.Type == kwSELECT || p.cur.Type == tokEOF || p.cur.Type == ';' {
+			return nil, p.unexpectedToken()
 		}
 	}
 	wc.CTEs = &nodes.List{Items: ctes}
@@ -436,20 +448,16 @@ func (p *Parser) parseXmlNamespaces() (*nodes.List, error) {
 		return nil, err
 	}
 
-	var decls []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	decls, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 		loc := p.pos()
 		decl := &nodes.XmlNamespaceDecl{Loc: nodes.Loc{Start: loc, End: -1}}
-
 		if _, ok := p.match(kwDEFAULT); ok {
-			// DEFAULT 'uri'
 			decl.IsDefault = true
 			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
 				decl.URI = p.cur.Str
 				p.advance()
 			}
 		} else {
-			// 'uri' AS prefix
 			if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
 				decl.URI = p.cur.Str
 				p.advance()
@@ -461,16 +469,14 @@ func (p *Parser) parseXmlNamespaces() (*nodes.List, error) {
 			}
 		}
 		decl.Loc.End = p.prevEnd()
-		decls = append(decls, decl)
-
-		if _, ok := p.match(','); !ok {
-			break
-		}
+		return decl, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-
 	if len(decls) == 0 {
 		return nil, nil
 	}
@@ -498,16 +504,15 @@ func (p *Parser) parseCTE() (*nodes.CommonTableExpr, error) {
 			p.addRuleCandidate("cte_column_name")
 			return nil, errCollecting
 		}
-		var cols []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 			colName, ok := p.parseIdentifier()
 			if !ok {
-				break
+				return nil, p.unexpectedToken()
 			}
-			cols = append(cols, &nodes.String{Str: colName})
-			if _, ok := p.match(','); !ok {
-				break
-			}
+			return &nodes.String{Str: colName}, nil
+		})
+		if err != nil {
+			return nil, err
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -613,20 +618,76 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 			return nil, errCollecting
 		}
 		targetLoc := p.pos()
+
+		// T-SQL `column_alias = expression` and `@var = expression` forms.
+		// Disambiguated by 2-token lookahead: { ident | @var } followed by '='
+		// at the head of a select list item can only be the assignment form
+		// (a bare expression that starts with `ident =` would be a top-level
+		// comparison, which is not a valid select-list element shape).
+		if p.peekNext().Type == '=' {
+			if p.cur.Type == tokVARIABLE {
+				name := p.cur.Str
+				p.advance() // consume @var
+				p.advance() // consume =
+				rhs, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				assign := &nodes.SelectAssign{
+					Variable: name,
+					Value:    rhs,
+					Loc:      nodes.Loc{Start: targetLoc, End: p.prevEnd()},
+				}
+				targets = append(targets, &nodes.ResTarget{
+					Val: assign,
+					Loc: nodes.Loc{Start: targetLoc, End: p.prevEnd()},
+				})
+				if _, ok := p.match(','); !ok {
+					break
+				}
+				continue
+			}
+			if p.isIdentLike() && !p.isBareAliasExcluded() {
+				alias := p.cur.Str
+				p.advance() // consume ident
+				p.advance() // consume =
+				rhs, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				targets = append(targets, &nodes.ResTarget{
+					Name: alias,
+					Val:  rhs,
+					Loc:  nodes.Loc{Start: targetLoc, End: p.prevEnd()},
+				})
+				if _, ok := p.match(','); !ok {
+					break
+				}
+				continue
+			}
+		}
+
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
 		if expr == nil {
+			if len(targets) > 0 {
+				// Just consumed ',' with no expr to follow — trailing comma.
+				return nil, p.unexpectedToken()
+			}
 			break
 		}
 		target := &nodes.ResTarget{
 			Val: expr,
 			Loc: nodes.Loc{Start: targetLoc, End: -1},
 		}
-		// Check for alias: AS name or just name (but not keywords that start clauses)
+		// Check for alias: AS name or just name (but not keywords that start clauses).
+		// Reserved keywords (CoreKeyword) cannot be unquoted aliases per T-SQL —
+		// writing `SELECT x AS FROM` requires `AS [FROM]` which the lexer emits
+		// as tokIDENT and thus already passes isIdentLike.
 		if _, ok := p.match(kwAS); ok {
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				target.Name = p.cur.Str
 				p.advance()
 			}
@@ -762,37 +823,50 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		return nil, errCollecting
 	}
 
-	// Subquery: (SELECT ...)
+	// Parenthesised derived table: (SELECT ...) or (VALUES ...)
 	if p.cur.Type == '(' {
 		loc := p.pos()
 		p.advance()
-		sub, err := p.parseSelectStmt()
-		if err != nil {
-			return nil, err
-		}
-		if sub == nil {
-			return nil, p.unexpectedToken()
+
+		var inner nodes.TableExpr
+		if p.cur.Type == kwVALUES {
+			vc, err := p.parseValuesClause()
+			if err != nil {
+				return nil, err
+			}
+			inner = vc
+		} else {
+			sub, err := p.parseSelectStmt()
+			if err != nil {
+				return nil, err
+			}
+			if sub == nil {
+				return nil, p.unexpectedToken()
+			}
+			inner = &nodes.SubqueryExpr{
+				Query: sub,
+				Loc:   nodes.Loc{Start: loc, End: -1},
+			}
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
 
-		subExpr := &nodes.SubqueryExpr{
-			Query: sub,
-			Loc:   nodes.Loc{Start: loc, End: -1},
+		// Alias [ ( col1, col2, ... ) ]
+		alias, cols, err := p.parseAliasAndOptionalColumnList()
+		if err != nil {
+			return nil, err
 		}
-
-		// Alias
-		alias := p.parseOptionalAlias()
 		if alias != "" {
 			result := &nodes.AliasedTableRef{
-				Table: subExpr,
-				Alias: alias,
-				Loc:   nodes.Loc{Start: loc, End: -1},
+				Table:   inner,
+				Alias:   alias,
+				Columns: cols,
+				Loc:     nodes.Loc{Start: loc, End: -1},
 			}
 			return p.parsePivotUnpivot(result)
 		}
-		return p.parsePivotUnpivot(subExpr)
+		return p.parsePivotUnpivot(inner)
 	}
 
 	// Rowset functions: OPENROWSET, OPENQUERY, OPENJSON, OPENDATASOURCE, OPENXML
@@ -916,14 +990,15 @@ func (p *Parser) parsePivotExpr(source nodes.TableExpr) (*nodes.PivotExpr, error
 	// IN ([v1], [v2], ...)
 	if _, ok := p.match(kwIN); ok {
 		if _, err := p.expect('('); err == nil {
-			var vals []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if name, ok := p.parseIdentifier(); ok {
-					vals = append(vals, &nodes.String{Str: name})
+			vals, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+				name, ok := p.parseIdentifier()
+				if !ok {
+					return nil, p.unexpectedToken()
 				}
-				if _, ok := p.match(','); !ok {
-					break
-				}
+				return &nodes.String{Str: name}, nil
+			})
+			if err != nil {
+				return nil, err
 			}
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
@@ -979,14 +1054,15 @@ func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) (*nodes.UnpivotExpr, e
 	// IN ([c1], [c2], ...)
 	if _, ok := p.match(kwIN); ok {
 		if _, err := p.expect('('); err == nil {
-			var cols []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if name, ok := p.parseIdentifier(); ok {
-					cols = append(cols, &nodes.String{Str: name})
+			cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+				name, ok := p.parseIdentifier()
+				if !ok {
+					return nil, p.unexpectedToken()
 				}
-				if _, ok := p.match(','); !ok {
-					break
-				}
+				return &nodes.String{Str: name}, nil
+			})
+			if err != nil {
+				return nil, err
 			}
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
@@ -1064,42 +1140,44 @@ func (p *Parser) parseTableValuedFunction(ref *nodes.TableRef) (nodes.TableExpr,
 		Loc:  nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.cur.Type != ')' {
-		var args []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			arg, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			args = append(args, arg)
-			if _, ok := p.match(','); !ok {
-				break
-			}
+	args, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
+		arg, err := p.parseExpr()
+		if err != nil {
+			return nil, err
 		}
+		if arg == nil {
+			return nil, p.unexpectedToken()
+		}
+		return arg, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(args) > 0 {
 		fc.Args = &nodes.List{Items: args}
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
 
-	alias := p.parseOptionalAlias()
-	if alias != "" {
-		return &nodes.AliasedTableRef{
-			Table: fc,
-			Alias: alias,
-			Loc:   nodes.Loc{Start: loc, End: -1},
-		}, nil
+	alias, cols, err := p.parseAliasAndOptionalColumnList()
+	if err != nil {
+		return nil, err
 	}
 	return &nodes.AliasedTableRef{
-		Table: fc,
-		Loc:   nodes.Loc{Start: loc, End: -1},
+		Table:   fc,
+		Alias:   alias,
+		Columns: cols,
+		Loc:     nodes.Loc{Start: loc, End: -1},
 	}, nil
 }
 
 // parseOptionalAlias parses an optional alias (AS name or just name).
+// Reserved keywords (CoreKeyword) cannot be unquoted aliases — a bracketed
+// form like `AS [FROM]` is already tokIDENT at the lexer level.
 func (p *Parser) parseOptionalAlias() string {
 	if _, ok := p.match(kwAS); ok {
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			name := p.cur.Str
 			p.advance()
 			return name
@@ -1113,6 +1191,35 @@ func (p *Parser) parseOptionalAlias() string {
 		return name
 	}
 	return ""
+}
+
+// parseAliasAndOptionalColumnList parses the `[ AS alias ] [ ( col1, col2, ... ) ]`
+// tail that appears after a derived-table-like source (subquery, TVF, VALUES, rowset).
+// The column list is only consumed when a non-empty alias was parsed.
+// Returns ("", nil, nil) when no alias is present.
+func (p *Parser) parseAliasAndOptionalColumnList() (string, *nodes.List, error) {
+	alias := p.parseOptionalAlias()
+	if alias == "" {
+		return "", nil, nil
+	}
+	if p.cur.Type != '(' {
+		return alias, nil, nil
+	}
+	p.advance() // consume '('
+	cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+		name, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.unexpectedToken()
+		}
+		return &nodes.String{Str: name}, nil
+	})
+	if err != nil {
+		return alias, nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return alias, nil, err
+	}
+	return alias, &nodes.List{Items: cols}, nil
 }
 
 // isSelectClauseIdent returns true if the current token is a contextual
@@ -1251,8 +1358,8 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 			p.addRuleCandidate("xml_mode") // PATH, RAW, AUTO, EXPLICIT
 			return nil, errCollecting
 		}
-		// RAW, AUTO, EXPLICIT, PATH
-		if p.isAnyKeywordIdent() || p.cur.Type == kwRAW || p.cur.Type == kwPATH {
+		// RAW, AUTO, EXPLICIT, PATH — SqlScriptDOM ForXmlMode enum.
+		if p.isValidOption(forXmlModes) {
 			fc.SubMode = strings.ToUpper(p.cur.Str)
 			p.advance()
 			// RAW('ElementName') or PATH('ElementName')
@@ -1279,8 +1386,8 @@ func (p *Parser) parseForClause() (*nodes.ForClause, error) {
 			p.addRuleCandidate("json_mode") // PATH, AUTO
 			return nil, errCollecting
 		}
-		// AUTO or PATH
-		if p.isAnyKeywordIdent() || p.cur.Type == kwPATH {
+		// AUTO or PATH — SqlScriptDOM ForJsonMode enum.
+		if p.isValidOption(forJsonModes) {
 			fc.SubMode = strings.ToUpper(p.cur.Str)
 			p.advance()
 		}
@@ -1407,6 +1514,11 @@ func (p *Parser) parseForJsonOptions(fc *nodes.ForClause) error {
 }
 
 // parseExprList parses a comma-separated list of expressions.
+// parseExprList parses a non-empty comma-separated list of expressions,
+// stopping at the first non-expression token (which the caller then matches
+// against its own terminator). At least one expression is required and a
+// trailing comma is rejected — every current call site (VALUES row,
+// ROLLUP/CUBE args, PARTITION BY) needs both invariants per SqlScriptDOM.
 func (p *Parser) parseExprList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
@@ -1415,7 +1527,8 @@ func (p *Parser) parseExprList() (*nodes.List, error) {
 			return nil, err
 		}
 		if expr == nil {
-			break
+			// Empty list at head or trailing-comma tail — both invalid.
+			return nil, p.unexpectedToken()
 		}
 		items = append(items, expr)
 		if _, ok := p.match(','); !ok {
@@ -1437,16 +1550,11 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 				p.advance() // consume GROUPING
 				p.advance() // consume SETS
 				if _, err := p.expect('('); err == nil {
-					var sets []nodes.Node
-					for p.cur.Type != ')' && p.cur.Type != tokEOF {
-						set, err := p.parseGroupingSet()
-						if err != nil {
-							return nil, err
-						}
-						sets = append(sets, set)
-						if _, ok := p.match(','); !ok {
-							break
-						}
+					sets, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+						return p.parseGroupingSet()
+					})
+					if err != nil {
+						return nil, err
 					}
 					if _, err := p.expect(')'); err != nil {
 						return nil, err
@@ -1529,26 +1637,23 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 }
 
 // parseGroupingSet parses a single grouping set: () or (expr, expr, ...) or just expr.
+// The empty form `()` is a valid T-SQL grand-total marker and so is the one site
+// in the parser that uses commaListAllowEmpty for a paren-delimited list.
 func (p *Parser) parseGroupingSet() (*nodes.List, error) {
 	if p.cur.Type == '(' {
 		p.advance()
-		if p.cur.Type == ')' {
-			// Empty set ()
-			p.advance()
-			return &nodes.List{Items: nil}, nil
-		}
-		var items []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		items, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
 			expr, err := p.parseExpr()
 			if err != nil {
 				return nil, err
 			}
-			if expr != nil {
-				items = append(items, expr)
+			if expr == nil {
+				return nil, p.unexpectedToken()
 			}
-			if _, ok := p.match(','); !ok {
-				break
-			}
+			return expr, nil
+		})
+		if err != nil {
+			return nil, err
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -1598,7 +1703,7 @@ func (p *Parser) parseWindowClause() (*nodes.List, error) {
 		// Optional existing_window_name (must be an ident not followed by keyword like PARTITION, ORDER)
 		if p.cur.Type != kwPARTITION && p.cur.Type != kwORDER &&
 			p.cur.Type != kwROWS && p.cur.Type != kwRANGE && p.cur.Type != kwGROUPS &&
-			p.cur.Type != ')' && p.isAnyKeywordIdent() {
+			p.cur.Type != ')' && p.isIdentLike() {
 			next := p.peekNext()
 			// If next token is a clause keyword or ), this is a refname
 			if next.Type == kwPARTITION || next.Type == kwORDER ||
@@ -1675,6 +1780,10 @@ func (p *Parser) parseOrderByList() (*nodes.List, error) {
 			return nil, err
 		}
 		if expr == nil {
+			if len(items) > 0 {
+				// Just consumed ',' with no expr to follow — trailing comma.
+				return nil, p.unexpectedToken()
+			}
 			break
 		}
 		dir := nodes.SortDefault
@@ -1751,9 +1860,12 @@ func (p *Parser) parseTableHints() (*nodes.List, error) {
 		return nil, errCollecting
 	}
 
+	// Table hints allow an OPTIONAL comma between hints, so this list is not
+	// a standard comma-separated list (parseCommaList would mandate commas).
+	// We do however reject a trailing comma before ')', matching SqlScriptDOM.
 	var hints []nodes.Node
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		// Completion: after comma in table hints → table hint keywords
+		// Completion: at start of each hint slot → table hint keywords
 		if p.collectMode() {
 			p.addRuleCandidate("table_hint")
 			return nil, errCollecting
@@ -1766,12 +1878,15 @@ func (p *Parser) parseTableHints() (*nodes.List, error) {
 			break
 		}
 		hints = append(hints, hint)
-		// Optional comma between hints
+		// Optional comma between hints. If a comma is consumed, another hint
+		// MUST follow — reject `WITH (NOLOCK,)`.
 		if _, ok := p.match(','); ok {
-			// Completion: after comma in table hints → table hint keywords
 			if p.collectMode() {
 				p.addRuleCandidate("table_hint")
 				return nil, errCollecting
+			}
+			if p.cur.Type == ')' || p.cur.Type == tokEOF {
+				return nil, p.unexpectedToken()
 			}
 		}
 	}
@@ -1796,43 +1911,32 @@ func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 			Name: "INDEX",
 			Loc:  nodes.Loc{Start: loc, End: -1},
 		}
+		parseIndexVals := func() error {
+			vals, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+				return p.parseIndexValue()
+			})
+			if err != nil {
+				return err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return err
+			}
+			hint.IndexValues = &nodes.List{Items: vals}
+			return nil
+		}
 		if _, ok := p.match('='); ok {
 			// INDEX = ( value )
 			if _, err := p.expect('('); err == nil {
-				var vals []nodes.Node
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					v, err := p.parseIndexValue()
-					if err != nil {
-						return nil, err
-					}
-					vals = append(vals, v)
-					if _, ok := p.match(','); !ok {
-						break
-					}
-				}
-				if _, err := p.expect(')'); err != nil {
+				if err := parseIndexVals(); err != nil {
 					return nil, err
 				}
-				hint.IndexValues = &nodes.List{Items: vals}
 			}
 		} else if p.cur.Type == '(' {
 			// INDEX ( values )
 			p.advance()
-			var vals []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				v, err := p.parseIndexValue()
-				if err != nil {
-					return nil, err
-				}
-				vals = append(vals, v)
-				if _, ok := p.match(','); !ok {
-					break
-				}
-			}
-			if _, err := p.expect(')'); err != nil {
+			if err := parseIndexVals(); err != nil {
 				return nil, err
 			}
-			hint.IndexValues = &nodes.List{Items: vals}
 		}
 		hint.Loc.End = p.prevEnd()
 		return hint, nil
@@ -1852,7 +1956,7 @@ func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 	}
 
 	// All remaining hints are identifiers (not lexer keywords)
-	if !p.isAnyKeywordIdent() {
+	if !p.isIdentLike() {
 		return nil, nil
 	}
 
@@ -1876,14 +1980,15 @@ func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 			// ( col1, col2, ... )
 			if p.cur.Type == '(' {
 				p.advance()
-				var cols []nodes.Node
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					if colName, ok := p.parseIdentifier(); ok {
-						cols = append(cols, &nodes.String{Str: colName})
+				cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+					colName, ok := p.parseIdentifier()
+					if !ok {
+						return nil, p.unexpectedToken()
 					}
-					if _, ok := p.match(','); !ok {
-						break
-					}
+					return &nodes.String{Str: colName}, nil
+				})
+				if err != nil {
+					return nil, err
 				}
 				if _, err := p.expect(')'); err != nil {
 					return nil, err
@@ -2311,19 +2416,24 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 				if err != nil {
 					return nil, err
 				}
-				// Parse comma-separated table hints reusing parseTableHint()
-				var hints []nodes.Node
-				for p.cur.Type == ',' {
-					p.advance()
-					th, err := p.parseTableHint()
+				// After the table reference, zero-or-more hints may follow, each
+				// introduced by a leading comma. When the first comma is present
+				// the tail is a normal strict comma-separated list terminated by
+				// ')' — empty slots and trailing commas are rejected.
+				if _, ok := p.match(','); ok {
+					hints, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+						th, err := p.parseTableHint()
+						if err != nil {
+							return nil, err
+						}
+						if th == nil {
+							return nil, p.unexpectedToken()
+						}
+						return th, nil
+					})
 					if err != nil {
 						return nil, err
 					}
-					if th != nil {
-						hints = append(hints, th)
-					}
-				}
-				if len(hints) > 0 {
 					hint.TableHints = &nodes.List{Items: hints}
 				}
 				if _, err := p.expect(')'); err != nil {

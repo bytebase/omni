@@ -7,6 +7,35 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// endpointStateValues: CREATE/ALTER ENDPOINT STATE = {STARTED | STOPPED | DISABLED}.
+var endpointStateValues = newOptionSet().withIdents("STARTED", "STOPPED", "DISABLED")
+
+// endpointAuthMethods: HTTP endpoint AUTHENTICATION options: NTLM/KERBEROS/NEGOTIATE.
+var endpointAuthMethods = newOptionSet().withIdents("NTLM", "KERBEROS", "NEGOTIATE")
+
+// endpointEncryptionAlgs: TCP endpoint ENCRYPTION ALGORITHM options: AES/RC4.
+var endpointEncryptionAlgs = newOptionSet().withIdents("AES", "RC4")
+
+// endpointRoleValues: service_broker role: WITNESS/PARTNER/ALL (kwALL exempted).
+var endpointRoleValues = newOptionSet(kwALL).withIdents("WITNESS", "PARTNER", "ALL")
+
+// endpointMessageForwarding: ENABLED/DISABLED.
+var endpointMessageForwarding = newOptionSet().withIdents("ENABLED", "DISABLED")
+
+// endpointEncryptionValues: ENCRYPTION = first word. TSQL accepts
+// NEGOTIATED/STRICT; SERVICE_BROKER/DATABASE_MIRRORING accept DISABLED/SUPPORTED/REQUIRED.
+// Combined superset is validated here; call site disambiguates by payload.
+var endpointEncryptionValues = newOptionSet().withIdents(
+	"NEGOTIATED", "STRICT", "DISABLED", "SUPPORTED", "REQUIRED",
+)
+
+// endpointPayloadTypes: first word of FOR clause. DATABASE and SERVICE are
+// multi-word prefixes (DATABASE_MIRRORING, SERVICE_BROKER) handled via peek.
+var endpointPayloadTypes = newOptionSet().withIdents(
+	"TSQL", "SERVICE_BROKER", "DATABASE_MIRRORING", "SOAP",
+	"SERVICE", "DATABASE",
+)
+
 // parseCreateEndpointStmt parses CREATE ENDPOINT.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-endpoint-transact-sql
@@ -69,7 +98,7 @@ func (p *Parser) parseCreateEndpointStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -102,7 +131,7 @@ func (p *Parser) parseAlterEndpointStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -128,7 +157,7 @@ func (p *Parser) parseDropEndpointStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -159,7 +188,7 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 		case p.cur.Type == kwAUTHORIZATION:
 			optLoc := p.pos()
 			p.advance()
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				opts = append(opts, &nodes.EndpointOption{Name: "AUTHORIZATION", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
@@ -170,7 +199,8 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			if p.isAnyKeywordIdent() {
+			// STATE = { STARTED | STOPPED | DISABLED }
+			if p.isValidOption(endpointStateValues) {
 				opts = append(opts, &nodes.EndpointOption{Name: "STATE", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
@@ -186,7 +216,7 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 				opts = append(opts, &nodes.EndpointOption{Name: "AS", Value: "HTTP", Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 				p.parseEndpointProtocolHTTPOptions(&opts)
-			} else if p.isAnyKeywordIdent() {
+			} else if p.isIdentLike() {
 				// Unknown protocol - parse as generic key=value options
 				opts = append(opts, &nodes.EndpointOption{Name: "AS", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
@@ -196,7 +226,10 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 		case p.cur.Type == kwFOR:
 			optLoc := p.pos()
 			p.advance()
-			if p.isAnyKeywordIdent() {
+			// FOR { TSQL | SERVICE_BROKER | DATABASE_MIRRORING | SOAP }
+			// SqlScriptDOM's EndpointPayloadType enum; SERVICE / DATABASE are
+			// multi-word prefixes handled by the lookahead below.
+			if p.isValidOption(endpointPayloadTypes) {
 				payloadType := strings.ToUpper(p.cur.Str)
 				// Check for multi-word payload types
 				if payloadType == "SERVICE" {
@@ -229,7 +262,7 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 				p.advance()
 				if p.cur.Type == '=' {
 					p.advance()
-					if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+					if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 						val := strings.ToUpper(p.cur.Str)
 						if p.cur.Type == tokSCONST {
 							val = "'" + p.cur.Str + "'"
@@ -242,7 +275,7 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 				} else {
 					opts = append(opts, &nodes.EndpointOption{Name: key, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				}
-			} else if p.isAnyKeywordIdent() {
+			} else if p.isIdentLike() {
 				// Unknown keyword — not a valid endpoint option; stop parsing.
 				goto done
 			} else if p.cur.Type == ',' {
@@ -283,7 +316,7 @@ func (p *Parser) parseEndpointProtocolTCPOptions(opts *[]nodes.Node) {
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			if p.cur.Type == tokICONST || p.isAnyKeywordIdent() {
+			if p.cur.Type == tokICONST || p.isIdentLike() {
 				*opts = append(*opts, &nodes.EndpointOption{Name: "LISTENER_PORT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
@@ -299,12 +332,12 @@ func (p *Parser) parseEndpointProtocolTCPOptions(opts *[]nodes.Node) {
 			} else if p.cur.Type == '(' {
 				// ( ip_address ) or ( 'ipv6' )
 				p.advance()
-				if p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.isAnyKeywordIdent() {
+				if p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.isIdentLike() {
 					ip := p.parseEndpointIPAddress()
 					*opts = append(*opts, &nodes.EndpointOption{Name: "LISTENER_IP", Value: ip, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				}
 				p.match(')')
-			} else if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			} else if p.isIdentLike() || p.cur.Type == tokSCONST {
 				*opts = append(*opts, &nodes.EndpointOption{Name: "LISTENER_IP", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
@@ -332,7 +365,7 @@ func (p *Parser) parseEndpointGenericProtocolOptions(opts *[]nodes.Node) {
 			continue
 		}
 
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			optLoc := p.pos()
 			key := strings.ToUpper(p.cur.Str)
 			p.advance()
@@ -347,7 +380,7 @@ func (p *Parser) parseEndpointGenericProtocolOptions(opts *[]nodes.Node) {
 							p.advance()
 							continue
 						}
-						if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+						if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 							val := strings.ToUpper(p.cur.Str)
 							if p.cur.Type == tokSCONST {
 								val = "'" + p.cur.Str + "'"
@@ -362,7 +395,7 @@ func (p *Parser) parseEndpointGenericProtocolOptions(opts *[]nodes.Node) {
 					}
 					p.match(')') // consume ')'
 					*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: strings.Join(vals, ","), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-				} else if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+				} else if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 					val := strings.ToUpper(p.cur.Str)
 					if p.cur.Type == tokSCONST {
 						val = "'" + p.cur.Str + "'"
@@ -409,7 +442,7 @@ func (p *Parser) parseEndpointProtocolHTTPOptions(opts *[]nodes.Node) {
 			continue
 		}
 
-		if !p.isAnyKeywordIdent() {
+		if !p.isIdentLike() {
 			p.advance()
 			continue
 		}
@@ -435,7 +468,7 @@ func (p *Parser) parseEndpointProtocolHTTPOptions(opts *[]nodes.Node) {
 						p.advance()
 						continue
 					}
-					if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+					if p.isIdentLike() || p.cur.Type == tokSCONST {
 						vals = append(vals, strings.ToUpper(p.cur.Str))
 						p.advance()
 					} else {
@@ -444,7 +477,7 @@ func (p *Parser) parseEndpointProtocolHTTPOptions(opts *[]nodes.Node) {
 				}
 				p.match(')') // consume ')'
 				*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: strings.Join(vals, ","), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
-			} else if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			} else if p.isIdentLike() || p.cur.Type == tokSCONST {
 				*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
@@ -456,7 +489,7 @@ func (p *Parser) parseEndpointProtocolHTTPOptions(opts *[]nodes.Node) {
 			} else if p.cur.Type == tokICONST {
 				*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
-			} else if p.isAnyKeywordIdent() {
+			} else if p.isIdentLike() {
 				*opts = append(*opts, &nodes.EndpointOption{Name: key, Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
@@ -477,7 +510,7 @@ func (p *Parser) parseEndpointIPAddress() string {
 	}
 	// IPv4 like 10.0.75.1 — tokens: 10 . 0 . 75 . 1
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		if p.cur.Type == tokICONST || p.isAnyKeywordIdent() {
+		if p.cur.Type == tokICONST || p.isIdentLike() {
 			parts = append(parts, p.cur.Str)
 			p.advance()
 		} else if p.cur.Type == '.' {
@@ -528,7 +561,8 @@ func (p *Parser) parseEndpointPayloadOptions(payloadType string, opts *[]nodes.N
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			if p.isAnyKeywordIdent() {
+			// MESSAGE_FORWARDING = { ENABLED | DISABLED }
+			if p.isValidOption(endpointMessageForwarding) {
 				*opts = append(*opts, &nodes.EndpointOption{Name: "MESSAGE_FORWARDING", Value: strings.ToUpper(p.cur.Str), Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
@@ -539,7 +573,7 @@ func (p *Parser) parseEndpointPayloadOptions(payloadType string, opts *[]nodes.N
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			if p.cur.Type == tokICONST || p.isAnyKeywordIdent() {
+			if p.cur.Type == tokICONST || p.isIdentLike() {
 				*opts = append(*opts, &nodes.EndpointOption{Name: "MESSAGE_FORWARD_SIZE", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
@@ -550,7 +584,8 @@ func (p *Parser) parseEndpointPayloadOptions(payloadType string, opts *[]nodes.N
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			if p.isAnyKeywordIdent() || p.cur.Type == kwALL {
+			// ROLE = { WITNESS | PARTNER | ALL }
+			if p.isValidOption(endpointRoleValues) {
 				val := strings.ToUpper(p.cur.Str)
 				*opts = append(*opts, &nodes.EndpointOption{Name: "ROLE", Value: val, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
@@ -558,13 +593,13 @@ func (p *Parser) parseEndpointPayloadOptions(payloadType string, opts *[]nodes.N
 
 		default:
 			// Unknown payload option as KEY = VALUE or bare keyword
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				optLoc := p.pos()
 				key := strings.ToUpper(p.cur.Str)
 				p.advance()
 				if p.cur.Type == '=' {
 					p.advance()
-					if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+					if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 						val := strings.ToUpper(p.cur.Str)
 						if p.cur.Type == tokSCONST {
 							val = "'" + p.cur.Str + "'"
@@ -601,24 +636,21 @@ func (p *Parser) parseEndpointAuthentication() string {
 		parts = append(parts, "WINDOWS")
 		p.advance()
 		// Optional auth method: NTLM | KERBEROS | NEGOTIATE
-		if p.isAnyKeywordIdent() {
-			upper := strings.ToUpper(p.cur.Str)
-			if upper == "NTLM" || upper == "KERBEROS" || upper == "NEGOTIATE" {
-				parts = append(parts, upper)
-				p.advance()
-			}
+		if p.isValidOption(endpointAuthMethods) {
+			parts = append(parts, strings.ToUpper(p.cur.Str))
+			p.advance()
 		}
 		// Optional CERTIFICATE after WINDOWS
 		if p.cur.Type == kwCERTIFICATE {
 			p.advance()
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				parts = append(parts, "CERTIFICATE", p.cur.Str)
 				p.advance()
 			}
 		}
 	} else if p.cur.Type == kwCERTIFICATE {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			parts = append(parts, "CERTIFICATE", p.cur.Str)
 			p.advance()
 		}
@@ -626,12 +658,9 @@ func (p *Parser) parseEndpointAuthentication() string {
 		if p.cur.Type == kwWINDOWS {
 			parts = append(parts, "WINDOWS")
 			p.advance()
-			if p.isAnyKeywordIdent() {
-				upper := strings.ToUpper(p.cur.Str)
-				if upper == "NTLM" || upper == "KERBEROS" || upper == "NEGOTIATE" {
-					parts = append(parts, upper)
-					p.advance()
-				}
+			if p.isValidOption(endpointAuthMethods) {
+				parts = append(parts, strings.ToUpper(p.cur.Str))
+				p.advance()
 			}
 		}
 	}
@@ -650,7 +679,7 @@ func (p *Parser) parseEndpointAuthentication() string {
 //	ENCRYPTION = { DISABLED | { { SUPPORTED | REQUIRED }
 //	    [ ALGORITHM { AES | RC4 | AES RC4 | RC4 AES } ] } }
 func (p *Parser) parseEndpointEncryption(payloadType string) string {
-	if !p.isAnyKeywordIdent() {
+	if !p.isValidOption(endpointEncryptionValues) {
 		return ""
 	}
 
@@ -672,11 +701,11 @@ func (p *Parser) parseEndpointEncryption(payloadType string) string {
 	if val == "SUPPORTED" || val == "REQUIRED" {
 		if p.cur.Type == kwALGORITHM {
 			p.advance()
-			if p.isAnyKeywordIdent() {
+			if p.isValidOption(endpointEncryptionAlgs) {
 				alg1 := strings.ToUpper(p.cur.Str)
 				p.advance()
 				// Check for two-algorithm spec: AES RC4 or RC4 AES
-				if p.isAnyKeywordIdent() {
+				if p.isValidOption(endpointEncryptionAlgs) {
 					alg2 := strings.ToUpper(p.cur.Str)
 					if alg2 == "AES" || alg2 == "RC4" {
 						p.advance()

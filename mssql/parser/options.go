@@ -58,16 +58,24 @@ func (p *Parser) isValidOption(opts optionSet) bool {
 	if opts.tokens[p.cur.Type] {
 		return true
 	}
-	// Identifier that matches a keyword in the set.
+	// Identifier (including bracketed) whose text matches.
 	if p.cur.Type == tokIDENT {
 		kw := lookupKeyword(p.cur.Str)
 		if kw != tokIDENT && opts.tokens[kw] {
 			return true
 		}
-		// Check unregistered identifier names.
 		if len(opts.idents) > 0 && opts.idents[strings.ToUpper(p.cur.Str)] {
 			return true
 		}
+		return false
+	}
+	// Registered keyword whose uppercase name matches a declared ident. This
+	// lets `.withIdents("FULL", "SIMPLE", ...)` accept both the registered
+	// kwFULL token and the unregistered "SIMPLE" identifier in a single enum
+	// declaration, without requiring callers to track which values are
+	// lexer-registered.
+	if len(opts.idents) > 0 && p.cur.Str != "" && opts.idents[strings.ToUpper(p.cur.Str)] {
+		return true
 	}
 	return false
 }

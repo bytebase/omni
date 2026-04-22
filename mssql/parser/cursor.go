@@ -188,7 +188,7 @@ func (p *Parser) parseCursorOptions(stmt *nodes.DeclareCursorStmt) error {
 	if p.cur.Type == kwFOR || p.cur.Type == tokEOF || p.cur.Type == ';' {
 		return nil
 	}
-	if p.isAnyKeywordIdent() && !p.isValidOption(cursorOptions) {
+	if p.isIdentLike() && !p.isValidOption(cursorOptions) {
 		return p.syntaxErrorAtCur()
 	}
 	return nil

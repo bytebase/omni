@@ -398,7 +398,7 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 		p.advance()
 
 		// STATISTICS IO|TIME|PROFILE|XML (multi-word option)
-		if stmt.Option == "STATISTICS" && p.isAnyKeywordIdent() {
+		if stmt.Option == "STATISTICS" && p.isIdentLike() {
 			stmt.Option = stmt.Option + " " + strings.ToUpper(p.cur.Str)
 			p.advance()
 		}

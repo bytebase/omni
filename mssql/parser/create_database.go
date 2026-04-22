@@ -7,6 +7,12 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// Shared SQL Server size unit suffix: {KB | MB | GB | TB}.
+var sizeUnitValues = newOptionSet().withIdents("KB", "MB", "GB", "TB")
+
+// FILESTREAM NON_TRANSACTED_ACCESS enum.
+var filestreamNonTransactedValues = newOptionSet().withIdents("OFF", "READ_ONLY", "FULL")
+
 // parseCreateDatabaseStmt parses a CREATE DATABASE statement.
 //
 // BNF: mssql/parser/bnf/create-database-transact-sql.bnf
@@ -262,7 +268,7 @@ func (p *Parser) parseDatabaseFileSpec() *nodes.DatabaseFileSpec {
 
 	// Parse comma-separated key=value pairs inside parens
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			key := strings.ToUpper(p.cur.Str)
 			p.advance() // consume key
 			switch key {
@@ -323,7 +329,7 @@ func (p *Parser) parseSizeValue() *nodes.SizeValue {
 	if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 		sv.Value = p.cur.Str
 		p.advance()
-	} else if p.isAnyKeywordIdent() {
+	} else if p.isIdentLike() {
 		// Could be a bare identifier like a number
 		sv.Value = p.cur.Str
 		p.advance()
@@ -335,7 +341,7 @@ func (p *Parser) parseSizeValue() *nodes.SizeValue {
 	if p.cur.Type == '%' {
 		sv.Unit = "%"
 		p.advance()
-	} else if p.isAnyKeywordIdent() {
+	} else if p.isValidOption(sizeUnitValues) {
 		unit := strings.ToUpper(p.cur.Str)
 		switch unit {
 		case "KB", "MB", "GB", "TB":
@@ -428,7 +434,7 @@ func (p *Parser) parseDatabaseWithOptions() *nodes.List {
 	var opts []nodes.Node
 
 	for {
-		if !p.isAnyKeywordIdent() {
+		if !p.isIdentLike() {
 			break
 		}
 
@@ -452,7 +458,7 @@ func (p *Parser) parseDatabaseWithOptions() *nodes.List {
 
 // parseOneDatabaseOption parses a single CREATE DATABASE WITH option.
 func (p *Parser) parseOneDatabaseOption() *nodes.DatabaseOption {
-	if !p.isAnyKeywordIdent() {
+	if !p.isIdentLike() {
 		return nil
 	}
 
@@ -525,14 +531,15 @@ func (p *Parser) parseDatabaseFilestreamOption() *nodes.DatabaseOption {
 	if p.cur.Type == '(' {
 		p.advance() // consume (
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				subKey := strings.ToUpper(p.cur.Str)
 				p.advance() // consume sub-key
 				if p.cur.Type == '=' {
 					p.advance() // consume =
 					switch subKey {
 					case "NON_TRANSACTED_ACCESS":
-						if p.isAnyKeywordIdent() || p.cur.Type == kwOFF {
+						// NON_TRANSACTED_ACCESS = { OFF | READ_ONLY | FULL }
+						if p.isValidOption(filestreamNonTransactedValues) {
 							opt.FilestreamAccess = strings.ToUpper(p.cur.Str)
 							p.advance()
 						}
@@ -546,7 +553,7 @@ func (p *Parser) parseDatabaseFilestreamOption() *nodes.DatabaseOption {
 						}
 					default:
 						// unknown sub-option, skip value
-						if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+						if p.isIdentLike() || p.cur.Type == tokSCONST {
 							p.advance()
 						}
 					}
@@ -581,7 +588,7 @@ func (p *Parser) parseDatabaseOptionValue() string {
 		p.advance()
 		return "ON"
 	}
-	if p.isAnyKeywordIdent() {
+	if p.isKeywordOrIdent() {
 		val := strings.ToUpper(p.cur.Str)
 		p.advance()
 		return val
@@ -607,7 +614,7 @@ func (p *Parser) parseDatabaseOptionValue() string {
 func (p *Parser) parseDatabaseAttachOptions() *nodes.List {
 	var opts []nodes.Node
 	for {
-		if !p.isAnyKeywordIdent() {
+		if !p.isIdentLike() {
 			break
 		}
 		key := strings.ToUpper(p.cur.Str)

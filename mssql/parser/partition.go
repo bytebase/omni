@@ -7,6 +7,10 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// alterPartitionFunctionActions matches SqlScriptDOM's closed set for
+// ALTER PARTITION FUNCTION: only SPLIT or MERGE after the empty `()`.
+var alterPartitionFunctionActions = newOptionSet().withIdents("SPLIT", "MERGE")
+
 // parseCreatePartitionFunctionStmt parses a CREATE PARTITION FUNCTION statement.
 //
 // BNF: mssql/parser/bnf/create-partition-function-transact-sql.bnf
@@ -23,7 +27,7 @@ func (p *Parser) parseCreatePartitionFunctionStmt() (*nodes.CreatePartitionFunct
 	}
 
 	// Name
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -89,7 +93,7 @@ func (p *Parser) parseAlterPartitionFunctionStmt() (*nodes.AlterPartitionFunctio
 	}
 
 	// Name
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -100,11 +104,12 @@ func (p *Parser) parseAlterPartitionFunctionStmt() (*nodes.AlterPartitionFunctio
 		p.match(')')
 	}
 
-	// SPLIT or MERGE
-	if p.isAnyKeywordIdent() {
-		stmt.Action = strings.ToUpper(p.cur.Str)
-		p.advance()
+	// SPLIT or MERGE — SqlScriptDOM's AlterPartitionFunctionStatement closed set.
+	if !p.isValidOption(alterPartitionFunctionActions) {
+		return nil, p.unexpectedToken()
 	}
+	stmt.Action = strings.ToUpper(p.cur.Str)
+	p.advance()
 
 	// RANGE ( boundary_value )
 	if p.cur.Type == kwRANGE {
@@ -136,7 +141,7 @@ func (p *Parser) parseCreatePartitionSchemeStmt() (*nodes.CreatePartitionSchemeS
 	}
 
 	// Name
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -148,7 +153,7 @@ func (p *Parser) parseCreatePartitionSchemeStmt() (*nodes.CreatePartitionSchemeS
 	if p.cur.Type == kwPARTITION {
 		p.advance()
 	}
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.FunctionName = p.cur.Str
 		p.advance()
 	}
@@ -167,7 +172,7 @@ func (p *Parser) parseCreatePartitionSchemeStmt() (*nodes.CreatePartitionSchemeS
 		p.advance()
 		var fgs []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isAnyKeywordIdent() || p.cur.Type == kwPRIMARY {
+			if p.isIdentLike() || p.cur.Type == kwPRIMARY {
 				fgname := p.cur.Str
 				p.advance()
 				if allTo && len(fgs) == 0 {
@@ -204,7 +209,7 @@ func (p *Parser) parseAlterPartitionSchemeStmt() (*nodes.AlterPartitionSchemeStm
 	}
 
 	// Name
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -216,7 +221,7 @@ func (p *Parser) parseAlterPartitionSchemeStmt() (*nodes.AlterPartitionSchemeStm
 	if p.cur.Type == kwUSED {
 		p.advance()
 	}
-	if p.isAnyKeywordIdent() {
+	if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
 		stmt.FileGroup = p.cur.Str
 		p.advance()
 	}

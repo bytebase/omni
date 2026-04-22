@@ -137,7 +137,7 @@ func (p *Parser) parseCreateIndexStmt(unique bool) (*nodes.CreateIndexStmt, erro
 
 	// ON { partition_scheme_name ( column_name ) | filegroup_name | default }
 	if _, ok := p.match(kwON); ok {
-		if p.isAnyKeywordIdent() || p.cur.Type == kwDEFAULT {
+		if p.isIdentLike() || p.cur.Type == kwDEFAULT {
 			stmt.OnFileGroup = p.cur.Str
 			p.advance()
 			// partition_scheme_name ( column_name )
@@ -154,7 +154,7 @@ func (p *Parser) parseCreateIndexStmt(unique bool) (*nodes.CreateIndexStmt, erro
 	// FILESTREAM_ON { filestream_filegroup_name | partition_scheme_name | "NULL" }
 	if p.cur.Type == kwFILESTREAM_ON {
 		p.advance()
-		if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
 			stmt.FilestreamOn = p.cur.Str
 			p.advance()
 			// partition_scheme_name ( column_name )
@@ -175,17 +175,16 @@ func (p *Parser) parseCreateIndexStmt(unique bool) (*nodes.CreateIndexStmt, erro
 // parseIndexColumnList parses (col [ASC|DESC], ...).
 func (p *Parser) parseIndexColumnList() (*nodes.List, error) {
 	p.advance() // consume (
-	// Completion: inside index column list → columnref
-	if p.collectMode() {
-		p.addRuleCandidate("columnref")
-		return nil, errCollecting
-	}
-	var items []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	items, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+		// Completion: at start of each index column slot → columnref
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return nil, errCollecting
+		}
 		loc := p.pos()
 		name, ok := p.parseIdentifier()
 		if !ok {
-			break
+			return nil, p.unexpectedToken()
 		}
 		dir := nodes.SortDefault
 		if _, ok := p.match(kwASC); ok {
@@ -193,14 +192,14 @@ func (p *Parser) parseIndexColumnList() (*nodes.List, error) {
 		} else if _, ok := p.match(kwDESC); ok {
 			dir = nodes.SortDesc
 		}
-		items = append(items, &nodes.IndexColumn{
+		return &nodes.IndexColumn{
 			Name:    name,
 			SortDir: dir,
 			Loc:     nodes.Loc{Start: loc, End: -1},
-		})
-		if _, ok := p.match(','); !ok {
-			break
-		}
+		}, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
@@ -257,7 +256,7 @@ func (p *Parser) parseCreateXmlIndexStmt(primary bool) (*nodes.CreateXmlIndexStm
 
 		// FOR VALUE|PATH|PROPERTY
 		if _, ok := p.match(kwFOR); ok {
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				stmt.SecondaryFor = p.cur.Str
 				p.advance()
 			}
@@ -408,7 +407,7 @@ func (p *Parser) parseCreateSpatialIndexStmt() (*nodes.CreateSpatialIndexStmt, e
 	// USING tessellation_scheme
 	if p.cur.Type == kwUSING {
 		p.advance() // consume USING
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.Using = p.cur.Str
 			p.advance()
 		}
@@ -424,7 +423,7 @@ func (p *Parser) parseCreateSpatialIndexStmt() (*nodes.CreateSpatialIndexStmt, e
 
 	// ON filegroup
 	if _, ok := p.match(kwON); ok {
-		if p.isAnyKeywordIdent() {
+		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
 			stmt.OnFileGroup = p.cur.Str
 			p.advance()
 		}
@@ -505,13 +504,13 @@ func (p *Parser) parseCreateAggregateStmt() (*nodes.CreateAggregateStmt, error) 
 		}
 		// Read dotted name: assembly.class[.method]
 		var parts []string
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			parts = append(parts, p.cur.Str)
 			p.advance()
 		}
 		for {
 			if _, ok := p.match('.'); ok {
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					parts = append(parts, p.cur.Str)
 					p.advance()
 				}
@@ -652,7 +651,7 @@ func (p *Parser) parseCreateJsonIndexStmt() (*nodes.CreateJsonIndexStmt, error) 
 
 	// ON filegroup
 	if _, ok := p.match(kwON); ok {
-		if p.isAnyKeywordIdent() {
+		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
 			stmt.OnFileGroup = p.cur.Str
 			p.advance()
 		}
@@ -716,7 +715,7 @@ func (p *Parser) parseCreateVectorIndexStmt() (*nodes.CreateVectorIndexStmt, err
 
 	// ON filegroup
 	if _, ok := p.match(kwON); ok {
-		if p.isAnyKeywordIdent() {
+		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
 			stmt.OnFileGroup = p.cur.Str
 			p.advance()
 		}
@@ -727,21 +726,52 @@ func (p *Parser) parseCreateVectorIndexStmt() (*nodes.CreateVectorIndexStmt, err
 }
 
 // parseOptionList parses (option = value, ...) used in WITH clauses.
+//
+// Option NAMES in T-SQL WITH clauses are frequently reserved keywords
+// (FILLFACTOR, MAXDOP, ONLINE, DATA_COMPRESSION, ...) that are not
+// permitted as unquoted identifiers in expression position. We therefore
+// do not route the name through parseExpr; instead we consume any
+// keyword-or-ident token as the name and parse the right-hand side as a
+// normal expression.
 func (p *Parser) parseOptionList() (*nodes.List, error) {
 	p.advance() // consume (
-	var items []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		expr, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		if expr != nil {
-			items = append(items, expr)
-		}
-		if _, ok := p.match(','); !ok {
-			break
-		}
+	items, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+		return p.parseNameValueOption()
+	})
+	if err != nil {
+		return nil, err
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.List{Items: items}, nil
+}
+
+// parseNameValueOption consumes a single `name [= value]` option entry, where
+// the name may be any keyword (Core or Context) or plain identifier.
+func (p *Parser) parseNameValueOption() (nodes.Node, error) {
+	loc := p.pos()
+	if !p.isIdentLike() && !(p.cur.Type >= kwABSENT && p.cur.Str != "") {
+		return nil, p.unexpectedToken()
+	}
+	name := p.cur.Str
+	p.advance()
+	nameRef := &nodes.ColumnRef{Column: name, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
+	if p.cur.Type != '=' {
+		return nameRef, nil
+	}
+	p.advance() // consume =
+	rhs, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if rhs == nil {
+		return nil, p.unexpectedToken()
+	}
+	return &nodes.BinaryExpr{
+		Op:    nodes.BinOpEq,
+		Left:  nameRef,
+		Right: rhs,
+		Loc:   nodes.Loc{Start: loc, End: p.prevEnd()},
+	}, nil
 }

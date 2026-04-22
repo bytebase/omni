@@ -315,9 +315,13 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 		return p.parseRevertStmt()
 	default:
 		// Check for label: identifier followed by ':'
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			next := p.peekNext()
 			if next.Type == ':' {
+				// Labels must be identifiers; reject reserved keywords here.
+				if !p.isIdentLike() {
+					return nil, p.syntaxErrorAtCur()
+				}
 				return p.parseLabelStmt()
 			}
 			// SEND ON CONVERSATION ... (service broker)
@@ -730,7 +734,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			stmt.Loc.Start = loc
 			return stmt, nil
 		}
-		if p.isAnyKeywordIdent() && (p.cur.Type == kwSYMMETRIC ||
+		if p.isIdentLike() && (p.cur.Type == kwSYMMETRIC ||
 			p.cur.Type == kwASYMMETRIC ||
 			p.cur.Type == kwCERTIFICATE ||
 			p.cur.Type == kwCREDENTIAL ||
@@ -1458,7 +1462,7 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 			stmt.Loc.Start = loc
 			return stmt, nil
 		}
-		if p.isAnyKeywordIdent() && (p.cur.Type == kwMASTER ||
+		if p.isIdentLike() && (p.cur.Type == kwMASTER ||
 			p.cur.Type == kwSYMMETRIC ||
 			p.cur.Type == kwASYMMETRIC ||
 			p.cur.Type == kwCERTIFICATE ||
@@ -1969,7 +1973,7 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 			return stmt, nil
 		}
 		// DROP DATABASE ENCRYPTION KEY / DROP DATABASE SCOPED CREDENTIAL
-		if p.isAnyKeywordIdent() && (p.cur.Type == kwENCRYPTION || p.cur.Type == kwSCOPED) {
+		if p.isIdentLike() && (p.cur.Type == kwENCRYPTION || p.cur.Type == kwSCOPED) {
 			stmt, err := p.parseSecurityKeyStmtDatabaseEncryption("DROP")
 			if err != nil {
 				return nil, err

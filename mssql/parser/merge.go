@@ -280,16 +280,15 @@ func (p *Parser) parseMergeInsertAction() (*nodes.MergeInsertAction, error) {
 	// Optional column list
 	if p.cur.Type == '(' {
 		p.advance()
-		var cols []nodes.Node
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 			colName, ok := p.parseIdentifier()
 			if !ok {
-				break
+				return nil, p.unexpectedToken()
 			}
-			cols = append(cols, &nodes.String{Str: colName})
-			if _, ok := p.match(','); !ok {
-				break
-			}
+			return &nodes.String{Str: colName}, nil
+		})
+		if err != nil {
+			return nil, err
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err

@@ -88,7 +88,7 @@ func (p *Parser) parseGrantStmt() (*nodes.GrantStmt, error) {
 	// AS principal
 	if p.cur.Type == kwAS {
 		p.advance() // consume AS
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.AsPrincipal = p.cur.Str
 			p.advance()
 		}
@@ -167,7 +167,7 @@ func (p *Parser) parseRevokeStmt() (*nodes.GrantStmt, error) {
 	// AS principal
 	if p.cur.Type == kwAS {
 		p.advance() // consume AS
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.AsPrincipal = p.cur.Str
 			p.advance()
 		}
@@ -229,7 +229,7 @@ func (p *Parser) parseDenyStmt() (*nodes.GrantStmt, error) {
 	// AS principal
 	if p.cur.Type == kwAS {
 		p.advance() // consume AS
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.AsPrincipal = p.cur.Str
 			p.advance()
 		}
@@ -247,7 +247,7 @@ func (p *Parser) parseGrantOnClause(stmt *nodes.GrantStmt) {
 	// Look ahead: if cur is an identifier and the next or next-next token is ::, it's a class.
 	// Securable classes include Core keywords (SCHEMA, DATABASE, etc.)
 	// so we must accept any keyword token, not just identifiers.
-	if p.isAnyKeywordIdent() {
+	if p.isKeywordOrIdent() {
 		// Check for single-word class followed by ::
 		next := p.peekNext()
 		if next.Type == tokCOLONCOLON {
@@ -278,7 +278,7 @@ func (p *Parser) parseGrantOnClause(stmt *nodes.GrantStmt) {
 
 // isSecurableClassStart checks if the current token could be the start of a multi-word securable class.
 func (p *Parser) isSecurableClassStart() bool {
-	if !p.isAnyKeywordIdent() {
+	if !p.isIdentLike() {
 		return false
 	}
 	kw := strings.ToUpper(p.cur.Str)
@@ -301,7 +301,7 @@ func (p *Parser) tryParseSecurableClass() string {
 	p.advance()
 
 	// Continue consuming identifier-like tokens until we see :: or non-identifier
-	for p.isAnyKeywordIdent() {
+	for p.isKeywordOrIdent() {
 		next := p.peekNext()
 		if next.Type == tokCOLONCOLON {
 			// This identifier is the last word of the class
@@ -330,7 +330,7 @@ func (p *Parser) tryParseSecurableClass() string {
 func (p *Parser) parsePrivilegeList() *nodes.List {
 	var items []nodes.Node
 	for {
-		if !p.isAnyKeywordIdent() && p.cur.Type != kwSELECT && p.cur.Type != kwINSERT &&
+		if !p.isIdentLike() && p.cur.Type != kwSELECT && p.cur.Type != kwINSERT &&
 			p.cur.Type != kwUPDATE && p.cur.Type != kwDELETE && p.cur.Type != kwEXEC &&
 			p.cur.Type != kwEXECUTE && p.cur.Type != kwREFERENCES && p.cur.Type != kwALL &&
 			p.cur.Type != kwCREATE && p.cur.Type != kwALTER {
@@ -348,9 +348,9 @@ func (p *Parser) parsePrivilegeList() *nodes.List {
 			name == "TAKE" || name == "IMPERSONATE" || name == "BACKUP" || name == "CONNECT" ||
 			name == "ADMINISTER" || name == "AUTHENTICATE" || name == "SHOWPLAN" ||
 			name == "SUBSCRIBE" || name == "RECEIVE" || name == "SEND" || name == "UNMASK") &&
-			p.isAnyKeywordIdent() && p.cur.Type != kwON && p.cur.Type != kwTO && p.cur.Type != kwFROM {
+			p.isKeywordOrIdent() && p.cur.Type != kwON && p.cur.Type != kwTO && p.cur.Type != kwFROM {
 			// Multi-word: ALTER ANY DATABASE, CREATE TABLE, VIEW DEFINITION, etc.
-			for p.isAnyKeywordIdent() && p.cur.Type != kwON && p.cur.Type != kwTO && p.cur.Type != kwFROM &&
+			for p.isKeywordOrIdent() && p.cur.Type != kwON && p.cur.Type != kwTO && p.cur.Type != kwFROM &&
 				p.cur.Type != ',' && p.cur.Type != ';' && p.cur.Type != tokEOF {
 				name += " " + strings.ToUpper(p.cur.Str)
 				p.advance()
@@ -362,7 +362,7 @@ func (p *Parser) parsePrivilegeList() *nodes.List {
 			p.advance() // consume (
 			var cols []string
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					cols = append(cols, p.cur.Str)
 					p.advance()
 				}
@@ -390,7 +390,7 @@ func (p *Parser) parsePrivilegeList() *nodes.List {
 func (p *Parser) parsePrincipalList() *nodes.List {
 	var items []nodes.Node
 	for {
-		if !p.isAnyKeywordIdent() && p.cur.Type != kwPUBLIC {
+		if !p.isIdentLike() && p.cur.Type != kwPUBLIC {
 			break
 		}
 		name := p.cur.Str

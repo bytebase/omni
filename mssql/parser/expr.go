@@ -238,21 +238,22 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 				Loc:      nodes.Loc{Start: loc, End: p.prevEnd()},
 			}, nil
 		}
-		var items []nodes.Node
-		if p.cur.Type == tokEOF {
-			return nil, p.unexpectedToken()
-		}
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		items, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 			expr, err := p.parseExpr()
 			if err != nil {
 				return nil, err
 			}
-			items = append(items, expr)
-			if _, ok := p.match(','); !ok {
-				break
+			if expr == nil {
+				return nil, p.unexpectedToken()
 			}
+			return expr, nil
+		})
+		if err != nil {
+			return nil, err
 		}
-		_, _ = p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		return &nodes.InExpr{
 			Expr: left,
 			List: &nodes.List{Items: items},
@@ -449,7 +450,7 @@ func (p *Parser) parseCollateExpr(expr nodes.ExprNode) (nodes.ExprNode, error) {
 	// Collation name is an identifier (may contain underscores, numbers)
 	// or the special keyword database_default
 	var collation string
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		collation = p.cur.Str
 		p.advance()
 	} else {
@@ -703,17 +704,16 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		return p.parseIdentExpr()
 	case kwTRY_CONVERT:
 		return p.parseTryConvert()
-	case tokIDENT,
-		// Non-reserved keywords usable as identifiers in expression context.
-		kwASYMMETRIC, kwCERTIFICATE, kwCOMMITTED, kwCREDENTIAL, kwCRYPTOGRAPHIC,
-		kwDECRYPTION, kwENCRYPTION, kwFORCE, kwISOLATION, kwKEYS, kwLEVEL,
-		kwMASTER, kwNEXT, kwPASSWORD, kwPROVIDER, kwREGENERATE, kwREPEATABLE,
-		kwSCOPED, kwSERIALIZABLE, kwSERVER, kwSERVICE, kwSNAPSHOT, kwSYMMETRIC,
-		kwUNCOMMITTED, kwUSED, kwVALUE:
+	case tokIDENT:
 		return p.parseIdentExpr()
 	default:
-		// Context keywords can be used as identifiers in T-SQL.
-		if p.isAnyKeywordIdent() {
+		// T-SQL permits ContextKeyword tokens (e.g. VALUE, ENCRYPTION,
+		// SNAPSHOT, ...) as unquoted identifiers in expression position.
+		// CoreKeyword tokens (FROM, SELECT, WHERE, ...) are NOT permitted —
+		// they must be bracketed (in which case the lexer emits tokIDENT) or
+		// quoted. The keyword classification table in lexer.go is the single
+		// source of truth; no parallel whitelist is kept here.
+		if isContextKeyword(p.cur.Type) {
 			return p.parseIdentExpr()
 		}
 		return nil, nil
@@ -1187,20 +1187,24 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 		fc.Distinct = true
 	}
 
-	var args []nodes.Node
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+	args, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
 		arg, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
-		args = append(args, arg)
-		if _, ok := p.match(','); !ok {
-			break
+		if arg == nil {
+			return nil, p.unexpectedToken()
 		}
+		return arg, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	fc.Args = &nodes.List{Items: args}
 
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	// Check for WITHIN GROUP (ORDER BY ...) clause
 	//
@@ -1319,7 +1323,7 @@ func (p *Parser) parseOverClause() (*nodes.OverClause, error) {
 	p.advance() // consume OVER
 
 	// OVER window_name (reference to named window, no parentheses)
-	if p.cur.Type != '(' && p.isAnyKeywordIdent() {
+	if p.cur.Type != '(' && p.isIdentLike() {
 		over := &nodes.OverClause{
 			WindowName: p.cur.Str,
 			Loc:        nodes.Loc{Start: loc, End: p.prevEnd()},
@@ -1356,18 +1360,11 @@ func (p *Parser) parseOverClause() (*nodes.OverClause, error) {
 			p.addRuleCandidate("func_name")
 			return nil, errCollecting
 		}
-		var parts []nodes.Node
-		for {
-			expr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			parts = append(parts, expr)
-			if _, ok := p.match(','); !ok {
-				break
-			}
+		list, err := p.parseExprList()
+		if err != nil {
+			return nil, err
 		}
-		over.PartitionBy = &nodes.List{Items: parts}
+		over.PartitionBy = list
 	}
 
 	// ORDER BY

@@ -7,6 +7,10 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// assemblyPermissionSetValues matches SqlScriptDOM's AssemblyPermissionSet enum
+// for CREATE/ALTER ASSEMBLY ... WITH PERMISSION_SET = ...
+var assemblyPermissionSetValues = newOptionSet().withIdents("SAFE", "EXTERNAL_ACCESS", "UNSAFE")
+
 // parseCreateAssemblyStmt parses a CREATE ASSEMBLY statement.
 //
 // BNF: mssql/parser/bnf/create-assembly-transact-sql.bnf
@@ -32,7 +36,7 @@ func (p *Parser) parseCreateAssemblyStmt() (*nodes.CreateAssemblyStmt, error) {
 	}
 
 	// Name
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -40,7 +44,7 @@ func (p *Parser) parseCreateAssemblyStmt() (*nodes.CreateAssemblyStmt, error) {
 	// AUTHORIZATION owner
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.Authorization = p.cur.Str
 			p.advance()
 		}
@@ -80,7 +84,7 @@ func (p *Parser) parseCreateAssemblyStmt() (*nodes.CreateAssemblyStmt, error) {
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			if p.isAnyKeywordIdent() {
+			if p.isValidOption(assemblyPermissionSetValues) {
 				stmt.PermissionSet = strings.ToUpper(p.cur.Str)
 				p.advance()
 			}
@@ -119,7 +123,7 @@ func (p *Parser) parseAlterAssemblyStmt() (*nodes.AlterAssemblyStmt, error) {
 	}
 
 	// Name
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -138,12 +142,12 @@ func (p *Parser) parseAlterAssemblyStmt() (*nodes.AlterAssemblyStmt, error) {
 	// WITH PERMISSION_SET | VISIBILITY | UNCHECKED DATA
 	if p.cur.Type == kwWITH {
 		p.advance()
-		for p.isAnyKeywordIdent() {
+		for p.isIdentLike() {
 			opt := strings.ToUpper(p.cur.Str)
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
-				if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+				if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 					opt += "=" + strings.ToUpper(p.cur.Str)
 					p.advance()
 				}
@@ -166,7 +170,7 @@ func (p *Parser) parseAlterAssemblyStmt() (*nodes.AlterAssemblyStmt, error) {
 			p.advance()
 			actions = append(actions, &nodes.String{Str: "DROP FILE"})
 			// consume file list
-			for p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == kwALL {
+			for p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == kwALL {
 				p.advance()
 				if _, ok := p.match(','); !ok {
 					break
@@ -186,7 +190,7 @@ func (p *Parser) parseAlterAssemblyStmt() (*nodes.AlterAssemblyStmt, error) {
 					p.advance()
 					if p.cur.Type == kwAS {
 						p.advance()
-						if p.cur.Type == tokSCONST || p.isAnyKeywordIdent() {
+						if p.cur.Type == tokSCONST || p.isIdentLike() {
 							p.advance()
 						}
 					}

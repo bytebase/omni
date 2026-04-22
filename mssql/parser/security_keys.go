@@ -836,7 +836,7 @@ func (p *Parser) parseSecurityKeyOptions(stmt *nodes.SecurityKeyStmt) {
 		}
 
 		// General key = value parsing
-		if p.isAnyKeywordIdent() || p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
+		if p.isIdentLike() || p.cur.Type == tokICONST || p.cur.Type == tokSCONST {
 			key := p.consumeAnyIdent()
 			items = append(items, &nodes.String{Str: key})
 

@@ -35,7 +35,7 @@ func (p *Parser) parseCreateWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// group_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -70,7 +70,7 @@ func (p *Parser) parseAlterWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// group_name | [default]
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
+	if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -94,7 +94,7 @@ func (p *Parser) parseDropWorkloadGroupStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// group_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -139,7 +139,7 @@ func (p *Parser) parseCreateResourcePoolStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// pool_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -177,7 +177,7 @@ func (p *Parser) parseAlterResourcePoolStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// pool_name | [default]
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
+	if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -201,7 +201,7 @@ func (p *Parser) parseDropResourcePoolStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// pool_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -230,7 +230,7 @@ func (p *Parser) parseCreateExternalResourcePoolStmt() (*nodes.SecurityStmt, err
 	}
 
 	// pool_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -260,7 +260,7 @@ func (p *Parser) parseAlterExternalResourcePoolStmt() (*nodes.SecurityStmt, erro
 	}
 
 	// pool_name | "default"
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
+	if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == kwDEFAULT {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -284,7 +284,7 @@ func (p *Parser) parseDropExternalResourcePoolStmt() (*nodes.SecurityStmt, error
 	}
 
 	// pool_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -356,7 +356,7 @@ func (p *Parser) parseResourceGovernorOptions() *nodes.List {
 				opts = append(opts, p.parseResourceGovernorWithOptions()...)
 				p.match(')')
 			}
-		} else if p.isAnyKeywordIdent() || p.cur.Type == kwAS || p.cur.Type == kwFOR ||
+		} else if p.isKeywordOrIdent() || p.cur.Type == kwAS || p.cur.Type == kwFOR ||
 			p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwDEFAULT ||
 			p.cur.Type == kwNULL {
 			optLoc := p.pos()
@@ -367,7 +367,7 @@ func (p *Parser) parseResourceGovernorOptions() *nodes.List {
 				p.advance()
 				val = p.parseResourceGovernorValue()
 			} else if (name == "USING" || name == "EXTERNAL") &&
-				(p.isAnyKeywordIdent() || p.cur.Type == kwDEFAULT) {
+				(p.isIdentLike() || p.cur.Type == kwDEFAULT) {
 				// USING pool_name or EXTERNAL ext_pool_name (no = sign)
 				val = strings.ToUpper(p.cur.Str)
 				p.advance()
@@ -379,7 +379,7 @@ func (p *Parser) parseResourceGovernorOptions() *nodes.List {
 			// Handle qualified names like schema.function
 			for p.cur.Type == '.' {
 				p.advance()
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					val += "." + strings.ToUpper(p.cur.Str)
 					p.advance()
 				}
@@ -408,7 +408,7 @@ func (p *Parser) parseResourceGovernorWithOptions() []nodes.Node {
 	var opts []nodes.Node
 
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		if p.isAnyKeywordIdent() || p.cur.Type == kwNULL || p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwDEFAULT {
+		if p.isIdentLike() || p.cur.Type == kwNULL || p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwDEFAULT {
 			optName := strings.ToUpper(p.cur.Str)
 			p.advance()
 
@@ -462,7 +462,7 @@ func (p *Parser) parseResourceGovernorValue() string {
 		val := strings.ToUpper(p.cur.Str)
 		p.advance()
 		return val
-	case p.isAnyKeywordIdent():
+	case p.isIdentLike():
 		val := strings.ToUpper(p.cur.Str)
 		p.advance()
 		return val
@@ -476,7 +476,7 @@ func (p *Parser) parseResourceGovernorQualifiedValue() string {
 	val := p.parseResourceGovernorValue()
 	for p.cur.Type == '.' {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			val += "." + strings.ToUpper(p.cur.Str)
 			p.advance()
 		}
@@ -525,14 +525,14 @@ func (p *Parser) parseResourceGovernorAffinityValue() []nodes.Node {
 func (p *Parser) parseResourceGovernorRangeSpec() string {
 	var parts []string
 	for {
-		if p.cur.Type != tokICONST && !p.isAnyKeywordIdent() {
+		if p.cur.Type != tokICONST && !p.isIdentLike() {
 			break
 		}
 		val := p.cur.Str
 		p.advance()
 		if p.cur.Type == kwTO {
 			p.advance()
-			if p.cur.Type == tokICONST || p.isAnyKeywordIdent() {
+			if p.cur.Type == tokICONST || p.isIdentLike() {
 				val += " TO " + p.cur.Str
 				p.advance()
 			}
@@ -567,7 +567,7 @@ func (p *Parser) parseCreateWorkloadClassifierStmt() (*nodes.SecurityStmt, error
 	}
 
 	// classifier_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -599,7 +599,7 @@ func (p *Parser) parseAlterWorkloadClassifierStmt() (*nodes.SecurityStmt, error)
 	}
 
 	// classifier_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -623,7 +623,7 @@ func (p *Parser) parseDropWorkloadClassifierStmt() (*nodes.SecurityStmt, error) 
 	}
 
 	// classifier_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}

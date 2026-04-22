@@ -32,7 +32,7 @@ func (p *Parser) parseCreateExternalDataSourceStmt() (*nodes.SecurityStmt, error
 	}
 
 	// data_source_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -66,7 +66,7 @@ func (p *Parser) parseAlterExternalDataSourceStmt() (*nodes.SecurityStmt, error)
 	}
 
 	// data_source_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -141,13 +141,13 @@ func (p *Parser) parseDropExternalStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// name (possibly qualified)
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		var parts []string
 		parts = append(parts, p.cur.Str)
 		p.advance()
 		for p.cur.Type == '.' {
 			p.advance() // consume '.'
-			if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
 				parts = append(parts, p.cur.Str)
 				p.advance()
 			}
@@ -158,7 +158,7 @@ func (p *Parser) parseDropExternalStmt() (*nodes.SecurityStmt, error) {
 	// optional AUTHORIZATION owner_name (for DROP EXTERNAL LIBRARY)
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -208,13 +208,13 @@ func (p *Parser) parseCreateExternalTableStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// table name (possibly qualified: db.schema.table)
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		var parts []string
 		parts = append(parts, p.cur.Str)
 		p.advance()
 		for p.cur.Type == '.' {
 			p.advance() // consume '.'
-			if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
 				parts = append(parts, p.cur.Str)
 				p.advance()
 			}
@@ -328,7 +328,7 @@ func (p *Parser) parseCreateExternalFileFormatStmt() (*nodes.SecurityStmt, error
 	}
 
 	// file_format_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -369,7 +369,7 @@ func (p *Parser) parseCreateExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -377,7 +377,7 @@ func (p *Parser) parseCreateExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 	// AUTHORIZATION owner_name
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -437,7 +437,7 @@ func (p *Parser) parseAlterExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -445,7 +445,7 @@ func (p *Parser) parseAlterExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 	// AUTHORIZATION owner_name
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -503,7 +503,7 @@ func (p *Parser) parseCreateExternalLanguageStmt() (*nodes.SecurityStmt, error) 
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -511,7 +511,7 @@ func (p *Parser) parseCreateExternalLanguageStmt() (*nodes.SecurityStmt, error) 
 	// AUTHORIZATION owner_name
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -571,7 +571,7 @@ func (p *Parser) parseAlterExternalLanguageStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -579,7 +579,7 @@ func (p *Parser) parseAlterExternalLanguageStmt() (*nodes.SecurityStmt, error) {
 	// AUTHORIZATION owner_name
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -596,7 +596,7 @@ func (p *Parser) parseAlterExternalLanguageStmt() (*nodes.SecurityStmt, error) {
 		if p.cur.Type == kwPLATFORM {
 			p.advance() // consume PLATFORM
 		}
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			fileSpecOpts = append(fileSpecOpts, &nodes.String{Str: "REMOVE_PLATFORM=" + strings.ToUpper(p.cur.Str)})
 			p.advance() // consume platform name (WINDOWS/LINUX)
 		}
@@ -625,7 +625,7 @@ func (p *Parser) parseDropExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -633,7 +633,7 @@ func (p *Parser) parseDropExternalLibraryStmt() (*nodes.SecurityStmt, error) {
 	// optional AUTHORIZATION owner_name
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -657,7 +657,7 @@ func (p *Parser) parseDropExternalLanguageStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -677,7 +677,7 @@ func (p *Parser) parseExternalSetOptions() *nodes.List {
 			p.advance()
 			continue
 		}
-		if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+		if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 			optLoc := p.pos()
 			key := strings.ToUpper(p.cur.Str)
 			p.advance()
@@ -725,7 +725,7 @@ func (p *Parser) parseExternalWithOptions() *nodes.List {
 		}
 
 		// key = value
-		if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+		if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 			key := strings.ToUpper(p.cur.Str)
 			p.advance()
 			if p.cur.Type == '=' {
@@ -779,7 +779,7 @@ func (p *Parser) parseExternalOptionValue() string {
 	case p.cur.Type == kwNULL:
 		val = "NULL"
 		p.advance()
-	case p.isAnyKeywordIdent():
+	case p.isIdentLike():
 		val = strings.ToUpper(p.cur.Str)
 		p.advance()
 		// check for function-like syntax: SHARDED(col)
@@ -791,7 +791,7 @@ func (p *Parser) parseExternalOptionValue() string {
 					p.advance()
 					continue
 				}
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					args = append(args, strings.ToUpper(p.cur.Str))
 				} else {
 					args = append(args, p.cur.Str)
@@ -834,7 +834,7 @@ func (p *Parser) parseCreateExternalModelStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// external_model_object_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -842,7 +842,7 @@ func (p *Parser) parseCreateExternalModelStmt() (*nodes.SecurityStmt, error) {
 	// [ AUTHORIZATION owner_name ]
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -878,7 +878,7 @@ func (p *Parser) parseAlterExternalModelStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// external_model_object_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -897,7 +897,7 @@ func (p *Parser) parseAlterExternalModelStmt() (*nodes.SecurityStmt, error) {
 				p.advance()
 				continue
 			}
-			if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+			if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 				key := strings.ToUpper(p.cur.Str)
 				p.advance()
 				if p.cur.Type == '=' {
@@ -937,7 +937,7 @@ func (p *Parser) parseDropExternalModelStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// external_model_object_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -969,7 +969,7 @@ func (p *Parser) parseCreateExternalStreamStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// stream_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -997,7 +997,7 @@ func (p *Parser) parseCreateExternalStreamingJobStmt() (*nodes.SecurityStmt, err
 	}
 
 	// job_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -1034,7 +1034,7 @@ func (p *Parser) parseExternalFileSpec() []nodes.Node {
 			p.advance()
 			continue
 		}
-		if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwNULL {
+		if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwNULL {
 			key := strings.ToUpper(p.cur.Str)
 			p.advance()
 			if p.cur.Type == '=' {

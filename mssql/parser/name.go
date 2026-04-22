@@ -7,7 +7,7 @@ import (
 
 // isIdentLike returns true if the current token can be used as an identifier.
 // In T-SQL, context keywords can be used as identifiers but Core keywords cannot
-// (unless bracket-quoted). Use isAnyKeywordIdent() for positions that accept all keywords.
+// (unless bracket-quoted). Use isKeywordOrIdent() for positions that accept all keywords.
 // The tokIDENT type already includes [bracketed] and "quoted" identifiers.
 func (p *Parser) isIdentLike() bool {
 	if p.cur.Type == tokIDENT {
@@ -16,16 +16,22 @@ func (p *Parser) isIdentLike() bool {
 	return isContextKeyword(p.cur.Type)
 }
 
-// isAnyKeywordIdent returns true if the current token can be used as a label or alias.
-// Like PG's isColLabel(), some positions (explicit aliases after AS, column labels)
-// should accept ALL keywords including Core keywords.
-// This is the old isIdentLike behavior — needed for positions where SQL Server allows
-// reserved words as aliases (e.g., SELECT 1 AS select).
-func (p *Parser) isAnyKeywordIdent() bool {
+// isKeywordOrIdent returns true for ANY token that carries a name payload —
+// tokIDENT or any registered keyword (including CoreKeyword). This is the
+// correct predicate for true E-class positions where the grammar genuinely
+// accepts reserved keywords as values or subcommand markers:
+//   - multi-word permission names in GRANT (ALTER ANY DATABASE, CREATE TABLE, …)
+//   - securable class prefix before :: (DATABASE::, SCHEMA::, OBJECT::, …)
+//   - data type names (INT, VARCHAR, DATETIME are all keywords)
+//   - audit action words (SELECT, INSERT, UPDATE, DELETE are CoreKeywords but
+//     valid audit action names)
+//
+// For identifier / name / alias positions use isIdentLike, which correctly
+// rejects CoreKeyword tokens unless bracketed.
+func (p *Parser) isKeywordOrIdent() bool {
 	if p.cur.Type == tokIDENT {
 		return true
 	}
-	// Any keyword token can be used as a label/alias
 	return p.cur.Type >= kwABSENT && p.cur.Str != ""
 }
 

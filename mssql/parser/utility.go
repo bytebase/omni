@@ -25,7 +25,7 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Database = p.cur.Str
 		p.advance()
 	}
@@ -132,7 +132,7 @@ func (p *Parser) parseRaiseErrorStmt() (*nodes.RaiseErrorStmt, error) {
 		p.advance()
 		var opts []nodes.Node
 		for {
-			if p.isAnyKeywordIdent() || p.cur.Type == kwNOWAIT {
+			if p.isIdentLike() || p.cur.Type == kwNOWAIT {
 				opts = append(opts, &nodes.String{Str: strings.ToUpper(p.cur.Str)})
 				p.advance()
 			} else {
@@ -389,14 +389,14 @@ func (p *Parser) parseReadtextStmt() (*nodes.ReadtextStmt, error) {
 	}
 
 	// table.column - parse as column ref
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		colLoc := p.pos()
 		table := p.cur.Str
 		p.advance()
 		if p.cur.Type == '.' {
 			p.advance() // consume .
 			col := ""
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				col = p.cur.Str
 				p.advance()
 			}
@@ -444,13 +444,13 @@ func (p *Parser) parseWritetextStmt() (*nodes.WritetextStmt, error) {
 	}
 
 	// table.column
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		table := p.cur.Str
 		p.advance()
 		if p.cur.Type == '.' {
 			p.advance() // .
 			col := ""
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				col = p.cur.Str
 				p.advance()
 			}
@@ -505,13 +505,13 @@ func (p *Parser) parseUpdatetextStmt() (*nodes.UpdatetextStmt, error) {
 	}
 
 	// dest_table.dest_column dest_text_ptr
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		table := p.cur.Str
 		p.advance()
 		if p.cur.Type == '.' {
 			p.advance()
 			col := ""
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				col = p.cur.Str
 				p.advance()
 			}
@@ -636,12 +636,12 @@ func (p *Parser) parseCreateDefaultStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// [ schema_name . ] default_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		name := p.cur.Str
 		p.advance()
 		if p.cur.Type == '.' {
 			p.advance() // consume '.'
-			if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
 				name = name + "." + p.cur.Str
 				p.advance()
 			}
@@ -685,12 +685,12 @@ func (p *Parser) parseCreateRuleStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// [ schema_name . ] rule_name
-	if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+	if p.isIdentLike() || p.cur.Type == tokSCONST {
 		name := p.cur.Str
 		p.advance()
 		if p.cur.Type == '.' {
 			p.advance() // consume '.'
-			if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
 				name = name + "." + p.cur.Str
 				p.advance()
 			}
@@ -793,7 +793,7 @@ func (p *Parser) parseAlterDatabaseScopedConfigStmt() (*nodes.SecurityStmt, erro
 			p.advance()
 		}
 		// Optional plan_handle (hex constant)
-		if p.cur.Type == tokICONST || p.cur.Type == tokSCONST || p.isAnyKeywordIdent() {
+		if p.cur.Type == tokICONST || p.cur.Type == tokSCONST || p.isIdentLike() {
 			optStr += " " + p.cur.Str
 			p.advance()
 		}
@@ -819,14 +819,14 @@ func (p *Parser) parseAlterDatabaseScopedConfigStmt() (*nodes.SecurityStmt, erro
 
 		// Parse SET option = value pairs as structured SecurityPrincipalOption nodes
 		for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
-			if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+			if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 				optLoc := p.pos()
 				key := strings.ToUpper(p.cur.Str)
 				p.advance()
 				if p.cur.Type == '=' {
 					p.advance() // consume '='
 					val := ""
-					if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST ||
+					if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST ||
 						p.cur.Type == tokFCONST || p.cur.Type == kwON || p.cur.Type == kwOFF ||
 						p.cur.Type == kwNULL || p.cur.Type == kwPRIMARY {
 						if p.cur.Type == tokSCONST {
@@ -887,13 +887,13 @@ func (p *Parser) parseEnableDisableTriggerStmt(enable bool) (*nodes.EnableDisabl
 	} else {
 		var triggers []nodes.Node
 		for {
-			if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
 				// Possibly schema-qualified: schema.trigger_name
 				name := p.cur.Str
 				p.advance()
 				if p.cur.Type == '.' {
 					p.advance()
-					if p.isAnyKeywordIdent() {
+					if p.isIdentLike() {
 						name = name + "." + p.cur.Str
 						p.advance()
 					}
@@ -1010,7 +1010,7 @@ func (p *Parser) parseCopyIntoStmt() (*nodes.CopyIntoStmt, error) {
 		var cols []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
 			// Each entry is: Column_name [ DEFAULT value ] [ field_number ]
-			if p.isAnyKeywordIdent() || p.cur.Type == '[' {
+			if p.isIdentLike() || p.cur.Type == '[' {
 				col := &nodes.CopyIntoColumn{
 					Loc: nodes.Loc{Start: p.pos(), End: -1},
 				}
@@ -1101,7 +1101,7 @@ func (p *Parser) parseCopyIntoStmt() (*nodes.CopyIntoStmt, error) {
 //   - CREDENTIAL = ( ... ) -- parenthesized credential
 //   - ERRORFILE_CREDENTIAL = ( ... ) -- parenthesized credential
 func (p *Parser) parseCopyIntoOption() nodes.Node {
-	if !p.isAnyKeywordIdent() && p.cur.Type != kwFILE {
+	if !p.isKeywordOrIdent() && p.cur.Type != kwFILE {
 		return nil
 	}
 
@@ -1136,7 +1136,7 @@ func (p *Parser) parseCopyIntoOption() nodes.Node {
 			valStr = p.cur.Str
 			p.advance()
 		default:
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				valStr = p.cur.Str
 				p.advance()
 			}
@@ -1183,7 +1183,7 @@ func (p *Parser) parseRenameStmt() (*nodes.RenameStmt, error) {
 	// Check for COLUMN rename variant
 	if p.cur.Type == kwCOLUMN {
 		p.advance() // consume COLUMN
-		if p.isAnyKeywordIdent() || p.cur.Type == '[' {
+		if p.isIdentLike() || p.cur.Type == '[' {
 			stmt.ColumnName = p.cur.Str
 			p.advance()
 		}
@@ -1192,7 +1192,7 @@ func (p *Parser) parseRenameStmt() (*nodes.RenameStmt, error) {
 	// TO new_name
 	if p.cur.Type == kwTO {
 		p.advance() // consume TO
-		if p.isAnyKeywordIdent() || p.cur.Type == '[' {
+		if p.isIdentLike() || p.cur.Type == '[' {
 			if stmt.ColumnName != "" {
 				stmt.NewColumnName = p.cur.Str
 			} else {
@@ -1363,7 +1363,7 @@ func (p *Parser) parsePredictStmt() (*nodes.PredictStmt, error) {
 			continue
 		}
 
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			key := strings.ToUpper(p.cur.Str)
 			p.advance()
 
@@ -1381,20 +1381,20 @@ func (p *Parser) parsePredictStmt() (*nodes.PredictStmt, error) {
 				// Optional AS alias
 				if p.cur.Type == kwAS {
 					p.advance() // consume AS
-					if p.isAnyKeywordIdent() {
+					if p.isIdentLike() {
 						stmt.DataAlias = p.cur.Str
 						p.advance()
 					}
 				}
 			case "RUNTIME":
 				// RUNTIME = ONNX
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					stmt.Runtime = strings.ToUpper(p.cur.Str)
 					p.advance()
 				}
 			default:
 				// Skip unknown args
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
 					p.advance()
 				}
 			}
@@ -1436,7 +1436,7 @@ func (p *Parser) parsePredictStmt() (*nodes.PredictStmt, error) {
 // parsePredictColumnDef parses a column definition in PREDICT's WITH clause.
 // column_name data_type [COLLATE collation_name] [NULL | NOT NULL]
 func (p *Parser) parsePredictColumnDef() *nodes.ColumnDef {
-	if !p.isAnyKeywordIdent() {
+	if !p.isIdentLike() {
 		return nil
 	}
 	loc := p.pos()
@@ -1456,7 +1456,7 @@ func (p *Parser) parsePredictColumnDef() *nodes.ColumnDef {
 	// Optional COLLATE
 	if p.cur.Type == kwCOLLATE {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			col.Collation = p.cur.Str
 			p.advance()
 		}

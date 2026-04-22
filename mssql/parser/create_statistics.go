@@ -7,6 +7,13 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// statisticsWithOptions: UPDATE/CREATE STATISTICS WITH ... option names.
+var statisticsWithOptions = newOptionSet(kwFULL, kwNOCOUNT).withIdents(
+	"FULLSCAN", "SAMPLE", "RESAMPLE", "NORECOMPUTE", "INCREMENTAL",
+	"MAXDOP", "ALL", "STATS_STREAM", "ROWCOUNT", "PAGECOUNT",
+	"PERSIST_SAMPLE_PERCENT", "AUTO_DROP",
+)
+
 // parseCreateStatisticsStmt parses a CREATE STATISTICS statement.
 //
 // BNF: mssql/parser/bnf/create-statistics-transact-sql.bnf
@@ -35,7 +42,7 @@ func (p *Parser) parseCreateStatisticsStmt() (*nodes.CreateStatisticsStmt, error
 	}
 
 	// Statistics name
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -54,7 +61,7 @@ func (p *Parser) parseCreateStatisticsStmt() (*nodes.CreateStatisticsStmt, error
 		p.advance()
 		var cols []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				cols = append(cols, &nodes.String{Str: p.cur.Str})
 				p.advance()
 			}
@@ -130,7 +137,7 @@ func (p *Parser) parseUpdateStatisticsStmt() (*nodes.UpdateStatisticsStmt, error
 		p.advance()
 		var names []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				names = append(names, &nodes.String{Str: p.cur.Str})
 				p.advance()
 			}
@@ -146,7 +153,7 @@ func (p *Parser) parseUpdateStatisticsStmt() (*nodes.UpdateStatisticsStmt, error
 				stmt.Name = s.Str
 			}
 		}
-	} else if p.isAnyKeywordIdent() && p.cur.Type != kwWITH {
+	} else if p.isIdentLike() && p.cur.Type != kwWITH {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -177,7 +184,7 @@ func (p *Parser) parseDropStatisticsStmt() (*nodes.DropStatisticsStmt, error) {
 	var names []nodes.Node
 	for {
 		// Each name is [schema.]table.stats_name (two or three-part dot-separated)
-		if !p.isAnyKeywordIdent() {
+		if !p.isIdentLike() {
 			break
 		}
 		// Collect all dotted parts
@@ -185,7 +192,7 @@ func (p *Parser) parseDropStatisticsStmt() (*nodes.DropStatisticsStmt, error) {
 		p.advance()
 		for p.cur.Type == '.' {
 			p.advance()
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				parts = parts + "." + p.cur.Str
 				p.advance()
 			}
@@ -205,16 +212,16 @@ func (p *Parser) parseDropStatisticsStmt() (*nodes.DropStatisticsStmt, error) {
 func (p *Parser) parseStatisticsWithOptions() *nodes.List {
 	var opts []nodes.Node
 	for {
-		if p.isAnyKeywordIdent() || p.cur.Type == kwFULL || p.cur.Type == kwNOCOUNT {
+		if p.isValidOption(statisticsWithOptions) {
 			opt := strings.ToUpper(p.cur.Str)
 			isSample := p.cur.Type == kwSAMPLE
 			isResample := p.cur.Type == kwRESAMPLE
 			p.advance()
-			// Handle SAMPLE number PERCENT|ROWS
+			// Handle SAMPLE number { PERCENT | ROWS }.
 			if isSample {
 				p.parseExpr() // number
-				if p.isAnyKeywordIdent() {
-					p.advance() // PERCENT or ROWS
+				if p.cur.Type == kwPERCENT || p.cur.Type == kwROWS {
+					p.advance()
 				}
 			} else if isResample {
 				// RESAMPLE [ ON PARTITIONS ( { partition_number | range } [ ,...n ] ) ]
@@ -241,7 +248,7 @@ func (p *Parser) parseStatisticsWithOptions() *nodes.List {
 			} else if p.cur.Type == '=' {
 				// key = value (e.g., INCREMENTAL = ON, MAXDOP = 4, AUTO_DROP = ON)
 				p.advance()
-				if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+				if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 					p.advance()
 				} else {
 					p.parseExpr()

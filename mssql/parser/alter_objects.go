@@ -99,8 +99,9 @@ func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Database name or CURRENT (CURRENT is a Core keyword)
-	if p.isAnyKeywordIdent() {
+	// Database name or CURRENT. CURRENT is a Core keyword reserved as a
+	// special "current database" token in this position per SqlScriptDOM.
+	if p.isIdentLike() || p.cur.Type == kwCURRENT {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -122,7 +123,7 @@ func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
 		p.advance() // consume ADD
 		stmt.Action = "ADD"
 		p.parseAlterDatabaseAdd(stmt)
-	} else if p.isAnyKeywordIdent() {
+	} else if p.isValidOption(alterDatabaseSubcommands) {
 		action := strings.ToUpper(p.cur.Str)
 		switch action {
 		case "MODIFY":
@@ -151,26 +152,6 @@ func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
 		case "PERFORM_CUTOVER":
 			p.advance() // consume PERFORM_CUTOVER
 			stmt.Action = "PERFORM_CUTOVER"
-		default:
-			// Unknown action - record and collect remaining tokens as structured key=value options
-			stmt.Action = action
-			p.advance()
-			var opts []nodes.Node
-			for p.cur.Type != tokEOF && p.cur.Type != ';' && !p.isStatementStart() {
-				if p.cur.Type == ',' {
-					p.advance()
-					continue
-				}
-				opt := p.parseAlterDatabaseUnknownOption()
-				if opt != "" {
-					opts = append(opts, &nodes.String{Str: opt})
-				} else {
-					break
-				}
-			}
-			if len(opts) > 0 {
-				stmt.Options = &nodes.List{Items: opts}
-			}
 		}
 	}
 
@@ -254,6 +235,82 @@ var dbSetOptions = newOptionSet(
 	// Additional (MANUAL_CUTOVER, PERFORM_CUTOVER are handled at ALTER DATABASE level, not SET level).
 )
 
+// SqlScriptDOM-validated enum sets for ALTER DATABASE sub-value positions.
+var (
+	timeUnitShort     = newOptionSet().withIdents("SECONDS", "MINUTES")
+	timeUnitFull      = newOptionSet().withIdents("SECONDS", "MINUTES", "DAYS", "HOURS")
+	partnerSafetyVals = newOptionSet().withIdents("FULL", "OFF")
+	hadrSubcommands   = newOptionSet().withIdents("AVAILABILITY", "OFF", "SUSPEND", "RESUME")
+	terminationKws    = newOptionSet().withIdents("ROLLBACK", "NO_WAIT")
+	modifyFileOptions = newOptionSet().withIdents(
+		"READ_ONLY", "READ_WRITE", "READONLY", "READWRITE",
+		"AUTOGROW_SINGLE_FILE", "AUTOGROW_ALL_FILES",
+	)
+)
+
+// alterIndexActions: ALTER INDEX action keyword set (excluding SET which is a
+// registered kwSET and handled separately).
+var alterIndexActions = newOptionSet().withIdents(
+	"REBUILD", "REORGANIZE", "DISABLE", "RESUME", "PAUSE", "ABORT",
+)
+
+// alterDatabaseSubcommands is the closed set of ALTER DATABASE subcommands
+// that dispatch this parser (ADD and SET/COLLATE are handled by dedicated
+// keyword branches before this fallback is reached). Matches the branches
+// served by the switch in parseAlterDatabaseStmt.
+var alterDatabaseSubcommands = newOptionSet().withIdents(
+	"MODIFY", "REMOVE", "REBUILD", "PERFORM_CUTOVER",
+)
+
+// Per-option value enums. When an option key is found here and the parser
+// reaches the fallback bare-keyword branch, its value must be one of the
+// listed identifiers; any other keyword/ident is rejected (the
+// parseAlterDatabaseSetOption function returns "" to skip this SET fragment,
+// matching how it already treats unparseable options).
+//
+// Note: options whose value is ON are routed through an earlier
+// `p.cur.Type == kwON` short-circuit. That path preserves its current
+// leniency; fully strictifying ON-values requires restructuring that
+// branch and is tracked as follow-up work in the DDL strictness plan.
+var onOffOptionValues = newOptionSet().withIdents("ON", "OFF")
+
+var dbSetOptionValueEnums = map[string]optionSet{
+	// Specific value enums.
+	"RECOVERY":         newOptionSet().withIdents("FULL", "SIMPLE", "BULK_LOGGED"),
+	"PAGE_VERIFY":      newOptionSet().withIdents("CHECKSUM", "TORN_PAGE_DETECTION", "NONE"),
+	"PARAMETERIZATION": newOptionSet().withIdents("SIMPLE", "FORCED"),
+	"CURSOR_DEFAULT":   newOptionSet().withIdents("LOCAL", "GLOBAL"),
+	"ENCRYPTION":       onOffOptionValues,
+	// ON/OFF options whose OFF path reaches this fallback (the ON path is
+	// handled by the kwON short-circuit and remains lenient until the
+	// broader ON-value strictification lands).
+	"AUTO_CLOSE":                          onOffOptionValues,
+	"AUTO_SHRINK":                         onOffOptionValues,
+	"AUTO_CREATE_STATISTICS":              onOffOptionValues,
+	"AUTO_UPDATE_STATISTICS":              onOffOptionValues,
+	"AUTO_UPDATE_STATISTICS_ASYNC":        onOffOptionValues,
+	"ANSI_NULL_DEFAULT":                   onOffOptionValues,
+	"ANSI_NULLS":                          onOffOptionValues,
+	"ANSI_PADDING":                        onOffOptionValues,
+	"ANSI_WARNINGS":                       onOffOptionValues,
+	"ARITHABORT":                          onOffOptionValues,
+	"CONCAT_NULL_YIELDS_NULL":             onOffOptionValues,
+	"NUMERIC_ROUNDABORT":                  onOffOptionValues,
+	"QUOTED_IDENTIFIER":                   onOffOptionValues,
+	"RECURSIVE_TRIGGERS":                  onOffOptionValues,
+	"CURSOR_CLOSE_ON_COMMIT":              onOffOptionValues,
+	"DB_CHAINING":                         onOffOptionValues,
+	"TRUSTWORTHY":                         onOffOptionValues,
+	"DATE_CORRELATION_OPTIMIZATION":       onOffOptionValues,
+	"ALLOW_SNAPSHOT_ISOLATION":            onOffOptionValues,
+	"READ_COMMITTED_SNAPSHOT":             onOffOptionValues,
+	"HONOR_BROKER_PRIORITY":               onOffOptionValues,
+	"NESTED_TRIGGERS":                     onOffOptionValues,
+	"TRANSFORM_NOISE_WORDS":               onOffOptionValues,
+	"MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT": onOffOptionValues,
+	"TORN_PAGE_DETECTION":                 onOffOptionValues,
+}
+
 // parseAlterDatabaseSetOption parses a single SET option and returns it as a string.
 // Returns empty string if no option can be parsed.
 func (p *Parser) parseAlterDatabaseSetOption() string {
@@ -306,7 +363,7 @@ func (p *Parser) parseAlterDatabaseSetOption() string {
 			val := p.parseAlterDatabaseOptionValue()
 			return "WITNESS=" + val
 		}
-		if p.isAnyKeywordIdent() {
+		if p.isKeywordOrIdent() {
 			val := strings.ToUpper(p.cur.Str)
 			p.advance()
 			return "WITNESS=" + val
@@ -366,20 +423,33 @@ func (p *Parser) parseAlterDatabaseSetOption() string {
 		}
 		return key + "=ON"
 	}
-	// Accept any keyword or identifier as option value (FULL, OFF, CHECKSUM, etc.)
-	if p.isAnyKeywordIdent() {
+	// If this option has a declared value enum, restrict the value to that set.
+	// Anything else is rejected by returning "" (which the outer loop treats
+	// as "option not recognized here" — same error surface as an unknown key).
+	if enum, ok := dbSetOptionValueEnums[key]; ok {
+		if !p.isValidOption(enum) {
+			return ""
+		}
+		val := strings.ToUpper(p.cur.Str)
+		p.advance()
+		return key + "=" + val
+	}
+
+	// Accept any keyword or identifier as option value (AUTO_CLOSE OFF, etc.)
+	// TODO(ddl-option-strictness): migrate remaining keys (HADR, ENCRYPTION,
+	// ACCELERATED_DATABASE_RECOVERY, ...) into dbSetOptionValueEnums per the
+	// follow-up plan in docs/plans/2026-04-22-ddl-option-strictness.md.
+	if p.isKeywordOrIdent() {
 		val := strings.ToUpper(p.cur.Str)
 		p.advance()
 		// Handle TARGET_RECOVERY_TIME = 60 SECONDS (already consumed the number via =)
-		// Here it's like "RECOVERY FULL" or "AUTO_CLOSE OFF" or "TARGET_RECOVERY_TIME 60"
+		// Here it's like "AUTO_CLOSE OFF" or "TARGET_RECOVERY_TIME 60"
 		if key == "TARGET_RECOVERY_TIME" {
 			// val is the number, check for unit
-			if p.isAnyKeywordIdent() {
+			if p.isValidOption(timeUnitShort) {
 				unit := strings.ToUpper(p.cur.Str)
-				if unit == "SECONDS" || unit == "MINUTES" {
-					p.advance()
-					return key + "=" + val + " " + unit
-				}
+				p.advance()
+				return key + "=" + val + " " + unit
 			}
 			return key + "=" + val
 		}
@@ -406,13 +476,13 @@ func (p *Parser) parseAlterDatabaseSetPartner() string {
 		val := p.parseAlterDatabaseOptionValue()
 		return "PARTNER=" + val
 	}
-	if p.isAnyKeywordIdent() {
+	if p.isKeywordOrIdent() {
 		sub := strings.ToUpper(p.cur.Str)
 		p.advance()
 		switch sub {
 		case "SAFETY":
 			// SAFETY { FULL | OFF }
-			if p.isAnyKeywordIdent() {
+			if p.isValidOption(partnerSafetyVals) {
 				val := strings.ToUpper(p.cur.Str)
 				p.advance()
 				return "PARTNER SAFETY=" + val
@@ -441,7 +511,7 @@ func (p *Parser) parseAlterDatabaseSetPartner() string {
 //
 //	SET HADR { AVAILABILITY GROUP = group_name | OFF | SUSPEND | RESUME }
 func (p *Parser) parseAlterDatabaseSetHadr() string {
-	if p.isAnyKeywordIdent() {
+	if p.isValidOption(hadrSubcommands) {
 		sub := strings.ToUpper(p.cur.Str)
 		p.advance()
 		switch sub {
@@ -481,18 +551,15 @@ func (p *Parser) parseAlterDatabaseOptionValue() string {
 		val := p.cur.Str
 		p.advance()
 		// Check for unit suffix (SECONDS, MINUTES, DAYS, HOURS)
-		if p.isAnyKeywordIdent() {
+		if p.isValidOption(timeUnitFull) {
 			unit := strings.ToUpper(p.cur.Str)
-			switch unit {
-			case "SECONDS", "MINUTES", "DAYS", "HOURS":
-				p.advance()
-				return val + " " + unit
-			}
+			p.advance()
+			return val + " " + unit
 		}
 		return val
 	}
 	// Accept any keyword or identifier as an option value (ON, OFF, FULL, etc.)
-	if p.isAnyKeywordIdent() {
+	if p.isKeywordOrIdent() {
 		val := strings.ToUpper(p.cur.Str)
 		p.advance()
 		return val
@@ -507,7 +574,7 @@ func (p *Parser) parseAlterDatabaseSubOptions() string {
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
 		// key
 		key := ""
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			key = strings.ToUpper(p.cur.Str)
 			p.advance()
 		} else if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
@@ -547,7 +614,7 @@ func (p *Parser) parseAlterDatabaseSubOptions() string {
 //	  | ROLLBACK IMMEDIATE
 //	  | NO_WAIT
 func (p *Parser) parseAlterDatabaseTermination() string {
-	if p.isAnyKeywordIdent() {
+	if p.isValidOption(terminationKws) {
 		kw := strings.ToUpper(p.cur.Str)
 		switch kw {
 		case "ROLLBACK":
@@ -613,7 +680,7 @@ func (p *Parser) parseAlterDatabaseUnknownOption() string {
 	}
 
 	// Keyword or identifier
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		key := strings.ToUpper(p.cur.Str)
 		p.advance()
 		// Check for = value
@@ -653,7 +720,7 @@ func (p *Parser) parseAlterDatabaseUnknownOptionValue() string {
 		return val
 	}
 	// Accept any keyword or identifier as an option value (ON, OFF, FULL, etc.)
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		val := strings.ToUpper(p.cur.Str)
 		p.advance()
 		return val
@@ -791,7 +858,7 @@ func (p *Parser) parseAlterDatabaseModifyFilegroupOption(stmt *nodes.AlterDataba
 		}
 		return
 	}
-	if p.isAnyKeywordIdent() {
+	if p.isValidOption(modifyFileOptions) {
 		opt := strings.ToUpper(p.cur.Str)
 		switch opt {
 		case "READ_ONLY", "READ_WRITE", "READONLY", "READWRITE",
@@ -844,8 +911,9 @@ func (p *Parser) parseAlterIndexStmt() (*nodes.AlterIndexStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Index name or ALL
-	if p.isAnyKeywordIdent() {
+	// Index name or ALL. ALL is a Core keyword with special meaning
+	// ("every index on the table") in this position per SqlScriptDOM.
+	if p.isIdentLike() || p.cur.Type == kwALL {
 		stmt.IndexName = p.cur.Str
 		p.advance()
 	}
@@ -860,11 +928,11 @@ func (p *Parser) parseAlterIndexStmt() (*nodes.AlterIndexStmt, error) {
 		}
 	}
 
-	// Action: REBUILD, REORGANIZE, DISABLE, SET, RESUME, PAUSE, ABORT
+	// Action: REBUILD, REORGANIZE, DISABLE, SET, RESUME, PAUSE, ABORT.
 	if p.cur.Type == kwSET {
 		stmt.Action = "SET"
 		p.advance()
-	} else if p.isAnyKeywordIdent() {
+	} else if p.isValidOption(alterIndexActions) {
 		stmt.Action = strings.ToUpper(p.cur.Str)
 		p.advance()
 	}
@@ -1006,7 +1074,7 @@ func (p *Parser) parseAlterIndexOptions() (*nodes.List, error) {
 				} else if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 					val = p.cur.Str
 					p.advance()
-				} else if p.isAnyKeywordIdent() {
+				} else if p.isIdentLike() {
 					val = strings.ToUpper(p.cur.Str)
 					p.advance()
 				} else if p.cur.Type == '(' {
