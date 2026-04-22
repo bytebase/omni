@@ -99,8 +99,9 @@ func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Database name or CURRENT (CURRENT is a Core keyword)
-	if p.isAnyKeywordIdent() {
+	// Database name or CURRENT. CURRENT is a Core keyword reserved as a
+	// special "current database" token in this position per SqlScriptDOM.
+	if p.isIdentLike() || p.cur.Type == kwCURRENT {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -874,8 +875,9 @@ func (p *Parser) parseAlterIndexStmt() (*nodes.AlterIndexStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Index name or ALL
-	if p.isAnyKeywordIdent() {
+	// Index name or ALL. ALL is a Core keyword with special meaning
+	// ("every index on the table") in this position per SqlScriptDOM.
+	if p.isIdentLike() || p.cur.Type == kwALL {
 		stmt.IndexName = p.cur.Str
 		p.advance()
 	}

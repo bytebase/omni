@@ -307,7 +307,7 @@ func (p *Parser) parseRestoreStmt() (*nodes.RestoreStmt, error) {
 		if p.cur.Type == kwDATABASE_SNAPSHOT {
 			p.advance() // consume DATABASE_SNAPSHOT
 			if _, ok := p.match('='); ok {
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST {
 					stmt.SnapshotName = p.cur.Str
 					p.advance()
 				}
@@ -806,7 +806,7 @@ func (p *Parser) parseBackupEncryptionOption() (*nodes.BackupRestoreOption, erro
 		if p.cur.Type == '=' {
 			p.advance()
 		}
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			opt.EncryptorName = p.cur.Str
 			p.advance()
 		}

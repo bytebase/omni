@@ -581,7 +581,7 @@ func (p *Parser) parseExecuteAsStmt() (*nodes.SecurityStmt, error) {
 	// = 'name'
 	if p.cur.Type == '=' {
 		p.advance()
-		if p.cur.Type == tokSCONST || p.isAnyKeywordIdent() {
+		if p.cur.Type == tokSCONST || p.isIdentLike() {
 			stmt.Name = p.cur.Str
 			p.advance()
 		}

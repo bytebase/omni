@@ -126,12 +126,12 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 					p.advance() // filegroup name (not captured in AST)
 				}
 				if _, ok := p.match(','); ok {
-					if p.isAnyKeywordIdent() {
+					if p.isIdentLike() {
 						stmt.CatalogName = p.cur.Str
 						p.advance()
 					}
 				}
-			} else if p.isAnyKeywordIdent() {
+			} else if p.isIdentLike() {
 				stmt.CatalogName = p.cur.Str
 				p.advance()
 				if _, ok := p.match(','); ok {
@@ -144,7 +144,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 				}
 			}
 			p.match(')')
-		} else if p.isAnyKeywordIdent() {
+		} else if p.isIdentLike() {
 			stmt.CatalogName = p.cur.Str
 			p.advance()
 		}
@@ -344,7 +344,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 		// COLUMN column_name { ADD | DROP } STATISTICAL_SEMANTICS
 		if p.cur.Type == kwCOLUMN {
 			p.advance()
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				stmt.ColumnName = p.cur.Str
 				p.advance()
 			}
@@ -461,7 +461,7 @@ func (p *Parser) parseCreateFulltextCatalogStmt() (*nodes.CreateFulltextCatalogS
 	}
 
 	// catalog name
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -551,7 +551,7 @@ func (p *Parser) parseCreateFulltextStoplistStmt() (*nodes.CreateFulltextStoplis
 	}
 
 	// stoplist_name
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -619,7 +619,7 @@ func (p *Parser) parseAlterFulltextStoplistStmt() (*nodes.AlterFulltextStoplistS
 	}
 
 	// stoplist_name
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -696,7 +696,7 @@ func (p *Parser) parseDropFulltextStoplistStmt() (*nodes.DropFulltextStoplistStm
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -721,7 +721,7 @@ func (p *Parser) parseCreateSearchPropertyListStmt() (*nodes.CreateSearchPropert
 	}
 
 	// list name
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -782,7 +782,7 @@ func (p *Parser) parseAlterSearchPropertyListStmt() (*nodes.AlterSearchPropertyL
 	}
 
 	// list name
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -865,7 +865,7 @@ func (p *Parser) parseDropSearchPropertyListStmt() (*nodes.DropSearchPropertyLis
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
@@ -892,7 +892,7 @@ func (p *Parser) parseAlterFulltextCatalogStmt() (*nodes.AlterFulltextCatalogStm
 	}
 
 	// catalog name
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}

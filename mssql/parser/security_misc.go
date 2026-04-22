@@ -535,7 +535,7 @@ func (p *Parser) parseSignatureCryptoItem() *nodes.CryptoItem {
 	if p.cur.Type == kwCERTIFICATE {
 		item.Mechanism = "CERTIFICATE"
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			item.Name = p.cur.Str
 			p.advance()
 		}
@@ -545,7 +545,7 @@ func (p *Parser) parseSignatureCryptoItem() *nodes.CryptoItem {
 		if p.cur.Type == kwKEY {
 			p.advance()
 		}
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			item.Name = p.cur.Str
 			p.advance()
 		}
