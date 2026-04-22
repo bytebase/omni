@@ -22,6 +22,13 @@ var endpointRoleValues = newOptionSet(kwALL).withIdents("WITNESS", "PARTNER", "A
 // endpointMessageForwarding: ENABLED/DISABLED.
 var endpointMessageForwarding = newOptionSet().withIdents("ENABLED", "DISABLED")
 
+// endpointEncryptionValues: ENCRYPTION = first word. TSQL accepts
+// NEGOTIATED/STRICT; SERVICE_BROKER/DATABASE_MIRRORING accept DISABLED/SUPPORTED/REQUIRED.
+// Combined superset is validated here; call site disambiguates by payload.
+var endpointEncryptionValues = newOptionSet().withIdents(
+	"NEGOTIATED", "STRICT", "DISABLED", "SUPPORTED", "REQUIRED",
+)
+
 // endpointPayloadTypes: first word of FOR clause. DATABASE and SERVICE are
 // multi-word prefixes (DATABASE_MIRRORING, SERVICE_BROKER) handled via peek.
 var endpointPayloadTypes = newOptionSet().withIdents(
@@ -672,7 +679,7 @@ func (p *Parser) parseEndpointAuthentication() string {
 //	ENCRYPTION = { DISABLED | { { SUPPORTED | REQUIRED }
 //	    [ ALGORITHM { AES | RC4 | AES RC4 | RC4 AES } ] } }
 func (p *Parser) parseEndpointEncryption(payloadType string) string {
-	if !p.isAnyKeywordIdent() {
+	if !p.isValidOption(endpointEncryptionValues) {
 		return ""
 	}
 
