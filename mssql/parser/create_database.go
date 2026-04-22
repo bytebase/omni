@@ -323,7 +323,7 @@ func (p *Parser) parseSizeValue() *nodes.SizeValue {
 	if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 		sv.Value = p.cur.Str
 		p.advance()
-	} else if p.isAnyKeywordIdent() {
+	} else if p.isIdentLike() {
 		// Could be a bare identifier like a number
 		sv.Value = p.cur.Str
 		p.advance()

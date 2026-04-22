@@ -100,7 +100,7 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 				}
 				for p.cur.Type == '.' {
 					p.advance()
-					if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+					if p.isIdentLike() || p.cur.Type == tokSCONST {
 						queueName += "." + p.cur.Str
 						p.advance()
 					}
@@ -142,7 +142,7 @@ func (p *Parser) parseEventNotificationOptions() *nodes.List {
 			// Handle commas between notification names for DROP
 			if p.cur.Type == ',' {
 				p.advance()
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST {
 					opt.ExtraNames = append(opt.ExtraNames, p.cur.Str)
 					p.advance()
 				}
@@ -643,7 +643,7 @@ func (p *Parser) parseEventSessionDottedName() string {
 	}
 	for p.cur.Type == '.' {
 		p.advance()
-		if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
+		if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
 			name += "." + p.cur.Str
 			p.advance()
 		}

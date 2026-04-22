@@ -345,7 +345,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 		if p.cur.Type == '=' {
 			p.advance()
 		}
-		if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
 			opts = append(opts, &nodes.String{Str: "MODIFY NAME=" + p.cur.Str})
 			p.advance()
 		}
@@ -407,7 +407,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 				}
 				p.match(')')
 			}
-		} else if p.isAnyKeywordIdent() {
+		} else if p.isIdentLike() {
 			target := strings.ToUpper(p.cur.Str)
 			p.advance()
 			opts = append(opts, &nodes.String{Str: "TO=" + target})
@@ -487,7 +487,7 @@ func (p *Parser) parseAuditSpecOptions() *nodes.List {
 			p.advance()
 		}
 		// audit_name
-		if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
 			opts = append(opts, &nodes.String{Str: "FOR_AUDIT=" + p.cur.Str})
 			p.advance()
 		}
