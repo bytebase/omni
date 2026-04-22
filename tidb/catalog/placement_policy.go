@@ -1,6 +1,8 @@
 package catalog
 
 import (
+	"fmt"
+
 	nodes "github.com/bytebase/omni/tidb/ast"
 )
 
@@ -87,7 +89,48 @@ func (c *Catalog) dropPlacementPolicy(stmt *nodes.DropPlacementPolicyStmt) error
 		}
 		return errUnknownPlacementPolicy(stmt.Name)
 	}
+	// TiDB rejects DROP when any database or table still references
+	// the policy (error 8240 "Placement policy 'X' is still in use").
+	// The catalog mirrors TiDB's execution-time validation since it
+	// has both the database and table reference info indexed.
+	if ref := c.findPolicyReference(stmt.Name); ref != "" {
+		return errPlacementPolicyInUse(stmt.Name, ref)
+	}
 	delete(c.placementPolicies, key)
+	return nil
+}
+
+// findPolicyReference returns a human-readable description of the
+// first database or table referencing the named policy, or "" if
+// there are no references. Case-insensitive comparison matches
+// TiDB's CIStr policy-name convention.
+func (c *Catalog) findPolicyReference(name string) string {
+	target := toLower(name)
+	for _, db := range c.databases {
+		if toLower(db.PlacementPolicy) == target {
+			return fmt.Sprintf("database %q", db.Name)
+		}
+		for _, t := range db.Tables {
+			if toLower(t.PlacementPolicy) == target {
+				return fmt.Sprintf("table %q.%q", db.Name, t.Name)
+			}
+		}
+	}
+	return ""
+}
+
+// validatePolicyRef returns an error if the named policy is not
+// registered in the catalog. Empty names (no PLACEMENT POLICY clause)
+// are treated as "no reference" and return nil. Used by the table
+// and database option wiring to reject references to unknown policies
+// (TiDB error 8237 parity).
+func (c *Catalog) validatePolicyRef(name string) error {
+	if name == "" {
+		return nil
+	}
+	if c.GetPlacementPolicy(name) == nil {
+		return errUnknownPlacementPolicy(name)
+	}
 	return nil
 }
 

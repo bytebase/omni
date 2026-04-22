@@ -88,6 +88,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case "auto_random_base":
 			fmt.Sscanf(opt.Value, "%d", &tbl.AutoRandomBase)
 		case "placement policy":
+			if err := c.validatePolicyRef(opt.Value); err != nil {
+				return err
+			}
 			tbl.PlacementPolicy = opt.Value
 		case "ttl":
 			col, interval, err := extractTTLParts(opt.Value)

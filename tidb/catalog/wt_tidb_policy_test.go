@@ -138,6 +138,125 @@ func TestWTTiDBPolicy_10_DropIfExistsSilences(t *testing.T) {
 	}
 }
 
+// TestWTTiDBPolicy_AlterReplacesWholesale verifies that ALTER
+// replaces the option list rather than merging. The container test
+// asserts TiDB accepts the ALTER; this test assertions the catalog's
+// in-memory state actually reflects the replace, pinning the behavior
+// claimed in catalog/placement_policy.go's alterPlacementPolicy comment.
+func TestWTTiDBPolicy_AlterReplacesWholesale(t *testing.T) {
+	c := New()
+	wtExecRaw(t, c, "CREATE PLACEMENT POLICY p PRIMARY_REGION = 'us' FOLLOWERS = 2")
+	wtExecRaw(t, c, "ALTER PLACEMENT POLICY p PRIMARY_REGION = 'eu'")
+
+	p := c.GetPlacementPolicy("p")
+	if p == nil {
+		t.Fatal("policy missing")
+	}
+	if len(p.Options) != 1 {
+		t.Fatalf("ALTER should have replaced option list (want 1 entry), got %d: %+v", len(p.Options), p.Options)
+	}
+	if p.Options[0].Name != "PRIMARY_REGION" || p.Options[0].Value != "eu" {
+		t.Errorf("option content: %+v", p.Options[0])
+	}
+	// FOLLOWERS = 2 must be gone.
+	for _, o := range p.Options {
+		if o.Name == "FOLLOWERS" {
+			t.Error("FOLLOWERS=2 from CREATE leaked into ALTER result (merge, not replace)")
+		}
+	}
+}
+
+// TestWTTiDBPolicy_RefValidation verifies that CREATE TABLE and
+// CREATE DATABASE with an unknown policy name are rejected (TiDB
+// error 8237 parity).
+func TestWTTiDBPolicy_RefValidation(t *testing.T) {
+	c := New()
+	// No policy defined yet; table reference must fail.
+	if _, err := c.Exec("CREATE DATABASE testdb; USE testdb;", nil); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+	results, err := c.Exec("CREATE TABLE t (id INT) PLACEMENT POLICY = ghost", nil)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if results[0].Error == nil {
+		t.Error("expected unknown-policy error on CREATE TABLE referencing undefined policy")
+	}
+	// Database reference to unknown policy.
+	results, err = c.Exec("CREATE DATABASE d2 PLACEMENT POLICY = ghost", nil)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if results[0].Error == nil {
+		t.Error("expected unknown-policy error on CREATE DATABASE referencing undefined policy")
+	}
+}
+
+// TestWTTiDBPolicy_DropInUseRejected verifies that DROP PLACEMENT
+// POLICY is rejected when any table or database still references it.
+// Mirrors TiDB error 8240.
+func TestWTTiDBPolicy_DropInUseRejected(t *testing.T) {
+	c := New()
+	wtExecRaw(t, c, "CREATE PLACEMENT POLICY p1 PRIMARY_REGION = 'us'")
+	wtExecRaw(t, c, "CREATE DATABASE testdb; USE testdb;")
+	wtExecRaw(t, c, "CREATE TABLE t (id INT) PLACEMENT POLICY = p1")
+
+	// Drop must fail: table references policy.
+	results, err := c.Exec("DROP PLACEMENT POLICY p1", nil)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if results[0].Error == nil {
+		t.Error("expected in-use error on DROP PLACEMENT POLICY with table reference")
+	}
+
+	// Policy still in catalog (DROP didn't partially succeed).
+	if c.GetPlacementPolicy("p1") == nil {
+		t.Error("failed DROP left policy removed from catalog")
+	}
+
+	// Remove the reference, DROP succeeds.
+	wtExecRaw(t, c, "DROP TABLE t")
+	if _, err := c.Exec("DROP PLACEMENT POLICY p1", nil); err != nil {
+		t.Fatalf("DROP after removing ref: %v", err)
+	}
+	if c.GetPlacementPolicy("p1") != nil {
+		t.Error("DROP did not remove policy from catalog")
+	}
+}
+
+// TestWTTiDBPolicy_DropInUseByDatabase is the DB-reference equivalent
+// of TestWTTiDBPolicy_DropInUseRejected.
+func TestWTTiDBPolicy_DropInUseByDatabase(t *testing.T) {
+	c := New()
+	wtExecRaw(t, c, "CREATE PLACEMENT POLICY p1 PRIMARY_REGION = 'us'")
+	wtExecRaw(t, c, "CREATE DATABASE ddb PLACEMENT POLICY = p1")
+
+	results, err := c.Exec("DROP PLACEMENT POLICY p1", nil)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if results[0].Error == nil {
+		t.Error("expected in-use error on DROP PLACEMENT POLICY with database reference")
+	}
+}
+
+// wtExecRaw executes SQL on an arbitrary catalog (no testdb setup),
+// fataling on any parse or exec error. Suited for tests that manage
+// their own database-creation order.
+func wtExecRaw(t *testing.T, c *Catalog, sql string) {
+	t.Helper()
+	results, err := c.Exec(sql, nil)
+	if err != nil {
+		t.Fatalf("Exec parse error on %q: %v", sql, err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("Exec runtime error on %q (stmt %d): %v", sql, r.Index, r.Error)
+		}
+	}
+}
+
 // TestWTTiDBPolicy_11_EndToEndRoundTrip exercises the scenario that
 // PR3b left broken: defining a policy and then referencing it from a
 // CREATE TABLE. Before Tier 1, the CREATE PLACEMENT POLICY statement

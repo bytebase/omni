@@ -73,6 +73,19 @@ func TestParsePlacementPolicyDDL(t *testing.T) {
 			},
 		},
 		{
+			// The upstream grammar accepts mixing comma and whitespace
+			// separators in the same option list (parser.y:2000/2004/2008).
+			// Neither comma-only nor whitespace-only covers this.
+			name: "create_multi_option_mixed_separators",
+			sql:  "CREATE PLACEMENT POLICY p PRIMARY_REGION='us', REGIONS='us,eu' FOLLOWERS=2",
+			check: func(t *testing.T, list *nodes.List) {
+				s := list.Items[0].(*nodes.CreatePlacementPolicyStmt)
+				if len(s.Options) != 3 {
+					t.Fatalf("want 3 options, got %d: %+v", len(s.Options), s.Options)
+				}
+			},
+		},
+		{
 			name: "create_constraints_json_dict",
 			sql:  `CREATE PLACEMENT POLICY p CONSTRAINTS='{"+region=us-east-1":2,"+region=us-west-1":1}'`,
 			check: func(t *testing.T, list *nodes.List) {

@@ -28,6 +28,9 @@ func TestWTTiDB_1_1_AutoRandom(t *testing.T) {
 
 func TestWTTiDB_1_2_PlacementPolicy(t *testing.T) {
 	c := wtSetup(t)
+	// Policy must be defined before a table can reference it — catalog
+	// validates refs against the first-class policy map (TiDB error 8237 parity).
+	wtExec(t, c, "CREATE PLACEMENT POLICY p1 PRIMARY_REGION = 'us-east'")
 	wtExec(t, c, "CREATE TABLE t (id INT) PLACEMENT POLICY = p1")
 
 	tbl := c.GetDatabase("testdb").GetTable("t")
@@ -120,6 +123,7 @@ func TestWTTiDB_1_6b_InlineClusteredPK(t *testing.T) {
 // single-feature test only by luck.
 func TestWTTiDB_1_7_MultiFeatureInteraction(t *testing.T) {
 	c := wtSetup(t)
+	wtExec(t, c, "CREATE PLACEMENT POLICY p1 PRIMARY_REGION = 'us-east'")
 	wtExec(t, c, `CREATE TABLE orders (
 		id BIGINT AUTO_RANDOM(5) PRIMARY KEY CLUSTERED,
 		created_at DATETIME,

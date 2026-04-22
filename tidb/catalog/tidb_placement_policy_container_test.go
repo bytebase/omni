@@ -1,6 +1,9 @@
 package catalog
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestTiDBPlacementPolicyContainer cross-validates that omni's
 // PLACEMENT POLICY DDL matches real TiDB v8.5.5 acceptance. Reuses the
@@ -100,5 +103,52 @@ func TestTiDBPlacementPolicyContainer(t *testing.T) {
 				_, _ = tc.db.ExecContext(tc.ctx, c.cleanup)
 			}
 		})
+	}
+}
+
+// TestTiDBPlacementPolicyAlterReplaceSemantics pins the claim made in
+// catalog/placement_policy.go alterPlacementPolicy: ALTER replaces the
+// option list wholesale, it does NOT merge. Uses SHOW CREATE PLACEMENT
+// POLICY to read back actual TiDB state rather than just asserting
+// that the ALTER was accepted.
+func TestTiDBPlacementPolicyAlterReplaceSemantics(t *testing.T) {
+	tc := startTiDBForCatalog(t)
+	t.Cleanup(func() { _, _ = tc.db.ExecContext(tc.ctx, "DROP PLACEMENT POLICY IF EXISTS pp_rb") })
+
+	mustExecTiDB(t, tc, "CREATE PLACEMENT POLICY pp_rb FOLLOWERS = 2")
+	mustExecTiDB(t, tc, "ALTER PLACEMENT POLICY pp_rb PRIMARY_REGION = 'us-west-1' REGIONS = 'us-west-1'")
+
+	var name, def string
+	row := tc.db.QueryRowContext(tc.ctx, "SHOW CREATE PLACEMENT POLICY pp_rb")
+	if err := row.Scan(&name, &def); err != nil {
+		t.Fatalf("SHOW CREATE PLACEMENT POLICY: %v", err)
+	}
+	// After ALTER, FOLLOWERS=2 must be gone. Case-insensitive match
+	// since TiDB's SHOW output may uppercase keywords differently
+	// across versions.
+	low := strings.ToLower(def)
+	if strings.Contains(low, "followers") {
+		t.Errorf("ALTER did not replace option list; FOLLOWERS leaked: %s", def)
+	}
+	if !strings.Contains(low, "primary_region") {
+		t.Errorf("ALTER lost PRIMARY_REGION: %s", def)
+	}
+
+	// Now verify catalog agrees: fresh catalog, same SQL flow.
+	cat := New()
+	if _, err := cat.Exec("CREATE PLACEMENT POLICY pp_rb FOLLOWERS = 2", nil); err != nil {
+		t.Fatalf("cat CREATE: %v", err)
+	}
+	if _, err := cat.Exec("ALTER PLACEMENT POLICY pp_rb PRIMARY_REGION = 'us-west-1' REGIONS = 'us-west-1'", nil); err != nil {
+		t.Fatalf("cat ALTER: %v", err)
+	}
+	p := cat.GetPlacementPolicy("pp_rb")
+	for _, o := range p.Options {
+		if o.Name == "FOLLOWERS" {
+			t.Errorf("catalog ALTER leaked FOLLOWERS: %+v", p.Options)
+		}
+	}
+	if len(p.Options) != 2 {
+		t.Errorf("catalog ALTER result: want 2 options, got %d: %+v", len(p.Options), p.Options)
 	}
 }

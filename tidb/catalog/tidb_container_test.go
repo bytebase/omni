@@ -182,16 +182,11 @@ func TestTiDBCatalogContainerCrossValidation(t *testing.T) {
 			if c.setup != "" {
 				results, err := cat.Exec(c.setup, nil)
 				if err != nil {
-					// Catalog may not support PLACEMENT POLICY DDL yet — PR3
-					// stores PLACEMENT POLICY as a table attribute but does
-					// not track policies as first-class catalog objects.
-					// Skip the lockstep comparison when catalog setup fails
-					// on syntax the catalog doesn't model.
-					t.Skipf("catalog does not model setup SQL %q (deferred to future PR): %v", c.setup, err)
+					t.Fatalf("catalog rejected setup SQL %q: %v", c.setup, err)
 				}
 				for _, r := range results {
 					if r.Error != nil {
-						t.Skipf("catalog exec of setup SQL returned error %v (likely unmodeled DDL)", r.Error)
+						t.Fatalf("catalog exec error on setup %q: %v", c.setup, r.Error)
 					}
 				}
 			}
