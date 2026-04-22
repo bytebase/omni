@@ -433,6 +433,7 @@ func (p *Parser) parseColConstraint() (nodes.Node, error) {
 			}, nil
 		}
 		return nil, nil
+	// optional-probe: ColConstraint loop terminator — parseOptColumnConstraints breaks on nil
 	default:
 		return nil, nil
 	}
@@ -547,8 +548,12 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		return n, nil
 	case GENERATED:
 		return p.parseGeneratedConstraint()
+	// exhaustive: gram.y:3901 — ColConstraintElem enumerates NOT NULL /
+	// NULL / UNIQUE / PRIMARY KEY / CHECK / DEFAULT / REFERENCES /
+	// GENERATED. A `CONSTRAINT name <bad>` should raise rather than be
+	// silently dropped at the caller.
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 

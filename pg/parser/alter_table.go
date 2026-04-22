@@ -40,6 +40,7 @@ func (p *Parser) parseAlterTableStmt() (nodes.Node, error) {
 		return p.parseAlterEventTrigStmt()
 	case EXTENSION:
 		return p.parseAlterExtensionStmt()
+	// exhaustive: gram.y:2081 AlterTableStmt — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -240,6 +241,25 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 			Relation:   rv,
 			Newschema:  newschema,
 			MissingOk:  missingOk,
+		}, nil
+	}
+
+	// PG 15+: ALTER SEQUENCE name SET LOGGED | SET UNLOGGED
+	// These appear in PG's SeqOptElem grammar but require the SET keyword (unlike
+	// CREATE SEQUENCE where bare LOGGED/UNLOGGED is accepted). Produce the same
+	// DefElem shape as the bare LOGGED/UNLOGGED SeqOptElem (Defname="logged",
+	// Arg=Boolean{true/false}) so downstream consumers stay uniform.
+	if p.cur.Type == SET && (p.peekNext().Type == LOGGED || p.peekNext().Type == UNLOGGED) {
+		rv := makeRangeVarFromNames(names)
+		p.advance() // consume SET
+		logged := p.cur.Type == LOGGED
+		p.advance() // consume LOGGED or UNLOGGED
+		opt := makeDefElem("logged", &nodes.Boolean{Boolval: logged})
+		return &nodes.AlterSeqStmt{
+			Sequence:  rv,
+			Options:   &nodes.List{Items: []nodes.Node{opt}},
+			MissingOk: missingOk,
+			Loc:       nodes.Loc{Start: alterLoc, End: p.prev.End},
 		}, nil
 	}
 
@@ -683,7 +703,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	case CLUSTER:
 		cmd, err = p.parseAlterTableCluster(), nil
 	case SET:
-		cmd, err = p.parseAlterTableSet(), nil
+		cmd, err = p.parseAlterTableSet()
 	case RESET:
 		cmd, err = p.parseAlterTableReset(), nil
 	case REPLICA:
@@ -695,7 +715,10 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	case OPTIONS:
 		cmd, err = p.parseAlterTableOptions(), nil
 	default:
-		return &nodes.AlterTableCmd{}, nil
+		// exhaustive-gap fix: unknown alter_table_cmd lead keyword.
+		// Previously returned a zero-value AlterTableCmd (Subtype=0 == AT_AddColumn),
+		// injecting a phantom AddColumn command into the Cmds list.
+		return nil, p.syntaxErrorAtCur()
 	}
 	if cmd != nil {
 		cmd.Loc = nodes.Loc{Start: cmdLoc, End: p.prev.End}
@@ -970,7 +993,9 @@ func (p *Parser) parseAlterColumnAction(colname string) (*nodes.AlterTableCmd, e
 				Def:     opts,
 			}, nil
 		}
-		return &nodes.AlterTableCmd{}, nil
+		// exhaustive-gap fix: unknown sub-action after ALTER [COLUMN] name.
+		// Previously returned a zero-value AlterTableCmd (AT_AddColumn ghost).
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1079,7 +1104,9 @@ func (p *Parser) parseAlterColumnSet(colname string) (*nodes.AlterTableCmd, erro
 			Def:     defs,
 		}, nil
 	default:
-		return &nodes.AlterTableCmd{}, nil
+		// exhaustive-gap fix: unknown keyword after ALTER [COLUMN] name SET.
+		// Previously returned a zero-value AlterTableCmd (AT_AddColumn ghost).
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1454,7 +1481,7 @@ func (p *Parser) parseAlterTableCluster() *nodes.AlterTableCmd {
 }
 
 // parseAlterTableSet handles SET ... subcommands at the table level.
-func (p *Parser) parseAlterTableSet() *nodes.AlterTableCmd {
+func (p *Parser) parseAlterTableSet() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume SET
 
 	switch p.cur.Type {
@@ -1463,19 +1490,20 @@ func (p *Parser) parseAlterTableSet() *nodes.AlterTableCmd {
 		switch p.cur.Type {
 		case CLUSTER:
 			p.advance()
-			return &nodes.AlterTableCmd{Subtype: int(nodes.AT_DropCluster)}
+			return &nodes.AlterTableCmd{Subtype: int(nodes.AT_DropCluster)}, nil
 		case OIDS:
 			p.advance()
-			return &nodes.AlterTableCmd{Subtype: int(nodes.AT_DropOids)}
+			return &nodes.AlterTableCmd{Subtype: int(nodes.AT_DropOids)}, nil
 		default:
-			return &nodes.AlterTableCmd{}
+			// exhaustive-gap fix: SET WITHOUT <unknown>. Only CLUSTER / OIDS legal.
+			return nil, p.syntaxErrorAtCur()
 		}
 	case LOGGED:
 		p.advance()
-		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_SetLogged)}
+		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_SetLogged)}, nil
 	case UNLOGGED:
 		p.advance()
-		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_SetUnLogged)}
+		return &nodes.AlterTableCmd{Subtype: int(nodes.AT_SetUnLogged)}, nil
 	case ACCESS:
 		p.advance() // consume ACCESS
 		p.expect(METHOD)
@@ -1484,36 +1512,38 @@ func (p *Parser) parseAlterTableSet() *nodes.AlterTableCmd {
 			return &nodes.AlterTableCmd{
 				Subtype: int(nodes.AT_SetAccessMethod),
 				Name:    "",
-			}
+			}, nil
 		}
 		name, _ := p.parseName()
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetAccessMethod),
 			Name:    name,
-		}
+		}, nil
 	case '(':
 		// SET reloptions (starts with '(' because reloptions = '(' reloption_list ')')
 		opts := p.parseReloptions()
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetRelOptions),
 			Def:     opts,
-		}
+		}, nil
 	case WITH:
 		p.advance() // consume WITH
 		if p.cur.Type == OIDS {
 			p.advance()
-			return &nodes.AlterTableCmd{Subtype: int(nodes.AT_DropOids)}
+			return &nodes.AlterTableCmd{Subtype: int(nodes.AT_DropOids)}, nil
 		}
-		return &nodes.AlterTableCmd{}
+		// exhaustive-gap fix: SET WITH <unknown>. Only OIDS legal.
+		return nil, p.syntaxErrorAtCur()
 	case TABLESPACE:
 		p.advance()
 		name, _ := p.parseName()
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_SetTableSpace),
 			Name:    name,
-		}
+		}, nil
 	default:
-		return &nodes.AlterTableCmd{}
+		// exhaustive-gap fix: SET <unknown>. No legal SET alternative matched.
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1720,6 +1750,7 @@ func (p *Parser) parseAlterIdentityColumnOption() (nodes.Node, error) {
 		}
 		// SET SeqOptElem
 		return p.parseOneSeqOptElem()
+	// optional-probe: alter_identity_column_option list — list caller breaks on nil after first match
 	default:
 		return nil, nil
 	}
@@ -1803,5 +1834,7 @@ func (p *Parser) parseOneSeqOptElem() (*nodes.DefElem, error) {
 			return de, nil
 		}
 	}
-	return &nodes.DefElem{Loc: nodes.NoLoc()}, nil
+	// exhaustive-gap fix: no SeqOptElem matched. Previously returned an empty
+	// DefElem which downstream treated as an un-named sequence option.
+	return nil, p.syntaxErrorAtCur()
 }

@@ -103,8 +103,11 @@ func (p *Parser) parseAlterExtensionStmt() (nodes.Node, error) {
 			Object:     &nodes.String{Str: name},
 			Newschema:  newschema,
 		}, nil
+	// exhaustive: gram.y:5166 — AlterExtensionStmt enumerates UPDATE / ADD /
+	// DROP / SET SCHEMA only. Unknown action after `ALTER EXTENSION name`
+	// is a syntax error.
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 

@@ -184,6 +184,7 @@ func (p *Parser) parseSimpleSelectLeaf() (*nodes.SelectStmt, error) {
 		return p.parseValuesClause()
 	case TABLE:
 		return p.parseTableCmd()
+	// exhaustive: gram.y:12790 — caller handles nil via outer error
 	default:
 		return nil, nil
 	}
@@ -1369,6 +1370,15 @@ func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		// PAREN-KB-3: parseSelectWithParens can return nil *SelectStmt
+		// when the content isn't a valid select_no_parens (e.g. empty
+		// `LATERAL ()`). The non-LATERAL path handles this via
+		// parseJoinedTable's JoinExpr assertion, but LATERAL has no
+		// equivalent downstream guard — we must reject here. PG 17
+		// rejects `LATERAL ()` with 42601 at the closing `)`.
+		if !p.collectMode() && stmt == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		alias := p.parseOptAliasClause()
 		return &nodes.RangeSubselect{
 			Lateral:  true,
@@ -2071,6 +2081,7 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 			Loc:       nodes.Loc{Start: nodes.NodeLoc(left).Start, End: p.prev.End},
 		}, nil
 
+	// optional-probe: join loop terminator — parseTableRef breaks on nil
 	default:
 		return nil, nil
 	}
@@ -2088,8 +2099,21 @@ func (p *Parser) parseOptOuter() {
 //	join_qual:
 //	    USING '(' name_list ')' join_using_alias
 //	    | ON a_expr
+//
+// Only CROSS JOIN and NATURAL {INNER|LEFT|RIGHT|FULL} JOIN elide
+// join_qual (gram.y:13559-13608). Every other join type (plain JOIN,
+// INNER JOIN, LEFT/RIGHT/FULL [OUTER] JOIN) requires join_qual; this
+// function is only invoked from those call sites in tryParseJoin, so
+// USING or ON is mandatory here and anything else is a syntax error.
+// PAREN-KB-1 tracked the pre-fix leniency: `(T JOIN U)` silently
+// parsed as JoinExpr with nil qual.
 func (p *Parser) parseJoinQual(j *nodes.JoinExpr) error {
-	if p.cur.Type == USING {
+	if p.collectMode() {
+		p.addTokenCandidate(USING)
+		p.addTokenCandidate(ON)
+	}
+	switch p.cur.Type {
+	case USING:
 		p.advance()
 		if _, err := p.expect('('); err != nil {
 			return err
@@ -2117,15 +2141,18 @@ func (p *Parser) parseJoinQual(j *nodes.JoinExpr) error {
 			}
 			j.JoinUsing = &nodes.Alias{Aliasname: aliasName, Loc: nodes.Loc{Start: aliasLoc, End: p.prev.End}}
 		}
-	} else if p.cur.Type == ON {
+		return nil
+	case ON:
 		p.advance()
 		var err error
 		j.Quals, err = p.parseAExpr(0)
-		if err != nil {
-			return err
+		return err
+	default:
+		if p.collectMode() {
+			return nil
 		}
+		return p.syntaxErrorAtCur()
 	}
-	return nil
 }
 
 // ---------------------------------------------------------------------------

@@ -193,11 +193,11 @@ func (p *Parser) parseAlterDatabaseDispatch(stmtLoc int) (nodes.Node, error) {
 			}, nil
 		}
 		// ALTER DATABASE name SET variable = value (SetResetClause)
-		return p.parseAlterDatabaseSetStmt(name, stmtLoc), nil
+		return p.parseAlterDatabaseSetStmt(name, stmtLoc)
 
 	case RESET:
 		// ALTER DATABASE name RESET ... (SetResetClause)
-		return p.parseAlterDatabaseSetStmt(name, stmtLoc), nil
+		return p.parseAlterDatabaseSetStmt(name, stmtLoc)
 
 	case WITH:
 		// ALTER DATABASE name WITH createdb_opt_list
@@ -245,13 +245,16 @@ func (p *Parser) parseAlterDatabaseDispatch(stmtLoc int) (nodes.Node, error) {
 
 // parseAlterDatabaseSetStmt parses ALTER DATABASE name SET/RESET ... .
 // The name has already been parsed. Current token is SET or RESET.
-func (p *Parser) parseAlterDatabaseSetStmt(dbname string, stmtLoc int) nodes.Node {
-	setstmt := p.parseSetResetClause()
+func (p *Parser) parseAlterDatabaseSetStmt(dbname string, stmtLoc int) (nodes.Node, error) {
+	setstmt, err := p.parseSetResetClause()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterDatabaseSetStmt{
 		Dbname:  dbname,
 		Setstmt: setstmt,
 		Loc:     nodes.Loc{Start: stmtLoc, End: p.prev.End},
-	}
+	}, nil
 }
 
 // parseSetResetClause parses SetResetClause.
@@ -259,22 +262,29 @@ func (p *Parser) parseAlterDatabaseSetStmt(dbname string, stmtLoc int) nodes.Nod
 //	SetResetClause:
 //	    SET set_rest
 //	    | VariableResetStmt
-func (p *Parser) parseSetResetClause() *nodes.VariableSetStmt {
+func (p *Parser) parseSetResetClause() (*nodes.VariableSetStmt, error) {
 	if p.cur.Type == SET {
 		p.advance() // consume SET
-		result, _ := p.parseSetRest()
-		if vs, ok := result.(*nodes.VariableSetStmt); ok {
-			return vs
+		// shape-III-partial fix: error from parseSetRest was previously discarded,
+		// producing AlterDatabaseSetStmt with nil Setstmt.
+		result, err := p.parseSetRest()
+		if err != nil {
+			return nil, err
 		}
-		return nil
+		if vs, ok := result.(*nodes.VariableSetStmt); ok {
+			return vs, nil
+		}
+		return nil, p.syntaxErrorAtCur()
 	}
 	// RESET
 	p.advance() // consume RESET
 	result := p.parseResetRest()
 	if vs, ok := result.(*nodes.VariableSetStmt); ok {
-		return vs
+		return vs, nil
 	}
-	return nil
+	// shape-III-partial fix: parseResetRest returned something not a VariableSetStmt
+	// (e.g. nil). Previously swallowed — emit a syntax error instead.
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseResetRest parses the rest of a RESET statement (after RESET keyword).
@@ -315,6 +325,11 @@ func (p *Parser) parseResetRest() nodes.Node {
 		}
 	default:
 		name := p.parseVarName()
+		if name == "" {
+			// shape-III-partial fix: invalid/empty var_name after RESET was
+			// previously accepted as an un-named VariableSetStmt.
+			return nil
+		}
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_RESET,
 			Name: name,

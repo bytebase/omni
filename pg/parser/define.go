@@ -610,8 +610,12 @@ func (p *Parser) parseOpclassItem() (nodes.Node, error) {
 			Storedtype: storedtype,
 			Loc:        nodes.Loc{Start: itemLoc, End: p.prev.End},
 		}, nil
+	// exhaustive: gram.y:6579 — opclass_item enumerates OPERATOR /
+	// FUNCTION / STORAGE only. Unknown item kind in a CREATE OPERATOR
+	// CLASS body must raise here so callers don't append nil into the
+	// item list.
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -720,8 +724,11 @@ func (p *Parser) parseOpclassDrop() (nodes.Node, error) {
 		itemtype = nodes.OPCLASS_ITEM_OPERATOR
 	case FUNCTION:
 		itemtype = nodes.OPCLASS_ITEM_FUNCTION
+	// exhaustive: gram.y:6703 — opclass_drop enumerates OPERATOR and
+	// FUNCTION only. Unknown item kind in ALTER OPERATOR FAMILY ... DROP
+	// must raise so callers don't append nil into the drop-item list.
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
 	number := int(p.cur.Ival)
@@ -1405,6 +1412,7 @@ func (p *Parser) parseAlterOperatorStmt(stmtLoc int) (nodes.Node, error) {
 			Object:     owa,
 			Newowner:   roleSpec,
 		}, nil
+	// exhaustive: gram.y:10233 — caller handles nil via outer error
 	default:
 		return nil, nil
 	}

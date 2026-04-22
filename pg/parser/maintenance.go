@@ -181,7 +181,9 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 		if p.isColId() {
 			names, err := p.parseQualifiedName()
 			if err != nil {
-				return &nodes.ClusterStmt{Params: params, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
+				// shape-III-partial fix: propagate the error instead of silently
+				// returning a ClusterStmt with nil Relation.
+				return nil, err
 			}
 			rv := makeRangeVarFromNames(names)
 			idxName := p.parseClusterIndexSpecification()
@@ -221,11 +223,9 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 
 	names, err := p.parseQualifiedName()
 	if err != nil {
-		n := &nodes.ClusterStmt{Loc: nodes.Loc{Start: loc, End: p.prev.End}}
-		if verbose {
-			n.Params = &nodes.List{Items: []nodes.Node{makeDefElem("verbose", nil)}}
-		}
-		return n, nil
+		// shape-III-partial fix: propagate the error instead of silently
+		// returning a ClusterStmt with nil Relation.
+		return nil, err
 	}
 
 	if p.cur.Type == ON {

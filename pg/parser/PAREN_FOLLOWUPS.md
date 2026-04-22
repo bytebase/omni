@@ -8,9 +8,9 @@ The following are post-merge items surfaced by Codex review at each phase. None 
 
 Discovered by Phase 2/3 oracle + fuzz. See `PAREN_KNOWN_BUGS.md` for full entries.
 
-- **PAREN-KB-1** — `(T JOIN U)` accepted without ON/USING. Fix in `parseJoinedTable` / `parseJoinQual`. Pinned by §2.7 `t.Skip` + fuzz known-mismatches.
-- **PAREN-KB-2** — `Parse` returns only first RawStmt for multi-statement input like `SELECT * FROM (SELECT 1) SELECT 1`. Fix in `parser.go:Parse`. Top-level statement-list issue, out of `parenBeginsSubquery` scope.
-- **PAREN-KB-3** — `LATERAL ()` accepted with empty body; PG rejects. Fix in `parseSelectWithParens` nil-body check. Pinned by §3.2 `t.Skip`.
+- **PAREN-KB-1** — ~~`(T JOIN U)` accepted without ON/USING~~ **CLOSED 2026-04-22** (commit a593131) via `parseJoinQual` strictness fix. Unskipped §2.7 oracle test; fuzz known-mismatches allowlist now empty.
+- **PAREN-KB-3** — ~~`LATERAL ()` accepted with empty body~~ **CLOSED 2026-04-22** (commit 3eed1fe) via `parseLateralTableRef` nil-body guard. Unskipped §3.2 oracle test.
+- **PAREN-KB-2** — ~~`Parse` accepts multi-statement input without `;` separator~~ **CLOSED 2026-04-22** via 4 upstream-blocker fixes (KB-2a/b/c/d) + parser.go:Parse needSeparator check reland. See PAREN_KNOWN_BUGS.md for the full commit chain.
 
 ## CI hardening follow-ups
 

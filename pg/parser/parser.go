@@ -40,11 +40,15 @@ func Parse(sql string) (*nodes.List, error) {
 	p.advance()
 
 	var stmts []nodes.Node
+	needSeparator := false
 	for p.cur.Type != 0 {
-		// Skip semicolons
 		if p.cur.Type == ';' {
 			p.advance()
+			needSeparator = false
 			continue
+		}
+		if needSeparator {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if p.lexer.Err != nil {
 			return nil, p.lexerError()
@@ -69,6 +73,7 @@ func Parse(sql string) (*nodes.List, error) {
 			Loc:  nodes.Loc{Start: stmtStart, End: p.prev.End},
 		}
 		stmts = append(stmts, raw)
+		needSeparator = true
 	}
 
 	if len(stmts) == 0 {
@@ -330,6 +335,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case REASSIGN:
 		p.advance() // consume REASSIGN
 		return p.parseReassignOwnedStmt()
+	// exhaustive: gram.y:11370 stmt — Parse raises syntaxErrorAtCur for unknown stmt keyword
 	default:
 		return nil, nil
 	}
@@ -607,6 +613,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// CREATE SCHEMA ...
 		p.advance() // consume CREATE
 		return p.parseCreateSchemaStmt(createLoc)
+	// exhaustive: gram.y:6780 CreateStmt-family — unknown post-CREATE keyword bubbles to Parse error
 	default:
 		return nil, nil
 	}

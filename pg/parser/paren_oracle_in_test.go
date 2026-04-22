@@ -158,6 +158,32 @@ func TestParenOracleIn(t *testing.T) {
 		expected: OmniOther,
 	})
 
+	// --- Scenarios 14-15: close §3.1 coverage debt.
+	// parseInExpr is caller-context agnostic; these two probes exist as
+	// pure parity confirmations so a future change that breaks IN in
+	// either a CHECK constraint or a nested scalar subquery's WHERE
+	// lights up here.
+	cases = append(cases,
+		// CHECK constraint: the statement is a CREATE TABLE, not a
+		// SelectStmt, so classifyOmni's non-SELECT branch returns
+		// OmniOther. The probe value is oracle-accept parity on the IN
+		// shape inside a DDL context.
+		probe{
+			name:     "IN in CHECK constraint",
+			sql:      `CREATE TABLE t_check (x int CHECK (x IN (1, 2, 3)))`,
+			expected: OmniOther,
+		},
+		// IN inside a nested scalar subquery's WHERE: outer FROM is a
+		// bare RangeVar (U) → OmniOther. Value is "IN (SELECT ...) still
+		// parses when buried inside another subquery's WHERE". Columns
+		// U.x and V.a exist in the §2.1 harness fixture.
+		probe{
+			name:     "IN inside scalar subquery WHERE",
+			sql:      `SELECT (SELECT 1 WHERE U.x IN (SELECT a FROM V)) FROM U`,
+			expected: OmniOther,
+		},
+	)
+
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {

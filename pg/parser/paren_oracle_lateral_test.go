@@ -305,16 +305,11 @@ func TestParenOracleLateral(t *testing.T) {
 				sql:  `SELECT * FROM T, LATERAL U`,
 			},
 			{
-				// LATERAL with empty parens — select_with_parens needs a
-				// select_no_parens body; empty is not one. Omni currently
-				// accepts this shape (returns a RangeSubselect with a
-				// nil subquery), so PG rejects but omni doesn't — a real
-				// accept/reject divergence. Tracked as PAREN-KB-3; kept
-				// pinned here with t.Skip so future work fixing the
-				// omni bug can drop the skip and the probe auto-fires.
+				// PAREN-KB-3 closed: parseLateralTableRef now rejects when
+				// parseSelectWithParens returns a nil *SelectStmt (empty
+				// body case). Matches PG 17's 42601 at the closing `)`.
 				name: "LATERAL empty parens",
 				sql:  `SELECT * FROM T, LATERAL ()`,
-				skip: "PAREN-KB-3: omni accepts `LATERAL ()`; see pg/parser/PAREN_KNOWN_BUGS.md",
 			},
 		}
 

@@ -295,20 +295,39 @@ func (p *Parser) parseAlterEventTrigStmt() (*nodes.AlterEventTrigStmt, error) {
 		return nil, err
 	}
 	trigname, _ := p.parseName()
-	tgenabled := p.parseEnableTrigger()
+	tgenabled, err := p.parseEnableTrigger()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.AlterEventTrigStmt{Trigname: trigname, Tgenabled: byte(tgenabled)}, nil
 }
 
-func (p *Parser) parseEnableTrigger() int64 {
+// parseEnableTrigger parses the enable_trigger production:
+//
+//	ENABLE_P                 -> TRIGGER_FIRES_ON_ORIGIN
+//	ENABLE_P REPLICA         -> TRIGGER_FIRES_ON_REPLICA
+//	ENABLE_P ALWAYS          -> TRIGGER_FIRES_ALWAYS
+//	DISABLE_P                -> TRIGGER_DISABLED
+//
+// Anything else is a syntax error; previously the fallthrough silently
+// returned TRIGGER_FIRES_ON_ORIGIN for unknown keywords (shape-III-partial).
+func (p *Parser) parseEnableTrigger() (int64, error) {
 	switch p.cur.Type {
 	case ENABLE_P:
 		p.advance()
 		switch p.cur.Type {
-		case REPLICA: p.advance(); return int64(nodes.TRIGGER_FIRES_ON_REPLICA)
-		case ALWAYS: p.advance(); return int64(nodes.TRIGGER_FIRES_ALWAYS)
-		default: return int64(nodes.TRIGGER_FIRES_ON_ORIGIN)
+		case REPLICA:
+			p.advance()
+			return int64(nodes.TRIGGER_FIRES_ON_REPLICA), nil
+		case ALWAYS:
+			p.advance()
+			return int64(nodes.TRIGGER_FIRES_ALWAYS), nil
+		default:
+			return int64(nodes.TRIGGER_FIRES_ON_ORIGIN), nil
 		}
-	case DISABLE_P: p.advance(); return int64(nodes.TRIGGER_DISABLED)
+	case DISABLE_P:
+		p.advance()
+		return int64(nodes.TRIGGER_DISABLED), nil
 	}
-	return int64(nodes.TRIGGER_FIRES_ON_ORIGIN)
+	return 0, p.syntaxErrorAtCur()
 }

@@ -46,6 +46,7 @@ publication.go	parseRuleActionMulti
 schema.go	parseAggregateWithArgtypesForComment
 schema.go	parseFunctionWithArgtypesForComment
 schema.go	parseOperatorWithArgtypesForComment
+schema.go	parseSchemaStmtCreateOptTemp
 select.go	parseFuncAliasClause
 select.go	parseOptAliasClause
 select.go	parseRelationOrFuncTable

@@ -84,43 +84,201 @@ func (p *Parser) parseOptSchemaEltList() (*nodes.List, error) {
 }
 
 // parseSchemaStmt parses a schema_stmt (a statement allowed inside CREATE SCHEMA).
+//
+// Ref: gram.y schema_stmt:
+//
+//	CreateStmt | CreateSeqStmt | CreateTrigStmt | GrantStmt | ViewStmt | CreateIndexStmt
+//
+// Each of CreateStmt / CreateSeqStmt / ViewStmt accepts OptTemp before its
+// lead keyword (TABLE / SEQUENCE / VIEW), and ViewStmt / CreateTrigStmt accept
+// CREATE OR REPLACE.
+//
+// PG's schema_element list is whitespace-separated — each element is a complete
+// sub-statement and the list terminates when the next token is not a valid
+// schema_stmt lead keyword. Returns (nil, nil) to signal end-of-list.
 func (p *Parser) parseSchemaStmt() (nodes.Node, error) {
-	if p.cur.Type != CREATE {
-		return nil, nil
-	}
-	next := p.peekNext()
-	switch next.Type {
-	case TABLE:
-		return p.parseCreateOrCTAS()
-	case INDEX, UNIQUE:
-		loc := p.pos()
-		p.advance() // consume CREATE
-		stmt, err := p.parseIndexStmt()
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
-		return stmt, err
-	case SEQUENCE:
-		loc := p.pos()
-		p.advance() // consume CREATE
-		return p.parseCreateSeqStmt(loc, byte(nodes.RELPERSISTENCE_PERMANENT))
-	case VIEW:
-		loc := p.pos()
-		p.advance() // consume CREATE
-		stmt, err := p.parseViewStmt(false)
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
-		return stmt, err
-	case OR:
-		loc := p.pos()
-		p.advance() // consume CREATE
-		p.advance() // consume OR
-		if _, err := p.expect(REPLACE); err != nil {
-			return nil, err
+	switch p.cur.Type {
+	case CREATE:
+		next := p.peekNext()
+		switch next.Type {
+		case TABLE:
+			return p.parseCreateOrCTAS()
+		case INDEX, UNIQUE:
+			loc := p.pos()
+			p.advance() // consume CREATE
+			stmt, err := p.parseIndexStmt()
+			if stmt != nil {
+				stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			}
+			return stmt, err
+		case SEQUENCE:
+			loc := p.pos()
+			p.advance() // consume CREATE
+			return p.parseCreateSeqStmt(loc, byte(nodes.RELPERSISTENCE_PERMANENT))
+		case VIEW:
+			loc := p.pos()
+			p.advance() // consume CREATE
+			stmt, err := p.parseViewStmt(false)
+			if stmt != nil {
+				stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			}
+			return stmt, err
+		case RECURSIVE:
+			// CREATE RECURSIVE VIEW ... (permanent persistence)
+			loc := p.pos()
+			p.advance() // consume CREATE
+			stmt, err := p.parseViewStmt(false)
+			if stmt != nil {
+				stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			}
+			return stmt, err
+		case TEMP, TEMPORARY, LOCAL, GLOBAL, UNLOGGED:
+			// OptTemp variants: applies to CreateStmt (TABLE), CreateSeqStmt
+			// (SEQUENCE), ViewStmt (VIEW / RECURSIVE VIEW).
+			return p.parseSchemaStmtCreateOptTemp(false)
+		case TRIGGER, CONSTRAINT:
+			loc := p.pos()
+			p.advance() // consume CREATE
+			stmt, err := p.parseCreateTrigStmt(false)
+			if stmt != nil {
+				stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			}
+			return stmt, err
+		case OR:
+			loc := p.pos()
+			p.advance() // consume CREATE
+			p.advance() // consume OR
+			if _, err := p.expect(REPLACE); err != nil {
+				return nil, err
+			}
+			// CREATE OR REPLACE inside a schema_element covers ViewStmt and
+			// CreateTrigStmt (the two schema_stmts that allow OR REPLACE).
+			switch p.cur.Type {
+			case TRIGGER, CONSTRAINT:
+				stmt, err := p.parseCreateTrigStmt(true)
+				if stmt != nil {
+					stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+				}
+				return stmt, err
+			case TEMP, TEMPORARY, LOCAL, GLOBAL, UNLOGGED:
+				// CREATE OR REPLACE OptTemp [RECURSIVE] VIEW ...
+				stmt, err := p.parseViewStmtWithOptTemp(true)
+				if stmt != nil {
+					stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+				}
+				return stmt, err
+			default:
+				// CREATE OR REPLACE [RECURSIVE] VIEW ...
+				stmt, err := p.parseViewStmt(true)
+				if stmt != nil {
+					stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+				}
+				return stmt, err
+			}
+		// exhaustive: gram.y:1598 schema_stmt CREATE sub-kind — caller handles nil via outer error (post-KB-2c)
+		default:
+			return nil, nil
 		}
-		stmt, err := p.parseViewStmt(true)
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
-		return stmt, err
+	case GRANT:
+		p.advance() // consume GRANT
+		return p.parseGrantStmt()
+	// optional-probe: schema_element loop terminator — parseOptSchemaEltList breaks on nil
 	default:
 		return nil, nil
 	}
+}
+
+// parseSchemaStmtCreateOptTemp handles the CREATE OptTemp ... arm of a
+// schema_stmt: CreateStmt (TABLE), CreateSeqStmt (SEQUENCE), ViewStmt
+// ([RECURSIVE] VIEW). The CREATE token has NOT been consumed yet and the
+// peek at the next token has already matched an OptTemp lead keyword.
+//
+// If orReplaceConsumed is true the caller has already consumed CREATE OR
+// REPLACE — but that path is unreachable here because OR sits in the parent
+// OR arm; this flag is kept for symmetry with parseViewStmtWithOptTemp.
+func (p *Parser) parseSchemaStmtCreateOptTemp(orReplaceConsumed bool) (nodes.Node, error) {
+	loc := p.pos()
+	if !orReplaceConsumed {
+		p.advance() // consume CREATE
+	}
+	relpersistence := p.parseOptTemp()
+
+	switch p.cur.Type {
+	case VIEW, RECURSIVE:
+		stmt, err := p.parseViewStmt(false)
+		if err != nil {
+			return nil, err
+		}
+		if stmt != nil {
+			stmt.View.Relpersistence = relpersistence
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
+		return stmt, nil
+	case SEQUENCE:
+		return p.parseCreateSeqStmt(loc, relpersistence)
+	case TABLE:
+		// CREATE OptTemp TABLE ... / CREATE OptTemp TABLE IF NOT EXISTS ...
+		p.advance() // consume TABLE
+		ifNotExists := false
+		if p.cur.Type == IF_P {
+			p.advance()
+			if _, err := p.expect(NOT); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(EXISTS); err != nil {
+				return nil, err
+			}
+			ifNotExists = true
+		}
+		names, err := p.parseQualifiedName()
+		if err != nil {
+			return nil, err
+		}
+		if p.cur.Type == '(' {
+			node, err := p.parseCreateTableOrCTASAfterParen(names, relpersistence, ifNotExists)
+			if err != nil {
+				return node, err
+			}
+			if node != nil {
+				switch n := node.(type) {
+				case *nodes.CreateStmt:
+					n.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+				case *nodes.CreateTableAsStmt:
+					n.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+				}
+			}
+			return node, nil
+		}
+		if p.cur.Type == AS || p.cur.Type == USING {
+			stmt, err := p.finishCTAS(names, nil, relpersistence, ifNotExists)
+			if stmt != nil {
+				stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+			}
+			return stmt, err
+		}
+		stmt, err := p.finishCreateStmt(names, relpersistence, ifNotExists)
+		if stmt != nil {
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
+		return stmt, err
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+}
+
+// parseViewStmtWithOptTemp handles CREATE OR REPLACE OptTemp [RECURSIVE] VIEW
+// inside a schema_element. CREATE and OR REPLACE have already been consumed
+// by the caller; the current token is the OptTemp lead keyword.
+func (p *Parser) parseViewStmtWithOptTemp(replace bool) (*nodes.ViewStmt, error) {
+	relpersistence := p.parseOptTemp()
+	stmt, err := p.parseViewStmt(replace)
+	if err != nil {
+		return nil, err
+	}
+	if stmt != nil {
+		stmt.View.Relpersistence = relpersistence
+	}
+	return stmt, nil
 }
 
 // parseCreateTableSpaceStmt parses a CREATE TABLESPACE statement.
