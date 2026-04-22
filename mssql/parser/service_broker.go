@@ -627,7 +627,7 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 		if p.cur.Type == kwSERVICE {
 			p.advance()
 		}
-		if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
 			opts = append(opts, &nodes.ServiceBrokerOption{Name: "FROM SERVICE", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		}
@@ -640,14 +640,14 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 		if p.cur.Type == kwSERVICE {
 			p.advance()
 		}
-		if p.cur.Type == tokSCONST || p.isAnyKeywordIdent() {
+		if p.cur.Type == tokSCONST || p.isIdentLike() {
 			opts = append(opts, &nodes.ServiceBrokerOption{Name: "TO SERVICE", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		}
 		// optional broker guid
 		if _, ok := p.match(','); ok {
 			biLoc := p.pos()
-			if p.cur.Type == tokSCONST || p.isAnyKeywordIdent() {
+			if p.cur.Type == tokSCONST || p.isIdentLike() {
 				opts = append(opts, &nodes.ServiceBrokerOption{Name: "BROKER_INSTANCE", Value: p.cur.Str, Loc: nodes.Loc{Start: biLoc, End: p.prevEnd()}})
 				p.advance()
 			}
@@ -661,7 +661,7 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 		if p.cur.Type == kwCONTRACT {
 			p.advance()
 		}
-		if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
 			opts = append(opts, &nodes.ServiceBrokerOption{Name: "ON CONTRACT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 			p.advance()
 		}
@@ -677,7 +677,7 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 				if p.cur.Type == '=' {
 					p.advance()
 				}
-				if p.cur.Type == tokVARIABLE || p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+				if p.cur.Type == tokVARIABLE || p.isIdentLike() || p.cur.Type == tokSCONST {
 					opts = append(opts, &nodes.ServiceBrokerOption{Name: "RELATED_CONVERSATION_GROUP", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 					p.advance()
 				}
@@ -686,7 +686,7 @@ func (p *Parser) parseBeginConversationStmt() (*nodes.ServiceBrokerStmt, error) 
 				if p.cur.Type == '=' {
 					p.advance()
 				}
-				if p.cur.Type == tokVARIABLE || p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+				if p.cur.Type == tokVARIABLE || p.isIdentLike() || p.cur.Type == tokSCONST {
 					opts = append(opts, &nodes.ServiceBrokerOption{Name: "RELATED_CONVERSATION", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 					p.advance()
 				}
@@ -1309,7 +1309,7 @@ func (p *Parser) parseAlterServiceStmt() (*nodes.ServiceBrokerStmt, error) {
 				if p.cur.Type == kwCONTRACT {
 					p.advance()
 				}
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST {
 					opts = append(opts, &nodes.ServiceBrokerOption{Name: "ADD CONTRACT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 					p.advance()
 				}

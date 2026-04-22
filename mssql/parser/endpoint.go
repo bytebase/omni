@@ -159,7 +159,7 @@ func (p *Parser) parseEndpointOptions() *nodes.List {
 		case p.cur.Type == kwAUTHORIZATION:
 			optLoc := p.pos()
 			p.advance()
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				opts = append(opts, &nodes.EndpointOption{Name: "AUTHORIZATION", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
