@@ -10,7 +10,7 @@ Discovered by Phase 2/3 oracle + fuzz. See `PAREN_KNOWN_BUGS.md` for full entrie
 
 - **PAREN-KB-1** — ~~`(T JOIN U)` accepted without ON/USING~~ **CLOSED 2026-04-22** (commit a593131) via `parseJoinQual` strictness fix. Unskipped §2.7 oracle test; fuzz known-mismatches allowlist now empty.
 - **PAREN-KB-3** — ~~`LATERAL ()` accepted with empty body~~ **CLOSED 2026-04-22** (commit 3eed1fe) via `parseLateralTableRef` nil-body guard. Unskipped §3.2 oracle test.
-- **PAREN-KB-2** — `Parse` accepts multi-statement input without `;` separator (`SELECT * FROM (SELECT 1) SELECT 1`). Fix in `parser.go:Parse` is known (~5 lines, `needSeparator` flag) but **blocked** by 13 upstream omni parser gaps (CREATE RULE with NOTIFY action, SET trailing transaction/savepoint body, chained CREATE DDL) that are currently masked by the lenient behavior. See PAREN_KNOWN_BUGS.md KB-2 for the blocker list and recommended path.
+- **PAREN-KB-2** — ~~`Parse` accepts multi-statement input without `;` separator~~ **CLOSED 2026-04-22** via 4 upstream-blocker fixes (KB-2a/b/c/d) + parser.go:Parse needSeparator check reland. See PAREN_KNOWN_BUGS.md for the full commit chain.
 
 ## CI hardening follow-ups
 

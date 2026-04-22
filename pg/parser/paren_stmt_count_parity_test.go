@@ -132,11 +132,9 @@ func TestStmtCountParityBasic(t *testing.T) {
 		{";SELECT 1;", 1},
 		{"SELECT 1;SELECT 2", 2},
 		{";;SELECT 1;;SELECT 2;;", 2},
-		// PAREN-KB-2 case: omni currently returns 2 but naive-split
-		// returns 1 (the `SELECT 1 SELECT 2` has no ';'). This test
-		// DOCUMENTS the bug, not fails on it — omni's silent split
-		// is tracked as KB-2.
-		// {"SELECT * FROM (SELECT 1) SELECT 1", 2},  // skipped; KB-2 tracking
+		// PAREN-KB-2 closed: omni now rejects `SELECT * FROM (SELECT 1) SELECT 1`
+		// at the trailing SELECT (42601) instead of returning 2 RawStmts.
+		// The case is exercised via TestParenStmtCountParityKB2Closed below.
 	}
 	for _, tc := range cases {
 		t.Run(tc.sql, func(t *testing.T) {
@@ -164,13 +162,28 @@ func TestParenStmtCountParityCorpus(t *testing.T) {
 		`SELECT * FROM (SELECT 1)`,
 		`SELECT * FROM ((a JOIN b ON TRUE) JOIN c ON TRUE)`,
 		`SELECT 1;`,
-		// KB-2 case — omni returns 2, naive returns 1; currently a
-		// known divergence. Skipped until KB-2 is fixed.
-		// `SELECT * FROM (SELECT 1) SELECT 1`,
 	}
 	for _, sql := range corpus {
 		t.Run(sql, func(t *testing.T) {
 			assertParenStmtCountParity(t, sql)
+		})
+	}
+}
+
+// TestParenStmtCountParityKB2Closed pins the KB-2 closure: omni must
+// reject (not silently double-parse) statements that lack a `;`
+// separator between top-level SQL statements.
+func TestParenStmtCountParityKB2Closed(t *testing.T) {
+	cases := []string{
+		`SELECT * FROM (SELECT 1) SELECT 1`,
+		`SELECT 1 SELECT 2`,
+		`SELECT 1\nSELECT 2`,
+	}
+	for _, sql := range cases {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): expected syntax error (KB-2 reland), got nil", sql)
+			}
 		})
 	}
 }
