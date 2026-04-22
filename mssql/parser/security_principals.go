@@ -9,6 +9,13 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// principalFromSources matches the set of FROM source types accepted by
+// CREATE LOGIN / CREATE USER: {WINDOWS | CERTIFICATE | ASYMMETRIC [KEY] |
+// EXTERNAL PROVIDER | LOGIN}.
+var principalFromSources = newOptionSet().withIdents(
+	"WINDOWS", "CERTIFICATE", "ASYMMETRIC", "EXTERNAL", "LOGIN",
+)
+
 // parseSecurityUserStmt parses CREATE/ALTER/DROP USER.
 //
 // BNF: mssql/parser/bnf/create-user-transact-sql.bnf
@@ -230,7 +237,8 @@ func (p *Parser) parseSecurityLoginStmt(action string) (*nodes.SecurityStmt, err
 	} else if p.cur.Type == kwFROM {
 		optLoc := p.pos()
 		p.advance() // consume FROM
-		if p.isAnyKeywordIdent() {
+		// CREATE LOGIN / USER FROM source-type dispatch.
+		if p.isValidOption(principalFromSources) {
 			src := strings.ToUpper(p.cur.Str)
 			switch src {
 			case "WINDOWS":
