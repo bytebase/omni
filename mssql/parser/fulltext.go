@@ -64,7 +64,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 		p.advance()
 		var cols []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				col := p.cur.Str
 				p.advance()
 				// TYPE COLUMN type_col_name
@@ -73,7 +73,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 					if p.cur.Type == kwCOLUMN {
 						p.advance()
 					}
-					if p.isAnyKeywordIdent() {
+					if p.isIdentLike() {
 						p.advance()
 					}
 				}
@@ -122,7 +122,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 			p.advance()
 			if p.cur.Type == kwFILEGROUP {
 				p.advance()
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					p.advance() // filegroup name (not captured in AST)
 				}
 				if _, ok := p.match(','); ok {
@@ -137,7 +137,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 				if _, ok := p.match(','); ok {
 					if p.cur.Type == kwFILEGROUP {
 						p.advance()
-						if p.isAnyKeywordIdent() {
+						if p.isIdentLike() {
 							p.advance() // filegroup name
 						}
 					}
@@ -260,7 +260,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 			} else if p.cur.Type == kwSYSTEM {
 				opts = append(opts, &nodes.String{Str: "STOPLIST=SYSTEM"})
 				p.advance()
-			} else if p.isAnyKeywordIdent() {
+			} else if p.isIdentLike() {
 				opts = append(opts, &nodes.String{Str: "STOPLIST=" + p.cur.Str})
 				p.advance()
 			}
@@ -282,7 +282,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 			if p.cur.Type == kwOFF {
 				opts = append(opts, &nodes.String{Str: "SEARCH_PROPERTY_LIST=OFF"})
 				p.advance()
-			} else if p.isAnyKeywordIdent() {
+			} else if p.isIdentLike() {
 				opts = append(opts, &nodes.String{Str: "SEARCH_PROPERTY_LIST=" + p.cur.Str})
 				p.advance()
 			}
@@ -300,7 +300,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 			p.advance()
 			var cols []nodes.Node
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					col := p.cur.Str
 					p.advance()
 					// TYPE COLUMN type_col_name
@@ -309,7 +309,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 						if p.cur.Type == kwCOLUMN {
 							p.advance()
 						}
-						if p.isAnyKeywordIdent() {
+						if p.isIdentLike() {
 							p.advance()
 						}
 					}
@@ -371,7 +371,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 			p.advance()
 			var cols []nodes.Node
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					cols = append(cols, &nodes.String{Str: p.cur.Str})
 					p.advance()
 				}
@@ -473,7 +473,7 @@ func (p *Parser) parseCreateFulltextCatalogStmt() (*nodes.CreateFulltextCatalogS
 		p.advance()
 		if p.cur.Type == kwFILEGROUP {
 			p.advance()
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				opts = append(opts, &nodes.String{Str: "FILEGROUP=" + p.cur.Str})
 				p.advance()
 			}
@@ -521,7 +521,7 @@ func (p *Parser) parseCreateFulltextCatalogStmt() (*nodes.CreateFulltextCatalogS
 	// AUTHORIZATION
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			opts = append(opts, &nodes.String{Str: "AUTHORIZATION=" + p.cur.Str})
 			p.advance()
 		}
@@ -566,7 +566,7 @@ func (p *Parser) parseCreateFulltextStoplistStmt() (*nodes.CreateFulltextStoplis
 				p.advance()
 			}
 			stmt.SystemStoplist = true
-		} else if p.isAnyKeywordIdent() {
+		} else if p.isIdentLike() {
 			// [ database_name . ] source_stoplist_name
 			name1 := p.cur.Str
 			p.advance()
@@ -729,7 +729,7 @@ func (p *Parser) parseCreateSearchPropertyListStmt() (*nodes.CreateSearchPropert
 	// FROM clause
 	if p.cur.Type == kwFROM {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			name1 := p.cur.Str
 			p.advance()
 			if p.cur.Type == '.' {
