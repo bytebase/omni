@@ -668,7 +668,7 @@ func (p *Parser) parseServerConfigSuspendForSnapshotBackup() ([]nodes.Node, erro
 				p.advance() // consume comma between GROUP and MODE
 				continue
 			}
-			if !p.isAnyKeywordIdent() {
+			if !p.isKeywordOrIdent() {
 				break // unexpected token
 			}
 			if p.cur.Type == kwGROUP {

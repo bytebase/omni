@@ -356,7 +356,7 @@ func (p *Parser) parseResourceGovernorOptions() *nodes.List {
 				opts = append(opts, p.parseResourceGovernorWithOptions()...)
 				p.match(')')
 			}
-		} else if p.isAnyKeywordIdent() || p.cur.Type == kwAS || p.cur.Type == kwFOR ||
+		} else if p.isKeywordOrIdent() || p.cur.Type == kwAS || p.cur.Type == kwFOR ||
 			p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwDEFAULT ||
 			p.cur.Type == kwNULL {
 			optLoc := p.pos()

@@ -459,7 +459,7 @@ func (p *Parser) parseSignatureStmt(action string) (*nodes.SignatureStmt, error)
 
 	// module_class::module_name  or just module_name
 	// module_class is OBJECT (default), ASSEMBLY, DATABASE, etc.
-	if p.isAnyKeywordIdent() {
+	if p.isKeywordOrIdent() {
 		name1 := p.cur.Str
 		next := p.peekNext()
 		if next.Type == tokCOLONCOLON {

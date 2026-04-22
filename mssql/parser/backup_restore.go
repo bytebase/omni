@@ -643,7 +643,7 @@ var backupRestoreSpecialOptions = map[string]bool{
 
 // isBackupRestoreOption checks whether the current token is a valid backup/restore option name.
 func (p *Parser) isBackupRestoreOption() bool {
-	if !p.isAnyKeywordIdent() {
+	if !p.isKeywordOrIdent() {
 		return false
 	}
 	name := strings.ToUpper(p.cur.Str)

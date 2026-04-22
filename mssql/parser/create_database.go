@@ -588,7 +588,7 @@ func (p *Parser) parseDatabaseOptionValue() string {
 		p.advance()
 		return "ON"
 	}
-	if p.isAnyKeywordIdent() {
+	if p.isKeywordOrIdent() {
 		val := strings.ToUpper(p.cur.Str)
 		p.advance()
 		return val

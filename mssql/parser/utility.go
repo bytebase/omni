@@ -1101,7 +1101,7 @@ func (p *Parser) parseCopyIntoStmt() (*nodes.CopyIntoStmt, error) {
 //   - CREDENTIAL = ( ... ) -- parenthesized credential
 //   - ERRORFILE_CREDENTIAL = ( ... ) -- parenthesized credential
 func (p *Parser) parseCopyIntoOption() nodes.Node {
-	if !p.isAnyKeywordIdent() && p.cur.Type != kwFILE {
+	if !p.isKeywordOrIdent() && p.cur.Type != kwFILE {
 		return nil
 	}
 

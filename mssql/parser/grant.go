@@ -247,7 +247,7 @@ func (p *Parser) parseGrantOnClause(stmt *nodes.GrantStmt) {
 	// Look ahead: if cur is an identifier and the next or next-next token is ::, it's a class.
 	// Securable classes include Core keywords (SCHEMA, DATABASE, etc.)
 	// so we must accept any keyword token, not just identifiers.
-	if p.isAnyKeywordIdent() {
+	if p.isKeywordOrIdent() {
 		// Check for single-word class followed by ::
 		next := p.peekNext()
 		if next.Type == tokCOLONCOLON {
@@ -301,7 +301,7 @@ func (p *Parser) tryParseSecurableClass() string {
 	p.advance()
 
 	// Continue consuming identifier-like tokens until we see :: or non-identifier
-	for p.isAnyKeywordIdent() {
+	for p.isKeywordOrIdent() {
 		next := p.peekNext()
 		if next.Type == tokCOLONCOLON {
 			// This identifier is the last word of the class
@@ -348,9 +348,9 @@ func (p *Parser) parsePrivilegeList() *nodes.List {
 			name == "TAKE" || name == "IMPERSONATE" || name == "BACKUP" || name == "CONNECT" ||
 			name == "ADMINISTER" || name == "AUTHENTICATE" || name == "SHOWPLAN" ||
 			name == "SUBSCRIBE" || name == "RECEIVE" || name == "SEND" || name == "UNMASK") &&
-			p.isAnyKeywordIdent() && p.cur.Type != kwON && p.cur.Type != kwTO && p.cur.Type != kwFROM {
+			p.isKeywordOrIdent() && p.cur.Type != kwON && p.cur.Type != kwTO && p.cur.Type != kwFROM {
 			// Multi-word: ALTER ANY DATABASE, CREATE TABLE, VIEW DEFINITION, etc.
-			for p.isAnyKeywordIdent() && p.cur.Type != kwON && p.cur.Type != kwTO && p.cur.Type != kwFROM &&
+			for p.isKeywordOrIdent() && p.cur.Type != kwON && p.cur.Type != kwTO && p.cur.Type != kwFROM &&
 				p.cur.Type != ',' && p.cur.Type != ';' && p.cur.Type != tokEOF {
 				name += " " + strings.ToUpper(p.cur.Str)
 				p.advance()

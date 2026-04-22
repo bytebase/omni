@@ -592,7 +592,7 @@ func (p *Parser) parseAuditSpecAction() *nodes.AuditSpecAction {
 		// Could be: OBJECT::dbo.MyTable, SCHEMA::dbo, DATABASE::mydb, or just dbo.MyTable
 		var securableParts []string
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isAnyKeywordIdent() || p.cur.Type == kwSELECT || p.cur.Type == kwDELETE {
+			if p.isKeywordOrIdent() || p.cur.Type == kwSELECT || p.cur.Type == kwDELETE {
 				word := p.cur.Str
 				p.advance()
 				if p.cur.Type == tokCOLONCOLON {

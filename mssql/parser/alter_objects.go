@@ -363,7 +363,7 @@ func (p *Parser) parseAlterDatabaseSetOption() string {
 			val := p.parseAlterDatabaseOptionValue()
 			return "WITNESS=" + val
 		}
-		if p.isAnyKeywordIdent() {
+		if p.isKeywordOrIdent() {
 			val := strings.ToUpper(p.cur.Str)
 			p.advance()
 			return "WITNESS=" + val
@@ -439,7 +439,7 @@ func (p *Parser) parseAlterDatabaseSetOption() string {
 	// TODO(ddl-option-strictness): migrate remaining keys (HADR, ENCRYPTION,
 	// ACCELERATED_DATABASE_RECOVERY, ...) into dbSetOptionValueEnums per the
 	// follow-up plan in docs/plans/2026-04-22-ddl-option-strictness.md.
-	if p.isAnyKeywordIdent() {
+	if p.isKeywordOrIdent() {
 		val := strings.ToUpper(p.cur.Str)
 		p.advance()
 		// Handle TARGET_RECOVERY_TIME = 60 SECONDS (already consumed the number via =)
@@ -476,7 +476,7 @@ func (p *Parser) parseAlterDatabaseSetPartner() string {
 		val := p.parseAlterDatabaseOptionValue()
 		return "PARTNER=" + val
 	}
-	if p.isAnyKeywordIdent() {
+	if p.isKeywordOrIdent() {
 		sub := strings.ToUpper(p.cur.Str)
 		p.advance()
 		switch sub {
@@ -559,7 +559,7 @@ func (p *Parser) parseAlterDatabaseOptionValue() string {
 		return val
 	}
 	// Accept any keyword or identifier as an option value (ON, OFF, FULL, etc.)
-	if p.isAnyKeywordIdent() {
+	if p.isKeywordOrIdent() {
 		val := strings.ToUpper(p.cur.Str)
 		p.advance()
 		return val
