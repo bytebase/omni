@@ -221,7 +221,7 @@ func (p *Parser) parseAlterPartitionSchemeStmt() (*nodes.AlterPartitionSchemeStm
 	if p.cur.Type == kwUSED {
 		p.advance()
 	}
-	if p.isAnyKeywordIdent() {
+	if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
 		stmt.FileGroup = p.cur.Str
 		p.advance()
 	}

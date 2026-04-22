@@ -210,7 +210,7 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	// ON { partition_scheme_name ( partition_column_name ) | filegroup | "default" }
 	if p.cur.Type == kwON {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() || p.cur.Type == kwPRIMARY {
 			name := p.cur.Str
 			p.advance()
 			if p.cur.Type == '(' {
@@ -228,7 +228,7 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	// TEXTIMAGE_ON filegroup
 	if p.cur.Type == kwTEXTIMAGE_ON {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
 			stmt.TextImageOn = p.cur.Str
 			p.advance()
 		}
@@ -237,7 +237,7 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	// FILESTREAM_ON filegroup
 	if p.cur.Type == kwFILESTREAM_ON {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
 			stmt.FilestreamOn = p.cur.Str
 			p.advance()
 		}
@@ -1476,7 +1476,7 @@ trailingOptions:
 	// [ FILESTREAM_ON { ... } ]
 	if p.cur.Type == kwFILESTREAM_ON {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
 			idx.FilestreamOn = p.cur.Str
 			p.advance()
 		}

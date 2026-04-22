@@ -423,7 +423,7 @@ func (p *Parser) parseCreateSpatialIndexStmt() (*nodes.CreateSpatialIndexStmt, e
 
 	// ON filegroup
 	if _, ok := p.match(kwON); ok {
-		if p.isAnyKeywordIdent() {
+		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
 			stmt.OnFileGroup = p.cur.Str
 			p.advance()
 		}
@@ -651,7 +651,7 @@ func (p *Parser) parseCreateJsonIndexStmt() (*nodes.CreateJsonIndexStmt, error) 
 
 	// ON filegroup
 	if _, ok := p.match(kwON); ok {
-		if p.isAnyKeywordIdent() {
+		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
 			stmt.OnFileGroup = p.cur.Str
 			p.advance()
 		}
@@ -715,7 +715,7 @@ func (p *Parser) parseCreateVectorIndexStmt() (*nodes.CreateVectorIndexStmt, err
 
 	// ON filegroup
 	if _, ok := p.match(kwON); ok {
-		if p.isAnyKeywordIdent() {
+		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
 			stmt.OnFileGroup = p.cur.Str
 			p.advance()
 		}
