@@ -55,7 +55,7 @@ func (p *Parser) parseCreateMessageTypeStmt() (*nodes.ServiceBrokerStmt, error) 
 	// Optional: AUTHORIZATION owner
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -132,7 +132,7 @@ func (p *Parser) parseCreateContractStmt() (*nodes.ServiceBrokerStmt, error) {
 	// Optional: AUTHORIZATION owner
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -442,7 +442,7 @@ func (p *Parser) parseSendStmt() (*nodes.ServiceBrokerStmt, error) {
 				if _, ok := p.match(','); !ok {
 					break
 				}
-				if p.cur.Type == tokVARIABLE || p.isAnyKeywordIdent() {
+				if p.cur.Type == tokVARIABLE || p.isIdentLike() {
 					p.advance()
 				}
 			}
@@ -459,7 +459,7 @@ func (p *Parser) parseSendStmt() (*nodes.ServiceBrokerStmt, error) {
 		if p.cur.Type == kwTYPE {
 			p.advance()
 		}
-		if p.isAnyKeywordIdent() || p.cur.Type == tokVARIABLE {
+		if p.isIdentLike() || p.cur.Type == tokVARIABLE {
 			p.advance()
 		}
 	}
@@ -835,7 +835,7 @@ func (p *Parser) parseCreateRouteStmt() (*nodes.ServiceBrokerStmt, error) {
 	// Optional: AUTHORIZATION owner
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -908,7 +908,7 @@ func (p *Parser) parseCreateRemoteServiceBindingStmt() (*nodes.ServiceBrokerStmt
 	// Optional: AUTHORIZATION owner
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			p.advance()
 		}
 	}
@@ -1590,7 +1590,8 @@ func (p *Parser) parseAlterContractStmt() (*nodes.ServiceBrokerStmt, error) {
 			if p.cur.Type == kwBY {
 				p.advance() // consume BY
 			}
-			if p.isAnyKeywordIdent() || p.cur.Type == kwANY {
+			// ALTER CONTRACT SENT BY — same enum as CREATE CONTRACT.
+			if p.isValidOption(contractSentByValues) {
 				sentBy = strings.ToUpper(p.cur.Str)
 				p.advance()
 			}
