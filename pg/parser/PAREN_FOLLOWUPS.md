@@ -8,9 +8,9 @@ The following are post-merge items surfaced by Codex review at each phase. None 
 
 Discovered by Phase 2/3 oracle + fuzz. See `PAREN_KNOWN_BUGS.md` for full entries.
 
-- **PAREN-KB-1** — `(T JOIN U)` accepted without ON/USING. Fix in `parseJoinedTable` / `parseJoinQual`. Pinned by §2.7 `t.Skip` + fuzz known-mismatches.
-- **PAREN-KB-2** — `Parse` returns only first RawStmt for multi-statement input like `SELECT * FROM (SELECT 1) SELECT 1`. Fix in `parser.go:Parse`. Top-level statement-list issue, out of `parenBeginsSubquery` scope.
-- **PAREN-KB-3** — `LATERAL ()` accepted with empty body; PG rejects. Fix in `parseSelectWithParens` nil-body check. Pinned by §3.2 `t.Skip`.
+- **PAREN-KB-1** — ~~`(T JOIN U)` accepted without ON/USING~~ **CLOSED 2026-04-22** (commit a593131) via `parseJoinQual` strictness fix. Unskipped §2.7 oracle test; fuzz known-mismatches allowlist now empty.
+- **PAREN-KB-3** — ~~`LATERAL ()` accepted with empty body~~ **CLOSED 2026-04-22** (commit 3eed1fe) via `parseLateralTableRef` nil-body guard. Unskipped §3.2 oracle test.
+- **PAREN-KB-2** — `Parse` accepts multi-statement input without `;` separator (`SELECT * FROM (SELECT 1) SELECT 1`). Fix in `parser.go:Parse` is known (~5 lines, `needSeparator` flag) but **blocked** by 13 upstream omni parser gaps (CREATE RULE with NOTIFY action, SET trailing transaction/savepoint body, chained CREATE DDL) that are currently masked by the lenient behavior. See PAREN_KNOWN_BUGS.md KB-2 for the blocker list and recommended path.
 
 ## CI hardening follow-ups
 

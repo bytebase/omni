@@ -239,7 +239,7 @@ One probe per canonical shape. `T`, `U`, `V` are pre-created tables on the oracl
 - [x] `SELECT * FROM )` — reject
 - [x] `SELECT * FROM (SELECT 1` — PG: reject (unclosed after subquery)
 - [x] `SELECT * FROM (T JOIN` — reject (JOIN without right operand)
-- [~] `SELECT * FROM (T JOIN U)` — oracle-discovered divergence: PG rejects (missing join qual) but omni currently accepts with nil qual. Tracked as PAREN-KB-1. Test skipped pending parser fix.
+- [x] `SELECT * FROM (T JOIN U)` — reject (missing join qual for inner join — PG requires ON or USING). **PAREN-KB-1 closed 2026-04-22** via parseJoinQual strictness fix.
 - [x] `SELECT * FROM (T CROSS JOIN U ON TRUE)` — reject (CROSS JOIN has no qual)
 - [x] `SELECT * FROM (T NATURAL JOIN U ON TRUE)` — reject (NATURAL has no qual)
 - [x] `SELECT * FROM (SELECT)` — accept (oracle-verified: PG 17 accepts empty-target-list SELECT as a valid select_no_parens; RangeSubselect on omni side)
