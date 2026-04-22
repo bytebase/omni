@@ -7,6 +7,9 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// eventSessionStateValues: ALTER EVENT SESSION ... STATE = { START | STOP }.
+var eventSessionStateValues = newOptionSet().withIdents("START", "STOP")
+
 // parseCreateEventNotificationStmt parses CREATE EVENT NOTIFICATION.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-event-notification-transact-sql
@@ -340,7 +343,8 @@ func (p *Parser) parseEventSessionBody() *nodes.List {
 		} else if p.cur.Type == kwSTATE {
 			p.advance()
 			p.match('=')
-			if p.isAnyKeywordIdent() {
+			// ALTER EVENT SESSION STATE = { START | STOP }
+			if p.isValidOption(eventSessionStateValues) {
 				opts = append(opts, &nodes.String{Str: "STATE=" + strings.ToUpper(p.cur.Str)})
 				p.advance()
 			}
