@@ -77,7 +77,31 @@ so the signal isn't lost when future work reads those files.
     `TestParenOracleLateral/invalid_shapes_rejected/LATERAL_empty_parens`
     (skipped with a pointer to PAREN-KB-3).
 
-## PAREN-KB-2 — `Parse()` silently drops trailing statements
+## PAREN-KB-2 — `Parse()` accepts statements without `;` separator — **blocked by upstream parser gaps**
+
+**Status:** fix attempted 2026-04-22 and reverted. Enforcing "cur must be `;` or EOF after each parseStmt" at parser.go:Parse surfaced 13 new pgregress failures — all pre-existing omni parser gaps that had been **masked** by the silent-accept behavior (CREATE RULE `DO INSTEAD NOTIFY x` body, SET inside transaction / savepoint blocks, CREATE-chained DDL). Before the statement-list strictness can land, those 13 upstream grammar gaps need to be fixed so the corresponding single-statement parses emit the right AST instead of truncating and letting a second parseStmt pick up the tail.
+
+Concrete blocker list (from pgregress -count=1 after the KB-2 attempt):
+- `copydml.sql:69` — `create rule qqq as on insert to copydml_test do instead notify copydml_test` (CREATE RULE with NOTIFY action — omni truncates before NOTIFY and re-parses NOTIFY as a top-level statement).
+- `rules.sql:1017` — same shape (DO INSTEAD NOTIFY).
+- `rules.sql:1721,1726` — DO INSTEAD NOTIFY again (2 occurrences).
+- `privileges.sql:535,537,277,279` — `SET` trailing an unrecognized form (likely transaction / savepoint block body).
+- `triggers.sql:162` — `(` trailing, likely an incomplete CREATE TRIGGER body.
+- `triggers.sql:139` — `CREATE` trailing.
+- `triggers.sql:45` — `CREATE`.
+- `triggers.sql:33` — `CREATE`.
+- `triggers.sql:20` — `CREATE`.
+
+**Recommended path:**
+1. Open follow-up issues for each of the 3 pattern classes (CREATE RULE action body, transaction-block SET, CREATE TRIGGER body).
+2. Fix each so the single statement consumes all its tokens.
+3. Then re-apply the KB-2 fix — `needSeparator` flag in parser.go's Parse loop requiring `;` or EOF between parseStmt calls. The fix itself is ~5 lines and already designed in commit history (see reverted diff at pg/parser/parser.go Parse loop on 2026-04-22).
+
+Keep the oracle signal:
+- `pg/parser/testdata/paren-fuzz-corpus/seed-cases.txt` — NOT pinned (this is a parser.go-Parse bug, not a `(` dispatch bug).
+- `pg/parser/testdata/paren-fuzz-corpus/known-mismatches.txt` — NOT pinned; fuzz generator's `genReservedMisuse` no longer emits trailing-SELECT patterns.
+
+## PAREN-KB-2 — `Parse()` silently drops trailing statements (original entry, kept for history)
 
 - **Summary:** omni's top-level `Parse(sql string)` accepts inputs
   like `FROM (SELECT 1) SELECT 1` by returning only the first
