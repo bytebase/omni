@@ -280,8 +280,8 @@ Phase 2 hardens the `FROM (...)` primitive. Phase 3 extends the oracle disciplin
 - [x] Oracle probes `IN` in JOIN ON: `FROM T JOIN U ON T.a IN (SELECT ...)`
 - [x] Oracle probes `IN` in HAVING: `HAVING count(*) IN (1, 2, 3)`
 - [x] Oracle probes `IN` in CASE WHEN: `CASE WHEN x IN (1,2) THEN 'y' ELSE 'n' END`
-- [ ] Oracle probes `IN` in CHECK constraint: `CREATE TABLE t (x int CHECK (x IN (1,2,3)))` — coverage debt per Codex Phase 3 spot-check; parseInExpr is caller-context agnostic, test can be added later
-- [ ] Oracle probes `IN` inside a subquery's WHERE: `SELECT (SELECT 1 WHERE x IN (SELECT y FROM t))` — coverage debt per Codex Phase 3 spot-check
+- [x] Oracle probes `IN` in CHECK constraint: `CREATE TABLE t_check (x int CHECK (x IN (1,2,3)))` — parity-confirmed (parseInExpr is caller-context agnostic; CREATE TABLE statement classifies OmniOther on non-SELECT branch)
+- [x] Oracle probes `IN` inside a subquery's WHERE: `SELECT (SELECT 1 WHERE U.x IN (SELECT a FROM V)) FROM U` — parity-confirmed (outer FROM is RangeVar → OmniOther; value is "IN (SELECT ...) parses inside nested scalar subquery's WHERE")
 
 ### 3.2 parseLateralTableRef oracle corpus
 
