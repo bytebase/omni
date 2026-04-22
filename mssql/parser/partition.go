@@ -7,6 +7,10 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// alterPartitionFunctionActions matches SqlScriptDOM's closed set for
+// ALTER PARTITION FUNCTION: only SPLIT or MERGE after the empty `()`.
+var alterPartitionFunctionActions = newOptionSet().withIdents("SPLIT", "MERGE")
+
 // parseCreatePartitionFunctionStmt parses a CREATE PARTITION FUNCTION statement.
 //
 // BNF: mssql/parser/bnf/create-partition-function-transact-sql.bnf
@@ -100,11 +104,12 @@ func (p *Parser) parseAlterPartitionFunctionStmt() (*nodes.AlterPartitionFunctio
 		p.match(')')
 	}
 
-	// SPLIT or MERGE
-	if p.isAnyKeywordIdent() {
-		stmt.Action = strings.ToUpper(p.cur.Str)
-		p.advance()
+	// SPLIT or MERGE — SqlScriptDOM's AlterPartitionFunctionStatement closed set.
+	if !p.isValidOption(alterPartitionFunctionActions) {
+		return nil, p.unexpectedToken()
 	}
+	stmt.Action = strings.ToUpper(p.cur.Str)
+	p.advance()
 
 	// RANGE ( boundary_value )
 	if p.cur.Type == kwRANGE {

@@ -473,6 +473,10 @@ func TestScriptDOMRejectAlignment(t *testing.T) {
 		{"dbopt-value/page-verify-off", `ALTER DATABASE foo SET PAGE_VERIFY OFF`},
 		{"dbopt-value/parameterization-select", `ALTER DATABASE foo SET PARAMETERIZATION SELECT`},
 		{"dbopt-value/cursor-default-off", `ALTER DATABASE foo SET CURSOR_DEFAULT OFF`},
+		// Subcommand dispatch (B2) — only closed sets accepted.
+		{"subcmd/alter-db-failover", `ALTER DATABASE mydb FAILOVER`},
+		{"subcmd/alter-db-unknown", `ALTER DATABASE mydb UNKNOWN_ACTION`},
+		{"subcmd/alter-partition-select", `ALTER PARTITION FUNCTION pf() SELECT RANGE (100)`},
 	}
 
 	for _, f := range fixtures {

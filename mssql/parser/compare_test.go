@@ -8974,20 +8974,14 @@ func TestParseAlterDatabaseDepth(t *testing.T) {
 		}
 	})
 
-	// --- Unknown action structured (batch 117) ---
-	t.Run("alter_database_unknown_action", func(t *testing.T) {
+	// --- Unknown action rejected (aligned with SqlScriptDOM strictness) ---
+	t.Run("alter_database_unknown_action_rejected", func(t *testing.T) {
+		// SqlScriptDOM rejects arbitrary action keywords after the database
+		// name; omni follows suit after the Phase X.D subcommand dispatch
+		// restriction. See docs/plans/2026-04-22-ddl-option-strictness.md.
 		sql := "ALTER DATABASE mydb UNKNOWN_ACTION arg1 arg2"
-		result := ParseAndCheck(t, sql)
-		stmt, ok := result.Items[0].(*ast.AlterDatabaseStmt)
-		if !ok {
-			t.Fatalf("expected *AlterDatabaseStmt, got %T", result.Items[0])
-		}
-		if stmt.Action != "UNKNOWN_ACTION" {
-			t.Errorf("expected action UNKNOWN_ACTION, got %s", stmt.Action)
-		}
-		// Options should capture the remaining tokens instead of silently skipping
-		if stmt.Options == nil || stmt.Options.Len() == 0 {
-			t.Error("expected unknown action to capture remaining tokens as options")
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q): expected error, got accept", sql)
 		}
 	})
 }
@@ -16017,33 +16011,20 @@ func TestParseUtilityCetasDbscopedDepth(t *testing.T) {
 // TestParseAlterDatabaseUnknownDepth tests batch 132: structured ALTER DATABASE unknown action,
 // sub-options, and termination parsing.
 func TestParseAlterDatabaseUnknownDepth(t *testing.T) {
-	t.Run("alter_database_unknown_structured", func(t *testing.T) {
-		tests := []struct {
-			name   string
-			sql    string
-			action string
-		}{
-			// Standalone unknown action
-			{"failover", "ALTER DATABASE mydb FAILOVER", "FAILOVER"},
-			// Unknown action with extra keyword
-			{"unknown with keyword", "ALTER DATABASE mydb SUSPEND LEDGER", "SUSPEND"},
-			// Unknown action with parenthesized options
-			{"unknown with parens", "ALTER DATABASE mydb RESUME LEDGER (OPTION1 = 100, OPTION2 = OFF)", "RESUME"},
+	t.Run("alter_database_unknown_rejected", func(t *testing.T) {
+		// After Phase X.D, only ADD/SET/COLLATE/MODIFY/REMOVE/REBUILD/
+		// PERFORM_CUTOVER are accepted as ALTER DATABASE subcommands —
+		// matching SqlScriptDOM. The prior permissive fallback that stored
+		// arbitrary action keywords as stmt.Action has been removed.
+		rejected := []string{
+			"ALTER DATABASE mydb FAILOVER",
+			"ALTER DATABASE mydb SUSPEND LEDGER",
+			"ALTER DATABASE mydb RESUME LEDGER (OPTION1 = 100, OPTION2 = OFF)",
 		}
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				result := ParseAndCheck(t, tt.sql)
-				if result.Len() != 1 {
-					t.Fatalf("Parse(%q): expected 1 statement, got %d", tt.sql, result.Len())
-				}
-				stmt, ok := result.Items[0].(*ast.AlterDatabaseStmt)
-				if !ok {
-					t.Fatalf("Parse(%q): expected AlterDatabaseStmt", tt.sql)
-				}
-				if stmt.Action != tt.action {
-					t.Errorf("Parse(%q): expected action %q, got %q", tt.sql, tt.action, stmt.Action)
-				}
-			})
+		for _, sql := range rejected {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): expected error, got accept", sql)
+			}
 		}
 	})
 

@@ -123,7 +123,7 @@ func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
 		p.advance() // consume ADD
 		stmt.Action = "ADD"
 		p.parseAlterDatabaseAdd(stmt)
-	} else if p.isAnyKeywordIdent() {
+	} else if p.isValidOption(alterDatabaseSubcommands) {
 		action := strings.ToUpper(p.cur.Str)
 		switch action {
 		case "MODIFY":
@@ -152,26 +152,6 @@ func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
 		case "PERFORM_CUTOVER":
 			p.advance() // consume PERFORM_CUTOVER
 			stmt.Action = "PERFORM_CUTOVER"
-		default:
-			// Unknown action - record and collect remaining tokens as structured key=value options
-			stmt.Action = action
-			p.advance()
-			var opts []nodes.Node
-			for p.cur.Type != tokEOF && p.cur.Type != ';' && !p.isStatementStart() {
-				if p.cur.Type == ',' {
-					p.advance()
-					continue
-				}
-				opt := p.parseAlterDatabaseUnknownOption()
-				if opt != "" {
-					opts = append(opts, &nodes.String{Str: opt})
-				} else {
-					break
-				}
-			}
-			if len(opts) > 0 {
-				stmt.Options = &nodes.List{Items: opts}
-			}
 		}
 	}
 
@@ -253,6 +233,14 @@ var dbSetOptions = newOptionSet(
 	"ACCELERATED_DATABASE_RECOVERY", "PARTNER", "WITNESS",
 	"CURSOR_DEFAULT", "OPTIMIZED_LOCKING",
 	// Additional (MANUAL_CUTOVER, PERFORM_CUTOVER are handled at ALTER DATABASE level, not SET level).
+)
+
+// alterDatabaseSubcommands is the closed set of ALTER DATABASE subcommands
+// that dispatch this parser (ADD and SET/COLLATE are handled by dedicated
+// keyword branches before this fallback is reached). Matches the branches
+// served by the switch in parseAlterDatabaseStmt.
+var alterDatabaseSubcommands = newOptionSet().withIdents(
+	"MODIFY", "REMOVE", "REBUILD", "PERFORM_CUTOVER",
 )
 
 // Per-option value enums. When an option key is found here, its value must be
