@@ -379,7 +379,7 @@ func (p *Parser) parseResourceGovernorOptions() *nodes.List {
 			// Handle qualified names like schema.function
 			for p.cur.Type == '.' {
 				p.advance()
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					val += "." + strings.ToUpper(p.cur.Str)
 					p.advance()
 				}
@@ -476,7 +476,7 @@ func (p *Parser) parseResourceGovernorQualifiedValue() string {
 	val := p.parseResourceGovernorValue()
 	for p.cur.Type == '.' {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			val += "." + strings.ToUpper(p.cur.Str)
 			p.advance()
 		}
