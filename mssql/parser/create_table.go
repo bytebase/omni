@@ -7,6 +7,14 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// Column-level enum value sets for various T-SQL column annotations.
+var (
+	encryptionTypeValues   = newOptionSet().withIdents("DETERMINISTIC", "RANDOMIZED")
+	ledgerColumnKindValues = newOptionSet().withIdents("TRANSACTION_ID", "SEQUENCE_NUMBER")
+	ledgerStartEndValues   = newOptionSet().withIdents("START", "END")
+	distributionTypeValues = newOptionSet().withIdents("HASH", "ROUND_ROBIN", "REPLICATE")
+)
+
 // createTableOptions defines the valid option names for CREATE TABLE ... WITH (...).
 // Derived from SqlScriptDOM TSql170.g createTableOption rule.
 var createTableOptions = newOptionSet(
@@ -818,7 +826,7 @@ func (p *Parser) parseEncryptedWith() (*nodes.EncryptedWithSpec, error) {
 					p.advance()
 				}
 			case "ENCRYPTION_TYPE":
-				if p.isAnyKeywordIdent() {
+				if p.isValidOption(encryptionTypeValues) {
 					spec.EncryptionType = strings.ToUpper(p.cur.Str)
 					p.advance()
 				}
@@ -866,15 +874,16 @@ func (p *Parser) parseGeneratedAlways() (*nodes.GeneratedAlwaysSpec, error) {
 		p.advance()
 	}
 
-	// ROW | TRANSACTION_ID | SEQUENCE_NUMBER
-	if p.isAnyKeywordIdent() {
+	// ROW | TRANSACTION_ID | SEQUENCE_NUMBER — ROW is kwROW (CoreKeyword),
+	// TRANSACTION_ID / SEQUENCE_NUMBER are idents.
+	if p.isValidOption(ledgerColumnKindValues) || p.cur.Type == kwROW {
 		kind := strings.ToUpper(p.cur.Str)
 		p.advance()
 		spec.Kind = kind
 	}
 
-	// START | END
-	if p.isAnyKeywordIdent() {
+	// START | END — END is kwEND (CoreKeyword); START is an ident.
+	if p.isValidOption(ledgerStartEndValues) || p.cur.Type == kwEND {
 		startEnd := strings.ToUpper(p.cur.Str)
 		if startEnd == "START" || startEnd == "END" {
 			spec.StartEnd = startEnd
@@ -1816,7 +1825,7 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 		if p.cur.Type == '=' {
 			p.advance()
 		}
-		if p.isAnyKeywordIdent() {
+		if p.isValidOption(distributionTypeValues) {
 			distType := strings.ToUpper(p.cur.Str)
 			p.advance()
 			if distType == "HASH" && p.cur.Type == '(' {
