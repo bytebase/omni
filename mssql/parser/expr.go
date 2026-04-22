@@ -704,17 +704,16 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		return p.parseIdentExpr()
 	case kwTRY_CONVERT:
 		return p.parseTryConvert()
-	case tokIDENT,
-		// Non-reserved keywords usable as identifiers in expression context.
-		kwASYMMETRIC, kwCERTIFICATE, kwCOMMITTED, kwCREDENTIAL, kwCRYPTOGRAPHIC,
-		kwDECRYPTION, kwENCRYPTION, kwFORCE, kwISOLATION, kwKEYS, kwLEVEL,
-		kwMASTER, kwNEXT, kwPASSWORD, kwPROVIDER, kwREGENERATE, kwREPEATABLE,
-		kwSCOPED, kwSERIALIZABLE, kwSERVER, kwSERVICE, kwSNAPSHOT, kwSYMMETRIC,
-		kwUNCOMMITTED, kwUSED, kwVALUE:
+	case tokIDENT:
 		return p.parseIdentExpr()
 	default:
-		// Context keywords can be used as identifiers in T-SQL.
-		if p.isAnyKeywordIdent() {
+		// T-SQL permits ContextKeyword tokens (e.g. VALUE, ENCRYPTION,
+		// SNAPSHOT, ...) as unquoted identifiers in expression position.
+		// CoreKeyword tokens (FROM, SELECT, WHERE, ...) are NOT permitted —
+		// they must be bracketed (in which case the lexer emits tokIDENT) or
+		// quoted. The keyword classification table in lexer.go is the single
+		// source of truth; no parallel whitelist is kept here.
+		if isContextKeyword(p.cur.Type) {
 			return p.parseIdentExpr()
 		}
 		return nil, nil

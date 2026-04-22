@@ -454,6 +454,18 @@ func TestScriptDOMRejectAlignment(t *testing.T) {
 		{"option/table-hint-trail", `SELECT * FROM t OPTION (TABLE HINT(t, NOLOCK,))`},
 		{"option/table-hint-empty-after-comma", `SELECT * FROM t OPTION (TABLE HINT(t,))`},
 		{"option/table-hint-double-comma", `SELECT * FROM t OPTION (TABLE HINT(t,,NOLOCK))`},
+		// Reserved keywords (CoreKeyword) used as unquoted identifiers —
+		// must be rejected across expression position, alias position, and
+		// schema-object position. Bracketed forms are already tokIDENT so
+		// remain accepted.
+		{"kw/from-as-column", `SELECT FROM t`},
+		{"kw/select-as-alias", `SELECT 1 AS SELECT`},
+		{"kw/where-as-alias", `SELECT 1 AS WHERE`},
+		{"kw/from-as-alias", `SELECT 1 AS FROM`},
+		{"kw/select-as-dbname", `CREATE DATABASE SELECT`},
+		{"kw/from-as-dbname", `CREATE DATABASE FROM`},
+		{"kw/from-as-tablename", `SELECT * FROM FROM`},
+		{"kw/select-as-colname", `CREATE TABLE t (SELECT INT)`},
 	}
 
 	for _, f := range fixtures {

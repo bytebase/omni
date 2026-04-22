@@ -682,9 +682,12 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 			Val: expr,
 			Loc: nodes.Loc{Start: targetLoc, End: -1},
 		}
-		// Check for alias: AS name or just name (but not keywords that start clauses)
+		// Check for alias: AS name or just name (but not keywords that start clauses).
+		// Reserved keywords (CoreKeyword) cannot be unquoted aliases per T-SQL —
+		// writing `SELECT x AS FROM` requires `AS [FROM]` which the lexer emits
+		// as tokIDENT and thus already passes isIdentLike.
 		if _, ok := p.match(kwAS); ok {
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				target.Name = p.cur.Str
 				p.advance()
 			}
@@ -1170,9 +1173,11 @@ func (p *Parser) parseTableValuedFunction(ref *nodes.TableRef) (nodes.TableExpr,
 }
 
 // parseOptionalAlias parses an optional alias (AS name or just name).
+// Reserved keywords (CoreKeyword) cannot be unquoted aliases — a bracketed
+// form like `AS [FROM]` is already tokIDENT at the lexer level.
 func (p *Parser) parseOptionalAlias() string {
 	if _, ok := p.match(kwAS); ok {
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			name := p.cur.Str
 			p.advance()
 			return name

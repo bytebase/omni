@@ -726,17 +726,17 @@ func (p *Parser) parseCreateVectorIndexStmt() (*nodes.CreateVectorIndexStmt, err
 }
 
 // parseOptionList parses (option = value, ...) used in WITH clauses.
+//
+// Option NAMES in T-SQL WITH clauses are frequently reserved keywords
+// (FILLFACTOR, MAXDOP, ONLINE, DATA_COMPRESSION, ...) that are not
+// permitted as unquoted identifiers in expression position. We therefore
+// do not route the name through parseExpr; instead we consume any
+// keyword-or-ident token as the name and parse the right-hand side as a
+// normal expression.
 func (p *Parser) parseOptionList() (*nodes.List, error) {
 	p.advance() // consume (
 	items, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
-		expr, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		if expr == nil {
-			return nil, p.unexpectedToken()
-		}
-		return expr, nil
+		return p.parseNameValueOption()
 	})
 	if err != nil {
 		return nil, err
@@ -745,4 +745,33 @@ func (p *Parser) parseOptionList() (*nodes.List, error) {
 		return nil, err
 	}
 	return &nodes.List{Items: items}, nil
+}
+
+// parseNameValueOption consumes a single `name [= value]` option entry, where
+// the name may be any keyword (Core or Context) or plain identifier.
+func (p *Parser) parseNameValueOption() (nodes.Node, error) {
+	loc := p.pos()
+	if !p.isIdentLike() && !(p.cur.Type >= kwABSENT && p.cur.Str != "") {
+		return nil, p.unexpectedToken()
+	}
+	name := p.cur.Str
+	p.advance()
+	nameRef := &nodes.ColumnRef{Column: name, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
+	if p.cur.Type != '=' {
+		return nameRef, nil
+	}
+	p.advance() // consume =
+	rhs, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if rhs == nil {
+		return nil, p.unexpectedToken()
+	}
+	return &nodes.BinaryExpr{
+		Op:    nodes.BinOpEq,
+		Left:  nameRef,
+		Right: rhs,
+		Loc:   nodes.Loc{Start: loc, End: p.prevEnd()},
+	}, nil
 }
