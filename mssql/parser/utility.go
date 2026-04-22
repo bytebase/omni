@@ -887,13 +887,13 @@ func (p *Parser) parseEnableDisableTriggerStmt(enable bool) (*nodes.EnableDisabl
 	} else {
 		var triggers []nodes.Node
 		for {
-			if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
 				// Possibly schema-qualified: schema.trigger_name
 				name := p.cur.Str
 				p.advance()
 				if p.cur.Type == '.' {
 					p.advance()
-					if p.isAnyKeywordIdent() {
+					if p.isIdentLike() {
 						name = name + "." + p.cur.Str
 						p.advance()
 					}

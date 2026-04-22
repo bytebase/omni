@@ -605,7 +605,7 @@ func (p *Parser) parseAuditSpecAction() *nodes.AuditSpecAction {
 				// Check for dotted name
 				for p.cur.Type == '.' {
 					p.advance()
-					if p.isAnyKeywordIdent() || p.cur.Type == kwDEFAULT {
+					if p.isIdentLike() || p.cur.Type == kwDEFAULT {
 						securableParts = append(securableParts, p.cur.Str)
 						p.advance()
 					}
@@ -621,7 +621,7 @@ func (p *Parser) parseAuditSpecAction() *nodes.AuditSpecAction {
 		if p.cur.Type == kwBY {
 			p.advance()
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if p.isAnyKeywordIdent() || p.cur.Type == kwPUBLIC {
+				if p.isIdentLike() || p.cur.Type == kwPUBLIC {
 					node.Principals = append(node.Principals, p.cur.Str)
 					p.advance()
 				}

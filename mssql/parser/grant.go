@@ -362,7 +362,7 @@ func (p *Parser) parsePrivilegeList() *nodes.List {
 			p.advance() // consume (
 			var cols []string
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					cols = append(cols, p.cur.Str)
 					p.advance()
 				}

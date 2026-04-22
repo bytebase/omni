@@ -703,7 +703,7 @@ func (p *Parser) parseServerConfigSuspendForSnapshotBackup() ([]nodes.Node, erro
 				if p.cur.Type == '=' {
 					p.advance() // consume =
 				}
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					val := p.cur.Str
 					p.advance()
 					opts = append(opts, &nodes.ServerConfigOption{Name: "MODE", Value: val, Loc: nodes.Loc{Start: subLoc, End: p.prevEnd()}})

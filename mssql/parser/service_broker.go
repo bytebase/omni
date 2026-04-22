@@ -521,7 +521,7 @@ func (p *Parser) parseReceiveStmt() (*nodes.ReceiveStmt, error) {
 			col := &nodes.ReceiveColumn{
 				Loc: nodes.Loc{Start: p.pos(), End: -1},
 			}
-			if p.isAnyKeywordIdent() || p.cur.Type == tokVARIABLE {
+			if p.isIdentLike() || p.cur.Type == tokVARIABLE {
 				col.Expr = &nodes.ColumnRef{Column: p.cur.Str, Loc: nodes.Loc{Start: p.pos(), End: p.prevEnd() + len(p.cur.Str)}}
 				p.advance()
 			} else {
@@ -1318,7 +1318,7 @@ func (p *Parser) parseAlterServiceStmt() (*nodes.ServiceBrokerStmt, error) {
 				if p.cur.Type == kwCONTRACT {
 					p.advance()
 				}
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST {
 					opts = append(opts, &nodes.ServiceBrokerOption{Name: "DROP CONTRACT", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 					p.advance()
 				}
@@ -1609,7 +1609,7 @@ func (p *Parser) parseAlterContractStmt() (*nodes.ServiceBrokerStmt, error) {
 				p.advance() // consume TYPE
 			}
 		}
-		if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+		if p.isIdentLike() || p.cur.Type == tokSCONST {
 			opts = append(opts, &nodes.ServiceBrokerOption{Name: "DROP", Value: p.cur.Str, Loc: nodes.Loc{Start: dropLoc, End: p.prevEnd()}})
 			p.advance()
 		}
@@ -1813,7 +1813,7 @@ func (p *Parser) parseMoveConversationStmt() (*nodes.ServiceBrokerStmt, error) {
 	if p.cur.Type == kwTO {
 		toLoc := p.pos()
 		p.advance()
-		if p.cur.Type == tokVARIABLE || p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+		if p.cur.Type == tokVARIABLE || p.isIdentLike() || p.cur.Type == tokSCONST {
 			var opts []nodes.Node
 			opts = append(opts, &nodes.ServiceBrokerOption{Name: "TO", Value: p.cur.Str, Loc: nodes.Loc{Start: toLoc, End: p.prevEnd()}})
 			stmt.Options = &nodes.List{Items: opts}

@@ -704,7 +704,7 @@ func (p *Parser) parseAlterAuthorizationStmt() (*nodes.SecurityStmt, error) {
 				p.advance()
 				opts = append(opts, &nodes.String{Str: "SCHEMA OWNER"})
 			}
-		} else if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+		} else if p.isIdentLike() || p.cur.Type == tokSCONST {
 			opts = append(opts, &nodes.String{Str: p.cur.Str})
 			p.advance()
 		}

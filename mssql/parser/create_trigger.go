@@ -232,7 +232,7 @@ func (p *Parser) parseCreateTriggerStmt(orAlter bool) (*nodes.CreateTriggerStmt,
 		}
 		var parts []string
 		for {
-			if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			if p.isIdentLike() || p.cur.Type == tokSCONST {
 				parts = append(parts, p.cur.Str)
 				p.advance()
 			} else {

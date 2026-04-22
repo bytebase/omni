@@ -304,7 +304,7 @@ func (p *Parser) parseEndpointProtocolTCPOptions(opts *[]nodes.Node) {
 					*opts = append(*opts, &nodes.EndpointOption{Name: "LISTENER_IP", Value: ip, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				}
 				p.match(')')
-			} else if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+			} else if p.isIdentLike() || p.cur.Type == tokSCONST {
 				*opts = append(*opts, &nodes.EndpointOption{Name: "LISTENER_IP", Value: p.cur.Str, Loc: nodes.Loc{Start: optLoc, End: p.prevEnd()}})
 				p.advance()
 			}
@@ -611,14 +611,14 @@ func (p *Parser) parseEndpointAuthentication() string {
 		// Optional CERTIFICATE after WINDOWS
 		if p.cur.Type == kwCERTIFICATE {
 			p.advance()
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				parts = append(parts, "CERTIFICATE", p.cur.Str)
 				p.advance()
 			}
 		}
 	} else if p.cur.Type == kwCERTIFICATE {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			parts = append(parts, "CERTIFICATE", p.cur.Str)
 			p.advance()
 		}
