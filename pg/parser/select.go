@@ -1369,6 +1369,15 @@ func (p *Parser) parseLateralTableRef() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		// PAREN-KB-3: parseSelectWithParens can return nil *SelectStmt
+		// when the content isn't a valid select_no_parens (e.g. empty
+		// `LATERAL ()`). The non-LATERAL path handles this via
+		// parseJoinedTable's JoinExpr assertion, but LATERAL has no
+		// equivalent downstream guard — we must reject here. PG 17
+		// rejects `LATERAL ()` with 42601 at the closing `)`.
+		if !p.collectMode() && stmt == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		alias := p.parseOptAliasClause()
 		return &nodes.RangeSubselect{
 			Lateral:  true,
