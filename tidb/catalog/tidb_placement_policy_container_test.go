@@ -106,6 +106,45 @@ func TestTiDBPlacementPolicyContainer(t *testing.T) {
 	}
 }
 
+// TestTiDBPlacementPolicyDefaultSentinel pins the "default"
+// special-name behavior against real TiDB. Upstream short-circuits
+// at pkg/ddl/placement_policy.go defaultPlacementPolicyName — a
+// reference to "default" must bypass policy lookup and be accepted
+// even when no policy by that name exists.
+func TestTiDBPlacementPolicyDefaultSentinel(t *testing.T) {
+	tc := startTiDBForCatalog(t)
+	mustExecTiDB(t, tc, "CREATE DATABASE IF NOT EXISTS omni_pp_default")
+	mustExecTiDB(t, tc, "USE omni_pp_default")
+	t.Cleanup(func() { _, _ = tc.db.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS omni_pp_default") })
+
+	inputs := []struct {
+		label string
+		sql   string
+		drop  string
+	}{
+		{"identifier", "CREATE TABLE t_def_id (id INT) PLACEMENT POLICY = default", "DROP TABLE IF EXISTS t_def_id"},
+		{"quoted_string", "CREATE TABLE t_def_str (id INT) PLACEMENT POLICY = 'default'", "DROP TABLE IF EXISTS t_def_str"},
+		{"upper_keyword", "CREATE TABLE t_def_up (id INT) PLACEMENT POLICY = DEFAULT", "DROP TABLE IF EXISTS t_def_up"},
+	}
+	for _, in := range inputs {
+		t.Run(in.label, func(t *testing.T) {
+			// 1. TiDB must accept without any CREATE PLACEMENT POLICY default.
+			if _, err := tc.db.ExecContext(tc.ctx, in.sql); err != nil {
+				t.Fatalf("TiDB rejected sentinel form %q: %v", in.sql, err)
+			}
+			// 2. Catalog must also accept.
+			cat := New()
+			if _, err := cat.Exec("CREATE DATABASE omni_pp_default; USE omni_pp_default;", nil); err != nil {
+				t.Fatalf("cat setup: %v", err)
+			}
+			if _, err := cat.Exec(in.sql, nil); err != nil {
+				t.Fatalf("catalog rejected sentinel form %q: %v", in.sql, err)
+			}
+			_, _ = tc.db.ExecContext(tc.ctx, in.drop)
+		})
+	}
+}
+
 // TestTiDBPlacementPolicyAlterReplaceSemantics pins the claim made in
 // catalog/placement_policy.go alterPlacementPolicy: ALTER replaces the
 // option list wholesale, it does NOT merge. Uses SHOW CREATE PLACEMENT

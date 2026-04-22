@@ -241,6 +241,90 @@ func TestWTTiDBPolicy_DropInUseByDatabase(t *testing.T) {
 	}
 }
 
+// TestWTTiDBPolicy_DefaultSentinel verifies the special-cased "default"
+// policy name: it must bypass ref validation and clear the assigned
+// policy to the empty string (matching TiDB's short-circuit at
+// pkg/ddl/placement_policy.go's defaultPlacementPolicyName check).
+// All three input forms — `default`, 'default', DEFAULT — collapse to
+// the same catalog result.
+func TestWTTiDBPolicy_DefaultSentinel(t *testing.T) {
+	inputs := []struct {
+		label string
+		sql   string
+	}{
+		{"identifier default", "CREATE TABLE t (id INT) PLACEMENT POLICY = default"},
+		{"quoted 'default'", "CREATE TABLE t (id INT) PLACEMENT POLICY = 'default'"},
+		// Upper-case DEFAULT is also accepted; catalog normalizes via
+		// toLower in isDefaultPolicyName.
+		{"keyword DEFAULT", "CREATE TABLE t (id INT) PLACEMENT POLICY = DEFAULT"},
+	}
+	for _, in := range inputs {
+		t.Run(in.label, func(t *testing.T) {
+			c := wtSetup(t)
+			// No policy defined; default must still work.
+			wtExec(t, c, in.sql)
+			tbl := c.GetDatabase("testdb").GetTable("t")
+			if tbl == nil {
+				t.Fatal("table not created")
+			}
+			if tbl.PlacementPolicy != "" {
+				t.Errorf("default sentinel should clear policy, got %q", tbl.PlacementPolicy)
+			}
+		})
+	}
+}
+
+// TestWTTiDBPolicy_DefaultOnDatabase verifies the sentinel works on
+// CREATE DATABASE too (same code path via validatePolicyRef +
+// resolvePolicyRef in dbcmds.go).
+func TestWTTiDBPolicy_DefaultOnDatabase(t *testing.T) {
+	c := New()
+	wtExecRaw(t, c, "CREATE DATABASE ddb PLACEMENT POLICY = default")
+	db := c.GetDatabase("ddb")
+	if db == nil {
+		t.Fatal("database not created")
+	}
+	if db.PlacementPolicy != "" {
+		t.Errorf("default sentinel should clear DB policy, got %q", db.PlacementPolicy)
+	}
+}
+
+// TestWTTiDBPolicy_DefaultClearsExisting verifies that ALTER with
+// `default` clears a previously-set policy rather than setting the
+// field to the literal string "default".
+func TestWTTiDBPolicy_DefaultClearsExisting(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE PLACEMENT POLICY p1 PRIMARY_REGION = 'us'")
+	wtExec(t, c, "CREATE TABLE t (id INT) PLACEMENT POLICY = p1")
+	// Sanity.
+	if tbl := c.GetDatabase("testdb").GetTable("t"); tbl.PlacementPolicy != "p1" {
+		t.Fatalf("setup failed: %q", tbl.PlacementPolicy)
+	}
+	wtExec(t, c, "ALTER TABLE t PLACEMENT POLICY = default")
+	if tbl := c.GetDatabase("testdb").GetTable("t"); tbl.PlacementPolicy != "" {
+		t.Errorf("ALTER TABLE ... = default should clear policy, got %q", tbl.PlacementPolicy)
+	}
+}
+
+// TestWTTiDBPolicy_ExplicitDefaultPolicyShadows documents a quirk: if
+// a user literally names a policy `default` (via backtick-quoting), it
+// still won't actually be referenced by unquoted/string `default`
+// because the sentinel short-circuit fires FIRST. This matches TiDB's
+// upstream check order at placement_policy.go:~478: the defaultName
+// compare happens before PolicyByName lookup.
+func TestWTTiDBPolicy_ExplicitDefaultPolicyShadows(t *testing.T) {
+	c := wtSetup(t)
+	// Users CAN create a backtick-quoted `default` policy in TiDB, but
+	// it becomes unreachable via PLACEMENT POLICY = default — the
+	// sentinel always wins. Omni must match.
+	wtExec(t, c, "CREATE PLACEMENT POLICY `default` PRIMARY_REGION = 'us-east'")
+	wtExec(t, c, "CREATE TABLE t (id INT) PLACEMENT POLICY = default")
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl.PlacementPolicy != "" {
+		t.Errorf("sentinel should win over literally-named `default` policy; got %q", tbl.PlacementPolicy)
+	}
+}
+
 // wtExecRaw executes SQL on an arbitrary catalog (no testdb setup),
 // fataling on any parse or exec error. Suited for tests that manage
 // their own database-creation order.

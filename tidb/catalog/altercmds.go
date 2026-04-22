@@ -723,7 +723,7 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if err := c.validatePolicyRef(opt.Value); err != nil {
 			return err
 		}
-		tbl.PlacementPolicy = opt.Value
+		tbl.PlacementPolicy = resolvePolicyRef(opt.Value)
 	case "ttl":
 		col, interval, err := extractTTLParts(opt.Value)
 		if err != nil {

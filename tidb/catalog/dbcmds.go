@@ -38,7 +38,7 @@ func (c *Catalog) createDatabase(stmt *nodes.CreateDatabaseStmt) error {
 		}
 	}
 	db := newDatabase(name, charset, collation)
-	db.PlacementPolicy = placementPolicy
+	db.PlacementPolicy = resolvePolicyRef(placementPolicy)
 	c.databases[key] = db
 	return nil
 }
@@ -92,7 +92,7 @@ func (c *Catalog) alterDatabase(stmt *nodes.AlterDatabaseStmt) error {
 			if err := c.validatePolicyRef(opt.Value); err != nil {
 				return err
 			}
-			db.PlacementPolicy = opt.Value
+			db.PlacementPolicy = resolvePolicyRef(opt.Value)
 		}
 	}
 	// When charset is changed without explicit collation, derive the default collation.

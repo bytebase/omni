@@ -124,14 +124,40 @@ func (c *Catalog) findPolicyReference(name string) string {
 // are treated as "no reference" and return nil. Used by the table
 // and database option wiring to reject references to unknown policies
 // (TiDB error 8237 parity).
+//
+// The name "default" (case-insensitive) is a TiDB sentinel meaning
+// "clear placement / inherit" and short-circuits catalog validation —
+// see pkg/ddl/placement_policy.go's defaultPlacementPolicyName check
+// in upstream. All four grammar arms that produce the policy reference
+// (`='default'`, `=default`, `=DEFAULT`, `SET DEFAULT`) collapse to the
+// same StrValue, so a single string-compare suffices.
 func (c *Catalog) validatePolicyRef(name string) error {
-	if name == "" {
+	if name == "" || isDefaultPolicyName(name) {
 		return nil
 	}
 	if c.GetPlacementPolicy(name) == nil {
 		return errUnknownPlacementPolicy(name)
 	}
 	return nil
+}
+
+// isDefaultPolicyName reports whether the given policy reference is
+// the special-cased "default" sentinel (case-insensitive). Callers
+// must treat this as a clear-policy operation, not a named reference.
+func isDefaultPolicyName(name string) bool {
+	return toLower(name) == "default"
+}
+
+// resolvePolicyRef returns the stored form of a policy reference. The
+// special-cased "default" sentinel collapses to the empty string so
+// downstream code sees "no policy" rather than a pseudo-policy named
+// "default". Matches TiDB's in-memory representation, where SET
+// PLACEMENT POLICY = default clears the ref on the table/database.
+func resolvePolicyRef(name string) string {
+	if isDefaultPolicyName(name) {
+		return ""
+	}
+	return name
 }
 
 func convertPolicyOptions(src []*nodes.PlacementPolicyOption) []*PlacementPolicyOption {
