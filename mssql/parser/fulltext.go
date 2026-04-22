@@ -104,7 +104,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 		if p.cur.Type == kwINDEX {
 			p.advance()
 		}
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.KeyIndex = p.cur.Str
 			p.advance()
 		}
@@ -586,7 +586,7 @@ func (p *Parser) parseCreateFulltextStoplistStmt() (*nodes.CreateFulltextStoplis
 	// AUTHORIZATION owner_name
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.Authorization = p.cur.Str
 			p.advance()
 		}
@@ -748,7 +748,7 @@ func (p *Parser) parseCreateSearchPropertyListStmt() (*nodes.CreateSearchPropert
 	// AUTHORIZATION owner_name
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.Authorization = p.cur.Str
 			p.advance()
 		}

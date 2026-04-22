@@ -256,7 +256,7 @@ func (p *Parser) parseCreateXmlIndexStmt(primary bool) (*nodes.CreateXmlIndexStm
 
 		// FOR VALUE|PATH|PROPERTY
 		if _, ok := p.match(kwFOR); ok {
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				stmt.SecondaryFor = p.cur.Str
 				p.advance()
 			}

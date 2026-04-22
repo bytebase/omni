@@ -40,7 +40,7 @@ func (p *Parser) parseCreateAssemblyStmt() (*nodes.CreateAssemblyStmt, error) {
 	// AUTHORIZATION owner
 	if p.cur.Type == kwAUTHORIZATION {
 		p.advance()
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.Authorization = p.cur.Str
 			p.advance()
 		}

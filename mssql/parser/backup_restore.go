@@ -118,7 +118,7 @@ func (p *Parser) parseBackupStmt() (*nodes.BackupStmt, error) {
 
 	// Database name (not for CERTIFICATE)
 	if stmt.Type != "CERTIFICATE" {
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.Database = p.cur.Str
 			p.advance()
 		}

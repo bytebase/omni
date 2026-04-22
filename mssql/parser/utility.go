@@ -25,7 +25,7 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		stmt.Database = p.cur.Str
 		p.advance()
 	}
@@ -1381,7 +1381,7 @@ func (p *Parser) parsePredictStmt() (*nodes.PredictStmt, error) {
 				// Optional AS alias
 				if p.cur.Type == kwAS {
 					p.advance() // consume AS
-					if p.isAnyKeywordIdent() {
+					if p.isIdentLike() {
 						stmt.DataAlias = p.cur.Str
 						p.advance()
 					}

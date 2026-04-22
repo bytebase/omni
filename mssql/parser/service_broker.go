@@ -529,7 +529,7 @@ func (p *Parser) parseReceiveStmt() (*nodes.ReceiveStmt, error) {
 			}
 			if p.cur.Type == kwAS {
 				p.advance()
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					col.Alias = p.cur.Str
 					p.advance()
 				}
@@ -566,7 +566,7 @@ func (p *Parser) parseReceiveStmt() (*nodes.ReceiveStmt, error) {
 		if p.cur.Type == tokVARIABLE {
 			stmt.IntoVar = p.cur.Str
 			p.advance()
-		} else if p.isAnyKeywordIdent() {
+		} else if p.isIdentLike() {
 			stmt.IntoVar = p.cur.Str
 			p.advance()
 		}

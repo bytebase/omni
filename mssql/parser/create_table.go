@@ -813,7 +813,7 @@ func (p *Parser) parseEncryptedWith() (*nodes.EncryptedWithSpec, error) {
 			}
 			switch optName {
 			case "COLUMN_ENCRYPTION_KEY":
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					spec.ColumnEncryptionKey = p.cur.Str
 					p.advance()
 				}

@@ -88,7 +88,7 @@ func (p *Parser) parseGrantStmt() (*nodes.GrantStmt, error) {
 	// AS principal
 	if p.cur.Type == kwAS {
 		p.advance() // consume AS
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.AsPrincipal = p.cur.Str
 			p.advance()
 		}
@@ -167,7 +167,7 @@ func (p *Parser) parseRevokeStmt() (*nodes.GrantStmt, error) {
 	// AS principal
 	if p.cur.Type == kwAS {
 		p.advance() // consume AS
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.AsPrincipal = p.cur.Str
 			p.advance()
 		}
@@ -229,7 +229,7 @@ func (p *Parser) parseDenyStmt() (*nodes.GrantStmt, error) {
 	// AS principal
 	if p.cur.Type == kwAS {
 		p.advance() // consume AS
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			stmt.AsPrincipal = p.cur.Str
 			p.advance()
 		}
