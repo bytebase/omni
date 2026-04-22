@@ -535,13 +535,11 @@ func (p *Parser) parseServerConfigBufferPoolExtension() ([]nodes.Node, error) {
 					if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 						val := p.cur.Str
 						p.advance()
-						// Check for KB/MB/GB suffix
-						if p.isAnyKeywordIdent() {
+						// Check for KB/MB/GB/TB suffix.
+						if p.isValidOption(sizeUnitValues) {
 							upper := strings.ToUpper(p.cur.Str)
-							if upper == "KB" || upper == "MB" || upper == "GB" {
-								val += " " + upper
-								p.advance()
-							}
+							val += " " + upper
+							p.advance()
 						}
 						opts = append(opts, &nodes.ServerConfigOption{Name: "SIZE", Value: val, Loc: nodes.Loc{Start: subLoc, End: p.prevEnd()}})
 					}
