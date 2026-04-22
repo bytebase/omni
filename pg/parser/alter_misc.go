@@ -478,9 +478,12 @@ func (p *Parser) parseAlterTypeCmd() (*nodes.AlterTableCmd, error) {
 			Def:      coldef,
 			Behavior: behavior,
 		}, nil
-	// known-gap: not a KB-2 blocker; tracked in PARSER_DISPATCH_AUDIT.md §2 for future fix
+	// exhaustive: gram.y:3239 — alter_type_cmd enumerates ADD ATTRIBUTE /
+	// DROP ATTRIBUTE / ALTER ATTRIBUTE. Any other token after
+	// `ALTER TYPE name` is a syntax error and must not slip through as a
+	// nil command into AlterTableStmt.Cmds.
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 

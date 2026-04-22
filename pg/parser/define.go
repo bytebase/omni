@@ -610,9 +610,12 @@ func (p *Parser) parseOpclassItem() (nodes.Node, error) {
 			Storedtype: storedtype,
 			Loc:        nodes.Loc{Start: itemLoc, End: p.prev.End},
 		}, nil
-	// known-gap: not a KB-2 blocker; tracked in PARSER_DISPATCH_AUDIT.md §2 for future fix
+	// exhaustive: gram.y:6579 — opclass_item enumerates OPERATOR /
+	// FUNCTION / STORAGE only. Unknown item kind in a CREATE OPERATOR
+	// CLASS body must raise here so callers don't append nil into the
+	// item list.
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -721,9 +724,11 @@ func (p *Parser) parseOpclassDrop() (nodes.Node, error) {
 		itemtype = nodes.OPCLASS_ITEM_OPERATOR
 	case FUNCTION:
 		itemtype = nodes.OPCLASS_ITEM_FUNCTION
-	// known-gap: not a KB-2 blocker; tracked in PARSER_DISPATCH_AUDIT.md §2 for future fix
+	// exhaustive: gram.y:6703 — opclass_drop enumerates OPERATOR and
+	// FUNCTION only. Unknown item kind in ALTER OPERATOR FAMILY ... DROP
+	// must raise so callers don't append nil into the drop-item list.
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
 	number := int(p.cur.Ival)

@@ -548,9 +548,12 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		return n, nil
 	case GENERATED:
 		return p.parseGeneratedConstraint()
-	// known-gap: not a KB-2 blocker; tracked in PARSER_DISPATCH_AUDIT.md §2 for future fix
+	// exhaustive: gram.y:3901 — ColConstraintElem enumerates NOT NULL /
+	// NULL / UNIQUE / PRIMARY KEY / CHECK / DEFAULT / REFERENCES /
+	// GENERATED. A `CONSTRAINT name <bad>` should raise rather than be
+	// silently dropped at the caller.
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 

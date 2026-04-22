@@ -93,9 +93,13 @@ func (p *Parser) parseExplainableStmt() (nodes.Node, error) {
 		stmt, err := p.parseRefreshMatViewStmt()
 		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
 		return stmt, err
-	// known-gap: not a KB-2 blocker; tracked in PARSER_DISPATCH_AUDIT.md §2 for future fix
+	// exhaustive: gram.y:11979 — ExplainableStmt enumerates SelectStmt /
+	// InsertStmt / UpdateStmt / DeleteStmt / MergeStmt / DeclareCursorStmt
+	// / CreateAsStmt / CreateMatViewStmt / RefreshMatViewStmt / ExecuteStmt.
+	// PG rejects EXPLAIN <gibberish>; we must too rather than wrap nil in
+	// an ExplainStmt with no body.
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 

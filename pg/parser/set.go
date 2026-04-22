@@ -279,9 +279,12 @@ func (p *Parser) parseGenericSetOrFromCurrent() (nodes.Node, error) {
 			Args: args,
 		}, nil
 
-	// known-gap: not a KB-2 blocker; tracked in PARSER_DISPATCH_AUDIT.md §2 for future fix
+	// exhaustive: gram.y:1663,1700 — generic_set / var_name FROM CURRENT_P.
+	// Grammar requires TO / = / FROM after var_name. Unknown continuation
+	// (e.g. ALTER SYSTEM SET foo;) is a syntax error; emitting it here also
+	// prevents a nil setstmt from reaching the ALTER SYSTEM type assertion.
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
