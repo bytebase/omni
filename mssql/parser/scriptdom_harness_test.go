@@ -439,6 +439,13 @@ func TestScriptDOMRejectAlignment(t *testing.T) {
 		{"trail/primary-key", `ALTER TABLE t ADD CONSTRAINT pk PRIMARY KEY (a,b,)`},
 		{"trail/constraint-cols", `CREATE TABLE t (a INT, b INT, CONSTRAINT pk PRIMARY KEY (a,b,))`},
 		{"trail/table-hint", `SELECT * FROM t WITH (NOLOCK,)`},
+		// Item-level leniency — parseItem returns an empty placeholder or
+		// fails to advance, historically silently accepted. Caught by the
+		// parseCommaList must-advance guard.
+		{"item/grouping-sets-leading-empty", `SELECT COUNT(*) FROM t GROUP BY GROUPING SETS (, a)`},
+		{"item/xmlnamespaces-middle-empty", `WITH XMLNAMESPACES ('foo' AS p, , 'bar' AS q) SELECT 1`},
+		{"item/index-hint-double-comma", `SELECT * FROM t WITH (INDEX(123,,456))`},
+		{"item/create-table-int-column", `CREATE TABLE t (a INT, 123, b INT)`},
 	}
 
 	for _, f := range fixtures {

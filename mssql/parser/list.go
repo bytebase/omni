@@ -33,11 +33,22 @@ const (
 // this helper does NOT consume the terminator either — the caller is
 // responsible for `p.expect(end)` after we return.
 //
-// parseItem is invoked at the head of every item slot. It must parse
-// exactly one item and return it, or return an error if the current token
-// does not start a valid item.
+// parseItem is invoked at the head of every item slot. Contract:
+//   - If the current position starts a valid item, parseItem MUST advance past
+//     that item and return it non-nil with err=nil.
+//   - If the current position does NOT start a valid item, parseItem MUST
+//     return an error (or the completion sentinel errCollecting).
 //
-// Leniency is governed by `flags`; see commaList* constants above.
+// parseCommaList enforces this via a "must advance" guard: if parseItem
+// returns (nil, nil) OR returns a non-nil node without having advanced the
+// cursor, the helper treats it as an unexpected token. This catches
+// item-level leniency bugs uniformly — many hand-written parseX helpers in
+// this codebase follow a "try-parse returns nil on no match" convention that
+// is unsafe in a strict-list context, and the guard keeps parseCommaList
+// from silently appending empty/phantom entries.
+//
+// Leniency at the list boundary is governed by `flags`; see commaList*
+// constants above.
 //
 // By design, parseCommaList is the single chokepoint for list shape
 // validation in the mssql parser, so that strictness is uniform and
@@ -55,9 +66,17 @@ func (p *Parser) parseCommaList(
 	}
 	var items []nodes.Node
 	for {
+		before := p.cur.Loc
 		item, err := parseItem()
 		if err != nil {
 			return nil, err
+		}
+		// Enforce the parseItem contract: a successful call must both
+		// produce a non-nil item AND advance the cursor. Anything else is
+		// an item-level leniency bug on the caller side; surface it as
+		// a plain syntax error at the current position.
+		if item == nil || p.cur.Loc == before {
+			return nil, p.unexpectedToken()
 		}
 		items = append(items, item)
 		if _, ok := p.match(','); !ok {
