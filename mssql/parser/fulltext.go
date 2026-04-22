@@ -11,6 +11,10 @@ import (
 // Matches SqlScriptDOM fulltext index options: CHANGE_TRACKING, STOPLIST, SEARCH (PROPERTY LIST).
 var fulltextIndexWithOptions = newOptionSet(kwCHANGE_TRACKING, kwSTOPLIST, kwSEARCH)
 
+// fulltextPopulationTypes: START { FULL | INCREMENTAL | UPDATE } POPULATION
+// in ALTER FULLTEXT INDEX. FULL is kwFULL (CoreKeyword).
+var fulltextPopulationTypes = newOptionSet(kwFULL).withIdents("FULL", "INCREMENTAL", "UPDATE")
+
 // fulltextCatalogWithOptions defines valid option names for CREATE FULLTEXT CATALOG ... WITH.
 // Only ACCENT_SENSITIVITY is valid here.
 var fulltextCatalogWithOptions = newOptionSet(kwACCENT_SENSITIVITY)
@@ -391,7 +395,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 		stmt.Action = "START"
 		p.advance()
 		// { FULL | INCREMENTAL | UPDATE } POPULATION
-		if p.isAnyKeywordIdent() {
+		if p.isValidOption(fulltextPopulationTypes) {
 			stmt.PopulationType = strings.ToUpper(p.cur.Str)
 			p.advance()
 		}
