@@ -241,7 +241,7 @@ func (p *Parser) parseStatisticsWithOptions() *nodes.List {
 			} else if p.cur.Type == '=' {
 				// key = value (e.g., INCREMENTAL = ON, MAXDOP = 4, AUTO_DROP = ON)
 				p.advance()
-				if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+				if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 					p.advance()
 				} else {
 					p.parseExpr()

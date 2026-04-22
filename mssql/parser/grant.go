@@ -278,7 +278,7 @@ func (p *Parser) parseGrantOnClause(stmt *nodes.GrantStmt) {
 
 // isSecurableClassStart checks if the current token could be the start of a multi-word securable class.
 func (p *Parser) isSecurableClassStart() bool {
-	if !p.isAnyKeywordIdent() {
+	if !p.isIdentLike() {
 		return false
 	}
 	kw := strings.ToUpper(p.cur.Str)
@@ -330,7 +330,7 @@ func (p *Parser) tryParseSecurableClass() string {
 func (p *Parser) parsePrivilegeList() *nodes.List {
 	var items []nodes.Node
 	for {
-		if !p.isAnyKeywordIdent() && p.cur.Type != kwSELECT && p.cur.Type != kwINSERT &&
+		if !p.isIdentLike() && p.cur.Type != kwSELECT && p.cur.Type != kwINSERT &&
 			p.cur.Type != kwUPDATE && p.cur.Type != kwDELETE && p.cur.Type != kwEXEC &&
 			p.cur.Type != kwEXECUTE && p.cur.Type != kwREFERENCES && p.cur.Type != kwALL &&
 			p.cur.Type != kwCREATE && p.cur.Type != kwALTER {
@@ -390,7 +390,7 @@ func (p *Parser) parsePrivilegeList() *nodes.List {
 func (p *Parser) parsePrincipalList() *nodes.List {
 	var items []nodes.Node
 	for {
-		if !p.isAnyKeywordIdent() && p.cur.Type != kwPUBLIC {
+		if !p.isIdentLike() && p.cur.Type != kwPUBLIC {
 			break
 		}
 		name := p.cur.Str

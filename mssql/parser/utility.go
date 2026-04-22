@@ -132,7 +132,7 @@ func (p *Parser) parseRaiseErrorStmt() (*nodes.RaiseErrorStmt, error) {
 		p.advance()
 		var opts []nodes.Node
 		for {
-			if p.isAnyKeywordIdent() || p.cur.Type == kwNOWAIT {
+			if p.isIdentLike() || p.cur.Type == kwNOWAIT {
 				opts = append(opts, &nodes.String{Str: strings.ToUpper(p.cur.Str)})
 				p.advance()
 			} else {
@@ -793,7 +793,7 @@ func (p *Parser) parseAlterDatabaseScopedConfigStmt() (*nodes.SecurityStmt, erro
 			p.advance()
 		}
 		// Optional plan_handle (hex constant)
-		if p.cur.Type == tokICONST || p.cur.Type == tokSCONST || p.isAnyKeywordIdent() {
+		if p.cur.Type == tokICONST || p.cur.Type == tokSCONST || p.isIdentLike() {
 			optStr += " " + p.cur.Str
 			p.advance()
 		}
@@ -819,14 +819,14 @@ func (p *Parser) parseAlterDatabaseScopedConfigStmt() (*nodes.SecurityStmt, erro
 
 		// Parse SET option = value pairs as structured SecurityPrincipalOption nodes
 		for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
-			if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+			if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 				optLoc := p.pos()
 				key := strings.ToUpper(p.cur.Str)
 				p.advance()
 				if p.cur.Type == '=' {
 					p.advance() // consume '='
 					val := ""
-					if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST ||
+					if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST ||
 						p.cur.Type == tokFCONST || p.cur.Type == kwON || p.cur.Type == kwOFF ||
 						p.cur.Type == kwNULL || p.cur.Type == kwPRIMARY {
 						if p.cur.Type == tokSCONST {
@@ -1363,7 +1363,7 @@ func (p *Parser) parsePredictStmt() (*nodes.PredictStmt, error) {
 			continue
 		}
 
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			key := strings.ToUpper(p.cur.Str)
 			p.advance()
 
@@ -1388,13 +1388,13 @@ func (p *Parser) parsePredictStmt() (*nodes.PredictStmt, error) {
 				}
 			case "RUNTIME":
 				// RUNTIME = ONNX
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					stmt.Runtime = strings.ToUpper(p.cur.Str)
 					p.advance()
 				}
 			default:
 				// Skip unknown args
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST || p.cur.Type == tokICONST {
 					p.advance()
 				}
 			}

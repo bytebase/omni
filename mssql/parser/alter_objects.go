@@ -574,7 +574,7 @@ func (p *Parser) parseAlterDatabaseSubOptions() string {
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
 		// key
 		key := ""
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			key = strings.ToUpper(p.cur.Str)
 			p.advance()
 		} else if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
@@ -680,7 +680,7 @@ func (p *Parser) parseAlterDatabaseUnknownOption() string {
 	}
 
 	// Keyword or identifier
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		key := strings.ToUpper(p.cur.Str)
 		p.advance()
 		// Check for = value
@@ -720,7 +720,7 @@ func (p *Parser) parseAlterDatabaseUnknownOptionValue() string {
 		return val
 	}
 	// Accept any keyword or identifier as an option value (ON, OFF, FULL, etc.)
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		val := strings.ToUpper(p.cur.Str)
 		p.advance()
 		return val
@@ -1074,7 +1074,7 @@ func (p *Parser) parseAlterIndexOptions() (*nodes.List, error) {
 				} else if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 					val = p.cur.Str
 					p.advance()
-				} else if p.isAnyKeywordIdent() {
+				} else if p.isIdentLike() {
 					val = strings.ToUpper(p.cur.Str)
 					p.advance()
 				} else if p.cur.Type == '(' {

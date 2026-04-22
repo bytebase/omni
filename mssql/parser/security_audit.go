@@ -370,7 +370,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 						p.advance()
 						continue
 					}
-					if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+					if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 						name := strings.ToUpper(p.cur.Str)
 						p.advance()
 						if p.cur.Type == '=' {
@@ -389,7 +389,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 									val += strings.ToUpper(p.cur.Str)
 									p.advance()
 								}
-							} else if p.isAnyKeywordIdent() {
+							} else if p.isIdentLike() {
 								val = strings.ToUpper(p.cur.Str)
 								p.advance()
 							} else if p.cur.Type == kwON {
@@ -424,7 +424,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 					p.advance()
 					continue
 				}
-				if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+				if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 					name := strings.ToUpper(p.cur.Str)
 					p.advance()
 					if p.cur.Type == '=' {
@@ -436,7 +436,7 @@ func (p *Parser) parseAuditOptions() (*nodes.List, nodes.ExprNode) {
 						} else if p.cur.Type == tokICONST {
 							val = p.cur.Str
 							p.advance()
-						} else if p.isAnyKeywordIdent() {
+						} else if p.isIdentLike() {
 							val = strings.ToUpper(p.cur.Str)
 							p.advance()
 						} else if p.cur.Type == kwON {
@@ -502,12 +502,12 @@ func (p *Parser) parseAuditSpecOptions() *nodes.List {
 			if p.cur.Type == '(' {
 				p.advance()
 				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+					if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 						optName := strings.ToUpper(p.cur.Str)
 						p.advance()
 						if p.cur.Type == '=' {
 							p.advance()
-							if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+							if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 								optName += "=" + strings.ToUpper(p.cur.Str)
 								p.advance()
 							}
@@ -569,7 +569,7 @@ func (p *Parser) parseAuditSpecAction() *nodes.AuditSpecAction {
 		if p.cur.Type == kwON {
 			break
 		}
-		if p.isAnyKeywordIdent() || p.cur.Type == kwSELECT || p.cur.Type == kwINSERT ||
+		if p.isIdentLike() || p.cur.Type == kwSELECT || p.cur.Type == kwINSERT ||
 			p.cur.Type == kwUPDATE || p.cur.Type == kwDELETE ||
 			p.cur.Type == kwEXECUTE || p.cur.Type == kwEXEC {
 			names = append(names, strings.ToUpper(p.cur.Str))

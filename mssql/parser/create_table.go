@@ -359,7 +359,7 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 		if opt.Value == "ON" && p.cur.Type == '(' {
 			p.advance()
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					subName := strings.ToUpper(p.cur.Str)
 					p.advance()
 					if p.cur.Type == '=' {
@@ -400,7 +400,7 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 							p.advance()
 						} else if p.cur.Type == kwOFF {
 							p.advance()
-						} else if p.isAnyKeywordIdent() {
+						} else if p.isIdentLike() {
 							p.advance()
 						} else if p.cur.Type == tokICONST {
 							p.advance()
@@ -415,7 +415,7 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 		}
 	} else {
 		// Simple NAME = VALUE
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			opt.Value = strings.ToUpper(p.cur.Str)
 			p.advance()
 		} else if p.cur.Type == kwON {
@@ -813,7 +813,7 @@ func (p *Parser) parseEncryptedWith() (*nodes.EncryptedWithSpec, error) {
 	p.advance()
 
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			optName := strings.ToUpper(p.cur.Str)
 			p.advance()
 			if p.cur.Type == '=' {
@@ -836,7 +836,7 @@ func (p *Parser) parseEncryptedWith() (*nodes.EncryptedWithSpec, error) {
 					p.advance()
 				}
 			default:
-				if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+				if p.isIdentLike() || p.cur.Type == tokSCONST {
 					p.advance()
 				}
 			}

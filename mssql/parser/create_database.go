@@ -268,7 +268,7 @@ func (p *Parser) parseDatabaseFileSpec() *nodes.DatabaseFileSpec {
 
 	// Parse comma-separated key=value pairs inside parens
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			key := strings.ToUpper(p.cur.Str)
 			p.advance() // consume key
 			switch key {
@@ -434,7 +434,7 @@ func (p *Parser) parseDatabaseWithOptions() *nodes.List {
 	var opts []nodes.Node
 
 	for {
-		if !p.isAnyKeywordIdent() {
+		if !p.isIdentLike() {
 			break
 		}
 
@@ -458,7 +458,7 @@ func (p *Parser) parseDatabaseWithOptions() *nodes.List {
 
 // parseOneDatabaseOption parses a single CREATE DATABASE WITH option.
 func (p *Parser) parseOneDatabaseOption() *nodes.DatabaseOption {
-	if !p.isAnyKeywordIdent() {
+	if !p.isIdentLike() {
 		return nil
 	}
 
@@ -531,7 +531,7 @@ func (p *Parser) parseDatabaseFilestreamOption() *nodes.DatabaseOption {
 	if p.cur.Type == '(' {
 		p.advance() // consume (
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				subKey := strings.ToUpper(p.cur.Str)
 				p.advance() // consume sub-key
 				if p.cur.Type == '=' {
@@ -553,7 +553,7 @@ func (p *Parser) parseDatabaseFilestreamOption() *nodes.DatabaseOption {
 						}
 					default:
 						// unknown sub-option, skip value
-						if p.isAnyKeywordIdent() || p.cur.Type == tokSCONST {
+						if p.isIdentLike() || p.cur.Type == tokSCONST {
 							p.advance()
 						}
 					}
@@ -614,7 +614,7 @@ func (p *Parser) parseDatabaseOptionValue() string {
 func (p *Parser) parseDatabaseAttachOptions() *nodes.List {
 	var opts []nodes.Node
 	for {
-		if !p.isAnyKeywordIdent() {
+		if !p.isIdentLike() {
 			break
 		}
 		key := strings.ToUpper(p.cur.Str)

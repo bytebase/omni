@@ -255,7 +255,7 @@ func (p *Parser) parseSecurityPolicyWithOptions(stmt *nodes.SecurityPolicyStmt) 
 	p.advance()
 
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			key := strings.ToUpper(p.cur.Str)
 			p.advance()
 			if p.cur.Type == '=' {
@@ -283,7 +283,7 @@ func (p *Parser) parseSecurityPolicyWithOptions(stmt *nodes.SecurityPolicyStmt) 
 					p.advance()
 				}
 			default:
-				if p.isAnyKeywordIdent() || p.cur.Type == kwON || p.cur.Type == kwOFF {
+				if p.isIdentLike() || p.cur.Type == kwON || p.cur.Type == kwOFF {
 					p.advance()
 				}
 			}
@@ -347,7 +347,7 @@ func (p *Parser) parseAddSensitivityClassificationStmt() (*nodes.SensitivityClas
 			p.advance()
 			var opts []nodes.Node
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				if p.isAnyKeywordIdent() {
+				if p.isIdentLike() {
 					optLoc := p.pos()
 					key := strings.ToUpper(p.cur.Str)
 					p.advance()
@@ -472,7 +472,7 @@ func (p *Parser) parseSignatureStmt(action string) (*nodes.SignatureStmt, error)
 			// Could be a dotted name or multi-word class (e.g., ASYMMETRIC KEY::)
 			p.advance() // consume name1
 			// Check if next is another word followed by ::
-			if p.isAnyKeywordIdent() && p.peekNext().Type == tokCOLONCOLON {
+			if p.isIdentLike() && p.peekNext().Type == tokCOLONCOLON {
 				stmt.ModuleClass = strings.ToUpper(name1) + " " + strings.ToUpper(p.cur.Str)
 				p.advance() // consume second word
 				p.advance() // consume ::

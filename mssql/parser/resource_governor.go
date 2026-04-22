@@ -367,7 +367,7 @@ func (p *Parser) parseResourceGovernorOptions() *nodes.List {
 				p.advance()
 				val = p.parseResourceGovernorValue()
 			} else if (name == "USING" || name == "EXTERNAL") &&
-				(p.isAnyKeywordIdent() || p.cur.Type == kwDEFAULT) {
+				(p.isIdentLike() || p.cur.Type == kwDEFAULT) {
 				// USING pool_name or EXTERNAL ext_pool_name (no = sign)
 				val = strings.ToUpper(p.cur.Str)
 				p.advance()
@@ -408,7 +408,7 @@ func (p *Parser) parseResourceGovernorWithOptions() []nodes.Node {
 	var opts []nodes.Node
 
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		if p.isAnyKeywordIdent() || p.cur.Type == kwNULL || p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwDEFAULT {
+		if p.isIdentLike() || p.cur.Type == kwNULL || p.cur.Type == kwON || p.cur.Type == kwOFF || p.cur.Type == kwDEFAULT {
 			optName := strings.ToUpper(p.cur.Str)
 			p.advance()
 
@@ -462,7 +462,7 @@ func (p *Parser) parseResourceGovernorValue() string {
 		val := strings.ToUpper(p.cur.Str)
 		p.advance()
 		return val
-	case p.isAnyKeywordIdent():
+	case p.isIdentLike():
 		val := strings.ToUpper(p.cur.Str)
 		p.advance()
 		return val
@@ -525,14 +525,14 @@ func (p *Parser) parseResourceGovernorAffinityValue() []nodes.Node {
 func (p *Parser) parseResourceGovernorRangeSpec() string {
 	var parts []string
 	for {
-		if p.cur.Type != tokICONST && !p.isAnyKeywordIdent() {
+		if p.cur.Type != tokICONST && !p.isIdentLike() {
 			break
 		}
 		val := p.cur.Str
 		p.advance()
 		if p.cur.Type == kwTO {
 			p.advance()
-			if p.cur.Type == tokICONST || p.isAnyKeywordIdent() {
+			if p.cur.Type == tokICONST || p.isIdentLike() {
 				val += " TO " + p.cur.Str
 				p.advance()
 			}

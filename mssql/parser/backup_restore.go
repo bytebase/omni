@@ -255,7 +255,7 @@ func (p *Parser) parseRestoreStmt() (*nodes.RestoreStmt, error) {
 	if p.cur.Type == kwDATABASE {
 		stmt.Type = "DATABASE"
 		p.advance()
-	} else if p.isAnyKeywordIdent() {
+	} else if p.isIdentLike() {
 		upper := strings.ToUpper(p.cur.Str)
 		switch upper {
 		case "LOG":
@@ -442,7 +442,7 @@ func (p *Parser) parseFileSpecValue() string {
 		p.advance()
 		return val
 	}
-	if p.isAnyKeywordIdent() {
+	if p.isIdentLike() {
 		val := p.cur.Str
 		p.advance()
 		return val
@@ -483,7 +483,7 @@ func (p *Parser) parseDeviceList() (*nodes.List, error) {
 // parseOneDevice parses a single device entry.
 // Returns "TYPE=path" for physical devices or "logical_name" for logical devices.
 func (p *Parser) parseOneDevice() string {
-	if !p.isAnyKeywordIdent() && p.cur.Type != kwFILE {
+	if !p.isIdentLike() && p.cur.Type != kwFILE {
 		return ""
 	}
 
@@ -499,7 +499,7 @@ func (p *Parser) parseOneDevice() string {
 				p.advance()
 				return devType + "=" + path
 			}
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				// variable like @path_var
 				path := p.cur.Str
 				p.advance()
@@ -519,7 +519,7 @@ func (p *Parser) parseOneDevice() string {
 				p.advance()
 				return name + "=" + path
 			}
-			if p.isAnyKeywordIdent() {
+			if p.isIdentLike() {
 				path := p.cur.Str
 				p.advance()
 				return name + "=" + path
@@ -795,7 +795,7 @@ func (p *Parser) parseBackupEncryptionOption() (*nodes.BackupRestoreOption, erro
 	// SERVER CERTIFICATE = name | SERVER ASYMMETRIC KEY = name
 	if p.cur.Type == kwSERVER {
 		p.advance() // consume SERVER
-		if p.isAnyKeywordIdent() {
+		if p.isIdentLike() {
 			upper := strings.ToUpper(p.cur.Str)
 			if upper == "CERTIFICATE" {
 				opt.EncryptorType = "SERVER CERTIFICATE"
