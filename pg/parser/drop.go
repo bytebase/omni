@@ -635,7 +635,10 @@ func (p *Parser) parseDropOperator() (nodes.Node, error) {
 		missingOk = true
 	}
 
-	objects := p.parseOperatorWithArgtypesList()
+	objects, err := p.parseOperatorWithArgtypesList()
+	if err != nil {
+		return nil, err
+	}
 	behavior := p.parseOptDropBehavior()
 
 	return &nodes.DropStmt{
@@ -647,22 +650,36 @@ func (p *Parser) parseDropOperator() (nodes.Node, error) {
 }
 
 // parseOperatorWithArgtypesList parses a comma-separated list of operator_with_argtypes.
-func (p *Parser) parseOperatorWithArgtypesList() *nodes.List {
-	owa := p.parseOperatorWithArgtypes()
+func (p *Parser) parseOperatorWithArgtypesList() (*nodes.List, error) {
+	owa, err := p.parseOperatorWithArgtypes()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{owa}
 	for p.cur.Type == ',' {
 		p.advance()
-		items = append(items, p.parseOperatorWithArgtypes())
+		next, err := p.parseOperatorWithArgtypes()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, next)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseOperatorWithArgtypes parses operator_with_argtypes: any_operator oper_argtypes.
-func (p *Parser) parseOperatorWithArgtypes() *nodes.ObjectWithArgs {
-	opName, _ := p.parseAnyOperator()
+//
+// Returns an error if the operator name is missing (e.g. "DROP OPERATOR (int, int)"
+// with no operator token before the argtypes paren) — PG rejects this as a
+// syntax error, so omni must not silently accept it.
+func (p *Parser) parseOperatorWithArgtypes() (*nodes.ObjectWithArgs, error) {
+	opName, err := p.parseAnyOperator()
+	if err != nil {
+		return nil, err
+	}
 	owa := &nodes.ObjectWithArgs{Objname: opName}
 	owa.Objargs, _ = p.parseOperArgtypes()
-	return owa
+	return owa, nil
 }
 
 // parseDropFuncStmt parses DROP FUNCTION/PROCEDURE/ROUTINE (RemoveFuncStmt).
@@ -676,7 +693,10 @@ func (p *Parser) parseDropFuncStmt(objType nodes.ObjectType) (nodes.Node, error)
 
 	missingOk := p.parseOptIfExists()
 
-	objects := p.parseFunctionWithArgtypesList()
+	objects, err := p.parseFunctionWithArgtypesList()
+	if err != nil {
+		return nil, err
+	}
 	behavior := p.parseOptDropBehavior()
 
 	return &nodes.DropStmt{
@@ -688,15 +708,25 @@ func (p *Parser) parseDropFuncStmt(objType nodes.ObjectType) (nodes.Node, error)
 }
 
 // parseFunctionWithArgtypesList parses a comma-separated list of function_with_argtypes.
-func (p *Parser) parseFunctionWithArgtypesList() *nodes.List {
-	fwa, _ := p.parseFunctionWithArgtypes()
+//
+// Propagates errors from parseFunctionWithArgtypes so that inputs like
+// "DROP FUNCTION ()" (empty name before argtypes paren) reject with a syntax
+// error rather than silently double-parsing.
+func (p *Parser) parseFunctionWithArgtypesList() (*nodes.List, error) {
+	fwa, err := p.parseFunctionWithArgtypes()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{fwa}
 	for p.cur.Type == ',' {
 		p.advance()
-		f, _ := p.parseFunctionWithArgtypes()
+		f, err := p.parseFunctionWithArgtypes()
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, f)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseDropAggrStmt parses DROP AGGREGATE (RemoveAggrStmt).
@@ -708,7 +738,10 @@ func (p *Parser) parseDropAggrStmt() (nodes.Node, error) {
 
 	missingOk := p.parseOptIfExists()
 
-	objects := p.parseAggregateWithArgtypesList()
+	objects, err := p.parseAggregateWithArgtypesList()
+	if err != nil {
+		return nil, err
+	}
 	behavior := p.parseOptDropBehavior()
 
 	return &nodes.DropStmt{
@@ -720,15 +753,25 @@ func (p *Parser) parseDropAggrStmt() (nodes.Node, error) {
 }
 
 // parseAggregateWithArgtypesList parses a comma-separated list of aggregate_with_argtypes.
-func (p *Parser) parseAggregateWithArgtypesList() *nodes.List {
-	agg, _ := p.parseAggregateWithArgtypesLocal()
+//
+// Propagates errors from parseAggregateWithArgtypesLocal so that inputs like
+// "DROP AGGREGATE ()" (empty name before aggr_args paren) reject with a
+// syntax error rather than silently double-parsing.
+func (p *Parser) parseAggregateWithArgtypesList() (*nodes.List, error) {
+	agg, err := p.parseAggregateWithArgtypesLocal()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{agg}
 	for p.cur.Type == ',' {
 		p.advance()
-		a, _ := p.parseAggregateWithArgtypesLocal()
+		a, err := p.parseAggregateWithArgtypesLocal()
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, a)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseDropTableSpaceStmt parses a DROP TABLESPACE statement.
