@@ -703,6 +703,9 @@ func (p *Parser) parseRuleActionStmt() (nodes.Node, error) {
 		return p.parseUpdateStmt(nil)
 	case DELETE_P:
 		return p.parseDeleteStmt(nil)
+	case NOTIFY:
+		p.advance() // consume NOTIFY
+		return p.parseNotifyStmt()
 	default:
 		return nil, nil
 	}
