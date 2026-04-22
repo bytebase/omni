@@ -884,6 +884,22 @@ const (
 	kwTTL_JOB_INTERVAL
 	kwPLACEMENT
 	kwPOLICY
+
+	// TiDB PLACEMENT POLICY option keywords. Shared between CREATE,
+	// ALTER, and DROP PLACEMENT POLICY statements (and, for the
+	// constraint-shaped options, referenced in TiDB's placement-rule
+	// docs). All unreserved.
+	kwPRIMARY_REGION
+	kwREGIONS
+	kwFOLLOWERS
+	kwVOTERS
+	kwLEARNERS
+	kwCONSTRAINTS
+	kwLEADER_CONSTRAINTS
+	kwFOLLOWER_CONSTRAINTS
+	kwVOTER_CONSTRAINTS
+	kwLEARNER_CONSTRAINTS
+	kwSURVIVAL_PREFERENCES
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1704,6 +1720,19 @@ var keywords = map[string]int{
 	"ttl_job_interval":  kwTTL_JOB_INTERVAL,
 	"placement":         kwPLACEMENT,
 	"policy":            kwPOLICY,
+
+	// TiDB PLACEMENT POLICY option keywords.
+	"primary_region":       kwPRIMARY_REGION,
+	"regions":              kwREGIONS,
+	"followers":            kwFOLLOWERS,
+	"voters":               kwVOTERS,
+	"learners":             kwLEARNERS,
+	"constraints":          kwCONSTRAINTS,
+	"leader_constraints":   kwLEADER_CONSTRAINTS,
+	"follower_constraints": kwFOLLOWER_CONSTRAINTS,
+	"voter_constraints":    kwVOTER_CONSTRAINTS,
+	"learner_constraints":  kwLEARNER_CONSTRAINTS,
+	"survival_preferences": kwSURVIVAL_PREFERENCES,
 }
 
 // Token represents a lexical token.

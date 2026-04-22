@@ -147,6 +147,12 @@ func (c *Catalog) processUtility(stmt nodes.Node) error {
 		return c.alterTable(s)
 	case *nodes.AlterDatabaseStmt:
 		return c.alterDatabase(s)
+	case *nodes.CreatePlacementPolicyStmt:
+		return c.createPlacementPolicy(s)
+	case *nodes.AlterPlacementPolicyStmt:
+		return c.alterPlacementPolicy(s)
+	case *nodes.DropPlacementPolicyStmt:
+		return c.dropPlacementPolicy(s)
 	case *nodes.DropTableStmt:
 		return c.dropTable(s)
 	case *nodes.DropDatabaseStmt:
@@ -227,6 +233,12 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.AlterTableStmt:
 		return s.Loc.Start
 	case *nodes.AlterDatabaseStmt:
+		return s.Loc.Start
+	case *nodes.CreatePlacementPolicyStmt:
+		return s.Loc.Start
+	case *nodes.AlterPlacementPolicyStmt:
+		return s.Loc.Start
+	case *nodes.DropPlacementPolicyStmt:
 		return s.Loc.Start
 	case *nodes.DropTableStmt:
 		return s.Loc.Start

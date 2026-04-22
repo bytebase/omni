@@ -16,6 +16,12 @@ func walkChildren(v Visitor, node Node) {
 		if n.Schedule != nil {
 			Walk(v, n.Schedule)
 		}
+	case *AlterPlacementPolicyStmt:
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *AlterRoutineStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -264,6 +270,12 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+	case *CreatePlacementPolicyStmt:
 		for _, item := range n.Options {
 			if item != nil {
 				Walk(v, item)

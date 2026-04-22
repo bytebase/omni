@@ -88,6 +88,70 @@ func TestTiDBKeywords_CreateDatabasePlacement(t *testing.T) {
 	}
 }
 
+// TestTiDBKeywords_CreatePlacementPolicy asserts that PLACEMENT shows
+// up as a candidate object type after CREATE, so users can discover
+// the CREATE PLACEMENT POLICY statement via completion.
+func TestTiDBKeywords_CreatePlacementPolicy(t *testing.T) {
+	cat := catalog.New()
+
+	sql := "CREATE "
+	candidates := Complete(sql, len(sql), cat)
+
+	if !containsText(candidates, "PLACEMENT") {
+		t.Errorf("expected PLACEMENT in CREATE completion; got: %v", candidateTexts(candidates))
+	}
+}
+
+// TestTiDBKeywords_PlacementPolicyOptions asserts that PRIMARY_REGION
+// (and friends) show up as candidates inside a CREATE PLACEMENT POLICY
+// option list. The inner grammar is completely independent from CREATE
+// TABLE options, so a separate anchor test is warranted.
+func TestTiDBKeywords_PlacementPolicyOptions(t *testing.T) {
+	cat := catalog.New()
+
+	sql := "CREATE PLACEMENT POLICY p "
+	candidates := Complete(sql, len(sql), cat)
+
+	wanted := []string{
+		"PRIMARY_REGION", "REGIONS", "FOLLOWERS", "VOTERS", "LEARNERS",
+		"CONSTRAINTS", "LEADER_CONSTRAINTS", "SURVIVAL_PREFERENCES",
+	}
+	for _, w := range wanted {
+		if containsText(candidates, w) {
+			return // any-of passes
+		}
+	}
+	t.Errorf("expected at least one placement option keyword after CREATE PLACEMENT POLICY p; got none.\nAll candidates: %v", candidateTexts(candidates))
+}
+
+// TestTiDBKeywords_AutoRandomColumnConstraint — P2 bundled with Tier 1.
+// AUTO_RANDOM belongs on the column-constraint list alongside
+// AUTO_INCREMENT in TiDB CREATE TABLE syntax.
+func TestTiDBKeywords_AutoRandomColumnConstraint(t *testing.T) {
+	cat := catalog.New()
+
+	sql := "CREATE TABLE t (id BIGINT "
+	candidates := Complete(sql, len(sql), cat)
+
+	if !containsText(candidates, "AUTO_RANDOM") {
+		t.Errorf("expected AUTO_RANDOM on column-constraint completion; got: %v", candidateTexts(candidates))
+	}
+}
+
+// TestTiDBKeywords_ClusteredPKModifier — P2 bundled with Tier 1.
+// CLUSTERED / NONCLUSTERED appear after a table-level PRIMARY KEY
+// (col_list) declaration.
+func TestTiDBKeywords_ClusteredPKModifier(t *testing.T) {
+	cat := catalog.New()
+
+	sql := "CREATE TABLE t (id INT, PRIMARY KEY (id) "
+	candidates := Complete(sql, len(sql), cat)
+
+	if !containsText(candidates, "CLUSTERED") && !containsText(candidates, "NONCLUSTERED") {
+		t.Errorf("expected CLUSTERED or NONCLUSTERED after PRIMARY KEY (id); got: %v", candidateTexts(candidates))
+	}
+}
+
 // candidateTexts extracts the text of each candidate for error messages.
 func candidateTexts(cs []Candidate) []string {
 	out := make([]string, 0, len(cs))

@@ -487,6 +487,19 @@ var keywordCategories = map[int]keywordCategory{
 	kwTTL_JOB_INTERVAL:  kwCatUnambiguous,
 	kwPLACEMENT:         kwCatUnambiguous,
 	kwPOLICY:            kwCatUnambiguous,
+
+	// TiDB PLACEMENT POLICY option keywords (all unreserved upstream).
+	kwPRIMARY_REGION:       kwCatUnambiguous,
+	kwREGIONS:              kwCatUnambiguous,
+	kwFOLLOWERS:            kwCatUnambiguous,
+	kwVOTERS:               kwCatUnambiguous,
+	kwLEARNERS:             kwCatUnambiguous,
+	kwCONSTRAINTS:          kwCatUnambiguous,
+	kwLEADER_CONSTRAINTS:   kwCatUnambiguous,
+	kwFOLLOWER_CONSTRAINTS: kwCatUnambiguous,
+	kwVOTER_CONSTRAINTS:    kwCatUnambiguous,
+	kwLEARNER_CONSTRAINTS:  kwCatUnambiguous,
+	kwSURVIVAL_PREFERENCES: kwCatUnambiguous,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot

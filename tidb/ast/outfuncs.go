@@ -137,6 +137,14 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterDatabaseStmt(sb, n)
 	case *DropDatabaseStmt:
 		writeDropDatabaseStmt(sb, n)
+	case *CreatePlacementPolicyStmt:
+		writeCreatePlacementPolicyStmt(sb, n)
+	case *AlterPlacementPolicyStmt:
+		writeAlterPlacementPolicyStmt(sb, n)
+	case *DropPlacementPolicyStmt:
+		writeDropPlacementPolicyStmt(sb, n)
+	case *PlacementPolicyOption:
+		writePlacementPolicyOption(sb, n)
 	case *DropIndexStmt:
 		writeDropIndexStmt(sb, n)
 	case *DropViewStmt:
@@ -1970,6 +1978,68 @@ func writeDropDatabaseStmt(sb *strings.Builder, n *DropDatabaseStmt) {
 		sb.WriteString(" :if_exists true")
 	}
 	fmt.Fprintf(sb, " :name %s", n.Name)
+	sb.WriteString("}")
+}
+
+func writeCreatePlacementPolicyStmt(sb *strings.Builder, n *CreatePlacementPolicyStmt) {
+	sb.WriteString("{CREATE_PLACEMENT_POLICY")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if len(n.Options) > 0 {
+		sb.WriteString(" :options ")
+		for i, o := range n.Options {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, o)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeAlterPlacementPolicyStmt(sb *strings.Builder, n *AlterPlacementPolicyStmt) {
+	sb.WriteString("{ALTER_PLACEMENT_POLICY")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if len(n.Options) > 0 {
+		sb.WriteString(" :options ")
+		for i, o := range n.Options {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, o)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeDropPlacementPolicyStmt(sb *strings.Builder, n *DropPlacementPolicyStmt) {
+	sb.WriteString("{DROP_PLACEMENT_POLICY")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	sb.WriteString("}")
+}
+
+func writePlacementPolicyOption(sb *strings.Builder, n *PlacementPolicyOption) {
+	sb.WriteString("{PLACEMENT_POLICY_OPTION")
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	if n.IsInt {
+		fmt.Fprintf(sb, " :int_value %d", n.IntValue)
+	} else {
+		fmt.Fprintf(sb, " :value %q", n.Value)
+	}
 	sb.WriteString("}")
 }
 
