@@ -2088,8 +2088,21 @@ func (p *Parser) parseOptOuter() {
 //	join_qual:
 //	    USING '(' name_list ')' join_using_alias
 //	    | ON a_expr
+//
+// Only CROSS JOIN and NATURAL {INNER|LEFT|RIGHT|FULL} JOIN elide
+// join_qual (gram.y:13559-13608). Every other join type (plain JOIN,
+// INNER JOIN, LEFT/RIGHT/FULL [OUTER] JOIN) requires join_qual; this
+// function is only invoked from those call sites in tryParseJoin, so
+// USING or ON is mandatory here and anything else is a syntax error.
+// PAREN-KB-1 tracked the pre-fix leniency: `(T JOIN U)` silently
+// parsed as JoinExpr with nil qual.
 func (p *Parser) parseJoinQual(j *nodes.JoinExpr) error {
-	if p.cur.Type == USING {
+	if p.collectMode() {
+		p.addTokenCandidate(USING)
+		p.addTokenCandidate(ON)
+	}
+	switch p.cur.Type {
+	case USING:
 		p.advance()
 		if _, err := p.expect('('); err != nil {
 			return err
@@ -2117,15 +2130,18 @@ func (p *Parser) parseJoinQual(j *nodes.JoinExpr) error {
 			}
 			j.JoinUsing = &nodes.Alias{Aliasname: aliasName, Loc: nodes.Loc{Start: aliasLoc, End: p.prev.End}}
 		}
-	} else if p.cur.Type == ON {
+		return nil
+	case ON:
 		p.advance()
 		var err error
 		j.Quals, err = p.parseAExpr(0)
-		if err != nil {
-			return err
+		return err
+	default:
+		if p.collectMode() {
+			return nil
 		}
+		return p.syntaxErrorAtCur()
 	}
-	return nil
 }
 
 // ---------------------------------------------------------------------------
