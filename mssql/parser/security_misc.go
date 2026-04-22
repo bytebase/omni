@@ -482,7 +482,7 @@ func (p *Parser) parseSignatureStmt(action string) (*nodes.SignatureStmt, error)
 				ref := &nodes.TableRef{Object: name1}
 				for p.cur.Type == '.' {
 					p.advance()
-					if p.isAnyKeywordIdent() {
+					if p.isIdentLike() {
 						ref = &nodes.TableRef{
 							Schema: ref.Object,
 							Object: p.cur.Str,
