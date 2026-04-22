@@ -318,6 +318,10 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 		if p.isAnyKeywordIdent() {
 			next := p.peekNext()
 			if next.Type == ':' {
+				// Labels must be identifiers; reject reserved keywords here.
+				if !p.isIdentLike() {
+					return nil, p.syntaxErrorAtCur()
+				}
 				return p.parseLabelStmt()
 			}
 			// SEND ON CONVERSATION ... (service broker)

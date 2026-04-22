@@ -1703,7 +1703,7 @@ func (p *Parser) parseWindowClause() (*nodes.List, error) {
 		// Optional existing_window_name (must be an ident not followed by keyword like PARTITION, ORDER)
 		if p.cur.Type != kwPARTITION && p.cur.Type != kwORDER &&
 			p.cur.Type != kwROWS && p.cur.Type != kwRANGE && p.cur.Type != kwGROUPS &&
-			p.cur.Type != ')' && p.isAnyKeywordIdent() {
+			p.cur.Type != ')' && p.isIdentLike() {
 			next := p.peekNext()
 			// If next token is a clause keyword or ), this is a refname
 			if next.Type == kwPARTITION || next.Type == kwORDER ||
@@ -1956,7 +1956,7 @@ func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 	}
 
 	// All remaining hints are identifiers (not lexer keywords)
-	if !p.isAnyKeywordIdent() {
+	if !p.isIdentLike() {
 		return nil, nil
 	}
 
