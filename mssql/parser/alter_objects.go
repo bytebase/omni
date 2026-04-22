@@ -248,6 +248,12 @@ var (
 	)
 )
 
+// alterIndexActions: ALTER INDEX action keyword set (excluding SET which is a
+// registered kwSET and handled separately).
+var alterIndexActions = newOptionSet().withIdents(
+	"REBUILD", "REORGANIZE", "DISABLE", "RESUME", "PAUSE", "ABORT",
+)
+
 // alterDatabaseSubcommands is the closed set of ALTER DATABASE subcommands
 // that dispatch this parser (ADD and SET/COLLATE are handled by dedicated
 // keyword branches before this fallback is reached). Matches the branches
@@ -922,11 +928,11 @@ func (p *Parser) parseAlterIndexStmt() (*nodes.AlterIndexStmt, error) {
 		}
 	}
 
-	// Action: REBUILD, REORGANIZE, DISABLE, SET, RESUME, PAUSE, ABORT
+	// Action: REBUILD, REORGANIZE, DISABLE, SET, RESUME, PAUSE, ABORT.
 	if p.cur.Type == kwSET {
 		stmt.Action = "SET"
 		p.advance()
-	} else if p.isAnyKeywordIdent() {
+	} else if p.isValidOption(alterIndexActions) {
 		stmt.Action = strings.ToUpper(p.cur.Str)
 		p.advance()
 	}
