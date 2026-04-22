@@ -235,6 +235,19 @@ var dbSetOptions = newOptionSet(
 	// Additional (MANUAL_CUTOVER, PERFORM_CUTOVER are handled at ALTER DATABASE level, not SET level).
 )
 
+// SqlScriptDOM-validated enum sets for ALTER DATABASE sub-value positions.
+var (
+	timeUnitShort     = newOptionSet().withIdents("SECONDS", "MINUTES")
+	timeUnitFull      = newOptionSet().withIdents("SECONDS", "MINUTES", "DAYS", "HOURS")
+	partnerSafetyVals = newOptionSet().withIdents("FULL", "OFF")
+	hadrSubcommands   = newOptionSet().withIdents("AVAILABILITY", "OFF", "SUSPEND", "RESUME")
+	terminationKws    = newOptionSet().withIdents("ROLLBACK", "NO_WAIT")
+	modifyFileOptions = newOptionSet().withIdents(
+		"READ_ONLY", "READ_WRITE", "READONLY", "READWRITE",
+		"AUTOGROW_SINGLE_FILE", "AUTOGROW_ALL_FILES",
+	)
+)
+
 // alterDatabaseSubcommands is the closed set of ALTER DATABASE subcommands
 // that dispatch this parser (ADD and SET/COLLATE are handled by dedicated
 // keyword branches before this fallback is reached). Matches the branches
@@ -427,12 +440,10 @@ func (p *Parser) parseAlterDatabaseSetOption() string {
 		// Here it's like "AUTO_CLOSE OFF" or "TARGET_RECOVERY_TIME 60"
 		if key == "TARGET_RECOVERY_TIME" {
 			// val is the number, check for unit
-			if p.isAnyKeywordIdent() {
+			if p.isValidOption(timeUnitShort) {
 				unit := strings.ToUpper(p.cur.Str)
-				if unit == "SECONDS" || unit == "MINUTES" {
-					p.advance()
-					return key + "=" + val + " " + unit
-				}
+				p.advance()
+				return key + "=" + val + " " + unit
 			}
 			return key + "=" + val
 		}
@@ -465,7 +476,7 @@ func (p *Parser) parseAlterDatabaseSetPartner() string {
 		switch sub {
 		case "SAFETY":
 			// SAFETY { FULL | OFF }
-			if p.isAnyKeywordIdent() {
+			if p.isValidOption(partnerSafetyVals) {
 				val := strings.ToUpper(p.cur.Str)
 				p.advance()
 				return "PARTNER SAFETY=" + val
@@ -494,7 +505,7 @@ func (p *Parser) parseAlterDatabaseSetPartner() string {
 //
 //	SET HADR { AVAILABILITY GROUP = group_name | OFF | SUSPEND | RESUME }
 func (p *Parser) parseAlterDatabaseSetHadr() string {
-	if p.isAnyKeywordIdent() {
+	if p.isValidOption(hadrSubcommands) {
 		sub := strings.ToUpper(p.cur.Str)
 		p.advance()
 		switch sub {
@@ -534,13 +545,10 @@ func (p *Parser) parseAlterDatabaseOptionValue() string {
 		val := p.cur.Str
 		p.advance()
 		// Check for unit suffix (SECONDS, MINUTES, DAYS, HOURS)
-		if p.isAnyKeywordIdent() {
+		if p.isValidOption(timeUnitFull) {
 			unit := strings.ToUpper(p.cur.Str)
-			switch unit {
-			case "SECONDS", "MINUTES", "DAYS", "HOURS":
-				p.advance()
-				return val + " " + unit
-			}
+			p.advance()
+			return val + " " + unit
 		}
 		return val
 	}
@@ -600,7 +608,7 @@ func (p *Parser) parseAlterDatabaseSubOptions() string {
 //	  | ROLLBACK IMMEDIATE
 //	  | NO_WAIT
 func (p *Parser) parseAlterDatabaseTermination() string {
-	if p.isAnyKeywordIdent() {
+	if p.isValidOption(terminationKws) {
 		kw := strings.ToUpper(p.cur.Str)
 		switch kw {
 		case "ROLLBACK":
@@ -844,7 +852,7 @@ func (p *Parser) parseAlterDatabaseModifyFilegroupOption(stmt *nodes.AlterDataba
 		}
 		return
 	}
-	if p.isAnyKeywordIdent() {
+	if p.isValidOption(modifyFileOptions) {
 		opt := strings.ToUpper(p.cur.Str)
 		switch opt {
 		case "READ_ONLY", "READ_WRITE", "READONLY", "READWRITE",
