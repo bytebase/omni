@@ -22,18 +22,25 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 		}
 		p.advance() // consume (
 
-		if p.cur.Type != ')' {
-			var args []nodes.Node
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				arg, _ := p.parseExpr()
-				args = append(args, arg)
-				if _, ok := p.match(','); !ok {
-					break
-				}
+		args, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+			arg, err := p.parseExpr()
+			if err != nil {
+				return nil, err
 			}
+			if arg == nil {
+				return nil, p.unexpectedToken()
+			}
+			return arg, nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		if len(args) > 0 {
 			fc.Args = &nodes.List{Items: args}
 		}
-		_, _ = p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 
 		// WITH clause for OPENJSON and OPENXML
 		var withClause *nodes.List

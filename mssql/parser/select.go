@@ -2411,19 +2411,24 @@ func (p *Parser) parseQueryHint() (nodes.Node, error) {
 				if err != nil {
 					return nil, err
 				}
-				// Parse comma-separated table hints reusing parseTableHint()
-				var hints []nodes.Node
-				for p.cur.Type == ',' {
-					p.advance()
-					th, err := p.parseTableHint()
+				// After the table reference, zero-or-more hints may follow, each
+				// introduced by a leading comma. When the first comma is present
+				// the tail is a normal strict comma-separated list terminated by
+				// ')' — empty slots and trailing commas are rejected.
+				if _, ok := p.match(','); ok {
+					hints, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+						th, err := p.parseTableHint()
+						if err != nil {
+							return nil, err
+						}
+						if th == nil {
+							return nil, p.unexpectedToken()
+						}
+						return th, nil
+					})
 					if err != nil {
 						return nil, err
 					}
-					if th != nil {
-						hints = append(hints, th)
-					}
-				}
-				if len(hints) > 0 {
 					hint.TableHints = &nodes.List{Items: hints}
 				}
 				if _, err := p.expect(')'); err != nil {

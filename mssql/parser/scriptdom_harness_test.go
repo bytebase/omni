@@ -446,6 +446,14 @@ func TestScriptDOMRejectAlignment(t *testing.T) {
 		{"item/xmlnamespaces-middle-empty", `WITH XMLNAMESPACES ('foo' AS p, , 'bar' AS q) SELECT 1`},
 		{"item/index-hint-double-comma", `SELECT * FROM t WITH (INDEX(123,,456))`},
 		{"item/create-table-int-column", `CREATE TABLE t (a INT, 123, b INT)`},
+		// rowset function argument list (now migrated to parseCommaList).
+		{"rowset/openjson-empty-comma", `SELECT * FROM OPENJSON(,)`},
+		{"rowset/openjson-trail", `SELECT * FROM OPENJSON(@j,)`},
+		{"rowset/openjson-empty-args", `SELECT * FROM OPENJSON()`},
+		// OPTION (TABLE HINT(...)) — now strict after the first comma.
+		{"option/table-hint-trail", `SELECT * FROM t OPTION (TABLE HINT(t, NOLOCK,))`},
+		{"option/table-hint-empty-after-comma", `SELECT * FROM t OPTION (TABLE HINT(t,))`},
+		{"option/table-hint-double-comma", `SELECT * FROM t OPTION (TABLE HINT(t,,NOLOCK))`},
 	}
 
 	for _, f := range fixtures {
