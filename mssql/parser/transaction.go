@@ -126,7 +126,8 @@ func (p *Parser) parseCommitStmt() (*nodes.CommitTransStmt, error) {
 		if _, ok2 := p.match('('); ok2 {
 			if p.matchIdentCI("DELAYED_DURABILITY") {
 				p.match('=')
-				if p.isAnyKeywordIdent() {
+				// COMMIT ... DELAYED_DURABILITY = { ON | OFF }
+				if p.isValidOption(onOffOptionValues) {
 					stmt.DelayedDurability = strings.ToUpper(p.cur.Str)
 					p.advance()
 				}

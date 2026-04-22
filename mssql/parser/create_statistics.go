@@ -7,6 +7,13 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// statisticsWithOptions: UPDATE/CREATE STATISTICS WITH ... option names.
+var statisticsWithOptions = newOptionSet(kwFULL, kwNOCOUNT).withIdents(
+	"FULLSCAN", "SAMPLE", "RESAMPLE", "NORECOMPUTE", "INCREMENTAL",
+	"MAXDOP", "ALL", "STATS_STREAM", "ROWCOUNT", "PAGECOUNT",
+	"PERSIST_SAMPLE_PERCENT", "AUTO_DROP",
+)
+
 // parseCreateStatisticsStmt parses a CREATE STATISTICS statement.
 //
 // BNF: mssql/parser/bnf/create-statistics-transact-sql.bnf
@@ -205,16 +212,16 @@ func (p *Parser) parseDropStatisticsStmt() (*nodes.DropStatisticsStmt, error) {
 func (p *Parser) parseStatisticsWithOptions() *nodes.List {
 	var opts []nodes.Node
 	for {
-		if p.isAnyKeywordIdent() || p.cur.Type == kwFULL || p.cur.Type == kwNOCOUNT {
+		if p.isValidOption(statisticsWithOptions) {
 			opt := strings.ToUpper(p.cur.Str)
 			isSample := p.cur.Type == kwSAMPLE
 			isResample := p.cur.Type == kwRESAMPLE
 			p.advance()
-			// Handle SAMPLE number PERCENT|ROWS
+			// Handle SAMPLE number { PERCENT | ROWS }.
 			if isSample {
 				p.parseExpr() // number
-				if p.isAnyKeywordIdent() {
-					p.advance() // PERCENT or ROWS
+				if p.cur.Type == kwPERCENT || p.cur.Type == kwROWS {
+					p.advance()
 				}
 			} else if isResample {
 				// RESAMPLE [ ON PARTITIONS ( { partition_number | range } [ ,...n ] ) ]
