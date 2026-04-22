@@ -477,6 +477,11 @@ func TestScriptDOMRejectAlignment(t *testing.T) {
 		{"subcmd/alter-db-failover", `ALTER DATABASE mydb FAILOVER`},
 		{"subcmd/alter-db-unknown", `ALTER DATABASE mydb UNKNOWN_ACTION`},
 		{"subcmd/alter-partition-select", `ALTER PARTITION FUNCTION pf() SELECT RANGE (100)`},
+		// B3 extended value-enum coverage (ON/OFF + named enums).
+		{"dbopt-value/encryption-select", `ALTER DATABASE foo SET ENCRYPTION SELECT`},
+		{"dbopt-value/encryption-bogus", `ALTER DATABASE foo SET ENCRYPTION BOGUS`},
+		{"dbopt-value/auto-close-bogus", `ALTER DATABASE foo SET AUTO_CLOSE BOGUS`},
+		{"dbopt-value/quoted-ident-bogus", `ALTER DATABASE foo SET QUOTED_IDENTIFIER BOGUS`},
 	}
 
 	for _, f := range fixtures {

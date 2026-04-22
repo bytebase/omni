@@ -243,19 +243,53 @@ var alterDatabaseSubcommands = newOptionSet().withIdents(
 	"MODIFY", "REMOVE", "REBUILD", "PERFORM_CUTOVER",
 )
 
-// Per-option value enums. When an option key is found here, its value must be
-// one of the listed identifiers; any other keyword/ident is rejected (the
+// Per-option value enums. When an option key is found here and the parser
+// reaches the fallback bare-keyword branch, its value must be one of the
+// listed identifiers; any other keyword/ident is rejected (the
 // parseAlterDatabaseSetOption function returns "" to skip this SET fragment,
 // matching how it already treats unparseable options).
 //
-// This is the POC scope for the DDL option-value strictness plan
-// (docs/plans/2026-04-22-ddl-option-strictness.md). Additional option → enum
-// mappings belong in the follow-up batches.
+// Note: options whose value is ON are routed through an earlier
+// `p.cur.Type == kwON` short-circuit. That path preserves its current
+// leniency; fully strictifying ON-values requires restructuring that
+// branch and is tracked as follow-up work in the DDL strictness plan.
+var onOffOptionValues = newOptionSet().withIdents("ON", "OFF")
+
 var dbSetOptionValueEnums = map[string]optionSet{
+	// Specific value enums.
 	"RECOVERY":         newOptionSet().withIdents("FULL", "SIMPLE", "BULK_LOGGED"),
 	"PAGE_VERIFY":      newOptionSet().withIdents("CHECKSUM", "TORN_PAGE_DETECTION", "NONE"),
 	"PARAMETERIZATION": newOptionSet().withIdents("SIMPLE", "FORCED"),
 	"CURSOR_DEFAULT":   newOptionSet().withIdents("LOCAL", "GLOBAL"),
+	"ENCRYPTION":       onOffOptionValues,
+	// ON/OFF options whose OFF path reaches this fallback (the ON path is
+	// handled by the kwON short-circuit and remains lenient until the
+	// broader ON-value strictification lands).
+	"AUTO_CLOSE":                          onOffOptionValues,
+	"AUTO_SHRINK":                         onOffOptionValues,
+	"AUTO_CREATE_STATISTICS":              onOffOptionValues,
+	"AUTO_UPDATE_STATISTICS":              onOffOptionValues,
+	"AUTO_UPDATE_STATISTICS_ASYNC":        onOffOptionValues,
+	"ANSI_NULL_DEFAULT":                   onOffOptionValues,
+	"ANSI_NULLS":                          onOffOptionValues,
+	"ANSI_PADDING":                        onOffOptionValues,
+	"ANSI_WARNINGS":                       onOffOptionValues,
+	"ARITHABORT":                          onOffOptionValues,
+	"CONCAT_NULL_YIELDS_NULL":             onOffOptionValues,
+	"NUMERIC_ROUNDABORT":                  onOffOptionValues,
+	"QUOTED_IDENTIFIER":                   onOffOptionValues,
+	"RECURSIVE_TRIGGERS":                  onOffOptionValues,
+	"CURSOR_CLOSE_ON_COMMIT":              onOffOptionValues,
+	"DB_CHAINING":                         onOffOptionValues,
+	"TRUSTWORTHY":                         onOffOptionValues,
+	"DATE_CORRELATION_OPTIMIZATION":       onOffOptionValues,
+	"ALLOW_SNAPSHOT_ISOLATION":            onOffOptionValues,
+	"READ_COMMITTED_SNAPSHOT":             onOffOptionValues,
+	"HONOR_BROKER_PRIORITY":               onOffOptionValues,
+	"NESTED_TRIGGERS":                     onOffOptionValues,
+	"TRANSFORM_NOISE_WORDS":               onOffOptionValues,
+	"MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT": onOffOptionValues,
+	"TORN_PAGE_DETECTION":                 onOffOptionValues,
 }
 
 // parseAlterDatabaseSetOption parses a single SET option and returns it as a string.
