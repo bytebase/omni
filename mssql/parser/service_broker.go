@@ -11,6 +11,10 @@ import (
 // BNF: VALIDATION = { NONE | EMPTY | WELL_FORMED_XML | VALID_XML WITH SCHEMA COLLECTION ... }
 var validationValues = newOptionSet(kwNONE).withIdents("EMPTY", "WELL_FORMED_XML", "VALID_XML")
 
+// contractSentByValues matches SqlScriptDOM's MessageBodyDirection enum
+// used in CREATE CONTRACT (message SENT BY {INITIATOR | TARGET | ANY}).
+var contractSentByValues = newOptionSet(kwANY).withIdents("INITIATOR", "TARGET", "ANY")
+
 // brokerWithOptions is the set of valid WITH option names for service broker statements.
 // Covers CREATE/ALTER ROUTE, REMOTE SERVICE BINDING, and generic broker WITH clauses.
 var brokerWithOptions = newOptionSet(
@@ -155,7 +159,8 @@ func (p *Parser) parseCreateContractStmt() (*nodes.ServiceBrokerStmt, error) {
 				if p.cur.Type == kwBY {
 					p.advance()
 				}
-				if p.isAnyKeywordIdent() || p.cur.Type == kwANY {
+				// SENT BY { INITIATOR | TARGET | ANY } — closed enum.
+				if p.isValidOption(contractSentByValues) {
 					sentBy = strings.ToUpper(p.cur.Str)
 					p.advance()
 				}
