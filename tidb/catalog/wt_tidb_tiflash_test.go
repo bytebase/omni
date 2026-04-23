@@ -74,6 +74,51 @@ func TestWTTiDBTiFlash_DatabaseReplicaAlter(t *testing.T) {
 	}
 }
 
+// TestWTTiDBTiFlash_TableLabelsReplaced verifies that a second ALTER
+// TABLE SET TIFLASH REPLICA with new labels FULLY REPLACES the prior
+// label list — it does not append. Upstream semantics are replace;
+// omni must match.
+func TestWTTiDBTiFlash_TableLabelsReplaced(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY)")
+	wtExec(t, c, "ALTER TABLE t SET TIFLASH REPLICA 3 LOCATION LABELS 'zone_a', 'rack_x'")
+	wtExec(t, c, "ALTER TABLE t SET TIFLASH REPLICA 3 LOCATION LABELS 'zone_b'")
+
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if len(tbl.TiFlashLocationLabels) != 1 {
+		t.Fatalf("labels len = %d, want 1 (replace, not append): %v", len(tbl.TiFlashLocationLabels), tbl.TiFlashLocationLabels)
+	}
+	if tbl.TiFlashLocationLabels[0] != "zone_b" {
+		t.Errorf("labels[0] = %q, want zone_b", tbl.TiFlashLocationLabels[0])
+	}
+	// Also guard against prior labels bleeding through.
+	for _, l := range tbl.TiFlashLocationLabels {
+		if l == "zone_a" || l == "rack_x" {
+			t.Errorf("old label %q leaked into new list: %v", l, tbl.TiFlashLocationLabels)
+		}
+	}
+}
+
+// TestWTTiDBTiFlash_DatabaseReplicaRemoval exercises the DB-level
+// removal path: create with replicas+labels, then alter to 0 without
+// labels, assert both fields cleared.
+func TestWTTiDBTiFlash_DatabaseReplicaRemoval(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE ddb SET TIFLASH REPLICA 2 LOCATION LABELS 'us-east'", nil); err != nil {
+		t.Fatalf("CREATE: %v", err)
+	}
+	if _, err := c.Exec("ALTER DATABASE ddb SET TIFLASH REPLICA 0", nil); err != nil {
+		t.Fatalf("ALTER: %v", err)
+	}
+	db := c.GetDatabase("ddb")
+	if db.TiFlashReplica != 0 {
+		t.Errorf("TiFlashReplica = %d, want 0", db.TiFlashReplica)
+	}
+	if len(db.TiFlashLocationLabels) != 0 {
+		t.Errorf("labels should clear on replica=0 without clause, got %v", db.TiFlashLocationLabels)
+	}
+}
+
 // TestWTTiDBTiFlash_MixedWithPlacementPolicy verifies that a CREATE
 // DATABASE statement can carry both PLACEMENT POLICY and SET TIFLASH
 // REPLICA options. The upstream DatabaseOption list is one rule shared

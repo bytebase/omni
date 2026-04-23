@@ -167,6 +167,12 @@ type Event struct {
 func cloneTable(src *Table) Table {
 	dst := *src // shallow copy of all scalar fields
 
+	// Deep-copy slice-valued scalar fields so the shallow-copy header
+	// shares no backing array with src. Pattern-matched to the
+	// Constraint/Column handling below — future append-through-pointer
+	// mutations on one side can't leak into the other during rollback.
+	dst.TiFlashLocationLabels = append([]string(nil), src.TiFlashLocationLabels...)
+
 	// Deep copy columns.
 	dst.Columns = make([]*Column, len(src.Columns))
 	for i, sc := range src.Columns {

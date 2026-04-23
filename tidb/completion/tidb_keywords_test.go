@@ -178,6 +178,21 @@ func TestTiDBKeywords_AlterDatabaseTiFlash(t *testing.T) {
 	}
 }
 
+// TestTiDBKeywords_CreateDatabaseTiFlash mirrors TestTiDBKeywords_
+// AlterDatabaseTiFlash for the CREATE path. parseDatabaseOption is
+// shared between the two statements, so this catches a future
+// divergence that would only affect CREATE.
+func TestTiDBKeywords_CreateDatabaseTiFlash(t *testing.T) {
+	cat := catalog.New()
+
+	sql := "CREATE DATABASE ddb "
+	candidates := Complete(sql, len(sql), cat)
+
+	if !containsText(candidates, "SET") {
+		t.Errorf("expected SET in CREATE DATABASE completion; got: %v", candidateTexts(candidates))
+	}
+}
+
 // candidateTexts extracts the text of each candidate for error messages.
 func candidateTexts(cs []Candidate) []string {
 	out := make([]string, 0, len(cs))

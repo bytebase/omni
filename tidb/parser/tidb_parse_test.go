@@ -253,6 +253,22 @@ func TestParseAlterTiFlashReplicaLocationLabels(t *testing.T) {
 	}
 }
 
+// TestTiDBKeywordsUsableAsIdentifiers pins that the new unreserved
+// keywords added for TIFLASH / replication work (LOCATION, LABELS,
+// MASTER_LOG_FILE) can still be used as bare identifiers in CREATE
+// TABLE column names. Upstream categorizes all three as non-reserved
+// (parser.y:7071-7072 for LOCATION/LABELS, and MASTER_LOG_FILE is in
+// the UnReservedKeyword block at line 6780+). Miscategorizing them
+// as reserved would break legitimate MySQL-compat DDL with `location`
+// or `labels` columns — exactly the kind of silent regression #104
+// had a precedent for.
+func TestTiDBKeywordsUsableAsIdentifiers(t *testing.T) {
+	sql := "CREATE TABLE t (location VARCHAR(50), labels VARCHAR(50), master_log_file VARCHAR(50))"
+	if _, err := Parse(sql); err != nil {
+		t.Fatalf("new unreserved keywords should parse as identifiers; Parse failed: %v", err)
+	}
+}
+
 // TestParseAlterTiFlashReplicaLocationLabelsNegatives covers inputs the
 // upstream grammar rejects. LocationLabelList requires LABELS after
 // LOCATION, at least one string literal when the clause is present, no
