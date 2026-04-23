@@ -28,7 +28,9 @@ func (p *Parser) parseIfStmt() (*nodes.IfStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
+	p.enterSearchCondition()
 	cond, err := p.parseExpr()
+	p.leaveSearchCondition()
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +81,9 @@ func (p *Parser) parseWhileStmt() (*nodes.WhileStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
+	p.enterSearchCondition()
 	cond, err := p.parseExpr()
+	p.leaveSearchCondition()
 	if err != nil {
 		return nil, err
 	}

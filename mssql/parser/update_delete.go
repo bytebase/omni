@@ -306,6 +306,8 @@ func (p *Parser) parseWhereClauseBody() (nodes.ExprNode, error) {
 			}, nil
 		}
 	}
+	p.enterSearchCondition()
+	defer p.leaveSearchCondition()
 	return p.parseExpr()
 }
 

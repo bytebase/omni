@@ -212,7 +212,9 @@ func (p *Parser) parseMergeWhenClause() (*nodes.MergeWhenClause, error) {
 
 	// Optional AND condition
 	if _, ok := p.match(kwAND); ok {
+		p.enterSearchCondition()
 		cond, err := p.parseExpr()
+		p.leaveSearchCondition()
 		if err != nil {
 			return nil, err
 		}

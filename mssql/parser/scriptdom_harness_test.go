@@ -212,6 +212,18 @@ func omniTableRef(n ast.Node) any {
 		return omniAliasedTable(v)
 	case *ast.SubqueryExpr:
 		return map[string]any{"kind": "QueryDerivedTable"}
+	case *ast.FullTextTableRef:
+		out := map[string]any{"kind": "FullTextTableReference"}
+		if v.Alias != "" {
+			out["alias"] = v.Alias
+		}
+		return out
+	case *ast.SemanticTableRef:
+		out := map[string]any{"kind": "SemanticTableReference"}
+		if v.Alias != "" {
+			out["alias"] = v.Alias
+		}
+		return out
 	case *ast.JoinClause:
 		left := omniTableRef(v.Left)
 		right := omniTableRef(v.Right)
@@ -374,6 +386,14 @@ func TestScriptDOMDiff(t *testing.T) {
 		{name: "openjson-with", sql: `SELECT * FROM OPENJSON(@j) WITH (id int '$.id', name nvarchar(50) '$.name') AS t`},
 		{name: "subquery-alias-no-cols", sql: `SELECT * FROM (SELECT a FROM t) AS x`},
 		{name: "plain-named-table", sql: `SELECT a FROM t`},
+		// Full-text / semantic table references — shape kind must match
+		// SqlScriptDOM's FullTextTableReference / SemanticTableReference.
+		{name: "fulltext-containstable", sql: `SELECT * FROM CONTAINSTABLE(t, b, 'foo') ct`},
+		{name: "fulltext-freetexttable", sql: `SELECT * FROM FREETEXTTABLE(t, (a, b), 'foo') ft`},
+		{name: "fulltext-containstable-lang-topn", sql: `SELECT * FROM CONTAINSTABLE(t, b, 'foo', LANGUAGE 'English', 10) ct`},
+		{name: "semantic-keyphrase", sql: `SELECT * FROM SEMANTICKEYPHRASETABLE(t, b) s`},
+		{name: "semantic-similarity", sql: `SELECT * FROM SEMANTICSIMILARITYTABLE(t, (a, b), 1) s`},
+		{name: "semantic-similarity-details", sql: `SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(t, a, 1, b, 2) s`},
 	}
 
 	for _, f := range fixtures {
@@ -486,6 +506,13 @@ func TestScriptDOMRejectAlignment(t *testing.T) {
 		{"enum/assembly-permset-bogus", `CREATE ASSEMBLY a FROM 'x' WITH PERMISSION_SET = BOGUS`},
 		{"enum/for-xml-bogus", `SELECT * FROM t FOR XML BOGUS`},
 		{"enum/for-json-bogus", `SELECT * FROM t FOR JSON BOGUS`},
+		// Full-text predicates (CONTAINS / FREETEXT) are a <search_condition>
+		// production — not a scalar expression. SqlScriptDOM rejects them
+		// outside boolean positions; omni must too.
+		{"fulltext/contains-in-select-list", `SELECT CONTAINS(b, 'foo')`},
+		{"fulltext/freetext-in-select-list", `SELECT FREETEXT(b, 'foo')`},
+		{"fulltext/contains-in-scalar-subquery", `SELECT c FROM t WHERE b > (SELECT CONTAINS(col, 'x') FROM u)`},
+		{"fulltext/contains-as-func-arg", `SELECT COALESCE(CONTAINS(b, 'foo'), 0)`},
 	}
 
 	for _, f := range fixtures {

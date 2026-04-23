@@ -34,6 +34,15 @@ import (
 //	    [ HAVING <search_condition> ]
 //	    [ WINDOW windowDefinition [ , windowDefinition ]* ]
 func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
+	// Entering a SELECT (top-level or subquery) resets the search-condition
+	// depth so that the select list / scalar subexpressions are parsed as
+	// scalar expressions even if we entered from an outer WHERE or HAVING.
+	// The SELECT's own WHERE / HAVING / JOIN ON clauses will increment the
+	// depth back for their duration.
+	savedDepth := p.searchCondDepth
+	p.searchCondDepth = 0
+	defer func() { p.searchCondDepth = savedDepth }()
+
 	loc := p.pos()
 
 	// WITH clause (CTE)
@@ -163,7 +172,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 			p.addRuleCandidate("func_name")
 			return nil, errCollecting
 		}
+		p.enterSearchCondition()
 		stmt.WhereClause, err = p.parseExpr()
+		p.leaveSearchCondition()
 		if err != nil {
 			return nil, err
 		}
@@ -214,7 +225,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 			p.addRuleCandidate("func_name")
 			return nil, errCollecting
 		}
+		p.enterSearchCondition()
 		stmt.HavingClause, err = p.parseExpr()
+		p.leaveSearchCondition()
 		if err != nil {
 			return nil, err
 		}
@@ -799,7 +812,9 @@ func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 					p.addRuleCandidate("func_name")
 					return nil, errCollecting
 				}
+				p.enterSearchCondition()
 				join.Condition, err = p.parseExpr()
+				p.leaveSearchCondition()
 				if err != nil {
 					return nil, err
 				}
@@ -873,6 +888,19 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 	if p.cur.Type == kwOPENROWSET || p.cur.Type == kwOPENQUERY || p.cur.Type == kwOPENJSON ||
 		p.cur.Type == kwOPENDATASOURCE || p.cur.Type == kwOPENXML {
 		return p.parseRowsetFunction()
+	}
+
+	// Full-text rowset functions: CONTAINSTABLE, FREETEXTTABLE
+	if p.cur.Type == kwCONTAINSTABLE || p.cur.Type == kwFREETEXTTABLE {
+		return p.parseFullTextTableRef()
+	}
+
+	// Semantic table functions: SEMANTICKEYPHRASETABLE,
+	// SEMANTICSIMILARITYTABLE, SEMANTICSIMILARITYDETAILSTABLE
+	if p.cur.Type == kwSEMANTICKEYPHRASETABLE ||
+		p.cur.Type == kwSEMANTICSIMILARITYTABLE ||
+		p.cur.Type == kwSEMANTICSIMILARITYDETAILSTABLE {
+		return p.parseSemanticTableRef()
 	}
 
 	// T-SQL table variable: @t [alias] or @t.Method(args) [alias (cols)]

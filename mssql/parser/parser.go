@@ -25,7 +25,26 @@ type Parser struct {
 	candidates *CandidateSet // collected candidates
 	collecting bool          // true once cursor position has been reached
 	maxCollect int           // max candidates before stopping
+
+	// searchCondDepth is non-zero while parsing a T-SQL <search_condition>
+	// (WHERE / HAVING / JOIN ON / CASE WHEN / MERGE WHEN / IF / WHILE /
+	// CHECK). Full-text predicates (CONTAINS / FREETEXT) are only allowed
+	// when this depth is > 0, matching SqlScriptDOM's separation of
+	// booleanExpressionWithFlags from expressionWithFlags.
+	searchCondDepth int
 }
+
+// enterSearchCondition / leaveSearchCondition push and pop the boolean
+// search-condition context. Use as:
+//
+//	p.enterSearchCondition(); defer p.leaveSearchCondition()
+//	expr, err := p.parseExpr()
+func (p *Parser) enterSearchCondition() { p.searchCondDepth++ }
+func (p *Parser) leaveSearchCondition() { p.searchCondDepth-- }
+
+// inSearchCondition reports whether we are currently parsing a search
+// condition (WHERE-like boolean context).
+func (p *Parser) inSearchCondition() bool { return p.searchCondDepth > 0 }
 
 // Parse parses a T-SQL string into an AST list.
 // Currently supports basic infrastructure; statement dispatch will be

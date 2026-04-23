@@ -184,6 +184,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeIsExpr(sb, n)
 	case *ExistsExpr:
 		writeExistsExpr(sb, n)
+	case *FullTextPredicate:
+		writeFullTextPredicate(sb, n)
+	case *FullTextTableRef:
+		writeFullTextTableRef(sb, n)
+	case *SemanticTableRef:
+		writeSemanticTableRef(sb, n)
 	case *CastExpr:
 		writeCastExpr(sb, n)
 	case *ConvertExpr:
@@ -4520,6 +4526,112 @@ func writeInsertBulkColumnDef(sb *strings.Builder, n *InsertBulkColumnDef) {
 		} else {
 			sb.WriteString(" :nullable false")
 		}
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func fullTextFuncName(f FullTextFunc) string {
+	switch f {
+	case FullTextContains:
+		return "CONTAINS"
+	case FullTextFreeText:
+		return "FREETEXT"
+	}
+	return fmt.Sprintf("FullTextFunc(%d)", int(f))
+}
+
+func semanticFuncName(f SemanticFunc) string {
+	switch f {
+	case SemanticKeyPhraseTable:
+		return "SEMANTICKEYPHRASETABLE"
+	case SemanticSimilarityTable:
+		return "SEMANTICSIMILARITYTABLE"
+	case SemanticSimilarityDetailsTable:
+		return "SEMANTICSIMILARITYDETAILSTABLE"
+	}
+	return fmt.Sprintf("SemanticFunc(%d)", int(f))
+}
+
+func writeFullTextPredicate(sb *strings.Builder, n *FullTextPredicate) {
+	sb.WriteString("{FULLTEXT-PREDICATE")
+	fmt.Fprintf(sb, " :func %s", fullTextFuncName(n.Func))
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.PropertyName != nil {
+		sb.WriteString(" :property ")
+		writeNode(sb, n.PropertyName)
+	}
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
+	if n.LanguageTerm != nil {
+		sb.WriteString(" :language ")
+		writeNode(sb, n.LanguageTerm)
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeFullTextTableRef(sb *strings.Builder, n *FullTextTableRef) {
+	sb.WriteString("{FULLTEXT-TABLE")
+	fmt.Fprintf(sb, " :func %s", fullTextFuncName(n.Func))
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.PropertyName != nil {
+		sb.WriteString(" :property ")
+		writeNode(sb, n.PropertyName)
+	}
+	if n.SearchCondition != nil {
+		sb.WriteString(" :searchCondition ")
+		writeNode(sb, n.SearchCondition)
+	}
+	if n.Language != nil {
+		sb.WriteString(" :language ")
+		writeNode(sb, n.Language)
+	}
+	if n.TopN != nil {
+		sb.WriteString(" :topN ")
+		writeNode(sb, n.TopN)
+	}
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias \"%s\"", escapeString(n.Alias))
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
+}
+
+func writeSemanticTableRef(sb *strings.Builder, n *SemanticTableRef) {
+	sb.WriteString("{SEMANTIC-TABLE")
+	fmt.Fprintf(sb, " :func %s", semanticFuncName(n.Func))
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	if n.SourceKey != nil {
+		sb.WriteString(" :sourceKey ")
+		writeNode(sb, n.SourceKey)
+	}
+	if n.MatchedColumn != nil {
+		sb.WriteString(" :matchedColumn ")
+		writeNode(sb, n.MatchedColumn)
+	}
+	if n.MatchedKey != nil {
+		sb.WriteString(" :matchedKey ")
+		writeNode(sb, n.MatchedKey)
+	}
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias \"%s\"", escapeString(n.Alias))
 	}
 	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
