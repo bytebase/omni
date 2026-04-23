@@ -190,7 +190,8 @@ func TestParseAllDispatchCategories(t *testing.T) {
 		{"BACKUP SNAPSHOT s", "BACKUP"},
 		{"RESTORE SNAPSHOT s", "RESTORE"},
 		{"RECOVER DATABASE db", "RECOVER"},
-		{"REFRESH CATALOG c", "REFRESH"},
+		// REFRESH CATALOG is now implemented (T5.2); keep a non-CATALOG form here.
+		{"REFRESH MATERIALIZED VIEW mv", "REFRESH"},
 		{"CANCEL LOAD", "CANCEL"},
 		{"ANALYZE TABLE t", "ANALYZE"},
 		{"CLEAN ALL PROFILE", "CLEAN"},
