@@ -152,8 +152,9 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 		for _, t := range []int{
 			kwDEFAULT, kwCHARACTER, kwCHARSET, kwCOLLATE, kwENCRYPTION,
 			kwREAD,
-			// TiDB-specific: PLACEMENT POLICY on CREATE/ALTER DATABASE.
-			kwPLACEMENT,
+			// TiDB-specific: PLACEMENT POLICY and SET TIFLASH REPLICA
+			// on CREATE/ALTER DATABASE (parser.y:4482 arm).
+			kwPLACEMENT, kwSET,
 		} {
 			p.addTokenCandidate(t)
 		}
@@ -177,8 +178,12 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 		}
 	}
 
-	// Skip optional DEFAULT
-	p.match(kwDEFAULT)
+	// Optional DEFAULT prefix. Upstream's DatabaseOption rule permits
+	// DEFAULT before CHARSET / COLLATE / ENCRYPTION / PlacementPolicy-
+	// Option, but NOT before `SET TIFLASH REPLICA` (no DefaultKwdOpt
+	// on that arm). Track consumption so the SET arm can reject
+	// `DEFAULT SET TIFLASH REPLICA` the way real TiDB does.
+	_, defaultSeen := p.match(kwDEFAULT)
 
 	switch {
 	case p.cur.Type == kwCHARACTER:
@@ -245,6 +250,37 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 			Loc:   nodes.Loc{Start: start, End: p.pos()},
 			Name:  "PLACEMENT POLICY",
 			Value: val,
+		}, true, nil
+	case p.cur.Type == kwSET:
+		// TiDB: CREATE/ALTER DATABASE ... SET TIFLASH REPLICA n [LOCATION LABELS ...]
+		// Ref: parser.y:4482 DatabaseOption arm.
+		// Note: no `=` sign allowed per upstream grammar.
+		// DEFAULT prefix is explicitly NOT allowed on this arm
+		// (DefaultKwdOpt is missing from the grammar production).
+		if defaultSeen {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if _, ok := p.match(kwTIFLASH); !ok {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		if _, ok := p.match(kwREPLICA); !ok {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != tokICONST {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		count := int(p.cur.Ival)
+		p.advance()
+		labels, err := p.parseLocationLabelList()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.DatabaseOption{
+			Loc:                   nodes.Loc{Start: start, End: p.pos()},
+			Name:                  "TIFLASH REPLICA",
+			TiFlashReplica:        count,
+			TiFlashLocationLabels: labels,
 		}, true, nil
 	}
 

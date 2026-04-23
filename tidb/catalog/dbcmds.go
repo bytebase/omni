@@ -14,6 +14,8 @@ func (c *Catalog) createDatabase(stmt *nodes.CreateDatabaseStmt) error {
 	charset := c.defaultCharset
 	collation := c.defaultCollation
 	placementPolicy := ""
+	tiFlashReplica := 0
+	var tiFlashLocationLabels []string
 	charsetExplicit := false
 	collationExplicit := false
 	for _, opt := range stmt.Options {
@@ -26,6 +28,9 @@ func (c *Catalog) createDatabase(stmt *nodes.CreateDatabaseStmt) error {
 			collationExplicit = true
 		case "placement policy":
 			placementPolicy = opt.Value
+		case "tiflash replica":
+			tiFlashReplica = opt.TiFlashReplica
+			tiFlashLocationLabels = append([]string(nil), opt.TiFlashLocationLabels...)
 		}
 	}
 	if err := c.validatePolicyRef(placementPolicy); err != nil {
@@ -39,6 +44,8 @@ func (c *Catalog) createDatabase(stmt *nodes.CreateDatabaseStmt) error {
 	}
 	db := newDatabase(name, charset, collation)
 	db.PlacementPolicy = resolvePolicyRef(placementPolicy)
+	db.TiFlashReplica = tiFlashReplica
+	db.TiFlashLocationLabels = tiFlashLocationLabels
 	c.databases[key] = db
 	return nil
 }
@@ -93,6 +100,9 @@ func (c *Catalog) alterDatabase(stmt *nodes.AlterDatabaseStmt) error {
 				return err
 			}
 			db.PlacementPolicy = resolvePolicyRef(opt.Value)
+		case "tiflash replica":
+			db.TiFlashReplica = opt.TiFlashReplica
+			db.TiFlashLocationLabels = append([]string(nil), opt.TiFlashLocationLabels...)
 		}
 	}
 	// When charset is changed without explicit collation, derive the default collation.

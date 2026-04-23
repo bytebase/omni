@@ -32,7 +32,8 @@ type Table struct {
 	TTLInterval     string // interval portion (e.g., "INTERVAL 1 YEAR")
 	TTLEnable       bool
 	TTLJobInterval  string // e.g., "1h"
-	TiFlashReplica  int    // number of TiFlash replicas (0 = none)
+	TiFlashReplica         int      // number of TiFlash replicas (0 = none)
+	TiFlashLocationLabels  []string // optional label list for replica placement
 }
 
 // PartitionInfo holds partition metadata for a table.
@@ -165,6 +166,12 @@ type Event struct {
 // but has independent slices and maps so that mutations do not affect the original.
 func cloneTable(src *Table) Table {
 	dst := *src // shallow copy of all scalar fields
+
+	// Deep-copy slice-valued scalar fields so the shallow-copy header
+	// shares no backing array with src. Pattern-matched to the
+	// Constraint/Column handling below — future append-through-pointer
+	// mutations on one side can't leak into the other during rollback.
+	dst.TiFlashLocationLabels = append([]string(nil), src.TiFlashLocationLabels...)
 
 	// Deep copy columns.
 	dst.Columns = make([]*Column, len(src.Columns))

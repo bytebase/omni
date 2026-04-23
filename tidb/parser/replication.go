@@ -465,7 +465,7 @@ func (p *Parser) parseStartReplicaStmt(start int) (*nodes.StartReplicaStmt, erro
 				stmt.UntilValue = val
 			}
 			// For log file modes, also consume the POS part
-			if untilTokType == kwSOURCE_LOG_FILE || eqFold(untilName, "MASTER_LOG_FILE") || untilTokType == kwRELAY_LOG_FILE {
+			if untilTokType == kwSOURCE_LOG_FILE || untilTokType == kwMASTER_LOG_FILE || untilTokType == kwRELAY_LOG_FILE {
 				if p.cur.Type == ',' {
 					p.advance() // consume ','
 					posName, _, err := p.parseKeywordOrIdent()

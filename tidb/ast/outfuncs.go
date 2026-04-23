@@ -262,7 +262,25 @@ func writeNode(sb *strings.Builder, node Node) {
 			fmt.Fprintf(sb, "{TABLE_OPT :loc %d :name %s :val %s}", n.Loc.Start, n.Name, n.Value)
 		}
 	case *DatabaseOption:
-		fmt.Fprintf(sb, "{DB_OPT :loc %d :name %s :val %s}", n.Loc.Start, n.Name, n.Value)
+		sb.WriteString("{DB_OPT")
+		fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
+		// TIFLASH REPLICA arm populates TiFlashReplica/Labels instead of Value.
+		if n.Name == "TIFLASH REPLICA" {
+			fmt.Fprintf(sb, " :tiflash_replica %d", n.TiFlashReplica)
+			if len(n.TiFlashLocationLabels) > 0 {
+				sb.WriteString(" :tiflash_location_labels (")
+				for i, l := range n.TiFlashLocationLabels {
+					if i > 0 {
+						sb.WriteString(" ")
+					}
+					fmt.Fprintf(sb, "%q", l)
+				}
+				sb.WriteString(")")
+			}
+		} else {
+			fmt.Fprintf(sb, " :val %s", n.Value)
+		}
+		sb.WriteString("}")
 	case *PartitionClause:
 		writePartitionClause(sb, n)
 	case *PartitionDef:
@@ -2961,6 +2979,16 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	}
 	if n.Type == ATSetTiFlashReplica {
 		fmt.Fprintf(sb, " :tiflash_replica %d", n.TiFlashReplica)
+		if len(n.TiFlashLocationLabels) > 0 {
+			sb.WriteString(" :tiflash_location_labels (")
+			for i, l := range n.TiFlashLocationLabels {
+				if i > 0 {
+					sb.WriteString(" ")
+				}
+				fmt.Fprintf(sb, "%q", l)
+			}
+			sb.WriteString(")")
+		}
 	}
 	sb.WriteString("}")
 }

@@ -15,6 +15,14 @@ type Database struct {
 
 	// TiDB-specific: database-level placement policy. Empty when unset.
 	PlacementPolicy string
+
+	// TiDB: database-level TiFlash replica count (0 = not set).
+	// The replica count applies to all tables in the database that
+	// don't override it at the table level (upstream resolution is
+	// executed asynchronously by the placement scheduler, not the
+	// DDL path). Omni stores it as declared metadata only.
+	TiFlashReplica        int
+	TiFlashLocationLabels []string
 }
 
 func newDatabase(name, charset, collation string) *Database {

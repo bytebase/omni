@@ -239,6 +239,7 @@ type AlterTableCmd struct {
 	OrderByItems   []*OrderByItem    // for ORDER BY operation
 	PartitionBy    *PartitionClause // for PARTITION BY (repartition)
 	TiFlashReplica int              // TiDB: replica count for SET TIFLASH REPLICA
+	TiFlashLocationLabels []string  // TiDB: optional LOCATION LABELS clause (empty when unset)
 }
 
 func (c *AlterTableCmd) nodeTag() {}
@@ -327,6 +328,12 @@ type DatabaseOption struct {
 	Loc   Loc
 	Name  string
 	Value string
+
+	// TiDB: when Name=="TIFLASH REPLICA", the numeric count and optional
+	// label list live here (Value is ignored for that case).
+	// Ref: parser.y:4482 DatabaseOption arm reuses LocationLabelList.
+	TiFlashReplica        int
+	TiFlashLocationLabels []string
 }
 
 func (o *DatabaseOption) nodeTag() {}

@@ -152,6 +152,63 @@ func TestTiDBKeywords_ClusteredPKModifier(t *testing.T) {
 	}
 }
 
+// TestTiDBKeywords_TiFlashLocationLabels asserts LOCATION surfaces as a
+// candidate after the REPLICA count in ALTER TABLE SET TIFLASH REPLICA.
+func TestTiDBKeywords_TiFlashLocationLabels(t *testing.T) {
+	cat := catalog.New()
+
+	sql := "ALTER TABLE t SET TIFLASH REPLICA 2 "
+	candidates := Complete(sql, len(sql), cat)
+
+	if !containsText(candidates, "LOCATION") {
+		t.Errorf("expected LOCATION after REPLICA count; got: %v", candidateTexts(candidates))
+	}
+}
+
+// TestTiDBKeywords_TiFlashLabelsAfterLocation asserts LABELS surfaces
+// as the only valid continuation after LOCATION. Without a post-
+// LOCATION completion anchor, typing `...LOCATION <cursor>` surfaces
+// nothing — the user hits a dead end despite the grammar being
+// deterministic at that position.
+func TestTiDBKeywords_TiFlashLabelsAfterLocation(t *testing.T) {
+	cat := catalog.New()
+
+	sql := "ALTER TABLE t SET TIFLASH REPLICA 2 LOCATION "
+	candidates := Complete(sql, len(sql), cat)
+
+	if !containsText(candidates, "LABELS") {
+		t.Errorf("expected LABELS after LOCATION; got: %v", candidateTexts(candidates))
+	}
+}
+
+// TestTiDBKeywords_AlterDatabaseTiFlash asserts SET surfaces inside
+// ALTER DATABASE option position (anchors the SET TIFLASH REPLICA path).
+func TestTiDBKeywords_AlterDatabaseTiFlash(t *testing.T) {
+	cat := catalog.New()
+
+	sql := "ALTER DATABASE ddb "
+	candidates := Complete(sql, len(sql), cat)
+
+	if !containsText(candidates, "SET") {
+		t.Errorf("expected SET in ALTER DATABASE completion; got: %v", candidateTexts(candidates))
+	}
+}
+
+// TestTiDBKeywords_CreateDatabaseTiFlash mirrors TestTiDBKeywords_
+// AlterDatabaseTiFlash for the CREATE path. parseDatabaseOption is
+// shared between the two statements, so this catches a future
+// divergence that would only affect CREATE.
+func TestTiDBKeywords_CreateDatabaseTiFlash(t *testing.T) {
+	cat := catalog.New()
+
+	sql := "CREATE DATABASE ddb "
+	candidates := Complete(sql, len(sql), cat)
+
+	if !containsText(candidates, "SET") {
+		t.Errorf("expected SET in CREATE DATABASE completion; got: %v", candidateTexts(candidates))
+	}
+}
+
 // candidateTexts extracts the text of each candidate for error messages.
 func candidateTexts(cs []Candidate) []string {
 	out := make([]string, 0, len(cs))
