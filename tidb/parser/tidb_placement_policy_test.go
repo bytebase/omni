@@ -194,6 +194,30 @@ func TestParsePlacementPolicyDDL(t *testing.T) {
 				}
 			},
 		},
+		// Negative cases — upstream grammar at parser.y:1999-2011
+		// requires minimum 1 option and no trailing comma. TiDB
+		// itself rejects these; omni must reject too or we have
+		// silent oracle divergence.
+		{
+			name:    "error_create_empty_options",
+			sql:     "CREATE PLACEMENT POLICY p",
+			wantErr: true,
+		},
+		{
+			name:    "error_create_trailing_comma",
+			sql:     "CREATE PLACEMENT POLICY p PRIMARY_REGION = 'us',",
+			wantErr: true,
+		},
+		{
+			name:    "error_alter_empty_options",
+			sql:     "ALTER PLACEMENT POLICY p",
+			wantErr: true,
+		},
+		{
+			name:    "error_alter_trailing_comma",
+			sql:     "ALTER PLACEMENT POLICY p PRIMARY_REGION = 'us',",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

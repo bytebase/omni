@@ -106,6 +106,39 @@ func TestTiDBPlacementPolicyContainer(t *testing.T) {
 	}
 }
 
+// TestTiDBPlacementPolicyGrammarNegatives pins that omni and TiDB
+// agree on rejection of malformed PlacementOptionList inputs. The
+// upstream grammar at parser.y:1999-2011 requires >=1 option and
+// forbids a trailing comma; this test confirms TiDB enforces both at
+// parse time, so omni's parser enforcement is not over-strict.
+func TestTiDBPlacementPolicyGrammarNegatives(t *testing.T) {
+	tc := startTiDBForCatalog(t)
+	t.Cleanup(func() { _, _ = tc.db.ExecContext(tc.ctx, "DROP PLACEMENT POLICY IF EXISTS pp_neg") })
+
+	cases := []struct {
+		name string
+		sql  string
+	}{
+		{"create_empty_options", "CREATE PLACEMENT POLICY pp_neg"},
+		{"create_trailing_comma", "CREATE PLACEMENT POLICY pp_neg PRIMARY_REGION = 'us',"},
+		{"alter_empty_options", "ALTER PLACEMENT POLICY pp_neg"},
+		{"alter_trailing_comma", "ALTER PLACEMENT POLICY pp_neg PRIMARY_REGION = 'us',"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if _, err := tc.db.ExecContext(tc.ctx, c.sql); err == nil {
+				t.Errorf("TiDB unexpectedly accepted malformed SQL %q", c.sql)
+			}
+			// Omni must also reject. Parse-level check is sufficient;
+			// the Exec path routes parse errors as the top-level error.
+			cat := New()
+			if _, err := cat.Exec(c.sql, nil); err == nil {
+				t.Errorf("omni unexpectedly accepted malformed SQL %q (oracle divergence)", c.sql)
+			}
+		})
+	}
+}
+
 // TestTiDBPlacementPolicyDefaultSentinel pins the "default"
 // special-name behavior against real TiDB. Upstream short-circuits
 // at pkg/ddl/placement_policy.go defaultPlacementPolicyName — a

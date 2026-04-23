@@ -152,6 +152,11 @@ func (p *Parser) parseDropPlacementPolicyStmt(start int) (nodes.Node, error) {
 // items, separated by commas OR whitespace (the TiDB grammar allows
 // both and even a mix — parser.y:1999-2011). Returns when the next
 // token is neither a placement option keyword nor a comma.
+//
+// Enforces two upstream constraints that the original pass missed:
+//   - The list requires at least one option (no empty-production arm).
+//   - A comma separator REQUIRES another option to follow (no trailing
+//     comma arm). Both rules come directly from parser.y:1999-2011.
 func (p *Parser) parsePlacementOptionList() ([]*nodes.PlacementPolicyOption, error) {
 	var opts []*nodes.PlacementPolicyOption
 	for {
@@ -172,10 +177,17 @@ func (p *Parser) parsePlacementOptionList() ([]*nodes.PlacementPolicyOption, err
 			return nil, err
 		}
 		opts = append(opts, opt)
-		// Optional comma separator between options.
+		// Comma separator between options. A comma mandates another
+		// option; a trailing comma is a syntax error upstream.
 		if p.cur.Type == ',' {
 			p.advance()
+			if !isPlacementOptionStart(p.cur.Type) {
+				return nil, p.syntaxErrorAtCur()
+			}
 		}
+	}
+	if len(opts) == 0 {
+		return nil, p.syntaxErrorAtCur()
 	}
 	return opts, nil
 }
