@@ -311,7 +311,13 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	// Completion: offer column option keywords.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwNOT, kwNULL, kwDEFAULT, kwAUTO_INCREMENT, kwPRIMARY, kwUNIQUE, kwCOMMENT, kwCOLLATE, kwREFERENCES, kwCHECK, kwGENERATED} {
+		for _, t := range []int{
+			kwNOT, kwNULL, kwDEFAULT, kwAUTO_INCREMENT, kwPRIMARY, kwUNIQUE,
+			kwCOMMENT, kwCOLLATE, kwREFERENCES, kwCHECK, kwGENERATED,
+			// TiDB: AUTO_RANDOM belongs on the column constraint list
+			// alongside AUTO_INCREMENT (same grammar position).
+			kwAUTO_RANDOM,
+		} {
 			p.addTokenCandidate(t)
 		}
 		return false, &ParseError{Message: "collecting"}
@@ -1088,6 +1094,20 @@ func (p *Parser) parseIndexTypeClause(constr *nodes.Constraint) {
 // parseClusteredAttr parses optional CLUSTERED/NONCLUSTERED after PRIMARY KEY.
 // Returns nil if neither keyword is present.
 func (p *Parser) parseClusteredAttr() *bool {
+	// Completion: after a PRIMARY KEY (col, ...) grammar position,
+	// TiDB accepts an optional CLUSTERED/NONCLUSTERED modifier. Offer
+	// both candidates whenever we're collecting here.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwCLUSTERED)
+		p.addTokenCandidate(kwNONCLUSTERED)
+		// Note: don't swallow completion state with a ParseError —
+		// parseClusteredAttr is called in the middle of a larger
+		// constraint/option chain and the caller expects it to return
+		// nil when nothing matches. The completion candidates are
+		// already recorded.
+		return nil
+	}
 	if p.cur.Type == kwCLUSTERED {
 		p.advance()
 		b := true

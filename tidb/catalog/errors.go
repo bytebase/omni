@@ -42,6 +42,14 @@ const (
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
+	// TiDB error codes. 8239 is the closest match in TiDB's error
+	// catalog for "Placement policy <name> already exists" (err.go:261
+	// upstream). 8241 covers "unknown placement policy" (err.go:266).
+	// 8240 covers "policy still in use" — surfaced on DROP PLACEMENT
+	// POLICY when a database/table still references the policy.
+	ErrPlacementPolicyExists  = 8239
+	ErrPlacementPolicyInUse   = 8240
+	ErrPlacementPolicyMissing = 8241
 )
 
 var sqlStateMap = map[int]string{
@@ -70,6 +78,9 @@ var sqlStateMap = map[int]string{
 	ErrUnsupportedGeneratedStorageChange: "HY000",
 	ErrDependentByGenCol:                 "HY000",
 	ErrWrongArguments:                    "HY000",
+	ErrPlacementPolicyExists:             "HY000",
+	ErrPlacementPolicyInUse:              "HY000",
+	ErrPlacementPolicyMissing:            "HY000",
 }
 
 func sqlState(code int) string {
@@ -87,6 +98,21 @@ func errDupDatabase(name string) error {
 func errUnknownDatabase(name string) error {
 	return &Error{Code: ErrUnknownDatabase, SQLState: sqlState(ErrUnknownDatabase),
 		Message: fmt.Sprintf("Unknown database '%s'", name)}
+}
+
+func errDupPlacementPolicy(name string) error {
+	return &Error{Code: ErrPlacementPolicyExists, SQLState: sqlState(ErrPlacementPolicyExists),
+		Message: fmt.Sprintf("Placement policy '%s' already exists", name)}
+}
+
+func errUnknownPlacementPolicy(name string) error {
+	return &Error{Code: ErrPlacementPolicyMissing, SQLState: sqlState(ErrPlacementPolicyMissing),
+		Message: fmt.Sprintf("Unknown placement policy '%s'", name)}
+}
+
+func errPlacementPolicyInUse(name, ref string) error {
+	return &Error{Code: ErrPlacementPolicyInUse, SQLState: sqlState(ErrPlacementPolicyInUse),
+		Message: fmt.Sprintf("Placement policy '%s' is still in use by %s", name, ref)}
 }
 
 func errNoDatabaseSelected() error {

@@ -402,7 +402,10 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	// Completion: after CREATE keyword, offer object type candidates.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT} {
+		for _, t := range []int{
+			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT,
+			kwPLACEMENT, // TiDB: CREATE PLACEMENT POLICY
+		} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -465,6 +468,10 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	case kwDATABASE, kwSCHEMA:
 		return p.parseCreateDatabaseStmt()
+
+	case kwPLACEMENT:
+		// CREATE [OR REPLACE] PLACEMENT POLICY [IF NOT EXISTS] name opts
+		return p.parseCreatePlacementPolicyStmt(start, orReplace)
 
 	case kwAGGREGATE:
 		// CREATE AGGREGATE FUNCTION — loadable UDF
@@ -596,7 +603,10 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	// Completion: after ALTER keyword, offer object type candidates.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwTABLE, kwDATABASE, kwVIEW, kwFUNCTION, kwPROCEDURE, kwEVENT} {
+		for _, t := range []int{
+			kwTABLE, kwDATABASE, kwVIEW, kwFUNCTION, kwPROCEDURE, kwEVENT,
+			kwPLACEMENT, // TiDB: ALTER PLACEMENT POLICY
+		} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -617,6 +627,10 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 
 	case kwDATABASE, kwSCHEMA:
 		return p.parseAlterDatabaseStmt()
+
+	case kwPLACEMENT:
+		// ALTER PLACEMENT POLICY [IF EXISTS] name opts
+		return p.parseAlterPlacementPolicyStmt(start)
 
 	case kwUSER:
 		return p.parseAlterUserStmt()
@@ -712,7 +726,10 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	// Completion: after DROP keyword, offer object type candidates.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT, kwIF} {
+		for _, t := range []int{
+			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT, kwIF,
+			kwPLACEMENT, // TiDB: DROP PLACEMENT POLICY
+		} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -745,6 +762,10 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 
 	case kwDATABASE, kwSCHEMA:
 		return p.parseDropDatabaseStmt()
+
+	case kwPLACEMENT:
+		// DROP PLACEMENT POLICY [IF EXISTS] name
+		return p.parseDropPlacementPolicyStmt(start)
 
 	case kwUSER:
 		return p.parseDropUserStmt()

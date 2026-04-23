@@ -2,19 +2,21 @@ package catalog
 
 // Catalog is the in-memory TiDB catalog.
 type Catalog struct {
-	databases        map[string]*Database // lowered name -> Database
-	currentDB        string
-	defaultCharset   string
-	defaultCollation string
-	foreignKeyChecks bool // SET foreign_key_checks (default true)
+	databases         map[string]*Database         // lowered name -> Database
+	placementPolicies map[string]*PlacementPolicy  // lowered name -> PlacementPolicy (TiDB)
+	currentDB         string
+	defaultCharset    string
+	defaultCollation  string
+	foreignKeyChecks  bool // SET foreign_key_checks (default true)
 }
 
 func New() *Catalog {
 	return &Catalog{
-		databases:        make(map[string]*Database),
-		defaultCharset:   "utf8mb4",
-		defaultCollation: "utf8mb4_bin", // TiDB v8.5 default (MySQL 8.0 uses utf8mb4_0900_ai_ci)
-		foreignKeyChecks: true,
+		databases:         make(map[string]*Database),
+		placementPolicies: make(map[string]*PlacementPolicy),
+		defaultCharset:    "utf8mb4",
+		defaultCollation:  "utf8mb4_bin", // TiDB v8.5 default (MySQL 8.0 uses utf8mb4_0900_ai_ci)
+		foreignKeyChecks:  true,
 	}
 }
 

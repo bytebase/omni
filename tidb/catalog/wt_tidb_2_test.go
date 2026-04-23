@@ -12,6 +12,10 @@ import "testing"
 // DATABASE can change it.
 func TestWTTiDB_2_1_DatabasePlacementPolicy(t *testing.T) {
 	c := New()
+	// Policies must be defined before a database can reference them.
+	if _, err := c.Exec("CREATE PLACEMENT POLICY p1 PRIMARY_REGION = 'us'; CREATE PLACEMENT POLICY p2 PRIMARY_REGION = 'eu';", nil); err != nil {
+		t.Fatalf("CREATE POLICIES: %v", err)
+	}
 	if _, err := c.Exec("CREATE DATABASE ddb PLACEMENT POLICY = p1", nil); err != nil {
 		t.Fatalf("CREATE DATABASE: %v", err)
 	}

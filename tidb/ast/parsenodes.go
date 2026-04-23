@@ -1749,6 +1749,68 @@ type DropDatabaseStmt struct {
 func (s *DropDatabaseStmt) nodeTag()  {}
 func (s *DropDatabaseStmt) stmtNode() {}
 
+// CreatePlacementPolicyStmt represents a TiDB CREATE [OR REPLACE]
+// PLACEMENT POLICY [IF NOT EXISTS] name option_list statement.
+// Ref: TiDB v8.5.5 parser.y:15427-15436.
+type CreatePlacementPolicyStmt struct {
+	Loc         Loc
+	OrReplace   bool
+	IfNotExists bool
+	Name        string
+	Options     []*PlacementPolicyOption
+}
+
+func (s *CreatePlacementPolicyStmt) nodeTag()  {}
+func (s *CreatePlacementPolicyStmt) stmtNode() {}
+
+// AlterPlacementPolicyStmt represents a TiDB ALTER PLACEMENT POLICY
+// [IF EXISTS] name option_list statement.
+// Ref: TiDB v8.5.5 parser.y:15438-15446.
+type AlterPlacementPolicyStmt struct {
+	Loc      Loc
+	IfExists bool
+	Name     string
+	Options  []*PlacementPolicyOption
+}
+
+func (s *AlterPlacementPolicyStmt) nodeTag()  {}
+func (s *AlterPlacementPolicyStmt) stmtNode() {}
+
+// DropPlacementPolicyStmt represents a TiDB DROP PLACEMENT POLICY
+// [IF EXISTS] name statement. Policies cannot be comma-listed.
+// Ref: TiDB v8.5.5 parser.y:15389-15396.
+type DropPlacementPolicyStmt struct {
+	Loc      Loc
+	IfExists bool
+	Name     string
+}
+
+func (s *DropPlacementPolicyStmt) nodeTag()  {}
+func (s *DropPlacementPolicyStmt) stmtNode() {}
+
+// PlacementPolicyOption is one entry in a CREATE/ALTER PLACEMENT POLICY
+// option list (DirectPlacementOption in TiDB v8.5.5 parser.y:2013-2066).
+// The grammar accepts these as comma-separated OR whitespace-separated,
+// duplicates are accepted at parse time (last-wins is a semantic concern).
+//
+// Value representation:
+//   - String-shaped options (PRIMARY_REGION, REGIONS, SCHEDULE,
+//     CONSTRAINTS and its leader/follower/voter/learner variants,
+//     SURVIVAL_PREFERENCES) carry their raw quoted-content in Value.
+//   - Integer-shaped options (FOLLOWERS, VOTERS, LEARNERS) use IntValue,
+//     and Value holds the literal numeric text for round-trip fidelity.
+//
+// Name is the uppercased option keyword (e.g. "PRIMARY_REGION").
+type PlacementPolicyOption struct {
+	Loc      Loc
+	Name     string
+	Value    string // string-shaped options OR raw numeric text
+	IntValue uint64 // numeric-shaped options (FOLLOWERS/VOTERS/LEARNERS)
+	IsInt    bool   // true when option was a numeric literal
+}
+
+func (o *PlacementPolicyOption) nodeTag() {}
+
 // DropIndexStmt represents a DROP INDEX statement.
 type DropIndexStmt struct {
 	Loc       Loc
