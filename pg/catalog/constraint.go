@@ -10,31 +10,31 @@ import (
 //
 // pg: src/include/catalog/pg_constraint.h
 type Constraint struct {
-	OID         uint32
-	Name        string
-	Type        ConstraintType
-	RelOID      uint32
-	Namespace   uint32         // connamespace (schema OID)
-	Columns     []int16        // attnums
-	FRelOID     uint32         // FK: referenced relation OID
-	FColumns    []int16        // FK: referenced attnums
-	FKUpdAction byte           // FK: 'a'=NO ACTION, 'r'=RESTRICT, 'c'=CASCADE, 'n'=SET NULL, 'd'=SET DEFAULT
-	FKDelAction byte           // FK: same codes
-	FKMatchType byte           // FK: 's'=SIMPLE, 'f'=FULL, 'p'=PARTIAL
-	Deferrable  bool           // condeferrable
-	Deferred    bool           // condeferred
-	Validated   bool           // convalidated
-	CheckExpr      string       // CHECK: opaque expression
-	CheckAnalyzed  AnalyzedExpr // CHECK: analyzed form (for Tier 2 deparse)
-	IndexOID    uint32         // PK/UNIQUE/EXCLUDE: backing index OID
-	ExclOps     []string       // EXCLUDE only: operator names per column
+	OID           uint32
+	Name          string
+	Type          ConstraintType
+	RelOID        uint32
+	Namespace     uint32       // connamespace (schema OID)
+	Columns       []int16      // attnums
+	FRelOID       uint32       // FK: referenced relation OID
+	FColumns      []int16      // FK: referenced attnums
+	FKUpdAction   byte         // FK: 'a'=NO ACTION, 'r'=RESTRICT, 'c'=CASCADE, 'n'=SET NULL, 'd'=SET DEFAULT
+	FKDelAction   byte         // FK: same codes
+	FKMatchType   byte         // FK: 's'=SIMPLE, 'f'=FULL, 'p'=PARTIAL
+	Deferrable    bool         // condeferrable
+	Deferred      bool         // condeferred
+	Validated     bool         // convalidated
+	CheckExpr     string       // CHECK: opaque expression
+	CheckAnalyzed AnalyzedExpr // CHECK: analyzed form (for Tier 2 deparse)
+	IndexOID      uint32       // PK/UNIQUE/EXCLUDE: backing index OID
+	ExclOps       []string     // EXCLUDE only: operator names per column
 
 	// Inheritance/partition fields.
 	// pg: src/include/catalog/pg_constraint.h lines 89-108
-	ConParentID  uint32  // parent constraint OID (partitions)
-	ConIsLocal   bool    // locally defined (not only inherited)
-	ConInhCount  int16   // inheritance count
-	ConNoInherit bool    // cannot be inherited
+	ConParentID  uint32 // parent constraint OID (partitions)
+	ConIsLocal   bool   // locally defined (not only inherited)
+	ConInhCount  int16  // inheritance count
+	ConNoInherit bool   // cannot be inherited
 
 	// FK operator arrays.
 	// pg: src/include/catalog/pg_constraint.h lines 123-145
@@ -72,48 +72,83 @@ func (c *Catalog) addConstraint(schema *Schema, rel *Relation, def ConstraintDef
 }
 
 func (c *Catalog) addPKConstraint(schema *Schema, rel *Relation, def ConstraintDef) error {
-	// Verify no existing PK on this table.
-	for _, con := range c.consByRel[rel.OID] {
-		if con.Type == ConstraintPK {
-			return errDuplicatePKey(rel.Name)
-		}
-	}
-
-	attnums, err := c.resolveColumnNames(rel, def.Columns)
+	attnums, existingIdx, err := c.resolveIndexConstraintAttnums(schema, rel, def)
 	if err != nil {
 		return err
 	}
 
-	// Force NOT NULL on PK columns.
-	for _, attnum := range attnums {
-		col := rel.Columns[attnum-1]
-		col.NotNull = true
+	// Verify no existing PK on this table.
+	for _, con := range c.consByRel[rel.OID] {
+		if con.Type == ConstraintPK {
+			reused, err := c.reusePartitionIndexConstraint(schema, rel, con, def, attnums, existingIdx)
+			if reused || err != nil {
+				return err
+			}
+			return errDuplicatePKey(rel.Name)
+		}
 	}
 
+	return c.addIndexBackedConstraint(schema, rel, def, ConstraintPK, attnums, existingIdx)
+}
+
+func (c *Catalog) addUniqueConstraint(schema *Schema, rel *Relation, def ConstraintDef) error {
+	attnums, existingIdx, err := c.resolveIndexConstraintAttnums(schema, rel, def)
+	if err != nil {
+		return err
+	}
+
+	for _, con := range c.consByRel[rel.OID] {
+		if con.Type != ConstraintUnique {
+			continue
+		}
+		reused, err := c.reusePartitionIndexConstraint(schema, rel, con, def, attnums, existingIdx)
+		if reused || err != nil {
+			return err
+		}
+	}
+
+	return c.addIndexBackedConstraint(schema, rel, def, ConstraintUnique, attnums, existingIdx)
+}
+
+func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def ConstraintDef, typ ConstraintType, attnums []int16, existingIdx *Index) error {
 	name := def.Name
 	if name == "" {
-		name = generateConstraintName(rel.Name, def.Columns, ConstraintPK)
+		if existingIdx != nil {
+			name = existingIdx.Name
+		} else {
+			name = generateConstraintName(rel.Name, def.Columns, typ)
+		}
 	}
 
 	conOID := c.oidGen.Next()
 
-	// Create backing unique primary index.
-	// pg: src/backend/commands/tablecmds.c — ATExecAddIndexConstraint / DefineIndex
-	// Use user-specified USING INDEX name, then constraint name, then auto-generate.
-	idxName := def.IndexName
-	if idxName == "" {
-		if def.Name != "" {
-			idxName = def.Name
-		} else {
-			idxName = generateIndexName(rel.Name, def.Columns, true)
+	isPrimary := typ == ConstraintPK
+	if isPrimary {
+		for _, attnum := range attnums {
+			rel.Columns[attnum-1].NotNull = true
 		}
 	}
-	idx := c.createIndexInternal(schema, rel, idxName, attnums, true, true, conOID)
+
+	idx := existingIdx
+	if idx == nil {
+		idxName := name
+		if idxName == "" {
+			idxName = generateIndexName(rel.Name, def.Columns, isPrimary)
+		}
+		idx = c.createIndexInternal(schema, rel, idxName, attnums, true, isPrimary, conOID)
+	} else {
+		idx.IsUnique = true
+		idx.IsPrimary = isPrimary
+		idx.ConstraintOID = conOID
+		if err := c.renameAttachedIndex(schema, idx, name); err != nil {
+			return err
+		}
+	}
 
 	con := &Constraint{
 		OID:        conOID,
 		Name:       name,
-		Type:       ConstraintPK,
+		Type:       typ,
 		RelOID:     rel.OID,
 		Namespace:  schema.OID,
 		Columns:    attnums,
@@ -136,45 +171,123 @@ func (c *Catalog) addPKConstraint(schema *Schema, rel *Relation, def ConstraintD
 	return nil
 }
 
-func (c *Catalog) addUniqueConstraint(schema *Schema, rel *Relation, def ConstraintDef) error {
-	attnums, err := c.resolveColumnNames(rel, def.Columns)
-	if err != nil {
-		return err
+func (c *Catalog) resolveIndexConstraintAttnums(schema *Schema, rel *Relation, def ConstraintDef) ([]int16, *Index, error) {
+	if def.IndexName == "" {
+		attnums, err := c.resolveColumnNames(rel, def.Columns)
+		return attnums, nil, err
+	}
+
+	idx := schema.Indexes[def.IndexName]
+	if idx == nil {
+		return nil, nil, errUndefinedObject("index", def.IndexName)
+	}
+	if idx.RelOID != rel.OID {
+		return nil, nil, errInvalidObjectDefinition(fmt.Sprintf("index %q does not belong to table %q", def.IndexName, rel.Name))
+	}
+	if !idx.IsUnique {
+		return nil, nil, errInvalidObjectDefinition(fmt.Sprintf("index %q is not unique", def.IndexName))
+	}
+	attnums := indexConstraintAttnums(idx)
+	if len(attnums) == 0 {
+		return nil, nil, errInvalidParameterValue("constraint index must specify at least one column")
+	}
+	for _, attnum := range attnums {
+		if attnum == 0 {
+			return nil, nil, errInvalidObjectDefinition("constraints cannot use expression indexes")
+		}
+	}
+	return attnums, idx, nil
+}
+
+func indexConstraintAttnums(idx *Index) []int16 {
+	if idx == nil {
+		return nil
+	}
+	n := idx.NKeyColumns
+	if n <= 0 || n > len(idx.Columns) {
+		n = len(idx.Columns)
+	}
+	out := make([]int16, n)
+	copy(out, idx.Columns[:n])
+	return out
+}
+
+func (c *Catalog) reusePartitionIndexConstraint(schema *Schema, rel *Relation, con *Constraint, def ConstraintDef, attnums []int16, existingIdx *Index) (bool, error) {
+	if rel.PartitionOf == 0 || con.ConParentID == 0 {
+		return false, nil
+	}
+	if !sameAttnums(con.Columns, attnums) {
+		return false, nil
+	}
+	if existingIdx != nil && con.IndexOID != existingIdx.OID {
+		return false, nil
 	}
 
 	name := def.Name
-	if name == "" {
-		name = generateConstraintName(rel.Name, def.Columns, ConstraintUnique)
+	if name == "" && existingIdx != nil {
+		name = existingIdx.Name
+	}
+	if name != "" {
+		for _, existing := range c.consByRel[rel.OID] {
+			if existing.OID != con.OID && existing.Name == name {
+				return true, errDuplicateObject("constraint", name)
+			}
+		}
+		con.Name = name
+	}
+	con.ConIsLocal = true
+	con.Validated = true
+
+	if con.IndexOID != 0 {
+		idx := c.indexes[con.IndexOID]
+		if idx != nil {
+			idx.IsPrimary = con.Type == ConstraintPK
+			idx.IsUnique = true
+			idx.ConstraintOID = con.OID
+
+			idxName := name
+			if idxName != "" {
+				if err := c.renameAttachedIndex(schema, idx, idxName); err != nil {
+					return true, err
+				}
+			}
+		}
 	}
 
-	conOID := c.oidGen.Next()
-
-	// Create backing unique index.
-	idxName := name // unique constraint index shares the constraint name
-	idx := c.createIndexInternal(schema, rel, idxName, attnums, true, false, conOID)
-
-	con := &Constraint{
-		OID:        conOID,
-		Name:       name,
-		Type:       ConstraintUnique,
-		RelOID:     rel.OID,
-		Namespace:  schema.OID,
-		Columns:    attnums,
-		IndexOID:   idx.OID,
-		Deferrable: def.Deferrable,
-		Deferred:   def.Deferred,
-		Validated:  true,
-		ConIsLocal: true,
-	}
-
-	c.registerConstraint(rel.OID, con)
-	// pg: pg_constraint.c — CreateConstraintEntry lines 254-268
+	// The cloned partition PK already enforced this in the normal path, but
+	// keep the invariant here for partitions loaded from partial metadata.
 	for _, attnum := range attnums {
-		c.recordDependency('c', con.OID, 0, 'r', rel.OID, int32(attnum), DepAuto)
+		if int(attnum) > 0 && int(attnum) <= len(rel.Columns) {
+			rel.Columns[attnum-1].NotNull = true
+		}
 	}
-	c.recordDependency('i', idx.OID, 0, 'c', con.OID, 0, DepInternal)
 
+	return true, nil
+}
+
+func (c *Catalog) renameAttachedIndex(schema *Schema, idx *Index, name string) error {
+	if idx == nil || name == "" || idx.Name == name {
+		return nil
+	}
+	if existing := schema.Indexes[name]; existing != nil && existing.OID != idx.OID {
+		return errDuplicateObject("index", name)
+	}
+	delete(schema.Indexes, idx.Name)
+	idx.Name = name
+	schema.Indexes[idx.Name] = idx
 	return nil
+}
+
+func sameAttnums(a, b []int16) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func (c *Catalog) addFKConstraint(schema *Schema, rel *Relation, def ConstraintDef) error {

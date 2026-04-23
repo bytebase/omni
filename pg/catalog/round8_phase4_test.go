@@ -247,7 +247,7 @@ func TestLeakProofStorage(t *testing.T) {
 func TestProcedureWithOutParamsRettype(t *testing.T) {
 	c := New()
 	// Procedure with OUT parameters — return type should be RECORDOID, not VOIDOID.
-	stmt := &nodes.CreateFunctionStmt{
+	stmt := markCreateFunctionStmtAsProcedure(&nodes.CreateFunctionStmt{
 		Funcname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "proc_out"}}},
 		Parameters: &nodes.List{Items: []nodes.Node{
 			&nodes.FunctionParameter{
@@ -266,7 +266,7 @@ func TestProcedureWithOutParamsRettype(t *testing.T) {
 			&nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: "plpgsql"}},
 			&nodes.DefElem{Defname: "as", Arg: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "BEGIN result := 'ok'; END;"}}}},
 		}},
-	}
+	})
 	err := c.CreateFunctionStmt(stmt)
 	if err != nil {
 		t.Fatal(err)
@@ -432,7 +432,7 @@ func TestCostDefault(t *testing.T) {
 func TestRowsNotApplicableProcedure(t *testing.T) {
 	c := New()
 	// Procedure with ROWS specified — should error (procedures don't return sets).
-	stmt := &nodes.CreateFunctionStmt{
+	stmt := markCreateFunctionStmtAsProcedure(&nodes.CreateFunctionStmt{
 		Funcname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "proc_rows"}}},
 		// No ReturnType → procedure.
 		Options: &nodes.List{Items: []nodes.Node{
@@ -440,7 +440,7 @@ func TestRowsNotApplicableProcedure(t *testing.T) {
 			&nodes.DefElem{Defname: "as", Arg: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "BEGIN NULL; END;"}}}},
 			&nodes.DefElem{Defname: "rows", Arg: &nodes.Integer{Ival: 100}},
 		}},
-	}
+	})
 	err := c.CreateFunctionStmt(stmt)
 	assertCode(t, err, CodeInvalidParameterValue)
 	if !strings.Contains(err.Error(), "ROWS is not applicable when function does not return a set") {

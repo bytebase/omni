@@ -3,6 +3,7 @@ package pgregress
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -179,6 +180,87 @@ func TestExtract_CopyFromStdinWithOptions(t *testing.T) {
 	stmts := ExtractStatements("test.sql", []byte(input))
 	if len(stmts) != 2 {
 		t.Fatalf("expected 2 statements, got %d: %v", len(stmts), stmtsSQL(stmts))
+	}
+}
+
+func TestExtract_CopyFromStdoutSkipsInlineData(t *testing.T) {
+	input := "COPY t FROM STDOUT;\n1\tbaz\n2\tqux\n\\.\nSELECT * FROM t;"
+	stmts := ExtractStatements("test.sql", []byte(input))
+	if len(stmts) != 2 {
+		t.Fatalf("expected 2 statements, got %d: %v", len(stmts), stmtsSQL(stmts))
+	}
+	if stmts[0].SQL != "COPY t FROM STDOUT" {
+		t.Errorf("stmt[0] = %q", stmts[0].SQL)
+	}
+	if stmts[1].SQL != "SELECT * FROM t" {
+		t.Errorf("stmt[1] = %q", stmts[1].SQL)
+	}
+}
+
+func TestExtract_MidLineCopyFromStdinSkipsMultipleDataBlocks(t *testing.T) {
+	input := "SELECT 0\\; COPY test3 FROM STDIN\\; COPY test3 FROM STDIN\\; SELECT 1;\n1\n\\.\n2\n\\.\nSELECT * FROM test3;"
+	stmts := ExtractStatements("test.sql", []byte(input))
+	want := []string{
+		"SELECT 0",
+		"COPY test3 FROM STDIN",
+		"COPY test3 FROM STDIN",
+		"SELECT 1",
+		"SELECT * FROM test3",
+	}
+	if len(stmts) != len(want) {
+		t.Fatalf("expected %d statements, got %d: %v", len(want), len(stmts), stmtsSQL(stmts))
+	}
+	for i := range want {
+		if stmts[i].SQL != want[i] {
+			t.Errorf("stmt[%d] = %q, want %q", i, stmts[i].SQL, want[i])
+		}
+	}
+}
+
+func TestCountCopyDataBlocksInPsqlMultiCommandLine(t *testing.T) {
+	line := "select 0\\; copy test3 from stdin\\; copy test3 from stdin\\; select 1; -- 0 1"
+	if got := countCopyDataBlocks(line); got != 2 {
+		t.Fatalf("countCopyDataBlocks() = %d, want 2", got)
+	}
+}
+
+func TestCountCopyDataBlocksIgnoresCopyQueryFromStdin(t *testing.T) {
+	line := "copy (select * from test1) from stdin;"
+	if got := countCopyDataBlocks(line); got != 0 {
+		t.Fatalf("countCopyDataBlocks() = %d, want 0", got)
+	}
+}
+
+func TestExtract_CopySelectMultiCommandRegressionSnippet(t *testing.T) {
+	input := `copy (select 1) to stdout\; select 1/0;
+select 1/0\; copy (select 1) to stdout;
+copy (select 1) to stdout\; copy (select 2) to stdout\; select 3\; select 4;
+create table test3 (c int);
+select 0\; copy test3 from stdin\; copy test3 from stdin\; select 1;
+1
+\.
+2
+\.
+select * from test3;
+drop table test3;`
+	stmts := ExtractStatements("copyselect.sql", []byte(input))
+	for i, stmt := range stmts {
+		if stmt.SQL == "2\nselect * from test3" || stmt.SQL == "1\nselect * from test3" {
+			t.Fatalf("stmt[%d] leaked COPY data: %q", i, stmt.SQL)
+		}
+	}
+}
+
+func TestExtract_RealCopySelectFileSkipsInlineCopyData(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join("testdata", "sql", "copyselect.sql"))
+	if err != nil {
+		t.Skip("testdata not available:", err)
+	}
+	stmts := ExtractStatements("copyselect.sql", content)
+	for i, stmt := range stmts {
+		if strings.HasPrefix(stmt.SQL, "1\n") || strings.HasPrefix(stmt.SQL, "2\n") {
+			t.Fatalf("stmt[%d] line %d leaked COPY data: %q", i, stmt.StartLine, stmt.SQL)
+		}
 	}
 }
 

@@ -176,17 +176,13 @@ func (p *Parser) parseIndexElem() *nodes.IndexElem {
 		elem.Ordering = nodes.SortByDir(p.parseOptAscDesc())
 		elem.NullsOrdering = nodes.SortByNulls(p.parseOptNullsOrder())
 	} else if p.isColId() {
-		// Could be ColId or func_expr_windowless (function call starting with a name)
-		// We need to check if it's a function call: name '(' ...
-		// But ColId is also valid as a simple column name.
-		// Strategy: parse as ColId first, then check if '(' follows for function call
-		name, _ := p.parseColId()
-
-		if p.cur.Type == '(' {
-			// This is a function call - reparse as func_expr_windowless
-			// We need to reconstruct the function call
-			elem.Expr = p.parseIndexElemFuncCall(name)
+		// Could be ColId or func_expr_windowless (function call starting with a name).
+		// Route calls through the shared expression parser so SQL/JSON function
+		// syntaxes such as JSON_QUERY(... PASSING ...) are handled consistently.
+		if p.peekNext().Type == '(' {
+			elem.Expr, _ = p.parseFuncExprWindowless()
 		} else {
+			name, _ := p.parseColId()
 			elem.Name = name
 		}
 
@@ -205,33 +201,6 @@ func (p *Parser) parseIndexElem() *nodes.IndexElem {
 
 	elem.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 	return elem
-}
-
-// parseIndexElemFuncCall parses a function call for an index element,
-// given that the function name has already been consumed.
-func (p *Parser) parseIndexElemFuncCall(name string) nodes.Node {
-	p.advance() // consume '('
-
-	var args []nodes.Node
-	if p.cur.Type != ')' {
-		arg, _ := p.parseAExpr(0)
-		args = append(args, arg)
-		for p.cur.Type == ',' {
-			p.advance()
-			arg, _ = p.parseAExpr(0)
-			args = append(args, arg)
-		}
-	}
-	p.expect(')')
-
-	funcCall := &nodes.FuncCall{
-		Funcname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}},
-		Loc: nodes.NoLoc(),
-	}
-	if len(args) > 0 {
-		funcCall.Args = &nodes.List{Items: args}
-	}
-	return funcCall
 }
 
 // parseIndexElemOpclass parses the optional operator class and its options.

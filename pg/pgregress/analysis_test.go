@@ -69,7 +69,8 @@ func TestAnalyzeFailures(t *testing.T) {
 				continue
 			}
 			stmt := stmts[idx]
-			_, parseErr := parser.Parse(stmt.SQL)
+			sqlToParse := sqlForParser(stmt)
+			_, parseErr := parser.Parse(sqlToParse)
 			errMsg := ""
 			if parseErr != nil {
 				errMsg = parseErr.Error()

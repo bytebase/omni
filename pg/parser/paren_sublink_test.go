@@ -31,7 +31,7 @@ func TestParenSublinkTypedNilCallers(t *testing.T) {
 		// parseSelectStmtForExpr directly and return typed-nil.
 		{`SELECT EXISTS()`, "parseExistsExpr"},
 		// parseInExpr subquery branch — `((SELECT ...))` triggers the
-		// lookaheadInIsSubquery scan; with a malformed inner (WITH cte
+		// lookaheadParenContentIsSubquery scan; with a malformed inner (WITH cte
 		// AS (SELECT 1)) the lookahead still classifies as subquery and
 		// parseSelectStmtForExpr returns typed-nil on no trailing
 		// select_clause.

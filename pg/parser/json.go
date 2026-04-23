@@ -1267,17 +1267,18 @@ func (p *Parser) parseJsonTableColumnDefinition() (*nodes.JsonTableColumn, error
 	}
 
 	if isExists {
-		// EXISTS column: ColId Typename EXISTS [PATH Sconst] [ON ERROR]
+		// EXISTS column: ColId Typename EXISTS [PATH Sconst] [behavior]
 		pathspec, err := p.parseJsonTableColumnPathClauseOpt()
 		if err != nil {
 			return nil, err
 		}
-		onError := p.parseJsonOnErrorClauseOpt()
+		onEmpty, onError := p.parseJsonBehaviorClauseOpt()
 		return &nodes.JsonTableColumn{
 			Coltype:  nodes.JTC_EXISTS,
 			Name:     colName,
 			TypeName: tn,
 			Pathspec: pathspec,
+			OnEmpty:  onEmpty,
 			OnError:  onError,
 			Loc:      nodes.NoLoc(),
 		}, nil

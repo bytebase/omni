@@ -950,6 +950,17 @@ func (p *Parser) parseAlterTableAlter() (*nodes.AlterTableCmd, error) {
 func (p *Parser) parseAlterColumnAction(colname string) (*nodes.AlterTableCmd, error) {
 	switch p.cur.Type {
 	case SET:
+		if p.isAlterIdentityOption() {
+			opts, err := p.parseAlterIdentityColumnOptionList()
+			if err != nil {
+				return nil, err
+			}
+			return &nodes.AlterTableCmd{
+				Subtype: int(nodes.AT_SetIdentity),
+				Name:    colname,
+				Def:     opts,
+			}, nil
+		}
 		p.advance() // consume SET
 		return p.parseAlterColumnSet(colname)
 	case DROP:
@@ -1003,7 +1014,11 @@ func (p *Parser) parseAlterColumnAction(colname string) (*nodes.AlterTableCmd, e
 // (SET GENERATED ...) rather than other SET subcommands. We peek ahead.
 func (p *Parser) isAlterIdentityOption() bool {
 	next := p.peekNext()
-	return next.Type == GENERATED
+	switch next.Type {
+	case GENERATED, CACHE, CYCLE, NO, INCREMENT, MAXVALUE, MINVALUE, START:
+		return true
+	}
+	return false
 }
 
 // parseAlterColumnSet handles ALTER COLUMN colname SET ...

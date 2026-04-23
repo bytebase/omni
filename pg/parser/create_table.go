@@ -199,8 +199,8 @@ func (p *Parser) parseCreateStmtOf(stmt *nodes.CreateStmt) (*nodes.CreateStmt, e
 // makeTypeNameFromNameList creates a TypeName from an any_name list.
 func makeTypeNameFromNameList(names *nodes.List) *nodes.TypeName {
 	return &nodes.TypeName{
-		Names:    names,
-		Loc: nodes.NoLoc(),
+		Names: names,
+		Loc:   nodes.NoLoc(),
 	}
 }
 
@@ -274,8 +274,10 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		Colname:  colname,
 		TypeName: tn,
 		IsLocal:  true,
-		Loc: nodes.NoLoc(),
+		Loc:      nodes.NoLoc(),
 	}
+
+	n.Fdwoptions = p.parseCreateGenericOptions()
 
 	// opt_column_constraints
 	qualList, err := p.parseOptColumnConstraints()
@@ -338,24 +340,24 @@ func (p *Parser) parseColConstraint() (nodes.Node, error) {
 			p.advance() // NOT
 			p.advance() // NULL
 			return &nodes.Constraint{
-				Contype:  nodes.CONSTR_NOTNULL,
-				Loc: nodes.NoLoc(),
+				Contype: nodes.CONSTR_NOTNULL,
+				Loc:     nodes.NoLoc(),
 			}, nil
 		}
 		if next.Type == DEFERRABLE {
 			p.advance() // NOT
 			p.advance() // DEFERRABLE
 			return &nodes.Constraint{
-				Contype:  nodes.CONSTR_ATTR_NOT_DEFERRABLE,
-				Loc: nodes.NoLoc(),
+				Contype: nodes.CONSTR_ATTR_NOT_DEFERRABLE,
+				Loc:     nodes.NoLoc(),
 			}, nil
 		}
 		return nil, nil
 	case NULL_P:
 		p.advance()
 		return &nodes.Constraint{
-			Contype:  nodes.CONSTR_NULL,
-			Loc: nodes.NoLoc(),
+			Contype: nodes.CONSTR_NULL,
+			Loc:     nodes.NoLoc(),
 		}, nil
 	case UNIQUE:
 		return p.parseColConstraintElem()
@@ -380,7 +382,7 @@ func (p *Parser) parseColConstraint() (nodes.Node, error) {
 		}
 		return &nodes.CollateClause{
 			Collname: collname,
-			Loc: nodes.NoLoc(),
+			Loc:      nodes.NoLoc(),
 		}, nil
 	case COMPRESSION:
 		p.advance()
@@ -413,23 +415,23 @@ func (p *Parser) parseColConstraint() (nodes.Node, error) {
 	case DEFERRABLE:
 		p.advance()
 		return &nodes.Constraint{
-			Contype:  nodes.CONSTR_ATTR_DEFERRABLE,
-			Loc: nodes.NoLoc(),
+			Contype: nodes.CONSTR_ATTR_DEFERRABLE,
+			Loc:     nodes.NoLoc(),
 		}, nil
 	case INITIALLY:
 		p.advance()
 		if p.cur.Type == DEFERRED {
 			p.advance()
 			return &nodes.Constraint{
-				Contype:  nodes.CONSTR_ATTR_DEFERRED,
-				Loc: nodes.NoLoc(),
+				Contype: nodes.CONSTR_ATTR_DEFERRED,
+				Loc:     nodes.NoLoc(),
 			}, nil
 		}
 		if p.cur.Type == IMMEDIATE {
 			p.advance()
 			return &nodes.Constraint{
-				Contype:  nodes.CONSTR_ATTR_IMMEDIATE,
-				Loc: nodes.NoLoc(),
+				Contype: nodes.CONSTR_ATTR_IMMEDIATE,
+				Loc:     nodes.NoLoc(),
 			}, nil
 		}
 		return nil, nil
@@ -454,14 +456,14 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		p.advance() // NOT
 		p.expect(NULL_P)
 		return &nodes.Constraint{
-			Contype:  nodes.CONSTR_NOTNULL,
-			Loc: nodes.NoLoc(),
+			Contype: nodes.CONSTR_NOTNULL,
+			Loc:     nodes.NoLoc(),
 		}, nil
 	case NULL_P:
 		p.advance()
 		return &nodes.Constraint{
-			Contype:  nodes.CONSTR_NULL,
-			Loc: nodes.NoLoc(),
+			Contype: nodes.CONSTR_NULL,
+			Loc:     nodes.NoLoc(),
 		}, nil
 	case UNIQUE:
 		p.advance()
@@ -472,8 +474,8 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 			Contype:          nodes.CONSTR_UNIQUE,
 			NullsNotDistinct: nullsNotDistinct,
 			Options:          options,
-			Indexspace:        indexspace,
-			Loc: nodes.NoLoc(),
+			Indexspace:       indexspace,
+			Loc:              nodes.NoLoc(),
 		}, nil
 	case PRIMARY:
 		p.advance() // PRIMARY
@@ -481,10 +483,10 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		options := p.parseOptDefinition()
 		indexspace := p.parseOptConsTableSpace()
 		return &nodes.Constraint{
-			Contype:   nodes.CONSTR_PRIMARY,
-			Options:   options,
+			Contype:    nodes.CONSTR_PRIMARY,
+			Options:    options,
 			Indexspace: indexspace,
-			Loc: nodes.NoLoc(),
+			Loc:        nodes.NoLoc(),
 		}, nil
 	case CHECK:
 		p.advance() // CHECK
@@ -502,7 +504,7 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 			Contype:        nodes.CONSTR_CHECK,
 			RawExpr:        expr,
 			IsNoInherit:    noInherit,
-			Loc: nodes.NoLoc(),
+			Loc:            nodes.NoLoc(),
 			InitiallyValid: true,
 		}, nil
 	case DEFAULT:
@@ -515,9 +517,9 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		return &nodes.Constraint{
-			Contype:  nodes.CONSTR_DEFAULT,
-			RawExpr:  expr,
-			Loc: nodes.NoLoc(),
+			Contype: nodes.CONSTR_DEFAULT,
+			RawExpr: expr,
+			Loc:     nodes.NoLoc(),
 		}, nil
 	case REFERENCES:
 		p.advance()
@@ -541,7 +543,7 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 			FkUpdaction:    updAction,
 			FkDelaction:    delAction,
 			FkDelsetcols:   delSetCols,
-			Loc: nodes.NoLoc(),
+			Loc:            nodes.NoLoc(),
 			InitiallyValid: true,
 		}
 		applyConstraintAttrs(n, attrs)
@@ -575,7 +577,7 @@ func (p *Parser) parseGeneratedConstraint() (*nodes.Constraint, error) {
 				Contype:       nodes.CONSTR_IDENTITY,
 				GeneratedWhen: 'a',
 				Options:       opts,
-				Loc: nodes.NoLoc(),
+				Loc:           nodes.NoLoc(),
 			}, nil
 		}
 		// GENERATED ALWAYS AS '(' a_expr ')' STORED
@@ -587,7 +589,7 @@ func (p *Parser) parseGeneratedConstraint() (*nodes.Constraint, error) {
 			Contype:       nodes.CONSTR_GENERATED,
 			GeneratedWhen: 'a',
 			RawExpr:       expr,
-			Loc: nodes.NoLoc(),
+			Loc:           nodes.NoLoc(),
 		}, nil
 	}
 
@@ -605,7 +607,7 @@ func (p *Parser) parseGeneratedConstraint() (*nodes.Constraint, error) {
 			Contype:       nodes.CONSTR_IDENTITY,
 			GeneratedWhen: 'd',
 			Options:       opts,
-			Loc: nodes.NoLoc(),
+			Loc:           nodes.NoLoc(),
 		}, nil
 	}
 	// GENERATED BY DEFAULT AS '(' a_expr ')' STORED
@@ -617,7 +619,7 @@ func (p *Parser) parseGeneratedConstraint() (*nodes.Constraint, error) {
 		Contype:       nodes.CONSTR_GENERATED,
 		GeneratedWhen: 'd',
 		RawExpr:       expr,
-		Loc: nodes.NoLoc(),
+		Loc:           nodes.NoLoc(),
 	}, nil
 }
 
@@ -640,9 +642,9 @@ func (p *Parser) parseOptParenthesizedSeqOptList() (*nodes.List, error) {
 // makeDefElem creates a DefElem with Loc=NoLoc().
 func makeDefElem(name string, arg nodes.Node) *nodes.DefElem {
 	return &nodes.DefElem{
-		Defname:  name,
-		Arg:      arg,
-		Loc: nodes.NoLoc(),
+		Defname: name,
+		Arg:     arg,
+		Loc:     nodes.NoLoc(),
 	}
 }
 
@@ -695,7 +697,7 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 				n := &nodes.Constraint{
 					Contype:        nodes.CONSTR_UNIQUE,
 					Indexname:      idxName,
-					Loc: nodes.NoLoc(),
+					Loc:            nodes.NoLoc(),
 					InitiallyValid: true,
 				}
 				applyConstraintAttrs(n, attrs)
@@ -716,8 +718,8 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 			Keys:             keys,
 			Including:        including,
 			Options:          options,
-			Indexspace:        indexspace,
-			Loc: nodes.NoLoc(),
+			Indexspace:       indexspace,
+			Loc:              nodes.NoLoc(),
 			InitiallyValid:   true,
 		}
 		applyConstraintAttrs(n, attrs)
@@ -742,7 +744,7 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 				n := &nodes.Constraint{
 					Contype:        nodes.CONSTR_PRIMARY,
 					Indexname:      idxName,
-					Loc: nodes.NoLoc(),
+					Loc:            nodes.NoLoc(),
 					InitiallyValid: true,
 				}
 				applyConstraintAttrs(n, attrs)
@@ -762,8 +764,8 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 			Keys:           keys,
 			Including:      including,
 			Options:        options,
-			Indexspace:      indexspace,
-			Loc: nodes.NoLoc(),
+			Indexspace:     indexspace,
+			Loc:            nodes.NoLoc(),
 			InitiallyValid: true,
 		}
 		applyConstraintAttrs(n, attrs)
@@ -778,7 +780,7 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 		n := &nodes.Constraint{
 			Contype:        nodes.CONSTR_CHECK,
 			RawExpr:        expr,
-			Loc: nodes.NoLoc(),
+			Loc:            nodes.NoLoc(),
 			InitiallyValid: true,
 		}
 		applyConstraintAttrs(n, attrs)
@@ -806,7 +808,7 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 			FkUpdaction:    updAction,
 			FkDelaction:    delAction,
 			FkDelsetcols:   delSetCols,
-			Loc: nodes.NoLoc(),
+			Loc:            nodes.NoLoc(),
 			InitiallyValid: true,
 		}
 		applyConstraintAttrs(n, attrs)
@@ -836,9 +838,9 @@ func (p *Parser) parseExclusionConstraint() *nodes.Constraint {
 		Exclusions:     excl,
 		Including:      including,
 		Options:        options,
-		Indexspace:      indexspace,
+		Indexspace:     indexspace,
 		WhereClause:    where,
-		Loc: nodes.NoLoc(),
+		Loc:            nodes.NoLoc(),
 		InitiallyValid: true,
 	}
 	applyConstraintAttrs(n, attrs)
@@ -1065,7 +1067,7 @@ func (p *Parser) parseColumnOptions() *nodes.ColumnDef {
 		Colname:  colname,
 		TypeName: nil,
 		IsLocal:  true,
-		Loc: nodes.NoLoc(),
+		Loc:      nodes.NoLoc(),
 	}
 
 	if p.cur.Type == WITH {
@@ -1438,7 +1440,7 @@ func (p *Parser) parsePartitionSpec() *nodes.PartitionSpec {
 	return &nodes.PartitionSpec{
 		Strategy:   parsePartitionStrategy(strategy),
 		PartParams: params,
-		Loc: nodes.NoLoc(),
+		Loc:        nodes.NoLoc(),
 	}
 }
 
@@ -1487,7 +1489,7 @@ func (p *Parser) parsePartElem() *nodes.PartitionElem {
 			Expr:      expr,
 			Collation: collation,
 			Opclass:   opclass,
-			Loc: nodes.NoLoc(),
+			Loc:       nodes.NoLoc(),
 		}
 	}
 
@@ -1502,7 +1504,7 @@ func (p *Parser) parsePartElem() *nodes.PartitionElem {
 				Name:      name,
 				Collation: collation,
 				Opclass:   opclass,
-				Loc: nodes.NoLoc(),
+				Loc:       nodes.NoLoc(),
 			}
 		}
 	}
@@ -1515,7 +1517,7 @@ func (p *Parser) parsePartElem() *nodes.PartitionElem {
 		Expr:      expr,
 		Collation: collation,
 		Opclass:   opclass,
-		Loc: nodes.NoLoc(),
+		Loc:       nodes.NoLoc(),
 	}
 }
 
@@ -1601,13 +1603,13 @@ func (p *Parser) parseReloptionElem() *nodes.DefElem {
 				Defnamespace: label,
 				Defname:      sublabel,
 				Arg:          arg,
-				Loc: nodes.NoLoc(),
+				Loc:          nodes.NoLoc(),
 			}
 		}
 		return &nodes.DefElem{
 			Defnamespace: label,
 			Defname:      sublabel,
-			Loc: nodes.NoLoc(),
+			Loc:          nodes.NoLoc(),
 		}
 	}
 
@@ -1615,15 +1617,15 @@ func (p *Parser) parseReloptionElem() *nodes.DefElem {
 		p.advance()
 		arg, _ := p.parseDefArg()
 		return &nodes.DefElem{
-			Defname:  label,
-			Arg:      arg,
-			Loc: nodes.NoLoc(),
+			Defname: label,
+			Arg:     arg,
+			Loc:     nodes.NoLoc(),
 		}
 	}
 
 	return &nodes.DefElem{
-		Defname:  label,
-		Loc: nodes.NoLoc(),
+		Defname: label,
+		Loc:     nodes.NoLoc(),
 	}
 }
 
@@ -1676,7 +1678,7 @@ func (p *Parser) parseForValues() nodes.Node {
 		p.advance()
 		return &nodes.PartitionBoundSpec{
 			IsDefault: true,
-			Loc: nodes.NoLoc(),
+			Loc:       nodes.NoLoc(),
 		}
 	}
 	return p.parsePartitionBoundSpec()
@@ -1701,7 +1703,7 @@ func (p *Parser) parsePartitionBoundSpec() *nodes.PartitionBoundSpec {
 		return &nodes.PartitionBoundSpec{
 			Strategy:   'l',
 			Listdatums: list,
-			Loc: nodes.NoLoc(),
+			Loc:        nodes.NoLoc(),
 		}
 	case FROM:
 		p.advance()
@@ -1716,7 +1718,7 @@ func (p *Parser) parsePartitionBoundSpec() *nodes.PartitionBoundSpec {
 			Strategy:    'r',
 			Lowerdatums: lower,
 			Upperdatums: upper,
-			Loc: nodes.NoLoc(),
+			Loc:         nodes.NoLoc(),
 		}
 	case WITH:
 		p.advance()
@@ -1727,7 +1729,7 @@ func (p *Parser) parsePartitionBoundSpec() *nodes.PartitionBoundSpec {
 			Strategy:  'h',
 			Modulus:   -1,
 			Remainder: -1,
-			Loc: nodes.NoLoc(),
+			Loc:       nodes.NoLoc(),
 		}
 		for _, item := range bounds.Items {
 			opt := item.(*nodes.DefElem)
@@ -1778,8 +1780,8 @@ func (p *Parser) parseHashPartboundElem() *nodes.DefElem {
 	val := p.cur.Ival
 	p.advance() // ICONST
 	return &nodes.DefElem{
-		Defname:  name,
-		Arg:      &nodes.Integer{Ival: val},
-		Loc: nodes.NoLoc(),
+		Defname: name,
+		Arg:     &nodes.Integer{Ival: val},
+		Loc:     nodes.NoLoc(),
 	}
 }

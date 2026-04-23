@@ -26,7 +26,7 @@ func TestFuncSetofParamRejected(t *testing.T) {
 func TestProcSetofParamRejected(t *testing.T) {
 	c := New()
 	// Procedure with SETOF param.
-	stmt := &nodes.CreateFunctionStmt{
+	stmt := markCreateFunctionStmtAsProcedure(&nodes.CreateFunctionStmt{
 		Funcname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "p"}}},
 		Parameters: &nodes.List{Items: []nodes.Node{
 			&nodes.FunctionParameter{
@@ -38,7 +38,7 @@ func TestProcSetofParamRejected(t *testing.T) {
 			&nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: "sql"}},
 			&nodes.DefElem{Defname: "as", Arg: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "NULL"}}}},
 		}},
-	}
+	})
 	err := c.CreateFunctionStmt(stmt)
 	assertCode(t, err, CodeInvalidFunctionDefinition)
 }
@@ -256,7 +256,7 @@ func TestFuncNoBodyRejected(t *testing.T) {
 func TestProcVolatilityRejected(t *testing.T) {
 	c := New()
 	// Procedure with IMMUTABLE should be rejected.
-	stmt := &nodes.CreateFunctionStmt{
+	stmt := markCreateFunctionStmtAsProcedure(&nodes.CreateFunctionStmt{
 		Funcname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "p"}}},
 		// No ReturnType → procedure
 		Options: &nodes.List{Items: []nodes.Node{
@@ -264,49 +264,49 @@ func TestProcVolatilityRejected(t *testing.T) {
 			&nodes.DefElem{Defname: "as", Arg: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "BEGIN NULL; END;"}}}},
 			&nodes.DefElem{Defname: "volatility", Arg: &nodes.String{Str: "immutable"}},
 		}},
-	}
+	})
 	err := c.CreateFunctionStmt(stmt)
 	assertCode(t, err, CodeInvalidFunctionDefinition)
 }
 
 func TestProcStrictRejected(t *testing.T) {
 	c := New()
-	stmt := &nodes.CreateFunctionStmt{
+	stmt := markCreateFunctionStmtAsProcedure(&nodes.CreateFunctionStmt{
 		Funcname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "p"}}},
 		Options: &nodes.List{Items: []nodes.Node{
 			&nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: "plpgsql"}},
 			&nodes.DefElem{Defname: "as", Arg: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "BEGIN NULL; END;"}}}},
 			&nodes.DefElem{Defname: "strict", Arg: &nodes.Integer{Ival: 1}},
 		}},
-	}
+	})
 	err := c.CreateFunctionStmt(stmt)
 	assertCode(t, err, CodeInvalidFunctionDefinition)
 }
 
 func TestProcParallelRejected(t *testing.T) {
 	c := New()
-	stmt := &nodes.CreateFunctionStmt{
+	stmt := markCreateFunctionStmtAsProcedure(&nodes.CreateFunctionStmt{
 		Funcname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "p"}}},
 		Options: &nodes.List{Items: []nodes.Node{
 			&nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: "plpgsql"}},
 			&nodes.DefElem{Defname: "as", Arg: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "BEGIN NULL; END;"}}}},
 			&nodes.DefElem{Defname: "parallel", Arg: &nodes.String{Str: "safe"}},
 		}},
-	}
+	})
 	err := c.CreateFunctionStmt(stmt)
 	assertCode(t, err, CodeInvalidFunctionDefinition)
 }
 
 func TestProcWindowRejected(t *testing.T) {
 	c := New()
-	stmt := &nodes.CreateFunctionStmt{
+	stmt := markCreateFunctionStmtAsProcedure(&nodes.CreateFunctionStmt{
 		Funcname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "p"}}},
 		Options: &nodes.List{Items: []nodes.Node{
 			&nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: "plpgsql"}},
 			&nodes.DefElem{Defname: "as", Arg: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "BEGIN NULL; END;"}}}},
 			&nodes.DefElem{Defname: "window", Arg: &nodes.Integer{Ival: 1}},
 		}},
-	}
+	})
 	err := c.CreateFunctionStmt(stmt)
 	assertCode(t, err, CodeInvalidFunctionDefinition)
 }
@@ -495,9 +495,9 @@ func TestCommentOnDomainConstraint(t *testing.T) {
 		Typname:    makeTypeNameNode(TypeName{Name: "int4", TypeMod: -1}),
 		Constraints: &nodes.List{Items: []nodes.Node{
 			&nodes.Constraint{
-				Contype:  nodes.CONSTR_CHECK,
-				Conname:  "posint_check",
-				RawExpr:  &nodes.A_Const{Val: &nodes.String{Str: "VALUE > 0"}},
+				Contype: nodes.CONSTR_CHECK,
+				Conname: "posint_check",
+				RawExpr: &nodes.A_Const{Val: &nodes.String{Str: "VALUE > 0"}},
 			},
 		}},
 	})
@@ -573,7 +573,7 @@ func TestDropAggregateAsFunction(t *testing.T) {
 		RemoveType: int(nodes.OBJECT_AGGREGATE),
 		Objects: &nodes.List{Items: []nodes.Node{
 			&nodes.ObjectWithArgs{
-				Objname:        &nodes.List{Items: []nodes.Node{&nodes.String{Str: "myagg"}}},
+				Objname:         &nodes.List{Items: []nodes.Node{&nodes.String{Str: "myagg"}}},
 				ArgsUnspecified: true,
 			},
 		}},
