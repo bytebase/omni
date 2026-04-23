@@ -43,6 +43,72 @@ func intSliceContains(slice []int, val int) bool {
 	return false
 }
 
+func sqlForParser(stmt ExtractedStmt) string {
+	sqlToParse := stmt.SQL
+	if !stmt.HasPsqlVar {
+		return sqlToParse
+	}
+
+	sqlToParse, _ = ReplacePsqlVariables(stmt.SQL)
+	sqlToParse = stripLeadingSQLComments(sqlToParse)
+
+	// Full psql variable statements like ":variable;" are client-side macros,
+	// not server SQL. Replace them with a harmless statement for parse coverage.
+	for {
+		trimmed := strings.TrimSpace(sqlToParse)
+		if trimmed == "psql_var" {
+			return "SELECT 1"
+		}
+		if !strings.HasPrefix(trimmed, "psql_var;") {
+			sqlToParse = trimmed
+			break
+		}
+		sqlToParse = stripLeadingSQLComments(strings.TrimSpace(strings.TrimPrefix(trimmed, "psql_var;")))
+		if strings.TrimSpace(sqlToParse) == "" {
+			return "SELECT 1"
+		}
+	}
+
+	// COMMENT ON LARGE OBJECT requires a numeric OID. A psql variable in this
+	// position is an OID captured by a previous \gset query.
+	if strings.HasPrefix(strings.ToUpper(sqlToParse), "COMMENT ON LARGE OBJECT PSQL_VAR") {
+		sqlToParse = strings.Replace(sqlToParse, "psql_var", "1", 1)
+	}
+
+	// Handle "EXPLAIN ... :var" -> "EXPLAIN ... psql_var" -> "EXPLAIN ... SELECT 1".
+	// We check if EXPLAIN appears before psql_var.
+	upper := strings.ToUpper(sqlToParse)
+	expIdx := strings.Index(upper, "EXPLAIN")
+	varIdx := strings.Index(sqlToParse, "psql_var")
+	if expIdx >= 0 && varIdx > expIdx {
+		sqlToParse = strings.Replace(sqlToParse, "psql_var", "SELECT 1", 1)
+	}
+
+	return sqlToParse
+}
+
+func stripLeadingSQLComments(sql string) string {
+	for {
+		sql = strings.TrimSpace(sql)
+		switch {
+		case strings.HasPrefix(sql, "--"):
+			newline := strings.IndexByte(sql, '\n')
+			if newline < 0 {
+				return ""
+			}
+			sql = sql[newline+1:]
+		case strings.HasPrefix(sql, "/*"):
+			end := strings.Index(sql, "*/")
+			if end < 0 {
+				return ""
+			}
+			sql = sql[end+2:]
+		default:
+			return sql
+		}
+	}
+}
+
 func TestPGRegress(t *testing.T) {
 	files, err := filepath.Glob("testdata/sql/*.sql")
 	if err != nil {
@@ -83,26 +149,7 @@ func TestPGRegress(t *testing.T) {
 
 			for i, stmt := range stmts {
 
-				sqlToParse := stmt.SQL
-				if stmt.HasPsqlVar {
-					sqlToParse, _ = ReplacePsqlVariables(stmt.SQL)
-					// Special case for full psql variable statements like ":variable;"
-					// which become "psql_var;" after replacement. This is invalid syntax
-					// (identifier as statement). Treat it as a passing SELECT 1.
-					trimmed := strings.TrimSpace(sqlToParse)
-					if trimmed == "psql_var" || trimmed == "psql_var;" {
-						sqlToParse = "SELECT 1"
-					} else {
-						// Handle "EXPLAIN ... :var" -> "EXPLAIN ... psql_var" -> "EXPLAIN ... SELECT 1"
-						// We check if EXPLAIN appears before psql_var.
-						upper := strings.ToUpper(sqlToParse)
-						expIdx := strings.Index(upper, "EXPLAIN")
-						varIdx := strings.Index(sqlToParse, "psql_var")
-						if expIdx >= 0 && varIdx > expIdx {
-							sqlToParse = strings.Replace(sqlToParse, "psql_var", "SELECT 1", 1)
-						}
-					}
-				}
+				sqlToParse := sqlForParser(stmt)
 				_, parseErr := parser.Parse(sqlToParse)
 
 				isKnown := intSliceContains(kf, i)
@@ -217,22 +264,7 @@ func TestPGRegressStats(t *testing.T) {
 		passed := 0
 		psqlVar := 0
 		for _, stmt := range stmts {
-			sql := stmt.SQL
-			if stmt.HasPsqlVar {
-				sql, _ = ReplacePsqlVariables(stmt.SQL)
-				// Special case for full psql variable statements like ":variable;"
-				trimmed := strings.TrimSpace(sql)
-				if trimmed == "psql_var" || trimmed == "psql_var;" {
-					sql = "SELECT 1"
-				} else {
-					upper := strings.ToUpper(sql)
-					expIdx := strings.Index(upper, "EXPLAIN")
-					varIdx := strings.Index(sql, "psql_var")
-					if expIdx >= 0 && varIdx > expIdx {
-						sql = strings.Replace(sql, "psql_var", "SELECT 1", 1)
-					}
-				}
-			}
+			sql := sqlForParser(stmt)
 			if _, err := parser.Parse(sql); err == nil {
 				passed++
 			} else if stmt.HasPsqlVar {

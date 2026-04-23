@@ -440,6 +440,16 @@ func (c *Catalog) findSequence(schemaName, seqName string) (*Sequence, error) {
 	return nil, errUndefinedSequence(seqName)
 }
 
+func (c *Catalog) findIdentitySequence(rel *Relation, attNum int16) (*Sequence, error) {
+	for _, seq := range c.sequenceByOID {
+		if seq.OwnerRelOID == rel.OID && seq.OwnerAttNum == attNum {
+			return seq, nil
+		}
+	}
+	return nil, &Error{Code: CodeUndefinedObject,
+		Message: fmt.Sprintf("identity sequence for column %d of relation %q does not exist", attNum, rel.Name)}
+}
+
 // removeSequence removes a sequence from the catalog.
 func (c *Catalog) removeSequence(schema *Schema, seq *Sequence) {
 	delete(schema.Sequences, seq.Name)
@@ -519,6 +529,125 @@ func (c *Catalog) setSequenceOwner(seq *Sequence, schema *Schema, ownedBy string
 	seq.OwnerAttNum = rel.Columns[idx].AttNum
 	c.recordDependency('s', seq.OID, 0, 'r', rel.OID, int32(rel.Columns[idx].AttNum), DepAuto)
 	return nil
+}
+
+type identitySequenceSpec struct {
+	schema       *Schema
+	name         string
+	options      *nodes.List
+	explicitName bool
+}
+
+func (c *Catalog) createIdentitySequence(tableSchema *Schema, relName, colName string, colTypeOID uint32, seqOptions *nodes.List) (*Sequence, *nodes.RangeVar, bool, error) {
+	seqTypeOID, err := identitySequenceTypeOID(colTypeOID)
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	spec, err := c.identitySequenceSpec(tableSchema, relName, colName, seqOptions)
+	if err != nil {
+		return nil, nil, false, err
+	}
+	if spec.schema.OID != tableSchema.OID {
+		return nil, nil, false, &Error{Code: CodeFeatureNotSupported,
+			Message: "sequence must be in same schema as table it is linked to"}
+	}
+
+	createOptions := prependSequenceTypeOption(c.seqTypeName(seqTypeOID), spec.options)
+	stmt := &nodes.CreateSeqStmt{
+		Sequence:    &nodes.RangeVar{Schemaname: spec.schema.Name, Relname: spec.name},
+		Options:     createOptions,
+		ForIdentity: true,
+	}
+	if err := c.DefineSequence(stmt); err != nil {
+		return nil, nil, false, err
+	}
+
+	seq := spec.schema.Sequences[spec.name]
+	return seq, stmt.Sequence, spec.explicitName, nil
+}
+
+func (c *Catalog) identitySequenceSpec(tableSchema *Schema, relName, colName string, seqOptions *nodes.List) (identitySequenceSpec, error) {
+	spec := identitySequenceSpec{
+		schema: tableSchema,
+		name:   fmt.Sprintf("%s_%s_seq", relName, colName),
+	}
+	if seqOptions == nil {
+		return spec, nil
+	}
+
+	filtered := make([]nodes.Node, 0, len(seqOptions.Items))
+	for _, item := range seqOptions.Items {
+		d, ok := item.(*nodes.DefElem)
+		if !ok {
+			filtered = append(filtered, item)
+			continue
+		}
+		switch d.Defname {
+		case "sequence_name":
+			if spec.explicitName {
+				return identitySequenceSpec{}, &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
+			}
+			parts, ok := d.Arg.(*nodes.List)
+			if !ok {
+				return identitySequenceSpec{}, &Error{Code: CodeSyntaxError, Message: "invalid sequence name option"}
+			}
+			names := stringListItems(parts)
+			if len(names) == 0 {
+				return identitySequenceSpec{}, &Error{Code: CodeSyntaxError, Message: "invalid sequence name option"}
+			}
+			spec.explicitName = true
+			spec.name = names[len(names)-1]
+			if len(names) >= 2 {
+				seqSchema, err := c.resolveTargetSchema(names[len(names)-2])
+				if err != nil {
+					return identitySequenceSpec{}, err
+				}
+				spec.schema = seqSchema
+			}
+		case "logged":
+			// LOGGED/UNLOGGED affects persistence in PG. The catalog model does not
+			// track sequence persistence, so remove it like PG does before CREATE SEQUENCE.
+			continue
+		default:
+			filtered = append(filtered, item)
+		}
+	}
+	if len(filtered) > 0 {
+		spec.options = &nodes.List{Items: filtered}
+	}
+	return spec, nil
+}
+
+func identitySequenceTypeOID(colTypeOID uint32) (uint32, error) {
+	switch colTypeOID {
+	case INT2OID, INT4OID, INT8OID:
+		return colTypeOID, nil
+	default:
+		return 0, errInvalidParameterValue("identity column type must be smallint, integer, or bigint")
+	}
+}
+
+func prependSequenceTypeOption(typeName string, options *nodes.List) *nodes.List {
+	items := []nodes.Node{&nodes.DefElem{
+		Defname: "as",
+		Arg: &nodes.TypeName{Names: &nodes.List{Items: []nodes.Node{
+			&nodes.String{Str: typeName},
+		}}},
+		Loc: nodes.NoLoc(),
+	}}
+	if options != nil {
+		items = append(items, options.Items...)
+	}
+	return &nodes.List{Items: items}
+}
+
+func identitySequenceDefault(tableSchema, seqSchema *Schema, seqName string, explicitName bool) string {
+	target := seqName
+	if explicitName || seqSchema.Name != tableSchema.Name {
+		target = fmt.Sprintf("%s.%s", seqSchema.Name, seqName)
+	}
+	return fmt.Sprintf("nextval('%s'::regclass)", target)
 }
 
 // relKindDescription returns a human-readable description of a relation kind.

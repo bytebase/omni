@@ -128,6 +128,16 @@ func (p *Parser) parseInsertRest() (*nodes.InsertStmt, error) {
 		return &nodes.InsertStmt{}, nil
 
 	case '(':
+		if next := p.peekNext(); next.Type == '(' || isSelectStartToken(next.Type) {
+			selectStmt, err := p.parseSelectStmt()
+			if err != nil {
+				return nil, err
+			}
+			return &nodes.InsertStmt{
+				SelectStmt: selectStmt,
+			}, nil
+		}
+
 		// '(' insert_column_list ')' [OVERRIDING override_kind VALUE] SelectStmt
 		p.advance() // consume '('
 		cols, err := p.parseInsertColumnList()

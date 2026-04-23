@@ -42,10 +42,23 @@ func makeCreateFuncStmt(schema, name string, argTypes []TypeName, retType TypeNa
 	if body != "" {
 		opts = append(opts, &nodes.DefElem{Defname: "as", Arg: &nodes.List{Items: []nodes.Node{&nodes.String{Str: body}}}})
 	}
+	if retType.Name == "" {
+		opts = append(opts, &nodes.DefElem{Defname: "isProcedure", Arg: &nodes.Integer{Ival: 1}})
+	}
 	if len(opts) > 0 {
 		stmt.Options = &nodes.List{Items: opts}
 	}
 
+	return stmt
+}
+
+func markCreateFunctionStmtAsProcedure(stmt *nodes.CreateFunctionStmt) *nodes.CreateFunctionStmt {
+	procDef := &nodes.DefElem{Defname: "isProcedure", Arg: &nodes.Integer{Ival: 1}}
+	if stmt.Options == nil {
+		stmt.Options = &nodes.List{Items: []nodes.Node{procDef}}
+	} else {
+		stmt.Options.Items = append(stmt.Options.Items, procDef)
+	}
 	return stmt
 }
 

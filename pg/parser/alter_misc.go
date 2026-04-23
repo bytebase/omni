@@ -157,7 +157,7 @@ func (p *Parser) parseOptNo() bool {
 // ALTER has already been consumed. Current token is TYPE_P.
 func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // start of ALTER
-	p.advance() // consume TYPE
+	p.advance()       // consume TYPE
 	names, err := p.parseAnyName()
 	if err != nil {
 		return nil, err
@@ -355,7 +355,7 @@ func (p *Parser) parseAlterCompositeTypeRename(names *nodes.List) (*nodes.Rename
 // makeRangeVarFromCompositeType creates a RangeVar from composite type names with Inh=true.
 func makeRangeVarFromCompositeType(names *nodes.List) *nodes.RangeVar {
 	rv := &nodes.RangeVar{
-		Inh:      true,
+		Inh: true,
 		Loc: nodes.NoLoc(),
 	}
 	if names != nil && len(names.Items) > 0 {
@@ -495,7 +495,7 @@ func (p *Parser) parseAlterTypeCmd() (*nodes.AlterTableCmd, error) {
 // ALTER has already been consumed. Current token is DOMAIN_P.
 func (p *Parser) parseAlterDomainOwnerOrOther() (nodes.Node, error) {
 	loc := p.prev.Loc // start of ALTER
-	p.advance() // consume DOMAIN
+	p.advance()       // consume DOMAIN
 
 	names, err := p.parseAnyName()
 	if err != nil {
@@ -686,27 +686,43 @@ func (p *Parser) parseDomainConstraintForAlter(typname *nodes.List) (*nodes.Alte
 			return nil, err
 		}
 	}
-	// DomainConstraintElem: CHECK '(' a_expr ')' ConstraintAttributeSpec
-	if _, err := p.expect(CHECK); err != nil {
-		return nil, err
+	var constraint *nodes.Constraint
+	switch p.cur.Type {
+	case CHECK:
+		// DomainConstraintElem: CHECK '(' a_expr ')' ConstraintAttributeSpec
+		p.advance()
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		expr, err := p.parseAExpr(0)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		constraint = &nodes.Constraint{
+			Contype: nodes.CONSTR_CHECK,
+			Conname: conname,
+			RawExpr: expr,
+			Loc:     nodes.NoLoc(),
+		}
+	case NOT:
+		// DomainConstraintElem: NOT NULL ConstraintAttributeSpec
+		p.advance()
+		if _, err := p.expect(NULL_P); err != nil {
+			return nil, err
+		}
+		constraint = &nodes.Constraint{
+			Contype: nodes.CONSTR_NOTNULL,
+			Conname: conname,
+			Keys:    &nodes.List{Items: []nodes.Node{&nodes.String{Str: "value"}}},
+			Loc:     nodes.NoLoc(),
+		}
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
-	if _, err := p.expect('('); err != nil {
-		return nil, err
-	}
-	expr, err := p.parseAExpr(0)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := p.expect(')'); err != nil {
-		return nil, err
-	}
-	// ConstraintAttributeSpec - parse optional attributes
-	constraint := &nodes.Constraint{
-		Contype:  nodes.CONSTR_CHECK,
-		Conname:  conname,
-		RawExpr:  expr,
-		Loc: nodes.NoLoc(),
-	}
+
 	attrs := p.parseConstraintAttributeSpec()
 	applyConstraintAttrs(constraint, attrs)
 	return &nodes.AlterDomainStmt{
@@ -724,7 +740,7 @@ func (p *Parser) parseDomainConstraintForAlter(typname *nodes.List) (*nodes.Alte
 // ALTER has already been consumed. Current token is SCHEMA.
 func (p *Parser) parseAlterSchemaOwner() (nodes.Node, error) {
 	loc := p.prev.Loc // start of ALTER
-	p.advance() // consume SCHEMA
+	p.advance()       // consume SCHEMA
 	name, err := p.parseName()
 	if err != nil {
 		return nil, err
@@ -771,7 +787,7 @@ func (p *Parser) parseAlterSchemaOwner() (nodes.Node, error) {
 // ALTER has already been consumed. Current token is COLLATION.
 func (p *Parser) parseAlterCollationStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // start of ALTER
-	p.advance() // consume COLLATION
+	p.advance()       // consume COLLATION
 	names, err := p.parseAnyName()
 	if err != nil {
 		return nil, err
@@ -839,7 +855,7 @@ func (p *Parser) parseAlterCollationStmt() (nodes.Node, error) {
 // ALTER has already been consumed. Current token is CONVERSION_P.
 func (p *Parser) parseAlterConversionStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // start of ALTER
-	p.advance() // consume CONVERSION
+	p.advance()       // consume CONVERSION
 	names, err := p.parseAnyName()
 	if err != nil {
 		return nil, err
@@ -901,7 +917,7 @@ func (p *Parser) parseAlterConversionStmt() (nodes.Node, error) {
 // ALTER has already been consumed. Current token is AGGREGATE.
 func (p *Parser) parseAlterAggregateStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // start of ALTER
-	p.advance() // consume AGGREGATE
+	p.advance()       // consume AGGREGATE
 	agg, err := p.parseAggregateWithArgtypesLocal()
 	if err != nil {
 		return nil, err
@@ -997,7 +1013,7 @@ func extractAggrArgTypesLocal(args *nodes.List) *nodes.List {
 // ALTER has already been consumed. Current token is TEXT_P.
 func (p *Parser) parseAlterTextSearchStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // start of ALTER
-	p.advance() // consume TEXT
+	p.advance()       // consume TEXT
 	if _, err := p.expect(SEARCH); err != nil {
 		return nil, err
 	}
@@ -1371,7 +1387,7 @@ func (p *Parser) parseAlterLanguageStmt() (nodes.Node, error) {
 // ALTER has already been consumed. Current token is LARGE_P.
 func (p *Parser) parseAlterLargeObjectStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // start of ALTER
-	p.advance() // consume LARGE
+	p.advance()       // consume LARGE
 	if _, err := p.expect(OBJECT_P); err != nil {
 		return nil, err
 	}
@@ -1399,7 +1415,7 @@ func (p *Parser) parseAlterLargeObjectStmt() (nodes.Node, error) {
 // ALTER has already been consumed. Current token is EVENT.
 func (p *Parser) parseAlterEventTriggerOwner() (nodes.Node, error) {
 	loc := p.prev.Loc // start of ALTER
-	p.advance() // consume EVENT
+	p.advance()       // consume EVENT
 	if _, err := p.expect(TRIGGER); err != nil {
 		return nil, err
 	}
@@ -1471,7 +1487,7 @@ func (p *Parser) parseAlterEventTriggerOwner() (nodes.Node, error) {
 // ALTER has already been consumed. Current token is TABLESPACE.
 func (p *Parser) parseAlterTablespaceOwner() (nodes.Node, error) {
 	loc := p.prev.Loc // start of ALTER
-	p.advance() // consume TABLESPACE
+	p.advance()       // consume TABLESPACE
 	name, err := p.parseName()
 	if err != nil {
 		return nil, err
@@ -1541,7 +1557,7 @@ func (p *Parser) parseAlterTablespaceOwner() (nodes.Node, error) {
 //	ALTER TRIGGER name ON table_name [ NO ] DEPENDS ON EXTENSION extension_name
 func (p *Parser) parseAlterTriggerDependsOnExtension() (nodes.Node, error) {
 	loc := p.prev.Loc // start of ALTER
-	p.advance() // consume TRIGGER
+	p.advance()       // consume TRIGGER
 	trigname, err := p.parseName()
 	if err != nil {
 		return nil, err

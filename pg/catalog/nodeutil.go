@@ -462,9 +462,19 @@ func defElemInt(d *nodes.DefElem) (int64, bool) {
 		var n int64
 		fmt.Sscanf(v.Fval, "%d", &n)
 		return n, true
+	case *nodes.A_Const:
+		switch val := v.Val.(type) {
+		case *nodes.Integer:
+			return val.Ival, true
+		case *nodes.Float:
+			var n int64
+			fmt.Sscanf(val.Fval, "%d", &n)
+			return n, true
+		}
 	default:
 		return 0, false
 	}
+	return 0, false
 }
 
 // defElemBool extracts a boolean value from a DefElem.Arg.
@@ -503,4 +513,3 @@ func isSerialType(tn *nodes.TypeName) byte {
 		return 0
 	}
 }
-

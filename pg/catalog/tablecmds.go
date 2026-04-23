@@ -386,7 +386,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		colIdx     int
 		seqName    string
 		typeOID    uint32
-		isIdentity bool // identity columns use pg_depend, not OWNED BY
+		isIdentity bool
 	}
 	var serials []serialInfo
 	if relkind != 'c' {
@@ -421,18 +421,14 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			cd := &colDefs[i]
 			if cd.Identity == 'a' || cd.Identity == 'd' {
 				seqName := fmt.Sprintf("%s_%s_seq", relName, cd.Name)
-				// Determine sequence type from column type.
-				var seqTypeOID uint32
-				colTypeOID, _, _ := c.ResolveType(cd.Type)
-				switch colTypeOID {
-				case INT2OID:
-					seqTypeOID = INT2OID
-				case INT8OID:
-					seqTypeOID = INT8OID
-				default:
-					seqTypeOID = INT4OID
+				colTypeOID, _, err := c.ResolveType(cd.Type)
+				if err != nil {
+					return err
 				}
-				cd.Default = fmt.Sprintf("nextval('%s'::regclass)", seqName)
+				seqTypeOID, err := identitySequenceTypeOID(colTypeOID)
+				if err != nil {
+					return err
+				}
 				serials = append(serials, serialInfo{colIdx: i, seqName: seqName, typeOID: seqTypeOID, isIdentity: true})
 			}
 		}
@@ -441,6 +437,17 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	// Create implicit sequences for SERIAL and identity columns.
 	var createdSeqs []*Sequence
 	for _, si := range serials {
+		if si.isIdentity {
+			cd := &colDefs[si.colIdx]
+			seq, seqRV, explicitName, err := c.createIdentitySequence(schema, relName, cd.Name, si.typeOID, cd.IdentityOptions)
+			if err != nil {
+				return err
+			}
+			cd.IdentitySequence = seqRV
+			cd.Default = identitySequenceDefault(schema, seq.Schema, seq.Name, explicitName)
+			createdSeqs = append(createdSeqs, seq)
+			continue
+		}
 		if _, exists := schema.Sequences[si.seqName]; exists {
 			return errDuplicateObject("sequence", si.seqName)
 		}
@@ -729,14 +736,12 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			}
 		}
 
-		// Set sequence ownership for SERIAL columns.
-		// pg: Identity sequences use pg_depend DEPENDENCY_INTERNAL, not OWNED BY.
+		// Mark implicit sequences as column-owned in the catalog model so
+		// diff/drop logic treats SERIAL and IDENTITY sequences as managed objects.
 		for i, si := range serials {
 			seq := createdSeqs[i]
-			if !si.isIdentity {
-				seq.OwnerRelOID = rel.OID
-				seq.OwnerAttNum = rel.Columns[si.colIdx].AttNum
-			}
+			seq.OwnerRelOID = rel.OID
+			seq.OwnerAttNum = rel.Columns[si.colIdx].AttNum
 			c.recordDependency('s', seq.OID, 0, 'r', rel.OID, int32(rel.Columns[si.colIdx].AttNum), DepAuto)
 		}
 	}
@@ -958,6 +963,7 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 	// Handle identity column (ColumnDef.Identity field).
 	if cd.Identity == 'a' || cd.Identity == 'd' {
 		result.Identity = cd.Identity
+		result.IdentitySequence = cd.IdentitySequence
 	}
 
 	// Handle generated column (ColumnDef.Generated field).
@@ -985,6 +991,7 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 				}
 			case nodes.CONSTR_IDENTITY:
 				result.Identity = con.GeneratedWhen
+				result.IdentityOptions = con.Options
 			case nodes.CONSTR_GENERATED:
 				result.Generated = 's'
 				if con.RawExpr != nil {
@@ -1763,4 +1770,3 @@ func (c *Catalog) cloneLikeComments(src, dst *Relation) {
 		}
 	}
 }
-

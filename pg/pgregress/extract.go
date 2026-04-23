@@ -35,25 +35,27 @@ type processedLine struct {
 // psqlTerminatorRE matches psql metacommands that act as statement terminators.
 var psqlTerminatorRE = regexp.MustCompile(`(?i)\\(g|gx|gset|gdesc|gexec|crosstabview)\b`)
 
-// copyFromStdinRE detects COPY ... FROM STDIN statements.
-var copyFromStdinRE = regexp.MustCompile(`(?i)\bCOPY\b[^;]*\bFROM\b\s+STDIN\b`)
+// copyFromDataCandidateRE detects COPY statements that may be followed by
+// inline psql data blocks. COPY (query) FROM STDIN is rejected by PostgreSQL
+// and does not enter COPY data mode, so callers must filter it out.
+var copyFromDataCandidateRE = regexp.MustCompile(`(?i)\bCOPY\b\s+[^;]*\bFROM\b\s+(STDIN|STDOUT)\b`)
 
 // preprocessLines handles psql metacommands (line-start only) and COPY FROM stdin data blocks.
 // It returns processed lines with start-of-line metacommands removed and COPY data skipped.
 func preprocessLines(content []byte) []processedLine {
 	rawLines := bytes.Split(content, []byte("\n"))
 	result := make([]processedLine, 0, len(rawLines))
-	inCopyData := false
+	copyDataBlocks := 0
 
 	for i, raw := range rawLines {
 		lineNum := i + 1
 		line := string(raw)
 		line = strings.TrimRight(line, "\r")
 
-		// In COPY data mode, skip until \. terminator
-		if inCopyData {
+		// In COPY data mode, skip until every pending \. terminator.
+		if copyDataBlocks > 0 {
 			if line == "\\." {
-				inCopyData = false
+				copyDataBlocks--
 			}
 			// Skip this line either way (data or terminator)
 			result = append(result, processedLine{lineNum: lineNum})
@@ -80,26 +82,37 @@ func preprocessLines(content []byte) []processedLine {
 		})
 
 		// Check if this line completes a COPY FROM STDIN statement.
-		// Note: The original heuristic might be flaky for multi-line COPY statements,
-		// but typically COPY FROM STDIN is one line or ends on a line.
-		if looksLikeCopyStdinEnd(line) {
-			inCopyData = true
-		}
+		// Note: this is a heuristic for psql regression files; COPY data commands
+		// are typically complete on one raw line, even when psql \; separates
+		// multiple server commands on that line.
+		copyDataBlocks += countCopyDataBlocks(line)
 	}
 
 	return result
 }
 
-// looksLikeCopyStdinEnd is a quick heuristic to detect if a line might end
-// a COPY FROM STDIN statement. We look for STDIN followed by optional clauses and ;.
-// This is imperfect but sufficient for regression test files.
-func looksLikeCopyStdinEnd(line string) bool {
-	upper := strings.ToUpper(line)
-	// Check this single line for the pattern
-	if strings.Contains(upper, "STDIN") && strings.Contains(line, ";") {
-		return true
+// countCopyDataBlocks is a quick heuristic to detect COPY statements whose data
+// follows inline in the regression SQL stream.
+func countCopyDataBlocks(line string) int {
+	count := 0
+	for _, loc := range copyFromDataCandidateRE.FindAllStringIndex(line, -1) {
+		if isCopyDataBlockCandidate(line[loc[0]:loc[1]]) {
+			count++
+		}
 	}
-	return false
+	return count
+}
+
+func hasCopyDataBlock(sql string) bool {
+	return countCopyDataBlocks(sql) > 0
+}
+
+func isCopyDataBlockCandidate(candidate string) bool {
+	rest := strings.TrimSpace(candidate[len("COPY"):])
+	if strings.HasPrefix(strings.ToUpper(rest), "BINARY ") {
+		rest = strings.TrimSpace(rest[len("BINARY "):])
+	}
+	return !strings.HasPrefix(rest, "(")
 }
 
 // splitMidLineMeta checks if a line contains a mid-line psql metacommand
@@ -257,7 +270,7 @@ func splitStatements(filename string, lines []processedLine) []ExtractedStmt {
 				HasPsqlVar: ContainsPsqlVariable(sql),
 			})
 			// Check if this was COPY FROM STDIN
-			if copyFromStdinRE.MatchString(sql) {
+			if hasCopyDataBlock(sql) {
 				inCopyData = true
 			}
 		}

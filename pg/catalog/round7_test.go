@@ -570,13 +570,13 @@ func TestAlterFuncRowsNegativeError(t *testing.T) {
 func TestDropFunctionOnProcedureError(t *testing.T) {
 	c := New()
 	// Create procedure (no return type).
-	stmt := &nodes.CreateFunctionStmt{
+	stmt := markCreateFunctionStmtAsProcedure(&nodes.CreateFunctionStmt{
 		Funcname: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "myproc"}}},
 		Options: &nodes.List{Items: []nodes.Node{
 			&nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: "sql"}},
 			&nodes.DefElem{Defname: "as", Arg: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "NULL"}}}},
 		}},
-	}
+	})
 	if err := c.CreateFunctionStmt(stmt); err != nil {
 		t.Fatal(err)
 	}

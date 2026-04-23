@@ -1858,7 +1858,7 @@ func (p *Parser) parseFuncAliasClause(rf *nodes.RangeFunction) {
 			return
 		}
 		aliasLoc := p.pos() // AS token start
-		p.advance() // AS
+		p.advance()         // AS
 		name, _ := p.parseColId()
 		rf.Alias = &nodes.Alias{Aliasname: name}
 		if p.cur.Type == '(' {
@@ -1931,7 +1931,7 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 	case JOIN:
 		// [INNER] JOIN
 		p.advance() // consume JOIN
-		right, err := p.parseTableRefPrimary()
+		right, err := p.parseQualifiedJoinRarg()
 		if err != nil {
 			return nil, err
 		}
@@ -1954,7 +1954,7 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 		if _, err := p.expect(JOIN); err != nil {
 			return nil, err
 		}
-		right, err := p.parseTableRefPrimary()
+		right, err := p.parseQualifiedJoinRarg()
 		if err != nil {
 			return nil, err
 		}
@@ -1978,7 +1978,7 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 		if _, err := p.expect(JOIN); err != nil {
 			return nil, err
 		}
-		right, err := p.parseTableRefPrimary()
+		right, err := p.parseQualifiedJoinRarg()
 		if err != nil {
 			return nil, err
 		}
@@ -2002,7 +2002,7 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 		if _, err := p.expect(JOIN); err != nil {
 			return nil, err
 		}
-		right, err := p.parseTableRefPrimary()
+		right, err := p.parseQualifiedJoinRarg()
 		if err != nil {
 			return nil, err
 		}
@@ -2026,7 +2026,7 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 		if _, err := p.expect(JOIN); err != nil {
 			return nil, err
 		}
-		right, err := p.parseTableRefPrimary()
+		right, err := p.parseQualifiedJoinRarg()
 		if err != nil {
 			return nil, err
 		}
@@ -2085,6 +2085,20 @@ func (p *Parser) tryParseJoin(left nodes.Node) (nodes.Node, error) {
 	default:
 		return nil, nil
 	}
+}
+
+// parseQualifiedJoinRarg parses the right operand of JOIN variants that
+// require an ON/USING join_qual. PostgreSQL's grammar uses table_ref here,
+// not just a primary relation, so the RHS may itself be an unparenthesized
+// joined_table:
+//
+//	FROM a LEFT JOIN b JOIN c ON (...) ON (...)
+//
+// CROSS/NATURAL joins intentionally keep using parseTableRefPrimary at their
+// call sites, because they do not have a trailing join_qual and PostgreSQL's
+// join-token precedence makes ordinary CROSS/NATURAL chains left-associative.
+func (p *Parser) parseQualifiedJoinRarg() (nodes.Node, error) {
+	return p.parseTableRef()
 }
 
 // parseOptOuter consumes optional OUTER keyword.

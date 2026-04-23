@@ -43,8 +43,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		return err
 	}
 
-	// Return type: nil means procedure.
-	isProcedure := stmt.ReturnType == nil
+	isProcedure := createFunctionStmtIsProcedure(stmt)
 
 	// ---------------------------------------------------------------
 	// Process options.
@@ -607,6 +606,22 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	}
 
 	return nil
+}
+
+func createFunctionStmtIsProcedure(stmt *nodes.CreateFunctionStmt) bool {
+	if stmt == nil || stmt.Options == nil {
+		return false
+	}
+	for _, item := range stmt.Options.Items {
+		de, ok := item.(*nodes.DefElem)
+		if !ok {
+			continue
+		}
+		if strings.EqualFold(de.Defname, "isProcedure") {
+			return defElemBool(de)
+		}
+	}
+	return false
 }
 
 // recordFuncBodyDeps parses a SQL function body and records dependencies on

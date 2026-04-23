@@ -343,6 +343,42 @@
     "suspicion_notes": null
   },
   {
+    "site": "expr.go:813",
+    "function": "lookaheadParenContentIsSubquery",
+    "nonterminals": [
+      "select_with_parens",
+      "expr_list",
+      "a_expr"
+    ],
+    "ambiguity_present": true,
+    "current_technique": "T3+T8",
+    "pg_reference": "gram.y:12682-12688,14973-14998",
+    "aligned": "yes",
+    "blocked_by": null,
+    "cluster": "C2",
+    "priority": "high",
+    "proof_notes": "P1 2026-04-23: genericized the Phase 1 IN-clause lookahead for any parenthesized expression body whose first token is itself '('. The T3 snapshot/restore scan tracks top-level paren depth: top-level comma => expr/list, top-level set-op or SELECT option continuation (UNION/INTERSECT/EXCEPT/ORDER/LIMIT/OFFSET/FETCH/FOR) => select_with_parens, top-level non-SELECT operator (for example `((SELECT max(x)) - interval '1 day')`) => expression, and single wrapped SELECT-start falls through to the T8 FIRST-set probe. Completion-mode guard remains because snapshotTokenStream does not capture candidate state. Proof: view_body_select_surface_test.go TestViewBodyParenthesizedSetOpSubquery covers parenthesized set-op subqueries and the minimized scalar-subquery arithmetic regressions `((SELECT max(x) FROM t) - '1 day'::interval)` / `((SELECT max(x) FROM t) + '2 days'::interval)`; paren_in_expr_test.go still covers the original IN caller.",
+    "suspicion_notes": null
+  },
+  {
+    "site": "expr.go:1695",
+    "function": "parseParenExprOrRow",
+    "nonterminals": [
+      "select_with_parens",
+      "a_expr",
+      "implicit_row"
+    ],
+    "ambiguity_present": true,
+    "current_technique": "T3+T8",
+    "pg_reference": "gram.y:12682-12688,14838-14843",
+    "aligned": "yes",
+    "blocked_by": null,
+    "cluster": "C2",
+    "priority": "high",
+    "proof_notes": "P1 2026-04-23: parseParenExprOrRow now uses the generic lookaheadParenContentIsSubquery scanner when the first token inside '(' is another '(' so expression context accepts parenthesized set-op subqueries such as `((SELECT 2) UNION SELECT 2)` without misclassifying arithmetic around scalar subqueries. Caller-context: only c_expr '(' dispatch reaches this function, after the outer '(' has been consumed; direct SELECT/VALUES/WITH/TABLE leads still take the existing fast path. Proof: view_body_select_surface_test.go TestViewBodyParenthesizedSetOpSubquery covers parenthesized set-op subqueries plus scalar subquery +/- interval expressions; pgregress subselect.sql stmt[8] and stmt[9] now pass and were removed from known_failures.json.",
+    "suspicion_notes": null
+  },
+  {
     "site": "expr.go:2053",
     "function": "parseInExpr",
     "nonterminals": [
@@ -355,7 +391,7 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "high",
-    "proof_notes": "Phase 1 \u00a71.1: T8 fast path (isSelectStart on SELECT/VALUES/WITH/TABLE) commits to the subquery branch; when the post-'(' token is itself '(' the ambiguous case is resolved by lookaheadInIsSubquery \u2014 a T3 snapshot/restore scan tracking paren balance, where top-level ',' \u2192 expr_list, top-level UNION/INTERSECT/EXCEPT \u2192 subquery, and single-element falls through to a FIRST-set probe past leading '('. Completion-mode guard added at lookaheadInIsSubquery entry because snapshotTokenStream does not cover collecting/candidates state (backtrack.go:8-14); skipping the scan when p.completing is true preserves candidate registration integrity. Caller-context: parseInExpr is entered only from precedence climbing after IN / NOT IN token consumption (expr.go:264, 294); empty `IN ()` explicitly rejected. Pinned scenarios (paren_in_expr_test.go TestParenInExprDispatch at line 25): expr_list accept \u2014 IN (1,2,3) line 31, IN (a,b,c) line 32, IN ('a','b') line 33, IN (1) line 34; subquery accept \u2014 IN (SELECT y FROM u) line 36, IN (SELECT 1) line 37, IN (SELECT 1 UNION SELECT 2) line 38, IN ((SELECT 1) UNION (SELECT 2)) line 42, IN (VALUES ...) line 43, IN (WITH cte AS ... SELECT) line 44, IN (TABLE foo) line 45; empty reject \u2014 IN () line 49; row-LHS \u2014 (x,y) IN (SELECT a,b FROM u) line 51, (x,y) IN ((1,2),(3,4)) line 52; NOT IN variants \u2014 lines 57-60; partition_prune regression \u2014 IN ((SELECT 1),(SELECT 2)) line 68, IN ((SELECT 1)) line 72. AST-shape proof: TestParenInExprSubqueryAST (line 93, ANY_SUBLINK), TestParenInExprExprListAST (line 118, A_Expr AEXPR_IN with name '='), TestParenInExprNotInSubqueryAST (line 149, BoolExpr NOT wrap), TestParenInExprNotInExprListAST (line 179, operator '<>'). Ref: gram.y:14973-14998.",
+    "proof_notes": "Phase 1 \u00a71.1, refreshed P1 2026-04-23: T8 fast path (isSelectStart on SELECT/VALUES/WITH/TABLE) commits to the subquery branch; when the post-'(' token is itself '(' the ambiguous case is resolved by lookaheadParenContentIsSubquery \u2014 a T3 snapshot/restore scan tracking paren balance, where top-level ',' \u2192 expr_list, top-level SELECT continuation \u2192 subquery, top-level expression operator \u2192 expr_list, and single-element falls through to a FIRST-set probe past leading '('. Completion-mode guard remains because snapshotTokenStream does not cover collecting/candidates state (backtrack.go:8-14); skipping the scan when p.completing is true preserves candidate registration integrity. Caller-context: parseInExpr is entered only from precedence climbing after IN / NOT IN token consumption (expr.go:264, 294); empty `IN ()` explicitly rejected. Pinned scenarios (paren_in_expr_test.go TestParenInExprDispatch at line 25): expr_list accept \u2014 IN (1,2,3) line 31, IN (a,b,c) line 32, IN ('a','b') line 33, IN (1) line 34; subquery accept \u2014 IN (SELECT y FROM u) line 36, IN (SELECT 1) line 37, IN (SELECT 1 UNION SELECT 2) line 38, IN ((SELECT 1) UNION (SELECT 2)) line 42, IN (VALUES ...) line 43, IN (WITH cte AS ... SELECT) line 44, IN (TABLE foo) line 45; empty reject \u2014 IN () line 49; row-LHS \u2014 (x,y) IN (SELECT a,b FROM u) line 51, (x,y) IN ((1,2),(3,4)) line 52; NOT IN variants \u2014 lines 57-60; partition_prune regression \u2014 IN ((SELECT 1),(SELECT 2)) line 68, IN ((SELECT 1)) line 72. AST-shape proof: TestParenInExprSubqueryAST (line 93, ANY_SUBLINK), TestParenInExprExprListAST (line 118, A_Expr AEXPR_IN with name '='), TestParenInExprNotInSubqueryAST (line 149, BoolExpr NOT wrap), TestParenInExprNotInExprListAST (line 179, operator '<>'). Ref: gram.y:14973-14998.",
     "suspicion_notes": null
   },
   {

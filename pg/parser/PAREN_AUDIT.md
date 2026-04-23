@@ -9,8 +9,8 @@
 
 ## Summary
 
-- **94 total dispatch sites** (69 `(` opens, 25 `)` closes)
-- **5 ambiguity-present sites:** all aligned (Phase 0 + Phase 1 §§1.1–1.4)
+- **96 total dispatch sites** (71 `(` opens, 25 `)` closes)
+- **7 ambiguity-present sites:** all aligned (Phase 0 + Phase 1 §§1.1–1.4 + P1 2026-04-23)
 - **89 non-ambiguous sites:** aligned via grammar structure (unconditional `expect('(')` / `expect(')')` or T1 peek on optional list)
 - **0 unclear** (was 1: `expr.go:1610` parseArraySubscript ARRAY subquery contract — locked in by §1.4 with 6 empirical tests + caller-context proof; see paren_array_expr_test.go)
 
@@ -19,7 +19,7 @@
 | Cluster | File(s) | Sites | Ambiguity-present | Misaligned |
 |---------|---------|-------|-------------------|------------|
 | C1 | select.go | 14 | 3 | 0 |
-| C2 | expr.go | 24 | 2 | 0 |
+| C2 | expr.go | 26 | 4 | 0 |
 | C3 | type.go | 9 | 0 | 0 |
 | C4 | create_table.go, create_index.go, define.go | 14 | 0 | 0 |
 | C5 | (11 utility files — see §5.1 unbounded-tail note in PLAN) | 33 | 0 | 0 |
@@ -76,7 +76,9 @@ All previously attention-listed sites are resolved (Phase 1 BATCH 1 §§1.1–1.
 | expr.go:1855 | parseExtractExpr | extract_expr | no | none | yes | low | After EXTRACT; unconditional |
 | expr.go:1862 | parseExtractExpr | extract_expr | no | none | yes | low | Check for empty extract parens |
 | expr.go:1878 | parseExtractExpr | extract_expr | no | none | yes | low | Expect closing paren |
-| expr.go:2053 | parseInExpr | in_expr | yes | T3+T8 | yes | high | §1.1 landed: fast-path T8 (isSelectStart) for SELECT/VALUES/WITH/TABLE; T3 snapshot/restore lookaheadInIsSubquery scan for the `IN ((...))` ambiguous case (top-level ',' → expr_list, top-level UNION/INTERSECT/EXCEPT → subquery, single-element → FIRST-set probe past leading '('). Completion-mode guard added at lookaheadInIsSubquery entry (snapshotTokenStream does not cover collecting/candidates). Caller-context: only entered after IN token consumed and '(' confirmed; empty `IN ()` rejected. Tests: paren_in_expr_test.go TestParenInExprDispatch (20 scenarios spanning expr_list, subquery, nested parens, VALUES/WITH/TABLE leads, empty list reject, row-constructor LHS, NOT IN variants, partition_prune regression) + AST-shape tests TestParenInExprSubqueryAST (ANY_SUBLINK), TestParenInExprExprListAST (A_Expr AEXPR_IN with "="), TestParenInExprNotInSubqueryAST (BoolExpr NOT wrap), TestParenInExprNotInExprListAST (operator "<>"). Ref: gram.y:14973-14998. |
+| expr.go:813 | lookaheadParenContentIsSubquery | select_with_parens / expr_list / a_expr | yes | T3+T8 | yes | high | P1: shared top-level scanner for nested-paren subquery-vs-expression dispatch; see JSON proof notes. |
+| expr.go:1695 | parseParenExprOrRow | select_with_parens / a_expr / implicit_row | yes | T3+T8 | yes | high | P1: expression parens now accept parenthesized set-op subqueries without misclassifying scalar-subquery arithmetic. |
+| expr.go:2053 | parseInExpr | in_expr | yes | T3+T8 | yes | high | §1.1 landed, refreshed P1: fast-path T8 plus shared lookaheadParenContentIsSubquery scanner for the `IN ((...))` ambiguous case. Tests: paren_in_expr_test.go TestParenInExprDispatch (20 scenarios) + AST-shape tests. |
 | expr.go:2112 | parseSubqueryExprList | IN_SUBLINK | no | none | yes | med | After IN; unconditional |
 | expr.go:2404 | parseSVFWithOptionalPrecision | sql_value_function | no | T1 | yes | med | Optional precision; T1 peek sufficient |
 | expr.go:2452 | parseColumnRefOrFuncCall | func_application | no | T1 | yes | med | After column ID; '(' always func_call |
@@ -178,5 +180,3 @@ Remaining low-priority items from the original list (already informally aligned 
 - **§4.1 two-proof bar** applied to the 4 Phase 0 `select_with_parens` / `joined_table` sites: `select.go:77 parseSelectWithParens`, `select.go:166 parseSelectClausePrimary`, `select.go:1162 parseParenTableRef`, `select.go:1225 parseJoinedTable`. Each row in `PAREN_AUDIT.json` now carries (a) an explicit caller-context paragraph identifying every caller, (b) ≥5 pinned empirical tests from `paren_multi_join_test.go` (plus the oracle + pgregress anti-regression fences). The two Phase 1 ambiguity-present sites (`expr.go:1609-1610 parseArrayCExpr`, `expr.go:2053 parseInExpr`, `select.go:1347 parseLateralTableRef`) already carry the §5.3 bar from Phase 1 commits ad700fa / 284f39e / be8af80 / c1158b7.
 - **§4.2 citation sweep** applied to all 85+ non-ambiguous C3/C4/C5 rows: every `proof_notes` field now cites at least one concrete test file (dedicated `pg/parser/*_test.go`) or pgregress SQL corpus entry (`pg/pgregress/testdata/sql/*.sql`) that exercises the grammar point. Grammar structure remains the primary proof; citations are for anti-regression traceability only.
 - **Gaps surfaced:** none blocking. All 94 rows have at least one citation. A handful of rows cite only the broad pgregress corpus (no dedicated unit test) — these are low-priority utility sites (e.g. `trigger.go:207`, `extension.go:274-334`) where adding a bespoke paren test would be redundant with pgregress; deferred as minor TODOs rather than §4.2 blockers.
-
-
