@@ -86,7 +86,9 @@ func (p *Parser) parseAnd() (nodes.ExprNode, error) {
 
 // parseNot parses NOT expressions.
 //
-//	not_expr = NOT not_expr | comparison_expr
+//	not_expr = NOT not_expr
+//	         | fulltext_predicate   -- CONTAINS(...) / FREETEXT(...)
+//	         | comparison_expr
 func (p *Parser) parseNot() (nodes.ExprNode, error) {
 	if p.cur.Type == kwNOT {
 		loc := p.pos()
@@ -103,6 +105,9 @@ func (p *Parser) parseNot() (nodes.ExprNode, error) {
 			Operand: operand,
 			Loc:     nodes.Loc{Start: loc, End: p.prevEnd()},
 		}, nil
+	}
+	if p.inSearchCondition() && (p.cur.Type == kwCONTAINS || p.cur.Type == kwFREETEXT) {
+		return p.parseFullTextPredicate()
 	}
 	return p.parseComparison()
 }
@@ -935,7 +940,16 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 			p.addRuleCandidate("func_name")
 			return nil, errCollecting
 		}
+		// In a searched CASE (no arg) the WHEN predicate is a
+		// <search_condition>. In a simple CASE (with arg) it is a
+		// scalar expression compared against arg.
+		if arg == nil {
+			p.enterSearchCondition()
+		}
 		cond, err := p.parseExpr()
+		if arg == nil {
+			p.leaveSearchCondition()
+		}
 		if err != nil {
 			return nil, err
 		}

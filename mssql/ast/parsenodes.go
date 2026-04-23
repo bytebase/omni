@@ -1727,6 +1727,38 @@ type ExistsExpr struct {
 func (n *ExistsExpr) nodeTag()  {}
 func (n *ExistsExpr) exprNode() {}
 
+// FullTextFunc enumerates the full-text function variants used by both
+// FullTextPredicate (CONTAINS / FREETEXT) and FullTextTableRef
+// (CONTAINSTABLE / FREETEXTTABLE). Mirrors SqlScriptDOM's FullTextFunctionType.
+type FullTextFunc int
+
+const (
+	FullTextContains FullTextFunc = iota
+	FullTextFreeText
+)
+
+// FullTextPredicate represents the T-SQL full-text boolean predicate:
+//
+//	CONTAINS ( { column | (col, …) | * | PROPERTY(col, 'name') }, value [, LANGUAGE lang] )
+//	FREETEXT ( { column | (col, …) | * | PROPERTY(col, 'name') }, value [, LANGUAGE lang] )
+//
+// This is a <search_condition> production, not a scalar expression —
+// it is only valid in boolean contexts (WHERE, HAVING, ON, CHECK, etc.),
+// matching SqlScriptDOM's FullTextPredicate fragment.
+//
+// Ref: TSql170.g: fulltextPredicate
+type FullTextPredicate struct {
+	Func         FullTextFunc
+	Columns      *List    // items: *ColumnRef or *StarExpr
+	PropertyName *Literal // set when PROPERTY(col, 'name') was used; else nil
+	Value        ExprNode // *Literal (string) or *VariableRef
+	LanguageTerm ExprNode // optional LANGUAGE <expr>
+	Loc          Loc
+}
+
+func (n *FullTextPredicate) nodeTag()  {}
+func (n *FullTextPredicate) exprNode() {}
+
 // CastExpr represents CAST(expr AS type).
 type CastExpr struct {
 	Expr     ExprNode
@@ -1962,6 +1994,63 @@ type TableVarMethodCallRef struct {
 
 func (n *TableVarMethodCallRef) nodeTag()   {}
 func (n *TableVarMethodCallRef) tableExpr() {}
+
+// FullTextTableRef represents the T-SQL full-text rowset functions used as
+// table sources:
+//
+//	CONTAINSTABLE ( table, { col | (col,…) | * | PROPERTY(col,'name') }, value
+//	               [, LANGUAGE lang] [, top_n] )
+//	FREETEXTTABLE ( …same… )
+//
+// Mirrors SqlScriptDOM FullTextTableReference (TSql170.g: fulltextTableReference).
+type FullTextTableRef struct {
+	Func            FullTextFunc
+	Table           *TableRef
+	Columns         *List    // items: *ColumnRef or *StarExpr
+	PropertyName    *Literal // set when PROPERTY(col, 'name') was used; else nil
+	SearchCondition ExprNode // *Literal (string) or *VariableRef
+	Language        ExprNode // optional LANGUAGE <expr>
+	TopN            ExprNode // optional integer literal or variable
+	Alias           string
+	Loc             Loc
+}
+
+func (n *FullTextTableRef) nodeTag()   {}
+func (n *FullTextTableRef) tableExpr() {}
+
+// SemanticFunc enumerates the T-SQL semantic table-valued functions.
+// Mirrors SqlScriptDOM's SemanticFunctionType.
+type SemanticFunc int
+
+const (
+	SemanticKeyPhraseTable SemanticFunc = iota
+	SemanticSimilarityTable
+	SemanticSimilarityDetailsTable
+)
+
+// SemanticTableRef represents the T-SQL semantic table-valued functions used
+// as table sources:
+//
+//	SEMANTICKEYPHRASETABLE            ( table, { col | (col,…) | * } [, source_key] )
+//	SEMANTICSIMILARITYTABLE           ( table, { col | (col,…) | * }, source_key )
+//	SEMANTICSIMILARITYDETAILSTABLE    ( table, source_column, source_key,
+//	                                    matched_column, matched_key )
+//
+// Mirrors SqlScriptDOM SemanticTableReference (TSql170.g: semanticTableReference
+// and friends).
+type SemanticTableRef struct {
+	Func          SemanticFunc
+	Table         *TableRef
+	Columns       *List      // KeyPhrase/Similarity column list, or single-source-column for Details
+	SourceKey     ExprNode   // optional for KeyPhrase, required for Similarity and Details
+	MatchedColumn *ColumnRef // only set for Details
+	MatchedKey    ExprNode   // only set for Details
+	Alias         string
+	Loc           Loc
+}
+
+func (n *SemanticTableRef) nodeTag()   {}
+func (n *SemanticTableRef) tableExpr() {}
 
 // DataType represents a T-SQL data type reference.
 type DataType struct {

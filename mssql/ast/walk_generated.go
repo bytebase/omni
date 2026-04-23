@@ -438,6 +438,24 @@ func walkChildren(v Visitor, node Node) {
 	case *FetchCursorStmt:
 		Walk(v, n.FetchOffset)
 		walkList(v, n.IntoVars)
+	case *FullTextPredicate:
+		walkList(v, n.Columns)
+		if n.PropertyName != nil {
+			Walk(v, n.PropertyName)
+		}
+		Walk(v, n.Value)
+		Walk(v, n.LanguageTerm)
+	case *FullTextTableRef:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		walkList(v, n.Columns)
+		if n.PropertyName != nil {
+			Walk(v, n.PropertyName)
+		}
+		Walk(v, n.SearchCondition)
+		Walk(v, n.Language)
+		Walk(v, n.TopN)
 	case *FuncCallExpr:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -679,6 +697,16 @@ func walkChildren(v Visitor, node Node) {
 		if n.Rarg != nil {
 			Walk(v, n.Rarg)
 		}
+	case *SemanticTableRef:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		walkList(v, n.Columns)
+		Walk(v, n.SourceKey)
+		if n.MatchedColumn != nil {
+			Walk(v, n.MatchedColumn)
+		}
+		Walk(v, n.MatchedKey)
 	case *SensitivityClassificationStmt:
 		walkList(v, n.Columns)
 		walkList(v, n.Options)
