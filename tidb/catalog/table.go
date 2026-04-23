@@ -32,7 +32,8 @@ type Table struct {
 	TTLInterval     string // interval portion (e.g., "INTERVAL 1 YEAR")
 	TTLEnable       bool
 	TTLJobInterval  string // e.g., "1h"
-	TiFlashReplica  int    // number of TiFlash replicas (0 = none)
+	TiFlashReplica         int      // number of TiFlash replicas (0 = none)
+	TiFlashLocationLabels  []string // optional label list for replica placement
 }
 
 // PartitionInfo holds partition metadata for a table.

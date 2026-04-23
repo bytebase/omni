@@ -500,6 +500,13 @@ var keywordCategories = map[int]keywordCategory{
 	kwVOTER_CONSTRAINTS:    kwCatUnambiguous,
 	kwLEARNER_CONSTRAINTS:  kwCatUnambiguous,
 	kwSURVIVAL_PREFERENCES: kwCatUnambiguous,
+
+	// TiDB LOCATION LABELS clause tokens (parser.y:7071-7072, unreserved).
+	kwLOCATION: kwCatUnambiguous,
+	kwLABELS:   kwCatUnambiguous,
+
+	// MASTER_LOG_FILE — legacy MySQL replication alias, unreserved.
+	kwMASTER_LOG_FILE: kwCatUnambiguous,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot

@@ -361,9 +361,10 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		return cmd, nil
 
 	case kwSET:
-		// TiDB: SET TIFLASH REPLICA n
+		// TiDB: SET TIFLASH REPLICA n [LOCATION LABELS 'label1', 'label2', ...]
 		// Note: no MySQL ALTER TABLE form starts with bare SET at this dispatch level.
 		// ALTER COLUMN col SET DEFAULT routes through the kwALTER branch, not here.
+		// Ref: parser.y:2193 (AlterTableSpec) + parser.y:2176-2183 (LocationLabelList).
 		p.advance()
 		if p.cur.Type == kwTIFLASH {
 			p.advance()
@@ -375,8 +376,13 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			}
 			count := int(p.cur.Ival)
 			p.advance()
+			labels, err := p.parseLocationLabelList()
+			if err != nil {
+				return nil, err
+			}
 			cmd.Type = nodes.ATSetTiFlashReplica
 			cmd.TiFlashReplica = count
+			cmd.TiFlashLocationLabels = labels
 			cmd.Loc.End = p.pos()
 			return cmd, nil
 		}

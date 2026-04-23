@@ -111,6 +111,9 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return nil
 	case nodes.ATSetTiFlashReplica:
 		tbl.TiFlashReplica = cmd.TiFlashReplica
+		// LOCATION LABELS is optional; assign (possibly empty slice)
+		// so SET TIFLASH REPLICA 0 with no clause clears prior labels.
+		tbl.TiFlashLocationLabels = append([]string(nil), cmd.TiFlashLocationLabels...)
 		return nil
 	case nodes.ATRemoveTTL:
 		tbl.TTLColumn = ""

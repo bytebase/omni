@@ -152,8 +152,9 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 		for _, t := range []int{
 			kwDEFAULT, kwCHARACTER, kwCHARSET, kwCOLLATE, kwENCRYPTION,
 			kwREAD,
-			// TiDB-specific: PLACEMENT POLICY on CREATE/ALTER DATABASE.
-			kwPLACEMENT,
+			// TiDB-specific: PLACEMENT POLICY and SET TIFLASH REPLICA
+			// on CREATE/ALTER DATABASE (parser.y:4482 arm).
+			kwPLACEMENT, kwSET,
 		} {
 			p.addTokenCandidate(t)
 		}
@@ -245,6 +246,32 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 			Loc:   nodes.Loc{Start: start, End: p.pos()},
 			Name:  "PLACEMENT POLICY",
 			Value: val,
+		}, true, nil
+	case p.cur.Type == kwSET:
+		// TiDB: CREATE/ALTER DATABASE ... SET TIFLASH REPLICA n [LOCATION LABELS ...]
+		// Ref: parser.y:4482 DatabaseOption arm.
+		// Note: no `=` sign allowed per upstream grammar.
+		p.advance()
+		if _, ok := p.match(kwTIFLASH); !ok {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		if _, ok := p.match(kwREPLICA); !ok {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != tokICONST {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		count := int(p.cur.Ival)
+		p.advance()
+		labels, err := p.parseLocationLabelList()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.DatabaseOption{
+			Loc:                   nodes.Loc{Start: start, End: p.pos()},
+			Name:                  "TIFLASH REPLICA",
+			TiFlashReplica:        count,
+			TiFlashLocationLabels: labels,
 		}, true, nil
 	}
 

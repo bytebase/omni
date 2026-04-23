@@ -900,6 +900,17 @@ const (
 	kwVOTER_CONSTRAINTS
 	kwLEARNER_CONSTRAINTS
 	kwSURVIVAL_PREFERENCES
+
+	// TiDB SET TIFLASH REPLICA n LOCATION LABELS clause (parser.y:2180).
+	// LOCATION and LABELS are unreserved upstream (parser.y:7071-7072).
+	kwLOCATION
+	kwLABELS
+
+	// Legacy MySQL replication alias: MASTER_LOG_FILE (superseded by
+	// SOURCE_LOG_FILE in MySQL 8.0). Tokenizing it here lets
+	// replication.go check the token directly instead of eqFold on
+	// the identifier string.
+	kwMASTER_LOG_FILE
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1733,6 +1744,13 @@ var keywords = map[string]int{
 	"voter_constraints":    kwVOTER_CONSTRAINTS,
 	"learner_constraints":  kwLEARNER_CONSTRAINTS,
 	"survival_preferences": kwSURVIVAL_PREFERENCES,
+
+	// TiDB SET TIFLASH REPLICA ... LOCATION LABELS clause.
+	"location": kwLOCATION,
+	"labels":   kwLABELS,
+
+	// Legacy MySQL replication alias (superseded by SOURCE_LOG_FILE).
+	"master_log_file": kwMASTER_LOG_FILE,
 }
 
 // Token represents a lexical token.

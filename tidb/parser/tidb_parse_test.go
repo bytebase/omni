@@ -215,14 +215,113 @@ func TestParseAlterTiFlashReplica(t *testing.T) {
 	}
 }
 
-func TestParseAlterTiFlashReplicaLocationLabelsDeferred(t *testing.T) {
-	// Pinned negative test: LOCATION LABELS is a valid TiDB syntax extension
-	// that is not yet supported. This test documents the gap and will fail
-	// (in a good way) once support is added.
-	sql := "ALTER TABLE t SET TIFLASH REPLICA 2 LOCATION LABELS 'zone', 'rack'"
-	_, err := Parse(sql)
-	if err == nil {
-		t.Fatal("expected parse error for unsupported LOCATION LABELS syntax — if this passes, the feature was added; update the test")
+// TestParseAlterTiFlashReplicaLocationLabels covers the LOCATION LABELS
+// suffix on ALTER TABLE SET TIFLASH REPLICA. Replaces a pinned negative
+// placeholder when Tier 3 added feature support.
+// Ref: TiDB v8.5.5 parser.y:2193 + 2176-2183.
+func TestParseAlterTiFlashReplicaLocationLabels(t *testing.T) {
+	tests := []struct {
+		name       string
+		sql        string
+		wantLabels []string
+	}{
+		{"single label", "ALTER TABLE t SET TIFLASH REPLICA 2 LOCATION LABELS 'zone'", []string{"zone"}},
+		{"multi label", "ALTER TABLE t SET TIFLASH REPLICA 2 LOCATION LABELS 'zone', 'rack'", []string{"zone", "rack"}},
+		{"zero replica with labels", "ALTER TABLE t SET TIFLASH REPLICA 0 LOCATION LABELS 'z'", []string{"z"}},
+		{"no labels clause", "ALTER TABLE t SET TIFLASH REPLICA 2", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			list, err := Parse(tt.sql)
+			if err != nil {
+				t.Fatalf("Parse: %v", err)
+			}
+			stmt := list.Items[0].(*nodes.AlterTableStmt)
+			cmd := stmt.Commands[0]
+			if cmd.Type != nodes.ATSetTiFlashReplica {
+				t.Errorf("Type = %v, want ATSetTiFlashReplica", cmd.Type)
+			}
+			if len(cmd.TiFlashLocationLabels) != len(tt.wantLabels) {
+				t.Fatalf("TiFlashLocationLabels len = %d, want %d: %v", len(cmd.TiFlashLocationLabels), len(tt.wantLabels), cmd.TiFlashLocationLabels)
+			}
+			for i, got := range cmd.TiFlashLocationLabels {
+				if got != tt.wantLabels[i] {
+					t.Errorf("TiFlashLocationLabels[%d] = %q, want %q", i, got, tt.wantLabels[i])
+				}
+			}
+		})
+	}
+}
+
+// TestParseAlterTiFlashReplicaLocationLabelsNegatives covers inputs the
+// upstream grammar rejects. LocationLabelList requires LABELS after
+// LOCATION, at least one string literal when the clause is present, no
+// trailing comma, and string literals (not identifiers).
+func TestParseAlterTiFlashReplicaLocationLabelsNegatives(t *testing.T) {
+	negatives := []string{
+		"ALTER TABLE t SET TIFLASH REPLICA 2 LOCATION",             // missing LABELS
+		"ALTER TABLE t SET TIFLASH REPLICA 2 LOCATION LABELS",      // empty list
+		"ALTER TABLE t SET TIFLASH REPLICA 2 LOCATION LABELS 'a',", // trailing comma
+		"ALTER TABLE t SET TIFLASH REPLICA 2 LOCATION LABELS zone", // bare ident not string
+	}
+	for _, sql := range negatives {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("expected parse error for %q, got nil", sql)
+			}
+		})
+	}
+}
+
+// TestParseAlterDatabaseSetTiFlashReplica covers SET TIFLASH REPLICA as
+// a DatabaseOption — both ALTER DATABASE and CREATE DATABASE paths.
+// Ref: parser.y:4482 DatabaseOption arm.
+func TestParseAlterDatabaseSetTiFlashReplica(t *testing.T) {
+	tests := []struct {
+		name       string
+		sql        string
+		wantCount  int
+		wantLabels []string
+	}{
+		{"alter no labels", "ALTER DATABASE ddb SET TIFLASH REPLICA 2", 2, nil},
+		{"alter with labels", "ALTER DATABASE ddb SET TIFLASH REPLICA 2 LOCATION LABELS 'zone'", 2, []string{"zone"}},
+		{"alter zero replica", "ALTER DATABASE ddb SET TIFLASH REPLICA 0", 0, nil},
+		{"create with labels", "CREATE DATABASE ddb SET TIFLASH REPLICA 1 LOCATION LABELS 'a', 'b'", 1, []string{"a", "b"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			list, err := Parse(tt.sql)
+			if err != nil {
+				t.Fatalf("Parse: %v", err)
+			}
+			var opts []*nodes.DatabaseOption
+			switch stmt := list.Items[0].(type) {
+			case *nodes.AlterDatabaseStmt:
+				opts = stmt.Options
+			case *nodes.CreateDatabaseStmt:
+				opts = stmt.Options
+			default:
+				t.Fatalf("unexpected stmt type %T", list.Items[0])
+			}
+			if len(opts) != 1 {
+				t.Fatalf("Options len = %d, want 1", len(opts))
+			}
+			opt := opts[0]
+			if opt.Name != "TIFLASH REPLICA" {
+				t.Errorf("Name = %q, want TIFLASH REPLICA", opt.Name)
+			}
+			if opt.TiFlashReplica != tt.wantCount {
+				t.Errorf("TiFlashReplica = %d, want %d", opt.TiFlashReplica, tt.wantCount)
+			}
+			if len(opt.TiFlashLocationLabels) != len(tt.wantLabels) {
+				t.Fatalf("labels len = %d, want %d: %v", len(opt.TiFlashLocationLabels), len(tt.wantLabels), opt.TiFlashLocationLabels)
+			}
+			for i, got := range opt.TiFlashLocationLabels {
+				if got != tt.wantLabels[i] {
+					t.Errorf("label[%d] = %q, want %q", i, got, tt.wantLabels[i])
+				}
+			}
+		})
 	}
 }
 

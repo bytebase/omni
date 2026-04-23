@@ -962,10 +962,12 @@ func TestNoEqFoldForRegisteredKeywords(t *testing.T) {
 	// All strings currently matched via eqFold in the parser (excluding test files).
 	// This list should shrink to zero as eqFold patterns are migrated.
 	// Each entry is the lowercase string matched by eqFold.
-	eqFoldStrings := []string{
-		// replication.go — legacy alias (not a registered keyword)
-		"master_log_file",
-	}
+	//
+	// The MASTER_LOG_FILE eqFold at replication.go:468 was migrated to
+	// kwMASTER_LOG_FILE in 2026-04-22 when TiFlash LOCATION LABELS work
+	// added a new token category for legacy-alias keywords. The allowlist
+	// is now empty.
+	eqFoldStrings := []string{}
 
 	violations := 0
 	for _, s := range eqFoldStrings {
