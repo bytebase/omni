@@ -100,6 +100,11 @@ func TestTiDBTiFlashGrammarNegatives(t *testing.T) {
 		{"empty_label_list", "ALTER TABLE t_neg SET TIFLASH REPLICA 0 LOCATION LABELS"},
 		{"trailing_comma", "ALTER TABLE t_neg SET TIFLASH REPLICA 0 LOCATION LABELS 'a',"},
 		{"bare_identifier_label", "ALTER TABLE t_neg SET TIFLASH REPLICA 0 LOCATION LABELS zone"},
+		// DEFAULT is allowed before CHARSET/COLLATE/ENCRYPTION/PLACEMENT
+		// POLICY on DatabaseOption but NOT before SET TIFLASH REPLICA
+		// (no DefaultKwdOpt on that grammar arm).
+		{"default_create_set_tiflash", "CREATE DATABASE omni_tfn_test_x DEFAULT SET TIFLASH REPLICA 1"},
+		{"default_alter_set_tiflash", "ALTER DATABASE omni_tfn_test DEFAULT SET TIFLASH REPLICA 1"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

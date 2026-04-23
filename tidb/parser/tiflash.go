@@ -24,6 +24,15 @@ func (p *Parser) parseLocationLabelList() ([]string, error) {
 		return nil, nil
 	}
 	p.advance() // consume LOCATION
+	// Completion: after LOCATION, the only valid continuation is
+	// LABELS. Offer it so editor UX matches the grammar — typing
+	// `...LOCATION <cursor>` without this block would fall through
+	// to expect() below and surface no candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwLABELS)
+		return nil, &ParseError{Message: "collecting"}
+	}
 	if _, err := p.expect(kwLABELS); err != nil {
 		return nil, err
 	}

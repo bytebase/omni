@@ -178,8 +178,12 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 		}
 	}
 
-	// Skip optional DEFAULT
-	p.match(kwDEFAULT)
+	// Optional DEFAULT prefix. Upstream's DatabaseOption rule permits
+	// DEFAULT before CHARSET / COLLATE / ENCRYPTION / PlacementPolicy-
+	// Option, but NOT before `SET TIFLASH REPLICA` (no DefaultKwdOpt
+	// on that arm). Track consumption so the SET arm can reject
+	// `DEFAULT SET TIFLASH REPLICA` the way real TiDB does.
+	_, defaultSeen := p.match(kwDEFAULT)
 
 	switch {
 	case p.cur.Type == kwCHARACTER:
@@ -251,6 +255,11 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 		// TiDB: CREATE/ALTER DATABASE ... SET TIFLASH REPLICA n [LOCATION LABELS ...]
 		// Ref: parser.y:4482 DatabaseOption arm.
 		// Note: no `=` sign allowed per upstream grammar.
+		// DEFAULT prefix is explicitly NOT allowed on this arm
+		// (DefaultKwdOpt is missing from the grammar production).
+		if defaultSeen {
+			return nil, false, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		if _, ok := p.match(kwTIFLASH); !ok {
 			return nil, false, p.syntaxErrorAtCur()

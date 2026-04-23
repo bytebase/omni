@@ -165,6 +165,22 @@ func TestTiDBKeywords_TiFlashLocationLabels(t *testing.T) {
 	}
 }
 
+// TestTiDBKeywords_TiFlashLabelsAfterLocation asserts LABELS surfaces
+// as the only valid continuation after LOCATION. Without a post-
+// LOCATION completion anchor, typing `...LOCATION <cursor>` surfaces
+// nothing — the user hits a dead end despite the grammar being
+// deterministic at that position.
+func TestTiDBKeywords_TiFlashLabelsAfterLocation(t *testing.T) {
+	cat := catalog.New()
+
+	sql := "ALTER TABLE t SET TIFLASH REPLICA 2 LOCATION "
+	candidates := Complete(sql, len(sql), cat)
+
+	if !containsText(candidates, "LABELS") {
+		t.Errorf("expected LABELS after LOCATION; got: %v", candidateTexts(candidates))
+	}
+}
+
 // TestTiDBKeywords_AlterDatabaseTiFlash asserts SET surfaces inside
 // ALTER DATABASE option position (anchors the SET TIFLASH REPLICA path).
 func TestTiDBKeywords_AlterDatabaseTiFlash(t *testing.T) {

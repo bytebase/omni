@@ -253,6 +253,25 @@ func TestParseAlterTiFlashReplicaLocationLabels(t *testing.T) {
 	}
 }
 
+// TestParseDatabaseDefaultSetTiFlashRejected pins the grammar negative
+// that `DEFAULT` is NOT permitted on the SET TIFLASH REPLICA arm of
+// DatabaseOption. Upstream's DatabaseOption grammar gates DEFAULT via
+// DefaultKwdOpt before CHARSET/COLLATE/ENCRYPTION/PlacementPolicy but
+// NOT before SET TIFLASH REPLICA. TiDB rejects these with error 1064.
+func TestParseDatabaseDefaultSetTiFlashRejected(t *testing.T) {
+	negatives := []string{
+		"CREATE DATABASE d DEFAULT SET TIFLASH REPLICA 1",
+		"ALTER DATABASE d DEFAULT SET TIFLASH REPLICA 1",
+	}
+	for _, sql := range negatives {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("expected parse error for %q, got nil (oracle divergence — TiDB rejects)", sql)
+			}
+		})
+	}
+}
+
 // TestTiDBKeywordsUsableAsIdentifiers pins that the new unreserved
 // keywords added for TIFLASH / replication work (LOCATION, LABELS,
 // MASTER_LOG_FILE) can still be used as bare identifiers in CREATE
