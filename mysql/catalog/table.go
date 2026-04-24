@@ -1,21 +1,33 @@
 package catalog
 
 type Table struct {
-	Name          string
-	Database      *Database
-	Columns       []*Column
-	colByName     map[string]int // lowered name -> index
-	Indexes       []*Index
-	Constraints   []*Constraint
-	Engine        string
-	Charset       string
-	Collation     string
-	Comment       string
-	AutoIncrement int64
-	Temporary     bool
-	RowFormat     string
-	KeyBlockSize  int
-	Partitioning  *PartitionInfo
+	Name             string
+	Database         *Database
+	Columns          []*Column
+	colByName        map[string]int // lowered name -> index
+	Indexes          []*Index
+	Constraints      []*Constraint
+	Engine           string
+	Charset          string
+	Collation        string
+	Comment          string
+	AutoIncrement    int64
+	Temporary        bool
+	RowFormat        string
+	KeyBlockSize     int
+	Compression      string
+	Encryption       string
+	StatsPersistent  string
+	StatsAutoRecalc  string
+	StatsSamplePages string
+	MinRows          string
+	MaxRows          string
+	AvgRowLength     string
+	Tablespace       string
+	PackKeys         string
+	Checksum         string
+	DelayKeyWrite    string
+	Partitioning     *PartitionInfo
 
 	// droppedByCleanup tracks indexes auto-removed by DROP COLUMN cleanup
 	// during multi-command ALTER TABLE. This allows a subsequent explicit
@@ -25,19 +37,19 @@ type Table struct {
 
 // PartitionInfo holds partition metadata for a table.
 type PartitionInfo struct {
-	Type       string // RANGE, LIST, HASH, KEY
-	Linear     bool   // LINEAR HASH or LINEAR KEY
-	Expr       string // partition expression (for RANGE/LIST/HASH)
-	Columns    []string // partition columns (for RANGE COLUMNS/LIST COLUMNS/KEY)
-	Algorithm  int    // ALGORITHM={1|2} for KEY partitioning
-	NumParts   int    // PARTITIONS num
-	Partitions []*PartitionDefInfo
-	SubType    string // subpartition type (HASH or KEY, "" if none)
-	SubLinear  bool   // LINEAR for subpartition
-	SubExpr    string // subpartition expression
-	SubColumns []string // subpartition columns
-	SubAlgo    int    // subpartition ALGORITHM
-	NumSubParts int   // SUBPARTITIONS num
+	Type        string   // RANGE, LIST, HASH, KEY
+	Linear      bool     // LINEAR HASH or LINEAR KEY
+	Expr        string   // partition expression (for RANGE/LIST/HASH)
+	Columns     []string // partition columns (for RANGE COLUMNS/LIST COLUMNS/KEY)
+	Algorithm   int      // ALGORITHM={1|2} for KEY partitioning
+	NumParts    int      // PARTITIONS num
+	Partitions  []*PartitionDefInfo
+	SubType     string   // subpartition type (HASH or KEY, "" if none)
+	SubLinear   bool     // LINEAR for subpartition
+	SubExpr     string   // subpartition expression
+	SubColumns  []string // subpartition columns
+	SubAlgo     int      // subpartition ALGORITHM
+	NumSubParts int      // SUBPARTITIONS num
 }
 
 // PartitionDefInfo holds a single partition definition.
@@ -57,21 +69,21 @@ type SubPartitionDefInfo struct {
 }
 
 type Column struct {
-	Position       int
-	Name           string
-	DataType       string // normalized (int, varchar, etc.)
-	ColumnType     string // full type string (varchar(100), int unsigned)
-	Nullable       bool
-	Default        *string
-	DefaultDropped bool // true when ALTER COLUMN DROP DEFAULT was used
-	AutoIncrement  bool
-	Charset        string
-	Collation      string
-	Comment        string
-	OnUpdate       string
+	Position          int
+	Name              string
+	DataType          string // normalized (int, varchar, etc.)
+	ColumnType        string // full type string (varchar(100), int unsigned)
+	Nullable          bool
+	Default           *string
+	DefaultDropped    bool // true when ALTER COLUMN DROP DEFAULT was used
+	AutoIncrement     bool
+	Charset           string
+	Collation         string
+	Comment           string
+	OnUpdate          string
 	Generated         *GeneratedColumnInfo
 	Invisible         bool
-	SRID              int // Spatial Reference ID (0 = not set)
+	SRID              int          // Spatial Reference ID (0 = not set)
 	DefaultAnalyzed   AnalyzedExpr // Phase 3: analyzed DEFAULT expression
 	GeneratedAnalyzed AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
 }

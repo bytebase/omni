@@ -20,6 +20,10 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
+	if err := validateNonPrimaryIndexName(stmt.IndexName); err != nil {
+		return err
+	}
+
 	// Check for duplicate key name.
 	if indexNameExists(tbl, stmt.IndexName) {
 		if stmt.IfNotExists {

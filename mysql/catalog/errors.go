@@ -24,6 +24,7 @@ const (
 	ErrNoSuchTable                       = 1146
 	ErrNoSuchColumn                      = 1054
 	ErrNoDatabaseSelected                = 1046
+	ErrCantRemoveAllFields               = 1090
 	ErrDupIndex                          = 1831
 	ErrFKNoRefTable                      = 1824
 	ErrCantDropKey                       = 1091
@@ -42,6 +43,9 @@ const (
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
+	ErrWrongNameForIndex                 = 1280
+	ErrFKDupName                         = 1826
+	ErrCheckConstraintDupName            = 3822
 )
 
 var sqlStateMap = map[int]string{
@@ -56,6 +60,7 @@ var sqlStateMap = map[int]string{
 	ErrNoSuchTable:                       "42S02",
 	ErrNoSuchColumn:                      "42S22",
 	ErrNoDatabaseSelected:                "3D000",
+	ErrCantRemoveAllFields:               "42000",
 	ErrDupIndex:                          "42000",
 	ErrFKNoRefTable:                      "HY000",
 	ErrCantDropKey:                       "42000",
@@ -70,6 +75,9 @@ var sqlStateMap = map[int]string{
 	ErrUnsupportedGeneratedStorageChange: "HY000",
 	ErrDependentByGenCol:                 "HY000",
 	ErrWrongArguments:                    "HY000",
+	ErrWrongNameForIndex:                 "42000",
+	ErrFKDupName:                         "HY000",
+	ErrCheckConstraintDupName:            "HY000",
 }
 
 func sqlState(code int) string {
@@ -114,6 +122,11 @@ func errDupKeyName(name string) error {
 		Message: fmt.Sprintf("Duplicate key name '%s'", name)}
 }
 
+func errWrongNameForIndex(name string) error {
+	return &Error{Code: ErrWrongNameForIndex, SQLState: sqlState(ErrWrongNameForIndex),
+		Message: fmt.Sprintf("Incorrect index name '%s'", name)}
+}
+
 func errMultiplePriKey() error {
 	return &Error{Code: ErrMultiplePriKey, SQLState: sqlState(ErrMultiplePriKey),
 		Message: "Multiple primary key defined"}
@@ -139,6 +152,11 @@ func errCantDropKey(name string) error {
 		Message: fmt.Sprintf("Can't DROP '%s'; check that column/key exists", name)}
 }
 
+func errCantRemoveAllFields() error {
+	return &Error{Code: ErrCantRemoveAllFields, SQLState: sqlState(ErrCantRemoveAllFields),
+		Message: "You can't delete all columns with ALTER TABLE; use DROP TABLE instead"}
+}
+
 func errFKNoRefTable(table string) error {
 	return &Error{Code: ErrFKNoRefTable, SQLState: sqlState(ErrFKNoRefTable),
 		Message: fmt.Sprintf("Failed to open the referenced table '%s'", table)}
@@ -152,6 +170,16 @@ func errFKMissingIndex(constraint, refTable string) error {
 func errFKIncompatibleColumns(col, refCol, constraint string) error {
 	return &Error{Code: ErrFKIncompatibleColumns, SQLState: sqlState(ErrFKIncompatibleColumns),
 		Message: fmt.Sprintf("Referencing column '%s' and referenced column '%s' in foreign key constraint '%s' are incompatible.", col, refCol, constraint)}
+}
+
+func errFKDupName(name string) error {
+	return &Error{Code: ErrFKDupName, SQLState: sqlState(ErrFKDupName),
+		Message: fmt.Sprintf("Duplicate foreign key constraint name '%s'", name)}
+}
+
+func errCheckConstraintDupName(name string) error {
+	return &Error{Code: ErrCheckConstraintDupName, SQLState: sqlState(ErrCheckConstraintDupName),
+		Message: fmt.Sprintf("Duplicate check constraint name '%s'.", name)}
 }
 
 func errDupFunction(name string) error {

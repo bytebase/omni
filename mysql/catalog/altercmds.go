@@ -208,6 +208,9 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		// same as DROP INDEX: "Can't DROP 'x'; check that column/key exists".
 		return errCantDropKey(cmd.Name)
 	}
+	if len(tbl.Columns) == 1 {
+		return errCantRemoveAllFields()
+	}
 
 	// Check if column is referenced by a generated column expression.
 	for _, col := range tbl.Columns {
@@ -408,8 +411,13 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		idxName := con.Name
 		if idxName == "" && len(cols) > 0 {
 			idxName = allocIndexName(tbl, cols[0])
-		} else if idxName != "" && indexNameExists(tbl, idxName) {
-			return errDupKeyName(idxName)
+		} else if idxName != "" {
+			if err := validateNonPrimaryIndexName(idxName); err != nil {
+				return err
+			}
+			if indexNameExists(tbl, idxName) {
+				return errDupKeyName(idxName)
+			}
 		}
 		idxCols := buildIndexColumns(con)
 		tbl.Indexes = append(tbl.Indexes, &Index{
@@ -433,6 +441,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if conName == "" {
 			conName = fmt.Sprintf("%s_ibfk_%d", tbl.Name, nextFKGeneratedNumber(tbl, tbl.Name))
 		}
+		if foreignKeyConstraintNameExists(tbl.Database, nil, conName) {
+			return errFKDupName(conName)
+		}
 		refDBName := ""
 		refTable := ""
 		if con.RefTable != nil {
@@ -440,15 +451,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			refTable = con.RefTable.Name
 		}
 		fkCon := &Constraint{
-			Name:       conName,
-			Type:       ConForeignKey,
-			Table:      tbl,
-			Columns:    cols,
+			Name:        conName,
+			Type:        ConForeignKey,
+			Table:       tbl,
+			Columns:     cols,
 			RefDatabase: refDBName,
-			RefTable:   refTable,
-			RefColumns: con.RefColumns,
-			OnDelete:   refActionToString(con.OnDelete),
-			OnUpdate:   refActionToString(con.OnUpdate),
+			RefTable:    refTable,
+			RefColumns:  con.RefColumns,
+			OnDelete:    refActionToString(con.OnDelete),
+			OnUpdate:    refActionToString(con.OnUpdate),
 		}
 		// Validate FK before adding (unless foreign_key_checks=0).
 		db := tbl.Database
@@ -466,6 +477,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if conName == "" {
 			conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
 		}
+		if checkConstraintNameExists(tbl.Database, nil, conName) {
+			return errCheckConstraintDupName(conName)
+		}
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:        conName,
 			Type:        ConCheck,
@@ -478,8 +492,13 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		idxName := con.Name
 		if idxName == "" && len(cols) > 0 {
 			idxName = allocIndexName(tbl, cols[0])
-		} else if idxName != "" && indexNameExists(tbl, idxName) {
-			return errDupKeyName(idxName)
+		} else if idxName != "" {
+			if err := validateNonPrimaryIndexName(idxName); err != nil {
+				return err
+			}
+			if indexNameExists(tbl, idxName) {
+				return errDupKeyName(idxName)
+			}
 		}
 		idxCols := buildIndexColumns(con)
 		tbl.Indexes = append(tbl.Indexes, &Index{
@@ -494,8 +513,13 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		idxName := con.Name
 		if idxName == "" && len(cols) > 0 {
 			idxName = allocIndexName(tbl, cols[0])
-		} else if idxName != "" && indexNameExists(tbl, idxName) {
-			return errDupKeyName(idxName)
+		} else if idxName != "" {
+			if err := validateNonPrimaryIndexName(idxName); err != nil {
+				return err
+			}
+			if indexNameExists(tbl, idxName) {
+				return errDupKeyName(idxName)
+			}
 		}
 		idxCols := buildIndexColumns(con)
 		tbl.Indexes = append(tbl.Indexes, &Index{
@@ -511,8 +535,13 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		idxName := con.Name
 		if idxName == "" && len(cols) > 0 {
 			idxName = allocIndexName(tbl, cols[0])
-		} else if idxName != "" && indexNameExists(tbl, idxName) {
-			return errDupKeyName(idxName)
+		} else if idxName != "" {
+			if err := validateNonPrimaryIndexName(idxName); err != nil {
+				return err
+			}
+			if indexNameExists(tbl, idxName) {
+				return errDupKeyName(idxName)
+			}
 		}
 		idxCols := buildIndexColumns(con)
 		tbl.Indexes = append(tbl.Indexes, &Index{
@@ -627,6 +656,11 @@ func (c *Catalog) alterRenameIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	oldKey := toLower(cmd.Name)
 	newKey := toLower(cmd.NewName)
 
+	if newKey != oldKey {
+		if err := validateNonPrimaryIndexName(cmd.NewName); err != nil {
+			return err
+		}
+	}
 	if newKey != oldKey && indexNameExists(tbl, cmd.NewName) {
 		return errDupKeyName(cmd.NewName)
 	}
@@ -694,6 +728,32 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		fmt.Sscanf(opt.Value, "%d", &tbl.AutoIncrement)
 	case "row_format":
 		tbl.RowFormat = opt.Value
+	case "key_block_size":
+		fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
+	case "compression":
+		tbl.Compression = opt.Value
+	case "encryption":
+		tbl.Encryption = opt.Value
+	case "stats_persistent":
+		tbl.StatsPersistent = opt.Value
+	case "stats_auto_recalc":
+		tbl.StatsAutoRecalc = opt.Value
+	case "stats_sample_pages":
+		tbl.StatsSamplePages = opt.Value
+	case "min_rows":
+		tbl.MinRows = opt.Value
+	case "max_rows":
+		tbl.MaxRows = opt.Value
+	case "avg_row_length":
+		tbl.AvgRowLength = opt.Value
+	case "tablespace":
+		tbl.Tablespace = opt.Value
+	case "pack_keys":
+		tbl.PackKeys = opt.Value
+	case "checksum":
+		tbl.Checksum = opt.Value
+	case "delay_key_write":
+		tbl.DelayKeyWrite = opt.Value
 	}
 	return nil
 }

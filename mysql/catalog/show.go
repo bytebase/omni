@@ -497,7 +497,48 @@ func showTableOptions(tbl *Table) string {
 		parts = append(parts, fmt.Sprintf("COMMENT='%s'", escapeComment(tbl.Comment)))
 	}
 
+	if tbl.Compression != "" {
+		parts = append(parts, fmt.Sprintf("COMPRESSION='%s'", escapeComment(unquoteTableOption(tbl.Compression))))
+	}
+	if tbl.Encryption != "" {
+		parts = append(parts, fmt.Sprintf("ENCRYPTION='%s'", escapeComment(unquoteTableOption(tbl.Encryption))))
+	}
+	if tbl.StatsPersistent != "" && !eqFoldStr(tbl.StatsPersistent, "DEFAULT") {
+		parts = append(parts, fmt.Sprintf("STATS_PERSISTENT=%s", tbl.StatsPersistent))
+	}
+	if tbl.StatsAutoRecalc != "" && !eqFoldStr(tbl.StatsAutoRecalc, "DEFAULT") {
+		parts = append(parts, fmt.Sprintf("STATS_AUTO_RECALC=%s", tbl.StatsAutoRecalc))
+	}
+	if tbl.StatsSamplePages != "" && !eqFoldStr(tbl.StatsSamplePages, "DEFAULT") {
+		parts = append(parts, fmt.Sprintf("STATS_SAMPLE_PAGES=%s", tbl.StatsSamplePages))
+	}
+	if tbl.MinRows != "" && tbl.MinRows != "0" {
+		parts = append(parts, fmt.Sprintf("MIN_ROWS=%s", tbl.MinRows))
+	}
+	if tbl.MaxRows != "" && tbl.MaxRows != "0" {
+		parts = append(parts, fmt.Sprintf("MAX_ROWS=%s", tbl.MaxRows))
+	}
+	if tbl.AvgRowLength != "" && tbl.AvgRowLength != "0" {
+		parts = append(parts, fmt.Sprintf("AVG_ROW_LENGTH=%s", tbl.AvgRowLength))
+	}
+	if tbl.Tablespace != "" {
+		parts = append(parts, fmt.Sprintf("/*!50100 TABLESPACE `%s` */", unquoteTableOption(tbl.Tablespace)))
+	}
+	if tbl.PackKeys != "" && !eqFoldStr(tbl.PackKeys, "DEFAULT") {
+		parts = append(parts, fmt.Sprintf("PACK_KEYS=%s", tbl.PackKeys))
+	}
+	if tbl.Checksum != "" && tbl.Checksum != "0" {
+		parts = append(parts, fmt.Sprintf("CHECKSUM=%s", tbl.Checksum))
+	}
+	if tbl.DelayKeyWrite != "" && tbl.DelayKeyWrite != "0" {
+		parts = append(parts, fmt.Sprintf("DELAY_KEY_WRITE=%s", tbl.DelayKeyWrite))
+	}
+
 	return strings.Join(parts, " ")
+}
+
+func unquoteTableOption(s string) string {
+	return strings.Trim(s, "'\"`")
 }
 
 // isFKDefault returns true if the action is a MySQL FK default that should not be shown.

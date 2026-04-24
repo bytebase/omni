@@ -44,16 +44,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 
 	tbl := &Table{
-		Name:      tableName,
-		Database:  db,
-		Columns:   make([]*Column, 0, len(stmt.Columns)),
-		colByName: make(map[string]int),
-		Indexes:   make([]*Index, 0),
+		Name:        tableName,
+		Database:    db,
+		Columns:     make([]*Column, 0, len(stmt.Columns)),
+		colByName:   make(map[string]int),
+		Indexes:     make([]*Index, 0),
 		Constraints: make([]*Constraint, 0),
-		Charset:   db.Charset,
-		Collation: db.Collation,
-		Engine:    "InnoDB",
-		Temporary: stmt.Temporary,
+		Charset:     db.Charset,
+		Collation:   db.Collation,
+		Engine:      "InnoDB",
+		Temporary:   stmt.Temporary,
 	}
 
 	// Apply table options.
@@ -77,6 +77,30 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			tbl.RowFormat = opt.Value
 		case "key_block_size":
 			fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
+		case "compression":
+			tbl.Compression = opt.Value
+		case "encryption":
+			tbl.Encryption = opt.Value
+		case "stats_persistent":
+			tbl.StatsPersistent = opt.Value
+		case "stats_auto_recalc":
+			tbl.StatsAutoRecalc = opt.Value
+		case "stats_sample_pages":
+			tbl.StatsSamplePages = opt.Value
+		case "min_rows":
+			tbl.MinRows = opt.Value
+		case "max_rows":
+			tbl.MaxRows = opt.Value
+		case "avg_row_length":
+			tbl.AvgRowLength = opt.Value
+		case "tablespace":
+			tbl.Tablespace = opt.Value
+		case "pack_keys":
+			tbl.PackKeys = opt.Value
+		case "checksum":
+			tbl.Checksum = opt.Value
+		case "delay_key_write":
+			tbl.DelayKeyWrite = opt.Value
 		}
 	}
 	// When charset is specified without explicit collation, derive the default collation.
@@ -253,6 +277,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					unnamedCheckCount++
 					conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
 				}
+				if checkConstraintNameExists(db, tbl, conName) {
+					return errCheckConstraintDupName(conName)
+				}
 				tbl.Constraints = append(tbl.Constraints, &Constraint{
 					Name:        conName,
 					Type:        ConCheck,
@@ -261,31 +288,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					NotEnforced: cc.NotEnforced,
 				})
 			case nodes.ColConstrReferences:
-				// Column-level FK.
-				refDB := ""
-				refTable := ""
-				if cc.RefTable != nil {
-					refDB = cc.RefTable.Schema
-					refTable = cc.RefTable.Name
-				}
-				conName := cc.Name
-				if conName == "" {
-					unnamedFKCount++
-					conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
-				}
-				tbl.Constraints = append(tbl.Constraints, &Constraint{
-					Name:       conName,
-					Type:       ConForeignKey,
-					Table:      tbl,
-					Columns:    []string{colDef.Name},
-					RefDatabase: refDB,
-					RefTable:   refTable,
-					RefColumns: cc.RefColumns,
-					OnDelete:   refActionToString(cc.OnDelete),
-					OnUpdate:   refActionToString(cc.OnUpdate),
-				})
-				// Defer implicit backing index for FK until after all explicit indexes are added.
-				pendingFKs = append(pendingFKs, pendingFK{conName: cc.Name, cols: []string{colDef.Name}, idxCols: []*IndexColumn{{Name: colDef.Name}}})
+				// MySQL parses but ignores column-level REFERENCES for non-NDB tables.
 			case nodes.ColConstrVisible:
 				col.Invisible = false
 			case nodes.ColConstrInvisible:
@@ -407,6 +410,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			idxName := con.Name
 			if idxName == "" && len(cols) > 0 {
 				idxName = allocIndexName(tbl, cols[0])
+			} else if idxName != "" {
+				if err := validateNonPrimaryIndexName(idxName); err != nil {
+					return err
+				}
+				if indexNameExists(tbl, idxName) {
+					return errDupKeyName(idxName)
+				}
 			}
 			idxCols := buildIndexColumns(con)
 			uqIdx := &Index{
@@ -433,6 +443,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				unnamedFKCount++
 				conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
 			}
+			if foreignKeyConstraintNameExists(db, tbl, conName) {
+				return errFKDupName(conName)
+			}
 			refDB := ""
 			refTable := ""
 			if con.RefTable != nil {
@@ -440,15 +453,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				refTable = con.RefTable.Name
 			}
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
-				Name:       conName,
-				Type:       ConForeignKey,
-				Table:      tbl,
-				Columns:    cols,
+				Name:        conName,
+				Type:        ConForeignKey,
+				Table:       tbl,
+				Columns:     cols,
 				RefDatabase: refDB,
-				RefTable:   refTable,
-				RefColumns: con.RefColumns,
-				OnDelete:   refActionToString(con.OnDelete),
-				OnUpdate:   refActionToString(con.OnUpdate),
+				RefTable:    refTable,
+				RefColumns:  con.RefColumns,
+				OnDelete:    refActionToString(con.OnDelete),
+				OnUpdate:    refActionToString(con.OnUpdate),
 			})
 			// Defer implicit backing index for FK until after all explicit indexes are added.
 			pendingFKs = append(pendingFKs, pendingFK{conName: con.Name, cols: cols, idxCols: buildIndexColumns(con)})
@@ -458,6 +471,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if conName == "" {
 				unnamedCheckCount++
 				conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
+			}
+			if checkConstraintNameExists(db, tbl, conName) {
+				return errCheckConstraintDupName(conName)
 			}
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:        conName,
@@ -471,6 +487,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			idxName := con.Name
 			if idxName == "" && len(cols) > 0 {
 				idxName = allocIndexName(tbl, cols[0])
+			} else if idxName != "" {
+				if err := validateNonPrimaryIndexName(idxName); err != nil {
+					return err
+				}
+				if indexNameExists(tbl, idxName) {
+					return errDupKeyName(idxName)
+				}
 			}
 			idxCols := buildIndexColumns(con)
 			keyIdx := &Index{
@@ -487,6 +510,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			idxName := con.Name
 			if idxName == "" && len(cols) > 0 {
 				idxName = allocIndexName(tbl, cols[0])
+			} else if idxName != "" {
+				if err := validateNonPrimaryIndexName(idxName); err != nil {
+					return err
+				}
+				if indexNameExists(tbl, idxName) {
+					return errDupKeyName(idxName)
+				}
 			}
 			idxCols := buildIndexColumns(con)
 			ftIdx := &Index{
@@ -504,6 +534,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			idxName := con.Name
 			if idxName == "" && len(cols) > 0 {
 				idxName = allocIndexName(tbl, cols[0])
+			} else if idxName != "" {
+				if err := validateNonPrimaryIndexName(idxName); err != nil {
+					return err
+				}
+				if indexNameExists(tbl, idxName) {
+					return errDupKeyName(idxName)
+				}
 			}
 			idxCols := buildIndexColumns(con)
 			spIdx := &Index{
@@ -915,11 +952,22 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 func allocIndexName(tbl *Table, baseName string) string {
 	candidate := baseName
 	suffix := 2
+	if strings.EqualFold(candidate, "PRIMARY") {
+		candidate = fmt.Sprintf("%s_%d", baseName, suffix)
+		suffix++
+	}
 	for indexNameExists(tbl, candidate) {
 		candidate = fmt.Sprintf("%s_%d", baseName, suffix)
 		suffix++
 	}
 	return candidate
+}
+
+func validateNonPrimaryIndexName(name string) error {
+	if strings.EqualFold(name, "PRIMARY") {
+		return errWrongNameForIndex(name)
+	}
+	return nil
 }
 
 // hasIndexCoveringColumns returns true if the table already has an index whose
@@ -969,6 +1017,46 @@ func indexNameExists(tbl *Table, name string) bool {
 	for _, idx := range tbl.Indexes {
 		if toLower(idx.Name) == key {
 			return true
+		}
+	}
+	return false
+}
+
+func constraintNameExistsInTable(tbl *Table, typ ConstraintType, name string) bool {
+	key := toLower(name)
+	for _, con := range tbl.Constraints {
+		if con.Type == typ && toLower(con.Name) == key {
+			return true
+		}
+	}
+	return false
+}
+
+func checkConstraintNameExists(db *Database, pending *Table, name string) bool {
+	if pending != nil && constraintNameExistsInTable(pending, ConCheck, name) {
+		return true
+	}
+	key := toLower(name)
+	for _, tbl := range db.Tables {
+		for _, con := range tbl.Constraints {
+			if con.Type == ConCheck && toLower(con.Name) == key {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func foreignKeyConstraintNameExists(db *Database, pending *Table, name string) bool {
+	if pending != nil && constraintNameExistsInTable(pending, ConForeignKey, name) {
+		return true
+	}
+	key := toLower(name)
+	for _, tbl := range db.Tables {
+		for _, con := range tbl.Constraints {
+			if con.Type == ConForeignKey && toLower(con.Name) == key {
+				return true
+			}
 		}
 	}
 	return false
@@ -1069,24 +1157,37 @@ func nextFKGeneratedNumber(tbl *Table, tableName string) int {
 	return max + 1
 }
 
-// nextCheckNumber returns the next available check constraint number for auto-naming.
-// MySQL uses tableName_chk_N where N starts at 1 and increments, skipping existing names.
+// nextCheckNumber returns max(existing generated tableName_chk_N) + 1.
+// ALTER TABLE seeds the generated CHECK counter from existing names.
 func nextCheckNumber(tbl *Table) int {
-	n := 1
-	for {
-		name := fmt.Sprintf("%s_chk_%d", tbl.Name, n)
-		exists := false
-		for _, c := range tbl.Constraints {
-			if toLower(c.Name) == toLower(name) {
-				exists = true
+	prefix := toLower(tbl.Name) + "_chk_"
+	max := 0
+	for _, con := range tbl.Constraints {
+		if con.Type != ConCheck {
+			continue
+		}
+		name := toLower(con.Name)
+		if !strings.HasPrefix(name, prefix) {
+			continue
+		}
+		rest := name[len(prefix):]
+		if rest == "" || rest[0] == '0' {
+			continue
+		}
+		n := 0
+		ok := true
+		for _, ch := range rest {
+			if ch < '0' || ch > '9' {
+				ok = false
 				break
 			}
+			n = n*10 + int(ch-'0')
 		}
-		if !exists {
-			return n
+		if ok && n > max {
+			max = n
 		}
-		n++
 	}
+	return max + 1
 }
 
 func isStringType(dt string) bool {
@@ -1394,7 +1495,7 @@ func isTextBlobLengthStripped(dt string) bool {
 }
 
 // escapeEnumValue escapes single quotes in ENUM/SET values for SHOW CREATE TABLE.
-// MySQL uses '' (two single quotes) to escape a single quote in enum values.
+// MySQL uses ” (two single quotes) to escape a single quote in enum values.
 func escapeEnumValue(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }
@@ -1414,19 +1515,31 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 	}
 
 	tbl := &Table{
-		Name:      tableName,
-		Database:  db,
-		Columns:   make([]*Column, 0, len(srcTbl.Columns)),
-		colByName: make(map[string]int),
-		Indexes:   make([]*Index, 0, len(srcTbl.Indexes)),
-		Constraints: make([]*Constraint, 0, len(srcTbl.Constraints)),
-		Engine:    srcTbl.Engine,
-		Charset:   srcTbl.Charset,
-		Collation: srcTbl.Collation,
-		Comment:   srcTbl.Comment,
-		RowFormat: srcTbl.RowFormat,
-		KeyBlockSize: srcTbl.KeyBlockSize,
-		Temporary: stmt.Temporary,
+		Name:             tableName,
+		Database:         db,
+		Columns:          make([]*Column, 0, len(srcTbl.Columns)),
+		colByName:        make(map[string]int),
+		Indexes:          make([]*Index, 0, len(srcTbl.Indexes)),
+		Constraints:      make([]*Constraint, 0, len(srcTbl.Constraints)),
+		Engine:           srcTbl.Engine,
+		Charset:          srcTbl.Charset,
+		Collation:        srcTbl.Collation,
+		Comment:          srcTbl.Comment,
+		RowFormat:        srcTbl.RowFormat,
+		KeyBlockSize:     srcTbl.KeyBlockSize,
+		Compression:      srcTbl.Compression,
+		Encryption:       srcTbl.Encryption,
+		StatsPersistent:  srcTbl.StatsPersistent,
+		StatsAutoRecalc:  srcTbl.StatsAutoRecalc,
+		StatsSamplePages: srcTbl.StatsSamplePages,
+		MinRows:          srcTbl.MinRows,
+		MaxRows:          srcTbl.MaxRows,
+		AvgRowLength:     srcTbl.AvgRowLength,
+		Tablespace:       srcTbl.Tablespace,
+		PackKeys:         srcTbl.PackKeys,
+		Checksum:         srcTbl.Checksum,
+		DelayKeyWrite:    srcTbl.DelayKeyWrite,
+		Temporary:        stmt.Temporary,
 	}
 
 	// Copy columns.
