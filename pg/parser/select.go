@@ -1268,19 +1268,8 @@ func (p *Parser) parenBeginsSubquery() bool {
 	if p.cur.Type != '(' {
 		return false
 	}
-	// The token-stream snapshot intentionally excludes completion state.
-	// This lookahead can scan past the cursor, so restore collect-mode
-	// flags alongside the token stream.
-	collecting := p.collecting
-	collectDepth := p.collectDepth
-	snap := p.snapshotTokenStream()
-	defer func() {
-		p.restoreTokenStream(snap)
-		if p.completing {
-			p.collecting = collecting
-			p.collectDepth = collectDepth
-		}
-	}()
+	snap := p.snapshotTokenStreamAndCompletion()
+	defer p.restoreTokenStreamAndCompletion(snap)
 	return p.consumeMatchedParenIsSubquery()
 }
 
