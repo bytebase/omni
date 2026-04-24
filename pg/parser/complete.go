@@ -75,10 +75,10 @@ type RuleCandidate struct {
 // CandidateSet holds the token and rule candidates collected during a
 // completion-mode parse.
 type CandidateSet struct {
-	Tokens []int            // token type candidates
-	Rules  []RuleCandidate  // grammar rule candidates
-	seen   map[int]bool     // dedup tokens
-	seenR  map[string]bool  // dedup rules
+	Tokens []int           // token type candidates
+	Rules  []RuleCandidate // grammar rule candidates
+	seen   map[int]bool    // dedup tokens
+	seenR  map[string]bool // dedup rules
 
 	// CTEPositions holds the byte offsets of WITH clause starts encountered
 	// before the cursor. Bytebase uses these to re-parse CTE definitions
@@ -246,13 +246,17 @@ func (p *Parser) addKeywordsByCategory(categories ...KeywordCategory) {
 // snapshot returns a copy of the current candidate set state.
 func (cs *CandidateSet) snapshot() *CandidateSet {
 	s := &CandidateSet{
-		Tokens: make([]int, len(cs.Tokens)),
-		Rules:  make([]RuleCandidate, len(cs.Rules)),
-		seen:   make(map[int]bool, len(cs.seen)),
-		seenR:  make(map[string]bool, len(cs.seenR)),
+		Tokens:               make([]int, len(cs.Tokens)),
+		Rules:                make([]RuleCandidate, len(cs.Rules)),
+		seen:                 make(map[int]bool, len(cs.seen)),
+		seenR:                make(map[string]bool, len(cs.seenR)),
+		CTEPositions:         make([]int, len(cs.CTEPositions)),
+		SelectAliasPositions: make([]int, len(cs.SelectAliasPositions)),
 	}
 	copy(s.Tokens, cs.Tokens)
 	copy(s.Rules, cs.Rules)
+	copy(s.CTEPositions, cs.CTEPositions)
+	copy(s.SelectAliasPositions, cs.SelectAliasPositions)
 	for k, v := range cs.seen {
 		s.seen[k] = v
 	}
@@ -260,6 +264,23 @@ func (cs *CandidateSet) snapshot() *CandidateSet {
 		s.seenR[k] = v
 	}
 	return s
+}
+
+// restore replaces cs with snapshot's contents while preserving cs's identity.
+func (cs *CandidateSet) restore(snapshot *CandidateSet) {
+	cs.Tokens = append(cs.Tokens[:0], snapshot.Tokens...)
+	cs.Rules = append(cs.Rules[:0], snapshot.Rules...)
+	cs.CTEPositions = append(cs.CTEPositions[:0], snapshot.CTEPositions...)
+	cs.SelectAliasPositions = append(cs.SelectAliasPositions[:0], snapshot.SelectAliasPositions...)
+
+	cs.seen = make(map[int]bool, len(snapshot.seen))
+	for k, v := range snapshot.seen {
+		cs.seen[k] = v
+	}
+	cs.seenR = make(map[string]bool, len(snapshot.seenR))
+	for k, v := range snapshot.seenR {
+		cs.seenR[k] = v
+	}
 }
 
 // diff returns candidates in cs that are not in before.

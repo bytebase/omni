@@ -10,7 +10,7 @@ package parser
 // dolqstart, utf16FirstPart, xcdepth, stateBeforeStrStop, warning flags)
 // or completion-mode state (candidates, collecting). Lexer internals are
 // reset at token boundaries. Completion-mode speculative callers that can
-// scan past the cursor must restore completion state themselves.
+// scan past the cursor should use snapshotTokenStreamAndCompletion.
 //
 // If a future caller needs to roll back from INSIDE a token (e.g., from
 // inside a string literal or dollar-quoted block), this struct is
@@ -41,6 +41,13 @@ type tokenStreamState struct {
 	lexerState         LexerState
 }
 
+type tokenStreamAndCompletionState struct {
+	tokenStream  tokenStreamState
+	collecting   bool
+	collectDepth int
+	candidates   *CandidateSet
+}
+
 // snapshotTokenStream captures the current token-stream position for
 // later restoration via restoreTokenStream. See tokenStreamState for
 // scope and limitations.
@@ -57,16 +64,31 @@ func (p *Parser) snapshotTokenStream() tokenStreamState {
 	}
 }
 
+// snapshotTokenStreamAndCompletion captures token-stream state plus the
+// completion state that advance() can mutate when a speculative walk crosses
+// the cursor. Use this for completion-mode lookahead that can scan arbitrary
+// user input before rolling back.
+func (p *Parser) snapshotTokenStreamAndCompletion() tokenStreamAndCompletionState {
+	s := tokenStreamAndCompletionState{
+		tokenStream:  p.snapshotTokenStream(),
+		collecting:   p.collecting,
+		collectDepth: p.collectDepth,
+	}
+	if p.candidates != nil {
+		s.candidates = p.candidates.snapshot()
+	}
+	return s
+}
+
 // restoreTokenStream rewinds parser + lexer state to a previously
 // captured snapshot. After restore, the next advance() will emit the
 // same token as it would have at the moment snapshotTokenStream() was
 // called.
 //
 // Caller responsibility: do not interleave restore with completion-mode
-// queries or with any operation that mutates lexer state outside the
-// token stream (string literal scanning, etc). The current speculative
-// parse sites in parseFuncArg and parseFuncType only consume keyword
-// tokens and punctuation, so they are safe.
+// queries or with any operation that mutates lexer state outside the token
+// stream. Use restoreTokenStreamAndCompletion for lookahead that may cross
+// the completion cursor.
 func (p *Parser) restoreTokenStream(s tokenStreamState) {
 	p.cur = s.cur
 	p.prev = s.prev
@@ -76,4 +98,15 @@ func (p *Parser) restoreTokenStream(s tokenStreamState) {
 	p.lexer.pos = s.lexerPos
 	p.lexer.start = s.lexerStart
 	p.lexer.state = s.lexerState
+}
+
+// restoreTokenStreamAndCompletion rewinds token-stream and completion state
+// captured by snapshotTokenStreamAndCompletion.
+func (p *Parser) restoreTokenStreamAndCompletion(s tokenStreamAndCompletionState) {
+	p.restoreTokenStream(s.tokenStream)
+	p.collecting = s.collecting
+	p.collectDepth = s.collectDepth
+	if p.candidates != nil && s.candidates != nil {
+		p.candidates.restore(s.candidates)
+	}
 }

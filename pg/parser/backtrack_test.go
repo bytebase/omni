@@ -75,6 +75,52 @@ func TestSnapshotRestoreIdentity(t *testing.T) {
 	}
 }
 
+func TestSnapshotRestoreCompletionState(t *testing.T) {
+	sql := "SELECT * FROM (SELECT  FROM t1) a"
+	cursor := len("SELECT * FROM (SELECT ")
+	cs := newCandidateSet()
+	p := &Parser{
+		lexer:      NewLexer(sql),
+		source:     sql,
+		completing: true,
+		cursorOff:  cursor,
+		candidates: cs,
+	}
+	p.advance()
+
+	snap := p.snapshotTokenStreamAndCompletion()
+	for p.cur.Type != lex_EOF && !p.collecting {
+		p.advance()
+	}
+	if !p.collecting {
+		t.Fatal("expected speculative walk to cross cursor")
+	}
+	p.addRuleCandidate("leaked_rule")
+	p.addTokenCandidate(SELECT)
+	p.addCTEPosition(123)
+	p.addSelectAliasPosition(456)
+
+	p.restoreTokenStreamAndCompletion(snap)
+	if p.collecting {
+		t.Fatal("expected collecting to be restored to false")
+	}
+	if cs.HasRule("leaked_rule") {
+		t.Fatal("expected rule candidates to be restored")
+	}
+	if cs.HasToken(SELECT) {
+		t.Fatal("expected token candidates to be restored")
+	}
+	if len(cs.CTEPositions) != 0 {
+		t.Fatalf("expected CTE positions to be restored, got %v", cs.CTEPositions)
+	}
+	if len(cs.SelectAliasPositions) != 0 {
+		t.Fatalf("expected select alias positions to be restored, got %v", cs.SelectAliasPositions)
+	}
+	if p.cur.Type != SELECT {
+		t.Fatalf("expected token stream to be restored to SELECT, got %d", p.cur.Type)
+	}
+}
+
 // walkTokens parses sql and returns the full token sequence (excluding EOF).
 func walkTokens(t *testing.T, sql string) []Token {
 	t.Helper()
