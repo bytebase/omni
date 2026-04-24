@@ -1,9 +1,10 @@
 # Section PS — CREATE vs ALTER path-split bugs
 
 Bugs discovered while implementing `TestScenario_PS` in
-`mysql/catalog/scenarios_ps_test.go`. These are expected failures; the
-scenario tests still run the assertion so the bugs surface in CI as
-regressions-to-fix.
+`mysql/catalog/scenarios_ps_test.go`.
+
+Status 2026-04-24: no active PS bugs remain in the scenario test suite.
+`TestScenario_PS` verifies PS.1-PS.8 against the MySQL oracle.
 
 ### PS.2 CHECK constraint counter — ALTER path uses fresh counter (regression)
 - **Discovered**: 2026-04-13
@@ -15,12 +16,8 @@ regressions-to-fix.
   ```
 - **Expected (MySQL 8.0.45)**: `[t_chk_20, t_chk_21]`. The ALTER path
   seeds the CHECK counter from the max existing generated number.
-- **Actual (omni)**: `[t_chk_1, t_chk_20]`. The ALTER path generates
-  `t_chk_1` instead of `t_chk_21`, indicating `nextCheckNumber` for
-  ALTER is NOT scanning existing CHECK names for the max suffix.
-  Confirms the status note in the dispatch prompt was optimistic;
-  omni's ALTER check-name counter needs the same max+1 logic applied to
-  FK counter in `altercmds.go` (`nextFKGeneratedNumber`).
+- **Actual (omni)**: fixed. omni generates `[t_chk_20, t_chk_21]`,
+  matching `TestScenario_PS/PS_2_Check_counter_ALTER_maxplus1`.
 - **Severity**: HIGH
 - **Fix hint**: in `mysql/catalog/altercmds.go`, the CHECK constraint
   ADD path for ALTER TABLE should call a `nextCheckGeneratedNumber`
@@ -35,7 +32,8 @@ regressions-to-fix.
 - **Expected (MySQL 8.0.45)**: `ER_INVALID_DEFAULT` (1067) — the implicit
   `NOW()` has fsp=0 but column has fsp=6, so the default cannot be
   represented losslessly.
-- **Actual (omni)**: accepts the DDL silently.
+- **Actual (omni)**: fixed. omni rejects the DDL, matching
+  `TestScenario_PS/PS_5_Datetime_fsp_mismatch_errors`.
 - **Severity**: HIGH
 - **Fix hint**: strictness / analyze gap. The check belongs near
   column default validation in `mysql/catalog/tablecmds.go` or the
@@ -58,9 +56,8 @@ regressions-to-fix.
 - **Expected (MySQL 8.0.45)**: `ER_FK_DUP_NAME` (1826) — the counter
   generates `c_ibfk_1` for the second (unnamed) FK, which collides with
   the user-named `c_ibfk_1`.
-- **Actual (omni)**: silently succeeds. The CREATE path generates a
-  non-colliding auto name because the user-named entry is NOT seeded,
-  but MySQL still rejects the collision by name.
+- **Actual (omni)**: fixed. omni rejects the duplicate FK name path,
+  matching `TestScenario_PS/PS_7_FK_name_collision_errors`.
 - **Severity**: HIGH
 - **Fix hint**: add a pre-insert collision check in the CREATE path of
   `mysql/catalog/tablecmds.go` that compares each assigned FK constraint
@@ -78,7 +75,8 @@ regressions-to-fix.
 - **Expected (MySQL 8.0.45)**: second CREATE fails with
   `ER_CHECK_CONSTRAINT_DUP_NAME` (3822). CHECK constraint names are
   schema-scoped — they must be unique across ALL tables in the schema.
-- **Actual (omni)**: both CREATE statements succeed.
+- **Actual (omni)**: fixed. omni rejects the schema-scoped duplicate
+  CHECK name, matching `TestScenario_PS/PS_8_Check_dup_name_schema_scope`.
 - **Severity**: MED
 - **Fix hint**: during CREATE/ALTER, scan all tables in the target
   database for existing CHECK constraints with the same name and reject
@@ -94,8 +92,9 @@ regressions-to-fix.
   ALTER TABLE t ADD PARTITION PARTITIONS 2;
   ```
 - **Expected (MySQL 8.0.45)**: partition names `[p0, p1, p2, p3, p4]`.
-- **Actual (omni)**: omni has no `ALTER TABLE ... ADD PARTITION` support;
-  ALTER either errors or leaves partition list unchanged.
+- **Actual (omni)**: fixed. omni applies the ADD PARTITION and produces
+  `[p0, p1, p2, p3, p4]`, matching
+  `TestScenario_PS/PS_6_Hash_partition_ADD_seeded`.
 - **Severity**: LOW (omni-wide partition ALTER gap, tracked separately)
 - **Fix hint**: add HASH partition ADD support in
   `mysql/catalog/altercmds.go`. Counter seeds from existing partition

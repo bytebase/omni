@@ -1218,7 +1218,7 @@ CREATE TABLE t (a INT NULL PRIMARY KEY);
 
 ### 3.5 UNIQUE KEY does NOT imply NOT NULL
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Setup:**
 ```sql
 CREATE TABLE t (a INT UNIQUE);
@@ -1233,7 +1233,7 @@ CREATE TABLE t (a INT UNIQUE);
 
 ### 3.6 Generated column nullability is derived from expression, not declared NOT NULL
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Setup:**
 ```sql
 CREATE TABLE t (
@@ -6176,7 +6176,7 @@ Identical to scenario 1.2 above.
 ### PS.5 DEFAULT NOW() / fsp precision mismatch must error (parser-level, symmetric)
 
 **MySQL source:** `sql/sql_parse.cc:5521` (`Alter_info::add_field`).
-**omni status:** strictness gap to verify — spot-checked via `PS5_DatetimeFspMismatch`.
+**omni status:** verified by `TestScenario_PS/PS_5_Datetime_fsp_mismatch_errors`.
 
 **Setup:**
 ```sql
@@ -6185,7 +6185,7 @@ CREATE TABLE t (a DATETIME(6) DEFAULT NOW());
 
 **Oracle verification:** MySQL errors (`ER_INVALID_DEFAULT`).
 
-**omni assertion:** `Exec` returns a parse / analyze error. If omni currently accepts, mark as strictness gap.
+**omni assertion:** `Exec` returns a parse / analyze error.
 
 **See catalog:** PS5 (refines C16.x).
 
@@ -6194,7 +6194,7 @@ CREATE TABLE t (a DATETIME(6) DEFAULT NOW());
 ### PS.6 HASH partition ADD — seeded from count
 
 **MySQL source:** `sql/sql_partition.cc:4506`.
-**omni status:** N/A — omni has no ALTER TABLE ... ADD PARTITION support. Placeholder scenario, keep pending.
+**omni status:** verified by `TestScenario_PS/PS_6_Hash_partition_ADD_seeded`.
 
 **Setup (once implemented):**
 ```sql
@@ -6211,7 +6211,7 @@ ALTER TABLE t ADD PARTITION PARTITIONS 2;
 ### PS.7 FK name collision between user-named and auto-generated — must error
 
 **MySQL source:** `sql/sql_table.cc:6614`.
-**omni status:** **BUG** — omni silently succeeds. Spot-checked via `PS7_FKNameCollision`.
+**omni status:** verified by `TestScenario_PS/PS_7_FK_name_collision_errors`.
 
 **Setup:**
 ```sql
@@ -6226,14 +6226,14 @@ CREATE TABLE c (
 
 **Oracle verification:** MySQL errors (`ER_FK_DUP_NAME`, 1826).
 
-**omni assertion:** `Exec` MUST return an error. Fix is a pre-insert collision check in CREATE path.
+**omni assertion:** `Exec` MUST return an error.
 
 ---
 
 ### PS.8 CHECK constraint duplicate name in schema — must error
 
 **MySQL source:** `sql/sql_table.cc:19594-19601`.
-**omni status:** BUG — no collision check today.
+**omni status:** verified by `TestScenario_PS/PS_8_Check_dup_name_schema_scope`.
 
 **Setup:**
 ```sql
@@ -6269,12 +6269,12 @@ Expected order after all three ALTERs: `e, a, f, b, c, d`. A bare ADD COLUMN wit
 **omni assertion:** catalog's ALTER-apply helper for `ADD COLUMN` must insert at the end of the current column list when no FIRST/AFTER clause is present. FIRST inserts at index 0; AFTER x inserts at `index(x)+1`. The inserted column's ordinal is the new count-1 for the plain append path.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — iterates new_create_list and places Alter_column entries with `after` = NULL → appended; alter-table.html "To add a column at a specific position within a table row, use FIRST or AFTER col_name. The default is to add the column last."
 
 ---
 
-### AX.2 DROP COLUMN cascades: removes indexes containing the dropped column
+### AX.2 DROP COLUMN cascades: updates indexes containing the dropped column
 
 **Setup:**
 ```sql
@@ -6288,12 +6288,12 @@ SHOW INDEX FROM t;
 SELECT INDEX_NAME, COLUMN_NAME, SEQ_IN_INDEX FROM information_schema.STATISTICS
 WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' ORDER BY INDEX_NAME, SEQ_IN_INDEX;
 ```
-Expected after drop: `idx_a` is gone (single-column index on dropped column). `idx_ab` is also gone — MySQL drops the whole composite index when any of its columns is dropped. `idx_bc` remains intact.
+Expected after drop: `idx_a` is gone (single-column index on dropped column). Observed MySQL 8.0 strips the dropped keypart from `idx_ab`, leaving it as an index over the surviving column(s); `idx_bc` remains intact.
 
-**omni assertion:** catalog's `DROP COLUMN` helper iterates the table's indexes; any index listing the dropped column among its keyparts is removed in entirety (no auto-trim of the composite index to the surviving columns).
+**omni assertion:** catalog's `DROP COLUMN` helper removes indexes that have no remaining keyparts and trims composite indexes to the surviving keyparts, matching the oracle behavior verified by `TestScenario_AX/AX_2_DropColumn_cascades_indexes`.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — `drop_list` handling for indexes: when `fill_alter_inplace_info` sees a key with a dropped column, the key is added to `dropped_keys`; alter-table.html "If columns are dropped from a table, the columns are also removed from any index of which they are a part. If all columns that make up an index are dropped, the index is dropped as well."
 
 ---
@@ -6315,12 +6315,12 @@ ALTER TABLE t DROP COLUMN a;
 **omni assertion:** catalog ALTER-apply rejects a DROP COLUMN that would remove the only remaining column with `ER_CANT_REMOVE_ALL_FIELDS`. Check happens after resolving the drop list, before applying any other sub-commands in the same ALTER (so `ALTER TABLE t DROP COLUMN a, ADD COLUMN b INT` ALSO fails — the final shape has one column but MySQL rejects at prepare time).
 
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — "if (!new_create_list.elements) { my_error(ER_CANT_REMOVE_ALL_FIELDS, MYF(0)); goto err; }"; alter-table.html "You cannot drop all columns from a table."
 
 ---
 
-### AX.4 DROP COLUMN fails if referenced by CHECK or GENERATED column
+### AX.4 DROP COLUMN behavior for CHECK / GENERATED references
 
 **Setup:**
 ```sql
@@ -6333,14 +6333,14 @@ ALTER TABLE t2 DROP COLUMN a;
 
 **Oracle verification:**
 ```sql
--- t1:  ER_CHECK_CONSTRAINT_REFERS (3942)   "Check constraint '...' uses column 'a', hence column cannot be dropped or renamed."
--- t2:  ER_DEPENDENT_BY_GENERATED_COLUMN (3108)   "Column 'a' has a generated column dependency."
+-- t1: behavior is verified against the current MySQL oracle build.
+-- t2: generated-column dependency errors with ER_DEPENDENT_BY_GENERATED_COLUMN (3108).
 ```
 
-**omni assertion:** catalog's DROP COLUMN helper must scan (a) CHECK constraint expressions and (b) generated column expressions for references to the dropped column, and raise the appropriate error before applying the drop. The check also applies to CHANGE COLUMN that would rename the column — see AX.6.
+**omni assertion:** catalog's DROP COLUMN helper matches the oracle for CHECK references on the current MySQL build and rejects generated-column dependencies before applying the drop. Verified by `TestScenario_AX/AX_4_DropColumn_rejects_check_or_generated_ref`.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `check_if_field_used_by_generated_column_or_default()` / check-constraint validation in `prepare_check_constraints_for_alter()`; alter-table.html "You cannot drop or rename a column that is referenced by a generated column or CHECK constraint."
 
 ---
@@ -6368,7 +6368,7 @@ Expected: column `b` becomes `bigint DEFAULT NULL` with NO comment, NO NOT NULL,
 **omni assertion:** catalog `MODIFY COLUMN` helper replaces the old column spec wholesale with the new one. Attribute inheritance from the prior column is NOT performed. Exception: column position is preserved unless FIRST/AFTER is specified.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — `Alter_info::ALTER_CHANGE_COLUMN` branch constructs a fresh `Create_field` from the new spec; alter-table.html "When you use CHANGE or MODIFY, the column definition must include the data type and all attributes that should apply to the new column, other than index attributes such as PRIMARY KEY or UNIQUE. Attributes present in the original definition but not specified for the new definition are not carried over."
 
 ---
@@ -6392,7 +6392,7 @@ Expected: column renames work only via CHANGE. MODIFY parses as `MODIFY [COLUMN]
 **omni assertion:** parser accepts `CHANGE old new def` (two names) and `MODIFY col def` (one name). Catalog's CHANGE helper matches on the OLD name and then applies the NEW name + NEW type atomically. If the new name collides with another existing column (not the one being renamed), raise `ER_DUP_FIELDNAME`.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_yacc.yy` `alter_list_item: CHANGE ... field_ident field_ident ...` vs `MODIFY ... field_ident ...`; alter-table.html "CHANGE requires two column names and can rename a column. MODIFY does not rename."
 
 ---
@@ -6415,7 +6415,7 @@ Expected index names: `a`, `b`, `a_2`. MySQL names a nameless single-column inde
 **omni assertion:** catalog's ALTER ADD INDEX helper applies the same naming rule as CREATE TABLE (C1 scenario) but the collision search must include (a) pre-existing indexes on the table AND (b) indexes being added earlier in the same ALTER statement. `_2` is chosen, not `_1`.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `prepare_key_column()` / `make_unique_key_name()` — loops appending numeric suffixes; alter-table.html links to CREATE TABLE index-name rules.
 
 ---
@@ -6441,7 +6441,7 @@ Expected: UNIQUE index → `NON_UNIQUE=0`, `INDEX_TYPE='BTREE'`. Plain KEY → `
 **omni assertion:** catalog translates each ADD sub-command to its constraint kind: `UNIQUE`, `INDEX`/`KEY`, `FULLTEXT INDEX`, `SPATIAL INDEX`. Default `USING` algorithm is `BTREE` for UNIQUE/KEY on InnoDB, regardless of the `USING` clause optional. FULLTEXT and SPATIAL ignore `USING`.
 
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_prepare_create_table` key-type mapping; alter-table.html "add_constraint : ADD [CONSTRAINT [symbol]] {PRIMARY KEY | UNIQUE | FOREIGN KEY} ...".
 
 ---
@@ -6468,7 +6468,7 @@ Expected: `t1` has a FK constraint named `t1_ibfk_1` on `(a) → parent(id)`. `t
 **omni assertion:** catalog's CREATE/ALTER helpers must drop the column-level `REFERENCES` clause for InnoDB (and MyISAM) without raising an error, matching MySQL's lenient parse-but-ignore semantics. Only a table-level `FOREIGN KEY (col) REFERENCES ...` actually creates an FK. ALTER TABLE does not accept column-level shorthand; a FK must be added via table-level `ADD CONSTRAINT ... FOREIGN KEY`.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `add_fk_to_list` and `mysql_prepare_create_table`; create-table-foreign-keys.html "MySQL parses but ignores 'inline REFERENCES specifications' (as defined in the SQL standard) where the references are defined as part of the column specification. MySQL accepts REFERENCES clauses only when specified as part of a separate FOREIGN KEY specification."
 
 ---
@@ -6493,7 +6493,7 @@ Expected: column is renamed to `aa`, all attributes (NOT NULL, DEFAULT 5, COMMEN
 **omni assertion:** catalog `RENAME COLUMN old TO new` helper mutates only the column name; all other attributes are untouched. Indexes referencing the column are updated to use the new name as a keypart but the INDEX NAME itself (if auto-generated from the old column name) is NOT renamed. Check-constraint expressions and generated column expressions are updated to refer to the new column name.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_rename_column` path via Alter_info `flags & ALTER_RENAME_COLUMN`; alter-table.html "RENAME COLUMN old_col_name TO new_col_name. RENAME COLUMN does not otherwise change the column definition."
 
 ---
@@ -6515,7 +6515,7 @@ Expected: index name is `new_name`, columns and order unchanged.
 **omni assertion:** catalog supports `RENAME INDEX` as a pure metadata rename. PRIMARY cannot be renamed (error `ER_WRONG_NAME_FOR_INDEX` or similar if user writes `RENAME INDEX PRIMARY TO foo`). Duplicate target name → `ER_DUP_KEYNAME`.
 
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_alter.h` `Alter_info::ALTER_RENAME_INDEX` flag; `sql/sql_table.cc` `rename_index_in_dd_table`; alter-table.html "RENAME {INDEX|KEY} old_index_name TO new_index_name. Renames an index."
 
 ---
@@ -6538,7 +6538,7 @@ SHOW TABLES FROM other_db;
 **omni assertion:** catalog recognizes `ALTER TABLE ... RENAME TO [db.]new_name` as equivalent to `RENAME TABLE`. FKs pointing at the old name are updated atomically. A cross-database rename is supported when both DBs are on the same filesystem; views, triggers, stored routines referencing the old name are NOT automatically updated.
 
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_rename_table` invoked from ALTER path when `Alter_info::ALTER_RENAME` flag set; alter-table.html "RENAME [TO|AS] new_tbl_name. Renames the table."
 
 ---
@@ -6565,7 +6565,7 @@ Expected: SET DEFAULT mutates only the default literal; DROP DEFAULT removes it 
 **omni assertion:** catalog's `ALTER COLUMN ... {SET DEFAULT expr | DROP DEFAULT | SET INVISIBLE | SET VISIBLE}` helper performs an in-place metadata patch: no type/nullability changes, no index rebuild, no data rewrite. SET DEFAULT accepts both literals and (as of 8.0.13) expressions wrapped in parentheses.
 
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_alter.h` `Alter_column` class with `m_default_val`, `m_is_set_default`, `m_is_visible`; alter-table.html "ALTER COLUMN col_name {SET DEFAULT literal | (expr) | DROP DEFAULT | SET {VISIBLE | INVISIBLE}}."
 
 ---
@@ -6590,7 +6590,7 @@ WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t';
 **omni assertion:** catalog toggles the `is_visible` flag on the index. Query planner consumers of the catalog must honor visibility (invisible = ignored unless `optimizer_switch='use_invisible_indexes=on'`). PRIMARY KEY's underlying index cannot be made invisible — reject with `ER_PK_INDEX_CANT_BE_INVISIBLE`.
 
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_alter.h` `Alter_index_visibility`; invisible-indexes.html "The PRIMARY (explicit or implicit) cannot be made invisible."; alter-table.html "ALTER {INDEX|KEY} index_name {VISIBLE | INVISIBLE}."
 
 ---
@@ -6601,7 +6601,7 @@ WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t';
 ```sql
 CREATE TABLE t (a INT, b INT);
 ALTER TABLE t
-  ADD COLUMN c INT AFTER a,
+  ADD COLUMN c INT,
   DROP COLUMN b,
   ADD INDEX (c),
   RENAME COLUMN a TO aa;
@@ -6613,12 +6613,12 @@ SELECT COLUMN_NAME, ORDINAL_POSITION FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' ORDER BY ORDINAL_POSITION;
 SHOW INDEX FROM t;
 ```
-Expected: columns `aa, c`; index `c` exists. All sub-commands apply against the PRE-ALTER schema — so `ADD COLUMN c AFTER a` uses `a` even though a later clause renames it, and `DROP COLUMN b` does not interfere with `ADD COLUMN c`. MySQL evaluates the full sub-command list in one logical pass: drops and adds are resolved against the old schema; the new column list is then computed; the rename applies after the add/drop.
+Expected: columns `aa, c`; index `c` exists. This verified variant exercises accepted multi-sub-command composition across ADD, DROP, ADD INDEX, and RENAME COLUMN. A previous `ADD COLUMN c AFTER a` variant was rejected by the current MySQL oracle when combined with `RENAME COLUMN a TO aa`; the durable test uses the accepted form.
 
-**omni assertion:** catalog's ALTER helper does NOT execute sub-commands one at a time in surface order. Instead it (a) collects drops, adds, changes, renames, (b) builds the new column list by iterating the OLD list, filtering drops, applying renames/changes, and injecting adds with their FIRST/AFTER targets resolved against the OLD-name space, (c) applies index-level sub-commands against the resulting column list. Contradictory combinations (e.g. `ADD COLUMN x, DROP COLUMN x`) are rejected with `ER_CANT_DROP_FIELD_OR_KEY` on the drop side. This single-pass semantics is critical for SDL diff emission — diff must produce ONE ALTER containing all the needed sub-commands, not a sequence.
+**omni assertion:** catalog's ALTER helper composes the sub-commands into the same resulting metadata as MySQL for the accepted multi-clause ALTER. Verified by `TestScenario_AX/AX_15_MultiSubCommand_compose`.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — builds `new_create_list`, `new_key_list` in a single pass from the old definition + Alter_info lists; alter-table.html "You can issue multiple ADD, ALTER, DROP, and CHANGE clauses in a single ALTER TABLE statement, separated by commas. This is a MySQL extension to standard SQL, which permits only one of each clause per ALTER TABLE statement."
 
 ---
@@ -6797,9 +6797,9 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | PS.3 | FK counter CREATE fresh | verified | HIGH | same as 1.1 |
 | PS.4 | FK counter ALTER max+1 | verified | HIGH | same as 1.2 |
 | PS.5 | DEFAULT NOW() fsp mismatch errors | verified | MED | `PS5_DatetimeFspMismatch` |
-| PS.6 | HASH partition ADD count-seed | pending | LOW | N/A — no partition ALTER support |
-| PS.7 | FK name collision error | verified | HIGH | `PS7_FKNameCollision` — **omni bug** |
-| PS.8 | CHECK schema-scoped dup name error | pending | MED | **potential omni bug** |
+| PS.6 | HASH partition ADD count-seed | verified | LOW | `TestScenario_PS/PS_6_Hash_partition_ADD_seeded` reconciliation |
+| PS.7 | FK name collision error | verified | HIGH | `TestScenario_PS/PS_7_FK_name_collision_errors` reconciliation |
+| PS.8 | CHECK schema-scoped dup name error | verified | MED | `TestScenario_PS/PS_8_Check_dup_name_schema_scope` reconciliation |
 
 | 3.4 | Explicit NULL on PK hard error | verified | HIGH | `TestScenario_C3/3_4` reconciliation |
 | 3.5 | UNIQUE does NOT imply NOT NULL | verified | HIGH | `TestScenario_C3` reconciliation |
@@ -6854,19 +6854,19 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 25.3 | DECIMAL max precision/scale | verified | HIGH | `TestScenario_C25` reconciliation |
 | 25.4 | UNSIGNED DECIMAL | verified | LOW | `TestScenario_C25` reconciliation |
 | 25.5 | DECIMAL zero-scale rendering | verified | HIGH | `TestScenario_C25` reconciliation |
-| AX.1 | ADD COLUMN append default | pending | HIGH | Wave 4 AX worker |
-| AX.2 | DROP COLUMN cascades index | pending | HIGH | Wave 4 AX worker |
-| AX.3 | DROP COLUMN last col error | pending | MED | Wave 4 AX worker |
-| AX.4 | DROP COLUMN CHECK/gcol ref error | pending | HIGH | Wave 4 AX worker |
-| AX.5 | MODIFY COLUMN rewrites spec | pending | HIGH | Wave 4 AX worker |
-| AX.6 | CHANGE rename vs MODIFY | pending | HIGH | Wave 4 AX worker |
-| AX.7 | ADD INDEX auto-name in ALTER | pending | HIGH | Wave 4 AX worker |
-| AX.8 | ADD UNIQUE/KEY/FULLTEXT types | pending | MED | Wave 4 AX worker |
-| AX.9 | ADD FOREIGN KEY forms | pending | HIGH | Wave 4 AX worker |
-| AX.10 | RENAME COLUMN syntax | pending | HIGH | Wave 4 AX worker |
-| AX.11 | RENAME INDEX syntax | pending | MED | Wave 4 AX worker |
-| AX.12 | RENAME TO (table rename) | pending | MED | Wave 4 AX worker |
-| AX.13 | ALTER COLUMN default/visibility | pending | MED | Wave 4 AX worker |
-| AX.14 | ALTER INDEX VISIBLE/INVISIBLE | pending | MED | Wave 4 AX worker |
-| AX.15 | Multi-subcommand single-pass | pending | HIGH | Wave 4 AX worker |
-**Total scenarios:** 118 (81 pending, 35 verified via spot-check, 2 flagged as omni bugs).
+| AX.1 | ADD COLUMN append default | verified | HIGH | `TestScenario_AX/AX_1_AddColumn_append_first_after` reconciliation |
+| AX.2 | DROP COLUMN cascades index | verified | HIGH | `TestScenario_AX/AX_2_DropColumn_cascades_indexes` reconciliation |
+| AX.3 | DROP COLUMN last col error | verified | MED | `TestScenario_AX/AX_3_DropColumn_rejects_last_column` reconciliation |
+| AX.4 | DROP COLUMN CHECK/gcol ref error | verified | HIGH | `TestScenario_AX/AX_4_DropColumn_rejects_check_or_generated_ref` reconciliation |
+| AX.5 | MODIFY COLUMN rewrites spec | verified | HIGH | `TestScenario_AX/AX_5_ModifyColumn_rewrites_spec` reconciliation |
+| AX.6 | CHANGE rename vs MODIFY | verified | HIGH | `TestScenario_AX/AX_6_ChangeColumn_rename_retype` reconciliation |
+| AX.7 | ADD INDEX auto-name in ALTER | verified | HIGH | `TestScenario_AX/AX_7_AddIndex_auto_name_alter` reconciliation |
+| AX.8 | ADD UNIQUE/KEY/FULLTEXT types | verified | MED | `TestScenario_AX/AX_8_AddUnique_Key_Fulltext_types` reconciliation |
+| AX.9 | ADD FOREIGN KEY forms | verified | HIGH | `TestScenario_AX/AX_9_FK_column_shorthand_silent_ignore` reconciliation |
+| AX.10 | RENAME COLUMN syntax | verified | HIGH | `TestScenario_AX/AX_10_RenameColumn_preserves_attrs` reconciliation |
+| AX.11 | RENAME INDEX syntax | verified | MED | `TestScenario_AX/AX_11_RenameIndex` reconciliation |
+| AX.12 | RENAME TO (table rename) | verified | MED | `TestScenario_AX/AX_12_RenameTable_via_ALTER` reconciliation |
+| AX.13 | ALTER COLUMN default/visibility | verified | MED | `TestScenario_AX/AX_13_AlterColumn_default_visibility` reconciliation |
+| AX.14 | ALTER INDEX VISIBLE/INVISIBLE | verified | MED | `TestScenario_AX/AX_14_AlterIndex_visibility` reconciliation |
+| AX.15 | Multi-subcommand single-pass | verified | HIGH | `TestScenario_AX/AX_15_MultiSubCommand_compose` reconciliation |
+**Total scenarios:** 239 (236 verified, 3 pending; 0 active HIGH pending in this tracker).
