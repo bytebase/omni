@@ -1202,7 +1202,7 @@ Expected: `NO`.
 
 ### 3.4 Explicit NULL on PRIMARY KEY column is a hard error
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Setup:**
 ```sql
 CREATE TABLE t (a INT NULL PRIMARY KEY);
@@ -1212,6 +1212,7 @@ CREATE TABLE t (a INT NULL PRIMARY KEY);
 **Oracle:** MySQL returns error 1171 (`ER_PRIMARY_CANT_HAVE_NULL`).
 **omni pointer:** `mysql/catalog/tablecmds.go` create-path must reject explicit NULL + PK combination; `mysql/catalog/altercmds.go` `alterColumnSetNotNull`. Check if omni currently silently coerces.
 **omni assertion:** `Exec` returns error; catalog unchanged.
+**omni status 2026-04-24:** verified by `TestScenario_C3/3_4`.
 
 ---
 
@@ -6632,15 +6633,15 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 1.2 | FK name ALTER max+1 | verified | HIGH | spot-check |
 | 1.3 | Partition default naming p0..pN | verified | MED | `C1_2_partition_naming` |
 | 1.4 | CHECK constraint auto-name | verified | MED | `C1_3_CheckConstraintName` |
-| 1.5 | UNIQUE KEY field-name | pending | LOW | trivial |
-| 1.6 | UNIQUE KEY name collision _2 | pending | LOW | |
-| 1.7 | PRIMARY KEY name forced "PRIMARY" | pending-verify | HIGH | Wave 2 C1 worker |
-| 1.8 | Non-PK index cannot be named PRIMARY | pending-verify | MED | Wave 2 C1 worker |
-| 1.9 | Implicit index name from first column | pending-verify | HIGH | Wave 2 C1 worker |
-| 1.10 | UNIQUE fallback when column literally "PRIMARY" | pending-verify | LOW | Wave 2 C1 worker |
+| 1.5 | UNIQUE KEY field-name | verified | LOW | `TestScenario_C1` reconciliation |
+| 1.6 | UNIQUE KEY name collision _2 | verified | LOW | `TestScenario_C1` reconciliation |
+| 1.7 | PRIMARY KEY name forced "PRIMARY" | verified | HIGH | `TestScenario_C1/1_7` reconciliation |
+| 1.8 | Non-PK index cannot be named PRIMARY | verified | MED | `TestScenario_C1` reconciliation |
+| 1.9 | Implicit index name from first column | verified | HIGH | `TestScenario_C1/1_9` reconciliation |
+| 1.10 | UNIQUE fallback when column literally "PRIMARY" | verified | LOW | `TestScenario_C1` reconciliation |
 | 1.11 | Functional index auto-name collision suffix | verified | MED | `TestScenario_C1/1_11` |
 | 1.12 | Functional index hidden column name format | verified | MED | `TestScenario_C1/1_12` |
-| 1.13 | CHECK constraint name is schema-scoped | pending-verify | HIGH | Wave 2 C1 worker |
+| 1.13 | CHECK constraint name is schema-scoped | verified | HIGH | `TestScenario_C1/1_13` reconciliation |
 | 2.1 | REAL → DOUBLE | verified | LOW | `C2_1_REAL_to_DOUBLE` |
 | 2.2 | BOOL → TINYINT(1) | verified | LOW | `C2_2_BOOL_to_TINYINT1` |
 | 2.3 | INTEGER → INT | verified | LOW | `TestScenario_C2` reconciliation |
@@ -6648,100 +6649,100 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 2.5 | INT1/INT2/INT3/INT4/INT8 aliases | verified | LOW | `TestScenario_C2` reconciliation |
 | 2.6 | MIDDLEINT → MEDIUMINT | verified | LOW | `TestScenario_C2` reconciliation |
 | 2.7 | INT(11) display width stripped | verified | HIGH | `TestScenario_C2` reconciliation |
-| 2.8 | INT(N) ZEROFILL preserves width | pending | HIGH | Wave 1 C2 worker |
+| 2.8 | INT(N) ZEROFILL preserves width | verified | HIGH | `TestScenario_C2/2_8` reconciliation |
 | 2.9 | SERIAL composite alias | verified | HIGH | `TestScenario_C2` reconciliation |
 | 2.10 | NUMERIC → DECIMAL | verified | LOW | `TestScenario_C2` reconciliation |
 | 2.11 | DEC / FIXED → DECIMAL | verified | LOW | `TestScenario_C2` reconciliation |
 | 2.12 | DOUBLE PRECISION → DOUBLE | verified | LOW | `TestScenario_C2` reconciliation |
 | 2.13 | FLOAT4 → FLOAT, FLOAT8 → DOUBLE | verified | LOW | `TestScenario_C2` reconciliation |
-| 2.14 | FLOAT(p) precision split | pending-verify | HIGH | Wave 1 C2 worker |
+| 2.14 | FLOAT(p) precision split | verified | HIGH | `TestScenario_C2/2_14` reconciliation |
 | 2.15 | FLOAT(M,D) deprecated non-standard | verified | MED | `TestScenario_C2` reconciliation |
-| 2.16 | CHARACTER / CHARACTER VARYING | pending | LOW | Wave 1 C2 worker |
+| 2.16 | CHARACTER / CHARACTER VARYING | verified | LOW | `TestScenario_C2` reconciliation |
 | 2.17 | NATIONAL CHAR / NCHAR utf8mb3 | verified | MED | `TestScenario_C2` reconciliation |
-| 2.18 | NVARCHAR / NCHAR VARYING utf8mb3 | pending-verify | MED | Wave 1 C2 worker |
+| 2.18 | NVARCHAR / NCHAR VARYING utf8mb3 | verified | MED | `TestScenario_C2` reconciliation |
 | 2.19 | LONG / LONG VARCHAR → MEDIUMTEXT | verified | LOW | `TestScenario_C2` reconciliation |
 | 2.20 | CHAR / BINARY default length 1 | verified | MED | `TestScenario_C2` reconciliation |
-| 2.21 | VARCHAR without length syntax error | pending-verify | MED | Wave 1 C2 worker |
+| 2.21 | VARCHAR without length syntax error | verified | MED | `TestScenario_C2` reconciliation |
 | 2.22 | TIMESTAMP/DATETIME/TIME default fsp 0 | verified | MED | `TestScenario_C2` reconciliation |
 | 2.23 | YEAR(4) deprecated → bare YEAR | verified | MED | `TestScenario_C2` reconciliation |
-| 2.24 | BIT without length defaults to BIT(1) | pending-verify | HIGH | Wave 1 C2 worker |
-| 2.25 | VARCHAR > 65535 → TEXT family | pending-verify | MED | Wave 1 C2 worker |
-| 2.26 | TEXT(N)/BLOB(N) byte-count promotion | pending-verify | HIGH | Wave 1 C2 worker |
+| 2.24 | BIT without length defaults to BIT(1) | verified | HIGH | `TestScenario_C2/2_24` reconciliation |
+| 2.25 | VARCHAR > 65535 → TEXT family | verified | MED | `TestScenario_C2` reconciliation |
+| 2.26 | TEXT(N)/BLOB(N) byte-count promotion | verified | HIGH | `TestScenario_C2/2_26` reconciliation |
 | 3.1 | TIMESTAMP first-only promotion | verified | HIGH | `C3_1_timestamp_first_only_promotion` — omni risk |
 | 3.2 | PRIMARY KEY → NOT NULL | verified | MED | `C3_2_primary_key_implies_not_null` |
 | 3.3 | AUTO_INCREMENT → NOT NULL | verified | MED | `C3_3_AutoIncrement_implies_NOT_NULL` |
 | 4.1 | Table charset from database | verified | HIGH | `C4_1_table_charset_from_database` |
 | 4.2 | Column charset inherits + elided | verified | MED | `C4_2_and_C18_1_and_C18_5_charset_inheritance_and_elision` |
-| 4.3 | Column COLLATE alone derives CHARACTER SET | pending | HIGH | Wave 2 C4 worker |
-| 4.4 | Column CHARACTER SET alone derives default collation | pending | HIGH | Wave 2 C4 worker |
-| 4.5 | Table COLLATE/CHARSET mismatch rejected | pending | HIGH | Wave 2 C4 worker |
-| 4.6 | BINARY attribute → {charset}_bin collation | pending | HIGH | Wave 2 C4 worker |
-| 4.7 | CHARACTER SET binary vs BINARY type | pending | MED | Wave 2 C4 worker |
-| 4.8 | utf8 alias normalized to utf8mb3 | pending | HIGH | Wave 2 C4 worker |
-| 4.9 | NATIONAL / NCHAR hard-wired to utf8mb3 | pending | MED | Wave 2 C4 worker |
-| 4.10 | ENUM/SET charset inheritance | pending | HIGH | Wave 2 C4 worker |
-| 4.11 | Index prefix length × mbmaxlen | pending | HIGH | Wave 2 C4 worker |
-| 4.12 | Collation derivation aggregation | pending | MED | Wave 2 C4 worker |
+| 4.3 | Column COLLATE alone derives CHARACTER SET | verified | HIGH | `TestScenario_C4` reconciliation |
+| 4.4 | Column CHARACTER SET alone derives default collation | verified | HIGH | `TestScenario_C4` reconciliation |
+| 4.5 | Table COLLATE/CHARSET mismatch rejected | verified | HIGH | `TestScenario_C4` reconciliation |
+| 4.6 | BINARY attribute → {charset}_bin collation | verified | HIGH | `TestScenario_C4` reconciliation |
+| 4.7 | CHARACTER SET binary vs BINARY type | verified | MED | `TestScenario_C4` reconciliation |
+| 4.8 | utf8 alias normalized to utf8mb3 | verified | HIGH | `TestScenario_C4` reconciliation |
+| 4.9 | NATIONAL / NCHAR hard-wired to utf8mb3 | verified | MED | `TestScenario_C4` reconciliation |
+| 4.10 | ENUM/SET charset inheritance | verified | HIGH | `TestScenario_C4` reconciliation |
+| 4.11 | Index prefix length × mbmaxlen | verified | HIGH | `TestScenario_C4` reconciliation |
+| 4.12 | Collation derivation aggregation | verified | MED | `TestScenario_C4` reconciliation |
 | 5.1 | FK ON DELETE default NO ACTION | verified | HIGH | `C5_1_fk_on_delete_default` — reporting discrepancy |
-| 5.2 | FK SET NULL on NOT NULL errors | pending | MED | |
+| 5.2 | FK SET NULL on NOT NULL errors | verified | MED | `TestScenario_C5` reconciliation |
 | 5.3 | FK MATCH default NONE | verified | MED | `C5_3_FK_MATCH_default` |
 | 6.1 | HASH PARTITIONS defaults to 1 | verified | MED | `C6_1_Partition_default_count` |
 | 6.2 | Subpartition count default 1 | verified | MED | `C6_2_Subpartition_count` |
-| 6.3 | Partition engine inherits | pending | LOW | |
-| 6.4 | KEY partitioning ALGORITHM defaults to 2 | pending | HIGH | Wave 1 C6 worker |
-| 6.5 | KEY() empty list defaults to PRIMARY KEY cols | pending | HIGH | Wave 1 C6 worker |
-| 6.6 | LINEAR HASH / LINEAR KEY preserved | pending | LOW | Wave 1 C6 worker |
-| 6.7 | RANGE/LIST require explicit definitions | pending | HIGH | Wave 1 C6 worker |
-| 6.8 | MAXVALUE only in last RANGE partition | pending | MED | Wave 1 C6 worker |
-| 6.9 | LIST equality vs RANGE strict less-than | pending | LOW | Wave 1 C6 worker |
+| 6.3 | Partition engine inherits | verified | LOW | `TestScenario_C6` reconciliation |
+| 6.4 | KEY partitioning ALGORITHM defaults to 2 | verified | HIGH | `TestScenario_C6/6_4` reconciliation |
+| 6.5 | KEY() empty list defaults to PRIMARY KEY cols | verified | HIGH | `TestScenario_C6/6_5` reconciliation |
+| 6.6 | LINEAR HASH / LINEAR KEY preserved | verified | LOW | `TestScenario_C6` reconciliation |
+| 6.7 | RANGE/LIST require explicit definitions | verified | HIGH | `TestScenario_C6/6_7` reconciliation |
+| 6.8 | MAXVALUE only in last RANGE partition | verified | MED | `TestScenario_C6` reconciliation |
+| 6.9 | LIST equality vs RANGE strict less-than | verified | LOW | `TestScenario_C6` reconciliation |
 | 6.10 | LIST DEFAULT partition catch-all | pending | MED | Wave 1 C6 worker |
-| 6.11 | Partition function must return INTEGER | pending | HIGH | Wave 1 C6 worker |
-| 6.12 | TIMESTAMP requires UNIX_TIMESTAMP() wrap | pending | MED | Wave 1 C6 worker |
-| 6.13 | UNIQUE/PK must contain partition cols | pending | HIGH | Wave 1 C6 worker |
-| 6.14 | Per-partition options not inherited | pending | MED | Wave 1 C6 worker |
-| 6.15 | Subpartition options inherit from parent | pending | LOW | Wave 1 C6 worker |
-| 6.16 | ADD PARTITION auto-naming seeds from count | pending | LOW | Wave 1 C6 worker |
-| 6.17 | COALESCE/REORGANIZE partition behavior | pending | LOW | Wave 1 C6 worker |
+| 6.11 | Partition function must return INTEGER | verified | HIGH | `TestScenario_C6/6_11` reconciliation |
+| 6.12 | TIMESTAMP requires UNIX_TIMESTAMP() wrap | verified | MED | `TestScenario_C6` reconciliation |
+| 6.13 | UNIQUE/PK must contain partition cols | verified | HIGH | `TestScenario_C6/6_13` reconciliation |
+| 6.14 | Per-partition options not inherited | verified | MED | `TestScenario_C6` reconciliation |
+| 6.15 | Subpartition options inherit from parent | verified | LOW | `TestScenario_C6` reconciliation |
+| 6.16 | ADD PARTITION auto-naming seeds from count | verified | LOW | `TestScenario_C6` reconciliation |
+| 6.17 | COALESCE/REORGANIZE partition behavior | verified | LOW | `TestScenario_C6` reconciliation |
 | 7.1 | Default index algorithm BTREE | verified | MED | `C7_1_Default_index_algorithm_BTREE` |
 | 7.2 | FK backing index implicit | verified | MED | `C7_2_FK_backing_index` |
-| 7.3 | HASH on InnoDB silently coerced to BTREE | pending | MED | Wave 2 C7 worker |
+| 7.3 | HASH on InnoDB silently coerced to BTREE | verified | MED | `TestScenario_C7` reconciliation |
 | 7.4 | USING BTREE explicit vs implicit rendering | verified | MED | `TestScenario_C7` reconciliation |
 | 7.5 | UNIQUE on nullable allows multiple NULLs | verified | HIGH | `TestScenario_C7` reconciliation |
-| 7.6 | VISIBLE default; PK cannot be INVISIBLE | pending | MED | Wave 2 C7 worker |
-| 7.7 | BLOB/TEXT index requires prefix length | pending | HIGH | Wave 2 C7 worker |
-| 7.8 | FULLTEXT default parser when WITH PARSER omitted | pending | MED | Wave 2 C7 worker |
-| 7.9 | SPATIAL requires NOT NULL; no USING BTREE/HASH | pending | HIGH | Wave 2 C7 worker |
+| 7.6 | VISIBLE default; PK cannot be INVISIBLE | verified | MED | `TestScenario_C7` reconciliation |
+| 7.7 | BLOB/TEXT index requires prefix length | verified | HIGH | `TestScenario_C7` reconciliation |
+| 7.8 | FULLTEXT default parser when WITH PARSER omitted | verified | MED | `TestScenario_C7` reconciliation |
+| 7.9 | SPATIAL requires NOT NULL; no USING BTREE/HASH | verified | HIGH | `TestScenario_C7` reconciliation |
 | 7.10 | PRIMARY and UNIQUE on same columns both persist | verified | MED | `TestScenario_C7` reconciliation |
 | 8.1 | Engine default InnoDB | verified | MED | `C8_1_Default_engine_InnoDB` |
 | 8.2 | ROW_FORMAT default DYNAMIC | verified | MED | `C8_2_Default_row_format` |
 | 8.3 | AUTO_INCREMENT starts at 1 | verified | MED | covered by 18.4 spot-check |
 | 9.1 | Generated column VIRTUAL default | verified | LOW | `C9_1_GeneratedColumn_default_VIRTUAL` |
-| 9.2 | FK on generated column errors | pending | LOW | |
+| 9.2 | FK on generated column errors | verified | LOW | `TestScenario_C9` reconciliation |
 | 10.1 | View ALGORITHM/CHECK/SECURITY defaults | verified | MED | `C10_1_3_4_View_defaults` |
 | 10.2 | View DEFINER default | verified | MED | `C10_2_view_security_definer` |
 | 11.1 | Trigger DEFINER default | verified | LOW | `C11_1_Trigger_definer_default` |
 | 14.1 | CHECK enforced default | verified | LOW | `C14_1_Check_enforced_default` |
 | 15.1 | ADD COLUMN appends to end | verified | LOW | `C15_1_Column_positioning_end` |
 | 16.1 | NOW() precision default 0 | verified | MED | `C16_1_now_precision_default_zero` |
-| 16.2 | NOW(N) explicit precision 0..6 | pending | HIGH | Wave 1 C16 worker |
-| 16.3 | CURDATE / UTC_DATE take no precision | pending | MED | Wave 1 C16 worker |
-| 16.4 | CURTIME / UTC_TIME precision defaults to 0 | pending | MED | Wave 1 C16 worker |
-| 16.5 | SYSDATE precision defaults to 0 | pending | LOW | Wave 1 C16 worker |
-| 16.6 | UTC_TIMESTAMP precision defaults to 0 | pending | LOW | Wave 1 C16 worker |
+| 16.2 | NOW(N) explicit precision 0..6 | verified | HIGH | `TestScenario_C16` reconciliation |
+| 16.3 | CURDATE / UTC_DATE take no precision | verified | MED | `TestScenario_C16` reconciliation |
+| 16.4 | CURTIME / UTC_TIME precision defaults to 0 | verified | MED | `TestScenario_C16` reconciliation |
+| 16.5 | SYSDATE precision defaults to 0 | verified | LOW | `TestScenario_C16` reconciliation |
+| 16.6 | UTC_TIMESTAMP precision defaults to 0 | verified | LOW | `TestScenario_C16` reconciliation |
 | 16.7 | UNIX_TIMESTAMP return type by arg fsp | verified | MED | `TestScenario_C16` reconciliation |
-| 16.8 | DATETIME(N) DEFAULT NOW() fsp must match | pending | HIGH | Wave 1 C16 worker |
-| 16.9 | ON UPDATE NOW(N) must match column fsp | pending | HIGH | Wave 1 C16 worker |
+| 16.8 | DATETIME(N) DEFAULT NOW() fsp must match | verified | HIGH | `TestScenario_C16` reconciliation |
+| 16.9 | ON UPDATE NOW(N) must match column fsp | verified | HIGH | `TestScenario_C16` reconciliation |
 | 16.10 | DATETIME/TIMESTAMP storage bytes by fsp | verified | MED | `TestScenario_C16` reconciliation |
-| 16.11 | YEAR(N) deprecated — only YEAR(4) accepted | pending | LOW | Wave 1 C16 worker |
+| 16.11 | YEAR(N) deprecated — only YEAR(4) accepted | verified | LOW | `TestScenario_C16` reconciliation |
 | 16.12 | TIMESTAMP promotion inherits fsp | pending | MED | Wave 1 C16 worker |
-| 17.1 | CONCAT two cols identical charset/collation | pending | HIGH | Wave 3 C17 worker |
-| 17.2 | CONCAT latin1 + utf8mb4 superset conv | pending | HIGH | Wave 3 C17 worker |
-| 17.3 | CONCAT incompatible collations (ER 1267) | pending | HIGH | Wave 3 C17 worker — silent-accept gap |
-| 17.4 | CONCAT_WS separator charset + NULL skip | pending | MED | Wave 3 C17 worker |
-| 17.5 | String literal coercibility `_utf8mb4'x'` | pending | MED | Wave 3 C17 worker |
-| 17.6 | REPEAT/LPAD/RPAD first-arg pins charset | pending | MED | Wave 3 C17 worker |
-| 17.7 | CONVERT(x USING cs) forces IMPLICIT cs | pending | HIGH | Wave 3 C17 worker |
-| 17.8 | COLLATE clause is EXPLICIT | pending | HIGH | Wave 3 C17 worker |
+| 17.1 | CONCAT two cols identical charset/collation | verified | HIGH | `TestScenario_C17` reconciliation |
+| 17.2 | CONCAT latin1 + utf8mb4 superset conv | verified | HIGH | `TestScenario_C17` reconciliation |
+| 17.3 | CONCAT incompatible collations (ER 1267) | verified | HIGH | `TestScenario_C17` reconciliation |
+| 17.4 | CONCAT_WS separator charset + NULL skip | verified | MED | `TestScenario_C17` reconciliation |
+| 17.5 | String literal coercibility `_utf8mb4'x'` | verified | MED | `TestScenario_C17` reconciliation |
+| 17.6 | REPEAT/LPAD/RPAD first-arg pins charset | verified | MED | `TestScenario_C17` reconciliation |
+| 17.7 | CONVERT(x USING cs) forces IMPLICIT cs | verified | HIGH | `TestScenario_C17/17_7` reconciliation |
+| 17.8 | COLLATE clause is EXPLICIT | verified | HIGH | `TestScenario_C17` reconciliation |
 | 18.1 | Column charset elision | verified | HIGH | `C4_2_and_C18_1_and_C18_5_charset_inheritance_and_elision` |
 | 18.2 | NOT NULL elision (TIMESTAMP) | verified | HIGH | `C18_2_NotNull_rendering` |
 | 18.3 | ENGINE always rendered | verified | HIGH | `TestScenario_C18` reconciliation |
@@ -6800,18 +6801,18 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | PS.7 | FK name collision error | verified | HIGH | `PS7_FKNameCollision` — **omni bug** |
 | PS.8 | CHECK schema-scoped dup name error | pending | MED | **potential omni bug** |
 
-| 3.4 | Explicit NULL on PK hard error | pending | HIGH | Wave 4 C3 worker |
+| 3.4 | Explicit NULL on PK hard error | verified | HIGH | `TestScenario_C3/3_4` reconciliation |
 | 3.5 | UNIQUE does NOT imply NOT NULL | verified | HIGH | `TestScenario_C3` reconciliation |
 | 3.6 | Gcol nullability from expression | verified | MED | `TestScenario_C3` reconciliation |
 | 3.7 | AUTO_INCREMENT + explicit NULL silent promote | verified | MED | `TestScenario_C3` reconciliation |
 | 3.8 | 2nd TIMESTAMP implicit zero default (legacy) | pending | LOW | Wave 4 C3 worker |
-| 5.4 | FK ON UPDATE independent of ON DELETE | pending | HIGH | Wave 4 C5 worker |
-| 5.5 | FK SET DEFAULT rejected by InnoDB | pending | HIGH | Wave 4 C5 worker |
-| 5.6 | FK column type must match (size/sign) | pending | HIGH | Wave 4 C5 worker |
-| 5.7 | FK on VIRTUAL gcol rejected | pending | HIGH | Wave 4 C5 worker |
-| 5.8 | CHECK NOT ENFORCED defaults ENFORCED | pending | HIGH | Wave 4 C5 worker |
-| 5.9 | Column vs table CHECK equivalent | pending | MED | Wave 4 C5 worker |
-| 5.10 | Column-CHECK cross-col reject | pending | MED | Wave 4 C5 worker |
+| 5.4 | FK ON UPDATE independent of ON DELETE | verified | HIGH | `TestScenario_C5` reconciliation |
+| 5.5 | FK SET DEFAULT rejected by InnoDB | verified | HIGH | `TestScenario_C5` reconciliation |
+| 5.6 | FK column type must match (size/sign) | verified | HIGH | `TestScenario_C5` reconciliation |
+| 5.7 | FK on VIRTUAL gcol rejected | verified | HIGH | `TestScenario_C5` reconciliation |
+| 5.8 | CHECK NOT ENFORCED defaults ENFORCED | verified | HIGH | `TestScenario_C5` reconciliation |
+| 5.9 | Column vs table CHECK equivalent | verified | MED | `TestScenario_C5` reconciliation |
+| 5.10 | Column-CHECK cross-col reject | verified | MED | `TestScenario_C5` reconciliation |
 | 8.4 | CHARSET defaults from database | verified | HIGH | `TestScenario_C8` reconciliation |
 | 8.5 | COLLATE alone fills CHARSET | verified | HIGH | `TestScenario_C8` reconciliation |
 | 8.6 | KEY_BLOCK_SIZE default 0 elided | verified | MED | `TestScenario_C8` reconciliation |
@@ -6819,40 +6820,40 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 8.8 | ENCRYPTION default from server var | verified | MED | `TestScenario_C8/8_8` reconciliation |
 | 8.9 | STATS_PERSISTENT default | verified | LOW | `TestScenario_C8` + `TestScenario_C18/18_10` reconciliation |
 | 8.10 | TABLESPACE default | verified | LOW | `TestScenario_C8` + `TestScenario_C18/18_12` reconciliation |
-| 9.3 | VIRTUAL gcol PK rejection | pending | HIGH | Wave 4 C9 worker |
-| 9.4 | Gcol expression must be deterministic | pending | HIGH | Wave 4 C9 worker |
-| 9.5 | UNIQUE on STORED/VIRTUAL gcol | pending | MED | Wave 4 C9 worker |
-| 9.6 | Gcol NOT NULL interaction | pending | MED | Wave 4 C9 worker |
-| 9.7 | FK parent STORED gcol allowed | pending | MED | Wave 4 C9 worker |
-| 9.8 | Gcol expression charset derivation | pending | LOW | Wave 4 C9 worker |
-| 10.3 | View CHECK OPTION default CASCADED | pending | MED | Wave 4 C10 worker |
-| 10.4 | ALGORITHM=UNDEFINED resolves MERGE/TEMPTABLE | pending | MED | Wave 4 C10 worker |
-| 10.5 | View SQL SECURITY defaults DEFINER | pending | HIGH | Wave 4 C10 worker |
-| 10.6 | View column names from SELECT | pending | HIGH | Wave 4 C10 worker |
-| 10.7 | View updatability derivation | pending | MED | Wave 4 C10 worker |
-| 10.8 | View column nullability widened | pending | MED | Wave 4 C10 worker |
-| 11.2 | Trigger SQL SECURITY always DEFINER | pending | MED | Wave 4 C11 worker |
-| 11.3 | Trigger charset/collation snapshot | pending | HIGH | Wave 4 C11 worker |
-| 11.4 | Trigger ACTION_ORDER default | pending | HIGH | Wave 4 C11 worker |
-| 11.5 | NEW/OLD pseudo-rows by event | pending | HIGH | Wave 4 C11 worker |
-| 11.6 | Trigger on partitioned table | pending | LOW | Wave 4 C11 worker |
-| 14.2 | ALTER CHECK ENFORCED toggle | pending | HIGH | Wave 4 C14 worker |
-| 14.3 | STORED gcol + CHECK evaluation | pending | MED | Wave 4 C14 worker |
-| 14.4 | CHECK forbidden constructs | pending | HIGH | Wave 4 C14 worker |
+| 9.3 | VIRTUAL gcol PK rejection | verified | HIGH | `TestScenario_C9` reconciliation |
+| 9.4 | Gcol expression must be deterministic | verified | HIGH | `TestScenario_C9` reconciliation |
+| 9.5 | UNIQUE on STORED/VIRTUAL gcol | verified | MED | `TestScenario_C9` reconciliation |
+| 9.6 | Gcol NOT NULL interaction | verified | MED | `TestScenario_C9` reconciliation |
+| 9.7 | FK parent STORED gcol allowed | verified | MED | `TestScenario_C9` reconciliation |
+| 9.8 | Gcol expression charset derivation | verified | LOW | `TestScenario_C9` reconciliation |
+| 10.3 | View CHECK OPTION default CASCADED | verified | MED | `TestScenario_C10` reconciliation |
+| 10.4 | ALGORITHM=UNDEFINED resolves MERGE/TEMPTABLE | verified | MED | `TestScenario_C10` reconciliation |
+| 10.5 | View SQL SECURITY defaults DEFINER | verified | HIGH | `TestScenario_C10` reconciliation |
+| 10.6 | View column names from SELECT | verified | HIGH | `TestScenario_C10` reconciliation |
+| 10.7 | View updatability derivation | verified | MED | `TestScenario_C10` reconciliation |
+| 10.8 | View column nullability widened | verified | MED | `TestScenario_C10` reconciliation |
+| 11.2 | Trigger SQL SECURITY always DEFINER | verified | MED | `TestScenario_C11` reconciliation |
+| 11.3 | Trigger charset/collation snapshot | verified | HIGH | `TestScenario_C11` reconciliation |
+| 11.4 | Trigger ACTION_ORDER default | verified | HIGH | `TestScenario_C11` reconciliation |
+| 11.5 | NEW/OLD pseudo-rows by event | verified | HIGH | `TestScenario_C11` reconciliation |
+| 11.6 | Trigger on partitioned table | verified | LOW | `TestScenario_C11` reconciliation |
+| 14.2 | ALTER CHECK ENFORCED toggle | verified | HIGH | `TestScenario_C14` reconciliation |
+| 14.3 | STORED gcol + CHECK evaluation | verified | MED | `TestScenario_C14` reconciliation |
+| 14.4 | CHECK forbidden constructs | verified | HIGH | `TestScenario_C14` reconciliation |
 | 15.2 | ADD COLUMN FIRST | verified | HIGH | `TestScenario_C15` reconciliation |
 | 15.3 | ADD COLUMN AFTER col | verified | HIGH | `TestScenario_C15` reconciliation |
 | 15.4 | MODIFY/CHANGE retains position | verified | HIGH | `TestScenario_C15` reconciliation |
 | 15.5 | Multiple ADD COLUMN left-to-right | verified | MED | `TestScenario_C15` reconciliation |
-| 23.1 | CONCAT NULL propagation | pending | MED | Wave 4 C23 worker |
-| 23.2 | CONCAT_WS skips NULL args | pending | MED | Wave 4 C23 worker |
-| 23.3 | IFNULL/COALESCE rescue for CONCAT | pending | LOW | Wave 4 C23 worker |
+| 23.1 | CONCAT NULL propagation | verified | MED | `TestScenario_C23` reconciliation |
+| 23.2 | CONCAT_WS skips NULL args | verified | MED | `TestScenario_C23` reconciliation |
+| 23.3 | IFNULL/COALESCE rescue for CONCAT | verified | LOW | `TestScenario_C23` reconciliation |
 | 24.2 | GIPK column spec | verified | MED | `TestScenario_C24` |
 | 24.3 | GIPK suppressed by user PK | verified | MED | `TestScenario_C24` |
 | 24.4 | GIPK my_row_id collision error | verified | LOW | `TestScenario_C24` |
-| 25.2 | DECIMAL precision-only scale 0 | pending | MED | Wave 4 C25 worker |
-| 25.3 | DECIMAL max precision/scale | pending | HIGH | Wave 4 C25 worker |
-| 25.4 | UNSIGNED DECIMAL | pending | LOW | Wave 4 C25 worker |
-| 25.5 | DECIMAL zero-scale rendering | pending | HIGH | Wave 4 C25 worker |
+| 25.2 | DECIMAL precision-only scale 0 | verified | MED | `TestScenario_C25` reconciliation |
+| 25.3 | DECIMAL max precision/scale | verified | HIGH | `TestScenario_C25` reconciliation |
+| 25.4 | UNSIGNED DECIMAL | verified | LOW | `TestScenario_C25` reconciliation |
+| 25.5 | DECIMAL zero-scale rendering | verified | HIGH | `TestScenario_C25` reconciliation |
 | AX.1 | ADD COLUMN append default | pending | HIGH | Wave 4 AX worker |
 | AX.2 | DROP COLUMN cascades index | pending | HIGH | Wave 4 AX worker |
 | AX.3 | DROP COLUMN last col error | pending | MED | Wave 4 AX worker |
