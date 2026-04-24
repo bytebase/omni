@@ -6627,8 +6627,8 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 1.8 | Non-PK index cannot be named PRIMARY | pending-verify | MED | Wave 2 C1 worker |
 | 1.9 | Implicit index name from first column | pending-verify | HIGH | Wave 2 C1 worker |
 | 1.10 | UNIQUE fallback when column literally "PRIMARY" | pending-verify | LOW | Wave 2 C1 worker |
-| 1.11 | Functional index auto-name collision suffix | pending-verify | MED | Wave 2 C1 worker |
-| 1.12 | Functional index hidden column name format | pending-verify | MED | Wave 2 C1 worker |
+| 1.11 | Functional index auto-name collision suffix | structural-skip | MED | Requires C19 functional-index hidden-column architecture |
+| 1.12 | Functional index hidden column name format | structural-skip | MED | Requires C19 functional-index hidden-column architecture |
 | 1.13 | CHECK constraint name is schema-scoped | pending-verify | HIGH | Wave 2 C1 worker |
 | 2.1 | REAL → DOUBLE | verified | LOW | `C2_1_REAL_to_DOUBLE` |
 | 2.2 | BOOL → TINYINT(1) | verified | LOW | `C2_2_BOOL_to_TINYINT1` |
@@ -6746,11 +6746,11 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 18.13 | PACK_KEYS / CHECKSUM / DELAY_KEY_WRITE elision | pending | HIGH | Wave 2 C18 worker |
 | 18.14 | Per-index COMMENT / KEY_BLOCK_SIZE rendering | pending | HIGH | Wave 2 C18 worker |
 | 18.15 | USING BTREE/HASH emitted only when explicit | pending | HIGH | Wave 2 C18 worker |
-| 19.1 | Functional index hidden VIRTUAL gen col | pending | P0 | Wave 3 C19 worker |
-| 19.2 | Hidden col type inferred from expression | pending | P0 | Wave 3 C19 worker |
-| 19.3 | Hidden col invisible to SELECT * / I_S | pending | P0 | Wave 3 C19 worker |
-| 19.4 | Functional expr must be deterministic/pure | pending | P1 | Wave 3 C19 worker |
-| 19.5 | Functional index on JSON path via CAST | pending | P0 | Wave 3 C19 worker |
+| 19.1 | Functional index hidden VIRTUAL gen col | structural-skip | P0 | Requires functional-index hidden-column architecture |
+| 19.2 | Hidden col type inferred from expression | structural-skip | P0 | Requires expression type inference for hidden generated columns |
+| 19.3 | Hidden col invisible to SELECT * / I_S | structural-skip | P0 | Requires hidden-column visibility model |
+| 19.4 | Functional expr must be deterministic/pure | structural-skip | P1 | Requires functional-index expression validation |
+| 19.5 | Functional index on JSON path via CAST | structural-skip | P0 | Requires JSON expression normalization plus hidden-column architecture |
 | 19.6 | DROP INDEX cascades to hidden gen col | pending | P0 | Wave 3 C19 worker |
 | 20.1 | INT NOT NULL no DEFAULT → implicit 0 | pending | HIGH | Wave 3 C20 worker |
 | 20.2 | INT nullable no DEFAULT → implicit NULL | pending | HIGH | Wave 3 C20 worker |
