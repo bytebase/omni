@@ -44,6 +44,14 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 		}
 
 		if isDML(item) {
+			if err := validateExpressionSemantics(item); err != nil {
+				result.Error = err
+				results = append(results, result)
+				if !continueOnError {
+					break
+				}
+				continue
+			}
 			result.Skipped = true
 			results = append(results, result)
 			continue
@@ -132,6 +140,9 @@ func isDML(stmt nodes.Node) bool {
 }
 
 func (c *Catalog) processUtility(stmt nodes.Node) error {
+	if err := validateExpressionSemantics(stmt); err != nil {
+		return err
+	}
 	switch s := stmt.(type) {
 	case *nodes.CreateDatabaseStmt:
 		return c.createDatabase(s)

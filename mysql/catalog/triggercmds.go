@@ -45,6 +45,9 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt) error {
 	if definer == "" {
 		definer = "`root`@`%`"
 	}
+	if err := validateTriggerBody(stmt.Timing, stmt.Event, stmt.BodyText); err != nil {
+		return err
+	}
 
 	trigger := &Trigger{
 		Name:     name,
@@ -64,6 +67,26 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt) error {
 	}
 
 	db.Triggers[key] = trigger
+	return nil
+}
+
+func validateTriggerBody(timing, event, body string) error {
+	lowerBody := strings.ToLower(strings.TrimSpace(body))
+	lowerEvent := strings.ToLower(event)
+	lowerTiming := strings.ToLower(timing)
+	switch lowerEvent {
+	case "insert":
+		if strings.Contains(lowerBody, "old.") {
+			return &Error{Code: 1363, SQLState: "HY000", Message: "There is no OLD row in on INSERT trigger"}
+		}
+	case "delete":
+		if strings.Contains(lowerBody, "new.") {
+			return &Error{Code: 1363, SQLState: "HY000", Message: "There is no NEW row in on DELETE trigger"}
+		}
+	}
+	if lowerTiming == "after" && strings.HasPrefix(lowerBody, "set new.") {
+		return &Error{Code: 1362, SQLState: "HY000", Message: "Updating of NEW row is not allowed in after trigger"}
+	}
 	return nil
 }
 

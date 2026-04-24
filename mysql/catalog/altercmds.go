@@ -137,6 +137,9 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 
 // addSingleColumn adds one column definition to the table.
 func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string) error {
+	if err := validateColumnDefSemantics(colDef); err != nil {
+		return err
+	}
 	colKey := toLower(colDef.Name)
 	if _, exists := tbl.colByName[colKey]; exists {
 		return errDupColumn(colDef.Name)
@@ -156,6 +159,9 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 				if idx.Primary {
 					return errMultiplePriKey()
 				}
+			}
+			if err := validatePrimaryKeyColumns(tbl, []string{colDef.Name}); err != nil {
+				return err
 			}
 			col.Nullable = false
 			tbl.Indexes = append(tbl.Indexes, &Index{
@@ -320,6 +326,9 @@ func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 // oldName is the existing column to replace; cmd.Column defines the new column.
 func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.AlterTableCmd) error {
 	colDef := cmd.Column
+	if err := validateColumnDefSemantics(colDef); err != nil {
+		return err
+	}
 	oldKey := toLower(oldName)
 	idx, exists := tbl.colByName[oldKey]
 	if !exists {
@@ -382,6 +391,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return errMultiplePriKey()
 			}
 		}
+		if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
+			return err
+		}
 		// Mark PK columns as NOT NULL.
 		for _, colName := range cols {
 			col := tbl.GetColumn(colName)
@@ -390,7 +402,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		pkIdx := &Index{
 			Name:      "PRIMARY",
 			Table:     tbl,
 			Columns:   idxCols,
@@ -398,7 +410,12 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Primary:   true,
 			IndexType: "",
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(pkIdx, con.IndexOptions)
+		if !pkIdx.Visible {
+			return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
+		}
+		tbl.Indexes = append(tbl.Indexes, pkIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      "PRIMARY",
 			Type:      ConPrimaryKey,
@@ -420,6 +437,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
+		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+			return err
+		}
 		tbl.Indexes = append(tbl.Indexes, &Index{
 			Name:      idxName,
 			Table:     tbl,
@@ -480,6 +500,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if checkConstraintNameExists(tbl.Database, nil, conName) {
 			return errCheckConstraintDupName(conName)
 		}
+		if err := validateCheckExpr(conName, con.Expr); err != nil {
+			return err
+		}
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:        conName,
 			Type:        ConCheck,
@@ -501,13 +524,18 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+			return err
+		}
+		keyIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			IndexType: resolveConstraintIndexType(con),
 			Visible:   true,
-		})
+		}
+		coerceInnoDBHashIndex(tbl, keyIdx)
+		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 	case nodes.ConstrFulltextIndex:
 		idxName := con.Name
@@ -544,6 +572,12 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
+		if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
+			return err
+		}
+		if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
+			return &Error{Code: 3500, SQLState: "HY000", Message: "Index type not supported for spatial index"}
+		}
 		tbl.Indexes = append(tbl.Indexes, &Index{
 			Name:      idxName,
 			Table:     tbl,
@@ -715,9 +749,9 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "engine":
 		tbl.Engine = opt.Value
 	case "charset", "character set", "default charset", "default character set":
-		tbl.Charset = opt.Value
+		tbl.Charset = normalizeCharsetName(opt.Value)
 		// Update collation to the default for this charset.
-		if defColl, ok := defaultCollationForCharset[toLower(opt.Value)]; ok {
+		if defColl, ok := defaultCollationForCharset[toLower(tbl.Charset)]; ok {
 			tbl.Collation = defColl
 		}
 	case "collate", "default collate":
@@ -845,17 +879,19 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 
 	// Type info.
 	if colDef.TypeName != nil {
-		col.DataType = toLower(colDef.TypeName.Name)
-		// MySQL 8.0 normalizes GEOMETRYCOLLECTION → geomcollection.
-		if col.DataType == "geometrycollection" {
-			col.DataType = "geomcollection"
-		}
+		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
+		if isNationalStringType(colDef.TypeName.Name) {
+			col.Charset = "utf8mb3"
+		}
 		if colDef.TypeName.Charset != "" {
-			col.Charset = colDef.TypeName.Charset
+			col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
 		}
 		if colDef.TypeName.Collate != "" {
 			col.Collation = colDef.TypeName.Collate
+			if col.Charset == "" {
+				col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
+			}
 		}
 	}
 
@@ -1002,6 +1038,19 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	if tbl.Partitioning == nil {
 		return fmt.Errorf("ALTER TABLE ADD PARTITION: table '%s' is not partitioned", tbl.Name)
 	}
+	if cmd.Number > 0 && len(cmd.PartitionDefs) == 0 {
+		start := len(tbl.Partitioning.Partitions)
+		if start == 0 {
+			start = tbl.Partitioning.NumParts
+		}
+		for i := 0; i < cmd.Number; i++ {
+			tbl.Partitioning.Partitions = append(tbl.Partitioning.Partitions, &PartitionDefInfo{
+				Name: fmt.Sprintf("p%d", start+i),
+			})
+		}
+		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
+		return nil
+	}
 	for _, pd := range cmd.PartitionDefs {
 		pdi := &PartitionDefInfo{
 			Name: pd.Name,
@@ -1018,6 +1067,9 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 			}
 		}
 		tbl.Partitioning.Partitions = append(tbl.Partitioning.Partitions, pdi)
+	}
+	if len(cmd.PartitionDefs) > 0 {
+		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
 	}
 	return nil
 }

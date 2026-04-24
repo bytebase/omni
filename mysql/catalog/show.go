@@ -451,8 +451,12 @@ func showConstraint(con *Constraint) string {
 func showTableOptions(tbl *Table) string {
 	var parts []string
 
-	if tbl.Engine != "" {
-		parts = append(parts, fmt.Sprintf("ENGINE=%s", tbl.Engine))
+	engine := tbl.Engine
+	if engine == "" {
+		engine = "InnoDB"
+	}
+	if engine != "" {
+		parts = append(parts, fmt.Sprintf("ENGINE=%s", engine))
 	}
 
 	// AUTO_INCREMENT — shown only when > 1.

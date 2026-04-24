@@ -53,13 +53,22 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
 		viewCols = derivedCols
 	}
 
+	algorithm := stmt.Algorithm
+	if algorithm == "" {
+		algorithm = "UNDEFINED"
+	}
+	sqlSecurity := stmt.SqlSecurity
+	if sqlSecurity == "" {
+		sqlSecurity = "DEFINER"
+	}
+
 	db.Views[key] = &View{
 		Name:            stmt.Name.Name,
 		Database:        db,
 		Definition:      definition,
-		Algorithm:       stmt.Algorithm,
+		Algorithm:       algorithm,
 		Definer:         definer,
-		SqlSecurity:     stmt.SqlSecurity,
+		SqlSecurity:     sqlSecurity,
 		CheckOption:     stmt.CheckOption,
 		Columns:         viewCols,
 		ExplicitColumns: hasExplicit,
@@ -105,13 +114,22 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt) error {
 		viewCols = derivedCols
 	}
 
+	algorithm := stmt.Algorithm
+	if algorithm == "" {
+		algorithm = "UNDEFINED"
+	}
+	sqlSecurity := stmt.SqlSecurity
+	if sqlSecurity == "" {
+		sqlSecurity = "DEFINER"
+	}
+
 	db.Views[key] = &View{
 		Name:            stmt.Name.Name,
 		Database:        db,
 		Definition:      definition,
-		Algorithm:       stmt.Algorithm,
+		Algorithm:       algorithm,
 		Definer:         definer,
-		SqlSecurity:     stmt.SqlSecurity,
+		SqlSecurity:     sqlSecurity,
 		CheckOption:     stmt.CheckOption,
 		Columns:         viewCols,
 		ExplicitColumns: hasExplicit,
@@ -189,12 +207,33 @@ func extractViewColumns(sel *nodes.SelectStmt) []string {
 			continue
 		}
 		if rt.Name != "" {
-			cols = append(cols, rt.Name)
+			cols = append(cols, canonicalViewDerivedColumnName(rt.Name))
 		} else if cr, ok := rt.Val.(*nodes.ColumnRef); ok {
 			cols = append(cols, cr.Column)
+		} else {
+			cols = append(cols, canonicalViewDerivedColumnName(nodeToSQL(rt.Val)))
 		}
 	}
 	return cols
+}
+
+func canonicalViewDerivedColumnName(name string) string {
+	if strings.ContainsAny(name, "+-*/%") {
+		name = strings.ReplaceAll(name, " ", "")
+	}
+	replacer := strings.NewReplacer(
+		" + ", "+",
+		" - ", "-",
+		" * ", "*",
+		" / ", "/",
+		" % ", "%",
+	)
+	name = replacer.Replace(name)
+	lower := strings.ToLower(name)
+	if strings.HasPrefix(lower, "count(") {
+		return "COUNT" + name[len("count"):]
+	}
+	return name
 }
 
 // tableLookupForDB returns a deparse.TableLookup function that resolves table

@@ -18,7 +18,7 @@ func (c *Catalog) createDatabase(stmt *nodes.CreateDatabaseStmt) error {
 	for _, opt := range stmt.Options {
 		switch toLower(opt.Name) {
 		case "character set", "charset":
-			charset = opt.Value
+			charset = normalizeCharsetName(opt.Value)
 			charsetExplicit = true
 		case "collate":
 			collation = opt.Value
@@ -75,7 +75,7 @@ func (c *Catalog) alterDatabase(stmt *nodes.AlterDatabaseStmt) error {
 	for _, opt := range stmt.Options {
 		switch toLower(opt.Name) {
 		case "character set", "charset":
-			db.Charset = opt.Value
+			db.Charset = normalizeCharsetName(opt.Value)
 			charsetExplicit = true
 		case "collate":
 			db.Collation = opt.Value
