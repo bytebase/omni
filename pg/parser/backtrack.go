@@ -8,10 +8,9 @@ package parser
 // SCOPE: this is a TOKEN-STREAM snapshot, not a complete parser/lexer
 // snapshot. It does NOT cover mid-token-content lexer state (literalbuf,
 // dolqstart, utf16FirstPart, xcdepth, stateBeforeStrStop, warning flags)
-// or completion-mode state (candidates, collecting). Those fields are
-// either reset at token boundaries (lexer internals) or not used during
-// speculative parses (completion mode), so they don't need to be saved
-// here for token-stream rollback to be sound.
+// or completion-mode state (candidates, collecting). Lexer internals are
+// reset at token boundaries. Completion-mode speculative callers that can
+// scan past the cursor must restore completion state themselves.
 //
 // If a future caller needs to roll back from INSIDE a token (e.g., from
 // inside a string literal or dollar-quoted block), this struct is

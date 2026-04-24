@@ -72,6 +72,21 @@ func TestCollectAfterSelect(t *testing.T) {
 	}
 }
 
+func TestCollectNestedFromSubqueryAfterSelect(t *testing.T) {
+	prefix := "SELECT * FROM (SELECT * FROM (SELECT "
+	sql := prefix + " FROM t1) a) b"
+	candidates := Collect(sql, len(prefix))
+	if candidates == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	if !candidates.HasRule("columnref") {
+		t.Error("expected columnref rule candidate in nested SELECT target list")
+	}
+	if !candidates.HasRule("func_name") {
+		t.Error("expected func_name rule candidate in nested SELECT target list")
+	}
+}
+
 func TestCollectAfterFrom(t *testing.T) {
 	candidates := Collect("SELECT 1 FROM ", 14)
 	if candidates == nil {
