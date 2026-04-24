@@ -46,6 +46,7 @@ func synthesizeFunctionalIndexColumns(tbl *Table, idx *Index) error {
 		if idxCol.Expr == "" {
 			continue
 		}
+		idxCol.Expr = normalizeFunctionalIndexExprSQL(idxCol.Expr, tbl.Charset)
 		hiddenName := makeFunctionalIndexColumnName(tbl, idx.Name, part)
 		idxCol.Name = hiddenName
 		hiddenCol := columnFromFunctionalIndexExpr(tbl, hiddenName, idxCol)
@@ -364,6 +365,9 @@ func isFunctionalIndex(idx *Index) bool {
 	return false
 }
 
-func normalizeFunctionalIndexName(name string) string {
-	return strings.TrimSpace(name)
+func normalizeFunctionalIndexExprSQL(sql, charset string) string {
+	if charset == "" {
+		charset = "utf8mb4"
+	}
+	return strings.ReplaceAll(sql, ",'$", ",_"+charset+"'$")
 }

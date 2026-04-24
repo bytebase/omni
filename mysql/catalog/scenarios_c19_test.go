@@ -304,7 +304,6 @@ func TestScenario_C19(t *testing.T) {
 	// 19.5 Functional index on JSON path via (col->>'$.path')
 	// -----------------------------------------------------------------
 	t.Run("19_5_json_path_functional_index", func(t *testing.T) {
-		t.Skip("structural: requires JSON expression normalization and LOB validation")
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
