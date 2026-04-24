@@ -23,7 +23,6 @@ import (
 func TestScenario_C19(t *testing.T) {
 	scenariosSkipIfShort(t)
 	scenariosSkipIfNoDocker(t)
-	t.Skip("structural: functional indexes require synthesized hidden generated columns, expression type inference, validation, and hidden-column visibility semantics")
 
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -118,6 +117,7 @@ func TestScenario_C19(t *testing.T) {
 	// 19.2 Hidden column type inferred from expression return type
 	// -----------------------------------------------------------------
 	t.Run("19_2_type_inferred_from_expression", func(t *testing.T) {
+		t.Skip("structural: requires functional-index expression type inference")
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
@@ -178,6 +178,7 @@ func TestScenario_C19(t *testing.T) {
 	// 19.3 Hidden column suppressed in SELECT * and user I_S.COLUMNS
 	// -----------------------------------------------------------------
 	t.Run("19_3_hidden_suppressed_in_select_star", func(t *testing.T) {
+		t.Skip("structural: requires hidden-column SQL namespace and information_schema visibility model")
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
@@ -240,6 +241,7 @@ func TestScenario_C19(t *testing.T) {
 	// 19.4 Functional expression must be deterministic / non-LOB
 	// -----------------------------------------------------------------
 	t.Run("19_4_disallowed_expression_rejected", func(t *testing.T) {
+		t.Skip("structural: requires functional-index expression validation")
 		scenarioReset(t, mc)
 
 		// Oracle verification: run each bad DDL against MySQL directly
@@ -305,6 +307,7 @@ func TestScenario_C19(t *testing.T) {
 	// 19.5 Functional index on JSON path via (col->>'$.path')
 	// -----------------------------------------------------------------
 	t.Run("19_5_json_path_functional_index", func(t *testing.T) {
+		t.Skip("structural: requires JSON expression normalization and LOB validation")
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
@@ -357,6 +360,7 @@ func TestScenario_C19(t *testing.T) {
 	// 19.6 DROP INDEX cascades to hidden generated column
 	// -----------------------------------------------------------------
 	t.Run("19_6_drop_index_cascades_hidden", func(t *testing.T) {
+		t.Skip("structural: requires functional-index hidden-column lifecycle cleanup")
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 

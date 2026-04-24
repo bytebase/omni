@@ -68,6 +68,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 
 	applyIndexOptions(idx, stmt.Options)
+	synthesizeFunctionalIndexColumns(tbl, idx)
 
 	tbl.Indexes = append(tbl.Indexes, idx)
 

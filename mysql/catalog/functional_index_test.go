@@ -138,6 +138,52 @@ func TestFunctionalIndexCreateTableNamedMultiPartHiddenColumns(t *testing.T) {
 	}
 }
 
+func TestFunctionalIndexCreateIndexSynthesizesHiddenColumn(t *testing.T) {
+	c := scenarioNewCatalog(t)
+	results, err := c.Exec(`
+		CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
+		CREATE INDEX idx_lower ON t ((LOWER(name)));
+	`, nil)
+	if err != nil {
+		t.Fatalf("exec ddl: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("exec ddl result error: %v", r.Error)
+		}
+	}
+
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t missing")
+	}
+	if got := len(tbl.HiddenColumns()); got != 1 {
+		t.Fatalf("hidden columns = %d, want 1", got)
+	}
+
+	idx := findIndexForTest(tbl, "idx_lower")
+	if idx == nil {
+		t.Fatal("index idx_lower missing")
+	}
+	if len(idx.Columns) != 1 {
+		t.Fatalf("index idx_lower columns = %d, want 1", len(idx.Columns))
+	}
+	if idx.Columns[0].Name != "!hidden!idx_lower!0!0" {
+		t.Fatalf("index idx_lower column name = %q, want !hidden!idx_lower!0!0", idx.Columns[0].Name)
+	}
+	if !strings.Contains(strings.ToLower(idx.Columns[0].Expr), "lower(`name`)") {
+		t.Fatalf("index idx_lower expr = %q, want lower(`name`)", idx.Columns[0].Expr)
+	}
+
+	show := strings.ToLower(c.ShowCreateTable("testdb", "t"))
+	if strings.Contains(show, "!hidden!idx_lower!0!0") {
+		t.Fatalf("ShowCreateTable leaked hidden column:\n%s", show)
+	}
+	if !strings.Contains(show, "key `idx_lower` ((lower(`name`)))") {
+		t.Fatalf("ShowCreateTable missing functional key part:\n%s", show)
+	}
+}
+
 func findIndexForTest(tbl *Table, name string) *Index {
 	for _, idx := range tbl.Indexes {
 		if strings.EqualFold(idx.Name, name) {
