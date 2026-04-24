@@ -77,22 +77,14 @@ func TestScenario_C19(t *testing.T) {
 		} else if idx.Columns[0].Expr == "" {
 			t.Errorf("omni: idx_lower key part has no Expr; MySQL stores this as a hidden generated column")
 		}
-		// omni gap: no hidden column is created alongside the index.
-		// MySQL's dd.columns.is_hidden=HT_HIDDEN_SQL row has no omni analog.
-		// We flag this as a bug: the count of user-visible columns stays at
-		// 2 in both engines, but omni's Column list should gain a
-		// HiddenBySystem entry for round-trip fidelity. Currently it does
-		// not — confirm with a direct probe.
 		hiddenFound := false
 		for _, col := range tbl.Columns {
-			if strings.HasPrefix(col.Name, "!hidden!") {
+			if strings.HasPrefix(col.Name, "!hidden!") && col.Hidden == ColumnHiddenSystem {
 				hiddenFound = true
 				break
 			}
 		}
-		if hiddenFound {
-			t.Log("omni: unexpectedly found hidden column — partial support?")
-		} else {
+		if !hiddenFound {
 			t.Errorf("omni: no hidden column synthesized for functional index (MySQL: !hidden!idx_lower!0!0)")
 		}
 

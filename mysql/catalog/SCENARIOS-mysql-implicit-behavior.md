@@ -209,7 +209,7 @@ Expected: CONSTRAINT_NAME = `PRIMARY` (NOT `my_pk`). The `CONSTRAINT my_pk` clau
 
 ### 1.8 Non-PK index cannot be named "PRIMARY" (ER_WRONG_NAME_FOR_INDEX)
 
-> **new in expansion (Wave 2)** — priority: MED — status: pending-verify
+> **new in expansion (Wave 2)** — priority: MED — status: verified
 
 **Setup (error case):**
 ```sql
@@ -322,13 +322,15 @@ Expected: `[functional_index, functional_index_2]` — note the collision suffix
 - `sql/sql_table.cc:7797-7803` — `key_name.assign("functional_index"); ... while (key_name_exists(...)) { key_name.assign("functional_index_"); key_name.append(std::to_string(count++)); }` with `int count = 2;`
 - doc: [create-index.html#create-index-functional-key-parts](https://dev.mysql.com/doc/refman/8.0/en/create-index.html)
 
-**omni gap:** omni currently has no path for functional indexes (C19 is a new section). Name-generation portion belongs here.
+**omni status 2026-04-24:** verified by `TestScenario_C1/1_11`. Unnamed
+functional indexes are assigned `functional_index`, then
+`functional_index_2`, matching MySQL's suffix sequence.
 
 ---
 
 ### 1.12 Functional index hidden generated column name `!hidden!{idx}!{part}!{count}`
 
-> **new in expansion (Wave 2)** — priority: MED — status: pending-verify
+> **new in expansion (Wave 2)** — priority: MED — status: verified
 
 **Setup:**
 ```sql
@@ -363,7 +365,9 @@ If a user column with a colliding name exists, the trailing `count` increments: 
   ```
 - doc: [create-index.html](https://dev.mysql.com/doc/refman/8.0/en/create-index.html) — "Functional indexes are implemented as hidden virtual generated columns"
 
-**omni gap:** omni functional-index support is absent — no path creates the hidden column. This scenario defines the target shape for the eventual implementation.
+**omni status 2026-04-24:** verified by `TestScenario_C1/1_12`. Functional
+index key parts synthesize system-hidden virtual generated columns named
+`!hidden!{idx}!{part}!{count}`.
 
 ---
 
@@ -4406,13 +4410,13 @@ Expected substrings:
 > inference, `SELECT *` visibility, disallowed function classes, BLOB
 > restrictions, drop/rename cleanup, and replication ordering.
 >
-> omni currently has **zero** handling for functional indexes: there is no
-> path that synthesizes hidden columns, and `mysql/catalog` has no `Hidden`/
-> `HiddenBySystem` flag on `Column`. Paired with §1.11 (auto-name
-> `functional_index[_N]`) and §1.12 (hidden column name
-> `!hidden!{key}!{part}!{count}`), C19 captures the *semantic* obligations
-> that must hold for round-trip DDL, schema sync, and query-span resolution
-> to match MySQL 8.0.
+> omni now has catalog-level support for functional indexes: the catalog
+> synthesizes system-hidden virtual generated columns, keeps functional key
+> part expressions for `SHOW CREATE TABLE`, validates covered invalid
+> expression classes, and handles hidden-column drop/rename lifecycle. Paired
+> with §1.11 (auto-name `functional_index[_N]`) and §1.12 (hidden column name
+> `!hidden!{key}!{part}!{count}`), C19 captures the remaining semantic
+> obligations for schema sync and query-span resolution to match MySQL 8.0.
 >
 > **Source anchors (MySQL 8.0 `sql/sql_table.cc`):**
 > `add_functional_index_to_create_list` (L7783-L7900),
@@ -4424,7 +4428,7 @@ Expected substrings:
 
 ### 19.1 Functional index creates a hidden VIRTUAL generated column
 
-**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-1}`
+**Priority:** P0  **Status:** verified  **Anchor:** `{#c19-1}`
 
 ```sql
 CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
@@ -4470,15 +4474,15 @@ functional key part form `((expr))`, not `(hidden_col_name)`.
 - `sql/sql_table.cc:7884` — `cr->stored_in_db = false;`
 - `sql/sql_table.cc:7887-7891` — `Value_generator` built with `set_field_stored(false)`.
 
-**omni gap:** `mysql/catalog/column.go` has no `Hidden` (HT_HIDDEN_SQL) flag
-distinct from `Invisible` (INVISIBLE user flag). The SHOW CREATE TABLE
-deparser has no branch for functional key parts. Both must be added.
+**omni status 2026-04-24:** verified by `TestScenario_C19/19_1`. The catalog
+uses `ColumnHiddenSystem` for synthesized virtual generated columns and
+`SHOW CREATE TABLE` renders the functional key part expression.
 
 ---
 
 ### 19.2 Hidden column type is inferred from the expression return type
 
-**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-2}`
+**Priority:** P0  **Status:** verified  **Anchor:** `{#c19-2}`
 
 ```sql
 CREATE TABLE t (
@@ -4514,17 +4518,16 @@ utf8mb4_bin))` produces a column with `utf8mb4_bin`, even if `name` is
 - `sql/sql_table.cc:7864-7868` — `if (is_blob(cr->sql_type)) ER_FUNCTIONAL_INDEX_ON_LOB`.
 - `sql/sql_table.cc:7889` — `gcol_info->set_field_type(cr->sql_type);`
 
-**omni gap:** requires an expression-type resolver in `mysql/catalog` capable
-of producing an effective `DataType`+collation from a parsed expression,
-using the table’s own columns as the symbol table. Functions like `LOWER`,
-arithmetic promotions, and `CAST` must all be supported to at least the
-precision required for the column type.
+**omni status 2026-04-24:** verified by `TestScenario_C19/19_2` for the
+covered resolver surface: integer arithmetic, string functions that preserve
+column string metadata, explicit CAST targets, and JSON operator return types
+needed by validation.
 
 ---
 
 ### 19.3 Hidden functional column is invisible to `SELECT *` and user I_S.COLUMNS
 
-**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-3}`
+**Priority:** P0  **Status:** verified  **Anchor:** `{#c19-3}`
 
 ```sql
 CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
@@ -4572,15 +4575,15 @@ it is an artifact of the index.
 - `sql/sql_show.cc` — `I_S.COLUMNS` DD view joins on `dd.columns.is_hidden=0` for the user view.
 - `sql/item.cc` — `find_field_in_table` rejects hidden-by-system fields unless `thd->lex->allow_sum_func` / DD access path.
 
-**omni gap:** `mysql/catalog` must tag these columns with a `HiddenBySystem`
-bit distinct from `Invisible`. `SELECT *` expansion and identifier resolution
-paths must consult that bit.
+**omni status 2026-04-24:** verified by `TestScenario_C19/19_3`. Hidden
+functional columns are retained internally but filtered from user-visible
+catalog surfaces and analyzer scope.
 
 ---
 
 ### 19.4 Functional expression must be deterministic and pure
 
-**Priority:** P1  **Status:** pending  **Anchor:** `{#c19-4}`
+**Priority:** P1  **Status:** verified  **Anchor:** `{#c19-4}`
 
 ```sql
 -- Rejected: uses non-deterministic function
@@ -4629,14 +4632,15 @@ match MySQL where practical.
 - `sql/sql_table.cc:7529` — `ER_FUNCTIONAL_INDEX_FUNCTION_IS_NOT_ALLOWED`
 - `sql/sql_table.cc:7830-7832` — `pre_validate_value_generator_expr(..., VGS_GENERATED_COLUMN)`
 
-**omni gap:** no validation layer today. A functional-index pipeline should
-reject each class before creating the hidden column.
+**omni status 2026-04-24:** verified by `TestScenario_C19/19_4` for covered
+invalid classes: bare field functional key parts, disallowed functions and
+stateful constructs, and LOB/JSON/TEXT-returning expressions without CAST.
 
 ---
 
 ### 19.5 Functional index on JSON path via `(col->>'$.path')`
 
-**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-5}`
+**Priority:** P0  **Status:** verified  **Anchor:** `{#c19-5}`
 
 ```sql
 CREATE TABLE t (
@@ -4690,9 +4694,10 @@ predicates that use the identical expression tree.
 - `sql/sql_optimizer.cc` — functional-index matching in `substitute_gc()`
   / `find_func_index_on_expr()`.
 
-**omni gap:** the entire pipeline. Specifically, the catalog’s view of a
-functional index on a JSON path is the key test for round-tripping
-`SHOW CREATE TABLE`: omni must re-emit `((cast(`doc` ->> _utf8mb4'$.name' as char(64))))` byte-exact.
+**omni status 2026-04-24:** verified by `TestScenario_C19/19_5`. The catalog
+rejects uncast JSON/LOB expressions and normalizes JSON path literals with
+the `_utf8mb4` introducer in functional-index `SHOW CREATE TABLE` output for
+the covered case.
 
 ---
 
