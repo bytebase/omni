@@ -6749,7 +6749,7 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 19.1 | Functional index hidden VIRTUAL gen col | verified | P0 | `TestScenario_C19/19_1` |
 | 19.2 | Hidden col type inferred from expression | verified | P0 | `TestScenario_C19/19_2` |
 | 19.3 | Hidden col invisible to SELECT * / I_S | verified | P0 | `TestScenario_C19/19_3` |
-| 19.4 | Functional expr must be deterministic/pure | structural-skip | P1 | Requires functional-index expression validation |
+| 19.4 | Functional expr must be deterministic/pure | verified | P1 | `TestScenario_C19/19_4` |
 | 19.5 | Functional index on JSON path via CAST | structural-skip | P0 | Requires JSON expression normalization plus hidden-column architecture |
 | 19.6 | DROP INDEX cascades to hidden gen col | pending | P0 | Wave 3 C19 worker |
 | 20.1 | INT NOT NULL no DEFAULT → implicit 0 | pending | HIGH | Wave 3 C20 worker |

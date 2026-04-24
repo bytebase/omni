@@ -19,10 +19,10 @@ func (p *Parser) parseCreateIndexStmt(unique bool, fulltext bool, spatial bool) 
 	p.advance() // consume INDEX
 
 	stmt := &nodes.CreateIndexStmt{
-		Loc:     nodes.Loc{Start: start},
-		Unique:  unique,
+		Loc:      nodes.Loc{Start: start},
+		Unique:   unique,
 		Fulltext: fulltext,
-		Spatial: spatial,
+		Spatial:  spatial,
 	}
 
 	// IF NOT EXISTS (MySQL 8.0.27+)
@@ -159,6 +159,7 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 			return nil, err
 		}
 		col.Expr = expr
+		col.Functional = true
 	} else {
 		// Column name
 		colName, _, err := p.parseIdent()
@@ -199,7 +200,7 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 func indexColumnsToNames(cols []*nodes.IndexColumn) []string {
 	names := make([]string, 0, len(cols))
 	for _, c := range cols {
-		if cr, ok := c.Expr.(*nodes.ColumnRef); ok {
+		if cr, ok := c.Expr.(*nodes.ColumnRef); ok && !c.Functional {
 			names = append(names, cr.Column)
 		}
 	}
@@ -353,4 +354,3 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 
 	return nil, false, nil
 }
-

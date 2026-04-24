@@ -455,7 +455,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(uqIdx, con.IndexOptions)
-			synthesizeFunctionalIndexColumns(tbl, uqIdx)
+			if err := synthesizeFunctionalIndexColumns(tbl, uqIdx); err != nil {
+				return err
+			}
 			tbl.Indexes = append(tbl.Indexes, uqIdx)
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:      idxName,
@@ -539,7 +541,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			}
 			applyIndexOptions(keyIdx, con.IndexOptions)
 			coerceInnoDBHashIndex(tbl, keyIdx)
-			synthesizeFunctionalIndexColumns(tbl, keyIdx)
+			if err := synthesizeFunctionalIndexColumns(tbl, keyIdx); err != nil {
+				return err
+			}
 			tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 		case nodes.ConstrFulltextIndex:
@@ -1107,7 +1111,7 @@ func extractColumnNames(con *nodes.Constraint) []string {
 	if len(con.IndexColumns) > 0 {
 		names := make([]string, 0, len(con.IndexColumns))
 		for _, ic := range con.IndexColumns {
-			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok {
+			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 				names = append(names, cr.Column)
 			}
 		}
@@ -1125,7 +1129,7 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 				Length:     ic.Length,
 				Descending: ic.Desc,
 			}
-			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok {
+			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 				idxCol.Name = cr.Column
 			} else {
 				idxCol.Expr = nodeToSQL(ic.Expr)

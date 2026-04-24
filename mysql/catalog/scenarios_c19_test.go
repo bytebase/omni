@@ -239,7 +239,6 @@ func TestScenario_C19(t *testing.T) {
 	// 19.4 Functional expression must be deterministic / non-LOB
 	// -----------------------------------------------------------------
 	t.Run("19_4_disallowed_expression_rejected", func(t *testing.T) {
-		t.Skip("structural: requires functional-index expression validation")
 		scenarioReset(t, mc)
 
 		// Oracle verification: run each bad DDL against MySQL directly

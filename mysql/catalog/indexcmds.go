@@ -39,7 +39,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			Length:     ic.Length,
 			Descending: ic.Desc,
 		}
-		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok {
+		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 			col.Name = cr.Column
 		} else {
 			col.Expr = nodeToSQL(ic.Expr)
@@ -69,7 +69,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 
 	applyIndexOptions(idx, stmt.Options)
-	synthesizeFunctionalIndexColumns(tbl, idx)
+	if err := synthesizeFunctionalIndexColumns(tbl, idx); err != nil {
+		return err
+	}
 
 	tbl.Indexes = append(tbl.Indexes, idx)
 

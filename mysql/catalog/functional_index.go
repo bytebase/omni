@@ -33,7 +33,15 @@ func allocFunctionalIndexName(tbl *Table) string {
 	}
 }
 
-func synthesizeFunctionalIndexColumns(tbl *Table, idx *Index) {
+func synthesizeFunctionalIndexColumns(tbl *Table, idx *Index) error {
+	for _, idxCol := range idx.Columns {
+		if idxCol.Expr == "" {
+			continue
+		}
+		if err := validateFunctionalIndexExpr(tbl, idx.Name, idxCol.ExprNode); err != nil {
+			return err
+		}
+	}
 	for part, idxCol := range idx.Columns {
 		if idxCol.Expr == "" {
 			continue
@@ -54,6 +62,7 @@ func synthesizeFunctionalIndexColumns(tbl *Table, idx *Index) {
 		})
 		tbl.colByName[toLower(hiddenName)] = len(tbl.Columns) - 1
 	}
+	return nil
 }
 
 func columnFromFunctionalIndexExpr(tbl *Table, hiddenName string, idxCol *IndexColumn) *Column {
@@ -210,6 +219,111 @@ func columnFromResolvedType(rt *ResolvedType) *Column {
 func isResolvedStringType(rt *ResolvedType) bool {
 	switch rt.BaseType {
 	case BaseTypeChar, BaseTypeVarchar, BaseTypeTinyText, BaseTypeText, BaseTypeMediumText, BaseTypeLongText:
+		return true
+	default:
+		return false
+	}
+}
+
+func validateFunctionalIndexExpr(tbl *Table, indexName string, expr nodes.ExprNode) error {
+	if _, ok := peelFunctionalIndexParens(expr).(*nodes.ColumnRef); ok {
+		return &Error{
+			Code:     3756,
+			SQLState: "HY000",
+			Message:  fmt.Sprintf("Functional index on a column is not supported. Consider using a regular index instead. Index '%s'.", indexName),
+		}
+	}
+	if containsDisallowedFunctionalIndexExpr(expr) {
+		return &Error{
+			Code:     3757,
+			SQLState: "HY000",
+			Message:  fmt.Sprintf("Expression of functional index '%s' contains a disallowed function.", indexName),
+		}
+	}
+	if isFunctionalIndexLOBType(inferFunctionalIndexExprType(tbl, expr)) {
+		return &Error{
+			Code:     3754,
+			SQLState: "HY000",
+			Message:  "Cannot create a functional index on an expression that returns a BLOB or TEXT. Please consider using CAST.",
+		}
+	}
+	return nil
+}
+
+func peelFunctionalIndexParens(expr nodes.ExprNode) nodes.ExprNode {
+	for {
+		p, ok := expr.(*nodes.ParenExpr)
+		if !ok {
+			return expr
+		}
+		expr = p.Expr
+	}
+}
+
+func containsDisallowedFunctionalIndexExpr(expr nodes.ExprNode) bool {
+	switch e := expr.(type) {
+	case nil:
+		return false
+	case *nodes.FuncCallExpr:
+		switch strings.ToLower(e.Name) {
+		case "rand", "uuid", "sleep", "now", "current_timestamp", "sysdate":
+			return true
+		}
+		for _, arg := range e.Args {
+			if containsDisallowedFunctionalIndexExpr(arg) {
+				return true
+			}
+		}
+	case *nodes.DefaultExpr, *nodes.SubqueryExpr, *nodes.ExistsExpr, *nodes.VariableRef:
+		return true
+	case *nodes.ParenExpr:
+		return containsDisallowedFunctionalIndexExpr(e.Expr)
+	case *nodes.BinaryExpr:
+		return containsDisallowedFunctionalIndexExpr(e.Left) || containsDisallowedFunctionalIndexExpr(e.Right)
+	case *nodes.UnaryExpr:
+		return containsDisallowedFunctionalIndexExpr(e.Operand)
+	case *nodes.CastExpr:
+		return containsDisallowedFunctionalIndexExpr(e.Expr)
+	case *nodes.CaseExpr:
+		if containsDisallowedFunctionalIndexExpr(e.Operand) || containsDisallowedFunctionalIndexExpr(e.Default) {
+			return true
+		}
+		for _, when := range e.Whens {
+			if containsDisallowedFunctionalIndexExpr(when.Cond) || containsDisallowedFunctionalIndexExpr(when.Result) {
+				return true
+			}
+		}
+	case *nodes.InExpr:
+		if e.Select != nil {
+			return true
+		}
+		if containsDisallowedFunctionalIndexExpr(e.Expr) {
+			return true
+		}
+		for _, item := range e.List {
+			if containsDisallowedFunctionalIndexExpr(item) {
+				return true
+			}
+		}
+	case *nodes.BetweenExpr:
+		return containsDisallowedFunctionalIndexExpr(e.Expr) ||
+			containsDisallowedFunctionalIndexExpr(e.Low) ||
+			containsDisallowedFunctionalIndexExpr(e.High)
+	case *nodes.IsExpr:
+		return containsDisallowedFunctionalIndexExpr(e.Expr)
+	}
+	return false
+}
+
+func isFunctionalIndexLOBType(rt *ResolvedType) bool {
+	if rt == nil {
+		return false
+	}
+	switch rt.BaseType {
+	case BaseTypeJSON, BaseTypeTinyText, BaseTypeText, BaseTypeMediumText, BaseTypeLongText,
+		BaseTypeTinyBlob, BaseTypeBlob, BaseTypeMediumBlob, BaseTypeLongBlob,
+		BaseTypeGeometry, BaseTypePoint, BaseTypeLineString, BaseTypePolygon,
+		BaseTypeMultiPoint, BaseTypeMultiLineString, BaseTypeMultiPolygon, BaseTypeGeometryCollection:
 		return true
 	default:
 		return false
