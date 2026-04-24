@@ -6627,8 +6627,8 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 1.8 | Non-PK index cannot be named PRIMARY | pending-verify | MED | Wave 2 C1 worker |
 | 1.9 | Implicit index name from first column | pending-verify | HIGH | Wave 2 C1 worker |
 | 1.10 | UNIQUE fallback when column literally "PRIMARY" | pending-verify | LOW | Wave 2 C1 worker |
-| 1.11 | Functional index auto-name collision suffix | structural-skip | MED | Requires C19 functional-index hidden-column architecture |
-| 1.12 | Functional index hidden column name format | structural-skip | MED | Requires C19 functional-index hidden-column architecture |
+| 1.11 | Functional index auto-name collision suffix | verified | MED | `TestScenario_C1/1_11` |
+| 1.12 | Functional index hidden column name format | verified | MED | `TestScenario_C1/1_12` |
 | 1.13 | CHECK constraint name is schema-scoped | pending-verify | HIGH | Wave 2 C1 worker |
 | 2.1 | REAL → DOUBLE | verified | LOW | `C2_1_REAL_to_DOUBLE` |
 | 2.2 | BOOL → TINYINT(1) | verified | LOW | `C2_2_BOOL_to_TINYINT1` |

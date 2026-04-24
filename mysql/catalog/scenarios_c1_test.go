@@ -311,7 +311,6 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 
 	// --- 1.11 Functional index auto-name functional_index[_N] ------------
 	t.Run("1_11_functional_index_auto_name", func(t *testing.T) {
-		t.Skip("structural: depends on functional-index hidden generated column synthesis and MySQL functional_index auto-naming")
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
@@ -350,7 +349,6 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 
 	// --- 1.12 Functional index hidden generated column name --------------
 	t.Run("1_12_functional_index_hidden_col", func(t *testing.T) {
-		t.Skip("structural: depends on functional-index hidden generated column synthesis and !hidden! name generation")
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 

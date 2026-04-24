@@ -431,9 +431,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			})
 
 		case nodes.ConstrUnique:
+			idxCols := buildIndexColumns(con)
 			idxName := con.Name
-			if idxName == "" && len(cols) > 0 {
-				idxName = allocIndexName(tbl, cols[0])
+			if idxName == "" {
+				idxName = defaultIndexName(tbl, cols, idxCols)
 			} else if idxName != "" {
 				if err := validateNonPrimaryIndexName(idxName); err != nil {
 					return err
@@ -442,7 +443,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					return errDupKeyName(idxName)
 				}
 			}
-			idxCols := buildIndexColumns(con)
 			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 				return err
 			}
@@ -455,6 +455,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(uqIdx, con.IndexOptions)
+			synthesizeFunctionalIndexColumns(tbl, uqIdx)
 			tbl.Indexes = append(tbl.Indexes, uqIdx)
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:      idxName,
@@ -514,9 +515,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			})
 
 		case nodes.ConstrIndex:
+			idxCols := buildIndexColumns(con)
 			idxName := con.Name
-			if idxName == "" && len(cols) > 0 {
-				idxName = allocIndexName(tbl, cols[0])
+			if idxName == "" {
+				idxName = defaultIndexName(tbl, cols, idxCols)
 			} else if idxName != "" {
 				if err := validateNonPrimaryIndexName(idxName); err != nil {
 					return err
@@ -525,7 +527,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					return errDupKeyName(idxName)
 				}
 			}
-			idxCols := buildIndexColumns(con)
 			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 				return err
 			}
@@ -538,6 +539,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			}
 			applyIndexOptions(keyIdx, con.IndexOptions)
 			coerceInnoDBHashIndex(tbl, keyIdx)
+			synthesizeFunctionalIndexColumns(tbl, keyIdx)
 			tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 		case nodes.ConstrFulltextIndex:
