@@ -52,7 +52,10 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
 	if !hasExplicit {
 		viewCols = derivedCols
 	}
-	columnMetadata := inferViewColumnMetadata(stmt.Select, viewCols, db)
+	columnMetadata, err := inferViewColumnMetadata(stmt.Select, viewCols, db)
+	if err != nil {
+		return err
+	}
 
 	algorithm := stmt.Algorithm
 	if algorithm == "" {
@@ -116,7 +119,10 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt) error {
 	if !hasExplicit {
 		viewCols = derivedCols
 	}
-	columnMetadata := inferViewColumnMetadata(stmt.Select, viewCols, db)
+	columnMetadata, err := inferViewColumnMetadata(stmt.Select, viewCols, db)
+	if err != nil {
+		return err
+	}
 
 	algorithm := stmt.Algorithm
 	if algorithm == "" {
@@ -149,13 +155,28 @@ type viewRelationInfo struct {
 	optional bool
 }
 
-func inferViewColumnMetadata(sel *nodes.SelectStmt, names []string, db *Database) []ViewColumn {
+type viewCollationDerivation int
+
+const (
+	viewDerivationExplicit viewCollationDerivation = iota
+	viewDerivationImplicit
+	viewDerivationCoercible
+)
+
+type viewCollationInfo struct {
+	charset    string
+	collation  string
+	derivation viewCollationDerivation
+	valid      bool
+}
+
+func inferViewColumnMetadata(sel *nodes.SelectStmt, names []string, db *Database) ([]ViewColumn, error) {
 	cols := make([]ViewColumn, len(names))
 	for i, name := range names {
 		cols[i].Name = name
 	}
 	if sel == nil {
-		return cols
+		return cols, nil
 	}
 	relations := map[string]viewRelationInfo{}
 	for _, from := range sel.From {
@@ -170,8 +191,17 @@ func inferViewColumnMetadata(sel *nodes.SelectStmt, names []string, db *Database
 			continue
 		}
 		cols[i].Nullable = inferViewExprNullable(rt.Val, relations)
+		if ci, err := inferViewExprCollation(rt.Val, relations); err != nil {
+			return nil, err
+		} else if ci.valid {
+			cols[i].Charset = ci.charset
+			cols[i].Collation = ci.collation
+		}
 	}
-	return cols
+	if err := validateViewSelectCollations(sel, relations); err != nil {
+		return nil, err
+	}
+	return cols, nil
 }
 
 func collectViewRelations(te nodes.TableExpr, db *Database, optional bool, out map[string]viewRelationInfo) {
@@ -256,6 +286,283 @@ func inferViewColumnRefNullable(cr *nodes.ColumnRef, relations map[string]viewRe
 		nullable = rel.optional || col.Nullable
 	}
 	return nullable
+}
+
+func validateViewSelectCollations(sel *nodes.SelectStmt, relations map[string]viewRelationInfo) error {
+	if sel == nil {
+		return nil
+	}
+	for _, expr := range []nodes.ExprNode{sel.Where, sel.Having} {
+		if expr == nil {
+			continue
+		}
+		if _, err := inferViewExprCollation(expr, relations); err != nil {
+			return err
+		}
+	}
+	for _, expr := range sel.GroupBy {
+		if _, err := inferViewExprCollation(expr, relations); err != nil {
+			return err
+		}
+	}
+	for _, item := range sel.OrderBy {
+		if item == nil {
+			continue
+		}
+		if _, err := inferViewExprCollation(item.Expr, relations); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func inferViewExprCollation(expr nodes.ExprNode, relations map[string]viewRelationInfo) (viewCollationInfo, error) {
+	switch e := expr.(type) {
+	case *nodes.ColumnRef:
+		return inferViewColumnRefCollation(e, relations), nil
+	case *nodes.StringLit:
+		charset := normalizeCharsetName(strings.TrimPrefix(toLower(e.Charset), "_"))
+		if charset == "" {
+			charset = "utf8mb4"
+		}
+		return newViewCollation(charset, "", viewDerivationCoercible), nil
+	case *nodes.CollateExpr:
+		child, err := inferViewExprCollation(e.Expr, relations)
+		if err != nil {
+			return viewCollationInfo{}, err
+		}
+		collation := toLower(e.Collation)
+		charset := normalizeCharsetName(charsetForCollation(collation))
+		if charset == "" && child.valid {
+			charset = child.charset
+		}
+		return newViewCollation(charset, collation, viewDerivationExplicit), nil
+	case *nodes.ConvertExpr:
+		if e.Charset != "" {
+			return newViewCollation(normalizeCharsetName(e.Charset), "", viewDerivationImplicit), nil
+		}
+		return inferViewExprCollation(e.Expr, relations)
+	case *nodes.FuncCallExpr:
+		return inferViewFuncCollation(e, relations)
+	case *nodes.ParenExpr:
+		return inferViewExprCollation(e.Expr, relations)
+	case *nodes.BinaryExpr:
+		return inferViewBinaryCollation(e, relations)
+	case *nodes.UnaryExpr:
+		return inferViewExprCollation(e.Operand, relations)
+	default:
+		return viewCollationInfo{}, nil
+	}
+}
+
+func inferViewFuncCollation(fn *nodes.FuncCallExpr, relations map[string]viewRelationInfo) (viewCollationInfo, error) {
+	name := strings.ToLower(fn.Name)
+	switch name {
+	case "concat", "concat_ws":
+		var out viewCollationInfo
+		for _, arg := range fn.Args {
+			ci, err := inferViewExprCollation(arg, relations)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			agg, err := aggregateViewCollations(out, ci, name)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			out = agg
+		}
+		return out, nil
+	case "repeat", "lpad", "rpad":
+		if len(fn.Args) == 0 {
+			return viewCollationInfo{}, nil
+		}
+		return inferViewExprCollation(fn.Args[0], relations)
+	default:
+		var out viewCollationInfo
+		for _, arg := range fn.Args {
+			ci, err := inferViewExprCollation(arg, relations)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			agg, err := aggregateViewCollations(out, ci, name)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			out = agg
+		}
+		return out, nil
+	}
+}
+
+func inferViewBinaryCollation(expr *nodes.BinaryExpr, relations map[string]viewRelationInfo) (viewCollationInfo, error) {
+	left, err := inferViewExprCollation(expr.Left, relations)
+	if err != nil {
+		return viewCollationInfo{}, err
+	}
+	right, err := inferViewExprCollation(expr.Right, relations)
+	if err != nil {
+		return viewCollationInfo{}, err
+	}
+	op := binaryOpToString(expr.Op)
+	if isViewCollationComparisonOp(expr.Op) {
+		if _, err := aggregateViewCollationsForComparison(left, right, op); err != nil {
+			return viewCollationInfo{}, err
+		}
+		return viewCollationInfo{}, nil
+	}
+	return aggregateViewCollations(left, right, op)
+}
+
+func inferViewColumnRefCollation(cr *nodes.ColumnRef, relations map[string]viewRelationInfo) viewCollationInfo {
+	if cr == nil || cr.Star {
+		return viewCollationInfo{}
+	}
+	if cr.Table != "" {
+		if rel, ok := relations[toLower(cr.Table)]; ok {
+			return viewColumnCollation(rel.table.GetColumn(cr.Column))
+		}
+		return viewCollationInfo{}
+	}
+	var out viewCollationInfo
+	found := false
+	for _, rel := range relations {
+		ci := viewColumnCollation(rel.table.GetColumn(cr.Column))
+		if !ci.valid {
+			continue
+		}
+		if found {
+			return viewCollationInfo{}
+		}
+		found = true
+		out = ci
+	}
+	return out
+}
+
+func viewColumnCollation(col *Column) viewCollationInfo {
+	if col == nil || col.Charset == "" || !isStringType(col.DataType) {
+		return viewCollationInfo{}
+	}
+	return newViewCollation(col.Charset, col.Collation, viewDerivationImplicit)
+}
+
+func newViewCollation(charset, collation string, derivation viewCollationDerivation) viewCollationInfo {
+	charset = normalizeCharsetName(charset)
+	collation = toLower(collation)
+	if charset == "" && collation != "" {
+		charset = normalizeCharsetName(charsetForCollation(collation))
+	}
+	if collation == "" && charset != "" {
+		collation = defaultCollationForCharset[toLower(charset)]
+	}
+	if charset == "" || collation == "" {
+		return viewCollationInfo{}
+	}
+	return viewCollationInfo{
+		charset:    charset,
+		collation:  collation,
+		derivation: derivation,
+		valid:      true,
+	}
+}
+
+func aggregateViewCollations(left, right viewCollationInfo, op string) (viewCollationInfo, error) {
+	if !left.valid {
+		return right, nil
+	}
+	if !right.valid {
+		return left, nil
+	}
+	if strings.EqualFold(left.collation, right.collation) {
+		return left, nil
+	}
+	if left.derivation == viewDerivationExplicit && right.derivation == viewDerivationExplicit {
+		return viewCollationInfo{}, errIllegalMixCollations(left, right, op)
+	}
+	if left.derivation != right.derivation {
+		if left.derivation < right.derivation {
+			return left, nil
+		}
+		return right, nil
+	}
+	if isCharsetSuperset(left.charset, right.charset) {
+		return left, nil
+	}
+	if isCharsetSuperset(right.charset, left.charset) {
+		return right, nil
+	}
+	// MySQL 8.0 permits several same-charset string function mixes that the
+	// comparison path rejects. Preserve the left side for view metadata.
+	if strings.EqualFold(left.charset, right.charset) {
+		return left, nil
+	}
+	return viewCollationInfo{}, errIllegalMixCollations(left, right, op)
+}
+
+func aggregateViewCollationsForComparison(left, right viewCollationInfo, op string) (viewCollationInfo, error) {
+	if !left.valid || !right.valid || strings.EqualFold(left.collation, right.collation) {
+		if left.valid {
+			return left, nil
+		}
+		return right, nil
+	}
+	if left.derivation == viewDerivationExplicit && right.derivation == viewDerivationExplicit {
+		return viewCollationInfo{}, errIllegalMixCollations(left, right, op)
+	}
+	if left.derivation == right.derivation && strings.EqualFold(left.charset, right.charset) {
+		return viewCollationInfo{}, errIllegalMixCollations(left, right, op)
+	}
+	return aggregateViewCollations(left, right, op)
+}
+
+func isViewCollationComparisonOp(op nodes.BinaryOp) bool {
+	switch op {
+	case nodes.BinOpEq, nodes.BinOpNe, nodes.BinOpLt, nodes.BinOpGt, nodes.BinOpLe, nodes.BinOpGe, nodes.BinOpNullSafeEq:
+		return true
+	default:
+		return false
+	}
+}
+
+func isCharsetSuperset(charset, other string) bool {
+	charset = normalizeCharsetName(charset)
+	other = normalizeCharsetName(other)
+	if charset == other {
+		return true
+	}
+	switch charset {
+	case "utf8mb4":
+		return other == "latin1" || other == "ascii" || other == "utf8mb3" || other == "utf8"
+	case "utf8mb3":
+		return other == "ascii"
+	case "latin1":
+		return other == "ascii"
+	default:
+		return false
+	}
+}
+
+func errIllegalMixCollations(left, right viewCollationInfo, op string) error {
+	return &Error{
+		Code:     1267,
+		SQLState: "HY000",
+		Message: fmt.Sprintf("Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
+			left.collation, viewDerivationName(left.derivation),
+			right.collation, viewDerivationName(right.derivation), op),
+	}
+}
+
+func viewDerivationName(derivation viewCollationDerivation) string {
+	switch derivation {
+	case viewDerivationExplicit:
+		return "EXPLICIT"
+	case viewDerivationImplicit:
+		return "IMPLICIT"
+	case viewDerivationCoercible:
+		return "COERCIBLE"
+	default:
+		return "NONE"
+	}
 }
 
 func isViewStringMetadataNullableFunc(name string) bool {
