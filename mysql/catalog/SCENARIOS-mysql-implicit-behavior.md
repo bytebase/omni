@@ -6768,19 +6768,19 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 20.3 | VARCHAR/CHAR NOT NULL → implicit '' | verified | MED | `TestScenario_C20` reconciliation |
 | 20.4 | ENUM NOT NULL → first value default | verified | HIGH | `TestScenario_C20` reconciliation |
 | 20.5 | DATETIME/DATE NOT NULL → zero-date | verified | HIGH | `TestScenario_C20` reconciliation |
-| 20.6 | BLOB/TEXT literal DEFAULT error 1101 | pending | HIGH | Wave 3 C20 worker |
+| 20.6 | BLOB/TEXT literal DEFAULT error 1101 | verified | HIGH | `TestScenario_C20/20_6` reconciliation |
 | 20.7 | JSON/BLOB expression DEFAULT (8.0.13+) | verified | HIGH | `TestScenario_C20` reconciliation |
-| 20.8 | Generated col DEFAULT → grammar error | pending | MED | Wave 3 C20 worker |
+| 20.8 | Generated col DEFAULT → grammar error | verified | MED | `TestScenario_C20/20_8` reconciliation |
 | 21.1 | DEFAULT NULL literal | verified | HIGH | `C21_1_Default_NULL` — Wave 3 C21 worker updated |
 | 21.2 | Bare JOIN → INNER (JTT_INNER) | verified | HIGH | `TestScenario_C21` reconciliation |
-| 21.3 | ORDER BY no direction → ORDER_NOT_RELEVANT | pending | HIGH | Wave 3 C21 worker — tri-state |
+| 21.3 | ORDER BY no direction → ORDER_NOT_RELEVANT | verified | HIGH | `TestScenario_C21/21_3` reconciliation |
 | 21.4 | LIMIT N no OFFSET → opt_offset NULL | verified | HIGH | `TestScenario_C21` reconciliation |
 | 21.5 | FK clause omitted → FK_OPTION_UNDEF | verified | HIGH | `TestScenario_C21` reconciliation |
 | 21.6 | FK asymmetric fill → UPDATE gets UNDEF | verified | MED | `TestScenario_C21` reconciliation |
 | 21.7 | CREATE INDEX no USING → nullptr engine-default | verified | MED | `TestScenario_C21` reconciliation |
 | 21.8 | INSERT no column list → empty PT_item_list | verified | HIGH | `TestScenario_C21` reconciliation |
 | 21.9 | CREATE VIEW no ALGORITHM → UNDEFINED | verified | HIGH | `TestScenario_C21` reconciliation |
-| 21.10 | CREATE TABLE no ENGINE → @@default_storage_engine | pending | HIGH | Wave 3 C21 worker |
+| 21.10 | CREATE TABLE no ENGINE → @@default_storage_engine | verified | HIGH | `TestScenario_C21/21_10` reconciliation |
 | 22.1 | ALGORITHM=DEFAULT picks fastest supported | verified | HIGH | `TestScenario_C22` catalog-level reconciliation |
 | 22.2 | LOCK=DEFAULT picks least restrictive | verified | HIGH | `TestScenario_C22` catalog-level reconciliation |
 | 22.3 | ADD COLUMN nullable trailing is INSTANT | verified | HIGH | `TestScenario_C22` catalog-level reconciliation |
@@ -6816,7 +6816,7 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 8.5 | COLLATE alone fills CHARSET | verified | HIGH | `TestScenario_C8` reconciliation |
 | 8.6 | KEY_BLOCK_SIZE default 0 elided | verified | MED | `TestScenario_C8` reconciliation |
 | 8.7 | COMPRESSION default None elided | verified | MED | `TestScenario_C8` + `TestScenario_C18/18_9` reconciliation |
-| 8.8 | ENCRYPTION default from server var | pending | MED | Wave 4 C8 worker |
+| 8.8 | ENCRYPTION default from server var | verified | MED | `TestScenario_C8/8_8` reconciliation |
 | 8.9 | STATS_PERSISTENT default | verified | LOW | `TestScenario_C8` + `TestScenario_C18/18_10` reconciliation |
 | 8.10 | TABLESPACE default | verified | LOW | `TestScenario_C8` + `TestScenario_C18/18_12` reconciliation |
 | 9.3 | VIRTUAL gcol PK rejection | pending | HIGH | Wave 4 C9 worker |
