@@ -50,13 +50,16 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt) error {
 	}
 
 	trigger := &Trigger{
-		Name:     name,
-		Database: db,
-		Table:    tableName,
-		Timing:   stmt.Timing,
-		Event:    stmt.Event,
-		Definer:  definer,
-		Body:     strings.TrimSpace(stmt.BodyText),
+		Name:                name,
+		Database:            db,
+		Table:               tableName,
+		Timing:              stmt.Timing,
+		Event:               stmt.Event,
+		Definer:             definer,
+		Body:                strings.TrimSpace(stmt.BodyText),
+		CharacterSetClient:  c.charsetClient,
+		CollationConnection: c.collationConn,
+		DatabaseCollation:   db.Collation,
 	}
 
 	if stmt.Order != nil {

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
@@ -100,8 +101,19 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 				c.foreignKeyChecks = true
 			}
 		case "names", "character set":
-			// Silently accept — these affect character encoding but
-			// the in-memory catalog doesn't need to change behavior.
+			charset := normalizeCharsetName(nodeToSQLValue(asgn.Value))
+			if strings.EqualFold(charset, "DEFAULT") || charset == "" {
+				charset = c.defaultCharset
+			}
+			c.charsetClient = charset
+			if coll, ok := defaultCollationForCharset[toLower(charset)]; ok {
+				c.collationConn = coll
+			}
+		case "collate":
+			collation := nodeToSQLValue(asgn.Value)
+			if collation != "" {
+				c.collationConn = collation
+			}
 		default:
 			// Silently accept all other SET variables (sql_mode, etc.).
 		}

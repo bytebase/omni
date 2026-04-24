@@ -6,6 +6,8 @@ type Catalog struct {
 	currentDB        string
 	defaultCharset   string
 	defaultCollation string
+	charsetClient    string
+	collationConn    string
 	foreignKeyChecks bool // SET foreign_key_checks (default true)
 }
 
@@ -14,6 +16,8 @@ func New() *Catalog {
 		databases:        make(map[string]*Database),
 		defaultCharset:   "utf8mb4",
 		defaultCollation: "utf8mb4_0900_ai_ci",
+		charsetClient:    "utf8mb4",
+		collationConn:    "utf8mb4_0900_ai_ci",
 		foreignKeyChecks: true,
 	}
 }
@@ -25,7 +29,7 @@ func (c *Catalog) ForeignKeyChecks() bool { return c.foreignKeyChecks }
 func (c *Catalog) SetForeignKeyChecks(v bool) { c.foreignKeyChecks = v }
 
 func (c *Catalog) SetCurrentDatabase(name string) { c.currentDB = name }
-func (c *Catalog) CurrentDatabase() string         { return c.currentDB }
+func (c *Catalog) CurrentDatabase() string        { return c.currentDB }
 
 func (c *Catalog) GetDatabase(name string) *Database {
 	return c.databases[toLower(name)]

@@ -131,9 +131,6 @@ CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET NEW.a = NEW.a;`)
 			t.Errorf("oracle: CHARACTER_SET_CLIENT for trg should be utf8*; got %q", cset)
 		}
 
-		// omni: Trigger struct as of today has no CharacterSetClient /
-		// CollationConnection / DatabaseCollation fields. Record the gap —
-		// deparse→reparse cannot currently round-trip session snapshots.
 		db := c.GetDatabase("testdb")
 		if db == nil {
 			t.Error("omni: testdb missing")
@@ -157,7 +154,14 @@ CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET NEW.a = NEW.a;`)
 		if trg.Table != "t" {
 			t.Errorf("omni 11.3: trg.Table=%q, want t", trg.Table)
 		}
-		t.Errorf("omni 11.3: KNOWN GAP — Trigger struct lacks CharacterSetClient/CollationConnection/DatabaseCollation fields; session snapshot cannot round-trip (see scenarios_bug_queue/c11.md)")
+		if !strings.HasPrefix(strings.ToLower(trg.CharacterSetClient), "utf8") {
+			t.Errorf("omni 11.3: CharacterSetClient=%q, want utf8*", trg.CharacterSetClient)
+		}
+		if trg.CollationConnection == "" {
+			t.Errorf("omni 11.3: CollationConnection is empty")
+		}
+		assertStringEq(t, "omni 11.3 DatabaseCollation",
+			strings.ToLower(trg.DatabaseCollation), strings.ToLower(db.Collation))
 	})
 
 	// --- 11.4 ACTION_ORDER default sequencing within (table, timing, event) -
