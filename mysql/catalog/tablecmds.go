@@ -1172,8 +1172,34 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 		if !fulltext && isTextBlobType(col.DataType) && ic.Length == 0 {
 			return &Error{Code: 1170, SQLState: "42000", Message: "BLOB/TEXT column used in key specification without a key length"}
 		}
+		if ic.Length > 0 {
+			if maxLen, ok := fixedLengthStringColumnLimit(col); ok && ic.Length > maxLen {
+				return &Error{Code: 1089, SQLState: "HY000", Message: "Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys"}
+			}
+		}
 	}
 	return nil
+}
+
+func fixedLengthStringColumnLimit(col *Column) (int, bool) {
+	switch strings.ToLower(col.DataType) {
+	case "char", "varchar", "binary", "varbinary":
+	default:
+		return 0, false
+	}
+	open := strings.IndexByte(col.ColumnType, '(')
+	close := strings.IndexByte(col.ColumnType, ')')
+	if open < 0 || close <= open+1 {
+		return 0, false
+	}
+	n := 0
+	for _, ch := range col.ColumnType[open+1 : close] {
+		if ch < '0' || ch > '9' {
+			return 0, false
+		}
+		n = n*10 + int(ch-'0')
+	}
+	return n, n > 0
 }
 
 func coerceInnoDBHashIndex(tbl *Table, idx *Index) {
