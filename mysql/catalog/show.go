@@ -79,6 +79,9 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	// Columns.
 	parts := make([]string, 0, len(tbl.Columns)+len(tbl.Indexes)+len(tbl.Constraints))
 	for _, col := range tbl.Columns {
+		if col.GeneratedInvisiblePrimaryKey && !c.showGIPK {
+			continue
+		}
 		parts = append(parts, showColumnWithTable(col, tbl))
 	}
 
@@ -90,6 +93,9 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	// 5. FULLTEXT KEYs (creation order)
 	var idxPrimary, idxUnique, idxRegular, idxExpr, idxFulltext []*Index
 	for _, idx := range tbl.Indexes {
+		if isGeneratedInvisiblePrimaryKeyIndex(idx) && !c.showGIPK {
+			continue
+		}
 		switch {
 		case idx.Primary:
 			idxPrimary = append(idxPrimary, idx)
@@ -151,6 +157,13 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	}
 
 	return b.String()
+}
+
+func isGeneratedInvisiblePrimaryKeyIndex(idx *Index) bool {
+	return idx != nil &&
+		idx.Primary &&
+		len(idx.Columns) == 1 &&
+		strings.EqualFold(idx.Columns[0].Name, generatedInvisiblePrimaryKeyColumnName)
 }
 
 func showColumn(col *Column) string {

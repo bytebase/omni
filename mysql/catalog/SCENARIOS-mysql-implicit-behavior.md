@@ -5872,8 +5872,8 @@ SHOW CREATE TABLE t;                 -- my_row_id visible
 **omni assertion:** deparse under default session omits `my_row_id`; toggling the visibility flag shows it.
 
 **Priority:** MED
-**Status:** pending
-**Source anchors:** C13.1 + C24.1. **omni risk** — likely not implemented.
+**Status:** verified
+**Source anchors:** C13.1 + C24.1. Verified by `TestScenario_C24`.
 
 ---
 
@@ -6778,7 +6778,7 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 22.6 | CHANGE COLUMN type change forces COPY | pending | HIGH | Wave 1 C22 worker |
 | 22.7 | Explicit ALGORITHM=INSTANT unsupported → error | pending | HIGH | Wave 1 C22 worker |
 | 22.8 | LOCK=NONE on COPY-only → error | pending | HIGH | Wave 1 C22 worker |
-| 24.1 | Invisible PK skip_gipk | pending | MED | omni risk — may not be implemented |
+| 24.1 | Invisible PK skip_gipk | verified | MED | `TestScenario_C24` |
 | 25.1 | DECIMAL default (10,0) | verified | LOW | `C25_1_decimal_default_10_0` |
 | PS.1 | CHECK counter CREATE fresh | verified | HIGH | `PS1_CheckCounter_CREATE_fresh` + bugfix test |
 | PS.2 | CHECK counter ALTER max+1 | verified | HIGH | `PS1_CheckCounter_ALTER_open` |
@@ -6835,9 +6835,9 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 23.1 | CONCAT NULL propagation | pending | MED | Wave 4 C23 worker |
 | 23.2 | CONCAT_WS skips NULL args | pending | MED | Wave 4 C23 worker |
 | 23.3 | IFNULL/COALESCE rescue for CONCAT | pending | LOW | Wave 4 C23 worker |
-| 24.2 | GIPK column spec | pending | MED | Wave 4 C24 worker |
-| 24.3 | GIPK suppressed by user PK | pending | MED | Wave 4 C24 worker |
-| 24.4 | GIPK my_row_id collision error | pending | LOW | Wave 4 C24 worker |
+| 24.2 | GIPK column spec | verified | MED | `TestScenario_C24` |
+| 24.3 | GIPK suppressed by user PK | verified | MED | `TestScenario_C24` |
+| 24.4 | GIPK my_row_id collision error | verified | LOW | `TestScenario_C24` |
 | 25.2 | DECIMAL precision-only scale 0 | pending | MED | Wave 4 C25 worker |
 | 25.3 | DECIMAL max precision/scale | pending | HIGH | Wave 4 C25 worker |
 | 25.4 | UNSIGNED DECIMAL | pending | LOW | Wave 4 C25 worker |

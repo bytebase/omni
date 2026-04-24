@@ -69,23 +69,24 @@ type SubPartitionDefInfo struct {
 }
 
 type Column struct {
-	Position          int
-	Name              string
-	DataType          string // normalized (int, varchar, etc.)
-	ColumnType        string // full type string (varchar(100), int unsigned)
-	Nullable          bool
-	Default           *string
-	DefaultDropped    bool // true when ALTER COLUMN DROP DEFAULT was used
-	AutoIncrement     bool
-	Charset           string
-	Collation         string
-	Comment           string
-	OnUpdate          string
-	Generated         *GeneratedColumnInfo
-	Invisible         bool
-	SRID              int          // Spatial Reference ID (0 = not set)
-	DefaultAnalyzed   AnalyzedExpr // Phase 3: analyzed DEFAULT expression
-	GeneratedAnalyzed AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
+	Position                     int
+	Name                         string
+	DataType                     string // normalized (int, varchar, etc.)
+	ColumnType                   string // full type string (varchar(100), int unsigned)
+	Nullable                     bool
+	Default                      *string
+	DefaultDropped               bool // true when ALTER COLUMN DROP DEFAULT was used
+	AutoIncrement                bool
+	Charset                      string
+	Collation                    string
+	Comment                      string
+	OnUpdate                     string
+	Generated                    *GeneratedColumnInfo
+	Invisible                    bool
+	GeneratedInvisiblePrimaryKey bool         // true for MySQL-generated my_row_id GIPK
+	SRID                         int          // Spatial Reference ID (0 = not set)
+	DefaultAnalyzed              AnalyzedExpr // Phase 3: analyzed DEFAULT expression
+	GeneratedAnalyzed            AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
 }
 
 type GeneratedColumnInfo struct {

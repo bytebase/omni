@@ -9,6 +9,8 @@ type Catalog struct {
 	charsetClient    string
 	collationConn    string
 	foreignKeyChecks bool // SET foreign_key_checks (default true)
+	generateGIPK     bool // SET sql_generate_invisible_primary_key
+	showGIPK         bool // SET show_gipk_in_create_table_and_information_schema
 }
 
 func New() *Catalog {

@@ -8,6 +8,8 @@ import (
 	"github.com/bytebase/omni/mysql/deparse"
 )
 
+const generatedInvisiblePrimaryKeyColumnName = "my_row_id"
+
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// Resolve database.
 	dbName := ""
@@ -597,6 +599,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 	}
 
+	if c.generateGIPK {
+		if tbl.GetColumn(generatedInvisiblePrimaryKeyColumnName) != nil {
+			return errGIPKColumnNameReserved()
+		}
+		if !hasPK {
+			addGeneratedInvisiblePrimaryKey(tbl)
+			hasPK = true
+		}
+	}
+
 	// Process deferred FK backing indexes now that all explicit indexes are in place.
 	for _, fk := range pendingFKs {
 		ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols)
@@ -625,15 +637,63 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	return nil
 }
 
+func errGIPKColumnNameReserved() error {
+	return &Error{
+		Code:     4108,
+		SQLState: "HY000",
+		Message:  "Failed to generate invisible primary key. Column 'my_row_id' already exists.",
+	}
+}
+
+func addGeneratedInvisiblePrimaryKey(tbl *Table) {
+	col := &Column{
+		Position:                     0,
+		Name:                         generatedInvisiblePrimaryKeyColumnName,
+		DataType:                     "bigint",
+		ColumnType:                   "bigint unsigned",
+		Nullable:                     false,
+		AutoIncrement:                true,
+		Invisible:                    true,
+		GeneratedInvisiblePrimaryKey: true,
+	}
+
+	tbl.Columns = append([]*Column{col}, tbl.Columns...)
+	rebuildColByNamePreservePositions(tbl)
+
+	tbl.Indexes = append(tbl.Indexes, &Index{
+		Name:      "PRIMARY",
+		Table:     tbl,
+		Columns:   []*IndexColumn{{Name: generatedInvisiblePrimaryKeyColumnName}},
+		Unique:    true,
+		Primary:   true,
+		IndexType: "",
+		Visible:   true,
+	})
+	tbl.Constraints = append(tbl.Constraints, &Constraint{
+		Name:      "PRIMARY",
+		Type:      ConPrimaryKey,
+		Table:     tbl,
+		Columns:   []string{generatedInvisiblePrimaryKeyColumnName},
+		IndexName: "PRIMARY",
+	})
+}
+
+func rebuildColByNamePreservePositions(tbl *Table) {
+	tbl.colByName = make(map[string]int, len(tbl.Columns))
+	for i, col := range tbl.Columns {
+		tbl.colByName[toLower(col.Name)] = i
+	}
+}
+
 // analyzeTableExpressions performs best-effort semantic analysis on DEFAULT,
 // GENERATED, and CHECK expressions after all columns have been added to the table.
 func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStmt) {
 	// Analyze DEFAULT and GENERATED expressions from column definitions.
-	for i, colDef := range stmt.Columns {
-		if i >= len(tbl.Columns) {
-			break
+	for _, colDef := range stmt.Columns {
+		col := tbl.GetColumn(colDef.Name)
+		if col == nil {
+			continue
 		}
-		col := tbl.Columns[i]
 
 		// Top-level DEFAULT.
 		if colDef.DefaultValue != nil {
@@ -1834,17 +1894,18 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 	// Copy columns.
 	for i, srcCol := range srcTbl.Columns {
 		col := &Column{
-			Position:      srcCol.Position,
-			Name:          srcCol.Name,
-			DataType:      srcCol.DataType,
-			ColumnType:    srcCol.ColumnType,
-			Nullable:      srcCol.Nullable,
-			AutoIncrement: srcCol.AutoIncrement,
-			Charset:       srcCol.Charset,
-			Collation:     srcCol.Collation,
-			Comment:       srcCol.Comment,
-			OnUpdate:      srcCol.OnUpdate,
-			Invisible:     srcCol.Invisible,
+			Position:                     srcCol.Position,
+			Name:                         srcCol.Name,
+			DataType:                     srcCol.DataType,
+			ColumnType:                   srcCol.ColumnType,
+			Nullable:                     srcCol.Nullable,
+			AutoIncrement:                srcCol.AutoIncrement,
+			Charset:                      srcCol.Charset,
+			Collation:                    srcCol.Collation,
+			Comment:                      srcCol.Comment,
+			OnUpdate:                     srcCol.OnUpdate,
+			Invisible:                    srcCol.Invisible,
+			GeneratedInvisiblePrimaryKey: srcCol.GeneratedInvisiblePrimaryKey,
 		}
 		if srcCol.Default != nil {
 			def := *srcCol.Default

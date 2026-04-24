@@ -92,13 +92,16 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 		varName := toLower(asgn.Column.Column)
 		switch varName {
 		case "foreign_key_checks":
-			// Extract the value.
-			val := nodeToSQLValue(asgn.Value)
-			switch toLower(val) {
-			case "0", "off", "false":
-				c.foreignKeyChecks = false
-			case "1", "on", "true":
-				c.foreignKeyChecks = true
+			if v, ok := parseSetBool(asgn.Value); ok {
+				c.foreignKeyChecks = v
+			}
+		case "sql_generate_invisible_primary_key":
+			if v, ok := parseSetBool(asgn.Value); ok {
+				c.generateGIPK = v
+			}
+		case "show_gipk_in_create_table_and_information_schema":
+			if v, ok := parseSetBool(asgn.Value); ok {
+				c.showGIPK = v
 			}
 		case "names", "character set":
 			charset := normalizeCharsetName(nodeToSQLValue(asgn.Value))
@@ -119,6 +122,17 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 		}
 	}
 	return nil
+}
+
+func parseSetBool(expr nodes.ExprNode) (bool, bool) {
+	switch toLower(nodeToSQLValue(expr)) {
+	case "0", "off", "false":
+		return false, true
+	case "1", "on", "true":
+		return true, true
+	default:
+		return false, false
+	}
 }
 
 // nodeToSQLValue extracts a simple string value from an expression node.
