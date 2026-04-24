@@ -474,10 +474,10 @@ func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
 
 	// Standalone BINARY modifier — shorthand for CHARACTER SET binary.
 	// Valid for CHAR, VARCHAR, TEXT variants, ENUM, SET, and BLOB types.
-	// MySQL: CHAR(10) BINARY → CHAR(10) CHARACTER SET binary
+	// MySQL: CHAR(10) BINARY → CHAR(10) COLLATE {charset}_bin.
 	if p.cur.Type == kwBINARY {
 		p.advance()
-		dt.Charset = "binary"
+		dt.Binary = true
 	}
 }
 

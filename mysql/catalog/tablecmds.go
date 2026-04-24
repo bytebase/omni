@@ -227,6 +227,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					col.Collation = tbl.Collation
 				}
 			}
+			applyBinaryModifierCollation(col, colDef.TypeName)
 		}
 
 		// Top-level column properties.
@@ -1416,6 +1417,13 @@ func convertToBinaryType(col *Column, dt *nodes.DataType) *Column {
 	col.Charset = ""
 	col.Collation = ""
 	return col
+}
+
+func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
+	if col == nil || dt == nil || !dt.Binary || col.Charset == "" {
+		return
+	}
+	col.Collation = fmt.Sprintf("%s_bin", normalizeCharsetName(col.Charset))
 }
 
 // nodeToSQLGenerated converts an AST expression to SQL for use in a generated

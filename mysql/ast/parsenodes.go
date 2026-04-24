@@ -538,6 +538,7 @@ type DataType struct {
 	Zerofill   bool
 	Charset    string   // CHARACTER SET
 	Collate    string   // COLLATE
+	Binary     bool     // standalone BINARY modifier
 	EnumValues []string // for ENUM and SET types
 	ArrayDim   int      // not used in MySQL, but here for consistency
 	SRID       int      // Spatial Reference ID for spatial types (0 = not set)

@@ -2780,6 +2780,9 @@ func writeDataType(sb *strings.Builder, n *DataType) {
 	if n.Collate != "" {
 		fmt.Fprintf(sb, " :collate %s", n.Collate)
 	}
+	if n.Binary {
+		sb.WriteString(" :binary true")
+	}
 	if len(n.EnumValues) > 0 {
 		fmt.Fprintf(sb, " :enum_values %s", strings.Join(n.EnumValues, ", "))
 	}

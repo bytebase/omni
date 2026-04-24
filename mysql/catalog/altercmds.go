@@ -911,6 +911,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 				col.Collation = tbl.Collation
 			}
 		}
+		applyBinaryModifierCollation(col, colDef.TypeName)
 	}
 
 	// Top-level column properties.
