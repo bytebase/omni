@@ -6748,7 +6748,7 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 18.15 | USING BTREE/HASH emitted only when explicit | pending | HIGH | Wave 2 C18 worker |
 | 19.1 | Functional index hidden VIRTUAL gen col | verified | P0 | `TestScenario_C19/19_1` |
 | 19.2 | Hidden col type inferred from expression | verified | P0 | `TestScenario_C19/19_2` |
-| 19.3 | Hidden col invisible to SELECT * / I_S | structural-skip | P0 | Requires hidden-column visibility model |
+| 19.3 | Hidden col invisible to SELECT * / I_S | verified | P0 | `TestScenario_C19/19_3` |
 | 19.4 | Functional expr must be deterministic/pure | structural-skip | P1 | Requires functional-index expression validation |
 | 19.5 | Functional index on JSON path via CAST | structural-skip | P0 | Requires JSON expression normalization plus hidden-column architecture |
 | 19.6 | DROP INDEX cascades to hidden gen col | pending | P0 | Wave 3 C19 worker |

@@ -177,7 +177,6 @@ func TestScenario_C19(t *testing.T) {
 	// 19.3 Hidden column suppressed in SELECT * and user I_S.COLUMNS
 	// -----------------------------------------------------------------
 	t.Run("19_3_hidden_suppressed_in_select_star", func(t *testing.T) {
-		t.Skip("structural: requires hidden-column SQL namespace and information_schema visibility model")
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
