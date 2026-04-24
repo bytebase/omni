@@ -184,6 +184,57 @@ func TestFunctionalIndexCreateIndexSynthesizesHiddenColumn(t *testing.T) {
 	}
 }
 
+func TestFunctionalIndexHiddenColumnTypeInference(t *testing.T) {
+	c := scenarioNewCatalog(t)
+	results, err := c.Exec(`
+		CREATE TABLE t (
+			a INT,
+			b INT,
+			name VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+			payload JSON,
+			INDEX k_sum ((a + b)),
+			INDEX k_low ((LOWER(name))),
+			INDEX k_cast ((CAST(payload->'$.age' AS UNSIGNED)))
+		);
+	`, nil)
+	if err != nil {
+		t.Fatalf("exec create table: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("exec create table result error: %v", r.Error)
+		}
+	}
+
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t missing")
+	}
+	assertHiddenColumnTypeForTest(t, tbl, "!hidden!k_sum!0!0", "bigint", "bigint", "", "")
+	assertHiddenColumnTypeForTest(t, tbl, "!hidden!k_low!0!0", "varchar", "varchar(64)", "utf8mb4", "utf8mb4_0900_ai_ci")
+	assertHiddenColumnTypeForTest(t, tbl, "!hidden!k_cast!0!0", "bigint", "bigint unsigned", "", "")
+}
+
+func assertHiddenColumnTypeForTest(t *testing.T, tbl *Table, name, dataType, columnType, charset, collation string) {
+	t.Helper()
+	col := tbl.GetColumn(name)
+	if col == nil {
+		t.Fatalf("hidden column %q missing", name)
+	}
+	if col.DataType != dataType {
+		t.Fatalf("%s DataType = %q, want %q", name, col.DataType, dataType)
+	}
+	if col.ColumnType != columnType {
+		t.Fatalf("%s ColumnType = %q, want %q", name, col.ColumnType, columnType)
+	}
+	if col.Charset != charset {
+		t.Fatalf("%s Charset = %q, want %q", name, col.Charset, charset)
+	}
+	if col.Collation != collation {
+		t.Fatalf("%s Collation = %q, want %q", name, col.Collation, collation)
+	}
+}
+
 func findIndexForTest(tbl *Table, name string) *Index {
 	for _, idx := range tbl.Indexes {
 		if strings.EqualFold(idx.Name, name) {

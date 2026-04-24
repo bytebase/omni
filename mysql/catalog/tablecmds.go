@@ -1129,6 +1129,7 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 				idxCol.Name = cr.Column
 			} else {
 				idxCol.Expr = nodeToSQL(ic.Expr)
+				idxCol.ExprNode = ic.Expr
 			}
 			result = append(result, idxCol)
 		}
@@ -1945,6 +1946,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 				Length:     sc.Length,
 				Descending: sc.Descending,
 				Expr:       sc.Expr,
+				ExprNode:   sc.ExprNode,
 			}
 		}
 		idx.Columns = cols

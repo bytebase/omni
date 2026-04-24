@@ -43,6 +43,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			col.Name = cr.Column
 		} else {
 			col.Expr = nodeToSQL(ic.Expr)
+			col.ExprNode = ic.Expr
 		}
 		idxCols = append(idxCols, col)
 	}

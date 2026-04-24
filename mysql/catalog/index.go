@@ -1,5 +1,7 @@
 package catalog
 
+import nodes "github.com/bytebase/omni/mysql/ast"
+
 type Index struct {
 	Name         string
 	Table        *Table
@@ -17,6 +19,7 @@ type Index struct {
 type IndexColumn struct {
 	Name       string
 	Expr       string
+	ExprNode   nodes.ExprNode
 	Length     int
 	Descending bool
 }

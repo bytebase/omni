@@ -117,7 +117,6 @@ func TestScenario_C19(t *testing.T) {
 	// 19.2 Hidden column type inferred from expression return type
 	// -----------------------------------------------------------------
 	t.Run("19_2_type_inferred_from_expression", func(t *testing.T) {
-		t.Skip("structural: requires functional-index expression type inference")
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
