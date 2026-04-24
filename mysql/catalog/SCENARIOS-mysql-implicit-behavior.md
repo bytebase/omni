@@ -4698,7 +4698,7 @@ functional index on a JSON path is the key test for round-tripping
 
 ### 19.6 DROP INDEX cascades to the hidden generated column
 
-**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-6}`
+**Priority:** P0  **Status:** verified  **Anchor:** `{#c19-6}`
 
 ```sql
 CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
@@ -4734,7 +4734,7 @@ blocked: dropping the hidden column by name yields
 INDEX` cascades to a hidden-column rename because the hidden column name is
 derived from the key name (see §1.12).
 
-**omni assertion:** omni’s schema-diff migration generator must:
+**omni assertion:** omni’s catalog model and schema-diff migration generator must:
 1. Emit `DROP INDEX idx_name` *without* an accompanying `DROP COLUMN` for
    the hidden column (server handles cascade).
 2. Reject any attempt to generate `ALTER TABLE ... DROP COLUMN
@@ -4744,15 +4744,21 @@ derived from the key name (see §1.12).
    expression), prefer `ALTER TABLE ... RENAME INDEX idx_a TO idx_b` over
    drop+recreate so the hidden column is renamed in place.
 
+**omni status 2026-04-24:** catalog behavior is verified by
+`TestScenario_C19/19_6`. `DROP INDEX` removes the attached system-hidden
+generated column, direct `DROP COLUMN` on that column returns a
+3108-equivalent functional-index error, and `RENAME INDEX` renames the
+attached hidden column. The migration-generator diff preference remains a
+separate integration concern.
+
 **MySQL source:**
 - `sql/sql_table.cc:16158-16195` — `handle_drop_functional_index`
 - `sql/sql_table.cc:16187` — `ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX`
 - `sql/sql_table.cc:16211+` — `handle_rename_functional_index`
 
-**omni gap:** the migration generator has no concept of functional indexes,
-so today it would plan a no-op for the hidden column drift or, worse,
-generate an invalid `DROP COLUMN` statement. Needs a pre-diff normalization
-pass that attaches hidden columns to their parent index.
+**omni gap:** the catalog lifecycle is implemented. The migration generator
+still needs a pre-diff normalization pass that attaches hidden columns to
+their parent index so it does not plan invalid hidden-column DDL.
 
 ---
 
@@ -6751,7 +6757,7 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 19.3 | Hidden col invisible to SELECT * / I_S | verified | P0 | `TestScenario_C19/19_3` |
 | 19.4 | Functional expr must be deterministic/pure | verified | P1 | `TestScenario_C19/19_4` |
 | 19.5 | Functional index on JSON path via CAST | verified | P0 | `TestScenario_C19/19_5` |
-| 19.6 | DROP INDEX cascades to hidden gen col | pending | P0 | Wave 3 C19 worker |
+| 19.6 | DROP INDEX cascades to hidden gen col | verified | P0 | `TestScenario_C19/19_6` |
 | 20.1 | INT NOT NULL no DEFAULT → implicit 0 | pending | HIGH | Wave 3 C20 worker |
 | 20.2 | INT nullable no DEFAULT → implicit NULL | pending | HIGH | Wave 3 C20 worker |
 | 20.3 | VARCHAR/CHAR NOT NULL → implicit '' | pending | MED | Wave 3 C20 worker |

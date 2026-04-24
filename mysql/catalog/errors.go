@@ -262,6 +262,11 @@ func errDependentByGeneratedColumn(column, genColumn, table string) error {
 		Message: fmt.Sprintf("Column '%s' has a generated column dependency and cannot be dropped or renamed. A generated column '%s' refers to this column in table '%s'.", column, genColumn, table)}
 }
 
+func errCannotDropColumnFunctionalIndex(column string) error {
+	return &Error{Code: ErrDependentByGenCol, SQLState: sqlState(ErrDependentByGenCol),
+		Message: fmt.Sprintf("Cannot drop column '%s' because it is used by a functional index.", column)}
+}
+
 func errFKCannotUseVirtualColumn(col string) error {
 	return &Error{Code: ErrFKCannotUseVirtualColumn, SQLState: sqlState(ErrFKCannotUseVirtualColumn),
 		Message: fmt.Sprintf("Cannot define foreign key with clause on a generated column '%s'", col)}

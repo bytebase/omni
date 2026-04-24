@@ -184,6 +184,103 @@ func TestFunctionalIndexCreateIndexSynthesizesHiddenColumn(t *testing.T) {
 	}
 }
 
+func TestFunctionalIndexDropIndexRemovesHiddenColumn(t *testing.T) {
+	c := scenarioNewCatalog(t)
+	results, err := c.Exec(`
+		CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
+		CREATE INDEX idx_lower ON t ((LOWER(name)));
+		DROP INDEX idx_lower ON t;
+	`, nil)
+	if err != nil {
+		t.Fatalf("exec ddl: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("exec ddl result error: %v", r.Error)
+		}
+	}
+
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t missing")
+	}
+	if got := len(tbl.HiddenColumns()); got != 0 {
+		t.Fatalf("hidden columns = %d, want 0", got)
+	}
+	if col := tbl.GetColumn("!hidden!idx_lower!0!0"); col != nil {
+		t.Fatalf("hidden column still present after DROP INDEX: %#v", col)
+	}
+}
+
+func TestFunctionalIndexDropHiddenColumnRejected(t *testing.T) {
+	c := scenarioNewCatalog(t)
+	results, err := c.Exec(`
+		CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
+		CREATE INDEX idx_lower ON t ((LOWER(name)));
+		ALTER TABLE t DROP COLUMN `+"`!hidden!idx_lower!0!0`"+`;
+	`, nil)
+	if err != nil {
+		t.Fatalf("exec ddl: %v", err)
+	}
+	if len(results) != 3 {
+		t.Fatalf("results = %d, want 3", len(results))
+	}
+	if results[0].Error != nil {
+		t.Fatalf("create table error: %v", results[0].Error)
+	}
+	if results[1].Error != nil {
+		t.Fatalf("create index error: %v", results[1].Error)
+	}
+	if results[2].Error == nil {
+		t.Fatal("drop hidden column accepted, want error")
+	}
+	catErr, ok := results[2].Error.(*Error)
+	if !ok {
+		t.Fatalf("drop hidden column error type = %T, want *Error", results[2].Error)
+	}
+	if catErr.Code != ErrDependentByGenCol {
+		t.Fatalf("drop hidden column error code = %d, want %d", catErr.Code, ErrDependentByGenCol)
+	}
+	if !strings.Contains(catErr.Message, "functional index") {
+		t.Fatalf("drop hidden column message = %q, want functional index", catErr.Message)
+	}
+}
+
+func TestFunctionalIndexRenameIndexRenamesHiddenColumn(t *testing.T) {
+	c := scenarioNewCatalog(t)
+	results, err := c.Exec(`
+		CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
+		CREATE INDEX idx_lower ON t ((LOWER(name)));
+		ALTER TABLE t RENAME INDEX idx_lower TO idx_lc;
+	`, nil)
+	if err != nil {
+		t.Fatalf("exec ddl: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("exec ddl result error: %v", r.Error)
+		}
+	}
+
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t missing")
+	}
+	if col := tbl.GetColumn("!hidden!idx_lower!0!0"); col != nil {
+		t.Fatalf("old hidden column still present after RENAME INDEX: %#v", col)
+	}
+	if col := tbl.GetColumn("!hidden!idx_lc!0!0"); col == nil || col.Hidden != ColumnHiddenSystem {
+		t.Fatalf("new hidden column missing or not system-hidden: %#v", col)
+	}
+	idx := findIndexForTest(tbl, "idx_lc")
+	if idx == nil {
+		t.Fatal("index idx_lc missing")
+	}
+	if idx.Columns[0].Name != "!hidden!idx_lc!0!0" {
+		t.Fatalf("renamed index key part column = %q, want !hidden!idx_lc!0!0", idx.Columns[0].Name)
+	}
+}
+
 func TestFunctionalIndexHiddenColumnTypeInference(t *testing.T) {
 	c := scenarioNewCatalog(t)
 	results, err := c.Exec(`

@@ -66,6 +66,49 @@ func synthesizeFunctionalIndexColumns(tbl *Table, idx *Index) error {
 	return nil
 }
 
+func removeFunctionalIndexHiddenColumns(tbl *Table, idx *Index) {
+	remove := make(map[string]bool)
+	for _, idxCol := range idx.Columns {
+		if idxCol.Expr == "" || idxCol.Name == "" {
+			continue
+		}
+		remove[toLower(idxCol.Name)] = true
+	}
+	if len(remove) == 0 {
+		return
+	}
+
+	cols := tbl.Columns[:0]
+	for _, col := range tbl.Columns {
+		if remove[toLower(col.Name)] && col.Hidden == ColumnHiddenSystem {
+			continue
+		}
+		cols = append(cols, col)
+	}
+	tbl.Columns = cols
+	rebuildColIndex(tbl)
+}
+
+func renameFunctionalIndexHiddenColumns(tbl *Table, idx *Index, newIndexName string) {
+	renamed := false
+	for part, idxCol := range idx.Columns {
+		if idxCol.Expr == "" || idxCol.Name == "" {
+			continue
+		}
+		col := tbl.GetColumn(idxCol.Name)
+		if col == nil || col.Hidden != ColumnHiddenSystem {
+			continue
+		}
+		newName := makeFunctionalIndexColumnName(tbl, newIndexName, part)
+		col.Name = newName
+		idxCol.Name = newName
+		renamed = true
+	}
+	if renamed {
+		rebuildColIndex(tbl)
+	}
+}
+
 func columnFromFunctionalIndexExpr(tbl *Table, hiddenName string, idxCol *IndexColumn) *Column {
 	rt := inferFunctionalIndexExprType(tbl, idxCol.ExprNode)
 	col := columnFromResolvedType(rt)

@@ -8,18 +8,10 @@ import (
 // TestScenario_C19 covers Section C19 "Virtual / functional indexes" from
 // mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. MySQL 8.0.13+ implements
 // functional index key parts by synthesizing a hidden VIRTUAL generated
-// column over the expression and building an ordinary index over it. omni
-// currently represents functional key parts as an `Expr` string on
-// `IndexColumn` with NO synthesized hidden Column, which means:
-//
-//   - type inference on the expression (19.2) has nowhere to store its result
-//   - hidden-column suppression (19.3) is vacuously "fine" but untestable
-//   - deterministic-only / no-LOB validation (19.4) is not enforced at all
-//   - DROP INDEX "cascade" (19.6) is vacuous for the same reason
-//
-// Every subtest here is expected to fail on the omni side and is documented
-// in scenarios_bug_queue/c19.md. We use t.Error (not t.Fatal) so all six
-// scenarios run in one pass.
+// column over the expression and building an ordinary index over it. These
+// scenarios lock the catalog behavior against a real MySQL oracle: hidden
+// column synthesis, expression typing and validation, visibility suppression,
+// JSON expression normalization, and hidden-column lifecycle.
 func TestScenario_C19(t *testing.T) {
 	scenariosSkipIfShort(t)
 	scenariosSkipIfNoDocker(t)
@@ -356,7 +348,6 @@ func TestScenario_C19(t *testing.T) {
 	// 19.6 DROP INDEX cascades to hidden generated column
 	// -----------------------------------------------------------------
 	t.Run("19_6_drop_index_cascades_hidden", func(t *testing.T) {
-		t.Skip("structural: requires functional-index hidden-column lifecycle cleanup")
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
@@ -389,6 +380,15 @@ func TestScenario_C19(t *testing.T) {
 		if _, err := mc.db.ExecContext(mc.ctx, "CREATE INDEX idx_lower ON t ((LOWER(name)))"); err != nil {
 			t.Fatalf("oracle: recreating idx_lower: %v", err)
 		}
+		omniResults, omniErr := c.Exec("CREATE INDEX idx_lower ON t ((LOWER(name)))", nil)
+		if omniErr != nil {
+			t.Fatalf("omni: recreating idx_lower: %v", omniErr)
+		}
+		for _, r := range omniResults {
+			if r.Error != nil {
+				t.Fatalf("omni: recreating idx_lower: %v", r.Error)
+			}
+		}
 		_, dropErr := mc.db.ExecContext(mc.ctx, "ALTER TABLE t DROP COLUMN `!hidden!idx_lower!0!0`")
 		if dropErr == nil {
 			t.Errorf("oracle: dropping hidden column should be rejected with ER 3108")
@@ -396,8 +396,7 @@ func TestScenario_C19(t *testing.T) {
 			t.Errorf("oracle: unexpected error for hidden-column drop: %v", dropErr)
 		}
 
-		// omni: the same ALTER. omni has no hidden column, so it should
-		// either reject the column name as "unknown" OR reject it with a
+		// omni: the same ALTER must reject the system-hidden column with a
 		// 3108-equivalent error. Accepting the DROP COLUMN silently is
 		// the bug we want to catch.
 		results, parseErr := c.Exec("ALTER TABLE t DROP COLUMN `!hidden!idx_lower!0!0`", nil)
@@ -409,6 +408,26 @@ func TestScenario_C19(t *testing.T) {
 		}
 		if !rejected {
 			t.Errorf("omni: DROP COLUMN `!hidden!idx_lower!0!0` silently accepted; MySQL returns ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX (3108)")
+		}
+
+		runOnBoth(t, mc, c, "ALTER TABLE t RENAME INDEX idx_lower TO idx_lc")
+		mysqlCreate = oracleShow(t, mc, "SHOW CREATE TABLE t")
+		if strings.Contains(mysqlCreate, "idx_lower") || !strings.Contains(mysqlCreate, "idx_lc") {
+			t.Errorf("oracle: RENAME INDEX not reflected in SHOW CREATE: %q", mysqlCreate)
+		}
+		omniCreate = c.ShowCreateTable("testdb", "t")
+		if strings.Contains(omniCreate, "idx_lower") || !strings.Contains(omniCreate, "idx_lc") {
+			t.Errorf("omni: RENAME INDEX not reflected in SHOW CREATE: %q", omniCreate)
+		}
+		tbl := c.GetDatabase("testdb").GetTable("t")
+		if tbl == nil {
+			t.Fatalf("omni: table t missing after RENAME INDEX")
+		}
+		if col := tbl.GetColumn("!hidden!idx_lower!0!0"); col != nil {
+			t.Errorf("omni: old hidden column still present after RENAME INDEX: %#v", col)
+		}
+		if col := tbl.GetColumn("!hidden!idx_lc!0!0"); col == nil || col.Hidden != ColumnHiddenSystem {
+			t.Errorf("omni: renamed hidden column missing or not system-hidden: %#v", col)
 		}
 	})
 }

@@ -116,8 +116,10 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 	// Find and remove index.
 	key := toLower(stmt.Name)
 	found := false
+	var dropped *Index
 	for i, idx := range tbl.Indexes {
 		if toLower(idx.Name) == key {
+			dropped = idx
 			tbl.Indexes = append(tbl.Indexes[:i], tbl.Indexes[i+1:]...)
 			found = true
 			break
@@ -126,6 +128,7 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 	if !found {
 		return errCantDropKey(stmt.Name)
 	}
+	removeFunctionalIndexHiddenColumns(tbl, dropped)
 
 	// Also remove any constraint that references this index.
 	for i, con := range tbl.Constraints {

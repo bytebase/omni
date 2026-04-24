@@ -214,6 +214,10 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		// same as DROP INDEX: "Can't DROP 'x'; check that column/key exists".
 		return errCantDropKey(cmd.Name)
 	}
+	idx := tbl.colByName[colKey]
+	if tbl.Columns[idx].Hidden == ColumnHiddenSystem {
+		return errCannotDropColumnFunctionalIndex(cmd.Name)
+	}
 	if len(tbl.Columns) == 1 {
 		return errCantRemoveAllFields()
 	}
@@ -243,7 +247,6 @@ func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	// Remove column from indexes; if index becomes empty, remove it entirely.
 	cleanupIndexesForDroppedColumn(tbl, cmd.Name)
 
-	idx := tbl.colByName[colKey]
 	tbl.Columns = append(tbl.Columns[:idx], tbl.Columns[idx+1:]...)
 	rebuildColIndex(tbl)
 	return nil
@@ -702,6 +705,9 @@ func (c *Catalog) alterRenameIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	for _, idx := range tbl.Indexes {
 		if toLower(idx.Name) == oldKey {
 			idx.Name = cmd.NewName
+			if newKey != oldKey {
+				renameFunctionalIndexHiddenColumns(tbl, idx, cmd.NewName)
+			}
 			// Also update any constraint that references this index.
 			for _, con := range tbl.Constraints {
 				if toLower(con.IndexName) == oldKey {
