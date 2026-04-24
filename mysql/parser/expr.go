@@ -365,6 +365,14 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		tok := p.advance()
 		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc}, Value: false}, nil
 
+	case kwON:
+		tok := p.advance()
+		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc}, Value: true}, nil
+
+	case kwOFF:
+		tok := p.advance()
+		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc}, Value: false}, nil
+
 	case kwNULL:
 		tok := p.advance()
 		return &nodes.NullLit{Loc: nodes.Loc{Start: tok.Loc}}, nil

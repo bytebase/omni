@@ -89,19 +89,33 @@ func LoadSQL(sql string) (*Catalog, error) {
 // update the catalog state.
 func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 	for _, asgn := range stmt.Assignments {
-		varName := toLower(asgn.Column.Column)
+		varName := normalizeSetVariableName(asgn.Column)
 		switch varName {
 		case "foreign_key_checks":
 			if v, ok := parseSetBool(asgn.Value); ok {
 				c.foreignKeyChecks = v
+				c.session.ForeignKeyChecks = v
 			}
 		case "sql_generate_invisible_primary_key":
 			if v, ok := parseSetBool(asgn.Value); ok {
 				c.generateGIPK = v
+				c.session.GenerateInvisiblePrimaryKey = v
 			}
 		case "show_gipk_in_create_table_and_information_schema":
 			if v, ok := parseSetBool(asgn.Value); ok {
 				c.showGIPK = v
+				c.session.ShowGIPK = v
+			}
+		case "explicit_defaults_for_timestamp":
+			if isDefaultSetValue(asgn.Value) {
+				c.session.ExplicitDefaultsForTimestamp = true
+			} else if v, ok := parseSetBool(asgn.Value); ok {
+				c.session.ExplicitDefaultsForTimestamp = v
+			}
+		case "sql_mode":
+			c.session.SQLMode = nodeToSQLValue(asgn.Value)
+			if c.session.SQLMode == "" && isDefaultSetValue(asgn.Value) {
+				c.session.SQLMode = "DEFAULT"
 			}
 		case "names", "character set":
 			charset := normalizeCharsetName(nodeToSQLValue(asgn.Value))
@@ -109,19 +123,38 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 				charset = c.defaultCharset
 			}
 			c.charsetClient = charset
+			c.session.CharsetClient = charset
 			if coll, ok := defaultCollationForCharset[toLower(charset)]; ok {
 				c.collationConn = coll
+				c.session.CollationConnection = coll
 			}
 		case "collate":
 			collation := nodeToSQLValue(asgn.Value)
 			if collation != "" {
 				c.collationConn = collation
+				c.session.CollationConnection = collation
 			}
 		default:
 			// Silently accept all other SET variables (sql_mode, etc.).
 		}
 	}
 	return nil
+}
+
+func normalizeSetVariableName(col *nodes.ColumnRef) string {
+	if col == nil {
+		return ""
+	}
+	name := col.Column
+	if col.Table != "" {
+		name = col.Table + "." + name
+	}
+	name = strings.TrimPrefix(name, "@@")
+	name = toLower(name)
+	for _, prefix := range []string{"session.", "global.", "local.", "persist.", "persist_only."} {
+		name = strings.TrimPrefix(name, prefix)
+	}
+	return name
 }
 
 func parseSetBool(expr nodes.ExprNode) (bool, bool) {
@@ -133,6 +166,10 @@ func parseSetBool(expr nodes.ExprNode) (bool, bool) {
 	default:
 		return false, false
 	}
+}
+
+func isDefaultSetValue(expr nodes.ExprNode) bool {
+	return strings.EqualFold(nodeToSQLValue(expr), "DEFAULT")
 }
 
 // nodeToSQLValue extracts a simple string value from an expression node.
@@ -151,6 +188,8 @@ func nodeToSQLValue(expr nodes.ExprNode) string {
 		return "0"
 	case *nodes.ColumnRef:
 		return e.Column
+	case *nodes.DefaultExpr:
+		return "DEFAULT"
 	default:
 		return ""
 	}
