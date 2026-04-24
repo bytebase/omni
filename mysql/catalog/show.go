@@ -79,6 +79,9 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	// Columns.
 	parts := make([]string, 0, len(tbl.Columns)+len(tbl.Indexes)+len(tbl.Constraints))
 	for _, col := range tbl.Columns {
+		if col.Hidden == ColumnHiddenSystem {
+			continue
+		}
 		if col.GeneratedInvisiblePrimaryKey && !c.showGIPK {
 			continue
 		}

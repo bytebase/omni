@@ -1906,6 +1906,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			OnUpdate:                     srcCol.OnUpdate,
 			Invisible:                    srcCol.Invisible,
 			GeneratedInvisiblePrimaryKey: srcCol.GeneratedInvisiblePrimaryKey,
+			Hidden:                       srcCol.Hidden,
 		}
 		if srcCol.Default != nil {
 			def := *srcCol.Default

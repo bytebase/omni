@@ -83,11 +83,19 @@ type Column struct {
 	OnUpdate                     string
 	Generated                    *GeneratedColumnInfo
 	Invisible                    bool
-	GeneratedInvisiblePrimaryKey bool         // true for MySQL-generated my_row_id GIPK
+	GeneratedInvisiblePrimaryKey bool // true for MySQL-generated my_row_id GIPK
+	Hidden                       ColumnHiddenKind
 	SRID                         int          // Spatial Reference ID (0 = not set)
 	DefaultAnalyzed              AnalyzedExpr // Phase 3: analyzed DEFAULT expression
 	GeneratedAnalyzed            AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
 }
+
+type ColumnHiddenKind int
+
+const (
+	ColumnHiddenNone ColumnHiddenKind = iota
+	ColumnHiddenSystem
+)
 
 type GeneratedColumnInfo struct {
 	Expr   string
@@ -247,4 +255,24 @@ func (t *Table) GetColumn(name string) *Column {
 		return nil
 	}
 	return t.Columns[idx]
+}
+
+func (t *Table) VisibleColumns() []*Column {
+	result := make([]*Column, 0, len(t.Columns))
+	for _, col := range t.Columns {
+		if col.Hidden == ColumnHiddenNone {
+			result = append(result, col)
+		}
+	}
+	return result
+}
+
+func (t *Table) HiddenColumns() []*Column {
+	result := make([]*Column, 0)
+	for _, col := range t.Columns {
+		if col.Hidden != ColumnHiddenNone {
+			result = append(result, col)
+		}
+	}
+	return result
 }
