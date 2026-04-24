@@ -154,22 +154,19 @@ CREATE TABLE t2 (c INT);`
 			}
 		}
 
-		// omni AST: omni's OrderByItem has a single Desc bool, which cannot
-		// distinguish ORDER_NOT_RELEVANT from ORDER_ASC — both parse to
-		// Desc=false. Capture this as an asymmetry the catalog doc notes.
 		bare := c21FirstOrderByItem(t, "SELECT * FROM t ORDER BY a")
 		asc := c21FirstOrderByItem(t, "SELECT * FROM t ORDER BY a ASC")
 		if bare == nil || asc == nil {
 			return
 		}
-		// Bug: omni cannot represent ORDER_NOT_RELEVANT distinctly. Both yield
-		// Desc=false. We assert MySQL's grammar distinction is *not* preserved
-		// so the bug surfaces in the queue.
 		assertBoolEq(t, "omni bare ORDER BY Desc", bare.Desc, false)
 		assertBoolEq(t, "omni ORDER BY ASC Desc", asc.Desc, false)
-		// Known omni gap: no tri-state direction field. Document in bug queue.
-		t.Errorf("omni: OrderByItem has no tri-state direction — " +
-			"ORDER BY a and ORDER BY a ASC are indistinguishable in AST")
+		if bare.Direction != nodes.OrderDirectionDefault {
+			t.Errorf("omni bare ORDER BY Direction = %d, want OrderDirectionDefault", bare.Direction)
+		}
+		if asc.Direction != nodes.OrderDirectionAsc {
+			t.Errorf("omni ORDER BY ASC Direction = %d, want OrderDirectionAsc", asc.Direction)
+		}
 	})
 
 	// --- 21.4 LIMIT N without OFFSET -> opt_offset NULL -------------------

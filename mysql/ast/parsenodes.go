@@ -225,15 +225,15 @@ type AlterTableCmd struct {
 	Option         *TableOption // for table options
 	DefaultExpr    ExprNode     // for ALTER COLUMN SET DEFAULT expr
 	IfExists       bool
-	First          bool            // FIRST positioning
-	After          string          // AFTER column positioning
-	PartitionNames []string        // for partition operations (DROP/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR/REORGANIZE/DISCARD/IMPORT)
-	AllPartitions  bool            // for partition operations using ALL
-	PartitionDefs  []*PartitionDef // for ADD PARTITION / REORGANIZE PARTITION ... INTO
-	Number         int             // for COALESCE PARTITION number
-	ExchangeTable  *TableRef       // for EXCHANGE PARTITION ... WITH TABLE
-	WithValidation *bool           // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
-	OrderByItems   []*OrderByItem    // for ORDER BY operation
+	First          bool             // FIRST positioning
+	After          string           // AFTER column positioning
+	PartitionNames []string         // for partition operations (DROP/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR/REORGANIZE/DISCARD/IMPORT)
+	AllPartitions  bool             // for partition operations using ALL
+	PartitionDefs  []*PartitionDef  // for ADD PARTITION / REORGANIZE PARTITION ... INTO
+	Number         int              // for COALESCE PARTITION number
+	ExchangeTable  *TableRef        // for EXCHANGE PARTITION ... WITH TABLE
+	WithValidation *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
+	OrderByItems   []*OrderByItem   // for ORDER BY operation
 	PartitionBy    *PartitionClause // for PARTITION BY (repartition)
 }
 
@@ -747,7 +747,7 @@ func (e *CastExpr) exprNode() {}
 // ExtractExpr represents EXTRACT(unit FROM expr).
 type ExtractExpr struct {
 	Loc  Loc
-	Unit string   // DAY, HOUR, MINUTE, SECOND, MONTH, YEAR, etc.
+	Unit string // DAY, HOUR, MINUTE, SECOND, MONTH, YEAR, etc.
 	Expr ExprNode
 }
 
@@ -898,10 +898,20 @@ type Assignment struct {
 
 func (a *Assignment) nodeTag() {}
 
+// OrderDirection preserves whether ORDER BY direction was omitted or explicit.
+type OrderDirection int
+
+const (
+	OrderDirectionDefault OrderDirection = iota
+	OrderDirectionAsc
+	OrderDirectionDesc
+)
+
 // OrderByItem represents an ORDER BY item.
 type OrderByItem struct {
 	Loc        Loc
 	Expr       ExprNode
+	Direction  OrderDirection
 	Desc       bool
 	NullsFirst *bool // nil means default
 }

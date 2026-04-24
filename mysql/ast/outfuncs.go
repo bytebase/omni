@@ -2489,6 +2489,12 @@ func writeOrderByItem(sb *strings.Builder, n *OrderByItem) {
 	sb.WriteString("{ORDER_BY")
 	fmt.Fprintf(sb, " :loc %d :expr ", n.Loc.Start)
 	writeNode(sb, n.Expr)
+	switch n.Direction {
+	case OrderDirectionAsc:
+		sb.WriteString(" :direction asc")
+	case OrderDirectionDesc:
+		sb.WriteString(" :direction desc")
+	}
 	if n.Desc {
 		sb.WriteString(" :desc true")
 	}
