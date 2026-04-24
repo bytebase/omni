@@ -1266,7 +1266,7 @@ the silent-promotion behavior.
 
 ### 3.8 Second TIMESTAMP column without DEFAULT is implicitly NOT NULL DEFAULT '0000-00-00 00:00:00' under explicit_defaults_for_timestamp=OFF
 **Priority:** LOW
-**Status:** pending
+**Status:** verified
 **Setup:**
 ```sql
 SET SESSION explicit_defaults_for_timestamp=OFF;
@@ -1274,9 +1274,8 @@ CREATE TABLE t (ts1 TIMESTAMP, ts2 TIMESTAMP);
 ```
 **Doc:** https://dev.mysql.com/doc/refman/8.0/en/timestamp-initialization.html — deprecated legacy path when `explicit_defaults_for_timestamp=OFF`.
 **Source:** `sql/sql_table.cc:4221-4245` `promote_first_timestamp_column`: first TIMESTAMP gets DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP; subsequent TIMESTAMPs are forced NOT NULL DEFAULT zero even without explicit NOT NULL.
-**Oracle (legacy mode):** `ts1` NOT NULL CURRENT_TIMESTAMP; `ts2` NOT NULL DEFAULT '0000-00-00 00:00:00'. Note: default 8.0 mode is ON — scenario is LOW because omni targets default session settings.
-**omni pointer:** `mysql/catalog/catalog.go` session var tracking; `tablecmds.go` timestamp defaults. Mostly a known-limitation to document, not fix.
-**omni assertion:** Skip in default mode; if omni adds session var support, match the legacy transform.
+**Oracle (legacy mode):** `ts1` NOT NULL CURRENT_TIMESTAMP; `ts2` NOT NULL DEFAULT '0000-00-00 00:00:00'. Note: default 8.0 mode is ON — scenario is LOW because it exercises deprecated legacy session behavior.
+**omni status 2026-04-24:** verified by `TestScenario_C3/3_8`; omni now tracks `explicit_defaults_for_timestamp` for catalog DDL and matches the legacy transform.
 
 ---
 
@@ -3628,7 +3627,7 @@ push_deprecated_warn(YYTHD, "YEAR(4)", "YEAR");
 
 ### 16.12 TIMESTAMP first-column promotion inherits column's declared fsp
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Cross-ref:** C3.1 (TIMESTAMP NOT NULL first-only promotion).
 **Source:** `sql/sql_table.cc` (`promote_first_timestamp_column`); default clause generated as `CURRENT_TIMESTAMP(fsp)` matching the column's fsp.
 **Trigger:** `CREATE TABLE t (ts TIMESTAMP(6) NOT NULL)`.
@@ -3640,7 +3639,7 @@ push_deprecated_warn(YYTHD, "YEAR(4)", "YEAR");
 **Observable via:**
 - `SHOW CREATE TABLE` after `CREATE TABLE t (ts TIMESTAMP(3) NOT NULL)` → shows `CURRENT_TIMESTAMP(3)` in both clauses.
 
-**omni pointer:** `mysql/catalog/wt_3_3_test.go:538-543` tests C3.1 promotion but only for `TIMESTAMP` (fsp 0). A `TIMESTAMP(3)`/`TIMESTAMP(6)` variant is not covered. `mysql/catalog/show.go:289-292` already normalizes `CURRENT_TIMESTAMP(N)` on output — that path is preserved, but the promoter in `tablecmds.go` needs to construct the suffixed form.
+**omni status 2026-04-24:** verified by `TestScenario_C16/16_12`; the session-driven promoter constructs the suffixed `CURRENT_TIMESTAMP(N)` form.
 
 ---
 
@@ -6733,7 +6732,7 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 16.9 | ON UPDATE NOW(N) must match column fsp | verified | HIGH | `TestScenario_C16` reconciliation |
 | 16.10 | DATETIME/TIMESTAMP storage bytes by fsp | verified | MED | `TestScenario_C16` reconciliation |
 | 16.11 | YEAR(N) deprecated — only YEAR(4) accepted | verified | LOW | `TestScenario_C16` reconciliation |
-| 16.12 | TIMESTAMP promotion inherits fsp | pending | MED | Wave 1 C16 worker |
+| 16.12 | TIMESTAMP promotion inherits fsp | verified | MED | `TestScenario_C16/16_12` session-state reconciliation |
 | 17.1 | CONCAT two cols identical charset/collation | verified | HIGH | `TestScenario_C17` reconciliation |
 | 17.2 | CONCAT latin1 + utf8mb4 superset conv | verified | HIGH | `TestScenario_C17` reconciliation |
 | 17.3 | CONCAT incompatible collations (ER 1267) | verified | HIGH | `TestScenario_C17` reconciliation |
@@ -6804,7 +6803,7 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 3.5 | UNIQUE does NOT imply NOT NULL | verified | HIGH | `TestScenario_C3` reconciliation |
 | 3.6 | Gcol nullability from expression | verified | MED | `TestScenario_C3` reconciliation |
 | 3.7 | AUTO_INCREMENT + explicit NULL silent promote | verified | MED | `TestScenario_C3` reconciliation |
-| 3.8 | 2nd TIMESTAMP implicit zero default (legacy) | pending | LOW | Wave 4 C3 worker |
+| 3.8 | 2nd TIMESTAMP implicit zero default (legacy) | verified | LOW | `TestScenario_C3/3_8` session-state reconciliation |
 | 5.4 | FK ON UPDATE independent of ON DELETE | verified | HIGH | `TestScenario_C5` reconciliation |
 | 5.5 | FK SET DEFAULT rejected by InnoDB | verified | HIGH | `TestScenario_C5` reconciliation |
 | 5.6 | FK column type must match (size/sign) | verified | HIGH | `TestScenario_C5` reconciliation |

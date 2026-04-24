@@ -342,6 +342,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		tbl.colByName[colKey] = i
 	}
 
+	c.applyTimestampSessionDefaults(tbl.Columns, stmt.Columns)
+
 	// Second pass: add column-level PK and UNIQUE indexes/constraints.
 	for _, colDef := range stmt.Columns {
 		for _, cc := range colDef.Constraints {
@@ -882,6 +884,89 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	}
 
 	return pi
+}
+
+func (c *Catalog) applyTimestampSessionDefaults(cols []*Column, defs []*nodes.ColumnDef) {
+	if c.session.ExplicitDefaultsForTimestamp {
+		return
+	}
+	promotedFirst := false
+	for i, col := range cols {
+		if col == nil || !strings.EqualFold(col.DataType, "timestamp") || i >= len(defs) {
+			continue
+		}
+		def := defs[i]
+		if hasExplicitNull(def) {
+			continue
+		}
+		col.Nullable = false
+
+		hasDefault := hasExplicitDefault(def)
+		hasOnUpdate := hasExplicitOnUpdate(def)
+		if !promotedFirst && !hasDefault && !hasOnUpdate {
+			current := timestampCurrentExpr(timestampFsp(def))
+			col.Default = &current
+			col.OnUpdate = current
+			promotedFirst = true
+			continue
+		}
+		if !hasDefault && col.Default == nil {
+			zero := timestampZeroDefault(timestampFsp(def))
+			col.Default = &zero
+		}
+	}
+}
+
+func hasExplicitNull(def *nodes.ColumnDef) bool {
+	if def == nil {
+		return false
+	}
+	for _, cc := range def.Constraints {
+		if cc.Type == nodes.ColConstrNull {
+			return true
+		}
+	}
+	return false
+}
+
+func hasExplicitDefault(def *nodes.ColumnDef) bool {
+	if def == nil {
+		return false
+	}
+	if def.DefaultValue != nil {
+		return true
+	}
+	for _, cc := range def.Constraints {
+		if cc.Type == nodes.ColConstrDefault {
+			return true
+		}
+	}
+	return false
+}
+
+func hasExplicitOnUpdate(def *nodes.ColumnDef) bool {
+	return def != nil && def.OnUpdate != nil
+}
+
+func timestampFsp(def *nodes.ColumnDef) int {
+	if def == nil || def.TypeName == nil {
+		return 0
+	}
+	return def.TypeName.Length
+}
+
+func timestampCurrentExpr(fsp int) string {
+	if fsp > 0 {
+		return fmt.Sprintf("CURRENT_TIMESTAMP(%d)", fsp)
+	}
+	return "CURRENT_TIMESTAMP"
+}
+
+func timestampZeroDefault(fsp int) string {
+	if fsp > 0 {
+		return "0000-00-00 00:00:00." + strings.Repeat("0", fsp)
+	}
+	return "0000-00-00 00:00:00"
 }
 
 func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {

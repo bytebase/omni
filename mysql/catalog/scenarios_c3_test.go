@@ -289,14 +289,13 @@ func TestScenario_C3(t *testing.T) {
 		// Container side: legacy mode + permissive sql_mode.
 		setLegacyTimestampMode(t, mc)
 		defer restoreTimestampMode(t, mc)
+		mustExec(t, c, "SET SESSION explicit_defaults_for_timestamp=0; SET SESSION sql_mode='';")
 
 		ddl := "CREATE TABLE t (ts1 TIMESTAMP, ts2 TIMESTAMP)"
 		// Run on container.
 		if _, err := mc.db.ExecContext(mc.ctx, ddl); err != nil {
 			t.Errorf("oracle CREATE TABLE failed: %v", err)
 		}
-		// Run on omni separately — omni does not track the session var so
-		// its observed state is whatever omni's default branch produces.
 		results, err := c.Exec(ddl+";", nil)
 		if err != nil {
 			t.Errorf("omni parse error: %v", err)
@@ -317,9 +316,6 @@ func TestScenario_C3(t *testing.T) {
 			t.Errorf("oracle: legacy-mode ts2 should have DEFAULT '0000-00-00 00:00:00'\n%s", create)
 		}
 
-		// omni asymmetry: omni does not track explicit_defaults_for_timestamp,
-		// so we cannot expect it to mirror the legacy transform. Document
-		// what omni does for posterity. Anything goes here EXCEPT crashing.
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
 			t.Errorf("omni: table t missing after legacy-mode CREATE TABLE")
@@ -331,9 +327,30 @@ func TestScenario_C3(t *testing.T) {
 			t.Errorf("omni: ts1/ts2 columns missing")
 			return
 		}
-		t.Logf("omni asymmetry (no session var tracking): ts1.Nullable=%v ts1.Default=%v ts2.Nullable=%v ts2.Default=%v",
-			ts1.Nullable, derefStr(ts1.Default), ts2.Nullable, derefStr(ts2.Default))
+		if ts1.Nullable {
+			t.Errorf("omni: legacy-mode ts1 should be NOT NULL")
+		}
+		if ts1.Default == nil || !c3IsCurrentTimestamp(*ts1.Default) {
+			t.Errorf("omni: legacy-mode ts1 Default = %v, want CURRENT_TIMESTAMP", derefStr(ts1.Default))
+		}
+		if !c3IsCurrentTimestamp(ts1.OnUpdate) {
+			t.Errorf("omni: legacy-mode ts1 OnUpdate = %q, want CURRENT_TIMESTAMP", ts1.OnUpdate)
+		}
+		if ts2.Nullable {
+			t.Errorf("omni: legacy-mode ts2 should be NOT NULL")
+		}
+		if ts2.Default == nil || !strings.Contains(*ts2.Default, "0000-00-00 00:00:00") {
+			t.Errorf("omni: legacy-mode ts2 Default = %v, want zero timestamp", derefStr(ts2.Default))
+		}
+		if ts2.OnUpdate != "" {
+			t.Errorf("omni: legacy-mode ts2 OnUpdate = %q, want empty", ts2.OnUpdate)
+		}
 	})
+}
+
+func c3IsCurrentTimestamp(s string) bool {
+	lo := strings.ToLower(s)
+	return strings.Contains(lo, "current_timestamp") || strings.Contains(lo, "now")
 }
 
 func derefStr(p *string) string {
