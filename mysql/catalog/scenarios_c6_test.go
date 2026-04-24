@@ -261,60 +261,20 @@ func TestScenario_C6(t *testing.T) {
 			len(tbl.Partitioning.Partitions), 2)
 	})
 
-	// --- 6.10 LIST DEFAULT partition --------------------------------
-	// Requires MySQL 8.0.4+ (introduction of LIST ... VALUES IN (DEFAULT)).
-	// Skip on older server versions so the test survives contributors
-	// running pinned-older images or CI lanes behind the rolling 8.0 tag.
+	// --- 6.10 LIST DEFAULT partition is not MySQL syntax ----------------
 	t.Run("6_10_list_default_partition", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		var ver string
-		oracleScan(t, mc, `SELECT VERSION()`, &ver)
-		if !mysqlAtLeast(ver, 8, 0, 4) {
-			t.Skipf("6.10 requires MySQL >= 8.0.4 for LIST DEFAULT partition, got %q", ver)
-		}
-
 		ddl := `CREATE TABLE t (c INT) PARTITION BY LIST(c)
              (PARTITION p0 VALUES IN (1,2), PARTITION pd VALUES IN (DEFAULT))`
-		if _, err := mc.db.ExecContext(mc.ctx, ddl); err != nil {
-			t.Skipf("oracle rejected LIST DEFAULT partition syntax; scenario has no oracle ground truth on this server: %v", err)
+		if _, err := mc.db.ExecContext(mc.ctx, ddl); err == nil {
+			t.Fatalf("oracle: expected MySQL to reject LIST DEFAULT partition syntax")
 		}
+
 		results, err := c.Exec(ddl, nil)
-		if err != nil {
-			t.Fatalf("omni parse error: %v", err)
-		}
-		for _, r := range results {
-			if r.Error != nil {
-				t.Fatalf("omni exec error on stmt %d: %v", r.Index, r.Error)
-			}
-		}
-
-		names := oraclePartitionNames(t, mc, "t")
-		wantNames := []string{"p0", "pd"}
-		assertStringEq(t, "oracle partition names",
-			strings.Join(names, ","), strings.Join(wantNames, ","))
-
-		// Oracle: pd's PARTITION_DESCRIPTION should be DEFAULT.
-		var desc string
-		oracleScan(t, mc, `SELECT COALESCE(PARTITION_DESCRIPTION,'')
-            FROM information_schema.PARTITIONS
-            WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND PARTITION_NAME='pd'`,
-			&desc)
-		if !strings.EqualFold(desc, "DEFAULT") {
-			t.Errorf("oracle: pd description = %q, want DEFAULT", desc)
-		}
-
-		// omni: expect DEFAULT token to round-trip on the last partition's
-		// ValueExpr.
-		tbl := c.GetDatabase("testdb").GetTable("t")
-		if tbl == nil || tbl.Partitioning == nil || len(tbl.Partitioning.Partitions) < 2 {
-			t.Errorf("omni: table/partitioning missing or short")
-			return
-		}
-		got := strings.ToUpper(tbl.Partitioning.Partitions[1].ValueExpr)
-		if !strings.Contains(got, "DEFAULT") {
-			t.Errorf("omni: pd ValueExpr = %q, want containing DEFAULT", got)
+		if c6ExecError(results, err) == nil {
+			t.Fatalf("omni: expected rejection for LIST DEFAULT partition syntax")
 		}
 	})
 
@@ -574,4 +534,16 @@ func c6OmniPartitionNames(tbl *Table) []string {
 		names = append(names, p.Name)
 	}
 	return names
+}
+
+func c6ExecError(results []ExecResult, err error) error {
+	if err != nil {
+		return err
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			return r.Error
+		}
+	}
+	return nil
 }

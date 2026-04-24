@@ -2102,19 +2102,18 @@ Scope note: NDB-specific partition behaviors are deliberately excluded — omni 
 **Status:** pending
 **Doc:** https://dev.mysql.com/doc/refman/8.0/en/partitioning-list.html — "VALUES IN (list) matches column value by equality" vs RANGE "VALUES LESS THAN (value) is strict less-than".
 **Source:** partition pruning in `sql/partition_info.cc:2268` (`INT_RESULT` check) and later pruning code; not a CREATE default, but the **semantic** difference is often missed by catalogs.
-**Rule:** LIST rows whose partition expression does not match any `IN (...)` value → `ER_NO_PARTITION_FOR_GIVEN_VALUE` at INSERT time (unless a `DEFAULT` partition is defined — see 6.10). RANGE values equal to `LESS THAN (v)` go to the **next** partition.
+**Rule:** LIST rows whose partition expression does not match any `IN (...)` value → `ER_NO_PARTITION_FOR_GIVEN_VALUE` at INSERT time. RANGE values equal to `LESS THAN (v)` go to the **next** partition.
 **omni pointer:** n/a for DDL catalog, but flag so row-routing semantics aren't confused in any future partition pruning work.
 
 ---
 
-### 6.10 LIST DEFAULT partition acts as catch-all (MySQL 8.0+)
+### 6.10 LIST DEFAULT partition syntax is rejected
 **Priority:** MED
-**Status:** pending
-**Doc:** https://dev.mysql.com/doc/refman/8.0/en/partitioning-list.html — "From MySQL 8.0.3, it is possible to specify a DEFAULT partition for a LIST or LIST COLUMNS partition. Rows that are not matched ... are stored in the DEFAULT partition."
-**Source:** parser grammar `sql_yacc.yy` (`opt_part_values`, `DEFAULT_SYM`), `partition_element::has_default_value`; populated at parse time, printed by `sql_partition.cc` in SHOW CREATE.
-**Trigger:** `PARTITION BY LIST (c) (PARTITION p0 VALUES IN (1,2), PARTITION pd DEFAULT)`
-**Rule:** At most one `DEFAULT` partition per LIST/LIST COLUMNS table. RANGE does not support `DEFAULT` (use `MAXVALUE`). SHOW CREATE preserves the keyword verbatim.
-**omni pointer:** `mysql/catalog/tablecmds.go:732` — `partitionValueToString`; check if `DEFAULT` token is represented and round-trips. **GAP suspected** — existing `PartitionDefInfo.ValueExpr` is a string, may not encode `DEFAULT`.
+**Status:** verified
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/partitioning-list.html — LIST partition value lists are explicit integer values (and `NULL` handling is documented separately); MySQL has no DEFAULT catch-all partition syntax.
+**Trigger:** `PARTITION BY LIST (c) (PARTITION p0 VALUES IN (1,2), PARTITION pd VALUES IN (DEFAULT))`
+**Rule:** MySQL rejects `DEFAULT` inside LIST partition values. omni must reject the same syntax instead of treating `DEFAULT` as a partition catch-all.
+**omni status 2026-04-24:** verified by `TestScenario_C6/6_10_list_default_partition`.
 
 ---
 
@@ -6695,7 +6694,7 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 6.7 | RANGE/LIST require explicit definitions | verified | HIGH | `TestScenario_C6/6_7` reconciliation |
 | 6.8 | MAXVALUE only in last RANGE partition | verified | MED | `TestScenario_C6` reconciliation |
 | 6.9 | LIST equality vs RANGE strict less-than | verified | LOW | `TestScenario_C6` reconciliation |
-| 6.10 | LIST DEFAULT partition catch-all | pending | MED | Wave 1 C6 worker |
+| 6.10 | LIST DEFAULT partition syntax rejection | verified | MED | `TestScenario_C6/6_10` oracle rejection reconciliation |
 | 6.11 | Partition function must return INTEGER | verified | HIGH | `TestScenario_C6/6_11` reconciliation |
 | 6.12 | TIMESTAMP requires UNIX_TIMESTAMP() wrap | verified | MED | `TestScenario_C6` reconciliation |
 | 6.13 | UNIQUE/PK must contain partition cols | verified | HIGH | `TestScenario_C6/6_13` reconciliation |

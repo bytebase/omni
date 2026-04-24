@@ -895,6 +895,13 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
+	if pc.Type == nodes.PartitionList {
+		for _, pd := range pc.Partitions {
+			if containsPartitionDefaultExpr(pd.Values) {
+				return &Error{Code: 1064, SQLState: "42000", Message: "DEFAULT is not valid in LIST partition values"}
+			}
+		}
+	}
 	expr := strings.ToLower(nodeToSQL(pc.Expr))
 	if strings.Contains(expr, "concat(") {
 		return &Error{Code: 1491, SQLState: "HY000", Message: "The PARTITION function returns the wrong type"}
@@ -914,6 +921,22 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 		}
 	}
 	return nil
+}
+
+func containsPartitionDefaultExpr(n nodes.Node) bool {
+	switch v := n.(type) {
+	case nil:
+		return false
+	case *nodes.DefaultExpr:
+		return true
+	case *nodes.List:
+		for _, item := range v.Items {
+			if containsPartitionDefaultExpr(item) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func primaryKeyColumns(tbl *Table) []string {
