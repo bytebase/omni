@@ -1268,8 +1268,8 @@ func (p *Parser) parenBeginsSubquery() bool {
 	if p.cur.Type != '(' {
 		return false
 	}
-	snap := p.snapshotTokenStream()
-	defer p.restoreTokenStream(snap)
+	snap := p.snapshotTokenStreamAndCompletion()
+	defer p.restoreTokenStreamAndCompletion(snap)
 	return p.consumeMatchedParenIsSubquery()
 }
 
