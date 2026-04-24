@@ -11,9 +11,9 @@ import (
 // Scenarios in this section verify NULL propagation through string
 // functions:
 //
-//   23.1  CONCAT(...)         — any NULL arg → NULL result
-//   23.2  CONCAT_WS(sep, ...) — NULL data args skipped; NULL separator → NULL
-//   23.3  IFNULL/COALESCE     — rescue pattern around CONCAT NULL propagation
+//	23.1  CONCAT(...)         — any NULL arg → NULL result
+//	23.2  CONCAT_WS(sep, ...) — NULL data args skipped; NULL separator → NULL
+//	23.3  IFNULL/COALESCE     — rescue pattern around CONCAT NULL propagation
 //
 // These are runtime expression behaviors. The omni catalog stores parsed
 // VIEWs as a *catalog.View whose `Columns` field is just a list of column
@@ -21,15 +21,15 @@ import (
 // nullability. So the most useful representation of these scenarios in
 // omni today is:
 //
-//   1. Run the same CREATE TABLE / CREATE VIEW DDL against both MySQL 8.0
-//      and the omni catalog (proves the DDL parses on both sides).
-//   2. Use information_schema.COLUMNS on the container to assert that
-//      MySQL infers IS_NULLABLE the way the SCENARIOS doc claims.
-//   3. SELECT the actual rows from the container to lock the runtime
-//      string values into the test (oracle ground truth).
-//   4. Record the omni gap: the View struct has no per-column nullability
-//      info, so omni cannot answer "is column c1 of view v nullable?" —
-//      this is the declared bug, documented in scenarios_bug_queue/c23.md.
+//  1. Run the same CREATE TABLE / CREATE VIEW DDL against both MySQL 8.0
+//     and the omni catalog (proves the DDL parses on both sides).
+//  2. Use information_schema.COLUMNS on the container to assert that
+//     MySQL infers IS_NULLABLE the way the SCENARIOS doc claims.
+//  3. SELECT the actual rows from the container to lock the runtime
+//     string values into the test (oracle ground truth).
+//  4. Record the omni gap: the View struct has no per-column nullability
+//     info, so omni cannot answer "is column c1 of view v nullable?" —
+//     this is the declared bug, documented in scenarios_bug_queue/c23.md.
 //
 // Failed omni assertions are NOT proof failures — they are recorded in
 // mysql/catalog/scenarios_bug_queue/c23.md.
@@ -123,9 +123,8 @@ func TestScenario_C23(t *testing.T) {
 		if len(v.Columns) != 2 {
 			t.Errorf("omni: v_concat expected 2 columns, got %d (%v)", len(v.Columns), v.Columns)
 		}
-		// Declared bug: View has no per-column nullability info, so the
-		// "CONCAT propagates NULL" semantics cannot be asserted positively.
-		t.Error("omni: View struct has no per-column nullability; scenario 23.1 cannot be asserted positively")
+		assertBoolEq(t, "omni v_concat.c1 Nullable", c23ViewColumnNullable(t, v, "c1"), true)
+		assertBoolEq(t, "omni v_concat.c2 Nullable", c23ViewColumnNullable(t, v, "c2"), true)
 	})
 
 	// -----------------------------------------------------------------
@@ -196,9 +195,7 @@ func TestScenario_C23(t *testing.T) {
 		if len(v.Columns) != 1 {
 			t.Errorf("omni: v_ws expected 1 column, got %d (%v)", len(v.Columns), v.Columns)
 		}
-		// Declared bug: omni cannot answer "is the separator NULL?" because
-		// View has no per-column nullability with the CONCAT_WS special case.
-		t.Error("omni: View struct has no per-column nullability; CONCAT_WS NULL-skip rule (23.2) cannot be asserted positively")
+		assertBoolEq(t, "omni v_ws.d1 Nullable", c23ViewColumnNullable(t, v, "d1"), true)
 	})
 
 	// -----------------------------------------------------------------
@@ -275,8 +272,19 @@ func TestScenario_C23(t *testing.T) {
 		if len(v.Columns) != 4 {
 			t.Errorf("omni: v_name expected 4 columns, got %d (%v)", len(v.Columns), v.Columns)
 		}
-		// Declared bug: omni cannot answer "does IFNULL/COALESCE rescue the
-		// CONCAT" because View has no per-column nullability inference.
-		t.Error("omni: View struct has no per-column nullability; IFNULL/COALESCE rescue rule (23.3) cannot be asserted positively")
+		for _, name := range []string{"bad", "rescue_ifnull", "rescue_coalesce", "rescue_ws"} {
+			assertBoolEq(t, "omni v_name."+name+" Nullable", c23ViewColumnNullable(t, v, name), true)
+		}
 	})
+}
+
+func c23ViewColumnNullable(t *testing.T, v *View, name string) bool {
+	t.Helper()
+	for _, col := range v.ColumnMetadata {
+		if strings.EqualFold(col.Name, name) {
+			return col.Nullable
+		}
+	}
+	t.Fatalf("omni: view column metadata %q not found in %+v", name, v.ColumnMetadata)
+	return false
 }

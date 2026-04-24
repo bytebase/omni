@@ -306,11 +306,16 @@ func TestScenario_C10(t *testing.T) {
 			v := c10OmniView(c, tc.name)
 			if v == nil {
 				t.Errorf("omni: view %s not found", tc.name)
+				continue
+			}
+			got := "NO"
+			if v.IsUpdatable {
+				got = "YES"
+			}
+			if got != tc.want {
+				t.Errorf("omni %s IsUpdatable: got %q, want %q", tc.name, got, tc.want)
 			}
 		}
-		// Explicit assertion: omni View has no IsUpdatable representation.
-		// This is the "declared bug": we want omni to carry IsUpdatable per scenario.
-		t.Error("omni: View struct is missing an IsUpdatable field (scenario 10.7 cannot be asserted positively)")
 	})
 
 	// --- 10.8 View column nullability widened vs base columns -------------
@@ -354,6 +359,21 @@ func TestScenario_C10(t *testing.T) {
 			t.Error("omni: view v not found")
 			return
 		}
-		t.Error("omni: View struct has no per-column nullability; scenario 10.8 cannot be asserted positively")
+		if len(v.ColumnMetadata) != 2 {
+			t.Fatalf("omni: expected 2 view column metadata entries, got %d", len(v.ColumnMetadata))
+		}
+		assertBoolEq(t, "omni view column a Nullable", c10ViewColumnNullable(t, v, "a"), false)
+		assertBoolEq(t, "omni view column b Nullable", c10ViewColumnNullable(t, v, "b"), true)
 	})
+}
+
+func c10ViewColumnNullable(t *testing.T, v *View, name string) bool {
+	t.Helper()
+	for _, col := range v.ColumnMetadata {
+		if strings.EqualFold(col.Name, name) {
+			return col.Nullable
+		}
+	}
+	t.Fatalf("omni: view column metadata %q not found in %+v", name, v.ColumnMetadata)
+	return false
 }

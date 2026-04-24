@@ -52,6 +52,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
 	if !hasExplicit {
 		viewCols = derivedCols
 	}
+	columnMetadata := inferViewColumnMetadata(stmt.Select, viewCols, db)
 
 	algorithm := stmt.Algorithm
 	if algorithm == "" {
@@ -71,8 +72,10 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
 		SqlSecurity:     sqlSecurity,
 		CheckOption:     stmt.CheckOption,
 		Columns:         viewCols,
+		ColumnMetadata:  columnMetadata,
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
+		IsUpdatable:     inferViewUpdatable(stmt.Select, algorithm),
 	}
 	return nil
 }
@@ -113,6 +116,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt) error {
 	if !hasExplicit {
 		viewCols = derivedCols
 	}
+	columnMetadata := inferViewColumnMetadata(stmt.Select, viewCols, db)
 
 	algorithm := stmt.Algorithm
 	if algorithm == "" {
@@ -132,10 +136,159 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt) error {
 		SqlSecurity:     sqlSecurity,
 		CheckOption:     stmt.CheckOption,
 		Columns:         viewCols,
+		ColumnMetadata:  columnMetadata,
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
+		IsUpdatable:     inferViewUpdatable(stmt.Select, algorithm),
 	}
 	return nil
+}
+
+type viewRelationInfo struct {
+	table    *Table
+	optional bool
+}
+
+func inferViewColumnMetadata(sel *nodes.SelectStmt, names []string, db *Database) []ViewColumn {
+	cols := make([]ViewColumn, len(names))
+	for i, name := range names {
+		cols[i].Name = name
+	}
+	if sel == nil {
+		return cols
+	}
+	relations := map[string]viewRelationInfo{}
+	for _, from := range sel.From {
+		collectViewRelations(from, db, false, relations)
+	}
+	for i, target := range sel.TargetList {
+		if i >= len(cols) {
+			break
+		}
+		rt, ok := target.(*nodes.ResTarget)
+		if !ok {
+			continue
+		}
+		cols[i].Nullable = inferViewExprNullable(rt.Val, relations)
+	}
+	return cols
+}
+
+func collectViewRelations(te nodes.TableExpr, db *Database, optional bool, out map[string]viewRelationInfo) {
+	switch n := te.(type) {
+	case *nodes.TableRef:
+		if db == nil {
+			return
+		}
+		tbl := db.GetTable(n.Name)
+		if tbl == nil {
+			return
+		}
+		key := n.Name
+		if n.Alias != "" {
+			key = n.Alias
+		}
+		out[toLower(key)] = viewRelationInfo{table: tbl, optional: optional}
+	case *nodes.JoinClause:
+		leftOptional := optional
+		rightOptional := optional
+		switch n.Type {
+		case nodes.JoinLeft, nodes.JoinNaturalLeft:
+			rightOptional = true
+		case nodes.JoinRight, nodes.JoinNaturalRight:
+			leftOptional = true
+		}
+		collectViewRelations(n.Left, db, leftOptional, out)
+		collectViewRelations(n.Right, db, rightOptional, out)
+	}
+}
+
+func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelationInfo) bool {
+	switch e := expr.(type) {
+	case *nodes.ColumnRef:
+		return inferViewColumnRefNullable(e, relations)
+	case *nodes.FuncCallExpr:
+		if isViewStringMetadataNullableFunc(e.Name) {
+			return true
+		}
+		for _, arg := range e.Args {
+			if inferViewExprNullable(arg, relations) {
+				return true
+			}
+		}
+		return false
+	case *nodes.ParenExpr:
+		return inferViewExprNullable(e.Expr, relations)
+	case *nodes.BinaryExpr:
+		return inferViewExprNullable(e.Left, relations) || inferViewExprNullable(e.Right, relations)
+	case *nodes.UnaryExpr:
+		return inferViewExprNullable(e.Operand, relations)
+	case *nodes.NullLit:
+		return true
+	default:
+		return false
+	}
+}
+
+func inferViewColumnRefNullable(cr *nodes.ColumnRef, relations map[string]viewRelationInfo) bool {
+	if cr == nil || cr.Star {
+		return true
+	}
+	if cr.Table != "" {
+		if rel, ok := relations[toLower(cr.Table)]; ok {
+			if col := rel.table.GetColumn(cr.Column); col != nil {
+				return rel.optional || col.Nullable
+			}
+		}
+		return true
+	}
+	found := false
+	nullable := true
+	for _, rel := range relations {
+		col := rel.table.GetColumn(cr.Column)
+		if col == nil {
+			continue
+		}
+		if found {
+			return true
+		}
+		found = true
+		nullable = rel.optional || col.Nullable
+	}
+	return nullable
+}
+
+func isViewStringMetadataNullableFunc(name string) bool {
+	switch strings.ToLower(name) {
+	case "concat", "concat_ws", "ifnull", "coalesce":
+		return true
+	default:
+		return false
+	}
+}
+
+func inferViewUpdatable(sel *nodes.SelectStmt, algorithm string) bool {
+	if sel == nil || strings.EqualFold(algorithm, "TEMPTABLE") {
+		return false
+	}
+	if sel.DistinctKind != nodes.DistinctNone && sel.DistinctKind != nodes.DistinctAll {
+		return false
+	}
+	if sel.SetOp != nodes.SetOpNone || len(sel.GroupBy) > 0 || sel.Having != nil {
+		return false
+	}
+	hasAgg := false
+	nodes.Inspect(sel, func(n nodes.Node) bool {
+		if hasAgg {
+			return false
+		}
+		if fn, ok := n.(*nodes.FuncCallExpr); ok && isAggregateFunc(fn.Name) {
+			hasAgg = true
+			return false
+		}
+		return true
+	})
+	return !hasAgg
 }
 
 func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {

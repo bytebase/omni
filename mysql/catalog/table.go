@@ -102,8 +102,18 @@ type View struct {
 	SqlSecurity     string
 	CheckOption     string
 	Columns         []string // All column names (explicit or derived from SELECT)
-	ExplicitColumns bool     // true if the user specified a column list in CREATE VIEW
-	AnalyzedQuery   *Query   // analyzed view body (populated on CREATE VIEW); nil if analysis failed
+	ColumnMetadata  []ViewColumn
+	ExplicitColumns bool   // true if the user specified a column list in CREATE VIEW
+	AnalyzedQuery   *Query // analyzed view body (populated on CREATE VIEW); nil if analysis failed
+	IsUpdatable     bool
+}
+
+type ViewColumn struct {
+	Name      string
+	Nullable  bool
+	Type      *ResolvedType
+	Charset   string
+	Collation string
 }
 
 // Routine represents a stored function or procedure in the catalog.
