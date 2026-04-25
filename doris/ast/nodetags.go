@@ -206,6 +206,59 @@ const (
 
 	// T_MergeClause is the tag for *MergeClause (one WHEN clause inside MERGE).
 	T_MergeClause
+
+	// Security DDL nodes (T5.5).
+
+	// T_CreateRowPolicyStmt is the tag for *CreateRowPolicyStmt.
+	T_CreateRowPolicyStmt
+
+	// T_DropRowPolicyStmt is the tag for *DropRowPolicyStmt.
+	T_DropRowPolicyStmt
+
+	// T_CreateEncryptKeyStmt is the tag for *CreateEncryptKeyStmt.
+	T_CreateEncryptKeyStmt
+
+	// T_DropEncryptKeyStmt is the tag for *DropEncryptKeyStmt.
+	T_DropEncryptKeyStmt
+
+	// T_DictionaryColumn is the tag for *DictionaryColumn.
+	T_DictionaryColumn
+
+	// T_CreateDictionaryStmt is the tag for *CreateDictionaryStmt.
+	T_CreateDictionaryStmt
+
+	// T_AlterDictionaryStmt is the tag for *AlterDictionaryStmt.
+	T_AlterDictionaryStmt
+
+	// T_DropDictionaryStmt is the tag for *DropDictionaryStmt.
+	T_DropDictionaryStmt
+
+	// T_RefreshDictionaryStmt is the tag for *RefreshDictionaryStmt.
+	T_RefreshDictionaryStmt
+
+	// T_CreateRoleStmt is the tag for *CreateRoleStmt.
+	T_CreateRoleStmt
+
+	// T_AlterRoleStmt is the tag for *AlterRoleStmt.
+	T_AlterRoleStmt
+
+	// T_DropRoleStmt is the tag for *DropRoleStmt.
+	T_DropRoleStmt
+
+	// T_UserIdentity is the tag for *UserIdentity ('user'@'host').
+	T_UserIdentity
+
+	// T_CreateUserStmt is the tag for *CreateUserStmt.
+	T_CreateUserStmt
+
+	// T_AlterUserStmt is the tag for *AlterUserStmt.
+	T_AlterUserStmt
+
+	// T_DropUserStmt is the tag for *DropUserStmt.
+	T_DropUserStmt
+
+	// T_SetPasswordStmt is the tag for *SetPasswordStmt.
+	T_SetPasswordStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -327,6 +380,40 @@ func (t NodeTag) String() string {
 		return "MergeStmt"
 	case T_MergeClause:
 		return "MergeClause"
+	case T_CreateRowPolicyStmt:
+		return "CreateRowPolicyStmt"
+	case T_DropRowPolicyStmt:
+		return "DropRowPolicyStmt"
+	case T_CreateEncryptKeyStmt:
+		return "CreateEncryptKeyStmt"
+	case T_DropEncryptKeyStmt:
+		return "DropEncryptKeyStmt"
+	case T_DictionaryColumn:
+		return "DictionaryColumn"
+	case T_CreateDictionaryStmt:
+		return "CreateDictionaryStmt"
+	case T_AlterDictionaryStmt:
+		return "AlterDictionaryStmt"
+	case T_DropDictionaryStmt:
+		return "DropDictionaryStmt"
+	case T_RefreshDictionaryStmt:
+		return "RefreshDictionaryStmt"
+	case T_CreateRoleStmt:
+		return "CreateRoleStmt"
+	case T_AlterRoleStmt:
+		return "AlterRoleStmt"
+	case T_DropRoleStmt:
+		return "DropRoleStmt"
+	case T_UserIdentity:
+		return "UserIdentity"
+	case T_CreateUserStmt:
+		return "CreateUserStmt"
+	case T_AlterUserStmt:
+		return "AlterUserStmt"
+	case T_DropUserStmt:
+		return "DropUserStmt"
+	case T_SetPasswordStmt:
+		return "SetPasswordStmt"
 	default:
 		return "Unknown"
 	}

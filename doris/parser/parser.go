@@ -190,6 +190,17 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 				return nil, err
 			}
 			return p.parseCreateView(createTok.Loc, true)
+		case kwROW:
+			p.advance() // consume ROW
+			return p.parseCreateRowPolicy(createTok.Loc)
+		case kwENCRYPTKEY:
+			return p.parseCreateEncryptKey(createTok.Loc)
+		case kwDICTIONARY:
+			return p.parseCreateDictionary(createTok.Loc)
+		case kwROLE:
+			return p.parseCreateRole(createTok.Loc)
+		case kwUSER:
+			return p.parseCreateUser(createTok.Loc)
 		default:
 			return p.unsupported("CREATE")
 		}
@@ -202,6 +213,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterTable()
 		case kwVIEW:
 			return p.parseAlterView()
+		case kwDICTIONARY:
+			return p.parseAlterDictionary(p.prev.Loc)
+		case kwROLE:
+			return p.parseAlterRole(p.prev.Loc)
+		case kwUSER:
+			return p.parseAlterUser(p.prev.Loc)
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -214,6 +231,17 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropDatabase()
 		case kwVIEW:
 			return p.parseDropView(dropTok.Loc)
+		case kwROW:
+			p.advance() // consume ROW
+			return p.parseDropRowPolicy(dropTok.Loc)
+		case kwENCRYPTKEY:
+			return p.parseDropEncryptKey(dropTok.Loc)
+		case kwDICTIONARY:
+			return p.parseDropDictionary(dropTok.Loc)
+		case kwROLE:
+			return p.parseDropRole(dropTok.Loc)
+		case kwUSER:
+			return p.parseDropUser(dropTok.Loc)
 		default:
 			return p.unsupported("DROP")
 		}
@@ -279,6 +307,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// Set / Unset
 	case kwSET:
+		setTok := p.advance() // consume SET
+		if p.cur.Kind == kwPASSWORD {
+			return p.parseSetPassword(setTok.Loc)
+		}
 		return p.unsupported("SET")
 	case kwUNSET:
 		return p.unsupported("UNSET")
@@ -307,6 +339,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// Materialized View / Refresh
 	case kwREFRESH:
+		refreshTok := p.advance() // consume REFRESH
+		if p.cur.Kind == kwDICTIONARY {
+			return p.parseRefreshDictionary(refreshTok.Loc)
+		}
 		return p.unsupported("REFRESH")
 
 	// Job control
