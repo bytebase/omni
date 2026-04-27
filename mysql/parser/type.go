@@ -134,9 +134,13 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		p.advance()
 
 	// Character string types
-	case kwCHAR:
+	case kwCHAR, kwCHARACTER:
 		dt.Name = "CHAR"
 		p.advance()
+		if p.cur.Type == kwVARYING {
+			dt.Name = "VARCHAR"
+			p.advance()
+		}
 		p.parseOptionalLength(dt)
 		p.parseCharsetCollate(dt)
 
@@ -281,10 +285,14 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	// NATIONAL CHAR / NATIONAL VARCHAR → utf8mb3 character set
 	case kwNATIONAL:
 		p.advance()
-		if p.cur.Type == kwCHAR {
+		if p.cur.Type == kwCHAR || p.cur.Type == kwCHARACTER {
 			dt.Name = "CHAR"
 			dt.Charset = "utf8mb3"
 			p.advance()
+			if p.cur.Type == kwVARYING {
+				dt.Name = "VARCHAR"
+				p.advance()
+			}
 			p.parseOptionalLength(dt)
 			p.parseCharsetCollate(dt)
 		} else if p.cur.Type == kwVARCHAR {
@@ -302,9 +310,14 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 
 	// NCHAR → CHAR with utf8mb3 charset
 	case kwNCHAR:
-		dt.Name = "CHAR"
 		dt.Charset = "utf8mb3"
 		p.advance()
+		if p.cur.Type == kwVARCHAR || p.cur.Type == kwVARYING {
+			dt.Name = "VARCHAR"
+			p.advance()
+		} else {
+			dt.Name = "CHAR"
+		}
 		p.parseOptionalLength(dt)
 		p.parseCharsetCollate(dt)
 
@@ -461,10 +474,10 @@ func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
 
 	// Standalone BINARY modifier — shorthand for CHARACTER SET binary.
 	// Valid for CHAR, VARCHAR, TEXT variants, ENUM, SET, and BLOB types.
-	// MySQL: CHAR(10) BINARY → CHAR(10) CHARACTER SET binary
+	// MySQL: CHAR(10) BINARY → CHAR(10) COLLATE {charset}_bin.
 	if p.cur.Type == kwBINARY {
 		p.advance()
-		dt.Charset = "binary"
+		dt.Binary = true
 	}
 }
 

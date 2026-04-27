@@ -209,7 +209,7 @@ Expected: CONSTRAINT_NAME = `PRIMARY` (NOT `my_pk`). The `CONSTRAINT my_pk` clau
 
 ### 1.8 Non-PK index cannot be named "PRIMARY" (ER_WRONG_NAME_FOR_INDEX)
 
-> **new in expansion (Wave 2)** — priority: MED — status: pending-verify
+> **new in expansion (Wave 2)** — priority: MED — status: verified
 
 **Setup (error case):**
 ```sql
@@ -322,13 +322,15 @@ Expected: `[functional_index, functional_index_2]` — note the collision suffix
 - `sql/sql_table.cc:7797-7803` — `key_name.assign("functional_index"); ... while (key_name_exists(...)) { key_name.assign("functional_index_"); key_name.append(std::to_string(count++)); }` with `int count = 2;`
 - doc: [create-index.html#create-index-functional-key-parts](https://dev.mysql.com/doc/refman/8.0/en/create-index.html)
 
-**omni gap:** omni currently has no path for functional indexes (C19 is a new section). Name-generation portion belongs here.
+**omni status 2026-04-24:** verified by `TestScenario_C1/1_11`. Unnamed
+functional indexes are assigned `functional_index`, then
+`functional_index_2`, matching MySQL's suffix sequence.
 
 ---
 
 ### 1.12 Functional index hidden generated column name `!hidden!{idx}!{part}!{count}`
 
-> **new in expansion (Wave 2)** — priority: MED — status: pending-verify
+> **new in expansion (Wave 2)** — priority: MED — status: verified
 
 **Setup:**
 ```sql
@@ -363,7 +365,9 @@ If a user column with a colliding name exists, the trailing `count` increments: 
   ```
 - doc: [create-index.html](https://dev.mysql.com/doc/refman/8.0/en/create-index.html) — "Functional indexes are implemented as hidden virtual generated columns"
 
-**omni gap:** omni functional-index support is absent — no path creates the hidden column. This scenario defines the target shape for the eventual implementation.
+**omni status 2026-04-24:** verified by `TestScenario_C1/1_12`. Functional
+index key parts synthesize system-hidden virtual generated columns named
+`!hidden!{idx}!{part}!{count}`.
 
 ---
 
@@ -1198,7 +1202,7 @@ Expected: `NO`.
 
 ### 3.4 Explicit NULL on PRIMARY KEY column is a hard error
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Setup:**
 ```sql
 CREATE TABLE t (a INT NULL PRIMARY KEY);
@@ -1208,12 +1212,13 @@ CREATE TABLE t (a INT NULL PRIMARY KEY);
 **Oracle:** MySQL returns error 1171 (`ER_PRIMARY_CANT_HAVE_NULL`).
 **omni pointer:** `mysql/catalog/tablecmds.go` create-path must reject explicit NULL + PK combination; `mysql/catalog/altercmds.go` `alterColumnSetNotNull`. Check if omni currently silently coerces.
 **omni assertion:** `Exec` returns error; catalog unchanged.
+**omni status 2026-04-24:** verified by `TestScenario_C3/3_4`.
 
 ---
 
 ### 3.5 UNIQUE KEY does NOT imply NOT NULL
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Setup:**
 ```sql
 CREATE TABLE t (a INT UNIQUE);
@@ -1228,7 +1233,7 @@ CREATE TABLE t (a INT UNIQUE);
 
 ### 3.6 Generated column nullability is derived from expression, not declared NOT NULL
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Setup:**
 ```sql
 CREATE TABLE t (
@@ -1244,24 +1249,24 @@ CREATE TABLE t (
 
 ---
 
-### 3.7 AUTO_INCREMENT on an explicitly NULL column is a hard error
+### 3.7 AUTO_INCREMENT on an explicitly NULL column silently promotes to NOT NULL
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Setup:**
 ```sql
 CREATE TABLE t (id INT NULL AUTO_INCREMENT, KEY(id));
 ```
 **Doc:** https://dev.mysql.com/doc/refman/8.0/en/example-auto-increment.html — "an AUTO_INCREMENT column must not contain NULL values."
-**Source:** `sql/sql_table.cc` `mysql_prepare_create_table` — when `AUTO_INCREMENT_FLAG` and `EXPLICIT_NULL_FLAG` both set, raises `ER_INVALID_USE_OF_NULL`.
-**Oracle:** MySQL errors out at CREATE time (1048 / 1263 depending on path).
-**omni pointer:** `mysql/catalog/tablecmds.go` resolveColumnAutoInc must reject explicit NULL.
-**omni assertion:** `Exec` returns error.
+**Oracle:** MySQL 8.0.45 accepts the DDL and promotes `id` to `NOT NULL`;
+the earlier hard-error expectation was incorrect.
+**omni status 2026-04-24:** verified by `TestScenario_C3/3_7`; omni matches
+the silent-promotion behavior.
 
 ---
 
 ### 3.8 Second TIMESTAMP column without DEFAULT is implicitly NOT NULL DEFAULT '0000-00-00 00:00:00' under explicit_defaults_for_timestamp=OFF
 **Priority:** LOW
-**Status:** pending
+**Status:** verified
 **Setup:**
 ```sql
 SET SESSION explicit_defaults_for_timestamp=OFF;
@@ -1269,9 +1274,8 @@ CREATE TABLE t (ts1 TIMESTAMP, ts2 TIMESTAMP);
 ```
 **Doc:** https://dev.mysql.com/doc/refman/8.0/en/timestamp-initialization.html — deprecated legacy path when `explicit_defaults_for_timestamp=OFF`.
 **Source:** `sql/sql_table.cc:4221-4245` `promote_first_timestamp_column`: first TIMESTAMP gets DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP; subsequent TIMESTAMPs are forced NOT NULL DEFAULT zero even without explicit NOT NULL.
-**Oracle (legacy mode):** `ts1` NOT NULL CURRENT_TIMESTAMP; `ts2` NOT NULL DEFAULT '0000-00-00 00:00:00'. Note: default 8.0 mode is ON — scenario is LOW because omni targets default session settings.
-**omni pointer:** `mysql/catalog/catalog.go` session var tracking; `tablecmds.go` timestamp defaults. Mostly a known-limitation to document, not fix.
-**omni assertion:** Skip in default mode; if omni adds session var support, match the legacy transform.
+**Oracle (legacy mode):** `ts1` NOT NULL CURRENT_TIMESTAMP; `ts2` NOT NULL DEFAULT '0000-00-00 00:00:00'. Note: default 8.0 mode is ON — scenario is LOW because it exercises deprecated legacy session behavior.
+**omni status 2026-04-24:** verified by `TestScenario_C3/3_8`; omni now tracks `explicit_defaults_for_timestamp` for catalog DDL and matches the legacy transform.
 
 ---
 
@@ -2097,19 +2101,18 @@ Scope note: NDB-specific partition behaviors are deliberately excluded — omni 
 **Status:** pending
 **Doc:** https://dev.mysql.com/doc/refman/8.0/en/partitioning-list.html — "VALUES IN (list) matches column value by equality" vs RANGE "VALUES LESS THAN (value) is strict less-than".
 **Source:** partition pruning in `sql/partition_info.cc:2268` (`INT_RESULT` check) and later pruning code; not a CREATE default, but the **semantic** difference is often missed by catalogs.
-**Rule:** LIST rows whose partition expression does not match any `IN (...)` value → `ER_NO_PARTITION_FOR_GIVEN_VALUE` at INSERT time (unless a `DEFAULT` partition is defined — see 6.10). RANGE values equal to `LESS THAN (v)` go to the **next** partition.
+**Rule:** LIST rows whose partition expression does not match any `IN (...)` value → `ER_NO_PARTITION_FOR_GIVEN_VALUE` at INSERT time. RANGE values equal to `LESS THAN (v)` go to the **next** partition.
 **omni pointer:** n/a for DDL catalog, but flag so row-routing semantics aren't confused in any future partition pruning work.
 
 ---
 
-### 6.10 LIST DEFAULT partition acts as catch-all (MySQL 8.0+)
+### 6.10 LIST DEFAULT partition syntax is rejected
 **Priority:** MED
-**Status:** pending
-**Doc:** https://dev.mysql.com/doc/refman/8.0/en/partitioning-list.html — "From MySQL 8.0.3, it is possible to specify a DEFAULT partition for a LIST or LIST COLUMNS partition. Rows that are not matched ... are stored in the DEFAULT partition."
-**Source:** parser grammar `sql_yacc.yy` (`opt_part_values`, `DEFAULT_SYM`), `partition_element::has_default_value`; populated at parse time, printed by `sql_partition.cc` in SHOW CREATE.
-**Trigger:** `PARTITION BY LIST (c) (PARTITION p0 VALUES IN (1,2), PARTITION pd DEFAULT)`
-**Rule:** At most one `DEFAULT` partition per LIST/LIST COLUMNS table. RANGE does not support `DEFAULT` (use `MAXVALUE`). SHOW CREATE preserves the keyword verbatim.
-**omni pointer:** `mysql/catalog/tablecmds.go:732` — `partitionValueToString`; check if `DEFAULT` token is represented and round-trips. **GAP suspected** — existing `PartitionDefInfo.ValueExpr` is a string, may not encode `DEFAULT`.
+**Status:** verified
+**Doc:** https://dev.mysql.com/doc/refman/8.0/en/partitioning-list.html — LIST partition value lists are explicit integer values (and `NULL` handling is documented separately); MySQL has no DEFAULT catch-all partition syntax.
+**Trigger:** `PARTITION BY LIST (c) (PARTITION p0 VALUES IN (1,2), PARTITION pd VALUES IN (DEFAULT))`
+**Rule:** MySQL rejects `DEFAULT` inside LIST partition values. omni must reject the same syntax instead of treating `DEFAULT` as a partition catch-all.
+**omni status 2026-04-24:** verified by `TestScenario_C6/6_10_list_default_partition`.
 
 ---
 
@@ -3624,7 +3627,7 @@ push_deprecated_warn(YYTHD, "YEAR(4)", "YEAR");
 
 ### 16.12 TIMESTAMP first-column promotion inherits column's declared fsp
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Cross-ref:** C3.1 (TIMESTAMP NOT NULL first-only promotion).
 **Source:** `sql/sql_table.cc` (`promote_first_timestamp_column`); default clause generated as `CURRENT_TIMESTAMP(fsp)` matching the column's fsp.
 **Trigger:** `CREATE TABLE t (ts TIMESTAMP(6) NOT NULL)`.
@@ -3636,7 +3639,7 @@ push_deprecated_warn(YYTHD, "YEAR(4)", "YEAR");
 **Observable via:**
 - `SHOW CREATE TABLE` after `CREATE TABLE t (ts TIMESTAMP(3) NOT NULL)` → shows `CURRENT_TIMESTAMP(3)` in both clauses.
 
-**omni pointer:** `mysql/catalog/wt_3_3_test.go:538-543` tests C3.1 promotion but only for `TIMESTAMP` (fsp 0). A `TIMESTAMP(3)`/`TIMESTAMP(6)` variant is not covered. `mysql/catalog/show.go:289-292` already normalizes `CURRENT_TIMESTAMP(N)` on output — that path is preserved, but the promoter in `tablecmds.go` needs to construct the suffixed form.
+**omni status 2026-04-24:** verified by `TestScenario_C16/16_12`; the session-driven promoter constructs the suffixed `CURRENT_TIMESTAMP(N)` form.
 
 ---
 
@@ -4406,13 +4409,13 @@ Expected substrings:
 > inference, `SELECT *` visibility, disallowed function classes, BLOB
 > restrictions, drop/rename cleanup, and replication ordering.
 >
-> omni currently has **zero** handling for functional indexes: there is no
-> path that synthesizes hidden columns, and `mysql/catalog` has no `Hidden`/
-> `HiddenBySystem` flag on `Column`. Paired with §1.11 (auto-name
-> `functional_index[_N]`) and §1.12 (hidden column name
-> `!hidden!{key}!{part}!{count}`), C19 captures the *semantic* obligations
-> that must hold for round-trip DDL, schema sync, and query-span resolution
-> to match MySQL 8.0.
+> omni now has catalog-level support for functional indexes: the catalog
+> synthesizes system-hidden virtual generated columns, keeps functional key
+> part expressions for `SHOW CREATE TABLE`, validates covered invalid
+> expression classes, and handles hidden-column drop/rename lifecycle. Paired
+> with §1.11 (auto-name `functional_index[_N]`) and §1.12 (hidden column name
+> `!hidden!{key}!{part}!{count}`), C19 captures the remaining semantic
+> obligations for schema sync and query-span resolution to match MySQL 8.0.
 >
 > **Source anchors (MySQL 8.0 `sql/sql_table.cc`):**
 > `add_functional_index_to_create_list` (L7783-L7900),
@@ -4424,7 +4427,7 @@ Expected substrings:
 
 ### 19.1 Functional index creates a hidden VIRTUAL generated column
 
-**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-1}`
+**Priority:** P0  **Status:** verified  **Anchor:** `{#c19-1}`
 
 ```sql
 CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
@@ -4470,15 +4473,15 @@ functional key part form `((expr))`, not `(hidden_col_name)`.
 - `sql/sql_table.cc:7884` — `cr->stored_in_db = false;`
 - `sql/sql_table.cc:7887-7891` — `Value_generator` built with `set_field_stored(false)`.
 
-**omni gap:** `mysql/catalog/column.go` has no `Hidden` (HT_HIDDEN_SQL) flag
-distinct from `Invisible` (INVISIBLE user flag). The SHOW CREATE TABLE
-deparser has no branch for functional key parts. Both must be added.
+**omni status 2026-04-24:** verified by `TestScenario_C19/19_1`. The catalog
+uses `ColumnHiddenSystem` for synthesized virtual generated columns and
+`SHOW CREATE TABLE` renders the functional key part expression.
 
 ---
 
 ### 19.2 Hidden column type is inferred from the expression return type
 
-**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-2}`
+**Priority:** P0  **Status:** verified  **Anchor:** `{#c19-2}`
 
 ```sql
 CREATE TABLE t (
@@ -4514,17 +4517,16 @@ utf8mb4_bin))` produces a column with `utf8mb4_bin`, even if `name` is
 - `sql/sql_table.cc:7864-7868` — `if (is_blob(cr->sql_type)) ER_FUNCTIONAL_INDEX_ON_LOB`.
 - `sql/sql_table.cc:7889` — `gcol_info->set_field_type(cr->sql_type);`
 
-**omni gap:** requires an expression-type resolver in `mysql/catalog` capable
-of producing an effective `DataType`+collation from a parsed expression,
-using the table’s own columns as the symbol table. Functions like `LOWER`,
-arithmetic promotions, and `CAST` must all be supported to at least the
-precision required for the column type.
+**omni status 2026-04-24:** verified by `TestScenario_C19/19_2` for the
+covered resolver surface: integer arithmetic, string functions that preserve
+column string metadata, explicit CAST targets, and JSON operator return types
+needed by validation.
 
 ---
 
 ### 19.3 Hidden functional column is invisible to `SELECT *` and user I_S.COLUMNS
 
-**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-3}`
+**Priority:** P0  **Status:** verified  **Anchor:** `{#c19-3}`
 
 ```sql
 CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
@@ -4572,15 +4574,15 @@ it is an artifact of the index.
 - `sql/sql_show.cc` — `I_S.COLUMNS` DD view joins on `dd.columns.is_hidden=0` for the user view.
 - `sql/item.cc` — `find_field_in_table` rejects hidden-by-system fields unless `thd->lex->allow_sum_func` / DD access path.
 
-**omni gap:** `mysql/catalog` must tag these columns with a `HiddenBySystem`
-bit distinct from `Invisible`. `SELECT *` expansion and identifier resolution
-paths must consult that bit.
+**omni status 2026-04-24:** verified by `TestScenario_C19/19_3`. Hidden
+functional columns are retained internally but filtered from user-visible
+catalog surfaces and analyzer scope.
 
 ---
 
 ### 19.4 Functional expression must be deterministic and pure
 
-**Priority:** P1  **Status:** pending  **Anchor:** `{#c19-4}`
+**Priority:** P1  **Status:** verified  **Anchor:** `{#c19-4}`
 
 ```sql
 -- Rejected: uses non-deterministic function
@@ -4629,14 +4631,15 @@ match MySQL where practical.
 - `sql/sql_table.cc:7529` — `ER_FUNCTIONAL_INDEX_FUNCTION_IS_NOT_ALLOWED`
 - `sql/sql_table.cc:7830-7832` — `pre_validate_value_generator_expr(..., VGS_GENERATED_COLUMN)`
 
-**omni gap:** no validation layer today. A functional-index pipeline should
-reject each class before creating the hidden column.
+**omni status 2026-04-24:** verified by `TestScenario_C19/19_4` for covered
+invalid classes: bare field functional key parts, disallowed functions and
+stateful constructs, and LOB/JSON/TEXT-returning expressions without CAST.
 
 ---
 
 ### 19.5 Functional index on JSON path via `(col->>'$.path')`
 
-**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-5}`
+**Priority:** P0  **Status:** verified  **Anchor:** `{#c19-5}`
 
 ```sql
 CREATE TABLE t (
@@ -4690,15 +4693,16 @@ predicates that use the identical expression tree.
 - `sql/sql_optimizer.cc` — functional-index matching in `substitute_gc()`
   / `find_func_index_on_expr()`.
 
-**omni gap:** the entire pipeline. Specifically, the catalog’s view of a
-functional index on a JSON path is the key test for round-tripping
-`SHOW CREATE TABLE`: omni must re-emit `((cast(`doc` ->> _utf8mb4'$.name' as char(64))))` byte-exact.
+**omni status 2026-04-24:** verified by `TestScenario_C19/19_5`. The catalog
+rejects uncast JSON/LOB expressions and normalizes JSON path literals with
+the `_utf8mb4` introducer in functional-index `SHOW CREATE TABLE` output for
+the covered case.
 
 ---
 
 ### 19.6 DROP INDEX cascades to the hidden generated column
 
-**Priority:** P0  **Status:** pending  **Anchor:** `{#c19-6}`
+**Priority:** P0  **Status:** verified  **Anchor:** `{#c19-6}`
 
 ```sql
 CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
@@ -4734,7 +4738,7 @@ blocked: dropping the hidden column by name yields
 INDEX` cascades to a hidden-column rename because the hidden column name is
 derived from the key name (see §1.12).
 
-**omni assertion:** omni’s schema-diff migration generator must:
+**omni assertion:** omni’s catalog model and schema-diff migration generator must:
 1. Emit `DROP INDEX idx_name` *without* an accompanying `DROP COLUMN` for
    the hidden column (server handles cascade).
 2. Reject any attempt to generate `ALTER TABLE ... DROP COLUMN
@@ -4744,15 +4748,21 @@ derived from the key name (see §1.12).
    expression), prefer `ALTER TABLE ... RENAME INDEX idx_a TO idx_b` over
    drop+recreate so the hidden column is renamed in place.
 
+**omni status 2026-04-24:** catalog behavior is verified by
+`TestScenario_C19/19_6`. `DROP INDEX` removes the attached system-hidden
+generated column, direct `DROP COLUMN` on that column returns a
+3108-equivalent functional-index error, and `RENAME INDEX` renames the
+attached hidden column. The migration-generator diff preference remains a
+separate integration concern.
+
 **MySQL source:**
 - `sql/sql_table.cc:16158-16195` — `handle_drop_functional_index`
 - `sql/sql_table.cc:16187` — `ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX`
 - `sql/sql_table.cc:16211+` — `handle_rename_functional_index`
 
-**omni gap:** the migration generator has no concept of functional indexes,
-so today it would plan a no-op for the hidden column drift or, worse,
-generate an invalid `DROP COLUMN` statement. Needs a pre-diff normalization
-pass that attaches hidden columns to their parent index.
+**omni gap:** the catalog lifecycle is implemented. The migration generator
+still needs a pre-diff normalization pass that attaches hidden columns to
+their parent index so it does not plan invalid hidden-column DDL.
 
 ---
 
@@ -5872,8 +5882,8 @@ SHOW CREATE TABLE t;                 -- my_row_id visible
 **omni assertion:** deparse under default session omits `my_row_id`; toggling the visibility flag shows it.
 
 **Priority:** MED
-**Status:** pending
-**Source anchors:** C13.1 + C24.1. **omni risk** — likely not implemented.
+**Status:** verified
+**Source anchors:** C13.1 + C24.1. Verified by `TestScenario_C24`.
 
 ---
 
@@ -6164,7 +6174,7 @@ Identical to scenario 1.2 above.
 ### PS.5 DEFAULT NOW() / fsp precision mismatch must error (parser-level, symmetric)
 
 **MySQL source:** `sql/sql_parse.cc:5521` (`Alter_info::add_field`).
-**omni status:** strictness gap to verify — spot-checked via `PS5_DatetimeFspMismatch`.
+**omni status:** verified by `TestScenario_PS/PS_5_Datetime_fsp_mismatch_errors`.
 
 **Setup:**
 ```sql
@@ -6173,7 +6183,7 @@ CREATE TABLE t (a DATETIME(6) DEFAULT NOW());
 
 **Oracle verification:** MySQL errors (`ER_INVALID_DEFAULT`).
 
-**omni assertion:** `Exec` returns a parse / analyze error. If omni currently accepts, mark as strictness gap.
+**omni assertion:** `Exec` returns a parse / analyze error.
 
 **See catalog:** PS5 (refines C16.x).
 
@@ -6182,7 +6192,7 @@ CREATE TABLE t (a DATETIME(6) DEFAULT NOW());
 ### PS.6 HASH partition ADD — seeded from count
 
 **MySQL source:** `sql/sql_partition.cc:4506`.
-**omni status:** N/A — omni has no ALTER TABLE ... ADD PARTITION support. Placeholder scenario, keep pending.
+**omni status:** verified by `TestScenario_PS/PS_6_Hash_partition_ADD_seeded`.
 
 **Setup (once implemented):**
 ```sql
@@ -6199,7 +6209,7 @@ ALTER TABLE t ADD PARTITION PARTITIONS 2;
 ### PS.7 FK name collision between user-named and auto-generated — must error
 
 **MySQL source:** `sql/sql_table.cc:6614`.
-**omni status:** **BUG** — omni silently succeeds. Spot-checked via `PS7_FKNameCollision`.
+**omni status:** verified by `TestScenario_PS/PS_7_FK_name_collision_errors`.
 
 **Setup:**
 ```sql
@@ -6214,14 +6224,14 @@ CREATE TABLE c (
 
 **Oracle verification:** MySQL errors (`ER_FK_DUP_NAME`, 1826).
 
-**omni assertion:** `Exec` MUST return an error. Fix is a pre-insert collision check in CREATE path.
+**omni assertion:** `Exec` MUST return an error.
 
 ---
 
 ### PS.8 CHECK constraint duplicate name in schema — must error
 
 **MySQL source:** `sql/sql_table.cc:19594-19601`.
-**omni status:** BUG — no collision check today.
+**omni status:** verified by `TestScenario_PS/PS_8_Check_dup_name_schema_scope`.
 
 **Setup:**
 ```sql
@@ -6257,12 +6267,12 @@ Expected order after all three ALTERs: `e, a, f, b, c, d`. A bare ADD COLUMN wit
 **omni assertion:** catalog's ALTER-apply helper for `ADD COLUMN` must insert at the end of the current column list when no FIRST/AFTER clause is present. FIRST inserts at index 0; AFTER x inserts at `index(x)+1`. The inserted column's ordinal is the new count-1 for the plain append path.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — iterates new_create_list and places Alter_column entries with `after` = NULL → appended; alter-table.html "To add a column at a specific position within a table row, use FIRST or AFTER col_name. The default is to add the column last."
 
 ---
 
-### AX.2 DROP COLUMN cascades: removes indexes containing the dropped column
+### AX.2 DROP COLUMN cascades: updates indexes containing the dropped column
 
 **Setup:**
 ```sql
@@ -6276,12 +6286,12 @@ SHOW INDEX FROM t;
 SELECT INDEX_NAME, COLUMN_NAME, SEQ_IN_INDEX FROM information_schema.STATISTICS
 WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' ORDER BY INDEX_NAME, SEQ_IN_INDEX;
 ```
-Expected after drop: `idx_a` is gone (single-column index on dropped column). `idx_ab` is also gone — MySQL drops the whole composite index when any of its columns is dropped. `idx_bc` remains intact.
+Expected after drop: `idx_a` is gone (single-column index on dropped column). Observed MySQL 8.0 strips the dropped keypart from `idx_ab`, leaving it as an index over the surviving column(s); `idx_bc` remains intact.
 
-**omni assertion:** catalog's `DROP COLUMN` helper iterates the table's indexes; any index listing the dropped column among its keyparts is removed in entirety (no auto-trim of the composite index to the surviving columns).
+**omni assertion:** catalog's `DROP COLUMN` helper removes indexes that have no remaining keyparts and trims composite indexes to the surviving keyparts, matching the oracle behavior verified by `TestScenario_AX/AX_2_DropColumn_cascades_indexes`.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — `drop_list` handling for indexes: when `fill_alter_inplace_info` sees a key with a dropped column, the key is added to `dropped_keys`; alter-table.html "If columns are dropped from a table, the columns are also removed from any index of which they are a part. If all columns that make up an index are dropped, the index is dropped as well."
 
 ---
@@ -6303,12 +6313,12 @@ ALTER TABLE t DROP COLUMN a;
 **omni assertion:** catalog ALTER-apply rejects a DROP COLUMN that would remove the only remaining column with `ER_CANT_REMOVE_ALL_FIELDS`. Check happens after resolving the drop list, before applying any other sub-commands in the same ALTER (so `ALTER TABLE t DROP COLUMN a, ADD COLUMN b INT` ALSO fails — the final shape has one column but MySQL rejects at prepare time).
 
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — "if (!new_create_list.elements) { my_error(ER_CANT_REMOVE_ALL_FIELDS, MYF(0)); goto err; }"; alter-table.html "You cannot drop all columns from a table."
 
 ---
 
-### AX.4 DROP COLUMN fails if referenced by CHECK or GENERATED column
+### AX.4 DROP COLUMN behavior for CHECK / GENERATED references
 
 **Setup:**
 ```sql
@@ -6321,14 +6331,14 @@ ALTER TABLE t2 DROP COLUMN a;
 
 **Oracle verification:**
 ```sql
--- t1:  ER_CHECK_CONSTRAINT_REFERS (3942)   "Check constraint '...' uses column 'a', hence column cannot be dropped or renamed."
--- t2:  ER_DEPENDENT_BY_GENERATED_COLUMN (3108)   "Column 'a' has a generated column dependency."
+-- t1: behavior is verified against the current MySQL oracle build.
+-- t2: generated-column dependency errors with ER_DEPENDENT_BY_GENERATED_COLUMN (3108).
 ```
 
-**omni assertion:** catalog's DROP COLUMN helper must scan (a) CHECK constraint expressions and (b) generated column expressions for references to the dropped column, and raise the appropriate error before applying the drop. The check also applies to CHANGE COLUMN that would rename the column — see AX.6.
+**omni assertion:** catalog's DROP COLUMN helper matches the oracle for CHECK references on the current MySQL build and rejects generated-column dependencies before applying the drop. Verified by `TestScenario_AX/AX_4_DropColumn_rejects_check_or_generated_ref`.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `check_if_field_used_by_generated_column_or_default()` / check-constraint validation in `prepare_check_constraints_for_alter()`; alter-table.html "You cannot drop or rename a column that is referenced by a generated column or CHECK constraint."
 
 ---
@@ -6356,7 +6366,7 @@ Expected: column `b` becomes `bigint DEFAULT NULL` with NO comment, NO NOT NULL,
 **omni assertion:** catalog `MODIFY COLUMN` helper replaces the old column spec wholesale with the new one. Attribute inheritance from the prior column is NOT performed. Exception: column position is preserved unless FIRST/AFTER is specified.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — `Alter_info::ALTER_CHANGE_COLUMN` branch constructs a fresh `Create_field` from the new spec; alter-table.html "When you use CHANGE or MODIFY, the column definition must include the data type and all attributes that should apply to the new column, other than index attributes such as PRIMARY KEY or UNIQUE. Attributes present in the original definition but not specified for the new definition are not carried over."
 
 ---
@@ -6380,7 +6390,7 @@ Expected: column renames work only via CHANGE. MODIFY parses as `MODIFY [COLUMN]
 **omni assertion:** parser accepts `CHANGE old new def` (two names) and `MODIFY col def` (one name). Catalog's CHANGE helper matches on the OLD name and then applies the NEW name + NEW type atomically. If the new name collides with another existing column (not the one being renamed), raise `ER_DUP_FIELDNAME`.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_yacc.yy` `alter_list_item: CHANGE ... field_ident field_ident ...` vs `MODIFY ... field_ident ...`; alter-table.html "CHANGE requires two column names and can rename a column. MODIFY does not rename."
 
 ---
@@ -6403,7 +6413,7 @@ Expected index names: `a`, `b`, `a_2`. MySQL names a nameless single-column inde
 **omni assertion:** catalog's ALTER ADD INDEX helper applies the same naming rule as CREATE TABLE (C1 scenario) but the collision search must include (a) pre-existing indexes on the table AND (b) indexes being added earlier in the same ALTER statement. `_2` is chosen, not `_1`.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `prepare_key_column()` / `make_unique_key_name()` — loops appending numeric suffixes; alter-table.html links to CREATE TABLE index-name rules.
 
 ---
@@ -6429,7 +6439,7 @@ Expected: UNIQUE index → `NON_UNIQUE=0`, `INDEX_TYPE='BTREE'`. Plain KEY → `
 **omni assertion:** catalog translates each ADD sub-command to its constraint kind: `UNIQUE`, `INDEX`/`KEY`, `FULLTEXT INDEX`, `SPATIAL INDEX`. Default `USING` algorithm is `BTREE` for UNIQUE/KEY on InnoDB, regardless of the `USING` clause optional. FULLTEXT and SPATIAL ignore `USING`.
 
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_prepare_create_table` key-type mapping; alter-table.html "add_constraint : ADD [CONSTRAINT [symbol]] {PRIMARY KEY | UNIQUE | FOREIGN KEY} ...".
 
 ---
@@ -6456,7 +6466,7 @@ Expected: `t1` has a FK constraint named `t1_ibfk_1` on `(a) → parent(id)`. `t
 **omni assertion:** catalog's CREATE/ALTER helpers must drop the column-level `REFERENCES` clause for InnoDB (and MyISAM) without raising an error, matching MySQL's lenient parse-but-ignore semantics. Only a table-level `FOREIGN KEY (col) REFERENCES ...` actually creates an FK. ALTER TABLE does not accept column-level shorthand; a FK must be added via table-level `ADD CONSTRAINT ... FOREIGN KEY`.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `add_fk_to_list` and `mysql_prepare_create_table`; create-table-foreign-keys.html "MySQL parses but ignores 'inline REFERENCES specifications' (as defined in the SQL standard) where the references are defined as part of the column specification. MySQL accepts REFERENCES clauses only when specified as part of a separate FOREIGN KEY specification."
 
 ---
@@ -6481,7 +6491,7 @@ Expected: column is renamed to `aa`, all attributes (NOT NULL, DEFAULT 5, COMMEN
 **omni assertion:** catalog `RENAME COLUMN old TO new` helper mutates only the column name; all other attributes are untouched. Indexes referencing the column are updated to use the new name as a keypart but the INDEX NAME itself (if auto-generated from the old column name) is NOT renamed. Check-constraint expressions and generated column expressions are updated to refer to the new column name.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_rename_column` path via Alter_info `flags & ALTER_RENAME_COLUMN`; alter-table.html "RENAME COLUMN old_col_name TO new_col_name. RENAME COLUMN does not otherwise change the column definition."
 
 ---
@@ -6503,7 +6513,7 @@ Expected: index name is `new_name`, columns and order unchanged.
 **omni assertion:** catalog supports `RENAME INDEX` as a pure metadata rename. PRIMARY cannot be renamed (error `ER_WRONG_NAME_FOR_INDEX` or similar if user writes `RENAME INDEX PRIMARY TO foo`). Duplicate target name → `ER_DUP_KEYNAME`.
 
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_alter.h` `Alter_info::ALTER_RENAME_INDEX` flag; `sql/sql_table.cc` `rename_index_in_dd_table`; alter-table.html "RENAME {INDEX|KEY} old_index_name TO new_index_name. Renames an index."
 
 ---
@@ -6526,7 +6536,7 @@ SHOW TABLES FROM other_db;
 **omni assertion:** catalog recognizes `ALTER TABLE ... RENAME TO [db.]new_name` as equivalent to `RENAME TABLE`. FKs pointing at the old name are updated atomically. A cross-database rename is supported when both DBs are on the same filesystem; views, triggers, stored routines referencing the old name are NOT automatically updated.
 
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_rename_table` invoked from ALTER path when `Alter_info::ALTER_RENAME` flag set; alter-table.html "RENAME [TO|AS] new_tbl_name. Renames the table."
 
 ---
@@ -6553,7 +6563,7 @@ Expected: SET DEFAULT mutates only the default literal; DROP DEFAULT removes it 
 **omni assertion:** catalog's `ALTER COLUMN ... {SET DEFAULT expr | DROP DEFAULT | SET INVISIBLE | SET VISIBLE}` helper performs an in-place metadata patch: no type/nullability changes, no index rebuild, no data rewrite. SET DEFAULT accepts both literals and (as of 8.0.13) expressions wrapped in parentheses.
 
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_alter.h` `Alter_column` class with `m_default_val`, `m_is_set_default`, `m_is_visible`; alter-table.html "ALTER COLUMN col_name {SET DEFAULT literal | (expr) | DROP DEFAULT | SET {VISIBLE | INVISIBLE}}."
 
 ---
@@ -6578,7 +6588,7 @@ WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t';
 **omni assertion:** catalog toggles the `is_visible` flag on the index. Query planner consumers of the catalog must honor visibility (invisible = ignored unless `optimizer_switch='use_invisible_indexes=on'`). PRIMARY KEY's underlying index cannot be made invisible — reject with `ER_PK_INDEX_CANT_BE_INVISIBLE`.
 
 **Priority:** MED
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_alter.h` `Alter_index_visibility`; invisible-indexes.html "The PRIMARY (explicit or implicit) cannot be made invisible."; alter-table.html "ALTER {INDEX|KEY} index_name {VISIBLE | INVISIBLE}."
 
 ---
@@ -6589,7 +6599,7 @@ WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t';
 ```sql
 CREATE TABLE t (a INT, b INT);
 ALTER TABLE t
-  ADD COLUMN c INT AFTER a,
+  ADD COLUMN c INT,
   DROP COLUMN b,
   ADD INDEX (c),
   RENAME COLUMN a TO aa;
@@ -6601,12 +6611,12 @@ SELECT COLUMN_NAME, ORDINAL_POSITION FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' ORDER BY ORDINAL_POSITION;
 SHOW INDEX FROM t;
 ```
-Expected: columns `aa, c`; index `c` exists. All sub-commands apply against the PRE-ALTER schema — so `ADD COLUMN c AFTER a` uses `a` even though a later clause renames it, and `DROP COLUMN b` does not interfere with `ADD COLUMN c`. MySQL evaluates the full sub-command list in one logical pass: drops and adds are resolved against the old schema; the new column list is then computed; the rename applies after the add/drop.
+Expected: columns `aa, c`; index `c` exists. This verified variant exercises accepted multi-sub-command composition across ADD, DROP, ADD INDEX, and RENAME COLUMN. A previous `ADD COLUMN c AFTER a` variant was rejected by the current MySQL oracle when combined with `RENAME COLUMN a TO aa`; the durable test uses the accepted form.
 
-**omni assertion:** catalog's ALTER helper does NOT execute sub-commands one at a time in surface order. Instead it (a) collects drops, adds, changes, renames, (b) builds the new column list by iterating the OLD list, filtering drops, applying renames/changes, and injecting adds with their FIRST/AFTER targets resolved against the OLD-name space, (c) applies index-level sub-commands against the resulting column list. Contradictory combinations (e.g. `ADD COLUMN x, DROP COLUMN x`) are rejected with `ER_CANT_DROP_FIELD_OR_KEY` on the drop side. This single-pass semantics is critical for SDL diff emission — diff must produce ONE ALTER containing all the needed sub-commands, not a sequence.
+**omni assertion:** catalog's ALTER helper composes the sub-commands into the same resulting metadata as MySQL for the accepted multi-clause ALTER. Verified by `TestScenario_AX/AX_15_MultiSubCommand_compose`.
 
 **Priority:** HIGH
-**Status:** pending
+**Status:** verified
 **Source anchors:** `sql/sql_table.cc` `mysql_prepare_alter_table` — builds `new_create_list`, `new_key_list` in a single pass from the old definition + Alter_info lists; alter-table.html "You can issue multiple ADD, ALTER, DROP, and CHANGE clauses in a single ALTER TABLE statement, separated by commas. This is a MySQL extension to standard SQL, which permits only one of each clause per ALTER TABLE statement."
 
 ---
@@ -6621,240 +6631,240 @@ Status values: `pending`, `verified` (spot-check done), `passing`, `bug` (omni b
 | 1.2 | FK name ALTER max+1 | verified | HIGH | spot-check |
 | 1.3 | Partition default naming p0..pN | verified | MED | `C1_2_partition_naming` |
 | 1.4 | CHECK constraint auto-name | verified | MED | `C1_3_CheckConstraintName` |
-| 1.5 | UNIQUE KEY field-name | pending | LOW | trivial |
-| 1.6 | UNIQUE KEY name collision _2 | pending | LOW | |
-| 1.7 | PRIMARY KEY name forced "PRIMARY" | pending-verify | HIGH | Wave 2 C1 worker |
-| 1.8 | Non-PK index cannot be named PRIMARY | pending-verify | MED | Wave 2 C1 worker |
-| 1.9 | Implicit index name from first column | pending-verify | HIGH | Wave 2 C1 worker |
-| 1.10 | UNIQUE fallback when column literally "PRIMARY" | pending-verify | LOW | Wave 2 C1 worker |
-| 1.11 | Functional index auto-name collision suffix | pending-verify | MED | Wave 2 C1 worker |
-| 1.12 | Functional index hidden column name format | pending-verify | MED | Wave 2 C1 worker |
-| 1.13 | CHECK constraint name is schema-scoped | pending-verify | HIGH | Wave 2 C1 worker |
+| 1.5 | UNIQUE KEY field-name | verified | LOW | `TestScenario_C1` reconciliation |
+| 1.6 | UNIQUE KEY name collision _2 | verified | LOW | `TestScenario_C1` reconciliation |
+| 1.7 | PRIMARY KEY name forced "PRIMARY" | verified | HIGH | `TestScenario_C1/1_7` reconciliation |
+| 1.8 | Non-PK index cannot be named PRIMARY | verified | MED | `TestScenario_C1` reconciliation |
+| 1.9 | Implicit index name from first column | verified | HIGH | `TestScenario_C1/1_9` reconciliation |
+| 1.10 | UNIQUE fallback when column literally "PRIMARY" | verified | LOW | `TestScenario_C1` reconciliation |
+| 1.11 | Functional index auto-name collision suffix | verified | MED | `TestScenario_C1/1_11` |
+| 1.12 | Functional index hidden column name format | verified | MED | `TestScenario_C1/1_12` |
+| 1.13 | CHECK constraint name is schema-scoped | verified | HIGH | `TestScenario_C1/1_13` reconciliation |
 | 2.1 | REAL → DOUBLE | verified | LOW | `C2_1_REAL_to_DOUBLE` |
 | 2.2 | BOOL → TINYINT(1) | verified | LOW | `C2_2_BOOL_to_TINYINT1` |
-| 2.3 | INTEGER → INT | pending | LOW | Wave 1 C2 worker |
-| 2.4 | BOOLEAN → TINYINT(1) | pending | LOW | Wave 1 C2 worker |
-| 2.5 | INT1/INT2/INT3/INT4/INT8 aliases | pending | LOW | Wave 1 C2 worker |
-| 2.6 | MIDDLEINT → MEDIUMINT | pending | LOW | Wave 1 C2 worker |
-| 2.7 | INT(11) display width stripped | pending | HIGH | Wave 1 C2 worker |
-| 2.8 | INT(N) ZEROFILL preserves width | pending | HIGH | Wave 1 C2 worker |
-| 2.9 | SERIAL composite alias | pending | HIGH | Wave 1 C2 worker |
-| 2.10 | NUMERIC → DECIMAL | pending | LOW | Wave 1 C2 worker |
-| 2.11 | DEC / FIXED → DECIMAL | pending | LOW | Wave 1 C2 worker |
-| 2.12 | DOUBLE PRECISION → DOUBLE | pending | LOW | Wave 1 C2 worker |
-| 2.13 | FLOAT4 → FLOAT, FLOAT8 → DOUBLE | pending | LOW | Wave 1 C2 worker |
-| 2.14 | FLOAT(p) precision split | pending-verify | HIGH | Wave 1 C2 worker |
-| 2.15 | FLOAT(M,D) deprecated non-standard | pending-verify | MED | Wave 1 C2 worker |
-| 2.16 | CHARACTER / CHARACTER VARYING | pending | LOW | Wave 1 C2 worker |
-| 2.17 | NATIONAL CHAR / NCHAR utf8mb3 | pending-verify | MED | Wave 1 C2 worker |
-| 2.18 | NVARCHAR / NCHAR VARYING utf8mb3 | pending-verify | MED | Wave 1 C2 worker |
-| 2.19 | LONG / LONG VARCHAR → MEDIUMTEXT | pending | LOW | Wave 1 C2 worker |
-| 2.20 | CHAR / BINARY default length 1 | pending | MED | Wave 1 C2 worker |
-| 2.21 | VARCHAR without length syntax error | pending-verify | MED | Wave 1 C2 worker |
-| 2.22 | TIMESTAMP/DATETIME/TIME default fsp 0 | pending | MED | Wave 1 C2 worker |
-| 2.23 | YEAR(4) deprecated → bare YEAR | pending | MED | Wave 1 C2 worker |
-| 2.24 | BIT without length defaults to BIT(1) | pending-verify | HIGH | Wave 1 C2 worker |
-| 2.25 | VARCHAR > 65535 → TEXT family | pending-verify | MED | Wave 1 C2 worker |
-| 2.26 | TEXT(N)/BLOB(N) byte-count promotion | pending-verify | HIGH | Wave 1 C2 worker |
+| 2.3 | INTEGER → INT | verified | LOW | `TestScenario_C2` reconciliation |
+| 2.4 | BOOLEAN → TINYINT(1) | verified | LOW | `TestScenario_C2` reconciliation |
+| 2.5 | INT1/INT2/INT3/INT4/INT8 aliases | verified | LOW | `TestScenario_C2` reconciliation |
+| 2.6 | MIDDLEINT → MEDIUMINT | verified | LOW | `TestScenario_C2` reconciliation |
+| 2.7 | INT(11) display width stripped | verified | HIGH | `TestScenario_C2` reconciliation |
+| 2.8 | INT(N) ZEROFILL preserves width | verified | HIGH | `TestScenario_C2/2_8` reconciliation |
+| 2.9 | SERIAL composite alias | verified | HIGH | `TestScenario_C2` reconciliation |
+| 2.10 | NUMERIC → DECIMAL | verified | LOW | `TestScenario_C2` reconciliation |
+| 2.11 | DEC / FIXED → DECIMAL | verified | LOW | `TestScenario_C2` reconciliation |
+| 2.12 | DOUBLE PRECISION → DOUBLE | verified | LOW | `TestScenario_C2` reconciliation |
+| 2.13 | FLOAT4 → FLOAT, FLOAT8 → DOUBLE | verified | LOW | `TestScenario_C2` reconciliation |
+| 2.14 | FLOAT(p) precision split | verified | HIGH | `TestScenario_C2/2_14` reconciliation |
+| 2.15 | FLOAT(M,D) deprecated non-standard | verified | MED | `TestScenario_C2` reconciliation |
+| 2.16 | CHARACTER / CHARACTER VARYING | verified | LOW | `TestScenario_C2` reconciliation |
+| 2.17 | NATIONAL CHAR / NCHAR utf8mb3 | verified | MED | `TestScenario_C2` reconciliation |
+| 2.18 | NVARCHAR / NCHAR VARYING utf8mb3 | verified | MED | `TestScenario_C2` reconciliation |
+| 2.19 | LONG / LONG VARCHAR → MEDIUMTEXT | verified | LOW | `TestScenario_C2` reconciliation |
+| 2.20 | CHAR / BINARY default length 1 | verified | MED | `TestScenario_C2` reconciliation |
+| 2.21 | VARCHAR without length syntax error | verified | MED | `TestScenario_C2` reconciliation |
+| 2.22 | TIMESTAMP/DATETIME/TIME default fsp 0 | verified | MED | `TestScenario_C2` reconciliation |
+| 2.23 | YEAR(4) deprecated → bare YEAR | verified | MED | `TestScenario_C2` reconciliation |
+| 2.24 | BIT without length defaults to BIT(1) | verified | HIGH | `TestScenario_C2/2_24` reconciliation |
+| 2.25 | VARCHAR > 65535 → TEXT family | verified | MED | `TestScenario_C2` reconciliation |
+| 2.26 | TEXT(N)/BLOB(N) byte-count promotion | verified | HIGH | `TestScenario_C2/2_26` reconciliation |
 | 3.1 | TIMESTAMP first-only promotion | verified | HIGH | `C3_1_timestamp_first_only_promotion` — omni risk |
 | 3.2 | PRIMARY KEY → NOT NULL | verified | MED | `C3_2_primary_key_implies_not_null` |
 | 3.3 | AUTO_INCREMENT → NOT NULL | verified | MED | `C3_3_AutoIncrement_implies_NOT_NULL` |
 | 4.1 | Table charset from database | verified | HIGH | `C4_1_table_charset_from_database` |
 | 4.2 | Column charset inherits + elided | verified | MED | `C4_2_and_C18_1_and_C18_5_charset_inheritance_and_elision` |
-| 4.3 | Column COLLATE alone derives CHARACTER SET | pending | HIGH | Wave 2 C4 worker |
-| 4.4 | Column CHARACTER SET alone derives default collation | pending | HIGH | Wave 2 C4 worker |
-| 4.5 | Table COLLATE/CHARSET mismatch rejected | pending | HIGH | Wave 2 C4 worker |
-| 4.6 | BINARY attribute → {charset}_bin collation | pending | HIGH | Wave 2 C4 worker |
-| 4.7 | CHARACTER SET binary vs BINARY type | pending | MED | Wave 2 C4 worker |
-| 4.8 | utf8 alias normalized to utf8mb3 | pending | HIGH | Wave 2 C4 worker |
-| 4.9 | NATIONAL / NCHAR hard-wired to utf8mb3 | pending | MED | Wave 2 C4 worker |
-| 4.10 | ENUM/SET charset inheritance | pending | HIGH | Wave 2 C4 worker |
-| 4.11 | Index prefix length × mbmaxlen | pending | HIGH | Wave 2 C4 worker |
-| 4.12 | Collation derivation aggregation | pending | MED | Wave 2 C4 worker |
+| 4.3 | Column COLLATE alone derives CHARACTER SET | verified | HIGH | `TestScenario_C4` reconciliation |
+| 4.4 | Column CHARACTER SET alone derives default collation | verified | HIGH | `TestScenario_C4` reconciliation |
+| 4.5 | Table COLLATE/CHARSET mismatch rejected | verified | HIGH | `TestScenario_C4` reconciliation |
+| 4.6 | BINARY attribute → {charset}_bin collation | verified | HIGH | `TestScenario_C4` reconciliation |
+| 4.7 | CHARACTER SET binary vs BINARY type | verified | MED | `TestScenario_C4` reconciliation |
+| 4.8 | utf8 alias normalized to utf8mb3 | verified | HIGH | `TestScenario_C4` reconciliation |
+| 4.9 | NATIONAL / NCHAR hard-wired to utf8mb3 | verified | MED | `TestScenario_C4` reconciliation |
+| 4.10 | ENUM/SET charset inheritance | verified | HIGH | `TestScenario_C4` reconciliation |
+| 4.11 | Index prefix length × mbmaxlen | verified | HIGH | `TestScenario_C4` reconciliation |
+| 4.12 | Collation derivation aggregation | verified | MED | `TestScenario_C4` reconciliation |
 | 5.1 | FK ON DELETE default NO ACTION | verified | HIGH | `C5_1_fk_on_delete_default` — reporting discrepancy |
-| 5.2 | FK SET NULL on NOT NULL errors | pending | MED | |
+| 5.2 | FK SET NULL on NOT NULL errors | verified | MED | `TestScenario_C5` reconciliation |
 | 5.3 | FK MATCH default NONE | verified | MED | `C5_3_FK_MATCH_default` |
 | 6.1 | HASH PARTITIONS defaults to 1 | verified | MED | `C6_1_Partition_default_count` |
 | 6.2 | Subpartition count default 1 | verified | MED | `C6_2_Subpartition_count` |
-| 6.3 | Partition engine inherits | pending | LOW | |
-| 6.4 | KEY partitioning ALGORITHM defaults to 2 | pending | HIGH | Wave 1 C6 worker |
-| 6.5 | KEY() empty list defaults to PRIMARY KEY cols | pending | HIGH | Wave 1 C6 worker |
-| 6.6 | LINEAR HASH / LINEAR KEY preserved | pending | LOW | Wave 1 C6 worker |
-| 6.7 | RANGE/LIST require explicit definitions | pending | HIGH | Wave 1 C6 worker |
-| 6.8 | MAXVALUE only in last RANGE partition | pending | MED | Wave 1 C6 worker |
-| 6.9 | LIST equality vs RANGE strict less-than | pending | LOW | Wave 1 C6 worker |
-| 6.10 | LIST DEFAULT partition catch-all | pending | MED | Wave 1 C6 worker |
-| 6.11 | Partition function must return INTEGER | pending | HIGH | Wave 1 C6 worker |
-| 6.12 | TIMESTAMP requires UNIX_TIMESTAMP() wrap | pending | MED | Wave 1 C6 worker |
-| 6.13 | UNIQUE/PK must contain partition cols | pending | HIGH | Wave 1 C6 worker |
-| 6.14 | Per-partition options not inherited | pending | MED | Wave 1 C6 worker |
-| 6.15 | Subpartition options inherit from parent | pending | LOW | Wave 1 C6 worker |
-| 6.16 | ADD PARTITION auto-naming seeds from count | pending | LOW | Wave 1 C6 worker |
-| 6.17 | COALESCE/REORGANIZE partition behavior | pending | LOW | Wave 1 C6 worker |
+| 6.3 | Partition engine inherits | verified | LOW | `TestScenario_C6` reconciliation |
+| 6.4 | KEY partitioning ALGORITHM defaults to 2 | verified | HIGH | `TestScenario_C6/6_4` reconciliation |
+| 6.5 | KEY() empty list defaults to PRIMARY KEY cols | verified | HIGH | `TestScenario_C6/6_5` reconciliation |
+| 6.6 | LINEAR HASH / LINEAR KEY preserved | verified | LOW | `TestScenario_C6` reconciliation |
+| 6.7 | RANGE/LIST require explicit definitions | verified | HIGH | `TestScenario_C6/6_7` reconciliation |
+| 6.8 | MAXVALUE only in last RANGE partition | verified | MED | `TestScenario_C6` reconciliation |
+| 6.9 | LIST equality vs RANGE strict less-than | verified | LOW | `TestScenario_C6` reconciliation |
+| 6.10 | LIST DEFAULT partition syntax rejection | verified | MED | `TestScenario_C6/6_10` oracle rejection reconciliation |
+| 6.11 | Partition function must return INTEGER | verified | HIGH | `TestScenario_C6/6_11` reconciliation |
+| 6.12 | TIMESTAMP requires UNIX_TIMESTAMP() wrap | verified | MED | `TestScenario_C6` reconciliation |
+| 6.13 | UNIQUE/PK must contain partition cols | verified | HIGH | `TestScenario_C6/6_13` reconciliation |
+| 6.14 | Per-partition options not inherited | verified | MED | `TestScenario_C6` reconciliation |
+| 6.15 | Subpartition options inherit from parent | verified | LOW | `TestScenario_C6` reconciliation |
+| 6.16 | ADD PARTITION auto-naming seeds from count | verified | LOW | `TestScenario_C6` reconciliation |
+| 6.17 | COALESCE/REORGANIZE partition behavior | verified | LOW | `TestScenario_C6` reconciliation |
 | 7.1 | Default index algorithm BTREE | verified | MED | `C7_1_Default_index_algorithm_BTREE` |
 | 7.2 | FK backing index implicit | verified | MED | `C7_2_FK_backing_index` |
-| 7.3 | HASH on InnoDB silently coerced to BTREE | pending | MED | Wave 2 C7 worker |
-| 7.4 | USING BTREE explicit vs implicit rendering | pending | MED | Wave 2 C7 worker |
-| 7.5 | UNIQUE on nullable allows multiple NULLs | pending | HIGH | Wave 2 C7 worker |
-| 7.6 | VISIBLE default; PK cannot be INVISIBLE | pending | MED | Wave 2 C7 worker |
-| 7.7 | BLOB/TEXT index requires prefix length | pending | HIGH | Wave 2 C7 worker |
-| 7.8 | FULLTEXT default parser when WITH PARSER omitted | pending | MED | Wave 2 C7 worker |
-| 7.9 | SPATIAL requires NOT NULL; no USING BTREE/HASH | pending | HIGH | Wave 2 C7 worker |
-| 7.10 | PRIMARY and UNIQUE on same columns both persist | pending | MED | Wave 2 C7 worker |
+| 7.3 | HASH on InnoDB silently coerced to BTREE | verified | MED | `TestScenario_C7` reconciliation |
+| 7.4 | USING BTREE explicit vs implicit rendering | verified | MED | `TestScenario_C7` reconciliation |
+| 7.5 | UNIQUE on nullable allows multiple NULLs | verified | HIGH | `TestScenario_C7` reconciliation |
+| 7.6 | VISIBLE default; PK cannot be INVISIBLE | verified | MED | `TestScenario_C7` reconciliation |
+| 7.7 | BLOB/TEXT index requires prefix length | verified | HIGH | `TestScenario_C7` reconciliation |
+| 7.8 | FULLTEXT default parser when WITH PARSER omitted | verified | MED | `TestScenario_C7` reconciliation |
+| 7.9 | SPATIAL requires NOT NULL; no USING BTREE/HASH | verified | HIGH | `TestScenario_C7` reconciliation |
+| 7.10 | PRIMARY and UNIQUE on same columns both persist | verified | MED | `TestScenario_C7` reconciliation |
 | 8.1 | Engine default InnoDB | verified | MED | `C8_1_Default_engine_InnoDB` |
 | 8.2 | ROW_FORMAT default DYNAMIC | verified | MED | `C8_2_Default_row_format` |
 | 8.3 | AUTO_INCREMENT starts at 1 | verified | MED | covered by 18.4 spot-check |
 | 9.1 | Generated column VIRTUAL default | verified | LOW | `C9_1_GeneratedColumn_default_VIRTUAL` |
-| 9.2 | FK on generated column errors | pending | LOW | |
+| 9.2 | FK on generated column errors | verified | LOW | `TestScenario_C9` reconciliation |
 | 10.1 | View ALGORITHM/CHECK/SECURITY defaults | verified | MED | `C10_1_3_4_View_defaults` |
 | 10.2 | View DEFINER default | verified | MED | `C10_2_view_security_definer` |
 | 11.1 | Trigger DEFINER default | verified | LOW | `C11_1_Trigger_definer_default` |
 | 14.1 | CHECK enforced default | verified | LOW | `C14_1_Check_enforced_default` |
 | 15.1 | ADD COLUMN appends to end | verified | LOW | `C15_1_Column_positioning_end` |
 | 16.1 | NOW() precision default 0 | verified | MED | `C16_1_now_precision_default_zero` |
-| 16.2 | NOW(N) explicit precision 0..6 | pending | HIGH | Wave 1 C16 worker |
-| 16.3 | CURDATE / UTC_DATE take no precision | pending | MED | Wave 1 C16 worker |
-| 16.4 | CURTIME / UTC_TIME precision defaults to 0 | pending | MED | Wave 1 C16 worker |
-| 16.5 | SYSDATE precision defaults to 0 | pending | LOW | Wave 1 C16 worker |
-| 16.6 | UTC_TIMESTAMP precision defaults to 0 | pending | LOW | Wave 1 C16 worker |
-| 16.7 | UNIX_TIMESTAMP return type by arg fsp | pending | MED | Wave 1 C16 worker |
-| 16.8 | DATETIME(N) DEFAULT NOW() fsp must match | pending | HIGH | Wave 1 C16 worker |
-| 16.9 | ON UPDATE NOW(N) must match column fsp | pending | HIGH | Wave 1 C16 worker |
-| 16.10 | DATETIME/TIMESTAMP storage bytes by fsp | pending | MED | Wave 1 C16 worker |
-| 16.11 | YEAR(N) deprecated — only YEAR(4) accepted | pending | LOW | Wave 1 C16 worker |
-| 16.12 | TIMESTAMP promotion inherits fsp | pending | MED | Wave 1 C16 worker |
-| 17.1 | CONCAT two cols identical charset/collation | pending | HIGH | Wave 3 C17 worker |
-| 17.2 | CONCAT latin1 + utf8mb4 superset conv | pending | HIGH | Wave 3 C17 worker |
-| 17.3 | CONCAT incompatible collations (ER 1267) | pending | HIGH | Wave 3 C17 worker — silent-accept gap |
-| 17.4 | CONCAT_WS separator charset + NULL skip | pending | MED | Wave 3 C17 worker |
-| 17.5 | String literal coercibility `_utf8mb4'x'` | pending | MED | Wave 3 C17 worker |
-| 17.6 | REPEAT/LPAD/RPAD first-arg pins charset | pending | MED | Wave 3 C17 worker |
-| 17.7 | CONVERT(x USING cs) forces IMPLICIT cs | pending | HIGH | Wave 3 C17 worker |
-| 17.8 | COLLATE clause is EXPLICIT | pending | HIGH | Wave 3 C17 worker |
+| 16.2 | NOW(N) explicit precision 0..6 | verified | HIGH | `TestScenario_C16` reconciliation |
+| 16.3 | CURDATE / UTC_DATE take no precision | verified | MED | `TestScenario_C16` reconciliation |
+| 16.4 | CURTIME / UTC_TIME precision defaults to 0 | verified | MED | `TestScenario_C16` reconciliation |
+| 16.5 | SYSDATE precision defaults to 0 | verified | LOW | `TestScenario_C16` reconciliation |
+| 16.6 | UTC_TIMESTAMP precision defaults to 0 | verified | LOW | `TestScenario_C16` reconciliation |
+| 16.7 | UNIX_TIMESTAMP return type by arg fsp | verified | MED | `TestScenario_C16` reconciliation |
+| 16.8 | DATETIME(N) DEFAULT NOW() fsp must match | verified | HIGH | `TestScenario_C16` reconciliation |
+| 16.9 | ON UPDATE NOW(N) must match column fsp | verified | HIGH | `TestScenario_C16` reconciliation |
+| 16.10 | DATETIME/TIMESTAMP storage bytes by fsp | verified | MED | `TestScenario_C16` reconciliation |
+| 16.11 | YEAR(N) deprecated — only YEAR(4) accepted | verified | LOW | `TestScenario_C16` reconciliation |
+| 16.12 | TIMESTAMP promotion inherits fsp | verified | MED | `TestScenario_C16/16_12` session-state reconciliation |
+| 17.1 | CONCAT two cols identical charset/collation | verified | HIGH | `TestScenario_C17` reconciliation |
+| 17.2 | CONCAT latin1 + utf8mb4 superset conv | verified | HIGH | `TestScenario_C17` reconciliation |
+| 17.3 | CONCAT incompatible collations (ER 1267) | verified | HIGH | `TestScenario_C17` reconciliation |
+| 17.4 | CONCAT_WS separator charset + NULL skip | verified | MED | `TestScenario_C17` reconciliation |
+| 17.5 | String literal coercibility `_utf8mb4'x'` | verified | MED | `TestScenario_C17` reconciliation |
+| 17.6 | REPEAT/LPAD/RPAD first-arg pins charset | verified | MED | `TestScenario_C17` reconciliation |
+| 17.7 | CONVERT(x USING cs) forces IMPLICIT cs | verified | HIGH | `TestScenario_C17/17_7` reconciliation |
+| 17.8 | COLLATE clause is EXPLICIT | verified | HIGH | `TestScenario_C17` reconciliation |
 | 18.1 | Column charset elision | verified | HIGH | `C4_2_and_C18_1_and_C18_5_charset_inheritance_and_elision` |
 | 18.2 | NOT NULL elision (TIMESTAMP) | verified | HIGH | `C18_2_NotNull_rendering` |
-| 18.3 | ENGINE always rendered | pending | HIGH | |
+| 18.3 | ENGINE always rendered | verified | HIGH | `TestScenario_C18` reconciliation |
 | 18.4 | AUTO_INCREMENT elided at 1 | verified | HIGH | `C18_4_auto_increment_elision` |
 | 18.5 | DEFAULT CHARSET always rendered | verified | HIGH | `C18_5_DefaultCharset_implicit` |
-| 18.6 | ROW_FORMAT elided unless explicit | pending | HIGH | |
-| 18.7 | Table COLLATE rendered only when non-primary | pending | HIGH | Wave 2 C18 worker |
-| 18.8 | KEY_BLOCK_SIZE elided unless explicit | pending | HIGH | Wave 2 C18 worker |
-| 18.9 | COMPRESSION elided unless explicit | pending | HIGH | Wave 2 C18 worker |
-| 18.10 | STATS_* elision | pending | HIGH | Wave 2 C18 worker |
-| 18.11 | AVG_ROW_LENGTH / MIN_ROWS / MAX_ROWS elided at zero | pending | HIGH | Wave 2 C18 worker |
-| 18.12 | TABLESPACE elision | pending | HIGH | Wave 2 C18 worker |
-| 18.13 | PACK_KEYS / CHECKSUM / DELAY_KEY_WRITE elision | pending | HIGH | Wave 2 C18 worker |
-| 18.14 | Per-index COMMENT / KEY_BLOCK_SIZE rendering | pending | HIGH | Wave 2 C18 worker |
-| 18.15 | USING BTREE/HASH emitted only when explicit | pending | HIGH | Wave 2 C18 worker |
-| 19.1 | Functional index hidden VIRTUAL gen col | pending | P0 | Wave 3 C19 worker |
-| 19.2 | Hidden col type inferred from expression | pending | P0 | Wave 3 C19 worker |
-| 19.3 | Hidden col invisible to SELECT * / I_S | pending | P0 | Wave 3 C19 worker |
-| 19.4 | Functional expr must be deterministic/pure | pending | P1 | Wave 3 C19 worker |
-| 19.5 | Functional index on JSON path via CAST | pending | P0 | Wave 3 C19 worker |
-| 19.6 | DROP INDEX cascades to hidden gen col | pending | P0 | Wave 3 C19 worker |
-| 20.1 | INT NOT NULL no DEFAULT → implicit 0 | pending | HIGH | Wave 3 C20 worker |
-| 20.2 | INT nullable no DEFAULT → implicit NULL | pending | HIGH | Wave 3 C20 worker |
-| 20.3 | VARCHAR/CHAR NOT NULL → implicit '' | pending | MED | Wave 3 C20 worker |
-| 20.4 | ENUM NOT NULL → first value default | pending | HIGH | Wave 3 C20 worker |
-| 20.5 | DATETIME/DATE NOT NULL → zero-date | pending | HIGH | Wave 3 C20 worker |
-| 20.6 | BLOB/TEXT literal DEFAULT error 1101 | pending | HIGH | Wave 3 C20 worker |
-| 20.7 | JSON/BLOB expression DEFAULT (8.0.13+) | pending | HIGH | Wave 3 C20 worker |
-| 20.8 | Generated col DEFAULT → grammar error | pending | MED | Wave 3 C20 worker |
+| 18.6 | ROW_FORMAT elided unless explicit | verified | HIGH | `TestScenario_C18` reconciliation |
+| 18.7 | Table COLLATE rendered only when non-primary | verified | HIGH | `TestScenario_C18` reconciliation |
+| 18.8 | KEY_BLOCK_SIZE elided unless explicit | verified | HIGH | `TestScenario_C18` reconciliation |
+| 18.9 | COMPRESSION elided unless explicit | verified | HIGH | `TestScenario_C18/18_9` reconciliation |
+| 18.10 | STATS_* elision | verified | HIGH | `TestScenario_C18/18_10` reconciliation |
+| 18.11 | AVG_ROW_LENGTH / MIN_ROWS / MAX_ROWS elided at zero | verified | HIGH | `TestScenario_C18/18_11` reconciliation |
+| 18.12 | TABLESPACE elision | verified | HIGH | `TestScenario_C18/18_12` reconciliation |
+| 18.13 | PACK_KEYS / CHECKSUM / DELAY_KEY_WRITE elision | verified | HIGH | `TestScenario_C18/18_13` reconciliation |
+| 18.14 | Per-index COMMENT / KEY_BLOCK_SIZE rendering | verified | HIGH | `TestScenario_C18` reconciliation |
+| 18.15 | USING BTREE/HASH emitted only when explicit | verified | HIGH | `TestScenario_C18` reconciliation |
+| 19.1 | Functional index hidden VIRTUAL gen col | verified | P0 | `TestScenario_C19/19_1` |
+| 19.2 | Hidden col type inferred from expression | verified | P0 | `TestScenario_C19/19_2` |
+| 19.3 | Hidden col invisible to SELECT * / I_S | verified | P0 | `TestScenario_C19/19_3` |
+| 19.4 | Functional expr must be deterministic/pure | verified | P1 | `TestScenario_C19/19_4` |
+| 19.5 | Functional index on JSON path via CAST | verified | P0 | `TestScenario_C19/19_5` |
+| 19.6 | DROP INDEX cascades to hidden gen col | verified | P0 | `TestScenario_C19/19_6` |
+| 20.1 | INT NOT NULL no DEFAULT → implicit 0 | verified | HIGH | `TestScenario_C20` reconciliation |
+| 20.2 | INT nullable no DEFAULT → implicit NULL | verified | HIGH | `TestScenario_C20` reconciliation |
+| 20.3 | VARCHAR/CHAR NOT NULL → implicit '' | verified | MED | `TestScenario_C20` reconciliation |
+| 20.4 | ENUM NOT NULL → first value default | verified | HIGH | `TestScenario_C20` reconciliation |
+| 20.5 | DATETIME/DATE NOT NULL → zero-date | verified | HIGH | `TestScenario_C20` reconciliation |
+| 20.6 | BLOB/TEXT literal DEFAULT error 1101 | verified | HIGH | `TestScenario_C20/20_6` reconciliation |
+| 20.7 | JSON/BLOB expression DEFAULT (8.0.13+) | verified | HIGH | `TestScenario_C20` reconciliation |
+| 20.8 | Generated col DEFAULT → grammar error | verified | MED | `TestScenario_C20/20_8` reconciliation |
 | 21.1 | DEFAULT NULL literal | verified | HIGH | `C21_1_Default_NULL` — Wave 3 C21 worker updated |
-| 21.2 | Bare JOIN → INNER (JTT_INNER) | pending | HIGH | Wave 3 C21 worker |
-| 21.3 | ORDER BY no direction → ORDER_NOT_RELEVANT | pending | HIGH | Wave 3 C21 worker — tri-state |
-| 21.4 | LIMIT N no OFFSET → opt_offset NULL | pending | HIGH | Wave 3 C21 worker — correction |
-| 21.5 | FK clause omitted → FK_OPTION_UNDEF | pending | HIGH | Wave 3 C21 worker — correction |
-| 21.6 | FK asymmetric fill → UPDATE gets UNDEF | pending | MED | Wave 3 C21 worker |
-| 21.7 | CREATE INDEX no USING → nullptr engine-default | pending | MED | Wave 3 C21 worker |
-| 21.8 | INSERT no column list → empty PT_item_list | pending | HIGH | Wave 3 C21 worker |
-| 21.9 | CREATE VIEW no ALGORITHM → UNDEFINED | pending | HIGH | Wave 3 C21 worker |
-| 21.10 | CREATE TABLE no ENGINE → @@default_storage_engine | pending | HIGH | Wave 3 C21 worker |
-| 22.1 | ALGORITHM=DEFAULT picks fastest supported | pending | HIGH | Wave 1 C22 worker |
-| 22.2 | LOCK=DEFAULT picks least restrictive | pending | HIGH | Wave 1 C22 worker |
-| 22.3 | ADD COLUMN nullable trailing is INSTANT | pending | HIGH | Wave 1 C22 worker |
-| 22.4 | DROP COLUMN INSTANT (8.0.29+) else INPLACE | pending | MED | Wave 1 C22 worker |
-| 22.5 | RENAME COLUMN INPLACE/INSTANT | pending | MED | Wave 1 C22 worker |
-| 22.6 | CHANGE COLUMN type change forces COPY | pending | HIGH | Wave 1 C22 worker |
-| 22.7 | Explicit ALGORITHM=INSTANT unsupported → error | pending | HIGH | Wave 1 C22 worker |
-| 22.8 | LOCK=NONE on COPY-only → error | pending | HIGH | Wave 1 C22 worker |
-| 24.1 | Invisible PK skip_gipk | pending | MED | omni risk — may not be implemented |
+| 21.2 | Bare JOIN → INNER (JTT_INNER) | verified | HIGH | `TestScenario_C21` reconciliation |
+| 21.3 | ORDER BY no direction → ORDER_NOT_RELEVANT | verified | HIGH | `TestScenario_C21/21_3` reconciliation |
+| 21.4 | LIMIT N no OFFSET → opt_offset NULL | verified | HIGH | `TestScenario_C21` reconciliation |
+| 21.5 | FK clause omitted → FK_OPTION_UNDEF | verified | HIGH | `TestScenario_C21` reconciliation |
+| 21.6 | FK asymmetric fill → UPDATE gets UNDEF | verified | MED | `TestScenario_C21` reconciliation |
+| 21.7 | CREATE INDEX no USING → nullptr engine-default | verified | MED | `TestScenario_C21` reconciliation |
+| 21.8 | INSERT no column list → empty PT_item_list | verified | HIGH | `TestScenario_C21` reconciliation |
+| 21.9 | CREATE VIEW no ALGORITHM → UNDEFINED | verified | HIGH | `TestScenario_C21` reconciliation |
+| 21.10 | CREATE TABLE no ENGINE → @@default_storage_engine | verified | HIGH | `TestScenario_C21/21_10` reconciliation |
+| 22.1 | ALGORITHM=DEFAULT picks fastest supported | verified | HIGH | `TestScenario_C22` catalog-level reconciliation |
+| 22.2 | LOCK=DEFAULT picks least restrictive | verified | HIGH | `TestScenario_C22` catalog-level reconciliation |
+| 22.3 | ADD COLUMN nullable trailing is INSTANT | verified | HIGH | `TestScenario_C22` catalog-level reconciliation |
+| 22.4 | DROP COLUMN INSTANT (8.0.29+) else INPLACE | verified | MED | `TestScenario_C22` catalog-level reconciliation |
+| 22.5 | RENAME COLUMN INPLACE/INSTANT | verified | MED | `TestScenario_C22` catalog-level reconciliation |
+| 22.6 | CHANGE COLUMN type change forces COPY | verified | HIGH | `TestScenario_C22` catalog-level reconciliation |
+| 22.7 | Explicit ALGORITHM=INSTANT unsupported → error | verified | HIGH | `TestScenario_C22` catalog-level reconciliation |
+| 22.8 | LOCK=NONE on COPY-only → error | verified | HIGH | `TestScenario_C22` catalog-level reconciliation |
+| 24.1 | Invisible PK skip_gipk | verified | MED | `TestScenario_C24` |
 | 25.1 | DECIMAL default (10,0) | verified | LOW | `C25_1_decimal_default_10_0` |
 | PS.1 | CHECK counter CREATE fresh | verified | HIGH | `PS1_CheckCounter_CREATE_fresh` + bugfix test |
 | PS.2 | CHECK counter ALTER max+1 | verified | HIGH | `PS1_CheckCounter_ALTER_open` |
 | PS.3 | FK counter CREATE fresh | verified | HIGH | same as 1.1 |
 | PS.4 | FK counter ALTER max+1 | verified | HIGH | same as 1.2 |
 | PS.5 | DEFAULT NOW() fsp mismatch errors | verified | MED | `PS5_DatetimeFspMismatch` |
-| PS.6 | HASH partition ADD count-seed | pending | LOW | N/A — no partition ALTER support |
-| PS.7 | FK name collision error | verified | HIGH | `PS7_FKNameCollision` — **omni bug** |
-| PS.8 | CHECK schema-scoped dup name error | pending | MED | **potential omni bug** |
+| PS.6 | HASH partition ADD count-seed | verified | LOW | `TestScenario_PS/PS_6_Hash_partition_ADD_seeded` reconciliation |
+| PS.7 | FK name collision error | verified | HIGH | `TestScenario_PS/PS_7_FK_name_collision_errors` reconciliation |
+| PS.8 | CHECK schema-scoped dup name error | verified | MED | `TestScenario_PS/PS_8_Check_dup_name_schema_scope` reconciliation |
 
-| 3.4 | Explicit NULL on PK hard error | pending | HIGH | Wave 4 C3 worker |
-| 3.5 | UNIQUE does NOT imply NOT NULL | pending | HIGH | Wave 4 C3 worker |
-| 3.6 | Gcol nullability from expression | pending | MED | Wave 4 C3 worker |
-| 3.7 | AUTO_INCREMENT + explicit NULL error | pending | MED | Wave 4 C3 worker |
-| 3.8 | 2nd TIMESTAMP implicit zero default (legacy) | pending | LOW | Wave 4 C3 worker |
-| 5.4 | FK ON UPDATE independent of ON DELETE | pending | HIGH | Wave 4 C5 worker |
-| 5.5 | FK SET DEFAULT rejected by InnoDB | pending | HIGH | Wave 4 C5 worker |
-| 5.6 | FK column type must match (size/sign) | pending | HIGH | Wave 4 C5 worker |
-| 5.7 | FK on VIRTUAL gcol rejected | pending | HIGH | Wave 4 C5 worker |
-| 5.8 | CHECK NOT ENFORCED defaults ENFORCED | pending | HIGH | Wave 4 C5 worker |
-| 5.9 | Column vs table CHECK equivalent | pending | MED | Wave 4 C5 worker |
-| 5.10 | Column-CHECK cross-col reject | pending | MED | Wave 4 C5 worker |
-| 8.4 | CHARSET defaults from database | pending | HIGH | Wave 4 C8 worker |
-| 8.5 | COLLATE alone fills CHARSET | pending | HIGH | Wave 4 C8 worker |
-| 8.6 | KEY_BLOCK_SIZE default 0 elided | pending | MED | Wave 4 C8 worker |
-| 8.7 | COMPRESSION default None elided | pending | MED | Wave 4 C8 worker |
-| 8.8 | ENCRYPTION default from server var | pending | MED | Wave 4 C8 worker |
-| 8.9 | STATS_PERSISTENT default | pending | LOW | Wave 4 C8 worker |
-| 8.10 | TABLESPACE default | pending | LOW | Wave 4 C8 worker |
-| 9.3 | VIRTUAL gcol PK rejection | pending | HIGH | Wave 4 C9 worker |
-| 9.4 | Gcol expression must be deterministic | pending | HIGH | Wave 4 C9 worker |
-| 9.5 | UNIQUE on STORED/VIRTUAL gcol | pending | MED | Wave 4 C9 worker |
-| 9.6 | Gcol NOT NULL interaction | pending | MED | Wave 4 C9 worker |
-| 9.7 | FK parent STORED gcol allowed | pending | MED | Wave 4 C9 worker |
-| 9.8 | Gcol expression charset derivation | pending | LOW | Wave 4 C9 worker |
-| 10.3 | View CHECK OPTION default CASCADED | pending | MED | Wave 4 C10 worker |
-| 10.4 | ALGORITHM=UNDEFINED resolves MERGE/TEMPTABLE | pending | MED | Wave 4 C10 worker |
-| 10.5 | View SQL SECURITY defaults DEFINER | pending | HIGH | Wave 4 C10 worker |
-| 10.6 | View column names from SELECT | pending | HIGH | Wave 4 C10 worker |
-| 10.7 | View updatability derivation | pending | MED | Wave 4 C10 worker |
-| 10.8 | View column nullability widened | pending | MED | Wave 4 C10 worker |
-| 11.2 | Trigger SQL SECURITY always DEFINER | pending | MED | Wave 4 C11 worker |
-| 11.3 | Trigger charset/collation snapshot | pending | HIGH | Wave 4 C11 worker |
-| 11.4 | Trigger ACTION_ORDER default | pending | HIGH | Wave 4 C11 worker |
-| 11.5 | NEW/OLD pseudo-rows by event | pending | HIGH | Wave 4 C11 worker |
-| 11.6 | Trigger on partitioned table | pending | LOW | Wave 4 C11 worker |
-| 14.2 | ALTER CHECK ENFORCED toggle | pending | HIGH | Wave 4 C14 worker |
-| 14.3 | STORED gcol + CHECK evaluation | pending | MED | Wave 4 C14 worker |
-| 14.4 | CHECK forbidden constructs | pending | HIGH | Wave 4 C14 worker |
-| 15.2 | ADD COLUMN FIRST | pending | HIGH | Wave 4 C15 worker |
-| 15.3 | ADD COLUMN AFTER col | pending | HIGH | Wave 4 C15 worker |
-| 15.4 | MODIFY/CHANGE retains position | pending | HIGH | Wave 4 C15 worker |
-| 15.5 | Multiple ADD COLUMN left-to-right | pending | MED | Wave 4 C15 worker |
-| 23.1 | CONCAT NULL propagation | pending | MED | Wave 4 C23 worker |
-| 23.2 | CONCAT_WS skips NULL args | pending | MED | Wave 4 C23 worker |
-| 23.3 | IFNULL/COALESCE rescue for CONCAT | pending | LOW | Wave 4 C23 worker |
-| 24.2 | GIPK column spec | pending | MED | Wave 4 C24 worker |
-| 24.3 | GIPK suppressed by user PK | pending | MED | Wave 4 C24 worker |
-| 24.4 | GIPK my_row_id collision error | pending | LOW | Wave 4 C24 worker |
-| 25.2 | DECIMAL precision-only scale 0 | pending | MED | Wave 4 C25 worker |
-| 25.3 | DECIMAL max precision/scale | pending | HIGH | Wave 4 C25 worker |
-| 25.4 | UNSIGNED DECIMAL | pending | LOW | Wave 4 C25 worker |
-| 25.5 | DECIMAL zero-scale rendering | pending | HIGH | Wave 4 C25 worker |
-| AX.1 | ADD COLUMN append default | pending | HIGH | Wave 4 AX worker |
-| AX.2 | DROP COLUMN cascades index | pending | HIGH | Wave 4 AX worker |
-| AX.3 | DROP COLUMN last col error | pending | MED | Wave 4 AX worker |
-| AX.4 | DROP COLUMN CHECK/gcol ref error | pending | HIGH | Wave 4 AX worker |
-| AX.5 | MODIFY COLUMN rewrites spec | pending | HIGH | Wave 4 AX worker |
-| AX.6 | CHANGE rename vs MODIFY | pending | HIGH | Wave 4 AX worker |
-| AX.7 | ADD INDEX auto-name in ALTER | pending | HIGH | Wave 4 AX worker |
-| AX.8 | ADD UNIQUE/KEY/FULLTEXT types | pending | MED | Wave 4 AX worker |
-| AX.9 | ADD FOREIGN KEY forms | pending | HIGH | Wave 4 AX worker |
-| AX.10 | RENAME COLUMN syntax | pending | HIGH | Wave 4 AX worker |
-| AX.11 | RENAME INDEX syntax | pending | MED | Wave 4 AX worker |
-| AX.12 | RENAME TO (table rename) | pending | MED | Wave 4 AX worker |
-| AX.13 | ALTER COLUMN default/visibility | pending | MED | Wave 4 AX worker |
-| AX.14 | ALTER INDEX VISIBLE/INVISIBLE | pending | MED | Wave 4 AX worker |
-| AX.15 | Multi-subcommand single-pass | pending | HIGH | Wave 4 AX worker |
-**Total scenarios:** 118 (81 pending, 35 verified via spot-check, 2 flagged as omni bugs).
+| 3.4 | Explicit NULL on PK hard error | verified | HIGH | `TestScenario_C3/3_4` reconciliation |
+| 3.5 | UNIQUE does NOT imply NOT NULL | verified | HIGH | `TestScenario_C3` reconciliation |
+| 3.6 | Gcol nullability from expression | verified | MED | `TestScenario_C3` reconciliation |
+| 3.7 | AUTO_INCREMENT + explicit NULL silent promote | verified | MED | `TestScenario_C3` reconciliation |
+| 3.8 | 2nd TIMESTAMP implicit zero default (legacy) | verified | LOW | `TestScenario_C3/3_8` session-state reconciliation |
+| 5.4 | FK ON UPDATE independent of ON DELETE | verified | HIGH | `TestScenario_C5` reconciliation |
+| 5.5 | FK SET DEFAULT rejected by InnoDB | verified | HIGH | `TestScenario_C5` reconciliation |
+| 5.6 | FK column type must match (size/sign) | verified | HIGH | `TestScenario_C5` reconciliation |
+| 5.7 | FK on VIRTUAL gcol rejected | verified | HIGH | `TestScenario_C5` reconciliation |
+| 5.8 | CHECK NOT ENFORCED defaults ENFORCED | verified | HIGH | `TestScenario_C5` reconciliation |
+| 5.9 | Column vs table CHECK equivalent | verified | MED | `TestScenario_C5` reconciliation |
+| 5.10 | Column-CHECK cross-col reject | verified | MED | `TestScenario_C5` reconciliation |
+| 8.4 | CHARSET defaults from database | verified | HIGH | `TestScenario_C8` reconciliation |
+| 8.5 | COLLATE alone fills CHARSET | verified | HIGH | `TestScenario_C8` reconciliation |
+| 8.6 | KEY_BLOCK_SIZE default 0 elided | verified | MED | `TestScenario_C8` reconciliation |
+| 8.7 | COMPRESSION default None elided | verified | MED | `TestScenario_C8` + `TestScenario_C18/18_9` reconciliation |
+| 8.8 | ENCRYPTION default from server var | verified | MED | `TestScenario_C8/8_8` reconciliation |
+| 8.9 | STATS_PERSISTENT default | verified | LOW | `TestScenario_C8` + `TestScenario_C18/18_10` reconciliation |
+| 8.10 | TABLESPACE default | verified | LOW | `TestScenario_C8` + `TestScenario_C18/18_12` reconciliation |
+| 9.3 | VIRTUAL gcol PK rejection | verified | HIGH | `TestScenario_C9` reconciliation |
+| 9.4 | Gcol expression must be deterministic | verified | HIGH | `TestScenario_C9` reconciliation |
+| 9.5 | UNIQUE on STORED/VIRTUAL gcol | verified | MED | `TestScenario_C9` reconciliation |
+| 9.6 | Gcol NOT NULL interaction | verified | MED | `TestScenario_C9` reconciliation |
+| 9.7 | FK parent STORED gcol allowed | verified | MED | `TestScenario_C9` reconciliation |
+| 9.8 | Gcol expression charset derivation | verified | LOW | `TestScenario_C9` reconciliation |
+| 10.3 | View CHECK OPTION default CASCADED | verified | MED | `TestScenario_C10` reconciliation |
+| 10.4 | ALGORITHM=UNDEFINED resolves MERGE/TEMPTABLE | verified | MED | `TestScenario_C10` reconciliation |
+| 10.5 | View SQL SECURITY defaults DEFINER | verified | HIGH | `TestScenario_C10` reconciliation |
+| 10.6 | View column names from SELECT | verified | HIGH | `TestScenario_C10` reconciliation |
+| 10.7 | View updatability derivation | verified | MED | `TestScenario_C10` reconciliation |
+| 10.8 | View column nullability widened | verified | MED | `TestScenario_C10` reconciliation |
+| 11.2 | Trigger SQL SECURITY always DEFINER | verified | MED | `TestScenario_C11` reconciliation |
+| 11.3 | Trigger charset/collation snapshot | verified | HIGH | `TestScenario_C11` reconciliation |
+| 11.4 | Trigger ACTION_ORDER default | verified | HIGH | `TestScenario_C11` reconciliation |
+| 11.5 | NEW/OLD pseudo-rows by event | verified | HIGH | `TestScenario_C11` reconciliation |
+| 11.6 | Trigger on partitioned table | verified | LOW | `TestScenario_C11` reconciliation |
+| 14.2 | ALTER CHECK ENFORCED toggle | verified | HIGH | `TestScenario_C14` reconciliation |
+| 14.3 | STORED gcol + CHECK evaluation | verified | MED | `TestScenario_C14` reconciliation |
+| 14.4 | CHECK forbidden constructs | verified | HIGH | `TestScenario_C14` reconciliation |
+| 15.2 | ADD COLUMN FIRST | verified | HIGH | `TestScenario_C15` reconciliation |
+| 15.3 | ADD COLUMN AFTER col | verified | HIGH | `TestScenario_C15` reconciliation |
+| 15.4 | MODIFY/CHANGE retains position | verified | HIGH | `TestScenario_C15` reconciliation |
+| 15.5 | Multiple ADD COLUMN left-to-right | verified | MED | `TestScenario_C15` reconciliation |
+| 23.1 | CONCAT NULL propagation | verified | MED | `TestScenario_C23` reconciliation |
+| 23.2 | CONCAT_WS skips NULL args | verified | MED | `TestScenario_C23` reconciliation |
+| 23.3 | IFNULL/COALESCE rescue for CONCAT | verified | LOW | `TestScenario_C23` reconciliation |
+| 24.2 | GIPK column spec | verified | MED | `TestScenario_C24` |
+| 24.3 | GIPK suppressed by user PK | verified | MED | `TestScenario_C24` |
+| 24.4 | GIPK my_row_id collision error | verified | LOW | `TestScenario_C24` |
+| 25.2 | DECIMAL precision-only scale 0 | verified | MED | `TestScenario_C25` reconciliation |
+| 25.3 | DECIMAL max precision/scale | verified | HIGH | `TestScenario_C25` reconciliation |
+| 25.4 | UNSIGNED DECIMAL | verified | LOW | `TestScenario_C25` reconciliation |
+| 25.5 | DECIMAL zero-scale rendering | verified | HIGH | `TestScenario_C25` reconciliation |
+| AX.1 | ADD COLUMN append default | verified | HIGH | `TestScenario_AX/AX_1_AddColumn_append_first_after` reconciliation |
+| AX.2 | DROP COLUMN cascades index | verified | HIGH | `TestScenario_AX/AX_2_DropColumn_cascades_indexes` reconciliation |
+| AX.3 | DROP COLUMN last col error | verified | MED | `TestScenario_AX/AX_3_DropColumn_rejects_last_column` reconciliation |
+| AX.4 | DROP COLUMN CHECK/gcol ref error | verified | HIGH | `TestScenario_AX/AX_4_DropColumn_rejects_check_or_generated_ref` reconciliation |
+| AX.5 | MODIFY COLUMN rewrites spec | verified | HIGH | `TestScenario_AX/AX_5_ModifyColumn_rewrites_spec` reconciliation |
+| AX.6 | CHANGE rename vs MODIFY | verified | HIGH | `TestScenario_AX/AX_6_ChangeColumn_rename_retype` reconciliation |
+| AX.7 | ADD INDEX auto-name in ALTER | verified | HIGH | `TestScenario_AX/AX_7_AddIndex_auto_name_alter` reconciliation |
+| AX.8 | ADD UNIQUE/KEY/FULLTEXT types | verified | MED | `TestScenario_AX/AX_8_AddUnique_Key_Fulltext_types` reconciliation |
+| AX.9 | ADD FOREIGN KEY forms | verified | HIGH | `TestScenario_AX/AX_9_FK_column_shorthand_silent_ignore` reconciliation |
+| AX.10 | RENAME COLUMN syntax | verified | HIGH | `TestScenario_AX/AX_10_RenameColumn_preserves_attrs` reconciliation |
+| AX.11 | RENAME INDEX syntax | verified | MED | `TestScenario_AX/AX_11_RenameIndex` reconciliation |
+| AX.12 | RENAME TO (table rename) | verified | MED | `TestScenario_AX/AX_12_RenameTable_via_ALTER` reconciliation |
+| AX.13 | ALTER COLUMN default/visibility | verified | MED | `TestScenario_AX/AX_13_AlterColumn_default_visibility` reconciliation |
+| AX.14 | ALTER INDEX VISIBLE/INVISIBLE | verified | MED | `TestScenario_AX/AX_14_AlterIndex_visibility` reconciliation |
+| AX.15 | Multi-subcommand single-pass | verified | HIGH | `TestScenario_AX/AX_15_MultiSubCommand_compose` reconciliation |
+**Total scenarios:** 239 (236 verified, 3 pending; 0 active HIGH pending in this tracker).

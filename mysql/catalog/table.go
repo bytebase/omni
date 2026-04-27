@@ -1,21 +1,33 @@
 package catalog
 
 type Table struct {
-	Name          string
-	Database      *Database
-	Columns       []*Column
-	colByName     map[string]int // lowered name -> index
-	Indexes       []*Index
-	Constraints   []*Constraint
-	Engine        string
-	Charset       string
-	Collation     string
-	Comment       string
-	AutoIncrement int64
-	Temporary     bool
-	RowFormat     string
-	KeyBlockSize  int
-	Partitioning  *PartitionInfo
+	Name             string
+	Database         *Database
+	Columns          []*Column
+	colByName        map[string]int // lowered name -> index
+	Indexes          []*Index
+	Constraints      []*Constraint
+	Engine           string
+	Charset          string
+	Collation        string
+	Comment          string
+	AutoIncrement    int64
+	Temporary        bool
+	RowFormat        string
+	KeyBlockSize     int
+	Compression      string
+	Encryption       string
+	StatsPersistent  string
+	StatsAutoRecalc  string
+	StatsSamplePages string
+	MinRows          string
+	MaxRows          string
+	AvgRowLength     string
+	Tablespace       string
+	PackKeys         string
+	Checksum         string
+	DelayKeyWrite    string
+	Partitioning     *PartitionInfo
 
 	// droppedByCleanup tracks indexes auto-removed by DROP COLUMN cleanup
 	// during multi-command ALTER TABLE. This allows a subsequent explicit
@@ -25,19 +37,24 @@ type Table struct {
 
 // PartitionInfo holds partition metadata for a table.
 type PartitionInfo struct {
-	Type       string // RANGE, LIST, HASH, KEY
-	Linear     bool   // LINEAR HASH or LINEAR KEY
-	Expr       string // partition expression (for RANGE/LIST/HASH)
-	Columns    []string // partition columns (for RANGE COLUMNS/LIST COLUMNS/KEY)
-	Algorithm  int    // ALGORITHM={1|2} for KEY partitioning
-	NumParts   int    // PARTITIONS num
-	Partitions []*PartitionDefInfo
-	SubType    string // subpartition type (HASH or KEY, "" if none)
-	SubLinear  bool   // LINEAR for subpartition
-	SubExpr    string // subpartition expression
-	SubColumns []string // subpartition columns
-	SubAlgo    int    // subpartition ALGORITHM
-	NumSubParts int   // SUBPARTITIONS num
+	Type        string   // RANGE, LIST, HASH, KEY
+	Linear      bool     // LINEAR HASH or LINEAR KEY
+	Expr        string   // partition expression (for RANGE/LIST/HASH)
+	Columns     []string // partition columns (for RANGE COLUMNS/LIST COLUMNS/KEY)
+	Algorithm   int      // ALGORITHM={1|2} for KEY partitioning
+	NumParts    int      // PARTITIONS num
+	Partitions  []*PartitionDefInfo
+	SubType     string   // subpartition type (HASH or KEY, "" if none)
+	SubLinear   bool     // LINEAR for subpartition
+	SubExpr     string   // subpartition expression
+	SubColumns  []string // subpartition columns
+	SubAlgo     int      // subpartition ALGORITHM
+	NumSubParts int      // actual subpartition count per partition
+	// MySQL tracks subpartition defaulting separately from NumSubParts.
+	// These mirror partition_info::use_default_subpartitions and
+	// partition_info::use_default_num_subpartitions.
+	UseDefaultSubpartitions    bool
+	UseDefaultNumSubpartitions bool
 }
 
 // PartitionDefInfo holds a single partition definition.
@@ -57,24 +74,44 @@ type SubPartitionDefInfo struct {
 }
 
 type Column struct {
-	Position       int
-	Name           string
-	DataType       string // normalized (int, varchar, etc.)
-	ColumnType     string // full type string (varchar(100), int unsigned)
-	Nullable       bool
-	Default        *string
-	DefaultDropped bool // true when ALTER COLUMN DROP DEFAULT was used
-	AutoIncrement  bool
-	Charset        string
-	Collation      string
-	Comment        string
-	OnUpdate       string
-	Generated         *GeneratedColumnInfo
-	Invisible         bool
-	SRID              int // Spatial Reference ID (0 = not set)
-	DefaultAnalyzed   AnalyzedExpr // Phase 3: analyzed DEFAULT expression
-	GeneratedAnalyzed AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
+	Position                     int
+	Name                         string
+	DataType                     string // normalized (int, varchar, etc.)
+	ColumnType                   string // full type string (varchar(100), int unsigned)
+	Nullable                     bool
+	Default                      *string
+	DefaultKind                  ColumnDefaultKind
+	DefaultDropped               bool // true when ALTER COLUMN DROP DEFAULT was used
+	AutoIncrement                bool
+	Charset                      string
+	Collation                    string
+	Comment                      string
+	OnUpdate                     string
+	OnUpdateKind                 ColumnDefaultKind
+	Generated                    *GeneratedColumnInfo
+	Invisible                    bool
+	GeneratedInvisiblePrimaryKey bool // true for MySQL-generated my_row_id GIPK
+	Hidden                       ColumnHiddenKind
+	SRID                         int          // Spatial Reference ID (0 = not set)
+	DefaultAnalyzed              AnalyzedExpr // Phase 3: analyzed DEFAULT expression
+	GeneratedAnalyzed            AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
 }
+
+type ColumnDefaultKind int
+
+const (
+	ColumnDefaultNone ColumnDefaultKind = iota
+	ColumnDefaultConstant
+	ColumnDefaultCurrentTimestamp
+	ColumnDefaultExpression
+)
+
+type ColumnHiddenKind int
+
+const (
+	ColumnHiddenNone ColumnHiddenKind = iota
+	ColumnHiddenSystem
+)
 
 type GeneratedColumnInfo struct {
 	Expr   string
@@ -90,8 +127,18 @@ type View struct {
 	SqlSecurity     string
 	CheckOption     string
 	Columns         []string // All column names (explicit or derived from SELECT)
-	ExplicitColumns bool     // true if the user specified a column list in CREATE VIEW
-	AnalyzedQuery   *Query   // analyzed view body (populated on CREATE VIEW); nil if analysis failed
+	ColumnMetadata  []ViewColumn
+	ExplicitColumns bool   // true if the user specified a column list in CREATE VIEW
+	AnalyzedQuery   *Query // analyzed view body (populated on CREATE VIEW); nil if analysis failed
+	IsUpdatable     bool
+}
+
+type ViewColumn struct {
+	Name      string
+	Nullable  bool
+	Type      *ResolvedType
+	Charset   string
+	Collation string
 }
 
 // Routine represents a stored function or procedure in the catalog.
@@ -115,14 +162,17 @@ type RoutineParam struct {
 
 // Trigger represents a trigger in the catalog.
 type Trigger struct {
-	Name     string
-	Database *Database
-	Table    string // table name the trigger is on
-	Timing   string // BEFORE, AFTER
-	Event    string // INSERT, UPDATE, DELETE
-	Definer  string
-	Body     string
-	Order    *TriggerOrderInfo
+	Name                string
+	Database            *Database
+	Table               string // table name the trigger is on
+	Timing              string // BEFORE, AFTER
+	Event               string // INSERT, UPDATE, DELETE
+	Definer             string
+	Body                string
+	CharacterSetClient  string
+	CollationConnection string
+	DatabaseCollation   string
+	Order               *TriggerOrderInfo
 }
 
 // TriggerOrderInfo represents FOLLOWS/PRECEDES ordering.
@@ -221,4 +271,24 @@ func (t *Table) GetColumn(name string) *Column {
 		return nil
 	}
 	return t.Columns[idx]
+}
+
+func (t *Table) VisibleColumns() []*Column {
+	result := make([]*Column, 0, len(t.Columns))
+	for _, col := range t.Columns {
+		if col.Hidden == ColumnHiddenNone {
+			result = append(result, col)
+		}
+	}
+	return result
+}
+
+func (t *Table) HiddenColumns() []*Column {
+	result := make([]*Column, 0)
+	for _, col := range t.Columns {
+		if col.Hidden != ColumnHiddenNone {
+			result = append(result, col)
+		}
+	}
+	return result
 }

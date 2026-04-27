@@ -391,6 +391,16 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 	if p.cur.Type == kwPARTITION {
 		p.advance()
 		cmd.Type = nodes.ATAddPartition
+		if p.cur.Type == kwPARTITIONS {
+			p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, &ParseError{Message: "expected partition count", Position: p.cur.Loc}
+			}
+			cmd.Number = int(p.cur.Ival)
+			p.advance()
+			cmd.Loc.End = p.pos()
+			return cmd, nil
+		}
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}

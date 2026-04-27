@@ -1440,9 +1440,12 @@ func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
 		}
 
 		if _, ok := p.match(kwDESC); ok {
+			item.Direction = nodes.OrderDirectionDesc
 			item.Desc = true
+		} else if _, ok := p.match(kwASC); ok {
+			item.Direction = nodes.OrderDirectionAsc
 		} else {
-			p.match(kwASC)
+			item.Direction = nodes.OrderDirectionDefault
 		}
 
 		item.Loc.End = p.pos()
@@ -2006,6 +2009,7 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/table.html
 //
 //	TABLE table_name [ORDER BY column_name] [LIMIT number [OFFSET number]]
+//
 // parseTableStmt parses a TABLE statement.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/table.html

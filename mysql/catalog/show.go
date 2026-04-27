@@ -79,6 +79,12 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	// Columns.
 	parts := make([]string, 0, len(tbl.Columns)+len(tbl.Indexes)+len(tbl.Constraints))
 	for _, col := range tbl.Columns {
+		if col.Hidden == ColumnHiddenSystem {
+			continue
+		}
+		if col.GeneratedInvisiblePrimaryKey && !c.showGIPK {
+			continue
+		}
 		parts = append(parts, showColumnWithTable(col, tbl))
 	}
 
@@ -90,6 +96,9 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	// 5. FULLTEXT KEYs (creation order)
 	var idxPrimary, idxUnique, idxRegular, idxExpr, idxFulltext []*Index
 	for _, idx := range tbl.Indexes {
+		if isGeneratedInvisiblePrimaryKeyIndex(idx) && !c.showGIPK {
+			continue
+		}
 		switch {
 		case idx.Primary:
 			idxPrimary = append(idxPrimary, idx)
@@ -151,6 +160,13 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	}
 
 	return b.String()
+}
+
+func isGeneratedInvisiblePrimaryKeyIndex(idx *Index) bool {
+	return idx != nil &&
+		idx.Primary &&
+		len(idx.Columns) == 1 &&
+		strings.EqualFold(idx.Columns[0].Name, generatedInvisiblePrimaryKeyColumnName)
 }
 
 func showColumn(col *Column) string {
@@ -259,7 +275,7 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 
 	// ON UPDATE.
 	if col.OnUpdate != "" {
-		b.WriteString(fmt.Sprintf(" ON UPDATE %s", formatOnUpdate(col.OnUpdate)))
+		b.WriteString(fmt.Sprintf(" ON UPDATE %s", formatOnUpdate(col.OnUpdate, col.OnUpdateKind)))
 	}
 
 	// COMMENT.
@@ -281,17 +297,15 @@ func formatDefault(val string, col *Column) string {
 	if strings.EqualFold(val, "NULL") {
 		return "NULL"
 	}
+	switch col.DefaultKind {
+	case ColumnDefaultCurrentTimestamp:
+		return formatCurrentTimestamp(val)
+	case ColumnDefaultExpression:
+		return "(" + val + ")"
+	}
 	// Normalize CURRENT_TIMESTAMP() → CURRENT_TIMESTAMP (MySQL 8.0 format).
-	upper := strings.ToUpper(val)
-	if upper == "CURRENT_TIMESTAMP" || upper == "CURRENT_TIMESTAMP()" {
-		return "CURRENT_TIMESTAMP"
-	}
-	if strings.HasPrefix(upper, "CURRENT_TIMESTAMP(") {
-		// CURRENT_TIMESTAMP(N) — keep precision, use uppercase.
-		return upper
-	}
-	if upper == "NOW()" {
-		return "CURRENT_TIMESTAMP"
+	if ts, ok := currentTimestampSQL(val); ok {
+		return ts
 	}
 	// b'...' and 0x... bit/hex literals — not quoted.
 	if strings.HasPrefix(val, "b'") || strings.HasPrefix(val, "B'") ||
@@ -311,18 +325,34 @@ func formatDefault(val string, col *Column) string {
 }
 
 // formatOnUpdate normalizes ON UPDATE values to MySQL 8.0 format.
-func formatOnUpdate(val string) string {
-	upper := strings.ToUpper(val)
-	if upper == "CURRENT_TIMESTAMP" || upper == "CURRENT_TIMESTAMP()" {
-		return "CURRENT_TIMESTAMP"
+func formatOnUpdate(val string, kind ColumnDefaultKind) string {
+	if kind == ColumnDefaultCurrentTimestamp {
+		return formatCurrentTimestamp(val)
 	}
-	if strings.HasPrefix(upper, "CURRENT_TIMESTAMP(") {
-		return upper
-	}
-	if upper == "NOW()" {
-		return "CURRENT_TIMESTAMP"
+	if ts, ok := currentTimestampSQL(val); ok {
+		return ts
 	}
 	return val
+}
+
+func formatCurrentTimestamp(val string) string {
+	if ts, ok := currentTimestampSQL(val); ok {
+		return ts
+	}
+	return "CURRENT_TIMESTAMP"
+}
+
+func currentTimestampSQL(val string) (string, bool) {
+	upper := strings.ToUpper(strings.TrimSpace(val))
+	if upper == "CURRENT_TIMESTAMP" || upper == "CURRENT_TIMESTAMP()" || upper == "NOW()" {
+		return "CURRENT_TIMESTAMP", true
+	}
+	for _, prefix := range []string{"CURRENT_TIMESTAMP(", "NOW("} {
+		if strings.HasPrefix(upper, prefix) && strings.HasSuffix(upper, ")") {
+			return "CURRENT_TIMESTAMP" + upper[len(prefix)-1:], true
+		}
+	}
+	return "", false
 }
 
 // isTimestampType returns true for TIMESTAMP/DATETIME types.
@@ -451,8 +481,12 @@ func showConstraint(con *Constraint) string {
 func showTableOptions(tbl *Table) string {
 	var parts []string
 
-	if tbl.Engine != "" {
-		parts = append(parts, fmt.Sprintf("ENGINE=%s", tbl.Engine))
+	engine := tbl.Engine
+	if engine == "" {
+		engine = "InnoDB"
+	}
+	if engine != "" {
+		parts = append(parts, fmt.Sprintf("ENGINE=%s", engine))
 	}
 
 	// AUTO_INCREMENT — shown only when > 1.
@@ -497,7 +531,48 @@ func showTableOptions(tbl *Table) string {
 		parts = append(parts, fmt.Sprintf("COMMENT='%s'", escapeComment(tbl.Comment)))
 	}
 
+	if tbl.Compression != "" {
+		parts = append(parts, fmt.Sprintf("COMPRESSION='%s'", escapeComment(unquoteTableOption(tbl.Compression))))
+	}
+	if tbl.Encryption != "" {
+		parts = append(parts, fmt.Sprintf("ENCRYPTION='%s'", escapeComment(unquoteTableOption(tbl.Encryption))))
+	}
+	if tbl.StatsPersistent != "" && !eqFoldStr(tbl.StatsPersistent, "DEFAULT") {
+		parts = append(parts, fmt.Sprintf("STATS_PERSISTENT=%s", tbl.StatsPersistent))
+	}
+	if tbl.StatsAutoRecalc != "" && !eqFoldStr(tbl.StatsAutoRecalc, "DEFAULT") {
+		parts = append(parts, fmt.Sprintf("STATS_AUTO_RECALC=%s", tbl.StatsAutoRecalc))
+	}
+	if tbl.StatsSamplePages != "" && !eqFoldStr(tbl.StatsSamplePages, "DEFAULT") {
+		parts = append(parts, fmt.Sprintf("STATS_SAMPLE_PAGES=%s", tbl.StatsSamplePages))
+	}
+	if tbl.MinRows != "" && tbl.MinRows != "0" {
+		parts = append(parts, fmt.Sprintf("MIN_ROWS=%s", tbl.MinRows))
+	}
+	if tbl.MaxRows != "" && tbl.MaxRows != "0" {
+		parts = append(parts, fmt.Sprintf("MAX_ROWS=%s", tbl.MaxRows))
+	}
+	if tbl.AvgRowLength != "" && tbl.AvgRowLength != "0" {
+		parts = append(parts, fmt.Sprintf("AVG_ROW_LENGTH=%s", tbl.AvgRowLength))
+	}
+	if tbl.Tablespace != "" {
+		parts = append(parts, fmt.Sprintf("/*!50100 TABLESPACE `%s` */", unquoteTableOption(tbl.Tablespace)))
+	}
+	if tbl.PackKeys != "" && !eqFoldStr(tbl.PackKeys, "DEFAULT") {
+		parts = append(parts, fmt.Sprintf("PACK_KEYS=%s", tbl.PackKeys))
+	}
+	if tbl.Checksum != "" && tbl.Checksum != "0" {
+		parts = append(parts, fmt.Sprintf("CHECKSUM=%s", tbl.Checksum))
+	}
+	if tbl.DelayKeyWrite != "" && tbl.DelayKeyWrite != "0" {
+		parts = append(parts, fmt.Sprintf("DELAY_KEY_WRITE=%s", tbl.DelayKeyWrite))
+	}
+
 	return strings.Join(parts, " ")
+}
+
+func unquoteTableOption(s string) string {
+	return strings.Trim(s, "'\"`")
 }
 
 // isFKDefault returns true if the action is a MySQL FK default that should not be shown.
@@ -587,7 +662,7 @@ func showPartitioning(pi *PartitionInfo) string {
 				b.WriteString(fmt.Sprintf("KEY (%s)", formatPartitionColumns(pi.SubColumns)))
 			}
 		}
-		if pi.NumSubParts > 0 {
+		if pi.UseDefaultSubpartitions && !pi.UseDefaultNumSubpartitions && pi.NumSubParts > 0 {
 			b.WriteString(fmt.Sprintf("\nSUBPARTITIONS %d", pi.NumSubParts))
 		}
 	}
@@ -623,12 +698,14 @@ func showPartitioning(pi *PartitionInfo) string {
 					b.WriteString(fmt.Sprintf(" VALUES IN (%s)", pd.ValueExpr))
 				}
 			}
-			b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(pd.Engine)))
-			if pd.Comment != "" {
-				b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(pd.Comment)))
+			if pi.SubType == "" || pi.UseDefaultSubpartitions {
+				b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(pd.Engine)))
+				if pd.Comment != "" {
+					b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(pd.Comment)))
+				}
 			}
-			// Subpartition definitions — skip auto-generated ones (NumSubParts > 0).
-			if len(pd.SubPartitions) > 0 && pi.NumSubParts == 0 {
+			// Explicit subpartition definitions are rendered instead of parent options.
+			if len(pd.SubPartitions) > 0 && !pi.UseDefaultSubpartitions {
 				b.WriteString("\n (")
 				for j, spd := range pd.SubPartitions {
 					if j > 0 {

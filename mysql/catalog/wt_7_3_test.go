@@ -153,9 +153,9 @@ func TestWalkThrough_7_3_KeyEmptyColumns(t *testing.T) {
 		t.Fatal("ShowCreateTable returned empty string")
 	}
 
-	// KEY () uses PK columns — MySQL renders as KEY ()
-	if !strings.Contains(ddl, "KEY ()") {
-		t.Errorf("expected KEY () in DDL:\n%s", ddl)
+	// KEY() uses PK columns; MySQL renders the resolved partition key.
+	if !strings.Contains(ddl, "KEY (id)") {
+		t.Errorf("expected KEY (id) in DDL:\n%s", ddl)
 	}
 	if !strings.Contains(ddl, "PARTITIONS 4") {
 		t.Errorf("expected PARTITIONS 4 in DDL:\n%s", ddl)
@@ -168,6 +168,9 @@ func TestWalkThrough_7_3_KeyEmptyColumns(t *testing.T) {
 	}
 	if tbl.Partitioning.Type != "KEY" {
 		t.Errorf("expected partition type KEY, got %q", tbl.Partitioning.Type)
+	}
+	if len(tbl.Partitioning.Columns) != 1 || tbl.Partitioning.Columns[0] != "id" {
+		t.Errorf("expected Columns [id], got %v", tbl.Partitioning.Columns)
 	}
 	if tbl.Partitioning.NumParts != 4 {
 		t.Errorf("expected NumParts 4, got %d", tbl.Partitioning.NumParts)

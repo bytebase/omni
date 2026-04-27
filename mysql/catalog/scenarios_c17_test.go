@@ -8,10 +8,8 @@ import (
 // TestScenario_C17 covers section C17 (String function charset / collation
 // propagation) from SCENARIOS-mysql-implicit-behavior.md. 8 scenarios, each
 // asserted on both a MySQL 8.0 container and the omni catalog. Every C17
-// scenario is expected to currently fail on omni because analyze_expr.go /
-// function_types.go do not track charset, collation, or derivation
-// coercibility. Each omni failure is documented in scenarios_bug_queue/c17.md
-// and reported via t.Errorf as KNOWN BUG so proof stays compile-clean.
+// scenario verifies omni's view column charset/collation metadata and
+// collation conflict rejection against MySQL 8.0 behavior.
 func TestScenario_C17(t *testing.T) {
 	scenariosSkipIfShort(t)
 	scenariosSkipIfNoDocker(t)
@@ -83,14 +81,26 @@ func TestScenario_C17(t *testing.T) {
 		return
 	}
 
-	// c17OmniViewExists checks whether omni's catalog has a view by name.
-	c17OmniViewExists := func(c *Catalog, view string) bool {
+	// c17OmniViewCol fetches omni's inferred per-view-column charset metadata.
+	c17OmniViewCol := func(t *testing.T, c *Catalog, view, col string) (charset, collation string, ok bool) {
+		t.Helper()
 		db := c.GetDatabase("testdb")
 		if db == nil {
-			return false
+			t.Errorf("omni: database testdb not found")
+			return "", "", false
 		}
-		_, ok := db.Views[toLower(view)]
-		return ok
+		v := db.Views[toLower(view)]
+		if v == nil {
+			t.Errorf("omni: view %s not created", view)
+			return "", "", false
+		}
+		for _, meta := range v.ColumnMetadata {
+			if strings.EqualFold(meta.Name, col) {
+				return strings.ToLower(meta.Charset), strings.ToLower(meta.Collation), true
+			}
+		}
+		t.Errorf("omni: view column %s.%s metadata not found", view, col)
+		return "", "", false
 	}
 
 	// ---- 17.1 CONCAT identical charset/collation --------------------------
@@ -113,11 +123,9 @@ func TestScenario_C17(t *testing.T) {
 			assertIntEq(t, "oracle v1.c CHARACTER_MAXIMUM_LENGTH", ml, 20)
 		}
 
-		// omni: no charset metadata on the view target list (KNOWN GAP).
-		if !c17OmniViewExists(c, "v1") {
-			t.Errorf("omni: view v1 not created")
-		} else {
-			t.Errorf("omni: KNOWN GAP — CONCAT result carries no charset/collation metadata (17.1), see scenarios_bug_queue/c17.md")
+		if cs, co, ok := c17OmniViewCol(t, c, "v1", "c"); ok {
+			assertStringEq(t, "omni v1.c CHARACTER_SET_NAME", cs, "utf8mb4")
+			assertStringEq(t, "omni v1.c COLLATION_NAME", co, "utf8mb4_0900_ai_ci")
 		}
 	})
 
@@ -138,8 +146,9 @@ func TestScenario_C17(t *testing.T) {
 			assertStringEq(t, "oracle v2.c COLLATION_NAME", co, "utf8mb4_0900_ai_ci")
 		}
 
-		if c17OmniViewExists(c, "v2") {
-			t.Errorf("omni: KNOWN GAP — CONCAT superset widening (latin1→utf8mb4) not tracked (17.2)")
+		if cs, co, ok := c17OmniViewCol(t, c, "v2", "c"); ok {
+			assertStringEq(t, "omni v2.c CHARACTER_SET_NAME", cs, "utf8mb4")
+			assertStringEq(t, "omni v2.c COLLATION_NAME", co, "utf8mb4_0900_ai_ci")
 		}
 	})
 
@@ -220,8 +229,9 @@ func TestScenario_C17(t *testing.T) {
 			}
 		}
 
-		if c17OmniViewExists(c, "v4") {
-			t.Errorf("omni: KNOWN GAP — CONCAT_WS NULL-skip semantics + charset aggregation not tracked (17.4)")
+		if cs, co, ok := c17OmniViewCol(t, c, "v4", "c"); ok {
+			assertStringEq(t, "omni v4.c CHARACTER_SET_NAME", cs, "utf8mb4")
+			assertStringEq(t, "omni v4.c COLLATION_NAME", co, "utf8mb4_0900_ai_ci")
 		}
 	})
 
@@ -247,8 +257,11 @@ func TestScenario_C17(t *testing.T) {
 			}
 		}
 
-		if c17OmniViewExists(c, "v5a") || c17OmniViewExists(c, "v5b") {
-			t.Errorf("omni: KNOWN GAP — literal/introducer coercibility (COERCIBLE vs IMPLICIT) not tracked (17.5)")
+		for _, view := range []string{"v5a", "v5b"} {
+			if cs, co, ok := c17OmniViewCol(t, c, view, "c"); ok {
+				assertStringEq(t, "omni "+view+".c CHARACTER_SET_NAME", cs, "latin1")
+				assertStringEq(t, "omni "+view+".c COLLATION_NAME", co, "latin1_swedish_ci")
+			}
 		}
 	})
 
@@ -278,9 +291,11 @@ func TestScenario_C17(t *testing.T) {
 			}
 		}
 
-		anyExists := c17OmniViewExists(c, "v6a") || c17OmniViewExists(c, "v6b") || c17OmniViewExists(c, "v6c")
-		if anyExists {
-			t.Errorf("omni: KNOWN GAP — REPEAT/LPAD/RPAD first-arg-pins rule missing (17.6). Fix in function_types.go")
+		for view, w := range cases {
+			if cs, co, ok := c17OmniViewCol(t, c, view, "c"); ok {
+				assertStringEq(t, "omni "+view+".c CHARACTER_SET_NAME", cs, w.cs)
+				assertStringEq(t, "omni "+view+".c COLLATION_NAME", co, w.co)
+			}
 		}
 	})
 
@@ -325,8 +340,13 @@ func TestScenario_C17(t *testing.T) {
 				}
 			}
 		}
-		if omniAccepted {
-			t.Errorf("omni: KNOWN GAP — CONVERT ... USING cs accepted but charset not pinned on result (17.7), see scenarios_bug_queue/c17.md")
+		if !omniAccepted {
+			t.Errorf("omni: CONVERT ... USING view unexpectedly rejected: parseErr=%v", parseErr)
+		} else if cs, co, ok := c17OmniViewCol(t, c, "v7", "c"); ok {
+			assertStringEq(t, "omni v7.c CHARACTER_SET_NAME", cs, "utf8mb4")
+			if !strings.HasPrefix(co, "utf8mb4_") {
+				t.Errorf("omni v7.c COLLATION_NAME: got %q, want utf8mb4_*", co)
+			}
 		}
 	})
 
@@ -351,8 +371,6 @@ func TestScenario_C17(t *testing.T) {
 			}
 		}
 
-		// omni: same DDL should analyze — gap is that EXPLICIT derivation
-		// isn't tracked, so downstream charset metadata is missing.
 		resultsA, parseErrA := c.Exec(ddlA, nil)
 		omniAcceptedA := parseErrA == nil
 		if parseErrA == nil {
@@ -363,8 +381,11 @@ func TestScenario_C17(t *testing.T) {
 				}
 			}
 		}
-		if omniAcceptedA {
-			t.Errorf("omni: KNOWN GAP — COLLATE EXPLICIT derivation not tracked on v8a (17.8)")
+		if !omniAcceptedA {
+			t.Errorf("omni: v8a unexpectedly rejected: parseErr=%v", parseErrA)
+		} else if cs, co, ok := c17OmniViewCol(t, c, "v8a", "c"); ok {
+			assertStringEq(t, "omni v8a.c CHARACTER_SET_NAME", cs, "utf8mb4")
+			assertStringEq(t, "omni v8a.c COLLATION_NAME", co, "utf8mb4_bin")
 		}
 
 		// Case B: two EXPLICIT sides with different collations must error.
@@ -384,7 +405,7 @@ func TestScenario_C17(t *testing.T) {
 			t.Errorf("oracle v8b unexpected error: %v", oracleErr)
 		}
 		if omniErr == nil {
-			t.Errorf("omni: KNOWN BUG — two EXPLICIT COLLATE sides silently accepted (17.8), see scenarios_bug_queue/c17.md")
+			t.Errorf("omni: two EXPLICIT COLLATE sides silently accepted (17.8)")
 		}
 	})
 }

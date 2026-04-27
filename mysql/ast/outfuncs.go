@@ -2489,6 +2489,12 @@ func writeOrderByItem(sb *strings.Builder, n *OrderByItem) {
 	sb.WriteString("{ORDER_BY")
 	fmt.Fprintf(sb, " :loc %d :expr ", n.Loc.Start)
 	writeNode(sb, n.Expr)
+	switch n.Direction {
+	case OrderDirectionAsc:
+		sb.WriteString(" :direction asc")
+	case OrderDirectionDesc:
+		sb.WriteString(" :direction desc")
+	}
 	if n.Desc {
 		sb.WriteString(" :desc true")
 	}
@@ -2773,6 +2779,9 @@ func writeDataType(sb *strings.Builder, n *DataType) {
 	}
 	if n.Collate != "" {
 		fmt.Fprintf(sb, " :collate %s", n.Collate)
+	}
+	if n.Binary {
+		sb.WriteString(" :binary true")
 	}
 	if len(n.EnumValues) > 0 {
 		fmt.Fprintf(sb, " :enum_values %s", strings.Join(n.EnumValues, ", "))

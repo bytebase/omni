@@ -155,7 +155,7 @@ func TestScenario_PS(t *testing.T) {
 
 	// PS.5 DEFAULT NOW() / fsp precision mismatch must error.
 	// MySQL rejects DATETIME(6) DEFAULT NOW() with ER_INVALID_DEFAULT (1067).
-	// omni currently accepts — this is a HIGH severity strictness gap.
+	// omni should reject as well.
 	t.Run("PS_5_Datetime_fsp_mismatch_errors", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -183,21 +183,19 @@ func TestScenario_PS(t *testing.T) {
 			}
 		}
 		if omniErr == nil {
-			t.Errorf("PS.5 omni: KNOWN BUG — expected ER_INVALID_DEFAULT-style error, got success (see scenarios_bug_queue/ps.md)")
+			t.Errorf("PS.5 omni: expected ER_INVALID_DEFAULT-style error, got success")
 		}
 	})
 
 	// PS.6 HASH partition ADD — seeded from count.
-	// omni has no ALTER TABLE ... ADD PARTITION support; this scenario is
-	// expected to fail on omni. Oracle side verifies the MySQL behavior.
+	// Oracle and omni should both produce the expanded partition list.
 	t.Run("PS_6_Hash_partition_ADD_seeded", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c,
 			`CREATE TABLE t (id INT) PARTITION BY HASH(id) PARTITIONS 3`)
-		// Only run the ALTER on the oracle — some omni builds have no support.
-		// We still try it on omni and report mismatch.
+		// Run the ALTER on both sides and compare the resulting partition list.
 		alter := `ALTER TABLE t ADD PARTITION PARTITIONS 2`
 		if _, err := mc.db.ExecContext(mc.ctx, alter); err != nil {
 			t.Errorf("PS.6 oracle ALTER failed: %v", err)
@@ -217,8 +215,7 @@ func TestScenario_PS(t *testing.T) {
 			t.Errorf("PS.6 oracle partition names: got %v, want %v", oracleNames, wantOracle)
 		}
 
-		// omni side: attempt the ALTER; record whether it produced the
-		// expected 5-partition layout.
+		// omni side: verify the expected 5-partition layout.
 		results, parseErr := c.Exec(alter, nil)
 		var omniAlterErr error
 		if parseErr != nil {
@@ -239,13 +236,13 @@ func TestScenario_PS(t *testing.T) {
 			}
 		}
 		if omniAlterErr != nil || !slices.Equal(omniNames, wantOracle) {
-			t.Errorf("PS.6 omni: KNOWN GAP — expected partition names %v; got %v (alter err: %v)", wantOracle, omniNames, omniAlterErr)
+			t.Errorf("PS.6 omni: expected partition names %v; got %v (alter err: %v)", wantOracle, omniNames, omniAlterErr)
 		}
 	})
 
 	// PS.7 FK name collision — user-named t_ibfk_1 collides with the
 	// generator's implicit first unnamed FK name. MySQL errors with
-	// ER_FK_DUP_NAME (1826). omni silently succeeds → HIGH severity bug.
+	// ER_FK_DUP_NAME (1826). omni should reject as well.
 	t.Run("PS_7_FK_name_collision_errors", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -281,15 +278,14 @@ func TestScenario_PS(t *testing.T) {
 			}
 		}
 		if omniErr == nil {
-			t.Errorf("PS.7 omni: KNOWN BUG — expected ER_FK_DUP_NAME, got success (see scenarios_bug_queue/ps.md)")
+			t.Errorf("PS.7 omni: expected ER_FK_DUP_NAME, got success")
 		}
 	})
 
 	// PS.8 CHECK constraint duplicate name in schema — must error.
 	// CHECK constraint names are schema-scoped in MySQL; the second
 	// CREATE TABLE with the same check name fails with
-	// ER_CHECK_CONSTRAINT_DUP_NAME (3822). omni does not enforce schema
-	// scoping → MED severity bug.
+	// ER_CHECK_CONSTRAINT_DUP_NAME (3822). omni should reject as well.
 	t.Run("PS_8_Check_dup_name_schema_scope", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -321,7 +317,7 @@ func TestScenario_PS(t *testing.T) {
 			}
 		}
 		if omniErr == nil {
-			t.Errorf("PS.8 omni: KNOWN BUG — expected ER_CHECK_CONSTRAINT_DUP_NAME, got success (see scenarios_bug_queue/ps.md)")
+			t.Errorf("PS.8 omni: expected ER_CHECK_CONSTRAINT_DUP_NAME, got success")
 		}
 	})
 }

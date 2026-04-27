@@ -52,18 +52,33 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
 	if !hasExplicit {
 		viewCols = derivedCols
 	}
+	columnMetadata, err := inferViewColumnMetadata(stmt.Select, viewCols, db)
+	if err != nil {
+		return err
+	}
+
+	algorithm := stmt.Algorithm
+	if algorithm == "" {
+		algorithm = "UNDEFINED"
+	}
+	sqlSecurity := stmt.SqlSecurity
+	if sqlSecurity == "" {
+		sqlSecurity = "DEFINER"
+	}
 
 	db.Views[key] = &View{
 		Name:            stmt.Name.Name,
 		Database:        db,
 		Definition:      definition,
-		Algorithm:       stmt.Algorithm,
+		Algorithm:       algorithm,
 		Definer:         definer,
-		SqlSecurity:     stmt.SqlSecurity,
+		SqlSecurity:     sqlSecurity,
 		CheckOption:     stmt.CheckOption,
 		Columns:         viewCols,
+		ColumnMetadata:  columnMetadata,
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
+		IsUpdatable:     inferViewUpdatable(stmt.Select, algorithm),
 	}
 	return nil
 }
@@ -104,20 +119,483 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt) error {
 	if !hasExplicit {
 		viewCols = derivedCols
 	}
+	columnMetadata, err := inferViewColumnMetadata(stmt.Select, viewCols, db)
+	if err != nil {
+		return err
+	}
+
+	algorithm := stmt.Algorithm
+	if algorithm == "" {
+		algorithm = "UNDEFINED"
+	}
+	sqlSecurity := stmt.SqlSecurity
+	if sqlSecurity == "" {
+		sqlSecurity = "DEFINER"
+	}
 
 	db.Views[key] = &View{
 		Name:            stmt.Name.Name,
 		Database:        db,
 		Definition:      definition,
-		Algorithm:       stmt.Algorithm,
+		Algorithm:       algorithm,
 		Definer:         definer,
-		SqlSecurity:     stmt.SqlSecurity,
+		SqlSecurity:     sqlSecurity,
 		CheckOption:     stmt.CheckOption,
 		Columns:         viewCols,
+		ColumnMetadata:  columnMetadata,
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
+		IsUpdatable:     inferViewUpdatable(stmt.Select, algorithm),
 	}
 	return nil
+}
+
+type viewRelationInfo struct {
+	table    *Table
+	optional bool
+}
+
+type viewCollationDerivation int
+
+const (
+	viewDerivationExplicit viewCollationDerivation = iota
+	viewDerivationImplicit
+	viewDerivationCoercible
+)
+
+type viewCollationInfo struct {
+	charset    string
+	collation  string
+	derivation viewCollationDerivation
+	valid      bool
+}
+
+func inferViewColumnMetadata(sel *nodes.SelectStmt, names []string, db *Database) ([]ViewColumn, error) {
+	cols := make([]ViewColumn, len(names))
+	for i, name := range names {
+		cols[i].Name = name
+	}
+	if sel == nil {
+		return cols, nil
+	}
+	relations := map[string]viewRelationInfo{}
+	for _, from := range sel.From {
+		collectViewRelations(from, db, false, relations)
+	}
+	for i, target := range sel.TargetList {
+		if i >= len(cols) {
+			break
+		}
+		rt, ok := target.(*nodes.ResTarget)
+		if !ok {
+			continue
+		}
+		cols[i].Nullable = inferViewExprNullable(rt.Val, relations)
+		if ci, err := inferViewExprCollation(rt.Val, relations); err != nil {
+			return nil, err
+		} else if ci.valid {
+			cols[i].Charset = ci.charset
+			cols[i].Collation = ci.collation
+		}
+	}
+	if err := validateViewSelectCollations(sel, relations); err != nil {
+		return nil, err
+	}
+	return cols, nil
+}
+
+func collectViewRelations(te nodes.TableExpr, db *Database, optional bool, out map[string]viewRelationInfo) {
+	switch n := te.(type) {
+	case *nodes.TableRef:
+		if db == nil {
+			return
+		}
+		tbl := db.GetTable(n.Name)
+		if tbl == nil {
+			return
+		}
+		key := n.Name
+		if n.Alias != "" {
+			key = n.Alias
+		}
+		out[toLower(key)] = viewRelationInfo{table: tbl, optional: optional}
+	case *nodes.JoinClause:
+		leftOptional := optional
+		rightOptional := optional
+		switch n.Type {
+		case nodes.JoinLeft, nodes.JoinNaturalLeft:
+			rightOptional = true
+		case nodes.JoinRight, nodes.JoinNaturalRight:
+			leftOptional = true
+		}
+		collectViewRelations(n.Left, db, leftOptional, out)
+		collectViewRelations(n.Right, db, rightOptional, out)
+	}
+}
+
+func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelationInfo) bool {
+	switch e := expr.(type) {
+	case *nodes.ColumnRef:
+		return inferViewColumnRefNullable(e, relations)
+	case *nodes.FuncCallExpr:
+		if isViewStringMetadataNullableFunc(e.Name) {
+			return true
+		}
+		for _, arg := range e.Args {
+			if inferViewExprNullable(arg, relations) {
+				return true
+			}
+		}
+		return false
+	case *nodes.ParenExpr:
+		return inferViewExprNullable(e.Expr, relations)
+	case *nodes.BinaryExpr:
+		return inferViewExprNullable(e.Left, relations) || inferViewExprNullable(e.Right, relations)
+	case *nodes.UnaryExpr:
+		return inferViewExprNullable(e.Operand, relations)
+	case *nodes.NullLit:
+		return true
+	default:
+		return false
+	}
+}
+
+func inferViewColumnRefNullable(cr *nodes.ColumnRef, relations map[string]viewRelationInfo) bool {
+	if cr == nil || cr.Star {
+		return true
+	}
+	if cr.Table != "" {
+		if rel, ok := relations[toLower(cr.Table)]; ok {
+			if col := rel.table.GetColumn(cr.Column); col != nil {
+				return rel.optional || col.Nullable
+			}
+		}
+		return true
+	}
+	found := false
+	nullable := true
+	for _, rel := range relations {
+		col := rel.table.GetColumn(cr.Column)
+		if col == nil {
+			continue
+		}
+		if found {
+			return true
+		}
+		found = true
+		nullable = rel.optional || col.Nullable
+	}
+	return nullable
+}
+
+func validateViewSelectCollations(sel *nodes.SelectStmt, relations map[string]viewRelationInfo) error {
+	if sel == nil {
+		return nil
+	}
+	for _, expr := range []nodes.ExprNode{sel.Where, sel.Having} {
+		if expr == nil {
+			continue
+		}
+		if _, err := inferViewExprCollation(expr, relations); err != nil {
+			return err
+		}
+	}
+	for _, expr := range sel.GroupBy {
+		if _, err := inferViewExprCollation(expr, relations); err != nil {
+			return err
+		}
+	}
+	for _, item := range sel.OrderBy {
+		if item == nil {
+			continue
+		}
+		if _, err := inferViewExprCollation(item.Expr, relations); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func inferViewExprCollation(expr nodes.ExprNode, relations map[string]viewRelationInfo) (viewCollationInfo, error) {
+	switch e := expr.(type) {
+	case *nodes.ColumnRef:
+		return inferViewColumnRefCollation(e, relations), nil
+	case *nodes.StringLit:
+		charset := normalizeCharsetName(strings.TrimPrefix(toLower(e.Charset), "_"))
+		if charset == "" {
+			charset = "utf8mb4"
+		}
+		return newViewCollation(charset, "", viewDerivationCoercible), nil
+	case *nodes.CollateExpr:
+		child, err := inferViewExprCollation(e.Expr, relations)
+		if err != nil {
+			return viewCollationInfo{}, err
+		}
+		collation := toLower(e.Collation)
+		charset := normalizeCharsetName(charsetForCollation(collation))
+		if charset == "" && child.valid {
+			charset = child.charset
+		}
+		return newViewCollation(charset, collation, viewDerivationExplicit), nil
+	case *nodes.ConvertExpr:
+		if e.Charset != "" {
+			return newViewCollation(normalizeCharsetName(e.Charset), "", viewDerivationImplicit), nil
+		}
+		return inferViewExprCollation(e.Expr, relations)
+	case *nodes.FuncCallExpr:
+		return inferViewFuncCollation(e, relations)
+	case *nodes.ParenExpr:
+		return inferViewExprCollation(e.Expr, relations)
+	case *nodes.BinaryExpr:
+		return inferViewBinaryCollation(e, relations)
+	case *nodes.UnaryExpr:
+		return inferViewExprCollation(e.Operand, relations)
+	default:
+		return viewCollationInfo{}, nil
+	}
+}
+
+func inferViewFuncCollation(fn *nodes.FuncCallExpr, relations map[string]viewRelationInfo) (viewCollationInfo, error) {
+	name := strings.ToLower(fn.Name)
+	switch name {
+	case "concat", "concat_ws":
+		var out viewCollationInfo
+		for _, arg := range fn.Args {
+			ci, err := inferViewExprCollation(arg, relations)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			agg, err := aggregateViewCollations(out, ci, name)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			out = agg
+		}
+		return out, nil
+	case "repeat", "lpad", "rpad":
+		if len(fn.Args) == 0 {
+			return viewCollationInfo{}, nil
+		}
+		return inferViewExprCollation(fn.Args[0], relations)
+	default:
+		var out viewCollationInfo
+		for _, arg := range fn.Args {
+			ci, err := inferViewExprCollation(arg, relations)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			agg, err := aggregateViewCollations(out, ci, name)
+			if err != nil {
+				return viewCollationInfo{}, err
+			}
+			out = agg
+		}
+		return out, nil
+	}
+}
+
+func inferViewBinaryCollation(expr *nodes.BinaryExpr, relations map[string]viewRelationInfo) (viewCollationInfo, error) {
+	left, err := inferViewExprCollation(expr.Left, relations)
+	if err != nil {
+		return viewCollationInfo{}, err
+	}
+	right, err := inferViewExprCollation(expr.Right, relations)
+	if err != nil {
+		return viewCollationInfo{}, err
+	}
+	op := binaryOpToString(expr.Op)
+	if isViewCollationComparisonOp(expr.Op) {
+		if _, err := aggregateViewCollationsForComparison(left, right, op); err != nil {
+			return viewCollationInfo{}, err
+		}
+		return viewCollationInfo{}, nil
+	}
+	return aggregateViewCollations(left, right, op)
+}
+
+func inferViewColumnRefCollation(cr *nodes.ColumnRef, relations map[string]viewRelationInfo) viewCollationInfo {
+	if cr == nil || cr.Star {
+		return viewCollationInfo{}
+	}
+	if cr.Table != "" {
+		if rel, ok := relations[toLower(cr.Table)]; ok {
+			return viewColumnCollation(rel.table.GetColumn(cr.Column))
+		}
+		return viewCollationInfo{}
+	}
+	var out viewCollationInfo
+	found := false
+	for _, rel := range relations {
+		ci := viewColumnCollation(rel.table.GetColumn(cr.Column))
+		if !ci.valid {
+			continue
+		}
+		if found {
+			return viewCollationInfo{}
+		}
+		found = true
+		out = ci
+	}
+	return out
+}
+
+func viewColumnCollation(col *Column) viewCollationInfo {
+	if col == nil || col.Charset == "" || !isStringType(col.DataType) {
+		return viewCollationInfo{}
+	}
+	return newViewCollation(col.Charset, col.Collation, viewDerivationImplicit)
+}
+
+func newViewCollation(charset, collation string, derivation viewCollationDerivation) viewCollationInfo {
+	charset = normalizeCharsetName(charset)
+	collation = toLower(collation)
+	if charset == "" && collation != "" {
+		charset = normalizeCharsetName(charsetForCollation(collation))
+	}
+	if collation == "" && charset != "" {
+		collation = defaultCollationForCharset[toLower(charset)]
+	}
+	if charset == "" || collation == "" {
+		return viewCollationInfo{}
+	}
+	return viewCollationInfo{
+		charset:    charset,
+		collation:  collation,
+		derivation: derivation,
+		valid:      true,
+	}
+}
+
+func aggregateViewCollations(left, right viewCollationInfo, op string) (viewCollationInfo, error) {
+	if !left.valid {
+		return right, nil
+	}
+	if !right.valid {
+		return left, nil
+	}
+	if strings.EqualFold(left.collation, right.collation) {
+		return left, nil
+	}
+	if left.derivation == viewDerivationExplicit && right.derivation == viewDerivationExplicit {
+		return viewCollationInfo{}, errIllegalMixCollations(left, right, op)
+	}
+	if left.derivation != right.derivation {
+		if left.derivation < right.derivation {
+			return left, nil
+		}
+		return right, nil
+	}
+	if isCharsetSuperset(left.charset, right.charset) {
+		return left, nil
+	}
+	if isCharsetSuperset(right.charset, left.charset) {
+		return right, nil
+	}
+	// MySQL 8.0 permits several same-charset string function mixes that the
+	// comparison path rejects. Preserve the left side for view metadata.
+	if strings.EqualFold(left.charset, right.charset) {
+		return left, nil
+	}
+	return viewCollationInfo{}, errIllegalMixCollations(left, right, op)
+}
+
+func aggregateViewCollationsForComparison(left, right viewCollationInfo, op string) (viewCollationInfo, error) {
+	if !left.valid || !right.valid || strings.EqualFold(left.collation, right.collation) {
+		if left.valid {
+			return left, nil
+		}
+		return right, nil
+	}
+	if left.derivation == viewDerivationExplicit && right.derivation == viewDerivationExplicit {
+		return viewCollationInfo{}, errIllegalMixCollations(left, right, op)
+	}
+	if left.derivation == right.derivation && strings.EqualFold(left.charset, right.charset) {
+		return viewCollationInfo{}, errIllegalMixCollations(left, right, op)
+	}
+	return aggregateViewCollations(left, right, op)
+}
+
+func isViewCollationComparisonOp(op nodes.BinaryOp) bool {
+	switch op {
+	case nodes.BinOpEq, nodes.BinOpNe, nodes.BinOpLt, nodes.BinOpGt, nodes.BinOpLe, nodes.BinOpGe, nodes.BinOpNullSafeEq:
+		return true
+	default:
+		return false
+	}
+}
+
+func isCharsetSuperset(charset, other string) bool {
+	charset = normalizeCharsetName(charset)
+	other = normalizeCharsetName(other)
+	if charset == other {
+		return true
+	}
+	switch charset {
+	case "utf8mb4":
+		return other == "latin1" || other == "ascii" || other == "utf8mb3" || other == "utf8"
+	case "utf8mb3":
+		return other == "ascii"
+	case "latin1":
+		return other == "ascii"
+	default:
+		return false
+	}
+}
+
+func errIllegalMixCollations(left, right viewCollationInfo, op string) error {
+	return &Error{
+		Code:     1267,
+		SQLState: "HY000",
+		Message: fmt.Sprintf("Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
+			left.collation, viewDerivationName(left.derivation),
+			right.collation, viewDerivationName(right.derivation), op),
+	}
+}
+
+func viewDerivationName(derivation viewCollationDerivation) string {
+	switch derivation {
+	case viewDerivationExplicit:
+		return "EXPLICIT"
+	case viewDerivationImplicit:
+		return "IMPLICIT"
+	case viewDerivationCoercible:
+		return "COERCIBLE"
+	default:
+		return "NONE"
+	}
+}
+
+func isViewStringMetadataNullableFunc(name string) bool {
+	switch strings.ToLower(name) {
+	case "concat", "concat_ws", "ifnull", "coalesce":
+		return true
+	default:
+		return false
+	}
+}
+
+func inferViewUpdatable(sel *nodes.SelectStmt, algorithm string) bool {
+	if sel == nil || strings.EqualFold(algorithm, "TEMPTABLE") {
+		return false
+	}
+	if sel.DistinctKind != nodes.DistinctNone && sel.DistinctKind != nodes.DistinctAll {
+		return false
+	}
+	if sel.SetOp != nodes.SetOpNone || len(sel.GroupBy) > 0 || sel.Having != nil {
+		return false
+	}
+	hasAgg := false
+	nodes.Inspect(sel, func(n nodes.Node) bool {
+		if hasAgg {
+			return false
+		}
+		if fn, ok := n.(*nodes.FuncCallExpr); ok && isAggregateFunc(fn.Name) {
+			hasAgg = true
+			return false
+		}
+		return true
+	})
+	return !hasAgg
 }
 
 func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
@@ -150,6 +628,8 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText string, db *D
 		return rawText, nil
 	}
 
+	applyRawViewAutoAliases(sel, rawText)
+
 	// Build a TableLookup that resolves table names from this database.
 	lookup := tableLookupForDB(db)
 
@@ -176,6 +656,184 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText string, db *D
 	return deparse.DeparseSelect(sel), derivedCols
 }
 
+func applyRawViewAutoAliases(sel *nodes.SelectStmt, rawText string) {
+	targets, ok := rawSelectTargets(rawText)
+	if !ok || len(targets) != len(sel.TargetList) {
+		return
+	}
+
+	for i, target := range sel.TargetList {
+		expr := target
+		if rt, ok := target.(*nodes.ResTarget); ok {
+			if rt.Name != "" {
+				continue
+			}
+			expr = rt.Val
+		}
+		if !shouldPreserveRawViewAutoAlias(expr) {
+			continue
+		}
+		alias := strings.TrimSpace(targets[i])
+		if alias == "" {
+			continue
+		}
+		if rt, ok := target.(*nodes.ResTarget); ok {
+			rt.Name = alias
+			continue
+		}
+		sel.TargetList[i] = &nodes.ResTarget{Name: alias, Val: target}
+	}
+}
+
+func shouldPreserveRawViewAutoAlias(expr nodes.ExprNode) bool {
+	switch expr.(type) {
+	case *nodes.StarExpr:
+		return false
+	case *nodes.ColumnRef:
+		return false
+	case *nodes.StringLit, *nodes.IntLit, *nodes.FloatLit, *nodes.NullLit, *nodes.BoolLit:
+		return false
+	}
+
+	hasInExpr := false
+	nodes.Inspect(expr, func(node nodes.Node) bool {
+		if _, ok := node.(*nodes.InExpr); ok {
+			hasInExpr = true
+			return false
+		}
+		return !hasInExpr
+	})
+	return hasInExpr
+}
+
+func rawSelectTargets(rawText string) ([]string, bool) {
+	sql := strings.TrimSpace(rawText)
+	if len(sql) < len("select") || !strings.EqualFold(sql[:len("select")], "select") {
+		return nil, false
+	}
+	pos := len("select")
+	if pos < len(sql) && isIdentifierPart(sql[pos]) {
+		return nil, false
+	}
+	pos = skipSQLSpace(sql, pos)
+	if hasSQLWordAt(sql, pos, "distinct") {
+		pos = skipSQLSpace(sql, pos+len("distinct"))
+	}
+	from := findTopLevelSQLWord(sql, pos, "from")
+	end := len(sql)
+	if from >= 0 {
+		end = from
+	}
+	return splitTopLevelCSV(sql[pos:end]), true
+}
+
+func splitTopLevelCSV(s string) []string {
+	var parts []string
+	start := 0
+	depth := 0
+	var quote byte
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if quote != 0 {
+			if ch == '\\' && quote != '`' && i+1 < len(s) {
+				i++
+				continue
+			}
+			if ch == quote {
+				if quote == '\'' && i+1 < len(s) && s[i+1] == '\'' {
+					i++
+					continue
+				}
+				quote = 0
+			}
+			continue
+		}
+		switch ch {
+		case '\'', '"', '`':
+			quote = ch
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case ',':
+			if depth == 0 {
+				parts = append(parts, strings.TrimSpace(s[start:i]))
+				start = i + 1
+			}
+		}
+	}
+	parts = append(parts, strings.TrimSpace(s[start:]))
+	return parts
+}
+
+func findTopLevelSQLWord(s string, start int, word string) int {
+	depth := 0
+	var quote byte
+	for i := start; i < len(s); i++ {
+		ch := s[i]
+		if quote != 0 {
+			if ch == '\\' && quote != '`' && i+1 < len(s) {
+				i++
+				continue
+			}
+			if ch == quote {
+				if quote == '\'' && i+1 < len(s) && s[i+1] == '\'' {
+					i++
+					continue
+				}
+				quote = 0
+			}
+			continue
+		}
+		switch ch {
+		case '\'', '"', '`':
+			quote = ch
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		default:
+			if depth == 0 && hasSQLWordAt(s, i, word) {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+func hasSQLWordAt(s string, pos int, word string) bool {
+	if pos < 0 || pos+len(word) > len(s) {
+		return false
+	}
+	if pos > 0 && isIdentifierPart(s[pos-1]) {
+		return false
+	}
+	if pos+len(word) < len(s) && isIdentifierPart(s[pos+len(word)]) {
+		return false
+	}
+	return strings.EqualFold(s[pos:pos+len(word)], word)
+}
+
+func skipSQLSpace(s string, pos int) int {
+	for pos < len(s) {
+		switch s[pos] {
+		case ' ', '\t', '\n', '\r', '\f':
+			pos++
+		default:
+			return pos
+		}
+	}
+	return pos
+}
+
+func isIdentifierPart(ch byte) bool {
+	return ch == '_' || ch == '$' || ch >= '0' && ch <= '9' || ch >= 'A' && ch <= 'Z' || ch >= 'a' && ch <= 'z'
+}
+
 // extractViewColumns extracts column names from a resolved SELECT target list.
 // This produces the column list that MySQL would derive for a view.
 func extractViewColumns(sel *nodes.SelectStmt) []string {
@@ -189,12 +847,33 @@ func extractViewColumns(sel *nodes.SelectStmt) []string {
 			continue
 		}
 		if rt.Name != "" {
-			cols = append(cols, rt.Name)
+			cols = append(cols, canonicalViewDerivedColumnName(rt.Name))
 		} else if cr, ok := rt.Val.(*nodes.ColumnRef); ok {
 			cols = append(cols, cr.Column)
+		} else {
+			cols = append(cols, canonicalViewDerivedColumnName(nodeToSQL(rt.Val)))
 		}
 	}
 	return cols
+}
+
+func canonicalViewDerivedColumnName(name string) string {
+	if strings.ContainsAny(name, "+-*/%") {
+		name = strings.ReplaceAll(name, " ", "")
+	}
+	replacer := strings.NewReplacer(
+		" + ", "+",
+		" - ", "-",
+		" * ", "*",
+		" / ", "/",
+		" % ", "%",
+	)
+	name = replacer.Replace(name)
+	lower := strings.ToLower(name)
+	if strings.HasPrefix(lower, "count(") {
+		return "COUNT" + name[len("count"):]
+	}
+	return name
 }
 
 // tableLookupForDB returns a deparse.TableLookup function that resolves table

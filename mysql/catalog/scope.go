@@ -42,13 +42,19 @@ func (s *analyzerScope) isCoalesced(tableName, colName string) bool {
 
 // add registers a table reference in the scope.
 func (s *analyzerScope) add(name string, rteIdx int, columns []*Column) {
-	scopeCols := make([]scope.Column, len(columns))
-	for i, c := range columns {
+	visible := make([]*Column, 0, len(columns))
+	for _, c := range columns {
+		if c.Hidden == ColumnHiddenNone {
+			visible = append(visible, c)
+		}
+	}
+	scopeCols := make([]scope.Column, len(visible))
+	for i, c := range visible {
 		scopeCols[i] = scope.Column{Name: c.Name, Position: i + 1}
 	}
 	s.base.Add(name, &scope.Table{Name: name, Columns: scopeCols})
 	s.rteMap = append(s.rteMap, rteIdx)
-	s.cols = append(s.cols, columns)
+	s.cols = append(s.cols, visible)
 }
 
 // resolveColumn finds an unqualified column name across all scope entries.

@@ -49,6 +49,7 @@ func deparseExprForOracle(t *testing.T, expr string) string {
 	if len(sel.TargetList) == 0 {
 		t.Fatalf("no target list in SELECT from %q", sql)
 	}
+	resolveDeparseOracleSelect(t, sel)
 	target := sel.TargetList[0]
 	if rt, ok := target.(*nodes.ResTarget); ok {
 		return deparse.Deparse(rt.Val)
@@ -74,11 +75,32 @@ func deparseExprRewriteForOracle(t *testing.T, expr string) string {
 	if len(sel.TargetList) == 0 {
 		t.Fatalf("no target list in SELECT from %q", sql)
 	}
+	resolveDeparseOracleSelect(t, sel)
 	target := sel.TargetList[0]
 	if rt, ok := target.(*nodes.ResTarget); ok {
 		return deparse.Deparse(deparse.RewriteExpr(rt.Val))
 	}
 	return deparse.Deparse(deparse.RewriteExpr(target))
+}
+
+func resolveDeparseOracleSelect(t *testing.T, sel *nodes.SelectStmt) {
+	t.Helper()
+	c := New()
+	results, err := c.Exec("CREATE DATABASE test; USE test; CREATE TABLE t (a INT, b INT, c INT)", nil)
+	if err != nil {
+		t.Fatalf("failed to set up resolver catalog: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("failed to set up resolver catalog: %v", r.Error)
+		}
+	}
+	db := c.GetDatabase("test")
+	resolver := &deparse.Resolver{
+		Lookup:         tableLookupForDB(db),
+		DefaultCharset: c.defaultCharset,
+	}
+	resolver.Resolve(sel)
 }
 
 // TestDeparse_Section_4_1_Container verifies NOT folding against MySQL 8.0.
@@ -827,6 +849,7 @@ func TestDeparse_Section_7_3_ExpressionViews(t *testing.T) {
 		})
 	}
 }
+
 // TestDeparseContainer_1_3_LiteralsSpacing verifies literals and spacing rules
 // against MySQL 8.0 SHOW CREATE VIEW output.
 func TestDeparseContainer_1_3_LiteralsSpacing(t *testing.T) {

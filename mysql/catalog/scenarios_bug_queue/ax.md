@@ -1,8 +1,13 @@
 # Section AX — ALTER TABLE sub-command bugs
 
+> **Archive status (2026-04-27):** Historical queue entries are preserved for context only. The reconciled source of truth is `mysql/catalog/SCENARIOS-mysql-implicit-behavior.md` plus the corresponding `TestScenario_*` tests. As of reconciliation, the tracker is 239/239 verified; entries below are not active bugs unless explicitly re-opened with a newer date.
+
 Bugs discovered while running `TestScenario_AX` against MySQL 8.0 +
 the omni catalog. Entries are append-only. When a fix lands, do not
 delete the entry — annotate it with the fixing commit.
+
+Status 2026-04-24: no active AX bugs remain in the scenario test suite.
+`TestScenario_AX` verifies AX.1-AX.15 against the MySQL oracle.
 
 ## AX.3 DROP COLUMN does not reject removal of the last column
 
@@ -13,8 +18,8 @@ delete the entry — annotate it with the fixing commit.
   `ER_CANT_REMOVE_ALL_FIELDS (1090)` at prepare time.
 - **Expected (MySQL 8.0.45)**: ALTER fails with
   `ER_CANT_REMOVE_ALL_FIELDS` before any sub-command is applied.
-- **Actual (omni)**: catalog silently executes the DROP and leaves
-  the table with zero columns. The `ExecResult.Error` is nil.
+- **Actual (omni)**: fixed. omni rejects the DROP, matching the MySQL
+  oracle behavior verified by `TestScenario_AX/AX_3_DropColumn_rejects_last_column`.
 - **Severity**: MED
 - **Fix hint**: `mysql/catalog/alter_table.go` (or wherever
   `processAlterTable` / `applyDropColumn` lives) — after collecting
@@ -36,10 +41,9 @@ delete the entry — annotate it with the fixing commit.
 - **Expected (MySQL 8.0.45)**: the column-level `REFERENCES` clause
   is parsed but produces NO foreign key (notorious InnoDB pitfall).
   `information_schema.KEY_COLUMN_USAGE` reports zero FKs for `t2`.
-- **Actual (omni)**: catalog creates a real foreign key constraint
-  from the column-level shorthand, so `t2` ends up with one FK where
-  MySQL has none. This will generate spurious FK names and wrong
-  SDL diffs on any CREATE TABLE that uses the column-level form.
+- **Actual (omni)**: fixed. omni parses but ignores the column-level
+  shorthand, matching the MySQL oracle behavior verified by
+  `TestScenario_AX/AX_9_FK_column_shorthand_silent_ignore`.
 - **Severity**: HIGH
 - **Fix hint**: `mysql/catalog/create_table.go` column-level FK
   handling — drop the column-level `REFERENCES` clause for

@@ -162,14 +162,17 @@ func TestWalkThrough_3_4_ChangeColumnName(t *testing.T) {
 func TestWalkThrough_3_4_ChangeColumnTypeAndAttrs(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (a INT, b VARCHAR(50) NOT NULL)")
-	wtExec(t, c, "ALTER TABLE t CHANGE COLUMN b b_new TEXT NULL DEFAULT 'hello'")
+	wtExec(t, c, "ALTER TABLE t CHANGE COLUMN b b_new VARCHAR(100) NULL DEFAULT 'hello'")
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	col := tbl.GetColumn("b_new")
 	if col == nil {
 		t.Fatal("column 'b_new' not found")
 	}
-	if col.DataType != "text" {
-		t.Errorf("expected DataType 'text', got %q", col.DataType)
+	if col.DataType != "varchar" {
+		t.Errorf("expected DataType 'varchar', got %q", col.DataType)
+	}
+	if col.ColumnType != "varchar(100)" {
+		t.Errorf("expected ColumnType 'varchar(100)', got %q", col.ColumnType)
 	}
 	if !col.Nullable {
 		t.Error("column should be nullable after CHANGE")

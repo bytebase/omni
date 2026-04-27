@@ -8,6 +8,8 @@ import (
 	"github.com/bytebase/omni/mysql/deparse"
 )
 
+const generatedInvisiblePrimaryKeyColumnName = "my_row_id"
+
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// Resolve database.
 	dbName := ""
@@ -44,16 +46,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 
 	tbl := &Table{
-		Name:      tableName,
-		Database:  db,
-		Columns:   make([]*Column, 0, len(stmt.Columns)),
-		colByName: make(map[string]int),
-		Indexes:   make([]*Index, 0),
+		Name:        tableName,
+		Database:    db,
+		Columns:     make([]*Column, 0, len(stmt.Columns)),
+		colByName:   make(map[string]int),
+		Indexes:     make([]*Index, 0),
 		Constraints: make([]*Constraint, 0),
-		Charset:   db.Charset,
-		Collation: db.Collation,
-		Engine:    "InnoDB",
-		Temporary: stmt.Temporary,
+		Charset:     db.Charset,
+		Collation:   db.Collation,
+		Engine:      "",
+		Temporary:   stmt.Temporary,
 	}
 
 	// Apply table options.
@@ -64,7 +66,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case "engine":
 			tbl.Engine = opt.Value
 		case "charset", "character set", "default charset", "default character set":
-			tbl.Charset = opt.Value
+			tbl.Charset = normalizeCharsetName(opt.Value)
 			tblCharsetExplicit = true
 		case "collate", "default collate":
 			tbl.Collation = opt.Value
@@ -77,6 +79,30 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			tbl.RowFormat = opt.Value
 		case "key_block_size":
 			fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
+		case "compression":
+			tbl.Compression = opt.Value
+		case "encryption":
+			tbl.Encryption = opt.Value
+		case "stats_persistent":
+			tbl.StatsPersistent = opt.Value
+		case "stats_auto_recalc":
+			tbl.StatsAutoRecalc = opt.Value
+		case "stats_sample_pages":
+			tbl.StatsSamplePages = opt.Value
+		case "min_rows":
+			tbl.MinRows = opt.Value
+		case "max_rows":
+			tbl.MaxRows = opt.Value
+		case "avg_row_length":
+			tbl.AvgRowLength = opt.Value
+		case "tablespace":
+			tbl.Tablespace = opt.Value
+		case "pack_keys":
+			tbl.PackKeys = opt.Value
+		case "checksum":
+			tbl.Checksum = opt.Value
+		case "delay_key_write":
+			tbl.DelayKeyWrite = opt.Value
 		}
 	}
 	// When charset is specified without explicit collation, derive the default collation.
@@ -88,8 +114,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// When collation is specified without explicit charset, derive the charset from collation.
 	if tblCollationExplicit && !tblCharsetExplicit {
 		if cs := charsetForCollation(tbl.Collation); cs != "" {
-			tbl.Charset = cs
+			tbl.Charset = normalizeCharsetName(cs)
 		}
+	}
+	if tblCharsetExplicit && tblCollationExplicit && !charsetMatchesCollation(tbl.Charset, tbl.Collation) {
+		return &Error{Code: 1253, SQLState: "42000", Message: "COLLATION is not valid for CHARACTER SET"}
 	}
 	// Track whether we have a primary key (to detect multiple PKs).
 	hasPK := false
@@ -132,6 +161,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 	// Process columns.
 	for i, colDef := range stmt.Columns {
+		if err := validateColumnDefSemantics(colDef); err != nil {
+			return err
+		}
 		colKey := toLower(colDef.Name)
 		if _, exists := tbl.colByName[colKey]; exists {
 			return errDupColumn(colDef.Name)
@@ -146,29 +178,32 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		// Type info.
 		isSerial := false
 		if colDef.TypeName != nil {
-			typeName := toLower(colDef.TypeName.Name)
+			typeName := normalizedColumnDataType(colDef.TypeName)
 			// Handle SERIAL: expands to BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE
-			if typeName == "serial" {
+			if strings.EqualFold(colDef.TypeName.Name, "serial") {
 				isSerial = true
 				col.DataType = "bigint"
 				col.ColumnType = "bigint unsigned"
 				col.AutoIncrement = true
 				col.Nullable = false
-			} else if typeName == "boolean" {
+			} else if typeName == "boolean" || typeName == "bool" {
 				col.DataType = "tinyint"
-				col.ColumnType = formatColumnType(colDef.TypeName)
-			} else if typeName == "numeric" {
-				col.DataType = "decimal"
 				col.ColumnType = formatColumnType(colDef.TypeName)
 			} else {
 				col.DataType = typeName
 				col.ColumnType = formatColumnType(colDef.TypeName)
 			}
+			if isNationalStringType(colDef.TypeName.Name) {
+				col.Charset = "utf8mb3"
+			}
 			if colDef.TypeName.Charset != "" {
-				col.Charset = colDef.TypeName.Charset
+				col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
 			}
 			if colDef.TypeName.Collate != "" {
 				col.Collation = colDef.TypeName.Collate
+				if col.Charset == "" {
+					col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
+				}
 			}
 
 			// MySQL converts string types with CHARACTER SET binary to binary types.
@@ -194,6 +229,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					col.Collation = tbl.Collation
 				}
 			}
+			applyBinaryModifierCollation(col, colDef.TypeName)
 		}
 
 		// Top-level column properties.
@@ -208,11 +244,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			col.Comment = colDef.Comment
 		}
 		if colDef.DefaultValue != nil {
-			s := nodeToSQL(colDef.DefaultValue)
-			col.Default = &s
+			setColumnDefaultFromExpr(col, colDef.DefaultValue)
 		}
 		if colDef.OnUpdate != nil {
-			col.OnUpdate = nodeToSQL(colDef.OnUpdate)
+			setColumnOnUpdateFromExpr(col, colDef.OnUpdate)
 		}
 		if colDef.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
@@ -230,8 +265,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				col.Nullable = true
 			case nodes.ColConstrDefault:
 				if cc.Expr != nil {
-					s := nodeToSQL(cc.Expr)
-					col.Default = &s
+					setColumnDefaultFromExpr(col, cc.Expr)
 				}
 			case nodes.ColConstrPrimaryKey:
 				if hasPK {
@@ -253,6 +287,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					unnamedCheckCount++
 					conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
 				}
+				if checkConstraintNameExists(db, tbl, conName) {
+					return errCheckConstraintDupName(conName)
+				}
+				if err := validateColumnCheckReferences(colDef.Name, conName, cc.Expr); err != nil {
+					return err
+				}
 				tbl.Constraints = append(tbl.Constraints, &Constraint{
 					Name:        conName,
 					Type:        ConCheck,
@@ -261,31 +301,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					NotEnforced: cc.NotEnforced,
 				})
 			case nodes.ColConstrReferences:
-				// Column-level FK.
-				refDB := ""
-				refTable := ""
-				if cc.RefTable != nil {
-					refDB = cc.RefTable.Schema
-					refTable = cc.RefTable.Name
-				}
-				conName := cc.Name
-				if conName == "" {
-					unnamedFKCount++
-					conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
-				}
-				tbl.Constraints = append(tbl.Constraints, &Constraint{
-					Name:       conName,
-					Type:       ConForeignKey,
-					Table:      tbl,
-					Columns:    []string{colDef.Name},
-					RefDatabase: refDB,
-					RefTable:   refTable,
-					RefColumns: cc.RefColumns,
-					OnDelete:   refActionToString(cc.OnDelete),
-					OnUpdate:   refActionToString(cc.OnUpdate),
-				})
-				// Defer implicit backing index for FK until after all explicit indexes are added.
-				pendingFKs = append(pendingFKs, pendingFK{conName: cc.Name, cols: []string{colDef.Name}, idxCols: []*IndexColumn{{Name: colDef.Name}}})
+				// MySQL parses but ignores column-level REFERENCES for non-NDB tables.
 			case nodes.ColConstrVisible:
 				col.Invisible = false
 			case nodes.ColConstrInvisible:
@@ -324,11 +340,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		tbl.colByName[colKey] = i
 	}
 
+	c.applyTimestampSessionDefaults(tbl.Columns, stmt.Columns)
+
 	// Second pass: add column-level PK and UNIQUE indexes/constraints.
 	for _, colDef := range stmt.Columns {
 		for _, cc := range colDef.Constraints {
 			switch cc.Type {
 			case nodes.ColConstrPrimaryKey:
+				if err := validatePrimaryKeyColumns(tbl, []string{colDef.Name}); err != nil {
+					return err
+				}
 				tbl.Indexes = append(tbl.Indexes, &Index{
 					Name:      "PRIMARY",
 					Table:     tbl,
@@ -375,6 +396,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if hasPK {
 				return errMultiplePriKey()
 			}
+			if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
+				return err
+			}
 			hasPK = true
 			// Mark PK columns as NOT NULL.
 			for _, colName := range cols {
@@ -394,6 +418,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(pkIdx, con.IndexOptions)
+			if !pkIdx.Visible {
+				return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
+			}
 			tbl.Indexes = append(tbl.Indexes, pkIdx)
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:      "PRIMARY",
@@ -404,11 +431,21 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			})
 
 		case nodes.ConstrUnique:
-			idxName := con.Name
-			if idxName == "" && len(cols) > 0 {
-				idxName = allocIndexName(tbl, cols[0])
-			}
 			idxCols := buildIndexColumns(con)
+			idxName := con.Name
+			if idxName == "" {
+				idxName = defaultIndexName(tbl, cols, idxCols)
+			} else if idxName != "" {
+				if err := validateNonPrimaryIndexName(idxName); err != nil {
+					return err
+				}
+				if indexNameExists(tbl, idxName) {
+					return errDupKeyName(idxName)
+				}
+			}
+			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+				return err
+			}
 			uqIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -418,6 +455,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(uqIdx, con.IndexOptions)
+			if err := synthesizeFunctionalIndexColumns(tbl, uqIdx); err != nil {
+				return err
+			}
 			tbl.Indexes = append(tbl.Indexes, uqIdx)
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:      idxName,
@@ -433,6 +473,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				unnamedFKCount++
 				conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
 			}
+			if foreignKeyConstraintNameExists(db, tbl, conName) {
+				return errFKDupName(conName)
+			}
 			refDB := ""
 			refTable := ""
 			if con.RefTable != nil {
@@ -440,15 +483,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				refTable = con.RefTable.Name
 			}
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
-				Name:       conName,
-				Type:       ConForeignKey,
-				Table:      tbl,
-				Columns:    cols,
+				Name:        conName,
+				Type:        ConForeignKey,
+				Table:       tbl,
+				Columns:     cols,
 				RefDatabase: refDB,
-				RefTable:   refTable,
-				RefColumns: con.RefColumns,
-				OnDelete:   refActionToString(con.OnDelete),
-				OnUpdate:   refActionToString(con.OnUpdate),
+				RefTable:    refTable,
+				RefColumns:  con.RefColumns,
+				OnDelete:    refActionToString(con.OnDelete),
+				OnUpdate:    refActionToString(con.OnUpdate),
 			})
 			// Defer implicit backing index for FK until after all explicit indexes are added.
 			pendingFKs = append(pendingFKs, pendingFK{conName: con.Name, cols: cols, idxCols: buildIndexColumns(con)})
@@ -459,6 +502,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				unnamedCheckCount++
 				conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
 			}
+			if checkConstraintNameExists(db, tbl, conName) {
+				return errCheckConstraintDupName(conName)
+			}
+			if err := validateCheckExpr(conName, con.Expr); err != nil {
+				return err
+			}
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:        conName,
 				Type:        ConCheck,
@@ -468,11 +517,21 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			})
 
 		case nodes.ConstrIndex:
-			idxName := con.Name
-			if idxName == "" && len(cols) > 0 {
-				idxName = allocIndexName(tbl, cols[0])
-			}
 			idxCols := buildIndexColumns(con)
+			idxName := con.Name
+			if idxName == "" {
+				idxName = defaultIndexName(tbl, cols, idxCols)
+			} else if idxName != "" {
+				if err := validateNonPrimaryIndexName(idxName); err != nil {
+					return err
+				}
+				if indexNameExists(tbl, idxName) {
+					return errDupKeyName(idxName)
+				}
+			}
+			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+				return err
+			}
 			keyIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -481,12 +540,23 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(keyIdx, con.IndexOptions)
+			coerceInnoDBHashIndex(tbl, keyIdx)
+			if err := synthesizeFunctionalIndexColumns(tbl, keyIdx); err != nil {
+				return err
+			}
 			tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 		case nodes.ConstrFulltextIndex:
 			idxName := con.Name
 			if idxName == "" && len(cols) > 0 {
 				idxName = allocIndexName(tbl, cols[0])
+			} else if idxName != "" {
+				if err := validateNonPrimaryIndexName(idxName); err != nil {
+					return err
+				}
+				if indexNameExists(tbl, idxName) {
+					return errDupKeyName(idxName)
+				}
 			}
 			idxCols := buildIndexColumns(con)
 			ftIdx := &Index{
@@ -504,8 +574,21 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			idxName := con.Name
 			if idxName == "" && len(cols) > 0 {
 				idxName = allocIndexName(tbl, cols[0])
+			} else if idxName != "" {
+				if err := validateNonPrimaryIndexName(idxName); err != nil {
+					return err
+				}
+				if indexNameExists(tbl, idxName) {
+					return errDupKeyName(idxName)
+				}
 			}
 			idxCols := buildIndexColumns(con)
+			if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
+				return err
+			}
+			if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
+				return &Error{Code: 3500, SQLState: "HY000", Message: "Index type not supported for spatial index"}
+			}
 			spIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -515,7 +598,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(spIdx, con.IndexOptions)
+			if strings.EqualFold(spIdx.IndexType, "BTREE") {
+				return &Error{Code: 3500, SQLState: "HY000", Message: "Index type not supported for spatial index"}
+			}
 			tbl.Indexes = append(tbl.Indexes, spIdx)
+		}
+	}
+
+	if c.generateGIPK {
+		if tbl.GetColumn(generatedInvisiblePrimaryKeyColumnName) != nil {
+			return errGIPKColumnNameReserved()
+		}
+		if !hasPK {
+			addGeneratedInvisiblePrimaryKey(tbl)
+			hasPK = true
 		}
 	}
 
@@ -533,7 +629,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 	// Process partition clause.
 	if stmt.Partitions != nil {
-		tbl.Partitioning = buildPartitionInfo(stmt.Partitions)
+		if err := validatePartitionClause(tbl, stmt.Partitions); err != nil {
+			return err
+		}
+		tbl.Partitioning = buildPartitionInfo(tbl, stmt.Partitions)
 	}
 
 	// Phase 3: analyze DEFAULT, GENERATED, and CHECK expressions now that all
@@ -544,15 +643,63 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	return nil
 }
 
+func errGIPKColumnNameReserved() error {
+	return &Error{
+		Code:     4108,
+		SQLState: "HY000",
+		Message:  "Failed to generate invisible primary key. Column 'my_row_id' already exists.",
+	}
+}
+
+func addGeneratedInvisiblePrimaryKey(tbl *Table) {
+	col := &Column{
+		Position:                     0,
+		Name:                         generatedInvisiblePrimaryKeyColumnName,
+		DataType:                     "bigint",
+		ColumnType:                   "bigint unsigned",
+		Nullable:                     false,
+		AutoIncrement:                true,
+		Invisible:                    true,
+		GeneratedInvisiblePrimaryKey: true,
+	}
+
+	tbl.Columns = append([]*Column{col}, tbl.Columns...)
+	rebuildColByNamePreservePositions(tbl)
+
+	tbl.Indexes = append(tbl.Indexes, &Index{
+		Name:      "PRIMARY",
+		Table:     tbl,
+		Columns:   []*IndexColumn{{Name: generatedInvisiblePrimaryKeyColumnName}},
+		Unique:    true,
+		Primary:   true,
+		IndexType: "",
+		Visible:   true,
+	})
+	tbl.Constraints = append(tbl.Constraints, &Constraint{
+		Name:      "PRIMARY",
+		Type:      ConPrimaryKey,
+		Table:     tbl,
+		Columns:   []string{generatedInvisiblePrimaryKeyColumnName},
+		IndexName: "PRIMARY",
+	})
+}
+
+func rebuildColByNamePreservePositions(tbl *Table) {
+	tbl.colByName = make(map[string]int, len(tbl.Columns))
+	for i, col := range tbl.Columns {
+		tbl.colByName[toLower(col.Name)] = i
+	}
+}
+
 // analyzeTableExpressions performs best-effort semantic analysis on DEFAULT,
 // GENERATED, and CHECK expressions after all columns have been added to the table.
 func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStmt) {
 	// Analyze DEFAULT and GENERATED expressions from column definitions.
-	for i, colDef := range stmt.Columns {
-		if i >= len(tbl.Columns) {
-			break
+	for _, colDef := range stmt.Columns {
+		col := tbl.GetColumn(colDef.Name)
+		if col == nil {
+			continue
 		}
-		col := tbl.Columns[i]
 
 		// Top-level DEFAULT.
 		if colDef.DefaultValue != nil {
@@ -616,10 +763,13 @@ func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStm
 }
 
 // buildPartitionInfo converts an AST PartitionClause to a catalog PartitionInfo.
-func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
+func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	pi := &PartitionInfo{
 		Linear:   pc.Linear,
 		NumParts: pc.NumParts,
+	}
+	if pi.NumParts == 0 && len(pc.Partitions) == 0 && (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) {
+		pi.NumParts = 1
 	}
 
 	switch pc.Type {
@@ -645,11 +795,16 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 	case nodes.PartitionKey:
 		pi.Type = "KEY"
 		pi.Columns = pc.Columns
+		if len(pi.Columns) == 0 {
+			pi.Columns = primaryKeyColumns(tbl)
+		}
 		pi.Algorithm = pc.Algorithm
 	}
 
 	// Subpartition info.
 	if pc.SubPartType != 0 || pc.SubPartExpr != nil || len(pc.SubPartColumns) > 0 {
+		pi.UseDefaultSubpartitions = true
+		pi.UseDefaultNumSubpartitions = true
 		switch pc.SubPartType {
 		case nodes.PartitionHash:
 			pi.SubType = "HASH"
@@ -660,10 +815,17 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 			pi.SubAlgo = pc.SubPartAlgo
 		}
 		pi.SubLinear = false // TODO: track linear for subpartitions if parser supports it
-		pi.NumSubParts = pc.NumSubParts
+		if pc.NumSubParts > 0 {
+			pi.NumSubParts = pc.NumSubParts
+			pi.UseDefaultNumSubpartitions = false
+		} else {
+			pi.NumSubParts = 1
+		}
 	}
 
 	// Partition definitions.
+	explicitSubpartitions := false
+	explicitSubpartitionCount := 0
 	for _, pd := range pc.Partitions {
 		pdi := &PartitionDefInfo{
 			Name: pd.Name,
@@ -682,9 +844,17 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 			}
 		}
 		// Subpartitions.
+		if len(pd.SubPartitions) > 0 {
+			if !explicitSubpartitions {
+				explicitSubpartitions = true
+				explicitSubpartitionCount = len(pd.SubPartitions)
+			}
+		}
 		for _, spd := range pd.SubPartitions {
 			spdi := &SubPartitionDefInfo{
-				Name: spd.Name,
+				Name:    spd.Name,
+				Engine:  pdi.Engine,
+				Comment: pdi.Comment,
 			}
 			for _, opt := range spd.Options {
 				switch toLower(opt.Name) {
@@ -697,6 +867,11 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 			pdi.SubPartitions = append(pdi.SubPartitions, spdi)
 		}
 		pi.Partitions = append(pi.Partitions, pdi)
+	}
+	if explicitSubpartitions {
+		pi.UseDefaultSubpartitions = false
+		pi.UseDefaultNumSubpartitions = false
+		pi.NumSubParts = explicitSubpartitionCount
 	}
 
 	// Auto-generate partition definitions for HASH/KEY/LINEAR HASH/LINEAR KEY
@@ -713,7 +888,7 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 	// Auto-generate subpartition definitions when SUBPARTITIONS N is specified
 	// without explicit subpartition definitions.
 	// MySQL naming convention: <partition_name>sp0, <partition_name>sp1, ...
-	if pi.NumSubParts > 0 {
+	if pi.SubType != "" && pi.UseDefaultSubpartitions && pi.NumSubParts > 0 {
 		for _, part := range pi.Partitions {
 			if len(part.SubPartitions) == 0 {
 				for j := 0; j < pi.NumSubParts; j++ {
@@ -726,6 +901,300 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 	}
 
 	return pi
+}
+
+func (c *Catalog) applyTimestampSessionDefaults(cols []*Column, defs []*nodes.ColumnDef) {
+	if c.session.ExplicitDefaultsForTimestamp {
+		return
+	}
+	promotedFirst := false
+	for i, col := range cols {
+		if col == nil || !strings.EqualFold(col.DataType, "timestamp") || i >= len(defs) {
+			continue
+		}
+		def := defs[i]
+		if hasExplicitNull(def) {
+			continue
+		}
+		col.Nullable = false
+
+		hasDefault := hasExplicitDefault(def)
+		hasOnUpdate := hasExplicitOnUpdate(def)
+		if !promotedFirst && !hasDefault && !hasOnUpdate {
+			current := timestampCurrentExpr(timestampFsp(def))
+			col.Default = &current
+			col.DefaultKind = ColumnDefaultCurrentTimestamp
+			col.OnUpdate = current
+			col.OnUpdateKind = ColumnDefaultCurrentTimestamp
+			promotedFirst = true
+			continue
+		}
+		if !hasDefault && col.Default == nil {
+			zero := timestampZeroDefault(timestampFsp(def))
+			col.Default = &zero
+			col.DefaultKind = ColumnDefaultConstant
+		}
+	}
+}
+
+func hasExplicitNull(def *nodes.ColumnDef) bool {
+	if def == nil {
+		return false
+	}
+	for _, cc := range def.Constraints {
+		if cc.Type == nodes.ColConstrNull {
+			return true
+		}
+	}
+	return false
+}
+
+func hasExplicitDefault(def *nodes.ColumnDef) bool {
+	if def == nil {
+		return false
+	}
+	if def.DefaultValue != nil {
+		return true
+	}
+	for _, cc := range def.Constraints {
+		if cc.Type == nodes.ColConstrDefault {
+			return true
+		}
+	}
+	return false
+}
+
+func hasExplicitOnUpdate(def *nodes.ColumnDef) bool {
+	return def != nil && def.OnUpdate != nil
+}
+
+func timestampFsp(def *nodes.ColumnDef) int {
+	if def == nil || def.TypeName == nil {
+		return 0
+	}
+	return def.TypeName.Length
+}
+
+func timestampCurrentExpr(fsp int) string {
+	if fsp > 0 {
+		return fmt.Sprintf("CURRENT_TIMESTAMP(%d)", fsp)
+	}
+	return "CURRENT_TIMESTAMP"
+}
+
+func timestampZeroDefault(fsp int) string {
+	if fsp > 0 {
+		return "0000-00-00 00:00:00." + strings.Repeat("0", fsp)
+	}
+	return "0000-00-00 00:00:00"
+}
+
+func setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
+	val, kind := columnDefaultValue(expr)
+	col.Default = &val
+	col.DefaultKind = kind
+	col.DefaultDropped = false
+}
+
+func setColumnOnUpdateFromExpr(col *Column, expr nodes.ExprNode) {
+	val, kind := columnDefaultValue(expr)
+	col.OnUpdate = val
+	col.OnUpdateKind = kind
+}
+
+func columnDefaultValue(expr nodes.ExprNode) (string, ColumnDefaultKind) {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		if ts, ok := currentTimestampExpr(e.Expr); ok {
+			return ts, ColumnDefaultCurrentTimestamp
+		}
+		return nodeToSQL(e.Expr), ColumnDefaultExpression
+	case *nodes.BoolLit:
+		if e.Value {
+			return "1", ColumnDefaultConstant
+		}
+		return "0", ColumnDefaultConstant
+	case *nodes.BitLit:
+		return canonicalBitLiteral(e.Value), ColumnDefaultConstant
+	default:
+		if ts, ok := currentTimestampExpr(expr); ok {
+			return ts, ColumnDefaultCurrentTimestamp
+		}
+		return nodeToSQL(expr), ColumnDefaultConstant
+	}
+}
+
+func currentTimestampExpr(expr nodes.ExprNode) (string, bool) {
+	fn, ok := expr.(*nodes.FuncCallExpr)
+	if !ok {
+		return "", false
+	}
+	name := strings.ToLower(fn.Name)
+	if name != "current_timestamp" && name != "now" {
+		return "", false
+	}
+	if len(fn.Args) == 0 {
+		return "CURRENT_TIMESTAMP", true
+	}
+	if len(fn.Args) == 1 {
+		if lit, ok := fn.Args[0].(*nodes.IntLit); ok {
+			return fmt.Sprintf("CURRENT_TIMESTAMP(%d)", lit.Value), true
+		}
+	}
+	if ts, ok := currentTimestampSQL(nodeToSQL(expr)); ok {
+		return ts, true
+	}
+	return "CURRENT_TIMESTAMP", true
+}
+
+func canonicalBitLiteral(bits string) string {
+	bits = strings.TrimSpace(bits)
+	bits = strings.TrimPrefix(bits, "0b")
+	bits = strings.TrimPrefix(bits, "0B")
+	if len(bits) >= 3 && (strings.HasPrefix(bits, "b'") || strings.HasPrefix(bits, "B'")) && strings.HasSuffix(bits, "'") {
+		bits = bits[2 : len(bits)-1]
+	}
+	bits = strings.TrimLeft(bits, "0")
+	if bits == "" {
+		bits = "0"
+	}
+	return "b'" + bits + "'"
+}
+
+func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
+	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
+		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
+	}
+	if pc.Type == nodes.PartitionRange {
+		for i, pd := range pc.Partitions {
+			if pd.Values != nil && strings.Contains(strings.ToUpper(partitionValueToString(pd.Values, pc.Type)), "MAXVALUE") && i != len(pc.Partitions)-1 {
+				return &Error{Code: 1481, SQLState: "HY000", Message: "MAXVALUE can only be used in last partition definition"}
+			}
+		}
+	}
+	if pc.Type == nodes.PartitionList {
+		for _, pd := range pc.Partitions {
+			if containsPartitionDefaultExpr(pd.Values) {
+				return &Error{Code: 1064, SQLState: "42000", Message: "DEFAULT is not valid in LIST partition values"}
+			}
+		}
+	}
+	if err := validateSubpartitionDefinitions(pc); err != nil {
+		return err
+	}
+	expr := strings.ToLower(nodeToSQL(pc.Expr))
+	if strings.Contains(expr, "concat(") {
+		return &Error{Code: 1491, SQLState: "HY000", Message: "The PARTITION function returns the wrong type"}
+	}
+	if pc.Type == nodes.PartitionRange {
+		if cr, ok := pc.Expr.(*nodes.ColumnRef); ok {
+			if col := tbl.GetColumn(cr.Column); col != nil && strings.EqualFold(col.DataType, "timestamp") {
+				return &Error{Code: 1491, SQLState: "HY000", Message: "A PRIMARY KEY must include all columns in the table's partitioning function"}
+			}
+		}
+	}
+	if pc.Type == nodes.PartitionHash && pc.Expr != nil {
+		if cr, ok := pc.Expr.(*nodes.ColumnRef); ok {
+			if err := validateUniqueKeysCoverPartitionColumns(tbl, []string{cr.Column}); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validateSubpartitionDefinitions(pc *nodes.PartitionClause) error {
+	if pc.SubPartType == 0 && pc.SubPartExpr == nil && len(pc.SubPartColumns) == 0 {
+		return nil
+	}
+	explicitCount := 0
+	seenExplicit := false
+	for i, pd := range pc.Partitions {
+		count := len(pd.SubPartitions)
+		if count == 0 {
+			if seenExplicit {
+				return errWrongNumberOfSubpartitions()
+			}
+			continue
+		}
+		if !seenExplicit {
+			if i > 0 {
+				return errWrongNumberOfSubpartitions()
+			}
+			seenExplicit = true
+			explicitCount = count
+		}
+		if count != explicitCount {
+			return errWrongNumberOfSubpartitions()
+		}
+		if pc.NumSubParts > 0 && count != pc.NumSubParts {
+			return errWrongNumberOfSubpartitions()
+		}
+	}
+	return nil
+}
+
+func errWrongNumberOfSubpartitions() error {
+	return &Error{
+		Code:     1064,
+		SQLState: "42000",
+		Message:  "Wrong number of subpartitions defined, mismatch with previous setting",
+	}
+}
+
+func containsPartitionDefaultExpr(n nodes.Node) bool {
+	switch v := n.(type) {
+	case nil:
+		return false
+	case *nodes.DefaultExpr:
+		return true
+	case *nodes.List:
+		for _, item := range v.Items {
+			if containsPartitionDefaultExpr(item) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func primaryKeyColumns(tbl *Table) []string {
+	for _, con := range tbl.Constraints {
+		if con.Type == ConPrimaryKey {
+			return append([]string{}, con.Columns...)
+		}
+	}
+	for _, idx := range tbl.Indexes {
+		if idx.Primary {
+			cols := make([]string, 0, len(idx.Columns))
+			for _, ic := range idx.Columns {
+				cols = append(cols, ic.Name)
+			}
+			return cols
+		}
+	}
+	return nil
+}
+
+func validateUniqueKeysCoverPartitionColumns(tbl *Table, partCols []string) error {
+	if len(partCols) == 0 {
+		return nil
+	}
+	for _, idx := range tbl.Indexes {
+		if !idx.Unique && !idx.Primary {
+			continue
+		}
+		idxCols := map[string]bool{}
+		for _, ic := range idx.Columns {
+			idxCols[toLower(ic.Name)] = true
+		}
+		for _, pc := range partCols {
+			if !idxCols[toLower(pc)] {
+				return &Error{Code: 1503, SQLState: "HY000", Message: "A UNIQUE INDEX must include all columns in the table's partitioning function"}
+			}
+		}
+	}
+	return nil
 }
 
 // partitionValueToString converts a partition value node to SQL string.
@@ -814,6 +1283,15 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		if col == nil || refCol == nil {
 			continue
 		}
+		if (strings.EqualFold(con.OnDelete, "SET NULL") || strings.EqualFold(con.OnUpdate, "SET NULL")) && !col.Nullable {
+			return &Error{Code: 1830, SQLState: "HY000", Message: "Column cannot be NOT NULL: needed in a foreign key constraint"}
+		}
+		if col.Generated != nil && !col.Generated.Stored {
+			return errFKCannotUseVirtualColumn(colName)
+		}
+		if refCol.Generated != nil && !refCol.Generated.Stored {
+			return errFKCannotUseVirtualColumn(con.RefColumns[i])
+		}
 		if !fkTypesCompatible(col, refCol) {
 			return errFKIncompatibleColumns(colName, con.RefColumns[i], con.Name)
 		}
@@ -875,7 +1353,7 @@ func extractColumnNames(con *nodes.Constraint) []string {
 	if len(con.IndexColumns) > 0 {
 		names := make([]string, 0, len(con.IndexColumns))
 		for _, ic := range con.IndexColumns {
-			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok {
+			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 				names = append(names, cr.Column)
 			}
 		}
@@ -893,10 +1371,11 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 				Length:     ic.Length,
 				Descending: ic.Desc,
 			}
-			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok {
+			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 				idxCol.Name = cr.Column
 			} else {
 				idxCol.Expr = nodeToSQL(ic.Expr)
+				idxCol.ExprNode = ic.Expr
 			}
 			result = append(result, idxCol)
 		}
@@ -915,11 +1394,22 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 func allocIndexName(tbl *Table, baseName string) string {
 	candidate := baseName
 	suffix := 2
+	if strings.EqualFold(candidate, "PRIMARY") {
+		candidate = fmt.Sprintf("%s_%d", baseName, suffix)
+		suffix++
+	}
 	for indexNameExists(tbl, candidate) {
 		candidate = fmt.Sprintf("%s_%d", baseName, suffix)
 		suffix++
 	}
 	return candidate
+}
+
+func validateNonPrimaryIndexName(name string) error {
+	if strings.EqualFold(name, "PRIMARY") {
+		return errWrongNameForIndex(name)
+	}
+	return nil
 }
 
 // hasIndexCoveringColumns returns true if the table already has an index whose
@@ -969,6 +1459,100 @@ func indexNameExists(tbl *Table, name string) bool {
 	for _, idx := range tbl.Indexes {
 		if toLower(idx.Name) == key {
 			return true
+		}
+	}
+	return false
+}
+
+func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial bool) error {
+	for _, ic := range idxCols {
+		if ic.Name == "" {
+			continue
+		}
+		col := tbl.GetColumn(ic.Name)
+		if col == nil {
+			continue
+		}
+		if spatial {
+			if col.Nullable {
+				return &Error{Code: 1252, SQLState: "42000", Message: "All parts of a SPATIAL index must be NOT NULL"}
+			}
+			continue
+		}
+		if !fulltext && isTextBlobType(col.DataType) && ic.Length == 0 {
+			return &Error{Code: 1170, SQLState: "42000", Message: "BLOB/TEXT column used in key specification without a key length"}
+		}
+		if ic.Length > 0 {
+			if maxLen, ok := fixedLengthStringColumnLimit(col); ok && ic.Length > maxLen {
+				return &Error{Code: 1089, SQLState: "HY000", Message: "Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys"}
+			}
+		}
+	}
+	return nil
+}
+
+func fixedLengthStringColumnLimit(col *Column) (int, bool) {
+	switch strings.ToLower(col.DataType) {
+	case "char", "varchar", "binary", "varbinary":
+	default:
+		return 0, false
+	}
+	open := strings.IndexByte(col.ColumnType, '(')
+	close := strings.IndexByte(col.ColumnType, ')')
+	if open < 0 || close <= open+1 {
+		return 0, false
+	}
+	n := 0
+	for _, ch := range col.ColumnType[open+1 : close] {
+		if ch < '0' || ch > '9' {
+			return 0, false
+		}
+		n = n*10 + int(ch-'0')
+	}
+	return n, n > 0
+}
+
+func coerceInnoDBHashIndex(tbl *Table, idx *Index) {
+	if strings.EqualFold(tbl.Engine, "InnoDB") && strings.EqualFold(idx.IndexType, "HASH") {
+		idx.IndexType = "BTREE"
+	}
+}
+
+func constraintNameExistsInTable(tbl *Table, typ ConstraintType, name string) bool {
+	key := toLower(name)
+	for _, con := range tbl.Constraints {
+		if con.Type == typ && toLower(con.Name) == key {
+			return true
+		}
+	}
+	return false
+}
+
+func checkConstraintNameExists(db *Database, pending *Table, name string) bool {
+	if pending != nil && constraintNameExistsInTable(pending, ConCheck, name) {
+		return true
+	}
+	key := toLower(name)
+	for _, tbl := range db.Tables {
+		for _, con := range tbl.Constraints {
+			if con.Type == ConCheck && toLower(con.Name) == key {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func foreignKeyConstraintNameExists(db *Database, pending *Table, name string) bool {
+	if pending != nil && constraintNameExistsInTable(pending, ConForeignKey, name) {
+		return true
+	}
+	key := toLower(name)
+	for _, tbl := range db.Tables {
+		for _, con := range tbl.Constraints {
+			if con.Type == ConForeignKey && toLower(con.Name) == key {
+				return true
+			}
 		}
 	}
 	return false
@@ -1069,24 +1653,37 @@ func nextFKGeneratedNumber(tbl *Table, tableName string) int {
 	return max + 1
 }
 
-// nextCheckNumber returns the next available check constraint number for auto-naming.
-// MySQL uses tableName_chk_N where N starts at 1 and increments, skipping existing names.
+// nextCheckNumber returns max(existing generated tableName_chk_N) + 1.
+// ALTER TABLE seeds the generated CHECK counter from existing names.
 func nextCheckNumber(tbl *Table) int {
-	n := 1
-	for {
-		name := fmt.Sprintf("%s_chk_%d", tbl.Name, n)
-		exists := false
-		for _, c := range tbl.Constraints {
-			if toLower(c.Name) == toLower(name) {
-				exists = true
+	prefix := toLower(tbl.Name) + "_chk_"
+	max := 0
+	for _, con := range tbl.Constraints {
+		if con.Type != ConCheck {
+			continue
+		}
+		name := toLower(con.Name)
+		if !strings.HasPrefix(name, prefix) {
+			continue
+		}
+		rest := name[len(prefix):]
+		if rest == "" || rest[0] == '0' {
+			continue
+		}
+		n := 0
+		ok := true
+		for _, ch := range rest {
+			if ch < '0' || ch > '9' {
+				ok = false
 				break
 			}
+			n = n*10 + int(ch-'0')
 		}
-		if !exists {
-			return n
+		if ok && n > max {
+			max = n
 		}
-		n++
 	}
+	return max + 1
 }
 
 func isStringType(dt string) bool {
@@ -1129,6 +1726,13 @@ func convertToBinaryType(col *Column, dt *nodes.DataType) *Column {
 	col.Charset = ""
 	col.Collation = ""
 	return col
+}
+
+func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
+	if col == nil || dt == nil || !dt.Binary || col.Charset == "" {
+		return
+	}
+	col.Collation = fmt.Sprintf("%s_bin", normalizeCharsetName(col.Charset))
 }
 
 // nodeToSQLGenerated converts an AST expression to SQL for use in a generated
@@ -1272,19 +1876,24 @@ func binaryOpToString(op nodes.BinaryOp) string {
 }
 
 func formatColumnType(dt *nodes.DataType) string {
-	name := strings.ToLower(dt.Name)
+	name := normalizedTypeName(dt.Name)
+	if name == "float" && dt.Length > 24 && dt.Scale == 0 {
+		name = "double"
+	}
+	if name == "varchar" && dt.Length > 65535 {
+		return "mediumtext"
+	}
+	if name == "text" && dt.Length > 0 {
+		name = promoteTextType(dt.Length)
+	}
 
 	// MySQL type aliases: BOOLEAN/BOOL → tinyint(1), NUMERIC → decimal, SERIAL → bigint unsigned
 	// GEOMETRYCOLLECTION → geomcollection (MySQL 8.0 normalized form)
 	switch name {
-	case "boolean":
+	case "boolean", "bool":
 		return "tinyint(1)"
-	case "numeric":
-		name = "decimal"
 	case "serial":
 		return "bigint unsigned"
-	case "geometrycollection":
-		name = "geomcollection"
 	}
 
 	var buf strings.Builder
@@ -1296,7 +1905,9 @@ func formatColumnType(dt *nodes.DataType) string {
 	//   with default widths per type: tinyint(3), smallint(5), mediumint(8), int(10), bigint(20)
 	isIntType := isIntegerType(name)
 	if isIntType {
-		if dt.Zerofill {
+		if name == "tinyint" && dt.Length == 1 && !dt.Unsigned && !dt.Zerofill {
+			buf.WriteString("(1)")
+		} else if dt.Zerofill {
 			width := dt.Length
 			if width == 0 {
 				width = defaultIntDisplayWidth(name, dt.Unsigned)
@@ -1304,15 +1915,21 @@ func formatColumnType(dt *nodes.DataType) string {
 			fmt.Fprintf(&buf, "(%d)", width)
 		}
 		// Non-zerofill integer types: strip display width (MySQL 8.0 deprecated)
-	} else if name == "decimal" && dt.Length == 0 && dt.Scale == 0 {
-		// DECIMAL with no precision → MySQL shows decimal(10,0)
-		buf.WriteString("(10,0)")
+	} else if name == "decimal" {
+		if dt.Length == 0 && dt.Scale == 0 {
+			// DECIMAL with no precision → MySQL shows decimal(10,0)
+			buf.WriteString("(10,0)")
+		} else {
+			fmt.Fprintf(&buf, "(%d,%d)", dt.Length, dt.Scale)
+		}
 	} else if isTextBlobLengthStripped(name) {
 		// TEXT(n) and BLOB(n) — MySQL stores the length internally but
 		// SHOW CREATE TABLE displays just TEXT / BLOB without the length.
 		// Do not emit length.
 	} else if name == "year" {
 		// YEAR(4) is deprecated in MySQL 8.0 — SHOW CREATE TABLE shows just `year`.
+	} else if name == "bit" && dt.Length == 0 {
+		buf.WriteString("(1)")
 	} else if (name == "char" || name == "binary") && dt.Length == 0 {
 		// CHAR/BINARY with no length → MySQL shows char(1)/binary(1)
 		buf.WriteString("(1)")
@@ -1332,13 +1949,97 @@ func formatColumnType(dt *nodes.DataType) string {
 		}
 		buf.WriteString(")")
 	}
-	if dt.Unsigned {
+	if dt.Unsigned || dt.Zerofill {
 		buf.WriteString(" unsigned")
 	}
 	if dt.Zerofill {
 		buf.WriteString(" zerofill")
 	}
 	return buf.String()
+}
+
+func normalizedColumnDataType(dt *nodes.DataType) string {
+	name := normalizedTypeName(dt.Name)
+	if name == "float" && dt.Length > 24 && dt.Scale == 0 {
+		return "double"
+	}
+	if name == "varchar" && dt.Length > 65535 {
+		return "mediumtext"
+	}
+	if name == "text" && dt.Length > 0 {
+		return promoteTextType(dt.Length)
+	}
+	return name
+}
+
+func normalizedTypeName(name string) string {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "bool", "boolean":
+		return "boolean"
+	case "integer", "int4":
+		return "int"
+	case "int1":
+		return "tinyint"
+	case "int2":
+		return "smallint"
+	case "int3", "middleint":
+		return "mediumint"
+	case "int8":
+		return "bigint"
+	case "real", "float8", "double precision":
+		return "double"
+	case "float4":
+		return "float"
+	case "numeric", "dec", "fixed":
+		return "decimal"
+	case "character":
+		return "char"
+	case "character varying", "varcharacter", "nvarchar", "national varchar",
+		"nchar varchar", "national char varying", "nchar varying":
+		return "varchar"
+	case "national char", "nchar":
+		return "char"
+	case "geometrycollection":
+		return "geomcollection"
+	default:
+		return strings.ToLower(strings.TrimSpace(name))
+	}
+}
+
+func isNationalStringType(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "nvarchar", "national varchar", "nchar varchar", "national char varying",
+		"nchar varying", "national char", "nchar":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeCharsetName(name string) string {
+	if strings.EqualFold(name, "utf8") {
+		return "utf8mb3"
+	}
+	return strings.ToLower(strings.TrimSpace(name))
+}
+
+func charsetMatchesCollation(charset, collation string) bool {
+	derived := normalizeCharsetName(charsetForCollation(collation))
+	return derived == "" || strings.EqualFold(normalizeCharsetName(charset), derived)
+}
+
+func promoteTextType(chars int) string {
+	bytes := chars * 4
+	switch {
+	case bytes <= 255:
+		return "tinytext"
+	case bytes <= 65535:
+		return "text"
+	case bytes <= 16777215:
+		return "mediumtext"
+	default:
+		return "longtext"
+	}
 }
 
 // isIntegerType returns true for MySQL integer types.
@@ -1394,7 +2095,7 @@ func isTextBlobLengthStripped(dt string) bool {
 }
 
 // escapeEnumValue escapes single quotes in ENUM/SET values for SHOW CREATE TABLE.
-// MySQL uses '' (two single quotes) to escape a single quote in enum values.
+// MySQL uses ” (two single quotes) to escape a single quote in enum values.
 func escapeEnumValue(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }
@@ -1414,39 +2115,55 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 	}
 
 	tbl := &Table{
-		Name:      tableName,
-		Database:  db,
-		Columns:   make([]*Column, 0, len(srcTbl.Columns)),
-		colByName: make(map[string]int),
-		Indexes:   make([]*Index, 0, len(srcTbl.Indexes)),
-		Constraints: make([]*Constraint, 0, len(srcTbl.Constraints)),
-		Engine:    srcTbl.Engine,
-		Charset:   srcTbl.Charset,
-		Collation: srcTbl.Collation,
-		Comment:   srcTbl.Comment,
-		RowFormat: srcTbl.RowFormat,
-		KeyBlockSize: srcTbl.KeyBlockSize,
-		Temporary: stmt.Temporary,
+		Name:             tableName,
+		Database:         db,
+		Columns:          make([]*Column, 0, len(srcTbl.Columns)),
+		colByName:        make(map[string]int),
+		Indexes:          make([]*Index, 0, len(srcTbl.Indexes)),
+		Constraints:      make([]*Constraint, 0, len(srcTbl.Constraints)),
+		Engine:           srcTbl.Engine,
+		Charset:          srcTbl.Charset,
+		Collation:        srcTbl.Collation,
+		Comment:          srcTbl.Comment,
+		RowFormat:        srcTbl.RowFormat,
+		KeyBlockSize:     srcTbl.KeyBlockSize,
+		Compression:      srcTbl.Compression,
+		Encryption:       srcTbl.Encryption,
+		StatsPersistent:  srcTbl.StatsPersistent,
+		StatsAutoRecalc:  srcTbl.StatsAutoRecalc,
+		StatsSamplePages: srcTbl.StatsSamplePages,
+		MinRows:          srcTbl.MinRows,
+		MaxRows:          srcTbl.MaxRows,
+		AvgRowLength:     srcTbl.AvgRowLength,
+		Tablespace:       srcTbl.Tablespace,
+		PackKeys:         srcTbl.PackKeys,
+		Checksum:         srcTbl.Checksum,
+		DelayKeyWrite:    srcTbl.DelayKeyWrite,
+		Temporary:        stmt.Temporary,
 	}
 
 	// Copy columns.
 	for i, srcCol := range srcTbl.Columns {
 		col := &Column{
-			Position:      srcCol.Position,
-			Name:          srcCol.Name,
-			DataType:      srcCol.DataType,
-			ColumnType:    srcCol.ColumnType,
-			Nullable:      srcCol.Nullable,
-			AutoIncrement: srcCol.AutoIncrement,
-			Charset:       srcCol.Charset,
-			Collation:     srcCol.Collation,
-			Comment:       srcCol.Comment,
-			OnUpdate:      srcCol.OnUpdate,
-			Invisible:     srcCol.Invisible,
+			Position:                     srcCol.Position,
+			Name:                         srcCol.Name,
+			DataType:                     srcCol.DataType,
+			ColumnType:                   srcCol.ColumnType,
+			Nullable:                     srcCol.Nullable,
+			AutoIncrement:                srcCol.AutoIncrement,
+			Charset:                      srcCol.Charset,
+			Collation:                    srcCol.Collation,
+			Comment:                      srcCol.Comment,
+			OnUpdate:                     srcCol.OnUpdate,
+			OnUpdateKind:                 srcCol.OnUpdateKind,
+			Invisible:                    srcCol.Invisible,
+			GeneratedInvisiblePrimaryKey: srcCol.GeneratedInvisiblePrimaryKey,
+			Hidden:                       srcCol.Hidden,
 		}
 		if srcCol.Default != nil {
 			def := *srcCol.Default
 			col.Default = &def
+			col.DefaultKind = srcCol.DefaultKind
 		}
 		if srcCol.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
@@ -1479,6 +2196,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 				Length:     sc.Length,
 				Descending: sc.Descending,
 				Expr:       sc.Expr,
+				ExprNode:   sc.ExprNode,
 			}
 		}
 		idx.Columns = cols

@@ -20,6 +20,10 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
+	if err := validateNonPrimaryIndexName(stmt.IndexName); err != nil {
+		return err
+	}
+
 	// Check for duplicate key name.
 	if indexNameExists(tbl, stmt.IndexName) {
 		if stmt.IfNotExists {
@@ -35,10 +39,11 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			Length:     ic.Length,
 			Descending: ic.Desc,
 		}
-		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok {
+		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 			col.Name = cr.Column
 		} else {
 			col.Expr = nodeToSQL(ic.Expr)
+			col.ExprNode = ic.Expr
 		}
 		idxCols = append(idxCols, col)
 	}
@@ -64,6 +69,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 
 	applyIndexOptions(idx, stmt.Options)
+	if err := synthesizeFunctionalIndexColumns(tbl, idx); err != nil {
+		return err
+	}
 
 	tbl.Indexes = append(tbl.Indexes, idx)
 
@@ -108,8 +116,10 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 	// Find and remove index.
 	key := toLower(stmt.Name)
 	found := false
+	var dropped *Index
 	for i, idx := range tbl.Indexes {
 		if toLower(idx.Name) == key {
+			dropped = idx
 			tbl.Indexes = append(tbl.Indexes[:i], tbl.Indexes[i+1:]...)
 			found = true
 			break
@@ -118,6 +128,7 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 	if !found {
 		return errCantDropKey(stmt.Name)
 	}
+	removeFunctionalIndexHiddenColumns(tbl, dropped)
 
 	// Also remove any constraint that references this index.
 	for i, con := range tbl.Constraints {

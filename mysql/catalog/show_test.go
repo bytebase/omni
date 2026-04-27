@@ -58,6 +58,32 @@ func TestShowCreateTableDefaults(t *testing.T) {
 	assertContains(t, got, "`num_default` int DEFAULT '42'")
 }
 
+func TestShowCreateTableMySQLDefaultNormalization(t *testing.T) {
+	c := setupWithDB(t)
+	mustExec(t, c, `CREATE TABLE t_defaults_mysql (
+		tiny TINYINT(1) DEFAULT 1,
+		bool_true BOOLEAN DEFAULT TRUE,
+		bool_false BOOLEAN DEFAULT FALSE,
+		bits BIT(8) DEFAULT b'00001111',
+		ts3 TIMESTAMP(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
+		dt6 DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+		expr_int INT DEFAULT (FLOOR(RAND()*100)),
+		expr_json JSON DEFAULT (JSON_ARRAY()),
+		expr_varchar VARCHAR(36) DEFAULT (UUID())
+	)`)
+
+	got := c.ShowCreateTable("testdb", "t_defaults_mysql")
+	assertContains(t, got, "`tiny` tinyint(1) DEFAULT '1'")
+	assertContains(t, got, "`bool_true` tinyint(1) DEFAULT '1'")
+	assertContains(t, got, "`bool_false` tinyint(1) DEFAULT '0'")
+	assertContains(t, got, "`bits` bit(8) DEFAULT b'1111'")
+	assertContains(t, got, "`ts3` timestamp(3) NULL DEFAULT CURRENT_TIMESTAMP(3)")
+	assertContains(t, got, "`dt6` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)")
+	assertContains(t, got, "`expr_int` int DEFAULT (floor((rand() * 100)))")
+	assertContains(t, got, "`expr_json` json DEFAULT (json_array())")
+	assertContains(t, got, "`expr_varchar` varchar(36) DEFAULT (uuid())")
+}
+
 func TestShowCreateTableMultipleIndexes(t *testing.T) {
 	c := setupWithDB(t)
 	mustExec(t, c, `CREATE TABLE t4 (

@@ -21,9 +21,11 @@ const (
 	ErrDupKeyName                        = 1061
 	ErrDupEntry                          = 1062
 	ErrMultiplePriKey                    = 1068
+	ErrInvalidDefault                    = 1067
 	ErrNoSuchTable                       = 1146
 	ErrNoSuchColumn                      = 1054
 	ErrNoDatabaseSelected                = 1046
+	ErrCantRemoveAllFields               = 1090
 	ErrDupIndex                          = 1831
 	ErrFKNoRefTable                      = 1824
 	ErrCantDropKey                       = 1091
@@ -39,9 +41,16 @@ const (
 	ErrDupTrigger                        = 1359
 	ErrNoSuchEvent                       = 1539
 	ErrDupEvent                          = 1537
+	ErrFKCannotUseVirtualColumn          = 3104
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
+	ErrWrongNameForIndex                 = 1280
+	ErrTooBigPrecision                   = 1426
+	ErrInvalidYearColumnLength           = 1818
+	ErrFKDupName                         = 1826
+	ErrCheckConstraintNotAllowed         = 3815
+	ErrCheckConstraintDupName            = 3822
 )
 
 var sqlStateMap = map[int]string{
@@ -53,9 +62,11 @@ var sqlStateMap = map[int]string{
 	ErrDupKeyName:                        "42000",
 	ErrDupEntry:                          "23000",
 	ErrMultiplePriKey:                    "42000",
+	ErrInvalidDefault:                    "42000",
 	ErrNoSuchTable:                       "42S02",
 	ErrNoSuchColumn:                      "42S22",
 	ErrNoDatabaseSelected:                "3D000",
+	ErrCantRemoveAllFields:               "42000",
 	ErrDupIndex:                          "42000",
 	ErrFKNoRefTable:                      "HY000",
 	ErrCantDropKey:                       "42000",
@@ -67,9 +78,16 @@ var sqlStateMap = map[int]string{
 	ErrDupFunction:                       "HY000",
 	ErrNoSuchEvent:                       "HY000",
 	ErrDupEvent:                          "HY000",
+	ErrFKCannotUseVirtualColumn:          "HY000",
 	ErrUnsupportedGeneratedStorageChange: "HY000",
 	ErrDependentByGenCol:                 "HY000",
 	ErrWrongArguments:                    "HY000",
+	ErrWrongNameForIndex:                 "42000",
+	ErrTooBigPrecision:                   "42000",
+	ErrInvalidYearColumnLength:           "HY000",
+	ErrFKDupName:                         "HY000",
+	ErrCheckConstraintNotAllowed:         "HY000",
+	ErrCheckConstraintDupName:            "HY000",
 }
 
 func sqlState(code int) string {
@@ -114,9 +132,29 @@ func errDupKeyName(name string) error {
 		Message: fmt.Sprintf("Duplicate key name '%s'", name)}
 }
 
+func errWrongNameForIndex(name string) error {
+	return &Error{Code: ErrWrongNameForIndex, SQLState: sqlState(ErrWrongNameForIndex),
+		Message: fmt.Sprintf("Incorrect index name '%s'", name)}
+}
+
 func errMultiplePriKey() error {
 	return &Error{Code: ErrMultiplePriKey, SQLState: sqlState(ErrMultiplePriKey),
 		Message: "Multiple primary key defined"}
+}
+
+func errInvalidDefault(name string) error {
+	return &Error{Code: ErrInvalidDefault, SQLState: sqlState(ErrInvalidDefault),
+		Message: fmt.Sprintf("Invalid default value for '%s'", name)}
+}
+
+func errTooBigPrecision(precision int, typ string) error {
+	return &Error{Code: ErrTooBigPrecision, SQLState: sqlState(ErrTooBigPrecision),
+		Message: fmt.Sprintf("Too big precision %d specified for '%s'. Maximum is 6.", precision, typ)}
+}
+
+func errInvalidYearColumnLength() error {
+	return &Error{Code: ErrInvalidYearColumnLength, SQLState: sqlState(ErrInvalidYearColumnLength),
+		Message: "Invalid YEAR column length"}
 }
 
 func errNoSuchColumn(name, context string) error {
@@ -139,6 +177,11 @@ func errCantDropKey(name string) error {
 		Message: fmt.Sprintf("Can't DROP '%s'; check that column/key exists", name)}
 }
 
+func errCantRemoveAllFields() error {
+	return &Error{Code: ErrCantRemoveAllFields, SQLState: sqlState(ErrCantRemoveAllFields),
+		Message: "You can't delete all columns with ALTER TABLE; use DROP TABLE instead"}
+}
+
 func errFKNoRefTable(table string) error {
 	return &Error{Code: ErrFKNoRefTable, SQLState: sqlState(ErrFKNoRefTable),
 		Message: fmt.Sprintf("Failed to open the referenced table '%s'", table)}
@@ -152,6 +195,21 @@ func errFKMissingIndex(constraint, refTable string) error {
 func errFKIncompatibleColumns(col, refCol, constraint string) error {
 	return &Error{Code: ErrFKIncompatibleColumns, SQLState: sqlState(ErrFKIncompatibleColumns),
 		Message: fmt.Sprintf("Referencing column '%s' and referenced column '%s' in foreign key constraint '%s' are incompatible.", col, refCol, constraint)}
+}
+
+func errFKDupName(name string) error {
+	return &Error{Code: ErrFKDupName, SQLState: sqlState(ErrFKDupName),
+		Message: fmt.Sprintf("Duplicate foreign key constraint name '%s'", name)}
+}
+
+func errCheckConstraintDupName(name string) error {
+	return &Error{Code: ErrCheckConstraintDupName, SQLState: sqlState(ErrCheckConstraintDupName),
+		Message: fmt.Sprintf("Duplicate check constraint name '%s'.", name)}
+}
+
+func errCheckConstraintNotAllowed(name string) error {
+	return &Error{Code: ErrCheckConstraintNotAllowed, SQLState: sqlState(ErrCheckConstraintNotAllowed),
+		Message: fmt.Sprintf("An expression of a check constraint '%s' contains disallowed function.", name)}
 }
 
 func errDupFunction(name string) error {
@@ -202,6 +260,16 @@ func errUnsupportedGeneratedStorageChange(col, table string) error {
 func errDependentByGeneratedColumn(column, genColumn, table string) error {
 	return &Error{Code: ErrDependentByGenCol, SQLState: sqlState(ErrDependentByGenCol),
 		Message: fmt.Sprintf("Column '%s' has a generated column dependency and cannot be dropped or renamed. A generated column '%s' refers to this column in table '%s'.", column, genColumn, table)}
+}
+
+func errCannotDropColumnFunctionalIndex(column string) error {
+	return &Error{Code: ErrDependentByGenCol, SQLState: sqlState(ErrDependentByGenCol),
+		Message: fmt.Sprintf("Cannot drop column '%s' because it is used by a functional index.", column)}
+}
+
+func errFKCannotUseVirtualColumn(col string) error {
+	return &Error{Code: ErrFKCannotUseVirtualColumn, SQLState: sqlState(ErrFKCannotUseVirtualColumn),
+		Message: fmt.Sprintf("Cannot define foreign key with clause on a generated column '%s'", col)}
 }
 
 func errWrongArguments(fn string) error {
