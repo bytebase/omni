@@ -7,9 +7,9 @@ on:
   workflow_dispatch: # Allow manual trigger
 
 jobs:
-  container-tests:
+  pg-container-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     strategy:
       matrix:
         go-version: ['1.25']
@@ -23,8 +23,39 @@ jobs:
       - name: Container tests (PG catalog)
         run: go test -timeout 15m ./pg/catalog/ -run TestContainer -count=1 -v
 
-      - name: Container tests (MySQL catalog)
-        run: go test -timeout 15m ./mysql/catalog/ -run TestContainer -count=1 -v
+  mysql-container-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ['1.25']
+        shard:
+          - name: smoke-and-misc
+            run: '^(TestDDLWorkflow_Container|TestShowCreateTable_ContainerComparison|TestContainerSmoke|TestContainer_ReservedKeywordAcceptance|TestSpotCheck_CatalogVerification|TestMySQL_DeparseRules)$'
+          - name: section-1-core
+            run: '^TestContainer_Section_1_([1-9]|10|11|12)_'
+          - name: section-1-indexes-options
+            run: '^TestContainer_Section_1_(13|14|15|16|17|18|19|20)_'
+          - name: section-2-ddl
+            run: '^TestContainer_Section_2_'
+          - name: sections-3-through-6
+            run: '^TestContainer_Section_[3-6]_'
+          - name: deparse-container
+            run: '^(TestDeparse_.*_Container|TestDeparseContainer_)'
+          - name: implicit-scenarios-c
+            run: '^TestScenario_C'
+          - name: implicit-scenarios-extra
+            run: '^TestScenario_(AX|PS)$'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Container tests (MySQL catalog / ${{ matrix.shard.name }})
+        run: go test -timeout 15m ./mysql/catalog/ -run '${{ matrix.shard.run }}' -count=1 -v
 
   paren-fuzz-nightly:
     # SCENARIOS-pg-paren-dispatch.md §5.2 — wide-N nightly fuzz run.
