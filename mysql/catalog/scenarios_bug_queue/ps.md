@@ -1,5 +1,7 @@
 # Section PS — CREATE vs ALTER path-split bugs
 
+> **Archive status (2026-04-27):** Historical queue entries are preserved for context only. The reconciled source of truth is `mysql/catalog/SCENARIOS-mysql-implicit-behavior.md` plus the corresponding `TestScenario_*` tests. As of reconciliation, the tracker is 239/239 verified; entries below are not active bugs unless explicitly re-opened with a newer date.
+
 Bugs discovered while implementing `TestScenario_PS` in
 `mysql/catalog/scenarios_ps_test.go`.
 

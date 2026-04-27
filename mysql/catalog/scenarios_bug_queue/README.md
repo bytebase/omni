@@ -1,29 +1,37 @@
 # MySQL Implicit-Behavior Scenario Bug Queue
 
-This directory collects bugs discovered while executing the
-`mysql-implicit-behavior` starmap. Each of the 25 sections in
-`SCENARIOS-mysql-implicit-behavior.md` gets its own file,
-`<section-id>.md`, listing every scenario whose dual-assertion test
-(real MySQL 8.0 container vs. the omni catalog) diverged.
+This directory is a historical archive of bugs discovered while
+executing the `mysql-implicit-behavior` starmap. It is no longer the
+active source of truth for MySQL implicit-behavior compatibility.
 
-The queue is **append-only during a batch**: workers add entries as
-they hit diffs and keep the test using `t.Error` so the whole section
-runs. A follow-up fix pass drains entries back to zero by either
-patching the omni catalog or updating the recorded expectation.
+The current source of truth is:
+
+- `mysql/catalog/SCENARIOS-mysql-implicit-behavior.md`
+- the corresponding `TestScenario_*` tests under `mysql/catalog`
+
+As of the 2026-04-27 reconciliation, the tracker is fully verified:
+239 total scenarios, 239 verified, 0 remaining. Historical entries in
+this directory are preserved for context and may describe behavior that
+has already been fixed or reclassified. Treat an entry as active only if
+it is explicitly re-opened with a newer date and linked to a failing
+test.
 
 ## File layout
 
 ```
 scenarios_bug_queue/
   README.md          <- this file
-  S01.md             <- bugs for section 1
-  S02.md
+  c1.md              <- archived C1 notes
+  c2.md
   ...
-  S25.md
+  c25.md
+  ax.md              <- archived ALTER TABLE path notes
+  ps.md              <- archived CREATE vs ALTER path-split notes
 ```
 
-Create a file lazily the first time a section records a bug; empty
-sections have no file.
+These files are retained as archival notes. Do not add new compatibility
+findings here unless they are also represented in the tracker and in a
+failing or skipped `TestScenario_*` test.
 
 ## Entry format
 
@@ -54,12 +62,13 @@ free-form notes. Fields in square brackets are required:
 - **low** — cosmetic / ordering / representation-only diff that does
   not affect downstream consumers.
 
-## Workflow
+## Current workflow
 
-1. Worker runs the section's scenario tests.
-2. For every `t.Error` that fires, the worker adds one entry to
-   `S<NN>.md` with enough detail to reproduce.
-3. Worker reports counts (pass / fail / new bug entries) in its
-   return summary.
-4. Fix pass (separate batch) picks up entries, implements fixes,
-   removes the entry, and re-runs to confirm green.
+1. Add or update the scenario in
+   `mysql/catalog/SCENARIOS-mysql-implicit-behavior.md`.
+2. Encode the observed MySQL behavior in the matching `TestScenario_*`
+   test, preferably with a container-backed assertion when session state
+   or server-version behavior matters.
+3. Fix the omni catalog behavior or explicitly mark the scenario out of
+   scope in the tracker.
+4. Use this archive only as supporting historical context.

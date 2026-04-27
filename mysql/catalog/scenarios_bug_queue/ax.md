@@ -1,5 +1,7 @@
 # Section AX — ALTER TABLE sub-command bugs
 
+> **Archive status (2026-04-27):** Historical queue entries are preserved for context only. The reconciled source of truth is `mysql/catalog/SCENARIOS-mysql-implicit-behavior.md` plus the corresponding `TestScenario_*` tests. As of reconciliation, the tracker is 239/239 verified; entries below are not active bugs unless explicitly re-opened with a newer date.
+
 Bugs discovered while running `TestScenario_AX` against MySQL 8.0 +
 the omni catalog. Entries are append-only. When a fix lands, do not
 delete the entry — annotate it with the fixing commit.
