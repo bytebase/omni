@@ -808,12 +808,11 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
-		s := nodeToSQL(cmd.DefaultExpr)
-		col.Default = &s
-		col.DefaultDropped = false
+		setColumnDefaultFromExpr(col, cmd.DefaultExpr)
 	} else {
 		// DROP DEFAULT — MySQL shows no default at all (not even DEFAULT NULL).
 		col.Default = nil
+		col.DefaultKind = ColumnDefaultNone
 		col.DefaultDropped = true
 	}
 	return nil
@@ -929,11 +928,10 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		col.Comment = colDef.Comment
 	}
 	if colDef.DefaultValue != nil {
-		s := nodeToSQL(colDef.DefaultValue)
-		col.Default = &s
+		setColumnDefaultFromExpr(col, colDef.DefaultValue)
 	}
 	if colDef.OnUpdate != nil {
-		col.OnUpdate = nodeToSQL(colDef.OnUpdate)
+		setColumnOnUpdateFromExpr(col, colDef.OnUpdate)
 	}
 	if colDef.Generated != nil {
 		col.Generated = &GeneratedColumnInfo{
@@ -951,8 +949,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			col.Nullable = true
 		case nodes.ColConstrDefault:
 			if cc.Expr != nil {
-				s := nodeToSQL(cc.Expr)
-				col.Default = &s
+				setColumnDefaultFromExpr(col, cc.Expr)
 			}
 		case nodes.ColConstrAutoIncrement:
 			col.AutoIncrement = true

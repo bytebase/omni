@@ -80,12 +80,14 @@ type Column struct {
 	ColumnType                   string // full type string (varchar(100), int unsigned)
 	Nullable                     bool
 	Default                      *string
+	DefaultKind                  ColumnDefaultKind
 	DefaultDropped               bool // true when ALTER COLUMN DROP DEFAULT was used
 	AutoIncrement                bool
 	Charset                      string
 	Collation                    string
 	Comment                      string
 	OnUpdate                     string
+	OnUpdateKind                 ColumnDefaultKind
 	Generated                    *GeneratedColumnInfo
 	Invisible                    bool
 	GeneratedInvisiblePrimaryKey bool // true for MySQL-generated my_row_id GIPK
@@ -94,6 +96,15 @@ type Column struct {
 	DefaultAnalyzed              AnalyzedExpr // Phase 3: analyzed DEFAULT expression
 	GeneratedAnalyzed            AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
 }
+
+type ColumnDefaultKind int
+
+const (
+	ColumnDefaultNone ColumnDefaultKind = iota
+	ColumnDefaultConstant
+	ColumnDefaultCurrentTimestamp
+	ColumnDefaultExpression
+)
 
 type ColumnHiddenKind int
 

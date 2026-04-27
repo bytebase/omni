@@ -244,11 +244,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			col.Comment = colDef.Comment
 		}
 		if colDef.DefaultValue != nil {
-			s := nodeToSQL(colDef.DefaultValue)
-			col.Default = &s
+			setColumnDefaultFromExpr(col, colDef.DefaultValue)
 		}
 		if colDef.OnUpdate != nil {
-			col.OnUpdate = nodeToSQL(colDef.OnUpdate)
+			setColumnOnUpdateFromExpr(col, colDef.OnUpdate)
 		}
 		if colDef.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
@@ -266,8 +265,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				col.Nullable = true
 			case nodes.ColConstrDefault:
 				if cc.Expr != nil {
-					s := nodeToSQL(cc.Expr)
-					col.Default = &s
+					setColumnDefaultFromExpr(col, cc.Expr)
 				}
 			case nodes.ColConstrPrimaryKey:
 				if hasPK {
@@ -925,13 +923,16 @@ func (c *Catalog) applyTimestampSessionDefaults(cols []*Column, defs []*nodes.Co
 		if !promotedFirst && !hasDefault && !hasOnUpdate {
 			current := timestampCurrentExpr(timestampFsp(def))
 			col.Default = &current
+			col.DefaultKind = ColumnDefaultCurrentTimestamp
 			col.OnUpdate = current
+			col.OnUpdateKind = ColumnDefaultCurrentTimestamp
 			promotedFirst = true
 			continue
 		}
 		if !hasDefault && col.Default == nil {
 			zero := timestampZeroDefault(timestampFsp(def))
 			col.Default = &zero
+			col.DefaultKind = ColumnDefaultConstant
 		}
 	}
 }
@@ -986,6 +987,78 @@ func timestampZeroDefault(fsp int) string {
 		return "0000-00-00 00:00:00." + strings.Repeat("0", fsp)
 	}
 	return "0000-00-00 00:00:00"
+}
+
+func setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
+	val, kind := columnDefaultValue(expr)
+	col.Default = &val
+	col.DefaultKind = kind
+	col.DefaultDropped = false
+}
+
+func setColumnOnUpdateFromExpr(col *Column, expr nodes.ExprNode) {
+	val, kind := columnDefaultValue(expr)
+	col.OnUpdate = val
+	col.OnUpdateKind = kind
+}
+
+func columnDefaultValue(expr nodes.ExprNode) (string, ColumnDefaultKind) {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		if ts, ok := currentTimestampExpr(e.Expr); ok {
+			return ts, ColumnDefaultCurrentTimestamp
+		}
+		return nodeToSQL(e.Expr), ColumnDefaultExpression
+	case *nodes.BoolLit:
+		if e.Value {
+			return "1", ColumnDefaultConstant
+		}
+		return "0", ColumnDefaultConstant
+	case *nodes.BitLit:
+		return canonicalBitLiteral(e.Value), ColumnDefaultConstant
+	default:
+		if ts, ok := currentTimestampExpr(expr); ok {
+			return ts, ColumnDefaultCurrentTimestamp
+		}
+		return nodeToSQL(expr), ColumnDefaultConstant
+	}
+}
+
+func currentTimestampExpr(expr nodes.ExprNode) (string, bool) {
+	fn, ok := expr.(*nodes.FuncCallExpr)
+	if !ok {
+		return "", false
+	}
+	name := strings.ToLower(fn.Name)
+	if name != "current_timestamp" && name != "now" {
+		return "", false
+	}
+	if len(fn.Args) == 0 {
+		return "CURRENT_TIMESTAMP", true
+	}
+	if len(fn.Args) == 1 {
+		if lit, ok := fn.Args[0].(*nodes.IntLit); ok {
+			return fmt.Sprintf("CURRENT_TIMESTAMP(%d)", lit.Value), true
+		}
+	}
+	if ts, ok := currentTimestampSQL(nodeToSQL(expr)); ok {
+		return ts, true
+	}
+	return "CURRENT_TIMESTAMP", true
+}
+
+func canonicalBitLiteral(bits string) string {
+	bits = strings.TrimSpace(bits)
+	bits = strings.TrimPrefix(bits, "0b")
+	bits = strings.TrimPrefix(bits, "0B")
+	if len(bits) >= 3 && (strings.HasPrefix(bits, "b'") || strings.HasPrefix(bits, "B'")) && strings.HasSuffix(bits, "'") {
+		bits = bits[2 : len(bits)-1]
+	}
+	bits = strings.TrimLeft(bits, "0")
+	if bits == "" {
+		bits = "0"
+	}
+	return "b'" + bits + "'"
 }
 
 func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
@@ -1832,7 +1905,9 @@ func formatColumnType(dt *nodes.DataType) string {
 	//   with default widths per type: tinyint(3), smallint(5), mediumint(8), int(10), bigint(20)
 	isIntType := isIntegerType(name)
 	if isIntType {
-		if dt.Zerofill {
+		if name == "tinyint" && dt.Length == 1 && !dt.Unsigned && !dt.Zerofill {
+			buf.WriteString("(1)")
+		} else if dt.Zerofill {
 			width := dt.Length
 			if width == 0 {
 				width = defaultIntDisplayWidth(name, dt.Unsigned)
@@ -2080,6 +2155,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Collation:                    srcCol.Collation,
 			Comment:                      srcCol.Comment,
 			OnUpdate:                     srcCol.OnUpdate,
+			OnUpdateKind:                 srcCol.OnUpdateKind,
 			Invisible:                    srcCol.Invisible,
 			GeneratedInvisiblePrimaryKey: srcCol.GeneratedInvisiblePrimaryKey,
 			Hidden:                       srcCol.Hidden,
@@ -2087,6 +2163,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		if srcCol.Default != nil {
 			def := *srcCol.Default
 			col.Default = &def
+			col.DefaultKind = srcCol.DefaultKind
 		}
 		if srcCol.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{

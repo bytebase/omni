@@ -275,7 +275,7 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 
 	// ON UPDATE.
 	if col.OnUpdate != "" {
-		b.WriteString(fmt.Sprintf(" ON UPDATE %s", formatOnUpdate(col.OnUpdate)))
+		b.WriteString(fmt.Sprintf(" ON UPDATE %s", formatOnUpdate(col.OnUpdate, col.OnUpdateKind)))
 	}
 
 	// COMMENT.
@@ -297,17 +297,15 @@ func formatDefault(val string, col *Column) string {
 	if strings.EqualFold(val, "NULL") {
 		return "NULL"
 	}
+	switch col.DefaultKind {
+	case ColumnDefaultCurrentTimestamp:
+		return formatCurrentTimestamp(val)
+	case ColumnDefaultExpression:
+		return "(" + val + ")"
+	}
 	// Normalize CURRENT_TIMESTAMP() → CURRENT_TIMESTAMP (MySQL 8.0 format).
-	upper := strings.ToUpper(val)
-	if upper == "CURRENT_TIMESTAMP" || upper == "CURRENT_TIMESTAMP()" {
-		return "CURRENT_TIMESTAMP"
-	}
-	if strings.HasPrefix(upper, "CURRENT_TIMESTAMP(") {
-		// CURRENT_TIMESTAMP(N) — keep precision, use uppercase.
-		return upper
-	}
-	if upper == "NOW()" {
-		return "CURRENT_TIMESTAMP"
+	if ts, ok := currentTimestampSQL(val); ok {
+		return ts
 	}
 	// b'...' and 0x... bit/hex literals — not quoted.
 	if strings.HasPrefix(val, "b'") || strings.HasPrefix(val, "B'") ||
@@ -327,18 +325,34 @@ func formatDefault(val string, col *Column) string {
 }
 
 // formatOnUpdate normalizes ON UPDATE values to MySQL 8.0 format.
-func formatOnUpdate(val string) string {
-	upper := strings.ToUpper(val)
-	if upper == "CURRENT_TIMESTAMP" || upper == "CURRENT_TIMESTAMP()" {
-		return "CURRENT_TIMESTAMP"
+func formatOnUpdate(val string, kind ColumnDefaultKind) string {
+	if kind == ColumnDefaultCurrentTimestamp {
+		return formatCurrentTimestamp(val)
 	}
-	if strings.HasPrefix(upper, "CURRENT_TIMESTAMP(") {
-		return upper
-	}
-	if upper == "NOW()" {
-		return "CURRENT_TIMESTAMP"
+	if ts, ok := currentTimestampSQL(val); ok {
+		return ts
 	}
 	return val
+}
+
+func formatCurrentTimestamp(val string) string {
+	if ts, ok := currentTimestampSQL(val); ok {
+		return ts
+	}
+	return "CURRENT_TIMESTAMP"
+}
+
+func currentTimestampSQL(val string) (string, bool) {
+	upper := strings.ToUpper(strings.TrimSpace(val))
+	if upper == "CURRENT_TIMESTAMP" || upper == "CURRENT_TIMESTAMP()" || upper == "NOW()" {
+		return "CURRENT_TIMESTAMP", true
+	}
+	for _, prefix := range []string{"CURRENT_TIMESTAMP(", "NOW("} {
+		if strings.HasPrefix(upper, prefix) && strings.HasSuffix(upper, ")") {
+			return "CURRENT_TIMESTAMP" + upper[len(prefix)-1:], true
+		}
+	}
+	return "", false
 }
 
 // isTimestampType returns true for TIMESTAMP/DATETIME types.
