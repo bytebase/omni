@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -16,6 +18,15 @@ import (
 type mysqlContainer struct {
 	db  *sql.DB
 	ctx context.Context
+}
+
+var sharedMySQL = struct {
+	sync.Mutex
+	container *tcmysql.MySQLContainer
+	db        *sql.DB
+	ctx       context.Context
+}{
+	ctx: context.Background(),
 }
 
 // columnInfo holds a row from INFORMATION_SCHEMA.COLUMNS.
@@ -41,6 +52,27 @@ type constraintInfo struct {
 // startContainer starts a MySQL 8.0 container and returns an container handle plus
 // a cleanup function. The caller must defer the cleanup function.
 func startContainer(t *testing.T) (*mysqlContainer, func()) {
+	t.Helper()
+	if os.Getenv("MYSQL_TESTCONTAINERS_SHARED") == "0" {
+		return startDedicatedContainer(t)
+	}
+
+	sharedMySQL.Lock()
+	ctr, err := getSharedContainer()
+	if err != nil {
+		sharedMySQL.Unlock()
+		t.Fatalf("failed to start shared MySQL container: %v", err)
+	}
+	if err := resetSharedContainer(ctr); err != nil {
+		sharedMySQL.Unlock()
+		t.Fatalf("failed to reset shared MySQL container: %v", err)
+	}
+	return ctr, func() {
+		sharedMySQL.Unlock()
+	}
+}
+
+func startDedicatedContainer(t *testing.T) (*mysqlContainer, func()) {
 	t.Helper()
 	ctx := context.Background()
 
@@ -77,6 +109,164 @@ func startContainer(t *testing.T) (*mysqlContainer, func()) {
 	}
 
 	return &mysqlContainer{db: db, ctx: ctx}, cleanup
+}
+
+func getSharedContainer() (*mysqlContainer, error) {
+	if sharedMySQL.container != nil {
+		return &mysqlContainer{db: sharedMySQL.db, ctx: sharedMySQL.ctx}, nil
+	}
+
+	container, err := tcmysql.Run(sharedMySQL.ctx, "mysql:8.0",
+		tcmysql.WithDatabase("test"),
+		tcmysql.WithUsername("root"),
+		tcmysql.WithPassword("test"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	connStr, err := container.ConnectionString(sharedMySQL.ctx, "parseTime=true", "multiStatements=true")
+	if err != nil {
+		_ = testcontainers.TerminateContainer(container)
+		return nil, err
+	}
+
+	db, err := sql.Open("mysql", connStr)
+	if err != nil {
+		_ = testcontainers.TerminateContainer(container)
+		return nil, err
+	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+
+	if err := db.PingContext(sharedMySQL.ctx); err != nil {
+		db.Close()
+		_ = testcontainers.TerminateContainer(container)
+		return nil, err
+	}
+
+	sharedMySQL.container = container
+	sharedMySQL.db = db
+	return &mysqlContainer{db: db, ctx: sharedMySQL.ctx}, nil
+}
+
+func resetSharedContainer(ctr *mysqlContainer) error {
+	if err := execResetStmts(ctr,
+		"SET SESSION foreign_key_checks = 0",
+		"SET SESSION sql_mode = DEFAULT",
+		"USE mysql",
+	); err != nil {
+		return err
+	}
+
+	dbNames, err := queryStrings(ctr, `
+		SELECT SCHEMA_NAME
+		FROM information_schema.SCHEMATA
+		WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')`)
+	if err != nil {
+		return err
+	}
+	for _, dbName := range dbNames {
+		if err := execResetStmts(ctr, "DROP DATABASE IF EXISTS "+quoteIdentifier(dbName)); err != nil {
+			return err
+		}
+	}
+
+	accounts, err := queryAccountNames(ctr)
+	if err != nil {
+		return err
+	}
+	for _, account := range accounts {
+		_ = execResetStmts(ctr, "DROP ROLE IF EXISTS "+quoteAccount(account.user, account.host))
+		_ = execResetStmts(ctr, "DROP USER IF EXISTS "+quoteAccount(account.user, account.host))
+	}
+
+	return execResetStmts(ctr,
+		"CREATE DATABASE IF NOT EXISTS test",
+		"USE test",
+		"SET SESSION sql_mode = DEFAULT",
+		"SET SESSION explicit_defaults_for_timestamp = DEFAULT",
+		"SET SESSION foreign_key_checks = 1",
+		"SET SESSION time_zone = DEFAULT",
+		"SET SESSION sql_generate_invisible_primary_key = DEFAULT",
+		"SET SESSION show_gipk_in_create_table_and_information_schema = DEFAULT",
+	)
+}
+
+func execResetStmts(ctr *mysqlContainer, stmts ...string) error {
+	for _, stmt := range stmts {
+		if _, err := ctr.db.ExecContext(ctr.ctx, stmt); err != nil {
+			return fmt.Errorf("reset executing %q: %w", stmt, err)
+		}
+	}
+	return nil
+}
+
+func queryStrings(ctr *mysqlContainer, query string) ([]string, error) {
+	rows, err := ctr.db.QueryContext(ctr.ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []string
+	for rows.Next() {
+		var value string
+		if err := rows.Scan(&value); err != nil {
+			return nil, err
+		}
+		result = append(result, value)
+	}
+	return result, rows.Err()
+}
+
+type mysqlAccount struct {
+	user string
+	host string
+}
+
+func queryAccountNames(ctr *mysqlContainer) ([]mysqlAccount, error) {
+	rows, err := ctr.db.QueryContext(ctr.ctx, `
+		SELECT User, Host
+		FROM mysql.user
+		WHERE User NOT IN ('root', 'mysql.infoschema', 'mysql.session', 'mysql.sys')`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []mysqlAccount
+	for rows.Next() {
+		var account mysqlAccount
+		if err := rows.Scan(&account.user, &account.host); err != nil {
+			return nil, err
+		}
+		result = append(result, account)
+	}
+	return result, rows.Err()
+}
+
+func quoteIdentifier(name string) string {
+	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
+}
+
+func quoteAccount(user, host string) string {
+	return "'" + strings.ReplaceAll(user, "'", "''") + "'@'" + strings.ReplaceAll(host, "'", "''") + "'"
+}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	sharedMySQL.Lock()
+	if sharedMySQL.db != nil {
+		_ = sharedMySQL.db.Close()
+		sharedMySQL.db = nil
+	}
+	if sharedMySQL.container != nil {
+		_ = testcontainers.TerminateContainer(sharedMySQL.container)
+		sharedMySQL.container = nil
+	}
+	sharedMySQL.Unlock()
+	os.Exit(code)
 }
 
 // execSQL executes one or more SQL statements separated by semicolons.
@@ -346,6 +536,59 @@ func TestContainerSmoke(t *testing.T) {
 	}
 	if cols[1].Nullable != "NO" {
 		t.Errorf("expected 'name' to be NOT NULL, got Nullable=%q", cols[1].Nullable)
+	}
+}
+
+func TestSharedContainerResetsStateBetweenUses(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping container test in short mode")
+	}
+
+	ctr1, cleanup1 := startContainer(t)
+	var host1 string
+	if err := ctr1.db.QueryRowContext(ctr1.ctx, "SELECT @@hostname").Scan(&host1); err != nil {
+		t.Fatalf("query first hostname: %v", err)
+	}
+	for _, stmt := range []string{
+		"CREATE DATABASE dirty_shared_state",
+		"USE dirty_shared_state",
+		"CREATE TABLE dirty_table (id INT)",
+		"SET SESSION foreign_key_checks = 0",
+		"SET SESSION sql_mode = ''",
+	} {
+		if _, err := ctr1.db.ExecContext(ctr1.ctx, stmt); err != nil {
+			t.Fatalf("dirty setup %q: %v", stmt, err)
+		}
+	}
+	cleanup1()
+
+	ctr2, cleanup2 := startContainer(t)
+	defer cleanup2()
+	var host2, currentDB, sqlMode string
+	var fkChecks int
+	if err := ctr2.db.QueryRowContext(ctr2.ctx, "SELECT @@hostname, DATABASE(), @@foreign_key_checks, @@session.sql_mode").Scan(
+		&host2, &currentDB, &fkChecks, &sqlMode,
+	); err != nil {
+		t.Fatalf("query reset state: %v", err)
+	}
+	if host2 != host1 {
+		t.Fatalf("expected startContainer to reuse container hostname %q, got %q", host1, host2)
+	}
+	if currentDB != "test" {
+		t.Fatalf("expected reset current database test, got %q", currentDB)
+	}
+	if fkChecks != 1 {
+		t.Fatalf("expected reset foreign_key_checks=1, got %d", fkChecks)
+	}
+	if sqlMode == "" {
+		t.Fatalf("expected reset sql_mode to default non-empty value")
+	}
+	var dirtyCount int
+	if err := ctr2.db.QueryRowContext(ctr2.ctx, "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = 'dirty_shared_state'").Scan(&dirtyCount); err != nil {
+		t.Fatalf("query dirty database count: %v", err)
+	}
+	if dirtyCount != 0 {
+		t.Fatalf("expected dirty database to be dropped, count=%d", dirtyCount)
 	}
 }
 
