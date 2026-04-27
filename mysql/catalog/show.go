@@ -648,7 +648,7 @@ func showPartitioning(pi *PartitionInfo) string {
 				b.WriteString(fmt.Sprintf("KEY (%s)", formatPartitionColumns(pi.SubColumns)))
 			}
 		}
-		if pi.NumSubParts > 0 {
+		if pi.UseDefaultSubpartitions && !pi.UseDefaultNumSubpartitions && pi.NumSubParts > 0 {
 			b.WriteString(fmt.Sprintf("\nSUBPARTITIONS %d", pi.NumSubParts))
 		}
 	}
@@ -684,12 +684,14 @@ func showPartitioning(pi *PartitionInfo) string {
 					b.WriteString(fmt.Sprintf(" VALUES IN (%s)", pd.ValueExpr))
 				}
 			}
-			b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(pd.Engine)))
-			if pd.Comment != "" {
-				b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(pd.Comment)))
+			if pi.SubType == "" || pi.UseDefaultSubpartitions {
+				b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(pd.Engine)))
+				if pd.Comment != "" {
+					b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(pd.Comment)))
+				}
 			}
-			// Subpartition definitions — skip auto-generated ones (NumSubParts > 0).
-			if len(pd.SubPartitions) > 0 && pi.NumSubParts == 0 {
+			// Explicit subpartition definitions are rendered instead of parent options.
+			if len(pd.SubPartitions) > 0 && !pi.UseDefaultSubpartitions {
 				b.WriteString("\n (")
 				for j, spd := range pd.SubPartitions {
 					if j > 0 {

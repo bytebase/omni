@@ -49,7 +49,12 @@ type PartitionInfo struct {
 	SubExpr     string   // subpartition expression
 	SubColumns  []string // subpartition columns
 	SubAlgo     int      // subpartition ALGORITHM
-	NumSubParts int      // SUBPARTITIONS num
+	NumSubParts int      // actual subpartition count per partition
+	// MySQL tracks subpartition defaulting separately from NumSubParts.
+	// These mirror partition_info::use_default_subpartitions and
+	// partition_info::use_default_num_subpartitions.
+	UseDefaultSubpartitions    bool
+	UseDefaultNumSubpartitions bool
 }
 
 // PartitionDefInfo holds a single partition definition.

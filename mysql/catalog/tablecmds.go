@@ -805,6 +805,8 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 
 	// Subpartition info.
 	if pc.SubPartType != 0 || pc.SubPartExpr != nil || len(pc.SubPartColumns) > 0 {
+		pi.UseDefaultSubpartitions = true
+		pi.UseDefaultNumSubpartitions = true
 		switch pc.SubPartType {
 		case nodes.PartitionHash:
 			pi.SubType = "HASH"
@@ -815,13 +817,17 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 			pi.SubAlgo = pc.SubPartAlgo
 		}
 		pi.SubLinear = false // TODO: track linear for subpartitions if parser supports it
-		pi.NumSubParts = pc.NumSubParts
-		if pi.NumSubParts == 0 {
+		if pc.NumSubParts > 0 {
+			pi.NumSubParts = pc.NumSubParts
+			pi.UseDefaultNumSubpartitions = false
+		} else {
 			pi.NumSubParts = 1
 		}
 	}
 
 	// Partition definitions.
+	explicitSubpartitions := false
+	explicitSubpartitionCount := 0
 	for _, pd := range pc.Partitions {
 		pdi := &PartitionDefInfo{
 			Name: pd.Name,
@@ -840,9 +846,17 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 			}
 		}
 		// Subpartitions.
+		if len(pd.SubPartitions) > 0 {
+			if !explicitSubpartitions {
+				explicitSubpartitions = true
+				explicitSubpartitionCount = len(pd.SubPartitions)
+			}
+		}
 		for _, spd := range pd.SubPartitions {
 			spdi := &SubPartitionDefInfo{
-				Name: spd.Name,
+				Name:    spd.Name,
+				Engine:  pdi.Engine,
+				Comment: pdi.Comment,
 			}
 			for _, opt := range spd.Options {
 				switch toLower(opt.Name) {
@@ -855,6 +869,11 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 			pdi.SubPartitions = append(pdi.SubPartitions, spdi)
 		}
 		pi.Partitions = append(pi.Partitions, pdi)
+	}
+	if explicitSubpartitions {
+		pi.UseDefaultSubpartitions = false
+		pi.UseDefaultNumSubpartitions = false
+		pi.NumSubParts = explicitSubpartitionCount
 	}
 
 	// Auto-generate partition definitions for HASH/KEY/LINEAR HASH/LINEAR KEY
@@ -871,7 +890,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	// Auto-generate subpartition definitions when SUBPARTITIONS N is specified
 	// without explicit subpartition definitions.
 	// MySQL naming convention: <partition_name>sp0, <partition_name>sp1, ...
-	if pi.NumSubParts > 0 {
+	if pi.SubType != "" && pi.UseDefaultSubpartitions && pi.NumSubParts > 0 {
 		for _, part := range pi.Partitions {
 			if len(part.SubPartitions) == 0 {
 				for j := 0; j < pi.NumSubParts; j++ {
@@ -987,6 +1006,9 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
+	if err := validateSubpartitionDefinitions(pc); err != nil {
+		return err
+	}
 	expr := strings.ToLower(nodeToSQL(pc.Expr))
 	if strings.Contains(expr, "concat(") {
 		return &Error{Code: 1491, SQLState: "HY000", Message: "The PARTITION function returns the wrong type"}
@@ -1006,6 +1028,45 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 		}
 	}
 	return nil
+}
+
+func validateSubpartitionDefinitions(pc *nodes.PartitionClause) error {
+	if pc.SubPartType == 0 && pc.SubPartExpr == nil && len(pc.SubPartColumns) == 0 {
+		return nil
+	}
+	explicitCount := 0
+	seenExplicit := false
+	for i, pd := range pc.Partitions {
+		count := len(pd.SubPartitions)
+		if count == 0 {
+			if seenExplicit {
+				return errWrongNumberOfSubpartitions()
+			}
+			continue
+		}
+		if !seenExplicit {
+			if i > 0 {
+				return errWrongNumberOfSubpartitions()
+			}
+			seenExplicit = true
+			explicitCount = count
+		}
+		if count != explicitCount {
+			return errWrongNumberOfSubpartitions()
+		}
+		if pc.NumSubParts > 0 && count != pc.NumSubParts {
+			return errWrongNumberOfSubpartitions()
+		}
+	}
+	return nil
+}
+
+func errWrongNumberOfSubpartitions() error {
+	return &Error{
+		Code:     1064,
+		SQLState: "42000",
+		Message:  "Wrong number of subpartitions defined, mismatch with previous setting",
+	}
 }
 
 func containsPartitionDefaultExpr(n nodes.Node) bool {

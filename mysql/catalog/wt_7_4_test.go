@@ -147,6 +147,9 @@ func TestWalkThrough_7_4_ExplicitSubpartNames(t *testing.T) {
 	if !strings.Contains(ddl, "SUBPARTITION s3") {
 		t.Errorf("expected SUBPARTITION s3 in DDL:\n%s", ddl)
 	}
+	if strings.Contains(ddl, "SUBPARTITIONS ") {
+		t.Errorf("explicit subpartition definitions should not render SUBPARTITIONS count:\n%s", ddl)
+	}
 
 	// Verify catalog state
 	tbl := c.GetDatabase("testdb").GetTable("t3")
@@ -281,6 +284,9 @@ func TestWalkThrough_7_4_SubpartitionsNCount(t *testing.T) {
 	if !strings.Contains(ddl, "SUBPARTITIONS 3") {
 		t.Errorf("expected SUBPARTITIONS 3 in DDL:\n%s", ddl)
 	}
+	if strings.Contains(ddl, "SUBPARTITION p0sp") || strings.Contains(ddl, "SUBPARTITION p1sp") {
+		t.Errorf("default subpartition names should not be rendered when SUBPARTITIONS count is used:\n%s", ddl)
+	}
 
 	// Verify catalog state
 	tbl := c.GetDatabase("testdb").GetTable("t6")
@@ -296,6 +302,93 @@ func TestWalkThrough_7_4_SubpartitionsNCount(t *testing.T) {
 			t.Errorf("expected 3 auto-generated subpartitions for partition %s, got %d", p.Name, len(p.SubPartitions))
 		}
 	}
+}
+
+func TestWalkThrough_7_4_DefaultSubpartitionsDoNotRenderImplicitCount(t *testing.T) {
+	c := wtSetup(t)
+
+	wtExec(t, c, `CREATE TABLE t_default_subparts (
+		id INT NOT NULL,
+		purchased DATE NOT NULL
+	) PARTITION BY RANGE (YEAR(purchased))
+	  SUBPARTITION BY HASH (TO_DAYS(purchased))
+	  (
+	    PARTITION p0 VALUES LESS THAN (2000),
+	    PARTITION p1 VALUES LESS THAN MAXVALUE
+	  )`)
+
+	ddl := c.ShowCreateTable("testdb", "t_default_subparts")
+	if ddl == "" {
+		t.Fatal("ShowCreateTable returned empty string")
+	}
+	if strings.Contains(ddl, "SUBPARTITIONS ") {
+		t.Errorf("implicit default subpartition count should not be rendered:\n%s", ddl)
+	}
+	if strings.Contains(ddl, "SUBPARTITION p0sp") || strings.Contains(ddl, "SUBPARTITION p1sp") {
+		t.Errorf("implicit default subpartition names should not be rendered:\n%s", ddl)
+	}
+}
+
+func TestWalkThrough_7_4_ExplicitSubpartitionsInheritParentOptions(t *testing.T) {
+	c := wtSetup(t)
+
+	wtExec(t, c, `CREATE TABLE t_subpart_comment (
+		id INT NOT NULL,
+		purchased DATE NOT NULL
+	) PARTITION BY RANGE (YEAR(purchased))
+	  SUBPARTITION BY HASH (TO_DAYS(purchased))
+	  (
+	    PARTITION p0 VALUES LESS THAN (2000) COMMENT='p0c' (
+	      SUBPARTITION s0 COMMENT='s0c',
+	      SUBPARTITION s1
+	    ),
+	    PARTITION p1 VALUES LESS THAN MAXVALUE (
+	      SUBPARTITION s2,
+	      SUBPARTITION s3
+	    )
+	  )`)
+
+	ddl := c.ShowCreateTable("testdb", "t_subpart_comment")
+	if ddl == "" {
+		t.Fatal("ShowCreateTable returned empty string")
+	}
+	if strings.Contains(ddl, "PARTITION p0 VALUES LESS THAN (2000) ENGINE = InnoDB COMMENT = 'p0c'") {
+		t.Errorf("parent partition options should not be rendered directly before explicit subpartition list:\n%s", ddl)
+	}
+	if !strings.Contains(ddl, "SUBPARTITION s0 ENGINE = InnoDB COMMENT = 's0c'") {
+		t.Errorf("expected explicit subpartition comment to be rendered:\n%s", ddl)
+	}
+	if !strings.Contains(ddl, "SUBPARTITION s1 ENGINE = InnoDB COMMENT = 'p0c'") {
+		t.Errorf("expected parent comment to be inherited by subpartition without override:\n%s", ddl)
+	}
+}
+
+func TestWalkThrough_7_4_ExplicitSubpartitionsMustMatchDeclaredCount(t *testing.T) {
+	c := wtSetup(t)
+
+	results, err := c.Exec(`CREATE TABLE t_bad_subparts (
+		id INT NOT NULL,
+		purchased DATE NOT NULL
+	) PARTITION BY RANGE (YEAR(purchased))
+	  SUBPARTITION BY HASH (TO_DAYS(purchased))
+	  SUBPARTITIONS 3
+	  (
+	    PARTITION p0 VALUES LESS THAN (2000) (
+	      SUBPARTITION s0,
+	      SUBPARTITION s1
+	    ),
+	    PARTITION p1 VALUES LESS THAN MAXVALUE (
+	      SUBPARTITION s2,
+	      SUBPARTITION s3
+	    )
+	  )`, nil)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected one result, got %d", len(results))
+	}
+	assertError(t, results[0].Error, 1064)
 }
 
 // Scenario 7: ALTER TABLE TRUNCATE PARTITION — no structural change
