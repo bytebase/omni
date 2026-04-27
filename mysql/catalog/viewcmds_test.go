@@ -68,6 +68,29 @@ func TestDropViewIfExists(t *testing.T) {
 	}
 }
 
+func TestCreateViewAutoAliasPreservesRawSelectTargetSpacing(t *testing.T) {
+	c := New()
+	c.Exec("CREATE DATABASE test", nil)
+	c.SetCurrentDatabase("test")
+	c.Exec("CREATE TABLE t (a INT, b INT)", nil)
+
+	results, _ := c.Exec("CREATE VIEW v1 AS SELECT a IN (1,2,3), a IN (1, 2, 3), (a IN (1, 2, 3)) AND (b BETWEEN 1 AND 10) FROM t", nil)
+	if results[0].Error != nil {
+		t.Fatalf("CREATE VIEW error: %v", results[0].Error)
+	}
+
+	ddl := c.ShowCreateView("test", "v1")
+	for _, want := range []string{
+		"AS `a IN (1,2,3)`",
+		"AS `a IN (1, 2, 3)`",
+		"AS `(a IN (1, 2, 3)) AND (b BETWEEN 1 AND 10)`",
+	} {
+		if !strings.Contains(ddl, want) {
+			t.Fatalf("SHOW CREATE VIEW should contain %q, got:\n%s", want, ddl)
+		}
+	}
+}
+
 // TestSection_7_1_ViewCreationPipeline verifies that createView() calls
 // resolver + deparser instead of storing raw SelectText.
 func TestSection_7_1_ViewCreationPipeline(t *testing.T) {

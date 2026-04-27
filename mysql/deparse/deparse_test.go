@@ -210,7 +210,7 @@ func TestDeparse_Section_2_2_ComparisonOperators(t *testing.T) {
 		// Basic comparison operators
 		{"equal", "a = b", "(`a` = `b`)"},
 		{"not_equal_angle", "a <> b", "(`a` <> `b`)"},
-		{"not_equal_bang", "a != b", "(`a` <> `b`)"},          // != normalized to <>
+		{"not_equal_bang", "a != b", "(`a` <> `b`)"}, // != normalized to <>
 		{"greater", "a > b", "(`a` > `b`)"},
 		{"less", "a < b", "(`a` < `b`)"},
 		{"greater_or_equal", "a >= b", "(`a` >= `b`)"},
@@ -919,6 +919,7 @@ func TestDeparseSelect_Section_5_1_TargetListAliases(t *testing.T) {
 		{"auto_alias_null", "SELECT NULL", "select NULL AS `NULL`"},
 		// Auto-alias function call
 		{"auto_alias_func", "SELECT CONCAT(a, b) FROM t", "select concat(`a`,`b`) AS `CONCAT(a, b)` from `t`"},
+		{"auto_alias_in_list", "SELECT a IN (1,2,3) FROM t", "select (`a` in (1,2,3)) AS `a IN (1, 2, 3)` from `t`"},
 		// Auto-alias boolean literal
 		{"auto_alias_true", "SELECT TRUE", "select true AS `TRUE`"},
 		{"auto_alias_false", "SELECT FALSE", "select false AS `FALSE`"},

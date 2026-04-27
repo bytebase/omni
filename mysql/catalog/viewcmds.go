@@ -628,6 +628,8 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText string, db *D
 		return rawText, nil
 	}
 
+	applyRawViewAutoAliases(sel, rawText)
+
 	// Build a TableLookup that resolves table names from this database.
 	lookup := tableLookupForDB(db)
 
@@ -652,6 +654,184 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText string, db *D
 
 	// Deparse: AST → canonical SQL text.
 	return deparse.DeparseSelect(sel), derivedCols
+}
+
+func applyRawViewAutoAliases(sel *nodes.SelectStmt, rawText string) {
+	targets, ok := rawSelectTargets(rawText)
+	if !ok || len(targets) != len(sel.TargetList) {
+		return
+	}
+
+	for i, target := range sel.TargetList {
+		expr := target
+		if rt, ok := target.(*nodes.ResTarget); ok {
+			if rt.Name != "" {
+				continue
+			}
+			expr = rt.Val
+		}
+		if !shouldPreserveRawViewAutoAlias(expr) {
+			continue
+		}
+		alias := strings.TrimSpace(targets[i])
+		if alias == "" {
+			continue
+		}
+		if rt, ok := target.(*nodes.ResTarget); ok {
+			rt.Name = alias
+			continue
+		}
+		sel.TargetList[i] = &nodes.ResTarget{Name: alias, Val: target}
+	}
+}
+
+func shouldPreserveRawViewAutoAlias(expr nodes.ExprNode) bool {
+	switch expr.(type) {
+	case *nodes.StarExpr:
+		return false
+	case *nodes.ColumnRef:
+		return false
+	case *nodes.StringLit, *nodes.IntLit, *nodes.FloatLit, *nodes.NullLit, *nodes.BoolLit:
+		return false
+	}
+
+	hasInExpr := false
+	nodes.Inspect(expr, func(node nodes.Node) bool {
+		if _, ok := node.(*nodes.InExpr); ok {
+			hasInExpr = true
+			return false
+		}
+		return !hasInExpr
+	})
+	return hasInExpr
+}
+
+func rawSelectTargets(rawText string) ([]string, bool) {
+	sql := strings.TrimSpace(rawText)
+	if len(sql) < len("select") || !strings.EqualFold(sql[:len("select")], "select") {
+		return nil, false
+	}
+	pos := len("select")
+	if pos < len(sql) && isIdentifierPart(sql[pos]) {
+		return nil, false
+	}
+	pos = skipSQLSpace(sql, pos)
+	if hasSQLWordAt(sql, pos, "distinct") {
+		pos = skipSQLSpace(sql, pos+len("distinct"))
+	}
+	from := findTopLevelSQLWord(sql, pos, "from")
+	end := len(sql)
+	if from >= 0 {
+		end = from
+	}
+	return splitTopLevelCSV(sql[pos:end]), true
+}
+
+func splitTopLevelCSV(s string) []string {
+	var parts []string
+	start := 0
+	depth := 0
+	var quote byte
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if quote != 0 {
+			if ch == '\\' && quote != '`' && i+1 < len(s) {
+				i++
+				continue
+			}
+			if ch == quote {
+				if quote == '\'' && i+1 < len(s) && s[i+1] == '\'' {
+					i++
+					continue
+				}
+				quote = 0
+			}
+			continue
+		}
+		switch ch {
+		case '\'', '"', '`':
+			quote = ch
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case ',':
+			if depth == 0 {
+				parts = append(parts, strings.TrimSpace(s[start:i]))
+				start = i + 1
+			}
+		}
+	}
+	parts = append(parts, strings.TrimSpace(s[start:]))
+	return parts
+}
+
+func findTopLevelSQLWord(s string, start int, word string) int {
+	depth := 0
+	var quote byte
+	for i := start; i < len(s); i++ {
+		ch := s[i]
+		if quote != 0 {
+			if ch == '\\' && quote != '`' && i+1 < len(s) {
+				i++
+				continue
+			}
+			if ch == quote {
+				if quote == '\'' && i+1 < len(s) && s[i+1] == '\'' {
+					i++
+					continue
+				}
+				quote = 0
+			}
+			continue
+		}
+		switch ch {
+		case '\'', '"', '`':
+			quote = ch
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		default:
+			if depth == 0 && hasSQLWordAt(s, i, word) {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+func hasSQLWordAt(s string, pos int, word string) bool {
+	if pos < 0 || pos+len(word) > len(s) {
+		return false
+	}
+	if pos > 0 && isIdentifierPart(s[pos-1]) {
+		return false
+	}
+	if pos+len(word) < len(s) && isIdentifierPart(s[pos+len(word)]) {
+		return false
+	}
+	return strings.EqualFold(s[pos:pos+len(word)], word)
+}
+
+func skipSQLSpace(s string, pos int) int {
+	for pos < len(s) {
+		switch s[pos] {
+		case ' ', '\t', '\n', '\r', '\f':
+			pos++
+		default:
+			return pos
+		}
+	}
+	return pos
+}
+
+func isIdentifierPart(ch byte) bool {
+	return ch == '_' || ch == '$' || ch >= '0' && ch <= '9' || ch >= 'A' && ch <= 'Z' || ch >= 'a' && ch <= 'z'
 }
 
 // extractViewColumns extracts column names from a resolved SELECT target list.

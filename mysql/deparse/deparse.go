@@ -1433,13 +1433,13 @@ func deparseCollateExpr(n *ast.CollateExpr) string {
 // These rewrites are applied by SHOW CREATE VIEW in MySQL 8.0.
 var funcNameRewrites = map[string]string{
 	"SUBSTRING":         "substr",
-	"CURRENT_TIMESTAMP":  "now",
-	"CURRENT_DATE":       "curdate",
-	"CURRENT_TIME":       "curtime",
-	"CURRENT_USER":       "current_user",
-	"NOW":                "now",
-	"LOCALTIME":          "now",
-	"LOCALTIMESTAMP":     "now",
+	"CURRENT_TIMESTAMP": "now",
+	"CURRENT_DATE":      "curdate",
+	"CURRENT_TIME":      "curtime",
+	"CURRENT_USER":      "current_user",
+	"NOW":               "now",
+	"LOCALTIME":         "now",
+	"LOCALTIMESTAMP":    "now",
 }
 
 // deparseTrimDirectional handles TRIM(LEADING|TRAILING|BOTH remstr FROM str).
@@ -1754,4 +1754,3 @@ func deparseGroupConcat(n *ast.FuncCallExpr) string {
 	b.WriteString(")")
 	return b.String()
 }
-
