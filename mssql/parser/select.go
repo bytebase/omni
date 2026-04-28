@@ -661,6 +661,7 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 				continue
 			}
 			if p.isIdentLike() && !p.isBareAliasExcluded() {
+				aliasLoc := p.pos()
 				alias := p.cur.Str
 				p.advance() // consume ident
 				p.advance() // consume =
@@ -673,6 +674,9 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 					Val:  rhs,
 					Loc:  nodes.Loc{Start: targetLoc, End: p.prevEnd()},
 				})
+				if p.completing {
+					p.addSelectAliasPosition(aliasLoc)
+				}
 				if _, ok := p.match(','); !ok {
 					break
 				}
@@ -701,12 +705,20 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 		// as tokIDENT and thus already passes isIdentLike.
 		if _, ok := p.match(kwAS); ok {
 			if p.isIdentLike() {
+				aliasLoc := p.pos()
 				target.Name = p.cur.Str
 				p.advance()
+				if p.completing {
+					p.addSelectAliasPosition(aliasLoc)
+				}
 			}
 		} else if p.isIdentLike() && !p.isBareAliasExcluded() {
+			aliasLoc := p.pos()
 			target.Name = p.cur.Str
 			p.advance()
+			if p.completing {
+				p.addSelectAliasPosition(aliasLoc)
+			}
 		}
 		target.Loc.End = p.prevEnd()
 		targets = append(targets, target)

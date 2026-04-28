@@ -42,6 +42,19 @@ Status legend: `[ ]` pending, `[x]` passing, `[~]` partial
 - [x] `DROP |` → object type keywords (TABLE, INDEX, VIEW, PROCEDURE, FUNCTION, TRIGGER, DATABASE, SCHEMA, TYPE, SEQUENCE, SYNONYM, STATISTICS, LOGIN, USER, ROLE, IF)
 - [x] Build passes after 1.3
 
+### 1.4 Bytebase-Facing Parser API Compatibility
+
+- [x] `Tokenize(sql)` returns non-EOF tokens with stable `Loc`/`End` byte offsets for caret-token and quoted-identifier handling
+- [x] `IsIdentTokenType(tokenType)` matches T-SQL parser identifier semantics: regular/bracketed/quoted identifiers and context keywords are accepted; core keywords are rejected unless quoted
+- [x] Exported completion token aliases cover PG/MySQL adapter-style keyword checks (`SELECT`, `FROM`, `JOIN`, `ORDER`, `GO`, etc.)
+- [x] Exported aliases include Bytebase object/qualifier and clause tokens (`DATABASE`, `SCHEMA`, `TABLE`, `VIEW`, `SEQUENCE`, `COLUMN`, `BY`, `ASC`, `DESC`, `OFFSET`, `FETCH`, etc.)
+- [x] Prefix retry flow works: tokenize `SELECT * FROM dbo.Us|`, retry `Collect` at the `Us` token start, and receive `table_ref`
+- [x] Prefix retry flow works for column references: `SELECT Na| FROM Employees` and `SELECT tableAlias.Na| ...` produce `columnref`
+- [x] `CTEPositions` records `WITH` offsets for Bytebase virtual table extraction
+- [x] `SelectAliasPositions` records alias token offsets for `AS alias`, implicit aliases, and T-SQL `alias = expr`
+- [x] `GO` batch separator followed by cursor returns new top-level statement candidates
+- [x] Public API tests use `parser_test` so Bytebase-facing behavior only depends on exported parser APIs
+
 ---
 
 ## Phase 2: Completion Module (API & Resolution)
@@ -61,19 +74,19 @@ Status legend: `[ ]` pending, `[x]` passing, `[~]` partial
 ### 2.2 Candidate Resolution
 
 - [x] Token candidates → keyword strings (from TokenName mapping)
-- [x] "table_ref" rule → catalog tables + views
-- [x] "columnref" rule → columns from tables in scope
-- [x] "schema_ref" rule → catalog schemas
-- [x] "func_name" rule → catalog functions + built-in function names
-- [x] "proc_ref" rule → catalog procedures
-- [x] "index_ref" rule → indexes from relevant table
-- [x] "trigger_ref" rule → catalog triggers
+- [~] "table_ref" rule → parser emits rule; standalone `mssql/completion` catalog resolver is still a TODO
+- [~] "columnref" rule → parser emits rule; table refs are extracted, but catalog-backed column resolution is still a TODO
+- [~] "schema_ref" rule → parser emits rule; standalone catalog resolver is still a TODO
+- [~] "func_name" rule → parser emits rule; standalone built-in/catalog function resolution is still a TODO
+- [~] "proc_ref" rule → parser emits rule; standalone catalog resolver is still a TODO
+- [~] "index_ref" rule → parser emits rule; standalone catalog resolver is still a TODO
+- [~] "trigger_ref" rule → parser emits rule; standalone catalog resolver is still a TODO
 - [x] "type_name" rule → T-SQL type keywords (INT, VARCHAR, NVARCHAR, TEXT, DATETIME, DECIMAL, BIT, etc.)
-- [x] "database_ref" rule → catalog databases
-- [x] "sequence_ref" rule → catalog sequences
-- [x] "login_ref" rule → catalog logins
-- [x] "user_ref" rule → catalog users
-- [x] "role_ref" rule → catalog roles
+- [~] "database_ref" rule → parser emits rule; standalone catalog resolver is still a TODO
+- [~] "sequence_ref" rule → parser emits rule; standalone catalog resolver is still a TODO
+- [~] "login_ref" rule → parser emits rule; standalone catalog resolver is still a TODO
+- [~] "user_ref" rule → parser emits rule; standalone catalog resolver is still a TODO
+- [~] "role_ref" rule → parser emits rule; standalone catalog resolver is still a TODO
 
 ### 2.3 Table Reference Extraction
 
@@ -95,6 +108,17 @@ Status legend: `[ ]` pending, `[x]` passing, `[~]` partial
 - [x] Truncated after operator: `WHERE a >` → insert placeholder expression
 - [x] Multiple placeholder strategies tried in order
 - [x] Fallback returns best-effort results when no strategy succeeds
+
+### 2.5 Parser-Only Incomplete SQL Signals
+
+- [x] `SELECT * FROM|` and `SELECT * FROM |` → `table_ref`
+- [x] `SELECT * FROM dbo.|` → `table_ref`
+- [x] `SELECT * FROM Employees JOIN|` → `table_ref`
+- [x] `SELECT Id,|` and `SELECT Id, |` → `columnref`
+- [x] `SELECT * FROM Employees WHERE Id =|` and trailing-space variant → `columnref`
+- [x] `SELECT Id FROM Employees ORDER BY|` and trailing-space variant → `columnref`
+- [x] `WITH cte AS (|` → `SELECT`
+- [x] `WITH cte AS (...) SELECT * FROM|` → `table_ref`
 
 ---
 
@@ -391,6 +415,8 @@ Status legend: `[ ]` pending, `[x]` passing, `[~]` partial
 - [x] `SELECT x.| FROM t AS x` → columnref with alias resolution
 - [x] `SELECT dbo.t.| FROM dbo.t` → columnref with schema-qualified table
 - [x] `SELECT * FROM dbo.|` → table_ref within schema
+- [x] `SELECT |.* FROM Employees AS e` → columnref signal for Bytebase table/alias star qualifier completion
+- [x] `SELECT e.|* FROM Employees AS e` → columnref signal for qualified star completion
 - [x] CTE columns available: `WITH cte(a,b) AS (...) SELECT cte.| FROM cte` → columnref from CTE
 
 ### 9.2 Edge Cases
