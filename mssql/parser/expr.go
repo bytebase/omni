@@ -700,6 +700,11 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 			return p.parseIif()
 		}
 		return p.parseIdentExpr()
+	case kwNEXT:
+		if p.peekNext().Type == kwVALUE {
+			return p.parseNextValueFor()
+		}
+		return p.parseIdentExpr()
 	case kwEXISTS:
 		return p.parseExists()
 	case kwTRY_CAST:
@@ -1158,6 +1163,36 @@ func (p *Parser) parseExists() (nodes.ExprNode, error) {
 	}, nil
 }
 
+func (p *Parser) parseNextValueFor() (nodes.ExprNode, error) {
+	loc := p.pos()
+	p.advance() // consume NEXT
+	if _, err := p.expect(kwVALUE); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwFOR); err != nil {
+		return nil, err
+	}
+	if p.collectMode() {
+		p.addRuleCandidate("sequence_ref")
+		return nil, errCollecting
+	}
+	ref, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	if ref == nil {
+		return nil, p.unexpectedToken()
+	}
+	return &nodes.ColumnRef{
+		Server:   ref.Server,
+		Database: ref.Database,
+		Schema:   ref.Schema,
+		Table:    ref.Schema,
+		Column:   ref.Object,
+		Loc:      nodes.Loc{Start: loc, End: p.prevEnd()},
+	}, nil
+}
+
 // parseFuncCall parses a function call after the opening paren has been seen.
 //
 //	func_name '(' [DISTINCT] [expr_list | '*'] ')' [OVER ...]
@@ -1184,6 +1219,11 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 		return fc, nil
 	}
 
+	if p.collectMode() {
+		p.addExpressionCandidates()
+		return nil, errCollecting
+	}
+
 	if p.cur.Type == ')' {
 		p.advance()
 		if p.cur.Type == kwOVER {
@@ -1202,6 +1242,10 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 	}
 
 	args, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
+		if p.collectMode() {
+			p.addExpressionCandidates()
+			return nil, errCollecting
+		}
 		arg, err := p.parseExpr()
 		if err != nil {
 			return nil, err

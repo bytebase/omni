@@ -66,6 +66,10 @@ func (p *Parser) parseCommaList(
 	parseItem func() (nodes.Node, error),
 ) ([]nodes.Node, error) {
 	if p.cur.Type == end {
+		if p.collectMode() {
+			_, err := parseItem()
+			return nil, err
+		}
 		if flags&commaListAllowEmpty == 0 {
 			return nil, p.unexpectedToken()
 		}
@@ -94,6 +98,9 @@ func (p *Parser) parseCommaList(
 		// emit completion candidates via errCollecting; it must otherwise
 		// return an error if there is no item to parse.
 		if p.cur.Type == end {
+			if p.collectMode() {
+				continue
+			}
 			if flags&commaListAllowTrail == 0 {
 				return nil, p.unexpectedToken()
 			}

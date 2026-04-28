@@ -70,6 +70,10 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 	if !ok {
 		return nil, nil
 	}
+	if p.collectMode() && p.cursorOff <= p.prev.End {
+		p.addRuleCandidate("table_ref")
+		return nil, errCollecting
+	}
 
 	ref := &nodes.TableRef{
 		Object: name,
@@ -415,6 +419,11 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 		return fc, nil
 	}
 
+	if p.collectMode() {
+		p.addExpressionCandidates()
+		return nil, errCollecting
+	}
+
 	if p.cur.Type == ')' {
 		p.advance()
 		if p.cur.Type == kwOVER {
@@ -430,10 +439,18 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 
 	var args []nodes.Node
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		if p.collectMode() {
+			p.addExpressionCandidates()
+			return nil, errCollecting
+		}
 		arg, _ := p.parseExpr()
 		args = append(args, arg)
 		if _, ok := p.match(','); !ok {
 			break
+		}
+		if p.collectMode() {
+			p.addExpressionCandidates()
+			return nil, errCollecting
 		}
 	}
 	fc.Args = &nodes.List{Items: args}

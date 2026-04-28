@@ -323,6 +323,11 @@ func (p *Parser) addRuleCandidate(r string) {
 	}
 }
 
+func (p *Parser) addExpressionCandidates() {
+	p.addRuleCandidate("columnref")
+	p.addRuleCandidate("func_name")
+}
+
 // addCTEPosition records a WITH clause byte offset in the candidate set.
 func (p *Parser) addCTEPosition(pos int) {
 	if p.candidates != nil {

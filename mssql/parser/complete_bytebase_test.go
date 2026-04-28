@@ -94,7 +94,12 @@ func TestCompletionBytebaseColumnReferenceSignals(t *testing.T) {
 		"SELECT Id FROM Employees HAVING |",
 		"INSERT INTO Employees SELECT | FROM Address",
 		"UPDATE Employees SET |",
+		"UPDATE Employees SET Name = |",
 		"DELETE FROM Employees WHERE |",
+		"SELECT ABS(|) FROM Employees",
+		"SELECT CONCAT(Name, |) FROM Employees",
+		"SELECT * FROM (SELECT Name, Amount FROM Sales) src PIVOT (SUM(Amount) FOR Name IN (|)) AS p",
+		"SELECT * FROM (SELECT Name, Amount FROM Sales) src UNPIVOT (Amount FOR Name IN (|)) AS u",
 	}
 
 	for _, input := range tests {
@@ -103,6 +108,53 @@ func TestCompletionBytebaseColumnReferenceSignals(t *testing.T) {
 			requireRule(t, candidates, "columnref")
 		})
 	}
+}
+
+func TestCompletionBytebaseSequenceReferenceSignals(t *testing.T) {
+	tests := []string{
+		"SELECT NEXT VALUE FOR |",
+		"INSERT INTO Orders(Id) VALUES (NEXT VALUE FOR |)",
+	}
+
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			_, _, candidates := collectMarked(t, input)
+			requireRule(t, candidates, "sequence_ref")
+		})
+	}
+}
+
+func TestCompletionBytebaseProcedureReferenceSignals(t *testing.T) {
+	tests := []string{
+		"EXEC |",
+		"EXECUTE |",
+	}
+
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			_, _, candidates := collectMarked(t, input)
+			requireRule(t, candidates, "proc_ref")
+		})
+	}
+}
+
+func TestCompletionBytebaseOpenJSONWithTypeSignals(t *testing.T) {
+	tests := []string{
+		"SELECT * FROM OPENJSON(@json) WITH (Name |)",
+		"SELECT * FROM OPENJSON(@json) WITH (Name nvarchar(100), Age |)",
+	}
+
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			_, _, candidates := collectMarked(t, input)
+			requireRule(t, candidates, "type_name")
+		})
+	}
+}
+
+func TestCompletionBytebaseIncompleteBracketIdentifierSignals(t *testing.T) {
+	_, _, candidates := collectMarked(t, "SELECT * FROM [|")
+	requireRule(t, candidates, "table_ref")
 }
 
 func TestCompletionBytebaseAsteriskQualifierSignals(t *testing.T) {

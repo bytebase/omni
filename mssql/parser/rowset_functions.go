@@ -82,6 +82,10 @@ func (p *Parser) parseRowsetWithClause() (*nodes.List, error) {
 		if !ok {
 			return nil, p.unexpectedToken()
 		}
+		if p.collectMode() {
+			p.addRuleCandidate("type_name")
+			return nil, errCollecting
+		}
 		dt, _ := p.parseDataType()
 		col := &nodes.ColumnDef{
 			Name:     colName,
