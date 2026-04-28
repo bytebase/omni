@@ -221,6 +221,7 @@ func TestDeparseQuery_DeparseOutput(t *testing.T) {
 		{"order_by", "SELECT name, salary FROM employees ORDER BY salary DESC"},
 		{"limit", "SELECT name FROM employees LIMIT 10"},
 		{"distinct", "SELECT DISTINCT department_id FROM employees"},
+		{"parenthesized_table_reference_list", "SELECT e.name, d.name FROM (employees e, departments d) WHERE e.department_id = d.id"},
 	}
 
 	for _, tt := range tests {

@@ -1489,10 +1489,10 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 //
 //	{EXPLAIN | DESCRIBE | DESC} tbl_name [col_name | wild]
 //	{EXPLAIN | DESCRIBE | DESC} [explain_type] {explainable_stmt | FOR CONNECTION connection_id}
-//	{EXPLAIN | DESCRIBE | DESC} ANALYZE [explain_type] select_stmt
+//	{EXPLAIN | DESCRIBE | DESC} ANALYZE [explain_type] explainable_stmt
 //	explain_type: { FORMAT = format_name }
 //	format_name: { TRADITIONAL | JSON | TREE }
-//	explainable_stmt: { SELECT | TABLE | DELETE | INSERT | REPLACE | UPDATE }
+//	explainable_stmt: { SELECT | TABLE | VALUES | DELETE | INSERT | REPLACE | UPDATE }
 func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	start := p.pos()
 	isDescribe := p.cur.Type == kwDESCRIBE || p.cur.Type == kwDESC
@@ -1587,7 +1587,10 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	// Completion: after EXPLAIN [options], offer explainable statement keywords.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwSELECT, kwINSERT, kwUPDATE, kwDELETE} {
+		for _, t := range []int{
+			kwANALYZE, kwEXTENDED, kwPARTITIONS, kwFORMAT, kwFOR,
+			kwSELECT, kwTABLE, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
+		} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -1631,6 +1634,12 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			return nil, err
 		}
 		stmt.Stmt = tbl
+	case kwVALUES:
+		vals, err := p.parseValuesStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Stmt = vals
 	default:
 		// For other tokens, try to parse as a table ref (EXPLAIN table_name)
 		ref, err := p.parseTableRef()

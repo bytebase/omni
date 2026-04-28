@@ -249,6 +249,21 @@ func TestCollectReplaceInto(t *testing.T) {
 	}
 }
 
+func TestCollectExplainKeywords(t *testing.T) {
+	cs := Collect("EXPLAIN ", 8)
+	if cs == nil {
+		t.Fatal("expected non-nil candidates")
+	}
+	for _, tok := range []int{
+		kwANALYZE, kwEXTENDED, kwPARTITIONS, kwFORMAT, kwFOR,
+		kwSELECT, kwTABLE, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
+	} {
+		if !cs.HasToken(tok) {
+			t.Errorf("missing EXPLAIN keyword: %s", TokenName(tok))
+		}
+	}
+}
+
 // --- UPDATE positions ---
 
 func TestCollectUpdateTable(t *testing.T) {

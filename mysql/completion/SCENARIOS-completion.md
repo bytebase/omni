@@ -371,7 +371,7 @@ so that Phase 3+ instrumentation can be tested end-to-end.
 [x] `GRANT SELECT ON |` → table_ref (or database.*)
 [x] `GRANT SELECT ON t TO |` → user context
 [x] `REVOKE SELECT ON |` → table_ref
-[x] `EXPLAIN |` → keyword candidates (SELECT, INSERT, UPDATE, DELETE, FORMAT)
+[x] `EXPLAIN |` → keyword candidates (ANALYZE, FORMAT, FOR, SELECT, TABLE, INSERT, UPDATE, DELETE, REPLACE, VALUES)
 [x] `EXPLAIN SELECT |` → same as SELECT instrumentation
 [x] `PREPARE stmt FROM |` → string context
 [x] `EXECUTE |` → prepared statement name

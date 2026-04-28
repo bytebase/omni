@@ -957,8 +957,12 @@ func TestDeparseSelect_Section_5_2_FromClause(t *testing.T) {
 		{"table_alias_without_as", "SELECT a FROM t t1", "select `a` AS `a` from `t` `t1`"},
 		// Multiple tables (implicit cross join) → explicit join with parens
 		{"implicit_cross_join", "SELECT a FROM t1, t2", "select `a` AS `a` from (`t1` join `t2`)"},
+		// Parenthesized table reference list follows MySQL's nested-join semantics.
+		{"parenthesized_table_reference_list", "SELECT a FROM (t1, t2)", "select `a` AS `a` from (`t1` join `t2`)"},
 		// Three tables implicit cross join
 		{"implicit_cross_join_3", "SELECT a FROM t1, t2, t3", "select `a` AS `a` from ((`t1` join `t2`) join `t3`)"},
+		// Three-table parenthesized list folds left like the existing join tree.
+		{"parenthesized_table_reference_list_3", "SELECT a FROM (t1, t2, t3)", "select `a` AS `a` from ((`t1` join `t2`) join `t3`)"},
 	}
 
 	for _, tc := range cases {

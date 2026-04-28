@@ -11,10 +11,10 @@ func TestExtractTableRefs(t *testing.T) {
 		name       string
 		sql        string
 		offset     int
-		wantTables []string            // expected table names
-		wantAlias  map[string]string    // table -> alias (optional)
-		wantDB     map[string]string    // table -> database (optional)
-		wantAbsent []string            // tables that should NOT appear
+		wantTables []string          // expected table names
+		wantAlias  map[string]string // table -> alias (optional)
+		wantDB     map[string]string // table -> database (optional)
+		wantAbsent []string          // tables that should NOT appear
 	}{
 		{
 			name:       "simple_select",
@@ -33,6 +33,12 @@ func TestExtractTableRefs(t *testing.T) {
 			name:       "join",
 			sql:        "SELECT * FROM t1 JOIN t2 ON t1.a = t2.a WHERE ",
 			offset:     46,
+			wantTables: []string{"t1", "t2"},
+		},
+		{
+			name:       "parenthesized_table_reference_list",
+			sql:        "SELECT * FROM (t1, t2) WHERE ",
+			offset:     29,
 			wantTables: []string{"t1", "t2"},
 		},
 		{
