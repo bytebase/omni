@@ -1745,6 +1745,39 @@ func TestAnalyze_7_5_CommaJoin(t *testing.T) {
 	}
 }
 
+func TestAnalyze_7_6_ParenthesizedTableReferenceList(t *testing.T) {
+	c := setupJoinTables(t)
+	sel := parseSelect(t, `SELECT e.name, d.name FROM (employees e, departments d) WHERE e.department_id = d.id`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.RangeTable) != 3 {
+		t.Fatalf("RangeTable: want 3 entries, got %d", len(q.RangeTable))
+	}
+	if q.RangeTable[0].Kind != RTERelation || q.RangeTable[0].ERef != "e" {
+		t.Errorf("RTE[0]: want RTERelation 'e', got kind=%d eref=%q", q.RangeTable[0].Kind, q.RangeTable[0].ERef)
+	}
+	if q.RangeTable[1].Kind != RTERelation || q.RangeTable[1].ERef != "d" {
+		t.Errorf("RTE[1]: want RTERelation 'd', got kind=%d eref=%q", q.RangeTable[1].Kind, q.RangeTable[1].ERef)
+	}
+	if q.RangeTable[2].Kind != RTEJoin || q.RangeTable[2].JoinType != JoinInner {
+		t.Errorf("RTE[2]: want inner RTEJoin, got kind=%d join_type=%d", q.RangeTable[2].Kind, q.RangeTable[2].JoinType)
+	}
+	if len(q.JoinTree.FromList) != 1 {
+		t.Fatalf("FromList: want 1 entry, got %d", len(q.JoinTree.FromList))
+	}
+	je, ok := q.JoinTree.FromList[0].(*JoinExprNodeQ)
+	if !ok {
+		t.Fatalf("FromList[0]: want *JoinExprNodeQ, got %T", q.JoinTree.FromList[0])
+	}
+	if je.JoinType != JoinInner {
+		t.Errorf("JoinExprNodeQ.JoinType: want JoinInner, got %d", je.JoinType)
+	}
+	if q.JoinTree.Quals == nil {
+		t.Error("JoinTree.Quals: want non-nil WHERE, got nil")
+	}
+}
+
 // --- Batch 8: USING/NATURAL ---
 
 // TestAnalyze_8_1_JoinUsing tests JOIN ... USING (col).

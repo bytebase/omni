@@ -877,6 +877,22 @@ func (p *Parser) parseTableReferenceList() ([]nodes.TableExpr, error) {
 	return refs, nil
 }
 
+func foldTableReferenceList(refs []nodes.TableExpr, end int) nodes.TableExpr {
+	if len(refs) == 0 {
+		return nil
+	}
+	left := refs[0]
+	for i := 1; i < len(refs); i++ {
+		left = &nodes.JoinClause{
+			Loc:   nodes.Loc{Start: tableExprLoc(left), End: end},
+			Type:  nodes.JoinInner,
+			Left:  left,
+			Right: refs[i],
+		}
+	}
+	return left
+}
+
 // parseTableReference parses a table reference (table_factor with optional joins).
 func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 	left, err := p.parseTableFactor()
@@ -1160,15 +1176,15 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 			return sub, nil
 		}
 
-		// Parenthesized table reference
-		ref, err := p.parseTableReference()
+		// Parenthesized table references use MySQL nested-join semantics.
+		refs, err := p.parseTableReferenceList()
 		if err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		return ref, nil
+		return foldTableReferenceList(refs, p.pos()), nil
 	}
 
 	// JSON_TABLE(expr, path COLUMNS (...)) AS alias
@@ -1904,6 +1920,8 @@ func tableExprLoc(te nodes.TableExpr) int {
 	case *nodes.JoinClause:
 		return t.Loc.Start
 	case *nodes.SubqueryExpr:
+		return t.Loc.Start
+	case *nodes.JsonTableExpr:
 		return t.Loc.Start
 	}
 	return 0

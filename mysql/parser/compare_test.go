@@ -1215,6 +1215,51 @@ func TestParseSelectJoin(t *testing.T) {
 	}
 }
 
+func TestParseParenthesizedTableReferenceList(t *testing.T) {
+	t.Run("two tables fold to inner join", func(t *testing.T) {
+		sel := parseSelect(t, "SELECT * FROM (t1, t2)")
+		if len(sel.From) != 1 {
+			t.Fatalf("from count = %d, want 1", len(sel.From))
+		}
+		jc, ok := sel.From[0].(*ast.JoinClause)
+		if !ok {
+			t.Fatalf("expected *ast.JoinClause, got %T", sel.From[0])
+		}
+		if jc.Type != ast.JoinInner {
+			t.Fatalf("join type = %d, want JoinInner", jc.Type)
+		}
+		left, ok := jc.Left.(*ast.TableRef)
+		if !ok || left.Name != "t1" {
+			t.Fatalf("left = %#v, want table t1", jc.Left)
+		}
+		right, ok := jc.Right.(*ast.TableRef)
+		if !ok || right.Name != "t2" {
+			t.Fatalf("right = %#v, want table t2", jc.Right)
+		}
+	})
+
+	t.Run("list can be right side of outer join", func(t *testing.T) {
+		sel := parseSelect(t, "SELECT * FROM t0 LEFT JOIN (t1, t2) ON t0.id = t1.id")
+		if len(sel.From) != 1 {
+			t.Fatalf("from count = %d, want 1", len(sel.From))
+		}
+		outer, ok := sel.From[0].(*ast.JoinClause)
+		if !ok {
+			t.Fatalf("expected outer *ast.JoinClause, got %T", sel.From[0])
+		}
+		if outer.Type != ast.JoinLeft {
+			t.Fatalf("outer join type = %d, want JoinLeft", outer.Type)
+		}
+		inner, ok := outer.Right.(*ast.JoinClause)
+		if !ok {
+			t.Fatalf("outer right = %T, want *ast.JoinClause", outer.Right)
+		}
+		if inner.Type != ast.JoinInner {
+			t.Fatalf("inner join type = %d, want JoinInner", inner.Type)
+		}
+	})
+}
+
 // TestParseSelectGroupBy tests SELECT with GROUP BY clause.
 func TestParseSelectGroupBy(t *testing.T) {
 	sel := parseSelect(t, "SELECT dept, COUNT(*) FROM emp GROUP BY dept HAVING COUNT(*) > 1")
@@ -4849,6 +4894,25 @@ func TestParseExplain(t *testing.T) {
 		}
 	})
 
+	t.Run("explain analyze values", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("EXPLAIN ANALYZE VALUES ROW(1, 2)")}
+		p.advance()
+		stmt, err := p.parseExplainStmt()
+		if err != nil {
+			t.Fatalf("parseExplainStmt error: %v", err)
+		}
+		if !stmt.Analyze {
+			t.Error("Analyze = false, want true")
+		}
+		values, ok := stmt.Stmt.(*ast.ValuesStmt)
+		if !ok {
+			t.Fatalf("Stmt type = %T, want *ast.ValuesStmt", stmt.Stmt)
+		}
+		if len(values.Rows) != 1 || len(values.Rows[0]) != 2 {
+			t.Fatalf("VALUES rows shape = %#v, want one ROW with two expressions", values.Rows)
+		}
+	})
+
 	t.Run("explain extended select", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("EXPLAIN EXTENDED SELECT * FROM t1")}
 		p.advance()
@@ -5500,7 +5564,7 @@ DELIMITER ;`,
 			bodySuffix: "END",
 		},
 		{
-			name: "function RETURNS with single RETURN body (no BEGIN)",
+			name:       "function RETURNS with single RETURN body (no BEGIN)",
 			sql:        `CREATE FUNCTION f_simple(a INT) RETURNS INT RETURN a + 1`,
 			wantStmts:  1,
 			bodySuffix: "a + 1",

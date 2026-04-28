@@ -262,6 +262,24 @@ func TestLineage_14_4_ViewWithJoin(t *testing.T) {
 	})
 }
 
+func TestLineage_14_4b_ParenthesizedTableReferenceList(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE employees (id INT, name VARCHAR(100), department_id INT);
+		CREATE TABLE departments (id INT, name VARCHAR(100));
+	`)
+
+	sel := parseSelect(t, `SELECT e.name AS employee_name, d.name AS department_name FROM (employees e, departments d) WHERE e.department_id = d.id`)
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	lineage := collectColumnLineage(c, q)
+	assertLineage(t, lineage, []resultLineage{
+		{Name: "employee_name", SourceCols: []columnLineage{{DB: "testdb", Table: "employees", Column: "name"}}},
+		{Name: "department_name", SourceCols: []columnLineage{{DB: "testdb", Table: "departments", Column: "name"}}},
+	})
+}
+
 // TestLineage_14_5_TemptableView tests that TEMPTABLE views remain opaque.
 func TestLineage_14_5_TemptableView(t *testing.T) {
 	c := wtSetup(t)
