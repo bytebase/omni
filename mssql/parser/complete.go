@@ -36,6 +36,135 @@ func TokenName(tokenType int) string {
 	return ""
 }
 
+// Tokenize runs the lexer on sql and returns all non-EOF tokens.
+// Useful for walking the token stream without a full parse.
+func Tokenize(sql string) []Token {
+	lex := NewLexer(sql)
+	var tokens []Token
+	for {
+		tok := lex.NextToken()
+		if tok.Type == tokEOF {
+			break
+		}
+		tokens = append(tokens, tok)
+	}
+	return tokens
+}
+
+// IsIdentTokenType reports whether a token type can be used as a T-SQL
+// identifier (IDENT or context-sensitive keyword). Core keywords are not bare
+// identifiers unless quoted, in which case the lexer emits tokIDENT.
+func IsIdentTokenType(typ int) bool {
+	return typ == tokIDENT || isContextKeyword(typ)
+}
+
+// Exported token type constants for completion callers.
+const (
+	ICONST      = tokICONST
+	FCONST      = tokFCONST
+	SCONST      = tokSCONST
+	NSCONST     = tokNSCONST
+	IDENT       = tokIDENT
+	VARIABLE    = tokVARIABLE
+	SYSVARIABLE = tokSYSVARIABLE
+
+	SELECT    = kwSELECT
+	INSERT    = kwINSERT
+	UPDATE    = kwUPDATE
+	DELETE    = kwDELETE
+	MERGE     = kwMERGE
+	FROM      = kwFROM
+	WHERE     = kwWHERE
+	SET       = kwSET
+	INTO      = kwINTO
+	VALUES    = kwVALUES
+	AS        = kwAS
+	ON        = kwON
+	JOIN      = kwJOIN
+	INNER     = kwINNER
+	LEFT      = kwLEFT
+	RIGHT     = kwRIGHT
+	FULL      = kwFULL
+	CROSS     = kwCROSS
+	OUTER     = kwOUTER
+	APPLY     = kwAPPLY
+	ORDER     = kwORDER
+	GROUP     = kwGROUP
+	HAVING    = kwHAVING
+	UNION     = kwUNION
+	EXCEPT    = kwEXCEPT
+	INTERSECT = kwINTERSECT
+	FOR       = kwFOR
+	WITH      = kwWITH
+	OPTION    = kwOPTION
+	TOP       = kwTOP
+	DISTINCT  = kwDISTINCT
+	ALL       = kwALL
+	OUTPUT    = kwOUTPUT
+	BY        = kwBY
+	ASC       = kwASC
+	DESC      = kwDESC
+	OFFSET    = kwOFFSET
+	FETCH     = kwFETCH
+	NEXT      = kwNEXT
+	FIRST     = kwFIRST
+	ROW       = kwROW
+	ROWS      = kwROWS
+	ONLY      = kwONLY
+
+	CREATE   = kwCREATE
+	ALTER    = kwALTER
+	DROP     = kwDROP
+	TRUNCATE = kwTRUNCATE
+	DECLARE  = kwDECLARE
+	EXEC     = kwEXEC
+	EXECUTE  = kwEXECUTE
+	USE      = kwUSE
+	GO       = kwGO
+
+	DATABASE   = kwDATABASE
+	SCHEMA     = kwSCHEMA
+	TABLE      = kwTABLE
+	VIEW       = kwVIEW
+	SEQUENCE   = kwSEQUENCE
+	COLUMN     = kwCOLUMN
+	INDEX      = kwINDEX
+	TRIGGER    = kwTRIGGER
+	FUNCTION   = kwFUNCTION
+	PROCEDURE  = kwPROCEDURE
+	KEY        = kwKEY
+	CONSTRAINT = kwCONSTRAINT
+	PRIMARY    = kwPRIMARY
+	FOREIGN    = kwFOREIGN
+	REFERENCES = kwREFERENCES
+	DEFAULT    = kwDEFAULT
+	NULL       = kwNULL
+	NOT        = kwNOT
+	AND        = kwAND
+	OR         = kwOR
+	IS         = kwIS
+	LIKE       = kwLIKE
+	BETWEEN    = kwBETWEEN
+	EXISTS     = kwEXISTS
+	CASE       = kwCASE
+	WHEN       = kwWHEN
+	THEN       = kwTHEN
+	ELSE       = kwELSE
+	END        = kwEND
+	OVER       = kwOVER
+	PARTITION  = kwPARTITION
+	XML        = kwXML
+	JSON       = kwJSON
+	BROWSE     = kwBROWSE
+	PATH       = kwPATH
+	AUTO       = kwAUTO
+	RAW        = kwRAW
+	RECOMPILE  = kwRECOMPILE
+	OPTIMIZE   = kwOPTIMIZE
+	MAXDOP     = kwMAXDOP
+	NOLOCK     = kwNOLOCK
+)
+
 // topLevelKeywords are the statement-starting keywords offered when the cursor
 // is at an empty input or after a semicolon.
 var topLevelKeywords = []int{
@@ -56,10 +185,10 @@ type RuleCandidate struct {
 // CandidateSet holds the token and rule candidates collected during a
 // completion-mode parse.
 type CandidateSet struct {
-	Tokens []int            // token type candidates
-	Rules  []RuleCandidate  // grammar rule candidates
-	seen   map[int]bool     // dedup tokens
-	seenR  map[string]bool  // dedup rules
+	Tokens []int           // token type candidates
+	Rules  []RuleCandidate // grammar rule candidates
+	seen   map[int]bool    // dedup tokens
+	seenR  map[string]bool // dedup rules
 
 	// CTEPositions holds the byte offsets of WITH clause starts encountered
 	// before the cursor. Used to re-parse CTE definitions and extract

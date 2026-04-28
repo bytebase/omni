@@ -218,6 +218,11 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	loc := p.pos()
 	name := p.cur.Str
 	p.advance()
+	if p.collectMode() && p.cursorOff <= p.prev.End {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
 
 	// Function call: ident(...)
 	if p.cur.Type == '(' {
@@ -278,6 +283,11 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 	parts := []string{first}
 	for p.cur.Type == '.' {
 		p.advance() // consume .
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addTokenCandidate('*')
+			return nil, errCollecting
+		}
 
 		// Check for table.* or schema.table.*
 		if p.cur.Type == '*' {
@@ -297,6 +307,10 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 		if p.isIdentLike() {
 			partName := p.cur.Str
 			p.advance()
+			if p.collectMode() && p.cursorOff <= p.prev.End {
+				p.addRuleCandidate("columnref")
+				return nil, errCollecting
+			}
 
 			// Check if this part is followed by '(' -- meaning it's a function call
 			// e.g., schema.function(args)
