@@ -1031,6 +1031,10 @@ func (p *Parser) parsePivotExpr(source nodes.TableExpr) (*nodes.PivotExpr, error
 	if _, ok := p.match(kwIN); ok {
 		if _, err := p.expect('('); err == nil {
 			vals, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+				if p.collectMode() {
+					p.addRuleCandidate("columnref")
+					return nil, errCollecting
+				}
 				name, ok := p.parseIdentifier()
 				if !ok {
 					return nil, p.unexpectedToken()
@@ -1095,6 +1099,10 @@ func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) (*nodes.UnpivotExpr, e
 	if _, ok := p.match(kwIN); ok {
 		if _, err := p.expect('('); err == nil {
 			cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+				if p.collectMode() {
+					p.addRuleCandidate("columnref")
+					return nil, errCollecting
+				}
 				name, ok := p.parseIdentifier()
 				if !ok {
 					return nil, p.unexpectedToken()

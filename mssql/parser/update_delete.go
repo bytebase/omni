@@ -426,6 +426,10 @@ func (p *Parser) parseSetClause() (*nodes.SetExpr, error) {
 	} else if _, err := p.expect('='); err != nil {
 		return nil, nil
 	}
+	if p.collectMode() {
+		p.addExpressionCandidates()
+		return nil, errCollecting
+	}
 
 	val, err := p.parseExpr()
 	if err != nil {
