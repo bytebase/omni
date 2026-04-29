@@ -1612,7 +1612,7 @@ func (l *Lexer) lexQuotedIdent() Token {
 		l.pos++
 	}
 	l.Err = fmt.Errorf("unterminated quoted identifier")
-	return Token{Type: tokEOF, Loc: l.start}
+	return Token{Type: tokIDENT, Str: buf.String(), Loc: l.start}
 }
 
 func (l *Lexer) lexVariable() Token {

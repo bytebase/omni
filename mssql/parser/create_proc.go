@@ -57,7 +57,11 @@ func (p *Parser) parseCreateProcedureStmt(orAlter bool) (*nodes.CreateProcedureS
 	}
 
 	// Procedure name
-	name, err := p.parseTableRef()
+	nameRule := "identifier"
+	if orAlter {
+		nameRule = "proc_ref"
+	}
+	name, err := p.parseObjectRef(nameRule)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +278,11 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 	}
 
 	// Function name
-	name, err := p.parseTableRef()
+	nameRule := "identifier"
+	if orAlter {
+		nameRule = "func_name"
+	}
+	name, err := p.parseObjectRef(nameRule)
 	if err != nil {
 		return nil, err
 	}

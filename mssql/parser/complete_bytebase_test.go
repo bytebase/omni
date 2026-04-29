@@ -153,8 +153,19 @@ func TestCompletionBytebaseOpenJSONWithTypeSignals(t *testing.T) {
 }
 
 func TestCompletionBytebaseIncompleteBracketIdentifierSignals(t *testing.T) {
-	_, _, candidates := collectMarked(t, "SELECT * FROM [|")
-	requireRule(t, candidates, "table_ref")
+	tests := []string{
+		"SELECT * FROM [|",
+		"SELECT * FROM dbo.[|",
+		"SELECT * FROM \"|",
+		"SELECT * FROM dbo.\"|",
+	}
+
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			_, _, candidates := collectMarked(t, input)
+			requireRule(t, candidates, "table_ref")
+		})
+	}
 }
 
 func TestCompletionBytebaseAsteriskQualifierSignals(t *testing.T) {
@@ -219,6 +230,66 @@ func TestCompletionIncompleteSQLSignals(t *testing.T) {
 			}
 			if tt.token != 0 {
 				requireToken(t, candidates, tt.token)
+			}
+		})
+	}
+}
+
+func TestCompletionBytebaseForeignKeyColumnListSignals(t *testing.T) {
+	tests := []string{
+		"CREATE TABLE NewTable (EmployeeId INT, FOREIGN KEY (|) REFERENCES Employees(Id))",
+		"CREATE TABLE NewTable (EmployeeId INT REFERENCES Employees(|))",
+	}
+
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			_, _, candidates := collectMarked(t, input)
+			requireRule(t, candidates, "columnref")
+		})
+	}
+}
+
+func TestCompletionBytebaseNextValueForSequenceSignals(t *testing.T) {
+	tests := []string{
+		"SELECT NEXT VALUE FOR |",
+		"SELECT NEXT VALUE FOR dbo.|",
+	}
+
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			_, _, candidates := collectMarked(t, input)
+			requireRule(t, candidates, "sequence_ref")
+			if candidates.HasRule("table_ref") {
+				t.Fatalf("NEXT VALUE FOR should not emit table_ref; got rules=%v tokens=%v", candidates.Rules, tokenNames(candidates.Tokens))
+			}
+		})
+	}
+}
+
+func TestCompletionBytebaseSchemaQualifiedObjectRefSignals(t *testing.T) {
+	tests := []struct {
+		input string
+		rule  string
+	}{
+		{input: "EXEC dbo.|", rule: "proc_ref"},
+		{input: "EXECUTE dbo.|", rule: "proc_ref"},
+		{input: "ALTER PROCEDURE dbo.|", rule: "proc_ref"},
+		{input: "ALTER FUNCTION dbo.|", rule: "func_name"},
+		{input: "ALTER SEQUENCE |", rule: "sequence_ref"},
+		{input: "ALTER SEQUENCE dbo.|", rule: "sequence_ref"},
+		{input: "DROP PROCEDURE dbo.|", rule: "proc_ref"},
+		{input: "DROP FUNCTION dbo.|", rule: "func_name"},
+		{input: "DROP SEQUENCE |", rule: "sequence_ref"},
+		{input: "DROP SEQUENCE dbo.|", rule: "sequence_ref"},
+		{input: "DROP TRIGGER dbo.|", rule: "trigger_ref"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			_, _, candidates := collectMarked(t, tt.input)
+			requireRule(t, candidates, tt.rule)
+			if candidates.HasRule("table_ref") {
+				t.Fatalf("%s should not emit table_ref; got rules=%v tokens=%v", tt.input, candidates.Rules, tokenNames(candidates.Tokens))
 			}
 		})
 	}

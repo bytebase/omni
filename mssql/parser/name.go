@@ -64,6 +64,12 @@ func (p *Parser) parseIdentifier() (string, bool) {
 //	                 | [ schema_name . ]
 //	                 object_name
 func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
+	return p.parseObjectRef("table_ref")
+}
+
+// parseObjectRef parses a qualified object name and emits completionRule after
+// a dot in that qualified name. Use parseTableRef for normal table contexts.
+func (p *Parser) parseObjectRef(completionRule string) (*nodes.TableRef, error) {
 	loc := p.pos()
 
 	name, ok := p.parseIdentifier()
@@ -84,9 +90,9 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 	parts := []string{name}
 	for p.cur.Type == '.' {
 		p.advance() // consume .
-		// Completion: after dot in qualified name → table_ref (schema-qualified)
+		// Completion: after dot in qualified name → caller-specific object rule.
 		if p.collectMode() {
-			p.addRuleCandidate("table_ref")
+			p.addRuleCandidate(completionRule)
 			return nil, errCollecting
 		}
 		part, ok := p.parseIdentifier()
@@ -118,6 +124,13 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 
 	ref.Loc.End = p.prevEnd()
 	return ref, nil
+}
+
+// parseSequenceRef parses a qualified sequence name for NEXT VALUE FOR.
+// Shape is the same as other schema object names, but completion must surface
+// sequence_ref rather than the generic table_ref rule.
+func (p *Parser) parseSequenceRef() (*nodes.TableRef, error) {
+	return p.parseObjectRef("sequence_ref")
 }
 
 // parseVariableTableSource parses a T-SQL table variable used as a table source

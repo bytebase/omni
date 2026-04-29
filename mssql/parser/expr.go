@@ -1176,7 +1176,7 @@ func (p *Parser) parseNextValueFor() (nodes.ExprNode, error) {
 		p.addRuleCandidate("sequence_ref")
 		return nil, errCollecting
 	}
-	ref, err := p.parseTableRef()
+	ref, err := p.parseSequenceRef()
 	if err != nil {
 		return nil, err
 	}
