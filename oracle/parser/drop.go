@@ -7,23 +7,24 @@ import (
 // parseDropStmt parses a DROP statement.
 //
 // BNF: oracle/parser/bnf/DROP-TABLE.bnf, DROP-VIEW.bnf, DROP-INDEX.bnf,
-//      DROP-SEQUENCE.bnf, DROP-SYNONYM.bnf, DROP-DATABASE-LINK.bnf,
-//      DROP-FUNCTION.bnf, DROP-PROCEDURE.bnf, DROP-PACKAGE.bnf,
-//      DROP-TRIGGER.bnf, DROP-TYPE.bnf
 //
-//	DROP TABLE [ IF EXISTS ] [ schema. ] table [ CASCADE CONSTRAINTS ] [ PURGE ] ;
-//	DROP VIEW [ IF EXISTS ] [ schema. ] view [ CASCADE CONSTRAINTS ] ;
-//	DROP INDEX [ IF EXISTS ] [ schema. ] index_name [ ONLINE ] [ FORCE ]
-//	    [ { DEFERRED | IMMEDIATE } INVALIDATION ] ;
-//	DROP SEQUENCE [ IF EXISTS ] [ schema. ] sequence_name ;
-//	DROP [ PUBLIC ] SYNONYM [ IF EXISTS ] [ schema. ] synonym [ FORCE ] ;
-//	DROP [ PUBLIC ] DATABASE LINK [ IF EXISTS ] dblink ;
-//	DROP FUNCTION [ IF EXISTS ] [ schema. ] function_name ;
-//	DROP PROCEDURE [ IF EXISTS ] [ schema. ] procedure ;
-//	DROP PACKAGE [ BODY ] [ IF EXISTS ] [ schema. ] package ;
-//	DROP TRIGGER [ IF EXISTS ] [ schema. ] trigger ;
-//	DROP TYPE [ IF EXISTS ] [ schema. ] type_name [ FORCE | VALIDATE ] ;
-func (p *Parser) parseDropStmt() nodes.StmtNode {
+//	     DROP-SEQUENCE.bnf, DROP-SYNONYM.bnf, DROP-DATABASE-LINK.bnf,
+//	     DROP-FUNCTION.bnf, DROP-PROCEDURE.bnf, DROP-PACKAGE.bnf,
+//	     DROP-TRIGGER.bnf, DROP-TYPE.bnf
+//
+//		DROP TABLE [ IF EXISTS ] [ schema. ] table [ CASCADE CONSTRAINTS ] [ PURGE ] ;
+//		DROP VIEW [ IF EXISTS ] [ schema. ] view [ CASCADE CONSTRAINTS ] ;
+//		DROP INDEX [ IF EXISTS ] [ schema. ] index_name [ ONLINE ] [ FORCE ]
+//		    [ { DEFERRED | IMMEDIATE } INVALIDATION ] ;
+//		DROP SEQUENCE [ IF EXISTS ] [ schema. ] sequence_name ;
+//		DROP [ PUBLIC ] SYNONYM [ IF EXISTS ] [ schema. ] synonym [ FORCE ] ;
+//		DROP [ PUBLIC ] DATABASE LINK [ IF EXISTS ] dblink ;
+//		DROP FUNCTION [ IF EXISTS ] [ schema. ] function_name ;
+//		DROP PROCEDURE [ IF EXISTS ] [ schema. ] procedure ;
+//		DROP PACKAGE [ BODY ] [ IF EXISTS ] [ schema. ] package ;
+//		DROP TRIGGER [ IF EXISTS ] [ schema. ] trigger ;
+//		DROP TYPE [ IF EXISTS ] [ schema. ] type_name [ FORCE | VALIDATE ] ;
+func (p *Parser) parseDropStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume DROP
 
@@ -98,8 +99,8 @@ func (p *Parser) parseDropStmt() nodes.StmtNode {
 		} else {
 			// DROP DATABASE (no LINK)
 			stmt.ObjectType = nodes.OBJECT_DATABASE
-			stmt.Loc.End = p.pos()
-			return stmt
+			stmt.Loc.End = p.prev.End
+			return stmt, nil
 		}
 	case kwPUBLIC:
 		p.advance() // consume PUBLIC
@@ -137,15 +138,23 @@ func (p *Parser) parseDropStmt() nodes.StmtNode {
 	case kwUSER, kwROLE, kwPROFILE,
 		kwTABLESPACE, kwDIRECTORY, kwCONTEXT,
 		kwCLUSTER, kwJAVA, kwLIBRARY:
-		if adminStmt := p.parseDropAdminObject(start); adminStmt != nil {
-			return adminStmt
+		adminStmt, err := p.parseDropAdminObject(start)
+		if err != nil {
+			return nil, err
+		}
+		if adminStmt != nil {
+			return adminStmt, nil
 		}
 		stmt.ObjectType = nodes.OBJECT_TABLE
 	default:
 		// Check for DIMENSION, FLASHBACK ARCHIVE
 		if p.isIdentLike() {
-			if adminStmt := p.parseDropAdminObject(start); adminStmt != nil {
-				return adminStmt
+			adminStmt, err := p.parseDropAdminObject(start)
+			if err != nil {
+				return nil, err
+			}
+			if adminStmt != nil {
+				return adminStmt, nil
 			}
 		}
 		// Unknown object type; consume as identifier
@@ -164,7 +173,10 @@ func (p *Parser) parseDropStmt() nodes.StmtNode {
 	}
 
 	// Parse object name
-	name := p.parseObjectName()
+	name, parseErr692 := p.parseObjectName()
+	if parseErr692 != nil {
+		return nil, parseErr692
+	}
 	stmt.Names.Items = append(stmt.Names.Items, name)
 
 	// Optional trailing options: CASCADE CONSTRAINTS, PURGE, FORCE, ONLINE, DEFERRED/IMMEDIATE INVALIDATION
@@ -204,15 +216,15 @@ func (p *Parser) parseDropStmt() nodes.StmtNode {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseDropSimpleStmt parses a simple DROP statement for objects like INDEXTYPE and OPERATOR.
 // Called after DROP and the object type keyword have been consumed.
 //
 //	DROP { INDEXTYPE | OPERATOR } [ IF EXISTS ] [ schema. ] name [ FORCE ]
-func (p *Parser) parseDropSimpleStmt(objType nodes.ObjectType, start int) *nodes.DropStmt {
+func (p *Parser) parseDropSimpleStmt(objType nodes.ObjectType, start int) (*nodes.DropStmt, error) {
 	stmt := &nodes.DropStmt{
 		ObjectType: objType,
 		Names:      &nodes.List{},
@@ -230,7 +242,10 @@ func (p *Parser) parseDropSimpleStmt(objType nodes.ObjectType, start int) *nodes
 	}
 
 	// Parse object name
-	name := p.parseObjectName()
+	name, parseErr693 := p.parseObjectName()
+	if parseErr693 != nil {
+		return nil, parseErr693
+	}
 	stmt.Names.Items = append(stmt.Names.Items, name)
 
 	// Optional FORCE
@@ -239,8 +254,8 @@ func (p *Parser) parseDropSimpleStmt(objType nodes.ObjectType, start int) *nodes
 		stmt.Force = true
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseDropMaterializedViewLogStmt parses a DROP MATERIALIZED VIEW LOG statement.
@@ -249,7 +264,7 @@ func (p *Parser) parseDropSimpleStmt(objType nodes.ObjectType, start int) *nodes
 // BNF: oracle/parser/bnf/DROP-MATERIALIZED-VIEW-LOG.bnf
 //
 //	DROP MATERIALIZED VIEW LOG [ IF EXISTS ] ON [ schema. ] table_name ;
-func (p *Parser) parseDropMaterializedViewLogStmt(start int) *nodes.DropStmt {
+func (p *Parser) parseDropMaterializedViewLogStmt(start int) (*nodes.DropStmt, error) {
 	stmt := &nodes.DropStmt{
 		ObjectType: nodes.OBJECT_MATERIALIZED_VIEW_LOG,
 		Names:      &nodes.List{},
@@ -272,9 +287,12 @@ func (p *Parser) parseDropMaterializedViewLogStmt(start int) *nodes.DropStmt {
 	}
 
 	// Parse table name
-	name := p.parseObjectName()
+	name, parseErr694 := p.parseObjectName()
+	if parseErr694 != nil {
+		return nil, parseErr694
+	}
 	stmt.Names.Items = append(stmt.Names.Items, name)
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }

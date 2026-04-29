@@ -79,8 +79,12 @@ func TestVerifyCorpus(t *testing.T) {
 	t.Logf("Loc clean:            %d (all nodes have valid Loc)", stats.locClean)
 	t.Logf("LOC VIOLATIONS:       %d (nodes with bad/missing Loc)", stats.locViolations)
 	t.Logf("CRASHES:              %d", stats.crashes)
-	if stats.parseViolations > 0 || stats.crashes > 0 {
-		t.Logf("\n⚠ %d issue(s) require attention", stats.parseViolations+stats.crashes)
+	if stats.parseViolations > 0 || stats.locViolations > 0 || stats.crashes > 0 {
+		t.Errorf("\n%d issue(s) require attention: parse=%d loc=%d crashes=%d",
+			stats.parseViolations+stats.locViolations+stats.crashes,
+			stats.parseViolations,
+			stats.locViolations,
+			stats.crashes)
 	}
 }
 
@@ -157,10 +161,7 @@ func verifyStatement(t *testing.T, stmt corpusStatement) verifyResult {
 		violations := checkLocOnResult(parseResult, stmt.sql)
 		result.locViolations = violations
 		if len(violations) > 0 {
-			// Loc violations are warnings, not test failures.
-			// They are tracked in the summary but don't block the test suite.
-			// Parse violations and crashes are the only hard failures.
-			t.Logf("LOC VIOLATIONS: %d nodes with invalid Loc:", len(violations))
+			t.Errorf("LOC VIOLATIONS: %d nodes with invalid Loc:", len(violations))
 			for i, v := range violations {
 				if i >= 5 {
 					t.Logf("  ... and %d more", len(violations)-5)
@@ -186,7 +187,6 @@ func checkLocOnResult(result *ast.List, sql string) []LocViolation {
 		path := fmt.Sprintf("Items[%d]", i)
 		walkNodeLocs(reflect.ValueOf(item), path, &violations)
 	}
-
 
 	return violations
 }

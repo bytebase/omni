@@ -526,7 +526,7 @@ func ListSpan(list *List) Loc {
 	}
 	first := NodeLoc(list.Items[0])
 	last := NodeLoc(list.Items[len(list.Items)-1])
-	if first.Start == -1 || last.End == -1 {
+	if first.IsUnknown() || last.IsUnknown() || first.Start == -1 || last.End == -1 {
 		return NoLoc()
 	}
 	return Loc{Start: first.Start, End: last.End}

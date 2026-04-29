@@ -20,18 +20,20 @@ import (
 //	    | TABLE [ schema. ] { table | view }
 //	    }
 //	    IS string ;
-func (p *Parser) parseCommentStmt() nodes.StmtNode {
+func (p *Parser) parseCommentStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume COMMENT
 
 	// Expect ON
-	if p.cur.Type == kwON {
-		p.advance()
+	if p.cur.Type != kwON {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	stmt := &nodes.CommentStmt{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr196 error
 
 	// Parse object type
 	switch p.cur.Type {
@@ -42,7 +44,11 @@ func (p *Parser) parseCommentStmt() nodes.StmtNode {
 		stmt.ObjectType = nodes.OBJECT_TABLE
 		p.advance()
 		// For COLUMN, parse a dotted name: [schema.]table.column
-		name := p.parseObjectName()
+		name, parseErr194 := p.parseObjectName()
+		if parseErr194 != nil {
+			return nil, parseErr194
+		}
+
 		// The last part of the name is the column name.
 		// parseObjectName gives us schema.name, but for COMMENT ON COLUMN
 		// we may have schema.table.column or table.column.
@@ -52,7 +58,11 @@ func (p *Parser) parseCommentStmt() nodes.StmtNode {
 			// schema.table.column case: name has schema=schema, name=table
 			// and we need to parse the column part
 			p.advance()
-			stmt.Column = p.parseIdentifier()
+			var parseErr195 error
+			stmt.Column, parseErr195 = p.parseIdentifier()
+			if parseErr195 != nil {
+				return nil, parseErr195
+			}
 			stmt.Object = name
 		} else {
 			// table.column case: name has schema="", name=table or schema=table, name=column
@@ -87,18 +97,28 @@ func (p *Parser) parseCommentStmt() nodes.StmtNode {
 	}
 
 	// Parse object name for non-COLUMN cases
-	stmt.Object = p.parseObjectName()
-
-parseIs:
-	// IS 'comment_text'
-	if p.cur.Type == kwIS {
-		p.advance()
-		if p.cur.Type == tokSCONST {
-			stmt.Comment = p.cur.Str
-			p.advance()
-		}
+	stmt.Object, parseErr196 = p.parseObjectName()
+	if parseErr196 != nil {
+		return nil, parseErr196
+	}
+	if stmt.Object == nil || stmt.Object.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+parseIs:
+
+	if p.cur.Type != kwIS {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type != tokSCONST && p.cur.Type != kwNULL {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == tokSCONST {
+		stmt.Comment = p.cur.Str
+	}
+	p.advance()
+
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }

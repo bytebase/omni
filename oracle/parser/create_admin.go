@@ -7,7 +7,7 @@ import (
 // parseCreateMaterializedOrView distinguishes between:
 // - CREATE MATERIALIZED VIEW LOG ON ... (mview log)
 // - CREATE MATERIALIZED VIEW ... (regular mview)
-func (p *Parser) parseCreateMaterializedOrView(start int, orReplace bool) nodes.StmtNode {
+func (p *Parser) parseCreateMaterializedOrView(start int, orReplace bool) (nodes.StmtNode, error) {
 	p.advance() // consume MATERIALIZED
 	// Check for MATERIALIZED ZONEMAP
 	if p.isIdentLike() && p.cur.Str == "ZONEMAP" {
@@ -43,22 +43,28 @@ func (p *Parser) parseCreateMaterializedOrView(start int, orReplace bool) nodes.
 //
 // This handles: TABLESPACE, DIRECTORY, CONTEXT, CLUSTER, DIMENSION,
 // FLASHBACK ARCHIVE, JAVA, LIBRARY
-func (p *Parser) parseAdminDDLStmt(action string, objType nodes.ObjectType, start int) nodes.StmtNode {
+func (p *Parser) parseAdminDDLStmt(action string, objType nodes.ObjectType, start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     action,
 		ObjectType: objType,
 		Loc:        nodes.Loc{Start: start},
 	}
+	var parseErr197 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr197 = p.parseObjectName()
+	if parseErr197 !=
 
-	// Skip remaining tokens until ;/EOF
+		// Skip remaining tokens until ;/EOF
+		nil {
+		return nil, parseErr197
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateSchemaStmt parses a CREATE SCHEMA statement.
@@ -70,7 +76,7 @@ func (p *Parser) parseAdminDDLStmt(action string, objType nodes.ObjectType, star
 //	  | create_view_statement
 //	  | grant_statement
 //	  } ...
-func (p *Parser) parseCreateSchemaStmt(start int) *nodes.CreateSchemaStmt {
+func (p *Parser) parseCreateSchemaStmt(start int) (*nodes.CreateSchemaStmt, error) {
 	stmt := &nodes.CreateSchemaStmt{
 		Stmts: &nodes.List{},
 		Loc:   nodes.Loc{Start: start},
@@ -94,32 +100,53 @@ func (p *Parser) parseCreateSchemaStmt(start int) *nodes.CreateSchemaStmt {
 			p.advance() // consume CREATE
 			switch p.cur.Type {
 			case kwTABLE:
-				stmt.Stmts.Items = append(stmt.Stmts.Items, p.parseCreateTableStmt(nestedStart, false, false, false, false, false))
+				parseValue3, parseErr4 := p.parseCreateTableStmt(nestedStart, false, false, false, false, false)
+				if parseErr4 != nil {
+					return nil, parseErr4
+				}
+				stmt.Stmts.Items = append(stmt.Stmts.Items, parseValue3)
 			case kwVIEW:
-				stmt.Stmts.Items = append(stmt.Stmts.Items, p.parseCreateViewStmt(nestedStart, false))
+				parseValue5, parseErr6 := p.parseCreateViewStmt(nestedStart, false)
+				if parseErr6 != nil {
+					return nil, parseErr6
+				}
+				stmt.Stmts.Items = append(stmt.Stmts.Items, parseValue5)
 			case kwFORCE:
-				stmt.Stmts.Items = append(stmt.Stmts.Items, p.parseCreateViewStmt(nestedStart, false))
+				parseValue7, parseErr8 := p.parseCreateViewStmt(nestedStart, false)
+				if parseErr8 != nil {
+					return nil,
+
+						// Unknown nested CREATE — skip to next CREATE/GRANT/semicolon
+						parseErr8
+				}
+				stmt.Stmts.Items = append(stmt.Stmts.Items, parseValue7)
 			default:
-				// Unknown nested CREATE — skip to next CREATE/GRANT/semicolon
+
 				p.skipToSemicolon()
 				goto done
 			}
 		case kwGRANT:
-			stmt.Stmts.Items = append(stmt.Stmts.Items, p.parseGrantStmt())
+			parseValue9, parseErr10 := p.parseGrantStmt()
+			if parseErr10 != nil {
+
+				// Unexpected token — stop parsing nested statements
+				return nil, parseErr10
+			}
+			stmt.Stmts.Items = append(stmt.Stmts.Items, parseValue9)
 		default:
-			// Unexpected token — stop parsing nested statements
+
 			goto done
 		}
 	}
 
 done:
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateAdminObject handles CREATE dispatches for admin DDL objects
 // (called from parseCreateStmt after consuming CREATE and modifiers).
-func (p *Parser) parseCreateAdminObject(start int, orReplace bool) nodes.StmtNode {
+func (p *Parser) parseCreateAdminObject(start int, orReplace bool) (nodes.StmtNode, error) {
 	switch p.cur.Type {
 	case kwUSER:
 		p.advance()
@@ -184,125 +211,125 @@ func (p *Parser) parseCreateAdminObject(start int, orReplace bool) nodes.StmtNod
 					p.advance() // consume DATABASE
 				}
 				return p.parseCreatePluggableDatabaseStmt(start)
-		case "ANALYTIC":
-			p.advance() // consume ANALYTIC
-			if p.cur.Type == kwVIEW {
-				p.advance() // consume VIEW
-			}
-			return p.parseCreateAnalyticViewStmt(start, false, false, false)
-		case "ATTRIBUTE":
-			p.advance() // consume ATTRIBUTE
-			if p.isIdentLike() && p.cur.Str == "DIMENSION" {
-				p.advance() // consume DIMENSION
-			}
-			return p.parseCreateAttributeDimensionStmt(start, false, false, false)
-		case "HIERARCHY":
-			p.advance()
-			return p.parseCreateHierarchyStmt(start, false, false, false)
-		case "DOMAIN":
-			p.advance()
-			return p.parseCreateDomainStmt(start, false, false)
-		case "INDEXTYPE":
-			p.advance()
-			return p.parseCreateIndextypeStmt(start, false)
-		case "OPERATOR":
-			p.advance()
-			return p.parseCreateOperatorStmt(start, false, false)
-		case "LOCKDOWN":
-			p.advance() // consume LOCKDOWN
-			if p.cur.Type == kwPROFILE {
-				p.advance() // consume PROFILE
-			}
-			return p.parseCreateLockdownProfileStmt(start)
-		case "OUTLINE":
-			p.advance()
-			return p.parseCreateOutlineStmt(start, false, false)
-		case "INMEMORY":
-			p.advance() // consume INMEMORY
-			if p.cur.Type == kwJOIN {
-				p.advance() // consume JOIN
-			}
-			if p.cur.Type == kwGROUP || (p.isIdentLike() && p.cur.Str == "GROUP") {
-				p.advance() // consume GROUP
-			}
-			return p.parseCreateInmemoryJoinGroupStmt(start)
-		case "ROLLBACK":
-			p.advance() // consume ROLLBACK
-			if p.isIdentLike() && p.cur.Str == "SEGMENT" {
-				p.advance() // consume SEGMENT
-			}
-			return p.parseCreateRollbackSegmentStmt(start, false)
-		case "EDITION":
-			p.advance()
-			return p.parseCreateEditionStmt(start)
-		case "MLE":
-			p.advance() // consume MLE
-			if p.isIdentLike() && p.cur.Str == "ENV" {
-				p.advance() // consume ENV
+			case "ANALYTIC":
+				p.advance() // consume ANALYTIC
+				if p.cur.Type == kwVIEW {
+					p.advance() // consume VIEW
+				}
+				return p.parseCreateAnalyticViewStmt(start, false, false, false)
+			case "ATTRIBUTE":
+				p.advance() // consume ATTRIBUTE
+				if p.isIdentLike() && p.cur.Str == "DIMENSION" {
+					p.advance() // consume DIMENSION
+				}
+				return p.parseCreateAttributeDimensionStmt(start, false, false, false)
+			case "HIERARCHY":
+				p.advance()
+				return p.parseCreateHierarchyStmt(start, false, false, false)
+			case "DOMAIN":
+				p.advance()
+				return p.parseCreateDomainStmt(start, false, false)
+			case "INDEXTYPE":
+				p.advance()
+				return p.parseCreateIndextypeStmt(start, false)
+			case "OPERATOR":
+				p.advance()
+				return p.parseCreateOperatorStmt(start, false, false)
+			case "LOCKDOWN":
+				p.advance() // consume LOCKDOWN
+				if p.cur.Type == kwPROFILE {
+					p.advance() // consume PROFILE
+				}
+				return p.parseCreateLockdownProfileStmt(start)
+			case "OUTLINE":
+				p.advance()
+				return p.parseCreateOutlineStmt(start, false, false)
+			case "INMEMORY":
+				p.advance() // consume INMEMORY
+				if p.cur.Type == kwJOIN {
+					p.advance() // consume JOIN
+				}
+				if p.cur.Type == kwGROUP || (p.isIdentLike() && p.cur.Str == "GROUP") {
+					p.advance() // consume GROUP
+				}
+				return p.parseCreateInmemoryJoinGroupStmt(start)
+			case "ROLLBACK":
+				p.advance() // consume ROLLBACK
+				if p.isIdentLike() && p.cur.Str == "SEGMENT" {
+					p.advance() // consume SEGMENT
+				}
+				return p.parseCreateRollbackSegmentStmt(start, false)
+			case "EDITION":
+				p.advance()
+				return p.parseCreateEditionStmt(start)
+			case "MLE":
+				p.advance() // consume MLE
+				if p.isIdentLike() && p.cur.Str == "ENV" {
+					p.advance() // consume ENV
+					return p.parseCreateMLEEnvStmt(start, orReplace)
+				}
+				if p.isIdentLike() && p.cur.Str == "MODULE" {
+					p.advance() // consume MODULE
+					return p.parseCreateMLEModuleStmt(start, orReplace)
+				}
 				return p.parseCreateMLEEnvStmt(start, orReplace)
-			}
-			if p.isIdentLike() && p.cur.Str == "MODULE" {
-				p.advance() // consume MODULE
-				return p.parseCreateMLEModuleStmt(start, orReplace)
-			}
-			return p.parseCreateMLEEnvStmt(start, orReplace)
-		case "PFILE":
-			p.advance()
-			return p.parseCreatePfileStmt(start)
-		case "SPFILE":
-			p.advance()
-			return p.parseCreateSpfileStmt(start)
-		case "PROPERTY":
-			p.advance() // consume PROPERTY
-			if p.isIdentLike() && p.cur.Str == "GRAPH" {
-				p.advance() // consume GRAPH
-			}
-			return p.parseCreatePropertyGraphStmt(start, false, false)
-		case "VECTOR":
-			p.advance() // consume VECTOR
-			if p.cur.Type == kwINDEX {
-				p.advance() // consume INDEX
-			}
-			return p.parseCreateVectorIndexStmt(start, false)
-		case "RESTORE":
-			p.advance() // consume RESTORE
-			if p.isIdentLike() && p.cur.Str == "POINT" {
-				p.advance() // consume POINT
-			}
-			return p.parseCreateRestorePointStmt(start, false)
-		case "CLEAN":
-			p.advance() // consume CLEAN
-			if p.isIdentLike() && p.cur.Str == "RESTORE" {
+			case "PFILE":
+				p.advance()
+				return p.parseCreatePfileStmt(start)
+			case "SPFILE":
+				p.advance()
+				return p.parseCreateSpfileStmt(start)
+			case "PROPERTY":
+				p.advance() // consume PROPERTY
+				if p.isIdentLike() && p.cur.Str == "GRAPH" {
+					p.advance() // consume GRAPH
+				}
+				return p.parseCreatePropertyGraphStmt(start, false, false)
+			case "VECTOR":
+				p.advance() // consume VECTOR
+				if p.cur.Type == kwINDEX {
+					p.advance() // consume INDEX
+				}
+				return p.parseCreateVectorIndexStmt(start, false)
+			case "RESTORE":
 				p.advance() // consume RESTORE
+				if p.isIdentLike() && p.cur.Str == "POINT" {
+					p.advance() // consume POINT
+				}
+				return p.parseCreateRestorePointStmt(start, false)
+			case "CLEAN":
+				p.advance() // consume CLEAN
+				if p.isIdentLike() && p.cur.Str == "RESTORE" {
+					p.advance() // consume RESTORE
+				}
+				if p.isIdentLike() && p.cur.Str == "POINT" {
+					p.advance() // consume POINT
+				}
+				return p.parseCreateRestorePointStmt(start, true)
+			case "LOGICAL":
+				p.advance() // consume LOGICAL
+				if p.cur.Type == kwPARTITION || (p.isIdentLike() && p.cur.Str == "PARTITION") {
+					p.advance() // consume PARTITION
+				}
+				if p.isIdentLike() && p.cur.Str == "TRACKING" {
+					p.advance() // consume TRACKING
+				}
+				return p.parseCreateLogicalPartitionTrackingStmt(start)
+			case "PMEM":
+				p.advance() // consume PMEM
+				if p.isIdentLike() && p.cur.Str == "FILESTORE" {
+					p.advance() // consume FILESTORE
+				}
+				return p.parseCreatePmemFilestoreStmt(start)
 			}
-			if p.isIdentLike() && p.cur.Str == "POINT" {
-				p.advance() // consume POINT
-			}
-			return p.parseCreateRestorePointStmt(start, true)
-		case "LOGICAL":
-			p.advance() // consume LOGICAL
-			if p.cur.Type == kwPARTITION || (p.isIdentLike() && p.cur.Str == "PARTITION") {
-				p.advance() // consume PARTITION
-			}
-			if p.isIdentLike() && p.cur.Str == "TRACKING" {
-				p.advance() // consume TRACKING
-			}
-			return p.parseCreateLogicalPartitionTrackingStmt(start)
-		case "PMEM":
-			p.advance() // consume PMEM
-			if p.isIdentLike() && p.cur.Str == "FILESTORE" {
-				p.advance() // consume FILESTORE
-			}
-			return p.parseCreatePmemFilestoreStmt(start)
 		}
-	}
-	return nil
+		return nil, nil
 	}
 }
 
 // parseDropAdminObject handles DROP dispatches for admin DDL objects
 // (called from parseDropStmt for object types not handled there).
-func (p *Parser) parseDropAdminObject(start int) nodes.StmtNode {
+func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 	switch p.cur.Type {
 	case kwUSER:
 		p.advance()
@@ -319,13 +346,19 @@ func (p *Parser) parseDropAdminObject(start int) nodes.StmtNode {
 				p.advance() // consume EXISTS
 			}
 		}
-		stmt.Name = p.parseObjectName()
-		// CASCADE
+		var parseErr198 error
+		stmt.Name, parseErr198 = p.parseObjectName()
+		if parseErr198 !=
+			// CASCADE
+			nil {
+			return nil, parseErr198
+		}
+
 		if p.cur.Type == kwCASCADE {
 			p.advance()
 		}
-		stmt.Loc.End = p.pos()
-		return stmt
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	case kwROLE:
 		p.advance()
 		return p.parseAdminDDLStmt("DROP", nodes.OBJECT_ROLE, start)
@@ -336,12 +369,16 @@ func (p *Parser) parseDropAdminObject(start int) nodes.StmtNode {
 			ObjectType: nodes.OBJECT_PROFILE,
 			Loc:        nodes.Loc{Start: start},
 		}
-		stmt.Name = p.parseObjectName()
+		var parseErr199 error
+		stmt.Name, parseErr199 = p.parseObjectName()
+		if parseErr199 != nil {
+			return nil, parseErr199
+		}
 		if p.cur.Type == kwCASCADE {
 			p.advance()
 		}
-		stmt.Loc.End = p.pos()
-		return stmt
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	case kwTABLESPACE:
 		p.advance()
 		if p.cur.Type == kwSET {
@@ -482,7 +519,7 @@ func (p *Parser) parseDropAdminObject(start int) nodes.StmtNode {
 				return p.parseDropSimpleStmt(nodes.OBJECT_PMEM_FILESTORE, start)
 			}
 		}
-		return nil
+		return nil, nil
 	}
 }
 
@@ -571,7 +608,7 @@ func (p *Parser) parseDropAdminObject(start int) nodes.StmtNode {
 //
 //	size_clause:
 //	    integer [ K | M | G | T | P | E ]
-func (p *Parser) parseCreateTablespaceStmt(start int, bigfile, smallfile, local, temporary, undo bool) *nodes.CreateTablespaceStmt {
+func (p *Parser) parseCreateTablespaceStmt(start int, bigfile, smallfile, local, temporary, undo bool) (*nodes.CreateTablespaceStmt, error) {
 	stmt := &nodes.CreateTablespaceStmt{
 		Loc:       nodes.Loc{Start: start},
 		Bigfile:   bigfile,
@@ -580,11 +617,17 @@ func (p *Parser) parseCreateTablespaceStmt(start int, bigfile, smallfile, local,
 		Temporary: temporary,
 		Undo:      undo,
 	}
+	var parseErr200 error
 
 	// Parse tablespace name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr200 = p.parseObjectName()
+	if parseErr200 !=
 
-	// Optional IF NOT EXISTS
+		// Optional IF NOT EXISTS
+		nil {
+		return nil, parseErr200
+	}
+
 	if p.cur.Type == kwIF {
 		p.advance() // IF
 		if p.cur.Type == kwNOT {
@@ -603,7 +646,10 @@ func (p *Parser) parseCreateTablespaceStmt(start int, bigfile, smallfile, local,
 			p.advance()
 			// Parse one or more file specifications
 			for {
-				df := p.parseDatafileClause()
+				df, parseErr201 := p.parseDatafileClause()
+				if parseErr201 != nil {
+					return nil, parseErr201
+				}
 				if df != nil {
 					stmt.Datafiles = append(stmt.Datafiles, df)
 				}
@@ -616,10 +662,18 @@ func (p *Parser) parseCreateTablespaceStmt(start int, bigfile, smallfile, local,
 
 		case p.cur.Type == kwSIZE:
 			p.advance()
-			stmt.Size = p.parseSizeValue()
+			var parseErr202 error
+			stmt.Size, parseErr202 = p.parseSizeValue()
+			if parseErr202 != nil {
+				return nil, parseErr202
+			}
 
 		case p.isIdentLike() && p.cur.Str == "AUTOEXTEND":
-			stmt.Autoextend = p.parseAutoextendClause()
+			var parseErr203 error
+			stmt.Autoextend, parseErr203 = p.parseAutoextendClause()
+			if parseErr203 != nil {
+				return nil, parseErr203
+			}
 
 		case p.isIdentLike() && p.cur.Str == "REUSE":
 			p.advance()
@@ -660,17 +714,33 @@ func (p *Parser) parseCreateTablespaceStmt(start int, bigfile, smallfile, local,
 			if p.isIdentLike() && p.cur.Str == "EXTENT" {
 				p.advance() // EXTENT
 			}
-			stmt.MinimumExtent = p.parseSizeValue()
+			var parseErr204 error
+			stmt.MinimumExtent, parseErr204 = p.parseSizeValue()
+			if parseErr204 != nil {
+				return nil, parseErr204
+			}
 
 		case p.isIdentLike() && p.cur.Str == "EXTENT":
-			stmt.Extent = p.parseExtentManagementClause()
+			var parseErr205 error
+			stmt.Extent, parseErr205 = p.parseExtentManagementClause()
+			if parseErr205 != nil {
+				return nil, parseErr205
+			}
 
 		case p.isIdentLike() && p.cur.Str == "SEGMENT":
-			stmt.Segment = p.parseSegmentManagementClause()
+			var parseErr206 error
+			stmt.Segment, parseErr206 = p.parseSegmentManagementClause()
+			if parseErr206 != nil {
+				return nil, parseErr206
+			}
 
 		case p.isIdentLike() && p.cur.Str == "BLOCKSIZE":
 			p.advance()
-			stmt.Blocksize = p.parseSizeValue()
+			var parseErr207 error
+			stmt.Blocksize, parseErr207 = p.parseSizeValue()
+			if parseErr207 != nil {
+				return nil, parseErr207
+			}
 
 		case p.isIdentLike() && p.cur.Str == "RETENTION":
 			p.advance()
@@ -683,11 +753,19 @@ func (p *Parser) parseCreateTablespaceStmt(start int, bigfile, smallfile, local,
 			}
 
 		case p.isIdentLike() && p.cur.Str == "ENCRYPTION":
-			stmt.Encryption, stmt.EncryptionAlgorithm = p.parseTablespaceEncryptionClause()
+			var parseErr208 error
+			stmt.Encryption, stmt.EncryptionAlgorithm, parseErr208 = p.parseTablespaceEncryptionClause()
+			if parseErr208 != nil {
+				return nil, parseErr208
+			}
 
 		case p.cur.Type == kwDEFAULT:
 			p.advance()
-			stmt.DefaultParams = p.parseDefaultTablespaceParams()
+			var parseErr209 error
+			stmt.DefaultParams, parseErr209 = p.parseDefaultTablespaceParams()
+			if parseErr209 != nil {
+				return nil, parseErr209
+			}
 
 		case p.isIdentLike() && p.cur.Str == "MAXSIZE":
 			p.advance()
@@ -695,7 +773,11 @@ func (p *Parser) parseCreateTablespaceStmt(start int, bigfile, smallfile, local,
 				p.advance()
 				stmt.MaxSize = "UNLIMITED"
 			} else {
-				stmt.MaxSize = p.parseSizeValue()
+				var parseErr210 error
+				stmt.MaxSize, parseErr210 = p.parseSizeValue()
+				if parseErr210 != nil {
+					return nil, parseErr210
+				}
 			}
 
 		case p.cur.Type == kwSTORAGE:
@@ -715,7 +797,11 @@ func (p *Parser) parseCreateTablespaceStmt(start int, bigfile, smallfile, local,
 			}
 
 		case p.isIdentLike() && (p.cur.Str == "ENABLE" || p.cur.Str == "DISABLE" || p.cur.Str == "SUSPEND" || p.cur.Str == "REMOVE"):
-			stmt.LostWriteProtection = p.parseLostWriteProtection()
+			var parseErr211 error
+			stmt.LostWriteProtection, parseErr211 = p.parseLostWriteProtection()
+			if parseErr211 != nil {
+				return nil, parseErr211
+			}
 
 		case p.cur.Type == kwTABLESPACE:
 			// TABLESPACE GROUP clause (in temporary tablespace context)
@@ -747,39 +833,43 @@ func (p *Parser) parseCreateTablespaceStmt(start int, bigfile, smallfile, local,
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseExtentManagementClause parses EXTENT MANAGEMENT { LOCAL [...] | DICTIONARY }.
-func (p *Parser) parseExtentManagementClause() string {
+func (p *Parser) parseExtentManagementClause() (string, error) {
 	p.advance() // EXTENT
 	if p.isIdentLike() && p.cur.Str == "MANAGEMENT" {
 		p.advance() // MANAGEMENT
 	}
 	if p.isIdentLike() && p.cur.Str == "DICTIONARY" {
 		p.advance()
-		return "DICTIONARY"
+		return "DICTIONARY", nil
 	}
 	if p.isIdentLike() && p.cur.Str == "LOCAL" {
 		p.advance() // LOCAL
 	}
 	if p.isIdentLike() && p.cur.Str == "AUTOALLOCATE" {
 		p.advance()
-		return "AUTOALLOCATE"
+		return "AUTOALLOCATE", nil
 	} else if p.isIdentLike() && p.cur.Str == "UNIFORM" {
 		p.advance()
 		if p.cur.Type == kwSIZE {
 			p.advance()
-			return "UNIFORM SIZE " + p.parseSizeValue()
+			parseValue11, parseErr12 := p.parseSizeValue()
+			if parseErr12 != nil {
+				return "", parseErr12
+			}
+			return "UNIFORM SIZE " + parseValue11, nil
 		}
-		return "UNIFORM"
+		return "UNIFORM", nil
 	}
-	return "LOCAL"
+	return "LOCAL", nil
 }
 
 // parseSegmentManagementClause parses SEGMENT SPACE MANAGEMENT { AUTO | MANUAL }.
-func (p *Parser) parseSegmentManagementClause() string {
+func (p *Parser) parseSegmentManagementClause() (string, error) {
 	p.advance() // SEGMENT
 	if p.isIdentLike() && p.cur.Str == "SPACE" {
 		p.advance() // SPACE
@@ -789,17 +879,17 @@ func (p *Parser) parseSegmentManagementClause() string {
 	}
 	if p.isIdentLike() && p.cur.Str == "AUTO" {
 		p.advance()
-		return "AUTO"
+		return "AUTO", nil
 	} else if p.isIdentLike() && p.cur.Str == "MANUAL" {
 		p.advance()
-		return "MANUAL"
+		return "MANUAL", nil
 	}
-	return "AUTO"
+	return "AUTO", nil
 }
 
 // parseTablespaceEncryptionClause parses ENCRYPTION [ USING 'algo' ] { ENCRYPT | DECRYPT }.
 // Returns (encryption_summary, algorithm).
-func (p *Parser) parseTablespaceEncryptionClause() (string, string) {
+func (p *Parser) parseTablespaceEncryptionClause() (string, string, error) {
 	p.advance() // ENCRYPTION
 	algo := ""
 	if p.isIdentLike() && p.cur.Str == "USING" {
@@ -811,18 +901,18 @@ func (p *Parser) parseTablespaceEncryptionClause() (string, string) {
 	}
 	if p.isIdentLike() && p.cur.Str == "ENCRYPT" {
 		p.advance()
-		return "ENCRYPT", algo
+		return "ENCRYPT", algo, nil
 	} else if p.isIdentLike() && p.cur.Str == "DECRYPT" {
 		p.advance()
-		return "DECRYPT", algo
+		return "DECRYPT", algo, nil
 	}
 	// For ALTER TABLESPACE: ENCRYPTION ONLINE/OFFLINE/FINISH
-	return "ENCRYPTION", algo
+	return "ENCRYPTION", algo, nil
 }
 
 // parseDefaultTablespaceParams parses DEFAULT tablespace params.
 // Returns a summary string of the parsed params.
-func (p *Parser) parseDefaultTablespaceParams() string {
+func (p *Parser) parseDefaultTablespaceParams() (string, error) {
 	result := ""
 	for p.cur.Type != ';' && p.cur.Type != tokEOF && !p.isTablespaceClauseStart() {
 		switch {
@@ -950,7 +1040,7 @@ func (p *Parser) parseDefaultTablespaceParams() string {
 	if result == "" {
 		result = "DEFAULT"
 	}
-	return result
+	return result, nil
 }
 
 // appendParam appends a parameter to a space-separated string.
@@ -962,7 +1052,7 @@ func (p *Parser) appendParam(base, param string) string {
 }
 
 // parseLostWriteProtection parses { ENABLE | DISABLE | SUSPEND | REMOVE } LOST WRITE PROTECTION.
-func (p *Parser) parseLostWriteProtection() string {
+func (p *Parser) parseLostWriteProtection() (string, error) {
 	action := p.cur.Str
 	p.advance() // ENABLE/DISABLE/SUSPEND/REMOVE
 	if p.isIdentLike() && p.cur.Str == "LOST" {
@@ -974,7 +1064,7 @@ func (p *Parser) parseLostWriteProtection() string {
 	if p.isIdentLike() && p.cur.Str == "PROTECTION" {
 		p.advance() // PROTECTION
 	}
-	return action
+	return action, nil
 }
 
 // parseAlterTablespaceStmt parses an ALTER TABLESPACE statement.
@@ -1028,7 +1118,7 @@ func (p *Parser) parseLostWriteProtection() string {
 //
 //	lost_write_protection:
 //	    { ENABLE | DISABLE | REMOVE | SUSPEND } LOST WRITE PROTECTION
-func (p *Parser) parseAlterTablespaceStmt(start int, isSet bool) *nodes.AlterTablespaceStmt {
+func (p *Parser) parseAlterTablespaceStmt(start int, isSet bool) (*nodes.AlterTablespaceStmt, error) {
 	stmt := &nodes.AlterTablespaceStmt{
 		IsSet: isSet,
 		Loc:   nodes.Loc{Start: start},
@@ -1042,27 +1132,45 @@ func (p *Parser) parseAlterTablespaceStmt(start int, isSet bool) *nodes.AlterTab
 		}
 		stmt.IfExists = true
 	}
+	var parseErr212 error
 
 	// Parse tablespace name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr212 = p.parseObjectName()
+	if parseErr212 !=
 
-	// Parse alter clauses
+		// Parse alter clauses
+		nil {
+		return nil, parseErr212
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		switch {
 		case p.cur.Type == kwDEFAULT:
 			p.advance()
-			stmt.DefaultParams = p.parseDefaultTablespaceParams()
+			var parseErr213 error
+			stmt.DefaultParams, parseErr213 = p.parseDefaultTablespaceParams()
+			if parseErr213 != nil {
+				return nil, parseErr213
+			}
 
 		case p.isIdentLike() && p.cur.Str == "MINIMUM":
 			p.advance() // MINIMUM
 			if p.isIdentLike() && p.cur.Str == "EXTENT" {
 				p.advance() // EXTENT
 			}
-			stmt.MinimumExtent = p.parseSizeValue()
+			var parseErr214 error
+			stmt.MinimumExtent, parseErr214 = p.parseSizeValue()
+			if parseErr214 != nil {
+				return nil, parseErr214
+			}
 
 		case p.isIdentLike() && p.cur.Str == "RESIZE":
 			p.advance()
-			stmt.Resize = p.parseSizeValue()
+			var parseErr215 error
+			stmt.Resize, parseErr215 = p.parseSizeValue()
+			if parseErr215 != nil {
+				return nil, parseErr215
+			}
 
 		case p.isIdentLike() && p.cur.Str == "COALESCE":
 			p.advance()
@@ -1082,17 +1190,28 @@ func (p *Parser) parseAlterTablespaceStmt(start int, isSet bool) *nodes.AlterTab
 				}
 				if p.isIdentLike() && p.cur.Str == "KEEP" {
 					p.advance()
-					stmt.ShrinkTempfileKeep = p.parseSizeValue()
+					var parseErr216 error
+					stmt.ShrinkTempfileKeep, parseErr216 = p.parseSizeValue()
+					if parseErr216 != nil {
+						return nil,
+
+							// SHRINK SPACE
+							parseErr216
+					}
 				}
 			} else {
-				// SHRINK SPACE
+
 				if p.isIdentLike() && p.cur.Str == "SPACE" {
 					p.advance()
 				}
 				stmt.ShrinkSpace = true
 				if p.isIdentLike() && p.cur.Str == "KEEP" {
 					p.advance()
-					stmt.ShrinkKeep = p.parseSizeValue()
+					var parseErr217 error
+					stmt.ShrinkKeep, parseErr217 = p.parseSizeValue()
+					if parseErr217 != nil {
+						return nil, parseErr217
+					}
 				}
 			}
 
@@ -1134,7 +1253,11 @@ func (p *Parser) parseAlterTablespaceStmt(start int, isSet bool) *nodes.AlterTab
 				if p.cur.Type == kwTO {
 					p.advance()
 				}
-				stmt.RenameTo = p.parseIdentifier()
+				var parseErr218 error
+				stmt.RenameTo, parseErr218 = p.parseIdentifier()
+				if parseErr218 != nil {
+					return nil, parseErr218
+				}
 			}
 
 		case p.isIdentLike() && p.cur.Str == "BEGIN":
@@ -1162,7 +1285,10 @@ func (p *Parser) parseAlterTablespaceStmt(start int, isSet bool) *nodes.AlterTab
 			}
 			// Parse file specifications
 			for {
-				df := p.parseDatafileClause()
+				df, parseErr219 := p.parseDatafileClause()
+				if parseErr219 != nil {
+					return nil, parseErr219
+				}
 				if df != nil {
 					stmt.Datafiles = append(stmt.Datafiles, df)
 				}
@@ -1281,7 +1407,11 @@ func (p *Parser) parseAlterTablespaceStmt(start int, isSet bool) *nodes.AlterTab
 			stmt.TempState = true
 
 		case p.isIdentLike() && p.cur.Str == "AUTOEXTEND":
-			stmt.Autoextend = p.parseAutoextendClause()
+			var parseErr220 error
+			stmt.Autoextend, parseErr220 = p.parseAutoextendClause()
+			if parseErr220 != nil {
+				return nil, parseErr220
+			}
 
 		case p.isIdentLike() && p.cur.Str == "FLASHBACK":
 			p.advance()
@@ -1324,7 +1454,11 @@ func (p *Parser) parseAlterTablespaceStmt(start int, isSet bool) *nodes.AlterTab
 			stmt.Encryption = enc
 
 		case p.isIdentLike() && (p.cur.Str == "ENABLE" || p.cur.Str == "DISABLE" || p.cur.Str == "SUSPEND" || p.cur.Str == "REMOVE"):
-			stmt.LostWriteProtection = p.parseLostWriteProtection()
+			var parseErr221 error
+			stmt.LostWriteProtection, parseErr221 = p.parseLostWriteProtection()
+			if parseErr221 != nil {
+				return nil, parseErr221
+			}
 
 		case p.cur.Type == kwGROUP || (p.isIdentLike() && p.cur.Str == "GROUP"):
 			p.advance() // GROUP
@@ -1341,8 +1475,8 @@ func (p *Parser) parseAlterTablespaceStmt(start int, isSet bool) *nodes.AlterTab
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // isAlterTablespaceClauseStart returns true if the current token starts a known ALTER TABLESPACE clause.
@@ -1402,23 +1536,35 @@ func (p *Parser) isTablespaceClauseStart() bool {
 //	    [ extent_management_clause ]
 //	    [ segment_management_clause ]
 //	    [ flashback_mode_clause ]
-func (p *Parser) parseCreateTablespaceSetStmt(start int) *nodes.CreateTablespaceSetStmt {
+func (p *Parser) parseCreateTablespaceSetStmt(start int) (*nodes.CreateTablespaceSetStmt, error) {
 	stmt := &nodes.CreateTablespaceSetStmt{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr222 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr222 = p.parseObjectName()
+	if parseErr222 !=
 
-	// Optional IN SHARDSPACE
+		// Optional IN SHARDSPACE
+		nil {
+		return nil, parseErr222
+	}
+
 	if p.cur.Type == kwIN {
 		p.advance() // IN
 		if p.isIdentLike() && p.cur.Str == "SHARDSPACE" {
 			p.advance() // SHARDSPACE
 		}
-		stmt.Shardspace = p.parseIdentifier()
+		var parseErr223 error
+		stmt.Shardspace, parseErr223 = p.parseIdentifier()
+		if parseErr223 !=
+
+			// Optional USING TEMPLATE ( ... )
+			nil {
+			return nil, parseErr223
+		}
 	}
 
-	// Optional USING TEMPLATE ( ... )
 	if p.isIdentLike() && p.cur.Str == "USING" {
 		p.advance() // USING
 		if p.isIdentLike() && p.cur.Str == "TEMPLATE" {
@@ -1431,7 +1577,10 @@ func (p *Parser) parseCreateTablespaceSetStmt(start int) *nodes.CreateTablespace
 				case p.isIdentLike() && p.cur.Str == "DATAFILE":
 					p.advance()
 					for {
-						df := p.parseDatafileClause()
+						df, parseErr224 := p.parseDatafileClause()
+						if parseErr224 != nil {
+							return nil, parseErr224
+						}
 						if df != nil {
 							stmt.Datafiles = append(stmt.Datafiles, df)
 						}
@@ -1455,18 +1604,34 @@ func (p *Parser) parseCreateTablespaceSetStmt(start int) *nodes.CreateTablespace
 					stmt.Logging = "FILESYSTEM_LIKE_LOGGING"
 
 				case p.isIdentLike() && p.cur.Str == "ENCRYPTION":
-					enc, _ := p.parseTablespaceEncryptionClause()
+					enc, encryptionAlgorithm, parseErr225 := p.parseTablespaceEncryptionClause()
+					_ = encryptionAlgorithm
+					if parseErr225 != nil {
+						return nil, parseErr225
+					}
 					stmt.Encryption = enc
 
 				case p.cur.Type == kwDEFAULT:
 					p.advance()
-					stmt.DefaultParams = p.parseDefaultTablespaceParams()
+					var parseErr226 error
+					stmt.DefaultParams, parseErr226 = p.parseDefaultTablespaceParams()
+					if parseErr226 != nil {
+						return nil, parseErr226
+					}
 
 				case p.isIdentLike() && p.cur.Str == "EXTENT":
-					stmt.Extent = p.parseExtentManagementClause()
+					var parseErr227 error
+					stmt.Extent, parseErr227 = p.parseExtentManagementClause()
+					if parseErr227 != nil {
+						return nil, parseErr227
+					}
 
 				case p.isIdentLike() && p.cur.Str == "SEGMENT":
-					stmt.Segment = p.parseSegmentManagementClause()
+					var parseErr228 error
+					stmt.Segment, parseErr228 = p.parseSegmentManagementClause()
+					if parseErr228 != nil {
+						return nil, parseErr228
+					}
 
 				case p.isIdentLike() && p.cur.Str == "FLASHBACK":
 					p.advance()
@@ -1488,8 +1653,8 @@ func (p *Parser) parseCreateTablespaceSetStmt(start int) *nodes.CreateTablespace
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseDropTablespaceStmt parses a DROP TABLESPACE or DROP TABLESPACE SET statement.
@@ -1506,7 +1671,7 @@ func (p *Parser) parseCreateTablespaceSetStmt(start int) *nodes.CreateTablespace
 //	DROP TABLESPACE SET tablespace_set
 //	    [ INCLUDING CONTENTS [ { AND DATAFILES | KEEP DATAFILES } ]
 //	      [ CASCADE CONSTRAINTS ] ] ;
-func (p *Parser) parseDropTablespaceStmt(start int, isSet bool) *nodes.DropTablespaceStmt {
+func (p *Parser) parseDropTablespaceStmt(start int, isSet bool) (*nodes.DropTablespaceStmt, error) {
 	stmt := &nodes.DropTablespaceStmt{
 		IsSet: isSet,
 		Loc:   nodes.Loc{Start: start},
@@ -1520,10 +1685,16 @@ func (p *Parser) parseDropTablespaceStmt(start int, isSet bool) *nodes.DropTable
 		}
 		stmt.IfExists = true
 	}
+	var parseErr229 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr229 = p.parseObjectName()
+	if parseErr229 !=
 
-	// Parse optional clauses
+		// Parse optional clauses
+		nil {
+		return nil, parseErr229
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		switch {
 		case p.cur.Type == kwDROP:
@@ -1569,14 +1740,14 @@ func (p *Parser) parseDropTablespaceStmt(start int, isSet bool) *nodes.DropTable
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseDatafileClause parses a single file specification (path string and optional SIZE).
-func (p *Parser) parseDatafileClause() *nodes.DatafileClause {
+func (p *Parser) parseDatafileClause() (*nodes.DatafileClause, error) {
 	if p.cur.Type != tokSCONST {
-		return nil
+		return nil, nil
 	}
 	df := &nodes.DatafileClause{
 		Loc: nodes.Loc{Start: p.pos()},
@@ -1587,10 +1758,16 @@ func (p *Parser) parseDatafileClause() *nodes.DatafileClause {
 	// Optional SIZE
 	if p.cur.Type == kwSIZE {
 		p.advance()
-		df.Size = p.parseSizeValue()
+		var parseErr230 error
+		df.Size, parseErr230 = p.parseSizeValue()
+		if parseErr230 !=
+
+			// Optional REUSE
+			nil {
+			return nil, parseErr230
+		}
 	}
 
-	// Optional REUSE
 	if p.isIdentLike() && p.cur.Str == "REUSE" {
 		p.advance()
 		df.Reuse = true
@@ -1598,15 +1775,19 @@ func (p *Parser) parseDatafileClause() *nodes.DatafileClause {
 
 	// Optional AUTOEXTEND
 	if p.isIdentLike() && p.cur.Str == "AUTOEXTEND" {
-		df.Autoextend = p.parseAutoextendClause()
+		var parseErr231 error
+		df.Autoextend, parseErr231 = p.parseAutoextendClause()
+		if parseErr231 != nil {
+			return nil, parseErr231
+		}
 	}
 
-	df.Loc.End = p.pos()
-	return df
+	df.Loc.End = p.prev.End
+	return df, nil
 }
 
 // parseAutoextendClause parses AUTOEXTEND ON/OFF with optional NEXT and MAXSIZE.
-func (p *Parser) parseAutoextendClause() *nodes.AutoextendClause {
+func (p *Parser) parseAutoextendClause() (*nodes.AutoextendClause, error) {
 	ac := &nodes.AutoextendClause{
 		Loc: nodes.Loc{Start: p.pos()},
 	}
@@ -1618,16 +1799,27 @@ func (p *Parser) parseAutoextendClause() *nodes.AutoextendClause {
 		// Optional NEXT size
 		if p.cur.Type == kwNEXT {
 			p.advance()
-			ac.Next = p.parseSizeValue()
+			var parseErr232 error
+			ac.Next, parseErr232 = p.parseSizeValue()
+			if parseErr232 !=
+
+				// Optional MAXSIZE
+				nil {
+				return nil, parseErr232
+			}
 		}
-		// Optional MAXSIZE
+
 		if p.isIdentLike() && p.cur.Str == "MAXSIZE" {
 			p.advance()
 			if p.isIdentLike() && p.cur.Str == "UNLIMITED" {
 				p.advance()
 				ac.MaxSize = "UNLIMITED"
 			} else {
-				ac.MaxSize = p.parseSizeValue()
+				var parseErr233 error
+				ac.MaxSize, parseErr233 = p.parseSizeValue()
+				if parseErr233 != nil {
+					return nil, parseErr233
+				}
 			}
 		}
 	} else if p.isIdentLike() && p.cur.Str == "OFF" {
@@ -1635,13 +1827,13 @@ func (p *Parser) parseAutoextendClause() *nodes.AutoextendClause {
 		ac.On = false
 	}
 
-	ac.Loc.End = p.pos()
-	return ac
+	ac.Loc.End = p.prev.End
+	return ac, nil
 }
 
 // parseSizeValue parses a size value like "100M", "10G", "512", "8K".
 // It combines the number and optional unit suffix into a single string.
-func (p *Parser) parseSizeValue() string {
+func (p *Parser) parseSizeValue() (string, error) {
 	if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
 		val := p.cur.Str
 		p.advance()
@@ -1653,9 +1845,9 @@ func (p *Parser) parseSizeValue() string {
 				p.advance()
 			}
 		}
-		return val
+		return val, nil
 	}
-	return ""
+	return "", nil
 }
 
 // skipParens skips balanced parentheses.
@@ -1691,6 +1883,7 @@ func (p *Parser) skipParens() {
 //	    [ NOROWDEPENDENCIES | ROWDEPENDENCIES ]
 //	    [ CACHE | NOCACHE ]
 //	    [ cluster_range_partitions ]
+//
 // parseCreateClusterStmt parses a CREATE CLUSTER statement.
 //
 // BNF: oracle/parser/bnf/CREATE-CLUSTER.bnf
@@ -1729,7 +1922,7 @@ func (p *Parser) skipParens() {
 //	          VALUES LESS THAN ( { value | MAXVALUE } [, { value | MAXVALUE } ]... )
 //	          [ table_partition_description ] ]...
 //	    )
-func (p *Parser) parseCreateClusterStmt(start int) *nodes.CreateClusterStmt {
+func (p *Parser) parseCreateClusterStmt(start int) (*nodes.CreateClusterStmt, error) {
 	stmt := &nodes.CreateClusterStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -1745,29 +1938,53 @@ func (p *Parser) parseCreateClusterStmt(start int) *nodes.CreateClusterStmt {
 			}
 		}
 	}
+	var parseErr234 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr234 = p.parseObjectName()
+	if parseErr234 !=
 
-	// Parse column list in parentheses: ( col datatype [SORT] [, ...] )
+		// Parse column list in parentheses: ( col datatype [SORT] [, ...] )
+		nil {
+		return nil, parseErr234
+	}
+
 	if p.cur.Type == '(' {
 		p.advance()
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
 			col := &nodes.ClusterColumn{
 				Loc: nodes.Loc{Start: p.pos()},
 			}
-			col.Name = p.parseIdentifier()
-			col.DataType = p.parseTypeName()
+			var parseErr235 error
+			col.Name, parseErr235 = p.parseIdentifier()
+			if parseErr235 != nil {
+				return nil, parseErr235
+			}
+
 			// Optional COLLATE
+			var parseErr236 error
+			col.DataType, parseErr236 = p.parseTypeName()
+			if parseErr236 != nil {
+				return nil, parseErr236
+			}
+
 			if p.isIdentLike() && p.cur.Str == "COLLATE" {
 				p.advance()
-				p.parseIdentifier() // collation name
+				parseDiscard238, parseErr237 := p.parseIdentifier()
+				_ = // collation name
+					parseDiscard238
+				if parseErr237 !=
+
+					// Optional SORT
+					nil {
+					return nil, parseErr237
+				}
 			}
-			// Optional SORT
+
 			if p.cur.Type == kwORDER || (p.isIdentLike() && p.cur.Str == "SORT") {
 				p.advance()
 				col.Sort = true
 			}
-			col.Loc.End = p.pos()
+			col.Loc.End = p.prev.End
 			stmt.Columns = append(stmt.Columns, col)
 			if p.cur.Type == ',' {
 				p.advance()
@@ -1784,31 +2001,48 @@ func (p *Parser) parseCreateClusterStmt(start int) *nodes.CreateClusterStmt {
 		case p.cur.Type == kwPCTFREE:
 			p.advance()
 			if p.cur.Type == tokICONST {
-				v := p.parseIntValue()
+				v, parseErr239 := p.parseIntValue()
+				if parseErr239 != nil {
+					return nil, parseErr239
+				}
 				stmt.PctFree = &v
 			}
 
 		case p.isIdentLike() && p.cur.Str == "PCTUSED":
 			p.advance()
 			if p.cur.Type == tokICONST {
-				v := p.parseIntValue()
+				v, parseErr240 := p.parseIntValue()
+				if parseErr240 != nil {
+					return nil, parseErr240
+				}
 				stmt.PctUsed = &v
 			}
 
 		case p.isIdentLike() && p.cur.Str == "INITRANS":
 			p.advance()
 			if p.cur.Type == tokICONST {
-				v := p.parseIntValue()
+				v, parseErr241 := p.parseIntValue()
+				if parseErr241 != nil {
+					return nil, parseErr241
+				}
 				stmt.InitTrans = &v
 			}
 
 		case p.cur.Type == kwSIZE:
 			p.advance()
-			stmt.Size = p.parseSizeValue()
+			var parseErr242 error
+			stmt.Size, parseErr242 = p.parseSizeValue()
+			if parseErr242 != nil {
+				return nil, parseErr242
+			}
 
 		case p.cur.Type == kwTABLESPACE:
 			p.advance()
-			stmt.Tablespace = p.parseIdentifier()
+			var parseErr243 error
+			stmt.Tablespace, parseErr243 = p.parseIdentifier()
+			if parseErr243 != nil {
+				return nil, parseErr243
+			}
 
 		case p.cur.Type == kwINDEX:
 			p.advance()
@@ -1833,7 +2067,11 @@ func (p *Parser) parseCreateClusterStmt(start int) *nodes.CreateClusterStmt {
 			p.advance()
 			if p.isIdentLike() && p.cur.Str == "IS" {
 				p.advance()
-				stmt.HashExpr = p.parseExpr()
+				var parseErr244 error
+				stmt.HashExpr, parseErr244 = p.parseExpr()
+				if parseErr244 != nil {
+					return nil, parseErr244
+				}
 			}
 
 		case p.cur.Type == kwCACHE:
@@ -1879,7 +2117,12 @@ func (p *Parser) parseCreateClusterStmt(start int) *nodes.CreateClusterStmt {
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			p.parseIdentifier() // METADATA, DATA, NONE, etc.
+			parseDiscard246, parseErr245 := p.parseIdentifier()
+			_ = // METADATA, DATA, NONE, etc.
+				parseDiscard246
+			if parseErr245 != nil {
+				return nil, parseErr245
+			}
 
 		case p.isIdentLike() && p.cur.Str == "PARTITION":
 			// cluster_range_partitions - skip until end
@@ -1892,21 +2135,21 @@ func (p *Parser) parseCreateClusterStmt(start int) *nodes.CreateClusterStmt {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseIntValue parses an integer constant and returns its value.
-func (p *Parser) parseIntValue() int {
+func (p *Parser) parseIntValue() (int, error) {
 	if p.cur.Type == tokICONST {
 		val := 0
 		for _, c := range p.cur.Str {
 			val = val*10 + int(c-'0')
 		}
 		p.advance()
-		return val
+		return val, nil
 	}
-	return 0
+	return 0, nil
 }
 
 // parseCreateDimensionStmt parses a CREATE DIMENSION statement.
@@ -1944,32 +2187,50 @@ func (p *Parser) parseIntValue() int {
 //	extended_attribute_clause:
 //	    ATTRIBUTE attribute LEVEL level DETERMINES ( [ schema. ] table. column
 //	        [, [ schema. ] table. column ]... )
-func (p *Parser) parseCreateDimensionStmt(start int) *nodes.CreateDimensionStmt {
+func (p *Parser) parseCreateDimensionStmt(start int) (*nodes.CreateDimensionStmt, error) {
 	stmt := &nodes.CreateDimensionStmt{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr247 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr247 = p.parseObjectName()
+	if parseErr247 !=
 
-	// Parse clauses: LEVEL, HIERARCHY, ATTRIBUTE
+		// Parse clauses: LEVEL, HIERARCHY, ATTRIBUTE
+		nil {
+		return nil, parseErr247
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		switch {
 		case p.cur.Type == kwLEVEL:
-			stmt.Levels = append(stmt.Levels, p.parseDimensionLevel())
+			parseValue13, parseErr14 := p.parseDimensionLevel()
+			if parseErr14 != nil {
+				return nil, parseErr14
+			}
+			stmt.Levels = append(stmt.Levels, parseValue13)
 
 		case p.isIdentLike() && p.cur.Str == "HIERARCHY":
-			stmt.Hierarchies = append(stmt.Hierarchies, p.parseDimensionHierarchy())
+			parseValue15, parseErr16 := p.parseDimensionHierarchy()
+			if parseErr16 != nil {
+				return nil, parseErr16
+			}
+			stmt.Hierarchies = append(stmt.Hierarchies, parseValue15)
 
 		case p.isIdentLike() && p.cur.Str == "ATTRIBUTE":
-			stmt.Attributes = append(stmt.Attributes, p.parseDimensionAttribute())
+			parseValue17, parseErr18 := p.parseDimensionAttribute()
+			if parseErr18 != nil {
+				return nil, parseErr18
+			}
+			stmt.Attributes = append(stmt.Attributes, parseValue17)
 
 		default:
 			p.advance()
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseDimensionLevel parses a LEVEL clause.
@@ -1977,15 +2238,22 @@ func (p *Parser) parseCreateDimensionStmt(start int) *nodes.CreateDimensionStmt 
 //	LEVEL level IS ( level_table.level_column [, ...] ) [ SKIP WHEN NULL ]
 //	-- or without parens:
 //	LEVEL level IS level_table.level_column [ SKIP WHEN NULL ]
-func (p *Parser) parseDimensionLevel() *nodes.DimensionLevel {
+func (p *Parser) parseDimensionLevel() (*nodes.DimensionLevel, error) {
 	lvl := &nodes.DimensionLevel{
 		Loc: nodes.Loc{Start: p.pos()},
 	}
-	p.advance() // consume LEVEL
+	p.advance()
+	var // consume LEVEL
+	parseErr248 error
 
-	lvl.Name = p.parseIdentifier()
+	lvl.Name, parseErr248 = p.parseIdentifier()
+	if parseErr248 !=
 
-	// IS
+		// IS
+		nil {
+		return nil, parseErr248
+	}
+
 	if p.isIdentLike() && p.cur.Str == "IS" {
 		p.advance()
 	}
@@ -1994,7 +2262,11 @@ func (p *Parser) parseDimensionLevel() *nodes.DimensionLevel {
 	if p.cur.Type == '(' {
 		p.advance()
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			lvl.Columns = append(lvl.Columns, p.parseObjectName())
+			parseValue19, parseErr20 := p.parseObjectName()
+			if parseErr20 != nil {
+				return nil, parseErr20
+			}
+			lvl.Columns = append(lvl.Columns, parseValue19)
 			if p.cur.Type == ',' {
 				p.advance()
 			}
@@ -2003,11 +2275,18 @@ func (p *Parser) parseDimensionLevel() *nodes.DimensionLevel {
 			p.advance()
 		}
 	} else {
-		// Single column reference: table.column
-		lvl.Columns = append(lvl.Columns, p.parseObjectName())
+		parseValue21,
+			// Single column reference: table.column
+			parseErr22 := p.parseObjectName()
+		if parseErr22 !=
+
+			// Optional SKIP WHEN NULL
+			nil {
+			return nil, parseErr22
+		}
+		lvl.Columns = append(lvl.Columns, parseValue21)
 	}
 
-	// Optional SKIP WHEN NULL
 	if p.cur.Type == kwSKIP {
 		p.advance() // SKIP
 		if p.cur.Type == kwWHEN {
@@ -2019,8 +2298,8 @@ func (p *Parser) parseDimensionLevel() *nodes.DimensionLevel {
 		lvl.SkipWhenNull = true
 	}
 
-	lvl.Loc.End = p.pos()
-	return lvl
+	lvl.Loc.End = p.prev.End
+	return lvl, nil
 }
 
 // parseDimensionHierarchy parses a HIERARCHY clause.
@@ -2029,22 +2308,33 @@ func (p *Parser) parseDimensionLevel() *nodes.DimensionLevel {
 //	    child_level CHILD OF parent_level [ CHILD OF ... ]
 //	    [ JOIN KEY ( child_key_column [, ...] ) REFERENCES parent_level ] ...
 //	)
-func (p *Parser) parseDimensionHierarchy() *nodes.DimensionHierarchy {
+func (p *Parser) parseDimensionHierarchy() (*nodes.DimensionHierarchy, error) {
 	hier := &nodes.DimensionHierarchy{
 		Loc: nodes.Loc{Start: p.pos()},
 	}
-	p.advance() // consume HIERARCHY
+	p.advance()
+	var // consume HIERARCHY
+	parseErr249 error
 
-	hier.Name = p.parseIdentifier()
+	hier.Name, parseErr249 = p.parseIdentifier()
+	if parseErr249 !=
 
-	// Parse ( ... )
+		// Parse ( ... )
+		nil {
+		return nil, parseErr249
+	}
+
 	if p.cur.Type == '(' {
 		p.advance()
 
 		// Parse level chain: child CHILD OF parent CHILD OF ...
 		// First level
 		if p.isIdentLike() {
-			hier.Levels = append(hier.Levels, p.parseIdentifier())
+			parseValue23, parseErr24 := p.parseIdentifier()
+			if parseErr24 != nil {
+				return nil, parseErr24
+			}
+			hier.Levels = append(hier.Levels, parseValue23)
 		}
 
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
@@ -2056,11 +2346,18 @@ func (p *Parser) parseDimensionHierarchy() *nodes.DimensionHierarchy {
 				}
 				// Next level
 				if p.isIdentLike() {
-					hier.Levels = append(hier.Levels, p.parseIdentifier())
+					parseValue25, parseErr26 := p.parseIdentifier()
+					if parseErr26 != nil {
+						return nil, parseErr26
+					}
+					hier.Levels = append(hier.Levels, parseValue25)
 				}
 			} else if p.isIdentLike() && p.cur.Str == "JOIN" {
 				// JOIN KEY clause
-				jk := p.parseDimensionJoinKey()
+				jk, parseErr250 := p.parseDimensionJoinKey()
+				if parseErr250 != nil {
+					return nil, parseErr250
+				}
 				hier.JoinKeys = append(hier.JoinKeys, jk)
 			} else {
 				break
@@ -2072,14 +2369,14 @@ func (p *Parser) parseDimensionHierarchy() *nodes.DimensionHierarchy {
 		}
 	}
 
-	hier.Loc.End = p.pos()
-	return hier
+	hier.Loc.End = p.prev.End
+	return hier, nil
 }
 
 // parseDimensionJoinKey parses a JOIN KEY clause.
 //
 //	JOIN KEY ( child_key_column [, ...] ) REFERENCES parent_level
-func (p *Parser) parseDimensionJoinKey() *nodes.DimensionJoinKey {
+func (p *Parser) parseDimensionJoinKey() (*nodes.DimensionJoinKey, error) {
 	jk := &nodes.DimensionJoinKey{
 		Loc: nodes.Loc{Start: p.pos()},
 	}
@@ -2093,7 +2390,11 @@ func (p *Parser) parseDimensionJoinKey() *nodes.DimensionJoinKey {
 	if p.cur.Type == '(' {
 		p.advance()
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			jk.ChildKeys = append(jk.ChildKeys, p.parseObjectName())
+			parseValue27, parseErr28 := p.parseObjectName()
+			if parseErr28 != nil {
+				return nil, parseErr28
+			}
+			jk.ChildKeys = append(jk.ChildKeys, parseValue27)
 			if p.cur.Type == ',' {
 				p.advance()
 			}
@@ -2106,11 +2407,15 @@ func (p *Parser) parseDimensionJoinKey() *nodes.DimensionJoinKey {
 	// REFERENCES parent_level
 	if p.cur.Type == kwREFERENCES {
 		p.advance()
-		jk.ParentLevel = p.parseIdentifier()
+		var parseErr251 error
+		jk.ParentLevel, parseErr251 = p.parseIdentifier()
+		if parseErr251 != nil {
+			return nil, parseErr251
+		}
 	}
 
-	jk.Loc.End = p.pos()
-	return jk
+	jk.Loc.End = p.prev.End
+	return jk, nil
 }
 
 // parseDimensionAttribute parses an ATTRIBUTE clause.
@@ -2118,21 +2423,34 @@ func (p *Parser) parseDimensionJoinKey() *nodes.DimensionJoinKey {
 //	ATTRIBUTE level DETERMINES ( dependent_column [, ...] )
 //	-- or extended form:
 //	ATTRIBUTE attr_name LEVEL level DETERMINES ( dependent_column [, ...] )
-func (p *Parser) parseDimensionAttribute() *nodes.DimensionAttribute {
+func (p *Parser) parseDimensionAttribute() (*nodes.DimensionAttribute, error) {
 	attr := &nodes.DimensionAttribute{
 		Loc: nodes.Loc{Start: p.pos()},
 	}
-	p.advance() // consume ATTRIBUTE
+	p.advance()
+	var // consume ATTRIBUTE
+	parseErr252 error
 
-	attr.AttrName = p.parseIdentifier()
+	attr.AttrName, parseErr252 = p.parseIdentifier()
+	if parseErr252 !=
 
-	// Check for extended form: LEVEL level DETERMINES ...
-	if p.cur.Type == kwLEVEL {
-		p.advance()
-		attr.LevelName = p.parseIdentifier()
+		// Check for extended form: LEVEL level DETERMINES ...
+		nil {
+		return nil, parseErr252
 	}
 
-	// DETERMINES
+	if p.cur.Type == kwLEVEL {
+		p.advance()
+		var parseErr253 error
+		attr.LevelName, parseErr253 = p.parseIdentifier()
+		if parseErr253 !=
+
+			// DETERMINES
+			nil {
+			return nil, parseErr253
+		}
+	}
+
 	if p.isIdentLike() && p.cur.Str == "DETERMINES" {
 		p.advance()
 	}
@@ -2141,7 +2459,11 @@ func (p *Parser) parseDimensionAttribute() *nodes.DimensionAttribute {
 	if p.cur.Type == '(' {
 		p.advance()
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			attr.Columns = append(attr.Columns, p.parseObjectName())
+			parseValue29, parseErr30 := p.parseObjectName()
+			if parseErr30 != nil {
+				return nil, parseErr30
+			}
+			attr.Columns = append(attr.Columns, parseValue29)
 			if p.cur.Type == ',' {
 				p.advance()
 			}
@@ -2150,11 +2472,15 @@ func (p *Parser) parseDimensionAttribute() *nodes.DimensionAttribute {
 			p.advance()
 		}
 	} else {
-		attr.Columns = append(attr.Columns, p.parseObjectName())
+		parseValue31, parseErr32 := p.parseObjectName()
+		if parseErr32 != nil {
+			return nil, parseErr32
+		}
+		attr.Columns = append(attr.Columns, parseValue31)
 	}
 
-	attr.Loc.End = p.pos()
-	return attr
+	attr.Loc.End = p.prev.End
+	return attr, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -2194,7 +2520,7 @@ func (p *Parser) parseDimensionAttribute() *nodes.DimensionAttribute {
 //
 //	parallel_clause:
 //	    { PARALLEL [ integer ] | NOPARALLEL }
-func (p *Parser) parseAlterClusterStmt(start int) *nodes.AlterClusterStmt {
+func (p *Parser) parseAlterClusterStmt(start int) (*nodes.AlterClusterStmt, error) {
 	stmt := &nodes.AlterClusterStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -2208,21 +2534,34 @@ func (p *Parser) parseAlterClusterStmt(start int) *nodes.AlterClusterStmt {
 			stmt.IfExists = true
 		}
 	}
+	var parseErr254 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr254 = p.parseObjectName()
+	if parseErr254 !=
 
-	// Parse the action
+		// Parse the action
+		nil {
+		return nil, parseErr254
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		switch {
 		case p.cur.Type == kwSIZE:
 			p.advance()
 			stmt.Action = "SIZE"
-			stmt.Size = p.parseSizeValue()
+			var parseErr255 error
+			stmt.Size, parseErr255 = p.parseSizeValue()
+			if parseErr255 != nil {
+				return nil, parseErr255
+			}
 
 		case p.isIdentLike() && p.cur.Str == "PCTUSED":
 			p.advance()
 			if p.cur.Type == tokICONST {
-				v := p.parseIntValue()
+				v, parseErr256 := p.parseIntValue()
+				if parseErr256 != nil {
+					return nil, parseErr256
+				}
 				stmt.PctUsed = &v
 			}
 			if stmt.Action == "" {
@@ -2232,7 +2571,10 @@ func (p *Parser) parseAlterClusterStmt(start int) *nodes.AlterClusterStmt {
 		case p.cur.Type == kwPCTFREE:
 			p.advance()
 			if p.cur.Type == tokICONST {
-				v := p.parseIntValue()
+				v, parseErr257 := p.parseIntValue()
+				if parseErr257 != nil {
+					return nil, parseErr257
+				}
 				stmt.PctFree = &v
 			}
 			if stmt.Action == "" {
@@ -2242,7 +2584,10 @@ func (p *Parser) parseAlterClusterStmt(start int) *nodes.AlterClusterStmt {
 		case p.isIdentLike() && p.cur.Str == "INITRANS":
 			p.advance()
 			if p.cur.Type == tokICONST {
-				v := p.parseIntValue()
+				v, parseErr258 := p.parseIntValue()
+				if parseErr258 != nil {
+					return nil, parseErr258
+				}
 				stmt.InitTrans = &v
 			}
 			if stmt.Action == "" {
@@ -2264,8 +2609,14 @@ func (p *Parser) parseAlterClusterStmt(start int) *nodes.AlterClusterStmt {
 			if p.cur.Type == kwPARTITION || (p.isIdentLike() && p.cur.Str == "PARTITION") {
 				p.advance() // PARTITION
 			}
-			stmt.ModifyPartition = p.parseIdentifier()
-			// allocate_extent_clause follows
+			var parseErr259 error
+			stmt.ModifyPartition, parseErr259 = p.parseIdentifier()
+			if parseErr259 !=
+				// allocate_extent_clause follows
+				nil {
+				return nil, parseErr259
+			}
+
 			if p.isIdentLike() && p.cur.Str == "ALLOCATE" {
 				p.advance() // ALLOCATE
 				if p.isIdentLike() && p.cur.Str == "EXTENT" {
@@ -2293,8 +2644,13 @@ func (p *Parser) parseAlterClusterStmt(start int) *nodes.AlterClusterStmt {
 				p.advance() // UNUSED
 			}
 			if p.isIdentLike() && p.cur.Str == "KEEP" {
-				p.advance() // KEEP
-				p.parseSizeValue()
+				p.advance()
+				parseDiscard261, // KEEP
+					parseErr260 := p.parseSizeValue()
+				_ = parseDiscard261
+				if parseErr260 != nil {
+					return nil, parseErr260
+				}
 			}
 
 		case p.isIdentLike() && p.cur.Str == "PARALLEL":
@@ -2317,8 +2673,8 @@ func (p *Parser) parseAlterClusterStmt(start int) *nodes.AlterClusterStmt {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -2358,14 +2714,20 @@ func (p *Parser) parseAlterClusterStmt(start int) *nodes.AlterClusterStmt {
 //	extended_attribute_clause:
 //	    ATTRIBUTE attribute_name OF level_name
 //	      DETERMINES ( dependent_column [, dependent_column ]... )
-func (p *Parser) parseAlterDimensionStmt(start int) *nodes.AlterDimensionStmt {
+func (p *Parser) parseAlterDimensionStmt(start int) (*nodes.AlterDimensionStmt, error) {
 	stmt := &nodes.AlterDimensionStmt{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr262 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr262 = p.parseObjectName()
+	if parseErr262 !=
 
-	// Parse actions
+		// Parse actions
+		nil {
+		return nil, parseErr262
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		switch {
 		case p.isIdentLike() && p.cur.Str == "COMPILE":
@@ -2376,11 +2738,23 @@ func (p *Parser) parseAlterDimensionStmt(start int) *nodes.AlterDimensionStmt {
 			p.advance() // ADD
 			switch {
 			case p.cur.Type == kwLEVEL:
-				stmt.AddLevels = append(stmt.AddLevels, p.parseDimensionLevel())
+				parseValue33, parseErr34 := p.parseDimensionLevel()
+				if parseErr34 != nil {
+					return nil, parseErr34
+				}
+				stmt.AddLevels = append(stmt.AddLevels, parseValue33)
 			case p.isIdentLike() && p.cur.Str == "HIERARCHY":
-				stmt.AddHierarchies = append(stmt.AddHierarchies, p.parseDimensionHierarchy())
+				parseValue35, parseErr36 := p.parseDimensionHierarchy()
+				if parseErr36 != nil {
+					return nil, parseErr36
+				}
+				stmt.AddHierarchies = append(stmt.AddHierarchies, parseValue35)
 			case p.isIdentLike() && p.cur.Str == "ATTRIBUTE":
-				stmt.AddAttributes = append(stmt.AddAttributes, p.parseDimensionAttribute())
+				parseValue37, parseErr38 := p.parseDimensionAttribute()
+				if parseErr38 != nil {
+					return nil, parseErr38
+				}
+				stmt.AddAttributes = append(stmt.AddAttributes, parseValue37)
 			default:
 				p.advance()
 			}
@@ -2389,14 +2763,29 @@ func (p *Parser) parseAlterDimensionStmt(start int) *nodes.AlterDimensionStmt {
 			p.advance() // DROP
 			switch {
 			case p.cur.Type == kwLEVEL:
-				p.advance() // LEVEL
-				stmt.DropLevels = append(stmt.DropLevels, p.parseIdentifier())
+				p.advance()
+				parseValue39, // LEVEL
+					parseErr40 := p.parseIdentifier()
+				if parseErr40 != nil {
+					return nil, parseErr40
+				}
+				stmt.DropLevels = append(stmt.DropLevels, parseValue39)
 			case p.isIdentLike() && p.cur.Str == "HIERARCHY":
-				p.advance() // HIERARCHY
-				stmt.DropHierarchies = append(stmt.DropHierarchies, p.parseIdentifier())
+				p.advance()
+				parseValue41, // HIERARCHY
+					parseErr42 := p.parseIdentifier()
+				if parseErr42 != nil {
+					return nil, parseErr42
+				}
+				stmt.DropHierarchies = append(stmt.DropHierarchies, parseValue41)
 			case p.isIdentLike() && p.cur.Str == "ATTRIBUTE":
-				p.advance() // ATTRIBUTE
-				stmt.DropAttributes = append(stmt.DropAttributes, p.parseIdentifier())
+				p.advance()
+				parseValue43, // ATTRIBUTE
+					parseErr44 := p.parseIdentifier()
+				if parseErr44 != nil {
+					return nil, parseErr44
+				}
+				stmt.DropAttributes = append(stmt.DropAttributes, parseValue43)
 			default:
 				p.advance()
 			}
@@ -2406,8 +2795,8 @@ func (p *Parser) parseAlterDimensionStmt(start int) *nodes.AlterDimensionStmt {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -2449,7 +2838,7 @@ func (p *Parser) parseAlterDimensionStmt(start int) *nodes.AlterDimensionStmt {
 //	      | ON LOAD DATA MOVEMENT
 //	      }
 //	    ]
-func (p *Parser) parseCreateMaterializedZonemapStmt(start int) *nodes.CreateMaterializedZonemapStmt {
+func (p *Parser) parseCreateMaterializedZonemapStmt(start int) (*nodes.CreateMaterializedZonemapStmt, error) {
 	stmt := &nodes.CreateMaterializedZonemapStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -2466,35 +2855,54 @@ func (p *Parser) parseCreateMaterializedZonemapStmt(start int) *nodes.CreateMate
 			stmt.IfNotExists = true
 		}
 	}
+	var parseErr263 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr263 = p.parseObjectName()
+	if parseErr263 !=
 
-	// Parse options until ON, AS, (, or ; / EOF
+		// Parse options until ON, AS, (, or ; / EOF
+		nil {
+		return nil, parseErr263
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		switch {
 		// zonemap_attributes
 		case p.cur.Type == kwTABLESPACE:
 			p.advance()
-			stmt.Tablespace = p.parseIdentifier()
+			var parseErr264 error
+			stmt.Tablespace, parseErr264 = p.parseIdentifier()
+			if parseErr264 != nil {
+				return nil, parseErr264
+			}
 
 		case p.isIdentLike() && p.cur.Str == "SCALE":
 			p.advance()
 			if p.cur.Type == tokICONST {
-				v := p.parseIntValue()
+				v, parseErr265 := p.parseIntValue()
+				if parseErr265 != nil {
+					return nil, parseErr265
+				}
 				stmt.Scale = &v
 			}
 
 		case p.cur.Type == kwPCTFREE:
 			p.advance()
 			if p.cur.Type == tokICONST {
-				v := p.parseIntValue()
+				v, parseErr266 := p.parseIntValue()
+				if parseErr266 != nil {
+					return nil, parseErr266
+				}
 				stmt.PctFree = &v
 			}
 
 		case p.isIdentLike() && p.cur.Str == "PCTUSED":
 			p.advance()
 			if p.cur.Type == tokICONST {
-				v := p.parseIntValue()
+				v, parseErr267 := p.parseIntValue()
+				if parseErr267 != nil {
+					return nil, parseErr267
+				}
 				stmt.PctUsed = &v
 			}
 
@@ -2508,10 +2916,16 @@ func (p *Parser) parseCreateMaterializedZonemapStmt(start int) *nodes.CreateMate
 
 		// zonemap_refresh_clause
 		case p.isIdentLike() && p.cur.Str == "REFRESH":
-			p.advance() // REFRESH
-			p.parseZonemapRefresh(stmt, nil)
+			p.advance()
+			parseErr268 := // REFRESH
+				p.parseZonemapRefresh(stmt, nil)
+			if parseErr268 !=
 
-		// ENABLE/DISABLE PRUNING
+				// ENABLE/DISABLE PRUNING
+				nil {
+				return nil, parseErr268
+			}
+
 		case p.cur.Type == kwENABLE:
 			p.advance()
 			if p.isIdentLike() && p.cur.Str == "PRUNING" {
@@ -2528,12 +2942,21 @@ func (p *Parser) parseCreateMaterializedZonemapStmt(start int) *nodes.CreateMate
 
 		// create_zonemap_on_table
 		case p.cur.Type == kwON:
-			p.advance() // ON
-			stmt.OnTable = p.parseObjectName()
+			p.advance()
+			var // ON
+			parseErr269 error
+			stmt.OnTable, parseErr269 = p.parseObjectName()
+			if parseErr269 != nil {
+				return nil, parseErr269
+			}
 			if p.cur.Type == '(' {
 				p.advance()
 				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					stmt.OnColumns = append(stmt.OnColumns, p.parseIdentifier())
+					parseValue45, parseErr46 := p.parseIdentifier()
+					if parseErr46 != nil {
+						return nil, parseErr46
+					}
+					stmt.OnColumns = append(stmt.OnColumns, parseValue45)
 					if p.cur.Type == ',' {
 						p.advance()
 					}
@@ -2548,7 +2971,11 @@ func (p *Parser) parseCreateMaterializedZonemapStmt(start int) *nodes.CreateMate
 			// column aliases before AS
 			p.advance()
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				stmt.ColumnAliases = append(stmt.ColumnAliases, p.parseIdentifier())
+				parseValue47, parseErr48 := p.parseIdentifier()
+				if parseErr48 != nil {
+					return nil, parseErr48
+				}
+				stmt.ColumnAliases = append(stmt.ColumnAliases, parseValue47)
 				if p.cur.Type == ',' {
 					p.advance()
 				}
@@ -2558,21 +2985,26 @@ func (p *Parser) parseCreateMaterializedZonemapStmt(start int) *nodes.CreateMate
 			}
 
 		case p.cur.Type == kwAS:
-			p.advance() // AS
-			stmt.AsQuery = p.parseSelectStmt()
+			p.advance()
+			var // AS
+			parseErr270 error
+			stmt.AsQuery, parseErr270 = p.parseSelectStmt()
+			if parseErr270 != nil {
+				return nil, parseErr270
+			}
 
 		default:
 			p.advance()
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseZonemapRefresh parses the refresh clause for a zonemap.
 // It sets refresh fields on either a CreateMaterializedZonemapStmt or AlterMaterializedZonemapStmt.
-func (p *Parser) parseZonemapRefresh(create *nodes.CreateMaterializedZonemapStmt, alter *nodes.AlterMaterializedZonemapStmt) {
+func (p *Parser) parseZonemapRefresh(create *nodes.CreateMaterializedZonemapStmt, alter *nodes.AlterMaterializedZonemapStmt) error {
 	// Optional method: FAST | COMPLETE | FORCE
 	method := ""
 	if p.isIdentLike() {
@@ -2627,6 +3059,7 @@ func (p *Parser) parseZonemapRefresh(create *nodes.CreateMaterializedZonemapStmt
 		alter.RefreshMethod = method
 		alter.RefreshOn = refreshOn
 	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -2655,7 +3088,7 @@ func (p *Parser) parseZonemapRefresh(create *nodes.CreateMaterializedZonemapStmt
 //	    REFRESH
 //	    [ { FAST | COMPLETE | FORCE } ]
 //	    [ { ON COMMIT | ON DEMAND | ON LOAD | ON DATA MOVEMENT | ON STATEMENT } ]
-func (p *Parser) parseAlterMaterializedZonemapStmt(start int) *nodes.AlterMaterializedZonemapStmt {
+func (p *Parser) parseAlterMaterializedZonemapStmt(start int) (*nodes.AlterMaterializedZonemapStmt, error) {
 	stmt := &nodes.AlterMaterializedZonemapStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -2669,16 +3102,25 @@ func (p *Parser) parseAlterMaterializedZonemapStmt(start int) *nodes.AlterMateri
 			stmt.IfExists = true
 		}
 	}
+	var parseErr271 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr271 = p.parseObjectName()
+	if parseErr271 !=
 
-	// Parse action
+		// Parse action
+		nil {
+		return nil, parseErr271
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		switch {
 		case p.cur.Type == kwPCTFREE:
 			p.advance()
 			if p.cur.Type == tokICONST {
-				v := p.parseIntValue()
+				v, parseErr272 := p.parseIntValue()
+				if parseErr272 != nil {
+					return nil, parseErr272
+				}
 				stmt.PctFree = &v
 			}
 			if stmt.Action == "" {
@@ -2688,7 +3130,10 @@ func (p *Parser) parseAlterMaterializedZonemapStmt(start int) *nodes.AlterMateri
 		case p.isIdentLike() && p.cur.Str == "PCTUSED":
 			p.advance()
 			if p.cur.Type == tokICONST {
-				v := p.parseIntValue()
+				v, parseErr273 := p.parseIntValue()
+				if parseErr273 != nil {
+					return nil, parseErr273
+				}
 				stmt.PctUsed = &v
 			}
 			if stmt.Action == "" {
@@ -2712,7 +3157,10 @@ func (p *Parser) parseAlterMaterializedZonemapStmt(start int) *nodes.AlterMateri
 		case p.isIdentLike() && p.cur.Str == "REFRESH":
 			p.advance()
 			stmt.Action = "REFRESH"
-			p.parseZonemapRefresh(nil, stmt)
+			parseErr274 := p.parseZonemapRefresh(nil, stmt)
+			if parseErr274 != nil {
+				return nil, parseErr274
+			}
 
 		case p.cur.Type == kwENABLE:
 			p.advance()
@@ -2745,8 +3193,8 @@ func (p *Parser) parseAlterMaterializedZonemapStmt(start int) *nodes.AlterMateri
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -2760,7 +3208,7 @@ func (p *Parser) parseAlterMaterializedZonemapStmt(start int) *nodes.AlterMateri
 //	CREATE INMEMORY JOIN GROUP [ IF NOT EXISTS ] [ schema. ] join_group
 //	    ( [ schema. ] table ( column )
 //	      [, [ schema. ] table ( column ) ]... ) ;
-func (p *Parser) parseCreateInmemoryJoinGroupStmt(start int) *nodes.CreateInmemoryJoinGroupStmt {
+func (p *Parser) parseCreateInmemoryJoinGroupStmt(start int) (*nodes.CreateInmemoryJoinGroupStmt, error) {
 	stmt := &nodes.CreateInmemoryJoinGroupStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -2777,14 +3225,23 @@ func (p *Parser) parseCreateInmemoryJoinGroupStmt(start int) *nodes.CreateInmemo
 			stmt.IfNotExists = true
 		}
 	}
+	var parseErr275 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr275 = p.parseObjectName()
+	if parseErr275 !=
 
-	// Parse member list: ( table(col) [, table(col) ]... )
+		// Parse member list: ( table(col) [, table(col) ]... )
+		nil {
+		return nil, parseErr275
+	}
+
 	if p.cur.Type == '(' {
 		p.advance()
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			member := p.parseJoinGroupMember()
+			member, parseErr276 := p.parseJoinGroupMember()
+			if parseErr276 != nil {
+				return nil, parseErr276
+			}
 			stmt.Members = append(stmt.Members, member)
 			if p.cur.Type == ',' {
 				p.advance()
@@ -2795,25 +3252,33 @@ func (p *Parser) parseCreateInmemoryJoinGroupStmt(start int) *nodes.CreateInmemo
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseJoinGroupMember parses a table(column) member of a join group.
-func (p *Parser) parseJoinGroupMember() *nodes.JoinGroupMember {
+func (p *Parser) parseJoinGroupMember() (*nodes.JoinGroupMember, error) {
 	m := &nodes.JoinGroupMember{
 		Loc: nodes.Loc{Start: p.pos()},
 	}
-	m.Table = p.parseObjectName()
+	var parseErr277 error
+	m.Table, parseErr277 = p.parseObjectName()
+	if parseErr277 != nil {
+		return nil, parseErr277
+	}
 	if p.cur.Type == '(' {
 		p.advance()
-		m.Column = p.parseIdentifier()
+		var parseErr278 error
+		m.Column, parseErr278 = p.parseIdentifier()
+		if parseErr278 != nil {
+			return nil, parseErr278
+		}
 		if p.cur.Type == ')' {
 			p.advance()
 		}
 	}
-	m.Loc.End = p.pos()
-	return m
+	m.Loc.End = p.prev.End
+	return m, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -2826,7 +3291,7 @@ func (p *Parser) parseJoinGroupMember() *nodes.JoinGroupMember {
 //
 //	ALTER INMEMORY JOIN GROUP [ IF EXISTS ] [ schema. ] join_group
 //	    { ADD | REMOVE } ( [ schema. ] table ( column ) ) ;
-func (p *Parser) parseAlterInmemoryJoinGroupStmt(start int) *nodes.AlterInmemoryJoinGroupStmt {
+func (p *Parser) parseAlterInmemoryJoinGroupStmt(start int) (*nodes.AlterInmemoryJoinGroupStmt, error) {
 	stmt := &nodes.AlterInmemoryJoinGroupStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -2840,10 +3305,16 @@ func (p *Parser) parseAlterInmemoryJoinGroupStmt(start int) *nodes.AlterInmemory
 			stmt.IfExists = true
 		}
 	}
+	var parseErr279 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr279 = p.parseObjectName()
+	if parseErr279 !=
 
-	// ADD or REMOVE
+		// ADD or REMOVE
+		nil {
+		return nil, parseErr279
+	}
+
 	if p.cur.Type == kwADD {
 		p.advance()
 		stmt.Action = "ADD"
@@ -2855,14 +3326,18 @@ func (p *Parser) parseAlterInmemoryJoinGroupStmt(start int) *nodes.AlterInmemory
 	// ( table(column) )
 	if p.cur.Type == '(' {
 		p.advance()
-		stmt.Member = p.parseJoinGroupMember()
+		var parseErr280 error
+		stmt.Member, parseErr280 = p.parseJoinGroupMember()
+		if parseErr280 != nil {
+			return nil, parseErr280
+		}
 		if p.cur.Type == ')' {
 			p.advance()
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -2875,7 +3350,7 @@ func (p *Parser) parseAlterInmemoryJoinGroupStmt(start int) *nodes.AlterInmemory
 //
 //	DROP CLUSTER [ IF EXISTS ] [ schema. ] cluster
 //	    [ INCLUDING TABLES [ CASCADE CONSTRAINTS ] ]
-func (p *Parser) parseDropClusterStmt(start int) *nodes.DropStmt {
+func (p *Parser) parseDropClusterStmt(start int) (*nodes.DropStmt, error) {
 	stmt := &nodes.DropStmt{
 		ObjectType: nodes.OBJECT_CLUSTER,
 		Names:      &nodes.List{},
@@ -2892,7 +3367,10 @@ func (p *Parser) parseDropClusterStmt(start int) *nodes.DropStmt {
 		}
 	}
 
-	name := p.parseObjectName()
+	name, parseErr281 := p.parseObjectName()
+	if parseErr281 != nil {
+		return nil, parseErr281
+	}
 	stmt.Names.Items = append(stmt.Names.Items, name)
 
 	// Optional INCLUDING TABLES
@@ -2911,12 +3389,12 @@ func (p *Parser) parseDropClusterStmt(start int) *nodes.DropStmt {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterAdminObject handles ALTER dispatches for admin DDL objects.
-func (p *Parser) parseAlterAdminObject(start int) nodes.StmtNode {
+func (p *Parser) parseAlterAdminObject(start int) (nodes.StmtNode, error) {
 	switch p.cur.Type {
 	case kwUSER:
 		p.advance()
@@ -3024,10 +3502,10 @@ func (p *Parser) parseAlterAdminObject(start int) nodes.StmtNode {
 					p.advance() // consume ZONEMAP
 					return p.parseAlterMaterializedZonemapStmt(start)
 				}
-				return nil
+				return nil, nil
 			}
 		}
-		return nil
+		return nil, nil
 	}
 }
 
@@ -3039,74 +3517,74 @@ func (p *Parser) parseAlterAdminObject(start int) nodes.StmtNode {
 //
 // BNF: oracle/parser/bnf/CREATE-ATTRIBUTE-DIMENSION.bnf
 //
-//  CREATE [ OR REPLACE ] [ { FORCE | NOFORCE } ] ATTRIBUTE DIMENSION
-//      [ IF NOT EXISTS ] [ schema. ] attr_dimension
-//      [ SHARING = { METADATA | NONE } ]
-//      [ classification_clause ]
-//      [ DIMENSION TYPE { STANDARD | TIME } ]
-//      attr_dim_using_clause
-//      attributes_clause
-//      attr_dim_level_clause [ attr_dim_level_clause ]...
-//      [ all_clause ] ;
+//	CREATE [ OR REPLACE ] [ { FORCE | NOFORCE } ] ATTRIBUTE DIMENSION
+//	    [ IF NOT EXISTS ] [ schema. ] attr_dimension
+//	    [ SHARING = { METADATA | NONE } ]
+//	    [ classification_clause ]
+//	    [ DIMENSION TYPE { STANDARD | TIME } ]
+//	    attr_dim_using_clause
+//	    attributes_clause
+//	    attr_dim_level_clause [ attr_dim_level_clause ]...
+//	    [ all_clause ] ;
 //
-//  classification_clause:
-//      { CAPTION 'caption'
-//      | DESCRIPTION 'description'
-//      | CLASSIFICATION classification_name [ LANGUAGE language ] VALUE 'value'
-//      } [ classification_clause ]
+//	classification_clause:
+//	    { CAPTION 'caption'
+//	    | DESCRIPTION 'description'
+//	    | CLASSIFICATION classification_name [ LANGUAGE language ] VALUE 'value'
+//	    } [ classification_clause ]
 //
-//  attr_dim_using_clause:
-//      USING source_clause [, source_clause ]...
+//	attr_dim_using_clause:
+//	    USING source_clause [, source_clause ]...
 //
-//  source_clause:
-//      [ REMOTE ] [ schema. ] { table | view } [ [ AS ] alias ]
-//      | join_path_clause
+//	source_clause:
+//	    [ REMOTE ] [ schema. ] { table | view } [ [ AS ] alias ]
+//	    | join_path_clause
 //
-//  join_path_clause:
-//      JOIN PATH join_path_name ON join_condition
+//	join_path_clause:
+//	    JOIN PATH join_path_name ON join_condition
 //
-//  join_condition:
-//      join_condition_elem [ AND join_condition_elem ]...
+//	join_condition:
+//	    join_condition_elem [ AND join_condition_elem ]...
 //
-//  join_condition_elem:
-//      [ table_alias. ] column = [ table_alias. ] column
+//	join_condition_elem:
+//	    [ table_alias. ] column = [ table_alias. ] column
 //
-//  attributes_clause:
-//      ATTRIBUTES ( attr_dim_attribute_clause [, attr_dim_attribute_clause ]... )
+//	attributes_clause:
+//	    ATTRIBUTES ( attr_dim_attribute_clause [, attr_dim_attribute_clause ]... )
 //
-//  attr_dim_attribute_clause:
-//      column [ AS alias ]
-//      [ classification_clause ]
+//	attr_dim_attribute_clause:
+//	    column [ AS alias ]
+//	    [ classification_clause ]
 //
-//  attr_dim_level_clause:
-//      LEVEL level_name
-//      [ LEVEL TYPE { STANDARD | YEARS | HALF_YEARS | QUARTERS | MONTHS | WEEKS | DAYS | HOURS | MINUTES | SECONDS } ]
-//      [ classification_clause ]
-//      key_clause
-//      [ alternate_key_clause ]
-//      [ MEMBER NAME expression ]
-//      [ MEMBER CAPTION expression ]
-//      [ MEMBER DESCRIPTION expression ]
-//      [ dim_order_clause ]
-//      [ DETERMINES ( attribute [, attribute ]... ) ]
+//	attr_dim_level_clause:
+//	    LEVEL level_name
+//	    [ LEVEL TYPE { STANDARD | YEARS | HALF_YEARS | QUARTERS | MONTHS | WEEKS | DAYS | HOURS | MINUTES | SECONDS } ]
+//	    [ classification_clause ]
+//	    key_clause
+//	    [ alternate_key_clause ]
+//	    [ MEMBER NAME expression ]
+//	    [ MEMBER CAPTION expression ]
+//	    [ MEMBER DESCRIPTION expression ]
+//	    [ dim_order_clause ]
+//	    [ DETERMINES ( attribute [, attribute ]... ) ]
 //
-//  key_clause:
-//      KEY { attribute [ NOT NULL | SKIP WHEN NULL ]
-//          | ( attribute [, attribute ]... ) }
+//	key_clause:
+//	    KEY { attribute [ NOT NULL | SKIP WHEN NULL ]
+//	        | ( attribute [, attribute ]... ) }
 //
-//  alternate_key_clause:
-//      ALTERNATE KEY { attribute
-//                    | ( attribute [, attribute ]... ) }
+//	alternate_key_clause:
+//	    ALTERNATE KEY { attribute
+//	                  | ( attribute [, attribute ]... ) }
 //
-//  dim_order_clause:
-//      ORDER BY { attribute [ ASC | DESC ]
-//               | ( attribute [ ASC | DESC ] [, attribute [ ASC | DESC ] ]... ) }
+//	dim_order_clause:
+//	    ORDER BY { attribute [ ASC | DESC ]
+//	             | ( attribute [ ASC | DESC ] [, attribute [ ASC | DESC ] ]... ) }
 //
-//  all_clause:
-//      ALL [ MEMBER NAME expression ]
-//          [ MEMBER CAPTION expression ]
-//          [ MEMBER DESCRIPTION expression ]
-func (p *Parser) parseCreateAttributeDimensionStmt(start int, orReplace, force, noForce bool) *nodes.CreateAttributeDimensionStmt {
+//	all_clause:
+//	    ALL [ MEMBER NAME expression ]
+//	        [ MEMBER CAPTION expression ]
+//	        [ MEMBER DESCRIPTION expression ]
+func (p *Parser) parseCreateAttributeDimensionStmt(start int, orReplace, force, noForce bool) (*nodes.CreateAttributeDimensionStmt, error) {
 	stmt := &nodes.CreateAttributeDimensionStmt{
 		OrReplace: orReplace,
 		Force:     force,
@@ -3123,11 +3601,17 @@ func (p *Parser) parseCreateAttributeDimensionStmt(start int, orReplace, force, 
 		}
 		stmt.IfNotExists = true
 	}
+	var parseErr282 error
 
 	// name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr282 = p.parseObjectName()
+	if parseErr282 !=
 
-	// SHARING = { METADATA | NONE }
+		// SHARING = { METADATA | NONE }
+		nil {
+		return nil, parseErr282
+	}
+
 	if p.isIdentLikeStr("SHARING") {
 		p.advance()
 		if p.cur.Type == '=' {
@@ -3138,11 +3622,17 @@ func (p *Parser) parseCreateAttributeDimensionStmt(start int, orReplace, force, 
 			p.advance()
 		}
 	}
+	var parseErr283 error
 
 	// classification_clause(s) at top level
-	stmt.Classifications = p.parseClassificationClauses()
+	stmt.Classifications, parseErr283 = p.parseClassificationClauses()
+	if parseErr283 !=
 
-	// DIMENSION TYPE { STANDARD | TIME }
+		// DIMENSION TYPE { STANDARD | TIME }
+		nil {
+		return nil, parseErr283
+	}
+
 	if p.isIdentLike() && p.cur.Str == "DIMENSION" {
 		next := p.peekNext()
 		if next.Type == kwTYPE {
@@ -3160,7 +3650,10 @@ func (p *Parser) parseCreateAttributeDimensionStmt(start int, orReplace, force, 
 		p.advance()
 		stmt.Sources = &nodes.List{}
 		for {
-			src := p.parseAttrDimSourceClause()
+			src, parseErr284 := p.parseAttrDimSourceClause()
+			if parseErr284 != nil {
+				return nil, parseErr284
+			}
 			if src != nil {
 				stmt.Sources.Items = append(stmt.Sources.Items, src)
 			}
@@ -3178,7 +3671,10 @@ func (p *Parser) parseCreateAttributeDimensionStmt(start int, orReplace, force, 
 		if p.cur.Type == '(' {
 			p.advance()
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				attr := p.parseAttrDimAttributeClause()
+				attr, parseErr285 := p.parseAttrDimAttributeClause()
+				if parseErr285 != nil {
+					return nil, parseErr285
+				}
 				if attr != nil {
 					stmt.Attributes.Items = append(stmt.Attributes.Items, attr)
 				}
@@ -3195,7 +3691,10 @@ func (p *Parser) parseCreateAttributeDimensionStmt(start int, orReplace, force, 
 	// LEVEL clauses (one or more)
 	stmt.Levels = &nodes.List{}
 	for p.cur.Type == kwLEVEL {
-		lvl := p.parseAttrDimLevelClause()
+		lvl, parseErr286 := p.parseAttrDimLevelClause()
+		if parseErr286 != nil {
+			return nil, parseErr286
+		}
 		if lvl != nil {
 			stmt.Levels.Items = append(stmt.Levels.Items, lvl)
 		}
@@ -3207,17 +3706,21 @@ func (p *Parser) parseCreateAttributeDimensionStmt(start int, orReplace, force, 
 		allc := &nodes.AttrDimAllClause{
 			Loc: nodes.Loc{Start: p.pos()},
 		}
-		allc.MemberName, allc.MemberCaption, allc.MemberDesc = p.parseMemberExprs()
-		allc.Loc.End = p.pos()
+		var parseErr287 error
+		allc.MemberName, allc.MemberCaption, allc.MemberDesc, parseErr287 = p.parseMemberExprs()
+		if parseErr287 != nil {
+			return nil, parseErr287
+		}
+		allc.Loc.End = p.prev.End
 		stmt.AllClause = allc
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseClassificationClauses parses zero or more classification_clause items.
-func (p *Parser) parseClassificationClauses() *nodes.List {
+func (p *Parser) parseClassificationClauses() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
 		if p.isIdentLikeStr("CAPTION") {
@@ -3261,13 +3764,13 @@ func (p *Parser) parseClassificationClauses() *nodes.List {
 		}
 	}
 	if len(items) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseAttrDimSourceClause parses a source_clause in an attribute dimension USING clause.
-func (p *Parser) parseAttrDimSourceClause() *nodes.AttrDimSourceClause {
+func (p *Parser) parseAttrDimSourceClause() (*nodes.AttrDimSourceClause, error) {
 	src := &nodes.AttrDimSourceClause{Loc: nodes.Loc{Start: p.pos()}}
 
 	// JOIN PATH join_path_name ON join_condition
@@ -3277,13 +3780,20 @@ func (p *Parser) parseAttrDimSourceClause() *nodes.AttrDimSourceClause {
 			p.advance() // consume PATH
 		}
 		src.IsJoinPath = true
-		src.JoinPathName = p.parseIdentifier()
+		var parseErr288 error
+		src.JoinPathName, parseErr288 = p.parseIdentifier()
+		if parseErr288 != nil {
+			return nil, parseErr288
+		}
 		if p.cur.Type == kwON {
 			p.advance()
 		}
 		src.JoinCondition = &nodes.List{}
 		for {
-			elem := p.parseAttrDimJoinCondElem()
+			elem, parseErr289 := p.parseAttrDimJoinCondElem()
+			if parseErr289 != nil {
+				return nil, parseErr289
+			}
 			if elem != nil {
 				src.JoinCondition.Items = append(src.JoinCondition.Items, elem)
 			}
@@ -3292,8 +3802,8 @@ func (p *Parser) parseAttrDimSourceClause() *nodes.AttrDimSourceClause {
 			}
 			p.advance() // consume AND
 		}
-		src.Loc.End = p.pos()
-		return src
+		src.Loc.End = p.prev.End
+		return src, nil
 	}
 
 	// [ REMOTE ]
@@ -3301,75 +3811,124 @@ func (p *Parser) parseAttrDimSourceClause() *nodes.AttrDimSourceClause {
 		src.Remote = true
 		p.advance()
 	}
+	var parseErr290 error
 
 	// [ schema. ] table/view
-	src.Name = p.parseObjectName()
+	src.Name, parseErr290 = p.parseObjectName()
+	if parseErr290 !=
 
-	// [ [ AS ] alias ]
+		// [ [ AS ] alias ]
+		nil {
+		return nil, parseErr290
+	}
+
 	if p.cur.Type == kwAS {
 		p.advance()
-		src.Alias = p.parseIdentifier()
+		var parseErr291 error
+		src.Alias, parseErr291 = p.parseIdentifier()
+		if parseErr291 != nil {
+			return nil, parseErr291
+		}
 	} else if p.isIdentLike() && p.cur.Str != "ATTRIBUTES" && p.cur.Str != "JOIN" &&
 		p.cur.Str != "DIMENSION" && p.cur.Str != "SHARING" && p.cur.Str != "CAPTION" &&
 		p.cur.Str != "DESCRIPTION" && p.cur.Str != "CLASSIFICATION" &&
 		p.cur.Type != ',' && p.cur.Type != ';' && p.cur.Type != tokEOF {
-		src.Alias = p.parseIdentifier()
+		var parseErr292 error
+		src.Alias, parseErr292 = p.parseIdentifier()
+		if parseErr292 != nil {
+			return nil, parseErr292
+		}
 	}
 
-	src.Loc.End = p.pos()
-	return src
+	src.Loc.End = p.prev.End
+	return src, nil
 }
 
 // parseAttrDimJoinCondElem parses a join condition element: [table.]col = [table.]col
-func (p *Parser) parseAttrDimJoinCondElem() *nodes.AttrDimJoinCondElem {
+func (p *Parser) parseAttrDimJoinCondElem() (*nodes.AttrDimJoinCondElem, error) {
 	elem := &nodes.AttrDimJoinCondElem{Loc: nodes.Loc{Start: p.pos()}}
 	// Left side
-	name1 := p.parseIdentifier()
+	name1, parseErr293 := p.parseIdentifier()
+	if parseErr293 != nil {
+		return nil, parseErr293
+	}
 	if p.cur.Type == '.' {
 		p.advance()
 		elem.LeftTable = name1
-		elem.LeftCol = p.parseIdentifier()
+		var parseErr294 error
+		elem.LeftCol, parseErr294 = p.parseIdentifier()
+		if parseErr294 != nil {
+			return nil, parseErr294
+
+			// =
+		}
 	} else {
 		elem.LeftCol = name1
 	}
-	// =
+
 	if p.cur.Type == '=' {
 		p.advance()
 	}
 	// Right side
-	name2 := p.parseIdentifier()
+	name2, parseErr295 := p.parseIdentifier()
+	if parseErr295 != nil {
+		return nil, parseErr295
+	}
 	if p.cur.Type == '.' {
 		p.advance()
 		elem.RightTable = name2
-		elem.RightCol = p.parseIdentifier()
+		var parseErr296 error
+		elem.RightCol, parseErr296 = p.parseIdentifier()
+		if parseErr296 != nil {
+			return nil, parseErr296
+		}
 	} else {
 		elem.RightCol = name2
 	}
-	elem.Loc.End = p.pos()
-	return elem
+	elem.Loc.End = p.prev.End
+	return elem, nil
 }
 
 // parseAttrDimAttributeClause parses an attribute in the ATTRIBUTES clause.
-func (p *Parser) parseAttrDimAttributeClause() *nodes.AttrDimAttribute {
+func (p *Parser) parseAttrDimAttributeClause() (*nodes.AttrDimAttribute, error) {
 	attr := &nodes.AttrDimAttribute{Loc: nodes.Loc{Start: p.pos()}}
-	attr.Column = p.parseIdentifier()
+	var parseErr297 error
+	attr.Column, parseErr297 = p.parseIdentifier()
+	if parseErr297 != nil {
+		return nil, parseErr297
+	}
 	if p.cur.Type == kwAS {
 		p.advance()
-		attr.Alias = p.parseIdentifier()
+		var parseErr298 error
+		attr.Alias, parseErr298 = p.parseIdentifier()
+		if parseErr298 != nil {
+			return nil, parseErr298
+		}
 	}
-	attr.Classifications = p.parseClassificationClauses()
-	attr.Loc.End = p.pos()
-	return attr
+	var parseErr299 error
+	attr.Classifications, parseErr299 = p.parseClassificationClauses()
+	if parseErr299 != nil {
+		return nil, parseErr299
+	}
+	attr.Loc.End = p.prev.End
+	return attr, nil
 }
 
 // parseAttrDimLevelClause parses a LEVEL clause in CREATE ATTRIBUTE DIMENSION.
-func (p *Parser) parseAttrDimLevelClause() *nodes.AttrDimLevel {
+func (p *Parser) parseAttrDimLevelClause() (*nodes.AttrDimLevel, error) {
 	lvl := &nodes.AttrDimLevel{Loc: nodes.Loc{Start: p.pos()}}
-	p.advance() // consume LEVEL
+	p.advance()
+	var // consume LEVEL
+	parseErr300 error
 
-	lvl.Name = p.parseIdentifier()
+	lvl.Name, parseErr300 = p.parseIdentifier()
+	if parseErr300 !=
 
-	// LEVEL TYPE { STANDARD | YEARS | ... }
+		// LEVEL TYPE { STANDARD | YEARS | ... }
+		nil {
+		return nil, parseErr300
+	}
+
 	if p.cur.Type == kwLEVEL {
 		next := p.peekNext()
 		if next.Type == kwTYPE {
@@ -3381,18 +3940,28 @@ func (p *Parser) parseAttrDimLevelClause() *nodes.AttrDimLevel {
 			}
 		}
 	}
+	var parseErr301 error
 
 	// classification_clause(s)
-	lvl.Classifications = p.parseClassificationClauses()
+	lvl.Classifications, parseErr301 = p.parseClassificationClauses()
+	if parseErr301 !=
 
-	// KEY clause
+		// KEY clause
+		nil {
+		return nil, parseErr301
+	}
+
 	if p.cur.Type == kwKEY {
 		p.advance()
 		lvl.KeyAttrs = &nodes.List{}
 		if p.cur.Type == '(' {
 			p.advance()
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				lvl.KeyAttrs.Items = append(lvl.KeyAttrs.Items, &nodes.String{Str: p.parseIdentifier()})
+				parseValue49, parseErr50 := p.parseIdentifier()
+				if parseErr50 != nil {
+					return nil, parseErr50
+				}
+				lvl.KeyAttrs.Items = append(lvl.KeyAttrs.Items, &nodes.String{Str: parseValue49})
 				if p.cur.Type == ',' {
 					p.advance()
 				}
@@ -3401,8 +3970,14 @@ func (p *Parser) parseAttrDimLevelClause() *nodes.AttrDimLevel {
 				p.advance()
 			}
 		} else {
-			lvl.KeyAttrs.Items = append(lvl.KeyAttrs.Items, &nodes.String{Str: p.parseIdentifier()})
-			// NOT NULL | SKIP WHEN NULL
+			parseValue51, parseErr52 := p.parseIdentifier()
+			if parseErr52 !=
+				// NOT NULL | SKIP WHEN NULL
+				nil {
+				return nil, parseErr52
+			}
+			lvl.KeyAttrs.Items = append(lvl.KeyAttrs.Items, &nodes.String{Str: parseValue51})
+
 			if p.cur.Type == kwNOT && p.peekNext().Type == kwNULL {
 				lvl.KeyNotNull = true
 				p.advance()
@@ -3430,7 +4005,11 @@ func (p *Parser) parseAttrDimLevelClause() *nodes.AttrDimLevel {
 		if p.cur.Type == '(' {
 			p.advance()
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				lvl.AltKeyAttrs.Items = append(lvl.AltKeyAttrs.Items, &nodes.String{Str: p.parseIdentifier()})
+				parseValue53, parseErr54 := p.parseIdentifier()
+				if parseErr54 != nil {
+					return nil, parseErr54
+				}
+				lvl.AltKeyAttrs.Items = append(lvl.AltKeyAttrs.Items, &nodes.String{Str: parseValue53})
 				if p.cur.Type == ',' {
 					p.advance()
 				}
@@ -3439,14 +4018,25 @@ func (p *Parser) parseAttrDimLevelClause() *nodes.AttrDimLevel {
 				p.advance()
 			}
 		} else {
-			lvl.AltKeyAttrs.Items = append(lvl.AltKeyAttrs.Items, &nodes.String{Str: p.parseIdentifier()})
+			parseValue55, parseErr56 := p.parseIdentifier()
+			if parseErr56 != nil {
+				return nil, parseErr56
+
+				// MEMBER NAME / CAPTION / DESCRIPTION
+			}
+			lvl.AltKeyAttrs.Items = append(lvl.AltKeyAttrs.Items, &nodes.String{Str: parseValue55})
 		}
 	}
+	var parseErr302 error
 
-	// MEMBER NAME / CAPTION / DESCRIPTION
-	lvl.MemberName, lvl.MemberCaption, lvl.MemberDesc = p.parseMemberExprs()
+	lvl.MemberName, lvl.MemberCaption, lvl.MemberDesc, parseErr302 = p.parseMemberExprs()
+	if parseErr302 !=
 
-	// ORDER BY
+		// ORDER BY
+		nil {
+		return nil, parseErr302
+	}
+
 	if p.cur.Type == kwORDER {
 		p.advance() // consume ORDER
 		if p.cur.Type == kwBY {
@@ -3457,7 +4047,11 @@ func (p *Parser) parseAttrDimLevelClause() *nodes.AttrDimLevel {
 			p.advance()
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
 				item := &nodes.AttrDimOrderByItem{Loc: nodes.Loc{Start: p.pos()}}
-				item.Attribute = p.parseIdentifier()
+				var parseErr303 error
+				item.Attribute, parseErr303 = p.parseIdentifier()
+				if parseErr303 != nil {
+					return nil, parseErr303
+				}
 				if p.cur.Type == kwASC {
 					item.Direction = "ASC"
 					p.advance()
@@ -3465,7 +4059,7 @@ func (p *Parser) parseAttrDimLevelClause() *nodes.AttrDimLevel {
 					item.Direction = "DESC"
 					p.advance()
 				}
-				item.Loc.End = p.pos()
+				item.Loc.End = p.prev.End
 				lvl.OrderByAttrs.Items = append(lvl.OrderByAttrs.Items, item)
 				if p.cur.Type == ',' {
 					p.advance()
@@ -3476,7 +4070,11 @@ func (p *Parser) parseAttrDimLevelClause() *nodes.AttrDimLevel {
 			}
 		} else {
 			item := &nodes.AttrDimOrderByItem{Loc: nodes.Loc{Start: p.pos()}}
-			item.Attribute = p.parseIdentifier()
+			var parseErr304 error
+			item.Attribute, parseErr304 = p.parseIdentifier()
+			if parseErr304 != nil {
+				return nil, parseErr304
+			}
 			if p.cur.Type == kwASC {
 				item.Direction = "ASC"
 				p.advance()
@@ -3484,7 +4082,7 @@ func (p *Parser) parseAttrDimLevelClause() *nodes.AttrDimLevel {
 				item.Direction = "DESC"
 				p.advance()
 			}
-			item.Loc.End = p.pos()
+			item.Loc.End = p.prev.End
 			lvl.OrderByAttrs.Items = append(lvl.OrderByAttrs.Items, item)
 		}
 	}
@@ -3496,7 +4094,11 @@ func (p *Parser) parseAttrDimLevelClause() *nodes.AttrDimLevel {
 		if p.cur.Type == '(' {
 			p.advance()
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				lvl.Determines.Items = append(lvl.Determines.Items, &nodes.String{Str: p.parseIdentifier()})
+				parseValue57, parseErr58 := p.parseIdentifier()
+				if parseErr58 != nil {
+					return nil, parseErr58
+				}
+				lvl.Determines.Items = append(lvl.Determines.Items, &nodes.String{Str: parseValue57})
 				if p.cur.Type == ',' {
 					p.advance()
 				}
@@ -3507,24 +4109,40 @@ func (p *Parser) parseAttrDimLevelClause() *nodes.AttrDimLevel {
 		}
 	}
 
-	lvl.Loc.End = p.pos()
-	return lvl
+	lvl.Loc.End = p.prev.End
+	return lvl, nil
 }
 
 // parseMemberExprs parses MEMBER NAME/CAPTION/DESCRIPTION expression triples.
-func (p *Parser) parseMemberExprs() (name, caption, desc nodes.ExprNode) {
+func (p *Parser) parseMemberExprs() (name, caption, desc nodes.ExprNode, parseErr error) {
 	for p.isIdentLikeStr("MEMBER") {
 		p.advance() // consume MEMBER
 		switch {
 		case p.cur.Type == kwNAME || p.isIdentLikeStr("NAME"):
 			p.advance()
-			name = p.parseExpr()
+			var parseErr305 error
+			name, parseErr305 = p.parseExpr()
+			if parseErr305 != nil {
+				return nil, nil, nil, parseErr305
+			}
 		case p.isIdentLikeStr("CAPTION"):
 			p.advance()
-			caption = p.parseExpr()
+			var parseErr306 error
+			caption, parseErr306 = p.parseExpr()
+			if parseErr306 != nil {
+				return nil, nil, nil, parseErr306
+			}
 		case p.isIdentLikeStr("DESCRIPTION"):
 			p.advance()
-			desc = p.parseExpr()
+			var parseErr307 error
+			desc, parseErr307 = p.parseExpr()
+			if parseErr307 != nil {
+				return nil, nil, nil, parseErr307
+
+				// ---------------------------------------------------------------------------
+				// ALTER ATTRIBUTE DIMENSION
+				// ---------------------------------------------------------------------------
+			}
 		default:
 			return
 		}
@@ -3532,20 +4150,16 @@ func (p *Parser) parseMemberExprs() (name, caption, desc nodes.ExprNode) {
 	return
 }
 
-// ---------------------------------------------------------------------------
-// ALTER ATTRIBUTE DIMENSION
-// ---------------------------------------------------------------------------
-
 // parseAlterAttributeDimensionStmt parses an ALTER ATTRIBUTE DIMENSION statement.
 //
 // BNF: oracle/parser/bnf/ALTER-ATTRIBUTE-DIMENSION.bnf
 //
-//  ALTER ATTRIBUTE DIMENSION [ IF EXISTS ] [ schema . ] attr_dim_name
-//      {
-//          RENAME TO new_attr_dim_name
-//        | COMPILE
-//      }
-func (p *Parser) parseAlterAttributeDimensionStmt(start int) *nodes.AlterAttributeDimensionStmt {
+//	ALTER ATTRIBUTE DIMENSION [ IF EXISTS ] [ schema . ] attr_dim_name
+//	    {
+//	        RENAME TO new_attr_dim_name
+//	      | COMPILE
+//	    }
+func (p *Parser) parseAlterAttributeDimensionStmt(start int) (*nodes.AlterAttributeDimensionStmt, error) {
 	stmt := &nodes.AlterAttributeDimensionStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -3556,8 +4170,12 @@ func (p *Parser) parseAlterAttributeDimensionStmt(start int) *nodes.AlterAttribu
 		p.advance()
 		p.advance()
 	}
+	var parseErr308 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr308 = p.parseObjectName()
+	if parseErr308 != nil {
+		return nil, parseErr308
+	}
 
 	switch {
 	case p.isIdentLikeStr("COMPILE"):
@@ -3569,11 +4187,15 @@ func (p *Parser) parseAlterAttributeDimensionStmt(start int) *nodes.AlterAttribu
 		if p.cur.Type == kwTO {
 			p.advance() // consume TO
 		}
-		stmt.NewName = p.parseObjectName()
+		var parseErr309 error
+		stmt.NewName, parseErr309 = p.parseObjectName()
+		if parseErr309 != nil {
+			return nil, parseErr309
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -3584,38 +4206,38 @@ func (p *Parser) parseAlterAttributeDimensionStmt(start int) *nodes.AlterAttribu
 //
 // BNF: oracle/parser/bnf/CREATE-HIERARCHY.bnf
 //
-//  CREATE [ OR REPLACE ] [ { FORCE | NOFORCE } ] HIERARCHY
-//      [ IF NOT EXISTS ] [ schema. ] hierarchy
-//      [ SHARING = { METADATA | NONE } ]
-//      [ classification_clause ]...
-//      hier_using_clause
-//      ( level_hier_clause )
-//      [ hier_attrs_clause ] ;
+//	CREATE [ OR REPLACE ] [ { FORCE | NOFORCE } ] HIERARCHY
+//	    [ IF NOT EXISTS ] [ schema. ] hierarchy
+//	    [ SHARING = { METADATA | NONE } ]
+//	    [ classification_clause ]...
+//	    hier_using_clause
+//	    ( level_hier_clause )
+//	    [ hier_attrs_clause ] ;
 //
-//  classification_clause:
-//      { CAPTION 'caption'
-//      | DESCRIPTION 'description'
-//      | CLASSIFICATION classification_name VALUE 'classification_value'
-//          [ LANGUAGE language ] }
+//	classification_clause:
+//	    { CAPTION 'caption'
+//	    | DESCRIPTION 'description'
+//	    | CLASSIFICATION classification_name VALUE 'classification_value'
+//	        [ LANGUAGE language ] }
 //
-//  hier_using_clause:
-//      USING [ schema. ] attr_dimension
+//	hier_using_clause:
+//	    USING [ schema. ] attr_dimension
 //
-//  level_hier_clause:
-//      level_name [ classification_clause ]...
-//          [ CHILD OF level_hier_clause ]
+//	level_hier_clause:
+//	    level_name [ classification_clause ]...
+//	        [ CHILD OF level_hier_clause ]
 //
-//  hier_attrs_clause:
-//      HIERARCHICAL ATTRIBUTES ( hier_attr_clause [, hier_attr_clause ]... )
+//	hier_attrs_clause:
+//	    HIERARCHICAL ATTRIBUTES ( hier_attr_clause [, hier_attr_clause ]... )
 //
-//  hier_attr_clause:
-//      hier_attr_name [ classification_clause ]...
+//	hier_attr_clause:
+//	    hier_attr_name [ classification_clause ]...
 //
-//  hier_attr_name:
-//      { HIER_ORDER | DEPTH | IS_LEAF | IS_ROOT
-//      | MEMBER_NAME | MEMBER_UNIQUE_NAME | MEMBER_CAPTION | MEMBER_DESCRIPTION
-//      | PARENT_LEVEL_NAME | PARENT_UNIQUE_NAME }
-func (p *Parser) parseCreateHierarchyStmt(start int, orReplace, force, noForce bool) *nodes.CreateHierarchyStmt {
+//	hier_attr_name:
+//	    { HIER_ORDER | DEPTH | IS_LEAF | IS_ROOT
+//	    | MEMBER_NAME | MEMBER_UNIQUE_NAME | MEMBER_CAPTION | MEMBER_DESCRIPTION
+//	    | PARENT_LEVEL_NAME | PARENT_UNIQUE_NAME }
+func (p *Parser) parseCreateHierarchyStmt(start int, orReplace, force, noForce bool) (*nodes.CreateHierarchyStmt, error) {
 	stmt := &nodes.CreateHierarchyStmt{
 		OrReplace: orReplace,
 		Force:     force,
@@ -3632,10 +4254,16 @@ func (p *Parser) parseCreateHierarchyStmt(start int, orReplace, force, noForce b
 		}
 		stmt.IfNotExists = true
 	}
+	var parseErr310 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr310 = p.parseObjectName()
+	if parseErr310 !=
 
-	// SHARING = { METADATA | NONE }
+		// SHARING = { METADATA | NONE }
+		nil {
+		return nil, parseErr310
+	}
+
 	if p.isIdentLikeStr("SHARING") {
 		p.advance()
 		if p.cur.Type == '=' {
@@ -3646,20 +4274,36 @@ func (p *Parser) parseCreateHierarchyStmt(start int, orReplace, force, noForce b
 			p.advance()
 		}
 	}
+	var parseErr311 error
 
 	// classification_clause(s)
-	stmt.Classifications = p.parseClassificationClauses()
+	stmt.Classifications, parseErr311 = p.parseClassificationClauses()
+	if parseErr311 !=
 
-	// USING [ schema. ] attr_dimension
-	if p.cur.Type == kwUSING {
-		p.advance()
-		stmt.UsingAttrDim = p.parseObjectName()
+		// USING [ schema. ] attr_dimension
+		nil {
+		return nil, parseErr311
 	}
 
-	// ( level_hier_clause )
+	if p.cur.Type == kwUSING {
+		p.advance()
+		var parseErr312 error
+		stmt.UsingAttrDim, parseErr312 = p.parseObjectName()
+		if parseErr312 !=
+
+			// ( level_hier_clause )
+			nil {
+			return nil, parseErr312
+		}
+	}
+
 	if p.cur.Type == '(' {
 		p.advance()
-		stmt.LevelHier = p.parseHierLevelClause()
+		var parseErr313 error
+		stmt.LevelHier, parseErr313 = p.parseHierLevelClause()
+		if parseErr313 != nil {
+			return nil, parseErr313
+		}
 		if p.cur.Type == ')' {
 			p.advance()
 		}
@@ -3676,9 +4320,17 @@ func (p *Parser) parseCreateHierarchyStmt(start int, orReplace, force, noForce b
 			stmt.HierAttrs = &nodes.List{}
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
 				ha := &nodes.HierAttr{Loc: nodes.Loc{Start: p.pos()}}
-				ha.Name = p.parseIdentifier()
-				ha.Classifications = p.parseClassificationClauses()
-				ha.Loc.End = p.pos()
+				var parseErr314 error
+				ha.Name, parseErr314 = p.parseIdentifier()
+				if parseErr314 != nil {
+					return nil, parseErr314
+				}
+				var parseErr315 error
+				ha.Classifications, parseErr315 = p.parseClassificationClauses()
+				if parseErr315 != nil {
+					return nil, parseErr315
+				}
+				ha.Loc.End = p.prev.End
 				stmt.HierAttrs.Items = append(stmt.HierAttrs.Items, ha)
 				if p.cur.Type == ',' {
 					p.advance()
@@ -3690,27 +4342,41 @@ func (p *Parser) parseCreateHierarchyStmt(start int, orReplace, force, noForce b
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseHierLevelClause parses a level_hier_clause recursively.
-func (p *Parser) parseHierLevelClause() *nodes.HierLevelClause {
+func (p *Parser) parseHierLevelClause() (*nodes.HierLevelClause, error) {
 	lvl := &nodes.HierLevelClause{Loc: nodes.Loc{Start: p.pos()}}
-	lvl.Name = p.parseIdentifier()
-	lvl.Classifications = p.parseClassificationClauses()
+	var parseErr316 error
+	lvl.Name, parseErr316 = p.parseIdentifier()
+	if parseErr316 != nil {
+		return nil, parseErr316
+	}
+	var parseErr317 error
+	lvl.Classifications, parseErr317 = p.parseClassificationClauses()
+	if parseErr317 !=
 
-	// CHILD OF level_hier_clause
+		// CHILD OF level_hier_clause
+		nil {
+		return nil, parseErr317
+	}
+
 	if p.isIdentLikeStr("CHILD") {
 		p.advance() // consume CHILD
 		if p.cur.Type == kwOF {
 			p.advance() // consume OF
 		}
-		lvl.ChildOf = p.parseHierLevelClause()
+		var parseErr318 error
+		lvl.ChildOf, parseErr318 = p.parseHierLevelClause()
+		if parseErr318 != nil {
+			return nil, parseErr318
+		}
 	}
 
-	lvl.Loc.End = p.pos()
-	return lvl
+	lvl.Loc.End = p.prev.End
+	return lvl, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -3721,11 +4387,11 @@ func (p *Parser) parseHierLevelClause() *nodes.HierLevelClause {
 //
 // BNF: oracle/parser/bnf/ALTER-HIERARCHY.bnf
 //
-//  ALTER HIERARCHY [ IF EXISTS ] [ schema. ] hierarchy_name
-//      { RENAME TO new_hier_name
-//      | COMPILE
-//      } ;
-func (p *Parser) parseAlterHierarchyStmt(start int) *nodes.AlterHierarchyStmt {
+//	ALTER HIERARCHY [ IF EXISTS ] [ schema. ] hierarchy_name
+//	    { RENAME TO new_hier_name
+//	    | COMPILE
+//	    } ;
+func (p *Parser) parseAlterHierarchyStmt(start int) (*nodes.AlterHierarchyStmt, error) {
 	stmt := &nodes.AlterHierarchyStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -3736,8 +4402,12 @@ func (p *Parser) parseAlterHierarchyStmt(start int) *nodes.AlterHierarchyStmt {
 		p.advance()
 		p.advance()
 	}
+	var parseErr319 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr319 = p.parseObjectName()
+	if parseErr319 != nil {
+		return nil, parseErr319
+	}
 
 	switch {
 	case p.isIdentLikeStr("COMPILE"):
@@ -3749,11 +4419,15 @@ func (p *Parser) parseAlterHierarchyStmt(start int) *nodes.AlterHierarchyStmt {
 		if p.cur.Type == kwTO {
 			p.advance()
 		}
-		stmt.NewName = p.parseObjectName()
+		var parseErr320 error
+		stmt.NewName, parseErr320 = p.parseObjectName()
+		if parseErr320 != nil {
+			return nil, parseErr320
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -3764,77 +4438,77 @@ func (p *Parser) parseAlterHierarchyStmt(start int) *nodes.AlterHierarchyStmt {
 //
 // BNF: oracle/parser/bnf/create-domain.bnf
 //
-//  CREATE [ OR REPLACE ] [ USECASE ] DOMAIN [ IF NOT EXISTS ] [ schema. ] domain_name
-//      AS { create_single_column_domain
-//         | create_multi_column_domain
-//         | create_flexible_domain } ;
+//	CREATE [ OR REPLACE ] [ USECASE ] DOMAIN [ IF NOT EXISTS ] [ schema. ] domain_name
+//	    AS { create_single_column_domain
+//	       | create_multi_column_domain
+//	       | create_flexible_domain } ;
 //
-//  create_single_column_domain:
-//      datatype [ STRICT ]
-//      [ DEFAULT [ ON NULL ] default_expression ]
-//      [ { constraint_clause }... ]
-//      [ COLLATE collation_name ]
-//      [ DISPLAY display_expression ]
-//      [ ORDER order_expression ]
-//      [ annotations_clause ]
+//	create_single_column_domain:
+//	    datatype [ STRICT ]
+//	    [ DEFAULT [ ON NULL ] default_expression ]
+//	    [ { constraint_clause }... ]
+//	    [ COLLATE collation_name ]
+//	    [ DISPLAY display_expression ]
+//	    [ ORDER order_expression ]
+//	    [ annotations_clause ]
 //
-//  create_single_column_domain:  -- ENUM variant
-//      ENUM ( enum_list ) [ STRICT ]
-//      [ DEFAULT [ ON NULL ] default_expression ]
-//      [ { constraint_clause }... ]
-//      [ COLLATE collation_name ]
-//      [ DISPLAY display_expression ]
-//      [ ORDER order_expression ]
-//      [ annotations_clause ]
+//	create_single_column_domain:  -- ENUM variant
+//	    ENUM ( enum_list ) [ STRICT ]
+//	    [ DEFAULT [ ON NULL ] default_expression ]
+//	    [ { constraint_clause }... ]
+//	    [ COLLATE collation_name ]
+//	    [ DISPLAY display_expression ]
+//	    [ ORDER order_expression ]
+//	    [ annotations_clause ]
 //
-//  enum_list:
-//      enum_item_list [, enum_item_list ]...
+//	enum_list:
+//	    enum_item_list [, enum_item_list ]...
 //
-//  enum_item_list:
-//      name [ = enum_alias_list ] [ = value ]
+//	enum_item_list:
+//	    name [ = enum_alias_list ] [ = value ]
 //
-//  enum_alias_list:
-//      alias [ = alias ]...
+//	enum_alias_list:
+//	    alias [ = alias ]...
 //
-//  column_properties_clause:
-//      [ DEFAULT [ ON NULL ] default_expression ]
-//      [ { constraint_clause }... ]
-//      [ COLLATE collation_name ]
-//      [ DISPLAY display_expression ]
-//      [ ORDER order_expression ]
+//	column_properties_clause:
+//	    [ DEFAULT [ ON NULL ] default_expression ]
+//	    [ { constraint_clause }... ]
+//	    [ COLLATE collation_name ]
+//	    [ DISPLAY display_expression ]
+//	    [ ORDER order_expression ]
 //
-//  create_multi_column_domain:
-//      ( column_name AS datatype [ annotations_clause ]
-//        [, column_name AS datatype [ annotations_clause ] ]... )
-//      [ { constraint_clause }... ]
-//      [ COLLATE collation_name ]
-//      [ DISPLAY display_expression ]
-//      [ ORDER order_expression ]
-//      [ annotations_clause ]
+//	create_multi_column_domain:
+//	    ( column_name AS datatype [ annotations_clause ]
+//	      [, column_name AS datatype [ annotations_clause ] ]... )
+//	    [ { constraint_clause }... ]
+//	    [ COLLATE collation_name ]
+//	    [ DISPLAY display_expression ]
+//	    [ ORDER order_expression ]
+//	    [ annotations_clause ]
 //
-//  create_flexible_domain:
-//      FLEXIBLE DOMAIN [ schema. ] domain_name
-//          ( column_name [, column_name ]... )
-//      CHOOSE DOMAIN USING ( domain_discriminant_column datatype
-//          [, domain_discriminant_column datatype ]... )
-//      FROM { DECODE ( expr , comparison_expr , result_expr
-//                      [, comparison_expr , result_expr ]... )
-//           | CASE { WHEN condition THEN result_expr }... END }
+//	create_flexible_domain:
+//	    FLEXIBLE DOMAIN [ schema. ] domain_name
+//	        ( column_name [, column_name ]... )
+//	    CHOOSE DOMAIN USING ( domain_discriminant_column datatype
+//	        [, domain_discriminant_column datatype ]... )
+//	    FROM { DECODE ( expr , comparison_expr , result_expr
+//	                    [, comparison_expr , result_expr ]... )
+//	         | CASE { WHEN condition THEN result_expr }... END }
 //
-//  result_expr:
-//      [ schema. ] domain_name ( column_name [, column_name ]... )
+//	result_expr:
+//	    [ schema. ] domain_name ( column_name [, column_name ]... )
 //
-//  default_clause:
-//      DEFAULT [ ON NULL ] default_expression
+//	default_clause:
+//	    DEFAULT [ ON NULL ] default_expression
 //
-//  constraint_clause:
-//      [ CONSTRAINT constraint_name ]
-//      { NOT NULL | NULL | CHECK ( condition ) }
-//      [ constraint_state ]
+//	constraint_clause:
+//	    [ CONSTRAINT constraint_name ]
+//	    { NOT NULL | NULL | CHECK ( condition ) }
+//	    [ constraint_state ]
 //
-//  annotations_clause:
-//      ANNOTATIONS ( annotation [, annotation ]... )
-func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) *nodes.CreateDomainStmt {
+//	annotations_clause:
+//	    ANNOTATIONS ( annotation [, annotation ]... )
+func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) (*nodes.CreateDomainStmt, error) {
 	stmt := &nodes.CreateDomainStmt{
 		OrReplace: orReplace,
 		Usecase:   usecase,
@@ -3850,10 +4524,16 @@ func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) *node
 		}
 		stmt.IfNotExists = true
 	}
+	var parseErr321 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr321 = p.parseObjectName()
+	if parseErr321 !=
 
-	// AS
+		// AS
+		nil {
+		return nil, parseErr321
+	}
+
 	if p.cur.Type == kwAS {
 		p.advance()
 	}
@@ -3867,12 +4547,20 @@ func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) *node
 		if p.isIdentLike() && p.cur.Str == "DOMAIN" {
 			p.advance()
 		}
-		stmt.FlexDomainName = p.parseObjectName()
+		var parseErr322 error
+		stmt.FlexDomainName, parseErr322 = p.parseObjectName()
+		if parseErr322 != nil {
+			return nil, parseErr322
+		}
 		if p.cur.Type == '(' {
 			p.advance()
 			stmt.FlexColumns = &nodes.List{}
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				stmt.FlexColumns.Items = append(stmt.FlexColumns.Items, &nodes.String{Str: p.parseIdentifier()})
+				parseValue59, parseErr60 := p.parseIdentifier()
+				if parseErr60 != nil {
+					return nil, parseErr60
+				}
+				stmt.FlexColumns.Items = append(stmt.FlexColumns.Items, &nodes.String{Str: parseValue59})
 				if p.cur.Type == ',' {
 					p.advance()
 				}
@@ -3895,9 +4583,17 @@ func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) *node
 				stmt.ChooseUsing = &nodes.List{}
 				for p.cur.Type != ')' && p.cur.Type != tokEOF {
 					col := &nodes.DomainColumn{Loc: nodes.Loc{Start: p.pos()}}
-					col.Name = p.parseIdentifier()
-					col.DataType = p.parseTypeName()
-					col.Loc.End = p.pos()
+					var parseErr323 error
+					col.Name, parseErr323 = p.parseIdentifier()
+					if parseErr323 != nil {
+						return nil, parseErr323
+					}
+					var parseErr324 error
+					col.DataType, parseErr324 = p.parseTypeName()
+					if parseErr324 != nil {
+						return nil, parseErr324
+					}
+					col.Loc.End = p.prev.End
 					stmt.ChooseUsing.Items = append(stmt.ChooseUsing.Items, col)
 					if p.cur.Type == ',' {
 						p.advance()
@@ -3911,7 +4607,11 @@ func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) *node
 		// FROM { DECODE(...) | CASE ... END }
 		if p.cur.Type == kwFROM {
 			p.advance()
-			stmt.ChooseExpr = p.parseExpr()
+			var parseErr325 error
+			stmt.ChooseExpr, parseErr325 = p.parseExpr()
+			if parseErr325 != nil {
+				return nil, parseErr325
+			}
 		}
 
 	case p.isIdentLikeStr("ENUM"):
@@ -3923,19 +4623,37 @@ func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) *node
 			stmt.EnumItems = &nodes.List{}
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
 				item := &nodes.DomainEnumItem{Loc: nodes.Loc{Start: p.pos()}}
-				item.Name = p.parseIdentifier()
-				// [ = alias [= alias]... ] [ = value ]
+				var parseErr326 error
+				item.Name, parseErr326 = p.parseIdentifier()
+				if parseErr326 !=
+					// [ = alias [= alias]... ] [ = value ]
+					nil {
+					return nil, parseErr326
+				}
+
 				for p.cur.Type == '=' {
 					p.advance()
 					if p.cur.Type == tokICONST || p.cur.Type == tokFCONST || p.cur.Type == tokSCONST {
-						item.Value = p.parseExpr()
+						var parseErr327 error
+						item.Value, parseErr327 = p.parseExpr()
+						if parseErr327 != nil {
+							return nil, parseErr327
+						}
 					} else if p.isIdentLike() || p.cur.Type == tokIDENT {
-						item.Aliases = append(item.Aliases, p.parseIdentifier())
+						parseValue61, parseErr62 := p.parseIdentifier()
+						if parseErr62 != nil {
+							return nil, parseErr62
+						}
+						item.Aliases = append(item.Aliases, parseValue61)
 					} else {
-						item.Value = p.parseExpr()
+						var parseErr328 error
+						item.Value, parseErr328 = p.parseExpr()
+						if parseErr328 != nil {
+							return nil, parseErr328
+						}
 					}
 				}
-				item.Loc.End = p.pos()
+				item.Loc.End = p.prev.End
 				stmt.EnumItems.Items = append(stmt.EnumItems.Items, item)
 				if p.cur.Type == ',' {
 					p.advance()
@@ -3950,25 +4668,44 @@ func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) *node
 			stmt.Strict = true
 			p.advance()
 		}
-		p.parseDomainProperties(stmt)
+		parseErr329 := p.parseDomainProperties(stmt)
+		if parseErr329 != nil {
+			return nil, parseErr329
+
+			// Multi-column domain: ( column_name AS datatype [, ...] )
+		}
 
 	case p.cur.Type == '(':
-		// Multi-column domain: ( column_name AS datatype [, ...] )
+
 		stmt.DomainType = "MULTI"
 		p.advance() // consume (
 		stmt.Columns = &nodes.List{}
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
 			col := &nodes.DomainColumn{Loc: nodes.Loc{Start: p.pos()}}
-			col.Name = p.parseIdentifier()
+			var parseErr330 error
+			col.Name, parseErr330 = p.parseIdentifier()
+			if parseErr330 != nil {
+				return nil, parseErr330
+			}
 			if p.cur.Type == kwAS {
 				p.advance()
 			}
-			col.DataType = p.parseTypeName()
-			// annotations_clause per column
-			if p.isIdentLikeStr("ANNOTATIONS") {
-				col.Annotations = p.parseDomainAnnotations()
+			var parseErr331 error
+			col.DataType, parseErr331 = p.parseTypeName()
+			if parseErr331 !=
+				// annotations_clause per column
+				nil {
+				return nil, parseErr331
 			}
-			col.Loc.End = p.pos()
+
+			if p.isIdentLikeStr("ANNOTATIONS") {
+				var parseErr332 error
+				col.Annotations, parseErr332 = p.parseDomainAnnotations()
+				if parseErr332 != nil {
+					return nil, parseErr332
+				}
+			}
+			col.Loc.End = p.prev.End
 			stmt.Columns.Items = append(stmt.Columns.Items, col)
 			if p.cur.Type == ',' {
 				p.advance()
@@ -3977,25 +4714,38 @@ func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) *node
 		if p.cur.Type == ')' {
 			p.advance()
 		}
-		p.parseDomainProperties(stmt)
+		parseErr333 := p.parseDomainProperties(stmt)
+		if parseErr333 !=
+
+			// Single-column domain: datatype [STRICT] [properties...]
+			nil {
+			return nil, parseErr333
+		}
 
 	default:
-		// Single-column domain: datatype [STRICT] [properties...]
+
 		stmt.DomainType = "SINGLE"
-		stmt.DataType = p.parseTypeName()
+		var parseErr334 error
+		stmt.DataType, parseErr334 = p.parseTypeName()
+		if parseErr334 != nil {
+			return nil, parseErr334
+		}
 		if p.isIdentLikeStr("STRICT") {
 			stmt.Strict = true
 			p.advance()
 		}
-		p.parseDomainProperties(stmt)
+		parseErr335 := p.parseDomainProperties(stmt)
+		if parseErr335 != nil {
+			return nil, parseErr335
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseDomainProperties parses the common properties after a domain type definition.
-func (p *Parser) parseDomainProperties(stmt *nodes.CreateDomainStmt) {
+func (p *Parser) parseDomainProperties(stmt *nodes.CreateDomainStmt) error {
 	// DEFAULT [ON NULL] expr
 	if p.cur.Type == kwDEFAULT {
 		p.advance()
@@ -4004,13 +4754,25 @@ func (p *Parser) parseDomainProperties(stmt *nodes.CreateDomainStmt) {
 			p.advance()
 			p.advance()
 		}
-		stmt.Default = p.parseExpr()
+		var parseErr336 error
+		stmt.Default, parseErr336 = p.parseExpr()
+		if parseErr336 !=
+
+			// constraint_clause(s)
+			nil {
+			return parseErr336
+		}
+	}
+	var parseErr337 error
+
+	stmt.Constraints, parseErr337 = p.parseDomainConstraints()
+	if parseErr337 !=
+
+		// COLLATE collation_name
+		nil {
+		return parseErr337
 	}
 
-	// constraint_clause(s)
-	stmt.Constraints = p.parseDomainConstraints()
-
-	// COLLATE collation_name
 	if p.isIdentLikeStr("COLLATE") {
 		p.advance()
 		if p.isIdentLike() || p.cur.Type == tokSCONST {
@@ -4022,30 +4784,53 @@ func (p *Parser) parseDomainProperties(stmt *nodes.CreateDomainStmt) {
 	// DISPLAY display_expression
 	if p.isIdentLikeStr("DISPLAY") {
 		p.advance()
-		stmt.Display = p.parseExpr()
+		var parseErr338 error
+		stmt.Display, parseErr338 = p.parseExpr()
+		if parseErr338 !=
+
+			// ORDER order_expression
+			nil {
+			return parseErr338
+		}
 	}
 
-	// ORDER order_expression
 	if p.cur.Type == kwORDER {
 		p.advance()
-		stmt.Order = p.parseExpr()
+		var parseErr339 error
+		stmt.Order, parseErr339 = p.parseExpr()
+		if parseErr339 !=
+
+			// ANNOTATIONS ( ... )
+			nil {
+			return parseErr339
+		}
 	}
 
-	// ANNOTATIONS ( ... )
 	if p.isIdentLikeStr("ANNOTATIONS") {
-		stmt.Annotations = p.parseDomainAnnotations()
+		var parseErr340 error
+		stmt.Annotations, parseErr340 = p.parseDomainAnnotations()
+		if parseErr340 !=
+
+			// parseDomainConstraints parses zero or more constraint_clause items.
+			nil {
+			return parseErr340
+		}
 	}
+	return nil
 }
 
-// parseDomainConstraints parses zero or more constraint_clause items.
-func (p *Parser) parseDomainConstraints() *nodes.List {
+func (p *Parser) parseDomainConstraints() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
 		var c *nodes.DomainConstraint
 		if p.cur.Type == kwCONSTRAINT {
 			c = &nodes.DomainConstraint{Loc: nodes.Loc{Start: p.pos()}}
 			p.advance()
-			c.Name = p.parseIdentifier()
+			var parseErr341 error
+			c.Name, parseErr341 = p.parseIdentifier()
+			if parseErr341 != nil {
+				return nil, parseErr341
+			}
 		}
 		if p.cur.Type == kwNOT && p.peekNext().Type == kwNULL {
 			if c == nil {
@@ -4068,7 +4853,11 @@ func (p *Parser) parseDomainConstraints() *nodes.List {
 			p.advance()
 			if p.cur.Type == '(' {
 				p.advance()
-				c.CheckExpr = p.parseExpr()
+				var parseErr342 error
+				c.CheckExpr, parseErr342 = p.parseExpr()
+				if parseErr342 != nil {
+					return nil, parseErr342
+				}
 				if p.cur.Type == ')' {
 					p.advance()
 				}
@@ -4079,23 +4868,26 @@ func (p *Parser) parseDomainConstraints() *nodes.List {
 		} else {
 			break
 		}
-		c.Loc.End = p.pos()
+		c.Loc.End = p.prev.End
 		items = append(items, c)
 	}
 	if len(items) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseDomainAnnotations parses ANNOTATIONS ( ... ) for domains.
-func (p *Parser) parseDomainAnnotations() *nodes.List {
+func (p *Parser) parseDomainAnnotations() (*nodes.List, error) {
 	p.advance() // consume ANNOTATIONS
 	result := &nodes.List{}
 	if p.cur.Type == '(' {
 		p.advance()
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			key := p.parseIdentifier()
+			key, parseErr343 := p.parseIdentifier()
+			if parseErr343 != nil {
+				return nil, parseErr343
+			}
 			var val string
 			if p.cur.Type == tokSCONST {
 				val = p.cur.Str
@@ -4110,7 +4902,7 @@ func (p *Parser) parseDomainAnnotations() *nodes.List {
 			p.advance()
 		}
 	}
-	return result
+	return result, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -4121,16 +4913,16 @@ func (p *Parser) parseDomainAnnotations() *nodes.List {
 //
 // BNF: oracle/parser/bnf/alter-domain.bnf
 //
-//  ALTER [ USECASE ] DOMAIN [ IF EXISTS ] [ schema. ] domain_name
-//      { ADD DISPLAY display_expression
-//      | MODIFY DISPLAY display_expression
-//      | DROP DISPLAY
-//      | ADD ORDER order_expression
-//      | MODIFY ORDER order_expression
-//      | DROP ORDER
-//      | annotations_clause
-//      } ;
-func (p *Parser) parseAlterDomainStmt(start int, usecase bool) *nodes.AlterDomainStmt {
+//	ALTER [ USECASE ] DOMAIN [ IF EXISTS ] [ schema. ] domain_name
+//	    { ADD DISPLAY display_expression
+//	    | MODIFY DISPLAY display_expression
+//	    | DROP DISPLAY
+//	    | ADD ORDER order_expression
+//	    | MODIFY ORDER order_expression
+//	    | DROP ORDER
+//	    | annotations_clause
+//	    } ;
+func (p *Parser) parseAlterDomainStmt(start int, usecase bool) (*nodes.AlterDomainStmt, error) {
 	stmt := &nodes.AlterDomainStmt{
 		Usecase: usecase,
 		Loc:     nodes.Loc{Start: start},
@@ -4142,32 +4934,54 @@ func (p *Parser) parseAlterDomainStmt(start int, usecase bool) *nodes.AlterDomai
 		p.advance()
 		p.advance()
 	}
+	var parseErr344 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr344 = p.parseObjectName()
+	if parseErr344 !=
 
-	// Action
+		// Action
+		nil {
+		return nil, parseErr344
+	}
+
 	switch {
 	case p.isIdentLikeStr("ADD"):
 		p.advance()
 		if p.isIdentLikeStr("DISPLAY") {
 			stmt.Action = "ADD_DISPLAY"
 			p.advance()
-			stmt.Display = p.parseExpr()
+			var parseErr345 error
+			stmt.Display, parseErr345 = p.parseExpr()
+			if parseErr345 != nil {
+				return nil, parseErr345
+			}
 		} else if p.cur.Type == kwORDER {
 			stmt.Action = "ADD_ORDER"
 			p.advance()
-			stmt.Order = p.parseExpr()
+			var parseErr346 error
+			stmt.Order, parseErr346 = p.parseExpr()
+			if parseErr346 != nil {
+				return nil, parseErr346
+			}
 		}
 	case p.isIdentLikeStr("MODIFY"):
 		p.advance()
 		if p.isIdentLikeStr("DISPLAY") {
 			stmt.Action = "MODIFY_DISPLAY"
 			p.advance()
-			stmt.Display = p.parseExpr()
+			var parseErr347 error
+			stmt.Display, parseErr347 = p.parseExpr()
+			if parseErr347 != nil {
+				return nil, parseErr347
+			}
 		} else if p.cur.Type == kwORDER {
 			stmt.Action = "MODIFY_ORDER"
 			p.advance()
-			stmt.Order = p.parseExpr()
+			var parseErr348 error
+			stmt.Order, parseErr348 = p.parseExpr()
+			if parseErr348 != nil {
+				return nil, parseErr348
+			}
 		}
 	case p.isIdentLikeStr("DROP"):
 		p.advance()
@@ -4178,13 +4992,28 @@ func (p *Parser) parseAlterDomainStmt(start int, usecase bool) *nodes.AlterDomai
 			stmt.Action = "DROP_ORDER"
 			p.advance()
 		}
+	case p.cur.Type == kwRENAME:
+		stmt.Action = "RENAME"
+		p.advance()
+		if p.cur.Type == kwTO {
+			p.advance()
+		}
+		parseDiscard350, parseErr349 := p.parseObjectName()
+		_ = parseDiscard350
+		if parseErr349 != nil {
+			return nil, parseErr349
+		}
 	case p.isIdentLikeStr("ANNOTATIONS"):
 		stmt.Action = "ANNOTATIONS"
-		stmt.Annotations = p.parseDomainAnnotations()
+		var parseErr351 error
+		stmt.Annotations, parseErr351 = p.parseDomainAnnotations()
+		if parseErr351 != nil {
+			return nil, parseErr351
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -4201,7 +5030,7 @@ func (p *Parser) parseAlterDomainStmt(start int, usecase bool) *nodes.AlterDomai
 //	    vertex_tables_clause
 //	    [ edge_tables_clause ]
 //	    [ graph_options ] ;
-func (p *Parser) parseCreatePropertyGraphStmt(start int, orReplace, ifNotExists bool) *nodes.CreatePropertyGraphStmt {
+func (p *Parser) parseCreatePropertyGraphStmt(start int, orReplace, ifNotExists bool) (*nodes.CreatePropertyGraphStmt, error) {
 	stmt := &nodes.CreatePropertyGraphStmt{
 		OrReplace:   orReplace,
 		IfNotExists: ifNotExists,
@@ -4220,11 +5049,17 @@ func (p *Parser) parseCreatePropertyGraphStmt(start int, orReplace, ifNotExists 
 			}
 		}
 	}
+	var parseErr352 error
 
 	// Graph name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr352 = p.parseObjectName()
+	if parseErr352 !=
 
-	// VERTEX TABLES ( ... )
+		// VERTEX TABLES ( ... )
+		nil {
+		return nil, parseErr352
+	}
+
 	if p.isIdentLikeStr("VERTEX") {
 		p.advance() // consume VERTEX
 		if p.isIdentLikeStr("TABLES") {
@@ -4233,7 +5068,10 @@ func (p *Parser) parseCreatePropertyGraphStmt(start int, orReplace, ifNotExists 
 		if p.cur.Type == '(' {
 			p.advance() // consume (
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				vtd := p.parseGraphTableDef()
+				vtd, parseErr353 := p.parseGraphTableDef()
+				if parseErr353 != nil {
+					return nil, parseErr353
+				}
 				stmt.VertexTables = append(stmt.VertexTables, vtd)
 				if p.cur.Type == ',' {
 					p.advance()
@@ -4254,7 +5092,10 @@ func (p *Parser) parseCreatePropertyGraphStmt(start int, orReplace, ifNotExists 
 		if p.cur.Type == '(' {
 			p.advance() // consume (
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				etd := p.parseGraphEdgeDef()
+				etd, parseErr354 := p.parseGraphEdgeDef()
+				if parseErr354 != nil {
+					return nil, parseErr354
+				}
 				stmt.EdgeTables = append(stmt.EdgeTables, etd)
 				if p.cur.Type == ',' {
 					p.advance()
@@ -4313,20 +5154,26 @@ func (p *Parser) parseCreatePropertyGraphStmt(start int, orReplace, ifNotExists 
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseGraphTableDef parses a vertex table definition.
-func (p *Parser) parseGraphTableDef() *nodes.GraphTableDef {
+func (p *Parser) parseGraphTableDef() (*nodes.GraphTableDef, error) {
 	def := &nodes.GraphTableDef{
 		Loc: nodes.Loc{Start: p.pos()},
 	}
+	var parseErr355 error
 
 	// [schema.]table_name
-	def.Name = p.parseObjectName()
+	def.Name, parseErr355 = p.parseObjectName()
+	if parseErr355 !=
 
-	// AS graph_element_name
+		// AS graph_element_name
+		nil {
+		return nil, parseErr355
+	}
+
 	if p.cur.Type == kwAS {
 		p.advance()
 		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
@@ -4338,26 +5185,40 @@ func (p *Parser) parseGraphTableDef() *nodes.GraphTableDef {
 	// KEY ( col, ... )
 	if p.cur.Type == kwKEY {
 		p.advance()
-		def.KeyColumns = p.parseParenIdentList()
+		var parseErr356 error
+		def.KeyColumns, parseErr356 = p.parseParenIdentList()
+		if parseErr356 !=
+
+			// Label and properties
+			nil {
+			return nil, parseErr356
+		}
+	}
+	parseErr357 := p.parseGraphLabelAndProperties(def)
+	if parseErr357 != nil {
+		return nil, parseErr357
 	}
 
-	// Label and properties
-	p.parseGraphLabelAndProperties(def)
-
-	def.Loc.End = p.pos()
-	return def
+	def.Loc.End = p.prev.End
+	return def, nil
 }
 
 // parseGraphEdgeDef parses an edge table definition.
-func (p *Parser) parseGraphEdgeDef() *nodes.GraphEdgeDef {
+func (p *Parser) parseGraphEdgeDef() (*nodes.GraphEdgeDef, error) {
 	def := &nodes.GraphEdgeDef{
 		Loc: nodes.Loc{Start: p.pos()},
 	}
+	var parseErr358 error
 
 	// [schema.]table_name
-	def.Name = p.parseObjectName()
+	def.Name, parseErr358 = p.parseObjectName()
+	if parseErr358 !=
 
-	// AS graph_element_name
+		// AS graph_element_name
+		nil {
+		return nil, parseErr358
+	}
+
 	if p.cur.Type == kwAS {
 		p.advance()
 		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
@@ -4369,15 +5230,25 @@ func (p *Parser) parseGraphEdgeDef() *nodes.GraphEdgeDef {
 	// KEY ( col, ... )
 	if p.cur.Type == kwKEY {
 		p.advance()
-		def.KeyColumns = p.parseParenIdentList()
+		var parseErr359 error
+		def.KeyColumns, parseErr359 = p.parseParenIdentList()
+		if parseErr359 !=
+
+			// SOURCE [ KEY ( col, ... ) REFERENCES ] vertex_table_ref
+			nil {
+			return nil, parseErr359
+		}
 	}
 
-	// SOURCE [ KEY ( col, ... ) REFERENCES ] vertex_table_ref
 	if p.isIdentLikeStr("SOURCE") {
 		p.advance()
 		if p.cur.Type == kwKEY {
 			p.advance()
-			def.SourceKeyColumns = p.parseParenIdentList()
+			var parseErr360 error
+			def.SourceKeyColumns, parseErr360 = p.parseParenIdentList()
+			if parseErr360 != nil {
+				return nil, parseErr360
+			}
 			if p.cur.Type == kwREFERENCES {
 				p.advance()
 			}
@@ -4387,17 +5258,26 @@ func (p *Parser) parseGraphEdgeDef() *nodes.GraphEdgeDef {
 			def.SourceRef = p.cur.Str
 			p.advance()
 			if p.cur.Type == '(' {
-				def.SourceRefColumns = p.parseParenIdentList()
+				var parseErr361 error
+				def.SourceRefColumns, parseErr361 = p.parseParenIdentList()
+				if parseErr361 != nil {
+
+					// DESTINATION [ KEY ( col, ... ) REFERENCES ] vertex_table_ref
+					return nil, parseErr361
+				}
 			}
 		}
 	}
 
-	// DESTINATION [ KEY ( col, ... ) REFERENCES ] vertex_table_ref
 	if p.isIdentLikeStr("DESTINATION") {
 		p.advance()
 		if p.cur.Type == kwKEY {
 			p.advance()
-			def.DestKeyColumns = p.parseParenIdentList()
+			var parseErr362 error
+			def.DestKeyColumns, parseErr362 = p.parseParenIdentList()
+			if parseErr362 != nil {
+				return nil, parseErr362
+			}
 			if p.cur.Type == kwREFERENCES {
 				p.advance()
 			}
@@ -4407,26 +5287,34 @@ func (p *Parser) parseGraphEdgeDef() *nodes.GraphEdgeDef {
 			def.DestRef = p.cur.Str
 			p.advance()
 			if p.cur.Type == '(' {
-				def.DestRefColumns = p.parseParenIdentList()
+				var parseErr363 error
+				def.DestRefColumns, parseErr363 = p.parseParenIdentList()
+				if parseErr363 != nil {
+
+					// Label and properties (reuse vertex table logic for label/properties part)
+					return nil, parseErr363
+				}
 			}
 		}
 	}
 
-	// Label and properties (reuse vertex table logic for label/properties part)
 	vtd := &nodes.GraphTableDef{}
-	p.parseGraphLabelAndProperties(vtd)
+	parseErr364 := p.parseGraphLabelAndProperties(vtd)
+	if parseErr364 != nil {
+		return nil, parseErr364
+	}
 	def.Labels = vtd.Labels
 	def.Properties = vtd.Properties
 	def.PropColumns = vtd.PropColumns
 	def.PropAliases = vtd.PropAliases
 	def.DefaultLabel = vtd.DefaultLabel
 
-	def.Loc.End = p.pos()
-	return def
+	def.Loc.End = p.prev.End
+	return def, nil
 }
 
 // parseGraphLabelAndProperties parses the label and properties clauses for graph tables.
-func (p *Parser) parseGraphLabelAndProperties(def *nodes.GraphTableDef) {
+func (p *Parser) parseGraphLabelAndProperties(def *nodes.GraphTableDef) error {
 	// LABEL label_name [ LABEL label_name ]...
 	for p.isIdentLikeStr("LABEL") {
 		p.advance()
@@ -4453,7 +5341,11 @@ func (p *Parser) parseGraphLabelAndProperties(def *nodes.GraphTableDef) {
 				p.advance()
 				def.Properties = "ALL_EXCEPT"
 				if p.cur.Type == '(' {
-					def.PropColumns = p.parseParenIdentList()
+					var parseErr365 error
+					def.PropColumns, parseErr365 = p.parseParenIdentList()
+					if parseErr365 != nil {
+						return parseErr365
+					}
 				}
 			} else {
 				def.Properties = "ALL"
@@ -4497,13 +5389,14 @@ func (p *Parser) parseGraphLabelAndProperties(def *nodes.GraphTableDef) {
 			def.DefaultLabel = true
 		}
 	}
+	return nil
 }
 
 // parseParenIdentList parses ( ident, ident, ... ) and returns the list of identifiers.
-func (p *Parser) parseParenIdentList() []string {
+func (p *Parser) parseParenIdentList() ([]string, error) {
 	var result []string
 	if p.cur.Type != '(' {
-		return result
+		return result, nil
 	}
 	p.advance() // consume (
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
@@ -4520,7 +5413,7 @@ func (p *Parser) parseParenIdentList() []string {
 	if p.cur.Type == ')' {
 		p.advance()
 	}
-	return result
+	return result, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -4541,7 +5434,7 @@ func (p *Parser) parseParenIdentList() []string {
 //	    [ vector_index_hnsw_replication_clause ]
 //	    [ ONLINE ]
 //	    [ PARALLEL integer ] ;
-func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) *nodes.CreateVectorIndexStmt {
+func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes.CreateVectorIndexStmt, error) {
 	stmt := &nodes.CreateVectorIndexStmt{
 		IfNotExists: ifNotExists,
 		Loc:         nodes.Loc{Start: start},
@@ -4559,14 +5452,24 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) *nodes.
 			}
 		}
 	}
+	var parseErr366 error
 
 	// Index name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr366 = p.parseObjectName()
+	if parseErr366 !=
 
-	// ON [schema.]table_name (column_name)
+		// ON [schema.]table_name (column_name)
+		nil {
+		return nil, parseErr366
+	}
+
 	if p.cur.Type == kwON {
 		p.advance()
-		stmt.TableName = p.parseObjectName()
+		var parseErr367 error
+		stmt.TableName, parseErr367 = p.parseObjectName()
+		if parseErr367 != nil {
+			return nil, parseErr367
+		}
 		if p.cur.Type == '(' {
 			p.advance()
 			if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
@@ -4582,10 +5485,16 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) *nodes.
 	// INCLUDE ( col, ... )
 	if p.cur.Type == kwINCLUDE {
 		p.advance()
-		stmt.IncludeColumns = p.parseParenIdentList()
+		var parseErr368 error
+		stmt.IncludeColumns, parseErr368 = p.parseParenIdentList()
+		if parseErr368 !=
+
+			// ORGANIZATION { INMEMORY NEIGHBOR GRAPH | NEIGHBOR PARTITIONS }
+			nil {
+			return nil, parseErr368
+		}
 	}
 
-	// ORGANIZATION { INMEMORY NEIGHBOR GRAPH | NEIGHBOR PARTITIONS }
 	if p.isIdentLikeStr("ORGANIZATION") {
 		p.advance()
 		if p.isIdentLikeStr("INMEMORY") {
@@ -4626,9 +5535,16 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) *nodes.
 			p.advance()
 		}
 		if p.cur.Type == tokICONST {
-			stmt.TargetAccuracy = p.parseIntValue()
+			var parseErr369 error
+			stmt.TargetAccuracy, parseErr369 = p.parseIntValue()
+			if parseErr369 !=
+
+				// PARAMETERS ( ... )
+				nil {
+				return nil, parseErr369
+			}
 		}
-		// PARAMETERS ( ... )
+
 		if p.isIdentLikeStr("PARAMETERS") {
 			p.advance()
 			if p.cur.Type == '(' {
@@ -4652,17 +5568,29 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) *nodes.
 					if p.isIdentLikeStr("NEIGHBORS") || p.isIdentLikeStr("M") {
 						p.advance()
 						if p.cur.Type == tokICONST {
-							stmt.Neighbors = p.parseIntValue()
+							var parseErr370 error
+							stmt.Neighbors, parseErr370 = p.parseIntValue()
+							if parseErr370 != nil {
+								return nil, parseErr370
+							}
 						}
 					} else if p.isIdentLikeStr("EFCONSTRUCTION") {
 						p.advance()
 						if p.cur.Type == tokICONST {
-							stmt.EfConstruction = p.parseIntValue()
+							var parseErr371 error
+							stmt.EfConstruction, parseErr371 = p.parseIntValue()
+							if parseErr371 != nil {
+								return nil, parseErr371
+							}
 						}
 					} else if p.isIdentLikeStr("RESCORE_FACTOR") {
 						p.advance()
 						if p.cur.Type == tokICONST {
-							stmt.RescoreFactor = p.parseIntValue()
+							var parseErr372 error
+							stmt.RescoreFactor, parseErr372 = p.parseIntValue()
+							if parseErr372 != nil {
+								return nil, parseErr372
+							}
 						}
 					} else if p.isIdentLikeStr("QUANTIZATION") {
 						p.advance()
@@ -4676,17 +5604,29 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) *nodes.
 							p.advance()
 						}
 						if p.cur.Type == tokICONST {
-							stmt.NeighborParts = p.parseIntValue()
+							var parseErr373 error
+							stmt.NeighborParts, parseErr373 = p.parseIntValue()
+							if parseErr373 != nil {
+								return nil, parseErr373
+							}
 						}
 					} else if p.isIdentLikeStr("SAMPLES_PER_PARTITION") {
 						p.advance()
 						if p.cur.Type == tokICONST {
-							stmt.SamplesPerPart = p.parseIntValue()
+							var parseErr374 error
+							stmt.SamplesPerPart, parseErr374 = p.parseIntValue()
+							if parseErr374 != nil {
+								return nil, parseErr374
+							}
 						}
 					} else if p.isIdentLikeStr("MIN_VECTORS_PER_PARTITION") {
 						p.advance()
 						if p.cur.Type == tokICONST {
-							stmt.MinVecsPerPart = p.parseIntValue()
+							var parseErr375 error
+							stmt.MinVecsPerPart, parseErr375 = p.parseIntValue()
+							if parseErr375 != nil {
+								return nil, parseErr375
+							}
 						}
 					} else {
 						p.advance()
@@ -4740,12 +5680,16 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) *nodes.
 	if p.cur.Type == kwPARALLEL {
 		p.advance()
 		if p.cur.Type == tokICONST {
-			stmt.Parallel = p.parseIntValue()
+			var parseErr376 error
+			stmt.Parallel, parseErr376 = p.parseIntValue()
+			if parseErr376 != nil {
+				return nil, parseErr376
+			}
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -4759,7 +5703,7 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) *nodes.
 //
 //	CREATE LOCKDOWN PROFILE profile_name
 //	    [ USING base_profile_name | INCLUDING base_profile_name ]
-func (p *Parser) parseCreateLockdownProfileStmt(start int) *nodes.CreateLockdownProfileStmt {
+func (p *Parser) parseCreateLockdownProfileStmt(start int) (*nodes.CreateLockdownProfileStmt, error) {
 	stmt := &nodes.CreateLockdownProfileStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -4788,8 +5732,8 @@ func (p *Parser) parseCreateLockdownProfileStmt(start int) *nodes.CreateLockdown
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterLockdownProfileStmt parses an ALTER LOCKDOWN PROFILE statement.
@@ -4800,7 +5744,7 @@ func (p *Parser) parseCreateLockdownProfileStmt(start int) *nodes.CreateLockdown
 //	ALTER LOCKDOWN PROFILE profile_name
 //	    { lockdown_features | lockdown_options | lockdown_statements }
 //	    [ USERS = { ALL | COMMON | LOCAL } ] ;
-func (p *Parser) parseAlterLockdownProfileStmt(start int) *nodes.AlterLockdownProfileStmt {
+func (p *Parser) parseAlterLockdownProfileStmt(start int) (*nodes.AlterLockdownProfileStmt, error) {
 	stmt := &nodes.AlterLockdownProfileStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -4827,37 +5771,65 @@ func (p *Parser) parseAlterLockdownProfileStmt(start int) *nodes.AlterLockdownPr
 		if p.cur.Type == '=' {
 			p.advance()
 		}
-		stmt.RuleItems, stmt.AllItems, stmt.ExceptItems = p.parseLockdownItemList()
+		var parseErr377 error
+		stmt.RuleItems, stmt.AllItems, stmt.ExceptItems, parseErr377 = p.parseLockdownItemList()
+		if parseErr377 != nil {
+			return nil, parseErr377
+		}
 	} else if p.cur.Type == kwOPTION || p.isIdentLikeStr("OPTION") {
 		stmt.RuleType = "OPTION"
 		p.advance()
 		if p.cur.Type == '=' {
 			p.advance()
 		}
-		stmt.RuleItems, stmt.AllItems, stmt.ExceptItems = p.parseLockdownItemList()
+		var parseErr378 error
+		stmt.RuleItems, stmt.AllItems, stmt.ExceptItems, parseErr378 = p.parseLockdownItemList()
+		if parseErr378 != nil {
+			return nil, parseErr378
+		}
 	} else if p.isIdentLikeStr("STATEMENT") {
 		stmt.RuleType = "STATEMENT"
 		p.advance()
 		if p.cur.Type == '=' {
 			p.advance()
 		}
-		stmt.RuleItems, stmt.AllItems, stmt.ExceptItems = p.parseLockdownItemList()
+		var parseErr379 error
+		stmt.RuleItems, stmt.AllItems, stmt.ExceptItems, parseErr379 = p.parseLockdownItemList()
+		if parseErr379 !=
 
-		// CLAUSE = (...)
+			// CLAUSE = (...)
+			nil {
+			return nil, parseErr379
+		}
+
 		if p.isIdentLikeStr("CLAUSE") {
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			stmt.Clauses, stmt.ClauseAll, stmt.ClauseExceptItems = p.parseLockdownItemList()
+			var parseErr380 error
+			stmt.Clauses, stmt.ClauseAll, stmt.ClauseExceptItems, parseErr380 = p.parseLockdownItemList()
+			if parseErr380 !=
 
-			// OPTION = (...)
+				// OPTION = (...)
+				nil {
+				return nil, parseErr380
+			}
+
 			if p.cur.Type == kwOPTION || p.isIdentLikeStr("OPTION") {
 				p.advance()
 				if p.cur.Type == '=' {
 					p.advance()
 				}
-				stmt.ClauseOptions, _, _ = p.parseLockdownItemList()
+				var clauseAllItems bool
+				var clauseExceptItems []string
+				var parseErr381 error
+				stmt.ClauseOptions, clauseAllItems, clauseExceptItems, parseErr381 = p.parseLockdownItemList()
+				_ = clauseAllItems
+				_ = clauseExceptItems
+				if parseErr381 != nil {
+					return nil, parseErr381
+				}
 
 				// VALUE / MINVALUE / MAXVALUE
 				if p.isIdentLikeStr("VALUE") {
@@ -4865,7 +5837,15 @@ func (p *Parser) parseAlterLockdownProfileStmt(start int) *nodes.AlterLockdownPr
 					if p.cur.Type == '=' {
 						p.advance()
 					}
-					stmt.ValueItems, _, _ = p.parseLockdownItemList()
+					var valueAllItems bool
+					var valueExceptItems []string
+					var parseErr382 error
+					stmt.ValueItems, valueAllItems, valueExceptItems, parseErr382 = p.parseLockdownItemList()
+					_ = valueAllItems
+					_ = valueExceptItems
+					if parseErr382 != nil {
+						return nil, parseErr382
+					}
 				}
 				if p.cur.Type == kwMINVALUE || p.isIdentLikeStr("MINVALUE") {
 					p.advance()
@@ -4909,12 +5889,12 @@ func (p *Parser) parseAlterLockdownProfileStmt(start int) *nodes.AlterLockdownPr
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseLockdownItemList parses ( item, item, ... ) or ( ALL ) or ( ALL EXCEPT = ( ... ) ).
-func (p *Parser) parseLockdownItemList() (items []string, allItems bool, exceptItems []string) {
+func (p *Parser) parseLockdownItemList() (items []string, allItems bool, exceptItems []string, parseErr error) {
 	if p.cur.Type != '(' {
 		return
 	}
@@ -4977,7 +5957,7 @@ func (p *Parser) parseLockdownItemList() (items []string, allItems bool, exceptI
 //	CREATE [ OR REPLACE ] [ PUBLIC | PRIVATE ] OUTLINE [ outline ]
 //	    [ FOR CATEGORY category ]
 //	    { FROM [ PRIVATE ] source_outline | ON statement } ;
-func (p *Parser) parseCreateOutlineStmt(start int, orReplace, public bool) *nodes.CreateOutlineStmt {
+func (p *Parser) parseCreateOutlineStmt(start int, orReplace, public bool) (*nodes.CreateOutlineStmt, error) {
 	stmt := &nodes.CreateOutlineStmt{
 		OrReplace: orReplace,
 		Public:    public,
@@ -5028,8 +6008,8 @@ func (p *Parser) parseCreateOutlineStmt(start int, orReplace, public bool) *node
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterOutlineStmt parses an ALTER OUTLINE statement.
@@ -5039,7 +6019,7 @@ func (p *Parser) parseCreateOutlineStmt(start int, orReplace, public bool) *node
 //
 //	ALTER OUTLINE [ PUBLIC | PRIVATE ] outline
 //	    { REBUILD | RENAME TO new_outline_name | CHANGE CATEGORY TO new_category_name | { ENABLE | DISABLE } } ;
-func (p *Parser) parseAlterOutlineStmt(start int) *nodes.AlterOutlineStmt {
+func (p *Parser) parseAlterOutlineStmt(start int) (*nodes.AlterOutlineStmt, error) {
 	stmt := &nodes.AlterOutlineStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -5094,8 +6074,8 @@ func (p *Parser) parseAlterOutlineStmt(start int) *nodes.AlterOutlineStmt {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -5117,7 +6097,7 @@ func (p *Parser) parseAlterOutlineStmt(start int) *nodes.AlterOutlineStmt {
 //	            | { CLOB | BLOB | BFILE } subquery
 //	            | key_for_BLOB }
 //	    | AS source_char }
-func (p *Parser) parseCreateJavaStmt(start int, orReplace bool) nodes.StmtNode {
+func (p *Parser) parseCreateJavaStmt(start int, orReplace bool) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_JAVA,
@@ -5150,10 +6130,16 @@ func (p *Parser) parseCreateJavaStmt(start int, orReplace bool) nodes.StmtNode {
 	// [ NAMED [ schema. ] primary_name ]
 	if p.isIdentLike() && p.cur.Str == "NAMED" {
 		p.advance()
-		stmt.Name = p.parseObjectName()
+		var parseErr383 error
+		stmt.Name, parseErr383 = p.parseObjectName()
+		if parseErr383 !=
+
+			// Parse remaining clauses until ; or EOF
+			nil {
+			return nil, parseErr383
+		}
 	}
 
-	// Parse remaining clauses until ; or EOF
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		if p.isIdentLike() && p.cur.Str == "SHARING" {
 			p.advance()
@@ -5202,8 +6188,8 @@ func (p *Parser) parseCreateJavaStmt(start int, orReplace bool) nodes.StmtNode {
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterJavaStmt parses an ALTER JAVA statement.
@@ -5215,7 +6201,7 @@ func (p *Parser) parseCreateJavaStmt(start int, orReplace bool) nodes.StmtNode {
 //	    [ RESOLVER ( ( match_string schema_name ) [, ...] ) ]
 //	    [ invoker_rights_clause ]
 //	    { RESOLVE | COMPILE } ;
-func (p *Parser) parseAlterJavaStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterJavaStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "ALTER",
 		ObjectType: nodes.OBJECT_JAVA,
@@ -5238,10 +6224,16 @@ func (p *Parser) parseAlterJavaStmt(start int) nodes.StmtNode {
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "JAVA_TYPE", Value: p.cur.Str})
 		p.advance()
 	}
+	var parseErr384 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr384 = p.parseObjectName()
+	if parseErr384 !=
 
-	// Parse remaining clauses
+		// Parse remaining clauses
+		nil {
+		return nil, parseErr384
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		if p.isIdentLike() && p.cur.Str == "RESOLVER" {
 			p.advance()
@@ -5266,8 +6258,8 @@ func (p *Parser) parseAlterJavaStmt(start int) nodes.StmtNode {
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateLibraryStmt parses a CREATE LIBRARY statement.
@@ -5281,7 +6273,7 @@ func (p *Parser) parseAlterJavaStmt(start int) nodes.StmtNode {
 //	    [ AGENT agent_dblink ]
 //	    [ CREDENTIAL credential_name ]
 //	    [ SHARING = { METADATA | NONE } ]
-func (p *Parser) parseCreateLibraryStmt(start int, orReplace bool) nodes.StmtNode {
+func (p *Parser) parseCreateLibraryStmt(start int, orReplace bool) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_LIBRARY,
@@ -5289,10 +6281,16 @@ func (p *Parser) parseCreateLibraryStmt(start int, orReplace bool) nodes.StmtNod
 		Loc:        nodes.Loc{Start: start},
 	}
 	opts := &nodes.List{}
+	var parseErr385 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr385 = p.parseObjectName()
+	if parseErr385 !=
 
-	// { IS | AS } library_path
+		// { IS | AS } library_path
+		nil {
+		return nil, parseErr385
+	}
+
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
 	}
@@ -5332,8 +6330,8 @@ func (p *Parser) parseCreateLibraryStmt(start int, orReplace bool) nodes.StmtNod
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterLibraryStmt parses an ALTER LIBRARY statement.
@@ -5347,7 +6345,7 @@ func (p *Parser) parseCreateLibraryStmt(start int, orReplace bool) nodes.StmtNod
 //
 //	library_compile_clause:
 //	    COMPILE [ DEBUG ] [ compiler_parameters_clause ] [ REUSE SETTINGS ]
-func (p *Parser) parseAlterLibraryStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterLibraryStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "ALTER",
 		ObjectType: nodes.OBJECT_LIBRARY,
@@ -5364,10 +6362,16 @@ func (p *Parser) parseAlterLibraryStmt(start int) nodes.StmtNode {
 			stmt.IfExists = true
 		}
 	}
+	var parseErr386 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr386 = p.parseObjectName()
+	if parseErr386 !=
 
-	// Parse remaining clauses
+		// Parse remaining clauses
+		nil {
+		return nil, parseErr386
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		if p.isIdentLike() && p.cur.Str == "COMPILE" {
 			p.advance()
@@ -5414,8 +6418,8 @@ func (p *Parser) parseAlterLibraryStmt(start int) nodes.StmtNode {
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateDirectoryStmt parses a CREATE DIRECTORY statement.
@@ -5426,7 +6430,7 @@ func (p *Parser) parseAlterLibraryStmt(start int) nodes.StmtNode {
 //	CREATE [ OR REPLACE | IF NOT EXISTS ] DIRECTORY directory
 //	    [ SHARING = { METADATA | NONE } ]
 //	    AS 'path_name' ;
-func (p *Parser) parseCreateDirectoryStmt(start int, orReplace bool) nodes.StmtNode {
+func (p *Parser) parseCreateDirectoryStmt(start int, orReplace bool) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_DIRECTORY,
@@ -5434,10 +6438,16 @@ func (p *Parser) parseCreateDirectoryStmt(start int, orReplace bool) nodes.StmtN
 		Loc:        nodes.Loc{Start: start},
 	}
 	opts := &nodes.List{}
+	var parseErr387 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr387 = p.parseObjectName()
+	if parseErr387 !=
 
-	// [ SHARING = { METADATA | NONE } ]
+		// [ SHARING = { METADATA | NONE } ]
+		nil {
+		return nil, parseErr387
+	}
+
 	if p.isIdentLike() && p.cur.Str == "SHARING" {
 		p.advance()
 		if p.cur.Type == '=' {
@@ -5461,8 +6471,8 @@ func (p *Parser) parseCreateDirectoryStmt(start int, orReplace bool) nodes.StmtN
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateContextStmt parses a CREATE CONTEXT statement.
@@ -5475,7 +6485,7 @@ func (p *Parser) parseCreateDirectoryStmt(start int, orReplace bool) nodes.StmtN
 //	    [ SHARING = { METADATA | NONE } ]
 //	    [ INITIALIZED { EXTERNALLY | GLOBALLY } ]
 //	    [ ACCESSED GLOBALLY ] ;
-func (p *Parser) parseCreateContextStmt(start int, orReplace bool) nodes.StmtNode {
+func (p *Parser) parseCreateContextStmt(start int, orReplace bool) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_CONTEXT,
@@ -5483,13 +6493,22 @@ func (p *Parser) parseCreateContextStmt(start int, orReplace bool) nodes.StmtNod
 		Loc:        nodes.Loc{Start: start},
 	}
 	opts := &nodes.List{}
+	var parseErr388 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr388 = p.parseObjectName()
+	if parseErr388 !=
 
-	// USING [ schema. ] package
+		// USING [ schema. ] package
+		nil {
+		return nil, parseErr388
+	}
+
 	if p.isIdentLike() && p.cur.Str == "USING" {
 		p.advance()
-		usingName := p.parseObjectName()
+		usingName, parseErr389 := p.parseObjectName()
+		if parseErr389 != nil {
+			return nil, parseErr389
+		}
 		if usingName != nil {
 			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "USING", Value: usingName.Name})
 		}
@@ -5526,8 +6545,8 @@ func (p *Parser) parseCreateContextStmt(start int, orReplace bool) nodes.StmtNod
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateMLEEnvStmt parses a CREATE MLE ENV statement.
@@ -5544,7 +6563,7 @@ func (p *Parser) parseCreateContextStmt(start int, orReplace bool) nodes.StmtNod
 //	imports_clause: IMPORTS ( import_item [, import_item ]... )
 //	import_item: import_name MODULE [ schema. ] module_name
 //	language_options_clause: LANGUAGE OPTIONS language_options_string
-func (p *Parser) parseCreateMLEEnvStmt(start int, orReplace bool) nodes.StmtNode {
+func (p *Parser) parseCreateMLEEnvStmt(start int, orReplace bool) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_MLE_ENV,
@@ -5552,13 +6571,22 @@ func (p *Parser) parseCreateMLEEnvStmt(start int, orReplace bool) nodes.StmtNode
 		Loc:        nodes.Loc{Start: start},
 	}
 	opts := &nodes.List{}
+	var parseErr390 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr390 = p.parseObjectName()
+	if parseErr390 !=
 
-	// [ CLONE [ schema. ] existing_environment ]
+		// [ CLONE [ schema. ] existing_environment ]
+		nil {
+		return nil, parseErr390
+	}
+
 	if p.isIdentLike() && p.cur.Str == "CLONE" {
 		p.advance()
-		cloneName := p.parseObjectName()
+		cloneName, parseErr391 := p.parseObjectName()
+		if parseErr391 != nil {
+			return nil, parseErr391
+		}
 		if cloneName != nil {
 			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "CLONE", Value: cloneName.Name})
 		}
@@ -5591,8 +6619,8 @@ func (p *Parser) parseCreateMLEEnvStmt(start int, orReplace bool) nodes.StmtNode
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateMLEModuleStmt parses a CREATE MLE MODULE statement.
@@ -5607,7 +6635,7 @@ func (p *Parser) parseCreateMLEEnvStmt(start int, orReplace bool) nodes.StmtNode
 //	    { USING { CLOB ( subquery ) | BLOB ( subquery ) | BFILE ( subquery )
 //	            | BFILE ( directory_object_name , server_file_name ) }
 //	    | AS source_code }
-func (p *Parser) parseCreateMLEModuleStmt(start int, orReplace bool) nodes.StmtNode {
+func (p *Parser) parseCreateMLEModuleStmt(start int, orReplace bool) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_MLE_MODULE,
@@ -5615,10 +6643,16 @@ func (p *Parser) parseCreateMLEModuleStmt(start int, orReplace bool) nodes.StmtN
 		Loc:        nodes.Loc{Start: start},
 	}
 	opts := &nodes.List{}
+	var parseErr392 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr392 = p.parseObjectName()
+	if parseErr392 !=
 
-	// LANGUAGE JAVASCRIPT
+		// LANGUAGE JAVASCRIPT
+		nil {
+		return nil, parseErr392
+	}
+
 	if p.isIdentLike() && p.cur.Str == "LANGUAGE" {
 		p.advance()
 		if p.isIdentLike() && p.cur.Str == "JAVASCRIPT" {
@@ -5663,8 +6697,8 @@ func (p *Parser) parseCreateMLEModuleStmt(start int, orReplace bool) nodes.StmtN
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreatePfileStmt parses a CREATE PFILE statement.
@@ -5674,7 +6708,7 @@ func (p *Parser) parseCreateMLEModuleStmt(start int, orReplace bool) nodes.StmtN
 //
 //	CREATE PFILE [ = 'pfile_name' ]
 //	    FROM { SPFILE [ = 'spfile_name' ] | MEMORY } ;
-func (p *Parser) parseCreatePfileStmt(start int) nodes.StmtNode {
+func (p *Parser) parseCreatePfileStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_PFILE,
@@ -5719,8 +6753,8 @@ func (p *Parser) parseCreatePfileStmt(start int) nodes.StmtNode {
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateSpfileStmt parses a CREATE SPFILE statement.
@@ -5730,7 +6764,7 @@ func (p *Parser) parseCreatePfileStmt(start int) nodes.StmtNode {
 //
 //	CREATE SPFILE [ = 'spfile_name' ]
 //	    FROM { PFILE [ = 'pfile_name' ] [ AS COPY ] | MEMORY } ;
-func (p *Parser) parseCreateSpfileStmt(start int) nodes.StmtNode {
+func (p *Parser) parseCreateSpfileStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_SPFILE,
@@ -5783,8 +6817,8 @@ func (p *Parser) parseCreateSpfileStmt(start int) nodes.StmtNode {
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateFlashbackArchiveStmt parses a CREATE FLASHBACK ARCHIVE statement.
@@ -5800,7 +6834,7 @@ func (p *Parser) parseCreateSpfileStmt(start int) nodes.StmtNode {
 //
 //	flashback_archive_quota: QUOTA integer { K | M | G | T | P | E }
 //	flashback_archive_retention: RETENTION integer { DAY | DAYS | MONTH | MONTHS | YEAR | YEARS }
-func (p *Parser) parseCreateFlashbackArchiveStmt(start int) nodes.StmtNode {
+func (p *Parser) parseCreateFlashbackArchiveStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_FLASHBACK_ARCHIVE,
@@ -5813,10 +6847,16 @@ func (p *Parser) parseCreateFlashbackArchiveStmt(start int) nodes.StmtNode {
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "DEFAULT"})
 		p.advance()
 	}
+	var parseErr393 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr393 = p.parseObjectName()
+	if parseErr393 !=
 
-	// Parse remaining clauses
+		// Parse remaining clauses
+		nil {
+		return nil, parseErr393
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		if p.cur.Type == kwTABLESPACE {
 			p.advance()
@@ -5826,7 +6866,10 @@ func (p *Parser) parseCreateFlashbackArchiveStmt(start int) nodes.StmtNode {
 			}
 		} else if p.isIdentLike() && p.cur.Str == "QUOTA" {
 			p.advance()
-			size := p.parseSizeClause()
+			size, parseErr394 := p.parseSizeClause()
+			if parseErr394 != nil {
+				return nil, parseErr394
+			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "QUOTA", Value: size})
 		} else if p.isIdentLike() && p.cur.Str == "NO" {
 			p.advance()
@@ -5863,8 +6906,8 @@ func (p *Parser) parseCreateFlashbackArchiveStmt(start int) nodes.StmtNode {
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterFlashbackArchiveStmt parses an ALTER FLASHBACK ARCHIVE statement.
@@ -5880,17 +6923,23 @@ func (p *Parser) parseCreateFlashbackArchiveStmt(start int) nodes.StmtNode {
 //	    | PURGE { ALL | BEFORE SCN scn_value | BEFORE TIMESTAMP timestamp_value }
 //	    | [ NO ] OPTIMIZE DATA
 //	    } ;
-func (p *Parser) parseAlterFlashbackArchiveStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterFlashbackArchiveStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "ALTER",
 		ObjectType: nodes.OBJECT_FLASHBACK_ARCHIVE,
 		Loc:        nodes.Loc{Start: start},
 	}
 	opts := &nodes.List{}
+	var parseErr395 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr395 = p.parseObjectName()
+	if parseErr395 !=
 
-	// Parse action clause
+		// Parse action clause
+		nil {
+		return nil, parseErr395
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		if p.cur.Type == kwSET {
 			p.advance()
@@ -5912,7 +6961,10 @@ func (p *Parser) parseAlterFlashbackArchiveStmt(start int) nodes.StmtNode {
 				// optional quota
 				if p.isIdentLike() && p.cur.Str == "QUOTA" {
 					p.advance()
-					size := p.parseSizeClause()
+					size, parseErr396 := p.parseSizeClause()
+					if parseErr396 != nil {
+						return nil, parseErr396
+					}
 					opts.Items = append(opts.Items, &nodes.DDLOption{Key: "QUOTA", Value: size})
 				}
 			} else if p.isIdentLike() && p.cur.Str == "RETENTION" {
@@ -5987,8 +7039,8 @@ func (p *Parser) parseAlterFlashbackArchiveStmt(start int) nodes.StmtNode {
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateRollbackSegmentStmt parses a CREATE ROLLBACK SEGMENT statement.
@@ -5999,7 +7051,7 @@ func (p *Parser) parseAlterFlashbackArchiveStmt(start int) nodes.StmtNode {
 //	CREATE [ PUBLIC ] ROLLBACK SEGMENT rollback_segment
 //	    [ TABLESPACE tablespace ]
 //	    [ storage_clause ] ;
-func (p *Parser) parseCreateRollbackSegmentStmt(start int, public bool) nodes.StmtNode {
+func (p *Parser) parseCreateRollbackSegmentStmt(start int, public bool) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_ROLLBACK_SEGMENT,
@@ -6010,10 +7062,16 @@ func (p *Parser) parseCreateRollbackSegmentStmt(start int, public bool) nodes.St
 	if public {
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PUBLIC"})
 	}
+	var parseErr397 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr397 = p.parseObjectName()
+	if parseErr397 !=
 
-	// [ TABLESPACE tablespace ]
+		// [ TABLESPACE tablespace ]
+		nil {
+		return nil, parseErr397
+	}
+
 	if p.cur.Type == kwTABLESPACE {
 		p.advance()
 		if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
@@ -6038,8 +7096,8 @@ func (p *Parser) parseCreateRollbackSegmentStmt(start int, public bool) nodes.St
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterRollbackSegmentStmt parses an ALTER ROLLBACK SEGMENT statement.
@@ -6049,17 +7107,23 @@ func (p *Parser) parseCreateRollbackSegmentStmt(start int, public bool) nodes.St
 //
 //	ALTER ROLLBACK SEGMENT rollback_segment
 //	    { ONLINE | OFFLINE | storage_clause | SHRINK [ TO size_clause ] }
-func (p *Parser) parseAlterRollbackSegmentStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterRollbackSegmentStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "ALTER",
 		ObjectType: nodes.OBJECT_ROLLBACK_SEGMENT,
 		Loc:        nodes.Loc{Start: start},
 	}
 	opts := &nodes.List{}
+	var parseErr398 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr398 = p.parseObjectName()
+	if parseErr398 !=
 
-	// Parse action
+		// Parse action
+		nil {
+		return nil, parseErr398
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		if p.isIdentLike() && p.cur.Str == "ONLINE" {
 			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "ONLINE"})
@@ -6072,7 +7136,11 @@ func (p *Parser) parseAlterRollbackSegmentStmt(start int) nodes.StmtNode {
 			val := ""
 			if p.cur.Type == kwTO {
 				p.advance()
-				val = p.parseSizeClause()
+				var parseErr399 error
+				val, parseErr399 = p.parseSizeClause()
+				if parseErr399 != nil {
+					return nil, parseErr399
+				}
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SHRINK", Value: val})
 		} else if p.isIdentLike() && p.cur.Str == "STORAGE" {
@@ -6089,8 +7157,8 @@ func (p *Parser) parseAlterRollbackSegmentStmt(start int) nodes.StmtNode {
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateEditionStmt parses a CREATE EDITION statement.
@@ -6100,7 +7168,7 @@ func (p *Parser) parseAlterRollbackSegmentStmt(start int) nodes.StmtNode {
 //
 //	CREATE EDITION [ IF NOT EXISTS ] edition
 //	    [ AS CHILD OF parent_edition ] ;
-func (p *Parser) parseCreateEditionStmt(start int) nodes.StmtNode {
+func (p *Parser) parseCreateEditionStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_EDITION,
@@ -6120,10 +7188,16 @@ func (p *Parser) parseCreateEditionStmt(start int) nodes.StmtNode {
 			}
 		}
 	}
+	var parseErr400 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr400 = p.parseObjectName()
+	if parseErr400 !=
 
-	// [ AS CHILD OF parent_edition ]
+		// [ AS CHILD OF parent_edition ]
+		nil {
+		return nil, parseErr400
+	}
+
 	if p.cur.Type == kwAS {
 		p.advance()
 		if p.isIdentLike() && p.cur.Str == "CHILD" {
@@ -6141,8 +7215,8 @@ func (p *Parser) parseCreateEditionStmt(start int) nodes.StmtNode {
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseDropEditionStmt parses a DROP EDITION statement.
@@ -6151,7 +7225,7 @@ func (p *Parser) parseCreateEditionStmt(start int) nodes.StmtNode {
 // BNF:
 //
 //	DROP EDITION [ IF EXISTS ] edition [ CASCADE ] ;
-func (p *Parser) parseDropEditionStmt(start int) *nodes.DropStmt {
+func (p *Parser) parseDropEditionStmt(start int) (*nodes.DropStmt, error) {
 	stmt := &nodes.DropStmt{
 		ObjectType: nodes.OBJECT_EDITION,
 		Names:      &nodes.List{},
@@ -6168,7 +7242,10 @@ func (p *Parser) parseDropEditionStmt(start int) *nodes.DropStmt {
 		}
 	}
 
-	name := p.parseObjectName()
+	name, parseErr401 := p.parseObjectName()
+	if parseErr401 != nil {
+		return nil, parseErr401
+	}
 	if name != nil {
 		stmt.Names.Items = append(stmt.Names.Items, name)
 	}
@@ -6179,8 +7256,8 @@ func (p *Parser) parseDropEditionStmt(start int) *nodes.DropStmt {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateRestorePointStmt parses a CREATE RESTORE POINT statement.
@@ -6193,7 +7270,7 @@ func (p *Parser) parseDropEditionStmt(start int) *nodes.DropStmt {
 //	    [ AS OF { TIMESTAMP | SCN } expr ]
 //	    [ PRESERVE ]
 //	    [ GUARANTEE FLASHBACK DATABASE ] ;
-func (p *Parser) parseCreateRestorePointStmt(start int, clean bool) nodes.StmtNode {
+func (p *Parser) parseCreateRestorePointStmt(start int, clean bool) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_RESTORE_POINT,
@@ -6204,10 +7281,16 @@ func (p *Parser) parseCreateRestorePointStmt(start int, clean bool) nodes.StmtNo
 	if clean {
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "CLEAN"})
 	}
+	var parseErr402 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr402 = p.parseObjectName()
+	if parseErr402 !=
 
-	// Parse remaining clauses
+		// Parse remaining clauses
+		nil {
+		return nil, parseErr402
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		if p.isIdentLike() && p.cur.Str == "FOR" {
 			p.advance()
@@ -6256,8 +7339,8 @@ func (p *Parser) parseCreateRestorePointStmt(start int, clean bool) nodes.StmtNo
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateLogicalPartitionTrackingStmt parses a CREATE LOGICAL PARTITION TRACKING statement.
@@ -6270,7 +7353,7 @@ func (p *Parser) parseCreateRestorePointStmt(start int, clean bool) nodes.StmtNo
 //	    ( partition_definition [, partition_definition ]... )
 //
 //	partition_definition: PARTITION partition_name VALUES LESS THAN ( value )
-func (p *Parser) parseCreateLogicalPartitionTrackingStmt(start int) nodes.StmtNode {
+func (p *Parser) parseCreateLogicalPartitionTrackingStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_LOGICAL_PARTITION_TRACKING,
@@ -6282,9 +7365,15 @@ func (p *Parser) parseCreateLogicalPartitionTrackingStmt(start int) nodes.StmtNo
 	if p.cur.Type == kwON {
 		p.advance()
 	}
-	stmt.Name = p.parseObjectName()
+	var parseErr403 error
+	stmt.Name, parseErr403 = p.parseObjectName()
+	if parseErr403 !=
 
-	// PARTITION BY { RANGE | INTERVAL } ( column_name )
+		// PARTITION BY { RANGE | INTERVAL } ( column_name )
+		nil {
+		return nil, parseErr403
+	}
+
 	if p.cur.Type == kwPARTITION || (p.isIdentLike() && p.cur.Str == "PARTITION") {
 		p.advance()
 	}
@@ -6313,8 +7402,8 @@ func (p *Parser) parseCreateLogicalPartitionTrackingStmt(start int) nodes.StmtNo
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreatePmemFilestoreStmt parses a CREATE PMEM FILESTORE statement.
@@ -6326,17 +7415,23 @@ func (p *Parser) parseCreateLogicalPartitionTrackingStmt(start int) nodes.StmtNo
 //	    MOUNTPOINT 'file_path'
 //	    BACKINGFILE 'backing_file_path' SIZE size_value BLOCKSIZE blocksize_value
 //	    [ AUTOEXTEND { ON | OFF } [ NEXT size_value ] [ MAXSIZE { UNLIMITED | size_value } ] ] ;
-func (p *Parser) parseCreatePmemFilestoreStmt(start int) nodes.StmtNode {
+func (p *Parser) parseCreatePmemFilestoreStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_PMEM_FILESTORE,
 		Loc:        nodes.Loc{Start: start},
 	}
 	opts := &nodes.List{}
+	var parseErr404 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr404 = p.parseObjectName()
+	if parseErr404 !=
 
-	// Parse clauses
+		// Parse clauses
+		nil {
+		return nil, parseErr404
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		if p.isIdentLike() && p.cur.Str == "MOUNTPOINT" {
 			p.advance()
@@ -6352,11 +7447,17 @@ func (p *Parser) parseCreatePmemFilestoreStmt(start int) nodes.StmtNode {
 			}
 		} else if p.isIdentLike() && p.cur.Str == "SIZE" {
 			p.advance()
-			size := p.parseSizeClause()
+			size, parseErr405 := p.parseSizeClause()
+			if parseErr405 != nil {
+				return nil, parseErr405
+			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SIZE", Value: size})
 		} else if p.isIdentLike() && p.cur.Str == "BLOCKSIZE" {
 			p.advance()
-			size := p.parseSizeClause()
+			size, parseErr406 := p.parseSizeClause()
+			if parseErr406 != nil {
+				return nil, parseErr406
+			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "BLOCKSIZE", Value: size})
 		} else if p.isIdentLike() && p.cur.Str == "AUTOEXTEND" {
 			p.advance()
@@ -6372,7 +7473,10 @@ func (p *Parser) parseCreatePmemFilestoreStmt(start int) nodes.StmtNode {
 			// [ NEXT size_value ]
 			if p.isIdentLike() && p.cur.Str == "NEXT" {
 				p.advance()
-				nextSize := p.parseSizeClause()
+				nextSize, parseErr407 := p.parseSizeClause()
+				if parseErr407 != nil {
+					return nil, parseErr407
+				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "NEXT", Value: nextSize})
 			}
 			// [ MAXSIZE { UNLIMITED | size_value } ]
@@ -6383,7 +7487,11 @@ func (p *Parser) parseCreatePmemFilestoreStmt(start int) nodes.StmtNode {
 					maxVal = "UNLIMITED"
 					p.advance()
 				} else {
-					maxVal = p.parseSizeClause()
+					var parseErr408 error
+					maxVal, parseErr408 = p.parseSizeClause()
+					if parseErr408 != nil {
+						return nil, parseErr408
+					}
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "MAXSIZE", Value: maxVal})
 			}
@@ -6395,8 +7503,8 @@ func (p *Parser) parseCreatePmemFilestoreStmt(start int) nodes.StmtNode {
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseDropJavaStmt parses a DROP JAVA statement.
@@ -6405,7 +7513,7 @@ func (p *Parser) parseCreatePmemFilestoreStmt(start int) nodes.StmtNode {
 // BNF:
 //
 //	DROP JAVA { SOURCE | CLASS | RESOURCE } [ IF EXISTS ] [ schema. ] object_name ;
-func (p *Parser) parseDropJavaStmt(start int) *nodes.DropStmt {
+func (p *Parser) parseDropJavaStmt(start int) (*nodes.DropStmt, error) {
 	stmt := &nodes.DropStmt{
 		ObjectType: nodes.OBJECT_JAVA,
 		Names:      &nodes.List{},
@@ -6427,11 +7535,14 @@ func (p *Parser) parseDropJavaStmt(start int) *nodes.DropStmt {
 		}
 	}
 
-	name := p.parseObjectName()
+	name, parseErr409 := p.parseObjectName()
+	if parseErr409 != nil {
+		return nil, parseErr409
+	}
 	if name != nil {
 		stmt.Names.Items = append(stmt.Names.Items, name)
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }

@@ -1,0 +1,21 @@
+id	family	expect	sql	notes
+ref_001	select	accept	SELECT 1 FROM dual	basic select
+ref_002	select	accept	SELECT a FROM t WHERE a BETWEEN 1 AND 2	select predicate
+ref_003	select	reject	SELECT 1 +	truncated expression
+ref_004	select	reject	SELECT * FROM	missing table
+ref_005	select	reject	SELECT 1 FETCH FIRST 1	malformed row limiting clause
+ref_006	dml	accept	INSERT INTO t (a) VALUES (1)	basic insert parse shape
+ref_007	dml	reject	INSERT INTO t VALUES (1,	malformed insert values
+ref_008	dml	accept	UPDATE t SET a = 1 WHERE id = 2	basic update
+ref_009	dml	reject	UPDATE t SET a =	missing update expression
+ref_010	dml	accept	DELETE FROM t WHERE id = 1	basic delete
+ref_011	dml	reject	DELETE FROM t WHERE	missing delete predicate
+ref_012	merge	accept	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x	basic merge
+ref_013	merge	reject	MERGE INTO t USING s ON (t.id = s.id) WHEN	malformed merge clause
+ref_014	ddl	accept	CREATE TABLE omni_ref_{run} (a NUMBER)	basic create table
+ref_015	ddl	reject	CREATE TABLE omni_bad_{run} (a NUMBER	missing create table close paren
+ref_016	ddl	accept	CREATE INDEX omni_idx_{run} ON t(a)	basic create index
+ref_017	ddl	reject	CREATE INDEX idx ON	missing index target table
+ref_018	plsql	accept	BEGIN NULL; END;	basic PL/SQL block
+ref_019	plsql	reject	BEGIN NULL;	missing PL/SQL END
+ref_020	keyword	reject	CREATE TABLE SELECT (a NUMBER)	reserved keyword identifier

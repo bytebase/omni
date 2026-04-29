@@ -30,22 +30,36 @@ const (
 //	and_expr   ::= not_expr { AND not_expr }
 //	not_expr   ::= NOT not_expr | comparison_expr
 //	...
-func (p *Parser) parseExpr() nodes.ExprNode {
+func (p *Parser) parseExpr() (nodes.ExprNode, error) {
 	return p.parseExprPrec(precOr)
 }
 
 // parseExprPrec parses expressions at or above the given precedence level.
-func (p *Parser) parseExprPrec(minPrec int) nodes.ExprNode {
-	left := p.parsePrefix()
-	if left == nil {
-		return nil
+func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
+	left, parseErr695 := p.parsePrefix()
+	if parseErr695 != nil {
+		return nil, parseErr695
+
+		// Handle MODEL cell reference subscript: expr[dim1, dim2, ...]
 	}
+	if left == nil {
+		return nil, nil
+	}
+	var parseErr696 error
 
-	// Handle MODEL cell reference subscript: expr[dim1, dim2, ...]
-	left = p.parseSubscriptIfPresent(left)
+	left, parseErr696 = p.parseSubscriptIfPresent(left)
+	if parseErr696 !=
 
-	// Oracle legacy outer join: column_ref(+)
-	left = p.parseOuterJoinIfPresent(left)
+		// Oracle legacy outer join: column_ref(+)
+		nil {
+		return nil, parseErr696
+	}
+	var parseErr697 error
+
+	left, parseErr697 = p.parseOuterJoinIfPresent(left)
+	if parseErr697 != nil {
+		return nil, parseErr697
+	}
 
 	for {
 		prec, op, isBool := p.infixInfo()
@@ -54,25 +68,47 @@ func (p *Parser) parseExprPrec(minPrec int) nodes.ExprNode {
 		}
 
 		if isBool {
-			left = p.parseBoolInfix(left, prec, op)
+			var parseErr698 error
+			left, parseErr698 = p.parseBoolInfix(left, prec, op)
+			if parseErr698 != nil {
+				return nil, parseErr698
+			}
 		} else {
-			left = p.parseBinaryInfix(left, prec, op)
+			var parseErr699 error
+			left, parseErr699 = p.parseBinaryInfix(left, prec, op)
+			if parseErr699 !=
+
+				// Check for postfix operators: IS, BETWEEN, IN, LIKE, NOT BETWEEN/IN/LIKE
+				nil {
+				return nil, parseErr699
+			}
+		}
+	}
+	var parseErr700 error
+
+	left, parseErr700 = p.parsePostfix(left)
+	if parseErr700 !=
+
+		// MULTISET UNION/INTERSECT/EXCEPT
+		nil {
+		return nil, parseErr700
+	}
+
+	if p.cur.Type == kwMULTISET {
+		var parseErr701 error
+		left, parseErr701 = p.parseMultisetOp(left)
+		if parseErr701 != nil {
+			return nil,
+
+				// infixInfo returns the precedence, operator string, and whether it's a boolean op
+				// for the current token if it's an infix operator.
+				parseErr701
 		}
 	}
 
-	// Check for postfix operators: IS, BETWEEN, IN, LIKE, NOT BETWEEN/IN/LIKE
-	left = p.parsePostfix(left)
-
-	// MULTISET UNION/INTERSECT/EXCEPT
-	if p.cur.Type == kwMULTISET {
-		left = p.parseMultisetOp(left)
-	}
-
-	return left
+	return left, nil
 }
 
-// infixInfo returns the precedence, operator string, and whether it's a boolean op
-// for the current token if it's an infix operator.
 func (p *Parser) infixInfo() (int, string, bool) {
 	switch p.cur.Type {
 	case kwOR:
@@ -108,7 +144,7 @@ func (p *Parser) infixInfo() (int, string, bool) {
 }
 
 // parseBinaryInfix parses a binary infix expression.
-func (p *Parser) parseBinaryInfix(left nodes.ExprNode, prec int, op string) nodes.ExprNode {
+func (p *Parser) parseBinaryInfix(left nodes.ExprNode, prec int, op string) (nodes.ExprNode, error) {
 	locStart := p.pos()
 	p.advance() // consume operator
 
@@ -118,18 +154,25 @@ func (p *Parser) parseBinaryInfix(left nodes.ExprNode, prec int, op string) node
 		nextPrec = prec
 	}
 
-	right := p.parseExprPrec(nextPrec)
+	right, parseErr702 := p.parseExprPrec(nextPrec)
+	if parseErr702 != nil {
+		return nil, parseErr702
+	}
+	if right == nil {
+
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	return &nodes.BinaryExpr{
 		Op:    op,
 		Left:  left,
 		Right: right,
-		Loc:   nodes.Loc{Start: locStart, End: p.pos()},
-	}
+		Loc:   nodes.Loc{Start: locStart, End: p.prev.End},
+	}, nil
 }
 
 // parseBoolInfix parses AND/OR boolean expressions.
-func (p *Parser) parseBoolInfix(left nodes.ExprNode, prec int, op string) nodes.ExprNode {
+func (p *Parser) parseBoolInfix(left nodes.ExprNode, prec int, op string) (nodes.ExprNode, error) {
 	start := p.pos()
 	var boolop nodes.BoolExprType
 	if op == "AND" {
@@ -140,70 +183,114 @@ func (p *Parser) parseBoolInfix(left nodes.ExprNode, prec int, op string) nodes.
 
 	p.advance() // consume AND/OR
 
-	right := p.parseExprPrec(prec + 1)
+	right, parseErr703 := p.parseExprPrec(prec + 1)
+	if parseErr703 != nil {
+		return nil, parseErr703
+	}
+	if right == nil {
 
-	// Flatten: if left is the same bool type, merge args
+		return nil, p.syntaxErrorAtCur(
+
+		// Flatten: if left is the same bool type, merge args
+		)
+	}
+
 	if be, ok := left.(*nodes.BoolExpr); ok && be.Boolop == boolop {
 		be.Args.Items = append(be.Args.Items, right)
-		return be
+		return be, nil
 	}
 
 	return &nodes.BoolExpr{
 		Boolop: boolop,
 		Args:   &nodes.List{Items: []nodes.Node{left, right}},
-		Loc:    nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parsePrefix parses a prefix expression (unary operators and primary expressions).
-func (p *Parser) parsePrefix() nodes.ExprNode {
+func (p *Parser) parsePrefix() (nodes.ExprNode, error) {
 	start := p.pos()
 
 	switch p.cur.Type {
 	case kwNOT:
 		p.advance()
-		operand := p.parseExprPrec(precNot)
+		operand, parseErr704 := p.parseExprPrec(precNot)
+		if parseErr704 != nil {
+			return nil, parseErr704
+		}
+		if operand == nil {
+
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.BoolExpr{
 			Boolop: nodes.BOOL_NOT,
 			Args:   &nodes.List{Items: []nodes.Node{operand}},
-			Loc:    nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 
 	case '-':
 		p.advance()
-		operand := p.parseExprPrec(precUnary)
+		operand, parseErr705 := p.parseExprPrec(precUnary)
+		if parseErr705 != nil {
+			return nil, parseErr705
+		}
+		if operand == nil {
+
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.UnaryExpr{
 			Op:      "-",
 			Operand: operand,
-			Loc:     nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 
 	case '+':
 		p.advance()
-		operand := p.parseExprPrec(precUnary)
+		operand, parseErr706 := p.parseExprPrec(precUnary)
+		if parseErr706 != nil {
+			return nil, parseErr706
+		}
+		if operand == nil {
+
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.UnaryExpr{
 			Op:      "+",
 			Operand: operand,
-			Loc:     nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 
 	case kwPRIOR:
 		p.advance()
-		operand := p.parseExprPrec(precUnary)
+		operand, parseErr707 := p.parseExprPrec(precUnary)
+		if parseErr707 != nil {
+			return nil, parseErr707
+		}
+		if operand == nil {
+
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.UnaryExpr{
 			Op:      "PRIOR",
 			Operand: operand,
-			Loc:     nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 
 	case kwCONNECT_BY_ROOT:
 		p.advance()
-		operand := p.parseExprPrec(precUnary)
+		operand, parseErr708 := p.parseExprPrec(precUnary)
+		if parseErr708 != nil {
+			return nil, parseErr708
+		}
+		if operand == nil {
+
+			return nil, p.syntaxErrorAtCur()
+		}
 		return &nodes.UnaryExpr{
 			Op:      "CONNECT_BY_ROOT",
 			Operand: operand,
-			Loc:     nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 
 	default:
 		return p.parsePrimary()
@@ -211,7 +298,7 @@ func (p *Parser) parsePrefix() nodes.ExprNode {
 }
 
 // parsePrimary parses a primary expression (literals, identifiers, function calls, etc).
-func (p *Parser) parsePrimary() nodes.ExprNode {
+func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	start := p.pos()
 
 	switch p.cur.Type {
@@ -220,37 +307,37 @@ func (p *Parser) parsePrimary() nodes.ExprNode {
 		return &nodes.NumberLiteral{
 			Val:  tok.Str,
 			Ival: tok.Ival,
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 
 	case tokFCONST:
 		tok := p.advance()
 		return &nodes.NumberLiteral{
 			Val:     tok.Str,
 			IsFloat: true,
-			Loc:     nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 
 	case tokSCONST:
 		tok := p.advance()
 		return &nodes.StringLiteral{
 			Val: tok.Str,
-			Loc: nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc: nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 
 	case tokNCHARLIT:
 		tok := p.advance()
 		return &nodes.StringLiteral{
 			Val:     tok.Str,
 			IsNChar: true,
-			Loc:     nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 
 	case kwNULL:
 		p.advance()
 		return &nodes.NullLiteral{
-			Loc: nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc: nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 
 	case tokBIND:
 		return p.parseBindVariable()
@@ -258,8 +345,8 @@ func (p *Parser) parsePrimary() nodes.ExprNode {
 	case '*':
 		p.advance()
 		return &nodes.Star{
-			Loc: nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc: nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 
 	case '(':
 		return p.parseParenExpr()
@@ -322,7 +409,7 @@ func (p *Parser) parsePrimary() nodes.ExprNode {
 			return p.parseIdentExpr()
 		}
 
-		return nil
+		return nil, nil
 	}
 }
 
@@ -344,16 +431,21 @@ func (p *Parser) isIntervalField() bool {
 //
 //	INTERVAL 'value' { YEAR | MONTH | DAY | HOUR | MINUTE | SECOND }
 //	  [ ( precision ) ] [ TO { YEAR | MONTH | DAY | HOUR | MINUTE | SECOND } [ ( precision ) ] ]
-func (p *Parser) parseIntervalExpr() nodes.ExprNode {
+func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume INTERVAL
 
 	// Parse the value expression (typically a string literal like '1')
-	value := p.parseExprPrec(precConcat)
+	value, parseErr709 := p.parseExprPrec(precConcat)
+	if parseErr709 != nil {
+		return nil,
+
+			// Parse the FROM field
+			parseErr709
+	}
 
 	var from, to string
 
-	// Parse the FROM field
 	if p.isIntervalField() {
 		from = p.cur.Str
 		p.advance()
@@ -392,21 +484,31 @@ func (p *Parser) parseIntervalExpr() nodes.ExprNode {
 		Value: value,
 		From:  from,
 		To:    to,
-		Loc:   nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parseIdentExpr parses an identifier-starting expression.
 // It could be a function call (name(...)), a column ref (name or table.column), etc.
-func (p *Parser) parseIdentExpr() nodes.ExprNode {
+func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	start := p.pos()
-	name1 := p.parseIdentifier()
+	name1, parseErr710 := p.parseIdentifier()
+	if parseErr710 != nil {
+		return nil, parseErr710
+
+		// Check for function call: name(
+	}
 	if name1 == "" {
-		return nil
+		return nil, nil
 	}
 
-	// Check for function call: name(
 	if p.cur.Type == '(' {
+		if p.peekNext().Type == '+' {
+			return p.parseOuterJoinIfPresent(&nodes.ColumnRef{
+				Column: name1,
+				Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			})
+		}
 		// But first check if this looks like a schema-qualified function: name.name(
 		// No — just name( is the function call case
 		return p.parseFuncCall(name1, "", start)
@@ -422,20 +524,30 @@ func (p *Parser) parseIdentExpr() nodes.ExprNode {
 			return &nodes.ColumnRef{
 				Table:  name1,
 				Column: "*",
-				Loc:    nodes.Loc{Start: start, End: p.pos()},
-			}
+				Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			}, nil
 		}
 
-		name2 := p.parseIdentifier()
+		name2, parseErr711 := p.parseIdentifier()
+		if parseErr711 != nil {
+			return nil, parseErr711
+		}
 		if name2 == "" {
 			return &nodes.ColumnRef{
 				Column: name1,
-				Loc:    nodes.Loc{Start: start, End: p.pos()},
-			}
+				Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			}, nil
 		}
 
 		// schema.func( ?
 		if p.cur.Type == '(' {
+			if p.peekNext().Type == '+' {
+				return p.parseOuterJoinIfPresent(&nodes.ColumnRef{
+					Table:  name1,
+					Column: name2,
+					Loc:    nodes.Loc{Start: start, End: p.prev.End},
+				})
+			}
 			return p.parseFuncCall(name2, name1, start)
 		}
 
@@ -448,48 +560,61 @@ func (p *Parser) parseIdentExpr() nodes.ExprNode {
 					Schema: name1,
 					Table:  name2,
 					Column: "*",
-					Loc:    nodes.Loc{Start: start, End: p.pos()},
-				}
+					Loc:    nodes.Loc{Start: start, End: p.prev.End},
+				}, nil
 			}
-			name3 := p.parseIdentifier()
+			name3, parseErr712 := p.parseIdentifier()
+			if parseErr712 != nil {
+				return nil, parseErr712
+			}
+			if p.cur.Type == '(' && p.peekNext().Type == '+' {
+				return p.parseOuterJoinIfPresent(&nodes.ColumnRef{
+					Schema: name1,
+					Table:  name2,
+					Column: name3,
+					Loc:    nodes.Loc{Start: start, End: p.prev.End},
+				})
+			}
 			return &nodes.ColumnRef{
 				Schema: name1,
 				Table:  name2,
 				Column: name3,
-				Loc:    nodes.Loc{Start: start, End: p.pos()},
-			}
+				Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			}, nil
 		}
 
 		// table.column
 		return &nodes.ColumnRef{
 			Table:  name1,
 			Column: name2,
-			Loc:    nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 	}
 
 	// Simple column reference
 	return &nodes.ColumnRef{
 		Column: name1,
-		Loc:    nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parseSubscriptIfPresent checks if the current token is '[' and parses a
 // MODEL cell reference subscript: expr[dim1, dim2, ...].
 // Returns the original expression if no '[' is found.
-func (p *Parser) parseSubscriptIfPresent(expr nodes.ExprNode) nodes.ExprNode {
+func (p *Parser) parseSubscriptIfPresent(expr nodes.ExprNode) (nodes.ExprNode, error) {
 	if p.cur.Type != '[' {
-		return expr
+		return expr, nil
 	}
 
 	// Determine start position and function name from the expression
 	var start int
+	funcNameEnd := -1
 	funcName := ""
 	switch e := expr.(type) {
 	case *nodes.ColumnRef:
 		funcName = e.Column
 		start = e.Loc.Start
+		funcNameEnd = e.Loc.End
 	default:
 		start = p.pos()
 	}
@@ -500,7 +625,10 @@ func (p *Parser) parseSubscriptIfPresent(expr nodes.ExprNode) nodes.ExprNode {
 		if p.cur.Type == ']' {
 			break
 		}
-		arg := p.parseExpr()
+		arg, parseErr713 := p.parseExpr()
+		if parseErr713 != nil {
+			return nil, parseErr713
+		}
 		if arg == nil {
 			break
 		}
@@ -518,25 +646,25 @@ func (p *Parser) parseSubscriptIfPresent(expr nodes.ExprNode) nodes.ExprNode {
 	// Represent subscript access as a FuncCallExpr (reusing the existing node type).
 	// This is a MODEL cell reference: measure[dim1, dim2]
 	return &nodes.FuncCallExpr{
-		FuncName: &nodes.ObjectName{Name: funcName, Loc: nodes.Loc{Start: start}},
+		FuncName: &nodes.ObjectName{Name: funcName, Loc: nodes.Loc{Start: start, End: funcNameEnd}},
 		Args:     args,
-		Loc:      nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:      nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parseOuterJoinIfPresent checks for Oracle legacy outer join syntax: column_ref(+).
 // If the current tokens are '(' '+' ')', marks the ColumnRef with OuterJoin=true.
-func (p *Parser) parseOuterJoinIfPresent(expr nodes.ExprNode) nodes.ExprNode {
+func (p *Parser) parseOuterJoinIfPresent(expr nodes.ExprNode) (nodes.ExprNode, error) {
 	cr, ok := expr.(*nodes.ColumnRef)
 	if !ok {
-		return expr
+		return expr, nil
 	}
 	if p.cur.Type != '(' {
-		return expr
+		return expr, nil
 	}
 	next := p.peekNext()
 	if next.Type != '+' {
-		return expr
+		return expr, nil
 	}
 	p.advance() // consume '('
 	p.advance() // consume '+'
@@ -544,17 +672,18 @@ func (p *Parser) parseOuterJoinIfPresent(expr nodes.ExprNode) nodes.ExprNode {
 		p.advance() // consume ')'
 	}
 	cr.OuterJoin = true
-	cr.Loc.End = p.pos()
-	return cr
+	cr.Loc.End = p.prev.End
+	return cr, nil
 }
 
 // parseFuncCall parses a function call after the name has been consumed.
 // The opening '(' is the current token.
-func (p *Parser) parseFuncCall(name, schema string, start int) nodes.ExprNode {
+func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, error) {
 	fc := &nodes.FuncCallExpr{
 		FuncName: &nodes.ObjectName{
 			Schema: schema,
 			Name:   name,
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		},
 		Args: &nodes.List{},
 		Loc:  nodes.Loc{Start: start},
@@ -587,7 +716,10 @@ func (p *Parser) parseFuncCall(name, schema string, start int) nodes.ExprNode {
 	// Arguments
 	if p.cur.Type != ')' {
 		for {
-			arg := p.parseExpr()
+			arg, parseErr714 := p.parseExpr()
+			if parseErr714 != nil {
+				return nil, parseErr714
+			}
 			if arg != nil {
 				fc.Args.Items = append(fc.Args.Items, arg)
 			}
@@ -607,24 +739,40 @@ func (p *Parser) parseFuncCall(name, schema string, start int) nodes.ExprNode {
 
 // parseFuncCallPostfix checks for WITHIN GROUP, KEEP, and OVER clauses
 // after a function call's closing parenthesis.
-func (p *Parser) parseFuncCallPostfix(fc *nodes.FuncCallExpr) nodes.ExprNode {
+func (p *Parser) parseFuncCallPostfix(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
 	// WITHIN GROUP (ORDER BY ...)
 	if p.cur.Type == kwWITHIN {
-		fc.OrderBy = p.parseWithinGroup()
+		var parseErr715 error
+		fc.OrderBy, parseErr715 = p.parseWithinGroup()
+		if parseErr715 !=
+
+			// KEEP (DENSE_RANK FIRST/LAST ORDER BY ...)
+			nil {
+			return nil, parseErr715
+		}
 	}
 
-	// KEEP (DENSE_RANK FIRST/LAST ORDER BY ...)
 	if p.cur.Type == kwKEEP {
-		fc.KeepClause = p.parseKeepClause()
+		var parseErr716 error
+		fc.KeepClause, parseErr716 = p.parseKeepClause()
+		if parseErr716 !=
+
+			// OVER (analytic window specification)
+			nil {
+			return nil, parseErr716
+		}
 	}
 
-	// OVER (analytic window specification)
 	if p.cur.Type == kwOVER {
-		fc.Over = p.parseOverClause()
+		var parseErr717 error
+		fc.Over, parseErr717 = p.parseOverClause()
+		if parseErr717 != nil {
+			return nil, parseErr717
+		}
 	}
 
-	fc.Loc.End = p.pos()
-	return fc
+	fc.Loc.End = p.prev.End
+	return fc, nil
 }
 
 // parseOverClause parses an analytic function's OVER clause.
@@ -633,7 +781,7 @@ func (p *Parser) parseFuncCallPostfix(fc *nodes.FuncCallExpr) nodes.ExprNode {
 //
 //	OVER ( [ partition_by_clause ] [ order_by_clause [ windowing_clause ] ] )
 //	OVER window_name
-func (p *Parser) parseOverClause() *nodes.WindowSpec {
+func (p *Parser) parseOverClause() (*nodes.WindowSpec, error) {
 	start := p.pos()
 	p.advance() // consume OVER
 
@@ -642,10 +790,14 @@ func (p *Parser) parseOverClause() *nodes.WindowSpec {
 	if p.cur.Type != '(' {
 		// OVER window_name
 		if p.isIdentLike() {
-			ws.WindowName = p.parseIdentifier()
+			var parseErr718 error
+			ws.WindowName, parseErr718 = p.parseIdentifier()
+			if parseErr718 != nil {
+				return nil, parseErr718
+			}
 		}
-		ws.Loc.End = p.pos()
-		return ws
+		ws.Loc.End = p.prev.End
+		return ws, nil
 	}
 
 	p.advance() // consume '('
@@ -658,7 +810,10 @@ func (p *Parser) parseOverClause() *nodes.WindowSpec {
 		}
 		ws.PartitionBy = &nodes.List{}
 		for {
-			expr := p.parseExpr()
+			expr, parseErr719 := p.parseExpr()
+			if parseErr719 != nil {
+				return nil, parseErr719
+			}
 			if expr != nil {
 				ws.PartitionBy.Items = append(ws.PartitionBy.Items, expr)
 			}
@@ -675,27 +830,37 @@ func (p *Parser) parseOverClause() *nodes.WindowSpec {
 		if p.cur.Type == kwBY {
 			p.advance() // consume BY
 		}
-		ws.OrderBy = p.parseOrderByList()
+		var parseErr720 error
+		ws.OrderBy, parseErr720 = p.parseOrderByList()
+		if parseErr720 !=
+
+			// Windowing clause: ROWS | RANGE | GROUPS
+			nil {
+			return nil, parseErr720
+		}
 	}
 
-	// Windowing clause: ROWS | RANGE | GROUPS
 	if p.cur.Type == kwROWS || p.cur.Type == kwRANGE || p.cur.Type == kwGROUPS {
-		ws.Frame = p.parseWindowFrame()
+		var parseErr721 error
+		ws.Frame, parseErr721 = p.parseWindowFrame()
+		if parseErr721 != nil {
+			return nil, parseErr721
+		}
 	}
 
 	if p.cur.Type == ')' {
 		p.advance()
 	}
 
-	ws.Loc.End = p.pos()
-	return ws
+	ws.Loc.End = p.prev.End
+	return ws, nil
 }
 
 // parseWindowFrame parses a window frame specification.
 //
 //	{ ROWS | RANGE | GROUPS }
 //	  { BETWEEN bound AND bound | bound }
-func (p *Parser) parseWindowFrame() *nodes.WindowFrame {
+func (p *Parser) parseWindowFrame() (*nodes.WindowFrame, error) {
 	start := p.pos()
 	wf := &nodes.WindowFrame{Loc: nodes.Loc{Start: start}}
 
@@ -710,19 +875,35 @@ func (p *Parser) parseWindowFrame() *nodes.WindowFrame {
 	p.advance() // consume ROWS/RANGE/GROUPS
 
 	if p.cur.Type == kwBETWEEN {
-		p.advance() // consume BETWEEN
-		wf.Start = p.parseWindowBound()
+		p.advance()
+		var // consume BETWEEN
+		parseErr722 error
+		wf.Start, parseErr722 = p.parseWindowBound()
+		if parseErr722 != nil {
+			return nil, parseErr722
+		}
 		if p.cur.Type == kwAND {
 			p.advance() // consume AND
 		}
-		wf.End = p.parseWindowBound()
+		var parseErr723 error
+		wf.End, parseErr723 = p.parseWindowBound()
+		if parseErr723 !=
+
+			// Single bound (start only)
+			nil {
+			return nil, parseErr723
+		}
 	} else {
-		// Single bound (start only)
-		wf.Start = p.parseWindowBound()
+		var parseErr724 error
+
+		wf.Start, parseErr724 = p.parseWindowBound()
+		if parseErr724 != nil {
+			return nil, parseErr724
+		}
 	}
 
-	wf.Loc.End = p.pos()
-	return wf
+	wf.Loc.End = p.prev.End
+	return wf, nil
 }
 
 // parseWindowBound parses a window frame bound.
@@ -730,7 +911,7 @@ func (p *Parser) parseWindowFrame() *nodes.WindowFrame {
 //	UNBOUNDED PRECEDING | UNBOUNDED FOLLOWING
 //	CURRENT ROW
 //	expr PRECEDING | expr FOLLOWING
-func (p *Parser) parseWindowBound() *nodes.WindowBound {
+func (p *Parser) parseWindowBound() (*nodes.WindowBound, error) {
 	start := p.pos()
 	wb := &nodes.WindowBound{Loc: nodes.Loc{Start: start}}
 
@@ -750,8 +931,12 @@ func (p *Parser) parseWindowBound() *nodes.WindowBound {
 			p.advance() // consume ROW
 		}
 	} else {
+		var parseErr725 error
 		// expr PRECEDING | expr FOLLOWING
-		wb.Value = p.parseExprPrec(precAdd)
+		wb.Value, parseErr725 = p.parseExprPrec(precAdd)
+		if parseErr725 != nil {
+			return nil, parseErr725
+		}
 		if p.cur.Type == kwPRECEDING {
 			wb.Type = nodes.WINDOW_VALUE_PRECEDING
 			p.advance()
@@ -761,8 +946,8 @@ func (p *Parser) parseWindowBound() *nodes.WindowBound {
 		}
 	}
 
-	wb.Loc.End = p.pos()
-	return wb
+	wb.Loc.End = p.prev.End
+	return wb, nil
 }
 
 // parseKeepClause parses a KEEP (DENSE_RANK FIRST/LAST ORDER BY ...) clause.
@@ -770,7 +955,7 @@ func (p *Parser) parseWindowBound() *nodes.WindowBound {
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/FIRST.html
 //
 //	KEEP ( DENSE_RANK { FIRST | LAST } ORDER BY sort_list )
-func (p *Parser) parseKeepClause() *nodes.KeepClause {
+func (p *Parser) parseKeepClause() (*nodes.KeepClause, error) {
 	start := p.pos()
 	p.advance() // consume KEEP
 
@@ -800,15 +985,19 @@ func (p *Parser) parseKeepClause() *nodes.KeepClause {
 		if p.cur.Type == kwBY {
 			p.advance() // consume BY
 		}
-		kc.OrderBy = p.parseOrderByList()
+		var parseErr726 error
+		kc.OrderBy, parseErr726 = p.parseOrderByList()
+		if parseErr726 != nil {
+			return nil, parseErr726
+		}
 	}
 
 	if p.cur.Type == ')' {
 		p.advance()
 	}
 
-	kc.Loc.End = p.pos()
-	return kc
+	kc.Loc.End = p.prev.End
+	return kc, nil
 }
 
 // parseWithinGroup parses a WITHIN GROUP (ORDER BY ...) clause.
@@ -816,7 +1005,7 @@ func (p *Parser) parseKeepClause() *nodes.KeepClause {
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/LISTAGG.html
 //
 //	WITHIN GROUP ( ORDER BY sort_list )
-func (p *Parser) parseWithinGroup() *nodes.List {
+func (p *Parser) parseWithinGroup() (*nodes.List, error) {
 	p.advance() // consume WITHIN
 
 	// GROUP
@@ -825,7 +1014,7 @@ func (p *Parser) parseWithinGroup() *nodes.List {
 	}
 
 	if p.cur.Type != '(' {
-		return nil
+		return nil, nil
 	}
 	p.advance() // consume '('
 
@@ -835,34 +1024,44 @@ func (p *Parser) parseWithinGroup() *nodes.List {
 		if p.cur.Type == kwBY {
 			p.advance() // consume BY
 		}
-		orderBy = p.parseOrderByList()
+		var parseErr727 error
+		orderBy, parseErr727 = p.parseOrderByList()
+		if parseErr727 != nil {
+			return nil, parseErr727
+		}
 	}
 
 	if p.cur.Type == ')' {
 		p.advance()
 	}
 
-	return orderBy
+	return orderBy, nil
 }
 
 // parseParenExpr parses a parenthesized expression or subquery.
-func (p *Parser) parseParenExpr() nodes.ExprNode {
+func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume '('
 
 	// Detect scalar subquery: (SELECT ...)
 	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-		sub := p.parseSelectStmt()
+		sub, parseErr728 := p.parseSelectStmt()
+		if parseErr728 != nil {
+			return nil, parseErr728
+		}
 		if p.cur.Type == ')' {
 			p.advance()
 		}
 		return &nodes.SubqueryExpr{
 			Subquery: sub,
-			Loc:      nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc:      nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 	}
 
-	inner := p.parseExpr()
+	inner, parseErr729 := p.parseExpr()
+	if parseErr729 != nil {
+		return nil, parseErr729
+	}
 
 	if p.cur.Type == ')' {
 		p.advance()
@@ -870,8 +1069,8 @@ func (p *Parser) parseParenExpr() nodes.ExprNode {
 
 	return &nodes.ParenExpr{
 		Expr: inner,
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parseCaseExpr parses a CASE expression (simple or searched).
@@ -883,7 +1082,7 @@ func (p *Parser) parseParenExpr() nodes.ExprNode {
 //	    [ WHEN condition THEN result ... ]
 //	    [ ELSE default ]
 //	END
-func (p *Parser) parseCaseExpr() nodes.ExprNode {
+func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume CASE
 
@@ -895,35 +1094,66 @@ func (p *Parser) parseCaseExpr() nodes.ExprNode {
 	// Simple CASE: CASE expr WHEN ...
 	// Searched CASE: CASE WHEN ...
 	if p.cur.Type != kwWHEN {
-		ce.Arg = p.parseExpr()
+		var parseErr730 error
+		ce.Arg, parseErr730 = p.parseExpr()
+		if parseErr730 != nil {
+			return nil, parseErr730
+		}
+		if ce.Arg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	for p.cur.Type == kwWHEN {
 		whenStart := p.pos()
 		p.advance() // consume WHEN
-		cond := p.parseExpr()
-		if p.cur.Type == kwTHEN {
-			p.advance()
+		cond, parseErr731 := p.parseExpr()
+		if parseErr731 != nil {
+			return nil, parseErr731
 		}
-		result := p.parseExpr()
+		if cond == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != kwTHEN {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		result, parseErr732 := p.parseExpr()
+		if parseErr732 != nil {
+			return nil, parseErr732
+		}
+		if result == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		ce.Whens.Items = append(ce.Whens.Items, &nodes.CaseWhen{
 			Condition: cond,
 			Result:    result,
-			Loc:       nodes.Loc{Start: whenStart, End: p.pos()},
+			Loc:       nodes.Loc{Start: whenStart, End: p.prev.End},
 		})
+	}
+	if ce.Whens.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.cur.Type == kwELSE {
 		p.advance()
-		ce.Default = p.parseExpr()
+		var parseErr733 error
+		ce.Default, parseErr733 = p.parseExpr()
+		if parseErr733 != nil {
+			return nil, parseErr733
+		}
+		if ce.Default == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
-	if p.cur.Type == kwEND {
-		p.advance()
+	if p.cur.Type != kwEND {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
-	ce.Loc.End = p.pos()
-	return ce
+	ce.Loc.End = p.prev.End
+	return ce, nil
 }
 
 // parseCastExpr parses a CAST expression.
@@ -931,7 +1161,7 @@ func (p *Parser) parseCaseExpr() nodes.ExprNode {
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CAST.html
 //
 //	CAST ( expr AS datatype )
-func (p *Parser) parseCastExpr() nodes.ExprNode {
+func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume CAST
 
@@ -939,13 +1169,19 @@ func (p *Parser) parseCastExpr() nodes.ExprNode {
 		p.advance()
 	}
 
-	arg := p.parseExpr()
+	arg, parseErr734 := p.parseExpr()
+	if parseErr734 != nil {
+		return nil, parseErr734
+	}
 
 	if p.cur.Type == kwAS {
 		p.advance()
 	}
 
-	typeName := p.parseTypeName()
+	typeName, parseErr735 := p.parseTypeName()
+	if parseErr735 != nil {
+		return nil, parseErr735
+	}
 
 	if p.cur.Type == ')' {
 		p.advance()
@@ -954,8 +1190,8 @@ func (p *Parser) parseCastExpr() nodes.ExprNode {
 	return &nodes.CastExpr{
 		Arg:      arg,
 		TypeName: typeName,
-		Loc:      nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:      nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parseDecodeExpr parses Oracle's DECODE function.
@@ -963,7 +1199,7 @@ func (p *Parser) parseCastExpr() nodes.ExprNode {
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/DECODE.html
 //
 //	DECODE ( expr, search, result [, search, result ...] [, default] )
-func (p *Parser) parseDecodeExpr() nodes.ExprNode {
+func (p *Parser) parseDecodeExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume DECODE
 
@@ -975,29 +1211,43 @@ func (p *Parser) parseDecodeExpr() nodes.ExprNode {
 		Pairs: &nodes.List{},
 		Loc:   nodes.Loc{Start: start},
 	}
+	var parseErr736 error
 
 	// First arg is the expression to decode
-	de.Arg = p.parseExpr()
+	de.Arg, parseErr736 = p.parseExpr()
+	if parseErr736 !=
 
-	// Parse search, result pairs
+		// Parse search, result pairs
+		nil {
+		return nil, parseErr736
+	}
+
 	for p.cur.Type == ',' {
 		p.advance() // consume ','
 
-		search := p.parseExpr()
+		search, parseErr737 := p.parseExpr()
+		if parseErr737 != nil {
+			return nil, parseErr737
+
+			// This is the default value (odd argument at end)
+		}
 
 		if p.cur.Type != ',' {
-			// This is the default value (odd argument at end)
+
 			de.Default = search
 			break
 		}
 		p.advance() // consume ','
 
-		result := p.parseExpr()
+		result, parseErr738 := p.parseExpr()
+		if parseErr738 != nil {
+			return nil, parseErr738
+		}
 
 		de.Pairs.Items = append(de.Pairs.Items, &nodes.DecodePair{
 			Search: search,
 			Result: result,
-			Loc:    nodes.Loc{Start: start, End: p.pos()},
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		})
 	}
 
@@ -1005,14 +1255,14 @@ func (p *Parser) parseDecodeExpr() nodes.ExprNode {
 		p.advance()
 	}
 
-	de.Loc.End = p.pos()
-	return de
+	de.Loc.End = p.prev.End
+	return de, nil
 }
 
 // parseExistsExpr parses an EXISTS subquery expression.
 //
 //	EXISTS ( subquery )
-func (p *Parser) parseExistsExpr() nodes.ExprNode {
+func (p *Parser) parseExistsExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume EXISTS
 
@@ -1020,25 +1270,32 @@ func (p *Parser) parseExistsExpr() nodes.ExprNode {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	if p.cur.Type == '(' {
-		p.advance()
-		// Parse the inner SELECT statement
-		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			expr.Subquery = p.parseSelectStmt()
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
+	// Parse the inner SELECT statement.
+	if p.cur.Type != kwSELECT && p.cur.Type != kwWITH {
+		return nil, p.syntaxErrorAtCur()
+	}
+	var parseErr739 error
+	expr.Subquery, parseErr739 = p.parseSelectStmt()
+	if parseErr739 != nil {
+		return nil, parseErr739
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
 
-	expr.Loc.End = p.pos()
-	return expr
+	expr.Loc.End = p.prev.End
+	return expr, nil
 }
 
 // parsePostfix parses postfix expression operators: IS, BETWEEN, IN, LIKE, NOT BETWEEN/IN/LIKE.
-func (p *Parser) parsePostfix(left nodes.ExprNode) nodes.ExprNode {
+func (p *Parser) parsePostfix(left nodes.ExprNode) (nodes.ExprNode, error) {
 	if left == nil {
-		return nil
+		return nil, nil
 	}
 
 	switch p.cur.Type {
@@ -1085,7 +1342,7 @@ func (p *Parser) parsePostfix(left nodes.ExprNode) nodes.ExprNode {
 		}
 	}
 
-	return left
+	return left, nil
 }
 
 // parseIsExpr parses IS [NOT] NULL / IS [NOT] NAN / etc.
@@ -1093,7 +1350,7 @@ func (p *Parser) parsePostfix(left nodes.ExprNode) nodes.ExprNode {
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/Conditions.html
 //
 //	expr IS [NOT] { NULL | NAN | INFINITE | EMPTY | JSON | OF ... | A SET }
-func (p *Parser) parseIsExpr(left nodes.ExprNode) nodes.ExprNode {
+func (p *Parser) parseIsExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume IS
 
@@ -1117,13 +1374,17 @@ func (p *Parser) parseIsExpr(left nodes.ExprNode) nodes.ExprNode {
 			p.advance()
 		}
 	}
+	if test == "" {
+
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	return &nodes.IsExpr{
 		Expr: left,
 		Test: test,
 		Not:  not,
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parseBetweenExpr parses [NOT] BETWEEN low AND high.
@@ -1131,26 +1392,43 @@ func (p *Parser) parseIsExpr(left nodes.ExprNode) nodes.ExprNode {
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/BETWEEN-Condition.html
 //
 //	expr [NOT] BETWEEN low AND high
-func (p *Parser) parseBetweenExpr(left nodes.ExprNode, not bool) nodes.ExprNode {
+func (p *Parser) parseBetweenExpr(left nodes.ExprNode, not bool) (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume BETWEEN
 
 	// Parse low bound at higher precedence to avoid consuming AND as boolean
-	low := p.parseExprPrec(precConcat)
+	low, parseErr740 := p.parseExprPrec(precConcat)
+	if parseErr740 != nil {
+		return nil, parseErr740
+	}
+	if low == nil {
+
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	if p.cur.Type == kwAND {
 		p.advance()
+	} else {
+
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	high := p.parseExprPrec(precConcat)
+	high, parseErr741 := p.parseExprPrec(precConcat)
+	if parseErr741 != nil {
+		return nil, parseErr741
+	}
+	if high == nil {
+
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	return &nodes.BetweenExpr{
 		Expr: left,
 		Low:  low,
 		High: high,
 		Not:  not,
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parseInExpr parses [NOT] IN ( list | subquery ).
@@ -1158,7 +1436,7 @@ func (p *Parser) parseBetweenExpr(left nodes.ExprNode, not bool) nodes.ExprNode 
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/IN-Condition.html
 //
 //	expr [NOT] IN ( expr_list | subquery )
-func (p *Parser) parseInExpr(left nodes.ExprNode, not bool) nodes.ExprNode {
+func (p *Parser) parseInExpr(left nodes.ExprNode, not bool) (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume IN
 
@@ -1168,18 +1446,26 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, not bool) nodes.ExprNode {
 		p.advance()
 		// IN (SELECT ...) or IN (WITH ...) — subquery
 		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			sub := p.parseSelectStmt()
+			sub, parseErr742 := p.parseSelectStmt()
+			if parseErr742 != nil {
+				return nil, parseErr742
+			}
 			subExpr := &nodes.SubqueryExpr{
 				Subquery: sub,
-				Loc:      nodes.Loc{Start: start, End: p.pos()},
+				Loc:      nodes.Loc{Start: start, End: p.prev.End},
 			}
 			list.Items = append(list.Items, subExpr)
 		} else {
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				item := p.parseExpr()
-				if item != nil {
-					list.Items = append(list.Items, item)
+				item, parseErr743 := p.parseExpr()
+				if parseErr743 != nil {
+					return nil, parseErr743
 				}
+				if item == nil {
+
+					return nil, p.syntaxErrorAtCur()
+				}
+				list.Items = append(list.Items, item)
 				if p.cur.Type != ',' {
 					break
 				}
@@ -1188,15 +1474,21 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, not bool) nodes.ExprNode {
 		}
 		if p.cur.Type == ')' {
 			p.advance()
+		} else {
+
+			return nil, p.syntaxErrorAtCur()
 		}
+	} else {
+
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	return &nodes.InExpr{
 		Expr: left,
 		List: list,
 		Not:  not,
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parseLikeExpr parses [NOT] LIKE pattern [ESCAPE escape_char].
@@ -1204,16 +1496,31 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, not bool) nodes.ExprNode {
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/Pattern-matching-Conditions.html
 //
 //	expr [NOT] LIKE pattern [ ESCAPE escape_char ]
-func (p *Parser) parseLikeExpr(left nodes.ExprNode, not bool, likeType nodes.LikeType) nodes.ExprNode {
+func (p *Parser) parseLikeExpr(left nodes.ExprNode, not bool, likeType nodes.LikeType) (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume LIKE/LIKEC/LIKE2/LIKE4
 
-	pattern := p.parseExprPrec(precConcat)
+	pattern, parseErr744 := p.parseExprPrec(precConcat)
+	if parseErr744 != nil {
+		return nil, parseErr744
+	}
+	if pattern == nil {
+
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	var escape nodes.ExprNode
 	if p.cur.Type == kwESCAPE {
 		p.advance()
-		escape = p.parseExprPrec(precConcat)
+		var parseErr745 error
+		escape, parseErr745 = p.parseExprPrec(precConcat)
+		if parseErr745 != nil {
+			return nil, parseErr745
+		}
+		if escape == nil {
+
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	return &nodes.LikeExpr{
@@ -1222,8 +1529,8 @@ func (p *Parser) parseLikeExpr(left nodes.ExprNode, not bool, likeType nodes.Lik
 		Escape:  escape,
 		Not:     not,
 		Type:    likeType,
-		Loc:     nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:     nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parseCursorExpr parses a CURSOR(subquery) expression.
@@ -1231,16 +1538,19 @@ func (p *Parser) parseLikeExpr(left nodes.ExprNode, not bool, likeType nodes.Lik
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CURSOR-Expressions.html
 //
 //	CURSOR ( subquery )
-func (p *Parser) parseCursorExpr() nodes.ExprNode {
+func (p *Parser) parseCursorExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume CURSOR
 
 	if p.cur.Type != '(' {
-		return &nodes.CursorExpr{Loc: nodes.Loc{Start: start, End: p.pos()}}
+		return &nodes.CursorExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
 	}
 	p.advance() // consume '('
 
-	subSel := p.parseSelectStmt()
+	subSel, parseErr746 := p.parseSelectStmt()
+	if parseErr746 != nil {
+		return nil, parseErr746
+	}
 
 	if p.cur.Type == ')' {
 		p.advance()
@@ -1248,8 +1558,8 @@ func (p *Parser) parseCursorExpr() nodes.ExprNode {
 
 	return &nodes.CursorExpr{
 		Subquery: subSel,
-		Loc:      nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:      nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parseTreatExpr parses a TREAT(expr AS type) expression.
@@ -1257,16 +1567,19 @@ func (p *Parser) parseCursorExpr() nodes.ExprNode {
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/TREAT.html
 //
 //	TREAT ( expr AS [ REF ] type )
-func (p *Parser) parseTreatExpr() nodes.ExprNode {
+func (p *Parser) parseTreatExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume TREAT
 
 	if p.cur.Type != '(' {
-		return &nodes.TreatExpr{Loc: nodes.Loc{Start: start, End: p.pos()}}
+		return &nodes.TreatExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
 	}
 	p.advance() // consume '('
 
-	expr := p.parseExpr()
+	expr, parseErr747 := p.parseExpr()
+	if parseErr747 != nil {
+		return nil, parseErr747
+	}
 
 	if p.cur.Type == kwAS {
 		p.advance()
@@ -1277,7 +1590,10 @@ func (p *Parser) parseTreatExpr() nodes.ExprNode {
 		p.advance()
 	}
 
-	typeName := p.parseTypeName()
+	typeName, parseErr748 := p.parseTypeName()
+	if parseErr748 != nil {
+		return nil, parseErr748
+	}
 
 	if p.cur.Type == ')' {
 		p.advance()
@@ -1286,8 +1602,8 @@ func (p *Parser) parseTreatExpr() nodes.ExprNode {
 	return &nodes.TreatExpr{
 		Expr:     expr,
 		TypeName: typeName,
-		Loc:      nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:      nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parseMultisetOp parses MULTISET UNION/INTERSECT/EXCEPT operations.
@@ -1295,7 +1611,7 @@ func (p *Parser) parseTreatExpr() nodes.ExprNode {
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/MULTISET-UNION.html
 //
 //	expr MULTISET { UNION | INTERSECT | EXCEPT } [ ALL | DISTINCT ] expr
-func (p *Parser) parseMultisetOp(left nodes.ExprNode) nodes.ExprNode {
+func (p *Parser) parseMultisetOp(left nodes.ExprNode) (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume MULTISET
 
@@ -1311,7 +1627,7 @@ func (p *Parser) parseMultisetOp(left nodes.ExprNode) nodes.ExprNode {
 		op = "EXCEPT"
 		p.advance()
 	default:
-		return left
+		return left, nil
 	}
 
 	all := false
@@ -1322,15 +1638,18 @@ func (p *Parser) parseMultisetOp(left nodes.ExprNode) nodes.ExprNode {
 		p.advance()
 	}
 
-	right := p.parseExprPrec(precComp)
+	right, parseErr749 := p.parseExprPrec(precComp)
+	if parseErr749 != nil {
+		return nil, parseErr749
+	}
 
 	return &nodes.MultisetExpr{
 		Op:    op,
 		Left:  left,
 		Right: right,
 		All:   all,
-		Loc:   nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parseXmlElement parses XMLELEMENT(NAME tag, expr, ...).
@@ -1338,19 +1657,19 @@ func (p *Parser) parseMultisetOp(left nodes.ExprNode) nodes.ExprNode {
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/XMLELEMENT.html
 //
 //	XMLELEMENT ( [ NAME ] identifier_or_string, expr [, ...] )
-func (p *Parser) parseXmlElement() nodes.ExprNode {
+func (p *Parser) parseXmlElement() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume XMLELEMENT
 
 	fc := &nodes.FuncCallExpr{
-		FuncName: &nodes.ObjectName{Name: "XMLELEMENT"},
+		FuncName: &nodes.ObjectName{Name: "XMLELEMENT", Loc: nodes.Loc{Start: start, End: p.prev.End}},
 		Args:     &nodes.List{},
 		Loc:      nodes.Loc{Start: start},
 	}
 
 	if p.cur.Type != '(' {
-		fc.Loc.End = p.pos()
-		return fc
+		fc.Loc.End = p.prev.End
+		return fc, nil
 	}
 	p.advance() // consume '('
 
@@ -1361,7 +1680,10 @@ func (p *Parser) parseXmlElement() nodes.ExprNode {
 
 	// Element name — identifier or quoted identifier
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		arg := p.parseExpr()
+		arg, parseErr750 := p.parseExpr()
+		if parseErr750 != nil {
+			return nil, parseErr750
+		}
 		if arg != nil {
 			fc.Args.Items = append(fc.Args.Items, arg)
 		}
@@ -1380,25 +1702,28 @@ func (p *Parser) parseXmlElement() nodes.ExprNode {
 
 // parseXmlGenericFunc parses XML functions with standard argument syntax.
 // Used for XMLFOREST, XMLROOT.
-func (p *Parser) parseXmlGenericFunc(name string) nodes.ExprNode {
+func (p *Parser) parseXmlGenericFunc(name string) (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume keyword
 
 	fc := &nodes.FuncCallExpr{
-		FuncName: &nodes.ObjectName{Name: name},
+		FuncName: &nodes.ObjectName{Name: name, Loc: nodes.Loc{Start: start, End: p.prev.End}},
 		Args:     &nodes.List{},
 		Loc:      nodes.Loc{Start: start},
 	}
 
 	if p.cur.Type != '(' {
-		fc.Loc.End = p.pos()
-		return fc
+		fc.Loc.End = p.prev.End
+		return fc, nil
 	}
 	p.advance() // consume '('
 
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
 		// Handle keyword-value pairs like VERSION '1.0'
-		arg := p.parseExpr()
+		arg, parseErr751 := p.parseExpr()
+		if parseErr751 != nil {
+			return nil, parseErr751
+		}
 		if arg != nil {
 			fc.Args.Items = append(fc.Args.Items, arg)
 		}
@@ -1416,24 +1741,27 @@ func (p *Parser) parseXmlGenericFunc(name string) nodes.ExprNode {
 }
 
 // parseXmlRoot parses XMLROOT(xml_expr, VERSION version_string | NO VALUE).
-func (p *Parser) parseXmlRoot() nodes.ExprNode {
+func (p *Parser) parseXmlRoot() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume XMLROOT
 
 	fc := &nodes.FuncCallExpr{
-		FuncName: &nodes.ObjectName{Name: "XMLROOT"},
+		FuncName: &nodes.ObjectName{Name: "XMLROOT", Loc: nodes.Loc{Start: start, End: p.prev.End}},
 		Args:     &nodes.List{},
 		Loc:      nodes.Loc{Start: start},
 	}
 
 	if p.cur.Type != '(' {
-		fc.Loc.End = p.pos()
-		return fc
+		fc.Loc.End = p.prev.End
+		return fc, nil
 	}
 	p.advance() // consume '('
 
 	// XML expression
-	arg := p.parseExpr()
+	arg, parseErr752 := p.parseExpr()
+	if parseErr752 != nil {
+		return nil, parseErr752
+	}
 	if arg != nil {
 		fc.Args.Items = append(fc.Args.Items, arg)
 	}
@@ -1446,7 +1774,10 @@ func (p *Parser) parseXmlRoot() nodes.ExprNode {
 	if p.isIdentLikeStr("VERSION") {
 		p.advance() // consume VERSION
 		// VERSION NO VALUE or VERSION 'string'
-		versionArg := p.parseExpr()
+		versionArg, parseErr753 := p.parseExpr()
+		if parseErr753 != nil {
+			return nil, parseErr753
+		}
 		if versionArg != nil {
 			fc.Args.Items = append(fc.Args.Items, versionArg)
 		}
@@ -1462,24 +1793,27 @@ func (p *Parser) parseXmlRoot() nodes.ExprNode {
 // parseXmlAgg parses XMLAGG(expr ORDER BY ...).
 //
 //	XMLAGG ( expr [ ORDER BY sort_list ] )
-func (p *Parser) parseXmlAgg() nodes.ExprNode {
+func (p *Parser) parseXmlAgg() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume XMLAGG
 
 	fc := &nodes.FuncCallExpr{
-		FuncName: &nodes.ObjectName{Name: "XMLAGG"},
+		FuncName: &nodes.ObjectName{Name: "XMLAGG", Loc: nodes.Loc{Start: start, End: p.prev.End}},
 		Args:     &nodes.List{},
 		Loc:      nodes.Loc{Start: start},
 	}
 
 	if p.cur.Type != '(' {
-		fc.Loc.End = p.pos()
-		return fc
+		fc.Loc.End = p.prev.End
+		return fc, nil
 	}
 	p.advance() // consume '('
 
 	// Expression argument
-	arg := p.parseExpr()
+	arg, parseErr754 := p.parseExpr()
+	if parseErr754 != nil {
+		return nil, parseErr754
+	}
 	if arg != nil {
 		fc.Args.Items = append(fc.Args.Items, arg)
 	}
@@ -1490,7 +1824,11 @@ func (p *Parser) parseXmlAgg() nodes.ExprNode {
 		if p.cur.Type == kwBY {
 			p.advance() // consume BY
 		}
-		fc.OrderBy = p.parseOrderByList()
+		var parseErr755 error
+		fc.OrderBy, parseErr755 = p.parseOrderByList()
+		if parseErr755 != nil {
+			return nil, parseErr755
+		}
 	}
 
 	if p.cur.Type == ')' {
@@ -1501,19 +1839,19 @@ func (p *Parser) parseXmlAgg() nodes.ExprNode {
 }
 
 // parseXmlContentFunc parses XMLPARSE(CONTENT expr).
-func (p *Parser) parseXmlContentFunc(name string) nodes.ExprNode {
+func (p *Parser) parseXmlContentFunc(name string) (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume keyword
 
 	fc := &nodes.FuncCallExpr{
-		FuncName: &nodes.ObjectName{Name: name},
+		FuncName: &nodes.ObjectName{Name: name, Loc: nodes.Loc{Start: start, End: p.prev.End}},
 		Args:     &nodes.List{},
 		Loc:      nodes.Loc{Start: start},
 	}
 
 	if p.cur.Type != '(' {
-		fc.Loc.End = p.pos()
-		return fc
+		fc.Loc.End = p.prev.End
+		return fc, nil
 	}
 	p.advance() // consume '('
 
@@ -1522,7 +1860,10 @@ func (p *Parser) parseXmlContentFunc(name string) nodes.ExprNode {
 		p.advance()
 	}
 
-	arg := p.parseExpr()
+	arg, parseErr756 := p.parseExpr()
+	if parseErr756 != nil {
+		return nil, parseErr756
+	}
 	if arg != nil {
 		fc.Args.Items = append(fc.Args.Items, arg)
 	}
@@ -1540,31 +1881,37 @@ func (p *Parser) parseXmlContentFunc(name string) nodes.ExprNode {
 //
 //	JSON_OBJECT ( [ key_expr VALUE value_expr | key:value ] [, ...] )
 //	JSON_ARRAY ( [ expr [, ...] ] )
-func (p *Parser) parseJsonObjectOrArray(name string) nodes.ExprNode {
+func (p *Parser) parseJsonObjectOrArray(name string) (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume keyword
 
 	fc := &nodes.FuncCallExpr{
-		FuncName: &nodes.ObjectName{Name: name},
+		FuncName: &nodes.ObjectName{Name: name, Loc: nodes.Loc{Start: start, End: p.prev.End}},
 		Args:     &nodes.List{},
 		Loc:      nodes.Loc{Start: start},
 	}
 
 	if p.cur.Type != '(' {
-		fc.Loc.End = p.pos()
-		return fc
+		fc.Loc.End = p.prev.End
+		return fc, nil
 	}
 	p.advance() // consume '('
 
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		arg := p.parseExpr()
+		arg, parseErr757 := p.parseExpr()
+		if parseErr757 != nil {
+			return nil, parseErr757
+		}
 		if arg != nil {
 			fc.Args.Items = append(fc.Args.Items, arg)
 		}
 		// Skip VALUE keyword (JSON_OBJECT key VALUE val syntax)
 		if p.isIdentLikeStr("VALUE") {
 			p.advance()
-			val := p.parseExpr()
+			val, parseErr758 := p.parseExpr()
+			if parseErr758 != nil {
+				return nil, parseErr758
+			}
 			if val != nil {
 				fc.Args.Items = append(fc.Args.Items, val)
 			}
@@ -1602,24 +1949,27 @@ func (p *Parser) parseJsonObjectOrArray(name string) nodes.ExprNode {
 //	JSON_QUERY ( expr, path_string [ RETURNING type ] [ wrapper_clause ] [ error_clause ] )
 //	JSON_EXISTS ( expr, path_string [ error_clause ] )
 //	JSON_MERGEPATCH ( expr, expr [ RETURNING type ] )
-func (p *Parser) parseJsonPathFunc(name string) nodes.ExprNode {
+func (p *Parser) parseJsonPathFunc(name string) (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume keyword
 
 	fc := &nodes.FuncCallExpr{
-		FuncName: &nodes.ObjectName{Name: name},
+		FuncName: &nodes.ObjectName{Name: name, Loc: nodes.Loc{Start: start, End: p.prev.End}},
 		Args:     &nodes.List{},
 		Loc:      nodes.Loc{Start: start},
 	}
 
 	if p.cur.Type != '(' {
-		fc.Loc.End = p.pos()
-		return fc
+		fc.Loc.End = p.prev.End
+		return fc, nil
 	}
 	p.advance() // consume '('
 
 	// First argument (JSON expr)
-	arg := p.parseExpr()
+	arg, parseErr759 := p.parseExpr()
+	if parseErr759 != nil {
+		return nil, parseErr759
+	}
 	if arg != nil {
 		fc.Args.Items = append(fc.Args.Items, arg)
 	}
@@ -1627,7 +1977,10 @@ func (p *Parser) parseJsonPathFunc(name string) nodes.ExprNode {
 	if p.cur.Type == ',' {
 		p.advance()
 		// Second argument (path or patch expr)
-		arg2 := p.parseExpr()
+		arg2, parseErr760 := p.parseExpr()
+		if parseErr760 != nil {
+			return nil, parseErr760
+		}
 		if arg2 != nil {
 			fc.Args.Items = append(fc.Args.Items, arg2)
 		}
@@ -1657,19 +2010,19 @@ func (p *Parser) parseJsonPathFunc(name string) nodes.ExprNode {
 }
 
 // parseXmlSerialize parses XMLSERIALIZE(CONTENT expr AS type).
-func (p *Parser) parseXmlSerialize() nodes.ExprNode {
+func (p *Parser) parseXmlSerialize() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume XMLSERIALIZE
 
 	fc := &nodes.FuncCallExpr{
-		FuncName: &nodes.ObjectName{Name: "XMLSERIALIZE"},
+		FuncName: &nodes.ObjectName{Name: "XMLSERIALIZE", Loc: nodes.Loc{Start: start, End: p.prev.End}},
 		Args:     &nodes.List{},
 		Loc:      nodes.Loc{Start: start},
 	}
 
 	if p.cur.Type != '(' {
-		fc.Loc.End = p.pos()
-		return fc
+		fc.Loc.End = p.prev.End
+		return fc, nil
 	}
 	p.advance() // consume '('
 
@@ -1678,7 +2031,10 @@ func (p *Parser) parseXmlSerialize() nodes.ExprNode {
 		p.advance()
 	}
 
-	arg := p.parseExpr()
+	arg, parseErr761 := p.parseExpr()
+	if parseErr761 != nil {
+		return nil, parseErr761
+	}
 	if arg != nil {
 		fc.Args.Items = append(fc.Args.Items, arg)
 	}
@@ -1686,7 +2042,10 @@ func (p *Parser) parseXmlSerialize() nodes.ExprNode {
 	// AS type
 	if p.cur.Type == kwAS {
 		p.advance()
-		typeName := p.parseTypeName()
+		typeName, parseErr762 := p.parseTypeName()
+		if parseErr762 != nil {
+			return nil, parseErr762
+		}
 		if typeName != nil {
 			fc.Args.Items = append(fc.Args.Items, typeName)
 		}

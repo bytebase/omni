@@ -322,13 +322,17 @@ PROGRESS_SUMMARY.json                  # Progress summary
 | L6 Completion | ✅ 100% | 9 phases | |
 | L7 Integration | ❌ Not started | — | |
 
-### Oracle — Earliest Stage
+### Oracle — Parser Layer Defended
 
 | Layer | Status | Notes |
 |-------|--------|-------|
-| L1 Parser | 🔧 In progress | Corpus verifier running |
-| L2 Loc | 🔧 In progress | Foundation alignment |
-| L3–L7 | ❌ Not started | |
+| L1 Parser | ✅ Parser defenses complete | 445/445 `parse*` methods return errors; 0 silent parser error discards |
+| L2 Loc | ✅ Parser Loc complete | `-1/-1` sentinel, mixed-sentinel rejection, corpus Loc hard gate, 152 direct Loc fixtures |
+| L3 Keyword | ✅ Parser keyword matrix complete | 344-row exhaustive manifest plus Oracle 26ai SQL reserved-word audit |
+| L4 Strict/Soft-fail/Coverage | ⚠️ Strict accounting, partial grammar support | 62 soft-fail, 121 strictness, 171 BNF rows classified, high-value BNF gaps closed, non-covered BNF rows require approval metadata |
+| L5 Corpus | ✅ Current corpus clean | 128 statements, 125 parser accepts, 3 expected rejects, 0 parse violations, 0 Loc violations, 0 crashes |
+| L6 Completion | ❌ Scoped, not implemented | Scope plan: `docs/plans/2026-04-28-oracle-completion-scope.md` |
+| L7 Integration | ❌ Not started | Catalog/migration not in parser-layer scope |
 
 ---
 

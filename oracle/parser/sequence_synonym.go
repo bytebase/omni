@@ -23,7 +23,7 @@ import (
 //	    [ { SCALE { EXTEND | NOEXTEND } | NOSCALE } ]
 //	    [ { SESSION | GLOBAL } ]
 //	    [ SHARD ] ;
-func (p *Parser) parseCreateSequenceStmt(start int) *nodes.CreateSequenceStmt {
+func (p *Parser) parseCreateSequenceStmt(start int) (*nodes.CreateSequenceStmt, error) {
 	stmt := &nodes.CreateSequenceStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -32,19 +32,30 @@ func (p *Parser) parseCreateSequenceStmt(start int) *nodes.CreateSequenceStmt {
 	if p.cur.Type == kwSEQUENCE {
 		p.advance()
 	}
+	var parseErr1098 error
 
 	// Sequence name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr1098 = p.parseObjectName()
+	if parseErr1098 !=
 
-	// Parse sequence options
-	p.parseSequenceOptions(stmt)
+		// Parse sequence options
+		nil {
+		return nil, parseErr1098
+	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+	parseErr1099 := p.parseSequenceOptions(stmt)
+	if parseErr1099 != nil {
+		return nil, parseErr1099
+	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseSequenceOptions parses the various options for CREATE SEQUENCE.
-func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) {
+func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 	for {
 		switch p.cur.Type {
 		case kwINCREMENT:
@@ -52,22 +63,38 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) {
 			if p.cur.Type == kwBY {
 				p.advance()
 			}
-			stmt.IncrementBy = p.parseExpr()
+			var parseErr1100 error
+			stmt.IncrementBy, parseErr1100 = p.parseExpr()
+			if parseErr1100 != nil {
+				return parseErr1100
+			}
 		case kwSTART:
 			p.advance()
 			if p.cur.Type == kwWITH {
 				p.advance()
 			}
-			stmt.StartWith = p.parseExpr()
+			var parseErr1101 error
+			stmt.StartWith, parseErr1101 = p.parseExpr()
+			if parseErr1101 != nil {
+				return parseErr1101
+			}
 		case kwMAXVALUE:
 			p.advance()
-			stmt.MaxValue = p.parseExpr()
+			var parseErr1102 error
+			stmt.MaxValue, parseErr1102 = p.parseExpr()
+			if parseErr1102 != nil {
+				return parseErr1102
+			}
 		case kwNOMAXVALUE:
 			stmt.NoMaxValue = true
 			p.advance()
 		case kwMINVALUE:
 			p.advance()
-			stmt.MinValue = p.parseExpr()
+			var parseErr1103 error
+			stmt.MinValue, parseErr1103 = p.parseExpr()
+			if parseErr1103 != nil {
+				return parseErr1103
+			}
 		case kwNOMINVALUE:
 			stmt.NoMinValue = true
 			p.advance()
@@ -79,7 +106,11 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) {
 			p.advance()
 		case kwCACHE:
 			p.advance()
-			stmt.Cache = p.parseExpr()
+			var parseErr1104 error
+			stmt.Cache, parseErr1104 = p.parseExpr()
+			if parseErr1104 != nil {
+				return parseErr1104
+			}
 		case kwNOCACHE:
 			stmt.NoCache = true
 			p.advance()
@@ -90,9 +121,10 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) {
 			stmt.NoOrder = true
 			p.advance()
 		default:
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // parseCreateSynonymStmt parses a CREATE [OR REPLACE] [PUBLIC] SYNONYM statement.
@@ -106,7 +138,7 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) {
 //	    [ PUBLIC ] SYNONYM [ schema. ] synonym
 //	    [ SHARING = { METADATA | NONE } ]
 //	    FOR [ schema. ] object [ @ dblink ] ;
-func (p *Parser) parseCreateSynonymStmt(start int, orReplace, public bool) *nodes.CreateSynonymStmt {
+func (p *Parser) parseCreateSynonymStmt(start int, orReplace, public bool) (*nodes.CreateSynonymStmt, error) {
 	stmt := &nodes.CreateSynonymStmt{
 		OrReplace: orReplace,
 		Public:    public,
@@ -117,18 +149,35 @@ func (p *Parser) parseCreateSynonymStmt(start int, orReplace, public bool) *node
 	if p.cur.Type == kwSYNONYM {
 		p.advance()
 	}
+	var parseErr1105 error
 
 	// Synonym name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr1105 = p.parseObjectName()
+	if parseErr1105 !=
 
-	// FOR target
-	if p.cur.Type == kwFOR {
-		p.advance()
+		// FOR target
+		nil {
+		return nil, parseErr1105
 	}
-	stmt.Target = p.parseObjectName()
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	if p.cur.Type != kwFOR {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	var parseErr1106 error
+	stmt.Target, parseErr1106 = p.parseObjectName()
+	if parseErr1106 != nil {
+		return nil, parseErr1106
+	}
+	if stmt.Target == nil || stmt.Target.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateDatabaseLinkStmt parses a CREATE [PUBLIC] DATABASE LINK statement.
@@ -149,7 +198,7 @@ func (p *Parser) parseCreateSynonymStmt(start int, orReplace, public bool) *node
 //
 //	dblink_authentication:
 //	    AUTHENTICATED BY user IDENTIFIED BY password
-func (p *Parser) parseCreateDatabaseLinkStmt(start int, public bool) *nodes.CreateDatabaseLinkStmt {
+func (p *Parser) parseCreateDatabaseLinkStmt(start int, public bool) (*nodes.CreateDatabaseLinkStmt, error) {
 	stmt := &nodes.CreateDatabaseLinkStmt{
 		Public: public,
 		Loc:    nodes.Loc{Start: start},
@@ -164,28 +213,44 @@ func (p *Parser) parseCreateDatabaseLinkStmt(start int, public bool) *nodes.Crea
 	if p.cur.Type == kwLINK {
 		p.advance()
 	}
+	var parseErr1107 error
 
 	// Link name
-	stmt.Name = p.parseIdentifier()
+	stmt.Name, parseErr1107 = p.parseIdentifier()
+	if parseErr1107 !=
 
-	// CONNECT TO user IDENTIFIED BY password
+		// CONNECT TO user IDENTIFIED BY password
+		nil {
+		return nil, parseErr1107
+	}
+
 	if p.cur.Type == kwCONNECT {
 		p.advance()
 		if p.cur.Type == kwTO {
 			p.advance()
 		}
-		stmt.ConnectTo = p.parseIdentifier()
+		var parseErr1108 error
+		stmt.ConnectTo, parseErr1108 = p.parseIdentifier()
+		if parseErr1108 != nil {
+			return nil, parseErr1108
+		}
 
 		if p.cur.Type == kwIDENTIFIED {
 			p.advance()
 			if p.cur.Type == kwBY {
 				p.advance()
 			}
-			stmt.Identified = p.parseIdentifier()
+			var parseErr1109 error
+			stmt.Identified, parseErr1109 = p.parseIdentifier()
+			if parseErr1109 !=
+
+				// USING 'connect_string'
+				nil {
+				return nil, parseErr1109
+			}
 		}
 	}
 
-	// USING 'connect_string'
 	if p.cur.Type == kwUSING {
 		p.advance()
 		if p.cur.Type == tokSCONST {
@@ -194,6 +259,6 @@ func (p *Parser) parseCreateDatabaseLinkStmt(start int, public bool) *nodes.Crea
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }

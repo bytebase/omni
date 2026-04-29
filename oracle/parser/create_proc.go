@@ -13,7 +13,7 @@ import (
 //	    PROCEDURE [ schema. ] procedure_name
 //	    [ SHARING = { METADATA | NONE } ]
 //	    plsql_procedure_source ;
-func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) *nodes.CreateProcedureStmt {
+func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) (*nodes.CreateProcedureStmt, error) {
 	p.advance() // consume PROCEDURE
 
 	stmt := &nodes.CreateProcedureStmt{
@@ -23,11 +23,17 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 		NonEditionable: nonEditionable,
 		Loc:            nodes.Loc{Start: start},
 	}
+	var parseErr454 error
 
 	// Procedure name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr454 = p.parseObjectName()
+	if parseErr454 !=
 
-	// Optional SHARING = { METADATA | NONE }
+		// Optional SHARING = { METADATA | NONE }
+		nil {
+		return nil, parseErr454
+	}
+
 	if p.isIdentLikeStr("SHARING") {
 		p.advance() // consume SHARING
 		if p.cur.Type == '=' {
@@ -41,19 +47,29 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 
 	// Optional parameter list
 	if p.cur.Type == '(' {
-		stmt.Parameters = p.parseParameterList()
+		var parseErr455 error
+		stmt.Parameters, parseErr455 = p.parseParameterList()
+		if parseErr455 !=
+
+			// IS | AS
+			nil {
+			return nil, parseErr455
+		}
 	}
 
-	// IS | AS
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
 	}
+	var parseErr456 error
 
 	// PL/SQL block body (BEGIN ... END)
-	stmt.Body = p.parsePLSQLBlock()
+	stmt.Body, parseErr456 = p.parsePLSQLBlock()
+	if parseErr456 != nil {
+		return nil, parseErr456
+	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateFunctionStmt parses a CREATE [OR REPLACE] FUNCTION statement.
@@ -76,7 +92,7 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 //	      | sql_macro_clause }... ]
 //	    { IS | AS }
 //	    { plsql_function_source | call_spec } ;
-func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) *nodes.CreateFunctionStmt {
+func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) (*nodes.CreateFunctionStmt, error) {
 	p.advance() // consume FUNCTION
 
 	stmt := &nodes.CreateFunctionStmt{
@@ -98,22 +114,41 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 		}
 	}
 	stmt.IfNotExists = ifNotExists
+	var parseErr457 error
 
 	// Function name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr457 = p.parseObjectName()
+	if parseErr457 !=
 
-	// Optional parameter list
+		// Optional parameter list
+		nil {
+		return nil, parseErr457
+	}
+
 	if p.cur.Type == '(' {
-		stmt.Parameters = p.parseParameterList()
+		var parseErr458 error
+		stmt.Parameters, parseErr458 = p.parseParameterList()
+		if parseErr458 !=
+
+			// RETURN type
+			nil {
+			return nil, parseErr458
+		}
 	}
 
-	// RETURN type
 	if p.cur.Type == kwRETURN {
-		p.advance() // consume RETURN
-		stmt.ReturnType = p.parseTypeName()
+		p.advance()
+		var // consume RETURN
+		parseErr459 error
+		stmt.ReturnType, parseErr459 = p.parseTypeName()
+		if parseErr459 !=
+
+			// Optional SHARING = { METADATA | NONE }
+			nil {
+			return nil, parseErr459
+		}
 	}
 
-	// Optional SHARING = { METADATA | NONE }
 	if p.isIdentLikeStr("SHARING") {
 		p.advance() // consume SHARING
 		if p.cur.Type == '=' {
@@ -124,25 +159,35 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 			p.advance()
 		}
 	}
+	parseErr460 :=
 
-	// Optional function properties (can appear in any order before IS/AS)
-	p.parseFunctionProperties(stmt)
+		// Optional function properties (can appear in any order before IS/AS)
+		p.parseFunctionProperties(stmt)
+	if parseErr460 !=
 
-	// IS | AS
+		// IS | AS
+		nil {
+		return nil, parseErr460
+	}
+
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
 	}
+	var parseErr461 error
 
 	// PL/SQL block body (BEGIN ... END)
-	stmt.Body = p.parsePLSQLBlock()
+	stmt.Body, parseErr461 = p.parsePLSQLBlock()
+	if parseErr461 != nil {
+		return nil, parseErr461
+	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseFunctionProperties parses optional DETERMINISTIC, PIPELINED, PARALLEL_ENABLE, RESULT_CACHE,
 // AGGREGATE USING, SQL_MACRO, AUTHID, and other function property clauses.
-func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) {
+func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) error {
 	for {
 		switch {
 		case p.cur.Type == kwDETERMINISTIC:
@@ -161,8 +206,14 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) {
 			stmt.Aggregate = true
 			p.advance() // consume AGGREGATE
 			if p.cur.Type == kwUSING {
-				p.advance() // consume USING
-				p.parseObjectName() // consume implementation type
+				p.advance()
+				parseDiscard463, // consume USING
+					parseErr462 := p.parseObjectName()
+				_ = // consume implementation type
+					parseDiscard463
+				if parseErr462 != nil {
+					return parseErr462
+				}
 			}
 		case p.isIdentLikeStr("SQL_MACRO"):
 			stmt.SqlMacro = true
@@ -192,7 +243,11 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) {
 			if p.cur.Type == '(' {
 				p.advance()
 				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					p.parseObjectName()
+					parseDiscard465, parseErr464 := p.parseObjectName()
+					_ = parseDiscard465
+					if parseErr464 != nil {
+						return parseErr464
+					}
 					if p.cur.Type != ',' {
 						break
 					}
@@ -210,9 +265,10 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) {
 				p.advance() // consume collation name
 			}
 		default:
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // parseCreatePackageStmt parses a CREATE [OR REPLACE] PACKAGE [BODY] statement.
@@ -235,7 +291,7 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) {
 //	    PACKAGE BODY [ schema. ] package_name
 //	    { IS | AS }
 //	    plsql_package_body_source ;
-func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) *nodes.CreatePackageStmt {
+func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) (*nodes.CreatePackageStmt, error) {
 	p.advance() // consume PACKAGE
 
 	stmt := &nodes.CreatePackageStmt{
@@ -251,11 +307,17 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 		stmt.IsBody = true
 		p.advance() // consume BODY
 	}
+	var parseErr466 error
 
 	// Package name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr466 = p.parseObjectName()
+	if parseErr466 !=
 
-	// Optional SHARING = { METADATA | NONE }
+		// Optional SHARING = { METADATA | NONE }
+		nil {
+		return nil, parseErr466
+	}
+
 	if p.isIdentLikeStr("SHARING") {
 		p.advance() // consume SHARING
 		if p.cur.Type == '=' {
@@ -276,8 +338,13 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 		if p.cur.Type == '(' {
 			p.advance()
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				// Each accessor: [ unit_kind ] [ schema. ] unit_name
-				p.parseObjectName()
+				parseDiscard468,
+					// Each accessor: [ unit_kind ] [ schema. ] unit_name
+					parseErr467 := p.parseObjectName()
+				_ = parseDiscard468
+				if parseErr467 != nil {
+					return nil, parseErr467
+				}
 				if p.cur.Type != ',' {
 					break
 				}
@@ -301,11 +368,17 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
 	}
+	var parseErr469 error
 
 	// Package declarations/body - collect everything until END
-	stmt.Body = p.parsePackageBody()
+	stmt.Body, parseErr469 = p.parsePackageBody()
+	if parseErr469 !=
 
-	// END [name] ;
+		// END [name] ;
+		nil {
+		return nil, parseErr469
+	}
+
 	if p.cur.Type == kwEND {
 		p.advance() // consume END
 	}
@@ -317,13 +390,13 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 		p.advance() // consume ;
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parsePackageBody parses the declarations inside a package specification or body.
 // Stops when END is encountered.
-func (p *Parser) parsePackageBody() *nodes.List {
+func (p *Parser) parsePackageBody() (*nodes.List, error) {
 	decls := &nodes.List{}
 
 	for p.cur.Type != kwEND && p.cur.Type != tokEOF {
@@ -335,7 +408,10 @@ func (p *Parser) parsePackageBody() *nodes.List {
 
 		// PROCEDURE declaration/definition in package
 		if p.cur.Type == kwPROCEDURE {
-			decl := p.parsePackageProcDecl()
+			decl, parseErr470 := p.parsePackageProcDecl()
+			if parseErr470 != nil {
+				return nil, parseErr470
+			}
 			if decl != nil {
 				decls.Items = append(decls.Items, decl)
 			}
@@ -344,7 +420,10 @@ func (p *Parser) parsePackageBody() *nodes.List {
 
 		// FUNCTION declaration/definition in package
 		if p.cur.Type == kwFUNCTION {
-			decl := p.parsePackageFuncDecl()
+			decl, parseErr471 := p.parsePackageFuncDecl()
+			if parseErr471 != nil {
+				return nil, parseErr471
+			}
 			if decl != nil {
 				decls.Items = append(decls.Items, decl)
 			}
@@ -357,96 +436,147 @@ func (p *Parser) parsePackageBody() *nodes.List {
 		}
 
 		// Variable/type/cursor declarations
-		decl := p.parsePLSQLDeclaration()
+		decl, parseErr472 := p.parsePLSQLDeclaration()
+		if parseErr472 != nil {
+			return nil,
+
+				// If we can't parse anything, skip a token to avoid infinite loop
+				parseErr472
+		}
 		if decl == nil {
-			// If we can't parse anything, skip a token to avoid infinite loop
+
 			p.advance()
 			continue
 		}
 		decls.Items = append(decls.Items, decl)
 	}
 
-	return decls
+	return decls, nil
 }
 
 // parsePackageProcDecl parses a PROCEDURE declaration or definition inside a package.
 //
 //	PROCEDURE name [(params)] ;                    -- specification
 //	PROCEDURE name [(params)] IS|AS body ;         -- body definition
-func (p *Parser) parsePackageProcDecl() *nodes.CreateProcedureStmt {
+func (p *Parser) parsePackageProcDecl() (*nodes.CreateProcedureStmt, error) {
 	start := p.pos()
 	p.advance() // consume PROCEDURE
 
 	stmt := &nodes.CreateProcedureStmt{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr473 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr473 = p.parseObjectName()
+	if parseErr473 !=
 
-	// Optional parameter list
-	if p.cur.Type == '(' {
-		stmt.Parameters = p.parseParameterList()
+		// Optional parameter list
+		nil {
+		return nil, parseErr473
 	}
 
-	// Check for IS|AS (definition) or ; (declaration)
+	if p.cur.Type == '(' {
+		var parseErr474 error
+		stmt.Parameters, parseErr474 = p.parseParameterList()
+		if parseErr474 !=
+
+			// Check for IS|AS (definition) or ; (declaration)
+			nil {
+			return nil, parseErr474
+		}
+	}
+
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
-		stmt.Body = p.parsePLSQLBlock()
+		var parseErr475 error
+		stmt.Body, parseErr475 = p.parsePLSQLBlock()
+		if parseErr475 != nil {
+			return nil, parseErr475
+		}
 	} else if p.cur.Type == ';' {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parsePackageFuncDecl parses a FUNCTION declaration or definition inside a package.
 //
 //	FUNCTION name [(params)] RETURN type ;                    -- specification
 //	FUNCTION name [(params)] RETURN type IS|AS body ;         -- body definition
-func (p *Parser) parsePackageFuncDecl() *nodes.CreateFunctionStmt {
+func (p *Parser) parsePackageFuncDecl() (*nodes.CreateFunctionStmt, error) {
 	start := p.pos()
 	p.advance() // consume FUNCTION
 
 	stmt := &nodes.CreateFunctionStmt{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr476 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr476 = p.parseObjectName()
+	if parseErr476 !=
 
-	// Optional parameter list
-	if p.cur.Type == '(' {
-		stmt.Parameters = p.parseParameterList()
+		// Optional parameter list
+		nil {
+		return nil, parseErr476
 	}
 
-	// RETURN type
+	if p.cur.Type == '(' {
+		var parseErr477 error
+		stmt.Parameters, parseErr477 = p.parseParameterList()
+		if parseErr477 !=
+
+			// RETURN type
+			nil {
+			return nil, parseErr477
+		}
+	}
+
 	if p.cur.Type == kwRETURN {
 		p.advance()
-		stmt.ReturnType = p.parseTypeName()
+		var parseErr478 error
+		stmt.ReturnType, parseErr478 = p.parseTypeName()
+		if parseErr478 !=
+
+			// Optional function properties
+			nil {
+			return nil, parseErr478
+		}
+	}
+	parseErr479 := p.parseFunctionProperties(stmt)
+	if parseErr479 !=
+
+		// Check for IS|AS (definition) or ; (declaration)
+		nil {
+		return nil, parseErr479
 	}
 
-	// Optional function properties
-	p.parseFunctionProperties(stmt)
-
-	// Check for IS|AS (definition) or ; (declaration)
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
-		stmt.Body = p.parsePLSQLBlock()
+		var parseErr480 error
+		stmt.Body, parseErr480 = p.parsePLSQLBlock()
+		if parseErr480 != nil {
+			return nil, parseErr480
+		}
 	} else if p.cur.Type == ';' {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseParameterList parses a parenthesized parameter list: ( param1, param2, ... )
-func (p *Parser) parseParameterList() *nodes.List {
+func (p *Parser) parseParameterList() (*nodes.List, error) {
 	params := &nodes.List{}
 	p.advance() // consume '('
 
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		param := p.parseParameter()
+		param, parseErr481 := p.parseParameter()
+		if parseErr481 != nil {
+			return nil, parseErr481
+		}
 		if param != nil {
 			params.Items = append(params.Items, param)
 		}
@@ -461,46 +591,71 @@ func (p *Parser) parseParameterList() *nodes.List {
 		p.advance() // consume ')'
 	}
 
-	return params
+	return params, nil
 }
 
 // parseParameter parses a single parameter declaration.
 //
 //	name [IN | OUT | IN OUT] [NOCOPY] type [{:= | DEFAULT} expr]
-func (p *Parser) parseParameter() *nodes.Parameter {
+func (p *Parser) parseParameter() (*nodes.Parameter, error) {
 	start := p.pos()
 	param := &nodes.Parameter{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr482 error
 
 	// Parameter name
-	param.Name = p.parseIdentifier()
+	param.Name, parseErr482 = p.parseIdentifier()
+	if parseErr482 != nil {
+		return nil, parseErr482
+	}
 	if param.Name == "" {
-		return nil
+		return nil, nil
 	}
 
 	// Optional mode: IN, OUT, IN OUT
-	mode := p.parseParameterMode()
+	mode, parseErr483 := p.parseParameterMode()
+	if parseErr483 != nil {
+		return nil,
+
+			// Type name
+			parseErr483
+	}
 	param.Mode = mode
+	var parseErr484 error
 
-	// Type name
-	param.TypeName = p.parseTypeName()
+	param.TypeName, parseErr484 = p.parseTypeName()
+	if parseErr484 !=
 
-	// Optional default value: := expr or DEFAULT expr
-	if p.cur.Type == tokASSIGN {
-		p.advance() // consume :=
-		param.Default = p.parseExpr()
-	} else if p.cur.Type == kwDEFAULT {
-		p.advance() // consume DEFAULT
-		param.Default = p.parseExpr()
+		// Optional default value: := expr or DEFAULT expr
+		nil {
+		return nil, parseErr484
 	}
 
-	param.Loc.End = p.pos()
-	return param
+	if p.cur.Type == tokASSIGN {
+		p.advance()
+		var // consume :=
+		parseErr485 error
+		param.Default, parseErr485 = p.parseExpr()
+		if parseErr485 != nil {
+			return nil, parseErr485
+		}
+	} else if p.cur.Type == kwDEFAULT {
+		p.advance()
+		var // consume DEFAULT
+		parseErr486 error
+		param.Default, parseErr486 = p.parseExpr()
+		if parseErr486 != nil {
+			return nil, parseErr486
+		}
+	}
+
+	param.Loc.End = p.prev.End
+	return param, nil
 }
 
 // parseParameterMode parses the optional IN/OUT/IN OUT/NOCOPY mode keywords.
-func (p *Parser) parseParameterMode() string {
+func (p *Parser) parseParameterMode() (string, error) {
 	if p.cur.Type == kwIN {
 		next := p.peekNext()
 		if next.Type == kwOUT {
@@ -509,21 +664,21 @@ func (p *Parser) parseParameterMode() string {
 			// Optional NOCOPY after IN OUT
 			if p.cur.Type == kwNOCOPY {
 				p.advance()
-				return "IN OUT NOCOPY"
+				return "IN OUT NOCOPY", nil
 			}
-			return "IN OUT"
+			return "IN OUT", nil
 		}
 		p.advance() // consume IN
-		return "IN"
+		return "IN", nil
 	}
 	if p.cur.Type == kwOUT {
 		p.advance() // consume OUT
 		// Optional NOCOPY after OUT
 		if p.cur.Type == kwNOCOPY {
 			p.advance()
-			return "OUT NOCOPY"
+			return "OUT NOCOPY", nil
 		}
-		return "OUT"
+		return "OUT", nil
 	}
-	return ""
+	return "", nil
 }

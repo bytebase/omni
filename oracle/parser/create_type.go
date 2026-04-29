@@ -26,7 +26,7 @@ import (
 //	      { IS | AS } { [ declare_section ] BEGIN statement... [EXCEPTION ...] END [name] ; }
 //	  } ...
 //	END [ type_name ] ;
-func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) *nodes.CreateTypeStmt {
+func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) (*nodes.CreateTypeStmt, error) {
 	stmt := &nodes.CreateTypeStmt{
 		OrReplace:      orReplace,
 		IfNotExists:    ifNotExists,
@@ -45,11 +45,17 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 		stmt.IsBody = true
 		p.advance()
 	}
+	var parseErr573 error
 
 	// Type name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr573 = p.parseObjectName()
+	if parseErr573 !=
 
-	// AS or IS
+		// AS or IS
+		nil {
+		return nil, parseErr573
+	}
+
 	if p.cur.Type == kwAS || p.cur.Type == kwIS {
 		p.advance()
 	}
@@ -64,7 +70,11 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 		p.advance()
 		if p.cur.Type == '(' {
 			p.advance()
-			stmt.Attributes = p.parseTypeAttributeList()
+			var parseErr574 error
+			stmt.Attributes, parseErr574 = p.parseTypeAttributeList()
+			if parseErr574 != nil {
+				return nil, parseErr574
+			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}
@@ -75,7 +85,11 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 		if p.cur.Type == kwOF {
 			p.advance()
 		}
-		stmt.AsTable = p.parseTypeName()
+		var parseErr575 error
+		stmt.AsTable, parseErr575 = p.parseTypeName()
+		if parseErr575 != nil {
+			return nil, parseErr575
+		}
 
 	case p.cur.Type == kwVARRAY || p.isIdentLikeStr("VARYING"):
 		p.advance()
@@ -86,7 +100,11 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 		// ( size_limit )
 		if p.cur.Type == '(' {
 			p.advance()
-			stmt.VarraySize = p.parseExpr()
+			var parseErr576 error
+			stmt.VarraySize, parseErr576 = p.parseExpr()
+			if parseErr576 != nil {
+				return nil, parseErr576
+			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}
@@ -94,14 +112,27 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 		if p.cur.Type == kwOF {
 			p.advance()
 		}
-		stmt.AsVarray = p.parseTypeName()
+		var parseErr577 error
+		stmt.AsVarray, parseErr577 = p.parseTypeName()
+		if parseErr577 !=
+
+			// For TYPE BODY, parse structured members.
+			nil {
+			return nil, parseErr577
+		}
 
 	default:
-		// For TYPE BODY, parse structured members.
-		if stmt.IsBody {
-			stmt.Body = p.parseTypeBodyMembers()
 
-			// END [type_name] ;
+		if stmt.IsBody {
+			var parseErr578 error
+			stmt.Body, parseErr578 = p.parseTypeBodyMembers()
+			if parseErr578 !=
+
+				// END [type_name] ;
+				nil {
+				return nil, parseErr578
+			}
+
 			if p.cur.Type == kwEND {
 				p.advance()
 			}
@@ -115,8 +146,8 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseTypeBodyMembers parses the member definitions inside a CREATE TYPE BODY.
@@ -131,7 +162,7 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 //	    [ ( [ SELF IN OUT type_name , ] parameter [, ...] ) ]
 //	    RETURN SELF AS RESULT
 //	    { IS | AS } plsql_block
-func (p *Parser) parseTypeBodyMembers() *nodes.List {
+func (p *Parser) parseTypeBodyMembers() (*nodes.List, error) {
 	members := &nodes.List{}
 
 	for p.cur.Type != kwEND && p.cur.Type != tokEOF {
@@ -141,14 +172,17 @@ func (p *Parser) parseTypeBodyMembers() *nodes.List {
 			continue
 		}
 
-		member := p.parseTypeBodyMember()
+		member, parseErr579 := p.parseTypeBodyMember()
+		if parseErr579 != nil {
+			return nil, parseErr579
+		}
 		if member == nil {
 			break
 		}
 		members.Items = append(members.Items, member)
 	}
 
-	return members
+	return members, nil
 }
 
 // parseTypeBodyMember parses a single type body member definition.
@@ -161,7 +195,7 @@ func (p *Parser) parseTypeBodyMembers() *nodes.List {
 //	  | CONSTRUCTOR FUNCTION type_name
 //	    [ ( [ SELF IN OUT [NOCOPY] type_name , ] parameter [, ...] ) ]
 //	    RETURN SELF AS RESULT IS|AS plsql_block
-func (p *Parser) parseTypeBodyMember() *nodes.TypeBodyMember {
+func (p *Parser) parseTypeBodyMember() (*nodes.TypeBodyMember, error) {
 	start := p.pos()
 	member := &nodes.TypeBodyMember{
 		Loc: nodes.Loc{Start: start},
@@ -198,21 +232,29 @@ func (p *Parser) parseTypeBodyMember() *nodes.TypeBodyMember {
 		p.advance() // consume CONSTRUCTOR
 
 	default:
-		return nil
+		return nil, nil
 	}
 
 	// Parse the subprogram (PROCEDURE or FUNCTION)
 	switch {
 	case p.cur.Type == kwPROCEDURE:
-		member.Subprog = p.parseTypeBodyProcedure()
+		var parseErr580 error
+		member.Subprog, parseErr580 = p.parseTypeBodyProcedure()
+		if parseErr580 != nil {
+			return nil, parseErr580
+		}
 	case p.cur.Type == kwFUNCTION:
-		member.Subprog = p.parseTypeBodyFunction(member.Kind == nodes.TYPE_BODY_CONSTRUCTOR)
+		var parseErr581 error
+		member.Subprog, parseErr581 = p.parseTypeBodyFunction(member.Kind == nodes.TYPE_BODY_CONSTRUCTOR)
+		if parseErr581 != nil {
+			return nil, parseErr581
+		}
 	default:
-		return nil
+		return nil, nil
 	}
 
-	member.Loc.End = p.pos()
-	return member
+	member.Loc.End = p.prev.End
+	return member, nil
 }
 
 // parseTypeBodyProcedure parses a PROCEDURE definition inside a type body.
@@ -220,31 +262,47 @@ func (p *Parser) parseTypeBodyMember() *nodes.TypeBodyMember {
 //	PROCEDURE proc_name [ ( parameter [, ...] ) ]
 //	  { IS | AS }
 //	  [ declare_section ] BEGIN statements [ EXCEPTION handlers ] END [ name ] ;
-func (p *Parser) parseTypeBodyProcedure() *nodes.CreateProcedureStmt {
+func (p *Parser) parseTypeBodyProcedure() (*nodes.CreateProcedureStmt, error) {
 	start := p.pos()
 	p.advance() // consume PROCEDURE
 
 	stmt := &nodes.CreateProcedureStmt{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr582 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr582 = p.parseObjectName()
+	if parseErr582 !=
 
-	// Optional parameter list
-	if p.cur.Type == '(' {
-		stmt.Parameters = p.parseParameterList()
+		// Optional parameter list
+		nil {
+		return nil, parseErr582
 	}
 
-	// IS | AS
+	if p.cur.Type == '(' {
+		var parseErr583 error
+		stmt.Parameters, parseErr583 = p.parseParameterList()
+		if parseErr583 !=
+
+			// IS | AS
+			nil {
+			return nil, parseErr583
+		}
+	}
+
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
 	}
+	var parseErr584 error
 
 	// PL/SQL block body
-	stmt.Body = p.parsePLSQLBlock()
+	stmt.Body, parseErr584 = p.parsePLSQLBlock()
+	if parseErr584 != nil {
+		return nil, parseErr584
+	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseTypeBodyFunction parses a FUNCTION definition inside a type body.
@@ -261,22 +319,34 @@ func (p *Parser) parseTypeBodyProcedure() *nodes.CreateProcedureStmt {
 //	  RETURN SELF AS RESULT
 //	  { IS | AS }
 //	  [ declare_section ] BEGIN statements [ EXCEPTION handlers ] END [ name ] ;
-func (p *Parser) parseTypeBodyFunction(isConstructor bool) *nodes.CreateFunctionStmt {
+func (p *Parser) parseTypeBodyFunction(isConstructor bool) (*nodes.CreateFunctionStmt, error) {
 	start := p.pos()
 	p.advance() // consume FUNCTION
 
 	stmt := &nodes.CreateFunctionStmt{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr585 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr585 = p.parseObjectName()
+	if parseErr585 !=
 
-	// Optional parameter list
-	if p.cur.Type == '(' {
-		stmt.Parameters = p.parseParameterList()
+		// Optional parameter list
+		nil {
+		return nil, parseErr585
 	}
 
-	// RETURN type or RETURN SELF AS RESULT
+	if p.cur.Type == '(' {
+		var parseErr586 error
+		stmt.Parameters, parseErr586 = p.parseParameterList()
+		if parseErr586 !=
+
+			// RETURN type or RETURN SELF AS RESULT
+			nil {
+			return nil, parseErr586
+		}
+	}
+
 	if p.cur.Type == kwRETURN {
 		p.advance() // consume RETURN
 		if isConstructor && p.isIdentLikeStr("SELF") {
@@ -293,28 +363,42 @@ func (p *Parser) parseTypeBodyFunction(isConstructor bool) *nodes.CreateFunction
 				Names: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "SELF AS RESULT"}}},
 			}
 		} else {
-			stmt.ReturnType = p.parseTypeName()
+			var parseErr587 error
+			stmt.ReturnType, parseErr587 = p.parseTypeName()
+			if parseErr587 !=
+
+				// Optional function properties
+				nil {
+				return nil, parseErr587
+			}
 		}
 	}
+	parseErr588 := p.parseFunctionProperties(stmt)
+	if parseErr588 !=
 
-	// Optional function properties
-	p.parseFunctionProperties(stmt)
+		// IS | AS
+		nil {
+		return nil, parseErr588
+	}
 
-	// IS | AS
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
 	}
+	var parseErr589 error
 
 	// PL/SQL block body
-	stmt.Body = p.parsePLSQLBlock()
+	stmt.Body, parseErr589 = p.parsePLSQLBlock()
+	if parseErr589 != nil {
+		return nil, parseErr589
+	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseTypeAttributeList parses a comma-separated list of type attributes
 // (attribute_name datatype).
-func (p *Parser) parseTypeAttributeList() *nodes.List {
+func (p *Parser) parseTypeAttributeList() (*nodes.List, error) {
 	list := &nodes.List{}
 	for {
 		if p.cur.Type == ')' || p.cur.Type == tokEOF {
@@ -322,17 +406,23 @@ func (p *Parser) parseTypeAttributeList() *nodes.List {
 		}
 
 		start := p.pos()
-		name := p.parseIdentifier()
+		name, parseErr590 := p.parseIdentifier()
+		if parseErr590 != nil {
+			return nil, parseErr590
+		}
 		if name == "" {
 			break
 		}
 
-		typeName := p.parseTypeName()
+		typeName, parseErr591 := p.parseTypeName()
+		if parseErr591 != nil {
+			return nil, parseErr591
+		}
 
 		colDef := &nodes.ColumnDef{
 			Name:     name,
 			TypeName: typeName,
-			Loc:      nodes.Loc{Start: start, End: p.pos()},
+			Loc:      nodes.Loc{Start: start, End: p.prev.End},
 		}
 		list.Items = append(list.Items, colDef)
 
@@ -341,7 +431,7 @@ func (p *Parser) parseTypeAttributeList() *nodes.List {
 		}
 		p.advance() // consume ','
 	}
-	return list
+	return list, nil
 }
 
 // skipToEndBlock skips tokens until we find END; for TYPE BODY parsing.

@@ -21,12 +21,11 @@ and updated by Insight Workers when blind spots are discovered.
 - 10 infrastructure items — all must have eval tests
 
 ### Known Blind Spots
-- **Loc.End dual-sentinel ambiguity:** The End field comment says "0 means unknown/unset" but NoLoc() uses -1. Stage 2 Loc validation must use -1 only. The End=0 comment in node.go should be corrected.
+- **Resolved:** Loc sentinel ambiguity is closed. `NoLoc()` returns `Loc{-1, -1}`, `Loc.IsUnknown()` recognizes only that exact sentinel, and the Loc verifier rejects mixed sentinel values.
 - **ParseError call sites omit Severity/Code:** All existing `&ParseError{}` constructions rely on defaults. No test verifies that non-default severity/code values are ever set by the parser in practice.
 - **NodeLoc exhaustive switch maintenance:** No compile-time or test-time check ensures NodeLoc covers all node types. A new type added without a NodeLoc case silently returns NoLoc().
-- **Unicode byte offsets untested:** All eval tests use ASCII input. Loc values are byte offsets, but multi-byte characters (UTF-8 Oracle identifiers) could cause Loc.End to be wrong if the lexer counts characters instead of bytes.
-- **Token.End for whitespace/comment tokens:** The lexer skips whitespace and comments internally. Token.End tracking for comment-spanning tokens is untested.
-- **Parser.source field not verified in Parse():** The eval test checks the field exists via reflect but does not verify Parse() actually sets it (it only constructs a Parser directly).
+- **Unicode byte offsets:** Parser Loc contract now includes quoted identifiers and byte-span checks, but broader UTF-8 identifier fixtures are still needed.
+- **Token.End for skipped trivia:** Hint comment spans are covered; ordinary whitespace and non-hint comments are skipped and still need explicit token-level tests if exposed later.
 
 ---
 
@@ -49,7 +48,7 @@ and updated by Insight Workers when blind spots are discovered.
 - Parse → walk → verify Loc.Start >= 0 && Loc.End > Loc.Start
 
 ### Known Blind Spots
-(initially empty)
+- Coverage is currently scenario-based and corpus-based, not yet mapped to all 248 Loc-bearing struct types.
 
 ---
 
@@ -72,7 +71,7 @@ and updated by Insight Workers when blind spots are discovered.
 - Real-world Oracle SQL corpus → validated against Oracle DB
 
 ### Known Blind Spots
-(initially empty)
+- Parser error propagation, soft-fail, strictness, keyword, corpus, and Loc defenses are now measured by `TestOracleParserProgress` (445/445 parse methods, 62 soft-fail scenarios, 29 strictness scenarios, 62 keyword golden scenarios); full BNF branch coverage remains a Stage 3/4 expansion item.
 
 ---
 

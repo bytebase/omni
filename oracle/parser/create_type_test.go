@@ -8,7 +8,10 @@ import (
 
 func TestParseCreateTypeObject(t *testing.T) {
 	p := newTestParser("TYPE address_t AS OBJECT (street VARCHAR2(100), city VARCHAR2(50), zip NUMBER(5))")
-	stmt := p.parseCreateTypeStmt(0, false, false, false, false)
+	stmt, parseErr1 := p.parseCreateTypeStmt(0, false, false, false, false)
+	if parseErr1 != nil {
+		t.Fatalf("parse: %v", parseErr1)
+	}
 	if stmt == nil {
 		t.Fatal("expected CreateTypeStmt, got nil")
 	}
@@ -29,7 +32,10 @@ func TestParseCreateTypeObject(t *testing.T) {
 
 func TestParseCreateTypeOrReplace(t *testing.T) {
 	p := newTestParser("TYPE my_type AS OBJECT (id NUMBER)")
-	stmt := p.parseCreateTypeStmt(0, true, false, false, false)
+	stmt, parseErr2 := p.parseCreateTypeStmt(0, true, false, false, false)
+	if parseErr2 != nil {
+		t.Fatalf("parse: %v", parseErr2)
+	}
 	if !stmt.OrReplace {
 		t.Error("expected OrReplace to be true")
 	}
@@ -37,7 +43,10 @@ func TestParseCreateTypeOrReplace(t *testing.T) {
 
 func TestParseCreateTypeTableOf(t *testing.T) {
 	p := newTestParser("TYPE num_table AS TABLE OF NUMBER")
-	stmt := p.parseCreateTypeStmt(0, false, false, false, false)
+	stmt, parseErr3 := p.parseCreateTypeStmt(0, false, false, false, false)
+	if parseErr3 != nil {
+		t.Fatalf("parse: %v", parseErr3)
+	}
 	if stmt.AsTable == nil {
 		t.Fatal("expected non-nil AsTable")
 	}
@@ -52,7 +61,10 @@ func TestParseCreateTypeTableOf(t *testing.T) {
 
 func TestParseCreateTypeVarray(t *testing.T) {
 	p := newTestParser("TYPE phone_list AS VARRAY (10) OF VARCHAR2(20)")
-	stmt := p.parseCreateTypeStmt(0, false, false, false, false)
+	stmt, parseErr4 := p.parseCreateTypeStmt(0, false, false, false, false)
+	if parseErr4 != nil {
+		t.Fatalf("parse: %v", parseErr4)
+	}
 	if stmt.AsVarray == nil {
 		t.Fatal("expected non-nil AsVarray")
 	}
@@ -67,7 +79,10 @@ func TestParseCreateTypeVarray(t *testing.T) {
 
 func TestParseCreateTypeBody(t *testing.T) {
 	p := newTestParser("TYPE BODY my_type IS BEGIN NULL; END my_type")
-	stmt := p.parseCreateTypeStmt(0, false, false, false, false)
+	stmt, parseErr5 := p.parseCreateTypeStmt(0, false, false, false, false)
+	if parseErr5 != nil {
+		t.Fatalf("parse: %v", parseErr5)
+	}
 	if !stmt.IsBody {
 		t.Error("expected IsBody to be true")
 	}
@@ -78,7 +93,10 @@ func TestParseCreateTypeBody(t *testing.T) {
 
 func TestParseCreateTypeSchemaQualified(t *testing.T) {
 	p := newTestParser("TYPE hr.address_t AS OBJECT (id NUMBER)")
-	stmt := p.parseCreateTypeStmt(0, false, false, false, false)
+	stmt, parseErr6 := p.parseCreateTypeStmt(0, false, false, false, false)
+	if parseErr6 != nil {
+		t.Fatalf("parse: %v", parseErr6)
+	}
 	if stmt.Name == nil || stmt.Name.Schema != "HR" || stmt.Name.Name != "ADDRESS_T" {
 		t.Errorf("expected HR.ADDRESS_T, got %v", stmt.Name)
 	}
@@ -86,7 +104,10 @@ func TestParseCreateTypeSchemaQualified(t *testing.T) {
 
 func TestParseCreateTypeLoc(t *testing.T) {
 	p := newTestParser("TYPE t AS OBJECT (id NUMBER)")
-	stmt := p.parseCreateTypeStmt(0, false, false, false, false)
+	stmt, parseErr7 := p.parseCreateTypeStmt(0, false, false, false, false)
+	if parseErr7 != nil {
+		t.Fatalf("parse: %v", parseErr7)
+	}
 	if stmt.Loc.Start != 0 {
 		t.Errorf("expected Loc.Start=0, got %d", stmt.Loc.Start)
 	}

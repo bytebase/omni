@@ -32,7 +32,7 @@ import (
 //	    [ NEVER REFRESH ]
 //	    [ ENABLE | DISABLE QUERY REWRITE ]
 //	    AS select_statement
-func (p *Parser) parseCreateViewStmt(start int, orReplace bool) *nodes.CreateViewStmt {
+func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateViewStmt, error) {
 	stmt := &nodes.CreateViewStmt{
 		OrReplace: orReplace,
 		Loc:       nodes.Loc{Start: start},
@@ -87,7 +87,7 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) *nodes.CreateVie
 
 // finishCreateViewStmt finishes parsing a CREATE VIEW statement after the
 // MATERIALIZED/FORCE/VIEW prefix has been consumed.
-func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) *nodes.CreateViewStmt {
+func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.CreateViewStmt, error) {
 	// IF NOT EXISTS (before view name)
 	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
 		p.advance() // consume IF
@@ -99,7 +99,11 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) *nodes.CreateV
 	}
 
 	// View name
-	stmt.Name = p.parseObjectName()
+	var err error
+	stmt.Name, err = p.parseObjectName()
+	if err != nil {
+		return nil, err
+	}
 
 	// SHARING = { METADATA | DATA | EXTENDED DATA | NONE }
 	if p.isIdentLike() && p.cur.Str == "SHARING" {
@@ -133,7 +137,10 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) *nodes.CreateV
 			if p.cur.Type == ')' || p.cur.Type == tokEOF {
 				break
 			}
-			name := p.parseIdentifier()
+			name, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
 			if name == "" {
 				break
 			}
@@ -172,7 +179,10 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) *nodes.CreateV
 			p.advance() // consume DEFAULT
 			if p.isIdentLike() && p.cur.Str == "COLLATION" {
 				p.advance() // consume COLLATION
-				stmt.DefaultCollation = p.parseIdentifier()
+				stmt.DefaultCollation, err = p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -203,13 +213,18 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) *nodes.CreateV
 
 	// Materialized view options (before AS)
 	if stmt.Materialized {
-		p.parseMaterializedViewOptions(stmt)
+		if err := p.parseMaterializedViewOptions(stmt); err != nil {
+			return nil, err
+		}
 	}
 
 	// AS select_statement
 	if p.cur.Type == kwAS {
 		p.advance()
-		stmt.Query = p.parseSelectStmt()
+		stmt.Query, err = p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// WITH CHECK OPTION | WITH READ ONLY [CONSTRAINT name]
@@ -231,16 +246,19 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) *nodes.CreateV
 		// CONSTRAINT constraint_name
 		if p.cur.Type == kwCONSTRAINT {
 			p.advance()
-			stmt.ConstraintName = p.parseIdentifier()
+			stmt.ConstraintName, err = p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseMaterializedViewOptions parses BUILD, REFRESH, and other options for materialized views.
-func (p *Parser) parseMaterializedViewOptions(stmt *nodes.CreateViewStmt) {
+func (p *Parser) parseMaterializedViewOptions(stmt *nodes.CreateViewStmt) error {
 	for {
 		switch {
 		case p.isIdentLike() && p.cur.Str == "BUILD":
@@ -323,14 +341,28 @@ func (p *Parser) parseMaterializedViewOptions(stmt *nodes.CreateViewStmt) {
 				if p.cur.Type == kwWITH {
 					p.advance()
 				}
-				stmt.StartWith = p.parseExpr()
+				var parseErr592 error
+				stmt.StartWith, parseErr592 = p.parseExpr()
+				if parseErr592 !=
+
+					// NEXT expr
+					nil {
+					return parseErr592
+				}
 			}
-			// NEXT expr
+
 			if p.cur.Type == kwNEXT {
 				p.advance()
-				stmt.Next = p.parseExpr()
+				var parseErr593 error
+				stmt.Next, parseErr593 = p.parseExpr()
+				if parseErr593 !=
+
+					// WITH PRIMARY KEY | WITH ROWID
+					nil {
+					return parseErr593
+				}
 			}
-			// WITH PRIMARY KEY | WITH ROWID
+
 			if p.cur.Type == kwWITH {
 				p.advance()
 				if p.cur.Type == kwPRIMARY {
@@ -461,9 +493,10 @@ func (p *Parser) parseMaterializedViewOptions(stmt *nodes.CreateViewStmt) {
 			}
 
 		default:
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // isIdentLikeStrAt checks if the given token is an identifier-like token with the given string.
@@ -496,7 +529,7 @@ func (p *Parser) isIdentLikeStrAt(tok Token, s string) bool {
 //	    [ new_values_clause ]
 //	    [ mv_log_purge_clause ]
 //	    [ for_refresh_clause ]
-func (p *Parser) parseCreateMviewLogStmt(start int) *nodes.CreateMviewLogStmt {
+func (p *Parser) parseCreateMviewLogStmt(start int) (*nodes.CreateMviewLogStmt, error) {
 	stmt := &nodes.CreateMviewLogStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -514,10 +547,16 @@ func (p *Parser) parseCreateMviewLogStmt(start int) *nodes.CreateMviewLogStmt {
 	// ON table
 	if p.cur.Type == kwON {
 		p.advance()
-		stmt.OnTable = p.parseObjectName()
+		var parseErr594 error
+		stmt.OnTable, parseErr594 = p.parseObjectName()
+		if parseErr594 !=
+
+			// SHARING = { METADATA | NONE }
+			nil {
+			return nil, parseErr594
+		}
 	}
 
-	// SHARING = { METADATA | NONE }
 	if p.isIdentLike() && p.cur.Str == "SHARING" {
 		p.advance()
 		if p.cur.Type == '=' {
@@ -598,7 +637,10 @@ func (p *Parser) parseCreateMviewLogStmt(start int) *nodes.CreateMviewLogStmt {
 				p.advance()
 				stmt.Columns = &nodes.List{}
 				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					name := p.parseIdentifier()
+					name, parseErr595 := p.parseIdentifier()
+					if parseErr595 != nil {
+						return nil, parseErr595
+					}
 					if name != "" {
 						stmt.Columns.Items = append(stmt.Columns.Items, &nodes.String{Str: name})
 					}
@@ -666,15 +708,24 @@ func (p *Parser) parseCreateMviewLogStmt(start int) *nodes.CreateMviewLogStmt {
 			if p.cur.Type == kwWITH {
 				p.advance()
 			}
-			stmt.PurgeStart = p.parseExpr()
+			var parseErr596 error
+			stmt.PurgeStart, parseErr596 = p.parseExpr()
+			if parseErr596 != nil {
+				return nil, parseErr596
+			}
 			if p.cur.Type == kwNEXT {
 				p.advance()
-				stmt.PurgeNext = p.parseExpr()
+				var parseErr597 error
+				stmt.PurgeNext, parseErr597 = p.parseExpr()
+				if parseErr597 != nil {
+
+					// for_refresh_clause: FOR { FAST | SYNCHRONOUS } REFRESH [ USING staging_log ]
+					return nil, parseErr597
+				}
 			}
 		}
 	}
 
-	// for_refresh_clause: FOR { FAST | SYNCHRONOUS } REFRESH [ USING staging_log ]
 	if p.isIdentLike() && p.cur.Str == "FOR" {
 		p.advance()
 		if p.isIdentLike() && p.cur.Str == "FAST" {
@@ -702,8 +753,8 @@ func (p *Parser) parseCreateMviewLogStmt(start int) *nodes.CreateMviewLogStmt {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterMviewLogStmt parses an ALTER MATERIALIZED VIEW LOG statement.
@@ -717,7 +768,7 @@ func (p *Parser) parseCreateMviewLogStmt(start int) *nodes.CreateMviewLogStmt {
 //	    { physical_attributes_clause | add_mv_log_column_clause | parallel_clause | logging_clause |
 //	      allocate_extent_clause | shrink_clause | move_mv_log_clause |
 //	      mv_log_augmentation | mv_log_purge_clause | for_refresh_clause }
-func (p *Parser) parseAlterMviewLogStmt(start int) *nodes.AlterMviewLogStmt {
+func (p *Parser) parseAlterMviewLogStmt(start int) (*nodes.AlterMviewLogStmt, error) {
 	stmt := &nodes.AlterMviewLogStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -738,10 +789,16 @@ func (p *Parser) parseAlterMviewLogStmt(start int) *nodes.AlterMviewLogStmt {
 	// ON table
 	if p.cur.Type == kwON {
 		p.advance()
-		stmt.OnTable = p.parseObjectName()
+		var parseErr598 error
+		stmt.OnTable, parseErr598 = p.parseObjectName()
+		if parseErr598 !=
+
+			// Parse action
+			nil {
+			return nil, parseErr598
+		}
 	}
 
-	// Parse action
 	switch {
 	case p.cur.Type == kwADD:
 		p.advance()
@@ -751,7 +808,10 @@ func (p *Parser) parseAlterMviewLogStmt(start int) *nodes.AlterMviewLogStmt {
 			p.advance()
 			stmt.Columns = &nodes.List{}
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				name := p.parseIdentifier()
+				name, parseErr599 := p.parseIdentifier()
+				if parseErr599 != nil {
+					return nil, parseErr599
+				}
 				if name != "" {
 					stmt.Columns.Items = append(stmt.Columns.Items, &nodes.String{Str: name})
 				}
@@ -814,10 +874,19 @@ func (p *Parser) parseAlterMviewLogStmt(start int) *nodes.AlterMviewLogStmt {
 			if p.cur.Type == kwWITH {
 				p.advance()
 			}
-			p.parseExpr() // skip expr
+			parseDiscard601, parseErr600 := p.parseExpr()
+			_ = // skip expr
+				parseDiscard601
+			if parseErr600 != nil {
+				return nil, parseErr600
+			}
 			if p.cur.Type == kwNEXT {
 				p.advance()
-				p.parseExpr()
+				parseDiscard603, parseErr602 := p.parseExpr()
+				_ = parseDiscard603
+				if parseErr602 != nil {
+					return nil, parseErr602
+				}
 			}
 		}
 
@@ -882,8 +951,8 @@ func (p *Parser) parseAlterMviewLogStmt(start int) *nodes.AlterMviewLogStmt {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateAnalyticViewStmt parses a CREATE ANALYTIC VIEW statement.
@@ -902,7 +971,7 @@ func (p *Parser) parseAlterMviewLogStmt(start int) *nodes.AlterMviewLogStmt {
 //	    [ cache_clause ]
 //	    [ fact_columns_clause ]
 //	    [ qry_transform_clause ]
-func (p *Parser) parseCreateAnalyticViewStmt(start int, orReplace, force, noForce bool) *nodes.CreateAnalyticViewStmt {
+func (p *Parser) parseCreateAnalyticViewStmt(start int, orReplace, force, noForce bool) (*nodes.CreateAnalyticViewStmt, error) {
 	stmt := &nodes.CreateAnalyticViewStmt{
 		OrReplace: orReplace,
 		Force:     force,
@@ -919,11 +988,17 @@ func (p *Parser) parseCreateAnalyticViewStmt(start int, orReplace, force, noForc
 		}
 		stmt.IfNotExists = true
 	}
+	var parseErr604 error
 
 	// view name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr604 = p.parseObjectName()
+	if parseErr604 !=
 
-	// SHARING = { METADATA | NONE }
+		// SHARING = { METADATA | NONE }
+		nil {
+		return nil, parseErr604
+	}
+
 	if p.isIdentLike() && p.cur.Str == "SHARING" {
 		p.advance()
 		if p.cur.Type == '=' {
@@ -941,14 +1016,24 @@ func (p *Parser) parseCreateAnalyticViewStmt(start int, orReplace, force, noForc
 	// USING table_name [ AS alias ]
 	if p.cur.Type == kwUSING {
 		p.advance()
-		stmt.UsingTable = p.parseObjectName()
+		var parseErr605 error
+		stmt.UsingTable, parseErr605 = p.parseObjectName()
+		if parseErr605 != nil {
+			return nil, parseErr605
+		}
 		if p.cur.Type == kwAS {
 			p.advance()
-			stmt.UsingAlias = p.parseIdentifier()
+			var parseErr606 error
+			stmt.UsingAlias, parseErr606 = p.parseIdentifier()
+			if parseErr606 !=
+
+				// DIMENSION BY ( ... )
+				nil {
+				return nil, parseErr606
+			}
 		}
 	}
 
-	// DIMENSION BY ( ... )
 	if p.isIdentLike() && p.cur.Str == "DIMENSION" {
 		p.advance()
 		if p.isIdentLike() && p.cur.Str == "BY" {
@@ -1020,24 +1105,34 @@ func (p *Parser) parseCreateAnalyticViewStmt(start int, orReplace, force, noForc
 		p.advance()
 		if p.isIdentLike() && p.cur.Str == "MEASURE" {
 			p.advance()
-			stmt.DefaultMeasure = p.parseIdentifier()
+			var parseErr607 error
+			stmt.DefaultMeasure, parseErr607 = p.parseIdentifier()
+			if parseErr607 != nil {
+				return nil, parseErr607
+			}
 		} else if p.isIdentLike() && p.cur.Str == "AGGREGATE" {
 			// DEFAULT AGGREGATE BY function
 			p.advance()
 			if p.isIdentLike() && p.cur.Str == "BY" {
 				p.advance()
 			}
-			stmt.DefaultAggregate = p.parseIdentifier()
+			var parseErr608 error
+			stmt.DefaultAggregate, parseErr608 = p.parseIdentifier()
+			if parseErr608 !=
+
+				// skip remaining (cache, fact, qry_transform)
+				nil {
+				return nil, parseErr608
+			}
 		}
 	}
 
-	// skip remaining (cache, fact, qry_transform)
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterAnalyticViewStmt parses an ALTER ANALYTIC VIEW statement.
@@ -1047,7 +1142,7 @@ func (p *Parser) parseCreateAnalyticViewStmt(start int, orReplace, force, noForc
 //
 //	ALTER ANALYTIC VIEW [ IF EXISTS ] [ schema . ] analytic_view_name
 //	    { RENAME TO new_av_name | COMPILE | alter_add_cache_clause | alter_drop_cache_clause }
-func (p *Parser) parseAlterAnalyticViewStmt(start int) *nodes.AlterAnalyticViewStmt {
+func (p *Parser) parseAlterAnalyticViewStmt(start int) (*nodes.AlterAnalyticViewStmt, error) {
 	stmt := &nodes.AlterAnalyticViewStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -1058,8 +1153,12 @@ func (p *Parser) parseAlterAnalyticViewStmt(start int) *nodes.AlterAnalyticViewS
 		p.advance()
 		p.advance()
 	}
+	var parseErr609 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr609 = p.parseObjectName()
+	if parseErr609 != nil {
+		return nil, parseErr609
+	}
 
 	switch {
 	case p.isIdentLike() && p.cur.Str == "COMPILE":
@@ -1072,7 +1171,11 @@ func (p *Parser) parseAlterAnalyticViewStmt(start int) *nodes.AlterAnalyticViewS
 		if p.cur.Type == kwTO {
 			p.advance() // consume TO
 		}
-		stmt.NewName = p.parseObjectName()
+		var parseErr610 error
+		stmt.NewName, parseErr610 = p.parseObjectName()
+		if parseErr610 != nil {
+			return nil, parseErr610
+		}
 
 	case p.isIdentLike() && p.cur.Str == "ADD":
 		stmt.Action = "ADD_CACHE"
@@ -1096,8 +1199,8 @@ func (p *Parser) parseAlterAnalyticViewStmt(start int) *nodes.AlterAnalyticViewS
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateJsonDualityViewStmt parses a CREATE JSON RELATIONAL DUALITY VIEW statement.
@@ -1109,16 +1212,22 @@ func (p *Parser) parseAlterAnalyticViewStmt(start int) *nodes.AlterAnalyticViewS
 //	    [ schema. ] view_name
 //	    [ duality_view_replication_clause ]
 //	    AS duality_view_subquery
-func (p *Parser) parseCreateJsonDualityViewStmt(start int, orReplace, ifNotExists bool) *nodes.CreateJsonDualityViewStmt {
+func (p *Parser) parseCreateJsonDualityViewStmt(start int, orReplace, ifNotExists bool) (*nodes.CreateJsonDualityViewStmt, error) {
 	stmt := &nodes.CreateJsonDualityViewStmt{
 		OrReplace:   orReplace,
 		IfNotExists: ifNotExists,
 		Loc:         nodes.Loc{Start: start},
 	}
+	var parseErr611 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr611 = p.parseObjectName()
+	if parseErr611 !=
 
-	// duality_view_replication_clause: ENABLE | DISABLE LOGICAL REPLICATION
+		// duality_view_replication_clause: ENABLE | DISABLE LOGICAL REPLICATION
+		nil {
+		return nil, parseErr611
+	}
+
 	if p.cur.Type == kwENABLE {
 		p.advance()
 		if p.isIdentLike() && p.cur.Str == "LOGICAL" {
@@ -1142,11 +1251,15 @@ func (p *Parser) parseCreateJsonDualityViewStmt(start int, orReplace, ifNotExist
 	// AS duality_view_subquery
 	if p.cur.Type == kwAS {
 		p.advance()
-		stmt.Query = p.parseSelectStmt()
+		var parseErr612 error
+		stmt.Query, parseErr612 = p.parseSelectStmt()
+		if parseErr612 != nil {
+			return nil, parseErr612
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterJsonDualityViewStmt parses an ALTER JSON RELATIONAL DUALITY VIEW statement.
@@ -1156,12 +1269,16 @@ func (p *Parser) parseCreateJsonDualityViewStmt(start int, orReplace, ifNotExist
 //
 //	ALTER JSON RELATIONAL DUALITY VIEW [ schema. ] view_name
 //	    { ENABLE | DISABLE } LOGICAL REPLICATION
-func (p *Parser) parseAlterJsonDualityViewStmt(start int) *nodes.AlterJsonDualityViewStmt {
+func (p *Parser) parseAlterJsonDualityViewStmt(start int) (*nodes.AlterJsonDualityViewStmt, error) {
 	stmt := &nodes.AlterJsonDualityViewStmt{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr613 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr613 = p.parseObjectName()
+	if parseErr613 != nil {
+		return nil, parseErr613
+	}
 
 	if p.cur.Type == kwENABLE {
 		p.advance()
@@ -1183,6 +1300,6 @@ func (p *Parser) parseAlterJsonDualityViewStmt(start int) *nodes.AlterJsonDualit
 		stmt.Action = "DISABLE_LOGICAL_REPLICATION"
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }

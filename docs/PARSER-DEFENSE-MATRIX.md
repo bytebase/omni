@@ -122,7 +122,7 @@ Every SQL parser in omni needs a systematic suite of defensive tests to ensure c
 PG          Done       --         --         Partial    --         Done       Partial
 MySQL       Partial*   Partial*   Done       Done       Done       Done       Done
 MSSQL       Done       Partial    Done       --         --         Done*      Done
-Oracle      --         --         --         --         Partial    --         Partial
+Oracle      Done       Done       Done       Partial*   Done       --         Done
 CosmosDB    --         --         N/A        --         --         --         --
 MongoDB     Partial    --         N/A        --         --         --         --
 ```
@@ -134,6 +134,7 @@ Legend: `Done` = complete, `Partial` = in progress, `--` = not started, `N/A` = 
 - MySQL L2: 111 strictness scenarios complete, but 3 checks removed (WHERE/GROUP BY/HAVING requires FROM — MySQL allows these without FROM)
 - MSSQL L2: 14 oracle mismatches remaining (12 option validation + 2 multi-statement). Option validation is the L2 Strict core work.
 - MSSQL L6: Core instrumentation complete (9 phases, 3659 tests), but 4 secondary CREATE statements uninstrumented + catalog resolution stubbed
+- Oracle L4: Parser coverage accounting is strict but not full grammar support. 171 BNF rows are classified with 0 unknown rows, high-value statement families have no missing/unknown rows, and every non-covered BNF row carries explicit approval/debt metadata. 47 deferred and 86 partial rows remain approved feature debt.
 
 ### PG
 - **L1 Soft-Fail**: Dual-return migration and soft-fail fixes complete
@@ -174,13 +175,13 @@ Legend: `Done` = complete, `Partial` = in progress, `--` = not started, `N/A` = 
 - **L7 Loc**: All 6 phases complete, 179 scenarios verified, 350 migration sites. Public API with line:column conversion. **No gaps found.**
 
 ### Oracle
-- **L1 Soft-Fail**: Not started (SCENARIOS-oracle-foundation focuses on Loc and ParseError infrastructure)
-- **L2 Strict**: Not started
-- **L3 Keyword**: Not audited
-- **L4 Coverage**: Not systematically quantified
-- **L5 Corpus**: quality/corpus/ directory exists, partial coverage
-- **L6 Completion**: Not started
-- **L7 Loc**: SCENARIOS-oracle-foundation in progress
+- **L1 Soft-Fail**: **Done for parser layer.** `TestOracleParserContract`/`TestOracleParserProgress` report 445/445 parse methods return `error`, 0 bare parse methods, and 0 silent parser error discards. `TestSoftFail*` covers 62 truncation scenarios across expressions, predicates, SELECT, DML, DDL, and PL/SQL.
+- **L2 Strict**: **Done for current parser matrix.** `TestStrict*` plus `TestStrictV2CoverageMatrix` cover 121 duplicate-clause, unknown-option, illegal-keyword-position, missing-operand, parenthesis-balance, reserved-identifier, DML/DDL utility, and PL/SQL strictness scenarios.
+- **L3 Keyword**: **Done for declared Oracle lexer set plus SQL reserved-word audit.** `TestOracleKeyword*` covers all 344 entries in the local Oracle lexer keyword table across reserved, nonreserved, context, type, function-like, pseudo-column, clause-starter, quoted identifier, keyword-as-expression, and reserved-identifier guard behavior. `TestOracleKeywordOfficialSQLReserved26aiAudit` pins the Oracle 26ai SQL reserved-word list and prevents official SQL reserved words from being missing or lexed as plain identifiers. `TestOracleVReservedWordsKeywordAudit` passed against Oracle Free and checked 107 word-like reserved/context entries.
+- **L4 Coverage**: **Partial for full grammar support, strict for accounting.** `TestOracleBNFCoverageManifestCompleteness` classifies all 171 BNF files with 0 unknown rows, `TestOracleHighValueBNFGapsClosed` keeps high-value statement families free of missing/unknown rows, `TestOracleBNFImplementationDebtRequiresApproval` requires approval metadata on every non-covered row, and `TestOracleCoverage` enforces the soft-fail, strictness, keyword, BNF, Loc-node, and reference-oracle gates. The explicit Oracle Free reference run passed all 20 rows.
+- **L5 Corpus**: **Done for current corpus.** `TestVerifyCorpus` reports 128 total statements, 125 parser accepts, 3 expected parser rejects, 0 parse violations, 0 Loc violations, and 0 crashes; Loc violations are fatal.
+- **L6 Completion**: Not implemented. Parser readiness gates are in place; completion scope is tracked in `docs/plans/2026-04-28-oracle-completion-scope.md`.
+- **L7 Loc**: **Done for parser layer, with fixture debt tracked.** `NoLoc()`/`Loc.IsUnknown()` enforce `{-1,-1}` as the only unknown sentinel, mixed sentinels are rejected, synthetic/corpus Loc contracts pass, and `TestOracleLocNodeCoverage` classifies 249 Loc-bearing node rows with 0 unknown rows. Direct SQL fixture coverage is 152 rows; the remaining 97 deferred rows carry approval metadata.
 
 ### CosmosDB / MongoDB
 - Smaller engines — lower defense priority than the four SQL engines
@@ -224,7 +225,6 @@ Ordered by dependency chain. Within each tier, sorted by impact.
 |--------|-------|-----------|
 | MSSQL | L1 Soft-Fail (cleanup) | 66 silent error discards remain; must finish before L2 Strict can begin |
 | MySQL | L1 Soft-Fail (cleanup) | 18 silent error discards remain in production parser code |
-| Oracle | L7 Loc | SCENARIOS-oracle-foundation in progress but incomplete; blocks all downstream layers |
 | PG | L7 Loc | SCENARIOS-pg-loc partially complete; needs push to full coverage |
 | MSSQL | L3 Keyword | Needs audit for eqFold hardcoding issues; affects lexer correctness |
 
@@ -232,7 +232,6 @@ Ordered by dependency chain. Within each tier, sorted by impact.
 
 | Engine | Layer | Rationale |
 |--------|-------|-----------|
-| Oracle | L1 Soft-Fail | Missing basic error handling; users may hit panics or meaningless errors |
 | MSSQL | L2 Strict | MySQL already found extensive "too lenient" issues; MSSQL very likely has the same (blocked by L1 cleanup) |
 | PG | L2 Strict | Largest engine with no systematic strictness testing |
 | Oracle | L6 Completion | Only major engine without a completion engine |
@@ -244,7 +243,6 @@ Ordered by dependency chain. Within each tier, sorted by impact.
 | PG | L5 Corpus | Largest engine but no structured corpus; highest regression risk |
 | MSSQL | L5 Corpus | Multi-layer corpus verification covering dimensions beyond compare_test.go |
 | MSSQL | L4 Coverage | 193 test functions exist but coverage scope not quantified |
-| Oracle | L2 Strict | Complex syntax; likely has significant strictness gaps |
 
 ---
 

@@ -8,7 +8,10 @@ import (
 
 func TestParseCreateSequence(t *testing.T) {
 	p := newTestParser("SEQUENCE emp_seq")
-	stmt := p.parseCreateSequenceStmt(0)
+	stmt, parseErr1 := p.parseCreateSequenceStmt(0)
+	if parseErr1 != nil {
+		t.Fatalf("parse: %v", parseErr1)
+	}
 	if stmt == nil {
 		t.Fatal("expected CreateSequenceStmt, got nil")
 	}
@@ -19,7 +22,10 @@ func TestParseCreateSequence(t *testing.T) {
 
 func TestParseCreateSequenceWithOptions(t *testing.T) {
 	p := newTestParser("SEQUENCE hr.emp_seq INCREMENT BY 1 START WITH 100 MAXVALUE 999999 MINVALUE 1 CYCLE CACHE 20 ORDER")
-	stmt := p.parseCreateSequenceStmt(0)
+	stmt, parseErr2 := p.parseCreateSequenceStmt(0)
+	if parseErr2 != nil {
+		t.Fatalf("parse: %v", parseErr2)
+	}
 	if stmt.Name == nil || stmt.Name.Schema != "HR" || stmt.Name.Name != "EMP_SEQ" {
 		t.Errorf("expected HR.EMP_SEQ, got %v", stmt.Name)
 	}
@@ -58,7 +64,10 @@ func TestParseCreateSequenceWithOptions(t *testing.T) {
 
 func TestParseCreateSequenceNoOptions(t *testing.T) {
 	p := newTestParser("SEQUENCE s NOMAXVALUE NOMINVALUE NOCYCLE NOCACHE NOORDER")
-	stmt := p.parseCreateSequenceStmt(0)
+	stmt, parseErr3 := p.parseCreateSequenceStmt(0)
+	if parseErr3 != nil {
+		t.Fatalf("parse: %v", parseErr3)
+	}
 	if !stmt.NoMaxValue {
 		t.Error("expected NoMaxValue to be true")
 	}
@@ -78,7 +87,10 @@ func TestParseCreateSequenceNoOptions(t *testing.T) {
 
 func TestParseCreateSequenceLoc(t *testing.T) {
 	p := newTestParser("SEQUENCE s")
-	stmt := p.parseCreateSequenceStmt(0)
+	stmt, parseErr4 := p.parseCreateSequenceStmt(0)
+	if parseErr4 != nil {
+		t.Fatalf("parse: %v", parseErr4)
+	}
 	if stmt.Loc.Start != 0 {
 		t.Errorf("expected Loc.Start=0, got %d", stmt.Loc.Start)
 	}
@@ -89,7 +101,10 @@ func TestParseCreateSequenceLoc(t *testing.T) {
 
 func TestParseCreateSynonym(t *testing.T) {
 	p := newTestParser("SYNONYM emp FOR hr.employees")
-	stmt := p.parseCreateSynonymStmt(0, false, false)
+	stmt, parseErr5 := p.parseCreateSynonymStmt(0, false, false)
+	if parseErr5 != nil {
+		t.Fatalf("parse: %v", parseErr5)
+	}
 	if stmt == nil {
 		t.Fatal("expected CreateSynonymStmt, got nil")
 	}
@@ -103,7 +118,10 @@ func TestParseCreateSynonym(t *testing.T) {
 
 func TestParseCreatePublicSynonym(t *testing.T) {
 	p := newTestParser("SYNONYM emp FOR hr.employees")
-	stmt := p.parseCreateSynonymStmt(0, false, true)
+	stmt, parseErr6 := p.parseCreateSynonymStmt(0, false, true)
+	if parseErr6 != nil {
+		t.Fatalf("parse: %v", parseErr6)
+	}
 	if !stmt.Public {
 		t.Error("expected Public to be true")
 	}
@@ -111,7 +129,10 @@ func TestParseCreatePublicSynonym(t *testing.T) {
 
 func TestParseCreateOrReplaceSynonym(t *testing.T) {
 	p := newTestParser("SYNONYM emp FOR hr.employees")
-	stmt := p.parseCreateSynonymStmt(0, true, false)
+	stmt, parseErr7 := p.parseCreateSynonymStmt(0, true, false)
+	if parseErr7 != nil {
+		t.Fatalf("parse: %v", parseErr7)
+	}
 	if !stmt.OrReplace {
 		t.Error("expected OrReplace to be true")
 	}
@@ -119,7 +140,10 @@ func TestParseCreateOrReplaceSynonym(t *testing.T) {
 
 func TestParseCreateSynonymLoc(t *testing.T) {
 	p := newTestParser("SYNONYM s FOR t")
-	stmt := p.parseCreateSynonymStmt(0, false, false)
+	stmt, parseErr8 := p.parseCreateSynonymStmt(0, false, false)
+	if parseErr8 != nil {
+		t.Fatalf("parse: %v", parseErr8)
+	}
 	if stmt.Loc.Start != 0 {
 		t.Errorf("expected Loc.Start=0, got %d", stmt.Loc.Start)
 	}
@@ -130,7 +154,10 @@ func TestParseCreateSynonymLoc(t *testing.T) {
 
 func TestParseCreateDatabaseLink(t *testing.T) {
 	p := newTestParser("DATABASE LINK remote_db CONNECT TO admin IDENTIFIED BY secret USING 'prod_server'")
-	stmt := p.parseCreateDatabaseLinkStmt(0, false)
+	stmt, parseErr9 := p.parseCreateDatabaseLinkStmt(0, false)
+	if parseErr9 != nil {
+		t.Fatalf("parse: %v", parseErr9)
+	}
 	if stmt == nil {
 		t.Fatal("expected CreateDatabaseLinkStmt, got nil")
 	}
@@ -150,7 +177,10 @@ func TestParseCreateDatabaseLink(t *testing.T) {
 
 func TestParseCreatePublicDatabaseLink(t *testing.T) {
 	p := newTestParser("DATABASE LINK remote_db CONNECT TO admin IDENTIFIED BY pass USING 'srv'")
-	stmt := p.parseCreateDatabaseLinkStmt(0, true)
+	stmt, parseErr10 := p.parseCreateDatabaseLinkStmt(0, true)
+	if parseErr10 != nil {
+		t.Fatalf("parse: %v", parseErr10)
+	}
 	if !stmt.Public {
 		t.Error("expected Public to be true")
 	}
@@ -158,7 +188,10 @@ func TestParseCreatePublicDatabaseLink(t *testing.T) {
 
 func TestParseCreateDatabaseLinkLoc(t *testing.T) {
 	p := newTestParser("DATABASE LINK db CONNECT TO u IDENTIFIED BY p USING 's'")
-	stmt := p.parseCreateDatabaseLinkStmt(0, false)
+	stmt, parseErr11 := p.parseCreateDatabaseLinkStmt(0, false)
+	if parseErr11 != nil {
+		t.Fatalf("parse: %v", parseErr11)
+	}
 	if stmt.Loc.Start != 0 {
 		t.Errorf("expected Loc.Start=0, got %d", stmt.Loc.Start)
 	}

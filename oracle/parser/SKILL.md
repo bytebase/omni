@@ -73,7 +73,7 @@ Read the target `.go` files and identify:
 2. **Stubs**: `parseAdminDDLStmt` dispatches — these MUST be replaced with dedicated parsers for any statement that has a `.bnf` file
 3. **Missing branches**: Compare BNF branches against code `switch`/`if` branches. Every BNF alternative must have a code path
 4. **Incorrect BNF comments**: Compare existing code comments against the `.bnf` file content. Fix any divergence
-5. **Missing `Loc` recording**: Every AST node must have `Loc.Start` and `Loc.End` set
+5. **Missing `Loc` recording**: Every AST node must have `Loc.Start` and `Loc.End` set with the single sentinel convention below
 
 ### Step 3: Write Tests FIRST (Test-Driven Development)
 
@@ -122,18 +122,20 @@ func (p *Parser) parseCreateTableStmt() *ast.CreateTableStmt {
 2. **Sub-clauses must be recursively complete**: If `column_definition` has a full BNF with DEFAULT, IDENTITY, ENCRYPT, inline_constraint — implement it completely.
 3. **NO `skipToSemicolon` in new code**: If a clause is truly optional/rare, parse it as a generic option list, not skip.
 4. **NO `parseAdminDDLStmt` for any statement that has a `.bnf` file**: Replace with a dedicated parser.
-5. **Record `Loc` on EVERY AST node**: Set `Loc: nodes.Loc{Start: p.pos()}` at start, `node.Loc.End = p.pos()` at end.
+5. **Record `Loc` on EVERY AST node**: Set `Loc: nodes.Loc{Start: p.pos(), End: -1}` at start, then set `node.Loc.End = p.prev.End` after the parser has consumed the node's last token. Use `-1` as the only unknown/end-not-yet-set sentinel. Do not use `0` as an unknown `End`.
 6. **Serialization**: Add serialization in `oracle/ast/outfuncs.go` for every new node type. Every node with `nodeTag()` must have a `writeNode` case and `writeXxx` function.
 7. **Use existing AST types** from `oracle/ast/` — do NOT create new node types unless absolutely necessary.
 8. **Token constants** are keyword constants (kw*) and lexer tokens (tok*) in `oracle/parser/lexer.go`.
 9. **Match Oracle grammar semantics exactly**.
-10. **Error recovery**: Skip to next semicolon for statement-level errors, return partial AST node.
+10. **Error propagation**: Required parse functions must return syntax and lexer errors directly. Do not skip to semicolon or return partial success for required grammar positions. Optional probes must be explicitly named `tryParse...` or `parseOptional...` and may return `(nil, nil)` when the optional clause is absent.
 11. **Operator precedence**: Use Pratt parsing (precedence climbing) for expressions.
 
 **Return type conventions:**
-- Expression parsers return `ExprNode` (e.g., `parseExpr() ast.ExprNode`)
-- Table reference parsers return `TableExpr` (e.g., `parseTableRef() ast.TableExpr`)
-- Statement parsers return `StmtNode` (e.g., `parseSelectStmt() *ast.SelectStmt`)
+- Required expression parsers return `(ExprNode, error)` (for example, `parseExpr() (ast.ExprNode, error)`)
+- Required table reference parsers return `(TableExpr, error)` (for example, `parseTableRef() (ast.TableExpr, error)`)
+- Required statement parsers return `(*ast.XStmt, error)` or `(ast.StmtNode, error)`
+- Optional probes are named `tryParse...` or `parseOptional...` and may return `(nil, nil)` when the grammar branch is absent
+- Callers must propagate nested errors; assigning a parse-call error result to `_` is forbidden
 
 ### Step 5: Build + Test
 
@@ -170,7 +172,7 @@ Edit `PROGRESS.json`:
 - Every branch in the BNF comment MUST have a corresponding code path (no silent drops)
 - NO `skipToSemicolon` in new code — parse properly or use a generic option list
 - NO `parseAdminDDLStmt` for any statement that has a `.bnf` file
-- Record `Loc` (Start/End) on every AST node
+- Record `Loc` (Start/End) on every AST node using `p.prev.End` and the `-1` sentinel for unknown ends
 - Add serialization in `outfuncs.go` for every new node type
 - Test count requirement: minimum `max(3, bnf_lines / 15)` test cases per batch
 

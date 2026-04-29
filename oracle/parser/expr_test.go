@@ -48,7 +48,10 @@ func TestParseExprLiterals(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			p := newTestParser(tc.input)
-			e := p.parseExpr()
+			e, parseErr1 := p.parseExpr()
+			if parseErr1 != nil {
+				t.Fatalf("parse: %v", parseErr1)
+			}
 			if e == nil {
 				t.Fatal("expected non-nil expression")
 			}
@@ -80,7 +83,10 @@ func TestParseExprBinary(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			p := newTestParser(tc.input)
-			e := p.parseExpr()
+			e, parseErr2 := p.parseExpr()
+			if parseErr2 != nil {
+				t.Fatalf("parse: %v", parseErr2)
+			}
 			be, ok := e.(*ast.BinaryExpr)
 			if !ok {
 				t.Fatalf("expected BinaryExpr, got %T", e)
@@ -96,7 +102,10 @@ func TestParseExprBinary(t *testing.T) {
 func TestParseExprPrecedence(t *testing.T) {
 	// 1 + 2 * 3 should parse as 1 + (2 * 3)
 	p := newTestParser("1 + 2 * 3")
-	e := p.parseExpr()
+	e, parseErr1 := p.parseExpr()
+	if parseErr1 != nil {
+		t.Fatalf("parse: %v", parseErr1)
+	}
 	be, ok := e.(*ast.BinaryExpr)
 	if !ok {
 		t.Fatalf("expected BinaryExpr, got %T", e)
@@ -116,7 +125,10 @@ func TestParseExprPrecedence(t *testing.T) {
 // TestParseExprUnary tests unary expressions.
 func TestParseExprUnary(t *testing.T) {
 	p := newTestParser("-42")
-	e := p.parseExpr()
+	e, parseErr2 := p.parseExpr()
+	if parseErr2 != nil {
+		t.Fatalf("parse: %v", parseErr2)
+	}
 	ue, ok := e.(*ast.UnaryExpr)
 	if !ok {
 		t.Fatalf("expected UnaryExpr, got %T", e)
@@ -129,7 +141,10 @@ func TestParseExprUnary(t *testing.T) {
 // TestParseExprBoolOps tests AND, OR, NOT.
 func TestParseExprBoolOps(t *testing.T) {
 	p := newTestParser("1 = 1 AND 2 = 2")
-	e := p.parseExpr()
+	e, parseErr3 := p.parseExpr()
+	if parseErr3 != nil {
+		t.Fatalf("parse: %v", parseErr3)
+	}
 	be, ok := e.(*ast.BoolExpr)
 	if !ok {
 		t.Fatalf("expected BoolExpr, got %T", e)
@@ -142,7 +157,10 @@ func TestParseExprBoolOps(t *testing.T) {
 // TestParseExprNot tests NOT expression.
 func TestParseExprNot(t *testing.T) {
 	p := newTestParser("NOT 1 = 1")
-	e := p.parseExpr()
+	e, parseErr4 := p.parseExpr()
+	if parseErr4 != nil {
+		t.Fatalf("parse: %v", parseErr4)
+	}
 	be, ok := e.(*ast.BoolExpr)
 	if !ok {
 		t.Fatalf("expected BoolExpr, got %T", e)
@@ -156,7 +174,10 @@ func TestParseExprNot(t *testing.T) {
 func TestParseExprCase(t *testing.T) {
 	// Simple CASE
 	p := newTestParser("CASE x WHEN 1 THEN 'a' WHEN 2 THEN 'b' ELSE 'c' END")
-	e := p.parseExpr()
+	e, parseErr5 := p.parseExpr()
+	if parseErr5 != nil {
+		t.Fatalf("parse: %v", parseErr5)
+	}
 	ce, ok := e.(*ast.CaseExpr)
 	if !ok {
 		t.Fatalf("expected CaseExpr, got %T", e)
@@ -175,7 +196,10 @@ func TestParseExprCase(t *testing.T) {
 // TestParseExprSearchedCase tests searched CASE expression.
 func TestParseExprSearchedCase(t *testing.T) {
 	p := newTestParser("CASE WHEN x > 0 THEN 'pos' WHEN x < 0 THEN 'neg' END")
-	e := p.parseExpr()
+	e, parseErr6 := p.parseExpr()
+	if parseErr6 != nil {
+		t.Fatalf("parse: %v", parseErr6)
+	}
 	ce, ok := e.(*ast.CaseExpr)
 	if !ok {
 		t.Fatalf("expected CaseExpr, got %T", e)
@@ -191,7 +215,10 @@ func TestParseExprSearchedCase(t *testing.T) {
 // TestParseExprDecode tests DECODE expression.
 func TestParseExprDecode(t *testing.T) {
 	p := newTestParser("DECODE(status, 'A', 'Active', 'I', 'Inactive', 'Unknown')")
-	e := p.parseExpr()
+	e, parseErr7 := p.parseExpr()
+	if parseErr7 != nil {
+		t.Fatalf("parse: %v", parseErr7)
+	}
 	de, ok := e.(*ast.DecodeExpr)
 	if !ok {
 		t.Fatalf("expected DecodeExpr, got %T", e)
@@ -210,7 +237,10 @@ func TestParseExprDecode(t *testing.T) {
 // TestParseExprBetween tests BETWEEN expression.
 func TestParseExprBetween(t *testing.T) {
 	p := newTestParser("x BETWEEN 1 AND 10")
-	e := p.parseExpr()
+	e, parseErr8 := p.parseExpr()
+	if parseErr8 != nil {
+		t.Fatalf("parse: %v", parseErr8)
+	}
 	be, ok := e.(*ast.BetweenExpr)
 	if !ok {
 		t.Fatalf("expected BetweenExpr, got %T", e)
@@ -223,7 +253,10 @@ func TestParseExprBetween(t *testing.T) {
 // TestParseExprNotBetween tests NOT BETWEEN expression.
 func TestParseExprNotBetween(t *testing.T) {
 	p := newTestParser("x NOT BETWEEN 1 AND 10")
-	e := p.parseExpr()
+	e, parseErr9 := p.parseExpr()
+	if parseErr9 != nil {
+		t.Fatalf("parse: %v", parseErr9)
+	}
 	be, ok := e.(*ast.BetweenExpr)
 	if !ok {
 		t.Fatalf("expected BetweenExpr, got %T", e)
@@ -236,7 +269,10 @@ func TestParseExprNotBetween(t *testing.T) {
 // TestParseExprIn tests IN expression.
 func TestParseExprIn(t *testing.T) {
 	p := newTestParser("x IN (1, 2, 3)")
-	e := p.parseExpr()
+	e, parseErr10 := p.parseExpr()
+	if parseErr10 != nil {
+		t.Fatalf("parse: %v", parseErr10)
+	}
 	ie, ok := e.(*ast.InExpr)
 	if !ok {
 		t.Fatalf("expected InExpr, got %T", e)
@@ -252,7 +288,10 @@ func TestParseExprIn(t *testing.T) {
 // TestParseExprNotIn tests NOT IN expression.
 func TestParseExprNotIn(t *testing.T) {
 	p := newTestParser("x NOT IN (1, 2)")
-	e := p.parseExpr()
+	e, parseErr11 := p.parseExpr()
+	if parseErr11 != nil {
+		t.Fatalf("parse: %v", parseErr11)
+	}
 	ie, ok := e.(*ast.InExpr)
 	if !ok {
 		t.Fatalf("expected InExpr, got %T", e)
@@ -265,7 +304,10 @@ func TestParseExprNotIn(t *testing.T) {
 // TestParseExprLike tests LIKE expression.
 func TestParseExprLike(t *testing.T) {
 	p := newTestParser("name LIKE '%test%'")
-	e := p.parseExpr()
+	e, parseErr12 := p.parseExpr()
+	if parseErr12 != nil {
+		t.Fatalf("parse: %v", parseErr12)
+	}
 	le, ok := e.(*ast.LikeExpr)
 	if !ok {
 		t.Fatalf("expected LikeExpr, got %T", e)
@@ -281,7 +323,10 @@ func TestParseExprLike(t *testing.T) {
 // TestParseExprLikeEscape tests LIKE with ESCAPE.
 func TestParseExprLikeEscape(t *testing.T) {
 	p := newTestParser("name LIKE '%\\%%' ESCAPE '\\'")
-	e := p.parseExpr()
+	e, parseErr13 := p.parseExpr()
+	if parseErr13 != nil {
+		t.Fatalf("parse: %v", parseErr13)
+	}
 	le, ok := e.(*ast.LikeExpr)
 	if !ok {
 		t.Fatalf("expected LikeExpr, got %T", e)
@@ -304,7 +349,10 @@ func TestParseExprIsNull(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			p := newTestParser(tc.input)
-			e := p.parseExpr()
+			e, parseErr3 := p.parseExpr()
+			if parseErr3 != nil {
+				t.Fatalf("parse: %v", parseErr3)
+			}
 			ie, ok := e.(*ast.IsExpr)
 			if !ok {
 				t.Fatalf("expected IsExpr, got %T", e)
@@ -322,7 +370,10 @@ func TestParseExprIsNull(t *testing.T) {
 // TestParseExprCast tests CAST expression.
 func TestParseExprCast(t *testing.T) {
 	p := newTestParser("CAST(salary AS NUMBER(10,2))")
-	e := p.parseExpr()
+	e, parseErr14 := p.parseExpr()
+	if parseErr14 != nil {
+		t.Fatalf("parse: %v", parseErr14)
+	}
 	ce, ok := e.(*ast.CastExpr)
 	if !ok {
 		t.Fatalf("expected CastExpr, got %T", e)
@@ -338,7 +389,10 @@ func TestParseExprCast(t *testing.T) {
 // TestParseExprFuncCall tests function call expression.
 func TestParseExprFuncCall(t *testing.T) {
 	p := newTestParser("NVL(salary, 0)")
-	e := p.parseExpr()
+	e, parseErr15 := p.parseExpr()
+	if parseErr15 != nil {
+		t.Fatalf("parse: %v", parseErr15)
+	}
 	fc, ok := e.(*ast.FuncCallExpr)
 	if !ok {
 		t.Fatalf("expected FuncCallExpr, got %T", e)
@@ -354,7 +408,10 @@ func TestParseExprFuncCall(t *testing.T) {
 // TestParseExprCountStar tests COUNT(*).
 func TestParseExprCountStar(t *testing.T) {
 	p := newTestParser("COUNT(*)")
-	e := p.parseExpr()
+	e, parseErr16 := p.parseExpr()
+	if parseErr16 != nil {
+		t.Fatalf("parse: %v", parseErr16)
+	}
 	fc, ok := e.(*ast.FuncCallExpr)
 	if !ok {
 		t.Fatalf("expected FuncCallExpr, got %T", e)
@@ -367,7 +424,10 @@ func TestParseExprCountStar(t *testing.T) {
 // TestParseExprCountDistinct tests COUNT(DISTINCT col).
 func TestParseExprCountDistinct(t *testing.T) {
 	p := newTestParser("COUNT(DISTINCT status)")
-	e := p.parseExpr()
+	e, parseErr17 := p.parseExpr()
+	if parseErr17 != nil {
+		t.Fatalf("parse: %v", parseErr17)
+	}
 	fc, ok := e.(*ast.FuncCallExpr)
 	if !ok {
 		t.Fatalf("expected FuncCallExpr, got %T", e)
@@ -380,7 +440,10 @@ func TestParseExprCountDistinct(t *testing.T) {
 // TestParseExprParens tests parenthesized expressions.
 func TestParseExprParens(t *testing.T) {
 	p := newTestParser("(1 + 2) * 3")
-	e := p.parseExpr()
+	e, parseErr18 := p.parseExpr()
+	if parseErr18 != nil {
+		t.Fatalf("parse: %v", parseErr18)
+	}
 	be, ok := e.(*ast.BinaryExpr)
 	if !ok {
 		t.Fatalf("expected BinaryExpr, got %T", e)
@@ -393,7 +456,10 @@ func TestParseExprParens(t *testing.T) {
 // TestParseExprBindVar tests bind variable in expressions.
 func TestParseExprBindVar(t *testing.T) {
 	p := newTestParser(":param1")
-	e := p.parseExpr()
+	e, parseErr19 := p.parseExpr()
+	if parseErr19 != nil {
+		t.Fatalf("parse: %v", parseErr19)
+	}
 	bv, ok := e.(*ast.BindVariable)
 	if !ok {
 		t.Fatalf("expected BindVariable, got %T", e)
@@ -406,7 +472,10 @@ func TestParseExprBindVar(t *testing.T) {
 // TestParseExprColumnRef tests column reference in expressions.
 func TestParseExprColumnRef(t *testing.T) {
 	p := newTestParser("e.salary")
-	e := p.parseExpr()
+	e, parseErr20 := p.parseExpr()
+	if parseErr20 != nil {
+		t.Fatalf("parse: %v", parseErr20)
+	}
 	cr, ok := e.(*ast.ColumnRef)
 	if !ok {
 		t.Fatalf("expected ColumnRef, got %T", e)
@@ -423,7 +492,10 @@ func TestParseExprColumnRef(t *testing.T) {
 func TestParseExprOrPrecedence(t *testing.T) {
 	// a = 1 OR b = 2 AND c = 3 should be a = 1 OR (b = 2 AND c = 3)
 	p := newTestParser("a = 1 OR b = 2 AND c = 3")
-	e := p.parseExpr()
+	e, parseErr21 := p.parseExpr()
+	if parseErr21 != nil {
+		t.Fatalf("parse: %v", parseErr21)
+	}
 	be, ok := e.(*ast.BoolExpr)
 	if !ok {
 		t.Fatalf("expected BoolExpr, got %T", e)
@@ -436,7 +508,10 @@ func TestParseExprOrPrecedence(t *testing.T) {
 // TestParseExprPrior tests PRIOR unary operator.
 func TestParseExprPrior(t *testing.T) {
 	p := newTestParser("PRIOR employee_id")
-	e := p.parseExpr()
+	e, parseErr22 := p.parseExpr()
+	if parseErr22 != nil {
+		t.Fatalf("parse: %v", parseErr22)
+	}
 	ue, ok := e.(*ast.UnaryExpr)
 	if !ok {
 		t.Fatalf("expected UnaryExpr, got %T", e)
@@ -449,7 +524,10 @@ func TestParseExprPrior(t *testing.T) {
 // TestParseExprStar tests standalone star expression.
 func TestParseExprStar(t *testing.T) {
 	p := newTestParser("*")
-	e := p.parseExpr()
+	e, parseErr23 := p.parseExpr()
+	if parseErr23 != nil {
+		t.Fatalf("parse: %v", parseErr23)
+	}
 	_, ok := e.(*ast.Star)
 	if !ok {
 		t.Fatalf("expected Star, got %T", e)

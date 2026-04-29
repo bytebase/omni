@@ -1,0 +1,250 @@
+node_type	family	status	fixture	notes	debt_class	approval	next_action
+*nodes.RawStmt	statement	covered	SELECT 1 FROM dual	raw statement wrapper span	none	covered	keep_regression_guard
+*nodes.SelectStmt	statement	covered	SELECT a FROM t WHERE a > 1	select statement span	none	covered	keep_regression_guard
+*nodes.InsertStmt	statement	covered	INSERT INTO t (a) VALUES (1)	insert statement span	none	covered	keep_regression_guard
+*nodes.UpdateStmt	statement	covered	UPDATE t SET a = 1 WHERE id = 2	update statement span	none	covered	keep_regression_guard
+*nodes.DeleteStmt	statement	covered	DELETE FROM t WHERE id = 1	delete statement span	none	covered	keep_regression_guard
+*nodes.MergeStmt	statement	covered	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x	merge statement span	none	covered	keep_regression_guard
+*nodes.CommitStmt	statement	covered	COMMIT	transaction statement span	none	covered	keep_regression_guard
+*nodes.RollbackStmt	statement	covered	ROLLBACK	transaction statement span	none	covered	keep_regression_guard
+*nodes.SavepointStmt	statement	covered	SAVEPOINT sp1	transaction statement span	none	covered	keep_regression_guard
+*nodes.SetTransactionStmt	statement	covered	SET TRANSACTION READ ONLY	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.SetRoleStmt	statement	covered	SET ROLE r	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.SetConstraintsStmt	statement	covered	SET CONSTRAINTS ALL DEFERRED	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CallStmt	statement	covered	CALL p()	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CommentStmt	statement	covered	COMMENT ON TABLE t IS 'x'	comment statement span	none	covered	keep_regression_guard
+*nodes.TruncateStmt	statement	covered	TRUNCATE TABLE t	truncate statement span	none	covered	keep_regression_guard
+*nodes.AnalyzeStmt	statement	covered	ANALYZE TABLE t COMPUTE STATISTICS	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.ExplainPlanStmt	statement	covered	EXPLAIN PLAN FOR SELECT 1 FROM dual	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PurgeStmt	statement	covered	PURGE RECYCLEBIN	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.LockTableStmt	statement	covered	LOCK TABLE t IN EXCLUSIVE MODE	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.RenameStmt	statement	covered	RENAME old_t TO new_t	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.GrantStmt	statement	covered	GRANT SELECT ON t TO u	grant statement span	none	covered	keep_regression_guard
+*nodes.RevokeStmt	statement	covered	REVOKE SELECT ON t FROM u	revoke statement span	none	covered	keep_regression_guard
+*nodes.DropStmt	statement	covered	DROP TABLE t	drop statement span	none	covered	keep_regression_guard
+*nodes.AuditStmt	statement	covered	AUDIT SELECT ON t	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.NoauditStmt	statement	covered	NOAUDIT SELECT ON t	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AssociateStatisticsStmt	statement	covered	ASSOCIATE STATISTICS WITH FUNCTIONS f USING pkg	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.DisassociateStatisticsStmt	statement	covered	DISASSOCIATE STATISTICS FROM FUNCTIONS f	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.FlashbackTableStmt	statement	covered	FLASHBACK TABLE t TO SCN 1	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.FlashbackDatabaseStmt	statement	covered	FLASHBACK DATABASE TO SCN 1	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AdminDDLStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterTableStmt	statement	covered	ALTER TABLE t ADD (b NUMBER)	alter table span	none	covered	keep_regression_guard
+*nodes.AlterTableCmd	ast	covered	ALTER TABLE t ADD (b NUMBER)	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterIndexStmt	statement	covered	ALTER INDEX idx REBUILD	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterViewStmt	statement	covered	ALTER VIEW v COMPILE	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterSequenceStmt	statement	covered	ALTER SEQUENCE s INCREMENT BY 1	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterSessionStmt	statement	covered	ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY'	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterSystemStmt	statement	covered	ALTER SYSTEM SET p = 1	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterRoleStmt	statement	covered	ALTER ROLE r IDENTIFIED BY p	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterUserStmt	statement	covered	ALTER USER u IDENTIFIED BY p	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterProfileStmt	statement	covered	ALTER PROFILE p LIMIT SESSIONS_PER_USER 1	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterResourceCostStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterDatabaseLinkStmt	statement	covered	ALTER DATABASE LINK l CONNECT TO u IDENTIFIED BY p	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterSynonymStmt	statement	covered	ALTER SYNONYM s COMPILE	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterTriggerStmt	statement	covered	ALTER TRIGGER tr ENABLE	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterFunctionStmt	statement	covered	ALTER FUNCTION f COMPILE	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterProcedureStmt	statement	covered	ALTER PROCEDURE p COMPILE	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterPackageStmt	statement	covered	ALTER PACKAGE pkg COMPILE	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterTypeStmt	statement	covered	ALTER TYPE typ COMPILE	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterDomainStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterOperatorStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterIndextypeStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterOutlineStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterDimensionStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterClusterStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterMviewLogStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterMaterializedViewStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterMaterializedZonemapStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterTablespaceStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterAuditPolicyStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterLockdownProfileStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterInmemoryJoinGroupStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterJsonDualityViewStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterAnalyticViewStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterAttributeDimensionStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AlterHierarchyStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateTableStmt	statement	covered	CREATE TABLE t (a NUMBER CONSTRAINT nn NOT NULL, CONSTRAINT pk PRIMARY KEY (a))	create table span	none	covered	keep_regression_guard
+*nodes.CreateIndexStmt	statement	covered	CREATE INDEX idx ON t(a)	create index span	none	covered	keep_regression_guard
+*nodes.CreateViewStmt	statement	covered	CREATE VIEW v AS SELECT 1 a FROM dual	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CreateSequenceStmt	statement	covered	CREATE SEQUENCE s	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CreateSynonymStmt	statement	covered	CREATE SYNONYM s FOR t	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CreateDatabaseLinkStmt	statement	covered	CREATE DATABASE LINK l CONNECT TO u IDENTIFIED BY p USING 'x'	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CreateRoleStmt	statement	covered	CREATE ROLE r	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CreateUserStmt	statement	covered	CREATE USER u IDENTIFIED BY p	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CreateProfileStmt	statement	covered	CREATE PROFILE p LIMIT SESSIONS_PER_USER 1	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CreateSchemaStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateTriggerStmt	statement	covered	CREATE TRIGGER tr BEFORE INSERT ON t BEGIN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CreateFunctionStmt	statement	covered	CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CreateProcedureStmt	statement	covered	CREATE PROCEDURE p IS BEGIN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CreatePackageStmt	statement	covered	CREATE PACKAGE pkg IS PROCEDURE p; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CreateTypeStmt	statement	covered	CREATE TYPE typ AS OBJECT (a NUMBER)	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CreateDomainStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateOperatorStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateIndextypeStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateOutlineStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateDimensionStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateClusterStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateMviewLogStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateAuditPolicyStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateLockdownProfileStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateInmemoryJoinGroupStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateJsonDualityViewStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreatePropertyGraphStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateAnalyticViewStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateAttributeDimensionStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateHierarchyStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateVectorIndexStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateMaterializedZonemapStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CreateTablespaceStmt	statement	covered	CREATE TABLESPACE ts DATAFILE 'x.dbf' SIZE 1M	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CreateTablespaceSetStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.DropTablespaceStmt	statement	covered	DROP TABLESPACE ts	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.DropAuditPolicyStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.BinaryExpr	expression	covered	SELECT 1 + 2 FROM dual	binary expression span	none	covered	keep_regression_guard
+*nodes.UnaryExpr	expression	covered	SELECT -1 FROM dual	unary expression span	none	covered	keep_regression_guard
+*nodes.BoolExpr	expression	covered	SELECT 1 FROM dual WHERE NOT (a = 1 AND b = 2)	boolean expression span	none	covered	keep_regression_guard
+*nodes.ColumnRef	expression	covered	SELECT a FROM t	column reference span	none	covered	keep_regression_guard
+*nodes.FuncCallExpr	expression	covered	SELECT f(1) FROM dual	function call span	none	covered	keep_regression_guard
+*nodes.CaseExpr	expression	covered	SELECT CASE WHEN a = 1 THEN 2 ELSE 3 END FROM dual	case expression span	none	covered	keep_regression_guard
+*nodes.CaseWhen	ast	covered	SELECT CASE WHEN a = 1 THEN 2 ELSE 3 END FROM dual	case expression span	none	covered	keep_regression_guard
+*nodes.CastExpr	expression	covered	SELECT CAST(1 AS NUMBER) FROM dual	cast expression span	none	covered	keep_regression_guard
+*nodes.InExpr	expression	covered	SELECT 1 FROM dual WHERE a IN (1, 2)	IN expression span	none	covered	keep_regression_guard
+*nodes.BetweenExpr	expression	covered	SELECT 1 FROM dual WHERE a BETWEEN 1 AND 2	BETWEEN expression span	none	covered	keep_regression_guard
+*nodes.LikeExpr	expression	covered	SELECT 1 FROM dual WHERE a LIKE 'x%'	LIKE expression span	none	covered	keep_regression_guard
+*nodes.IsExpr	expression	covered	SELECT 1 FROM dual WHERE a IS NOT NULL	IS expression span	none	covered	keep_regression_guard
+*nodes.ExistsExpr	expression	covered	SELECT 1 FROM dual WHERE EXISTS (SELECT 1 FROM t)	subquery expression span	none	covered	keep_regression_guard
+*nodes.SubqueryExpr	expression	deferred		subquery expression fixture deferred after coverage audit	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.IntervalExpr	expression	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.ParenExpr	expression	covered	SELECT (1 + 2) FROM dual	parenthesized expression span	none	covered	keep_regression_guard
+*nodes.DecodeExpr	expression	covered	SELECT DECODE(a, 1, 'one', 'other') FROM dual	decode expression span	none	covered	keep_regression_guard
+*nodes.DecodePair	ast	covered	SELECT DECODE(a, 1, 'one', 'other') FROM dual	decode expression span	none	covered	keep_regression_guard
+*nodes.TreatExpr	expression	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.MultisetExpr	expression	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CursorExpr	expression	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.ContainersExpr	expression	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.NumberLiteral	expression	covered	SELECT 1 FROM dual	number literal span	none	covered	keep_regression_guard
+*nodes.StringLiteral	expression	covered	SELECT 'x' FROM dual	string literal span	none	covered	keep_regression_guard
+*nodes.NullLiteral	expression	covered	SELECT NULL FROM dual	null literal span	none	covered	keep_regression_guard
+*nodes.Star	expression	covered	SELECT * FROM t	star span	none	covered	keep_regression_guard
+*nodes.BindVariable	expression	covered	SELECT :id FROM dual	bind variable span	none	covered	keep_regression_guard
+*nodes.PseudoColumn	expression	covered	SELECT ROWNUM FROM dual	pseudo-column span	none	covered	keep_regression_guard
+*nodes.ObjectName	clause	covered	SELECT * FROM t	object name span	none	covered	keep_regression_guard
+*nodes.Alias	clause	deferred		alias fixture deferred after AST shape audit	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.TypeName	clause	covered	CREATE TABLE t (a NUMBER)	type name span	none	covered	keep_regression_guard
+*nodes.ColumnDef	clause	covered	CREATE TABLE t (a NUMBER)	column definition span	none	covered	keep_regression_guard
+*nodes.ColumnConstraint	clause	deferred		column constraint fixture deferred after AST shape audit	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.TableConstraint	clause	covered	CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a))	table constraint span	none	covered	keep_regression_guard
+*nodes.ResTarget	clause	covered	SELECT a FROM t	result target span	none	covered	keep_regression_guard
+*nodes.SortBy	clause	covered	SELECT a FROM t ORDER BY a	sort item span	none	covered	keep_regression_guard
+*nodes.Hint	ast	covered	SELECT /*+ INDEX(t idx) */ * FROM t	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.TableRef	clause	covered	SELECT * FROM t	table ref span	none	covered	keep_regression_guard
+*nodes.SubqueryRef	ast	covered	SELECT * FROM (SELECT 1 a FROM dual) q	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.LateralRef	ast	covered	SELECT * FROM t, LATERAL (SELECT 1 a FROM dual) q	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.JoinClause	clause	covered	SELECT * FROM t JOIN u ON t.id = u.id	join clause span	none	covered	keep_regression_guard
+*nodes.WithClause	clause	covered	WITH q AS (SELECT 1 a FROM dual) SELECT a FROM q	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CTE	ast	covered	WITH q AS (SELECT 1 a FROM dual) SELECT a FROM q	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CTESearchClause	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.CTECycleClause	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.WindowSpec	ast	covered	SELECT SUM(a) OVER (PARTITION BY b ORDER BY c ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) FROM t	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.WindowDef	clause	covered	SELECT SUM(a) OVER w FROM t WINDOW w AS (PARTITION BY b ORDER BY c ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.WindowFrame	ast	covered	SELECT SUM(a) OVER (ORDER BY c ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) FROM t	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.WindowBound	ast	covered	SELECT SUM(a) OVER (ORDER BY c ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) FROM t	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.ForUpdateClause	clause	covered	SELECT * FROM t FOR UPDATE	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.FetchFirstClause	clause	covered	SELECT * FROM t FETCH FIRST 1 ROWS ONLY	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.HierarchicalClause	clause	covered	SELECT * FROM t START WITH id = 1 CONNECT BY PRIOR id = parent_id	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.SampleClause	clause	covered	SELECT * FROM t SAMPLE (10)	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PivotClause	clause	covered	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1))	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.UnpivotClause	clause	covered	SELECT * FROM t UNPIVOT (a FOR b IN (c))	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.MatchRecognizeClause	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.ModelClause	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.ModelMainModel	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.ModelRefModel	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.ModelRulesClause	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.ModelRule	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.ModelColumnClauses	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.ModelForLoop	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.ModelCellRefOptions	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.GroupingSetsClause	clause	covered	SELECT a, SUM(b) FROM t GROUP BY GROUPING SETS ((a), ())	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.RollupClause	clause	covered	SELECT a, SUM(b) FROM t GROUP BY ROLLUP(a)	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CubeClause	clause	covered	SELECT a, SUM(b) FROM t GROUP BY CUBE(a)	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.InsertIntoClause	clause	deferred		direct fixture attempted in strict audit but parser AST shape does not currently produce this node	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.SetClause	clause	covered	UPDATE t SET a = 1	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.MergeClause	clause	covered	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.ErrorLogClause	clause	covered	INSERT INTO t (a) VALUES (1) LOG ERRORS INTO err$_t REJECT LIMIT 1	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.FlashbackClause	clause	covered	SELECT * FROM t AS OF SCN 1	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PartitionClause	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.PartitionDef	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.PartitionExtClause	clause	covered	SELECT * FROM t PARTITION (p1)	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.StorageClause	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.IndexColumn	ast	covered	CREATE INDEX idx ON t(a DESC)	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.LockTableItem	ast	covered	LOCK TABLE t IN EXCLUSIVE MODE	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.InlineExternalTable	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.TableCollectionExpr	expression	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.JsonTableRef	ast	covered	SELECT * FROM JSON_TABLE(doc, '$' COLUMNS (id NUMBER PATH '$.id')) jt	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.JsonTableColumn	ast	covered	SELECT * FROM JSON_TABLE(doc, '$' COLUMNS (id NUMBER PATH '$.id')) jt	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.XmlTableRef	ast	covered	SELECT * FROM XMLTABLE('/r' PASSING x COLUMNS id NUMBER PATH 'id') xt	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.XmlTableColumn	ast	covered	SELECT * FROM XMLTABLE('/r' PASSING x COLUMNS id NUMBER PATH 'id') xt	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.Parameter	ast	covered	CREATE PROCEDURE p(x IN NUMBER) IS BEGIN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.IdentityClause	clause	covered	CREATE TABLE t (id NUMBER GENERATED ALWAYS AS IDENTITY)	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.IdentifiedClause	clause	covered	CREATE USER u IDENTIFIED BY p	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.DefaultRoleClause	clause	deferred		direct fixture attempted in strict audit but parser AST shape does not currently produce this node	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.UserQuotaClause	clause	covered	CREATE USER u IDENTIFIED BY p QUOTA 1M ON users	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.ProfileLimit	ast	covered	CREATE PROFILE p LIMIT SESSIONS_PER_USER 1	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.ResourceCostEntry	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.DDLOption	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.DatafileClause	clause	covered	CREATE TABLESPACE ts DATAFILE 'x.dbf' SIZE 1M	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AutoextendClause	clause	covered	CREATE TABLESPACE ts DATAFILE 'x.dbf' SIZE 1M AUTOEXTEND ON	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.SetParam	ast	covered	ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY'	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.KeepClause	clause	covered	SELECT MAX(a) KEEP (DENSE_RANK LAST ORDER BY b) FROM t	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.ClusterColumn	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.GraphTableDef	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.GraphEdgeDef	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.GraphOptions	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.DomainColumn	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.DomainConstraint	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.DomainEnumItem	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.OperatorBinding	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.IndextypeOp	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.IndextypeModOp	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.DimensionLevel	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.DimensionHierarchy	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.DimensionAttribute	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.DimensionJoinKey	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AuditActionEntry	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AuditComponentAction	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.JoinGroupMember	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.TypeAttribute	ast	deferred		direct fixture attempted in strict audit but parser AST shape does not currently produce this node	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.TypeBodyMember	ast	covered	CREATE TYPE BODY typ AS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AttrDimSourceClause	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AttrDimAttribute	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AttrDimLevel	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AttrDimOrderByItem	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AttrDimAllClause	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.AttrDimJoinCondElem	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.HierAttr	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.HierLevelClause	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.PLSQLBlock	plsql	covered	BEGIN NULL; END;	PL/SQL block span	none	covered	keep_regression_guard
+*nodes.PLSQLVarDecl	plsql	covered	DECLARE x NUMBER; BEGIN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLCursorDecl	plsql	covered	DECLARE CURSOR c IS SELECT 1 FROM dual; BEGIN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLTypeDecl	plsql	covered	DECLARE TYPE nt IS TABLE OF NUMBER; BEGIN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLAssign	plsql	covered	BEGIN x := 1; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLIf	plsql	covered	BEGIN IF 1 = 1 THEN NULL; END IF; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLElsIf	plsql	covered	BEGIN IF 1 = 0 THEN NULL; ELSIF 1 = 1 THEN NULL; END IF; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLCase	plsql	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.PLSQLWhen	plsql	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.PLSQLLoop	plsql	covered	BEGIN LOOP EXIT; END LOOP; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLForall	plsql	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.PLSQLReturn	plsql	covered	CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLCall	plsql	covered	BEGIN p(); END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLRaise	plsql	covered	BEGIN RAISE; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLExit	plsql	covered	BEGIN LOOP EXIT; END LOOP; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLContinue	plsql	covered	BEGIN LOOP CONTINUE; END LOOP; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLGoto	plsql	deferred		direct fixture attempted in strict audit but parser AST shape does not currently produce this node	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.PLSQLNull	plsql	covered	BEGIN NULL; END;	PL/SQL null statement span	none	covered	keep_regression_guard
+*nodes.PLSQLOpen	plsql	covered	DECLARE CURSOR c IS SELECT 1 FROM dual; BEGIN OPEN c; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLFetch	plsql	covered	DECLARE CURSOR c IS SELECT 1 FROM dual; x NUMBER; BEGIN OPEN c; FETCH c INTO x; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLClose	plsql	covered	DECLARE CURSOR c IS SELECT 1 FROM dual; BEGIN OPEN c; CLOSE c; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLExecImmediate	plsql	covered	BEGIN EXECUTE IMMEDIATE 'SELECT 1 FROM dual'; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLPipeRow	plsql	covered	CREATE FUNCTION f RETURN NUMBER PIPELINED IS BEGIN PIPE ROW (1); RETURN; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLPragma	plsql	covered	DECLARE PRAGMA AUTONOMOUS_TRANSACTION; BEGIN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.ExceptionHandler	plsql	covered	BEGIN RAISE; EXCEPTION WHEN OTHERS THEN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard

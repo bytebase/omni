@@ -11,23 +11,46 @@ import (
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/Database-Object-Names-and-Qualifiers.html
 //
 //	identifier ::= unquoted_identifier | quoted_identifier
-func (p *Parser) parseIdentifier() string {
+func (p *Parser) parseIdentifier() (string, error) {
 	switch p.cur.Type {
 	case tokIDENT:
 		tok := p.advance()
-		return tok.Str
+		return tok.Str, nil
 	case tokQIDENT:
 		tok := p.advance()
-		return tok.Str
+		return tok.Str, nil
 	default:
 		// Many Oracle keywords can be used as identifiers in non-reserved contexts.
 		// If the current token is a keyword, consume it and return as identifier.
 		if p.cur.Type >= 2000 {
 			tok := p.advance()
-			return tok.Str
+			return tok.Str, nil
 		}
-		return ""
+		return "", nil
 	}
+}
+
+func (p *Parser) parseObjectNameIdentifier() (string, error) {
+	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+		return "", err
+	}
+	return p.parseIdentifier()
+}
+
+// parseAlias parses an alias name and records its exact source span.
+func (p *Parser) parseAlias() (*nodes.Alias, error) {
+	start := p.pos()
+	name, parseErr820 := p.parseIdentifier()
+	if parseErr820 != nil {
+		return nil, parseErr820
+	}
+	if name == "" {
+		return nil, nil
+	}
+	return &nodes.Alias{
+		Name: name,
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // isIdentLike returns true if the current token can be treated as an identifier.
@@ -41,21 +64,36 @@ func (p *Parser) isIdentLike() bool {
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/Database-Object-Names-and-Qualifiers.html
 //
 //	object_name ::= [ schema . ] name [ @dblink ]
-func (p *Parser) parseObjectName() *nodes.ObjectName {
+func (p *Parser) parseObjectName() (*nodes.ObjectName, error) {
+	return p.parseObjectNameWith(p.parseIdentifier)
+}
+
+func (p *Parser) parseReservedCheckedObjectName() (*nodes.ObjectName, error) {
+	return p.parseObjectNameWith(p.parseObjectNameIdentifier)
+}
+
+func (p *Parser) parseObjectNameWith(parseComponent func() (string, error)) (*nodes.ObjectName, error) {
 	start := p.pos()
 	obj := &nodes.ObjectName{
 		Loc: nodes.Loc{Start: start},
 	}
 
-	name := p.parseIdentifier()
+	name, parseErr821 := parseComponent()
+	if parseErr821 != nil {
+		return nil, parseErr821
+
+		// Check for schema.object
+	}
 	if name == "" {
-		return obj
+		return obj, nil
 	}
 
-	// Check for schema.object
 	if p.cur.Type == '.' {
 		p.advance() // consume '.'
-		name2 := p.parseIdentifier()
+		name2, parseErr822 := parseComponent()
+		if parseErr822 != nil {
+			return nil, parseErr822
+		}
 		if name2 != "" {
 			obj.Schema = name
 			obj.Name = name2
@@ -69,12 +107,17 @@ func (p *Parser) parseObjectName() *nodes.ObjectName {
 
 	// Check for @dblink
 	if p.cur.Type == '@' {
-		p.advance() // consume '@'
-		obj.DBLink = p.parseIdentifier()
+		p.advance()
+		var // consume '@'
+		parseErr823 error
+		obj.DBLink, parseErr823 = parseComponent()
+		if parseErr823 != nil {
+			return nil, parseErr823
+		}
 	}
 
-	obj.Loc.End = p.pos()
-	return obj
+	obj.Loc.End = p.prev.End
+	return obj, nil
 }
 
 // parseColumnRef parses a column reference which can be:
@@ -86,22 +129,25 @@ func (p *Parser) parseObjectName() *nodes.ObjectName {
 //	schema.table.*
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/Column-Expressions.html
-func (p *Parser) parseColumnRef() *nodes.ColumnRef {
+func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 	start := p.pos()
 	col := &nodes.ColumnRef{
 		Loc: nodes.Loc{Start: start},
 	}
 
-	name1 := p.parseIdentifier()
+	name1, parseErr824 := p.parseIdentifier()
+	if parseErr824 != nil {
+		return nil, parseErr824
+	}
 	if name1 == "" {
-		return col
+		return col, nil
 	}
 
 	if p.cur.Type != '.' {
 		// Simple column reference
 		col.Column = name1
-		col.Loc.End = p.pos()
-		return col
+		col.Loc.End = p.prev.End
+		return col, nil
 	}
 
 	// name1.something
@@ -112,24 +158,27 @@ func (p *Parser) parseColumnRef() *nodes.ColumnRef {
 		p.advance()
 		col.Table = name1
 		col.Column = "*"
-		col.Loc.End = p.pos()
-		return col
+		col.Loc.End = p.prev.End
+		return col, nil
 	}
 
-	name2 := p.parseIdentifier()
+	name2, parseErr825 := p.parseIdentifier()
+	if parseErr825 != nil {
+		return nil, parseErr825
+	}
 	if name2 == "" {
 		col.Table = name1
 		col.Column = ""
-		col.Loc.End = p.pos()
-		return col
+		col.Loc.End = p.prev.End
+		return col, nil
 	}
 
 	if p.cur.Type != '.' {
 		// table.column
 		col.Table = name1
 		col.Column = name2
-		col.Loc.End = p.pos()
-		return col
+		col.Loc.End = p.prev.End
+		return col, nil
 	}
 
 	// schema.table.column or schema.table.*
@@ -140,16 +189,19 @@ func (p *Parser) parseColumnRef() *nodes.ColumnRef {
 		col.Schema = name1
 		col.Table = name2
 		col.Column = "*"
-		col.Loc.End = p.pos()
-		return col
+		col.Loc.End = p.prev.End
+		return col, nil
 	}
 
-	name3 := p.parseIdentifier()
+	name3, parseErr826 := p.parseIdentifier()
+	if parseErr826 != nil {
+		return nil, parseErr826
+	}
 	col.Schema = name1
 	col.Table = name2
 	col.Column = name3
-	col.Loc.End = p.pos()
-	return col
+	col.Loc.End = p.prev.End
+	return col, nil
 }
 
 // parseBindVariable parses a bind variable (:name or :1).
@@ -158,30 +210,34 @@ func (p *Parser) parseColumnRef() *nodes.ColumnRef {
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/plsql-language-fundamentals.html
 //
 //	bind_variable ::= : identifier | : integer
-func (p *Parser) parseBindVariable() *nodes.BindVariable {
+func (p *Parser) parseBindVariable() (*nodes.BindVariable, error) {
 	if p.cur.Type != tokBIND {
-		return nil
+		return nil, nil
 	}
 	start := p.pos()
 	tok := p.advance()
 	bv := &nodes.BindVariable{
 		Name: tok.Str,
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
 	}
 	// Handle :name.member (e.g., :NEW.created_date in trigger bodies)
 	if p.cur.Type == '.' && p.peekNext().Type != '*' {
 		p.advance() // consume '.'
 		if p.isIdentLike() || p.cur.Type == tokQIDENT {
-			bv.Member = p.parseIdentifier()
-			bv.Loc.End = p.pos()
+			var parseErr827 error
+			bv.Member, parseErr827 = p.parseIdentifier()
+			if parseErr827 != nil {
+				return nil, parseErr827
+			}
+			bv.Loc.End = p.prev.End
 		}
 	}
-	return bv
+	return bv, nil
 }
 
 // parsePseudoColumn parses an Oracle pseudo-column (ROWID, ROWNUM, LEVEL, SYSDATE, SYSTIMESTAMP, USER).
 // Returns nil if the current token is not a pseudo-column keyword.
-func (p *Parser) parsePseudoColumn() *nodes.PseudoColumn {
+func (p *Parser) parsePseudoColumn() (*nodes.PseudoColumn, error) {
 	start := p.pos()
 	var ptype nodes.PseudoColumnType
 
@@ -199,14 +255,14 @@ func (p *Parser) parsePseudoColumn() *nodes.PseudoColumn {
 	case kwUSER:
 		ptype = nodes.PSEUDO_USER
 	default:
-		return nil
+		return nil, nil
 	}
 
 	p.advance()
 	return &nodes.PseudoColumn{
 		Type: ptype,
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // isPseudoColumn returns true if the current token is a pseudo-column keyword.

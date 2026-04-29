@@ -1,0 +1,122 @@
+id	family	expect	contains	sql
+select_001	select	error	syntax error	SELECT
+select_002	select	error	syntax error	SELECT FROM t
+select_003	select	error	syntax error	SELECT * FROM
+select_004	select	error	syntax error	SELECT * FROM WHERE
+select_005	select	error	syntax error	SELECT * FROM t WHERE
+select_006	select	error	syntax error	SELECT * FROM t WHERE WHERE
+select_007	select	error	syntax error	SELECT * FROM t GROUP BY
+select_008	select	error	syntax error	SELECT * FROM t ORDER BY
+select_009	select	error	syntax error	SELECT * FROM t HAVING
+select_010	select	error	syntax error	SELECT 1 WHERE 1 = 1 WHERE 2 = 2
+select_011	select	error	syntax error	SELECT 1 FROM t GROUP BY a GROUP BY b
+select_012	select	error	syntax error	SELECT a FROM t GROUP BY a HAVING COUNT(*) > 0 HAVING COUNT(*) > 1
+select_013	select	error	syntax error	SELECT 1 FROM t ORDER BY a ORDER BY b
+select_014	select	error	syntax error	SELECT 1 FROM t FETCH FIRST 1 ROWS ONLY FETCH FIRST 2 ROWS ONLY
+select_015	select	error	syntax error	SELECT 1 OFFSET
+select_016	select	error	syntax error	SELECT 1 FETCH
+select_017	select	error	syntax error	SELECT 1 FETCH FIRST
+select_018	select	error	syntax error	SELECT 1 FETCH FIRST 1
+select_019	select	error	syntax error	SELECT * FROM t JOIN
+select_020	select	error	syntax error	SELECT * FROM t JOIN t2 ON
+select_021	select	error	syntax error	SELECT * FROM t JOIN t2 USING
+select_022	select	error	syntax error	SELECT * FROM t JOIN t2 USING (
+select_023	select	error	syntax error	SELECT * FROM (SELECT 1
+select_024	select	error	syntax error	SELECT * FROM (SELECT 1))
+expr_001	expression	error	syntax error	SELECT 1 +
+expr_002	expression	error	syntax error	SELECT 1 -
+expr_003	expression	error	syntax error	SELECT 1 *
+expr_004	expression	error	syntax error	SELECT 1 /
+expr_005	expression	error	syntax error	SELECT 1 ||
+expr_006	expression	error	syntax error	SELECT 1 AND
+expr_007	expression	error	syntax error	SELECT 1 OR
+expr_008	expression	error	syntax error	SELECT NOT
+expr_009	expression	error	syntax error	SELECT -
+expr_010	expression	error	syntax error	SELECT PRIOR
+expr_011	expression	error	syntax error	SELECT CONNECT_BY_ROOT
+expr_012	expression	error	syntax error	SELECT (1
+expr_013	expression	error	syntax error	SELECT (1 +
+expr_014	expression	error	syntax error	SELECT CASE
+expr_015	expression	error	syntax error	SELECT CASE WHEN
+expr_016	expression	error	syntax error	SELECT CASE WHEN 1 = 1 THEN
+expr_017	expression	error	syntax error	SELECT CASE WHEN 1 = 1 THEN 2 ELSE
+expr_018	expression	error	syntax error	SELECT CAST(
+expr_019	expression	error	syntax error	SELECT CAST(1 AS
+expr_020	expression	error	syntax error	SELECT DECODE(1,
+predicate_001	predicate	error	syntax error	SELECT 1 BETWEEN
+predicate_002	predicate	error	syntax error	SELECT 1 BETWEEN 0 AND
+predicate_003	predicate	error	syntax error	SELECT 1 IN
+predicate_004	predicate	error	syntax error	SELECT 1 IN (
+predicate_005	predicate	error	syntax error	SELECT 1 IN (1,
+predicate_006	predicate	error	syntax error	SELECT 'a' LIKE
+predicate_007	predicate	error	syntax error	SELECT 'a' LIKE 'b' ESCAPE
+predicate_008	predicate	error	syntax error	SELECT 1 IS
+predicate_009	predicate	error	syntax error	SELECT 1 IS NOT
+predicate_010	predicate	error	syntax error	SELECT EXISTS
+setop_001	setop	error	syntax error	SELECT 1 UNION
+setop_002	setop	error	syntax error	SELECT 1 UNION ALL
+setop_003	setop	error	syntax error	SELECT 1 INTERSECT
+setop_004	setop	error	syntax error	SELECT 1 MINUS
+setop_005	setop	error	syntax error	SELECT 1 UNION SELECT
+setop_006	setop	error	syntax error	SELECT 1 UNION ORDER BY 1
+dml_001	dml	error	syntax error	INSERT INTO
+dml_002	dml	error	syntax error	INSERT INTO t (
+dml_003	dml	error	syntax error	INSERT INTO t VALUES
+dml_004	dml	error	syntax error	INSERT INTO t VALUES (
+dml_005	dml	error	syntax error	INSERT INTO t VALUES (1,
+dml_006	dml	error	syntax error	INSERT INTO t SELECT
+dml_007	dml	error	syntax error	UPDATE
+dml_008	dml	error	syntax error	UPDATE t SET
+dml_009	dml	error	syntax error	UPDATE t SET a =
+dml_010	dml	error	syntax error	UPDATE t SET a = 1,
+dml_011	dml	error	syntax error	UPDATE t WHERE
+dml_012	dml	error	syntax error	DELETE FROM
+dml_013	dml	error	syntax error	DELETE FROM t WHERE
+dml_014	dml	error	syntax error	MERGE INTO
+dml_015	dml	error	syntax error	MERGE INTO t USING
+dml_016	dml	error	syntax error	MERGE INTO t USING s ON
+dml_017	dml	error	syntax error	MERGE INTO t USING s ON (t.id = s.id) WHEN
+dml_018	dml	error	syntax error	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN
+ddl_001	ddl	error	syntax error	CREATE TABLE
+ddl_002	ddl	error	syntax error	CREATE TABLE t (
+ddl_003	ddl	error	syntax error	CREATE TABLE t (a
+ddl_004	ddl	error	syntax error	CREATE TABLE t (a NUMBER DEFAULT
+ddl_005	ddl	error	syntax error	CREATE TABLE SELECT (a NUMBER)
+ddl_006	ddl	error	syntax error	CREATE TABLE t (SELECT NUMBER)
+ddl_007	ddl	error	syntax error	CREATE TABLE t (a NUMBER) ORGANIZATION HEAP ORGANIZATION INDEX
+ddl_008	ddl	error	syntax error	CREATE TABLE t (a NUMBER) FROBULATE
+ddl_009	ddl	error	syntax error	CREATE INDEX
+ddl_010	ddl	error	syntax error	CREATE INDEX idx ON
+ddl_011	ddl	error	syntax error	CREATE INDEX SELECT ON t(a)
+ddl_012	ddl	error	syntax error	CREATE INDEX idx ON t(
+ddl_013	ddl	error	syntax error	CREATE INDEX idx ON t(a) FROBULATE
+ddl_014	ddl	error	syntax error	CREATE VIEW v AS
+ddl_015	ddl	error	syntax error	CREATE VIEW v AS SELECT
+ddl_016	ddl	error	syntax error	CREATE SEQUENCE
+ddl_017	ddl	error	syntax error	CREATE SYNONYM
+ddl_018	ddl	error	syntax error	CREATE USER
+utility_001	utility	error	syntax error	ALTER TABLE
+utility_002	utility	error	syntax error	ALTER TABLE t ADD
+utility_003	utility	error	syntax error	ALTER TABLE t ADD SELECT NUMBER
+utility_004	utility	error	syntax error	ALTER TABLE t FROBULATE
+utility_005	utility	error	syntax error	ALTER SESSION
+utility_006	utility	error	syntax error	ALTER SESSION FROBULATE
+utility_007	utility	error	syntax error	DROP
+utility_008	utility	error	syntax error	DROP TABLE
+utility_009	utility	error	syntax error	DROP TABLE t FROBULATE
+utility_010	utility	error	syntax error	GRANT SELECT ON
+utility_011	utility	error	syntax error	GRANT SELECT ON t TO
+utility_012	utility	error	syntax error	GRANT SELECT ON t TO u FROBULATE
+utility_013	utility	error	syntax error	REVOKE SELECT ON
+utility_014	utility	error	syntax error	COMMENT ON TABLE
+utility_015	utility	error	syntax error	TRUNCATE TABLE
+plsql_001	plsql	error	syntax error	BEGIN
+plsql_002	plsql	error	syntax error	BEGIN x :=
+plsql_003	plsql	error	syntax error	BEGIN IF x THEN
+plsql_004	plsql	error	syntax error	DECLARE v NUMBER :=
+plsql_005	plsql	error	syntax error	DECLARE x NUMBER; BEGIN
+plsql_006	plsql	error	syntax error	CREATE PROCEDURE p IS BEGIN
+plsql_007	plsql	error	syntax error	CREATE FUNCTION f RETURN NUMBER IS BEGIN
+plsql_008	plsql	error	syntax error	BEGIN LOOP
+plsql_009	plsql	error	syntax error	BEGIN CASE
+plsql_010	plsql	error	syntax error	BEGIN RAISE
