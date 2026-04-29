@@ -27,7 +27,7 @@ import (
 //	  | ROWID
 //	  | ref%TYPE | ref%ROWTYPE
 //	  | [ schema . ] type_name
-func (p *Parser) parseTypeName() *nodes.TypeName {
+func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 	start := p.pos()
 	tn := &nodes.TypeName{
 		Names:    &nodes.List{},
@@ -39,12 +39,18 @@ func (p *Parser) parseTypeName() *nodes.TypeName {
 	case kwNUMBER, kwINTEGER, kwSMALLINT, kwDECIMAL, kwFLOAT:
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 		p.advance()
-		p.parseOptionalPrecisionScale(tn)
+		parseErr1116 := p.parseOptionalPrecisionScale(tn)
+		if parseErr1116 != nil {
+			return nil, parseErr1116
+		}
 
 	case kwCHAR, kwVARCHAR2, kwVARCHAR, kwNCHAR, kwNVARCHAR2:
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 		p.advance()
-		p.parseOptionalSizeWithSemantic(tn)
+		parseErr1117 := p.parseOptionalSizeWithSemantic(tn)
+		if parseErr1117 != nil {
+			return nil, parseErr1117
+		}
 
 	case kwCLOB, kwBLOB, kwNCLOB:
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
@@ -57,8 +63,13 @@ func (p *Parser) parseTypeName() *nodes.TypeName {
 	case kwTIMESTAMP:
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "TIMESTAMP"})
 		p.advance()
-		p.parseOptionalPrecisionScale(tn)
-		// WITH [ LOCAL ] TIME ZONE
+		parseErr1118 := p.parseOptionalPrecisionScale(tn)
+		if parseErr1118 !=
+			// WITH [ LOCAL ] TIME ZONE
+			nil {
+			return nil, parseErr1118
+		}
+
 		if p.cur.Type == kwWITH {
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "WITH"})
 			p.advance()
@@ -81,12 +92,18 @@ func (p *Parser) parseTypeName() *nodes.TypeName {
 	case kwINTERVAL:
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "INTERVAL"})
 		p.advance()
-		p.parseIntervalType(tn)
+		parseErr1119 := p.parseIntervalType(tn)
+		if parseErr1119 != nil {
+			return nil, parseErr1119
+		}
 
 	case kwRAW:
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "RAW"})
 		p.advance()
-		p.parseOptionalPrecisionScale(tn)
+		parseErr1120 := p.parseOptionalPrecisionScale(tn)
+		if parseErr1120 != nil {
+			return nil, parseErr1120
+		}
 
 	case kwLONG:
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "LONG"})
@@ -101,18 +118,22 @@ func (p *Parser) parseTypeName() *nodes.TypeName {
 		p.advance()
 
 	default:
-		// User-defined type or %TYPE/%ROWTYPE reference
-		p.parseUserDefinedType(tn)
+		parseErr1121 :=
+			// User-defined type or %TYPE/%ROWTYPE reference
+			p.parseUserDefinedType(tn)
+		if parseErr1121 != nil {
+			return nil, parseErr1121
+		}
 	}
 
-	tn.Loc.End = p.pos()
-	return tn
+	tn.Loc.End = p.prev.End
+	return tn, nil
 }
 
 // parseOptionalPrecisionScale parses optional ( precision [, scale ] ).
-func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) {
+func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 	if p.cur.Type != '(' {
-		return
+		return nil
 	}
 	p.advance() // consume '('
 
@@ -138,12 +159,13 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) {
 	if p.cur.Type == ')' {
 		p.advance()
 	}
+	return nil
 }
 
 // parseOptionalSizeWithSemantic parses optional ( size [ BYTE | CHAR ] ).
-func (p *Parser) parseOptionalSizeWithSemantic(tn *nodes.TypeName) {
+func (p *Parser) parseOptionalSizeWithSemantic(tn *nodes.TypeName) error {
 	if p.cur.Type != '(' {
-		return
+		return nil
 	}
 	p.advance() // consume '('
 
@@ -165,23 +187,30 @@ func (p *Parser) parseOptionalSizeWithSemantic(tn *nodes.TypeName) {
 	if p.cur.Type == ')' {
 		p.advance()
 	}
+	return nil
 }
 
 // parseIntervalType parses the rest of an INTERVAL type after the INTERVAL keyword.
 //
 //	INTERVAL YEAR [ ( precision ) ] TO MONTH
 //	INTERVAL DAY [ ( precision ) ] TO SECOND [ ( precision ) ]
-func (p *Parser) parseIntervalType(tn *nodes.TypeName) {
+func (p *Parser) parseIntervalType(tn *nodes.TypeName) error {
 	// YEAR or DAY
 	if p.isIdentLikeStr("YEAR") || p.isIdentLikeStr("DAY") {
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 		p.advance()
 	}
+	parseErr1122 :=
 
-	// optional ( precision )
-	p.parseOptionalPrecisionScale(tn)
+		// optional ( precision )
+		p.parseOptionalPrecisionScale(tn)
+	if parseErr1122 !=
 
-	// TO
+		// TO
+		nil {
+		return parseErr1122
+	}
+
 	if p.cur.Type == kwTO {
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "TO"})
 		p.advance()
@@ -192,33 +221,49 @@ func (p *Parser) parseIntervalType(tn *nodes.TypeName) {
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 		p.advance()
 	}
+	parseErr1123 :=
 
-	// SECOND may have ( precision )
-	p.parseOptionalPrecisionScale(tn)
+		// SECOND may have ( precision )
+		p.parseOptionalPrecisionScale(tn)
+	if parseErr1123 !=
+
+		// parseUserDefinedType parses a user-defined type name, possibly schema-qualified,
+		// and checks for %TYPE / %ROWTYPE suffixes.
+		nil {
+		return parseErr1123
+	}
+	return nil
 }
 
-// parseUserDefinedType parses a user-defined type name, possibly schema-qualified,
-// and checks for %TYPE / %ROWTYPE suffixes.
-func (p *Parser) parseUserDefinedType(tn *nodes.TypeName) {
+func (p *Parser) parseUserDefinedType(tn *nodes.TypeName) error {
 	if !p.isIdentLike() {
-		return
+		return nil
 	}
 
-	name1 := p.parseIdentifier()
+	name1, parseErr1124 := p.parseIdentifier()
+	if parseErr1124 != nil {
+		return parseErr1124
+	}
 	tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: name1})
 
 	// Check for schema.type or ref.column (before %TYPE)
 	if p.cur.Type == '.' {
 		p.advance()
 		// Check for %TYPE / %ROWTYPE after the dot-separated names
-		name2 := p.parseIdentifier()
+		name2, parseErr1125 := p.parseIdentifier()
+		if parseErr1125 != nil {
+			return parseErr1125
+		}
 		if name2 != "" {
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: name2})
 
 			// Could be schema.table.column%TYPE
 			if p.cur.Type == '.' {
 				p.advance()
-				name3 := p.parseIdentifier()
+				name3, parseErr1126 := p.parseIdentifier()
+				if parseErr1126 != nil {
+					return parseErr1126
+				}
 				if name3 != "" {
 					tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: name3})
 				}
@@ -237,6 +282,7 @@ func (p *Parser) parseUserDefinedType(tn *nodes.TypeName) {
 			p.advance()
 		}
 	}
+	return nil
 }
 
 // isIdentLikeStr checks if the current token is an identifier-like token with the given uppercase string.

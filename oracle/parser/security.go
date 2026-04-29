@@ -13,7 +13,7 @@ import (
 //	    | EXTERNALLY [ AS 'certificate_DN' | AS 'kerberos_principal_name' ]
 //	    | GLOBALLY [ AS 'directory_DN' ]
 //	    }
-func (p *Parser) parseIdentifiedClause(allowReplace bool) *nodes.IdentifiedClause {
+func (p *Parser) parseIdentifiedClause(allowReplace bool) (*nodes.IdentifiedClause, error) {
 	start := p.pos()
 	clause := &nodes.IdentifiedClause{
 		Loc: nodes.Loc{Start: start},
@@ -60,8 +60,8 @@ func (p *Parser) parseIdentifiedClause(allowReplace bool) *nodes.IdentifiedClaus
 		}
 	}
 
-	clause.Loc.End = p.pos()
-	return clause
+	clause.Loc.End = p.prev.End
+	return clause, nil
 }
 
 // parseUserQuotaClause parses a QUOTA clause.
@@ -69,7 +69,7 @@ func (p *Parser) parseIdentifiedClause(allowReplace bool) *nodes.IdentifiedClaus
 //	QUOTA { size_clause | UNLIMITED } ON tablespace
 //
 //	size_clause ::= integer [ K | M | G | T ]
-func (p *Parser) parseUserQuotaClause() *nodes.UserQuotaClause {
+func (p *Parser) parseUserQuotaClause() (*nodes.UserQuotaClause, error) {
 	start := p.pos()
 	// Already consumed QUOTA keyword
 	clause := &nodes.UserQuotaClause{
@@ -100,16 +100,20 @@ func (p *Parser) parseUserQuotaClause() *nodes.UserQuotaClause {
 	// ON tablespace
 	if p.cur.Type == kwON {
 		p.advance()
-		clause.Tablespace = p.parseObjectName()
+		var parseErr900 error
+		clause.Tablespace, parseErr900 = p.parseObjectName()
+		if parseErr900 != nil {
+			return nil, parseErr900
+		}
 	}
 
-	clause.Loc.End = p.pos()
-	return clause
+	clause.Loc.End = p.prev.End
+	return clause, nil
 }
 
 // parseContainerClause parses CONTAINER = { ALL | CURRENT }.
 // Returns: *bool (true=ALL, false=CURRENT), or nil if not present.
-func (p *Parser) parseContainerClause() *bool {
+func (p *Parser) parseContainerClause() (*bool, error) {
 	// Already consumed CONTAINER
 	if p.cur.Type == '=' {
 		p.advance()
@@ -117,13 +121,13 @@ func (p *Parser) parseContainerClause() *bool {
 	if p.cur.Type == kwALL {
 		p.advance()
 		v := true
-		return &v
+		return &v, nil
 	} else if p.isIdentLikeStr("CURRENT") {
 		p.advance()
 		v := false
-		return &v
+		return &v, nil
 	}
-	return nil
+	return nil, nil
 }
 
 // parseUserOptions parses common user option clauses for CREATE/ALTER USER.
@@ -138,7 +142,7 @@ func (p *Parser) parseUserOptions(
 	setEnableEditions func(),
 	setCollation func(string),
 	setContainer func(*bool),
-) {
+) error {
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		switch {
 		case p.cur.Type == kwDEFAULT:
@@ -159,10 +163,10 @@ func (p *Parser) parseUserOptions(
 				}
 			} else if p.cur.Type == kwROLE {
 				// DEFAULT ROLE — only for ALTER USER, handled by caller
-				return
+				return nil
 			} else {
 				// Unknown DEFAULT clause, skip
-				return
+				return nil
 			}
 
 		case p.isIdentLikeStr("LOCAL"):
@@ -193,7 +197,11 @@ func (p *Parser) parseUserOptions(
 		case p.isIdentLikeStr("QUOTA"):
 			// QUOTA clause
 			p.advance()
-			addQuota(p.parseUserQuotaClause())
+			parseValue85, parseErr86 := p.parseUserQuotaClause()
+			if parseErr86 != nil {
+				return parseErr86
+			}
+			addQuota(parseValue85)
 
 		case p.cur.Type == kwPROFILE:
 			// PROFILE
@@ -210,7 +218,7 @@ func (p *Parser) parseUserOptions(
 				p.advance()
 				setPasswordExpire()
 			} else {
-				return
+				return nil
 			}
 
 		case p.isIdentLikeStr("ACCOUNT"):
@@ -248,7 +256,7 @@ func (p *Parser) parseUserOptions(
 					p.advance() // consume PROTECTION
 				}
 			} else {
-				return
+				return nil
 			}
 
 		case p.cur.Type == kwDISABLE:
@@ -260,13 +268,17 @@ func (p *Parser) parseUserOptions(
 					p.advance() // consume PROTECTION
 				}
 			} else {
-				return
+				return nil
 			}
 
 		case p.isIdentLikeStr("CONTAINER"):
 			// CONTAINER = { ALL | CURRENT }
 			p.advance()
-			setContainer(p.parseContainerClause())
+			parseValue87, parseErr88 := p.parseContainerClause()
+			if parseErr88 != nil {
+				return parseErr88
+			}
+			setContainer(parseValue87)
 
 		case p.cur.Type == kwREAD:
 			// READ ONLY | READ WRITE
@@ -328,16 +340,21 @@ func (p *Parser) parseUserOptions(
 				// FOR [schema.]object_name
 				if p.cur.Type == kwFOR {
 					p.advance()
-					p.parseObjectName()
+					parseDiscard902, parseErr901 := p.parseObjectName()
+					_ = parseDiscard902
+					if parseErr901 != nil {
+						return parseErr901
+					}
 				}
 			} else {
-				return
+				return nil
 			}
 
 		default:
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // parseCreateUserStmt parses a CREATE USER statement.
@@ -365,7 +382,7 @@ func (p *Parser) parseUserOptions(
 //
 //	size_clause:
 //	    integer { K | M | G | T }
-func (p *Parser) parseCreateUserStmt(start int) nodes.StmtNode {
+func (p *Parser) parseCreateUserStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.CreateUserStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -381,39 +398,53 @@ func (p *Parser) parseCreateUserStmt(start int) nodes.StmtNode {
 			}
 		}
 	}
+	var parseErr903 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr903 = p.parseObjectName()
+	if parseErr903 !=
 
-	// IDENTIFIED clause or NO AUTHENTICATION
+		// IDENTIFIED clause or NO AUTHENTICATION
+		nil {
+		return nil, parseErr903
+	}
+
 	if p.cur.Type == kwIDENTIFIED {
 		p.advance()
-		stmt.Identified = p.parseIdentifiedClause(false)
+		var parseErr904 error
+		stmt.Identified, parseErr904 = p.parseIdentifiedClause(false)
+		if parseErr904 != nil {
+			return nil, parseErr904
+		}
 	} else if p.isIdentLikeStr("NO") {
 		p.advance()
 		if p.isIdentLikeStr("AUTHENTICATION") {
 			p.advance()
 			stmt.Identified = &nodes.IdentifiedClause{
 				Type: nodes.IDENTIFIED_NO_AUTH,
-				Loc:  nodes.Loc{Start: p.pos(), End: p.pos()},
+				Loc:  nodes.Loc{Start: p.pos(), End: p.prev.End},
 			}
 		}
 	}
+	parseErr905 :=
 
-	// Parse remaining options
-	p.parseUserOptions(
-		func(ts string) { stmt.DefaultTablespace = ts },
-		func(ts string, local bool) { stmt.TempTablespace = ts; stmt.LocalTemp = local },
-		func(q *nodes.UserQuotaClause) { stmt.Quotas = append(stmt.Quotas, q) },
-		func(prof string) { stmt.Profile = prof },
-		func() { stmt.PasswordExpire = true },
-		func(v *bool) { stmt.AccountLock = v },
-		func() { stmt.EnableEditions = true },
-		func(c string) { stmt.DefaultCollation = c },
-		func(v *bool) { stmt.ContainerAll = v },
-	)
+		// Parse remaining options
+		p.parseUserOptions(
+			func(ts string) { stmt.DefaultTablespace = ts },
+			func(ts string, local bool) { stmt.TempTablespace = ts; stmt.LocalTemp = local },
+			func(q *nodes.UserQuotaClause) { stmt.Quotas = append(stmt.Quotas, q) },
+			func(prof string) { stmt.Profile = prof },
+			func() { stmt.PasswordExpire = true },
+			func(v *bool) { stmt.AccountLock = v },
+			func() { stmt.EnableEditions = true },
+			func(c string) { stmt.DefaultCollation = c },
+			func(v *bool) { stmt.ContainerAll = v },
+		)
+	if parseErr905 != nil {
+		return nil, parseErr905
+	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterUserStmt parses an ALTER USER statement.
@@ -468,7 +499,7 @@ func (p *Parser) parseCreateUserStmt(start int) nodes.StmtNode {
 //	    { SET | ADD | REMOVE } CONTAINER_DATA
 //	    { ( container_name [, container_name ]... ) | ALL | DEFAULT }
 //	    [ FOR [ schema. ] object_name ]
-func (p *Parser) parseAlterUserStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterUserStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AlterUserStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -481,43 +512,36 @@ func (p *Parser) parseAlterUserStmt(start int) nodes.StmtNode {
 			stmt.IfExists = true
 		}
 	}
+	var parseErr906 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr906 = p.parseObjectName()
+	if parseErr906 !=
 
-	// IDENTIFIED clause or NO AUTHENTICATION
+		// IDENTIFIED clause or NO AUTHENTICATION
+		nil {
+		return nil, parseErr906
+	}
+
 	if p.cur.Type == kwIDENTIFIED {
 		p.advance()
-		stmt.Identified = p.parseIdentifiedClause(true)
+		var parseErr907 error
+		stmt.Identified, parseErr907 = p.parseIdentifiedClause(true)
+		if parseErr907 != nil {
+			return nil, parseErr907
+		}
 	} else if p.isIdentLikeStr("NO") {
 		p.advance()
 		if p.isIdentLikeStr("AUTHENTICATION") {
 			p.advance()
 			stmt.Identified = &nodes.IdentifiedClause{
 				Type: nodes.IDENTIFIED_NO_AUTH,
-				Loc:  nodes.Loc{Start: p.pos(), End: p.pos()},
+				Loc:  nodes.Loc{Start: p.pos(), End: p.prev.End},
 			}
 		}
 	}
+	parseErr908 :=
 
-	// Parse remaining options (may return early on DEFAULT ROLE)
-	p.parseUserOptions(
-		func(ts string) { stmt.DefaultTablespace = ts },
-		func(ts string, local bool) { stmt.TempTablespace = ts; stmt.LocalTemp = local },
-		func(q *nodes.UserQuotaClause) { stmt.Quotas = append(stmt.Quotas, q) },
-		func(prof string) { stmt.Profile = prof },
-		func() { stmt.PasswordExpire = true },
-		func(v *bool) { stmt.AccountLock = v },
-		func() { stmt.EnableEditions = true },
-		func(c string) { stmt.DefaultCollation = c },
-		func(v *bool) { stmt.ContainerAll = v },
-	)
-
-	// DEFAULT ROLE clause (parseUserOptions returns when it sees DEFAULT ROLE)
-	if p.cur.Type == kwROLE {
-		p.advance()
-		stmt.DefaultRole = p.parseDefaultRoleClause()
-
-		// Continue parsing remaining options after DEFAULT ROLE
+		// Parse remaining options (may return early on DEFAULT ROLE)
 		p.parseUserOptions(
 			func(ts string) { stmt.DefaultTablespace = ts },
 			func(ts string, local bool) { stmt.TempTablespace = ts; stmt.LocalTemp = local },
@@ -529,16 +553,82 @@ func (p *Parser) parseAlterUserStmt(start int) nodes.StmtNode {
 			func(c string) { stmt.DefaultCollation = c },
 			func(v *bool) { stmt.ContainerAll = v },
 		)
+	if parseErr908 !=
+
+		// DEFAULT ROLE clause (parseUserOptions returns when it sees DEFAULT ROLE)
+		nil {
+		return nil, parseErr908
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	if p.cur.Type == kwROLE {
+		p.advance()
+		var parseErr909 error
+		stmt.DefaultRole, parseErr909 = p.parseDefaultRoleClause()
+		if parseErr909 !=
+
+			// Continue parsing remaining options after DEFAULT ROLE
+			nil {
+			return nil, parseErr909
+		}
+		parseErr910 := p.parseUserOptions(
+			func(ts string) { stmt.DefaultTablespace = ts },
+			func(ts string, local bool) { stmt.TempTablespace = ts; stmt.LocalTemp = local },
+			func(q *nodes.UserQuotaClause) { stmt.Quotas = append(stmt.Quotas, q) },
+			func(prof string) { stmt.Profile = prof },
+			func() { stmt.PasswordExpire = true },
+			func(v *bool) { stmt.AccountLock = v },
+			func() { stmt.EnableEditions = true },
+			func(c string) { stmt.DefaultCollation = c },
+			func(v *bool) { stmt.ContainerAll = v },
+		)
+		if parseErr910 != nil {
+			return nil, parseErr910
+		}
+	}
+	if p.cur.Type == kwGRANT || p.cur.Type == kwREVOKE {
+		parseErr911 := p.parseAlterUserProxyClause()
+		if parseErr911 != nil {
+			return nil, parseErr911
+		}
+	}
+
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
-// parseDefaultRoleClause parses the DEFAULT ROLE clause for ALTER USER.
-//
-//	DEFAULT ROLE { role [, role ]... | ALL [ EXCEPT role [, role ]... ] | NONE }
-func (p *Parser) parseDefaultRoleClause() *nodes.DefaultRoleClause {
+// parseAlterUserProxyClause consumes ALTER USER proxy clauses:
+// GRANT/REVOKE CONNECT THROUGH { ENTERPRISE USERS | proxy_user ... }.
+func (p *Parser) parseAlterUserProxyClause() error {
+	p.advance() // GRANT or REVOKE
+	if p.cur.Type == kwCONNECT {
+		p.advance()
+	}
+	if p.isIdentLikeStr("THROUGH") {
+		p.advance()
+	}
+	if p.isIdentLikeStr("ENTERPRISE") {
+		p.advance()
+		if p.cur.Type == kwUSER || p.isIdentLikeStr("USERS") {
+			p.advance()
+		}
+	} else if p.isIdentLike() {
+		parseDiscard913, parseErr912 := p.parseObjectName()
+		_ = parseDiscard913
+		if parseErr912 != nil {
+			return parseErr912
+
+			// parseDefaultRoleClause parses the DEFAULT ROLE clause for ALTER USER.
+			//
+			//	DEFAULT ROLE { role [, role ]... | ALL [ EXCEPT role [, role ]... ] | NONE }
+		}
+	}
+	for !p.isStatementEnd() {
+		p.advance()
+	}
+	return nil
+}
+
+func (p *Parser) parseDefaultRoleClause() (*nodes.DefaultRoleClause, error) {
 	start := p.pos()
 	clause := &nodes.DefaultRoleClause{
 		Loc: nodes.Loc{Start: start},
@@ -552,7 +642,11 @@ func (p *Parser) parseDefaultRoleClause() *nodes.DefaultRoleClause {
 			p.advance()
 			clause.ExceptAll = true
 			for {
-				clause.Roles = append(clause.Roles, p.parseObjectName())
+				parseValue89, parseErr90 := p.parseObjectName()
+				if parseErr90 != nil {
+					return nil, parseErr90
+				}
+				clause.Roles = append(clause.Roles, parseValue89)
 				if p.cur.Type != ',' {
 					break
 				}
@@ -565,7 +659,11 @@ func (p *Parser) parseDefaultRoleClause() *nodes.DefaultRoleClause {
 	} else {
 		// Specific role list
 		for {
-			clause.Roles = append(clause.Roles, p.parseObjectName())
+			parseValue91, parseErr92 := p.parseObjectName()
+			if parseErr92 != nil {
+				return nil, parseErr92
+			}
+			clause.Roles = append(clause.Roles, parseValue91)
 			if p.cur.Type != ',' {
 				break
 			}
@@ -573,8 +671,8 @@ func (p *Parser) parseDefaultRoleClause() *nodes.DefaultRoleClause {
 		}
 	}
 
-	clause.Loc.End = p.pos()
-	return clause
+	clause.Loc.End = p.prev.End
+	return clause, nil
 }
 
 // parseCreateRoleStmt parses a CREATE ROLE statement.
@@ -590,22 +688,31 @@ func (p *Parser) parseDefaultRoleClause() *nodes.DefaultRoleClause {
 //	                 }
 //	    ]
 //	    [ CONTAINER = { ALL | CURRENT } ] ;
-func (p *Parser) parseCreateRoleStmt(start int) nodes.StmtNode {
+func (p *Parser) parseCreateRoleStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.CreateRoleStmt{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr914 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr914 = p.parseObjectName()
+	if parseErr914 !=
 
-	// Optional IDENTIFIED clause
+		// Optional IDENTIFIED clause
+		nil {
+		return nil, parseErr914
+	}
+
 	if p.cur.Type == kwIDENTIFIED {
 		p.advance()
 		stmt.HasIdentified = true
-		p.parseRoleIdentifiedClause(
+		parseErr915 := p.parseRoleIdentifiedClause(
 			func(t nodes.RoleIdentifiedType) { stmt.IdentifiedType = t },
 			func(v string) { stmt.IdentifyBy = v },
 			func(v string) { stmt.IdentifySchema = v },
 		)
+		if parseErr915 != nil {
+			return nil, parseErr915
+		}
 	} else if p.cur.Type == kwNOT {
 		p.advance()
 		if p.cur.Type == kwIDENTIFIED {
@@ -618,11 +725,15 @@ func (p *Parser) parseCreateRoleStmt(start int) nodes.StmtNode {
 	// CONTAINER = { ALL | CURRENT }
 	if p.isIdentLikeStr("CONTAINER") {
 		p.advance()
-		stmt.ContainerAll = p.parseContainerClause()
+		var parseErr916 error
+		stmt.ContainerAll, parseErr916 = p.parseContainerClause()
+		if parseErr916 != nil {
+			return nil, parseErr916
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseRoleIdentifiedClause parses the IDENTIFIED clause for roles.
@@ -637,7 +748,7 @@ func (p *Parser) parseRoleIdentifiedClause(
 	setType func(nodes.RoleIdentifiedType),
 	setValue func(string),
 	setSchema func(string),
-) {
+) error {
 	switch {
 	case p.cur.Type == kwBY:
 		// IDENTIFIED BY password
@@ -651,7 +762,10 @@ func (p *Parser) parseRoleIdentifiedClause(
 		// IDENTIFIED USING [schema.]package
 		p.advance()
 		setType(nodes.ROLE_IDENTIFIED_USING)
-		name := p.parseObjectName()
+		name, parseErr917 := p.parseObjectName()
+		if parseErr917 != nil {
+			return parseErr917
+		}
 		if name != nil {
 			if name.Schema != "" {
 				setSchema(name.Schema)
@@ -674,6 +788,7 @@ func (p *Parser) parseRoleIdentifiedClause(
 			}
 		}
 	}
+	return nil
 }
 
 // parseAlterRoleStmt parses an ALTER ROLE statement.
@@ -688,21 +803,30 @@ func (p *Parser) parseRoleIdentifiedClause(
 //	    | IDENTIFIED USING [ schema. ] package_name
 //	    }
 //	    [ CONTAINER = { ALL | CURRENT } ]
-func (p *Parser) parseAlterRoleStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterRoleStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AlterRoleStmt{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr918 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr918 = p.parseObjectName()
+	if parseErr918 !=
 
-	// Required IDENTIFIED clause or NOT IDENTIFIED
+		// Required IDENTIFIED clause or NOT IDENTIFIED
+		nil {
+		return nil, parseErr918
+	}
+
 	if p.cur.Type == kwIDENTIFIED {
 		p.advance()
-		p.parseRoleIdentifiedClause(
+		parseErr919 := p.parseRoleIdentifiedClause(
 			func(t nodes.RoleIdentifiedType) { stmt.IdentifiedType = t },
 			func(v string) { stmt.IdentifyBy = v },
 			func(v string) { stmt.IdentifySchema = v },
 		)
+		if parseErr919 != nil {
+			return nil, parseErr919
+		}
 	} else if p.cur.Type == kwNOT {
 		p.advance()
 		if p.cur.Type == kwIDENTIFIED {
@@ -714,11 +838,15 @@ func (p *Parser) parseAlterRoleStmt(start int) nodes.StmtNode {
 	// CONTAINER = { ALL | CURRENT }
 	if p.isIdentLikeStr("CONTAINER") {
 		p.advance()
-		stmt.ContainerAll = p.parseContainerClause()
+		var parseErr920 error
+		stmt.ContainerAll, parseErr920 = p.parseContainerClause()
+		if parseErr920 != nil {
+			return nil, parseErr920
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterProfileStmt parses an ALTER PROFILE statement.
@@ -752,34 +880,50 @@ func (p *Parser) parseAlterRoleStmt(start int) nodes.StmtNode {
 //	    | PASSWORD_ROLLOVER_TIME { integer | UNLIMITED | DEFAULT }
 //	    | PASSWORD_VERIFY_FUNCTION { function_name | NULL | DEFAULT }
 //	    }
-func (p *Parser) parseAlterProfileStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterProfileStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AlterProfileStmt{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr921 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr921 = p.parseObjectName()
+	if parseErr921 !=
 
-	// Parse LIMIT clauses (same logic as CREATE PROFILE)
+		// Parse LIMIT clauses (same logic as CREATE PROFILE)
+		nil {
+		return nil, parseErr921
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		if p.cur.Type == kwLIMIT {
 			p.advance()
 			for p.isProfileParam() {
-				lim := p.parseProfileLimit()
+				lim, parseErr922 := p.parseProfileLimit()
+				if parseErr922 != nil {
+					return nil, parseErr922
+				}
 				stmt.Limits = append(stmt.Limits, lim)
 			}
 		} else if p.isProfileParam() {
-			lim := p.parseProfileLimit()
+			lim, parseErr923 := p.parseProfileLimit()
+			if parseErr923 != nil {
+				return nil, parseErr923
+			}
 			stmt.Limits = append(stmt.Limits, lim)
 		} else if p.isIdentLikeStr("CONTAINER") {
 			p.advance()
-			stmt.ContainerAll = p.parseContainerClause()
+			var parseErr924 error
+			stmt.ContainerAll, parseErr924 = p.parseContainerClause()
+			if parseErr924 != nil {
+				return nil, parseErr924
+			}
 		} else {
 			break
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterResourceCostStmt parses an ALTER RESOURCE COST statement.
@@ -796,7 +940,7 @@ func (p *Parser) parseAlterProfileStmt(start int) nodes.StmtNode {
 //	        | LOGICAL_READS_PER_SESSION integer
 //	        | PRIVATE_SGA integer
 //	        } ]...
-func (p *Parser) parseAlterResourceCostStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterResourceCostStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AlterResourceCostStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -818,7 +962,7 @@ func (p *Parser) parseAlterResourceCostStmt(start int) nodes.StmtNode {
 				entry.Value = p.cur.Str
 				p.advance()
 			}
-			entry.Loc.End = p.pos()
+			entry.Loc.End = p.prev.End
 			stmt.Costs = append(stmt.Costs, entry)
 		default:
 			goto done
@@ -826,8 +970,8 @@ func (p *Parser) parseAlterResourceCostStmt(start int) nodes.StmtNode {
 	}
 done:
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // isProfileParam returns true if the current identifier is a known profile resource or password parameter.
@@ -885,43 +1029,59 @@ func (p *Parser) isProfileParam() bool {
 //
 //	size_clause:
 //	    integer [ K | M | G | T | P | E ]
-func (p *Parser) parseCreateProfileStmt(start int, mandatory bool) nodes.StmtNode {
+func (p *Parser) parseCreateProfileStmt(start int, mandatory bool) (nodes.StmtNode, error) {
 	stmt := &nodes.CreateProfileStmt{
 		Loc:       nodes.Loc{Start: start},
 		Mandatory: mandatory,
 	}
+	var parseErr925 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr925 = p.parseObjectName()
+	if parseErr925 !=
 
-	// Parse LIMIT clauses
+		// Parse LIMIT clauses
+		nil {
+		return nil, parseErr925
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		if p.cur.Type == kwLIMIT {
 			p.advance()
 			// Parse parameters after LIMIT
 			for p.isProfileParam() {
-				lim := p.parseProfileLimit()
+				lim, parseErr926 := p.parseProfileLimit()
+				if parseErr926 != nil {
+					return nil, parseErr926
+				}
 				stmt.Limits = append(stmt.Limits, lim)
 			}
 		} else if p.isProfileParam() {
 			// Parameters can appear without repeated LIMIT keyword
-			lim := p.parseProfileLimit()
+			lim, parseErr927 := p.parseProfileLimit()
+			if parseErr927 != nil {
+				return nil, parseErr927
+			}
 			stmt.Limits = append(stmt.Limits, lim)
 		} else if p.isIdentLikeStr("CONTAINER") {
 			p.advance()
-			stmt.ContainerAll = p.parseContainerClause()
+			var parseErr928 error
+			stmt.ContainerAll, parseErr928 = p.parseContainerClause()
+			if parseErr928 != nil {
+				return nil, parseErr928
+			}
 		} else {
 			break
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseProfileLimit parses a single profile limit parameter and its value.
 //
 //	param_name { integer | size_clause | UNLIMITED | DEFAULT | NULL | function_name }
-func (p *Parser) parseProfileLimit() *nodes.ProfileLimit {
+func (p *Parser) parseProfileLimit() (*nodes.ProfileLimit, error) {
 	start := p.pos()
 	lim := &nodes.ProfileLimit{
 		Loc: nodes.Loc{Start: start},
@@ -959,8 +1119,8 @@ func (p *Parser) parseProfileLimit() *nodes.ProfileLimit {
 		p.advance()
 	}
 
-	lim.Loc.End = p.pos()
-	return lim
+	lim.Loc.End = p.prev.End
+	return lim, nil
 }
 
 // parseAdministerKeyManagementStmt parses an ADMINISTER KEY MANAGEMENT statement.
@@ -1046,7 +1206,7 @@ func (p *Parser) parseProfileLimit() *nodes.ProfileLimit {
 //	        [ FORCE KEYSTORE ]
 //	        IDENTIFIED BY { password | EXTERNAL STORE }
 //	        [ WITH BACKUP [ USING 'description' ] ]
-func (p *Parser) parseAdministerKeyManagementStmt() nodes.StmtNode {
+func (p *Parser) parseAdministerKeyManagementStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume ADMINISTER
 
@@ -1061,8 +1221,8 @@ func (p *Parser) parseAdministerKeyManagementStmt() nodes.StmtNode {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateAuditPolicyStmt parses a CREATE AUDIT POLICY statement (Unified Auditing).
@@ -1117,7 +1277,7 @@ func (p *Parser) parseAdministerKeyManagementStmt() nodes.StmtNode {
 //
 //	role_audit_clause:
 //	    ROLES role [, role ]...
-func (p *Parser) parseCreateAuditPolicyStmt(start int) nodes.StmtNode {
+func (p *Parser) parseCreateAuditPolicyStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.CreateAuditPolicyStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -1134,20 +1294,35 @@ func (p *Parser) parseCreateAuditPolicyStmt(start int) nodes.StmtNode {
 		case p.cur.Type == kwPRIVILEGES:
 			// privilege_audit_clause
 			p.advance()
-			stmt.Privileges = p.parseAuditPrivilegeList()
+			var parseErr929 error
+			stmt.Privileges, parseErr929 = p.parseAuditPrivilegeList()
+			if parseErr929 != nil {
+				return nil, parseErr929
+			}
 
 		case p.isIdentLikeStr("ACTIONS"):
 			// action_audit_clause
 			p.advance()
-			p.parseAuditActionsClause(&stmt.Actions, &stmt.ComponentActions)
+			parseErr930 := p.parseAuditActionsClause(&stmt.Actions, &stmt.ComponentActions)
+			if parseErr930 != nil {
+				return nil, parseErr930
+
+				// role_audit_clause
+			}
 
 		case p.isIdentLikeStr("ROLES"):
-			// role_audit_clause
+
 			p.advance()
-			stmt.Roles = p.parseAuditIdentList()
+			var parseErr931 error
+			stmt.Roles, parseErr931 = p.parseAuditIdentList()
+			if parseErr931 != nil {
+				return nil, parseErr931
+
+				// WHEN 'audit_condition' EVALUATE PER { STATEMENT | SESSION | INSTANCE }
+			}
 
 		case p.cur.Type == kwWHEN:
-			// WHEN 'audit_condition' EVALUATE PER { STATEMENT | SESSION | INSTANCE }
+
 			p.advance()
 			if p.cur.Type == tokSCONST {
 				stmt.WhenCondition = p.cur.Str
@@ -1175,7 +1350,11 @@ func (p *Parser) parseCreateAuditPolicyStmt(start int) nodes.StmtNode {
 		case p.isIdentLikeStr("CONTAINER"):
 			// CONTAINER = { ALL | CURRENT }
 			p.advance()
-			stmt.ContainerAll = p.parseContainerClause()
+			var parseErr932 error
+			stmt.ContainerAll, parseErr932 = p.parseContainerClause()
+			if parseErr932 != nil {
+				return nil, parseErr932
+			}
 
 		default:
 			goto createDone
@@ -1183,8 +1362,8 @@ func (p *Parser) parseCreateAuditPolicyStmt(start int) nodes.StmtNode {
 	}
 createDone:
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterAuditPolicyStmt parses an ALTER AUDIT POLICY statement (Unified Auditing).
@@ -1215,7 +1394,7 @@ createDone:
 //
 //	role_audit_clause ::=
 //	  ROLES role [, role ]...
-func (p *Parser) parseAlterAuditPolicyStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterAuditPolicyStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AlterAuditPolicyStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -1241,8 +1420,8 @@ func (p *Parser) parseAlterAuditPolicyStmt(start int) nodes.StmtNode {
 				} else {
 					stmt.DropToplevel = true
 				}
-				stmt.Loc.End = p.pos()
-				return stmt
+				stmt.Loc.End = p.prev.End
+				return stmt, nil
 			}
 		}
 
@@ -1251,13 +1430,24 @@ func (p *Parser) parseAlterAuditPolicyStmt(start int) nodes.StmtNode {
 			switch {
 			case p.cur.Type == kwPRIVILEGES:
 				p.advance()
-				stmt.Privileges = p.parseAuditPrivilegeList()
+				var parseErr933 error
+				stmt.Privileges, parseErr933 = p.parseAuditPrivilegeList()
+				if parseErr933 != nil {
+					return nil, parseErr933
+				}
 			case p.isIdentLikeStr("ACTIONS"):
 				p.advance()
-				p.parseAuditActionsClause(&stmt.Actions, &stmt.ComponentActions)
+				parseErr934 := p.parseAuditActionsClause(&stmt.Actions, &stmt.ComponentActions)
+				if parseErr934 != nil {
+					return nil, parseErr934
+				}
 			case p.isIdentLikeStr("ROLES"):
 				p.advance()
-				stmt.Roles = p.parseAuditIdentList()
+				var parseErr935 error
+				stmt.Roles, parseErr935 = p.parseAuditIdentList()
+				if parseErr935 != nil {
+					return nil, parseErr935
+				}
 			default:
 				goto alterDone
 			}
@@ -1285,8 +1475,8 @@ func (p *Parser) parseAlterAuditPolicyStmt(start int) nodes.StmtNode {
 	}
 alterDone:
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseDropAuditPolicyStmt parses a DROP AUDIT POLICY statement (Unified Auditing).
@@ -1295,7 +1485,7 @@ alterDone:
 // BNF: oracle/parser/bnf/DROP-AUDIT-POLICY-Unified-Auditing.bnf
 //
 //	DROP AUDIT POLICY policy
-func (p *Parser) parseDropAuditPolicyStmt(start int) nodes.StmtNode {
+func (p *Parser) parseDropAuditPolicyStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.DropAuditPolicyStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -1305,13 +1495,13 @@ func (p *Parser) parseDropAuditPolicyStmt(start int) nodes.StmtNode {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAuditActionsClause parses standard_actions and component_actions for audit policy.
 // Called after ACTIONS keyword has been consumed.
-func (p *Parser) parseAuditActionsClause(actions *[]*nodes.AuditActionEntry, compActions *[]*nodes.AuditComponentAction) {
+func (p *Parser) parseAuditActionsClause(actions *[]*nodes.AuditActionEntry, compActions *[]*nodes.AuditComponentAction) error {
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		// Check for COMPONENT =
 		if p.isIdentLikeStr("COMPONENT") {
@@ -1346,7 +1536,7 @@ func (p *Parser) parseAuditActionsClause(actions *[]*nodes.AuditActionEntry, com
 				}
 				p.advance()
 			}
-			comp.Loc.End = p.pos()
+			comp.Loc.End = p.prev.End
 			*compActions = append(*compActions, comp)
 			continue
 		}
@@ -1359,7 +1549,10 @@ func (p *Parser) parseAuditActionsClause(actions *[]*nodes.AuditActionEntry, com
 		}
 
 		// Parse standard action entry
-		entry := p.parseAuditActionEntry()
+		entry, parseErr936 := p.parseAuditActionEntry()
+		if parseErr936 != nil {
+			return parseErr936
+		}
 		if entry == nil {
 			break
 		}
@@ -1371,15 +1564,16 @@ func (p *Parser) parseAuditActionsClause(actions *[]*nodes.AuditActionEntry, com
 			break
 		}
 	}
+	return nil
 }
 
 // parseAuditActionEntry parses a single standard audit action entry.
-func (p *Parser) parseAuditActionEntry() *nodes.AuditActionEntry {
+func (p *Parser) parseAuditActionEntry() (*nodes.AuditActionEntry, error) {
 	if !p.isIdentLike() && p.cur.Type != kwALL && p.cur.Type != kwSELECT &&
 		p.cur.Type != kwINSERT && p.cur.Type != kwUPDATE && p.cur.Type != kwDELETE &&
 		p.cur.Type != kwCREATE && p.cur.Type != kwALTER && p.cur.Type != kwDROP &&
 		p.cur.Type != kwGRANT && p.cur.Type != kwEXECUTE {
-		return nil
+		return nil, nil
 	}
 
 	start := p.pos()
@@ -1395,9 +1589,12 @@ func (p *Parser) parseAuditActionEntry() *nodes.AuditActionEntry {
 	if action == "ALL" && p.cur.Type == kwON {
 		entry.Action = "ALL"
 		p.advance()
-		p.parseAuditOnTarget(entry)
-		entry.Loc.End = p.pos()
-		return entry
+		parseErr937 := p.parseAuditOnTarget(entry)
+		if parseErr937 != nil {
+			return nil, parseErr937
+		}
+		entry.Loc.End = p.prev.End
+		return entry, nil
 	}
 
 	// Multi-word action: keep collecting until we see ON, comma, semicolon, or clause keyword
@@ -1437,16 +1634,19 @@ func (p *Parser) parseAuditActionEntry() *nodes.AuditActionEntry {
 	// Optional ON target
 	if p.cur.Type == kwON {
 		p.advance()
-		p.parseAuditOnTarget(entry)
+		parseErr938 := p.parseAuditOnTarget(entry)
+		if parseErr938 != nil {
+			return nil, parseErr938
+		}
 	}
 
-	entry.Loc.End = p.pos()
-	return entry
+	entry.Loc.End = p.prev.End
+	return entry, nil
 }
 
 // parseAuditOnTarget parses the ON target for an audit action entry.
 // Called after ON has been consumed.
-func (p *Parser) parseAuditOnTarget(entry *nodes.AuditActionEntry) {
+func (p *Parser) parseAuditOnTarget(entry *nodes.AuditActionEntry) error {
 	if p.isIdentLikeStr("DIRECTORY") {
 		p.advance()
 		if p.isIdentLike() {
@@ -1459,15 +1659,26 @@ func (p *Parser) parseAuditOnTarget(entry *nodes.AuditActionEntry) {
 			p.advance()
 		}
 		entry.MiningModel = true
-		entry.Object = p.parseObjectName()
+		var parseErr939 error
+		entry.Object, parseErr939 = p.parseObjectName()
+		if parseErr939 != nil {
+			return parseErr939
+		}
 	} else {
-		entry.Object = p.parseObjectName()
+		var parseErr940 error
+		entry.Object, parseErr940 = p.parseObjectName()
+		if parseErr940 !=
+
+			// parsePrivilegeList parses a comma-separated list of privileges (may be multi-word).
+			// Called after PRIVILEGES keyword has been consumed.
+			nil {
+			return parseErr940
+		}
 	}
+	return nil
 }
 
-// parsePrivilegeList parses a comma-separated list of privileges (may be multi-word).
-// Called after PRIVILEGES keyword has been consumed.
-func (p *Parser) parseAuditPrivilegeList() []string {
+func (p *Parser) parseAuditPrivilegeList() ([]string, error) {
 	var privs []string
 	for {
 		priv := ""
@@ -1499,11 +1710,11 @@ func (p *Parser) parseAuditPrivilegeList() []string {
 		}
 		p.advance()
 	}
-	return privs
+	return privs, nil
 }
 
 // parseAuditIdentList parses a comma-separated list of simple identifiers.
-func (p *Parser) parseAuditIdentList() []string {
+func (p *Parser) parseAuditIdentList() ([]string, error) {
 	var list []string
 	for {
 		if !p.isIdentLike() {
@@ -1516,5 +1727,5 @@ func (p *Parser) parseAuditIdentList() []string {
 		}
 		p.advance()
 	}
-	return list
+	return list, nil
 }

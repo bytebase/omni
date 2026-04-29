@@ -74,7 +74,7 @@ import (
 //	    [ INTO [ schema. ] table_name ]
 //	    [ ( simple_expression ) ]
 //	    [ REJECT LIMIT { integer | UNLIMITED } ]
-func (p *Parser) parseUpdateStmt() *nodes.UpdateStmt {
+func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 	start := p.pos()
 	p.advance() // consume UPDATE
 
@@ -87,70 +87,129 @@ func (p *Parser) parseUpdateStmt() *nodes.UpdateStmt {
 		stmt.Hints = &nodes.List{}
 		stmt.Hints.Items = append(stmt.Hints.Items, &nodes.Hint{
 			Text: p.cur.Str,
-			Loc:  nodes.Loc{Start: p.pos(), End: p.pos()},
+			Loc:  nodes.Loc{Start: p.pos(), End: p.prev.End},
 		})
 		p.advance()
 	}
+	var parseErr1127 error
 
 	// Table name
-	stmt.Table = p.parseObjectName()
+	stmt.Table, parseErr1127 = p.parseObjectName()
+	if parseErr1127 !=
 
-	// Optional alias (before partition clause, matching BNF order for UPDATE)
+		// Optional alias (before partition clause, matching BNF order for UPDATE)
+		nil {
+		return nil, parseErr1127
+	}
+
 	if p.cur.Type == kwAS {
 		p.advance()
-		stmt.Alias = &nodes.Alias{Name: p.parseIdentifier()}
+		var parseErr1128 error
+		stmt.Alias, parseErr1128 = p.parseAlias()
+		if parseErr1128 != nil {
+			return nil, parseErr1128
+		}
 	} else if p.isTableAliasCandidate() {
-		stmt.Alias = &nodes.Alias{Name: p.parseIdentifier()}
+		var parseErr1129 error
+		stmt.Alias, parseErr1129 = p.parseAlias()
+		if parseErr1129 !=
+
+			// Partition extension clause
+			nil {
+			return nil, parseErr1129
+		}
 	}
 
-	// Partition extension clause
 	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
-		stmt.PartitionExt = p.parsePartitionExtClause()
+		var parseErr1130 error
+		stmt.PartitionExt, parseErr1130 = p.parsePartitionExtClause()
+		if parseErr1130 !=
+
+			// @dblink
+			nil {
+			return nil, parseErr1130
+		}
 	}
 
-	// @dblink
 	if p.cur.Type == '@' {
 		p.advance()
-		stmt.Dblink = p.parseIdentifier()
+		var parseErr1131 error
+		stmt.Dblink, parseErr1131 = p.parseIdentifier()
+		if parseErr1131 !=
+
+			// SET
+			nil {
+			return nil, parseErr1131
+		}
 	}
 
-	// SET
 	if p.cur.Type == kwSET {
 		p.advance()
-		stmt.SetClauses = p.parseSetClauses()
+		var parseErr1132 error
+		stmt.SetClauses, parseErr1132 = p.parseSetClauses()
+		if parseErr1132 !=
+
+			// FROM clause (Oracle 23c+)
+			nil {
+			return nil, parseErr1132
+		}
 	}
 
-	// FROM clause (Oracle 23c+)
 	if p.cur.Type == kwFROM {
 		p.advance()
-		stmt.FromClause = p.parseFromList()
+		var parseErr1133 error
+		stmt.FromClause, parseErr1133 = p.parseFromList()
+		if parseErr1133 !=
+
+			// WHERE
+			nil {
+			return nil, parseErr1133
+		}
 	}
 
-	// WHERE
 	if p.cur.Type == kwWHERE {
 		p.advance()
-		stmt.WhereClause = p.parseExpr()
+		var parseErr1134 error
+		stmt.WhereClause, parseErr1134 = p.parseExpr()
+		if parseErr1134 !=
+
+			// RETURNING / RETURN ... INTO ...
+			nil {
+			return nil, parseErr1134
+		}
 	}
 
-	// RETURNING / RETURN ... INTO ...
 	if p.cur.Type == kwRETURNING || p.cur.Type == kwRETURN {
-		stmt.Returning = p.parseReturningClause()
+		var parseErr1135 error
+		stmt.Returning, parseErr1135 = p.parseReturningClause()
+		if parseErr1135 !=
+
+			// LOG ERRORS
+			nil {
+			return nil, parseErr1135
+		}
 	}
 
-	// LOG ERRORS
 	if p.cur.Type == kwLOG {
-		stmt.ErrorLog = p.parseErrorLogClause()
+		var parseErr1136 error
+		stmt.ErrorLog, parseErr1136 = p.parseErrorLogClause()
+		if parseErr1136 != nil {
+			return nil, parseErr1136
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseFromList parses a comma-separated list of table references for FROM clause.
-func (p *Parser) parseFromList() *nodes.List {
+func (p *Parser) parseFromList() (*nodes.List, error) {
 	list := &nodes.List{}
 	for {
-		tr := p.parseTableRef()
+		tr, parseErr1137 := p.parseTableRef()
+		if parseErr1137 != nil {
+			return nil, parseErr1137
+		}
 		if tr == nil {
 			break
 		}
@@ -160,15 +219,18 @@ func (p *Parser) parseFromList() *nodes.List {
 		}
 		p.advance()
 	}
-	return list
+	return list, nil
 }
 
 // parseSetClauses parses comma-separated SET clauses.
-func (p *Parser) parseSetClauses() *nodes.List {
+func (p *Parser) parseSetClauses() (*nodes.List, error) {
 	list := &nodes.List{}
 
 	for {
-		sc := p.parseSetClause()
+		sc, parseErr1138 := p.parseSetClause()
+		if parseErr1138 != nil {
+			return nil, parseErr1138
+		}
 		if sc == nil {
 			break
 		}
@@ -179,11 +241,11 @@ func (p *Parser) parseSetClauses() *nodes.List {
 		p.advance()
 	}
 
-	return list
+	return list, nil
 }
 
 // parseSetClause parses a single SET clause: col = expr | (col1,col2) = (subquery).
-func (p *Parser) parseSetClause() *nodes.SetClause {
+func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 	start := p.pos()
 
 	// Multi-column: (col1, col2) = (subquery)
@@ -194,7 +256,10 @@ func (p *Parser) parseSetClause() *nodes.SetClause {
 			Loc:     nodes.Loc{Start: start},
 		}
 		for {
-			col := p.parseColumnRef()
+			col, parseErr1139 := p.parseColumnRef()
+			if parseErr1139 != nil {
+				return nil, parseErr1139
+			}
 			if col != nil {
 				sc.Columns.Items = append(sc.Columns.Items, col)
 			}
@@ -209,17 +274,24 @@ func (p *Parser) parseSetClause() *nodes.SetClause {
 		if p.cur.Type == '=' {
 			p.advance()
 		}
-		sc.Value = p.parseExpr()
-		sc.Loc.End = p.pos()
-		return sc
+		var parseErr1140 error
+		sc.Value, parseErr1140 = p.parseExpr()
+		if parseErr1140 != nil {
+			return nil, parseErr1140
+		}
+		sc.Loc.End = p.prev.End
+		return sc, nil
 	}
 
 	// Single column: col = expr
 	if !p.isIdentLike() {
-		return nil
+		return nil, nil
 	}
 
-	col := p.parseColumnRef()
+	col, parseErr1141 := p.parseColumnRef()
+	if parseErr1141 != nil {
+		return nil, parseErr1141
+	}
 	sc := &nodes.SetClause{
 		Column: col,
 		Loc:    nodes.Loc{Start: start},
@@ -233,14 +305,18 @@ func (p *Parser) parseSetClause() *nodes.SetClause {
 	if p.cur.Type == kwDEFAULT {
 		sc.Value = &nodes.ColumnRef{
 			Column: "DEFAULT",
-			Loc:    nodes.Loc{Start: p.pos(), End: p.pos()},
+			Loc:    nodes.Loc{Start: p.pos(), End: p.prev.End},
 		}
 		p.advance()
 	} else {
-		sc.Value = p.parseExpr()
+		var parseErr1142 error
+		sc.Value, parseErr1142 = p.parseExpr()
+		if parseErr1142 != nil {
+			return nil, parseErr1142
+		}
 	}
-	sc.Loc.End = p.pos()
-	return sc
+	sc.Loc.End = p.prev.End
+	return sc, nil
 }
 
 // parseDeleteStmt parses a DELETE statement.
@@ -291,7 +367,7 @@ func (p *Parser) parseSetClause() *nodes.SetClause {
 //	    LOG ERRORS [ INTO [ schema. ] table_name ]
 //	    [ ( simple_expression ) ]
 //	    [ REJECT LIMIT { integer | UNLIMITED } ]
-func (p *Parser) parseDeleteStmt() *nodes.DeleteStmt {
+func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 	start := p.pos()
 	p.advance() // consume DELETE
 
@@ -304,7 +380,7 @@ func (p *Parser) parseDeleteStmt() *nodes.DeleteStmt {
 		stmt.Hints = &nodes.List{}
 		stmt.Hints.Items = append(stmt.Hints.Items, &nodes.Hint{
 			Text: p.cur.Str,
-			Loc:  nodes.Loc{Start: p.pos(), End: p.pos()},
+			Loc:  nodes.Loc{Start: p.pos(), End: p.prev.End},
 		})
 		p.advance()
 	}
@@ -313,45 +389,89 @@ func (p *Parser) parseDeleteStmt() *nodes.DeleteStmt {
 	if p.cur.Type == kwFROM {
 		p.advance()
 	}
+	var parseErr1143 error
 
 	// Table name
-	stmt.Table = p.parseObjectName()
+	stmt.Table, parseErr1143 = p.parseObjectName()
+	if parseErr1143 !=
 
-	// Partition extension clause
-	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
-		stmt.PartitionExt = p.parsePartitionExtClause()
+		// Partition extension clause
+		nil {
+		return nil, parseErr1143
 	}
 
-	// @dblink
+	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
+		var parseErr1144 error
+		stmt.PartitionExt, parseErr1144 = p.parsePartitionExtClause()
+		if parseErr1144 !=
+
+			// @dblink
+			nil {
+			return nil, parseErr1144
+		}
+	}
+
 	if p.cur.Type == '@' {
 		p.advance()
-		stmt.Dblink = p.parseIdentifier()
+		var parseErr1145 error
+		stmt.Dblink, parseErr1145 = p.parseIdentifier()
+		if parseErr1145 !=
+
+			// Optional alias
+			nil {
+			return nil, parseErr1145
+		}
 	}
 
-	// Optional alias
 	if p.cur.Type == kwAS {
 		p.advance()
-		stmt.Alias = &nodes.Alias{Name: p.parseIdentifier()}
+		var parseErr1146 error
+		stmt.Alias, parseErr1146 = p.parseAlias()
+		if parseErr1146 != nil {
+			return nil, parseErr1146
+		}
 	} else if p.isTableAliasCandidate() {
-		stmt.Alias = &nodes.Alias{Name: p.parseIdentifier()}
+		var parseErr1147 error
+		stmt.Alias, parseErr1147 = p.parseAlias()
+		if parseErr1147 !=
+
+			// WHERE
+			nil {
+			return nil, parseErr1147
+		}
 	}
 
-	// WHERE
 	if p.cur.Type == kwWHERE {
 		p.advance()
-		stmt.WhereClause = p.parseExpr()
+		var parseErr1148 error
+		stmt.WhereClause, parseErr1148 = p.parseExpr()
+		if parseErr1148 !=
+
+			// RETURNING / RETURN ... INTO ...
+			nil {
+			return nil, parseErr1148
+		}
 	}
 
-	// RETURNING / RETURN ... INTO ...
 	if p.cur.Type == kwRETURNING || p.cur.Type == kwRETURN {
-		stmt.Returning = p.parseReturningClause()
+		var parseErr1149 error
+		stmt.Returning, parseErr1149 = p.parseReturningClause()
+		if parseErr1149 !=
+
+			// LOG ERRORS
+			nil {
+			return nil, parseErr1149
+		}
 	}
 
-	// LOG ERRORS
 	if p.cur.Type == kwLOG {
-		stmt.ErrorLog = p.parseErrorLogClause()
+		var parseErr1150 error
+		stmt.ErrorLog, parseErr1150 = p.parseErrorLogClause()
+		if parseErr1150 != nil {
+			return nil, parseErr1150
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }

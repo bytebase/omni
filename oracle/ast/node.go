@@ -25,17 +25,22 @@ type StmtNode interface {
 }
 
 // Loc represents a source location range (byte offsets).
-// A zero-value Loc (Start=0, End=0) is valid and means the node starts at
-// byte offset 0 with unknown end. Use Start=-1 or End=-1 to indicate
-// explicitly unknown positions.
+// Start and End are byte offsets; Start is inclusive and End is exclusive.
+// A zero value is a real location at the beginning of the input. Use -1 for
+// unknown positions.
 type Loc struct {
 	Start int // inclusive start byte offset; 0 is a valid position, -1 means unknown
-	End   int // exclusive end byte offset; 0 means unknown/unset, -1 means unknown
+	End   int // exclusive end byte offset; 0 is a valid position, -1 means unknown
 }
 
 // NoLoc returns a Loc with both Start and End set to -1 (unknown).
 func NoLoc() Loc {
 	return Loc{Start: -1, End: -1}
+}
+
+// IsUnknown reports whether both ends of the location use the unknown sentinel.
+func (l Loc) IsUnknown() bool {
+	return l.Start == -1 && l.End == -1
 }
 
 // List represents a generic list of nodes.

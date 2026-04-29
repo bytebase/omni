@@ -9,7 +9,10 @@ import (
 // TestParseIdentifier tests parsing of simple unquoted identifiers.
 func TestParseIdentifier(t *testing.T) {
 	p := newTestParser("my_table")
-	name := p.parseIdentifier()
+	name, parseErr1 := p.parseIdentifier()
+	if parseErr1 != nil {
+		t.Fatalf("parse: %v", parseErr1)
+	}
 	if name != "MY_TABLE" {
 		t.Errorf("expected MY_TABLE, got %q", name)
 	}
@@ -18,7 +21,10 @@ func TestParseIdentifier(t *testing.T) {
 // TestParseQuotedIdentifier tests parsing of "double-quoted" identifiers.
 func TestParseQuotedIdentifier(t *testing.T) {
 	p := newTestParser(`"MyColumn"`)
-	name := p.parseIdentifier()
+	name, parseErr2 := p.parseIdentifier()
+	if parseErr2 != nil {
+		t.Fatalf("parse: %v", parseErr2)
+	}
 	if name != "MyColumn" {
 		t.Errorf("expected MyColumn, got %q", name)
 	}
@@ -27,7 +33,10 @@ func TestParseQuotedIdentifier(t *testing.T) {
 // TestParseObjectNameSimple tests parsing a simple (unqualified) object name.
 func TestParseObjectNameSimple(t *testing.T) {
 	p := newTestParser("employees")
-	obj := p.parseObjectName()
+	obj, parseErr3 := p.parseObjectName()
+	if parseErr3 != nil {
+		t.Fatalf("parse: %v", parseErr3)
+	}
 	if obj.Name != "EMPLOYEES" {
 		t.Errorf("expected EMPLOYEES, got %q", obj.Name)
 	}
@@ -42,7 +51,10 @@ func TestParseObjectNameSimple(t *testing.T) {
 // TestParseObjectNameSchemaQualified tests parsing schema.object.
 func TestParseObjectNameSchemaQualified(t *testing.T) {
 	p := newTestParser("hr.employees")
-	obj := p.parseObjectName()
+	obj, parseErr4 := p.parseObjectName()
+	if parseErr4 != nil {
+		t.Fatalf("parse: %v", parseErr4)
+	}
 	if obj.Schema != "HR" {
 		t.Errorf("expected schema HR, got %q", obj.Schema)
 	}
@@ -54,7 +66,10 @@ func TestParseObjectNameSchemaQualified(t *testing.T) {
 // TestParseObjectNameWithDBLink tests parsing schema.object@dblink.
 func TestParseObjectNameWithDBLink(t *testing.T) {
 	p := newTestParser("hr.employees@remote_db")
-	obj := p.parseObjectName()
+	obj, parseErr5 := p.parseObjectName()
+	if parseErr5 != nil {
+		t.Fatalf("parse: %v", parseErr5)
+	}
 	if obj.Schema != "HR" {
 		t.Errorf("expected schema HR, got %q", obj.Schema)
 	}
@@ -69,7 +84,10 @@ func TestParseObjectNameWithDBLink(t *testing.T) {
 // TestParseObjectNameDBLinkOnly tests parsing object@dblink without schema.
 func TestParseObjectNameDBLinkOnly(t *testing.T) {
 	p := newTestParser("employees@remote_db")
-	obj := p.parseObjectName()
+	obj, parseErr6 := p.parseObjectName()
+	if parseErr6 != nil {
+		t.Fatalf("parse: %v", parseErr6)
+	}
 	if obj.Schema != "" {
 		t.Errorf("expected empty schema, got %q", obj.Schema)
 	}
@@ -84,7 +102,10 @@ func TestParseObjectNameDBLinkOnly(t *testing.T) {
 // TestParseObjectNameQuoted tests parsing "Schema"."Object".
 func TestParseObjectNameQuoted(t *testing.T) {
 	p := newTestParser(`"MySchema"."MyTable"`)
-	obj := p.parseObjectName()
+	obj, parseErr7 := p.parseObjectName()
+	if parseErr7 != nil {
+		t.Fatalf("parse: %v", parseErr7)
+	}
 	if obj.Schema != "MySchema" {
 		t.Errorf("expected schema MySchema, got %q", obj.Schema)
 	}
@@ -96,7 +117,10 @@ func TestParseObjectNameQuoted(t *testing.T) {
 // TestParseColumnRefSimple tests parsing a simple column reference.
 func TestParseColumnRefSimple(t *testing.T) {
 	p := newTestParser("salary")
-	col := p.parseColumnRef()
+	col, parseErr8 := p.parseColumnRef()
+	if parseErr8 != nil {
+		t.Fatalf("parse: %v", parseErr8)
+	}
 	if col.Column != "SALARY" {
 		t.Errorf("expected column SALARY, got %q", col.Column)
 	}
@@ -108,7 +132,10 @@ func TestParseColumnRefSimple(t *testing.T) {
 // TestParseColumnRefQualified tests parsing table.column.
 func TestParseColumnRefQualified(t *testing.T) {
 	p := newTestParser("e.salary")
-	col := p.parseColumnRef()
+	col, parseErr9 := p.parseColumnRef()
+	if parseErr9 != nil {
+		t.Fatalf("parse: %v", parseErr9)
+	}
 	if col.Table != "E" {
 		t.Errorf("expected table E, got %q", col.Table)
 	}
@@ -120,7 +147,10 @@ func TestParseColumnRefQualified(t *testing.T) {
 // TestParseColumnRefSchemaQualified tests parsing schema.table.column.
 func TestParseColumnRefSchemaQualified(t *testing.T) {
 	p := newTestParser("hr.employees.salary")
-	col := p.parseColumnRef()
+	col, parseErr10 := p.parseColumnRef()
+	if parseErr10 != nil {
+		t.Fatalf("parse: %v", parseErr10)
+	}
 	if col.Schema != "HR" {
 		t.Errorf("expected schema HR, got %q", col.Schema)
 	}
@@ -135,7 +165,10 @@ func TestParseColumnRefSchemaQualified(t *testing.T) {
 // TestParseColumnRefStar tests parsing table.*.
 func TestParseColumnRefStar(t *testing.T) {
 	p := newTestParser("e.*")
-	col := p.parseColumnRef()
+	col, parseErr11 := p.parseColumnRef()
+	if parseErr11 != nil {
+		t.Fatalf("parse: %v", parseErr11)
+	}
 	if col.Table != "E" {
 		t.Errorf("expected table E, got %q", col.Table)
 	}
@@ -157,7 +190,10 @@ func TestParseBindVariable(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			p := newTestParser(tc.input)
-			bv := p.parseBindVariable()
+			bv, parseErr1 := p.parseBindVariable()
+			if parseErr1 != nil {
+				t.Fatalf("parse: %v", parseErr1)
+			}
 			if bv == nil {
 				t.Fatal("expected non-nil BindVariable")
 			}
@@ -184,7 +220,10 @@ func TestParsePseudoColumn(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			p := newTestParser(tc.input)
-			pc := p.parsePseudoColumn()
+			pc, parseErr2 := p.parsePseudoColumn()
+			if parseErr2 != nil {
+				t.Fatalf("parse: %v", parseErr2)
+			}
 			if pc == nil {
 				t.Fatal("expected non-nil PseudoColumn")
 			}
@@ -198,7 +237,10 @@ func TestParsePseudoColumn(t *testing.T) {
 // TestParseObjectNameLoc tests that locations are recorded.
 func TestParseObjectNameLoc(t *testing.T) {
 	p := newTestParser("hr.employees")
-	obj := p.parseObjectName()
+	obj, parseErr12 := p.parseObjectName()
+	if parseErr12 != nil {
+		t.Fatalf("parse: %v", parseErr12)
+	}
 	if obj.Loc.Start != 0 {
 		t.Errorf("expected Start=0, got %d", obj.Loc.Start)
 	}

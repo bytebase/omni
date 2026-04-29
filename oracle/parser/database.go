@@ -38,7 +38,7 @@ import (
 //	      | UNDO TABLESPACE tablespace
 //	        DATAFILE datafile_tempfile_spec ]
 //	    [ enable_pluggable_database ]
-func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
+func (p *Parser) parseCreateDatabaseStmt(start int) (nodes.StmtNode, error) {
 	// DATABASE keyword already checked by caller but not consumed
 	p.advance() // consume DATABASE
 
@@ -51,10 +51,16 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 	// Optional database name — peek at the next token to see if it's an identifier
 	// (not a keyword that starts a clause like USER, LOGFILE, etc.)
 	if (p.isIdentLike() || p.cur.Type == tokQIDENT) && !p.isCreateDatabaseClauseKeyword() {
-		stmt.Name = p.parseObjectName()
+		var parseErr614 error
+		stmt.Name, parseErr614 = p.parseObjectName()
+		if parseErr614 !=
+
+			// Parse CREATE DATABASE clauses
+			nil {
+			return nil, parseErr614
+		}
 	}
 
-	// Parse CREATE DATABASE clauses
 	opts := &nodes.List{}
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		optStart := p.pos()
@@ -81,7 +87,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "USER_" + userType, Value: password,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// CONTROLFILE REUSE
@@ -92,7 +98,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "CONTROLFILE_REUSE",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// LOGFILE GROUP n 'file' SIZE ... [, GROUP n 'file' SIZE ...]
@@ -112,7 +118,10 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 				// Parse file specs
 				var files []*nodes.DatafileClause
 				for p.cur.Type == tokSCONST {
-					df := p.parseDatafileClause()
+					df, parseErr615 := p.parseDatafileClause()
+					if parseErr615 != nil {
+						return nil, parseErr615
+					}
 					if df != nil {
 						files = append(files, df)
 					}
@@ -128,7 +137,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 				logItems.Items = append(logItems.Items, &nodes.DDLOption{
 					Key: "LOGFILE_GROUP", Value: groupNum,
 					Items: fileList,
-					Loc:   nodes.Loc{Start: lfStart, End: p.pos()},
+					Loc:   nodes.Loc{Start: lfStart, End: p.prev.End},
 				})
 				// Check for comma-separated groups
 				if p.cur.Type == ',' {
@@ -139,7 +148,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "LOGFILE", Items: logItems,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// MAXLOGFILES integer
@@ -152,7 +161,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "MAXLOGFILES", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// MAXLOGMEMBERS integer
@@ -165,7 +174,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "MAXLOGMEMBERS", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// MAXLOGHISTORY integer
@@ -178,7 +187,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "MAXLOGHISTORY", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// MAXDATAFILES integer
@@ -191,7 +200,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "MAXDATAFILES", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// MAXINSTANCES integer
@@ -204,7 +213,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "MAXINSTANCES", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// ARCHIVELOG
@@ -212,7 +221,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "ARCHIVELOG",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// NOARCHIVELOG
@@ -220,7 +229,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "NOARCHIVELOG",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// FORCE LOGGING
@@ -231,7 +240,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "FORCE_LOGGING",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// SET STANDBY NOLOGGING FOR ... / SET DEFAULT ... TABLESPACE / SET TIME_ZONE ...
@@ -262,7 +271,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SET_STANDBY_NOLOGGING", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.cur.Type == kwDEFAULT {
 				// SET DEFAULT { BIGFILE | SMALLFILE } TABLESPACE
@@ -277,7 +286,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SET_DEFAULT_TABLESPACE_TYPE", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "TIME_ZONE" {
 				// SET TIME_ZONE = 'value'
@@ -292,7 +301,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SET_TIME_ZONE", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else {
 				// Unknown SET clause, skip token
@@ -312,7 +321,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "CHARACTER_SET", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// NATIONAL CHARACTER SET charset
@@ -331,7 +340,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "NATIONAL_CHARACTER_SET", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// SYSAUX DATAFILE file_specification [, ...]
@@ -342,7 +351,10 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			fileList := &nodes.List{}
 			for p.cur.Type == tokSCONST {
-				df := p.parseDatafileClause()
+				df, parseErr616 := p.parseDatafileClause()
+				if parseErr616 != nil {
+					return nil, parseErr616
+				}
 				if df != nil {
 					fileList.Items = append(fileList.Items, df)
 				}
@@ -354,7 +366,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "SYSAUX_DATAFILE", Items: fileList,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// EXTENT MANAGEMENT LOCAL [ { AUTOALLOCATE | UNIFORM [ SIZE size_clause ] } ]
@@ -375,12 +387,16 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 				p.advance()
 				if p.cur.Type == kwSIZE {
 					p.advance()
-					val += " " + p.parseSizeValue()
+					parseValue65, parseErr66 := p.parseSizeValue()
+					if parseErr66 != nil {
+						return nil, parseErr66
+					}
+					val += " " + parseValue65
 				}
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "EXTENT_MANAGEMENT_LOCAL", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// USING MIRROR COPY mirror_name
@@ -399,7 +415,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "USING_MIRROR_COPY", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// DATAFILE 'file' SIZE ... (standalone datafile spec, not part of tablespace)
@@ -407,7 +423,10 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			p.advance() // DATAFILE
 			fileList := &nodes.List{}
 			for p.cur.Type == tokSCONST {
-				df := p.parseDatafileClause()
+				df, parseErr617 := p.parseDatafileClause()
+				if parseErr617 != nil {
+					return nil, parseErr617
+				}
 				if df != nil {
 					fileList.Items = append(fileList.Items, df)
 				}
@@ -419,7 +438,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "DATAFILE", Items: fileList,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// BIGFILE / SMALLFILE DEFAULT TABLESPACE
@@ -442,7 +461,10 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 				if p.isIdentLike() && p.cur.Str == "DATAFILE" {
 					p.advance()
 					for p.cur.Type == tokSCONST {
-						df := p.parseDatafileClause()
+						df, parseErr618 := p.parseDatafileClause()
+						if parseErr618 != nil {
+							return nil, parseErr618
+						}
 						if df != nil {
 							fileList.Items = append(fileList.Items, df)
 						}
@@ -456,13 +478,13 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DEFAULT_TABLESPACE", Value: fileType + " " + tsName,
 					Items: fileList,
-					Loc:   nodes.Loc{Start: optStart, End: p.pos()},
+					Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else {
 				// Just BIGFILE/SMALLFILE without DEFAULT — skip
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "FILE_TYPE", Value: fileType,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -494,7 +516,10 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 				if p.isIdentLike() && p.cur.Str == "TEMPFILE" {
 					p.advance()
 					for p.cur.Type == tokSCONST {
-						df := p.parseDatafileClause()
+						df, parseErr619 := p.parseDatafileClause()
+						if parseErr619 != nil {
+							return nil, parseErr619
+						}
 						if df != nil {
 							fileList.Items = append(fileList.Items, df)
 						}
@@ -508,7 +533,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DEFAULT_LOCAL_TEMPORARY_TABLESPACE", Value: tsName,
 					Items: fileList,
-					Loc:   nodes.Loc{Start: optStart, End: p.pos()},
+					Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.cur.Type == kwTEMPORARY {
 				// DEFAULT TEMPORARY TABLESPACE name TEMPFILE ...
@@ -525,7 +550,10 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 				if p.isIdentLike() && p.cur.Str == "TEMPFILE" {
 					p.advance()
 					for p.cur.Type == tokSCONST {
-						df := p.parseDatafileClause()
+						df, parseErr620 := p.parseDatafileClause()
+						if parseErr620 != nil {
+							return nil, parseErr620
+						}
 						if df != nil {
 							fileList.Items = append(fileList.Items, df)
 						}
@@ -539,7 +567,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DEFAULT_TEMPORARY_TABLESPACE", Value: tsName,
 					Items: fileList,
-					Loc:   nodes.Loc{Start: optStart, End: p.pos()},
+					Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "TABLESPACE" {
 				// DEFAULT TABLESPACE name DATAFILE ...
@@ -553,7 +581,10 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 				if p.isIdentLike() && p.cur.Str == "DATAFILE" {
 					p.advance()
 					for p.cur.Type == tokSCONST {
-						df := p.parseDatafileClause()
+						df, parseErr621 := p.parseDatafileClause()
+						if parseErr621 != nil {
+							return nil, parseErr621
+						}
 						if df != nil {
 							fileList.Items = append(fileList.Items, df)
 						}
@@ -567,7 +598,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DEFAULT_TABLESPACE", Value: tsName,
 					Items: fileList,
-					Loc:   nodes.Loc{Start: optStart, End: p.pos()},
+					Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else {
 				// Unknown DEFAULT clause
@@ -589,7 +620,10 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			if p.isIdentLike() && p.cur.Str == "DATAFILE" {
 				p.advance()
 				for p.cur.Type == tokSCONST {
-					df := p.parseDatafileClause()
+					df, parseErr622 := p.parseDatafileClause()
+					if parseErr622 != nil {
+						return nil, parseErr622
+					}
 					if df != nil {
 						fileList.Items = append(fileList.Items, df)
 					}
@@ -603,7 +637,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "UNDO_TABLESPACE", Value: tsName,
 				Items: fileList,
-				Loc:   nodes.Loc{Start: optStart, End: p.pos()},
+				Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// ENABLE PLUGGABLE DATABASE [SEED [...]]
@@ -631,7 +665,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 							p.advance()
 							seedItems.Items = append(seedItems.Items, &nodes.DDLOption{
 								Key: "FILE_NAME_CONVERT", Value: "NONE",
-								Loc: nodes.Loc{Start: seedStart, End: p.pos()},
+								Loc: nodes.Loc{Start: seedStart, End: p.prev.End},
 							})
 						} else if p.cur.Type == '(' {
 							p.advance()
@@ -647,7 +681,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 							}
 							seedItems.Items = append(seedItems.Items, &nodes.DDLOption{
 								Key: "FILE_NAME_CONVERT", Value: strings.Join(pairs, ","),
-								Loc: nodes.Loc{Start: seedStart, End: p.pos()},
+								Loc: nodes.Loc{Start: seedStart, End: p.prev.End},
 							})
 						}
 					} else if p.isIdentLike() && p.cur.Str == "SYSTEM" {
@@ -659,9 +693,16 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 						size := ""
 						if p.cur.Type == kwSIZE {
 							p.advance()
-							size = p.parseSizeValue()
+							var parseErr623 error
+							size, parseErr623 = p.parseSizeValue()
+							if parseErr623 != nil {
+								return nil, parseErr623
+							}
 						}
-						ae := p.parseOptionalAutoextend()
+						ae, parseErr624 := p.parseOptionalAutoextend()
+						if parseErr624 != nil {
+							return nil, parseErr624
+						}
 						items := &nodes.List{}
 						if ae != nil {
 							items.Items = append(items.Items, ae)
@@ -669,7 +710,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 						seedItems.Items = append(seedItems.Items, &nodes.DDLOption{
 							Key: "SYSTEM_DATAFILES", Value: size,
 							Items: items,
-							Loc:   nodes.Loc{Start: seedStart, End: p.pos()},
+							Loc:   nodes.Loc{Start: seedStart, End: p.prev.End},
 						})
 					} else if p.isIdentLike() && p.cur.Str == "SYSAUX" {
 						p.advance() // SYSAUX
@@ -679,9 +720,16 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 						size := ""
 						if p.cur.Type == kwSIZE {
 							p.advance()
-							size = p.parseSizeValue()
+							var parseErr625 error
+							size, parseErr625 = p.parseSizeValue()
+							if parseErr625 != nil {
+								return nil, parseErr625
+							}
 						}
-						ae := p.parseOptionalAutoextend()
+						ae, parseErr626 := p.parseOptionalAutoextend()
+						if parseErr626 != nil {
+							return nil, parseErr626
+						}
 						items := &nodes.List{}
 						if ae != nil {
 							items.Items = append(items.Items, ae)
@@ -689,7 +737,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 						seedItems.Items = append(seedItems.Items, &nodes.DDLOption{
 							Key: "SYSAUX_DATAFILES", Value: size,
 							Items: items,
-							Loc:   nodes.Loc{Start: seedStart, End: p.pos()},
+							Loc:   nodes.Loc{Start: seedStart, End: p.prev.End},
 						})
 					} else if p.cur.Type == kwLOCAL {
 						p.advance() // LOCAL
@@ -706,7 +754,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 						}
 						seedItems.Items = append(seedItems.Items, &nodes.DDLOption{
 							Key: "LOCAL_UNDO", Value: val,
-							Loc: nodes.Loc{Start: seedStart, End: p.pos()},
+							Loc: nodes.Loc{Start: seedStart, End: p.prev.End},
 						})
 					} else {
 						break
@@ -715,7 +763,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opt := &nodes.DDLOption{
 				Key: "ENABLE_PLUGGABLE_DATABASE",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			}
 			if len(seedItems.Items) > 0 {
 				opt.Items = seedItems
@@ -732,8 +780,8 @@ func (p *Parser) parseCreateDatabaseStmt(start int) nodes.StmtNode {
 		stmt.Options = opts
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // isCreateDatabaseClauseKeyword returns true if the current token starts
@@ -777,7 +825,7 @@ func (p *Parser) isCreateDatabaseClauseKeyword() bool {
 //	    [ FORCE LOGGING ]
 //	    [ SET STANDBY NOLOGGING FOR { DATA AVAILABILITY | LOAD PERFORMANCE } ]
 //	    [ character_set_clause ]
-func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
+func (p *Parser) parseCreateControlfileStmt(start int) (nodes.StmtNode, error) {
 	// "CONTROLFILE" identifier already consumed by caller
 
 	stmt := &nodes.AdminDDLStmt{
@@ -794,7 +842,7 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 		p.advance()
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "REUSE",
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	}
 
@@ -842,7 +890,10 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 				}
 				var files []*nodes.DatafileClause
 				for p.cur.Type == tokSCONST {
-					df := p.parseDatafileClause()
+					df, parseErr627 := p.parseDatafileClause()
+					if parseErr627 != nil {
+						return nil, parseErr627
+					}
 					if df != nil {
 						files = append(files, df)
 					}
@@ -858,7 +909,7 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 				logItems.Items = append(logItems.Items, &nodes.DDLOption{
 					Key: "LOGFILE_GROUP", Value: groupNum,
 					Items: fileList,
-					Loc:   nodes.Loc{Start: lfStart, End: p.pos()},
+					Loc:   nodes.Loc{Start: lfStart, End: p.prev.End},
 				})
 				if p.cur.Type == ',' {
 					p.advance()
@@ -868,7 +919,7 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "LOGFILE", Items: logItems,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// RESETLOGS
@@ -876,7 +927,7 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "RESETLOGS",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// NORESETLOGS
@@ -884,7 +935,7 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "NORESETLOGS",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// DATAFILE 'file' [, ...]
@@ -892,7 +943,10 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 			p.advance()
 			fileList := &nodes.List{}
 			for p.cur.Type == tokSCONST {
-				df := p.parseDatafileClause()
+				df, parseErr628 := p.parseDatafileClause()
+				if parseErr628 != nil {
+					return nil, parseErr628
+				}
 				if df != nil {
 					fileList.Items = append(fileList.Items, df)
 				}
@@ -904,7 +958,7 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "DATAFILE", Items: fileList,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// MAXLOGFILES, MAXLOGMEMBERS, MAXLOGHISTORY, MAXDATAFILES, MAXINSTANCES
@@ -919,7 +973,7 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: key, Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// ARCHIVELOG
@@ -927,7 +981,7 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "ARCHIVELOG",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// NOARCHIVELOG
@@ -935,7 +989,7 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "NOARCHIVELOG",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// FORCE LOGGING
@@ -946,7 +1000,7 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "FORCE_LOGGING",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// SET STANDBY NOLOGGING FOR ...
@@ -976,7 +1030,7 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SET_STANDBY_NOLOGGING", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -993,7 +1047,7 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "CHARACTER_SET", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		default:
@@ -1005,8 +1059,8 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 		stmt.Options = opts
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterDatabaseStmt parses an ALTER DATABASE statement.
@@ -1079,7 +1133,7 @@ func (p *Parser) parseCreateControlfileStmt(start int) nodes.StmtNode {
 //	security_clause ::= { prepare_clause | drop_mirror_copy | lost_write_protection }
 //	cdb_fleet_clauses ::= { SET LEAD_CDB [=] { name | NONE } | SET LEAD_CDB_URI [=] { 'uri' | NONE } | SET PROPERTY { name = value } }
 //	replay_upgrade_clause ::= { START REPLAY | STOP REPLAY }
-func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterDatabaseStmt(start int) (nodes.StmtNode, error) {
 	// DATABASE already consumed by caller
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "ALTER",
@@ -1090,7 +1144,11 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 	// Optional database name — if next token is an identifier (not a keyword clause starter)
 	if p.isIdentLike() || p.cur.Type == tokQIDENT {
 		if !p.isDatabaseClauseKeyword() {
-			stmt.Name = p.parseObjectName()
+			var parseErr629 error
+			stmt.Name, parseErr629 = p.parseObjectName()
+			if parseErr629 != nil {
+				return nil, parseErr629
+			}
 		}
 	}
 
@@ -1120,7 +1178,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "MOUNT", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// OPEN { [ READ WRITE ] [ RESETLOGS | NORESETLOGS ] [ UPGRADE | DOWNGRADE ] | READ ONLY }
@@ -1155,16 +1213,21 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "OPEN", Value: strings.TrimSpace(val),
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// ---- recovery_clauses ----
 		// RECOVER ...
 		case p.isIdentLike() && p.cur.Str == "RECOVER":
 			p.advance()
-			p.parseAlterDatabaseRecoverClause(opts, optStart)
+			parseErr630 := p.parseAlterDatabaseRecoverClause(opts, optStart)
+			if parseErr630 !=
 
-		// BEGIN BACKUP
+				// BEGIN BACKUP
+				nil {
+				return nil, parseErr630
+			}
+
 		case p.cur.Type == kwBEGIN:
 			p.advance()
 			if p.isIdentLike() && p.cur.Str == "BACKUP" {
@@ -1172,7 +1235,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "BEGIN_BACKUP",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// END BACKUP
@@ -1183,7 +1246,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "END_BACKUP",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// ---- database_file_clauses ----
@@ -1192,11 +1255,17 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			p.advance()
 			if p.cur.Type == kwFILE {
 				p.advance()
-				fromFiles := p.parseStringList()
+				fromFiles, parseErr631 := p.parseStringList()
+				if parseErr631 != nil {
+					return nil, parseErr631
+				}
 				if p.cur.Type == kwTO {
 					p.advance()
 				}
-				toFiles := p.parseStringList()
+				toFiles, parseErr632 := p.parseStringList()
+				if parseErr632 != nil {
+					return nil, parseErr632
+				}
 				items := &nodes.List{}
 				for _, f := range fromFiles {
 					items.Items = append(items.Items, &nodes.DDLOption{Key: "FROM", Value: f})
@@ -1206,7 +1275,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "RENAME_FILE", Items: items,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "GLOBAL_NAME" {
 				// RENAME GLOBAL_NAME TO database.domain
@@ -1221,7 +1290,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "RENAME_GLOBAL_NAME", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -1253,7 +1322,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "CREATE_DATAFILE", Value: val,
 					Items: items,
-					Loc:   nodes.Loc{Start: optStart, End: p.pos()},
+					Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && (p.cur.Str == "PHYSICAL" || p.cur.Str == "LOGICAL") {
 				// CREATE [PHYSICAL|LOGICAL] STANDBY CONTROLFILE AS 'filename' [REUSE]
@@ -1278,7 +1347,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "CREATE_STANDBY_CONTROLFILE", Value: modifier + " " + file,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "STANDBY" {
 				// CREATE STANDBY CONTROLFILE AS 'filename' [REUSE]
@@ -1299,7 +1368,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "CREATE_STANDBY_CONTROLFILE", Value: file,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "FAR" {
 				// CREATE FAR SYNC INSTANCE CONTROLFILE AS 'filename' [REUSE]
@@ -1326,7 +1395,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "CREATE_FAR_SYNC_CONTROLFILE", Value: file,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -1338,9 +1407,14 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				file = p.cur.Str
 				p.advance()
 			}
-			p.parseAlterDatafileTempfileAction(opts, optStart, "DATAFILE", file)
+			parseErr633 := p.parseAlterDatafileTempfileAction(opts, optStart, "DATAFILE", file)
+			if parseErr633 !=
 
-		// TEMPFILE 'file' { ONLINE | OFFLINE | RESIZE | AUTOEXTEND | DROP | END BACKUP }
+				// TEMPFILE 'file' { ONLINE | OFFLINE | RESIZE | AUTOEXTEND | DROP | END BACKUP }
+				nil {
+				return nil, parseErr633
+			}
+
 		case p.isIdentLike() && p.cur.Str == "TEMPFILE":
 			p.advance()
 			file := ""
@@ -1348,9 +1422,14 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				file = p.cur.Str
 				p.advance()
 			}
-			p.parseAlterDatafileTempfileAction(opts, optStart, "TEMPFILE", file)
+			parseErr634 := p.parseAlterDatafileTempfileAction(opts, optStart, "TEMPFILE", file)
+			if parseErr634 !=
 
-		// MOVE DATAFILE 'old' TO 'new'
+				// MOVE DATAFILE 'old' TO 'new'
+				nil {
+				return nil, parseErr634
+			}
+
 		case p.isIdentLike() && p.cur.Str == "MOVE":
 			p.advance()
 			if p.isIdentLike() && p.cur.Str == "DATAFILE" {
@@ -1374,7 +1453,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "MOVE_DATAFILE", Value: oldFile,
 				Items: items,
-				Loc:   nodes.Loc{Start: optStart, End: p.pos()},
+				Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// ---- logfile_clauses ----
@@ -1414,7 +1493,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 					opts.Items = append(opts.Items, &nodes.DDLOption{
 						Key: prefix + "_MEMBER", Value: memberFile,
 						Items: &nodes.List{Items: []nodes.Node{&nodes.DDLOption{Key: "GROUP", Value: groupNum}}},
-						Loc:   nodes.Loc{Start: optStart, End: p.pos()},
+						Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
 					})
 				} else {
 					// ADD LOGFILE [INSTANCE 'inst'] [THREAD int] [GROUP n] 'file' SIZE ...
@@ -1451,7 +1530,10 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 						}
 						var files []*nodes.DatafileClause
 						for p.cur.Type == tokSCONST {
-							df := p.parseDatafileClause()
+							df, parseErr635 := p.parseDatafileClause()
+							if parseErr635 != nil {
+								return nil, parseErr635
+							}
 							if df != nil {
 								files = append(files, df)
 							}
@@ -1466,7 +1548,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 						logItems.Items = append(logItems.Items, &nodes.DDLOption{
 							Key: "GROUP", Value: groupNum,
 							Items: fileList,
-							Loc:   nodes.Loc{Start: lfStart, End: p.pos()},
+							Loc:   nodes.Loc{Start: lfStart, End: p.prev.End},
 						})
 						if p.cur.Type == ',' {
 							p.advance()
@@ -1476,7 +1558,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 					}
 					opts.Items = append(opts.Items, &nodes.DDLOption{
 						Key: prefix, Items: logItems,
-						Loc: nodes.Loc{Start: optStart, End: p.pos()},
+						Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 					})
 				}
 			} else if p.isIdentLike() && p.cur.Str == "SUPPLEMENTAL" {
@@ -1518,7 +1600,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "ADD_SUPPLEMENTAL_LOG_DATA", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -1545,7 +1627,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 					}
 					opts.Items = append(opts.Items, &nodes.DDLOption{
 						Key: prefix + "_MEMBER", Value: memberFile,
-						Loc: nodes.Loc{Start: optStart, End: p.pos()},
+						Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 					})
 				} else {
 					// DROP LOGFILE GROUP n
@@ -1559,7 +1641,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 					}
 					opts.Items = append(opts.Items, &nodes.DDLOption{
 						Key: prefix, Value: groupNum,
-						Loc: nodes.Loc{Start: optStart, End: p.pos()},
+						Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 					})
 				}
 			} else if p.isIdentLike() && p.cur.Str == "SUPPLEMENTAL" {
@@ -1599,7 +1681,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DROP_SUPPLEMENTAL_LOG_DATA", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "MIRROR" {
 				// DROP MIRROR COPY
@@ -1609,7 +1691,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DROP_MIRROR_COPY",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -1649,7 +1731,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: key, Value: groupNum,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// SWITCH { ALL LOGFILE | LOGFILE TO BLOCK SIZE integer }
@@ -1662,7 +1744,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SWITCH_LOGFILE",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "LOGFILE" {
 				p.advance() // LOGFILE
@@ -1682,7 +1764,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SWITCH_LOGFILE_BLOCK_SIZE", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -1715,7 +1797,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "BACKUP_CONTROLFILE_TRACE", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.cur.Type == tokSCONST {
 				file := p.cur.Str
@@ -1725,7 +1807,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "BACKUP_CONTROLFILE", Value: file,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -1753,7 +1835,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "ACTIVATE_STANDBY", Value: strings.TrimSpace(val),
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// SET { STANDBY ... | DEFAULT ... | TIME_ZONE | LEAD_CDB | LEAD_CDB_URI | PROPERTY | UNDO TABLESPACE }
@@ -1776,7 +1858,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 						}
 						opts.Items = append(opts.Items, &nodes.DDLOption{
 							Key: "SET_STANDBY_MAXIMIZE", Value: val,
-							Loc: nodes.Loc{Start: optStart, End: p.pos()},
+							Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 						})
 					}
 				} else if p.cur.Type == kwNOLOGGING {
@@ -1801,7 +1883,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 					}
 					opts.Items = append(opts.Items, &nodes.DDLOption{
 						Key: "SET_STANDBY_NOLOGGING", Value: val,
-						Loc: nodes.Loc{Start: optStart, End: p.pos()},
+						Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 					})
 				} else {
 					// SET STANDBY DATABASE TO MAXIMIZE ... (without DATABASE keyword)
@@ -1817,7 +1899,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 						}
 						opts.Items = append(opts.Items, &nodes.DDLOption{
 							Key: "SET_STANDBY_MAXIMIZE", Value: val,
-							Loc: nodes.Loc{Start: optStart, End: p.pos()},
+							Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 						})
 					}
 				}
@@ -1833,7 +1915,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SET_DEFAULT_TABLESPACE_TYPE", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "TIME_ZONE" {
 				p.advance()
@@ -1847,7 +1929,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SET_TIME_ZONE", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "LEAD_CDB" {
 				p.advance() // LEAD_CDB
@@ -1861,7 +1943,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SET_LEAD_CDB", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "LEAD_CDB_URI" {
 				p.advance() // LEAD_CDB_URI
@@ -1875,7 +1957,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SET_LEAD_CDB_URI", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "PROPERTY" {
 				p.advance() // PROPERTY
@@ -1895,7 +1977,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SET_PROPERTY", Value: propName + "=" + propVal,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "UNDO" {
 				// SET UNDO TABLESPACE = name
@@ -1913,7 +1995,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SET_UNDO_TABLESPACE", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -1928,7 +2010,10 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			fileList := &nodes.List{}
 			for p.cur.Type == tokSCONST {
-				df := p.parseDatafileClause()
+				df, parseErr636 := p.parseDatafileClause()
+				if parseErr636 != nil {
+					return nil, parseErr636
+				}
 				if df != nil {
 					fileList.Items = append(fileList.Items, df)
 				}
@@ -1954,7 +2039,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "REGISTER_LOGFILE", Items: fileList,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// CONVERT TO [PHYSICAL | SNAPSHOT] STANDBY
@@ -1973,7 +2058,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "CONVERT_TO_STANDBY", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// ---- default_settings_clauses ----
@@ -1996,7 +2081,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DEFAULT_LOCAL_TEMPORARY_TABLESPACE", Value: tsName,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.cur.Type == kwTEMPORARY {
 				p.advance()
@@ -2010,7 +2095,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DEFAULT_TEMPORARY_TABLESPACE", Value: tsName,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "TABLESPACE" {
 				p.advance()
@@ -2021,7 +2106,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DEFAULT_TABLESPACE", Value: tsName,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "EDITION" {
 				p.advance()
@@ -2032,7 +2117,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DEFAULT_EDITION", Value: edName,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else {
 				p.advance()
@@ -2050,7 +2135,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "ENABLE_INSTANCE", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.cur.Type == kwBLOCK {
 				p.advance() // BLOCK
@@ -2075,7 +2160,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "ENABLE_BLOCK_CHANGE_TRACKING",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "RESTRICTED" {
 				p.advance() // RESTRICTED
@@ -2084,7 +2169,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "ENABLE_RESTRICTED_SESSION",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "LOST" {
 				p.advance() // LOST
@@ -2096,7 +2181,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "ENABLE_LOST_WRITE_PROTECTION",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -2112,7 +2197,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DISABLE_INSTANCE", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.cur.Type == kwBLOCK {
 				p.advance()
@@ -2124,7 +2209,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DISABLE_BLOCK_CHANGE_TRACKING",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "RESTRICTED" {
 				p.advance() // RESTRICTED
@@ -2133,7 +2218,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DISABLE_RESTRICTED_SESSION",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "LOST" {
 				p.advance() // LOST
@@ -2145,7 +2230,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DISABLE_LOST_WRITE_PROTECTION",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -2162,7 +2247,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "FLASHBACK", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// GUARD { ALL | STANDBY | NONE }
@@ -2178,7 +2263,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "GUARD", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// FORCE LOGGING
@@ -2189,7 +2274,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "FORCE_LOGGING",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// SUSPEND / RESUME
@@ -2197,14 +2282,14 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "SUSPEND",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		case p.isIdentLike() && p.cur.Str == "RESUME":
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "RESUME",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// PREPARE { MIRROR COPY | TO SWITCHOVER }
@@ -2229,7 +2314,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "PREPARE_SWITCHOVER", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else {
 				// PREPARE MIRROR COPY name ...
@@ -2242,7 +2327,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "PREPARE",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -2276,7 +2361,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "COMMIT_SWITCHOVER", Value: strings.TrimSpace(val),
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// START { LOGICAL STANDBY APPLY | REPLAY }
@@ -2305,13 +2390,13 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "START_LOGICAL_STANDBY_APPLY", Value: strings.TrimSpace(val),
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "REPLAY" {
 				p.advance()
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "START_REPLAY",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -2328,13 +2413,13 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "STOP_LOGICAL_STANDBY_APPLY",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "REPLAY" {
 				p.advance()
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "STOP_REPLAY",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -2359,7 +2444,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "SWITCHOVER_TO", Value: strings.TrimSpace(val),
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// FAILOVER TO { PRIMARY | PHYSICAL STANDBY | LOGICAL STANDBY } [FORCE] target_db_name
@@ -2382,7 +2467,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "FAILOVER_TO", Value: strings.TrimSpace(val),
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// ARCHIVELOG / NOARCHIVELOG / MANUAL (logfile_clauses)
@@ -2390,21 +2475,21 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "ARCHIVELOG",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		case p.isIdentLike() && p.cur.Str == "NOARCHIVELOG":
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "NOARCHIVELOG",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		case p.isIdentLike() && p.cur.Str == "MANUAL":
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "MANUAL",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		default:
@@ -2417,8 +2502,8 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 		stmt.Options = opts
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterDatabaseRecoverClause parses the RECOVER sub-clauses of ALTER DATABASE.
@@ -2429,7 +2514,7 @@ func (p *Parser) parseAlterDatabaseStmt(start int) nodes.StmtNode {
 //	RECOVER [ AUTOMATIC ] [ FROM 'location' ] [ STANDBY ] DATAFILE 'file' [, ...]
 //	RECOVER [ AUTOMATIC ] [ FROM 'location' ] [ STANDBY ] TABLESPACE name [, ...]
 //	RECOVER MANAGED STANDBY DATABASE { CANCEL | DISCONNECT [FROM SESSION] | FINISH | ... }
-func (p *Parser) parseAlterDatabaseRecoverClause(opts *nodes.List, optStart int) {
+func (p *Parser) parseAlterDatabaseRecoverClause(opts *nodes.List, optStart int) error {
 	// RECOVER already consumed
 	val := ""
 
@@ -2561,9 +2646,9 @@ func (p *Parser) parseAlterDatabaseRecoverClause(opts *nodes.List, optStart int)
 		action := strings.Join(parts, " ")
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "RECOVER_MANAGED_STANDBY", Value: action,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
-		return
+		return nil
 	}
 
 	// FROM 'location'
@@ -2608,9 +2693,9 @@ func (p *Parser) parseAlterDatabaseRecoverClause(opts *nodes.List, optStart int)
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "RECOVER_DATABASE", Value: strings.TrimSpace(val),
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
-		return
+		return nil
 	}
 
 	// STANDBY [ DATABASE [ UNTIL ... ] [ USING BACKUP CONTROLFILE ] ]
@@ -2648,9 +2733,9 @@ func (p *Parser) parseAlterDatabaseRecoverClause(opts *nodes.List, optStart int)
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "RECOVER_STANDBY_DATABASE", Value: strings.TrimSpace(val),
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
-			return
+			return nil
 		}
 	}
 
@@ -2664,9 +2749,9 @@ func (p *Parser) parseAlterDatabaseRecoverClause(opts *nodes.List, optStart int)
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "RECOVER_DATAFILE", Value: file,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
-		return
+		return nil
 	}
 
 	// TABLESPACE name [, ...]
@@ -2679,28 +2764,29 @@ func (p *Parser) parseAlterDatabaseRecoverClause(opts *nodes.List, optStart int)
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "RECOVER_TABLESPACE", Value: tsName,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
-		return
+		return nil
 	}
 
 	// Fallback: generic RECOVER
 	opts.Items = append(opts.Items, &nodes.DDLOption{
 		Key: "RECOVER", Value: strings.TrimSpace(val),
-		Loc: nodes.Loc{Start: optStart, End: p.pos()},
+		Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 	})
+	return nil
 }
 
 // parseAlterDatafileTempfileAction parses actions after DATAFILE/TEMPFILE 'file' in ALTER DATABASE.
 //
 //	{ ONLINE | OFFLINE [ FOR DROP ] | RESIZE size_clause | AUTOEXTEND ... | END BACKUP | DROP [INCLUDING DATAFILES] }
-func (p *Parser) parseAlterDatafileTempfileAction(opts *nodes.List, optStart int, prefix string, file string) {
+func (p *Parser) parseAlterDatafileTempfileAction(opts *nodes.List, optStart int, prefix string, file string) error {
 	switch {
 	case p.cur.Type == kwONLINE:
 		p.advance()
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: prefix + "_ONLINE", Value: file,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	case p.cur.Type == kwOFFLINE:
 		p.advance()
@@ -2713,18 +2799,24 @@ func (p *Parser) parseAlterDatafileTempfileAction(opts *nodes.List, optStart int
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: prefix + "_OFFLINE", Value: file,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	case p.isIdentLike() && p.cur.Str == "RESIZE":
 		p.advance()
-		size := p.parseSizeValue()
+		size, parseErr637 := p.parseSizeValue()
+		if parseErr637 != nil {
+			return parseErr637
+		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: prefix + "_RESIZE", Value: file,
 			Items: &nodes.List{Items: []nodes.Node{&nodes.DDLOption{Key: "SIZE", Value: size}}},
-			Loc:   nodes.Loc{Start: optStart, End: p.pos()},
+			Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	case p.isIdentLike() && p.cur.Str == "AUTOEXTEND":
-		ac := p.parseAutoextendClause()
+		ac, parseErr638 := p.parseAutoextendClause()
+		if parseErr638 != nil {
+			return parseErr638
+		}
 		items := &nodes.List{}
 		if ac != nil {
 			items.Items = append(items.Items, ac)
@@ -2732,7 +2824,7 @@ func (p *Parser) parseAlterDatafileTempfileAction(opts *nodes.List, optStart int
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: prefix + "_AUTOEXTEND", Value: file,
 			Items: items,
-			Loc:   nodes.Loc{Start: optStart, End: p.pos()},
+			Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	case p.cur.Type == kwEND:
 		p.advance()
@@ -2741,7 +2833,7 @@ func (p *Parser) parseAlterDatafileTempfileAction(opts *nodes.List, optStart int
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: prefix + "_END_BACKUP", Value: file,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	case p.cur.Type == kwDROP:
 		p.advance()
@@ -2753,31 +2845,32 @@ func (p *Parser) parseAlterDatafileTempfileAction(opts *nodes.List, optStart int
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: prefix + "_DROP", Value: file,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	case p.isIdentLike() && p.cur.Str == "ENCRYPT":
 		p.advance()
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: prefix + "_ENCRYPT", Value: file,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	case p.isIdentLike() && p.cur.Str == "DECRYPT":
 		p.advance()
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: prefix + "_DECRYPT", Value: file,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	default:
 		// unknown action, still record the file reference
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: prefix, Value: file,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	}
+	return nil
 }
 
 // parseStringList parses a comma-separated list of string constants.
-func (p *Parser) parseStringList() []string {
+func (p *Parser) parseStringList() ([]string, error) {
 	var result []string
 	for p.cur.Type == tokSCONST {
 		result = append(result, p.cur.Str)
@@ -2788,7 +2881,7 @@ func (p *Parser) parseStringList() []string {
 		}
 		break
 	}
-	return result
+	return result, nil
 }
 
 // parseAlterDatabaseDictionaryStmt parses an ALTER DATABASE DICTIONARY statement.
@@ -2800,7 +2893,7 @@ func (p *Parser) parseStringList() []string {
 //	    { ENCRYPT CREDENTIALS
 //	    | REKEY CREDENTIALS
 //	    | DELETE CREDENTIALS KEY }
-func (p *Parser) parseAlterDatabaseDictionaryStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterDatabaseDictionaryStmt(start int) (nodes.StmtNode, error) {
 	// DATABASE and DICTIONARY already consumed by caller
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "ALTER",
@@ -2820,7 +2913,7 @@ func (p *Parser) parseAlterDatabaseDictionaryStmt(start int) nodes.StmtNode {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "ENCRYPT_CREDENTIALS",
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	// REKEY CREDENTIALS
@@ -2831,7 +2924,7 @@ func (p *Parser) parseAlterDatabaseDictionaryStmt(start int) nodes.StmtNode {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "REKEY_CREDENTIALS",
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	// DELETE CREDENTIALS KEY
@@ -2845,7 +2938,7 @@ func (p *Parser) parseAlterDatabaseDictionaryStmt(start int) nodes.StmtNode {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "DELETE_CREDENTIALS_KEY",
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	}
 
@@ -2853,8 +2946,8 @@ func (p *Parser) parseAlterDatabaseDictionaryStmt(start int) nodes.StmtNode {
 		stmt.Options = opts
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // isDatabaseClauseKeyword returns true if the current token is a keyword
@@ -2883,11 +2976,11 @@ func (p *Parser) isDatabaseClauseKeyword() bool {
 }
 
 // parseOptionalAutoextend parses an optional AUTOEXTEND clause if present, returning nil otherwise.
-func (p *Parser) parseOptionalAutoextend() *nodes.AutoextendClause {
+func (p *Parser) parseOptionalAutoextend() (*nodes.AutoextendClause, error) {
 	if p.isIdentLike() && p.cur.Str == "AUTOEXTEND" {
 		return p.parseAutoextendClause()
 	}
-	return nil
+	return nil, nil
 }
 
 // objectNameStr returns a string representation of an ObjectName.
@@ -2914,19 +3007,25 @@ func objectNameStr(n *nodes.ObjectName) string {
 //	CREATE PLUGGABLE DATABASE pdb_name
 //	  { create_pdb_from_seed | create_pdb_clone | create_pdb_from_xml
 //	  | create_pdb_from_mirror_copy | create_pdb_decrypt_from_xml }
-func (p *Parser) parseCreatePluggableDatabaseStmt(start int) nodes.StmtNode {
+func (p *Parser) parseCreatePluggableDatabaseStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_PLUGGABLE_DATABASE,
 		Loc:        nodes.Loc{Start: start},
 	}
+	var parseErr639 error
 
 	// Parse PDB name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr639 = p.parseObjectName()
+	if parseErr639 != nil {
+		return nil,
+
+			// Determine which variant: FROM, USING, AS, or from_seed (default)
+			parseErr639
+	}
 
 	opts := &nodes.List{}
 
-	// Determine which variant: FROM, USING, AS, or from_seed (default)
 	switch {
 	case p.cur.Type == kwFROM:
 		// create_pdb_clone or create_pdb_from_mirror_copy
@@ -2936,7 +3035,10 @@ func (p *Parser) parseCreatePluggableDatabaseStmt(start int) nodes.StmtNode {
 			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "FROM_SEED"})
 		} else {
 			// FROM src_pdb_name[@dblink]
-			srcName := p.parseObjectName()
+			srcName, parseErr640 := p.parseObjectName()
+			if parseErr640 != nil {
+				return nil, parseErr640
+			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key:   "FROM",
 				Value: objectNameStr(srcName),
@@ -2950,7 +3052,10 @@ func (p *Parser) parseCreatePluggableDatabaseStmt(start int) nodes.StmtNode {
 			if p.cur.Type == kwFROM {
 				p.advance() // consume FROM
 			}
-			srcName := p.parseObjectName()
+			srcName, parseErr641 := p.parseObjectName()
+			if parseErr641 != nil {
+				return nil, parseErr641
+			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key:   "AS_PROXY_FROM",
 				Value: objectNameStr(srcName),
@@ -2982,19 +3087,23 @@ func (p *Parser) parseCreatePluggableDatabaseStmt(start int) nodes.StmtNode {
 			p.advance()
 		}
 	}
+	parseErr642 :=
 
-	// Parse common PDB creation clauses
-	p.parsePDBCreationClauses(opts)
+		// Parse common PDB creation clauses
+		p.parsePDBCreationClauses(opts)
+	if parseErr642 != nil {
+		return nil, parseErr642
+	}
 
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parsePDBCreationClauses parses common clauses for CREATE PLUGGABLE DATABASE variants.
-func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
+func (p *Parser) parsePDBCreationClauses(opts *nodes.List) error {
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		optStart := p.pos()
 
@@ -3005,7 +3114,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			if p.cur.Type == tokSCONST {
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "USING", Value: p.cur.Str,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 				p.advance()
 			}
@@ -3034,7 +3143,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "ADMIN_USER", Value: userName + ":" + password,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// ROLES = (role, ...)
@@ -3043,9 +3152,14 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			p.parsePDBParenList(opts, "ROLES", optStart)
+			parseErr643 := p.parsePDBParenList(opts, "ROLES", optStart)
+			if parseErr643 !=
 
-		// PARALLEL [integer]
+				// PARALLEL [integer]
+				nil {
+				return parseErr643
+			}
+
 		case p.isIdentLike() && p.cur.Str == "PARALLEL":
 			p.advance()
 			val := ""
@@ -3055,7 +3169,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "PARALLEL", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// DEFAULT TABLESPACE / DEFAULT TEMPORARY TABLESPACE / DEFAULT EDITION
@@ -3070,7 +3184,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DEFAULT_EDITION", Value: edName,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "TEMPORARY" {
 				p.advance() // TEMPORARY
@@ -3084,7 +3198,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DEFAULT_TEMPORARY_TABLESPACE", Value: tsName,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.cur.Type == kwTABLESPACE {
 				p.advance() // TABLESPACE
@@ -3095,7 +3209,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DEFAULT_TABLESPACE", Value: tsName,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else {
 				p.advance() // skip unknown
@@ -3107,25 +3221,40 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			p.parsePDBConvertClause(opts, "FILE_NAME_CONVERT", optStart)
+			parseErr644 := p.parsePDBConvertClause(opts, "FILE_NAME_CONVERT", optStart)
+			if parseErr644 !=
 
-		// SERVICE_NAME_CONVERT = (...) | SERVICE_NAME_CONVERT = NONE
+				// SERVICE_NAME_CONVERT = (...) | SERVICE_NAME_CONVERT = NONE
+				nil {
+				return parseErr644
+			}
+
 		case p.isIdentLike() && p.cur.Str == "SERVICE_NAME_CONVERT":
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			p.parsePDBConvertClause(opts, "SERVICE_NAME_CONVERT", optStart)
+			parseErr645 := p.parsePDBConvertClause(opts, "SERVICE_NAME_CONVERT", optStart)
+			if parseErr645 !=
 
-		// SOURCE_FILE_NAME_CONVERT = (...) | SOURCE_FILE_NAME_CONVERT = NONE
+				// SOURCE_FILE_NAME_CONVERT = (...) | SOURCE_FILE_NAME_CONVERT = NONE
+				nil {
+				return parseErr645
+			}
+
 		case p.isIdentLike() && p.cur.Str == "SOURCE_FILE_NAME_CONVERT":
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			p.parsePDBConvertClause(opts, "SOURCE_FILE_NAME_CONVERT", optStart)
+			parseErr646 := p.parsePDBConvertClause(opts, "SOURCE_FILE_NAME_CONVERT", optStart)
+			if parseErr646 !=
 
-		// SOURCE_FILE_DIRECTORY = 'path' | SOURCE_FILE_DIRECTORY = NONE
+				// SOURCE_FILE_DIRECTORY = 'path' | SOURCE_FILE_DIRECTORY = NONE
+				nil {
+				return parseErr646
+			}
+
 		case p.isIdentLike() && p.cur.Str == "SOURCE_FILE_DIRECTORY":
 			p.advance()
 			if p.cur.Type == '=' {
@@ -3144,7 +3273,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "SOURCE_FILE_DIRECTORY", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// STORAGE (...) | STORAGE UNLIMITED
@@ -3154,7 +3283,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 				p.advance()
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "STORAGE", Value: "UNLIMITED",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.cur.Type == '(' {
 				p.advance()
@@ -3163,24 +3292,33 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 					sStart := p.pos()
 					if p.isIdentLike() && p.cur.Str == "MAXSIZE" {
 						p.advance()
-						val := p.parsePDBSizeOrUnlimited()
+						val, parseErr647 := p.parsePDBSizeOrUnlimited()
+						if parseErr647 != nil {
+							return parseErr647
+						}
 						storageItems.Items = append(storageItems.Items, &nodes.DDLOption{
 							Key: "MAXSIZE", Value: val,
-							Loc: nodes.Loc{Start: sStart, End: p.pos()},
+							Loc: nodes.Loc{Start: sStart, End: p.prev.End},
 						})
 					} else if p.isIdentLike() && p.cur.Str == "MAX_AUDIT_SIZE" {
 						p.advance()
-						val := p.parsePDBSizeOrUnlimited()
+						val, parseErr648 := p.parsePDBSizeOrUnlimited()
+						if parseErr648 != nil {
+							return parseErr648
+						}
 						storageItems.Items = append(storageItems.Items, &nodes.DDLOption{
 							Key: "MAX_AUDIT_SIZE", Value: val,
-							Loc: nodes.Loc{Start: sStart, End: p.pos()},
+							Loc: nodes.Loc{Start: sStart, End: p.prev.End},
 						})
 					} else if p.isIdentLike() && p.cur.Str == "MAX_DIAG_SIZE" {
 						p.advance()
-						val := p.parsePDBSizeOrUnlimited()
+						val, parseErr649 := p.parsePDBSizeOrUnlimited()
+						if parseErr649 != nil {
+							return parseErr649
+						}
 						storageItems.Items = append(storageItems.Items, &nodes.DDLOption{
 							Key: "MAX_DIAG_SIZE", Value: val,
-							Loc: nodes.Loc{Start: sStart, End: p.pos()},
+							Loc: nodes.Loc{Start: sStart, End: p.prev.End},
 						})
 					} else {
 						p.advance()
@@ -3191,7 +3329,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "STORAGE", Items: storageItems,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -3214,7 +3352,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "PATH_PREFIX", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// TEMPFILE REUSE
@@ -3225,7 +3363,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "TEMPFILE_REUSE",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// USER_TABLESPACES = ALL [EXCEPT (...)] | (list) | NONE
@@ -3234,28 +3372,38 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			p.parsePDBAllExceptNoneList(opts, "USER_TABLESPACES", optStart)
+			parseErr650 := p.parsePDBAllExceptNoneList(opts, "USER_TABLESPACES", optStart)
+			if parseErr650 !=
 
-		// STANDBYS = ALL [EXCEPT (...)] | (list) | NONE
+				// STANDBYS = ALL [EXCEPT (...)] | (list) | NONE
+				nil {
+				return parseErr650
+			}
+
 		case p.isIdentLike() && p.cur.Str == "STANDBYS":
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			p.parsePDBAllExceptNoneList(opts, "STANDBYS", optStart)
+			parseErr651 := p.parsePDBAllExceptNoneList(opts, "STANDBYS", optStart)
+			if parseErr651 !=
 
-		// LOGGING / NOLOGGING
+				// LOGGING / NOLOGGING
+				nil {
+				return parseErr651
+			}
+
 		case p.isIdentLike() && p.cur.Str == "LOGGING":
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "LOGGING",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 		case p.isIdentLike() && p.cur.Str == "NOLOGGING":
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "NOLOGGING",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// CREATE_FILE_DEST = 'path' | CREATE_FILE_DEST = NONE
@@ -3277,7 +3425,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "CREATE_FILE_DEST", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// KEYSTORE IDENTIFIED BY password [DECRYPT USING 'secret']
@@ -3296,7 +3444,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "KEYSTORE_PASSWORD", Value: pass,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "EXTERNAL" {
 				p.advance() // EXTERNAL
@@ -3305,7 +3453,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "KEYSTORE_EXTERNAL",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 			// Check for DECRYPT USING after KEYSTORE
@@ -3321,7 +3469,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DECRYPT_USING", Value: secret,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -3338,7 +3486,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "DECRYPT_USING", Value: secret,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// SNAPSHOT COPY [NO DATA] / SNAPSHOT = NONE | MANUAL | EVERY n HOURS/MINUTES
@@ -3347,9 +3495,14 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			p.parsePDBSnapshotClause(opts, optStart)
+			parseErr652 := p.parsePDBSnapshotClause(opts, optStart)
+			if parseErr652 !=
 
-		// REFRESH MODE { MANUAL | EVERY n MINUTES/HOURS | NONE }
+				// REFRESH MODE { MANUAL | EVERY n MINUTES/HOURS | NONE }
+				nil {
+				return parseErr652
+			}
+
 		case p.isIdentLike() && p.cur.Str == "REFRESH":
 			p.advance() // REFRESH
 			if p.isIdentLike() && p.cur.Str == "MODE" {
@@ -3377,7 +3530,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "REFRESH_MODE", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "SWITCHOVER" {
 				// REFRESH SWITCHOVER TO PRIMARY dblink
@@ -3395,7 +3548,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "REFRESH_SWITCHOVER", Value: dblink,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -3406,7 +3559,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 				p.advance()
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "NO_DATA",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -3423,7 +3576,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "RELOCATE", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// COPY / MOVE / NOCOPY (for XML variant)
@@ -3431,19 +3584,19 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "COPY",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 		case p.isIdentLike() && p.cur.Str == "MOVE":
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "MOVE",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 		case p.isIdentLike() && p.cur.Str == "NOCOPY":
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "NOCOPY",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// AS CLONE (for XML variant)
@@ -3453,7 +3606,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 				p.advance()
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "AS_CLONE",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "APPLICATION" {
 				p.advance() // APPLICATION
@@ -3462,13 +3615,13 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "AS_APPLICATION_CONTAINER",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLikeStr("SEED") {
 				p.advance()
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "AS_SEED",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else {
 				p.advance() // skip unknown after AS
@@ -3484,7 +3637,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "HOST", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// PORT number
@@ -3497,7 +3650,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "PORT", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// CONTAINER_MAP UPDATE (...)
@@ -3526,7 +3679,7 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "CONTAINER_MAP",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// AVAILABILITY { NORMAL | MAX }
@@ -3539,24 +3692,25 @@ func (p *Parser) parsePDBCreationClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "AVAILABILITY", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		default:
 			// Unknown token — stop parsing
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // parsePDBConvertClause parses FILE_NAME_CONVERT/SERVICE_NAME_CONVERT/SOURCE_FILE_NAME_CONVERT
 // = (...) | = NONE
-func (p *Parser) parsePDBConvertClause(opts *nodes.List, key string, optStart int) {
+func (p *Parser) parsePDBConvertClause(opts *nodes.List, key string, optStart int) error {
 	if p.isIdentLike() && p.cur.Str == "NONE" {
 		p.advance()
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: key, Value: "NONE",
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	} else if p.cur.Type == '(' {
 		p.advance()
@@ -3572,14 +3726,15 @@ func (p *Parser) parsePDBConvertClause(opts *nodes.List, key string, optStart in
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: key, Value: strings.Join(pairs, ","),
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	}
+	return nil
 }
 
 // parsePDBAllExceptNoneList parses ALL [EXCEPT (...)] | (list) | NONE for
 // USER_TABLESPACES, STANDBYS, INSTANCES, SERVICES clauses.
-func (p *Parser) parsePDBAllExceptNoneList(opts *nodes.List, key string, optStart int) {
+func (p *Parser) parsePDBAllExceptNoneList(opts *nodes.List, key string, optStart int) error {
 	if p.cur.Type == kwALL || (p.isIdentLike() && p.cur.Str == "ALL") {
 		p.advance()
 		if p.cur.Type == kwEXCEPT || (p.isIdentLike() && p.cur.Str == "EXCEPT") {
@@ -3603,28 +3758,35 @@ func (p *Parser) parsePDBAllExceptNoneList(opts *nodes.List, key string, optStar
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: key, Value: "ALL_EXCEPT", Items: exceptItems,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 		} else {
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: key, Value: "ALL",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 		}
 	} else if p.isIdentLike() && p.cur.Str == "NONE" {
 		p.advance()
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: key, Value: "NONE",
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	} else {
-		// Parenthesized list
-		p.parsePDBParenList(opts, key, optStart)
+		parseErr653 :=
+			// Parenthesized list
+			p.parsePDBParenList(opts, key, optStart)
+		if parseErr653 !=
+
+			// parsePDBParenList parses a parenthesized list of identifiers.
+			nil {
+			return parseErr653
+		}
 	}
+	return nil
 }
 
-// parsePDBParenList parses a parenthesized list of identifiers.
-func (p *Parser) parsePDBParenList(opts *nodes.List, key string, optStart int) {
+func (p *Parser) parsePDBParenList(opts *nodes.List, key string, optStart int) error {
 	if p.cur.Type == '(' {
 		p.advance()
 		items := &nodes.List{}
@@ -3642,23 +3804,24 @@ func (p *Parser) parsePDBParenList(opts *nodes.List, key string, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: key, Items: items,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	}
+	return nil
 }
 
 // parsePDBSizeOrUnlimited parses a size value or UNLIMITED keyword.
-func (p *Parser) parsePDBSizeOrUnlimited() string {
+func (p *Parser) parsePDBSizeOrUnlimited() (string, error) {
 	if p.isIdentLike() && p.cur.Str == "UNLIMITED" {
 		p.advance()
-		return "UNLIMITED"
+		return "UNLIMITED", nil
 	}
 	return p.parseSizeValue()
 }
 
 // parsePDBSnapshotClause parses SNAPSHOT clause variants:
 // COPY [NO DATA], NONE, MANUAL, EVERY n HOURS/MINUTES
-func (p *Parser) parsePDBSnapshotClause(opts *nodes.List, optStart int) {
+func (p *Parser) parsePDBSnapshotClause(opts *nodes.List, optStart int) error {
 	if p.isIdentLike() && p.cur.Str == "COPY" {
 		p.advance()
 		val := "COPY"
@@ -3671,19 +3834,19 @@ func (p *Parser) parsePDBSnapshotClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "SNAPSHOT", Value: val,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	} else if p.isIdentLike() && p.cur.Str == "NONE" {
 		p.advance()
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "SNAPSHOT", Value: "NONE",
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	} else if p.isIdentLike() && p.cur.Str == "MANUAL" {
 		p.advance()
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "SNAPSHOT", Value: "MANUAL",
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	} else if p.isIdentLike() && p.cur.Str == "EVERY" {
 		p.advance()
@@ -3699,16 +3862,17 @@ func (p *Parser) parsePDBSnapshotClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "SNAPSHOT", Value: "EVERY " + interval + " " + unit,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	}
+	return nil
 }
 
 // parseAlterPluggableDatabaseStmt parses an ALTER PLUGGABLE DATABASE statement.
 // The ALTER keyword has been consumed. PLUGGABLE DATABASE has been consumed by caller.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ALTER-PLUGGABLE-DATABASE.html
-func (p *Parser) parseAlterPluggableDatabaseStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterPluggableDatabaseStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "ALTER",
 		ObjectType: nodes.OBJECT_PLUGGABLE_DATABASE,
@@ -3750,18 +3914,26 @@ func (p *Parser) parseAlterPluggableDatabaseStmt(start int) nodes.StmtNode {
 	} else if p.isAlterPDBClauseKeyword() {
 		// No PDB name — clause keyword directly
 	} else if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
+		var parseErr654 error
 		// PDB name
-		stmt.Name = p.parseObjectName()
-	}
+		stmt.Name, parseErr654 = p.parseObjectName()
+		if parseErr654 !=
 
-	// Parse the main clause
-	p.parseAlterPDBClauses(opts)
+			// Parse the main clause
+			nil {
+			return nil, parseErr654
+		}
+	}
+	parseErr655 := p.parseAlterPDBClauses(opts)
+	if parseErr655 != nil {
+		return nil, parseErr655
+	}
 
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // isAlterPDBClauseKeyword checks if current token starts an ALTER PDB clause (no PDB name).
@@ -3785,7 +3957,7 @@ func (p *Parser) isAlterPDBClauseKeyword() bool {
 }
 
 // parseAlterPDBClauses parses the body of ALTER PLUGGABLE DATABASE.
-func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
+func (p *Parser) parseAlterPDBClauses(opts *nodes.List) error {
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		optStart := p.pos()
 
@@ -3839,12 +4011,18 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "OPEN", Value: mode,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
-			// instances_clause / services_clause
-			p.parsePDBInstancesServices(opts)
+			parseErr656 :=
+				// instances_clause / services_clause
+				p.parsePDBInstancesServices(opts)
+			if parseErr656 !=
 
-		// CLOSE [IMMEDIATE | ABORT] [instances_clause] [relocate_clause]
+				// CLOSE [IMMEDIATE | ABORT] [instances_clause] [relocate_clause]
+				nil {
+				return parseErr656
+			}
+
 		case p.cur.Type == kwCLOSE:
 			p.advance()
 			mode := ""
@@ -3857,11 +4035,17 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "CLOSE", Value: mode,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
-			// instances_clause
-			p.parsePDBInstancesServices(opts)
-			// relocate_clause
+			parseErr657 :=
+				// instances_clause
+				p.parsePDBInstancesServices(opts)
+			if parseErr657 !=
+				// relocate_clause
+				nil {
+				return parseErr657
+			}
+
 			if p.isIdentLike() && p.cur.Str == "RELOCATE" {
 				relStart := p.pos()
 				p.advance()
@@ -3875,13 +4059,13 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "RELOCATE", Value: val,
-					Loc: nodes.Loc{Start: relStart, End: p.pos()},
+					Loc: nodes.Loc{Start: relStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "NORELOCATE" {
 				p.advance()
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "NORELOCATE",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -3894,12 +4078,18 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: action + "_STATE",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
-			// instances_clause
-			p.parsePDBInstancesServices(opts)
+			parseErr658 :=
+				// instances_clause
+				p.parsePDBInstancesServices(opts)
+			if parseErr658 !=
 
-		// UNPLUG INTO 'filename' [ENCRYPT USING ...]
+				// UNPLUG INTO 'filename' [ENCRYPT USING ...]
+				nil {
+				return parseErr658
+			}
+
 		case p.isIdentLike() && p.cur.Str == "UNPLUG":
 			p.advance() // UNPLUG
 			if p.cur.Type == kwINTO {
@@ -3912,7 +4102,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "UNPLUG", Value: filename,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 			// ENCRYPT USING
 			if p.isIdentLike() && p.cur.Str == "ENCRYPT" {
@@ -3927,7 +4117,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "ENCRYPT_USING", Value: secret,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -3945,7 +4135,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 					}
 					opts.Items = append(opts.Items, &nodes.DDLOption{
 						Key: "SET_DEFAULT_TABLESPACE", Value: val,
-						Loc: nodes.Loc{Start: optStart, End: p.pos()},
+						Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 					})
 				}
 			} else if p.isIdentLike() && p.cur.Str == "TIME_ZONE" {
@@ -3960,7 +4150,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SET_TIME_ZONE", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "STANDBY" {
 				p.advance() // STANDBY
@@ -3984,7 +4174,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SET_STANDBY_NOLOGGING", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "MAX_PDB_SNAPSHOTS" {
 				p.advance() // MAX_PDB_SNAPSHOTS
@@ -3998,7 +4188,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "SET_MAX_PDB_SNAPSHOTS", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else {
 				// Unknown SET clause — skip token
@@ -4017,7 +4207,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DEFAULT_EDITION", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "TEMPORARY" {
 				p.advance() // TEMPORARY
@@ -4031,7 +4221,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DEFAULT_TEMPORARY_TABLESPACE", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.cur.Type == kwTABLESPACE {
 				p.advance()
@@ -4042,7 +4232,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DEFAULT_TABLESPACE", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else {
 				p.advance()
@@ -4073,7 +4263,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "RENAME_GLOBAL_NAME", Value: strings.Join(parts, ""),
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// STORAGE (...)  | STORAGE UNLIMITED
@@ -4083,7 +4273,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				p.advance()
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "STORAGE", Value: "UNLIMITED",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.cur.Type == '(' {
 				p.advance()
@@ -4092,24 +4282,33 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 					sStart := p.pos()
 					if p.isIdentLike() && p.cur.Str == "MAXSIZE" {
 						p.advance()
-						val := p.parsePDBSizeOrUnlimited()
+						val, parseErr659 := p.parsePDBSizeOrUnlimited()
+						if parseErr659 != nil {
+							return parseErr659
+						}
 						storageItems.Items = append(storageItems.Items, &nodes.DDLOption{
 							Key: "MAXSIZE", Value: val,
-							Loc: nodes.Loc{Start: sStart, End: p.pos()},
+							Loc: nodes.Loc{Start: sStart, End: p.prev.End},
 						})
 					} else if p.isIdentLike() && p.cur.Str == "MAX_AUDIT_SIZE" {
 						p.advance()
-						val := p.parsePDBSizeOrUnlimited()
+						val, parseErr660 := p.parsePDBSizeOrUnlimited()
+						if parseErr660 != nil {
+							return parseErr660
+						}
 						storageItems.Items = append(storageItems.Items, &nodes.DDLOption{
 							Key: "MAX_AUDIT_SIZE", Value: val,
-							Loc: nodes.Loc{Start: sStart, End: p.pos()},
+							Loc: nodes.Loc{Start: sStart, End: p.prev.End},
 						})
 					} else if p.isIdentLike() && p.cur.Str == "MAX_DIAG_SIZE" {
 						p.advance()
-						val := p.parsePDBSizeOrUnlimited()
+						val, parseErr661 := p.parsePDBSizeOrUnlimited()
+						if parseErr661 != nil {
+							return parseErr661
+						}
 						storageItems.Items = append(storageItems.Items, &nodes.DDLOption{
 							Key: "MAX_DIAG_SIZE", Value: val,
-							Loc: nodes.Loc{Start: sStart, End: p.pos()},
+							Loc: nodes.Loc{Start: sStart, End: p.prev.End},
 						})
 					} else {
 						p.advance()
@@ -4120,7 +4319,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "STORAGE", Items: storageItems,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -4129,13 +4328,13 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "LOGGING",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 		case p.isIdentLike() && p.cur.Str == "NOLOGGING":
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "NOLOGGING",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// ENABLE FORCE LOGGING | ENABLE RECOVERY | ENABLE LOST WRITE PROTECTION | ENABLE BACKUP
@@ -4152,13 +4351,13 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "RECOVERY" {
 				p.advance()
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "ENABLE_RECOVERY",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "LOST" {
 				p.advance() // LOST
@@ -4170,13 +4369,13 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "ENABLE_LOST_WRITE_PROTECTION",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "BACKUP" {
 				p.advance()
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "ENABLE_BACKUP",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else {
 				p.advance()
@@ -4196,13 +4395,13 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "RECOVERY" {
 				p.advance()
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DISABLE_RECOVERY",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "LOST" {
 				p.advance() // LOST
@@ -4214,13 +4413,13 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DISABLE_LOST_WRITE_PROTECTION",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "BACKUP" {
 				p.advance()
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DISABLE_BACKUP",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else {
 				p.advance()
@@ -4254,7 +4453,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "REFRESH_MODE", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "SWITCHOVER" {
 				p.advance() // SWITCHOVER
@@ -4271,7 +4470,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "REFRESH_SWITCHOVER", Value: dblink,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -4293,7 +4492,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "CONTAINERS_DEFAULT_TARGET", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "HOST" {
 				p.advance()
@@ -4307,7 +4506,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "CONTAINERS_HOST", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "PORT" {
 				p.advance()
@@ -4321,7 +4520,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "CONTAINERS_PORT", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -4338,7 +4537,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "PRIORITY", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// DATAFILE clause
@@ -4365,7 +4564,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "DATAFILE", Value: val + ":" + action,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// RECOVER [STANDBY] [UNTIL ...] [USING BACKUP CONTROLFILE]
@@ -4413,7 +4612,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "RECOVER", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// BACKUP BEGIN | BACKUP END
@@ -4429,25 +4628,36 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "BACKUP", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// APPLICATION clauses
 		case p.isIdentLike() && p.cur.Str == "APPLICATION":
-			p.advance() // APPLICATION
-			p.parseAlterPDBApplicationClause(opts, optStart)
+			p.advance()
+			parseErr662 := // APPLICATION
+				p.parseAlterPDBApplicationClause(opts, optStart)
+			if parseErr662 !=
 
-		// SNAPSHOT clauses: SNAPSHOT NONE/MANUAL/EVERY
+				// SNAPSHOT clauses: SNAPSHOT NONE/MANUAL/EVERY
+				nil {
+				return parseErr662
+			}
+
 		case p.isIdentLike() && p.cur.Str == "SNAPSHOT":
 			p.advance()
-			p.parsePDBSnapshotClause(opts, optStart)
+			parseErr663 := p.parsePDBSnapshotClause(opts, optStart)
+			if parseErr663 !=
 
-		// MATERIALIZE
+				// MATERIALIZE
+				nil {
+				return parseErr663
+			}
+
 		case p.isIdentLike() && p.cur.Str == "MATERIALIZE":
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "MATERIALIZE",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// CREATE SNAPSHOT snap_name
@@ -4462,7 +4672,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "CREATE_SNAPSHOT", Value: name,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -4478,7 +4688,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DROP_SNAPSHOT", Value: name,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "MIRROR" {
 				p.advance() // MIRROR
@@ -4492,7 +4702,7 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DROP_MIRROR_COPY", Value: name,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -4537,18 +4747,19 @@ func (p *Parser) parseAlterPDBClauses(opts *nodes.List) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "PREPARE_MIRROR_COPY", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		default:
 			// Unknown clause — stop
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // parsePDBInstancesServices parses optional INSTANCES = (...) and SERVICES = (...) clauses.
-func (p *Parser) parsePDBInstancesServices(opts *nodes.List) {
+func (p *Parser) parsePDBInstancesServices(opts *nodes.List) error {
 	for {
 		optStart := p.pos()
 		if p.isIdentLike() && p.cur.Str == "INSTANCES" {
@@ -4556,21 +4767,29 @@ func (p *Parser) parsePDBInstancesServices(opts *nodes.List) {
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			p.parsePDBAllExceptNoneList(opts, "INSTANCES", optStart)
+			parseErr664 := p.parsePDBAllExceptNoneList(opts, "INSTANCES", optStart)
+			if parseErr664 != nil {
+				return parseErr664
+			}
 		} else if p.isIdentLike() && p.cur.Str == "SERVICES" {
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			p.parsePDBAllExceptNoneList(opts, "SERVICES", optStart)
+			parseErr665 := p.parsePDBAllExceptNoneList(opts, "SERVICES", optStart)
+			if parseErr665 != nil {
+				return parseErr665
+
+				// parseAlterPDBApplicationClause parses APPLICATION clauses in ALTER PLUGGABLE DATABASE.
+			}
 		} else {
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
-// parseAlterPDBApplicationClause parses APPLICATION clauses in ALTER PLUGGABLE DATABASE.
-func (p *Parser) parseAlterPDBApplicationClause(opts *nodes.List, optStart int) {
+func (p *Parser) parseAlterPDBApplicationClause(opts *nodes.List, optStart int) error {
 	// Check for ALL [EXCEPT (...)] SYNC or multi-app SYNC
 	if p.cur.Type == kwALL || (p.isIdentLike() && p.cur.Str == "ALL") {
 		p.advance() // ALL
@@ -4597,7 +4816,7 @@ func (p *Parser) parseAlterPDBApplicationClause(opts *nodes.List, optStart int) 
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "APP_ALL_EXCEPT_SYNC", Items: exceptItems,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 		} else {
 			// ALL SYNC
@@ -4606,10 +4825,10 @@ func (p *Parser) parseAlterPDBApplicationClause(opts *nodes.List, optStart int) 
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "APP_ALL_SYNC",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 		}
-		return
+		return nil
 	}
 
 	// Parse app name(s) — could be single or comma-separated
@@ -4638,9 +4857,9 @@ func (p *Parser) parseAlterPDBApplicationClause(opts *nodes.List, optStart int) 
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "APP_MULTI_SYNC", Items: items,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
-		return
+		return nil
 	}
 
 	appName := ""
@@ -4651,16 +4870,28 @@ func (p *Parser) parseAlterPDBApplicationClause(opts *nodes.List, optStart int) 
 	// Single app operations
 	switch {
 	case p.cur.Type == kwBEGIN || (p.isIdentLike() && p.cur.Str == "BEGIN"):
-		p.advance() // BEGIN
-		p.parseAppBeginClause(opts, appName, optStart)
+		p.advance()
+		parseErr666 := // BEGIN
+			p.parseAppBeginClause(opts, appName, optStart)
+		if parseErr666 != nil {
+			return parseErr666
+		}
 
 	case p.cur.Type == kwEND || (p.isIdentLike() && p.cur.Str == "END"):
-		p.advance() // END
-		p.parseAppEndClause(opts, appName, optStart)
+		p.advance()
+		parseErr667 := // END
+			p.parseAppEndClause(opts, appName, optStart)
+		if parseErr667 != nil {
+			return parseErr667
+		}
 
 	case p.cur.Type == kwSET:
-		p.advance() // SET
-		p.parseAppSetClause(opts, appName, optStart)
+		p.advance()
+		parseErr668 := // SET
+			p.parseAppSetClause(opts, appName, optStart)
+		if parseErr668 != nil {
+			return parseErr668
+		}
 
 	case p.isIdentLike() && p.cur.Str == "SYNC":
 		p.advance() // SYNC
@@ -4680,13 +4911,14 @@ func (p *Parser) parseAlterPDBApplicationClause(opts *nodes.List, optStart int) 
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "APP_SYNC", Value: appName + ":" + val,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	}
+	return nil
 }
 
 // parseAppBeginClause parses APPLICATION app_name BEGIN { INSTALL | PATCH | UPGRADE | UNINSTALL }.
-func (p *Parser) parseAppBeginClause(opts *nodes.List, appName string, optStart int) {
+func (p *Parser) parseAppBeginClause(opts *nodes.List, appName string, optStart int) error {
 	switch {
 	case p.isIdentLike() && p.cur.Str == "INSTALL":
 		p.advance() // INSTALL
@@ -4708,7 +4940,7 @@ func (p *Parser) parseAppBeginClause(opts *nodes.List, appName string, optStart 
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "APP_BEGIN_INSTALL", Value: appName + ":" + version + ":" + comment,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "PATCH":
@@ -4739,7 +4971,7 @@ func (p *Parser) parseAppBeginClause(opts *nodes.List, appName string, optStart 
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "APP_BEGIN_PATCH", Value: appName + ":" + patchNum + ":" + minVersion + ":" + comment,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "UPGRADE":
@@ -4770,20 +5002,21 @@ func (p *Parser) parseAppBeginClause(opts *nodes.List, appName string, optStart 
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "APP_BEGIN_UPGRADE", Value: appName + ":" + fromVersion + ":" + toVersion + ":" + comment,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "UNINSTALL":
 		p.advance()
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "APP_BEGIN_UNINSTALL", Value: appName,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	}
+	return nil
 }
 
 // parseAppEndClause parses APPLICATION app_name END { INSTALL | PATCH | UPGRADE | UNINSTALL }.
-func (p *Parser) parseAppEndClause(opts *nodes.List, appName string, optStart int) {
+func (p *Parser) parseAppEndClause(opts *nodes.List, appName string, optStart int) error {
 	switch {
 	case p.isIdentLike() && p.cur.Str == "INSTALL":
 		p.advance()
@@ -4797,7 +5030,7 @@ func (p *Parser) parseAppEndClause(opts *nodes.List, appName string, optStart in
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "APP_END_INSTALL", Value: appName + ":" + version,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "PATCH":
@@ -4809,7 +5042,7 @@ func (p *Parser) parseAppEndClause(opts *nodes.List, appName string, optStart in
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "APP_END_PATCH", Value: appName + ":" + patchNum,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "UPGRADE":
@@ -4824,20 +5057,21 @@ func (p *Parser) parseAppEndClause(opts *nodes.List, appName string, optStart in
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "APP_END_UPGRADE", Value: appName + ":" + toVersion,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "UNINSTALL":
 		p.advance()
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "APP_END_UNINSTALL", Value: appName,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	}
+	return nil
 }
 
 // parseAppSetClause parses APPLICATION app_name SET { PATCH | VERSION | COMPATIBILITY }.
-func (p *Parser) parseAppSetClause(opts *nodes.List, appName string, optStart int) {
+func (p *Parser) parseAppSetClause(opts *nodes.List, appName string, optStart int) error {
 	switch {
 	case p.isIdentLike() && p.cur.Str == "PATCH":
 		p.advance()
@@ -4848,7 +5082,7 @@ func (p *Parser) parseAppSetClause(opts *nodes.List, appName string, optStart in
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "APP_SET_PATCH", Value: appName + ":" + val,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "VERSION":
@@ -4860,7 +5094,7 @@ func (p *Parser) parseAppSetClause(opts *nodes.List, appName string, optStart in
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "APP_SET_VERSION", Value: appName + ":" + val,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "COMPATIBILITY":
@@ -4878,9 +5112,10 @@ func (p *Parser) parseAppSetClause(opts *nodes.List, appName string, optStart in
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "APP_SET_COMPATIBILITY", Value: appName + ":" + val,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	}
+	return nil
 }
 
 // parseDropPluggableDatabaseStmt parses a DROP PLUGGABLE DATABASE statement.
@@ -4890,7 +5125,7 @@ func (p *Parser) parseAppSetClause(opts *nodes.List, appName string, optStart in
 //
 //	DROP PLUGGABLE DATABASE [ IF EXISTS ] pdb_name [ FORCE ]
 //	  { KEEP DATAFILES | INCLUDING DATAFILES }
-func (p *Parser) parseDropPluggableDatabaseStmt(start int) nodes.StmtNode {
+func (p *Parser) parseDropPluggableDatabaseStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "DROP",
 		ObjectType: nodes.OBJECT_PLUGGABLE_DATABASE,
@@ -4906,13 +5141,19 @@ func (p *Parser) parseDropPluggableDatabaseStmt(start int) nodes.StmtNode {
 			stmt.IfExists = true
 		}
 	}
+	var parseErr669 error
 
 	// PDB name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr669 = p.parseObjectName()
+	if parseErr669 != nil {
+		return nil,
+
+			// Optional trailing: FORCE, KEEP DATAFILES, INCLUDING DATAFILES
+			parseErr669
+	}
 
 	opts := &nodes.List{}
 
-	// Optional trailing: FORCE, KEEP DATAFILES, INCLUDING DATAFILES
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		optStart := p.pos()
 		switch {
@@ -4920,7 +5161,7 @@ func (p *Parser) parseDropPluggableDatabaseStmt(start int) nodes.StmtNode {
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "FORCE",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 		case p.isIdentLike() && p.cur.Str == "INCLUDING":
 			p.advance() // INCLUDING
@@ -4929,7 +5170,7 @@ func (p *Parser) parseDropPluggableDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "INCLUDING_DATAFILES",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 		case p.isIdentLike() && p.cur.Str == "KEEP":
 			p.advance() // KEEP
@@ -4938,7 +5179,7 @@ func (p *Parser) parseDropPluggableDatabaseStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "KEEP_DATAFILES",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 		default:
 			goto done
@@ -4948,27 +5189,33 @@ done:
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateDiskgroupStmt parses a CREATE DISKGROUP statement.
 // The CREATE keyword has been consumed. DISKGROUP has been consumed by caller.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-DISKGROUP.html
-func (p *Parser) parseCreateDiskgroupStmt(start int) nodes.StmtNode {
+func (p *Parser) parseCreateDiskgroupStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_DISKGROUP,
 		Loc:        nodes.Loc{Start: start},
 	}
+	var parseErr670 error
 
 	// Diskgroup name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr670 = p.parseObjectName()
+	if parseErr670 != nil {
+		return nil,
+
+			// Optional redundancy: { NORMAL | HIGH | FLEX | EXTENDED | EXTERNAL } REDUNDANCY
+			parseErr670
+	}
 
 	opts := &nodes.List{}
 
-	// Optional redundancy: { NORMAL | HIGH | FLEX | EXTENDED | EXTERNAL } REDUNDANCY
 	if p.isIdentLike() {
 		switch p.cur.Str {
 		case "NORMAL", "HIGH", "FLEX", "EXTENDED", "EXTERNAL":
@@ -5006,7 +5253,7 @@ func (p *Parser) parseCreateDiskgroupStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "FAILGROUP", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -5036,7 +5283,11 @@ func (p *Parser) parseCreateDiskgroupStmt(start int) nodes.StmtNode {
 				}
 				if p.cur.Type == kwSIZE {
 					p.advance()
-					size = p.parseSizeValue()
+					var parseErr671 error
+					size, parseErr671 = p.parseSizeValue()
+					if parseErr671 != nil {
+						return nil, parseErr671
+					}
 				}
 				if p.cur.Type == kwFORCE {
 					forceFlag = "FORCE"
@@ -5057,7 +5308,7 @@ func (p *Parser) parseCreateDiskgroupStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DISK", Value: val,
-					Loc: nodes.Loc{Start: dStart, End: p.pos()},
+					Loc: nodes.Loc{Start: dStart, End: p.prev.End},
 				})
 				if p.cur.Type == ',' {
 					p.advance()
@@ -5094,7 +5345,7 @@ func (p *Parser) parseCreateDiskgroupStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "ATTRIBUTE", Items: attrItems,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		default:
@@ -5105,27 +5356,33 @@ createDgDone:
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterDiskgroupStmt parses an ALTER DISKGROUP statement.
 // The ALTER keyword has been consumed. DISKGROUP has been consumed by caller.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ALTER-DISKGROUP.html
-func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterDiskgroupStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "ALTER",
 		ObjectType: nodes.OBJECT_DISKGROUP,
 		Loc:        nodes.Loc{Start: start},
 	}
+	var parseErr672 error
 
 	// Diskgroup name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr672 = p.parseObjectName()
+	if parseErr672 != nil {
+		return nil,
+
+			// Parse the main clause
+			parseErr672
+	}
 
 	opts := &nodes.List{}
 
-	// Parse the main clause
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		optStart := p.pos()
 
@@ -5133,16 +5390,28 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 		// ADD DISK / ADD DIRECTORY / ADD ALIAS / ADD TEMPLATE / ADD VOLUME /
 		// ADD USERGROUP / ADD USER / ADD QUOTAGROUP / ADD FILEGROUP
 		case p.cur.Type == kwADD || (p.isIdentLike() && p.cur.Str == "ADD"):
-			p.advance() // ADD
-			p.parseDiskgroupAddClause(opts, optStart)
+			p.advance()
+			parseErr673 := // ADD
+				p.parseDiskgroupAddClause(opts, optStart)
+			if parseErr673 !=
 
-		// DROP DISK / DROP DISKS / DROP TEMPLATE / DROP DIRECTORY / DROP ALIAS /
-		// DROP VOLUME / DROP USERGROUP / DROP USER / DROP QUOTAGROUP / DROP FILEGROUP / DROP FILE
+				// DROP DISK / DROP DISKS / DROP TEMPLATE / DROP DIRECTORY / DROP ALIAS /
+				// DROP VOLUME / DROP USERGROUP / DROP USER / DROP QUOTAGROUP / DROP FILEGROUP / DROP FILE
+				nil {
+				return nil, parseErr673
+			}
+
 		case p.cur.Type == kwDROP:
-			p.advance() // DROP
-			p.parseDiskgroupDropClause(opts, optStart)
+			p.advance()
+			parseErr674 := // DROP
+				p.parseDiskgroupDropClause(opts, optStart)
+			if parseErr674 !=
 
-		// RESIZE ALL SIZE / RESIZE VOLUME / RESIZE DISK
+				// RESIZE ALL SIZE / RESIZE VOLUME / RESIZE DISK
+				nil {
+				return nil, parseErr674
+			}
+
 		case p.isIdentLike() && p.cur.Str == "RESIZE":
 			p.advance() // RESIZE
 			if p.cur.Type == kwALL || (p.isIdentLike() && p.cur.Str == "ALL") {
@@ -5150,10 +5419,13 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 				if p.cur.Type == kwSIZE {
 					p.advance()
 				}
-				size := p.parseSizeValue()
+				size, parseErr675 := p.parseSizeValue()
+				if parseErr675 != nil {
+					return nil, parseErr675
+				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "RESIZE_ALL", Value: size,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "VOLUME" {
 				p.advance() // VOLUME
@@ -5165,10 +5437,13 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 				if p.cur.Type == kwSIZE {
 					p.advance()
 				}
-				size := p.parseSizeValue()
+				size, parseErr676 := p.parseSizeValue()
+				if parseErr676 != nil {
+					return nil, parseErr676
+				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "RESIZE_VOLUME", Value: volName + ":" + size,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "DISK" {
 				p.advance() // DISK
@@ -5180,10 +5455,13 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 				if p.cur.Type == kwSIZE {
 					p.advance()
 				}
-				size := p.parseSizeValue()
+				size, parseErr677 := p.parseSizeValue()
+				if parseErr677 != nil {
+					return nil, parseErr677
+				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "RESIZE_DISK", Value: diskName + ":" + size,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -5209,10 +5487,14 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 					p.advance()
 				}
 				val := oldName + ":" + newPath
-				val += p.parseDiskgroupForceWaitPower()
+				forceWait, parseErr678 := p.parseDiskgroupForceWaitPower()
+				if parseErr678 != nil {
+					return nil, parseErr678
+				}
+				val += forceWait
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "REPLACE_DISK", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.cur.Type == kwUSER || (p.isIdentLike() && p.cur.Str == "USER") {
 				p.advance() // USER
@@ -5231,7 +5513,7 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "REPLACE_USER", Value: oldUser + ":" + newUser,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -5264,7 +5546,7 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "RENAME_DISK", Value: strings.Join(pairs, ","),
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "DISKS" {
 				p.advance() // DISKS
@@ -5273,7 +5555,7 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "RENAME_DISKS_ALL",
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "DIRECTORY" {
 				p.advance()
@@ -5292,7 +5574,7 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "RENAME_DIRECTORY", Value: oldPath + ":" + newPath,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "ALIAS" {
 				p.advance()
@@ -5311,7 +5593,7 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "RENAME_ALIAS", Value: oldAlias + ":" + newAlias,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -5321,7 +5603,11 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 			val := ""
 			if p.isIdentLike() && p.cur.Str == "DISK" {
 				p.advance()
-				val = "DISK:" + p.parseDiskNameList()
+				parseValue67, parseErr68 := p.parseDiskNameList()
+				if parseErr68 != nil {
+					return nil, parseErr68
+				}
+				val = "DISK:" + parseValue67
 			} else if p.isIdentLike() && p.cur.Str == "DISKS" {
 				p.advance()
 				if p.cur.Type == kwIN {
@@ -5340,10 +5626,14 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 				p.advance()
 				val = "ALL"
 			}
-			val += p.parseDiskgroupForceWaitPower()
+			forceWait, parseErr679 := p.parseDiskgroupForceWaitPower()
+			if parseErr679 != nil {
+				return nil, parseErr679
+			}
+			val += forceWait
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "ONLINE", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// OFFLINE DISK / OFFLINE DISKS IN FAILGROUP
@@ -5352,7 +5642,11 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 			val := ""
 			if p.isIdentLike() && p.cur.Str == "DISK" {
 				p.advance()
-				val = "DISK:" + p.parseDiskNameList()
+				parseValue69, parseErr70 := p.parseDiskNameList()
+				if parseErr70 != nil {
+					return nil, parseErr70
+				}
+				val = "DISK:" + parseValue69
 			} else if p.isIdentLike() && p.cur.Str == "DISKS" {
 				p.advance()
 				if p.cur.Type == kwIN {
@@ -5370,7 +5664,7 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "OFFLINE", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// REBALANCE
@@ -5400,10 +5694,14 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 				}
 				val = "WITHOUT:" + strings.Join(modes, ",")
 			}
-			val += p.parseDiskgroupForceWaitPower()
+			forceWait, parseErr680 := p.parseDiskgroupForceWaitPower()
+			if parseErr680 != nil {
+				return nil, parseErr680
+			}
+			val += forceWait
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "REBALANCE", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// CHECK
@@ -5415,7 +5713,11 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 				val = "ALL"
 			} else if p.isIdentLike() && p.cur.Str == "DISK" {
 				p.advance()
-				val = "DISK:" + p.parseDiskNameList()
+				parseValue71, parseErr72 := p.parseDiskNameList()
+				if parseErr72 != nil {
+					return nil, parseErr72
+				}
+				val = "DISK:" + parseValue71
 			} else if p.isIdentLike() && p.cur.Str == "DISKS" {
 				p.advance()
 				if p.cur.Type == kwIN {
@@ -5449,21 +5751,31 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "CHECK", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// MODIFY TEMPLATE / MODIFY VOLUME / MODIFY USERGROUP / MODIFY FILEGROUP /
 		// MODIFY FILE / MODIFY POWER / MODIFY QUOTAGROUP
 		case p.isIdentLike() && p.cur.Str == "MODIFY":
 			p.advance()
-			p.parseDiskgroupModifyClause(opts, optStart)
+			parseErr681 := p.parseDiskgroupModifyClause(opts, optStart)
+			if parseErr681 !=
 
-		// SET ATTRIBUTE / SET PERMISSION / SET OWNER / SET GROUP
+				// SET ATTRIBUTE / SET PERMISSION / SET OWNER / SET GROUP
+				nil {
+				return nil, parseErr681
+			}
+
 		case p.cur.Type == kwSET:
 			p.advance()
-			p.parseDiskgroupSetClause(opts, optStart)
+			parseErr682 := p.parseDiskgroupSetClause(opts, optStart)
+			if parseErr682 !=
 
-		// CONVERT REDUNDANCY
+				// CONVERT REDUNDANCY
+				nil {
+				return nil, parseErr682
+			}
+
 		case p.isIdentLike() && p.cur.Str == "CONVERT":
 			p.advance()
 			if p.isIdentLike() && p.cur.Str == "REDUNDANCY" {
@@ -5471,7 +5783,7 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "CONVERT_REDUNDANCY",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// UNDROP DISKS
@@ -5482,7 +5794,7 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "UNDROP_DISKS",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// MOUNT
@@ -5515,7 +5827,7 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "MOUNT", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// DISMOUNT
@@ -5535,7 +5847,7 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "DISMOUNT", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// ENABLE VOLUME / DISABLE VOLUME
@@ -5543,20 +5855,26 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 			p.advance()
 			if p.isIdentLike() && p.cur.Str == "VOLUME" {
 				p.advance()
-				val := p.parseDiskgroupVolumeList()
+				val, parseErr683 := p.parseDiskgroupVolumeList()
+				if parseErr683 != nil {
+					return nil, parseErr683
+				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "ENABLE_VOLUME", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 		case p.cur.Type == kwDISABLE:
 			p.advance()
 			if p.isIdentLike() && p.cur.Str == "VOLUME" {
 				p.advance()
-				val := p.parseDiskgroupVolumeList()
+				val, parseErr684 := p.parseDiskgroupVolumeList()
+				if parseErr684 != nil {
+					return nil, parseErr684
+				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "DISABLE_VOLUME", Value: val,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -5616,7 +5934,7 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "SCRUB", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 
 		// MOVE FILE ... TO FILEGROUP / MOVE FILEGROUP ... TO QUOTAGROUP
@@ -5645,7 +5963,7 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "MOVE_FILE_TO_FILEGROUP", Value: fileSpec + ":" + fgName,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			} else if p.isIdentLike() && p.cur.Str == "FILEGROUP" {
 				p.advance()
@@ -5667,7 +5985,7 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "MOVE_FILEGROUP_TO_QUOTAGROUP", Value: fgName + ":" + qgName,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -5681,10 +5999,13 @@ func (p *Parser) parseAlterDiskgroupStmt(start int) nodes.StmtNode {
 					tmplName = p.cur.Str
 					p.advance()
 				}
-				p.parseDiskgroupSkipParens()
+				parseErr685 := p.parseDiskgroupSkipParens()
+				if parseErr685 != nil {
+					return nil, parseErr685
+				}
 				opts.Items = append(opts.Items, &nodes.DDLOption{
 					Key: "ALTER_TEMPLATE", Value: tmplName,
-					Loc: nodes.Loc{Start: optStart, End: p.pos()},
+					Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 				})
 			}
 
@@ -5696,12 +6017,12 @@ alterDgDone:
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseDiskgroupAddClause handles ADD sub-clauses for ALTER DISKGROUP.
-func (p *Parser) parseDiskgroupAddClause(opts *nodes.List, optStart int) {
+func (p *Parser) parseDiskgroupAddClause(opts *nodes.List, optStart int) error {
 	switch {
 	case p.isIdentLike() && p.cur.Str == "DISK":
 		p.advance()
@@ -5724,7 +6045,11 @@ func (p *Parser) parseDiskgroupAddClause(opts *nodes.List, optStart int) {
 			}
 			if p.cur.Type == kwSIZE {
 				p.advance()
-				val += ":SIZE:" + p.parseSizeValue()
+				parseValue73, parseErr74 := p.parseSizeValue()
+				if parseErr74 != nil {
+					return parseErr74
+				}
+				val += ":SIZE:" + parseValue73
 			}
 			if p.isIdentLike() && p.cur.Str == "FAILGROUP" {
 				p.advance()
@@ -5735,7 +6060,7 @@ func (p *Parser) parseDiskgroupAddClause(opts *nodes.List, optStart int) {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "ADD_DISK", Value: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 			if p.cur.Type == ',' {
 				p.advance()
@@ -5753,7 +6078,7 @@ func (p *Parser) parseDiskgroupAddClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "ADD_DIRECTORY", Value: path,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "ALIAS":
@@ -5773,7 +6098,7 @@ func (p *Parser) parseDiskgroupAddClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "ADD_ALIAS", Value: alias + ":" + target,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "TEMPLATE":
@@ -5783,10 +6108,13 @@ func (p *Parser) parseDiskgroupAddClause(opts *nodes.List, optStart int) {
 			tmplName = p.cur.Str
 			p.advance()
 		}
-		p.parseDiskgroupSkipParens()
+		parseErr686 := p.parseDiskgroupSkipParens()
+		if parseErr686 != nil {
+			return parseErr686
+		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "ADD_TEMPLATE", Value: tmplName,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "VOLUME":
@@ -5799,11 +6127,15 @@ func (p *Parser) parseDiskgroupAddClause(opts *nodes.List, optStart int) {
 		size := ""
 		if p.cur.Type == kwSIZE {
 			p.advance()
-			size = p.parseSizeValue()
+			var parseErr687 error
+			size, parseErr687 = p.parseSizeValue()
+			if parseErr687 != nil {
+				return parseErr687
+			}
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "ADD_VOLUME", Value: volName + ":" + size,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 		for p.isIdentLike() && (p.cur.Str == "MIRROR" || p.cur.Str == "HIGH" || p.cur.Str == "UNPROTECTED" ||
 			p.cur.Str == "PARITY" || p.cur.Str == "DOUBLE" || p.cur.Str == "FINE" || p.cur.Str == "COARSE" ||
@@ -5814,7 +6146,11 @@ func (p *Parser) parseDiskgroupAddClause(opts *nodes.List, optStart int) {
 			}
 			if p.cur.Type == kwSIZE {
 				p.advance()
-				p.parseSizeValue()
+				parseDiscard689, parseErr688 := p.parseSizeValue()
+				_ = parseDiscard689
+				if parseErr688 != nil {
+					return parseErr688
+				}
 			}
 		}
 
@@ -5839,7 +6175,7 @@ func (p *Parser) parseDiskgroupAddClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "ADD_USERGROUP", Value: val,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.cur.Type == kwUSER || (p.isIdentLike() && p.cur.Str == "USER"):
@@ -5858,7 +6194,7 @@ func (p *Parser) parseDiskgroupAddClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "ADD_USER", Value: strings.Join(users, ","),
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "QUOTAGROUP":
@@ -5877,11 +6213,15 @@ func (p *Parser) parseDiskgroupAddClause(opts *nodes.List, optStart int) {
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			val += ":" + p.parsePDBSizeOrUnlimited()
+			parseValue75, parseErr76 := p.parsePDBSizeOrUnlimited()
+			if parseErr76 != nil {
+				return parseErr76
+			}
+			val += ":" + parseValue75
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "ADD_QUOTAGROUP", Value: val,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "FILEGROUP":
@@ -5919,17 +6259,22 @@ func (p *Parser) parseDiskgroupAddClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "ADD_FILEGROUP", Value: name,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	}
+	return nil
 }
 
 // parseDiskgroupDropClause handles DROP sub-clauses for ALTER DISKGROUP.
-func (p *Parser) parseDiskgroupDropClause(opts *nodes.List, optStart int) {
+func (p *Parser) parseDiskgroupDropClause(opts *nodes.List, optStart int) error {
 	switch {
 	case p.isIdentLike() && p.cur.Str == "DISK":
 		p.advance()
-		val := "DISK:" + p.parseDiskNameList()
+		parseValue77, parseErr78 := p.parseDiskNameList()
+		if parseErr78 != nil {
+			return parseErr78
+		}
+		val := "DISK:" + parseValue77
 		if p.cur.Type == kwFORCE {
 			val += ":FORCE"
 			p.advance()
@@ -5939,7 +6284,7 @@ func (p *Parser) parseDiskgroupDropClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "DROP_DISK", Value: val,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "DISKS":
@@ -5965,7 +6310,7 @@ func (p *Parser) parseDiskgroupDropClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "DROP_DISKS_FAILGROUP", Value: val,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "TEMPLATE":
@@ -5977,7 +6322,7 @@ func (p *Parser) parseDiskgroupDropClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "DROP_TEMPLATE", Value: name,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "DIRECTORY":
@@ -5994,7 +6339,7 @@ func (p *Parser) parseDiskgroupDropClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "DROP_DIRECTORY", Value: path + force,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "ALIAS":
@@ -6006,7 +6351,7 @@ func (p *Parser) parseDiskgroupDropClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "DROP_ALIAS", Value: alias,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "VOLUME":
@@ -6018,7 +6363,7 @@ func (p *Parser) parseDiskgroupDropClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "DROP_VOLUME", Value: name,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "USERGROUP":
@@ -6030,7 +6375,7 @@ func (p *Parser) parseDiskgroupDropClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "DROP_USERGROUP", Value: name,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.cur.Type == kwUSER || (p.isIdentLike() && p.cur.Str == "USER"):
@@ -6052,7 +6397,7 @@ func (p *Parser) parseDiskgroupDropClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "DROP_USER", Value: strings.Join(users, ","),
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "QUOTAGROUP":
@@ -6064,7 +6409,7 @@ func (p *Parser) parseDiskgroupDropClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "DROP_QUOTAGROUP", Value: name,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "FILEGROUP":
@@ -6093,7 +6438,7 @@ func (p *Parser) parseDiskgroupDropClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "DROP_FILEGROUP", Value: val,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "FILE":
@@ -6108,13 +6453,14 @@ func (p *Parser) parseDiskgroupDropClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "DROP_FILE", Value: fileSpec,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	}
+	return nil
 }
 
 // parseDiskgroupModifyClause handles MODIFY sub-clauses for ALTER DISKGROUP.
-func (p *Parser) parseDiskgroupModifyClause(opts *nodes.List, optStart int) {
+func (p *Parser) parseDiskgroupModifyClause(opts *nodes.List, optStart int) error {
 	switch {
 	case p.isIdentLike() && p.cur.Str == "TEMPLATE":
 		p.advance()
@@ -6123,10 +6469,13 @@ func (p *Parser) parseDiskgroupModifyClause(opts *nodes.List, optStart int) {
 			name = p.cur.Str
 			p.advance()
 		}
-		p.parseDiskgroupSkipParens()
+		parseErr690 := p.parseDiskgroupSkipParens()
+		if parseErr690 != nil {
+			return parseErr690
+		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "MODIFY_TEMPLATE", Value: name,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "VOLUME":
@@ -6144,7 +6493,7 @@ func (p *Parser) parseDiskgroupModifyClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "MODIFY_VOLUME", Value: name,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "USERGROUP":
@@ -6172,7 +6521,7 @@ func (p *Parser) parseDiskgroupModifyClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "MODIFY_USERGROUP", Value: name + ":" + action + ":" + member,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "FILEGROUP":
@@ -6203,7 +6552,7 @@ func (p *Parser) parseDiskgroupModifyClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "MODIFY_FILEGROUP", Value: name,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "FILE":
@@ -6218,7 +6567,7 @@ func (p *Parser) parseDiskgroupModifyClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "MODIFY_FILE", Value: fileSpec,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "POWER":
@@ -6230,7 +6579,7 @@ func (p *Parser) parseDiskgroupModifyClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "MODIFY_POWER", Value: val,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 
 	case p.isIdentLike() && p.cur.Str == "QUOTAGROUP":
@@ -6249,16 +6598,21 @@ func (p *Parser) parseDiskgroupModifyClause(opts *nodes.List, optStart int) {
 		if p.cur.Type == '=' {
 			p.advance()
 		}
-		val := name + ":" + p.parsePDBSizeOrUnlimited()
+		parseValue79, parseErr80 := p.parsePDBSizeOrUnlimited()
+		if parseErr80 != nil {
+			return parseErr80
+		}
+		val := name + ":" + parseValue79
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "MODIFY_QUOTAGROUP", Value: val,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	}
+	return nil
 }
 
 // parseDiskgroupSetClause handles SET sub-clauses for ALTER DISKGROUP.
-func (p *Parser) parseDiskgroupSetClause(opts *nodes.List, optStart int) {
+func (p *Parser) parseDiskgroupSetClause(opts *nodes.List, optStart int) error {
 	if p.isIdentLike() && p.cur.Str == "ATTRIBUTE" {
 		p.advance()
 		attrItems := &nodes.List{}
@@ -6286,7 +6640,7 @@ func (p *Parser) parseDiskgroupSetClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "SET_ATTRIBUTE", Items: attrItems,
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	} else if p.isIdentLike() && p.cur.Str == "PERMISSION" {
 		p.advance()
@@ -6295,7 +6649,7 @@ func (p *Parser) parseDiskgroupSetClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "SET_PERMISSION",
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	} else if p.isIdentLike() && p.cur.Str == "OWNER" {
 		p.advance()
@@ -6304,7 +6658,7 @@ func (p *Parser) parseDiskgroupSetClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "SET_OWNER",
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	} else if p.cur.Type == kwGROUP || (p.isIdentLike() && p.cur.Str == "GROUP") {
 		p.advance()
@@ -6313,13 +6667,14 @@ func (p *Parser) parseDiskgroupSetClause(opts *nodes.List, optStart int) {
 		}
 		opts.Items = append(opts.Items, &nodes.DDLOption{
 			Key: "SET_GROUP",
-			Loc: nodes.Loc{Start: optStart, End: p.pos()},
+			Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 		})
 	}
+	return nil
 }
 
 // parseDiskNameList parses a comma-separated list of disk names.
-func (p *Parser) parseDiskNameList() string {
+func (p *Parser) parseDiskNameList() (string, error) {
 	var names []string
 	for {
 		if p.isIdentLike() || p.cur.Type == tokIDENT {
@@ -6335,14 +6690,14 @@ func (p *Parser) parseDiskNameList() string {
 		}
 		break
 	}
-	return strings.Join(names, ",")
+	return strings.Join(names, ","), nil
 }
 
 // parseDiskgroupVolumeList parses ALL or comma-separated volume names.
-func (p *Parser) parseDiskgroupVolumeList() string {
+func (p *Parser) parseDiskgroupVolumeList() (string, error) {
 	if p.cur.Type == kwALL || (p.isIdentLike() && p.cur.Str == "ALL") {
 		p.advance()
-		return "ALL"
+		return "ALL", nil
 	}
 	var names []string
 	for {
@@ -6356,11 +6711,11 @@ func (p *Parser) parseDiskgroupVolumeList() string {
 		}
 		break
 	}
-	return strings.Join(names, ",")
+	return strings.Join(names, ","), nil
 }
 
 // parseDiskgroupForceWaitPower parses optional FORCE/NOFORCE, POWER n, WAIT/NOWAIT.
-func (p *Parser) parseDiskgroupForceWaitPower() string {
+func (p *Parser) parseDiskgroupForceWaitPower() (string, error) {
 	val := ""
 	for {
 		if p.cur.Type == kwFORCE {
@@ -6393,11 +6748,11 @@ func (p *Parser) parseDiskgroupForceWaitPower() string {
 			break
 		}
 	}
-	return val
+	return val, nil
 }
 
 // parseDiskgroupSkipParens skips an optional ATTRIBUTES (...) clause.
-func (p *Parser) parseDiskgroupSkipParens() {
+func (p *Parser) parseDiskgroupSkipParens() error {
 	if p.isIdentLike() && p.cur.Str == "ATTRIBUTES" {
 		p.advance()
 	}
@@ -6418,20 +6773,25 @@ func (p *Parser) parseDiskgroupSkipParens() {
 			p.advance()
 		}
 	}
+	return nil
 }
 
 // parseDropDiskgroupStmt parses a DROP DISKGROUP statement.
 // The DROP keyword has been consumed. DISKGROUP has been consumed by caller.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/DROP-DISKGROUP.html
-func (p *Parser) parseDropDiskgroupStmt(start int) nodes.StmtNode {
+func (p *Parser) parseDropDiskgroupStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "DROP",
 		ObjectType: nodes.OBJECT_DISKGROUP,
 		Loc:        nodes.Loc{Start: start},
 	}
+	var parseErr691 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr691 = p.parseObjectName()
+	if parseErr691 != nil {
+		return nil, parseErr691
+	}
 
 	opts := &nodes.List{}
 
@@ -6450,7 +6810,7 @@ func (p *Parser) parseDropDiskgroupStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: val,
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 		case p.isIdentLike() && p.cur.Str == "EXCLUDING":
 			p.advance()
@@ -6459,13 +6819,13 @@ func (p *Parser) parseDropDiskgroupStmt(start int) nodes.StmtNode {
 			}
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "EXCLUDING_CONTENTS",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 		case p.cur.Type == kwFORCE:
 			p.advance()
 			opts.Items = append(opts.Items, &nodes.DDLOption{
 				Key: "FORCE",
-				Loc: nodes.Loc{Start: optStart, End: p.pos()},
+				Loc: nodes.Loc{Start: optStart, End: p.prev.End},
 			})
 		default:
 			goto dropDgDone
@@ -6475,6 +6835,6 @@ dropDgDone:
 	if len(opts.Items) > 0 {
 		stmt.Options = opts
 	}
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }

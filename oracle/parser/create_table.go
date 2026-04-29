@@ -12,7 +12,7 @@ import (
 //	CREATE [ OR REPLACE ] [ UNIQUE | BITMAP ] INDEX ...
 //	CREATE [ OR REPLACE ] [ FORCE | NO FORCE ] VIEW ...
 //	...
-func (p *Parser) parseCreateStmt() nodes.StmtNode {
+func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume CREATE
 
@@ -173,7 +173,7 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 				return p.parseCreateTablespaceStmt(start, false, false, false, true, false)
 			}
 		}
-		return nil
+		return nil, nil
 	default:
 		// Check for "NO FORCE VIEW"
 		if p.isIdentLikeStr("NO") || p.cur.Type == kwNOT {
@@ -291,10 +291,14 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 			}
 		}
 		// Check for DIMENSION, FLASHBACK ARCHIVE
-		if adminStmt := p.parseCreateAdminObject(start, orReplace); adminStmt != nil {
-			return adminStmt
+		adminStmt, err := p.parseCreateAdminObject(start, orReplace)
+		if err != nil {
+			return nil, err
 		}
-		return nil
+		if adminStmt != nil {
+			return adminStmt, nil
+		}
+		return nil, nil
 	}
 }
 
@@ -312,18 +316,18 @@ func (p *Parser) parseCreateStmt() nodes.StmtNode {
 //	    [ MEMOPTIMIZE FOR READ ]
 //	    [ MEMOPTIMIZE FOR WRITE ]
 //	    [ PARENT [ schema. ] table ] ;
-func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sharded, duplicated bool) *nodes.CreateTableStmt {
+func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sharded, duplicated bool) (*nodes.CreateTableStmt, error) {
 	p.advance() // consume TABLE
 
 	stmt := &nodes.CreateTableStmt{
-		OrReplace:  orReplace,
-		Global:     global,
-		Private:    private,
-		Sharded:    sharded,
-		Duplicated: duplicated,
-		Columns:    &nodes.List{},
+		OrReplace:   orReplace,
+		Global:      global,
+		Private:     private,
+		Sharded:     sharded,
+		Duplicated:  duplicated,
+		Columns:     &nodes.List{},
 		Constraints: &nodes.List{},
-		Loc:        nodes.Loc{Start: start},
+		Loc:         nodes.Loc{Start: start},
 	}
 
 	// IF NOT EXISTS (Oracle 23c)
@@ -339,9 +343,18 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sha
 	}
 
 	// Table name
-	stmt.Name = p.parseObjectName()
+	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+		return nil, err
+	}
+	var parseErr487 error
+	stmt.Name, parseErr487 = p.parseReservedCheckedObjectName()
+	if parseErr487 !=
 
-	// SHARING = { METADATA | DATA | EXTENDED DATA | NONE }
+		// SHARING = { METADATA | DATA | EXTENDED DATA | NONE }
+		nil {
+		return nil, parseErr487
+	}
+
 	if p.isIdentLikeStr("SHARING") {
 		p.advance() // consume SHARING
 		if p.cur.Type == '=' {
@@ -368,43 +381,73 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sha
 
 	// Check for CTAS: AS subquery
 	if p.cur.Type == kwAS {
-		p.advance() // consume AS
-		stmt.AsQuery = p.parseSelectStmt()
-		stmt.Loc.End = p.pos()
-		return stmt
+		p.advance()
+		var // consume AS
+		parseErr488 error
+		stmt.AsQuery, parseErr488 = p.parseSelectStmt()
+		if parseErr488 != nil {
+			return nil, parseErr488
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
 	// Column definitions and table constraints
 	if p.cur.Type == '(' {
-		p.advance() // consume '('
-		p.parseColumnDefsAndConstraints(stmt)
+		p.advance()
+		parseErr489 := // consume '('
+			p.parseColumnDefsAndConstraints(stmt)
+		if parseErr489 != nil {
+			return nil, parseErr489
+		}
 		if p.cur.Type == ')' {
 			p.advance() // consume ')'
 		}
 	}
+	parseErr490 :=
 
-	// Immutable table clauses (before table options)
-	// BNF (lines 733-741): immutable_table_clauses
-	p.parseImmutableTableClauses(stmt)
+		// Immutable table clauses (before table options)
+		// BNF (lines 733-741): immutable_table_clauses
+		p.parseImmutableTableClauses(stmt)
+	if parseErr490 !=
 
-	// Blockchain table clauses
-	// BNF (lines 743-756): blockchain_table_clauses
-	p.parseBlockchainTableClauses(stmt)
+		// Blockchain table clauses
+		// BNF (lines 743-756): blockchain_table_clauses
+		nil {
+		return nil, parseErr490
+	}
+	parseErr491 := p.parseBlockchainTableClauses(stmt)
+	if parseErr491 !=
 
-	// DEFAULT COLLATION collation_name
+		// DEFAULT COLLATION collation_name
+		nil {
+		return nil, parseErr491
+	}
+
 	if p.cur.Type == kwDEFAULT {
 		next := p.peekNext()
 		if (next.Type == tokIDENT || next.Type >= 2000) && next.Str == "COLLATION" {
 			p.advance() // consume DEFAULT
-			p.advance() // consume COLLATION
-			stmt.Collation = p.parseIdentifier()
+			p.advance()
+			var // consume COLLATION
+			parseErr492 error
+			stmt.Collation, parseErr492 = p.parseIdentifier()
+			if parseErr492 !=
+
+				// Table options (physical_properties + table_properties)
+				nil {
+				return nil, parseErr492
+			}
 		}
 	}
+	parseErr493 := p.parseTableOptions(stmt)
+	if parseErr493 !=
 
-	// Table options (physical_properties + table_properties)
-	p.parseTableOptions(stmt)
+		// MEMOPTIMIZE FOR READ
+		nil {
+		return nil, parseErr493
+	}
 
-	// MEMOPTIMIZE FOR READ
 	if p.isIdentLikeStr("MEMOPTIMIZE") {
 		p.advance() // consume MEMOPTIMIZE
 		if p.cur.Type == kwFOR {
@@ -435,27 +478,38 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sha
 
 	// PARENT [ schema. ] table
 	if p.isIdentLikeStr("PARENT") {
-		p.advance() // consume PARENT
-		stmt.Parent = p.parseObjectName()
+		p.advance()
+		var // consume PARENT
+		parseErr494 error
+		stmt.Parent, parseErr494 = p.parseObjectName()
+		if parseErr494 != nil {
+			return nil, parseErr494
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseColumnDefsAndConstraints parses the contents inside the parentheses of a CREATE TABLE.
 // It handles both column definitions and table-level constraints.
-func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) {
+func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) error {
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
 		// Check if this is a table-level constraint
 		if p.isTableConstraintStart() {
-			tc := p.parseTableConstraint()
+			tc, parseErr495 := p.parseTableConstraint()
+			if parseErr495 != nil {
+				return parseErr495
+			}
 			if tc != nil {
 				stmt.Constraints.Items = append(stmt.Constraints.Items, tc)
 			}
 		} else {
 			// Column definition
-			col := p.parseColumnDef()
+			col, parseErr496 := p.parseColumnDef()
+			if parseErr496 != nil {
+				return parseErr496
+			}
 			if col != nil {
 				stmt.Columns.Items = append(stmt.Columns.Items, col)
 			}
@@ -466,6 +520,7 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) {
 		}
 		p.advance() // consume ','
 	}
+	return nil
 }
 
 // isTableConstraintStart checks if the current position starts a table-level constraint.
@@ -501,32 +556,54 @@ func (p *Parser) isTableConstraintStart() bool {
 //	[ COLLATE column_collation_name ]
 //	[ inline_constraint ... ]
 //	[ inline_ref_constraint ]
-func (p *Parser) parseColumnDef() *nodes.ColumnDef {
+func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	start := p.pos()
 	col := &nodes.ColumnDef{
 		Constraints: &nodes.List{},
 		Loc:         nodes.Loc{Start: start},
 	}
 
-	col.Name = p.parseIdentifier()
+	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+		return nil, err
+	}
+	var parseErr497 error
+	col.Name, parseErr497 = p.parseIdentifier()
+	if parseErr497 != nil {
+		return nil, parseErr497
+	}
 	if col.Name == "" {
-		return nil
+		return nil, nil
 	}
 
 	// DOMAIN [ schema. ] domain_name  (instead of datatype)
 	if p.isIdentLikeStr("DOMAIN") {
-		p.advance() // consume DOMAIN
-		col.Domain = p.parseObjectName()
+		p.advance()
+		var // consume DOMAIN
+		parseErr498 error
+		col.Domain, parseErr498 = p.parseObjectName()
+		if parseErr498 != nil {
+			return nil, parseErr498
+
+			// Data type (optional for some Oracle column types, but typical)
+		}
 	} else if p.isTypeName() {
-		// Data type (optional for some Oracle column types, but typical)
-		col.TypeName = p.parseTypeName()
+		var parseErr499 error
+
+		col.TypeName, parseErr499 = p.parseTypeName()
+		if parseErr499 !=
+
+			// Column properties: SORT, VISIBLE, DEFAULT, NOT NULL, NULL, constraints, etc.
+			nil {
+			return nil, parseErr499
+		}
+	}
+	parseErr500 := p.parseColumnProperties(col)
+	if parseErr500 != nil {
+		return nil, parseErr500
 	}
 
-	// Column properties: SORT, VISIBLE, DEFAULT, NOT NULL, NULL, constraints, etc.
-	p.parseColumnProperties(col)
-
-	col.Loc.End = p.pos()
-	return col
+	col.Loc.End = p.prev.End
+	return col, nil
 }
 
 // isTypeName returns true if the current token can begin a type name.
@@ -558,7 +635,7 @@ func (p *Parser) isTypeName() bool {
 //	[ ENCRYPT encryption_spec ]
 //	[ COLLATE column_collation_name ]
 //	[ inline_constraint ... ]
-func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) {
+func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 	for {
 		switch p.cur.Type {
 		case kwDEFAULT:
@@ -583,7 +660,15 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) {
 					}
 				}
 			}
-			col.Default = p.parseExpr()
+			var parseErr501 error
+			col.Default, parseErr501 = p.parseExpr()
+			if parseErr501 != nil {
+				return parseErr501
+			}
+			if col.Default == nil {
+
+				return p.syntaxErrorAtCur()
+			}
 
 		case kwGENERATED:
 			// identity_clause: GENERATED { ALWAYS | BY DEFAULT [ ON NULL ] } AS IDENTITY [ ( options ) ]
@@ -622,17 +707,25 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) {
 					// ( identity_options )
 					if p.cur.Type == '(' {
 						p.advance()
-						p.parseIdentityOptions(identity)
+						parseErr502 := p.parseIdentityOptions(identity)
+						if parseErr502 != nil {
+							return parseErr502
+						}
 						if p.cur.Type == ')' {
 							p.advance()
 						}
 					}
-					identity.Loc.End = p.pos()
+					identity.Loc.End = p.prev.End
 					col.Identity = identity
 				} else if p.cur.Type == '(' {
 					// virtual column: AS (expr) [VIRTUAL]
-					p.advance() // consume '('
-					col.Virtual = p.parseExpr()
+					p.advance()
+					var // consume '('
+					parseErr503 error
+					col.Virtual, parseErr503 = p.parseExpr()
+					if parseErr503 != nil {
+						return parseErr503
+					}
 					if p.cur.Type == ')' {
 						p.advance()
 					}
@@ -650,7 +743,7 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) {
 				p.advance() // consume NULL
 				col.NotNull = true
 			} else {
-				return
+				return nil
 			}
 
 		case kwNULL:
@@ -662,31 +755,46 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) {
 			col.Invisible = true
 
 		case kwCONSTRAINT:
-			cc := p.parseColumnConstraint()
+			cc, parseErr504 := p.parseColumnConstraint()
+			if parseErr504 != nil {
+				return parseErr504
+			}
 			if cc != nil {
 				col.Constraints.Items = append(col.Constraints.Items, cc)
 			}
 
 		case kwPRIMARY:
-			cc := p.parseColumnConstraintInline()
+			cc, parseErr505 := p.parseColumnConstraintInline()
+			if parseErr505 != nil {
+				return parseErr505
+			}
 			if cc != nil {
 				col.Constraints.Items = append(col.Constraints.Items, cc)
 			}
 
 		case kwUNIQUE:
-			cc := p.parseColumnConstraintInline()
+			cc, parseErr506 := p.parseColumnConstraintInline()
+			if parseErr506 != nil {
+				return parseErr506
+			}
 			if cc != nil {
 				col.Constraints.Items = append(col.Constraints.Items, cc)
 			}
 
 		case kwCHECK:
-			cc := p.parseColumnConstraintInline()
+			cc, parseErr507 := p.parseColumnConstraintInline()
+			if parseErr507 != nil {
+				return parseErr507
+			}
 			if cc != nil {
 				col.Constraints.Items = append(col.Constraints.Items, cc)
 			}
 
 		case kwREFERENCES:
-			cc := p.parseColumnConstraintInline()
+			cc, parseErr508 := p.parseColumnConstraintInline()
+			if parseErr508 != nil {
+				return parseErr508
+			}
 			if cc != nil {
 				col.Constraints.Items = append(col.Constraints.Items, cc)
 			}
@@ -699,7 +807,7 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) {
 				p.advance() // consume IDENTITY
 				col.DropIdentity = true
 			} else {
-				return
+				return nil
 			}
 
 		default:
@@ -715,22 +823,32 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) {
 				case "ENCRYPT":
 					p.advance() // consume ENCRYPT
 					col.Encrypt = "ENCRYPT"
-					// encryption_spec: USING 'algo' IDENTIFIED BY pw SALT|NO SALT
-					p.parseEncryptionSpec(col)
+					parseErr509 :=
+						// encryption_spec: USING 'algo' IDENTIFIED BY pw SALT|NO SALT
+						p.parseEncryptionSpec(col)
+					if parseErr509 != nil {
+						return parseErr509
+					}
 				case "DECRYPT":
 					p.advance() // consume DECRYPT
 					col.Encrypt = "DECRYPT"
 				case "COLLATE":
-					p.advance() // consume COLLATE
-					col.Collation = p.parseIdentifier()
+					p.advance()
+					var // consume COLLATE
+					parseErr510 error
+					col.Collation, parseErr510 = p.parseIdentifier()
+					if parseErr510 != nil {
+						return parseErr510
+					}
 				default:
-					return
+					return nil
 				}
 			} else {
-				return
+				return nil
 			}
 		}
 	}
+	return nil
 }
 
 // parseEncryptionSpec parses the encryption_spec after ENCRYPT keyword.
@@ -740,7 +858,7 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) {
 //	[ USING 'encrypt_algorithm' ]
 //	[ IDENTIFIED BY password ]
 //	[ SALT | NO SALT ]
-func (p *Parser) parseEncryptionSpec(col *nodes.ColumnDef) {
+func (p *Parser) parseEncryptionSpec(col *nodes.ColumnDef) error {
 	for {
 		if p.cur.Type == kwUSING {
 			p.advance() // consume USING
@@ -751,8 +869,14 @@ func (p *Parser) parseEncryptionSpec(col *nodes.ColumnDef) {
 		} else if p.isIdentLikeStr("IDENTIFIED") {
 			p.advance() // consume IDENTIFIED
 			if p.cur.Type == kwBY {
-				p.advance() // consume BY
-				p.parseIdentifier() // consume password
+				p.advance()
+				parseDiscard512, // consume BY
+					parseErr511 := p.parseIdentifier()
+				_ = // consume password
+					parseDiscard512
+				if parseErr511 != nil {
+					return parseErr511
+				}
 			}
 		} else if p.isIdentLikeStr("SALT") {
 			p.advance() // consume SALT
@@ -762,12 +886,13 @@ func (p *Parser) parseEncryptionSpec(col *nodes.ColumnDef) {
 				p.advance() // consume NO
 				p.advance() // consume SALT
 			} else {
-				return
+				return nil
 			}
 		} else {
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // parseIdentityOptions parses identity column options inside parentheses.
@@ -781,10 +906,10 @@ func (p *Parser) parseEncryptionSpec(col *nodes.ColumnDef) {
 //	[ { CYCLE | NOCYCLE } ]
 //	[ { CACHE integer | NOCACHE } ]
 //	[ { ORDER | NOORDER } ]
-func (p *Parser) parseIdentityOptions(identity *nodes.IdentityClause) {
+func (p *Parser) parseIdentityOptions(identity *nodes.IdentityClause) error {
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
 		if !p.isIdentLike() {
-			return
+			return nil
 		}
 		switch p.cur.Str {
 		case "START":
@@ -798,22 +923,40 @@ func (p *Parser) parseIdentityOptions(identity *nodes.IdentityClause) {
 					p.advance() // consume VALUE
 				}
 			} else {
-				p.parseExpr() // consume integer
+				parseDiscard514, parseErr513 := p.parseExpr()
+				_ = // consume integer
+					parseDiscard514
+				if parseErr513 != nil {
+					return parseErr513
+				}
 			}
 		case "INCREMENT":
 			p.advance() // consume INCREMENT
 			if p.cur.Type == kwBY {
 				p.advance() // consume BY
 			}
-			p.parseExpr() // consume integer
+			parseDiscard516, parseErr515 := p.parseExpr()
+			_ = // consume integer
+				parseDiscard516
+			if parseErr515 != nil {
+				return parseErr515
+			}
 		case "MAXVALUE":
 			p.advance()
-			p.parseExpr()
+			parseDiscard518, parseErr517 := p.parseExpr()
+			_ = parseDiscard518
+			if parseErr517 != nil {
+				return parseErr517
+			}
 		case "NOMAXVALUE":
 			p.advance()
 		case "MINVALUE":
 			p.advance()
-			p.parseExpr()
+			parseDiscard520, parseErr519 := p.parseExpr()
+			_ = parseDiscard520
+			if parseErr519 != nil {
+				return parseErr519
+			}
 		case "NOMINVALUE":
 			p.advance()
 		case "CYCLE":
@@ -821,8 +964,14 @@ func (p *Parser) parseIdentityOptions(identity *nodes.IdentityClause) {
 		case "NOCYCLE":
 			p.advance()
 		case "CACHE":
-			p.advance() // consume CACHE
-			p.parseExpr() // consume integer
+			p.advance()
+			parseDiscard522, // consume CACHE
+				parseErr521 := p.parseExpr()
+			_ = // consume integer
+				parseDiscard522
+			if parseErr521 != nil {
+				return parseErr521
+			}
 		case "NOCACHE":
 			p.advance()
 		case "ORDER":
@@ -830,29 +979,36 @@ func (p *Parser) parseIdentityOptions(identity *nodes.IdentityClause) {
 		case "NOORDER":
 			p.advance()
 		default:
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // parseColumnConstraint parses a named column constraint: CONSTRAINT name <constraint_body>.
-func (p *Parser) parseColumnConstraint() *nodes.ColumnConstraint {
+func (p *Parser) parseColumnConstraint() (*nodes.ColumnConstraint, error) {
 	start := p.pos()
 	p.advance() // consume CONSTRAINT
 
-	name := p.parseIdentifier()
+	name, parseErr523 := p.parseIdentifier()
+	if parseErr523 != nil {
+		return nil, parseErr523
+	}
 
-	cc := p.parseColumnConstraintInline()
+	cc, parseErr524 := p.parseColumnConstraintInline()
+	if parseErr524 != nil {
+		return nil, parseErr524
+	}
 	if cc == nil {
-		return nil
+		return nil, nil
 	}
 	cc.Name = name
 	cc.Loc.Start = start
-	return cc
+	return cc, nil
 }
 
 // parseColumnConstraintInline parses an inline (unnamed) column constraint body.
-func (p *Parser) parseColumnConstraintInline() *nodes.ColumnConstraint {
+func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) {
 	start := p.pos()
 	cc := &nodes.ColumnConstraint{
 		Loc: nodes.Loc{Start: start},
@@ -873,8 +1029,13 @@ func (p *Parser) parseColumnConstraintInline() *nodes.ColumnConstraint {
 	case kwCHECK:
 		p.advance() // consume CHECK
 		if p.cur.Type == '(' {
-			p.advance() // consume '('
-			cc.Expr = p.parseExpr()
+			p.advance()
+			var // consume '('
+			parseErr525 error
+			cc.Expr, parseErr525 = p.parseExpr()
+			if parseErr525 != nil {
+				return nil, parseErr525
+			}
 			if p.cur.Type == ')' {
 				p.advance() // consume ')'
 			}
@@ -884,10 +1045,19 @@ func (p *Parser) parseColumnConstraintInline() *nodes.ColumnConstraint {
 	case kwREFERENCES:
 		p.advance() // consume REFERENCES
 		cc.Type = nodes.CONSTRAINT_FOREIGN
-		cc.RefTable = p.parseObjectName()
+		var parseErr526 error
+		cc.RefTable, parseErr526 = p.parseObjectName()
+		if parseErr526 != nil {
+			return nil, parseErr526
+		}
 		if p.cur.Type == '(' {
-			p.advance() // consume '('
-			cc.RefColumns = p.parseIdentifierList()
+			p.advance()
+			var // consume '('
+			parseErr527 error
+			cc.RefColumns, parseErr527 = p.parseIdentifierList()
+			if parseErr527 != nil {
+				return nil, parseErr527
+			}
 			if p.cur.Type == ')' {
 				p.advance() // consume ')'
 			}
@@ -897,16 +1067,22 @@ func (p *Parser) parseColumnConstraintInline() *nodes.ColumnConstraint {
 			next := p.peekNext()
 			if next.Type == kwDELETE {
 				p.advance() // consume ON
-				p.advance() // consume DELETE
-				cc.OnDelete = p.parseDeleteAction()
+				p.advance()
+				var // consume DELETE
+				parseErr528 error
+				cc.OnDelete, parseErr528 = p.parseDeleteAction()
+				if parseErr528 != nil {
+					return nil, parseErr528
+
+					// DEFERRABLE / NOT DEFERRABLE
+				}
 			}
 		}
 
 	default:
-		return nil
+		return nil, nil
 	}
 
-	// DEFERRABLE / NOT DEFERRABLE
 	if p.cur.Type == kwDEFERRABLE {
 		cc.Deferrable = true
 		p.advance()
@@ -931,14 +1107,14 @@ func (p *Parser) parseColumnConstraintInline() *nodes.ColumnConstraint {
 		}
 	}
 
-	cc.Loc.End = p.pos()
-	return cc
+	cc.Loc.End = p.prev.End
+	return cc, nil
 }
 
 // parseTableConstraint parses a table-level constraint.
 //
 //	[ CONSTRAINT name ] { PRIMARY KEY (cols) | UNIQUE (cols) | CHECK (expr) | FOREIGN KEY (cols) REFERENCES ... }
-func (p *Parser) parseTableConstraint() *nodes.TableConstraint {
+func (p *Parser) parseTableConstraint() (*nodes.TableConstraint, error) {
 	start := p.pos()
 	tc := &nodes.TableConstraint{
 		Loc: nodes.Loc{Start: start},
@@ -946,8 +1122,13 @@ func (p *Parser) parseTableConstraint() *nodes.TableConstraint {
 
 	// Optional CONSTRAINT name
 	if p.cur.Type == kwCONSTRAINT {
-		p.advance() // consume CONSTRAINT
-		tc.Name = p.parseIdentifier()
+		p.advance()
+		var // consume CONSTRAINT
+		parseErr529 error
+		tc.Name, parseErr529 = p.parseIdentifier()
+		if parseErr529 != nil {
+			return nil, parseErr529
+		}
 	}
 
 	switch p.cur.Type {
@@ -959,7 +1140,11 @@ func (p *Parser) parseTableConstraint() *nodes.TableConstraint {
 		tc.Type = nodes.CONSTRAINT_PRIMARY
 		if p.cur.Type == '(' {
 			p.advance()
-			tc.Columns = p.parseIdentifierListAsStrings()
+			var parseErr530 error
+			tc.Columns, parseErr530 = p.parseIdentifierListAsStrings()
+			if parseErr530 != nil {
+				return nil, parseErr530
+			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}
@@ -970,7 +1155,11 @@ func (p *Parser) parseTableConstraint() *nodes.TableConstraint {
 		tc.Type = nodes.CONSTRAINT_UNIQUE
 		if p.cur.Type == '(' {
 			p.advance()
-			tc.Columns = p.parseIdentifierListAsStrings()
+			var parseErr531 error
+			tc.Columns, parseErr531 = p.parseIdentifierListAsStrings()
+			if parseErr531 != nil {
+				return nil, parseErr531
+			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}
@@ -981,7 +1170,11 @@ func (p *Parser) parseTableConstraint() *nodes.TableConstraint {
 		tc.Type = nodes.CONSTRAINT_CHECK
 		if p.cur.Type == '(' {
 			p.advance()
-			tc.Expr = p.parseExpr()
+			var parseErr532 error
+			tc.Expr, parseErr532 = p.parseExpr()
+			if parseErr532 != nil {
+				return nil, parseErr532
+			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}
@@ -995,17 +1188,30 @@ func (p *Parser) parseTableConstraint() *nodes.TableConstraint {
 		tc.Type = nodes.CONSTRAINT_FOREIGN
 		if p.cur.Type == '(' {
 			p.advance()
-			tc.Columns = p.parseIdentifierListAsStrings()
+			var parseErr533 error
+			tc.Columns, parseErr533 = p.parseIdentifierListAsStrings()
+			if parseErr533 != nil {
+				return nil, parseErr533
+			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}
 		}
 		if p.cur.Type == kwREFERENCES {
-			p.advance() // consume REFERENCES
-			tc.RefTable = p.parseObjectName()
+			p.advance()
+			var // consume REFERENCES
+			parseErr534 error
+			tc.RefTable, parseErr534 = p.parseObjectName()
+			if parseErr534 != nil {
+				return nil, parseErr534
+			}
 			if p.cur.Type == '(' {
 				p.advance()
-				tc.RefColumns = p.parseIdentifierListAsStrings()
+				var parseErr535 error
+				tc.RefColumns, parseErr535 = p.parseIdentifierListAsStrings()
+				if parseErr535 != nil {
+					return nil, parseErr535
+				}
 				if p.cur.Type == ')' {
 					p.advance()
 				}
@@ -1016,16 +1222,22 @@ func (p *Parser) parseTableConstraint() *nodes.TableConstraint {
 			next := p.peekNext()
 			if next.Type == kwDELETE {
 				p.advance() // consume ON
-				p.advance() // consume DELETE
-				tc.OnDelete = p.parseDeleteAction()
+				p.advance()
+				var // consume DELETE
+				parseErr536 error
+				tc.OnDelete, parseErr536 = p.parseDeleteAction()
+				if parseErr536 != nil {
+					return nil, parseErr536
+
+					// DEFERRABLE / NOT DEFERRABLE
+				}
 			}
 		}
 
 	default:
-		return nil
+		return nil, nil
 	}
 
-	// DEFERRABLE / NOT DEFERRABLE
 	if p.cur.Type == kwDEFERRABLE {
 		tc.Deferrable = true
 		p.advance()
@@ -1050,16 +1262,19 @@ func (p *Parser) parseTableConstraint() *nodes.TableConstraint {
 		}
 	}
 
-	tc.Loc.End = p.pos()
-	return tc
+	tc.Loc.End = p.prev.End
+	return tc, nil
 }
 
 // parseIdentifierList parses a comma-separated list of identifiers,
 // returning a *List of *String nodes.
-func (p *Parser) parseIdentifierList() *nodes.List {
+func (p *Parser) parseIdentifierList() (*nodes.List, error) {
 	list := &nodes.List{}
 	for {
-		name := p.parseIdentifier()
+		name, parseErr537 := p.parseIdentifier()
+		if parseErr537 != nil {
+			return nil, parseErr537
+		}
 		if name == "" {
 			break
 		}
@@ -1069,41 +1284,41 @@ func (p *Parser) parseIdentifierList() *nodes.List {
 		}
 		p.advance() // consume ','
 	}
-	return list
+	return list, nil
 }
 
 // parseIdentifierListAsStrings parses a comma-separated list of identifiers,
 // returning a *List of *String nodes. Same as parseIdentifierList.
-func (p *Parser) parseIdentifierListAsStrings() *nodes.List {
+func (p *Parser) parseIdentifierListAsStrings() (*nodes.List, error) {
 	return p.parseIdentifierList()
 }
 
 // parseDeleteAction parses the ON DELETE action (CASCADE, SET NULL, etc.).
-func (p *Parser) parseDeleteAction() string {
+func (p *Parser) parseDeleteAction() (string, error) {
 	switch p.cur.Type {
 	case kwCASCADE:
 		p.advance()
-		return "CASCADE"
+		return "CASCADE", nil
 	case kwSET:
 		p.advance() // consume SET
 		if p.cur.Type == kwNULL {
 			p.advance() // consume NULL
-			return "SET NULL"
+			return "SET NULL", nil
 		}
-		return "SET"
+		return "SET", nil
 	default:
 		if p.isIdentLikeStr("RESTRICT") || p.cur.Type == kwRESTRICT {
 			p.advance()
-			return "RESTRICT"
+			return "RESTRICT", nil
 		}
 		if p.isIdentLikeStr("NO") {
 			p.advance()
 			if p.isIdentLikeStr("ACTION") {
 				p.advance()
-				return "NO ACTION"
+				return "NO ACTION", nil
 			}
 		}
-		return ""
+		return "", nil
 	}
 }
 
@@ -1118,22 +1333,34 @@ func (p *Parser) parseDeleteAction() string {
 //	    table_partitioning_clauses | CACHE/NOCACHE | RESULT_CACHE |
 //	    parallel_clause | ROWDEPENDENCIES | enable_disable_clause |
 //	    row_movement_clause | flashback_archive_clause | AS subquery
-func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
+func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 	for {
 		switch p.cur.Type {
 		case kwTABLESPACE:
-			p.advance() // consume TABLESPACE
-			stmt.Tablespace = p.parseIdentifier()
+			p.advance()
+			var // consume TABLESPACE
+			parseErr538 error
+			stmt.Tablespace, parseErr538 = p.parseIdentifier()
+			if parseErr538 != nil {
+
+				// ON COMMIT { PRESERVE | DELETE } ROWS
+				return parseErr538
+			}
 
 		case kwON:
-			// ON COMMIT { PRESERVE | DELETE } ROWS
+
 			next := p.peekNext()
 			if next.Type == kwCOMMIT {
 				p.advance() // consume ON
-				p.advance() // consume COMMIT
-				stmt.OnCommit = p.parseOnCommitAction()
+				p.advance()
+				var // consume COMMIT
+				parseErr539 error
+				stmt.OnCommit, parseErr539 = p.parseOnCommitAction()
+				if parseErr539 != nil {
+					return parseErr539
+				}
 			} else {
-				return
+				return nil
 			}
 
 		case kwPARALLEL:
@@ -1157,7 +1384,11 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 			stmt.Compress = "NOCOMPRESS"
 
 		case kwPARTITION:
-			stmt.Partition = p.parsePartitionClause()
+			var parseErr540 error
+			stmt.Partition, parseErr540 = p.parsePartitionClause()
+			if parseErr540 != nil {
+				return parseErr540
+			}
 
 		case kwLOGGING:
 			p.advance()
@@ -1197,7 +1428,11 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 			if p.isIdentLikeStr("ARCHIVE") {
 				p.advance() // consume ARCHIVE
 				if p.isIdentLike() && !p.isStatementEnd() {
-					stmt.FlashbackArchive = p.parseIdentifier()
+					var parseErr541 error
+					stmt.FlashbackArchive, parseErr541 = p.parseIdentifier()
+					if parseErr541 != nil {
+						return parseErr541
+					}
 				} else {
 					stmt.FlashbackArchive = "FLASHBACK ARCHIVE"
 				}
@@ -1218,7 +1453,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 					}
 				}
 			} else {
-				return
+				return nil
 			}
 
 		case kwREAD:
@@ -1233,7 +1468,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 				p.advance() // consume WRITE
 				stmt.ReadOnly = "READ WRITE"
 			} else {
-				return
+				return nil
 			}
 
 		case kwENABLE:
@@ -1247,8 +1482,12 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 				}
 				stmt.RowMovement = "ENABLE"
 			} else {
-				// ENABLE [VALIDATE|NOVALIDATE] constraint_clause - skip it
-				p.parseEnableDisableClause()
+				parseErr542 :=
+					// ENABLE [VALIDATE|NOVALIDATE] constraint_clause - skip it
+					p.parseEnableDisableClause()
+				if parseErr542 != nil {
+					return parseErr542
+				}
 			}
 
 		case kwDISABLE:
@@ -1261,14 +1500,24 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 				}
 				stmt.RowMovement = "DISABLE"
 			} else {
-				p.parseEnableDisableClause()
+				parseErr543 := p.parseEnableDisableClause()
+				if parseErr543 != nil {
+					return parseErr543
+
+					// AS subquery (for CTAS after options)
+				}
 			}
 
 		case kwAS:
-			// AS subquery (for CTAS after options)
-			p.advance() // consume AS
-			stmt.AsQuery = p.parseSelectStmt()
-			return
+
+			p.advance()
+			var // consume AS
+			parseErr544 error
+			stmt.AsQuery, parseErr544 = p.parseSelectStmt()
+			if parseErr544 != nil {
+				return parseErr544
+			}
+			return nil
 
 		default:
 			if p.isIdentLike() {
@@ -1292,6 +1541,9 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 						}
 					}
 				case "ORGANIZATION":
+					if stmt.Organization != "" {
+						return p.syntaxErrorAtCur()
+					}
 					// ORGANIZATION { HEAP | INDEX | EXTERNAL }
 					p.advance() // consume ORGANIZATION
 					if p.isIdentLikeStr("HEAP") {
@@ -1361,7 +1613,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 							}
 						}
 					} else {
-						return
+						return nil
 					}
 				case "INMEMORY":
 					// INMEMORY [attributes] - skip details
@@ -1390,8 +1642,14 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 					}
 				case "VARRAY":
 					// VARRAY col STORE AS ...
-					p.advance() // consume VARRAY
-					p.parseIdentifier() // consume varray item
+					p.advance()
+					parseDiscard546, // consume VARRAY
+						parseErr545 := p.parseIdentifier()
+					_ = // consume varray item
+						parseDiscard546
+					if parseErr545 != nil {
+						return parseErr545
+					}
 					if p.isIdentLikeStr("STORE") {
 						p.advance()
 						if p.cur.Type == kwAS {
@@ -1411,15 +1669,27 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 					if p.cur.Type == kwTABLE {
 						p.advance() // consume TABLE
 					}
-					p.parseIdentifier() // nested item
-					// skip to STORE AS
+					parseDiscard548, parseErr547 := p.parseIdentifier()
+					_ = // nested item
+						parseDiscard548
+					if parseErr547 !=
+						// skip to STORE AS
+						nil {
+						return parseErr547
+					}
+
 					for p.cur.Type != ';' && p.cur.Type != tokEOF {
 						if p.isIdentLikeStr("STORE") {
 							p.advance()
 							if p.cur.Type == kwAS {
 								p.advance()
 							}
-							p.parseIdentifier() // storage table name
+							parseDiscard550, parseErr549 := p.parseIdentifier()
+							_ = // storage table name
+								parseDiscard550
+							if parseErr549 != nil {
+								return parseErr549
+							}
 							if p.cur.Type == '(' {
 								p.skipParenthesized()
 							}
@@ -1441,7 +1711,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 						p.advance() // consume NO
 						p.advance() // consume INMEMORY
 					} else {
-						return
+						return nil
 					}
 				case "STORAGE":
 					// STORAGE ( ... ) - skip
@@ -1463,7 +1733,11 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 				case "INCLUDING":
 					// INCLUDING column_name OVERFLOW
 					p.advance()
-					p.parseIdentifier()
+					parseDiscard552, parseErr551 := p.parseIdentifier()
+					_ = parseDiscard552
+					if parseErr551 != nil {
+						return parseErr551
+					}
 				case "OVERFLOW":
 					p.advance()
 				case "REJECT":
@@ -1512,13 +1786,14 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 						}
 					}
 				default:
-					return
+					return nil
 				}
 			} else {
-				return
+				return nil
 			}
 		}
 	}
+	return nil
 }
 
 // parseImmutableTableClauses parses immutable table clauses.
@@ -1527,9 +1802,9 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) {
 //
 //	immutable_table_no_drop_clause: NO DROP [ UNTIL integer DAYS IDLE ]
 //	immutable_table_no_delete_clause: NO DELETE [ LOCKED | UNTIL integer DAYS AFTER INSERT ]
-func (p *Parser) parseImmutableTableClauses(stmt *nodes.CreateTableStmt) {
+func (p *Parser) parseImmutableTableClauses(stmt *nodes.CreateTableStmt) error {
 	if !p.isIdentLikeStr("NO") {
-		return
+		return nil
 	}
 	next := p.peekNext()
 	// NO DROP
@@ -1586,6 +1861,7 @@ func (p *Parser) parseImmutableTableClauses(stmt *nodes.CreateTableStmt) {
 			stmt.ImmutableNoDel = noDel
 		}
 	}
+	return nil
 }
 
 // parseBlockchainTableClauses parses blockchain table clauses.
@@ -1595,7 +1871,7 @@ func (p *Parser) parseImmutableTableClauses(stmt *nodes.CreateTableStmt) {
 //	blockchain_drop_table_clause: NO DROP [ UNTIL integer DAYS IDLE ]
 //	blockchain_row_retention_clause: NO DELETE { LOCKED | UNTIL integer DAYS AFTER INSERT }
 //	blockchain_hash_and_data_format_clause: HASHING USING 'hash_algorithm' VERSION 'version_string'
-func (p *Parser) parseBlockchainTableClauses(stmt *nodes.CreateTableStmt) {
+func (p *Parser) parseBlockchainTableClauses(stmt *nodes.CreateTableStmt) error {
 	// HASHING USING 'hash_algorithm'
 	if p.isIdentLikeStr("HASHING") {
 		p.advance() // consume HASHING
@@ -1615,6 +1891,7 @@ func (p *Parser) parseBlockchainTableClauses(stmt *nodes.CreateTableStmt) {
 			p.advance()
 		}
 	}
+	return nil
 }
 
 // parseEnableDisableClause parses ENABLE/DISABLE [VALIDATE|NOVALIDATE] constraint clause.
@@ -1624,7 +1901,7 @@ func (p *Parser) parseBlockchainTableClauses(stmt *nodes.CreateTableStmt) {
 //	{ ENABLE | DISABLE } [ VALIDATE | NOVALIDATE ]
 //	{ UNIQUE ( column [,...] ) | PRIMARY KEY | CONSTRAINT constraint_name }
 //	[ using_index_clause ] [ exceptions_clause ] [ CASCADE ] [ { KEEP | DROP } INDEX ]
-func (p *Parser) parseEnableDisableClause() {
+func (p *Parser) parseEnableDisableClause() error {
 	p.advance() // consume ENABLE or DISABLE
 
 	// [ VALIDATE | NOVALIDATE ]
@@ -1646,12 +1923,18 @@ func (p *Parser) parseEnableDisableClause() {
 		}
 	case kwCONSTRAINT:
 		p.advance()
-		p.parseIdentifier()
+		parseDiscard554, parseErr553 := p.parseIdentifier()
+		_ = parseDiscard554
+		if parseErr553 !=
+
+			// [ USING INDEX ... ]
+			nil {
+			return parseErr553
+		}
 	default:
-		return
+		return nil
 	}
 
-	// [ USING INDEX ... ]
 	if p.cur.Type == kwUSING {
 		p.advance()
 		if p.cur.Type == kwINDEX {
@@ -1661,20 +1944,30 @@ func (p *Parser) parseEnableDisableClause() {
 		if p.cur.Type == '(' {
 			p.skipParenthesized()
 		} else if p.isIdentLike() {
-			p.parseIdentifier()
+			parseDiscard556, parseErr555 := p.parseIdentifier()
+			_ = parseDiscard556
+
+			// [ EXCEPTIONS INTO table ]
+			if parseErr555 != nil {
+				return parseErr555
+			}
 		}
 	}
 
-	// [ EXCEPTIONS INTO table ]
 	if p.isIdentLikeStr("EXCEPTIONS") {
 		p.advance()
 		if p.cur.Type == kwINTO {
 			p.advance()
-			p.parseObjectName()
+			parseDiscard558, parseErr557 := p.parseObjectName()
+			_ = parseDiscard558
+
+			// [ CASCADE ]
+			if parseErr557 != nil {
+				return parseErr557
+			}
 		}
 	}
 
-	// [ CASCADE ]
 	if p.cur.Type == kwCASCADE {
 		p.advance()
 	}
@@ -1686,6 +1979,7 @@ func (p *Parser) parseEnableDisableClause() {
 			p.advance()
 		}
 	}
+	return nil
 }
 
 // isStatementEnd returns true if the current token is at a statement boundary.
@@ -1697,7 +1991,7 @@ func (p *Parser) isStatementEnd() bool {
 //
 //	PARTITION BY { RANGE | LIST | HASH } (columns)
 //	    ( partition_def [,...] )
-func (p *Parser) parsePartitionClause() *nodes.PartitionClause {
+func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	start := p.pos()
 	p.advance() // consume PARTITION
 
@@ -1729,7 +2023,10 @@ func (p *Parser) parsePartitionClause() *nodes.PartitionClause {
 	if p.cur.Type == '(' {
 		p.advance()
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			col := p.parseExpr()
+			col, parseErr559 := p.parseExpr()
+			if parseErr559 != nil {
+				return nil, parseErr559
+			}
 			if col != nil {
 				clause.Columns.Items = append(clause.Columns.Items, col)
 			}
@@ -1749,14 +2046,23 @@ func (p *Parser) parsePartitionClause() *nodes.PartitionClause {
 		if p.cur.Type == kwBY {
 			p.advance()
 		}
-		clause.Subpartition = p.parsePartitionClause()
+		var parseErr560 error
+		clause.Subpartition, parseErr560 = p.parsePartitionClause()
+		if parseErr560 !=
+
+			// Partition definitions: ( partition p1 ... [,...] )
+			nil {
+			return nil, parseErr560
+		}
 	}
 
-	// Partition definitions: ( partition p1 ... [,...] )
 	if p.cur.Type == '(' {
 		p.advance()
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			pDef := p.parsePartitionDef()
+			pDef, parseErr561 := p.parsePartitionDef()
+			if parseErr561 != nil {
+				return nil, parseErr561
+			}
 			if pDef != nil {
 				clause.Partitions.Items = append(clause.Partitions.Items, pDef)
 			}
@@ -1770,15 +2076,15 @@ func (p *Parser) parsePartitionClause() *nodes.PartitionClause {
 		}
 	}
 
-	clause.Loc.End = p.pos()
-	return clause
+	clause.Loc.End = p.prev.End
+	return clause, nil
 }
 
 // parsePartitionDef parses a single partition definition.
 //
 //	PARTITION name VALUES LESS THAN (expr) [TABLESPACE ts]
 //	PARTITION name VALUES (expr [,...]) [TABLESPACE ts]
-func (p *Parser) parsePartitionDef() *nodes.PartitionDef {
+func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 	start := p.pos()
 
 	if p.cur.Type != kwPARTITION {
@@ -1786,7 +2092,7 @@ func (p *Parser) parsePartitionDef() *nodes.PartitionDef {
 		for p.cur.Type != ',' && p.cur.Type != ')' && p.cur.Type != tokEOF {
 			p.advance()
 		}
-		return nil
+		return nil, nil
 	}
 	p.advance() // consume PARTITION
 
@@ -1814,7 +2120,10 @@ func (p *Parser) parsePartitionDef() *nodes.PartitionDef {
 		if p.cur.Type == '(' {
 			p.advance()
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				val := p.parseExpr()
+				val, parseErr562 := p.parseExpr()
+				if parseErr562 != nil {
+					return nil, parseErr562
+				}
 				if val != nil {
 					def.Values.Items = append(def.Values.Items, val)
 				}
@@ -1832,36 +2141,42 @@ func (p *Parser) parsePartitionDef() *nodes.PartitionDef {
 	// TABLESPACE
 	if p.cur.Type == kwTABLESPACE {
 		p.advance()
-		def.Tablespace = p.parseIdentifier()
+		var parseErr563 error
+		def.Tablespace, parseErr563 = p.parseIdentifier()
+		if parseErr563 !=
+
+			// Skip any remaining options (LOGGING, etc.) until , or )
+			nil {
+			return nil, parseErr563
+		}
 	}
 
-	// Skip any remaining options (LOGGING, etc.) until , or )
 	for p.cur.Type != ',' && p.cur.Type != ')' && p.cur.Type != tokEOF {
 		p.advance()
 	}
 
-	def.Loc.End = p.pos()
-	return def
+	def.Loc.End = p.prev.End
+	return def, nil
 }
 
 // parseOnCommitAction parses the action after ON COMMIT.
 //
 //	PRESERVE ROWS | DELETE ROWS
-func (p *Parser) parseOnCommitAction() string {
+func (p *Parser) parseOnCommitAction() (string, error) {
 	switch {
 	case p.isIdentLikeStr("PRESERVE"):
 		p.advance() // consume PRESERVE
 		if p.cur.Type == kwROWS {
 			p.advance() // consume ROWS
 		}
-		return "PRESERVE ROWS"
+		return "PRESERVE ROWS", nil
 	case p.cur.Type == kwDELETE:
 		p.advance() // consume DELETE
 		if p.cur.Type == kwROWS {
 			p.advance() // consume ROWS
 		}
-		return "DELETE ROWS"
+		return "DELETE ROWS", nil
 	default:
-		return ""
+		return "", nil
 	}
 }

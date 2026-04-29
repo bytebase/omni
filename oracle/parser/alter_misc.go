@@ -14,7 +14,7 @@ import (
 //	ALTER INDEX   name ...
 //	ALTER VIEW    name ...
 //	ALTER SEQUENCE name ...
-func (p *Parser) parseAlterStmt() nodes.StmtNode {
+func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume ALTER
 
@@ -83,7 +83,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		}
 		// Unknown ALTER PUBLIC target
 		p.skipToSemicolon()
-		return nil
+		return nil, nil
 	case kwAUDIT:
 		// ALTER AUDIT POLICY
 		p.advance() // consume AUDIT
@@ -113,11 +113,15 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 		return p.parseAlterFlashbackArchiveStmt(start)
 	case kwUSER, kwROLE, kwPROFILE,
 		kwTABLESPACE, kwCLUSTER, kwJAVA, kwLIBRARY:
-		if adminStmt := p.parseAlterAdminObject(start); adminStmt != nil {
-			return adminStmt
+		adminStmt, err := p.parseAlterAdminObject(start)
+		if err != nil {
+			return nil, err
+		}
+		if adminStmt != nil {
+			return adminStmt, nil
 		}
 		p.skipToSemicolon()
-		return nil
+		return nil, nil
 	default:
 		if p.isIdentLike() {
 			// ALTER SHARED [PUBLIC] DATABASE LINK
@@ -136,7 +140,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 				}
 				// Unknown ALTER SHARED target
 				p.skipToSemicolon()
-				return nil
+				return nil, nil
 			}
 			// ALTER USECASE DOMAIN
 			if p.cur.Str == "USECASE" {
@@ -147,13 +151,17 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 				}
 			}
 			// Check for DIMENSION and other identifier-based objects
-			if adminStmt := p.parseAlterAdminObject(start); adminStmt != nil {
-				return adminStmt
+			adminStmt, err := p.parseAlterAdminObject(start)
+			if err != nil {
+				return nil, err
+			}
+			if adminStmt != nil {
+				return adminStmt, nil
 			}
 		}
 		// Unknown ALTER target — skip to semicolon or EOF.
 		p.skipToSemicolon()
-		return nil
+		return nil, nil
 	}
 }
 
@@ -193,7 +201,7 @@ func (p *Parser) parseAlterStmt() nodes.StmtNode {
 //	        | USE_PRIVATE_OUTLINES = { TRUE | FALSE | category_name }
 //	        | USE_STORED_OUTLINES = { TRUE | FALSE | category_name }
 //	        }
-func (p *Parser) parseAlterSessionStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterSessionStmt(start int) (nodes.StmtNode, error) {
 	p.advance() // consume SESSION
 
 	stmt := &nodes.AlterSessionStmt{
@@ -226,7 +234,11 @@ func (p *Parser) parseAlterSessionStmt(start int) nodes.StmtNode {
 		if p.isIdentLikeStr("LINK") {
 			p.advance()
 		}
-		stmt.DBLink = p.parseIdentifier()
+		var parseErr1 error
+		stmt.DBLink, parseErr1 = p.parseIdentifier()
+		if parseErr1 != nil {
+			return nil, parseErr1
+		}
 
 	case p.cur.Type == kwENABLE || p.cur.Type == kwDISABLE:
 		action := "ENABLE"
@@ -269,10 +281,16 @@ func (p *Parser) parseAlterSessionStmt(start int) nodes.StmtNode {
 			if p.isIdentLikeStr("TIMEOUT") {
 				p.advance()
 				if p.cur.Type == tokICONST {
-					stmt.Timeout = p.parseIntValue()
+					var parseErr2 error
+					stmt.Timeout, parseErr2 = p.parseIntValue()
+					if parseErr2 != nil {
+
+						// optional NAME 'string'
+						return nil, parseErr2
+					}
 				}
 			}
-			// optional NAME 'string'
+
 			if p.cur.Type == kwNAME {
 				p.advance()
 				if p.cur.Type == tokSCONST {
@@ -310,7 +328,11 @@ func (p *Parser) parseAlterSessionStmt(start int) nodes.StmtNode {
 		if p.cur.Type == kwPARALLEL {
 			p.advance()
 			if p.cur.Type == tokICONST {
-				stmt.ParallelDegree = p.parseIntValue()
+				var parseErr3 error
+				stmt.ParallelDegree, parseErr3 = p.parseIntValue()
+				if parseErr3 != nil {
+					return nil, parseErr3
+				}
 			}
 		}
 
@@ -327,11 +349,18 @@ func (p *Parser) parseAlterSessionStmt(start int) nodes.StmtNode {
 	case p.cur.Type == kwSET:
 		p.advance() // consume SET
 		stmt.Action = "SET"
-		stmt.SetParams = p.parseSetParams()
+		var parseErr4 error
+		stmt.SetParams, parseErr4 = p.parseSetParams()
+		if parseErr4 != nil {
+			return nil, parseErr4
+		}
+	}
+	if stmt.Action == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterSystemStmt parses an ALTER SYSTEM statement.
@@ -438,7 +467,7 @@ func (p *Parser) parseAlterSessionStmt(start int) nodes.StmtNode {
 //	        | REDO TO target_db_name [ { NO CONFIRM APPLY | CONFIRM APPLY } ]
 //	        | PASSWORDFILE_METADATA_CACHE
 //	        }
-func (p *Parser) parseAlterSystemStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterSystemStmt(start int) (nodes.StmtNode, error) {
 	p.advance() // consume SYSTEM
 
 	stmt := &nodes.AlterSystemStmt{
@@ -450,27 +479,51 @@ func (p *Parser) parseAlterSystemStmt(start int) nodes.StmtNode {
 		p.advance() // consume SET
 		// Check for SET ENCRYPTION (security clause)
 		if p.isIdentLikeStr("ENCRYPTION") {
-			p.parseAlterSystemEncryption(stmt)
+			parseErr5 := p.parseAlterSystemEncryption(stmt)
+			if parseErr5 != nil {
+				return nil, parseErr5
+			}
 		} else {
 			stmt.Action = "SET"
-			stmt.SetParams = p.parseSetParams()
-			// Parse optional SET modifiers: COMMENT, DEFERRED, SCOPE, SID, CONTAINER
-			p.parseAlterSystemSetModifiers(stmt)
+			var parseErr6 error
+			stmt.SetParams, parseErr6 = p.parseSetParams()
+			if parseErr6 !=
+				// Parse optional SET modifiers: COMMENT, DEFERRED, SCOPE, SID, CONTAINER
+				nil {
+				return nil, parseErr6
+			}
+			parseErr7 := p.parseAlterSystemSetModifiers(stmt)
+			if parseErr7 != nil {
+				return nil, parseErr7
+			}
 		}
 
 	case p.isIdentLikeStr("RESET"):
 		p.advance() // consume RESET
 		stmt.Action = "RESET"
-		stmt.ResetParam = p.parseIdentifier()
-		// optional SCOPE
+		var parseErr8 error
+		stmt.ResetParam, parseErr8 = p.parseIdentifier()
+		if parseErr8 !=
+			// optional SCOPE
+			nil {
+			return nil, parseErr8
+		}
+
 		if p.isIdentLikeStr("SCOPE") {
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			stmt.Scope = p.parseIdentifier()
+			var parseErr9 error
+			stmt.Scope, parseErr9 = p.parseIdentifier()
+			if parseErr9 !=
+
+				// optional SID
+				nil {
+				return nil, parseErr9
+			}
 		}
-		// optional SID
+
 		if p.isIdentLikeStr("SID") {
 			p.advance()
 			if p.cur.Type == '=' {
@@ -523,7 +576,11 @@ func (p *Parser) parseAlterSystemStmt(start int) nodes.StmtNode {
 		if p.isIdentLikeStr("TIMEOUT") {
 			p.advance()
 			if p.cur.Type == tokICONST {
-				stmt.Timeout = p.parseIntValue()
+				var parseErr10 error
+				stmt.Timeout, parseErr10 = p.parseIntValue()
+				if parseErr10 != nil {
+					return nil, parseErr10
+				}
 			}
 		}
 
@@ -551,7 +608,10 @@ func (p *Parser) parseAlterSystemStmt(start int) nodes.StmtNode {
 	case p.isIdentLikeStr("FLUSH"):
 		p.advance() // consume FLUSH
 		stmt.Action = "FLUSH"
-		p.parseAlterSystemFlush(stmt)
+		parseErr11 := p.parseAlterSystemFlush(stmt)
+		if parseErr11 != nil {
+			return nil, parseErr11
+		}
 
 	case p.isIdentLikeStr("CHECKPOINT"):
 		p.advance() // consume CHECKPOINT
@@ -591,7 +651,10 @@ func (p *Parser) parseAlterSystemStmt(start int) nodes.StmtNode {
 		if p.isIdentLikeStr("LOG") {
 			p.advance()
 		}
-		p.parseAlterSystemArchiveLog(stmt)
+		parseErr12 := p.parseAlterSystemArchiveLog(stmt)
+		if parseErr12 != nil {
+			return nil, parseErr12
+		}
 
 	case p.isIdentLikeStr("SUSPEND"):
 		stmt.Action = "SUSPEND"
@@ -741,13 +804,13 @@ func (p *Parser) parseAlterSystemStmt(start int) nodes.StmtNode {
 		p.skipToSemicolon()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterSystemSetModifiers parses optional modifiers for ALTER SYSTEM SET:
 // COMMENT, DEFERRED, SCOPE, SID, CONTAINER.
-func (p *Parser) parseAlterSystemSetModifiers(stmt *nodes.AlterSystemStmt) {
+func (p *Parser) parseAlterSystemSetModifiers(stmt *nodes.AlterSystemStmt) error {
 	for {
 		switch {
 		case p.isIdentLikeStr("COMMENT"):
@@ -767,7 +830,11 @@ func (p *Parser) parseAlterSystemSetModifiers(stmt *nodes.AlterSystemStmt) {
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			stmt.Scope = p.parseIdentifier()
+			var parseErr13 error
+			stmt.Scope, parseErr13 = p.parseIdentifier()
+			if parseErr13 != nil {
+				return parseErr13
+			}
 		case p.isIdentLikeStr("SID"):
 			p.advance()
 			if p.cur.Type == '=' {
@@ -785,15 +852,21 @@ func (p *Parser) parseAlterSystemSetModifiers(stmt *nodes.AlterSystemStmt) {
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			stmt.Container = p.parseIdentifier()
+			var parseErr14 error
+			stmt.Container, parseErr14 = p.parseIdentifier()
+			if parseErr14 != nil {
+				return parseErr14
+
+				// parseAlterSystemFlush parses the FLUSH sub-clause of ALTER SYSTEM.
+			}
 		default:
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
-// parseAlterSystemFlush parses the FLUSH sub-clause of ALTER SYSTEM.
-func (p *Parser) parseAlterSystemFlush(stmt *nodes.AlterSystemStmt) {
+func (p *Parser) parseAlterSystemFlush(stmt *nodes.AlterSystemStmt) error {
 	switch {
 	case p.isIdentLikeStr("SHARED_POOL"):
 		stmt.FlushTarget = "SHARED_POOL"
@@ -831,8 +904,14 @@ func (p *Parser) parseAlterSystemFlush(stmt *nodes.AlterSystemStmt) {
 		if p.cur.Type == kwTO {
 			p.advance()
 		}
-		stmt.FlushRedoDB = p.parseIdentifier()
-		// optional {NO CONFIRM APPLY | CONFIRM APPLY}
+		var parseErr15 error
+		stmt.FlushRedoDB, parseErr15 = p.parseIdentifier()
+		if parseErr15 !=
+			// optional {NO CONFIRM APPLY | CONFIRM APPLY}
+			nil {
+			return parseErr15
+		}
+
 		if p.isIdentLikeStr("NO") {
 			p.advance() // consume NO
 			if p.isIdentLikeStr("CONFIRM") {
@@ -853,10 +932,11 @@ func (p *Parser) parseAlterSystemFlush(stmt *nodes.AlterSystemStmt) {
 		stmt.FlushTarget = "PASSWORDFILE_METADATA_CACHE"
 		p.advance()
 	}
+	return nil
 }
 
 // parseAlterSystemArchiveLog parses the ARCHIVE LOG sub-clause of ALTER SYSTEM.
-func (p *Parser) parseAlterSystemArchiveLog(stmt *nodes.AlterSystemStmt) {
+func (p *Parser) parseAlterSystemArchiveLog(stmt *nodes.AlterSystemStmt) error {
 	// optional INSTANCE 'instance_name'
 	if p.isIdentLikeStr("INSTANCE") {
 		p.advance()
@@ -926,11 +1006,17 @@ func (p *Parser) parseAlterSystemArchiveLog(stmt *nodes.AlterSystemStmt) {
 	if p.isIdentLikeStr("THREAD") {
 		p.advance()
 		if p.cur.Type == tokICONST {
-			stmt.ArchiveThread = p.parseIntValue()
+			var parseErr16 error
+			stmt.ArchiveThread, parseErr16 = p.parseIntValue()
+			if parseErr16 !=
+
+				// optional TO 'location'
+				nil {
+				return parseErr16
+			}
 		}
 	}
 
-	// optional TO 'location'
 	if p.cur.Type == kwTO {
 		p.advance()
 		if p.cur.Type == tokSCONST {
@@ -938,10 +1024,11 @@ func (p *Parser) parseAlterSystemArchiveLog(stmt *nodes.AlterSystemStmt) {
 			p.advance()
 		}
 	}
+	return nil
 }
 
 // parseAlterSystemEncryption parses the SET ENCRYPTION sub-clause of ALTER SYSTEM.
-func (p *Parser) parseAlterSystemEncryption(stmt *nodes.AlterSystemStmt) {
+func (p *Parser) parseAlterSystemEncryption(stmt *nodes.AlterSystemStmt) error {
 	stmt.Action = "SET_ENCRYPTION"
 	p.advance() // consume ENCRYPTION
 	if p.isIdentLikeStr("WALLET") {
@@ -955,7 +1042,12 @@ func (p *Parser) parseAlterSystemEncryption(stmt *nodes.AlterSystemStmt) {
 				if p.cur.Type == kwBY {
 					p.advance()
 				}
-				p.parseIdentifier() // consume password (not stored for security)
+				parseDiscard18, parseErr17 := p.parseIdentifier()
+				_ = // consume password (not stored for security)
+					parseDiscard18
+				if parseErr17 != nil {
+					return parseErr17
+				}
 			}
 		} else if p.isIdentLikeStr("CLOSE") {
 			stmt.EncryptionAction = "CLOSE"
@@ -966,7 +1058,11 @@ func (p *Parser) parseAlterSystemEncryption(stmt *nodes.AlterSystemStmt) {
 				if p.cur.Type == kwBY {
 					p.advance()
 				}
-				p.parseIdentifier()
+				parseDiscard20, parseErr19 := p.parseIdentifier()
+				_ = parseDiscard20
+				if parseErr19 != nil {
+					return parseErr19
+				}
 			}
 		}
 	} else if p.cur.Type == kwKEY {
@@ -978,16 +1074,25 @@ func (p *Parser) parseAlterSystemEncryption(stmt *nodes.AlterSystemStmt) {
 			if p.cur.Type == kwBY {
 				p.advance()
 			}
-			p.parseIdentifier()
+			parseDiscard22, parseErr21 := p.parseIdentifier()
+			_ = parseDiscard22
+
+			// parseSetParams parses one or more param = value pairs.
+			if parseErr21 != nil {
+				return parseErr21
+			}
 		}
 	}
+	return nil
 }
 
-// parseSetParams parses one or more param = value pairs.
-func (p *Parser) parseSetParams() *nodes.List {
+func (p *Parser) parseSetParams() (*nodes.List, error) {
 	params := &nodes.List{}
 	for {
-		param := p.parseSetParam()
+		param, parseErr23 := p.parseSetParam()
+		if parseErr23 != nil {
+			return nil, parseErr23
+		}
 		if param == nil {
 			break
 		}
@@ -1002,36 +1107,43 @@ func (p *Parser) parseSetParams() *nodes.List {
 			break
 		}
 	}
-	return params
+	return params, nil
 }
 
 // parseSetParam parses a single name = value parameter setting.
-func (p *Parser) parseSetParam() *nodes.SetParam {
+func (p *Parser) parseSetParam() (*nodes.SetParam, error) {
 	if !p.isIdentLike() {
-		return nil
+		return nil, nil
 	}
 	start := p.pos()
-	name := p.parseIdentifier()
+	name, parseErr24 := p.parseIdentifier()
+	if parseErr24 != nil {
+		return nil, parseErr24
+
+		// Expect '='
+	}
 	if name == "" {
-		return nil
+		return nil, nil
 	}
 
-	// Expect '='
 	if p.cur.Type != '=' {
 		return &nodes.SetParam{
 			Name: name,
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 	}
 	p.advance() // consume '='
 
-	value := p.parseExpr()
+	value, parseErr25 := p.parseExpr()
+	if parseErr25 != nil {
+		return nil, parseErr25
+	}
 
 	return &nodes.SetParam{
 		Name:  name,
 		Value: value,
-		Loc:   nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parseAlterMaterializedViewStmt parses an ALTER MATERIALIZED VIEW statement.
@@ -1099,7 +1211,7 @@ func (p *Parser) parseSetParam() *nodes.SetParam {
 //
 //	shrink_clause:
 //	    SHRINK SPACE [ COMPACT ] [ CASCADE ]
-func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterMaterializedViewStmt(start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AlterMaterializedViewStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -1112,10 +1224,16 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 			p.advance() // consume EXISTS
 		}
 	}
+	var parseErr26 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr26 = p.parseObjectName()
+	if parseErr26 !=
 
-	// Parse action clause
+		// Parse action clause
+		nil {
+		return nil, parseErr26
+	}
+
 	switch {
 	case p.isIdentLikeStr("COMPILE"):
 		stmt.Action = "COMPILE"
@@ -1130,8 +1248,12 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 
 	case p.cur.Type == kwREFRESH:
 		stmt.Action = "REFRESH"
-		p.advance() // consume REFRESH
-		p.parseAlterMViewRefreshClause(stmt)
+		p.advance()
+		parseErr27 := // consume REFRESH
+			p.parseAlterMViewRefreshClause(stmt)
+		if parseErr27 != nil {
+			return nil, parseErr27
+		}
 
 	case p.cur.Type == kwENABLE:
 		p.advance() // consume ENABLE
@@ -1244,7 +1366,11 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 				switch {
 				case p.isIdentLikeStr("SIZE"):
 					p.advance()
-					stmt.AllocateSize = p.parseIdentifier()
+					var parseErr28 error
+					stmt.AllocateSize, parseErr28 = p.parseIdentifier()
+					if parseErr28 != nil {
+						return nil, parseErr28
+					}
 				case p.isIdentLikeStr("DATAFILE"):
 					p.advance()
 					if p.cur.Type == tokSCONST {
@@ -1254,7 +1380,11 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 				case p.isIdentLikeStr("INSTANCE"):
 					p.advance()
 					if p.cur.Type == tokICONST {
-						stmt.AllocateInstance = p.parseIntValue()
+						var parseErr29 error
+						stmt.AllocateInstance, parseErr29 = p.parseIntValue()
+						if parseErr29 != nil {
+							return nil, parseErr29
+						}
 					}
 				default:
 					p.advance()
@@ -1284,7 +1414,11 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 				}
 				stmt.DeallocateKeep = val
 			} else {
-				stmt.DeallocateKeep = p.parseIdentifier()
+				var parseErr30 error
+				stmt.DeallocateKeep, parseErr30 = p.parseIdentifier()
+				if parseErr30 != nil {
+					return nil, parseErr30
+				}
 			}
 		}
 
@@ -1292,21 +1426,33 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 		stmt.Action = "PCTFREE"
 		p.advance()
 		if p.cur.Type == tokICONST {
-			stmt.PctFree = p.parseIntValue()
+			var parseErr31 error
+			stmt.PctFree, parseErr31 = p.parseIntValue()
+			if parseErr31 != nil {
+				return nil, parseErr31
+			}
 		}
 
 	case p.isIdentLikeStr("PCTUSED"):
 		stmt.Action = "PCTUSED"
 		p.advance()
 		if p.cur.Type == tokICONST {
-			stmt.PctUsed = p.parseIntValue()
+			var parseErr32 error
+			stmt.PctUsed, parseErr32 = p.parseIntValue()
+			if parseErr32 != nil {
+				return nil, parseErr32
+			}
 		}
 
 	case p.isIdentLikeStr("INITRANS"):
 		stmt.Action = "INITRANS"
 		p.advance()
 		if p.cur.Type == tokICONST {
-			stmt.IniTrans = p.parseIntValue()
+			var parseErr33 error
+			stmt.IniTrans, parseErr33 = p.parseIntValue()
+			if parseErr33 != nil {
+				return nil, parseErr33
+			}
 		}
 
 	case p.isIdentLikeStr("EVALUATE"):
@@ -1318,7 +1464,11 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 		if p.isIdentLikeStr("EDITION") {
 			p.advance() // consume EDITION
 		}
-		stmt.EditionName = p.parseIdentifier()
+		var parseErr34 error
+		stmt.EditionName, parseErr34 = p.parseIdentifier()
+		if parseErr34 != nil {
+			return nil, parseErr34
+		}
 
 	case p.cur.Type == kwCOMPRESS:
 		stmt.Action = "COMPRESS"
@@ -1328,8 +1478,15 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 			p.advance()
 		} else if p.cur.Type == kwFOR {
 			p.advance()
-			p.parseIdentifier() // OLTP, QUERY, ARCHIVE
-			// optional LOW | HIGH
+			parseDiscard36, parseErr35 := p.parseIdentifier()
+			_ = // OLTP, QUERY, ARCHIVE
+				parseDiscard36
+			if parseErr35 !=
+				// optional LOW | HIGH
+				nil {
+				return nil, parseErr35
+			}
+
 			if p.isIdentLikeStr("LOW") || p.isIdentLikeStr("HIGH") {
 				p.advance()
 			}
@@ -1342,11 +1499,17 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 	case p.isIdentLikeStr("INMEMORY"):
 		stmt.Action = "INMEMORY"
 		p.advance()
-		// skip remaining in-memory attributes
-		p.parseAlterMViewInMemoryAttrs()
+		parseErr37 :=
+			// skip remaining in-memory attributes
+			p.parseAlterMViewInMemoryAttrs()
+		if parseErr37 != nil {
+			return nil, parseErr37
+
+			// NO INMEMORY
+		}
 
 	case p.isIdentLikeStr("NO"):
-		// NO INMEMORY
+
 		p.advance() // consume NO
 		if p.isIdentLikeStr("INMEMORY") {
 			stmt.Action = "NO_INMEMORY"
@@ -1363,8 +1526,13 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 				p.advance() // consume FOR
 			}
 			if p.cur.Type == '(' {
-				p.advance() // consume (
-				stmt.ScopeColumn = p.parseIdentifier()
+				p.advance()
+				var // consume (
+				parseErr38 error
+				stmt.ScopeColumn, parseErr38 = p.parseIdentifier()
+				if parseErr38 != nil {
+					return nil, parseErr38
+				}
 				if p.cur.Type == ')' {
 					p.advance() // consume )
 				}
@@ -1372,14 +1540,25 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 			if p.cur.Type == kwIS {
 				p.advance() // consume IS
 			}
-			stmt.ScopeTable = p.parseObjectName()
+			var parseErr39 error
+			stmt.ScopeTable, parseErr39 = p.parseObjectName()
+			if parseErr39 != nil {
+
+				// modify_mv_column_clause: MODIFY ( column_name encryption_spec [, ...] )
+				return nil, parseErr39
+			}
 		} else {
-			// modify_mv_column_clause: MODIFY ( column_name encryption_spec [, ...] )
+
 			stmt.Action = "MODIFY"
 			if p.cur.Type == '(' {
 				p.advance() // consume (
 				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					_ = p.parseIdentifier() // column_name
+					// column_name
+					columnName, parseErr40 := p.parseIdentifier()
+					_ = columnName
+					if parseErr40 != nil {
+						return nil, parseErr40
+					}
 					if p.isIdentLikeStr("ENCRYPT") {
 						p.advance() // consume ENCRYPT
 						// parse encryption_spec options
@@ -1392,8 +1571,14 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 							} else if p.isIdentLikeStr("IDENTIFIED") {
 								p.advance() // consume IDENTIFIED
 								if p.cur.Type == kwBY {
-									p.advance() // consume BY
-									p.parseIdentifier() // consume password
+									p.advance()
+									parseDiscard42, // consume BY
+										parseErr41 := p.parseIdentifier()
+									_ = // consume password
+										parseDiscard42
+									if parseErr41 != nil {
+										return nil, parseErr41
+									}
 								}
 							} else if p.isIdentLikeStr("SALT") {
 								p.advance()
@@ -1442,8 +1627,8 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 		p.skipToSemicolon()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterMViewRefreshClause parses the alter_mv_refresh clause.
@@ -1457,7 +1642,7 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) nodes.StmtNode {
 //	[ USING ROLLBACK SEGMENT rollback_segment ]
 //	[ USING { ENFORCED | TRUSTED } CONSTRAINTS ]
 //	[ { ENABLE | DISABLE } ON QUERY COMPUTATION ]
-func (p *Parser) parseAlterMViewRefreshClause(stmt *nodes.AlterMaterializedViewStmt) {
+func (p *Parser) parseAlterMViewRefreshClause(stmt *nodes.AlterMaterializedViewStmt) error {
 	for {
 		switch {
 		case p.isIdentLikeStr("FAST"):
@@ -1490,10 +1675,19 @@ func (p *Parser) parseAlterMViewRefreshClause(stmt *nodes.AlterMaterializedViewS
 			if p.cur.Type == kwWITH {
 				p.advance() // consume WITH
 			}
-			stmt.StartWith = p.parseExpr()
+			var parseErr43 error
+			stmt.StartWith, parseErr43 = p.parseExpr()
+			if parseErr43 != nil {
+				return parseErr43
+			}
 		case p.cur.Type == kwNEXT:
-			p.advance() // consume NEXT
-			stmt.Next = p.parseExpr()
+			p.advance()
+			var // consume NEXT
+			parseErr44 error
+			stmt.Next, parseErr44 = p.parseExpr()
+			if parseErr44 != nil {
+				return parseErr44
+			}
 		case p.cur.Type == kwWITH:
 			p.advance() // consume WITH
 			if p.cur.Type == kwPRIMARY {
@@ -1539,7 +1733,7 @@ func (p *Parser) parseAlterMViewRefreshClause(stmt *nodes.AlterMaterializedViewS
 				}
 				stmt.EnableOnQueryComputation = true
 			} else {
-				return // not part of REFRESH clause, back out
+				return nil // not part of REFRESH clause, back out
 			}
 		case p.cur.Type == kwDISABLE:
 			p.advance() // consume DISABLE
@@ -1553,37 +1747,53 @@ func (p *Parser) parseAlterMViewRefreshClause(stmt *nodes.AlterMaterializedViewS
 				}
 				stmt.DisableOnQueryComputation = true
 			} else {
-				return // not part of REFRESH clause, back out
+				return nil // not part of REFRESH clause, back out
 			}
 		default:
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // parseAlterMViewInMemoryAttrs consumes optional INMEMORY attributes:
 // MEMCOMPRESS, PRIORITY, DISTRIBUTE, DUPLICATE keywords until we hit
 // something that doesn't look like an inmemory attribute.
-func (p *Parser) parseAlterMViewInMemoryAttrs() {
+func (p *Parser) parseAlterMViewInMemoryAttrs() error {
 	for {
 		switch {
 		case p.isIdentLikeStr("MEMCOMPRESS"):
 			p.advance()
 			if p.cur.Type == kwFOR {
 				p.advance()
-				p.parseIdentifier() // QUERY, OLTP, ARCHIVE
+				parseDiscard46, parseErr45 := p.parseIdentifier()
+				_ = // QUERY, OLTP, ARCHIVE
+					parseDiscard46
+				if parseErr45 != nil {
+					return parseErr45
+				}
 				if p.isIdentLikeStr("LOW") || p.isIdentLikeStr("HIGH") {
 					p.advance()
 				}
 			}
 		case p.isIdentLikeStr("PRIORITY"):
 			p.advance()
-			p.parseIdentifier() // LOW, MEDIUM, HIGH, CRITICAL
+			parseDiscard48, parseErr47 := p.parseIdentifier()
+			_ = // LOW, MEDIUM, HIGH, CRITICAL
+				parseDiscard48
+			if parseErr47 != nil {
+				return parseErr47
+			}
 		case p.isIdentLikeStr("DISTRIBUTE"):
 			p.advance()
 			if p.cur.Type == kwBY {
 				p.advance()
-				p.parseIdentifier() // ROWID, PARTITION, SUBPARTITION
+				parseDiscard50, parseErr49 := p.parseIdentifier()
+				_ = // ROWID, PARTITION, SUBPARTITION
+					parseDiscard50
+				if parseErr49 != nil {
+					return parseErr49
+				}
 			}
 		case p.isIdentLikeStr("DUPLICATE"):
 			p.advance()
@@ -1593,16 +1803,17 @@ func (p *Parser) parseAlterMViewInMemoryAttrs() {
 				p.advance()
 			}
 		default:
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // parseAlterGeneric parses ALTER INDEX/VIEW/SEQUENCE/TABLE by consuming the
 // object name and skipping the rest (simplified). Returns an AlterSessionStmt
 // as a placeholder — in practice these would have their own AST types, but for
 // now we skip the body to avoid blocking other work.
-func (p *Parser) parseAlterGeneric(start int, objType nodes.ObjectType) nodes.StmtNode {
+func (p *Parser) parseAlterGeneric(start int, objType nodes.ObjectType) (nodes.StmtNode, error) {
 	p.advance() // consume INDEX/VIEW/SEQUENCE/etc.
 
 	// For MATERIALIZED VIEW, consume VIEW too
@@ -1619,15 +1830,21 @@ func (p *Parser) parseAlterGeneric(start int, objType nodes.ObjectType) nodes.St
 		ObjectType: objType,
 		Loc:        nodes.Loc{Start: start},
 	}
+	var parseErr51 error
 
 	// Parse the object name.
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr51 = p.parseObjectName()
+	if parseErr51 !=
 
-	// Skip remainder of the statement (clauses vary greatly by object type).
+		// Skip remainder of the statement (clauses vary greatly by object type).
+		nil {
+		return nil, parseErr51
+	}
+
 	p.skipToSemicolon()
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterDatabaseLinkStmt parses an ALTER DATABASE LINK statement.
@@ -1637,7 +1854,7 @@ func (p *Parser) parseAlterGeneric(start int, objType nodes.ObjectType) nodes.St
 //	ALTER [ SHARED ] [ PUBLIC ] DATABASE LINK dblink_name
 //	  CONNECT TO user IDENTIFIED BY password
 //	  [ AUTHENTICATED BY user IDENTIFIED BY password ]
-func (p *Parser) parseAlterDatabaseLinkStmt(start int, shared bool, public bool) nodes.StmtNode {
+func (p *Parser) parseAlterDatabaseLinkStmt(start int, shared bool, public bool) (nodes.StmtNode, error) {
 	p.advance() // consume DATABASE
 	if p.cur.Type == kwLINK {
 		p.advance() // consume LINK
@@ -1648,11 +1865,17 @@ func (p *Parser) parseAlterDatabaseLinkStmt(start int, shared bool, public bool)
 		Public: public,
 		Loc:    nodes.Loc{Start: start},
 	}
+	var parseErr52 error
 
 	// Parse the database link name.
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr52 = p.parseObjectName()
+	if parseErr52 !=
 
-	// CONNECT TO user IDENTIFIED BY password
+		// CONNECT TO user IDENTIFIED BY password
+		nil {
+		return nil, parseErr52
+	}
+
 	if p.cur.Type == kwCONNECT {
 		p.advance() // consume CONNECT
 		if p.cur.Type == kwTO {
@@ -1696,8 +1919,8 @@ func (p *Parser) parseAlterDatabaseLinkStmt(start int, shared bool, public bool)
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterSynonymStmt parses an ALTER SYNONYM statement.
@@ -1706,7 +1929,7 @@ func (p *Parser) parseAlterDatabaseLinkStmt(start int, shared bool, public bool)
 //
 //	ALTER [ PUBLIC ] SYNONYM [ IF EXISTS ] [ schema. ] synonym
 //	  { EDITIONABLE | NONEDITIONABLE | COMPILE }
-func (p *Parser) parseAlterSynonymStmt(start int, public bool) nodes.StmtNode {
+func (p *Parser) parseAlterSynonymStmt(start int, public bool) (nodes.StmtNode, error) {
 	p.advance() // consume SYNONYM
 
 	stmt := &nodes.AlterSynonymStmt{
@@ -1723,11 +1946,17 @@ func (p *Parser) parseAlterSynonymStmt(start int, public bool) nodes.StmtNode {
 			p.advance() // consume EXISTS
 		}
 	}
+	var parseErr53 error
 
 	// Parse the synonym name.
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr53 = p.parseObjectName()
+	if parseErr53 !=
 
-	// { EDITIONABLE | NONEDITIONABLE | COMPILE }
+		// { EDITIONABLE | NONEDITIONABLE | COMPILE }
+		nil {
+		return nil, parseErr53
+	}
+
 	if p.isIdentLikeStr("EDITIONABLE") {
 		stmt.Action = "EDITIONABLE"
 		p.advance()
@@ -1739,8 +1968,8 @@ func (p *Parser) parseAlterSynonymStmt(start int, public bool) nodes.StmtNode {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterIndexStmt parses an ALTER INDEX statement.
@@ -1771,7 +2000,7 @@ func (p *Parser) parseAlterSynonymStmt(start int, public bool) nodes.StmtNode {
 //	    | UPDATE BLOCK REFERENCES
 //	    | annotations_clause
 //	    }
-func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterIndexStmt(start int) (nodes.StmtNode, error) {
 	p.advance() // consume INDEX
 
 	stmt := &nodes.AlterIndexStmt{
@@ -1787,11 +2016,17 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 			p.advance() // consume EXISTS
 		}
 	}
+	var parseErr54 error
 
 	// Parse index name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr54 = p.parseObjectName()
+	if parseErr54 !=
 
-	// Parse action
+		// Parse action
+		nil {
+		return nil, parseErr54
+	}
+
 	switch {
 	case p.isIdentLikeStr("REBUILD"):
 		stmt.Action = "REBUILD"
@@ -1800,14 +2035,29 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 		for p.cur.Type != ';' && p.cur.Type != tokEOF {
 			switch {
 			case p.cur.Type == kwPARTITION:
-				p.advance() // consume PARTITION
-				stmt.Partition = p.parseIdentifier()
+				p.advance()
+				var // consume PARTITION
+				parseErr55 error
+				stmt.Partition, parseErr55 = p.parseIdentifier()
+				if parseErr55 != nil {
+					return nil, parseErr55
+				}
 			case p.cur.Type == kwSUBPARTITION:
-				p.advance() // consume SUBPARTITION
-				stmt.Subpartition = p.parseIdentifier()
+				p.advance()
+				var // consume SUBPARTITION
+				parseErr56 error
+				stmt.Subpartition, parseErr56 = p.parseIdentifier()
+				if parseErr56 != nil {
+					return nil, parseErr56
+				}
 			case p.cur.Type == kwTABLESPACE:
-				p.advance() // consume TABLESPACE
-				stmt.Tablespace = p.parseIdentifier()
+				p.advance()
+				var // consume TABLESPACE
+				parseErr57 error
+				stmt.Tablespace, parseErr57 = p.parseIdentifier()
+				if parseErr57 != nil {
+					return nil, parseErr57
+				}
 			case p.cur.Type == kwONLINE:
 				stmt.Online = true
 				p.advance()
@@ -1909,26 +2159,48 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 		// RENAME TO new_name or RENAME PARTITION/SUBPARTITION name TO new_name
 		if p.cur.Type == kwPARTITION {
 			stmt.Action = "RENAME_PARTITION"
-			p.advance() // consume PARTITION
-			stmt.Partition = p.parseIdentifier()
+			p.advance()
+			var // consume PARTITION
+			parseErr58 error
+			stmt.Partition, parseErr58 = p.parseIdentifier()
+			if parseErr58 != nil {
+				return nil, parseErr58
+			}
 			if p.cur.Type == kwTO {
 				p.advance() // consume TO
 			}
-			stmt.NewName = p.parseIdentifier()
+			var parseErr59 error
+			stmt.NewName, parseErr59 = p.parseIdentifier()
+			if parseErr59 != nil {
+				return nil, parseErr59
+			}
 		} else if p.cur.Type == kwSUBPARTITION {
 			stmt.Action = "RENAME_SUBPARTITION"
-			p.advance() // consume SUBPARTITION
-			stmt.Subpartition = p.parseIdentifier()
+			p.advance()
+			var // consume SUBPARTITION
+			parseErr60 error
+			stmt.Subpartition, parseErr60 = p.parseIdentifier()
+			if parseErr60 != nil {
+				return nil, parseErr60
+			}
 			if p.cur.Type == kwTO {
 				p.advance() // consume TO
 			}
-			stmt.NewName = p.parseIdentifier()
+			var parseErr61 error
+			stmt.NewName, parseErr61 = p.parseIdentifier()
+			if parseErr61 != nil {
+				return nil, parseErr61
+			}
 		} else {
 			stmt.Action = "RENAME"
 			if p.cur.Type == kwTO {
 				p.advance() // consume TO
 			}
-			stmt.NewName = p.parseIdentifier()
+			var parseErr62 error
+			stmt.NewName, parseErr62 = p.parseIdentifier()
+			if parseErr62 != nil {
+				return nil, parseErr62
+			}
 		}
 
 	case p.isIdentLikeStr("COALESCE"):
@@ -2047,8 +2319,13 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 			p.advance() // consume UNUSED
 		}
 		if p.cur.Type == kwKEEP {
-			p.advance() // consume KEEP
-			stmt.DeallocateKeep = p.parseSizeClause()
+			p.advance()
+			var // consume KEEP
+			parseErr63 error
+			stmt.DeallocateKeep, parseErr63 = p.parseSizeClause()
+			if parseErr63 != nil {
+				return nil, parseErr63
+			}
 		}
 
 	case p.isIdentLikeStr("ALLOCATE"):
@@ -2119,8 +2396,12 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 			stmt.PctFree = p.cur.Str
 			p.advance()
 		}
-		// May have more physical attributes
-		p.parseAlterIndexPhysicalAttrs(stmt)
+		parseErr64 :=
+			// May have more physical attributes
+			p.parseAlterIndexPhysicalAttrs(stmt)
+		if parseErr64 != nil {
+			return nil, parseErr64
+		}
 
 	case p.isIdentLikeStr("PCTUSED"):
 		stmt.Action = "PHYSICAL_ATTRIBUTES"
@@ -2129,7 +2410,10 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 			stmt.PctUsed = p.cur.Str
 			p.advance()
 		}
-		p.parseAlterIndexPhysicalAttrs(stmt)
+		parseErr65 := p.parseAlterIndexPhysicalAttrs(stmt)
+		if parseErr65 != nil {
+			return nil, parseErr65
+		}
 
 	case p.isIdentLikeStr("INITRANS"):
 		stmt.Action = "PHYSICAL_ATTRIBUTES"
@@ -2138,7 +2422,10 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 			stmt.InitTrans = p.cur.Str
 			p.advance()
 		}
-		p.parseAlterIndexPhysicalAttrs(stmt)
+		parseErr66 := p.parseAlterIndexPhysicalAttrs(stmt)
+		if parseErr66 != nil {
+			return nil, parseErr66
+		}
 
 	case p.isIdentLikeStr("MAXTRANS"):
 		stmt.Action = "PHYSICAL_ATTRIBUTES"
@@ -2147,7 +2434,10 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 			stmt.MaxTrans = p.cur.Str
 			p.advance()
 		}
-		p.parseAlterIndexPhysicalAttrs(stmt)
+		parseErr67 := p.parseAlterIndexPhysicalAttrs(stmt)
+		if parseErr67 != nil {
+			return nil, parseErr67
+		}
 
 	case p.isIdentLikeStr("STORAGE"):
 		stmt.Action = "PHYSICAL_ATTRIBUTES"
@@ -2169,16 +2459,32 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 				if p.cur.Type == kwPARTITION {
 					p.advance() // consume PARTITION
 				}
-				stmt.ModifyDefaultFor = p.parseIdentifier()
+				var parseErr68 error
+				stmt.ModifyDefaultFor, parseErr68 = p.parseIdentifier()
+				if parseErr68 !=
+
+					// Skip remaining options (physical_attributes, TABLESPACE, logging)
+					nil {
+					return nil, parseErr68
+				}
 			}
-			// Skip remaining options (physical_attributes, TABLESPACE, logging)
-			p.parseAlterIndexPhysicalAttrs(stmt)
+			parseErr69 := p.parseAlterIndexPhysicalAttrs(stmt)
+			if parseErr69 != nil {
+				return nil, parseErr69
+			}
 		} else if p.cur.Type == kwPARTITION {
 			// modify_index_partition
 			stmt.Action = "MODIFY_PARTITION"
-			p.advance() // consume PARTITION
-			stmt.Partition = p.parseIdentifier()
-			// Sub-actions: skip remaining tokens
+			p.advance()
+			var // consume PARTITION
+			parseErr70 error
+			stmt.Partition, parseErr70 = p.parseIdentifier()
+			if parseErr70 !=
+				// Sub-actions: skip remaining tokens
+				nil {
+				return nil, parseErr70
+			}
+
 			for p.cur.Type != ';' && p.cur.Type != tokEOF {
 				switch {
 				case p.isIdentLikeStr("UNUSABLE"):
@@ -2223,7 +2529,11 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 					}
 					if p.cur.Type == kwKEEP {
 						p.advance()
-						stmt.DeallocateKeep = p.parseSizeClause()
+						var parseErr71 error
+						stmt.DeallocateKeep, parseErr71 = p.parseSizeClause()
+						if parseErr71 != nil {
+							return nil, parseErr71
+						}
 					}
 				case p.isIdentLikeStr("ALLOCATE"):
 					stmt.ModifyPartAction = "ALLOCATE"
@@ -2267,9 +2577,16 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 		} else if p.cur.Type == kwSUBPARTITION {
 			// modify_index_subpartition
 			stmt.Action = "MODIFY_SUBPARTITION"
-			p.advance() // consume SUBPARTITION
-			stmt.Subpartition = p.parseIdentifier()
-			// Sub-actions: UNUSABLE, allocate_extent, deallocate_unused
+			p.advance()
+			var // consume SUBPARTITION
+			parseErr72 error
+			stmt.Subpartition, parseErr72 = p.parseIdentifier()
+			if parseErr72 !=
+				// Sub-actions: UNUSABLE, allocate_extent, deallocate_unused
+				nil {
+				return nil, parseErr72
+			}
+
 			if p.isIdentLikeStr("UNUSABLE") {
 				stmt.ModifyPartAction = "UNUSABLE"
 				p.advance()
@@ -2288,7 +2605,11 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 				}
 				if p.cur.Type == kwKEEP {
 					p.advance()
-					stmt.DeallocateKeep = p.parseSizeClause()
+					var parseErr73 error
+					stmt.DeallocateKeep, parseErr73 = p.parseSizeClause()
+					if parseErr73 != nil {
+						return nil, parseErr73
+					}
 				}
 			}
 		}
@@ -2304,14 +2625,25 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 		if p.isIdentLike() && p.cur.Type != kwTABLESPACE && p.cur.Type != kwCOMPRESS &&
 			p.cur.Type != kwNOCOMPRESS && p.cur.Type != kwPARALLEL && p.cur.Type != kwNOPARALLEL &&
 			p.cur.Type != ';' && p.cur.Type != tokEOF {
-			stmt.AddPartitionName = p.parseIdentifier()
+			var parseErr74 error
+			stmt.AddPartitionName, parseErr74 = p.parseIdentifier()
+			if parseErr74 !=
+
+				// Optional TABLESPACE, index_compression, parallel_clause
+				nil {
+				return nil, parseErr74
+			}
 		}
-		// Optional TABLESPACE, index_compression, parallel_clause
+
 		for p.cur.Type != ';' && p.cur.Type != tokEOF {
 			switch {
 			case p.cur.Type == kwTABLESPACE:
 				p.advance()
-				stmt.Tablespace = p.parseIdentifier()
+				var parseErr75 error
+				stmt.Tablespace, parseErr75 = p.parseIdentifier()
+				if parseErr75 != nil {
+					return nil, parseErr75
+				}
 			case p.cur.Type == kwCOMPRESS:
 				p.advance()
 				if p.cur.Type == tokICONST {
@@ -2344,24 +2676,39 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 		if p.cur.Type == kwPARTITION {
 			p.advance() // consume PARTITION
 		}
-		stmt.Partition = p.parseIdentifier()
+		var parseErr76 error
+		stmt.Partition, parseErr76 = p.parseIdentifier()
+		if parseErr76 != nil {
+			return nil, parseErr76
+
+			// split_index_partition
+		}
 
 	case p.isIdentLikeStr("SPLIT"):
-		// split_index_partition
+
 		stmt.Action = "SPLIT_PARTITION"
 		p.advance() // consume SPLIT
 		if p.cur.Type == kwPARTITION {
 			p.advance() // consume PARTITION
 		}
-		stmt.SplitPartition = p.parseIdentifier()
-		// AT ( literal [, literal ]... )
+		var parseErr77 error
+		stmt.SplitPartition, parseErr77 = p.parseIdentifier()
+		if parseErr77 !=
+			// AT ( literal [, literal ]... )
+			nil {
+			return nil, parseErr77
+		}
+
 		if p.isIdentLikeStr("AT") {
 			p.advance() // consume AT
 			if p.cur.Type == '(' {
 				p.advance()
 				stmt.SplitValues = &nodes.List{}
 				for {
-					val := p.parseExpr()
+					val, parseErr78 := p.parseExpr()
+					if parseErr78 != nil {
+						return nil, parseErr78
+					}
 					if val != nil {
 						stmt.SplitValues.Items = append(stmt.SplitValues.Items, val)
 					}
@@ -2404,13 +2751,13 @@ func (p *Parser) parseAlterIndexStmt(start int) nodes.StmtNode {
 	}
 
 done:
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterIndexPhysicalAttrs parses remaining physical_attributes_clause
 // options for ALTER INDEX (PCTFREE, PCTUSED, INITRANS, MAXTRANS, STORAGE, TABLESPACE, logging).
-func (p *Parser) parseAlterIndexPhysicalAttrs(stmt *nodes.AlterIndexStmt) {
+func (p *Parser) parseAlterIndexPhysicalAttrs(stmt *nodes.AlterIndexStmt) error {
 	for {
 		switch {
 		case p.cur.Type == kwPCTFREE:
@@ -2442,7 +2789,11 @@ func (p *Parser) parseAlterIndexPhysicalAttrs(stmt *nodes.AlterIndexStmt) {
 			p.skipParenthesizedBlock()
 		case p.cur.Type == kwTABLESPACE:
 			p.advance()
-			stmt.Tablespace = p.parseIdentifier()
+			var parseErr79 error
+			stmt.Tablespace, parseErr79 = p.parseIdentifier()
+			if parseErr79 != nil {
+				return parseErr79
+			}
 		case p.cur.Type == kwLOGGING:
 			stmt.Logging = true
 			p.advance()
@@ -2450,14 +2801,15 @@ func (p *Parser) parseAlterIndexPhysicalAttrs(stmt *nodes.AlterIndexStmt) {
 			stmt.NoLogging = true
 			p.advance()
 		default:
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // parseSizeClause parses a size clause like "10M", "100K", "1G", etc.
 // Returns the combined string.
-func (p *Parser) parseSizeClause() string {
+func (p *Parser) parseSizeClause() (string, error) {
 	if p.cur.Type == tokICONST {
 		size := p.cur.Str
 		p.advance()
@@ -2469,9 +2821,9 @@ func (p *Parser) parseSizeClause() string {
 				p.advance()
 			}
 		}
-		return size
+		return size, nil
 	}
-	return ""
+	return "", nil
 }
 
 // parseAlterViewStmt parses an ALTER VIEW statement.
@@ -2486,7 +2838,7 @@ func (p *Parser) parseSizeClause() string {
 //	  | { READ ONLY | READ WRITE }
 //	  | { EDITIONABLE | NONEDITIONABLE }
 //	}
-func (p *Parser) parseAlterViewStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterViewStmt(start int) (nodes.StmtNode, error) {
 	p.advance() // consume VIEW
 
 	stmt := &nodes.AlterViewStmt{
@@ -2502,11 +2854,17 @@ func (p *Parser) parseAlterViewStmt(start int) nodes.StmtNode {
 			p.advance() // consume EXISTS
 		}
 	}
+	var parseErr80 error
 
 	// Parse view name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr80 = p.parseObjectName()
+	if parseErr80 !=
 
-	// Parse action
+		// Parse action
+		nil {
+		return nil, parseErr80
+	}
+
 	switch {
 	case p.isIdentLikeStr("COMPILE"), p.isIdentLikeStr("RECOMPILE"):
 		stmt.Action = "COMPILE"
@@ -2514,15 +2872,25 @@ func (p *Parser) parseAlterViewStmt(start int) nodes.StmtNode {
 
 	case p.cur.Type == kwADD:
 		stmt.Action = "ADD_CONSTRAINT"
-		p.advance() // consume ADD
-		stmt.Constraint = p.parseTableConstraint()
+		p.advance()
+		var // consume ADD
+		parseErr81 error
+		stmt.Constraint, parseErr81 = p.parseTableConstraint()
+		if parseErr81 != nil {
+			return nil, parseErr81
+		}
 
 	case p.cur.Type == kwMODIFY:
 		p.advance() // consume MODIFY
 		if p.cur.Type == kwCONSTRAINT {
 			stmt.Action = "MODIFY_CONSTRAINT"
-			p.advance() // consume CONSTRAINT
-			stmt.ConstraintName = p.parseIdentifier()
+			p.advance()
+			var // consume CONSTRAINT
+			parseErr82 error
+			stmt.ConstraintName, parseErr82 = p.parseIdentifier()
+			if parseErr82 != nil {
+				return nil, parseErr82
+			}
 			if p.cur.Type == kwRELY {
 				stmt.Rely = true
 				p.advance()
@@ -2541,10 +2909,17 @@ func (p *Parser) parseAlterViewStmt(start int) nodes.StmtNode {
 		p.advance() // consume DROP
 		if p.cur.Type == kwCONSTRAINT {
 			stmt.Action = "DROP_CONSTRAINT"
-			p.advance() // consume CONSTRAINT
-			stmt.ConstraintName = p.parseIdentifier()
+			p.advance()
+			var // consume CONSTRAINT
+			parseErr83 error
+			stmt.ConstraintName, parseErr83 = p.parseIdentifier()
+			if parseErr83 != nil {
+
+				// skip unrecognized DROP clause
+				return nil, parseErr83
+			}
 		} else {
-			// skip unrecognized DROP clause
+
 			for p.cur.Type != ';' && p.cur.Type != tokEOF {
 				p.advance()
 			}
@@ -2608,8 +2983,8 @@ func (p *Parser) parseAlterViewStmt(start int) nodes.StmtNode {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterSequenceStmt parses an ALTER SEQUENCE statement.
@@ -2628,7 +3003,7 @@ func (p *Parser) parseAlterViewStmt(start int) nodes.StmtNode {
 //	  [ SCALE [ EXTEND | NOEXTEND ] | NOSCALE ]
 //	  [ SHARD [ EXTEND | NOEXTEND ] | NOSHARD ]
 //	  [ GLOBAL | SESSION ]
-func (p *Parser) parseAlterSequenceStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterSequenceStmt(start int) (nodes.StmtNode, error) {
 	p.advance() // consume SEQUENCE
 
 	stmt := &nodes.AlterSequenceStmt{
@@ -2644,11 +3019,17 @@ func (p *Parser) parseAlterSequenceStmt(start int) nodes.StmtNode {
 			p.advance() // consume EXISTS
 		}
 	}
+	var parseErr84 error
 
 	// Parse sequence name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr84 = p.parseObjectName()
+	if parseErr84 !=
 
-	// Parse sequence options (loop, multiple may be specified)
+		// Parse sequence options (loop, multiple may be specified)
+		nil {
+		return nil, parseErr84
+	}
+
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		switch {
 		case p.cur.Type == kwINCREMENT:
@@ -2656,19 +3037,33 @@ func (p *Parser) parseAlterSequenceStmt(start int) nodes.StmtNode {
 			if p.cur.Type == kwBY {
 				p.advance() // consume BY
 			}
-			stmt.IncrementBy = p.parseExpr()
+			var parseErr85 error
+			stmt.IncrementBy, parseErr85 = p.parseExpr()
+			if parseErr85 != nil {
+				return nil, parseErr85
+			}
 
 		case p.cur.Type == kwMAXVALUE:
-			p.advance() // consume MAXVALUE
-			stmt.MaxValue = p.parseExpr()
+			p.advance()
+			var // consume MAXVALUE
+			parseErr86 error
+			stmt.MaxValue, parseErr86 = p.parseExpr()
+			if parseErr86 != nil {
+				return nil, parseErr86
+			}
 
 		case p.cur.Type == kwNOMAXVALUE:
 			stmt.NoMaxValue = true
 			p.advance()
 
 		case p.cur.Type == kwMINVALUE:
-			p.advance() // consume MINVALUE
-			stmt.MinValue = p.parseExpr()
+			p.advance()
+			var // consume MINVALUE
+			parseErr87 error
+			stmt.MinValue, parseErr87 = p.parseExpr()
+			if parseErr87 != nil {
+				return nil, parseErr87
+			}
 
 		case p.cur.Type == kwNOMINVALUE:
 			stmt.NoMinValue = true
@@ -2683,8 +3078,13 @@ func (p *Parser) parseAlterSequenceStmt(start int) nodes.StmtNode {
 			p.advance()
 
 		case p.cur.Type == kwCACHE:
-			p.advance() // consume CACHE
-			stmt.Cache = p.parseExpr()
+			p.advance()
+			var // consume CACHE
+			parseErr88 error
+			stmt.Cache, parseErr88 = p.parseExpr()
+			if parseErr88 != nil {
+				return nil, parseErr88
+			}
 
 		case p.cur.Type == kwNOCACHE:
 			stmt.NoCache = true
@@ -2710,8 +3110,13 @@ func (p *Parser) parseAlterSequenceStmt(start int) nodes.StmtNode {
 			stmt.Restart = true
 			p.advance() // consume RESTART
 			if p.cur.Type == kwWITH {
-				p.advance() // consume WITH
-				stmt.RestartWith = p.parseExpr()
+				p.advance()
+				var // consume WITH
+				parseErr89 error
+				stmt.RestartWith, parseErr89 = p.parseExpr()
+				if parseErr89 != nil {
+					return nil, parseErr89
+				}
 			}
 
 		case p.isIdentLikeStr("SCALE"):
@@ -2758,13 +3163,13 @@ func (p *Parser) parseAlterSequenceStmt(start int) nodes.StmtNode {
 	}
 
 done:
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCompileClause parses COMPILE [DEBUG] [compiler_parameters_clause ...] [REUSE SETTINGS].
 // Returns (debug, reuseSettings, compilerParams).
-func (p *Parser) parseCompileClause() (bool, bool, []*nodes.SetParam) {
+func (p *Parser) parseCompileClause() (bool, bool, []*nodes.SetParam, error) {
 	var debug bool
 	var reuseSettings bool
 	var compilerParams []*nodes.SetParam
@@ -2787,20 +3192,27 @@ func (p *Parser) parseCompileClause() (bool, bool, []*nodes.SetParam) {
 		}
 		// Check for compiler parameter: identifier = value
 		if p.isIdentLike() && p.peekNext().Type == '=' {
-			name := p.parseIdentifier()
-			p.advance() // consume '='
-			value := p.parseExpr()
+			name, parseErr90 := p.parseIdentifier()
+			if parseErr90 != nil {
+				// consume '='
+				return false, false, nil, parseErr90
+			}
+			p.advance()
+			value, parseErr91 := p.parseExpr()
+			if parseErr91 != nil {
+				return false, false, nil, parseErr91
+			}
 			compilerParams = append(compilerParams, &nodes.SetParam{
 				Name:  name,
 				Value: value,
-				Loc:   nodes.Loc{Start: p.pos(), End: p.pos()},
+				Loc:   nodes.Loc{Start: p.pos(), End: p.prev.End},
 			})
 			continue
 		}
 		break
 	}
 
-	return debug, reuseSettings, compilerParams
+	return debug, reuseSettings, compilerParams, nil
 }
 
 // parseAlterProcedureStmt parses an ALTER PROCEDURE statement.
@@ -2818,7 +3230,7 @@ func (p *Parser) parseCompileClause() (bool, bool, []*nodes.SetParam) {
 //
 //	compiler_parameters_clause:
 //	    parameter_name = parameter_value
-func (p *Parser) parseAlterProcedureStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterProcedureStmt(start int) (nodes.StmtNode, error) {
 	p.advance() // consume PROCEDURE
 
 	stmt := &nodes.AlterProcedureStmt{
@@ -2833,17 +3245,30 @@ func (p *Parser) parseAlterProcedureStmt(start int) nodes.StmtNode {
 			p.advance() // consume EXISTS
 		}
 	}
+	var parseErr92 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr92 = p.parseObjectName()
+	if parseErr92 !=
 
-	// Parse action
-	if p.isIdentLikeStr("COMPILE") {
-		stmt.Compile = true
-		p.advance() // consume COMPILE
-		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams = p.parseCompileClause()
+		// Parse action
+		nil {
+		return nil, parseErr92
 	}
 
-	// Trailing EDITIONABLE | NONEDITIONABLE
+	if p.isIdentLikeStr("COMPILE") {
+		stmt.Compile = true
+		p.advance()
+		var // consume COMPILE
+		parseErr93 error
+		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams, parseErr93 = p.parseCompileClause()
+		if parseErr93 !=
+
+			// Trailing EDITIONABLE | NONEDITIONABLE
+			nil {
+			return nil, parseErr93
+		}
+	}
+
 	if p.isIdentLikeStr("EDITIONABLE") {
 		stmt.Editionable = true
 		p.advance()
@@ -2852,8 +3277,8 @@ func (p *Parser) parseAlterProcedureStmt(start int) nodes.StmtNode {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterFunctionStmt parses an ALTER FUNCTION statement.
@@ -2869,7 +3294,7 @@ func (p *Parser) parseAlterProcedureStmt(start int) nodes.StmtNode {
 //
 //	compiler_parameters_clause:
 //	    parameter_name = parameter_value
-func (p *Parser) parseAlterFunctionStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterFunctionStmt(start int) (nodes.StmtNode, error) {
 	p.advance() // consume FUNCTION
 
 	stmt := &nodes.AlterFunctionStmt{
@@ -2884,17 +3309,30 @@ func (p *Parser) parseAlterFunctionStmt(start int) nodes.StmtNode {
 			p.advance() // consume EXISTS
 		}
 	}
+	var parseErr94 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr94 = p.parseObjectName()
+	if parseErr94 !=
 
-	// Parse action
-	if p.isIdentLikeStr("COMPILE") {
-		stmt.Compile = true
-		p.advance() // consume COMPILE
-		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams = p.parseCompileClause()
+		// Parse action
+		nil {
+		return nil, parseErr94
 	}
 
-	// Trailing EDITIONABLE | NONEDITIONABLE
+	if p.isIdentLikeStr("COMPILE") {
+		stmt.Compile = true
+		p.advance()
+		var // consume COMPILE
+		parseErr95 error
+		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams, parseErr95 = p.parseCompileClause()
+		if parseErr95 !=
+
+			// Trailing EDITIONABLE | NONEDITIONABLE
+			nil {
+			return nil, parseErr95
+		}
+	}
+
 	if p.isIdentLikeStr("EDITIONABLE") {
 		stmt.Editionable = true
 		p.advance()
@@ -2903,8 +3341,8 @@ func (p *Parser) parseAlterFunctionStmt(start int) nodes.StmtNode {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterPackageStmt parses an ALTER PACKAGE statement.
@@ -2922,7 +3360,7 @@ func (p *Parser) parseAlterFunctionStmt(start int) nodes.StmtNode {
 //
 //	compiler_parameters_clause:
 //	    parameter_name = parameter_value
-func (p *Parser) parseAlterPackageStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterPackageStmt(start int) (nodes.StmtNode, error) {
 	p.advance() // consume PACKAGE
 
 	stmt := &nodes.AlterPackageStmt{
@@ -2937,10 +3375,16 @@ func (p *Parser) parseAlterPackageStmt(start int) nodes.StmtNode {
 			p.advance() // consume EXISTS
 		}
 	}
+	var parseErr96 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr96 = p.parseObjectName()
+	if parseErr96 !=
 
-	// Parse action
+		// Parse action
+		nil {
+		return nil, parseErr96
+	}
+
 	if p.isIdentLikeStr("COMPILE") {
 		stmt.Compile = true
 		p.advance() // consume COMPILE
@@ -2965,7 +3409,10 @@ func (p *Parser) parseAlterPackageStmt(start int) nodes.StmtNode {
 		}
 
 		// Remaining compile clause (DEBUG if not yet consumed, compiler params, REUSE SETTINGS)
-		debug, reuseSettings, compilerParams := p.parseCompileClause()
+		debug, reuseSettings, compilerParams, parseErr97 := p.parseCompileClause()
+		if parseErr97 != nil {
+			return nil, parseErr97
+		}
 		if debug {
 			stmt.Debug = true
 		}
@@ -2982,8 +3429,8 @@ func (p *Parser) parseAlterPackageStmt(start int) nodes.StmtNode {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterTriggerStmt parses an ALTER TRIGGER statement.
@@ -3004,7 +3451,7 @@ func (p *Parser) parseAlterPackageStmt(start int) nodes.StmtNode {
 //
 //	compiler_parameters_clause:
 //	    parameter_name = parameter_value
-func (p *Parser) parseAlterTriggerStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterTriggerStmt(start int) (nodes.StmtNode, error) {
 	p.advance() // consume TRIGGER
 
 	stmt := &nodes.AlterTriggerStmt{
@@ -3019,10 +3466,16 @@ func (p *Parser) parseAlterTriggerStmt(start int) nodes.StmtNode {
 			p.advance() // consume EXISTS
 		}
 	}
+	var parseErr98 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr98 = p.parseObjectName()
+	if parseErr98 !=
 
-	// Parse action
+		// Parse action
+		nil {
+		return nil, parseErr98
+	}
+
 	switch {
 	case p.cur.Type == kwENABLE:
 		stmt.Action = "ENABLE"
@@ -3032,15 +3485,24 @@ func (p *Parser) parseAlterTriggerStmt(start int) nodes.StmtNode {
 		p.advance()
 	case p.isIdentLikeStr("COMPILE"):
 		stmt.Action = "COMPILE"
-		p.advance() // consume COMPILE
-		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams = p.parseCompileClause()
+		p.advance()
+		var // consume COMPILE
+		parseErr99 error
+		stmt.Debug, stmt.ReuseSettings, stmt.CompilerParams, parseErr99 = p.parseCompileClause()
+		if parseErr99 != nil {
+			return nil, parseErr99
+		}
 	case p.cur.Type == kwRENAME:
 		stmt.Action = "RENAME"
 		p.advance() // consume RENAME
 		if p.cur.Type == kwTO {
 			p.advance() // consume TO
 		}
-		stmt.NewName = p.parseIdentifier()
+		var parseErr100 error
+		stmt.NewName, parseErr100 = p.parseIdentifier()
+		if parseErr100 != nil {
+			return nil, parseErr100
+		}
 	case p.isIdentLikeStr("EDITIONABLE"):
 		stmt.Action = "EDITIONABLE"
 		p.advance()
@@ -3049,8 +3511,8 @@ func (p *Parser) parseAlterTriggerStmt(start int) nodes.StmtNode {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterTypeStmt parses an ALTER TYPE statement.
@@ -3084,7 +3546,7 @@ func (p *Parser) parseAlterTriggerStmt(start int) nodes.StmtNode {
 //	    INVALIDATE
 //	  | CASCADE [INCLUDING TABLE DATA | NOT INCLUDING TABLE DATA | CONVERT TO SUBSTITUTABLE]
 //	    [FORCE]
-func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
+func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 	p.advance() // consume TYPE
 
 	stmt := &nodes.AlterTypeStmt{
@@ -3099,10 +3561,16 @@ func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
 			p.advance() // consume EXISTS
 		}
 	}
+	var parseErr101 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr101 = p.parseObjectName()
+	if parseErr101 !=
 
-	// Parse action
+		// Parse action
+		nil {
+		return nil, parseErr101
+	}
+
 	switch {
 	case p.isIdentLikeStr("COMPILE"):
 		stmt.Action = "COMPILE"
@@ -3121,7 +3589,10 @@ func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
 			p.advance()
 		}
 		// Remaining compile clause (DEBUG if not yet consumed, compiler params, REUSE SETTINGS)
-		debug, reuseSettings, compilerParams := p.parseCompileClause()
+		debug, reuseSettings, compilerParams, parseErr102 := p.parseCompileClause()
+		if parseErr102 != nil {
+			return nil, parseErr102
+		}
 		if debug {
 			stmt.Debug = true
 		}
@@ -3130,9 +3601,13 @@ func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
 
 	case p.isIdentLikeStr("REPLACE"):
 		stmt.Action = "REPLACE"
-		p.advance() // consume REPLACE
-		// REPLACE alter_type_replace_clause — parse the inline type spec
-		p.parseAlterTypeReplaceClause(stmt)
+		p.advance()
+		parseErr103 := // consume REPLACE
+			// REPLACE alter_type_replace_clause — parse the inline type spec
+			p.parseAlterTypeReplaceClause(stmt)
+		if parseErr103 != nil {
+			return nil, parseErr103
+		}
 
 	case p.isIdentLikeStr("RESET"):
 		stmt.Action = "RESET"
@@ -3147,48 +3622,90 @@ func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
 			stmt.Action = "NOT_FINAL"
 			p.advance()
 		}
-		p.parseAlterTypeDependentHandling(stmt)
+		parseErr104 := p.parseAlterTypeDependentHandling(stmt)
+		if parseErr104 != nil {
+			return nil, parseErr104
+		}
 
 	case p.isIdentLikeStr("INSTANTIABLE"):
 		stmt.Action = "INSTANTIABLE"
 		p.advance()
-		p.parseAlterTypeDependentHandling(stmt)
+		parseErr105 := p.parseAlterTypeDependentHandling(stmt)
+		if parseErr105 != nil {
+			return nil, parseErr105
+		}
 
 	case p.isIdentLikeStr("FINAL"):
 		stmt.Action = "FINAL"
 		p.advance()
-		p.parseAlterTypeDependentHandling(stmt)
+		parseErr106 := p.parseAlterTypeDependentHandling(stmt)
+		if parseErr106 != nil {
+			return nil, parseErr106
+		}
 
 	case p.cur.Type == kwADD:
-		p.advance() // consume ADD
-		p.parseAlterTypeAddDrop(stmt, "ADD")
+		p.advance()
+		parseErr107 := // consume ADD
+			p.parseAlterTypeAddDrop(stmt, "ADD")
+		if parseErr107 != nil {
+			return nil, parseErr107
+		}
 
 	case p.cur.Type == kwDROP:
-		p.advance() // consume DROP
-		p.parseAlterTypeAddDrop(stmt, "DROP")
+		p.advance()
+		parseErr108 := // consume DROP
+			p.parseAlterTypeAddDrop(stmt, "DROP")
+		if parseErr108 != nil {
+			return nil, parseErr108
+		}
 
 	case p.isIdentLikeStr("MODIFY"):
 		p.advance() // consume MODIFY
 		if p.isIdentLikeStr("ATTRIBUTE") {
 			stmt.Action = "MODIFY_ATTRIBUTE"
-			p.advance() // consume ATTRIBUTE
-			stmt.Attributes = p.parseAlterTypeAttributes(true)
-			p.parseAlterTypeDependentHandling(stmt)
+			p.advance()
+			var // consume ATTRIBUTE
+			parseErr109 error
+			stmt.Attributes, parseErr109 = p.parseAlterTypeAttributes(true)
+			if parseErr109 != nil {
+				return nil, parseErr109
+			}
+			parseErr110 := p.parseAlterTypeDependentHandling(stmt)
+			if parseErr110 != nil {
+				return nil, parseErr110
+			}
 		} else if p.isIdentLikeStr("LIMIT") {
 			stmt.Action = "MODIFY_LIMIT"
-			p.advance() // consume LIMIT
-			stmt.LimitValue = p.parseExpr()
-			p.parseAlterTypeDependentHandling(stmt)
+			p.advance()
+			var // consume LIMIT
+			parseErr111 error
+			stmt.LimitValue, parseErr111 = p.parseExpr()
+			if parseErr111 != nil {
+				return nil, parseErr111
+			}
+			parseErr112 := p.parseAlterTypeDependentHandling(stmt)
+			if parseErr112 != nil {
+				return nil, parseErr112
+			}
 		} else if p.isIdentLikeStr("ELEMENT") {
 			stmt.Action = "MODIFY_ELEMENT_TYPE"
 			p.advance() // consume ELEMENT
 			if p.cur.Type == kwTYPE {
 				p.advance() // consume TYPE
 			}
-			stmt.ElementType = p.parseTypeName()
-			p.parseAlterTypeDependentHandling(stmt)
+			var parseErr113 error
+			stmt.ElementType, parseErr113 = p.parseTypeName()
+			if parseErr113 != nil {
+				return nil, parseErr113
+			}
+			parseErr114 := p.parseAlterTypeDependentHandling(stmt)
+			if parseErr114 != nil {
+
+				// modifier_clause: NOT INSTANTIABLE | INSTANTIABLE | NOT FINAL | FINAL
+				return nil, parseErr114
+			}
 		} else {
-			// modifier_clause: NOT INSTANTIABLE | INSTANTIABLE | NOT FINAL | FINAL
+
 			if p.cur.Type == kwNOT {
 				p.advance()
 				if p.isIdentLikeStr("INSTANTIABLE") {
@@ -3205,7 +3722,10 @@ func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
 				stmt.Action = "MODIFY_FINAL"
 				p.advance()
 			}
-			p.parseAlterTypeDependentHandling(stmt)
+			parseErr115 := p.parseAlterTypeDependentHandling(stmt)
+			if parseErr115 != nil {
+				return nil, parseErr115
+			}
 		}
 
 	case p.isIdentLikeStr("INVALIDATE"):
@@ -3213,7 +3733,10 @@ func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
 		p.advance()
 
 	case p.isIdentLikeStr("CASCADE"):
-		p.parseAlterTypeCascade(stmt)
+		parseErr116 := p.parseAlterTypeCascade(stmt)
+		if parseErr116 != nil {
+			return nil, parseErr116
+		}
 
 	case p.isIdentLikeStr("EDITIONABLE"):
 		stmt.Action = "EDITIONABLE"
@@ -3237,12 +3760,12 @@ func (p *Parser) parseAlterTypeStmt(start int) nodes.StmtNode {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAlterTypeAddDrop handles ADD/DROP ATTRIBUTE or ADD/DROP method.
-func (p *Parser) parseAlterTypeAddDrop(stmt *nodes.AlterTypeStmt, action string) {
+func (p *Parser) parseAlterTypeAddDrop(stmt *nodes.AlterTypeStmt, action string) error {
 	switch {
 	case p.isIdentLikeStr("ATTRIBUTE"):
 		if action == "ADD" {
@@ -3252,8 +3775,15 @@ func (p *Parser) parseAlterTypeAddDrop(stmt *nodes.AlterTypeStmt, action string)
 		}
 		p.advance() // consume ATTRIBUTE
 		needDatatype := action == "ADD"
-		stmt.Attributes = p.parseAlterTypeAttributes(needDatatype)
-		p.parseAlterTypeDependentHandling(stmt)
+		var parseErr117 error
+		stmt.Attributes, parseErr117 = p.parseAlterTypeAttributes(needDatatype)
+		if parseErr117 != nil {
+			return parseErr117
+		}
+		parseErr118 := p.parseAlterTypeDependentHandling(stmt)
+		if parseErr118 != nil {
+			return parseErr118
+		}
 
 	case p.isIdentLikeStr("MEMBER"), p.isIdentLikeStr("STATIC"):
 		kind := p.cur.Str
@@ -3264,8 +3794,14 @@ func (p *Parser) parseAlterTypeAddDrop(stmt *nodes.AlterTypeStmt, action string)
 			stmt.Action = "DROP_METHOD"
 		}
 		stmt.MethodKind = kind
-		p.parseAlterTypeMethodSig(stmt)
-		p.parseAlterTypeDependentHandling(stmt)
+		parseErr119 := p.parseAlterTypeMethodSig(stmt)
+		if parseErr119 != nil {
+			return parseErr119
+		}
+		parseErr120 := p.parseAlterTypeDependentHandling(stmt)
+		if parseErr120 != nil {
+			return parseErr120
+		}
 
 	case p.isIdentLikeStr("MAP"), p.isIdentLikeStr("ORDER"):
 		kind := p.cur.Str
@@ -3280,8 +3816,14 @@ func (p *Parser) parseAlterTypeAddDrop(stmt *nodes.AlterTypeStmt, action string)
 			stmt.Action = "DROP_METHOD"
 		}
 		stmt.MethodKind = kind
-		p.parseAlterTypeMethodSig(stmt)
-		p.parseAlterTypeDependentHandling(stmt)
+		parseErr121 := p.parseAlterTypeMethodSig(stmt)
+		if parseErr121 != nil {
+			return parseErr121
+		}
+		parseErr122 := p.parseAlterTypeDependentHandling(stmt)
+		if parseErr122 != nil {
+			return parseErr122
+		}
 
 	case p.isIdentLikeStr("CONSTRUCTOR"):
 		p.advance() // consume CONSTRUCTOR
@@ -3291,13 +3833,22 @@ func (p *Parser) parseAlterTypeAddDrop(stmt *nodes.AlterTypeStmt, action string)
 			stmt.Action = "DROP_METHOD"
 		}
 		stmt.MethodKind = "CONSTRUCTOR"
-		p.parseAlterTypeMethodSig(stmt)
-		p.parseAlterTypeDependentHandling(stmt)
+		parseErr123 := p.parseAlterTypeMethodSig(stmt)
+		if parseErr123 != nil {
+			return parseErr123
+		}
+		parseErr124 := p.parseAlterTypeDependentHandling(stmt)
+		if parseErr124 !=
+
+			// parseAlterTypeMethodSig parses a method signature: FUNCTION/PROCEDURE name [(params)] [RETURN type].
+			nil {
+			return parseErr124
+		}
 	}
+	return nil
 }
 
-// parseAlterTypeMethodSig parses a method signature: FUNCTION/PROCEDURE name [(params)] [RETURN type].
-func (p *Parser) parseAlterTypeMethodSig(stmt *nodes.AlterTypeStmt) {
+func (p *Parser) parseAlterTypeMethodSig(stmt *nodes.AlterTypeStmt) error {
 	// FUNCTION or PROCEDURE
 	if p.cur.Type == kwFUNCTION {
 		stmt.MethodType = "FUNCTION"
@@ -3306,13 +3857,22 @@ func (p *Parser) parseAlterTypeMethodSig(stmt *nodes.AlterTypeStmt) {
 		stmt.MethodType = "PROCEDURE"
 		p.advance()
 	}
+	var parseErr125 error
 
 	// Method name
-	stmt.MethodName = p.parseIdentifier()
+	stmt.MethodName, parseErr125 = p.parseIdentifier()
+	if parseErr125 !=
 
-	// Optional parameter list
+		// Optional parameter list
+		nil {
+		return parseErr125
+	}
+
 	if p.cur.Type == '(' {
-		params := p.parseParameterList()
+		params, parseErr126 := p.parseParameterList()
+		if parseErr126 != nil {
+			return parseErr126
+		}
 		if params != nil {
 			for _, item := range params.Items {
 				if param, ok := item.(*nodes.Parameter); ok {
@@ -3338,27 +3898,42 @@ func (p *Parser) parseAlterTypeMethodSig(stmt *nodes.AlterTypeStmt) {
 				Names: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "SELF AS RESULT"}}},
 			}
 		} else {
-			stmt.MethodReturn = p.parseTypeName()
+			var parseErr127 error
+			stmt.MethodReturn, parseErr127 = p.parseTypeName()
+			if parseErr127 !=
+
+				// parseAlterTypeAttributes parses ( attribute [datatype] [, ...] ).
+				nil {
+				return parseErr127
+			}
 		}
 	}
+	return nil
 }
 
-// parseAlterTypeAttributes parses ( attribute [datatype] [, ...] ).
-func (p *Parser) parseAlterTypeAttributes(withDatatype bool) []*nodes.TypeAttribute {
+func (p *Parser) parseAlterTypeAttributes(withDatatype bool) ([]*nodes.TypeAttribute, error) {
 	var attrs []*nodes.TypeAttribute
 
 	if p.cur.Type == '(' {
 		p.advance() // consume (
 		for {
 			attrStart := p.pos()
+			parseValue1, parseErr2 := p.parseIdentifier()
+			if parseErr2 != nil {
+				return nil, parseErr2
+			}
 			attr := &nodes.TypeAttribute{
-				Name: p.parseIdentifier(),
+				Name: parseValue1,
 				Loc:  nodes.Loc{Start: attrStart},
 			}
 			if withDatatype {
-				attr.DataType = p.parseTypeName()
+				var parseErr128 error
+				attr.DataType, parseErr128 = p.parseTypeName()
+				if parseErr128 != nil {
+					return nil, parseErr128
+				}
 			}
-			attr.Loc.End = p.pos()
+			attr.Loc.End = p.prev.End
 			attrs = append(attrs, attr)
 			if p.cur.Type == ',' {
 				p.advance() // consume ,
@@ -3371,23 +3946,29 @@ func (p *Parser) parseAlterTypeAttributes(withDatatype bool) []*nodes.TypeAttrib
 		}
 	}
 
-	return attrs
+	return attrs, nil
 }
 
 // parseAlterTypeDependentHandling parses optional INVALIDATE / CASCADE / FORCE.
-func (p *Parser) parseAlterTypeDependentHandling(stmt *nodes.AlterTypeStmt) {
+func (p *Parser) parseAlterTypeDependentHandling(stmt *nodes.AlterTypeStmt) error {
 	if p.isIdentLikeStr("INVALIDATE") {
 		stmt.Invalidate = true
 		p.advance()
-		return
+		return nil
 	}
 	if p.isIdentLikeStr("CASCADE") {
-		p.parseAlterTypeCascade(stmt)
+		parseErr129 := p.parseAlterTypeCascade(stmt)
+		if parseErr129 !=
+
+			// parseAlterTypeCascade parses CASCADE [INCLUDING TABLE DATA | NOT INCLUDING TABLE DATA | CONVERT TO SUBSTITUTABLE] [FORCE].
+			nil {
+			return parseErr129
+		}
 	}
+	return nil
 }
 
-// parseAlterTypeCascade parses CASCADE [INCLUDING TABLE DATA | NOT INCLUDING TABLE DATA | CONVERT TO SUBSTITUTABLE] [FORCE].
-func (p *Parser) parseAlterTypeCascade(stmt *nodes.AlterTypeStmt) {
+func (p *Parser) parseAlterTypeCascade(stmt *nodes.AlterTypeStmt) error {
 	stmt.Cascade = true
 	p.advance() // consume CASCADE
 
@@ -3430,6 +4011,7 @@ func (p *Parser) parseAlterTypeCascade(stmt *nodes.AlterTypeStmt) {
 		stmt.Force = true
 		p.advance()
 	}
+	return nil
 }
 
 // parseAlterTypeReplaceClause parses the REPLACE clause of ALTER TYPE.
@@ -3447,7 +4029,7 @@ func (p *Parser) parseAlterTypeCascade(stmt *nodes.AlterTypeStmt) {
 //	        [, CONSTRUCTOR FUNCTION spec ]
 //	    )
 //	    [ [ NOT ] INSTANTIABLE ] [ [ NOT ] FINAL ]
-func (p *Parser) parseAlterTypeReplaceClause(stmt *nodes.AlterTypeStmt) {
+func (p *Parser) parseAlterTypeReplaceClause(stmt *nodes.AlterTypeStmt) error {
 	// Optional AUTHID clause
 	if p.isIdentLikeStr("AUTHID") {
 		p.advance() // AUTHID
@@ -3519,16 +4101,22 @@ func (p *Parser) parseAlterTypeReplaceClause(stmt *nodes.AlterTypeStmt) {
 			default:
 				// Attribute: name datatype
 				attrStart := p.pos()
-				name := p.parseIdentifier()
+				name, parseErr130 := p.parseIdentifier()
+				if parseErr130 != nil {
+					return parseErr130
+				}
 				if name == "" {
 					p.advance()
 					continue
 				}
-				typeName := p.parseTypeName()
+				typeName, parseErr131 := p.parseTypeName()
+				if parseErr131 != nil {
+					return parseErr131
+				}
 				attr := &nodes.TypeAttribute{
 					Name:     name,
 					DataType: typeName,
-					Loc:      nodes.Loc{Start: attrStart, End: p.pos()},
+					Loc:      nodes.Loc{Start: attrStart, End: p.prev.End},
 				}
 				stmt.Attributes = append(stmt.Attributes, attr)
 			}
@@ -3553,9 +4141,10 @@ func (p *Parser) parseAlterTypeReplaceClause(stmt *nodes.AlterTypeStmt) {
 		case p.isIdentLikeStr("INSTANTIABLE") || p.isIdentLikeStr("FINAL"):
 			p.advance()
 		default:
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // skipToSemicolon advances until a semicolon or EOF is found.

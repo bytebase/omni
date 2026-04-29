@@ -25,7 +25,10 @@ func TestParseTypeNumber(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			p := newTestParser(tc.input)
-			tn := p.parseTypeName()
+			tn, parseErr1 := p.parseTypeName()
+			if parseErr1 != nil {
+				t.Fatalf("parse: %v", parseErr1)
+			}
 			if tn == nil {
 				t.Fatal("expected non-nil TypeName")
 			}
@@ -62,7 +65,10 @@ func TestParseTypeChar(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			p := newTestParser(tc.input)
-			tn := p.parseTypeName()
+			tn, parseErr2 := p.parseTypeName()
+			if parseErr2 != nil {
+				t.Fatalf("parse: %v", parseErr2)
+			}
 			if tn == nil {
 				t.Fatal("expected non-nil TypeName")
 			}
@@ -82,7 +88,10 @@ func TestParseTypeLOB(t *testing.T) {
 	for _, input := range []string{"CLOB", "BLOB", "NCLOB"} {
 		t.Run(input, func(t *testing.T) {
 			p := newTestParser(input)
-			tn := p.parseTypeName()
+			tn, parseErr3 := p.parseTypeName()
+			if parseErr3 != nil {
+				t.Fatalf("parse: %v", parseErr3)
+			}
 			if tn == nil {
 				t.Fatal("expected non-nil TypeName")
 			}
@@ -110,7 +119,10 @@ func TestParseTypeDatetime(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			p := newTestParser(tc.input)
-			tn := p.parseTypeName()
+			tn, parseErr4 := p.parseTypeName()
+			if parseErr4 != nil {
+				t.Fatalf("parse: %v", parseErr4)
+			}
 			if tn == nil {
 				t.Fatal("expected non-nil TypeName")
 			}
@@ -144,7 +156,10 @@ func TestParseTypeInterval(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			p := newTestParser(tc.input)
-			tn := p.parseTypeName()
+			tn, parseErr5 := p.parseTypeName()
+			if parseErr5 != nil {
+				t.Fatalf("parse: %v", parseErr5)
+			}
 			if tn == nil {
 				t.Fatal("expected non-nil TypeName")
 			}
@@ -164,7 +179,10 @@ func TestParseTypeInterval(t *testing.T) {
 // TestParseTypeRowid tests ROWID type.
 func TestParseTypeRowid(t *testing.T) {
 	p := newTestParser("ROWID")
-	tn := p.parseTypeName()
+	tn, parseErr1 := p.parseTypeName()
+	if parseErr1 != nil {
+		t.Fatalf("parse: %v", parseErr1)
+	}
 	if tn == nil {
 		t.Fatal("expected non-nil TypeName")
 	}
@@ -177,7 +195,10 @@ func TestParseTypeRowid(t *testing.T) {
 // TestParseTypeRAW tests RAW(n).
 func TestParseTypeRAW(t *testing.T) {
 	p := newTestParser("RAW(2000)")
-	tn := p.parseTypeName()
+	tn, parseErr2 := p.parseTypeName()
+	if parseErr2 != nil {
+		t.Fatalf("parse: %v", parseErr2)
+	}
 	if tn == nil {
 		t.Fatal("expected non-nil TypeName")
 	}
@@ -202,7 +223,10 @@ func TestParseTypeLong(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			p := newTestParser(tc.input)
-			tn := p.parseTypeName()
+			tn, parseErr6 := p.parseTypeName()
+			if parseErr6 != nil {
+				t.Fatalf("parse: %v", parseErr6)
+			}
 			if tn == nil {
 				t.Fatal("expected non-nil TypeName")
 			}
@@ -216,7 +240,10 @@ func TestParseTypeLong(t *testing.T) {
 // TestParseTypePctType tests variable%TYPE.
 func TestParseTypePctType(t *testing.T) {
 	p := newTestParser("employees.salary%TYPE")
-	tn := p.parseTypeName()
+	tn, parseErr3 := p.parseTypeName()
+	if parseErr3 != nil {
+		t.Fatalf("parse: %v", parseErr3)
+	}
 	if tn == nil {
 		t.Fatal("expected non-nil TypeName")
 	}
@@ -228,7 +255,10 @@ func TestParseTypePctType(t *testing.T) {
 // TestParseTypePctRowtype tests cursor%ROWTYPE.
 func TestParseTypePctRowtype(t *testing.T) {
 	p := newTestParser("employees%ROWTYPE")
-	tn := p.parseTypeName()
+	tn, parseErr4 := p.parseTypeName()
+	if parseErr4 != nil {
+		t.Fatalf("parse: %v", parseErr4)
+	}
 	if tn == nil {
 		t.Fatal("expected non-nil TypeName")
 	}
@@ -240,7 +270,10 @@ func TestParseTypePctRowtype(t *testing.T) {
 // TestParseTypeUserDefined tests user-defined type names.
 func TestParseTypeUserDefined(t *testing.T) {
 	p := newTestParser("my_schema.my_type")
-	tn := p.parseTypeName()
+	tn, parseErr5 := p.parseTypeName()
+	if parseErr5 != nil {
+		t.Fatalf("parse: %v", parseErr5)
+	}
 	if tn == nil {
 		t.Fatal("expected non-nil TypeName")
 	}
@@ -260,7 +293,10 @@ func TestParseTypeUserDefined(t *testing.T) {
 // TestParseTypeLoc tests that location is recorded on type names.
 func TestParseTypeLoc(t *testing.T) {
 	p := newTestParser("NUMBER(10,2)")
-	tn := p.parseTypeName()
+	tn, parseErr6 := p.parseTypeName()
+	if parseErr6 != nil {
+		t.Fatalf("parse: %v", parseErr6)
+	}
 	if tn.Loc.Start != 0 {
 		t.Errorf("expected Start=0, got %d", tn.Loc.Start)
 	}
@@ -281,7 +317,10 @@ func TestParseTypeCharWithByteSemantic(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
 			p := newTestParser(tc.input)
-			tn := p.parseTypeName()
+			tn, parseErr7 := p.parseTypeName()
+			if parseErr7 != nil {
+				t.Fatalf("parse: %v", parseErr7)
+			}
 			if tn == nil {
 				t.Fatal("expected non-nil TypeName")
 			}

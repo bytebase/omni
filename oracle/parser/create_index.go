@@ -15,7 +15,7 @@ import (
 //	    [ index_ilm_clause ]
 //	    { cluster_index_clause | table_index_clause | bitmap_join_index_clause }
 //	    [ { DEFERRED | IMMEDIATE } INVALIDATION ]
-func (p *Parser) parseCreateIndexStmt(start int) *nodes.CreateIndexStmt {
+func (p *Parser) parseCreateIndexStmt(start int) (*nodes.CreateIndexStmt, error) {
 	stmt := &nodes.CreateIndexStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -55,43 +55,89 @@ func (p *Parser) parseCreateIndexStmt(start int) *nodes.CreateIndexStmt {
 			}
 		}
 	}
+	var parseErr410 error
 
 	// Index name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr410 = p.parseReservedCheckedObjectName()
+	if parseErr410 !=
 
-	// ON clause
-	if p.cur.Type == kwON {
-		p.advance() // consume ON
+		// ON clause
+		nil {
+		return nil, parseErr410
+	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
-		// cluster_index_clause: ON CLUSTER [schema.]cluster
-		if p.cur.Type == kwCLUSTER {
-			p.advance() // consume CLUSTER
-			stmt.Cluster = p.parseObjectName()
+	if p.cur.Type != kwON {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume ON
+
+	// cluster_index_clause: ON CLUSTER [schema.]cluster
+	if p.cur.Type == kwCLUSTER {
+		p.advance()
+		var // consume CLUSTER
+		parseErr411 error
+		stmt.Cluster, parseErr411 = p.parseObjectName()
+		if parseErr411 !=
 			// Parse index_attributes
-			p.parseCreateIndexAttributes(stmt)
-			// Parse optional INVALIDATION
-			p.parseCreateIndexInvalidation(stmt)
-			stmt.Loc.End = p.pos()
-			return stmt
+			nil {
+			return nil, parseErr411
 		}
+		if stmt.Cluster == nil || stmt.Cluster.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		parseErr412 := p.parseCreateIndexAttributes(stmt)
+		if parseErr412 !=
+			// Parse optional INVALIDATION
+			nil {
+			return nil, parseErr412
+		}
+		parseErr413 := p.parseCreateIndexInvalidation(stmt)
+		if parseErr413 != nil {
+			return nil, parseErr413
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+	var parseErr414 error
 
-		// table_index_clause or bitmap_join_index_clause
-		// Both start with [schema.]table
-		stmt.Table = p.parseObjectName()
+	// table_index_clause or bitmap_join_index_clause
+	// Both start with [schema.]table
+	stmt.Table, parseErr414 = p.parseObjectName()
+	if parseErr414 !=
 
 		// Optional table alias (single identifier before '(')
-		if p.isIdentLike() && p.cur.Type != '(' && !p.isKeywordLike() {
-			stmt.Alias = p.parseIdentifier()
+		nil {
+		return nil, parseErr414
+	}
+	if stmt.Table == nil || stmt.Table.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	if p.isIdentLike() && p.cur.Type != '(' && !p.isKeywordLike() {
+		var parseErr415 error
+		stmt.Alias, parseErr415 = p.parseIdentifier()
+		if parseErr415 !=
+
+			// ( column_list )
+			nil {
+			return nil, parseErr415
 		}
 	}
 
-	// ( column_list )
 	if p.cur.Type == '(' {
 		p.advance()
-		stmt.Columns = p.parseIndexColumnList()
-		if p.cur.Type == ')' {
-			p.advance()
+		var parseErr416 error
+		stmt.Columns, parseErr416 = p.parseIndexColumnList()
+		if parseErr416 != nil {
+			return nil, parseErr416
 		}
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 	}
 
 	// Check for bitmap_join_index_clause: FROM ... WHERE ...
@@ -99,32 +145,53 @@ func (p *Parser) parseCreateIndexStmt(start int) *nodes.CreateIndexStmt {
 		p.advance() // consume FROM
 		stmt.FromTables = &nodes.List{}
 		// Parse table list
-		tbl := p.parseObjectName()
+		tbl, parseErr417 := p.parseObjectName()
+		if parseErr417 != nil {
+			return nil, parseErr417
+		}
 		stmt.FromTables.Items = append(stmt.FromTables.Items, tbl)
 		for p.cur.Type == ',' {
-			p.advance() // consume ','
-			tbl = p.parseObjectName()
+			p.advance()
+			var // consume ','
+			parseErr418 error
+			tbl, parseErr418 = p.parseObjectName()
+			if parseErr418 != nil {
+				return nil, parseErr418
+			}
 			stmt.FromTables.Items = append(stmt.FromTables.Items, tbl)
 		}
 		// WHERE join_condition
 		if p.cur.Type == kwWHERE {
-			p.advance() // consume WHERE
-			stmt.Where = p.parseExpr()
+			p.advance()
+			var // consume WHERE
+			parseErr419 error
+			stmt.Where, parseErr419 = p.parseExpr()
+			if parseErr419 !=
+
+				// Parse trailing options (index_properties + index_attributes)
+				nil {
+				return nil, parseErr419
+			}
 		}
 	}
+	parseErr420 := p.parseCreateIndexAttributes(stmt)
+	if parseErr420 !=
 
-	// Parse trailing options (index_properties + index_attributes)
-	p.parseCreateIndexAttributes(stmt)
+		// Parse optional INVALIDATION
+		nil {
+		return nil, parseErr420
+	}
+	parseErr421 := p.parseCreateIndexInvalidation(stmt)
+	if parseErr421 != nil {
+		return nil, parseErr421
+	}
 
-	// Parse optional INVALIDATION
-	p.parseCreateIndexInvalidation(stmt)
-
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCreateIndexInvalidation parses optional { DEFERRED | IMMEDIATE } INVALIDATION.
-func (p *Parser) parseCreateIndexInvalidation(stmt *nodes.CreateIndexStmt) {
+func (p *Parser) parseCreateIndexInvalidation(stmt *nodes.CreateIndexStmt) error {
 	if p.cur.Type == kwDEFERRED {
 		stmt.Invalidation = "DEFERRED"
 		p.advance()
@@ -138,6 +205,7 @@ func (p *Parser) parseCreateIndexInvalidation(stmt *nodes.CreateIndexStmt) {
 			p.advance()
 		}
 	}
+	return nil
 }
 
 // isKeywordLike checks if current token looks like a known clause-starting keyword
@@ -176,7 +244,7 @@ func (p *Parser) isKeywordLike() bool {
 //	    [ global_partitioned_index | local_partitioned_index ]
 //	    [ index_attributes ]
 //	    [ domain_index_clause | XMLIndex_clause ]
-func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) {
+func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) error {
 	for {
 		switch p.cur.Type {
 		case kwREVERSE:
@@ -184,7 +252,11 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) {
 			p.advance()
 		case kwTABLESPACE:
 			p.advance()
-			stmt.Tablespace = p.parseIdentifier()
+			var parseErr422 error
+			stmt.Tablespace, parseErr422 = p.parseIdentifier()
+			if parseErr422 != nil {
+				return parseErr422
+			}
 		case kwLOCAL:
 			stmt.Local = true
 			p.advance()
@@ -283,8 +355,14 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) {
 				if p.cur.Type == kwIS {
 					p.advance() // consume IS
 				}
-				stmt.IndexType = p.parseObjectName()
-				// Optional LOCAL and PARAMETERS
+				var parseErr423 error
+				stmt.IndexType, parseErr423 = p.parseObjectName()
+				if parseErr423 !=
+					// Optional LOCAL and PARAMETERS
+					nil {
+					return parseErr423
+				}
+
 				if p.cur.Type == kwLOCAL {
 					stmt.Local = true
 					p.advance()
@@ -346,10 +424,11 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) {
 				p.advance()
 				p.skipParenthesizedBlock()
 			} else {
-				return
+				return nil
 			}
 		}
 	}
+	return nil
 }
 
 // skipParenthesizedBlock skips a parenthesized block if present.
@@ -389,10 +468,13 @@ func (p *Parser) skipToNextClause() {
 }
 
 // parseIndexColumnList parses a comma-separated list of index columns.
-func (p *Parser) parseIndexColumnList() *nodes.List {
+func (p *Parser) parseIndexColumnList() (*nodes.List, error) {
 	list := &nodes.List{}
 	for {
-		col := p.parseIndexColumn()
+		col, parseErr424 := p.parseIndexColumn()
+		if parseErr424 != nil {
+			return nil, parseErr424
+		}
 		if col == nil {
 			break
 		}
@@ -402,17 +484,20 @@ func (p *Parser) parseIndexColumnList() *nodes.List {
 		}
 		p.advance() // consume ','
 	}
-	return list
+	return list, nil
 }
 
 // parseIndexColumn parses a single index column expression with optional ASC/DESC.
 //
 //	index_expr [ ASC | DESC ]
-func (p *Parser) parseIndexColumn() *nodes.IndexColumn {
+func (p *Parser) parseIndexColumn() (*nodes.IndexColumn, error) {
 	start := p.pos()
-	expr := p.parseExpr()
+	expr, parseErr425 := p.parseExpr()
+	if parseErr425 != nil {
+		return nil, parseErr425
+	}
 	if expr == nil {
-		return nil
+		return nil, nil
 	}
 
 	col := &nodes.IndexColumn{
@@ -443,19 +528,24 @@ func (p *Parser) parseIndexColumn() *nodes.IndexColumn {
 		}
 	}
 
-	col.Loc.End = p.pos()
-	return col
+	col.Loc.End = p.prev.End
+	return col, nil
 }
 
 // parseIndexOptions is a legacy wrapper kept for backward compatibility.
 // It delegates to parseCreateIndexAttributes.
-func (p *Parser) parseIndexOptions(stmt *nodes.CreateIndexStmt) {
-	p.parseCreateIndexAttributes(stmt)
-}
+func (p *Parser) parseIndexOptions(stmt *nodes.CreateIndexStmt) error {
+	parseErr426 := p.parseCreateIndexAttributes(stmt)
+	if parseErr426 !=
 
-// ---------------------------------------------------------------------------
-// CREATE INDEXTYPE
-// ---------------------------------------------------------------------------
+		// ---------------------------------------------------------------------------
+		// CREATE INDEXTYPE
+		// ---------------------------------------------------------------------------
+		nil {
+		return parseErr426
+	}
+	return nil
+}
 
 // parseCreateIndextypeStmt parses a CREATE INDEXTYPE statement.
 // Called after CREATE [OR REPLACE] has been consumed and INDEXTYPE consumed.
@@ -470,7 +560,7 @@ func (p *Parser) parseIndexOptions(stmt *nodes.CreateIndexStmt) {
 //	    [ WITH LOCAL [ RANGE ] PARTITION ]
 //	    [ storage_table_clause ]
 //	    [ array_DML_clause ]
-func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) *nodes.CreateIndextypeStmt {
+func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.CreateIndextypeStmt, error) {
 	stmt := &nodes.CreateIndextypeStmt{
 		OrReplace: orReplace,
 		Loc:       nodes.Loc{Start: start},
@@ -488,11 +578,17 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) *nodes.Crea
 			}
 		}
 	}
+	var parseErr427 error
 
 	// Indextype name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr427 = p.parseObjectName()
+	if parseErr427 !=
 
-	// Optional SHARING = { METADATA | NONE }
+		// Optional SHARING = { METADATA | NONE }
+		nil {
+		return nil, parseErr427
+	}
+
 	if p.isIdentLikeStr("SHARING") {
 		p.advance() // consume SHARING
 		if p.cur.Type == '=' {
@@ -512,17 +608,31 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) *nodes.Crea
 
 	// FOR operator_list
 	if p.cur.Type == kwFOR {
-		p.advance() // consume FOR
-		stmt.Operators = p.parseIndextypeOperatorList()
+		p.advance()
+		var // consume FOR
+		parseErr428 error
+		stmt.Operators, parseErr428 = p.parseIndextypeOperatorList()
+		if parseErr428 !=
+
+			// USING implementation_type
+			nil {
+			return nil, parseErr428
+		}
 	}
 
-	// USING implementation_type
 	if p.cur.Type == kwUSING {
-		p.advance() // consume USING
-		stmt.UsingType = p.parseObjectName()
+		p.advance()
+		var // consume USING
+		parseErr429 error
+		stmt.UsingType, parseErr429 = p.parseObjectName()
+		if parseErr429 !=
+
+			// Optional WITH LOCAL [RANGE] PARTITION
+			nil {
+			return nil, parseErr429
+		}
 	}
 
-	// Optional WITH LOCAL [RANGE] PARTITION
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
 		if p.cur.Type == kwLOCAL {
@@ -536,9 +646,15 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) *nodes.Crea
 				p.advance() // consume PARTITION
 			}
 		} else if p.isIdentLikeStr("SYSTEM") || p.cur.Type == kwUSER {
+			var parseErr430 error
 			// storage_table_clause
-			stmt.StorageTable = p.parseIdentifier()
-			// MANAGED STORAGE TABLES
+			stmt.StorageTable, parseErr430 = p.parseIdentifier()
+			if parseErr430 !=
+				// MANAGED STORAGE TABLES
+				nil {
+				return nil, parseErr430
+			}
+
 			if p.isIdentLikeStr("MANAGED") {
 				p.advance()
 			}
@@ -574,7 +690,11 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) *nodes.Crea
 				p.advance()
 			}
 		} else if p.isIdentLikeStr("SYSTEM") || p.cur.Type == kwUSER {
-			stmt.StorageTable = p.parseIdentifier()
+			var parseErr431 error
+			stmt.StorageTable, parseErr431 = p.parseIdentifier()
+			if parseErr431 != nil {
+				return nil, parseErr431
+			}
 			if p.isIdentLikeStr("MANAGED") {
 				p.advance()
 			}
@@ -596,18 +716,21 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) *nodes.Crea
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseIndextypeOperatorList parses operator list for CREATE INDEXTYPE.
 //
 //	[ schema. ] operator ( parameter_type [, parameter_type ]... )
 //	[, [ schema. ] operator ( parameter_type [, parameter_type ]... ) ]...
-func (p *Parser) parseIndextypeOperatorList() []*nodes.IndextypeOp {
+func (p *Parser) parseIndextypeOperatorList() ([]*nodes.IndextypeOp, error) {
 	var ops []*nodes.IndextypeOp
 	for {
-		op := p.parseIndextypeOp()
+		op, parseErr432 := p.parseIndextypeOp()
+		if parseErr432 != nil {
+			return nil, parseErr432
+		}
 		if op == nil {
 			break
 		}
@@ -617,16 +740,19 @@ func (p *Parser) parseIndextypeOperatorList() []*nodes.IndextypeOp {
 		}
 		p.advance() // consume ','
 	}
-	return ops
+	return ops, nil
 }
 
 // parseIndextypeOp parses a single operator with parameter types.
-func (p *Parser) parseIndextypeOp() *nodes.IndextypeOp {
+func (p *Parser) parseIndextypeOp() (*nodes.IndextypeOp, error) {
 	if !p.isIdentLike() {
-		return nil
+		return nil, nil
 	}
 	start := p.pos()
-	name := p.parseObjectName()
+	name, parseErr433 := p.parseObjectName()
+	if parseErr433 != nil {
+		return nil, parseErr433
+	}
 	op := &nodes.IndextypeOp{
 		Name: name,
 		Loc:  nodes.Loc{Start: start},
@@ -634,20 +760,27 @@ func (p *Parser) parseIndextypeOp() *nodes.IndextypeOp {
 	// ( parameter_type [, parameter_type ]... )
 	if p.cur.Type == '(' {
 		p.advance()
-		op.ParamTypes = p.parseTypeNameList()
+		var parseErr434 error
+		op.ParamTypes, parseErr434 = p.parseTypeNameList()
+		if parseErr434 != nil {
+			return nil, parseErr434
+		}
 		if p.cur.Type == ')' {
 			p.advance()
 		}
 	}
-	op.Loc.End = p.pos()
-	return op
+	op.Loc.End = p.prev.End
+	return op, nil
 }
 
 // parseTypeNameList parses a comma-separated list of type names.
-func (p *Parser) parseTypeNameList() []string {
+func (p *Parser) parseTypeNameList() ([]string, error) {
 	var types []string
 	for {
-		tn := p.parseTypeNameStr()
+		tn, parseErr435 := p.parseTypeNameStr()
+		if parseErr435 != nil {
+			return nil, parseErr435
+		}
 		if tn == "" {
 			break
 		}
@@ -657,21 +790,33 @@ func (p *Parser) parseTypeNameList() []string {
 		}
 		p.advance() // consume ','
 	}
-	return types
+	return types, nil
 }
 
 // parseTypeName parses a single type name (e.g. NUMBER, VARCHAR2, schema.type_name).
-func (p *Parser) parseTypeNameStr() string {
+func (p *Parser) parseTypeNameStr() (string, error) {
 	if !p.isIdentLike() {
-		return ""
+		return "", nil
 	}
-	name := p.parseIdentifier()
-	// Handle schema.type_name
+	name, parseErr436 := p.parseIdentifier()
+	if parseErr436 !=
+		// Handle schema.type_name
+		nil {
+		return "", parseErr436
+	}
+
 	if p.cur.Type == '.' {
 		p.advance()
-		name += "." + p.parseIdentifier()
+		parseValue63, parseErr64 := p.parseIdentifier()
+		if parseErr64 !=
+
+			// Handle parameterized types like VARCHAR2(100)
+			nil {
+			return "", parseErr64
+		}
+		name += "." + parseValue63
 	}
-	// Handle parameterized types like VARCHAR2(100)
+
 	if p.cur.Type == '(' {
 		name += "("
 		p.advance()
@@ -690,7 +835,7 @@ func (p *Parser) parseTypeNameStr() string {
 			p.advance()
 		}
 	}
-	return name
+	return name, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -710,7 +855,7 @@ func (p *Parser) parseTypeNameStr() string {
 //	    }
 //	    [ WITH LOCAL PARTITION ]
 //	    [ storage_table_clause ]
-func (p *Parser) parseAlterIndextypeStmt(start int) *nodes.AlterIndextypeStmt {
+func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, error) {
 	stmt := &nodes.AlterIndextypeStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -724,11 +869,17 @@ func (p *Parser) parseAlterIndextypeStmt(start int) *nodes.AlterIndextypeStmt {
 			p.advance() // consume EXISTS
 		}
 	}
+	var parseErr437 error
 
 	// Indextype name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr437 = p.parseObjectName()
+	if parseErr437 !=
 
-	// Action
+		// Action
+		nil {
+		return nil, parseErr437
+	}
+
 	if p.isIdentLikeStr("COMPILE") {
 		stmt.Action = "COMPILE"
 		p.advance()
@@ -739,7 +890,10 @@ func (p *Parser) parseAlterIndextypeStmt(start int) *nodes.AlterIndextypeStmt {
 			modStart := p.pos()
 			isAdd := p.cur.Type == kwADD
 			p.advance() // consume ADD/DROP
-			name := p.parseObjectName()
+			name, parseErr438 := p.parseObjectName()
+			if parseErr438 != nil {
+				return nil, parseErr438
+			}
 			mod := &nodes.IndextypeModOp{
 				Add:  isAdd,
 				Name: name,
@@ -747,12 +901,16 @@ func (p *Parser) parseAlterIndextypeStmt(start int) *nodes.AlterIndextypeStmt {
 			}
 			if p.cur.Type == '(' {
 				p.advance()
-				mod.ParamTypes = p.parseTypeNameList()
+				var parseErr439 error
+				mod.ParamTypes, parseErr439 = p.parseTypeNameList()
+				if parseErr439 != nil {
+					return nil, parseErr439
+				}
 				if p.cur.Type == ')' {
 					p.advance()
 				}
 			}
-			mod.Loc.End = p.pos()
+			mod.Loc.End = p.prev.End
 			stmt.Modifications = append(stmt.Modifications, mod)
 			if p.cur.Type == ',' {
 				p.advance()
@@ -760,9 +918,16 @@ func (p *Parser) parseAlterIndextypeStmt(start int) *nodes.AlterIndextypeStmt {
 		}
 		// Optional using_type_clause
 		if p.cur.Type == kwUSING {
-			p.advance() // consume USING
-			stmt.UsingType = p.parseObjectName()
-			// Optional array_DML_clause
+			p.advance()
+			var // consume USING
+			parseErr440 error
+			stmt.UsingType, parseErr440 = p.parseObjectName()
+			if parseErr440 !=
+				// Optional array_DML_clause
+				nil {
+				return nil, parseErr440
+			}
+
 			if p.cur.Type == kwWITH {
 				p.advance()
 				if p.isIdentLikeStr("ARRAY") {
@@ -787,7 +952,11 @@ func (p *Parser) parseAlterIndextypeStmt(start int) *nodes.AlterIndextypeStmt {
 				p.advance()
 			}
 		} else if p.isIdentLikeStr("SYSTEM") || p.cur.Type == kwUSER {
-			stmt.StorageTable = p.parseIdentifier()
+			var parseErr441 error
+			stmt.StorageTable, parseErr441 = p.parseIdentifier()
+			if parseErr441 != nil {
+				return nil, parseErr441
+			}
 			if p.isIdentLikeStr("MANAGED") {
 				p.advance()
 			}
@@ -802,8 +971,8 @@ func (p *Parser) parseAlterIndextypeStmt(start int) *nodes.AlterIndextypeStmt {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -819,21 +988,30 @@ func (p *Parser) parseAlterIndextypeStmt(start int) *nodes.AlterIndextypeStmt {
 //	    [ schema. ] operator
 //	    binding_clause
 //	    [ SHARING = { METADATA | NONE } ]
-func (p *Parser) parseCreateOperatorStmt(start int, orReplace bool, ifNotExists bool) *nodes.CreateOperatorStmt {
+func (p *Parser) parseCreateOperatorStmt(start int, orReplace bool, ifNotExists bool) (*nodes.CreateOperatorStmt, error) {
 	stmt := &nodes.CreateOperatorStmt{
 		OrReplace:   orReplace,
 		IfNotExists: ifNotExists,
 		Loc:         nodes.Loc{Start: start},
 	}
+	var parseErr442 error
 
 	// Operator name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr442 = p.parseObjectName()
+	if parseErr442 !=
 
-	// binding_clause: BINDING (types) RETURN type USING func
-	// There can be multiple bindings (comma-separated in the BNF for CREATE, but
-	// typically one binding per CREATE OPERATOR)
+		// binding_clause: BINDING (types) RETURN type USING func
+		// There can be multiple bindings (comma-separated in the BNF for CREATE, but
+		// typically one binding per CREATE OPERATOR)
+		nil {
+		return nil, parseErr442
+	}
+
 	if p.isIdentLikeStr("BINDING") {
-		binding := p.parseOperatorBinding()
+		binding, parseErr443 := p.parseOperatorBinding()
+		if parseErr443 != nil {
+			return nil, parseErr443
+		}
 		if binding != nil {
 			stmt.Bindings = append(stmt.Bindings, binding)
 		}
@@ -857,8 +1035,8 @@ func (p *Parser) parseCreateOperatorStmt(start int, orReplace bool, ifNotExists 
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseOperatorBinding parses a BINDING clause.
@@ -867,9 +1045,9 @@ func (p *Parser) parseCreateOperatorStmt(start int, orReplace bool, ifNotExists 
 //	    RETURN return_type
 //	    [ implementation_clause ]
 //	    using_function_clause
-func (p *Parser) parseOperatorBinding() *nodes.OperatorBinding {
+func (p *Parser) parseOperatorBinding() (*nodes.OperatorBinding, error) {
 	if !p.isIdentLikeStr("BINDING") {
-		return nil
+		return nil, nil
 	}
 	start := p.pos()
 	p.advance() // consume BINDING
@@ -882,7 +1060,11 @@ func (p *Parser) parseOperatorBinding() *nodes.OperatorBinding {
 	if p.cur.Type == '(' {
 		p.advance()
 		if p.cur.Type != ')' {
-			binding.ParamTypes = p.parseTypeNameList()
+			var parseErr444 error
+			binding.ParamTypes, parseErr444 = p.parseTypeNameList()
+			if parseErr444 != nil {
+				return nil, parseErr444
+			}
 		}
 		if p.cur.Type == ')' {
 			p.advance()
@@ -895,26 +1077,44 @@ func (p *Parser) parseOperatorBinding() *nodes.OperatorBinding {
 		// Return type may be in parens: RETURN ( datatype )
 		if p.cur.Type == '(' {
 			p.advance()
-			binding.ReturnType = p.parseTypeNameStr()
+			var parseErr445 error
+			binding.ReturnType, parseErr445 = p.parseTypeNameStr()
+			if parseErr445 != nil {
+				return nil, parseErr445
+			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}
 		} else {
-			binding.ReturnType = p.parseTypeNameStr()
+			var parseErr446 error
+			binding.ReturnType, parseErr446 = p.parseTypeNameStr()
+			if parseErr446 !=
+
+				// Optional implementation_clause
+				// { ANCILLARY TO primary_operator (types) | context_clause }
+				nil {
+				return nil, parseErr446
+			}
 		}
 	}
 
-	// Optional implementation_clause
-	// { ANCILLARY TO primary_operator (types) | context_clause }
 	if p.isIdentLikeStr("ANCILLARY") {
 		p.advance() // consume ANCILLARY
 		if p.cur.Type == kwTO {
 			p.advance() // consume TO
 		}
-		binding.AncillaryTo = p.parseObjectName()
+		var parseErr447 error
+		binding.AncillaryTo, parseErr447 = p.parseObjectName()
+		if parseErr447 != nil {
+			return nil, parseErr447
+		}
 		if p.cur.Type == '(' {
 			p.advance()
-			binding.AncillaryParams = p.parseTypeNameList()
+			var parseErr448 error
+			binding.AncillaryParams, parseErr448 = p.parseTypeNameList()
+			if parseErr448 != nil {
+				return nil, parseErr448
+			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}
@@ -936,7 +1136,11 @@ func (p *Parser) parseOperatorBinding() *nodes.OperatorBinding {
 				if p.isIdentLikeStr("CONTEXT") {
 					p.advance() // consume CONTEXT
 				}
-				binding.ScanCtxType = p.parseIdentifier()
+				var parseErr449 error
+				binding.ScanCtxType, parseErr449 = p.parseIdentifier()
+				if parseErr449 != nil {
+					return nil, parseErr449
+				}
 			}
 		} else if p.isIdentLikeStr("COLUMN") {
 			binding.WithColumnCtx = true
@@ -973,12 +1177,17 @@ func (p *Parser) parseOperatorBinding() *nodes.OperatorBinding {
 
 	// USING function
 	if p.cur.Type == kwUSING {
-		p.advance() // consume USING
-		binding.UsingFunc = p.parseObjectName()
+		p.advance()
+		var // consume USING
+		parseErr450 error
+		binding.UsingFunc, parseErr450 = p.parseObjectName()
+		if parseErr450 != nil {
+			return nil, parseErr450
+		}
 	}
 
-	binding.Loc.End = p.pos()
-	return binding
+	binding.Loc.End = p.prev.End
+	return binding, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -995,7 +1204,7 @@ func (p *Parser) parseOperatorBinding() *nodes.OperatorBinding {
 //	    | drop_binding_clause
 //	    | COMPILE
 //	    }
-func (p *Parser) parseAlterOperatorStmt(start int) *nodes.AlterOperatorStmt {
+func (p *Parser) parseAlterOperatorStmt(start int) (*nodes.AlterOperatorStmt, error) {
 	stmt := &nodes.AlterOperatorStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -1009,11 +1218,17 @@ func (p *Parser) parseAlterOperatorStmt(start int) *nodes.AlterOperatorStmt {
 			p.advance() // consume EXISTS
 		}
 	}
+	var parseErr451 error
 
 	// Operator name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr451 = p.parseObjectName()
+	if parseErr451 !=
 
-	// Action
+		// Action
+		nil {
+		return nil, parseErr451
+	}
+
 	switch {
 	case p.isIdentLikeStr("COMPILE"):
 		stmt.Action = "COMPILE"
@@ -1021,7 +1236,10 @@ func (p *Parser) parseAlterOperatorStmt(start int) *nodes.AlterOperatorStmt {
 	case p.cur.Type == kwADD:
 		stmt.Action = "ADD_BINDING"
 		p.advance() // consume ADD
-		binding := p.parseOperatorBinding()
+		binding, parseErr452 := p.parseOperatorBinding()
+		if parseErr452 != nil {
+			return nil, parseErr452
+		}
 		stmt.Binding = binding
 	case p.cur.Type == kwDROP:
 		stmt.Action = "DROP_BINDING"
@@ -1032,7 +1250,11 @@ func (p *Parser) parseAlterOperatorStmt(start int) *nodes.AlterOperatorStmt {
 		// ( datatype [, datatype ]... )
 		if p.cur.Type == '(' {
 			p.advance()
-			stmt.DropTypes = p.parseTypeNameList()
+			var parseErr453 error
+			stmt.DropTypes, parseErr453 = p.parseTypeNameList()
+			if parseErr453 != nil {
+				return nil, parseErr453
+			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}
@@ -1044,6 +1266,6 @@ func (p *Parser) parseAlterOperatorStmt(start int) *nodes.AlterOperatorStmt {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }

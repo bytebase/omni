@@ -79,7 +79,7 @@ import (
 //	    LOG ERRORS [ INTO [ schema. ] table ]
 //	    [ ( simple_expression ) ]
 //	    [ REJECT LIMIT { integer | UNLIMITED } ]
-func (p *Parser) parseInsertStmt() *nodes.InsertStmt {
+func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 	start := p.pos()
 	stmt := &nodes.InsertStmt{
 		Loc: nodes.Loc{Start: start},
@@ -92,7 +92,7 @@ func (p *Parser) parseInsertStmt() *nodes.InsertStmt {
 		stmt.Hints = &nodes.List{}
 		stmt.Hints.Items = append(stmt.Hints.Items, &nodes.Hint{
 			Text: p.cur.Str,
-			Loc:  nodes.Loc{Start: p.pos(), End: p.pos()},
+			Loc:  nodes.Loc{Start: p.pos(), End: p.prev.End},
 		})
 		p.advance()
 	}
@@ -136,37 +136,71 @@ func (p *Parser) parseInsertStmt() *nodes.InsertStmt {
 
 	// Table name
 	if p.isIdentLike() {
-		stmt.Table = p.parseObjectName()
+		var parseErr775 error
+		stmt.Table, parseErr775 = p.parseObjectName()
+		if parseErr775 !=
+
+			// Partition extension clause
+			nil {
+			return nil, parseErr775
+		}
 	}
 
-	// Partition extension clause
 	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
-		stmt.PartitionExt = p.parsePartitionExtClause()
+		var parseErr776 error
+		stmt.PartitionExt, parseErr776 = p.parsePartitionExtClause()
+		if parseErr776 !=
+
+			// @dblink
+			nil {
+			return nil, parseErr776
+		}
 	}
 
-	// @dblink
 	if p.cur.Type == '@' {
 		p.advance()
-		stmt.Dblink = p.parseIdentifier()
+		var parseErr777 error
+		stmt.Dblink, parseErr777 = p.parseIdentifier()
+		if parseErr777 !=
+
+			// Optional alias
+			nil {
+			return nil, parseErr777
+		}
 	}
 
-	// Optional alias
 	if p.isTableAliasCandidate() {
-		stmt.Alias = &nodes.Alias{Name: p.parseIdentifier()}
+		var parseErr778 error
+		stmt.Alias, parseErr778 = p.parseAlias()
+		if parseErr778 !=
+
+			// Optional column list
+			nil {
+			return nil, parseErr778
+		}
 	}
 
-	// Optional column list
 	if p.cur.Type == '(' {
-		stmt.Columns = p.parseParenColumnList()
+		var parseErr779 error
+		stmt.Columns, parseErr779 = p.parseParenColumnList()
+		if parseErr779 !=
+
+			// VALUES (...) or subquery or SET or BY NAME/POSITION
+			nil {
+			return nil, parseErr779
+		}
 	}
 
-	// VALUES (...) or subquery or SET or BY NAME/POSITION
 	switch {
 	case p.cur.Type == kwVALUES:
 		p.advance()
 		if p.cur.Type == '(' {
 			p.advance()
-			stmt.Values = p.parseExprList()
+			var parseErr780 error
+			stmt.Values, parseErr780 = p.parseExprList()
+			if parseErr780 != nil {
+				return nil, parseErr780
+			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}
@@ -174,9 +208,15 @@ func (p *Parser) parseInsertStmt() *nodes.InsertStmt {
 	case p.cur.Type == kwSET:
 		// INSERT ... SET col = expr, ...
 		p.advance()
-		stmt.SetClauses = p.parseSetClauses()
+		var parseErr781 error
+		stmt.SetClauses, parseErr781 = p.parseSetClauses()
+		if parseErr781 != nil {
+			return nil, parseErr781
+
+			// BY { NAME | POSITION } subquery
+		}
 	case p.cur.Type == kwBY:
-		// BY { NAME | POSITION } subquery
+
 		p.advance()
 		if p.cur.Type == kwNAME {
 			stmt.ByName = true
@@ -186,47 +226,74 @@ func (p *Parser) parseInsertStmt() *nodes.InsertStmt {
 			p.advance()
 		}
 		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH || p.cur.Type == '(' {
-			stmt.Select = p.parseSelectStmt()
+			var parseErr782 error
+			stmt.Select, parseErr782 = p.parseSelectStmt()
+			if parseErr782 != nil {
+				return nil, parseErr782
+			}
 		}
 	case p.cur.Type == kwSELECT || p.cur.Type == kwWITH || p.cur.Type == '(':
-		stmt.Select = p.parseSelectStmt()
+		var parseErr783 error
+		stmt.Select, parseErr783 = p.parseSelectStmt()
+		if parseErr783 !=
+
+			// RETURNING / RETURN clause
+			nil {
+			return nil, parseErr783
+		}
 	}
 
-	// RETURNING / RETURN clause
 	if p.cur.Type == kwRETURNING || p.cur.Type == kwRETURN {
-		stmt.Returning = p.parseReturningClause()
+		var parseErr784 error
+		stmt.Returning, parseErr784 = p.parseReturningClause()
+		if parseErr784 !=
+
+			// LOG ERRORS clause
+			nil {
+			return nil, parseErr784
+		}
 	}
 
-	// LOG ERRORS clause
 	if p.cur.Type == kwLOG {
-		stmt.ErrorLog = p.parseErrorLogClause()
+		var parseErr785 error
+		stmt.ErrorLog, parseErr785 = p.parseErrorLogClause()
+		if parseErr785 != nil {
+			return nil, parseErr785
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseMultiTableInsert parses INSERT ALL unconditional multi-table inserts.
 //
 //	ALL into_clause [ values_clause ] [, into_clause [ values_clause ] ]...
 //	subquery
-func (p *Parser) parseMultiTableInsert(stmt *nodes.InsertStmt, insertType nodes.InsertType) *nodes.InsertStmt {
+func (p *Parser) parseMultiTableInsert(stmt *nodes.InsertStmt, insertType nodes.InsertType) (*nodes.InsertStmt, error) {
 	stmt.InsertType = insertType
 	stmt.MultiTable = &nodes.List{}
 
 	// ALL: INTO ... INTO ... subquery
 	for p.cur.Type == kwINTO {
-		clause := p.parseInsertIntoClause()
+		clause, parseErr786 := p.parseInsertIntoClause()
+		if parseErr786 != nil {
+			return nil, parseErr786
+		}
 		stmt.MultiTable.Items = append(stmt.MultiTable.Items, clause)
 	}
 
 	// Trailing subquery
 	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH || p.cur.Type == '(' {
-		stmt.Subquery = p.parseSelectStmt()
+		var parseErr787 error
+		stmt.Subquery, parseErr787 = p.parseSelectStmt()
+		if parseErr787 != nil {
+			return nil, parseErr787
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseConditionalInsert parses conditional INSERT (WHEN ... THEN INTO ...).
@@ -243,19 +310,25 @@ func (p *Parser) parseMultiTableInsert(stmt *nodes.InsertStmt, insertType nodes.
 //	        into_clause [ values_clause ]
 //	        [, into_clause [ values_clause ] ]... ]
 //	    subquery
-func (p *Parser) parseConditionalInsert(stmt *nodes.InsertStmt, insertType nodes.InsertType) *nodes.InsertStmt {
+func (p *Parser) parseConditionalInsert(stmt *nodes.InsertStmt, insertType nodes.InsertType) (*nodes.InsertStmt, error) {
 	stmt.InsertType = insertType
 	stmt.MultiTable = &nodes.List{}
 
 	for p.cur.Type == kwWHEN {
 		p.advance() // consume WHEN
-		cond := p.parseExpr()
+		cond, parseErr788 := p.parseExpr()
+		if parseErr788 != nil {
+			return nil, parseErr788
+		}
 		if p.cur.Type == kwTHEN {
 			p.advance()
 		}
 		// One or more INTO clauses after THEN
 		for p.cur.Type == kwINTO {
-			clause := p.parseInsertIntoClause()
+			clause, parseErr789 := p.parseInsertIntoClause()
+			if parseErr789 != nil {
+				return nil, parseErr789
+			}
 			clause.When = cond
 			stmt.MultiTable.Items = append(stmt.MultiTable.Items, clause)
 		}
@@ -264,26 +337,35 @@ func (p *Parser) parseConditionalInsert(stmt *nodes.InsertStmt, insertType nodes
 	if p.cur.Type == kwELSE {
 		p.advance()
 		for p.cur.Type == kwINTO {
-			clause := p.parseInsertIntoClause()
-			// When is nil for ELSE clauses
+			clause, parseErr790 := p.parseInsertIntoClause()
+			if parseErr790 !=
+				// When is nil for ELSE clauses
+				nil {
+				return nil, parseErr790
+			}
+
 			stmt.MultiTable.Items = append(stmt.MultiTable.Items, clause)
 		}
 	}
 
 	// Trailing subquery
 	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH || p.cur.Type == '(' {
-		stmt.Subquery = p.parseSelectStmt()
+		var parseErr791 error
+		stmt.Subquery, parseErr791 = p.parseSelectStmt()
+		if parseErr791 != nil {
+			return nil, parseErr791
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseInsertIntoClause parses a single INTO clause for multi-table INSERT.
 //
 //	INTO [ schema. ] { table | view } [ ( column [, column ]... ) ]
 //	[ VALUES ( expr, ... ) ]
-func (p *Parser) parseInsertIntoClause() *nodes.InsertIntoClause {
+func (p *Parser) parseInsertIntoClause() (*nodes.InsertIntoClause, error) {
 	start := p.pos()
 	clause := &nodes.InsertIntoClause{
 		Loc: nodes.Loc{Start: start},
@@ -293,32 +375,48 @@ func (p *Parser) parseInsertIntoClause() *nodes.InsertIntoClause {
 
 	// Table name
 	if p.isIdentLike() {
-		clause.Table = p.parseObjectName()
+		var parseErr792 error
+		clause.Table, parseErr792 = p.parseObjectName()
+		if parseErr792 !=
+
+			// Optional column list
+			nil {
+			return nil, parseErr792
+		}
 	}
 
-	// Optional column list
 	if p.cur.Type == '(' {
-		clause.Columns = p.parseParenColumnList()
+		var parseErr793 error
+		clause.Columns, parseErr793 = p.parseParenColumnList()
+		if parseErr793 !=
+
+			// VALUES (...)
+			nil {
+			return nil, parseErr793
+		}
 	}
 
-	// VALUES (...)
 	if p.cur.Type == kwVALUES {
 		p.advance()
 		if p.cur.Type == '(' {
 			p.advance()
-			clause.Values = p.parseExprList()
+			var parseErr794 error
+			clause.Values, parseErr794 = p.parseExprList()
+			if parseErr794 != nil {
+				return nil, parseErr794
+			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}
 		}
 	}
 
-	clause.Loc.End = p.pos()
-	return clause
+	clause.Loc.End = p.prev.End
+	return clause, nil
 }
 
 // parseParenColumnList parses ( col1, col2, ... ) as a list of ColumnRef nodes.
-func (p *Parser) parseParenColumnList() *nodes.List {
+func (p *Parser) parseParenColumnList() (*nodes.List, error) {
 	p.advance() // consume '('
 	list := &nodes.List{}
 	for {
@@ -326,10 +424,13 @@ func (p *Parser) parseParenColumnList() *nodes.List {
 			break
 		}
 		colStart := p.pos()
-		name := p.parseIdentifier()
+		name, parseErr795 := p.parseIdentifier()
+		if parseErr795 != nil {
+			return nil, parseErr795
+		}
 		list.Items = append(list.Items, &nodes.ColumnRef{
 			Column: name,
-			Loc:    nodes.Loc{Start: colStart, End: p.pos()},
+			Loc:    nodes.Loc{Start: colStart, End: p.prev.End},
 		})
 		if p.cur.Type != ',' {
 			break
@@ -339,7 +440,7 @@ func (p *Parser) parseParenColumnList() *nodes.List {
 	if p.cur.Type == ')' {
 		p.advance()
 	}
-	return list
+	return list, nil
 }
 
 // parseReturningClause parses RETURNING/RETURN expr [, ...] INTO bind [, ...].
@@ -347,17 +448,27 @@ func (p *Parser) parseParenColumnList() *nodes.List {
 //	returning_clause::=
 //	    { RETURNING | RETURN } expr [, expr ]...
 //	    INTO data_item [, data_item ]...
-func (p *Parser) parseReturningClause() *nodes.List {
+func (p *Parser) parseReturningClause() (*nodes.List, error) {
 	p.advance() // consume RETURNING or RETURN
-	list := p.parseExprList()
-	// INTO bind variables
+	list, parseErr796 := p.parseExprList()
+	if parseErr796 !=
+		// INTO bind variables
+		nil {
+		return nil, parseErr796
+	}
+
 	if p.cur.Type == kwINTO {
 		p.advance()
-		binds := p.parseExprList()
-		// Append the INTO targets to the returning list
+		binds, parseErr797 := p.parseExprList()
+		if parseErr797 !=
+			// Append the INTO targets to the returning list
+			nil {
+			return nil, parseErr797
+		}
+
 		list.Items = append(list.Items, binds.Items...)
 	}
-	return list
+	return list, nil
 }
 
 // parseErrorLogClause parses LOG ERRORS [INTO table] [(tag)] [REJECT LIMIT {n|UNLIMITED}].
@@ -366,7 +477,7 @@ func (p *Parser) parseReturningClause() *nodes.List {
 //	    LOG ERRORS [ INTO [ schema. ] table ]
 //	    [ ( simple_expression ) ]
 //	    [ REJECT LIMIT { integer | UNLIMITED } ]
-func (p *Parser) parseErrorLogClause() *nodes.ErrorLogClause {
+func (p *Parser) parseErrorLogClause() (*nodes.ErrorLogClause, error) {
 	start := p.pos()
 	p.advance() // consume LOG
 
@@ -382,14 +493,24 @@ func (p *Parser) parseErrorLogClause() *nodes.ErrorLogClause {
 	if p.cur.Type == kwINTO {
 		p.advance()
 		if p.isIdentLike() {
-			elc.Into = p.parseObjectName()
+			var parseErr798 error
+			elc.Into, parseErr798 = p.parseObjectName()
+			if parseErr798 !=
+
+				// ( tag )
+				nil {
+				return nil, parseErr798
+			}
 		}
 	}
 
-	// ( tag )
 	if p.cur.Type == '(' {
 		p.advance()
-		elc.Tag = p.parseExpr()
+		var parseErr799 error
+		elc.Tag, parseErr799 = p.parseExpr()
+		if parseErr799 != nil {
+			return nil, parseErr799
+		}
 		if p.cur.Type == ')' {
 			p.advance()
 		}
@@ -401,9 +522,13 @@ func (p *Parser) parseErrorLogClause() *nodes.ErrorLogClause {
 		if p.cur.Type == kwLIMIT {
 			p.advance()
 		}
-		elc.Reject = p.parseExpr()
+		var parseErr800 error
+		elc.Reject, parseErr800 = p.parseExpr()
+		if parseErr800 != nil {
+			return nil, parseErr800
+		}
 	}
 
-	elc.Loc.End = p.pos()
-	return elc
+	elc.Loc.End = p.prev.End
+	return elc, nil
 }

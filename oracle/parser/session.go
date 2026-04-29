@@ -14,7 +14,7 @@ import (
 //	    | ALL [ EXCEPT role [, role ]... ]
 //	    | NONE
 //	    } ;
-func (p *Parser) parseSetRoleStmt() nodes.StmtNode {
+func (p *Parser) parseSetRoleStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume SET
 	p.advance() // consume ROLE
@@ -27,8 +27,8 @@ func (p *Parser) parseSetRoleStmt() nodes.StmtNode {
 	if p.isIdentLike() && p.cur.Str == "NONE" {
 		stmt.None = true
 		p.advance()
-		stmt.Loc.End = p.pos()
-		return stmt
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
 	// ALL [EXCEPT role [,...]]
@@ -38,7 +38,10 @@ func (p *Parser) parseSetRoleStmt() nodes.StmtNode {
 		if p.cur.Type == kwEXCEPT {
 			p.advance()
 			for {
-				name := p.parseObjectName()
+				name, parseErr1110 := p.parseObjectName()
+				if parseErr1110 != nil {
+					return nil, parseErr1110
+				}
 				if name != nil {
 					stmt.Except = append(stmt.Except, name)
 				}
@@ -48,13 +51,16 @@ func (p *Parser) parseSetRoleStmt() nodes.StmtNode {
 				p.advance()
 			}
 		}
-		stmt.Loc.End = p.pos()
-		return stmt
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
 	// role [IDENTIFIED BY password] [,...]
 	for {
-		name := p.parseObjectName()
+		name, parseErr1111 := p.parseObjectName()
+		if parseErr1111 != nil {
+			return nil, parseErr1111
+		}
 		if name != nil {
 			stmt.Roles = append(stmt.Roles, name)
 		}
@@ -73,8 +79,8 @@ func (p *Parser) parseSetRoleStmt() nodes.StmtNode {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseSetConstraintsStmt parses a SET CONSTRAINT(S) statement.
@@ -84,7 +90,7 @@ func (p *Parser) parseSetRoleStmt() nodes.StmtNode {
 //	SET { CONSTRAINT | CONSTRAINTS }
 //	    { ALL | constraint [, constraint ]... }
 //	    { IMMEDIATE | DEFERRED } ;
-func (p *Parser) parseSetConstraintsStmt() nodes.StmtNode {
+func (p *Parser) parseSetConstraintsStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume SET
 	p.advance() // consume CONSTRAINT or CONSTRAINTS
@@ -99,7 +105,10 @@ func (p *Parser) parseSetConstraintsStmt() nodes.StmtNode {
 		p.advance()
 	} else {
 		for {
-			name := p.parseObjectName()
+			name, parseErr1112 := p.parseObjectName()
+			if parseErr1112 != nil {
+				return nil, parseErr1112
+			}
 			if name != nil {
 				stmt.Constraints = append(stmt.Constraints, name)
 			}
@@ -118,6 +127,6 @@ func (p *Parser) parseSetConstraintsStmt() nodes.StmtNode {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }

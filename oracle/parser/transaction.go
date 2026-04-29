@@ -12,7 +12,7 @@ import (
 //	    [ COMMENT 'text' ]
 //	    [ WRITE [ WAIT | NOWAIT ] [ IMMEDIATE | BATCH ] ]
 //	    [ FORCE 'string' [, integer ] ] ;
-func (p *Parser) parseCommitStmt() nodes.StmtNode {
+func (p *Parser) parseCommitStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume COMMIT
 
@@ -65,14 +65,18 @@ func (p *Parser) parseCommitStmt() nodes.StmtNode {
 		if p.cur.Type == ',' {
 			p.advance()
 			if p.cur.Type == tokICONST {
-				stmt.ForceInteger = p.parseIntValue()
+				var parseErr1113 error
+				stmt.ForceInteger, parseErr1113 = p.parseIntValue()
+				if parseErr1113 != nil {
+					return nil, parseErr1113
+				}
 				stmt.HasForceInt = true
 			}
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseRollbackStmt parses a ROLLBACK statement.
@@ -83,7 +87,7 @@ func (p *Parser) parseCommitStmt() nodes.StmtNode {
 //	    [ TO [ SAVEPOINT ] savepoint_name
 //	    | FORCE 'string'
 //	    ] ;
-func (p *Parser) parseRollbackStmt() nodes.StmtNode {
+func (p *Parser) parseRollbackStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume ROLLBACK
 
@@ -103,10 +107,16 @@ func (p *Parser) parseRollbackStmt() nodes.StmtNode {
 		if p.cur.Type == kwSAVEPOINT {
 			p.advance() // consume SAVEPOINT
 		}
-		stmt.ToSavepoint = p.parseIdentifier()
+		var parseErr1114 error
+		stmt.ToSavepoint, parseErr1114 = p.parseIdentifier()
+		if parseErr1114 !=
+
+			// Optional FORCE 'text'
+			nil {
+			return nil, parseErr1114
+		}
 	}
 
-	// Optional FORCE 'text'
 	if p.cur.Type == kwFORCE {
 		p.advance() // consume FORCE
 		if p.cur.Type == tokSCONST {
@@ -115,8 +125,8 @@ func (p *Parser) parseRollbackStmt() nodes.StmtNode {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseSavepointStmt parses a SAVEPOINT statement.
@@ -124,17 +134,21 @@ func (p *Parser) parseRollbackStmt() nodes.StmtNode {
 // BNF: oracle/parser/bnf/SAVEPOINT.bnf
 //
 //	SAVEPOINT savepoint_name ;
-func (p *Parser) parseSavepointStmt() nodes.StmtNode {
+func (p *Parser) parseSavepointStmt() (nodes.StmtNode, error) {
 	start := p.pos()
-	p.advance() // consume SAVEPOINT
-
+	p.advance()
+	parseValue93, // consume SAVEPOINT
+		parseErr94 := p.parseIdentifier()
+	if parseErr94 != nil {
+		return nil, parseErr94
+	}
 	stmt := &nodes.SavepointStmt{
-		Name: p.parseIdentifier(),
+		Name: parseValue93,
 		Loc:  nodes.Loc{Start: start},
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseSetTransactionStmt parses a SET TRANSACTION statement.
@@ -147,7 +161,7 @@ func (p *Parser) parseSavepointStmt() nodes.StmtNode {
 //	    | USE ROLLBACK SEGMENT rollback_segment
 //	    | NAME 'string'
 //	    }... ;
-func (p *Parser) parseSetTransactionStmt() nodes.StmtNode {
+func (p *Parser) parseSetTransactionStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	// SET and TRANSACTION already consumed by the dispatcher
 	// p.advance() for SET is done in parseStmt; TRANSACTION consumed there too
@@ -193,8 +207,12 @@ func (p *Parser) parseSetTransactionStmt() nodes.StmtNode {
 					if p.isIdentLike() && p.cur.Str == "SEGMENT" {
 						p.advance() // consume SEGMENT
 					}
+					var parseErr1115 error
 					// segment_name
-					stmt.UseRollbackSegment = p.parseIdentifier()
+					stmt.UseRollbackSegment, parseErr1115 = p.parseIdentifier()
+					if parseErr1115 != nil {
+						return nil, parseErr1115
+					}
 				}
 			} else if p.isIdentLike() && p.cur.Str == "NAME" {
 				// Check for NAME 'text' (NAME is an identifier, not a keyword)
@@ -210,6 +228,6 @@ func (p *Parser) parseSetTransactionStmt() nodes.StmtNode {
 	}
 
 done:
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }

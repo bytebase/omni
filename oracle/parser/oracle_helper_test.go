@@ -16,8 +16,9 @@ import (
 
 // oracleDB wraps a real Oracle Database container connection for cross-validation testing.
 type oracleDB struct {
-	db  *sql.DB
-	ctx context.Context
+	db      *sql.DB
+	adminDB *sql.DB
+	ctx     context.Context
 }
 
 var (
@@ -42,8 +43,8 @@ func startOracleDB(t *testing.T) *oracleDB {
 			Image:        "gvenzl/oracle-free:23-slim-faststart",
 			ExposedPorts: []string{"1521/tcp"},
 			Env: map[string]string{
-				"ORACLE_PASSWORD": "testpass",
-				"APP_USER":        "testuser",
+				"ORACLE_PASSWORD":   "testpass",
+				"APP_USER":          "testuser",
 				"APP_USER_PASSWORD": "testpass",
 			},
 			WaitingFor: wait.ForLog("DATABASE IS READY TO USE!").
@@ -89,8 +90,15 @@ func startOracleDB(t *testing.T) *oracleDB {
 			oracleInitErr = fmt.Errorf("failed to ping Oracle database: %w", err)
 			return
 		}
+		adminDB, err := openOracleAdminDB(ctx, host, mappedPort.Port())
+		if err != nil {
+			db.Close()
+			_ = testcontainers.TerminateContainer(container)
+			oracleInitErr = fmt.Errorf("failed to open Oracle admin database: %w", err)
+			return
+		}
 
-		oracleInst = &oracleDB{db: db, ctx: ctx}
+		oracleInst = &oracleDB{db: db, adminDB: adminDB, ctx: ctx}
 		setupOracleSchema(oracleInst)
 		// Container cleanup happens when the process exits.
 	})
@@ -99,6 +107,19 @@ func startOracleDB(t *testing.T) *oracleDB {
 		t.Fatalf("Oracle container not available: %v", oracleInitErr)
 	}
 	return oracleInst
+}
+
+func openOracleAdminDB(ctx context.Context, host, port string) (*sql.DB, error) {
+	connStr := fmt.Sprintf("oracle://system:testpass@%s:%s/FREEPDB1", host, port)
+	db, err := sql.Open("oracle", connStr)
+	if err != nil {
+		return nil, err
+	}
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return nil, err
+	}
+	return db, nil
 }
 
 // canExecute checks whether Oracle DB accepts the given SQL statement.
@@ -176,6 +197,18 @@ func setupOracleSchema(o *oracleDB) {
 			customer_id NUMBER REFERENCES customers(customer_id),
 			order_date DATE,
 			amount NUMBER(10,2)
+		)`,
+		`CREATE TABLE t (
+			id NUMBER,
+			a NUMBER,
+			b NUMBER,
+			c NUMBER,
+			x NUMBER,
+			doc CLOB
+		)`,
+		`CREATE TABLE s (
+			id NUMBER,
+			x NUMBER
 		)`,
 		// Tables referenced in DML corpus
 		`CREATE TABLE emp_backup AS SELECT * FROM employees WHERE 1=0`,

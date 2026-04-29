@@ -8,7 +8,10 @@ import (
 
 func TestParseCreateIndex(t *testing.T) {
 	p := newTestParser("INDEX idx_emp_name ON employees (last_name)")
-	stmt := p.parseCreateIndexStmt(0)
+	stmt, parseErr1 := p.parseCreateIndexStmt(0)
+	if parseErr1 != nil {
+		t.Fatalf("parse: %v", parseErr1)
+	}
 	if stmt == nil {
 		t.Fatal("expected CreateIndexStmt, got nil")
 	}
@@ -30,7 +33,10 @@ func TestParseCreateIndex(t *testing.T) {
 
 func TestParseCreateUniqueIndex(t *testing.T) {
 	p := newTestParser("UNIQUE INDEX idx_emp_id ON hr.employees (employee_id)")
-	stmt := p.parseCreateIndexStmt(0)
+	stmt, parseErr2 := p.parseCreateIndexStmt(0)
+	if parseErr2 != nil {
+		t.Fatalf("parse: %v", parseErr2)
+	}
 	if !stmt.Unique {
 		t.Error("expected Unique to be true")
 	}
@@ -44,7 +50,10 @@ func TestParseCreateUniqueIndex(t *testing.T) {
 
 func TestParseCreateBitmapIndex(t *testing.T) {
 	p := newTestParser("BITMAP INDEX idx_status ON orders (status)")
-	stmt := p.parseCreateIndexStmt(0)
+	stmt, parseErr3 := p.parseCreateIndexStmt(0)
+	if parseErr3 != nil {
+		t.Fatalf("parse: %v", parseErr3)
+	}
 	if !stmt.Bitmap {
 		t.Error("expected Bitmap to be true")
 	}
@@ -52,7 +61,10 @@ func TestParseCreateBitmapIndex(t *testing.T) {
 
 func TestParseCreateIndexMultiColumn(t *testing.T) {
 	p := newTestParser("INDEX idx_multi ON t (a ASC, b DESC)")
-	stmt := p.parseCreateIndexStmt(0)
+	stmt, parseErr4 := p.parseCreateIndexStmt(0)
+	if parseErr4 != nil {
+		t.Fatalf("parse: %v", parseErr4)
+	}
 	if stmt.Columns == nil || stmt.Columns.Len() != 2 {
 		t.Fatalf("expected 2 columns, got %d", stmt.Columns.Len())
 	}
@@ -68,7 +80,10 @@ func TestParseCreateIndexMultiColumn(t *testing.T) {
 
 func TestParseCreateIndexReverse(t *testing.T) {
 	p := newTestParser("INDEX idx_rev ON t (a) REVERSE")
-	stmt := p.parseCreateIndexStmt(0)
+	stmt, parseErr5 := p.parseCreateIndexStmt(0)
+	if parseErr5 != nil {
+		t.Fatalf("parse: %v", parseErr5)
+	}
 	if !stmt.Reverse {
 		t.Error("expected Reverse to be true")
 	}
@@ -76,7 +91,10 @@ func TestParseCreateIndexReverse(t *testing.T) {
 
 func TestParseCreateIndexTablespace(t *testing.T) {
 	p := newTestParser("INDEX idx_ts ON t (a) TABLESPACE users")
-	stmt := p.parseCreateIndexStmt(0)
+	stmt, parseErr6 := p.parseCreateIndexStmt(0)
+	if parseErr6 != nil {
+		t.Fatalf("parse: %v", parseErr6)
+	}
 	if stmt.Tablespace != "USERS" {
 		t.Errorf("expected tablespace USERS, got %q", stmt.Tablespace)
 	}
@@ -84,7 +102,10 @@ func TestParseCreateIndexTablespace(t *testing.T) {
 
 func TestParseCreateIndexLocal(t *testing.T) {
 	p := newTestParser("INDEX idx_local ON t (a) LOCAL")
-	stmt := p.parseCreateIndexStmt(0)
+	stmt, parseErr7 := p.parseCreateIndexStmt(0)
+	if parseErr7 != nil {
+		t.Fatalf("parse: %v", parseErr7)
+	}
 	if !stmt.Local {
 		t.Error("expected Local to be true")
 	}
@@ -92,7 +113,10 @@ func TestParseCreateIndexLocal(t *testing.T) {
 
 func TestParseCreateIndexGlobal(t *testing.T) {
 	p := newTestParser("INDEX idx_global ON t (a) GLOBAL")
-	stmt := p.parseCreateIndexStmt(0)
+	stmt, parseErr8 := p.parseCreateIndexStmt(0)
+	if parseErr8 != nil {
+		t.Fatalf("parse: %v", parseErr8)
+	}
 	if !stmt.Global {
 		t.Error("expected Global to be true")
 	}
@@ -100,7 +124,10 @@ func TestParseCreateIndexGlobal(t *testing.T) {
 
 func TestParseCreateIndexOnline(t *testing.T) {
 	p := newTestParser("INDEX idx_online ON t (a) ONLINE")
-	stmt := p.parseCreateIndexStmt(0)
+	stmt, parseErr9 := p.parseCreateIndexStmt(0)
+	if parseErr9 != nil {
+		t.Fatalf("parse: %v", parseErr9)
+	}
 	if !stmt.Online {
 		t.Error("expected Online to be true")
 	}
@@ -108,7 +135,10 @@ func TestParseCreateIndexOnline(t *testing.T) {
 
 func TestParseCreateIndexLoc(t *testing.T) {
 	p := newTestParser("INDEX idx ON t (a)")
-	stmt := p.parseCreateIndexStmt(0)
+	stmt, parseErr10 := p.parseCreateIndexStmt(0)
+	if parseErr10 != nil {
+		t.Fatalf("parse: %v", parseErr10)
+	}
 	if stmt.Loc.Start != 0 {
 		t.Errorf("expected Loc.Start=0, got %d", stmt.Loc.Start)
 	}

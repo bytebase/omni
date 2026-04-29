@@ -60,7 +60,18 @@ func walkNodeLocs(v reflect.Value, path string, violations *[]LocViolation) {
 		locField := v.FieldByName("Loc")
 		if locField.IsValid() && locField.Type() == reflect.TypeOf(ast.Loc{}) {
 			loc := locField.Interface().(ast.Loc)
-			if loc.Start >= 0 && loc.End <= loc.Start {
+			switch {
+			case loc.IsUnknown():
+				// Unknown locations must use the single {-1, -1} sentinel.
+			case loc.Start < 0 || loc.End < 0:
+				*violations = append(*violations, LocViolation{
+					Path:    path,
+					NodeTag: typeName,
+					Start:   loc.Start,
+					End:     loc.End,
+					Reason:  "mixed unknown Loc sentinel",
+				})
+			case loc.End <= loc.Start:
 				*violations = append(*violations, LocViolation{
 					Path:    path,
 					NodeTag: typeName,

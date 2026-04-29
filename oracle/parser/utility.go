@@ -28,7 +28,7 @@ import (
 //	  | SHARE
 //	  | SHARE ROW EXCLUSIVE
 //	  | EXCLUSIVE
-func (p *Parser) parseLockTableStmt() nodes.StmtNode {
+func (p *Parser) parseLockTableStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume LOCK
 
@@ -47,13 +47,19 @@ func (p *Parser) parseLockTableStmt() nodes.StmtNode {
 		item := &nodes.LockTableItem{
 			Loc: nodes.Loc{Start: itemStart},
 		}
-		item.Table = p.parseObjectName()
+		var parseErr1151 error
+		item.Table, parseErr1151 = p.parseObjectName()
+		if parseErr1151 !=
 
-		// Optional partition_extension_clause:
-		//   PARTITION ( partition_name )
-		//   PARTITION FOR ( partition_key_value )
-		//   SUBPARTITION ( subpartition_name )
-		//   SUBPARTITION FOR ( subpartition_key_value )
+			// Optional partition_extension_clause:
+			//   PARTITION ( partition_name )
+			//   PARTITION FOR ( partition_key_value )
+			//   SUBPARTITION ( subpartition_name )
+			//   SUBPARTITION FOR ( subpartition_key_value )
+			nil {
+			return nil, parseErr1151
+		}
+
 		if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
 			if p.cur.Type == kwPARTITION {
 				item.PartitionType = "PARTITION"
@@ -83,7 +89,7 @@ func (p *Parser) parseLockTableStmt() nodes.StmtNode {
 			}
 		}
 
-		item.Loc.End = p.pos()
+		item.Loc.End = p.prev.End
 		stmt.Tables = append(stmt.Tables, item)
 
 		if p.cur.Type != ',' {
@@ -127,11 +133,15 @@ func (p *Parser) parseLockTableStmt() nodes.StmtNode {
 		p.advance()
 	} else if p.cur.Type == kwWAIT {
 		p.advance()
-		stmt.Wait = p.parseExpr()
+		var parseErr1152 error
+		stmt.Wait, parseErr1152 = p.parseExpr()
+		if parseErr1152 != nil {
+			return nil, parseErr1152
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseCallStmt parses a CALL statement.
@@ -148,7 +158,7 @@ func (p *Parser) parseLockTableStmt() nodes.StmtNode {
 //
 //	object_access_expression:
 //	    ( expr ) . method_name ( [ argument [, argument ]... ] )
-func (p *Parser) parseCallStmt() nodes.StmtNode {
+func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume CALL
 
@@ -156,14 +166,23 @@ func (p *Parser) parseCallStmt() nodes.StmtNode {
 		Args: &nodes.List{},
 		Loc:  nodes.Loc{Start: start},
 	}
+	var parseErr1153 error
 
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr1153 = p.parseObjectName()
+	if parseErr1153 !=
 
-	// Arguments
+		// Arguments
+		nil {
+		return nil, parseErr1153
+	}
+
 	if p.cur.Type == '(' {
 		p.advance()
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			arg := p.parseExpr()
+			arg, parseErr1154 := p.parseExpr()
+			if parseErr1154 != nil {
+				return nil, parseErr1154
+			}
 			if arg != nil {
 				stmt.Args.Items = append(stmt.Args.Items, arg)
 			}
@@ -180,11 +199,15 @@ func (p *Parser) parseCallStmt() nodes.StmtNode {
 	// INTO :bind_variable
 	if p.cur.Type == kwINTO {
 		p.advance()
-		stmt.Into = p.parseExpr()
+		var parseErr1155 error
+		stmt.Into, parseErr1155 = p.parseExpr()
+		if parseErr1155 != nil {
+			return nil, parseErr1155
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseRenameStmt parses a RENAME statement.
@@ -192,24 +215,32 @@ func (p *Parser) parseCallStmt() nodes.StmtNode {
 // BNF: oracle/parser/bnf/RENAME.bnf
 //
 //	RENAME old_name TO new_name ;
-func (p *Parser) parseRenameStmt() nodes.StmtNode {
+func (p *Parser) parseRenameStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume RENAME
 
 	stmt := &nodes.RenameStmt{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr1156 error
 
-	stmt.OldName = p.parseObjectName()
+	stmt.OldName, parseErr1156 = p.parseObjectName()
+	if parseErr1156 != nil {
+		return nil, parseErr1156
+	}
 
 	if p.cur.Type == kwTO {
 		p.advance()
 	}
+	var parseErr1157 error
 
-	stmt.NewName = p.parseObjectName()
+	stmt.NewName, parseErr1157 = p.parseObjectName()
+	if parseErr1157 != nil {
+		return nil, parseErr1157
+	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseTruncateStmt parses a TRUNCATE TABLE statement.
@@ -220,7 +251,7 @@ func (p *Parser) parseRenameStmt() nodes.StmtNode {
 //	    [ { PRESERVE | PURGE } MATERIALIZED VIEW LOG ]
 //	    [ { DROP STORAGE | DROP ALL STORAGE | REUSE STORAGE } ]
 //	    [ CASCADE ] ;
-func (p *Parser) parseTruncateStmt() nodes.StmtNode {
+func (p *Parser) parseTruncateStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume TRUNCATE
 
@@ -234,12 +265,23 @@ func (p *Parser) parseTruncateStmt() nodes.StmtNode {
 	} else if p.cur.Type == kwCLUSTER {
 		stmt.Cluster = true
 		p.advance()
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
+	var parseErr1158 error
 
 	// Parse table/cluster name
-	stmt.Table = p.parseObjectName()
+	stmt.Table, parseErr1158 = p.parseObjectName()
+	if parseErr1158 !=
 
-	// Parse optional clauses
+		// Parse optional clauses
+		nil {
+		return nil, parseErr1158
+	}
+	if stmt.Table == nil || stmt.Table.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	for {
 		if p.cur.Type == kwPURGE {
 			// PURGE MATERIALIZED VIEW LOG
@@ -280,8 +322,8 @@ func (p *Parser) parseTruncateStmt() nodes.StmtNode {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAnalyzeStmt parses an ANALYZE statement.
@@ -310,7 +352,7 @@ func (p *Parser) parseTruncateStmt() nodes.StmtNode {
 //
 //	into_clause:
 //	    INTO [ schema. ] table
-func (p *Parser) parseAnalyzeStmt() nodes.StmtNode {
+func (p *Parser) parseAnalyzeStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume ANALYZE
 
@@ -332,19 +374,33 @@ func (p *Parser) parseAnalyzeStmt() nodes.StmtNode {
 	default:
 		stmt.ObjectType = nodes.OBJECT_TABLE
 	}
+	var parseErr1159 error
 
 	// Object name (possibly schema-qualified)
-	stmt.Table = p.parseObjectName()
+	stmt.Table, parseErr1159 = p.parseObjectName()
+	if parseErr1159 !=
 
-	// Skip optional partition_extension_clause:
-	//   PARTITION ( name ) | SUBPARTITION ( name )
+		// Skip optional partition_extension_clause:
+		//   PARTITION ( name ) | SUBPARTITION ( name )
+		nil {
+		return nil, parseErr1159
+	}
+
 	if p.isIdentLike() && (p.cur.Str == "PARTITION" || p.cur.Str == "SUBPARTITION") {
 		p.advance() // consume PARTITION/SUBPARTITION
 		if p.cur.Type == '(' {
-			p.advance() // consume (
-			p.parseExpr()
+			p.advance()
+			parseDiscard1161, // consume (
+				parseErr1160 := p.parseExpr()
+			_ = parseDiscard1161
+			if parseErr1160 != nil {
+				return nil,
+
+					// consume )
+					parseErr1160
+			}
 			if p.cur.Type == ')' {
-				p.advance() // consume )
+				p.advance()
 			}
 		}
 	}
@@ -385,7 +441,11 @@ func (p *Parser) parseAnalyzeStmt() nodes.StmtNode {
 		if p.cur.Type == kwSAMPLE {
 			p.advance() // consume SAMPLE
 			if p.cur.Type == tokICONST {
-				stmt.SampleValue = p.parseIntValue()
+				var parseErr1162 error
+				stmt.SampleValue, parseErr1162 = p.parseIntValue()
+				if parseErr1162 != nil {
+					return nil, parseErr1162
+				}
 			}
 			if p.cur.Type == kwROWS {
 				stmt.SampleUnit = "ROWS"
@@ -456,13 +516,20 @@ func (p *Parser) parseAnalyzeStmt() nodes.StmtNode {
 			}
 			// Optional INTO table
 			if p.cur.Type == kwINTO {
-				p.advance() // consume INTO
-				stmt.IntoTable = p.parseObjectName()
+				p.advance()
+				var // consume INTO
+				parseErr1163 error
+				stmt.IntoTable, parseErr1163 = p.parseObjectName()
+				if parseErr1163 != nil {
+					return nil, parseErr1163
+
+					// LIST CHAINED ROWS [INTO table]
+				}
 			}
 		}
 
 	case p.cur.Type == kwLIST:
-		// LIST CHAINED ROWS [INTO table]
+
 		p.advance() // consume LIST
 		stmt.Action = "LIST CHAINED ROWS"
 		// CHAINED is an identifier
@@ -474,13 +541,18 @@ func (p *Parser) parseAnalyzeStmt() nodes.StmtNode {
 		}
 		// Optional INTO table
 		if p.cur.Type == kwINTO {
-			p.advance() // consume INTO
-			stmt.IntoTable = p.parseObjectName()
+			p.advance()
+			var // consume INTO
+			parseErr1164 error
+			stmt.IntoTable, parseErr1164 = p.parseObjectName()
+			if parseErr1164 != nil {
+				return nil, parseErr1164
+			}
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseExplainPlanStmt parses an EXPLAIN PLAN statement.
@@ -491,7 +563,7 @@ func (p *Parser) parseAnalyzeStmt() nodes.StmtNode {
 //	    [ SET STATEMENT_ID = string ]
 //	    [ INTO [ schema. ] table [ @dblink ] ]
 //	    FOR statement ;
-func (p *Parser) parseExplainPlanStmt() nodes.StmtNode {
+func (p *Parser) parseExplainPlanStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume EXPLAIN
 
@@ -523,17 +595,25 @@ func (p *Parser) parseExplainPlanStmt() nodes.StmtNode {
 	// Optional INTO [schema.]table
 	if p.cur.Type == kwINTO {
 		p.advance()
-		stmt.Into = p.parseObjectName()
+		var parseErr1165 error
+		stmt.Into, parseErr1165 = p.parseObjectName()
+		if parseErr1165 != nil {
+			return nil, parseErr1165
+		}
 	}
 
 	// FOR statement
 	if p.cur.Type == kwFOR {
 		p.advance()
-		stmt.Statement = p.parseStmt()
+		var parseErr1166 error
+		stmt.Statement, parseErr1166 = p.parseStmt()
+		if parseErr1166 != nil {
+			return nil, parseErr1166
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseFlashbackTableStmt parses a FLASHBACK TABLE statement.
@@ -547,7 +627,7 @@ func (p *Parser) parseExplainPlanStmt() nodes.StmtNode {
 //	    | TO BEFORE DROP [ RENAME TO table ]
 //	    }
 //	    [ { ENABLE | DISABLE } TRIGGERS ] ;
-func (p *Parser) parseFlashbackTableStmt() nodes.StmtNode {
+func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume FLASHBACK
 
@@ -561,12 +641,18 @@ func (p *Parser) parseFlashbackTableStmt() nodes.StmtNode {
 	}
 
 	// One or more table names (comma-separated), ending before TO
-	first := p.parseObjectName()
+	first, parseErr1167 := p.parseObjectName()
+	if parseErr1167 != nil {
+		return nil, parseErr1167
+	}
 	stmt.Tables = append(stmt.Tables, first)
 	stmt.Table = first
 	for p.cur.Type == ',' {
 		p.advance() // consume ','
-		t := p.parseObjectName()
+		t, parseErr1168 := p.parseObjectName()
+		if parseErr1168 != nil {
+			return nil, parseErr1168
+		}
 		stmt.Tables = append(stmt.Tables, t)
 	}
 
@@ -587,30 +673,56 @@ func (p *Parser) parseFlashbackTableStmt() nodes.StmtNode {
 				if p.cur.Type == kwTO {
 					p.advance()
 				}
-				stmt.Rename = p.parseIdentifier()
+				var parseErr1169 error
+				stmt.Rename, parseErr1169 = p.parseIdentifier()
+				if parseErr1169 != nil {
+					return nil,
+
+						// TO BEFORE SCN expr | TO BEFORE TIMESTAMP expr
+						parseErr1169
+				}
 			}
 		} else {
-			// TO BEFORE SCN expr | TO BEFORE TIMESTAMP expr
+
 			stmt.Before = true
 			switch p.cur.Type {
 			case kwSCN:
 				p.advance()
-				stmt.ToSCN = p.parseExpr()
+				var parseErr1170 error
+				stmt.ToSCN, parseErr1170 = p.parseExpr()
+				if parseErr1170 != nil {
+					return nil, parseErr1170
+				}
 			case kwTIMESTAMP:
 				p.advance()
-				stmt.ToTimestamp = p.parseExpr()
+				var parseErr1171 error
+				stmt.ToTimestamp, parseErr1171 = p.parseExpr()
+				if parseErr1171 != nil {
+					return nil, parseErr1171
+				}
 			}
 		}
 	} else {
 		switch p.cur.Type {
 		case kwSCN:
 			p.advance()
-			stmt.ToSCN = p.parseExpr()
+			var parseErr1172 error
+			stmt.ToSCN, parseErr1172 = p.parseExpr()
+			if parseErr1172 != nil {
+				return nil, parseErr1172
+			}
 		case kwTIMESTAMP:
 			p.advance()
-			stmt.ToTimestamp = p.parseExpr()
+			var parseErr1173 error
+			stmt.ToTimestamp, parseErr1173 = p.parseExpr()
+			if parseErr1173 !=
+
+				// TO RESTORE POINT restore_point_name
+				nil {
+				return nil, parseErr1173
+			}
 		default:
-			// TO RESTORE POINT restore_point_name
+
 			if p.isIdentLike() && p.cur.Str == "RESTORE" {
 				p.advance()
 				if p.isIdentLike() && p.cur.Str == "POINT" {
@@ -641,8 +753,8 @@ func (p *Parser) parseFlashbackTableStmt() nodes.StmtNode {
 		stmt.EnableTriggers = &f
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseFlashbackDatabaseStmt parses a FLASHBACK DATABASE statement.
@@ -657,7 +769,7 @@ func (p *Parser) parseFlashbackTableStmt() nodes.StmtNode {
 //	    | TO RESTORE POINT restore_point_name
 //	    | TO BEFORE RESETLOGS
 //	    } ;
-func (p *Parser) parseFlashbackDatabaseStmt() nodes.StmtNode {
+func (p *Parser) parseFlashbackDatabaseStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume FLASHBACK
 
@@ -681,10 +793,16 @@ func (p *Parser) parseFlashbackDatabaseStmt() nodes.StmtNode {
 
 	// Optional database name (not TO keyword)
 	if p.isIdentLike() && p.cur.Str != "TO" {
-		stmt.DatabaseName = p.parseObjectName()
+		var parseErr1174 error
+		stmt.DatabaseName, parseErr1174 = p.parseObjectName()
+		if parseErr1174 !=
+
+			// TO
+			nil {
+			return nil, parseErr1174
+		}
 	}
 
-	// TO
 	if p.cur.Type == kwTO {
 		p.advance()
 	}
@@ -698,10 +816,18 @@ func (p *Parser) parseFlashbackDatabaseStmt() nodes.StmtNode {
 	switch p.cur.Type {
 	case kwSCN:
 		p.advance()
-		stmt.ToSCN = p.parseExpr()
+		var parseErr1175 error
+		stmt.ToSCN, parseErr1175 = p.parseExpr()
+		if parseErr1175 != nil {
+			return nil, parseErr1175
+		}
 	case kwTIMESTAMP:
 		p.advance()
-		stmt.ToTimestamp = p.parseExpr()
+		var parseErr1176 error
+		stmt.ToTimestamp, parseErr1176 = p.parseExpr()
+		if parseErr1176 != nil {
+			return nil, parseErr1176
+		}
 	default:
 		if p.isIdentLike() && p.cur.Str == "RESTORE" {
 			p.advance()
@@ -718,8 +844,8 @@ func (p *Parser) parseFlashbackDatabaseStmt() nodes.StmtNode {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parsePurgeStmt parses a PURGE statement.
@@ -733,7 +859,7 @@ func (p *Parser) parseFlashbackDatabaseStmt() nodes.StmtNode {
 //	      | RECYCLEBIN
 //	      | DBA_RECYCLEBIN
 //	      } ;
-func (p *Parser) parsePurgeStmt() nodes.StmtNode {
+func (p *Parser) parsePurgeStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume PURGE
 
@@ -745,29 +871,44 @@ func (p *Parser) parsePurgeStmt() nodes.StmtNode {
 	case kwTABLE:
 		stmt.ObjectType = nodes.OBJECT_TABLE
 		p.advance()
-		stmt.Name = p.parseObjectName()
+		var parseErr1177 error
+		stmt.Name, parseErr1177 = p.parseObjectName()
+		if parseErr1177 != nil {
+			return nil, parseErr1177
+		}
 	case kwINDEX:
 		stmt.ObjectType = nodes.OBJECT_INDEX
 		p.advance()
-		stmt.Name = p.parseObjectName()
+		var parseErr1178 error
+		stmt.Name, parseErr1178 = p.parseObjectName()
+		if parseErr1178 != nil {
+			return nil, parseErr1178
+		}
 	case kwTABLESPACE:
 		stmt.ObjectType = nodes.OBJECT_TABLESPACE
 		p.advance()
-		stmt.Name = p.parseObjectName()
+		var parseErr1179 error
+		stmt.Name, parseErr1179 = p.parseObjectName()
+		if parseErr1179 !=
+
+			// RECYCLEBIN or DBA_RECYCLEBIN (parsed as identifiers)
+			nil {
+			return nil, parseErr1179
+		}
 	default:
-		// RECYCLEBIN or DBA_RECYCLEBIN (parsed as identifiers)
+
 		if p.isIdentLike() {
 			ident := p.cur.Str
 			p.advance()
 			stmt.Name = &nodes.ObjectName{
 				Name: ident,
-				Loc:  nodes.Loc{Start: start, End: p.pos()},
+				Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			}
 		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseAuditStmt parses an AUDIT statement (Traditional + Unified Auditing).
@@ -819,7 +960,7 @@ func (p *Parser) parsePurgeStmt() nodes.StmtNode {
 //	        ATTRIBUTES attribute [, attribute ]...
 //	        [ BY user [, user ]... ]
 //	    } ;
-func (p *Parser) parseAuditStmt() nodes.StmtNode {
+func (p *Parser) parseAuditStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume AUDIT
 
@@ -848,10 +989,20 @@ func (p *Parser) parseAuditStmt() nodes.StmtNode {
 					if p.cur.Type == kwROLE {
 						p.advance()
 					}
-					stmt.WithRoles = p.parseIdentListForAudit()
+					var parseErr1180 error
+					stmt.WithRoles, parseErr1180 = p.parseIdentListForAudit()
+					if parseErr1180 != nil {
+
+						// BY user [, user]...
+						return nil, parseErr1180
+					}
 				} else {
-					// BY user [, user]...
-					stmt.ByUsers = p.parseIdentListForAudit()
+					var parseErr1181 error
+
+					stmt.ByUsers, parseErr1181 = p.parseIdentListForAudit()
+					if parseErr1181 != nil {
+						return nil, parseErr1181
+					}
 				}
 			} else if p.cur.Type == kwEXCEPT {
 				p.advance()
@@ -864,20 +1015,32 @@ func (p *Parser) parseAuditStmt() nodes.StmtNode {
 					if p.cur.Type == kwROLE {
 						p.advance()
 					}
-					stmt.WithRoles = p.parseIdentListForAudit()
+					var parseErr1182 error
+					stmt.WithRoles, parseErr1182 = p.parseIdentListForAudit()
+					if parseErr1182 != nil {
+						return nil, parseErr1182
+					}
 					stmt.WithRoleExcept = true
 				} else {
+					var parseErr1183 error
 					// EXCEPT user [, user]...
-					stmt.ExceptUsers = p.parseIdentListForAudit()
+					stmt.ExceptUsers, parseErr1183 = p.parseIdentListForAudit()
+					if parseErr1183 != nil {
+						return nil, parseErr1183
+					}
 				}
 			} else if p.cur.Type == kwWHENEVER {
-				stmt.When = p.parseWheneverClause()
+				var parseErr1184 error
+				stmt.When, parseErr1184 = p.parseWheneverClause()
+				if parseErr1184 != nil {
+					return nil, parseErr1184
+				}
 			} else {
 				break
 			}
 		}
-		stmt.Loc.End = p.pos()
-		return stmt
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
 	// Unified: AUDIT CONTEXT NAMESPACE ...
@@ -892,23 +1055,40 @@ func (p *Parser) parseAuditStmt() nodes.StmtNode {
 		}
 		if p.isIdentLikeStr("ATTRIBUTES") {
 			p.advance()
-			stmt.ContextAttrs = p.parseIdentListForAudit()
+			var parseErr1185 error
+			stmt.ContextAttrs, parseErr1185 = p.parseIdentListForAudit()
+			if parseErr1185 != nil {
+				return nil, parseErr1185
+			}
 		}
 		if p.cur.Type == kwBY {
 			p.advance()
-			stmt.ByUsers = p.parseIdentListForAudit()
+			var parseErr1186 error
+			stmt.ByUsers, parseErr1186 = p.parseIdentListForAudit()
+			if parseErr1186 != nil {
+				return nil, parseErr1186
+			}
 		}
-		stmt.Loc.End = p.pos()
-		return stmt
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
+	var parseErr1187 error
 
 	// Traditional: parse audit actions
-	stmt.Actions = p.parseAuditActions()
+	stmt.Actions, parseErr1187 = p.parseAuditActions()
+	if parseErr1187 !=
 
-	// ON clause or auditing_by_clause
+		// ON clause or auditing_by_clause
+		nil {
+		return nil, parseErr1187
+	}
+
 	if p.cur.Type == kwON {
 		p.advance()
-		p.parseTraditionalAuditOnClause(stmt)
+		parseErr1188 := p.parseTraditionalAuditOnClause(stmt)
+		if parseErr1188 != nil {
+			return nil, parseErr1188
+		}
 	} else if p.isIdentLikeStr("NETWORK") {
 		stmt.OnNetwork = true
 		p.advance()
@@ -933,24 +1113,40 @@ func (p *Parser) parseAuditStmt() nodes.StmtNode {
 				p.advance()
 			}
 		} else {
+			var parseErr1189 error
 			// BY user [, user]...
-			stmt.ByUsers2 = p.parseIdentListForAudit()
+			stmt.ByUsers2, parseErr1189 = p.parseIdentListForAudit()
+			if parseErr1189 !=
+
+				// WHENEVER [NOT] SUCCESSFUL
+				nil {
+				return nil, parseErr1189
+			}
 		}
 	}
 
-	// WHENEVER [NOT] SUCCESSFUL
 	if p.cur.Type == kwWHENEVER {
-		stmt.When = p.parseWheneverClause()
+		var parseErr1190 error
+		stmt.When, parseErr1190 = p.parseWheneverClause()
+		if parseErr1190 !=
+
+			// CONTAINER = { CURRENT | ALL }
+			nil {
+			return nil, parseErr1190
+		}
 	}
 
-	// CONTAINER = { CURRENT | ALL }
 	if p.isIdentLikeStr("CONTAINER") {
 		p.advance()
-		stmt.ContainerAll = p.parseContainerClause()
+		var parseErr1191 error
+		stmt.ContainerAll, parseErr1191 = p.parseContainerClause()
+		if parseErr1191 != nil {
+			return nil, parseErr1191
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseNoauditStmt parses a NOAUDIT statement (Traditional + Unified Auditing).
@@ -1001,7 +1197,7 @@ func (p *Parser) parseAuditStmt() nodes.StmtNode {
 //	    [ BY user [, user ]...
 //	      [ WITH ROLE role [, role ]... ]
 //	    ] ;
-func (p *Parser) parseNoauditStmt() nodes.StmtNode {
+func (p *Parser) parseNoauditStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume NOAUDIT
 
@@ -1018,17 +1214,25 @@ func (p *Parser) parseNoauditStmt() nodes.StmtNode {
 		}
 		if p.cur.Type == kwBY {
 			p.advance()
-			stmt.ByUsers = p.parseIdentListForAudit()
+			var parseErr1192 error
+			stmt.ByUsers, parseErr1192 = p.parseIdentListForAudit()
+			if parseErr1192 != nil {
+				return nil, parseErr1192
+			}
 			if p.cur.Type == kwWITH {
 				p.advance()
 				if p.cur.Type == kwROLE {
 					p.advance()
 				}
-				stmt.WithRoles = p.parseIdentListForAudit()
+				var parseErr1193 error
+				stmt.WithRoles, parseErr1193 = p.parseIdentListForAudit()
+				if parseErr1193 != nil {
+					return nil, parseErr1193
+				}
 			}
 		}
-		stmt.Loc.End = p.pos()
-		return stmt
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
 	// Unified: NOAUDIT CONTEXT NAMESPACE ...
@@ -1043,30 +1247,51 @@ func (p *Parser) parseNoauditStmt() nodes.StmtNode {
 		}
 		if p.isIdentLikeStr("ATTRIBUTES") {
 			p.advance()
-			stmt.ContextAttrs = p.parseIdentListForAudit()
+			var parseErr1194 error
+			stmt.ContextAttrs, parseErr1194 = p.parseIdentListForAudit()
+			if parseErr1194 != nil {
+				return nil, parseErr1194
+			}
 		}
 		if p.cur.Type == kwBY {
 			p.advance()
-			stmt.ByUsers = p.parseIdentListForAudit()
+			var parseErr1195 error
+			stmt.ByUsers, parseErr1195 = p.parseIdentListForAudit()
+			if parseErr1195 != nil {
+				return nil, parseErr1195
+			}
 			if p.cur.Type == kwWITH {
 				p.advance()
 				if p.cur.Type == kwROLE {
 					p.advance()
 				}
-				stmt.WithRoles = p.parseIdentListForAudit()
+				var parseErr1196 error
+				stmt.WithRoles, parseErr1196 = p.parseIdentListForAudit()
+				if parseErr1196 != nil {
+					return nil, parseErr1196
+				}
 			}
 		}
-		stmt.Loc.End = p.pos()
-		return stmt
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
+	var parseErr1197 error
 
 	// Traditional: parse audit actions
-	stmt.Actions = p.parseAuditActions()
+	stmt.Actions, parseErr1197 = p.parseAuditActions()
+	if parseErr1197 !=
 
-	// ON clause
+		// ON clause
+		nil {
+		return nil, parseErr1197
+	}
+
 	if p.cur.Type == kwON {
 		p.advance()
-		p.parseTraditionalNoauditOnClause(stmt)
+		parseErr1198 := p.parseTraditionalNoauditOnClause(stmt)
+		if parseErr1198 != nil {
+			return nil, parseErr1198
+		}
 	} else if p.isIdentLikeStr("NETWORK") {
 		stmt.OnNetwork = true
 		p.advance()
@@ -1081,27 +1306,43 @@ func (p *Parser) parseNoauditStmt() nodes.StmtNode {
 	// BY user [, user]...
 	if p.cur.Type == kwBY {
 		p.advance()
-		stmt.ByUsers2 = p.parseIdentListForAudit()
+		var parseErr1199 error
+		stmt.ByUsers2, parseErr1199 = p.parseIdentListForAudit()
+		if parseErr1199 !=
+
+			// WHENEVER [NOT] SUCCESSFUL
+			nil {
+			return nil, parseErr1199
+		}
 	}
 
-	// WHENEVER [NOT] SUCCESSFUL
 	if p.cur.Type == kwWHENEVER {
-		stmt.When = p.parseWheneverClause()
+		var parseErr1200 error
+		stmt.When, parseErr1200 = p.parseWheneverClause()
+		if parseErr1200 !=
+
+			// CONTAINER = { CURRENT | ALL }
+			nil {
+			return nil, parseErr1200
+		}
 	}
 
-	// CONTAINER = { CURRENT | ALL }
 	if p.isIdentLikeStr("CONTAINER") {
 		p.advance()
-		stmt.ContainerAll = p.parseContainerClause()
+		var parseErr1201 error
+		stmt.ContainerAll, parseErr1201 = p.parseContainerClause()
+		if parseErr1201 != nil {
+			return nil, parseErr1201
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseTraditionalAuditOnClause parses the ON clause for traditional AUDIT.
 // Called after ON has been consumed.
-func (p *Parser) parseTraditionalAuditOnClause(stmt *nodes.AuditStmt) {
+func (p *Parser) parseTraditionalAuditOnClause(stmt *nodes.AuditStmt) error {
 	if p.cur.Type == kwDEFAULT {
 		stmt.OnDefault = true
 		p.advance()
@@ -1116,7 +1357,11 @@ func (p *Parser) parseTraditionalAuditOnClause(stmt *nodes.AuditStmt) {
 		if p.cur.Type == kwMODEL {
 			p.advance()
 		}
-		stmt.Object = p.parseObjectName()
+		var parseErr1202 error
+		stmt.Object, parseErr1202 = p.parseObjectName()
+		if parseErr1202 != nil {
+			return parseErr1202
+		}
 	} else if p.isIdentLikeStr("SQL") {
 		// SQL TRANSLATION PROFILE
 		p.advance()
@@ -1126,15 +1371,26 @@ func (p *Parser) parseTraditionalAuditOnClause(stmt *nodes.AuditStmt) {
 		if p.cur.Type == kwPROFILE {
 			p.advance()
 		}
-		stmt.Object = p.parseObjectName()
+		var parseErr1203 error
+		stmt.Object, parseErr1203 = p.parseObjectName()
+		if parseErr1203 != nil {
+			return parseErr1203
+		}
 	} else {
-		stmt.Object = p.parseObjectName()
+		var parseErr1204 error
+		stmt.Object, parseErr1204 = p.parseObjectName()
+		if parseErr1204 !=
+
+			// parseTraditionalNoauditOnClause parses the ON clause for traditional NOAUDIT.
+			// Called after ON has been consumed.
+			nil {
+			return parseErr1204
+		}
 	}
+	return nil
 }
 
-// parseTraditionalNoauditOnClause parses the ON clause for traditional NOAUDIT.
-// Called after ON has been consumed.
-func (p *Parser) parseTraditionalNoauditOnClause(stmt *nodes.NoauditStmt) {
+func (p *Parser) parseTraditionalNoauditOnClause(stmt *nodes.NoauditStmt) error {
 	if p.cur.Type == kwDEFAULT {
 		stmt.OnDefault = true
 		p.advance()
@@ -1153,7 +1409,11 @@ func (p *Parser) parseTraditionalNoauditOnClause(stmt *nodes.NoauditStmt) {
 		if p.cur.Type == kwPROFILE {
 			p.advance()
 		}
-		stmt.Object = p.parseObjectName()
+		var parseErr1205 error
+		stmt.Object, parseErr1205 = p.parseObjectName()
+		if parseErr1205 != nil {
+			return parseErr1205
+		}
 	} else if p.isIdentLikeStr("NETWORK") {
 		stmt.OnNetwork = true
 		p.advance()
@@ -1164,12 +1424,19 @@ func (p *Parser) parseTraditionalNoauditOnClause(stmt *nodes.NoauditStmt) {
 			p.advance()
 		}
 	} else {
-		stmt.Object = p.parseObjectName()
+		var parseErr1206 error
+		stmt.Object, parseErr1206 = p.parseObjectName()
+		if parseErr1206 !=
+
+			// parseAuditActions collects audit action identifiers separated by commas.
+			nil {
+			return parseErr1206
+		}
 	}
+	return nil
 }
 
-// parseAuditActions collects audit action identifiers separated by commas.
-func (p *Parser) parseAuditActions() []string {
+func (p *Parser) parseAuditActions() ([]string, error) {
 	var actions []string
 	for {
 		// Collect multi-word action (e.g., "CREATE TABLE", "ALTER SESSION")
@@ -1200,11 +1467,11 @@ func (p *Parser) parseAuditActions() []string {
 		}
 		p.advance()
 	}
-	return actions
+	return actions, nil
 }
 
 // parseWheneverClause parses WHENEVER [NOT] SUCCESSFUL.
-func (p *Parser) parseWheneverClause() string {
+func (p *Parser) parseWheneverClause() (string, error) {
 	result := "WHENEVER"
 	p.advance() // consume WHENEVER
 	if p.cur.Type == kwNOT {
@@ -1215,12 +1482,12 @@ func (p *Parser) parseWheneverClause() string {
 		result += " SUCCESSFUL"
 		p.advance()
 	}
-	return result
+	return result, nil
 }
 
 // parseIdentListForAudit parses a comma-separated list of identifiers,
 // stopping at clause keywords (BY, EXCEPT, WHENEVER, WITH, CONTAINER, ;, EOF).
-func (p *Parser) parseIdentListForAudit() []string {
+func (p *Parser) parseIdentListForAudit() ([]string, error) {
 	var list []string
 	for {
 		if !p.isIdentLike() {
@@ -1233,7 +1500,7 @@ func (p *Parser) parseIdentListForAudit() []string {
 		}
 		p.advance()
 	}
-	return list
+	return list, nil
 }
 
 // parseAssociateStatisticsStmt parses an ASSOCIATE STATISTICS statement.
@@ -1271,7 +1538,7 @@ func (p *Parser) parseIdentListForAudit() []string {
 //	    WITH { SYSTEM MANAGED STORAGE TABLES
 //	         | USER MANAGED STORAGE TABLES
 //	         }
-func (p *Parser) parseAssociateStatisticsStmt() nodes.StmtNode {
+func (p *Parser) parseAssociateStatisticsStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume ASSOCIATE
 	if p.cur.Type == kwSTATISTICS {
@@ -1299,7 +1566,10 @@ func (p *Parser) parseAssociateStatisticsStmt() nodes.StmtNode {
 
 	// Object names
 	for {
-		name := p.parseObjectName()
+		name, parseErr1207 := p.parseObjectName()
+		if parseErr1207 != nil {
+			return nil, parseErr1207
+		}
 		if name != nil {
 			stmt.Objects = append(stmt.Objects, name)
 		}
@@ -1312,11 +1582,15 @@ func (p *Parser) parseAssociateStatisticsStmt() nodes.StmtNode {
 	// USING statistics_type
 	if p.isIdentLike() && p.cur.Str == "USING" {
 		p.advance()
-		stmt.Using = p.parseObjectName()
+		var parseErr1208 error
+		stmt.Using, parseErr1208 = p.parseObjectName()
+		if parseErr1208 != nil {
+			return nil, parseErr1208
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseDisassociateStatisticsStmt parses a DISASSOCIATE STATISTICS statement.
@@ -1327,7 +1601,7 @@ func (p *Parser) parseAssociateStatisticsStmt() nodes.StmtNode {
 //	    FROM { COLUMNS | FUNCTIONS | PACKAGES | TYPES | INDEXES | INDEXTYPES }
 //	    [ schema. ] object_name [, [ schema. ] object_name ]...
 //	    [ FORCE ] ;
-func (p *Parser) parseDisassociateStatisticsStmt() nodes.StmtNode {
+func (p *Parser) parseDisassociateStatisticsStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume DISASSOCIATE
 	if p.cur.Type == kwSTATISTICS {
@@ -1355,7 +1629,10 @@ func (p *Parser) parseDisassociateStatisticsStmt() nodes.StmtNode {
 
 	// Object names
 	for {
-		name := p.parseObjectName()
+		name, parseErr1209 := p.parseObjectName()
+		if parseErr1209 != nil {
+			return nil, parseErr1209
+		}
 		if name != nil {
 			stmt.Objects = append(stmt.Objects, name)
 		}
@@ -1371,6 +1648,6 @@ func (p *Parser) parseDisassociateStatisticsStmt() nodes.StmtNode {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }

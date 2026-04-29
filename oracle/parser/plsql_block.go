@@ -7,7 +7,7 @@ import (
 // parsePLSQLBlock parses a PL/SQL block:
 //
 //	[<<label>>] [DECLARE declarations] BEGIN statements [EXCEPTION handlers] END [label] ;
-func (p *Parser) parsePLSQLBlock() *nodes.PLSQLBlock {
+func (p *Parser) parsePLSQLBlock() (*nodes.PLSQLBlock, error) {
 	start := p.pos()
 	block := &nodes.PLSQLBlock{
 		Loc: nodes.Loc{Start: start},
@@ -15,8 +15,13 @@ func (p *Parser) parsePLSQLBlock() *nodes.PLSQLBlock {
 
 	// Optional label: <<label>>
 	if p.cur.Type == tokLABELOPEN {
-		p.advance() // consume <<
-		block.Label = p.parseIdentifier()
+		p.advance()
+		var // consume <<
+		parseErr829 error
+		block.Label, parseErr829 = p.parseIdentifier()
+		if parseErr829 != nil {
+			return nil, parseErr829
+		}
 		if p.cur.Type == tokLABELCLOSE {
 			p.advance() // consume >>
 		}
@@ -24,28 +29,56 @@ func (p *Parser) parsePLSQLBlock() *nodes.PLSQLBlock {
 
 	// DECLARE section (optional)
 	if p.cur.Type == kwDECLARE {
-		p.advance() // consume DECLARE
-		block.Declarations = p.parsePLSQLDeclarations()
+		p.advance()
+		var // consume DECLARE
+		parseErr830 error
+		block.Declarations, parseErr830 = p.parsePLSQLDeclarations()
+		if parseErr830 !=
+
+			// BEGIN
+			nil {
+			return nil, parseErr830
+		}
+	} else if p.cur.Type != kwBEGIN && p.cur.Type != tokEOF {
+		var parseErr830 error
+		block.Declarations, parseErr830 = p.parsePLSQLDeclarations()
+		if parseErr830 != nil {
+			return nil, parseErr830
+		}
 	}
 
-	// BEGIN
-	if p.cur.Type == kwBEGIN {
-		p.advance() // consume BEGIN
+	if p.cur.Type != kwBEGIN {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance() // consume BEGIN
+	var parseErr831 error
 
 	// Statements
-	block.Statements = p.parsePLSQLStatements()
+	block.Statements, parseErr831 = p.parsePLSQLStatements()
+	if parseErr831 !=
 
-	// EXCEPTION section (optional)
+		// EXCEPTION section (optional)
+		nil {
+		return nil, parseErr831
+	}
+
 	if p.cur.Type == kwEXCEPTION {
-		p.advance() // consume EXCEPTION
-		block.Exceptions = p.parsePLSQLExceptionHandlers()
+		p.advance()
+		var // consume EXCEPTION
+		parseErr832 error
+		block.Exceptions, parseErr832 = p.parsePLSQLExceptionHandlers()
+		if parseErr832 !=
+
+			// END [label] ;
+			nil {
+			return nil, parseErr832
+		}
 	}
 
-	// END [label] ;
-	if p.cur.Type == kwEND {
-		p.advance() // consume END
+	if p.cur.Type != kwEND {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance() // consume END
 	// Optional label after END
 	if p.isIdentLike() && p.cur.Type != ';' && p.cur.Type != tokEOF {
 		p.advance() // consume label
@@ -54,28 +87,31 @@ func (p *Parser) parsePLSQLBlock() *nodes.PLSQLBlock {
 		p.advance() // consume ;
 	}
 
-	block.Loc.End = p.pos()
-	return block
+	block.Loc.End = p.prev.End
+	return block, nil
 }
 
 // parsePLSQLDeclarations parses the DECLARE section of a PL/SQL block.
 // Stops when BEGIN is encountered.
-func (p *Parser) parsePLSQLDeclarations() *nodes.List {
+func (p *Parser) parsePLSQLDeclarations() (*nodes.List, error) {
 	decls := &nodes.List{}
 
 	for p.cur.Type != kwBEGIN && p.cur.Type != tokEOF {
-		decl := p.parsePLSQLDeclaration()
+		decl, parseErr833 := p.parsePLSQLDeclaration()
+		if parseErr833 != nil {
+			return nil, parseErr833
+		}
 		if decl == nil {
 			break
 		}
 		decls.Items = append(decls.Items, decl)
 	}
 
-	return decls
+	return decls, nil
 }
 
 // parsePLSQLDeclaration parses a single declaration.
-func (p *Parser) parsePLSQLDeclaration() nodes.Node {
+func (p *Parser) parsePLSQLDeclaration() (nodes.Node, error) {
 	// CURSOR declaration
 	if p.cur.Type == kwCURSOR {
 		return p.parsePLSQLCursorDecl()
@@ -99,28 +135,40 @@ func (p *Parser) parsePLSQLDeclaration() nodes.Node {
 		return p.parsePLSQLVarDecl()
 	}
 
-	return nil
+	return nil, nil
 }
 
 // parsePLSQLVarDecl parses a variable declaration.
-func (p *Parser) parsePLSQLVarDecl() *nodes.PLSQLVarDecl {
+func (p *Parser) parsePLSQLVarDecl() (*nodes.PLSQLVarDecl, error) {
 	start := p.pos()
 	decl := &nodes.PLSQLVarDecl{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr834 error
 
-	decl.Name = p.parseIdentifier()
+	decl.Name, parseErr834 = p.parseIdentifier()
+	if parseErr834 !=
 
-	// Optional CONSTANT
+		// Optional CONSTANT
+		nil {
+		return nil, parseErr834
+	}
+
 	if p.cur.Type == kwCONSTANT {
 		decl.Constant = true
 		p.advance()
 	}
+	var parseErr835 error
 
 	// Type name
-	decl.TypeName = p.parseTypeName()
+	decl.TypeName, parseErr835 = p.parseTypeName()
+	if parseErr835 !=
 
-	// Optional NOT NULL
+		// Optional NOT NULL
+		nil {
+		return nil, parseErr835
+	}
+
 	if p.cur.Type == kwNOT {
 		next := p.peekNext()
 		if next.Type == kwNULL {
@@ -132,61 +180,91 @@ func (p *Parser) parsePLSQLVarDecl() *nodes.PLSQLVarDecl {
 
 	// Optional default value: := expr or DEFAULT expr
 	if p.cur.Type == tokASSIGN {
-		p.advance() // consume :=
-		decl.Default = p.parseExpr()
+		p.advance()
+		var // consume :=
+		parseErr836 error
+		decl.Default, parseErr836 = p.parseExpr()
+		if parseErr836 != nil {
+			return nil, parseErr836
+		}
 	} else if p.cur.Type == kwDEFAULT {
-		p.advance() // consume DEFAULT
-		decl.Default = p.parseExpr()
+		p.advance()
+		var // consume DEFAULT
+		parseErr837 error
+		decl.Default, parseErr837 = p.parseExpr()
+		if parseErr837 !=
+
+			// Semicolon
+			nil {
+			return nil, parseErr837
+		}
 	}
 
-	// Semicolon
 	if p.cur.Type == ';' {
 		p.advance()
 	}
 
-	decl.Loc.End = p.pos()
-	return decl
+	decl.Loc.End = p.prev.End
+	return decl, nil
 }
 
 // parsePLSQLCursorDecl parses a cursor declaration.
 //
 //	CURSOR name [(params)] IS select_stmt ;
-func (p *Parser) parsePLSQLCursorDecl() *nodes.PLSQLCursorDecl {
+func (p *Parser) parsePLSQLCursorDecl() (*nodes.PLSQLCursorDecl, error) {
 	start := p.pos()
 	p.advance() // consume CURSOR
 
 	decl := &nodes.PLSQLCursorDecl{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr838 error
 
-	decl.Name = p.parseIdentifier()
+	decl.Name, parseErr838 = p.parseIdentifier()
+	if parseErr838 !=
 
-	// Optional parameter list
-	if p.cur.Type == '(' {
-		decl.Parameters = p.parsePLSQLCursorParams()
+		// Optional parameter list
+		nil {
+		return nil, parseErr838
 	}
 
-	// IS
+	if p.cur.Type == '(' {
+		var parseErr839 error
+		decl.Parameters, parseErr839 = p.parsePLSQLCursorParams()
+		if parseErr839 !=
+
+			// IS
+			nil {
+			return nil, parseErr839
+		}
+	}
+
 	if p.cur.Type == kwIS {
 		p.advance()
 	}
 
 	// SELECT statement
 	if p.cur.Type == kwSELECT {
-		decl.Query = p.parseSelectStmt()
+		var parseErr840 error
+		decl.Query, parseErr840 = p.parseSelectStmt()
+		if parseErr840 !=
+
+			// Semicolon
+			nil {
+			return nil, parseErr840
+		}
 	}
 
-	// Semicolon
 	if p.cur.Type == ';' {
 		p.advance()
 	}
 
-	decl.Loc.End = p.pos()
-	return decl
+	decl.Loc.End = p.prev.End
+	return decl, nil
 }
 
 // parsePLSQLCursorParams parses cursor parameter list.
-func (p *Parser) parsePLSQLCursorParams() *nodes.List {
+func (p *Parser) parsePLSQLCursorParams() (*nodes.List, error) {
 	params := &nodes.List{}
 	p.advance() // consume (
 
@@ -195,23 +273,43 @@ func (p *Parser) parsePLSQLCursorParams() *nodes.List {
 		paramDecl := &nodes.PLSQLVarDecl{
 			Loc: nodes.Loc{Start: paramStart},
 		}
-		paramDecl.Name = p.parseIdentifier()
-		// Optional IN keyword (cursor params are always IN)
+		var parseErr841 error
+		paramDecl.Name, parseErr841 = p.parseIdentifier()
+		if parseErr841 !=
+			// Optional IN keyword (cursor params are always IN)
+			nil {
+			return nil, parseErr841
+		}
+
 		if p.cur.Type == kwIN {
 			p.advance()
 		}
-		paramDecl.TypeName = p.parseTypeName()
+		var parseErr842 error
+		paramDecl.TypeName, parseErr842 = p.parseTypeName()
+		if parseErr842 !=
 
-		// Optional default
-		if p.cur.Type == tokASSIGN {
-			p.advance()
-			paramDecl.Default = p.parseExpr()
-		} else if p.cur.Type == kwDEFAULT {
-			p.advance()
-			paramDecl.Default = p.parseExpr()
+			// Optional default
+			nil {
+			return nil, parseErr842
 		}
 
-		paramDecl.Loc.End = p.pos()
+		if p.cur.Type == tokASSIGN {
+			p.advance()
+			var parseErr843 error
+			paramDecl.Default, parseErr843 = p.parseExpr()
+			if parseErr843 != nil {
+				return nil, parseErr843
+			}
+		} else if p.cur.Type == kwDEFAULT {
+			p.advance()
+			var parseErr844 error
+			paramDecl.Default, parseErr844 = p.parseExpr()
+			if parseErr844 != nil {
+				return nil, parseErr844
+			}
+		}
+
+		paramDecl.Loc.End = p.prev.End
 		params.Items = append(params.Items, paramDecl)
 
 		if p.cur.Type != ',' {
@@ -223,30 +321,36 @@ func (p *Parser) parsePLSQLCursorParams() *nodes.List {
 	if p.cur.Type == ')' {
 		p.advance()
 	}
-	return params
+	return params, nil
 }
 
 // parsePLSQLStatements parses PL/SQL statements until END, EXCEPTION, ELSIF, ELSE, or EOF.
-func (p *Parser) parsePLSQLStatements() *nodes.List {
+func (p *Parser) parsePLSQLStatements() (*nodes.List, error) {
 	stmts := &nodes.List{}
 
 	for {
 		// Check for terminators
 		switch p.cur.Type {
 		case kwEND, kwEXCEPTION, kwELSIF, kwELSE, kwWHEN, tokEOF:
-			return stmts
+			return stmts, nil
 		}
 
-		stmt := p.parsePLSQLStatement()
+		stmt, parseErr845 := p.parsePLSQLStatement()
+		if parseErr845 != nil {
+			return nil, parseErr845
+		}
 		if stmt == nil {
-			return stmts
+			return stmts, nil
 		}
 		stmts.Items = append(stmts.Items, stmt)
 	}
+	return nil,
+
+		// parsePLSQLStatement parses a single PL/SQL statement.
+		nil
 }
 
-// parsePLSQLStatement parses a single PL/SQL statement.
-func (p *Parser) parsePLSQLStatement() nodes.StmtNode {
+func (p *Parser) parsePLSQLStatement() (nodes.StmtNode, error) {
 	// Handle optional label before statement
 	if p.cur.Type == tokLABELOPEN {
 		// This could be a labeled block or labeled loop
@@ -312,40 +416,55 @@ func (p *Parser) parsePLSQLStatement() nodes.StmtNode {
 		return p.parsePLSQLCaseStmt()
 
 	case kwMERGE:
-		stmt := p.parseMergeStmt()
+		stmt, parseErr846 := p.parseMergeStmt()
+		if parseErr846 != nil {
+			return nil, parseErr846
+		}
 		if p.cur.Type == ';' {
 			p.advance()
 		}
-		return stmt
+		return stmt, nil
 
 	// DML statements
 	case kwSELECT, kwWITH:
-		stmt := p.parseSelectStmt()
+		stmt, parseErr847 := p.parseSelectStmt()
+		if parseErr847 != nil {
+			return nil, parseErr847
+		}
 		if p.cur.Type == ';' {
 			p.advance()
 		}
-		return stmt
+		return stmt, nil
 
 	case kwINSERT:
-		stmt := p.parseInsertStmt()
+		stmt, parseErr848 := p.parseInsertStmt()
+		if parseErr848 != nil {
+			return nil, parseErr848
+		}
 		if p.cur.Type == ';' {
 			p.advance()
 		}
-		return stmt
+		return stmt, nil
 
 	case kwUPDATE:
-		stmt := p.parseUpdateStmt()
+		stmt, parseErr849 := p.parseUpdateStmt()
+		if parseErr849 != nil {
+			return nil, parseErr849
+		}
 		if p.cur.Type == ';' {
 			p.advance()
 		}
-		return stmt
+		return stmt, nil
 
 	case kwDELETE:
-		stmt := p.parseDeleteStmt()
+		stmt, parseErr850 := p.parseDeleteStmt()
+		if parseErr850 != nil {
+			return nil, parseErr850
+		}
 		if p.cur.Type == ';' {
 			p.advance()
 		}
-		return stmt
+		return stmt, nil
 
 	default:
 		// Try assignment: target := expr ;
@@ -353,33 +472,40 @@ func (p *Parser) parsePLSQLStatement() nodes.StmtNode {
 		if p.isIdentLike() || p.cur.Type == tokQIDENT || p.cur.Type == tokBIND {
 			return p.parsePLSQLAssignOrCall()
 		}
-		return nil
+		return nil, nil
 	}
 }
 
 // parsePLSQLAssignOrCall parses an assignment statement (target := expr ;)
 // or a procedure call (name(args) ;).
-func (p *Parser) parsePLSQLAssignOrCall() nodes.StmtNode {
+func (p *Parser) parsePLSQLAssignOrCall() (nodes.StmtNode, error) {
 	start := p.pos()
 
 	// Parse the target expression (could be column ref or function call)
-	target := p.parseExpr()
+	target, parseErr851 := p.parseExpr()
+	if parseErr851 != nil {
+		return nil, parseErr851
+
+		// Check for := (assignment)
+	}
 	if target == nil {
-		return nil
+		return nil, nil
 	}
 
-	// Check for := (assignment)
 	if p.cur.Type == tokASSIGN {
 		p.advance() // consume :=
-		value := p.parseExpr()
+		value, parseErr852 := p.parseExpr()
+		if parseErr852 != nil {
+			return nil, parseErr852
+		}
 		if p.cur.Type == ';' {
 			p.advance()
 		}
 		return &nodes.PLSQLAssign{
 			Target: target,
 			Value:  value,
-			Loc:    nodes.Loc{Start: start, End: p.pos()},
-		}
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 	}
 
 	// Otherwise it's a procedure call, consume the semicolon
@@ -389,14 +515,14 @@ func (p *Parser) parsePLSQLAssignOrCall() nodes.StmtNode {
 
 	return &nodes.PLSQLCall{
 		Name: target,
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parsePLSQLIf parses an IF/ELSIF/ELSE/END IF statement.
 //
 //	IF condition THEN statements [ELSIF condition THEN statements ...] [ELSE statements] END IF ;
-func (p *Parser) parsePLSQLIf() *nodes.PLSQLIf {
+func (p *Parser) parsePLSQLIf() (*nodes.PLSQLIf, error) {
 	start := p.pos()
 	p.advance() // consume IF
 
@@ -404,19 +530,31 @@ func (p *Parser) parsePLSQLIf() *nodes.PLSQLIf {
 		ElsIfs: &nodes.List{},
 		Loc:    nodes.Loc{Start: start},
 	}
+	var parseErr853 error
 
 	// Condition
-	ifStmt.Condition = p.parseExpr()
+	ifStmt.Condition, parseErr853 = p.parseExpr()
+	if parseErr853 !=
 
-	// THEN
+		// THEN
+		nil {
+		return nil, parseErr853
+	}
+
 	if p.cur.Type == kwTHEN {
 		p.advance()
 	}
+	var parseErr854 error
 
 	// Then body
-	ifStmt.Then = p.parsePLSQLStatements()
+	ifStmt.Then, parseErr854 = p.parsePLSQLStatements()
+	if parseErr854 !=
 
-	// ELSIF clauses
+		// ELSIF clauses
+		nil {
+		return nil, parseErr854
+	}
+
 	for p.cur.Type == kwELSIF {
 		elsifStart := p.pos()
 		p.advance() // consume ELSIF
@@ -424,24 +562,38 @@ func (p *Parser) parsePLSQLIf() *nodes.PLSQLIf {
 		elsif := &nodes.PLSQLElsIf{
 			Loc: nodes.Loc{Start: elsifStart},
 		}
-		elsif.Condition = p.parseExpr()
+		var parseErr855 error
+		elsif.Condition, parseErr855 = p.parseExpr()
+		if parseErr855 != nil {
+			return nil, parseErr855
+		}
 
 		if p.cur.Type == kwTHEN {
 			p.advance()
 		}
+		var parseErr856 error
 
-		elsif.Then = p.parsePLSQLStatements()
-		elsif.Loc.End = p.pos()
+		elsif.Then, parseErr856 = p.parsePLSQLStatements()
+		if parseErr856 != nil {
+			return nil, parseErr856
+		}
+		elsif.Loc.End = p.prev.End
 		ifStmt.ElsIfs.Items = append(ifStmt.ElsIfs.Items, elsif)
 	}
 
 	// ELSE clause
 	if p.cur.Type == kwELSE {
 		p.advance()
-		ifStmt.Else = p.parsePLSQLStatements()
+		var parseErr857 error
+		ifStmt.Else, parseErr857 = p.parsePLSQLStatements()
+		if parseErr857 !=
+
+			// END IF ;
+			nil {
+			return nil, parseErr857
+		}
 	}
 
-	// END IF ;
 	if p.cur.Type == kwEND {
 		p.advance()
 	}
@@ -452,14 +604,14 @@ func (p *Parser) parsePLSQLIf() *nodes.PLSQLIf {
 		p.advance()
 	}
 
-	ifStmt.Loc.End = p.pos()
-	return ifStmt
+	ifStmt.Loc.End = p.prev.End
+	return ifStmt, nil
 }
 
 // parsePLSQLBasicLoop parses a basic LOOP/END LOOP statement.
 //
 //	LOOP statements END LOOP [label] ;
-func (p *Parser) parsePLSQLBasicLoop() *nodes.PLSQLLoop {
+func (p *Parser) parsePLSQLBasicLoop() (*nodes.PLSQLLoop, error) {
 	start := p.pos()
 	p.advance() // consume LOOP
 
@@ -467,23 +619,31 @@ func (p *Parser) parsePLSQLBasicLoop() *nodes.PLSQLLoop {
 		Type: nodes.LOOP_BASIC,
 		Loc:  nodes.Loc{Start: start},
 	}
+	var parseErr858 error
 
-	loop.Statements = p.parsePLSQLStatements()
+	loop.Statements, parseErr858 = p.parsePLSQLStatements()
+	if parseErr858 !=
 
-	// END LOOP [label] ;
-	p.consumeEndLoop()
+		// END LOOP [label] ;
+		nil {
+		return nil, parseErr858
+	}
+
+	if parseErr := p.consumeEndLoop(); parseErr != nil {
+		return nil, parseErr
+	}
 	if p.cur.Type == ';' {
 		p.advance()
 	}
 
-	loop.Loc.End = p.pos()
-	return loop
+	loop.Loc.End = p.prev.End
+	return loop, nil
 }
 
 // parsePLSQLWhileLoop parses a WHILE LOOP statement.
 //
 //	WHILE condition LOOP statements END LOOP [label] ;
-func (p *Parser) parsePLSQLWhileLoop() *nodes.PLSQLLoop {
+func (p *Parser) parsePLSQLWhileLoop() (*nodes.PLSQLLoop, error) {
 	start := p.pos()
 	p.advance() // consume WHILE
 
@@ -491,40 +651,56 @@ func (p *Parser) parsePLSQLWhileLoop() *nodes.PLSQLLoop {
 		Type: nodes.LOOP_WHILE,
 		Loc:  nodes.Loc{Start: start},
 	}
+	var parseErr859 error
 
-	loop.Condition = p.parseExpr()
+	loop.Condition, parseErr859 = p.parseExpr()
+	if parseErr859 != nil {
+		return nil, parseErr859
+	}
 
 	if p.cur.Type == kwLOOP {
 		p.advance()
 	}
+	var parseErr860 error
 
-	loop.Statements = p.parsePLSQLStatements()
+	loop.Statements, parseErr860 = p.parsePLSQLStatements()
+	if parseErr860 != nil {
+		return nil, parseErr860
+	}
 
-	p.consumeEndLoop()
+	if parseErr := p.consumeEndLoop(); parseErr != nil {
+		return nil, parseErr
+	}
 	if p.cur.Type == ';' {
 		p.advance()
 	}
 
-	loop.Loc.End = p.pos()
-	return loop
+	loop.Loc.End = p.prev.End
+	return loop, nil
 }
 
 // parsePLSQLForLoop parses a FOR LOOP statement.
 //
 //	FOR var IN [REVERSE] lower..upper LOOP statements END LOOP [label] ;
 //	FOR rec IN cursor [(args)] LOOP statements END LOOP [label] ;
-func (p *Parser) parsePLSQLForLoop() *nodes.PLSQLLoop {
+func (p *Parser) parsePLSQLForLoop() (*nodes.PLSQLLoop, error) {
 	start := p.pos()
 	p.advance() // consume FOR
 
 	loop := &nodes.PLSQLLoop{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr861 error
 
 	// Iterator variable
-	loop.Iterator = p.parseIdentifier()
+	loop.Iterator, parseErr861 = p.parseIdentifier()
+	if parseErr861 !=
 
-	// IN
+		// IN
+		nil {
+		return nil, parseErr861
+	}
+
 	if p.cur.Type == kwIN {
 		p.advance()
 	}
@@ -537,16 +713,29 @@ func (p *Parser) parsePLSQLForLoop() *nodes.PLSQLLoop {
 
 	// Determine: numeric range (lower..upper) or cursor FOR loop
 	// Parse first expression
-	expr1 := p.parseExpr()
+	expr1, parseErr862 := p.parseExpr()
+	if parseErr862 != nil {
+		return nil, parseErr862
+
+		// Numeric FOR loop: lower..upper
+	}
 
 	if p.cur.Type == tokDOTDOT {
-		// Numeric FOR loop: lower..upper
+
 		loop.Type = nodes.LOOP_FOR
 		loop.LowerBound = expr1
-		p.advance() // consume ..
-		loop.UpperBound = p.parseExpr()
+		p.advance()
+		var // consume ..
+		parseErr863 error
+		loop.UpperBound, parseErr863 = p.parseExpr()
+		if parseErr863 !=
+
+			// Cursor FOR loop: cursor_name [(args)]
+			nil {
+			return nil, parseErr863
+		}
 	} else {
-		// Cursor FOR loop: cursor_name [(args)]
+
 		loop.Type = nodes.LOOP_CURSOR_FOR
 		// Extract cursor name from expr1
 		if colRef, ok := expr1.(*nodes.ColumnRef); ok {
@@ -554,42 +743,57 @@ func (p *Parser) parsePLSQLForLoop() *nodes.PLSQLLoop {
 		}
 		// Optional cursor arguments
 		if p.cur.Type == '(' {
-			loop.CursorArgs = p.parsePLSQLArgList()
+			var parseErr864 error
+			loop.CursorArgs, parseErr864 = p.parsePLSQLArgList()
+			if parseErr864 !=
+
+				// LOOP
+				nil {
+				return nil, parseErr864
+			}
 		}
 	}
 
-	// LOOP
 	if p.cur.Type == kwLOOP {
 		p.advance()
 	}
+	var parseErr865 error
 
-	loop.Statements = p.parsePLSQLStatements()
+	loop.Statements, parseErr865 = p.parsePLSQLStatements()
+	if parseErr865 != nil {
+		return nil, parseErr865
+	}
 
-	p.consumeEndLoop()
+	if parseErr := p.consumeEndLoop(); parseErr != nil {
+		return nil, parseErr
+	}
 	if p.cur.Type == ';' {
 		p.advance()
 	}
 
-	loop.Loc.End = p.pos()
-	return loop
+	loop.Loc.End = p.prev.End
+	return loop, nil
 }
 
 // consumeEndLoop consumes END LOOP [label].
-func (p *Parser) consumeEndLoop() {
-	if p.cur.Type == kwEND {
-		p.advance()
+func (p *Parser) consumeEndLoop() error {
+	if p.cur.Type != kwEND {
+		return p.syntaxErrorAtCur()
 	}
-	if p.cur.Type == kwLOOP {
-		p.advance()
+	p.advance()
+	if p.cur.Type != kwLOOP {
+		return p.syntaxErrorAtCur()
 	}
+	p.advance()
 	// Optional label after END LOOP
 	if p.isIdentLike() && p.cur.Type != ';' && p.cur.Type != tokEOF {
 		p.advance()
 	}
+	return nil
 }
 
 // parsePLSQLReturn parses a RETURN [expr] ; statement.
-func (p *Parser) parsePLSQLReturn() *nodes.PLSQLReturn {
+func (p *Parser) parsePLSQLReturn() (*nodes.PLSQLReturn, error) {
 	start := p.pos()
 	p.advance() // consume RETURN
 
@@ -599,24 +803,32 @@ func (p *Parser) parsePLSQLReturn() *nodes.PLSQLReturn {
 
 	// Optional expression (not followed by ;)
 	if p.cur.Type != ';' && p.cur.Type != tokEOF {
-		ret.Expr = p.parseExpr()
+		var parseErr866 error
+		ret.Expr, parseErr866 = p.parseExpr()
+		if parseErr866 != nil {
+			return nil, parseErr866
+		}
 	}
 
 	if p.cur.Type == ';' {
 		p.advance()
 	}
 
-	ret.Loc.End = p.pos()
-	return ret
+	ret.Loc.End = p.prev.End
+	return ret, nil
 }
 
 // parsePLSQLGoto parses a GOTO label ; statement.
-func (p *Parser) parsePLSQLGoto() *nodes.PLSQLGoto {
+func (p *Parser) parsePLSQLGoto() (*nodes.PLSQLGoto, error) {
 	start := p.pos()
-	p.advance() // consume GOTO
-
+	p.advance()
+	parseValue81, // consume GOTO
+		parseErr82 := p.parseIdentifier()
+	if parseErr82 != nil {
+		return nil, parseErr82
+	}
 	g := &nodes.PLSQLGoto{
-		Label: p.parseIdentifier(),
+		Label: parseValue81,
 		Loc:   nodes.Loc{Start: start},
 	}
 
@@ -624,12 +836,12 @@ func (p *Parser) parsePLSQLGoto() *nodes.PLSQLGoto {
 		p.advance()
 	}
 
-	g.Loc.End = p.pos()
-	return g
+	g.Loc.End = p.prev.End
+	return g, nil
 }
 
 // parsePLSQLRaise parses a RAISE [exception_name] ; statement.
-func (p *Parser) parsePLSQLRaise() *nodes.PLSQLRaise {
+func (p *Parser) parsePLSQLRaise() (*nodes.PLSQLRaise, error) {
 	start := p.pos()
 	p.advance() // consume RAISE
 
@@ -639,19 +851,23 @@ func (p *Parser) parsePLSQLRaise() *nodes.PLSQLRaise {
 
 	// Optional exception name
 	if p.cur.Type != ';' && p.cur.Type != tokEOF && p.isIdentLike() {
-		r.Exception = p.parseIdentifier()
+		var parseErr867 error
+		r.Exception, parseErr867 = p.parseIdentifier()
+		if parseErr867 != nil {
+			return nil, parseErr867
+		}
 	}
 
 	if p.cur.Type == ';' {
 		p.advance()
 	}
 
-	r.Loc.End = p.pos()
-	return r
+	r.Loc.End = p.prev.End
+	return r, nil
 }
 
 // parsePLSQLNull parses a NULL ; statement.
-func (p *Parser) parsePLSQLNull() *nodes.PLSQLNull {
+func (p *Parser) parsePLSQLNull() (*nodes.PLSQLNull, error) {
 	start := p.pos()
 	p.advance() // consume NULL
 
@@ -660,12 +876,12 @@ func (p *Parser) parsePLSQLNull() *nodes.PLSQLNull {
 	}
 
 	return &nodes.PLSQLNull{
-		Loc: nodes.Loc{Start: start, End: p.pos()},
-	}
+		Loc: nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parsePLSQLExecImmediate parses EXECUTE IMMEDIATE expr [INTO vars] [USING vars] ;
-func (p *Parser) parsePLSQLExecImmediate() *nodes.PLSQLExecImmediate {
+func (p *Parser) parsePLSQLExecImmediate() (*nodes.PLSQLExecImmediate, error) {
 	start := p.pos()
 	p.advance() // consume EXECUTE
 
@@ -677,50 +893,34 @@ func (p *Parser) parsePLSQLExecImmediate() *nodes.PLSQLExecImmediate {
 	stmt := &nodes.PLSQLExecImmediate{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr868 error
 
-	stmt.SQL = p.parseExpr()
+	stmt.SQL, parseErr868 = p.parseExpr()
+	if parseErr868 !=
 
-	// INTO
+		// INTO
+		nil {
+		return nil, parseErr868
+	}
+
 	if p.cur.Type == kwINTO {
 		p.advance()
-		stmt.Into = p.parsePLSQLVarList()
+		var parseErr869 error
+		stmt.Into, parseErr869 = p.parsePLSQLVarList()
+		if parseErr869 !=
+
+			// USING
+			nil {
+			return nil, parseErr869
+		}
 	}
 
-	// USING
 	if p.cur.Type == kwUSING {
 		p.advance()
-		stmt.Using = p.parsePLSQLVarList()
-	}
-
-	if p.cur.Type == ';' {
-		p.advance()
-	}
-
-	stmt.Loc.End = p.pos()
-	return stmt
-}
-
-// parsePLSQLOpen parses OPEN cursor [(args)] [FOR query] ;
-func (p *Parser) parsePLSQLOpen() *nodes.PLSQLOpen {
-	start := p.pos()
-	p.advance() // consume OPEN
-
-	o := &nodes.PLSQLOpen{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	o.Cursor = p.parseIdentifier()
-
-	// Optional arguments
-	if p.cur.Type == '(' {
-		o.Args = p.parsePLSQLArgList()
-	}
-
-	// FOR query
-	if p.cur.Type == kwFOR {
-		p.advance()
-		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			o.ForQuery = p.parseSelectStmt()
+		var parseErr870 error
+		stmt.Using, parseErr870 = p.parsePLSQLVarList()
+		if parseErr870 != nil {
+			return nil, parseErr870
 		}
 	}
 
@@ -728,22 +928,76 @@ func (p *Parser) parsePLSQLOpen() *nodes.PLSQLOpen {
 		p.advance()
 	}
 
-	o.Loc.End = p.pos()
-	return o
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parsePLSQLOpen parses OPEN cursor [(args)] [FOR query] ;
+func (p *Parser) parsePLSQLOpen() (*nodes.PLSQLOpen, error) {
+	start := p.pos()
+	p.advance() // consume OPEN
+
+	o := &nodes.PLSQLOpen{
+		Loc: nodes.Loc{Start: start},
+	}
+	var parseErr871 error
+
+	o.Cursor, parseErr871 = p.parseIdentifier()
+	if parseErr871 !=
+
+		// Optional arguments
+		nil {
+		return nil, parseErr871
+	}
+
+	if p.cur.Type == '(' {
+		var parseErr872 error
+		o.Args, parseErr872 = p.parsePLSQLArgList()
+		if parseErr872 !=
+
+			// FOR query
+			nil {
+			return nil, parseErr872
+		}
+	}
+
+	if p.cur.Type == kwFOR {
+		p.advance()
+		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+			var parseErr873 error
+			o.ForQuery, parseErr873 = p.parseSelectStmt()
+			if parseErr873 != nil {
+				return nil, parseErr873
+			}
+		}
+	}
+
+	if p.cur.Type == ';' {
+		p.advance()
+	}
+
+	o.Loc.End = p.prev.End
+	return o, nil
 }
 
 // parsePLSQLFetch parses FETCH cursor INTO vars [BULK COLLECT INTO vars] [LIMIT expr] ;
-func (p *Parser) parsePLSQLFetch() *nodes.PLSQLFetch {
+func (p *Parser) parsePLSQLFetch() (*nodes.PLSQLFetch, error) {
 	start := p.pos()
 	p.advance() // consume FETCH
 
 	f := &nodes.PLSQLFetch{
 		Loc: nodes.Loc{Start: start},
 	}
+	var parseErr874 error
 
-	f.Cursor = p.parseIdentifier()
+	f.Cursor, parseErr874 = p.parseIdentifier()
+	if parseErr874 !=
 
-	// BULK COLLECT INTO
+		// BULK COLLECT INTO
+		nil {
+		return nil, parseErr874
+	}
+
 	if p.cur.Type == kwBULK {
 		f.Bulk = true
 		p.advance() // consume BULK
@@ -755,30 +1009,44 @@ func (p *Parser) parsePLSQLFetch() *nodes.PLSQLFetch {
 	// INTO
 	if p.cur.Type == kwINTO {
 		p.advance()
-		f.Into = p.parsePLSQLVarList()
+		var parseErr875 error
+		f.Into, parseErr875 = p.parsePLSQLVarList()
+		if parseErr875 !=
+
+			// LIMIT
+			nil {
+			return nil, parseErr875
+		}
 	}
 
-	// LIMIT
 	if p.cur.Type == kwLIMIT {
 		p.advance()
-		f.Limit = p.parseExpr()
+		var parseErr876 error
+		f.Limit, parseErr876 = p.parseExpr()
+		if parseErr876 != nil {
+			return nil, parseErr876
+		}
 	}
 
 	if p.cur.Type == ';' {
 		p.advance()
 	}
 
-	f.Loc.End = p.pos()
-	return f
+	f.Loc.End = p.prev.End
+	return f, nil
 }
 
 // parsePLSQLClose parses CLOSE cursor ;
-func (p *Parser) parsePLSQLClose() *nodes.PLSQLClose {
+func (p *Parser) parsePLSQLClose() (*nodes.PLSQLClose, error) {
 	start := p.pos()
-	p.advance() // consume CLOSE
-
+	p.advance()
+	parseValue83, // consume CLOSE
+		parseErr84 := p.parseIdentifier()
+	if parseErr84 != nil {
+		return nil, parseErr84
+	}
 	c := &nodes.PLSQLClose{
-		Cursor: p.parseIdentifier(),
+		Cursor: parseValue83,
 		Loc:    nodes.Loc{Start: start},
 	}
 
@@ -786,14 +1054,14 @@ func (p *Parser) parsePLSQLClose() *nodes.PLSQLClose {
 		p.advance()
 	}
 
-	c.Loc.End = p.pos()
-	return c
+	c.Loc.End = p.prev.End
+	return c, nil
 }
 
 // parsePLSQLExceptionHandlers parses exception handlers.
 //
 //	WHEN name [OR name ...] THEN statements
-func (p *Parser) parsePLSQLExceptionHandlers() *nodes.List {
+func (p *Parser) parsePLSQLExceptionHandlers() (*nodes.List, error) {
 	handlers := &nodes.List{}
 
 	for p.cur.Type == kwWHEN {
@@ -806,12 +1074,20 @@ func (p *Parser) parsePLSQLExceptionHandlers() *nodes.List {
 		}
 
 		// Exception name(s)
-		name := p.parseIdentifier()
+		name, parseErr877 := p.parseIdentifier()
+		if parseErr877 != nil {
+			return nil, parseErr877
+		}
 		handler.Exceptions.Items = append(handler.Exceptions.Items, &nodes.String{Str: name})
 
 		for p.cur.Type == kwOR {
-			p.advance() // consume OR
-			name = p.parseIdentifier()
+			p.advance()
+			var // consume OR
+			parseErr878 error
+			name, parseErr878 = p.parseIdentifier()
+			if parseErr878 != nil {
+				return nil, parseErr878
+			}
 			handler.Exceptions.Items = append(handler.Exceptions.Items, &nodes.String{Str: name})
 		}
 
@@ -819,22 +1095,29 @@ func (p *Parser) parsePLSQLExceptionHandlers() *nodes.List {
 		if p.cur.Type == kwTHEN {
 			p.advance()
 		}
+		var parseErr879 error
 
-		handler.Statements = p.parsePLSQLStatements()
-		handler.Loc.End = p.pos()
+		handler.Statements, parseErr879 = p.parsePLSQLStatements()
+		if parseErr879 != nil {
+			return nil, parseErr879
+		}
+		handler.Loc.End = p.prev.End
 
 		handlers.Items = append(handlers.Items, handler)
 	}
 
-	return handlers
+	return handlers, nil
 }
 
 // parsePLSQLVarList parses a comma-separated list of variable references.
-func (p *Parser) parsePLSQLVarList() *nodes.List {
+func (p *Parser) parsePLSQLVarList() (*nodes.List, error) {
 	list := &nodes.List{}
 
 	for {
-		expr := p.parseExpr()
+		expr, parseErr880 := p.parseExpr()
+		if parseErr880 != nil {
+			return nil, parseErr880
+		}
 		if expr != nil {
 			list.Items = append(list.Items, expr)
 		}
@@ -844,16 +1127,19 @@ func (p *Parser) parsePLSQLVarList() *nodes.List {
 		p.advance() // consume ,
 	}
 
-	return list
+	return list, nil
 }
 
 // parsePLSQLArgList parses a parenthesized argument list.
-func (p *Parser) parsePLSQLArgList() *nodes.List {
+func (p *Parser) parsePLSQLArgList() (*nodes.List, error) {
 	args := &nodes.List{}
 	p.advance() // consume (
 
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		expr := p.parseExpr()
+		expr, parseErr881 := p.parseExpr()
+		if parseErr881 != nil {
+			return nil, parseErr881
+		}
 		if expr != nil {
 			args.Items = append(args.Items, expr)
 		}
@@ -867,11 +1153,11 @@ func (p *Parser) parsePLSQLArgList() *nodes.List {
 		p.advance()
 	}
 
-	return args
+	return args, nil
 }
 
 // parsePLSQLExit parses an EXIT [label] [WHEN condition] ; statement.
-func (p *Parser) parsePLSQLExit() nodes.StmtNode {
+func (p *Parser) parsePLSQLExit() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume EXIT
 
@@ -888,19 +1174,23 @@ func (p *Parser) parsePLSQLExit() nodes.StmtNode {
 	// WHEN condition
 	if p.cur.Type == kwWHEN {
 		p.advance()
-		stmt.Condition = p.parseExpr()
+		var parseErr882 error
+		stmt.Condition, parseErr882 = p.parseExpr()
+		if parseErr882 != nil {
+			return nil, parseErr882
+		}
 	}
 
 	if p.cur.Type == ';' {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parsePLSQLContinue parses a CONTINUE [label] [WHEN condition] ; statement.
-func (p *Parser) parsePLSQLContinue() nodes.StmtNode {
+func (p *Parser) parsePLSQLContinue() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume CONTINUE
 
@@ -917,21 +1207,25 @@ func (p *Parser) parsePLSQLContinue() nodes.StmtNode {
 	// WHEN condition
 	if p.cur.Type == kwWHEN {
 		p.advance()
-		stmt.Condition = p.parseExpr()
+		var parseErr883 error
+		stmt.Condition, parseErr883 = p.parseExpr()
+		if parseErr883 != nil {
+			return nil, parseErr883
+		}
 	}
 
 	if p.cur.Type == ';' {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parsePLSQLForall parses a FORALL statement.
 //
 //	FORALL index IN lower..upper [SAVE EXCEPTIONS] dml_statement ;
-func (p *Parser) parsePLSQLForall() nodes.StmtNode {
+func (p *Parser) parsePLSQLForall() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume FORALL
 
@@ -957,35 +1251,53 @@ func (p *Parser) parsePLSQLForall() nodes.StmtNode {
 		if p.cur.Type == kwOF {
 			p.advance()
 		}
+		var parseErr884 error
 		// collection name
-		stmt.Lower = p.parseExpr()
+		stmt.Lower, parseErr884 = p.parseExpr()
+		if parseErr884 != nil {
+			return nil, parseErr884
+		}
 	} else {
-		stmt.Lower = p.parseExpr()
+		var parseErr885 error
+		stmt.Lower, parseErr885 = p.parseExpr()
+		if parseErr885 != nil {
+			return nil, parseErr885
+		}
 		if p.cur.Type == tokDOTDOT {
 			p.advance()
-			stmt.Upper = p.parseExpr()
+			var parseErr886 error
+			stmt.Upper, parseErr886 = p.parseExpr()
+			if parseErr886 !=
+
+				// Optional SAVE EXCEPTIONS
+				nil {
+				return nil, parseErr886
+			}
 		}
 	}
 
-	// Optional SAVE EXCEPTIONS
 	if p.isIdentLike() && p.cur.Str == "SAVE" {
 		p.advance()
 		if p.cur.Type == kwEXCEPTION || p.isIdentLike() {
 			p.advance()
 		}
 	}
+	var parseErr887 error
 
 	// DML statement body
-	stmt.Body = p.parsePLSQLStatement()
+	stmt.Body, parseErr887 = p.parsePLSQLStatement()
+	if parseErr887 != nil {
+		return nil, parseErr887
+	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parsePLSQLPipeRow parses a PIPE ROW statement.
 //
 //	PIPE ROW (expression) ;
-func (p *Parser) parsePLSQLPipeRow() nodes.StmtNode {
+func (p *Parser) parsePLSQLPipeRow() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume PIPE
 
@@ -1001,7 +1313,11 @@ func (p *Parser) parsePLSQLPipeRow() nodes.StmtNode {
 	// (expression)
 	if p.cur.Type == '(' {
 		p.advance()
-		stmt.Row = p.parseExpr()
+		var parseErr888 error
+		stmt.Row, parseErr888 = p.parseExpr()
+		if parseErr888 != nil {
+			return nil, parseErr888
+		}
 		if p.cur.Type == ')' {
 			p.advance()
 		}
@@ -1011,8 +1327,8 @@ func (p *Parser) parsePLSQLPipeRow() nodes.StmtNode {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parsePLSQLPragma parses a PRAGMA directive.
@@ -1020,7 +1336,7 @@ func (p *Parser) parsePLSQLPipeRow() nodes.StmtNode {
 //	PRAGMA AUTONOMOUS_TRANSACTION ;
 //	PRAGMA EXCEPTION_INIT ( exception, error_code ) ;
 //	PRAGMA RESTRICT_REFERENCES ( ... ) ;
-func (p *Parser) parsePLSQLPragma() *nodes.PLSQLPragma {
+func (p *Parser) parsePLSQLPragma() (*nodes.PLSQLPragma, error) {
 	start := p.pos()
 	p.advance() // consume PRAGMA
 
@@ -1039,7 +1355,10 @@ func (p *Parser) parsePLSQLPragma() *nodes.PLSQLPragma {
 		p.advance()
 		pragma.Args = &nodes.List{}
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			arg := p.parseExpr()
+			arg, parseErr889 := p.parseExpr()
+			if parseErr889 != nil {
+				return nil, parseErr889
+			}
 			if arg != nil {
 				pragma.Args.Items = append(pragma.Args.Items, arg)
 			}
@@ -1057,8 +1376,8 @@ func (p *Parser) parsePLSQLPragma() *nodes.PLSQLPragma {
 		p.advance()
 	}
 
-	pragma.Loc.End = p.pos()
-	return pragma
+	pragma.Loc.End = p.prev.End
+	return pragma, nil
 }
 
 // parsePLSQLCaseStmt parses a PL/SQL CASE statement (distinct from CASE expression).
@@ -1067,7 +1386,7 @@ func (p *Parser) parsePLSQLPragma() *nodes.PLSQLPragma {
 //	  WHEN expr THEN statements ...
 //	  [ELSE statements]
 //	END CASE ;
-func (p *Parser) parsePLSQLCaseStmt() nodes.StmtNode {
+func (p *Parser) parsePLSQLCaseStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume CASE
 
@@ -1078,29 +1397,42 @@ func (p *Parser) parsePLSQLCaseStmt() nodes.StmtNode {
 	// Optional search expression (simple CASE vs searched CASE)
 	// If next is WHEN, it's a searched CASE
 	if p.cur.Type != kwWHEN {
-		stmt.Expr = p.parseExpr()
+		var parseErr890 error
+		stmt.Expr, parseErr890 = p.parseExpr()
+		if parseErr890 !=
+
+			// WHEN clauses
+			nil {
+			return nil, parseErr890
+		}
 	}
 
-	// WHEN clauses
 	for p.cur.Type == kwWHEN {
 		whenStart := p.pos()
 		p.advance() // consume WHEN
 		when := &nodes.PLSQLWhen{
 			Loc: nodes.Loc{Start: whenStart},
 		}
-		when.Expr = p.parseExpr()
+		var parseErr891 error
+		when.Expr, parseErr891 = p.parseExpr()
+		if parseErr891 != nil {
+			return nil, parseErr891
+		}
 		if p.cur.Type == kwTHEN {
 			p.advance()
 		}
 		// Statements until next WHEN, ELSE, or END
 		for p.cur.Type != kwWHEN && p.cur.Type != kwELSE && p.cur.Type != kwEND && p.cur.Type != tokEOF {
-			s := p.parsePLSQLStatement()
+			s, parseErr892 := p.parsePLSQLStatement()
+			if parseErr892 != nil {
+				return nil, parseErr892
+			}
 			if s == nil {
 				break
 			}
 			when.Stmts = append(when.Stmts, s)
 		}
-		when.Loc.End = p.pos()
+		when.Loc.End = p.prev.End
 		stmt.Whens = append(stmt.Whens, when)
 	}
 
@@ -1108,7 +1440,10 @@ func (p *Parser) parsePLSQLCaseStmt() nodes.StmtNode {
 	if p.cur.Type == kwELSE {
 		p.advance()
 		for p.cur.Type != kwEND && p.cur.Type != tokEOF {
-			s := p.parsePLSQLStatement()
+			s, parseErr893 := p.parsePLSQLStatement()
+			if parseErr893 != nil {
+				return nil, parseErr893
+			}
 			if s == nil {
 				break
 			}
@@ -1127,8 +1462,8 @@ func (p *Parser) parsePLSQLCaseStmt() nodes.StmtNode {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parsePLSQLTypeDecl parses a PL/SQL TYPE declaration.
@@ -1137,7 +1472,7 @@ func (p *Parser) parsePLSQLCaseStmt() nodes.StmtNode {
 //	TYPE name IS VARRAY(n) OF type ;
 //	TYPE name IS RECORD (field type [,...]) ;
 //	TYPE name IS REF CURSOR [RETURN type] ;
-func (p *Parser) parsePLSQLTypeDecl() *nodes.PLSQLTypeDecl {
+func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 	start := p.pos()
 	p.advance() // consume TYPE
 
@@ -1164,14 +1499,24 @@ func (p *Parser) parsePLSQLTypeDecl() *nodes.PLSQLTypeDecl {
 		if p.cur.Type == kwOF {
 			p.advance()
 		}
-		decl.ElementType = p.parseTypeName()
-		// INDEX BY
+		var parseErr894 error
+		decl.ElementType, parseErr894 = p.parseTypeName()
+		if parseErr894 !=
+			// INDEX BY
+			nil {
+			return nil, parseErr894
+		}
+
 		if p.cur.Type == kwINDEX {
 			p.advance()
 			if p.cur.Type == kwBY {
 				p.advance()
 			}
-			decl.IndexBy = p.parseTypeName()
+			var parseErr895 error
+			decl.IndexBy, parseErr895 = p.parseTypeName()
+			if parseErr895 != nil {
+				return nil, parseErr895
+			}
 		}
 
 	case p.isIdentLike() && p.cur.Str == "VARRAY" || p.isIdentLike() && p.cur.Str == "VARYING":
@@ -1184,7 +1529,11 @@ func (p *Parser) parsePLSQLTypeDecl() *nodes.PLSQLTypeDecl {
 		// (limit)
 		if p.cur.Type == '(' {
 			p.advance()
-			decl.Limit = p.parseExpr()
+			var parseErr896 error
+			decl.Limit, parseErr896 = p.parseExpr()
+			if parseErr896 != nil {
+				return nil, parseErr896
+			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}
@@ -1192,7 +1541,11 @@ func (p *Parser) parsePLSQLTypeDecl() *nodes.PLSQLTypeDecl {
 		if p.cur.Type == kwOF {
 			p.advance()
 		}
-		decl.ElementType = p.parseTypeName()
+		var parseErr897 error
+		decl.ElementType, parseErr897 = p.parseTypeName()
+		if parseErr897 != nil {
+			return nil, parseErr897
+		}
 
 	case p.isIdentLike() && p.cur.Str == "RECORD":
 		decl.Kind = "RECORD"
@@ -1202,7 +1555,10 @@ func (p *Parser) parsePLSQLTypeDecl() *nodes.PLSQLTypeDecl {
 			p.advance()
 			decl.Fields = &nodes.List{}
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				field := p.parsePLSQLVarDecl()
+				field, parseErr898 := p.parsePLSQLVarDecl()
+				if parseErr898 != nil {
+					return nil, parseErr898
+				}
 				if field != nil {
 					decl.Fields.Items = append(decl.Fields.Items, field)
 				}
@@ -1226,7 +1582,11 @@ func (p *Parser) parsePLSQLTypeDecl() *nodes.PLSQLTypeDecl {
 		// RETURN type
 		if p.cur.Type == kwRETURN {
 			p.advance()
-			decl.ReturnType = p.parseTypeName()
+			var parseErr899 error
+			decl.ReturnType, parseErr899 = p.parseTypeName()
+			if parseErr899 != nil {
+				return nil, parseErr899
+			}
 		}
 	}
 
@@ -1234,6 +1594,6 @@ func (p *Parser) parsePLSQLTypeDecl() *nodes.PLSQLTypeDecl {
 		p.advance()
 	}
 
-	decl.Loc.End = p.pos()
-	return decl
+	decl.Loc.End = p.prev.End
+	return decl, nil
 }

@@ -12,7 +12,7 @@ import (
 //	CREATE [ OR REPLACE | IF NOT EXISTS ]
 //	    [ EDITIONABLE | NONEDITIONABLE ]
 //	    TRIGGER plsql_trigger_source ;
-func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) *nodes.CreateTriggerStmt {
+func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editionable, nonEditionable bool) (*nodes.CreateTriggerStmt, error) {
 	p.advance() // consume TRIGGER
 
 	stmt := &nodes.CreateTriggerStmt{
@@ -24,11 +24,17 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 		Events:         &nodes.List{},
 		Loc:            nodes.Loc{Start: start},
 	}
+	var parseErr564 error
 
 	// Trigger name
-	stmt.Name = p.parseObjectName()
+	stmt.Name, parseErr564 = p.parseObjectName()
+	if parseErr564 !=
 
-	// Timing: BEFORE | AFTER | INSTEAD OF | FOR (compound trigger)
+		// Timing: BEFORE | AFTER | INSTEAD OF | FOR (compound trigger)
+		nil {
+		return nil, parseErr564
+	}
+
 	switch p.cur.Type {
 	case kwBEFORE:
 		stmt.Timing = nodes.TRIGGER_BEFORE
@@ -46,16 +52,26 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 		// Compound trigger syntax: FOR dml_event ON table COMPOUND TRIGGER
 		p.advance() // consume FOR
 	}
+	parseErr565 :=
 
-	// Events: INSERT | UPDATE [OF col, ...] | DELETE | DDL events (CREATE, ALTER, DROP, etc.)
-	// separated by OR
-	p.parseTriggerEvent(stmt)
-	for p.cur.Type == kwOR {
-		p.advance() // consume OR
+		// Events: INSERT | UPDATE [OF col, ...] | DELETE | DDL events (CREATE, ALTER, DROP, etc.)
+		// separated by OR
 		p.parseTriggerEvent(stmt)
+	if parseErr565 != nil {
+		return nil, parseErr565
+	}
+	for p.cur.Type == kwOR {
+		p.advance()
+		parseErr566 := // consume OR
+			p.parseTriggerEvent(stmt)
+		if parseErr566 !=
+
+			// ON [schema.]table_name | ON DATABASE | ON SCHEMA
+			nil {
+			return nil, parseErr566
+		}
 	}
 
-	// ON [schema.]table_name | ON DATABASE | ON SCHEMA
 	if p.cur.Type == kwON {
 		p.advance() // consume ON
 		if p.cur.Type == kwDATABASE {
@@ -65,11 +81,17 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 			stmt.Table = &nodes.ObjectName{Name: "SCHEMA"}
 			p.advance()
 		} else {
-			stmt.Table = p.parseObjectName()
+			var parseErr567 error
+			stmt.Table, parseErr567 = p.parseObjectName()
+			if parseErr567 !=
+
+				// Optional: FOR EACH ROW
+				nil {
+				return nil, parseErr567
+			}
 		}
 	}
 
-	// Optional: FOR EACH ROW
 	if p.cur.Type == kwFOR {
 		p.advance() // consume FOR
 		if p.cur.Type == kwEACH {
@@ -85,8 +107,13 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 	if p.cur.Type == kwWHEN {
 		p.advance() // consume WHEN
 		if p.cur.Type == '(' {
-			p.advance() // consume '('
-			stmt.When = p.parseExpr()
+			p.advance()
+			var // consume '('
+			parseErr568 error
+			stmt.When, parseErr568 = p.parseExpr()
+			if parseErr568 != nil {
+				return nil, parseErr568
+			}
 			if p.cur.Type == ')' {
 				p.advance() // consume ')'
 			}
@@ -129,32 +156,39 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 			}
 			p.advance()
 		}
-		stmt.Loc.End = p.pos()
-		return stmt
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
 	// Body: CALL routine_name | plsql_block
 	if p.isIdentLikeStr("CALL") {
 		p.advance() // consume CALL
 		// Parse the routine name as an object name, wrap as a simple expression
-		callName := p.parseObjectName()
+		callName, parseErr569 := p.parseObjectName()
+		if parseErr569 != nil {
+			return nil, parseErr569
+		}
 		stmt.Body = &nodes.PLSQLBlock{
 			Label: "CALL:" + callName.Name,
 			Loc:   callName.Loc,
 		}
 	} else if p.cur.Type == kwDECLARE || p.cur.Type == kwBEGIN || p.cur.Type == tokLABELOPEN {
-		stmt.Body = p.parsePLSQLBlock()
+		var parseErr570 error
+		stmt.Body, parseErr570 = p.parsePLSQLBlock()
+		if parseErr570 != nil {
+			return nil, parseErr570
+		}
 	}
 
-	stmt.Loc.End = p.pos()
-	return stmt
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 // parseTriggerEvent parses a single trigger event:
 //
 //	DML: INSERT | UPDATE [OF col, ...] | DELETE
 //	DDL: CREATE | ALTER | DROP | TRUNCATE | GRANT | REVOKE | LOGON | LOGOFF | ...
-func (p *Parser) parseTriggerEvent(stmt *nodes.CreateTriggerStmt) {
+func (p *Parser) parseTriggerEvent(stmt *nodes.CreateTriggerStmt) error {
 	switch p.cur.Type {
 	case kwINSERT:
 		p.advance()
@@ -167,7 +201,11 @@ func (p *Parser) parseTriggerEvent(stmt *nodes.CreateTriggerStmt) {
 			p.advance() // consume OF
 			// Skip column list — not stored in the AST
 			for {
-				p.parseIdentifier()
+				parseDiscard572, parseErr571 := p.parseIdentifier()
+				_ = parseDiscard572
+				if parseErr571 != nil {
+					return parseErr571
+				}
 				if p.cur.Type != ',' {
 					break
 				}
@@ -188,4 +226,5 @@ func (p *Parser) parseTriggerEvent(stmt *nodes.CreateTriggerStmt) {
 			stmt.Events.Items = append(stmt.Events.Items, &nodes.ColumnRef{Column: evtName})
 		}
 	}
+	return nil
 }
