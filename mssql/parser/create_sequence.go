@@ -51,8 +51,12 @@ func (p *Parser) parseCreateSequenceStmt() (*nodes.CreateSequenceStmt, error) {
 //	    [ { CACHE [ <constant> ] } | { NO CACHE } ]
 func (p *Parser) parseAlterSequenceStmt() (*nodes.AlterSequenceStmt, error) {
 	stmt := &nodes.AlterSequenceStmt{}
+	if p.collectMode() {
+		p.addRuleCandidate("sequence_ref")
+		return nil, errCollecting
+	}
 	var err error
-	stmt.Name, err = p.parseTableRef()
+	stmt.Name, err = p.parseSequenceRef()
 	if err != nil {
 		return nil, err
 	}

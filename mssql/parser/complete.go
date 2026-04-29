@@ -304,7 +304,8 @@ func (p *Parser) collectMode() bool {
 // checkCursor checks whether the current token is at or past the cursor
 // offset, and if so, enables collection mode.
 func (p *Parser) checkCursor() {
-	if p.cur.Loc >= p.cursorOff {
+	if p.cur.Loc >= p.cursorOff ||
+		(IsIdentTokenType(p.cur.Type) && p.cur.Loc < p.cursorOff && p.cursorOff <= p.cur.End) {
 		p.collecting = true
 	}
 }

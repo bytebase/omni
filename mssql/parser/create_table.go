@@ -236,7 +236,7 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	// TEXTIMAGE_ON filegroup
 	if p.cur.Type == kwTEXTIMAGE_ON {
 		p.advance()
-		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
+		if p.isIdentLike() || p.cur.Type == kwPRIMARY {
 			stmt.TextImageOn = p.cur.Str
 			p.advance()
 		}
@@ -245,7 +245,7 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	// FILESTREAM_ON filegroup
 	if p.cur.Type == kwFILESTREAM_ON {
 		p.advance()
-		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
+		if p.isIdentLike() || p.cur.Type == kwPRIMARY {
 			stmt.FilestreamOn = p.cur.Str
 			p.advance()
 		}
@@ -1486,7 +1486,7 @@ trailingOptions:
 	// [ FILESTREAM_ON { ... } ]
 	if p.cur.Type == kwFILESTREAM_ON {
 		p.advance()
-		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
+		if p.isIdentLike() || p.cur.Type == kwPRIMARY {
 			idx.FilestreamOn = p.cur.Str
 			p.advance()
 		}
@@ -1859,7 +1859,15 @@ func (p *Parser) parseCTASOption() (*nodes.TableOption, error) {
 // parseParenIdentList parses (ident, ident, ...).
 func (p *Parser) parseParenIdentList() (*nodes.List, error) {
 	p.advance() // consume (
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		return nil, errCollecting
+	}
 	items, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return nil, errCollecting
+		}
 		name, ok := p.parseIdentifier()
 		if !ok {
 			return nil, p.unexpectedToken()

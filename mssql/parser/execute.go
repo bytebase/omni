@@ -104,7 +104,7 @@ func (p *Parser) parseExecStmt() (*nodes.ExecStmt, error) {
 	}
 
 	// Procedure name
-	name, err := p.parseTableRef()
+	name, err := p.parseObjectRef("proc_ref")
 	if err != nil {
 		return nil, err
 	}

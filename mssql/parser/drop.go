@@ -190,14 +190,19 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 			p.addRuleCandidate("view_name")
 		case nodes.DropIndex:
 			p.addRuleCandidate("index_name")
+			p.addRuleCandidate("index_ref")
 		case nodes.DropProcedure:
 			p.addRuleCandidate("proc_name")
+			p.addRuleCandidate("proc_ref")
 		case nodes.DropFunction:
 			p.addRuleCandidate("func_name")
 		case nodes.DropDatabase:
 			p.addRuleCandidate("database_ref")
 		case nodes.DropTrigger:
 			p.addRuleCandidate("trigger_name")
+			p.addRuleCandidate("trigger_ref")
+		case nodes.DropSequence:
+			p.addRuleCandidate("sequence_ref")
 		default:
 			p.addRuleCandidate("identifier")
 		}
@@ -220,7 +225,7 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 		}
 	} else {
 		for {
-			name, _ := p.parseTableRef()
+			name, _ := p.parseObjectRef(dropObjectCompletionRule(stmt.ObjectType))
 			if name == nil {
 				break
 			}
@@ -293,4 +298,27 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+func dropObjectCompletionRule(objectType nodes.DropObjectType) string {
+	switch objectType {
+	case nodes.DropTable:
+		return "table_ref"
+	case nodes.DropView, nodes.DropMaterializedView:
+		return "view_name"
+	case nodes.DropIndex:
+		return "index_ref"
+	case nodes.DropProcedure:
+		return "proc_ref"
+	case nodes.DropFunction:
+		return "func_name"
+	case nodes.DropDatabase:
+		return "database_ref"
+	case nodes.DropTrigger:
+		return "trigger_ref"
+	case nodes.DropSequence:
+		return "sequence_ref"
+	default:
+		return "identifier"
+	}
 }
