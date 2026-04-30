@@ -145,6 +145,26 @@ func TestCollectCompletionMergeScope(t *testing.T) {
 	}
 }
 
+func TestCollectCompletionMergeScopeBareUsingSource(t *testing.T) {
+	sql := "MERGE INTO Employees USING Address ON "
+	ctx := CollectCompletion(sql, len(sql))
+	if ctx == nil || ctx.Scope == nil {
+		t.Fatal("expected completion scope")
+	}
+	if ctx.Scope.MergeTarget == nil {
+		t.Fatal("expected merge target")
+	}
+	if got, want := *ctx.Scope.MergeTarget, (RangeReference{Kind: RangeReferenceMergeTarget, Object: "Employees"}); !sameReferenceName(got, want) || got.Kind != want.Kind {
+		t.Fatalf("merge target = %+v, want %+v", got, want)
+	}
+	if ctx.Scope.MergeSource == nil {
+		t.Fatal("expected merge source")
+	}
+	if got, want := *ctx.Scope.MergeSource, (RangeReference{Kind: RangeReferenceMergeSource, Object: "Address"}); !sameReferenceName(got, want) || got.Kind != want.Kind {
+		t.Fatalf("merge source = %+v, want %+v", got, want)
+	}
+}
+
 func TestCollectCompletionPrefixIntentAndQualifier(t *testing.T) {
 	tests := []struct {
 		name      string
