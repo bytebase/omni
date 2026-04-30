@@ -19,6 +19,10 @@ import (
 //	          | user_defined_type
 func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	loc := p.pos()
+	if p.collectMode() {
+		p.addRuleCandidate("type_name")
+		return nil, errCollecting
+	}
 
 	// Get type name - could be keyword (INT, VARCHAR, etc.) or identifier
 	var name string

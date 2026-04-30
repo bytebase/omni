@@ -93,6 +93,11 @@ func (p *Parser) parseNot() (nodes.ExprNode, error) {
 	if p.cur.Type == kwNOT {
 		loc := p.pos()
 		p.advance()
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		operand, err := p.parseNot()
 		if err != nil {
 			return nil, err
@@ -244,6 +249,12 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			}, nil
 		}
 		items, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+			if p.collectMode() {
+				p.addRuleCandidate("columnref")
+				p.addRuleCandidate("func_name")
+				p.addTokenCandidate(kwSELECT)
+				return nil, errCollecting
+			}
 			expr, err := p.parseExpr()
 			if err != nil {
 				return nil, err
@@ -406,6 +417,11 @@ func (p *Parser) parseAddition() (nodes.ExprNode, error) {
 			op = nodes.BinOpBitXor
 		}
 		p.advance()
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		right, err := p.parseMultiplication()
 		if err != nil {
 			return nil, err
@@ -525,6 +541,11 @@ func (p *Parser) parseMultiplication() (nodes.ExprNode, error) {
 			op = nodes.BinOpMod
 		}
 		p.advance()
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		right, err := p.parseUnary()
 		if err != nil {
 			return nil, err
@@ -850,12 +871,22 @@ func (p *Parser) parseConvert() (nodes.ExprNode, error) {
 	if _, err := p.expect(','); err != nil {
 		return nil, err
 	}
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
 	}
 	var style nodes.ExprNode
 	if _, ok := p.match(','); ok {
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		style, err = p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -896,12 +927,22 @@ func (p *Parser) parseTryConvert() (nodes.ExprNode, error) {
 	if _, err := p.expect(','); err != nil {
 		return nil, err
 	}
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
 	}
 	var style nodes.ExprNode
 	if _, ok := p.match(','); ok {
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
 		style, err = p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -1038,6 +1079,11 @@ func (p *Parser) parseCoalesce() (nodes.ExprNode, error) {
 		args = append(args, arg)
 		if _, ok := p.match(','); !ok {
 			break
+		}
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
 		}
 	}
 	_, _ = p.expect(')')

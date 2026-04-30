@@ -42,6 +42,16 @@ func requireRule(t *testing.T, candidates *parser.CandidateSet, rule string) {
 	}
 }
 
+func requireAnyRule(t *testing.T, candidates *parser.CandidateSet, rules ...string) {
+	t.Helper()
+	for _, rule := range rules {
+		if candidates.HasRule(rule) {
+			return
+		}
+	}
+	t.Fatalf("missing any rule %v; got rules=%v tokens=%v", rules, candidates.Rules, tokenNames(candidates.Tokens))
+}
+
 func requireToken(t *testing.T, candidates *parser.CandidateSet, token int) {
 	t.Helper()
 	if !candidates.HasToken(token) {
@@ -88,10 +98,16 @@ func TestCompletionBytebaseColumnReferenceSignals(t *testing.T) {
 		"SELECT tableAlias.| FROM Employees AS tableAlias",
 		"WITH MyCTE_01 AS (SELECT * FROM dbo.Employees) SELECT MyCTE_01.| FROM MyCTE_01",
 		"SELECT * FROM Employees e JOIN Address a ON |",
+		"SELECT * FROM Employees e LEFT JOIN MySchema.SalaryLevel s ON s.|",
 		"SELECT Id AS IdAlias, Name FROM Employees ORDER BY |",
 		"SELECT Id, Name FROM Employees WHERE |",
+		"SELECT * FROM Employees WHERE Id IN (1, |)",
+		"SELECT * FROM Employees WHERE NOT |",
+		"SELECT * FROM Employees WHERE Id + | > 0",
 		"SELECT Id FROM Employees GROUP BY |",
 		"SELECT Id FROM Employees HAVING |",
+		"SELECT COALESCE(NULL, |) FROM Employees",
+		"SELECT CONVERT(INT, |) FROM Employees",
 		"INSERT INTO Employees SELECT | FROM Address",
 		"UPDATE Employees SET |",
 		"UPDATE Employees SET Name = |",
@@ -142,6 +158,7 @@ func TestCompletionBytebaseOpenJSONWithTypeSignals(t *testing.T) {
 	tests := []string{
 		"SELECT * FROM OPENJSON(@json) WITH (Name |)",
 		"SELECT * FROM OPENJSON(@json) WITH (Name nvarchar(100), Age |)",
+		"CREATE PROCEDURE p @Name | AS SELECT 1",
 	}
 
 	for _, input := range tests {
@@ -204,9 +221,10 @@ func TestCompletionBytebasePrefixRetrySignals(t *testing.T) {
 
 func TestCompletionIncompleteSQLSignals(t *testing.T) {
 	tests := []struct {
-		input string
-		rule  string
-		token int
+		input    string
+		rule     string
+		anyRules []string
+		token    int
 	}{
 		{input: "SELECT * FROM|", rule: "table_ref"},
 		{input: "SELECT * FROM |", rule: "table_ref"},
@@ -220,6 +238,8 @@ func TestCompletionIncompleteSQLSignals(t *testing.T) {
 		{input: "SELECT Id FROM Employees ORDER BY |", rule: "columnref"},
 		{input: "WITH cte AS (|", token: parser.SELECT},
 		{input: "WITH cte AS (SELECT Id FROM dbo.Employees) SELECT * FROM|", rule: "table_ref"},
+		{input: "ALTER TABLE Employees ADD CONSTRAINT fk FOREIGN KEY (Id) REFERENCES |", rule: "table_ref"},
+		{input: "DROP VIEW MySchema.|", anyRules: []string{"view_name", "table_ref"}},
 	}
 
 	for _, tt := range tests {
@@ -227,6 +247,9 @@ func TestCompletionIncompleteSQLSignals(t *testing.T) {
 			_, _, candidates := collectMarked(t, tt.input)
 			if tt.rule != "" {
 				requireRule(t, candidates, tt.rule)
+			}
+			if len(tt.anyRules) > 0 {
+				requireAnyRule(t, candidates, tt.anyRules...)
 			}
 			if tt.token != 0 {
 				requireToken(t, candidates, tt.token)
