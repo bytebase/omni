@@ -641,7 +641,7 @@ func isFromClauseTerminator(typ int) bool {
 
 func isAliasBoundary(typ int) bool {
 	switch typ {
-	case kwON, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT, kwEXCEPT, kwJOIN, kwAPPLY, kwWITH, kwOPTION, kwFOR:
+	case kwON, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT, kwEXCEPT, kwJOIN, kwAPPLY, kwUSING, kwWITH, kwOPTION, kwFOR:
 		return true
 	default:
 		return false
