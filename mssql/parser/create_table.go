@@ -1198,6 +1198,10 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 			}
 		}
 		if _, ok := p.match(kwREFERENCES); ok {
+			if p.collectMode() {
+				p.addRuleCandidate("table_ref")
+				return nil, errCollecting
+			}
 			var refErr error
 			cd.RefTable, refErr = p.parseTableRef()
 			if refErr != nil {

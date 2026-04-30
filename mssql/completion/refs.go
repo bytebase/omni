@@ -9,9 +9,11 @@ import (
 
 // TableRef is a table reference found in a FROM clause or DML target.
 type TableRef struct {
-	Schema string
-	Table  string
-	Alias  string
+	Server   string
+	Database string
+	Schema   string
+	Table    string
+	Alias    string
 }
 
 // extractTableRefs parses the SQL and returns table references visible at cursor.
@@ -26,6 +28,10 @@ func extractTableRefs(sql string, cursorOffset int) (refs []TableRef) {
 }
 
 func extractTableRefsInner(sql string, cursorOffset int) []TableRef {
+	if refs := extractTableRefsFromCompletionScope(sql, cursorOffset); len(refs) > 0 {
+		return refs
+	}
+
 	list, err := parser.Parse(sql)
 	if err != nil || list == nil || len(list.Items) == 0 {
 		// Fallback: try appending a placeholder to make incomplete SQL parseable.
@@ -49,6 +55,31 @@ func extractTableRefsInner(sql string, cursorOffset int) []TableRef {
 	}
 	if len(refs) == 0 {
 		return extractTableRefsLexer(sql, cursorOffset)
+	}
+	return refs
+}
+
+func extractTableRefsFromCompletionScope(sql string, cursorOffset int) []TableRef {
+	ctx := parser.CollectCompletion(sql, cursorOffset)
+	if ctx == nil || ctx.Scope == nil {
+		return nil
+	}
+	var refs []TableRef
+	for _, ref := range ctx.Scope.LocalReferences {
+		table := ref.Object
+		if table == "" {
+			table = ref.Alias
+		}
+		if table == "" {
+			continue
+		}
+		refs = append(refs, TableRef{
+			Server:   ref.Server,
+			Database: ref.Database,
+			Schema:   ref.Schema,
+			Table:    table,
+			Alias:    ref.Alias,
+		})
 	}
 	return refs
 }
@@ -219,9 +250,11 @@ func collectFromWithClause(w *ast.WithClause) []TableRef {
 // astTableRefToRef converts an ast.TableRef to a completion TableRef.
 func astTableRefToRef(r *ast.TableRef) TableRef {
 	return TableRef{
-		Schema: r.Schema,
-		Table:  r.Object,
-		Alias:  r.Alias,
+		Server:   r.Server,
+		Database: r.Database,
+		Schema:   r.Schema,
+		Table:    r.Object,
+		Alias:    r.Alias,
 	}
 }
 

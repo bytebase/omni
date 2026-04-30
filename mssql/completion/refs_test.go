@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -102,6 +103,21 @@ func TestExtractTableRefs(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestExtractTableRefsUsesCompletionScopeCurrentSetOperationArm(t *testing.T) {
+	sql := "SELECT Id FROM Employees UNION SELECT EmployeeId FROM Address UNION SELECT  FROM MySchema.SalaryLevel"
+	cursor := strings.Index(sql, " FROM MySchema.SalaryLevel")
+	got := extractTableRefs(sql, cursor)
+	want := []TableRef{{Schema: "MySchema", Table: "SalaryLevel"}}
+	if len(got) != len(want) {
+		t.Fatalf("extractTableRefs(%q): got %d refs, want %d\n  got:  %+v\n  want: %+v", sql, len(got), len(want), got, want)
+	}
+	for i := range want {
+		if got[i].Schema != want[i].Schema || got[i].Table != want[i].Table || got[i].Alias != want[i].Alias {
+			t.Fatalf("extractTableRefs(%q)[%d] = %+v, want %+v", sql, i, got[i], want[i])
+		}
 	}
 }
 

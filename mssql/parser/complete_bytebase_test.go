@@ -88,10 +88,16 @@ func TestCompletionBytebaseColumnReferenceSignals(t *testing.T) {
 		"SELECT tableAlias.| FROM Employees AS tableAlias",
 		"WITH MyCTE_01 AS (SELECT * FROM dbo.Employees) SELECT MyCTE_01.| FROM MyCTE_01",
 		"SELECT * FROM Employees e JOIN Address a ON |",
+		"SELECT * FROM Employees e LEFT JOIN MySchema.SalaryLevel s ON s.|",
 		"SELECT Id AS IdAlias, Name FROM Employees ORDER BY |",
 		"SELECT Id, Name FROM Employees WHERE |",
+		"SELECT * FROM Employees WHERE Id IN (1, |)",
+		"SELECT * FROM Employees WHERE NOT |",
+		"SELECT * FROM Employees WHERE Id + | > 0",
 		"SELECT Id FROM Employees GROUP BY |",
 		"SELECT Id FROM Employees HAVING |",
+		"SELECT COALESCE(NULL, |) FROM Employees",
+		"SELECT CONVERT(INT, |) FROM Employees",
 		"INSERT INTO Employees SELECT | FROM Address",
 		"UPDATE Employees SET |",
 		"UPDATE Employees SET Name = |",
@@ -142,6 +148,7 @@ func TestCompletionBytebaseOpenJSONWithTypeSignals(t *testing.T) {
 	tests := []string{
 		"SELECT * FROM OPENJSON(@json) WITH (Name |)",
 		"SELECT * FROM OPENJSON(@json) WITH (Name nvarchar(100), Age |)",
+		"CREATE PROCEDURE p @Name | AS SELECT 1",
 	}
 
 	for _, input := range tests {
@@ -209,6 +216,8 @@ func TestCompletionIncompleteSQLSignals(t *testing.T) {
 		{input: "SELECT Id FROM Employees ORDER BY |", rule: "columnref"},
 		{input: "WITH cte AS (|", token: parser.SELECT},
 		{input: "WITH cte AS (SELECT Id FROM dbo.Employees) SELECT * FROM|", rule: "table_ref"},
+		{input: "ALTER TABLE Employees ADD CONSTRAINT fk FOREIGN KEY (Id) REFERENCES |", rule: "table_ref"},
+		{input: "DROP VIEW MySchema.|", rule: "table_ref"},
 	}
 
 	for _, tt := range tests {
