@@ -703,6 +703,7 @@ func (ac *analyzeCtx) transformRangeFunction(rf *nodes.RangeFunction) (JoinNode,
 	// Each item in Functions is a List of {funcexpr, coldeflist}.
 	var funcExprs []AnalyzedExpr
 	var funcNames []string
+	var funcColdefLists []*nodes.List
 	for _, item := range rf.Functions.Items {
 		funcItem, ok := item.(*nodes.List)
 		if !ok || len(funcItem.Items) < 1 {
@@ -716,16 +717,21 @@ func (ac *analyzeCtx) transformRangeFunction(rf *nodes.RangeFunction) (JoinNode,
 		}
 		funcExprs = append(funcExprs, analyzed)
 		funcNames = append(funcNames, figureColname(fexpr))
+		var coldeflist *nodes.List
+		if len(funcItem.Items) > 1 {
+			coldeflist, _ = funcItem.Items[1].(*nodes.List)
+		}
+		funcColdefLists = append(funcColdefLists, coldeflist)
 	}
 
-	return ac.addRangeTableEntryForFunction(rf, funcExprs, funcNames)
+	return ac.addRangeTableEntryForFunction(rf, funcExprs, funcNames, funcColdefLists)
 }
 
 // addRangeTableEntryForFunction builds a RTEFunction RangeTableEntry.
 //
 // pg: src/backend/parser/parse_relation.c — addRangeTableEntryForFunction
 func (ac *analyzeCtx) addRangeTableEntryForFunction(
-	rf *nodes.RangeFunction, funcExprs []AnalyzedExpr, funcNames []string,
+	rf *nodes.RangeFunction, funcExprs []AnalyzedExpr, funcNames []string, funcColdefLists []*nodes.List,
 ) (JoinNode, error) {
 	// Choose alias name.
 	alias := ""
@@ -781,6 +787,16 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 			}
 
 		case typeFuncRecord:
+			coldeflist := recordFunctionColdefList(rf, funcColdefLists, i, len(funcExprs))
+			if coldeflist != nil {
+				if err := ac.appendColumnsFromColdefList(coldeflist, &colNames, &colTypes, &colTypMods, &colCollations); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if ac.appendOutputParamColumns(fexpr, &colNames, &colTypes, &colTypMods, &colCollations) {
+				continue
+			}
 			return nil, &Error{
 				Code:    CodeFeatureNotSupported,
 				Message: "function returning record requires column definition list",
@@ -829,6 +845,108 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 	ac.query.RangeTable = append(ac.query.RangeTable, rte)
 
 	return &RangeTableRef{RTIndex: rtIdx}, nil
+}
+
+func recordFunctionColdefList(rf *nodes.RangeFunction, funcColdefLists []*nodes.List, idx, nfuncs int) *nodes.List {
+	if idx < len(funcColdefLists) && funcColdefLists[idx] != nil {
+		return funcColdefLists[idx]
+	}
+	if nfuncs == 1 && rf.Coldeflist != nil {
+		return rf.Coldeflist
+	}
+	return nil
+}
+
+func (ac *analyzeCtx) appendColumnsFromColdefList(
+	coldeflist *nodes.List,
+	colNames *[]string,
+	colTypes *[]uint32,
+	colTypMods *[]int32,
+	colCollations *[]uint32,
+) error {
+	for _, item := range coldeflist.Items {
+		coldef, ok := item.(*nodes.ColumnDef)
+		if !ok {
+			return fmt.Errorf("invalid column definition in function column definition list")
+		}
+		typ := convertTypeNameToInternal(coldef.TypeName)
+		typeOID, typmod, err := ac.catalog.ResolveType(typ)
+		if err != nil {
+			return err
+		}
+		*colNames = append(*colNames, coldef.Colname)
+		*colTypes = append(*colTypes, typeOID)
+		*colTypMods = append(*colTypMods, typmod)
+		*colCollations = append(*colCollations, ac.catalog.typeCollation(typeOID))
+	}
+	return nil
+}
+
+func (ac *analyzeCtx) appendOutputParamColumns(
+	fexpr AnalyzedExpr,
+	colNames *[]string,
+	colTypes *[]uint32,
+	colTypMods *[]int32,
+	colCollations *[]uint32,
+) bool {
+	call, ok := fexpr.(*FuncCallExpr)
+	if !ok || call.FuncOID == 0 {
+		return false
+	}
+
+	var modes []byte
+	var names []string
+	var allArgTypes []uint32
+	var kind byte
+	if up := ac.catalog.userProcs[call.FuncOID]; up != nil {
+		kind = up.Kind
+		modes = up.ArgModes
+		names = up.ArgNames
+		allArgTypes = up.AllArgTypes
+	} else if proc := ac.catalog.procByOID[call.FuncOID]; proc != nil {
+		kind = proc.Kind
+		modes = proc.ArgModes
+		names = proc.ArgNames
+		allArgTypes = proc.AllArgTypes
+	}
+	if len(modes) == 0 || len(allArgTypes) == 0 || len(modes) != len(allArgTypes) {
+		return false
+	}
+	if len(names) > 0 && len(names) != len(allArgTypes) {
+		return false
+	}
+
+	outCount := 0
+	type outputColumn struct {
+		name    string
+		typeOID uint32
+	}
+	outputs := make([]outputColumn, 0, len(modes))
+	for i, mode := range modes {
+		if mode != 'o' && mode != 'b' && mode != 't' {
+			continue
+		}
+		outCount++
+		name := ""
+		if i < len(names) {
+			name = names[i]
+		}
+		if name == "" {
+			name = fmt.Sprintf("column%d", outCount)
+		}
+		outputs = append(outputs, outputColumn{name: name, typeOID: allArgTypes[i]})
+	}
+	if outCount == 0 || (outCount < 2 && kind != 'p') {
+		return false
+	}
+	for _, output := range outputs {
+		typeOID := output.typeOID
+		*colNames = append(*colNames, output.name)
+		*colTypes = append(*colTypes, typeOID)
+		*colTypMods = append(*colTypMods, int32(-1))
+		*colCollations = append(*colCollations, ac.catalog.typeCollation(typeOID))
+	}
+	return true
 }
 
 // chooseScalarFunctionAlias picks the column name for a scalar function in FROM.

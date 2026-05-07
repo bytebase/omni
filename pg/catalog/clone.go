@@ -270,6 +270,14 @@ func (c *Catalog) Clone() *Catalog {
 				cbp.ArgTypes = make([]uint32, len(origBP.ArgTypes))
 				copy(cbp.ArgTypes, origBP.ArgTypes)
 			}
+			if origBP.ArgNames != nil {
+				cbp.ArgNames = make([]string, len(origBP.ArgNames))
+				copy(cbp.ArgNames, origBP.ArgNames)
+			}
+			if origBP.ArgModes != nil {
+				cbp.ArgModes = make([]byte, len(origBP.ArgModes))
+				copy(cbp.ArgModes, origBP.ArgModes)
+			}
 			if origBP.AllArgTypes != nil {
 				cbp.AllArgTypes = make([]uint32, len(origBP.AllArgTypes))
 				copy(cbp.AllArgTypes, origBP.AllArgTypes)
