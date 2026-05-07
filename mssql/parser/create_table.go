@@ -485,8 +485,8 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 
 	// Check for computed column: name AS expr [ PERSISTED [ NOT NULL ] ]
 	if p.cur.Type == kwAS {
-		p.advance()
 		compLoc := p.pos()
+		p.advance()
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -507,7 +507,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 			Expr:      expr,
 			Persisted: persisted,
 			NotNull:   notNull,
-			Loc:       nodes.Loc{Start: compLoc, End: -1},
+			Loc:       nodes.Loc{Start: compLoc, End: p.prevEnd()},
 		}
 		// Computed columns can also have column constraints (PK, UNIQUE, etc.)
 		for p.cur.Type == kwCONSTRAINT || p.cur.Type == kwPRIMARY || p.cur.Type == kwUNIQUE ||
@@ -666,9 +666,10 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		if p.cur.Type == kwNOT {
 			next := p.peekNext()
 			if next.Type == kwNULL {
+				nullLoc := p.pos()
 				p.advance() // NOT
 				p.advance() // NULL
-				col.Nullable = &nodes.NullableSpec{NotNull: true, Loc: nodes.Loc{Start: p.pos(), End: -1}}
+				col.Nullable = &nodes.NullableSpec{NotNull: true, Loc: nodes.Loc{Start: nullLoc, End: p.prevEnd()}}
 				consumed = true
 			} else if next.Type == kwFOR {
 				p.advance() // NOT
@@ -683,8 +684,9 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 
 		// NULL
 		if p.cur.Type == kwNULL {
+			nullLoc := p.pos()
 			p.advance()
-			col.Nullable = &nodes.NullableSpec{NotNull: false, Loc: nodes.Loc{Start: p.pos(), End: -1}}
+			col.Nullable = &nodes.NullableSpec{NotNull: false, Loc: nodes.Loc{Start: nullLoc, End: p.prevEnd()}}
 			consumed = true
 		}
 

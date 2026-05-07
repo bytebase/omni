@@ -37,6 +37,31 @@ func NoLoc() Loc {
 	return Loc{Start: -1, End: -1}
 }
 
+// IsValid reports whether both Start and End are non-negative.
+func (l Loc) IsValid() bool {
+	return l.Start >= 0 && l.End >= 0
+}
+
+// Merge returns the smallest Loc that contains both l and other.
+// If either side is invalid, returns the other side. If both are invalid,
+// returns NoLoc().
+func (l Loc) Merge(other Loc) Loc {
+	if !l.IsValid() {
+		return other
+	}
+	if !other.IsValid() {
+		return l
+	}
+	out := l
+	if other.Start < out.Start {
+		out.Start = other.Start
+	}
+	if other.End > out.End {
+		out.End = other.End
+	}
+	return out
+}
+
 // List represents a generic list of nodes.
 type List struct {
 	Items []Node

@@ -283,6 +283,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Table != nil {
 			Walk(v, n.Table)
 		}
+		if n.SpatialColumnRef != nil {
+			Walk(v, n.SpatialColumnRef)
+		}
 		walkList(v, n.Options)
 	case *CreateStatisticsStmt:
 		if n.Table != nil {

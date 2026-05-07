@@ -16,6 +16,14 @@ func (p *Parser) parseExpr() (nodes.ExprNode, error) {
 	return p.parseOr()
 }
 
+func exprLocStart(expr nodes.ExprNode, fallback int) int {
+	loc := nodes.NodeLoc(expr)
+	if loc.Start >= 0 {
+		return loc.Start
+	}
+	return fallback
+}
+
 // parseOr parses OR expressions (lowest precedence).
 //
 //	or_expr = and_expr { OR and_expr }
@@ -44,7 +52,7 @@ func (p *Parser) parseOr() (nodes.ExprNode, error) {
 			Op:    nodes.BinOpOr,
 			Left:  left,
 			Right: right,
-			Loc:   nodes.Loc{Start: loc, End: p.prevEnd()},
+			Loc:   nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 		}
 	}
 	return left, nil
@@ -78,7 +86,7 @@ func (p *Parser) parseAnd() (nodes.ExprNode, error) {
 			Op:    nodes.BinOpAnd,
 			Left:  left,
 			Right: right,
-			Loc:   nodes.Loc{Start: loc, End: p.prevEnd()},
+			Loc:   nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 		}
 	}
 	return left, nil
@@ -163,7 +171,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			return &nodes.IsExpr{
 				Expr:     left,
 				TestType: testType,
-				Loc:      nodes.Loc{Start: loc, End: p.prevEnd()},
+				Loc:      nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 			}, nil
 		}
 	}
@@ -211,7 +219,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			Low:  low,
 			High: high,
 			Not:  not,
-			Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
+			Loc:  nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 		}, nil
 	}
 
@@ -245,7 +253,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 				Expr:     left,
 				Subquery: &nodes.SubqueryExpr{Query: sub, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}},
 				Not:      not,
-				Loc:      nodes.Loc{Start: loc, End: p.prevEnd()},
+				Loc:      nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 			}, nil
 		}
 		items, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
@@ -274,7 +282,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			Expr: left,
 			List: &nodes.List{Items: items},
 			Not:  not,
-			Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
+			Loc:  nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 		}, nil
 	}
 
@@ -313,7 +321,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			Pattern: pattern,
 			Escape:  escape,
 			Not:     not,
-			Loc:     nodes.Loc{Start: loc, End: p.prevEnd()},
+			Loc:     nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 		}, nil
 	}
 
@@ -346,7 +354,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 					Op:         op,
 					Quantifier: quantifier,
 					Subquery:   subquery,
-					Loc:        nodes.Loc{Start: loc, End: p.prevEnd()},
+					Loc:        nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 				}, nil
 			}
 		}
@@ -362,7 +370,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			Op:    op,
 			Left:  left,
 			Right: right,
-			Loc:   nodes.Loc{Start: loc, End: p.prevEnd()},
+			Loc:   nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 		}, nil
 	}
 
@@ -433,7 +441,7 @@ func (p *Parser) parseAddition() (nodes.ExprNode, error) {
 			Op:    op,
 			Left:  left,
 			Right: right,
-			Loc:   nodes.Loc{Start: loc, End: p.prevEnd()},
+			Loc:   nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 		}
 	}
 	// Postfix COLLATE / AT TIME ZONE (may be chained)
@@ -480,7 +488,7 @@ func (p *Parser) parseCollateExpr(expr nodes.ExprNode) (nodes.ExprNode, error) {
 	node := &nodes.CollateExpr{
 		Expr:      expr,
 		Collation: collation,
-		Loc:       nodes.Loc{Start: loc, End: p.prevEnd()},
+		Loc:       nodes.Loc{Start: exprLocStart(expr, loc), End: p.prevEnd()},
 	}
 	node.Loc.End = p.prevEnd()
 	return node, nil
@@ -515,7 +523,7 @@ func (p *Parser) parseAtTimeZoneExpr(expr nodes.ExprNode) (nodes.ExprNode, error
 	node := &nodes.AtTimeZoneExpr{
 		Expr:     expr,
 		TimeZone: tz,
-		Loc:      nodes.Loc{Start: loc, End: p.prevEnd()},
+		Loc:      nodes.Loc{Start: exprLocStart(expr, loc), End: p.prevEnd()},
 	}
 	node.Loc.End = p.prevEnd()
 	return node, nil
@@ -557,7 +565,7 @@ func (p *Parser) parseMultiplication() (nodes.ExprNode, error) {
 			Op:    op,
 			Left:  left,
 			Right: right,
-			Loc:   nodes.Loc{Start: loc, End: p.prevEnd()},
+			Loc:   nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 		}
 	}
 	return left, nil
@@ -1243,11 +1251,12 @@ func (p *Parser) parseNextValueFor() (nodes.ExprNode, error) {
 //
 //	func_name '(' [DISTINCT] [expr_list | '*'] ')' [OVER ...]
 func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
+	nameEnd := p.prevEnd()
 	p.advance() // consume (
 
 	fc := &nodes.FuncCallExpr{
-		Name: &nodes.TableRef{Object: name, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}},
-		Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
+		Name: &nodes.TableRef{Object: name, Loc: nodes.Loc{Start: loc, End: nameEnd}},
+		Loc:  nodes.Loc{Start: loc, End: -1},
 	}
 
 	// COUNT(*) special case
@@ -1255,12 +1264,14 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 		p.advance()
 		fc.Star = true
 		_, _ = p.expect(')')
+		fc.Loc.End = p.prevEnd()
 		if p.cur.Type == kwOVER {
 			var err error
 			fc.Over, err = p.parseOverClause()
 			if err != nil {
 				return nil, err
 			}
+			fc.Loc.End = p.prevEnd()
 		}
 		return fc, nil
 	}
@@ -1272,12 +1283,14 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 
 	if p.cur.Type == ')' {
 		p.advance()
+		fc.Loc.End = p.prevEnd()
 		if p.cur.Type == kwOVER {
 			var err error
 			fc.Over, err = p.parseOverClause()
 			if err != nil {
 				return nil, err
 			}
+			fc.Loc.End = p.prevEnd()
 		}
 		return fc, nil
 	}
@@ -1309,6 +1322,7 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
+	fc.Loc.End = p.prevEnd()
 
 	// Check for WITHIN GROUP (ORDER BY ...) clause
 	//
@@ -1321,6 +1335,7 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		fc.Loc.End = p.prevEnd()
 	}
 
 	// Check for OVER clause
@@ -1330,6 +1345,7 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		fc.Loc.End = p.prevEnd()
 	}
 
 	return fc, nil
@@ -1361,6 +1377,7 @@ func (p *Parser) parseWithinGroupClause() (*nodes.List, error) {
 
 	var orders []nodes.Node
 	for {
+		oloc := p.pos()
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -1374,7 +1391,7 @@ func (p *Parser) parseWithinGroupClause() (*nodes.List, error) {
 		orders = append(orders, &nodes.OrderByItem{
 			Expr:    expr,
 			SortDir: dir,
-			Loc:     nodes.Loc{Start: p.pos(), End: p.prevEnd()},
+			Loc:     nodes.Loc{Start: oloc, End: p.prevEnd()},
 		})
 		if _, ok := p.match(','); !ok {
 			break
@@ -1485,6 +1502,7 @@ func (p *Parser) parseOverClause() (*nodes.OverClause, error) {
 		}
 		var orders []nodes.Node
 		for {
+			oloc := p.pos()
 			expr, err := p.parseExpr()
 			if err != nil {
 				return nil, err
@@ -1498,7 +1516,7 @@ func (p *Parser) parseOverClause() (*nodes.OverClause, error) {
 			orders = append(orders, &nodes.OrderByItem{
 				Expr:    expr,
 				SortDir: dir,
-				Loc:     nodes.Loc{Start: p.pos(), End: p.prevEnd()},
+				Loc:     nodes.Loc{Start: oloc, End: p.prevEnd()},
 			})
 			if _, ok := p.match(','); !ok {
 				break
@@ -1516,8 +1534,8 @@ func (p *Parser) parseOverClause() (*nodes.OverClause, error) {
 		}
 	}
 
-	over.Loc.End = p.prevEnd()
 	_, _ = p.expect(')')
+	over.Loc.End = p.prevEnd()
 	return over, nil
 }
 

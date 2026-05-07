@@ -1079,20 +1079,7 @@ func (p *Parser) parseAlterIndexOptions() (*nodes.List, error) {
 					p.advance()
 				} else if p.cur.Type == '(' {
 					// Nested parenthesized value like BOUNDING_BOX = (0, 0, 100, 100)
-					depth := 1
-					p.advance() // consume '('
-					for depth > 0 && p.cur.Type != tokEOF {
-						if p.cur.Type == '(' {
-							depth++
-						} else if p.cur.Type == ')' {
-							depth--
-							if depth == 0 {
-								p.advance()
-								break
-							}
-						}
-						p.advance()
-					}
+					val = p.consumeBalancedValueText()
 				}
 				opts.Items = append(opts.Items, &nodes.String{Str: name + "=" + val})
 			} else {
@@ -1140,4 +1127,23 @@ func (p *Parser) parseAlterIndexOptions() (*nodes.List, error) {
 
 	p.match(')') // consume ')'
 	return opts, nil
+}
+
+func (p *Parser) consumeBalancedValueText() string {
+	start := p.pos()
+	depth := 0
+	for p.cur.Type != tokEOF {
+		if p.cur.Type == '(' {
+			depth++
+		} else if p.cur.Type == ')' {
+			depth--
+			p.advance()
+			if depth == 0 {
+				return strings.TrimSpace(p.source[start:p.prevEnd()])
+			}
+			continue
+		}
+		p.advance()
+	}
+	return strings.TrimSpace(p.source[start:p.prevEnd()])
 }

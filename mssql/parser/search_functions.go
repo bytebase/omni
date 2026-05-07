@@ -531,6 +531,17 @@ func (p *Parser) parseSemanticKey() (nodes.ExprNode, error) {
 			Name: tok.Str,
 			Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
 		}, nil
+	case tokIDENT:
+		if neg {
+			return nil, p.unexpectedToken()
+		}
+		return p.parseIdentExpr()
+	}
+	if isContextKeyword(p.cur.Type) {
+		if neg {
+			return nil, p.unexpectedToken()
+		}
+		return p.parseIdentExpr()
 	}
 	return nil, p.unexpectedToken()
 }
