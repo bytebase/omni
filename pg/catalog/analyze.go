@@ -904,18 +904,9 @@ func (ac *analyzeCtx) appendOutputParamColumns(
 		names = up.ArgNames
 		allArgTypes = up.AllArgTypes
 	} else if proc := ac.catalog.procByOID[call.FuncOID]; proc != nil {
-		var ok bool
 		kind = proc.Kind
-		modes, ok = parseProcArgModesStrict(proc.ArgModes)
-		if !ok {
-			return false
-		}
-		if proc.ArgNames != "" {
-			names, ok = parseProcArrayElementsStrict(proc.ArgNames)
-			if !ok {
-				return false
-			}
-		}
+		modes = proc.ArgModes
+		names = proc.ArgNames
 		allArgTypes = proc.AllArgTypes
 	}
 	if len(modes) == 0 || len(allArgTypes) == 0 || len(modes) != len(allArgTypes) {
@@ -956,61 +947,6 @@ func (ac *analyzeCtx) appendOutputParamColumns(
 		*colCollations = append(*colCollations, ac.catalog.typeCollation(typeOID))
 	}
 	return true
-}
-
-func parseProcArgModesStrict(raw string) ([]byte, bool) {
-	elems, ok := parseProcArrayElementsStrict(raw)
-	if !ok || len(elems) == 0 {
-		return nil, false
-	}
-	modes := make([]byte, 0, len(elems))
-	for _, elem := range elems {
-		if len(elem) != 1 {
-			return nil, false
-		}
-		mode := elem[0]
-		switch mode {
-		case 'i', 'o', 'b', 'v', 't':
-			modes = append(modes, mode)
-		default:
-			return nil, false
-		}
-	}
-	return modes, true
-}
-
-func parseProcArrayElementsStrict(raw string) ([]string, bool) {
-	raw = strings.TrimSpace(raw)
-	if len(raw) < 2 || raw[0] != '{' || raw[len(raw)-1] != '}' {
-		return nil, false
-	}
-	raw = raw[1 : len(raw)-1]
-
-	var elems []string
-	var b strings.Builder
-	inQuotes := false
-	escaped := false
-	for _, r := range raw {
-		switch {
-		case escaped:
-			b.WriteRune(r)
-			escaped = false
-		case inQuotes && r == '\\':
-			escaped = true
-		case r == '"':
-			inQuotes = !inQuotes
-		case r == ',' && !inQuotes:
-			elems = append(elems, strings.TrimSpace(b.String()))
-			b.Reset()
-		default:
-			b.WriteRune(r)
-		}
-	}
-	if inQuotes || escaped {
-		return nil, false
-	}
-	elems = append(elems, strings.TrimSpace(b.String()))
-	return elems, true
 }
 
 // chooseScalarFunctionAlias picks the column name for a scalar function in FROM.

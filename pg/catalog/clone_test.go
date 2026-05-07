@@ -401,8 +401,9 @@ func TestCloneUserProcSliceIsolation(t *testing.T) {
 	orig := New()
 
 	_, err := orig.Exec(`
-		CREATE FUNCTION myfunc(a integer, b text) RETURNS integer
-		LANGUAGE sql AS 'SELECT a';
+		CREATE FUNCTION myfunc(IN a integer, OUT b text, OUT c integer)
+		RETURNS record
+		LANGUAGE sql AS 'SELECT a::text, a';
 	`, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -442,6 +443,29 @@ func TestCloneUserProcSliceIsolation(t *testing.T) {
 	// Original must be unchanged.
 	if origProc.ArgNames[0] != origName {
 		t.Errorf("original proc ArgNames[0] changed to %q after clone mutation", origProc.ArgNames[0])
+	}
+
+	origBP := orig.procByOID[origProc.OID]
+	cloneBP := clone.procByOID[cloneProc.OID]
+	if origBP == nil || cloneBP == nil {
+		t.Fatal("missing procByOID entry")
+	}
+	if len(origBP.ArgNames) < 2 || len(origBP.ArgModes) < 2 {
+		t.Fatalf("expected builtin proc arg metadata, got names=%v modes=%v", origBP.ArgNames, origBP.ArgModes)
+	}
+	origBPName := origBP.ArgNames[0]
+	origBPMode := origBP.ArgModes[0]
+
+	// Mutate clone's BuiltinProc argument metadata.
+	cloneBP.ArgNames[0] = "MUTATED"
+	cloneBP.ArgModes[0] = 'o'
+
+	// Original BuiltinProc metadata must be unchanged.
+	if origBP.ArgNames[0] != origBPName {
+		t.Errorf("original BuiltinProc ArgNames[0] changed to %q after clone mutation", origBP.ArgNames[0])
+	}
+	if origBP.ArgModes[0] != origBPMode {
+		t.Errorf("original BuiltinProc ArgModes[0] changed to %q after clone mutation", origBP.ArgModes[0])
 	}
 }
 

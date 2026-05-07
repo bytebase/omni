@@ -235,69 +235,6 @@ FROM public.record_pair_untyped() AS record_pair(id integer, name text);
 	}
 }
 
-func TestParseProcArrayElementsStrict(t *testing.T) {
-	tests := []struct {
-		name string
-		raw  string
-		want []string
-		ok   bool
-	}{
-		{
-			name: "simple",
-			raw:  "{i,o,b}",
-			want: []string{"i", "o", "b"},
-			ok:   true,
-		},
-		{
-			name: "quoted comma",
-			raw:  `{"a,b","c\"d","e\\f"}`,
-			want: []string{"a,b", `c"d`, `e\f`},
-			ok:   true,
-		},
-		{
-			name: "empty element",
-			raw:  "{input,,output}",
-			want: []string{"input", "", "output"},
-			ok:   true,
-		},
-		{
-			name: "missing braces",
-			raw:  "i,o,b",
-			ok:   false,
-		},
-		{
-			name: "unterminated quote",
-			raw:  `{"a,b}`,
-			ok:   false,
-		},
-		{
-			name: "dangling escape",
-			raw:  `{"a\}`,
-			ok:   false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, ok := parseProcArrayElementsStrict(tt.raw)
-			if ok != tt.ok {
-				t.Fatalf("ok: got %v, want %v", ok, tt.ok)
-			}
-			if !ok {
-				return
-			}
-			if len(got) != len(tt.want) {
-				t.Fatalf("elements: got %v, want %v", got, tt.want)
-			}
-			for i := range tt.want {
-				if got[i] != tt.want[i] {
-					t.Fatalf("element %d: got %q, want %q", i, got[i], tt.want[i])
-				}
-			}
-		})
-	}
-}
-
 func TestCreateFunctionWithoutReturnsAndWithoutOutParamsIsRejected(t *testing.T) {
 	c := New()
 

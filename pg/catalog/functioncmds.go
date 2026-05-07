@@ -544,6 +544,9 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		storedArgModes = allArgModes
 		storedAllArgTypes = allArgTypes
 	}
+	bp.ArgNames = allArgNames
+	bp.ArgModes = storedArgModes
+	bp.AllArgTypes = storedAllArgTypes
 
 	// Create UserProc metadata.
 	up := &UserProc{
