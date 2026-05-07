@@ -78,10 +78,14 @@ func Parse(sql string) ([]Statement, error) {
 			end = j + 1
 		}
 
-		// Start position points to the first non-whitespace character.
-		contentStart := start
-		for contentStart < end && isSpace(sql[contentStart]) {
-			contentStart++
+		// Start position points to the AST node start, while Text preserves any
+		// preceding separators that belong to this statement segment.
+		contentStart := loc.Start
+		if contentStart < start || contentStart > end {
+			contentStart = start
+			for contentStart < end && isSpace(sql[contentStart]) {
+				contentStart++
+			}
 		}
 
 		stmts = append(stmts, Statement{

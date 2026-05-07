@@ -60,7 +60,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 
 	// ON table_name
 	if _, ok := p.match(kwON); ok {
-		stmt.Table , _ = p.parseTableRef()
+		stmt.Table, _ = p.parseTableRef()
 	}
 
 	// Column list
@@ -69,8 +69,13 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 		var cols []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
 			if p.isIdentLike() {
+				colLoc := p.pos()
 				col := p.cur.Str
 				p.advance()
+				colRef := &nodes.ColumnRef{
+					Column: col,
+					Loc:    nodes.Loc{Start: colLoc, End: p.prevEnd()},
+				}
 				// TYPE COLUMN type_col_name
 				if p.cur.Type == kwTYPE {
 					p.advance()
@@ -92,7 +97,7 @@ func (p *Parser) parseCreateFulltextIndexStmt() (*nodes.CreateFulltextIndexStmt,
 				if p.cur.Type == kwSTATISTICAL_SEMANTICS {
 					p.advance()
 				}
-				cols = append(cols, &nodes.String{Str: col})
+				cols = append(cols, colRef)
 			}
 			if _, ok := p.match(','); !ok {
 				break
@@ -223,7 +228,7 @@ func (p *Parser) parseAlterFulltextIndexStmt() (*nodes.AlterFulltextIndexStmt, e
 
 	// ON table_name
 	if _, ok := p.match(kwON); ok {
-		stmt.Table , _ = p.parseTableRef()
+		stmt.Table, _ = p.parseTableRef()
 	}
 
 	// Action dispatch

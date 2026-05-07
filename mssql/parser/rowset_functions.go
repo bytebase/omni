@@ -13,11 +13,12 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 	loc := p.pos()
 	funcName := p.cur.Str
 	p.advance() // consume the keyword
+	nameEnd := p.prevEnd()
 
 	// OPENDATASOURCE('provider', 'connstr').db.schema.table - special case
 	if p.cur.Type == '(' {
 		fc := &nodes.FuncCallExpr{
-			Name: &nodes.TableRef{Object: funcName, Loc: nodes.Loc{Start: loc, End: -1}},
+			Name: &nodes.TableRef{Object: funcName, Loc: nodes.Loc{Start: loc, End: nameEnd}},
 			Loc:  nodes.Loc{Start: loc, End: -1},
 		}
 		p.advance() // consume (
@@ -41,6 +42,7 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
+		fc.Loc.End = p.prevEnd()
 
 		// WITH clause for OPENJSON and OPENXML
 		var withClause *nodes.List
@@ -54,22 +56,23 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 		}
 
 		alias := p.parseOptionalAlias()
+		aliasEnd := p.prevEnd()
 
 		return &nodes.AliasedTableRef{
 			Table:   fc,
 			Alias:   alias,
 			Columns: withClause,
-			Loc:     nodes.Loc{Start: loc, End: -1},
+			Loc:     nodes.Loc{Start: loc, End: aliasEnd},
 		}, nil
 	}
 
 	// Shouldn't happen but handle gracefully
 	return &nodes.AliasedTableRef{
 		Table: &nodes.FuncCallExpr{
-			Name: &nodes.TableRef{Object: funcName, Loc: nodes.Loc{Start: loc, End: -1}},
-			Loc:  nodes.Loc{Start: loc, End: -1},
+			Name: &nodes.TableRef{Object: funcName, Loc: nodes.Loc{Start: loc, End: nameEnd}},
+			Loc:  nodes.Loc{Start: loc, End: nameEnd},
 		},
-		Loc: nodes.Loc{Start: loc, End: -1},
+		Loc: nodes.Loc{Start: loc, End: nameEnd},
 	}, nil
 }
 
