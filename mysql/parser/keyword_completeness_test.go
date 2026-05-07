@@ -294,6 +294,7 @@ var mysql8Keywords = []mysql8Keyword{
 	{"geometrycollection", catUnambiguous},
 	{"get", catReserved},
 	{"get_format", catUnambiguous},
+	{"get_master_public_key", catUnambiguous},
 	{"get_source_public_key", catUnambiguous},
 	{"global", catAmbiguous4},
 	{"grant", catReserved},
@@ -419,6 +420,32 @@ var mysql8Keywords = []mysql8Keyword{
 	{"low_priority", catReserved},
 	{"manual", catUnambiguous},
 	{"master", catUnambiguous},
+	{"master_auto_position", catUnambiguous},
+	{"master_bind", catReserved},
+	{"master_compression_algorithms", catUnambiguous},
+	{"master_connect_retry", catUnambiguous},
+	{"master_delay", catUnambiguous},
+	{"master_heartbeat_period", catUnambiguous},
+	{"master_host", catUnambiguous},
+	{"master_log_file", catUnambiguous},
+	{"master_log_pos", catUnambiguous},
+	{"master_password", catUnambiguous},
+	{"master_port", catUnambiguous},
+	{"master_public_key_path", catUnambiguous},
+	{"master_retry_count", catUnambiguous},
+	{"master_ssl", catUnambiguous},
+	{"master_ssl_ca", catUnambiguous},
+	{"master_ssl_capath", catUnambiguous},
+	{"master_ssl_cert", catUnambiguous},
+	{"master_ssl_cipher", catUnambiguous},
+	{"master_ssl_crl", catUnambiguous},
+	{"master_ssl_crlpath", catUnambiguous},
+	{"master_ssl_key", catUnambiguous},
+	{"master_ssl_verify_server_cert", catReserved},
+	{"master_tls_ciphersuites", catUnambiguous},
+	{"master_tls_version", catUnambiguous},
+	{"master_user", catUnambiguous},
+	{"master_zstd_compression_level", catUnambiguous},
 	{"match", catReserved},
 	{"materialization", catHint},
 	{"materialized", catUnambiguous},
@@ -962,10 +989,7 @@ func TestNoEqFoldForRegisteredKeywords(t *testing.T) {
 	// All strings currently matched via eqFold in the parser (excluding test files).
 	// This list should shrink to zero as eqFold patterns are migrated.
 	// Each entry is the lowercase string matched by eqFold.
-	eqFoldStrings := []string{
-		// replication.go — legacy alias (not a registered keyword)
-		"master_log_file",
-	}
+	eqFoldStrings := []string{}
 
 	violations := 0
 	for _, s := range eqFoldStrings {
@@ -991,9 +1015,9 @@ func TestNoEqFoldForRegisteredKeywords(t *testing.T) {
 // Extracted from mysql-server sql/sql_yacc.yy function_call_keyword, function_call_nonkeyword,
 // function_call_conflict, sum_expr, window_func_call, and grouping_operation rules.
 type mysql8KeywordFunction struct {
-	SQL       string // lowercase function name
-	TestSQL   string // a minimal SELECT statement that calls this function
-	Reserved  bool   // true if this keyword is reserved in MySQL 8.0
+	SQL      string // lowercase function name
+	TestSQL  string // a minimal SELECT statement that calls this function
+	Reserved bool   // true if this keyword is reserved in MySQL 8.0
 }
 
 // mysql8KeywordFunctions is the golden list of ALL MySQL 8.0 keywords that are also function names.
