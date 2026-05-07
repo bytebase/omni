@@ -4075,6 +4075,10 @@ func writeCreateSpatialIndexStmt(sb *strings.Builder, n *CreateSpatialIndexStmt)
 	if n.SpatialColumn != "" {
 		fmt.Fprintf(sb, " :spatialColumn \"%s\"", escapeString(n.SpatialColumn))
 	}
+	if n.SpatialColumnRef != nil {
+		sb.WriteString(" :spatialColumnRef ")
+		writeNode(sb, n.SpatialColumnRef)
+	}
 	if n.Using != "" {
 		fmt.Fprintf(sb, " :using \"%s\"", escapeString(n.Using))
 	}

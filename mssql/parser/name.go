@@ -288,7 +288,7 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	// Simple column reference
 	return &nodes.ColumnRef{
 		Column: name,
-		Loc:    nodes.Loc{Start: loc, End: -1},
+		Loc:    nodes.Loc{Start: loc, End: p.prevEnd()},
 	}, nil
 }
 
@@ -316,7 +316,7 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 			}
 			return &nodes.StarExpr{
 				Qualifier: qualifier,
-				Loc:       nodes.Loc{Start: loc, End: -1},
+				Loc:       nodes.Loc{Start: loc, End: p.prevEnd()},
 			}, nil
 		}
 
@@ -383,7 +383,7 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 		}
 	}
 
-	ref := &nodes.ColumnRef{Loc: nodes.Loc{Start: loc, End: -1}}
+	ref := &nodes.ColumnRef{Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
 	switch len(parts) {
 	case 1:
 		ref.Column = parts[0]
@@ -412,10 +412,11 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 // parseFuncCallWithSchema parses a schema-qualified function call.
 // schema.func(args)
 func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (nodes.ExprNode, error) {
+	nameEnd := p.prevEnd()
 	p.advance() // consume (
 
 	fc := &nodes.FuncCallExpr{
-		Name: &nodes.TableRef{Schema: schema, Object: funcName, Loc: nodes.Loc{Start: loc, End: -1}},
+		Name: &nodes.TableRef{Schema: schema, Object: funcName, Loc: nodes.Loc{Start: loc, End: nameEnd}},
 		Loc:  nodes.Loc{Start: loc, End: -1},
 	}
 
@@ -426,8 +427,10 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
+		fc.Loc.End = p.prevEnd()
 		if p.cur.Type == kwOVER {
 			fc.Over, _ = p.parseOverClause()
+			fc.Loc.End = p.prevEnd()
 		}
 		return fc, nil
 	}
@@ -439,8 +442,10 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 
 	if p.cur.Type == ')' {
 		p.advance()
+		fc.Loc.End = p.prevEnd()
 		if p.cur.Type == kwOVER {
 			fc.Over, _ = p.parseOverClause()
+			fc.Loc.End = p.prevEnd()
 		}
 		return fc, nil
 	}
@@ -470,10 +475,12 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
+	fc.Loc.End = p.prevEnd()
 
 	// Check for OVER clause
 	if p.cur.Type == kwOVER {
 		fc.Over, _ = p.parseOverClause()
+		fc.Loc.End = p.prevEnd()
 	}
 
 	return fc, nil

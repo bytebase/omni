@@ -99,7 +99,7 @@ func (p *Parser) parseCreateIndexStmt(unique bool) (*nodes.CreateIndexStmt, erro
 		p.advance()
 		if p.cur.Type == '(' {
 			var err error
-			stmt.IncludeCols, err = p.parseParenIdentList()
+			stmt.IncludeCols, err = p.parseIndexColumnList()
 			if err != nil {
 				return nil, err
 			}
@@ -195,7 +195,7 @@ func (p *Parser) parseIndexColumnList() (*nodes.List, error) {
 		return &nodes.IndexColumn{
 			Name:    name,
 			SortDir: dir,
-			Loc:     nodes.Loc{Start: loc, End: -1},
+			Loc:     nodes.Loc{Start: loc, End: p.prevEnd()},
 		}, nil
 	})
 	if err != nil {
@@ -399,8 +399,13 @@ func (p *Parser) parseCreateSpatialIndexStmt() (*nodes.CreateSpatialIndexStmt, e
 	// (spatial_column)
 	if p.cur.Type == '(' {
 		p.advance()
+		colLoc := p.pos()
 		col, _ := p.parseIdentifier()
 		stmt.SpatialColumn = col
+		stmt.SpatialColumnRef = &nodes.ColumnRef{
+			Column: col,
+			Loc:    nodes.Loc{Start: colLoc, End: p.prevEnd()},
+		}
 		p.match(')')
 	}
 
@@ -423,7 +428,7 @@ func (p *Parser) parseCreateSpatialIndexStmt() (*nodes.CreateSpatialIndexStmt, e
 
 	// ON filegroup
 	if _, ok := p.match(kwON); ok {
-		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
+		if p.isIdentLike() || p.cur.Type == kwPRIMARY {
 			stmt.OnFileGroup = p.cur.Str
 			p.advance()
 		}
@@ -651,7 +656,7 @@ func (p *Parser) parseCreateJsonIndexStmt() (*nodes.CreateJsonIndexStmt, error) 
 
 	// ON filegroup
 	if _, ok := p.match(kwON); ok {
-		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
+		if p.isIdentLike() || p.cur.Type == kwPRIMARY {
 			stmt.OnFileGroup = p.cur.Str
 			p.advance()
 		}
@@ -715,7 +720,7 @@ func (p *Parser) parseCreateVectorIndexStmt() (*nodes.CreateVectorIndexStmt, err
 
 	// ON filegroup
 	if _, ok := p.match(kwON); ok {
-		if (p.isIdentLike() || p.cur.Type == kwPRIMARY) {
+		if p.isIdentLike() || p.cur.Type == kwPRIMARY {
 			stmt.OnFileGroup = p.cur.Str
 			p.advance()
 		}

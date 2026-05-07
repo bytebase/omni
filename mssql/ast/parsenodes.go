@@ -3273,13 +3273,14 @@ func (n *CreateSelectiveXmlIndexStmt) stmtNode() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-spatial-index-transact-sql
 type CreateSpatialIndexStmt struct {
-	Name          string    // index name
-	Table         *TableRef // ON table
-	SpatialColumn string    // (spatial_column)
-	Using         string    // USING tessellation type (GEOMETRY_GRID, etc.)
-	Options       *List     // WITH (options)
-	OnFileGroup   string    // ON filegroup
-	Loc           Loc
+	Name             string     // index name
+	Table            *TableRef  // ON table
+	SpatialColumn    string     // (spatial_column)
+	SpatialColumnRef *ColumnRef // loc-bearing spatial column reference
+	Using            string     // USING tessellation type (GEOMETRY_GRID, etc.)
+	Options          *List      // WITH (options)
+	OnFileGroup      string     // ON filegroup
+	Loc              Loc
 }
 
 func (n *CreateSpatialIndexStmt) nodeTag()  {}

@@ -307,7 +307,7 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 			}
 			stmt.FetchClause = &nodes.FetchClause{
 				Count: count,
-				Loc:   nodes.Loc{Start: fetchLoc, End: -1},
+				Loc:   nodes.Loc{Start: fetchLoc, End: p.prevEnd()},
 			}
 		}
 	}
@@ -809,11 +809,15 @@ func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 		if right == nil {
 			return nil, p.unexpectedToken()
 		}
+		start := nodes.NodeLoc(left).Start
+		if start < 0 {
+			start = joinLoc
+		}
 		join := &nodes.JoinClause{
 			Type:  jt,
 			Left:  left,
 			Right: right,
-			Loc:   nodes.Loc{Start: joinLoc, End: -1},
+			Loc:   nodes.Loc{Start: start, End: -1},
 		}
 		// ON condition (not for CROSS JOIN / CROSS APPLY / OUTER APPLY)
 		if jt != nodes.JoinCross && jt != nodes.JoinCrossApply && jt != nodes.JoinOuterApply {
@@ -969,6 +973,7 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 	alias := p.parseOptionalAlias()
 	if alias != "" {
 		ref.Alias = alias
+		ref.Loc.End = p.prevEnd()
 	}
 
 	// Table hints: WITH (NOLOCK), WITH (INDEX(idx1)), etc.
@@ -977,6 +982,7 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		if err != nil {
 			return nil, err
 		}
+		ref.Loc.End = p.prevEnd()
 	}
 
 	return p.parsePivotUnpivot(ref)
@@ -1207,16 +1213,18 @@ func (p *Parser) parseTableValuedFunction(ref *nodes.TableRef) (nodes.TableExpr,
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
+	fc.Loc.End = p.prevEnd()
 
 	alias, cols, err := p.parseAliasAndOptionalColumnList()
 	if err != nil {
 		return nil, err
 	}
+	aliasEnd := p.prevEnd()
 	return &nodes.AliasedTableRef{
 		Table:   fc,
 		Alias:   alias,
 		Columns: cols,
-		Loc:     nodes.Loc{Start: loc, End: -1},
+		Loc:     nodes.Loc{Start: loc, End: aliasEnd},
 	}, nil
 }
 
@@ -1852,7 +1860,7 @@ func (p *Parser) parseOrderByList() (*nodes.List, error) {
 		items = append(items, &nodes.OrderByItem{
 			Expr:    expr,
 			SortDir: dir,
-			Loc:     nodes.Loc{Start: oloc, End: -1},
+			Loc:     nodes.Loc{Start: oloc, End: p.prevEnd()},
 		})
 		if _, ok := p.match(','); !ok {
 			break

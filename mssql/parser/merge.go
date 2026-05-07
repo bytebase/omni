@@ -240,6 +240,7 @@ func (p *Parser) parseMergeWhenClause() (*nodes.MergeWhenClause, error) {
 	// Action: UPDATE SET, DELETE, or INSERT
 	switch {
 	case p.cur.Type == kwUPDATE:
+		actionLoc := p.pos()
 		p.advance() // consume UPDATE
 		p.match(kwSET)
 		setList, err := p.parseSetClauseList()
@@ -248,13 +249,13 @@ func (p *Parser) parseMergeWhenClause() (*nodes.MergeWhenClause, error) {
 		}
 		wc.Action = &nodes.MergeUpdateAction{
 			SetClause: setList,
-			Loc:       nodes.Loc{Start: loc, End: -1},
+			Loc:       nodes.Loc{Start: actionLoc, End: p.prevEnd()},
 		}
 	case p.cur.Type == kwDELETE:
 		delLoc := p.pos()
 		p.advance() // consume DELETE
 		wc.Action = &nodes.MergeDeleteAction{
-			Loc: nodes.Loc{Start: delLoc, End: -1},
+			Loc: nodes.Loc{Start: delLoc, End: p.prevEnd()},
 		}
 	case p.cur.Type == kwINSERT:
 		action, err := p.parseMergeInsertAction()
