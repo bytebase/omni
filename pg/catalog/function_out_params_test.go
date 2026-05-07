@@ -168,6 +168,35 @@ FROM public.table_pair();
 	}
 }
 
+func TestLoadSQLViewFromBuiltinRecordReturningFunctionWithOutParams(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE VIEW public.pg_keywords_view AS
+SELECT *
+FROM pg_get_keywords();
+`)
+	if err != nil {
+		t.Fatalf("LoadSQL() error: %v", err)
+	}
+
+	rel := c.GetRelation("public", "pg_keywords_view")
+	if rel == nil {
+		t.Fatal("view pg_keywords_view not found")
+	}
+	wantNames := []string{"word", "catcode", "barelabel", "catdesc", "baredesc"}
+	wantTypes := []uint32{TEXTOID, CHAROID, BOOLOID, TEXTOID, TEXTOID}
+	if got, want := len(rel.Columns), len(wantNames); got != want {
+		t.Fatalf("view columns: got %d, want %d", got, want)
+	}
+	for i := range wantNames {
+		if got, want := rel.Columns[i].Name, wantNames[i]; got != want {
+			t.Fatalf("column %d name: got %q, want %q", i+1, got, want)
+		}
+		if got, want := rel.Columns[i].TypeOID, wantTypes[i]; got != want {
+			t.Fatalf("column %d type: got %d, want %d", i+1, got, want)
+		}
+	}
+}
+
 func TestLoadSQLViewFromRecordReturningFunctionWithColumnDefinitionList(t *testing.T) {
 	c, err := LoadSQL(`
 CREATE FUNCTION public.record_pair_untyped()
@@ -203,6 +232,69 @@ FROM public.record_pair_untyped() AS record_pair(id integer, name text);
 	}
 	if got, want := rel.Columns[1].TypeOID, TEXTOID; got != want {
 		t.Fatalf("second column type: got %d, want %d", got, want)
+	}
+}
+
+func TestParseProcArrayElementsStrict(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want []string
+		ok   bool
+	}{
+		{
+			name: "simple",
+			raw:  "{i,o,b}",
+			want: []string{"i", "o", "b"},
+			ok:   true,
+		},
+		{
+			name: "quoted comma",
+			raw:  `{"a,b","c\"d","e\\f"}`,
+			want: []string{"a,b", `c"d`, `e\f`},
+			ok:   true,
+		},
+		{
+			name: "empty element",
+			raw:  "{input,,output}",
+			want: []string{"input", "", "output"},
+			ok:   true,
+		},
+		{
+			name: "missing braces",
+			raw:  "i,o,b",
+			ok:   false,
+		},
+		{
+			name: "unterminated quote",
+			raw:  `{"a,b}`,
+			ok:   false,
+		},
+		{
+			name: "dangling escape",
+			raw:  `{"a\}`,
+			ok:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := parseProcArrayElementsStrict(tt.raw)
+			if ok != tt.ok {
+				t.Fatalf("ok: got %v, want %v", ok, tt.ok)
+			}
+			if !ok {
+				return
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("elements: got %v, want %v", got, tt.want)
+			}
+			for i := range tt.want {
+				if got[i] != tt.want[i] {
+					t.Fatalf("element %d: got %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
 	}
 }
 

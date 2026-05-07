@@ -897,26 +897,43 @@ func (ac *analyzeCtx) appendOutputParamColumns(
 	var modes []byte
 	var names []string
 	var allArgTypes []uint32
+	var kind byte
 	if up := ac.catalog.userProcs[call.FuncOID]; up != nil {
+		kind = up.Kind
 		modes = up.ArgModes
 		names = up.ArgNames
 		allArgTypes = up.AllArgTypes
 	} else if proc := ac.catalog.procByOID[call.FuncOID]; proc != nil {
-		modes = parseProcArgModes(proc.ArgModes)
-		names = parseProcArgNames(proc.ArgNames)
+		var ok bool
+		kind = proc.Kind
+		modes, ok = parseProcArgModesStrict(proc.ArgModes)
+		if !ok {
+			return false
+		}
+		if proc.ArgNames != "" {
+			names, ok = parseProcArrayElementsStrict(proc.ArgNames)
+			if !ok {
+				return false
+			}
+		}
 		allArgTypes = proc.AllArgTypes
 	}
-	if len(modes) == 0 || len(allArgTypes) == 0 {
+	if len(modes) == 0 || len(allArgTypes) == 0 || len(modes) != len(allArgTypes) {
+		return false
+	}
+	if len(names) > 0 && len(names) != len(allArgTypes) {
 		return false
 	}
 
 	outCount := 0
+	type outputColumn struct {
+		name    string
+		typeOID uint32
+	}
+	outputs := make([]outputColumn, 0, len(modes))
 	for i, mode := range modes {
 		if mode != 'o' && mode != 'b' && mode != 't' {
 			continue
-		}
-		if i >= len(allArgTypes) {
-			return false
 		}
 		outCount++
 		name := ""
@@ -926,44 +943,48 @@ func (ac *analyzeCtx) appendOutputParamColumns(
 		if name == "" {
 			name = fmt.Sprintf("column%d", outCount)
 		}
-		typeOID := allArgTypes[i]
-		*colNames = append(*colNames, name)
+		outputs = append(outputs, outputColumn{name: name, typeOID: allArgTypes[i]})
+	}
+	if outCount == 0 || (outCount < 2 && kind != 'p') {
+		return false
+	}
+	for _, output := range outputs {
+		typeOID := output.typeOID
+		*colNames = append(*colNames, output.name)
 		*colTypes = append(*colTypes, typeOID)
 		*colTypMods = append(*colTypMods, int32(-1))
 		*colCollations = append(*colCollations, ac.catalog.typeCollation(typeOID))
 	}
-	return outCount > 0
+	return true
 }
 
-func parseProcArgModes(raw string) []byte {
-	elems := parseProcArrayElements(raw)
-	if len(elems) == 0 {
-		return nil
+func parseProcArgModesStrict(raw string) ([]byte, bool) {
+	elems, ok := parseProcArrayElementsStrict(raw)
+	if !ok || len(elems) == 0 {
+		return nil, false
 	}
 	modes := make([]byte, 0, len(elems))
 	for _, elem := range elems {
-		if elem == "" {
-			continue
+		if len(elem) != 1 {
+			return nil, false
 		}
-		modes = append(modes, elem[0])
+		mode := elem[0]
+		switch mode {
+		case 'i', 'o', 'b', 'v', 't':
+			modes = append(modes, mode)
+		default:
+			return nil, false
+		}
 	}
-	return modes
+	return modes, true
 }
 
-func parseProcArgNames(raw string) []string {
-	return parseProcArrayElements(raw)
-}
-
-func parseProcArrayElements(raw string) []string {
+func parseProcArrayElementsStrict(raw string) ([]string, bool) {
 	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return nil
+	if len(raw) < 2 || raw[0] != '{' || raw[len(raw)-1] != '}' {
+		return nil, false
 	}
-	raw = strings.TrimPrefix(raw, "{")
-	raw = strings.TrimSuffix(raw, "}")
-	if raw == "" {
-		return nil
-	}
+	raw = raw[1 : len(raw)-1]
 
 	var elems []string
 	var b strings.Builder
@@ -985,8 +1006,11 @@ func parseProcArrayElements(raw string) []string {
 			b.WriteRune(r)
 		}
 	}
+	if inQuotes || escaped {
+		return nil, false
+	}
 	elems = append(elems, strings.TrimSpace(b.String()))
-	return elems
+	return elems, true
 }
 
 // chooseScalarFunctionAlias picks the column name for a scalar function in FROM.
