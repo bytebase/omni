@@ -41,9 +41,9 @@ func TestMSSQLPublicParseLocPrecisionMatrix(t *testing.T) {
 		{
 			name:       "go batch separator",
 			sql:        "SELECT 1\nGO\nSELECT 2",
-			wantTexts:  []string{"SELECT 1", "\nGO\nSELECT 2"},
-			wantStarts: []Position{{Line: 1, Column: 1}, {Line: 3, Column: 1}},
-			wantEnds:   []Position{{Line: 1, Column: 9}, {Line: 3, Column: 9}},
+			wantTexts:  []string{"SELECT 1", "\nGO", "\nSELECT 2"},
+			wantStarts: []Position{{Line: 1, Column: 1}, {Line: 2, Column: 1}, {Line: 3, Column: 1}},
+			wantEnds:   []Position{{Line: 1, Column: 9}, {Line: 2, Column: 3}, {Line: 3, Column: 9}},
 		},
 		{
 			name:       "empty statements skipped",
