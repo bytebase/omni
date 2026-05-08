@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -991,7 +993,7 @@ func (p *Parser) parseCreateAnalyticViewStmt(start int, orReplace, force, noForc
 	var parseErr604 error
 
 	// view name
-	stmt.Name, parseErr604 = p.parseObjectName()
+	stmt.Name, parseErr604 = p.parseRequiredObjectName()
 	if parseErr604 !=
 
 		// SHARING = { METADATA | NONE }
@@ -1120,15 +1122,25 @@ func (p *Parser) parseCreateAnalyticViewStmt(start int, orReplace, force, noForc
 			stmt.DefaultAggregate, parseErr608 = p.parseIdentifier()
 			if parseErr608 !=
 
-				// skip remaining (cache, fact, qry_transform)
 				nil {
 				return nil, parseErr608
 			}
 		}
 	}
 
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		p.advance()
+	if p.cur.Type != ';' && p.cur.Type != tokEOF {
+		optStart := p.pos()
+		tokens := p.collectDDLTokensUntil(func() bool { return false })
+		if len(tokens) > 0 {
+			if stmt.Options == nil {
+				stmt.Options = &nodes.List{}
+			}
+			stmt.Options.Items = append(stmt.Options.Items, &nodes.DDLOption{
+				Key:   "OPTIONS",
+				Value: strings.Join(tokens, " "),
+				Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
+			})
+		}
 	}
 
 	stmt.Loc.End = p.prev.End

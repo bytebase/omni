@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -258,22 +260,17 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) error {
 				return parseErr422
 			}
 		case kwLOCAL:
+			optStart := p.pos()
 			stmt.Local = true
 			p.advance()
-			// Skip local partitioned details (parenthesized partition list)
-			p.skipParenthesizedBlock()
+			value := p.collectCreateIndexOptionValue()
+			appendCreateIndexOption(stmt, "LOCAL", value, nodes.Loc{Start: optStart, End: p.prev.End})
 		case kwGLOBAL:
+			optStart := p.pos()
 			stmt.Global = true
 			p.advance()
-			// GLOBAL PARTITION BY ... skip details
-			if p.cur.Type == kwPARTITION {
-				p.advance() // consume PARTITION
-				if p.cur.Type == kwBY {
-					p.advance() // consume BY
-				}
-				// Skip RANGE/HASH and partitioning details
-				p.skipToNextClause()
-			}
+			value := p.collectCreateIndexOptionValue()
+			appendCreateIndexOption(stmt, "GLOBAL", value, nodes.Loc{Start: optStart, End: p.prev.End})
 		case kwONLINE:
 			stmt.Online = true
 			p.advance()
@@ -364,9 +361,11 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) error {
 				}
 
 				if p.cur.Type == kwLOCAL {
+					optStart := p.pos()
 					stmt.Local = true
 					p.advance()
-					p.skipParenthesizedBlock()
+					value := p.collectCreateIndexOptionValue()
+					appendCreateIndexOption(stmt, "LOCAL", value, nodes.Loc{Start: optStart, End: p.prev.End})
 				}
 				// Optional parallel_clause
 				if p.cur.Type == kwPARALLEL {
@@ -417,12 +416,18 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) error {
 					}
 				}
 			} else if p.isIdentLikeStr("STORAGE") {
-				// storage_clause - skip parenthesized block
+				optStart := p.pos()
 				p.advance()
-				p.skipParenthesizedBlock()
+				if p.cur.Type != '(' {
+					return p.syntaxErrorAtCur()
+				}
+				value := p.collectCreateIndexOptionValue()
+				appendCreateIndexOption(stmt, "STORAGE", value, nodes.Loc{Start: optStart, End: p.prev.End})
 			} else if p.isIdentLikeStr("ANNOTATIONS") {
+				optStart := p.pos()
 				p.advance()
-				p.skipParenthesizedBlock()
+				value := p.collectCreateIndexOptionValue()
+				appendCreateIndexOption(stmt, "ANNOTATIONS", value, nodes.Loc{Start: optStart, End: p.prev.End})
 			} else {
 				return nil
 			}
@@ -431,14 +436,49 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) error {
 	return nil
 }
 
-// skipParenthesizedBlock skips a parenthesized block if present.
-func (p *Parser) skipParenthesizedBlock() {
-	if p.cur.Type != '(' {
+func appendCreateIndexOption(stmt *nodes.CreateIndexStmt, key, value string, loc nodes.Loc) {
+	if loc.End <= loc.Start {
 		return
 	}
+	if stmt.Options == nil {
+		stmt.Options = &nodes.List{}
+	}
+	stmt.Options.Items = append(stmt.Options.Items, &nodes.DDLOption{Key: key, Value: value, Loc: loc})
+}
+
+func (p *Parser) collectCreateIndexOptionValue() string {
+	tokens := p.collectDDLTokensUntil(p.isCreateIndexOptionBoundary)
+	return strings.Join(tokens, " ")
+}
+
+func (p *Parser) isCreateIndexOptionBoundary() bool {
+	switch p.cur.Type {
+	case ';', tokEOF, kwCOMPRESS, kwDEFERRED, kwGLOBAL, kwIMMEDIATE, kwINVISIBLE,
+		kwLOCAL, kwLOGGING, kwNOCOMPRESS, kwNOLOGGING, kwONLINE, kwPARALLEL,
+		kwNOPARALLEL, kwPCTFREE, kwREVERSE, kwTABLESPACE:
+		return true
+	}
+	if p.isIdentLike() {
+		switch p.cur.Str {
+		case "ANNOTATIONS", "INDEXING", "INDEXTYPE", "INITRANS", "MAXTRANS",
+			"NOSORT", "PARAMETERS", "SORT", "STORAGE", "VISIBLE":
+			return true
+		}
+	}
+	return false
+}
+
+// collectParenthesizedBlock consumes and returns a balanced parenthesized block if present.
+func (p *Parser) collectParenthesizedBlock() string {
+	if p.cur.Type != '(' {
+		return ""
+	}
+	var tokens []string
 	depth := 1
-	p.advance() // consume '('
+	tokens = append(tokens, p.ddlOptionTokenText(p.cur))
+	p.advance()
 	for depth > 0 && p.cur.Type != tokEOF {
+		tokens = append(tokens, p.ddlOptionTokenText(p.cur))
 		if p.cur.Type == '(' {
 			depth++
 		} else if p.cur.Type == ')' {
@@ -446,25 +486,7 @@ func (p *Parser) skipParenthesizedBlock() {
 		}
 		p.advance()
 	}
-}
-
-// skipToNextClause skips tokens until we reach a known clause keyword,
-// semicolon, or EOF. This is used for complex partitioning clauses.
-func (p *Parser) skipToNextClause() {
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		switch p.cur.Type {
-		case kwDEFERRED, kwIMMEDIATE:
-			return
-		case '(':
-			p.skipParenthesizedBlock()
-		default:
-			// Check if we hit a clause-ending keyword
-			if p.isIdentLikeStr("INVALIDATION") || p.isIdentLikeStr("STORE") {
-				return
-			}
-			p.advance()
-		}
-	}
+	return strings.Join(tokens, " ")
 }
 
 // parseIndexColumnList parses a comma-separated list of index columns.
@@ -672,7 +694,7 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 				p.advance() // consume DML
 			}
 			// Optional type list
-			p.skipParenthesizedBlock()
+			p.collectParenthesizedBlock()
 		}
 	}
 
@@ -710,7 +732,7 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 			if p.isIdentLikeStr("DML") {
 				p.advance()
 			}
-			p.skipParenthesizedBlock()
+			p.collectParenthesizedBlock()
 		} else {
 			break
 		}
@@ -936,7 +958,7 @@ func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, 
 					if p.isIdentLikeStr("DML") {
 						p.advance() // consume DML
 					}
-					p.skipParenthesizedBlock()
+					p.collectParenthesizedBlock()
 				}
 			}
 		}

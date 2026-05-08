@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -1553,12 +1555,11 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 						stmt.Organization = "INDEX"
 						p.advance()
 					} else if p.isIdentLikeStr("EXTERNAL") {
+						optStart := p.pos()
 						stmt.Organization = "EXTERNAL"
 						p.advance()
-						// skip external table clause details
-						if p.cur.Type == '(' {
-							p.skipParenthesized()
-						}
+						value := p.collectCreateTableOptionValue()
+						appendCreateTableOption(stmt, "ORGANIZATION EXTERNAL", value, nodes.Loc{Start: optStart, End: p.prev.End})
 					}
 				case "INDEXING":
 					// INDEXING { ON | OFF }
@@ -1616,87 +1617,28 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 						return nil
 					}
 				case "INMEMORY":
-					// INMEMORY [attributes] - skip details
+					optStart := p.pos()
 					p.advance()
+					value := p.collectCreateTableOptionValue()
+					appendCreateTableOption(stmt, "INMEMORY", value, nodes.Loc{Start: optStart, End: p.prev.End})
 				case "LOB":
-					// LOB storage clause - skip parenthesized content
+					optStart := p.pos()
 					p.advance() // consume LOB
-					if p.cur.Type == '(' {
-						p.skipParenthesized()
+					if p.cur.Type != '(' {
+						return p.syntaxErrorAtCur()
 					}
-					// STORE AS ...
-					if p.isIdentLikeStr("STORE") {
-						p.advance()
-						if p.cur.Type == kwAS {
-							p.advance()
-						}
-						// skip rest of LOB storage
-						if p.cur.Type == '(' {
-							p.skipParenthesized()
-						} else if p.isIdentLike() {
-							p.advance() // LOB segment name
-							if p.cur.Type == '(' {
-								p.skipParenthesized()
-							}
-						}
-					}
+					value := p.collectCreateTableStorageOptionValue()
+					appendCreateTableOption(stmt, "LOB", value, nodes.Loc{Start: optStart, End: p.prev.End})
 				case "VARRAY":
-					// VARRAY col STORE AS ...
+					optStart := p.pos()
 					p.advance()
-					parseDiscard546, // consume VARRAY
-						parseErr545 := p.parseIdentifier()
-					_ = // consume varray item
-						parseDiscard546
-					if parseErr545 != nil {
-						return parseErr545
-					}
-					if p.isIdentLikeStr("STORE") {
-						p.advance()
-						if p.cur.Type == kwAS {
-							p.advance()
-						}
-						// skip rest
-						for p.isIdentLike() && p.cur.Type != tokEOF {
-							p.advance()
-						}
-						if p.cur.Type == '(' {
-							p.skipParenthesized()
-						}
-					}
+					value := p.collectCreateTableStorageOptionValue()
+					appendCreateTableOption(stmt, "VARRAY", value, nodes.Loc{Start: optStart, End: p.prev.End})
 				case "NESTED":
-					// NESTED TABLE ... STORE AS ...
+					optStart := p.pos()
 					p.advance() // consume NESTED
-					if p.cur.Type == kwTABLE {
-						p.advance() // consume TABLE
-					}
-					parseDiscard548, parseErr547 := p.parseIdentifier()
-					_ = // nested item
-						parseDiscard548
-					if parseErr547 !=
-						// skip to STORE AS
-						nil {
-						return parseErr547
-					}
-
-					for p.cur.Type != ';' && p.cur.Type != tokEOF {
-						if p.isIdentLikeStr("STORE") {
-							p.advance()
-							if p.cur.Type == kwAS {
-								p.advance()
-							}
-							parseDiscard550, parseErr549 := p.parseIdentifier()
-							_ = // storage table name
-								parseDiscard550
-							if parseErr549 != nil {
-								return parseErr549
-							}
-							if p.cur.Type == '(' {
-								p.skipParenthesized()
-							}
-							break
-						}
-						p.advance()
-					}
+					value := p.collectCreateTableStorageOptionValue()
+					appendCreateTableOption(stmt, "NESTED", value, nodes.Loc{Start: optStart, End: p.prev.End})
 				case "NO":
 					// NO FLASHBACK ARCHIVE / NO INMEMORY
 					next := p.peekNext()
@@ -1714,11 +1656,10 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 						return nil
 					}
 				case "STORAGE":
-					// STORAGE ( ... ) - skip
+					optStart := p.pos()
 					p.advance()
-					if p.cur.Type == '(' {
-						p.skipParenthesized()
-					}
+					value := p.collectCreateTableOptionValue()
+					appendCreateTableOption(stmt, "STORAGE", value, nodes.Loc{Start: optStart, End: p.prev.End})
 				case "FILESYSTEM_LIKE_LOGGING":
 					p.advance()
 					stmt.Logging = "FILESYSTEM_LIKE_LOGGING"
@@ -1752,39 +1693,23 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 						}
 					}
 				case "ILM":
-					// ILM clause - skip details
+					optStart := p.pos()
 					p.advance()
-					for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwPARTITION && p.cur.Type != kwENABLE && p.cur.Type != kwDISABLE {
-						p.advance()
-					}
+					value := p.collectCreateTableOptionValue()
+					appendCreateTableOption(stmt, "ILM", value, nodes.Loc{Start: optStart, End: p.prev.End})
 				case "CLUSTERING":
-					// attribute clustering - skip
+					optStart := p.pos()
 					p.advance()
-					for p.isIdentLike() && p.cur.Type != ';' && p.cur.Type != tokEOF {
-						if p.cur.Type == '(' {
-							p.skipParenthesized()
-						} else {
-							p.advance()
-						}
-						// stop at known table option keywords
-						if p.cur.Type == kwCACHE || p.cur.Type == kwPARALLEL || p.cur.Type == kwNOPARALLEL || p.cur.Type == kwENABLE || p.cur.Type == kwDISABLE {
-							break
-						}
-					}
+					value := p.collectCreateTableOptionValue()
+					appendCreateTableOption(stmt, "CLUSTERING", value, nodes.Loc{Start: optStart, End: p.prev.End})
 				case "SUPPLEMENTAL":
-					// SUPPLEMENTAL LOG ... - skip
+					optStart := p.pos()
 					p.advance() // consume SUPPLEMENTAL
 					if p.isIdentLikeStr("LOG") {
 						p.advance() // consume LOG
 					}
-					// skip until a known boundary
-					for p.cur.Type != ',' && p.cur.Type != ')' && p.cur.Type != ';' && p.cur.Type != tokEOF {
-						if p.cur.Type == '(' {
-							p.skipParenthesized()
-						} else {
-							p.advance()
-						}
-					}
+					value := p.collectCreateTableOptionValue()
+					appendCreateTableOption(stmt, "SUPPLEMENTAL LOG", value, nodes.Loc{Start: optStart, End: p.prev.End})
 				default:
 					return nil
 				}
@@ -1794,6 +1719,88 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 		}
 	}
 	return nil
+}
+
+func appendCreateTableOption(stmt *nodes.CreateTableStmt, key, value string, loc nodes.Loc) {
+	if loc.End <= loc.Start {
+		return
+	}
+	if stmt.Options == nil {
+		stmt.Options = &nodes.List{}
+	}
+	stmt.Options.Items = append(stmt.Options.Items, &nodes.DDLOption{Key: key, Value: value, Loc: loc})
+}
+
+func (p *Parser) collectCreateTableOptionValue() string {
+	tokens := p.collectDDLTokensUntil(p.isCreateTableOptionBoundary)
+	return strings.Join(tokens, " ")
+}
+
+func (p *Parser) collectCreateTableStorageOptionValue() string {
+	tokens := p.collectDDLTokensUntil(p.isCreateTableStorageOptionBoundary)
+	return strings.Join(tokens, " ")
+}
+
+func (p *Parser) isCreateTableStorageOptionBoundary() bool {
+	if p.cur.Type == kwAS {
+		return false
+	}
+	return p.isCreateTableOptionBoundary()
+}
+
+func (p *Parser) isCreateTableOptionBoundary() bool {
+	switch p.cur.Type {
+	case ';', tokEOF, kwAS, kwCACHE, kwDISABLE, kwENABLE, kwFLASHBACK, kwLOGGING,
+		kwNOLOGGING, kwON, kwPARALLEL, kwNOPARALLEL, kwPARTITION, kwREAD,
+		kwRESULT_CACHE, kwTABLESPACE:
+		return true
+	}
+	if p.isIdentLike() {
+		switch p.cur.Str {
+		case "CLUSTERING", "COLUMN", "FILESYSTEM_LIKE_LOGGING", "ILM", "INCLUDING",
+			"INDEXING", "INMEMORY", "INITRANS", "LOB", "MAPPING", "MEMOPTIMIZE",
+			"MONITORING", "NESTED", "NO", "NOCACHE", "NOMAPPING", "NOMONITORING",
+			"NOROWDEPENDENCIES", "ORGANIZATION", "OVERFLOW", "PCTFREE", "PCTUSED",
+			"REJECT", "ROWDEPENDENCIES", "SEGMENT", "STORAGE", "SUPPLEMENTAL",
+			"VARRAY":
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Parser) collectDDLTokensUntil(isBoundary func() bool) []string {
+	var tokens []string
+	depth := 0
+	for p.cur.Type != ';' && p.cur.Type != tokEOF {
+		if depth == 0 && len(tokens) > 0 && isBoundary() {
+			break
+		}
+		tokens = append(tokens, p.ddlOptionTokenText(p.cur))
+		switch p.cur.Type {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		}
+		p.advance()
+	}
+	return tokens
+}
+
+func (p *Parser) ddlOptionTokenText(tok Token) string {
+	if tok.Str != "" {
+		return tok.Str
+	}
+	if tok.Loc >= 0 && tok.End <= len(p.source) && tok.Loc < tok.End {
+		return p.source[tok.Loc:tok.End]
+	}
+	if tok.Type > 0 && tok.Type < 128 {
+		return string(rune(tok.Type))
+	}
+	return ""
 }
 
 // parseImmutableTableClauses parses immutable table clauses.

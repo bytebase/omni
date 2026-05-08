@@ -6,6 +6,100 @@ import (
 	"github.com/bytebase/omni/oracle/ast"
 )
 
+func TestP2CreateIndexPartitionAndStorageOptions(t *testing.T) {
+	tests := []struct {
+		name  string
+		sql   string
+		key   string
+		value string
+	}{
+		{
+			name:  "local_partitioned_index",
+			sql:   "CREATE INDEX ix_sales ON sales (sale_date) LOCAL (PARTITION p1 TABLESPACE ts1) TABLESPACE users",
+			key:   "LOCAL",
+			value: "( PARTITION P1 TABLESPACE TS1 )",
+		},
+		{
+			name:  "global_partitioned_index",
+			sql:   "CREATE INDEX ix_sales ON sales (sale_date) GLOBAL PARTITION BY RANGE (sale_date) (PARTITION p1 VALUES LESS THAN (10)) ONLINE",
+			key:   "GLOBAL",
+			value: "PARTITION BY RANGE ( SALE_DATE ) ( PARTITION P1 VALUES LESS THAN ( 10 ) )",
+		},
+		{
+			name:  "storage_clause",
+			sql:   "CREATE INDEX ix_sales ON sales (sale_date) STORAGE (INITIAL 64K NEXT 64K) ONLINE",
+			key:   "STORAGE",
+			value: "( INITIAL 64 K NEXT 64 K )",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stmt := parseCreateIndexForP2(t, tt.sql)
+			assertCreateIndexOption(t, stmt, tt.key, tt.value)
+		})
+	}
+}
+
+func TestP2CreateIndexOptionBoundariesAndLoc(t *testing.T) {
+	stmt := parseCreateIndexForP2(t, "CREATE INDEX ix_sales ON sales (sale_date) GLOBAL PARTITION BY HASH (sale_date) PARTITIONS 4 ONLINE")
+	if !stmt.Global || !stmt.Online {
+		t.Fatalf("expected GLOBAL and ONLINE fields, got global=%v online=%v", stmt.Global, stmt.Online)
+	}
+	opt := findCreateIndexOption(stmt, "GLOBAL")
+	if opt == nil {
+		t.Fatalf("expected GLOBAL option in %#v", stmt.Options)
+	}
+	if opt.Value != "PARTITION BY HASH ( SALE_DATE ) PARTITIONS 4" {
+		t.Fatalf("GLOBAL value=%q", opt.Value)
+	}
+	if opt.Loc.Start <= stmt.Loc.Start || opt.Loc.End > stmt.Loc.End || opt.Loc.Start >= opt.Loc.End {
+		t.Fatalf("option Loc=%+v is not inside stmt Loc=%+v", opt.Loc, stmt.Loc)
+	}
+}
+
+func TestP2CreateIndexMalformedStorageOption(t *testing.T) {
+	ParseShouldFail(t, "CREATE INDEX ix_sales ON sales (sale_date) STORAGE")
+}
+
+func parseCreateIndexForP2(t *testing.T, sql string) *ast.CreateIndexStmt {
+	t.Helper()
+	result := ParseAndCheck(t, sql)
+	if result.Len() != 1 {
+		t.Fatalf("expected 1 statement, got %d", result.Len())
+	}
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt, ok := raw.Stmt.(*ast.CreateIndexStmt)
+	if !ok {
+		t.Fatalf("expected CreateIndexStmt, got %T", raw.Stmt)
+	}
+	return stmt
+}
+
+func assertCreateIndexOption(t *testing.T, stmt *ast.CreateIndexStmt, key, value string) {
+	t.Helper()
+	opt := findCreateIndexOption(stmt, key)
+	if opt == nil {
+		t.Fatalf("expected option %q in %#v", key, stmt.Options)
+	}
+	if opt.Value != value {
+		t.Fatalf("option %q value=%q, want %q", key, opt.Value, value)
+	}
+}
+
+func findCreateIndexOption(stmt *ast.CreateIndexStmt, key string) *ast.DDLOption {
+	if stmt.Options == nil {
+		return nil
+	}
+	for _, item := range stmt.Options.Items {
+		opt, ok := item.(*ast.DDLOption)
+		if ok && opt.Key == key {
+			return opt
+		}
+	}
+	return nil
+}
+
 func TestParseCreateIndex(t *testing.T) {
 	p := newTestParser("INDEX idx_emp_name ON employees (last_name)")
 	stmt, parseErr1 := p.parseCreateIndexStmt(0)

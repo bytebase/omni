@@ -1216,13 +1216,253 @@ func (p *Parser) parseAdministerKeyManagementStmt() (nodes.StmtNode, error) {
 		Loc:        nodes.Loc{Start: start},
 	}
 
-	// Skip KEY MANAGEMENT and all remaining tokens
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		p.advance()
+	opts := &nodes.List{}
+	if p.cur.Type != kwKEY {
+		return nil, p.syntaxErrorAtCur()
+	}
+	scopeStart := p.pos()
+	p.advance() // KEY
+	if !p.isIdentLikeStr("MANAGEMENT") {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // MANAGEMENT
+	opts.Items = append(opts.Items, &nodes.DDLOption{
+		Key:   "SCOPE",
+		Value: "KEY MANAGEMENT",
+		Loc:   nodes.Loc{Start: scopeStart, End: p.prev.End},
+	})
+
+	if p.cur.Type != ';' && p.cur.Type != tokEOF {
+		cmdStart := p.pos()
+		command := p.consumeAdministerKeyManagementCommand()
+		if command == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key:   "COMMAND",
+			Value: command,
+			Loc:   nodes.Loc{Start: cmdStart, End: p.prev.End},
+		})
 	}
 
+	for p.cur.Type != ';' && p.cur.Type != tokEOF {
+		optStart := p.pos()
+		switch {
+		case p.cur.Type == kwIDENTIFIED:
+			p.advance()
+			if p.cur.Type != kwBY {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			value := p.consumeAdministerKeyManagementValue()
+			if value == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{
+				Key:   "IDENTIFIED BY",
+				Value: value,
+				Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
+			})
+		case p.cur.Type == kwWITH:
+			p.advance()
+			if p.isIdentLikeStr("SECRET") {
+				p.advance()
+				value := p.consumeAdministerKeyManagementValue()
+				if value == "" {
+					return nil, p.syntaxErrorAtCur()
+				}
+				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "WITH SECRET", Value: value, Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
+				continue
+			}
+			if p.isIdentLikeStr("BACKUP") {
+				p.advance()
+				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "WITH BACKUP", Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
+				continue
+			}
+			return nil, p.syntaxErrorAtCur()
+		case p.cur.Type == kwUSING:
+			p.advance()
+			key := "USING"
+			if p.isIdentLikeStr("TAG") {
+				p.advance()
+				key = "USING TAG"
+			}
+			value := p.consumeAdministerKeyManagementValue()
+			if value == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{Key: key, Value: value, Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
+		case p.cur.Type == kwFOR:
+			p.advance()
+			key := "FOR"
+			if p.isIdentLikeStr("CLIENT") {
+				p.advance()
+				key = "FOR CLIENT"
+			}
+			value := p.consumeAdministerKeyManagementValue()
+			if value == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{Key: key, Value: value, Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
+		case p.cur.Type == kwTO || p.cur.Type == kwFROM || p.cur.Type == kwINTO:
+			key := p.cur.Str
+			p.advance()
+			value := p.consumeAdministerKeyManagementValue()
+			if value == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{Key: key, Value: value, Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
+		case p.isIdentLikeStr("CONTAINER"):
+			p.advance()
+			if p.cur.Type == '=' {
+				p.advance()
+			}
+			value := p.consumeAdministerKeyManagementValue()
+			if value == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "CONTAINER", Value: value, Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
+		case p.cur.Type == kwFORCE:
+			p.advance()
+			if p.isIdentLikeStr("KEYSTORE") {
+				p.advance()
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "FORCE KEYSTORE", Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
+		default:
+			value := p.consumeAdministerKeyManagementValue()
+			if value == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "ARG", Value: value, Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
+		}
+	}
+
+	stmt.Options = opts
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+func (p *Parser) consumeAdministerKeyManagementCommand() string {
+	switch {
+	case p.cur.Type == kwCREATE:
+		p.advance()
+		switch {
+		case p.isIdentLikeStr("LOCAL"):
+			p.advance()
+			if p.isIdentLikeStr("AUTO_LOGIN") {
+				p.advance()
+			}
+			if p.isIdentLikeStr("KEYSTORE") {
+				p.advance()
+			}
+			return "CREATE LOCAL AUTO_LOGIN KEYSTORE"
+		case p.isIdentLikeStr("AUTO_LOGIN"):
+			p.advance()
+			if p.isIdentLikeStr("KEYSTORE") {
+				p.advance()
+			}
+			return "CREATE AUTO_LOGIN KEYSTORE"
+		case p.cur.Type == kwKEY:
+			p.advance()
+			return "CREATE KEY"
+		case p.isIdentLikeStr("KEYSTORE"):
+			p.advance()
+			return "CREATE KEYSTORE"
+		}
+	case p.cur.Type == kwSET:
+		p.advance()
+		switch {
+		case p.cur.Type == kwKEY:
+			p.advance()
+			return "SET KEY"
+		case p.isIdentLikeStr("KEYSTORE"):
+			p.advance()
+			if p.isIdentLikeStr("OPEN") || p.isIdentLikeStr("CLOSE") {
+				action := p.cur.Str
+				p.advance()
+				return "SET KEYSTORE " + action
+			}
+			return "SET KEYSTORE"
+		case p.isIdentLikeStr("TAG"):
+			p.advance()
+			return "SET TAG"
+		}
+	case p.isIdentLikeStr("USE"):
+		p.advance()
+		if p.cur.Type == kwKEY {
+			p.advance()
+		}
+		return "USE KEY"
+	case p.isIdentLikeStr("BACKUP"):
+		p.advance()
+		if p.isIdentLikeStr("KEYSTORE") {
+			p.advance()
+		}
+		return "BACKUP KEYSTORE"
+	case p.cur.Type == kwALTER:
+		p.advance()
+		if p.isIdentLikeStr("KEYSTORE") {
+			p.advance()
+		}
+		if p.isIdentLikeStr("PASSWORD") {
+			p.advance()
+		}
+		return "ALTER KEYSTORE PASSWORD"
+	case p.isIdentLikeStr("EXPORT"):
+		p.advance()
+		if p.cur.Type == kwKEY || p.isIdentLikeStr("KEYS") {
+			p.advance()
+		}
+		return "EXPORT KEYS"
+	case p.isIdentLikeStr("IMPORT"):
+		p.advance()
+		if p.cur.Type == kwKEY || p.isIdentLikeStr("KEYS") {
+			p.advance()
+		}
+		return "IMPORT KEYS"
+	case p.cur.Type == kwMERGE:
+		p.advance()
+		if p.isIdentLikeStr("KEYSTORE") {
+			p.advance()
+		}
+		return "MERGE KEYSTORE"
+	case p.cur.Type == kwADD:
+		p.advance()
+		if p.isIdentLikeStr("SECRET") {
+			p.advance()
+		}
+		return "ADD SECRET"
+	case p.cur.Type == kwUPDATE:
+		p.advance()
+		if p.isIdentLikeStr("SECRET") {
+			p.advance()
+		}
+		return "UPDATE SECRET"
+	case p.cur.Type == kwDELETE:
+		p.advance()
+		if p.isIdentLikeStr("SECRET") {
+			p.advance()
+		}
+		return "DELETE SECRET"
+	}
+	return ""
+}
+
+func (p *Parser) consumeAdministerKeyManagementValue() string {
+	if p.cur.Type == tokEOF || p.cur.Type == ';' {
+		return ""
+	}
+	if p.isIdentLikeStr("EXTERNAL") {
+		p.advance()
+		if p.isIdentLikeStr("STORE") {
+			p.advance()
+			return "EXTERNAL STORE"
+		}
+		return "EXTERNAL"
+	}
+	value := p.cur.Str
+	p.advance()
+	return value
 }
 
 // parseCreateAuditPolicyStmt parses a CREATE AUDIT POLICY statement (Unified Auditing).

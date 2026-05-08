@@ -217,6 +217,30 @@ func TestStrictUnknownOptions(t *testing.T) {
 	}
 }
 
+func TestStrictAlterUnknownTargetsDoNotSilentlySkip(t *testing.T) {
+	cases := []struct {
+		sql  string
+		near string
+	}{
+		{"ALTER PUBLIC SELECT x", `syntax error at or near "SELECT"`},
+		{"ALTER SHARED PUBLIC SELECT x", `syntax error at or near "SELECT"`},
+		{"ALTER SHARED SELECT x", `syntax error at or near "SELECT"`},
+		{"ALTER FROBULATE thing", `syntax error at or near "FROBULATE"`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.sql, func(t *testing.T) {
+			assertParseErrorContains(t, tc.sql, tc.near)
+		})
+	}
+}
+
+func TestStrictCreateSchemaUnknownNestedCreateErrorsAtChild(t *testing.T) {
+	assertParseErrorContains(t,
+		"CREATE SCHEMA AUTHORIZATION app CREATE FROBULATE x",
+		`syntax error at or near "FROBULATE"`,
+	)
+}
+
 func TestStrictIllegalKeywordPosition(t *testing.T) {
 	cases := []struct {
 		sql  string

@@ -21,7 +21,7 @@ func TestOracleReference(t *testing.T) {
 	runID := fmt.Sprintf("R%d", time.Now().UnixNano())
 
 	for _, row := range rows {
-		if row.Fields["expect"] == "catalog" || row.Fields["expect"] == "unsafe" {
+		if oracleReferenceRowSkipped(row.Fields["expect"]) {
 			continue
 		}
 		t.Run(row.Key, func(t *testing.T) {
@@ -36,6 +36,10 @@ func TestOracleReference(t *testing.T) {
 			}
 		})
 	}
+}
+
+func oracleReferenceRowSkipped(expect string) bool {
+	return expect == "catalog" || expect == "unsafe"
 }
 
 func TestOracleVReservedWordsKeywordAudit(t *testing.T) {

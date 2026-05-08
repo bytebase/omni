@@ -433,25 +433,3 @@ func (p *Parser) parseTypeAttributeList() (*nodes.List, error) {
 	}
 	return list, nil
 }
-
-// skipToEndBlock skips tokens until we find END; for TYPE BODY parsing.
-// This is a placeholder for full PL/SQL body parsing.
-func (p *Parser) skipToEndBlock() {
-	depth := 1
-	for p.cur.Type != tokEOF && depth > 0 {
-		if p.cur.Type == kwBEGIN {
-			depth++
-		} else if p.cur.Type == kwEND {
-			depth--
-			if depth == 0 {
-				p.advance() // consume END
-				// consume optional type name after END
-				if p.isIdentLike() {
-					p.advance()
-				}
-				return
-			}
-		}
-		p.advance()
-	}
-}

@@ -242,40 +242,40 @@ const (
 	AT_TRUNCATE_PARTITION
 	AT_RENAME
 	AT_RENAME_CONSTRAINT
-	AT_ENABLE_DISABLE           // ENABLE/DISABLE constraint
+	AT_ENABLE_DISABLE            // ENABLE/DISABLE constraint
 	AT_ENABLE_DISABLE_TABLE_LOCK // ENABLE/DISABLE TABLE LOCK
-	AT_ENABLE_DISABLE_TRIGGERS  // ENABLE/DISABLE ALL TRIGGERS
-	AT_SET_UNUSED               // SET UNUSED COLUMN
-	AT_DROP_UNUSED_COLUMNS      // DROP UNUSED COLUMNS / COLUMNS CONTINUE
-	AT_MOVE                     // MOVE [ONLINE]
-	AT_SPLIT_PARTITION          // SPLIT PARTITION
-	AT_SPLIT_SUBPARTITION       // SPLIT SUBPARTITION
-	AT_MERGE_PARTITIONS         // MERGE PARTITIONS
-	AT_MERGE_SUBPARTITIONS      // MERGE SUBPARTITIONS
-	AT_EXCHANGE_PARTITION       // EXCHANGE PARTITION/SUBPARTITION
-	AT_COALESCE_PARTITION       // COALESCE PARTITION
-	AT_COALESCE_SUBPARTITION    // COALESCE SUBPARTITION
-	AT_MODIFY_PARTITION         // MODIFY PARTITION
-	AT_MODIFY_SUBPARTITION      // MODIFY SUBPARTITION
-	AT_MODIFY_DEFAULT_ATTRS     // MODIFY DEFAULT ATTRIBUTES
-	AT_DROP_SUBPARTITION        // DROP SUBPARTITION
-	AT_RENAME_PARTITION         // RENAME PARTITION/SUBPARTITION
-	AT_SET_INTERVAL             // SET INTERVAL
-	AT_SET_PARTITIONING         // SET PARTITIONING
+	AT_ENABLE_DISABLE_TRIGGERS   // ENABLE/DISABLE ALL TRIGGERS
+	AT_SET_UNUSED                // SET UNUSED COLUMN
+	AT_DROP_UNUSED_COLUMNS       // DROP UNUSED COLUMNS / COLUMNS CONTINUE
+	AT_MOVE                      // MOVE [ONLINE]
+	AT_SPLIT_PARTITION           // SPLIT PARTITION
+	AT_SPLIT_SUBPARTITION        // SPLIT SUBPARTITION
+	AT_MERGE_PARTITIONS          // MERGE PARTITIONS
+	AT_MERGE_SUBPARTITIONS       // MERGE SUBPARTITIONS
+	AT_EXCHANGE_PARTITION        // EXCHANGE PARTITION/SUBPARTITION
+	AT_COALESCE_PARTITION        // COALESCE PARTITION
+	AT_COALESCE_SUBPARTITION     // COALESCE SUBPARTITION
+	AT_MODIFY_PARTITION          // MODIFY PARTITION
+	AT_MODIFY_SUBPARTITION       // MODIFY SUBPARTITION
+	AT_MODIFY_DEFAULT_ATTRS      // MODIFY DEFAULT ATTRIBUTES
+	AT_DROP_SUBPARTITION         // DROP SUBPARTITION
+	AT_RENAME_PARTITION          // RENAME PARTITION/SUBPARTITION
+	AT_SET_INTERVAL              // SET INTERVAL
+	AT_SET_PARTITIONING          // SET PARTITIONING
 	AT_SET_SUBPARTITION_TEMPLATE // SET SUBPARTITION TEMPLATE
-	AT_SHRINK_SPACE             // SHRINK SPACE
-	AT_ALTER_PROPERTY           // generic alter property (LOGGING, COMPRESS, etc.)
-	AT_ADD_PERIOD               // ADD PERIOD FOR
-	AT_DROP_PERIOD              // DROP PERIOD FOR
-	AT_MODIFY_LOB               // MODIFY LOB
-	AT_MODIFY_VARRAY            // MODIFY VARRAY
-	AT_MODIFY_NESTED_TABLE      // MODIFY NESTED TABLE
-	AT_MODIFY_OPAQUE_TYPE       // MODIFY OPAQUE TYPE
-	AT_MODIFY_TO_PARTITIONED    // MODIFY ... partitioning
-	AT_IMMUTABLE_TABLE          // NO DROP / NO DELETE
-	AT_BLOCKCHAIN_TABLE         // blockchain clauses
-	AT_DUPLICATED_REFRESH       // REFRESH / NO REFRESH
-	AT_MODIFY_PARTITIONSET      // MODIFY PARTITIONSET
+	AT_SHRINK_SPACE              // SHRINK SPACE
+	AT_ALTER_PROPERTY            // generic alter property (LOGGING, COMPRESS, etc.)
+	AT_ADD_PERIOD                // ADD PERIOD FOR
+	AT_DROP_PERIOD               // DROP PERIOD FOR
+	AT_MODIFY_LOB                // MODIFY LOB
+	AT_MODIFY_VARRAY             // MODIFY VARRAY
+	AT_MODIFY_NESTED_TABLE       // MODIFY NESTED TABLE
+	AT_MODIFY_OPAQUE_TYPE        // MODIFY OPAQUE TYPE
+	AT_MODIFY_TO_PARTITIONED     // MODIFY ... partitioning
+	AT_IMMUTABLE_TABLE           // NO DROP / NO DELETE
+	AT_BLOCKCHAIN_TABLE          // blockchain clauses
+	AT_DUPLICATED_REFRESH        // REFRESH / NO REFRESH
+	AT_MODIFY_PARTITIONSET       // MODIFY PARTITIONSET
 )
 
 // PLSQLLoopType represents PL/SQL loop types.
@@ -715,13 +715,13 @@ func (n *JoinClause) tableExpr() {}
 
 // TableRef represents a table reference in a FROM clause.
 type TableRef struct {
-	Name         *ObjectName      // table name
-	Alias        *Alias           // optional alias
-	Sample       *SampleClause    // SAMPLE clause
-	Flashback    *FlashbackClause // AS OF / VERSIONS BETWEEN
+	Name         *ObjectName         // table name
+	Alias        *Alias              // optional alias
+	Sample       *SampleClause       // SAMPLE clause
+	Flashback    *FlashbackClause    // AS OF / VERSIONS BETWEEN
 	PartitionExt *PartitionExtClause // PARTITION/SUBPARTITION clause
-	Dblink       string           // @dblink name
-	Loc          Loc              // start location
+	Dblink       string              // @dblink name
+	Loc          Loc                 // start location
 }
 
 func (n *TableRef) nodeTag()   {}
@@ -765,12 +765,12 @@ func (n *XmlTableRef) tableExpr() {}
 
 // XmlTableColumn represents a column definition in XMLTABLE.
 type XmlTableColumn struct {
-	Name     string    // column name
-	TypeName *TypeName // data type
-	Path     ExprNode  // PATH string (nil if default)
-	Default  ExprNode  // DEFAULT value
-	ForOrdinality bool // FOR ORDINALITY
-	Loc      Loc
+	Name          string    // column name
+	TypeName      *TypeName // data type
+	Path          ExprNode  // PATH string (nil if default)
+	Default       ExprNode  // DEFAULT value
+	ForOrdinality bool      // FOR ORDINALITY
+	Loc           Loc
 }
 
 func (n *XmlTableColumn) nodeTag() {}
@@ -791,13 +791,13 @@ func (n *JsonTableRef) tableExpr() {}
 
 // JsonTableColumn represents a column definition in JSON_TABLE.
 type JsonTableColumn struct {
-	Name     string    // column name
-	TypeName *TypeName // data type
-	Path     ExprNode  // PATH string
-	ForOrdinality bool // FOR ORDINALITY
-	Exists   bool      // EXISTS
-	Nested   *JsonTableRef // NESTED [PATH] for nested columns
-	Loc      Loc
+	Name          string        // column name
+	TypeName      *TypeName     // data type
+	Path          ExprNode      // PATH string
+	ForOrdinality bool          // FOR ORDINALITY
+	Exists        bool          // EXISTS
+	Nested        *JsonTableRef // NESTED [PATH] for nested columns
+	Loc           Loc
 }
 
 func (n *JsonTableColumn) nodeTag() {}
@@ -858,9 +858,9 @@ func (n *WithClause) nodeTag() {}
 
 // CTE represents a common table expression.
 type CTE struct {
-	Name    string   // CTE name
-	Columns *List    // optional column list (list of *String)
-	Query   StmtNode // the CTE query
+	Name    string           // CTE name
+	Columns *List            // optional column list (list of *String)
+	Query   StmtNode         // the CTE query
 	Search  *CTESearchClause // SEARCH clause
 	Cycle   *CTECycleClause  // CYCLE clause
 	Loc     Loc
@@ -875,18 +875,18 @@ func (n *CTE) nodeTag() {}
 // SelectStmt represents a SELECT statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/SELECT.html
 type SelectStmt struct {
-	WithClause   *WithClause         // WITH clause
-	Distinct     bool                // DISTINCT
-	UniqueKw     bool                // UNIQUE (Oracle synonym for DISTINCT)
-	All          bool                // ALL
-	TargetList   *List               // select expressions (list of *ResTarget)
-	Into         *ObjectName         // INTO (PL/SQL)
-	IntoVars     *List               // INTO variable list (PL/SQL SELECT INTO :bind_var)
-	FromClause   *List               // FROM clause
-	WhereClause  ExprNode            // WHERE condition
-	Hierarchical *HierarchicalClause // CONNECT BY / START WITH
-	GroupClause  *List               // GROUP BY
-	HavingClause ExprNode            // HAVING condition
+	WithClause    *WithClause         // WITH clause
+	Distinct      bool                // DISTINCT
+	UniqueKw      bool                // UNIQUE (Oracle synonym for DISTINCT)
+	All           bool                // ALL
+	TargetList    *List               // select expressions (list of *ResTarget)
+	Into          *ObjectName         // INTO (PL/SQL)
+	IntoVars      *List               // INTO variable list (PL/SQL SELECT INTO :bind_var)
+	FromClause    *List               // FROM clause
+	WhereClause   ExprNode            // WHERE condition
+	Hierarchical  *HierarchicalClause // CONNECT BY / START WITH
+	GroupClause   *List               // GROUP BY
+	HavingClause  ExprNode            // HAVING condition
 	ModelClause   *ModelClause        // MODEL clause
 	WindowDefs    []*WindowDef        // WINDOW clause (named window definitions)
 	QualifyClause ExprNode            // QUALIFY condition
@@ -985,8 +985,8 @@ func (n *ModelCellRefOptions) nodeTag() {}
 type ModelRefModel struct {
 	Name           string               // reference model name
 	Subquery       *SelectStmt          // ON ( subquery )
-	ColumnClauses  *ModelColumnClauses   // PARTITION BY, DIMENSION BY, MEASURES
-	CellRefOptions *ModelCellRefOptions  // optional cell ref options
+	ColumnClauses  *ModelColumnClauses  // PARTITION BY, DIMENSION BY, MEASURES
+	CellRefOptions *ModelCellRefOptions // optional cell ref options
 	Loc            Loc
 }
 
@@ -1001,9 +1001,9 @@ func (n *ModelRefModel) nodeTag() {}
 //	        model_rules_clause
 type ModelMainModel struct {
 	Name           string               // optional main model name
-	ColumnClauses  *ModelColumnClauses   // PARTITION BY, DIMENSION BY, MEASURES
-	CellRefOptions *ModelCellRefOptions  // optional cell ref options
-	RulesClause    *ModelRulesClause     // RULES clause
+	ColumnClauses  *ModelColumnClauses  // PARTITION BY, DIMENSION BY, MEASURES
+	CellRefOptions *ModelCellRefOptions // optional cell ref options
+	RulesClause    *ModelRulesClause    // RULES clause
 	Loc            Loc
 }
 
@@ -1033,8 +1033,8 @@ func (n *ModelColumnClauses) nodeTag() {}
 //	    [ model_iterate_clause ]
 //	    ( cell_assignment [, ...] )
 type ModelRulesClause struct {
-	UpdateMode string // "", "UPDATE", "UPSERT", "UPSERT ALL"
-	OrderMode  string // "", "AUTOMATIC", "SEQUENTIAL"
+	UpdateMode string   // "", "UPDATE", "UPSERT", "UPSERT ALL"
+	OrderMode  string   // "", "AUTOMATIC", "SEQUENTIAL"
 	Iterate    ExprNode // iteration count expression
 	Until      ExprNode // UNTIL condition
 	Rules      *List    // list of *ModelRule
@@ -1063,15 +1063,15 @@ func (n *ModelRule) nodeTag() {}
 //	      | [ LIKE pattern ] FROM literal TO literal { INCREMENT | DECREMENT } literal
 //	      }
 type ModelForLoop struct {
-	Column    string      // dimension column name
-	InList    *List       // IN ( values ) - list of ExprNode
-	Subquery  *SelectStmt // IN ( subquery )
-	LikePattern ExprNode  // LIKE pattern (for FROM..TO)
-	FromExpr  ExprNode    // FROM literal
-	ToExpr    ExprNode    // TO literal
-	Increment bool        // true = INCREMENT, false = DECREMENT
-	IncrExpr  ExprNode    // increment/decrement value
-	Loc       Loc
+	Column      string      // dimension column name
+	InList      *List       // IN ( values ) - list of ExprNode
+	Subquery    *SelectStmt // IN ( subquery )
+	LikePattern ExprNode    // LIKE pattern (for FROM..TO)
+	FromExpr    ExprNode    // FROM literal
+	ToExpr      ExprNode    // TO literal
+	Increment   bool        // true = INCREMENT, false = DECREMENT
+	IncrExpr    ExprNode    // increment/decrement value
+	Loc         Loc
 }
 
 func (n *ModelForLoop) nodeTag()  {}
@@ -1133,11 +1133,11 @@ func (n *CTESearchClause) nodeTag() {}
 //
 //	CYCLE col [, ...] SET cycle_mark_c_alias TO cycle_value DEFAULT no_cycle_value
 type CTECycleClause struct {
-	Columns        *List    // list of *String (column names)
-	SetColumn      string   // SET cycle_mark_c_alias
-	CycleValue     ExprNode // TO cycle_value
-	NoCycleValue   ExprNode // DEFAULT no_cycle_value
-	Loc            Loc
+	Columns      *List    // list of *String (column names)
+	SetColumn    string   // SET cycle_mark_c_alias
+	CycleValue   ExprNode // TO cycle_value
+	NoCycleValue ExprNode // DEFAULT no_cycle_value
+	Loc          Loc
 }
 
 func (n *CTECycleClause) nodeTag() {}
@@ -1150,10 +1150,10 @@ func (n *CTECycleClause) nodeTag() {}
 //
 //	PARTITION (name) | PARTITION FOR (key, ...) | SUBPARTITION (name) | SUBPARTITION FOR (key, ...)
 type PartitionExtClause struct {
-	IsSubpartition bool     // SUBPARTITION vs PARTITION
-	IsFor          bool     // FOR (key values) vs (name)
-	Name           string   // partition/subpartition name (when IsFor is false)
-	Keys           *List    // key values (when IsFor is true)
+	IsSubpartition bool   // SUBPARTITION vs PARTITION
+	IsFor          bool   // FOR (key values) vs (name)
+	Name           string // partition/subpartition name (when IsFor is false)
+	Keys           *List  // key values (when IsFor is true)
 	Loc            Loc
 }
 
@@ -1180,16 +1180,16 @@ func (n *TableCollectionExpr) tableExpr() {}
 
 // MatchRecognizeClause represents a MATCH_RECOGNIZE clause on a table reference.
 type MatchRecognizeClause struct {
-	PartitionBy *List    // PARTITION BY columns
-	OrderBy     *List    // ORDER BY columns (list of *SortBy)
-	Measures    *List    // MEASURES (list of *ResTarget)
-	RowsPerMatch string  // "ONE ROW PER MATCH" or "ALL ROWS PER MATCH" (+ SHOW/OMIT EMPTY MATCHES)
-	AfterMatch  string   // AFTER MATCH SKIP action
-	Pattern     string   // PATTERN as raw text
-	Subsets     *List    // SUBSET items (list of *ResTarget)
-	Definitions *List    // DEFINE items (list of *ResTarget)
-	Alias       *Alias   // optional alias
-	Loc         Loc
+	PartitionBy  *List  // PARTITION BY columns
+	OrderBy      *List  // ORDER BY columns (list of *SortBy)
+	Measures     *List  // MEASURES (list of *ResTarget)
+	RowsPerMatch string // "ONE ROW PER MATCH" or "ALL ROWS PER MATCH" (+ SHOW/OMIT EMPTY MATCHES)
+	AfterMatch   string // AFTER MATCH SKIP action
+	Pattern      string // PATTERN as raw text
+	Subsets      *List  // SUBSET items (list of *ResTarget)
+	Definitions  *List  // DEFINE items (list of *ResTarget)
+	Alias        *Alias // optional alias
+	Loc          Loc
 }
 
 func (n *MatchRecognizeClause) nodeTag()   {}
@@ -1216,14 +1216,14 @@ func (n *ContainersExpr) tableExpr() {}
 
 // InlineExternalTable represents an inline external table in FROM.
 type InlineExternalTable struct {
-	Columns    *List    // column definitions (list of *ColumnDef)
-	Type       string   // external table type
-	Directory  string   // DEFAULT DIRECTORY
-	AccessParams string // ACCESS PARAMETERS text
-	Location   string   // LOCATION
-	RejectLimit ExprNode // REJECT LIMIT
-	Alias      *Alias   // optional alias
-	Loc        Loc
+	Columns      *List    // column definitions (list of *ColumnDef)
+	Type         string   // external table type
+	Directory    string   // DEFAULT DIRECTORY
+	AccessParams string   // ACCESS PARAMETERS text
+	Location     string   // LOCATION
+	RejectLimit  ExprNode // REJECT LIMIT
+	Alias        *Alias   // optional alias
+	Loc          Loc
 }
 
 func (n *InlineExternalTable) nodeTag()   {}
@@ -1446,6 +1446,7 @@ type CreateTableStmt struct {
 	MemoptimizeRead  bool             // MEMOPTIMIZE FOR READ
 	MemoptimizeWrite bool             // MEMOPTIMIZE FOR WRITE
 	Parent           *ObjectName      // PARENT table
+	Options          *List            // generic parser-visible option payload for complex clauses
 	Loc              Loc              // start location
 }
 
@@ -1454,24 +1455,24 @@ func (n *CreateTableStmt) stmtNode() {}
 
 // ColumnDef represents a column definition.
 type ColumnDef struct {
-	Name                   string          // column name
-	TypeName               *TypeName       // data type
-	Domain                 *ObjectName     // DOMAIN domain_name (instead of type)
-	Sort                   bool            // SORT
-	Visible                bool            // VISIBLE (explicit)
-	Default                ExprNode        // DEFAULT expression
-	DefaultOnNull          bool            // DEFAULT ON NULL
-	DefaultOnNullInsertOnly bool           // DEFAULT ON NULL FOR INSERT ONLY
-	Identity               *IdentityClause // GENERATED ... AS IDENTITY
-	Virtual                ExprNode        // GENERATED ALWAYS AS (expr) VIRTUAL
-	Invisible              bool            // INVISIBLE
-	NotNull                bool            // NOT NULL
-	Null                   bool            // NULL (explicit)
-	Encrypt                string          // ENCRYPT encryption_spec / DECRYPT
-	DropIdentity           bool            // DROP IDENTITY (ALTER TABLE MODIFY)
-	Constraints            *List           // column constraints (list of *ColumnConstraint)
-	Collation              string          // COLLATE
-	Loc                    Loc             // start location
+	Name                    string          // column name
+	TypeName                *TypeName       // data type
+	Domain                  *ObjectName     // DOMAIN domain_name (instead of type)
+	Sort                    bool            // SORT
+	Visible                 bool            // VISIBLE (explicit)
+	Default                 ExprNode        // DEFAULT expression
+	DefaultOnNull           bool            // DEFAULT ON NULL
+	DefaultOnNullInsertOnly bool            // DEFAULT ON NULL FOR INSERT ONLY
+	Identity                *IdentityClause // GENERATED ... AS IDENTITY
+	Virtual                 ExprNode        // GENERATED ALWAYS AS (expr) VIRTUAL
+	Invisible               bool            // INVISIBLE
+	NotNull                 bool            // NOT NULL
+	Null                    bool            // NULL (explicit)
+	Encrypt                 string          // ENCRYPT encryption_spec / DECRYPT
+	DropIdentity            bool            // DROP IDENTITY (ALTER TABLE MODIFY)
+	Constraints             *List           // column constraints (list of *ColumnConstraint)
+	Collation               string          // COLLATE
+	Loc                     Loc             // start location
 }
 
 func (n *ColumnDef) nodeTag() {}
@@ -1577,6 +1578,7 @@ type AlterTableCmd struct {
 	NewName    string           // for RENAME, property value
 	Constraint *TableConstraint // for ADD/DROP CONSTRAINT
 	Subtype    string           // sub-action qualifier (e.g. "ENABLE"/"DISABLE", "PARTITION"/"SUBPARTITION", property name)
+	Options    *List            // generic parser-visible option payload for complex clauses
 	Loc        Loc              // start location
 }
 
@@ -1645,16 +1647,17 @@ type CreateIndexStmt struct {
 	Invalidation  string      // "DEFERRED" or "IMMEDIATE" INVALIDATION
 	IfNotExists   bool        // IF NOT EXISTS
 	// bitmap_join_index_clause
-	FromTables  *List    // FROM table_list
-	Where       ExprNode // WHERE join_condition
+	FromTables *List    // FROM table_list
+	Where      ExprNode // WHERE join_condition
 	// Physical attributes
-	PctFree     string // PCTFREE integer
-	InitTrans   string // INITRANS integer
-	MaxTrans    string // MAXTRANS integer
+	PctFree   string // PCTFREE integer
+	InitTrans string // INITRANS integer
+	MaxTrans  string // MAXTRANS integer
 	// Indexing clause
 	IndexingFull    bool // INDEXING FULL
 	IndexingPartial bool // INDEXING PARTIAL
-	Loc             Loc  // start location
+	Options         *List
+	Loc             Loc // start location
 }
 
 func (n *CreateIndexStmt) nodeTag()  {}
@@ -1677,45 +1680,45 @@ func (n *IndexColumn) nodeTag() {}
 // CreateViewStmt represents a CREATE VIEW statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-VIEW.html
 type CreateViewStmt struct {
-	OrReplace    bool        // OR REPLACE
-	IfNotExists  bool        // IF NOT EXISTS
-	Force        bool        // FORCE
-	NoForce      bool        // NO FORCE
-	Editioning   bool        // EDITIONING
-	Editionable  string      // "EDITIONABLE" or "NONEDITIONABLE"
-	Sharing      string      // METADATA, DATA, EXTENDED DATA, NONE
-	Materialized bool        // MATERIALIZED VIEW
-	Name         *ObjectName // view name
-	Columns      *List       // column aliases
-	Query        StmtNode    // AS SELECT ...
-	WithCheckOpt bool        // WITH CHECK OPTION
-	WithReadOnly bool        // WITH READ ONLY
-	ConstraintName string    // CONSTRAINT name for WITH READ ONLY/CHECK OPTION
-	Bequeath     string      // "CURRENT_USER" or "DEFINER"
-	DefaultCollation string  // DEFAULT COLLATION name
-	ContainerMap bool        // CONTAINER_MAP
-	ContainersDefault bool   // CONTAINERS_DEFAULT
+	OrReplace         bool        // OR REPLACE
+	IfNotExists       bool        // IF NOT EXISTS
+	Force             bool        // FORCE
+	NoForce           bool        // NO FORCE
+	Editioning        bool        // EDITIONING
+	Editionable       string      // "EDITIONABLE" or "NONEDITIONABLE"
+	Sharing           string      // METADATA, DATA, EXTENDED DATA, NONE
+	Materialized      bool        // MATERIALIZED VIEW
+	Name              *ObjectName // view name
+	Columns           *List       // column aliases
+	Query             StmtNode    // AS SELECT ...
+	WithCheckOpt      bool        // WITH CHECK OPTION
+	WithReadOnly      bool        // WITH READ ONLY
+	ConstraintName    string      // CONSTRAINT name for WITH READ ONLY/CHECK OPTION
+	Bequeath          string      // "CURRENT_USER" or "DEFINER"
+	DefaultCollation  string      // DEFAULT COLLATION name
+	ContainerMap      bool        // CONTAINER_MAP
+	ContainersDefault bool        // CONTAINERS_DEFAULT
 	// Materialized view specific
-	BuildMode     string
-	RefreshMode   string
-	RefreshMethod string    // FAST, COMPLETE, FORCE
-	OnPrebuilt    bool       // ON PREBUILT TABLE
-	ReducedPrec   string     // "WITH_REDUCED", "WITHOUT_REDUCED"
-	NeverRefresh  bool       // NEVER REFRESH
-	WithPK        bool       // WITH PRIMARY KEY
-	WithRowID     bool       // WITH ROWID
-	RefreshOnStmt bool       // ON STATEMENT
-	StartWith     ExprNode   // START WITH
-	Next          ExprNode   // NEXT
-	EnableQuery   bool
-	DisableQuery  bool       // DISABLE QUERY REWRITE
-	EnableOnQueryComputation bool
+	BuildMode                 string
+	RefreshMode               string
+	RefreshMethod             string   // FAST, COMPLETE, FORCE
+	OnPrebuilt                bool     // ON PREBUILT TABLE
+	ReducedPrec               string   // "WITH_REDUCED", "WITHOUT_REDUCED"
+	NeverRefresh              bool     // NEVER REFRESH
+	WithPK                    bool     // WITH PRIMARY KEY
+	WithRowID                 bool     // WITH ROWID
+	RefreshOnStmt             bool     // ON STATEMENT
+	StartWith                 ExprNode // START WITH
+	Next                      ExprNode // NEXT
+	EnableQuery               bool
+	DisableQuery              bool // DISABLE QUERY REWRITE
+	EnableOnQueryComputation  bool
 	DisableOnQueryComputation bool
-	CacheMode     string     // "CACHE" or "NOCACHE"
-	ParallelMode  string     // "PARALLEL" or "NOPARALLEL"
-	ParallelDegree string    // degree number
-	Options       *List      // remaining generic options
-	Loc           Loc        // start location
+	CacheMode                 string // "CACHE" or "NOCACHE"
+	ParallelMode              string // "PARALLEL" or "NOPARALLEL"
+	ParallelDegree            string // degree number
+	Options                   *List  // remaining generic options
+	Loc                       Loc    // start location
 }
 
 func (n *CreateViewStmt) nodeTag()  {}
@@ -2018,40 +2021,40 @@ func (n *AlterSessionStmt) stmtNode() {}
 
 // AlterSystemStmt represents an ALTER SYSTEM statement.
 type AlterSystemStmt struct {
-	Action          string // "SET", "RESET", "KILL_SESSION", "DISCONNECT_SESSION", "FLUSH", "CHECKPOINT", "SWITCH_LOGFILE", "ARCHIVE_LOG", "REGISTER", "SUSPEND", "RESUME", "QUIESCE", "UNQUIESCE", "CANCEL_SQL", "SHUTDOWN", "RELOCATE_CLIENT", "CHECK_DATAFILES", "ENABLE", "DISABLE", "START_ROLLING_MIGRATION", "STOP_ROLLING_MIGRATION", "START_ROLLING_PATCH", "STOP_ROLLING_PATCH", "SET_ENCRYPTION"
-	SetParams       *List  // list of *SetParam (for SET action)
-	ResetParam      string // parameter name (for RESET action)
-	SessionID       string // 'sid,serial#' (for KILL/DISCONNECT/CANCEL)
-	InstanceID      string // @instance_id (for KILL/CANCEL)
-	Immediate       bool   // IMMEDIATE flag
-	Force           bool   // FORCE flag (for KILL SESSION)
-	PostTransaction bool   // POST_TRANSACTION (for DISCONNECT SESSION)
-	NoReplay        bool   // NOREPLAY (for KILL SESSION)
-	Timeout         int    // TIMEOUT integer (for KILL SESSION)
-	FlushTarget     string // "SHARED_POOL", "GLOBAL_CONTEXT", "BUFFER_CACHE", "FLASH_CACHE", "REDO", "PASSWORDFILE_METADATA_CACHE"
-	FlushScope      string // "GLOBAL", "LOCAL" (for BUFFER_CACHE/FLASH_CACHE)
-	FlushRedoDB     string // target_db_name (for REDO flush)
+	Action           string // "SET", "RESET", "KILL_SESSION", "DISCONNECT_SESSION", "FLUSH", "CHECKPOINT", "SWITCH_LOGFILE", "ARCHIVE_LOG", "REGISTER", "SUSPEND", "RESUME", "QUIESCE", "UNQUIESCE", "CANCEL_SQL", "SHUTDOWN", "RELOCATE_CLIENT", "CHECK_DATAFILES", "ENABLE", "DISABLE", "START_ROLLING_MIGRATION", "STOP_ROLLING_MIGRATION", "START_ROLLING_PATCH", "STOP_ROLLING_PATCH", "SET_ENCRYPTION"
+	SetParams        *List  // list of *SetParam (for SET action)
+	ResetParam       string // parameter name (for RESET action)
+	SessionID        string // 'sid,serial#' (for KILL/DISCONNECT/CANCEL)
+	InstanceID       string // @instance_id (for KILL/CANCEL)
+	Immediate        bool   // IMMEDIATE flag
+	Force            bool   // FORCE flag (for KILL SESSION)
+	PostTransaction  bool   // POST_TRANSACTION (for DISCONNECT SESSION)
+	NoReplay         bool   // NOREPLAY (for KILL SESSION)
+	Timeout          int    // TIMEOUT integer (for KILL SESSION)
+	FlushTarget      string // "SHARED_POOL", "GLOBAL_CONTEXT", "BUFFER_CACHE", "FLASH_CACHE", "REDO", "PASSWORDFILE_METADATA_CACHE"
+	FlushScope       string // "GLOBAL", "LOCAL" (for BUFFER_CACHE/FLASH_CACHE)
+	FlushRedoDB      string // target_db_name (for REDO flush)
 	FlushRedoConfirm string // "NO_CONFIRM_APPLY", "CONFIRM_APPLY" (for REDO flush)
-	ArchiveLogSpec  string // "SEQUENCE", "CHANGE", "CURRENT", "GROUP", "LOGFILE", "NEXT", "ALL"
-	ArchiveLogValue string // integer/filename for archive log
-	ArchiveInstance string // INSTANCE 'instance_name'
-	ArchiveThread   int    // THREAD integer
-	ArchiveNoSwitch bool   // NOSWITCH (for CURRENT)
-	ArchiveBackupCF bool   // USING BACKUP CONTROLFILE (for LOGFILE)
-	ArchiveTo       string // TO 'location'
-	CheckScope      string // "GLOBAL", "LOCAL" (for CHECKPOINT/CHECK DATAFILES)
-	Feature         string // "DISTRIBUTED_RECOVERY", "RESTRICTED_SESSION" (for ENABLE/DISABLE)
-	ShutdownDisp    string // dispatcher name (for SHUTDOWN)
-	RelocateClient  string // client_id (for RELOCATE CLIENT)
-	RollingVersion  string // ASM_version (for START ROLLING MIGRATION)
+	ArchiveLogSpec   string // "SEQUENCE", "CHANGE", "CURRENT", "GROUP", "LOGFILE", "NEXT", "ALL"
+	ArchiveLogValue  string // integer/filename for archive log
+	ArchiveInstance  string // INSTANCE 'instance_name'
+	ArchiveThread    int    // THREAD integer
+	ArchiveNoSwitch  bool   // NOSWITCH (for CURRENT)
+	ArchiveBackupCF  bool   // USING BACKUP CONTROLFILE (for LOGFILE)
+	ArchiveTo        string // TO 'location'
+	CheckScope       string // "GLOBAL", "LOCAL" (for CHECKPOINT/CHECK DATAFILES)
+	Feature          string // "DISTRIBUTED_RECOVERY", "RESTRICTED_SESSION" (for ENABLE/DISABLE)
+	ShutdownDisp     string // dispatcher name (for SHUTDOWN)
+	RelocateClient   string // client_id (for RELOCATE CLIENT)
+	RollingVersion   string // ASM_version (for START ROLLING MIGRATION)
 	EncryptionAction string // "OPEN", "CLOSE", "SET_KEY" (for SET ENCRYPTION WALLET/KEY)
-	Comment         string // COMMENT = 'text' (for SET)
-	Deferred        bool   // DEFERRED (for SET)
-	Scope           string // "MEMORY", "SPFILE", "BOTH" (for SET/RESET)
-	SID             string // SID = 'sid' | '*' (for SET/RESET)
-	Container       string // "ALL", "CURRENT" (for SET)
-	SqlID           string // SQL_ID 'sql_id' (for CANCEL SQL)
-	Loc             Loc
+	Comment          string // COMMENT = 'text' (for SET)
+	Deferred         bool   // DEFERRED (for SET)
+	Scope            string // "MEMORY", "SPFILE", "BOTH" (for SET/RESET)
+	SID              string // SID = 'sid' | '*' (for SET/RESET)
+	Container        string // "ALL", "CURRENT" (for SET)
+	SqlID            string // SQL_ID 'sql_id' (for CANCEL SQL)
+	Loc              Loc
 }
 
 func (n *AlterSystemStmt) nodeTag()  {}
@@ -2107,12 +2110,12 @@ func (n *SavepointStmt) stmtNode() {}
 
 // SetTransactionStmt represents a SET TRANSACTION statement.
 type SetTransactionStmt struct {
-	ReadOnly            bool   // READ ONLY
-	ReadWrite           bool   // READ WRITE
-	IsolLevel           string // ISOLATION LEVEL
-	UseRollbackSegment  string // USE ROLLBACK SEGMENT segment_name
-	Name                string // NAME 'text'
-	Loc                 Loc    // start location
+	ReadOnly           bool   // READ ONLY
+	ReadWrite          bool   // READ WRITE
+	IsolLevel          string // ISOLATION LEVEL
+	UseRollbackSegment string // USE ROLLBACK SEGMENT segment_name
+	Name               string // NAME 'text'
+	Loc                Loc    // start location
 }
 
 func (n *SetTransactionStmt) nodeTag()  {}
@@ -2346,9 +2349,9 @@ func (n *PLSQLPragma) nodeTag() {}
 
 // PLSQLCase represents a PL/SQL CASE statement (distinct from CASE expression).
 type PLSQLCase struct {
-	Expr  ExprNode    // search expression (nil for searched CASE)
+	Expr  ExprNode     // search expression (nil for searched CASE)
 	Whens []*PLSQLWhen // WHEN clauses
-	Else  []StmtNode  // ELSE statements
+	Else  []StmtNode   // ELSE statements
 	Loc   Loc
 }
 
@@ -2371,14 +2374,14 @@ func (n *PLSQLWhen) nodeTag() {}
 //	TYPE name IS RECORD (field type [,...])
 //	TYPE name IS REF CURSOR [RETURN type]
 type PLSQLTypeDecl struct {
-	Name      string    // type name
-	Kind      string    // TABLE, VARRAY, RECORD, REF_CURSOR
+	Name        string    // type name
+	Kind        string    // TABLE, VARRAY, RECORD, REF_CURSOR
 	ElementType *TypeName // element type (TABLE OF/VARRAY OF)
-	IndexBy   *TypeName // INDEX BY type (associative arrays)
-	Limit     ExprNode  // VARRAY limit
-	Fields    *List     // RECORD fields
-	ReturnType *TypeName // REF CURSOR RETURN type
-	Loc       Loc
+	IndexBy     *TypeName // INDEX BY type (associative arrays)
+	Limit       ExprNode  // VARRAY limit
+	Fields      *List     // RECORD fields
+	ReturnType  *TypeName // REF CURSOR RETURN type
+	Loc         Loc
 }
 
 func (n *PLSQLTypeDecl) nodeTag() {}
@@ -2398,18 +2401,18 @@ func (n *PLSQLCall) stmtNode() {}
 
 // AnalyzeStmt represents an ANALYZE statement.
 type AnalyzeStmt struct {
-	Table          *ObjectName // table/index/cluster to analyze
-	ObjectType     ObjectType  // TABLE, INDEX, CLUSTER
-	Action         string      // COMPUTE STATISTICS, ESTIMATE STATISTICS, DELETE STATISTICS, VALIDATE STRUCTURE, VALIDATE REF UPDATE, LIST CHAINED ROWS
-	DeleteSystem   bool        // DELETE SYSTEM STATISTICS
-	SampleValue    int         // ESTIMATE STATISTICS SAMPLE n {ROWS|PERCENT}
-	SampleUnit     string      // ROWS or PERCENT
-	CascadeFast    bool        // VALIDATE STRUCTURE CASCADE FAST
-	IntoTable      *ObjectName // INTO table (VALIDATE STRUCTURE / LIST CHAINED ROWS)
-	SetDanglingNull bool       // VALIDATE REF UPDATE SET DANGLING TO NULL
-	Online         bool        // VALIDATE STRUCTURE ONLINE
-	Offline        bool        // VALIDATE STRUCTURE OFFLINE
-	Loc            Loc         // start location
+	Table           *ObjectName // table/index/cluster to analyze
+	ObjectType      ObjectType  // TABLE, INDEX, CLUSTER
+	Action          string      // COMPUTE STATISTICS, ESTIMATE STATISTICS, DELETE STATISTICS, VALIDATE STRUCTURE, VALIDATE REF UPDATE, LIST CHAINED ROWS
+	DeleteSystem    bool        // DELETE SYSTEM STATISTICS
+	SampleValue     int         // ESTIMATE STATISTICS SAMPLE n {ROWS|PERCENT}
+	SampleUnit      string      // ROWS or PERCENT
+	CascadeFast     bool        // VALIDATE STRUCTURE CASCADE FAST
+	IntoTable       *ObjectName // INTO table (VALIDATE STRUCTURE / LIST CHAINED ROWS)
+	SetDanglingNull bool        // VALIDATE REF UPDATE SET DANGLING TO NULL
+	Online          bool        // VALIDATE STRUCTURE ONLINE
+	Offline         bool        // VALIDATE STRUCTURE OFFLINE
+	Loc             Loc         // start location
 }
 
 func (n *AnalyzeStmt) nodeTag()  {}
@@ -2536,10 +2539,10 @@ func (n *RenameStmt) stmtNode() {}
 type IdentifiedClauseType int
 
 const (
-	IDENTIFIED_BY        IdentifiedClauseType = iota // IDENTIFIED BY password
-	IDENTIFIED_EXTERNALLY                            // IDENTIFIED EXTERNALLY [AS '...']
-	IDENTIFIED_GLOBALLY                              // IDENTIFIED GLOBALLY [AS '...']
-	IDENTIFIED_NO_AUTH                               // NO AUTHENTICATION
+	IDENTIFIED_BY         IdentifiedClauseType = iota // IDENTIFIED BY password
+	IDENTIFIED_EXTERNALLY                             // IDENTIFIED EXTERNALLY [AS '...']
+	IDENTIFIED_GLOBALLY                               // IDENTIFIED GLOBALLY [AS '...']
+	IDENTIFIED_NO_AUTH                                // NO AUTHENTICATION
 )
 
 // IdentifiedClause represents an IDENTIFIED BY/EXTERNALLY/GLOBALLY clause.
@@ -2587,19 +2590,19 @@ func (n *DefaultRoleClause) nodeTag() {}
 //	    [ENABLE EDITIONS]
 //	    [CONTAINER = { ALL | CURRENT }]
 type CreateUserStmt struct {
-	Name              *ObjectName      // user name
-	IfNotExists       bool             // IF NOT EXISTS
-	Identified        *IdentifiedClause // IDENTIFIED clause
-	DefaultTablespace string            // DEFAULT TABLESPACE
-	TempTablespace    string            // [LOCAL] TEMPORARY TABLESPACE
-	LocalTemp         bool              // LOCAL keyword present
+	Name              *ObjectName        // user name
+	IfNotExists       bool               // IF NOT EXISTS
+	Identified        *IdentifiedClause  // IDENTIFIED clause
+	DefaultTablespace string             // DEFAULT TABLESPACE
+	TempTablespace    string             // [LOCAL] TEMPORARY TABLESPACE
+	LocalTemp         bool               // LOCAL keyword present
 	Quotas            []*UserQuotaClause // QUOTA clauses
-	Profile           string            // PROFILE name
-	PasswordExpire    bool              // PASSWORD EXPIRE
-	AccountLock       *bool             // ACCOUNT LOCK (true) / UNLOCK (false) / nil (not specified)
-	EnableEditions    bool              // ENABLE EDITIONS
-	DefaultCollation  string            // DEFAULT COLLATION
-	ContainerAll      *bool             // CONTAINER = ALL (true) / CURRENT (false) / nil (not specified)
+	Profile           string             // PROFILE name
+	PasswordExpire    bool               // PASSWORD EXPIRE
+	AccountLock       *bool              // ACCOUNT LOCK (true) / UNLOCK (false) / nil (not specified)
+	EnableEditions    bool               // ENABLE EDITIONS
+	DefaultCollation  string             // DEFAULT COLLATION
+	ContainerAll      *bool              // CONTAINER = ALL (true) / CURRENT (false) / nil (not specified)
 	Loc               Loc
 }
 
@@ -2645,11 +2648,11 @@ func (n *AlterUserStmt) stmtNode() {}
 type RoleIdentifiedType int
 
 const (
-	ROLE_NOT_IDENTIFIED  RoleIdentifiedType = iota // NOT IDENTIFIED
-	ROLE_IDENTIFIED_BY                             // IDENTIFIED BY password
-	ROLE_IDENTIFIED_USING                          // IDENTIFIED USING [schema.]package
-	ROLE_IDENTIFIED_EXTERNALLY                     // IDENTIFIED EXTERNALLY
-	ROLE_IDENTIFIED_GLOBALLY                       // IDENTIFIED GLOBALLY [AS 'directory_name']
+	ROLE_NOT_IDENTIFIED        RoleIdentifiedType = iota // NOT IDENTIFIED
+	ROLE_IDENTIFIED_BY                                   // IDENTIFIED BY password
+	ROLE_IDENTIFIED_USING                                // IDENTIFIED USING [schema.]package
+	ROLE_IDENTIFIED_EXTERNALLY                           // IDENTIFIED EXTERNALLY
+	ROLE_IDENTIFIED_GLOBALLY                             // IDENTIFIED GLOBALLY [AS 'directory_name']
 )
 
 // CreateRoleStmt represents a CREATE ROLE statement.
@@ -2664,13 +2667,13 @@ const (
 //	    ]
 //	    [ CONTAINER = { ALL | CURRENT } ]
 type CreateRoleStmt struct {
-	Name          *ObjectName        // role name
+	Name           *ObjectName        // role name
 	IdentifiedType RoleIdentifiedType // identification type
-	IdentifyBy    string             // password, package name, or global AS value
-	IdentifySchema string            // schema for USING clause
-	HasIdentified bool               // true if any IDENTIFIED/NOT IDENTIFIED clause present
-	ContainerAll  *bool              // CONTAINER = ALL (true) / CURRENT (false) / nil (not specified)
-	Loc           Loc
+	IdentifyBy     string             // password, package name, or global AS value
+	IdentifySchema string             // schema for USING clause
+	HasIdentified  bool               // true if any IDENTIFIED/NOT IDENTIFIED clause present
+	ContainerAll   *bool              // CONTAINER = ALL (true) / CURRENT (false) / nil (not specified)
+	Loc            Loc
 }
 
 func (n *CreateRoleStmt) nodeTag()  {}
@@ -2808,8 +2811,8 @@ func (n *DDLOption) nodeTag() {}
 //	  | grant_statement
 //	  } ...
 type CreateSchemaStmt struct {
-	SchemaName string    // AUTHORIZATION schema_name
-	Stmts      *List     // nested CREATE TABLE / CREATE VIEW / GRANT statements
+	SchemaName string // AUTHORIZATION schema_name
+	Stmts      *List  // nested CREATE TABLE / CREATE VIEW / GRANT statements
 	Loc        Loc
 }
 
@@ -2892,15 +2895,15 @@ type AlterMaterializedViewStmt struct {
 	Action string // "COMPILE", "CONSIDER_FRESH", "REFRESH", "ENABLE_QUERY_REWRITE", "DISABLE_QUERY_REWRITE", "ENABLE_CONCURRENT_REFRESH", "DISABLE_CONCURRENT_REFRESH", "ENABLE_ON_QUERY_COMPUTATION", "DISABLE_ON_QUERY_COMPUTATION", "SHRINK", "CACHE", "NOCACHE", "PARALLEL", "NOPARALLEL", "LOGGING", "NOLOGGING", "ALLOCATE_EXTENT", "DEALLOCATE_UNUSED", "EVALUATE_USING_EDITION", "PCTFREE", "PCTUSED", "INITRANS", "COMPRESS", "NOCOMPRESS", "INMEMORY", "NO_INMEMORY", "MODIFY"
 
 	// REFRESH clause options
-	RefreshMethod string   // "FAST", "COMPLETE", "FORCE"
-	RefreshMode   string   // "ON_COMMIT", "ON_DEMAND"
-	StartWith     ExprNode // START WITH date
-	Next          ExprNode // NEXT date
-	WithPrimaryKey bool    // WITH PRIMARY KEY
-	UsingRollbackSegment string // USING ROLLBACK SEGMENT name
-	UsingConstraints     string // "ENFORCED" or "TRUSTED"
-	EnableOnQueryComputation  bool // ENABLE ON QUERY COMPUTATION
-	DisableOnQueryComputation bool // DISABLE ON QUERY COMPUTATION
+	RefreshMethod             string   // "FAST", "COMPLETE", "FORCE"
+	RefreshMode               string   // "ON_COMMIT", "ON_DEMAND"
+	StartWith                 ExprNode // START WITH date
+	Next                      ExprNode // NEXT date
+	WithPrimaryKey            bool     // WITH PRIMARY KEY
+	UsingRollbackSegment      string   // USING ROLLBACK SEGMENT name
+	UsingConstraints          string   // "ENFORCED" or "TRUSTED"
+	EnableOnQueryComputation  bool     // ENABLE ON QUERY COMPUTATION
+	DisableOnQueryComputation bool     // DISABLE ON QUERY COMPUTATION
 
 	// SHRINK SPACE options
 	Compact bool // COMPACT
@@ -2965,16 +2968,16 @@ func (n *SetConstraintsStmt) stmtNode() {}
 
 // CreateAuditPolicyStmt represents a CREATE AUDIT POLICY statement (Unified Auditing).
 type CreateAuditPolicyStmt struct {
-	Name          string              // policy name
-	Privileges    []string            // PRIVILEGES system_privilege [, ...]
-	Actions       []*AuditActionEntry // ACTIONS entries
+	Name             string                  // policy name
+	Privileges       []string                // PRIVILEGES system_privilege [, ...]
+	Actions          []*AuditActionEntry     // ACTIONS entries
 	ComponentActions []*AuditComponentAction // COMPONENT = ... actions
-	Roles         []string            // ROLES role [, ...]
-	WhenCondition string              // WHEN 'condition'
-	EvaluatePer   string              // EVALUATE PER { STATEMENT | SESSION | INSTANCE }
-	OnlyToplevel  bool                // ONLY TOPLEVEL
-	ContainerAll  *bool               // CONTAINER = { ALL | CURRENT }
-	Loc           Loc
+	Roles            []string                // ROLES role [, ...]
+	WhenCondition    string                  // WHEN 'condition'
+	EvaluatePer      string                  // EVALUATE PER { STATEMENT | SESSION | INSTANCE }
+	OnlyToplevel     bool                    // ONLY TOPLEVEL
+	ContainerAll     *bool                   // CONTAINER = { ALL | CURRENT }
+	Loc              Loc
 }
 
 func (n *CreateAuditPolicyStmt) nodeTag()  {}
@@ -2982,12 +2985,12 @@ func (n *CreateAuditPolicyStmt) stmtNode() {}
 
 // AuditActionEntry represents a single action entry in audit policy ACTIONS clause.
 type AuditActionEntry struct {
-	Action    string      // action name (SELECT, INSERT, etc.) or ALL
-	Columns   []string    // optional column list
-	Object    *ObjectName // ON [schema.]object
-	Directory string      // ON DIRECTORY dir_name
-	MiningModel bool      // ON MINING MODEL
-	Loc       Loc
+	Action      string      // action name (SELECT, INSERT, etc.) or ALL
+	Columns     []string    // optional column list
+	Object      *ObjectName // ON [schema.]object
+	Directory   string      // ON DIRECTORY dir_name
+	MiningModel bool        // ON MINING MODEL
+	Loc         Loc
 }
 
 func (n *AuditActionEntry) nodeTag() {}
@@ -3004,17 +3007,17 @@ func (n *AuditComponentAction) nodeTag() {}
 
 // AlterAuditPolicyStmt represents an ALTER AUDIT POLICY statement (Unified Auditing).
 type AlterAuditPolicyStmt struct {
-	Name             string              // policy name
-	AddDrop          string              // ADD or DROP
-	Privileges       []string            // PRIVILEGES privilege [, ...]
-	Actions          []*AuditActionEntry // ACTIONS entries
+	Name             string                  // policy name
+	AddDrop          string                  // ADD or DROP
+	Privileges       []string                // PRIVILEGES privilege [, ...]
+	Actions          []*AuditActionEntry     // ACTIONS entries
 	ComponentActions []*AuditComponentAction // COMPONENT = ... actions
-	Roles            []string            // ROLES role [, ...]
-	ConditionDrop    bool                // CONDITION DROP
-	Condition        string              // CONDITION 'audit_condition'
-	EvaluatePer      string              // EVALUATE PER { STATEMENT | SESSION | INSTANCE }
-	AddToplevel      bool                // ADD ONLY TOPLEVEL
-	DropToplevel     bool                // DROP ONLY TOPLEVEL
+	Roles            []string                // ROLES role [, ...]
+	ConditionDrop    bool                    // CONDITION DROP
+	Condition        string                  // CONDITION 'audit_condition'
+	EvaluatePer      string                  // EVALUATE PER { STATEMENT | SESSION | INSTANCE }
+	AddToplevel      bool                    // ADD ONLY TOPLEVEL
+	DropToplevel     bool                    // DROP ONLY TOPLEVEL
 	Loc              Loc
 }
 
@@ -3049,26 +3052,26 @@ func (n *DropAuditPolicyStmt) stmtNode() {}
 //	    [ BY user [, user ]... ]
 type AuditStmt struct {
 	// Unified auditing fields
-	Policy        string      // POLICY policy_name (unified)
-	ByUsers       []string    // BY user [, user]... (unified)
-	ExceptUsers   []string    // EXCEPT user [, user]... (unified)
-	WithRoles     []string    // BY/EXCEPT USERS WITH ROLE role [, ...]
-	WithRoleExcept bool       // true if EXCEPT USERS WITH ROLE (vs BY)
-	ContextNS     string      // CONTEXT NAMESPACE namespace (unified)
-	ContextAttrs  []string    // ATTRIBUTES attr [, attr]... (unified)
+	Policy         string   // POLICY policy_name (unified)
+	ByUsers        []string // BY user [, user]... (unified)
+	ExceptUsers    []string // EXCEPT user [, user]... (unified)
+	WithRoles      []string // BY/EXCEPT USERS WITH ROLE role [, ...]
+	WithRoleExcept bool     // true if EXCEPT USERS WITH ROLE (vs BY)
+	ContextNS      string   // CONTEXT NAMESPACE namespace (unified)
+	ContextAttrs   []string // ATTRIBUTES attr [, attr]... (unified)
 	// Traditional auditing fields
-	Actions       []string    // audit actions (traditional)
-	Object        *ObjectName // optional object being audited (traditional)
-	By            string      // BY SESSION or BY ACCESS (traditional)
-	ByUsers2      []string    // auditing_by_clause: BY user [, user]... (traditional)
-	OnDefault     bool        // ON DEFAULT (traditional)
-	OnDirectory   string      // ON DIRECTORY directory_name (traditional)
-	OnNetwork     bool        // NETWORK (traditional)
-	OnDirectPath  bool        // DIRECT_PATH LOAD (traditional)
+	Actions      []string    // audit actions (traditional)
+	Object       *ObjectName // optional object being audited (traditional)
+	By           string      // BY SESSION or BY ACCESS (traditional)
+	ByUsers2     []string    // auditing_by_clause: BY user [, user]... (traditional)
+	OnDefault    bool        // ON DEFAULT (traditional)
+	OnDirectory  string      // ON DIRECTORY directory_name (traditional)
+	OnNetwork    bool        // NETWORK (traditional)
+	OnDirectPath bool        // DIRECT_PATH LOAD (traditional)
 	// Shared
-	When          string      // WHENEVER clause text
-	ContainerAll  *bool       // CONTAINER = { ALL | CURRENT }
-	Loc           Loc
+	When         string // WHENEVER clause text
+	ContainerAll *bool  // CONTAINER = { ALL | CURRENT }
+	Loc          Loc
 }
 
 func (n *AuditStmt) nodeTag()  {}
@@ -3103,8 +3106,8 @@ type NoauditStmt struct {
 	OnNetwork    bool        // NETWORK (traditional)
 	OnDirectPath bool        // DIRECT_PATH LOAD (traditional)
 	// Shared
-	When         string      // WHENEVER clause text
-	ContainerAll *bool       // CONTAINER = { CURRENT | ALL }
+	When         string // WHENEVER clause text
+	ContainerAll *bool  // CONTAINER = { CURRENT | ALL }
 	Loc          Loc
 }
 
@@ -3236,16 +3239,16 @@ func (n *AlterTablespaceStmt) stmtNode() {}
 
 // CreateTablespaceSetStmt represents a CREATE TABLESPACE SET statement.
 type CreateTablespaceSetStmt struct {
-	Name        *ObjectName       // tablespace set name
-	Shardspace  string            // IN SHARDSPACE name
-	Datafiles   []*DatafileClause // DATAFILE clauses in USING TEMPLATE
-	Logging     string            // LOGGING / NOLOGGING / FILESYSTEM_LIKE_LOGGING
-	Encryption  string            // ENCRYPTION clause
-	DefaultParams string          // DEFAULT params summary
-	Extent      string            // EXTENT MANAGEMENT
-	Segment     string            // SEGMENT SPACE MANAGEMENT
-	Flashback   string            // FLASHBACK ON / OFF
-	Loc         Loc
+	Name          *ObjectName       // tablespace set name
+	Shardspace    string            // IN SHARDSPACE name
+	Datafiles     []*DatafileClause // DATAFILE clauses in USING TEMPLATE
+	Logging       string            // LOGGING / NOLOGGING / FILESYSTEM_LIKE_LOGGING
+	Encryption    string            // ENCRYPTION clause
+	DefaultParams string            // DEFAULT params summary
+	Extent        string            // EXTENT MANAGEMENT
+	Segment       string            // SEGMENT SPACE MANAGEMENT
+	Flashback     string            // FLASHBACK ON / OFF
+	Loc           Loc
 }
 
 func (n *CreateTablespaceSetStmt) nodeTag()  {}
@@ -3253,16 +3256,16 @@ func (n *CreateTablespaceSetStmt) stmtNode() {}
 
 // DropTablespaceStmt represents a DROP TABLESPACE or DROP TABLESPACE SET statement.
 type DropTablespaceStmt struct {
-	Name              *ObjectName // tablespace name
-	IsSet             bool        // true for DROP TABLESPACE SET
-	IfExists          bool        // IF EXISTS
-	DropQuota         bool        // DROP QUOTA
-	KeepQuota         bool        // KEEP QUOTA
-	IncludingContents bool        // INCLUDING CONTENTS
-	AndDatafiles      bool        // AND DATAFILES
-	KeepDatafiles     bool        // KEEP DATAFILES
-	CascadeConstraints bool       // CASCADE CONSTRAINTS
-	Loc               Loc
+	Name               *ObjectName // tablespace name
+	IsSet              bool        // true for DROP TABLESPACE SET
+	IfExists           bool        // IF EXISTS
+	DropQuota          bool        // DROP QUOTA
+	KeepQuota          bool        // KEEP QUOTA
+	IncludingContents  bool        // INCLUDING CONTENTS
+	AndDatafiles       bool        // AND DATAFILES
+	KeepDatafiles      bool        // KEEP DATAFILES
+	CascadeConstraints bool        // CASCADE CONSTRAINTS
+	Loc                Loc
 }
 
 func (n *DropTablespaceStmt) nodeTag()  {}
@@ -3305,24 +3308,24 @@ func (n *AutoextendClause) nodeTag() {}
 //	    [ NOROWDEPENDENCIES | ROWDEPENDENCIES ]
 //	    [ CACHE | NOCACHE ]
 type CreateClusterStmt struct {
-	Name        *ObjectName          // cluster name
-	Columns     []*ClusterColumn     // cluster key columns
-	PctFree     *int                 // PCTFREE value
-	PctUsed     *int                 // PCTUSED value
-	InitTrans   *int                 // INITRANS value
-	Size        string               // SIZE value
-	Tablespace  string               // TABLESPACE name
-	IsIndex     bool                 // INDEX (explicit)
-	IsHash      bool                 // HASHKEYS specified
-	HashKeys    string               // HASHKEYS integer value
-	SingleTable bool                 // SINGLE TABLE
-	HashExpr    ExprNode             // HASH IS expr
-	Cache       bool                 // CACHE
-	NoCache     bool                 // NOCACHE
-	Parallel    string               // PARALLEL / NOPARALLEL / PARALLEL n
-	RowDep      bool                 // ROWDEPENDENCIES
-	NoRowDep    bool                 // NOROWDEPENDENCIES
-	Storage     []string             // STORAGE clause tokens
+	Name        *ObjectName      // cluster name
+	Columns     []*ClusterColumn // cluster key columns
+	PctFree     *int             // PCTFREE value
+	PctUsed     *int             // PCTUSED value
+	InitTrans   *int             // INITRANS value
+	Size        string           // SIZE value
+	Tablespace  string           // TABLESPACE name
+	IsIndex     bool             // INDEX (explicit)
+	IsHash      bool             // HASHKEYS specified
+	HashKeys    string           // HASHKEYS integer value
+	SingleTable bool             // SINGLE TABLE
+	HashExpr    ExprNode         // HASH IS expr
+	Cache       bool             // CACHE
+	NoCache     bool             // NOCACHE
+	Parallel    string           // PARALLEL / NOPARALLEL / PARALLEL n
+	RowDep      bool             // ROWDEPENDENCIES
+	NoRowDep    bool             // NOROWDEPENDENCIES
+	Storage     []string         // STORAGE clause tokens
 	Loc         Loc
 }
 
@@ -3331,7 +3334,7 @@ func (n *CreateClusterStmt) stmtNode() {}
 
 // ClusterColumn represents a column in a cluster key.
 type ClusterColumn struct {
-	Name     string   // column name
+	Name     string    // column name
 	DataType *TypeName // column data type
 	Sort     bool      // SORT keyword
 	Loc      Loc
@@ -3349,10 +3352,10 @@ func (n *ClusterColumn) nodeTag() {}
 //	    level_clause ...
 //	    { hierarchy_clause | attribute_clause | extended_attribute_clause } ...
 type CreateDimensionStmt struct {
-	Name        *ObjectName            // dimension name
-	Levels      []*DimensionLevel      // LEVEL clauses
-	Hierarchies []*DimensionHierarchy  // HIERARCHY clauses
-	Attributes  []*DimensionAttribute  // ATTRIBUTE clauses
+	Name        *ObjectName           // dimension name
+	Levels      []*DimensionLevel     // LEVEL clauses
+	Hierarchies []*DimensionHierarchy // HIERARCHY clauses
+	Attributes  []*DimensionAttribute // ATTRIBUTE clauses
 	Loc         Loc
 }
 
@@ -3376,10 +3379,10 @@ func (n *DimensionLevel) nodeTag() {}
 //	HIERARCHY hierarchy_name ( child_level CHILD OF parent_level [CHILD OF ...] )
 //	    [ JOIN KEY ( child_key_column [, ...] ) REFERENCES parent_level ] ...
 type DimensionHierarchy struct {
-	Name      string                  // hierarchy name
-	Levels    []string                // level names from child to top parent
-	JoinKeys  []*DimensionJoinKey     // JOIN KEY clauses
-	Loc       Loc
+	Name     string              // hierarchy name
+	Levels   []string            // level names from child to top parent
+	JoinKeys []*DimensionJoinKey // JOIN KEY clauses
+	Loc      Loc
 }
 
 func (n *DimensionHierarchy) nodeTag() {}
@@ -3401,10 +3404,10 @@ func (n *DimensionJoinKey) nodeTag() {}
 //	-- or extended form:
 //	ATTRIBUTE attr_name LEVEL level DETERMINES ( dependent_column [, ...] )
 type DimensionAttribute struct {
-	AttrName    string        // attribute name (may be same as level)
-	LevelName   string        // level name (for extended form)
-	Columns     []*ObjectName // dependent columns
-	Loc         Loc
+	AttrName  string        // attribute name (may be same as level)
+	LevelName string        // level name (for extended form)
+	Columns   []*ObjectName // dependent columns
+	Loc       Loc
 }
 
 func (n *DimensionAttribute) nodeTag() {}
@@ -3468,13 +3471,13 @@ type AlterDimensionStmt struct {
 	Name    *ObjectName // dimension name
 	Compile bool        // COMPILE
 	// ADD / DROP items
-	AddLevels      []*DimensionLevel
-	AddHierarchies []*DimensionHierarchy
-	AddAttributes  []*DimensionAttribute
-	DropLevels     []string // level names to drop
+	AddLevels       []*DimensionLevel
+	AddHierarchies  []*DimensionHierarchy
+	AddAttributes   []*DimensionAttribute
+	DropLevels      []string // level names to drop
 	DropHierarchies []string // hierarchy names to drop
 	DropAttributes  []string // attribute names to drop
-	Loc            Loc
+	Loc             Loc
 }
 
 func (n *AlterDimensionStmt) nodeTag()  {}
@@ -3656,8 +3659,8 @@ type AlterIndexStmt struct {
 	Cleanup     bool // CLEANUP
 	CleanupOnly bool // CLEANUP ONLY
 	// SHRINK SPACE
-	Compact  bool // COMPACT
-	Cascade  bool // CASCADE
+	Compact bool // COMPACT
+	Cascade bool // CASCADE
 	// PARALLEL
 	Parallel   string // parallel degree or ""
 	NoParallel bool   // NOPARALLEL
@@ -3790,15 +3793,15 @@ func (n *AlterSequenceStmt) stmtNode() {}
 //	    { COMPILE [DEBUG] [compiler_parameters_clause ...] [REUSE SETTINGS] }
 //	    [ EDITIONABLE | NONEDITIONABLE ]
 type AlterProcedureStmt struct {
-	Name            *ObjectName  // procedure name
-	IfExists        bool         // IF EXISTS
-	Compile         bool         // COMPILE
-	Debug           bool         // COMPILE DEBUG
-	ReuseSettings   bool         // REUSE SETTINGS
-	CompilerParams  []*SetParam  // compiler_parameters_clause (name=value pairs)
-	Editionable     bool         // EDITIONABLE
-	NonEditionable  bool         // NONEDITIONABLE
-	Loc             Loc
+	Name           *ObjectName // procedure name
+	IfExists       bool        // IF EXISTS
+	Compile        bool        // COMPILE
+	Debug          bool        // COMPILE DEBUG
+	ReuseSettings  bool        // REUSE SETTINGS
+	CompilerParams []*SetParam // compiler_parameters_clause (name=value pairs)
+	Editionable    bool        // EDITIONABLE
+	NonEditionable bool        // NONEDITIONABLE
+	Loc            Loc
 }
 
 func (n *AlterProcedureStmt) nodeTag()  {}
@@ -3810,15 +3813,15 @@ func (n *AlterProcedureStmt) stmtNode() {}
 //	    { COMPILE [DEBUG] [compiler_parameters_clause ...] [REUSE SETTINGS] }
 //	    [ EDITIONABLE | NONEDITIONABLE ]
 type AlterFunctionStmt struct {
-	Name            *ObjectName  // function name
-	IfExists        bool         // IF EXISTS
-	Compile         bool         // COMPILE
-	Debug           bool         // COMPILE DEBUG
-	ReuseSettings   bool         // REUSE SETTINGS
-	CompilerParams  []*SetParam  // compiler_parameters_clause (name=value pairs)
-	Editionable     bool         // EDITIONABLE
-	NonEditionable  bool         // NONEDITIONABLE
-	Loc             Loc
+	Name           *ObjectName // function name
+	IfExists       bool        // IF EXISTS
+	Compile        bool        // COMPILE
+	Debug          bool        // COMPILE DEBUG
+	ReuseSettings  bool        // REUSE SETTINGS
+	CompilerParams []*SetParam // compiler_parameters_clause (name=value pairs)
+	Editionable    bool        // EDITIONABLE
+	NonEditionable bool        // NONEDITIONABLE
+	Loc            Loc
 }
 
 func (n *AlterFunctionStmt) nodeTag()  {}
@@ -3831,16 +3834,16 @@ func (n *AlterFunctionStmt) stmtNode() {}
 //	      [compiler_parameters_clause ...] [REUSE SETTINGS] }
 //	    [ EDITIONABLE | NONEDITIONABLE ]
 type AlterPackageStmt struct {
-	Name            *ObjectName  // package name
-	IfExists        bool         // IF EXISTS
-	Compile         bool         // COMPILE
-	CompileTarget   string       // "PACKAGE", "BODY", "SPECIFICATION", or "" (default)
-	Debug           bool         // COMPILE DEBUG
-	ReuseSettings   bool         // REUSE SETTINGS
-	CompilerParams  []*SetParam  // compiler_parameters_clause (name=value pairs)
-	Editionable     bool         // EDITIONABLE
-	NonEditionable  bool         // NONEDITIONABLE
-	Loc             Loc
+	Name           *ObjectName // package name
+	IfExists       bool        // IF EXISTS
+	Compile        bool        // COMPILE
+	CompileTarget  string      // "PACKAGE", "BODY", "SPECIFICATION", or "" (default)
+	Debug          bool        // COMPILE DEBUG
+	ReuseSettings  bool        // REUSE SETTINGS
+	CompilerParams []*SetParam // compiler_parameters_clause (name=value pairs)
+	Editionable    bool        // EDITIONABLE
+	NonEditionable bool        // NONEDITIONABLE
+	Loc            Loc
 }
 
 func (n *AlterPackageStmt) nodeTag()  {}
@@ -3857,14 +3860,14 @@ func (n *AlterPackageStmt) stmtNode() {}
 //	  | NONEDITIONABLE
 //	  }
 type AlterTriggerStmt struct {
-	Name            *ObjectName  // trigger name
-	IfExists        bool         // IF EXISTS
-	Action          string       // "ENABLE", "DISABLE", "COMPILE", "RENAME", "EDITIONABLE", "NONEDITIONABLE"
-	Debug           bool         // COMPILE DEBUG
-	ReuseSettings   bool         // REUSE SETTINGS
-	CompilerParams  []*SetParam  // compiler_parameters_clause (name=value pairs)
-	NewName         string       // RENAME TO new_name
-	Loc             Loc
+	Name           *ObjectName // trigger name
+	IfExists       bool        // IF EXISTS
+	Action         string      // "ENABLE", "DISABLE", "COMPILE", "RENAME", "EDITIONABLE", "NONEDITIONABLE"
+	Debug          bool        // COMPILE DEBUG
+	ReuseSettings  bool        // REUSE SETTINGS
+	CompilerParams []*SetParam // compiler_parameters_clause (name=value pairs)
+	NewName        string      // RENAME TO new_name
+	Loc            Loc
 }
 
 func (n *AlterTriggerStmt) nodeTag()  {}
@@ -3900,33 +3903,33 @@ func (n *AlterTriggerStmt) stmtNode() {}
 //	  | CASCADE [INCLUDING TABLE DATA | NOT INCLUDING TABLE DATA | CONVERT TO SUBSTITUTABLE]
 //	    [FORCE]
 type AlterTypeStmt struct {
-	Name            *ObjectName       // type name
-	IfExists        bool              // IF EXISTS
-	Action          string            // "COMPILE", "ADD_ATTRIBUTE", "DROP_ATTRIBUTE", "MODIFY_ATTRIBUTE",
-	                                  // "ADD_METHOD", "DROP_METHOD", "NOT_INSTANTIABLE", "INSTANTIABLE",
-	                                  // "NOT_FINAL", "FINAL", "MODIFY_LIMIT", "MODIFY_ELEMENT_TYPE",
-	                                  // "RESET", "EDITIONABLE", "NONEDITIONABLE"
-	CompileTarget   string            // "SPECIFICATION", "BODY", "" (for COMPILE)
-	Debug           bool              // COMPILE DEBUG
-	ReuseSettings   bool              // REUSE SETTINGS
-	CompilerParams  []*SetParam       // compiler_parameters_clause
-	Attributes      []*TypeAttribute  // for ADD/DROP/MODIFY ATTRIBUTE
-	MethodSpec      string            // raw method signature text for ADD/DROP method
-	MethodKind      string            // "MEMBER", "STATIC", "MAP MEMBER", "ORDER MEMBER", "CONSTRUCTOR"
-	MethodType      string            // "FUNCTION" or "PROCEDURE"
-	MethodName      string            // method name
-	MethodParams    []*Parameter      // method parameters
-	MethodReturn    *TypeName         // method return type
-	LimitValue      ExprNode          // for MODIFY LIMIT
-	ElementType     *TypeName         // for MODIFY ELEMENT TYPE
-	Invalidate      bool              // INVALIDATE
-	Cascade         bool              // CASCADE
-	IncludeData     *bool             // CASCADE INCLUDING TABLE DATA (true) / NOT INCLUDING TABLE DATA (false) / nil (not specified)
-	ConvertToSubst  bool              // CASCADE CONVERT TO SUBSTITUTABLE
-	Force           bool              // FORCE (exceptions_clause)
-	Editionable     bool              // EDITIONABLE
-	NonEditionable  bool              // NONEDITIONABLE
-	Loc             Loc
+	Name     *ObjectName // type name
+	IfExists bool        // IF EXISTS
+	Action   string      // "COMPILE", "ADD_ATTRIBUTE", "DROP_ATTRIBUTE", "MODIFY_ATTRIBUTE",
+	// "ADD_METHOD", "DROP_METHOD", "NOT_INSTANTIABLE", "INSTANTIABLE",
+	// "NOT_FINAL", "FINAL", "MODIFY_LIMIT", "MODIFY_ELEMENT_TYPE",
+	// "RESET", "EDITIONABLE", "NONEDITIONABLE"
+	CompileTarget  string           // "SPECIFICATION", "BODY", "" (for COMPILE)
+	Debug          bool             // COMPILE DEBUG
+	ReuseSettings  bool             // REUSE SETTINGS
+	CompilerParams []*SetParam      // compiler_parameters_clause
+	Attributes     []*TypeAttribute // for ADD/DROP/MODIFY ATTRIBUTE
+	MethodSpec     string           // raw method signature text for ADD/DROP method
+	MethodKind     string           // "MEMBER", "STATIC", "MAP MEMBER", "ORDER MEMBER", "CONSTRUCTOR"
+	MethodType     string           // "FUNCTION" or "PROCEDURE"
+	MethodName     string           // method name
+	MethodParams   []*Parameter     // method parameters
+	MethodReturn   *TypeName        // method return type
+	LimitValue     ExprNode         // for MODIFY LIMIT
+	ElementType    *TypeName        // for MODIFY ELEMENT TYPE
+	Invalidate     bool             // INVALIDATE
+	Cascade        bool             // CASCADE
+	IncludeData    *bool            // CASCADE INCLUDING TABLE DATA (true) / NOT INCLUDING TABLE DATA (false) / nil (not specified)
+	ConvertToSubst bool             // CASCADE CONVERT TO SUBSTITUTABLE
+	Force          bool             // FORCE (exceptions_clause)
+	Editionable    bool             // EDITIONABLE
+	NonEditionable bool             // NONEDITIONABLE
+	Loc            Loc
 }
 
 // TypeAttribute represents an attribute name with optional datatype in ALTER TYPE.
@@ -3958,16 +3961,16 @@ func (n *AlterTypeStmt) stmtNode() {}
 //	    [ storage_table_clause ]
 //	    [ array_DML_clause ]
 type CreateIndextypeStmt struct {
-	OrReplace    bool            // OR REPLACE
-	IfNotExists  bool            // IF NOT EXISTS
-	Name         *ObjectName     // indextype name
-	Sharing      string          // METADATA or NONE
-	Operators    []*IndextypeOp  // FOR operator_list
-	UsingType    *ObjectName     // USING implementation_type
-	WithLocal    bool            // WITH LOCAL PARTITION
-	WithRange    bool            // WITH LOCAL RANGE PARTITION
-	StorageTable string          // "SYSTEM" or "USER"
-	ArrayDML     bool            // WITH ARRAY DML
+	OrReplace    bool           // OR REPLACE
+	IfNotExists  bool           // IF NOT EXISTS
+	Name         *ObjectName    // indextype name
+	Sharing      string         // METADATA or NONE
+	Operators    []*IndextypeOp // FOR operator_list
+	UsingType    *ObjectName    // USING implementation_type
+	WithLocal    bool           // WITH LOCAL PARTITION
+	WithRange    bool           // WITH LOCAL RANGE PARTITION
+	StorageTable string         // "SYSTEM" or "USER"
+	ArrayDML     bool           // WITH ARRAY DML
 	Loc          Loc
 }
 
@@ -4002,15 +4005,15 @@ func (n *IndextypeOp) nodeTag() {}
 //	    [ WITH LOCAL PARTITION ]
 //	    [ storage_table_clause ]
 type AlterIndextypeStmt struct {
-	IfExists     bool                // IF EXISTS
-	Name         *ObjectName         // indextype name
-	Action       string              // "ADD_DROP" or "COMPILE"
-	Modifications []*IndextypeModOp  // ADD/DROP operators
-	UsingType    *ObjectName         // USING implementation_type
-	ArrayDML     bool                // WITH ARRAY DML
-	WithLocal    bool                // WITH LOCAL PARTITION
-	StorageTable string              // "SYSTEM" or "USER"
-	Loc          Loc
+	IfExists      bool              // IF EXISTS
+	Name          *ObjectName       // indextype name
+	Action        string            // "ADD_DROP" or "COMPILE"
+	Modifications []*IndextypeModOp // ADD/DROP operators
+	UsingType     *ObjectName       // USING implementation_type
+	ArrayDML      bool              // WITH ARRAY DML
+	WithLocal     bool              // WITH LOCAL PARTITION
+	StorageTable  string            // "SYSTEM" or "USER"
+	Loc           Loc
 }
 
 func (n *AlterIndextypeStmt) nodeTag()  {}
@@ -4039,11 +4042,11 @@ func (n *IndextypeModOp) nodeTag() {}
 //	    binding_clause
 //	    [ SHARING = { METADATA | NONE } ]
 type CreateOperatorStmt struct {
-	OrReplace   bool              // OR REPLACE
-	IfNotExists bool              // IF NOT EXISTS
-	Name        *ObjectName       // operator name
+	OrReplace   bool               // OR REPLACE
+	IfNotExists bool               // IF NOT EXISTS
+	Name        *ObjectName        // operator name
 	Bindings    []*OperatorBinding // BINDING clauses
-	Sharing     string            // METADATA or NONE
+	Sharing     string             // METADATA or NONE
 	Loc         Loc
 }
 
@@ -4057,16 +4060,16 @@ func (n *CreateOperatorStmt) stmtNode() {}
 //	    [ implementation_clause ]
 //	    using_function_clause
 type OperatorBinding struct {
-	ParamTypes   []string    // parameter types
-	ReturnType   string      // RETURN type
-	UsingFunc    *ObjectName // USING function
-	AncillaryTo  *ObjectName // ANCILLARY TO primary_operator
-	AncillaryParams []string // ANCILLARY TO parameter types
-	WithIndexCtx bool        // WITH INDEX CONTEXT
-	ScanCtxType  string      // SCAN CONTEXT implementation_type
-	ComputeAnc   bool        // COMPUTE ANCILLARY DATA
-	WithColumnCtx bool       // WITH COLUMN CONTEXT
-	Loc          Loc
+	ParamTypes      []string    // parameter types
+	ReturnType      string      // RETURN type
+	UsingFunc       *ObjectName // USING function
+	AncillaryTo     *ObjectName // ANCILLARY TO primary_operator
+	AncillaryParams []string    // ANCILLARY TO parameter types
+	WithIndexCtx    bool        // WITH INDEX CONTEXT
+	ScanCtxType     string      // SCAN CONTEXT implementation_type
+	ComputeAnc      bool        // COMPUTE ANCILLARY DATA
+	WithColumnCtx   bool        // WITH COLUMN CONTEXT
+	Loc             Loc
 }
 
 func (n *OperatorBinding) nodeTag() {}
@@ -4085,12 +4088,12 @@ func (n *OperatorBinding) nodeTag() {}
 //	    | COMPILE
 //	    }
 type AlterOperatorStmt struct {
-	IfExists  bool              // IF EXISTS
-	Name      *ObjectName       // operator name
-	Action    string            // "ADD_BINDING", "DROP_BINDING", "COMPILE"
-	Binding   *OperatorBinding  // for ADD BINDING
-	DropTypes []string          // DROP BINDING parameter types
-	DropForce bool              // DROP BINDING ... FORCE
+	IfExists  bool             // IF EXISTS
+	Name      *ObjectName      // operator name
+	Action    string           // "ADD_BINDING", "DROP_BINDING", "COMPILE"
+	Binding   *OperatorBinding // for ADD BINDING
+	DropTypes []string         // DROP BINDING parameter types
+	DropForce bool             // DROP BINDING ... FORCE
 	Loc       Loc
 }
 
@@ -4225,19 +4228,19 @@ func (n *AlterJsonDualityViewStmt) stmtNode() {}
 
 // CreateAttributeDimensionStmt represents a CREATE ATTRIBUTE DIMENSION statement.
 type CreateAttributeDimensionStmt struct {
-	Name          *ObjectName
-	OrReplace     bool
-	Force         bool
-	NoForce       bool
-	IfNotExists   bool
-	Sharing       string // METADATA, NONE
-	DimensionType string // STANDARD, TIME
-	Classifications *List // classification_clause items
-	Sources       *List   // attr_dim_using_clause: source_clause list
-	Attributes    *List   // attributes_clause: attr_dim_attribute_clause list
-	Levels        *List   // attr_dim_level_clause list
-	AllClause     *AttrDimAllClause
-	Loc           Loc
+	Name            *ObjectName
+	OrReplace       bool
+	Force           bool
+	NoForce         bool
+	IfNotExists     bool
+	Sharing         string // METADATA, NONE
+	DimensionType   string // STANDARD, TIME
+	Classifications *List  // classification_clause items
+	Sources         *List  // attr_dim_using_clause: source_clause list
+	Attributes      *List  // attributes_clause: attr_dim_attribute_clause list
+	Levels          *List  // attr_dim_level_clause list
+	AllClause       *AttrDimAllClause
+	Loc             Loc
 }
 
 func (n *CreateAttributeDimensionStmt) nodeTag()  {}
@@ -4245,13 +4248,13 @@ func (n *CreateAttributeDimensionStmt) stmtNode() {}
 
 // AttrDimSourceClause represents a source clause in USING.
 type AttrDimSourceClause struct {
-	Remote  bool
-	Name    *ObjectName
-	Alias   string
+	Remote        bool
+	Name          *ObjectName
+	Alias         string
 	IsJoinPath    bool
 	JoinPathName  string
 	JoinCondition *List // list of *AttrDimJoinCondElem
-	Loc     Loc
+	Loc           Loc
 }
 
 func (n *AttrDimSourceClause) nodeTag() {}
@@ -4269,10 +4272,10 @@ func (n *AttrDimJoinCondElem) nodeTag() {}
 
 // AttrDimAttribute represents an attribute in the ATTRIBUTES clause.
 type AttrDimAttribute struct {
-	Column string
-	Alias  string
+	Column          string
+	Alias           string
 	Classifications *List
-	Loc    Loc
+	Loc             Loc
 }
 
 func (n *AttrDimAttribute) nodeTag() {}
@@ -4282,15 +4285,15 @@ type AttrDimLevel struct {
 	Name            string
 	LevelType       string // STANDARD, YEARS, HALF_YEARS, QUARTERS, MONTHS, WEEKS, DAYS, HOURS, MINUTES, SECONDS
 	Classifications *List
-	KeyAttrs        *List  // key attributes (list of *String)
+	KeyAttrs        *List // key attributes (list of *String)
 	KeyNotNull      bool
 	KeySkipWhenNull bool
-	AltKeyAttrs     *List  // alternate key attributes
+	AltKeyAttrs     *List // alternate key attributes
 	MemberName      ExprNode
 	MemberCaption   ExprNode
 	MemberDesc      ExprNode
-	OrderByAttrs    *List  // list of *AttrDimOrderByItem
-	Determines      *List  // list of *String
+	OrderByAttrs    *List // list of *AttrDimOrderByItem
+	Determines      *List // list of *String
 	Loc             Loc
 }
 
@@ -4400,25 +4403,25 @@ type CreateDomainStmt struct {
 	IfNotExists bool
 	DomainType  string // SINGLE, MULTI, FLEXIBLE, ENUM
 	// Single column domain fields
-	DataType    *TypeName
-	Strict      bool
-	Default     ExprNode
+	DataType      *TypeName
+	Strict        bool
+	Default       ExprNode
 	DefaultOnNull bool
-	Constraints *List  // constraint_clause list
-	Collation   string
-	Display     ExprNode
-	Order       ExprNode
-	Annotations *List
+	Constraints   *List // constraint_clause list
+	Collation     string
+	Display       ExprNode
+	Order         ExprNode
+	Annotations   *List
 	// Enum fields
-	EnumItems   *List // list of *DomainEnumItem
+	EnumItems *List // list of *DomainEnumItem
 	// Multi column domain fields
-	Columns     *List // list of *DomainColumn
+	Columns *List // list of *DomainColumn
 	// Flexible domain fields
 	FlexDomainName *ObjectName
-	FlexColumns    *List // column names
-	ChooseUsing    *List // discriminant columns (list of *DomainColumn)
+	FlexColumns    *List    // column names
+	ChooseUsing    *List    // discriminant columns (list of *DomainColumn)
 	ChooseExpr     ExprNode // DECODE or CASE expression
-	Loc         Loc
+	Loc            Loc
 }
 
 func (n *CreateDomainStmt) nodeTag()  {}
@@ -4446,11 +4449,11 @@ func (n *DomainEnumItem) nodeTag() {}
 
 // DomainConstraint represents a constraint in a domain definition.
 type DomainConstraint struct {
-	Name       string // constraint name (optional)
-	Type       string // NOT_NULL, NULL, CHECK
-	CheckExpr  ExprNode
-	State      *List // constraint state options
-	Loc        Loc
+	Name      string // constraint name (optional)
+	Type      string // NOT_NULL, NULL, CHECK
+	CheckExpr ExprNode
+	State     *List // constraint state options
+	Loc       Loc
 }
 
 func (n *DomainConstraint) nodeTag() {}
@@ -4483,9 +4486,9 @@ type CreatePropertyGraphStmt struct {
 	Name         *ObjectName
 	OrReplace    bool
 	IfNotExists  bool
-	VertexTables []*GraphTableDef  // VERTEX TABLES (...)
-	EdgeTables   []*GraphEdgeDef   // EDGE TABLES (...)
-	Options      *GraphOptions     // OPTIONS (...)
+	VertexTables []*GraphTableDef // VERTEX TABLES (...)
+	EdgeTables   []*GraphEdgeDef  // EDGE TABLES (...)
+	Options      *GraphOptions    // OPTIONS (...)
 	Loc          Loc
 }
 
@@ -4509,21 +4512,21 @@ func (n *GraphTableDef) nodeTag() {}
 
 // GraphEdgeDef represents an edge table definition in CREATE PROPERTY GRAPH.
 type GraphEdgeDef struct {
-	Name              *ObjectName // [schema.]table_name
-	Alias             string      // AS graph_element_name
-	KeyColumns        []string    // KEY (col, ...)
-	SourceKeyColumns  []string    // SOURCE KEY (col, ...)
-	SourceRef         string      // REFERENCES vertex_table_name
-	SourceRefColumns  []string    // vertex_table_name (col, ...)
-	DestKeyColumns    []string    // DESTINATION KEY (col, ...)
-	DestRef           string      // REFERENCES vertex_table_name
-	DestRefColumns    []string    // vertex_table_name (col, ...)
-	Labels            []string    // LABEL label_name ...
-	Properties        string      // ALL, ALL_EXCEPT, LIST, NO
-	PropColumns       []string    // column names for PROPERTIES (...)
-	PropAliases       []string    // AS property_name aliases
-	DefaultLabel      bool        // DEFAULT LABEL
-	Loc               Loc
+	Name             *ObjectName // [schema.]table_name
+	Alias            string      // AS graph_element_name
+	KeyColumns       []string    // KEY (col, ...)
+	SourceKeyColumns []string    // SOURCE KEY (col, ...)
+	SourceRef        string      // REFERENCES vertex_table_name
+	SourceRefColumns []string    // vertex_table_name (col, ...)
+	DestKeyColumns   []string    // DESTINATION KEY (col, ...)
+	DestRef          string      // REFERENCES vertex_table_name
+	DestRefColumns   []string    // vertex_table_name (col, ...)
+	Labels           []string    // LABEL label_name ...
+	Properties       string      // ALL, ALL_EXCEPT, LIST, NO
+	PropColumns      []string    // column names for PROPERTIES (...)
+	PropAliases      []string    // AS property_name aliases
+	DefaultLabel     bool        // DEFAULT LABEL
+	Loc              Loc
 }
 
 func (n *GraphEdgeDef) nodeTag() {}
@@ -4543,26 +4546,26 @@ func (n *GraphOptions) nodeTag() {}
 
 // CreateVectorIndexStmt represents a CREATE VECTOR INDEX statement.
 type CreateVectorIndexStmt struct {
-	Name            *ObjectName // index name
-	IfNotExists     bool
-	TableName       *ObjectName // ON table
-	Column          string      // (column_name)
-	IncludeColumns  []string    // INCLUDE (col, ...)
-	Organization    string      // INMEMORY_NEIGHBOR_GRAPH, NEIGHBOR_PARTITIONS
-	Distance        string      // metric_name
-	TargetAccuracy  int         // WITH TARGET ACCURACY integer
-	ParameterType   string      // HNSW, IVF
-	Neighbors       int         // NEIGHBORS / M value
-	EfConstruction  int         // EFCONSTRUCTION value
-	RescoreFactor   int         // RESCORE_FACTOR value
-	Quantization    string      // quantization algorithm
-	NeighborParts   int         // NEIGHBOR PARTITIONS value (IVF)
-	SamplesPerPart  int         // SAMPLES_PER_PARTITION (IVF)
-	MinVecsPerPart  int         // MIN_VECTORS_PER_PARTITION (IVF)
-	Replication     string      // DUPLICATE_ALL, DISTRIBUTE, DISTRIBUTE_AUTO, etc.
-	Online          bool
-	Parallel        int
-	Loc             Loc
+	Name           *ObjectName // index name
+	IfNotExists    bool
+	TableName      *ObjectName // ON table
+	Column         string      // (column_name)
+	IncludeColumns []string    // INCLUDE (col, ...)
+	Organization   string      // INMEMORY_NEIGHBOR_GRAPH, NEIGHBOR_PARTITIONS
+	Distance       string      // metric_name
+	TargetAccuracy int         // WITH TARGET ACCURACY integer
+	ParameterType  string      // HNSW, IVF
+	Neighbors      int         // NEIGHBORS / M value
+	EfConstruction int         // EFCONSTRUCTION value
+	RescoreFactor  int         // RESCORE_FACTOR value
+	Quantization   string      // quantization algorithm
+	NeighborParts  int         // NEIGHBOR PARTITIONS value (IVF)
+	SamplesPerPart int         // SAMPLES_PER_PARTITION (IVF)
+	MinVecsPerPart int         // MIN_VECTORS_PER_PARTITION (IVF)
+	Replication    string      // DUPLICATE_ALL, DISTRIBUTE, DISTRIBUTE_AUTO, etc.
+	Online         bool
+	Parallel       int
+	Loc            Loc
 }
 
 func (n *CreateVectorIndexStmt) nodeTag()  {}
@@ -4574,10 +4577,10 @@ func (n *CreateVectorIndexStmt) stmtNode() {}
 
 // CreateLockdownProfileStmt represents a CREATE LOCKDOWN PROFILE statement.
 type CreateLockdownProfileStmt struct {
-	Name        string // profile_name
-	Using       string // USING base_profile_name (static)
-	Including   string // INCLUDING base_profile_name (dynamic)
-	Loc         Loc
+	Name      string // profile_name
+	Using     string // USING base_profile_name (static)
+	Including string // INCLUDING base_profile_name (dynamic)
+	Loc       Loc
 }
 
 func (n *CreateLockdownProfileStmt) nodeTag()  {}
@@ -4585,21 +4588,21 @@ func (n *CreateLockdownProfileStmt) stmtNode() {}
 
 // AlterLockdownProfileStmt represents an ALTER LOCKDOWN PROFILE statement.
 type AlterLockdownProfileStmt struct {
-	Name       string // profile_name
-	Action     string // ENABLE, DISABLE
-	RuleType   string // FEATURE, OPTION, STATEMENT
-	RuleItems  []string // feature/option/statement names
-	AllItems   bool     // ALL
-	ExceptItems []string // ALL EXCEPT (...)
-	Clauses    []string // CLAUSE = (...)
-	ClauseAll  bool     // CLAUSE = ALL
+	Name              string   // profile_name
+	Action            string   // ENABLE, DISABLE
+	RuleType          string   // FEATURE, OPTION, STATEMENT
+	RuleItems         []string // feature/option/statement names
+	AllItems          bool     // ALL
+	ExceptItems       []string // ALL EXCEPT (...)
+	Clauses           []string // CLAUSE = (...)
+	ClauseAll         bool     // CLAUSE = ALL
 	ClauseExceptItems []string // CLAUSE ALL EXCEPT (...)
-	ClauseOptions []string // OPTION = (...)
-	ValueItems []string // VALUE = (...)
-	MinValue   string   // MINVALUE =
-	MaxValue   string   // MAXVALUE =
-	Users      string   // ALL, COMMON, LOCAL
-	Loc        Loc
+	ClauseOptions     []string // OPTION = (...)
+	ValueItems        []string // VALUE = (...)
+	MinValue          string   // MINVALUE =
+	MaxValue          string   // MAXVALUE =
+	Users             string   // ALL, COMMON, LOCAL
+	Loc               Loc
 }
 
 func (n *AlterLockdownProfileStmt) nodeTag()  {}
@@ -4611,14 +4614,14 @@ func (n *AlterLockdownProfileStmt) stmtNode() {}
 
 // CreateOutlineStmt represents a CREATE OUTLINE statement.
 type CreateOutlineStmt struct {
-	Name       string // outline name (optional)
-	OrReplace  bool
-	Public     bool   // PUBLIC
-	Private    bool   // PRIVATE
-	Category   string // FOR CATEGORY category
-	FromSource string // FROM [PRIVATE] source_outline
-	FromPrivate bool  // FROM PRIVATE
-	Loc        Loc
+	Name        string // outline name (optional)
+	OrReplace   bool
+	Public      bool   // PUBLIC
+	Private     bool   // PRIVATE
+	Category    string // FOR CATEGORY category
+	FromSource  string // FROM [PRIVATE] source_outline
+	FromPrivate bool   // FROM PRIVATE
+	Loc         Loc
 }
 
 func (n *CreateOutlineStmt) nodeTag()  {}
@@ -4626,13 +4629,13 @@ func (n *CreateOutlineStmt) stmtNode() {}
 
 // AlterOutlineStmt represents an ALTER OUTLINE statement.
 type AlterOutlineStmt struct {
-	Name      string // outline name
-	Public    bool   // PUBLIC
-	Private   bool   // PRIVATE
-	Action    string // REBUILD, RENAME, CHANGE_CATEGORY, ENABLE, DISABLE
-	NewName   string // RENAME TO new_name
-	Category  string // CHANGE CATEGORY TO new_category
-	Loc       Loc
+	Name     string // outline name
+	Public   bool   // PUBLIC
+	Private  bool   // PRIVATE
+	Action   string // REBUILD, RENAME, CHANGE_CATEGORY, ENABLE, DISABLE
+	NewName  string // RENAME TO new_name
+	Category string // CHANGE CATEGORY TO new_category
+	Loc      Loc
 }
 
 func (n *AlterOutlineStmt) nodeTag()  {}

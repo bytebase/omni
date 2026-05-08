@@ -2113,6 +2113,10 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	if n.Subtype != "" {
 		sb.WriteString(fmt.Sprintf(" :subtype %q", n.Subtype))
 	}
+	if n.Options != nil && len(n.Options.Items) > 0 {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -2556,6 +2560,10 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 		sb.WriteString(" :parent ")
 		writeNode(sb, n.Parent)
 	}
+	if n.Options != nil && len(n.Options.Items) > 0 {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -2713,6 +2721,10 @@ func writeCreateIndexStmt(sb *strings.Builder, n *CreateIndexStmt) {
 	}
 	if n.IndexingPartial {
 		sb.WriteString(" :indexingPartial true")
+	}
+	if n.Options != nil && len(n.Options.Items) > 0 {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

@@ -234,6 +234,10 @@ Current measured gate: `TestOracleParserProgress` reports 445/445 parser `parse*
 - [x] High-value parser families have no `missing` or `unknown` rows.
 - [x] Coverage statuses distinguish parser coverage, partial parser debt, catalog-only semantics, unsupported grammar, and deferred work.
 - [x] Every non-covered BNF row has explicit debt class, approval, and next action metadata.
+- [x] Every Oracle BNF row appears in the P2 manifest with parser-layer status, AST target, parser entrypoint, next action, and positive/negative/Loc evidence fields.
+- [x] Historical `catalog` status is not reused as a P2 parser-layer status.
+- [x] P2 skip/stub hotspots are tracked in an inventory keyed by stable `file:function:pattern` identities.
+- [x] P2 skip/stub inventory rows must link back to P2 BNF manifest rows, and `p2_done` rows cannot retain owned skip/stub sites.
 - [x] `TestOracleCoverage` enforces soft-fail, strictness, keyword, BNF, Loc-node, and reference-oracle minimum gates.
 
 ### 6.3 Loc Node And Reference Oracle Accounting
