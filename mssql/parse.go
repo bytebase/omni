@@ -58,9 +58,6 @@ func Parse(sql string) ([]Statement, error) {
 		if item == nil {
 			continue
 		}
-		if _, ok := item.(*ast.GoStmt); ok {
-			continue
-		}
 
 		loc := nodeLoc(item)
 
