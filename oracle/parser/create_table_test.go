@@ -6,6 +6,100 @@ import (
 	"github.com/bytebase/omni/oracle/ast"
 )
 
+func TestP2CreateTableComplexOptions(t *testing.T) {
+	tests := []struct {
+		name  string
+		sql   string
+		key   string
+		value string
+	}{
+		{
+			name:  "external_table_clause",
+			sql:   "CREATE TABLE ext_t (id NUMBER) ORGANIZATION EXTERNAL (TYPE ORACLE_LOADER DEFAULT DIRECTORY data_dir ACCESS PARAMETERS (FIELDS TERMINATED BY ',')) REJECT LIMIT UNLIMITED",
+			key:   "ORGANIZATION EXTERNAL",
+			value: "( TYPE ORACLE_LOADER DEFAULT DIRECTORY DATA_DIR ACCESS PARAMETERS ( FIELDS TERMINATED BY , ) )",
+		},
+		{
+			name:  "lob_storage_clause",
+			sql:   "CREATE TABLE docs (id NUMBER, doc CLOB) LOB (doc) STORE AS SECUREFILE (TABLESPACE lob_ts)",
+			key:   "LOB",
+			value: "( DOC ) STORE AS SECUREFILE ( TABLESPACE LOB_TS )",
+		},
+		{
+			name:  "inmemory_clause",
+			sql:   "CREATE TABLE hot_t (id NUMBER) INMEMORY MEMCOMPRESS FOR QUERY HIGH PRIORITY HIGH",
+			key:   "INMEMORY",
+			value: "MEMCOMPRESS FOR QUERY HIGH PRIORITY HIGH",
+		},
+		{
+			name:  "ilm_clause",
+			sql:   "CREATE TABLE lifecycle_t (id NUMBER) ILM ADD POLICY ROW STORE COMPRESS ADVANCED",
+			key:   "ILM",
+			value: "ADD POLICY ROW STORE COMPRESS ADVANCED",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stmt := parseCreateTableForP2(t, tt.sql)
+			assertCreateTableOption(t, stmt, tt.key, tt.value)
+		})
+	}
+}
+
+func TestP2CreateTableOptionLoc(t *testing.T) {
+	stmt := parseCreateTableForP2(t, "CREATE TABLE docs (id NUMBER, doc CLOB) LOB (doc) STORE AS (TABLESPACE lob_ts)")
+	opt := findCreateTableOption(stmt, "LOB")
+	if opt == nil {
+		t.Fatalf("expected LOB option in %#v", stmt.Options)
+	}
+	if opt.Loc.Start <= stmt.Loc.Start || opt.Loc.End > stmt.Loc.End || opt.Loc.Start >= opt.Loc.End {
+		t.Fatalf("option Loc=%+v is not inside stmt Loc=%+v", opt.Loc, stmt.Loc)
+	}
+}
+
+func TestP2CreateTableMalformedComplexOption(t *testing.T) {
+	ParseShouldFail(t, "CREATE TABLE docs (id NUMBER, doc CLOB) LOB STORE AS lob_seg")
+}
+
+func parseCreateTableForP2(t *testing.T, sql string) *ast.CreateTableStmt {
+	t.Helper()
+	result := ParseAndCheck(t, sql)
+	if result.Len() != 1 {
+		t.Fatalf("expected 1 statement, got %d", result.Len())
+	}
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt, ok := raw.Stmt.(*ast.CreateTableStmt)
+	if !ok {
+		t.Fatalf("expected CreateTableStmt, got %T", raw.Stmt)
+	}
+	return stmt
+}
+
+func assertCreateTableOption(t *testing.T, stmt *ast.CreateTableStmt, key, value string) {
+	t.Helper()
+	opt := findCreateTableOption(stmt, key)
+	if opt == nil {
+		t.Fatalf("expected option %q in %#v", key, stmt.Options)
+	}
+	if opt.Value != value {
+		t.Fatalf("option %q value=%q, want %q", key, opt.Value, value)
+	}
+}
+
+func findCreateTableOption(stmt *ast.CreateTableStmt, key string) *ast.DDLOption {
+	if stmt.Options == nil {
+		return nil
+	}
+	for _, item := range stmt.Options.Items {
+		opt, ok := item.(*ast.DDLOption)
+		if ok && opt.Key == key {
+			return opt
+		}
+	}
+	return nil
+}
+
 // TestParseCreateTableSimple tests a basic CREATE TABLE with columns.
 func TestParseCreateTableSimple(t *testing.T) {
 	sql := `CREATE TABLE employees (

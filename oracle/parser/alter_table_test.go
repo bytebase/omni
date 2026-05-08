@@ -217,3 +217,98 @@ func TestParseAlterTableMultipleActions(t *testing.T) {
 		t.Errorf("expected AT_MODIFY_COLUMN for action 2, got %d", cmd2.Action)
 	}
 }
+
+func TestP2AlterTablePartitionOptionsAndActionBoundaries(t *testing.T) {
+	sql := "ALTER TABLE sales ADD PARTITION p1 VALUES LESS THAN (10) TABLESPACE ts1 MOVE PARTITION p2 TABLESPACE ts2 UPDATE INDEXES"
+	stmt := parseAlterTableForP2(t, sql)
+	if stmt.Actions.Len() != 2 {
+		t.Fatalf("expected 2 actions, got %d", stmt.Actions.Len())
+	}
+
+	add := stmt.Actions.Items[0].(*ast.AlterTableCmd)
+	if add.Action != ast.AT_ADD_PARTITION || add.Subtype != "PARTITION" || add.ColumnName != "P1" {
+		t.Fatalf("unexpected ADD PARTITION command: action=%d subtype=%q name=%q", add.Action, add.Subtype, add.ColumnName)
+	}
+	assertAlterTableOption(t, add, "VALUES", "LESS THAN ( 10 )")
+	assertAlterTableOption(t, add, "TABLESPACE", "TS1")
+	if option := findAlterTableOption(add, "MOVE"); option != nil {
+		t.Fatalf("ADD PARTITION options swallowed next action: %#v", option)
+	}
+
+	move := stmt.Actions.Items[1].(*ast.AlterTableCmd)
+	if move.Action != ast.AT_MOVE || move.Subtype != "PARTITION" || move.ColumnName != "P2" {
+		t.Fatalf("unexpected MOVE PARTITION command: action=%d subtype=%q name=%q", move.Action, move.Subtype, move.ColumnName)
+	}
+	assertAlterTableOption(t, move, "TABLESPACE", "TS2")
+	assertAlterTableOption(t, move, "UPDATE", "INDEXES")
+}
+
+func TestP2AlterTableSupplementalLogOptions(t *testing.T) {
+	stmt := parseAlterTableForP2(t, "ALTER TABLE sales ADD SUPPLEMENTAL LOG DATA (PRIMARY KEY) COLUMNS")
+	cmd := stmt.Actions.Items[0].(*ast.AlterTableCmd)
+	if cmd.Action != ast.AT_ALTER_PROPERTY || cmd.Subtype != "ADD SUPPLEMENTAL LOG" {
+		t.Fatalf("unexpected supplemental log command: action=%d subtype=%q", cmd.Action, cmd.Subtype)
+	}
+	assertAlterTableOption(t, cmd, "DATA", "( PRIMARY KEY )")
+	assertAlterTableOption(t, cmd, "COLUMNS", "")
+}
+
+func TestP2AlterTableOptionLoc(t *testing.T) {
+	stmt := parseAlterTableForP2(t, "ALTER TABLE sales MOVE PARTITION p1 TABLESPACE ts1 UPDATE INDEXES")
+	cmd := stmt.Actions.Items[0].(*ast.AlterTableCmd)
+	opt := findAlterTableOption(cmd, "TABLESPACE")
+	if opt == nil {
+		t.Fatalf("expected TABLESPACE option in %#v", cmd.Options)
+	}
+	if opt.Loc.Start <= cmd.Loc.Start || opt.Loc.End > cmd.Loc.End || opt.Loc.Start >= opt.Loc.End {
+		t.Fatalf("option Loc=%+v is not inside command Loc=%+v", opt.Loc, cmd.Loc)
+	}
+}
+
+func TestP2AlterTableMovePartitionRequiresName(t *testing.T) {
+	ParseShouldFail(t, "ALTER TABLE sales MOVE PARTITION TABLESPACE ts1")
+}
+
+func parseAlterTableForP2(t *testing.T, sql string) *ast.AlterTableStmt {
+	t.Helper()
+	result := ParseAndCheck(t, sql)
+	if result.Len() != 1 {
+		t.Fatalf("expected 1 statement, got %d", result.Len())
+	}
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt, ok := raw.Stmt.(*ast.AlterTableStmt)
+	if !ok {
+		t.Fatalf("expected AlterTableStmt, got %T", raw.Stmt)
+	}
+	if stmt.Actions == nil || stmt.Actions.Len() == 0 {
+		t.Fatalf("expected ALTER TABLE actions, got %#v", stmt.Actions)
+	}
+	return stmt
+}
+
+func assertAlterTableOption(t *testing.T, cmd *ast.AlterTableCmd, key, value string) {
+	t.Helper()
+	opt := findAlterTableOption(cmd, key)
+	if opt == nil {
+		t.Fatalf("expected option %q in %#v", key, cmd.Options)
+	}
+	if opt.Value != value {
+		t.Fatalf("option %q value=%q, want %q", key, opt.Value, value)
+	}
+	if opt.Loc.Start < cmd.Loc.Start || opt.Loc.End > cmd.Loc.End || opt.Loc.Start >= opt.Loc.End {
+		t.Fatalf("option %q Loc=%+v is not inside command Loc=%+v", key, opt.Loc, cmd.Loc)
+	}
+}
+
+func findAlterTableOption(cmd *ast.AlterTableCmd, key string) *ast.DDLOption {
+	if cmd.Options == nil {
+		return nil
+	}
+	for _, item := range cmd.Options.Items {
+		opt, ok := item.(*ast.DDLOption)
+		if ok && opt.Key == key {
+			return opt
+		}
+	}
+	return nil
+}

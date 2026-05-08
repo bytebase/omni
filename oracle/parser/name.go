@@ -72,6 +72,20 @@ func (p *Parser) parseReservedCheckedObjectName() (*nodes.ObjectName, error) {
 	return p.parseObjectNameWith(p.parseObjectNameIdentifier)
 }
 
+func (p *Parser) parseRequiredObjectName() (*nodes.ObjectName, error) {
+	if p.cur.Type != tokQIDENT && (isOracleSQLReservedKeyword(p.cur) || isOracleClauseStarterKeyword(p.cur.Type)) {
+		return nil, p.syntaxErrorAtCur()
+	}
+	obj, err := p.parseObjectName()
+	if err != nil {
+		return nil, err
+	}
+	if obj.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return obj, nil
+}
+
 func (p *Parser) parseObjectNameWith(parseComponent func() (string, error)) (*nodes.ObjectName, error) {
 	start := p.pos()
 	obj := &nodes.ObjectName{

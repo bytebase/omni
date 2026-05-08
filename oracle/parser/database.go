@@ -6788,6 +6788,9 @@ func (p *Parser) parseDropDiskgroupStmt(start int) (nodes.StmtNode, error) {
 	}
 	var parseErr691 error
 
+	if p.cur.Type == ';' || p.cur.Type == tokEOF {
+		return nil, p.syntaxErrorAtCur()
+	}
 	stmt.Name, parseErr691 = p.parseObjectName()
 	if parseErr691 != nil {
 		return nil, parseErr691

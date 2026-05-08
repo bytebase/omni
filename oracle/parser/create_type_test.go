@@ -115,3 +115,85 @@ func TestParseCreateTypeLoc(t *testing.T) {
 		t.Errorf("expected Loc.End > Loc.Start, got %d", stmt.Loc.End)
 	}
 }
+
+func TestP2CreateTypeBodyMemberStructure(t *testing.T) {
+	result := ParseAndCheck(t, `CREATE TYPE BODY person_type AS
+  MEMBER FUNCTION get_name RETURN VARCHAR2 IS
+  BEGIN
+    RETURN first_name;
+  END get_name;
+  STATIC PROCEDURE set_count(p_count NUMBER) IS
+  BEGIN
+    NULL;
+  END set_count;
+END;`)
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt, ok := raw.Stmt.(*ast.CreateTypeStmt)
+	if !ok {
+		t.Fatalf("expected CreateTypeStmt, got %T", raw.Stmt)
+	}
+	if !stmt.IsBody {
+		t.Fatal("expected type body")
+	}
+	if stmt.Body == nil || stmt.Body.Len() != 2 {
+		t.Fatalf("expected 2 body members, got %#v", stmt.Body)
+	}
+
+	memberFn := stmt.Body.Items[0].(*ast.TypeBodyMember)
+	if memberFn.Kind != ast.TYPE_BODY_MEMBER {
+		t.Fatalf("member 1 kind=%d, want MEMBER", memberFn.Kind)
+	}
+	fn, ok := memberFn.Subprog.(*ast.CreateFunctionStmt)
+	if !ok {
+		t.Fatalf("member 1 subprogram=%T, want function", memberFn.Subprog)
+	}
+	fnBlock, ok := fn.Body.(*ast.PLSQLBlock)
+	if !ok {
+		t.Fatalf("function body=%T, want PLSQLBlock", fn.Body)
+	}
+	if fn.Name == nil || fn.Name.Name != "GET_NAME" || fnBlock.Statements == nil || fnBlock.Statements.Len() != 1 {
+		t.Fatalf("function body was not structured: %#v", fn)
+	}
+	if _, ok := fnBlock.Statements.Items[0].(*ast.PLSQLReturn); !ok {
+		t.Fatalf("function statement=%T, want PLSQLReturn", fnBlock.Statements.Items[0])
+	}
+
+	memberProc := stmt.Body.Items[1].(*ast.TypeBodyMember)
+	if memberProc.Kind != ast.TYPE_BODY_STATIC {
+		t.Fatalf("member 2 kind=%d, want STATIC", memberProc.Kind)
+	}
+	proc, ok := memberProc.Subprog.(*ast.CreateProcedureStmt)
+	if !ok {
+		t.Fatalf("member 2 subprogram=%T, want procedure", memberProc.Subprog)
+	}
+	procBlock, ok := proc.Body.(*ast.PLSQLBlock)
+	if !ok {
+		t.Fatalf("procedure body=%T, want PLSQLBlock", proc.Body)
+	}
+	if proc.Name == nil || proc.Name.Name != "SET_COUNT" || procBlock.Statements == nil || procBlock.Statements.Len() != 1 {
+		t.Fatalf("procedure body was not structured: %#v", proc)
+	}
+	if _, ok := procBlock.Statements.Items[0].(*ast.PLSQLNull); !ok {
+		t.Fatalf("procedure statement=%T, want PLSQLNull", procBlock.Statements.Items[0])
+	}
+}
+
+func TestP2CreateTypeBodyRequiresPLSQLBlock(t *testing.T) {
+	ParseShouldFail(t, "CREATE TYPE BODY person_type AS MEMBER PROCEDURE p IS END p; END;")
+}
+
+func TestP2CreateTypeBodyLoc(t *testing.T) {
+	stmt := ParseAndCheck(t, `CREATE TYPE BODY person_type AS
+  MEMBER PROCEDURE p IS
+  BEGIN
+    NULL;
+  END p;
+END;`).Items[0].(*ast.RawStmt).Stmt.(*ast.CreateTypeStmt)
+	if stmt.Loc.Start != 0 || stmt.Loc.End <= stmt.Loc.Start {
+		t.Fatalf("invalid type body Loc=%+v", stmt.Loc)
+	}
+	member := stmt.Body.Items[0].(*ast.TypeBodyMember)
+	if member.Loc.Start <= stmt.Loc.Start || member.Loc.End > stmt.Loc.End {
+		t.Fatalf("member Loc=%+v not inside stmt Loc=%+v", member.Loc, stmt.Loc)
+	}
+}

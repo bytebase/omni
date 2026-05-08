@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -37,13 +39,13 @@ func (p *Parser) parseCreateMaterializedOrView(start int, orReplace bool) (nodes
 	return p.finishCreateViewStmt(stmt)
 }
 
-// parseAdminDDLStmt parses generic administrative DDL statements by consuming
+// parseAdminDDLWithOptions parses generic administrative DDL statements by consuming
 // the action keyword (CREATE/ALTER/DROP) and object type keyword, then parsing
-// the object name and skipping remaining options until semicolon/EOF.
+// the object name and preserving remaining options until semicolon/EOF.
 //
 // This handles: TABLESPACE, DIRECTORY, CONTEXT, CLUSTER, DIMENSION,
 // FLASHBACK ARCHIVE, JAVA, LIBRARY
-func (p *Parser) parseAdminDDLStmt(action string, objType nodes.ObjectType, start int) (nodes.StmtNode, error) {
+func (p *Parser) parseAdminDDLWithOptions(action string, objType nodes.ObjectType, start int) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     action,
 		ObjectType: objType,
@@ -52,15 +54,20 @@ func (p *Parser) parseAdminDDLStmt(action string, objType nodes.ObjectType, star
 	var parseErr197 error
 
 	stmt.Name, parseErr197 = p.parseObjectName()
-	if parseErr197 !=
-
-		// Skip remaining tokens until ;/EOF
-		nil {
+	if parseErr197 != nil {
 		return nil, parseErr197
 	}
 
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		p.advance()
+	if p.cur.Type != ';' && p.cur.Type != tokEOF {
+		optStart := p.pos()
+		tokens := p.collectDDLTokensUntil(func() bool { return false })
+		if len(tokens) > 0 {
+			stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.DDLOption{
+				Key:   "OPTIONS",
+				Value: strings.Join(tokens, " "),
+				Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
+			}}}
+		}
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -121,9 +128,7 @@ func (p *Parser) parseCreateSchemaStmt(start int) (*nodes.CreateSchemaStmt, erro
 				}
 				stmt.Stmts.Items = append(stmt.Stmts.Items, parseValue7)
 			default:
-
-				p.skipToSemicolon()
-				goto done
+				return nil, p.syntaxErrorAtCur()
 			}
 		case kwGRANT:
 			parseValue9, parseErr10 := p.parseGrantStmt()
@@ -361,7 +366,7 @@ func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 		return stmt, nil
 	case kwROLE:
 		p.advance()
-		return p.parseAdminDDLStmt("DROP", nodes.OBJECT_ROLE, start)
+		return p.parseAdminDDLWithOptions("DROP", nodes.OBJECT_ROLE, start)
 	case kwPROFILE:
 		p.advance()
 		stmt := &nodes.AdminDDLStmt{
@@ -1436,22 +1441,26 @@ func (p *Parser) parseAlterTablespaceStmt(start int, isSet bool) (*nodes.AlterTa
 		case p.isIdentLike() && p.cur.Str == "ENCRYPTION":
 			p.advance() // ENCRYPTION
 			// ALTER has ONLINE/OFFLINE/FINISH sub-clauses
-			enc := "ENCRYPTION"
+			encParts := []string{"ENCRYPTION"}
 			if p.isIdentLike() && p.cur.Str == "ONLINE" {
+				encParts = append(encParts, p.cur.Str)
 				p.advance()
-				enc = "ONLINE"
 			} else if p.cur.Type == kwOFFLINE {
+				encParts = append(encParts, p.cur.Str)
 				p.advance()
-				enc = "OFFLINE"
 			} else if p.isIdentLike() && p.cur.Str == "FINISH" {
+				encParts = append(encParts, p.cur.Str)
 				p.advance()
-				enc = "FINISH"
 			}
-			// Skip remaining encryption sub-clause tokens
 			for p.cur.Type != ';' && p.cur.Type != tokEOF && !p.isAlterTablespaceClauseStart() {
+				if p.cur.Str != "" {
+					encParts = append(encParts, p.cur.Str)
+				} else if p.cur.Type == '=' || p.cur.Type == ',' {
+					encParts = append(encParts, string(rune(p.cur.Type)))
+				}
 				p.advance()
 			}
-			stmt.Encryption = enc
+			stmt.Encryption = strings.Join(encParts, " ")
 
 		case p.isIdentLike() && (p.cur.Str == "ENABLE" || p.cur.Str == "DISABLE" || p.cur.Str == "SUSPEND" || p.cur.Str == "REMOVE"):
 			var parseErr221 error
@@ -4526,7 +4535,7 @@ func (p *Parser) parseCreateDomainStmt(start int, orReplace, usecase bool) (*nod
 	}
 	var parseErr321 error
 
-	stmt.Name, parseErr321 = p.parseObjectName()
+	stmt.Name, parseErr321 = p.parseRequiredObjectName()
 	if parseErr321 !=
 
 		// AS
@@ -5709,10 +5718,14 @@ func (p *Parser) parseCreateLockdownProfileStmt(start int) (*nodes.CreateLockdow
 	}
 
 	// profile_name
-	if p.isIdentLike() || p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
-		stmt.Name = p.cur.Str
-		p.advance()
+	if p.cur.Type != tokQIDENT && (isOracleSQLReservedKeyword(p.cur) || isOracleClauseStarterKeyword(p.cur.Type)) {
+		return nil, p.syntaxErrorAtCur()
 	}
+	if !p.isIdentLike() && p.cur.Type != tokIDENT && p.cur.Type != tokQIDENT {
+		return nil, p.syntaxErrorAtCur()
+	}
+	stmt.Name = p.cur.Str
+	p.advance()
 
 	// USING base_profile_name
 	if p.isIdentLikeStr("USING") {
@@ -6725,8 +6738,9 @@ func (p *Parser) parseCreatePfileStmt(start int) (nodes.StmtNode, error) {
 		p.advance()
 	}
 
-	// FROM
+	seenFrom := false
 	if p.cur.Type == kwFROM {
+		seenFrom = true
 		p.advance()
 	}
 
@@ -6748,6 +6762,8 @@ func (p *Parser) parseCreatePfileStmt(start int) (nodes.StmtNode, error) {
 	} else if p.isIdentLike() && p.cur.Str == "MEMORY" {
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "FROM", Value: "MEMORY"})
 		p.advance()
+	} else if seenFrom {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if len(opts.Items) > 0 {
@@ -7394,7 +7410,7 @@ func (p *Parser) parseCreateLogicalPartitionTrackingStmt(start int) (nodes.StmtN
 		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "PARTITIONS"})
 	}
 
-	// Skip remaining
+	// Preserve any remaining option tokens.
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		p.advance()
 	}

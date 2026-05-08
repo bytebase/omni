@@ -19,3 +19,16 @@ ref_017	ddl	reject	CREATE INDEX idx ON	missing index target table
 ref_018	plsql	accept	BEGIN NULL; END;	basic PL/SQL block
 ref_019	plsql	reject	BEGIN NULL;	missing PL/SQL END
 ref_020	keyword	reject	CREATE TABLE SELECT (a NUMBER)	reserved keyword identifier
+ref_021	admin	unsafe	CREATE USER omni_user_{run} IDENTIFIED BY "Temp#12345"	valid admin DDL requires privileges and may create catalog state
+ref_022	admin	reject	CREATE USER IDENTIFIED BY "Temp#12345"	missing user name
+ref_023	alter_table	unsafe	ALTER TABLE omni_ref_{run} ADD (b NUMBER)	valid ALTER TABLE depends on table existence
+ref_024	alter_table	reject	ALTER TABLE ADD (b NUMBER)	missing table name
+ref_025	create_table_p2	unsafe	CREATE TABLE omni_ct_{run} (a NUMBER) INMEMORY	valid CREATE TABLE may create catalog state
+ref_026	create_table_p2	reject	CREATE TABLE omni_bad_ct_{run} (a NUMBER) LOB STORE AS secure_lob	LOB clause missing required column list
+ref_027	create_index_p2	unsafe	CREATE INDEX omni_idx_p2_{run} ON omni_ref_{run}(a) LOCAL	valid CREATE INDEX depends on table existence
+ref_028	create_index_p2	reject	CREATE INDEX omni_bad_idx_{run} ON omni_ref_{run}(a) STORAGE INITIAL 1M	STORAGE clause missing parentheses
+ref_029	plsql_body	unsafe	CREATE TYPE omni_obj_{run} AS OBJECT (MEMBER FUNCTION f RETURN NUMBER);	valid CREATE TYPE may create catalog state
+ref_030	plsql_body	reject	CREATE TYPE BODY omni_obj_{run} AS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END;	type body missing required END object body
+ref_031	modern	unsafe	CREATE DOMAIN omni_domain_{run} AS NUMBER	valid modern DDL is version dependent and may create catalog state
+ref_032	modern	reject	CREATE DOMAIN AS NUMBER	missing domain name
+ref_033	keyword	reject	CREATE ANALYTIC VIEW USING sales_fact	clause keyword cannot stand in for required object name

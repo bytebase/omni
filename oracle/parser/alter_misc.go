@@ -81,9 +81,7 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 		if p.cur.Type == kwSYNONYM {
 			return p.parseAlterSynonymStmt(start, true)
 		}
-		// Unknown ALTER PUBLIC target
-		p.skipToSemicolon()
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	case kwAUDIT:
 		// ALTER AUDIT POLICY
 		p.advance() // consume AUDIT
@@ -120,8 +118,7 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 		if adminStmt != nil {
 			return adminStmt, nil
 		}
-		p.skipToSemicolon()
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	default:
 		if p.isIdentLike() {
 			// ALTER SHARED [PUBLIC] DATABASE LINK
@@ -138,9 +135,7 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 				if p.cur.Type == kwSYNONYM {
 					return p.parseAlterSynonymStmt(start, isPublic)
 				}
-				// Unknown ALTER SHARED target
-				p.skipToSemicolon()
-				return nil, nil
+				return nil, p.syntaxErrorAtCur()
 			}
 			// ALTER USECASE DOMAIN
 			if p.cur.Str == "USECASE" {
@@ -159,9 +154,7 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 				return adminStmt, nil
 			}
 		}
-		// Unknown ALTER target — skip to semicolon or EOF.
-		p.skipToSemicolon()
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -801,7 +794,7 @@ func (p *Parser) parseAlterSystemStmt(start int) (nodes.StmtNode, error) {
 
 	default:
 		// All BNF branches are covered above; this handles truly unrecognized tokens.
-		p.skipToSemicolon()
+		p.consumeToStatementBoundary()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -1500,7 +1493,7 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) (nodes.StmtNode, erro
 		stmt.Action = "INMEMORY"
 		p.advance()
 		parseErr37 :=
-			// skip remaining in-memory attributes
+			// preserve in-memory attributes through the generic option tail.
 			p.parseAlterMViewInMemoryAttrs()
 		if parseErr37 != nil {
 			return nil, parseErr37
@@ -1624,7 +1617,7 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) (nodes.StmtNode, erro
 
 	default:
 		// Fallback for truly unrecognized clauses
-		p.skipToSemicolon()
+		p.consumeToStatementBoundary()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -1807,44 +1800,6 @@ func (p *Parser) parseAlterMViewInMemoryAttrs() error {
 		}
 	}
 	return nil
-}
-
-// parseAlterGeneric parses ALTER INDEX/VIEW/SEQUENCE/TABLE by consuming the
-// object name and skipping the rest (simplified). Returns an AlterSessionStmt
-// as a placeholder — in practice these would have their own AST types, but for
-// now we skip the body to avoid blocking other work.
-func (p *Parser) parseAlterGeneric(start int, objType nodes.ObjectType) (nodes.StmtNode, error) {
-	p.advance() // consume INDEX/VIEW/SEQUENCE/etc.
-
-	// For MATERIALIZED VIEW, consume VIEW too
-	if objType == nodes.OBJECT_MATERIALIZED_VIEW && p.cur.Type == kwVIEW {
-		p.advance()
-	}
-	// For DATABASE LINK, consume LINK too
-	if objType == nodes.OBJECT_DATABASE_LINK && p.cur.Type == kwLINK {
-		p.advance()
-	}
-
-	stmt := &nodes.AdminDDLStmt{
-		Action:     "ALTER",
-		ObjectType: objType,
-		Loc:        nodes.Loc{Start: start},
-	}
-	var parseErr51 error
-
-	// Parse the object name.
-	stmt.Name, parseErr51 = p.parseObjectName()
-	if parseErr51 !=
-
-		// Skip remainder of the statement (clauses vary greatly by object type).
-		nil {
-		return nil, parseErr51
-	}
-
-	p.skipToSemicolon()
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
 }
 
 // parseAlterDatabaseLinkStmt parses an ALTER DATABASE LINK statement.
@@ -2335,7 +2290,7 @@ func (p *Parser) parseAlterIndexStmt(start int) (nodes.StmtNode, error) {
 		if p.isIdentLikeStr("EXTENT") {
 			p.advance() // consume EXTENT
 		}
-		p.skipParenthesizedBlock()
+		p.collectParenthesizedBlock()
 
 	case p.isIdentLikeStr("PARAMETERS"):
 		stmt.Action = "PARAMETERS"
@@ -2442,7 +2397,7 @@ func (p *Parser) parseAlterIndexStmt(start int) (nodes.StmtNode, error) {
 	case p.isIdentLikeStr("STORAGE"):
 		stmt.Action = "PHYSICAL_ATTRIBUTES"
 		p.advance()
-		p.skipParenthesizedBlock()
+		p.collectParenthesizedBlock()
 
 	case p.cur.Type == kwMODIFY:
 		p.advance() // consume MODIFY
@@ -2463,7 +2418,7 @@ func (p *Parser) parseAlterIndexStmt(start int) (nodes.StmtNode, error) {
 				stmt.ModifyDefaultFor, parseErr68 = p.parseIdentifier()
 				if parseErr68 !=
 
-					// Skip remaining options (physical_attributes, TABLESPACE, logging)
+					// Remaining options are consumed by parseAlterIndexPhysicalAttrs below.
 					nil {
 					return nil, parseErr68
 				}
@@ -2480,7 +2435,7 @@ func (p *Parser) parseAlterIndexStmt(start int) (nodes.StmtNode, error) {
 			parseErr70 error
 			stmt.Partition, parseErr70 = p.parseIdentifier()
 			if parseErr70 !=
-				// Sub-actions: skip remaining tokens
+				// Sub-actions are consumed below and retained in explicit fields where available.
 				nil {
 				return nil, parseErr70
 			}
@@ -2541,7 +2496,7 @@ func (p *Parser) parseAlterIndexStmt(start int) (nodes.StmtNode, error) {
 					if p.isIdentLikeStr("EXTENT") {
 						p.advance()
 					}
-					p.skipParenthesizedBlock()
+					p.collectParenthesizedBlock()
 				case p.cur.Type == kwPCTFREE:
 					stmt.ModifyPartAction = "PHYSICAL"
 					p.advance()
@@ -2596,7 +2551,7 @@ func (p *Parser) parseAlterIndexStmt(start int) (nodes.StmtNode, error) {
 				if p.isIdentLikeStr("EXTENT") {
 					p.advance()
 				}
-				p.skipParenthesizedBlock()
+				p.collectParenthesizedBlock()
 			} else if p.isIdentLikeStr("DEALLOCATE") {
 				stmt.ModifyPartAction = "DEALLOCATE"
 				p.advance()
@@ -2725,7 +2680,7 @@ func (p *Parser) parseAlterIndexStmt(start int) (nodes.StmtNode, error) {
 		// Optional INTO ( ... ) and parallel_clause - skip
 		if p.cur.Type == kwINTO {
 			p.advance()
-			p.skipParenthesizedBlock()
+			p.collectParenthesizedBlock()
 		}
 		if p.cur.Type == kwPARALLEL {
 			p.advance()
@@ -2741,7 +2696,7 @@ func (p *Parser) parseAlterIndexStmt(start int) (nodes.StmtNode, error) {
 	case p.isIdentLikeStr("ANNOTATIONS"):
 		stmt.Action = "ANNOTATIONS"
 		p.advance()
-		p.skipParenthesizedBlock()
+		p.collectParenthesizedBlock()
 
 	default:
 		// Consume remaining tokens for unknown actions
@@ -2786,7 +2741,7 @@ func (p *Parser) parseAlterIndexPhysicalAttrs(stmt *nodes.AlterIndexStmt) error 
 			}
 		case p.isIdentLikeStr("STORAGE"):
 			p.advance()
-			p.skipParenthesizedBlock()
+			p.collectParenthesizedBlock()
 		case p.cur.Type == kwTABLESPACE:
 			p.advance()
 			var parseErr79 error
@@ -2899,7 +2854,7 @@ func (p *Parser) parseAlterViewStmt(start int) (nodes.StmtNode, error) {
 				p.advance()
 			}
 		} else {
-			// skip unrecognized MODIFY clause
+			// Consume unsupported MODIFY variants as a generic ALTER VIEW action.
 			for p.cur.Type != ';' && p.cur.Type != tokEOF {
 				p.advance()
 			}
@@ -2915,7 +2870,7 @@ func (p *Parser) parseAlterViewStmt(start int) (nodes.StmtNode, error) {
 			stmt.ConstraintName, parseErr83 = p.parseIdentifier()
 			if parseErr83 != nil {
 
-				// skip unrecognized DROP clause
+				// Unsupported DROP variants are consumed as a generic ALTER VIEW action.
 				return nil, parseErr83
 			}
 		} else {
@@ -2968,7 +2923,7 @@ func (p *Parser) parseAlterViewStmt(start int) (nodes.StmtNode, error) {
 		p.advance()
 
 	default:
-		p.skipToSemicolon()
+		p.consumeToStatementBoundary()
 	}
 
 	// Skip optional trailing clauses (DISABLE NOVALIDATE on constraints, etc.)
@@ -4147,9 +4102,9 @@ func (p *Parser) parseAlterTypeReplaceClause(stmt *nodes.AlterTypeStmt) error {
 	return nil
 }
 
-// skipToSemicolon advances until a semicolon or EOF is found.
+// consumeToStatementBoundary advances until a semicolon or EOF is found.
 // It does NOT consume the semicolon.
-func (p *Parser) skipToSemicolon() {
+func (p *Parser) consumeToStatementBoundary() {
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		p.advance()
 	}

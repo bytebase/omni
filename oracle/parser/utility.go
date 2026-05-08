@@ -231,6 +231,8 @@ func (p *Parser) parseRenameStmt() (nodes.StmtNode, error) {
 
 	if p.cur.Type == kwTO {
 		p.advance()
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 	var parseErr1157 error
 
@@ -837,10 +839,14 @@ func (p *Parser) parseFlashbackDatabaseStmt() (nodes.StmtNode, error) {
 			if p.isIdentLike() {
 				stmt.ToRestorePoint = p.cur.Str
 				p.advance()
+			} else {
+				return nil, p.syntaxErrorAtCur()
 			}
 		} else if p.isIdentLike() && p.cur.Str == "RESETLOGS" {
 			stmt.ToResetlogs = true
 			p.advance()
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 

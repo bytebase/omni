@@ -6,4 +6,4 @@ bnf_rows_classified	171	every BNF file must have a classified manifest row
 bnf_rows_unknown	0	unknown coverage status is not allowed
 loc_node_fixture_rows	80	direct Loc fixture floor for parser-produced nodes
 loc_node_rows_unknown	0	unknown Loc-bearing node status is not allowed once the Loc manifest exists
-reference_oracle_rows	20	optional reference harness manifest floor
+reference_oracle_rows	33	optional reference harness manifest floor
