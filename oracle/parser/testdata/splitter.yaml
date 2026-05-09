@@ -1,0 +1,508 @@
+- description: empty input
+  input: ""
+  statements: []
+- description: whitespace only
+  input: " \t\n  "
+  statements: []
+- description: comment only
+  input: "-- only comment\n/* block */"
+  statements: []
+- description: single select with semicolon
+  input: "SELECT 1 FROM dual;"
+  parse: true
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: single select without semicolon
+  input: "SELECT 1 FROM dual"
+  parse: true
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: two selects with semicolons
+  input: "SELECT 1 FROM dual; SELECT 2 FROM dual;"
+  parse: true
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: " SELECT 2 FROM dual"
+- description: mixed terminated and unterminated
+  input: "SELECT 1 FROM dual; SELECT 2 FROM dual"
+  parse: true
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: " SELECT 2 FROM dual"
+- description: consecutive semicolons filtered
+  input: ";;SELECT 1 FROM dual;;;SELECT 2 FROM dual;;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: "SELECT 2 FROM dual"
+- description: leading whitespace preserved
+  input: "\n  SELECT 1 FROM dual;"
+  parse: true
+  statements:
+    - text: "\n  SELECT 1 FROM dual"
+- description: interstatement whitespace attaches to next
+  input: "SELECT 1 FROM dual;\n\n  SELECT 2 FROM dual;"
+  parse: true
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: "\n\n  SELECT 2 FROM dual"
+- description: trailing whitespace final segment
+  input: "SELECT 1 FROM dual \n "
+  statements:
+    - text: "SELECT 1 FROM dual \n "
+- description: crlf ordinary statements
+  input: "SELECT 1 FROM dual;\r\nSELECT 2 FROM dual;\r\n"
+  parse: true
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: "\r\nSELECT 2 FROM dual"
+- description: utf8 comment between statements
+  input: "SELECT 1 FROM dual; -- 日本語\nSELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: " -- 日本語\nSELECT 2 FROM dual"
+- description: division expression
+  input: "SELECT 10 / 2 FROM dual; SELECT 3 FROM dual;"
+  statements:
+    - text: "SELECT 10 / 2 FROM dual"
+    - text: " SELECT 3 FROM dual"
+- description: schema and dblink qualified names
+  input: "SELECT owner.table_name FROM sys.dual@remote; SELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT owner.table_name FROM sys.dual@remote"
+    - text: " SELECT 1 FROM dual"
+- description: semicolon in single quoted literal
+  input: "SELECT 'a;b' FROM dual; SELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT 'a;b' FROM dual"
+    - text: " SELECT 1 FROM dual"
+- description: slash in single quoted literal
+  input: "SELECT '/' FROM dual; SELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT '/' FROM dual"
+    - text: " SELECT 1 FROM dual"
+- description: doubled quote literal
+  input: "SELECT 'it''s;ok' FROM dual; SELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT 'it''s;ok' FROM dual"
+    - text: " SELECT 1 FROM dual"
+- description: national character literal
+  input: "SELECT N'a;b' FROM dual; SELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT N'a;b' FROM dual"
+    - text: " SELECT 1 FROM dual"
+- description: q quote square
+  input: "SELECT q'[a;b/]' FROM dual; SELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT q'[a;b/]' FROM dual"
+    - text: " SELECT 1 FROM dual"
+- description: q quote brace
+  input: "SELECT q'{a;b/}' FROM dual; SELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT q'{a;b/}' FROM dual"
+    - text: " SELECT 1 FROM dual"
+- description: q quote paren
+  input: "SELECT q'(a;b/)' FROM dual; SELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT q'(a;b/)' FROM dual"
+    - text: " SELECT 1 FROM dual"
+- description: q quote angle
+  input: "SELECT q'<a;b/>' FROM dual; SELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT q'<a;b/>' FROM dual"
+    - text: " SELECT 1 FROM dual"
+- description: q quote custom delimiter
+  input: "SELECT q'!a;b/!' FROM dual; SELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT q'!a;b/!' FROM dual"
+    - text: " SELECT 1 FROM dual"
+- description: semicolon in quoted identifier
+  input: "SELECT \"a;b\" FROM dual; SELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT \"a;b\" FROM dual"
+    - text: " SELECT 1 FROM dual"
+- description: slash in quoted identifier
+  input: "SELECT \"/\" FROM dual; SELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT \"/\" FROM dual"
+    - text: " SELECT 1 FROM dual"
+- description: line comment with semicolon
+  input: "SELECT 1 FROM dual; -- ; ;\nSELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: " -- ; ;\nSELECT 2 FROM dual"
+- description: line comment with slash marker
+  input: "SELECT 1 FROM dual; --\n-- /\nSELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: " --\n-- /\nSELECT 2 FROM dual"
+- description: block comment with semicolon
+  input: "SELECT 1 /* ; */ FROM dual; SELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 1 /* ; */ FROM dual"
+    - text: " SELECT 2 FROM dual"
+- description: block comment with slash line
+  input: "SELECT 1 FROM dual; /*\n/\n*/ SELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: " /*\n/\n*/ SELECT 2 FROM dual"
+- description: nested block comment
+  input: "SELECT 1 /* outer /* inner ; */ still */ FROM dual; SELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 1 /* outer /* inner ; */ still */ FROM dual"
+    - text: " SELECT 2 FROM dual"
+- description: hint with semicolon
+  input: "SELECT /*+ INDEX(t idx;name) */ * FROM t; SELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT /*+ INDEX(t idx;name) */ * FROM t"
+    - text: " SELECT 1 FROM dual"
+- description: slash delimiter simple
+  input: "SELECT 1 FROM dual\n/\nSELECT 2 FROM dual\n/"
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: "\nSELECT 2 FROM dual"
+- description: slash delimiter with spaces
+  input: "SELECT 1 FROM dual\n  /  \nSELECT 2 FROM dual"
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: "\nSELECT 2 FROM dual"
+- description: slash delimiter at eof
+  input: "SELECT 1 FROM dual\n/"
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: slash followed by text is not delimiter
+  input: "SELECT 1 FROM dual\n/not_a_command\nSELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual\n/not_a_command\nSELECT 2 FROM dual"
+- description: slash preceded by text is not delimiter
+  input: "SELECT 1 FROM dual / \nSELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual / \nSELECT 2 FROM dual"
+- description: run flushes buffer
+  input: "SELECT 1 FROM dual\nRUN\nSELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: "\nSELECT 2 FROM dual"
+- description: r flushes buffer
+  input: "SELECT 1 FROM dual\nR\nSELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: "\nSELECT 2 FROM dual"
+- description: multiple slash commands filtered
+  input: "/\n/\nSELECT 1 FROM dual\n/\n/"
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: anonymous begin end block
+  input: "BEGIN NULL; END;\n/\nSELECT 1 FROM dual;"
+  parse: true
+  statements:
+    - text: "BEGIN NULL; END;"
+    - text: "\nSELECT 1 FROM dual"
+- description: declare block
+  input: |-
+    DECLARE
+      v NUMBER := 1;
+    BEGIN
+      NULL;
+    END;
+    /
+  statements:
+    - text: |-
+        DECLARE
+          v NUMBER := 1;
+        BEGIN
+          NULL;
+        END;
+- description: labeled block
+  input: |-
+    <<outer>>
+    BEGIN
+      NULL;
+    END outer;
+    /
+  statements:
+    - text: |-
+        <<outer>>
+        BEGIN
+          NULL;
+        END outer;
+- description: nested anonymous block
+  input: |-
+    BEGIN
+      BEGIN
+        NULL;
+      END;
+      NULL;
+    END;
+    /
+  statements:
+    - text: |-
+        BEGIN
+          BEGIN
+            NULL;
+          END;
+          NULL;
+        END;
+- description: exception block
+  input: |-
+    BEGIN
+      NULL;
+    EXCEPTION
+      WHEN OTHERS THEN
+        NULL;
+    END;
+    /
+  statements:
+    - text: |-
+        BEGIN
+          NULL;
+        EXCEPTION
+          WHEN OTHERS THEN
+            NULL;
+        END;
+- description: if block
+  input: "BEGIN IF 1 = 1 THEN NULL; ELSE NULL; END IF; END;\n/"
+  statements:
+    - text: "BEGIN IF 1 = 1 THEN NULL; ELSE NULL; END IF; END;"
+- description: case statement block
+  input: "BEGIN CASE WHEN 1 = 1 THEN NULL; ELSE NULL; END CASE; END;\n/"
+  statements:
+    - text: "BEGIN CASE WHEN 1 = 1 THEN NULL; ELSE NULL; END CASE; END;"
+- description: basic loop block
+  input: "BEGIN LOOP NULL; EXIT; END LOOP; END;\n/"
+  statements:
+    - text: "BEGIN LOOP NULL; EXIT; END LOOP; END;"
+- description: while loop block
+  input: "BEGIN WHILE 1 = 1 LOOP NULL; EXIT; END LOOP; END;\n/"
+  statements:
+    - text: "BEGIN WHILE 1 = 1 LOOP NULL; EXIT; END LOOP; END;"
+- description: for loop block
+  input: "BEGIN FOR i IN 1..3 LOOP NULL; END LOOP; END;\n/"
+  statements:
+    - text: "BEGIN FOR i IN 1..3 LOOP NULL; END LOOP; END;"
+- description: forall block
+  input: "BEGIN FORALL i IN 1..3 INSERT INTO t VALUES (i); END;\n/"
+  statements:
+    - text: "BEGIN FORALL i IN 1..3 INSERT INTO t VALUES (i); END;"
+- description: execute immediate semicolon string
+  input: "BEGIN EXECUTE IMMEDIATE 'SELECT 1; SELECT 2'; END;\n/"
+  statements:
+    - text: "BEGIN EXECUTE IMMEDIATE 'SELECT 1; SELECT 2'; END;"
+- description: create procedure
+  input: "CREATE PROCEDURE p IS BEGIN NULL; END;\n/\nSELECT 1 FROM dual;"
+  statements:
+    - text: "CREATE PROCEDURE p IS BEGIN NULL; END;"
+    - text: "\nSELECT 1 FROM dual"
+- description: create or replace procedure
+  input: "CREATE OR REPLACE PROCEDURE p IS BEGIN NULL; END;\n/"
+  statements:
+    - text: "CREATE OR REPLACE PROCEDURE p IS BEGIN NULL; END;"
+- description: create editionable procedure
+  input: "CREATE EDITIONABLE PROCEDURE p IS BEGIN NULL; END;\n/"
+  statements:
+    - text: "CREATE EDITIONABLE PROCEDURE p IS BEGIN NULL; END;"
+- description: create noneditionable procedure
+  input: "CREATE NONEDITIONABLE PROCEDURE p IS BEGIN NULL; END;\n/"
+  statements:
+    - text: "CREATE NONEDITIONABLE PROCEDURE p IS BEGIN NULL; END;"
+- description: create function
+  input: "CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END;\n/"
+  statements:
+    - text: "CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END;"
+- description: create function division
+  input: "CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 10 / 2; END;\n/"
+  statements:
+    - text: "CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 10 / 2; END;"
+- description: package spec
+  input: |-
+    CREATE PACKAGE pkg IS
+      PROCEDURE p;
+      FUNCTION f RETURN NUMBER;
+    END pkg;
+    /
+  statements:
+    - text: |-
+        CREATE PACKAGE pkg IS
+          PROCEDURE p;
+          FUNCTION f RETURN NUMBER;
+        END pkg;
+- description: package body with nested procedure and function
+  input: |-
+    CREATE PACKAGE BODY pkg IS
+      PROCEDURE p IS
+      BEGIN
+        NULL;
+      END;
+      FUNCTION f RETURN NUMBER IS
+      BEGIN
+        RETURN 1;
+      END;
+    END pkg;
+    /
+  statements:
+    - text: |-
+        CREATE PACKAGE BODY pkg IS
+          PROCEDURE p IS
+          BEGIN
+            NULL;
+          END;
+          FUNCTION f RETURN NUMBER IS
+          BEGIN
+            RETURN 1;
+          END;
+        END pkg;
+- description: simple trigger
+  input: |-
+    CREATE TRIGGER trg BEFORE INSERT ON t
+    BEGIN
+      NULL;
+    END;
+    /
+    SELECT 1 FROM dual;
+  statements:
+    - text: |-
+        CREATE TRIGGER trg BEFORE INSERT ON t
+        BEGIN
+          NULL;
+        END;
+    - text: "\nSELECT 1 FROM dual"
+- description: compound trigger
+  input: |-
+    CREATE TRIGGER trg
+    FOR INSERT ON t
+    COMPOUND TRIGGER
+      BEFORE EACH ROW IS
+      BEGIN
+        NULL;
+      END BEFORE EACH ROW;
+    END trg;
+    /
+  statements:
+    - text: |-
+        CREATE TRIGGER trg
+        FOR INSERT ON t
+        COMPOUND TRIGGER
+          BEFORE EACH ROW IS
+          BEGIN
+            NULL;
+          END BEFORE EACH ROW;
+        END trg;
+- description: type body member function
+  input: |-
+    CREATE TYPE BODY typ AS
+      MEMBER FUNCTION f RETURN NUMBER IS
+      BEGIN
+        RETURN 1;
+      END;
+    END;
+    /
+  statements:
+    - text: |-
+        CREATE TYPE BODY typ AS
+          MEMBER FUNCTION f RETURN NUMBER IS
+          BEGIN
+            RETURN 1;
+          END;
+        END;
+- description: set and prompt skipped
+  input: "SET DEFINE OFF\nPROMPT hello; world\nSELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: spool skipped between statements
+  input: "SELECT 1 FROM dual;\nSPOOL out.log\nSELECT 2 FROM dual;\nSPOOL OFF\nSELECT 3 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: "SELECT 2 FROM dual"
+    - text: "SELECT 3 FROM dual"
+- description: show and column skipped
+  input: "SHOW USER\nCOLUMN c FORMAT A20\nSELECT 1 c FROM dual;"
+  statements:
+    - text: "SELECT 1 c FROM dual"
+- description: break compute titles skipped
+  input: "BREAK ON report\nCOMPUTE SUM OF sal ON report\nTTITLE left 'T'\nBTITLE off\nSELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: define accept variable print skipped
+  input: "DEFINE x = 1\nACCEPT y PROMPT 'Y: '\nVARIABLE rc NUMBER\nPRINT rc\nSELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: execute command skipped
+  input: "EXECUTE dbms_output.put_line('hi')\nSELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: connect disconnect skipped
+  input: "CONNECT scott/tiger@db\nDISCONNECT\nSELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: exit quit skipped
+  input: "SELECT 1 FROM dual;\nEXIT SUCCESS\nQUIT"
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: whenever skipped
+  input: "WHENEVER SQLERROR EXIT SQL.SQLCODE ROLLBACK\nWHENEVER OSERROR EXIT FAILURE\nSELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: script invocation skipped
+  input: "@pre.sql\n@@nested.sql arg\nSTART post.sql\nSELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: rem remark skipped
+  input: "REM comment ;\nREMARK comment /\nSELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: host bang skipped
+  input: "HOST echo hi\n! echo hi\nSELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: buffer commands skipped
+  input: "LIST\nAPPEND text\nCHANGE /a/b/\nDEL 1\nINPUT x\nSAVE file.sql\nGET file.sql\nEDIT\nSELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: sqlplus command words in SQL not skipped
+  input: "SELECT prompt, set_value FROM t; SELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT prompt, set_value FROM t"
+    - text: " SELECT 1 FROM dual"
+- description: sqlplus command words in plsql not skipped
+  input: "BEGIN prompt := 'x'; set_value := 1; NULL; END;\n/\nSELECT 1 FROM dual;"
+  statements:
+    - text: "BEGIN prompt := 'x'; set_value := 1; NULL; END;"
+    - text: "\nSELECT 1 FROM dual"
+- description: config history oerr ping xquery skipped
+  input: "CONFIG\nHISTORY\nOERR ORA 1\nPING db\nXQUERY 1\nSELECT 1 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+- description: unterminated single quote soft fail
+  input: "SELECT 'abc; SELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 'abc; SELECT 2 FROM dual;"
+- description: unterminated q quote soft fail
+  input: "SELECT q'[abc; SELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT q'[abc; SELECT 2 FROM dual;"
+- description: unterminated quoted identifier soft fail
+  input: "SELECT \"abc; SELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT \"abc; SELECT 2 FROM dual;"
+- description: unterminated block comment soft fail
+  input: "SELECT 1 /* comment ; SELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 1 /* comment ; SELECT 2 FROM dual;"
+- description: missing plsql end soft fail
+  input: "BEGIN NULL; SELECT 1 FROM dual;"
+  statements:
+    - text: "BEGIN NULL; SELECT 1 FROM dual;"
+- description: truncated create procedure soft fail
+  input: "CREATE PROCEDURE p IS BEGIN NULL;"
+  statements:
+    - text: "CREATE PROCEDURE p IS BEGIN NULL;"
+- description: binary bytes soft fail
+  input: "SELECT 1 FROM dual;\x00\x01SELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: "\x00\x01SELECT 2 FROM dual;"
+- description: skipped commands around parseable SQL
+  input: "SET TERMOUT OFF\nSELECT 1 FROM dual;\nPROMPT done\nSELECT 2 FROM dual;"
+  parse: true
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: "SELECT 2 FROM dual"
