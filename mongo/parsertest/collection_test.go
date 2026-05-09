@@ -307,3 +307,52 @@ func TestMultipleStatements(t *testing.T) {
 		t.Errorf("statement 2: expected b.insertOne, got %s.%s", s2.Collection, s2.Method)
 	}
 }
+
+func TestTrailingCommaInArguments(t *testing.T) {
+	// Single trailing comma after the only argument — JS / mongosh accept
+	// this and gomongoFallback events show it in the wild as
+	// db.processed_files.find({...},).sort({...}).
+	node := mustParse(t, `db.users.find({name: "alice"},)`)
+	stmt := node.(*ast.CollectionStatement)
+	if stmt.Method != "find" {
+		t.Errorf("expected 'find', got %q", stmt.Method)
+	}
+	if len(stmt.Args) != 1 {
+		t.Fatalf("expected 1 arg, got %d", len(stmt.Args))
+	}
+
+	// Trailing comma after the second argument.
+	node = mustParse(t, `db.users.find({}, {name: 1},)`)
+	stmt = node.(*ast.CollectionStatement)
+	if len(stmt.Args) != 2 {
+		t.Fatalf("expected 2 args, got %d", len(stmt.Args))
+	}
+
+	// Trailing comma combined with a chained cursor method — exact shape
+	// from the gomongoFallback events.
+	node = mustParse(t, `db.processed_files.find({_id: "x"},).sort({created_at: -1})`)
+	stmt = node.(*ast.CollectionStatement)
+	if len(stmt.Args) != 1 {
+		t.Fatalf("expected 1 arg, got %d", len(stmt.Args))
+	}
+	if len(stmt.CursorMethods) != 1 || stmt.CursorMethods[0].Method != "sort" {
+		t.Errorf("expected one .sort() cursor method, got %+v", stmt.CursorMethods)
+	}
+
+	// Cursor-method argument list also tolerates a trailing comma.
+	node = mustParse(t, `db.users.find().limit(10,)`)
+	stmt = node.(*ast.CollectionStatement)
+	if len(stmt.CursorMethods) != 1 {
+		t.Fatalf("expected 1 cursor method, got %d", len(stmt.CursorMethods))
+	}
+}
+
+func TestArgumentListErrors(t *testing.T) {
+	// A bare comma (no argument before it) is still an error — we only
+	// accept ONE trailing comma after a real argument.
+	mustFail(t, `db.users.find(,)`)
+	// A leading comma is an error.
+	mustFail(t, `db.users.find(, {a: 1})`)
+	// Two commas in a row are an error.
+	mustFail(t, `db.users.find({a: 1},,)`)
+}

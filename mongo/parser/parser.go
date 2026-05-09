@@ -18,7 +18,7 @@ type Parser struct {
 
 // ParseResult holds the outcome of a best-effort parse.
 type ParseResult struct {
-	Nodes  []ast.Node   // successfully parsed statement nodes
+	Nodes  []ast.Node    // successfully parsed statement nodes
 	Errors []*ParseError // errors encountered during parsing
 }
 
@@ -190,6 +190,8 @@ func (p *Parser) expectIdent() (string, Token, error) {
 }
 
 // parseArguments parses a parenthesized argument list: ( expr, expr, ... )
+// A single trailing comma before the closing paren is allowed, matching the
+// behavior of mongosh / JavaScript (ES2017+).
 // Assumes the opening '(' has NOT been consumed yet.
 func (p *Parser) parseArguments() ([]ast.Node, error) {
 	if _, err := p.expect('('); err != nil {
@@ -215,6 +217,12 @@ func (p *Parser) parseArguments() ([]ast.Node, error) {
 		}
 		if _, err := p.expect(','); err != nil {
 			return nil, err
+		}
+		// Allow a single trailing comma before the closing paren:
+		//   db.coll.find({…},).sort(…)  → equivalent to db.coll.find({…}).sort(…)
+		if p.cur.Type == ')' {
+			p.advance()
+			return args, nil
 		}
 	}
 }
