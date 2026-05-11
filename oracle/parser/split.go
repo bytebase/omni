@@ -37,7 +37,7 @@ func (s Segment) Empty() bool {
 	return true
 }
 
-// Split splits an Oracle SQL script into executable segments. It is deliberately
+// Split splits an Oracle SQL script into source segments. It is deliberately
 // lexical and soft-fail: invalid or incomplete SQL still returns best-effort
 // statement boundaries.
 func Split(sql string) []Segment {
@@ -69,8 +69,16 @@ func Split(sql string) []Segment {
 						segments = appendSegment(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc))
 						stmtStart = lineEndBeforeBreak(sql, tok.End)
 					}
-				} else if onlyIgnorableSQLPlusPrefix(sql, stmtStart, tok.Loc) {
-					stmtStart = lineEndAfterBreak(sql, tok.End)
+				} else {
+					lineEnd := lineEndBeforeBreak(sql, tok.End)
+					nextStart := lineEndAfterBreak(sql, tok.End)
+					commandStart := stmtStart
+					if !onlyIgnorableSQLPlusPrefix(sql, stmtStart, tok.Loc) {
+						segments = appendSegment(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc))
+						commandStart = lineStartOffset(sql, tok.Loc)
+					}
+					segments = appendSegment(segments, sql, commandStart, lineEnd)
+					stmtStart = nextStart
 				}
 				lexer.pos = lineEndAfterBreak(sql, tok.End)
 				state.reset()

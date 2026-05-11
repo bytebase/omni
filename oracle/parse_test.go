@@ -48,7 +48,7 @@ func TestParseSplitScript(t *testing.T) {
 	}
 }
 
-func TestParseSkipsSQLPlusCommands(t *testing.T) {
+func TestParseReturnsErrorForSQLPlusCommands(t *testing.T) {
 	sql := "SET DEFINE OFF\n" +
 		"PROMPT setup\n" +
 		"SELECT 1 FROM dual;\n" +
@@ -56,23 +56,7 @@ func TestParseSkipsSQLPlusCommands(t *testing.T) {
 		"SELECT 2 FROM dual;\n" +
 		"EXIT SUCCESS\n"
 
-	stmts, err := Parse(sql)
-	if err != nil {
-		t.Fatalf("Parse() error = %v", err)
-	}
-	if len(stmts) != 2 {
-		t.Fatalf("got %d statements, want 2", len(stmts))
-	}
-	if stmts[0].Text != "SELECT 1 FROM dual" {
-		t.Fatalf("stmt[0].Text = %q", stmts[0].Text)
-	}
-	if stmts[0].Start != (Position{Line: 3, Column: 1}) {
-		t.Fatalf("stmt[0].Start = %+v", stmts[0].Start)
-	}
-	if stmts[1].Text != "SELECT 2 FROM dual" {
-		t.Fatalf("stmt[1].Text = %q", stmts[1].Text)
-	}
-	if stmts[1].Start != (Position{Line: 5, Column: 1}) {
-		t.Fatalf("stmt[1].Start = %+v", stmts[1].Start)
+	if _, err := Parse(sql); err == nil {
+		t.Fatal("Parse() error = nil, want SQL*Plus command parse error")
 	}
 }
