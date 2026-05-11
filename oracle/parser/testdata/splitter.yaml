@@ -403,59 +403,95 @@
             RETURN 1;
           END;
         END;
-- description: set and prompt skipped
+- description: set and prompt returned as line segments
   input: "SET DEFINE OFF\nPROMPT hello; world\nSELECT 1 FROM dual;"
   statements:
+    - text: "SET DEFINE OFF"
+    - text: "PROMPT hello; world"
     - text: "SELECT 1 FROM dual"
-- description: spool skipped between statements
+- description: spool returned as line segments between statements
   input: "SELECT 1 FROM dual;\nSPOOL out.log\nSELECT 2 FROM dual;\nSPOOL OFF\nSELECT 3 FROM dual;"
   statements:
     - text: "SELECT 1 FROM dual"
+    - text: "\nSPOOL out.log"
     - text: "SELECT 2 FROM dual"
+    - text: "\nSPOOL OFF"
     - text: "SELECT 3 FROM dual"
-- description: show and column skipped
+- description: show and column returned as line segments
   input: "SHOW USER\nCOLUMN c FORMAT A20\nSELECT 1 c FROM dual;"
   statements:
+    - text: "SHOW USER"
+    - text: "COLUMN c FORMAT A20"
     - text: "SELECT 1 c FROM dual"
-- description: break compute titles skipped
+- description: break compute titles returned as line segments
   input: "BREAK ON report\nCOMPUTE SUM OF sal ON report\nTTITLE left 'T'\nBTITLE off\nSELECT 1 FROM dual;"
   statements:
+    - text: "BREAK ON report"
+    - text: "COMPUTE SUM OF sal ON report"
+    - text: "TTITLE left 'T'"
+    - text: "BTITLE off"
     - text: "SELECT 1 FROM dual"
-- description: define accept variable print skipped
+- description: define accept variable print returned as line segments
   input: "DEFINE x = 1\nACCEPT y PROMPT 'Y: '\nVARIABLE rc NUMBER\nPRINT rc\nSELECT 1 FROM dual;"
   statements:
+    - text: "DEFINE x = 1"
+    - text: "ACCEPT y PROMPT 'Y: '"
+    - text: "VARIABLE rc NUMBER"
+    - text: "PRINT rc"
     - text: "SELECT 1 FROM dual"
-- description: execute command skipped
+- description: execute command returned as line segment
   input: "EXECUTE dbms_output.put_line('hi')\nSELECT 1 FROM dual;"
   statements:
+    - text: "EXECUTE dbms_output.put_line('hi')"
     - text: "SELECT 1 FROM dual"
-- description: connect disconnect skipped
+- description: connect disconnect returned as line segments
   input: "CONNECT scott/tiger@db\nDISCONNECT\nSELECT 1 FROM dual;"
   statements:
+    - text: "CONNECT scott/tiger@db"
+    - text: "DISCONNECT"
     - text: "SELECT 1 FROM dual"
-- description: exit quit skipped
+- description: exit quit returned as line segments
   input: "SELECT 1 FROM dual;\nEXIT SUCCESS\nQUIT"
   statements:
     - text: "SELECT 1 FROM dual"
-- description: whenever skipped
+    - text: "\nEXIT SUCCESS"
+    - text: "QUIT"
+- description: whenever returned as line segments
   input: "WHENEVER SQLERROR EXIT SQL.SQLCODE ROLLBACK\nWHENEVER OSERROR EXIT FAILURE\nSELECT 1 FROM dual;"
   statements:
+    - text: "WHENEVER SQLERROR EXIT SQL.SQLCODE ROLLBACK"
+    - text: "WHENEVER OSERROR EXIT FAILURE"
     - text: "SELECT 1 FROM dual"
-- description: script invocation skipped
+- description: script invocation returned as line segments
   input: "@pre.sql\n@@nested.sql arg\nSTART post.sql\nSELECT 1 FROM dual;"
   statements:
+    - text: "@pre.sql"
+    - text: "@@nested.sql arg"
+    - text: "START post.sql"
     - text: "SELECT 1 FROM dual"
-- description: rem remark skipped
+- description: rem remark returned as line segments
   input: "REM comment ;\nREMARK comment /\nSELECT 1 FROM dual;"
   statements:
+    - text: "REM comment ;"
+    - text: "REMARK comment /"
     - text: "SELECT 1 FROM dual"
-- description: host bang skipped
+- description: host bang returned as line segments
   input: "HOST echo hi\n! echo hi\nSELECT 1 FROM dual;"
   statements:
+    - text: "HOST echo hi"
+    - text: "! echo hi"
     - text: "SELECT 1 FROM dual"
-- description: buffer commands skipped
+- description: buffer commands returned as line segments
   input: "LIST\nAPPEND text\nCHANGE /a/b/\nDEL 1\nINPUT x\nSAVE file.sql\nGET file.sql\nEDIT\nSELECT 1 FROM dual;"
   statements:
+    - text: "LIST"
+    - text: "APPEND text"
+    - text: "CHANGE /a/b/"
+    - text: "DEL 1"
+    - text: "INPUT x"
+    - text: "SAVE file.sql"
+    - text: "GET file.sql"
+    - text: "EDIT"
     - text: "SELECT 1 FROM dual"
 - description: sqlplus command words in SQL not skipped
   input: "SELECT prompt, set_value FROM t; SELECT 1 FROM dual;"
@@ -467,9 +503,14 @@
   statements:
     - text: "BEGIN prompt := 'x'; set_value := 1; NULL; END;"
     - text: "\nSELECT 1 FROM dual"
-- description: config history oerr ping xquery skipped
+- description: config history oerr ping xquery returned as line segments
   input: "CONFIG\nHISTORY\nOERR ORA 1\nPING db\nXQUERY 1\nSELECT 1 FROM dual;"
   statements:
+    - text: "CONFIG"
+    - text: "HISTORY"
+    - text: "OERR ORA 1"
+    - text: "PING db"
+    - text: "XQUERY 1"
     - text: "SELECT 1 FROM dual"
 - description: unterminated single quote soft fail
   input: "SELECT 'abc; SELECT 2 FROM dual;"
@@ -500,9 +541,10 @@
   statements:
     - text: "SELECT 1 FROM dual"
     - text: "\x00\x01SELECT 2 FROM dual;"
-- description: skipped commands around parseable SQL
+- description: line commands around SQL are returned
   input: "SET TERMOUT OFF\nSELECT 1 FROM dual;\nPROMPT done\nSELECT 2 FROM dual;"
-  parse: true
   statements:
+    - text: "SET TERMOUT OFF"
     - text: "SELECT 1 FROM dual"
+    - text: "\nPROMPT done"
     - text: "SELECT 2 FROM dual"

@@ -11,7 +11,7 @@
 - [x] Mixed terminated and unterminated SQL statements return separate segments.
 - [x] Consecutive semicolons do not produce empty segments.
 - [x] Leading whitespace before SQL is preserved in segment text and range.
-- [x] Inter-statement whitespace is attached to the following segment unless it is a skipped SQL*Plus command.
+- [x] Inter-statement whitespace is attached to the following segment unless it is consumed as a SQL*Plus line-command delimiter.
 - [x] Trailing whitespace after the final statement is preserved in the final segment.
 - [x] CRLF line endings do not corrupt boundaries.
 - [x] UTF-8 comments do not corrupt byte ranges.
@@ -86,29 +86,29 @@
 
 ## Phase 6: SQL*Plus Line Commands
 
-- [x] `SET` command lines are skipped.
-- [x] `SHOW` command lines are skipped.
-- [x] `PROMPT` command lines are skipped.
-- [x] `SPOOL` command lines are skipped.
-- [x] `COLUMN` command lines are skipped.
-- [x] `BREAK` command lines are skipped.
-- [x] `COMPUTE` command lines are skipped.
-- [x] `TTITLE` and `BTITLE` command lines are skipped.
-- [x] `REPHEADER` and `REPFOOTER` command lines are skipped.
-- [x] `DEFINE` and `UNDEFINE` command lines are skipped.
-- [x] `ACCEPT` command lines are skipped.
-- [x] `VARIABLE` and `PRINT` command lines are skipped.
-- [x] `EXECUTE` command lines are skipped as SQL*Plus commands.
-- [x] `CONNECT` and `DISCONNECT` command lines are skipped.
-- [x] `EXIT` and `QUIT` command lines are skipped.
-- [x] `WHENEVER SQLERROR` command lines are skipped.
-- [x] `WHENEVER OSERROR` command lines are skipped.
-- [x] `@`, `@@`, and `START` script invocation lines are skipped.
-- [x] `REM` and `REMARK` command lines are skipped.
-- [x] `HOST` and `!` shell command lines are skipped.
-- [x] Buffer manipulation commands `LIST`, `APPEND`, `CHANGE`, `DEL`, `INPUT`, `SAVE`, `GET`, and `EDIT` are skipped.
-- [x] SQL*Plus command words inside SQL are not skipped.
-- [x] SQL*Plus command words inside PL/SQL are not skipped.
+- [x] `SET` command lines are returned as line segments.
+- [x] `SHOW` command lines are returned as line segments.
+- [x] `PROMPT` command lines are returned as line segments, including embedded semicolons.
+- [x] `SPOOL` command lines are returned as line segments.
+- [x] `COLUMN` command lines are returned as line segments.
+- [x] `BREAK` command lines are returned as line segments.
+- [x] `COMPUTE` command lines are returned as line segments.
+- [x] `TTITLE` and `BTITLE` command lines are returned as line segments.
+- [x] `REPHEADER` and `REPFOOTER` command lines are returned as line segments.
+- [x] `DEFINE` and `UNDEFINE` command lines are returned as line segments.
+- [x] `ACCEPT` command lines are returned as line segments.
+- [x] `VARIABLE` and `PRINT` command lines are returned as line segments.
+- [x] `EXECUTE` command lines are returned as line segments.
+- [x] `CONNECT` and `DISCONNECT` command lines are returned as line segments.
+- [x] `EXIT` and `QUIT` command lines are returned as line segments.
+- [x] `WHENEVER SQLERROR` command lines are returned as line segments.
+- [x] `WHENEVER OSERROR` command lines are returned as line segments.
+- [x] `@`, `@@`, and `START` script invocation lines are returned as line segments.
+- [x] `REM` and `REMARK` command lines are returned as line segments.
+- [x] `HOST` and `!` shell command lines are returned as line segments.
+- [x] Buffer manipulation commands `LIST`, `APPEND`, `CHANGE`, `DEL`, `INPUT`, `SAVE`, `GET`, and `EDIT` are returned as line segments.
+- [x] SQL*Plus command words inside SQL are not treated as line commands.
+- [x] SQL*Plus command words inside PL/SQL are not treated as line commands.
 
 ## Phase 7: Soft-Fail and Safety
 
@@ -121,13 +121,13 @@
 - [x] Binary-ish bytes do not panic.
 - [x] Every returned segment has a valid non-overlapping byte range.
 - [x] Every returned segment text equals `input[ByteStart:ByteEnd]`.
-- [x] Reconstructing returned ranges never includes skipped SQL*Plus command lines.
+- [x] Reconstructing returned ranges includes SQL*Plus command lines as their own segments.
 
 ## Phase 8: Facade Integration
 
 - [x] `oracle.Parse` parses splitter output from ordinary SQL scripts.
 - [x] `oracle.Parse` parses splitter output from slash-terminated PL/SQL scripts.
-- [x] `oracle.Parse` skips SQL*Plus commands before parsing.
+- [x] `oracle.Parse` returns parser errors for SQL*Plus command segments instead of silently skipping them.
 - [x] `oracle.Parse` preserves original byte offsets in AST locations.
 - [x] `oracle.Parse` reports start line and column based on the original script.
-- [x] `oracle.Parse` handles multiple statements around skipped command lines.
+- [x] `oracle.Parse` handles multiple ordinary SQL statements around slash-delimited PL/SQL blocks.

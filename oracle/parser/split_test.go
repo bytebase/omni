@@ -266,7 +266,7 @@ func TestSplitSQLPlusCommands(t *testing.T) {
 		want []string
 	}{
 		{
-			name: "environment commands are skipped",
+			name: "environment commands are returned as line segments",
 			sql: "SET DEFINE OFF\n" +
 				"SET SERVEROUTPUT ON;\n" +
 				"PROMPT creating table;\n" +
@@ -274,10 +274,18 @@ func TestSplitSQLPlusCommands(t *testing.T) {
 				"SELECT 1 FROM dual;\n" +
 				"SPOOL OFF\n" +
 				"SELECT 2 FROM dual;",
-			want: []string{"SELECT 1 FROM dual", "SELECT 2 FROM dual"},
+			want: []string{
+				"SET DEFINE OFF",
+				"SET SERVEROUTPUT ON;",
+				"PROMPT creating table;",
+				"SPOOL install.log",
+				"SELECT 1 FROM dual",
+				"\nSPOOL OFF",
+				"SELECT 2 FROM dual",
+			},
 		},
 		{
-			name: "script and session commands are skipped",
+			name: "script and session commands are returned as line segments",
 			sql: "CONNECT scott/tiger@db\n" +
 				"@preflight.sql\n" +
 				"@@nested/install.sql arg1 arg2\n" +
@@ -285,19 +293,33 @@ func TestSplitSQLPlusCommands(t *testing.T) {
 				"WHENEVER SQLERROR EXIT SQL.SQLCODE ROLLBACK\n" +
 				"SELECT 1 FROM dual;\n" +
 				"EXIT SUCCESS",
-			want: []string{"SELECT 1 FROM dual"},
+			want: []string{
+				"CONNECT scott/tiger@db",
+				"@preflight.sql",
+				"@@nested/install.sql arg1 arg2",
+				"START post.sql",
+				"WHENEVER SQLERROR EXIT SQL.SQLCODE ROLLBACK",
+				"SELECT 1 FROM dual",
+				"\nEXIT SUCCESS",
+			},
 		},
 		{
-			name: "remark and host commands are skipped",
+			name: "remark and host commands are returned as line segments",
 			sql: "REM this ; is a SQL*Plus comment\n" +
 				"REMARK this is also ignored\n" +
 				"HOST echo before\n" +
 				"! echo shell\n" +
 				"SELECT 1 FROM dual;",
-			want: []string{"SELECT 1 FROM dual"},
+			want: []string{
+				"REM this ; is a SQL*Plus comment",
+				"REMARK this is also ignored",
+				"HOST echo before",
+				"! echo shell",
+				"SELECT 1 FROM dual",
+			},
 		},
 		{
-			name: "formatting and variable commands are skipped",
+			name: "formatting and variable commands are returned as line segments",
 			sql: "COLUMN c FORMAT A20\n" +
 				"BREAK ON report\n" +
 				"COMPUTE SUM OF sal ON report\n" +
@@ -309,7 +331,19 @@ func TestSplitSQLPlusCommands(t *testing.T) {
 				"VARIABLE rc NUMBER\n" +
 				"PRINT rc\n" +
 				"SELECT 1 FROM dual;",
-			want: []string{"SELECT 1 FROM dual"},
+			want: []string{
+				"COLUMN c FORMAT A20",
+				"BREAK ON report",
+				"COMPUTE SUM OF sal ON report",
+				"TTITLE left 'Report'",
+				"BTITLE off",
+				"DEFINE schema_name = HR",
+				"UNDEFINE schema_name",
+				"ACCEPT v PROMPT 'Value: '",
+				"VARIABLE rc NUMBER",
+				"PRINT rc",
+				"SELECT 1 FROM dual",
+			},
 		},
 		{
 			name: "run flushes current SQL buffer",
