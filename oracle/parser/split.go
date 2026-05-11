@@ -6,7 +6,16 @@ type Segment struct {
 	Text      string
 	ByteStart int
 	ByteEnd   int
+	Kind      SegmentKind
 }
+
+// SegmentKind classifies the kind of source text represented by a Segment.
+type SegmentKind int
+
+const (
+	SegmentSQL SegmentKind = iota
+	SegmentSQLPlusCommand
+)
 
 // Empty returns true if the segment contains only whitespace, semicolons, and
 // comments.
@@ -77,7 +86,7 @@ func Split(sql string) []Segment {
 						segments = appendSegment(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc))
 						commandStart = lineStartOffset(sql, tok.Loc)
 					}
-					segments = appendSegment(segments, sql, commandStart, lineEnd)
+					segments = appendSegmentWithKind(segments, sql, commandStart, lineEnd, SegmentSQLPlusCommand)
 					stmtStart = nextStart
 				}
 				lexer.pos = lineEndAfterBreak(sql, tok.End)
@@ -378,6 +387,10 @@ func lineEndAfterBreak(sql string, pos int) int {
 }
 
 func appendSegment(segments []Segment, sql string, start, end int) []Segment {
+	return appendSegmentWithKind(segments, sql, start, end, SegmentSQL)
+}
+
+func appendSegmentWithKind(segments []Segment, sql string, start, end int, kind SegmentKind) []Segment {
 	if start < 0 {
 		start = 0
 	}
@@ -391,6 +404,7 @@ func appendSegment(segments []Segment, sql string, start, end int) []Segment {
 		Text:      sql[start:end],
 		ByteStart: start,
 		ByteEnd:   end,
+		Kind:      kind,
 	}
 	if seg.Empty() {
 		return segments

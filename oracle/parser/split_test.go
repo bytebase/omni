@@ -261,9 +261,10 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 
 func TestSplitSQLPlusCommands(t *testing.T) {
 	tests := []struct {
-		name string
-		sql  string
-		want []string
+		name      string
+		sql       string
+		want      []string
+		wantKinds []SegmentKind
 	}{
 		{
 			name: "environment commands are returned as line segments",
@@ -282,6 +283,15 @@ func TestSplitSQLPlusCommands(t *testing.T) {
 				"SELECT 1 FROM dual",
 				"\nSPOOL OFF",
 				"SELECT 2 FROM dual",
+			},
+			wantKinds: []SegmentKind{
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQL,
+				SegmentSQLPlusCommand,
+				SegmentSQL,
 			},
 		},
 		{
@@ -302,6 +312,15 @@ func TestSplitSQLPlusCommands(t *testing.T) {
 				"SELECT 1 FROM dual",
 				"\nEXIT SUCCESS",
 			},
+			wantKinds: []SegmentKind{
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQL,
+				SegmentSQLPlusCommand,
+			},
 		},
 		{
 			name: "remark and host commands are returned as line segments",
@@ -316,6 +335,13 @@ func TestSplitSQLPlusCommands(t *testing.T) {
 				"HOST echo before",
 				"! echo shell",
 				"SELECT 1 FROM dual",
+			},
+			wantKinds: []SegmentKind{
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQL,
 			},
 		},
 		{
@@ -343,6 +369,19 @@ func TestSplitSQLPlusCommands(t *testing.T) {
 				"VARIABLE rc NUMBER",
 				"PRINT rc",
 				"SELECT 1 FROM dual",
+			},
+			wantKinds: []SegmentKind{
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQL,
 			},
 		},
 		{
@@ -378,7 +417,34 @@ func TestSplitSQLPlusCommands(t *testing.T) {
 					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
 				}
 			}
+			if len(tt.wantKinds) > 0 {
+				segs := Split(tt.sql)
+				for i, want := range tt.wantKinds {
+					if segs[i].Kind != want {
+						t.Fatalf("segment[%d] Kind = %v for %q, want %v", i, segs[i].Kind, segs[i].Text, want)
+					}
+				}
+			}
 		})
+	}
+}
+
+func TestSplitClassifiesSQLPlusCommands(t *testing.T) {
+	sql := "SET DEFINE OFF\nSELECT 1 FROM dual;\nPROMPT done\nSELECT 2 FROM dual;"
+	got := Split(sql)
+	wantKinds := []SegmentKind{
+		SegmentSQLPlusCommand,
+		SegmentSQL,
+		SegmentSQLPlusCommand,
+		SegmentSQL,
+	}
+	if len(got) != len(wantKinds) {
+		t.Fatalf("got %d segments %q, want %d", len(got), splitTexts(got), len(wantKinds))
+	}
+	for i, want := range wantKinds {
+		if got[i].Kind != want {
+			t.Fatalf("segment[%d] Kind = %v for %q, want %v", i, got[i].Kind, got[i].Text, want)
+		}
 	}
 }
 
