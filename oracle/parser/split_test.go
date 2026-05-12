@@ -48,6 +48,14 @@ func TestSplitOrdinarySQL(t *testing.T) {
 			sql:  "SELECT 1 /* ; */ FROM dual; -- ;\nSELECT 2 FROM dual;",
 			want: []string{"SELECT 1 /* ; */ FROM dual", " -- ;\nSELECT 2 FROM dual"},
 		},
+		{
+			name: "create sequence multiline start with is not SQLPlus",
+			sql: "CREATE SEQUENCE audit_log_seq\n" +
+				"  START WITH 1000\n" +
+				"  INCREMENT BY 1\n" +
+				"  CACHE 20;",
+			want: []string{"CREATE SEQUENCE audit_log_seq\n  START WITH 1000\n  INCREMENT BY 1\n  CACHE 20"},
+		},
 	}
 
 	for _, tt := range tests {

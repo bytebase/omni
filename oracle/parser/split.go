@@ -452,6 +452,9 @@ func sqlPlusCommandAtLineStart(sql string, tok Token) (sqlPlusCommand, bool) {
 	if word == "" {
 		return sqlPlusCommand{}, false
 	}
+	if word == "START" && nextLineWordEquals(sql, tok.End, "WITH") {
+		return sqlPlusCommand{}, false
+	}
 	if isSQLPlusFlushCommand(word) {
 		return sqlPlusCommand{flush: true}, true
 	}
@@ -466,6 +469,35 @@ func splitTokenWord(tok Token) string {
 		return tok.Str
 	}
 	return ""
+}
+
+func nextLineWordEquals(sql string, pos int, want string) bool {
+	pos = skipHorizontalSpace(sql, pos)
+	if pos >= len(sql) || sql[pos] == '\n' || sql[pos] == '\r' {
+		return false
+	}
+
+	end := pos
+	for end < len(sql) {
+		c := sql[end]
+		if !((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '$' || c == '#') {
+			break
+		}
+		end++
+	}
+	if end-pos != len(want) {
+		return false
+	}
+	for i := 0; i < len(want); i++ {
+		c := sql[pos+i]
+		if c >= 'a' && c <= 'z' {
+			c -= 'a' - 'A'
+		}
+		if c != want[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func isSQLPlusFlushCommand(word string) bool {
