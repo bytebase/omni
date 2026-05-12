@@ -147,7 +147,13 @@ func (p *Parser) parseAlterIndex(alterLoc int) (nodes.Node, error) {
 		if _, err := p.expect(PARTITION); err != nil {
 			return nil, err
 		}
-		partNames, _ := p.parseQualifiedName()
+		partNames, err := p.parseQualifiedName()
+		if err != nil {
+			return nil, err
+		}
+		if !p.collectMode() && partNames == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		partRv := makeRangeVarFromAnyName(partNames)
 		cmd := &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_AttachPartition),
@@ -746,7 +752,7 @@ func (p *Parser) parseAlterTableAdd() *nodes.AlterTableCmd {
 
 	if p.isTableConstraintStart() {
 		// ADD TableConstraint
-		constr := p.parseTableConstraint()
+		constr, _ := p.parseTableConstraint()
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_AddConstraint),
 			Def:     constr,

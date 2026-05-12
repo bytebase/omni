@@ -92,7 +92,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 
 	// Apply explicit column names if provided.
 	if len(columnNames) > 0 {
-		if len(columnNames) != len(cols) {
+		if len(columnNames) > len(cols) {
 			return &Error{
 				Code:    CodeDatatypeMismatch,
 				Message: fmt.Sprintf("CREATE VIEW specifies %d column names, but query produces %d columns", len(columnNames), len(cols)),
@@ -414,5 +414,123 @@ func (c *Catalog) recordViewDepsQ(viewOID uint32, q *Query) {
 	// Recurse into CTEs.
 	for _, cte := range q.CTEList {
 		c.recordViewDepsQ(viewOID, cte.Query)
+	}
+
+	for _, te := range q.TargetList {
+		if te.ResJunk {
+			continue
+		}
+		c.recordDependencyOnExpr('r', viewOID, te.Expr, DepNormal)
+		c.recordViewVarDepsQ(viewOID, q, te.Expr)
+	}
+	if q.JoinTree != nil && q.JoinTree.Quals != nil {
+		c.recordDependencyOnExpr('r', viewOID, q.JoinTree.Quals, DepNormal)
+		c.recordViewVarDepsQ(viewOID, q, q.JoinTree.Quals)
+	}
+}
+
+func (c *Catalog) recordViewVarDepsQ(viewOID uint32, q *Query, expr AnalyzedExpr) {
+	if q == nil || expr == nil {
+		return
+	}
+	switch v := expr.(type) {
+	case *VarExpr:
+		c.recordViewVarDep(viewOID, q, v)
+	case *FuncCallExpr:
+		for _, arg := range v.Args {
+			c.recordViewVarDepsQ(viewOID, q, arg)
+		}
+	case *AggExpr:
+		for _, arg := range v.Args {
+			c.recordViewVarDepsQ(viewOID, q, arg)
+		}
+	case *OpExpr:
+		c.recordViewVarDepsQ(viewOID, q, v.Left)
+		c.recordViewVarDepsQ(viewOID, q, v.Right)
+	case *DistinctExprQ:
+		c.recordViewVarDepsQ(viewOID, q, v.Left)
+		c.recordViewVarDepsQ(viewOID, q, v.Right)
+	case *ScalarArrayOpExpr:
+		c.recordViewVarDepsQ(viewOID, q, v.Left)
+		c.recordViewVarDepsQ(viewOID, q, v.Right)
+	case *NullIfExprQ:
+		for _, arg := range v.Args {
+			c.recordViewVarDepsQ(viewOID, q, arg)
+		}
+	case *CoalesceExprQ:
+		for _, arg := range v.Args {
+			c.recordViewVarDepsQ(viewOID, q, arg)
+		}
+	case *MinMaxExprQ:
+		for _, arg := range v.Args {
+			c.recordViewVarDepsQ(viewOID, q, arg)
+		}
+	case *BoolExprQ:
+		for _, arg := range v.Args {
+			c.recordViewVarDepsQ(viewOID, q, arg)
+		}
+	case *NullTestExpr:
+		c.recordViewVarDepsQ(viewOID, q, v.Arg)
+	case *BooleanTestExpr:
+		c.recordViewVarDepsQ(viewOID, q, v.Arg)
+	case *CaseExprQ:
+		c.recordViewVarDepsQ(viewOID, q, v.Arg)
+		for _, w := range v.When {
+			c.recordViewVarDepsQ(viewOID, q, w.Condition)
+			c.recordViewVarDepsQ(viewOID, q, w.Result)
+		}
+		c.recordViewVarDepsQ(viewOID, q, v.Default)
+	case *ArrayExprQ:
+		for _, elem := range v.Elements {
+			c.recordViewVarDepsQ(viewOID, q, elem)
+		}
+	case *RowExprQ:
+		for _, arg := range v.Args {
+			c.recordViewVarDepsQ(viewOID, q, arg)
+		}
+	case *RelabelExpr:
+		c.recordViewVarDepsQ(viewOID, q, v.Arg)
+	case *CoerceViaIOExpr:
+		c.recordViewVarDepsQ(viewOID, q, v.Arg)
+	case *CoerceToDomainExpr:
+		c.recordViewVarDepsQ(viewOID, q, v.Arg)
+	case *SubscriptingRefExpr:
+		c.recordViewVarDepsQ(viewOID, q, v.ContainerExpr)
+		for _, idx := range v.SubscriptExprs {
+			c.recordViewVarDepsQ(viewOID, q, idx)
+		}
+		for _, idx := range v.LowerExprs {
+			c.recordViewVarDepsQ(viewOID, q, idx)
+		}
+	case *SubLinkExpr:
+		c.recordViewDepsQ(viewOID, v.SubQuery)
+	case *WindowFuncExpr:
+		for _, arg := range v.Args {
+			c.recordViewVarDepsQ(viewOID, q, arg)
+		}
+		c.recordViewVarDepsQ(viewOID, q, v.AggFilter)
+	}
+}
+
+func (c *Catalog) recordViewVarDep(viewOID uint32, q *Query, v *VarExpr) {
+	if v == nil || v.LevelsUp != 0 || v.AttNum <= 0 || v.RangeIdx < 0 || v.RangeIdx >= len(q.RangeTable) {
+		return
+	}
+	rte := q.RangeTable[v.RangeIdx]
+	colIdx := int(v.AttNum - 1)
+	switch rte.Kind {
+	case RTERelation:
+		c.recordDependency('r', viewOID, 0, 'r', rte.RelOID, int32(v.AttNum), DepNormal)
+	case RTESubquery:
+		if rte.Subquery != nil && colIdx < len(rte.Subquery.TargetList) {
+			c.recordViewVarDepsQ(viewOID, rte.Subquery, rte.Subquery.TargetList[colIdx].Expr)
+		}
+	case RTECTE:
+		if rte.CTEIndex >= 0 && rte.CTEIndex < len(q.CTEList) {
+			cte := q.CTEList[rte.CTEIndex]
+			if cte.Query != nil && colIdx < len(cte.Query.TargetList) {
+				c.recordViewVarDepsQ(viewOID, cte.Query, cte.Query.TargetList[colIdx].Expr)
+			}
+		}
 	}
 }

@@ -573,7 +573,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 	case FUNCTION:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_FUNCTION
-		stmt.Object = p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypesForComment()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Object = obj
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
@@ -583,7 +587,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 	case PROCEDURE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_PROCEDURE
-		stmt.Object = p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypesForComment()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Object = obj
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
@@ -593,7 +601,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 	case ROUTINE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_ROUTINE
-		stmt.Object = p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypesForComment()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Object = obj
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
@@ -790,8 +802,11 @@ func appendNodeToList(list *nodes.List, n nodes.Node) *nodes.List {
 }
 
 // parseFunctionWithArgtypesForComment parses function_with_argtypes for COMMENT ON.
-func (p *Parser) parseFunctionWithArgtypesForComment() nodes.Node {
-	funcName, _ := p.parseFuncName()
+func (p *Parser) parseFunctionWithArgtypesForComment() (nodes.Node, error) {
+	funcName, err := p.parseFuncName()
+	if err != nil {
+		return nil, err
+	}
 	owa := &nodes.ObjectWithArgs{Objname: funcName}
 	if p.cur.Type == '(' {
 		p.advance()
@@ -799,21 +814,23 @@ func (p *Parser) parseFunctionWithArgtypesForComment() nodes.Node {
 			p.advance()
 		} else {
 			owa.Objargs = p.parseCommentFuncArgsList()
-			p.expect(')')
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		}
 	} else {
 		owa.ArgsUnspecified = true
 	}
-	return owa
+	return owa, nil
 }
 
 // parseCommentFuncArgsList parses a comma-separated list of function argument types.
 func (p *Parser) parseCommentFuncArgsList() *nodes.List {
 	var items []nodes.Node
 	for {
-		typeName, _ := p.parseTypename()
-		if typeName != nil {
-			items = append(items, typeName)
+		arg := p.parseFuncArg()
+		if arg != nil && arg.ArgType != nil {
+			items = append(items, arg.ArgType)
 		}
 		if p.cur.Type != ',' {
 			break
@@ -956,7 +973,11 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 	case FUNCTION:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_FUNCTION
-		stmt.Object = p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypesForComment()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Object = obj
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
@@ -966,7 +987,11 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 	case PROCEDURE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_PROCEDURE
-		stmt.Object = p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypesForComment()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Object = obj
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
@@ -976,7 +1001,11 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 	case ROUTINE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_ROUTINE
-		stmt.Object = p.parseFunctionWithArgtypesForComment()
+		obj, err := p.parseFunctionWithArgtypesForComment()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Object = obj
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}

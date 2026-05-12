@@ -854,7 +854,11 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, relpersiste
 	if p.cur.Type == ')' {
 		p.advance()
 		stmt.InhRelations = p.parseOptInherit()
-		stmt.Partspec = p.parseOptPartitionSpec()
+		partspec, err := p.parseOptPartitionSpec()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Partspec = partspec
 		stmt.AccessMethod = p.parseOptAccessMethod()
 		stmt.Options = p.parseOptWith()
 		stmt.OnCommit = p.parseOnCommitOption()
@@ -876,7 +880,11 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, relpersiste
 		stmt.TableElts = tableElts
 		p.expect(')')
 		stmt.InhRelations = p.parseOptInherit()
-		stmt.Partspec = p.parseOptPartitionSpec()
+		partspec, err := p.parseOptPartitionSpec()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Partspec = partspec
 		stmt.AccessMethod = p.parseOptAccessMethod()
 		stmt.Options = p.parseOptWith()
 		stmt.OnCommit = p.parseOnCommitOption()
@@ -931,7 +939,11 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, relpersiste
 		stmt.TableElts = tableElts
 		p.expect(')')
 		stmt.InhRelations = p.parseOptInherit()
-		stmt.Partspec = p.parseOptPartitionSpec()
+		partspec, err := p.parseOptPartitionSpec()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Partspec = partspec
 		stmt.AccessMethod = p.parseOptAccessMethod()
 		stmt.Options = p.parseOptWith()
 		stmt.OnCommit = p.parseOnCommitOption()
@@ -947,7 +959,11 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, relpersiste
 	stmt.TableElts = tableElts
 	p.expect(')')
 	stmt.InhRelations = p.parseOptInherit()
-	stmt.Partspec = p.parseOptPartitionSpec()
+	partspec, err := p.parseOptPartitionSpec()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Partspec = partspec
 	stmt.AccessMethod = p.parseOptAccessMethod()
 	stmt.Options = p.parseOptWith()
 	stmt.OnCommit = p.parseOnCommitOption()
@@ -1050,7 +1066,11 @@ func (p *Parser) finishCreateStmt(names *nodes.List, relpersistence byte, ifNotE
 	stmt.TableElts = tableElts
 	p.expect(')')
 	stmt.InhRelations = p.parseOptInherit()
-	stmt.Partspec = p.parseOptPartitionSpec()
+	partspec, err := p.parseOptPartitionSpec()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Partspec = partspec
 	stmt.AccessMethod = p.parseOptAccessMethod()
 	stmt.Options = p.parseOptWith()
 	stmt.OnCommit = p.parseOnCommitOption()

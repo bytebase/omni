@@ -74,6 +74,9 @@ func (p *Parser) parseAlterFunctionStmt() (nodes.Node, error) {
 		}
 		// Otherwise it's alterfunc_opt_list (e.g., SET search_path ...)
 		actions := p.parseAlterfuncOptList()
+		if actions == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.parseOptRestrict()
 		return &nodes.AlterFunctionStmt{
 			Objtype: objtype,
@@ -106,6 +109,9 @@ func (p *Parser) parseAlterFunctionStmt() (nodes.Node, error) {
 	default:
 		// alterfunc_opt_list opt_restrict (e.g., IMMUTABLE, STABLE, etc.)
 		actions := p.parseAlterfuncOptList()
+		if actions == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.parseOptRestrict()
 		return &nodes.AlterFunctionStmt{
 			Objtype: objtype,

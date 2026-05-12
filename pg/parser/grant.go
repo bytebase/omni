@@ -159,7 +159,7 @@ func (p *Parser) finishRevokeOnObject(loc int, grantOptionFor bool, privs *nodes
 		IsGrant: false, Targtype: targtype, Objtype: objtype,
 		Objects: objects, Privileges: privs, Grantees: grantees,
 		GrantOption: grantOptionFor, Behavior: nodes.DropBehavior(behavior),
-		Loc:         nodes.Loc{Start: loc, End: p.prev.End},
+		Loc: nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
@@ -361,7 +361,7 @@ func (p *Parser) parseGrantFunctionWithArgtypesList() (*nodes.List, error) {
 func (p *Parser) parseGrantFunctionWithArgtypes() (*nodes.ObjectWithArgs, error) {
 	funcName, err := p.parseFuncName()
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	owa := &nodes.ObjectWithArgs{Objname: funcName}
 	if p.cur.Type == '(' {
@@ -374,7 +374,9 @@ func (p *Parser) parseGrantFunctionWithArgtypes() (*nodes.ObjectWithArgs, error)
 			if err != nil {
 				return nil, err
 			}
-			p.expect(')')
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 			owa.Objargs = args
 		}
 	} else {
@@ -407,11 +409,11 @@ func (p *Parser) parseGrantFuncArgsList() (*nodes.List, error) {
 }
 
 func (p *Parser) parseGrantFuncArg() (nodes.Node, error) {
-	switch p.cur.Type {
-	case IN_P, OUT_P, INOUT, VARIADIC:
-		p.advance()
+	arg := p.parseFuncArg()
+	if arg == nil {
+		return nil, nil
 	}
-	return p.parseTypename()
+	return arg.ArgType, nil
 }
 
 func (p *Parser) parsePrivileges() (*nodes.List, error) {

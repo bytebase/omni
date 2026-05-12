@@ -352,7 +352,7 @@ func (c *Catalog) addFKConstraint(schema *Schema, rel *Relation, def ConstraintD
 	for i := range localAttnums {
 		localCol := rel.Columns[localAttnums[i]-1]
 		refCol := refRel.Columns[refAttnums[i]-1]
-		if !c.CanCoerce(localCol.TypeOID, refCol.TypeOID, 'i') {
+		if c.findFKEqOp(refCol.TypeOID, localCol.TypeOID) == 0 {
 			localType := c.typeByOID[localCol.TypeOID]
 			refType := c.typeByOID[refCol.TypeOID]
 			localName := "unknown"
@@ -396,7 +396,7 @@ func (c *Catalog) addFKConstraint(schema *Schema, rel *Relation, def ConstraintD
 	for i := range localAttnums {
 		localCol := rel.Columns[localAttnums[i]-1]
 		refCol := refRel.Columns[refAttnums[i]-1]
-		pfOp := c.findEqualityOp(localCol.TypeOID, refCol.TypeOID)
+		pfOp := c.findFKEqOp(refCol.TypeOID, localCol.TypeOID)
 		ppOp := c.findEqualityOp(refCol.TypeOID, refCol.TypeOID)
 		ffOp := c.findEqualityOp(localCol.TypeOID, localCol.TypeOID)
 		pfEqOp = append(pfEqOp, pfOp)
@@ -497,6 +497,10 @@ func (c *Catalog) addCheckConstraint(rel *Relation, def ConstraintDef) error {
 	// Analyze the CHECK expression if we have the raw AST node.
 	// pg: src/backend/commands/tablecmds.c — cookConstraint (CHECK analysis)
 	if def.RawCheckExpr != nil {
+		if rawExprContainsSubLink(def.RawCheckExpr) {
+			return &Error{Code: CodeFeatureNotSupported,
+				Message: "cannot use subquery in check constraint"}
+		}
 		if analyzed, err := c.AnalyzeStandaloneExpr(def.RawCheckExpr, rel); err == nil && analyzed != nil {
 			con.CheckAnalyzed = analyzed
 			rte := c.buildRelationRTE(rel)
@@ -621,6 +625,47 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 	c.recordDependency('i', idx.OID, 0, 'c', con.OID, 0, DepInternal)
 
 	return nil
+}
+
+func (c *Catalog) findExactEqualityOp(leftType, rightType uint32) uint32 {
+	ops := c.LookupOperatorExact("=", leftType, rightType)
+	if len(ops) > 0 {
+		return ops[0].OID
+	}
+	return 0
+}
+
+func (c *Catalog) findFKEqOp(refType, localType uint32) uint32 {
+	if op := c.findExactEqualityOp(refType, localType); op != 0 {
+		return op
+	}
+
+	refBase := c.getBaseType(refType)
+	localBase := c.getBaseType(localType)
+	if refBase != refType || localBase != localType {
+		if op := c.findExactEqualityOp(refBase, localBase); op != 0 {
+			return op
+		}
+	}
+
+	// PG can implement a FK when the referencing column can be implicitly
+	// coerced to the referenced column's equality type, even without a direct
+	// cross-type equality operator (for example varchar -> text or int4 -> numeric).
+	if c.CanCoerce(localBase, refBase, 'i') {
+		if op := c.findExactEqualityOp(refBase, refBase); op != 0 {
+			return op
+		}
+	}
+
+	refBT := c.typeByOID[refBase]
+	localBT := c.typeByOID[localBase]
+	if refBT != nil && localBT != nil && refBT.Category == 'S' && localBT.Category == 'S' {
+		if op := c.findExactEqualityOp(TEXTOID, TEXTOID); op != 0 {
+			return op
+		}
+	}
+
+	return 0
 }
 
 // findEqualityOp looks up the equality operator for two types.

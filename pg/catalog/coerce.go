@@ -192,8 +192,13 @@ func (c *Catalog) typeIsArray(typeOID uint32) bool {
 //
 // pg: src/backend/utils/cache/lsyscache.c — type_is_range
 func (c *Catalog) typeIsRange(typeOID uint32) bool {
-	_, ok := c.rangeTypes[typeOID]
-	return ok
+	if _, ok := c.rangeTypes[typeOID]; ok {
+		return true
+	}
+	if typ := c.typeByOID[typeOID]; typ != nil && typ.Type == 'r' {
+		return true
+	}
+	return false
 }
 
 // typeIsMultirange returns true if the given OID is a multirange type.
@@ -204,6 +209,9 @@ func (c *Catalog) typeIsMultirange(typeOID uint32) bool {
 		if rt.MultirangeOID == typeOID {
 			return true
 		}
+	}
+	if typ := c.typeByOID[typeOID]; typ != nil && typ.Type == 'm' {
+		return true
 	}
 	return false
 }

@@ -373,7 +373,7 @@ func TestCreateViewColumnCountMismatch(t *testing.T) {
 				{Val: &Expr{Kind: ExprColumnRef, ColumnName: "name"}},
 			},
 			From: []*FromItem{{Kind: FromTable, Table: "t"}},
-		}, []string{"a"})) // only 1, but query produces 2
+		}, []string{"a", "b", "c"})) // 3 names, but query produces 2
 	assertErrorCode(t, err, CodeDatatypeMismatch)
 }
 

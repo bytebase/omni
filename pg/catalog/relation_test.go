@@ -198,5 +198,14 @@ func TestCreateTableNoColumns(t *testing.T) {
 	c := New()
 
 	err := c.DefineRelation(makeCreateTableStmt("", "t", nil, nil, false), 'r')
-	assertErrorCode(t, err, CodeInvalidParameterValue)
+	if err != nil {
+		t.Fatalf("DefineRelation failed: %v", err)
+	}
+	rel := c.GetRelation("", "t")
+	if rel == nil {
+		t.Fatal("expected relation t")
+	}
+	if got := len(rel.Columns); got != 0 {
+		t.Fatalf("columns: got %d, want 0", got)
+	}
 }

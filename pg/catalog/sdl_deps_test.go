@@ -56,7 +56,7 @@ func TestSDLExprDepsColumnDefault(t *testing.T) {
 			},
 		},
 		{
-			name: "CHECK with subquery referencing table creates dependency",
+			name: "CHECK with subquery is rejected like PostgreSQL",
 			sql: `
 				CREATE TABLE t (
 					val integer,
@@ -64,14 +64,7 @@ func TestSDLExprDepsColumnDefault(t *testing.T) {
 				);
 				CREATE TABLE lookup (id integer);
 			`,
-			check: func(t *testing.T, c *Catalog) {
-				if c.GetRelation("public", "t") == nil {
-					t.Fatal("table t not found")
-				}
-				if c.GetRelation("public", "lookup") == nil {
-					t.Fatal("table lookup not found")
-				}
-			},
+			wantErr: "cannot use subquery in check constraint",
 		},
 		{
 			name: "DEFAULT with type cast to user type creates dependency",

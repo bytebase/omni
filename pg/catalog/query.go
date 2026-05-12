@@ -758,6 +758,11 @@ func (c *Catalog) resolveReturnType(proc *BuiltinProc, argTypes []uint32) uint32
 
 		switch retType {
 		case ANYELEMENTOID, ANYOID, ANYNONARRAYOID, ANYCOMPATIBLEOID:
+			if paramOID == ANYARRAYOID || paramOID == ANYCOMPATIBLEARRAYOID {
+				if t := c.typeByOID[actualType]; t != nil && t.Elem != 0 {
+					return t.Elem
+				}
+			}
 			return actualType
 		case ANYARRAYOID, ANYCOMPATIBLEARRAYOID:
 			// Return the array type of the actual arg type.
