@@ -655,6 +655,185 @@ func TestCreateExtension_PGVector_Index(t *testing.T) {
 	}
 }
 
+func TestCreateExtension_Ltree(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE EXTENSION ltree;`)
+
+	ltreeOID := lookupTypeOID(t, c, "ltree")
+	lqueryOID := lookupTypeOID(t, c, "lquery")
+	ltxtqueryOID := lookupTypeOID(t, c, "ltxtquery")
+	ltreeGistOID := lookupTypeOID(t, c, "ltree_gist")
+	if bt := c.TypeByOID(ltreeOID); bt == nil || !bt.IsDefined {
+		t.Fatal("expected ltree type to be fully defined")
+	}
+	if ops := c.LookupOperatorExact("<@", ltreeOID, ltreeOID); len(ops) == 0 {
+		t.Error("expected <@ operator for ltree")
+	}
+	if ops := c.LookupOperatorExact("~", ltreeOID, lqueryOID); len(ops) == 0 {
+		t.Error("expected ~ operator for ltree/lquery")
+	}
+	if ops := c.LookupOperatorExact("@", ltreeOID, ltxtqueryOID); len(ops) == 0 {
+		t.Error("expected @ operator for ltree/ltxtquery")
+	}
+	if bt := c.TypeByOID(ltreeGistOID); bt == nil || !bt.IsDefined {
+		t.Fatal("expected ltree_gist type to be fully defined")
+	}
+	gist := c.LookupAccessMethod("gist")
+	if gist == nil {
+		t.Fatal("expected gist access method")
+	}
+	if opc := c.opClassByKey[opClassKey{amOID: gist.OID, typeOID: ltreeOID}]; opc == nil || opc.Name != "gist_ltree_ops" {
+		t.Fatalf("expected default gist_ltree_ops opclass, got %#v", opc)
+	}
+}
+
+func TestCreateExtension_Dblink(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE EXTENSION dblink;`)
+
+	assertProcSignature(t, c, "dblink", RECORDOID, true, TEXTOID, TEXTOID)
+	assertProcSignature(t, c, "dblink_exec", TEXTOID, false, TEXTOID, TEXTOID)
+	assertProcSignature(t, c, "dblink_get_result", RECORDOID, true, TEXTOID)
+	assertProcSignature(t, c, "dblink_get_notify", RECORDOID, true)
+
+	resultOID := lookupTypeOID(t, c, "dblink_pkey_results")
+	if bt := c.TypeByOID(resultOID); bt == nil || !bt.IsDefined || bt.Type != TYPTYPE_COMPOSITE {
+		t.Fatalf("expected dblink_pkey_results composite type, got %#v", bt)
+	}
+}
+
+func TestCreateExtension_Intarray(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE EXTENSION intarray;`)
+
+	assertProcSignature(t, c, "sort", INT4ARRAYOID, false, INT4ARRAYOID)
+	assertProcSignature(t, c, "uniq", INT4ARRAYOID, false, INT4ARRAYOID)
+	if ops := c.LookupOperatorExact("@>", INT4ARRAYOID, INT4ARRAYOID); len(ops) == 0 {
+		t.Error("expected @> operator for intarray")
+	}
+	gin := c.LookupAccessMethod("gin")
+	if gin == nil {
+		t.Fatal("expected gin access method")
+	}
+	if opc := c.opClassByKey[opClassKey{amOID: gin.OID, typeOID: INT4ARRAYOID}]; opc == nil || opc.Name != "gin__int_ops" {
+		t.Fatalf("expected default gin__int_ops opclass, got %#v", opc)
+	}
+}
+
+func TestCreateExtension_PgTrgm(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE EXTENSION pg_trgm;`)
+
+	assertProcSignature(t, c, "similarity", FLOAT4OID, false, TEXTOID, TEXTOID)
+	assertProcSignature(t, c, "show_trgm", TEXTARRAYOID, false, TEXTOID)
+	if ops := c.LookupOperatorExact("%", TEXTOID, TEXTOID); len(ops) == 0 {
+		t.Error("expected % operator for pg_trgm")
+	}
+	gist := c.LookupAccessMethod("gist")
+	if gist == nil {
+		t.Fatal("expected gist access method")
+	}
+	if opc := c.opClassByKey[opClassKey{amOID: gist.OID, typeOID: TEXTOID}]; opc == nil || opc.Name != "gist_trgm_ops" {
+		t.Fatalf("expected default gist_trgm_ops opclass, got %#v", opc)
+	}
+}
+
+func TestCreateExtension_UUIDOSSP(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE EXTENSION "uuid-ossp";`)
+
+	assertProcSignature(t, c, "uuid_generate_v1", UUIDOID, false)
+	assertProcSignature(t, c, "uuid_generate_v4", UUIDOID, false)
+	assertProcSignature(t, c, "uuid_generate_v5", UUIDOID, false, UUIDOID, TEXTOID)
+}
+
+func TestCreateExtension_PGCrypto(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE EXTENSION pgcrypto;`)
+
+	assertProcSignature(t, c, "gen_random_uuid", UUIDOID, false)
+	assertProcSignature(t, c, "digest", BYTEAOID, false, BYTEAOID, TEXTOID)
+	assertProcSignature(t, c, "hmac", BYTEAOID, false, BYTEAOID, BYTEAOID, TEXTOID)
+	assertProcSignature(t, c, "crypt", TEXTOID, false, TEXTOID, TEXTOID)
+}
+
+func TestCreateExtension_BtreeGist(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE EXTENSION btree_gist;`)
+
+	assertDefaultOpClass(t, c, "gist", INT4OID, "gist_int4_ops")
+	assertDefaultOpClass(t, c, "gist", TEXTOID, "gist_text_ops")
+	assertDefaultOpClass(t, c, "gist", TIMESTAMPOID, "gist_timestamp_ops")
+	assertProcSignature(t, c, "gbt_int4_consistent", BOOLOID, false, INTERNALOID, INT4OID, INT2OID, OIDOID, INTERNALOID)
+}
+
+func TestCreateExtension_BtreeGin(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE EXTENSION btree_gin;`)
+
+	assertDefaultOpClass(t, c, "gin", INT4OID, "int4_ops")
+	assertDefaultOpClass(t, c, "gin", TEXTOID, "text_ops")
+	assertDefaultOpClass(t, c, "gin", NUMERICOID, "numeric_ops")
+	assertProcSignature(t, c, "gin_extract_value_int4", INTERNALOID, false, INT4OID, INTERNALOID)
+}
+
+func TestCreateExtension_Cube(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE EXTENSION cube;`)
+
+	cubeOID := lookupTypeOID(t, c, "cube")
+	if bt := c.TypeByOID(cubeOID); bt == nil || !bt.IsDefined {
+		t.Fatal("expected cube type to be fully defined")
+	}
+	assertProcSignature(t, c, "cube_distance", FLOAT8OID, false, cubeOID, cubeOID)
+	if ops := c.LookupOperatorExact("@>", cubeOID, cubeOID); len(ops) == 0 {
+		t.Error("expected @> operator for cube")
+	}
+	assertDefaultOpClass(t, c, "gist", cubeOID, "gist_cube_ops")
+}
+
+func TestCreateExtension_Earthdistance(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE EXTENSION cube; CREATE EXTENSION earthdistance;`)
+
+	earthOID := lookupTypeOID(t, c, "earth")
+	assertProcSignature(t, c, "ll_to_earth", earthOID, false, FLOAT8OID, FLOAT8OID)
+	assertProcSignature(t, c, "earth_distance", FLOAT8OID, false, earthOID, earthOID)
+	if ops := c.LookupOperatorExact("<@>", POINTOID, POINTOID); len(ops) == 0 {
+		t.Error("expected <@> operator for point")
+	}
+}
+
+func TestCreateExtension_Tablefunc(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE EXTENSION tablefunc;`)
+
+	assertProcSignature(t, c, "normal_rand", FLOAT8OID, true, INT4OID, FLOAT8OID, FLOAT8OID)
+	assertProcSignature(t, c, "crosstab", RECORDOID, true, TEXTOID)
+	assertProcSignature(t, c, "connectby", RECORDOID, true, TEXTOID, TEXTOID, TEXTOID, TEXTOID, INT4OID)
+	ct2OID := lookupTypeOID(t, c, "tablefunc_crosstab_2")
+	assertProcSignature(t, c, "crosstab2", ct2OID, true, TEXTOID)
+}
+
+func TestCreateExtension_Unaccent(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE EXTENSION unaccent;`)
+
+	assertProcSignature(t, c, "unaccent", TEXTOID, false, TEXTOID)
+	assertProcSignature(t, c, "unaccent", TEXTOID, false, REGDICTIONARYOID, TEXTOID)
+	assertProcSignature(t, c, "unaccent_lexize", INTERNALOID, false, INTERNALOID, INTERNALOID, INTERNALOID, INTERNALOID)
+}
+
+func TestCreateExtension_Fuzzystrmatch(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE EXTENSION fuzzystrmatch;`)
+
+	assertProcSignature(t, c, "levenshtein", INT4OID, false, TEXTOID, TEXTOID)
+	assertProcSignature(t, c, "levenshtein_less_equal", INT4OID, false, TEXTOID, TEXTOID, INT4OID)
+	assertProcSignature(t, c, "soundex", TEXTOID, false, TEXTOID)
+	assertProcSignature(t, c, "dmetaphone_alt", TEXTOID, false, TEXTOID)
+}
+
 func TestRegisterExtensionSQL(t *testing.T) {
 	// Register a custom extension.
 	RegisterExtensionSQL("my_ext", `
@@ -766,4 +945,36 @@ func lookupTypeOID(t *testing.T, c *Catalog, name string) uint32 {
 		t.Fatalf("type %q not found: %v", name, err)
 	}
 	return oid
+}
+
+func assertProcSignature(t *testing.T, c *Catalog, name string, retType uint32, retSet bool, argTypes ...uint32) {
+	t.Helper()
+	for _, p := range c.LookupProcByName(name) {
+		if p.RetType != retType || p.RetSet != retSet || len(p.ArgTypes) != len(argTypes) {
+			continue
+		}
+		matches := true
+		for i, oid := range argTypes {
+			if p.ArgTypes[i] != oid {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			return
+		}
+	}
+	t.Fatalf("expected function %s(%s) returns %d set=%v", name, oidListString(argTypes), retType, retSet)
+}
+
+func assertDefaultOpClass(t *testing.T, c *Catalog, amName string, typeOID uint32, className string) {
+	t.Helper()
+	am := c.LookupAccessMethod(amName)
+	if am == nil {
+		t.Fatalf("expected %s access method", amName)
+	}
+	opc := c.opClassByKey[opClassKey{amOID: am.OID, typeOID: typeOID}]
+	if opc == nil || opc.Name != className {
+		t.Fatalf("expected default %s opclass for type %d using %s, got %#v", className, typeOID, amName, opc)
+	}
 }
