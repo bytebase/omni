@@ -164,6 +164,7 @@ type splitState struct {
 	topLevelTokens    int
 	pendingSubprogram bool
 	pendingCaseEnd    bool
+	callSpecStarted   bool
 
 	endPending      bool
 	closedOutermost bool
@@ -313,6 +314,10 @@ func (s *splitState) observePLSQL(tok Token) {
 		return
 	}
 
+	if !top.bodyStarted && (top.kind == splitPLSQLStoredUnit || top.kind == splitPLSQLTrigger) && splitStartsCallSpec(tok) {
+		s.callSpecStarted = true
+	}
+
 	if s.canStartNestedSubprogram(tok) {
 		s.pendingSubprogram = true
 		return
@@ -342,7 +347,7 @@ func (s *splitState) plsqlCanEndAtSemicolon() bool {
 	}
 	if len(s.frames) == 1 {
 		top := s.frames[0]
-		if (top.kind == splitPLSQLStoredUnit || top.kind == splitPLSQLTrigger) && !top.bodyStarted {
+		if (top.kind == splitPLSQLStoredUnit || top.kind == splitPLSQLTrigger) && !top.bodyStarted && s.callSpecStarted {
 			return true
 		}
 	}
@@ -354,6 +359,7 @@ func (s *splitState) afterPLSQLSemicolon() {
 	s.closedOutermost = false
 	s.pendingSubprogram = false
 	s.pendingCaseEnd = false
+	s.callSpecStarted = false
 }
 
 func (s *splitState) pushFrame(kind splitPLSQLKind, bodyStarted bool) {
@@ -417,6 +423,13 @@ func (s *splitState) canStartNestedSubprogram(tok Token) bool {
 	default:
 		return false
 	}
+}
+
+func splitStartsCallSpec(tok Token) bool {
+	if tok.Type == kwCALL {
+		return true
+	}
+	return tok.Type == tokIDENT && (tok.Str == "LANGUAGE" || tok.Str == "EXTERNAL")
 }
 
 type sqlPlusCommand struct {

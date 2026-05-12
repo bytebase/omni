@@ -291,6 +291,32 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			},
 		},
 		{
+			name: "create function declaration section without slash separator",
+			sql: "CREATE FUNCTION f RETURN NUMBER IS\n" +
+				"  v NUMBER := 1;\n" +
+				"BEGIN\n" +
+				"  RETURN v;\n" +
+				"END;\n" +
+				"CREATE TABLE t (id NUMBER);",
+			want: []string{
+				"CREATE FUNCTION f RETURN NUMBER IS\n  v NUMBER := 1;\nBEGIN\n  RETURN v;\nEND;",
+				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
+			name: "create procedure declaration section without slash separator",
+			sql: "CREATE PROCEDURE p IS\n" +
+				"  v NUMBER := 1;\n" +
+				"BEGIN\n" +
+				"  NULL;\n" +
+				"END;\n" +
+				"CREATE TABLE t (id NUMBER);",
+			want: []string{
+				"CREATE PROCEDURE p IS\n  v NUMBER := 1;\nBEGIN\n  NULL;\nEND;",
+				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
 			name: "procedure local subprogram without slash separator",
 			sql: "CREATE PROCEDURE p IS\n" +
 				"  PROCEDURE q IS\n" +
