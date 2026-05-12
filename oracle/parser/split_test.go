@@ -215,6 +215,63 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			},
 		},
 		{
+			name: "two package units without slash separators",
+			sql: "CREATE PACKAGE pkg IS\n" +
+				"  PROCEDURE p;\n" +
+				"END pkg;\n" +
+				"CREATE PACKAGE BODY pkg IS\n" +
+				"  PROCEDURE p IS\n" +
+				"  BEGIN\n" +
+				"    NULL;\n" +
+				"  END;\n" +
+				"END pkg;",
+			want: []string{
+				"CREATE PACKAGE pkg IS\n  PROCEDURE p;\nEND pkg;",
+				"\nCREATE PACKAGE BODY pkg IS\n  PROCEDURE p IS\n  BEGIN\n    NULL;\n  END;\nEND pkg;",
+			},
+		},
+		{
+			name: "package body initialization without slash separator",
+			sql: "CREATE PACKAGE BODY pkg IS\n" +
+				"  PROCEDURE p IS\n" +
+				"  BEGIN\n" +
+				"    NULL;\n" +
+				"  END;\n" +
+				"BEGIN\n" +
+				"  p;\n" +
+				"END pkg;\n" +
+				"CREATE TABLE t (id NUMBER);",
+			want: []string{
+				"CREATE PACKAGE BODY pkg IS\n  PROCEDURE p IS\n  BEGIN\n    NULL;\n  END;\nBEGIN\n  p;\nEND pkg;",
+				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
+			name: "package spec case expression without slash separator",
+			sql: "CREATE PACKAGE pkg IS\n" +
+				"  c CONSTANT NUMBER := CASE WHEN 1 = 1 THEN 1 ELSE 0 END;\n" +
+				"END pkg;\n" +
+				"CREATE TABLE t (id NUMBER);",
+			want: []string{
+				"CREATE PACKAGE pkg IS\n  c CONSTANT NUMBER := CASE WHEN 1 = 1 THEN 1 ELSE 0 END;\nEND pkg;",
+				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
+			name: "type body without slash separator",
+			sql: "CREATE TYPE BODY typ AS\n" +
+				"  MEMBER FUNCTION f RETURN NUMBER IS\n" +
+				"  BEGIN\n" +
+				"    RETURN 1;\n" +
+				"  END;\n" +
+				"END;\n" +
+				"CREATE TABLE t (id NUMBER);",
+			want: []string{
+				"CREATE TYPE BODY typ AS\n  MEMBER FUNCTION f RETURN NUMBER IS\n  BEGIN\n    RETURN 1;\n  END;\nEND;",
+				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
 			name: "create function with division expression",
 			sql: "CREATE FUNCTION f RETURN NUMBER IS\n" +
 				"BEGIN\n" +
@@ -223,6 +280,61 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 				"/\n",
 			want: []string{
 				"CREATE FUNCTION f RETURN NUMBER IS\nBEGIN\n  RETURN 10 / 2;\nEND;",
+			},
+		},
+		{
+			name: "procedure local subprogram without slash separator",
+			sql: "CREATE PROCEDURE p IS\n" +
+				"  PROCEDURE q IS\n" +
+				"  BEGIN\n" +
+				"    NULL;\n" +
+				"  END q;\n" +
+				"BEGIN\n" +
+				"  q;\n" +
+				"END;\n" +
+				"CREATE TABLE t (id NUMBER);",
+			want: []string{
+				"CREATE PROCEDURE p IS\n  PROCEDURE q IS\n  BEGIN\n    NULL;\n  END q;\nBEGIN\n  q;\nEND;",
+				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
+			name: "declare local subprogram without slash separator",
+			sql: "DECLARE\n" +
+				"  PROCEDURE q IS\n" +
+				"  BEGIN\n" +
+				"    NULL;\n" +
+				"  END q;\n" +
+				"BEGIN\n" +
+				"  q;\n" +
+				"END;\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"DECLARE\n  PROCEDURE q IS\n  BEGIN\n    NULL;\n  END q;\nBEGIN\n  q;\nEND;",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
+			name: "ordinary begin backup is not plsql",
+			sql:  "ALTER DATABASE BEGIN BACKUP;\nALTER DATABASE END BACKUP;",
+			want: []string{"ALTER DATABASE BEGIN BACKUP", "\nALTER DATABASE END BACKUP"},
+		},
+		{
+			name: "procedure call spec without end",
+			sql: "CREATE PROCEDURE p AS LANGUAGE JAVA NAME 'Pkg.p()';\n" +
+				"CREATE TABLE t (id NUMBER);",
+			want: []string{
+				"CREATE PROCEDURE p AS LANGUAGE JAVA NAME 'Pkg.p()'",
+				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
+			name: "trigger call body without end",
+			sql: "CREATE TRIGGER trg BEFORE INSERT ON t CALL proc();\n" +
+				"CREATE TABLE u (id NUMBER);",
+			want: []string{
+				"CREATE TRIGGER trg BEFORE INSERT ON t CALL proc()",
+				"\nCREATE TABLE u (id NUMBER)",
 			},
 		},
 		{
@@ -240,6 +352,33 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			want: []string{
 				"CREATE TRIGGER trg\nFOR INSERT ON t\nCOMPOUND TRIGGER\n  BEFORE EACH ROW IS\n  BEGIN\n    NULL;\n  END BEFORE EACH ROW;\nEND trg;",
 				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
+			name: "nested case expression without slash separator",
+			sql: "BEGIN\n" +
+				"  x := CASE WHEN a = 1 THEN CASE WHEN b = 1 THEN 1 ELSE 2 END ELSE 3 END;\n" +
+				"END;\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"BEGIN\n  x := CASE WHEN a = 1 THEN CASE WHEN b = 1 THEN 1 ELSE 2 END ELSE 3 END;\nEND;",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
+			name: "compound trigger without slash separator",
+			sql: "CREATE TRIGGER trg\n" +
+				"FOR INSERT ON t\n" +
+				"COMPOUND TRIGGER\n" +
+				"  BEFORE EACH ROW IS\n" +
+				"  BEGIN\n" +
+				"    NULL;\n" +
+				"  END BEFORE EACH ROW;\n" +
+				"END trg;\n" +
+				"CREATE TABLE t2 (id NUMBER);",
+			want: []string{
+				"CREATE TRIGGER trg\nFOR INSERT ON t\nCOMPOUND TRIGGER\n  BEFORE EACH ROW IS\n  BEGIN\n    NULL;\n  END BEFORE EACH ROW;\nEND trg;",
+				"\nCREATE TABLE t2 (id NUMBER)",
 			},
 		},
 	}

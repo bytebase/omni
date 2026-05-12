@@ -101,7 +101,11 @@ func Split(sql string) []Segment {
 		case ';':
 			if state.inPLSQL {
 				if state.plsqlCanEndAtSemicolon() {
-					segments = appendSegment(segments, sql, stmtStart, tok.End)
+					end := tok.End
+					if !state.endPending {
+						end = tok.Loc
+					}
+					segments = appendSegment(segments, sql, stmtStart, end)
 					stmtStart = tok.End
 					state.reset()
 				} else {
@@ -110,6 +114,7 @@ func Split(sql string) []Segment {
 			} else {
 				segments = appendSegment(segments, sql, stmtStart, tok.Loc)
 				stmtStart = tok.End
+				state.reset()
 			}
 		case '/':
 			if isSlashDelimiterLine(sql, tok.Loc, tok.End) {
@@ -138,18 +143,30 @@ const (
 	splitPLSQLBlock
 	splitPLSQLStoredUnit
 	splitPLSQLPackage
+	splitPLSQLTypeBody
+	splitPLSQLTrigger
+	splitPLSQLSubprogram
+	splitPLSQLCase
 )
+
+type splitPLSQLFrame struct {
+	kind        splitPLSQLKind
+	bodyStarted bool
+	compound    bool
+}
 
 type splitState struct {
 	inPLSQL bool
-	kind    splitPLSQLKind
-	depth   int
+	frames  []splitPLSQLFrame
 
 	pendingCreate     bool
 	pendingCreateType bool
+	topLevelTokens    int
+	pendingSubprogram bool
+	pendingCaseEnd    bool
 
-	endPending       bool
-	endFollowerWords int
+	endPending      bool
+	closedOutermost bool
 }
 
 func (s *splitState) reset() {
@@ -170,9 +187,26 @@ func (s *splitState) observe(tok Token) {
 }
 
 func (s *splitState) observeTopLevel(tok Token) {
+	if tok.Type == tokHINT {
+		return
+	}
+
+	if s.topLevelTokens == 0 {
+		switch tok.Type {
+		case kwBEGIN:
+			s.startPLSQL(splitPLSQLBlock)
+			s.frames[0].bodyStarted = true
+			return
+		case kwDECLARE, tokLABELOPEN:
+			s.startPLSQL(splitPLSQLBlock)
+			return
+		}
+	}
+
 	if s.pendingCreateType {
 		if tok.Type == kwBODY {
-			s.startPLSQL(splitPLSQLPackage)
+			s.startPLSQL(splitPLSQLTypeBody)
+			return
 		}
 		s.pendingCreateType = false
 	}
@@ -180,90 +214,209 @@ func (s *splitState) observeTopLevel(tok Token) {
 	switch tok.Type {
 	case kwCREATE:
 		s.pendingCreate = true
+		s.topLevelTokens++
 	case kwOR, kwREPLACE:
 		// CREATE OR REPLACE keeps looking for the created object type.
-	case tokIDENT:
-		if tok.Str != "EDITIONABLE" && tok.Str != "NONEDITIONABLE" {
+		s.topLevelTokens++
+	case kwIF, kwNOT, kwEXISTS, kwAND:
+		// CREATE IF NOT EXISTS and CREATE OR REPLACE AND COMPILE/RESOLVE JAVA
+		// keep looking for the created object type.
+		if !s.pendingCreate {
 			s.pendingCreate = false
 		}
+		s.topLevelTokens++
+	case tokIDENT:
+		switch tok.Str {
+		case "EDITIONABLE", "NONEDITIONABLE", "RESOLVE", "COMPILE", "NOFORCE":
+			// CREATE modifiers before the object type.
+		default:
+			s.pendingCreate = false
+		}
+		s.topLevelTokens++
 	case kwPROCEDURE, kwFUNCTION, kwTRIGGER:
 		if s.pendingCreate {
-			s.startPLSQL(splitPLSQLStoredUnit)
+			if tok.Type == kwTRIGGER {
+				s.startPLSQL(splitPLSQLTrigger)
+			} else {
+				s.startPLSQL(splitPLSQLStoredUnit)
+			}
+			return
 		}
+		s.pendingCreate = false
+		s.topLevelTokens++
 	case kwPACKAGE:
 		if s.pendingCreate {
 			s.startPLSQL(splitPLSQLPackage)
+			return
 		}
+		s.pendingCreate = false
+		s.topLevelTokens++
 	case kwTYPE:
 		if s.pendingCreate {
 			s.pendingCreateType = true
 		}
-	case kwDECLARE:
-		s.startPLSQL(splitPLSQLBlock)
-	case kwBEGIN:
-		s.startPLSQL(splitPLSQLBlock)
-		s.depth = 1
+		s.topLevelTokens++
 	default:
-		if tok.Type != tokHINT {
-			s.pendingCreate = false
-		}
+		s.pendingCreate = false
+		s.topLevelTokens++
 	}
 }
 
 func (s *splitState) startPLSQL(kind splitPLSQLKind) {
 	s.inPLSQL = true
-	s.kind = kind
+	s.frames = []splitPLSQLFrame{{kind: kind}}
 	s.pendingCreate = false
 	s.pendingCreateType = false
+	s.topLevelTokens = 0
+	s.pendingSubprogram = false
+	s.pendingCaseEnd = false
 	s.endPending = false
-	s.endFollowerWords = 0
+	s.closedOutermost = false
 }
 
 func (s *splitState) observePLSQL(tok Token) {
-	if s.endPending {
-		if tok.Type != ';' && isSplitWordToken(tok) {
-			s.endFollowerWords++
-		}
-		if tok.Type != ';' {
+	if s.pendingCaseEnd {
+		s.pendingCaseEnd = false
+		if tok.Type == kwCASE {
 			return
 		}
 	}
 
+	if s.endPending {
+		if tok.Type != ';' {
+			return
+		}
+		return
+	}
+
+	if tok.Type == ';' {
+		s.pendingSubprogram = false
+		return
+	}
+
+	if s.pendingSubprogram {
+		if tok.Type == kwIS || tok.Type == kwAS {
+			s.pushFrame(splitPLSQLSubprogram, false)
+			s.pendingSubprogram = false
+			return
+		}
+	}
+
+	if len(s.frames) == 0 {
+		return
+	}
+
+	top := &s.frames[len(s.frames)-1]
+
+	if top.kind == splitPLSQLTrigger && tok.Type == kwCOMPOUND {
+		top.compound = true
+		return
+	}
+
+	if s.canStartNestedSubprogram(tok) {
+		s.pendingSubprogram = true
+		return
+	}
+
 	switch tok.Type {
-	case kwBEGIN, kwIF, kwCASE:
-		s.depth++
+	case kwBEGIN:
+		s.observePLSQLBegin()
+	case kwIF:
+		if s.inExecutablePLSQL() {
+			s.pushFrame(splitPLSQLBlock, true)
+		}
+	case kwCASE:
+		s.pushFrame(splitPLSQLCase, true)
 	case kwLOOP:
-		if !s.endPending {
-			s.depth++
+		if s.inExecutablePLSQL() {
+			s.pushFrame(splitPLSQLBlock, true)
 		}
 	case kwEND:
-		if s.depth > 0 {
-			s.depth--
-		}
-		if s.depth == 0 {
-			s.endPending = true
-			s.endFollowerWords = 0
-		}
+		s.closePLSQLFrame()
 	}
 }
 
 func (s *splitState) plsqlCanEndAtSemicolon() bool {
-	if !s.endPending {
-		return false
+	if s.endPending {
+		return s.closedOutermost
 	}
-	if s.kind == splitPLSQLPackage {
-		return false
+	if len(s.frames) == 1 {
+		top := s.frames[0]
+		if (top.kind == splitPLSQLStoredUnit || top.kind == splitPLSQLTrigger) && !top.bodyStarted {
+			return true
+		}
 	}
-	return s.endFollowerWords <= 1
+	return false
 }
 
 func (s *splitState) afterPLSQLSemicolon() {
 	s.endPending = false
-	s.endFollowerWords = 0
+	s.closedOutermost = false
+	s.pendingSubprogram = false
+	s.pendingCaseEnd = false
 }
 
-func isSplitWordToken(tok Token) bool {
-	return tok.Type == tokIDENT || tok.Type == tokQIDENT || tok.Type >= 2000
+func (s *splitState) pushFrame(kind splitPLSQLKind, bodyStarted bool) {
+	s.frames = append(s.frames, splitPLSQLFrame{kind: kind, bodyStarted: bodyStarted})
+}
+
+func (s *splitState) observePLSQLBegin() {
+	if len(s.frames) == 0 {
+		return
+	}
+	top := &s.frames[len(s.frames)-1]
+	if top.kind == splitPLSQLTrigger && top.compound {
+		s.pushFrame(splitPLSQLBlock, true)
+		return
+	}
+	if !top.bodyStarted {
+		top.bodyStarted = true
+		return
+	}
+	s.pushFrame(splitPLSQLBlock, true)
+}
+
+func (s *splitState) closePLSQLFrame() {
+	closedKind := splitPLSQLNone
+	if len(s.frames) > 0 {
+		closedKind = s.frames[len(s.frames)-1].kind
+		s.frames = s.frames[:len(s.frames)-1]
+	}
+	if closedKind == splitPLSQLCase {
+		s.pendingCaseEnd = true
+		s.endPending = false
+		s.closedOutermost = false
+		s.pendingSubprogram = false
+		return
+	}
+	s.endPending = true
+	s.closedOutermost = len(s.frames) == 0
+	s.pendingSubprogram = false
+}
+
+func (s *splitState) inExecutablePLSQL() bool {
+	if len(s.frames) == 0 {
+		return false
+	}
+	return s.frames[len(s.frames)-1].bodyStarted
+}
+
+func (s *splitState) canStartNestedSubprogram(tok Token) bool {
+	if tok.Type != kwPROCEDURE && tok.Type != kwFUNCTION {
+		return false
+	}
+	if len(s.frames) == 0 {
+		return false
+	}
+	top := s.frames[len(s.frames)-1]
+	switch top.kind {
+	case splitPLSQLPackage, splitPLSQLTypeBody:
+		return !top.bodyStarted
+	case splitPLSQLStoredUnit, splitPLSQLSubprogram, splitPLSQLBlock:
+		return !top.bodyStarted
+	default:
+		return false
+	}
 }
 
 type sqlPlusCommand struct {
