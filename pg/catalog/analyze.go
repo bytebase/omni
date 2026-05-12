@@ -18,19 +18,9 @@ func (c *Catalog) analyzeSelectStmt(stmt *nodes.SelectStmt) (*Query, error) {
 
 	// Set operation.
 	if stmt.Op != nodes.SETOP_NONE {
-		q, err := c.analyzeSetOp(stmt)
-		if err != nil {
-			return nil, err
-		}
-		// WITH clause on set-op queries attaches at the top level.
-		// pg: src/backend/parser/analyze.c — transformSetOperationStmt
-		if stmt.WithClause != nil {
-			ac := &analyzeCtx{catalog: c, query: q}
-			if err := ac.analyzeCTEs(stmt.WithClause); err != nil {
-				return nil, err
-			}
-		}
-		return q, nil
+		q := &Query{}
+		ac := &analyzeCtx{catalog: c, query: q}
+		return ac.analyzeSetOp(stmt)
 	}
 
 	return c.analyzeSimpleSelect(stmt)
@@ -39,17 +29,32 @@ func (c *Catalog) analyzeSelectStmt(stmt *nodes.SelectStmt) (*Query, error) {
 // analyzeSetOp handles UNION/INTERSECT/EXCEPT.
 //
 // pg: src/backend/parser/analyze.c — transformSetOperationStmt
-func (c *Catalog) analyzeSetOp(stmt *nodes.SelectStmt) (*Query, error) {
-	lQuery, err := c.analyzeSelectStmt(stmt.Larg)
+func (ac *analyzeCtx) analyzeSetOp(stmt *nodes.SelectStmt) (*Query, error) {
+	if ac.query == nil {
+		ac.query = &Query{}
+	}
+	q := ac.query
+
+	// WITH belongs to the set-operation query as a whole and must be visible to
+	// each branch while it is analyzed.
+	if stmt.WithClause != nil {
+		if err := ac.analyzeCTEs(stmt.WithClause); err != nil {
+			return nil, err
+		}
+	}
+
+	lQuery, err := ac.analyzeSubSelectWithOptions(stmt.Larg, false)
 	if err != nil {
 		return nil, err
 	}
-	rQuery, err := c.analyzeSelectStmt(stmt.Rarg)
+	rQuery, err := ac.analyzeSubSelectWithOptions(stmt.Rarg, false)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(lQuery.TargetList) != len(rQuery.TargetList) {
+	lOutput := nonJunkTargetEntries(lQuery.TargetList)
+	rOutput := nonJunkTargetEntries(rQuery.TargetList)
+	if len(lOutput) != len(rOutput) {
 		return nil, &Error{
 			Code:    CodeDatatypeMismatch,
 			Message: fmt.Sprintf("each %s query must have the same number of columns", setOpKeyword(stmt.Op)),
@@ -63,15 +68,15 @@ func (c *Catalog) analyzeSetOp(stmt *nodes.SelectStmt) (*Query, error) {
 	// For non-UNKNOWN types: verify coercibility but don't modify the branch expr
 	// (the deparser shows branches as-is). For UNKNOWN Const: coerce by changing
 	// the Const's type, matching PG's coerce_type behavior.
-	tlist := make([]*TargetEntry, len(lQuery.TargetList))
-	for i := range lQuery.TargetList {
-		lte := lQuery.TargetList[i]
-		rte := rQuery.TargetList[i]
+	tlist := make([]*TargetEntry, len(lOutput))
+	for i := range lOutput {
+		lte := lOutput[i]
+		rte := rOutput[i]
 
 		lTypeOID := lte.Expr.exprType()
 		rTypeOID := rte.Expr.exprType()
 
-		common, err := c.selectCommonType([]AnalyzedExpr{lte.Expr, rte.Expr}, setOpKeyword(stmt.Op))
+		common, err := ac.catalog.selectCommonType([]AnalyzedExpr{lte.Expr, rte.Expr}, setOpKeyword(stmt.Op))
 		if err != nil {
 			return nil, err
 		}
@@ -79,11 +84,11 @@ func (c *Catalog) analyzeSetOp(stmt *nodes.SelectStmt) (*Query, error) {
 		// Left branch coercion.
 		// pg: src/backend/parser/analyze.c — transformSetOperationTree (coercion loop)
 		if lTypeOID != UNKNOWNOID {
-			if _, err := c.coerceToTargetType(lte.Expr, lTypeOID, common, 'i'); err != nil {
+			if _, err := ac.catalog.coerceToTargetType(lte.Expr, lTypeOID, common, 'i'); err != nil {
 				return nil, err
 			}
 		} else if _, ok := lte.Expr.(*ConstExpr); ok {
-			coerced, err := c.coerceToTargetType(lte.Expr, lTypeOID, common, 'i')
+			coerced, err := ac.catalog.coerceToTargetType(lte.Expr, lTypeOID, common, 'i')
 			if err != nil {
 				return nil, err
 			}
@@ -92,11 +97,11 @@ func (c *Catalog) analyzeSetOp(stmt *nodes.SelectStmt) (*Query, error) {
 
 		// Right branch coercion.
 		if rTypeOID != UNKNOWNOID {
-			if _, err := c.coerceToTargetType(rte.Expr, rTypeOID, common, 'i'); err != nil {
+			if _, err := ac.catalog.coerceToTargetType(rte.Expr, rTypeOID, common, 'i'); err != nil {
 				return nil, err
 			}
 		} else if _, ok := rte.Expr.(*ConstExpr); ok {
-			coerced, err := c.coerceToTargetType(rte.Expr, rTypeOID, common, 'i')
+			coerced, err := ac.catalog.coerceToTargetType(rte.Expr, rTypeOID, common, 'i')
 			if err != nil {
 				return nil, err
 			}
@@ -116,13 +121,23 @@ func (c *Catalog) analyzeSetOp(stmt *nodes.SelectStmt) (*Query, error) {
 		}
 	}
 
-	return &Query{
-		TargetList: tlist,
-		SetOp:      op,
-		AllSetOp:   stmt.All,
-		LArg:       lQuery,
-		RArg:       rQuery,
-	}, nil
+	q.TargetList = tlist
+	q.SetOp = op
+	q.AllSetOp = stmt.All
+	q.LArg = lQuery
+	q.RArg = rQuery
+	return q, nil
+}
+
+func nonJunkTargetEntries(tlist []*TargetEntry) []*TargetEntry {
+	output := make([]*TargetEntry, 0, len(tlist))
+	for _, te := range tlist {
+		if te == nil || te.ResJunk {
+			continue
+		}
+		output = append(output, te)
+	}
+	return output
 }
 
 // analyzeSimpleSelect handles a simple (non-set-op) SELECT.
@@ -670,11 +685,12 @@ func (ac *analyzeCtx) transformRangeSubselect(rs *nodes.RangeSubselect) (JoinNod
 		alias = rs.Alias.Aliasname
 	}
 
-	colNames := make([]string, len(subQuery.TargetList))
-	colTypes := make([]uint32, len(subQuery.TargetList))
-	colTypMods := make([]int32, len(subQuery.TargetList))
-	colCollations := make([]uint32, len(subQuery.TargetList))
-	for i, te := range subQuery.TargetList {
+	outputTargetList := nonJunkTargetEntries(subQuery.TargetList)
+	colNames := make([]string, len(outputTargetList))
+	colTypes := make([]uint32, len(outputTargetList))
+	colTypMods := make([]int32, len(outputTargetList))
+	colCollations := make([]uint32, len(outputTargetList))
+	for i, te := range outputTargetList {
 		colNames[i] = te.ResName
 		colTypes[i] = te.Expr.exprType()
 		colTypMods[i] = -1 // typmod lost through subquery
@@ -1293,6 +1309,26 @@ func (ac *analyzeCtx) transformColumnRef(cr *nodes.ColumnRef) (AnalyzedExpr, err
 // If the column is not found in the current query's range table, and a parent
 // context exists, it searches the parent for correlated subquery references.
 func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, error) {
+	if tableName == "" && ac.query.JoinTree != nil && len(ac.query.JoinTree.FromList) > 0 {
+		var found *VarExpr
+		for _, jn := range ac.query.JoinTree.FromList {
+			v, ambiguous := ac.findVarInVisibleJoinNode(jn, colName)
+			if ambiguous {
+				return nil, errAmbiguousColumn(colName)
+			}
+			if v == nil {
+				continue
+			}
+			if found != nil {
+				return nil, errAmbiguousColumn(colName)
+			}
+			found = v
+		}
+		if found != nil {
+			return found, nil
+		}
+	}
+
 	var found *VarExpr
 	for rtIdx, rte := range ac.query.RangeTable {
 		if tableName != "" && rte.ERef != tableName {
@@ -1322,11 +1358,17 @@ func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, err
 		}
 	}
 
-	if found == nil && ac.parent != nil && !ac.disallowParentCols {
+	if found == nil && ac.parent != nil {
 		// Try resolving in parent context (correlated subquery).
 		// pg: src/backend/parser/parse_expr.c — transformColumnRef
 		// PG walks up the namespace chain to find outer references.
-		outerVar, err := ac.parent.resolveColumnRef(tableName, colName)
+		var outerVar *VarExpr
+		var err error
+		if ac.disallowParentCols {
+			outerVar, err = ac.parent.resolveColumnRefAboveLocal(tableName, colName)
+		} else {
+			outerVar, err = ac.parent.resolveColumnRef(tableName, colName)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -1358,6 +1400,67 @@ func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, err
 		return nil, errUndefinedColumn(colName)
 	}
 	return found, nil
+}
+
+func (ac *analyzeCtx) resolveColumnRefAboveLocal(tableName, colName string) (*VarExpr, error) {
+	if ac.parent == nil {
+		if tableName != "" {
+			return nil, errUndefinedTable(tableName)
+		}
+		return nil, errUndefinedColumn(colName)
+	}
+	outerVar, err := ac.parent.resolveColumnRef(tableName, colName)
+	if err != nil {
+		return nil, err
+	}
+	return &VarExpr{
+		RangeIdx:  outerVar.RangeIdx,
+		AttNum:    outerVar.AttNum,
+		TypeOID:   outerVar.TypeOID,
+		TypeMod:   outerVar.TypeMod,
+		Collation: outerVar.Collation,
+		LevelsUp:  outerVar.LevelsUp + 1,
+	}, nil
+}
+
+func (ac *analyzeCtx) findVarInVisibleJoinNode(jn JoinNode, colName string) (*VarExpr, bool) {
+	switch v := jn.(type) {
+	case *RangeTableRef:
+		return ac.findVarInRTE(v.RTIndex, colName)
+	case *JoinExprNode:
+		return ac.findVarInRTE(v.RTIndex, colName)
+	default:
+		return nil, false
+	}
+}
+
+func (ac *analyzeCtx) findVarInRTE(rtIdx int, colName string) (*VarExpr, bool) {
+	if rtIdx < 0 || rtIdx >= len(ac.query.RangeTable) {
+		return nil, false
+	}
+	rte := ac.query.RangeTable[rtIdx]
+	var found *VarExpr
+	for colIdx, cn := range rte.ColNames {
+		if cn != colName {
+			continue
+		}
+		var coll uint32
+		if colIdx < len(rte.ColCollations) {
+			coll = rte.ColCollations[colIdx]
+		}
+		v := &VarExpr{
+			RangeIdx:  rtIdx,
+			AttNum:    int16(colIdx + 1),
+			TypeOID:   rte.ColTypes[colIdx],
+			TypeMod:   rte.ColTypMods[colIdx],
+			Collation: coll,
+		}
+		if found != nil {
+			return nil, true
+		}
+		found = v
+	}
+	return found, false
 }
 
 // transformAConst transforms a constant value.
@@ -1937,7 +2040,8 @@ func (ac *analyzeCtx) transformSubLink(sl *nodes.SubLink) (AnalyzedExpr, error) 
 			ResultType:  BOOLOID,
 		}, nil
 	case nodes.ANY_SUBLINK:
-		if len(subQuery.TargetList) != 1 {
+		outputTargetList := nonJunkTargetEntries(subQuery.TargetList)
+		if len(outputTargetList) != 1 {
 			return nil, &Error{Code: CodeTooManyColumns, Message: "subquery must return only one column"}
 		}
 		var testExpr AnalyzedExpr
@@ -1954,7 +2058,8 @@ func (ac *analyzeCtx) transformSubLink(sl *nodes.SubLink) (AnalyzedExpr, error) 
 			ResultType:  BOOLOID,
 		}, nil
 	case nodes.ALL_SUBLINK:
-		if len(subQuery.TargetList) != 1 {
+		outputTargetList := nonJunkTargetEntries(subQuery.TargetList)
+		if len(outputTargetList) != 1 {
 			return nil, &Error{Code: CodeTooManyColumns, Message: "subquery must return only one column"}
 		}
 		var testExpr AnalyzedExpr
@@ -1972,13 +2077,14 @@ func (ac *analyzeCtx) transformSubLink(sl *nodes.SubLink) (AnalyzedExpr, error) 
 		}, nil
 	default:
 		// EXPR_SUBLINK (scalar subquery)
-		if len(subQuery.TargetList) != 1 {
+		outputTargetList := nonJunkTargetEntries(subQuery.TargetList)
+		if len(outputTargetList) != 1 {
 			return nil, &Error{Code: CodeTooManyColumns, Message: "subquery must return only one column"}
 		}
 		return &SubLinkExpr{
 			SubLinkType: SubLinkExprType,
 			SubQuery:    subQuery,
-			ResultType:  subQuery.TargetList[0].Expr.exprType(),
+			ResultType:  outputTargetList[0].Expr.exprType(),
 		}, nil
 	}
 }
@@ -2010,9 +2116,16 @@ func (ac *analyzeCtx) analyzeSubSelectWithOptions(stmt *nodes.SelectStmt, disall
 		return nil, fmt.Errorf("NULL select statement")
 	}
 
-	// Set operation — analyze recursively without parent context on branches.
+	// Set operation — keep the current parent/CTE context visible to branches.
 	if stmt.Op != nodes.SETOP_NONE {
-		return ac.catalog.analyzeSetOp(stmt)
+		q := &Query{}
+		subAc := &analyzeCtx{
+			catalog:            ac.catalog,
+			query:              q,
+			parent:             ac,
+			disallowParentCols: disallowParentCols,
+		}
+		return subAc.analyzeSetOp(stmt)
 	}
 
 	// Simple SELECT with parent context.
@@ -3090,7 +3203,7 @@ func (ac *analyzeCtx) analyzeCTEs(withClause *nodes.WithClause) error {
 			ac.catalog.visibleCTEs = ac.query.CTEList
 
 			// 5. Now analyze the full UNION — the recursive term can see the CTE.
-			fullQuery, err := ac.catalog.analyzeSetOp(sub)
+			fullQuery, err := ac.analyzeSubSelect(sub)
 
 			// Clear visibleCTEs regardless of error.
 			ac.catalog.visibleCTEs = nil

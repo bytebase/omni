@@ -45,6 +45,13 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 	// Build line number index for offset→line conversion.
 	lineIndex := buildLineIndex(sql)
 
+	// Schema dumps are often not strictly executable order. Pre-declare
+	// CREATE OR REPLACE functions when possible so earlier views can resolve
+	// RETURNS TABLE/OUT columns during analysis. Errors are still surfaced
+	// during normal statement execution below.
+	predeclaredFunctions := make(map[int]bool)
+	firstFunctionIndex := firstFunctionDefinitionIndexes(list)
+
 	continueOnError := false
 	if opts != nil {
 		continueOnError = opts.ContinueOnError
@@ -55,13 +62,10 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 		// Drain any leftover warnings from previous operations.
 		c.DrainWarnings()
 
+		c.predeclareReplaceableFunctions(list, predeclaredFunctions, firstFunctionIndex)
+
 		// Unwrap RawStmt if present.
-		var stmt nodes.Node
-		if raw, ok := item.(*nodes.RawStmt); ok {
-			stmt = raw.Stmt
-		} else {
-			stmt = item
-		}
+		stmt := unwrapRawStmt(item)
 
 		// Determine SQL text and line number for this statement.
 		stmtSQL := ""
@@ -96,6 +100,48 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 		}
 	}
 	return results, nil
+}
+
+func firstFunctionDefinitionIndexes(list *nodes.List) map[string]int {
+	first := make(map[string]int)
+	for i, item := range list.Items {
+		fn, ok := unwrapRawStmt(item).(*nodes.CreateFunctionStmt)
+		if !ok {
+			continue
+		}
+		identity := functionIdentity(fn)
+		if _, exists := first[identity]; !exists {
+			first[identity] = i
+		}
+	}
+	return first
+}
+
+func (c *Catalog) predeclareReplaceableFunctions(list *nodes.List, predeclared map[int]bool, firstFunctionIndex map[string]int) {
+	for i, item := range list.Items {
+		if predeclared[i] {
+			continue
+		}
+		stmt := unwrapRawStmt(item)
+		fn, ok := stmt.(*nodes.CreateFunctionStmt)
+		if !ok || !fn.IsOrReplace {
+			continue
+		}
+		if firstFunctionIndex[functionIdentity(fn)] != i {
+			continue
+		}
+		if err := c.CreateFunctionStmt(fn); err == nil {
+			predeclared[i] = true
+		}
+		c.DrainWarnings()
+	}
+}
+
+func unwrapRawStmt(item nodes.Node) nodes.Node {
+	if raw, ok := item.(*nodes.RawStmt); ok {
+		return raw.Stmt
+	}
+	return item
 }
 
 // isDML returns true for statements that are not utility statements
