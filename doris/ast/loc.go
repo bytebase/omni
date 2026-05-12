@@ -124,6 +124,40 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *MergeClause:
 		return v.Loc
+	case *CreateRowPolicyStmt:
+		return v.Loc
+	case *DropRowPolicyStmt:
+		return v.Loc
+	case *CreateEncryptKeyStmt:
+		return v.Loc
+	case *DropEncryptKeyStmt:
+		return v.Loc
+	case *DictionaryColumn:
+		return v.Loc
+	case *CreateDictionaryStmt:
+		return v.Loc
+	case *AlterDictionaryStmt:
+		return v.Loc
+	case *DropDictionaryStmt:
+		return v.Loc
+	case *RefreshDictionaryStmt:
+		return v.Loc
+	case *CreateRoleStmt:
+		return v.Loc
+	case *AlterRoleStmt:
+		return v.Loc
+	case *DropRoleStmt:
+		return v.Loc
+	case *UserIdentity:
+		return v.Loc
+	case *CreateUserStmt:
+		return v.Loc
+	case *AlterUserStmt:
+		return v.Loc
+	case *DropUserStmt:
+		return v.Loc
+	case *SetPasswordStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}
