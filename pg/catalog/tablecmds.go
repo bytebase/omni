@@ -377,10 +377,6 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 
-	if len(colDefs) == 0 && relkind != 'c' {
-		return errInvalidParameterValue("tables must have at least one column")
-	}
-
 	// Expand SERIAL columns (not applicable to composite types).
 	type serialInfo struct {
 		colIdx     int
@@ -606,6 +602,10 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 					continue
 				}
 				if pe.Name == "" {
+					if pe.Expr == nil {
+						return &Error{Code: CodeSyntaxError,
+							Message: "syntax error at or near \")\""}
+					}
 					// Expression partition key — store attnum=0 (PG convention).
 					keyAttNums = append(keyAttNums, 0)
 					continue
@@ -759,17 +759,26 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 					analyzed = coerced
 				}
 				columns[i].DefaultAnalyzed = analyzed
+				c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(columns[i].AttNum), analyzed, rel.OID,
+					DepNormal, DepNormal)
 				rte := c.buildRelationRTE(rel)
 				columns[i].Default = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 			}
 		}
 		if cd.RawGenExpr != nil && columns[i].Generated == 's' {
+			if rawExprContainsSubLink(cd.RawGenExpr) {
+				c.removeRelation(schema, relName, rel)
+				return &Error{Code: CodeFeatureNotSupported,
+					Message: "cannot use subquery in column generation expression"}
+			}
 			if analyzed, err := c.AnalyzeStandaloneExpr(cd.RawGenExpr, rel); err == nil && analyzed != nil {
 				coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), columns[i].TypeOID, 'i')
 				if cerr == nil && coerced != nil {
 					analyzed = coerced
 				}
 				columns[i].DefaultAnalyzed = analyzed
+				c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(columns[i].AttNum), analyzed, rel.OID,
+					DepNormal, DepNormal)
 				rte := c.buildRelationRTE(rel)
 				genExpr := c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 				columns[i].GenerationExpr = genExpr
@@ -1769,4 +1778,19 @@ func (c *Catalog) cloneLikeComments(src, dst *Relation) {
 			}
 		}
 	}
+}
+
+func rawExprContainsSubLink(expr nodes.Node) bool {
+	found := false
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if found || n == nil {
+			return false
+		}
+		if _, ok := n.(*nodes.SubLink); ok {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
 }

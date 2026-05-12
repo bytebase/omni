@@ -389,6 +389,7 @@ type analyzeCtx struct {
 	catalog             *Catalog
 	query               *Query
 	parent              *analyzeCtx // for correlated subqueries
+	disallowParentCols  bool        // true for non-LATERAL FROM subqueries that may see CTEs but not outer columns
 	domainConstraint    bool        // true when analyzing a domain CHECK constraint
 	domainBaseTypeOID   uint32      // base type OID for domain VALUE keyword
 	domainBaseTypMod    int32       // base type modifier for domain VALUE keyword
@@ -422,28 +423,15 @@ func (ac *analyzeCtx) transformRangeVar(rv *nodes.RangeVar) (JoinNode, error) {
 	// Check if this is a CTE reference before looking up tables.
 	// pg: src/backend/parser/parse_clause.c — getRTEForSpecialRelationTypes
 	if rv.Schemaname == "" {
-		for i, cte := range ac.query.CTEList {
-			if cte.Name == rv.Relname {
-				alias := ""
-				if rv.Alias != nil {
-					alias = rv.Alias.Aliasname
-				}
-				return ac.transformCTERef(rv.Relname, alias, i)
+		if cte, idx, current := ac.lookupCTE(rv.Relname); cte != nil {
+			alias := ""
+			if rv.Alias != nil {
+				alias = rv.Alias.Aliasname
 			}
-		}
-		// Also check visibleCTEs for recursive CTE references.
-		// During recursive CTE analysis, the partially-defined CTE is stored
-		// on the Catalog so that the recursive term (analyzed via a fresh
-		// analyzeCtx) can find it.
-		// pg: src/backend/parser/analyze.c — determineRecursiveColTypes
-		for i, cte := range ac.catalog.visibleCTEs {
-			if cte.Name == rv.Relname {
-				alias := ""
-				if rv.Alias != nil {
-					alias = rv.Alias.Aliasname
-				}
-				return ac.transformVisibleCTERef(cte, rv.Relname, alias, i)
+			if current {
+				return ac.transformCTERef(rv.Relname, alias, idx)
 			}
+			return ac.transformVisibleCTERef(cte, rv.Relname, alias, idx)
 		}
 	}
 
@@ -489,6 +477,24 @@ func (ac *analyzeCtx) transformRangeVar(rv *nodes.RangeVar) (JoinNode, error) {
 	ac.query.RangeTable = append(ac.query.RangeTable, rte)
 
 	return &RangeTableRef{RTIndex: rtIdx}, nil
+}
+
+func (ac *analyzeCtx) lookupCTE(name string) (*CommonTableExprQ, int, bool) {
+	for ctx := ac; ctx != nil; ctx = ctx.parent {
+		for i := len(ctx.query.CTEList) - 1; i >= 0; i-- {
+			cte := ctx.query.CTEList[i]
+			if cte.Name == name {
+				return cte, i, ctx == ac
+			}
+		}
+	}
+	for i := len(ac.catalog.visibleCTEs) - 1; i >= 0; i-- {
+		cte := ac.catalog.visibleCTEs[i]
+		if cte.Name == name {
+			return cte, i, false
+		}
+	}
+	return nil, 0, false
 }
 
 // transformJoinExpr processes a JOIN expression.
@@ -653,7 +659,7 @@ func (ac *analyzeCtx) transformRangeSubselect(rs *nodes.RangeSubselect) (JoinNod
 		// LATERAL: analyze with parent context for correlation.
 		subQuery, err = ac.analyzeSubSelect(sub)
 	} else {
-		subQuery, err = ac.catalog.analyzeSelectStmt(sub)
+		subQuery, err = ac.analyzeSubSelectWithOptions(sub, true)
 	}
 	if err != nil {
 		return nil, err
@@ -711,6 +717,20 @@ func (ac *analyzeCtx) transformRangeFunction(rf *nodes.RangeFunction) (JoinNode,
 		}
 
 		fexpr := funcItem.Items[0]
+		if fc, ok := fexpr.(*nodes.FuncCall); ok && isMultiArgUnnest(fc) {
+			for _, arg := range fc.Args.Items {
+				unnestCall := *fc
+				unnestCall.Args = &nodes.List{Items: []nodes.Node{arg}}
+				analyzed, err := ac.transformExpr(&unnestCall)
+				if err != nil {
+					return nil, err
+				}
+				funcExprs = append(funcExprs, analyzed)
+				funcNames = append(funcNames, "unnest")
+				funcColdefLists = append(funcColdefLists, nil)
+			}
+			continue
+		}
 		analyzed, err := ac.transformExpr(fexpr)
 		if err != nil {
 			return nil, err
@@ -725,6 +745,13 @@ func (ac *analyzeCtx) transformRangeFunction(rf *nodes.RangeFunction) (JoinNode,
 	}
 
 	return ac.addRangeTableEntryForFunction(rf, funcExprs, funcNames, funcColdefLists)
+}
+
+func isMultiArgUnnest(fc *nodes.FuncCall) bool {
+	if fc == nil || fc.FuncVariadic || fc.Args == nil || len(fc.Args.Items) <= 1 || fc.Funcname == nil || len(fc.Funcname.Items) == 0 {
+		return false
+	}
+	return strings.EqualFold(stringVal(fc.Funcname.Items[len(fc.Funcname.Items)-1]), "unnest")
 }
 
 // addRangeTableEntryForFunction builds a RTEFunction RangeTableEntry.
@@ -1004,7 +1031,7 @@ func (ac *analyzeCtx) transformTargetEntry(rt *nodes.ResTarget, startIdx int) ([
 	}
 
 	// Track provenance for simple column refs.
-	if v, ok := expr.(*VarExpr); ok {
+	if v, ok := expr.(*VarExpr); ok && v.LevelsUp == 0 && v.RangeIdx >= 0 && v.RangeIdx < len(ac.query.RangeTable) {
 		rte := ac.query.RangeTable[v.RangeIdx]
 		te.ResOrigTbl = rte.RelOID
 		te.ResOrigCol = v.AttNum
@@ -1020,11 +1047,13 @@ func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEn
 	tableName := starTableName(cr)
 
 	var entries []*TargetEntry
+	hasSource := false
 
 	if tableName == "" && ac.query.JoinTree != nil {
 		// Unqualified *: walk the join tree so that JOIN USING deduplication
 		// is respected. Each top-level FROM item contributes its columns;
 		// for JoinExprNode the RTE already has the correct (deduplicated) list.
+		hasSource = len(ac.query.JoinTree.FromList) > 0
 		for _, jn := range ac.query.JoinTree.FromList {
 			ac.expandStarFromJoinNode(jn, &entries, startIdx)
 		}
@@ -1037,6 +1066,7 @@ func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEn
 			if tableName != "" && rte.ERef != tableName {
 				continue
 			}
+			hasSource = true
 			for colIdx, colName := range rte.ColNames {
 				var coll uint32
 				if colIdx < len(rte.ColCollations) {
@@ -1064,6 +1094,9 @@ func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEn
 	}
 
 	if len(entries) == 0 {
+		if hasSource {
+			return entries, nil
+		}
 		if tableName != "" {
 			return nil, errUndefinedTable(tableName)
 		}
@@ -1289,7 +1322,7 @@ func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, err
 		}
 	}
 
-	if found == nil && ac.parent != nil {
+	if found == nil && ac.parent != nil && !ac.disallowParentCols {
 		// Try resolving in parent context (correlated subquery).
 		// pg: src/backend/parser/parse_expr.c — transformColumnRef
 		// PG walks up the namespace chain to find outer references.
@@ -1431,7 +1464,7 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 		return nil, errUndefinedFunction(funcName, argTypes)
 	}
 
-	proc, matchedArgTypes, err := ac.catalog.resolveFuncOverload(procs, argTypes, fc.AggStar)
+	proc, matchedArgTypes, err := ac.catalog.resolveFuncOverload(procs, argTypes, fc.AggStar, fc.FuncVariadic)
 	if err != nil {
 		return nil, err
 	}
@@ -1969,6 +2002,10 @@ func (ac *analyzeCtx) transformNullTest(nt *nodes.NullTest) (AnalyzedExpr, error
 //
 // pg: src/backend/parser/analyze.c — transformSelectStmt (with parent pstate)
 func (ac *analyzeCtx) analyzeSubSelect(stmt *nodes.SelectStmt) (*Query, error) {
+	return ac.analyzeSubSelectWithOptions(stmt, false)
+}
+
+func (ac *analyzeCtx) analyzeSubSelectWithOptions(stmt *nodes.SelectStmt, disallowParentCols bool) (*Query, error) {
 	if stmt == nil {
 		return nil, fmt.Errorf("NULL select statement")
 	}
@@ -1981,9 +2018,10 @@ func (ac *analyzeCtx) analyzeSubSelect(stmt *nodes.SelectStmt) (*Query, error) {
 	// Simple SELECT with parent context.
 	q := &Query{}
 	subAc := &analyzeCtx{
-		catalog: ac.catalog,
-		query:   q,
-		parent:  ac,
+		catalog:            ac.catalog,
+		query:              q,
+		parent:             ac,
+		disallowParentCols: disallowParentCols,
 	}
 
 	// Process WITH clause if present.
@@ -3060,14 +3098,20 @@ func (ac *analyzeCtx) analyzeCTEs(withClause *nodes.WithClause) error {
 			if err != nil {
 				return err
 			}
+			if err := validateCTEAliasCount(cte.Ctename, aliases, fullQuery); err != nil {
+				return err
+			}
 
 			// 6. Update the CTE entry with the full query.
 			tmpCTE.Query = fullQuery
 			tmpCTE.Materialized = cte.Ctematerialized
 		} else {
 			// Non-recursive CTE: analyze normally.
-			subQuery, err := ac.catalog.analyzeSelectStmt(sub)
+			subQuery, err := ac.analyzeSubSelect(sub)
 			if err != nil {
+				return err
+			}
+			if err := validateCTEAliasCount(cte.Ctename, aliases, subQuery); err != nil {
 				return err
 			}
 
@@ -3083,6 +3127,13 @@ func (ac *analyzeCtx) analyzeCTEs(withClause *nodes.WithClause) error {
 	}
 
 	return nil
+}
+
+func validateCTEAliasCount(name string, aliases []string, query *Query) error {
+	if len(aliases) == 0 || query == nil || len(aliases) <= len(query.TargetList) {
+		return nil
+	}
+	return fmt.Errorf("WITH query %q has %d columns available but %d columns specified", name, len(query.TargetList), len(aliases))
 }
 
 // transformCTERef creates a range table entry for a CTE reference.
@@ -3716,15 +3767,16 @@ func (c *Catalog) resolveOpWithCoercionFull(name string, leftType, rightType uin
 // and the resolved argument types (after resolving UNKNOWN).
 //
 // pg: src/backend/parser/parse_func.c — FuncnameGetCandidates + func_select_candidate
-func (c *Catalog) resolveFuncOverload(procs []*BuiltinProc, argTypes []uint32, hasStar bool) (*BuiltinProc, []uint32, error) {
+func (c *Catalog) resolveFuncOverload(procs []*BuiltinProc, argTypes []uint32, hasStar bool, explicitVariadic bool) (*BuiltinProc, []uint32, error) {
 	// 1. Build candidates filtered by arg count.
 	var candidates []funcCandidate
 	for _, p := range procs {
-		if int(p.NArgs) != len(argTypes) {
+		candArgTypes, ok := candidateArgTypesForCall(p, len(argTypes), explicitVariadic)
+		if !ok {
 			continue
 		}
 		candidates = append(candidates, funcCandidate{
-			argTypes: p.ArgTypes[:p.NArgs],
+			argTypes: candArgTypes,
 			proc:     p,
 		})
 	}
@@ -3743,7 +3795,7 @@ func (c *Catalog) resolveFuncOverload(procs []*BuiltinProc, argTypes []uint32, h
 			}
 		}
 		if exact {
-			return candidates[ci].proc, buildResolvedArgs(argTypes, candidates[ci].proc), nil
+			return candidates[ci].proc, buildResolvedArgs(argTypes, candidates[ci].argTypes), nil
 		}
 	}
 
@@ -3758,7 +3810,7 @@ func (c *Catalog) resolveFuncOverload(procs []*BuiltinProc, argTypes []uint32, h
 		return nil, nil, errUndefinedFunction(procs[0].Name, argTypes)
 	}
 	if len(coercible) == 1 {
-		return coercible[0].proc, buildResolvedArgs(argTypes, coercible[0].proc), nil
+		return coercible[0].proc, buildResolvedArgs(argTypes, coercible[0].argTypes), nil
 	}
 
 	// 4. Delegate to funcSelectCandidate for multi-phase resolution.
@@ -3766,15 +3818,60 @@ func (c *Catalog) resolveFuncOverload(procs []*BuiltinProc, argTypes []uint32, h
 	if best == nil {
 		return nil, nil, errUndefinedFunction(procs[0].Name, argTypes)
 	}
-	return best.proc, buildResolvedArgs(argTypes, best.proc), nil
+	return best.proc, buildResolvedArgs(argTypes, best.argTypes), nil
 }
 
-// buildResolvedArgs constructs the resolved argument type slice from the matched proc.
-func buildResolvedArgs(argTypes []uint32, proc *BuiltinProc) []uint32 {
+func candidateArgTypesForCall(proc *BuiltinProc, nargs int, explicitVariadic bool) ([]uint32, bool) {
+	procNArgs := int(proc.NArgs)
+	if procNArgs < 0 || procNArgs > len(proc.ArgTypes) {
+		return nil, false
+	}
+
+	if proc.Variadic == 0 {
+		minArgs := procNArgs - int(proc.NArgDefaults)
+		if minArgs < 0 {
+			minArgs = 0
+		}
+		if nargs < minArgs || nargs > procNArgs {
+			return nil, false
+		}
+		return proc.ArgTypes[:nargs], true
+	}
+
+	if explicitVariadic {
+		if nargs != procNArgs {
+			return nil, false
+		}
+		return proc.ArgTypes[:procNArgs], true
+	}
+
+	minArgs := procNArgs
+	if nargs < minArgs {
+		return nil, false
+	}
+	fixedArgs := procNArgs - 1
+	if fixedArgs < 0 {
+		return nil, false
+	}
+
+	argTypes := make([]uint32, nargs)
+	copy(argTypes, proc.ArgTypes[:fixedArgs])
+	variadicType := proc.Variadic
+	if variadicType == 0 {
+		variadicType = proc.ArgTypes[procNArgs-1]
+	}
+	for i := fixedArgs; i < nargs; i++ {
+		argTypes[i] = variadicType
+	}
+	return argTypes, true
+}
+
+// buildResolvedArgs constructs the resolved argument type slice from the matched candidate.
+func buildResolvedArgs(argTypes []uint32, candidateArgTypes []uint32) []uint32 {
 	resolved := make([]uint32, len(argTypes))
 	for i := range argTypes {
-		if i < int(proc.NArgs) {
-			resolved[i] = proc.ArgTypes[i]
+		if i < len(candidateArgTypes) {
+			resolved[i] = candidateArgTypes[i]
 		} else {
 			resolved[i] = argTypes[i]
 		}

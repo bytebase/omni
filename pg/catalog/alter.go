@@ -139,6 +139,14 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		relName = stmt.Relation.Relname
 	}
 
+	if nodes.ObjectType(stmt.ObjType) == nodes.OBJECT_INDEX {
+		return c.AlterIndexStmt(stmt)
+	}
+	if nodes.ObjectType(stmt.ObjType) == nodes.OBJECT_SEQUENCE {
+		_, err := c.findSequence(schemaName, relName)
+		return err
+	}
+
 	schema, rel, err := c.findRelation(schemaName, relName)
 	if err != nil {
 		return err
@@ -243,6 +251,73 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	return nil
 }
 
+// AlterIndexStmt applies ALTER INDEX commands.
+//
+// pg: src/backend/commands/tablecmds.c — AlterTable dispatch for OBJECT_INDEX
+func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
+	if stmt.Relation == nil {
+		return errInvalidParameterValue("ALTER INDEX requires an index name")
+	}
+	schema, err := c.resolveTargetSchema(stmt.Relation.Schemaname)
+	if err != nil {
+		return err
+	}
+	parentIdx := schema.Indexes[stmt.Relation.Relname]
+	if parentIdx == nil {
+		return errUndefinedObject("index", stmt.Relation.Relname)
+	}
+	if stmt.Cmds == nil {
+		return nil
+	}
+
+	for _, item := range stmt.Cmds.Items {
+		atc, ok := item.(*nodes.AlterTableCmd)
+		if !ok {
+			continue
+		}
+		switch nodes.AlterTableType(atc.Subtype) {
+		case nodes.AT_AttachPartition:
+			pc, ok := atc.Def.(*nodes.PartitionCmd)
+			if !ok {
+				return fmt.Errorf("AT_AttachPartition: expected PartitionCmd")
+			}
+			if err := c.atExecAttachIndexPartition(parentIdx, pc); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) atExecAttachIndexPartition(parentIdx *Index, pc *nodes.PartitionCmd) error {
+	if pc == nil || pc.Name == nil {
+		return errInvalidParameterValue("ATTACH PARTITION requires an index name")
+	}
+	parentRel := c.findRelByOID(parentIdx.RelOID)
+	if parentRel == nil || parentRel.RelKind != 'p' {
+		return errInvalidObjectDefinition(fmt.Sprintf("index %q is not on a partitioned table", parentIdx.Name))
+	}
+
+	childSchema, err := c.resolveTargetSchema(pc.Name.Schemaname)
+	if err != nil {
+		return err
+	}
+	childIdx := childSchema.Indexes[pc.Name.Relname]
+	if childIdx == nil {
+		return errUndefinedObject("index", pc.Name.Relname)
+	}
+	childRel := c.findRelByOID(childIdx.RelOID)
+	if childRel == nil {
+		return errUndefinedTable(pc.Name.Relname)
+	}
+	if childRel.PartitionOf != parentRel.OID {
+		return errInvalidObjectDefinition(fmt.Sprintf("index %q is not on a partition of %q", childIdx.Name, parentRel.Name))
+	}
+
+	c.recordDependency('i', childIdx.OID, 0, 'i', parentIdx.OID, 0, DepInternal)
+	return nil
+}
+
 // execAlterTableCmd executes a single ALTER TABLE subcommand.
 func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName string, atc *nodes.AlterTableCmd, identityOptions *nodes.List, recurse, recursing bool) error {
 	cascade := atc.Behavior == int(nodes.DROP_CASCADE)
@@ -274,6 +349,8 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 					analyzed = coerced
 				}
 				col.DefaultAnalyzed = analyzed
+				c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(col.AttNum), analyzed, rel.OID,
+					DepNormal, DepNormal)
 				rte := c.buildRelationRTE(rel)
 				col.Default = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 			}
@@ -285,6 +362,8 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 					analyzed = coerced
 				}
 				col.DefaultAnalyzed = analyzed
+				c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(col.AttNum), analyzed, rel.OID,
+					DepNormal, DepNormal)
 				rte := c.buildRelationRTE(rel)
 				genExpr := c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 				col.GenerationExpr = genExpr
@@ -320,6 +399,8 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 						analyzed = coerced
 					}
 					rel.Columns[idx].DefaultAnalyzed = analyzed
+					c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(rel.Columns[idx].AttNum), analyzed, rel.OID,
+						DepNormal, DepNormal)
 				}
 				rte := c.buildRelationRTE(rel)
 				defStr := c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
@@ -1891,6 +1972,8 @@ func extractObjectName(obj nodes.Node) (schema, name string) {
 	switch n := obj.(type) {
 	case *nodes.List:
 		return qualifiedName(n)
+	case *nodes.ObjectWithArgs:
+		return qualifiedName(n.Objname)
 	case *nodes.String:
 		return "", n.Str
 	default:
@@ -2194,6 +2277,8 @@ func (c *Catalog) atSetExpression(rel *Relation, colName string, expr nodes.Node
 			analyzed = coerced
 		}
 		col.DefaultAnalyzed = analyzed
+		c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(col.AttNum), analyzed, rel.OID,
+			DepNormal, DepNormal)
 		rte := c.buildRelationRTE(rel)
 		col.GenerationExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 		col.Default = col.GenerationExpr

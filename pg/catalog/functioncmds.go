@@ -189,6 +189,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	// pg: src/backend/commands/functioncmds.c — interpret_function_parameter_list
 	// ---------------------------------------------------------------
 	var argOIDs []uint32
+	var variadicOID uint32
 	var varCount, outCount int
 	var requiredResultType uint32 // 0 = InvalidOid
 	var hasTableParams bool
@@ -308,11 +309,13 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 				switch toid {
 				case ANYARRAYOID, ANYCOMPATIBLEARRAYOID, ANYOID:
 					// These pseudo-types are okay for VARIADIC.
+					variadicOID = ANYOID
 				default:
 					bt := c.typeByOID[toid]
 					if bt == nil || bt.Elem == 0 {
 						return errInvalidFunctionDefinition("VARIADIC parameter must be an array")
 					}
+					variadicOID = bt.Elem
 				}
 			}
 
@@ -428,6 +431,9 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		}
 
 		// pg: line 1182-1186 — validate against requiredResultType from OUT params
+		if hasTableParams && outCount == 1 && requiredResultType != 0 && retOID == RECORDOID {
+			retOID = requiredResultType
+		}
 		if requiredResultType != 0 && retOID != requiredResultType {
 			return errInvalidFunctionDefinition(
 				fmt.Sprintf("function result type must be %s because of OUT parameters",
@@ -506,18 +512,20 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 
 	// Register as BuiltinProc so resolveFunc works.
 	bp := &BuiltinProc{
-		OID:       procOID,
-		Name:      name,
-		Kind:      kind,
-		SecDef:    secDef,
-		LeakProof: isLeakProof,
-		IsStrict:  isStrict,
-		RetSet:    returnSet,
-		Volatile:  volatile,
-		Parallel:  parallel,
-		NArgs:     int16(len(argOIDs)),
-		RetType:   retOID,
-		ArgTypes:  argOIDs,
+		OID:          procOID,
+		Name:         name,
+		Kind:         kind,
+		SecDef:       secDef,
+		LeakProof:    isLeakProof,
+		IsStrict:     isStrict,
+		RetSet:       returnSet,
+		Volatile:     volatile,
+		Parallel:     parallel,
+		Variadic:     variadicOID,
+		NArgs:        int16(len(argOIDs)),
+		NArgDefaults: nArgDefaults,
+		RetType:      retOID,
+		ArgTypes:     argOIDs,
 	}
 	c.procByOID[procOID] = bp
 	c.procByName[name] = append(c.procByName[name], bp)

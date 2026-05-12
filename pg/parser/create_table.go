@@ -82,7 +82,11 @@ func (p *Parser) parseCreateStmt() (*nodes.CreateStmt, error) {
 	stmt.InhRelations = p.parseOptInherit()
 
 	// OptPartitionSpec
-	stmt.Partspec = p.parseOptPartitionSpec()
+	partspec, err := p.parseOptPartitionSpec()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Partspec = partspec
 
 	// OptAccessMethod (USING name) -- but only for table AM, not constraint/index
 	stmt.AccessMethod = p.parseOptAccessMethod()
@@ -146,7 +150,11 @@ func (p *Parser) parseCreateStmtPartitionOf(stmt *nodes.CreateStmt, relpersisten
 	stmt.Partbound = p.parseForValues()
 
 	// OptPartitionSpec
-	stmt.Partspec = p.parseOptPartitionSpec()
+	partspec, err := p.parseOptPartitionSpec()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Partspec = partspec
 
 	// OptAccessMethod
 	stmt.AccessMethod = p.parseOptAccessMethod()
@@ -245,7 +253,7 @@ func (p *Parser) parseTableElementList() (*nodes.List, error) {
 //	TableElement: columnDef | TableConstraint | TableLikeClause
 func (p *Parser) parseTableElement() (nodes.Node, error) {
 	if p.isTableConstraintStart() {
-		return p.parseTableConstraint(), nil
+		return p.parseTableConstraint()
 	}
 	if p.cur.Type == LIKE {
 		return p.parseTableLikeClause()
@@ -532,7 +540,10 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		}
 		refRv := makeRangeVarFromNames(refNames)
 		pkAttrs, _ := p.parseOptColumnList()
-		matchType := p.parseKeyMatch()
+		matchType, err := p.parseKeyMatch()
+		if err != nil {
+			return nil, err
+		}
 		updAction, delAction, delSetCols := p.parseKeyActions()
 		attrs := p.parseConstraintAttributeSpec()
 		n := &nodes.Constraint{
@@ -653,15 +664,18 @@ func makeDefElem(name string, arg nodes.Node) *nodes.DefElem {
 //	TableConstraint:
 //	    CONSTRAINT name ConstraintElem
 //	    | ConstraintElem
-func (p *Parser) parseTableConstraint() *nodes.Constraint {
+func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 	if p.cur.Type == CONSTRAINT {
 		p.advance()
 		name, _ := p.parseName()
-		c := p.parseConstraintElem()
+		c, err := p.parseConstraintElem()
+		if err != nil {
+			return nil, err
+		}
 		if c != nil {
 			c.Conname = name
 		}
-		return c
+		return c, nil
 	}
 	return p.parseConstraintElem()
 }
@@ -676,7 +690,7 @@ func (p *Parser) parseTableConstraint() *nodes.Constraint {
 //	    | CHECK '(' a_expr ')' ConstraintAttributeSpec
 //	    | FOREIGN KEY '(' columnList ')' REFERENCES qualified_name opt_column_list key_match key_actions ConstraintAttributeSpec
 //	    | EXCLUDE ...
-func (p *Parser) parseConstraintElem() *nodes.Constraint {
+func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 	switch p.cur.Type {
 	case UNIQUE:
 		p.advance()
@@ -690,7 +704,7 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 				p.advance() // INDEX
 				if p.collectMode() {
 					p.addRuleCandidate("qualified_name")
-					return nil
+					return nil, nil
 				}
 				idxName, _ := p.parseName()
 				attrs := p.parseConstraintAttributeSpec()
@@ -701,7 +715,7 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 					InitiallyValid: true,
 				}
 				applyConstraintAttrs(n, attrs)
-				return n
+				return n, nil
 			}
 		}
 
@@ -723,7 +737,7 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 			InitiallyValid:   true,
 		}
 		applyConstraintAttrs(n, attrs)
-		return n
+		return n, nil
 
 	case PRIMARY:
 		p.advance() // PRIMARY
@@ -737,7 +751,7 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 				p.advance() // INDEX
 				if p.collectMode() {
 					p.addRuleCandidate("qualified_name")
-					return nil
+					return nil, nil
 				}
 				idxName, _ := p.parseName()
 				attrs := p.parseConstraintAttributeSpec()
@@ -748,7 +762,7 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 					InitiallyValid: true,
 				}
 				applyConstraintAttrs(n, attrs)
-				return n
+				return n, nil
 			}
 		}
 
@@ -769,7 +783,7 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 			InitiallyValid: true,
 		}
 		applyConstraintAttrs(n, attrs)
-		return n
+		return n, nil
 
 	case CHECK:
 		p.advance()
@@ -784,7 +798,7 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 			InitiallyValid: true,
 		}
 		applyConstraintAttrs(n, attrs)
-		return n
+		return n, nil
 
 	case FOREIGN:
 		p.advance() // FOREIGN
@@ -796,7 +810,10 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 		refNames, _ := p.parseQualifiedName()
 		refRv := makeRangeVarFromNames(refNames)
 		pkAttrs, _ := p.parseOptColumnList()
-		matchType := p.parseKeyMatch()
+		matchType, err := p.parseKeyMatch()
+		if err != nil {
+			return nil, err
+		}
 		updAction, delAction, delSetCols := p.parseKeyActions()
 		attrs := p.parseConstraintAttributeSpec()
 		n := &nodes.Constraint{
@@ -812,12 +829,12 @@ func (p *Parser) parseConstraintElem() *nodes.Constraint {
 			InitiallyValid: true,
 		}
 		applyConstraintAttrs(n, attrs)
-		return n
+		return n, nil
 
 	case EXCLUDE:
-		return p.parseExclusionConstraint()
+		return p.parseExclusionConstraint(), nil
 	}
-	return nil
+	return nil, nil
 }
 
 // parseExclusionConstraint parses EXCLUDE constraint.
@@ -1049,7 +1066,8 @@ func (p *Parser) parseTypedTableElementList() *nodes.List {
 //	TypedTableElement: columnOptions | TableConstraint
 func (p *Parser) parseTypedTableElement() nodes.Node {
 	if p.isTableConstraintStart() {
-		return p.parseTableConstraint()
+		c, _ := p.parseTableConstraint()
+		return c
 	}
 	return p.parseColumnOptions()
 }
@@ -1163,24 +1181,28 @@ func (p *Parser) parseColumnList() *nodes.List {
 // parseKeyMatch parses key_match.
 //
 //	key_match: MATCH FULL | MATCH PARTIAL | MATCH SIMPLE | /* EMPTY */
-func (p *Parser) parseKeyMatch() byte {
+func (p *Parser) parseKeyMatch() (byte, error) {
 	if p.cur.Type != MATCH {
-		return 's' // default SIMPLE
+		return 's', nil // default SIMPLE
 	}
 	p.advance()
 	switch p.cur.Type {
 	case FULL:
 		p.advance()
-		return 'f'
+		return 'f', nil
 	case PARTIAL:
 		p.advance()
-		return 'p'
+		return 'p', nil
+	case SIMPLE:
+		p.advance()
+		return 's', nil
 	default:
 		// SIMPLE
 		if p.cur.Type == IDENT && strings.EqualFold(p.cur.Str, "simple") {
 			p.advance()
+			return 's', nil
 		}
-		return 's'
+		return 0, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1420,28 +1442,40 @@ func (p *Parser) parseOptInherit() *nodes.List {
 // parseOptPartitionSpec parses OptPartitionSpec.
 //
 //	OptPartitionSpec: PartitionSpec | /* EMPTY */
-func (p *Parser) parseOptPartitionSpec() *nodes.PartitionSpec {
+func (p *Parser) parseOptPartitionSpec() (*nodes.PartitionSpec, error) {
 	if p.cur.Type == PARTITION {
 		return p.parsePartitionSpec()
 	}
-	return nil
+	return nil, nil
 }
 
 // parsePartitionSpec parses PartitionSpec.
 //
 //	PartitionSpec: PARTITION BY ColId '(' part_params ')'
-func (p *Parser) parsePartitionSpec() *nodes.PartitionSpec {
+func (p *Parser) parsePartitionSpec() (*nodes.PartitionSpec, error) {
 	p.advance() // PARTITION
-	p.expect(BY)
-	strategy, _ := p.parseColId()
-	p.expect('(')
-	params := p.parsePartParams()
-	p.expect(')')
+	if _, err := p.expect(BY); err != nil {
+		return nil, err
+	}
+	strategy, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	params, err := p.parsePartParams()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.PartitionSpec{
 		Strategy:   parsePartitionStrategy(strategy),
 		PartParams: params,
 		Loc:        nodes.NoLoc(),
-	}
+	}, nil
 }
 
 // parsePartitionStrategy converts partition strategy name to internal code.
@@ -1461,15 +1495,21 @@ func parsePartitionStrategy(strategy string) string {
 // parsePartParams parses part_params.
 //
 //	part_params: part_elem | part_params ',' part_elem
-func (p *Parser) parsePartParams() *nodes.List {
-	elem := p.parsePartElem()
+func (p *Parser) parsePartParams() (*nodes.List, error) {
+	elem, err := p.parsePartElem()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{elem}
 	for p.cur.Type == ',' {
 		p.advance()
-		elem = p.parsePartElem()
+		elem, err = p.parsePartElem()
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, elem)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parsePartElem parses a single partition key element.
@@ -1478,11 +1518,19 @@ func (p *Parser) parsePartParams() *nodes.List {
 //	    ColId opt_collate opt_qualified_name
 //	    | func_expr_windowless opt_collate opt_qualified_name
 //	    | '(' a_expr ')' opt_collate opt_qualified_name
-func (p *Parser) parsePartElem() *nodes.PartitionElem {
+func (p *Parser) parsePartElem() (*nodes.PartitionElem, error) {
 	if p.cur.Type == '(' {
 		p.advance()
-		expr, _ := p.parseAExpr(0)
-		p.expect(')')
+		expr, err := p.parseAExpr(0)
+		if err != nil {
+			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		collation := p.parseOptCollate()
 		opclass := p.parseOptQualifiedName()
 		return &nodes.PartitionElem{
@@ -1490,14 +1538,17 @@ func (p *Parser) parsePartElem() *nodes.PartitionElem {
 			Collation: collation,
 			Opclass:   opclass,
 			Loc:       nodes.NoLoc(),
-		}
+		}, nil
 	}
 
 	// Try as ColId first (checking if next is not '(' which would make it a function)
 	if p.isColId() {
 		next := p.peekNext()
 		if next.Type != '(' {
-			name, _ := p.parseColId()
+			name, err := p.parseColId()
+			if err != nil {
+				return nil, err
+			}
 			collation := p.parseOptCollate()
 			opclass := p.parseOptQualifiedName()
 			return &nodes.PartitionElem{
@@ -1505,12 +1556,18 @@ func (p *Parser) parsePartElem() *nodes.PartitionElem {
 				Collation: collation,
 				Opclass:   opclass,
 				Loc:       nodes.NoLoc(),
-			}
+			}, nil
 		}
 	}
 
 	// func_expr_windowless
-	expr, _ := p.parseFuncExprWindowless()
+	expr, err := p.parseFuncExprWindowless()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 	collation := p.parseOptCollate()
 	opclass := p.parseOptQualifiedName()
 	return &nodes.PartitionElem{
@@ -1518,7 +1575,7 @@ func (p *Parser) parsePartElem() *nodes.PartitionElem {
 		Collation: collation,
 		Opclass:   opclass,
 		Loc:       nodes.NoLoc(),
-	}
+	}, nil
 }
 
 // parseOptAccessMethod parses OptAccessMethod.

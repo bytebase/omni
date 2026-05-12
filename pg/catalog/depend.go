@@ -1,5 +1,7 @@
 package catalog
 
+import "strings"
+
 // DepType classifies a dependency.
 type DepType byte
 
@@ -15,12 +17,12 @@ const (
 //
 // pg: src/include/catalog/pg_depend.h
 type DepEntry struct {
-	ObjType  byte    // 'r'=relation, 'i'=index, 'c'=constraint, 't'=type
+	ObjType  byte // 'r'=relation, 'i'=index, 'c'=constraint, 't'=type
 	ObjOID   uint32
-	ObjSubID int32   // pg: pg_depend.objsubid (attnum, or 0 for whole object)
+	ObjSubID int32 // pg: pg_depend.objsubid (attnum, or 0 for whole object)
 	RefType  byte
 	RefOID   uint32
-	RefSubID int32   // pg: pg_depend.refobjsubid (attnum, or 0 for whole object)
+	RefSubID int32 // pg: pg_depend.refobjsubid (attnum, or 0 for whole object)
 	DepType  DepType
 }
 
@@ -86,6 +88,14 @@ func (c *Catalog) recordDependencyOnSingleRelExpr(
 	expr AnalyzedExpr, relOID uint32,
 	behavior, selfBehavior DepType,
 ) {
+	c.recordDependencyOnSingleRelExprForObject(objType, objOID, 0, expr, relOID, behavior, selfBehavior)
+}
+
+func (c *Catalog) recordDependencyOnSingleRelExprForObject(
+	objType byte, objOID uint32, objSubID int32,
+	expr AnalyzedExpr, relOID uint32,
+	behavior, selfBehavior DepType,
+) {
 	if expr == nil {
 		return
 	}
@@ -100,9 +110,9 @@ func (c *Catalog) recordDependencyOnSingleRelExpr(
 	// pg: recordDependencyOnSingleRelExpr lines 1635-1653
 	for _, ref := range refs {
 		if ref.refType == 'r' && ref.refOID == relOID {
-			c.recordDependency(objType, objOID, 0, ref.refType, ref.refOID, ref.refSubID, selfBehavior)
+			c.recordDependency(objType, objOID, objSubID, ref.refType, ref.refOID, ref.refSubID, selfBehavior)
 		} else {
-			c.recordDependency(objType, objOID, 0, ref.refType, ref.refOID, ref.refSubID, behavior)
+			c.recordDependency(objType, objOID, objSubID, ref.refType, ref.refOID, ref.refSubID, behavior)
 		}
 	}
 }
@@ -136,6 +146,9 @@ func (c *Catalog) walkExprRefsWithRel(expr AnalyzedExpr, relOID uint32, refs *[]
 		}
 	case *FuncCallExpr:
 		addRef('f', v.FuncOID, 0)
+		if seqOID := c.nextvalSequenceOID(v); seqOID != 0 {
+			addRef('s', seqOID, 0)
+		}
 		for _, arg := range v.Args {
 			c.walkExprRefsWithRel(arg, relOID, refs, seen)
 		}
@@ -221,7 +234,7 @@ func (c *Catalog) walkExprRefsWithRel(expr AnalyzedExpr, relOID uint32, refs *[]
 			c.walkExprRefsWithRel(arg, relOID, refs, seen)
 		}
 		c.walkExprRefsWithRel(v.AggFilter, relOID, refs, seen)
-	// ConstExpr, CoerceToDomainValueExpr, SQLValueFuncExpr — no references
+		// ConstExpr, CoerceToDomainValueExpr, SQLValueFuncExpr — no references
 	}
 }
 
@@ -263,6 +276,9 @@ func (c *Catalog) walkExprRefs(expr AnalyzedExpr, refs *[]depRef, seen map[depRe
 	switch v := expr.(type) {
 	case *FuncCallExpr:
 		addRef('f', v.FuncOID)
+		if seqOID := c.nextvalSequenceOID(v); seqOID != 0 {
+			addRef('s', seqOID)
+		}
 		for _, arg := range v.Args {
 			c.walkExprRefs(arg, refs, seen)
 		}
@@ -349,7 +365,7 @@ func (c *Catalog) walkExprRefs(expr AnalyzedExpr, refs *[]depRef, seen map[depRe
 			c.walkExprRefs(arg, refs, seen)
 		}
 		c.walkExprRefs(v.AggFilter, refs, seen)
-	// VarExpr, ConstExpr, CoerceToDomainValueExpr, SQLValueFuncExpr — no references
+		// VarExpr, ConstExpr, CoerceToDomainValueExpr, SQLValueFuncExpr — no references
 	}
 }
 
@@ -364,4 +380,40 @@ func (c *Catalog) removeDepsOn(refType byte, refOID uint32) {
 		n++
 	}
 	c.deps = c.deps[:n]
+}
+
+func (c *Catalog) nextvalSequenceOID(fn *FuncCallExpr) uint32 {
+	if fn == nil || !strings.EqualFold(fn.FuncName, "nextval") || len(fn.Args) != 1 {
+		return 0
+	}
+	constArg := unwrapConstExpr(fn.Args[0])
+	if constArg == nil || constArg.Value == "" || constArg.TypeOID != REGCLASSOID {
+		return 0
+	}
+	schemaName, seqName := splitRegclassName(constArg.Value)
+	seq, err := c.findSequence(schemaName, seqName)
+	if err != nil {
+		return 0
+	}
+	return seq.OID
+}
+
+func unwrapConstExpr(expr AnalyzedExpr) *ConstExpr {
+	switch v := expr.(type) {
+	case *ConstExpr:
+		return v
+	case *RelabelExpr:
+		return unwrapConstExpr(v.Arg)
+	case *CoerceViaIOExpr:
+		return unwrapConstExpr(v.Arg)
+	default:
+		return nil
+	}
+}
+
+func splitRegclassName(name string) (string, string) {
+	if idx := strings.LastIndexByte(name, '.'); idx >= 0 {
+		return name[:idx], name[idx+1:]
+	}
+	return "", name
 }
