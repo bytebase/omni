@@ -696,6 +696,61 @@ func TestQuerySpan_ViewLineage(t *testing.T) {
 	}
 }
 
+func TestAnalyzeReturnsTableSingleColumnFunctionNames(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE FUNCTION plpgsql_t(x integer)
+		RETURNS TABLE(a integer)
+		LANGUAGE plpgsql
+		AS $$
+		BEGIN
+			RETURN QUERY SELECT x;
+		END
+		$$;
+	`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name string
+		sql  string
+		want string
+	}{
+		{
+			name: "table source uses table column name",
+			sql:  `SELECT * FROM plpgsql_t(1)`,
+			want: "a",
+		},
+		{
+			name: "rte alias does not override named output parameter",
+			sql:  `SELECT * FROM plpgsql_t(1) AS x`,
+			want: "a",
+		},
+		{
+			name: "column alias overrides named output parameter",
+			sql:  `SELECT * FROM plpgsql_t(1) AS x(y)`,
+			want: "y",
+		},
+		{
+			name: "scalar call uses function name",
+			sql:  `SELECT plpgsql_t(1)`,
+			want: "plpgsql_t",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			q := parseAndAnalyze(t, c, tt.sql)
+			if got := len(q.TargetList); got != 1 {
+				t.Fatalf("target count = %d, want 1", got)
+			}
+			if got := q.TargetList[0].ResName; got != tt.want {
+				t.Fatalf("target name = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestQuerySpan_DifferentSchemas(t *testing.T) {
 	// Test cross-schema references
 	c := New()
