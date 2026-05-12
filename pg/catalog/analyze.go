@@ -799,7 +799,7 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 		switch cls {
 		case typeFuncScalar:
 			// Single column with name from function.
-			cname := chooseScalarFunctionAlias(funcNames[i], alias, len(funcExprs))
+			cname := ac.chooseScalarFunctionAlias(fexpr, funcNames[i], alias, len(funcExprs))
 			colNames = append(colNames, cname)
 			colTypes = append(colTypes, retType)
 			colTypMods = append(colTypMods, fexpr.exprTypMod())
@@ -995,11 +995,57 @@ func (ac *analyzeCtx) appendOutputParamColumns(
 // chooseScalarFunctionAlias picks the column name for a scalar function in FROM.
 //
 // pg: src/backend/parser/parse_relation.c — chooseScalarFunctionAlias
-func chooseScalarFunctionAlias(funcName, rteAlias string, nfuncs int) string {
+func (ac *analyzeCtx) chooseScalarFunctionAlias(fexpr AnalyzedExpr, funcName, rteAlias string, nfuncs int) string {
+	if pname := ac.funcResultName(fexpr); pname != "" {
+		return pname
+	}
 	if nfuncs == 1 && rteAlias != "" {
 		return rteAlias
 	}
 	return funcName
+}
+
+// funcResultName returns the single named OUT/INOUT/TABLE parameter name for
+// a function, if one exists.
+//
+// pg: src/backend/utils/fmgr/funcapi.c — get_func_result_name
+func (ac *analyzeCtx) funcResultName(fexpr AnalyzedExpr) string {
+	call, ok := fexpr.(*FuncCallExpr)
+	if !ok || call.FuncOID == 0 {
+		return ""
+	}
+
+	var modes []byte
+	var names []string
+	if up := ac.catalog.userProcs[call.FuncOID]; up != nil {
+		modes = up.ArgModes
+		names = up.ArgNames
+	} else if proc := ac.catalog.procByOID[call.FuncOID]; proc != nil {
+		modes = proc.ArgModes
+		names = proc.ArgNames
+	}
+	if len(modes) == 0 || len(names) == 0 {
+		return ""
+	}
+
+	outCount := 0
+	result := ""
+	for i, mode := range modes {
+		switch mode {
+		case 'i', 'v':
+			continue
+		case 'o', 'b', 't':
+			outCount++
+			if outCount > 1 || i >= len(names) || names[i] == "" {
+				return ""
+			}
+			result = names[i]
+		}
+	}
+	if outCount != 1 {
+		return ""
+	}
+	return result
 }
 
 // figureColname extracts the function name from a raw expression for FROM alias.
