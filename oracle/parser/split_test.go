@@ -169,6 +169,35 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			},
 		},
 		{
+			name: "create function with declarations without slash separator",
+			sql: "CREATE FUNCTION calc_bonus(p_start_date DATE)\n" +
+				"RETURN DATE\n" +
+				"IS\n" +
+				"  v_current_date DATE := p_start_date;\n" +
+				"BEGIN\n" +
+				"  RETURN v_current_date;\n" +
+				"END calc_bonus;\n" +
+				"CREATE TABLE t (id NUMBER);",
+			want: []string{
+				"CREATE FUNCTION calc_bonus(p_start_date DATE)\nRETURN DATE\nIS\n  v_current_date DATE := p_start_date;\nBEGIN\n  RETURN v_current_date;\nEND calc_bonus;",
+				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
+			name: "create procedure with declarations without slash separator",
+			sql: "CREATE PROCEDURE update_salary(p_employee_id NUMBER)\n" +
+				"IS\n" +
+				"  v_delta NUMBER := 1;\n" +
+				"BEGIN\n" +
+				"  UPDATE employees SET salary = salary + v_delta WHERE id = p_employee_id;\n" +
+				"END update_salary;\n" +
+				"CREATE TABLE t (id NUMBER);",
+			want: []string{
+				"CREATE PROCEDURE update_salary(p_employee_id NUMBER)\nIS\n  v_delta NUMBER := 1;\nBEGIN\n  UPDATE employees SET salary = salary + v_delta WHERE id = p_employee_id;\nEND update_salary;",
+				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
 			name: "create editionable procedure",
 			sql: "CREATE OR REPLACE EDITIONABLE PROCEDURE p IS\n" +
 				"BEGIN\n" +
