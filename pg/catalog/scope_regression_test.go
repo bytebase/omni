@@ -194,3 +194,11 @@ func TestPGAnalyzerScopeRejectsNonLateralSetopSiblingReference(t *testing.T) {
 		t.Fatal("LoadSQL unexpectedly accepted non-LATERAL set-op reference to sibling alias")
 	}
 }
+
+func TestPGAnalyzerRangeFunctionAliasAsJsonbOperand(t *testing.T) {
+	c := New()
+	parseAndAnalyze(t, c, `
+		SELECT elem ->> 'matchedDateTimeValue'
+		FROM jsonb_array_elements('[{}]'::jsonb) elem
+	`)
+}
