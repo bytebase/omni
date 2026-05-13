@@ -1382,17 +1382,7 @@ func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, err
 		}
 		for colIdx, cn := range rte.ColNames {
 			if cn == colName {
-				var coll uint32
-				if colIdx < len(rte.ColCollations) {
-					coll = rte.ColCollations[colIdx]
-				}
-				v := &VarExpr{
-					RangeIdx:  rtIdx,
-					AttNum:    int16(colIdx + 1),
-					TypeOID:   rte.ColTypes[colIdx],
-					TypeMod:   rte.ColTypMods[colIdx],
-					Collation: coll,
-				}
+				v := makeRTEColumnVar(rtIdx, rte, colIdx)
 				if found != nil {
 					return nil, errAmbiguousColumn(colName)
 				}
@@ -1400,6 +1390,17 @@ func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, err
 				if tableName != "" {
 					return found, nil // exact table match, no ambiguity possible
 				}
+			}
+		}
+	}
+
+	if tableName == "" && found == nil {
+		for rtIdx, rte := range ac.query.RangeTable {
+			if v := ac.makeScalarFunctionWholeRowVar(rtIdx, rte, colName); v != nil {
+				if found != nil {
+					return nil, errAmbiguousColumn(colName)
+				}
+				found = v
 			}
 		}
 	}
@@ -1490,23 +1491,44 @@ func (ac *analyzeCtx) findVarInRTE(rtIdx int, colName string) (*VarExpr, bool) {
 		if cn != colName {
 			continue
 		}
-		var coll uint32
-		if colIdx < len(rte.ColCollations) {
-			coll = rte.ColCollations[colIdx]
-		}
-		v := &VarExpr{
-			RangeIdx:  rtIdx,
-			AttNum:    int16(colIdx + 1),
-			TypeOID:   rte.ColTypes[colIdx],
-			TypeMod:   rte.ColTypMods[colIdx],
-			Collation: coll,
-		}
+		v := makeRTEColumnVar(rtIdx, rte, colIdx)
 		if found != nil {
 			return nil, true
 		}
 		found = v
 	}
 	return found, false
+}
+
+func makeRTEColumnVar(rtIdx int, rte *RangeTableEntry, colIdx int) *VarExpr {
+	var coll uint32
+	if colIdx < len(rte.ColCollations) {
+		coll = rte.ColCollations[colIdx]
+	}
+	return &VarExpr{
+		RangeIdx:  rtIdx,
+		AttNum:    int16(colIdx + 1),
+		TypeOID:   rte.ColTypes[colIdx],
+		TypeMod:   rte.ColTypMods[colIdx],
+		Collation: coll,
+	}
+}
+
+func (ac *analyzeCtx) makeScalarFunctionWholeRowVar(rtIdx int, rte *RangeTableEntry, name string) *VarExpr {
+	if rte.Kind != RTEFunction || rte.ERef != name || rte.Ordinality || len(rte.FuncExprs) != 1 {
+		return nil
+	}
+	fexpr := rte.FuncExprs[0]
+	if fexpr == nil || ac.catalog.getTypeFuncClass(fexpr.exprType()) != typeFuncScalar {
+		return nil
+	}
+	return &VarExpr{
+		RangeIdx:  rtIdx,
+		AttNum:    1,
+		TypeOID:   fexpr.exprType(),
+		TypeMod:   -1,
+		Collation: fexpr.exprCollation(),
+	}
 }
 
 // transformAConst transforms a constant value.
