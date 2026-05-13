@@ -1,6 +1,10 @@
 package parser
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestSplitOrdinarySQL(t *testing.T) {
 	tests := []struct {
@@ -612,6 +616,150 @@ func TestSplitClassifiesSQLPlusCommands(t *testing.T) {
 	for i, want := range wantKinds {
 		if got[i].Kind != want {
 			t.Fatalf("segment[%d] Kind = %v for %q, want %v", i, got[i].Kind, got[i].Text, want)
+		}
+	}
+}
+
+func TestSplitClassifiesOracleSetStatementsAsSQL(t *testing.T) {
+	sql := "SET DEFINE OFF\n" +
+		"SET TRANSACTION READ ONLY;\n" +
+		"SET ROLE app_role;\n" +
+		"SET CONSTRAINTS ALL IMMEDIATE;"
+	got := Split(sql)
+	wantTexts := []string{
+		"SET DEFINE OFF",
+		"SET TRANSACTION READ ONLY",
+		"\nSET ROLE app_role",
+		"\nSET CONSTRAINTS ALL IMMEDIATE",
+	}
+	wantKinds := []SegmentKind{
+		SegmentSQLPlusCommand,
+		SegmentSQL,
+		SegmentSQL,
+		SegmentSQL,
+	}
+	if len(got) != len(wantKinds) {
+		t.Fatalf("got %d segments %q, want %d", len(got), splitTexts(got), len(wantKinds))
+	}
+	for i := range wantKinds {
+		if got[i].Text != wantTexts[i] {
+			t.Fatalf("segment[%d] Text = %q, want %q", i, got[i].Text, wantTexts[i])
+		}
+		if got[i].Kind != wantKinds[i] {
+			t.Fatalf("segment[%d] Kind = %v for %q, want %v", i, got[i].Kind, got[i].Text, wantKinds[i])
+		}
+	}
+}
+
+func TestSplitDoesNotClassifySQLContinuationLinesAsSQLPlus(t *testing.T) {
+	sql := "SELECT employee_id\n" +
+		"FROM employees\n" +
+		"START WITH manager_id IS NULL\n" +
+		"CONNECT BY PRIOR employee_id = manager_id;\n" +
+		"CREATE DATABASE LINK remote_db\n" +
+		"CONNECT TO remote_user IDENTIFIED BY remote_pass\n" +
+		"USING 'remote_tns';\n" +
+		"CREATE DATABASE mydb\n" +
+		"SET DEFAULT BIGFILE TABLESPACE;"
+	got := Split(sql)
+	wantTexts := []string{
+		"SELECT employee_id\nFROM employees\nSTART WITH manager_id IS NULL\nCONNECT BY PRIOR employee_id = manager_id",
+		"\nCREATE DATABASE LINK remote_db\nCONNECT TO remote_user IDENTIFIED BY remote_pass\nUSING 'remote_tns'",
+		"\nCREATE DATABASE mydb\nSET DEFAULT BIGFILE TABLESPACE",
+	}
+	if len(got) != len(wantTexts) {
+		t.Fatalf("got %d segments %q, want %d", len(got), splitTexts(got), len(wantTexts))
+	}
+	for i := range wantTexts {
+		if got[i].Text != wantTexts[i] {
+			t.Fatalf("segment[%d] Text = %q, want %q", i, got[i].Text, wantTexts[i])
+		}
+		if got[i].Kind != SegmentSQL {
+			t.Fatalf("segment[%d] Kind = %v for %q, want %v", i, got[i].Kind, got[i].Text, SegmentSQL)
+		}
+	}
+}
+
+func TestSplitClassifiesUnambiguousSQLPlusCommandsAfterBufferedSQL(t *testing.T) {
+	sql := "SELECT 1 FROM dual\n" +
+		"PROMPT running next query\n" +
+		"SPOOL install.log\n" +
+		"SELECT 2 FROM dual\n" +
+		"SET DEFINE OFF\n" +
+		"SELECT 3 FROM dual\n" +
+		"SET DEF OFF\n" +
+		"SELECT 4 FROM dual\n" +
+		"SET SERVEROUT ON\n" +
+		"SELECT 3 FROM dual\n" +
+		"CONNECT scott/tiger@db\n" +
+		"SELECT 2 FROM dual;"
+	got := Split(sql)
+	wantTexts := []string{
+		"SELECT 1 FROM dual",
+		"PROMPT running next query",
+		"SPOOL install.log",
+		"SELECT 2 FROM dual",
+		"SET DEFINE OFF",
+		"SELECT 3 FROM dual",
+		"SET DEF OFF",
+		"SELECT 4 FROM dual",
+		"SET SERVEROUT ON",
+		"SELECT 3 FROM dual",
+		"CONNECT scott/tiger@db",
+		"SELECT 2 FROM dual",
+	}
+	wantKinds := []SegmentKind{
+		SegmentSQL,
+		SegmentSQLPlusCommand,
+		SegmentSQLPlusCommand,
+		SegmentSQL,
+		SegmentSQLPlusCommand,
+		SegmentSQL,
+		SegmentSQLPlusCommand,
+		SegmentSQL,
+		SegmentSQLPlusCommand,
+		SegmentSQL,
+		SegmentSQLPlusCommand,
+		SegmentSQL,
+	}
+	if len(got) != len(wantTexts) {
+		t.Fatalf("got %d segments %q, want %d", len(got), splitTexts(got), len(wantTexts))
+	}
+	for i := range wantTexts {
+		if got[i].Text != wantTexts[i] {
+			t.Fatalf("segment[%d] Text = %q, want %q", i, got[i].Text, wantTexts[i])
+		}
+		if got[i].Kind != wantKinds[i] {
+			t.Fatalf("segment[%d] Kind = %v for %q, want %v", i, got[i].Kind, got[i].Text, wantKinds[i])
+		}
+	}
+}
+
+func TestSplitDoesNotClassifyValidCorpusStatementsAsSQLPlus(t *testing.T) {
+	corpusDir := filepath.Join("..", "quality", "corpus")
+	entries, err := os.ReadDir(corpusDir)
+	if err != nil {
+		corpusDir = filepath.Join("oracle", "quality", "corpus")
+		entries, err = os.ReadDir(corpusDir)
+		if err != nil {
+			t.Fatalf("cannot read corpus directory: %v", err)
+		}
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sql" {
+			continue
+		}
+		path := filepath.Join(corpusDir, entry.Name())
+		for _, stmt := range loadCorpusFile(t, path) {
+			if stmt.valid != "true" {
+				continue
+			}
+			for _, seg := range Split(stmt.sql) {
+				if seg.Kind == SegmentSQLPlusCommand {
+					t.Fatalf("%s/%s classified valid SQL as SQL*Plus command: %q", entry.Name(), stmt.name, seg.Text)
+				}
+			}
 		}
 	}
 }

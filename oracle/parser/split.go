@@ -67,8 +67,9 @@ func Split(sql string) []Segment {
 
 		if !state.inPLSQL {
 			if cmd, ok := sqlPlusCommandAtLineStart(sql, tok); ok {
+				prefixEmpty := onlyIgnorableSQLPlusPrefix(sql, stmtStart, tok.Loc)
 				if cmd.flush {
-					if onlyIgnorableSQLPlusPrefix(sql, stmtStart, tok.Loc) {
+					if prefixEmpty {
 						if tok.Type == '/' && len(segments) > 0 {
 							stmtStart = lineEndBeforeBreak(sql, tok.End)
 						} else {
@@ -78,20 +79,25 @@ func Split(sql string) []Segment {
 						segments = appendSegment(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc))
 						stmtStart = lineEndBeforeBreak(sql, tok.End)
 					}
+					lexer.pos = lineEndAfterBreak(sql, tok.End)
+					state.reset()
+					continue
 				} else {
-					lineEnd := lineEndBeforeBreak(sql, tok.End)
-					nextStart := lineEndAfterBreak(sql, tok.End)
-					commandStart := stmtStart
-					if !onlyIgnorableSQLPlusPrefix(sql, stmtStart, tok.Loc) {
-						segments = appendSegment(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc))
-						commandStart = lineStartOffset(sql, tok.Loc)
+					if prefixEmpty || cmd.terminatesBufferedSQL {
+						lineEnd := lineEndBeforeBreak(sql, tok.End)
+						nextStart := lineEndAfterBreak(sql, tok.End)
+						commandStart := stmtStart
+						if !prefixEmpty {
+							segments = appendSegment(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc))
+							commandStart = lineStartOffset(sql, tok.Loc)
+						}
+						segments = appendSegmentWithKind(segments, sql, commandStart, lineEnd, SegmentSQLPlusCommand)
+						stmtStart = nextStart
+						lexer.pos = lineEndAfterBreak(sql, tok.End)
+						state.reset()
+						continue
 					}
-					segments = appendSegmentWithKind(segments, sql, commandStart, lineEnd, SegmentSQLPlusCommand)
-					stmtStart = nextStart
 				}
-				lexer.pos = lineEndAfterBreak(sql, tok.End)
-				state.reset()
-				continue
 			}
 		}
 
@@ -431,7 +437,8 @@ func (s *splitState) canStartNestedSubprogram(tok Token) bool {
 }
 
 type sqlPlusCommand struct {
-	flush bool
+	flush                 bool
+	terminatesBufferedSQL bool
 }
 
 func sqlPlusCommandAtLineStart(sql string, tok Token) (sqlPlusCommand, bool) {
@@ -442,21 +449,24 @@ func sqlPlusCommandAtLineStart(sql string, tok Token) (sqlPlusCommand, bool) {
 	}
 
 	if tok.Type == '/' && isSlashDelimiterLine(sql, tok.Loc, tok.End) {
-		return sqlPlusCommand{flush: true}, true
+		return sqlPlusCommand{flush: true, terminatesBufferedSQL: true}, true
 	}
 	if tok.Type == '@' || tok.Type == '!' {
-		return sqlPlusCommand{}, true
+		return sqlPlusCommand{terminatesBufferedSQL: true}, true
 	}
 
 	word := splitTokenWord(tok)
 	if word == "" {
 		return sqlPlusCommand{}, false
 	}
+	if isOracleSetStatement(word, sql, tok.End) {
+		return sqlPlusCommand{}, false
+	}
 	if isSQLPlusFlushCommand(word) {
-		return sqlPlusCommand{flush: true}, true
+		return sqlPlusCommand{flush: true, terminatesBufferedSQL: true}, true
 	}
 	if isSQLPlusLineCommand(word) {
-		return sqlPlusCommand{}, true
+		return sqlPlusCommand{terminatesBufferedSQL: isSQLPlusLineCommandThatTerminatesBufferedSQL(word, sql, tok.End)}, true
 	}
 	return sqlPlusCommand{}, false
 }
@@ -466,6 +476,44 @@ func splitTokenWord(tok Token) string {
 		return tok.Str
 	}
 	return ""
+}
+
+func isOracleSetStatement(word, sql string, pos int) bool {
+	if word != "SET" {
+		return false
+	}
+	next := nextWordOnLine(sql, pos)
+	switch next {
+	case "TRANSACTION", "ROLE", "CONSTRAINT", "CONSTRAINTS":
+		return true
+	default:
+		return false
+	}
+}
+
+func nextWordOnLine(sql string, pos int) string {
+	pos = skipHorizontalSpace(sql, pos)
+	start := pos
+	for pos < len(sql) {
+		c := sql[pos]
+		if c == '\n' || c == '\r' || !(c == '_' || c >= '0' && c <= '9' || c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z') {
+			break
+		}
+		pos++
+	}
+	if pos == start {
+		return ""
+	}
+
+	buf := make([]byte, pos-start)
+	for i := start; i < pos; i++ {
+		c := sql[i]
+		if c >= 'a' && c <= 'z' {
+			c -= 'a' - 'A'
+		}
+		buf[i-start] = c
+	}
+	return string(buf)
 }
 
 func isSQLPlusFlushCommand(word string) bool {
@@ -499,6 +547,59 @@ func isSQLPlusLineCommand(word string) bool {
 		"VAR", "VARIABLE",
 		"WHENEVER",
 		"XQUERY":
+		return true
+	default:
+		return false
+	}
+}
+
+func isSQLPlusLineCommandThatTerminatesBufferedSQL(word, sql string, pos int) bool {
+	switch word {
+	case "ACC", "ACCEPT",
+		"BRE", "BREAK", "BTI", "BTITLE",
+		"COL", "COLUMN", "COMP", "COMPUTE",
+		"DEF", "DEFINE",
+		"HO", "HOST",
+		"PRI", "PRINT", "PRO", "PROMPT",
+		"REM", "REMARK",
+		"SHO", "SHOW", "SPO", "SPOOL",
+		"TTI", "TTITLE",
+		"UNDEF", "UNDEFINE",
+		"VAR", "VARIABLE",
+		"WHENEVER":
+		return true
+	case "CONN", "CONNECT":
+		return isSQLPlusConnectCommandThatTerminatesBufferedSQL(sql, pos)
+	case "STA", "START":
+		return nextWordOnLine(sql, pos) != "WITH"
+	case "SET":
+		return isSQLPlusSetCommandThatTerminatesBufferedSQL(sql, pos)
+	default:
+		return false
+	}
+}
+
+func isSQLPlusConnectCommandThatTerminatesBufferedSQL(sql string, pos int) bool {
+	switch nextWordOnLine(sql, pos) {
+	case "BY", "TO":
+		return false
+	default:
+		return true
+	}
+}
+
+func isSQLPlusSetCommandThatTerminatesBufferedSQL(sql string, pos int) bool {
+	switch nextWordOnLine(sql, pos) {
+	case "APPINFO", "ARRAYSIZE", "AUTOCOMMIT", "AUTOPRINT", "AUTORECOVERY", "AUTOTRACE",
+		"BLOCKTERMINATOR", "CMDSEP", "COLINVISIBLE", "COLSEP", "CONCAT", "COPYCOMMIT",
+		"COPYTYPECHECK", "DEF", "DEFINE", "DESCRIBE", "ECHO", "EDITFILE", "EMBEDDED", "ERRORLOGGING",
+		"ESCAPE", "ESCCHAR", "EXITCOMMIT", "FEEDBACK", "FLAGGER", "FLUSH", "HEADING",
+		"HEADSEP", "INSTANCE", "LINESIZE", "LOBOFFSET", "LOGSOURCE", "LONG", "LONGCHUNKSIZE",
+		"MARKUP", "NEWPAGE", "NULL", "NUMFORMAT", "NUMWIDTH", "PAGESIZE", "PAUSE",
+		"RECSEP", "RECSEPCHAR", "SCAN", "SERVEROUT", "SERVEROUTPUT", "SHIFTINOUT", "SHOWMODE", "SQLBLANKLINES",
+		"SQLCASE", "SQLCONTINUE", "SQLNUMBER", "SQLPLUSCOMPATIBILITY", "SQLPREFIX",
+		"SQLPROMPT", "SQLTERMINATOR", "SUFFIX", "TAB", "TERMOUT", "TIME", "TIMING",
+		"TRIMOUT", "TRIMSPOOL", "UNDERLINE", "VERIFY", "WRAP":
 		return true
 	default:
 		return false
