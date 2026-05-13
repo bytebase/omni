@@ -30,6 +30,10 @@ func TestNodeLocExpressions(t *testing.T) {
 	}{
 		{"BinaryExpr", &BinaryExpr{Loc: Loc{Start: 1, End: 2}}, Loc{Start: 1, End: 2}},
 		{"FuncCallExpr", &FuncCallExpr{Loc: Loc{Start: 2, End: 5}}, Loc{Start: 2, End: 5}},
+		{"DatePart", &DatePart{Loc: Loc{Start: 2, End: 6}}, Loc{Start: 2, End: 6}},
+		{"NextValueForExpr", &NextValueForExpr{Loc: Loc{Start: 2, End: 7}}, Loc{Start: 2, End: 7}},
+		{"ParseExpr", &ParseExpr{Loc: Loc{Start: 2, End: 8}}, Loc{Start: 2, End: 8}},
+		{"JsonKeyValueExpr", &JsonKeyValueExpr{Loc: Loc{Start: 2, End: 9}}, Loc{Start: 2, End: 9}},
 		{"ColumnRef", &ColumnRef{Loc: Loc{Start: 3, End: 4}}, Loc{Start: 3, End: 4}},
 		{"LikeExpr", &LikeExpr{Loc: Loc{Start: 4, End: 9}}, Loc{Start: 4, End: 9}},
 	}

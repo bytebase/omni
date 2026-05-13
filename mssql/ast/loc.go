@@ -21,6 +21,14 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *FuncCallExpr:
 		return v.Loc
+	case *DatePart:
+		return v.Loc
+	case *NextValueForExpr:
+		return v.Loc
+	case *ParseExpr:
+		return v.Loc
+	case *JsonKeyValueExpr:
+		return v.Loc
 	case *CaseExpr:
 		return v.Loc
 	case *CaseWhen:

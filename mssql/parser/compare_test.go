@@ -222,6 +222,224 @@ func TestParseFunctions(t *testing.T) {
 	}
 }
 
+func TestParseDateTimeFunctionDatepartArgs(t *testing.T) {
+	tests := []struct {
+		sql      string
+		name     string
+		datepart string
+	}{
+		{"SELECT DATEADD(HOUR, 7, GETUTCDATE())", "DATEADD", "HOUR"},
+		{"SELECT DATEDIFF(day, start_date, end_date)", "DATEDIFF", "day"},
+		{"SELECT DATEDIFF_BIG(ns, start_date, end_date)", "DATEDIFF_BIG", "ns"},
+		{"SELECT DATEPART(month, created_at)", "DATEPART", "month"},
+		{"SELECT DATENAME(weekday, created_at)", "DATENAME", "weekday"},
+		{"SELECT DATETRUNC(quarter, created_at)", "DATETRUNC", "quarter"},
+		{"SELECT DATE_BUCKET(WEEK, 1, created_at)", "DATE_BUCKET", "WEEK"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tc.sql)
+			stmt := result.Items[0].(*ast.SelectStmt)
+			target := stmt.TargetList.Items[0].(*ast.ResTarget)
+			fc, ok := target.Val.(*ast.FuncCallExpr)
+			if !ok {
+				t.Fatalf("expected *FuncCallExpr, got %T", target.Val)
+			}
+			if fc.Args == nil || fc.Args.Len() == 0 {
+				t.Fatal("expected function arguments")
+			}
+			if cr, ok := fc.Args.Items[0].(*ast.ColumnRef); ok {
+				t.Fatalf("datepart argument parsed as ColumnRef: %+v", cr)
+			}
+			dp, ok := fc.Args.Items[0].(*ast.DatePart)
+			if !ok {
+				t.Fatalf("expected first argument to be *ast.DatePart, got %T", fc.Args.Items[0])
+			}
+			if dp.Name != tc.datepart {
+				t.Fatalf("expected datepart %q, got %q", tc.datepart, dp.Name)
+			}
+		})
+	}
+
+	t.Run("ordinary function preserves column ref", func(t *testing.T) {
+		result := ParseAndCheck(t, "SELECT MYFUNC(HOUR)")
+		stmt := result.Items[0].(*ast.SelectStmt)
+		target := stmt.TargetList.Items[0].(*ast.ResTarget)
+		fc := target.Val.(*ast.FuncCallExpr)
+		if _, ok := fc.Args.Items[0].(*ast.ColumnRef); !ok {
+			t.Fatalf("expected ordinary function argument to remain ColumnRef, got %T", fc.Args.Items[0])
+		}
+	})
+}
+
+func TestParseSpecialFunctionSyntax(t *testing.T) {
+	t.Run("next value for sequence", func(t *testing.T) {
+		result := ParseAndCheck(t, "SELECT NEXT VALUE FOR dbo.seq")
+		stmt := result.Items[0].(*ast.SelectStmt)
+		target := stmt.TargetList.Items[0].(*ast.ResTarget)
+		if cr, ok := target.Val.(*ast.ColumnRef); ok {
+			t.Fatalf("NEXT VALUE FOR parsed as ColumnRef: %+v", cr)
+		}
+		nv, ok := target.Val.(*ast.NextValueForExpr)
+		if !ok {
+			t.Fatalf("expected *ast.NextValueForExpr, got %T", target.Val)
+		}
+		if nv.Sequence == nil || nv.Sequence.Schema != "dbo" || nv.Sequence.Object != "seq" {
+			t.Fatalf("unexpected sequence ref: %+v", nv.Sequence)
+		}
+	})
+
+	t.Run("trim options", func(t *testing.T) {
+		tests := []struct {
+			sql        string
+			wantOption string
+			wantArgs   int
+		}{
+			{"SELECT TRIM(name)", "", 1},
+			{"SELECT TRIM('x' FROM name)", "", 2},
+			{"SELECT TRIM(LEADING 'x' FROM name)", "LEADING", 2},
+			{"SELECT TRIM(TRAILING 'x' FROM name)", "TRAILING", 2},
+			{"SELECT TRIM(BOTH 'x' FROM name)", "BOTH", 2},
+		}
+		for _, tc := range tests {
+			t.Run(tc.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tc.sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				target := stmt.TargetList.Items[0].(*ast.ResTarget)
+				fc, ok := target.Val.(*ast.FuncCallExpr)
+				if !ok {
+					t.Fatalf("expected *ast.FuncCallExpr, got %T", target.Val)
+				}
+				if fc.TrimOption != tc.wantOption {
+					t.Fatalf("expected TrimOption=%q, got %q", tc.wantOption, fc.TrimOption)
+				}
+				if fc.Args == nil || fc.Args.Len() != tc.wantArgs {
+					t.Fatalf("expected %d args, got %#v", tc.wantArgs, fc.Args)
+				}
+				if tc.wantOption != "" {
+					if cr, ok := fc.Args.Items[0].(*ast.ColumnRef); ok && cr.Column == tc.wantOption {
+						t.Fatalf("trim option parsed as ColumnRef: %+v", cr)
+					}
+				}
+			})
+		}
+
+		result := ParseAndCheck(t, "SELECT MYFUNC(LEADING)")
+		stmt := result.Items[0].(*ast.SelectStmt)
+		target := stmt.TargetList.Items[0].(*ast.ResTarget)
+		fc := target.Val.(*ast.FuncCallExpr)
+		if _, ok := fc.Args.Items[0].(*ast.ColumnRef); !ok {
+			t.Fatalf("expected ordinary function argument to remain ColumnRef, got %T", fc.Args.Items[0])
+		}
+	})
+
+	t.Run("ignore respect nulls", func(t *testing.T) {
+		tests := []struct {
+			sql  string
+			want string
+		}{
+			{"SELECT FIRST_VALUE(name) IGNORE NULLS OVER (ORDER BY id)", "IGNORE"},
+			{"SELECT LAST_VALUE(name) RESPECT NULLS OVER (ORDER BY id)", "RESPECT"},
+			{"SELECT LAG(name) IGNORE NULLS OVER (ORDER BY id)", "IGNORE"},
+			{"SELECT LEAD(name) RESPECT NULLS OVER (ORDER BY id)", "RESPECT"},
+		}
+		for _, tc := range tests {
+			t.Run(tc.want, func(t *testing.T) {
+				result := ParseAndCheck(t, tc.sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				target := stmt.TargetList.Items[0].(*ast.ResTarget)
+				fc, ok := target.Val.(*ast.FuncCallExpr)
+				if !ok {
+					t.Fatalf("expected *ast.FuncCallExpr, got %T", target.Val)
+				}
+				if fc.NullTreatment != tc.want {
+					t.Fatalf("expected NullTreatment=%q, got %q", tc.want, fc.NullTreatment)
+				}
+				if fc.Over == nil {
+					t.Fatal("expected OVER clause")
+				}
+			})
+		}
+	})
+
+	t.Run("parse and try_parse", func(t *testing.T) {
+		tests := []struct {
+			sql     string
+			wantTry bool
+		}{
+			{"SELECT PARSE('Monday, 13 December 2010' AS datetime2 USING 'en-US')", false},
+			{"SELECT TRY_PARSE('Jabberwokkie' AS datetime2 USING 'en-US')", true},
+		}
+		for _, tc := range tests {
+			t.Run(tc.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tc.sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				target := stmt.TargetList.Items[0].(*ast.ResTarget)
+				pe, ok := target.Val.(*ast.ParseExpr)
+				if !ok {
+					t.Fatalf("expected *ast.ParseExpr, got %T", target.Val)
+				}
+				if pe.Try != tc.wantTry {
+					t.Fatalf("expected Try=%v, got %v", tc.wantTry, pe.Try)
+				}
+				if pe.DataType == nil || pe.DataType.Name != "datetime2" {
+					t.Fatalf("unexpected data type: %+v", pe.DataType)
+				}
+				if pe.Culture == nil {
+					t.Fatal("expected culture expression")
+				}
+			})
+		}
+	})
+
+	t.Run("json functions", func(t *testing.T) {
+		tests := []struct {
+			sql             string
+			wantNullClause  string
+			wantReturnType  string
+			wantArrayWrap   bool
+			wantKeyValueArg bool
+		}{
+			{"SELECT JSON_OBJECT('name': name, 'type': NULL ABSENT ON NULL)", "ABSENT", "", false, true},
+			{"SELECT JSON_ARRAY(1, 2 NULL ON NULL RETURNING JSON)", "NULL", "JSON", false, false},
+			{"SELECT JSON_VALUE(doc, '$.name' RETURNING nvarchar(100))", "", "nvarchar", false, false},
+			{"SELECT JSON_QUERY(doc, '$.items' WITH ARRAY WRAPPER)", "", "", true, false},
+		}
+		for _, tc := range tests {
+			t.Run(tc.sql, func(t *testing.T) {
+				result := ParseAndCheck(t, tc.sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				target := stmt.TargetList.Items[0].(*ast.ResTarget)
+				fc, ok := target.Val.(*ast.FuncCallExpr)
+				if !ok {
+					t.Fatalf("expected *ast.FuncCallExpr, got %T", target.Val)
+				}
+				if fc.JsonNullClause != tc.wantNullClause {
+					t.Fatalf("expected JsonNullClause=%q, got %q", tc.wantNullClause, fc.JsonNullClause)
+				}
+				if tc.wantReturnType == "" {
+					if fc.ReturnType != nil {
+						t.Fatalf("expected nil ReturnType, got %+v", fc.ReturnType)
+					}
+				} else if fc.ReturnType == nil || fc.ReturnType.Name != tc.wantReturnType {
+					t.Fatalf("expected ReturnType=%q, got %+v", tc.wantReturnType, fc.ReturnType)
+				}
+				if fc.WithArrayWrapper != tc.wantArrayWrap {
+					t.Fatalf("expected WithArrayWrapper=%v, got %v", tc.wantArrayWrap, fc.WithArrayWrapper)
+				}
+				if tc.wantKeyValueArg {
+					if fc.Args == nil || fc.Args.Len() == 0 {
+						t.Fatal("expected JSON key-value args")
+					}
+					if _, ok := fc.Args.Items[0].(*ast.JsonKeyValueExpr); !ok {
+						t.Fatalf("expected *ast.JsonKeyValueExpr, got %T", fc.Args.Items[0])
+					}
+				}
+			})
+		}
+	})
+}
+
 // TestParseVariables tests variable references.
 func TestParseVariables(t *testing.T) {
 	tests := []string{
@@ -1184,6 +1402,49 @@ func TestParseSelect(t *testing.T) {
 				stmt := result.Items[0].(*ast.SelectStmt)
 				if stmt.FromClause == nil || stmt.FromClause.Len() == 0 {
 					t.Error("expected non-empty FromClause")
+				}
+			})
+		}
+	})
+
+	t.Run("rowset non-expression identifiers", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			sql      string
+			argIndex int
+			want     string
+		}{
+			{
+				name:     "openquery linked server",
+				sql:      "SELECT * FROM OPENQUERY(LinkedServer, 'SELECT 1') AS t",
+				argIndex: 0,
+				want:     "LinkedServer",
+			},
+			{
+				name:     "openrowset remote object",
+				sql:      "SELECT * FROM OPENROWSET('MSOLEDBSQL', 'Server=Seattle1;Trusted_Connection=yes;', Department) AS t",
+				argIndex: 2,
+				want:     "Department",
+			},
+		}
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				result := ParseAndCheck(t, tc.sql)
+				stmt := result.Items[0].(*ast.SelectStmt)
+				atr := stmt.FromClause.Items[0].(*ast.AliasedTableRef)
+				fc := atr.Table.(*ast.FuncCallExpr)
+				if fc.Args == nil || fc.Args.Len() <= tc.argIndex {
+					t.Fatalf("expected at least %d args, got %#v", tc.argIndex+1, fc.Args)
+				}
+				if cr, ok := fc.Args.Items[tc.argIndex].(*ast.ColumnRef); ok {
+					t.Fatalf("rowset identifier parsed as ColumnRef: %+v", cr)
+				}
+				tr, ok := fc.Args.Items[tc.argIndex].(*ast.TableRef)
+				if !ok {
+					t.Fatalf("expected rowset identifier to be *ast.TableRef, got %T", fc.Args.Items[tc.argIndex])
+				}
+				if tr.Object != tc.want {
+					t.Fatalf("expected object %q, got %q", tc.want, tr.Object)
 				}
 			})
 		}

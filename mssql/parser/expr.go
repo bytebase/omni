@@ -7,6 +7,11 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+var (
+	jsonArrayOption   = newOptionSet().withIdents("ARRAY")
+	jsonWrapperOption = newOptionSet().withIdents("WRAPPER")
+)
+
 // parseExpr parses an expression using precedence climbing.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/expressions-transact-sql
@@ -1237,14 +1242,62 @@ func (p *Parser) parseNextValueFor() (nodes.ExprNode, error) {
 	if ref == nil {
 		return nil, p.unexpectedToken()
 	}
-	return &nodes.ColumnRef{
-		Server:   ref.Server,
-		Database: ref.Database,
-		Schema:   ref.Schema,
-		Table:    ref.Schema,
-		Column:   ref.Object,
+	n := &nodes.NextValueForExpr{
+		Sequence: ref,
 		Loc:      nodes.Loc{Start: loc, End: p.prevEnd()},
-	}, nil
+	}
+	if p.cur.Type == kwOVER {
+		over, err := p.parseOverClause()
+		if err != nil {
+			return nil, err
+		}
+		n.Over = over
+		n.Loc.End = p.prevEnd()
+	}
+	return n, nil
+}
+
+func (p *Parser) parseParseExpr(name string, loc int) (nodes.ExprNode, error) {
+	p.advance() // consume (
+	n := &nodes.ParseExpr{
+		Try: strings.EqualFold(name, "TRY_PARSE"),
+		Loc: nodes.Loc{Start: loc, End: -1},
+	}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.unexpectedToken()
+	}
+	n.Expr = expr
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
+	}
+	dt, err := p.parseDataType()
+	if err != nil {
+		return nil, err
+	}
+	if dt == nil {
+		return nil, p.unexpectedToken()
+	}
+	n.DataType = dt
+	if p.cur.Type == kwUSING {
+		p.advance()
+		culture, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if culture == nil {
+			return nil, p.unexpectedToken()
+		}
+		n.Culture = culture
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	n.Loc.End = p.prevEnd()
+	return n, nil
 }
 
 // parseFuncCall parses a function call after the opening paren has been seen.
@@ -1295,15 +1348,31 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 		return fc, nil
 	}
 
+	if strings.EqualFold(name, "TRIM") {
+		return p.parseTrimFuncCall(fc)
+	}
+	if isJsonFunction(name) {
+		return p.parseJsonFuncCall(fc, name)
+	}
+
 	// Check for DISTINCT
 	if _, ok := p.match(kwDISTINCT); ok {
 		fc.Distinct = true
 	}
 
+	argIndex := 0
 	args, err := p.parseCommaList(')', commaListAllowEmpty, func() (nodes.Node, error) {
 		if p.collectMode() {
 			p.addExpressionCandidates()
 			return nil, errCollecting
+		}
+		if argIndex == 0 && isDatePartFunction(name) && p.isIdentLike() {
+			tok := p.advance()
+			argIndex++
+			return &nodes.DatePart{
+				Name: tok.Str,
+				Loc:  nodes.Loc{Start: tok.Loc, End: tok.End},
+			}, nil
 		}
 		arg, err := p.parseExpr()
 		if err != nil {
@@ -1312,6 +1381,7 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 		if arg == nil {
 			return nil, p.unexpectedToken()
 		}
+		argIndex++
 		return arg, nil
 	})
 	if err != nil {
@@ -1323,6 +1393,8 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 		return nil, err
 	}
 	fc.Loc.End = p.prevEnd()
+
+	p.parseNullTreatment(fc, name)
 
 	// Check for WITHIN GROUP (ORDER BY ...) clause
 	//
@@ -1349,6 +1421,287 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 	}
 
 	return fc, nil
+}
+
+func (p *Parser) parseTrimFuncCall(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
+	if trimOption, ok := p.consumeTrimOption(); ok {
+		fc.TrimOption = trimOption
+	}
+	first, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if first == nil {
+		return nil, p.unexpectedToken()
+	}
+	items := []nodes.Node{first}
+	if p.cur.Type == kwFROM {
+		p.advance()
+		second, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if second == nil {
+			return nil, p.unexpectedToken()
+		}
+		items = append(items, second)
+	}
+	fc.Args = &nodes.List{Items: items}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	fc.Loc.End = p.prevEnd()
+	return fc, nil
+}
+
+func (p *Parser) consumeTrimOption() (string, bool) {
+	if !p.isKeywordOrIdent() {
+		return "", false
+	}
+	switch strings.ToUpper(p.cur.Str) {
+	case "LEADING", "TRAILING", "BOTH":
+		option := strings.ToUpper(p.cur.Str)
+		p.advance()
+		return option, true
+	default:
+		return "", false
+	}
+}
+
+func (p *Parser) parseNullTreatment(fc *nodes.FuncCallExpr, name string) {
+	if !isNullTreatmentFunction(name) || !p.isKeywordOrIdent() {
+		return
+	}
+	treatment := strings.ToUpper(p.cur.Str)
+	if treatment != "IGNORE" && treatment != "RESPECT" {
+		return
+	}
+	next := p.peekNext()
+	if next.Type != kwNULLS {
+		return
+	}
+	p.advance()
+	p.advance()
+	fc.NullTreatment = treatment
+	fc.Loc.End = p.prevEnd()
+}
+
+func isDatePartFunction(name string) bool {
+	switch strings.ToUpper(name) {
+	case "DATEADD", "DATEDIFF", "DATEDIFF_BIG", "DATEPART", "DATENAME", "DATETRUNC", "DATE_BUCKET":
+		return true
+	default:
+		return false
+	}
+}
+
+func isNullTreatmentFunction(name string) bool {
+	switch strings.ToUpper(name) {
+	case "FIRST_VALUE", "LAST_VALUE", "LAG", "LEAD":
+		return true
+	default:
+		return false
+	}
+}
+
+func isJsonFunction(name string) bool {
+	switch strings.ToUpper(name) {
+	case "JSON_OBJECT", "JSON_ARRAY", "JSON_VALUE", "JSON_QUERY":
+		return true
+	default:
+		return false
+	}
+}
+
+func (p *Parser) parseJsonFuncCall(fc *nodes.FuncCallExpr, name string) (nodes.ExprNode, error) {
+	switch strings.ToUpper(name) {
+	case "JSON_OBJECT":
+		if err := p.parseJsonObjectArgs(fc); err != nil {
+			return nil, err
+		}
+	case "JSON_ARRAY":
+		if err := p.parseJsonArrayArgs(fc); err != nil {
+			return nil, err
+		}
+	case "JSON_VALUE":
+		if err := p.parseJsonValueArgs(fc); err != nil {
+			return nil, err
+		}
+	case "JSON_QUERY":
+		if err := p.parseJsonQueryArgs(fc); err != nil {
+			return nil, err
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	fc.Loc.End = p.prevEnd()
+	return fc, nil
+}
+
+func (p *Parser) parseJsonObjectArgs(fc *nodes.FuncCallExpr) error {
+	var items []nodes.Node
+	for p.cur.Type != ')' && p.cur.Type != tokEOF && !p.isJsonNullClauseStart() && !p.isReturningStart() {
+		loc := p.pos()
+		key, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if key == nil {
+			return p.unexpectedToken()
+		}
+		if _, err := p.expect(':'); err != nil {
+			return err
+		}
+		value, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if value == nil {
+			return p.unexpectedToken()
+		}
+		items = append(items, &nodes.JsonKeyValueExpr{
+			Key:   key,
+			Value: value,
+			Loc:   nodes.Loc{Start: loc, End: p.prevEnd()},
+		})
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	fc.Args = &nodes.List{Items: items}
+	if err := p.parseJsonNullClause(fc); err != nil {
+		return err
+	}
+	return p.parseJsonReturningClause(fc)
+}
+
+func (p *Parser) parseJsonArrayArgs(fc *nodes.FuncCallExpr) error {
+	var items []nodes.Node
+	for p.cur.Type != ')' && p.cur.Type != tokEOF && !p.isJsonNullClauseStart() && !p.isReturningStart() {
+		expr, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if expr == nil {
+			return p.unexpectedToken()
+		}
+		items = append(items, expr)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	fc.Args = &nodes.List{Items: items}
+	if err := p.parseJsonNullClause(fc); err != nil {
+		return err
+	}
+	return p.parseJsonReturningClause(fc)
+}
+
+func (p *Parser) parseJsonValueArgs(fc *nodes.FuncCallExpr) error {
+	var items []nodes.Node
+	expr, err := p.parseExpr()
+	if err != nil {
+		return err
+	}
+	if expr == nil {
+		return p.unexpectedToken()
+	}
+	items = append(items, expr)
+	if _, ok := p.match(','); ok {
+		path, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if path == nil {
+			return p.unexpectedToken()
+		}
+		items = append(items, path)
+	}
+	fc.Args = &nodes.List{Items: items}
+	return p.parseJsonReturningClause(fc)
+}
+
+func (p *Parser) parseJsonQueryArgs(fc *nodes.FuncCallExpr) error {
+	var items []nodes.Node
+	expr, err := p.parseExpr()
+	if err != nil {
+		return err
+	}
+	if expr == nil {
+		return p.unexpectedToken()
+	}
+	items = append(items, expr)
+	if _, ok := p.match(','); ok {
+		path, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if path == nil {
+			return p.unexpectedToken()
+		}
+		items = append(items, path)
+	}
+	fc.Args = &nodes.List{Items: items}
+	return p.parseJsonWithArrayWrapperClause(fc)
+}
+
+func (p *Parser) parseJsonNullClause(fc *nodes.FuncCallExpr) error {
+	if !p.isJsonNullClauseStart() {
+		return nil
+	}
+	clause := strings.ToUpper(p.cur.Str)
+	p.advance()
+	if _, err := p.expect(kwON); err != nil {
+		return err
+	}
+	if _, err := p.expect(kwNULL); err != nil {
+		return err
+	}
+	fc.JsonNullClause = clause
+	return nil
+}
+
+func (p *Parser) parseJsonReturningClause(fc *nodes.FuncCallExpr) error {
+	if !p.isReturningStart() {
+		return nil
+	}
+	p.advance()
+	dt, err := p.parseDataType()
+	if err != nil {
+		return err
+	}
+	if dt == nil {
+		return p.unexpectedToken()
+	}
+	fc.ReturnType = dt
+	return nil
+}
+
+func (p *Parser) parseJsonWithArrayWrapperClause(fc *nodes.FuncCallExpr) error {
+	if p.cur.Type != kwWITH {
+		return nil
+	}
+	p.advance()
+	if _, err := p.expectOption(jsonArrayOption); err != nil {
+		return err
+	}
+	if _, err := p.expectOption(jsonWrapperOption); err != nil {
+		return err
+	}
+	fc.WithArrayWrapper = true
+	return nil
+}
+
+func (p *Parser) isJsonNullClauseStart() bool {
+	if p.cur.Type != kwNULL && p.cur.Type != kwABSENT {
+		return false
+	}
+	return p.peekNext().Type == kwON
+}
+
+func (p *Parser) isReturningStart() bool {
+	return p.cur.Type == kwRETURNING
 }
 
 // parseWithinGroupClause parses WITHIN GROUP (ORDER BY ...).

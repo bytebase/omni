@@ -209,6 +209,7 @@ func allKnownNodes() []Node {
 		&LikeExpr{}, &IsExpr{}, &ExistsExpr{},
 		&CastExpr{}, &ConvertExpr{}, &TryCastExpr{}, &TryConvertExpr{},
 		&CoalesceExpr{}, &NullifExpr{}, &IifExpr{},
+		&DatePart{}, &NextValueForExpr{}, &ParseExpr{}, &JsonKeyValueExpr{},
 		&ColumnRef{}, &VariableRef{}, &StarExpr{}, &Literal{},
 		&SubqueryExpr{}, &SubqueryComparisonExpr{},
 		&CollateExpr{}, &AtTimeZoneExpr{}, &ParenExpr{},

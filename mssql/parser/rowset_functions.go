@@ -4,6 +4,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
@@ -23,7 +25,19 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 		}
 		p.advance() // consume (
 
+		argIndex := 0
 		args, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+			if isRowsetObjectArg(funcName, argIndex) && p.isIdentLike() {
+				ref, err := p.parseTableRef()
+				if err != nil {
+					return nil, err
+				}
+				if ref == nil {
+					return nil, p.unexpectedToken()
+				}
+				argIndex++
+				return ref, nil
+			}
 			arg, err := p.parseExpr()
 			if err != nil {
 				return nil, err
@@ -31,6 +45,7 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 			if arg == nil {
 				return nil, p.unexpectedToken()
 			}
+			argIndex++
 			return arg, nil
 		})
 		if err != nil {
@@ -74,6 +89,17 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 		},
 		Loc: nodes.Loc{Start: loc, End: nameEnd},
 	}, nil
+}
+
+func isRowsetObjectArg(funcName string, argIndex int) bool {
+	switch {
+	case strings.EqualFold(funcName, "OPENQUERY"):
+		return argIndex == 0
+	case strings.EqualFold(funcName, "OPENROWSET"):
+		return argIndex == 2
+	default:
+		return false
+	}
 }
 
 // parseRowsetWithClause parses the WITH (...) column definitions for OPENJSON/OPENXML.

@@ -412,6 +412,7 @@ var sqlServerContextKeywords = []string{
 	"noreset",
 	"notification",
 	"nowait",
+	"nulls",
 	"numanode",
 	"object",
 	"offline",
@@ -432,6 +433,7 @@ var sqlServerContextKeywords = []string{
 	"password",
 	"path",
 	"pause",
+	"parse",
 	"period",
 	"permission_set",
 	"persisted",
@@ -481,6 +483,7 @@ var sqlServerContextKeywords = []string{
 	"result",
 	"resume",
 	"retention",
+	"returning",
 	"returns",
 	"robust",
 	"role",
@@ -551,8 +554,10 @@ var sqlServerContextKeywords = []string{
 	"transfer",
 	"timeout",
 	"timer",
+	"trim",
 	"try",
 	"try_cast",
+	"try_parse",
 	"type",
 	"type_warning",
 	"unbounded",
@@ -744,7 +749,9 @@ func TestCoreKeywordNotIdentifier(t *testing.T) {
 			// Unquoted must fail
 			sql := fmt.Sprintf(pat.tmpl, kw)
 			p := &Parser{}
-			p.lexer = NewLexer(sql); p.source = sql; p.advance()
+			p.lexer = NewLexer(sql)
+			p.source = sql
+			p.advance()
 			_, err := p.parseStmt()
 			// We expect either a parse error or a misparse (not a clean identifier parse).
 			// For now, just check that the keyword token is NOT accepted by parseIdentifier.
@@ -754,7 +761,9 @@ func TestCoreKeywordNotIdentifier(t *testing.T) {
 			// Bracket-quoted must succeed
 			quotedSQL := fmt.Sprintf(pat.quoted, kw)
 			pq := &Parser{}
-			pq.lexer = NewLexer(quotedSQL); pq.source = quotedSQL; pq.advance()
+			pq.lexer = NewLexer(quotedSQL)
+			pq.source = quotedSQL
+			pq.advance()
 			_, errq := pq.parseStmt()
 			if errq != nil {
 				t.Errorf("core keyword [%s] as %s: bracket-quoted should succeed but got: %v", kw, pat.name, errq)
@@ -798,7 +807,9 @@ func TestContextKeywordAsIdentifier(t *testing.T) {
 		for _, pos := range positions {
 			sql := fmt.Sprintf(pos.tmpl, kw)
 			p := &Parser{}
-			p.lexer = NewLexer(sql); p.source = sql; p.advance()
+			p.lexer = NewLexer(sql)
+			p.source = sql
+			p.advance()
 			_, err := p.parseStmt()
 			if err != nil {
 				t.Errorf("context keyword %q as %s: %q should parse but got: %v", kw, pos.name, sql, err)
