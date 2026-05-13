@@ -1625,18 +1625,65 @@ const (
 
 // FuncCallExpr represents a function call.
 type FuncCallExpr struct {
-	Name     *TableRef // potentially schema-qualified
-	Args     *List
-	Distinct bool
-	Star     bool // e.g., COUNT(*)
-	Over     *OverClause
-	Within   *List // WITHIN GROUP (ORDER BY ...)
-	Loc      Loc
+	Name             *TableRef // potentially schema-qualified
+	Args             *List
+	Distinct         bool
+	Star             bool // e.g., COUNT(*)
+	TrimOption       string // LEADING, TRAILING, or BOTH for TRIM
+	NullTreatment    string // IGNORE or RESPECT for window null treatment
+	JsonNullClause   string // NULL or ABSENT for JSON constructors
+	ReturnType       *DataType
+	WithArrayWrapper bool
+	Over             *OverClause
+	Within           *List // WITHIN GROUP (ORDER BY ...)
+	Loc              Loc
 }
 
 func (n *FuncCallExpr) nodeTag()   {}
 func (n *FuncCallExpr) exprNode()  {}
 func (n *FuncCallExpr) tableExpr() {} // table-valued functions can appear in FROM
+
+// DatePart represents a T-SQL datepart token used by date/time functions such
+// as DATEADD, DATEDIFF, DATEPART, DATENAME, DATETRUNC, and DATE_BUCKET.
+type DatePart struct {
+	Name string
+	Loc  Loc
+}
+
+func (n *DatePart) nodeTag()  {}
+func (n *DatePart) exprNode() {}
+
+// NextValueForExpr represents NEXT VALUE FOR sequence_name.
+type NextValueForExpr struct {
+	Sequence *TableRef
+	Over     *OverClause
+	Loc      Loc
+}
+
+func (n *NextValueForExpr) nodeTag()  {}
+func (n *NextValueForExpr) exprNode() {}
+
+// ParseExpr represents PARSE or TRY_PARSE.
+type ParseExpr struct {
+	Try      bool
+	Expr     ExprNode
+	DataType *DataType
+	Culture  ExprNode
+	Loc      Loc
+}
+
+func (n *ParseExpr) nodeTag()  {}
+func (n *ParseExpr) exprNode() {}
+
+// JsonKeyValueExpr represents JSON_OBJECT key:value entries.
+type JsonKeyValueExpr struct {
+	Key   ExprNode
+	Value ExprNode
+	Loc   Loc
+}
+
+func (n *JsonKeyValueExpr) nodeTag()  {}
+func (n *JsonKeyValueExpr) exprNode() {}
 
 // CaseExpr represents a CASE expression.
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/case-transact-sql

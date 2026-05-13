@@ -2,6 +2,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
@@ -243,6 +245,9 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 
 	// Function call: ident(...)
 	if p.cur.Type == '(' {
+		if strings.EqualFold(name, "PARSE") || strings.EqualFold(name, "TRY_PARSE") {
+			return p.parseParseExpr(name, loc)
+		}
 		return p.parseFuncCall(name, loc)
 	}
 

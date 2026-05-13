@@ -464,6 +464,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Name)
 		}
 		walkList(v, n.Args)
+		if n.ReturnType != nil {
+			Walk(v, n.ReturnType)
+		}
 		if n.Over != nil {
 			Walk(v, n.Over)
 		}
@@ -526,6 +529,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Right)
 		Walk(v, n.Condition)
 		walkList(v, n.Using)
+	case *JsonKeyValueExpr:
+		Walk(v, n.Key)
+		Walk(v, n.Value)
 	case *KillQueryNotificationStmt:
 		Walk(v, n.SubscriptionID)
 	case *KillStatsJobStmt:
@@ -568,6 +574,13 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Type)
 		}
 		walkList(v, n.Args)
+	case *NextValueForExpr:
+		if n.Sequence != nil {
+			Walk(v, n.Sequence)
+		}
+		if n.Over != nil {
+			Walk(v, n.Over)
+		}
 	case *NullifExpr:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
@@ -594,6 +607,12 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Default)
 	case *ParenExpr:
 		Walk(v, n.Expr)
+	case *ParseExpr:
+		Walk(v, n.Expr)
+		if n.DataType != nil {
+			Walk(v, n.DataType)
+		}
+		Walk(v, n.Culture)
 	case *PivotExpr:
 		Walk(v, n.Source)
 		Walk(v, n.AggFunc)

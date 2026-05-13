@@ -338,6 +338,7 @@ const (
 	kwNOWAIT
 	kwNULL
 	kwNULLIF
+	kwNULLS
 	kwNUMANODE
 	kwOBJECT
 	kwOF
@@ -372,6 +373,7 @@ const (
 	kwPASSWORD
 	kwPATH
 	kwPAUSE
+	kwPARSE
 	kwPERCENT
 	kwPERIOD
 	kwPERMISSION_SET
@@ -438,6 +440,7 @@ const (
 	kwRESUME
 	kwRETENTION
 	kwRETURN
+	kwRETURNING
 	kwRETURNS
 	kwREVERT
 	kwREVOKE
@@ -538,10 +541,12 @@ const (
 	kwTRANSACTION
 	kwTRANSFER
 	kwTRIGGER
+	kwTRIM
 	kwTRUNCATE
 	kwTRY
 	kwTRY_CAST
 	kwTRY_CONVERT
+	kwTRY_PARSE
 	kwTSEQUAL
 	kwTYPE
 	kwTYPE_WARNING
@@ -668,7 +673,7 @@ func init() {
 		"name": kwNAME, "national": kwNATIONAL, "native_compilation": kwNATIVE_COMPILATION, "next": kwNEXT,
 		"no": kwNO, "nocheck": kwNOCHECK, "nocount": kwNOCOUNT, "node": kwNODE,
 		"nolock": kwNOLOCK, "nonclustered": kwNONCLUSTERED, "none": kwNONE, "not": kwNOT,
-		"notification": kwNOTIFICATION, "nowait": kwNOWAIT, "null": kwNULL, "nullif": kwNULLIF,
+		"notification": kwNOTIFICATION, "nowait": kwNOWAIT, "null": kwNULL, "nullif": kwNULLIF, "nulls": kwNULLS,
 		"numanode": kwNUMANODE,
 		"object": kwOBJECT, "of": kwOF, "off": kwOFF, "offline": kwOFFLINE,
 		"offset": kwOFFSET, "offsets": kwOFFSETS, "old_password": kwOLD_PASSWORD, "on": kwON,
@@ -678,7 +683,7 @@ func init() {
 		"outer": kwOUTER, "output": kwOUTPUT, "over": kwOVER, "override": kwOVERRIDE,
 		"owner": kwOWNER,
 		"page": kwPAGE, "parameterization": kwPARAMETERIZATION, "partition": kwPARTITION, "partitions": kwPARTITIONS,
-		"password": kwPASSWORD, "path": kwPATH, "pause": kwPAUSE, "percent": kwPERCENT,
+		"password": kwPASSWORD, "path": kwPATH, "pause": kwPAUSE, "parse": kwPARSE, "percent": kwPERCENT,
 		"period": kwPERIOD, "permission_set": kwPERMISSION_SET, "persisted": kwPERSISTED, "pivot": kwPIVOT,
 		"plan": kwPLAN, "platform": kwPLATFORM, "poison_message_handling": kwPOISON_MESSAGE_HANDLING, "policy": kwPOLICY,
 		"pool": kwPOOL, "population": kwPOPULATION, "preceding": kwPRECEDING, "precision": kwPRECISION,
@@ -694,7 +699,7 @@ func init() {
 		"remove": kwREMOVE, "rename": kwRENAME, "reorganize": kwREORGANIZE, "repeatable": kwREPEATABLE,
 		"replica": kwREPLICA, "replication": kwREPLICATION, "resample": kwRESAMPLE, "resource": kwRESOURCE,
 		"resource_pool": kwRESOURCE_POOL, "restart": kwRESTART, "restore": kwRESTORE, "restrict": kwRESTRICT,
-		"result": kwRESULT, "resume": kwRESUME, "retention": kwRETENTION, "return": kwRETURN,
+		"result": kwRESULT, "resume": kwRESUME, "retention": kwRETENTION, "return": kwRETURN, "returning": kwRETURNING,
 		"returns": kwRETURNS, "revert": kwREVERT, "revoke": kwREVOKE, "right": kwRIGHT,
 		"robust": kwROBUST, "role": kwROLE, "rollback": kwROLLBACK, "rollup": kwROLLUP,
 		"root": kwROOT, "round_robin": kwROUND_ROBIN, "route": kwROUTE, "row": kwROW,
@@ -718,8 +723,8 @@ func init() {
 		"tcp": kwTCP, "tempdb_metadata": kwTEMPDB_METADATA, "textimage_on": kwTEXTIMAGE_ON, "textsize": kwTEXTSIZE,
 		"then": kwTHEN, "throw": kwTHROW, "ties": kwTIES, "time": kwTIME,
 		"timeout": kwTIMEOUT, "timer": kwTIMER, "to": kwTO, "top": kwTOP,
-		"tran": kwTRAN, "transaction": kwTRANSACTION, "trigger": kwTRIGGER, "truncate": kwTRUNCATE,
-		"try": kwTRY, "try_cast": kwTRY_CAST, "try_convert": kwTRY_CONVERT, "tsequal": kwTSEQUAL,
+		"tran": kwTRAN, "transaction": kwTRANSACTION, "trigger": kwTRIGGER, "trim": kwTRIM, "truncate": kwTRUNCATE,
+		"try": kwTRY, "try_cast": kwTRY_CAST, "try_convert": kwTRY_CONVERT, "try_parse": kwTRY_PARSE, "tsequal": kwTSEQUAL,
 		"type": kwTYPE, "type_warning": kwTYPE_WARNING,
 		"unbounded": kwUNBOUNDED, "uncommitted": kwUNCOMMITTED, "undefined": kwUNDEFINED, "union": kwUNION,
 		"unique": kwUNIQUE, "unknown": kwUNKNOWN, "unlimited": kwUNLIMITED, "unlock": kwUNLOCK,
@@ -1072,6 +1077,7 @@ var keywordClassification = map[int]Keyword{
 		kwNOWAIT: {Name: "NOWAIT", Token: kwNOWAIT, Category: ContextKeyword},
 		kwNULL: {Name: "NULL", Token: kwNULL, Category: CoreKeyword},
 		kwNULLIF: {Name: "NULLIF", Token: kwNULLIF, Category: CoreKeyword},
+		kwNULLS: {Name: "NULLS", Token: kwNULLS, Category: ContextKeyword},
 		kwNUMANODE: {Name: "NUMANODE", Token: kwNUMANODE, Category: ContextKeyword},
 		kwOBJECT: {Name: "OBJECT", Token: kwOBJECT, Category: ContextKeyword},
 		kwOF: {Name: "OF", Token: kwOF, Category: CoreKeyword},
@@ -1106,6 +1112,7 @@ var keywordClassification = map[int]Keyword{
 		kwPASSWORD: {Name: "PASSWORD", Token: kwPASSWORD, Category: ContextKeyword},
 		kwPATH: {Name: "PATH", Token: kwPATH, Category: ContextKeyword},
 		kwPAUSE: {Name: "PAUSE", Token: kwPAUSE, Category: ContextKeyword},
+		kwPARSE: {Name: "PARSE", Token: kwPARSE, Category: ContextKeyword},
 		kwPERCENT: {Name: "PERCENT", Token: kwPERCENT, Category: CoreKeyword},
 		kwPERIOD: {Name: "PERIOD", Token: kwPERIOD, Category: ContextKeyword},
 		kwPERMISSION_SET: {Name: "PERMISSION_SET", Token: kwPERMISSION_SET, Category: ContextKeyword},
@@ -1172,6 +1179,7 @@ var keywordClassification = map[int]Keyword{
 		kwRESUME: {Name: "RESUME", Token: kwRESUME, Category: ContextKeyword},
 		kwRETENTION: {Name: "RETENTION", Token: kwRETENTION, Category: ContextKeyword},
 		kwRETURN: {Name: "RETURN", Token: kwRETURN, Category: CoreKeyword},
+		kwRETURNING: {Name: "RETURNING", Token: kwRETURNING, Category: ContextKeyword},
 		kwRETURNS: {Name: "RETURNS", Token: kwRETURNS, Category: ContextKeyword},
 		kwREVERT: {Name: "REVERT", Token: kwREVERT, Category: CoreKeyword},
 		kwREVOKE: {Name: "REVOKE", Token: kwREVOKE, Category: CoreKeyword},
@@ -1272,10 +1280,12 @@ var keywordClassification = map[int]Keyword{
 		kwTRANSACTION: {Name: "TRANSACTION", Token: kwTRANSACTION, Category: CoreKeyword},
 		kwTRANSFER: {Name: "TRANSFER", Token: kwTRANSFER, Category: ContextKeyword},
 		kwTRIGGER: {Name: "TRIGGER", Token: kwTRIGGER, Category: CoreKeyword},
+		kwTRIM: {Name: "TRIM", Token: kwTRIM, Category: ContextKeyword},
 		kwTRUNCATE: {Name: "TRUNCATE", Token: kwTRUNCATE, Category: CoreKeyword},
 		kwTRY: {Name: "TRY", Token: kwTRY, Category: ContextKeyword},
 		kwTRY_CAST: {Name: "TRY_CAST", Token: kwTRY_CAST, Category: ContextKeyword},
 		kwTRY_CONVERT: {Name: "TRY_CONVERT", Token: kwTRY_CONVERT, Category: CoreKeyword},
+		kwTRY_PARSE: {Name: "TRY_PARSE", Token: kwTRY_PARSE, Category: ContextKeyword},
 		kwTSEQUAL: {Name: "TSEQUAL", Token: kwTSEQUAL, Category: CoreKeyword},
 		kwTYPE: {Name: "TYPE", Token: kwTYPE, Category: ContextKeyword},
 		kwTYPE_WARNING: {Name: "TYPE_WARNING", Token: kwTYPE_WARNING, Category: ContextKeyword},

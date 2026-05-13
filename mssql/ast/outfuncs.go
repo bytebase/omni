@@ -170,6 +170,14 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeUnaryExpr(sb, n)
 	case *FuncCallExpr:
 		writeFuncCallExpr(sb, n)
+	case *DatePart:
+		writeDatePart(sb, n)
+	case *NextValueForExpr:
+		writeNextValueForExpr(sb, n)
+	case *ParseExpr:
+		writeParseExpr(sb, n)
+	case *JsonKeyValueExpr:
+		writeJsonKeyValueExpr(sb, n)
 	case *CaseExpr:
 		writeCaseExpr(sb, n)
 	case *CaseWhen:
@@ -1901,6 +1909,22 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	if n.Distinct {
 		sb.WriteString(" :distinct true")
 	}
+	if n.TrimOption != "" {
+		sb.WriteString(fmt.Sprintf(" :trimOption \"%s\"", escapeString(n.TrimOption)))
+	}
+	if n.NullTreatment != "" {
+		sb.WriteString(fmt.Sprintf(" :nullTreatment \"%s\"", escapeString(n.NullTreatment)))
+	}
+	if n.JsonNullClause != "" {
+		sb.WriteString(fmt.Sprintf(" :jsonNullClause \"%s\"", escapeString(n.JsonNullClause)))
+	}
+	if n.ReturnType != nil {
+		sb.WriteString(" :returnType ")
+		writeNode(sb, n.ReturnType)
+	}
+	if n.WithArrayWrapper {
+		sb.WriteString(" :withArrayWrapper true")
+	}
 	if n.Over != nil {
 		sb.WriteString(" :over ")
 		writeNode(sb, n.Over)
@@ -2124,6 +2148,64 @@ func writeIifExpr(sb *strings.Builder, n *IifExpr) {
 	if n.FalseVal != nil {
 		sb.WriteString(" :falseVal ")
 		writeNode(sb, n.FalseVal)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeDatePart(sb *strings.Builder, n *DatePart) {
+	sb.WriteString("{DATEPART")
+	if n.Name != "" {
+		sb.WriteString(fmt.Sprintf(" :name \"%s\"", escapeString(n.Name)))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeNextValueForExpr(sb *strings.Builder, n *NextValueForExpr) {
+	sb.WriteString("{NEXTVALUEFOR")
+	if n.Sequence != nil {
+		sb.WriteString(" :sequence ")
+		writeNode(sb, n.Sequence)
+	}
+	if n.Over != nil {
+		sb.WriteString(" :over ")
+		writeNode(sb, n.Over)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeParseExpr(sb *strings.Builder, n *ParseExpr) {
+	sb.WriteString("{PARSE")
+	if n.Try {
+		sb.WriteString(" :try true")
+	}
+	if n.Expr != nil {
+		sb.WriteString(" :expr ")
+		writeNode(sb, n.Expr)
+	}
+	if n.DataType != nil {
+		sb.WriteString(" :dataType ")
+		writeNode(sb, n.DataType)
+	}
+	if n.Culture != nil {
+		sb.WriteString(" :culture ")
+		writeNode(sb, n.Culture)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeJsonKeyValueExpr(sb *strings.Builder, n *JsonKeyValueExpr) {
+	sb.WriteString("{JSONKEYVALUE")
+	if n.Key != nil {
+		sb.WriteString(" :key ")
+		writeNode(sb, n.Key)
+	}
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
