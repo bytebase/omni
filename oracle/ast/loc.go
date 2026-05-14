@@ -221,6 +221,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *FuncCallExpr:
 		return v.Loc
+	case *ExtractExpr:
+		return v.Loc
 	case *CaseExpr:
 		return v.Loc
 	case *CaseWhen:
@@ -240,6 +242,8 @@ func NodeLoc(n Node) Loc {
 	case *SubqueryExpr:
 		return v.Loc
 	case *IntervalExpr:
+		return v.Loc
+	case *DateTimeLiteral:
 		return v.Loc
 	case *ParenExpr:
 		return v.Loc

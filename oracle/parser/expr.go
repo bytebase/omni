@@ -357,6 +357,12 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	case kwCAST:
 		return p.parseCastExpr()
 
+	case kwDATE, kwTIMESTAMP:
+		if p.peekNext().Type == tokSCONST {
+			return p.parseDateTimeLiteral()
+		}
+		return p.parseIdentExpr()
+
 	case kwDECODE:
 		return p.parseDecodeExpr()
 
@@ -411,6 +417,21 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 
 		return nil, nil
 	}
+}
+
+// parseDateTimeLiteral parses ANSI datetime literals such as DATE '2020-01-01'.
+func (p *Parser) parseDateTimeLiteral() (nodes.ExprNode, error) {
+	start := p.pos()
+	typeTok := p.advance()
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	valueTok := p.advance()
+	return &nodes.DateTimeLiteral{
+		TypeName: typeTok.Str,
+		Val:      valueTok.Str,
+		Loc:      nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // isIntervalField returns true if the current token is an interval date field keyword.
@@ -509,6 +530,9 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 				Loc:    nodes.Loc{Start: start, End: p.prev.End},
 			})
 		}
+		if name1 == "EXTRACT" {
+			return p.parseExtractExpr(start)
+		}
 		// But first check if this looks like a schema-qualified function: name.name(
 		// No — just name( is the function call case
 		return p.parseFuncCall(name1, "", start)
@@ -595,6 +619,47 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	return &nodes.ColumnRef{
 		Column: name1,
 		Loc:    nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
+}
+
+// parseExtractExpr parses Oracle EXTRACT(datetime_field FROM expr).
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/EXTRACT-datetime.html
+//
+//	EXTRACT({ YEAR | MONTH | DAY | HOUR | MINUTE | SECOND } FROM expr)
+func (p *Parser) parseExtractExpr(start int) (nodes.ExprNode, error) {
+	p.advance() // consume '('
+
+	field, parseErr713 := p.parseIdentifier()
+	if parseErr713 != nil {
+		return nil, parseErr713
+	}
+	if field == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	if p.cur.Type != kwFROM {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+
+	expr, parseErr714 := p.parseExpr()
+	if parseErr714 != nil {
+		return nil, parseErr714
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+
+	return &nodes.ExtractExpr{
+		Field: field,
+		Expr:  expr,
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
 	}, nil
 }
 

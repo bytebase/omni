@@ -62,6 +62,23 @@ func TestP2CreateTableMalformedComplexOption(t *testing.T) {
 	ParseShouldFail(t, "CREATE TABLE docs (id NUMBER, doc CLOB) LOB STORE AS lob_seg")
 }
 
+func TestCreateTableIntervalPartitioning(t *testing.T) {
+	ParseAndCheck(t, `CREATE TABLE t_interval_full (d DATE)
+PARTITION BY RANGE (d)
+INTERVAL (NUMTOYMINTERVAL(1,'MONTH'))
+(
+  PARTITION p1 VALUES LESS THAN (TO_DATE('2012-01-01', 'YYYY-MM-DD'))
+)`)
+}
+
+func TestCreateTableIntervalPartitioningRequiresRangePartition(t *testing.T) {
+	ParseShouldFail(t, "CREATE TABLE t_interval_min (d DATE) PARTITION BY RANGE (d) INTERVAL (NUMTOYMINTERVAL(1,'MONTH'))")
+}
+
+func TestCreateTableDateLiteralPartitionBound(t *testing.T) {
+	ParseAndCheck(t, "CREATE TABLE t_date_bound (d DATE) PARTITION BY RANGE (d) (PARTITION p1 VALUES LESS THAN (DATE '2020-01-01'))")
+}
+
 func parseCreateTableForP2(t *testing.T, sql string) *ast.CreateTableStmt {
 	t.Helper()
 	result := ParseAndCheck(t, sql)

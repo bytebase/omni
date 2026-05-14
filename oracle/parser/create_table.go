@@ -2047,6 +2047,27 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 	}
 
+	// Optional INTERVAL (expr) for range-interval partitioned tables.
+	if p.cur.Type == kwINTERVAL {
+		p.advance()
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		interval, parseErr560 := p.parseExpr()
+		if parseErr560 != nil {
+			return nil, parseErr560
+		}
+		if interval == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		clause.Interval = interval
+	}
+
 	// Optional SUBPARTITION BY
 	if p.isIdentLike() && p.cur.Str == "SUBPARTITION" {
 		p.advance()
@@ -2081,6 +2102,10 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		if p.cur.Type == ')' {
 			p.advance()
 		}
+	}
+
+	if clause.Interval != nil && (clause.Partitions == nil || clause.Partitions.Len() == 0) {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	clause.Loc.End = p.prev.End
