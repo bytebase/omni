@@ -304,6 +304,19 @@ func (c *Catalog) Clone() *Catalog {
 		clone.triggersByRel[ct.RelOID] = append(clone.triggersByRel[ct.RelOID], &ct)
 	}
 
+	// --- Event triggers: deep copy + rebuild name index ---
+	clone.eventTriggers = make(map[uint32]*EventTrigger, len(c.eventTriggers))
+	clone.eventTriggerByName = make(map[string]*EventTrigger, len(c.eventTriggerByName))
+	for oid, evt := range c.eventTriggers {
+		ce := *evt
+		if evt.Tags != nil {
+			ce.Tags = make([]string, len(evt.Tags))
+			copy(ce.Tags, evt.Tags)
+		}
+		clone.eventTriggers[oid] = &ce
+		clone.eventTriggerByName[ce.Name] = &ce
+	}
+
 	// --- Comments: copy map ---
 	clone.comments = make(map[commentKey]string, len(c.comments))
 	for k, v := range c.comments {

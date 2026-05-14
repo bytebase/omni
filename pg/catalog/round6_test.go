@@ -755,8 +755,6 @@ func TestProcessUtilityNoOpDDL(t *testing.T) {
 		&nodes.AlterSubscriptionStmt{},
 		&nodes.DropSubscriptionStmt{},
 		&nodes.CreateTransformStmt{},
-		&nodes.CreateEventTrigStmt{},
-		&nodes.AlterEventTrigStmt{},
 	}
 
 	for _, stmt := range noOpStmts {

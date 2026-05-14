@@ -147,11 +147,9 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// CREATE TRANSFORM: no-op for pgddl
 		return nil
 	case *nodes.CreateEventTrigStmt:
-		// CREATE EVENT TRIGGER: no-op for pgddl
-		return nil
+		return c.CreateEventTriggerStmt(s)
 	case *nodes.AlterEventTrigStmt:
-		// ALTER EVENT TRIGGER: no-op for pgddl
-		return nil
+		return c.AlterEventTrigger(s)
 	case *nodes.VariableSetStmt:
 		// pg: src/backend/tcop/utility.c — standard_ProcessUtility (VariableSetStmt)
 		return c.processVariableSet(s)

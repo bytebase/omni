@@ -455,6 +455,15 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		returnSet = true
 	}
 
+	if retOID == EVENTTRIGGEROID {
+		if strings.EqualFold(language, "sql") {
+			return errInvalidFunctionDefinition("SQL functions cannot return type event_trigger")
+		}
+		if len(allArgTypes) > 0 {
+			return errInvalidFunctionDefinition("event trigger functions cannot have declared arguments")
+		}
+	}
+
 	// ---------------------------------------------------------------
 	// ROWS vs returnsSet validation.
 	// pg: src/backend/commands/functioncmds.c (line 1248-1251)

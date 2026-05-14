@@ -282,6 +282,14 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 			return &Error{Code: CodeUndefinedObject, Message: fmt.Sprintf("trigger %q does not exist", trigName)}
 		}
 
+	case nodes.OBJECT_EVENT_TRIGGER:
+		name := extractSimpleObjectName(stmt.Object)
+		evt := c.eventTriggerByName[name]
+		if evt == nil {
+			return errUndefinedObject("event trigger", name)
+		}
+		key = commentKey{ObjType: 'E', ObjOID: evt.OID}
+
 	case nodes.OBJECT_COLLATION,
 		nodes.OBJECT_CONVERSION,
 		nodes.OBJECT_OPERATOR,
@@ -301,7 +309,6 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 		nodes.OBJECT_EXTENSION,
 		nodes.OBJECT_ACCESS_METHOD,
 		nodes.OBJECT_PUBLICATION,
-		nodes.OBJECT_EVENT_TRIGGER,
 		nodes.OBJECT_DATABASE,
 		nodes.OBJECT_TABLESPACE,
 		nodes.OBJECT_ROLE,
@@ -361,4 +368,3 @@ func (c *Catalog) removeComments(objType byte, objOID uint32) {
 		}
 	}
 }
-

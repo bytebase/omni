@@ -26,18 +26,18 @@ type SchemaDiffEntry struct {
 
 // RelationDiffEntry describes a relation (table/view/matview) change.
 type RelationDiffEntry struct {
-	Action      DiffAction
-	SchemaName  string
-	Name        string
-	From        *Relation
-	To          *Relation
-	Columns     []ColumnDiffEntry
-	Constraints []ConstraintDiffEntry
-	Indexes     []IndexDiffEntry
-	Triggers    []TriggerDiffEntry
-	Policies    []PolicyDiffEntry
-	RLSChanged  bool
-	RLSEnabled  bool
+	Action          DiffAction
+	SchemaName      string
+	Name            string
+	From            *Relation
+	To              *Relation
+	Columns         []ColumnDiffEntry
+	Constraints     []ConstraintDiffEntry
+	Indexes         []IndexDiffEntry
+	Triggers        []TriggerDiffEntry
+	Policies        []PolicyDiffEntry
+	RLSChanged      bool
+	RLSEnabled      bool
 	ForceRLSEnabled bool
 }
 
@@ -90,6 +90,14 @@ type TriggerDiffEntry struct {
 	Name   string
 	From   *Trigger
 	To     *Trigger
+}
+
+// EventTriggerDiffEntry describes a database-level event trigger change.
+type EventTriggerDiffEntry struct {
+	Action DiffAction
+	Name   string
+	From   *EventTrigger
+	To     *EventTrigger
 }
 
 // EnumDiffEntry describes an enum type change.
@@ -176,6 +184,7 @@ type SchemaDiff struct {
 	Ranges         []RangeDiffEntry
 	CompositeTypes []CompositeTypeDiffEntry
 	Extensions     []ExtensionDiffEntry
+	EventTriggers  []EventTriggerDiffEntry
 	Comments       []CommentDiffEntry
 	Grants         []GrantDiffEntry
 }
@@ -191,6 +200,7 @@ func (d *SchemaDiff) IsEmpty() bool {
 		len(d.Ranges) == 0 &&
 		len(d.CompositeTypes) == 0 &&
 		len(d.Extensions) == 0 &&
+		len(d.EventTriggers) == 0 &&
 		len(d.Comments) == 0 &&
 		len(d.Grants) == 0
 }
@@ -210,6 +220,7 @@ func Diff(from, to *Catalog) *SchemaDiff {
 		Ranges:         diffRanges(from, to),
 		CompositeTypes: diffComposites(from, to),
 		Extensions:     diffExtensions(from, to),
+		EventTriggers:  diffEventTriggers(from, to),
 		Comments:       diffComments(from, to),
 		Grants:         diffGrants(from, to),
 	}

@@ -20,62 +20,66 @@ const (
 // Priority constants for tie-breaking within a phase during topological sort.
 // Lower values are executed earlier.
 const (
-	PrioritySchema     = 0
-	PriorityExtension  = 1
-	PriorityType       = 2  // Enum/Domain/Range/Composite
-	PrioritySequence   = 3
-	PriorityFunction   = 4
-	PriorityTable      = 5
-	PriorityColumn     = 6  // uses parent table OID
-	PriorityConstraint = 7  // non-FK
-	PriorityView       = 8
-	PriorityIndex      = 9
-	PriorityTrigger    = 10
-	PriorityPolicy     = 11
-	PriorityMetadata   = 12 // Comment/Grant/Revoke
-	PriorityFKDeferred = 99 // FK constraint (PhasePost)
+	PrioritySchema       = 0
+	PriorityExtension    = 1
+	PriorityType         = 2 // Enum/Domain/Range/Composite
+	PrioritySequence     = 3
+	PriorityFunction     = 4
+	PriorityTable        = 5
+	PriorityColumn       = 6 // uses parent table OID
+	PriorityConstraint   = 7 // non-FK
+	PriorityView         = 8
+	PriorityIndex        = 9
+	PriorityTrigger      = 10
+	PriorityEventTrigger = 10
+	PriorityPolicy       = 11
+	PriorityMetadata     = 12 // Comment/Grant/Revoke
+	PriorityFKDeferred   = 99 // FK constraint (PhasePost)
 )
 
 // MigrationOpType classifies a single DDL operation.
 type MigrationOpType string
 
 const (
-	OpCreateSchema    MigrationOpType = "CreateSchema"
-	OpDropSchema      MigrationOpType = "DropSchema"
-	OpAlterSchema     MigrationOpType = "AlterSchema"
-	OpCreateTable     MigrationOpType = "CreateTable"
-	OpDropTable       MigrationOpType = "DropTable"
-	OpAddColumn       MigrationOpType = "AddColumn"
-	OpDropColumn      MigrationOpType = "DropColumn"
-	OpAlterColumn     MigrationOpType = "AlterColumn"
-	OpAddConstraint   MigrationOpType = "AddConstraint"
-	OpDropConstraint  MigrationOpType = "DropConstraint"
-	OpCreateIndex     MigrationOpType = "CreateIndex"
-	OpDropIndex       MigrationOpType = "DropIndex"
-	OpCreateSequence  MigrationOpType = "CreateSequence"
-	OpDropSequence    MigrationOpType = "DropSequence"
-	OpAlterSequence   MigrationOpType = "AlterSequence"
-	OpCreateFunction  MigrationOpType = "CreateFunction"
-	OpDropFunction    MigrationOpType = "DropFunction"
-	OpAlterFunction   MigrationOpType = "AlterFunction"
-	OpCreateType      MigrationOpType = "CreateType"
-	OpDropType        MigrationOpType = "DropType"
-	OpAlterType       MigrationOpType = "AlterType"
-	OpCreateTrigger   MigrationOpType = "CreateTrigger"
-	OpDropTrigger     MigrationOpType = "DropTrigger"
-	OpCreateView      MigrationOpType = "CreateView"
-	OpDropView        MigrationOpType = "DropView"
-	OpAlterView       MigrationOpType = "AlterView"
-	OpCreateExtension MigrationOpType = "CreateExtension"
-	OpDropExtension   MigrationOpType = "DropExtension"
-	OpAlterExtension  MigrationOpType = "AlterExtension"
-	OpCreatePolicy    MigrationOpType = "CreatePolicy"
-	OpDropPolicy      MigrationOpType = "DropPolicy"
-	OpAlterPolicy     MigrationOpType = "AlterPolicy"
-	OpAlterTable      MigrationOpType = "AlterTable"
-	OpComment         MigrationOpType = "Comment"
-	OpGrant           MigrationOpType = "Grant"
-	OpRevoke          MigrationOpType = "Revoke"
+	OpCreateSchema       MigrationOpType = "CreateSchema"
+	OpDropSchema         MigrationOpType = "DropSchema"
+	OpAlterSchema        MigrationOpType = "AlterSchema"
+	OpCreateTable        MigrationOpType = "CreateTable"
+	OpDropTable          MigrationOpType = "DropTable"
+	OpAddColumn          MigrationOpType = "AddColumn"
+	OpDropColumn         MigrationOpType = "DropColumn"
+	OpAlterColumn        MigrationOpType = "AlterColumn"
+	OpAddConstraint      MigrationOpType = "AddConstraint"
+	OpDropConstraint     MigrationOpType = "DropConstraint"
+	OpCreateIndex        MigrationOpType = "CreateIndex"
+	OpDropIndex          MigrationOpType = "DropIndex"
+	OpCreateSequence     MigrationOpType = "CreateSequence"
+	OpDropSequence       MigrationOpType = "DropSequence"
+	OpAlterSequence      MigrationOpType = "AlterSequence"
+	OpCreateFunction     MigrationOpType = "CreateFunction"
+	OpDropFunction       MigrationOpType = "DropFunction"
+	OpAlterFunction      MigrationOpType = "AlterFunction"
+	OpCreateType         MigrationOpType = "CreateType"
+	OpDropType           MigrationOpType = "DropType"
+	OpAlterType          MigrationOpType = "AlterType"
+	OpCreateTrigger      MigrationOpType = "CreateTrigger"
+	OpDropTrigger        MigrationOpType = "DropTrigger"
+	OpCreateEventTrigger MigrationOpType = "CreateEventTrigger"
+	OpDropEventTrigger   MigrationOpType = "DropEventTrigger"
+	OpAlterEventTrigger  MigrationOpType = "AlterEventTrigger"
+	OpCreateView         MigrationOpType = "CreateView"
+	OpDropView           MigrationOpType = "DropView"
+	OpAlterView          MigrationOpType = "AlterView"
+	OpCreateExtension    MigrationOpType = "CreateExtension"
+	OpDropExtension      MigrationOpType = "DropExtension"
+	OpAlterExtension     MigrationOpType = "AlterExtension"
+	OpCreatePolicy       MigrationOpType = "CreatePolicy"
+	OpDropPolicy         MigrationOpType = "DropPolicy"
+	OpAlterPolicy        MigrationOpType = "AlterPolicy"
+	OpAlterTable         MigrationOpType = "AlterTable"
+	OpComment            MigrationOpType = "Comment"
+	OpGrant              MigrationOpType = "Grant"
+	OpRevoke             MigrationOpType = "Revoke"
 )
 
 // MigrationOp represents a single DDL operation in a migration plan.
@@ -216,6 +220,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	ops = append(ops, generateIndexDDL(from, to, diff)...)
 	ops = append(ops, generatePartitionDDL(from, to, diff)...)
 	ops = append(ops, generateTriggerDDL(from, to, diff)...)
+	ops = append(ops, generateEventTriggerDDL(from, to, diff)...)
 	ops = append(ops, generatePolicyDDL(from, to, diff)...)
 	ops = append(ops, generateCommentDDL(from, to, diff)...)
 	ops = append(ops, generateGrantDDL(from, to, diff)...)
@@ -229,7 +234,6 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 
 	return &MigrationPlan{Ops: ops}
 }
-
 
 // wrapColumnTypeChangesWithViewOps detects ALTER COLUMN TYPE operations and
 // injects synthetic DROP VIEW + CREATE VIEW ops for any views that depend on
@@ -725,4 +729,3 @@ func sortMigrationOps(from, to *Catalog, ops []MigrationOp) []MigrationOp {
 	result = append(result, postOps...)
 	return result
 }
-
