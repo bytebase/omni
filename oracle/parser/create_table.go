@@ -2184,6 +2184,10 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 	}
 
 	for p.cur.Type != ',' && p.cur.Type != ')' && p.cur.Type != tokEOF {
+		if p.cur.Type == '(' {
+			p.skipParenthesized()
+			continue
+		}
 		p.advance()
 	}
 
