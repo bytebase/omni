@@ -183,6 +183,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateTable()
 		case kwVIEW:
 			return p.parseCreateView(createTok.Loc, false)
+		case kwMATERIALIZED:
+			return p.parseCreateMTMV(createTok.Loc)
 		case kwOR:
 			// CREATE OR REPLACE VIEW ...
 			p.advance() // consume OR
@@ -194,7 +196,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.unsupported("CREATE")
 		}
 	case kwALTER:
-		p.advance() // consume ALTER; cur is now the object type keyword
+		alterTok := p.advance() // consume ALTER; cur is now the object type keyword
 		switch p.cur.Kind {
 		case kwDATABASE, kwSCHEMA:
 			return p.parseAlterDatabase()
@@ -202,6 +204,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterTable()
 		case kwVIEW:
 			return p.parseAlterView()
+		case kwMATERIALIZED:
+			return p.parseAlterMTMV(alterTok.Loc)
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -214,6 +218,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropDatabase()
 		case kwVIEW:
 			return p.parseDropView(dropTok.Loc)
+		case kwMATERIALIZED:
+			return p.parseDropMTMV(dropTok.Loc)
 		default:
 			return p.unsupported("DROP")
 		}
@@ -307,14 +313,30 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// Materialized View / Refresh
 	case kwREFRESH:
+		refreshTok := p.advance() // consume REFRESH
+		if p.cur.Kind == kwMATERIALIZED {
+			return p.parseRefreshMTMV(refreshTok.Loc)
+		}
 		return p.unsupported("REFRESH")
 
 	// Job control
 	case kwCANCEL:
+		cancelTok := p.advance() // consume CANCEL
+		if p.cur.Kind == kwMATERIALIZED {
+			return p.parseCancelMTMVTask(cancelTok.Loc)
+		}
 		return p.unsupported("CANCEL")
 	case kwPAUSE:
+		pauseTok := p.advance() // consume PAUSE
+		if p.cur.Kind == kwMATERIALIZED {
+			return p.parsePauseMTMVJob(pauseTok.Loc)
+		}
 		return p.unsupported("PAUSE")
 	case kwRESUME:
+		resumeTok := p.advance() // consume RESUME
+		if p.cur.Kind == kwMATERIALIZED {
+			return p.parseResumeMTMVJob(resumeTok.Loc)
+		}
 		return p.unsupported("RESUME")
 
 	// Analyze / Sync / Warm
