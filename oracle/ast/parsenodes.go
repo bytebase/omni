@@ -429,6 +429,16 @@ type FuncCallExpr struct {
 func (n *FuncCallExpr) nodeTag()  {}
 func (n *FuncCallExpr) exprNode() {}
 
+// ExtractExpr represents EXTRACT(datetime_field FROM expr).
+type ExtractExpr struct {
+	Field string   // YEAR, MONTH, DAY, HOUR, MINUTE, SECOND
+	Expr  ExprNode // source datetime or interval expression
+	Loc   Loc
+}
+
+func (n *ExtractExpr) nodeTag()  {}
+func (n *ExtractExpr) exprNode() {}
+
 // CaseExpr represents a CASE expression.
 type CaseExpr struct {
 	Arg     ExprNode // test expression for simple CASE (nil for searched CASE)
@@ -605,6 +615,16 @@ type StringLiteral struct {
 
 func (n *StringLiteral) nodeTag()  {}
 func (n *StringLiteral) exprNode() {}
+
+// DateTimeLiteral represents ANSI datetime literals such as DATE '2020-01-01'.
+type DateTimeLiteral struct {
+	TypeName string // DATE, TIMESTAMP
+	Val      string // literal value without quotes
+	Loc      Loc
+}
+
+func (n *DateTimeLiteral) nodeTag()  {}
+func (n *DateTimeLiteral) exprNode() {}
 
 // NumberLiteral represents a numeric literal.
 type NumberLiteral struct {
@@ -1537,6 +1557,7 @@ func (n *StorageClause) nodeTag() {}
 type PartitionClause struct {
 	Type         PartitionType    // RANGE/LIST/HASH
 	Columns      *List            // partition columns
+	Interval     ExprNode         // INTERVAL (expr), for range interval partitioning
 	Partitions   *List            // list of *PartitionDef
 	Subpartition *PartitionClause // subpartition template
 	Loc          Loc              // start location

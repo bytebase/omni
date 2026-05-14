@@ -62,6 +62,20 @@ func TestP2CreateIndexMalformedStorageOption(t *testing.T) {
 	ParseShouldFail(t, "CREATE INDEX ix_sales ON sales (sale_date) STORAGE")
 }
 
+func TestCreateIndexFunctionBasedExtract(t *testing.T) {
+	tests := []string{
+		"CREATE INDEX idx_sales_month_year ON sales_data(EXTRACT(YEAR FROM sale_date), EXTRACT(MONTH FROM sale_date))",
+		"CREATE INDEX i_extract_year ON t(EXTRACT(YEAR FROM d))",
+		"CREATE INDEX i_extract_month ON t(EXTRACT(MONTH FROM d))",
+	}
+
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
 func parseCreateIndexForP2(t *testing.T, sql string) *ast.CreateIndexStmt {
 	t.Helper()
 	result := ParseAndCheck(t, sql)

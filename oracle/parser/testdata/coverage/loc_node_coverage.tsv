@@ -105,6 +105,7 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.BoolExpr	expression	covered	SELECT 1 FROM dual WHERE NOT (a = 1 AND b = 2)	boolean expression span	none	covered	keep_regression_guard
 *nodes.ColumnRef	expression	covered	SELECT a FROM t	column reference span	none	covered	keep_regression_guard
 *nodes.FuncCallExpr	expression	covered	SELECT f(1) FROM dual	function call span	none	covered	keep_regression_guard
+*nodes.ExtractExpr	expression	covered	SELECT EXTRACT(YEAR FROM d) FROM t	EXTRACT datetime expression span	none	covered	keep_regression_guard
 *nodes.CaseExpr	expression	covered	SELECT CASE WHEN a = 1 THEN 2 ELSE 3 END FROM dual	case expression span	none	covered	keep_regression_guard
 *nodes.CaseWhen	ast	covered	SELECT CASE WHEN a = 1 THEN 2 ELSE 3 END FROM dual	case expression span	none	covered	keep_regression_guard
 *nodes.CastExpr	expression	covered	SELECT CAST(1 AS NUMBER) FROM dual	cast expression span	none	covered	keep_regression_guard
@@ -124,6 +125,7 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.ContainersExpr	expression	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.NumberLiteral	expression	covered	SELECT 1 FROM dual	number literal span	none	covered	keep_regression_guard
 *nodes.StringLiteral	expression	covered	SELECT 'x' FROM dual	string literal span	none	covered	keep_regression_guard
+*nodes.DateTimeLiteral	expression	covered	SELECT DATE '2020-01-01' FROM dual	ANSI datetime literal span	none	covered	keep_regression_guard
 *nodes.NullLiteral	expression	covered	SELECT NULL FROM dual	null literal span	none	covered	keep_regression_guard
 *nodes.Star	expression	covered	SELECT * FROM t	star span	none	covered	keep_regression_guard
 *nodes.BindVariable	expression	covered	SELECT :id FROM dual	bind variable span	none	covered	keep_regression_guard

@@ -94,6 +94,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeBoolExpr(sb, n)
 	case *FuncCallExpr:
 		writeFuncCallExpr(sb, n)
+	case *ExtractExpr:
+		writeExtractExpr(sb, n)
 	case *CaseExpr:
 		writeCaseExpr(sb, n)
 	case *CaseWhen:
@@ -112,6 +114,11 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeTreatExpr(sb, n)
 	case *IntervalExpr:
 		writeIntervalExpr(sb, n)
+	case *DateTimeLiteral:
+		sb.WriteString("{DATETIMELIT")
+		sb.WriteString(fmt.Sprintf(" :typeName %q :val %q", n.TypeName, n.Val))
+		sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+		sb.WriteString("}")
 	case *BetweenExpr:
 		writeBetweenExpr(sb, n)
 	case *InExpr:
@@ -722,6 +729,17 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	if n.Over != nil {
 		sb.WriteString(" :over ")
 		writeNode(sb, n.Over)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeExtractExpr(sb *strings.Builder, n *ExtractExpr) {
+	sb.WriteString("{EXTRACT")
+	sb.WriteString(fmt.Sprintf(" :field %q", n.Field))
+	if n.Expr != nil {
+		sb.WriteString(" :expr ")
+		writeNode(sb, n.Expr)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -2062,6 +2080,10 @@ func writePartitionClause(sb *strings.Builder, n *PartitionClause) {
 	if n.Columns != nil {
 		sb.WriteString(" :columns ")
 		writeNode(sb, n.Columns)
+	}
+	if n.Interval != nil {
+		sb.WriteString(" :interval ")
+		writeNode(sb, n.Interval)
 	}
 	if n.Partitions != nil {
 		sb.WriteString(" :partitions ")
