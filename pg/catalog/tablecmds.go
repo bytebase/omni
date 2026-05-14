@@ -752,18 +752,28 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	// pg: src/backend/commands/tablecmds.c — cookDefault / cookConstraint
 	for i, cd := range colDefs {
 		if cd.RawDefault != nil && columns[i].HasDefault {
-			if analyzed, err := c.AnalyzeStandaloneExpr(cd.RawDefault, rel); err == nil && analyzed != nil {
-				// pg: cookDefault uses COERCE_IMPLICIT_CAST ('i') as display format
-				coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), columns[i].TypeOID, 'i')
-				if cerr == nil && coerced != nil {
-					analyzed = coerced
-				}
-				columns[i].DefaultAnalyzed = analyzed
-				c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(columns[i].AttNum), analyzed, rel.OID,
-					DepNormal, DepNormal)
-				rte := c.buildRelationRTE(rel)
-				columns[i].Default = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
+			analyzed, err := c.AnalyzeColumnDefaultExpr(cd.RawDefault, rel)
+			if err != nil {
+				c.removeRelation(schema, relName, rel)
+				return err
 			}
+			if analyzed == nil {
+				continue
+			}
+			// pg: cookDefault uses COERCE_IMPLICIT_CAST ('i') as display format
+			coerced, cerr := c.coerceToTargetTypeWithFormat(analyzed, analyzed.exprType(), columns[i].TypeOID, 'a', 'i')
+			if cerr != nil {
+				c.removeRelation(schema, relName, rel)
+				return cerr
+			}
+			if coerced != nil {
+				analyzed = coerced
+			}
+			columns[i].DefaultAnalyzed = analyzed
+			c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(columns[i].AttNum), analyzed, rel.OID,
+				DepNormal, DepNormal)
+			rte := c.buildRelationRTE(rel)
+			columns[i].Default = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 		}
 		if cd.RawGenExpr != nil && columns[i].Generated == 's' {
 			if rawExprContainsSubLink(cd.RawGenExpr) {
@@ -1050,6 +1060,13 @@ func (c *Catalog) convertColumnDef(cd *nodes.ColumnDef, relName string, schema *
 				def.RefColumns = stringListItems(con.PkAttrs)
 				cons = append(cons, def)
 			}
+		}
+	}
+
+	if result.Identity != 0 && (result.RawDefault != nil || result.Default != "") {
+		return ColumnDef{}, nil, &Error{
+			Code:    CodeSyntaxError,
+			Message: fmt.Sprintf("both default and identity specified for column %q of table %q", result.Name, relName),
 		}
 	}
 

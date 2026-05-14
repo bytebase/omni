@@ -138,6 +138,66 @@ func TestDryRunValidation_CreateTable(t *testing.T) {
 			CodeDuplicateColumn, "specified more than once")
 	})
 
+	t.Run("DefaultDoubleQuotedIdentifierRejected", func(t *testing.T) {
+		dryRunExpectError(t, "",
+			`CREATE TABLE t (a text DEFAULT "OTHER")`,
+			CodeFeatureNotSupported, "cannot use column reference in DEFAULT expression")
+	})
+
+	t.Run("DefaultColumnReferenceRejected", func(t *testing.T) {
+		dryRunExpectError(t, "",
+			"CREATE TABLE t (a int, b int DEFAULT a)",
+			CodeFeatureNotSupported, "cannot use column reference in DEFAULT expression")
+	})
+
+	t.Run("DefaultStringLiteralOK", func(t *testing.T) {
+		dryRunExpectOK(t, "CREATE TABLE t (a text DEFAULT 'OTHER')")
+	})
+
+	t.Run("DefaultTypeMismatchRejected", func(t *testing.T) {
+		dryRunExpectError(t, "",
+			"CREATE TABLE t (a int DEFAULT true)",
+			CodeDatatypeMismatch, "")
+	})
+
+	for _, tc := range []struct {
+		name        string
+		expr        string
+		code        string
+		msgContains string
+	}{
+		{
+			name:        "DefaultAggregateRejected",
+			expr:        "count(*)",
+			code:        CodeGroupingError,
+			msgContains: "aggregate functions are not allowed in DEFAULT expressions",
+		},
+		{
+			name:        "DefaultWindowFunctionRejected",
+			expr:        "row_number() OVER ()",
+			code:        CodeWindowingError,
+			msgContains: "window functions are not allowed in DEFAULT expressions",
+		},
+		{
+			name:        "DefaultSetReturningFunctionRejected",
+			expr:        "generate_series(1, 2)",
+			code:        CodeFeatureNotSupported,
+			msgContains: "set-returning functions are not allowed in DEFAULT expressions",
+		},
+		{
+			name:        "DefaultGroupingOperationRejected",
+			expr:        "GROUPING(1)",
+			code:        CodeGroupingError,
+			msgContains: "grouping operations are not allowed in DEFAULT expressions",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dryRunExpectError(t, "",
+				"CREATE TABLE t (a int DEFAULT "+tc.expr+")",
+				tc.code, tc.msgContains)
+		})
+	}
+
 	t.Run("UndefinedColumnType", func(t *testing.T) {
 		dryRunExpectError(t, "",
 			"CREATE TABLE t(id nosuchtype)",
@@ -241,6 +301,59 @@ func TestDryRunValidation_AlterTable(t *testing.T) {
 			CodeUndefinedObject, "")
 	})
 
+	t.Run("AddColumnDefaultDoubleQuotedIdentifierRejected", func(t *testing.T) {
+		dryRunExpectError(t,
+			"CREATE TABLE t(id int)",
+			`ALTER TABLE t ADD COLUMN a text DEFAULT "OTHER"`,
+			CodeFeatureNotSupported, "cannot use column reference in DEFAULT expression")
+	})
+
+	t.Run("AddColumnDefaultTypeMismatchRejected", func(t *testing.T) {
+		dryRunExpectError(t,
+			"CREATE TABLE t(id int)",
+			"ALTER TABLE t ADD COLUMN a int DEFAULT true",
+			CodeDatatypeMismatch, "")
+	})
+
+	for _, tc := range []struct {
+		name        string
+		expr        string
+		code        string
+		msgContains string
+	}{
+		{
+			name:        "AddColumnDefaultAggregateRejected",
+			expr:        "count(*)",
+			code:        CodeGroupingError,
+			msgContains: "aggregate functions are not allowed in DEFAULT expressions",
+		},
+		{
+			name:        "AddColumnDefaultWindowFunctionRejected",
+			expr:        "row_number() OVER ()",
+			code:        CodeWindowingError,
+			msgContains: "window functions are not allowed in DEFAULT expressions",
+		},
+		{
+			name:        "AddColumnDefaultSetReturningFunctionRejected",
+			expr:        "generate_series(1, 2)",
+			code:        CodeFeatureNotSupported,
+			msgContains: "set-returning functions are not allowed in DEFAULT expressions",
+		},
+		{
+			name:        "AddColumnDefaultGroupingOperationRejected",
+			expr:        "GROUPING(1)",
+			code:        CodeGroupingError,
+			msgContains: "grouping operations are not allowed in DEFAULT expressions",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dryRunExpectError(t,
+				"CREATE TABLE t(id int)",
+				"ALTER TABLE t ADD COLUMN a int DEFAULT "+tc.expr,
+				tc.code, tc.msgContains)
+		})
+	}
+
 	t.Run("AddColumnFKToMissing", func(t *testing.T) {
 		dryRunExpectError(t,
 			"CREATE TABLE t(id int)",
@@ -267,6 +380,80 @@ func TestDryRunValidation_AlterTable(t *testing.T) {
 			"CREATE TABLE t(id int)",
 			"ALTER TABLE t ALTER COLUMN nosuch SET DEFAULT 1",
 			CodeUndefinedColumn, "")
+	})
+
+	t.Run("SetDefaultColumnNotExistsBeforeDefaultExpr", func(t *testing.T) {
+		dryRunExpectError(t,
+			"CREATE TABLE t(id int)",
+			`ALTER TABLE t ALTER COLUMN nosuch SET DEFAULT "OTHER"`,
+			CodeUndefinedColumn, "")
+	})
+
+	t.Run("SetDefaultDoubleQuotedIdentifierRejected", func(t *testing.T) {
+		dryRunExpectError(t,
+			"CREATE TABLE t(a text)",
+			`ALTER TABLE t ALTER COLUMN a SET DEFAULT "OTHER"`,
+			CodeFeatureNotSupported, "cannot use column reference in DEFAULT expression")
+	})
+
+	t.Run("SetDefaultTypeMismatchRejected", func(t *testing.T) {
+		dryRunExpectError(t,
+			"CREATE TABLE t(a int)",
+			"ALTER TABLE t ALTER COLUMN a SET DEFAULT true",
+			CodeDatatypeMismatch, "")
+	})
+
+	for _, tc := range []struct {
+		name        string
+		expr        string
+		code        string
+		msgContains string
+	}{
+		{
+			name:        "SetDefaultAggregateRejected",
+			expr:        "count(*)",
+			code:        CodeGroupingError,
+			msgContains: "aggregate functions are not allowed in DEFAULT expressions",
+		},
+		{
+			name:        "SetDefaultWindowFunctionRejected",
+			expr:        "row_number() OVER ()",
+			code:        CodeWindowingError,
+			msgContains: "window functions are not allowed in DEFAULT expressions",
+		},
+		{
+			name:        "SetDefaultSetReturningFunctionRejected",
+			expr:        "generate_series(1, 2)",
+			code:        CodeFeatureNotSupported,
+			msgContains: "set-returning functions are not allowed in DEFAULT expressions",
+		},
+		{
+			name:        "SetDefaultGroupingOperationRejected",
+			expr:        "GROUPING(1)",
+			code:        CodeGroupingError,
+			msgContains: "grouping operations are not allowed in DEFAULT expressions",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dryRunExpectError(t,
+				"CREATE TABLE t(a int)",
+				"ALTER TABLE t ALTER COLUMN a SET DEFAULT "+tc.expr,
+				tc.code, tc.msgContains)
+		})
+	}
+
+	t.Run("SetDefaultIdentityColumnBeforeDefaultExpr", func(t *testing.T) {
+		dryRunExpectError(t,
+			"CREATE TABLE t(id int GENERATED ALWAYS AS IDENTITY, name text)",
+			"ALTER TABLE t ALTER COLUMN id SET DEFAULT name",
+			CodeSyntaxError, "identity column")
+	})
+
+	t.Run("SetDefaultGeneratedColumnBeforeDefaultExpr", func(t *testing.T) {
+		dryRunExpectError(t,
+			"CREATE TABLE t(a int, b int GENERATED ALWAYS AS (a + 1) STORED)",
+			"ALTER TABLE t ALTER COLUMN b SET DEFAULT a",
+			CodeSyntaxError, "generated column")
 	})
 
 	t.Run("SetNotNullColumnNotExists", func(t *testing.T) {
