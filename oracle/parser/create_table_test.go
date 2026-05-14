@@ -79,6 +79,54 @@ func TestCreateTableDateLiteralPartitionBound(t *testing.T) {
 	ParseAndCheck(t, "CREATE TABLE t_date_bound (d DATE) PARTITION BY RANGE (d) (PARTITION p1 VALUES LESS THAN (DATE '2020-01-01'))")
 }
 
+func TestCreateTablePartitionStorageClause(t *testing.T) {
+	tests := []string{
+		`CREATE TABLE t_part_storage_initial (n NUMBER)
+PARTITION BY RANGE (n)
+(
+  PARTITION p1 VALUES LESS THAN (100)
+    STORAGE (INITIAL 8388608)
+)`,
+		`CREATE TABLE t_part_storage_full (n NUMBER)
+PARTITION BY RANGE (n)
+(
+  PARTITION p1 VALUES LESS THAN (100)
+    STORAGE (
+      INITIAL 8388608
+      NEXT 1048576
+      MINEXTENTS 1
+      MAXEXTENTS 2147483645
+      BUFFER_POOL DEFAULT
+    )
+)`,
+		`CREATE TABLE t_part_storage_attrs (txn_date DATE)
+ROW STORE COMPRESS ADVANCED
+TABLESPACE users
+PCTFREE 10
+NOLOGGING
+PARTITION BY RANGE (txn_date)
+INTERVAL (NUMTOYMINTERVAL(1,'MONTH'))
+(
+  PARTITION part_01 VALUES LESS THAN (DATE '2024-01-01')
+    NOLOGGING
+    COMPRESS FOR OLTP
+    TABLESPACE users
+    PCTFREE 10
+    STORAGE (
+      INITIAL 8388608
+      NEXT 1048576
+      MINEXTENTS 1
+      MAXEXTENTS 2147483645
+      BUFFER_POOL DEFAULT
+    )
+)`,
+	}
+
+	for _, sql := range tests {
+		ParseAndCheck(t, sql)
+	}
+}
+
 func parseCreateTableForP2(t *testing.T, sql string) *ast.CreateTableStmt {
 	t.Helper()
 	result := ParseAndCheck(t, sql)
