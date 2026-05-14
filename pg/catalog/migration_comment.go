@@ -115,6 +115,8 @@ func commentObjectTarget(c *Catalog, objType byte, objDescription string, subID 
 		return formatConstraintCommentTarget(objDescription)
 	case 'g': // trigger (schema.table.trigger)
 		return formatTriggerCommentTarget(objDescription)
+	case 'E': // event trigger
+		return fmt.Sprintf("EVENT TRIGGER %s", quoteIdentAlways(objDescription))
 	case 'p': // policy (schema.table.policy)
 		return formatPolicyCommentTarget(objDescription)
 	default:

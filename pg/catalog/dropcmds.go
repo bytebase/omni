@@ -31,6 +31,8 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 		return c.removeFunctionObjects(stmt)
 	case nodes.OBJECT_TRIGGER:
 		return c.removeTriggerObjects(stmt)
+	case nodes.OBJECT_EVENT_TRIGGER:
+		return c.removeEventTriggerObjects(stmt)
 	case nodes.OBJECT_POLICY:
 		return c.removePolicyObjects(stmt)
 	case nodes.OBJECT_TABLE, nodes.OBJECT_VIEW, nodes.OBJECT_MATVIEW:
@@ -53,7 +55,6 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 		nodes.OBJECT_FOREIGN_SERVER,
 		nodes.OBJECT_ACCESS_METHOD,
 		nodes.OBJECT_PUBLICATION,
-		nodes.OBJECT_EVENT_TRIGGER,
 		nodes.OBJECT_RULE,
 		nodes.OBJECT_CAST,
 		nodes.OBJECT_TRANSFORM,

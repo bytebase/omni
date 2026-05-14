@@ -125,6 +125,10 @@ func collectDeclaredObjects(stmts []nodes.Node) map[string]bool {
 			declared[qualifiedNameFromList(s.TypeName)] = true
 		case *nodes.CreateFunctionStmt:
 			declared[functionIdentity(s)] = true
+		case *nodes.CreateEventTrigStmt:
+			if s.Trigname != "" {
+				declared["event_trigger:"+s.Trigname] = true
+			}
 		case *nodes.CreateExtensionStmt:
 			// Extensions are identified by name only.
 			if s.Extname != "" {
@@ -366,9 +370,11 @@ func stmtPriority(stmt nodes.Node) int {
 		return 7
 	case *nodes.CreateTrigStmt:
 		return 7
+	case *nodes.CreateEventTrigStmt:
+		return 7
 	case *nodes.CreatePolicyStmt:
 		return 7
-	case *nodes.AlterSeqStmt:
+	case *nodes.AlterSeqStmt, *nodes.AlterEventTrigStmt:
 		return 8
 	case *nodes.AlterTableStmt:
 		return 9
@@ -412,6 +418,10 @@ func stmtName(stmt nodes.Node) string {
 		return qualifiedNameFromList(s.TypeName)
 	case *nodes.CreateFunctionStmt:
 		return functionIdentity(s)
+	case *nodes.CreateEventTrigStmt:
+		if s.Trigname != "" {
+			return "event_trigger:" + s.Trigname
+		}
 	case *nodes.CreateExtensionStmt:
 		return "extension:" + s.Extname
 	case *nodes.CreateTableAsStmt:
@@ -573,6 +583,12 @@ func extractRefs(stmt nodes.Node, declared map[string]bool) (refs []string, fkRe
 		fr, rr, tr := collectExprDepsFromTriggerStmt(s)
 		addExprDeps(fr, rr, tr)
 
+	case *nodes.CreateEventTrigStmt:
+		if s.Funcname != nil {
+			funcName := qualifiedNameFromList(s.Funcname)
+			addRef(funcName + "()")
+		}
+
 	case *nodes.CreatePolicyStmt:
 		if s.Table != nil {
 			addRef(qualifiedRangeVar(s.Table))
@@ -632,9 +648,13 @@ func extractRefs(stmt nodes.Node, declared map[string]bool) (refs []string, fkRe
 			addRef(qualifiedRangeVar(s.Relation))
 		}
 
+	case *nodes.AlterEventTrigStmt:
+		addRef("event_trigger:" + s.Trigname)
+
 	case *nodes.CommentStmt:
-		// Comment targets are complex; for now just note that comments
-		// go in the last priority layer so they execute after everything.
+		if s.Objtype == nodes.OBJECT_EVENT_TRIGGER {
+			addRef("event_trigger:" + extractSimpleObjectName(s.Object))
+		}
 
 	case *nodes.GrantStmt:
 		// Grants go in the last priority layer.
@@ -952,6 +972,8 @@ func validateSDLStmt(stmt nodes.Node) error {
 		return nil
 	case *nodes.CreateTrigStmt:
 		return nil
+	case *nodes.CreateEventTrigStmt:
+		return nil
 	case *nodes.CreatePolicyStmt:
 		return nil
 	case *nodes.CreateTableAsStmt:
@@ -965,6 +987,8 @@ func validateSDLStmt(stmt nodes.Node) error {
 	case *nodes.GrantStmt:
 		return nil
 	case *nodes.AlterSeqStmt:
+		return nil
+	case *nodes.AlterEventTrigStmt:
 		return nil
 	case *nodes.AlterEnumStmt:
 		return nil

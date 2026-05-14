@@ -676,6 +676,8 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 		return c.renameSequence(stmt)
 	case nodes.OBJECT_TRIGGER:
 		return c.renameTrigger(stmt)
+	case nodes.OBJECT_EVENT_TRIGGER:
+		return c.renameEventTrigger(stmt)
 	case nodes.OBJECT_TABCONSTRAINT:
 		return c.renameConstraint(stmt)
 	case nodes.OBJECT_FUNCTION, nodes.OBJECT_PROCEDURE, nodes.OBJECT_ROUTINE:

@@ -50,11 +50,11 @@ type Catalog struct {
 	relationByOID map[uint32]*Relation
 
 	// Constraint indexes.
-	constraints map[uint32]*Constraint  // OID → Constraint
+	constraints map[uint32]*Constraint   // OID → Constraint
 	consByRel   map[uint32][]*Constraint // relOID → constraints
 
 	// Index indexes.
-	indexes      map[uint32]*Index  // OID → Index
+	indexes      map[uint32]*Index   // OID → Index
 	indexesByRel map[uint32][]*Index // relOID → indexes
 
 	// Sequence index.
@@ -75,6 +75,10 @@ type Catalog struct {
 	// Triggers.
 	triggers      map[uint32]*Trigger
 	triggersByRel map[uint32][]*Trigger
+
+	// Event triggers.
+	eventTriggers      map[uint32]*EventTrigger
+	eventTriggerByName map[string]*EventTrigger
 
 	// Comments.
 	comments map[commentKey]string
@@ -130,31 +134,33 @@ type Catalog struct {
 // New creates a fully initialized Catalog with all built-in data indexed.
 func New() *Catalog {
 	c := &Catalog{
-		oidGen:        NewOIDGenerator(),
-		schemas:       make(map[uint32]*Schema),
-		schemaByName:  make(map[string]*Schema),
-		typeByOID:     make(map[uint32]*BuiltinType, len(BuiltinTypes)),
-		typeByName:    make(map[typeKey]*BuiltinType, len(BuiltinTypes)),
-		castIndex:     make(map[castKey]*BuiltinCast, len(BuiltinCasts)),
-		operByOID:     make(map[uint32]*BuiltinOperator, len(BuiltinOperators)),
-		operByKey:     make(map[operKey][]*BuiltinOperator, len(BuiltinOperators)),
-		procByOID:     make(map[uint32]*BuiltinProc, len(BuiltinProcs)),
-		procByName:    make(map[string][]*BuiltinProc),
-		relationByOID: make(map[uint32]*Relation),
-		constraints:   make(map[uint32]*Constraint),
-		consByRel:     make(map[uint32][]*Constraint),
-		indexes:       make(map[uint32]*Index),
-		indexesByRel:  make(map[uint32][]*Index),
-		sequenceByOID: make(map[uint32]*Sequence),
-		enumTypes:     make(map[uint32]*EnumType),
-		domainTypes:   make(map[uint32]*DomainType),
-		rangeTypes:    make(map[uint32]*RangeType),
-		userProcs:     make(map[uint32]*UserProc),
-		triggers:      make(map[uint32]*Trigger),
-		triggersByRel:  make(map[uint32][]*Trigger),
-		comments:       make(map[commentKey]string),
-		policies:       make(map[uint32]*Policy),
-		policiesByRel:  make(map[uint32][]*Policy),
+		oidGen:             NewOIDGenerator(),
+		schemas:            make(map[uint32]*Schema),
+		schemaByName:       make(map[string]*Schema),
+		typeByOID:          make(map[uint32]*BuiltinType, len(BuiltinTypes)),
+		typeByName:         make(map[typeKey]*BuiltinType, len(BuiltinTypes)),
+		castIndex:          make(map[castKey]*BuiltinCast, len(BuiltinCasts)),
+		operByOID:          make(map[uint32]*BuiltinOperator, len(BuiltinOperators)),
+		operByKey:          make(map[operKey][]*BuiltinOperator, len(BuiltinOperators)),
+		procByOID:          make(map[uint32]*BuiltinProc, len(BuiltinProcs)),
+		procByName:         make(map[string][]*BuiltinProc),
+		relationByOID:      make(map[uint32]*Relation),
+		constraints:        make(map[uint32]*Constraint),
+		consByRel:          make(map[uint32][]*Constraint),
+		indexes:            make(map[uint32]*Index),
+		indexesByRel:       make(map[uint32][]*Index),
+		sequenceByOID:      make(map[uint32]*Sequence),
+		enumTypes:          make(map[uint32]*EnumType),
+		domainTypes:        make(map[uint32]*DomainType),
+		rangeTypes:         make(map[uint32]*RangeType),
+		userProcs:          make(map[uint32]*UserProc),
+		triggers:           make(map[uint32]*Trigger),
+		triggersByRel:      make(map[uint32][]*Trigger),
+		eventTriggers:      make(map[uint32]*EventTrigger),
+		eventTriggerByName: make(map[string]*EventTrigger),
+		comments:           make(map[commentKey]string),
+		policies:           make(map[uint32]*Policy),
+		policiesByRel:      make(map[uint32][]*Policy),
 		extensions:         make(map[uint32]*Extension),
 		extByName:          make(map[string]*Extension),
 		accessMethods:      make(map[uint32]*AccessMethod),

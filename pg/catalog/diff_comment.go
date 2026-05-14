@@ -187,6 +187,13 @@ func resolveCommentDescription(c *Catalog, ck commentKey) string {
 		}
 		return fmt.Sprintf("%s.%s.%s", rel.Schema.Name, rel.Name, trig.Name)
 
+	case 'E': // event trigger
+		evt := c.eventTriggers[ck.ObjOID]
+		if evt == nil {
+			return ""
+		}
+		return evt.Name
+
 	case 'd': // domain constraint
 		// Domain constraints are stored on DomainType.Constraints.
 		for _, dt := range c.domainTypes {
@@ -222,4 +229,3 @@ func resolveCommentDescription(c *Catalog, ck commentKey) string {
 		return ""
 	}
 }
-

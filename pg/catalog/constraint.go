@@ -879,6 +879,12 @@ func (c *Catalog) dropDependents(refType byte, refOID uint32) {
 				continue
 			}
 			c.removeTrigger(trig)
+		case 'E':
+			evt := c.eventTriggers[dep.ObjOID]
+			if evt == nil {
+				continue
+			}
+			c.removeEventTrigger(evt)
 		}
 	}
 }
