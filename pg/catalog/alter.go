@@ -344,8 +344,20 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		if colDef.RawDefault != nil {
 			col := rel.Columns[len(rel.Columns)-1]
 			col.HasDefault = true
-			if analyzed, err := c.AnalyzeStandaloneExpr(colDef.RawDefault, rel); err == nil && analyzed != nil {
-				if coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), col.TypeOID, 'i'); cerr == nil && coerced != nil {
+			analyzed, err := c.AnalyzeColumnDefaultExpr(colDef.RawDefault, rel)
+			if err != nil {
+				delete(rel.colByName, col.Name)
+				rel.Columns = rel.Columns[:len(rel.Columns)-1]
+				return err
+			}
+			if analyzed != nil {
+				coerced, cerr := c.coerceToTargetTypeWithFormat(analyzed, analyzed.exprType(), col.TypeOID, 'a', 'i')
+				if cerr != nil {
+					delete(rel.colByName, col.Name)
+					rel.Columns = rel.Columns[:len(rel.Columns)-1]
+					return cerr
+				}
+				if coerced != nil {
 					analyzed = coerced
 				}
 				col.DefaultAnalyzed = analyzed
@@ -393,20 +405,29 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 			}
 			// Analyze the default expression and coerce to column type.
 			// pg: cookDefault uses COERCE_IMPLICIT_CAST ('i') as display format
-			if analyzed, err := c.AnalyzeStandaloneExpr(rawExpr, rel); err == nil && analyzed != nil {
-				if idx, exists := rel.colByName[atc.Name]; exists {
-					if coerced, cerr := c.coerceToTargetType(analyzed, analyzed.exprType(), rel.Columns[idx].TypeOID, 'i'); cerr == nil && coerced != nil {
-						analyzed = coerced
-					}
-					rel.Columns[idx].DefaultAnalyzed = analyzed
-					c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(rel.Columns[idx].AttNum), analyzed, rel.OID,
-						DepNormal, DepNormal)
+			idx, col, err := c.columnDefaultTarget(rel, atc.Name)
+			if err != nil {
+				return err
+			}
+			analyzed, err := c.AnalyzeColumnDefaultExpr(rawExpr, rel)
+			if err != nil {
+				return err
+			}
+			if analyzed != nil {
+				coerced, cerr := c.coerceToTargetTypeWithFormat(analyzed, analyzed.exprType(), col.TypeOID, 'a', 'i')
+				if cerr != nil {
+					return cerr
 				}
+				if coerced != nil {
+					analyzed = coerced
+				}
+				col.DefaultAnalyzed = analyzed
+				c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(col.AttNum), analyzed, rel.OID,
+					DepNormal, DepNormal)
 				rte := c.buildRelationRTE(rel)
-				defStr := c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
-				if err := c.atSetDefault(rel, atc.Name, defStr); err != nil {
-					return err
-				}
+				col.HasDefault = true
+				col.Default = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
+				rel.Columns[idx] = col
 			}
 			return nil
 		}
@@ -1331,27 +1352,38 @@ func (c *Catalog) atDropNotNull(rel *Relation, colName string) error {
 //
 // pg: src/backend/commands/tablecmds.c — ATExecColumnDefault
 func (c *Catalog) atSetDefault(rel *Relation, colName, expr string) error {
-	idx, exists := rel.colByName[colName]
-	if !exists {
-		return errUndefinedColumn(colName)
-	}
-	col := rel.Columns[idx]
-
-	// Cannot set default on identity columns (use SET IDENTITY instead).
-	if col.Identity != 0 {
-		return errInvalidObjectDefinition(fmt.Sprintf(
-			"column %q of relation %q is an identity column", colName, rel.Name))
-	}
-
-	// Cannot set default on generated columns.
-	if col.Generated != 0 {
-		return errInvalidObjectDefinition(fmt.Sprintf(
-			"column %q of relation %q is a generated column", colName, rel.Name))
+	_, col, err := c.columnDefaultTarget(rel, colName)
+	if err != nil {
+		return err
 	}
 
 	col.HasDefault = true
 	col.Default = expr
 	return nil
+}
+
+func (c *Catalog) columnDefaultTarget(rel *Relation, colName string) (int, *Column, error) {
+	idx, exists := rel.colByName[colName]
+	if !exists {
+		return 0, nil, errUndefinedColumn(colName)
+	}
+	col := rel.Columns[idx]
+
+	// Cannot set default on identity columns (use SET IDENTITY instead).
+	if col.Identity != 0 {
+		return 0, nil, &Error{
+			Code:    CodeSyntaxError,
+			Message: fmt.Sprintf("column %q of relation %q is an identity column", colName, rel.Name)}
+	}
+
+	// Cannot set default on generated columns.
+	if col.Generated != 0 {
+		return 0, nil, &Error{
+			Code:    CodeSyntaxError,
+			Message: fmt.Sprintf("column %q of relation %q is a generated column", colName, rel.Name)}
+	}
+
+	return idx, col, nil
 }
 
 // atDropDefault removes a column's default expression.
@@ -1366,14 +1398,16 @@ func (c *Catalog) atDropDefault(rel *Relation, colName string) error {
 
 	// Cannot drop default on identity columns (use DROP IDENTITY instead).
 	if col.Identity != 0 {
-		return errInvalidObjectDefinition(fmt.Sprintf(
-			"column %q of relation %q is an identity column", colName, rel.Name))
+		return &Error{
+			Code:    CodeSyntaxError,
+			Message: fmt.Sprintf("column %q of relation %q is an identity column", colName, rel.Name)}
 	}
 
 	// Cannot drop default on generated columns (use DROP EXPRESSION instead).
 	if col.Generated != 0 {
-		return errInvalidObjectDefinition(fmt.Sprintf(
-			"column %q of relation %q is a generated column", colName, rel.Name))
+		return &Error{
+			Code:    CodeSyntaxError,
+			Message: fmt.Sprintf("column %q of relation %q is a generated column", colName, rel.Name)}
 	}
 
 	col.HasDefault = false

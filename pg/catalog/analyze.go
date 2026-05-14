@@ -405,11 +405,19 @@ type analyzeCtx struct {
 	query               *Query
 	parent              *analyzeCtx // for correlated subqueries
 	disallowParentCols  bool        // true for non-LATERAL FROM subqueries that may see CTEs but not outer columns
-	domainConstraint    bool        // true when analyzing a domain CHECK constraint
-	domainBaseTypeOID   uint32      // base type OID for domain VALUE keyword
-	domainBaseTypMod    int32       // base type modifier for domain VALUE keyword
-	domainBaseCollation uint32      // base type collation for domain VALUE keyword
+	exprKind            analyzeExprKind
+	domainConstraint    bool   // true when analyzing a domain CHECK constraint
+	domainBaseTypeOID   uint32 // base type OID for domain VALUE keyword
+	domainBaseTypMod    int32  // base type modifier for domain VALUE keyword
+	domainBaseCollation uint32 // base type collation for domain VALUE keyword
 }
+
+type analyzeExprKind int
+
+const (
+	analyzeExprKindStandalone analyzeExprKind = iota
+	analyzeExprKindColumnDefault
+)
 
 // transformFromClauseItem processes a FROM clause item.
 //
@@ -1338,6 +1346,12 @@ func (ac *analyzeCtx) transformColumnRef(cr *nodes.ColumnRef) (AnalyzedExpr, err
 		tableName = stringVal(items[len(items)-2])
 	}
 
+	// pg: src/backend/parser/parse_expr.c — transformColumnRef
+	// EXPR_KIND_COLUMN_DEFAULT rejects ColumnRef before attempting resolution.
+	if ac.exprKind == analyzeExprKindColumnDefault {
+		return nil, errColumnReferenceInDefault()
+	}
+
 	// pg: src/backend/commands/typecmds.c — replace_domain_constraint_value
 	// In domain CHECK constraints, "value" is replaced with CoerceToDomainValue.
 	if ac.domainConstraint && tableName == "" && strings.EqualFold(colName, "value") {
@@ -1600,6 +1614,9 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 	if fc.AggStar && funcName == "count" {
 		// If OVER is present, it's a window function.
 		if fc.Over != nil {
+			if ac.exprKind == analyzeExprKindColumnDefault {
+				return nil, errWindowFunctionInDefault()
+			}
 			winRef, err := ac.resolveWindowDef(fc.Over)
 			if err != nil {
 				return nil, err
@@ -1620,6 +1637,9 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 				AggFilter:  aggFilter,
 				WinRef:     winRef,
 			}, nil
+		}
+		if ac.exprKind == analyzeExprKindColumnDefault {
+			return nil, errAggregateInDefault()
 		}
 		return &AggExpr{
 			AggFuncOID: 0,
@@ -1657,6 +1677,9 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 	// Window function: has OVER clause.
 	// pg: src/backend/parser/parse_func.c — ParseFuncOrColumn (window function path)
 	if fc.Over != nil {
+		if ac.exprKind == analyzeExprKindColumnDefault {
+			return nil, errWindowFunctionInDefault()
+		}
 		winRef, err := ac.resolveWindowDef(fc.Over)
 		if err != nil {
 			return nil, err
@@ -1690,6 +1713,9 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 
 	// Determine if this is an aggregate.
 	if proc.Kind == 'a' {
+		if ac.exprKind == analyzeExprKindColumnDefault {
+			return nil, errAggregateInDefault()
+		}
 		var aggColl uint32
 		if ac.catalog.typeCollation(retType) != 0 {
 			aggColl = resolveCollation(args...)
@@ -1706,6 +1732,10 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 			AggStar:     fc.AggStar,
 			AggDistinct: fc.AggDistinct,
 		}, nil
+	}
+
+	if proc.RetSet && ac.exprKind == analyzeExprKindColumnDefault {
+		return nil, errSetReturningFunctionInDefault()
 	}
 
 	// Determine result collation: if result type is collatable, derive from args.
@@ -2089,6 +2119,10 @@ func (ac *analyzeCtx) transformCoalesceExpr(ce *nodes.CoalesceExpr) (AnalyzedExp
 //
 // pg: src/backend/parser/parse_expr.c — transformSubLink
 func (ac *analyzeCtx) transformSubLink(sl *nodes.SubLink) (AnalyzedExpr, error) {
+	if ac.exprKind == analyzeExprKindColumnDefault {
+		return nil, &Error{Code: CodeFeatureNotSupported, Message: "cannot use subquery in DEFAULT expression"}
+	}
+
 	sub, ok := sl.Subselect.(*nodes.SelectStmt)
 	if !ok {
 		return nil, fmt.Errorf("subquery is not a SELECT")
@@ -3513,6 +3547,10 @@ func (c *Catalog) typeRelation(typeOID uint32) *Relation {
 
 // coerceToTargetType creates a coercion node for the given pathway.
 func (c *Catalog) coerceToTargetType(expr AnalyzedExpr, srcType, targetType uint32, context byte) (AnalyzedExpr, error) {
+	return c.coerceToTargetTypeWithFormat(expr, srcType, targetType, context, context)
+}
+
+func (c *Catalog) coerceToTargetTypeWithFormat(expr AnalyzedExpr, srcType, targetType uint32, context, format byte) (AnalyzedExpr, error) {
 	if srcType == targetType {
 		return expr, nil
 	}
@@ -3532,7 +3570,7 @@ func (c *Catalog) coerceToTargetType(expr AnalyzedExpr, srcType, targetType uint
 			Arg:        expr,
 			ResultType: targetType,
 			TypeMod:    -1,
-			Format:     context,
+			Format:     format,
 		}, nil
 	}
 
@@ -3543,7 +3581,7 @@ func (c *Catalog) coerceToTargetType(expr AnalyzedExpr, srcType, targetType uint
 			Arg:        expr,
 			ResultType: targetType,
 			TypeMod:    -1,
-			Format:     context,
+			Format:     format,
 		}, nil
 	case CoercionFunc:
 		proc := c.procByOID[funcOID]
@@ -3557,13 +3595,13 @@ func (c *Catalog) coerceToTargetType(expr AnalyzedExpr, srcType, targetType uint
 			ResultType:   targetType,
 			ResultTypMod: -1,
 			Args:         []AnalyzedExpr{expr},
-			CoerceFormat: context,
+			CoerceFormat: format,
 		}, nil
 	case CoercionIO:
 		return &CoerceViaIOExpr{
 			Arg:        expr,
 			ResultType: targetType,
-			Format:     context,
+			Format:     format,
 		}, nil
 	default:
 		return nil, errDatatypeMismatch(fmt.Sprintf(
@@ -4509,6 +4547,154 @@ func (c *Catalog) AnalyzeStandaloneExpr(expr nodes.Node, rel *Relation) (Analyze
 	return ac.transformExpr(expr)
 }
 
+// AnalyzeColumnDefaultExpr analyzes a column DEFAULT expression using
+// PostgreSQL's EXPR_KIND_COLUMN_DEFAULT semantics.
+//
+// pg: src/backend/catalog/heap.c — cookDefault
+// pg: src/backend/parser/parse_expr.c — transformColumnRef
+func (c *Catalog) AnalyzeColumnDefaultExpr(expr nodes.Node, rel *Relation) (AnalyzedExpr, error) {
+	if expr == nil {
+		return nil, nil
+	}
+	rte := c.buildRelationRTE(rel)
+	ac := &analyzeCtx{
+		catalog:  c,
+		query:    &Query{RangeTable: []*RangeTableEntry{rte}},
+		exprKind: analyzeExprKindColumnDefault,
+	}
+	analyzed, err := ac.transformExpr(expr)
+	if err != nil {
+		return nil, err
+	}
+	if exprContainsVarExpr(analyzed) {
+		return nil, errColumnReferenceInDefault()
+	}
+	return analyzed, nil
+}
+
+func errColumnReferenceInDefault() error {
+	return &Error{Code: CodeFeatureNotSupported, Message: "cannot use column reference in DEFAULT expression"}
+}
+
+func errAggregateInDefault() error {
+	return &Error{Code: CodeGroupingError, Message: "aggregate functions are not allowed in DEFAULT expressions"}
+}
+
+func errWindowFunctionInDefault() error {
+	return &Error{Code: CodeWindowingError, Message: "window functions are not allowed in DEFAULT expressions"}
+}
+
+func errSetReturningFunctionInDefault() error {
+	return &Error{Code: CodeFeatureNotSupported, Message: "set-returning functions are not allowed in DEFAULT expressions"}
+}
+
+func errGroupingOperationInDefault() error {
+	return &Error{Code: CodeGroupingError, Message: "grouping operations are not allowed in DEFAULT expressions"}
+}
+
+func exprContainsVarExpr(expr AnalyzedExpr) bool {
+	switch v := expr.(type) {
+	case nil:
+		return false
+	case *VarExpr:
+		return true
+	case *FuncCallExpr:
+		return exprListContainsVarExpr(v.Args)
+	case *AggExpr:
+		return exprListContainsVarExpr(v.Args)
+	case *OpExpr:
+		return exprContainsVarExpr(v.Left) || exprContainsVarExpr(v.Right)
+	case *RelabelExpr:
+		return exprContainsVarExpr(v.Arg)
+	case *CoerceViaIOExpr:
+		return exprContainsVarExpr(v.Arg)
+	case *CaseExprQ:
+		if exprContainsVarExpr(v.Arg) || exprContainsVarExpr(v.Default) {
+			return true
+		}
+		for _, w := range v.When {
+			if w != nil && (exprContainsVarExpr(w.Condition) || exprContainsVarExpr(w.Result)) {
+				return true
+			}
+		}
+	case *CoalesceExprQ:
+		return exprListContainsVarExpr(v.Args)
+	case *BoolExprQ:
+		return exprListContainsVarExpr(v.Args)
+	case *NullTestExpr:
+		return exprContainsVarExpr(v.Arg)
+	case *SubLinkExpr:
+		if exprContainsVarExpr(v.TestExpr) {
+			return true
+		}
+		if v.SubQuery != nil {
+			for _, te := range v.SubQuery.TargetList {
+				if te != nil && exprContainsVarExpr(te.Expr) {
+					return true
+				}
+			}
+		}
+	case *NullIfExprQ:
+		return exprListContainsVarExpr(v.Args)
+	case *MinMaxExprQ:
+		return exprListContainsVarExpr(v.Args)
+	case *BooleanTestExpr:
+		return exprContainsVarExpr(v.Arg)
+	case *DistinctExprQ:
+		return exprContainsVarExpr(v.Left) || exprContainsVarExpr(v.Right)
+	case *ScalarArrayOpExpr:
+		return exprContainsVarExpr(v.Left) || exprContainsVarExpr(v.Right)
+	case *ArrayExprQ:
+		return exprListContainsVarExpr(v.Elements)
+	case *RowExprQ:
+		return exprListContainsVarExpr(v.Args)
+	case *CollateExprQ:
+		return exprContainsVarExpr(v.Arg)
+	case *FieldSelectExprQ:
+		return exprContainsVarExpr(v.Arg)
+	case *WindowFuncExpr:
+		return exprListContainsVarExpr(v.Args) || exprContainsVarExpr(v.AggFilter)
+	case *SubscriptingRefExpr:
+		return exprContainsVarExpr(v.ContainerExpr) ||
+			exprListContainsVarExpr(v.SubscriptExprs) ||
+			exprListContainsVarExpr(v.LowerExprs)
+	case *NamedArgExprQ:
+		return exprContainsVarExpr(v.Arg)
+	case *ArrayCoerceExprQ:
+		return exprContainsVarExpr(v.Arg) || exprContainsVarExpr(v.ElemExpr)
+	case *CoerceToDomainExpr:
+		return exprContainsVarExpr(v.Arg)
+	case *RowCompareExprQ:
+		return exprListContainsVarExpr(v.LArgs) || exprListContainsVarExpr(v.RArgs)
+	case *ConvertRowtypeExprQ:
+		return exprContainsVarExpr(v.Arg)
+	case *FieldStoreExprQ:
+		return exprContainsVarExpr(v.Arg) || exprListContainsVarExpr(v.NewVals)
+	case *GroupingFuncExpr:
+		return exprListContainsVarExpr(v.Args)
+	case *XmlExprQ:
+		return exprListContainsVarExpr(v.NamedArgs) || exprListContainsVarExpr(v.Args)
+	case *JsonConstructorExprQ:
+		return exprListContainsVarExpr(v.Args)
+	case *JsonExprQ:
+		return exprContainsVarExpr(v.Expr)
+	case *JsonIsPredicateExpr:
+		return exprContainsVarExpr(v.Expr)
+	case *JsonValueExprQ:
+		return exprContainsVarExpr(v.Expr)
+	}
+	return false
+}
+
+func exprListContainsVarExpr(exprs []AnalyzedExpr) bool {
+	for _, expr := range exprs {
+		if exprContainsVarExpr(expr) {
+			return true
+		}
+	}
+	return false
+}
+
 // AnalyzeDomainExpr analyzes a raw expression node in the context of a domain
 // type. The "VALUE" keyword is intercepted in transformColumnRef and replaced
 // with CoerceToDomainValueExpr.
@@ -4673,6 +4859,9 @@ func (ac *analyzeCtx) transformGroupingFunc(gf *nodes.GroupingFunc) (AnalyzedExp
 				refs = append(refs, int(iv.Ival))
 			}
 		}
+	}
+	if ac.exprKind == analyzeExprKindColumnDefault {
+		return nil, errGroupingOperationInDefault()
 	}
 	return &GroupingFuncExpr{
 		Args: args,

@@ -472,6 +472,31 @@ func TestAlterAddColumnIdentityCreatesSequenceAndDefault(t *testing.T) {
 	}
 }
 
+func TestAlterAddColumnIdentityWithDefaultRejectsBeforeSequenceCreate(t *testing.T) {
+	c := New()
+	execIdentitySQL(t, c, `CREATE TABLE t (name text)`)
+
+	results, err := c.Exec(`ALTER TABLE t ADD COLUMN id integer GENERATED ALWAYS AS IDENTITY DEFAULT name`, nil)
+	if err != nil {
+		t.Fatalf("Exec parse error: %v", err)
+	}
+	if len(results) != 1 || results[0].Error == nil {
+		t.Fatalf("expected ALTER TABLE error, got results=%v", results)
+	}
+	assertErrorCode(t, results[0].Error, CodeSyntaxError)
+
+	rel := c.GetRelation("", "t")
+	if rel == nil {
+		t.Fatal("relation t not found")
+	}
+	if _, exists := rel.colByName["id"]; exists {
+		t.Fatal("column id should not be added after identity/default conflict")
+	}
+	if _, err := c.findSequence("", "t_id_seq"); err == nil {
+		t.Fatal("identity sequence public.t_id_seq should not be created after identity/default conflict")
+	}
+}
+
 func TestAlterAddColumnIdentityRejectsRegularInheritanceChildren(t *testing.T) {
 	c := New()
 	execIdentitySQL(t, c, `

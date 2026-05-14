@@ -21,7 +21,7 @@ func TestSetDefaultOnIdentityColumn(t *testing.T) {
 	err := c.AlterTableStmt(makeAlterTableStmt("", "t",
 		makeATSetDefault("id", "42"),
 	))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	assertErrorCode(t, err, CodeSyntaxError)
 }
 
 func TestSetDefaultOnGeneratedColumn(t *testing.T) {
@@ -37,7 +37,7 @@ func TestSetDefaultOnGeneratedColumn(t *testing.T) {
 	err := c.AlterTableStmt(makeAlterTableStmt("", "t",
 		makeATSetDefault("val", "1"),
 	))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	assertErrorCode(t, err, CodeSyntaxError)
 }
 
 func TestDropDefaultOnIdentityColumn(t *testing.T) {
@@ -53,7 +53,7 @@ func TestDropDefaultOnIdentityColumn(t *testing.T) {
 	err := c.AlterTableStmt(makeAlterTableStmt("", "t",
 		makeATDropDefault("id"),
 	))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	assertErrorCode(t, err, CodeSyntaxError)
 }
 
 func TestDropDefaultOnGeneratedColumn(t *testing.T) {
@@ -69,7 +69,38 @@ func TestDropDefaultOnGeneratedColumn(t *testing.T) {
 	err := c.AlterTableStmt(makeAlterTableStmt("", "t",
 		makeATDropDefault("val"),
 	))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	assertErrorCode(t, err, CodeSyntaxError)
+}
+
+func TestAddColumnDefaultTypeMismatchRollsBackColumn(t *testing.T) {
+	c := New()
+	results, err := c.Exec("CREATE TABLE t(id int)", nil)
+	if err != nil {
+		t.Fatalf("setup parse error: %v", err)
+	}
+	if len(results) != 1 || results[0].Error != nil {
+		t.Fatalf("setup error: %v", results)
+	}
+
+	results, err = c.Exec("ALTER TABLE t ADD COLUMN a int DEFAULT true", nil)
+	if err != nil {
+		t.Fatalf("alter parse error: %v", err)
+	}
+	if len(results) != 1 || results[0].Error == nil {
+		t.Fatalf("expected ALTER TABLE error, got results=%v", results)
+	}
+	assertErrorCode(t, results[0].Error, CodeDatatypeMismatch)
+
+	rel := c.GetRelation("", "t")
+	if rel == nil {
+		t.Fatal("relation t not found")
+	}
+	if _, exists := rel.colByName["a"]; exists {
+		t.Fatal("column a should not be added after default type mismatch")
+	}
+	if len(rel.Columns) != 1 {
+		t.Fatalf("columns length: got %d, want 1", len(rel.Columns))
+	}
 }
 
 func TestAlterColumnTypeOnIdentityColumn(t *testing.T) {
