@@ -577,6 +577,19 @@ const (
 
 	// T_KillAnalyzeStmt is the tag for *KillAnalyzeStmt.
 	T_KillAnalyzeStmt
+	// DDL/DML — Stored Procedure nodes (T8.2).
+
+	// T_ProcedureParam is the tag for *ProcedureParam.
+	T_ProcedureParam
+
+	// T_CreateProcedureStmt is the tag for *CreateProcedureStmt.
+	T_CreateProcedureStmt
+
+	// T_CallProcedureStmt is the tag for *CallProcedureStmt.
+	T_CallProcedureStmt
+
+	// T_DropProcedureStmt is the tag for *DropProcedureStmt.
+	T_DropProcedureStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -928,6 +941,14 @@ func (t NodeTag) String() string {
 		return "DropStatsStmt"
 	case T_KillAnalyzeStmt:
 		return "KillAnalyzeStmt"
+	case T_ProcedureParam:
+		return "ProcedureParam"
+	case T_CreateProcedureStmt:
+		return "CreateProcedureStmt"
+	case T_CallProcedureStmt:
+		return "CallProcedureStmt"
+	case T_DropProcedureStmt:
+		return "DropProcedureStmt"
 	default:
 		return "Unknown"
 	}

@@ -904,5 +904,27 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *KillAnalyzeStmt:
 		// leaf node, no children
+
+	// DDL/DML — Stored Procedure nodes (T8.2).
+	case *ProcedureParam:
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+	case *CreateProcedureStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, param := range n.Parameters {
+			Walk(v, param)
+		}
+	case *CallProcedureStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		walkNodes(v, n.Args)
+	case *DropProcedureStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	}
 }

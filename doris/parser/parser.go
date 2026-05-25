@@ -212,11 +212,16 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateView(createTok.Loc, false)
 		case kwMATERIALIZED:
 			return p.parseCreateMTMV(createTok.Loc)
+		case kwPROCEDURE:
+			return p.parseCreateProcedure(createTok.Loc, false)
 		case kwOR:
-			// CREATE OR REPLACE VIEW ...
+			// CREATE OR REPLACE VIEW ... or CREATE OR REPLACE PROCEDURE ...
 			p.advance() // consume OR
 			if _, err := p.expect(kwREPLACE); err != nil {
 				return nil, err
+			}
+			if p.cur.Kind == kwPROCEDURE {
+				return p.parseCreateProcedure(createTok.Loc, true)
 			}
 			return p.parseCreateView(createTok.Loc, true)
 		case kwSTORAGE:
@@ -365,6 +370,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 				return nil, err
 			}
 			return p.parseDropStats(dropTok.Loc, "CACHED")
+		case kwPROCEDURE:
+			return p.parseDropProcedure(dropTok.Loc)
 		default:
 			return p.unsupported("DROP")
 		}
@@ -391,6 +398,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwMERGE:
 		mergeTok := p.advance() // consume MERGE; cur is now INTO
 		return p.parseMergeStmt(mergeTok.Loc)
+	case kwCALL:
+		return p.parseCallProcedure()
 
 	// Load / Export / Copy
 	case kwLOAD:
