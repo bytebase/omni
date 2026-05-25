@@ -166,33 +166,8 @@ func TestParseAllDispatchCategories(t *testing.T) {
 		wantMsg string
 	}{
 		{"DROP TABLE t", "DROP"},
-		// Note: BEGIN/COMMIT/ROLLBACK (T7.2), TRUNCATE/LOAD/EXPORT/COPY (T6.1),
-		// GRANT/REVOKE (T7.1), SHOW/DESCRIBE/EXPLAIN/USE/SET/UNSET/HELP (T7.3)
-		// are now implemented and removed from this unsupported list.
-		// ADMIN is now implemented (T7.4); removed from unsupported list.
-		{"KILL 123", "KILL"},
-		{"BACKUP SNAPSHOT s", "BACKUP"},
-		{"RESTORE SNAPSHOT s", "RESTORE"},
-		{"RECOVER DATABASE db", "RECOVER"},
-		{"TRUNCATE TABLE t", "TRUNCATE"},
-		// INSERT, UPDATE, DELETE, MERGE are now supported; skip them here.
-		{"LOAD DATA INFILE 'f' INTO TABLE t", "LOAD"},
-		{"EXPORT TABLE t", "EXPORT"},
-		{"BEGIN", "BEGIN"},
-		{"COMMIT", "COMMIT"},
-		{"ROLLBACK", "ROLLBACK"},
-		{"GRANT SELECT ON t TO u", "GRANT"},
-		{"REVOKE SELECT ON t FROM u", "REVOKE"},
-		{"SHOW TABLES", "SHOW"},
-		{"DESCRIBE t", "DESCRIBE"},
-		{"EXPLAIN SELECT 1", "EXPLAIN"},
-		{"USE db", "USE"},
-		{"SET x = 1", "SET"},
-		{"UNSET x", "UNSET"},
-		{"ADMIN SHOW REPLICA", "ADMIN"},
-		// KILL, BACKUP, RESTORE, RECOVER, CANCEL, CLEAN implemented in T7.5.
-		// REFRESH CATALOG (T5.2) and REFRESH MATERIALIZED VIEW (T5.1) are implemented;
-		// keep a form that's still unsupported (DICTIONARY/DATABASE/TABLE/LDAP).
+		// Most statement categories are now implemented; only a few REFRESH
+		// targets and ANALYZE (until T8.3 merges) remain in the unsupported list.
 		{"REFRESH DATABASE db", "REFRESH"},
 		{"ANALYZE TABLE t", "ANALYZE"},
 	}
