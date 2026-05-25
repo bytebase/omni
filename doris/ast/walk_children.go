@@ -748,5 +748,52 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *CancelDecommissionStmt:
 		// leaf-ish node, hosts stored as strings
+
+	// Utility / admin command nodes (T7.5).
+	case *BackupStmt:
+		for _, tbl := range n.Tables {
+			Walk(v, tbl)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *RestoreStmt:
+		for _, tbl := range n.Tables {
+			Walk(v, tbl)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *KillStmt:
+		// leaf-ish node, no Node children
+	case *LockTablesStmt:
+		for _, item := range n.Items {
+			Walk(v, item)
+		}
+	case *LockItem:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+	case *UnlockTablesStmt:
+		// leaf node, no children
+	case *InstallPluginStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *UninstallPluginStmt:
+		// leaf node, no children
+	case *WarmUpStmt:
+		// leaf-ish node, target stored as raw text
+	case *CleanStmt:
+		// leaf-ish node, target stored as raw text
+	case *CancelStmt:
+		// leaf-ish node, target stored as raw text
+	case *RecoverStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.FromTable != nil {
+			Walk(v, n.FromTable)
+		}
 	}
 }

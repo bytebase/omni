@@ -487,6 +487,43 @@ const (
 
 	// T_CancelDecommissionStmt is the tag for *CancelDecommissionStmt.
 	T_CancelDecommissionStmt
+	// Utility / admin command nodes (T7.5).
+
+	// T_BackupStmt is the tag for *BackupStmt.
+	T_BackupStmt
+
+	// T_RestoreStmt is the tag for *RestoreStmt.
+	T_RestoreStmt
+
+	// T_KillStmt is the tag for *KillStmt.
+	T_KillStmt
+
+	// T_LockTablesStmt is the tag for *LockTablesStmt.
+	T_LockTablesStmt
+
+	// T_LockItem is the tag for *LockItem.
+	T_LockItem
+
+	// T_UnlockTablesStmt is the tag for *UnlockTablesStmt.
+	T_UnlockTablesStmt
+
+	// T_InstallPluginStmt is the tag for *InstallPluginStmt.
+	T_InstallPluginStmt
+
+	// T_UninstallPluginStmt is the tag for *UninstallPluginStmt.
+	T_UninstallPluginStmt
+
+	// T_WarmUpStmt is the tag for *WarmUpStmt.
+	T_WarmUpStmt
+
+	// T_CleanStmt is the tag for *CleanStmt.
+	T_CleanStmt
+
+	// T_CancelStmt is the tag for *CancelStmt (generic, non-MTMV).
+	T_CancelStmt
+
+	// T_RecoverStmt is the tag for *RecoverStmt.
+	T_RecoverStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -780,6 +817,30 @@ func (t NodeTag) String() string {
 		return "SystemAlterStmt"
 	case T_CancelDecommissionStmt:
 		return "CancelDecommissionStmt"
+	case T_BackupStmt:
+		return "BackupStmt"
+	case T_RestoreStmt:
+		return "RestoreStmt"
+	case T_KillStmt:
+		return "KillStmt"
+	case T_LockTablesStmt:
+		return "LockTablesStmt"
+	case T_LockItem:
+		return "LockItem"
+	case T_UnlockTablesStmt:
+		return "UnlockTablesStmt"
+	case T_InstallPluginStmt:
+		return "InstallPluginStmt"
+	case T_UninstallPluginStmt:
+		return "UninstallPluginStmt"
+	case T_WarmUpStmt:
+		return "WarmUpStmt"
+	case T_CleanStmt:
+		return "CleanStmt"
+	case T_CancelStmt:
+		return "CancelStmt"
+	case T_RecoverStmt:
+		return "RecoverStmt"
 	default:
 		return "Unknown"
 	}

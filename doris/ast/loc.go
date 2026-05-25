@@ -296,6 +296,30 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *CancelDecommissionStmt:
 		return v.Loc
+	case *BackupStmt:
+		return v.Loc
+	case *RestoreStmt:
+		return v.Loc
+	case *KillStmt:
+		return v.Loc
+	case *LockTablesStmt:
+		return v.Loc
+	case *LockItem:
+		return v.Loc
+	case *UnlockTablesStmt:
+		return v.Loc
+	case *InstallPluginStmt:
+		return v.Loc
+	case *UninstallPluginStmt:
+		return v.Loc
+	case *WarmUpStmt:
+		return v.Loc
+	case *CleanStmt:
+		return v.Loc
+	case *CancelStmt:
+		return v.Loc
+	case *RecoverStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}
