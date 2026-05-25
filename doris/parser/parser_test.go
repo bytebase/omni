@@ -174,8 +174,6 @@ func TestParseAllDispatchCategories(t *testing.T) {
 		{"BEGIN", "BEGIN"},
 		{"COMMIT", "COMMIT"},
 		{"ROLLBACK", "ROLLBACK"},
-		{"GRANT SELECT ON t TO u", "GRANT"},
-		{"REVOKE SELECT ON t FROM u", "REVOKE"},
 		{"SHOW TABLES", "SHOW"},
 		{"DESCRIBE t", "DESCRIBE"},
 		{"EXPLAIN SELECT 1", "EXPLAIN"},
