@@ -169,7 +169,7 @@ func TestParseAllDispatchCategories(t *testing.T) {
 		// Note: BEGIN/COMMIT/ROLLBACK (T7.2), TRUNCATE/LOAD/EXPORT/COPY (T6.1),
 		// GRANT/REVOKE (T7.1), SHOW/DESCRIBE/EXPLAIN/USE/SET/UNSET/HELP (T7.3)
 		// are now implemented and removed from this unsupported list.
-		{"ADMIN SHOW REPLICA", "ADMIN"},
+		// ADMIN is now implemented (T7.4); removed from unsupported list.
 		{"KILL 123", "KILL"},
 		{"BACKUP SNAPSHOT s", "BACKUP"},
 		{"RESTORE SNAPSHOT s", "RESTORE"},

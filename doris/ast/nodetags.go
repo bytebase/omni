@@ -477,6 +477,16 @@ const (
 
 	// T_HelpStmt is the tag for *HelpStmt.
 	T_HelpStmt
+	// Admin / System cluster-management nodes (T7.4).
+
+	// T_AdminStmt is the tag for *AdminStmt (ADMIN ... variants).
+	T_AdminStmt
+
+	// T_SystemAlterStmt is the tag for *SystemAlterStmt (ALTER SYSTEM ...).
+	T_SystemAlterStmt
+
+	// T_CancelDecommissionStmt is the tag for *CancelDecommissionStmt.
+	T_CancelDecommissionStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -764,6 +774,12 @@ func (t NodeTag) String() string {
 		return "UnsetStmt"
 	case T_HelpStmt:
 		return "HelpStmt"
+	case T_AdminStmt:
+		return "AdminStmt"
+	case T_SystemAlterStmt:
+		return "SystemAlterStmt"
+	case T_CancelDecommissionStmt:
+		return "CancelDecommissionStmt"
 	default:
 		return "Unknown"
 	}
