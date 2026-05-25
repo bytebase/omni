@@ -692,5 +692,13 @@ func walkChildren(v Visitor, node Node) {
 		if n.Object != nil {
 			Walk(v, n.Object)
 		}
+
+	// TCL — Transaction Control Language nodes (T7.2).
+	case *BeginStmt:
+		// leaf node, no Node children
+	case *CommitStmt:
+		// leaf node, no Node children
+	case *RollbackStmt:
+		// leaf node, no Node children
 	}
 }
