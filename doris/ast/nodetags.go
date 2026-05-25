@@ -452,6 +452,31 @@ const (
 
 	// T_RollbackStmt is the tag for *RollbackStmt.
 	T_RollbackStmt
+	// Utility statement nodes (T7.3).
+
+	// T_ShowStmt is the tag for *ShowStmt.
+	T_ShowStmt
+
+	// T_DescribeStmt is the tag for *DescribeStmt.
+	T_DescribeStmt
+
+	// T_ExplainStmt is the tag for *ExplainStmt.
+	T_ExplainStmt
+
+	// T_UseStmt is the tag for *UseStmt.
+	T_UseStmt
+
+	// T_SetStmt is the tag for *SetStmt (generic variable assignment).
+	T_SetStmt
+
+	// T_SetItem is the tag for *SetItem (one item in a SET statement).
+	T_SetItem
+
+	// T_UnsetStmt is the tag for *UnsetStmt.
+	T_UnsetStmt
+
+	// T_HelpStmt is the tag for *HelpStmt.
+	T_HelpStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -723,6 +748,22 @@ func (t NodeTag) String() string {
 		return "CommitStmt"
 	case T_RollbackStmt:
 		return "RollbackStmt"
+	case T_ShowStmt:
+		return "ShowStmt"
+	case T_DescribeStmt:
+		return "DescribeStmt"
+	case T_ExplainStmt:
+		return "ExplainStmt"
+	case T_UseStmt:
+		return "UseStmt"
+	case T_SetStmt:
+		return "SetStmt"
+	case T_SetItem:
+		return "SetItem"
+	case T_UnsetStmt:
+		return "UnsetStmt"
+	case T_HelpStmt:
+		return "HelpStmt"
 	default:
 		return "Unknown"
 	}
