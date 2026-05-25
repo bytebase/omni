@@ -34,19 +34,31 @@ Conventions follow `cosmosdb/` and `mongo/`:
 | 8 | parse-entry | `partiql/parser` (parse.go, exec.go, parse_test.go) | parser-foundation | parser-select/dml/ddl (entry can land before they all complete) | **P0** | done |
 | 9 | analysis | `partiql/analysis` | ast-core, parse-entry | catalog, completion-foundation | **P0** | done |
 | 10 | completion | `partiql/completion` | parse-entry, catalog | analysis | **P0** | done |
-| 11 | bytebase-switch | bytebase wrapper rewrite | parse-entry, analysis, completion | — | **P0** | not started |
-| 12 | parser-let-pivot | `partiql/parser` (select.go) | parser-select | parser-window, parser-aggregates, parser-builtins, parser-graph, parser-ion-literals, parser-datetime-literals | **P1** | not started |
-| 13 | parser-window | `partiql/parser` (expr.go, function.go) | parser-foundation | parser-let-pivot, parser-aggregates, parser-builtins, parser-graph, parser-ion-literals, parser-datetime-literals | **P1** | not started |
-| 14 | parser-aggregates | `partiql/parser` (function.go) | parser-foundation | parser-let-pivot, parser-window, parser-builtins, parser-graph, parser-ion-literals, parser-datetime-literals | **P1** | not started |
-| 15 | parser-builtins | `partiql/parser` (function.go, expr.go) | parser-foundation | parser-let-pivot, parser-window, parser-aggregates, parser-graph, parser-ion-literals, parser-datetime-literals | **P1** | not started |
-| 16 | parser-graph | `partiql/parser` (graph.go) | parser-foundation | parser-let-pivot, parser-window, parser-aggregates, parser-builtins, parser-ion-literals, parser-datetime-literals | **P1** | not started |
-| 17 | parser-ion-literals | `partiql/parser` (lexer.go) | lexer | parser-let-pivot, parser-window, parser-aggregates, parser-builtins, parser-graph, parser-datetime-literals | **P1** | not started |
-| 18 | parser-datetime-literals | `partiql/parser` (literals.go, expr.go) | parser-foundation | parser-let-pivot, parser-window, parser-aggregates, parser-builtins, parser-graph, parser-ion-literals | **P1** | not started |
+| 11 | bytebase-switch | bytebase wrapper rewrite | parse-entry, analysis, completion | — | **P0** | done (bytebase PRs #19965, #19966, #19967, #19968) |
+| 12 | parser-let-pivot | `partiql/parser` (select.go) | parser-select | parser-window, parser-aggregates, parser-builtins-typed, parser-graph, parser-ion-literals, parser-datetime-literals | **P1** | not started |
+| 13 | parser-window | `partiql/parser` (expr.go, function.go) | parser-foundation | parser-let-pivot, parser-aggregates, parser-builtins-typed, parser-graph, parser-ion-literals, parser-datetime-literals | **P1** | not started |
+| 14 | parser-aggregates | `partiql/parser` (function.go) | parser-foundation | parser-let-pivot, parser-window, parser-builtins-typed, parser-graph, parser-ion-literals, parser-datetime-literals | **P1** | not started |
+| 15a | parser-builtins-generic-call | `partiql/parser` (parser.go, ast extension) | parser-foundation | parser-let-pivot, parser-window, parser-aggregates, parser-graph, parser-ion-literals, parser-datetime-literals, parser-builtins-typed | **P0** | not started — **production regression** |
+| 15b | parser-builtins-typed | `partiql/parser` (exprprimary.go, function.go) | parser-builtins-generic-call | parser-let-pivot, parser-window, parser-aggregates, parser-graph, parser-ion-literals, parser-datetime-literals | **P1** | not started |
+| 16 | parser-graph | `partiql/parser` (graph.go) | parser-foundation | parser-let-pivot, parser-window, parser-aggregates, parser-builtins-typed, parser-ion-literals, parser-datetime-literals | **P1** | not started |
+| 17 | parser-ion-literals | `partiql/parser` (lexer.go) | lexer | parser-let-pivot, parser-window, parser-aggregates, parser-builtins-typed, parser-graph, parser-datetime-literals | **P1** | not started |
+| 18 | parser-datetime-literals | `partiql/parser` (literals.go, expr.go) | parser-foundation | parser-let-pivot, parser-window, parser-aggregates, parser-builtins-typed, parser-graph, parser-ion-literals | **P1** | not started |
 
 Priority key: **P0** = on the critical path to bytebase migration (the four
-features bytebase actually consumes — splitter / parse / DQL validator / completion);
+features bytebase actually consumes — splitter / parse / DQL validator / completion),
+**plus any regression-blocking gap surfaced after the cutover**;
 **P1** = legacy parser parity that omni must implement to fully replace the ANTLR
 grammar, but bytebase doesn't actively consume today.
+
+> **Post-cutover regression:** node 11 completed the bytebase switch, which
+> means omni's parser now gates every DynamoDB statement through the editor's
+> syntax check. The legacy ANTLR grammar accepted any `IDENT(...)` call
+> (DynamoDB-native predicates `attribute_exists` / `attribute_not_exists` /
+> `attribute_type` / `begins_with` / `contains` and friends), but omni today
+> rejects them with `function call "X" is deferred to parser-builtins
+> (DAG node 15)` — surfaced to the user as a syntax error. Node 15 has been
+> split into **15a (generic call stub — P0)** and **15b (typed keyword
+> builtins — P1)**. 15a is the production-fix step; 15b finishes parity.
 
 ## Visual Dependency Graph
 
@@ -70,7 +82,8 @@ digraph partiql_dag {
     parse_entry[label="8. parse-entry\n(parse.go)"];
     analysis   [label="9. analysis\n(DQL validator)"];
     completion [label="10. completion"];
-    bb_switch  [label="11. bytebase-switch", color="#cf222e", fontcolor="#cf222e"];
+    bb_switch  [label="11. bytebase-switch"];
+    p_builtins_call [label="15a. parser-builtins-\ngeneric-call", color="#cf222e", fontcolor="#cf222e"];
   }
 
   // P1
@@ -78,13 +91,13 @@ digraph partiql_dag {
     label="P1 — legacy parity";
     color="#9a6700";
     style=rounded;
-    p_letpivot [label="12. parser-let-pivot"];
-    p_window   [label="13. parser-window"];
-    p_aggs     [label="14. parser-aggregates"];
-    p_builtins [label="15. parser-builtins"];
-    p_graph    [label="16. parser-graph (GPML)"];
-    p_ion      [label="17. parser-ion-literals"];
-    p_dt       [label="18. parser-datetime-literals"];
+    p_letpivot     [label="12. parser-let-pivot"];
+    p_window       [label="13. parser-window"];
+    p_aggs         [label="14. parser-aggregates"];
+    p_builtins_typ [label="15b. parser-builtins-\ntyped"];
+    p_graph        [label="16. parser-graph (GPML)"];
+    p_ion          [label="17. parser-ion-literals"];
+    p_dt           [label="18. parser-datetime-literals"];
   }
 
   ast_core    -> lexer;
@@ -102,10 +115,12 @@ digraph partiql_dag {
   analysis    -> bb_switch;
   completion  -> bb_switch;
 
+  p_found     -> p_builtins_call;
+  p_builtins_call -> p_builtins_typ;
+
   p_select    -> p_letpivot;
   p_found     -> p_window;
   p_found     -> p_aggs;
-  p_found     -> p_builtins;
   p_found     -> p_graph;
   lexer       -> p_ion;
   p_found     -> p_dt;
@@ -182,10 +197,19 @@ the table).
 12. **parser-let-pivot** — `LET expr AS alias, …`, `PIVOT … AT …`, `UNPIVOT … [AS] [AT] [BY]`
 13. **parser-window** — `LAG`/`LEAD` window functions with `OVER (PARTITION BY … ORDER BY …)`
 14. **parser-aggregates** — `COUNT(*)`, `COUNT/SUM/AVG/MIN/MAX([DISTINCT|ALL] expr)`
-15. **parser-builtins** — `CAST/CAN_CAST/CAN_LOSSLESS_CAST`, `EXTRACT`, `TRIM`,
-    `SUBSTRING`, `DATE_ADD`, `DATE_DIFF`, `COALESCE`, `NULLIF`, `CASE [expr] WHEN …
-    THEN … ELSE … END`, `CHAR_LENGTH`/`OCTET_LENGTH`/`BIT_LENGTH`/`UPPER`/`LOWER`/
-    `SIZE`/`EXISTS`
+15a. **parser-builtins-generic-call** — `IDENT(args)` generic function-call form.
+    Replaces the `function call "X" is deferred …` ParseError in
+    `parser.go:parseVarRef` with an untyped `*ast.FuncCall{Name, Args}` node and
+    a comma-separated `exprTop` argument list. Unblocks every DynamoDB-native
+    predicate (`attribute_exists`, `attribute_not_exists`, `attribute_type`,
+    `begins_with`, `contains`, …) and any user-defined function. **Out of phase
+    7 — must land before P1 work because of post-cutover regression.**
+15b. **parser-builtins-typed** — `CAST/CAN_CAST/CAN_LOSSLESS_CAST`, `EXTRACT`,
+    `TRIM`, `SUBSTRING`, `DATE_ADD`, `DATE_DIFF`, `COALESCE`, `NULLIF`,
+    `CASE [expr] WHEN … THEN … ELSE … END`, `CHAR_LENGTH`/`OCTET_LENGTH`/
+    `BIT_LENGTH`/`UPPER`/`LOWER`/`SIZE`/`EXISTS`. Replaces the per-token
+    deferred stubs in `exprprimary.go:60-158` with typed AST nodes for each
+    keyword-bearing builtin's non-standard argument syntax.
 16. **parser-graph** — Graph Pattern Matching (MATCH clauses with nodes, edges,
     quantifiers `+ * {m,n}`, selectors `ANY`/`ALL SHORTEST`/`SHORTEST k`,
     restrictors `TRAIL`/`ACYCLIC`/`SIMPLE`, path variables). **Largest single
