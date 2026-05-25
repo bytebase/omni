@@ -20,8 +20,8 @@ func TestParseEmpty(t *testing.T) {
 }
 
 func TestParseUnsupported(t *testing.T) {
-	// TRUNCATE is still unsupported.
-	file, errs := Parse("TRUNCATE TABLE t")
+	// LOAD DATA INFILE (MySQL-style) is unsupported; Doris LOAD uses LABEL syntax.
+	file, errs := Parse("BEGIN")
 	if file == nil {
 		t.Fatal("expected non-nil File")
 	}
@@ -32,14 +32,14 @@ func TestParseUnsupported(t *testing.T) {
 	if len(errs) != 1 {
 		t.Fatalf("expected 1 error, got %d", len(errs))
 	}
-	if errs[0].Msg != "TRUNCATE statement parsing is not yet supported" {
+	if errs[0].Msg != "BEGIN statement parsing is not yet supported" {
 		t.Errorf("unexpected error: %q", errs[0].Msg)
 	}
 }
 
 func TestParseMultipleUnsupported(t *testing.T) {
-	// SELECT and INSERT are supported; TRUNCATE is still unsupported.
-	file, errs := Parse("SELECT 1; INSERT INTO t VALUES (1); TRUNCATE TABLE t")
+	// SELECT and INSERT are supported; BEGIN is still unsupported.
+	file, errs := Parse("SELECT 1; INSERT INTO t VALUES (1); BEGIN")
 	if file == nil {
 		t.Fatal("expected non-nil File")
 	}
@@ -170,10 +170,7 @@ func TestParseAllDispatchCategories(t *testing.T) {
 		wantMsg string
 	}{
 		{"DROP TABLE t", "DROP"},
-		{"TRUNCATE TABLE t", "TRUNCATE"},
-		// INSERT, UPDATE, DELETE, MERGE are now supported; skip them here.
-		{"LOAD DATA INFILE 'f' INTO TABLE t", "LOAD"},
-		{"EXPORT TABLE t", "EXPORT"},
+		// INSERT, UPDATE, DELETE, MERGE, TRUNCATE TABLE, LOAD, EXPORT, COPY INTO are now supported; skip them here.
 		{"BEGIN", "BEGIN"},
 		{"COMMIT", "COMMIT"},
 		{"ROLLBACK", "ROLLBACK"},

@@ -342,7 +342,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.unsupported("DROP")
 		}
 	case kwTRUNCATE:
-		return p.unsupported("TRUNCATE")
+		return p.parseTruncateTable()
 
 	// DML
 	case kwSELECT:
@@ -367,11 +367,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// Load / Export / Copy
 	case kwLOAD:
-		return p.unsupported("LOAD")
+		return p.parseLoad()
 	case kwEXPORT:
-		return p.unsupported("EXPORT")
+		return p.parseExport()
 	case kwCOPY:
-		return p.unsupported("COPY")
+		return p.parseCopyInto()
 
 	// Transaction
 	case kwBEGIN:
