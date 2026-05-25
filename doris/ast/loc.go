@@ -124,6 +124,16 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *MergeClause:
 		return v.Loc
+	case *TruncateTableStmt:
+		return v.Loc
+	case *CopyIntoStmt:
+		return v.Loc
+	case *LoadDataDesc:
+		return v.Loc
+	case *LoadDataStmt:
+		return v.Loc
+	case *ExportStmt:
+		return v.Loc
 	case *MTMVRefreshTrigger:
 		return v.Loc
 	case *CreateMTMVStmt:

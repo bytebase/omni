@@ -162,3 +162,127 @@ func (n *MergeStmt) Tag() NodeTag { return T_MergeStmt }
 
 // Compile-time assertion that *MergeStmt satisfies Node.
 var _ Node = (*MergeStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// TRUNCATE TABLE statement (T6.1)
+// ---------------------------------------------------------------------------
+
+// TruncateTableStmt represents a TRUNCATE TABLE statement:
+//
+//	TRUNCATE TABLE [db.]name [PARTITION(p1, p2, ...)] [FORCE]
+type TruncateTableStmt struct {
+	Target    *ObjectName // table name
+	Partition []string    // optional PARTITION(p1, p2, ...) names; nil if absent
+	Force     bool        // optional FORCE flag
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *TruncateTableStmt) Tag() NodeTag { return T_TruncateTableStmt }
+
+// Compile-time assertion that *TruncateTableStmt satisfies Node.
+var _ Node = (*TruncateTableStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// COPY INTO statement (T6.1)
+// ---------------------------------------------------------------------------
+
+// CopyIntoStmt represents a COPY INTO statement:
+//
+//	COPY INTO target FROM @stage_or_path
+//	    [FILES = ('f1', 'f2')]
+//	    [PATTERN = 'glob']
+//	    [PROPERTIES(...)]
+type CopyIntoStmt struct {
+	Target     *ObjectName  // destination table
+	Source     string       // FROM stage/path string value
+	Files      []string     // optional FILES = ('f1', 'f2', ...)
+	Pattern    string       // optional PATTERN = '...'
+	Properties []*Property
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *CopyIntoStmt) Tag() NodeTag { return T_CopyIntoStmt }
+
+// Compile-time assertion that *CopyIntoStmt satisfies Node.
+var _ Node = (*CopyIntoStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// LOAD DATA statement (T6.1)
+// ---------------------------------------------------------------------------
+
+// LoadDataDesc describes one data source in a LOAD statement:
+//
+//	DATA INFILE('path') [NEGATIVE] INTO TABLE t
+//	    [PARTITION(p1, p2, ...)]
+//	    [COLUMNS FROM PATH AS (col, ...)]
+//	    [COLUMNS (c1, c2, ...)]
+//	    [SET (...)]
+//	    [WHERE expr]
+type LoadDataDesc struct {
+	Negative        bool        // NEGATIVE modifier
+	Target          *ObjectName // INTO TABLE target
+	Partition       []string    // optional PARTITION(...)
+	ColumnsFromPath []string    // optional COLUMNS FROM PATH AS (...)
+	ColumnList      []string    // optional COLUMNS (c1, c2, ...)
+	SetExpr         string      // raw SET(...) text; best-effort capture
+	Where           string      // raw WHERE expr text; best-effort capture
+	SourceFiles     []string    // DATA INFILE ('f1', 'f2', ...)
+	Format          string      // FORMAT AS csv/parquet/...
+	Loc             Loc
+}
+
+// Tag implements Node.
+func (n *LoadDataDesc) Tag() NodeTag { return T_LoadDataDesc }
+
+// Compile-time assertion that *LoadDataDesc satisfies Node.
+var _ Node = (*LoadDataDesc)(nil)
+
+// LoadDataStmt represents a LOAD statement:
+//
+//	LOAD LABEL label
+//	    (DATA INFILE(...) INTO TABLE t ...)
+//	    [WITH BROKER name (...)]
+//	    [PROPERTIES(...)]
+//	    [COMMENT 'text']
+type LoadDataStmt struct {
+	Label       string          // load label (db_name.label_name or label_name)
+	DataDescs   []*LoadDataDesc // one or more data descriptions
+	BrokerName  string          // optional WITH BROKER name
+	Properties  []*Property     // optional PROPERTIES(...)
+	Comment     string          // optional COMMENT '...'
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *LoadDataStmt) Tag() NodeTag { return T_LoadDataStmt }
+
+// Compile-time assertion that *LoadDataStmt satisfies Node.
+var _ Node = (*LoadDataStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// EXPORT statement (T6.1)
+// ---------------------------------------------------------------------------
+
+// ExportStmt represents an EXPORT TABLE statement:
+//
+//	EXPORT TABLE name [PARTITION(p1, p2, ...)] [WHERE expr]
+//	    TO 'path'
+//	    [PROPERTIES(...)]
+//	    [WITH BROKER name (...)]
+type ExportStmt struct {
+	Target     *ObjectName // table to export
+	Partition  []string    // optional PARTITION(...)
+	Where      Node        // optional WHERE clause
+	Path       string      // TO 'path'
+	Properties []*Property // optional PROPERTIES(...)
+	BrokerName string      // optional WITH BROKER name
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *ExportStmt) Tag() NodeTag { return T_ExportStmt }
+
+// Compile-time assertion that *ExportStmt satisfies Node.
+var _ Node = (*ExportStmt)(nil)
