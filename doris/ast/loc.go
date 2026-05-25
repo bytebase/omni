@@ -290,6 +290,12 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *HelpStmt:
 		return v.Loc
+	case *AdminStmt:
+		return v.Loc
+	case *SystemAlterStmt:
+		return v.Loc
+	case *CancelDecommissionStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}
