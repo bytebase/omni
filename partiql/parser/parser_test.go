@@ -665,11 +665,6 @@ func TestParser_Errors(t *testing.T) {
 			wantErrIn: "graph MATCH expression is deferred to parser-graph (DAG node 16)",
 		},
 		{
-			name:      "funcall_stub",
-			input:     "foo(x)",
-			wantErrIn: `function call "foo" is deferred to parser-builtins (DAG node 15)`,
-		},
-		{
 			name:      "date_literal_stub",
 			input:     "DATE '2026-01-01'",
 			wantErrIn: "DATE literal is deferred to parser-datetime-literals (DAG node 18)",
@@ -719,6 +714,26 @@ func TestParser_Errors(t *testing.T) {
 		{
 			name:      "bare_comma",
 			input:     ",",
+			wantErrIn: "unexpected token",
+		},
+		{
+			name:      "funcall_at_prefix",
+			input:     "@foo(x)",
+			wantErrIn: "@-prefix is not allowed before a function call",
+		},
+		{
+			name:      "funcall_trailing_comma",
+			input:     "foo(x,)",
+			wantErrIn: "unexpected token",
+		},
+		{
+			name:      "funcall_unclosed",
+			input:     "foo(x",
+			wantErrIn: "expected PAREN_RIGHT",
+		},
+		{
+			name:      "funcall_leading_comma",
+			input:     "foo(,)",
 			wantErrIn: "unexpected token",
 		},
 	}
@@ -786,6 +801,66 @@ func TestParser_SelectErrors(t *testing.T) {
 			}
 			if !strings.Contains(err.Error(), tc.wantErrIn) {
 				t.Errorf("error = %q, want to contain %q", err.Error(), tc.wantErrIn)
+			}
+		})
+	}
+}
+
+// TestParser_FuncCall verifies that generic IDENT(args) function calls
+// produce *ast.FuncCall nodes per DAG node 15a (parser-builtins-generic-call).
+// Compared against ast.NodeToString output for compact shape assertion.
+func TestParser_FuncCall(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "single_arg",
+			input: "foo(x)",
+			want:  "FuncCall{Name:foo Args:[VarRef{Name:x}]}",
+		},
+		{
+			name:  "zero_args",
+			input: "foo()",
+			want:  "FuncCall{Name:foo Args:[]}",
+		},
+		{
+			name:  "multi_arg_literals",
+			input: "foo(1, 2, 3)",
+			want:  "FuncCall{Name:foo Args:[NumberLit{Val:1} NumberLit{Val:2} NumberLit{Val:3}]}",
+		},
+		{
+			name:  "nested_calls",
+			input: "f(g(x))",
+			want:  "FuncCall{Name:f Args:[FuncCall{Name:g Args:[VarRef{Name:x}]}]}",
+		},
+		{
+			name:  "call_with_path_step",
+			input: "f(x).bar",
+			want:  "PathExpr{Root:FuncCall{Name:f Args:[VarRef{Name:x}]} Steps:[DotStep{Field:bar}]}",
+		},
+		{
+			name:  "quoted_arg_name",
+			input: `attribute_exists("a")`,
+			want:  "FuncCall{Name:attribute_exists Args:[VarRef{Name:a CaseSensitive:true}]}",
+		},
+		{
+			name:  "dynamodb_begins_with",
+			input: `begins_with(addr, '7834')`,
+			want:  `FuncCall{Name:begins_with Args:[VarRef{Name:addr} StringLit{Val:"7834"}]}`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewParser(tc.input)
+			expr, err := p.ParseExpr()
+			if err != nil {
+				t.Fatalf("unexpected parse error: %v", err)
+			}
+			got := ast.NodeToString(expr)
+			if got != tc.want {
+				t.Errorf("AST mismatch\n got: %s\nwant: %s", got, tc.want)
 			}
 		})
 	}

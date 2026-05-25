@@ -247,14 +247,26 @@ func (p *Parser) parseVarRef() (ast.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Function call lookahead: <name> ( ... )
-	// Applies to BOTH the plain `foo(...)` and `@foo(...)` forms (the
-	// latter is unusual but grammar-legal).
+	// Function call: name=symbolPrimitive PAREN_LEFT (expr (COMMA expr)*)? PAREN_RIGHT
+	// (PartiQLParser.g4:615 — FunctionCallIdent). Implements DAG node 15a.
+	// @-prefix is NOT permitted before a function call: ANTLR's functionCall
+	// rule names symbolPrimitive directly, only varRefExpr admits @.
 	if p.cur.Type == tokPAREN_LEFT {
-		return nil, &ParseError{
-			Message: fmt.Sprintf("function call %q is deferred to parser-builtins (DAG node 15)", name),
-			Loc:     ast.Loc{Start: start, End: p.cur.Loc.End},
+		if atPrefixed {
+			return nil, &ParseError{
+				Message: "@-prefix is not allowed before a function call",
+				Loc:     ast.Loc{Start: start, End: p.cur.Loc.End},
+			}
 		}
+		args, endOff, err := p.parseFuncCallArgs()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.FuncCall{
+			Name: name,
+			Args: args,
+			Loc:  ast.Loc{Start: start, End: endOff},
+		}, nil
 	}
 	return &ast.VarRef{
 		Name:          name,
@@ -262,6 +274,39 @@ func (p *Parser) parseVarRef() (ast.ExprNode, error) {
 		CaseSensitive: caseSensitive,
 		Loc:           ast.Loc{Start: start, End: nameLoc.End},
 	}, nil
+}
+
+// parseFuncCallArgs consumes the parenthesized argument list of a function
+// call: PAREN_LEFT (expr (COMMA expr)*)? PAREN_RIGHT. The opening paren
+// must be the current token. Returns the parsed args (nil if empty), the
+// 0-based byte End offset of PAREN_RIGHT, and any parse error.
+//
+// Used by DAG node 15a (parser-builtins-generic-call) and will be reused
+// by 15b for the typed builtins whose argument list is also comma-separated
+// (DATE_ADD, DATE_DIFF, COALESCE, NULLIF, SIZE, EXISTS, etc.).
+func (p *Parser) parseFuncCallArgs() ([]ast.ExprNode, int, error) {
+	if _, err := p.expect(tokPAREN_LEFT); err != nil {
+		return nil, 0, err
+	}
+	var args []ast.ExprNode
+	if p.cur.Type != tokPAREN_RIGHT {
+		for {
+			arg, err := p.parseExprTop()
+			if err != nil {
+				return nil, 0, err
+			}
+			args = append(args, arg)
+			if p.cur.Type != tokCOMMA {
+				break
+			}
+			p.advance() // consume COMMA
+		}
+	}
+	endOff := p.cur.Loc.End
+	if _, err := p.expect(tokPAREN_RIGHT); err != nil {
+		return nil, 0, err
+	}
+	return args, endOff, nil
 }
 
 // parseType consumes one of the PartiQL type forms and returns a
