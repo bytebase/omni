@@ -731,5 +731,22 @@ func walkChildren(v Visitor, node Node) {
 		// leaf-ish node, names stored as strings
 	case *HelpStmt:
 		// leaf node
+	// Admin / System cluster-management nodes (T7.4).
+	case *AdminStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *SystemAlterStmt:
+		for _, prop := range n.SetClause {
+			Walk(v, prop)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *CancelDecommissionStmt:
+		// leaf-ish node, hosts stored as strings
 	}
 }

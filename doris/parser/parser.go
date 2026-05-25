@@ -292,6 +292,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterUser(p.prev.Loc)
 		case kwROUTINE:
 			return p.parseAlterRoutineLoad(alterTok.Loc)
+		case kwSYSTEM:
+			return p.parseSystemAlter(alterTok.Loc)
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -432,7 +434,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// Admin / System
 	case kwADMIN:
-		return p.unsupported("ADMIN")
+		adminTok := p.advance() // consume ADMIN
+		return p.parseAdminStmt(adminTok.Loc)
 	case kwKILL:
 		return p.unsupported("KILL")
 	case kwLOCK:
@@ -470,6 +473,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		cancelTok := p.advance() // consume CANCEL
 		if p.cur.Kind == kwMATERIALIZED {
 			return p.parseCancelMTMVTask(cancelTok.Loc)
+		}
+		if p.cur.Kind == kwDECOMMISSION {
+			return p.parseCancelDecommission(cancelTok.Loc)
 		}
 		return p.unsupported("CANCEL")
 	case kwPAUSE:
