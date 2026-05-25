@@ -268,6 +268,12 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *RevokeStmt:
 		return v.Loc
+	case *BeginStmt:
+		return v.Loc
+	case *CommitStmt:
+		return v.Loc
+	case *RollbackStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

@@ -174,6 +174,13 @@ func TestParseAllDispatchCategories(t *testing.T) {
 		{"BEGIN", "BEGIN"},
 		{"COMMIT", "COMMIT"},
 		{"ROLLBACK", "ROLLBACK"},
+		{"TRUNCATE TABLE t", "TRUNCATE"},
+		// INSERT, UPDATE, DELETE, MERGE are now supported; skip them here.
+		{"LOAD DATA INFILE 'f' INTO TABLE t", "LOAD"},
+		{"EXPORT TABLE t", "EXPORT"},
+		// BEGIN, COMMIT, ROLLBACK are now implemented (T7.2); removed from unsupported list.
+		{"GRANT SELECT ON t TO u", "GRANT"},
+		{"REVOKE SELECT ON t FROM u", "REVOKE"},
 		{"SHOW TABLES", "SHOW"},
 		{"DESCRIBE t", "DESCRIBE"},
 		{"EXPLAIN SELECT 1", "EXPLAIN"},
