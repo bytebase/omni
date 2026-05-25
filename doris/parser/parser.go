@@ -235,6 +235,17 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateStage(createTok.Loc)
 		case kwFILE:
 			return p.parseCreateFile(createTok.Loc)
+		case kwROW:
+			p.advance() // consume ROW
+			return p.parseCreateRowPolicy(createTok.Loc)
+		case kwENCRYPTKEY:
+			return p.parseCreateEncryptKey(createTok.Loc)
+		case kwDICTIONARY:
+			return p.parseCreateDictionary(createTok.Loc)
+		case kwROLE:
+			return p.parseCreateRole(createTok.Loc)
+		case kwUSER:
+			return p.parseCreateUser(createTok.Loc)
 		default:
 			return p.unsupported("CREATE")
 		}
@@ -271,6 +282,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterResource(p.prev.Loc)
 		case kwSQL_BLOCK_RULE:
 			return p.parseAlterSQLBlockRule(p.prev.Loc)
+		case kwDICTIONARY:
+			return p.parseAlterDictionary(p.prev.Loc)
+		case kwROLE:
+			return p.parseAlterRole(p.prev.Loc)
+		case kwUSER:
+			return p.parseAlterUser(p.prev.Loc)
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -310,6 +327,17 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropResource(dropTok.Loc)
 		case kwSQL_BLOCK_RULE:
 			return p.parseDropSQLBlockRule(dropTok.Loc)
+		case kwROW:
+			p.advance() // consume ROW
+			return p.parseDropRowPolicy(dropTok.Loc)
+		case kwENCRYPTKEY:
+			return p.parseDropEncryptKey(dropTok.Loc)
+		case kwDICTIONARY:
+			return p.parseDropDictionary(dropTok.Loc)
+		case kwROLE:
+			return p.parseDropRole(dropTok.Loc)
+		case kwUSER:
+			return p.parseDropUser(dropTok.Loc)
 		default:
 			return p.unsupported("DROP")
 		}
@@ -380,6 +408,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if p.cur.Kind == kwDEFAULT && p.peekNext().Kind == kwSTORAGE {
 			return p.parseSetDefaultStorageVault(setTok.Loc)
 		}
+		// SET PASSWORD = '...'
+		if p.cur.Kind == kwPASSWORD {
+			return p.parseSetPassword(setTok.Loc)
+		}
 		return p.unsupported("SET")
 	case kwUNSET:
 		unsetTok := p.advance() // consume UNSET
@@ -419,6 +451,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseRefreshMTMV(refreshTok.Loc)
 		case kwCATALOG:
 			return p.parseRefreshCatalog()
+		case kwDICTIONARY:
+			return p.parseRefreshDictionary(refreshTok.Loc)
 		}
 		return p.unsupported("REFRESH")
 
