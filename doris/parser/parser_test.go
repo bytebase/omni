@@ -174,12 +174,27 @@ func TestParseAllDispatchCategories(t *testing.T) {
 		{"BACKUP SNAPSHOT s", "BACKUP"},
 		{"RESTORE SNAPSHOT s", "RESTORE"},
 		{"RECOVER DATABASE db", "RECOVER"},
+		{"TRUNCATE TABLE t", "TRUNCATE"},
+		// INSERT, UPDATE, DELETE, MERGE are now supported; skip them here.
+		{"LOAD DATA INFILE 'f' INTO TABLE t", "LOAD"},
+		{"EXPORT TABLE t", "EXPORT"},
+		{"BEGIN", "BEGIN"},
+		{"COMMIT", "COMMIT"},
+		{"ROLLBACK", "ROLLBACK"},
+		{"GRANT SELECT ON t TO u", "GRANT"},
+		{"REVOKE SELECT ON t FROM u", "REVOKE"},
+		{"SHOW TABLES", "SHOW"},
+		{"DESCRIBE t", "DESCRIBE"},
+		{"EXPLAIN SELECT 1", "EXPLAIN"},
+		{"USE db", "USE"},
+		{"SET x = 1", "SET"},
+		{"UNSET x", "UNSET"},
+		{"ADMIN SHOW REPLICA", "ADMIN"},
+		// KILL, BACKUP, RESTORE, RECOVER, CANCEL, CLEAN implemented in T7.5.
 		// REFRESH CATALOG (T5.2) and REFRESH MATERIALIZED VIEW (T5.1) are implemented;
 		// keep a form that's still unsupported (DICTIONARY/DATABASE/TABLE/LDAP).
 		{"REFRESH DATABASE db", "REFRESH"},
-		{"CANCEL LOAD", "CANCEL"},
 		{"ANALYZE TABLE t", "ANALYZE"},
-		{"CLEAN ALL PROFILE", "CLEAN"},
 	}
 	for _, tt := range tests {
 		_, errs := Parse(tt.input)
