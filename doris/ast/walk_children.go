@@ -45,6 +45,14 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *DropDatabaseStmt:
 		Walk(v, n.Name)
+	case *DropTableStmt:
+		Walk(v, n.Name)
+	case *CreateFunctionStmt:
+		// leaf-ish node, signature stored as raw text
+	case *DropFunctionStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *Property:
 		// leaf node, no children
 

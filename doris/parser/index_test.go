@@ -320,15 +320,17 @@ func TestCreateIndexCreateTableNowSupported(t *testing.T) {
 	}
 }
 
-// TestDropIndexStillUnsupportedForNonIndex verifies that DROP TABLE
-// still returns the "not yet supported" error path.
-func TestDropIndexStillUnsupportedForNonIndex(t *testing.T) {
-	_, errs := Parse("DROP TABLE t")
-	if len(errs) == 0 {
-		t.Fatal("expected error for DROP TABLE")
+// TestDropTableNowSupported verifies that DROP TABLE now parses to a
+// DropTableStmt (previously fell through to the unsupported stub).
+func TestDropTableNowSupported(t *testing.T) {
+	file, errs := Parse("DROP TABLE t")
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %v", errs)
 	}
-	want := "DROP statement parsing is not yet supported"
-	if errs[0].Msg != want {
-		t.Errorf("got %q, want %q", errs[0].Msg, want)
+	if len(file.Stmts) != 1 {
+		t.Fatalf("expected 1 stmt, got %d", len(file.Stmts))
+	}
+	if _, ok := file.Stmts[0].(*ast.DropTableStmt); !ok {
+		t.Errorf("expected *ast.DropTableStmt, got %T", file.Stmts[0])
 	}
 }

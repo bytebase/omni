@@ -28,6 +28,12 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *DropDatabaseStmt:
 		return v.Loc
+	case *DropTableStmt:
+		return v.Loc
+	case *CreateFunctionStmt:
+		return v.Loc
+	case *DropFunctionStmt:
+		return v.Loc
 	case *Property:
 		return v.Loc
 	case *BinaryExpr:

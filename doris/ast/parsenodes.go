@@ -54,6 +54,53 @@ func (n *DropDatabaseStmt) Tag() NodeTag { return T_DropDatabaseStmt }
 // Compile-time assertion that *DropDatabaseStmt satisfies Node.
 var _ Node = (*DropDatabaseStmt)(nil)
 
+// DropTableStmt represents DROP [TEMPORARY] TABLE [IF EXISTS] name [FORCE].
+type DropTableStmt struct {
+	Name      *ObjectName
+	IfExists  bool
+	Force     bool
+	Temporary bool
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *DropTableStmt) Tag() NodeTag { return T_DropTableStmt }
+
+// Compile-time assertion that *DropTableStmt satisfies Node.
+var _ Node = (*DropTableStmt)(nil)
+
+// CreateFunctionStmt represents CREATE [GLOBAL] [AGGREGATE | ALIAS] FUNCTION ...
+// The full signature/body/properties is stored as RawSignature for best-effort
+// capture; structured parsing of UDF body is out of scope for the initial port.
+type CreateFunctionStmt struct {
+	Global       bool
+	Aggregate    bool
+	Alias        bool
+	RawSignature string
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *CreateFunctionStmt) Tag() NodeTag { return T_CreateFunctionStmt }
+
+// Compile-time assertion that *CreateFunctionStmt satisfies Node.
+var _ Node = (*CreateFunctionStmt)(nil)
+
+// DropFunctionStmt represents DROP [GLOBAL] FUNCTION [IF EXISTS] name(arg_types).
+type DropFunctionStmt struct {
+	Name         *ObjectName
+	Global       bool
+	IfExists     bool
+	RawSignature string // function name + argument-type list (verbatim)
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *DropFunctionStmt) Tag() NodeTag { return T_DropFunctionStmt }
+
+// Compile-time assertion that *DropFunctionStmt satisfies Node.
+var _ Node = (*DropFunctionStmt)(nil)
+
 // Property is a key=value pair used in PROPERTIES clauses.
 type Property struct {
 	Key   string

@@ -45,6 +45,15 @@ const (
 	// T_DropDatabaseStmt is the tag for *DropDatabaseStmt.
 	T_DropDatabaseStmt
 
+	// T_DropTableStmt is the tag for *DropTableStmt.
+	T_DropTableStmt
+
+	// T_CreateFunctionStmt is the tag for *CreateFunctionStmt.
+	T_CreateFunctionStmt
+
+	// T_DropFunctionStmt is the tag for *DropFunctionStmt.
+	T_DropFunctionStmt
+
 	// T_Property is the tag for *Property, a key=value pair in PROPERTIES clauses.
 	T_Property
 
@@ -615,6 +624,12 @@ func (t NodeTag) String() string {
 		return "AlterDatabaseStmt"
 	case T_DropDatabaseStmt:
 		return "DropDatabaseStmt"
+	case T_DropTableStmt:
+		return "DropTableStmt"
+	case T_CreateFunctionStmt:
+		return "CreateFunctionStmt"
+	case T_DropFunctionStmt:
+		return "DropFunctionStmt"
 	case T_Property:
 		return "Property"
 	case T_BinaryExpr:

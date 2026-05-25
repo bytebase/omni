@@ -261,13 +261,33 @@ func (p *Parser) parseSelectList() ([]*ast.SelectItem, error) {
 func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 	startLoc := p.cur.Loc
 
-	// Bare star: SELECT *
+	// Bare star: SELECT *  (optionally followed by EXCEPT(col, ...) for column exclusion)
 	if p.cur.Kind == int('*') {
 		p.advance() // consume '*'
-		return &ast.SelectItem{
+		item := &ast.SelectItem{
 			Star: true,
 			Loc:  ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End},
-		}, nil
+		}
+		// SELECT * EXCEPT(col, col, ...)
+		if p.cur.Kind == kwEXCEPT && p.peekNext().Kind == int('(') {
+			p.advance() // consume EXCEPT
+			p.advance() // consume '('
+			for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+				name, _, err := p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+				item.ExceptColumns = append(item.ExceptColumns, name)
+				if p.cur.Kind == int(',') {
+					p.advance()
+				}
+			}
+			if _, err := p.expect(int(')')); err != nil {
+				return nil, err
+			}
+			item.Loc.End = p.prev.Loc.End
+		}
+		return item, nil
 	}
 
 	// Try to detect table.* pattern:
@@ -499,11 +519,25 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 			ref.Loc.End = p.prev.Loc.End
 			return ref, nil
 		}
-		// Parenthesized from-item: (t1 JOIN t2 ON ...)
+		// Parenthesized from-item: (t1 JOIN t2 ON ...) or implicit-cross-join list (t1, t2, t3).
 		p.advance() // consume '('
 		inner, err := p.parseFromItem()
 		if err != nil {
 			return nil, err
+		}
+		// Implicit cross-join: comma-separated table list inside parens.
+		for p.cur.Kind == int(',') {
+			p.advance() // consume ','
+			right, err := p.parseFromItem()
+			if err != nil {
+				return nil, err
+			}
+			inner = &ast.JoinClause{
+				Left:  inner,
+				Right: right,
+				Type:  ast.JoinCross,
+				Loc:   ast.Loc{Start: ast.NodeLoc(inner).Start, End: ast.NodeLoc(right).End},
+			}
 		}
 		if _, err := p.expect(int(')')); err != nil {
 			return nil, err

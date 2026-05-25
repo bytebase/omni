@@ -85,7 +85,9 @@ type SelectItem struct {
 	Star  bool   // true for * or table.*
 	// For table.*, TableName holds the qualifier ObjectName.
 	TableName *ObjectName
-	Loc       Loc
+	// For SELECT * EXCEPT (col1, col2, ...) — list of column names to exclude.
+	ExceptColumns []string
+	Loc           Loc
 }
 
 // Tag implements Node.

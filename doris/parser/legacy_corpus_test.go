@@ -76,14 +76,17 @@ func TestLegacyCorpus_AllFiles(t *testing.T) {
 	t.Logf("Unsupported (stub dispatch): %d", totalUnsupported)
 	t.Logf("Genuine parse errors: %d", totalErrors)
 
-	// Per-file detail for any file with errors
+	// Per-file detail for any file with errors or unsupported stubs
 	for _, s := range stats {
-		if len(s.errors) == 0 {
+		if len(s.errors) == 0 && len(s.unsupported) == 0 {
 			continue
 		}
 		t.Logf("--- %s: %d errors, %d unsupported, %d stmts ---", s.file, len(s.errors), len(s.unsupported), s.statements)
 		for _, e := range s.errors {
 			t.Logf("  ERROR: %s", e)
+		}
+		for _, u := range s.unsupported {
+			t.Logf("  UNSUP: %s", u)
 		}
 	}
 

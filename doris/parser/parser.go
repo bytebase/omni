@@ -215,6 +215,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateMTMV(createTok.Loc)
 		case kwPROCEDURE:
 			return p.parseCreateProcedure(createTok.Loc, false)
+		case kwFUNCTION, kwAGGREGATE, kwALIAS, kwGLOBAL:
+			return p.parseCreateFunction(createTok.Loc)
 		case kwOR:
 			// CREATE OR REPLACE VIEW ... or CREATE OR REPLACE PROCEDURE ...
 			p.advance() // consume OR
@@ -314,6 +316,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropIndex(dropTok.Loc)
 		case kwDATABASE, kwSCHEMA:
 			return p.parseDropDatabase()
+		case kwTABLE, kwTEMPORARY:
+			return p.parseDropTable(dropTok.Loc)
 		case kwVIEW:
 			return p.parseDropView(dropTok.Loc)
 		case kwMATERIALIZED:
@@ -373,6 +377,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropStats(dropTok.Loc, "CACHED")
 		case kwPROCEDURE:
 			return p.parseDropProcedure(dropTok.Loc)
+		case kwFUNCTION, kwGLOBAL:
+			return p.parseDropFunction(dropTok.Loc)
 		default:
 			return p.unsupported("DROP")
 		}

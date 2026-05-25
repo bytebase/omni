@@ -406,13 +406,13 @@ func TestAlterTable_NowSupported(t *testing.T) {
 	}
 }
 
-func TestDropTable_StillUnsupported(t *testing.T) {
-	_, errs := Parse("DROP TABLE t")
-	if len(errs) == 0 {
-		t.Fatal("expected error for unsupported DROP TABLE")
+func TestDropTable_NowSupported(t *testing.T) {
+	// DROP TABLE is now implemented; verify it produces a DropTableStmt.
+	file, errs := Parse("DROP TABLE t")
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %v", errs)
 	}
-	want := "DROP statement parsing is not yet supported"
-	if errs[0].Msg != want {
-		t.Errorf("error = %q, want %q", errs[0].Msg, want)
+	if _, ok := file.Stmts[0].(*ast.DropTableStmt); !ok {
+		t.Errorf("expected *ast.DropTableStmt, got %T", file.Stmts[0])
 	}
 }
