@@ -437,23 +437,31 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		adminTok := p.advance() // consume ADMIN
 		return p.parseAdminStmt(adminTok.Loc)
 	case kwKILL:
-		return p.unsupported("KILL")
+		killTok := p.advance() // consume KILL
+		return p.parseKill(killTok.Loc)
 	case kwLOCK:
-		return p.unsupported("LOCK")
+		lockTok := p.advance() // consume LOCK
+		return p.parseLockTables(lockTok.Loc)
 	case kwUNLOCK:
-		return p.unsupported("UNLOCK")
+		unlockTok := p.advance() // consume UNLOCK
+		return p.parseUnlockTables(unlockTok.Loc)
 	case kwINSTALL:
-		return p.unsupported("INSTALL")
+		installTok := p.advance() // consume INSTALL
+		return p.parseInstallPlugin(installTok.Loc)
 	case kwUNINSTALL:
-		return p.unsupported("UNINSTALL")
+		uninstallTok := p.advance() // consume UNINSTALL
+		return p.parseUninstallPlugin(uninstallTok.Loc)
 
 	// Backup / Restore / Recovery
 	case kwBACKUP:
-		return p.unsupported("BACKUP")
+		backupTok := p.advance() // consume BACKUP
+		return p.parseBackup(backupTok.Loc)
 	case kwRESTORE:
-		return p.unsupported("RESTORE")
+		restoreTok := p.advance() // consume RESTORE
+		return p.parseRestore(restoreTok.Loc)
 	case kwRECOVER:
-		return p.unsupported("RECOVER")
+		recoverTok := p.advance() // consume RECOVER
+		return p.parseRecover(recoverTok.Loc)
 
 	// Materialized View / Refresh
 	case kwREFRESH:
@@ -478,6 +486,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCancelDecommission(cancelTok.Loc)
 		}
 		return p.unsupported("CANCEL")
+		return p.parseCancelGeneric(cancelTok.Loc)
 	case kwPAUSE:
 		pauseTok := p.advance() // consume PAUSE
 		if p.cur.Kind == kwMATERIALIZED {
@@ -525,11 +534,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		syncTok := p.advance() // consume SYNC
 		return p.parseSyncStmt(syncTok.Loc)
 	case kwWARM:
-		return p.unsupported("WARM")
+		warmTok := p.advance() // consume WARM
+		return p.parseWarmUp(warmTok.Loc)
 
 	// Clean
 	case kwCLEAN:
-		return p.unsupported("CLEAN")
+		cleanTok := p.advance() // consume CLEAN
+		return p.parseClean(cleanTok.Loc)
 
 	// Index async build
 	case kwBUILD:
