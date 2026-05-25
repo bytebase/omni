@@ -67,7 +67,7 @@ No `completion/`, `deparse/`, `quality/`, `advisor/`, or `semantic/` packages ne
 | **T8.1** | Job scheduling (CREATE/ALTER/DROP/PAUSE/RESUME JOB, CANCEL TASK) | `doris/parser` | T1.3 | T8.2, T8.3 | 8 | P1 | **done** (PR #151) |
 | **T8.2** | Stored procedures (CREATE/CALL/DROP PROCEDURE) | `doris/parser` | T1.3 | T8.1, T8.3 | 8 | P1 | **done** (PR #153) |
 | **T8.3** | Constraint management + ANALYZE (ADD/DROP CONSTRAINT, SHOW CONSTRAINTS, ANALYZE, SHOW ANALYZE) | `doris/parser` | T1.1 | T8.1, T8.2 | 8 | P1 | **done** (PR #152) |
-| **M2** | Full corpus closure (every file in `testdata/legacy` and `testdata/official` parses cleanly) | `doris/parser` | T8.1, T8.2, T8.3 (last P1) | -- | -- | P1 | not started |
+| **M2** | Full corpus closure (every file in `testdata/legacy` and `testdata/official` parses cleanly) | `doris/parser` | T8.1, T8.2, T8.3 (last P1) | -- | -- | P1 | **done** (382/382 legacy stmts, TestLegacyCorpus_AllFiles) |
 
 ---
 
