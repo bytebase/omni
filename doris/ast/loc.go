@@ -319,6 +319,24 @@ func NodeLoc(n Node) Loc {
 	case *CancelStmt:
 		return v.Loc
 	case *RecoverStmt:
+	// Job DDL nodes (T8.1).
+	case *JobSchedule:
+		return v.Loc
+	case *CreateJobStmt:
+		return v.Loc
+	case *AlterJobStmt:
+		return v.Loc
+	case *DropJobStmt:
+		return v.Loc
+	case *PauseJobStmt:
+		return v.Loc
+	case *ResumeJobStmt:
+		return v.Loc
+	case *CancelTaskStmt:
+		return v.Loc
+	case *ShowJobStmt:
+		return v.Loc
+	case *ShowJobTaskStmt:
 		return v.Loc
 	default:
 		return NoLoc()

@@ -705,6 +705,36 @@ func walkChildren(v Visitor, node Node) {
 	case *ShowStmt:
 		if n.Target != nil {
 			Walk(v, n.Target)
+
+	// Job DDL nodes (T8.1).
+	case *JobSchedule:
+		// leaf-ish node, no Node children
+
+	case *CreateJobStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Schedule != nil {
+			Walk(v, n.Schedule)
+		}
+		if n.DoStmt != nil {
+			Walk(v, n.DoStmt)
+		}
+
+	case *AlterJobStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+		if n.NewStmt != nil {
+			Walk(v, n.NewStmt)
+		}
+
+	case *DropJobStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 		if n.Where != nil {
 			Walk(v, n.Where)
@@ -794,6 +824,36 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.FromTable != nil {
 			Walk(v, n.FromTable)
+
+	case *PauseJobStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+
+	case *ResumeJobStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+
+	case *CancelTaskStmt:
+		if n.For != nil {
+			Walk(v, n.For)
+		}
+
+	case *ShowJobStmt:
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+
+	case *ShowJobTaskStmt:
+		if n.For != nil {
+			Walk(v, n.For)
 		}
 	}
 }
