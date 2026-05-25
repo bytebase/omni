@@ -232,6 +232,166 @@ const (
 
 	// T_CancelMTMVTaskStmt is the tag for *CancelMTMVTaskStmt.
 	T_CancelMTMVTaskStmt
+
+	// DDL — CATALOG nodes (T5.2).
+
+	// T_CreateCatalogStmt is the tag for *CreateCatalogStmt.
+	T_CreateCatalogStmt
+
+	// T_AlterCatalogStmt is the tag for *AlterCatalogStmt.
+	T_AlterCatalogStmt
+
+	// T_DropCatalogStmt is the tag for *DropCatalogStmt.
+	T_DropCatalogStmt
+
+	// T_RefreshCatalogStmt is the tag for *RefreshCatalogStmt.
+	T_RefreshCatalogStmt
+	// DDL — STORAGE VAULT nodes (T5.3).
+
+	// T_CreateStorageVaultStmt is the tag for *CreateStorageVaultStmt.
+	T_CreateStorageVaultStmt
+
+	// T_AlterStorageVaultStmt is the tag for *AlterStorageVaultStmt.
+	T_AlterStorageVaultStmt
+
+	// T_DropStorageVaultStmt is the tag for *DropStorageVaultStmt.
+	T_DropStorageVaultStmt
+
+	// T_SetDefaultStorageVaultStmt is the tag for *SetDefaultStorageVaultStmt.
+	T_SetDefaultStorageVaultStmt
+
+	// T_UnsetDefaultStorageVaultStmt is the tag for *UnsetDefaultStorageVaultStmt.
+	T_UnsetDefaultStorageVaultStmt
+
+	// DDL — STORAGE POLICY nodes (T5.3).
+
+	// T_CreateStoragePolicyStmt is the tag for *CreateStoragePolicyStmt.
+	T_CreateStoragePolicyStmt
+
+	// T_AlterStoragePolicyStmt is the tag for *AlterStoragePolicyStmt.
+	T_AlterStoragePolicyStmt
+
+	// T_DropStoragePolicyStmt is the tag for *DropStoragePolicyStmt.
+	T_DropStoragePolicyStmt
+
+	// DDL — REPOSITORY nodes (T5.3).
+
+	// T_CreateRepositoryStmt is the tag for *CreateRepositoryStmt.
+	T_CreateRepositoryStmt
+
+	// T_AlterRepositoryStmt is the tag for *AlterRepositoryStmt.
+	T_AlterRepositoryStmt
+
+	// T_DropRepositoryStmt is the tag for *DropRepositoryStmt.
+	T_DropRepositoryStmt
+
+	// DDL — STAGE nodes (T5.3).
+
+	// T_CreateStageStmt is the tag for *CreateStageStmt.
+	T_CreateStageStmt
+
+	// T_DropStageStmt is the tag for *DropStageStmt.
+	T_DropStageStmt
+
+	// DDL — FILE nodes (T5.3).
+
+	// T_CreateFileStmt is the tag for *CreateFileStmt.
+	T_CreateFileStmt
+
+	// T_DropFileStmt is the tag for *DropFileStmt.
+	T_DropFileStmt
+	// Workload management DDL nodes (T5.4).
+
+	// T_CreateWorkloadGroupStmt is the tag for *CreateWorkloadGroupStmt.
+	T_CreateWorkloadGroupStmt
+
+	// T_AlterWorkloadGroupStmt is the tag for *AlterWorkloadGroupStmt.
+	T_AlterWorkloadGroupStmt
+
+	// T_DropWorkloadGroupStmt is the tag for *DropWorkloadGroupStmt.
+	T_DropWorkloadGroupStmt
+
+	// T_WorkloadPolicyItem is the tag for *WorkloadPolicyItem.
+	T_WorkloadPolicyItem
+
+	// T_CreateWorkloadPolicyStmt is the tag for *CreateWorkloadPolicyStmt.
+	T_CreateWorkloadPolicyStmt
+
+	// T_AlterWorkloadPolicyStmt is the tag for *AlterWorkloadPolicyStmt.
+	T_AlterWorkloadPolicyStmt
+
+	// T_DropWorkloadPolicyStmt is the tag for *DropWorkloadPolicyStmt.
+	T_DropWorkloadPolicyStmt
+
+	// T_CreateResourceStmt is the tag for *CreateResourceStmt.
+	T_CreateResourceStmt
+
+	// T_AlterResourceStmt is the tag for *AlterResourceStmt.
+	T_AlterResourceStmt
+
+	// T_DropResourceStmt is the tag for *DropResourceStmt.
+	T_DropResourceStmt
+
+	// T_CreateSQLBlockRuleStmt is the tag for *CreateSQLBlockRuleStmt.
+	T_CreateSQLBlockRuleStmt
+
+	// T_AlterSQLBlockRuleStmt is the tag for *AlterSQLBlockRuleStmt.
+	T_AlterSQLBlockRuleStmt
+
+	// T_DropSQLBlockRuleStmt is the tag for *DropSQLBlockRuleStmt.
+	T_DropSQLBlockRuleStmt
+	// Security DDL nodes (T5.5).
+
+	// T_CreateRowPolicyStmt is the tag for *CreateRowPolicyStmt.
+	T_CreateRowPolicyStmt
+
+	// T_DropRowPolicyStmt is the tag for *DropRowPolicyStmt.
+	T_DropRowPolicyStmt
+
+	// T_CreateEncryptKeyStmt is the tag for *CreateEncryptKeyStmt.
+	T_CreateEncryptKeyStmt
+
+	// T_DropEncryptKeyStmt is the tag for *DropEncryptKeyStmt.
+	T_DropEncryptKeyStmt
+
+	// T_DictionaryColumn is the tag for *DictionaryColumn.
+	T_DictionaryColumn
+
+	// T_CreateDictionaryStmt is the tag for *CreateDictionaryStmt.
+	T_CreateDictionaryStmt
+
+	// T_AlterDictionaryStmt is the tag for *AlterDictionaryStmt.
+	T_AlterDictionaryStmt
+
+	// T_DropDictionaryStmt is the tag for *DropDictionaryStmt.
+	T_DropDictionaryStmt
+
+	// T_RefreshDictionaryStmt is the tag for *RefreshDictionaryStmt.
+	T_RefreshDictionaryStmt
+
+	// T_CreateRoleStmt is the tag for *CreateRoleStmt.
+	T_CreateRoleStmt
+
+	// T_AlterRoleStmt is the tag for *AlterRoleStmt.
+	T_AlterRoleStmt
+
+	// T_DropRoleStmt is the tag for *DropRoleStmt.
+	T_DropRoleStmt
+
+	// T_UserIdentity is the tag for *UserIdentity ('user'@'host').
+	T_UserIdentity
+
+	// T_CreateUserStmt is the tag for *CreateUserStmt.
+	T_CreateUserStmt
+
+	// T_AlterUserStmt is the tag for *AlterUserStmt.
+	T_AlterUserStmt
+
+	// T_DropUserStmt is the tag for *DropUserStmt.
+	T_DropUserStmt
+
+	// T_SetPasswordStmt is the tag for *SetPasswordStmt.
+	T_SetPasswordStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -369,6 +529,104 @@ func (t NodeTag) String() string {
 		return "ResumeMTMVJobStmt"
 	case T_CancelMTMVTaskStmt:
 		return "CancelMTMVTaskStmt"
+	case T_CreateCatalogStmt:
+		return "CreateCatalogStmt"
+	case T_AlterCatalogStmt:
+		return "AlterCatalogStmt"
+	case T_DropCatalogStmt:
+		return "DropCatalogStmt"
+	case T_RefreshCatalogStmt:
+		return "RefreshCatalogStmt"
+	case T_CreateStorageVaultStmt:
+		return "CreateStorageVaultStmt"
+	case T_AlterStorageVaultStmt:
+		return "AlterStorageVaultStmt"
+	case T_DropStorageVaultStmt:
+		return "DropStorageVaultStmt"
+	case T_SetDefaultStorageVaultStmt:
+		return "SetDefaultStorageVaultStmt"
+	case T_UnsetDefaultStorageVaultStmt:
+		return "UnsetDefaultStorageVaultStmt"
+	case T_CreateStoragePolicyStmt:
+		return "CreateStoragePolicyStmt"
+	case T_AlterStoragePolicyStmt:
+		return "AlterStoragePolicyStmt"
+	case T_DropStoragePolicyStmt:
+		return "DropStoragePolicyStmt"
+	case T_CreateRepositoryStmt:
+		return "CreateRepositoryStmt"
+	case T_AlterRepositoryStmt:
+		return "AlterRepositoryStmt"
+	case T_DropRepositoryStmt:
+		return "DropRepositoryStmt"
+	case T_CreateStageStmt:
+		return "CreateStageStmt"
+	case T_DropStageStmt:
+		return "DropStageStmt"
+	case T_CreateFileStmt:
+		return "CreateFileStmt"
+	case T_DropFileStmt:
+		return "DropFileStmt"
+	case T_CreateWorkloadGroupStmt:
+		return "CreateWorkloadGroupStmt"
+	case T_AlterWorkloadGroupStmt:
+		return "AlterWorkloadGroupStmt"
+	case T_DropWorkloadGroupStmt:
+		return "DropWorkloadGroupStmt"
+	case T_WorkloadPolicyItem:
+		return "WorkloadPolicyItem"
+	case T_CreateWorkloadPolicyStmt:
+		return "CreateWorkloadPolicyStmt"
+	case T_AlterWorkloadPolicyStmt:
+		return "AlterWorkloadPolicyStmt"
+	case T_DropWorkloadPolicyStmt:
+		return "DropWorkloadPolicyStmt"
+	case T_CreateResourceStmt:
+		return "CreateResourceStmt"
+	case T_AlterResourceStmt:
+		return "AlterResourceStmt"
+	case T_DropResourceStmt:
+		return "DropResourceStmt"
+	case T_CreateSQLBlockRuleStmt:
+		return "CreateSQLBlockRuleStmt"
+	case T_AlterSQLBlockRuleStmt:
+		return "AlterSQLBlockRuleStmt"
+	case T_DropSQLBlockRuleStmt:
+		return "DropSQLBlockRuleStmt"
+	case T_CreateRowPolicyStmt:
+		return "CreateRowPolicyStmt"
+	case T_DropRowPolicyStmt:
+		return "DropRowPolicyStmt"
+	case T_CreateEncryptKeyStmt:
+		return "CreateEncryptKeyStmt"
+	case T_DropEncryptKeyStmt:
+		return "DropEncryptKeyStmt"
+	case T_DictionaryColumn:
+		return "DictionaryColumn"
+	case T_CreateDictionaryStmt:
+		return "CreateDictionaryStmt"
+	case T_AlterDictionaryStmt:
+		return "AlterDictionaryStmt"
+	case T_DropDictionaryStmt:
+		return "DropDictionaryStmt"
+	case T_RefreshDictionaryStmt:
+		return "RefreshDictionaryStmt"
+	case T_CreateRoleStmt:
+		return "CreateRoleStmt"
+	case T_AlterRoleStmt:
+		return "AlterRoleStmt"
+	case T_DropRoleStmt:
+		return "DropRoleStmt"
+	case T_UserIdentity:
+		return "UserIdentity"
+	case T_CreateUserStmt:
+		return "CreateUserStmt"
+	case T_AlterUserStmt:
+		return "AlterUserStmt"
+	case T_DropUserStmt:
+		return "DropUserStmt"
+	case T_SetPasswordStmt:
+		return "SetPasswordStmt"
 	default:
 		return "Unknown"
 	}

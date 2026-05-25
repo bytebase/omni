@@ -409,5 +409,195 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+
+	// DDL — CATALOG nodes (T5.2).
+	case *CreateCatalogStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterCatalogStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropCatalogStmt:
+		// leaf-ish node, name stored as string
+	case *RefreshCatalogStmt:
+	// DDL — STORAGE VAULT nodes (T5.3).
+	case *CreateStorageVaultStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterStorageVaultStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropStorageVaultStmt:
+		// leaf-ish node, no Node children
+	case *SetDefaultStorageVaultStmt:
+		// leaf-ish node, no Node children
+	case *UnsetDefaultStorageVaultStmt:
+		// leaf-ish node, no Node children
+
+	// DDL — STORAGE POLICY nodes (T5.3).
+	case *CreateStoragePolicyStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterStoragePolicyStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropStoragePolicyStmt:
+		// leaf-ish node, no Node children
+
+	// DDL — REPOSITORY nodes (T5.3).
+	case *CreateRepositoryStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterRepositoryStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropRepositoryStmt:
+		// leaf-ish node, no Node children
+
+	// DDL — STAGE nodes (T5.3).
+	case *CreateStageStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropStageStmt:
+		// leaf-ish node, no Node children
+
+	// DDL — FILE nodes (T5.3).
+	case *CreateFileStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropFileStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	// Workload management DDL nodes (T5.4).
+	case *CreateWorkloadGroupStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterWorkloadGroupStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropWorkloadGroupStmt:
+		// leaf-ish node, no Node children
+	case *WorkloadPolicyItem:
+		// leaf node, raw text only
+	case *CreateWorkloadPolicyStmt:
+		for _, c := range n.Conditions {
+			Walk(v, c)
+		}
+		for _, a := range n.Actions {
+			Walk(v, a)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterWorkloadPolicyStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropWorkloadPolicyStmt:
+		// leaf-ish node, no Node children
+	case *CreateResourceStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterResourceStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropResourceStmt:
+		// leaf-ish node, no Node children
+	case *CreateSQLBlockRuleStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterSQLBlockRuleStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropSQLBlockRuleStmt:
+		// leaf-ish node, no Node children
+	// Security DDL nodes (T5.5).
+	case *CreateRowPolicyStmt:
+		if n.On != nil {
+			Walk(v, n.On)
+		}
+	case *DropRowPolicyStmt:
+		if n.On != nil {
+			Walk(v, n.On)
+		}
+	case *CreateEncryptKeyStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *DropEncryptKeyStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *DictionaryColumn:
+		// leaf-ish node, no Node children
+	case *CreateDictionaryStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.UsingTable != nil {
+			Walk(v, n.UsingTable)
+		}
+		for _, col := range n.Columns {
+			Walk(v, col)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterDictionaryStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropDictionaryStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *RefreshDictionaryStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *CreateRoleStmt:
+		// leaf-ish node, no Node children
+	case *AlterRoleStmt:
+		// leaf-ish node, no Node children
+	case *DropRoleStmt:
+		// leaf-ish node, no Node children
+	case *UserIdentity:
+		// leaf node, no Node children
+	case *CreateUserStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *AlterUserStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *DropUserStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *SetPasswordStmt:
+		if n.For != nil {
+			Walk(v, n.For)
+		}
 	}
 }

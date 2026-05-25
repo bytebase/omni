@@ -368,3 +368,445 @@ type DropViewStmt struct {
 func (n *DropViewStmt) Tag() NodeTag { return T_DropViewStmt }
 
 var _ Node = (*DropViewStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// STORAGE VAULT DDL nodes (T5.3)
+// ---------------------------------------------------------------------------
+
+// CreateStorageVaultStmt represents:
+//
+//	CREATE STORAGE VAULT [IF NOT EXISTS] name PROPERTIES(...)
+type CreateStorageVaultStmt struct {
+	Name        string
+	IfNotExists bool
+	Properties  []*Property
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateStorageVaultStmt) Tag() NodeTag { return T_CreateStorageVaultStmt }
+
+var _ Node = (*CreateStorageVaultStmt)(nil)
+
+// AlterStorageVaultStmt represents:
+//
+//	ALTER STORAGE VAULT name PROPERTIES(...)
+type AlterStorageVaultStmt struct {
+	Name       string
+	Properties []*Property
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterStorageVaultStmt) Tag() NodeTag { return T_AlterStorageVaultStmt }
+
+var _ Node = (*AlterStorageVaultStmt)(nil)
+
+// DropStorageVaultStmt represents:
+//
+//	DROP STORAGE VAULT [IF EXISTS] name
+type DropStorageVaultStmt struct {
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropStorageVaultStmt) Tag() NodeTag { return T_DropStorageVaultStmt }
+
+var _ Node = (*DropStorageVaultStmt)(nil)
+
+// SetDefaultStorageVaultStmt represents:
+//
+//	SET DEFAULT STORAGE VAULT name
+type SetDefaultStorageVaultStmt struct {
+	Name string
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *SetDefaultStorageVaultStmt) Tag() NodeTag { return T_SetDefaultStorageVaultStmt }
+
+var _ Node = (*SetDefaultStorageVaultStmt)(nil)
+
+// UnsetDefaultStorageVaultStmt represents:
+//
+//	UNSET DEFAULT STORAGE VAULT
+type UnsetDefaultStorageVaultStmt struct {
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *UnsetDefaultStorageVaultStmt) Tag() NodeTag { return T_UnsetDefaultStorageVaultStmt }
+
+var _ Node = (*UnsetDefaultStorageVaultStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// STORAGE POLICY DDL nodes (T5.3)
+// ---------------------------------------------------------------------------
+
+// CreateStoragePolicyStmt represents:
+//
+//	CREATE STORAGE POLICY [IF NOT EXISTS] name PROPERTIES(...)
+type CreateStoragePolicyStmt struct {
+	Name        string
+	IfNotExists bool
+	Properties  []*Property
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateStoragePolicyStmt) Tag() NodeTag { return T_CreateStoragePolicyStmt }
+
+var _ Node = (*CreateStoragePolicyStmt)(nil)
+
+// AlterStoragePolicyStmt represents:
+//
+//	ALTER STORAGE POLICY name PROPERTIES(...)
+type AlterStoragePolicyStmt struct {
+	Name       string
+	Properties []*Property
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterStoragePolicyStmt) Tag() NodeTag { return T_AlterStoragePolicyStmt }
+
+var _ Node = (*AlterStoragePolicyStmt)(nil)
+
+// DropStoragePolicyStmt represents:
+//
+//	DROP STORAGE POLICY [IF EXISTS] name
+type DropStoragePolicyStmt struct {
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropStoragePolicyStmt) Tag() NodeTag { return T_DropStoragePolicyStmt }
+
+var _ Node = (*DropStoragePolicyStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// REPOSITORY DDL nodes (T5.3)
+// ---------------------------------------------------------------------------
+
+// CreateRepositoryStmt represents:
+//
+//	CREATE [READ ONLY] REPOSITORY name
+//	    WITH {S3 | HDFS | BROKER broker_name}
+//	    ON LOCATION "uri"
+//	    PROPERTIES(...)
+type CreateRepositoryStmt struct {
+	Name       string
+	ReadOnly   bool
+	Type       string // "S3", "HDFS", or "BROKER"
+	BrokerName string // for BROKER form only
+	Properties []*Property
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *CreateRepositoryStmt) Tag() NodeTag { return T_CreateRepositoryStmt }
+
+var _ Node = (*CreateRepositoryStmt)(nil)
+
+// AlterRepositoryStmt represents:
+//
+//	ALTER REPOSITORY name PROPERTIES(...)
+type AlterRepositoryStmt struct {
+	Name       string
+	Properties []*Property
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterRepositoryStmt) Tag() NodeTag { return T_AlterRepositoryStmt }
+
+var _ Node = (*AlterRepositoryStmt)(nil)
+
+// DropRepositoryStmt represents:
+//
+//	DROP REPOSITORY name
+type DropRepositoryStmt struct {
+	Name string
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *DropRepositoryStmt) Tag() NodeTag { return T_DropRepositoryStmt }
+
+var _ Node = (*DropRepositoryStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// STAGE DDL nodes (T5.3)
+// ---------------------------------------------------------------------------
+
+// CreateStageStmt represents:
+//
+//	CREATE STAGE [IF NOT EXISTS] name PROPERTIES(...)
+type CreateStageStmt struct {
+	Name        string
+	IfNotExists bool
+	Properties  []*Property
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateStageStmt) Tag() NodeTag { return T_CreateStageStmt }
+
+var _ Node = (*CreateStageStmt)(nil)
+
+// DropStageStmt represents:
+//
+//	DROP STAGE [IF EXISTS] name
+type DropStageStmt struct {
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropStageStmt) Tag() NodeTag { return T_DropStageStmt }
+
+var _ Node = (*DropStageStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// FILE DDL nodes (T5.3)
+// ---------------------------------------------------------------------------
+
+// CreateFileStmt represents:
+//
+//	CREATE FILE file_name [IN db] PROPERTIES(...)
+type CreateFileStmt struct {
+	Name       string
+	Database   string // optional IN db_name
+	Properties []*Property
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *CreateFileStmt) Tag() NodeTag { return T_CreateFileStmt }
+
+var _ Node = (*CreateFileStmt)(nil)
+
+// DropFileStmt represents:
+//
+//	DROP FILE file_name [FROM db] PROPERTIES(...)
+type DropFileStmt struct {
+	Name       string
+	Database   string // optional FROM db_name
+	Properties []*Property
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *DropFileStmt) Tag() NodeTag { return T_DropFileStmt }
+
+var _ Node = (*DropFileStmt)(nil)
+// ---------------------------------------------------------------------------
+// WORKLOAD GROUP DDL nodes (T5.4)
+// ---------------------------------------------------------------------------
+
+// CreateWorkloadGroupStmt represents:
+//
+//	CREATE WORKLOAD GROUP [IF NOT EXISTS] name PROPERTIES(...)
+type CreateWorkloadGroupStmt struct {
+	Name        string
+	IfNotExists bool
+	Properties  []*Property
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateWorkloadGroupStmt) Tag() NodeTag { return T_CreateWorkloadGroupStmt }
+
+var _ Node = (*CreateWorkloadGroupStmt)(nil)
+
+// AlterWorkloadGroupStmt represents:
+//
+//	ALTER WORKLOAD GROUP name PROPERTIES(...)
+type AlterWorkloadGroupStmt struct {
+	Name       string
+	Properties []*Property
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterWorkloadGroupStmt) Tag() NodeTag { return T_AlterWorkloadGroupStmt }
+
+var _ Node = (*AlterWorkloadGroupStmt)(nil)
+
+// DropWorkloadGroupStmt represents:
+//
+//	DROP WORKLOAD GROUP [IF EXISTS] name
+type DropWorkloadGroupStmt struct {
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropWorkloadGroupStmt) Tag() NodeTag { return T_DropWorkloadGroupStmt }
+
+var _ Node = (*DropWorkloadGroupStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// WORKLOAD POLICY DDL nodes (T5.4)
+// ---------------------------------------------------------------------------
+
+// WorkloadPolicyItem holds a raw-text capture of one condition or action item
+// from a WORKLOAD POLICY CONDITIONS/ACTIONS clause.
+type WorkloadPolicyItem struct {
+	RawText string
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *WorkloadPolicyItem) Tag() NodeTag { return T_WorkloadPolicyItem }
+
+var _ Node = (*WorkloadPolicyItem)(nil)
+
+// CreateWorkloadPolicyStmt represents:
+//
+//	CREATE WORKLOAD POLICY [IF NOT EXISTS] name
+//	    CONDITIONS(condition_list)
+//	    ACTIONS(action_list)
+//	    [PROPERTIES(...)]
+type CreateWorkloadPolicyStmt struct {
+	Name        string
+	IfNotExists bool
+	Conditions  []*WorkloadPolicyItem
+	Actions     []*WorkloadPolicyItem
+	Properties  []*Property
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateWorkloadPolicyStmt) Tag() NodeTag { return T_CreateWorkloadPolicyStmt }
+
+var _ Node = (*CreateWorkloadPolicyStmt)(nil)
+
+// AlterWorkloadPolicyStmt represents:
+//
+//	ALTER WORKLOAD POLICY name PROPERTIES(...)
+type AlterWorkloadPolicyStmt struct {
+	Name       string
+	Properties []*Property
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterWorkloadPolicyStmt) Tag() NodeTag { return T_AlterWorkloadPolicyStmt }
+
+var _ Node = (*AlterWorkloadPolicyStmt)(nil)
+
+// DropWorkloadPolicyStmt represents:
+//
+//	DROP WORKLOAD POLICY [IF EXISTS] name
+type DropWorkloadPolicyStmt struct {
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropWorkloadPolicyStmt) Tag() NodeTag { return T_DropWorkloadPolicyStmt }
+
+var _ Node = (*DropWorkloadPolicyStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// RESOURCE DDL nodes (T5.4)
+// ---------------------------------------------------------------------------
+
+// CreateResourceStmt represents:
+//
+//	CREATE [EXTERNAL] RESOURCE [IF NOT EXISTS] name PROPERTIES(...)
+type CreateResourceStmt struct {
+	Name        string
+	IfNotExists bool
+	External    bool
+	Properties  []*Property
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateResourceStmt) Tag() NodeTag { return T_CreateResourceStmt }
+
+var _ Node = (*CreateResourceStmt)(nil)
+
+// AlterResourceStmt represents:
+//
+//	ALTER RESOURCE name PROPERTIES(...)
+type AlterResourceStmt struct {
+	Name       string
+	Properties []*Property
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterResourceStmt) Tag() NodeTag { return T_AlterResourceStmt }
+
+var _ Node = (*AlterResourceStmt)(nil)
+
+// DropResourceStmt represents:
+//
+//	DROP RESOURCE [IF EXISTS] name
+type DropResourceStmt struct {
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropResourceStmt) Tag() NodeTag { return T_DropResourceStmt }
+
+var _ Node = (*DropResourceStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// SQL BLOCK RULE DDL nodes (T5.4)
+// ---------------------------------------------------------------------------
+
+// CreateSQLBlockRuleStmt represents:
+//
+//	CREATE SQL_BLOCK_RULE [IF NOT EXISTS] name PROPERTIES(...)
+type CreateSQLBlockRuleStmt struct {
+	Name        string
+	IfNotExists bool
+	Properties  []*Property
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateSQLBlockRuleStmt) Tag() NodeTag { return T_CreateSQLBlockRuleStmt }
+
+var _ Node = (*CreateSQLBlockRuleStmt)(nil)
+
+// AlterSQLBlockRuleStmt represents:
+//
+//	ALTER SQL_BLOCK_RULE name PROPERTIES(...)
+type AlterSQLBlockRuleStmt struct {
+	Name       string
+	Properties []*Property
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterSQLBlockRuleStmt) Tag() NodeTag { return T_AlterSQLBlockRuleStmt }
+
+var _ Node = (*AlterSQLBlockRuleStmt)(nil)
+
+// DropSQLBlockRuleStmt represents:
+//
+//	DROP SQL_BLOCK_RULE [IF EXISTS] name
+type DropSQLBlockRuleStmt struct {
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropSQLBlockRuleStmt) Tag() NodeTag { return T_DropSQLBlockRuleStmt }
+
+var _ Node = (*DropSQLBlockRuleStmt)(nil)
