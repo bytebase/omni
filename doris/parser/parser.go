@@ -485,7 +485,6 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if p.cur.Kind == kwDECOMMISSION {
 			return p.parseCancelDecommission(cancelTok.Loc)
 		}
-		return p.unsupported("CANCEL")
 		return p.parseCancelGeneric(cancelTok.Loc)
 	case kwPAUSE:
 		pauseTok := p.advance() // consume PAUSE
