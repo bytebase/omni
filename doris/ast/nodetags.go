@@ -442,6 +442,16 @@ const (
 
 	// T_RevokeStmt is the tag for *RevokeStmt.
 	T_RevokeStmt
+	// TCL — Transaction Control Language nodes (T7.2).
+
+	// T_BeginStmt is the tag for *BeginStmt.
+	T_BeginStmt
+
+	// T_CommitStmt is the tag for *CommitStmt.
+	T_CommitStmt
+
+	// T_RollbackStmt is the tag for *RollbackStmt.
+	T_RollbackStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -707,6 +717,12 @@ func (t NodeTag) String() string {
 		return "GrantStmt"
 	case T_RevokeStmt:
 		return "RevokeStmt"
+	case T_BeginStmt:
+		return "BeginStmt"
+	case T_CommitStmt:
+		return "CommitStmt"
+	case T_RollbackStmt:
+		return "RollbackStmt"
 	default:
 		return "Unknown"
 	}

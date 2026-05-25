@@ -379,11 +379,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// Transaction
 	case kwBEGIN:
-		return p.unsupported("BEGIN")
+		return p.parseBeginStmt()
 	case kwCOMMIT:
-		return p.unsupported("COMMIT")
+		return p.parseCommitStmt()
 	case kwROLLBACK:
-		return p.unsupported("ROLLBACK")
+		return p.parseRollbackStmt()
 
 	// DCL
 	case kwGRANT:
