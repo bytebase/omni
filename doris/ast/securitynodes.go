@@ -307,3 +307,57 @@ type SetPasswordStmt struct {
 func (n *SetPasswordStmt) Tag() NodeTag { return T_SetPasswordStmt }
 
 var _ Node = (*SetPasswordStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// GRANT / REVOKE (T7.1)
+// ---------------------------------------------------------------------------
+
+// GrantStmt represents:
+//
+//	GRANT priv_list ON [object_type] object TO {USER 'user'@'host' | ROLE 'role'} [, ...] [WITH GRANT OPTION]
+//	GRANT ROLE role_list TO 'user'@'host' | role
+//
+// The two forms are distinguished by whether Roles is non-empty (role-grant
+// form) or Privileges is non-empty (privilege-grant form).
+type GrantStmt struct {
+	// Privilege-grant form fields.
+	Privileges  []string    // SELECT_PRIV, INSERT_PRIV, ALL, etc.
+	ObjectType  string      // TABLE (default), DATABASE, RESOURCE, CLUSTER, COMPUTE GROUP, STAGE, STORAGE VAULT, WORKLOAD GROUP
+	Object      *ObjectName // target object (may be *.* or db.*)
+	ToType      string      // USER or ROLE (empty when grantee has no explicit keyword)
+	Grantees    []string    // user@host or role names (raw text)
+	WithGrantOption bool
+
+	// Role-grant form fields (GRANT ROLE role1,role2 TO user/role).
+	Roles []string // non-empty only for GRANT ROLE ... TO ... form
+
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *GrantStmt) Tag() NodeTag { return T_GrantStmt }
+
+var _ Node = (*GrantStmt)(nil)
+
+// RevokeStmt represents:
+//
+//	REVOKE priv_list ON [object_type] object FROM {USER 'user'@'host' | ROLE 'role'} [, ...]
+//	REVOKE ROLE role_list FROM 'user'@'host' | role
+type RevokeStmt struct {
+	// Privilege-revoke form fields.
+	Privileges []string
+	ObjectType string
+	Object     *ObjectName
+	FromType   string   // USER or ROLE (empty when revokee has no explicit keyword)
+	Revokees   []string // user@host or role names (raw text)
+
+	// Role-revoke form fields.
+	Roles []string // non-empty only for REVOKE ROLE ... FROM ... form
+
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *RevokeStmt) Tag() NodeTag { return T_RevokeStmt }
+
+var _ Node = (*RevokeStmt)(nil)

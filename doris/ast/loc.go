@@ -264,6 +264,10 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *SetPasswordStmt:
 		return v.Loc
+	case *GrantStmt:
+		return v.Loc
+	case *RevokeStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}
