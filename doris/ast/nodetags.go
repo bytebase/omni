@@ -207,6 +207,23 @@ const (
 	// T_MergeClause is the tag for *MergeClause (one WHEN clause inside MERGE).
 	T_MergeClause
 
+	// DML — TRUNCATE TABLE / COPY INTO / LOAD / EXPORT nodes (T6.1).
+
+	// T_TruncateTableStmt is the tag for *TruncateTableStmt.
+	T_TruncateTableStmt
+
+	// T_CopyIntoStmt is the tag for *CopyIntoStmt.
+	T_CopyIntoStmt
+
+	// T_LoadDataDesc is the tag for *LoadDataDesc.
+	T_LoadDataDesc
+
+	// T_LoadDataStmt is the tag for *LoadDataStmt.
+	T_LoadDataStmt
+
+	// T_ExportStmt is the tag for *ExportStmt.
+	T_ExportStmt
+
 	// DDL — Materialized View nodes (T5.1).
 
 	// T_MTMVRefreshTrigger is the tag for *MTMVRefreshTrigger.
@@ -513,6 +530,16 @@ func (t NodeTag) String() string {
 		return "MergeStmt"
 	case T_MergeClause:
 		return "MergeClause"
+	case T_TruncateTableStmt:
+		return "TruncateTableStmt"
+	case T_CopyIntoStmt:
+		return "CopyIntoStmt"
+	case T_LoadDataDesc:
+		return "LoadDataDesc"
+	case T_LoadDataStmt:
+		return "LoadDataStmt"
+	case T_ExportStmt:
+		return "ExportStmt"
 	case T_MTMVRefreshTrigger:
 		return "MTMVRefreshTrigger"
 	case T_CreateMTMVStmt:
