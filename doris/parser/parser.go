@@ -497,11 +497,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if p.cur.Kind == kwDECOMMISSION {
 			return p.parseCancelDecommission(cancelTok.Loc)
 		}
-		return p.parseCancelGeneric(cancelTok.Loc)
 		if p.cur.Kind == kwTASK {
 			return p.parseCancelTask(cancelTok.Loc)
 		}
-		return p.unsupported("CANCEL")
+		return p.parseCancelGeneric(cancelTok.Loc)
 	case kwPAUSE:
 		pauseTok := p.advance() // consume PAUSE
 		if p.cur.Kind == kwMATERIALIZED {
@@ -516,6 +515,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 				return p.parsePauseAllRoutineLoad(pauseTok.Loc)
 			}
 			return p.unsupported("PAUSE ALL")
+		}
 		if p.cur.Kind == kwJOB {
 			return p.parsePauseJob(pauseTok.Loc)
 		}
@@ -534,6 +534,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 				return p.parseResumeAllRoutineLoad(resumeTok.Loc)
 			}
 			return p.unsupported("RESUME ALL")
+		}
 		if p.cur.Kind == kwJOB {
 			return p.parseResumeJob(resumeTok.Loc)
 		}

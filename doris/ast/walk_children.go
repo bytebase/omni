@@ -705,6 +705,10 @@ func walkChildren(v Visitor, node Node) {
 	case *ShowStmt:
 		if n.Target != nil {
 			Walk(v, n.Target)
+		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
 
 	// Job DDL nodes (T8.1).
 	case *JobSchedule:
@@ -824,6 +828,7 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.FromTable != nil {
 			Walk(v, n.FromTable)
+		}
 
 	case *PauseJobStmt:
 		if n.Name != nil {

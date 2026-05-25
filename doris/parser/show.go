@@ -45,6 +45,11 @@ func (p *Parser) parseShow() (ast.Node, error) {
 		p.advance()
 	}
 
+	// SHOW JOB (T8.1) — special-case routing
+	if p.cur.Kind == kwJOB {
+		return p.parseShowJob(startLoc)
+	}
+
 	// SHOW [ALL] ROUTINE LOAD (T6.2) — special-case routing
 	if p.cur.Kind == kwROUTINE {
 		// SHOW ALL ROUTINE LOAD case: the ALL was already consumed and stored in stmt.Args.
