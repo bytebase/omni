@@ -524,6 +524,34 @@ const (
 
 	// T_RecoverStmt is the tag for *RecoverStmt.
 	T_RecoverStmt
+	// Job DDL nodes (T8.1).
+
+	// T_JobSchedule is the tag for *JobSchedule.
+	T_JobSchedule
+
+	// T_CreateJobStmt is the tag for *CreateJobStmt.
+	T_CreateJobStmt
+
+	// T_AlterJobStmt is the tag for *AlterJobStmt.
+	T_AlterJobStmt
+
+	// T_DropJobStmt is the tag for *DropJobStmt.
+	T_DropJobStmt
+
+	// T_PauseJobStmt is the tag for *PauseJobStmt.
+	T_PauseJobStmt
+
+	// T_ResumeJobStmt is the tag for *ResumeJobStmt.
+	T_ResumeJobStmt
+
+	// T_CancelTaskStmt is the tag for *CancelTaskStmt.
+	T_CancelTaskStmt
+
+	// T_ShowJobStmt is the tag for *ShowJobStmt.
+	T_ShowJobStmt
+
+	// T_ShowJobTaskStmt is the tag for *ShowJobTaskStmt.
+	T_ShowJobTaskStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -841,6 +869,24 @@ func (t NodeTag) String() string {
 		return "CancelStmt"
 	case T_RecoverStmt:
 		return "RecoverStmt"
+	case T_JobSchedule:
+		return "JobSchedule"
+	case T_CreateJobStmt:
+		return "CreateJobStmt"
+	case T_AlterJobStmt:
+		return "AlterJobStmt"
+	case T_DropJobStmt:
+		return "DropJobStmt"
+	case T_PauseJobStmt:
+		return "PauseJobStmt"
+	case T_ResumeJobStmt:
+		return "ResumeJobStmt"
+	case T_CancelTaskStmt:
+		return "CancelTaskStmt"
+	case T_ShowJobStmt:
+		return "ShowJobStmt"
+	case T_ShowJobTaskStmt:
+		return "ShowJobTaskStmt"
 	default:
 		return "Unknown"
 	}

@@ -248,6 +248,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateUser(createTok.Loc)
 		case kwROUTINE:
 			return p.parseCreateRoutineLoad(createTok.Loc)
+		case kwJOB:
+			return p.parseCreateJob(createTok.Loc)
 		default:
 			return p.unsupported("CREATE")
 		}
@@ -294,6 +296,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterRoutineLoad(alterTok.Loc)
 		case kwSYSTEM:
 			return p.parseSystemAlter(alterTok.Loc)
+		case kwJOB:
+			return p.parseAlterJob(p.prev.Loc)
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -344,6 +348,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropRole(dropTok.Loc)
 		case kwUSER:
 			return p.parseDropUser(dropTok.Loc)
+		case kwJOB:
+			return p.parseDropJob(dropTok.Loc)
 		default:
 			return p.unsupported("DROP")
 		}
@@ -400,6 +406,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// Show / Info
 	case kwSHOW:
 		return p.parseShow()
+		showTok := p.advance() // consume SHOW
+		if p.cur.Kind == kwJOB {
+			return p.parseShowJob(showTok.Loc)
+		}
+		// Return unsupported, but we already consumed SHOW so we need to emit the error at cur.
+		return p.unsupported("SHOW")
 	case kwDESCRIBE:
 		return p.parseDescribe()
 	case kwDESC:
@@ -486,6 +498,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCancelDecommission(cancelTok.Loc)
 		}
 		return p.parseCancelGeneric(cancelTok.Loc)
+		if p.cur.Kind == kwTASK {
+			return p.parseCancelTask(cancelTok.Loc)
+		}
+		return p.unsupported("CANCEL")
 	case kwPAUSE:
 		pauseTok := p.advance() // consume PAUSE
 		if p.cur.Kind == kwMATERIALIZED {
@@ -500,6 +516,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 				return p.parsePauseAllRoutineLoad(pauseTok.Loc)
 			}
 			return p.unsupported("PAUSE ALL")
+		if p.cur.Kind == kwJOB {
+			return p.parsePauseJob(pauseTok.Loc)
 		}
 		return p.unsupported("PAUSE")
 	case kwRESUME:
@@ -516,6 +534,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 				return p.parseResumeAllRoutineLoad(resumeTok.Loc)
 			}
 			return p.unsupported("RESUME ALL")
+		if p.cur.Kind == kwJOB {
+			return p.parseResumeJob(resumeTok.Loc)
 		}
 		return p.unsupported("RESUME")
 
