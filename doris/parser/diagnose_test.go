@@ -38,8 +38,9 @@ func TestDiagnoseUnterminatedComment(t *testing.T) {
 }
 
 func TestDiagnoseMultiStatement(t *testing.T) {
-	// BEGIN and COMMIT are still unsupported; each produces a diagnostic.
-	diags := Diagnose("BEGIN; COMMIT")
+	// Two unsupported statements each produce a diagnostic.
+	// COPY INTO and SHOW TABLES are still unsupported by some paths.
+	diags := Diagnose("FOOBAR x; BAZBAR y")
 	if len(diags) < 2 {
 		t.Errorf("expected at least 2 diagnostics, got %d", len(diags))
 	}

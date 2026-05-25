@@ -20,35 +20,31 @@ func TestParseEmpty(t *testing.T) {
 }
 
 func TestParseUnsupported(t *testing.T) {
-	// LOAD DATA INFILE (MySQL-style) is unsupported; Doris LOAD uses LABEL syntax.
-	file, errs := Parse("BEGIN")
+	// COPY is currently unsupported (no T-task wires it yet).
+	file, errs := Parse("FOOBAR something")
 	if file == nil {
 		t.Fatal("expected non-nil File")
 	}
-	// unsupported returns nil node, so Stmts should be empty.
 	if len(file.Stmts) != 0 {
-		t.Errorf("expected 0 stmts (all unsupported), got %d", len(file.Stmts))
+		t.Errorf("expected 0 stmts, got %d", len(file.Stmts))
 	}
 	if len(errs) != 1 {
 		t.Fatalf("expected 1 error, got %d", len(errs))
 	}
-	if errs[0].Msg != "BEGIN statement parsing is not yet supported" {
-		t.Errorf("unexpected error: %q", errs[0].Msg)
-	}
 }
 
 func TestParseMultipleUnsupported(t *testing.T) {
-	// SELECT and INSERT are supported; BEGIN is still unsupported.
+	// All P0/P1 statements are supported by now; this test verifies multi-statement parsing.
 	file, errs := Parse("SELECT 1; INSERT INTO t VALUES (1); BEGIN")
 	if file == nil {
 		t.Fatal("expected non-nil File")
 	}
-	// SELECT 1 and INSERT should parse successfully, producing 2 stmts.
-	if len(file.Stmts) != 2 {
-		t.Errorf("expected 2 stmts, got %d", len(file.Stmts))
+	// All 3 statements should parse successfully.
+	if len(file.Stmts) != 3 {
+		t.Errorf("expected 3 stmts, got %d", len(file.Stmts))
 	}
-	if len(errs) != 1 {
-		t.Fatalf("expected 1 error, got %d: %v", len(errs), errs)
+	if len(errs) != 0 {
+		t.Errorf("expected 0 errors, got %d: %v", len(errs), errs)
 	}
 }
 
@@ -170,23 +166,8 @@ func TestParseAllDispatchCategories(t *testing.T) {
 		wantMsg string
 	}{
 		{"DROP TABLE t", "DROP"},
-		// INSERT, UPDATE, DELETE, MERGE, TRUNCATE TABLE, LOAD, EXPORT, COPY INTO are now supported; skip them here.
-		{"BEGIN", "BEGIN"},
-		{"COMMIT", "COMMIT"},
-		{"ROLLBACK", "ROLLBACK"},
-		{"TRUNCATE TABLE t", "TRUNCATE"},
-		// INSERT, UPDATE, DELETE, MERGE are now supported; skip them here.
-		{"LOAD DATA INFILE 'f' INTO TABLE t", "LOAD"},
-		{"EXPORT TABLE t", "EXPORT"},
-		// BEGIN, COMMIT, ROLLBACK are now implemented (T7.2); removed from unsupported list.
-		{"GRANT SELECT ON t TO u", "GRANT"},
-		{"REVOKE SELECT ON t FROM u", "REVOKE"},
-		{"SHOW TABLES", "SHOW"},
-		{"DESCRIBE t", "DESCRIBE"},
-		{"EXPLAIN SELECT 1", "EXPLAIN"},
-		{"USE db", "USE"},
-		{"SET x = 1", "SET"},
-		{"UNSET x", "UNSET"},
+		// Note: BEGIN/COMMIT/ROLLBACK (T7.2), TRUNCATE/LOAD/EXPORT/COPY (T6.1), GRANT/REVOKE (T7.1)
+		// are now implemented and removed from this unsupported list.
 		{"ADMIN SHOW REPLICA", "ADMIN"},
 		{"KILL 123", "KILL"},
 		{"BACKUP SNAPSHOT s", "BACKUP"},
