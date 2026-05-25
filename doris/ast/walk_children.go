@@ -683,5 +683,14 @@ func walkChildren(v Visitor, node Node) {
 		if n.For != nil {
 			Walk(v, n.For)
 		}
+	// DCL nodes (T7.1).
+	case *GrantStmt:
+		if n.Object != nil {
+			Walk(v, n.Object)
+		}
+	case *RevokeStmt:
+		if n.Object != nil {
+			Walk(v, n.Object)
+		}
 	}
 }

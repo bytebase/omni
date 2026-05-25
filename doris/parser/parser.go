@@ -387,9 +387,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// DCL
 	case kwGRANT:
-		return p.unsupported("GRANT")
+		startLoc := p.cur.Loc
+		p.advance()
+		return p.parseGrant(startLoc)
 	case kwREVOKE:
-		return p.unsupported("REVOKE")
+		startLoc := p.cur.Loc
+		p.advance()
+		return p.parseRevoke(startLoc)
 
 	// Show / Info
 	case kwSHOW:

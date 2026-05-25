@@ -434,6 +434,14 @@ const (
 
 	// T_SetPasswordStmt is the tag for *SetPasswordStmt.
 	T_SetPasswordStmt
+
+	// DCL nodes (T7.1).
+
+	// T_GrantStmt is the tag for *GrantStmt.
+	T_GrantStmt
+
+	// T_RevokeStmt is the tag for *RevokeStmt.
+	T_RevokeStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -695,6 +703,10 @@ func (t NodeTag) String() string {
 		return "DropUserStmt"
 	case T_SetPasswordStmt:
 		return "SetPasswordStmt"
+	case T_GrantStmt:
+		return "GrantStmt"
+	case T_RevokeStmt:
+		return "RevokeStmt"
 	default:
 		return "Unknown"
 	}
