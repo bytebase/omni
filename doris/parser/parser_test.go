@@ -190,7 +190,9 @@ func TestParseAllDispatchCategories(t *testing.T) {
 		{"BACKUP SNAPSHOT s", "BACKUP"},
 		{"RESTORE SNAPSHOT s", "RESTORE"},
 		{"RECOVER DATABASE db", "RECOVER"},
-		{"REFRESH CATALOG c", "REFRESH"},
+		// REFRESH CATALOG (T5.2) and REFRESH MATERIALIZED VIEW (T5.1) are implemented;
+		// keep a form that's still unsupported (DICTIONARY/DATABASE/TABLE/LDAP).
+		{"REFRESH DATABASE db", "REFRESH"},
 		{"CANCEL LOAD", "CANCEL"},
 		{"ANALYZE TABLE t", "ANALYZE"},
 		{"CLEAN ALL PROFILE", "CLEAN"},

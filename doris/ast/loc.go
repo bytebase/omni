@@ -140,6 +140,14 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *CancelMTMVTaskStmt:
 		return v.Loc
+	case *CreateCatalogStmt:
+		return v.Loc
+	case *AlterCatalogStmt:
+		return v.Loc
+	case *DropCatalogStmt:
+		return v.Loc
+	case *RefreshCatalogStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}
