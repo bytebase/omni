@@ -356,6 +356,14 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *KillAnalyzeStmt:
 		return v.Loc
+	case *ProcedureParam:
+		return v.Loc
+	case *CreateProcedureStmt:
+		return v.Loc
+	case *CallProcedureStmt:
+		return v.Loc
+	case *DropProcedureStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}
