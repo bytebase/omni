@@ -166,7 +166,8 @@ func TestParseAllDispatchCategories(t *testing.T) {
 		wantMsg string
 	}{
 		{"DROP TABLE t", "DROP"},
-		// Note: BEGIN/COMMIT/ROLLBACK (T7.2), TRUNCATE/LOAD/EXPORT/COPY (T6.1), GRANT/REVOKE (T7.1)
+		// Note: BEGIN/COMMIT/ROLLBACK (T7.2), TRUNCATE/LOAD/EXPORT/COPY (T6.1),
+		// GRANT/REVOKE (T7.1), SHOW/DESCRIBE/EXPLAIN/USE/SET/UNSET/HELP (T7.3)
 		// are now implemented and removed from this unsupported list.
 		{"ADMIN SHOW REPLICA", "ADMIN"},
 		{"KILL 123", "KILL"},

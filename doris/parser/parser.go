@@ -397,30 +397,17 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// Show / Info
 	case kwSHOW:
-		showTok := p.advance() // consume SHOW
-		// SHOW [ALL] ROUTINE LOAD ...
-		if p.cur.Kind == kwROUTINE {
-			return p.parseShowRoutineLoad(showTok.Loc)
-		}
-		if p.cur.Kind == kwALL && p.peekNext().Kind == kwROUTINE {
-			return p.parseShowRoutineLoad(showTok.Loc)
-		}
-		// SHOW CREATE ROUTINE LOAD FOR job_name
-		if p.cur.Kind == kwCREATE && p.peekNext().Kind == kwROUTINE {
-			p.advance() // consume CREATE
-			return p.parseShowRoutineLoad(showTok.Loc)
-		}
-		return p.unsupported("SHOW")
+		return p.parseShow()
 	case kwDESCRIBE:
-		return p.unsupported("DESCRIBE")
+		return p.parseDescribe()
 	case kwDESC:
-		return p.unsupported("DESC")
+		return p.parseDescribe()
 	case kwEXPLAIN:
-		return p.unsupported("EXPLAIN")
+		return p.parseExplain()
 	case kwUSE:
-		return p.unsupported("USE")
+		return p.parseUse()
 	case kwHELP:
-		return p.unsupported("HELP")
+		return p.parseHelp()
 
 	// Set / Unset
 	case kwSET:
@@ -433,14 +420,15 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if p.cur.Kind == kwPASSWORD {
 			return p.parseSetPassword(setTok.Loc)
 		}
-		return p.unsupported("SET")
+		// Generic variable assignment / NAMES / CHARSET / TRANSACTION
+		return p.parseGenericSet(setTok.Loc)
 	case kwUNSET:
 		unsetTok := p.advance() // consume UNSET
 		// UNSET DEFAULT STORAGE VAULT
 		if p.cur.Kind == kwDEFAULT && p.peekNext().Kind == kwSTORAGE {
 			return p.parseUnsetDefaultStorageVault(unsetTok.Loc)
 		}
-		return p.unsupported("UNSET")
+		return p.parseGenericUnset(unsetTok.Loc)
 
 	// Admin / System
 	case kwADMIN:
