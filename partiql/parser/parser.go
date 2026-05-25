@@ -232,10 +232,10 @@ func (p *Parser) parseExprTop() (ast.ExprNode, error) {
 // grammar rules varRefExpr (635-636) and functionCall#FunctionCallIdent
 // (615).
 //
-// Because PartiQL's grammar allows any symbolPrimitive as a function
-// name, a bare identifier followed by `(` is always a function call.
-// Foundation stubs this with "function call NAME is deferred to
-// parser-builtins (DAG node 15)".
+// As of node 15a (parser-builtins-generic-call), generic IDENT(args)
+// calls produce an *ast.FuncCall here. Typed keyword builtins (CAST,
+// CASE, COALESCE, SUBSTRING, ...) keep their token-dispatched stubs in
+// exprprimary.go until 15b lands.
 func (p *Parser) parseVarRef() (ast.ExprNode, error) {
 	start := p.cur.Loc.Start
 	atPrefixed := false
