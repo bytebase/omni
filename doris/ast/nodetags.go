@@ -223,6 +223,31 @@ const (
 
 	// T_ExportStmt is the tag for *ExportStmt.
 	T_ExportStmt
+	// Streaming load management nodes (T6.2).
+
+	// T_CreateRoutineLoadStmt is the tag for *CreateRoutineLoadStmt.
+	T_CreateRoutineLoadStmt
+
+	// T_AlterRoutineLoadStmt is the tag for *AlterRoutineLoadStmt.
+	T_AlterRoutineLoadStmt
+
+	// T_PauseRoutineLoadStmt is the tag for *PauseRoutineLoadStmt.
+	T_PauseRoutineLoadStmt
+
+	// T_ResumeRoutineLoadStmt is the tag for *ResumeRoutineLoadStmt.
+	T_ResumeRoutineLoadStmt
+
+	// T_StopRoutineLoadStmt is the tag for *StopRoutineLoadStmt.
+	T_StopRoutineLoadStmt
+
+	// T_ShowRoutineLoadStmt is the tag for *ShowRoutineLoadStmt.
+	T_ShowRoutineLoadStmt
+
+	// T_ShowRoutineLoadTaskStmt is the tag for *ShowRoutineLoadTaskStmt.
+	T_ShowRoutineLoadTaskStmt
+
+	// T_SyncStmt is the tag for *SyncStmt.
+	T_SyncStmt
 
 	// DDL — Materialized View nodes (T5.1).
 
@@ -540,6 +565,22 @@ func (t NodeTag) String() string {
 		return "LoadDataStmt"
 	case T_ExportStmt:
 		return "ExportStmt"
+	case T_CreateRoutineLoadStmt:
+		return "CreateRoutineLoadStmt"
+	case T_AlterRoutineLoadStmt:
+		return "AlterRoutineLoadStmt"
+	case T_PauseRoutineLoadStmt:
+		return "PauseRoutineLoadStmt"
+	case T_ResumeRoutineLoadStmt:
+		return "ResumeRoutineLoadStmt"
+	case T_StopRoutineLoadStmt:
+		return "StopRoutineLoadStmt"
+	case T_ShowRoutineLoadStmt:
+		return "ShowRoutineLoadStmt"
+	case T_ShowRoutineLoadTaskStmt:
+		return "ShowRoutineLoadTaskStmt"
+	case T_SyncStmt:
+		return "SyncStmt"
 	case T_MTMVRefreshTrigger:
 		return "MTMVRefreshTrigger"
 	case T_CreateMTMVStmt:

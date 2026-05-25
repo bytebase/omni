@@ -286,3 +286,140 @@ func (n *ExportStmt) Tag() NodeTag { return T_ExportStmt }
 
 // Compile-time assertion that *ExportStmt satisfies Node.
 var _ Node = (*ExportStmt)(nil)
+// ROUTINE LOAD statements (T6.2)
+// ---------------------------------------------------------------------------
+
+// CreateRoutineLoadStmt represents a CREATE ROUTINE LOAD statement:
+//
+//	CREATE ROUTINE LOAD [db.]job_name ON table_name
+//	    [load_properties]
+//	    [PROPERTIES (...)]
+//	    FROM {KAFKA | S3 | HDFS} (data_source_properties)
+//	    [COMMENT 'text']
+type CreateRoutineLoadStmt struct {
+	Name                 *ObjectName  // job name, optionally qualified with db
+	OnTable              *ObjectName  // ON table name
+	LoadProps            string       // raw load_properties text (best-effort capture)
+	JobProperties        []*Property  // PROPERTIES (...) key=value pairs
+	DataSourceType       string       // "KAFKA", "S3", "HDFS", etc.
+	DataSourceProperties []*Property  // FROM ... (...) key=value pairs
+	Comment              string       // optional COMMENT 'text'
+	Loc                  Loc
+}
+
+// Tag implements Node.
+func (n *CreateRoutineLoadStmt) Tag() NodeTag { return T_CreateRoutineLoadStmt }
+
+// Compile-time assertion that *CreateRoutineLoadStmt satisfies Node.
+var _ Node = (*CreateRoutineLoadStmt)(nil)
+
+// AlterRoutineLoadStmt represents an ALTER ROUTINE LOAD statement:
+//
+//	ALTER ROUTINE LOAD FOR [db.]job_name
+//	    [PROPERTIES (...)]
+//	    [FROM KAFKA (...)]
+type AlterRoutineLoadStmt struct {
+	Name                 *ObjectName
+	Properties           []*Property
+	DataSourceType       string
+	DataSourceProperties []*Property
+	Loc                  Loc
+}
+
+// Tag implements Node.
+func (n *AlterRoutineLoadStmt) Tag() NodeTag { return T_AlterRoutineLoadStmt }
+
+// Compile-time assertion that *AlterRoutineLoadStmt satisfies Node.
+var _ Node = (*AlterRoutineLoadStmt)(nil)
+
+// PauseRoutineLoadStmt represents a PAUSE ROUTINE LOAD statement:
+//
+//	PAUSE ROUTINE LOAD FOR [db.]job_name
+//	PAUSE ALL ROUTINE LOAD [FOR db]
+type PauseRoutineLoadStmt struct {
+	Name *ObjectName // nil when All=true
+	All  bool        // true for PAUSE ALL ROUTINE LOAD
+	For  string      // optional FOR db (used with All=true)
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *PauseRoutineLoadStmt) Tag() NodeTag { return T_PauseRoutineLoadStmt }
+
+// Compile-time assertion that *PauseRoutineLoadStmt satisfies Node.
+var _ Node = (*PauseRoutineLoadStmt)(nil)
+
+// ResumeRoutineLoadStmt represents a RESUME ROUTINE LOAD statement:
+//
+//	RESUME ROUTINE LOAD FOR [db.]job_name
+//	RESUME ALL ROUTINE LOAD [FOR db]
+type ResumeRoutineLoadStmt struct {
+	Name *ObjectName // nil when All=true
+	All  bool        // true for RESUME ALL ROUTINE LOAD
+	For  string      // optional FOR db (used with All=true)
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *ResumeRoutineLoadStmt) Tag() NodeTag { return T_ResumeRoutineLoadStmt }
+
+// Compile-time assertion that *ResumeRoutineLoadStmt satisfies Node.
+var _ Node = (*ResumeRoutineLoadStmt)(nil)
+
+// StopRoutineLoadStmt represents a STOP ROUTINE LOAD statement:
+//
+//	STOP ROUTINE LOAD FOR [db.]job_name
+type StopRoutineLoadStmt struct {
+	Name *ObjectName
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *StopRoutineLoadStmt) Tag() NodeTag { return T_StopRoutineLoadStmt }
+
+// Compile-time assertion that *StopRoutineLoadStmt satisfies Node.
+var _ Node = (*StopRoutineLoadStmt)(nil)
+
+// ShowRoutineLoadStmt represents a SHOW ROUTINE LOAD statement:
+//
+//	SHOW [ALL] ROUTINE LOAD [FOR [db.]name | LIKE 'pattern' | FROM db]
+type ShowRoutineLoadStmt struct {
+	Name *ObjectName // optional FOR [db.]name
+	All  bool        // true for SHOW ALL ROUTINE LOAD
+	Like string      // optional LIKE 'pattern'
+	From string      // optional FROM db
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *ShowRoutineLoadStmt) Tag() NodeTag { return T_ShowRoutineLoadStmt }
+
+// Compile-time assertion that *ShowRoutineLoadStmt satisfies Node.
+var _ Node = (*ShowRoutineLoadStmt)(nil)
+
+// ShowRoutineLoadTaskStmt represents a SHOW ROUTINE LOAD TASK statement:
+//
+//	SHOW ROUTINE LOAD TASK FROM db WHERE ...
+type ShowRoutineLoadTaskStmt struct {
+	Name  *ObjectName // optional job name
+	From  string      // optional FROM db
+	Where Node        // optional WHERE condition
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ShowRoutineLoadTaskStmt) Tag() NodeTag { return T_ShowRoutineLoadTaskStmt }
+
+// Compile-time assertion that *ShowRoutineLoadTaskStmt satisfies Node.
+var _ Node = (*ShowRoutineLoadTaskStmt)(nil)
+
+// SyncStmt represents a SYNC statement.
+type SyncStmt struct {
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *SyncStmt) Tag() NodeTag { return T_SyncStmt }
+
+// Compile-time assertion that *SyncStmt satisfies Node.
+var _ Node = (*SyncStmt)(nil)

@@ -246,6 +246,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateRole(createTok.Loc)
 		case kwUSER:
 			return p.parseCreateUser(createTok.Loc)
+		case kwROUTINE:
+			return p.parseCreateRoutineLoad(createTok.Loc)
 		default:
 			return p.unsupported("CREATE")
 		}
@@ -288,6 +290,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterRole(p.prev.Loc)
 		case kwUSER:
 			return p.parseAlterUser(p.prev.Loc)
+		case kwROUTINE:
+			return p.parseAlterRoutineLoad(alterTok.Loc)
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -389,6 +393,19 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// Show / Info
 	case kwSHOW:
+		showTok := p.advance() // consume SHOW
+		// SHOW [ALL] ROUTINE LOAD ...
+		if p.cur.Kind == kwROUTINE {
+			return p.parseShowRoutineLoad(showTok.Loc)
+		}
+		if p.cur.Kind == kwALL && p.peekNext().Kind == kwROUTINE {
+			return p.parseShowRoutineLoad(showTok.Loc)
+		}
+		// SHOW CREATE ROUTINE LOAD FOR job_name
+		if p.cur.Kind == kwCREATE && p.peekNext().Kind == kwROUTINE {
+			p.advance() // consume CREATE
+			return p.parseShowRoutineLoad(showTok.Loc)
+		}
 		return p.unsupported("SHOW")
 	case kwDESCRIBE:
 		return p.unsupported("DESCRIBE")
@@ -468,19 +485,47 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if p.cur.Kind == kwMATERIALIZED {
 			return p.parsePauseMTMVJob(pauseTok.Loc)
 		}
+		if p.cur.Kind == kwROUTINE {
+			return p.parsePauseRoutineLoad(pauseTok.Loc)
+		}
+		if p.cur.Kind == kwALL {
+			p.advance() // consume ALL
+			if p.cur.Kind == kwROUTINE {
+				return p.parsePauseAllRoutineLoad(pauseTok.Loc)
+			}
+			return p.unsupported("PAUSE ALL")
+		}
 		return p.unsupported("PAUSE")
 	case kwRESUME:
 		resumeTok := p.advance() // consume RESUME
 		if p.cur.Kind == kwMATERIALIZED {
 			return p.parseResumeMTMVJob(resumeTok.Loc)
 		}
+		if p.cur.Kind == kwROUTINE {
+			return p.parseResumeRoutineLoad(resumeTok.Loc)
+		}
+		if p.cur.Kind == kwALL {
+			p.advance() // consume ALL
+			if p.cur.Kind == kwROUTINE {
+				return p.parseResumeAllRoutineLoad(resumeTok.Loc)
+			}
+			return p.unsupported("RESUME ALL")
+		}
 		return p.unsupported("RESUME")
+
+	case kwSTOP:
+		stopTok := p.advance() // consume STOP
+		if p.cur.Kind == kwROUTINE {
+			return p.parseStopRoutineLoad(stopTok.Loc)
+		}
+		return p.unsupported("STOP")
 
 	// Analyze / Sync / Warm
 	case kwANALYZE:
 		return p.unsupported("ANALYZE")
 	case kwSYNC:
-		return p.unsupported("SYNC")
+		syncTok := p.advance() // consume SYNC
+		return p.parseSyncStmt(syncTok.Loc)
 	case kwWARM:
 		return p.unsupported("WARM")
 
