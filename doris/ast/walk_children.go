@@ -354,6 +354,56 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, prop)
 		}
 
+	// Streaming load management nodes (T6.2).
+	case *CreateRoutineLoadStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.OnTable != nil {
+			Walk(v, n.OnTable)
+		}
+		for _, prop := range n.JobProperties {
+			Walk(v, prop)
+		}
+		for _, prop := range n.DataSourceProperties {
+			Walk(v, prop)
+		}
+	case *AlterRoutineLoadStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+		for _, prop := range n.DataSourceProperties {
+			Walk(v, prop)
+		}
+	case *PauseRoutineLoadStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *ResumeRoutineLoadStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *StopRoutineLoadStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *ShowRoutineLoadStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *ShowRoutineLoadTaskStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+	case *SyncStmt:
+		// leaf node, no children
+
 	// DML — MERGE INTO nodes (T4.3).
 	case *MergeStmt:
 		if n.Target != nil {

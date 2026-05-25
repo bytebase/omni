@@ -134,6 +134,22 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *ExportStmt:
 		return v.Loc
+	case *CreateRoutineLoadStmt:
+		return v.Loc
+	case *AlterRoutineLoadStmt:
+		return v.Loc
+	case *PauseRoutineLoadStmt:
+		return v.Loc
+	case *ResumeRoutineLoadStmt:
+		return v.Loc
+	case *StopRoutineLoadStmt:
+		return v.Loc
+	case *ShowRoutineLoadStmt:
+		return v.Loc
+	case *ShowRoutineLoadTaskStmt:
+		return v.Loc
+	case *SyncStmt:
+		return v.Loc
 	case *MTMVRefreshTrigger:
 		return v.Loc
 	case *CreateMTMVStmt:
