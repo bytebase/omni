@@ -700,5 +700,36 @@ func walkChildren(v Visitor, node Node) {
 		// leaf node, no Node children
 	case *RollbackStmt:
 		// leaf node, no Node children
+
+	// Utility statement nodes (T7.3).
+	case *ShowStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+	case *DescribeStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+	case *ExplainStmt:
+		if n.Query != nil {
+			Walk(v, n.Query)
+		}
+	case *UseStmt:
+		// leaf-ish node, names stored as strings
+	case *SetStmt:
+		for _, item := range n.Items {
+			Walk(v, item)
+		}
+	case *SetItem:
+		if n.Value != nil {
+			Walk(v, n.Value)
+		}
+	case *UnsetStmt:
+		// leaf-ish node, names stored as strings
+	case *HelpStmt:
+		// leaf node
 	}
 }

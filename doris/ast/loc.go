@@ -274,6 +274,22 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *RollbackStmt:
 		return v.Loc
+	case *ShowStmt:
+		return v.Loc
+	case *DescribeStmt:
+		return v.Loc
+	case *ExplainStmt:
+		return v.Loc
+	case *UseStmt:
+		return v.Loc
+	case *SetStmt:
+		return v.Loc
+	case *SetItem:
+		return v.Loc
+	case *UnsetStmt:
+		return v.Loc
+	case *HelpStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}
