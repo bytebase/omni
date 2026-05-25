@@ -350,6 +350,21 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropUser(dropTok.Loc)
 		case kwJOB:
 			return p.parseDropJob(dropTok.Loc)
+		case kwSTATS:
+			p.advance() // consume STATS
+			return p.parseDropStats(dropTok.Loc, "")
+		case kwEXPIRED:
+			p.advance() // consume EXPIRED
+			if _, err := p.expect(kwSTATS); err != nil {
+				return nil, err
+			}
+			return p.parseDropStats(dropTok.Loc, "EXPIRED")
+		case kwCACHED:
+			p.advance() // consume CACHED
+			if _, err := p.expect(kwSTATS); err != nil {
+				return nil, err
+			}
+			return p.parseDropStats(dropTok.Loc, "CACHED")
 		default:
 			return p.unsupported("DROP")
 		}
@@ -412,6 +427,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		}
 		// Return unsupported, but we already consumed SHOW so we need to emit the error at cur.
 		return p.unsupported("SHOW")
+		p.advance() // consume SHOW; dispatch inside parseShow
+		return p.parseShow()
 	case kwDESCRIBE:
 		return p.parseDescribe()
 	case kwDESC:
@@ -450,6 +467,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.parseAdminStmt(adminTok.Loc)
 	case kwKILL:
 		killTok := p.advance() // consume KILL
+		if p.cur.Kind == kwANALYZE {
+			return p.parseKillAnalyze(killTok.Loc)
+		}
 		return p.parseKill(killTok.Loc)
 	case kwLOCK:
 		lockTok := p.advance() // consume LOCK
@@ -549,7 +569,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// Analyze / Sync / Warm
 	case kwANALYZE:
-		return p.unsupported("ANALYZE")
+		p.advance() // consume ANALYZE
+		return p.parseAnalyze()
 	case kwSYNC:
 		syncTok := p.advance() // consume SYNC
 		return p.parseSyncStmt(syncTok.Loc)

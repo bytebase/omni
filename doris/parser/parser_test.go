@@ -166,10 +166,9 @@ func TestParseAllDispatchCategories(t *testing.T) {
 		wantMsg string
 	}{
 		{"DROP TABLE t", "DROP"},
-		// Most statement categories are now implemented; only a few REFRESH
-		// targets and ANALYZE (until T8.3 merges) remain in the unsupported list.
+		// Most statement categories are now implemented; only REFRESH (with
+		// unrecognized target kinds) remains as an example of unsupported dispatch.
 		{"REFRESH DATABASE db", "REFRESH"},
-		{"ANALYZE TABLE t", "ANALYZE"},
 	}
 	for _, tt := range tests {
 		_, errs := Parse(tt.input)

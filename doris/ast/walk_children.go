@@ -860,5 +860,49 @@ func walkChildren(v Visitor, node Node) {
 		if n.For != nil {
 			Walk(v, n.For)
 		}
+
+	// Statistics / Analyze / Constraint management nodes (T8.3).
+	case *AddConstraintStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		if n.RefTable != nil {
+			Walk(v, n.RefTable)
+		}
+	case *DropConstraintStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+	case *ShowConstraintsStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+	case *AnalyzeStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *ShowAnalyzeStmt:
+		if n.For != nil {
+			Walk(v, n.For)
+		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+	case *ShowStatsStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+	case *DropStatsStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+	case *KillAnalyzeStmt:
+		// leaf node, no children
 	}
 }

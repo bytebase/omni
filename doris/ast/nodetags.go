@@ -552,6 +552,31 @@ const (
 
 	// T_ShowJobTaskStmt is the tag for *ShowJobTaskStmt.
 	T_ShowJobTaskStmt
+	// Statistics / Analyze / Constraint management nodes (T8.3).
+
+	// T_AddConstraintStmt is the tag for *AddConstraintStmt.
+	T_AddConstraintStmt
+
+	// T_DropConstraintStmt is the tag for *DropConstraintStmt.
+	T_DropConstraintStmt
+
+	// T_ShowConstraintsStmt is the tag for *ShowConstraintsStmt.
+	T_ShowConstraintsStmt
+
+	// T_AnalyzeStmt is the tag for *AnalyzeStmt.
+	T_AnalyzeStmt
+
+	// T_ShowAnalyzeStmt is the tag for *ShowAnalyzeStmt.
+	T_ShowAnalyzeStmt
+
+	// T_ShowStatsStmt is the tag for *ShowStatsStmt.
+	T_ShowStatsStmt
+
+	// T_DropStatsStmt is the tag for *DropStatsStmt.
+	T_DropStatsStmt
+
+	// T_KillAnalyzeStmt is the tag for *KillAnalyzeStmt.
+	T_KillAnalyzeStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -887,6 +912,22 @@ func (t NodeTag) String() string {
 		return "ShowJobStmt"
 	case T_ShowJobTaskStmt:
 		return "ShowJobTaskStmt"
+	case T_AddConstraintStmt:
+		return "AddConstraintStmt"
+	case T_DropConstraintStmt:
+		return "DropConstraintStmt"
+	case T_ShowConstraintsStmt:
+		return "ShowConstraintsStmt"
+	case T_AnalyzeStmt:
+		return "AnalyzeStmt"
+	case T_ShowAnalyzeStmt:
+		return "ShowAnalyzeStmt"
+	case T_ShowStatsStmt:
+		return "ShowStatsStmt"
+	case T_DropStatsStmt:
+		return "DropStatsStmt"
+	case T_KillAnalyzeStmt:
+		return "KillAnalyzeStmt"
 	default:
 		return "Unknown"
 	}

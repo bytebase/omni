@@ -26,6 +26,17 @@ func (p *Parser) parseAlterTable() (ast.Node, error) {
 	}
 	stmt.Name = name
 
+	// ALTER TABLE name ADD CONSTRAINT ... — produce AddConstraintStmt directly.
+	if p.cur.Kind == kwADD && p.peekNext().Kind == kwCONSTRAINT {
+		p.advance() // consume ADD
+		return p.parseAddConstraint(startLoc, name)
+	}
+
+	// ALTER TABLE name DROP CONSTRAINT ... — produce DropConstraintStmt directly.
+	if p.cur.Kind == kwDROP && p.peekNext().Kind == kwCONSTRAINT {
+		return p.parseDropConstraint(startLoc, name)
+	}
+
 	// Parse comma-separated action list.
 	// Most actions start with a keyword (ADD, DROP, MODIFY, RENAME, SET, ...).
 	// Exception: after DROP ROLLUP name, a bare identifier means another rollup

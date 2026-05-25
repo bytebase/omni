@@ -340,6 +340,22 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *ShowJobTaskStmt:
 		return v.Loc
+	case *AddConstraintStmt:
+		return v.Loc
+	case *DropConstraintStmt:
+		return v.Loc
+	case *ShowConstraintsStmt:
+		return v.Loc
+	case *AnalyzeStmt:
+		return v.Loc
+	case *ShowAnalyzeStmt:
+		return v.Loc
+	case *ShowStatsStmt:
+		return v.Loc
+	case *DropStatsStmt:
+		return v.Loc
+	case *KillAnalyzeStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

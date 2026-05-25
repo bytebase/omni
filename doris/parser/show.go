@@ -50,6 +50,39 @@ func (p *Parser) parseShow() (ast.Node, error) {
 		return p.parseShowJob(startLoc)
 	}
 
+	// SHOW ANALYZE / SHOW STATS / SHOW CONSTRAINTS (T8.3) — special-case routing
+	if p.cur.Kind == kwANALYZE {
+		all := stmt.Args == "ALL"
+		return p.parseShowAnalyze(startLoc, all, false)
+	}
+	if p.cur.Kind == kwQUEUED && p.peekNext().Kind == kwANALYZE {
+		p.advance() // consume QUEUED
+		return p.parseShowAnalyze(startLoc, false, true)
+	}
+	if p.cur.Kind == kwCONSTRAINTS {
+		return p.parseShowConstraints(startLoc)
+	}
+	if p.cur.Kind == kwSTATS {
+		return p.parseShowStats(startLoc, "")
+	}
+	// SHOW COLUMN/INDEX/PARTITION/TABLE STATS
+	if p.peekNext().Kind == kwSTATS {
+		switch p.cur.Kind {
+		case kwCOLUMN:
+			p.advance()
+			return p.parseShowStats(startLoc, "COLUMN")
+		case kwINDEX:
+			p.advance()
+			return p.parseShowStats(startLoc, "INDEX")
+		case kwPARTITION:
+			p.advance()
+			return p.parseShowStats(startLoc, "PARTITION")
+		case kwTABLE:
+			p.advance()
+			return p.parseShowStats(startLoc, "TABLE")
+		}
+	}
+
 	// SHOW [ALL] ROUTINE LOAD (T6.2) — special-case routing
 	if p.cur.Kind == kwROUTINE {
 		// SHOW ALL ROUTINE LOAD case: the ALL was already consumed and stored in stmt.Args.
