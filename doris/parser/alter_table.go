@@ -890,7 +890,7 @@ func (p *Parser) parseAlterRaw(action *ast.AlterTableAction) (*ast.AlterTableAct
 done:
 	end := p.prev.Loc.End
 	if end > start {
-		action.RawText = strings.TrimSpace(p.input[start:end])
+		action.RawText = strings.TrimSpace(p.input[start-p.baseOffset : end-p.baseOffset])
 	}
 	action.Loc.End = p.prev.Loc.End
 	return action, nil

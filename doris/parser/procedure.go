@@ -180,7 +180,7 @@ func (p *Parser) collectProcedureBody() (string, ast.Loc, error) {
 	}
 
 	bodyEnd := endTok.Loc.End
-	bodyText := strings.TrimSpace(p.input[bodyStart:bodyEnd])
+	bodyText := strings.TrimSpace(p.input[bodyStart-p.baseOffset : bodyEnd-p.baseOffset])
 	return bodyText, ast.Loc{Start: bodyStart, End: bodyEnd}, nil
 }
 

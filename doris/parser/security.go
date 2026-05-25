@@ -951,7 +951,7 @@ func (p *Parser) consumeParenGroup() (string, ast.Loc, error) {
 			if depth == 0 {
 				endOff = p.cur.Loc.End
 				p.advance()
-				return p.input[startOff:endOff], ast.Loc{Start: startOff, End: endOff}, nil
+				return p.input[startOff-p.baseOffset : endOff-p.baseOffset], ast.Loc{Start: startOff, End: endOff}, nil
 			}
 		}
 		p.advance()

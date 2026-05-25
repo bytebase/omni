@@ -16,13 +16,14 @@ import (
 // time; callers should use Parse or ParseBestEffort instead of constructing
 // Parsers directly.
 type Parser struct {
-	lexer   *Lexer
-	input   string       // the segment text (used for error reporting)
-	cur     Token        // current token
-	prev    Token        // previous token (for error context)
-	nextBuf Token        // buffered lookahead token
-	hasNext bool         // whether nextBuf is valid
-	errors  []ParseError // collected errors for best-effort mode
+	lexer      *Lexer
+	input      string       // the segment text (used for error reporting)
+	baseOffset int          // absolute offset of input within original source (subtract from Loc to index into input)
+	cur        Token        // current token
+	prev       Token        // previous token (for error context)
+	nextBuf    Token        // buffered lookahead token
+	hasNext    bool         // whether nextBuf is valid
+	errors     []ParseError // collected errors for best-effort mode
 }
 
 // advance consumes the current token and moves to the next one.
@@ -446,6 +447,19 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.parseExplain()
 	case kwUSE:
 		return p.parseUse()
+	case kwSWITCH:
+		// SWITCH catalog_name — Doris catalog switch; parse as a USE-like statement.
+		p.advance() // consume SWITCH
+		stmt := &ast.UseStmt{Loc: p.prev.Loc}
+		if isIdentifierToken(p.cur.Kind) {
+			ident, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Catalog = ident
+		}
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
 	case kwHELP:
 		return p.parseHelp()
 
@@ -652,8 +666,9 @@ func ParseBestEffort(input string) *ParseResult {
 // absolute.
 func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
 	p := &Parser{
-		lexer: NewLexerWithOffset(segText, baseOffset),
-		input: segText,
+		lexer:      NewLexerWithOffset(segText, baseOffset),
+		input:      segText,
+		baseOffset: baseOffset,
 	}
 	p.advance() // prime cur with the first token
 

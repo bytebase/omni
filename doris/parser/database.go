@@ -98,11 +98,13 @@ func (p *Parser) parseAlterDatabase() (ast.Node, error) {
 			if len(props) > 0 {
 				endLoc = ast.NodeLoc(props[len(props)-1])
 			}
-		} else if p.cur.Kind == kwQUOTA {
-			// Consume the rest of the SET QUOTA clause as a best-effort skip.
-			// Quota value can be a number + unit (e.g., 10GB) — consume one token
-			// as the value and leave anything else for the next statement boundary.
-			p.advance() // consume QUOTA keyword
+		} else if p.cur.Kind == kwQUOTA || p.cur.Kind == kwDATA || p.cur.Kind == kwREPLICA {
+			// Consume the rest of the SET [DATA|REPLICA] QUOTA clause as a
+			// best-effort skip. Quota value can be a number + unit (e.g., 10GB).
+			p.advance() // consume DATA/REPLICA/QUOTA keyword
+			if p.cur.Kind == kwQUOTA {
+				p.advance() // consume QUOTA after DATA/REPLICA
+			}
 			if p.cur.Kind != tokEOF && p.cur.Kind != int(';') {
 				p.advance() // consume the quota value token
 			}

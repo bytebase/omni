@@ -782,7 +782,8 @@ func (p *Parser) parseIdentityOrFunctionList() ([]string, []string, error) {
 				}
 				funcEnd := p.cur.Loc.End
 				p.advance() // consume closing ')'
-				funcText := p.input[funcStart:funcEnd]
+				// Loc values are absolute (shifted by baseOffset); subtract to index into local p.input.
+				funcText := p.input[funcStart-p.baseOffset : funcEnd-p.baseOffset]
 				funcs = append(funcs, strings.TrimSpace(funcText))
 			} else {
 				// Simple identifier
@@ -1289,7 +1290,7 @@ func (p *Parser) parseRawQuery() (*ast.RawQuery, error) {
 	}
 done:
 	end := p.prev.Loc.End
-	rawText := strings.TrimSpace(p.input[start:end])
+	rawText := strings.TrimSpace(p.input[start-p.baseOffset : end-p.baseOffset])
 
 	return &ast.RawQuery{
 		RawText: rawText,

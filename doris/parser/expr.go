@@ -274,6 +274,24 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 // function calls, parenthesized expressions, CASE, CAST, etc.
 func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 	switch p.cur.Kind {
+	// KEY ident — Doris encryption-key reference (used in AES_ENCRYPT/AES_DECRYPT
+	// function arguments). Represent as a ColumnRef with a "KEY/" prefix so the
+	// AST is round-trippable.
+	case kwKEY:
+		keyLoc := p.advance().Loc
+		if isIdentifierToken(p.cur.Kind) {
+			name, err := p.parseMultipartIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			return &ast.ColumnRef{
+				Name: &ast.ObjectName{Parts: append([]string{"KEY"}, name.Parts...), Loc: ast.Loc{Start: keyLoc.Start, End: name.Loc.End}},
+				Loc:  ast.Loc{Start: keyLoc.Start, End: name.Loc.End},
+			}, nil
+		}
+		// Bare KEY — return as literal
+		return &ast.Literal{Kind: ast.LitKeyword, Value: "KEY", Loc: keyLoc}, nil
+
 	case tokInt:
 		tok := p.advance()
 		return &ast.Literal{
@@ -603,7 +621,7 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int) (*ast.SubqueryExpr, e
 		}
 	}
 
-	rawText := p.input[subStart:subEnd]
+	rawText := p.input[subStart-p.baseOffset : subEnd-p.baseOffset]
 	closeTok := p.advance() // consume ')'
 
 	return &ast.SubqueryExpr{
