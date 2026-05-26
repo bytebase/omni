@@ -84,10 +84,10 @@ func (p *Parser) parsePrimaryBase() (ast.ExprNode, error) {
 		return nil, p.deferredFeature("CAN_LOSSLESS_CAST", "parser-builtins (DAG node 15)")
 
 	// ------------------------------------------------------------------
-	// Stub: CASE expression → parser-builtins
+	// Real: CASE expression (DAG node 15b.3).
 	// ------------------------------------------------------------------
 	case tokCASE:
-		return nil, p.deferredFeature("CASE", "parser-builtins (DAG node 15)")
+		return p.parseCaseExpr()
 
 	// ------------------------------------------------------------------
 	// Stub: keyword-bearing builtin functions → parser-builtins
@@ -331,6 +331,84 @@ func (p *Parser) parseParamRef() (*ast.ParamRef, error) {
 	loc := p.cur.Loc
 	p.advance()
 	return &ast.ParamRef{Loc: loc}, nil
+}
+
+// parseCaseExpr parses a CASE expression — PartiQLParser.g4's caseExpr
+// rule. The current token must be tokCASE. Handles both forms:
+//
+//   - Searched: CASE WHEN cond THEN result [WHEN ...]... [ELSE r] END
+//   - Simple:   CASE operand WHEN val THEN result [WHEN ...]... [ELSE r] END
+//
+// Whether it's searched or simple is decided by lookahead after CASE:
+// if the next token is WHEN, it's searched; otherwise we parse an
+// Operand expression first. At least one WHEN clause is required.
+//
+// Owned by DAG node 15b.3.
+func (p *Parser) parseCaseExpr() (ast.ExprNode, error) {
+	start := p.cur.Loc.Start
+	p.advance() // consume CASE
+
+	var operand ast.ExprNode
+	if p.cur.Type != tokWHEN {
+		// Simple form: parse the operand.
+		op, err := p.parseExprTop()
+		if err != nil {
+			return nil, err
+		}
+		operand = op
+	}
+
+	// Require at least one WHEN clause.
+	if p.cur.Type != tokWHEN {
+		return nil, &ParseError{
+			Message: "CASE expression requires at least one WHEN clause",
+			Loc:     p.cur.Loc,
+		}
+	}
+
+	var whens []*ast.CaseWhen
+	for p.cur.Type == tokWHEN {
+		whenStart := p.cur.Loc.Start
+		p.advance() // consume WHEN
+		whenExpr, err := p.parseExprTop()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(tokTHEN); err != nil {
+			return nil, err
+		}
+		thenExpr, err := p.parseExprTop()
+		if err != nil {
+			return nil, err
+		}
+		whens = append(whens, &ast.CaseWhen{
+			When: whenExpr,
+			Then: thenExpr,
+			Loc:  ast.Loc{Start: whenStart, End: thenExpr.GetLoc().End},
+		})
+	}
+
+	var elseExpr ast.ExprNode
+	if p.cur.Type == tokELSE {
+		p.advance() // consume ELSE
+		e, err := p.parseExprTop()
+		if err != nil {
+			return nil, err
+		}
+		elseExpr = e
+	}
+
+	endOff := p.cur.Loc.End
+	if _, err := p.expect(tokEND); err != nil {
+		return nil, err
+	}
+
+	return &ast.CaseExpr{
+		Operand: operand,
+		Whens:   whens,
+		Else:    elseExpr,
+		Loc:     ast.Loc{Start: start, End: endOff},
+	}, nil
 }
 
 // parseReservedFuncCall parses a reserved-name function call —

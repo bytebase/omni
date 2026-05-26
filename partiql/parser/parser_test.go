@@ -635,11 +635,6 @@ func TestParser_Errors(t *testing.T) {
 			wantErrIn: "CAST is deferred to parser-builtins (DAG node 15)",
 		},
 		{
-			name:      "case_stub",
-			input:     "CASE WHEN a THEN 1 END",
-			wantErrIn: "CASE is deferred to parser-builtins (DAG node 15)",
-		},
-		{
 			name:      "substring_stub",
 			input:     "SUBSTRING(s, 1, 2)",
 			wantErrIn: "SUBSTRING is deferred to parser-builtins (DAG node 15)",
@@ -671,6 +666,21 @@ func TestParser_Errors(t *testing.T) {
 		},
 
 		// --- Real syntax errors ---
+		{
+			name:      "case_no_when",
+			input:     "CASE 1 + 1 END",
+			wantErrIn: "CASE expression requires at least one WHEN clause",
+		},
+		{
+			name:      "case_unclosed",
+			input:     "CASE WHEN x > 0 THEN 1",
+			wantErrIn: "expected END",
+		},
+		{
+			name:      "case_missing_then",
+			input:     "CASE WHEN x > 0",
+			wantErrIn: "expected THEN",
+		},
 		{
 			name:      "unclosed_paren",
 			input:     "(1 + 2",
@@ -900,6 +910,32 @@ func TestParser_FuncCall(t *testing.T) {
 			name:  "reserved_bit_length",
 			input: "BIT_LENGTH(SongTitle)",
 			want:  "FuncCall{Name:BIT_LENGTH Args:[VarRef{Name:SongTitle}]}",
+		},
+		// DAG node 15b.3: CASE expressions (searched and simple forms).
+		{
+			name:  "case_searched_one_when",
+			input: "CASE WHEN x > 0 THEN 1 END",
+			want:  "CaseExpr{Whens:[CaseWhen{When:BinaryExpr{Op:> Left:VarRef{Name:x} Right:NumberLit{Val:0}} Then:NumberLit{Val:1}}]}",
+		},
+		{
+			name:  "case_searched_with_else",
+			input: "CASE WHEN x > 0 THEN 1 ELSE 0 END",
+			want:  "CaseExpr{Whens:[CaseWhen{When:BinaryExpr{Op:> Left:VarRef{Name:x} Right:NumberLit{Val:0}} Then:NumberLit{Val:1}}] Else:NumberLit{Val:0}}",
+		},
+		{
+			name:  "case_searched_multi_when",
+			input: "CASE WHEN x > 0 THEN 1 WHEN x < 0 THEN -1 ELSE 0 END",
+			want:  "CaseExpr{Whens:[CaseWhen{When:BinaryExpr{Op:> Left:VarRef{Name:x} Right:NumberLit{Val:0}} Then:NumberLit{Val:1}} CaseWhen{When:BinaryExpr{Op:< Left:VarRef{Name:x} Right:NumberLit{Val:0}} Then:UnaryExpr{Op:- Operand:NumberLit{Val:1}}}] Else:NumberLit{Val:0}}",
+		},
+		{
+			name:  "case_simple",
+			input: "CASE Artist WHEN 'Acme' THEN 1 ELSE 0 END",
+			want:  `CaseExpr{Operand:VarRef{Name:Artist} Whens:[CaseWhen{When:StringLit{Val:"Acme"} Then:NumberLit{Val:1}}] Else:NumberLit{Val:0}}`,
+		},
+		{
+			name:  "case_simple_multi_when",
+			input: "CASE Artist WHEN 'X' THEN 1 WHEN 'Y' THEN 2 ELSE 0 END",
+			want:  `CaseExpr{Operand:VarRef{Name:Artist} Whens:[CaseWhen{When:StringLit{Val:"X"} Then:NumberLit{Val:1}} CaseWhen{When:StringLit{Val:"Y"} Then:NumberLit{Val:2}}] Else:NumberLit{Val:0}}`,
 		},
 	}
 	for _, tc := range cases {
