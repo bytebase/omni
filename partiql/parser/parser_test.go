@@ -850,6 +850,32 @@ func TestParser_FuncCall(t *testing.T) {
 			input: `begins_with(addr, '7834')`,
 			want:  `FuncCall{Name:begins_with Args:[VarRef{Name:addr} StringLit{Val:"7834"}]}`,
 		},
+		// DAG node 15b.1: reserved-name function calls (SIZE and EXISTS).
+		{
+			name:  "reserved_size",
+			input: "SIZE(Awards)",
+			want:  "FuncCall{Name:SIZE Args:[VarRef{Name:Awards}]}",
+		},
+		{
+			name:  "reserved_size_path_arg",
+			input: "SIZE(Music.Albums)",
+			want:  "FuncCall{Name:SIZE Args:[PathExpr{Root:VarRef{Name:Music} Steps:[DotStep{Field:Albums}]}]}",
+		},
+		{
+			name:  "reserved_size_lowercase",
+			input: "size(Awards)",
+			want:  "FuncCall{Name:SIZE Args:[VarRef{Name:Awards}]}",
+		},
+		{
+			name:  "reserved_exists_subquery",
+			input: "EXISTS(SELECT * FROM Music)",
+			want:  "FuncCall{Name:EXISTS Args:[SubLink{Stmt:SelectStmt{Star:true From:VarRef{Name:Music}}}]}",
+		},
+		{
+			name:  "reserved_exists_via_path",
+			input: "EXISTS(SELECT Awards FROM Music WHERE Artist = 'X')",
+			want:  `FuncCall{Name:EXISTS Args:[SubLink{Stmt:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:Awards}}] From:VarRef{Name:Music} Where:BinaryExpr{Op:= Left:VarRef{Name:Artist} Right:StringLit{Val:"X"}}}}]}`,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

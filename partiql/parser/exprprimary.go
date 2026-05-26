@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/bytebase/omni/partiql/ast"
 )
@@ -121,10 +122,8 @@ func (p *Parser) parsePrimaryBase() (ast.ExprNode, error) {
 		return nil, p.deferredFeature("UPPER", "parser-builtins (DAG node 15)")
 	case tokLOWER:
 		return nil, p.deferredFeature("LOWER", "parser-builtins (DAG node 15)")
-	case tokSIZE:
-		return nil, p.deferredFeature("SIZE", "parser-builtins (DAG node 15)")
-	case tokEXISTS:
-		return nil, p.deferredFeature("EXISTS", "parser-builtins (DAG node 15)")
+	case tokSIZE, tokEXISTS:
+		return p.parseReservedFuncCall()
 
 	// ------------------------------------------------------------------
 	// Stub: sequenceConstructor (LIST/SEXP) → parser-builtins
@@ -339,4 +338,27 @@ func (p *Parser) parseParamRef() (*ast.ParamRef, error) {
 	loc := p.cur.Loc
 	p.advance()
 	return &ast.ParamRef{Loc: loc}, nil
+}
+
+// parseReservedFuncCall parses a reserved-name function call —
+// PartiQLParser.g4:611-614 FunctionCallReserved. The current token must
+// be the reserved keyword (e.g. tokSIZE, tokEXISTS). It uppercases the
+// keyword name, advances past it, and delegates to parseFuncCallArgs.
+//
+// Owned by DAG node 15b (parser-builtins-typed); 15b.1 covers SIZE and
+// EXISTS, with the rest of the FunctionCallReserved keywords landing
+// in subsequent 15b sub-PRs.
+func (p *Parser) parseReservedFuncCall() (ast.ExprNode, error) {
+	start := p.cur.Loc.Start
+	name := strings.ToUpper(p.cur.Str)
+	p.advance() // consume the reserved keyword
+	args, endOff, err := p.parseFuncCallArgs()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.FuncCall{
+		Name: name,
+		Args: args,
+		Loc:  ast.Loc{Start: start, End: endOff},
+	}, nil
 }
