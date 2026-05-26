@@ -650,11 +650,6 @@ func TestParser_Errors(t *testing.T) {
 			wantErrIn: "COALESCE is deferred to parser-builtins (DAG node 15)",
 		},
 		{
-			name:      "char_length_stub",
-			input:     "CHAR_LENGTH('abc')",
-			wantErrIn: "CHAR_LENGTH is deferred to parser-builtins (DAG node 15)",
-		},
-		{
 			name:      "list_constructor_stub",
 			input:     "LIST(1, 2, 3)",
 			wantErrIn: "LIST() constructor is deferred to parser-builtins (DAG node 15)",
@@ -875,6 +870,36 @@ func TestParser_FuncCall(t *testing.T) {
 			name:  "reserved_exists_via_path",
 			input: "EXISTS(SELECT Awards FROM Music WHERE Artist = 'X')",
 			want:  `FuncCall{Name:EXISTS Args:[SubLink{Stmt:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:Awards}}] From:VarRef{Name:Music} Where:BinaryExpr{Op:= Left:VarRef{Name:Artist} Right:StringLit{Val:"X"}}}}]}`,
+		},
+		{
+			name:  "reserved_upper",
+			input: "UPPER(Artist)",
+			want:  "FuncCall{Name:UPPER Args:[VarRef{Name:Artist}]}",
+		},
+		{
+			name:  "reserved_lower_lowercase_keyword",
+			input: "lower(Artist)",
+			want:  "FuncCall{Name:LOWER Args:[VarRef{Name:Artist}]}",
+		},
+		{
+			name:  "reserved_char_length",
+			input: "CHAR_LENGTH(SongTitle)",
+			want:  "FuncCall{Name:CHAR_LENGTH Args:[VarRef{Name:SongTitle}]}",
+		},
+		{
+			name:  "reserved_character_length",
+			input: "CHARACTER_LENGTH(SongTitle)",
+			want:  "FuncCall{Name:CHARACTER_LENGTH Args:[VarRef{Name:SongTitle}]}",
+		},
+		{
+			name:  "reserved_octet_length",
+			input: "OCTET_LENGTH(SongTitle)",
+			want:  "FuncCall{Name:OCTET_LENGTH Args:[VarRef{Name:SongTitle}]}",
+		},
+		{
+			name:  "reserved_bit_length",
+			input: "BIT_LENGTH(SongTitle)",
+			want:  "FuncCall{Name:BIT_LENGTH Args:[VarRef{Name:SongTitle}]}",
 		},
 	}
 	for _, tc := range cases {

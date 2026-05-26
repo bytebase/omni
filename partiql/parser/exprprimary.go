@@ -108,21 +108,14 @@ func (p *Parser) parsePrimaryBase() (ast.ExprNode, error) {
 		return nil, p.deferredFeature("DATE_DIFF", "parser-builtins (DAG node 15)")
 
 	// ------------------------------------------------------------------
-	// Stub: reserved-name scalar functions → parser-builtins
+	// Reserved-name scalar functions — FunctionCallReserved
+	// (PartiQLParser.g4:611-614). Argument syntax is identical to the
+	// generic IDENT(args) form; parseReservedFuncCall delegates to
+	// parseFuncCallArgs for the comma-list. COUNT is excluded here
+	// because it belongs to DAG node 14 (parser-aggregates).
 	// ------------------------------------------------------------------
-	case tokCHAR_LENGTH:
-		return nil, p.deferredFeature("CHAR_LENGTH", "parser-builtins (DAG node 15)")
-	case tokCHARACTER_LENGTH:
-		return nil, p.deferredFeature("CHARACTER_LENGTH", "parser-builtins (DAG node 15)")
-	case tokOCTET_LENGTH:
-		return nil, p.deferredFeature("OCTET_LENGTH", "parser-builtins (DAG node 15)")
-	case tokBIT_LENGTH:
-		return nil, p.deferredFeature("BIT_LENGTH", "parser-builtins (DAG node 15)")
-	case tokUPPER:
-		return nil, p.deferredFeature("UPPER", "parser-builtins (DAG node 15)")
-	case tokLOWER:
-		return nil, p.deferredFeature("LOWER", "parser-builtins (DAG node 15)")
-	case tokSIZE, tokEXISTS:
+	case tokCHAR_LENGTH, tokCHARACTER_LENGTH, tokOCTET_LENGTH, tokBIT_LENGTH,
+		tokUPPER, tokLOWER, tokSIZE, tokEXISTS:
 		return p.parseReservedFuncCall()
 
 	// ------------------------------------------------------------------
