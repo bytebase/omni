@@ -295,6 +295,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *SubqueryRef:
 		return v.Loc
+	case *SubqueryRestrictionClause:
+		return v.Loc
 	case *LateralRef:
 		return v.Loc
 	case *JoinClause:

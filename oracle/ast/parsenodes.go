@@ -749,13 +749,26 @@ func (n *TableRef) tableExpr() {}
 
 // SubqueryRef represents a subquery in a FROM clause.
 type SubqueryRef struct {
-	Subquery StmtNode // the subquery
-	Alias    *Alias   // alias
-	Loc      Loc
+	Subquery    StmtNode                   // the subquery
+	Restriction *SubqueryRestrictionClause // WITH READ ONLY / WITH CHECK OPTION
+	Alias       *Alias                     // alias
+	Loc         Loc
 }
 
 func (n *SubqueryRef) nodeTag()   {}
 func (n *SubqueryRef) tableExpr() {}
+
+// SubqueryRestrictionClause represents a DML inline-view subquery restriction.
+//
+//	WITH { READ ONLY | CHECK OPTION [ CONSTRAINT constraint_name ] }
+type SubqueryRestrictionClause struct {
+	ReadOnly       bool        // WITH READ ONLY
+	CheckOption    bool        // WITH CHECK OPTION
+	ConstraintName *ObjectName // optional CONSTRAINT name
+	Loc            Loc
+}
+
+func (n *SubqueryRestrictionClause) nodeTag() {}
 
 // LateralRef represents a LATERAL inline view in FROM.
 //
@@ -1339,6 +1352,7 @@ func (n *ErrorLogClause) nodeTag() {}
 // UpdateStmt represents an UPDATE statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/UPDATE.html
 type UpdateStmt struct {
+	Target       TableExpr           // table, inline view, or table collection target
 	Table        *ObjectName         // table to update
 	PartitionExt *PartitionExtClause // PARTITION/SUBPARTITION extension
 	Dblink       string              // @dblink name
@@ -1372,6 +1386,7 @@ func (n *SetClause) nodeTag() {}
 // DeleteStmt represents a DELETE statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/DELETE.html
 type DeleteStmt struct {
+	Target       TableExpr           // table, inline view, or table collection target
 	Table        *ObjectName         // table to delete from
 	PartitionExt *PartitionExtClause // PARTITION/SUBPARTITION extension
 	Dblink       string              // @dblink name

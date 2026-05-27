@@ -4,6 +4,13 @@ import (
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
+type dmlTargetMode int
+
+const (
+	dmlTargetUpdate dmlTargetMode = iota
+	dmlTargetDelete
+)
+
 // parseUpdateStmt parses an UPDATE statement.
 //
 // BNF: oracle/parser/bnf/UPDATE.bnf
@@ -93,61 +100,14 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 	}
 	var parseErr1127 error
 
-	// Table name or inline view target.
-	if p.cur.Type == '(' {
-		if parseErr1127 = p.parseDMLSubqueryTarget(); parseErr1127 != nil {
-			return nil, parseErr1127
-		}
-	} else {
-		stmt.Table, parseErr1127 = p.parseObjectName()
-		if parseErr1127 !=
-
-			// Optional alias (before partition clause, matching BNF order for UPDATE)
-			nil {
-			return nil, parseErr1127
-		}
+	stmt.Target, parseErr1127 = p.parseDMLTarget(dmlTargetUpdate)
+	if parseErr1127 != nil {
+		return nil, parseErr1127
 	}
-
-	if p.cur.Type == kwAS {
-		p.advance()
-		var parseErr1128 error
-		stmt.Alias, parseErr1128 = p.parseAlias()
-		if parseErr1128 != nil {
-			return nil, parseErr1128
-		}
-	} else if p.isTableAliasCandidate() {
-		var parseErr1129 error
-		stmt.Alias, parseErr1129 = p.parseAlias()
-		if parseErr1129 !=
-
-			// Partition extension clause
-			nil {
-			return nil, parseErr1129
-		}
+	if stmt.Target == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
-
-	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
-		var parseErr1130 error
-		stmt.PartitionExt, parseErr1130 = p.parsePartitionExtClause()
-		if parseErr1130 !=
-
-			// @dblink
-			nil {
-			return nil, parseErr1130
-		}
-	}
-
-	if p.cur.Type == '@' {
-		p.advance()
-		var parseErr1131 error
-		stmt.Dblink, parseErr1131 = p.parseIdentifier()
-		if parseErr1131 !=
-
-			// SET
-			nil {
-			return nil, parseErr1131
-		}
-	}
+	syncUpdateLegacyTarget(stmt)
 
 	if p.cur.Type != kwSET {
 		return nil, p.syntaxErrorAtCur()
@@ -353,44 +313,198 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 	return sc, nil
 }
 
-func (p *Parser) parseDMLSubqueryTarget() error {
+func (p *Parser) parseDMLTarget(mode dmlTargetMode) (nodes.TableExpr, error) {
+	start := p.pos()
+	if p.cur.Type == '(' {
+		return p.parseDMLSubqueryTarget(start)
+	}
+	if p.cur.Type == kwTABLE && p.peekNext().Type == '(' {
+		return p.parseTableCollectionExpr(start)
+	}
+	if !p.isIdentLike() {
+		return nil, nil
+	}
+	target := &nodes.TableRef{Loc: nodes.Loc{Start: start}}
+	var parseErr1151 error
+	target.Name, parseErr1151 = p.parseObjectName()
+	if parseErr1151 != nil {
+		return nil, parseErr1151
+	}
+	if target.Name == nil || target.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if mode == dmlTargetUpdate {
+		if parseErr1151 = p.parseDMLTargetAlias(target); parseErr1151 != nil {
+			return nil, parseErr1151
+		}
+	}
+	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
+		target.PartitionExt, parseErr1151 = p.parsePartitionExtClause()
+		if parseErr1151 != nil {
+			return nil, parseErr1151
+		}
+	}
+	if p.cur.Type == '@' {
+		p.advance()
+		target.Dblink, parseErr1151 = p.parseIdentifier()
+		if parseErr1151 != nil {
+			return nil, parseErr1151
+		}
+		if target.Dblink == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	if mode == dmlTargetDelete {
+		if parseErr1151 = p.parseDMLTargetAlias(target); parseErr1151 != nil {
+			return nil, parseErr1151
+		}
+	}
+	target.Loc.End = p.prev.End
+	return target, nil
+}
+
+func (p *Parser) parseDMLTargetAlias(target *nodes.TableRef) error {
+	if p.cur.Type == kwAS {
+		p.advance()
+		alias, err := p.parseAlias()
+		if err != nil {
+			return err
+		}
+		if alias == nil {
+			return p.syntaxErrorAtCur()
+		}
+		target.Alias = alias
+		return nil
+	}
+	if p.isTableAliasCandidate() {
+		alias, err := p.parseAlias()
+		if err != nil {
+			return err
+		}
+		if alias == nil {
+			return p.syntaxErrorAtCur()
+		}
+		target.Alias = alias
+	}
+	return nil
+}
+
+func (p *Parser) parseDMLSubqueryTarget(start int) (*nodes.SubqueryRef, error) {
 	p.advance() // consume '('
 	if p.cur.Type != kwSELECT && p.cur.Type != kwWITH {
-		return p.syntaxErrorAtCur()
+		return nil, p.syntaxErrorAtCur()
 	}
-	parsedSubquery, parseErr1151 := p.parseSelectStmt()
-	if parseErr1151 != nil {
-		return parseErr1151
+	parsedSubquery, parseErr1152 := p.parseSelectStmt()
+	if parseErr1152 != nil {
+		return nil, parseErr1152
 	}
 	if parsedSubquery == nil {
-		return p.syntaxErrorAtCur()
+		return nil, p.syntaxErrorAtCur()
+	}
+	ref := &nodes.SubqueryRef{
+		Subquery: parsedSubquery,
+		Loc:      nodes.Loc{Start: start},
+	}
+	var parseErr1153 error
+	ref.Restriction, parseErr1153 = p.parseDMLSubqueryRestriction()
+	if parseErr1153 != nil {
+		return nil, parseErr1153
 	}
 	if p.cur.Type != ')' {
-		return p.syntaxErrorAtCur()
+		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
 	if p.cur.Type == kwAS {
 		p.advance()
-		parsedAlias, parseErr1152 := p.parseAlias()
-		if parseErr1152 != nil {
-			return parseErr1152
+		parsedAlias, parseErr1154 := p.parseAlias()
+		if parseErr1154 != nil {
+			return nil, parseErr1154
 		}
 		if parsedAlias == nil {
-			return p.syntaxErrorAtCur()
+			return nil, p.syntaxErrorAtCur()
 		}
-		return nil
+		ref.Alias = parsedAlias
+		ref.Loc.End = p.prev.End
+		return ref, nil
 	}
 	if p.isTableAliasCandidate() {
-		parsedAlias, parseErr1153 := p.parseAlias()
-		if parseErr1153 != nil {
-			return parseErr1153
+		parsedAlias, parseErr1155 := p.parseAlias()
+		if parseErr1155 != nil {
+			return nil, parseErr1155
 		}
 		if parsedAlias == nil {
-			return p.syntaxErrorAtCur()
+			return nil, p.syntaxErrorAtCur()
 		}
-		return nil
+		ref.Alias = parsedAlias
 	}
-	return nil
+	ref.Loc.End = p.prev.End
+	return ref, nil
+}
+
+func (p *Parser) parseDMLSubqueryRestriction() (*nodes.SubqueryRestrictionClause, error) {
+	if p.cur.Type != kwWITH {
+		return nil, nil
+	}
+	next := p.peekNext()
+	if next.Type != kwREAD && next.Type != kwCHECK {
+		return nil, nil
+	}
+	start := p.pos()
+	p.advance() // consume WITH
+	restriction := &nodes.SubqueryRestrictionClause{Loc: nodes.Loc{Start: start}}
+	switch p.cur.Type {
+	case kwREAD:
+		p.advance()
+		if p.cur.Type != kwONLY {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		restriction.ReadOnly = true
+	case kwCHECK:
+		p.advance()
+		if p.cur.Type != kwOPTION {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		restriction.CheckOption = true
+		if p.cur.Type == kwCONSTRAINT {
+			p.advance()
+			constraintName, err := p.parseObjectName()
+			if err != nil {
+				return nil, err
+			}
+			if constraintName == nil || constraintName.Name == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			restriction.ConstraintName = constraintName
+		}
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	restriction.Loc.End = p.prev.End
+	return restriction, nil
+}
+
+func syncUpdateLegacyTarget(stmt *nodes.UpdateStmt) {
+	target, ok := stmt.Target.(*nodes.TableRef)
+	if !ok || target == nil {
+		return
+	}
+	stmt.Table = target.Name
+	stmt.PartitionExt = target.PartitionExt
+	stmt.Dblink = target.Dblink
+	stmt.Alias = target.Alias
+}
+
+func syncDeleteLegacyTarget(stmt *nodes.DeleteStmt) {
+	target, ok := stmt.Target.(*nodes.TableRef)
+	if !ok || target == nil {
+		return
+	}
+	stmt.Table = target.Name
+	stmt.PartitionExt = target.PartitionExt
+	stmt.Dblink = target.Dblink
+	stmt.Alias = target.Alias
 }
 
 func countSubquerySetArity(sc *nodes.SetClause) (targetCount int, valueCount int, ok bool) {
@@ -480,61 +594,14 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 	}
 	var parseErr1143 error
 
-	// Table name or inline view target.
-	if p.cur.Type == '(' {
-		if parseErr1143 = p.parseDMLSubqueryTarget(); parseErr1143 != nil {
-			return nil, parseErr1143
-		}
-	} else {
-		stmt.Table, parseErr1143 = p.parseObjectName()
-		if parseErr1143 !=
-
-			// Partition extension clause
-			nil {
-			return nil, parseErr1143
-		}
+	stmt.Target, parseErr1143 = p.parseDMLTarget(dmlTargetDelete)
+	if parseErr1143 != nil {
+		return nil, parseErr1143
 	}
-
-	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
-		var parseErr1144 error
-		stmt.PartitionExt, parseErr1144 = p.parsePartitionExtClause()
-		if parseErr1144 !=
-
-			// @dblink
-			nil {
-			return nil, parseErr1144
-		}
+	if stmt.Target == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
-
-	if p.cur.Type == '@' {
-		p.advance()
-		var parseErr1145 error
-		stmt.Dblink, parseErr1145 = p.parseIdentifier()
-		if parseErr1145 !=
-
-			// Optional alias
-			nil {
-			return nil, parseErr1145
-		}
-	}
-
-	if p.cur.Type == kwAS {
-		p.advance()
-		var parseErr1146 error
-		stmt.Alias, parseErr1146 = p.parseAlias()
-		if parseErr1146 != nil {
-			return nil, parseErr1146
-		}
-	} else if p.isTableAliasCandidate() {
-		var parseErr1147 error
-		stmt.Alias, parseErr1147 = p.parseAlias()
-		if parseErr1147 !=
-
-			// WHERE
-			nil {
-			return nil, parseErr1147
-		}
-	}
+	syncDeleteLegacyTarget(stmt)
 
 	if p.cur.Type == kwWHERE {
 		p.advance()

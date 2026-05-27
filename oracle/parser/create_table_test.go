@@ -62,6 +62,35 @@ func TestP2CreateTableMalformedComplexOption(t *testing.T) {
 	ParseShouldFail(t, "CREATE TABLE docs (id NUMBER, doc CLOB) LOB STORE AS lob_seg")
 }
 
+func TestCreateTableJsonColumnType(t *testing.T) {
+	stmt := parseCreateTableForP2(t, "CREATE TABLE docs (id NUMBER, payload JSON)")
+	if stmt.Columns == nil || stmt.Columns.Len() != 2 {
+		t.Fatalf("expected 2 columns, got %#v", stmt.Columns)
+	}
+	col := stmt.Columns.Items[1].(*ast.ColumnDef)
+	if col.TypeName == nil || col.TypeName.Names.Len() != 1 {
+		t.Fatalf("expected JSON type name, got %#v", col.TypeName)
+	}
+	if got := col.TypeName.Names.Items[0].(*ast.String).Str; got != "JSON" {
+		t.Fatalf("expected JSON type name, got %q", got)
+	}
+}
+
+func TestCreateTableJsonKeywordStillAllowedAsIdentifier(t *testing.T) {
+	parseCreateTableForP2(t, "CREATE TABLE JSON (a NUMBER)")
+	stmt := parseCreateTableForP2(t, "CREATE TABLE t (JSON NUMBER)")
+	if stmt.Columns == nil || stmt.Columns.Len() != 1 {
+		t.Fatalf("expected 1 column, got %#v", stmt.Columns)
+	}
+	col := stmt.Columns.Items[0].(*ast.ColumnDef)
+	if col.Name != "JSON" {
+		t.Fatalf("expected column name JSON, got %q", col.Name)
+	}
+	if col.TypeName == nil || col.TypeName.Names.Items[0].(*ast.String).Str != "NUMBER" {
+		t.Fatalf("expected NUMBER type, got %#v", col.TypeName)
+	}
+}
+
 func TestCreateTableIntervalPartitioning(t *testing.T) {
 	ParseAndCheck(t, `CREATE TABLE t_interval_full (d DATE)
 PARTITION BY RANGE (d)
